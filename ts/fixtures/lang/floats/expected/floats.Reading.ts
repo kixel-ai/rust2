@@ -9,7 +9,7 @@ export function fmt$fmt_Debug(self: Reading, f: rt.Formatter): rt.Result<undefin
 	const _7: string = "peak";
 	const _8: rt.Fmt = (f: rt.Formatter) => rt.fmtOption(self.peak, f, rt.f64Debug);
 	const _10: string = "history";
-	const _11: rt.Fmt = (f: rt.Formatter) => rt.fmtList(self.history, f, rt.f64Debug);
+	const _11: rt.Fmt = (f: rt.Formatter) => rt.fmtList(self.history.items, f, rt.f64Debug);
 	return rt.debugStructFinish(rt.debugStructField(rt.debugStructField(rt.debugStructField(rt.fmtDebugStruct(f, _3), _4, _5), _7, _8), _10, _11));
 }
 
@@ -17,7 +17,7 @@ export function fmt$fmt_Debug(self: Reading, f: rt.Formatter): rt.Result<undefin
 export interface Reading {
 	level: rt.f64;
 	peak: rt.f64 | undefined;
-	history: rt.f64[];
+	history: rt.Vec<rt.f64>;
 }
 
 //# sourceMappingURL=floats.Reading.ts.map

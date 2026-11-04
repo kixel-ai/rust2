@@ -7,12 +7,12 @@ import { sorts, disorders, btrees } from "./sorts.ts";
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["sorts::sorts", (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec): undefined => {
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["sorts::sorts", (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec): undefined => {
 		sorts(a0, a1.data, a1.start, a1.length, a2);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::disorders", disorders as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["sorts::btrees", (a02: rt.u8, a12: rt.ByteSlice, a22: rt.ByteVec): undefined => {
 		btrees(a02, a12.data, a12.start, a12.length, a22);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

@@ -20,8 +20,8 @@ export class Shared<T> {
 	}
 }
 
-export function new$shares_Logged(items: Logged.Logged[]): Shared<Logged.Logged> {
-	return new Shared(new rt.Arc(items));
+export function new$shares_Logged(items: rt.Vec<Logged.Logged>): Shared<Logged.Logged> {
+	return new Shared(new rt.Arc(items.items));
 }
 
 export function new$u8(items: rt.ByteVec): Shared<rt.u8> {
@@ -29,7 +29,7 @@ export function new$u8(items: rt.ByteVec): Shared<rt.u8> {
 }
 
 export function collected$u16_iter_Map_slice_Iter_u8_shares_generics_closure0(items: rt.Iter<rt.u16>): Shared<rt.u16> {
-	return new Shared(new rt.Arc(rt.iterToArray(items, undefined, 2, true)));
+	return new Shared(new rt.Arc(rt.iterToVec(items, undefined, 2, true).items));
 }
 
 export function first$shares_Logged(self: Shared<Logged.Logged>): Logged.Logged | undefined {

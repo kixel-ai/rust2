@@ -9,9 +9,9 @@ import * as rt from "./rt.ts";
  */
 export class Logged {
 	_0: rt.u16;
-	_1: rt.RefCell<rt.u16[]>;
+	_1: rt.RefCell<rt.Vec<rt.u16>>;
 
-	constructor(_0: rt.u16, _1: rt.RefCell<rt.u16[]>) {
+	constructor(_0: rt.u16, _1: rt.RefCell<rt.Vec<rt.u16>>) {
 		this._0 = _0;
 		this._1 = _1;
 	}
@@ -22,8 +22,8 @@ export class Logged {
 }
 
 export function drop$ops_Drop(self: Logged): void {
-	const _5: rt.RefCell<rt.u16[]> = rt.refCellBorrowMut(self._1);
-	_5.value.push(self._0);
+	const _5: rt.RefCell<rt.Vec<rt.u16>> = rt.refCellBorrowMut(self._1);
+	_5.value.items.push(self._0);
 	rt.refMutRelease(_5);
 }
 
@@ -32,15 +32,15 @@ export function eq$cmp_PartialEq(self: Logged, other: Logged): boolean {
 }
 
 export function le$cmp_PartialOrd(self: Logged, other: Logged): boolean {
-	const _6: rt.RefCell<rt.u16[]> = rt.refCellBorrowMut(self._1);
-	_6.value.push(16384 | self._0);
+	const _6: rt.RefCell<rt.Vec<rt.u16>> = rt.refCellBorrowMut(self._1);
+	_6.value.items.push(16384 | self._0);
 	rt.refMutRelease(_6);
 	return rt.u16Div(self._0 & 255, 2) <= rt.u16Div(other._0 & 255, 2);
 }
 
 export function lt$cmp_PartialOrd(self: Logged, other: Logged): boolean {
-	const _6: rt.RefCell<rt.u16[]> = rt.refCellBorrowMut(self._1);
-	_6.value.push(8192 | self._0);
+	const _6: rt.RefCell<rt.Vec<rt.u16>> = rt.refCellBorrowMut(self._1);
+	_6.value.items.push(8192 | self._0);
 	rt.refMutRelease(_6);
 	return rt.u16Div(self._0 & 255, 2) < rt.u16Div(other._0 & 255, 2);
 }

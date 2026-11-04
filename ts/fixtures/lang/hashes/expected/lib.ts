@@ -29,8 +29,8 @@ export function drop$tuple2_u8_hashes_Noisy(_1: [rt.u8, Noisy.Noisy]): void {
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["hashes::values", values as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["hashes::random", (_27: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["hashes::values", values as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["hashes::random", (_27: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
 		random(data, out);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["hashes::bytes", (_28: rt.u8, data2: rt.ByteSlice, out2: rt.ByteVec): undefined => {
 		bytes(data2, out2);
@@ -44,7 +44,7 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		equal(data6, out6);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["hashes::defaults", (_213: rt.u8, data7: rt.ByteSlice, out7: rt.ByteVec): undefined => {
 		defaults(data7, out7);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

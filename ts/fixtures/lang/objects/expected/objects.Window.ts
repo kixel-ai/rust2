@@ -3,23 +3,21 @@
 import * as rt from "./rt.ts";
 
 export function default$Default(): Window {
-	const _1: rt.u8 = 0;
-	const _2: rt.Arc<rt.u8>[] = [];
-	return new Window(_1, _2);
+	return new Window(0, new rt.Vec());
 }
 
 /** The crate's own struct, taken apart and put back, as moq-net's `apply` does. */
 export class Window {
 	start: rt.u8;
-	held: rt.Arc<rt.u8>[];
+	held: rt.Vec<rt.Arc<rt.u8>>;
 
-	constructor(start: rt.u8, held: rt.Arc<rt.u8>[]) {
+	constructor(start: rt.u8, held: rt.Vec<rt.Arc<rt.u8>>) {
 		this.start = start;
 		this.held = held;
 	}
 
 	[Symbol.dispose](): void {
-		rt.dropAll(this.held);
+		rt.dropVec(this.held);
 	}
 }
 

@@ -1167,7 +1167,7 @@ export function owned(data: rt.ByteSlice, n: rt.usize, steps: rt.ByteSlice, out:
 	const logged: (a0: rt.u8) => Logged.Logged = (id: rt.u8): Logged.Logged => {
 		return new Logged.Logged(id, rt.arcClone(log));
 	};
-	const it: rt.Iter<Logged.Logged> = rt.iterSlice(rt.iterToArray(rt.iterMap(rt.iterTake(rt.iterSlice(rt.byteSliceView(data)), 4), (_2: rt.u8): Logged.Logged => {
+	const it: rt.Iter<Logged.Logged> = rt.vecIntoIter(rt.iterToVec(rt.iterMap(rt.iterTake(rt.iterSlice(rt.byteSliceView(data)), 4), (_2: rt.u8): Logged.Logged => {
 		return logged(_2 & 112);
 	}), undefined, 8, true), rt.drop);
 	rt.drop(rt.iterToOption(it.next()));
@@ -1206,8 +1206,7 @@ export function owned(data: rt.ByteSlice, n: rt.usize, steps: rt.ByteSlice, out:
 		return _07;
 	}, out);
 	flush(log.value, out);
-	const empty: Logged.Logged[] = [];
-	const it3: rt.Iter<Logged.Logged> = rt.iterCycle(rt.iterSlice(empty, rt.drop), { v: Logged.clone$Clone });
+	const it3: rt.Iter<Logged.Logged> = rt.iterCycle(rt.vecIntoIter(new rt.Vec(), rt.drop), { v: Logged.clone$Clone });
 	const _75: Logged.Logged | undefined = rt.iterNth(it3, 3, rt.drop);
 	rt.byteVecPush(out, _75 === undefined ? 1 : 0);
 	rt.drop(_75);

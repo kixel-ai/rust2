@@ -173,13 +173,13 @@ export function read(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _83: rt.Location = here({ file: "fixtures/lang/panics/src/located.rs", line: 221, col: 35 });
 		const _84: rt.Location = outer({ file: "fixtures/lang/panics/src/located.rs", line: 221, col: 46 });
 		const _85: rt.Location = picked(rt.u8WrappingAdd(first, 1), { file: "fixtures/lang/panics/src/located.rs", line: 221, col: 55 });
-		const all: rt.Location[] = [b, _83, a, _84, _85];
-		rt.sliceSort(all, rt.cmpLt(rt.locationCmp), 4, true);
+		const all: rt.Vec<rt.Location> = rt.vecFrom([b, _83, a, _84, _85]);
+		rt.sliceSort(all.items, rt.cmpLt(rt.locationCmp), 4, true);
 		rt.vecDedupBy(all, rt.locationEq);
-		lines(out, all);
-		const _96: rt.Iter<rt.Location> = rt.iterSlice(all);
+		lines(out, all.items);
+		const _96: rt.Iter<rt.Location> = rt.iterSlice(all.items);
 		const set: rt.BTreeSet<rt.Location> = rt.btreeExtendKeys(rt.btreeNew(rt.locationCmp) as rt.BTreeSet<rt.Location>, _96, true, undefined, undefined, 4, true);
-		const _101: rt.Iter<rt.Location> = rt.iterMap(rt.iterSlice(all), (l: rt.Location): rt.Location => {
+		const _101: rt.Iter<rt.Location> = rt.iterMap(rt.iterSlice(all.items), (l: rt.Location): rt.Location => {
 			return l;
 		});
 		const hashed: rt.HashSet<rt.Location> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.locationHash, rt.locationEq)) as rt.HashSet<rt.Location>, _101, undefined, undefined, 58720256);

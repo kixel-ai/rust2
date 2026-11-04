@@ -28,7 +28,7 @@ export class Consumer {
 export function pollRecv(self: Consumer, waiter: Waiter.Waiter): rt.Poll<rt.u64 | undefined> {
 	let _0!: rt.Poll<rt.u64 | undefined>;
 	const state: rt.Mutex<State.State> = rt.mutexLock(self.state.value);
-	if (!(self.next < state.value.queue.length)) {
+	if (!(self.next < state.value.queue.items.length)) {
 		if (!state.value.closed) {
 			Waiter.register(waiter, state.value.waiters);
 			rt.mutexUnlock(state);
@@ -37,7 +37,7 @@ export function pollRecv(self: Consumer, waiter: Waiter.Waiter): rt.Poll<rt.u64 
 		_0 = undefined;
 	} else {
 		const _16: State.State = state.value;
-		const value: rt.u64 = _16.queue[rt.idx(_16.queue, self.next)];
+		const value: rt.u64 = _16.queue.items[rt.idx(_16.queue.items, self.next)];
 		self.next = rt.usizeAdd(self.next, 1);
 		_0 = value;
 	}
@@ -52,7 +52,7 @@ export function pollRecv(self: Consumer, waiter: Waiter.Waiter): rt.Poll<rt.u64 
 export function poll$model_held_closure0_task_Poll_u64(self: Consumer, waiter: Waiter.Waiter, f: (a0: rt.u64[]) => rt.Poll<rt.u64> | rt.OuterPending): rt.Poll<rt.Result<rt.Poll<rt.u64>, Closed.Closed>> {
 	let _0!: rt.Poll<rt.Result<rt.Poll<rt.u64>, Closed.Closed>>;
 	const state: rt.Mutex<State.State> = rt.mutexLock(self.state.value);
-	const _8: rt.Poll<rt.u64> | rt.OuterPending = f(state.value.queue);
+	const _8: rt.Poll<rt.u64> | rt.OuterPending = f(state.value.queue.items);
 	if (_8 !== rt.OuterPending) {
 		_0 = rt.Ok(_8);
 	} else {
@@ -74,7 +74,7 @@ export function poll$model_held_closure0_task_Poll_u64(self: Consumer, waiter: W
 export function poll$mut_model_watch_closure0_closure1_usize(self: Consumer, waiter: Waiter.Waiter, f: (a0: rt.u64[]) => rt.Poll<rt.usize>): rt.Poll<rt.Result<rt.usize, Closed.Closed>> {
 	let _0!: rt.Poll<rt.Result<rt.usize, Closed.Closed>>;
 	const state: rt.Mutex<State.State> = rt.mutexLock(self.state.value);
-	const _8: rt.Poll<rt.usize> = f(state.value.queue);
+	const _8: rt.Poll<rt.usize> = f(state.value.queue.items);
 	if (_8 !== rt.Pending) {
 		_0 = rt.Ok(_8);
 	} else {

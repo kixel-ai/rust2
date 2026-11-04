@@ -33,8 +33,8 @@ export function drop$tuple2_u8_Rc_unit(_1: [rt.u8, rt.Arc<undefined>]): void {
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["statics::statics", (_22: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["statics::statics", (_22: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
 		statics(data, out);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["statics::cells", (_23: rt.u8, data2: rt.ByteSlice, out2: rt.ByteVec): undefined => {
 		cells(data2, out2);
@@ -44,7 +44,7 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		lazies(data4, out4);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["statics::writes", (_26: rt.u8, data5: rt.ByteSlice, out5: rt.ByteVec): undefined => {
 		writes(data5, out5);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

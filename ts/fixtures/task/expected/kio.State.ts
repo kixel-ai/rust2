@@ -4,12 +4,12 @@ import * as rt from "./rt.ts";
 import type * as WaiterList from "./kio.WaiterList.ts";
 
 export class State {
-	queue: rt.u64[];
+	queue: rt.Vec<rt.u64>;
 	closed: boolean;
 	producers: rt.usize;
 	waiters: WaiterList.WaiterList;
 
-	constructor(queue: rt.u64[], closed: boolean, producers: rt.usize, waiters: WaiterList.WaiterList) {
+	constructor(queue: rt.Vec<rt.u64>, closed: boolean, producers: rt.usize, waiters: WaiterList.WaiterList) {
 		this.queue = queue;
 		this.closed = closed;
 		this.producers = producers;

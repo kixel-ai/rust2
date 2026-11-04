@@ -68,9 +68,9 @@ export function drop$Option_tuple2_tuple2_model_Guard_model_Guard_model_Guard(_1
 	}
 }
 
-export function drop$Result_Vec_model_Guard_model_Guard(_1: rt.Result<Guard.Guard[], Guard.Guard>): void {
+export function drop$Result_Vec_model_Guard_model_Guard(_1: rt.Result<rt.Vec<Guard.Guard>, Guard.Guard>): void {
 	if (_1.ok) {
-		rt.dropAll(_1.value);
+		rt.dropVec(_1.value);
 	} else {
 		_1.error[Symbol.dispose]();
 	}
@@ -136,8 +136,8 @@ export function drop$Result_unit_model_Guard(_1: rt.Result<undefined, Guard.Guar
 	}
 }
 
-export function drop$Vec_model_Guard(value: Guard.Guard[]): void {
-	rt.dropAll(value);
+export function drop$Vec_model_Guard(value: rt.Vec<Guard.Guard>): void {
+	rt.dropVec(value);
 }
 
 export function drop$drops_Held(_1: Held.Held): void {
@@ -160,10 +160,10 @@ export function drop$drops_Text(_1: Text.Text): void {
 	}
 }
 
-export function drop$drops_Wrap_Vec_drops_Wrap_drops_Held(_1: Wrap.Wrap<Wrap.Wrap<Held.Held>[]>): void {
+export function drop$drops_Wrap_Vec_drops_Wrap_drops_Held(_1: Wrap.Wrap<rt.Vec<Wrap.Wrap<Held.Held>>>): void {
 	Wrap.drop$ops_Drop_Vec_drops_Wrap_drops_Held(_1);
 	_1.log[Symbol.dispose]();
-	rt.dropAll(_1.inner, drop$drops_Wrap_drops_Held);
+	rt.dropVec(_1.inner, drop$drops_Wrap_drops_Held);
 }
 
 export function drop$drops_Wrap_drops_Held(_1: Wrap.Wrap<Held.Held>): void {

@@ -50,7 +50,7 @@ export interface Packet {
 	id: rt.u64;
 	flags: rt.u8;
 	name: string;
-	tags: rt.u16[];
+	tags: rt.Vec<rt.u16>;
 	next: rt.i32 | undefined;
 }
 
