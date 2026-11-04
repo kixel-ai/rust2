@@ -306,6 +306,12 @@ fn items() {
 	differential("items", items::run, "Run", cases(2, 4, 1_000));
 }
 
+/// Enums Go holds as their parts, behind pointers where a part is over four words.
+#[test]
+fn enums() {
+	differential("enums", enums::run, "Run", cases(10, 6, 2_000));
+}
+
 /// Temporaries folded into what reads them, where moving a call, a read of memory, or
 /// an overflow check past another would change the output or the panic.
 #[test]

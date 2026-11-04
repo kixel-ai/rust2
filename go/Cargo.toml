@@ -28,6 +28,7 @@ toml = "1.1.8"
 
 [dev-dependencies]
 codec = { path = "fixtures/codec" }
+enums = { path = "fixtures/enums" }
 fmt = { path = "fixtures/fmt" }
 ints = { path = "fixtures/ints" }
 items = { path = "fixtures/items" }

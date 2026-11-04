@@ -6,6 +6,7 @@ import type * as ByVal from "../collections.ByVal.ts";
 import type * as Mixed from "../collections.Mixed.ts";
 import type * as Nibble from "../collections.Nibble.ts";
 import type * as Picky from "../collections.Picky.ts";
+import type * as Probe from "../collections.Probe.ts";
 import type * as Rank from "../collections.Rank.ts";
 import type * as Tally from "../collections.Tally.ts";
 
@@ -79,6 +80,13 @@ export function mapOr$0f7cus0(self: Nibble.Nibble | undefined, default_: rs.u8, 
 	return f(self);
 }
 
+export function mapOr$0vkblkh(self: Probe.Probe | undefined, default_: rs.u16, f: (a0: Probe.Probe) => rs.u16): rs.u16 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function mapOr$07jk2xl(self: Tally.Tally | undefined, default_: rs.u8, f: (a0: Tally.Tally) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
@@ -114,6 +122,13 @@ export function mapOr$13kt6x8(self: [rs.u8, rs.u8] | undefined, default_: Uint8A
 	return f(self);
 }
 
+export function mapOr$1wei0sy(self: rs.u16 | undefined, default_: rs.u16, f: (a0: rs.u16) => rs.u16): rs.u16 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function mapOr$031uhqp(self: rs.u16 | undefined, default_: rs.u8, f: (a0: rs.u16) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
@@ -143,6 +158,13 @@ export function mapOr$1d4bp7c(self: rs.u8 | undefined, default_: rs.usize, f: (a
 }
 
 export function mapOr$188iunt(self: rs.usize | undefined, default_: rs.u8, f: (a0: rs.usize) => rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$05q90i2(self: [Probe.Probe, rs.u16] | undefined, default_: rs.u16, f: (a0: [Probe.Probe, rs.u16]) => rs.u16): rs.u16 {
 	if (self === undefined) {
 		return default_;
 	}
