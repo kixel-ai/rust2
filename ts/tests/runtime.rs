@@ -52,6 +52,18 @@ fn once_recursive() {
 	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
 }
 
+/// `try_reserve` of bytes gives std's `AllocError` where JS can't make them, which
+/// `reserve.ts` checks, as no allocation fails on demand natively.
+#[test]
+fn reserve_alloc_error() {
+	let script = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("reserve.ts");
+	let output = Command::new("node")
+		.arg(script)
+		.output()
+		.expect("running node, which the dev shell provides");
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+}
+
 /// A lazy thread-local's first value comes as wasm32's `LazyStorage` makes it, which
 /// `local.ts` checks.
 #[test]

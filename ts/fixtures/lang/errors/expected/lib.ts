@@ -43,6 +43,26 @@ export class of$boxed_Box_errors_Failure {
 	}
 }
 
+export class of$collections_TryReserveError {
+	v: rt.TryReserveError;
+
+	constructor(v: rt.TryReserveError) {
+		this.v = v;
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return rt.fmtTryReserveErrorDebug(this.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return rt.fmtTryReserveErrorDisplay(this.v, a);
+	}
+
+	source$Error(): Error.Error | undefined {
+		return undefined;
+	}
+}
+
 export class of$errors_Failure {
 	v: Failure.Failure;
 
@@ -172,6 +192,26 @@ export class of$ref_errors_Leaf {
 
 	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
 		return Leaf.fmt$fmt_Display(this.v, a);
+	}
+
+	source$Error(): Error.Error | undefined {
+		return undefined;
+	}
+}
+
+export class ofPlace$collections_TryReserveError {
+	v: rt.Place<rt.TryReserveError>;
+
+	constructor(v: rt.Place<rt.TryReserveError>) {
+		this.v = v;
+	}
+
+	fmt$Debug(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return rt.fmtTryReserveErrorDebug(this.v.v, a);
+	}
+
+	fmt$Display(a: rt.Formatter): rt.Result<undefined, rt.FmtError> {
+		return rt.fmtTryReserveErrorDisplay(this.v.v, a);
 	}
 
 	source$Error(): Error.Error | undefined {

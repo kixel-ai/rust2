@@ -665,6 +665,11 @@ fn hash<'tcx>(
 		(_, "capacity" | "reserve" | "shrink_to" | "shrink_to_fit" | "allocation_size") => {
 			sized(b, coll, name, values, span)
 		}
+		// hashbrown's returns its own error, an enum of its variants.
+		(_, "try_reserve") if !super::stock::as_std(b.t.tcx, call.def_id) => {
+			values.push(hash_max(b, coll, span));
+			Expr::rt("hashTryReserve", values)
+		}
 		("Index", "index") => Expr::rt("hashIndex", values),
 		("Clone", "clone") => {
 			let k = clone_fn(b, key, span);
@@ -1599,7 +1604,10 @@ fn deque<'tcx>(
 			values.extend(deque_items(b, item, span));
 			empty(b, Expr::rt("dequeWithCapacity", values), coll, span)
 		}
-		(_, "capacity" | "reserve" | "reserve_exact" | "shrink_to" | "shrink_to_fit") => {
+		(
+			_,
+			"capacity" | "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact" | "shrink_to" | "shrink_to_fit",
+		) => {
 			if name == "shrink_to_fit" {
 				values.push(Expr::lit("0"));
 			}
@@ -1607,6 +1615,8 @@ fn deque<'tcx>(
 				"capacity" => "dequeCapacity",
 				"reserve" => "dequeReserve",
 				"reserve_exact" => "dequeReserveExact",
+				"try_reserve" => "dequeTryReserve",
+				"try_reserve_exact" => "dequeTryReserveExact",
 				_ => "dequeShrinkTo",
 			};
 			Expr::rt(f, values)
@@ -1808,7 +1818,10 @@ fn heap<'tcx>(
 			values.push(super::iter::size_of(b, item, span));
 			empty(b, Expr::rt("heapWithCapacity", values), coll, span)
 		}
-		(_, "capacity" | "reserve" | "reserve_exact" | "shrink_to" | "shrink_to_fit") => {
+		(
+			_,
+			"capacity" | "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact" | "shrink_to" | "shrink_to_fit",
+		) => {
 			let h = values.remove(0);
 			values.insert(0, h.member("d"));
 			if name == "shrink_to_fit" {
@@ -1819,6 +1832,8 @@ fn heap<'tcx>(
 				"capacity" => "vecCapacity",
 				"reserve" => "vecReserve",
 				"reserve_exact" => "vecReserveExact",
+				"try_reserve" => "vecTryReserve",
+				"try_reserve_exact" => "vecTryReserveExact",
 				_ => "vecShrinkTo",
 			};
 			Expr::rt(f, values)
@@ -2571,7 +2586,10 @@ fn std_key<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 		ty::Adt(..) if b.t.std_of(ty).is_some_and(Std::record) => true,
 		ty::Adt(..) => {
 			library::string(b.t.tcx, ty)
-				|| matches!(b.t.std_of(ty), Some(Std::Ordering | Std::Duration | Std::Location))
+				|| matches!(
+					b.t.std_of(ty),
+					Some(Std::Ordering | Std::Duration | Std::Location | Std::TryReserveError)
+				)
 		}
 		_ => false,
 	}
@@ -2885,6 +2903,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		}
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rt("durationEq".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rt("locationEq".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::TryReserveError) => Expr::Rt("tryReserveErrorEq".into()),
 		ty::Tuple(tys) => {
 			let fns = tys.iter().map(|t| eq_fn(b, t, span)).collect();
 			Expr::rt("eqTuple", vec![Expr::Array(fns)])

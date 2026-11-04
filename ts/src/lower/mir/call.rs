@@ -752,6 +752,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let values = self.operands(false, &[true, true], args, tcx.types.unit, span, out);
 				done(Expr::rt("stringReserve", values), true)
 			}
+			// The error where `reserve` panics.
+			("String", "try_reserve" | "try_reserve_exact") => {
+				let values = self.operands(false, &[true, true], args, tcx.types.unit, span, out);
+				done(Expr::rt("stringTryReserve", values), false)
+			}
 			("String", "shrink_to_fit" | "shrink_to") => done(Expr::undefined(), false),
 			// The edited string, from the runtime with what it takes after the string.
 			(
