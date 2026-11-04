@@ -432,6 +432,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let value = self.operand(op, span, out);
 					self.raw_unsize(value, from, span)
 				}
+				// An array, as the slice of all of it.
+				PointerCoercion::Unsize if unsized_to(from, to).is_some_and(|t| t.is_slice()) => {
+					let value = self.operand(op, span, out);
+					Expr::rt("sliceFrom", vec![value])
+				}
 				// A `#[track_caller]` function's pointer passes the function's own location.
 				PointerCoercion::ReifyFnPointer(_)
 					if let ty::FnDef(def_id, args) = *from.kind()

@@ -1624,7 +1624,8 @@ fn mapping<'tcx>(
 				&& let ty::Ref(_, s, _) = targ(gargs, 1).kind()
 				&& (s.is_slice() || s.is_array())
 			{
-				return Some(slice_to_vec(b, value, vargs.type_at(0), span));
+				let slice = slice_of(value, targ(gargs, 1));
+				return Some(slice_to_vec(b, slice, vargs.type_at(0), span));
 			}
 			// A boxed slice clones what it borrows, moves an array's or a `Vec`'s elements, owns
 			// the `Vec` a `Cow` gives up, and takes a boxed text's bytes.
@@ -2088,18 +2089,16 @@ fn mapping<'tcx>(
 		// An element JS copies is lent as its place, and an object as itself.
 		("slice", "first_mut" | "last_mut" | "get_mut") if name != "get_mut" || Int::of(targ(gargs, 1)).is_some() => {
 			let elem = targ(gargs, 0);
-			let mut values = args;
-			values[0] = elements(values[0].clone(), Ty::new_slice(tcx, elem));
+			let values = args;
 			let name = match b.t.needs_place(elem) {
 				true => name.as_str(),
 				false => name.strip_suffix("_mut")?,
 			};
 			rt2(values, "slice", &super::camel(name))
 		}
-		("slice", "windows" | "chunks" | "chunks_exact" | "rchunks" | "rchunks_exact") => match byte(targ(gargs, 0)) {
-			true => rt2(args, "byteSlice", &super::camel(&name)),
-			false => rt2(args, "slice", &super::camel(&name)),
-		},
+		("slice", "windows" | "chunks" | "chunks_exact" | "rchunks" | "rchunks_exact") => {
+			rt2(args, slice_of_elem(targ(gargs, 0)), &super::camel(&name))
+		}
 		// Each run of `N` as an array: shared, a copy, which a shared borrow can't tell from
 		// the slice's own elements, and mutable, the runtime's view of where the slice holds it.
 		("slice", "as_chunks" | "as_rchunks" | "as_chunks_mut" | "as_rchunks_mut") => {
@@ -2111,15 +2110,10 @@ fn mapping<'tcx>(
 				false => rt2(values, "slice", &super::camel(&name)),
 			}
 		}
-		// A part of bytes is a view already, and one of other values the runtime's view.
+		// A part is a slice of the same storage, shared or mutable alike.
 		("slice", "chunks_mut" | "chunks_exact_mut" | "rchunks_mut" | "rchunks_exact_mut") => {
-			match byte(targ(gargs, 0)) {
-				true => rt2(args, "byteSlice", &super::camel(name.strip_suffix("_mut")?)),
-				false => rt2(args, "slice", &super::camel(&name)),
-			}
+			rt2(args, slice_of_elem(targ(gargs, 0)), &super::camel(name.strip_suffix("_mut")?))
 		}
-		// Each part of bytes is a view already, and one of other values lent mutably the
-		// runtime's view.
 		(
 			"slice",
 			"split"
@@ -2132,21 +2126,16 @@ fn mapping<'tcx>(
 			| "splitn_mut"
 			| "rsplitn"
 			| "rsplitn_mut",
-		) => match byte(targ(gargs, 0)) {
-			true => rt2(
-				args,
-				"byteSlice",
-				&super::camel(name.strip_suffix("_mut").unwrap_or(&name)),
-			),
-			false => rt2(args, "slice", &super::camel(&name)),
-		},
+		) => rt2(
+			args,
+			slice_of_elem(targ(gargs, 0)),
+			&super::camel(name.strip_suffix("_mut").unwrap_or(&name)),
+		),
 		("Split", "as_slice") => Expr::rt("splitAsSlice", args),
-		// Halves of bytes are views already, and of other values the runtime's views.
-		("slice", "split_at_mut" | "split_at_mut_checked") => match byte(targ(gargs, 0)) {
-			true => rt2(args, "byteSlice", &super::camel(&name.replace("_mut", ""))),
-			false => rt2(args, "slice", &super::camel(&name)),
-		},
-		// The element is lent as `first_mut` lends it, and the rest as a view.
+		("slice", "split_at_mut" | "split_at_mut_checked") => {
+			rt2(args, slice_of_elem(targ(gargs, 0)), &super::camel(&name.replace("_mut", "")))
+		}
+		// The element is lent as `first_mut` lends it.
 		("slice", "split_first_mut" | "split_last_mut") => match byte(targ(gargs, 0)) {
 			true => rt2(args, "byteSlice", &super::camel(&name)),
 			false => {
@@ -2158,8 +2147,7 @@ fn mapping<'tcx>(
 		("ChunksExact" | "RChunksExact", "remainder") | ("ChunksExactMut" | "RChunksExactMut", "into_remainder") => {
 			Expr::rt("partsRemainder", args)
 		}
-		// The first `N` elements are `get(..N)`, and split off, `split_at_checked(N)`. A part
-		// of bytes is a view already, and one of other values lent mutably the runtime's view.
+		// The first `N` elements are `get(..N)`, and split off, `split_at_checked(N)`.
 		(
 			"slice",
 			"first_chunk"
@@ -2172,23 +2160,24 @@ fn mapping<'tcx>(
 			| "split_last_chunk_mut",
 		) => {
 			let n = gargs.consts().next()?.try_to_target_usize(tcx)?;
-			let (of, name) = match byte(targ(gargs, 0)) {
-				true => ("byteSlice", name.strip_suffix("_mut").unwrap_or(&name)),
-				false => ("slice", name.as_str()),
-			};
 			let mut values = args;
+			// An array of other values is a JS array of its own: a copy, or lent mutably the
+			// runtime's view.
+			if !byte(targ(gargs, 0)) {
+				values.push(Expr::lit(n.to_string()));
+				return Some(rt2(values, "slice", &super::camel(&name)));
+			}
+			let name = name.strip_suffix("_mut").unwrap_or(&name);
 			if name.starts_with("first") {
 				values.push(Expr::lit("0"));
 			}
 			values.push(Expr::lit(n.to_string()));
 			let name = match name {
 				"first_chunk" => "get_range",
-				"first_chunk_mut" => "get_range_mut",
 				"split_first_chunk" => "split_at_checked",
-				"split_first_chunk_mut" => "split_at_mut_checked",
 				name => name,
 			};
-			rt2(values, of, &super::camel(name))
+			rt2(values, "byteSlice", &super::camel(name))
 		}
 		// A slice or an array of the one value.
 		("raw" | "array", "from_ref")
@@ -2200,14 +2189,15 @@ fn mapping<'tcx>(
 					"byteSliceFrom",
 					vec![Expr::ident("Uint8Array").member("of").call(vec![value])],
 				),
-				false => Expr::Array(vec![value]),
+				false if owner == "array" => Expr::Array(vec![value]),
+				false => Expr::rt("sliceFrom", vec![Expr::Array(vec![value])]),
 			}
 		}
-		// The array is its own slice, as `as_slice` has it.
+		// The slice of all of an array, as `as_slice` has it.
 		("AsRef", "as_ref") | ("AsMut", "as_mut") | ("Borrow", "borrow") | ("BorrowMut", "borrow_mut")
 			if targ(gargs, 0).is_array() && targ(gargs, 1).is_slice() =>
 		{
-			args.pop()?
+			slice_of(args.pop()?, targ(gargs, 0))
 		}
 		// A `Vec` as its slice, as `as_slice` has it, or as itself.
 		("AsRef", "as_ref") | ("AsMut", "as_mut") | ("Borrow", "borrow") | ("BorrowMut", "borrow_mut")
@@ -2224,16 +2214,13 @@ fn mapping<'tcx>(
 		("slice", "binary_search") => {
 			let elem = targ(gargs, 0);
 			let [s, x] = <[Expr; 2]>::try_from(args).ok()?;
-			let s = elements(s, Ty::new_slice(tcx, elem));
 			let cmp = super::collections::cmp_fn(b, elem, false, span);
 			Expr::rt("sliceBinarySearch", vec![s, x, cmp])
 		}
 		// std's same search by the closure's `Ordering`, by `Ord::cmp` of the key it makes
 		// with `b`, or by whether `pred` holds.
 		("slice", "binary_search_by" | "binary_search_by_key" | "partition_point") => {
-			let elem = targ(gargs, 0);
 			let mut values = args;
-			values[0] = elements(values[0].clone(), Ty::new_slice(tcx, elem));
 			match name.as_str() {
 				"binary_search_by" => Expr::rt("sliceBinarySearchBy", values),
 				"partition_point" => Expr::rt("slicePartitionPoint", values),
@@ -2254,11 +2241,8 @@ fn mapping<'tcx>(
 			}
 			let fns = clone_from_fns(b, elem, span);
 			let mut values = args;
-			// A value its own clone, which nothing drops, is JS's `fill`.
-			if fns.is_empty() {
-				let slice = values.remove(0);
-				return Some(slice.method("fill", values));
-			}
+			// What clones one, which the runtime takes as `undefined` where it is the value.
+			values.extend(fns.is_empty().then(Expr::undefined));
 			// Its own droppers, before what clones over a slot.
 			return Some(Expr::rt("sliceFill", [values, fns].concat()));
 		}
@@ -2310,7 +2294,10 @@ fn mapping<'tcx>(
 			true => rt2(args, "byteSlice", &super::camel(&name)),
 			false => rt2(args, "slice", &super::camel(&name)),
 		},
-		("slice", "reverse") => elements(args.pop()?, Ty::new_slice(tcx, targ(gargs, 0))).method("reverse", Vec::new()),
+		("slice", "reverse") => match byte(targ(gargs, 0)) {
+			true => Expr::rt("byteSliceView", args).method("reverse", Vec::new()),
+			false => Expr::rt("sliceReverse", args),
+		},
 		("slice", "contains") => {
 			let elem = targ(gargs, 0);
 			let [s, x] = <[Expr; 2]>::try_from(args).ok()?;
@@ -2330,10 +2317,12 @@ fn mapping<'tcx>(
 		) => {
 			let elem = targ(gargs, 0);
 			let mut values = args.into_iter();
-			let s = elements(values.next()?, Ty::new_slice(tcx, elem));
+			let s = values.next()?;
 			let less = match name.as_str() {
 				// A typed array sorts its numbers by value, and equal bytes are alike.
-				"sort" | "sort_unstable" if byte(elem) => return Some(s.method("sort", Vec::new())),
+				"sort" | "sort_unstable" if byte(elem) => {
+					return Some(Expr::rt("byteSliceView", vec![s]).method("sort", Vec::new()));
+				}
 				"sort" | "sort_unstable" => super::collections::test_fn(b, elem, "lt", span),
 				"sort_by" | "sort_unstable_by" => Expr::rt("cmpLt", vec![values.next()?]),
 				_ => {
@@ -2362,9 +2351,9 @@ fn mapping<'tcx>(
 		// `u32` is no smaller on wasm32, `f` dropped once it made them, and then the keys
 		// dropped.
 		("slice", "sort_by_cached_key") => {
-			let (elem, key) = (targ(gargs, 0), targ(gargs, 1));
+			let key = targ(gargs, 1);
 			let mut values = args.into_iter();
-			let s = elements(values.next()?, Ty::new_slice(tcx, elem));
+			let s = values.next()?;
 			let f = values.next()?;
 			let pair = Ty::new_tup(tcx, &[key, tcx.types.usize]);
 			let lt = super::collections::test_fn(b, pair, "lt", span);
@@ -2383,7 +2372,6 @@ fn mapping<'tcx>(
 		("slice", "is_sorted") => {
 			let elem = targ(gargs, 0);
 			let mut values = args;
-			values[0] = elements(values[0].clone(), Ty::new_slice(tcx, elem));
 			values.push(super::collections::test_fn(b, elem, "le", span));
 			Expr::rt("sliceIsSorted", values)
 		}
@@ -3017,7 +3005,7 @@ fn mapping<'tcx>(
 		}
 		// A reference to an array of bytes is an `rt.ByteSlice` already, and to one of other
 		// values its JS array, so each is its own slice, and writes through it land in it.
-		("array", "as_slice" | "as_mut_slice") => args.pop()?,
+		("array", "as_slice" | "as_mut_slice") => slice_of(args.pop()?, targ(gargs, 0)),
 		("array", "from_fn") => {
 			let n = gargs.consts().next()?.try_to_target_usize(tcx)?;
 			let f = match targ(gargs, 0).kind() {
@@ -3467,19 +3455,31 @@ pub fn cow_cloned<'tcx>(b: &mut Body<'_, '_, 'tcx>, op: &str, cow: Expr, elem: T
 pub(super) fn slice_to_vec<'tcx>(b: &mut Body<'_, '_, 'tcx>, slice: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
 	match elem.kind() {
 		_ if byte(elem) => Expr::rt("byteSliceToByteVec", vec![slice]),
-		_ => vec_clone(b, slice, elem, span),
+		_ => {
+			let v = items_clone(b, slice, elem, span);
+			Expr::rt("vecExact", vec![v, super::iter::size_of(b, elem, span)])
+		}
 	}
 }
 
-/// A clone of `value`, a slice, array, or `Vec` of `elem` other than bytes, as a `Vec` with
-/// room for exactly its elements, as std's allocates one.
+/// A clone of the elements of `slice`, an `rt.Slice`, as an array of their own: a copy of
+/// them if each element's clone is itself, or else each element cloned.
+fn items_clone<'tcx>(b: &mut Body<'_, '_, 'tcx>, slice: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
+	match super::collections::clone_fn(b, elem, span) {
+		Expr::Lit(l) if l == "undefined" => Expr::rt("sliceToArray", vec![slice]),
+		clone => Expr::rt("sliceItems", vec![slice]).method("map", vec![clone]),
+	}
+}
+
+/// A clone of `value`, an array or `Vec` of `elem` other than bytes, as a `Vec` with room
+/// for exactly its elements, as std's allocates one.
 fn vec_clone<'tcx>(b: &mut Body<'_, '_, 'tcx>, value: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
 	let v = slice_clone(b, value, elem, span);
 	Expr::rt("vecExact", vec![v, super::iter::size_of(b, elem, span)])
 }
 
-/// A clone of `value`, a slice, array, or `Vec` of `elem` other than bytes, as an array: a
-/// copy of it if each element's clone is itself, or else each element cloned.
+/// A clone of `value`, an array or `Vec` of `elem` other than bytes, as an array: a copy
+/// of it if each element's clone is itself, or else each element cloned.
 fn slice_clone<'tcx>(b: &mut Body<'_, '_, 'tcx>, value: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
 	match super::collections::clone_fn(b, elem, span) {
 		Expr::Lit(l) if l == "undefined" => value.method("slice", Vec::new()),
@@ -3495,17 +3495,14 @@ fn slice_boxed<'tcx>(b: &mut Body<'_, '_, 'tcx>, slice: Expr, elem: Ty<'tcx>, sp
 			"byteSliceFrom",
 			vec![Expr::rt("byteSliceToArray", vec![slice])],
 		)),
-		_ => Some(slice_clone(b, slice, elem, span)),
+		_ => Some(Expr::rt("sliceFrom", vec![items_clone(b, slice, elem, span)])),
 	}
 }
 
 /// The `Box<[elem]>` that a `Vec<elem>`, `v`, becomes: its elements, as many as it holds.
 /// std's shrinks its capacity to them, which no translated `Vec` reports.
 pub(super) fn vec_boxed(v: Expr, elem: Ty<'_>) -> Expr {
-	match elem.kind() {
-		_ if byte(elem) => Expr::rt("byteVecSlice", vec![v]),
-		_ => v,
-	}
+	vec_view(v, elem)
 }
 
 /// The `Vec<elem>` that a `Box<[elem]>`, `boxed`, becomes, as `into_vec` makes it, with room
@@ -3513,7 +3510,10 @@ pub(super) fn vec_boxed(v: Expr, elem: Ty<'_>) -> Expr {
 fn boxed_vec<'tcx>(b: &mut Body<'_, '_, 'tcx>, boxed: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
 	match elem.kind() {
 		_ if byte(elem) => Expr::rt("byteSliceToByteVec", vec![boxed]),
-		_ => Expr::rt("vecExact", vec![boxed, super::iter::size_of(b, elem, span)]),
+		_ => Expr::rt(
+			"vecExact",
+			vec![Expr::rt("sliceItems", vec![boxed]), super::iter::size_of(b, elem, span)],
+		),
 	}
 }
 
@@ -3521,7 +3521,7 @@ fn boxed_vec<'tcx>(b: &mut Body<'_, '_, 'tcx>, boxed: Expr, elem: Ty<'tcx>, span
 fn array_boxed(array: Expr, elem: Ty<'_>) -> Expr {
 	match elem.kind() {
 		_ if byte(elem) => Expr::rt("byteSliceFrom", vec![array]),
-		_ => array,
+		_ => Expr::rt("sliceFrom", vec![array]),
 	}
 }
 
@@ -3930,21 +3930,43 @@ pub fn primitive(ty: Ty<'_>) -> bool {
 }
 
 /// A `Vec` of `elem`s as a slice: an `rt.ByteSlice` of a byte vector, or the array itself.
+/// The prefix of the runtime's functions of a slice of `elem`: `byteSlice` of bytes.
+fn slice_of_elem(elem: Ty<'_>) -> &'static str {
+	match byte(elem) {
+		true => "byteSlice",
+		false => "slice",
+	}
+}
+
 pub fn vec_view(v: Expr, elem: Ty<'_>) -> Expr {
 	match elem.kind() {
 		_ if byte(elem) => Expr::rt("byteVecSlice", vec![v]),
+		_ => Expr::rt("sliceFrom", vec![v]),
+	}
+}
+
+/// The elements of a slice, array, or `Vec`, a `ty`, as a JS array or `Uint8Array`, for
+/// what only reads them: a view of a byte slice's or byte vector's, and the elements of
+/// any other slice, which the runtime's iterators and formatting index.
+pub fn elements(v: Expr, ty: Ty<'_>) -> Expr {
+	match ty.peel_refs().kind() {
+		ty::Slice(elem) if byte(*elem) => Expr::rt("byteSliceView", vec![v]),
+		ty::Slice(_) => Expr::rt("sliceItems", vec![v]),
+		_ if super::bytes_ref(ty) => Expr::rt("byteSliceView", vec![v]),
+		ty::Adt(_, args) if args.types().next().is_some_and(byte) => Expr::rt("byteVecView", vec![v]),
 		_ => v,
 	}
 }
 
-/// The elements of a slice, array, or `Vec`, a `ty`, as a JS array or `Uint8Array`: a
-/// view of a byte slice's or byte vector's, which the runtime's iterators and formatting
-/// index.
-pub fn elements(v: Expr, ty: Ty<'_>) -> Expr {
+/// The slice of a slice, array, or `Vec`, a `ty`: an `rt.ByteSlice` of bytes, and an
+/// `rt.Slice` of other values, which the runtime's slice functions read and write.
+pub fn slice_of(v: Expr, ty: Ty<'_>) -> Expr {
 	match ty.peel_refs().kind() {
-		ty::Slice(elem) if byte(*elem) => Expr::rt("byteSliceView", vec![v]),
-		_ if super::bytes_ref(ty) => Expr::rt("byteSliceView", vec![v]),
-		ty::Adt(_, args) if args.types().next().is_some_and(byte) => Expr::rt("byteVecView", vec![v]),
+		ty::Slice(_) => v,
+		_ if super::bytes_ref(ty) => v,
+		ty::Array(elem, _) if byte(*elem) => Expr::rt("byteSliceFrom", vec![v]),
+		ty::Array(..) => Expr::rt("sliceFrom", vec![v]),
+		ty::Adt(_, args) => vec_view(v, args.type_at(0)),
 		_ => v,
 	}
 }

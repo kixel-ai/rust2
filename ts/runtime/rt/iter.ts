@@ -22,7 +22,7 @@
 // `owned` functions follow it, dispatching on the kind, so a bundle that never drops an
 // item carries none of it.
 
-import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, type Capped, capHold, capReserve, capSet, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, slicePart, sliceView, vecCapacity, vecExtendFromSlice, vecMax, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, type Capped, capHold, capReserve, capSet, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, slicePart, type Slice, type SliceLike, vecCapacity, vecExtendFromSlice, vecMax, vecWithCapacity } from "../rt.ts";
 import { AtIndex, BTreeIter, HashIter, type Ordering } from "./collections.ts";
 import { type Hasher, hash8 } from "./hash.ts";
 import { charStep, intToBig, type Limbs, type Step, usizeDebug, lt as wideLt } from "./int.ts";
@@ -376,54 +376,37 @@ export function byteVecIntoIter(v: ByteVec): Iter<number> {
 }
 
 /** `slice::IterMut` of elements JS copies: the place of each. */
-export function iterSliceMut<T>(s: { [i: number]: T; length: number }): Iter<Place<T>> {
-	return new SliceMutIter(s);
+export function iterSliceMut<T>(s: SliceLike<T>): Iter<Place<T>> {
+	const it = new SliceMutIter(s.data);
+	it.front = s.start;
+	it.back = s.start + s.length;
+	return it;
 }
 
 /** `slice::windows`: each run of `size` elements, panicking on a size of 0 as std's does. */
-export function sliceWindows<T>(s: T[], size: number, at?: Location): Iter<T[]> {
+export function sliceWindows<T>(s: Slice<T>, size: number, at?: Location): Iter<Slice<T>> {
 	if (size === 0) panic("window size must be non-zero", at, true);
-	return new PartsIter(s, s.length, size, 1, Math.max(s.length - size + 1, 0), false, sliceCopy);
+	return new PartsIter(s, s.length, size, 1, Math.max(s.length - size + 1, 0), false, slicePart);
 }
 
-/** `slice::chunks`: each `size` elements, the last fewer, panicking on a size of 0 as std's does. */
-export function sliceChunks<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, false, false, sliceCopy, at);
+/** `slice::chunks` and `chunks_mut`: each `size` elements, the last fewer, panicking on a size of 0 as std's does. */
+export function sliceChunks<T>(s: Slice<T>, size: number, at?: Location): Iter<Slice<T>> {
+	return chunks(s, s.length, size, false, false, slicePart, at);
 }
 
-/** `slice::chunks_exact`: each `size` elements, leaving the rest as its remainder. */
-export function sliceChunksExact<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, true, false, sliceCopy, at);
+/** `slice::chunks_exact` and `chunks_exact_mut`: each `size` elements, leaving the rest as its remainder. */
+export function sliceChunksExact<T>(s: Slice<T>, size: number, at?: Location): Iter<Slice<T>> {
+	return chunks(s, s.length, size, true, false, slicePart, at);
 }
 
-/** `slice::rchunks`: `chunks` from the back, the last part the front of the slice. */
-export function sliceRchunks<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, false, true, sliceCopy, at);
+/** `slice::rchunks` and `rchunks_mut`: `chunks` from the back, the last part the front of the slice. */
+export function sliceRchunks<T>(s: Slice<T>, size: number, at?: Location): Iter<Slice<T>> {
+	return chunks(s, s.length, size, false, true, slicePart, at);
 }
 
-/** `slice::rchunks_exact`: `chunks_exact` from the back, the remainder the front. */
-export function sliceRchunksExact<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, true, true, sliceCopy, at);
-}
-
-/** `slice::chunks_mut`: as `chunks`, but each part a view of `s` that writes through to it. */
-export function sliceChunksMut<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, false, false, sliceView, at);
-}
-
-/** `slice::chunks_exact_mut`. */
-export function sliceChunksExactMut<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, true, false, sliceView, at);
-}
-
-/** `slice::rchunks_mut`. */
-export function sliceRchunksMut<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, false, true, sliceView, at);
-}
-
-/** `slice::rchunks_exact_mut`. */
-export function sliceRchunksExactMut<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, true, true, sliceView, at);
+/** `slice::rchunks_exact` and `rchunks_exact_mut`: `chunks_exact` from the back, the remainder the front. */
+export function sliceRchunksExact<T>(s: Slice<T>, size: number, at?: Location): Iter<Slice<T>> {
+	return chunks(s, s.length, size, true, true, slicePart, at);
 }
 
 /** `slice::windows` of bytes. */
@@ -460,54 +443,29 @@ export function partsRemainder<S>(parts: Iter<S>): S {
 	return (parts as PartsIter<S>).remainder();
 }
 
-/** `slice::split`: the parts between the elements `f` is true of, the empty ones too. */
-export function sliceSplit<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceCopy, f, false, false);
+/** `slice::split` and `split_mut`: the parts between the elements `f` is true of, the empty ones too. */
+export function sliceSplit<T>(s: Slice<T>, f: (item: T) => boolean): Iter<Slice<T>> {
+	return new SplitIter(s, s.data, s.start, slicePart, f, false, false);
 }
 
-/** `slice::split_mut`: as `split`, but each part a view of `s` that writes through to it. */
-export function sliceSplitMut<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceView, f, false, false);
+/** `slice::rsplit` and `rsplit_mut`: `split` from the back. */
+export function sliceRsplit<T>(s: Slice<T>, f: (item: T) => boolean): Iter<Slice<T>> {
+	return new SplitIter(s, s.data, s.start, slicePart, f, true, false);
 }
 
-/** `slice::rsplit`: `split` from the back. */
-export function sliceRsplit<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceCopy, f, true, false);
+/** `slice::split_inclusive` and `split_inclusive_mut`: as `split`, but each part ends with its separator. */
+export function sliceSplitInclusive<T>(s: Slice<T>, f: (item: T) => boolean): Iter<Slice<T>> {
+	return new SplitIter(s, s.data, s.start, slicePart, f, false, true);
 }
 
-/** `slice::rsplit_mut`. */
-export function sliceRsplitMut<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceView, f, true, false);
+/** `slice::splitn` and `splitn_mut`: `split`, but the `n`th part all that is left. */
+export function sliceSplitn<T>(s: Slice<T>, n: number, f: (item: T) => boolean): Iter<Slice<T>> {
+	return new SplitIter(s, s.data, s.start, slicePart, f, false, false, n);
 }
 
-/** `slice::split_inclusive`: as `split`, but each part ends with its separator. */
-export function sliceSplitInclusive<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceCopy, f, false, true);
-}
-
-/** `slice::split_inclusive_mut`. */
-export function sliceSplitInclusiveMut<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceView, f, false, true);
-}
-
-/** `slice::splitn`: `split`, but the `n`th part all that is left. */
-export function sliceSplitn<T>(s: T[], n: number, f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceCopy, f, false, false, n);
-}
-
-/** `slice::splitn_mut`. */
-export function sliceSplitnMut<T>(s: T[], n: number, f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceView, f, false, false, n);
-}
-
-/** `slice::rsplitn`: `rsplit`, but the `n`th part all that is left. */
-export function sliceRsplitn<T>(s: T[], n: number, f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceCopy, f, true, false, n);
-}
-
-/** `slice::rsplitn_mut`. */
-export function sliceRsplitnMut<T>(s: T[], n: number, f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceView, f, true, false, n);
+/** `slice::rsplitn` and `rsplitn_mut`: `rsplit`, but the `n`th part all that is left. */
+export function sliceRsplitn<T>(s: Slice<T>, n: number, f: (item: T) => boolean): Iter<Slice<T>> {
+	return new SplitIter(s, s.data, s.start, slicePart, f, true, false, n);
 }
 
 /** `slice::split` and `split_mut` of bytes, whose parts are views already. */
@@ -545,10 +503,6 @@ function chunks<S>(s: S, length: number, size: number, exact: boolean, rev: bool
 	if (size === 0) panic("chunk size must be non-zero", at);
 	const count = exact ? Math.floor(length / size) : Math.ceil(length / size);
 	return new PartsIter(s, length, size, size, count, rev, part);
-}
-
-function sliceCopy<T>(s: T[], start: number, end: number): T[] {
-	return slicePart(s, start, end);
 }
 
 function byteSlicePart(s: ByteSlice, start: number, end: number): ByteSlice {
@@ -2030,8 +1984,8 @@ class SliceIter<T> extends Iter<T> implements Disposable {
 /** The places of a slice's elements, from both ends. */
 class SliceMutIter<T> extends Iter<Place<T>> {
 	private readonly s: { [i: number]: T; length: number };
-	private front = 0;
-	private back: number;
+	front = 0;
+	back: number;
 
 	constructor(s: { [i: number]: T; length: number }) {
 		super();

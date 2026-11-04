@@ -2727,7 +2727,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let (base, from) = range.unwrap_or((slice, 0));
 		let base = self.slice_path(base, out);
 		(from..from + n)
-			.map(|i| place::byte_at(base.clone(), Expr::lit(i.to_string())))
+			.map(|i| place::slice_at(base.clone(), Expr::lit(i.to_string())))
 			.collect()
 	}
 

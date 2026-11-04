@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, capHold, capOf, type Capped, capReserve, capReserveExact, capSet, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, Ok, OK, panic, type Place, type RangeBound, rangeCheck, type Result, searchBy, sliceSort, sliceView, vecCapacity, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, capHold, capOf, type Capped, capReserve, capReserveExact, capSet, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, Ok, OK, panic, type Place, type RangeBound, rangeCheck, type Result, searchBy, Slice, sliceFrom, sliceSort, vecCapacity, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
 import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
@@ -2371,7 +2371,7 @@ export function btreeExtendKeys<K>(m: BTreeSet<K>, keys: Iter<K>, last = false, 
  */
 export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], size: number, freeze: boolean, same?: Test<K>, k?: (key: K) => void, v?: (value: V) => void): BTreeMap<K, V> {
 	if (same === undefined) entries.sort((a, b) => m.c(a[0], b[0]));
-	else sliceSort(entries, (a, b) => m.c(a[0], b[0]) === -1, size, freeze);
+	else sliceSort(sliceFrom(entries), (a, b) => m.c(a[0], b[0]) === -1, size, freeze);
 	const keys: K[] = [];
 	const values: V[] = [];
 	const n = entries.length;
@@ -2403,7 +2403,7 @@ export function btreeCollectKeys<K>(m: BTreeSet<K>, keys: K[], size: number, fre
 			k,
 		);
 	}
-	if (less !== undefined) sliceSort(keys, less, size, freeze);
+	if (less !== undefined) sliceSort(sliceFrom(keys), less, size, freeze);
 	btreeFromSorted(m, iterSlice(keys), same, k);
 	m.r = keys.length > 0;
 	return m;
@@ -3377,11 +3377,11 @@ function contiguous<T>(q: VecDeque<T>): number {
 	return head > tail ? free : 0;
 }
 
-/** `make_contiguous`: the items moved to one run of slots, as std's, and a view of them that writes into it. */
-export function dequeMakeContiguous<T>(q: VecDeque<T>): T[] {
+/** `make_contiguous`: the items moved to one run of slots, as std's, and the slice of them. */
+export function dequeMakeContiguous<T>(q: VecDeque<T>): Slice<T> {
 	const h = contiguous(q);
 	if (h !== q.h) place(q, q.b.length, h);
-	return sliceView(q.b as T[], q.h, q.h + q.n);
+	return new Slice(q.b as T[], q.h, q.n);
 }
 
 /** `make_contiguous` of bytes, viewing the deque's. */
@@ -3565,12 +3565,10 @@ export function fmtDequeIter<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>
 	return fmtDebugTupleFields(f, name, [(f) => fmtList(a, f, debug), (f) => fmtList(b, f, debug)]);
 }
 
-/** `as_slices`, and with `lend`, `as_mut_slices`, whose slices write into the deque. */
-export function dequeAsSlices<T>(q: VecDeque<T>, lend = false): [T[], T[]] {
-	const p = phys(q, 0);
+/** `as_slices` and `as_mut_slices`: the slices of the deque's slots. */
+export function dequeAsSlices<T>(q: VecDeque<T>): [Slice<T>, Slice<T>] {
 	const n = firstEnd(q, 0, q.n);
-	const part = (start: number, end: number) => (lend ? sliceView(q.b as T[], start, end) : q.b.slice(start, end) as T[]);
-	return [part(p, p + n), part(0, q.n - n)];
+	return [new Slice(q.b as T[], phys(q, 0), n), new Slice(q.b as T[], 0, q.n - n)];
 }
 
 /** `as_slices` and `as_mut_slices` of bytes, which view the deque's. */

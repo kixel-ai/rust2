@@ -361,6 +361,8 @@ pub enum ObjectKind {
 	Class,
 	Bytes,
 	Array,
+	/// An `rt.Slice`, whose elements change in place, and whose length never does.
+	Slice,
 	Vec,
 	Closure,
 }
@@ -1318,9 +1320,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// What kind of JS object a `&mut` to `ty` can change in place, if any.
 	pub fn object_kind(&self, ty: Ty<'tcx>) -> Option<ObjectKind> {
 		match ty.kind() {
-			ty::Array(elem, _) | ty::Slice(elem) => match byte(*elem) {
+			ty::Array(elem, _) => match byte(*elem) {
 				true => Some(ObjectKind::Bytes),
 				false => Some(ObjectKind::Array),
+			},
+			ty::Slice(elem) => match byte(*elem) {
+				true => Some(ObjectKind::Bytes),
+				false => Some(ObjectKind::Slice),
 			},
 			// A JS array, whose elements change in place as an array's do.
 			ty::Tuple(tys) if !tys.is_empty() => Some(ObjectKind::Array),
@@ -1449,8 +1455,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let hidden = match erased.kind() {
 			ty::Adt(adt, _) => self.bound_drops(adt.did()).is_some(),
 			ty::Dynamic(..) | ty::Closure(..) => true,
-			// A `Uint8Array`'s length never changes, as a boxed slice's may.
-			ty::Slice(elem) => byte(*elem),
+			// A slice's length never changes, as a boxed slice's may.
+			ty::Slice(_) => true,
 			_ => false,
 		};
 		// Copying fields into an object others share would change their handles too.
@@ -1531,7 +1537,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			},
 			ty::Slice(elem) => match byte(*elem) {
 				true => Type::Rt("ByteSlice", vec![]),
-				false => Type::Array(Box::new(self.ty(*elem, span))),
+				false => Type::Rt("Slice", vec![self.ty(*elem, span)]),
 			},
 			ty::Param(param) => Type::Param(param.name.to_string()),
 			ty::FnDef(def_id, args) => {
