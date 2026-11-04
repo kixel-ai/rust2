@@ -145,7 +145,10 @@ pub fn call<T>(f: impl FnOnce() -> T) -> T {
 	// A call inside another keeps its loop: none starts on a thread one runs on.
 	let outer = RUNNING.get();
 	if outer == 0 && LOOPS.get() {
-		RUNNING.set(running_loop());
+		let running = running_loop();
+		// Until a loop polls or takes here again, which it does once it runs.
+		LOOPS.set(running != 0);
+		RUNNING.set(running);
 	}
 	// SAFETY: this thread holds the GIL, and touches no Python object until it retakes it.
 	let state = unsafe { PyEval_SaveThread() };
@@ -160,8 +163,8 @@ pub fn call<T>(f: impl FnOnce() -> T) -> T {
 }
 
 thread_local! {
-	/// Whether this thread has run an event loop that polled or took, so its calls look
-	/// for the loop running.
+	/// Whether an event loop may run on this thread, as one polled or took here since a
+	/// call last found none, so its calls look for the loop running.
 	static LOOPS: Cell<bool> = const { Cell::new(false) };
 	/// The address of the event loop running on this thread, during a call, else `0`.
 	static RUNNING: Cell<usize> = const { Cell::new(0) };
