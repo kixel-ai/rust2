@@ -2,6 +2,7 @@
 
 import * as rt from "./rt.ts";
 import { copy$bench_Timestamp, out$tuple2_i64_u64, out$u64 } from "./lib.ts";
+import * as Point from "./bench.Point.ts";
 import * as Timestamp from "./bench.Timestamp.ts";
 import type * as DecodeError from "./coding/decode.DecodeError.ts";
 import * as Decoder from "./coding/decode.Decoder.ts";
@@ -51,6 +52,8 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 				hashed(selector, new rt.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else if (op === 15) {
 				packets(selector, new rt.ByteSlice(input.data, input.start + 2, input.length - 2), out);
+			} else if (op === 16) {
+				format(new rt.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else {
 				decoded(decodeGroup(new rt.ByteSlice(input.data, input.start + 2, input.length - 2), liteVersion(selector), out), out);
 			}
@@ -488,6 +491,32 @@ export function push(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 	harness_putU64(out, option_mapOr$1jt76jv(middle, 0, (a0: rt.u32): rt.u64 => {
 		return a0 as rt.u64;
 	}));
+}
+
+/**
+ * `count` lines written into one `String` with padded, `Debug`, and fixed-precision
+ * placeholders: its length and the sum of its bytes.
+ */
+export function format(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const count2: rt.i64 = rt.i64Cast(rt.u64Min(takeU64(data)[0], 65536));
+	let s: string = "";
+	const iter: rt.Range<rt.i64> = new rt.Range(0, count2, rt.i64Step);
+	while (true) {
+		const _14: rt.i64 | rt.Done = iter.next();
+		if (_14 === rt.DONE) {
+			break;
+		}
+		const i: rt.i64 = _14;
+		const point: Point.Point = { x: i, y: rt.i64Neg(i) };
+		const _26: rt.f64 = rt.i64ToF64(i) / 3.0;
+		const _29: rt.i64 = rt.i64Neg(i);
+		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.i64Display(i, f), (f: rt.Formatter) => Point.fmt$fmt_Debug(point, f), (f: rt.Formatter) => rt.f64Display(_26, f), (f: rt.Formatter) => rt.i64Display(_29, f)];
+		s = rt.fmtWriteString(s, [rt.fmtSpec({ align: ">", width: 6 }, args2[0]), "|", args2[1], "|", rt.fmtSpec({ precision: 2 }, args2[2]), "|", args2[3], "\n"]).s;
+	}
+	putUsize(out, rt.stringLen(s));
+	harness_putU64(out, rt.iterSum(rt.iterMap(rt.strBytes(s), (a0: rt.u8): rt.u64 => {
+		return a0 as rt.u64;
+	}), rt.u64Add, 0));
 }
 
 /**

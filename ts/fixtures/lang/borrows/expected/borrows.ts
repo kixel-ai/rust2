@@ -1141,7 +1141,7 @@ export function printed(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const wide: rt.Cell<rt.u64> = new rt.Cell(rt.u64Shl(v as rt.u64, 56));
 			const maybe: rt.Cell<rt.u8 | undefined> = new rt.Cell(thenSome$0d5am30(rt.u8Rem(v, 2) === 0, v));
 			const _184: rt.Cell<undefined> = new rt.Cell(undefined);
-			const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.cellDebug(pair.v, f, (value: [rt.u8, rt.char], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.fmtCharDebug(value[1], f)], f)), (f: rt.Formatter) => rt.cellDebug(wide.v, f, rt.u64Debug), (f: rt.Formatter) => rt.cellDebug(maybe.v, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug)), (f: rt.Formatter) => rt.cellDebug(_184.v, f, rt.fmtUnit)];
+			const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.cellDebug(() => pair.v, f, (value: [rt.u8, rt.char], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u8Debug(value[0], f), (f: rt.Formatter) => rt.fmtCharDebug(value[1], f)], f)), (f: rt.Formatter) => rt.cellDebug(() => wide.v, f, rt.u64Debug), (f: rt.Formatter) => rt.cellDebug(() => maybe.v, f, (value: rt.u8 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u8Debug)), (f: rt.Formatter) => rt.cellDebug(() => _184.v, f, rt.fmtUnit)];
 			text = rt.fmtFormat([args18[0], " ", rt.fmtSpec({ alternate: true }, args18[0]), " ", args18[1], " ", args18[2], " ", rt.fmtSpec({ alternate: true }, args18[2]), " ", args18[3], " ", rt.fmtSpec({ align: ">", width: 3 }, args18[0])]);
 		} else if (_25 === 4) {
 			rt.cellSet(shown.cell, v);
@@ -1157,7 +1157,7 @@ export function printed(data: rt.ByteSlice, out: rt.ByteVec): void {
 		} else if (_25 === 5) {
 			new rt.Cell(v);
 			const inRefcell: rt.RefCell<rt.Cell<rt.u8>> = new rt.RefCell(new rt.Cell(v));
-			const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtWriteStr(f, "UnsafeCell { .. }"), (f: rt.Formatter) => rt.refCellDebug(inRefcell, f, (value: rt.Cell<rt.u8>, f: rt.Formatter) => rt.cellDebug(value.v, f, rt.u8Debug))];
+			const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "UnsafeCell")), (f: rt.Formatter) => rt.refCellDebug(inRefcell, f, (value: rt.Cell<rt.u8>, f: rt.Formatter) => rt.cellDebug(() => value.v, f, rt.u8Debug))];
 			text = rt.fmtFormat([args24[0], " ", rt.fmtSpec({ alternate: true }, args24[0]), " ", args24[1], " ", rt.fmtSpec({ alternate: true }, args24[1])]);
 		} else if (_25 === 6) {
 			const probe: rt.Arc<rt.RefCell<Probe.Probe>> = rt.arcNewCyclic((me: rt.Weak<rt.RefCell<Probe.Probe>>): rt.RefCell<Probe.Probe> => {

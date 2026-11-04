@@ -6,10 +6,11 @@
 //! keeps a `BTreeMap`, as moq-net's model keeps its state, op 9 converts timestamps
 //! between timescales, ops 10 and 11 add and order them as moq-net's `Timestamp` does,
 //! op 12 orders integers by std's own `Ord`, op 13 pushes onto vectors, op 14 keeps a
-//! `HashMap`, and op 15 numbers TS packets as moq-mux does.
+//! `HashMap`, op 15 numbers TS packets as moq-mux does, and op 16 formats log lines.
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, VecDeque};
+use std::fmt::Write;
 
 use crate::coding::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder, Form, varint};
 use crate::harness::{decode_error, encode_error, form, lite_version, put_u64, put_usize, take_u64};
@@ -41,6 +42,7 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 		13 => push(selector, data, &mut out),
 		14 => hashed(selector, data, &mut out),
 		15 => packets(selector, data, &mut out),
+		16 => format(data, &mut out),
 		_ => decoded(decode_group(data, lite_version(selector), &mut out), &mut out),
 	}
 	out
@@ -317,6 +319,27 @@ fn push(selector: u8, data: &[u8], out: &mut Vec<u8>) {
 	};
 	put_usize(out, len);
 	put_u64(out, middle.map_or(0, u64::from));
+}
+
+/// `count` lines written into one `String` with padded, `Debug`, and fixed-precision
+/// placeholders: its length and the sum of its bytes.
+fn format(data: &[u8], out: &mut Vec<u8>) {
+	let (count, _) = take_u64(data);
+	let count = count.min(1 << 16) as i64;
+	let mut s = String::new();
+	for i in 0..count {
+		let point = Point { x: i, y: -i };
+		let _ = writeln!(s, "{i:>6}|{point:?}|{:.2}|{}", i as f64 / 3.0, -i);
+	}
+	put_usize(out, s.len());
+	put_u64(out, s.bytes().map(u64::from).sum());
+}
+
+/// A pair `format` writes with its derived `Debug`.
+#[derive(Debug)]
+struct Point {
+	x: i64,
+	y: i64,
 }
 
 /// `count` TS packets of 188 bytes, each written by element through `as_chunks_mut`, then

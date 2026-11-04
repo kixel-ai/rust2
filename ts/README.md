@@ -335,9 +335,11 @@ would: `rt.fmtToString((f) => DecodeError.fmt$fmt_Display(err, f))` and
 `rt.fmtFormat([(f) => DecodeError.fmt$fmt_Debug(err, f)])`, after
 `import * as DecodeError from "./coding/decode.DecodeError.ts"`. `fmt::Write` translates for a
 `String`, a `Formatter`, and the crate's own writers, and through a `&mut` to any of them.
-A crate's own provided `write_char` and `write_fmt` call its `write_str` once, as std's
-do. A placeholder written to such a writer is refused: std splits what it writes into
-calls the runtime doesn't make.
+A crate's own provided `write_char` and a literal `write_fmt` call its `write_str` once, as
+std's do. What placeholders write reaches its `write_str` and `write_char` in the calls std
+makes, with the same text in the same order: each fill a `write_char`, an integer's sign one
+before its digits, a float's formatted parts, and a string's `Debug` in runs between its
+escapes, so a writer that counts calls or fails partway sees what it would natively.
 
 An iterator's `next()` returns its next item or `rt.DONE`, never `undefined`, so an
 iterator of `Option` keeps each `None` apart from its end. std's adaptors and consumers
@@ -1059,8 +1061,7 @@ method taking a closure tells it, or its accumulator or what it finds, apart fro
 or dropping the closure or passing them to std's iterators outside the crate's own types, or a
 drop of the accumulator or what it finds, or whose own `find`, `rfind`, or `is_sorted_by` gives
 its closure a reference to a `[u8; N]`,
-a pointer's address (`{:p}`) and `Debug` of a `Waker`, a `Context`, a `RawWaker`, or a `RawWakerVTable`, which writes addresses, `write!` with a placeholder into
-the crate's own `fmt::Write`, a `str` pattern other than a
+a pointer's address (`{:p}`) and `Debug` of a `Waker`, a `Context`, a `RawWaker`, or a `RawWakerVTable`, which writes addresses, a `str` pattern other than a
 `char`, a `&str`, a predicate behind any references and boxes, or chars, a mutable `str` slice, a copy of a closure that changes
 what it captured, `mem::swap`, `replace`, or `take` of a reference's whole pointee,
 assigning an `Arc`, a waker, a `MutexGuard`, a pinned reference, or a future through a

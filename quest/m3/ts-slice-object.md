@@ -1,22 +1,40 @@
-# [L] Waiting: a slice object for a mutable part of other values
+# [L] rs.Slice
 
 ## Goal
 
-Decide, from a profile of moq, whether a mutable part of a slice of other values, such as
-`&mut v[a..b]`, `split_at_mut`, or `chunks_mut` lends, needs a faster form than the
-runtime's `Proxy` view. Waits until a profile of translated moq shows the view's traps
-matter, by time spent in `sliceView`'s handler or in code reading through a view. If it
-does, a `&mut [T]` becomes an object of its array, start, and length, as `rt.ByteSlice`
-is for bytes, which splits in O(1) and reads at near a plain array's speed. Proven by the
-lang fixture's differential tests and a benchmark against the view.
+[rust2-ts](/ts/README.md) translates `&[T]`, `&mut [T]`, `[T; N]`, and `Box<[T]>` of values
+other than bytes as a runtime type of its array, start, and length, as `rs.ByteSlice` is
+for bytes, rather than a JS array and the `Proxy` view a mutable part lends today:
 
-Once `&[T]` takes that form too, pointers to a `[T; N]` of other values than bytes,
-including those a slice lends by `first_chunk`, `last_chunk`, `split_first_chunk`,
-`as_chunks`, or `as_rchunks`, compare where they point, as `ptr::eq` does natively,
-lifting the refusal of [moq-dev/rust2#510](https://github.com/moq-dev/rust2/pull/510),
-proven by differential tests against native Rust.
+- A mutable part, such as `&mut v[a..b]`, `split_at_mut`, or `chunks_mut` lends, splits in
+  O(1) and reads at near a plain array's speed, proven by the lang fixture's differential
+  tests and a benchmark against the view.
+- Pointers to a `[T; N]` of other values, including those `first_chunk`, `last_chunk`,
+  `split_first_chunk`, `as_chunks`, and `as_rchunks` lend, compare where they point, as
+  `ptr::eq` does natively, lifting the refusal of
+  [moq-dev/rust2#510](https://github.com/moq-dev/rust2/pull/510).
+- `slice::from_mut` and `array::from_mut` translate, of a `&mut u8` too, writing the
+  value through the slice where the caller holds it.
+
+Hand-written callers convert at the boundary with helpers, as for `rs.Vec`. Each is proven
+by differential tests against native Rust.
 
 ## Plan
+
+Decided with the maintainer on 2026-11-03: Rust types the runtime can't hold as std's do
+get a runtime wrapper, converted at API boundaries, rather than a JS native type
+([#555](https://github.com/moq-dev/rust2/pull/555) made `Vec` one). A native type, aliased
+or branded, stays where it holds all of std's semantics with no extra allocation, as a
+branded `number` does for an integer and a `Uint8Array` for a `[u8; N]`; prefer one if it
+holds them, but capacity and the like usually need a wrapper. This quest absorbs the two
+that waited: on a moq profile of the `Proxy` view, and on a consumer of `slice::from_mut`
+of a `&mut u8`. Neither wait holds now.
+
+A slice of one over a `&mut u8` was found fragile when it meant a one-byte buffer for each
+local; a slice whose storage can be an `rs.Place` may avoid that. Measure what each form
+costs a hot `&mut u8`, such as `read_exact(slice::from_mut(&mut byte))`.
+
+Earlier findings:
 
 Decided on 2026-10-30 in [moq-dev/rust2#274](https://github.com/moq-dev/rust2/pull/274):
 lend the `Proxy` view, since it covers every part, including one returned or stored, and
@@ -55,4 +73,9 @@ whole write. Noting the origin costs, per shared part of 8 of 16 values, in ns:
 
 The object carries the array and start, and compares by them as `rt.ByteSlice` does.
 
-Public API: the translator's output and what a caller passes for a slice.
+Public API: the translator's output and what a hand-written caller passes for a slice.
+
+## Related
+
+- [The runtime's namespace is rs](/quest/m3/ts-rs-rename.md) - runs in parallel
+- [rs.String](/quest/m3/ts-string-capacity.md) - the other native mapping becoming a wrapper

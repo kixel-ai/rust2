@@ -5,8 +5,8 @@
 export interface Workload {
 	/** What is coded, such as `varint/quic/2B` or `frames/video/lite-07`, iterated, or converted. */
 	name: string;
-	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "number" | "handoff";
-	/** Varints, frame headers, messages, items, keys, timestamps, integers, packets, or handoffs per call, which each time is divided by. */
+	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "number" | "format" | "handoff";
+	/** Varints, frame headers, messages, items, keys, timestamps, integers, packets, lines, or handoffs per call, which each time is divided by. */
 	items: number;
 	input: Uint8Array;
 }
@@ -117,6 +117,9 @@ export function workloads(encode: (input: Uint8Array) => Uint8Array): Workload[]
 	["ts/number", "ts/number-copy"].forEach((name, selector) => {
 		out.push({ name: `packets/${name}`, op: "number", items: packets, input: Uint8Array.of(15, selector, ...u64(BigInt(packets))) });
 	});
+
+	// `bench.rs`'s op 16: log lines formatted into one `String`.
+	out.push({ name: "fmt/lines", op: "format", items: count, input: Uint8Array.of(16, 0, ...u64(BigInt(count))) });
 	return out;
 }
 

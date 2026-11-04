@@ -289,7 +289,7 @@ export function impls(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => Tagged.fmt$fmt_Debug_String(t, f), (f: rt.Formatter) => Tagged.fmt$fmt_Debug_u8(copied, f), (f: rt.Formatter) => Tagged.fmt$fmt_Debug_u8(again, f), (f: rt.Formatter) => Names.fmt$fmt_Debug(_27, f)];
 		rt.iterExtendBytes(out, rt.strBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", rt.fmtSpec({ alternate: true }, args2[2]), " ", rt.fmtSpec({ alternate: true }, args2[3])])), undefined, true);
 		const _38: Rest.Rest = Rest.clone$Clone(Rest.default$Default());
-		const args4: rt.Fmt[] = [(f: rt.Formatter) => Rest.fmt$fmt_Debug(_38, f), (f: rt.Formatter) => rt.fmtWriteStr(f, "PhantomPinned"), (f: rt.Formatter) => rt.fmtWriteStr(f, "PhantomData<u8>")];
+		const args4: rt.Fmt[] = [(f: rt.Formatter) => Rest.fmt$fmt_Debug(_38, f), (f: rt.Formatter) => rt.fmtWriteStr(f, "PhantomPinned"), (f: rt.Formatter) => rt.fmtWriteFmt(f, ["PhantomData<", "u8", ">"])];
 		rt.iterExtendBytes(out, rt.strBytes(rt.fmtFormat([args4[0], " ", rt.fmtSpec({ alternate: true }, args4[0]), " ", rt.fmtSpec({ align: ">", width: 9 }, args4[1]), "|", rt.fmtSpec({ align: "<", width: 9 }, args4[2]), "|"])), undefined, true);
 		rt.byteVecPush(out, rt.iterCount(rt.iterEmpty() as rt.Iter<rt.u8>) & 0xff);
 	} else if (_7 === 1) {

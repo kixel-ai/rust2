@@ -6,7 +6,7 @@
 // 32-bit limbs. Arithmetic is checked as a debug build checks it: overflow panics, it
 // never wraps silently. Every panic's message is the one native Rust panics with.
 
-import { Err, type Formatter, type FmtResult, fmtPadIntegral, Ok, panic, type Result } from "../rt.ts";
+import { Err, type Formatter, type FmtResult, fmtPadFormatted, fmtPadIntegral, Ok, panic, type Result } from "../rt.ts";
 import type { Location } from "./location.ts";
 
 declare const brand: unique symbol;
@@ -303,8 +303,11 @@ function exp(nonnegative: boolean, digits: string, f: Formatter, letter: "e" | "
 			exponent++;
 		}
 	}
-	const point = coef.length > 1 || zeros > 0 ? `.${coef.slice(1)}${"0".repeat(zeros)}` : "";
-	return fmtPadIntegral(f, nonnegative, "", `${coef[0]}${point}${letter}${exponent}`);
+	const point = coef.length > 1 || zeros > 0 ? `.${coef.slice(1)}` : "";
+	if (zeros === 0) return fmtPadIntegral(f, nonnegative, "", `${coef[0]}${point}${letter}${exponent}`);
+	// The precision's zeros past the digits are parts of their own, as are the sign's.
+	const sign = nonnegative ? (f.spec.plus ? "+" : "") : "-";
+	return fmtPadFormatted(f, sign, [`${coef[0]}${point}`, zeros, `${letter}${exponent}`]);
 }
 
 const wrapU8 = (v: number) => v & 0xff;

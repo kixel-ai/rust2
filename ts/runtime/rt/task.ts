@@ -898,9 +898,11 @@ export class Cell<T> implements Place<T>, Disposable {
 	}
 }
 
-/** `Debug` of a `Cell` of a `Copy` value, given what `Cell::get` gave before anything is written. */
-export function cellDebug<T>(value: T, f: Formatter, debug: Debug<T>): FmtResult {
-	return debugStructFinish(debugStructField(fmtDebugStruct(f, "Cell"), "value", (f) => debug(value, f)));
+/** `Debug` of a `Cell` of a `Copy` value, which `get` gives once its name is written, as std reads it, since a writer may set the cell. */
+export function cellDebug<T>(get: () => T, f: Formatter, debug: Debug<T>): FmtResult {
+	const b = fmtDebugStruct(f, "Cell");
+	const value = get();
+	return debugStructFinish(debugStructField(b, "value", (f) => debug(value, f)));
 }
 
 /** `Cell::from_mut` of the place `p`: a cell of it, which nothing drops, as nothing owns it. */

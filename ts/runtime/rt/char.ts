@@ -4,8 +4,8 @@
 // Each reads std's own Unicode tables, which `rt/unicode.ts` holds, rather than the
 // engine's, whose Unicode version may differ from std's.
 
-import { type ByteSlice, type Debug, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugStructFields, fmtDebugTuple, fmtOption, fmtPad, fmtUnit, OK, Ok, type Place, panic, type Result, sliceView } from "../rt.ts";
-import { type char, type u8, type u16, u16Debug, type u32, type usize } from "./int.ts";
+import { type ByteSlice, type Debug, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugStructFields, fmtDebugTuple, fmtOption, fmtPad, fmtUnit, fmtWriteFmt, OK, Ok, type Place, panic, type Result, sliceView } from "../rt.ts";
+import { type char, type u8, type u16, u16Debug, u16LowerHex, type u32, type usize } from "./int.ts";
 import { type Clones, DONE, type Done, Iter, iterFlatMap, iterHeld, type SizeHint } from "./iter.ts";
 import { strChars } from "./str.ts";
 import { drop as dispose } from "./task.ts";
@@ -226,10 +226,13 @@ abstract class Chars extends Iter<char> {
 		return [this.len(), this.len()];
 	}
 
-	/** What `Display` writes: the chars still alive. */
+	/** The chars still alive. */
 	rest(): string {
 		return String.fromCodePoint(...this.chars.slice(this.front, this.back));
 	}
+
+	/** `Display`, unpadded. */
+	abstract display(f: Formatter): FmtResult;
 
 	/** `Debug`, of the iterator named `name`. */
 	abstract debug(f: Formatter, name: string): FmtResult;
@@ -242,6 +245,15 @@ class CaseMapping extends Chars {
 		it.front = this.front;
 		it.back = this.back;
 		return it;
+	}
+
+	/** Each char still alive, a `write_char` apiece. */
+	display(f: Formatter): FmtResult {
+		for (let i = this.front; i < this.back; i++) {
+			const r = f.out.writeChar(this.chars[i]);
+			if (!r.ok) return r;
+		}
+		return OK;
 	}
 
 	debug(f: Formatter, name: string): FmtResult {
@@ -273,12 +285,13 @@ class Escape extends Chars {
 		return it;
 	}
 
-	override rest(): string {
-		return this.#literal ? String.fromCodePoint(this.chars[0]) : super.rest();
+	/** The literal char by `write_char`, else what is still alive by one `write_str`. */
+	display(f: Formatter): FmtResult {
+		return this.#literal ? f.out.writeChar(this.chars[0]) : f.out.writeStr(this.rest());
 	}
 
 	debug(f: Formatter, name: string): FmtResult {
-		const quoted = (f: Formatter) => f.out.writeStr(`'${this.rest()}'`);
+		const quoted = (f: Formatter) => fmtWriteFmt(f, ["'", (f) => this.display(f), "'"]);
 		const inner = (f: Formatter) => debugTupleFinish(debugTupleField(fmtDebugTuple(f, "EscapeIterInner"), quoted));
 		return debugTupleFinish(debugTupleField(fmtDebugTuple(f, name), inner));
 	}
@@ -347,7 +360,7 @@ export function strEscapeDebug(s: string): Iter<char> {
 export function fmtStrEscapeDisplay(it: Iter<char>, f: Formatter): FmtResult {
 	const rest = it.clone();
 	for (let c = rest.next(); c !== DONE; c = rest.next()) {
-		const r = f.out.writeStr(String.fromCodePoint(c));
+		const r = f.out.writeChar(c);
 		if (!r.ok) return r;
 	}
 	return OK;
@@ -375,7 +388,7 @@ export function escapeDebug(c: string, quote: '"' | "'"): string {
 
 /** `Display` of a `ToLowercase`, a `ToUppercase`, or a char's escape: what it has left, unpadded, as std writes it by `write_char` or `write_str`. */
 export function fmtCharsDisplay(it: Iter<char>, f: Formatter): FmtResult {
-	return f.out.writeStr((it as Chars).rest());
+	return (it as Chars).display(f);
 }
 
 /** `Debug` of a `ToLowercase`, a `ToUppercase`, or a char's escape, named `name`: what it has left, in std's derived fields. */
@@ -505,7 +518,7 @@ class DecodeUtf16 extends Iter<Result<char, DecodeUtf16Error>> implements Dispos
 
 /** `Display` of a `DecodeUtf16Error`. */
 export function fmtDecodeUtf16ErrorDisplay(e: DecodeUtf16Error, f: Formatter): FmtResult {
-	return f.out.writeStr(`unpaired surrogate found: ${e.code.toString(16)}`);
+	return fmtWriteFmt(f, ["unpaired surrogate found: ", (f) => u16LowerHex(e.code, f)]);
 }
 
 /** `Debug` of a `DecodeUtf16Error`. */
