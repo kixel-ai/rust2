@@ -82,6 +82,24 @@ pub fn rebound_reference(a: &u32, b: &u32) -> (u32, u32) {
 	(x(), y())
 }
 
+/// Two `rs.Place`s of one number, which are two objects.
+pub fn places_compared(n: &mut u32) -> bool {
+	let a = &raw mut *n;
+	let b = &raw mut *n;
+	a == b
+}
+
+/// An `Option` of pointers to a number, each an `rs.Place` JS makes of its own.
+pub fn optional_places_compared(n: &mut u32) -> bool {
+	let p = std::ptr::NonNull::from(&mut *n);
+	Some(p) == std::ptr::NonNull::new(&raw mut *n)
+}
+
+/// The places of two `Rc`s' numbers, which `as_ptr` makes each of its own.
+pub fn rc_places_compared(a: &std::rc::Rc<u32>, b: &std::rc::Rc<u32>) -> bool {
+	std::ptr::addr_eq(std::rc::Rc::as_ptr(a), std::rc::Rc::as_ptr(b))
+}
+
 /// Pointers to two types, which JS keeps apart whatever their addresses.
 pub fn addresses_across(a: &(u8, u8), b: &[u8; 2]) -> bool {
 	std::ptr::addr_eq(a, b)

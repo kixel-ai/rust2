@@ -384,7 +384,7 @@ export function arrays$0(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.byteVecExtendFromSlice(out, _85);
 	}
-	const iter7: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterResult(first), rs.byteSliceFrom), rs.iterLend(rs.iterResult(rs.arrayAsPtr(results.items, rs.idx(results.items, 3)).v), rs.byteSliceFrom));
+	const iter7: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterResult(first), rs.byteSliceFrom), rs.iterLend(rs.iterResult(results.items[rs.idx(results.items, 3)]), rs.byteSliceFrom));
 	while (true) {
 		const _98: rs.ByteSlice | rs.Done = iter7.next();
 		if (_98 === rs.DONE) {
@@ -492,7 +492,7 @@ export function arrays$1(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.byteVecExtendFromSlice(out, _85);
 	}
-	const iter7: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterResult(first), rs.byteSliceFrom), rs.iterLend(rs.iterResult(rs.arrayAsPtr(results.items, rs.idx(results.items, 3)).v), rs.byteSliceFrom));
+	const iter7: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterResult(first), rs.byteSliceFrom), rs.iterLend(rs.iterResult(results.items[rs.idx(results.items, 3)]), rs.byteSliceFrom));
 	while (true) {
 		const _98: rs.ByteSlice | rs.Done = iter7.next();
 		if (_98 === rs.DONE) {
@@ -600,7 +600,7 @@ export function arrays$5(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.byteVecExtendFromSlice(out, _85);
 	}
-	const iter7: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterResult(first), rs.byteSliceFrom), rs.iterLend(rs.iterResult(rs.arrayAsPtr(results.items, rs.idx(results.items, 3)).v), rs.byteSliceFrom));
+	const iter7: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterResult(first), rs.byteSliceFrom), rs.iterLend(rs.iterResult(results.items[rs.idx(results.items, 3)]), rs.byteSliceFrom));
 	while (true) {
 		const _98: rs.ByteSlice | rs.Done = iter7.next();
 		if (_98 === rs.DONE) {
@@ -701,7 +701,7 @@ export function optionSlices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): 
 					}
 					rs.byteVecPush(out, rs.optionAsSlice(_60.v).length & 0xff);
 				}
-				swapHalves(rs.arrayAsPtr(wides, 1));
+				swapHalves(rs.place(() => wides[1], (value6) => wides[1] = value6));
 				const iterS2: Array<rs.u16 | undefined> = wides;
 				let iterI2: number = 0;
 				while (true) {

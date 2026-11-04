@@ -3,7 +3,7 @@
 import * as rs from "./rs.ts";
 import { copy$Option_pointers_Pair, copy$Option_tuple2_u16_u8, copy$array_array2_u32, copy$array_ptr_array4_u8, copy$array_u16, copy$array_u32, copy$array_u8, copy$mem_MaybeUninit_array_u32, copy$mem_MaybeUninit_array_u8, copy$mem_MaybeUninit_tuple2_u8_u8, copy$pointers_Aimed_Cell_u8, copy$pointers_Aimed_array2_u16, copy$pointers_Aimed_array4_u8, copy$pointers_Aimed_pointers_Housed_u8, copy$pointers_Aimed_pointers_Leaning, copy$pointers_Aimed_pointers_Paired, copy$pointers_Aimed_u8, copy$pointers_ByCall, copy$pointers_ByClosure, copy$pointers_ByObject, copy$pointers_Duo, copy$pointers_Halves, copy$pointers_Outer, copy$pointers_Pair, copy$pointers_Spot, copy$pointers_Twin, copy$tuple2_array2_u32_u8, copy$tuple2_u16_u8, copy$tuple2_u32_u32, copy$tuple2_u8_u8, drop$pointers_List_String, drop$pointers_List_sync_Arc_u8, drop$tuple2_sync_Arc_pointers_Twin_Rc_pointers_Twin, drop$tuple3_sync_Arc_u32_Rc_pointers_Duo_sync_Arc_unit, drop$tuple4_sync_Arc_pointers_Twin_sync_Arc_pointers_Twin_Rc_pointers_Twin_Rc_pointers_Twin, of$pointers_Bin_pointers_ByObject } from "./lib.ts";
 import { then$0bgt67i, then$1a5xgoh, then$0jw3xip } from "./core/bool.ts";
-import { isSomeAnd$1s2u5lz, isSomeAnd$1nosv3e, isSomeAnd$07atiew, unwrapOr$0mkoact as option_unwrapOr$0mkoact, unwrapOr$179xo1w as option_unwrapOr$179xo1w, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$004487o as option_map$004487o, map$1cfrse5 as option_map$1cfrse5, mapOr$078vnqn as option_mapOr$078vnqn, mapOr$00zno7m as option_mapOr$00zno7m, mapOr$173j2gr as option_mapOr$173j2gr, filter$0wvwd70 } from "./core/option.ts";
+import { isSomeAnd$1s2u5lz, isSomeAnd$1nosv3e, isSomeAnd$07atiew, unwrapOr$0mkoact as option_unwrapOr$0mkoact, unwrapOr$179xo1w as option_unwrapOr$179xo1w, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1cfrse5 as option_map$1cfrse5, mapOr$078vnqn as option_mapOr$078vnqn, mapOr$00zno7m as option_mapOr$00zno7m, mapOr$173j2gr as option_mapOr$173j2gr, filter$0wvwd70 } from "./core/option.ts";
 import type * as Aimed from "./pointers.Aimed.ts";
 import * as Bin from "./pointers.Bin.ts";
 import type * as ByCall from "./pointers.ByCall.ts";
@@ -2852,10 +2852,9 @@ export function rawPlaces(data: rs.ByteSlice, out: rs.ByteVec): void {
 }
 
 /**
- * Pointers to arrays of other values than bytes and to their elements, made of the array,
- * of references to it and its parts, by `first_chunk`, `split_first_chunk`, a subslice
- * pattern, `array::from_mut`, raw borrows, and `as_ptr` with arithmetic, in an array, a
- * `Vec`, and an `AtomicPtr`: compared where they point, and written through.
+ * Pointers to arrays of other values than bytes, made of the array, of references to it
+ * and its parts, by `first_chunk`, `split_first_chunk`, a subslice pattern, and
+ * `array::from_mut`: compared where they point, and written through.
  */
 export function arrays(data: rs.ByteSlice, out: rs.ByteVec): void {
 	for (const n of rs.byteSliceView(data)) {
@@ -2863,67 +2862,27 @@ export function arrays(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const a: rs.u32[] = [w, (w ^ 1) >>> 0, (w ^ 2) >>> 0, (w ^ 3) >>> 0];
 		const b: rs.u32[] = copy$array_u32(a);
 		const p: rs.Slice<rs.u32> = rs.sliceFrom(a);
-		const s: rs.Slice<rs.u32> = rs.sliceFrom(a);
-		const first: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(s, 0, 2));
+		const first: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(rs.sliceFrom(a), 0, 2));
 		const again: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(a), 0, 3), 0, 2));
-		const _32: [rs.Slice<rs.u32>, rs.Slice<rs.u32>] = rs.optionUnwrap(rs.sliceSplitAtChecked(rs.sliceFrom(a), 1));
-		const middle: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(_32[1], 0, 2));
-		const _42: rs.Place<rs.u32> = rs.arrayAsPtr(a, 0);
-		const _41: [rs.Place<rs.u32>, rs.Place<rs.u32>] = [_42, rs.arrayAsPtr(a, 1)];
-		const e0: rs.Place<rs.u32> = _42;
-		const e1: rs.Place<rs.u32> = _41[1];
-		const _50: rs.u8 = rs.sliceSame(p, rs.sliceFrom(a)) ? 1 : 0;
-		const _54: rs.u8 = rs.sliceSame(p, rs.sliceFrom(b)) ? 1 : 0;
-		const _58: rs.u8 = rs.sliceSame(first, again) ? 1 : 0;
-		const _60: rs.u8 = rs.sliceSame(first, middle) ? 1 : 0;
-		const _62: rs.u8 = rs.placeSame(e0, rs.sliceAsPtr(_32[0])) ? 1 : 0;
-		const _66: rs.u8 = rs.placeSame(e0, e1) ? 1 : 0;
-		const _68: rs.u8 = rs.placeSame(e1, rs.sliceAsPtr(_32[1])) ? 1 : 0;
-		const _71: rs.u8 = rs.placeSame(e1, rs.ptrWrappingAdd(rs.sliceAsPtr(s), 1, 4, 4)) ? 1 : 0;
-		const _75: rs.u8 = rs.placeSame(e1, rs.ptrAdd(e0, 1)) ? 1 : 0;
-		const _78: rs.u8 = rs.placeSame(e0, rs.arrayAsPtr(b, 0)) ? 1 : 0;
-		const _83: rs.u8 = rs.placeSame(e0, rs.NULL) ? 1 : 0;
-		const _86: rs.u8 = rs.sliceContains(rs.sliceFrom([e0, e1]), rs.arrayAsPtr(a, 1), rs.placeSame) ? 1 : 0;
-		const pointer = e1;
-		const _98: rs.Place<rs.u32> | undefined = e1;
-		const _100: rs.Place<rs.u32> | undefined = option_map$004487o(option_map$004487o(pointer === rs.NULL ? undefined : pointer, (a0: rs.Place<rs.u32>): rs.Place<rs.u32> => {
-			return a0;
-		}), (a02: rs.Place<rs.u32>): rs.Place<rs.u32> => {
-			return a02;
-		});
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_50, _54, _58, _60, _62, _66, _68, _71, _75, _78, _83, _86, rs.eqOption(rs.placeSame)(_98, _100) ? 1 : 0)), undefined, true);
+		const middle: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(rs.optionUnwrap(rs.sliceSplitAtChecked(rs.sliceFrom(a), 1))[1], 0, 2));
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(rs.sliceSame(p, rs.sliceFrom(a)) ? 1 : 0, rs.sliceSame(p, rs.sliceFrom(b)) ? 1 : 0, rs.sliceSame(first, again) ? 1 : 0, rs.sliceSame(first, middle) ? 1 : 0, rs.sliceSame(p, rs.NULL) ? 1 : 0)), undefined, true);
 		const chunk: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(rs.sliceFrom(a), 0, 2));
 		chunk.data[chunk.start + 1] = (chunk.data[chunk.start + 1] ^ 32768) >>> 0;
 		const made: rs.Slice<rs.u32> = chunk;
-		rs.byteVecPush(out, (rs.sliceSame(made, first) ? 1 : 0) | (((rs.placeSame(rs.sliceAsPtr(made), e0) ? 1 : 0) << 1) & 0xff));
-		const _121: rs.Slice<rs.u32> = rs.sliceFrom(a);
-		_121.data[_121.start] = (_121.data[_121.start] ^ 1) >>> 0;
-		const swapped = _121.data[_121.start];
-		_121.data[_121.start] = _121.data[_121.start + 3];
-		_121.data[_121.start + 3] = swapped;
-		const _127: [rs.Place<rs.u32>, rs.Place<rs.u32>] = [rs.arrayAsPtr(_121.data, _121.start), rs.arrayAsPtr(_121.data, _121.start + 3)];
-		const x: rs.Place<rs.u32> = _127[0];
-		const y: rs.Place<rs.u32> = _127[1];
-		rs.byteVecPush(out, (rs.placeSame(x, e0) ? 1 : 0) | (((rs.placeSame(y, rs.ptrWrappingAdd(x, 3, 4, 4)) ? 1 : 0) << 1) & 0xff));
-		const one: rs.Slice<rs.u32> = rs.sliceOfPlace(rs.arrayAsPtr(a, 2));
+		rs.byteVecPush(out, (rs.sliceSame(made, first) ? 1 : 0) | (((rs.sliceSame(made, middle) ? 1 : 0) << 1) & 0xff));
+		const _71: rs.Slice<rs.u32> = rs.sliceFrom(a);
+		_71.data[_71.start] = (_71.data[_71.start] ^ 1) >>> 0;
+		const swapped = _71.data[_71.start];
+		_71.data[_71.start] = _71.data[_71.start + 3];
+		_71.data[_71.start + 3] = swapped;
+		const borrowed = a;
+		const one: rs.Slice<rs.u32> = rs.sliceOfPlace(rs.place(() => borrowed[2], (value) => borrowed[2] = value));
 		one.data[one.start] = (one.data[one.start] ^ 16) >>> 0;
-		const one2: rs.Slice<rs.u32> = one;
-		rs.byteVecPush(out, (rs.placeSame(rs.sliceAsPtr(one2), rs.arrayAsPtr(a, 2)) ? 1 : 0) | (((rs.placeSame(rs.sliceAsPtr(one2), e1) ? 1 : 0) << 1) & 0xff));
 		rs.byteVecPush(out, rs.sliceSame(rs.sliceFrom(a), p) ? 1 : 0);
 		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(a), (_2: rs.u32): rs.u8 => {
-			const x2: rs.u32 = _2;
-			return ((x2 ^ (x2 >>> 8)) >>> 0) & 0xff;
+			const x: rs.u32 = _2;
+			return ((x ^ (x >>> 8)) >>> 0) & 0xff;
 		}), undefined, true);
-		const _172: [rs.Slice<rs.u32[]>, rs.Slice<rs.u32>] = rs.sliceAsChunks(rs.sliceFrom(a), 2);
-		const _176: [rs.Slice<rs.u32>, rs.Slice<rs.u32[]>] = rs.sliceAsRchunks(rs.sliceFrom(a), 3);
-		rs.idx(_172[0], 0);
-		const _182: rs.u8 = rs.placeSame(rs.sliceAsPtr(rs.sliceFrom(_172[0].data[_172[0].start])), rs.sliceAsPtr(rs.optionUnwrap(rs.sliceGetRange(rs.sliceFrom(a), 0, 2)))) ? 1 : 0;
-		rs.idx(_172[0], 1);
-		const _199: rs.Place<rs.u32> = rs.sliceAsPtr(rs.sliceFrom(_172[0].data[_172[0].start + 1]));
-		rs.idx(_172[0], 0);
-		const _181: rs.u8 = _182 | (((rs.placeSame(_199, rs.sliceAsPtr(rs.sliceFrom(_172[0].data[_172[0].start]))) ? 1 : 0) << 1) & 0xff);
-		rs.idx(_176[1], 0);
-		rs.byteVecPush(out, _181 | (((rs.placeSame(rs.sliceAsPtr(rs.sliceFrom(_176[1].data[_176[1].start])), e1) ? 1 : 0) << 2) & 0xff));
 		const nested: rs.u32[][] = [[w, 1], [2, 3]];
 		const read: rs.u32[][] = copy$array_array2_u32(rs.sliceToArray(rs.sliceFrom(nested), copy$array_u32));
 		read[0][0] = (read[0][0] ^ 255) >>> 0;
@@ -2932,33 +2891,21 @@ export function arrays(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 }
 
-/**
- * Pointers to arrays in a `Vec`, and to elements of one, compared where they point, and
- * swapped in and out of an `AtomicPtr`.
- */
+/** Pointers to arrays in a `Vec`, compared where they point. */
 export function runs(n: rs.u8): Uint8Array {
 	const v: rs.Vec<string[]> = rs.vecFrom([rs.arrayMap(Uint8Array.of(n, n ^ 1), (b: rs.u8): string => {
-		const _43: rs.char = b as rs.char;
-		return rs.fmtToString((f: rs.Formatter) => rs.fmtCharDisplay(_43, f));
+		const _44: rs.char = b as rs.char;
+		return rs.fmtToString((f: rs.Formatter) => rs.fmtCharDisplay(_44, f));
 	}), ["", "x"]]);
 	const first: rs.Slice<string> = rs.sliceFrom(v.items[rs.idx(v.items, 0)]);
 	const last: rs.Slice<string> = rs.optionUnwrap(rs.optionMap(rs.sliceLast(rs.sliceFrom(v.items)), rs.sliceFrom));
-	const words: rs.Vec<rs.u32> = rs.vecFromElem(n as rs.u32, 3, undefined);
-	const at: rs.Atomic<rs.Place<rs.u32>> = new rs.Atomic(rs.arrayAsPtr(words.items));
-	const next: rs.Place<rs.u32> = rs.ptrWrappingAdd(rs.arrayAsPtr(words.items), 1, 4, 4);
-	const _32: rs.Place<rs.u32> = rs.arrayAsPtr(words.items);
-	const swapped: boolean = rs.atomicCompareExchange(at, _32, next, 4, 4, rs.placeSame).ok;
-	const _41: rs.Place<rs.u32> = rs.arrayAsPtr(words.items);
-	const again: boolean = rs.atomicCompareExchange(at, _41, next, 4, 4, rs.placeSame).ok;
-	const _48: rs.Slice<string> = rs.sliceFrom(v.items[rs.idx(v.items, 1)]);
-	_48.data[_48.start] = _48.data[_48.start] + "y";
-	const _52: rs.u8 = rs.sliceSame(first, rs.sliceFrom(v.items[rs.idx(v.items, 0)])) ? 1 : 0;
-	const _57: rs.u8 = rs.sliceSame(first, last) ? 1 : 0;
-	const _59: rs.u8 = rs.sliceSame(last, rs.sliceFrom(v.items[rs.idx(v.items, 1)])) ? 1 : 0;
-	const _64: rs.u8 = (swapped ? 1 : 0) | (((again ? 1 : 0) << 1) & 0xff);
-	const _70: rs.u8 = rs.placeSame(rs.atomicLoad(at, 4), next) ? 1 : 0;
-	const _80: rs.Slice<string> = rs.sliceFrom(v.items[rs.idx(v.items, 1)]);
-	return Uint8Array.of(_52, _57, _59, _64, _70, rs.stringLen(_80.data[_80.start]) & 0xff);
+	const _20: rs.Slice<string> = rs.sliceFrom(v.items[rs.idx(v.items, 1)]);
+	_20.data[_20.start] = _20.data[_20.start] + "y";
+	const _24: rs.u8 = rs.sliceSame(first, rs.sliceFrom(v.items[rs.idx(v.items, 0)])) ? 1 : 0;
+	const _29: rs.u8 = rs.sliceSame(first, last) ? 1 : 0;
+	const _31: rs.u8 = rs.sliceSame(last, rs.sliceFrom(v.items[rs.idx(v.items, 1)])) ? 1 : 0;
+	const _39: rs.Slice<string> = rs.sliceFrom(v.items[rs.idx(v.items, 1)]);
+	return Uint8Array.of(_24, _29, _31, rs.stringLen(_39.data[_39.start]) & 0xff);
 }
 
 //# sourceMappingURL=pointers.ts.map

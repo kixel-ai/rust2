@@ -275,7 +275,7 @@ export function edges(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else {
 			_200 = rs.Ok([x, 1] as [rs.u32, rs.u32]);
 		}
-		const uninit = rs.arrayAsPtr(dst, 1);
+		const uninit = rs.place(() => dst[1], (value6) => dst[1] = value6);
 		uninit.v = _200;
 		uninit;
 		const _207: rs.Result<[rs.u32, rs.u32], rs.u8> = dst[1];

@@ -147,7 +147,8 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		const iterEnd: rs.usize = _106;
 		while ((_109 = iterStart++) < iterEnd) {
 			const i2: rs.usize = _109;
-			const s: rs.Place<Named.Named> = rs.arrayAsPtr(shapes.items, rs.idx(shapes.items, i2));
+			const at = rs.idx(shapes.items, i2);
+			const s: rs.Place<Named.Named> = rs.place(() => shapes.items[at], (value3) => shapes.items[at] = value3);
 			if (rs.usizeRem(i2, 2) === 0) {
 				s.v.grow$Shape(a);
 			}
@@ -159,7 +160,7 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 		}
 		let sum: rs.u32 = 0;
 		for (const _150 of shapes.items) {
-			_150.tally$Shape(rs.place(() => sum, (value3) => sum = value3));
+			_150.tally$Shape(rs.place(() => sum, (value4) => sum = value4));
 		}
 		const _167: Tri.Tri = tri;
 		const at2 = rs.idx(shapes.items, 0);

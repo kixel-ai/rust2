@@ -1434,12 +1434,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		{
 			let target = target.clone();
 			let target = self.stable_target(deref, target, span, out);
-			let element = self.elements.contains(&place.local) || super::place::element(self.through_aliases(deref));
-			let made = match element.then(|| super::place::at_index(&target)).flatten() {
-				Some(at) => at,
-				None => self.place_of(target, None),
-			};
-			return Some(of(made));
+			return Some(of(self.place_of(target, None)));
 		}
 		if self.b.t.needs_place(ty) {
 			let made = self.operand(op, span, out);
@@ -1934,13 +1929,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					&& matches!(self.slots[local], Slot::Var(_))
 				{
 					self.slots[local] = Slot::Alias(Some(place));
-					self.elements.insert(local);
 					return Some(None);
 				}
 				if name == "index_mut" && self.b.t.needs_place(elem_ty) {
 					let target = self.stable_path(place, false, span, out);
-					let made = super::place::at_index(&target).unwrap_or_else(|| self.place_of(target, None));
-					return Some(Some((made, true)));
+					return Some(Some((self.place_of(target, None), true)));
 				}
 				Some(Some((place, true)))
 			}

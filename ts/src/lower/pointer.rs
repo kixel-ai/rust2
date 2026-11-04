@@ -119,7 +119,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				self.compare(ty);
 				None
 			}
-			Pointee::Place => None,
+			Pointee::Place => Some(format!(
+				"comparing pointers to `{ty}`, each a place JS makes of its own"
+			)),
 			Pointee::Slice => Some(format!(
 				"comparing pointers to `{ty}`, whose element pointers are places JS makes of their own"
 			)),
@@ -127,14 +129,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// What tells whether two pointers to `ty` point at the same place where `===` can't:
-	/// `rs.placeSame` of `rs.Place`s, and the slices' of an array.
+	/// the slices' of an array.
 	pub fn same_fn(&self, ty: Ty<'tcx>) -> Option<Expr> {
-		match self.pointee(ty) {
-			_ if self.identity_pointee(ty) => None,
-			Pointee::Place => Some(Expr::Rs("placeSame".into())),
-			Pointee::Array => Some(self.array_rs(ty, "Same")),
-			Pointee::Object | Pointee::Slice => None,
-		}
+		(self.pointee(ty) == Pointee::Array).then(|| self.array_rs(ty, "Same"))
 	}
 
 	/// What a `MaybeUninit` or `ManuallyDrop` holds, through any number of them, or `ty`

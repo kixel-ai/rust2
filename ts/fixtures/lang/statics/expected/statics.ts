@@ -224,7 +224,7 @@ export function cells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.panic("index out of bounds: the len is " + 3 + " but the index is " + i);
 		}
 		const _199: rs.u16 = rs.u16Mul(n2 as rs.u16, 300);
-		const uninit = rs.arrayAsPtr(slots, i);
+		const uninit = rs.place(() => slots[i], (value) => slots[i] = value);
 		uninit.v = _199;
 		uninit;
 		if (!(i < 3)) {

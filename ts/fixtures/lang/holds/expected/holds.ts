@@ -66,8 +66,8 @@ export function places(a: rs.u8, b: rs.u8, data: rs.ByteSlice, out: rs.ByteVec):
 		}
 		i = rs.usizeRem(rs.usizeAdd(i, k as rs.usize), 4);
 		j = rs.usizeRem(rs.usizeAdd(j, 1), 4);
-		set(rs.arrayAsPtr(grid[_30], _32), k);
-		set(rs.arrayAsPtr(rows[_35].cells, _39), k ^ 1);
+		set(rs.place(() => grid[_30][_32], (value) => grid[_30][_32] = value), k);
+		set(rs.place(() => rows[_35].cells[_39], (value2) => rows[_35].cells[_39] = value2), k ^ 1);
 	}
 	rs.iterExtendBytes(out, rs.iterFlatten(rs.iterLend(rs.iterSlice(grid), rs.byteSliceFrom), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 4), undefined, true);
 	for (const _61 of rows) {
@@ -81,7 +81,9 @@ export function places(a: rs.u8, b: rs.u8, data: rs.ByteSlice, out: rs.ByteVec):
 	if (!(_72 < _76)) {
 		rs.panic("index out of bounds: the len is " + _76 + " but the index is " + _72);
 	}
-	const s: rs.Place<rs.u8> = rs.arrayAsPtr(r.data, r.start + _72);
+	const borrowed = r;
+	const borrowed2 = r.start + _72;
+	const s: rs.Place<rs.u8> = rs.place(() => borrowed.data[borrowed2], (value3) => borrowed.data[borrowed2] = value3);
 	r = rs.byteSliceFrom(y);
 	set(s, 9);
 	const _84: rs.usize = r.length;

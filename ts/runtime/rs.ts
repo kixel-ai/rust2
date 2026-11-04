@@ -427,29 +427,6 @@ export function ptrOffsetFrom<T>(p: Place<T>, origin: Place<T>): number {
 }
 
 /**
- * Whether pointers `a` and `b` to a value JS copies point at the same place: the same
- * `rs.Place`, or elements of one array at one index, through any view of runs. Elements
- * of different arrays, null, and dangling pointers are apart. Fails for any other two
- * places, of which JS may make two of one, such as two borrows of a variable.
- */
-export function placeSame<T>(a: Place<T>, b: Place<T>): boolean {
-	[a, b] = [ptrHome(a), ptrHome(b)];
-	if (a === b) return true;
-	if (a instanceof AtIndex && b instanceof AtIndex) {
-		const [x, y] = [elemOf(a), elemOf(b)];
-		if (x.array === y.array) return x.index === y.index;
-		if (x.array instanceof Uint8Array && y.array instanceof Uint8Array) {
-			return x.array.buffer === y.array.buffer && x.array.byteOffset + x.index === y.array.byteOffset + y.index;
-		}
-		// An array of one a pointer to a value in no array points into is one of its own.
-		const lone = (e: AtIndex<T>) => (e.array as { [LONE_OF]?: unknown })[LONE_OF] !== undefined;
-		if (!lone(x) && !lone(y)) return false;
-	}
-	if (a === NULL || b === NULL || a === DANGLING || b === DANGLING || a instanceof Address || b instanceof Address) return false;
-	throw new Error("rust2-ts: comparing pointers to places JS made each of its own, such as two borrows of one variable");
-}
-
-/**
  * `ptr::copy` and `copy_nonoverlapping` of `n` elements from `src` to `dst`, as if through
  * a buffer between, each made a value of its own by `copy` where the crate writes into its parts.
  */
@@ -1127,25 +1104,15 @@ export function sliceSplitLastChunk<T>(s: Slice<T>, n: number): [Slice<T>, Slice
 /** `as_chunks`: copies of each run of `n` elements from the front, and the rest, panicking at a size of 0. */
 export function sliceAsChunks<T>(s: Slice<T>, n: number, at?: Location): [Slice<T[]>, Slice<T>] {
 	const count = chunkCount(s.length, n, at);
-	return [sliceFrom(runs(count, n, (start, end) => runCopy(s.data, s.start + start, s.start + end))), slicePart(s, count * n)];
+	const from = (k: number) => s.start + k;
+	return [sliceFrom(runs(count, n, (start, end) => s.data.slice(from(start), from(end)))), slicePart(s, count * n)];
 }
 
 /** `as_rchunks`: the rest, and copies of each run of `n` elements up to the back, panicking at a size of 0. */
 export function sliceAsRchunks<T>(s: Slice<T>, n: number, at?: Location): [Slice<T>, Slice<T[]>] {
 	const count = chunkCount(s.length, n, at);
 	const rest = s.start + s.length - count * n;
-	return [slicePart(s, 0, s.length - count * n), sliceFrom(runs(count, n, (start, end) => runCopy(s.data, rest + start, rest + end)))];
-}
-
-/**
- * Elements `start` to `end` of `data`, a run a shared slice lends, as a copy, which
- * nothing writes through: one that answers to its `View` of `data`, so pointers into it
- * point where the run is.
- */
-function runCopy<T>(data: T[], start: number, end: number): T[] {
-	const outer = (data as { [VIEW]?: View<T> })[VIEW];
-	const view = outer ? outer.part(start, end - start) : new View(data, start, end - start);
-	return Object.defineProperty(data.slice(start, end), VIEW, { value: view });
+	return [slicePart(s, 0, s.length - count * n), sliceFrom(runs(count, n, (start, end) => s.data.slice(rest + start, rest + end)))];
 }
 
 /** `as_chunks_mut`: each run of `n` elements from the front as an array, written where the slice holds it, and the rest, panicking at a size of 0. */

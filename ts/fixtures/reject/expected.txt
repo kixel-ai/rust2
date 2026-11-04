@@ -158,7 +158,10 @@ fixtures/reject/src/places.rs:arc_dyn_pointer+1:2: a raw pointer to the `dyn std
 fixtures/reject/src/places.rs:copied_closure+6:14: a copy of a closure that changes what it captured
 fixtures/reject/src/places.rs:mapped_closure+2:10: a mapped guard of `{closure@fixtures/reject/src/places.rs:mapped_closure+1:38: +1:50}`, which JS can't write in place
 fixtures/reject/src/places.rs:ok_passed+1:12: a mutable reference into a `Result`'s payload, passed on or kept
+fixtures/reject/src/places.rs:optional_places_compared+2:2: comparing pointers to `u32`, each a place JS makes of its own
+fixtures/reject/src/places.rs:places_compared+3:2: comparing pointers to `u32`, each a place JS makes of its own
 fixtures/reject/src/places.rs:places_equal+1:2: unsupported call to `<std::option::Option<&mut u32> as std::cmp::PartialEq>::eq`
+fixtures/reject/src/places.rs:rc_places_compared+1:2: comparing pointers to `u32`, each a place JS makes of its own
 fixtures/reject/src/places.rs:rebound_reference+7:14: a copy of a closure that changes what it captured
 fixtures/reject/src/places.rs:rebound_reference+8:14: a copy of a closure that changes what it captured
 fixtures/reject/src/places.rs:replace_boxed_bytes+4:2: replacing the value behind a reference to `std::pin::Pin<std::boxed::Box<[u8; 2]>>`
@@ -259,6 +262,8 @@ fixtures/reject/src/rebound.rs:retargeted+5:10: a raw pointer to `rebound::Targe
 fixtures/reject/src/rebound.rs:swap_retargeted+6:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/rebound.rs:swapped_in_loop+8:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/rebound.rs:unboxed_rebound+2:16: a reference to `rebound::Unboxed`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there
+fixtures/reject/src/statics.rs:pointer_statics+3:15: comparing pointers to `u32` in an atomic, which JS has no address of
+fixtures/reject/src/statics.rs:pointer_statics+4:3: a constant of type `&u32`, a pointer into memory translation can't name
 fixtures/reject/src/statics.rs:statics+1:11: a mutable static, which any code may write
 fixtures/reject/src/strs.rs:cow_borrowed+1:2: unsupported call to `std::borrow::Cow::<'_, str>::is_borrowed`
 fixtures/reject/src/strs.rs:cow_bytes+1:2: unsupported call to `std::borrow::Cow::<'_, [u8]>::is_borrowed`

@@ -184,11 +184,11 @@ export function durations(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		const v: rs.Duration[] = [a, b];
 		v[1] = rs.durationAdd(v[1], a);
 		putDuration(out, v[1]);
-		shrink(rs.arrayAsPtr(v, 0), b);
+		shrink(rs.place(() => v[0], (value) => v[0] = value), b);
 		putDuration(out, v[0]);
 		let d5: rs.Duration = a;
 		const _306: Twice.Twice = { _0: b };
-		addAssign$ops_AddAssign_durations_Twice_time_Duration(rs.place(() => d5, (value) => d5 = value), _306);
+		addAssign$ops_AddAssign_durations_Twice_time_Duration(rs.place(() => d5, (value2) => d5 = value2), _306);
 		putDuration(out, d5);
 	} else if (_24 === 11) {
 		let c3: rs.Duration = a;

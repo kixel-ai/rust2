@@ -322,7 +322,7 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_29 === 0) {
 			const _32: rs.RefCell<Parts.Parts> = rs.refCellBorrowMut(parts);
 			const n: rs.RefCell<rs.u32> = rs.refMutMap(_32, ((p16: Parts.Parts): rs.Place<rs.u32> => {
-				return rs.place(() => p16.n, (value7) => p16.n = value7);
+				return rs.place(() => p16.n, (value8) => p16.n = value8);
 			})(_32.value));
 			n.value = rs.u32Add(n.value, op as rs.u32);
 			rs.byteVecPush(out, borrowed$borrows_Parts(parts));
@@ -349,7 +349,7 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_29 === 1) {
 			const _81: rs.RefCell<Parts.Parts> = rs.refCellBorrowMut(parts);
 			const text: rs.RefCell<string> = rs.refMutMap(_81, ((p15: Parts.Parts): rs.Place<string> => {
-				return rs.place(() => p15.text, (value6) => p15.text = value6);
+				return rs.place(() => p15.text, (value7) => p15.text = value7);
 			})(_81.value));
 			text.value = text.value + String.fromCodePoint(rs.u8Add(97, rs.u8Rem(op, 26)) as rs.char);
 			if ((op >> 4) === 15) {
@@ -395,7 +395,7 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_29 === 3) {
 			const _170: rs.RefCell<Parts.Parts> = rs.refCellBorrowMut(parts);
 			const _169: rs.Result<rs.RefCell<rs.u16>, rs.RefCell<Parts.Parts>> = rs.refMutFilterMap(_170, ((p11: Parts.Parts): rs.Place<rs.u16> | undefined => {
-				return p11.maybe === undefined ? undefined : rs.place(() => p11.maybe as rs.u16, (value5) => p11.maybe = value5);
+				return p11.maybe === undefined ? undefined : rs.place(() => p11.maybe as rs.u16, (value6) => p11.maybe = value6);
 			})(_170.value));
 			if (_169.ok) {
 				const m: rs.RefCell<rs.u16> = _169.value;
@@ -462,7 +462,7 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_29 === 5) {
 			const _274: rs.RefCell<Parts.Parts> = rs.refCellBorrowMut(parts);
 			const _273: [rs.RefCell<rs.u32>, rs.RefCell<string>] = rs.refMutMapSplit(_274, ((p8: Parts.Parts): [rs.Place<rs.u32>, rs.Place<string>] => {
-				return [rs.place(() => p8.n, (value3) => p8.n = value3), rs.place(() => p8.text, (value4) => p8.text = value4)] as [rs.Place<rs.u32>, rs.Place<string>];
+				return [rs.place(() => p8.n, (value4) => p8.n = value4), rs.place(() => p8.text, (value5) => p8.text = value5)] as [rs.Place<rs.u32>, rs.Place<string>];
 			})(_274.value));
 			const n3: rs.RefCell<rs.u32> = _273[0];
 			const text2: rs.RefCell<string> = _273[1];
@@ -507,14 +507,14 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (_341 === 12) {
 				const _345: rs.RefCell<Parts.Parts> = rs.refCellBorrowMut(parts);
 				const _n: rs.RefCell<rs.u32> = rs.refMutMap(_345, ((p7: Parts.Parts): rs.Place<rs.u32> => {
-					return rs.place(() => p7.n, (value2) => p7.n = value2);
+					return rs.place(() => p7.n, (value3) => p7.n = value3);
 				})(_345.value));
 				rs.refRelease(rs.refCellBorrow(parts));
 				rs.refMutRelease(_n);
 			} else if (_341 === 13) {
 				const _352: rs.RefCell<Parts.Parts> = rs.refCellBorrowMut(parts);
 				const parts2 = ((p6: Parts.Parts): [rs.Place<rs.u32>, rs.ByteVec] => {
-					return [rs.place(() => p6.n, (value) => p6.n = value), p6.bytes] as [rs.Place<rs.u32>, rs.ByteVec];
+					return [rs.place(() => p6.n, (value2) => p6.n = value2), p6.bytes] as [rs.Place<rs.u32>, rs.ByteVec];
 				})(_352.value);
 				const _351: [rs.RefCell<rs.u32>, rs.RefCell<rs.ByteVec>] = rs.refMutMapSplit(_352, [parts2[0], rs.partPlace(parts2[1])]);
 				const a: rs.RefCell<rs.u32> = _351[0];
@@ -583,7 +583,7 @@ export function maps(data: rs.ByteSlice, out: rs.ByteVec): void {
 				if (!(_33 < 4)) {
 					rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _33);
 				}
-				return rs.arrayAsPtr(b2.data, b2.start + _33);
+				return rs.place(() => b2.data[b2.start + _33], (value) => b2.data[b2.start + _33] = value);
 			};
 			const byte: rs.RefCell<rs.u8> = rs.refMutMap(_436, ((held) => _438(rs.byteSliceFrom(held)))(_436.value));
 			const _440: rs.u8 = rs.u8WrappingAdd(byte.value, op);
