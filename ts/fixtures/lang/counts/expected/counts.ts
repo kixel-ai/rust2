@@ -62,11 +62,13 @@ export function addressedArcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 				}
 				rt.vecTruncate(weak, 0, rt.drop);
 			} else if (_32 === 4) {
-				const before: [rt.u8, rt.u8] = strong[rt.idx(strong, pick)].value;
+				const arc8 = strong[rt.idx(strong, pick)];
+				const before: [rt.u8, rt.u8] = rt.arcRaw(arc8, arc8.value, "Arc");
 				const at3 = rt.idx(strong, pick);
 				const _57: [rt.u8, rt.u8] = rt.arcMakeMut(rt.place(() => strong[at3], (value5) => strong[at3] = value5), copy$tuple2_u8_u8, rt.drop, copy$tuple2_u8_u8);
 				_57[1] = _57[1] ^ op;
-				const after: [rt.u8, rt.u8] = strong[rt.idx(strong, pick)].value;
+				const arc9 = strong[rt.idx(strong, pick)];
+				const after: [rt.u8, rt.u8] = rt.arcRaw(arc9, arc9.value, "Arc");
 				rt.byteVecPush(out, before === after ? 1 : 0);
 				rt.byteVecPush(out, after === strong[rt.idx(strong, pick)].value ? 1 : 0);
 				rt.byteVecPush(out, after[1]);
@@ -81,7 +83,8 @@ export function addressedArcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 				rt.byteVecPush(out, rt.byteSliceSame(before2, after2) ? 1 : 0);
 				rt.byteVecExtendFromSlice(out, after2);
 				rt.drop(shadow);
-				const at: rt.Place<rt.u8> = rt.arcPlace(number);
+				const arc = number;
+				const at: rt.Place<rt.u8> = rt.arcRaw(arc, rt.arcPlace(arc), "Arc");
 				const _97: rt.Place<rt.u8> | undefined = rt.arcGetMutPlace(number);
 				if (_97 !== undefined) {
 					_97.v = _97.v ^ op;
@@ -104,17 +107,25 @@ export function addressedArcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 				const shadow2: rt.Arc<[rt.u16, rt.u8]> | undefined = then$1vw965y((op & 32) !== 0, (): rt.Arc<[rt.u16, rt.u8]> => {
 					return rt.arcClone(unread);
 				});
-				const before3: [rt.u16, rt.u8] = unread.value;
+				const arc2 = unread;
+				const before3: [rt.u16, rt.u8] = rt.arcRaw(arc2, arc2.value, "Arc");
 				const pair: [rt.u16, rt.u8] = copy$tuple2_u16_u8(rt.arcMakeMut(rt.place(() => unread, (value3) => unread = value3), copy$tuple2_u16_u8, rt.drop, copy$tuple2_u16_u8));
-				rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(before3 === unread.value ? 1 : 0, pair[1])), undefined, true);
+				const arc3 = unread;
+				rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(before3 === rt.arcRaw(arc3, arc3.value, "Arc") ? 1 : 0, pair[1])), undefined, true);
 				drop$tuple2_Option_sync_Weak_tuple2_u16_u8_Option_sync_Arc_tuple2_u16_u8([kept2, shadow2] as [rt.Weak<[rt.u16, rt.u8]> | undefined, rt.Arc<[rt.u16, rt.u8]> | undefined]);
 				const other: rt.Arc<undefined> = new rt.Arc(undefined);
-				const before4: rt.Place<undefined> = rt.arcPlace(unit);
+				const arc4 = unit;
+				const before4: rt.Place<undefined> = rt.arcRaw(arc4, rt.arcPlace(arc4), "Arc");
 				const shadow3: rt.Arc<undefined> | undefined = then$0duifht((op & 128) !== 0, (): rt.Arc<undefined> => {
 					return rt.arcClone(unit);
 				});
 				rt.arcMakeMutPlace(rt.place(() => unit, (value4) => unit = value4), undefined, rt.drop);
-				rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(before4 === rt.arcPlace(unit) ? 1 : 0, rt.arcPlace(other) === rt.arcPlace(unit) ? 1 : 0)), undefined, true);
+				const arc5 = unit;
+				const _155: rt.u8 = before4 === rt.arcRaw(arc5, rt.arcPlace(arc5), "Arc") ? 1 : 0;
+				const arc6 = other;
+				const _161: rt.Place<undefined> = rt.arcRaw(arc6, rt.arcPlace(arc6), "Arc");
+				const arc7 = unit;
+				rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_155, _161 === rt.arcRaw(arc7, rt.arcPlace(arc7), "Arc") ? 1 : 0)), undefined, true);
 				rt.drop(shadow3);
 				other[Symbol.dispose]();
 			}
@@ -703,11 +714,13 @@ export function addressedRcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 				}
 				rt.vecTruncate(weak, 0, rt.drop);
 			} else if (_32 === 4) {
-				const before: [rt.u8, rt.u8] = strong[rt.idx(strong, pick)].value;
+				const arc8 = strong[rt.idx(strong, pick)];
+				const before: [rt.u8, rt.u8] = rt.arcRaw(arc8, arc8.value, "Rc");
 				const at3 = rt.idx(strong, pick);
 				const _57: [rt.u8, rt.u8] = rt.arcMakeMut(rt.place(() => strong[at3], (value5) => strong[at3] = value5), copy$tuple2_u8_u8, rt.drop, copy$tuple2_u8_u8);
 				_57[1] = _57[1] ^ op;
-				const after: [rt.u8, rt.u8] = strong[rt.idx(strong, pick)].value;
+				const arc9 = strong[rt.idx(strong, pick)];
+				const after: [rt.u8, rt.u8] = rt.arcRaw(arc9, arc9.value, "Rc");
 				rt.byteVecPush(out, before === after ? 1 : 0);
 				rt.byteVecPush(out, after === strong[rt.idx(strong, pick)].value ? 1 : 0);
 				rt.byteVecPush(out, after[1]);
@@ -722,7 +735,8 @@ export function addressedRcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 				rt.byteVecPush(out, rt.byteSliceSame(before2, after2) ? 1 : 0);
 				rt.byteVecExtendFromSlice(out, after2);
 				rt.drop(shadow);
-				const at: rt.Place<rt.u8> = rt.arcPlace(number);
+				const arc = number;
+				const at: rt.Place<rt.u8> = rt.arcRaw(arc, rt.arcPlace(arc), "Rc");
 				const _97: rt.Place<rt.u8> | undefined = rt.arcGetMutPlace(number);
 				if (_97 !== undefined) {
 					_97.v = _97.v ^ op;
@@ -745,17 +759,25 @@ export function addressedRcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 				const shadow2: rt.Arc<[rt.u16, rt.u8]> | undefined = then$1vw965y((op & 32) !== 0, (): rt.Arc<[rt.u16, rt.u8]> => {
 					return rt.arcClone(unread);
 				});
-				const before3: [rt.u16, rt.u8] = unread.value;
+				const arc2 = unread;
+				const before3: [rt.u16, rt.u8] = rt.arcRaw(arc2, arc2.value, "Rc");
 				const pair: [rt.u16, rt.u8] = copy$tuple2_u16_u8(rt.arcMakeMut(rt.place(() => unread, (value3) => unread = value3), copy$tuple2_u16_u8, rt.drop, copy$tuple2_u16_u8));
-				rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(before3 === unread.value ? 1 : 0, pair[1])), undefined, true);
+				const arc3 = unread;
+				rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(before3 === rt.arcRaw(arc3, arc3.value, "Rc") ? 1 : 0, pair[1])), undefined, true);
 				drop$tuple2_Option_rc_Weak_tuple2_u16_u8_Option_Rc_tuple2_u16_u8([kept2, shadow2] as [rt.Weak<[rt.u16, rt.u8]> | undefined, rt.Arc<[rt.u16, rt.u8]> | undefined]);
 				const other: rt.Arc<undefined> = new rt.Arc(undefined);
-				const before4: rt.Place<undefined> = rt.arcPlace(unit);
+				const arc4 = unit;
+				const before4: rt.Place<undefined> = rt.arcRaw(arc4, rt.arcPlace(arc4), "Rc");
 				const shadow3: rt.Arc<undefined> | undefined = then$0duifht((op & 128) !== 0, (): rt.Arc<undefined> => {
 					return rt.arcClone(unit);
 				});
 				rt.arcMakeMutPlace(rt.place(() => unit, (value4) => unit = value4), undefined, rt.drop);
-				rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(before4 === rt.arcPlace(unit) ? 1 : 0, rt.arcPlace(other) === rt.arcPlace(unit) ? 1 : 0)), undefined, true);
+				const arc5 = unit;
+				const _155: rt.u8 = before4 === rt.arcRaw(arc5, rt.arcPlace(arc5), "Rc") ? 1 : 0;
+				const arc6 = other;
+				const _161: rt.Place<undefined> = rt.arcRaw(arc6, rt.arcPlace(arc6), "Rc");
+				const arc7 = unit;
+				rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_155, _161 === rt.arcRaw(arc7, rt.arcPlace(arc7), "Rc") ? 1 : 0)), undefined, true);
 				rt.drop(shadow3);
 				other[Symbol.dispose]();
 			}

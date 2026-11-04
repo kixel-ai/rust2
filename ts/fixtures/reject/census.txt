@@ -162,6 +162,7 @@ fixtures/reject/src/places.rs:replace_boxed_future+4:2: an assignment through a 
 fixtures/reject/src/places.rs:replace_guard+1:2: an assignment through a reference to `std::sync::MutexGuard<'_, u8>`
 fixtures/reject/src/places.rs:replace_pinned_ref+1:2: an assignment through a reference to `std::pin::Pin<&mut places::Noisy>`
 fixtures/reject/src/places.rs:swap_guards+1:2: replacing the value behind a reference to `std::sync::MutexGuard<'_, u8>`
+fixtures/reject/src/pointers.rs:arc_raw_slice+1:2: an `Arc`'s raw pointer to `[u32]`, which JS makes anew each time
 fixtures/reject/src/pointers.rs:array_pointers+1:39: comparing pointers to `[u16; 2]`, which a slice lends as a copy of its own
 fixtures/reject/src/pointers.rs:assigned_through+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:byte_option_slice+1:4: a slice of one byte's place, which a byte slice can view only in an array of bytes
@@ -224,6 +225,7 @@ fixtures/reject/src/pointers.rs:pointers_apart+13:20: `offset_from` between a po
 fixtures/reject/src/pointers.rs:pointers_apart+14:21: `offset_from` between a pointer into a shared slice JS copies and one into a value in no array, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:put_replaced+2:10: a raw pointer to `(u32, u32)` in `pointers::Plain`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:range_of+1:2: a raw pointer to `(u32, u32)` in `pointers::Window`, which the crate may put another object in place of
+fixtures/reject/src/pointers.rs:rc_raw_bytes+1:11: an `Rc`'s raw pointer to `[u8; 4]`, which JS makes anew each time
 fixtures/reject/src/pointers.rs:reached_out+4:3: a copy reaching past a shared slice JS copies, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/pointers.rs:reached_out+6:18: a pointer reaching past a shared slice JS copies, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/pointers.rs:reached_out+7:6: a slice reaching past a value in no array, which JS keeps apart from what holds it in Rust

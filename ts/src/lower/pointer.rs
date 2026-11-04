@@ -625,16 +625,59 @@ pub fn call<'tcx>(
 		// value JS copies and to `()`, whose pointer is an identity. Otherwise the value is
 		// where a reference to it points, a pointer to which is made as `ptr::from_ref`
 		// makes one.
-		("Arc" | "Rc", "as_ptr") if pointee().is_trait() || super::dynamic::unsized_object(b.t.tcx, pointee()) => {
+		("Arc" | "Rc", "as_ptr" | "into_raw" | "from_raw" | "increment_strong_count" | "decrement_strong_count")
+			if pointee().is_trait() || super::dynamic::unsized_object(b.t.tcx, pointee()) =>
+		{
 			b.err(span, format!("a raw pointer to the `{}` an `Arc` holds", pointee()))
 		}
-		("Arc" | "Rc", "as_ptr") => {
-			let arc = arg();
+		("Arc" | "Rc", "as_ptr") if matches!(kind(b, pointee()), Some(Pointee::Slice | Pointee::Bytes)) => {
+			let value = arg().member("value");
 			match kind(b, pointee()) {
-				Some(Pointee::Slice) => raw_of(pointee(), arc.member("value")),
-				Some(Pointee::Place) => Expr::rt("arcPlace", vec![arc]),
-				Some(Pointee::Bytes) => to_pointer(arc.member("value")),
-				_ => arc.member("value"),
+				Some(Pointee::Slice) => raw_of(pointee(), value),
+				_ => to_pointer(value),
+			}
+		}
+		// A raw pointer `from_raw` takes back to its `Arc` is one JS keeps the identity of.
+		("Arc" | "Rc", "into_raw" | "from_raw" | "increment_strong_count" | "decrement_strong_count")
+			if matches!(kind(b, pointee()), Some(Pointee::Slice | Pointee::Bytes)) =>
+		{
+			b.err(
+				span,
+				format!(
+					"an `{owner}`'s raw pointer to `{}`, which JS makes anew each time",
+					pointee()
+				),
+			)
+		}
+		// The pointer, which `from_raw` and the counts take back to the `Arc` it is of. One
+		// to an object finds it by that object, which each copy of its type then needs of
+		// its own, as a comparison of pointers to it does.
+		("Arc" | "Rc", "as_ptr" | "into_raw") => {
+			let arc = b.spill(arg(), "arc", out);
+			let p = match kind(b, pointee()) {
+				Some(Pointee::Place) => Expr::rt("arcPlace", vec![arc.clone()]),
+				_ => {
+					b.t.compare(pointee());
+					arc.clone().member("value")
+				}
+			};
+			Expr::rt("arcRaw", vec![arc, p, Expr::Str(owner.into())])
+		}
+		("Arc" | "Rc", "from_raw") => Expr::rt("arcFromRaw", vec![arg(), Expr::Str(owner.into())]),
+		("Arc" | "Rc", "increment_strong_count") => {
+			let arc = Expr::rt("arcFromRaw", vec![arg(), Expr::Str(owner.into())]);
+			out.push(StmtKind::Expr(Expr::rt("arcClone", vec![arc])).at(None));
+			Expr::undefined()
+		}
+		// The `Arc` `from_raw` takes back, dropped.
+		("Arc" | "Rc", "decrement_strong_count") => {
+			let tcx = b.t.tcx;
+			let imp = tcx.inherent_impl_of_assoc(call.def_id).expect("an inherent function");
+			let ty = tcx.type_of(imp).instantiate(tcx, gargs).skip_norm_wip();
+			let arc = Expr::rt("arcFromRaw", vec![arg(), Expr::Str(owner.into())]);
+			match b.t.drop_value(arc.clone(), ty, span) {
+				Some(dropped) => dropped,
+				None => Expr::rt("arcDrop", vec![arc]),
 			}
 		}
 		// A pointer to what a box held, which no box holds any longer.
