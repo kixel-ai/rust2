@@ -1938,7 +1938,7 @@ export function unicode(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		put(out, rt.fmtFormat([args8[0]]));
 	} else {
 		const it: rt.Iter<rt.u16> = rt.strEncodeUtf16(s);
-		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtWriteStr(f, "EncodeUtf16 { .. }")];
+		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.debugStructFinishNonExhaustive(rt.fmtDebugStruct(f, "EncodeUtf16"))];
 		put(out, rt.fmtFormat([args10[0], "|", rt.fmtSpec({ alternate: true }, args10[0]), "|", rt.fmtSpec({ align: ">", width: 30 }, args10[0])]));
 		walk$str_EncodeUtf16(out, it.clone(), (out2: rt.ByteVec, u: rt.u16): undefined => {
 			rt.byteVecExtendFromSlice(out2, rt.byteSliceFrom(rt.u16ToBeBytes(u)));

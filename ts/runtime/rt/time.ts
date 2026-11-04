@@ -5,11 +5,11 @@
 // A `Duration` never changes once made, so values share it. Its arithmetic is std's: a
 // sum past `u64::MAX` seconds is `None`, saturates, or panics with std's message.
 
-import { Err, type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, Ok, panic, type Result } from "../rt.ts";
+import { Err, type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, fmtPadding, Ok, panic, type Result } from "../rt.ts";
 import { cmp, type Ordering } from "./collections.ts";
 import { type Hasher, hash32, hash64 } from "./hash.ts";
 import { f64ToBits } from "./float.ts";
-import { type f32, type f64, type u32, type u64, type u128, u64CheckedAdd, u64CheckedMul, u64CheckedSub, u64Div, u64Eq, u64Of, u64Rem, u64ToF32, u64ToF64, u64TryFrom, u128Add, u128Cast, u128Div, u128Mul, u128Rem } from "./int.ts";
+import { type char, type f32, type f64, type u32, type u64, type u128, u64CheckedAdd, u64CheckedMul, u64CheckedSub, u64Div, u64Eq, u64Of, u64Rem, u64ToF32, u64ToF64, u64TryFrom, u128Add, u128Cast, u128Div, u128Mul, u128Rem } from "./int.ts";
 import { type Iter, iterFold } from "./iter.ts";
 
 /** `core::time::Duration`: whole seconds, and the nanoseconds past them, below 10^9. */
@@ -408,8 +408,24 @@ function decimal(f: Formatter, whole: u64, fraction: number, divisor: number, pr
 	}
 	const big = typeof whole === "number" ? BigInt(whole) : (BigInt(whole.hi) << 32n) | BigInt(whole.lo);
 	const int = carry ? String(big + 1n) : String(big);
-	const point = Math.min(precision ?? digits.length, 9) > 0 ? `.${digits.padEnd(precision ?? digits.length, "0")}` : "";
-	// A width pads the whole text, which the precision has already cut.
-	const uncut = precision === undefined ? f : { out: f.out, spec: { ...f.spec, precision: undefined } };
-	return fmtPad(uncut, `${prefix}${int}${point}${unit}`);
+	// The digits std keeps, at most 9, and the width its `{:0<width$}` pads them to.
+	const kept = digits.padEnd(precision === undefined ? digits.length : Math.min(precision, 9), "0");
+	const width = precision ?? digits.length;
+	const out = f.out;
+	const emit = (): FmtResult => {
+		let r = out.writeStr(prefix);
+		if (r.ok) r = out.writeStr(int);
+		if (kept.length > 0) {
+			if (r.ok) r = out.writeStr(".");
+			if (r.ok) r = out.writeStr(kept);
+			for (let i = kept.length; r.ok && i < width; i++) r = out.writeChar(ZERO);
+		}
+		return r.ok ? out.writeStr(unit) : r;
+	};
+	const requested = f.spec.width;
+	const actual = prefix.length + unit.length + int.length + (kept.length > 0 ? 1 + width : 0);
+	if (requested === undefined || requested <= actual) return emit();
+	return fmtPadding(f, requested - actual, "<", emit);
 }
+
+const ZERO = 0x30 as char;

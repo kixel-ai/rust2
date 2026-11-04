@@ -14,7 +14,7 @@ export function fmt$fmt_Debug_String(self: Tagged<string>, f: rt.Formatter): rt.
 	const _4: string = "n";
 	const _5: rt.Fmt = (f: rt.Formatter) => rt.u8Debug(self.n, f);
 	const _7: string = "of";
-	const _8: rt.Fmt = (f: rt.Formatter) => rt.fmtWriteStr(f, "PhantomData<alloc::string::String>");
+	const _8: rt.Fmt = (f: rt.Formatter) => rt.fmtWriteFmt(f, ["PhantomData<", "alloc::string::String", ">"]);
 	const _10: string = "pin";
 	const _11: rt.Fmt = (f: rt.Formatter) => rt.fmtWriteStr(f, "PhantomPinned");
 	const _13: string = "unit";
@@ -27,7 +27,7 @@ export function fmt$fmt_Debug_u8(self: Tagged<rt.u8>, f: rt.Formatter): rt.Resul
 	const _4: string = "n";
 	const _5: rt.Fmt = (f: rt.Formatter) => rt.u8Debug(self.n, f);
 	const _7: string = "of";
-	const _8: rt.Fmt = (f: rt.Formatter) => rt.fmtWriteStr(f, "PhantomData<u8>");
+	const _8: rt.Fmt = (f: rt.Formatter) => rt.fmtWriteFmt(f, ["PhantomData<", "u8", ">"]);
 	const _10: string = "pin";
 	const _11: rt.Fmt = (f: rt.Formatter) => rt.fmtWriteStr(f, "PhantomPinned");
 	const _13: string = "unit";

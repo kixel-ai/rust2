@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- `rt.Write` has `writeChar(c)` beside `writeStr(s)`, which std's `write_char` calls, so a
+  hand-written writer implements both; the runtime's formatting calls each as std does.
+- `rt.fmtPadFormatted(f, sign, parts)` takes the sign and the `rt.FmtPart`s std's
+  `pad_formatted_parts` does, each ASCII text or that many zeros, in place of a head and
+  digits.
+- `rt.cellDebug` takes a function giving the cell's value, which it calls once the name is
+  written, as std reads it, in place of the value.
 - `rt.boundsOf` returns a record of the range's `startBound` and `endBound`, each read as
   it is called, rather than a function reading both, which `rt.Bounds` takes as before.
 - `rt.ArcWaker` is gone: `Waker::from(arc)` is `rt.arcWaker(arc, wake, drop, wakeByRef?)`.

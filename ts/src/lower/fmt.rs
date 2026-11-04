@@ -179,6 +179,12 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 	}
 }
 
+/// `f.debug_struct(name).finish_non_exhaustive()`: the name and ` { .. }`, each a `write_str`.
+fn non_exhaustive(f: Expr, name: &str) -> Expr {
+	let builder = Expr::rt("fmtDebugStruct", vec![f, Expr::Str(name.into())]);
+	Expr::rt("debugStructFinishNonExhaustive", vec![builder])
+}
+
 /// Whether `e` is a runtime function, which reads no `this`.
 fn runtime(e: &Expr) -> bool {
 	matches!(e, Expr::Rt(_))
@@ -279,13 +285,12 @@ pub fn std_impl<'tcx>(
 			value.call(vec![f])
 		}
 		// Its name and no fields, unpadded, whatever it holds.
-		ty::Dynamic(..) if tr == Trait::Debug && super::dynamic::is_any_object(tcx, ty) => {
-			rt("writeStr", vec![f, Expr::Str("Any { .. }".into())])
-		}
-		// Unpadded, naming its type as `type_name` does.
+		ty::Dynamic(..) if tr == Trait::Debug && super::dynamic::is_any_object(tcx, ty) => non_exhaustive(f, "Any"),
+		// Unpadded, naming its type as `type_name` does, a piece at a time as its `write!` does.
 		ty::Adt(adt, args) if tr == Trait::Debug && adt.is_phantom_data() => {
 			let name = rustc_const_eval::util::type_name(tcx, args.type_at(0));
-			rt("writeStr", vec![f, Expr::Str(format!("PhantomData<{name}>"))])
+			let pieces = ["PhantomData<", &name, ">"].map(|s| Expr::Str(s.to_string()));
+			rt("writeFmt", vec![f, Expr::Array(pieces.into())])
 		}
 		// Each its name alone, unpadded.
 		ty::Adt(adt, _)
@@ -312,10 +317,7 @@ pub fn std_impl<'tcx>(
 		{
 			match tr {
 				Trait::Display => Expr::rt("fmtEscapeAscii", vec![value, f]),
-				Trait::Debug => rt(
-					"writeStr",
-					vec![f, Expr::Str(format!("{} {{ .. }}", tcx.item_name(adt.did())))],
-				),
+				Trait::Debug => non_exhaustive(f, tcx.item_name(adt.did()).as_str()),
 				_ => return None,
 			}
 		}
@@ -513,13 +515,13 @@ pub fn std_impl<'tcx>(
 			// being read. An `RwLock` shares a `RefCell`'s representation, and an `UnsafeCell` a
 			// `Cell`'s.
 			(Std::Cell, Trait::Debug) if tcx.is_lang_item(adt.did(), rustc_attr_ir::LangItem::UnsafeCell) => {
-				rt("writeStr", vec![f, Expr::Str("UnsafeCell { .. }".into())])
+				non_exhaustive(f, "UnsafeCell")
 			}
-			// What `get` gives, before anything is written.
+			// What `get` gives once its name is written, as std reads it.
 			(Std::Cell, Trait::Debug) => {
 				let held = b.fmt_fn(tr, args.type_at(0), span);
 				let value = b.t.copied(value.member("v"), args.type_at(0), span);
-				Expr::rt("cellDebug", vec![value, f, held])
+				Expr::rt("cellDebug", vec![Expr::Lambda(Vec::new(), Box::new(value)), f, held])
 			}
 			(std @ (Std::RefCell | Std::Mutex), Trait::Debug) => {
 				let debug = match std {
@@ -645,7 +647,7 @@ fn iter_debug<'tcx>(
 		["str", "iter", "EncodeUtf16"]
 		| ["iter", "sources", "repeat_with", "RepeatWith"]
 		| ["collections", "hash", "map" | "set", "ExtractIf"] => {
-			return write(format!("{} {{ .. }}", tcx.item_name(did)));
+			return Some(non_exhaustive(f.clone(), tcx.item_name(did).as_str()));
 		}
 		// The item it reads next.
 		["collections", "linked_list", "ExtractIf"] => {

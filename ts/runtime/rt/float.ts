@@ -11,7 +11,7 @@
 // and its payload at the top, which a signaling one keeps, where JS's conversion from a
 // single would quiet it.
 
-import { Err, type FmtResult, type Formatter, fmtPadFormatted, fmtToString, Ok, panic, type Result } from "../rt.ts";
+import { Err, type FmtPart, type FmtResult, type Formatter, fmtPadFormatted, fmtToString, Ok, panic, type Result } from "../rt.ts";
 import type { Ordering } from "./collections.ts";
 import { type f32, type f64, type u32, type u64, u64FromHalves } from "./int.ts";
 
@@ -563,67 +563,109 @@ function round(digits: string, exp: number, n: number): [string, number] {
 }
 
 /** `digits_to_dec_str`: at least `frac` digits past the point. */
-function decimal(digits: string, exp: number, frac: number): string {
-	if (exp <= 0) return `0.${"0".repeat(-exp)}${digits}`.padEnd(2 + Math.max(frac, digits.length - exp), "0");
-	if (exp < digits.length) return `${digits.slice(0, exp)}.${digits.slice(exp)}`.padEnd(exp + 1 + Math.max(frac, digits.length - exp), "0");
-	return digits.padEnd(exp, "0") + (frac > 0 ? `.${"0".repeat(frac)}` : "");
+function decimal(digits: string, exp: number, frac: number): FmtPart[] {
+	if (exp <= 0) {
+		const parts: FmtPart[] = ["0.", -exp, digits];
+		if (frac > digits.length && frac - digits.length > -exp) parts.push(frac - digits.length + exp);
+		return parts;
+	}
+	if (exp < digits.length) {
+		const parts: FmtPart[] = [digits.slice(0, exp), ".", digits.slice(exp)];
+		if (frac > digits.length - exp) parts.push(frac - (digits.length - exp));
+		return parts;
+	}
+	return frac > 0 ? [digits, exp - digits.length, ".", frac] : [digits, exp - digits.length];
 }
 
 /** `digits_to_exp_str`: at least `frac` digits past the point. */
-function exponential(digits: string, exp: number, frac: number, e: "e" | "E"): string {
-	const rest = digits.slice(1).padEnd(frac, "0");
-	return `${digits[0]}${rest === "" ? "" : `.${rest}`}${e}${exp - 1}`;
+function exponential(digits: string, exp: number, frac: number, e: "e" | "E"): FmtPart[] {
+	const parts: FmtPart[] = [digits[0]];
+	const actual = digits.length - 1;
+	if (actual > 0 || frac > 0) {
+		parts.push(".");
+		if (actual > 0) parts.push(digits.slice(1));
+		if (frac > actual) parts.push(frac - actual);
+	}
+	parts.push(exp - 1 < 0 ? `${e}-` : e, String(Math.abs(exp - 1)));
+	return parts;
 }
 
 /** `0`, with `frac` zeros past the point. */
-const zero = (frac: number): string => (frac > 0 ? `0.${"0".repeat(frac)}` : "0");
+const zero = (frac: number): FmtPart[] => (frac > 0 ? ["0.", frac] : ["0"]);
 
 /** `to_shortest_str`: the shortest digits, with at least `frac` past the point. */
-function shortestFixed(x: number, frac: number, shortest: Shortest): string {
+function shortestFixed(x: number, frac: number, shortest: Shortest): FmtPart[] {
 	if (x === 0) return zero(frac);
 	const [digits, exp] = shortest(x);
 	return decimal(digits, exp, frac);
 }
 
+/**
+ * The most digits `format_exact` writes of `x`, a double or a `single`: std's
+ * `estimate_max_buf_len` of its decoded binary exponent. It writes zeros past the exact
+ * digits up to what it is asked for, within that.
+ */
+function maxDigits(x: number, single: boolean): number {
+	const view = bytes();
+	let biased: number;
+	let fraction: boolean;
+	if (single) {
+		view.setFloat32(0, x);
+		const b = view.getUint32(0);
+		biased = (b >>> 23) & 0xff;
+		fraction = (b & 0x7fffff) !== 0;
+	} else {
+		view.setFloat64(0, x);
+		const hi = view.getUint32(0);
+		biased = (hi >>> 20) & 0x7ff;
+		fraction = (hi & 0xfffff) !== 0 || view.getUint32(4) !== 0;
+	}
+	const bias = single ? 150 : 1075;
+	// A power of two has its lower neighbor closer, so `decode` scales it once more.
+	const exp = biased === 0 ? -bias : biased - bias - (fraction ? 1 : 2);
+	return 21 + ((exp < 0 ? -12 * exp : 5 * exp) >> 4);
+}
+
 /** `to_exact_fixed_str`: rounded to `frac` digits past the point. */
-function exactFixed(x: number, frac: number): string {
+function exactFixed(x: number, frac: number, single: boolean): FmtPart[] {
 	if (x === 0) return zero(frac);
 	const [all, at] = exact(x);
 	const [digits, exp] = round(all, at, at + frac);
-	return digits === "" ? zero(frac) : decimal(digits, exp, frac);
+	if (digits === "") return zero(frac);
+	return decimal(digits.padEnd(Math.min(maxDigits(x, single), exp + frac), "0"), exp, frac);
 }
 
 /** `to_shortest_exp_str` without a precision, else `to_exact_exp_str`: `precision` digits past the point. */
-function scientific(x: number, precision: number | undefined, e: "e" | "E", shortest: Shortest): string {
-	if (x === 0) return `${zero(precision ?? 0)}${e}0`;
+function scientific(x: number, precision: number | undefined, e: "e" | "E", shortest: Shortest): FmtPart[] {
+	if (x === 0) return precision ? ["0.", precision, `${e}0`] : [`0${e}0`];
 	if (precision === undefined) {
 		const [digits, exp] = shortest(x);
 		return exponential(digits, exp, 0, e);
 	}
 	const [all, at] = exact(x);
 	const [digits, exp] = round(all, at, precision + 1);
-	return exponential(digits, exp, precision, e);
+	return exponential(digits.padEnd(Math.min(maxDigits(x, shortest === shortest32), precision + 1), "0"), exp, precision, e);
 }
 
-/** Write `x` padded, its magnitude by `finite`: a NaN has no sign, and -0.0 has one. */
-function write(x: number, f: Formatter, finite: (magnitude: number) => string): FmtResult {
-	if (x !== x) return fmtPadFormatted(f, "", "NaN");
+/** Write `x` padded, its magnitude's parts by `finite`: a NaN has no sign, and -0.0 has one. */
+function write(x: number, f: Formatter, finite: (magnitude: number) => FmtPart[]): FmtResult {
+	if (x !== x) return fmtPadFormatted(f, "", ["NaN"]);
 	const sign = f64IsSignNegative(x) ? "-" : f.spec.plus ? "+" : "";
 	const magnitude = Math.abs(x);
-	return fmtPadFormatted(f, sign, magnitude === Infinity ? "inf" : finite(magnitude));
+	return fmtPadFormatted(f, sign, magnitude === Infinity ? ["inf"] : finite(magnitude));
 }
 
 /** `Display`: the shortest digits, or rounded to the precision. */
 function display(x: number, f: Formatter, shortest: Shortest): FmtResult {
 	const precision = f.spec.precision;
-	return write(x, f, (m) => (precision === undefined ? shortestFixed(m, 0, shortest) : exactFixed(m, precision)));
+	return write(x, f, (m) => (precision === undefined ? shortestFixed(m, 0, shortest) : exactFixed(m, precision, shortest === shortest32)));
 }
 
 /** `Debug`: as `Display`, but with a point, and an exponent below 1e-4 and from 1e16, each as the type has it. */
 function debug(x: number, f: Formatter, shortest: Shortest, tiny: number, huge: number): FmtResult {
 	const precision = f.spec.precision;
 	return write(x, f, (m) => {
-		if (precision !== undefined) return exactFixed(m, precision);
+		if (precision !== undefined) return exactFixed(m, precision, shortest === shortest32);
 		return (m !== 0 && m < tiny) || m >= huge ? scientific(m, undefined, "e", shortest) : shortestFixed(m, 1, shortest);
 	});
 }

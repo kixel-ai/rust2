@@ -31,7 +31,7 @@ import {
 import { CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
 import { escapeDebug } from "./char.ts";
 import { type Bounds, boundsRange, type Part } from "./collections.ts";
-import { type char, type u8, type u16, type usize, u8Debug, usizeDebug } from "./int.ts";
+import { type char, type u8, type u16, type usize, u8Debug, u8UpperHex, usizeDebug } from "./int.ts";
 import { type Clones, DONE, type Done, Iter, iterFilter, iterForEach, iterMap, iterRev, iterSlice, type RangeInclusive, type SizeHint } from "./iter.ts";
 import { drop as dispose } from "./task.ts";
 
@@ -871,17 +871,37 @@ class Utf8Chunks extends Iter<Utf8Chunk> {
 
 /** `Debug` of a `Utf8Chunks`: what it has left as a string, each invalid byte as `\xNN`. */
 export function fmtUtf8Chunks(it: Iter<Utf8Chunk>, f: Formatter): FmtResult {
-	return fmtDebugStructFields(f, "Utf8Chunks", ["source"], [
-		(f) => {
-			let out = '"';
-			for (const chunk of new Utf8Chunks((it as Utf8Chunks).source())) {
-				for (const c of chunk.valid) out += escapeDebug(c, '"');
-				for (const b of byteSliceView(chunk.invalid)) out += `\\x${b.toString(16).toUpperCase().padStart(2, "0")}`;
-			}
-			return f.out.writeStr(`${out}"`);
-		},
-	]);
+	return fmtDebugStructFields(f, "Utf8Chunks", ["source"], [(f) => lossyDebug((it as Utf8Chunks).source(), f)]);
 }
+
+/** std's `Debug` of bytes as a string: in quotes, each chunk's valid runs a `write_str` apiece and each escape a `write_char` a char, each invalid byte `\x` and two hex digits. */
+function lossyDebug(source: ByteSlice, f: Formatter): FmtResult {
+	const out = f.out;
+	let r = out.writeChar(QUOTE);
+	for (const chunk of new Utf8Chunks(source)) {
+		const valid = chunk.valid;
+		let from = 0;
+		let i = 0;
+		for (const c of valid) {
+			const escaped = escapeDebug(c, '"');
+			if (escaped !== c) {
+				if (r.ok) r = out.writeStr(valid.slice(from, i));
+				for (let j = 0; r.ok && j < escaped.length; j++) r = out.writeChar(escaped.charCodeAt(j) as char);
+				from = i + c.length;
+			}
+			i += c.length;
+		}
+		if (r.ok) r = out.writeStr(valid.slice(from));
+		for (const b of byteSliceView(chunk.invalid)) {
+			if (r.ok) r = out.writeStr("\\x");
+			if (r.ok) r = u8UpperHex(b, { out, spec: { zero: true, width: 2 } });
+		}
+		if (!r.ok) return r;
+	}
+	return r.ok ? out.writeChar(QUOTE) : r;
+}
+
+const QUOTE = 0x22 as char;
 
 /** `Debug` of a `Utf8Chunk`, as std derives it. */
 export function fmtUtf8ChunkDebug(chunk: Utf8Chunk, f: Formatter): FmtResult {

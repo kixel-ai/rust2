@@ -5,9 +5,9 @@
 // write of its bytes fails. `realloc` keeps the values in a new array, and `dealloc` lets
 // the array go; a pointer into it after either reads what Rust leaves undefined.
 
-import { Err, type Fmt, type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, Ok, panic, type Place, type Result } from "../rt.ts";
+import { Err, type Fmt, type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, fmtWriteFmt, Ok, panic, type Place, type Result } from "../rt.ts";
 import { AtIndex } from "./collections.ts";
-import { type usize, usizeDebug } from "./int.ts";
+import { type u32, u32Debug, type usize, usizeDebug } from "./int.ts";
 
 /** `core::alloc::Layout`: a size, and an alignment that is a power of two. */
 export interface Layout {
@@ -44,7 +44,7 @@ export function fmtLayoutDebug(l: Layout, f: Formatter): FmtResult {
 		f,
 		"Layout",
 		["size", "align"],
-		[(f) => usizeDebug(l.size, f), (f) => f.out.writeStr(`${l.align} (1 << ${31 - Math.clz32(l.align)})`)],
+		[(f) => usizeDebug(l.size, f), (f) => fmtWriteFmt(f, [(f) => usizeDebug(l.align, f), " (1 << ", (f) => u32Debug((31 - Math.clz32(l.align)) as u32, f), ")"])],
 	);
 }
 
@@ -100,7 +100,8 @@ export function fmtTryReserveErrorDebug(e: TryReserveError, f: Formatter): FmtRe
 export function fmtTryReserveErrorDisplay(e: TryReserveError, f: Formatter): FmtResult {
 	const reason =
 		e.layout === undefined ? " because the computed capacity exceeded the collection's maximum" : " because the memory allocator returned an error";
-	return f.out.writeStr(`memory allocation failed${reason}`);
+	const r = f.out.writeStr("memory allocation failed");
+	return r.ok ? f.out.writeStr(reason) : r;
 }
 
 /**
