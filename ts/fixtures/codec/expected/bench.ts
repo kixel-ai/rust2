@@ -435,12 +435,14 @@ export function order(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 
 /**
  * `count` integers pushed onto a `Vec`, or a `VecDeque` if `selector` is 1: its length
- * and middle item.
+ * and middle item. With `selector` 2, a `Vec` as a stack, popped after every fourth push
+ * and then emptied: its length and the sum of what it popped.
  */
 export function push(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	let _13!: [rt.usize, rt.u32 | undefined];
 	let _18!: rt.u32;
-	let _37!: rt.u32;
+	let _38!: rt.u32;
+	let _66!: rt.u32;
 	const count2: rt.u32 = rt.u64Low(rt.u64Min(takeU64(data)[0], 65536));
 	if (selector === 1) {
 		const q: rt.VecDeque<rt.u32> = rt.dequeNew(4) as rt.VecDeque<rt.u32>;
@@ -450,14 +452,35 @@ export function push(selector: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 			rt.dequePushBack(q, _18);
 		}
 		_13 = [q.n, rt.dequeGet(q, rt.usizeDiv(q.n, 2))] as [rt.usize, rt.u32 | undefined];
-	} else {
+	} else if (selector === 2) {
 		const v: rt.u32[] = [];
+		let sum: rt.u32 = 0;
 		let iterStart2: rt.u32 = 0;
 		const iterEnd2: rt.u32 = count2;
-		while ((_37 = iterStart2++) < iterEnd2) {
-			v.push(_37);
+		while ((_38 = iterStart2++) < iterEnd2) {
+			const i2: rt.u32 = _38;
+			v.push(i2);
+			if (rt.u32Rem(i2, 4) === 3) {
+				sum = rt.u32WrappingAdd(sum, option_unwrapOr$11c0we2(v.pop(), 0));
+			}
 		}
-		_13 = [v.length, rt.sliceGet(v, rt.usizeDiv(v.length, 2))] as [rt.usize, rt.u32 | undefined];
+		while (true) {
+			const _52: rt.u32 | undefined = v.pop();
+			if (_52 !== undefined) {
+				sum = rt.u32WrappingAdd(sum, _52);
+			} else {
+				break;
+			}
+		}
+		_13 = [v.length, sum] as [rt.usize, rt.u32 | undefined];
+	} else {
+		const v2: rt.u32[] = [];
+		let iterStart3: rt.u32 = 0;
+		const iterEnd3: rt.u32 = count2;
+		while ((_66 = iterStart3++) < iterEnd3) {
+			v2.push(_66);
+		}
+		_13 = [v2.length, rt.sliceGet(v2, rt.usizeDiv(v2.length, 2))] as [rt.usize, rt.u32 | undefined];
 	}
 	const len: rt.usize = _13[0];
 	const middle: rt.u32 | undefined = _13[1];

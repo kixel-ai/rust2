@@ -21,10 +21,10 @@ capacity the runtime models for the `Vec`, which holds only std's guarantees (de
   in Firefox, every other workload within noise. The maintainer kept the guarantee-only
   model on 2026-11-02, accepting that a deque made from a shrunk `Vec` may split
   differently from std's.
-- Untried: a `Vec` as a wrapper object holding its own length and capacity over its
-  array, measured on the same workload before it is weighed against that decision.
-  [The pushed capacity quest](/quest/m3/ts-vec-clear-capacity.md) measures it first, as
-  the maintainer decided on 2026-11-03.
+- A `Vec` as a wrapper object over its array was measured in
+  [moq-dev/rust2#555](https://github.com/moq-dev/rust2/pull/555), against peak tracking,
+  for [the pushed capacity quest](/quest/m3/ts-vec-clear-capacity.md), whose fix gives
+  this one too.
 
 Public API: the translator's output.
 

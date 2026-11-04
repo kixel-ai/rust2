@@ -66,7 +66,7 @@ export function run(input: Uint8Array): Uint8Array | Promise<Uint8Array> {
 		case 12:
 			return order(selector, data);
 		case 13:
-			return push(data);
+			return push(selector, data);
 		case 14:
 			return hashed(selector, data);
 		case 15:

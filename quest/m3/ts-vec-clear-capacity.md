@@ -23,13 +23,17 @@ Decided with the maintainer on 2026-11-03:
 
 This conflicts with the 2026-11-02 decision recorded in
 [that quest](/quest/m3/ts-vec-exact-capacity.md) to keep only std's capacity guarantees,
-since `clear` and `truncate` keeping the capacity is itself documented. So the first step
-is a measurement: build the wrapper and time it on `push/stack` and the other TS
-benchmarks in Node, Chrome, Bun, and Firefox, against peak tracking's 1.24x, 1.11x, 2.3x,
-and 2.8x on `push/stack`. Then bring the numbers back to choose between the wrapper,
-fixing it at the measured cost, and documenting the divergence. A wrapper that holds its
-own capacity would give std's exact capacity too, so this quest may merge with
-[that quest](/quest/m3/ts-vec-exact-capacity.md) once measured.
+since `clear` and `truncate` keeping the capacity is itself documented.
+
+Measured in [moq-dev/rust2#555](https://github.com/moq-dev/rust2/pull/555), which holds the prototype routes and the numbers: on `push/stack`, a wrapper `{ a, cap, peak }`
+whose pops record the peak in the object cost 1.08x in Node, 1.34x in Bun, 1.13x in
+Chrome, and 1.26x in Firefox; peak tracking on the array cost 1.35x, 2.65x, 1.34x, and
+2.84x, or 1.28x, 2.86x, 1.23x, and 1.34x with a pop recording only where the capacity
+would drop; a wrapper growing `cap` on each push cost 1.3x to 1.7x on `push/vec` too.
+Every other workload was within noise; moq's codec holds no `Vec` but bytes. The
+maintainer chooses there between the wrapper, peak tracking at its cost, and documenting
+the divergence. Either fix gives std's exact capacity too, so this quest merges with
+[that quest](/quest/m3/ts-vec-exact-capacity.md).
 
 A `Vec` whose capacity is implicit, grown by pushes or made exact by `vecExact`, reads it
 back through `capOf` from its current length, so the capacity falls with the length.
