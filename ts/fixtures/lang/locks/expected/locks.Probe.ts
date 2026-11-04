@@ -43,8 +43,8 @@ export function fmt$fmt_Debug(self: Probe, f: rs.Formatter): rs.Result<undefined
 		return _04;
 	});
 	const _15: boolean = rs.fmtAlternate(f);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(mutex, f, rs.fmtBool), (f: rs.Formatter) => rs.fmtOption(read, f, rs.fmtBool), (f: rs.Formatter) => rs.fmtOption(written, f, rs.fmtBool), (f: rs.Formatter) => rs.fmtBool(_15, f)];
-	return rs.fmtWriteFmt(f, [args2[0], " ", args2[1], " ", args2[2], " ", args2[3]]);
+	const args3 = [(f: rs.Formatter) => rs.fmtOption(mutex, f, rs.fmtBool), (f: rs.Formatter) => rs.fmtOption(read, f, rs.fmtBool), (f: rs.Formatter) => rs.fmtOption(written, f, rs.fmtBool), (f: rs.Formatter) => rs.fmtBool(_15, f)];
+	return rs.fmtWriteFmt(f, [args3[0], " ", args3[1], " ", args3[2], " ", args3[3]]);
 }
 
 //# sourceMappingURL=locks.Probe.ts.map

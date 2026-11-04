@@ -223,9 +223,9 @@ pub fn call<'tcx>(
 		}
 		("Arc" | "Rc", "strong_count") => first(args).member("strong"),
 		("Arc" | "Rc", "weak_count") => first(args).member("weak"),
-		// Two `Arc`s of trait objects, or of structs of them, are views of the `Arc`s they
-		// were made from.
-		("Arc" | "Rc", "ptr_eq") if self_ty.is_some_and(|t| super::dynamic::unsized_object(tcx, t)) => {
+		// Two `Arc`s of trait objects, of structs of them, or of slices are views of the
+		// `Arc`s they were made from, of the array where it is a slice of one.
+		("Arc" | "Rc", "ptr_eq") if self_ty.is_some_and(|t| t.is_slice() || super::dynamic::unsized_object(tcx, t)) => {
 			Expr::rs("arcPtrEq", args)
 		}
 		("Arc" | "Rc", "ptr_eq") => {
@@ -235,7 +235,7 @@ pub fn call<'tcx>(
 		("Weak", "upgrade") => Expr::rs("weakUpgrade", args),
 		("Weak", "strong_count") => first(args).member("arc").member("strong"),
 		("Weak", "weak_count") => Expr::rs("weakWeakCount", args),
-		("Weak", "ptr_eq") if self_ty.is_some_and(|t| super::dynamic::unsized_object(tcx, t)) => {
+		("Weak", "ptr_eq") if self_ty.is_some_and(|t| t.is_slice() || super::dynamic::unsized_object(tcx, t)) => {
 			let [l, r] = two(args);
 			Expr::rs("arcPtrEq", vec![l.member("arc"), r.member("arc")])
 		}
@@ -496,7 +496,7 @@ fn atomic<'tcx>(
 		Expr::rs("atomicFetch", args)
 	};
 	// A pointer compares as `ptr::eq` does only where it is the object it points at, or
-	// a slice of the bytes it points at, which `rs.byteSliceSame` compares.
+	// a slice of the array it points at, which `rs.sliceSame` compares.
 	let generics = tcx.generics_of(imp).count();
 	let atomic = tcx
 		.type_of(imp)
@@ -521,12 +521,12 @@ fn atomic<'tcx>(
 			format!("comparing pointers to `{pointee}` in an atomic, which JS has no address of"),
 		)));
 	}
-	let bytes = pointee.is_some_and(|p| b.t.pointee(p) == crate::lower::pointer::Pointee::Bytes);
+	let same = pointee.and_then(|p| b.t.same_fn(p));
 	// A compare-exchange, given what compares a wide integer, whose limbs `===` can't, or
-	// pointers to bytes.
+	// pointers `===` can't.
 	let exchange = |f: &str, mut args: Vec<Expr>| {
 		args.extend(int.filter(|int| int.big()).map(|int| int.func("eq")));
-		args.extend(bytes.then(|| Expr::Rs("byteSliceSame".into())));
+		args.extend(same.clone());
 		Expr::rs(f, args)
 	};
 	let e = match name {

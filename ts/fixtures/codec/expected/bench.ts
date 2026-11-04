@@ -512,8 +512,8 @@ export function format(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const point: Point.Point = { x: i, y: rs.i64Neg(i) };
 		const _26: rs.f64 = rs.i64ToF64(i) / 3.0;
 		const _29: rs.i64 = rs.i64Neg(i);
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.i64Display(i, f), (f: rs.Formatter) => Point.fmt$fmt_Debug(point, f), (f: rs.Formatter) => rs.f64Display(_26, f), (f: rs.Formatter) => rs.i64Display(_29, f)];
-		s = rs.fmtWriteString(s, [rs.fmtSpec({ align: ">", width: 6 }, args2[0]), "|", args2[1], "|", rs.fmtSpec({ precision: 2 }, args2[2]), "|", args2[3], "\n"]).s;
+		const args3 = [(f: rs.Formatter) => rs.i64Display(i, f), (f: rs.Formatter) => Point.fmt$fmt_Debug(point, f), (f: rs.Formatter) => rs.f64Display(_26, f), (f: rs.Formatter) => rs.i64Display(_29, f)];
+		s = rs.fmtWriteString(s, [rs.fmtSpec({ align: ">", width: 6 }, args3[0]), "|", args3[1], "|", rs.fmtSpec({ precision: 2 }, args3[2]), "|", args3[3], "\n"]).s;
 	}
 	putUsize(out, rs.stringLen(s));
 	harness_putU64(out, rs.iterSum(rs.iterMap(rs.strBytes(s), (a0: rs.u8): rs.u64 => {

@@ -593,8 +593,8 @@ export function order(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _85: rs.usize = rs.min(mark(out, 14), len);
 	const _82: rs.ByteSlice = rs.byteSliceRange(_83, rs.usizeDiv(rs.min(mark(out, 15), len), 2), _85);
 	const _103: rs.usize = sum;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => Shape.fmt$fmt_Debug(rect, f), (f: rs.Formatter) => Shape.fmt$fmt_Debug(line, f), (f: rs.Formatter) => Pair.fmt$fmt_Debug(pair, f), (f: rs.Formatter) => Point.fmt$fmt_Debug(read, f), (f: rs.Formatter) => Moved.fmt$fmt_Debug(updated, f), (f: rs.Formatter) => Shape.fmt$fmt_Debug(taken, f), (f: rs.Formatter) => rs.usizeDisplay(_64, f), (f: rs.Formatter) => rs.usizeDisplay(_63, f), (f: rs.Formatter) => rs.usizeDisplay(_103, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_82), f, rs.u8Debug)];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", args2[6], " ", args2[7], " ", args2[8], " ", args2[9]])));
+	const args3 = [(f: rs.Formatter) => Shape.fmt$fmt_Debug(rect, f), (f: rs.Formatter) => Shape.fmt$fmt_Debug(line, f), (f: rs.Formatter) => Pair.fmt$fmt_Debug(pair, f), (f: rs.Formatter) => Point.fmt$fmt_Debug(read, f), (f: rs.Formatter) => Moved.fmt$fmt_Debug(updated, f), (f: rs.Formatter) => Shape.fmt$fmt_Debug(taken, f), (f: rs.Formatter) => rs.usizeDisplay(_64, f), (f: rs.Formatter) => rs.usizeDisplay(_63, f), (f: rs.Formatter) => rs.usizeDisplay(_103, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_82), f, rs.u8Debug)];
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4], " ", args3[5], " ", args3[6], " ", args3[7], " ", args3[8], " ", args3[9]])));
 	const _125: rs.usize = mark(out, 16);
 	const _127: rs.usize = out.length;
 	rs.byteVecPush(out, _125 & 0xff);
@@ -877,8 +877,7 @@ export function diverging(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (!(b2 === 253)) {
 			return rs.u8Div(b2, 3);
 		}
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(b2, f)];
-		rs.panicFmt(["closure ", args2[0]]);
+		rs.panicFmt(["closure ", (f: rs.Formatter) => rs.u8Display(b2, f)]);
 	};
 	const head: rs.ByteSlice = rs.byteSliceRange(data, 0, rs.min(data.length, 2));
 	const b: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(head), 0);
@@ -897,8 +896,7 @@ export function diverging(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function closureNever(b: rs.u8): rs.u8 {
 	const _2: (a0: rs.u8) => never = (b2: rs.u8): never => {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8LowerHex(b2, f)];
-		rs.panicFmt(["closure failed on ", rs.fmtSpec({ alternate: true }, args2[0])]);
+		rs.panicFmt(["closure failed on ", rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => rs.u8LowerHex(b2, f))]);
 	};
 	const _4: (a0: rs.u8) => never = madeNever();
 	const ptr: (a0: rs.u8) => never = bail;
@@ -923,8 +921,7 @@ export function closureNever(b: rs.u8): rs.u8 {
 /** A closure that never returns, made by a function. */
 export function madeNever(): (a0: rs.u8) => never {
 	return (b: rs.u8): never => {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(b, f)];
-		rs.panicFmt(["made ", args2[0]]);
+		rs.panicFmt(["made ", (f: rs.Formatter) => rs.u8Display(b, f)]);
 	};
 }
 
@@ -937,15 +934,13 @@ export function genericNever(b: rs.u8, len: rs.usize): void {
 		if (!(b === 246)) {
 			if (b === 249) {
 				if (!(len > 1)) {
-					const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(b, f)];
-					rs.panicFmt(["some ", args4[0]]);
+					rs.panicFmt(["some ", (f: rs.Formatter) => rs.u8Display(b, f)]);
 				} else {
 					unwrapOrBail$generic_never_never(undefined, b);
 				}
 			}
 		} else {
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(b, f)];
-			rs.panicFmt(["passed ", args2[0]]);
+			rs.panicFmt(["passed ", (f: rs.Formatter) => rs.u8Display(b, f)]);
 		}
 	} else {
 		bail(b);
@@ -967,21 +962,18 @@ export function unwrapOrBail$generic_never_never(o: never | undefined, b: rs.u8)
 
 /** A function that never returns. */
 export function bail(b: rs.u8): never {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8LowerHex(b, f)];
-	rs.panicFmt(["failed on ", rs.fmtSpec({ alternate: true }, args2[0])]);
+	rs.panicFmt(["failed on ", rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => rs.u8LowerHex(b, f))]);
 }
 
 /** `return`, and `break` out of the function's labeled block, with values that never exist. */
 export function returnedNever(b: rs.u8, len: rs.usize): rs.u8 {
 	if (b === 247) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(b, f)];
-		rs.panicFmt(["returned ", args2[0]]);
+		rs.panicFmt(["returned ", (f: rs.Formatter) => rs.u8Display(b, f)]);
 	} else if (b === 248) {
 		if (!(rs.usizeRem(len, 2) === 0)) {
 			bail(b);
 		} else {
-			const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(b, f)];
-			rs.panicFmt(["then ", args4[0]]);
+			rs.panicFmt(["then ", (f: rs.Formatter) => rs.u8Display(b, f)]);
 		}
 	} else {
 		if (!(b === 254)) {
@@ -1021,8 +1013,7 @@ export function brokenNever(dataData: Uint8Array, dataStart: number, dataLen: nu
 		}
 		const value = dataData[dataStart + _6];
 		if (value === 251) {
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(i, f)];
-			rs.panicFmt(["broken at ", args2[0]]);
+			rs.panicFmt(["broken at ", (f: rs.Formatter) => rs.usizeDisplay(i, f)]);
 		} else if (value === 252) {
 			const _19: rs.usize = i;
 			if (_19 >= dataLen) {
@@ -1052,8 +1043,7 @@ export function boundNever(dataData: Uint8Array, dataStart: number, dataLen: num
 		}
 		const value = dataData[dataStart + _8];
 		if (value === 239) {
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(i, f)];
-			rs.panicFmt(["bound at ", args2[0]]);
+			rs.panicFmt(["bound at ", (f: rs.Formatter) => rs.usizeDisplay(i, f)]);
 		} else if (value === 240) {
 			const _22: rs.usize = i;
 			if (_22 >= dataLen) {
@@ -1398,8 +1388,7 @@ export function patterns(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const parsed: rs.Result<rs.u8, Void.Void> = rs.Ok(data.length & 0xff);
 	const a2: rs.u8 = (parsed as { ok: true; value: rs.u8 }).value;
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a2, (parsed as { ok: true; value: rs.u8 }).value, (parsed as { ok: true; value: rs.u8 }).value, early(a2))));
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtResult(parsed, f, rs.u8Debug, (value: Void.Void, f: rs.Formatter) => Void.fmt$fmt_Debug(value, f))];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(parsed, f, rs.u8Debug, (value: Void.Void, f: rs.Formatter) => Void.fmt$fmt_Debug(value, f))])));
 	payloads(data.data, data.start, data.length, out);
 	known(data.data, data.start, data.length, out);
 	rematched(data, out);

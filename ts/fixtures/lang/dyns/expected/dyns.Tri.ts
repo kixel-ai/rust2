@@ -57,8 +57,7 @@ export function intoArea$dyns_Shape(self: Tri): rs.u32 {
 }
 
 export function label$dyns_Named(self: Tri): string {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => fmt$fmt_Debug(self, f)];
-	return rs.fmtFormat(["tri ", args2[0]]);
+	return rs.fmtFormat(["tri ", (f: rs.Formatter) => fmt$fmt_Debug(self, f)]);
 }
 
 export function asAny$dyns_Erased(self: Tri): Any.Any {
@@ -78,8 +77,8 @@ export function apply$dyns_Scaled_String(self: Tri, f: (a0: string) => string, x
 }
 
 export function scale$dyns_Scaled_String(self: Tri, by: string): string {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, by), (f: rs.Formatter) => fmt$fmt_Debug(self, f)];
-	return rs.fmtFormat([args2[0], args2[1]]);
+	const args3 = [(f: rs.Formatter) => rs.fmtPad(f, by), (f: rs.Formatter) => fmt$fmt_Debug(self, f)];
+	return rs.fmtFormat([args3[0], args3[1]]);
 }
 
 /** Writes through a `&mut` to the argument, an `rs.Place` for a number. */

@@ -21,12 +21,6 @@ pub fn generic_unit(value: Option<()>) -> bool {
 	Maybe { value }.value.is_some()
 }
 
-/// An `Rc`'s array, as its slice, would need an `rs.Slice` made inside the `rs.Arc` its
-/// other owners share.
-pub fn shared_values(values: std::rc::Rc<[u16; 2]>) -> std::rc::Rc<[u16]> {
-	values
-}
-
 /// Parsing an address is not translated yet.
 pub fn addr_parsed(s: &str) -> Result<std::net::Ipv4Addr, std::net::AddrParseError> {
 	s.parse()

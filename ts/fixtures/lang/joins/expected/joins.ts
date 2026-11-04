@@ -256,8 +256,7 @@ export function joins(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const sep5: rs.Vec<Sentinel.Sentinel> = rs.iterToVec(rs.iterMap(new rs.Range(0, 1 << 16), (i: rs.i32): Sentinel.Sentinel => {
 				return { _0: (i & 0xff) ^ 90 };
 			}), undefined, 1, true);
-			const _597: Sentinel.Sentinel[] = [];
-			rs.slicesJoin(rs.sliceFrom(rs.vecFromElem(rs.sliceFrom(_597), rs.usizeAdd(1 << 16, 1), undefined).items), 1, rs.sliceFrom(sep5.items), undefined, Sentinel.clone$Clone);
+			rs.slicesJoin(rs.sliceFrom(rs.vecFromElem(rs.sliceFrom([]), rs.usizeAdd(1 << 16, 1), undefined).items), 1, rs.sliceFrom(sep5.items), undefined, Sentinel.clone$Clone);
 		}
 	}
 }

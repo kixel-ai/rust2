@@ -139,10 +139,11 @@ export function swapIn(v: rs.Vec<rs.Arc<rs.u8>>, with_: rs.Arc<rs.u8>): rs.Vec<r
 }
 
 /** A reference a closure copied, which holds the array it points at. */
-export function replaceCaptured(a: rs.u16[], to: rs.u16): rs.u16[] {
+export function replaceCaptured(a: rs.Slice<rs.u16>, to: rs.u16): rs.u16[] {
 	const captured = to;
 	return ((): rs.u16[] => {
-		return rs.replaceIn(a, [captured, rs.u16WrappingAdd(captured, 1)]);
+		const _2: rs.u16[] = [captured, rs.u16WrappingAdd(captured, 1)];
+		return rs.replaceIn(rs.sliceView(a), _2);
 	})();
 }
 
@@ -162,11 +163,11 @@ export function repinAll(v: rs.Vec<rs.Arc<rs.u8>>, with_: rs.Arc<rs.u8>, n: rs.u
 }
 
 /** An array of objects, assigned whole through a parameter. */
-export function reset(a: rs.Arc<rs.u8>[], with_: rs.Arc<rs.u8>): void {
+export function reset(a: rs.Slice<rs.Arc<rs.u8>>, with_: rs.Arc<rs.u8>): void {
 	const _3: rs.Arc<rs.u8> = rs.arcClone(with_);
 	const _4: rs.Arc<rs.u8> = new rs.Arc(with_.value);
 	rs.dropAll(a);
-	Object.assign(a, [_3, _4]);
+	rs.sliceSet(a, [_3, _4]);
 }
 
 export function takeAll(v: rs.Vec<rs.Arc<rs.u8>>): rs.Vec<rs.Arc<rs.u8>> {
@@ -435,7 +436,7 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	counts(out, rs.sliceFrom([one, two]), rs.sliceFrom(pinnedAll.items));
 	rs.dropVec(pinnedAll);
 	const pair: rs.Arc<rs.u8>[] = [rs.arcClone(one), rs.arcClone(two)];
-	reset(pair, two);
+	reset(rs.sliceFrom(pair), two);
 	counts(out, rs.sliceFrom([one, two]), rs.sliceFrom(pair));
 	rs.dropAll(pair);
 	rs.byteVecPush(out, w.start);
@@ -467,7 +468,7 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (rs.u8Rem(x, 2) === 0) {
 			swapWindows(a, b7);
 		}
-		const old2: rs.u16[] = replaceCaptured(array, x as rs.u16);
+		const old2: rs.u16[] = replaceCaptured(rs.sliceFrom(array), x as rs.u16);
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(old2[0] & 0xff, old2[1] & 0xff)));
 	}
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a.start, a.held.items.length & 0xff, b7.start, b7.held.items.length & 0xff)));
