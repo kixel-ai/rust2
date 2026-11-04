@@ -1,6 +1,6 @@
 //! Iterators and collections of the crate's own that override what std's adaptors call.
 
-/// An iterator whose own `fold` holds its accumulator in an `Option`, of an `rt.None` or not.
+/// An iterator whose own `fold` holds its accumulator in an `Option`, of an `rs.None` or not.
 pub struct Folds;
 
 impl Iterator for Folds {

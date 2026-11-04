@@ -5,6 +5,8 @@
 
 use std::collections::HashSet;
 
+use rust2_driver::cfg;
+
 /// A translated item: a function, struct, or type alias.
 pub type SymId = usize;
 
@@ -28,8 +30,8 @@ pub enum Expr {
 	This,
 	/// A translated item, named at print time.
 	Sym(SymId),
-	/// A runtime export: `rt.<name>`.
-	Rt(String),
+	/// A runtime export: `rs.<name>`.
+	Rs(String),
 	/// Literal text, printed as is: `1`, `0x40`, `5n`, `true`, `undefined`.
 	Lit(String),
 	Str(String),
@@ -47,7 +49,7 @@ pub enum Expr {
 	Assign(Box<Expr>, Box<Expr>),
 	Arrow(Vec<Param>, Type, Vec<Stmt>),
 	/// An arrow function whose body is one expression, its return type inferred:
-	/// `(f: rt.Formatter) => rt.fmtPad(f, s)`.
+	/// `(f: rs.Formatter) => rs.fmtPad(f, s)`.
 	Lambda(Vec<Param>, Box<Expr>),
 	/// `e as T`: a literal whose type TypeScript would widen, or an integer cast to
 	/// another integer type with the same value.
@@ -82,11 +84,11 @@ impl Expr {
 		Self::Member(Box::new(self), Key::Name(name.into()))
 	}
 
-	/// What `self` reads, if it is an `rt.Place` made here: `rt.place(() => read, set)`.
+	/// What `self` reads, if it is an `rs.Place` made here: `rs.place(() => read, set)`.
 	pub fn place_read(&self) -> Option<&Expr> {
 		let Self::Call(f, args) = self else { return None };
 		match (&**f, args.as_slice()) {
-			(Self::Rt(name), [Self::Lambda(params, read), _]) if name == "place" && params.is_empty() => Some(read),
+			(Self::Rs(name), [Self::Lambda(params, read), _]) if name == "place" && params.is_empty() => Some(read),
 			_ => None,
 		}
 	}
@@ -103,29 +105,29 @@ impl Expr {
 		Self::Call(Box::new(self), args)
 	}
 
-	/// A call of the runtime function `rt.<name>`.
-	pub fn rt(name: impl Into<String>, args: Vec<Expr>) -> Self {
-		Self::Rt(name.into()).call(args)
+	/// A call of the runtime function `rs.<name>`.
+	pub fn rs(name: impl Into<String>, args: Vec<Expr>) -> Self {
+		Self::Rs(name.into()).call(args)
 	}
 
-	/// `rt.Ok(value)`, or `rt.Err(value)` if not `ok`: for `undefined`, `rt.OK` or `rt.ERR`,
+	/// `rs.Ok(value)`, or `rs.Err(value)` if not `ok`: for `undefined`, `rs.OK` or `rs.ERR`,
 	/// one object every evaluation shares, since nothing writes into a result in place and
 	/// `undefined` holds nothing to write into.
 	pub fn result(ok: bool, value: Expr) -> Self {
 		let unit = matches!(&value, Self::Lit(text) if text == "undefined");
 		match (ok, unit) {
-			(true, true) => Self::Rt("OK".into()),
-			(false, true) => Self::Rt("ERR".into()),
-			(true, false) => Self::rt("Ok", vec![value]),
-			(false, false) => Self::rt("Err", vec![value]),
+			(true, true) => Self::Rs("OK".into()),
+			(false, true) => Self::Rs("ERR".into()),
+			(true, false) => Self::rs("Ok", vec![value]),
+			(false, false) => Self::rs("Err", vec![value]),
 		}
 	}
 
-	/// The runtime function `name` of what `of` names: `rt.u8Add` for `("u8", "add")`.
-	pub fn rt_of(of: &str, name: &str) -> Self {
+	/// The runtime function `name` of what `of` names: `rs.u8Add` for `("u8", "add")`.
+	pub fn rs_of(of: &str, name: &str) -> Self {
 		let mut chars = name.chars();
 		let first = chars.next().map(|c| c.to_ascii_uppercase()).into_iter();
-		Self::Rt(format!("{of}{}{}", first.collect::<String>(), chars.as_str()))
+		Self::Rs(format!("{of}{}{}", first.collect::<String>(), chars.as_str()))
 	}
 
 	pub fn binary(self, op: &'static str, rhs: Expr) -> Self {
@@ -154,18 +156,18 @@ impl Expr {
 	/// This without an outer `as`, where the context already gives the type.
 	pub fn typed(self) -> Self {
 		match self {
-			// Limbs keep theirs, which the brand of their type requires, and an `rt.RangeBound` its
+			// Limbs keep theirs, which the brand of their type requires, and an `rs.RangeBound` its
 			// own, without which a declaration narrows to the one variant it is made as.
 			Self::As(e, ty)
 				if matches!(*e, Self::Str(_) | Self::Array(_) | Self::Object(_))
 					&& !wide(&ty)
-					&& !matches!(ty, Type::Rt("RangeBound", _)) =>
+					&& !matches!(ty, Type::Rs("RangeBound", _)) =>
 			{
 				*e
 			}
 			Self::Located(loc, e) => Self::Located(loc, Box::new(e.typed())),
-			// `rt.Ok(v)` and `rt.Err(e)` infer their type from the context too.
-			Self::Call(f, args) if matches!(&*f, Self::Rt(name) if name == "Ok" || name == "Err") => {
+			// `rs.Ok(v)` and `rs.Err(e)` infer their type from the context too.
+			Self::Call(f, args) if matches!(&*f, Self::Rs(name) if name == "Ok" || name == "Err") => {
 				Self::Call(f, args.into_iter().map(Self::typed).collect())
 			}
 			e => e,
@@ -176,9 +178,9 @@ impl Expr {
 	/// a literal, or `this`.
 	pub fn is_constant(&self) -> bool {
 		match self {
-			Self::Lit(_) | Self::Str(_) | Self::This | Self::Sym(_) | Self::Rt(_) => true,
+			Self::Lit(_) | Self::Str(_) | Self::This | Self::Sym(_) | Self::Rs(_) => true,
 			Self::Located(_, e) => e.is_constant(),
-			// A wide integer literal past 2^53, `{ hi: 0xffffffff, lo: 0xffffffff } as rt.u64`:
+			// A wide integer literal past 2^53, `{ hi: 0xffffffff, lo: 0xffffffff } as rs.u64`:
 			// immutable limbs, which compare by value.
 			Self::As(e, ty) if wide(ty) => {
 				matches!(&**e, Self::Object(fields) if fields.iter().all(|(_, v)| matches!(v, Self::Lit(_))))
@@ -226,7 +228,7 @@ impl Expr {
 
 /// Whether `ty` is a 64- or 128-bit integer type, whose values past 2^53 are limbs.
 fn wide(ty: &Type) -> bool {
-	matches!(ty, Type::Rt("u64" | "i64" | "u128" | "i128", _))
+	matches!(ty, Type::Rs("u64" | "i64" | "u128" | "i128", _))
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -309,18 +311,134 @@ impl StmtKind {
 	}
 }
 
-impl Stmt {
-	/// Whether control never reaches the statement after this one.
-	pub fn diverges(&self) -> bool {
-		match &self.kind {
-			StmtKind::Return(_) | StmtKind::Break(_) | StmtKind::Continue(_) => true,
-			StmtKind::If { then, els, .. } => diverges(then) && diverges(els),
-			StmtKind::Block { label: None, body } => diverges(body),
+impl cfg::Syntax for Stmt {
+	type Cond = Expr;
+
+	fn block(label: String, body: Vec<Self>) -> Self {
+		StmtKind::Block {
+			label: Some(label),
+			body,
+		}
+		.at(None)
+	}
+
+	fn forever(label: String, body: Vec<Self>) -> Self {
+		StmtKind::While {
+			label: Some(label),
+			cond: Expr::lit("true"),
+			body,
+		}
+		.at(None)
+	}
+
+	fn branch(cond: Expr, then: Vec<Self>, els: Vec<Self>) -> Self {
+		StmtKind::If { cond, then, els }.at(None)
+	}
+
+	fn jump(jump: cfg::Jump, label: String) -> Self {
+		match jump {
+			cfg::Jump::Break => StmtKind::Break(Some(label)),
+			cfg::Jump::Continue => StmtKind::Continue(Some(label)),
+		}
+		.at(None)
+	}
+
+	fn dispatch(state: &str, label: &str, cases: Vec<(usize, Vec<Self>)>, out: &mut Vec<Self>) {
+		let cases = cases
+			.into_iter()
+			.map(|(node, body)| (Expr::lit(node.to_string()), body))
+			.collect();
+		out.push(StmtKind::decl(true, state, Some(Type::Builtin("number")), Some(Expr::lit("0"))).at(None));
+		out.push(
 			StmtKind::While {
+				label: Some(label.to_string()),
+				cond: Expr::lit("true"),
+				body: vec![
+					StmtKind::Switch {
+						label: None,
+						disc: Expr::ident(state),
+						cases,
+						default: Vec::new(),
+					}
+					.at(None),
+				],
+			}
+			.at(None),
+		);
+	}
+
+	fn set(state: &str, node: usize) -> Self {
+		StmtKind::Expr(Expr::ident(state).assign(Expr::lit(node.to_string()))).at(None)
+	}
+
+	fn view(&self) -> cfg::View<'_, Self> {
+		match &self.kind {
+			StmtKind::Block { label, body } => cfg::Form::Block { label, body },
+			StmtKind::While { label, cond, body } => cfg::Form::Loop {
 				label,
-				cond: Expr::Lit(cond),
+				cond: Some(cond),
 				body,
-			} => cond == "true" && !breaks_out(body, label.as_deref(), false),
+			},
+			StmtKind::ForOf { label, body, .. } => cfg::Form::Loop {
+				label,
+				cond: None,
+				body,
+			},
+			StmtKind::If { cond, then, els } => cfg::Form::If { cond, then, els },
+			StmtKind::Switch { cases, default, .. } => {
+				cfg::Form::Switch(cases.iter().map(|(_, body)| body).chain([default]).collect())
+			}
+			StmtKind::Break(label) => cfg::Form::Break(label),
+			StmtKind::Continue(label) => cfg::Form::Continue(label),
+			StmtKind::Return(value) => cfg::Form::Return(value.is_some()),
+			_ => cfg::Form::Other,
+		}
+	}
+
+	fn view_mut(&mut self) -> cfg::ViewMut<'_, Self> {
+		match &mut self.kind {
+			StmtKind::Block { label, body } => cfg::Form::Block { label, body },
+			StmtKind::While { label, cond, body } => cfg::Form::Loop {
+				label,
+				cond: Some(cond),
+				body,
+			},
+			StmtKind::ForOf { label, body, .. } => cfg::Form::Loop {
+				label,
+				cond: None,
+				body,
+			},
+			StmtKind::If { cond, then, els } => cfg::Form::If { cond, then, els },
+			StmtKind::Switch { cases, default, .. } => {
+				cfg::Form::Switch(cases.iter_mut().map(|(_, body)| body).chain([default]).collect())
+			}
+			StmtKind::Break(label) => cfg::Form::Break(label),
+			StmtKind::Continue(label) => cfg::Form::Continue(label),
+			StmtKind::Return(value) => cfg::Form::Return(value.is_some()),
+			_ => cfg::Form::Other,
+		}
+	}
+}
+
+impl cfg::Cond for Expr {
+	fn negate(&mut self) {
+		*self = std::mem::replace(self, Expr::undefined()).not();
+	}
+
+	fn is_true(&self) -> bool {
+		matches!(self, Expr::Lit(l) if l == "true")
+	}
+
+	fn pure(&self) -> bool {
+		match self {
+			Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => true,
+			Expr::Member(base, _)
+			| Expr::Unary(_, base)
+			| Expr::Located(_, base)
+			| Expr::As(base, _)
+			| Expr::Instantiate(base, _) => base.pure(),
+			Expr::Binary(l, _, r) => l.pure() && r.pure(),
+			Expr::Cond(c, a, b) => c.pure() && a.pure() && b.pure(),
 			_ => false,
 		}
 	}
@@ -385,7 +503,7 @@ impl Expr {
 				b.syms_mut(f);
 				c.syms_mut(f);
 			}
-			Expr::Ident(_) | Expr::This | Expr::Rt(_) | Expr::Lit(_) | Expr::Str(_) => {}
+			Expr::Ident(_) | Expr::This | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => {}
 		}
 	}
 }
@@ -507,7 +625,7 @@ impl Expr {
 				b.free_names(free);
 				c.free_names(free);
 			}
-			Expr::This | Expr::Sym(_) | Expr::Rt(_) | Expr::Lit(_) | Expr::Str(_) => {}
+			Expr::This | Expr::Sym(_) | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => {}
 		}
 	}
 }
@@ -546,32 +664,9 @@ impl Expr {
 				b.eager_syms(f);
 				c.eager_syms(f);
 			}
-			Expr::Ident(_) | Expr::This | Expr::Rt(_) | Expr::Lit(_) | Expr::Str(_) => {}
+			Expr::Ident(_) | Expr::This | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => {}
 		}
 	}
-}
-
-/// Whether a `break` in `stmts` targets the loop that holds them, labeled `label`.
-/// Inside a `nested` loop, only a labeled `break` can. A `break` to any other label
-/// skips the loop's next statement too.
-fn breaks_out(stmts: &[Stmt], label: Option<&str>, nested: bool) -> bool {
-	stmts.iter().any(|stmt| match &stmt.kind {
-		StmtKind::Break(None) => !nested,
-		StmtKind::Break(Some(target)) => Some(target.as_str()) == label,
-		StmtKind::If { then, els, .. } => breaks_out(then, label, nested) || breaks_out(els, label, nested),
-		StmtKind::Block { body, .. } => breaks_out(body, label, nested),
-		// An unlabeled `break` in a case leaves the switch.
-		StmtKind::Switch { cases, default, .. } => {
-			cases.iter().any(|(_, body)| breaks_out(body, label, true)) || breaks_out(default, label, true)
-		}
-		StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } => breaks_out(body, label, true),
-		_ => false,
-	})
-}
-
-/// Whether control never falls off the end of `stmts`.
-pub fn diverges(stmts: &[Stmt]) -> bool {
-	stmts.last().is_some_and(Stmt::diverges)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -579,8 +674,8 @@ pub enum Type {
 	/// A built-in type: `number`, `bigint`, `boolean`, `string`, `void`, `never`,
 	/// `undefined`, `Uint8Array`.
 	Builtin(&'static str),
-	/// A runtime type: `rt.<name><args>`.
-	Rt(&'static str, Vec<Type>),
+	/// A runtime type: `rs.<name><args>`.
+	Rs(&'static str, Vec<Type>),
 	Sym(SymId, Vec<Type>),
 	Param(String),
 	Union(Vec<Type>),
@@ -604,7 +699,7 @@ impl Type {
 		match self {
 			Type::Func(params, ret) => params.iter().any(|t| t.any(f)) || ret.takes(f),
 			Type::Param(_) | Type::Builtin(_) | Type::StrLit(_) => false,
-			Type::Rt(_, tys) | Type::Sym(_, tys) | Type::Union(tys) | Type::Tuple(tys) => {
+			Type::Rs(_, tys) | Type::Sym(_, tys) | Type::Union(tys) | Type::Tuple(tys) => {
 				tys.iter().any(|t| t.takes(f))
 			}
 			Type::Array(t) => t.takes(f),
@@ -618,7 +713,7 @@ impl Type {
 		match self {
 			Type::Param(name) => f(name).unwrap_or_else(|| self.clone()),
 			Type::Builtin(_) | Type::StrLit(_) => self.clone(),
-			Type::Rt(name, tys) => Type::Rt(name, all(tys)),
+			Type::Rs(name, tys) => Type::Rs(name, all(tys)),
 			Type::Sym(sym, tys) => Type::Sym(*sym, all(tys)),
 			Type::Union(tys) => Type::Union(all(tys)),
 			Type::Tuple(tys) => Type::Tuple(all(tys)),
@@ -633,7 +728,7 @@ impl Type {
 		f(self)
 			|| match self {
 				Type::Param(_) | Type::Builtin(_) | Type::StrLit(_) => false,
-				Type::Rt(_, tys) | Type::Sym(_, tys) | Type::Union(tys) | Type::Tuple(tys) => {
+				Type::Rs(_, tys) | Type::Sym(_, tys) | Type::Union(tys) | Type::Tuple(tys) => {
 					tys.iter().any(|t| t.any(f))
 				}
 				Type::Array(t) => t.any(f),

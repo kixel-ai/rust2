@@ -107,10 +107,10 @@ async function codecEntry(dir: string): Promise<string> {
 	const entry = join(dir, "bench-entry.ts");
 	await Bun.write(
 		entry,
-		`import * as rt from "./rt.ts";
+		`import * as rs from "./rs.ts";
 import { run as bench } from "./bench.ts";
 
-export const run = (input: Uint8Array) => bench(rt.byteSliceFrom(input));
+export const run = (input: Uint8Array) => bench(rs.byteSliceFrom(input));
 `,
 	);
 	return entry;
@@ -125,12 +125,12 @@ async function taskEntry(dir: string): Promise<string> {
 	const entry = join(dir, "bench-entry.ts");
 	await Bun.write(
 		entry,
-		`import * as rt from "./rt.ts";
+		`import * as rs from "./rs.ts";
 import * as Channel from "./model.Channel.ts";
 import { drain } from "./model.ts";
 import { polled, spawned } from ${JSON.stringify(join(import.meta.dir, "task.ts"))};
 
-const fixture = { Pending: rt.Pending, spawn: rt.spawn, Channel, drain };
+const fixture = { Pending: rs.Pending, spawn: rs.spawn, Channel, drain };
 export const run = polled(fixture);
 export const spawn = spawned(fixture);
 `,
@@ -359,7 +359,7 @@ function render(): string {
 		`- moq: ${text(["git", "-C", checkout, "rev-parse", "HEAD"])}`,
 		...engines.map((e) => `- ${e.engine}`),
 		"",
-		"Each cell is nanoseconds per item (a varint, a frame header, a message, a byte iterated, a key, a timestamp converted, added, or compared, or a line formatted): the median",
+		"Each cell is nanoseconds per item (a varint, a frame header, a message, a byte iterated, a key, a timestamp converted, added, or compared, a line formatted, or a step): the median",
 		`of ${rounds} samples of at least ${sampleMs} ms, ± half their interquartile range. Each round runs`,
 		`the JS routes and workloads in a new random order, from seed ${seed}. \`native\` is a release`,
 		"build on the host, its workloads in a fixed order. `wasm` is the same",
@@ -368,7 +368,7 @@ function render(): string {
 		"`js/net`, called as its own benchmarks call it, for `iter/` the same chain with ES",
 		"iterator helpers (`bench/iter.ts`), for `btree/` a sorted array (`bench/sorted.ts`), for `hash/` a `Map` (`bench/hashed.ts`), and",
 		"for `time/` conversions `bigint`, as moq's `js/hang` converts timescales (`bench/rescale.ts`),",
-		"for `time/checked-add` and `time/ord` moq's own `Timestamp` (`bench/timestamp.ts`), and for `fmt/` a template literal (`bench/fmt.ts`).",
+		"for `time/checked-add` and `time/ord` moq's own `Timestamp` (`bench/timestamp.ts`), for `fmt/` a template literal (`bench/fmt.ts`), and for `parts/` a plain array (`bench/parts.ts`).",
 		"Each JS route and `wasm` runs alone in a worker of its own, a fresh one each round. `A/A` is the translation again: its",
 		"gap from `translated` is the noise. A `reads` decode is the frame headers above as they",
 		"arrive that many bytes at a time, so a header cut by a read comes up short and is",

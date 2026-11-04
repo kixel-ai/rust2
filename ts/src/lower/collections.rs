@@ -1,10 +1,10 @@
-//! Collections, as `rt/collections.ts` gives them: `HashMap`, `HashSet`, `BTreeMap`,
+//! Collections, as `rs/collections.ts` gives them: `HashMap`, `HashSet`, `BTreeMap`,
 //! `BTreeSet`, `VecDeque`, `LinkedList`, and `BinaryHeap`, std's or hashbrown's, and
 //! hashbrown's `HashTable`, with `Ordering` and `DefaultHasher`, which their keys need.
 //!
 //! A hash collection holds a key that is a JS primitive as its own JS map key, which JS
 //! compares as Rust's `Eq` does for numbers, strings, and booleans, and finds any other
-//! key through its translated or bound `Hash` and `Eq`, which `rt.hashing` makes it carry.
+//! key through its translated or bound `Hash` and `Eq`, which `rs.hashing` makes it carry.
 //! A B-tree orders every key by its translated or bound `Ord`. Each value a collection
 //! stores is its own copy, as in Rust.
 
@@ -59,7 +59,7 @@ pub fn call<'tcx>(
 				// Into `DefaultHasher`, whose state the runtime's functions write, or the crate's
 				// own, which they write through its methods.
 				let hasher = library::targ(call.args, 1);
-				let own = own_hasher(b.t, hasher);
+				let own = called_hasher(b.t, hasher);
 				if !std_key(b, t) || !(own || b.t.std_of(hasher) == Some(Std::Hasher)) {
 					return Err(args);
 				}
@@ -91,7 +91,7 @@ pub fn call<'tcx>(
 					"min" => "ordMin",
 					_ => "ordClamp",
 				};
-				return Ok(Some(Expr::rt(f, values)));
+				return Ok(Some(Expr::rs(f, values)));
 			}
 			// A std type's own comparisons, as a tuple's are, by its `partial_cmp`. The library
 			// maps the integers' and `bool`'s.
@@ -125,7 +125,7 @@ pub fn call<'tcx>(
 				let t = peel(b, t);
 				// Bytes of any form against any other, as the runtime reads each.
 				if bytes(b, t) && bytes(b, peel(b, rhs)) {
-					let eq = Expr::rt("eqBytes", args);
+					let eq = Expr::rs("eqBytes", args);
 					return Ok(Some(if name == "eq" { eq } else { eq.not() }));
 				}
 				// Sequences of other forms or items, whose `ne` is `!eq`.
@@ -147,7 +147,7 @@ pub fn call<'tcx>(
 					_ => not_ne_fn(b, t, span),
 				};
 				let eq = match (eq, <[Expr; 2]>::try_from(args)) {
-					(Expr::Rt(same), Ok([l, r])) if same == "same" => l.binary("===", r),
+					(Expr::Rs(same), Ok([l, r])) if same == "same" => l.binary("===", r),
 					(eq, Ok(args)) => eq.call(args.into()),
 					(_, Err(args)) => return Err(args),
 				};
@@ -189,7 +189,7 @@ pub fn call<'tcx>(
 	};
 	let by = lookup_ty(b, std, call, owner, name);
 	// A `[u8; N]` key is a typed array, but a reference to an array or a slice, as a lookup
-	// takes one, is an `rt.ByteSlice`, so a view of its bytes stands in. A range holds the
+	// takes one, is an `rs.ByteSlice`, so a view of its bytes stands in. A range holds the
 	// keys themselves.
 	if let Some(by) = by
 		&& !matches!(name, "range" | "range_mut")
@@ -202,8 +202,19 @@ pub fn call<'tcx>(
 			key = arg(key, 0);
 		}
 		if let (true, Some(at)) = (super::byte_array(key), args.get_mut(1)) {
-			*at = Expr::rt("byteSliceView", vec![std::mem::replace(at, Expr::undefined())]);
+			*at = Expr::rs("byteSliceView", vec![std::mem::replace(at, Expr::undefined())]);
 		}
+	}
+	// An array or a `Vec` key is a JS array, so the elements of an `rs.Slice` stand in.
+	if let Some(by) = by
+		&& !matches!(name, "range" | "range_mut")
+		&& let ty::Slice(elem) = by.kind()
+		&& !super::byte(*elem)
+		&& let key = peel(b, arg(coll, 0))
+		&& (key.is_array() || b.t.std_of(key) == Some(Std::Vec))
+		&& let Some(at) = args.get_mut(1)
+	{
+		*at = Expr::rs("sliceItems", vec![std::mem::replace(at, Expr::undefined())]);
 	}
 	// Elements of any form, an array, a slice, or a `Vec`, hash and compare alike, so each
 	// finds the others. A reference key finds what it points at by that value's own impls,
@@ -224,7 +235,7 @@ pub fn call<'tcx>(
 			_ if cow => {}
 			Some(key) if arc && !matches!(name, "range" | "range_mut") => {
 				let value = std::mem::replace(key, Expr::undefined());
-				*key = Expr::New(Box::new(Expr::Rt("Arc".into())), vec![value]);
+				*key = Expr::New(Box::new(Expr::Rs("Arc".into())), vec![value]);
 			}
 			_ => {
 				return Ok(Some(b.err(
@@ -234,7 +245,7 @@ pub fn call<'tcx>(
 			}
 		}
 	}
-	// A slice or an array finds an `rt.Vec` key, which the runtime reads alike, as its type.
+	// A slice or an array finds an `rs.Vec` key, which the runtime reads alike, as its type.
 	if let Some(by) = by
 		&& !matches!(name, "range" | "range_mut")
 		&& let Some(at) = args.get_mut(1)
@@ -251,10 +262,10 @@ pub fn call<'tcx>(
 		Std::VecDeque => deque(b, coll, call, owner, name, args),
 		Std::LinkedList => list(b, coll, call, owner, name, args),
 		Std::BinaryHeap => heap(b, coll, call, owner, name, args),
-		Std::PeekMut if name == "pop" => Some(Expr::rt("peekMutPop", args)),
+		Std::PeekMut if name == "pop" => Some(Expr::rs("peekMutPop", args)),
 		Std::Entry => entry(b, coll, call, name, args),
 		Std::Ordering => ordering(name, args),
-		Std::Hasher if matches!(name, "new" | "default") => Some(Expr::rt("hasher", vec![])),
+		Std::Hasher if matches!(name, "new" | "default") => Some(Expr::rs("hasher", vec![])),
 		Std::RandomState => Some(random_state(b, call, coll, name, args)),
 		Std::BuildHasherDefault => Some(build_hasher_default(b, call, coll, name, args, out)),
 		_ => return Err(args),
@@ -329,7 +340,7 @@ fn discarded(std: Std, owner: &str, name: &str) -> Option<&'static [usize]> {
 }
 
 /// `values` and then `flag`, which a runtime function defaults to `false` unless the
-/// `rt.None` it takes last follows, where `none`.
+/// `rs.None` it takes last follows, where `none`.
 fn flagged(mut values: Vec<Expr>, flag: bool, none: bool) -> Vec<Expr> {
 	if flag || none {
 		values.push(Expr::lit(flag.to_string()));
@@ -391,7 +402,7 @@ fn same_key<'tcx>(b: &Body<'_, '_, 'tcx>, key: Ty<'tcx>, by: Ty<'tcx>) -> bool {
 }
 
 /// Whether a key of type `by` is a slice or an array that finds a `key` that is a `Vec`,
-/// whose JS value is an `rt.Vec` of the array.
+/// whose JS value is an `rs.Vec` of the array.
 fn other_shape<'tcx>(b: &Body<'_, '_, 'tcx>, key: Ty<'tcx>, by: Ty<'tcx>) -> bool {
 	b.t.std_of(peel(b, key)) == Some(Std::Vec)
 		&& elements_of(b, peel(b, by)).is_some()
@@ -420,7 +431,7 @@ fn alike<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, other: Ty<'tcx>) -> bool {
 }
 
 /// Whether `call` lends a value a collection or an atomic holds that JS copies, which its
-/// mapping makes an `rt.Place` of: returned as `get_mut` and an entry's do, yielded as
+/// mapping makes an `rs.Place` of: returned as `get_mut` and an entry's do, yielded as
 /// `iter_mut`'s, or handed to a closure as `retain`'s. An atomic is that place itself.
 pub fn place_call<'tcx>(b: &Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> bool {
 	let tcx = b.t.tcx;
@@ -500,7 +511,7 @@ fn arg<'tcx>(coll: Ty<'tcx>, n: usize) -> Ty<'tcx> {
 }
 
 /// What a JS value of `ty` is: through references and boxes, which are their pointee,
-/// up to a `&mut` that is an `rt.Place`, and a `NonZero`, which is its integer.
+/// up to a `&mut` that is an `rs.Place`, and a `NonZero`, which is its integer.
 fn peel<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
 	match pointee(b, ty) {
 		Some(inner) => peel(b, inner),
@@ -625,37 +636,37 @@ fn hash<'tcx>(
 				values.resize(3, Expr::undefined());
 				values.push(state);
 			}
-			empty(b, Expr::rt("hashWithCapacity", values), coll, span)
+			empty(b, Expr::rs("hashWithCapacity", values), coll, span)
 		}
 		(_, "hasher") if let Some(state) = held_state(b, coll) => {
 			let ty = b.t.ty(state, span);
 			Expr::As(Box::new(values.pop()?.member("s")), ty)
 		}
-		(_, "len") => Expr::rt("hashLen", values),
-		(_, "is_empty") => Expr::rt("hashLen", values).binary("===", Expr::lit("0")),
-		(_, "clear") => Expr::rt("hashClear", values),
-		(_, "contains_key" | "contains") => Expr::rt("hashContains", values),
-		(_, "get_mut") if !set && b.t.needs_place(arg(coll, 1)) => Expr::rt("hashGetMut", values),
-		(_, "get" | "get_mut") if !set => Expr::rt("hashGet", values),
-		(_, "get") => Expr::rt("hashKey", flagged(values, false, none)),
-		(_, "take") => Expr::rt("hashKey", flagged(values, true, none)),
-		(_, "replace") => Expr::rt("hashReplace", values),
-		(_, "get_key_value") => Expr::rt("hashGetKeyValue", values),
-		(_, "insert") if set => Expr::rt("hashAdd", values),
-		(_, "insert") => Expr::rt("hashInsert", values),
-		(_, "remove") if set => Expr::rt("hashDelete", values),
-		(_, "remove") => Expr::rt("hashRemove", values),
-		(_, "remove_entry") => Expr::rt("hashRemoveEntry", values),
-		(_, "retain") if !set && b.t.needs_place(arg(coll, 1)) => Expr::rt("hashRetainMut", values),
-		(_, "retain") => Expr::rt("hashRetain", values),
-		(_, "extract_if") if set => Expr::rt("hashExtractKeysIf", values),
-		(_, "extract_if") if b.t.needs_place(arg(coll, 1)) => Expr::rt("hashExtractIfMut", values),
-		(_, "extract_if") => Expr::rt("hashExtractIf", values),
-		(_, "iter_mut") if b.t.needs_place(arg(coll, 1)) => Expr::rt("hashIterMut", values),
-		(_, "values_mut") if b.t.needs_place(arg(coll, 1)) => Expr::rt("hashValuesMut", values),
-		(_, "iter" | "iter_mut") if !set => Expr::rt("hashIter", values),
-		(_, "iter" | "keys") => Expr::rt("hashKeys", values),
-		(_, "values" | "values_mut") => Expr::rt("hashValues", values),
+		(_, "len") => Expr::rs("hashLen", values),
+		(_, "is_empty") => Expr::rs("hashLen", values).binary("===", Expr::lit("0")),
+		(_, "clear") => Expr::rs("hashClear", values),
+		(_, "contains_key" | "contains") => Expr::rs("hashContains", values),
+		(_, "get_mut") if !set && b.t.needs_place(arg(coll, 1)) => Expr::rs("hashGetMut", values),
+		(_, "get" | "get_mut") if !set => Expr::rs("hashGet", values),
+		(_, "get") => Expr::rs("hashKey", flagged(values, false, none)),
+		(_, "take") => Expr::rs("hashKey", flagged(values, true, none)),
+		(_, "replace") => Expr::rs("hashReplace", values),
+		(_, "get_key_value") => Expr::rs("hashGetKeyValue", values),
+		(_, "insert") if set => Expr::rs("hashAdd", values),
+		(_, "insert") => Expr::rs("hashInsert", values),
+		(_, "remove") if set => Expr::rs("hashDelete", values),
+		(_, "remove") => Expr::rs("hashRemove", values),
+		(_, "remove_entry") => Expr::rs("hashRemoveEntry", values),
+		(_, "retain") if !set && b.t.needs_place(arg(coll, 1)) => Expr::rs("hashRetainMut", values),
+		(_, "retain") => Expr::rs("hashRetain", values),
+		(_, "extract_if") if set => Expr::rs("hashExtractKeysIf", values),
+		(_, "extract_if") if b.t.needs_place(arg(coll, 1)) => Expr::rs("hashExtractIfMut", values),
+		(_, "extract_if") => Expr::rs("hashExtractIf", values),
+		(_, "iter_mut") if b.t.needs_place(arg(coll, 1)) => Expr::rs("hashIterMut", values),
+		(_, "values_mut") if b.t.needs_place(arg(coll, 1)) => Expr::rs("hashValuesMut", values),
+		(_, "iter" | "iter_mut") if !set => Expr::rs("hashIter", values),
+		(_, "iter" | "keys") => Expr::rs("hashKeys", values),
+		(_, "values" | "values_mut") => Expr::rs("hashValues", values),
 		// What drops the half it yields, then the other, which the runtime drops as std's
 		// does: before `next` returns, and after `fold` has the item.
 		(_, "into_keys" | "into_values") => {
@@ -668,23 +679,23 @@ fn hash<'tcx>(
 				droppers.push(state);
 			}
 			let f = if name == "into_keys" { "hashKeys" } else { "hashValues" };
-			Expr::rt(f, super::iter::tail(values, droppers))
+			Expr::rs(f, super::iter::tail(values, droppers))
 		}
 		(_, "drain") => {
 			let droppers = entry_droppers(b, coll, span);
-			Expr::rt(
+			Expr::rs(
 				if set { "hashDrainKeys" } else { "hashDrain" },
 				super::iter::tail(values, droppers),
 			)
 		}
-		(_, "entry") => Expr::rt("entry", values),
-		(_, name) if let Some(f) = set_op("hash", name) => Expr::rt(f, values),
+		(_, "entry") => Expr::rs("entry", values),
+		(_, name) if let Some(f) = set_op("hash", name) => Expr::rs(f, values),
 		("BitOr" | "BitAnd" | "Sub" | "BitXor", _) => {
 			let keys = set_op_keys(b, coll, "hash", owner, values, span)?;
 			let state = new_state(b, coll, span);
 			let target = hash_new(b, coll, state, span)?;
 			let max = hash_max(b, coll, span);
-			Expr::rt(
+			Expr::rs(
 				"hashExtendKeys",
 				vec![target, keys, Expr::undefined(), Expr::undefined(), max],
 			)
@@ -695,9 +706,9 @@ fn hash<'tcx>(
 		// hashbrown's returns its own error, an enum of its variants.
 		(_, "try_reserve") if !super::stock::as_std(b.t.tcx, call.def_id) => {
 			values.push(hash_max(b, coll, span));
-			Expr::rt("hashTryReserve", values)
+			Expr::rs("hashTryReserve", values)
 		}
-		("Index", "index") => Expr::rt("hashIndex", values),
+		("Index", "index") => Expr::rs("hashIndex", values),
 		("Clone", "clone") => {
 			let k = clone_fn(b, key, span);
 			let v = match value {
@@ -706,7 +717,7 @@ fn hash<'tcx>(
 			};
 			values.extend([k, v]);
 			let s = held_state(b, coll).map(|s| clone_fn(b, s, span));
-			Expr::rt("hashClone", super::iter::tail(values, s.into_iter().collect()))
+			Expr::rs("hashClone", super::iter::tail(values, s.into_iter().collect()))
 		}
 		("Extend", "extend") | ("From", "from") => {
 			let (source, iter) = extend_source(b, coll, call, owner, values.pop()?)?;
@@ -728,19 +739,19 @@ fn hash<'tcx>(
 /// of its capacity, as std guarantees it.
 fn sized<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, name: &str, mut values: Vec<Expr>, span: Span) -> Expr {
 	match name {
-		"capacity" => Expr::rt("hashCapacity", values),
+		"capacity" => Expr::rs("hashCapacity", values),
 		"reserve" => {
 			values.push(hash_max(b, coll, span));
-			Expr::rt("hashReserve", values)
+			Expr::rs("hashReserve", values)
 		}
 		"shrink_to_fit" => {
 			values.push(Expr::lit("0"));
-			Expr::rt("hashShrinkTo", values)
+			Expr::rs("hashShrinkTo", values)
 		}
-		"shrink_to" => Expr::rt("hashShrinkTo", values),
+		"shrink_to" => Expr::rs("hashShrinkTo", values),
 		_ => {
 			values.push(super::iter::size_of(b, stored(b, coll), span));
-			Expr::rt("hashAllocationSize", values)
+			Expr::rs("hashAllocationSize", values)
 		}
 	}
 }
@@ -765,14 +776,14 @@ fn table<'tcx>(
 	let e = match (owner, name) {
 		(_, "new") | ("Default", "default") => {
 			discard(values, out);
-			empty(b, Expr::rt("hashNew", vec![]), coll, span)
+			empty(b, Expr::rs("hashNew", vec![]), coll, span)
 		}
 		(_, "with_capacity") => {
 			values.push(hash_max(b, coll, span));
-			empty(b, Expr::rt("hashWithCapacity", values), coll, span)
+			empty(b, Expr::rs("hashWithCapacity", values), coll, span)
 		}
-		(_, "len") => Expr::rt("hashLen", values),
-		(_, "is_empty") => Expr::rt("hashLen", values).binary("===", Expr::lit("0")),
+		(_, "len") => Expr::rs("hashLen", values),
+		(_, "is_empty") => Expr::rs("hashLen", values).binary("===", Expr::lit("0")),
 		(_, "capacity" | "allocation_size") => sized(b, coll, name, values, span),
 		// The hasher last.
 		(_, "reserve" | "shrink_to" | "shrink_to_fit") => {
@@ -785,29 +796,29 @@ fn table<'tcx>(
 				e => e,
 			}
 		}
-		(_, "find_mut") if place => Expr::rt("tableFindMut", values),
-		(_, "find" | "find_mut") => Expr::rt("tableFind", values),
-		(_, "find_entry") => Expr::rt("tableFindEntry", values),
-		(_, "entry") => Expr::rt("tableEntry", values),
-		(_, "insert_unique") => Expr::rt("tableInsertUnique", values),
+		(_, "find_mut") if place => Expr::rs("tableFindMut", values),
+		(_, "find" | "find_mut") => Expr::rs("tableFind", values),
+		(_, "find_entry") => Expr::rs("tableFindEntry", values),
+		(_, "entry") => Expr::rs("tableEntry", values),
+		(_, "insert_unique") => Expr::rs("tableInsertUnique", values),
 		(_, "clear") => {
 			values.push(Expr::undefined());
 			values.extend(b.t.droppers([item], span)?);
-			Expr::rt("hashClear", values)
+			Expr::rs("hashClear", values)
 		}
 		(_, "retain") => {
 			values.extend(b.t.droppers([item], span)?);
-			Expr::rt(if place { "tableRetainMut" } else { "tableRetain" }, values)
+			Expr::rs(if place { "tableRetainMut" } else { "tableRetain" }, values)
 		}
-		(_, "iter_mut") if place => Expr::rt("hashValuesMut", values),
-		(_, "iter" | "iter_mut") => Expr::rt("hashValues", values),
+		(_, "iter_mut") if place => Expr::rs("hashValuesMut", values),
+		(_, "iter" | "iter_mut") => Expr::rs("hashValues", values),
 		(_, "drain") => {
 			values.extend(b.t.droppers([item], span)?);
-			Expr::rt("tableDrain", values)
+			Expr::rs("tableDrain", values)
 		}
 		("Clone", "clone") => {
 			values.extend([Expr::undefined(), clone_fn(b, item, span)]);
-			Expr::rt("hashClone", values)
+			Expr::rs("hashClone", values)
 		}
 		_ => return None,
 	};
@@ -828,7 +839,7 @@ fn table_entry<'tcx>(
 	let e = match name {
 		"insert" | "or_insert" => {
 			values.extend(b.t.droppers([item], span)?);
-			Expr::rt(
+			Expr::rs(
 				if name == "insert" {
 					"tableEntryInsert"
 				} else {
@@ -839,11 +850,11 @@ fn table_entry<'tcx>(
 		}
 		"or_insert_with" => {
 			values.extend(uncalled(b, call)?);
-			Expr::rt("tableOrInsertWith", values)
+			Expr::rs("tableOrInsertWith", values)
 		}
 		"and_modify" => {
 			values.extend(uncalled(b, call)?);
-			Expr::rt(
+			Expr::rs(
 				if b.t.needs_place(item) {
 					"tableAndModifyMut"
 				} else {
@@ -855,7 +866,7 @@ fn table_entry<'tcx>(
 		// The entry is its item's place.
 		"get_mut" | "into_mut" if b.t.needs_place(item) => values.pop()?,
 		"get" | "get_mut" | "into_mut" => values.pop()?.member("v"),
-		"remove" => Expr::rt("tableRemove", values),
+		"remove" => Expr::rs("tableRemove", values),
 		"into_table" => values.pop()?.member("t"),
 		_ => return None,
 	};
@@ -894,11 +905,11 @@ fn set_op_keys<'tcx>(
 		"Sub" => "difference",
 		_ => "symmetric_difference",
 	};
-	let keys = Expr::rt(set_op(prefix, name)?, values);
+	let keys = Expr::rs(set_op(prefix, name)?, values);
 	let clone = clone_fn(b, arg(coll, 0), span);
 	Some(match clone == Expr::undefined() {
 		true => keys,
-		false => Expr::rt("iterMap", vec![keys, clone]),
+		false => Expr::rs("iterMap", vec![keys, clone]),
 	})
 }
 
@@ -917,7 +928,7 @@ fn hash_extend<'tcx>(
 		_ => "hashExtend",
 	};
 	let tail = hash_extend_tail(b, coll, iter, span);
-	Expr::rt(f, super::iter::tail(vec![target, source], tail))
+	Expr::rs(f, super::iter::tail(vec![target, source], tail))
 }
 
 /// What `hashExtend` and its kin take after the collection and the items, of an iterator of
@@ -984,7 +995,7 @@ fn hash_new<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, state: Option<Expr
 		values.resize(1, Expr::undefined());
 		values.push(state);
 	}
-	Some(empty(b, Expr::rt("hashNew", values), coll, span))
+	Some(empty(b, Expr::rs("hashNew", values), coll, span))
 }
 
 /// The `BuildHasher` of a `HashMap<K, V, S, A>` or `HashSet<T, S, A>` of type `coll`.
@@ -1028,12 +1039,12 @@ fn state_dropper<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -
 }
 
 /// `new`, as an empty collection of type `coll`: TS infers a generic key's type, as of
-/// `rt.cmp`, from no argument, only from the type it is asserted to be.
+/// `rs.cmp`, from no argument, only from the type it is asserted to be.
 fn empty<'tcx>(b: &mut Body<'_, '_, 'tcx>, new: Expr, coll: Ty<'tcx>, span: Span) -> Expr {
 	Expr::As(Box::new(new), b.t.ty(coll, span))
 }
 
-/// The `rt.Hashing` a hash collection of type `coll` finds a `key` that is a JS object
+/// The `rs.Hashing` a hash collection of type `coll` finds a `key` that is a JS object
 /// by, or `Some(None)` if every key is a JS primitive that compares as Rust's `Eq` does.
 fn hashing<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, key: Ty<'tcx>, span: Span) -> Option<Option<Expr>> {
 	let peeled = peel(b, key);
@@ -1070,7 +1081,7 @@ fn hashing<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, key: Ty<'tcx>, span
 	{
 		values.push(Expr::lit("true"));
 	}
-	Some(Some(Expr::rt("hashing", values)))
+	Some(Some(Expr::rs("hashing", values)))
 }
 
 fn fieldless(adt: ty::AdtDef<'_>) -> bool {
@@ -1133,7 +1144,7 @@ pub fn test_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, test: &str, span:
 	let ty = peel_ord(b, ty, true);
 	// An integer's, which the runtime tests directly rather than through `partial_cmp`.
 	if matches!(ty.kind(), ty::Char | ty::Int(_) | ty::Uint(_)) {
-		return Expr::Rt(test.into());
+		return Expr::Rs(test.into());
 	}
 	if !own_test(b, ty, test) {
 		let by = match test {
@@ -1142,7 +1153,7 @@ pub fn test_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, test: &str, span:
 			"gt" => "cmpGt",
 			_ => "cmpGe",
 		};
-		return Expr::rt(by, vec![cmp_fn(b, ty, true, span)]);
+		return Expr::rs(by, vec![cmp_fn(b, ty, true, span)]);
 	}
 	match ty.kind() {
 		// The fields before the last chain by `partial_cmp`, which no crate's type overrides.
@@ -1150,11 +1161,11 @@ pub fn test_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, test: &str, span:
 			let cmps = init.iter().map(|&t| cmp_fn(b, t, true, span)).collect();
 			let order = if matches!(test, "lt" | "le") { "-1" } else { "1" };
 			let last = test_fn(b, last, test, span);
-			Expr::rt("testTuple", vec![Expr::Array(cmps), last, Expr::lit(order)])
+			Expr::rs("testTuple", vec![Expr::Array(cmps), last, Expr::lit(order)])
 		}
-		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => Expr::rt("cmpArc", vec![test_fn(b, inner, test, span)]),
+		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => Expr::rs("cmpArc", vec![test_fn(b, inner, test, span)]),
 		ty::Adt(..) if let Some(inner) = reverse_of(b, ty) => {
-			Expr::rt("cmpReverse", vec![test_fn(b, inner, test, span)])
+			Expr::rs("cmpReverse", vec![test_fn(b, inner, test, span)])
 		}
 		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => {
 			let f = test_fn(b, inner, test, span);
@@ -1230,7 +1241,24 @@ pub(super) fn own_hasher<'tcx>(t: &Translator<'_, 'tcx>, h: Ty<'tcx>) -> bool {
 	t.translated(hasher_fn(t.tcx, "finish"), t.tcx.mk_args(&[h.into()]))
 }
 
-/// Each key of `rt.HasherImpl`, and the `Hasher` method it holds.
+/// Whether the runtime writes into `h` by its methods, through an `rs.OwnHasher` of the
+/// `&mut` to it: the crate's own hasher, or one std's impls forward.
+pub(super) fn called_hasher<'tcx>(t: &Translator<'_, 'tcx>, h: Ty<'tcx>) -> bool {
+	own_hasher(t, h) || forwards_hasher(t, h)
+}
+
+/// Whether `h` is a `&mut` or a box of a trait object, the crate's own `Hasher`, std's
+/// `DefaultHasher`, or another such, to which std's impls forward each method.
+fn forwards_hasher<'tcx>(t: &Translator<'_, 'tcx>, h: Ty<'tcx>) -> bool {
+	let held = match *h.kind() {
+		ty::Ref(_, held, ty::Mutability::Mut) => held,
+		_ if let Some(held) = h.boxed_ty() => held,
+		_ => return false,
+	};
+	held.is_trait() || own_hasher(t, held) || t.std_of(held) == Some(Std::Hasher) || forwards_hasher(t, held)
+}
+
+/// Each key of `rs.HasherImpl`, and the `Hasher` method it holds.
 const HASHER_METHODS: [(&str, &str); 16] = [
 	("write", "write"),
 	("finish", "finish"),
@@ -1251,25 +1279,76 @@ const HASHER_METHODS: [(&str, &str); 16] = [
 ];
 
 /// `state`, the `&mut` to `h`, a `Hasher` of the crate's own, as the runtime's `Hash`
-/// functions write into it: an `rt.OwnHasher` of it, which hands its methods the `&mut` as
-/// it is, an `rt.Place` where JS copies `h`.
+/// functions write into it: an `rs.OwnHasher` of it, which hands its methods the `&mut` as
+/// it is, an `rs.Place` where JS copies `h`.
 fn own_state<'tcx>(b: &mut Body<'_, '_, 'tcx>, h: Ty<'tcx>, state: Expr, span: Span) -> Expr {
 	let methods = hasher_impl(b, h, span);
-	Expr::New(Box::new(Expr::Rt("OwnHasher".into())), vec![state, methods])
+	Expr::New(Box::new(Expr::Rs("OwnHasher".into())), vec![state, methods])
 }
 
-/// The methods of `h`, a `Hasher` of the crate's own, as an `rt.HasherImpl`: `write`,
+/// The methods of `h`, a `Hasher` of the crate's own, as an `rs.HasherImpl`: `write`,
 /// `finish`, and those of std's provided ones its impl writes, a module-level value beside
 /// its `finish`, made once. Each takes the `&mut` to `h`, which `finish`, given `&self`,
-/// reads where JS copies `h`.
+/// reads where JS copies `h`. One that forwards to another hasher has each method, as
+/// what it forwards to, a trait object's, may have any.
 fn hasher_impl<'tcx>(b: &mut Body<'_, '_, 'tcx>, h: Ty<'tcx>, span: Span) -> Expr {
 	if let Some(&sym) = b.t.hashers.get(&h) {
 		return Expr::Sym(sym);
 	}
 	let tcx = b.t.tcx;
 	let args = tcx.mk_args(&[h.into()]);
-	let state = b.t.ty(Ty::new_mut_ref(tcx, tcx.lifetimes.re_erased, h), span);
+	let state_ty = Ty::new_mut_ref(tcx, tcx.lifetimes.re_erased, h);
+	let state = b.t.ty(state_ty, span);
 	let mut methods = Vec::new();
+	if forwards_hasher(b.t, h) {
+		for (key, item) in HASHER_METHODS {
+			let f = hasher_fn(tcx, item);
+			let sig = b.t.sig(f, args);
+			let name = b.fresh("h");
+			let receiver = match item {
+				"finish" => b.t.pointee_value(state_ty, Expr::ident(&name)),
+				_ => Expr::ident(&name),
+			};
+			let mut params = vec![Param {
+				name,
+				ty: Some(state.clone()),
+			}];
+			let mut values = vec![receiver];
+			for &input in &sig.inputs()[1..] {
+				let name = b.fresh("value");
+				values.push(Expr::ident(&name));
+				params.push(Param {
+					name,
+					ty: Some(b.t.ty(input, span)),
+				});
+			}
+			let mut body = Vec::new();
+			let call = b.call_def(f, args, values, span, &mut body);
+			body.push(StmtKind::Return(Some(call)).at(None));
+			let ret = b.t.ret_ty(sig.output(), span);
+			methods.push((crate::ts::Key::Name(key.into()), Expr::Arrow(params, ret, body)));
+		}
+		let sym = b.t.program.sym(crate::program::Symbol {
+			module: Vec::new(),
+			base: "hasher".into(),
+			suffix: super::names::ty(tcx, h),
+			owner: None,
+			kind: crate::program::SymKind::Value,
+			order: 0,
+			span,
+			instance: String::new(),
+			name: String::new(),
+			alias: None,
+		});
+		b.t.program.items.push(crate::ts::Item::Value {
+			sym,
+			ty: Type::Rs("HasherImpl", vec![state]),
+			value: Expr::Object(methods),
+			doc: Some(format!("The methods of `{h}`, which forward to what it points at.")),
+		});
+		b.t.hashers.insert(h, sym);
+		return Expr::Sym(sym);
+	}
 	for (key, item) in HASHER_METHODS {
 		let f = hasher_fn(tcx, item);
 		if matches!(item, "write" | "finish") || b.t.translated(f, args) {
@@ -1301,7 +1380,7 @@ fn hasher_impl<'tcx>(b: &mut Body<'_, '_, 'tcx>, h: Ty<'tcx>, span: Span) -> Exp
 	});
 	b.t.program.items.push(crate::ts::Item::Value {
 		sym,
-		ty: Type::Rt("HasherImpl", vec![state]),
+		ty: Type::Rs("HasherImpl", vec![state]),
 		value: Expr::Object(methods),
 		doc: Some(format!(
 			"The methods of `{h}`'s impl, which the runtime's hashing calls."
@@ -1348,7 +1427,7 @@ fn own_hash_one<'tcx>(
 	} else if let [Some(value_drop), None] = drops {
 		values.push(value_drop);
 	}
-	Expr::rt("hashOne", values)
+	Expr::rs("hashOne", values)
 }
 
 /// A method of `BTreeMap` or `BTreeSet`, or of a trait they implement.
@@ -1370,7 +1449,7 @@ fn btree<'tcx>(
 		let range = bounds(b, call, values.pop()?);
 		let target = range_input(b, call).1;
 		values.push(match other_shape(b, key, target) {
-			true => as_type(range.bounds.clone(), Type::Rt("Bounds", vec![b.t.ty(key, span)])),
+			true => as_type(range.bounds.clone(), Type::Rs("Bounds", vec![b.t.ty(key, span)])),
 			false => range.bounds.clone(),
 		});
 		ranged = Some(range);
@@ -1398,7 +1477,7 @@ fn btree<'tcx>(
 		};
 		return Some(range.held(|bounds, drop| {
 			values.extend([bounds, f]);
-			Expr::rt(name, super::iter::tail(values, [tests, vec![drop]].concat()))
+			Expr::rs(name, super::iter::tail(values, [tests, vec![drop]].concat()))
 		}));
 	}
 	let none = library::sentinel_option(b.t, call).is_some();
@@ -1406,38 +1485,38 @@ fn btree<'tcx>(
 	let first = |values: Vec<Expr>| flagged(values, false, none);
 	let e = match (owner, name) {
 		(_, "new") | ("Default", "default") => btree_new(b, coll, span),
-		(_, "len") => Expr::rt("btreeLen", values),
-		(_, "is_empty") => Expr::rt("btreeLen", values).binary("===", Expr::lit("0")),
-		(_, "clear") => Expr::rt("btreeClear", values),
-		(_, "contains_key" | "contains") => Expr::rt("btreeContains", values),
-		(_, "get_mut") if !set && b.t.needs_place(arg(coll, 1)) => Expr::rt("btreeGetMut", values),
-		(_, "get" | "get_mut") if !set => Expr::rt("btreeGet", values),
-		(_, "get") => Expr::rt("btreeKey", first(values)),
-		(_, "take") => Expr::rt("btreeKey", last(values)),
-		(_, "replace") => Expr::rt("btreeReplace", values),
-		(_, "get_key_value") => Expr::rt("btreeGetKeyValue", values),
-		(_, "insert") if set => Expr::rt("btreeAdd", values),
-		(_, "insert") => Expr::rt("btreeInsert", values),
-		(_, "remove") if set => Expr::rt("btreeDelete", values),
-		(_, "remove") => Expr::rt("btreeRemove", values),
-		(_, "remove_entry") => Expr::rt("btreeRemoveEntry", values),
-		(_, "retain") if !set && b.t.needs_place(arg(coll, 1)) => Expr::rt("btreeRetainMut", values),
-		(_, "retain") => Expr::rt("btreeRetain", values),
-		(_, "first_key_value") => Expr::rt("btreeFirst", values),
-		(_, "last_key_value") => Expr::rt("btreeFirst", last(values)),
-		(_, "pop_first") if set => Expr::rt("btreePopKey", first(values)),
-		(_, "pop_last") if set => Expr::rt("btreePopKey", last(values)),
-		(_, "pop_first") => Expr::rt("btreePop", values),
-		(_, "pop_last") => Expr::rt("btreePop", last(values)),
-		(_, "first") => Expr::rt("btreeFirstKey", first(values)),
-		(_, "last") => Expr::rt("btreeFirstKey", last(values)),
-		(_, "first_entry") => Expr::rt("btreeFirstEntry", values),
-		(_, "last_entry") => Expr::rt("btreeFirstEntry", last(values)),
-		(_, "iter_mut") if b.t.needs_place(arg(coll, 1)) => Expr::rt("btreeIterMut", values),
-		(_, "values_mut") if b.t.needs_place(arg(coll, 1)) => Expr::rt("btreeValuesMut", values),
-		(_, "iter" | "iter_mut") if !set => Expr::rt("btreeIter", values),
-		(_, "iter" | "keys") => Expr::rt("btreeKeys", values),
-		(_, "values" | "values_mut") => Expr::rt("btreeValues", values),
+		(_, "len") => Expr::rs("btreeLen", values),
+		(_, "is_empty") => Expr::rs("btreeLen", values).binary("===", Expr::lit("0")),
+		(_, "clear") => Expr::rs("btreeClear", values),
+		(_, "contains_key" | "contains") => Expr::rs("btreeContains", values),
+		(_, "get_mut") if !set && b.t.needs_place(arg(coll, 1)) => Expr::rs("btreeGetMut", values),
+		(_, "get" | "get_mut") if !set => Expr::rs("btreeGet", values),
+		(_, "get") => Expr::rs("btreeKey", first(values)),
+		(_, "take") => Expr::rs("btreeKey", last(values)),
+		(_, "replace") => Expr::rs("btreeReplace", values),
+		(_, "get_key_value") => Expr::rs("btreeGetKeyValue", values),
+		(_, "insert") if set => Expr::rs("btreeAdd", values),
+		(_, "insert") => Expr::rs("btreeInsert", values),
+		(_, "remove") if set => Expr::rs("btreeDelete", values),
+		(_, "remove") => Expr::rs("btreeRemove", values),
+		(_, "remove_entry") => Expr::rs("btreeRemoveEntry", values),
+		(_, "retain") if !set && b.t.needs_place(arg(coll, 1)) => Expr::rs("btreeRetainMut", values),
+		(_, "retain") => Expr::rs("btreeRetain", values),
+		(_, "first_key_value") => Expr::rs("btreeFirst", values),
+		(_, "last_key_value") => Expr::rs("btreeFirst", last(values)),
+		(_, "pop_first") if set => Expr::rs("btreePopKey", first(values)),
+		(_, "pop_last") if set => Expr::rs("btreePopKey", last(values)),
+		(_, "pop_first") => Expr::rs("btreePop", values),
+		(_, "pop_last") => Expr::rs("btreePop", last(values)),
+		(_, "first") => Expr::rs("btreeFirstKey", first(values)),
+		(_, "last") => Expr::rs("btreeFirstKey", last(values)),
+		(_, "first_entry") => Expr::rs("btreeFirstEntry", values),
+		(_, "last_entry") => Expr::rs("btreeFirstEntry", last(values)),
+		(_, "iter_mut") if b.t.needs_place(arg(coll, 1)) => Expr::rs("btreeIterMut", values),
+		(_, "values_mut") if b.t.needs_place(arg(coll, 1)) => Expr::rs("btreeValuesMut", values),
+		(_, "iter" | "iter_mut") if !set => Expr::rs("btreeIter", values),
+		(_, "iter" | "keys") => Expr::rs("btreeKeys", values),
+		(_, "values" | "values_mut") => Expr::rs("btreeValues", values),
 		// Each of which drops the half it does not yield as it reads, and whose `last` reads
 		// the back.
 		(_, "into_keys" | "into_values") => {
@@ -1450,14 +1529,14 @@ fn btree<'tcx>(
 			} else {
 				"btreeValues"
 			};
-			Expr::rt(f, super::iter::tail(values, droppers))
+			Expr::rs(f, super::iter::tail(values, droppers))
 		}
-		(_, "range") if set => Expr::rt("btreeRangeKeys", values),
-		(_, "range_mut") if b.t.needs_place(arg(coll, 1)) => Expr::rt("btreeRangeMut", values),
-		(_, "range" | "range_mut") => Expr::rt("btreeRange", values),
-		(_, "entry") => Expr::rt("entry", values),
-		(_, "split_off") => Expr::rt("btreeSplitOff", values),
-		(_, name) if let Some(f) = set_op("btree", name) => Expr::rt(f, values),
+		(_, "range") if set => Expr::rs("btreeRangeKeys", values),
+		(_, "range_mut") if b.t.needs_place(arg(coll, 1)) => Expr::rs("btreeRangeMut", values),
+		(_, "range" | "range_mut") => Expr::rs("btreeRange", values),
+		(_, "entry") => Expr::rs("entry", values),
+		(_, "split_off") => Expr::rs("btreeSplitOff", values),
+		(_, name) if let Some(f) = set_op("btree", name) => Expr::rs(f, values),
 		("BitOr" | "BitAnd" | "Sub" | "BitXor", _) => {
 			let keys = set_op_keys(b, coll, "btree", owner, values, span)?;
 			let target = btree_new(b, coll, span);
@@ -1469,9 +1548,9 @@ fn btree<'tcx>(
 			};
 			let mut rest = vec![same];
 			rest.extend(entry_droppers(b, coll, span));
-			Expr::rt("btreeFromSorted", super::iter::tail(vec![target, keys], rest))
+			Expr::rs("btreeFromSorted", super::iter::tail(vec![target, keys], rest))
 		}
-		("Index", "index") => Expr::rt("btreeIndex", values),
+		("Index", "index") => Expr::rs("btreeIndex", values),
 		("Clone", "clone") => {
 			let k = clone_fn(b, key, span);
 			let v = match value {
@@ -1479,7 +1558,7 @@ fn btree<'tcx>(
 				None => Expr::undefined(),
 			};
 			values.extend([k, v]);
-			Expr::rt("btreeClone", values)
+			Expr::rs("btreeClone", values)
 		}
 		("Extend", "extend") => {
 			let (source, iter) = extend_source(b, coll, call, owner, values.pop()?)?;
@@ -1529,7 +1608,7 @@ fn btree_collect<'tcx>(
 		droppers.push(super::iter::size_of(b, elem, span));
 		droppers.push(Expr::lit(trusted.to_string()));
 		let f = if set { "btreeExtendKeys" } else { "btreeExtend" };
-		return Expr::rt(f, super::iter::tail(vec![target, source], droppers));
+		return Expr::rs(f, super::iter::tail(vec![target, source], droppers));
 	}
 	let entries = super::iter::to_vec(b, source, iter, elem, trusted, span).member("items");
 	let mut rest = Vec::from(super::library::sort_of(b, elem, span));
@@ -1546,7 +1625,7 @@ fn btree_collect<'tcx>(
 	});
 	rest.extend(entry_droppers(b, coll, span));
 	let f = if set { "btreeCollectKeys" } else { "btreeCollect" };
-	Expr::rt(f, super::iter::tail(vec![target, entries], rest))
+	Expr::rs(f, super::iter::tail(vec![target, entries], rest))
 }
 
 /// Whether ordering or comparing a `ty` may run the crate's own `Ord`, `PartialOrd`, or
@@ -1603,12 +1682,12 @@ fn own_ord<'tcx>(
 /// An empty B-tree of type `coll`, ordered by its keys' `Ord`.
 fn btree_new<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Expr {
 	let cmp = cmp_fn(b, arg(coll, 0), false, span);
-	empty(b, Expr::rt("btreeNew", vec![cmp]), coll, span)
+	empty(b, Expr::rs("btreeNew", vec![cmp]), coll, span)
 }
 
 /// An empty `VecDeque` of type `coll`.
 fn deque_new<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Expr {
-	let made = Expr::rt("dequeNew", deque_items(b, arg(coll, 0), span));
+	let made = Expr::rs("dequeNew", deque_items(b, arg(coll, 0), span));
 	empty(b, made, coll, span)
 }
 
@@ -1641,7 +1720,7 @@ fn deque<'tcx>(
 		(_, "new") | ("Default", "default") => deque_new(b, coll, span),
 		(_, "with_capacity") => {
 			values.extend(deque_items(b, item, span));
-			empty(b, Expr::rt("dequeWithCapacity", values), coll, span)
+			empty(b, Expr::rs("dequeWithCapacity", values), coll, span)
 		}
 		(
 			_,
@@ -1659,60 +1738,60 @@ fn deque<'tcx>(
 				"try_reserve_exact" => "dequeTryReserveExact",
 				_ => "dequeShrinkTo",
 			};
-			Expr::rt(f, values)
+			Expr::rs(f, values)
 		}
 		(_, "len") => values.pop()?.member("n"),
 		(_, "is_empty") => values.pop()?.member("n").binary("===", Expr::lit("0")),
-		(_, "clear") => Expr::rt("dequeClear", values),
-		(_, "push_back") => Expr::rt("dequePushBack", values),
-		(_, "push_front") => Expr::rt("dequePushFront", values),
-		(_, "pop_back") => Expr::rt("dequePopBack", values),
-		(_, "pop_front") => Expr::rt("dequePopFront", values),
-		(_, "front_mut") if b.t.needs_place(item) => Expr::rt("dequeEndMut", values),
-		(_, "back_mut") if b.t.needs_place(item) => Expr::rt("dequeEndMut", back(values)),
-		(_, "get_mut") if b.t.needs_place(item) => Expr::rt("dequeGetMut", values),
-		(_, "front" | "front_mut") => Expr::rt("dequeEnd", flagged(values, false, none)),
-		(_, "back" | "back_mut") => Expr::rt("dequeEnd", back(values)),
-		(_, "get" | "get_mut") => Expr::rt("dequeGet", values),
-		(_, "swap_remove_front") => Expr::rt("dequeSwapRemove", flagged(values, false, none)),
-		(_, "swap_remove_back") => Expr::rt("dequeSwapRemove", back(values)),
-		(_, "truncate") => Expr::rt("dequeTruncate", values),
-		(_, "append") => Expr::rt("dequeAppend", values),
-		(_, "split_off") => Expr::rt("dequeSplitOff", values),
+		(_, "clear") => Expr::rs("dequeClear", values),
+		(_, "push_back") => Expr::rs("dequePushBack", values),
+		(_, "push_front") => Expr::rs("dequePushFront", values),
+		(_, "pop_back") => Expr::rs("dequePopBack", values),
+		(_, "pop_front") => Expr::rs("dequePopFront", values),
+		(_, "front_mut") if b.t.needs_place(item) => Expr::rs("dequeEndMut", values),
+		(_, "back_mut") if b.t.needs_place(item) => Expr::rs("dequeEndMut", back(values)),
+		(_, "get_mut") if b.t.needs_place(item) => Expr::rs("dequeGetMut", values),
+		(_, "front" | "front_mut") => Expr::rs("dequeEnd", flagged(values, false, none)),
+		(_, "back" | "back_mut") => Expr::rs("dequeEnd", back(values)),
+		(_, "get" | "get_mut") => Expr::rs("dequeGet", values),
+		(_, "swap_remove_front") => Expr::rs("dequeSwapRemove", flagged(values, false, none)),
+		(_, "swap_remove_back") => Expr::rs("dequeSwapRemove", back(values)),
+		(_, "truncate") => Expr::rs("dequeTruncate", values),
+		(_, "append") => Expr::rs("dequeAppend", values),
+		(_, "split_off") => Expr::rs("dequeSplitOff", values),
 		// `resize` clones its value for each slot but the last.
 		(_, "resize") => {
 			values.push(clone_fn(b, item, span));
-			Expr::rt("dequeResize", values)
+			Expr::rs("dequeResize", values)
 		}
-		(_, "resize_with") => Expr::rt("dequeResizeWith", values),
-		(_, "swap") => Expr::rt("dequeSwap", values),
-		(_, "rotate_left") => Expr::rt("dequeRotate", values),
-		(_, "rotate_right") => Expr::rt("dequeRotate", flagged(values, true, false)),
-		(_, "make_contiguous") if super::byte(item) => Expr::rt("dequeByteMakeContiguous", values),
-		(_, "make_contiguous") => Expr::rt("dequeMakeContiguous", values),
+		(_, "resize_with") => Expr::rs("dequeResizeWith", values),
+		(_, "swap") => Expr::rs("dequeSwap", values),
+		(_, "rotate_left") => Expr::rs("dequeRotate", values),
+		(_, "rotate_right") => Expr::rs("dequeRotate", flagged(values, true, false)),
+		(_, "make_contiguous") if super::byte(item) => Expr::rs("dequeByteMakeContiguous", values),
+		(_, "make_contiguous") => Expr::rs("dequeMakeContiguous", values),
 		(_, "binary_search") => {
 			values.push(cmp_fn(b, item, false, span));
-			Expr::rt("dequeBinarySearch", values)
+			Expr::rs("dequeBinarySearch", values)
 		}
-		(_, "binary_search_by") => Expr::rt("dequeBinarySearchBy", values),
+		(_, "binary_search_by") => Expr::rs("dequeBinarySearchBy", values),
 		// `VecDeque<T, A>::binary_search_by_key::<B, F>`.
 		(_, "binary_search_by_key") => {
 			let key = library::targ(call.args, 2);
 			values.push(cmp_fn(b, key, false, span));
 			let drop = b.t.dropper(key, span);
-			Expr::rt("dequeBinarySearchByKey", super::iter::tail(values, vec![drop]))
+			Expr::rs("dequeBinarySearchByKey", super::iter::tail(values, vec![drop]))
 		}
-		(_, "partition_point") => Expr::rt("dequePartitionPoint", values),
-		(_, "retain_mut") if b.t.needs_place(item) => Expr::rt("dequeRetainMut", values),
-		(_, "retain" | "retain_mut") => Expr::rt("dequeRetain", values),
-		(_, "remove") => Expr::rt("dequeRemove", values),
-		(_, "insert") => Expr::rt("dequeInsert", values),
+		(_, "partition_point") => Expr::rs("dequePartitionPoint", values),
+		(_, "retain_mut") if b.t.needs_place(item) => Expr::rs("dequeRetainMut", values),
+		(_, "retain" | "retain_mut") => Expr::rs("dequeRetain", values),
+		(_, "remove") => Expr::rs("dequeRemove", values),
+		(_, "insert") => Expr::rs("dequeInsert", values),
 		(_, "contains") => {
 			values.push(eq_fn(b, item, span));
-			Expr::rt("dequeContains", values)
+			Expr::rs("dequeContains", values)
 		}
-		(_, "iter_mut") if b.t.needs_place(item) => Expr::rt("dequeIterMut", values),
-		(_, "iter" | "iter_mut") => Expr::rt("dequeIter", values),
+		(_, "iter_mut") if b.t.needs_place(item) => Expr::rs("dequeIterMut", values),
+		(_, "iter" | "iter_mut") => Expr::rs("dequeIter", values),
 		(_, "range" | "range_mut") => {
 			let ranged = bounds(b, call, values.pop()?);
 			values.push(ranged.bounds.clone());
@@ -1720,23 +1799,22 @@ fn deque<'tcx>(
 				true => "dequeRangeMut",
 				false => "dequeRange",
 			};
-			ranged.after(Expr::rt(f, values))
+			ranged.after(Expr::rs(f, values))
 		}
 		// Each a copy of its part of the buffer, or with `_mut`, a view that writes into it;
 		// bytes are views either way.
-		(_, "as_slices" | "as_mut_slices") if super::byte(item) => Expr::rt("dequeByteSlices", values),
-		(_, "as_slices") => Expr::rt("dequeAsSlices", values),
-		(_, "as_mut_slices") => Expr::rt("dequeAsSlices", flagged(values, true, false)),
+		(_, "as_slices" | "as_mut_slices") if super::byte(item) => Expr::rs("dequeByteSlices", values),
+		(_, "as_slices" | "as_mut_slices") => Expr::rs("dequeAsSlices", values),
 		(_, "drain") => {
 			let ranged = bounds(b, call, values.pop()?);
 			values.push(ranged.bounds.clone());
 			let droppers = entry_droppers(b, coll, span);
-			ranged.after(Expr::rt("dequeDrain", super::iter::tail(values, droppers)))
+			ranged.after(Expr::rs("dequeDrain", super::iter::tail(values, droppers)))
 		}
-		("Index" | "IndexMut", "index" | "index_mut") => Expr::rt("dequeIndex", values),
+		("Index" | "IndexMut", "index" | "index_mut") => Expr::rs("dequeIndex", values),
 		("Clone", "clone") => {
 			let clone = clone_fn(b, item, span);
-			Expr::rt("dequeClone", super::iter::tail(values, vec![clone]))
+			Expr::rs("dequeClone", super::iter::tail(values, vec![clone]))
 		}
 		// std's clears it, which drops its items, and extends it by clones of the source's,
 		// keeping its capacity; `clone_into` is the target's `clone_from`.
@@ -1745,21 +1823,21 @@ fn deque<'tcx>(
 				values.reverse();
 			}
 			values.push(clone_fn(b, item, span));
-			Expr::rt("dequeCloneFrom", values)
+			Expr::rs("dequeCloneFrom", values)
 		}
 		// `From<Vec<T>>` keeps the vector's capacity, and `From<[T; N]>` holds exactly `N`.
 		("From", "from") if b.t.std_of(library::targ(call.args, 1)) == Some(Std::Vec) => {
 			let v = values.pop()?;
 			let v = match super::byte(item) {
-				true => Expr::rt("byteVecToVec", vec![v]),
+				true => Expr::rs("byteVecToVec", vec![v]),
 				false => v,
 			};
-			let made = Expr::rt("dequeFromVec", [vec![v], deque_items(b, item, span)].concat());
+			let made = Expr::rs("dequeFromVec", [vec![v], deque_items(b, item, span)].concat());
 			empty(b, made, coll, span)
 		}
 		("From", "from") if library::targ(call.args, 1).is_array() => {
 			let a = values.pop()?;
-			let made = Expr::rt("dequeFromArray", [vec![a], deque_items(b, item, span)].concat());
+			let made = Expr::rs("dequeFromArray", [vec![a], deque_items(b, item, span)].concat());
 			empty(b, made, coll, span)
 		}
 		("Extend", "extend") | ("From", "from") => {
@@ -1777,7 +1855,7 @@ fn deque<'tcx>(
 
 /// An empty `LinkedList` of type `coll`.
 fn list_new<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Expr {
-	empty(b, Expr::rt("listNew", vec![]), coll, span)
+	empty(b, Expr::rs("listNew", vec![]), coll, span)
 }
 
 /// A method of `LinkedList`, or of a trait it implements. Its node is the place of the
@@ -1799,36 +1877,36 @@ fn list<'tcx>(
 		(_, "new") | ("Default", "default") => list_new(b, coll, span),
 		(_, "len") => values.pop()?.member("n"),
 		(_, "is_empty") => values.pop()?.member("n").binary("===", Expr::lit("0")),
-		(_, "clear") => Expr::rt("listClear", values),
-		(_, "push_back" | "push_back_mut") => Expr::rt("listPushBack", values),
-		(_, "push_front" | "push_front_mut") => Expr::rt("listPushFront", values),
-		(_, "pop_back") => Expr::rt("listPopBack", values),
-		(_, "pop_front") => Expr::rt("listPopFront", values),
-		(_, "front_mut") if places => Expr::rt("listEndMut", values),
-		(_, "back_mut") if places => Expr::rt("listEndMut", flagged(values, true, false)),
-		(_, "front" | "front_mut") => Expr::rt("listEnd", flagged(values, false, none)),
-		(_, "back" | "back_mut") => Expr::rt("listEnd", flagged(values, true, none)),
+		(_, "clear") => Expr::rs("listClear", values),
+		(_, "push_back" | "push_back_mut") => Expr::rs("listPushBack", values),
+		(_, "push_front" | "push_front_mut") => Expr::rs("listPushFront", values),
+		(_, "pop_back") => Expr::rs("listPopBack", values),
+		(_, "pop_front") => Expr::rs("listPopFront", values),
+		(_, "front_mut") if places => Expr::rs("listEndMut", values),
+		(_, "back_mut") if places => Expr::rs("listEndMut", flagged(values, true, false)),
+		(_, "front" | "front_mut") => Expr::rs("listEnd", flagged(values, false, none)),
+		(_, "back" | "back_mut") => Expr::rs("listEnd", flagged(values, true, none)),
 		(_, "contains") => {
 			values.push(eq_fn(b, item, span));
-			Expr::rt("listContains", values)
+			Expr::rs("listContains", values)
 		}
-		(_, "iter_mut") if places => Expr::rt("listIterMut", values),
-		(_, "iter" | "iter_mut") => Expr::rt("listIter", values),
-		(_, "append") => Expr::rt("listAppend", values),
-		(_, "split_off") => Expr::rt("listSplitOff", values),
-		(_, "extract_if") if places => Expr::rt("listExtractIfMut", values),
-		(_, "extract_if") => Expr::rt("listExtractIf", values),
+		(_, "iter_mut") if places => Expr::rs("listIterMut", values),
+		(_, "iter" | "iter_mut") => Expr::rs("listIter", values),
+		(_, "append") => Expr::rs("listAppend", values),
+		(_, "split_off") => Expr::rs("listSplitOff", values),
+		(_, "extract_if") if places => Expr::rs("listExtractIfMut", values),
+		(_, "extract_if") => Expr::rs("listExtractIf", values),
 		("Clone", "clone") => {
 			values.push(clone_fn(b, item, span));
-			Expr::rt("listClone", values)
+			Expr::rs("listClone", values)
 		}
 		// Each item by its `clone_from`.
 		("Clone", "clone_from") => {
 			let fns = library::clone_from_fns(b, item, span);
-			Expr::rt("listCloneFrom", [values, fns].concat())
+			Expr::rs("listCloneFrom", [values, fns].concat())
 		}
 		// std's specializes `extend` by another list to `append`.
-		("Extend", "extend") if library::targ(call.args, 2) == coll => Expr::rt("listAppend", values),
+		("Extend", "extend") if library::targ(call.args, 2) == coll => Expr::rs("listAppend", values),
 		("Extend", "extend") | ("From", "from") => {
 			let (source, iter) = extend_source(b, coll, call, owner, values.pop()?)?;
 			let target = match owner {
@@ -1868,11 +1946,11 @@ fn heap<'tcx>(
 	let bytes = super::byte(item);
 	let mut values = args;
 	let e = match (owner, name) {
-		(_, "new") | ("Default", "default") => empty(b, Expr::rt("heapNew", vec![]), coll, span),
+		(_, "new") | ("Default", "default") => empty(b, Expr::rs("heapNew", vec![]), coll, span),
 		// Its vector's, given the size of its elements, by which std's grows it.
 		(_, "with_capacity") => {
 			values.push(super::iter::size_of(b, item, span));
-			empty(b, Expr::rt("heapWithCapacity", values), coll, span)
+			empty(b, Expr::rs("heapWithCapacity", values), coll, span)
 		}
 		(
 			_,
@@ -1891,7 +1969,7 @@ fn heap<'tcx>(
 				"try_reserve_exact" => "vecTryReserveExact",
 				_ => "vecShrinkTo",
 			};
-			Expr::rt(f, values)
+			Expr::rs(f, values)
 		}
 		(_, "len") => values.pop()?.member("items").member("length"),
 		(_, "is_empty") => values
@@ -1899,8 +1977,8 @@ fn heap<'tcx>(
 			.member("items")
 			.member("length")
 			.binary("===", Expr::lit("0")),
-		// Indexing returns `undefined` for no element, where an `rt.None` must follow.
-		(_, "peek") if library::sentinel_option(b.t, call).is_some() => Expr::rt("heapPeek", values),
+		// Indexing returns `undefined` for no element, where an `rs.None` must follow.
+		(_, "peek") if library::sentinel_option(b.t, call).is_some() => Expr::rs("heapPeek", values),
 		(_, "peek") => values.pop()?.member("items").index(Expr::lit("0")),
 		(_, "push" | "pop" | "peek_mut" | "append" | "retain" | "into_sorted_vec") => {
 			values.extend(heap_tests(b, item, !matches!(name, "push" | "pop"), span));
@@ -1910,15 +1988,15 @@ fn heap<'tcx>(
 				"peek_mut" => "heapPeekMut",
 				"append" => "heapAppend",
 				"retain" => "heapRetain",
-				_ => return Some(heap_vec(Expr::rt("heapIntoSortedVec", values), bytes)),
+				_ => return Some(heap_vec(Expr::rs("heapIntoSortedVec", values), bytes)),
 			};
 			if name == "append" {
 				values.push(super::iter::size_of(b, item, span));
 			}
-			Expr::rt(f, values)
+			Expr::rs(f, values)
 		}
 		(_, "into_vec") => heap_vec(values.pop()?, bytes),
-		(_, "as_slice") if bytes => Expr::rt(
+		(_, "as_slice") if bytes => Expr::rs(
 			"byteSliceFrom",
 			vec![
 				Expr::ident("Uint8Array")
@@ -1927,32 +2005,32 @@ fn heap<'tcx>(
 			],
 		),
 		(_, "as_slice") => values.pop()?.member("items"),
-		(_, "clear") => Expr::rt("heapClear", values),
+		(_, "clear") => Expr::rs("heapClear", values),
 		(_, "drain") => {
 			let droppers = entry_droppers(b, coll, span);
-			Expr::rt("heapDrain", super::iter::tail(values, droppers))
+			Expr::rs("heapDrain", super::iter::tail(values, droppers))
 		}
-		(_, "iter") => Expr::rt("heapIter", values),
+		(_, "iter") => Expr::rs("heapIter", values),
 		("Clone", "clone") => {
 			values.push(clone_fn(b, item, span));
-			Expr::rt("heapClone", values)
+			Expr::rs("heapClone", values)
 		}
 		// `From<Vec<T>>` rebuilds the vector in place, and `From<[T; N]>` collects the array
 		// into one first.
 		("From", "from") if b.t.std_of(library::targ(call.args, 1)) == Some(Std::Vec) => {
 			let v = values.pop()?;
 			let d = match bytes {
-				true => Expr::rt("byteVecToVec", vec![v]),
+				true => Expr::rs("byteVecToVec", vec![v]),
 				false => v,
 			};
-			Expr::rt("heapFrom", [vec![d], heap_tests(b, item, true, span)].concat())
+			Expr::rs("heapFrom", [vec![d], heap_tests(b, item, true, span)].concat())
 		}
 		("Extend", "extend") | ("From", "from") => {
 			let (source, iter) = extend_source(b, coll, call, owner, values.pop()?)?;
 			if owner == "From" {
 				let trusted = super::iter::implements(b.t, iter, "TrustedLen");
 				let d = super::iter::to_vec(b, source, iter, item, trusted, span);
-				return Some(Expr::rt(
+				return Some(Expr::rs(
 					"heapFrom",
 					[vec![d], heap_tests(b, item, true, span)].concat(),
 				));
@@ -1964,15 +2042,15 @@ fn heap<'tcx>(
 	Some(e)
 }
 
-/// The `Vec` a heap, `h`, is, an `rt.ByteVec` of bytes, with its capacity.
+/// The `Vec` a heap, `h`, is, an `rs.ByteVec` of bytes, with its capacity.
 pub fn heap_vec(h: Expr, bytes: bool) -> Expr {
 	match bytes {
-		true => Expr::rt("byteVecFromVec", vec![h]),
+		true => Expr::rs("byteVecFromVec", vec![h]),
 		false => h,
 	}
 }
 
-/// What `extend` or `from` adds to a collection: an `rt.Iter` of what `source` holds, and
+/// What `extend` or `from` adds to a collection: an `rs.Iter` of what `source` holds, and
 /// the type of the iterator std's makes of it.
 fn extend_source<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
@@ -2000,13 +2078,13 @@ fn extend_source<'tcx>(
 		_ => elems[0],
 	};
 	let borrowed = owner == "Extend" && library::targ(call.args, 1) != stored;
-	// A `[u8; N]` is given as the `rt.ByteSlice` a `&[u8; N]` is, so it is made an array
+	// A `[u8; N]` is given as the `rs.ByteSlice` a `&[u8; N]` is, so it is made an array
 	// whether or not the crate writes into one.
 	if !borrowed || !elems.iter().any(|&t| b.t.needs_copy(t) || super::byte_array(t)) {
 		return Some((items, iter));
 	}
 	let items = match super::lend::copy_fn(b, stored, call.span) {
-		Some(copy) => Expr::rt("iterMap", vec![items, copy]),
+		Some(copy) => Expr::rs("iterMap", vec![items, copy]),
 		None => items,
 	};
 	Some((items, iter))
@@ -2028,7 +2106,7 @@ pub fn extend<'tcx>(
 	if coll.is_unit() {
 		let drops = super::iter::iter_drops(b, iter, span);
 		let each = Expr::Lambda(Vec::new(), Box::new(Expr::undefined()));
-		return Some(Expr::rt(
+		return Some(Expr::rs(
 			"iterForEach",
 			super::iter::tail(vec![items, each], vec![drops]),
 		));
@@ -2053,15 +2131,15 @@ pub fn extend<'tcx>(
 	Some(match std {
 		Std::Vec if super::byte(arg(coll, 0)) => {
 			let take = super::iter::iter_take(b, iter, trusted, span);
-			Expr::rt(
+			Expr::rs(
 				"iterExtendBytes",
 				super::iter::tail(vec![target, items], vec![take, Expr::lit(trusted.to_string())]),
 			)
 		}
-		Std::Vec => Expr::rt("iterExtend", super::iter::tail(vec![target, items], vec_reserve(b))),
+		Std::Vec => Expr::rs("iterExtend", super::iter::tail(vec![target, items], vec_reserve(b))),
 		Std::VecDeque => {
 			let take = super::iter::iter_take(b, iter, trusted, span);
-			Expr::rt(
+			Expr::rs(
 				"dequeExtend",
 				super::iter::tail(vec![target, items], vec![take, Expr::lit(trusted.to_string())]),
 			)
@@ -2069,13 +2147,13 @@ pub fn extend<'tcx>(
 		// By `for_each`, reserving nothing.
 		Std::LinkedList => {
 			let take = super::iter::iter_take(b, iter, true, span);
-			Expr::rt("listExtend", super::iter::tail(vec![target, items], vec![take]))
+			Expr::rs("listExtend", super::iter::tail(vec![target, items], vec![take]))
 		}
 		// Into its vector, and then sifted.
 		Std::BinaryHeap => {
 			let mut args = vec![target, items];
 			args.extend(heap_tests(b, arg(coll, 0), true, span));
-			Expr::rt("heapExtend", super::iter::tail(args, vec_reserve(b)))
+			Expr::rs("heapExtend", super::iter::tail(args, vec_reserve(b)))
 		}
 		Std::HashMap | Std::HashSet => hash_extend(b, coll, target, items, iter, span),
 		Std::BTreeMap | Std::BTreeSet => {
@@ -2088,7 +2166,7 @@ pub fn extend<'tcx>(
 			} else {
 				"btreeExtend"
 			};
-			Expr::rt(f, super::iter::tail(vec![target, items], droppers))
+			Expr::rs(f, super::iter::tail(vec![target, items], droppers))
 		}
 		_ => return None,
 	})
@@ -2148,10 +2226,10 @@ pub fn tuple_extend<'tcx>(
 			let (c, each) = (b.fresh("c"), b.fresh("items"));
 			let mut each_items = Expr::ident(&each);
 			if let Some(copy) = copy_borrowed(b, *coll, *field, span) {
-				each_items = Expr::rt("iterMap", vec![each_items, copy]);
+				each_items = Expr::rs("iterMap", vec![each_items, copy]);
 			}
 			let extended = match own_extend(b, *coll, *field, mapped, span) {
-				Some((f, place)) => Some(Expr::rt(
+				Some((f, place)) => Some(Expr::rs(
 					"ownExtend",
 					super::iter::tail(vec![Expr::ident(&c), each_items, f], vec![Expr::lit(place.to_string())]),
 				)),
@@ -2185,7 +2263,7 @@ pub fn tuple_extend<'tcx>(
 			empty(b, defaults, tuple, span)
 		}
 	};
-	Some(Expr::rt(f, [vec![target], rest].concat()))
+	Some(Expr::rs(f, [vec![target], rest].concat()))
 }
 
 /// `Iterator::partition` of `items`, an iterator of `item`s, by `f`, into two defaults of
@@ -2205,21 +2283,21 @@ pub fn partition<'tcx>(
 	let left = empty(b, left, coll, span);
 	let right = default(b, coll, span)?;
 	let right = empty(b, right, coll, span);
-	Some(Expr::rt(
+	Some(Expr::rs(
 		"iterPartition",
 		super::iter::tail(vec![items, f, Expr::Array(vec![left, right]), part], flags),
 	))
 }
 
-/// The `rt.Part` a tuple's `Extend` adds `item`s to a collection of type `coll` by, or to a
+/// The `rs.Part` a tuple's `Extend` adds `item`s to a collection of type `coll` by, or to a
 /// tuple of them, which is one too: `None` for any other.
 fn part<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, item: Ty<'tcx>, span: Span) -> Option<Expr> {
 	if coll.is_unit() {
-		return Some(Expr::Rt("UNIT_PART".into()));
+		return Some(Expr::Rs("UNIT_PART".into()));
 	}
 	if let (ty::Tuple(colls), ty::Tuple(items)) = (coll.kind(), item.kind()) {
 		let parts = colls.iter().zip(items.iter()).map(|(c, i)| part(b, c, i, span));
-		return Some(Expr::rt("tuplePart", vec![Expr::Array(parts.collect::<Option<_>>()?)]));
+		return Some(Expr::rs("tuplePart", vec![Expr::Array(parts.collect::<Option<_>>()?)]));
 	}
 	// The crate's own, whose `extend_one` is `extend` of `Some(item)`.
 	let Some(std) = b.t.std_of(coll) else {
@@ -2227,7 +2305,7 @@ fn part<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, item: Ty<'tcx>, span: 
 			return None;
 		}
 		let (f, place) = own_extend(b, coll, item, Ty::new_option(b.t.tcx, item), span)?;
-		return Some(Expr::rt(
+		return Some(Expr::rs(
 			"ownPart",
 			super::iter::tail(vec![f], vec![Expr::lit(place.to_string())]),
 		));
@@ -2238,17 +2316,17 @@ fn part<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, item: Ty<'tcx>, span: 
 			true if library::cow_str(b.t.tcx, item.peel_refs()) => "STRING_COW_PART",
 			true => "STRING_PART",
 		};
-		return Some(Expr::Rt(part.into()));
+		return Some(Expr::Rs(part.into()));
 	}
 	let size = |b: &mut Body<'_, '_, 'tcx>| vec![super::iter::size_of(b, arg(coll, 0), span)];
 	let part = match std {
-		Std::Vec if super::byte(arg(coll, 0)) => Expr::rt("byteVecPart", Vec::new()),
-		Std::Vec => Expr::rt("vecPart", super::iter::tail(Vec::new(), size(b))),
-		Std::VecDeque => Expr::rt("dequePart", Vec::new()),
-		Std::LinkedList => Expr::rt("listPart", Vec::new()),
+		Std::Vec if super::byte(arg(coll, 0)) => Expr::rs("byteVecPart", Vec::new()),
+		Std::Vec => Expr::rs("vecPart", super::iter::tail(Vec::new(), size(b))),
+		Std::VecDeque => Expr::rs("dequePart", Vec::new()),
+		Std::LinkedList => Expr::rs("listPart", Vec::new()),
 		Std::BinaryHeap => {
 			let le = heap_tests(b, arg(coll, 0), false, span);
-			Expr::rt("heapPart", super::iter::tail(le, size(b)))
+			Expr::rs("heapPart", super::iter::tail(le, size(b)))
 		}
 		Std::HashMap | Std::HashSet => {
 			let mut args = entry_droppers(b, coll, span);
@@ -2258,7 +2336,7 @@ fn part<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, item: Ty<'tcx>, span: 
 			} else {
 				"hashPart"
 			};
-			Expr::rt(f, super::iter::tail(Vec::new(), args))
+			Expr::rs(f, super::iter::tail(Vec::new(), args))
 		}
 		Std::BTreeMap | Std::BTreeSet => {
 			let droppers = entry_droppers(b, coll, span);
@@ -2267,19 +2345,19 @@ fn part<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, item: Ty<'tcx>, span: 
 			} else {
 				"btreePart"
 			};
-			Expr::rt(f, super::iter::tail(Vec::new(), droppers))
+			Expr::rs(f, super::iter::tail(Vec::new(), droppers))
 		}
 		_ => return None,
 	};
 	Some(match copy_borrowed(b, coll, item, span) {
-		Some(copy) => Expr::rt("copiedPart", vec![part, copy]),
+		Some(copy) => Expr::rs("copiedPart", vec![part, copy]),
 		None => part,
 	})
 }
 
 /// The crate's own `Extend::extend` of a collection of type `coll` by an iterator of type
 /// `iter` of `item`s, as a function of the collection and the iterator, and whether it
-/// takes the collection as an `rt.Place`: `None` for a collection of std's, or one whose
+/// takes the collection as an `rs.Place`: `None` for a collection of std's, or one whose
 /// `extend` doesn't translate. Stable Rust can't override `extend_reserve` or `extend_one`,
 /// which keep their defaults: nothing, and `extend` of `Some(item)`.
 fn own_extend<'tcx>(
@@ -2359,11 +2437,11 @@ fn default<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Opti
 	};
 	Some(match std {
 		Std::String => Expr::Str(String::new()),
-		Std::Vec if super::byte(arg(coll, 0)) => Expr::New(Box::new(Expr::Rt("ByteVec".into())), Vec::new()),
+		Std::Vec if super::byte(arg(coll, 0)) => Expr::New(Box::new(Expr::Rs("ByteVec".into())), Vec::new()),
 		Std::Vec => library::vec_new(false),
 		Std::VecDeque => deque_new(b, coll, span),
 		Std::LinkedList => list_new(b, coll, span),
-		Std::BinaryHeap => empty(b, Expr::rt("heapNew", Vec::new()), coll, span),
+		Std::BinaryHeap => empty(b, Expr::rs("heapNew", Vec::new()), coll, span),
 		Std::HashMap | Std::HashSet => {
 			let state = new_state(b, coll, span);
 			hash_new(b, coll, state, span)?
@@ -2391,30 +2469,30 @@ fn entry<'tcx>(
 		false => f.to_string(),
 	};
 	let e = match name {
-		"or_insert" => Expr::rt(mutable("entryOrInsert"), values),
+		"or_insert" => Expr::rs(mutable("entryOrInsert"), values),
 		// A vacant entry's.
-		"insert" if is_vacant(b, coll) => Expr::rt(mutable("entryOrInsert"), values),
-		"insert" => Expr::rt("entryInsert", values),
+		"insert" if is_vacant(b, coll) => Expr::rs(mutable("entryOrInsert"), values),
+		"insert" => Expr::rs("entryInsert", values),
 		"or_insert_with" | "or_insert_with_key" => {
 			values.extend(uncalled(b, call)?);
-			Expr::rt(mutable("entryOrInsertWith"), values)
+			Expr::rs(mutable("entryOrInsertWith"), values)
 		}
 		"or_default" => {
 			let tcx = b.t.tcx;
 			let default = trait_fn(tcx, "Default", "default");
 			values.push(b.fn_value(default, tcx.mk_args(&[value.into()]), span));
-			Expr::rt(mutable("entryOrInsertWith"), values)
+			Expr::rs(mutable("entryOrInsertWith"), values)
 		}
 		"and_modify" => {
 			values.extend(uncalled(b, call)?);
-			Expr::rt(mutable("entryAndModify"), values)
+			Expr::rs(mutable("entryAndModify"), values)
 		}
-		"key" => Expr::rt("entryKey", values),
+		"key" => Expr::rs("entryKey", values),
 		"into_key" => values.pop()?.member("k"),
-		"get" => Expr::rt("entryGet", values),
-		"get_mut" | "into_mut" => Expr::rt(mutable("entryGet"), values),
-		"remove" => Expr::rt("entryRemove", values),
-		"remove_entry" => Expr::rt("entryRemoveEntry", values),
+		"get" => Expr::rs("entryGet", values),
+		"get_mut" | "into_mut" => Expr::rs(mutable("entryGet"), values),
+		"remove" => Expr::rs("entryRemove", values),
+		"remove_entry" => Expr::rs("entryRemoveEntry", values),
 		_ => return None,
 	};
 	Some(e)
@@ -2434,7 +2512,7 @@ pub fn entry_test(std: Std, adt: ty::AdtDef<'_>, index: rustc_abi::VariantIdx, e
 	} else {
 		"entryOccupied"
 	};
-	let occupied = Expr::rt(f, vec![entry]);
+	let occupied = Expr::rs(f, vec![entry]);
 	match adt.variant(index).name.as_str() {
 		"Occupied" => occupied,
 		_ => occupied.not(),
@@ -2462,11 +2540,11 @@ fn ordering(name: &str, mut values: Vec<Expr>) -> Option<Expr> {
 		"is_gt" => values.pop()?.binary(">", zero()),
 		"is_le" => values.pop()?.binary("<=", zero()),
 		"is_ge" => values.pop()?.binary(">=", zero()),
-		"reverse" => Expr::rt("orderingReverse", values),
-		"then" => Expr::rt("orderingThen", values),
+		"reverse" => Expr::rs("orderingReverse", values),
+		"then" => Expr::rs("orderingThen", values),
 		"then_with" => {
 			let [o, f] = <[Expr; 2]>::try_from(values).ok()?;
-			Expr::rt("orderingThen", vec![o, f, Expr::lit("true")])
+			Expr::rs("orderingThen", vec![o, f, Expr::lit("true")])
 		}
 		_ => return None,
 	};
@@ -2486,17 +2564,17 @@ fn random_state<'tcx>(
 	let span = call.span;
 	let mut values = args.into_iter();
 	match (name, values.next()) {
-		("new" | "default", _) => Expr::rt("randomState", vec![]),
+		("new" | "default", _) => Expr::rs("randomState", vec![]),
 		("clone", Some(state)) => state,
-		("build_hasher", Some(state)) => Expr::rt("buildHasher", vec![state]),
+		("build_hasher", Some(state)) => Expr::rs("buildHasher", vec![state]),
 		// It takes the value, which drops once hashed.
 		("hash_one", Some(state)) if let Some(value) = values.next() => {
 			let hasher = built_hasher(b, ty).expect("a RandomState builds a DefaultHasher");
 			let value_ty = library::targ(call.args, 1);
-			let built = Expr::rt("buildHasher", vec![state]);
+			let built = Expr::rs("buildHasher", vec![state]);
 			let mut args = vec![built, value, hash_fn(b, value_ty, hasher, span)];
 			args.extend(b.t.drop_fn(value_ty, span));
-			Expr::rt("hashOne", args)
+			Expr::rs("hashOne", args)
 		}
 		_ => b.err(span, format!("`RandomState::{name}`, which is not supported yet")),
 	}
@@ -2531,9 +2609,9 @@ fn build_hasher_default<'tcx>(
 				unreachable!("hash_one takes a state and a value")
 			};
 			let value_ty = library::targ(call.args, 1);
-			let mut args = vec![Expr::rt("hasher", vec![]), value, hash_fn(b, value_ty, hasher, span)];
+			let mut args = vec![Expr::rs("hasher", vec![]), value, hash_fn(b, value_ty, hasher, span)];
 			args.extend(b.t.drop_fn(value_ty, span));
-			Expr::rt("hashOne", args)
+			Expr::rs("hashOne", args)
 		}
 		_ => b.err(
 			span,
@@ -2555,20 +2633,20 @@ fn hasher_call(b: &mut Body<'_, '_, '_>, name: &str, args: Vec<Expr>, span: Span
 	}
 	let swapped = |values: Vec<Expr>| values.into_iter().rev().collect::<Vec<_>>();
 	let f = match name {
-		"finish" => return Expr::rt("hashFinish", values),
+		"finish" => return Expr::rs("hashFinish", values),
 		"write" => "hashWrite",
 		"write_str" => "hashStr",
 		"write_length_prefix" => "hashPrefix",
 		_ if let Some(f) = name.strip_prefix("write_").and_then(hash_int) => f,
 		_ => return b.err(span, format!("`Hasher::{name}`, which is not supported yet")),
 	};
-	Expr::rt(f, swapped(values))
+	Expr::rs(f, swapped(values))
 }
 
-/// The runtime's `Hash::hash` of the integer type `rt` names, which calls its `Hasher`
+/// The runtime's `Hash::hash` of the integer type `rs` names, which calls its `Hasher`
 /// method: `hash16` of a `u16`, `hashI16` of an `i16`.
-fn hash_int(rt: &str) -> Option<&'static str> {
-	Some(match rt {
+fn hash_int(rs: &str) -> Option<&'static str> {
+	Some(match rs {
 		"u8" => "hash8",
 		"u16" => "hash16",
 		"u32" => "hash32",
@@ -2718,7 +2796,7 @@ fn cow_deref<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, args: &mut [Expr], n: u
 }
 
 /// The elements of `ty` if it is a `Vec`, a slice, or an array of any type but `u8`, whose
-/// bytes are typed arrays: an `rt.Vec` or a JS array, which the runtime reads alike.
+/// bytes are typed arrays: an `rs.Vec` or a JS array, which the runtime reads alike.
 fn elements_of<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	let elem = match ty.kind() {
 		ty::Slice(elem) | ty::Array(elem, _) => *elem,
@@ -2729,7 +2807,7 @@ fn elements_of<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 }
 
 /// Whether `ty` is a `Vec`, a slice, an array, or a `Cow` of bytes: a typed array, an
-/// `rt.ByteSlice` behind a reference, or an `rt.ByteVec`, or either of the last two.
+/// `rs.ByteSlice` behind a reference, or an `rs.ByteVec`, or either of the last two.
 fn bytes<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 	let elem = match ty.kind() {
 		ty::Slice(elem) | ty::Array(elem, _) => *elem,
@@ -2740,7 +2818,7 @@ fn bytes<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 	super::byte(elem)
 }
 
-/// What `bounds` makes of the range a call takes: what an `rt.Bounds` reads, and, for a
+/// What `bounds` makes of the range a call takes: what an `rs.Bounds` reads, and, for a
 /// range that drops, the range and what drops it.
 pub struct Ranged {
 	pub bounds: Expr,
@@ -2756,7 +2834,7 @@ impl Ranged {
 			return e;
 		};
 		let call = Expr::Lambda(vec![Param { name, ty: None }], Box::new(e));
-		Expr::rt("dropAfter", vec![range, call, drop])
+		Expr::rs("dropAfter", vec![range, call, drop])
 	}
 
 	/// `call` of the bounds and what drops the range, for a call whose result holds the
@@ -2777,14 +2855,14 @@ impl Ranged {
 		let Some((range, name, drop)) = self.dropped else {
 			return self.bounds;
 		};
-		let checked = Expr::rt("boundsChecked", vec![self.bounds, len]);
+		let checked = Expr::rs("boundsChecked", vec![self.bounds, len]);
 		let call = Expr::Lambda(vec![Param { name, ty: None }], Box::new(checked));
-		Expr::rt("dropAfter", vec![range, call, drop])
+		Expr::rs("dropAfter", vec![range, call, drop])
 	}
 }
 
-/// Makes `range`, the range `call` takes, what an `rt.Bounds` reads: std's range types
-/// and a pair of `Bound`s are already, and any other `RangeBounds` becomes `rt.boundsOf` of
+/// Makes `range`, the range `call` takes, what an `rs.Bounds` reads: std's range types
+/// and a pair of `Bound`s are already, and any other `RangeBounds` becomes `rs.boundsOf` of
 /// it and its `start_bound` and `end_bound`, which the runtime calls where std's does.
 pub fn bounds<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, range: Expr) -> Ranged {
 	let tcx = b.t.tcx;
@@ -2806,12 +2884,12 @@ pub fn bounds<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, range: Expr) 
 		let args = tcx.mk_args(&[ty.into(), target.into()]);
 		let start = b.fn_value(trait_fn(tcx, "RangeBounds", "start_bound"), args, span);
 		let end = b.fn_value(trait_fn(tcx, "RangeBounds", "end_bound"), args, span);
-		Expr::rt("boundsOf", vec![range, start, end])
+		Expr::rs("boundsOf", vec![range, start, end])
 	};
 	Ranged { bounds, dropped }
 }
 
-/// Whether an `rt.Bounds` reads `ty` as it is: std's range types and a pair of `Bound`s.
+/// Whether an `rs.Bounds` reads `ty` as it is: std's range types and a pair of `Bound`s.
 pub fn plain_bounds<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> bool {
 	match (ty.kind(), t.std_of(ty)) {
 		(
@@ -2882,7 +2960,7 @@ fn cell_by(b: &Body<'_, '_, '_>, by: &str, f: Expr, method: &str) -> Expr {
 	if by == "refCellBy" && b.t.hooked {
 		values.extend(super::caller::cell_sites(b.t.tcx, method));
 	}
-	Expr::rt(by, values)
+	Expr::rs(by, values)
 }
 
 /// `Ord::cmp` of `ty` as a function, or `PartialOrd::partial_cmp` if `partial`: the
@@ -2892,54 +2970,54 @@ pub fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, spa
 	let tcx = b.t.tcx;
 	let ty = peel_ord(b, ty, partial);
 	match ty.kind() {
-		ty::Bool | ty::Char | ty::Int(_) | ty::Uint(_) => Expr::Rt("cmp".into()),
+		ty::Bool | ty::Char | ty::Int(_) | ty::Uint(_) => Expr::Rs("cmp".into()),
 		// `None` for a NaN: only `PartialOrd`, since a float is no `Ord`.
-		_ if partial && let Some(float) = super::float::Float::of(ty) => Expr::rt_of(float.name(), "partialCmp"),
-		ty::Str => Expr::Rt("cmpStr".into()),
-		ty::Adt(..) if library::string(tcx, ty) => Expr::Rt("cmpStr".into()),
-		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Ordering) => Expr::Rt("cmp".into()),
-		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rt("durationCmp".into()),
-		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rt("locationCmp".into()),
-		_ if library::nothing(tcx, ty) => Expr::Rt("cmpNothing".into()),
+		_ if partial && let Some(float) = super::float::Float::of(ty) => Expr::rs_of(float.name(), "partialCmp"),
+		ty::Str => Expr::Rs("cmpStr".into()),
+		ty::Adt(..) if library::string(tcx, ty) => Expr::Rs("cmpStr".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Ordering) => Expr::Rs("cmp".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rs("durationCmp".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rs("locationCmp".into()),
+		_ if library::nothing(tcx, ty) => Expr::Rs("cmpNothing".into()),
 		ty::Tuple(tys) => {
 			let fns = tys.iter().map(|t| cmp_fn(b, t, partial, span)).collect();
 			// What the tuple holds and what it orders as, which `tsc` cannot infer from
 			// fields of which some are generic.
-			let ordering = Type::Rt("Ordering", vec![]);
+			let ordering = Type::Rs("Ordering", vec![]);
 			let order = match partial {
 				true => Type::Union(vec![ordering, Type::Builtin("undefined")]),
 				false => ordering,
 			};
-			let cmp = Expr::Instantiate(Box::new(Expr::Rt("cmpTuple".into())), vec![b.t.ty(ty, span), order]);
+			let cmp = Expr::Instantiate(Box::new(Expr::Rs("cmpTuple".into())), vec![b.t.ty(ty, span), order]);
 			Expr::Call(Box::new(cmp), vec![Expr::Array(fns)])
 		}
 		ty::Adt(..) if let Some(inner) = option_of(b, ty) => {
 			let cmp = cmp_fn(b, inner, partial, span);
-			Expr::rt("cmpOption", [cmp].into_iter().chain(b.t.none_arg(inner)).collect())
+			Expr::rs("cmpOption", [cmp].into_iter().chain(b.t.none_arg(inner)).collect())
 		}
-		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => Expr::rt("cmpArc", vec![cmp_fn(b, inner, partial, span)]),
+		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => Expr::rs("cmpArc", vec![cmp_fn(b, inner, partial, span)]),
 		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => {
 			let cmp = cmp_fn(b, inner, partial, span);
 			cell_by(b, by, cmp, if partial { "partial_cmp" } else { "cmp" })
 		}
-		// An `rt.Place` compares by its value, as std's impl on `&mut` does by what it points at.
+		// An `rs.Place` compares by its value, as std's impl on `&mut` does by what it points at.
 		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => {
-			Expr::rt("cellBy", vec![cmp_fn(b, inner, partial, span)])
+			Expr::rs("cellBy", vec![cmp_fn(b, inner, partial, span)])
 		}
 		ty::Adt(..) if let Some(inner) = reverse_of(b, ty) => {
-			Expr::rt("cmpReverse", vec![cmp_fn(b, inner, partial, span)])
+			Expr::rs("cmpReverse", vec![cmp_fn(b, inner, partial, span)])
 		}
 		ty::Adt(..) if let Some(inner) = overflowing_of(b, ty) => cmp_fn(b, inner, partial, span),
 		ty::Adt(..) if let Some(borrowed) = cow_of(b, ty) => {
-			Expr::rt("cowBy", vec![cmp_fn(b, borrowed, partial, span)])
+			Expr::rs("cowBy", vec![cmp_fn(b, borrowed, partial, span)])
 		}
-		_ if let Some(elem) = elements_of(b, ty) => Expr::rt("cmpSlice", vec![cmp_fn(b, elem, partial, span)]),
+		_ if let Some(elem) = elements_of(b, ty) => Expr::rs("cmpSlice", vec![cmp_fn(b, elem, partial, span)]),
 		// A deque's is its iterator's, which compares each item by its own impls, as a slice's does.
-		ty::Adt(..) if let Some(item) = deque_of(b, ty) => Expr::rt("cmpDeque", vec![cmp_fn(b, item, partial, span)]),
+		ty::Adt(..) if let Some(item) = deque_of(b, ty) => Expr::rs("cmpDeque", vec![cmp_fn(b, item, partial, span)]),
 		// A list's is its iterator's too.
-		ty::Adt(..) if let Some(item) = list_of(b, ty) => Expr::rt("cmpList", vec![cmp_fn(b, item, partial, span)]),
+		ty::Adt(..) if let Some(item) = list_of(b, ty) => Expr::rs("cmpList", vec![cmp_fn(b, item, partial, span)]),
 		// Whichever form it has, as the key it is or the operand a reference passes.
-		_ if bytes(b, ty) => Expr::Rt("cmpBytes".into()),
+		_ if bytes(b, ty) => Expr::Rs("cmpBytes".into()),
 		// A `Result`'s or a `Poll`'s derived impls lower from its MIR, by variant and then by
 		// what it holds.
 		_ if (by_own(b, ty) || derived_std(b, ty)) && partial => {
@@ -2972,40 +3050,40 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		{
 			int.func("eq")
 		}
-		ty::Bool | ty::Char | ty::Int(_) | ty::Uint(_) | ty::Float(_) | ty::Str => Expr::Rt("same".into()),
-		_ if library::nothing(tcx, ty) => Expr::Rt("same".into()),
+		ty::Bool | ty::Char | ty::Int(_) | ty::Uint(_) | ty::Float(_) | ty::Str => Expr::Rs("same".into()),
+		_ if library::nothing(tcx, ty) => Expr::Rs("same".into()),
 		ty::Adt(..) if library::string(tcx, ty) || matches!(b.t.std_of(ty), Some(Std::Ordering | Std::ErrorKind)) => {
-			Expr::Rt("same".into())
+			Expr::Rs("same".into())
 		}
-		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rt("durationEq".into()),
-		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rt("locationEq".into()),
-		ty::Adt(..) if b.t.std_of(ty) == Some(Std::TryReserveError) => Expr::Rt("tryReserveErrorEq".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rs("durationEq".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rs("locationEq".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::TryReserveError) => Expr::Rs("tryReserveErrorEq".into()),
 		ty::Tuple(tys) => {
 			let fns = tys.iter().map(|t| eq_fn(b, t, span)).collect();
-			Expr::rt("eqTuple", vec![Expr::Array(fns)])
+			Expr::rs("eqTuple", vec![Expr::Array(fns)])
 		}
 		_ if let Some(pointee) = raw_pointee(tcx, ty) => match b.t.incomparable(pointee) {
 			Some(why) => b.err(span, why),
-			None if b.t.pointee(pointee) == super::pointer::Pointee::Bytes => Expr::Rt("byteSliceSame".into()),
-			None => Expr::Rt("same".into()),
+			None if b.t.pointee(pointee) == super::pointer::Pointee::Bytes => Expr::Rs("byteSliceSame".into()),
+			None => Expr::Rs("same".into()),
 		},
 		ty::Adt(..) if let Some(inner) = option_of(b, ty) => match eq_fn(b, inner, span) {
 			// `None` is no value of `inner`, so `===` tells it from each.
-			Expr::Rt(same) if same == "same" => Expr::Rt(same),
-			eq => Expr::rt("eqOption", [eq].into_iter().chain(b.t.none_arg(inner)).collect()),
+			Expr::Rs(same) if same == "same" => Expr::Rs(same),
+			eq => Expr::rs("eqOption", [eq].into_iter().chain(b.t.none_arg(inner)).collect()),
 		},
 		ty::Adt(..) if let Some(inner) = reverse_of(b, ty).or_else(|| overflowing_of(b, ty)) => eq_fn(b, inner, span),
-		ty::Adt(..) if let Some(borrowed) = cow_of(b, ty) => Expr::rt("cowBy", vec![eq_fn(b, borrowed, span)]),
-		ty::Adt(..) if let Some(bound) = range_of(b, ty) => Expr::rt("rangeEq", vec![eq_fn(b, bound, span)]),
+		ty::Adt(..) if let Some(borrowed) = cow_of(b, ty) => Expr::rs("cowBy", vec![eq_fn(b, borrowed, span)]),
+		ty::Adt(..) if let Some(bound) = range_of(b, ty) => Expr::rs("rangeEq", vec![eq_fn(b, bound, span)]),
 		// A slice compares its elements by `!=`, as a deque does each of its halves.
-		_ if let Some(elem) = elements_of(b, ty) => Expr::rt("eqSlice", vec![not_ne_fn(b, elem, span)]),
-		ty::Adt(..) if let Some(item) = deque_of(b, ty) => Expr::rt("eqSeq", vec![not_ne_fn(b, item, span)]),
+		_ if let Some(elem) = elements_of(b, ty) => Expr::rs("eqSlice", vec![not_ne_fn(b, elem, span)]),
+		ty::Adt(..) if let Some(item) = deque_of(b, ty) => Expr::rs("eqSeq", vec![not_ne_fn(b, item, span)]),
 		// A list's iterator compares its items by `==`.
-		ty::Adt(..) if let Some(item) = list_of(b, ty) => Expr::rt("eqList", vec![eq_fn(b, item, span)]),
+		ty::Adt(..) if let Some(item) = list_of(b, ty) => Expr::rs("eqList", vec![eq_fn(b, item, span)]),
 		// A map compares its values by `==`, and a set holds none.
-		ty::Adt(..) if b.t.std_of(ty) == Some(Std::HashMap) => Expr::rt("hashEq", vec![eq_fn(b, arg(ty, 1), span)]),
-		ty::Adt(..) if b.t.std_of(ty) == Some(Std::HashSet) => Expr::rt("hashEq", vec![]),
-		_ if bytes(b, ty) => Expr::Rt("eqBytes".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::HashMap) => Expr::rs("hashEq", vec![eq_fn(b, arg(ty, 1), span)]),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::HashSet) => Expr::rs("hashEq", vec![]),
+		_ if bytes(b, ty) => Expr::Rs("eqBytes".into()),
 		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => {
 			let eq = eq_fn(b, inner, span);
 			arc_eq(b, inner, eq)
@@ -3015,7 +3093,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 			let eq = eq_fn(b, inner, span);
 			cell_by(b, by, eq, "eq")
 		}
-		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => Expr::rt("cellBy", vec![eq_fn(b, inner, span)]),
+		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => Expr::rs("cellBy", vec![eq_fn(b, inner, span)]),
 		_ if by_own(b, ty) || derived_std(b, ty) || b.t.std_of(ty).is_some_and(Std::record) => {
 			let eq = trait_fn(tcx, "PartialEq", "eq");
 			b.fn_value(eq, tcx.mk_args(&[ty.into(), ty.into()]), span)
@@ -3034,7 +3112,7 @@ fn not_ne_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		// `!(a.0 != b.0 || ...)`: each field's `!ne` in turn.
 		ty::Tuple(tys) => {
 			let fns = tys.iter().map(|t| not_ne_fn(b, t, span)).collect();
-			Expr::rt("eqTuple", vec![Expr::Array(fns)])
+			Expr::rs("eqTuple", vec![Expr::Array(fns)])
 		}
 		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => {
 			let eq = not_ne_fn(b, inner, span);
@@ -3052,7 +3130,7 @@ fn arc_eq<'tcx>(b: &Body<'_, '_, 'tcx>, inner: Ty<'tcx>, eq: Expr) -> Expr {
 	if super::iter::implements(b.t, inner, "Eq") {
 		values.push(Expr::lit("true"));
 	}
-	Expr::rt("eqArc", values)
+	Expr::rs("eqArc", values)
 }
 
 /// `PartialEq::eq` of sequences of types `t` and `u`, as a function, where the runtime's of
@@ -3067,7 +3145,7 @@ fn seq_eq<'tcx>(b: &mut Body<'_, '_, 'tcx>, t: Ty<'tcx>, u: Ty<'tcx>, span: Span
 	if !deque && alike(b, t, u) && std_key(b, t) {
 		return None;
 	}
-	Some(Expr::rt("eqSeq", vec![item_eq(b, ti, ui, span)]))
+	Some(Expr::rs("eqSeq", vec![item_eq(b, ti, ui, span)]))
 }
 
 /// What a slice, an array, a `Vec`, or a `VecDeque` of type `ty` holds, bytes included.
@@ -3156,7 +3234,7 @@ pub fn impl_eq<'tcx>(
 
 /// `<t as {tr}<u>>::{name}`, a method of a comparison trait, as a function of what JS holds
 /// of types `held`, references to `t` and `u` or they themselves: a `[u8; N]` held is a
-/// typed array, lent as the `rt.ByteSlice` the impl's `&[u8; N]` is. A `ne` is negated.
+/// typed array, lent as the `rs.ByteSlice` the impl's `&[u8; N]` is. A `ne` is negated.
 fn impl_fn<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	tr: &str,
@@ -3177,7 +3255,7 @@ fn impl_fn<'tcx>(
 	let names = [b.fresh("a"), b.fresh("b")];
 	let values = std::iter::zip(&names, held)
 		.map(|(name, ty)| match super::byte_array(ty) {
-			true => Expr::rt("byteSliceFrom", vec![Expr::ident(name)]),
+			true => Expr::rs("byteSliceFrom", vec![Expr::ident(name)]),
 			false => Expr::ident(name),
 		})
 		.collect();
@@ -3200,42 +3278,42 @@ fn hash_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, hasher: Ty<'tcx>, spa
 	let ty = peel_hash(b, ty, hasher);
 	match ty.kind() {
 		// What std writes of each: a `bool` as a byte, a `char` as its `u32`.
-		ty::Bool => Expr::Rt("hash8".into()),
-		ty::Char => Expr::Rt("hash32".into()),
-		ty::Int(_) | ty::Uint(_) => Expr::Rt(
-			hash_int(Int::of(ty).expect("an integer").rt())
+		ty::Bool => Expr::Rs("hash8".into()),
+		ty::Char => Expr::Rs("hash32".into()),
+		ty::Int(_) | ty::Uint(_) => Expr::Rs(
+			hash_int(Int::of(ty).expect("an integer").rs())
 				.expect("an integer")
 				.into(),
 		),
-		ty::Str => Expr::Rt("hashStr".into()),
-		ty::Adt(..) if library::string(tcx, ty) => Expr::Rt("hashStr".into()),
+		ty::Str => Expr::Rs("hashStr".into()),
+		ty::Adt(..) if library::string(tcx, ty) => Expr::Rs("hashStr".into()),
 		// Its derived `Hash` writes its `i8` discriminant.
-		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Ordering) => Expr::Rt("hashI8".into()),
-		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rt("durationHash".into()),
-		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rt("locationHash".into()),
-		_ if library::nothing(tcx, ty) => Expr::Rt("hashNothing".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Ordering) => Expr::Rs("hashI8".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rs("durationHash".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rs("locationHash".into()),
+		_ if library::nothing(tcx, ty) => Expr::Rs("hashNothing".into()),
 		ty::Tuple(tys) => {
 			let fns = tys.iter().map(|t| hash_fn(b, t, hasher, span)).collect();
-			Expr::rt("hashTuple", vec![Expr::Array(fns)])
+			Expr::rs("hashTuple", vec![Expr::Array(fns)])
 		}
 		ty::Adt(..) if let Some(inner) = option_of(b, ty) => {
 			let hash = hash_fn(b, inner, hasher, span);
-			Expr::rt("hashOption", [hash].into_iter().chain(b.t.none_arg(inner)).collect())
+			Expr::rs("hashOption", [hash].into_iter().chain(b.t.none_arg(inner)).collect())
 		}
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Poll) => {
 			let inner = arg(ty, 0);
 			let hash = hash_fn(b, inner, hasher, span);
-			Expr::rt("hashPoll", [hash].into_iter().chain(b.t.pending_arg(inner)).collect())
+			Expr::rs("hashPoll", [hash].into_iter().chain(b.t.pending_arg(inner)).collect())
 		}
-		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => Expr::rt("hashArc", vec![hash_fn(b, inner, hasher, span)]),
+		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => Expr::rs("hashArc", vec![hash_fn(b, inner, hasher, span)]),
 		ty::Adt(..) if let Some(inner) = reverse_of(b, ty).or_else(|| overflowing_of(b, ty)) => {
 			hash_fn(b, inner, hasher, span)
 		}
 		ty::Adt(..) if let Some(borrowed) = cow_of(b, ty) => {
-			Expr::rt("hashCow", vec![hash_fn(b, borrowed, hasher, span)])
+			Expr::rs("hashCow", vec![hash_fn(b, borrowed, hasher, span)])
 		}
 		ty::Adt(..) if let Some(bound) = range_of(b, ty) => {
-			Expr::rt("rangeHash", vec![hash_fn(b, bound, hasher, span)])
+			Expr::rs("rangeHash", vec![hash_fn(b, bound, hasher, span)])
 		}
 		_ if let Some(elem) = elements_of(b, ty) => {
 			if own_hash_slice(b, elem, hasher) {
@@ -3246,22 +3324,22 @@ fn hash_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, hasher: Ty<'tcx>, spa
 			// An integer's `hash_slice` writes the bytes of all of them at once.
 			if let Some(int) = Int::of(elem) {
 				let size = if int.pointer { 4 } else { int.bits / 8 };
-				return Expr::rt("hashInts", vec![Expr::lit(size.to_string())]);
+				return Expr::rs("hashInts", vec![Expr::lit(size.to_string())]);
 			}
-			Expr::rt("hashSlice", vec![hash_fn(b, elem, hasher, span)])
+			Expr::rs("hashSlice", vec![hash_fn(b, elem, hasher, span)])
 		}
 		// Its length, then each item's, never by `hash_slice`.
-		ty::Adt(..) if let Some(item) = list_of(b, ty) => Expr::rt("hashList", vec![hash_fn(b, item, hasher, span)]),
+		ty::Adt(..) if let Some(item) = list_of(b, ty) => Expr::rs("hashList", vec![hash_fn(b, item, hasher, span)]),
 		// Its length, then its bytes, whichever form it is: a `[u8; N]` hashes as a slice.
-		_ if bytes(b, ty) => Expr::Rt("hashBytes".into()),
+		_ if bytes(b, ty) => Expr::Rs("hashBytes".into()),
 		_ if by_own(b, ty) => {
 			let hash = trait_fn(tcx, "Hash", "hash");
 			let args = tcx.mk_args(&[ty.into(), hasher.into()]);
 			let f = b.fn_value(hash, args, span);
-			// A translated one takes the `&mut` to the crate's own hasher, which the runtime's
-			// functions wrap; a binding's export takes the `rt.Hasher`.
-			match own_hasher(b.t, hasher) && !b.t.binds(hash, args) {
-				true => Expr::rt("hashOwn", vec![f]),
+			// A translated one takes the `&mut` to a hasher the runtime calls the methods of,
+			// which its functions wrap; a binding's export takes the `rs.Hasher`.
+			match called_hasher(b.t, hasher) && !b.t.binds(hash, args) {
+				true => Expr::rs("hashOwn", vec![f]),
 				false => f,
 			}
 		}
@@ -3300,7 +3378,7 @@ pub fn clone_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> E
 	}
 	if let ty::Closure(def_id, _) | ty::CoroutineClosure(def_id, _) = ty.kind() {
 		b.t.clone_closure(*def_id);
-		return Expr::Rt("closureClone".into());
+		return Expr::Rs("closureClone".into());
 	}
 	let clone = trait_fn(tcx, "Clone", "clone");
 	b.fn_value(clone, tcx.mk_args(&[ty.into()]), span)
@@ -3324,7 +3402,7 @@ fn trait_fn_of(tcx: ty::TyCtxt<'_>, tr: DefId, item: &str) -> DefId {
 }
 
 /// What `into_iter` makes of a collection of type `ty`, by value or by reference: an
-/// `rt.Iter` of its entries, keys, or items, which by value drops those it still holds.
+/// `rs.Iter` of its entries, keys, or items, which by value drops those it still holds.
 pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Option<Expr> {
 	let coll = ty.peel_refs();
 	// A `&mut` lends each value JS copies as its place.
@@ -3354,10 +3432,10 @@ pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, sp
 			droppers.resize(2, Expr::undefined());
 			droppers.push(state);
 		}
-		return Some(Expr::rt(name, super::iter::tail(vec![value], droppers)));
+		return Some(Expr::rs(name, super::iter::tail(vec![value], droppers)));
 	}
 	// What it holds, borrowed.
-	let iter = Expr::rt(name, vec![value]);
+	let iter = Expr::rs(name, vec![value]);
 	Some(match super::iter::iter_of(b.t, ty) {
 		Some(into) => super::lend::lend(b, into, into, iter, span),
 		None => iter,
@@ -3388,7 +3466,7 @@ pub fn collect<'tcx>(
 			{
 				let make = Expr::Lambda(Vec::new(), Box::new(target));
 				let tail = hash_extend_tail(b, ty, from, span);
-				return Some(Expr::rt("hashFromIter", super::iter::tail(vec![iter, make], tail)));
+				return Some(Expr::rs("hashFromIter", super::iter::tail(vec![iter, make], tail)));
 			}
 			hash_extend(b, ty, target, iter, from, span)
 		}
@@ -3397,7 +3475,7 @@ pub fn collect<'tcx>(
 		Std::BinaryHeap => {
 			let item = arg(ty, 0);
 			let d = super::iter::to_vec(b, iter, from, item, trusted, span);
-			Expr::rt("heapFrom", [vec![d], heap_tests(b, item, true, span)].concat())
+			Expr::rs("heapFrom", [vec![d], heap_tests(b, item, true, span)].concat())
 		}
 		Std::LinkedList => {
 			let target = list_new(b, ty, span);
@@ -3415,10 +3493,10 @@ pub fn collect<'tcx>(
 				Some("collections::vec_deque::into_iter::IntoIter" | "vec::into_iter::IntoIter")
 			);
 			let made = match whole {
-				true => Expr::rt("dequeFromIntoIter", [vec![iter], deque_items(b, item, span)].concat()),
+				true => Expr::rs("dequeFromIntoIter", [vec![iter], deque_items(b, item, span)].concat()),
 				false => {
 					let items = super::iter::to_vec(b, iter, from, item, trusted, span);
-					Expr::rt("dequeFromVec", [vec![items], deque_items(b, item, span)].concat())
+					Expr::rs("dequeFromVec", [vec![items], deque_items(b, item, span)].concat())
 				}
 			};
 			empty(b, made, ty, span)

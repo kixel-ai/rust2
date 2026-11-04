@@ -56,7 +56,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			));
 		}
 		let p = self.operand(op, span, out);
-		Some(Expr::rt(f, vec![p, size, Expr::Str(key.to_string())]))
+		Some(Expr::rs(f, vec![p, size, Expr::Str(key.to_string())]))
 	}
 
 	/// Whether memory from `alloc` can be typed as `ty`s: values JS copies, of some bytes.

@@ -1,10 +1,10 @@
 //! The references to `[u8; N]`s that cross between translated code and std. Such an array
-//! is a `Uint8Array`, where a `&[u8; N]` is an `rt.ByteSlice` of its bytes, as a `&[u8]`
+//! is a `Uint8Array`, where a `&[u8; N]` is an `rs.ByteSlice` of its bytes, as a `&[u8]`
 //! is, but std's mappings take and hand out a reference to an array as the array itself.
 //! So each `&[u8; N]` std makes of an array it holds, which it returns or hands a closure,
 //! is lent as a slice of it, and each std is given as a `&T` of a `T = [u8; N]` is given
 //! as a view of the slice's bytes. The function's generic signature tells such a
-//! reference from one std takes as it is, which is an `rt.ByteSlice` on both sides: a `&T`
+//! reference from one std takes as it is, which is an `rs.ByteSlice` on both sides: a `&T`
 //! where `T = [u8; N]`, not a `T` where `T = &[u8; N]`.
 
 use rustc_hir::def_id::DefId;
@@ -313,7 +313,7 @@ pub fn holds_bytes_ref(ty: Ty<'_>) -> bool {
 
 /// `value`, a `ty` std's mapping hands out, whose type in std's generic code is `generic`,
 /// as translated code reads it: each `&[u8; N]` std made of an array it holds, which the
-/// mapping hands out as the `Uint8Array`, an `rt.ByteSlice` of it. It shares the bytes,
+/// mapping hands out as the `Uint8Array`, an `rs.ByteSlice` of it. It shares the bytes,
 /// which nothing writes through a `&`, and a `&mut` writes where std holds them.
 pub fn lend<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Expr {
 	cross(b, generic, ty, value, Way::Lent, span)
@@ -321,8 +321,8 @@ pub fn lend<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, v
 
 /// `value`, a `ty` translated code gives std's mapping as an input whose type in std's
 /// generic code is `generic`, as the mapping reads it: each `&[u8; N]` where it takes a
-/// `&T`, which it reads, copies, and writes through as the array, an `rt.byteSliceView`
-/// of the `rt.ByteSlice`. It shares the bytes for as long as the reference lives, so
+/// `&T`, which it reads, copies, and writes through as the array, an `rs.byteSliceView`
+/// of the `rs.ByteSlice`. It shares the bytes for as long as the reference lives, so
 /// whatever the mapping keeps of it reads and writes where the reference does.
 pub fn give<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Expr {
 	cross(b, generic, ty, value, Way::Given, span)
@@ -333,7 +333,7 @@ pub fn give<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, v
 enum Way {
 	/// To translated code, from the `Uint8Array` std holds: [`lend`].
 	Lent,
-	/// To std's mapping, from the `rt.ByteSlice` translated code holds: [`give`].
+	/// To std's mapping, from the `rs.ByteSlice` translated code holds: [`give`].
 	Given,
 }
 
@@ -359,13 +359,13 @@ fn cross<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, valu
 	}
 	if let (Some(g), Some(inner)) = (option_of(b.t, generic), option_of(b.t, ty)) {
 		let f = cross_fn(b, g, inner, way, span);
-		return Expr::rt("optionMap", vec![value, f]);
+		return Expr::rs("optionMap", vec![value, f]);
 	}
 	if way == Way::Lent
 		&& let Some((Some(g), item)) = item(b.t, ty)
 	{
 		let f = cross_fn(b, g, item, way, span);
-		return Expr::rt("iterLend", vec![value, f]);
+		return Expr::rs("iterLend", vec![value, f]);
 	}
 	if let (ty::Tuple(generics), ty::Tuple(parts)) = (generic.kind(), ty.kind())
 		&& value.is_path()
@@ -384,7 +384,7 @@ fn cross_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, w
 	if let ty::Ref(_, inner, _) = ty.kind()
 		&& super::byte_array(*inner)
 	{
-		return Expr::Rt(
+		return Expr::Rs(
 			match way {
 				Way::Lent => "byteSliceFrom",
 				Way::Given => "byteSliceView",
@@ -408,7 +408,7 @@ fn cross_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, w
 
 /// `f`, a closure std calls with `params`, each generic and instantiated, given each as
 /// [`lend`] makes it. One that what the call returns holds, or that drops, which the
-/// mapping may drop through what it is given, is `rt.lending`, `holds`, which clones and
+/// mapping may drop through what it is given, is `rs.lending`, `holds`, which clones and
 /// drops as `f` does.
 pub fn lend_closure<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
@@ -436,18 +436,18 @@ pub fn lend_closure<'tcx>(
 	match (holds, called) {
 		(true, Expr::Ident(name)) => {
 			let make = Expr::Lambda(vec![Param { name, ty: None }], Box::new(lent));
-			Expr::rt("lending", vec![f, make])
+			Expr::rs("lending", vec![f, make])
 		}
 		_ => lent,
 	}
 }
 
 /// A function copying a `ty` out of what `Extend<&T>` and `Extend<(&K, &V)>` are given,
-/// where each `[u8; N]` is the `rt.ByteSlice` a `&[u8; N]` is: `None` if a copy is the
+/// where each `[u8; N]` is the `rs.ByteSlice` a `&[u8; N]` is: `None` if a copy is the
 /// value itself.
 pub fn copy_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
 	match ty.kind() {
-		_ if super::byte_array(ty) => Some(Expr::Rt("byteSliceToArray".into())),
+		_ if super::byte_array(ty) => Some(Expr::Rs("byteSliceToArray".into())),
 		ty::Tuple(parts) if parts.iter().any(super::byte_array) => {
 			let name = b.fresh("held");
 			let parts = (parts.iter().enumerate())

@@ -369,6 +369,9 @@ version = "0.0.0"
 [[package]]
 name = "lang-panics-fixture"
 version = "0.0.0"
+dependencies = [
+ "bytes",
+]
 
 [[package]]
 name = "lang-pointers-fixture"

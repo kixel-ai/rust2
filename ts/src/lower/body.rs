@@ -148,7 +148,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 				return Expr::New(Box::new(Expr::Sym(class)), values);
 			}
 			let call = self.direct_call(instance, values, span, out);
-			// The crate's own `next` returns an item or `rt.DONE`, and its caller an `Option`.
+			// The crate's own `next` returns an item or `rs.DONE`, and its caller an `Option`.
 			if super::iter::is_next(tcx, did) {
 				let option = self.t.sig(did, instance.args).output();
 				self.t.ty(option, span);
@@ -156,7 +156,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 					unreachable!("`next` returns an `Option`")
 				};
 				let none = self.t.none_arg(option_args.type_at(0));
-				return Expr::rt("iterToOption", [call].into_iter().chain(none).collect());
+				return Expr::rs("iterToOption", [call].into_iter().chain(none).collect());
 			}
 			// One that hands back its `Ok`'s parts, made whole here, before anything else can
 			// write its slot.
@@ -196,12 +196,19 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 	) -> Expr {
 		let tcx = self.t.tcx;
 		if let Some(referent) = library::referent(tcx, def_id, gargs, instance) {
-			// An operand that was a reference to an `rt.Place`, as `&&mut u32` is, passes
-			// what the Place points at.
+			// An operand that was a reference to an `rs.Place`, as `&&mut u32` is, passes
+			// what the Place points at, and a `&mut` to a `&mut` or a box what the place it
+			// is holds, as JS holds a box as what it holds, but where that is a place too.
 			let inputs = |gargs| self.t.sig(def_id, gargs).inputs().to_vec();
 			let args = std::iter::zip(args, std::iter::zip(inputs(gargs), inputs(referent)))
 				.map(|(arg, (was, now))| match was.kind() {
-					ty::Ref(_, inner, _) if was != now => self.t.pointee_value(*inner, arg),
+					_ if was == now => arg,
+					ty::Ref(_, inner, mutability) if inner.is_box() => match mutability {
+						ty::Mutability::Mut if self.t.place_pointee(now).is_none() => self.t.pointee_value(was, arg),
+						_ => arg,
+					},
+					ty::Ref(_, _, ty::Mutability::Mut) => self.t.pointee_value(was, arg),
+					ty::Ref(_, inner, _) => self.t.pointee_value(*inner, arg),
 					_ => arg,
 				})
 				.collect();
@@ -386,7 +393,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 		// Typed, as what reads it may infer nothing of it.
 		if library::empty_iter(tcx, adt.did()) {
 			let ts_ty = self.t.ty(ty, span);
-			return Ok(Expr::As(Box::new(Expr::rt("iterEmpty", Vec::new())), ts_ty));
+			return Ok(Expr::As(Box::new(Expr::rs("iterEmpty", Vec::new())), ts_ty));
 		}
 		let Some((make, gargs)) = super::iter::maker(self.t, ty) else {
 			return Err(values);
@@ -435,7 +442,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			let sym = match self.t.bound_fn(instance, span) {
 				Some(sym) => Some(sym),
 				// One that takes byte slices as their parts, hands back its `Ok`'s parts, or is a
-				// `next`, which returns an item or `rt.DONE`, is wrapped to take and return what
+				// `next`, which returns an item or `rs.DONE`, is wrapped to take and return what
 				// a call does.
 				None => (self.t.lowers(self.t.typing_env_pub(), instance)
 					&& self.t.parted(instance).is_empty()

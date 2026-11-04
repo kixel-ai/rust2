@@ -667,7 +667,7 @@ fn found<I: DoubleEndedIterator<Item = u8> + ExactSizeIterator>(
 			put(out, it.find_map(|b| (b > k8 / 2).then_some(b ^ 1)));
 			out.extend(it);
 		}
-		// Of a found value whose `None` is `rt.None`.
+		// Of a found value whose `None` is `rs.None`.
 		7 => {
 			let found = it.find_map(|b| (b >= k8 / 2).then_some((b % 2 == 0).then_some(b)));
 			out.extend(match found {

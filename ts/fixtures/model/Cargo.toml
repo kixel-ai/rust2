@@ -1,0 +1,33 @@
+[package]
+name = "model-fixture"
+description = "A harness over moq-net's model at the moq revision `just ts moq` translates"
+version = "0.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[package.metadata.cargo-shear]
+ignored = ["uuid"]
+
+# Its own workspace and lockfile, so the moq checkout it builds stays out of the
+# rust2-ts package's inputs.
+[workspace]
+
+[lib]
+# The cdylib is the native side of the differential test, built for wasm32.
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+# The moq pin, which `just ts moq` and `just ts census` check out too; bumping it is
+# `cargo update -p moq-net` after this rev. Without `async`, the model builds without a runtime.
+moq-net = { git = "https://github.com/moq-dev/moq", rev = "4b8e37bd44e407b3416a17992720870ea3f9221c", default-features = false }
+
+# uuid, which moq-net names, refuses to build for wasm32 without a source of randomness.
+# The harness reaches none, so the native side picks getrandom's custom backend, which it never calls.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+uuid = { version = "1.29.0", features = ["rng-getrandom"] }
+
+# The ts workspace's differential profile, which the tests build the native side with.
+[profile.differential]
+inherits = "dev"
+opt-level = 1

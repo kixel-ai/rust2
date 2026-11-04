@@ -37,14 +37,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		match &self.slots[local] {
 			Slot::Var(name) => Expr::ident(name),
 			// A value of type `!`, as a generic instantiated at `!` reads: native code never
-			// gets here, and `tsc` sees that through `rt.unreachable`.
-			Slot::Unit if self.mir.local_decls[local].ty.is_never() => Expr::rt("unreachable", vec![Expr::undefined()]),
+			// gets here, and `tsc` sees that through `rs.unreachable`.
+			Slot::Unit if self.mir.local_decls[local].ty.is_never() => Expr::rs("unreachable", vec![Expr::undefined()]),
 			// A function item holds no value, so each read names the function.
 			Slot::Unit if let ty::FnDef(def_id, args) = *self.mir.local_decls[local].ty.kind() => {
 				self.b.fn_value(def_id, args.skip_binder(), span)
 			}
 			Slot::Unit => Expr::undefined(),
-			// Passed on or kept, a `&mut` to a borrowed place JS copies is its `rt.Place`.
+			// Passed on or kept, a `&mut` to a borrowed place JS copies is its `rs.Place`.
 			Slot::Alias(Some(target)) if self.points_at_place(local) => {
 				let target = target.clone();
 				let payload = match self.def_rvalue(local) {
@@ -113,7 +113,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 								projection.next();
 								value
 							}
-							// Passed on or kept whole, it is the place's `rt.Place`, or the
+							// Passed on or kept whole, it is the place's `rs.Place`, or the
 							// object there.
 							None if pointee && self.b.t.place_pointee(pty.ty).is_some() => self.place_of(value, None),
 							_ => value,
@@ -188,9 +188,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	) -> Expr {
 		let tcx = self.tcx;
 		let decls = &self.mir.local_decls;
-		// Whether `e` is an `rt.ByteSlice` of the place's bytes: a `[u8]`, or a `[u8; N]`
-		// behind a reference or raw pointer.
-		let mut in_bytes = false;
+		// Whether `e` is an `rs.Slice` or `rs.ByteSlice` of the place's elements: a `[T]`, or
+		// a `[u8; N]` behind a reference or raw pointer.
+		let mut in_slice = false;
 		// The projections a union's field consumed with it, down to a slot.
 		let mut consumed = 0;
 		for (read, elem) in place.projection.iter().enumerate().skip(from) {
@@ -200,7 +200,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				pty = pty.projection_ty(tcx, elem);
 				continue;
 			}
-			in_bytes = in_bytes || byte_slice(ty);
+			in_slice = in_slice || ty.is_slice();
 			match elem {
 				ProjectionElem::Field(field, field_ty)
 					if let ty::Adt(adt, _) = ty.kind()
@@ -247,10 +247,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				ProjectionElem::Index(index) => {
 					let i = self.local_expr(index, span);
-					e = match in_bytes {
+					e = match in_slice {
 						true => {
 							let base = self.slice_path(e, out);
-							byte_at(base, i)
+							slice_at(base, i)
 						}
 						false => e.index(i),
 					};
@@ -260,7 +260,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					min_length: _,
 					from_end,
 				} => {
-					let base = match from_end || in_bytes {
+					let base = match from_end || in_slice {
 						true => self.slice_path(e, out),
 						false => e,
 					};
@@ -268,8 +268,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						false => Expr::lit(offset.to_string()),
 						true => super::scalar::sub(slice_member(base.clone(), "length"), Expr::lit(offset.to_string())),
 					};
-					e = match in_bytes {
-						true => byte_at(base, i),
+					e = match in_slice {
+						true => slice_at(base, i),
 						false => base.index(i),
 					};
 				}
@@ -278,23 +278,29 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					from,
 					to,
 					from_end: true,
-				} if byte_slice(ty) => {
+				} if let ty::Slice(elem_ty) = ty.kind() => {
 					let base = self.slice_path(e, out);
 					// A range of parts, which the pattern that took it checked the length for.
 					if let Some([data, start, length]) = made_slice(&base) {
 						let len = super::scalar::sub(length.clone(), Expr::lit((from + to).to_string()));
 						let start = super::scalar::add(start.clone(), Expr::lit(from.to_string()));
-						e = Expr::New(Box::new(Expr::Rt("ByteSlice".into())), vec![data.clone(), start, len]);
+						e = Expr::New(
+							Box::new(Expr::Rs(slice_class(*elem_ty).into())),
+							vec![data.clone(), start, len],
+						);
 					} else {
 						let mut values = vec![base.clone(), Expr::lit(from.to_string())];
 						if to != 0 {
 							values.push(base.member("length").binary("-", Expr::lit(to.to_string())));
 						}
-						e = Expr::rt("byteSliceRange", values);
+						e = match crate::lower::byte(*elem_ty) {
+							true => Expr::rs("byteSliceRange", values),
+							false => Expr::rs("sliceRange", values),
+						};
 					}
 				}
 				// Part of a `[u8; N]` behind a reference, as `[a, rest @ ..]` of a `&[u8; N]`.
-				ProjectionElem::Subslice { from, to, from_end } if in_bytes => {
+				ProjectionElem::Subslice { from, to, from_end } if in_slice => {
 					let end = match (from_end, ty.kind()) {
 						(false, _) => to,
 						(true, ty::Array(_, len)) if let Some(len) = len.try_to_target_usize(tcx) => len - to,
@@ -304,7 +310,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					e = match made_slice(&base) {
 						// In bounds of the array's.
 						Some([data, start, _]) => Expr::New(
-							Box::new(Expr::Rt("ByteSlice".into())),
+							Box::new(Expr::Rs("ByteSlice".into())),
 							vec![
 								data.clone(),
 								super::scalar::add(start.clone(), Expr::lit(from.to_string())),
@@ -313,7 +319,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						),
 						None => {
 							let values = vec![base, Expr::lit(from.to_string()), Expr::lit(end.to_string())];
-							Expr::rt("byteSliceRange", values)
+							Expr::rs("byteSliceRange", values)
 						}
 					};
 				}
@@ -334,9 +340,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				| ProjectionElem::UnwrapUnsafeBinder(_)
 				| ProjectionElem::PhantomDeref => {}
 			}
-			in_bytes = match elem {
+			in_slice = match elem {
 				ProjectionElem::Deref => self.bytes_behind(place.local, read, ty),
-				ProjectionElem::Subslice { .. } => in_bytes,
+				ProjectionElem::Subslice { .. } => in_slice,
 				_ => false,
 			};
 			pty = pty.projection_ty(tcx, elem);
@@ -393,7 +399,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// Whether `place` is a `[u8; N]` read through a reference or raw pointer, or a
-	/// `MaybeUninit` of one through a raw pointer, whose JS value is an `rt.ByteSlice` of
+	/// `MaybeUninit` of one through a raw pointer, whose JS value is an `rs.ByteSlice` of
 	/// its bytes rather than a `Uint8Array`, as [`Self::place_expr`] reads it.
 	pub(super) fn in_bytes(&self, place: Place<'tcx>) -> bool {
 		let mut in_bytes = false;
@@ -409,7 +415,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// Whether `ty`, which projection `at` of a place of `local` derefs, is an
-	/// `rt.ByteSlice` of the bytes it points at: a reference or a raw pointer to a
+	/// `rs.ByteSlice` of the bytes it points at: a reference or a raw pointer to a
 	/// `[u8; N]`, but not a box's pointer, which is the box.
 	fn bytes_behind(&self, local: Local, at: usize, ty: Ty<'tcx>) -> bool {
 		use crate::lower::pointer::Pointee;
@@ -444,10 +450,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let (base, ty, from, to, from_end) = place.iter_projections().find_map(|(base, elem)| match elem {
 			ProjectionElem::Subslice { from, to, from_end } => {
 				let ty = base.ty(&self.mir.local_decls, self.tcx).ty;
+				// A part of a slice is a slice of the same storage already.
 				match ty.kind() {
-					ty::Array(elem, _) | ty::Slice(elem) if !crate::lower::byte(*elem) => {
-						Some((base, ty, from, to, from_end))
-					}
+					ty::Array(elem, _) if !crate::lower::byte(*elem) => Some((base, ty, from, to, from_end)),
 					_ => None,
 				}
 			}
@@ -459,13 +464,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let base = self.place_expr(base.to_place(self.tcx), span, out);
 		let base = self.path(base, "slice", out);
 		let end = self.subslice_end(&base, ty, to, from_end);
-		Some(Expr::rt("sliceView", vec![base, Expr::lit(from.to_string()), end]))
+		Some(Expr::rs("arrayView", vec![base, Expr::lit(from.to_string()), end]))
 	}
 
 	/// `base`, a `ty`, cast to its `variant`, which MIR reads without a switch where the
 	/// others can't be, as a derived `==` reads the other operand after comparing
 	/// discriminants. `tsc` narrows only what a switch tests, and nothing read through a
-	/// cast, as a generic type's `rt.Ptr` field is read as its instance's type.
+	/// cast, as a generic type's `rs.Ptr` field is read as its instance's type.
 	fn as_variant(&mut self, base: Expr, ty: Ty<'tcx>, variant: VariantIdx, span: Span) -> Expr {
 		match ty.kind() {
 			ty::Adt(adt, _)
@@ -492,8 +497,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		variant: VariantIdx,
 		span: Span,
 	) -> Expr {
-		// `rt.Entry` is one class for either variant, which TypeScript narrows nothing by, as is
-		// `rt.TableEntry`.
+		// `rs.Entry` is one class for either variant, which TypeScript narrows nothing by, as is
+		// `rs.TableEntry`.
 		let entry = |adt: &ty::AdtDef<'_>| matches!(Std::of(self.tcx, adt.did()), Some(Std::Entry | Std::TableEntry));
 		if matches!(ty.kind(), ty::Adt(adt, _) if entry(adt)) {
 			return base;
@@ -518,7 +523,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let ty::Adt(adt, args) = ty.kind() else {
 			return None;
 		};
-		// `rt.Result`'s variants.
+		// `rs.Result`'s variants.
 		let result = |ok: bool, payload| {
 			let (flag, name) = match ok {
 				true => ("true", "value"),
@@ -544,7 +549,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Some(match (Flow::of(tcx, args), variant.index()) {
 					(Flow::Option, 0) => self.b.t.ty(continues, span),
 					(Flow::Option, _) => match self.b.t.erases_to(continues).undefined {
-						true => crate::ts::Type::Rt("None", vec![]),
+						true => crate::ts::Type::Rs("None", vec![]),
 						false => crate::ts::Type::Builtin("undefined"),
 					},
 					(Flow::Result | Flow::Other, 0) => result(true, self.b.t.ty(continues, span)),
@@ -626,25 +631,26 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Some(std) if std.record() => {
 					base.member(crate::lower::camel(adt.non_enum_variant().fields[field].name.as_str()))
 				}
-				// Cast to its variant's class: what an `rt.Borrowed` wraps, or what it owns.
+				// Cast to its variant's class: what an `rs.Borrowed` wraps, or what it owns.
 				Some(Std::Cow) if let Some(borrowed) = crate::lower::library::cow_borrowed(tcx, ty) => {
 					let bytes = crate::lower::library::cow_slice(tcx, ty).is_some_and(crate::lower::byte);
 					let owned = variant.is_some_and(|v| v.index() == 1);
-					// What an `rt.Borrowed` holds, and what it owns: an array and an `rt.Vec`, or text.
+					// What an `rs.Borrowed` holds, and what it owns: an `rs.Slice` and an
+					// `rs.Vec`, or text.
 					let (held, owns) = match borrowed.kind() {
 						ty::Slice(elem) => {
 							let elem = self.b.t.ty(*elem, span);
 							(
-								crate::ts::Type::Array(Box::new(elem.clone())),
-								crate::ts::Type::Rt("Vec", vec![elem]),
+								crate::ts::Type::Rs("Slice", vec![elem.clone()]),
+								crate::ts::Type::Rs("Vec", vec![elem]),
 							)
 						}
 						_ => (crate::ts::Type::Builtin("string"), crate::ts::Type::Builtin("string")),
 					};
 					let class = match (bytes, owned) {
-						(true, false) => crate::ts::Type::Rt("ByteSlice", Vec::new()),
-						(true, true) => crate::ts::Type::Rt("ByteVec", Vec::new()),
-						(false, false) => crate::ts::Type::Rt("Borrowed", vec![held]),
+						(true, false) => crate::ts::Type::Rs("ByteSlice", Vec::new()),
+						(true, true) => crate::ts::Type::Rs("ByteVec", Vec::new()),
+						(false, false) => crate::ts::Type::Rs("Borrowed", vec![held]),
 						(false, true) => owns,
 					};
 					let cast = Expr::As(Box::new(base), class);
@@ -689,7 +695,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			// An array of bytes read through a reference, copied out of its slice.
 			Operand::Copy(place) | Operand::Move(place) if self.in_bytes(*place) => {
 				let value = self.place_expr(*place, span, out);
-				Expr::rt("byteSliceToArray", vec![value])
+				Expr::rs("byteSliceToArray", vec![value])
 			}
 			// JS shares objects where Rust copies, so a `Copy` aggregate is copied where
 			// either side could change in place: into a local changed in place, or out of a
@@ -774,22 +780,22 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return out;
 		}
 		// `*r = v` replaces the object `r` points at in place, which other references and
-		// captures share. An alias of a borrowed place assigns the place, and an `rt.Place`
+		// captures share. An alias of a borrowed place assigns the place, and an `rs.Place`
 		// its `v`.
 		if let Some(pointee) = self.pointee_object(place) {
 			let target = self.local_expr(place.local, span);
 			let raw =
 				matches!(self.mir.local_decls[place.local].ty.kind(), ty::RawPtr(..)) && !self.box_pointer(place.local);
 			let e = match raw {
-				true => Expr::rt("ptrWrite", vec![target, value]),
+				true => Expr::rs("ptrWrite", vec![target, value]),
 				false => match self.b.t.write_in(pointee) {
 					Some(ObjectKind::Bytes) => target.member("set").call(vec![value]),
 					// A boxed slice is a JS array, whose length a write changes, unlike a
 					// tuple's or an array's.
 					Some(ObjectKind::Array) if self.b.t.erased(pointee).is_slice() => {
-						Expr::rt("arrayAssign", vec![target, value])
+						Expr::rs("arrayAssign", vec![target, value])
 					}
-					Some(_) if self.b.t.moves_private(pointee) => Expr::rt("ptrWrite", vec![target, value]),
+					Some(_) if self.b.t.moves_private(pointee) => Expr::rs("ptrWrite", vec![target, value]),
 					Some(_) => Expr::ident("Object").member("assign").call(vec![target, value]),
 					None => self.err(span, format!("an assignment through a reference to `{pointee}`")),
 				},
@@ -833,7 +839,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// What `place` is, where it is `*r` for an `r` that is the object it points at, with
-	/// no place known to hold it: neither an alias of a borrowed place, nor an `rt.Place`,
+	/// no place known to hold it: neither an alias of a borrowed place, nor an `rs.Place`,
 	/// nor a closure's environment, nor an alias of a reference to no object, such as a
 	/// `&mut &str`, which only an alias of the place it borrows can be.
 	pub(super) fn pointee_object(&self, place: Place<'tcx>) -> Option<Ty<'tcx>> {
@@ -954,13 +960,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		Some(capture.value.clone())
 	}
 
-	/// Whether `local` is an `rt.Place` reference that aliases the place it borrows, so its
-	/// target is that place rather than the `rt.Place`.
+	/// Whether `local` is an `rs.Place` reference that aliases the place it borrows, so its
+	/// target is that place rather than the `rs.Place`.
 	pub(super) fn points_at_place(&self, local: Local) -> bool {
 		self.b.t.place_pointee(self.mir.local_decls[local].ty).is_some() && self.alias_of_place(local)
 	}
 
-	/// The `rt.Place` of `target`, the JS path of the borrowed `place`, fixed where it is now.
+	/// The `rs.Place` of `target`, the JS path of the borrowed `place`, fixed where it is now.
 	pub(super) fn make_place(&mut self, place: Place<'tcx>, target: Expr, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let target = self.stable_target(place, target, span, out);
 		let payload = self.payload_ty(place, span);
@@ -1021,7 +1027,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// `target`, the JS path of the borrowed `place`, with the objects and index it goes
-	/// through held where they are now, as the borrow fixes them, for an `rt.Place` that
+	/// through held where they are now, as the borrow fixes them, for an `rs.Place` that
 	/// reads and writes it later.
 	pub(super) fn stable_target(&mut self, place: Place<'tcx>, target: Expr, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		// A store into a `Result`'s value makes the `Result` again, which a path can't.
@@ -1113,7 +1119,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		Expr::ident(name)
 	}
 
-	/// The `rt.Place` that reads and writes `target`, a path that stays put, read as
+	/// The `rs.Place` that reads and writes `target`, a path that stays put, read as
 	/// `payload` if it is a variant's.
 	pub(super) fn place_of(&mut self, target: Expr, payload: Option<crate::ts::Type>) -> Expr {
 		let value = self.b.fresh("value");
@@ -1137,10 +1143,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			None => Expr::Lambda(vec![param], Box::new(target.assign(Expr::ident(value)))),
 		};
-		Expr::rt("place", vec![get, set])
+		Expr::rs("place", vec![get, set])
 	}
 
-	/// The `rt.Place` of `place`, a reborrow `&mut *r` of a reference or pointer `r` that is
+	/// The `rs.Place` of `place`, a reborrow `&mut *r` of a reference or pointer `r` that is
 	/// one, which is `r`'s. A shared reborrow `&*r` is what `r` points at instead, and so is
 	/// a `&mut` to an object that a pointer to is a place, such as a `Cell`.
 	pub(super) fn reborrowed(
@@ -1187,7 +1193,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// The test that `scrut`, a `ty`, has the variant whose discriminant is `value`, where
-	/// `next` says it is a whole `next` result, which holds the item or `rt.DONE`. Only the
+	/// `next` says it is a whole `next` result, which holds the item or `rs.DONE`. Only the
 	/// place says so: a part of its item, as `*(next as Some).0`, lowers to the same name.
 	pub(super) fn variant_test(&mut self, scrut: &Expr, ty: Ty<'tcx>, value: u128, next: bool, span: Span) -> Expr {
 		let tcx = self.tcx;
@@ -1215,8 +1221,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						}
 					}
 					Some(Std::Option) if next => match index.index() {
-						0 => scrut.clone().binary("===", Expr::Rt("DONE".into())),
-						_ => scrut.clone().binary("!==", Expr::Rt("DONE".into())),
+						0 => scrut.clone().binary("===", Expr::Rs("DONE".into())),
+						_ => scrut.clone().binary("!==", Expr::Rs("DONE".into())),
 					},
 					Some(Std::Option) => match index.index() {
 						0 => scrut.clone().binary("===", self.b.t.none(args.type_at(0))),
@@ -1377,7 +1383,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		(sym, true)
 	}
 
-	/// The module value of the thread-local `key`, made the first time: an `rt.LocalKey`
+	/// The module value of the thread-local `key`, made the first time: an `rs.LocalKey`
 	/// over what initializes it.
 	fn local_key(&mut self, key: DefId, span: Span) -> Expr {
 		let tcx = self.tcx;
@@ -1402,7 +1408,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		self.b.t.program.items.push(Item::Value {
 			sym,
 			ty,
-			value: Expr::New(Box::new(Expr::Rt("LocalKey".into())), ctor),
+			value: Expr::New(Box::new(Expr::Rs("LocalKey".into())), ctor),
 			doc: None,
 		});
 		Expr::Sym(sym)
@@ -1492,7 +1498,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			offset: Size::ZERO,
 		};
 		let value = match byte_array(static_ty) {
-			true => Expr::rt("byteSliceFrom", vec![self.const_value(val, static_ty, span)]),
+			true => Expr::rs("byteSliceFrom", vec![self.const_value(val, static_ty, span)]),
 			false => self.const_value(val, static_ty, span),
 		};
 		self.b.t.reading.remove(&item);
@@ -1509,8 +1515,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				true => {
 					self.b.t.deferred.insert(sym);
 					let make = Expr::Arrow(Vec::new(), ty.clone(), vec![StmtKind::Return(Some(value)).at(None)]);
-					let lazy = Expr::New(Box::new(Expr::Rt("LazyCell".into())), vec![make]);
-					(lazy, crate::ts::Type::Rt("LazyCell", vec![ty]))
+					let lazy = Expr::New(Box::new(Expr::Rs("LazyCell".into())), vec![make]);
+					(lazy, crate::ts::Type::Rs("LazyCell", vec![ty]))
 				}
 				false => (value, ty),
 			};
@@ -1582,7 +1588,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				_ => self.err(span, format!("a zero-sized constant of type `{ty}`")),
 			},
 			ConstValue::Scalar(Scalar::Int(int)) => match ty.kind() {
-				ty::RawPtr(..) if int.is_null() => Expr::Rt("NULL".into()),
+				ty::RawPtr(..) if int.is_null() => Expr::Rs("NULL".into()),
 				ty::RawPtr(..) => self.err(span, format!("a constant of type `{ty}` made from an integer")),
 				ty::Bool => Expr::lit((int.to_bits_unchecked() != 0).to_string()),
 				ty::Char => Expr::lit(int.to_u32().to_string()),
@@ -1794,10 +1800,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let Expr::Call(f, args) = &self.pending[i].value else {
 			return None;
 		};
-		let (Expr::Rt(rt), [slice]) = (&**f, args.as_slice()) else {
+		let (Expr::Rs(rs), [slice]) = (&**f, args.as_slice()) else {
 			return None;
 		};
-		if rt != "byteSliceToArray" {
+		if rs != "byteSliceToArray" {
 			return None;
 		}
 		let slice = slice.clone();
@@ -1810,7 +1816,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				|| matches!(e, Expr::Index(base, i) if base.is_path() && i.is_constant())
 		};
 		let stable = match &slice {
-			Expr::Call(f, args) if matches!(&**f, Expr::Rt(name) if name == "byteSliceRange") => {
+			Expr::Call(f, args) if matches!(&**f, Expr::Rs(name) if name == "byteSliceRange") => {
 				matches!(args.as_slice(), [base, Expr::Lit(_), ..] if path(base))
 			}
 			e => path(e),
@@ -1857,18 +1863,26 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 }
 
-/// Whether `ty` is `[u8]`, which is an `rt.ByteSlice`.
+/// Whether `ty` is `[u8]`, which is an `rs.ByteSlice`.
 pub fn byte_slice(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Slice(elem) if crate::lower::byte(*elem))
 }
 
-/// Byte `i` of `slice`, an `rt.ByteSlice` that reading twice reads the same.
-pub fn byte_at(slice: Expr, i: Expr) -> Expr {
+/// The runtime's class of a slice of `elem`: `ByteSlice` of bytes, and `Slice` of others.
+pub fn slice_class(elem: Ty<'_>) -> &'static str {
+	match crate::lower::byte(elem) {
+		true => "ByteSlice",
+		false => "Slice",
+	}
+}
+
+/// Element `i` of `slice`, an `rs.Slice` or `rs.ByteSlice` that reading twice reads the same.
+pub fn slice_at(slice: Expr, i: Expr) -> Expr {
 	let at = super::scalar::add(slice_member(slice.clone(), "start"), i);
 	slice_member(slice, "data").index(at)
 }
 
-/// The field `key` of `slice`, an `rt.ByteSlice`: its part, if it is made in place of parts
+/// The field `key` of `slice`, an `rs.ByteSlice`: its part, if it is made in place of parts
 /// that do nothing, as a local held as its parts reads.
 pub fn slice_member(slice: Expr, key: &str) -> Expr {
 	if let Some([data, start, length]) = made_slice(&slice) {
@@ -1900,7 +1914,7 @@ pub fn split_target(target: &Expr) -> Option<(&Expr, [crate::ts::FieldId; 3])> {
 fn reads_fields(e: &Expr, ids: &[crate::ts::FieldId]) -> bool {
 	let any = |es: &[Expr]| es.iter().any(|e| reads_fields(e, ids));
 	match e {
-		Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rt(_) | Expr::Lit(_) | Expr::Str(_) => false,
+		Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => false,
 		Expr::Member(base, key) => {
 			matches!(key, crate::ts::Key::Field(id) if ids.contains(id)) || reads_fields(base, ids)
 		}
@@ -1917,10 +1931,12 @@ fn reads_fields(e: &Expr, ids: &[crate::ts::FieldId]) -> bool {
 	}
 }
 
-/// The parts of `slice`, if it is an `rt.ByteSlice` made in place.
+/// The parts of `slice`, if it is an `rs.ByteSlice` or `rs.Slice` made in place.
 pub fn made_slice(slice: &Expr) -> Option<&[Expr; 3]> {
 	match slice {
-		Expr::New(f, args) if matches!(&**f, Expr::Rt(name) if name == "ByteSlice") => args.as_slice().try_into().ok(),
+		Expr::New(f, args) if matches!(&**f, Expr::Rs(name) if name == "ByteSlice" || name == "Slice") => {
+			args.as_slice().try_into().ok()
+		}
 		_ => None,
 	}
 }
@@ -2032,7 +2048,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// Why a raw pointer made of `place` here would not keep pointing where Rust's does, if
 	/// it would not: JS keeps each part on its path that is an object, from what the last
 	/// pointer on it points at or from a local, in an object the crate may give another
-	/// object in its place, which the pointer would not see. With `cells`, an `rt.Cell` on
+	/// object in its place, which the pointer would not see. With `cells`, an `rs.Cell` on
 	/// the path is such an object, as one is for the pointer `UnsafeCell::get` gives. A
 	/// place read through a reference to a place this body borrows is that place.
 	pub(super) fn out_of_step(&self, place: Place<'tcx>, cells: bool) -> Option<String> {
@@ -2174,7 +2190,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	}
 
 	/// Whether a raw pointer to a `ty` is, or is a slice of, the object JS keeps it in, or
-	/// with `cells`, is or holds an `rt.Cell`. Only an instance decides what a parameter is.
+	/// with `cells`, is or holds an `rs.Cell`. Only an instance decides what a parameter is.
 	fn pointed_object(&self, ty: Ty<'tcx>, cells: bool) -> bool {
 		let t = &self.b.t;
 		!(t.polymorphic() && ty.has_param())
@@ -2183,7 +2199,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 
 	/// Why the pointer std's `def_id` makes of what `reference` points at would not keep
 	/// pointing where Rust's does, if it would not, judged as [`Self::out_of_step`] judges a
-	/// raw pointer: `UnsafeCell::get`'s, holding a `T`, is the `rt.Cell` itself or the
+	/// raw pointer: `UnsafeCell::get`'s, holding a `T`, is the `rs.Cell` itself or the
 	/// object it holds.
 	pub(super) fn made_out_of_step(
 		&self,
@@ -2338,16 +2354,16 @@ fn past_pointers(place: Place<'_>) -> usize {
 		.map_or(0, |i| i + 1)
 }
 
-/// An `rt.ByteSlice` of `bytes`.
+/// An `rs.ByteSlice` of `bytes`.
 fn bytes_lit(bytes: &[u8]) -> Expr {
 	let items = bytes.iter().map(|b| Expr::lit(b.to_string())).collect();
-	Expr::rt(
+	Expr::rs(
 		"byteSliceFrom",
 		vec![Expr::ident("Uint8Array").member("of").call(items)],
 	)
 }
 
-/// `rt.Ok(value)` or `rt.Err(value)` as the object literal they make, which TS types as the
+/// `rs.Ok(value)` or `rs.Err(value)` as the object literal they make, which TS types as the
 /// variant the store's own test narrowed its `Result` to, so a later read of the payload
 /// type-checks. Any other value is as it is.
 fn narrowed(value: Expr) -> Expr {
@@ -2355,8 +2371,8 @@ fn narrowed(value: Expr) -> Expr {
 		return value;
 	};
 	let (ok, key) = match &**f {
-		Expr::Rt(name) if name == "Ok" => ("true", "value"),
-		Expr::Rt(name) if name == "Err" => ("false", "error"),
+		Expr::Rs(name) if name == "Ok" => ("true", "value"),
+		Expr::Rs(name) if name == "Err" => ("false", "error"),
 		_ => return value,
 	};
 	let [payload] = args.as_slice() else {

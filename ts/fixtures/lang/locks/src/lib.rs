@@ -26,5 +26,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("locks::printed", |_, data, out| locks::printed(data, out)),
 		("locks::downgraded", |_, data, out| locks::downgraded(data, out)),
 		("locks::shown", |_, data, out| locks::shown(data, out)),
+		("locks::guarded", |_, data, out| locks::guarded(data, out)),
 	]
 }

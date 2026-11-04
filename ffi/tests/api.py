@@ -15,6 +15,10 @@ import threading
 
 import api
 
+# The transcript's lines end and encode as Rust's do, which Windows' text mode and code
+# page would turn into CRLF and the locale's encoding.
+sys.stdout.reconfigure(encoding="utf-8", newline="\n")
+
 
 class PrintLog(api.Log):
 	"""The Log callback: keeps even levels."""
@@ -650,6 +654,7 @@ async def on_loop():
 		channel.notify(waker)
 		channel.send(b"rung")
 	check(not wakes, "a waker is never called inside the call")
+	check(not signaled(), "a waker's wakes on the loop's thread, with nothing parked, write no byte")
 	await settle()
 	check(wakes == [1], "wakes on the loop's thread call the waker once")
 	await channel.recv()
