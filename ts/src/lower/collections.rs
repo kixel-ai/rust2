@@ -1517,7 +1517,7 @@ fn btree_collect<'tcx>(
 		let f = if set { "btreeExtendKeys" } else { "btreeExtend" };
 		return Expr::rt(f, super::iter::tail(vec![target, source], droppers));
 	}
-	let entries = super::iter::to_vec(b, source, iter, elem, trusted, span).member("d");
+	let entries = super::iter::to_vec(b, source, iter, elem, trusted, span).member("items");
 	let mut rest = Vec::from(super::library::sort_of(b, elem, span));
 	// A set's sort tests `lt`, and a map's `Ord::cmp`; std's sorts no zero-sized one.
 	if set {
@@ -1883,11 +1883,11 @@ fn heap<'tcx>(
 			};
 			Expr::rt(f, values)
 		}
-		(_, "len") => values.pop()?.member("d").member("length"),
-		(_, "is_empty") => values.pop()?.member("d").member("length").binary("===", Expr::lit("0")),
+		(_, "len") => values.pop()?.member("items").member("length"),
+		(_, "is_empty") => values.pop()?.member("items").member("length").binary("===", Expr::lit("0")),
 		// Indexing returns `undefined` for no element, where an `rt.None` must follow.
 		(_, "peek") if library::sentinel_option(b.t, call).is_some() => Expr::rt("heapPeek", values),
-		(_, "peek") => values.pop()?.member("d").index(Expr::lit("0")),
+		(_, "peek") => values.pop()?.member("items").index(Expr::lit("0")),
 		(_, "push" | "pop" | "peek_mut" | "append" | "retain" | "into_sorted_vec") => {
 			values.extend(heap_tests(b, item, !matches!(name, "push" | "pop"), span));
 			let f = match name {
@@ -1909,10 +1909,10 @@ fn heap<'tcx>(
 			vec![
 				Expr::ident("Uint8Array")
 					.member("from")
-					.call(vec![values.pop()?.member("d")]),
+					.call(vec![values.pop()?.member("items")]),
 			],
 		),
-		(_, "as_slice") => values.pop()?.member("d"),
+		(_, "as_slice") => values.pop()?.member("items"),
 		(_, "clear") => Expr::rt("heapClear", values),
 		(_, "drain") => {
 			let droppers = entry_droppers(b, coll, span);

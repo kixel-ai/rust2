@@ -28,15 +28,15 @@ export function boxed(log: Log.Log, id: rt.u32): void {
 	const first: Part.Part = new of$model_Guard(guard(1));
 	const parts: rt.Vec<Part.Part> = new rt.Vec();
 	const _13: Part.Part = new of$drops_Held({ tag: "Two", _0: guard(2), _1: guard(3) } as Held.Held);
-	parts.d.push(_13);
+	parts.items.push(_13);
 	const _24: Part.Part = new of$u32(7);
-	parts.d.push(_24);
+	parts.items.push(_24);
 	const _28: Part.Part = new of$drops_Wrap_u32(new Wrap.Wrap(rt.u32Add(id, 4), Log.clone$Clone(log), 0));
-	parts.d.push(_28);
+	parts.items.push(_28);
 	const _36: Part.Part = new of$drops_Held({ tag: "One", _0: guard(5) } as Held.Held);
-	parts.d.push(_36);
-	rt.sliceSwap(parts.d, 2, 3);
-	const part = rt.iterFold(rt.iterMap(rt.iterSlice(parts.d), (p: Part.Part): rt.u32 => {
+	parts.items.push(_36);
+	rt.sliceSwap(parts.items, 2, 3);
+	const part = rt.iterFold(rt.iterMap(rt.iterSlice(parts.items), (p: Part.Part): rt.u32 => {
 		return p.id$Part();
 	}), 0, (a0: rt.u32, a1: rt.u32): rt.u32 => {
 		return rt.u32WrappingAdd(a0, a1);
@@ -102,16 +102,16 @@ export function shared(log: Log.Log, id: rt.u32): void {
 	const wrap: rt.Arc<Wrap.Wrap<rt.u32>> = new rt.Arc(new Wrap.Wrap(rt.u32Add(id, 4), Log.clone$Clone(log), 0));
 	const parts: rt.Vec<rt.Arc<Part.Part>> = new rt.Vec();
 	const _63: rt.Arc<Wrap.Wrap<rt.u32>> = rt.arcClone(wrap);
-	parts.d.push(new rt.ArcDyn(_63, new of$drops_Wrap_u32(_63.value)));
+	parts.items.push(new rt.ArcDyn(_63, new of$drops_Wrap_u32(_63.value)));
 	const _68: rt.Arc<Guard.Guard> = rt.arcClone(kept);
-	parts.d.push(new rt.ArcDyn(_68, new of$model_Guard(_68.value)));
+	parts.items.push(new rt.ArcDyn(_68, new of$model_Guard(_68.value)));
 	const _72: rt.Arc<Part.Part> = rt.arcClone(second);
-	parts.d.push(_72);
+	parts.items.push(_72);
 	const _77: rt.Arc<rt.u32> = new rt.Arc(7);
-	parts.d.push(new rt.ArcDyn(_77, new of$u32(_77.value)));
-	const weak: rt.Weak<Part.Part> = new rt.Weak(parts.d[rt.idx(parts.d, 1)]);
+	parts.items.push(new rt.ArcDyn(_77, new of$u32(_77.value)));
+	const weak: rt.Weak<Part.Part> = new rt.Weak(parts.items[rt.idx(parts.items, 1)]);
 	second[Symbol.dispose]();
-	const part2 = rt.iterFold(rt.iterMap(rt.iterSlice(parts.d), (p: rt.Arc<Part.Part>): rt.u32 => {
+	const part2 = rt.iterFold(rt.iterMap(rt.iterSlice(parts.items), (p: rt.Arc<Part.Part>): rt.u32 => {
 		return p.value.id$Part();
 	}), 0, (a0: rt.u32, a1: rt.u32): rt.u32 => {
 		return rt.u32WrappingAdd(a0, a1);
@@ -180,13 +180,13 @@ export function anys(log: Log.Log, id: rt.u32): void {
 	};
 	const boxes: rt.Vec<Any.Any> = new rt.Vec();
 	const _8: Any.Any = new of$model_Guard(guard(1));
-	boxes.d.push(_8);
+	boxes.items.push(_8);
 	const _15: Any.Any = new of$drops_Held({ tag: "Two", _0: guard(2), _1: guard(3) } as Held.Held);
-	boxes.d.push(_15);
+	boxes.items.push(_15);
 	const _26: Any.Any = new of$u32(7);
-	boxes.d.push(_26);
+	boxes.items.push(_26);
 	const _30: Any.Any = new of$model_Guard(guard(4));
-	boxes.d.push(_30);
+	boxes.items.push(_30);
 	const last: rt.Result<Guard.Guard, Any.Any> | undefined = option_map$09vq4lk(rt.vecPop(boxes), (b2: Any.Any): rt.Result<Guard.Guard, Any.Any> => {
 		return b2 instanceof of$model_Guard ? rt.Ok(b2.v) : rt.Err(b2);
 	});
@@ -322,7 +322,7 @@ export function fns(log: Log.Log, id: rt.u32): void {
 	}, (): void => {
 		captured8[Symbol.dispose]();
 	})]);
-	const part6 = rt.u32Add(list.d[rt.idx(list.d, 1)](), list.d[rt.idx(list.d, 0)]());
+	const part6 = rt.u32Add(list.items[rt.idx(list.items, 1)](), list.items[rt.idx(list.items, 0)]());
 	const args12: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part6, f)];
 	Log.note(log, rt.fmtFormat(["list ", args12[0]]));
 	rt.dropVec(list);

@@ -4,15 +4,15 @@ import * as rt from "./rt.ts";
 import { copy$array_u64, copy$tuple2_u64_u8 } from "./lib.ts";
 
 export function clone$Clone_array160_u64(self: Holds<rt.u64[]>): Holds<rt.u64[]> {
-	return new Holds(rt.vecFrom((self._0 as rt.Vec<rt.u64[]>).d.map(copy$array_u64)));
+	return new Holds(rt.vecFrom((self._0 as rt.Vec<rt.u64[]>).items.map(copy$array_u64)));
 }
 
 export function clone$Clone_tuple2_u64_u8(self: Holds<[rt.u64, rt.u8]>): Holds<[rt.u64, rt.u8]> {
-	return new Holds(rt.vecFrom((self._0 as rt.Vec<[rt.u64, rt.u8]>).d.map(copy$tuple2_u64_u8)));
+	return new Holds(rt.vecFrom((self._0 as rt.Vec<[rt.u64, rt.u8]>).items.map(copy$tuple2_u64_u8)));
 }
 
 export function clone$Clone_u16(self: Holds<rt.u16>): Holds<rt.u16> {
-	return new Holds(rt.vecFrom((self._0 as rt.Vec<rt.u16>).d.slice()));
+	return new Holds(rt.vecFrom((self._0 as rt.Vec<rt.u16>).items.slice()));
 }
 
 export function clone$Clone_u8(self: Holds<rt.u8>): Holds<rt.u8> {
@@ -20,7 +20,7 @@ export function clone$Clone_u8(self: Holds<rt.u8>): Holds<rt.u8> {
 }
 
 export function clone$Clone_unit(self: Holds<undefined>): Holds<undefined> {
-	return new Holds(rt.vecFrom((self._0 as rt.Vec<undefined>).d.slice()));
+	return new Holds(rt.vecFrom((self._0 as rt.Vec<undefined>).items.slice()));
 }
 
 /** A struct whose derived `clone_from` clones. */

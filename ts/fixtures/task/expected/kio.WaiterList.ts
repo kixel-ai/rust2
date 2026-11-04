@@ -29,35 +29,35 @@ export function register(self: WaiterList, waiter: Waiter.Waiter): void {
 	_58 = true;
 	b0: {
 		b1: {
-			for (const _8 of self.entries.d) {
+			for (const _8 of self.entries.items) {
 				if (_8.arc === weak.arc) {
 					break b1;
 				}
 			}
-			let probes: rt.usize = rt.min(self.entries.d.length, 2);
+			let probes: rt.usize = rt.min(self.entries.items.length, 2);
 			while (probes > 0) {
-				if (!(self.entries.d[rt.idx(self.entries.d, self.cursor)].arc.strong === 0)) {
-					self.cursor = rt.usizeRem(rt.usizeAdd(self.cursor, 1), self.entries.d.length);
+				if (!(self.entries.items[rt.idx(self.entries.items, self.cursor)].arc.strong === 0)) {
+					self.cursor = rt.usizeRem(rt.usizeAdd(self.cursor, 1), self.entries.items.length);
 					probes = rt.usizeSub(probes, 1);
 				} else {
 					_58 = false;
 					const _24: rt.Weak<rt.Waker> = weak;
-					const at2 = rt.idx(self.entries.d, self.cursor);
-					self.entries.d[at2][Symbol.dispose]();
-					self.entries.d[at2] = _24;
+					const at2 = rt.idx(self.entries.items, self.cursor);
+					self.entries.items[at2][Symbol.dispose]();
+					self.entries.items[at2] = _24;
 					break b1;
 				}
 			}
-			if (self.entries.d.length >= 4) {
+			if (self.entries.items.length >= 4) {
 				const live: rt.Vec<rt.Weak<rt.Waker>> = new rt.Vec();
 				const taken = self.entries;
 				self.entries = new rt.Vec();
-				for (const _43 of taken.d) {
+				for (const _43 of taken.items) {
 					_57 = true;
 					const entry: rt.Weak<rt.Waker> = _43;
 					if (entry.arc.strong > 0) {
 						_57 = false;
-						live.d.push(entry);
+						live.items.push(entry);
 					}
 					if (_57) {
 						entry[Symbol.dispose]();
@@ -70,7 +70,7 @@ export function register(self: WaiterList, waiter: Waiter.Waiter): void {
 				self.cursor = 0;
 			}
 			_58 = false;
-			self.entries.d.push(weak);
+			self.entries.items.push(weak);
 			_58 = false;
 			break b0;
 		}
@@ -94,7 +94,7 @@ export function wake(self: WaiterList): void {
 	self.cursor = 0;
 	const taken = self.entries;
 	self.entries = new rt.Vec();
-	for (const entry of taken.d) {
+	for (const entry of taken.items) {
 		const _10: rt.Arc<rt.Waker> | undefined = rt.weakUpgrade(entry);
 		if (_10 !== undefined) {
 			const waker: rt.Arc<rt.Waker> = _10;

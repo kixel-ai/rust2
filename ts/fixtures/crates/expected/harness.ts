@@ -21,7 +21,7 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 	}
 	const _29: Item.Item | undefined = heaviest$harness_Item(rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(input)), (_2: rt.u8): Item.Item => {
 		return { _0: _2 };
-	}), undefined, 1, true).d);
+	}), undefined, 1, true).items);
 	if (_29 !== undefined) {
 		rt.byteVecPush(out, _29._0);
 	}
@@ -47,9 +47,9 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 		rt.iterExtendBytes(out, rt.iterSlice(_87), undefined, true);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(item._0, n & 0xff)), undefined, true);
 		const boxed: rt.Vec<Tally.Tally> = rt.vecFrom([new of$crates_dep_Guard(guard), new of$harness_Item(item), new of$u32(n)]);
-		rt.sliceSwap(boxed.d, 0, 2);
+		rt.sliceSwap(boxed.items, 0, 2);
 		rt.vecTruncate(boxed, 2, rt.drop);
-		const iter: rt.Iter<rt.Place<Tally.Tally>> = rt.iterSliceMut(boxed.d);
+		const iter: rt.Iter<rt.Place<Tally.Tally>> = rt.iterSliceMut(boxed.items);
 		while (true) {
 			const _113: rt.Place<Tally.Tally> | rt.Done = iter.next();
 			if (_113 === rt.DONE) {

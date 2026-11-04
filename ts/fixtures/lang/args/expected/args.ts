@@ -53,7 +53,7 @@ export function kept(data: rt.ByteSlice, n: rt.u8): rt.Vec<rt.ByteSlice> {
 		if (!(iterStart++ < iterEnd)) {
 			return all;
 		}
-		all.d.push(data);
+		all.items.push(data);
 	}
 }
 
@@ -158,7 +158,7 @@ export function args(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, sum(data.data, data.start, data.length));
 		rt.byteVecPush(out, len(data.data, data.start, data.length) & 0xff);
 		rt.byteVecPush(out, byRef(data) & 0xff);
-		rt.byteVecPush(out, rt.iterFold(rt.iterMap(rt.iterSlice(kept(data, kind).d), (s: rt.ByteSlice): rt.u8 => {
+		rt.byteVecPush(out, rt.iterFold(rt.iterMap(rt.iterSlice(kept(data, kind).items), (s: rt.ByteSlice): rt.u8 => {
 			return opaque(s);
 		}), 0, (a03: rt.u8, a1: rt.u8): rt.u8 => {
 			return rt.u8WrappingAdd(a03, a1);

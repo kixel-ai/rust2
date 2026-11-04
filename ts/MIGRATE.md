@@ -3,8 +3,8 @@
 ## Unreleased
 
 - A `Vec<T>` of other than bytes is an `rt.Vec<T>` rather than a `T[]`: its items are the
-  array `d`, and `rt.vecFrom(items)` makes one of an array with room for exactly them, so
-  a caller passes `rt.vecFrom([a, b])` and reads `v.d`. An `rt.BinaryHeap<T>` is an
+  array `items`, and `rt.vecFrom(items)` makes one of an array with room for exactly
+  them, so a caller passes `rt.vecFrom([a, b])` and reads `v.items`. An `rt.BinaryHeap<T>` is an
   `rt.Vec<T>`, and `rt.Cow<T>` owns one. The runtime's `vec*` functions, `rt.iterExtend`,
   `rt.dequeFromVec`, `rt.heapFrom`, and `rt.byteVecFromVec` take one, and those that made
   a `T[]` for a `Vec`, such as `rt.vecWithCapacity`, `rt.slicesJoin`, `rt.dequeToVec`,

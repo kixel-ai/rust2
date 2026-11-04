@@ -681,8 +681,8 @@ export class boxedFuture {
 				let captured8 = last;
 				this.#awaitee$6 = new Forward.Forward(new rt.PollFn(rt.closure((cx: rt.Context): rt.Poll<rt.u64> => {
 					let i: rt.usize = 0;
-					while (i < captured6.d.length) {
-						const _83: rt.Poll<rt.u64> = pollUnsized$dyn_Future_u64(captured6.d[rt.idx(captured6.d, i)], cx);
+					while (i < captured6.items.length) {
+						const _83: rt.Poll<rt.u64> = pollUnsized$dyn_Future_u64(captured6.items[rt.idx(captured6.items, i)], cx);
 						if (_83 !== rt.Pending) {
 							captured7 = rt.u64Add(captured7, _83);
 							rt.drop(rt.vecSwapRemove(captured6, i));
@@ -690,7 +690,7 @@ export class boxedFuture {
 							i = rt.usizeAdd(i, 1);
 						}
 					}
-					if (!(captured6.d.length === 0)) {
+					if (!(captured6.items.length === 0)) {
 						return rt.Pending;
 					}
 					return poll_map$1ooj6xj(pollUnsized$dyn_Future_u64(new rt.DynFuture(captured8, Pending.poll$Future_futures_boxed_closure0_closure5), cx), (value7: rt.u64): rt.u64 => {

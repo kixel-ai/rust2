@@ -45,7 +45,7 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 	if (input.length !== 0) {
 		const op: rt.u8 = input.data[input.start];
 		const cases_: rt.Vec<[string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]> = cases();
-		cases_.d[rt.idx(cases_.d, rt.usizeRem(op as rt.usize, cases_.d.length))][1](new rt.ByteSlice(input.data, input.start + 1, input.length - 1), out);
+		cases_.items[rt.idx(cases_.items, rt.usizeRem(op as rt.usize, cases_.items.length))][1](new rt.ByteSlice(input.data, input.start + 1, input.length - 1), out);
 		return out;
 	}
 	return out;
@@ -53,7 +53,7 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 
 /** The first byte that picks the case named `name`, which `caller.ts` targets by. */
 export function op(name: string): rt.u8 {
-	const _2: rt.usize | undefined = rt.iterPosition(rt.iterSlice(cases().d), (_22: [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]): boolean => {
+	const _2: rt.usize | undefined = rt.iterPosition(rt.iterSlice(cases().items), (_22: [string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]): boolean => {
 		return _22[0] === name;
 	});
 	if (_2 === undefined) {

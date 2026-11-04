@@ -369,7 +369,7 @@ export function iterSlice<T>(s: ArrayLike<T>, drop?: Drop<T>): Iter<T> {
 
 /** `Vec::into_iter`, with what drops each item: over its items, keeping its buffer, which a `collect` in place or into a deque takes. */
 export function vecIntoIter<T>(v: Vec<T>, drop?: Drop<T>): Iter<T> {
-	const it = new SliceIter(v.d, drop);
+	const it = new SliceIter(v.items, drop);
 	it.v = v;
 	return it;
 }
@@ -754,7 +754,7 @@ function joinedLength(parts: readonly { length: number }[], sep: { length: numbe
  * other.
  */
 export function iterExtend<T>(v: Vec<T>, items: Iter<T>, take?: Take, size?: number, trusted = false): Vec<T> {
-	const d = v.d;
+	const d = v.items;
 	if (size !== undefined && !trusted) {
 		let cap = vecCapacity(v, size);
 		for (let item = items.next(); item !== DONE; item = items.next()) {
@@ -1693,7 +1693,7 @@ function toArray<T>(it: Iter<T>, take?: Take, size?: number, trusted = false): V
 	}
 	// std's makes one with room for exactly the upper bound.
 	const out = size === undefined ? new Vec<T>() : vecWithCapacity<T>(trustedUpper(it), size);
-	const d = out.d;
+	const d = out.items;
 	if (take === undefined) {
 		const folded = it.folded(trusted);
 		for (let item = folded.next(); item !== DONE; item = folded.next()) d.push(item);

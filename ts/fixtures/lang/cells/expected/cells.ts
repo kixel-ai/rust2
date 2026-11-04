@@ -1143,7 +1143,7 @@ export function cells(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	}, (a012: rt.ByteSlice, a112: rt.ByteVec): undefined => {
 		lockVec(a012.data, a012.start, a012.length, a112);
 	}]);
-	cases.d[rt.idx(cases.d, rt.usizeRem(kind as rt.usize, cases.d.length))](data, out);
+	cases.items[rt.idx(cases.items, rt.usizeRem(kind as rt.usize, cases.items.length))](data, out);
 }
 
 /** Steps of an operation and an operand on one cell, each putting what it read. */

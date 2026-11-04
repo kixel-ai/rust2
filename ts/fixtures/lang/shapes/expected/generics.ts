@@ -66,7 +66,7 @@ export function methods(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	const list: Wrap.Wrap<rt.Vec<rt.u16>> = new Wrap.Wrap(new rt.Vec(), 1);
 	const _171: rt.u16 = at(10) as rt.u16;
-	list.value.d.push(_171);
+	list.value.items.push(_171);
 	Wrap.bump$Vec_u16(list);
 	const none: Wrap.Wrap<rt.u8 | undefined> = new Wrap.Wrap(undefined, 0);
 	const some: Wrap.Wrap<rt.u8 | undefined> = Wrap.new$Option_u8(rt.byteSliceGet(data, 11));
@@ -167,7 +167,7 @@ export function runs(data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 		Runs.push$u8(runs, _38);
 	}
-	const _44: rt.ByteSlice | undefined = rt.optionMap(rt.sliceFirst((runs.pairs as rt.Vec<Uint8Array>).d), rt.byteSliceFrom);
+	const _44: rt.ByteSlice | undefined = rt.optionMap(rt.sliceFirst((runs.pairs as rt.Vec<Uint8Array>).items), rt.byteSliceFrom);
 	if (_44 !== undefined) {
 		fill$u8(_44, n);
 	}
@@ -198,14 +198,14 @@ export function runs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const data3: rt.Vec<rt.u16> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_22: rt.u8): rt.u16 => {
 		return _22 as rt.u16;
 	}), undefined, 2, true);
-	const n2: rt.u16 = option_unwrapOrDefault$001fvl5(rt.sliceFirst(data3.d));
+	const n2: rt.u16 = option_unwrapOrDefault$001fvl5(rt.sliceFirst(data3.items));
 	const runs2: Runs.Runs<rt.u16> = new Runs.Runs(Array.from({ length: 3 }, (): rt.u16 => {
 		return n2;
-	}), rt.vecFrom(data3.d.slice()), data3.d, rt.vecFrom(data3.d.slice()).d, new rt.Borrowed(data3.d), new rt.Vec(), then$1he9dd4(rt.usizeRem(data3.d.length, 2) === 0, (): rt.Vec<rt.u16> => {
+	}), rt.vecFrom(data3.items.slice()), data3.items, rt.vecFrom(data3.items.slice()).items, new rt.Borrowed(data3.items), new rt.Vec(), then$1he9dd4(rt.usizeRem(data3.items.length, 2) === 0, (): rt.Vec<rt.u16> => {
 		return new rt.Vec();
 	}));
 	const before2: Runs.Runs<rt.u16> = Runs.clone$Clone_u16(runs2);
-	const iter2: rt.Iter<rt.u16> = rt.iterTake(rt.iterSlice(data3.d), 3);
+	const iter2: rt.Iter<rt.u16> = rt.iterTake(rt.iterSlice(data3.items), 3);
 	while (true) {
 		const _154: rt.u16 | rt.Done = iter2.next();
 		if (_154 === rt.DONE) {
@@ -213,7 +213,7 @@ export function runs(data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 		Runs.push$u16(runs2, _154);
 	}
-	const _160: rt.u16[] | undefined = rt.sliceFirst((runs2.pairs as rt.Vec<rt.u16[]>).d);
+	const _160: rt.u16[] | undefined = rt.sliceFirst((runs2.pairs as rt.Vec<rt.u16[]>).items);
 	if (_160 !== undefined) {
 		fill$u16(_160, n2);
 	}
@@ -221,7 +221,7 @@ export function runs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const taken4 = runs2.list as rt.Vec<rt.u16>;
 	(runs2.list as rt.Vec<rt.u16>) = new rt.Vec();
 	const taken2: rt.Vec<rt.u16> = taken4;
-	const _175: rt.u16[] = taken2.d;
+	const _175: rt.u16[] = taken2.items;
 	const lent2: Lends.Lends<rt.u16> = { run: _175, last: ((a02: rt.u16[]): rt.u16 | undefined => {
 		return rt.sliceLast(a02);
 	}) as (a0: rt.SliceOf<rt.u16>) => rt.Ptr<rt.u16> | undefined };
@@ -239,7 +239,7 @@ export function runs(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _204: rt.usize = Runs.total$u16(runs2);
 	const _207: boolean = Runs.eq$cmp_PartialEq_u16(runs2, before2);
 	const _211: rt.u16 | undefined = Run.first$u16(run2);
-	const args4: rt.Fmt[] = [(f: rt.Formatter) => Runs.fmt$fmt_Debug_u16(runs2, f), (f: rt.Formatter) => Runs.fmt$fmt_Debug_u16(before2, f), (f: rt.Formatter) => rt.fmtList(taken2.d, f, rt.u16Debug), (f: rt.Formatter) => Run.fmt$fmt_Debug_u16(run2, f), (f: rt.Formatter) => Fixed.fmt$fmt_Debug_u16(fixed2, f), (f: rt.Formatter) => Fixed.fmt$fmt_Debug_u16(copy2, f), (f: rt.Formatter) => Fixed.fmt$fmt_Debug_u16(swapped2, f), (f: rt.Formatter) => rt.usizeDisplay(_204, f), (f: rt.Formatter) => rt.fmtBool(_207, f), (f: rt.Formatter) => rt.fmtOption(_211, f, rt.u16Debug), (f: rt.Formatter) => rt.fmtOption(last2, f, rt.u16Debug)];
+	const args4: rt.Fmt[] = [(f: rt.Formatter) => Runs.fmt$fmt_Debug_u16(runs2, f), (f: rt.Formatter) => Runs.fmt$fmt_Debug_u16(before2, f), (f: rt.Formatter) => rt.fmtList(taken2.items, f, rt.u16Debug), (f: rt.Formatter) => Run.fmt$fmt_Debug_u16(run2, f), (f: rt.Formatter) => Fixed.fmt$fmt_Debug_u16(fixed2, f), (f: rt.Formatter) => Fixed.fmt$fmt_Debug_u16(copy2, f), (f: rt.Formatter) => Fixed.fmt$fmt_Debug_u16(swapped2, f), (f: rt.Formatter) => rt.usizeDisplay(_204, f), (f: rt.Formatter) => rt.fmtBool(_207, f), (f: rt.Formatter) => rt.fmtOption(_211, f, rt.u16Debug), (f: rt.Formatter) => rt.fmtOption(last2, f, rt.u16Debug)];
 	put(out, rt.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " ", args4[3], " ", args4[4], " ", args4[5], " ", args4[6], " ", args4[7], " ", args4[8], " ", args4[9], " ", args4[10]]));
 	const log: rt.Arc<rt.RefCell<rt.ByteVec>> = new rt.Arc(new rt.RefCell(new rt.ByteVec()));
 	const tick: (a0: rt.u8) => Ticked.Ticked = (id: rt.u8): Ticked.Ticked => {
@@ -249,11 +249,11 @@ export function runs(data: rt.ByteSlice, out: rt.ByteVec): void {
 		return tick(_28);
 	}), undefined, 8, true);
 	const _246: Ticked.Ticked[] = [tick(1), tick(2), tick(3)];
-	const _256: rt.Vec<Ticked.Ticked> = rt.vecFrom(ticks.d.map(Ticked.clone$Clone));
-	const _258: Ticked.Ticked[] = ticks.d;
+	const _256: rt.Vec<Ticked.Ticked> = rt.vecFrom(ticks.items.map(Ticked.clone$Clone));
+	const _258: Ticked.Ticked[] = ticks.items;
 	const _260: Ticked.Ticked[] = [tick(4)];
 	if (rt.usizeRem(data.length, 2) === 0) {
-		_266 = new rt.Borrowed(ticks.d);
+		_266 = new rt.Borrowed(ticks.items);
 	} else {
 		_266 = rt.vecFrom([tick(7)]);
 	}

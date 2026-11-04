@@ -49,7 +49,7 @@ export function ways$drops_Chain_drops_Logged_drops_drops_closure12(make: (a0: r
 		const v: rt.Vec<Chain.Chain<Logged.Logged>> = rt.vecFrom([make(0), make(64), make(128)]);
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), rt.drop);
 		mark();
-		if (!(v.d.length === 0)) {
+		if (!(v.items.length === 0)) {
 			rt.vecSwapRemove(v, 0)[Symbol.dispose]();
 			mark();
 		}
@@ -93,7 +93,7 @@ export function ways$drops_Deep_drops_Logged_drops_drops_closure9(make: (a0: rt.
 		const v: rt.Vec<Deep.Deep<Logged.Logged>> = rt.vecFrom([make(0), make(64), make(128)]);
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_Deep_drops_Logged);
 		mark();
-		if (!(v.d.length === 0)) {
+		if (!(v.items.length === 0)) {
 			drop$drops_Deep_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}
@@ -137,7 +137,7 @@ export function ways$drops_InBox_drops_Logged_drops_drops_closure8(make: (a0: rt
 		const v: rt.Vec<InBox.InBox<Logged.Logged>> = rt.vecFrom([make(0), make(64), make(128)]);
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_InBox_drops_Logged);
 		mark();
-		if (!(v.d.length === 0)) {
+		if (!(v.items.length === 0)) {
 			drop$drops_InBox_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}
@@ -181,7 +181,7 @@ export function ways$drops_InEnum_drops_Logged_drops_drops_closure4(make: (a0: r
 		const v: rt.Vec<InEnum.InEnum<Logged.Logged>> = rt.vecFrom([make(0), make(64), make(128)]);
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_InEnum_drops_Logged);
 		mark();
-		if (!(v.d.length === 0)) {
+		if (!(v.items.length === 0)) {
 			drop$drops_InEnum_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}
@@ -225,7 +225,7 @@ export function ways$drops_InGuard_drops_Logged_drops_drops_closure3(make: (a0: 
 		const v: rt.Vec<InGuard.InGuard<Logged.Logged>> = rt.vecFrom([make(0), make(64), make(128)]);
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_InGuard_drops_Logged);
 		mark();
-		if (!(v.d.length === 0)) {
+		if (!(v.items.length === 0)) {
 			drop$drops_InGuard_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}
@@ -269,7 +269,7 @@ export function ways$drops_InOption_drops_Logged_drops_drops_closure6(make: (a0:
 		const v: rt.Vec<InOption.InOption<Logged.Logged>> = rt.vecFrom([make(0), make(64), make(128)]);
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_InOption_drops_Logged);
 		mark();
-		if (!(v.d.length === 0)) {
+		if (!(v.items.length === 0)) {
 			drop$drops_InOption_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}
@@ -313,7 +313,7 @@ export function ways$drops_InPlain_drops_Logged_drops_drops_closure7(make: (a0: 
 		const v: rt.Vec<InPlain.InPlain<Logged.Logged>> = rt.vecFrom([make(0), make(64), make(128)]);
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_InPlain_drops_Logged);
 		mark();
-		if (!(v.d.length === 0)) {
+		if (!(v.items.length === 0)) {
 			drop$drops_InPlain_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}
@@ -357,7 +357,7 @@ export function ways$drops_InResult_drops_Logged_drops_drops_closure5(make: (a0:
 		const v: rt.Vec<InResult.InResult<Logged.Logged>> = rt.vecFrom([make(0), make(64), make(128)]);
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_InResult_drops_Logged);
 		mark();
-		if (!(v.d.length === 0)) {
+		if (!(v.items.length === 0)) {
 			drop$drops_InResult_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}
@@ -401,7 +401,7 @@ export function ways$drops_Ping_drops_Logged_drops_drops_closure11(make: (a0: rt
 		const v: rt.Vec<Ping.Ping<Logged.Logged>> = rt.vecFrom([make(0), make(64), make(128)]);
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_Ping_drops_Logged);
 		mark();
-		if (!(v.d.length === 0)) {
+		if (!(v.items.length === 0)) {
 			drop$drops_Ping_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}
@@ -445,7 +445,7 @@ export function ways$drops_Tree_drops_Logged_drops_drops_closure10(make: (a0: rt
 		const v: rt.Vec<Tree.Tree<Logged.Logged>> = rt.vecFrom([make(0), make(64), make(128)]);
 		rt.vecTruncate(v, rt.usizeRem(how >> 2 as rt.usize, 3), drop$drops_Tree_drops_Logged);
 		mark();
-		if (!(v.d.length === 0)) {
+		if (!(v.items.length === 0)) {
 			drop$drops_Tree_drops_Logged(rt.vecSwapRemove(v, 0));
 			mark();
 		}

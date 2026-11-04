@@ -9,7 +9,7 @@ export interface Seq {
 
 export function fmt$fmt_Debug(self: Seq, f: rt.Formatter): rt.Result<undefined, rt.FmtError> {
 	const _5: rt.DebugList = rt.fmtDebugList(f);
-	const _6: rt.Iter<Pair.Pair> = rt.iterSlice(self._0.d);
+	const _6: rt.Iter<Pair.Pair> = rt.iterSlice(self._0.items);
 	return rt.debugListFinish(rt.debugListEntries(_5, _6, (value: Pair.Pair, f: rt.Formatter) => Pair.fmt$fmt_Debug(value, f)));
 }
 

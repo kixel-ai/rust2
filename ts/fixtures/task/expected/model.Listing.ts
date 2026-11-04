@@ -11,7 +11,7 @@ export function fmt$fmt_Debug(self: Listing, f: rt.Formatter): rt.Result<undefin
 	const _4: string = "last";
 	const _5: rt.Fmt = (f: rt.Formatter) => rt.fmtOption(self.last, f, rt.u64Debug);
 	const _7: string = "listed";
-	const _8: rt.Fmt = (f: rt.Formatter) => rt.fmtList(self.listed.d, f, rt.u64Debug);
+	const _8: rt.Fmt = (f: rt.Formatter) => rt.fmtList(self.listed.items, f, rt.u64Debug);
 	return rt.debugStructFinish(rt.debugStructField(rt.debugStructField(rt.fmtDebugStruct(f, _3), _4, _5), _7, _8));
 }
 

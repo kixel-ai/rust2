@@ -45,7 +45,7 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 	if (input.length !== 0) {
 		const op: rt.u8 = input.data[input.start];
 		const cases_: rt.Vec<[string, (a0: rt.ByteSlice, a1: rt.ByteVec) => undefined]> = cases();
-		cases_.d[rt.idx(cases_.d, rt.usizeRem(op as rt.usize, cases_.d.length))][1](new rt.ByteSlice(input.data, input.start + 1, input.length - 1), out);
+		cases_.items[rt.idx(cases_.items, rt.usizeRem(op as rt.usize, cases_.items.length))][1](new rt.ByteSlice(input.data, input.start + 1, input.length - 1), out);
 		return out;
 	}
 	return out;
@@ -378,7 +378,7 @@ export function encodeScript(dataData: Uint8Array, dataStart: number, dataLen: n
 					} else {
 						_74 = Encoder.prefixU16(w);
 					}
-					prefixes.d.push(_74);
+					prefixes.items.push(_74);
 					result = rt.OK as rt.Result<undefined, EncodeError.EncodeError>;
 				} else if (_33 === 8) {
 					const _79: Prefix.Prefix | undefined = rt.vecPop(prefixes);

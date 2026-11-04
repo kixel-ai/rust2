@@ -354,7 +354,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}, (): void => {
 			captured9[Symbol.dispose]();
 		})), "index", 4, true, 4);
-		const args66: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part5.d, f, rt.u32Debug)];
+		const args66: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part5.items, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["in place ", args66[0]]));
 		const c: Guard.Guard = guard(22);
 		const _732: rt.Iter<rt.u32> = rt.vecIntoIter(rt.vecFrom([5, 6, 7]));
@@ -368,7 +368,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		})), "index"), (_217: [rt.u32, rt.u32]): rt.u32 => {
 			return rt.u32Add(_217[0], _217[1]);
 		}), "index", 4, true, 4);
-		const args68: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part6.d, f, rt.u32Debug)];
+		const args68: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part6.items, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["in place ", args68[0]]));
 	} else {
 		const d: Guard.Guard = guard(23);
@@ -385,7 +385,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		})), new rt.Range(0, 3), "index"), 1), (_29: [rt.u32, rt.u32]): rt.u32 => {
 			return rt.u32Add(_29[0], _29[1]);
 		}), "index", 4, true, 4);
-		const args70: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part2.d, f, rt.u32Debug)];
+		const args70: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part2.items, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["skipped ", args70[0]]));
 		const part3 = rt.iterToVec(rt.iterMap(rt.iterZip(rt.vecIntoIter(rt.vecFrom([1, 2, 3])), rt.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), "index", undefined, lib_drop$tuple2_model_Guard_model_Guard), (_211: [rt.u32, [Guard.Guard, Guard.Guard]]): rt.u32 => {
 			const n16: rt.u32 = _211[0];
@@ -396,7 +396,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			a3[Symbol.dispose]();
 			return _010;
 		}), "index", 4, true, 4);
-		const args72: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part3.d, f, rt.u32Debug)];
+		const args72: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part3.items, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["beside ", args72[0]]));
 		const e2: Guard.Guard = guard(24);
 		const _799: rt.Iter<rt.u32> = rt.vecIntoIter(new rt.Vec());
@@ -408,7 +408,7 @@ export function indexed(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		})), new rt.Range(0, 3), "index"), (_212: [rt.u32, rt.u32]): rt.u32 => {
 			return rt.u32Add(_212[0], _212[1]);
 		}), "index", 4, true, 4);
-		const args74: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part4.d, f, rt.u32Debug)];
+		const args74: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part4.items, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["empty ", args74[0]]));
 	}
 }

@@ -40,17 +40,17 @@ export function each$0(data: rt.ByteSlice, out: rt.ByteVec): void {
 			return option_unwrapOr$0r2bmpr(rt.byteSliceGet(c, i), i & 0xff);
 		});
 	}), undefined, 0, true);
-	const wide: rt.Vec<rt.u32[]> = rt.iterToVec(rt.iterMap(rt.iterLend(rt.iterSlice(rows.d), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
+	const wide: rt.Vec<rt.u32[]> = rt.iterToVec(rt.iterMap(rt.iterLend(rt.iterSlice(rows.items), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
 		return rt.arrayMap(rt.byteSliceToArray(r), (b: rt.u8): rt.u32 => {
 			return ((((b as rt.u32) << 8) >>> 0) | 1) >>> 0;
 		});
 	}), undefined, 0, true);
-	joined$0(data, rt.vecFrom(rows.d.map(copy$array_u8)), out);
+	joined$0(data, rt.vecFrom(rows.items.map(copy$array_u8)), out);
 	joined$0(data, rt.vecFrom(copy$array_array0_u8([rt.bytes(0).fill(165), rt.bytesFromFn(0, (i2: rt.usize): rt.u8 => {
 		return i2 & 0xff;
 	})]).map(copy$array_u8)), out);
-	retagged$0(rows.d, out);
-	recloned$u32_0(wide.d, out);
+	retagged$0(rows.items, out);
+	recloned$u32_0(wide.items, out);
 	filled$u8_0(data, rt.bytesFromFn(0, (i3: rt.usize): rt.u8 => {
 		return i3 & 0xff;
 	}), out);
@@ -65,8 +65,8 @@ export function each$0(data: rt.ByteSlice, out: rt.ByteVec): void {
 	filled$lengths_Tagged_u32_0(data, rt.arrayFromFn(0, (i6: rt.usize): Tagged.Tagged<rt.u32> => {
 		return new Tagged.Tagged(rt.u32Mul(i6 as rt.u32, 257), ~(i6 & 0xff) & 0xff);
 	}), out);
-	swapped$u8_0(data, rows.d, out);
-	swapped$u32_0(data, wide.d, out);
+	swapped$u8_0(data, rows.items, out);
+	swapped$u32_0(data, wide.items, out);
 }
 
 export function each$1(data: rt.ByteSlice, out: rt.ByteVec): void {
@@ -75,17 +75,17 @@ export function each$1(data: rt.ByteSlice, out: rt.ByteVec): void {
 			return option_unwrapOr$0r2bmpr(rt.byteSliceGet(c, i), i & 0xff);
 		});
 	}), undefined, 1, true);
-	const wide: rt.Vec<rt.u32[]> = rt.iterToVec(rt.iterMap(rt.iterLend(rt.iterSlice(rows.d), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
+	const wide: rt.Vec<rt.u32[]> = rt.iterToVec(rt.iterMap(rt.iterLend(rt.iterSlice(rows.items), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
 		return rt.arrayMap(rt.byteSliceToArray(r), (b: rt.u8): rt.u32 => {
 			return ((((b as rt.u32) << 8) >>> 0) | 1) >>> 0;
 		});
 	}), undefined, 4, true);
-	joined$1(data, rt.vecFrom(rows.d.map(copy$array_u8)), out);
+	joined$1(data, rt.vecFrom(rows.items.map(copy$array_u8)), out);
 	joined$1(data, rt.vecFrom(copy$array_array1_u8([rt.bytes(1).fill(165), rt.bytesFromFn(1, (i2: rt.usize): rt.u8 => {
 		return i2 & 0xff;
 	})]).map(copy$array_u8)), out);
-	retagged$1(rows.d, out);
-	recloned$u32_1(wide.d, out);
+	retagged$1(rows.items, out);
+	recloned$u32_1(wide.items, out);
 	filled$u8_1(data, rt.bytesFromFn(1, (i3: rt.usize): rt.u8 => {
 		return i3 & 0xff;
 	}), out);
@@ -100,8 +100,8 @@ export function each$1(data: rt.ByteSlice, out: rt.ByteVec): void {
 	filled$lengths_Tagged_u32_1(data, rt.arrayFromFn(1, (i6: rt.usize): Tagged.Tagged<rt.u32> => {
 		return new Tagged.Tagged(rt.u32Mul(i6 as rt.u32, 257), ~(i6 & 0xff) & 0xff);
 	}), out);
-	swapped$u8_1(data, rows.d, out);
-	swapped$u32_1(data, wide.d, out);
+	swapped$u8_1(data, rows.items, out);
+	swapped$u32_1(data, wide.items, out);
 }
 
 export function each$17(data: rt.ByteSlice, out: rt.ByteVec): void {
@@ -110,17 +110,17 @@ export function each$17(data: rt.ByteSlice, out: rt.ByteVec): void {
 			return option_unwrapOr$0r2bmpr(rt.byteSliceGet(c, i), i & 0xff);
 		});
 	}), undefined, 17, true);
-	const wide: rt.Vec<rt.u32[]> = rt.iterToVec(rt.iterMap(rt.iterLend(rt.iterSlice(rows.d), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
+	const wide: rt.Vec<rt.u32[]> = rt.iterToVec(rt.iterMap(rt.iterLend(rt.iterSlice(rows.items), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
 		return rt.arrayMap(rt.byteSliceToArray(r), (b: rt.u8): rt.u32 => {
 			return ((((b as rt.u32) << 8) >>> 0) | 1) >>> 0;
 		});
 	}), undefined, 68, true);
-	joined$17(data, rt.vecFrom(rows.d.map(copy$array_u8)), out);
+	joined$17(data, rt.vecFrom(rows.items.map(copy$array_u8)), out);
 	joined$17(data, rt.vecFrom(copy$array_array17_u8([rt.bytes(17).fill(165), rt.bytesFromFn(17, (i2: rt.usize): rt.u8 => {
 		return i2 & 0xff;
 	})]).map(copy$array_u8)), out);
-	retagged$17(rows.d, out);
-	recloned$u32_17(wide.d, out);
+	retagged$17(rows.items, out);
+	recloned$u32_17(wide.items, out);
 	filled$u8_17(data, rt.bytesFromFn(17, (i3: rt.usize): rt.u8 => {
 		return i3 & 0xff;
 	}), out);
@@ -135,8 +135,8 @@ export function each$17(data: rt.ByteSlice, out: rt.ByteVec): void {
 	filled$lengths_Tagged_u32_17(data, rt.arrayFromFn(17, (i6: rt.usize): Tagged.Tagged<rt.u32> => {
 		return new Tagged.Tagged(rt.u32Mul(i6 as rt.u32, 257), ~(i6 & 0xff) & 0xff);
 	}), out);
-	swapped$u8_17(data, rows.d, out);
-	swapped$u32_17(data, wide.d, out);
+	swapped$u8_17(data, rows.items, out);
+	swapped$u32_17(data, wide.items, out);
 }
 
 export function each$3(data: rt.ByteSlice, out: rt.ByteVec): void {
@@ -145,17 +145,17 @@ export function each$3(data: rt.ByteSlice, out: rt.ByteVec): void {
 			return option_unwrapOr$0r2bmpr(rt.byteSliceGet(c, i), i & 0xff);
 		});
 	}), undefined, 3, true);
-	const wide: rt.Vec<rt.u32[]> = rt.iterToVec(rt.iterMap(rt.iterLend(rt.iterSlice(rows.d), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
+	const wide: rt.Vec<rt.u32[]> = rt.iterToVec(rt.iterMap(rt.iterLend(rt.iterSlice(rows.items), rt.byteSliceFrom), (r: rt.ByteSlice): rt.u32[] => {
 		return rt.arrayMap(rt.byteSliceToArray(r), (b: rt.u8): rt.u32 => {
 			return ((((b as rt.u32) << 8) >>> 0) | 1) >>> 0;
 		});
 	}), undefined, 12, true);
-	joined$3(data, rt.vecFrom(rows.d.map(copy$array_u8)), out);
+	joined$3(data, rt.vecFrom(rows.items.map(copy$array_u8)), out);
 	joined$3(data, rt.vecFrom(copy$array_array3_u8([rt.bytes(3).fill(165), rt.bytesFromFn(3, (i2: rt.usize): rt.u8 => {
 		return i2 & 0xff;
 	})]).map(copy$array_u8)), out);
-	retagged$3(rows.d, out);
-	recloned$u32_3(wide.d, out);
+	retagged$3(rows.items, out);
+	recloned$u32_3(wide.items, out);
 	filled$u8_3(data, rt.bytesFromFn(3, (i3: rt.usize): rt.u8 => {
 		return i3 & 0xff;
 	}), out);
@@ -170,28 +170,28 @@ export function each$3(data: rt.ByteSlice, out: rt.ByteVec): void {
 	filled$lengths_Tagged_u32_3(data, rt.arrayFromFn(3, (i6: rt.usize): Tagged.Tagged<rt.u32> => {
 		return new Tagged.Tagged(rt.u32Mul(i6 as rt.u32, 257), ~(i6 & 0xff) & 0xff);
 	}), out);
-	swapped$u8_3(data, rows.d, out);
-	swapped$u32_3(data, wide.d, out);
+	swapped$u8_3(data, rows.items, out);
+	swapped$u32_3(data, wide.items, out);
 }
 
 /** The bytes of `data` and then of each row, as one run. */
 export function joined$0(data: rt.ByteSlice, rows: rt.Vec<Uint8Array>, out: rt.ByteVec): void {
-	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows.d), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 0)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows.items), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 0)), undefined, true);
 }
 
 /** The bytes of `data` and then of each row, as one run. */
 export function joined$1(data: rt.ByteSlice, rows: rt.Vec<Uint8Array>, out: rt.ByteVec): void {
-	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows.d), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 1)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows.items), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 1)), undefined, true);
 }
 
 /** The bytes of `data` and then of each row, as one run. */
 export function joined$17(data: rt.ByteSlice, rows: rt.Vec<Uint8Array>, out: rt.ByteVec): void {
-	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows.d), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 17)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows.items), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 17)), undefined, true);
 }
 
 /** The bytes of `data` and then of each row, as one run. */
 export function joined$3(data: rt.ByteSlice, rows: rt.Vec<Uint8Array>, out: rt.ByteVec): void {
-	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows.d), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 3)), undefined, true);
+	rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(data)), rt.iterFlatten(rt.iterLend(rt.iterSlice(rows.items), rt.byteSliceFrom), (value: rt.ByteSlice) => rt.iterSlice(rt.byteSliceView(value)), true, 3)), undefined, true);
 }
 
 /**
@@ -455,7 +455,7 @@ export function filled$array0_u8_0(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		if (_26 === rt.DONE) {
 			break;
 		}
-		picks.d.push(copy$array_u8(rt.byteSliceToArray(_26)));
+		picks.items.push(copy$array_u8(rt.byteSliceToArray(_26)));
 	}
 	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.vecIntoIter(picks), "index");
 	while (true) {
@@ -554,7 +554,7 @@ export function filled$array17_u8_17(data: rt.ByteSlice, fill: Uint8Array[], out
 		if (_26 === rt.DONE) {
 			break;
 		}
-		picks.d.push(copy$array_u8(rt.byteSliceToArray(_26)));
+		picks.items.push(copy$array_u8(rt.byteSliceToArray(_26)));
 	}
 	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.vecIntoIter(picks), "index");
 	while (true) {
@@ -653,7 +653,7 @@ export function filled$array1_u8_1(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		if (_26 === rt.DONE) {
 			break;
 		}
-		picks.d.push(copy$array_u8(rt.byteSliceToArray(_26)));
+		picks.items.push(copy$array_u8(rt.byteSliceToArray(_26)));
 	}
 	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.vecIntoIter(picks), "index");
 	while (true) {
@@ -752,7 +752,7 @@ export function filled$array3_u8_3(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		if (_26 === rt.DONE) {
 			break;
 		}
-		picks.d.push(copy$array_u8(rt.byteSliceToArray(_26)));
+		picks.items.push(copy$array_u8(rt.byteSliceToArray(_26)));
 	}
 	const iter3: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.vecIntoIter(picks), "index");
 	while (true) {
@@ -846,7 +846,7 @@ export function filled$lengths_Tagged_u32_0(data: rt.ByteSlice, fill: Tagged.Tag
 	}
 	const picks: rt.Vec<Tagged.Tagged<rt.u32> | undefined> = new rt.Vec();
 	for (const _26 of fill) {
-		picks.d.push(_26);
+		picks.items.push(_26);
 	}
 	const iter3: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.vecIntoIter(picks), "index");
 	while (true) {
@@ -940,7 +940,7 @@ export function filled$lengths_Tagged_u32_1(data: rt.ByteSlice, fill: Tagged.Tag
 	}
 	const picks: rt.Vec<Tagged.Tagged<rt.u32> | undefined> = new rt.Vec();
 	for (const _26 of fill) {
-		picks.d.push(_26);
+		picks.items.push(_26);
 	}
 	const iter3: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.vecIntoIter(picks), "index");
 	while (true) {
@@ -1034,7 +1034,7 @@ export function filled$lengths_Tagged_u32_17(data: rt.ByteSlice, fill: Tagged.Ta
 	}
 	const picks: rt.Vec<Tagged.Tagged<rt.u32> | undefined> = new rt.Vec();
 	for (const _26 of fill) {
-		picks.d.push(_26);
+		picks.items.push(_26);
 	}
 	const iter3: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.vecIntoIter(picks), "index");
 	while (true) {
@@ -1128,7 +1128,7 @@ export function filled$lengths_Tagged_u32_3(data: rt.ByteSlice, fill: Tagged.Tag
 	}
 	const picks: rt.Vec<Tagged.Tagged<rt.u32> | undefined> = new rt.Vec();
 	for (const _26 of fill) {
-		picks.d.push(_26);
+		picks.items.push(_26);
 	}
 	const iter3: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32> | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.vecIntoIter(picks), "index");
 	while (true) {
@@ -1220,7 +1220,7 @@ export function filled$u32_0(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 	}
 	const picks: rt.Vec<rt.u32 | undefined> = new rt.Vec();
 	for (const _26 of fill) {
-		picks.d.push(_26);
+		picks.items.push(_26);
 	}
 	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.vecIntoIter(picks), "index");
 	while (true) {
@@ -1312,7 +1312,7 @@ export function filled$u32_1(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 	}
 	const picks: rt.Vec<rt.u32 | undefined> = new rt.Vec();
 	for (const _26 of fill) {
-		picks.d.push(_26);
+		picks.items.push(_26);
 	}
 	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.vecIntoIter(picks), "index");
 	while (true) {
@@ -1404,7 +1404,7 @@ export function filled$u32_17(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVe
 	}
 	const picks: rt.Vec<rt.u32 | undefined> = new rt.Vec();
 	for (const _26 of fill) {
-		picks.d.push(_26);
+		picks.items.push(_26);
 	}
 	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.vecIntoIter(picks), "index");
 	while (true) {
@@ -1496,7 +1496,7 @@ export function filled$u32_3(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 	}
 	const picks: rt.Vec<rt.u32 | undefined> = new rt.Vec();
 	for (const _26 of fill) {
-		picks.d.push(_26);
+		picks.items.push(_26);
 	}
 	const iter3: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.vecIntoIter(picks), "index");
 	while (true) {
@@ -1588,7 +1588,7 @@ export function filled$u8_0(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 	}
 	const picks: rt.Vec<rt.u8 | undefined> = new rt.Vec();
 	for (const _26 of rt.byteSliceView(rt.byteSliceFrom(fill))) {
-		picks.d.push(_26);
+		picks.items.push(_26);
 	}
 	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.vecIntoIter(picks), "index");
 	while (true) {
@@ -1675,7 +1675,7 @@ export function filled$u8_1(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 	}
 	const picks: rt.Vec<rt.u8 | undefined> = new rt.Vec();
 	for (const _26 of rt.byteSliceView(rt.byteSliceFrom(fill))) {
-		picks.d.push(_26);
+		picks.items.push(_26);
 	}
 	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.vecIntoIter(picks), "index");
 	while (true) {
@@ -1762,7 +1762,7 @@ export function filled$u8_17(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteV
 	}
 	const picks: rt.Vec<rt.u8 | undefined> = new rt.Vec();
 	for (const _26 of rt.byteSliceView(rt.byteSliceFrom(fill))) {
-		picks.d.push(_26);
+		picks.items.push(_26);
 	}
 	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.vecIntoIter(picks), "index");
 	while (true) {
@@ -1849,7 +1849,7 @@ export function filled$u8_3(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 	}
 	const picks: rt.Vec<rt.u8 | undefined> = new rt.Vec();
 	for (const _26 of rt.byteSliceView(rt.byteSliceFrom(fill))) {
-		picks.d.push(_26);
+		picks.items.push(_26);
 	}
 	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8 | undefined]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 1), rt.vecIntoIter(picks), "index");
 	while (true) {
@@ -2364,18 +2364,18 @@ export function CLONES$init(): rt.RefCell<rt.ByteVec> {
 export function repeated$lengths_Loud(_dataData: Uint8Array, _dataStart: number, dataLen: number, x: Loud.Loud, y: Loud.Loud, out: rt.ByteVec): void {
 	const rows: Row.Row<Loud.Loud>[] = [new Row.Row(y, [1, 2] as [rt.u8, rt.u8]), new Row.Row(x, [3, 4] as [rt.u8, rt.u8])];
 	const copies: rt.Vec<Row.Row<Loud.Loud>> = rt.iterToVec(rt.iterCopied(rt.iterSlice(rows), copy$lengths_Row_lengths_Loud), undefined, 4, true);
-	rt.byteVecPush(out, copies.d.length & 0xff);
-	const _19: Row.Row<Loud.Loud> | undefined = rt.sliceFirst(copies.d);
+	rt.byteVecPush(out, copies.items.length & 0xff);
+	const _19: Row.Row<Loud.Loud> | undefined = rt.sliceFirst(copies.items);
 	if (_19 !== undefined) {
 		Object.assign(_19, new Row.Row(x, [48, 49] as [rt.u8, rt.u8]));
 		const tags: [rt.u8, rt.u8] = _19._1;
 		tags[0] = tags[0] ^ 16;
 	}
-	const _27: Row.Row<Loud.Loud> | undefined = rt.sliceGet(copies.d, 1);
+	const _27: Row.Row<Loud.Loud> | undefined = rt.sliceGet(copies.items, 1);
 	if (_27 !== undefined) {
 		_27._1[1] = _27._1[1] ^ 32;
 	}
-	for (const _35 of copies.d) {
+	for (const _35 of copies.items) {
 		const value: Loud.Loud = _35._0;
 		const a: rt.u8 = _35._1[0];
 		const b: rt.u8 = _35._1[1];
@@ -2383,18 +2383,18 @@ export function repeated$lengths_Loud(_dataData: Uint8Array, _dataStart: number,
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(a, b)), undefined, true);
 	}
 	const repeats: rt.Vec<Row.Row<Loud.Loud>> = rt.vecFromElem(new Row.Row(x, [5, 6] as [rt.u8, rt.u8]), rt.usizeAdd(1, rt.usizeRem(dataLen, 3)), Row.clone$Clone_lengths_Loud);
-	rt.byteVecPush(out, repeats.d.length & 0xff);
-	const _57: Row.Row<Loud.Loud> | undefined = rt.sliceFirst(repeats.d);
+	rt.byteVecPush(out, repeats.items.length & 0xff);
+	const _57: Row.Row<Loud.Loud> | undefined = rt.sliceFirst(repeats.items);
 	if (_57 !== undefined) {
 		Object.assign(_57, new Row.Row(x, [48, 49] as [rt.u8, rt.u8]));
 		const tags2: [rt.u8, rt.u8] = _57._1;
 		tags2[0] = tags2[0] ^ 16;
 	}
-	const _65: Row.Row<Loud.Loud> | undefined = rt.sliceGet(repeats.d, 1);
+	const _65: Row.Row<Loud.Loud> | undefined = rt.sliceGet(repeats.items, 1);
 	if (_65 !== undefined) {
 		_65._1[1] = _65._1[1] ^ 32;
 	}
-	for (const _73 of repeats.d) {
+	for (const _73 of repeats.items) {
 		const value2: Loud.Loud = _73._0;
 		const a2: rt.u8 = _73._1[0];
 		const b2: rt.u8 = _73._1[1];
@@ -2423,18 +2423,18 @@ export function repeated$lengths_Loud(_dataData: Uint8Array, _dataStart: number,
 export function repeated$u8(_dataData: Uint8Array, _dataStart: number, dataLen: number, x: rt.u8, y: rt.u8, out: rt.ByteVec): void {
 	const rows: Row.Row<rt.u8>[] = [new Row.Row(y, [1, 2] as [rt.u8, rt.u8]), new Row.Row(x, [3, 4] as [rt.u8, rt.u8])];
 	const copies: rt.Vec<Row.Row<rt.u8>> = rt.iterToVec(rt.iterCopied(rt.iterSlice(rows), copy$lengths_Row_u8), undefined, 3, true);
-	rt.byteVecPush(out, copies.d.length & 0xff);
-	const _19: Row.Row<rt.u8> | undefined = rt.sliceFirst(copies.d);
+	rt.byteVecPush(out, copies.items.length & 0xff);
+	const _19: Row.Row<rt.u8> | undefined = rt.sliceFirst(copies.items);
 	if (_19 !== undefined) {
 		Object.assign(_19, new Row.Row(x, [48, 49] as [rt.u8, rt.u8]));
 		const tags: [rt.u8, rt.u8] = _19._1;
 		tags[0] = tags[0] ^ 16;
 	}
-	const _27: Row.Row<rt.u8> | undefined = rt.sliceGet(copies.d, 1);
+	const _27: Row.Row<rt.u8> | undefined = rt.sliceGet(copies.items, 1);
 	if (_27 !== undefined) {
 		_27._1[1] = _27._1[1] ^ 32;
 	}
-	for (const _35 of copies.d) {
+	for (const _35 of copies.items) {
 		const value: rt.u8 = _35._0;
 		const a: rt.u8 = _35._1[0];
 		const b: rt.u8 = _35._1[1];
@@ -2442,18 +2442,18 @@ export function repeated$u8(_dataData: Uint8Array, _dataStart: number, dataLen: 
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(a, b)), undefined, true);
 	}
 	const repeats: rt.Vec<Row.Row<rt.u8>> = rt.vecFromElem(new Row.Row(x, [5, 6] as [rt.u8, rt.u8]), rt.usizeAdd(1, rt.usizeRem(dataLen, 3)), copy$lengths_Row_u8);
-	rt.byteVecPush(out, repeats.d.length & 0xff);
-	const _57: Row.Row<rt.u8> | undefined = rt.sliceFirst(repeats.d);
+	rt.byteVecPush(out, repeats.items.length & 0xff);
+	const _57: Row.Row<rt.u8> | undefined = rt.sliceFirst(repeats.items);
 	if (_57 !== undefined) {
 		Object.assign(_57, new Row.Row(x, [48, 49] as [rt.u8, rt.u8]));
 		const tags2: [rt.u8, rt.u8] = _57._1;
 		tags2[0] = tags2[0] ^ 16;
 	}
-	const _65: Row.Row<rt.u8> | undefined = rt.sliceGet(repeats.d, 1);
+	const _65: Row.Row<rt.u8> | undefined = rt.sliceGet(repeats.items, 1);
 	if (_65 !== undefined) {
 		_65._1[1] = _65._1[1] ^ 32;
 	}
-	for (const _73 of repeats.d) {
+	for (const _73 of repeats.items) {
 		const value2: rt.u8 = _73._0;
 		const a2: rt.u8 = _73._1[0];
 		const b2: rt.u8 = _73._1[1];
@@ -2481,18 +2481,18 @@ export function loud(data: rt.ByteSlice, out: rt.ByteVec): void {
 	};
 	const rows: Row.Row<Loud.Loud>[] = [new Row.Row({ _0: byte(0) }, [1, 2] as [rt.u8, rt.u8]), new Row.Row({ _0: byte(2) }, [3, 4] as [rt.u8, rt.u8])];
 	const copies: rt.Vec<Row.Row<Loud.Loud>> = rt.iterToVec(rt.iterCopied(rt.iterSlice(rows), copy$lengths_Row_lengths_Loud), undefined, 4, true);
-	rt.byteVecPush(out, copies.d.length & 0xff);
-	const _26: Row.Row<Loud.Loud> | undefined = rt.sliceFirst(copies.d);
+	rt.byteVecPush(out, copies.items.length & 0xff);
+	const _26: Row.Row<Loud.Loud> | undefined = rt.sliceFirst(copies.items);
 	if (_26 !== undefined) {
 		Object.assign(_26, new Row.Row({ _0: byte(2) }, [48, 49] as [rt.u8, rt.u8]));
 		const tags: [rt.u8, rt.u8] = _26._1;
 		tags[0] = tags[0] ^ 16;
 	}
-	const _38: Row.Row<Loud.Loud> | undefined = rt.sliceGet(copies.d, 1);
+	const _38: Row.Row<Loud.Loud> | undefined = rt.sliceGet(copies.items, 1);
 	if (_38 !== undefined) {
 		_38._1[1] = _38._1[1] ^ 32;
 	}
-	for (const _46 of copies.d) {
+	for (const _46 of copies.items) {
 		const value: Loud.Loud = _46._0;
 		const a: rt.u8 = _46._1[0];
 		const b: rt.u8 = _46._1[1];
@@ -2500,18 +2500,18 @@ export function loud(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(a, b)), undefined, true);
 	}
 	const repeats: rt.Vec<Row.Row<Loud.Loud>> = rt.vecFromElem(new Row.Row({ _0: byte(2) }, [5, 6] as [rt.u8, rt.u8]), rt.usizeAdd(1, rt.usizeRem(data.length, 3)), Row.clone$Clone_lengths_Loud);
-	rt.byteVecPush(out, repeats.d.length & 0xff);
-	const _72: Row.Row<Loud.Loud> | undefined = rt.sliceFirst(repeats.d);
+	rt.byteVecPush(out, repeats.items.length & 0xff);
+	const _72: Row.Row<Loud.Loud> | undefined = rt.sliceFirst(repeats.items);
 	if (_72 !== undefined) {
 		Object.assign(_72, new Row.Row({ _0: byte(2) }, [48, 49] as [rt.u8, rt.u8]));
 		const tags2: [rt.u8, rt.u8] = _72._1;
 		tags2[0] = tags2[0] ^ 16;
 	}
-	const _84: Row.Row<Loud.Loud> | undefined = rt.sliceGet(repeats.d, 1);
+	const _84: Row.Row<Loud.Loud> | undefined = rt.sliceGet(repeats.items, 1);
 	if (_84 !== undefined) {
 		_84._1[1] = _84._1[1] ^ 32;
 	}
-	for (const _92 of repeats.d) {
+	for (const _92 of repeats.items) {
 		const value2: Loud.Loud = _92._0;
 		const a2: rt.u8 = _92._1[0];
 		const b2: rt.u8 = _92._1[1];

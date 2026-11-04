@@ -26,7 +26,7 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 		return Uint8Array.of(_3, w.data[w.start + 1]);
 	}), undefined, 2, true);
 	const deque: rt.VecDeque<Uint8Array> = rt.dequeNew(2) as rt.VecDeque<Uint8Array>;
-	rt.dequeExtend(deque, rt.iterMap(rt.iterLend(rt.iterSlice(pairs.d), rt.byteSliceFrom), rt.byteSliceToArray), undefined, true);
+	rt.dequeExtend(deque, rt.iterMap(rt.iterLend(rt.iterSlice(pairs.items), rt.byteSliceFrom), rt.byteSliceToArray), undefined, true);
 	const _47: rt.Iter<rt.u8> = rt.iterFlatMap(rt.iterLend(rt.dequeIter(deque), rt.byteSliceFrom), (p: rt.ByteSlice): Uint8Array => {
 		return Uint8Array.of(p.data[p.start], p.data[p.start + 1]);
 	}, (value: Uint8Array) => rt.iterSlice(value), true, 2);

@@ -112,7 +112,7 @@ export function indexed(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.idx(data, _9);
 		i = rt.usizeAdd(i, 1);
 		rt.byteVecPush(out, data.data[data.start + _9]);
-		kept.d.push(data.data[data.start + _9]);
+		kept.items.push(data.data[data.start + _9]);
 	}
 	rt.iterExtendBytes(out, rt.vecIntoIter(kept), undefined, true);
 	const v: rt.ByteVec = rt.byteSliceToByteVec(data);
@@ -145,7 +145,7 @@ export function reborrows(a: rt.u8, b: rt.u8, data: rt.ByteSlice, out: rt.ByteVe
 		const s2: rt.u8 = r2;
 		r2 = _25;
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(s2, r2)), undefined, true);
-		kept.d.push(s2);
+		kept.items.push(s2);
 	}
 	rt.iterExtendBytes(out, rt.vecIntoIter(kept), undefined, true);
 }
@@ -160,7 +160,7 @@ export function copies(a: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	for (const _9 of rt.byteSliceView(data)) {
 		const s: rt.u8 = r;
 		r = _9;
-		kept.d.push(s);
+		kept.items.push(s);
 	}
 	rt.iterExtendBytes(out, rt.vecIntoIter(kept), undefined, true);
 	const range: rt.Range<rt.usize> = new rt.Range(0, data.length);
@@ -198,7 +198,7 @@ export function closures(a: rt.u8, b: rt.u8, data: rt.ByteSlice, out: rt.ByteVec
 	const v: rt.ByteVec = rt.byteSliceToByteVec(data);
 	const fs: rt.Vec<() => rt.u8> = new rt.Vec();
 	for (const _17 of rt.byteSliceView(data)) {
-		fs.d.push((): rt.u8 => {
+		fs.items.push((): rt.u8 => {
 			return _17;
 		});
 	}
@@ -210,7 +210,7 @@ export function closures(a: rt.u8, b: rt.u8, data: rt.ByteSlice, out: rt.ByteVec
 		const _39: () => rt.u8 = (): rt.u8 => {
 			return rt.u8WrappingAdd(v.data[at], 1);
 		};
-		fs.d.push(_39);
+		fs.items.push(_39);
 	}
 	const _43: rt.usize = rt.byteSliceFrom(arr).length;
 	let rangeStart: rt.usize = 0;
@@ -220,7 +220,7 @@ export function closures(a: rt.u8, b: rt.u8, data: rt.ByteSlice, out: rt.ByteVec
 		if (!(i2 < 8)) {
 			rt.panic("index out of bounds: the len is " + 8 + " but the index is " + i2);
 		}
-		fs.d.push((): rt.u8 => {
+		fs.items.push((): rt.u8 => {
 			return arr[i2];
 		});
 	}
@@ -234,7 +234,7 @@ export function closures(a: rt.u8, b: rt.u8, data: rt.ByteSlice, out: rt.ByteVec
 		const _68: () => rt.u8 = (): rt.u8 => {
 			return rt.u8WrappingAdd(_61[1], captured & 0xff);
 		};
-		fs.d.push(_68);
+		fs.items.push(_68);
 	}
 	const itS: Row.Row[] = rows;
 	let itI: number = 0;
@@ -242,7 +242,7 @@ export function closures(a: rt.u8, b: rt.u8, data: rt.ByteSlice, out: rt.ByteVec
 		const _74: Row.Row | rt.Done = itI < itS.length ? itS[itI++] : rt.DONE;
 		if (_74 !== rt.DONE) {
 			const cells: rt.ByteSlice = rt.byteSliceFrom(_74.cells);
-			fs.d.push((): rt.u8 => {
+			fs.items.push((): rt.u8 => {
 				return cells.data[cells.start + 1];
 			});
 		} else {
@@ -259,11 +259,11 @@ export function closures(a: rt.u8, b: rt.u8, data: rt.ByteSlice, out: rt.ByteVec
 			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _96);
 		}
 		const captured2 = n;
-		fs.d.push((): rt.u8 => {
+		fs.items.push((): rt.u8 => {
 			return rows[_96].cells[0] ^ captured2;
 		});
 	}
-	for (const _111 of fs.d) {
+	for (const _111 of fs.items) {
 		rt.byteVecPush(out, _111());
 	}
 	rt.dropVec(fs);

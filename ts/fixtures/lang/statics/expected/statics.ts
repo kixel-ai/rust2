@@ -397,10 +397,10 @@ export function lazies(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const lock2: rt.LazyLock<rt.Vec<string>> = new rt.LazyLock((): rt.Vec<string> => {
 				return rt.vecFrom(["a", "bc"]);
 			});
-			const args20: rt.Fmt[] = [(f: rt.Formatter) => lock2.debug(f, "LazyLock", (value: rt.Vec<string>, f: rt.Formatter) => rt.fmtList(value.d, f, rt.fmtStr))];
+			const args20: rt.Fmt[] = [(f: rt.Formatter) => lock2.debug(f, "LazyLock", (value: rt.Vec<string>, f: rt.Formatter) => rt.fmtList(value.items, f, rt.fmtStr))];
 			const before4: string = rt.fmtFormat([args20[0], " ", rt.fmtSpec({ alternate: true }, args20[0]), " ", rt.fmtSpec({ align: ">", width: 6 }, args20[0]), "|"]);
-			lock2.force().d.length;
-			const args23: rt.Fmt[] = [(f: rt.Formatter) => lock2.debug(f, "LazyLock", (value: rt.Vec<string>, f: rt.Formatter) => rt.fmtList(value.d, f, rt.fmtStr))];
+			lock2.force().items.length;
+			const args23: rt.Fmt[] = [(f: rt.Formatter) => lock2.debug(f, "LazyLock", (value: rt.Vec<string>, f: rt.Formatter) => rt.fmtList(value.items, f, rt.fmtStr))];
 			const _130: string = rt.fmtFormat([args23[0], " ", rt.fmtSpec({ alternate: true }, args23[0]), " ", rt.fmtSpec({ align: ">", width: 6 }, args23[0]), "|"]);
 			const args24: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, before4), (f: rt.Formatter) => rt.fmtPad(f, _130)];
 			text = rt.fmtFormat([args24[0], args24[1]]);

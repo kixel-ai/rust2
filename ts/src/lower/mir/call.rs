@@ -1884,9 +1884,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let base = self.operand(&args[0].node, span, out);
 		match Int::of(index_ty) {
 			Some(_) => {
-				// A `Vec`'s element is its storage's: its `d`, or a byte vector's `data`.
+				// A `Vec`'s element is its storage's: its `items`, or a byte vector's `data`.
 				let base = match container.kind() {
-					ty::Adt(..) if !bytes => base.member("d"),
+					ty::Adt(..) if !bytes => base.member("items"),
 					_ => base,
 				};
 				let base = self.path(base, "slice", out);

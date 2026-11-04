@@ -2869,7 +2869,7 @@ export function edges(max: rt.u128, min: rt.u128, bits: rt.usize, radix: rt.u32)
 		if (_193 === rt.DONE) {
 			break;
 		}
-		all.d.push(_193);
+		all.items.push(_193);
 	}
 	const args22: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtCharDisplay(stray, f)];
 	const _203: string = rt.fmtFormat(["1", args22[0]]);
@@ -3157,7 +3157,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 								break b0;
 							}
 							const radix4: rt.u32 = _199;
-							for (const _207 of edges(255, 0, 8, radix4).d) {
+							for (const _207 of edges(255, 0, 8, radix4).items) {
 								const radix5: rt.u32 = radix4;
 								const _218: rt.Result<rt.u8, rt.ParseIntError> = num_fromStrRadix$1s6gdoj(_207, radix5);
 								if (_218.ok) {
@@ -3367,7 +3367,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 								break b0;
 							}
 							const radix11: rt.u32 = _573;
-							for (const _581 of edges(65535, 0, 16, radix11).d) {
+							for (const _581 of edges(65535, 0, 16, radix11).items) {
 								const radix12: rt.u32 = radix11;
 								const _592: rt.Result<rt.u16, rt.ParseIntError> = num_fromStrRadix$0ra6q5p(_581, radix12);
 								if (_592.ok) {
@@ -3577,7 +3577,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 								break b0;
 							}
 							const radix18: rt.u32 = _947;
-							for (const _955 of edges(4294967295, 0, 32, radix18).d) {
+							for (const _955 of edges(4294967295, 0, 32, radix18).items) {
 								const radix19: rt.u32 = radix18;
 								const _966: rt.Result<rt.u32, rt.ParseIntError> = num_fromStrRadix$1xyg67b(_955, radix19);
 								if (_966.ok) {
@@ -3787,7 +3787,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 								break b0;
 							}
 							const radix25: rt.u32 = _1321;
-							for (const _1329 of edges({ hi: 0, w2: 0, w1: 0xffffffff, lo: 0xffffffff } as rt.u128, 0, 64, radix25).d) {
+							for (const _1329 of edges({ hi: 0, w2: 0, w1: 0xffffffff, lo: 0xffffffff } as rt.u128, 0, 64, radix25).items) {
 								const radix26: rt.u32 = radix25;
 								const _1340: rt.Result<rt.u64, rt.ParseIntError> = num_fromStrRadix$1gp4jqq(_1329, radix26);
 								if (_1340.ok) {
@@ -3997,7 +3997,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 								break b0;
 							}
 							const radix32: rt.u32 = _1695;
-							for (const _1702 of edges({ hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rt.u128, 0, 128, radix32).d) {
+							for (const _1702 of edges({ hi: 0xffffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rt.u128, 0, 128, radix32).items) {
 								const radix33: rt.u32 = radix32;
 								const _1713: rt.Result<rt.u128, rt.ParseIntError> = num_fromStrRadix$0g0g31i(_1702, radix33);
 								if (_1713.ok) {
@@ -4207,7 +4207,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 								break b0;
 							}
 							const radix39: rt.u32 = _2068;
-							for (const _2076 of edges(4294967295, 0, 32, radix39).d) {
+							for (const _2076 of edges(4294967295, 0, 32, radix39).items) {
 								const radix40: rt.u32 = radix39;
 								const _2087: rt.Result<rt.usize, rt.ParseIntError> = num_fromStrRadix$146bkjv(_2076, radix40);
 								if (_2087.ok) {
@@ -4417,7 +4417,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 								break b0;
 							}
 							const radix46: rt.u32 = _2442;
-							for (const _2453 of edges(127, rt.u128Add(127, 1), 8, radix46).d) {
+							for (const _2453 of edges(127, rt.u128Add(127, 1), 8, radix46).items) {
 								const radix47: rt.u32 = radix46;
 								const _2464: rt.Result<rt.i8, rt.ParseIntError> = num_fromStrRadix$0dg9fx3(_2453, radix47);
 								if (_2464.ok) {
@@ -4627,7 +4627,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 								break b0;
 							}
 							const radix53: rt.u32 = _2819;
-							for (const _2830 of edges(32767, rt.u128Add(32767, 1), 16, radix53).d) {
+							for (const _2830 of edges(32767, rt.u128Add(32767, 1), 16, radix53).items) {
 								const radix54: rt.u32 = radix53;
 								const _2841: rt.Result<rt.i16, rt.ParseIntError> = num_fromStrRadix$0rk2yr6(_2830, radix54);
 								if (_2841.ok) {
@@ -4837,7 +4837,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 								break b0;
 							}
 							const radix60: rt.u32 = _3196;
-							for (const _3207 of edges(2147483647, rt.u128Add(2147483647, 1), 32, radix60).d) {
+							for (const _3207 of edges(2147483647, rt.u128Add(2147483647, 1), 32, radix60).items) {
 								const radix61: rt.u32 = radix60;
 								const _3218: rt.Result<rt.i32, rt.ParseIntError> = num_fromStrRadix$1newkmi(_3207, radix61);
 								if (_3218.ok) {
@@ -5047,7 +5047,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 								break b0;
 							}
 							const radix67: rt.u32 = _3573;
-							for (const _3584 of edges({ hi: 0, w2: 0, w1: 0x7fffffff, lo: 0xffffffff } as rt.u128, rt.u128Add({ hi: 0, w2: 0, w1: 0x7fffffff, lo: 0xffffffff } as rt.u128, 1), 64, radix67).d) {
+							for (const _3584 of edges({ hi: 0, w2: 0, w1: 0x7fffffff, lo: 0xffffffff } as rt.u128, rt.u128Add({ hi: 0, w2: 0, w1: 0x7fffffff, lo: 0xffffffff } as rt.u128, 1), 64, radix67).items) {
 								const radix68: rt.u32 = radix67;
 								const _3595: rt.Result<rt.i64, rt.ParseIntError> = num_fromStrRadix$11y6fsf(_3584, radix68);
 								if (_3595.ok) {
@@ -5257,7 +5257,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 								break b0;
 							}
 							const radix74: rt.u32 = _3950;
-							for (const _3961 of edges({ hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rt.u128, rt.u128Add({ hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rt.u128, 1), 128, radix74).d) {
+							for (const _3961 of edges({ hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rt.u128, rt.u128Add({ hi: 0x7fffffff, w2: 0xffffffff, w1: 0xffffffff, lo: 0xffffffff } as rt.u128, 1), 128, radix74).items) {
 								const radix75: rt.u32 = radix74;
 								const _3972: rt.Result<rt.i128, rt.ParseIntError> = num_fromStrRadix$0366bau(_3961, radix75);
 								if (_3972.ok) {
@@ -5467,7 +5467,7 @@ export function parses(kind: rt.u8, dataData: Uint8Array, dataStart: number, dat
 								break b0;
 							}
 							const radix81: rt.u32 = _4327;
-							for (const _4338 of edges(2147483647, rt.u128Add(2147483647, 1), 32, radix81).d) {
+							for (const _4338 of edges(2147483647, rt.u128Add(2147483647, 1), 32, radix81).items) {
 								const radix82: rt.u32 = radix81;
 								const _4349: rt.Result<rt.isize, rt.ParseIntError> = num_fromStrRadix$16jk9zm(_4338, radix82);
 								if (_4349.ok) {

@@ -408,7 +408,7 @@ export function values(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			return rt.u16Mul(_23 as rt.u16, 257);
 		}), undefined, 2, true);
 		digest$Vec_u16(words, out);
-		digest$slice_u16(rt.sliceRange(words.d, rt.usizeDiv(words.d.length, 2)), out);
+		digest$slice_u16(rt.sliceRange(words.items, rt.usizeDiv(words.items.length, 2)), out);
 		digest$array3_u32([n, (n ^ 1) >>> 0, n >>> 3], out);
 		digest$cmp_Ordering(rt.cmp(n & 0xff, rt.u128Low(w(4, 1)) & 0xff), out);
 		digest$time_Duration(rt.durationNew(rt.u64Cast(w(0, 6)), rt.u32Rem(n, 1000000000)), out);
@@ -521,11 +521,11 @@ export function random(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const keys: rt.Vec<rt.u64> = rt.iterToVec(rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_2: rt.u8): rt.u64 => {
 		return rt.u64Mul(_2 as rt.u64, 1103823438081);
 	}), undefined, 8, true);
-	rt.sliceSort(keys.d, rt.keyLt((k2: rt.u64): rt.u64 => {
+	rt.sliceSort(keys.items, rt.keyLt((k2: rt.u64): rt.u64 => {
 		return rt.hashOne(rt.buildHasher(other.state), k2, rt.hash64);
 	}, rt.lt), 8, true);
-	rt.sliceSort(keys.d, rt.lt, 8, true);
-	for (const _127 of keys.d) {
+	rt.sliceSort(keys.items, rt.lt, 8, true);
+	for (const _127 of keys.items) {
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u64ToBeBytes(_127).reverse()));
 	}
 }
@@ -646,7 +646,7 @@ export function hashInto$hashes_Bare(h: Bare.Bare, data: rt.ByteSlice): void {
 		return rt.u16Mul(_2 as rt.u16, 257);
 	}), undefined, 2, true);
 	rt.hashInts(2)(words, new rt.OwnHasher(h, Bare.hasher$hash_Hasher));
-	const _111: rt.u16[] = rt.sliceRange(words.d, rt.usizeDiv(words.d.length, 2));
+	const _111: rt.u16[] = rt.sliceRange(words.items, rt.usizeDiv(words.items.length, 2));
 	rt.hashInts(2)(_111, new rt.OwnHasher(h, Bare.hasher$hash_Hasher));
 	const _120: rt.u64[] = [b, rt.u64Shl(b, 40), rt.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rt.u64, b)];
 	rt.hashInts(8)(_120, new rt.OwnHasher(h, Bare.hasher$hash_Hasher));
@@ -725,7 +725,7 @@ export function hashInto$hashes_Full(h: Full.Full, data: rt.ByteSlice): void {
 		return rt.u16Mul(_2 as rt.u16, 257);
 	}), undefined, 2, true);
 	rt.hashInts(2)(words, new rt.OwnHasher(h, Full.hasher$hash_Hasher));
-	const _111: rt.u16[] = rt.sliceRange(words.d, rt.usizeDiv(words.d.length, 2));
+	const _111: rt.u16[] = rt.sliceRange(words.items, rt.usizeDiv(words.items.length, 2));
 	rt.hashInts(2)(_111, new rt.OwnHasher(h, Full.hasher$hash_Hasher));
 	const _120: rt.u64[] = [b, rt.u64Shl(b, 40), rt.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rt.u64, b)];
 	rt.hashInts(8)(_120, new rt.OwnHasher(h, Full.hasher$hash_Hasher));
@@ -804,7 +804,7 @@ export function hashInto$hashes_Partial(h: Partial.Partial, data: rt.ByteSlice):
 		return rt.u16Mul(_2 as rt.u16, 257);
 	}), undefined, 2, true);
 	rt.hashInts(2)(words, new rt.OwnHasher(h, Partial.hasher$hash_Hasher));
-	const _111: rt.u16[] = rt.sliceRange(words.d, rt.usizeDiv(words.d.length, 2));
+	const _111: rt.u16[] = rt.sliceRange(words.items, rt.usizeDiv(words.items.length, 2));
 	rt.hashInts(2)(_111, new rt.OwnHasher(h, Partial.hasher$hash_Hasher));
 	const _120: rt.u64[] = [b, rt.u64Shl(b, 40), rt.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rt.u64, b)];
 	rt.hashInts(8)(_120, new rt.OwnHasher(h, Partial.hasher$hash_Hasher));
@@ -883,7 +883,7 @@ export function hashInto$hashes_Switch(h: rt.Place<Switch.Switch>, data: rt.Byte
 		return rt.u16Mul(_2 as rt.u16, 257);
 	}), undefined, 2, true);
 	rt.hashInts(2)(words, new rt.OwnHasher(h, Switch.hasher$hash_Hasher));
-	const _111: rt.u16[] = rt.sliceRange(words.d, rt.usizeDiv(words.d.length, 2));
+	const _111: rt.u16[] = rt.sliceRange(words.items, rt.usizeDiv(words.items.length, 2));
 	rt.hashInts(2)(_111, new rt.OwnHasher(h, Switch.hasher$hash_Hasher));
 	const _120: rt.u64[] = [b, rt.u64Shl(b, 40), rt.u64Sub({ hi: 0xffffffff, lo: 0xffffffff } as rt.u64, b)];
 	rt.hashInts(8)(_120, new rt.OwnHasher(h, Switch.hasher$hash_Hasher));
@@ -1061,8 +1061,8 @@ export function maps(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, rt.hashContains(keyed, _44) ? 1 : 0);
 	}
 	const held: rt.Vec<[Key.Key, rt.u8]> = rt.iterToVec(rt.hashIter(keyed), "next", 8);
-	rt.sliceSort(held.d, rt.cmpLt(rt.cmpTuple<[Key.Key, rt.u8], rt.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rt.cmp])), 8, true);
-	for (const _63 of held.d) {
+	rt.sliceSort(held.items, rt.cmpLt(rt.cmpTuple<[Key.Key, rt.u8], rt.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rt.cmp])), 8, true);
+	for (const _63 of held.items) {
 		rt.byteVecPush(out, _63[0]._0 & 0xff);
 		put(out, _63[0]._1);
 		rt.byteVecPush(out, _63[1]);
@@ -1098,8 +1098,8 @@ export function maps(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.hashExtendKeys(seen, rt.hashKeys(small, undefined, undefined, rt.drop), undefined, undefined, 469762048);
 	rt.byteVecPush(out, rt.hashLen(seen) & 0xff);
 	const keys: rt.Vec<Key.Key> = rt.iterToVec(rt.hashKeys(keyed, undefined, undefined, rt.drop), "next", 16);
-	rt.sliceSort(keys.d, rt.cmpLt(Key.partialCmp$cmp_PartialOrd), 16, true);
-	rt.byteVecPush(out, keys.d.length & 0xff);
+	rt.sliceSort(keys.items, rt.cmpLt(Key.partialCmp$cmp_PartialOrd), 16, true);
+	rt.byteVecPush(out, keys.items.length & 0xff);
 	const iter3: rt.Iter<Noisy.Noisy> = rt.hashValues(taken, rt.drop, undefined, rt.drop);
 	while (true) {
 		const _169: Noisy.Noisy | rt.Done = iter3.next();
@@ -1129,7 +1129,7 @@ export function CALLS$init(): rt.RefCell<rt.Vec<rt.u32>> {
 export function call(what: rt.u8, side: rt.u8, other: rt.u8, n: rt.u8): void {
 	((calls: rt.RefCell<rt.Vec<rt.u32>>): undefined => {
 		const _5: rt.RefCell<rt.Vec<rt.u32>> = rt.refCellBorrowMut(calls);
-		_5.value.d.push(((what << 24) | (side << 16) | (other << 8) | n) >>> 0);
+		_5.value.items.push(((what << 24) | (side << 16) | (other << 8) | n) >>> 0);
 		rt.refMutRelease(_5);
 	})(CALLS.get());
 }
@@ -1156,12 +1156,12 @@ export function compared$collections_HashMap_hashes_Sided_hashes_Sided_hashes_Sp
 			rt.vecTruncate(calls, 0);
 		}
 	}
-	rt.vecTruncate(calls, rt.usizeDiv(calls.d.length, 2));
+	rt.vecTruncate(calls, rt.usizeDiv(calls.items.length, 2));
 	if (len > 1) {
-		rt.sliceSort(calls.d, rt.lt, 4, true);
+		rt.sliceSort(calls.items, rt.lt, 4, true);
 	}
-	rt.byteVecPush(out, calls.d.length & 0xff);
-	for (const _39 of calls.d) {
+	rt.byteVecPush(out, calls.items.length & 0xff);
+	for (const _39 of calls.items) {
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(_39)));
 	}
 }
@@ -1188,12 +1188,12 @@ export function compared$collections_HashSet_hashes_Sided_hashes_Spread(a: rt.Ha
 			rt.vecTruncate(calls, 0);
 		}
 	}
-	rt.vecTruncate(calls, rt.usizeDiv(calls.d.length, 2));
+	rt.vecTruncate(calls, rt.usizeDiv(calls.items.length, 2));
 	if (len > 1) {
-		rt.sliceSort(calls.d, rt.lt, 4, true);
+		rt.sliceSort(calls.items, rt.lt, 4, true);
 	}
-	rt.byteVecPush(out, calls.d.length & 0xff);
-	for (const _39 of calls.d) {
+	rt.byteVecPush(out, calls.items.length & 0xff);
+	for (const _39 of calls.items) {
 		rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(_39)));
 	}
 }
@@ -1415,8 +1415,8 @@ export function defaults(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.byteVecPush(out, rt.hashContains(keyed, _128) ? 1 : 0);
 	}
 	const entries: rt.Vec<[Key.Key, rt.u8]> = rt.iterToVec(rt.hashIter(keyed), "next", 8);
-	rt.sliceSort(entries.d, rt.cmpLt(rt.cmpTuple<[Key.Key, rt.u8], rt.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rt.cmp])), 8, true);
-	for (const _147 of entries.d) {
+	rt.sliceSort(entries.items, rt.cmpLt(rt.cmpTuple<[Key.Key, rt.u8], rt.Ordering | undefined>([Key.partialCmp$cmp_PartialOrd, rt.cmp])), 8, true);
+	for (const _147 of entries.items) {
 		rt.byteVecPush(out, _147[0]._0 & 0xff);
 		put(out, _147[0]._1);
 		rt.byteVecPush(out, _147[1]);

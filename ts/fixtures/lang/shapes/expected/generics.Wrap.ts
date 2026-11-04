@@ -27,7 +27,7 @@ export function fmt$fmt_Debug_Result_u8_shapes_Shape(self: Wrap<rt.Result<rt.u8,
 export function fmt$fmt_Debug_Vec_u16(self: Wrap<rt.Vec<rt.u16>>, f: rt.Formatter): rt.Result<undefined, rt.FmtError> {
 	const _3: string = "Wrap";
 	const _4: string = "value";
-	const _5: rt.Fmt = (f: rt.Formatter) => rt.fmtList(self.value.d, f, rt.u16Debug);
+	const _5: rt.Fmt = (f: rt.Formatter) => rt.fmtList(self.value.items, f, rt.u16Debug);
 	const _7: string = "count";
 	const _8: rt.Fmt = (f: rt.Formatter) => rt.u8Debug(self.count, f);
 	return rt.debugStructFinish(rt.debugStructField(rt.debugStructField(rt.fmtDebugStruct(f, _3), _4, _5), _7, _8));

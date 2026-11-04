@@ -269,7 +269,7 @@ export class closuresFuture {
 														rt.drop(this.#awaitee$2);
 														this.#tallied = [this.#saved, this.#saved$2, result4] as [rt.u32, rt.u32, rt.u32];
 														const arg = this.#seen;
-														const _87: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg.d, f, (value: rt.u64 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u64Debug));
+														const _87: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg.items, f, (value: rt.u64 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u64Debug));
 														const arg2 = this.#first;
 														const _88: rt.Fmt = (f: rt.Formatter) => rt.fmtOption(arg2, f, rt.u64Debug);
 														const arg3 = this.#second;
@@ -528,7 +528,7 @@ export class closuresFuture$closure0_closure0 {
 		if (_5 !== rt.Pending) {
 			const value: rt.u64 | undefined = _5;
 			rt.drop(this.#awaitee);
-			this.#seen.d.push(value);
+			this.#seen.items.push(value);
 			this.#reads.v = rt.u32Add(this.#reads.v, 1);
 			const _0: rt.Poll<rt.u64 | undefined> = option_map$1cf8u0y(value, (value2: rt.u64): rt.u64 => {
 				return rt.u64Mul(value2, this.#scale);

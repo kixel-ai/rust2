@@ -18,7 +18,7 @@ export function scalars(data: rt.ByteSlice): rt.Vec<rt.u32> {
 			const buf: Uint8Array = rt.bytes(4);
 			const n: rt.usize = rt.min(rest.length, 4);
 			rt.byteSliceCopyFromSlice(rt.byteSliceRange(rt.byteSliceFrom(buf), 0, n), rt.byteSliceRange(rest, 0, n));
-			all.d.push(rt.u32FromBeBytes(buf));
+			all.items.push(rt.u32FromBeBytes(buf));
 			rest = rt.byteSliceRange(rest, n);
 		} else {
 			return all;
@@ -73,7 +73,7 @@ export function class_(c: rt.char): rt.u8 {
 export function chars(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	const _4: rt.u8 = rt.u8Rem(kind, 4);
 	if (_4 === 0) {
-		for (const _10 of scalars(data).d) {
+		for (const _10 of scalars(data).items) {
 			const _14: rt.char | undefined = rt.charFromU32(_10);
 			if (_14 === undefined) {
 				rt.byteVecPush(out, 255);
@@ -84,7 +84,7 @@ export function chars(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			}
 		}
 	} else if (_4 === 1) {
-		for (const n2 of scalars(data).d) {
+		for (const n2 of scalars(data).items) {
 			const c2: rt.char = option_unwrapOr$0k15iai(rt.charFromU32(n2), (n2 & 0xff) as rt.char);
 			rt.byteVecPush(out, c2 & 0xff);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u16ToBeBytes(c2 & 0xffff)));
@@ -102,7 +102,7 @@ export function chars(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}), "next", 4, false, 4);
 		const sorted: rt.BTreeSet<rt.char> = rt.btreeNew(rt.cmp) as rt.BTreeSet<rt.char>;
 		const seen: rt.HashSet<rt.char> = rt.hashNew() as rt.HashSet<rt.char>;
-		const iter3: rt.Iter<[rt.usize, rt.char]> = rt.iterEnumerate(rt.iterSlice(cs.d));
+		const iter3: rt.Iter<[rt.usize, rt.char]> = rt.iterEnumerate(rt.iterSlice(cs.items));
 		while (true) {
 			const _88: [rt.usize, rt.char] | rt.Done = iter3.next();
 			if (_88 === rt.DONE) {
@@ -110,7 +110,7 @@ export function chars(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			}
 			const i: rt.usize = _88[0];
 			const c3: rt.char = _88[1];
-			const d: rt.char = cs.d[rt.idx(cs.d, rt.usizeRem(rt.usizeAdd(rt.usizeMul(i, 7), 3), cs.d.length))];
+			const d: rt.char = cs.items[rt.idx(cs.items, rt.usizeRem(rt.usizeAdd(rt.usizeMul(i, 7), 3), cs.items.length))];
 			rt.byteVecPush(out, (c3 < d ? 1 : 0) | (((c3 === d ? 1 : 0) << 1) & 0xff) | (((c3 >= 122 ? 1 : 0) << 2) & 0xff));
 			rt.byteVecPush(out, rt.hashAdd(seen, c3) ? 1 : 0);
 			rt.btreeAdd(sorted, c3);
@@ -124,7 +124,7 @@ export function chars(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(_128 as rt.u32)));
 		}
 	} else {
-		for (const _140 of scalars(data).d) {
+		for (const _140 of scalars(data).items) {
 			const _144: rt.char | undefined = rt.charFromU32(_140);
 			if (_144 !== undefined) {
 				const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtCharDisplay(_144, f)];
@@ -398,8 +398,8 @@ export function encodes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 			rt.byteVecPush(out, rt.stringLen(rt.charEncodeUtf8(c, rt.byteSliceRange(rt.byteSliceFrom(bytes2), 2)).v) & 0xff);
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(bytes2));
 			const units2: rt.Vec<rt.u16> = rt.vecFromElem(7, 4, undefined);
-			rt.byteVecPush(out, rt.charEncodeUtf16(c, rt.sliceRangeMut(units2.d, 1)).length & 0xff);
-			for (const _94 of units2.d) {
+			rt.byteVecPush(out, rt.charEncodeUtf16(c, rt.sliceRangeMut(units2.items, 1)).length & 0xff);
+			for (const _94 of units2.items) {
 				rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u16ToBeBytes(_94)));
 			}
 		} else {
@@ -407,7 +407,7 @@ export function encodes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 				return rt.u8Rem(_2, 5) as rt.usize;
 			});
 			put(out, rt.charEncodeUtf8(c, rt.byteVecSlice(rt.byteVecOf(0, n2))).v);
-			rt.byteVecPush(out, rt.charEncodeUtf16(c, rt.vecFromElem(0, rt.usizeRem(n2, 3), undefined).d).length & 0xff);
+			rt.byteVecPush(out, rt.charEncodeUtf16(c, rt.vecFromElem(0, rt.usizeRem(n2, 3), undefined).items).length & 0xff);
 		}
 	}
 }
@@ -424,9 +424,9 @@ export function decodes(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		return (p.data[p.start] << 8) | option_unwrapOr$0r2bmpr(rt.byteSliceGet(p, 1), 0);
 	}), undefined, 2, true);
 	if (rt.u8Rem(kind, 2) === 0) {
-		it = rt.charDecodeUtf16(rt.iterSlice(units.d));
+		it = rt.charDecodeUtf16(rt.iterSlice(units.items));
 	} else {
-		it = rt.charDecodeUtf16(rt.iterSlice(units.d));
+		it = rt.charDecodeUtf16(rt.iterSlice(units.items));
 	}
 	let last: rt.DecodeUtf16Error | undefined = undefined;
 	while (true) {
@@ -497,7 +497,7 @@ export function converts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 			rt.byteVecPush(out, isDigit$0mzngr5(_31, radix) ? 1 : 0);
 		}
 	} else {
-		for (const n2 of scalars(data).d) {
+		for (const n2 of scalars(data).items) {
 			const r: rt.Result<rt.char, rt.CharTryFromError> = rt.charTryFrom(n2);
 			const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(r, f, rt.fmtCharDebug, rt.fmtCharTryFromErrorDebug)];
 			put(out, rt.fmtFormat([args4[0]]));
@@ -549,7 +549,7 @@ export function values(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		const _21: string = rt.strTrimMatches(s2, (a012: rt.char): boolean => {
 			return rt.charIsNumeric(a012);
 		});
-		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(parts.d, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtStr(_21, f)];
+		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(parts.items, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtStr(_21, f)];
 		put(out, rt.fmtFormat([args2[0], "|", args2[1]]));
 		const part = rt.strFind(s2, (a013: rt.char): boolean => {
 			return rt.charIsUppercase(a013);
@@ -590,7 +590,7 @@ export function values(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		}), (e2: rt.Iter<rt.char>): rt.usize => {
 			return e2.len();
 		}), "next", 4);
-		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, escaped), (f: rt.Formatter) => rt.fmtPad(f, debug), (f: rt.Formatter) => rt.fmtList(unicode.d, f, rt.usizeDebug)];
+		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtPad(f, escaped), (f: rt.Formatter) => rt.fmtPad(f, debug), (f: rt.Formatter) => rt.fmtList(unicode.items, f, rt.usizeDebug)];
 		put(out, rt.fmtFormat([args10[0], "|", args10[1], "|", args10[2]]));
 		rt.iterExtendBytes(out, rt.iterSlice(rt.bytesMap([rt.iterAll(rt.strChars(s2), (a04: rt.char): boolean => {
 			return rt.charIsAlphanumeric(a04);

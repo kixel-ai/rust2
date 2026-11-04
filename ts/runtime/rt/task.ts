@@ -21,7 +21,7 @@ export function dropAll<T>(values: ArrayLike<T> | undefined, f: (value: T) => vo
 
 /** Drop every item of `v` in order, as `dropAll` does. */
 export function dropVec<T>(v: Vec<T> | undefined, f: (value: T) => void = drop): void {
-	if (v !== undefined) dropRange(v.d, f, 0, v.d.length);
+	if (v !== undefined) dropRange(v.items, f, 0, v.items.length);
 }
 
 /** Drop `values[from..to]` as `dropAll` does. */

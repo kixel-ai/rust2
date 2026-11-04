@@ -9,7 +9,7 @@ export interface Manual {
 }
 
 export function fmt$fmt_Debug(self: Manual, f: rt.Formatter): rt.Result<undefined, rt.FmtError> {
-	return rt.debugStructFinishNonExhaustive(rt.debugStructField(rt.debugStructField(rt.fmtDebugStruct(f, "Manual"), "id", (f: rt.Formatter) => rt.u8Debug(self.id, f)), "list", (f: rt.Formatter) => rt.fmtList(self.list.d, f, rt.u16Debug)));
+	return rt.debugStructFinishNonExhaustive(rt.debugStructField(rt.debugStructField(rt.fmtDebugStruct(f, "Manual"), "id", (f: rt.Formatter) => rt.u8Debug(self.id, f)), "list", (f: rt.Formatter) => rt.fmtList(self.list.items, f, rt.u16Debug)));
 }
 
 //# sourceMappingURL=fmt.Manual.ts.map

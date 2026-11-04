@@ -522,7 +522,7 @@ export function hashes(data: rt.ByteSlice, out: rt.ByteVec): void {
 		}
 		return rt.Pending;
 	}), undefined, 2, true);
-	for (const _9 of polls.d) {
+	for (const _9 of polls.items) {
 		const h: rt.Hasher = rt.hasher();
 		rt.hashPoll(rt.hash8)(_9, h);
 		rt.iterExtendBytes(out, rt.iterSlice(rt.u64ToBeBytes(rt.hashFinish(h))), undefined, true);
@@ -536,7 +536,7 @@ export function hashes(data: rt.ByteSlice, out: rt.ByteVec): void {
 		rt.hashPoll(rt.hashPoll(rt.hash8), rt.OuterPending)(_41, h2);
 	}
 	rt.iterExtendBytes(out, rt.iterSlice(rt.u64ToBeBytes(rt.hashFinish(h2))), undefined, true);
-	const _48: rt.Iter<rt.Poll<rt.u8>> = rt.iterSlice(polls.d);
+	const _48: rt.Iter<rt.Poll<rt.u8>> = rt.iterSlice(polls.items);
 	const set: rt.HashSet<rt.Poll<rt.u8>> = rt.hashExtendKeys(rt.hashNew(rt.hashing(rt.hashPoll(rt.hash8), poll_eq$1h9nnoh)) as rt.HashSet<rt.Poll<rt.u8>>, _48, undefined, undefined, 469762048);
 	const _53: rt.Iter<rt.Poll<rt.u8> | rt.OuterPending> = rt.iterMap(rt.iterSlice(rt.byteSliceView(data)), (_22: rt.u8): rt.Poll<rt.u8> | rt.OuterPending => {
 		return nested(_22);

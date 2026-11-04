@@ -10,7 +10,7 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
 		return out;
 	}
 	const cases_: rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> = cases();
-	cases_.d[rt.idx(cases_.d, rt.usizeRem(((input.data[input.start] << 8) | input.data[input.start + 1]) as rt.usize, cases_.d.length))][1](input.data[input.start + 2], new rt.ByteSlice(input.data, input.start + 3, input.length - 3), out);
+	cases_.items[rt.idx(cases_.items, rt.usizeRem(((input.data[input.start] << 8) | input.data[input.start + 1]) as rt.usize, cases_.items.length))][1](input.data[input.start + 2], new rt.ByteSlice(input.data, input.start + 3, input.length - 3), out);
 	return out;
 }
 
@@ -19,7 +19,7 @@ export function run(input: rt.ByteSlice): rt.ByteVec {
  * `lang.ts` targets by.
  */
 export function op(name: string): rt.u16 {
-	const _11: rt.usize | undefined = rt.iterPosition(rt.iterSlice(cases().d), (_2: [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]): boolean => {
+	const _11: rt.usize | undefined = rt.iterPosition(rt.iterSlice(cases().items), (_2: [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]): boolean => {
 		return _2[0] === name;
 	});
 	if (_11 !== undefined) {

@@ -286,7 +286,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						break;
 					}
 					const back2: boolean = _140;
-					const it3: rt.Iter<rt.u16[]> = rt.sliceSplit(words.d, testWords);
+					const it3: rt.Iter<rt.u16[]> = rt.sliceSplit(words.items, testWords);
 					hint(it3.sizeHint(), out);
 					flush(log, out);
 					while (true) {
@@ -306,7 +306,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 					}
 				}
-				const it4: rt.Iter<rt.u16[]> = rt.sliceSplit(words.d, testWords);
+				const it4: rt.Iter<rt.u16[]> = rt.sliceSplit(words.items, testWords);
 				let iterStart2: rt.i32 = 0;
 				const iterEnd2: rt.i32 = 12;
 				while ((_184 = iterStart2++) < iterEnd2) {
@@ -319,15 +319,15 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 					hint(it4.sizeHint(), out);
 					flush(log, out);
 				}
-				rt.iterExtendBytes(out, rt.iterOption(option_map$0vryjg8(rt.iterNth(rt.sliceSplit(words.d, testWords), 1), sumWords)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$0vryjg8(rt.iterNth(rt.sliceSplit(words.items, testWords), 1), sumWords)), undefined, true);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterOption(option_map$0vryjg8(rt.iterNthBack(rt.sliceSplit(words.d, testWords), 1), sumWords)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$0vryjg8(rt.iterNthBack(rt.sliceSplit(words.items, testWords), 1), sumWords)), undefined, true);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterOption(option_map$0vryjg8(rt.iterLast(rt.sliceSplit(words.d, testWords)), sumWords)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$0vryjg8(rt.iterLast(rt.sliceSplit(words.items, testWords)), sumWords)), undefined, true);
 				flush(log, out);
-				rt.byteVecPush(out, rt.iterCount(rt.sliceSplit(words.d, testWords)) & 0xff);
+				rt.byteVecPush(out, rt.iterCount(rt.sliceSplit(words.items, testWords)) & 0xff);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterSkip(rt.iterRev(rt.sliceSplit(words.d, testWords)), 1), sumWords), "next");
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterSkip(rt.iterRev(rt.sliceSplit(words.items, testWords)), 1), sumWords), "next");
 				flush(log, out);
 				const iter6: rt.Iter<boolean> = rt.iterSlice([false, true]);
 				l161: while (true) {
@@ -336,7 +336,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						break;
 					}
 					const back3: boolean = _251;
-					const it5: rt.Iter<string[]> = rt.sliceSplit(texts.d, testTexts);
+					const it5: rt.Iter<string[]> = rt.sliceSplit(texts.items, testTexts);
 					hint(it5.sizeHint(), out);
 					flush(log, out);
 					while (true) {
@@ -356,7 +356,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 					}
 				}
-				const it6: rt.Iter<string[]> = rt.sliceSplit(texts.d, testTexts);
+				const it6: rt.Iter<string[]> = rt.sliceSplit(texts.items, testTexts);
 				let iterStart3: rt.i32 = 0;
 				const iterEnd3: rt.i32 = 12;
 				while ((_295 = iterStart3++) < iterEnd3) {
@@ -369,15 +369,15 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 					hint(it6.sizeHint(), out);
 					flush(log, out);
 				}
-				rt.iterExtendBytes(out, rt.iterOption(option_map$1r7pvtd(rt.iterNth(rt.sliceSplit(texts.d, testTexts), 1), sumTexts)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$1r7pvtd(rt.iterNth(rt.sliceSplit(texts.items, testTexts), 1), sumTexts)), undefined, true);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterOption(option_map$1r7pvtd(rt.iterNthBack(rt.sliceSplit(texts.d, testTexts), 1), sumTexts)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$1r7pvtd(rt.iterNthBack(rt.sliceSplit(texts.items, testTexts), 1), sumTexts)), undefined, true);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterOption(option_map$1r7pvtd(rt.iterLast(rt.sliceSplit(texts.d, testTexts)), sumTexts)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$1r7pvtd(rt.iterLast(rt.sliceSplit(texts.items, testTexts)), sumTexts)), undefined, true);
 				flush(log, out);
-				rt.byteVecPush(out, rt.iterCount(rt.sliceSplit(texts.d, testTexts)) & 0xff);
+				rt.byteVecPush(out, rt.iterCount(rt.sliceSplit(texts.items, testTexts)) & 0xff);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterSkip(rt.iterRev(rt.sliceSplit(texts.d, testTexts)), 1), sumTexts), "next");
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterSkip(rt.iterRev(rt.sliceSplit(texts.items, testTexts)), 1), sumTexts), "next");
 				flush(log, out);
 				const it7: rt.Iter<rt.ByteSlice> = rt.byteSliceSplit(data, test);
 				let iterStart4: rt.i32 = 0;
@@ -398,7 +398,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 				rt.byteVecPush(out, sum(rt.splitAsSlice(copy)));
 				rt.byteVecPush(out, sum(rt.splitAsSlice(it7)));
 				flush(log, out);
-				const it8: rt.Iter<Pair.Pair[]> = rt.sliceSplit(pairs.d, testPairs);
+				const it8: rt.Iter<Pair.Pair[]> = rt.sliceSplit(pairs.items, testPairs);
 				rt.iterToOption(it8.nextBack());
 				rt.byteVecPush(out, sumPairs(rt.splitAsSlice(it8)));
 				flush(log, out);
@@ -460,7 +460,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						break;
 					}
 					const back5: boolean = _513;
-					const it11: rt.Iter<Pair.Pair[]> = rt.sliceRsplit(pairs.d, testPairs);
+					const it11: rt.Iter<Pair.Pair[]> = rt.sliceRsplit(pairs.items, testPairs);
 					hint(it11.sizeHint(), out);
 					flush(log, out);
 					while (true) {
@@ -480,7 +480,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 					}
 				}
-				const it12: rt.Iter<Pair.Pair[]> = rt.sliceRsplit(pairs.d, testPairs);
+				const it12: rt.Iter<Pair.Pair[]> = rt.sliceRsplit(pairs.items, testPairs);
 				let iterStart6: rt.i32 = 0;
 				const iterEnd6: rt.i32 = 12;
 				while ((_557 = iterStart6++) < iterEnd6) {
@@ -493,15 +493,15 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 					hint(it12.sizeHint(), out);
 					flush(log, out);
 				}
-				rt.iterExtendBytes(out, rt.iterOption(option_map$02o7iu2(rt.iterNth(rt.sliceRsplit(pairs.d, testPairs), 1), sumPairs)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$02o7iu2(rt.iterNth(rt.sliceRsplit(pairs.items, testPairs), 1), sumPairs)), undefined, true);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterOption(option_map$02o7iu2(rt.iterNthBack(rt.sliceRsplit(pairs.d, testPairs), 1), sumPairs)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$02o7iu2(rt.iterNthBack(rt.sliceRsplit(pairs.items, testPairs), 1), sumPairs)), undefined, true);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterOption(option_map$02o7iu2(rt.iterLast(rt.sliceRsplit(pairs.d, testPairs)), sumPairs)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$02o7iu2(rt.iterLast(rt.sliceRsplit(pairs.items, testPairs)), sumPairs)), undefined, true);
 				flush(log, out);
-				rt.byteVecPush(out, rt.iterCount(rt.sliceRsplit(pairs.d, testPairs)) & 0xff);
+				rt.byteVecPush(out, rt.iterCount(rt.sliceRsplit(pairs.items, testPairs)) & 0xff);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterSkip(rt.iterRev(rt.sliceRsplit(pairs.d, testPairs)), 1), sumPairs), "next");
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterSkip(rt.iterRev(rt.sliceRsplit(pairs.items, testPairs)), 1), sumPairs), "next");
 				flush(log, out);
 				const iter13: rt.Iter<boolean> = rt.iterSlice([false, true]);
 				l126: while (true) {
@@ -510,7 +510,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						break;
 					}
 					const back6: boolean = _624;
-					const it13: rt.Iter<string[]> = rt.sliceRsplit(texts.d, testTexts);
+					const it13: rt.Iter<string[]> = rt.sliceRsplit(texts.items, testTexts);
 					hint(it13.sizeHint(), out);
 					flush(log, out);
 					while (true) {
@@ -530,7 +530,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 					}
 				}
-				const it14: rt.Iter<string[]> = rt.sliceRsplit(texts.d, testTexts);
+				const it14: rt.Iter<string[]> = rt.sliceRsplit(texts.items, testTexts);
 				let iterStart7: rt.i32 = 0;
 				const iterEnd7: rt.i32 = 12;
 				while ((_668 = iterStart7++) < iterEnd7) {
@@ -543,15 +543,15 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 					hint(it14.sizeHint(), out);
 					flush(log, out);
 				}
-				rt.iterExtendBytes(out, rt.iterOption(option_map$1r7pvtd(rt.iterNth(rt.sliceRsplit(texts.d, testTexts), 1), sumTexts)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$1r7pvtd(rt.iterNth(rt.sliceRsplit(texts.items, testTexts), 1), sumTexts)), undefined, true);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterOption(option_map$1r7pvtd(rt.iterNthBack(rt.sliceRsplit(texts.d, testTexts), 1), sumTexts)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$1r7pvtd(rt.iterNthBack(rt.sliceRsplit(texts.items, testTexts), 1), sumTexts)), undefined, true);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterOption(option_map$1r7pvtd(rt.iterLast(rt.sliceRsplit(texts.d, testTexts)), sumTexts)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$1r7pvtd(rt.iterLast(rt.sliceRsplit(texts.items, testTexts)), sumTexts)), undefined, true);
 				flush(log, out);
-				rt.byteVecPush(out, rt.iterCount(rt.sliceRsplit(texts.d, testTexts)) & 0xff);
+				rt.byteVecPush(out, rt.iterCount(rt.sliceRsplit(texts.items, testTexts)) & 0xff);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterSkip(rt.iterRev(rt.sliceRsplit(texts.d, testTexts)), 1), sumTexts), "next");
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterSkip(rt.iterRev(rt.sliceRsplit(texts.items, testTexts)), 1), sumTexts), "next");
 				flush(log, out);
 				const twos: rt.Vec<Uint8Array> = rt.iterToVec(rt.iterMap(rt.byteSliceChunksExact(data, 2), (c: rt.ByteSlice): Uint8Array => {
 					rt.idx(c, 0);
@@ -572,7 +572,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						break;
 					}
 					const back7: boolean = _740;
-					const it15: rt.Iter<Uint8Array[]> = rt.sliceRsplit(twos.d, rt.lending(testTwos, (f) => (held11) => f(rt.byteSliceFrom(held11))));
+					const it15: rt.Iter<Uint8Array[]> = rt.sliceRsplit(twos.items, rt.lending(testTwos, (f) => (held11) => f(rt.byteSliceFrom(held11))));
 					hint(it15.sizeHint(), out);
 					flush(log, out);
 					while (true) {
@@ -592,7 +592,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 					}
 				}
-				const it16: rt.Iter<Uint8Array[]> = rt.sliceRsplit(twos.d, rt.lending(testTwos, (f2) => (held12) => f2(rt.byteSliceFrom(held12))));
+				const it16: rt.Iter<Uint8Array[]> = rt.sliceRsplit(twos.items, rt.lending(testTwos, (f2) => (held12) => f2(rt.byteSliceFrom(held12))));
 				let iterStart8: rt.i32 = 0;
 				const iterEnd8: rt.i32 = 12;
 				while ((_784 = iterStart8++) < iterEnd8) {
@@ -605,15 +605,15 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 					hint(it16.sizeHint(), out);
 					flush(log, out);
 				}
-				rt.iterExtendBytes(out, rt.iterOption(option_map$14orwce(rt.iterNth(rt.sliceRsplit(twos.d, rt.lending(testTwos, (f3) => (held13) => f3(rt.byteSliceFrom(held13)))), 1), sumTwos)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$14orwce(rt.iterNth(rt.sliceRsplit(twos.items, rt.lending(testTwos, (f3) => (held13) => f3(rt.byteSliceFrom(held13)))), 1), sumTwos)), undefined, true);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterOption(option_map$14orwce(rt.iterNthBack(rt.sliceRsplit(twos.d, rt.lending(testTwos, (f4) => (held14) => f4(rt.byteSliceFrom(held14)))), 1), sumTwos)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$14orwce(rt.iterNthBack(rt.sliceRsplit(twos.items, rt.lending(testTwos, (f4) => (held14) => f4(rt.byteSliceFrom(held14)))), 1), sumTwos)), undefined, true);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterOption(option_map$14orwce(rt.iterLast(rt.sliceRsplit(twos.d, rt.lending(testTwos, (f5) => (held15) => f5(rt.byteSliceFrom(held15))))), sumTwos)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$14orwce(rt.iterLast(rt.sliceRsplit(twos.items, rt.lending(testTwos, (f5) => (held15) => f5(rt.byteSliceFrom(held15))))), sumTwos)), undefined, true);
 				flush(log, out);
-				rt.byteVecPush(out, rt.iterCount(rt.sliceRsplit(twos.d, rt.lending(testTwos, (f6) => (held16) => f6(rt.byteSliceFrom(held16))))) & 0xff);
+				rt.byteVecPush(out, rt.iterCount(rt.sliceRsplit(twos.items, rt.lending(testTwos, (f6) => (held16) => f6(rt.byteSliceFrom(held16))))) & 0xff);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterSkip(rt.iterRev(rt.sliceRsplit(twos.d, rt.lending(testTwos, (f7) => (held17) => f7(rt.byteSliceFrom(held17))))), 1), sumTwos), "next");
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterSkip(rt.iterRev(rt.sliceRsplit(twos.items, rt.lending(testTwos, (f7) => (held17) => f7(rt.byteSliceFrom(held17))))), 1), sumTwos), "next");
 				flush(log, out);
 				const iter17: rt.Iter<boolean> = rt.iterSlice([false, true]);
 				l140: while (true) {
@@ -622,7 +622,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						break;
 					}
 					const back8: boolean = _851;
-					const it17: rt.Iter<Uint8Array[]> = rt.sliceSplit(twos.d, rt.lending(testTwos, (f8) => (held18) => f8(rt.byteSliceFrom(held18))));
+					const it17: rt.Iter<Uint8Array[]> = rt.sliceSplit(twos.items, rt.lending(testTwos, (f8) => (held18) => f8(rt.byteSliceFrom(held18))));
 					hint(it17.sizeHint(), out);
 					flush(log, out);
 					while (true) {
@@ -642,7 +642,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 					}
 				}
-				const it18: rt.Iter<Uint8Array[]> = rt.sliceSplit(twos.d, rt.lending(testTwos, (f9) => (held19) => f9(rt.byteSliceFrom(held19))));
+				const it18: rt.Iter<Uint8Array[]> = rt.sliceSplit(twos.items, rt.lending(testTwos, (f9) => (held19) => f9(rt.byteSliceFrom(held19))));
 				let iterStart9: rt.i32 = 0;
 				const iterEnd9: rt.i32 = 12;
 				while ((_895 = iterStart9++) < iterEnd9) {
@@ -655,15 +655,15 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 					hint(it18.sizeHint(), out);
 					flush(log, out);
 				}
-				rt.iterExtendBytes(out, rt.iterOption(option_map$14orwce(rt.iterNth(rt.sliceSplit(twos.d, rt.lending(testTwos, (f10) => (held20) => f10(rt.byteSliceFrom(held20)))), 1), sumTwos)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$14orwce(rt.iterNth(rt.sliceSplit(twos.items, rt.lending(testTwos, (f10) => (held20) => f10(rt.byteSliceFrom(held20)))), 1), sumTwos)), undefined, true);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterOption(option_map$14orwce(rt.iterNthBack(rt.sliceSplit(twos.d, rt.lending(testTwos, (f11) => (held21) => f11(rt.byteSliceFrom(held21)))), 1), sumTwos)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$14orwce(rt.iterNthBack(rt.sliceSplit(twos.items, rt.lending(testTwos, (f11) => (held21) => f11(rt.byteSliceFrom(held21)))), 1), sumTwos)), undefined, true);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterOption(option_map$14orwce(rt.iterLast(rt.sliceSplit(twos.d, rt.lending(testTwos, (f12) => (held22) => f12(rt.byteSliceFrom(held22))))), sumTwos)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$14orwce(rt.iterLast(rt.sliceSplit(twos.items, rt.lending(testTwos, (f12) => (held22) => f12(rt.byteSliceFrom(held22))))), sumTwos)), undefined, true);
 				flush(log, out);
-				rt.byteVecPush(out, rt.iterCount(rt.sliceSplit(twos.d, rt.lending(testTwos, (f13) => (held23) => f13(rt.byteSliceFrom(held23))))) & 0xff);
+				rt.byteVecPush(out, rt.iterCount(rt.sliceSplit(twos.items, rt.lending(testTwos, (f13) => (held23) => f13(rt.byteSliceFrom(held23))))) & 0xff);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterSkip(rt.iterRev(rt.sliceSplit(twos.d, rt.lending(testTwos, (f14) => (held24) => f14(rt.byteSliceFrom(held24))))), 1), sumTwos), "next");
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterSkip(rt.iterRev(rt.sliceSplit(twos.items, rt.lending(testTwos, (f14) => (held24) => f14(rt.byteSliceFrom(held24))))), 1), sumTwos), "next");
 				flush(log, out);
 			} else if (_35 === 2) {
 				const iter19: rt.Iter<boolean> = rt.iterSlice([false, true]);
@@ -723,7 +723,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						break;
 					}
 					const back10: boolean = _1059;
-					const it21: rt.Iter<rt.u16[]> = rt.sliceSplitInclusive(words.d, testWords);
+					const it21: rt.Iter<rt.u16[]> = rt.sliceSplitInclusive(words.items, testWords);
 					hint(it21.sizeHint(), out);
 					flush(log, out);
 					while (true) {
@@ -743,7 +743,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 					}
 				}
-				const it22: rt.Iter<rt.u16[]> = rt.sliceSplitInclusive(words.d, testWords);
+				const it22: rt.Iter<rt.u16[]> = rt.sliceSplitInclusive(words.items, testWords);
 				let iterStart11: rt.i32 = 0;
 				const iterEnd11: rt.i32 = 12;
 				while ((_1103 = iterStart11++) < iterEnd11) {
@@ -756,15 +756,15 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 					hint(it22.sizeHint(), out);
 					flush(log, out);
 				}
-				rt.iterExtendBytes(out, rt.iterOption(option_map$0vryjg8(rt.iterNth(rt.sliceSplitInclusive(words.d, testWords), 1), sumWords)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$0vryjg8(rt.iterNth(rt.sliceSplitInclusive(words.items, testWords), 1), sumWords)), undefined, true);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterOption(option_map$0vryjg8(rt.iterNthBack(rt.sliceSplitInclusive(words.d, testWords), 1), sumWords)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$0vryjg8(rt.iterNthBack(rt.sliceSplitInclusive(words.items, testWords), 1), sumWords)), undefined, true);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterOption(option_map$0vryjg8(rt.iterLast(rt.sliceSplitInclusive(words.d, testWords)), sumWords)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$0vryjg8(rt.iterLast(rt.sliceSplitInclusive(words.items, testWords)), sumWords)), undefined, true);
 				flush(log, out);
-				rt.byteVecPush(out, rt.iterCount(rt.sliceSplitInclusive(words.d, testWords)) & 0xff);
+				rt.byteVecPush(out, rt.iterCount(rt.sliceSplitInclusive(words.items, testWords)) & 0xff);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterSkip(rt.iterRev(rt.sliceSplitInclusive(words.d, testWords)), 1), sumWords), "next");
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterSkip(rt.iterRev(rt.sliceSplitInclusive(words.items, testWords)), 1), sumWords), "next");
 				flush(log, out);
 				const iter23: rt.Iter<boolean> = rt.iterSlice([false, true]);
 				l105: while (true) {
@@ -773,7 +773,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						break;
 					}
 					const back11: boolean = _1170;
-					const it23: rt.Iter<Pair.Pair[]> = rt.sliceSplitInclusive(pairs.d, testPairs);
+					const it23: rt.Iter<Pair.Pair[]> = rt.sliceSplitInclusive(pairs.items, testPairs);
 					hint(it23.sizeHint(), out);
 					flush(log, out);
 					while (true) {
@@ -793,7 +793,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 					}
 				}
-				const it24: rt.Iter<Pair.Pair[]> = rt.sliceSplitInclusive(pairs.d, testPairs);
+				const it24: rt.Iter<Pair.Pair[]> = rt.sliceSplitInclusive(pairs.items, testPairs);
 				let iterStart12: rt.i32 = 0;
 				const iterEnd12: rt.i32 = 12;
 				while ((_1214 = iterStart12++) < iterEnd12) {
@@ -806,15 +806,15 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 					hint(it24.sizeHint(), out);
 					flush(log, out);
 				}
-				rt.iterExtendBytes(out, rt.iterOption(option_map$02o7iu2(rt.iterNth(rt.sliceSplitInclusive(pairs.d, testPairs), 1), sumPairs)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$02o7iu2(rt.iterNth(rt.sliceSplitInclusive(pairs.items, testPairs), 1), sumPairs)), undefined, true);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterOption(option_map$02o7iu2(rt.iterNthBack(rt.sliceSplitInclusive(pairs.d, testPairs), 1), sumPairs)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$02o7iu2(rt.iterNthBack(rt.sliceSplitInclusive(pairs.items, testPairs), 1), sumPairs)), undefined, true);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterOption(option_map$02o7iu2(rt.iterLast(rt.sliceSplitInclusive(pairs.d, testPairs)), sumPairs)), undefined, true);
+				rt.iterExtendBytes(out, rt.iterOption(option_map$02o7iu2(rt.iterLast(rt.sliceSplitInclusive(pairs.items, testPairs)), sumPairs)), undefined, true);
 				flush(log, out);
-				rt.byteVecPush(out, rt.iterCount(rt.sliceSplitInclusive(pairs.d, testPairs)) & 0xff);
+				rt.byteVecPush(out, rt.iterCount(rt.sliceSplitInclusive(pairs.items, testPairs)) & 0xff);
 				flush(log, out);
-				rt.iterExtendBytes(out, rt.iterMap(rt.iterSkip(rt.iterRev(rt.sliceSplitInclusive(pairs.d, testPairs)), 1), sumPairs), "next");
+				rt.iterExtendBytes(out, rt.iterMap(rt.iterSkip(rt.iterRev(rt.sliceSplitInclusive(pairs.items, testPairs)), 1), sumPairs), "next");
 				flush(log, out);
 			} else {
 				if (_35 === 3) {
@@ -860,12 +860,12 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						rt.byteVecPush(out, rt.iterCount(rt.byteSliceRsplitn(data, n2, test)) & 0xff);
 						flush(log, out);
 					}
-					const _1356: rt.usize = rt.usizeAdd(words.d.length, 3);
+					const _1356: rt.usize = rt.usizeAdd(words.items.length, 3);
 					let iterStart15: rt.usize = 0;
 					const iterEnd15: rt.usize = _1356;
 					while ((_1361 = iterStart15++) < iterEnd15) {
 						const n3: rt.usize = _1361;
-						const it27: rt.Iter<rt.u16[]> = rt.sliceSplitn(words.d, n3, testWords);
+						const it27: rt.Iter<rt.u16[]> = rt.sliceSplitn(words.items, n3, testWords);
 						hint(it27.sizeHint(), out);
 						while (true) {
 							const _1371: rt.u16[] | rt.Done = it27.next();
@@ -878,15 +878,15 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 							}
 						}
 						rt.byteVecPush(out, rt.iterToOption(it27.next()) === undefined ? 1 : 0);
-						rt.byteVecPush(out, rt.iterCount(rt.sliceSplitn(words.d, n3, testWords)) & 0xff);
+						rt.byteVecPush(out, rt.iterCount(rt.sliceSplitn(words.items, n3, testWords)) & 0xff);
 						flush(log, out);
 					}
-					const _1399: rt.usize = rt.usizeAdd(pairs.d.length, 3);
+					const _1399: rt.usize = rt.usizeAdd(pairs.items.length, 3);
 					let iterStart16: rt.usize = 0;
 					const iterEnd16: rt.usize = _1399;
 					while ((_1404 = iterStart16++) < iterEnd16) {
 						const n4: rt.usize = _1404;
-						const it28: rt.Iter<Pair.Pair[]> = rt.sliceRsplitn(pairs.d, n4, testPairs);
+						const it28: rt.Iter<Pair.Pair[]> = rt.sliceRsplitn(pairs.items, n4, testPairs);
 						hint(it28.sizeHint(), out);
 						while (true) {
 							const _1414: Pair.Pair[] | rt.Done = it28.next();
@@ -899,10 +899,10 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 							}
 						}
 						rt.byteVecPush(out, rt.iterToOption(it28.next()) === undefined ? 1 : 0);
-						rt.byteVecPush(out, rt.iterCount(rt.sliceRsplitn(pairs.d, n4, testPairs)) & 0xff);
+						rt.byteVecPush(out, rt.iterCount(rt.sliceRsplitn(pairs.items, n4, testPairs)) & 0xff);
 						flush(log, out);
 					}
-					const _1442: rt.usize = rt.usizeAdd(texts.d.length, 3);
+					const _1442: rt.usize = rt.usizeAdd(texts.items.length, 3);
 					let iterStart17: rt.usize = 0;
 					const iterEnd17: rt.usize = _1442;
 					while (true) {
@@ -910,7 +910,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 							break b2;
 						}
 						const n5: rt.usize = _1447;
-						const it29: rt.Iter<string[]> = rt.sliceSplitn(texts.d, n5, testTexts);
+						const it29: rt.Iter<string[]> = rt.sliceSplitn(texts.items, n5, testTexts);
 						hint(it29.sizeHint(), out);
 						while (true) {
 							const _1457: string[] | rt.Done = it29.next();
@@ -923,7 +923,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 							}
 						}
 						rt.byteVecPush(out, rt.iterToOption(it29.next()) === undefined ? 1 : 0);
-						rt.byteVecPush(out, rt.iterCount(rt.sliceSplitn(texts.d, n5, testTexts)) & 0xff);
+						rt.byteVecPush(out, rt.iterCount(rt.sliceSplitn(texts.items, n5, testTexts)) & 0xff);
 						flush(log, out);
 					}
 				}
@@ -939,7 +939,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 					flush(log, out);
 					rt.byteVecPush(out, sum(rt.byteVecSlice(bytes)));
 					const held: rt.Vec<rt.ByteSlice> = rt.iterToVec(rt.byteSliceSplit(rt.byteVecSlice(bytes), test), "next", 8);
-					const iter31: rt.Iter<[rt.usize, rt.Place<rt.ByteSlice>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held.d)));
+					const iter31: rt.Iter<[rt.usize, rt.Place<rt.ByteSlice>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held.items)));
 					while (true) {
 						const _1511: [rt.usize, rt.Place<rt.ByteSlice>] | rt.Done = iter31.next();
 						if (_1511 === rt.DONE) {
@@ -947,12 +947,12 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribble(rt.usizeAdd(_1511[0], 7), _1511[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held.d), (p44: rt.ByteSlice): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held.items), (p44: rt.ByteSlice): rt.u8 => {
 						return sum(p44);
 					}), undefined, true);
 					flush(log, out);
 					rt.byteVecPush(out, sum(rt.byteVecSlice(bytes)));
-					const iter32: rt.Iter<[rt.usize, rt.u16[]]> = rt.iterEnumerate(rt.sliceRsplitMut(words.d, testWords));
+					const iter32: rt.Iter<[rt.usize, rt.u16[]]> = rt.iterEnumerate(rt.sliceRsplitMut(words.items, testWords));
 					while (true) {
 						const _1538: [rt.usize, rt.u16[]] | rt.Done = iter32.next();
 						if (_1538 === rt.DONE) {
@@ -961,9 +961,9 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						scribbleWords(_1538[0], _1538[1]);
 					}
 					flush(log, out);
-					rt.byteVecPush(out, sumWords(words.d));
-					const held2: rt.Vec<rt.u16[]> = rt.iterToVec(rt.sliceRsplitMut(words.d, testWords), "next", 8);
-					const iter33: rt.Iter<[rt.usize, rt.Place<rt.u16[]>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held2.d)));
+					rt.byteVecPush(out, sumWords(words.items));
+					const held2: rt.Vec<rt.u16[]> = rt.iterToVec(rt.sliceRsplitMut(words.items, testWords), "next", 8);
+					const iter33: rt.Iter<[rt.usize, rt.Place<rt.u16[]>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held2.items)));
 					while (true) {
 						const _1560: [rt.usize, rt.Place<rt.u16[]>] | rt.Done = iter33.next();
 						if (_1560 === rt.DONE) {
@@ -971,12 +971,12 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribbleWords(rt.usizeAdd(_1560[0], 7), _1560[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held2.d), (p45: rt.u16[]): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held2.items), (p45: rt.u16[]): rt.u8 => {
 						return sumWords(p45);
 					}), undefined, true);
 					flush(log, out);
-					rt.byteVecPush(out, sumWords(words.d));
-					const iter34: rt.Iter<[rt.usize, Pair.Pair[]]> = rt.iterEnumerate(rt.sliceSplitMut(pairs.d, testPairs));
+					rt.byteVecPush(out, sumWords(words.items));
+					const iter34: rt.Iter<[rt.usize, Pair.Pair[]]> = rt.iterEnumerate(rt.sliceSplitMut(pairs.items, testPairs));
 					while (true) {
 						const _1587: [rt.usize, Pair.Pair[]] | rt.Done = iter34.next();
 						if (_1587 === rt.DONE) {
@@ -985,9 +985,9 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						scribblePairs(_1587[0], _1587[1]);
 					}
 					flush(log, out);
-					rt.byteVecPush(out, sumPairs(pairs.d));
-					const held3: rt.Vec<Pair.Pair[]> = rt.iterToVec(rt.sliceSplitMut(pairs.d, testPairs), "next", 8);
-					const iter35: rt.Iter<[rt.usize, rt.Place<Pair.Pair[]>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held3.d)));
+					rt.byteVecPush(out, sumPairs(pairs.items));
+					const held3: rt.Vec<Pair.Pair[]> = rt.iterToVec(rt.sliceSplitMut(pairs.items, testPairs), "next", 8);
+					const iter35: rt.Iter<[rt.usize, rt.Place<Pair.Pair[]>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held3.items)));
 					while (true) {
 						const _1609: [rt.usize, rt.Place<Pair.Pair[]>] | rt.Done = iter35.next();
 						if (_1609 === rt.DONE) {
@@ -995,11 +995,11 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribblePairs(rt.usizeAdd(_1609[0], 7), _1609[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held3.d), (p46: Pair.Pair[]): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held3.items), (p46: Pair.Pair[]): rt.u8 => {
 						return sumPairs(p46);
 					}), undefined, true);
 					flush(log, out);
-					rt.byteVecPush(out, sumPairs(pairs.d));
+					rt.byteVecPush(out, sumPairs(pairs.items));
 					const it30: rt.Iter<rt.ByteSlice> = rt.byteSliceRsplit(rt.byteVecSlice(bytes), test);
 					let iterStart18: rt.usize = 0;
 					const iterEnd18: rt.usize = 12;
@@ -1018,7 +1018,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						flush(log, out);
 					}
 					rt.byteVecPush(out, sum(rt.byteVecSlice(bytes)));
-					const it31: rt.Iter<rt.u16[]> = rt.sliceSplitMut(words.d, testWords);
+					const it31: rt.Iter<rt.u16[]> = rt.sliceSplitMut(words.items, testWords);
 					let iterStart19: rt.usize = 0;
 					const iterEnd19: rt.usize = 12;
 					while ((_1665 = iterStart19++) < iterEnd19) {
@@ -1035,8 +1035,8 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						flush(log, out);
 					}
-					rt.byteVecPush(out, sumWords(words.d));
-					const it32: rt.Iter<Pair.Pair[]> = rt.sliceRsplitMut(pairs.d, testPairs);
+					rt.byteVecPush(out, sumWords(words.items));
+					const it32: rt.Iter<Pair.Pair[]> = rt.sliceRsplitMut(pairs.items, testPairs);
 					let iterStart20: rt.usize = 0;
 					const iterEnd20: rt.usize = 12;
 					while ((_1694 = iterStart20++) < iterEnd20) {
@@ -1053,7 +1053,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						flush(log, out);
 					}
-					rt.byteVecPush(out, sumPairs(pairs.d));
+					rt.byteVecPush(out, sumPairs(pairs.items));
 				} else if (_35 === 5) {
 					const iter39: rt.Iter<[rt.usize, rt.ByteSlice]> = rt.iterEnumerate(rt.byteSliceSplitInclusive(rt.byteVecSlice(bytes), test));
 					while (true) {
@@ -1066,7 +1066,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 					flush(log, out);
 					rt.byteVecPush(out, sum(rt.byteVecSlice(bytes)));
 					const held4: rt.Vec<rt.ByteSlice> = rt.iterToVec(rt.byteSliceSplitInclusive(rt.byteVecSlice(bytes), test), "next", 8);
-					const iter40: rt.Iter<[rt.usize, rt.Place<rt.ByteSlice>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held4.d)));
+					const iter40: rt.Iter<[rt.usize, rt.Place<rt.ByteSlice>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held4.items)));
 					while (true) {
 						const _1745: [rt.usize, rt.Place<rt.ByteSlice>] | rt.Done = iter40.next();
 						if (_1745 === rt.DONE) {
@@ -1074,12 +1074,12 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribble(rt.usizeAdd(_1745[0], 7), _1745[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held4.d), (p41: rt.ByteSlice): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held4.items), (p41: rt.ByteSlice): rt.u8 => {
 						return sum(p41);
 					}), undefined, true);
 					flush(log, out);
 					rt.byteVecPush(out, sum(rt.byteVecSlice(bytes)));
-					const iter41: rt.Iter<[rt.usize, rt.u16[]]> = rt.iterEnumerate(rt.sliceSplitInclusiveMut(words.d, testWords));
+					const iter41: rt.Iter<[rt.usize, rt.u16[]]> = rt.iterEnumerate(rt.sliceSplitInclusiveMut(words.items, testWords));
 					while (true) {
 						const _1772: [rt.usize, rt.u16[]] | rt.Done = iter41.next();
 						if (_1772 === rt.DONE) {
@@ -1088,9 +1088,9 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						scribbleWords(_1772[0], _1772[1]);
 					}
 					flush(log, out);
-					rt.byteVecPush(out, sumWords(words.d));
-					const held5: rt.Vec<rt.u16[]> = rt.iterToVec(rt.sliceSplitInclusiveMut(words.d, testWords), "next", 8);
-					const iter42: rt.Iter<[rt.usize, rt.Place<rt.u16[]>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held5.d)));
+					rt.byteVecPush(out, sumWords(words.items));
+					const held5: rt.Vec<rt.u16[]> = rt.iterToVec(rt.sliceSplitInclusiveMut(words.items, testWords), "next", 8);
+					const iter42: rt.Iter<[rt.usize, rt.Place<rt.u16[]>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held5.items)));
 					while (true) {
 						const _1794: [rt.usize, rt.Place<rt.u16[]>] | rt.Done = iter42.next();
 						if (_1794 === rt.DONE) {
@@ -1098,12 +1098,12 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribbleWords(rt.usizeAdd(_1794[0], 7), _1794[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held5.d), (p42: rt.u16[]): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held5.items), (p42: rt.u16[]): rt.u8 => {
 						return sumWords(p42);
 					}), undefined, true);
 					flush(log, out);
-					rt.byteVecPush(out, sumWords(words.d));
-					const iter43: rt.Iter<[rt.usize, Pair.Pair[]]> = rt.iterEnumerate(rt.sliceSplitInclusiveMut(pairs.d, testPairs));
+					rt.byteVecPush(out, sumWords(words.items));
+					const iter43: rt.Iter<[rt.usize, Pair.Pair[]]> = rt.iterEnumerate(rt.sliceSplitInclusiveMut(pairs.items, testPairs));
 					while (true) {
 						const _1821: [rt.usize, Pair.Pair[]] | rt.Done = iter43.next();
 						if (_1821 === rt.DONE) {
@@ -1112,9 +1112,9 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						scribblePairs(_1821[0], _1821[1]);
 					}
 					flush(log, out);
-					rt.byteVecPush(out, sumPairs(pairs.d));
-					const held6: rt.Vec<Pair.Pair[]> = rt.iterToVec(rt.sliceSplitInclusiveMut(pairs.d, testPairs), "next", 8);
-					const iter44: rt.Iter<[rt.usize, rt.Place<Pair.Pair[]>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held6.d)));
+					rt.byteVecPush(out, sumPairs(pairs.items));
+					const held6: rt.Vec<Pair.Pair[]> = rt.iterToVec(rt.sliceSplitInclusiveMut(pairs.items, testPairs), "next", 8);
+					const iter44: rt.Iter<[rt.usize, rt.Place<Pair.Pair[]>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held6.items)));
 					while (true) {
 						const _1843: [rt.usize, rt.Place<Pair.Pair[]>] | rt.Done = iter44.next();
 						if (_1843 === rt.DONE) {
@@ -1122,11 +1122,11 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribblePairs(rt.usizeAdd(_1843[0], 7), _1843[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held6.d), (p43: Pair.Pair[]): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held6.items), (p43: Pair.Pair[]): rt.u8 => {
 						return sumPairs(p43);
 					}), undefined, true);
 					flush(log, out);
-					rt.byteVecPush(out, sumPairs(pairs.d));
+					rt.byteVecPush(out, sumPairs(pairs.items));
 					const it33: rt.Iter<rt.ByteSlice> = rt.byteSliceSplitInclusive(rt.byteVecSlice(bytes), test);
 					let iterStart21: rt.usize = 0;
 					const iterEnd21: rt.usize = 12;
@@ -1145,7 +1145,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						flush(log, out);
 					}
 					rt.byteVecPush(out, sum(rt.byteVecSlice(bytes)));
-					const it34: rt.Iter<rt.u16[]> = rt.sliceSplitInclusiveMut(words.d, testWords);
+					const it34: rt.Iter<rt.u16[]> = rt.sliceSplitInclusiveMut(words.items, testWords);
 					let iterStart22: rt.usize = 0;
 					const iterEnd22: rt.usize = 12;
 					while ((_1899 = iterStart22++) < iterEnd22) {
@@ -1162,8 +1162,8 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						flush(log, out);
 					}
-					rt.byteVecPush(out, sumWords(words.d));
-					const it35: rt.Iter<Pair.Pair[]> = rt.sliceSplitInclusiveMut(pairs.d, testPairs);
+					rt.byteVecPush(out, sumWords(words.items));
+					const it35: rt.Iter<Pair.Pair[]> = rt.sliceSplitInclusiveMut(pairs.items, testPairs);
 					let iterStart23: rt.usize = 0;
 					const iterEnd23: rt.usize = 12;
 					while ((_1928 = iterStart23++) < iterEnd23) {
@@ -1180,7 +1180,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						flush(log, out);
 					}
-					rt.byteVecPush(out, sumPairs(pairs.d));
+					rt.byteVecPush(out, sumPairs(pairs.items));
 				} else if (_35 === 6) {
 					const n6: rt.usize = rt.usizeRem(steps as rt.usize, rt.usizeAdd(data.length, 3));
 					const iter48: rt.Iter<[rt.usize, rt.ByteSlice]> = rt.iterEnumerate(rt.byteSliceSplitn(rt.byteVecSlice(bytes), n6, test));
@@ -1194,7 +1194,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 					flush(log, out);
 					rt.byteVecPush(out, sum(rt.byteVecSlice(bytes)));
 					const held7: rt.Vec<rt.ByteSlice> = rt.iterToVec(rt.byteSliceSplitn(rt.byteVecSlice(bytes), n6, test), "next", 8);
-					const iter49: rt.Iter<[rt.usize, rt.Place<rt.ByteSlice>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held7.d)));
+					const iter49: rt.Iter<[rt.usize, rt.Place<rt.ByteSlice>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held7.items)));
 					while (true) {
 						const _1985: [rt.usize, rt.Place<rt.ByteSlice>] | rt.Done = iter49.next();
 						if (_1985 === rt.DONE) {
@@ -1202,12 +1202,12 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribble(rt.usizeAdd(_1985[0], 7), _1985[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held7.d), (p37: rt.ByteSlice): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held7.items), (p37: rt.ByteSlice): rt.u8 => {
 						return sum(p37);
 					}), undefined, true);
 					flush(log, out);
 					rt.byteVecPush(out, sum(rt.byteVecSlice(bytes)));
-					const iter50: rt.Iter<[rt.usize, rt.u16[]]> = rt.iterEnumerate(rt.sliceRsplitnMut(words.d, n6, testWords));
+					const iter50: rt.Iter<[rt.usize, rt.u16[]]> = rt.iterEnumerate(rt.sliceRsplitnMut(words.items, n6, testWords));
 					while (true) {
 						const _2012: [rt.usize, rt.u16[]] | rt.Done = iter50.next();
 						if (_2012 === rt.DONE) {
@@ -1216,9 +1216,9 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						scribbleWords(_2012[0], _2012[1]);
 					}
 					flush(log, out);
-					rt.byteVecPush(out, sumWords(words.d));
-					const held8: rt.Vec<rt.u16[]> = rt.iterToVec(rt.sliceRsplitnMut(words.d, n6, testWords), "next", 8);
-					const iter51: rt.Iter<[rt.usize, rt.Place<rt.u16[]>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held8.d)));
+					rt.byteVecPush(out, sumWords(words.items));
+					const held8: rt.Vec<rt.u16[]> = rt.iterToVec(rt.sliceRsplitnMut(words.items, n6, testWords), "next", 8);
+					const iter51: rt.Iter<[rt.usize, rt.Place<rt.u16[]>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held8.items)));
 					while (true) {
 						const _2034: [rt.usize, rt.Place<rt.u16[]>] | rt.Done = iter51.next();
 						if (_2034 === rt.DONE) {
@@ -1226,12 +1226,12 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribbleWords(rt.usizeAdd(_2034[0], 7), _2034[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held8.d), (p38: rt.u16[]): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held8.items), (p38: rt.u16[]): rt.u8 => {
 						return sumWords(p38);
 					}), undefined, true);
 					flush(log, out);
-					rt.byteVecPush(out, sumWords(words.d));
-					const iter52: rt.Iter<[rt.usize, Pair.Pair[]]> = rt.iterEnumerate(rt.sliceSplitnMut(pairs.d, n6, testPairs));
+					rt.byteVecPush(out, sumWords(words.items));
+					const iter52: rt.Iter<[rt.usize, Pair.Pair[]]> = rt.iterEnumerate(rt.sliceSplitnMut(pairs.items, n6, testPairs));
 					while (true) {
 						const _2061: [rt.usize, Pair.Pair[]] | rt.Done = iter52.next();
 						if (_2061 === rt.DONE) {
@@ -1240,9 +1240,9 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						scribblePairs(_2061[0], _2061[1]);
 					}
 					flush(log, out);
-					rt.byteVecPush(out, sumPairs(pairs.d));
-					const held9: rt.Vec<Pair.Pair[]> = rt.iterToVec(rt.sliceSplitnMut(pairs.d, n6, testPairs), "next", 8);
-					const iter53: rt.Iter<[rt.usize, rt.Place<Pair.Pair[]>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held9.d)));
+					rt.byteVecPush(out, sumPairs(pairs.items));
+					const held9: rt.Vec<Pair.Pair[]> = rt.iterToVec(rt.sliceSplitnMut(pairs.items, n6, testPairs), "next", 8);
+					const iter53: rt.Iter<[rt.usize, rt.Place<Pair.Pair[]>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held9.items)));
 					while (true) {
 						const _2083: [rt.usize, rt.Place<Pair.Pair[]>] | rt.Done = iter53.next();
 						if (_2083 === rt.DONE) {
@@ -1250,11 +1250,11 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribblePairs(rt.usizeAdd(_2083[0], 7), _2083[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held9.d), (p39: Pair.Pair[]): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held9.items), (p39: Pair.Pair[]): rt.u8 => {
 						return sumPairs(p39);
 					}), undefined, true);
 					flush(log, out);
-					rt.byteVecPush(out, sumPairs(pairs.d));
+					rt.byteVecPush(out, sumPairs(pairs.items));
 					const iter54: rt.Iter<[rt.usize, rt.ByteSlice]> = rt.iterEnumerate(rt.byteSliceRsplitn(rt.byteVecSlice(bytes), n6, test));
 					while (true) {
 						const _2110: [rt.usize, rt.ByteSlice] | rt.Done = iter54.next();
@@ -1266,7 +1266,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 					flush(log, out);
 					rt.byteVecPush(out, sum(rt.byteVecSlice(bytes)));
 					const held10: rt.Vec<rt.ByteSlice> = rt.iterToVec(rt.byteSliceRsplitn(rt.byteVecSlice(bytes), n6, test), "next", 8);
-					const iter55: rt.Iter<[rt.usize, rt.Place<rt.ByteSlice>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held10.d)));
+					const iter55: rt.Iter<[rt.usize, rt.Place<rt.ByteSlice>]> = rt.iterRev(rt.iterEnumerate(rt.iterSliceMut(held10.items)));
 					while (true) {
 						const _2132: [rt.usize, rt.Place<rt.ByteSlice>] | rt.Done = iter55.next();
 						if (_2132 === rt.DONE) {
@@ -1274,7 +1274,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						}
 						scribble(rt.usizeAdd(_2132[0], 7), _2132[1].v);
 					}
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held10.d), (p40: rt.ByteSlice): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(held10.items), (p40: rt.ByteSlice): rt.u8 => {
 						return sum(p40);
 					}), undefined, true);
 					flush(log, out);
@@ -1316,7 +1316,7 @@ export function separated(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): voi
 						captured3[Symbol.dispose]();
 					})), "next", 8);
 					flush(log, out);
-					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(all.d), (p36: rt.ByteSlice): rt.u8 => {
+					rt.iterExtendBytes(out, rt.iterMap(rt.iterSlice(all.items), (p36: rt.ByteSlice): rt.u8 => {
 						return sum(p36);
 					}), undefined, true);
 					const captured4 = below(227);

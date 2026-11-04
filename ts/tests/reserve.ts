@@ -55,4 +55,4 @@ const slots = q.b;
 failed(rt.dequeTryReserve(q, LIMIT), LIMIT + 4);
 failed(rt.dequeTryReserveExact(q, LIMIT - 4), LIMIT);
 assert.equal(q.b, slots);
-assert.deepEqual(rt.iterToVec(rt.dequeIter(q)).d, [2, 3, 4, 5]);
+assert.deepEqual(rt.iterToVec(rt.dequeIter(q)).items, [2, 3, 4, 5]);

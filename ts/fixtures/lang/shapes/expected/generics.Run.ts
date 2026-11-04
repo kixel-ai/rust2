@@ -6,7 +6,7 @@ export function fmt$fmt_Debug_u16(self: Run<rt.u16>, f: rt.Formatter): rt.Result
 	if (self.tag === "Listed") {
 		const arg2 = self._0 as rt.Vec<rt.u16>;
 		const _5: string = "Listed";
-		const _6: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg2.d, f, rt.u16Debug);
+		const _6: rt.Fmt = (f: rt.Formatter) => rt.fmtList(arg2.items, f, rt.u16Debug);
 		return rt.debugTupleFinish(rt.debugTupleField(rt.fmtDebugTuple(f, _5), _6));
 	}
 	if (self.tag === "Fixed") {
@@ -44,7 +44,7 @@ export type Run<T> =
 
 export function first$u16(self: Run<rt.u16>): rt.u16 | undefined {
 	if (self.tag === "Listed") {
-		return rt.sliceFirst((self._0 as rt.Vec<rt.u16>).d);
+		return rt.sliceFirst((self._0 as rt.Vec<rt.u16>).items);
 	}
 	if (self.tag === "Fixed") {
 		return (self.array as rt.u16[])[0];

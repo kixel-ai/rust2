@@ -205,8 +205,8 @@ export function folded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			}, (): void => {
 				captured57[Symbol.dispose]();
 			})), "fold", 16, true);
-			const _187: rt.usize = same.d.length;
-			const _190: rt.usize = wider.d.length;
+			const _187: rt.usize = same.items.length;
+			const _190: rt.usize = wider.items.length;
 			const args14: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_187, f), (f: rt.Formatter) => rt.usizeDisplay(_190, f)];
 			Log.note(log, rt.fmtFormat(["collected ", args14[0], " ", args14[1]]));
 			rt.dropVec(wider, lib_drop$tuple2_model_Guard_u64);
@@ -232,7 +232,7 @@ export function folded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			}, (): void => {
 				captured55[Symbol.dispose]();
 			}));
-			const tree: rt.BTreeMap<rt.u32, Guard.Guard> = rt.btreeCollect(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u32, Guard.Guard>, rt.iterToVec(_205, "fold", 12, true).d, 12, true, undefined, undefined, rt.drop);
+			const tree: rt.BTreeMap<rt.u32, Guard.Guard> = rt.btreeCollect(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u32, Guard.Guard>, rt.iterToVec(_205, "fold", 12, true).items, 12, true, undefined, undefined, rt.drop);
 			const _217: rt.usize = queue.n;
 			const _220: rt.usize = rt.btreeLen(tree);
 			const args16: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_217, f), (f: rt.Formatter) => rt.usizeDisplay(_220, f)];
@@ -264,7 +264,7 @@ export function folded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 				captured53[Symbol.dispose]();
 			}));
 			rt.btreeExtend(tree2, _241, false, undefined, rt.drop, "fold");
-			const _253: rt.usize = v.d.length;
+			const _253: rt.usize = v.items.length;
 			const _256: rt.usize = rt.btreeLen(tree2);
 			const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_253, f), (f: rt.Formatter) => rt.usizeDisplay(_256, f)];
 			Log.note(log, rt.fmtFormat(["extended ", args18[0], " ", args18[1]]));
@@ -523,9 +523,9 @@ export function folded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			const n11: rt.usize = rt.ownedCount(rt.iterFlatMap(_553, rt.closure((n33: rt.u32): rt.Vec<Guard.Guard> => {
 				const v6: rt.Vec<Guard.Guard> = new rt.Vec();
 				const _659: Guard.Guard = captured29(n33);
-				v6.d.push(_659);
+				v6.items.push(_659);
 				const _1128: Guard.Guard = captured29(rt.u32Add(n33, 1));
-				v6.d.push(_1128);
+				v6.items.push(_1128);
 				const _226: rt.u32 = Guard.id(captured30);
 				const args88: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(n33, f), (f: rt.Formatter) => rt.u32Display(_226, f)];
 				Log.note(log, rt.fmtFormat(["flat ", args88[0], " ", args88[1]]));
@@ -544,9 +544,9 @@ export function folded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			const captured25 = id;
 			const flat: rt.Iter<Guard.Guard> = rt.iterFlatten(rt.iterMap(_572, rt.closure((g35: Guard.Guard): rt.Vec<Guard.Guard> => {
 				const v3: rt.Vec<Guard.Guard> = new rt.Vec();
-				v3.d.push(g35);
+				v3.items.push(g35);
 				const _818: Guard.Guard = captured23(rt.u32Add(rt.u32Sub(Guard.id(captured24), captured25), 1));
-				v3.d.push(_818);
+				v3.items.push(_818);
 				return v3;
 			}, (): void => {
 				captured24[Symbol.dispose]();
@@ -571,9 +571,9 @@ export function folded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			const _606: rt.u32 | undefined = option_map$1raha9y(rt.ownedLast(rt.iterFlatMap(_597, rt.closure((n32: rt.u32): rt.Vec<Guard.Guard> => {
 				const v4: rt.Vec<Guard.Guard> = new rt.Vec();
 				const _658: Guard.Guard = captured26(n32);
-				v4.d.push(_658);
+				v4.items.push(_658);
 				const _1125: Guard.Guard = captured26(rt.u32Add(rt.u32Sub(Guard.id(captured27), captured28), n32));
-				v4.d.push(_1125);
+				v4.items.push(_1125);
 				return v4;
 			}, (): void => {
 				captured27[Symbol.dispose]();
@@ -763,9 +763,9 @@ export function folded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			const captured9 = id;
 			const flat2: rt.Iter<Guard.Guard> = rt.iterFlatten(rt.iterMap(_843, rt.closure((g14: Guard.Guard): rt.Vec<Guard.Guard> => {
 				const v2: rt.Vec<Guard.Guard> = new rt.Vec();
-				v2.d.push(g14);
+				v2.items.push(g14);
 				const _86: Guard.Guard = captured7(rt.u32Add(rt.u32Sub(Guard.id(captured8), captured9), 1));
-				v2.d.push(_86);
+				v2.items.push(_86);
 				return v2;
 			}, (): void => {
 				captured8[Symbol.dispose]();
@@ -1256,8 +1256,8 @@ export function rfolded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			Log.note(log, rt.fmtFormat(["map ", args74[0], " ", args74[1]]));
 			const v: rt.Vec<Guard.Guard> = new rt.Vec();
 			const _2211: Guard.Guard = captured26(rt.u32Add(rt.u32Sub(Guard.id(g27), captured27), 3));
-			v.d.push(_2211);
-			v.d.push(g27);
+			v.items.push(_2211);
+			v.items.push(g27);
 			return v;
 		}, (): void => {
 			captured25[Symbol.dispose]();
@@ -1616,7 +1616,7 @@ export function rfolded(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		})), 0, (n14: rt.u32, k2: rt.u32): rt.u32 => {
 			return rt.u32Add(n14, k2);
 		}, true);
-		const _635: rt.usize = held2.held.d.length;
+		const _635: rt.usize = held2.held.items.length;
 		const args50: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(n10, f), (f: rt.Formatter) => rt.usizeDisplay(_635, f)];
 		Log.note(log, rt.fmtFormat(["borrowed ", args50[0], " ", args50[1]]));
 		const _645: Pile.Pile = pile(6, 8);
@@ -1813,7 +1813,7 @@ export function reducers(log: Log.Log, id: rt.u32): void {
 	const _69: [rt.Vec<Guard.Guard>, Guard.Guard] = [guards(1, 3), guard(12)];
 	const held: rt.Vec<Guard.Guard> = _69[0];
 	const e: Guard.Guard = _69[1];
-	const _77: rt.Iter<Guard.Guard> = rt.iterSlice(held.d);
+	const _77: rt.Iter<Guard.Guard> = rt.iterSlice(held.items);
 	const captured3 = e;
 	const part = option_map$0lq7mno(rt.iterMinBy(_77, rt.closure((a5: Guard.Guard, b5: Guard.Guard): rt.Ordering => {
 		return rt.cmp(rt.u32Add(Guard.id(a5), Guard.id(captured3)), rt.u32Add(Guard.id(b5), Guard.id(captured3)));
@@ -1880,7 +1880,7 @@ export function closures(log: Log.Log, id: rt.u32): void {
 			return _06;
 		});
 	}), "next", 8, false, 8);
-	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part2.d, f, (value: rt.u32 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u32Debug))];
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part2.items, f, (value: rt.u32 | undefined, f: rt.Formatter) => rt.fmtOption(value, f, rt.u32Debug))];
 	Log.note(log, rt.fmtFormat(["kept ", args2[0]]));
 	const part3 = rt.iterFold(rt.iterFilterMap(rt.vecIntoIter(guards(1, 7), rt.drop), pick, rt.None), 0, (n3: rt.u32, o2: Guard.Guard | undefined): rt.u32 => {
 		return rt.u32Add(rt.u32Mul(n3, 10), option_mapOr$01ozsk3(o2, 9, (g4: Guard.Guard): rt.u32 => {
@@ -2075,7 +2075,7 @@ export function zips(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 			a4[Symbol.dispose]();
 			return _019;
 		}), undefined, 4, true);
-		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(back, f, (value: [rt.u32, rt.u32], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u32Debug(value[0], f), (f: rt.Formatter) => rt.u32Debug(value[1], f)], f)), (f: rt.Formatter) => rt.fmtOption(front, f, (value: [rt.u32, rt.u32], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u32Debug(value[0], f), (f: rt.Formatter) => rt.u32Debug(value[1], f)], f)), (f: rt.Formatter) => rt.fmtOption(next, f, (value: [rt.u32, rt.u32], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u32Debug(value[0], f), (f: rt.Formatter) => rt.u32Debug(value[1], f)], f)), (f: rt.Formatter) => rt.fmtList(rest.d, f, rt.u32Debug)];
+		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(back, f, (value: [rt.u32, rt.u32], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u32Debug(value[0], f), (f: rt.Formatter) => rt.u32Debug(value[1], f)], f)), (f: rt.Formatter) => rt.fmtOption(front, f, (value: [rt.u32, rt.u32], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u32Debug(value[0], f), (f: rt.Formatter) => rt.u32Debug(value[1], f)], f)), (f: rt.Formatter) => rt.fmtOption(next, f, (value: [rt.u32, rt.u32], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.u32Debug(value[0], f), (f: rt.Formatter) => rt.u32Debug(value[1], f)], f)), (f: rt.Formatter) => rt.fmtList(rest.items, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["back ", args4[0], " ", args4[1], " ", args4[2], " ", args4[3]]));
 	} else if (arg === 2) {
 		const n2: rt.usize = rt.ownedCount(rt.iterZip(rt.vecIntoIter(guards(1, 4), rt.drop), rt.vecIntoIter(guards(4, 6), rt.drop), "len", rt.drop, rt.drop), lib_drop$tuple2_model_Guard_model_Guard);
@@ -2135,11 +2135,11 @@ export function zips(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}, (): void => {
 			captured3[Symbol.dispose]();
 		})), "next", 4, true, 4);
-		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(n3, f), (f: rt.Formatter) => rt.fmtOption(at, f, rt.usizeDebug), (f: rt.Formatter) => rt.u32Display(sum, f), (f: rt.Formatter) => rt.usizeDisplay(skipped, f), (f: rt.Formatter) => rt.fmtList(kept.d, f, rt.u32Debug)];
+		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(n3, f), (f: rt.Formatter) => rt.fmtOption(at, f, rt.usizeDebug), (f: rt.Formatter) => rt.u32Display(sum, f), (f: rt.Formatter) => rt.usizeDisplay(skipped, f), (f: rt.Formatter) => rt.fmtList(kept.items, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["no coerce ", args8[0], " ", args8[1], " ", args8[2], " ", args8[3], " ", args8[4]]));
 	} else if (arg === 4) {
 		const v: rt.Vec<[Guard.Guard, Guard.Guard]> = rt.iterToVec(rt.iterZip(rt.vecIntoIter(guards(1, 4), rt.drop), rt.iterMap(new rt.Range(4, 6), guard), "len", rt.drop, rt.drop), "fold", 16, true);
-		const part2 = v.d.length;
+		const part2 = v.items.length;
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part2, f)];
 		Log.note(log, rt.fmtFormat(["collect ", args10[0]]));
 		rt.dropVec(v, lib_drop$tuple2_model_Guard_model_Guard);

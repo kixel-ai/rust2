@@ -36,7 +36,7 @@ export function decode$coding_decode_Decode_coding_varint_Form(r: Decoder.Decode
 		while (iter.next() !== rt.DONE) {
 			const _15: rt.Result<coding_version_Version.Version, DecodeError.DecodeError> = coding_version_Version.decode$coding_decode_Decode_coding_varint_Form(r, version);
 			if (_15.ok) {
-				vs.d.push(_15.value);
+				vs.items.push(_15.value);
 			} else {
 				return _15;
 			}
@@ -48,9 +48,9 @@ export function decode$coding_decode_Decode_coding_varint_Form(r: Decoder.Decode
 
 /** Encode the version list. */
 export function encode$coding_encode_Encode_coding_varint_Form(self: Versions, w: Encoder.Encoder, version: Form.Form): rt.Result<undefined, EncodeError.EncodeError> {
-	const _4: rt.Result<undefined, EncodeError.EncodeError> = Encoder.varint(w, self._0.d.length as rt.u64);
+	const _4: rt.Result<undefined, EncodeError.EncodeError> = Encoder.varint(w, self._0.items.length as rt.u64);
 	if (_4.ok) {
-		for (const _14 of self._0.d) {
+		for (const _14 of self._0.items) {
 			const _18: rt.Result<undefined, EncodeError.EncodeError> = coding_version_Version.encode$coding_encode_Encode_coding_varint_Form(_14, w, version);
 			if (!_18.ok) {
 				return _18;
@@ -63,9 +63,9 @@ export function encode$coding_encode_Encode_coding_varint_Form(self: Versions, w
 
 /** Encode the version list. */
 export function encode$coding_encode_Encode_lite_version_Version(self: Versions, w: Encoder.Encoder, version: lite_version_Version.Version): rt.Result<undefined, EncodeError.EncodeError> {
-	const _4: rt.Result<undefined, EncodeError.EncodeError> = Encoder.varint(w, self._0.d.length as rt.u64);
+	const _4: rt.Result<undefined, EncodeError.EncodeError> = Encoder.varint(w, self._0.items.length as rt.u64);
 	if (_4.ok) {
-		for (const _14 of self._0.d) {
+		for (const _14 of self._0.items) {
 			const _18: rt.Result<undefined, EncodeError.EncodeError> = coding_version_Version.encode$coding_encode_Encode_lite_version_Version(_14, w, version);
 			if (!_18.ok) {
 				return _18;

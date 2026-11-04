@@ -60,7 +60,7 @@ function new_(inputData: Uint8Array, inputStart: number, inputLen: number, cut: 
  * is documented to change the `Buf`'s current position.
  */
 export function remaining$bytes_Buf(self: Pieces): rt.usize {
-	return rt.usizeSub(rt.iterSum(rt.iterMap(rt.iterSlice(self.parts.d), (a0: rt.ByteVec): rt.usize => {
+	return rt.usizeSub(rt.iterSum(rt.iterMap(rt.iterSlice(self.parts.items), (a0: rt.ByteVec): rt.usize => {
 		return a0.length;
 	}), rt.usizeAdd, 0), self.at);
 }
@@ -96,7 +96,7 @@ export function remaining$bytes_Buf(self: Pieces): rt.usize {
  * return an empty slice.
  */
 export function chunk$bytes_Buf(self: Pieces): rt.ByteSlice {
-	const _3: rt.ByteVec | undefined = rt.sliceFirst(self.parts.d);
+	const _3: rt.ByteVec | undefined = rt.sliceFirst(self.parts.items);
 	if (_3 === undefined) {
 		return rt.byteSliceFrom(Uint8Array.of());
 	}
@@ -138,7 +138,7 @@ export function chunk$bytes_Buf(self: Pieces): rt.ByteSlice {
  */
 export function advance$bytes_Buf(self: Pieces, cnt: rt.usize): void {
 	while (cnt > 0) {
-		const left: rt.usize = rt.usizeSub(self.parts.d[rt.idx(self.parts.d, 0)].length, self.at);
+		const left: rt.usize = rt.usizeSub(self.parts.items[rt.idx(self.parts.items, 0)].length, self.at);
 		if (!(cnt < left)) {
 			cnt = rt.usizeSub(cnt, left);
 			rt.vecRemove(self.parts, 0);
@@ -187,7 +187,7 @@ export function copyToBytes$bytes_Buf(self: Pieces, len: rt.usize): rt.ByteSlice
 }
 
 export function pieces$buf_Leased(self: Pieces): rt.usize {
-	return self.parts.d.length;
+	return self.parts.items.length;
 }
 
 /** Reads a byte of `other`, then skips as many bytes as it has left. */

@@ -29,9 +29,9 @@ export function arcs(data: rt.ByteSlice, out: rt.ByteVec): void {
 			const _24: rt.Arc<rt.u8> = ((a0: rt.Arc<rt.u8>): rt.Arc<rt.u8> => {
 				return rt.arcClone(a0);
 			})(m);
-			kept.d.push(_24);
+			kept.items.push(_24);
 			rt.byteVecPush(out, m.value);
-			kept.d.push(m);
+			kept.items.push(m);
 		} else if (_12 === 3) {
 			let m2: rt.Arc<rt.u8> = held$sync_Arc_u8(shared);
 			rt.place(() => m2, (value2) => m2 = value2).v[Symbol.dispose]();
@@ -160,7 +160,7 @@ export function droppedByHand$String(items: rt.Vec<string>): rt.u32 {
 		return 0;
 	}
 	let n: rt.u32 = 0;
-	for (const _7 of items.d) {
+	for (const _7 of items.items) {
 		n = rt.u32Add(n, 1);
 	}
 	return n;

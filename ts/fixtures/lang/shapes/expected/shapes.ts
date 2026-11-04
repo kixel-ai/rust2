@@ -374,14 +374,14 @@ export function shares(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecPush(out, lensBumped(lens));
 	for (const _104 of rt.vecFrom(Array.from({ length: 2 }, (): Lens.Lens => {
 		return copy$shapes_Lens(lens);
-	}).map(copy$shapes_Lens)).d) {
+	}).map(copy$shapes_Lens)).items) {
 		bump(_104.slot);
 	}
 	const lenses: rt.Vec<Lens.Lens> = new rt.Vec();
-	lenses.d.push(copy$shapes_Lens(lens));
+	lenses.items.push(copy$shapes_Lens(lens));
 	const _114: rt.Iter<Lens.Lens> = rt.iterSlice([lens]);
 	rt.iterExtend(lenses, rt.iterMap(_114, copy$shapes_Lens), undefined, 8, true);
-	const iter4: rt.Iter<Lens.Lens> = rt.iterCopied(rt.iterSlice(lenses.d), copy$shapes_Lens);
+	const iter4: rt.Iter<Lens.Lens> = rt.iterCopied(rt.iterSlice(lenses.items), copy$shapes_Lens);
 	while (true) {
 		const _124: Lens.Lens | rt.Done = iter4.next();
 		if (_124 === rt.DONE) {
@@ -418,8 +418,8 @@ export function shares(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecPush(out, writeAt(rt.byteSliceFrom(bytes), at, a));
 	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(bytes));
 	const points: rt.Vec<Point.Point> = rt.vecFromElem(copy$shapes_Point(Point.new(a as rt.i32, 0)), 2, copy$shapes_Point);
-	movedAt(points.d, at);
-	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(points.d[rt.idx(points.d, 0)].x & 0xff, points.d[rt.idx(points.d, 1)].x & 0xff, points.d[rt.idx(points.d, 1)].y & 0xff)));
+	movedAt(points.items, at);
+	rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(Uint8Array.of(points.items[rt.idx(points.items, 0)].x & 0xff, points.items[rt.idx(points.items, 1)].x & 0xff, points.items[rt.idx(points.items, 1)].y & 0xff)));
 	arc[Symbol.dispose]();
 }
 
@@ -2235,10 +2235,10 @@ export function closures(data: rt.ByteSlice, out: rt.ByteVec): void {
 	const parsed: rt.Vec<Dir.Dir | undefined> = new rt.Vec();
 	for (const _53 of rt.byteSliceView(data)) {
 		const _59: Dir.Dir | undefined = dir(_53);
-		parsed.d.push(_59);
+		parsed.items.push(_59);
 	}
 	const tags: rt.ByteVec = new rt.ByteVec();
-	for (const _64 of parsed.d) {
+	for (const _64 of parsed.items) {
 		const _70: rt.u8 = option_unwrapOr$0r2bmpr(option_map$18z3v8h(_64, from$convert_From_shapes_Dir_u8), 0);
 		rt.byteVecPush(tags, _70);
 	}

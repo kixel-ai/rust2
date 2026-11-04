@@ -57,7 +57,7 @@ export function inside(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part20, f)];
 		Log.note(log, rt.fmtFormat(["moved ", args6[0]]));
 		const ranges: rt.Vec<rt.Range<Guard.Guard>> = rt.vecFrom([new rt.Range(guard(10), guard(11)), new rt.Range(guard(12), guard(13))]);
-		const part21 = ranges.d.length;
+		const part21 = ranges.items.length;
 		const args8: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part21, f)];
 		Log.note(log, rt.fmtFormat(["ranges ", args8[0]]));
 		rt.dropVec(ranges, lib_drop$ops_Range_model_Guard);
@@ -66,8 +66,8 @@ export function inside(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 	} else if (_8 === 2) {
 		const v: rt.Vec<Guard.Guard> = rt.iterToVec(rt.iterMap(new rt.Range(1, 6), guard), undefined, 8, true);
 		const taken: rt.Vec<Guard.Guard> = rt.iterToVec(rt.dropAfter(new Spent.Spent(guard(10), 1, 3), (range12) => rt.vecDrain(v, rt.boundsOf(range12, Spent.startBound$ops_RangeBounds_usize, Spent.endBound$ops_RangeBounds_usize), rt.drop), rt.drop), "fold", 8, true);
-		const _136: rt.usize = taken.d.length;
-		const _139: rt.usize = v.d.length;
+		const _136: rt.usize = taken.items.length;
+		const _139: rt.usize = v.items.length;
 		const args10: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_136, f), (f: rt.Formatter) => rt.usizeDisplay(_139, f)];
 		Log.note(log, rt.fmtFormat(["drained ", args10[0], " ", args10[1]]));
 		const q: rt.VecDeque<Guard.Guard> = rt.dequeFromVec(rt.iterToVec(rt.iterMap(new rt.Range(6, 9), guard), undefined, 8, true), 8) as rt.VecDeque<Guard.Guard>;
@@ -100,7 +100,7 @@ export function inside(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const args16: rt.Fmt[] = [_217, (f: rt.Formatter) => rt.fmtList(rt.byteSliceView(arg2), f, rt.u8Debug)];
 		Log.note(log, rt.fmtFormat(["edited ", args16[0], " ", args16[1]]));
 		const none: rt.Vec<Guard.Guard> = rt.iterToVec(rt.dropAfter(new Spent.Spent(guard(16), 1, 1), (range18) => rt.vecDrain(v, rt.boundsOf(range18, Spent.startBound$ops_RangeBounds_usize, Spent.endBound$ops_RangeBounds_usize), rt.drop), rt.drop), "fold", 8, true);
-		const part19 = none.d.length;
+		const part19 = none.items.length;
 		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part19, f)];
 		Log.note(log, rt.fmtFormat(["none ", args18[0]]));
 		rt.dropVec(none);
@@ -147,7 +147,7 @@ export function inside(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const part12 = rt.iterToVec(rt.iterMap(rt.dropAfter(new rt.Range(key(2), key(4)), (range5) => rt.btreeRange(map2, range5, Key.eq$cmp_PartialEq, rt.cmpGt(Key.partialCmp$cmp_PartialOrd)), lib_drop$ops_Range_drops_Key), (_2: [Key.Key, rt.u32]): rt.u32 => {
 			return _2[1];
 		}), "next", 4);
-		const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part12.d, f, rt.u32Debug)];
+		const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part12.items, f, rt.u32Debug)];
 		Log.note(log, rt.fmtFormat(["keys ", args26[0]]));
 		const found2: rt.usize = rt.iterCount(rt.dropAfter(new rt.RangeInclusive(key(3), key(9)), (range6) => rt.btreeRange(map2, range6, Key.eq$cmp_PartialEq, rt.cmpGt(Key.partialCmp$cmp_PartialOrd)), lib_drop$ops_RangeInclusive_drops_Key));
 		const _371: rt.BTreeMap<Key.Key, rt.u32> = rt.btreeNew(Key.cmp$cmp_Ord) as rt.BTreeMap<Key.Key, rt.u32>;
@@ -216,7 +216,7 @@ export function inside(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		Log.note(log, rt.fmtFormat(["sum ", args40[0]]));
 		const taken2: rt.Vec<Guard.Guard> = rt.iterToVec(rt.iterTake(rt.hashValues(map3(8), rt.drop, rt.drop), 0, rt.drop), "next", 8);
 		const none3: rt.usize = rt.ownedCount(rt.hashKeys(rt.hashNew(rt.hashing(Key.hash$Hash_hash_DefaultHasher as (a0: Key.Key, a1: rt.Hasher) => undefined, Key.eq$cmp_PartialEq)) as rt.HashMap<Key.Key, Guard.Guard>, rt.drop, rt.drop), rt.drop);
-		const _522: rt.usize = taken2.d.length;
+		const _522: rt.usize = taken2.items.length;
 		const args42: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_522, f), (f: rt.Formatter) => rt.usizeDisplay(none3, f)];
 		Log.note(log, rt.fmtFormat(["taken ", args42[0], " ", args42[1]]));
 		rt.dropVec(taken2);

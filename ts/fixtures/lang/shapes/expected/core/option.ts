@@ -120,11 +120,11 @@ export function andThen$1bd14ex(self: rt.u8 | undefined, f: (a0: rt.u8) => rt.u8
 	return f(self);
 }
 
-export function clone$0aqvrq5(self: rt.Vec<rt.u16> | undefined): rt.Vec<rt.u16> | undefined {
+export function clone$11qe8jq(self: rt.Vec<rt.u16> | undefined): rt.Vec<rt.u16> | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
-	return rt.vecFrom(self.d.slice());
+	return rt.vecFrom(self.items.slice());
 }
 
 export function clone$1grnave(self: rt.ByteVec | undefined): rt.ByteVec | undefined {

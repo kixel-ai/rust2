@@ -327,7 +327,7 @@ export function wrappers(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		putU64(out, option_unwrapOr$1tvry1i(rt.iterMax(rt.iterBorrow(most), rt.lt), 238));
 		bounds$ops_RangeInclusive_u64(out, most);
 		const collected: rt.RangeInclusive<rt.u64> = new rt.RangeInclusive(lo, hi, rt.u64Step);
-		rt.byteVecPush(out, rt.iterToVec(rt.iterBorrow(collected), undefined, 8, true).d.length & 0xff);
+		rt.byteVecPush(out, rt.iterToVec(rt.iterBorrow(collected), undefined, 8, true).items.length & 0xff);
 		bounds$ops_RangeInclusive_u64(out, collected);
 		const gathered: rt.RangeInclusive<rt.u64> = new rt.RangeInclusive(lo, hi, rt.u64Step);
 		const _154: Tally.Tally = rt.iterFold(rt.iterBorrow(gathered), new Tally.Tally(0), (t: Tally.Tally, x7: rt.u64): Tally.Tally => {
@@ -352,7 +352,7 @@ export function wrappers(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const extended: rt.RangeInclusive<rt.u64> = new rt.RangeInclusive(lo, hi, rt.u64Step);
 		const held: rt.Vec<rt.u64> = new rt.Vec();
 		rt.iterExtend(held, rt.iterBorrow(extended), undefined, 8, true);
-		rt.byteVecPush(out, held.d.length & 0xff);
+		rt.byteVecPush(out, held.items.length & 0xff);
 		bounds$ops_RangeInclusive_u64(out, extended);
 		const narrow: rt.RangeInclusive<rt.u8> = new rt.RangeInclusive(rt.u64Low(lo) & 0xff, rt.u64Low(hi) & 0xff, rt.u8Step);
 		rt.iterExtendBytes(out, rt.byteVecIntoIter(rt.iterToByteVec(rt.iterBorrow(narrow), undefined, true)), undefined, true);
@@ -452,10 +452,10 @@ export function wrappers(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const ranked: rt.Vec<[rt.u8, rt.usize]> = rt.iterToVec(rt.iterMap(rt.iterEnumerate(rt.iterSlice(rt.byteSliceView(data))), (_23: [rt.usize, rt.u8]): [rt.u8, rt.usize] => {
 			return [_23[1], _23[0]] as [rt.u8, rt.usize];
 		}), undefined, 8, true);
-		rt.sliceSort(ranked.d, rt.keyLt((_25: [rt.u8, rt.usize]): [rt.u8, rt.usize] => {
+		rt.sliceSort(ranked.items, rt.keyLt((_25: [rt.u8, rt.usize]): [rt.u8, rt.usize] => {
 			return [rt.u8Rem(_25[0], 4), _25[1]] as [rt.u8, rt.usize];
 		}, rt.cmpLt(rt.cmpTuple<[rt.u8, rt.usize], rt.Ordering | undefined>([rt.cmpReverse(rt.cmp), rt.cmp]))), 8, true);
-		for (const _487 of ranked.d) {
+		for (const _487 of ranked.items) {
 			const d: rt.u8 = _487[0];
 			const i2: rt.usize = _487[1];
 			rt.byteVecPush(out, d);

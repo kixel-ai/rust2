@@ -160,17 +160,17 @@ export function chunks(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			const b2: rt.u8 = _2;
 			return Uint8Array.of(b2, rt.u8WrappingAdd(b2, 3));
 		}), undefined, 2, true);
-		if (pairs.d.length >= 2) {
-			const first2: Uint8Array = rt.byteSliceToArray(rt.byteSliceFrom(pairs.d[rt.idx(pairs.d, 0)]));
-			const _195: rt.ByteSlice = rt.byteSliceFrom(pairs.d[rt.idx(pairs.d, 1)]);
+		if (pairs.items.length >= 2) {
+			const first2: Uint8Array = rt.byteSliceToArray(rt.byteSliceFrom(pairs.items[rt.idx(pairs.items, 0)]));
+			const _195: rt.ByteSlice = rt.byteSliceFrom(pairs.items[rt.idx(pairs.items, 1)]);
 			_195.data[_195.start] = 170;
-			const held2: rt.ByteSlice = rt.byteSliceFrom(pairs.d[rt.idx(pairs.d, 0)]);
+			const held2: rt.ByteSlice = rt.byteSliceFrom(pairs.items[rt.idx(pairs.items, 0)]);
 			held2.data[held2.start + 1] = 85;
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(first2));
-			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(pairs.d[rt.idx(pairs.d, 0)]));
-			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(pairs.d[rt.idx(pairs.d, 1)]));
+			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(pairs.items[rt.idx(pairs.items, 0)]));
+			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(pairs.items[rt.idx(pairs.items, 1)]));
 		}
-		const iter2: rt.Iter<rt.ByteSlice> = rt.iterLend(rt.iterSlice(pairs.d), rt.byteSliceFrom);
+		const iter2: rt.Iter<rt.ByteSlice> = rt.iterLend(rt.iterSlice(pairs.items), rt.byteSliceFrom);
 		while (true) {
 			const _219: rt.ByteSlice | rt.Done = iter2.next();
 			if (_219 === rt.DONE) {
@@ -178,7 +178,7 @@ export function chunks(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			}
 			rt.byteVecPush(out, _219.data[_219.start] ^ _219.data[_219.start + 1]);
 		}
-		const iter3: rt.Iter<rt.ByteSlice> = rt.iterLend(rt.iterSlice(pairs.d), rt.byteSliceFrom);
+		const iter3: rt.Iter<rt.ByteSlice> = rt.iterLend(rt.iterSlice(pairs.items), rt.byteSliceFrom);
 		while (true) {
 			const _234: rt.ByteSlice | rt.Done = iter3.next();
 			if (_234 === rt.DONE) {
@@ -186,10 +186,10 @@ export function chunks(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 			}
 			_234.data[_234.start] = _234.data[_234.start + 1];
 		}
-		const copies: rt.Vec<Uint8Array> = rt.iterToVec(rt.iterCopied(rt.iterLend(rt.iterSlice(pairs.d), rt.byteSliceFrom), rt.byteSliceToArray), undefined, 2, true);
-		rt.iterExtendBytes(out, rt.iterChain(rt.iterMap(rt.iterLend(rt.iterSlice(pairs.d), rt.byteSliceFrom), (p: rt.ByteSlice): rt.u8 => {
+		const copies: rt.Vec<Uint8Array> = rt.iterToVec(rt.iterCopied(rt.iterLend(rt.iterSlice(pairs.items), rt.byteSliceFrom), rt.byteSliceToArray), undefined, 2, true);
+		rt.iterExtendBytes(out, rt.iterChain(rt.iterMap(rt.iterLend(rt.iterSlice(pairs.items), rt.byteSliceFrom), (p: rt.ByteSlice): rt.u8 => {
 			return p.data[p.start];
-		}), rt.iterMap(rt.iterLend(rt.iterSlice(copies.d), rt.byteSliceFrom), (p2: rt.ByteSlice): rt.u8 => {
+		}), rt.iterMap(rt.iterLend(rt.iterSlice(copies.items), rt.byteSliceFrom), (p2: rt.ByteSlice): rt.u8 => {
 			return p2.data[p2.start + 1];
 		})), undefined, true);
 	} else {

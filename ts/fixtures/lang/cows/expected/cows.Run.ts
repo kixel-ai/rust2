@@ -34,7 +34,7 @@ export interface Run {
 export function bump(self: Run): void {
 	const owned = rt.cowIntoOwned(self.words);
 	self.words = owned;
-	const iter: rt.Iter<rt.Place<rt.u16>> = rt.iterSliceMut(owned.d);
+	const iter: rt.Iter<rt.Place<rt.u16>> = rt.iterSliceMut(owned.items);
 	while (true) {
 		const _8: rt.Place<rt.u16> | rt.Done = iter.next();
 		if (_8 === rt.DONE) {

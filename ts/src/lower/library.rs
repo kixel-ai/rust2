@@ -1655,7 +1655,7 @@ fn mapping<'tcx>(
 					_ => from_value.clone(),
 				};
 				let length = match b.t.std_of(from) == Some(Std::Vec) && !is_u8(*elem) {
-					true => from_value.clone().member("d").member("length"),
+					true => from_value.clone().member("items").member("length"),
 					false => from_value.clone().member("length"),
 				};
 				// The bytes keep their buffer, as std keeps the allocation.
@@ -1780,7 +1780,7 @@ fn mapping<'tcx>(
 				}
 				ty::Adt(..) if string(tcx, ty) => value,
 				ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::Vec) => {
-					return Some(vec_clone(b, value.member("d"), args.type_at(0), span));
+					return Some(vec_clone(b, value.member("items"), args.type_at(0), span));
 				}
 				_ if let Some(elem) = cow_slice(tcx, ty) => cow_cloned(b, "Clone", value, elem, span),
 				// Each element cloned in order, as `[T; N]`'s `Clone` does.
@@ -2390,7 +2390,7 @@ fn mapping<'tcx>(
 				true => Expr::rt("byteVecPush", values),
 				false => {
 					let v = values.remove(0);
-					v.member("d").method("push", values)
+					v.member("items").method("push", values)
 				}
 			}
 		}
@@ -3372,7 +3372,7 @@ fn slice_boxed<'tcx>(b: &mut Body<'_, '_, 'tcx>, slice: Expr, elem: Ty<'tcx>, sp
 pub(super) fn vec_boxed(v: Expr, elem: Ty<'_>) -> Expr {
 	match elem.kind() {
 		ty::Uint(ty::UintTy::U8) => Expr::rt("byteVecSlice", vec![v]),
-		_ => v.member("d"),
+		_ => v.member("items"),
 	}
 }
 
@@ -3782,7 +3782,7 @@ pub fn primitive(ty: Ty<'_>) -> bool {
 pub fn vec_view(v: Expr, elem: Ty<'_>) -> Expr {
 	match elem.kind() {
 		ty::Uint(ty::UintTy::U8) => Expr::rt("byteVecSlice", vec![v]),
-		_ => v.member("d"),
+		_ => v.member("items"),
 	}
 }
 
@@ -3790,7 +3790,7 @@ pub fn vec_view(v: Expr, elem: Ty<'_>) -> Expr {
 fn vec_items(v: Expr, elem: Ty<'_>) -> Expr {
 	match elem.kind() {
 		ty::Uint(ty::UintTy::U8) => v,
-		_ => v.member("d"),
+		_ => v.member("items"),
 	}
 }
 
@@ -3818,7 +3818,7 @@ pub fn elements(v: Expr, ty: Ty<'_>) -> Expr {
 			Expr::rt("byteVecView", vec![v])
 		}
 		// A `Vec`'s items.
-		ty::Adt(..) => v.member("d"),
+		ty::Adt(..) => v.member("items"),
 		_ => v,
 	}
 }

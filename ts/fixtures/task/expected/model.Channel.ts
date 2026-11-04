@@ -24,7 +24,7 @@ export function open(): Channel {
 	const producer: Producer.Producer = Producer.new();
 	const consumer: Consumer.Consumer = Producer.consume(producer);
 	const producers: rt.Vec<Producer.Producer> = new rt.Vec();
-	producers.d.push(producer);
+	producers.items.push(producer);
 	return new Channel(producers, consumer);
 }
 
@@ -35,7 +35,7 @@ export function consumer(self: Channel): Consumer.Consumer {
 
 /** Send `value` through the first producer, if one is open. */
 export function send(self: Channel, value: rt.u64): boolean {
-	const _3: Producer.Producer | undefined = rt.sliceFirst(self.producers.d);
+	const _3: Producer.Producer | undefined = rt.sliceFirst(self.producers.items);
 	if (_3 === undefined) {
 		return false;
 	}
@@ -55,12 +55,12 @@ export function close(self: Channel): boolean {
 
 /** Open another producer, if one is open to clone. */
 export function cloneProducer(self: Channel): boolean {
-	const _3: Producer.Producer | undefined = rt.sliceFirst(self.producers.d);
+	const _3: Producer.Producer | undefined = rt.sliceFirst(self.producers.items);
 	if (_3 === undefined) {
 		return false;
 	}
 	const clone: Producer.Producer = Producer.clone$Clone(_3);
-	self.producers.d.push(clone);
+	self.producers.items.push(clone);
 	return true;
 }
 

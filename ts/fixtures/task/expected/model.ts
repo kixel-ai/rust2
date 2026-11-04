@@ -376,8 +376,8 @@ export class frontFuture {
 									this.#listing = Listing.default$Default();
 								}
 								(this.#listing as Listing.Listing).last = value;
-								(this.#listing as Listing.Listing).listed.d.push(value);
-								this.#inFlight.d.push(value);
+								(this.#listing as Listing.Listing).listed.items.push(value);
+								this.#inFlight.items.push(value);
 								if (!(rt.u64Rem(value, 3) === 2)) {
 									bb0 = 1;
 									continue;
@@ -405,21 +405,21 @@ export class frontFuture {
 							if (_42 !== rt.Pending) {
 								const next: rt.u64 | undefined = _42;
 								if (next === undefined) {
-									return this.#inFlight.d.length;
+									return this.#inFlight.items.length;
 								}
-								this.#inFlight.d.push(next);
+								this.#inFlight.items.push(next);
 							} else {
 								break;
 							}
 						}
 						const taken = this.#inFlight;
 						this.#inFlight = new rt.Vec();
-						for (const _15 of taken.d) {
+						for (const _15 of taken.items) {
 							const half: rt.u64 = rt.u64Div(_15, 2);
 							if (half === 0) {
 								Guard.note(this.#guard, "released");
 							} else {
-								this.#inFlight.d.push(half);
+								this.#inFlight.items.push(half);
 							}
 						}
 						return rt.Pending;
@@ -433,10 +433,10 @@ export class frontFuture {
 						this.#awaitee$2[Symbol.dispose]();
 						const _69: rt.Fmt = (f: rt.Formatter) => rt.usizeDisplay(closed, f);
 						const arg2 = this.#inFlight;
-						const args4: rt.Fmt[] = [_69, (f: rt.Formatter) => rt.fmtList(arg2.d, f, rt.u64Debug)];
+						const args4: rt.Fmt[] = [_69, (f: rt.Formatter) => rt.fmtList(arg2.items, f, rt.u64Debug)];
 						const _60: string = rt.fmtFormat(["closed with ", args4[0], " in flight ", args4[1]]);
 						Guard.note(this.#guard, _60);
-						const _79: rt.u64 = rt.iterSum(rt.iterSlice(this.#inFlight.d), rt.u64Add, 0);
+						const _79: rt.u64 = rt.iterSum(rt.iterSlice(this.#inFlight.items), rt.u64Add, 0);
 						this.#guard[Symbol.dispose]();
 						this.#rx[Symbol.dispose]();
 						this.#state = 1;

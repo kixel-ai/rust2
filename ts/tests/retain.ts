@@ -27,7 +27,7 @@ for (let n = 0; n <= 6; n++) {
 
 		// A run ends at each item the mask clears.
 		const runs = rt.vecFrom<[number, number]>([]);
-		for (let i = 0, run = 0; i < n; i++) runs.d.push([i, keep(i) ? run : ++run]);
+		for (let i = 0, run = 0; i < n; i++) runs.items.push([i, keep(i) ? run : ++run]);
 		const deduped: number[] = [];
 		rt.vecDedupBy(
 			runs,
@@ -35,11 +35,11 @@ for (let n = 0; n <= 6; n++) {
 			(r) => deduped.push(r[0]),
 		);
 
-		const entries = rt.iterToVec(rt.btreeIter(tree)).d;
-		const items = rt.iterToVec(rt.dequeIter(deque)).d;
-		const ran = runs.d.map((r) => r[0]);
+		const entries = rt.iterToVec(rt.btreeIter(tree)).items;
+		const items = rt.iterToVec(rt.dequeIter(deque)).items;
+		const ran = runs.items.map((r) => r[0]);
 		console.log(
-			`${n} ${mask} btree ${entries.join(";")} deque ${items.join(",")} vec ${vec.d.join(",")} dropped ${dropped.join(",")} dedup ${ran.join(",")} dropped ${deduped.join(",")}`,
+			`${n} ${mask} btree ${entries.join(";")} deque ${items.join(",")} vec ${vec.items.join(",")} dropped ${dropped.join(",")} dedup ${ran.join(",")} dropped ${deduped.join(",")}`,
 		);
 
 		// Keys that collide by twos, so `retain` unlinks within chains.
@@ -52,7 +52,7 @@ for (let n = 0; n <= 6; n++) {
 		);
 		for (let i = 0; i < n; i++) rt.hashInsert(hashed, { k: i }, i);
 		rt.hashRetain(hashed, (key) => keep(key.k));
-		const held = rt.iterToVec(rt.hashIter(hashed)).d.map(([key, v]) => {
+		const held = rt.iterToVec(rt.hashIter(hashed)).items.map(([key, v]) => {
 			if (rt.hashGet(hashed, key) !== v) throw new Error(`${key.k} is not found`);
 			return key.k;
 		});

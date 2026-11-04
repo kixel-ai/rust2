@@ -11,14 +11,14 @@ export interface Window {
 
 export function startBound$ops_RangeBounds_u16(self: Window): rt.RangeBound<rt.u16> {
 	const _5: rt.RefCell<rt.Vec<rt.u16>> = rt.refCellBorrowMut(self.log);
-	_5.value.d.push(40960);
+	_5.value.items.push(40960);
 	rt.refMutRelease(_5);
 	return { tag: "Included", _0: self.lo } as rt.RangeBound<rt.u16>;
 }
 
 export function endBound$ops_RangeBounds_u16(self: Window): rt.RangeBound<rt.u16> {
 	const _5: rt.RefCell<rt.Vec<rt.u16>> = rt.refCellBorrowMut(self.log);
-	_5.value.d.push(45056);
+	_5.value.items.push(45056);
 	rt.refMutRelease(_5);
 	return { tag: "Excluded", _0: self.hi } as rt.RangeBound<rt.u16>;
 }

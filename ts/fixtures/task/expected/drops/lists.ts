@@ -10,7 +10,7 @@ export function ids(id: rt.u32, l: rt.LinkedList<Key.Key>): string {
 	return rt.strsJoin(rt.iterToVec(rt.iterMap(rt.listIter(l), (k: Key.Key): string => {
 		const _4: rt.u32 = rt.u32Sub(k.id, id);
 		return rt.fmtToString((f: rt.Formatter) => rt.u32Display(_4, f));
-	}), undefined, 12, true).d, ",");
+	}), undefined, 12, true).items, ",");
 }
 
 /** Run scenario `arg % 8`. */
@@ -131,7 +131,7 @@ export function run(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const taken: rt.Vec<Key.Key> = rt.iterToVec(rt.listExtractIf(l6, (k2: Key.Key): boolean => {
 			return rt.u32Rem(rt.u32Sub(k2.id, id), 2) === 0;
 		}), "next", 12);
-		const _307: rt.usize = taken.d.length;
+		const _307: rt.usize = taken.items.length;
 		const _310: string = ids(id, l6);
 		const args22: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(_307, f), (f: rt.Formatter) => rt.fmtPad(f, _310)];
 		Log.note(log, rt.fmtFormat(["taken ", args22[0], " left ", args22[1]]));

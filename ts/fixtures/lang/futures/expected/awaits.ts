@@ -30,14 +30,14 @@ export function awaits(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 	} else if (_13 === 2) {
 		run$awaits_each_closure0_collections_btree_set_IntoIter_awaits_Noted_awaits_awaits_closure3((): rt.Future<rt.u8> => {
 			const _413: rt.Iter<Noted.Noted> = items();
-			return new eachFuture$collections_btree_set_IntoIter_awaits_Noted(rt.btreeKeys(rt.btreeCollectKeys(rt.btreeNew(Noted.cmp$cmp_Ord) as rt.BTreeSet<Noted.Noted>, rt.iterToVec(_413, undefined, 8, true).d, 8, true, rt.cmpLt(Noted.partialCmp$cmp_PartialOrd), Noted.eq$cmp_PartialEq, rt.drop), rt.drop));
+			return new eachFuture$collections_btree_set_IntoIter_awaits_Noted(rt.btreeKeys(rt.btreeCollectKeys(rt.btreeNew(Noted.cmp$cmp_Ord) as rt.BTreeSet<Noted.Noted>, rt.iterToVec(_413, undefined, 8, true).items, 8, true, rt.cmpLt(Noted.partialCmp$cmp_PartialOrd), Noted.eq$cmp_PartialEq, rt.drop), rt.drop));
 		}, log.value, out);
 	} else if (_13 === 3) {
 		run$awaits_each_closure0_collections_btree_map_IntoValues_u8_awaits_Noted_awaits_awaits_closure4((): rt.Future<rt.u8> => {
 			const _412: rt.Iter<[rt.u8, Noted.Noted]> = rt.iterMap(items(), (l2: Noted.Noted): [rt.u8, Noted.Noted] => {
 				return [l2._0, l2] as [rt.u8, Noted.Noted];
 			});
-			return new eachFuture$collections_btree_map_IntoValues_u8_awaits_Noted(rt.btreeValues(rt.btreeCollect(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, Noted.Noted>, rt.iterToVec(_412, undefined, 12, true).d, 12, true, undefined, undefined, rt.drop), undefined, rt.drop));
+			return new eachFuture$collections_btree_map_IntoValues_u8_awaits_Noted(rt.btreeValues(rt.btreeCollect(rt.btreeNew(rt.cmp) as rt.BTreeMap<rt.u8, Noted.Noted>, rt.iterToVec(_412, undefined, 12, true).items, 12, true, undefined, undefined, rt.drop), undefined, rt.drop));
 		}, log.value, out);
 	} else if (_13 === 4) {
 		run$awaits_each_closure0_awaits_Countdown_awaits_awaits_closure5((): rt.Future<rt.u8> => {
@@ -938,7 +938,7 @@ export class drainFuture {
 					const _8: Noted.Noted | rt.Done = this.#iter.next();
 					if (_8 === rt.DONE) {
 						rt.drop(this.#iter);
-						const _28: rt.u8 = rt.u8WrappingAdd(this.#sum, this.#v.d.length & 0xff);
+						const _28: rt.u8 = rt.u8WrappingAdd(this.#sum, this.#v.items.length & 0xff);
 						rt.dropVec(this.#v);
 						this.#state = 1;
 						return _28;
@@ -1095,7 +1095,7 @@ export class borrowedFuture {
 				case 0:
 					if (this.#state === 0) {
 						this.#sum = 0;
-						this.#iter = rt.iterSlice(this.#v.d);
+						this.#iter = rt.iterSlice(this.#v.items);
 						bb0 = 2;
 						continue;
 					}
@@ -1116,7 +1116,7 @@ export class borrowedFuture {
 				case 2:
 					const _5: Noted.Noted | rt.Done = this.#iter.next();
 					if (_5 === rt.DONE) {
-						this.#iter = rt.iterSlice(this.#v.d);
+						this.#iter = rt.iterSlice(this.#v.items);
 						bb0 = 15;
 						continue;
 					}
@@ -1136,7 +1136,7 @@ export class borrowedFuture {
 				case 15:
 					const _22: Noted.Noted | rt.Done = this.#iter.next();
 					if (_22 === rt.DONE) {
-						this.#iter = rt.iterRev(rt.iterSlice(this.#v.d));
+						this.#iter = rt.iterRev(rt.iterSlice(this.#v.items));
 						bb0 = 30;
 						continue;
 					}

@@ -158,7 +158,7 @@ export function calls(data: rt.ByteSlice, out: rt.ByteVec): void {
 			w.wake();
 		} else if (_17 === 2) {
 			const _24: rt.Waker = w.clone();
-			kept.d.push(_24);
+			kept.items.push(_24);
 		} else if (_17 === 3) {
 			_39 = false;
 		} else if (_17 === 4) {
@@ -578,14 +578,14 @@ export function erased(data: rt.ByteSlice, out: rt.ByteVec): void {
 			w.wakeByRef();
 		} else if (_80 === 1) {
 			const _84: rt.Waker = w.clone();
-			wakers.d.push(_84);
+			wakers.items.push(_84);
 		}
 		if (rt.u8Rem(byte, 4) === 0) {
 			w.wake();
 		} else {
-			wakers.d.push(w);
+			wakers.items.push(w);
 		}
-		rt.byteVecPush(out, noteOf(option_mapOr$13g654t(rt.sliceLast(wakers.d), shared, (a0: rt.Waker): rt.Place<undefined> => {
+		rt.byteVecPush(out, noteOf(option_mapOr$13g654t(rt.sliceLast(wakers.items), shared, (a0: rt.Waker): rt.Place<undefined> => {
 			return a0.data as rt.Place<undefined>;
 		})).id);
 	}
@@ -678,30 +678,30 @@ export function tasks(data: rt.ByteSlice, out: rt.ByteVec): void {
 		b2: {
 			const _18: rt.u8 = rt.u8Rem(byte, 5);
 			if (_18 === 0) {
-				const _21: rt.Waker = wakers.d[rt.idx(wakers.d, rt.usizeRem(byte as rt.usize, wakers.d.length))].clone();
-				wakers.d.push(_21);
+				const _21: rt.Waker = wakers.items[rt.idx(wakers.items, rt.usizeRem(byte as rt.usize, wakers.items.length))].clone();
+				wakers.items.push(_21);
 				break b2;
 			}
 			if (_18 === 1) {
-				if (wakers.d.length > 1) {
-					rt.vecSwapRemove(wakers, rt.usizeRem(byte as rt.usize, wakers.d.length)).wake();
+				if (wakers.items.length > 1) {
+					rt.vecSwapRemove(wakers, rt.usizeRem(byte as rt.usize, wakers.items.length)).wake();
 					break b2;
 				}
 			} else {
 				if (_18 === 2) {
-					wakers.d[rt.idx(wakers.d, rt.usizeRem(byte as rt.usize, wakers.d.length))].wakeByRef();
+					wakers.items[rt.idx(wakers.items, rt.usizeRem(byte as rt.usize, wakers.items.length))].wakeByRef();
 					break b2;
 				}
 				if (_18 === 3) {
-					if (wakers.d.length > 1) {
-						rt.vecSwapRemove(wakers, rt.usizeRem(byte as rt.usize, wakers.d.length))[Symbol.dispose]();
+					if (wakers.items.length > 1) {
+						rt.vecSwapRemove(wakers, rt.usizeRem(byte as rt.usize, wakers.items.length))[Symbol.dispose]();
 						break b2;
 					}
 				}
 			}
-			rt.byteVecPush(out, rt.willWake(wakers.d[rt.idx(wakers.d, 0)], wakers.d[rt.idx(wakers.d, rt.usizeRem(byte as rt.usize, wakers.d.length))]) ? 1 : 0);
+			rt.byteVecPush(out, rt.willWake(wakers.items[rt.idx(wakers.items, 0)], wakers.items[rt.idx(wakers.items, rt.usizeRem(byte as rt.usize, wakers.items.length))]) ? 1 : 0);
 		}
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(task.strong & 0xff, wakers.d.length & 0xff, task.value.wakes.v)), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(task.strong & 0xff, wakers.items.length & 0xff, task.value.wakes.v)), undefined, true);
 	}
 	task[Symbol.dispose]();
 	while (true) {

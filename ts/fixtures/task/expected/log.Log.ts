@@ -26,7 +26,7 @@ function new_(): Log {
 /** Append one event. */
 export function note(self: Log, event: string): void {
 	const _6: rt.Mutex<rt.Vec<string>> = rt.mutexLock(self._0.value);
-	_6.value.d.push(event);
+	_6.value.items.push(event);
 	rt.mutexUnlock(_6);
 }
 
@@ -34,7 +34,7 @@ export function note(self: Log, event: string): void {
 export function text(self: Log): rt.ByteVec {
 	const events: rt.Mutex<rt.Vec<string>> = rt.mutexLock(self._0.value);
 	const out: rt.ByteVec = new rt.ByteVec();
-	const iter: rt.Iter<string> = rt.iterSlice(events.value.d);
+	const iter: rt.Iter<string> = rt.iterSlice(events.value.items);
 	while (true) {
 		const _13: string | rt.Done = iter.next();
 		if (_13 === rt.DONE) {

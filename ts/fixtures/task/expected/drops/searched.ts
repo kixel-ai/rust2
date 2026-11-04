@@ -282,7 +282,7 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}, (): void => {
 			captured35[Symbol.dispose]();
 		})), "next", 8);
-		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part10.d, f, rt.fmtStr)];
+		const args18: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part10.items, f, rt.fmtStr)];
 		Log.note(log, rt.fmtFormat(["rsplit ", args18[0]]));
 		const _228: [Guard.Guard, Guard.Guard] = [guard(3), guard(4)];
 		const c2: Guard.Guard = _228[0];
@@ -386,7 +386,7 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}))), (s2: string): string => {
 			return rt.strTrimEndMatches(s2, ",");
 		}), "next", 8);
-		const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part13.d, f, rt.fmtStr)];
+		const args26: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part13.items, f, rt.fmtStr)];
 		Log.note(log, rt.fmtFormat(["split_inclusive ", args26[0]]));
 		const _315: [Guard.Guard, Guard.Guard] = [guard(8), guard(9)];
 		const h2: Guard.Guard = _315[0];
@@ -554,11 +554,11 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		Log.note(log, rt.fmtFormat(["split ", args46[0], " ", args46[1]]));
 		const rsplit2: rt.Vec<string> = rt.iterToVec(rt.strRsplit(text, rt.lent(f3)), "next", 8);
 		const counts2: [rt.usize, string | undefined] = [rt.iterCount(rt.strSplitn(text, 2, rt.lent(f3))), rt.iterLast(rt.strRsplitn(text, 3, rt.lent(f3)))];
-		const args48: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rsplit2.d, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(counts2[0], f), (f: rt.Formatter) => rt.fmtOption(counts2[1], f, rt.fmtStr)], f)];
+		const args48: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rsplit2.items, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(counts2[0], f), (f: rt.Formatter) => rt.fmtOption(counts2[1], f, rt.fmtStr)], f)];
 		Log.note(log, rt.fmtFormat(["rsplit ", args48[0], " ", args48[1]]));
 		const terminated2: [string | undefined, string | undefined] = [rt.iterNth(rt.strSplitTerminator(text, rt.lent(f3)), 3), rt.iterNth(rt.strRsplitTerminator(text, rt.lent(f3)), 1)];
 		const inclusive2: rt.Vec<string> = rt.iterToVec(rt.iterRev(rt.strSplitInclusive(text, rt.lent(f3))), "next", 8);
-		const args50: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(terminated2[0], f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(terminated2[1], f, rt.fmtStr)], f), (f: rt.Formatter) => rt.fmtList(inclusive2.d, f, rt.fmtStr)];
+		const args50: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(terminated2[0], f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(terminated2[1], f, rt.fmtStr)], f), (f: rt.Formatter) => rt.fmtList(inclusive2.items, f, rt.fmtStr)];
 		Log.note(log, rt.fmtFormat(["terminated ", args50[0], " ", args50[1]]));
 		const matched2: rt.Iter<string> = rt.strMatches(text, rt.lent(f3));
 		const last2: string | undefined = rt.iterToOption(rt.strRmatches(text, rt.lent(f3)).next());
@@ -572,13 +572,13 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		parts.next();
 		const rest: rt.Vec<string> = rt.iterToVec(parts.clone(), "next", 8);
 		const _639: string | undefined = rt.iterToOption(parts.next());
-		const args56: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rest.d, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(_639, f, rt.fmtStr)];
+		const args56: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rest.items, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(_639, f, rt.fmtStr)];
 		Log.note(log, rt.fmtFormat(["cloned ", args56[0], " ", args56[1]]));
 		const spaced: rt.Vec<string> = rt.iterToVec(rt.strSplit("a b\tc", (a02: rt.char): boolean => {
 			return rt.charIsWhitespace(a02);
 		}), "next", 8);
 		const _659: boolean = f3(59);
-		const args58: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(spaced.d, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_659, f)];
+		const args58: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(spaced.items, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_659, f)];
 		Log.note(log, rt.fmtFormat(["spaced ", args58[0], " ", args58[1]]));
 		rt.drop(f3);
 		Log.note(log, "dropped");
@@ -628,13 +628,13 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const n2: rt.usize = rt.iterCount(rt.strSplitn(text, 2, rt.lent(f4)));
 		const last3: string | undefined = rt.iterLast(rt.strRsplitn(text, 3, rt.lent(f4)));
 		const _805: boolean = f4(120);
-		const args68: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rsplit3.d, f, rt.fmtStr), (f: rt.Formatter) => rt.usizeDisplay(n2, f), (f: rt.Formatter) => rt.fmtOption(last3, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_805, f)];
+		const args68: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rsplit3.items, f, rt.fmtStr), (f: rt.Formatter) => rt.usizeDisplay(n2, f), (f: rt.Formatter) => rt.fmtOption(last3, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_805, f)];
 		Log.note(log, rt.fmtFormat(["rsplit ", args68[0], " ", args68[1], " ", args68[2], " ", args68[3]]));
 		const forward: string | undefined = rt.iterNth(rt.strSplitTerminator(text, rt.lent(f4)), 3);
 		const back: string | undefined = rt.iterNth(rt.strRsplitTerminator(text, rt.lent(f4)), 1);
 		const inclusive3: rt.Vec<string> = rt.iterToVec(rt.iterRev(rt.strSplitInclusive(text, rt.lent(f4))), "next", 8);
 		const _836: boolean = f4(120);
-		const args70: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(forward, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(back, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtList(inclusive3.d, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_836, f)];
+		const args70: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(forward, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(back, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtList(inclusive3.items, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_836, f)];
 		Log.note(log, rt.fmtFormat(["terminated ", args70[0], " ", args70[1], " ", args70[2], " ", args70[3]]));
 		const part6 = rt.iterToOption(rt.strMatches(text, rt.lent(f4)).next());
 		const args72: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part6, f, rt.fmtStr)];
@@ -647,7 +647,7 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		let lent: (a0: rt.char) => boolean = f4;
 		const parts2: rt.Vec<string> = rt.iterToVec(rt.strSplit(text, rt.lent(rt.place(() => lent, (value29) => lent = value29).v)), "next", 8);
 		const _905: boolean = f4(120);
-		const args76: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(parts2.d, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_905, f)];
+		const args76: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(parts2.items, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_905, f)];
 		Log.note(log, rt.fmtFormat(["lent ", args76[0], " ", args76[1]]));
 		rt.drop(f4);
 		Log.note(log, "dropped");
@@ -676,11 +676,11 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		Log.note(log, rt.fmtFormat(["split ", args82[0], " ", args82[1]]));
 		const rsplit4: rt.Vec<string> = rt.iterToVec(rt.strRsplit(text, p), "next", 8);
 		const counts3: [rt.usize, string | undefined] = [rt.iterCount(rt.strSplitn(text, 2, p)), rt.iterLast(rt.strRsplitn(text, 3, p))];
-		const args84: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rsplit4.d, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(counts3[0], f), (f: rt.Formatter) => rt.fmtOption(counts3[1], f, rt.fmtStr)], f)];
+		const args84: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rsplit4.items, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(counts3[0], f), (f: rt.Formatter) => rt.fmtOption(counts3[1], f, rt.fmtStr)], f)];
 		Log.note(log, rt.fmtFormat(["rsplit ", args84[0], " ", args84[1]]));
 		const terminated3: [string | undefined, string | undefined] = [rt.iterNth(rt.strSplitTerminator(text, p), 3), rt.iterNth(rt.strRsplitTerminator(text, p), 1)];
 		const inclusive4: rt.Vec<string> = rt.iterToVec(rt.iterRev(rt.strSplitInclusive(text, p)), "next", 8);
-		const args86: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(terminated3[0], f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(terminated3[1], f, rt.fmtStr)], f), (f: rt.Formatter) => rt.fmtList(inclusive4.d, f, rt.fmtStr)];
+		const args86: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(terminated3[0], f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(terminated3[1], f, rt.fmtStr)], f), (f: rt.Formatter) => rt.fmtList(inclusive4.items, f, rt.fmtStr)];
 		Log.note(log, rt.fmtFormat(["terminated ", args86[0], " ", args86[1]]));
 		const matched4: [string | undefined, string | undefined] = [rt.iterToOption(rt.strMatches(text, p).next()), rt.iterToOption(rt.strRmatches(text, p).next())];
 		const indices4: [[rt.usize, string] | undefined, [rt.usize, string] | undefined] = [rt.iterNth(rt.strMatchIndices(text, p), 2), rt.iterToOption(rt.strRmatchIndices(text, p).next())];
@@ -746,7 +746,7 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		rt.drop(split5);
 		const rsplit5: rt.Vec<string> = rt.iterToVec(rt.strRsplit(text, boxed(16)), "next", 8);
 		const counts4: [rt.usize, string | undefined] = [rt.ownedCount(rt.strSplitn(text, 2, boxed(17))), rt.ownedLast(rt.strRsplitn(text, 3, boxed(18)))];
-		const args98: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rsplit5.d, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(counts4[0], f), (f: rt.Formatter) => rt.fmtOption(counts4[1], f, rt.fmtStr)], f)];
+		const args98: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rsplit5.items, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(counts4[0], f), (f: rt.Formatter) => rt.fmtOption(counts4[1], f, rt.fmtStr)], f)];
 		Log.note(log, rt.fmtFormat(["rsplit ", args98[0], " ", args98[1]]));
 		const _1246: rt.Iter<string> = rt.strSplitTerminator(text, boxed(19));
 		const _1244: string | undefined = rt.iterNth(_1246, 3);
@@ -755,7 +755,7 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		rt.drop(_1252);
 		rt.drop(_1246);
 		const inclusive5: rt.Vec<string> = rt.iterToVec(rt.iterRev(rt.strSplitInclusive(text, boxed(21))), "next", 8);
-		const args100: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(terminated4[0], f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(terminated4[1], f, rt.fmtStr)], f), (f: rt.Formatter) => rt.fmtList(inclusive5.d, f, rt.fmtStr)];
+		const args100: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(terminated4[0], f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(terminated4[1], f, rt.fmtStr)], f), (f: rt.Formatter) => rt.fmtList(inclusive5.items, f, rt.fmtStr)];
 		Log.note(log, rt.fmtFormat(["terminated ", args100[0], " ", args100[1]]));
 		const matched5: rt.Iter<string> = rt.strMatches(text, boxed(22));
 		const _1280: rt.Iter<string> = rt.strRmatches(text, boxed(23));
@@ -831,13 +831,13 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const n3: rt.usize = rt.iterCount(rt.strSplitn(text, 2, rt.lent(rt.place(() => b4, (value20) => b4 = value20).v)));
 		const last6: string | undefined = rt.iterLast(rt.strRsplitn(text, 3, rt.lent(rt.place(() => b4, (value21) => b4 = value21).v)));
 		const _1480: boolean = b4(120);
-		const args116: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rsplit6.d, f, rt.fmtStr), (f: rt.Formatter) => rt.usizeDisplay(n3, f), (f: rt.Formatter) => rt.fmtOption(last6, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_1480, f)];
+		const args116: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rsplit6.items, f, rt.fmtStr), (f: rt.Formatter) => rt.usizeDisplay(n3, f), (f: rt.Formatter) => rt.fmtOption(last6, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_1480, f)];
 		Log.note(log, rt.fmtFormat(["rsplit ", args116[0], " ", args116[1], " ", args116[2], " ", args116[3]]));
 		const forward2: string | undefined = rt.iterNth(rt.strSplitTerminator(text, rt.lent(rt.place(() => b4, (value22) => b4 = value22).v)), 3);
 		const back2: string | undefined = rt.iterNth(rt.strRsplitTerminator(text, rt.lent(rt.place(() => b4, (value23) => b4 = value23).v)), 1);
 		const inclusive6: rt.Vec<string> = rt.iterToVec(rt.iterRev(rt.strSplitInclusive(text, rt.lent(rt.place(() => b4, (value24) => b4 = value24).v))), "next", 8);
 		const _1511: boolean = b4(120);
-		const args118: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(forward2, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(back2, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtList(inclusive6.d, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_1511, f)];
+		const args118: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(forward2, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(back2, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtList(inclusive6.items, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_1511, f)];
 		Log.note(log, rt.fmtFormat(["terminated ", args118[0], " ", args118[1], " ", args118[2], " ", args118[3]]));
 		const part4 = rt.iterToOption(rt.strMatches(text, rt.lent(rt.place(() => b4, (value25) => b4 = value25).v)).next());
 		const args120: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(part4, f, rt.fmtStr)];
@@ -936,7 +936,7 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		}, (): void => {
 			captured9[Symbol.dispose]();
 		})), "next", 12);
-		const args128: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part2.d, f, (value: [rt.usize, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f))];
+		const args128: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part2.items, f, (value: [rt.usize, string], f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.usizeDebug(value[0], f), (f: rt.Formatter) => rt.fmtStr(value[1], f)], f))];
 		Log.note(log, rt.fmtFormat(["indices ", args128[0]]));
 		const f5: Guard.Guard = guard(6);
 		let captured10: rt.i32 = 0;
@@ -961,7 +961,7 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const found9: [rt.usize | undefined, boolean] = [rt.strFind(text, rt.place(() => counted, (value) => counted = value).v), rt.strContains(text, rt.place(() => counted, (value2) => counted = value2).v)];
 		const parts3: rt.Vec<string> = rt.iterToVec(rt.strSplit(text, rt.lent(rt.place(() => counted, (value3) => counted = value3).v)), "next", 8);
 		const _1672: boolean = counted(120);
-		const args130: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(found9[0], f, rt.usizeDebug), (f: rt.Formatter) => rt.fmtBool(found9[1], f)], f), (f: rt.Formatter) => rt.fmtList(parts3.d, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_1672, f)];
+		const args130: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtTuple([(f: rt.Formatter) => rt.fmtOption(found9[0], f, rt.usizeDebug), (f: rt.Formatter) => rt.fmtBool(found9[1], f)], f), (f: rt.Formatter) => rt.fmtList(parts3.items, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtBool(_1672, f)];
 		Log.note(log, rt.fmtFormat(["counted ", args130[0], " ", args130[1], " ", args130[2]]));
 		rt.drop(counted);
 		const make = (captured13: rt.i32, captured14: (a0: rt.char) => boolean): (a0: rt.char) => boolean => {
@@ -985,7 +985,7 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		Log.note(log, rt.fmtFormat(["first ", args132[0]]));
 		const rest2: rt.Vec<string> = rt.iterToVec(cloned, "next", 8);
 		const _1709: string | undefined = rt.iterToOption(split9.next());
-		const args134: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rest2.d, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(_1709, f, rt.fmtStr)];
+		const args134: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rest2.items, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(_1709, f, rt.fmtStr)];
 		Log.note(log, rt.fmtFormat(["cloned ", args134[0], " ", args134[1]]));
 		const g3: Guard.Guard = guard(7);
 		const captured15 = (c18: rt.char): boolean => {
@@ -1007,7 +1007,7 @@ export function searched(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		const p2: (a0: rt.char) => boolean = isSep;
 		const _1736: rt.usize | undefined = rt.strRfind(text, shared);
 		const _1739: rt.usize | undefined = rt.strFind(text, p2);
-		const args136: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_1736, f, rt.usizeDebug), (f: rt.Formatter) => rt.fmtList(parts4.d, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(_1739, f, rt.usizeDebug)];
+		const args136: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtOption(_1736, f, rt.usizeDebug), (f: rt.Formatter) => rt.fmtList(parts4.items, f, rt.fmtStr), (f: rt.Formatter) => rt.fmtOption(_1739, f, rt.usizeDebug)];
 		Log.note(log, rt.fmtFormat(["shared ", args136[0], " ", args136[1], " ", args136[2]]));
 		rt.drop(shared);
 		Log.note(log, "dropped");

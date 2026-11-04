@@ -26,7 +26,7 @@ function new_(): Producer {
 /** Queue `value` and wake every consumer, after releasing the lock. */
 export function send(self: Producer, value: rt.u64): void {
 	const state: rt.Mutex<State.State> = rt.mutexLock(self.state.value);
-	state.value.queue.d.push(value);
+	state.value.queue.items.push(value);
 	const waiters: WaiterList.WaiterList = WaiterList.take(state.value.waiters);
 	rt.mutexUnlock(state);
 	WaiterList.wake(waiters);

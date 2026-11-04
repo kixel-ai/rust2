@@ -519,7 +519,7 @@ export function numbers(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 	for (const _67 of rt.iterToVec(rt.iterMap(new rt.Range(0, 3), (i: rt.usize): rt.Result<rt.u64, returns_Error.Error> => {
 		const part9 = big(rt.byteSliceRange(data, rt.min(data.length, i)));
 		return part9 === undefined ? rt.Err(out$u64.err as returns_Error.Error) : rt.Ok(part9);
-	}), undefined, 16, true).d) {
+	}), undefined, 16, true).items) {
 		pushBig(out, _67);
 	}
 	if (!(rt.u8Rem(kind, 2) === 0)) {
@@ -610,7 +610,7 @@ export function returns(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 				const part57: Uint8Array = out$ref_slice_u8.pData;
 				const part58: number = out$ref_slice_u8.pStart;
 				const part59: number = out$ref_slice_u8.pLen;
-				for (const _32 of kept.d) {
+				for (const _32 of kept.items) {
 					push(out, _32);
 				}
 				push(out, (err14 !== undefined ? rt.Err(err14 as returns_Error.Error) : rt.Ok(new rt.ByteSlice(part57, part58, part59))) as rt.Result<rt.ByteSlice, returns_Error.Error>);
@@ -643,7 +643,7 @@ export function returns(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 				for (const _74 of rt.iterToVec(rt.iterMap(rt.iterSlice([data, rt.byteSliceRange(data, rt.min(data.length, 3))]), (a03: rt.ByteSlice): rt.Result<[rt.u64, rt.ByteSlice], returns_Error.Error> => {
 					const part53 = count(a03.data, a03.start, a03.length);
 					return part53 === undefined ? rt.Err(out$tuple2_u64_ref_slice_u8.err as returns_Error.Error) : rt.Ok([part53, new rt.ByteSlice(out$tuple2_u64_ref_slice_u8.p_1Data, out$tuple2_u64_ref_slice_u8.p_1Start, out$tuple2_u64_ref_slice_u8.p_1Len)] as [rt.u64, rt.ByteSlice]);
-				}), undefined, 16, true).d) {
+				}), undefined, 16, true).items) {
 					pushNumber(out, _74);
 				}
 				rt.iterExtendBytes(out, rt.iterOption(option_map$0c2keyb(option_map$1yogfym((data.length !== 0 ? [data.data[data.start], new rt.ByteSlice(data.data, data.start + 1, data.length - 1)] as [rt.u8, rt.ByteSlice] : undefined) as [rt.u8, rt.ByteSlice] | undefined, (_23: [rt.u8, rt.ByteSlice]): rt.ByteSlice => {
@@ -1598,7 +1598,7 @@ export function options(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 		const _3: rt.ByteSlice = rt.byteSliceRange(data, rt.min(data.length, i));
 		const err23 = optU64(_3.data, _3.start, _3.length);
 		return err23 !== undefined ? rt.Err(err23 as returns_Error.Error) : rt.Ok(out$Option_u64.p);
-	}), undefined, 16, true).d) {
+	}), undefined, 16, true).items) {
 		if (r.ok) {
 			if (r.value === undefined) {
 				rt.byteVecPush(out, 0);

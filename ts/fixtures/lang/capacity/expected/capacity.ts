@@ -107,11 +107,11 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 		if (_39 === 0 || _39 === 1) {
 			const _41: rt.Vec<rt.u64[]> = v;
 			const _42: rt.u64[] = copy$array_u64(make(arg));
-			_41.d.push(_42);
+			_41.items.push(_42);
 		} else if (_39 === 2) {
 			rt.vecPop(v);
 		} else if (_39 === 3 || _39 === 4) {
-			const additional: rt.usize = amount(arg, v.d.length, size);
+			const additional: rt.usize = amount(arg, v.items.length, size);
 			if (rt.u8Rem(op, 41) === 3) {
 				rt.vecReserve(v, additional, 1280);
 			} else {
@@ -124,10 +124,10 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 		} else if (_39 === 7) {
 			rt.vecTruncate(v, rt.u8Rem(arg, 8) as rt.usize);
 		} else if (_39 === 8) {
-			rt.vecInsert(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)), copy$array_u64(make(arg)));
+			rt.vecInsert(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)), copy$array_u64(make(arg)));
 		} else if (_39 === 9) {
-			if (!(v.d.length === 0)) {
-				rt.vecRemove(v, rt.usizeRem(arg as rt.usize, v.d.length));
+			if (!(v.items.length === 0)) {
+				rt.vecRemove(v, rt.usizeRem(arg as rt.usize, v.items.length));
 			}
 		} else if (_39 === 10) {
 			rt.iterExtend(v, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i4: rt.u8): boolean => {
@@ -136,7 +136,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 		} else if (_39 === 11) {
 			rt.iterExtend(v, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, 1280, true);
 		} else if (_39 === 12) {
-			rt.vecExtendFromSlice(v, rt.vecFromElem(copy$array_u64(make(arg)), rt.u8Rem(arg, 24) as rt.usize, copy$array_u64).d, 1280, copy$array_u64);
+			rt.vecExtendFromSlice(v, rt.vecFromElem(copy$array_u64(make(arg)), rt.u8Rem(arg, 24) as rt.usize, copy$array_u64).items, 1280, copy$array_u64);
 		} else if (_39 === 13) {
 			rt.vecTruncate(v, 0);
 		} else if (_39 === 14) {
@@ -145,11 +145,11 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 				return keep();
 			});
 		} else if (_39 === 15) {
-			rt.drop(rt.vecDrain(v, { end: rt.min(v.d.length, rt.u8Rem(arg, 4) as rt.usize) }));
+			rt.drop(rt.vecDrain(v, { end: rt.min(v.items.length, rt.u8Rem(arg, 4) as rt.usize) }));
 		} else if (_39 === 16) {
-			v = rt.vecFrom(v.d.map(copy$array_u64));
+			v = rt.vecFrom(v.items.map(copy$array_u64));
 		} else if (_39 === 17) {
-			v = rt.vecFrom(v.d);
+			v = rt.vecFrom(v.items);
 		} else if (_39 === 18) {
 			const keep2: () => boolean = alternate();
 			v = rt.iterToVec(rt.iterFilter(rt.vecIntoIter(v), (_27: rt.u64[]): boolean => {
@@ -171,16 +171,16 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 		} else if (_39 === 20) {
 			let taken: rt.Vec<rt.u64[]> = rt.replaceIn(v, new rt.Vec());
 			const _149: rt.u64[] = copy$array_u64(make(arg));
-			taken.d.push(_149);
-			sized(out, taken.d.length, rt.vecCapacity(taken, 1280));
+			taken.items.push(_149);
+			sized(out, taken.items.length, rt.vecCapacity(taken, 1280));
 			const _157: rt.Vec<rt.u64[]> = rt.vecWithCapacity(rt.u8Rem(arg, 6) as rt.usize, 1280);
 			const old = taken;
 			taken = _157;
 			v = old;
-			sized(out, taken.d.length, rt.vecCapacity(taken, 1280));
+			sized(out, taken.items.length, rt.vecCapacity(taken, 1280));
 		} else if (_39 === 21) {
-			if (!(v.d.length === 0)) {
-				rt.vecSwapRemove(v, rt.usizeRem(arg as rt.usize, v.d.length));
+			if (!(v.items.length === 0)) {
+				rt.vecSwapRemove(v, rt.usizeRem(arg as rt.usize, v.items.length));
 			}
 		} else if (_39 === 22) {
 			rt.vecDedupBy(v, rt.eqSlice(rt.u64Eq));
@@ -194,7 +194,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			}
 			v = rt.iterToVec(it2.clone({ v: copy$array_u64 }), "next", 1280, true, 1280);
 			const rest: rt.Vec<rt.u64[]> = rt.iterToVec(it2, "next", 1280, true, 1280);
-			sized(out, rest.d.length, rt.vecCapacity(rest, 1280));
+			sized(out, rest.items.length, rt.vecCapacity(rest, 1280));
 		} else if (_39 === 24) {
 			v = rt.vecFromElem(copy$array_u64(make(arg)), rt.u8Rem(arg, 6) as rt.usize, copy$array_u64);
 		} else if (_39 === 25) {
@@ -202,13 +202,13 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 				return rt.u8Rem(arg, 2) === 1;
 			});
 		} else if (_39 === 26) {
-			v = rt.slicesJoin([rt.vecFrom(v.d.map(copy$array_u64)), v], 1280, undefined, rt.asSlice, copy$array_u64);
+			v = rt.slicesJoin([rt.vecFrom(v.items.map(copy$array_u64)), v], 1280, undefined, rt.asSlice, copy$array_u64);
 		} else if (_39 === 27) {
-			v = rt.iterToVec(rt.iterSlice(v.d), "next", 1280, true, 1280);
+			v = rt.iterToVec(rt.iterSlice(v.items), "next", 1280, true, 1280);
 		} else if (_39 === 28) {
 			const own: rt.Vec<rt.u64[]> = rt.vecWithCapacity(rt.u8Rem(arg, 8) as rt.usize, 1280);
 			const _225: rt.u64[] = copy$array_u64(make(arg));
-			own.d.push(_225);
+			own.items.push(_225);
 			rt.vecCloneFrom(own, v, 1280, copy$array_u64);
 			v = own;
 		} else if (_39 === 29) {
@@ -216,7 +216,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			const _236: rt.Iter<rt.u64[]> = rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 12)), make);
 			rt.iterExtend(other, _236, undefined, 1280, true);
 			rt.vecAppend(v, other, 1280);
-			sized(out, other.d.length, rt.vecCapacity(other, 1280));
+			sized(out, other.items.length, rt.vecCapacity(other, 1280));
 		} else if (_39 === 30 || _39 === 31) {
 			b8: {
 				if ((arg >> 5) === 6) {
@@ -235,14 +235,14 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 				}, 1280);
 			}
 		} else if (_39 === 32) {
-			const tail: rt.Vec<rt.u64[]> = rt.vecSplitOff(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)));
-			sized(out, tail.d.length, rt.vecCapacity(tail, 1280));
+			const tail: rt.Vec<rt.u64[]> = rt.vecSplitOff(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)));
+			sized(out, tail.items.length, rt.vecCapacity(tail, 1280));
 		} else if (_39 === 33) {
-			rt.vecExtendFromWithin(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)), rt.usizeStep), 1280, copy$array_u64);
+			rt.vecExtendFromWithin(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)), rt.usizeStep), 1280, copy$array_u64);
 		} else if (_39 === 34) {
 			v = rt.dequeToVec(rt.dequeFromVec(v, 1280) as rt.VecDeque<rt.u64[]>);
 		} else if (_39 === 35) {
-			const len: rt.usize = v.d.length;
+			const len: rt.usize = v.items.length;
 			const start: rt.usize = rt.usizeRem((arg & 3) as rt.usize, rt.usizeAdd(len, 1));
 			if ((arg & 128) === 0) {
 				end = rt.usizeAdd(start, rt.usizeRem(((arg >> 2) & 1) as rt.usize, rt.usizeAdd(rt.usizeSub(len, start), 1)));
@@ -282,12 +282,12 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			}
 		} else if (_39 === 36) {
 			const keep3: () => boolean = alternate();
-			rt.ownedCount(rt.iterTake(rt.vecExtractIf(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)), rt.usizeStep), (_23: rt.u64[]): boolean => {
+			rt.ownedCount(rt.iterTake(rt.vecExtractIf(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)), rt.usizeStep), (_23: rt.u64[]): boolean => {
 				return keep3();
 			}), rt.u8Rem(arg, 5) as rt.usize));
 		} else if (_39 === 37) {
 			const pairs: rt.Vec<rt.u64[][]> = rt.vecWithCapacity(rt.u8Rem(arg, 6) as rt.usize, 2560);
-			const iter4: rt.Iter<rt.u64[][]> = rt.sliceChunksExact(v.d, 2);
+			const iter4: rt.Iter<rt.u64[][]> = rt.sliceChunksExact(v.items, 2);
 			while (true) {
 				const _392: rt.u64[][] | rt.Done = iter4.next();
 				if (_392 === rt.DONE) {
@@ -297,14 +297,14 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 				const _399: rt.u64[] = copy$array_u64(copy$array_u64(_392[0]));
 				rt.idx(_392, 1);
 				const _398: rt.u64[][] = [_399, copy$array_u64(copy$array_u64(_392[1]))];
-				pairs.d.push(_398);
+				pairs.items.push(_398);
 			}
 			const flat: rt.Vec<rt.u64[]> = rt.vecIntoFlattened(pairs, 2, 1280);
-			sized(out, flat.d.length, rt.vecCapacity(flat, 1280));
+			sized(out, flat.items.length, rt.vecCapacity(flat, 1280));
 		} else if (_39 === 38) {
-			rt.spliceFrom(rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)), rt.usizeStep), 1280), rt.iterSlice([]), true);
+			rt.spliceFrom(rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)), rt.usizeStep), 1280), rt.iterSlice([]), true);
 		} else if (_39 === 39 || _39 === 40) {
-			const additional2: rt.usize = amount(arg, v.d.length, size);
+			const additional2: rt.usize = amount(arg, v.items.length, size);
 			if (rt.u8Rem(op, 41) === 39) {
 				tried = rt.vecTryReserve(v, additional2, 1280);
 			} else {
@@ -313,7 +313,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(tried, f, rt.fmtUnit, rt.fmtTryReserveErrorDebug)];
 			rt.iterExtendBytes(out, rt.strBytes(rt.fmtFormat([args2[0]])), undefined, true);
 		}
-		sized(out, v.d.length, rt.vecCapacity(v, 1280));
+		sized(out, v.items.length, rt.vecCapacity(v, 1280));
 	}
 }
 
@@ -349,11 +349,11 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 		if (_39 === 0 || _39 === 1) {
 			const _41: rt.Vec<[rt.u64, rt.u8]> = v;
 			const _42: [rt.u64, rt.u8] = copy$tuple2_u64_u8(make(arg));
-			_41.d.push(_42);
+			_41.items.push(_42);
 		} else if (_39 === 2) {
 			rt.vecPop(v);
 		} else if (_39 === 3 || _39 === 4) {
-			const additional: rt.usize = amount(arg, v.d.length, size);
+			const additional: rt.usize = amount(arg, v.items.length, size);
 			if (rt.u8Rem(op, 41) === 3) {
 				rt.vecReserve(v, additional, 16);
 			} else {
@@ -366,10 +366,10 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 		} else if (_39 === 7) {
 			rt.vecTruncate(v, rt.u8Rem(arg, 8) as rt.usize);
 		} else if (_39 === 8) {
-			rt.vecInsert(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)), copy$tuple2_u64_u8(make(arg)));
+			rt.vecInsert(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)), copy$tuple2_u64_u8(make(arg)));
 		} else if (_39 === 9) {
-			if (!(v.d.length === 0)) {
-				rt.vecRemove(v, rt.usizeRem(arg as rt.usize, v.d.length));
+			if (!(v.items.length === 0)) {
+				rt.vecRemove(v, rt.usizeRem(arg as rt.usize, v.items.length));
 			}
 		} else if (_39 === 10) {
 			rt.iterExtend(v, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i4: rt.u8): boolean => {
@@ -378,7 +378,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 		} else if (_39 === 11) {
 			rt.iterExtend(v, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, 16, true);
 		} else if (_39 === 12) {
-			rt.vecExtendFromSlice(v, rt.vecFromElem(copy$tuple2_u64_u8(make(arg)), rt.u8Rem(arg, 24) as rt.usize, copy$tuple2_u64_u8).d, 16, copy$tuple2_u64_u8);
+			rt.vecExtendFromSlice(v, rt.vecFromElem(copy$tuple2_u64_u8(make(arg)), rt.u8Rem(arg, 24) as rt.usize, copy$tuple2_u64_u8).items, 16, copy$tuple2_u64_u8);
 		} else if (_39 === 13) {
 			rt.vecTruncate(v, 0);
 		} else if (_39 === 14) {
@@ -387,11 +387,11 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 				return keep();
 			});
 		} else if (_39 === 15) {
-			rt.drop(rt.vecDrain(v, { end: rt.min(v.d.length, rt.u8Rem(arg, 4) as rt.usize) }));
+			rt.drop(rt.vecDrain(v, { end: rt.min(v.items.length, rt.u8Rem(arg, 4) as rt.usize) }));
 		} else if (_39 === 16) {
-			v = rt.vecFrom(v.d.map(copy$tuple2_u64_u8));
+			v = rt.vecFrom(v.items.map(copy$tuple2_u64_u8));
 		} else if (_39 === 17) {
-			v = rt.vecFrom(v.d);
+			v = rt.vecFrom(v.items);
 		} else if (_39 === 18) {
 			const keep2: () => boolean = alternate();
 			v = rt.iterToVec(rt.iterFilter(rt.vecIntoIter(v), (_27: [rt.u64, rt.u8]): boolean => {
@@ -413,16 +413,16 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 		} else if (_39 === 20) {
 			let taken: rt.Vec<[rt.u64, rt.u8]> = rt.replaceIn(v, new rt.Vec());
 			const _149: [rt.u64, rt.u8] = copy$tuple2_u64_u8(make(arg));
-			taken.d.push(_149);
-			sized(out, taken.d.length, rt.vecCapacity(taken, 16));
+			taken.items.push(_149);
+			sized(out, taken.items.length, rt.vecCapacity(taken, 16));
 			const _157: rt.Vec<[rt.u64, rt.u8]> = rt.vecWithCapacity(rt.u8Rem(arg, 6) as rt.usize, 16);
 			const old = taken;
 			taken = _157;
 			v = old;
-			sized(out, taken.d.length, rt.vecCapacity(taken, 16));
+			sized(out, taken.items.length, rt.vecCapacity(taken, 16));
 		} else if (_39 === 21) {
-			if (!(v.d.length === 0)) {
-				rt.vecSwapRemove(v, rt.usizeRem(arg as rt.usize, v.d.length));
+			if (!(v.items.length === 0)) {
+				rt.vecSwapRemove(v, rt.usizeRem(arg as rt.usize, v.items.length));
 			}
 		} else if (_39 === 22) {
 			rt.vecDedupBy(v, rt.eqTuple([rt.u64Eq, rt.same]));
@@ -436,7 +436,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 			}
 			v = rt.iterToVec(it2.clone({ v: copy$tuple2_u64_u8 }), "next", 16, true, 16);
 			const rest: rt.Vec<[rt.u64, rt.u8]> = rt.iterToVec(it2, "next", 16, true, 16);
-			sized(out, rest.d.length, rt.vecCapacity(rest, 16));
+			sized(out, rest.items.length, rt.vecCapacity(rest, 16));
 		} else if (_39 === 24) {
 			v = rt.vecFromElem(copy$tuple2_u64_u8(make(arg)), rt.u8Rem(arg, 6) as rt.usize, copy$tuple2_u64_u8);
 		} else if (_39 === 25) {
@@ -444,13 +444,13 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 				return rt.u8Rem(arg, 2) === 1;
 			});
 		} else if (_39 === 26) {
-			v = rt.slicesJoin([rt.vecFrom(v.d.map(copy$tuple2_u64_u8)), v], 16, undefined, rt.asSlice, copy$tuple2_u64_u8);
+			v = rt.slicesJoin([rt.vecFrom(v.items.map(copy$tuple2_u64_u8)), v], 16, undefined, rt.asSlice, copy$tuple2_u64_u8);
 		} else if (_39 === 27) {
-			v = rt.iterToVec(rt.iterSlice(v.d), "next", 16, true, 16);
+			v = rt.iterToVec(rt.iterSlice(v.items), "next", 16, true, 16);
 		} else if (_39 === 28) {
 			const own: rt.Vec<[rt.u64, rt.u8]> = rt.vecWithCapacity(rt.u8Rem(arg, 8) as rt.usize, 16);
 			const _225: [rt.u64, rt.u8] = copy$tuple2_u64_u8(make(arg));
-			own.d.push(_225);
+			own.items.push(_225);
 			rt.vecCloneFrom(own, v, 16, copy$tuple2_u64_u8);
 			v = own;
 		} else if (_39 === 29) {
@@ -458,7 +458,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 			const _236: rt.Iter<[rt.u64, rt.u8]> = rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 12)), make);
 			rt.iterExtend(other, _236, undefined, 16, true);
 			rt.vecAppend(v, other, 16);
-			sized(out, other.d.length, rt.vecCapacity(other, 16));
+			sized(out, other.items.length, rt.vecCapacity(other, 16));
 		} else if (_39 === 30 || _39 === 31) {
 			b8: {
 				if ((arg >> 5) === 6) {
@@ -477,14 +477,14 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 				}, 16);
 			}
 		} else if (_39 === 32) {
-			const tail: rt.Vec<[rt.u64, rt.u8]> = rt.vecSplitOff(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)));
-			sized(out, tail.d.length, rt.vecCapacity(tail, 16));
+			const tail: rt.Vec<[rt.u64, rt.u8]> = rt.vecSplitOff(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)));
+			sized(out, tail.items.length, rt.vecCapacity(tail, 16));
 		} else if (_39 === 33) {
-			rt.vecExtendFromWithin(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)), rt.usizeStep), 16, copy$tuple2_u64_u8);
+			rt.vecExtendFromWithin(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)), rt.usizeStep), 16, copy$tuple2_u64_u8);
 		} else if (_39 === 34) {
 			v = rt.dequeToVec(rt.dequeFromVec(v, 16) as rt.VecDeque<[rt.u64, rt.u8]>);
 		} else if (_39 === 35) {
-			const len: rt.usize = v.d.length;
+			const len: rt.usize = v.items.length;
 			const start: rt.usize = rt.usizeRem((arg & 3) as rt.usize, rt.usizeAdd(len, 1));
 			if ((arg & 128) === 0) {
 				end = rt.usizeAdd(start, rt.usizeRem(((arg >> 2) & 1) as rt.usize, rt.usizeAdd(rt.usizeSub(len, start), 1)));
@@ -524,12 +524,12 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 			}
 		} else if (_39 === 36) {
 			const keep3: () => boolean = alternate();
-			rt.ownedCount(rt.iterTake(rt.vecExtractIf(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)), rt.usizeStep), (_23: [rt.u64, rt.u8]): boolean => {
+			rt.ownedCount(rt.iterTake(rt.vecExtractIf(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)), rt.usizeStep), (_23: [rt.u64, rt.u8]): boolean => {
 				return keep3();
 			}), rt.u8Rem(arg, 5) as rt.usize));
 		} else if (_39 === 37) {
 			const pairs: rt.Vec<[rt.u64, rt.u8][]> = rt.vecWithCapacity(rt.u8Rem(arg, 6) as rt.usize, 32);
-			const iter4: rt.Iter<[rt.u64, rt.u8][]> = rt.sliceChunksExact(v.d, 2);
+			const iter4: rt.Iter<[rt.u64, rt.u8][]> = rt.sliceChunksExact(v.items, 2);
 			while (true) {
 				const _392: [rt.u64, rt.u8][] | rt.Done = iter4.next();
 				if (_392 === rt.DONE) {
@@ -539,14 +539,14 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 				const _399: [rt.u64, rt.u8] = copy$tuple2_u64_u8(copy$tuple2_u64_u8(_392[0]));
 				rt.idx(_392, 1);
 				const _398: [rt.u64, rt.u8][] = [_399, copy$tuple2_u64_u8(copy$tuple2_u64_u8(_392[1]))];
-				pairs.d.push(_398);
+				pairs.items.push(_398);
 			}
 			const flat: rt.Vec<[rt.u64, rt.u8]> = rt.vecIntoFlattened(pairs, 2, 16);
-			sized(out, flat.d.length, rt.vecCapacity(flat, 16));
+			sized(out, flat.items.length, rt.vecCapacity(flat, 16));
 		} else if (_39 === 38) {
-			rt.spliceFrom(rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)), rt.usizeStep), 16), rt.iterSlice([]), true);
+			rt.spliceFrom(rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)), rt.usizeStep), 16), rt.iterSlice([]), true);
 		} else if (_39 === 39 || _39 === 40) {
-			const additional2: rt.usize = amount(arg, v.d.length, size);
+			const additional2: rt.usize = amount(arg, v.items.length, size);
 			if (rt.u8Rem(op, 41) === 39) {
 				tried = rt.vecTryReserve(v, additional2, 16);
 			} else {
@@ -555,7 +555,7 @@ export function vecSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, 
 			const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(tried, f, rt.fmtUnit, rt.fmtTryReserveErrorDebug)];
 			rt.iterExtendBytes(out, rt.strBytes(rt.fmtFormat([args2[0]])), undefined, true);
 		}
-		sized(out, v.d.length, rt.vecCapacity(v, 16));
+		sized(out, v.items.length, rt.vecCapacity(v, 16));
 	}
 }
 
@@ -591,11 +591,11 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 		if (_39 === 0 || _39 === 1) {
 			const _41: rt.Vec<rt.u16> = v;
 			const _42: rt.u16 = make(arg);
-			_41.d.push(_42);
+			_41.items.push(_42);
 		} else if (_39 === 2) {
 			rt.vecPop(v);
 		} else if (_39 === 3 || _39 === 4) {
-			const additional: rt.usize = amount(arg, v.d.length, size);
+			const additional: rt.usize = amount(arg, v.items.length, size);
 			if (rt.u8Rem(op, 41) === 3) {
 				rt.vecReserve(v, additional, 2);
 			} else {
@@ -608,10 +608,10 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 		} else if (_39 === 7) {
 			rt.vecTruncate(v, rt.u8Rem(arg, 8) as rt.usize);
 		} else if (_39 === 8) {
-			rt.vecInsert(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)), make(arg));
+			rt.vecInsert(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)), make(arg));
 		} else if (_39 === 9) {
-			if (!(v.d.length === 0)) {
-				rt.vecRemove(v, rt.usizeRem(arg as rt.usize, v.d.length));
+			if (!(v.items.length === 0)) {
+				rt.vecRemove(v, rt.usizeRem(arg as rt.usize, v.items.length));
 			}
 		} else if (_39 === 10) {
 			rt.iterExtend(v, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i4: rt.u8): boolean => {
@@ -620,7 +620,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 		} else if (_39 === 11) {
 			rt.iterExtend(v, rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 24)), make), undefined, 2, true);
 		} else if (_39 === 12) {
-			rt.vecExtendFromSlice(v, rt.vecFromElem(make(arg), rt.u8Rem(arg, 24) as rt.usize, undefined).d, 2);
+			rt.vecExtendFromSlice(v, rt.vecFromElem(make(arg), rt.u8Rem(arg, 24) as rt.usize, undefined).items, 2);
 		} else if (_39 === 13) {
 			rt.vecTruncate(v, 0);
 		} else if (_39 === 14) {
@@ -629,11 +629,11 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 				return keep();
 			});
 		} else if (_39 === 15) {
-			rt.drop(rt.vecDrain(v, { end: rt.min(v.d.length, rt.u8Rem(arg, 4) as rt.usize) }));
+			rt.drop(rt.vecDrain(v, { end: rt.min(v.items.length, rt.u8Rem(arg, 4) as rt.usize) }));
 		} else if (_39 === 16) {
-			v = rt.vecFrom(v.d.slice());
+			v = rt.vecFrom(v.items.slice());
 		} else if (_39 === 17) {
-			v = rt.vecFrom(v.d);
+			v = rt.vecFrom(v.items);
 		} else if (_39 === 18) {
 			const keep2: () => boolean = alternate();
 			v = rt.iterToVec(rt.iterFilter(rt.vecIntoIter(v), (_27: rt.u16): boolean => {
@@ -655,16 +655,16 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 		} else if (_39 === 20) {
 			let taken: rt.Vec<rt.u16> = rt.replaceIn(v, new rt.Vec());
 			const _149: rt.u16 = make(arg);
-			taken.d.push(_149);
-			sized(out, taken.d.length, rt.vecCapacity(taken, 2));
+			taken.items.push(_149);
+			sized(out, taken.items.length, rt.vecCapacity(taken, 2));
 			const _157: rt.Vec<rt.u16> = rt.vecWithCapacity(rt.u8Rem(arg, 6) as rt.usize, 2);
 			const old = taken;
 			taken = _157;
 			v = old;
-			sized(out, taken.d.length, rt.vecCapacity(taken, 2));
+			sized(out, taken.items.length, rt.vecCapacity(taken, 2));
 		} else if (_39 === 21) {
-			if (!(v.d.length === 0)) {
-				rt.vecSwapRemove(v, rt.usizeRem(arg as rt.usize, v.d.length));
+			if (!(v.items.length === 0)) {
+				rt.vecSwapRemove(v, rt.usizeRem(arg as rt.usize, v.items.length));
 			}
 		} else if (_39 === 22) {
 			rt.vecDedupBy(v, rt.same);
@@ -678,7 +678,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			}
 			v = rt.iterToVec(it2.clone({ v: rt.itself }), "next", 2, true, 2);
 			const rest: rt.Vec<rt.u16> = rt.iterToVec(it2, "next", 2, true, 2);
-			sized(out, rest.d.length, rt.vecCapacity(rest, 2));
+			sized(out, rest.items.length, rt.vecCapacity(rest, 2));
 		} else if (_39 === 24) {
 			v = rt.vecFromElem(make(arg), rt.u8Rem(arg, 6) as rt.usize, undefined);
 		} else if (_39 === 25) {
@@ -686,13 +686,13 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 				return rt.u8Rem(arg, 2) === 1;
 			});
 		} else if (_39 === 26) {
-			v = rt.slicesJoin([rt.vecFrom(v.d.slice()), v], 2, undefined, rt.asSlice);
+			v = rt.slicesJoin([rt.vecFrom(v.items.slice()), v], 2, undefined, rt.asSlice);
 		} else if (_39 === 27) {
-			v = rt.iterToVec(rt.iterSlice(v.d), "next", 2, true, 2);
+			v = rt.iterToVec(rt.iterSlice(v.items), "next", 2, true, 2);
 		} else if (_39 === 28) {
 			const own: rt.Vec<rt.u16> = rt.vecWithCapacity(rt.u8Rem(arg, 8) as rt.usize, 2);
 			const _225: rt.u16 = make(arg);
-			own.d.push(_225);
+			own.items.push(_225);
 			rt.vecCloneFrom(own, v, 2);
 			v = own;
 		} else if (_39 === 29) {
@@ -700,7 +700,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			const _236: rt.Iter<rt.u16> = rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 12)), make);
 			rt.iterExtend(other, _236, undefined, 2, true);
 			rt.vecAppend(v, other, 2);
-			sized(out, other.d.length, rt.vecCapacity(other, 2));
+			sized(out, other.items.length, rt.vecCapacity(other, 2));
 		} else if (_39 === 30 || _39 === 31) {
 			b8: {
 				if ((arg >> 5) === 6) {
@@ -719,14 +719,14 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 				}, 2);
 			}
 		} else if (_39 === 32) {
-			const tail: rt.Vec<rt.u16> = rt.vecSplitOff(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)));
-			sized(out, tail.d.length, rt.vecCapacity(tail, 2));
+			const tail: rt.Vec<rt.u16> = rt.vecSplitOff(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)));
+			sized(out, tail.items.length, rt.vecCapacity(tail, 2));
 		} else if (_39 === 33) {
-			rt.vecExtendFromWithin(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)), rt.usizeStep), 2, undefined);
+			rt.vecExtendFromWithin(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)), rt.usizeStep), 2, undefined);
 		} else if (_39 === 34) {
 			v = rt.dequeToVec(rt.dequeFromVec(v, 2) as rt.VecDeque<rt.u16>);
 		} else if (_39 === 35) {
-			const len: rt.usize = v.d.length;
+			const len: rt.usize = v.items.length;
 			const start: rt.usize = rt.usizeRem((arg & 3) as rt.usize, rt.usizeAdd(len, 1));
 			if ((arg & 128) === 0) {
 				end = rt.usizeAdd(start, rt.usizeRem(((arg >> 2) & 1) as rt.usize, rt.usizeAdd(rt.usizeSub(len, start), 1)));
@@ -766,12 +766,12 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			}
 		} else if (_39 === 36) {
 			const keep3: () => boolean = alternate();
-			rt.ownedCount(rt.iterTake(rt.vecExtractIfMut(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)), rt.usizeStep), (_23: rt.Place<rt.u16>): boolean => {
+			rt.ownedCount(rt.iterTake(rt.vecExtractIfMut(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)), rt.usizeStep), (_23: rt.Place<rt.u16>): boolean => {
 				return keep3();
 			}), rt.u8Rem(arg, 5) as rt.usize));
 		} else if (_39 === 37) {
 			const pairs: rt.Vec<rt.u16[]> = rt.vecWithCapacity(rt.u8Rem(arg, 6) as rt.usize, 4);
-			const iter4: rt.Iter<rt.u16[]> = rt.sliceChunksExact(v.d, 2);
+			const iter4: rt.Iter<rt.u16[]> = rt.sliceChunksExact(v.items, 2);
 			while (true) {
 				const _392: rt.u16[] | rt.Done = iter4.next();
 				if (_392 === rt.DONE) {
@@ -781,14 +781,14 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 				const _399: rt.u16 = _392[0];
 				rt.idx(_392, 1);
 				const _398: rt.u16[] = [_399, _392[1]];
-				pairs.d.push(_398);
+				pairs.items.push(_398);
 			}
 			const flat: rt.Vec<rt.u16> = rt.vecIntoFlattened(pairs, 2, 2);
-			sized(out, flat.d.length, rt.vecCapacity(flat, 2));
+			sized(out, flat.items.length, rt.vecCapacity(flat, 2));
 		} else if (_39 === 38) {
-			rt.spliceFrom(rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)), rt.usizeStep), 2), rt.iterSlice([]), true);
+			rt.spliceFrom(rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)), rt.usizeStep), 2), rt.iterSlice([]), true);
 		} else if (_39 === 39 || _39 === 40) {
-			const additional2: rt.usize = amount(arg, v.d.length, size);
+			const additional2: rt.usize = amount(arg, v.items.length, size);
 			if (rt.u8Rem(op, 41) === 39) {
 				tried = rt.vecTryReserve(v, additional2, 2);
 			} else {
@@ -797,7 +797,7 @@ export function vecSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: n
 			const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(tried, f, rt.fmtUnit, rt.fmtTryReserveErrorDebug)];
 			rt.iterExtendBytes(out, rt.strBytes(rt.fmtFormat([args2[0]])), undefined, true);
 		}
-		sized(out, v.d.length, rt.vecCapacity(v, 2));
+		sized(out, v.items.length, rt.vecCapacity(v, 2));
 	}
 }
 
@@ -1021,7 +1021,7 @@ export function vecSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: nu
 				const _399: rt.u8 = _392.data[_392.start];
 				rt.idx(_392, 1);
 				const _398: Uint8Array = Uint8Array.of(_399, _392.data[_392.start + 1]);
-				pairs.d.push(_398);
+				pairs.items.push(_398);
 			}
 			const flat: rt.ByteVec = rt.byteVecIntoFlattened(pairs, 2);
 			sized(out, flat.length, flat.data.length);
@@ -1073,11 +1073,11 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 		if (_39 === 0 || _39 === 1) {
 			const _41: rt.Vec<undefined> = v;
 			make(arg);
-			_41.d.push(undefined);
+			_41.items.push(undefined);
 		} else if (_39 === 2) {
 			rt.vecPop(v, rt.None);
 		} else if (_39 === 3 || _39 === 4) {
-			const additional: rt.usize = amount(arg, v.d.length, size);
+			const additional: rt.usize = amount(arg, v.items.length, size);
 			if (rt.u8Rem(op, 41) === 3) {
 				rt.vecReserve(v, additional, 0);
 			} else {
@@ -1091,12 +1091,12 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			rt.vecTruncate(v, rt.u8Rem(arg, 8) as rt.usize);
 		} else if (_39 === 8) {
 			const _61: rt.Vec<undefined> = v;
-			const _62: rt.usize = rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1));
+			const _62: rt.usize = rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1));
 			make(arg);
 			rt.vecInsert(_61, _62, undefined);
 		} else if (_39 === 9) {
-			if (!(v.d.length === 0)) {
-				rt.vecRemove(v, rt.usizeRem(arg as rt.usize, v.d.length));
+			if (!(v.items.length === 0)) {
+				rt.vecRemove(v, rt.usizeRem(arg as rt.usize, v.items.length));
 			}
 		} else if (_39 === 10) {
 			rt.iterExtend(v, rt.iterMap(rt.iterFilter(new rt.Range(0, rt.u8Rem(arg, 24)), (i4: rt.u8): boolean => {
@@ -1107,7 +1107,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 		} else if (_39 === 12) {
 			const _90: rt.Vec<undefined> = v;
 			make(arg);
-			rt.vecExtendFromSlice(_90, rt.vecFromElem(undefined, rt.u8Rem(arg, 24) as rt.usize, undefined).d, 0);
+			rt.vecExtendFromSlice(_90, rt.vecFromElem(undefined, rt.u8Rem(arg, 24) as rt.usize, undefined).items, 0);
 		} else if (_39 === 13) {
 			rt.vecTruncate(v, 0);
 		} else if (_39 === 14) {
@@ -1116,11 +1116,11 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 				return keep();
 			});
 		} else if (_39 === 15) {
-			rt.drop(rt.vecDrain(v, { end: rt.min(v.d.length, rt.u8Rem(arg, 4) as rt.usize) }));
+			rt.drop(rt.vecDrain(v, { end: rt.min(v.items.length, rt.u8Rem(arg, 4) as rt.usize) }));
 		} else if (_39 === 16) {
-			v = rt.vecFrom(v.d.slice());
+			v = rt.vecFrom(v.items.slice());
 		} else if (_39 === 17) {
-			v = rt.vecFrom(v.d);
+			v = rt.vecFrom(v.items);
 		} else if (_39 === 18) {
 			const keep2: () => boolean = alternate();
 			v = rt.iterToVec(rt.iterFilter(rt.vecIntoIter(v), (_27: undefined): boolean => {
@@ -1142,16 +1142,16 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 		} else if (_39 === 20) {
 			let taken: rt.Vec<undefined> = rt.replaceIn(v, new rt.Vec());
 			make(arg);
-			taken.d.push(undefined);
-			sized(out, taken.d.length, rt.vecCapacity(taken, 0));
+			taken.items.push(undefined);
+			sized(out, taken.items.length, rt.vecCapacity(taken, 0));
 			const _157: rt.Vec<undefined> = rt.vecWithCapacity(rt.u8Rem(arg, 6) as rt.usize, 0);
 			const old = taken;
 			taken = _157;
 			v = old;
-			sized(out, taken.d.length, rt.vecCapacity(taken, 0));
+			sized(out, taken.items.length, rt.vecCapacity(taken, 0));
 		} else if (_39 === 21) {
-			if (!(v.d.length === 0)) {
-				rt.vecSwapRemove(v, rt.usizeRem(arg as rt.usize, v.d.length));
+			if (!(v.items.length === 0)) {
+				rt.vecSwapRemove(v, rt.usizeRem(arg as rt.usize, v.items.length));
 			}
 		} else if (_39 === 22) {
 			rt.vecDedupBy(v, rt.same);
@@ -1165,7 +1165,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			}
 			v = rt.iterToVec(it2.clone({ v: rt.itself }), undefined, 0, true);
 			const rest: rt.Vec<undefined> = rt.iterToVec(it2, undefined, 0, true);
-			sized(out, rest.d.length, rt.vecCapacity(rest, 0));
+			sized(out, rest.items.length, rt.vecCapacity(rest, 0));
 		} else if (_39 === 24) {
 			make(arg);
 			v = rt.vecFromElem(undefined, rt.u8Rem(arg, 6) as rt.usize, undefined);
@@ -1174,13 +1174,13 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 				return rt.u8Rem(arg, 2) === 1;
 			}, undefined, rt.None);
 		} else if (_39 === 26) {
-			v = rt.slicesJoin([rt.vecFrom(v.d.slice()), v], 0, undefined, rt.asSlice);
+			v = rt.slicesJoin([rt.vecFrom(v.items.slice()), v], 0, undefined, rt.asSlice);
 		} else if (_39 === 27) {
-			v = rt.iterToVec(rt.iterSlice(v.d), undefined, 0, true);
+			v = rt.iterToVec(rt.iterSlice(v.items), undefined, 0, true);
 		} else if (_39 === 28) {
 			const own: rt.Vec<undefined> = rt.vecWithCapacity(rt.u8Rem(arg, 8) as rt.usize, 0);
 			make(arg);
-			own.d.push(undefined);
+			own.items.push(undefined);
 			rt.vecCloneFrom(own, v, 0);
 			v = own;
 		} else if (_39 === 29) {
@@ -1188,7 +1188,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			const _236: rt.Iter<undefined> = rt.iterMap(new rt.Range(0, rt.u8Rem(arg, 12)), make);
 			rt.iterExtend(other, _236, undefined, 0, true);
 			rt.vecAppend(v, other, 0);
-			sized(out, other.d.length, rt.vecCapacity(other, 0));
+			sized(out, other.items.length, rt.vecCapacity(other, 0));
 		} else if (_39 === 30 || _39 === 31) {
 			b8: {
 				if ((arg >> 5) === 6) {
@@ -1209,14 +1209,14 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 				}, 0);
 			}
 		} else if (_39 === 32) {
-			const tail: rt.Vec<undefined> = rt.vecSplitOff(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)));
-			sized(out, tail.d.length, rt.vecCapacity(tail, 0));
+			const tail: rt.Vec<undefined> = rt.vecSplitOff(v, rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)));
+			sized(out, tail.items.length, rt.vecCapacity(tail, 0));
 		} else if (_39 === 33) {
-			rt.vecExtendFromWithin(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)), rt.usizeStep), 0, undefined);
+			rt.vecExtendFromWithin(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)), rt.usizeStep), 0, undefined);
 		} else if (_39 === 34) {
 			v = rt.dequeToVec(rt.dequeFromVec(v, 0) as rt.VecDeque<undefined>);
 		} else if (_39 === 35) {
-			const len: rt.usize = v.d.length;
+			const len: rt.usize = v.items.length;
 			const start: rt.usize = rt.usizeRem((arg & 3) as rt.usize, rt.usizeAdd(len, 1));
 			if ((arg & 128) === 0) {
 				end = rt.usizeAdd(start, rt.usizeRem(((arg >> 2) & 1) as rt.usize, rt.usizeAdd(rt.usizeSub(len, start), 1)));
@@ -1257,12 +1257,12 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			}
 		} else if (_39 === 36) {
 			const keep3: () => boolean = alternate();
-			rt.ownedCount(rt.iterTake(rt.vecExtractIfMut(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)), rt.usizeStep), (_23: rt.Place<undefined>): boolean => {
+			rt.ownedCount(rt.iterTake(rt.vecExtractIfMut(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)), rt.usizeStep), (_23: rt.Place<undefined>): boolean => {
 				return keep3();
 			}), rt.u8Rem(arg, 5) as rt.usize));
 		} else if (_39 === 37) {
 			const pairs: rt.Vec<undefined[]> = rt.vecWithCapacity(rt.u8Rem(arg, 6) as rt.usize, 0);
-			const iter4: rt.Iter<undefined[]> = rt.sliceChunksExact(v.d, 2);
+			const iter4: rt.Iter<undefined[]> = rt.sliceChunksExact(v.items, 2);
 			while (true) {
 				const _392: undefined[] | rt.Done = iter4.next();
 				if (_392 === rt.DONE) {
@@ -1272,14 +1272,14 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 				_392[0];
 				rt.idx(_392, 1);
 				_392[1];
-				pairs.d.push([undefined, undefined]);
+				pairs.items.push([undefined, undefined]);
 			}
 			const flat: rt.Vec<undefined> = rt.vecIntoFlattened(pairs, 2, 0);
-			sized(out, flat.d.length, rt.vecCapacity(flat, 0));
+			sized(out, flat.items.length, rt.vecCapacity(flat, 0));
 		} else if (_39 === 38) {
-			rt.spliceFrom(rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.d.length, 1)), rt.usizeStep), 0), rt.iterSlice([]), true);
+			rt.spliceFrom(rt.vecSplice(v, new rt.RangeFrom(rt.usizeRem(arg as rt.usize, rt.usizeAdd(v.items.length, 1)), rt.usizeStep), 0), rt.iterSlice([]), true);
 		} else if (_39 === 39 || _39 === 40) {
-			const additional2: rt.usize = amount(arg, v.d.length, size);
+			const additional2: rt.usize = amount(arg, v.items.length, size);
 			if (rt.u8Rem(op, 41) === 39) {
 				tried = rt.vecTryReserve(v, additional2, 0);
 			} else {
@@ -1288,7 +1288,7 @@ export function vecSteps$unit(dataData: Uint8Array, dataStart: number, dataLen: 
 			const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(tried, f, rt.fmtUnit, rt.fmtTryReserveErrorDebug)];
 			rt.iterExtendBytes(out, rt.strBytes(rt.fmtFormat([args2[0]])), undefined, true);
 		}
-		sized(out, v.d.length, rt.vecCapacity(v, 0));
+		sized(out, v.items.length, rt.vecCapacity(v, 0));
 	}
 }
 
@@ -1330,7 +1330,7 @@ export function cloneFromSteps$array160_u64(data: rt.ByteSlice, make: (a0: rt.u8
 	const _17: (a0: rt.Vec<rt.u64[]>[], a1: rt.ByteVec) => undefined = (vs: rt.Vec<rt.u64[]>[], out2: rt.ByteVec): undefined => {
 		put(out2, vs.length);
 		for (const _8 of vs) {
-			put(out2, _8.d.length);
+			put(out2, _8.items.length);
 			put(out2, rt.vecCapacity(_8, 1280));
 		}
 	};
@@ -1356,7 +1356,7 @@ export function cloneFromSteps$array160_u64(data: rt.ByteSlice, make: (a0: rt.u8
 			const j: rt.u8 = _192;
 			const _243: rt.Vec<rt.u64[]> = v;
 			const _25: rt.u64[] = copy$array_u64(make(j));
-			_243.d.push(_25);
+			_243.items.push(_25);
 		}
 	};
 	const source: (a0: rt.usize) => rt.Vec<rt.u64[]> = (i3: rt.usize): rt.Vec<rt.u64[]> => {
@@ -1378,16 +1378,16 @@ export function cloneFromSteps$array160_u64(data: rt.ByteSlice, make: (a0: rt.u8
 	const array: rt.Vec<rt.u64[]>[] = [held(0), held(1)];
 	const _28: rt.Vec<rt.u64[]>[] = [source(2), source(3)];
 	rt.sliceCloneFromSlice(array, _28, (a0: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
-		return rt.vecFrom(a0.d.map(copy$array_u64));
+		return rt.vecFrom(a0.items.map(copy$array_u64));
 	}, undefined, rt.vecCloneFromFn(1280, copy$array_u64));
 	_17(array, out);
 	const slice: rt.Vec<rt.u64[]>[] = [held(4), held(5), held(6)];
 	rt.sliceCloneFromSlice(rt.sliceRangeMut(slice, 1), [source(7), source(8)], (a02: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
-		return rt.vecFrom(a02.d.map(copy$array_u64));
+		return rt.vecFrom(a02.items.map(copy$array_u64));
 	}, undefined, rt.vecCloneFromFn(1280, copy$array_u64));
 	_17(slice, out);
 	rt.sliceFill(slice, source(9), (a03: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
-		return rt.vecFrom(a03.d.map(copy$array_u64));
+		return rt.vecFrom(a03.items.map(copy$array_u64));
 	}, undefined, rt.vecCloneFromFn(1280, copy$array_u64));
 	_17(slice, out);
 	const part6 = len(10);
@@ -1395,27 +1395,27 @@ export function cloneFromSteps$array160_u64(data: rt.ByteSlice, make: (a0: rt.u8
 	const part7 = len(14);
 	const _88: rt.Vec<rt.Vec<rt.u64[]>> = sources(15, part7);
 	rt.vecCloneFrom(nested, _88, 12, (a04: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
-		return rt.vecFrom(a04.d.map(copy$array_u64));
+		return rt.vecFrom(a04.items.map(copy$array_u64));
 	}, undefined, rt.vecCloneFromFn(1280, copy$array_u64));
-	_17(nested.d, out);
+	_17(nested.items, out);
 	const part9 = len(18);
 	const into: rt.Vec<rt.Vec<rt.u64[]>> = holds(19, part9);
 	const part10 = len(22);
-	const _106: rt.Vec<rt.u64[]>[] = rt.sliceRange(sources(23, part10).d, 0);
+	const _106: rt.Vec<rt.u64[]>[] = rt.sliceRange(sources(23, part10).items, 0);
 	rt.vecCloneFrom(into, _106, 12, (a05: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
-		return rt.vecFrom(a05.d.map(copy$array_u64));
+		return rt.vecFrom(a05.items.map(copy$array_u64));
 	}, undefined, rt.vecCloneFromFn(1280, copy$array_u64));
-	_17(into.d, out);
+	_17(into.items, out);
 	const boxed: rt.Vec<rt.u64[]> = held(26);
 	const _127: rt.Vec<rt.u64[]> = source(27);
 	rt.vecCloneFrom(boxed, _127, 1280, copy$array_u64);
 	_17([boxed], out);
 	const part13 = len(28);
-	let boxes: rt.Vec<rt.u64[]>[] = holds(29, part13).d;
+	let boxes: rt.Vec<rt.u64[]>[] = holds(29, part13).items;
 	const part14 = len(32);
-	const _148: rt.Vec<rt.u64[]>[] = sources(33, part14).d;
+	const _148: rt.Vec<rt.u64[]>[] = sources(33, part14).items;
 	boxes = rt.boxSliceCloneFrom(boxes, _148, (a06: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
-		return rt.vecFrom(a06.d.map(copy$array_u64));
+		return rt.vecFrom(a06.items.map(copy$array_u64));
 	}, undefined, rt.vecCloneFromFn(1280, copy$array_u64));
 	_17(boxes, out);
 	let option: rt.Vec<rt.u64[]> | undefined = then$060nyee(rt.u8Rem(at(36), 3) !== 0, (): rt.Vec<rt.u64[]> => {
@@ -1425,9 +1425,9 @@ export function cloneFromSteps$array160_u64(data: rt.ByteSlice, make: (a0: rt.u8
 		return source(39);
 	});
 	option = rt.optionCloneFrom(option, _172, (a07: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
-		return rt.vecFrom(a07.d.map(copy$array_u64));
+		return rt.vecFrom(a07.items.map(copy$array_u64));
 	}, undefined, rt.vecCloneFromFn(1280, copy$array_u64));
-	const part16 = rt.iterToVec(rt.iterOption(option), undefined, 12, true).d;
+	const part16 = rt.iterToVec(rt.iterOption(option), undefined, 12, true).items;
 	_17(part16, out);
 	if (rt.u8Rem(at(40), 2) === 0) {
 		result = rt.Ok(held(41));
@@ -1441,9 +1441,9 @@ export function cloneFromSteps$array160_u64(data: rt.ByteSlice, make: (a0: rt.u8
 		_204 = rt.Err(source(45));
 	}
 	_202.v = rt.resultCloneFrom(_202.v, _204, (a08: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
-		return rt.vecFrom(a08.d.map(copy$array_u64));
+		return rt.vecFrom(a08.items.map(copy$array_u64));
 	}, undefined, rt.vecCloneFromFn(1280, copy$array_u64), (a09: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
-		return rt.vecFrom(a09.d.map(copy$array_u64));
+		return rt.vecFrom(a09.items.map(copy$array_u64));
 	}, undefined, rt.vecCloneFromFn(1280, copy$array_u64));
 	rt.byteVecPush(out, result.ok ? 1 : 0);
 	const part17 = [result_unwrapOrElse$1q4qcpp(result, (v2: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
@@ -1453,7 +1453,7 @@ export function cloneFromSteps$array160_u64(data: rt.ByteSlice, make: (a0: rt.u8
 	let cell: rt.RefCell<rt.Vec<rt.u64[]>> = new rt.RefCell(held(46));
 	const _235: rt.RefCell<rt.Vec<rt.u64[]>> = new rt.RefCell(source(47));
 	cell = rt.refCellCloneFrom(cell, _235, (a010: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
-		return rt.vecFrom(a010.d.map(copy$array_u64));
+		return rt.vecFrom(a010.items.map(copy$array_u64));
 	}, undefined, rt.vecCloneFromFn(1280, copy$array_u64));
 	_17([cell.value], out);
 	let deep: rt.Vec<rt.u64[]>[] | undefined = [held(52)];
@@ -1461,17 +1461,17 @@ export function cloneFromSteps$array160_u64(data: rt.ByteSlice, make: (a0: rt.u8
 	deep = rt.optionCloneFrom(deep, _256, (a011: rt.Vec<rt.u64[]>[]): rt.Vec<rt.u64[]>[] => {
 		return a011.map((a012: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
 			return ((a013: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
-				return rt.vecFrom(a013.d.map(copy$array_u64));
+				return rt.vecFrom(a013.items.map(copy$array_u64));
 			})(a012);
 		});
 	}, undefined, rt.sliceCloneFromSliceFn((a014: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
 		return ((a015: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
-			return rt.vecFrom(a015.d.map(copy$array_u64));
+			return rt.vecFrom(a015.items.map(copy$array_u64));
 		})(a014);
 	}, undefined, rt.vecCloneFromFn(1280, copy$array_u64)));
 	const part19 = rt.iterToVec(rt.iterOption(option_map$1e3rrc6(deep, (_27: rt.Vec<rt.u64[]>[]): rt.Vec<rt.u64[]> => {
 		return _27[0];
-	})), undefined, 12, true).d;
+	})), undefined, 12, true).items;
 	_17(part19, out);
 	const part20 = len(54);
 	const _272: rt.Iter<rt.Vec<rt.u64[]>> = rt.vecIntoIter(holds(55, part20));
@@ -1480,18 +1480,18 @@ export function cloneFromSteps$array160_u64(data: rt.ByteSlice, make: (a0: rt.u8
 	const _283: rt.Iter<rt.Vec<rt.u64[]>> = rt.vecIntoIter(sources(59, part21));
 	const _282: rt.LinkedList<rt.Vec<rt.u64[]>> = rt.listExtend(rt.listNew() as rt.LinkedList<rt.Vec<rt.u64[]>>, _283);
 	rt.listCloneFrom(list, _282, (a016: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
-		return rt.vecFrom(a016.d.map(copy$array_u64));
+		return rt.vecFrom(a016.items.map(copy$array_u64));
 	}, undefined, rt.vecCloneFromFn(1280, copy$array_u64));
-	const part22 = rt.iterToVec(rt.listIter(list), undefined, 12, true).d;
+	const part22 = rt.iterToVec(rt.listIter(list), undefined, 12, true).items;
 	_17(part22, out);
 	const part23 = len(62);
 	const deque: rt.VecDeque<rt.Vec<rt.u64[]>> = rt.dequeFromVec(holds(63, part23), 12) as rt.VecDeque<rt.Vec<rt.u64[]>>;
 	const part24 = len(66);
 	const _308: rt.VecDeque<rt.Vec<rt.u64[]>> = rt.dequeFromVec(sources(67, part24), 12) as rt.VecDeque<rt.Vec<rt.u64[]>>;
 	rt.dequeCloneFrom(deque, _308, (a017: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
-		return rt.vecFrom(a017.d.map(copy$array_u64));
+		return rt.vecFrom(a017.items.map(copy$array_u64));
 	});
-	const part25 = rt.dequeToVec(deque).d;
+	const part25 = rt.dequeToVec(deque).items;
 	_17(part25, out);
 	let heap: rt.BinaryHeap<rt.u64[]> = rt.heapFrom(held(70), rt.cmpLe(rt.cmpSlice(rt.cmp)), rt.cmpGe(rt.cmpSlice(rt.cmp)), rt.cmpLt(rt.cmpSlice(rt.cmp)));
 	const _329: rt.BinaryHeap<rt.u64[]> = rt.heapFrom(source(71), rt.cmpLe(rt.cmpSlice(rt.cmp)), rt.cmpGe(rt.cmpSlice(rt.cmp)), rt.cmpLt(rt.cmpSlice(rt.cmp)));
@@ -1511,7 +1511,7 @@ export function cloneFromSteps$array160_u64(data: rt.ByteSlice, make: (a0: rt.u8
 	put(out, rt.dequeCapacity(deques[0]));
 	let pair: [rt.Vec<rt.u64[]>, rt.u8] = [held(76), 0];
 	pair = rt.tupleClone([source(77), 1] as [rt.Vec<rt.u64[]>, rt.u8], [(a020: rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> => {
-		return rt.vecFrom(a020.d.map(copy$array_u64));
+		return rt.vecFrom(a020.items.map(copy$array_u64));
 	}, undefined]);
 	let holder: Holds.Holds<rt.u64[]> = new Holds.Holds(held(78));
 	holder = Holds.clone$Clone_array160_u64(new Holds.Holds(source(79)));
@@ -1524,7 +1524,7 @@ export function cloneFromSteps$tuple2_u64_u8(data: rt.ByteSlice, make: (a0: rt.u
 	const _17: (a0: rt.Vec<[rt.u64, rt.u8]>[], a1: rt.ByteVec) => undefined = (vs: rt.Vec<[rt.u64, rt.u8]>[], out2: rt.ByteVec): undefined => {
 		put(out2, vs.length);
 		for (const _8 of vs) {
-			put(out2, _8.d.length);
+			put(out2, _8.items.length);
 			put(out2, rt.vecCapacity(_8, 16));
 		}
 	};
@@ -1550,7 +1550,7 @@ export function cloneFromSteps$tuple2_u64_u8(data: rt.ByteSlice, make: (a0: rt.u
 			const j: rt.u8 = _192;
 			const _243: rt.Vec<[rt.u64, rt.u8]> = v;
 			const _25: [rt.u64, rt.u8] = copy$tuple2_u64_u8(make(j));
-			_243.d.push(_25);
+			_243.items.push(_25);
 		}
 	};
 	const source: (a0: rt.usize) => rt.Vec<[rt.u64, rt.u8]> = (i3: rt.usize): rt.Vec<[rt.u64, rt.u8]> => {
@@ -1572,16 +1572,16 @@ export function cloneFromSteps$tuple2_u64_u8(data: rt.ByteSlice, make: (a0: rt.u
 	const array: rt.Vec<[rt.u64, rt.u8]>[] = [held(0), held(1)];
 	const _28: rt.Vec<[rt.u64, rt.u8]>[] = [source(2), source(3)];
 	rt.sliceCloneFromSlice(array, _28, (a0: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
-		return rt.vecFrom(a0.d.map(copy$tuple2_u64_u8));
+		return rt.vecFrom(a0.items.map(copy$tuple2_u64_u8));
 	}, undefined, rt.vecCloneFromFn(16, copy$tuple2_u64_u8));
 	_17(array, out);
 	const slice: rt.Vec<[rt.u64, rt.u8]>[] = [held(4), held(5), held(6)];
 	rt.sliceCloneFromSlice(rt.sliceRangeMut(slice, 1), [source(7), source(8)], (a02: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
-		return rt.vecFrom(a02.d.map(copy$tuple2_u64_u8));
+		return rt.vecFrom(a02.items.map(copy$tuple2_u64_u8));
 	}, undefined, rt.vecCloneFromFn(16, copy$tuple2_u64_u8));
 	_17(slice, out);
 	rt.sliceFill(slice, source(9), (a03: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
-		return rt.vecFrom(a03.d.map(copy$tuple2_u64_u8));
+		return rt.vecFrom(a03.items.map(copy$tuple2_u64_u8));
 	}, undefined, rt.vecCloneFromFn(16, copy$tuple2_u64_u8));
 	_17(slice, out);
 	const part6 = len(10);
@@ -1589,27 +1589,27 @@ export function cloneFromSteps$tuple2_u64_u8(data: rt.ByteSlice, make: (a0: rt.u
 	const part7 = len(14);
 	const _88: rt.Vec<rt.Vec<[rt.u64, rt.u8]>> = sources(15, part7);
 	rt.vecCloneFrom(nested, _88, 12, (a04: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
-		return rt.vecFrom(a04.d.map(copy$tuple2_u64_u8));
+		return rt.vecFrom(a04.items.map(copy$tuple2_u64_u8));
 	}, undefined, rt.vecCloneFromFn(16, copy$tuple2_u64_u8));
-	_17(nested.d, out);
+	_17(nested.items, out);
 	const part9 = len(18);
 	const into: rt.Vec<rt.Vec<[rt.u64, rt.u8]>> = holds(19, part9);
 	const part10 = len(22);
-	const _106: rt.Vec<[rt.u64, rt.u8]>[] = rt.sliceRange(sources(23, part10).d, 0);
+	const _106: rt.Vec<[rt.u64, rt.u8]>[] = rt.sliceRange(sources(23, part10).items, 0);
 	rt.vecCloneFrom(into, _106, 12, (a05: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
-		return rt.vecFrom(a05.d.map(copy$tuple2_u64_u8));
+		return rt.vecFrom(a05.items.map(copy$tuple2_u64_u8));
 	}, undefined, rt.vecCloneFromFn(16, copy$tuple2_u64_u8));
-	_17(into.d, out);
+	_17(into.items, out);
 	const boxed: rt.Vec<[rt.u64, rt.u8]> = held(26);
 	const _127: rt.Vec<[rt.u64, rt.u8]> = source(27);
 	rt.vecCloneFrom(boxed, _127, 16, copy$tuple2_u64_u8);
 	_17([boxed], out);
 	const part13 = len(28);
-	let boxes: rt.Vec<[rt.u64, rt.u8]>[] = holds(29, part13).d;
+	let boxes: rt.Vec<[rt.u64, rt.u8]>[] = holds(29, part13).items;
 	const part14 = len(32);
-	const _148: rt.Vec<[rt.u64, rt.u8]>[] = sources(33, part14).d;
+	const _148: rt.Vec<[rt.u64, rt.u8]>[] = sources(33, part14).items;
 	boxes = rt.boxSliceCloneFrom(boxes, _148, (a06: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
-		return rt.vecFrom(a06.d.map(copy$tuple2_u64_u8));
+		return rt.vecFrom(a06.items.map(copy$tuple2_u64_u8));
 	}, undefined, rt.vecCloneFromFn(16, copy$tuple2_u64_u8));
 	_17(boxes, out);
 	let option: rt.Vec<[rt.u64, rt.u8]> | undefined = then$15ykizu(rt.u8Rem(at(36), 3) !== 0, (): rt.Vec<[rt.u64, rt.u8]> => {
@@ -1619,9 +1619,9 @@ export function cloneFromSteps$tuple2_u64_u8(data: rt.ByteSlice, make: (a0: rt.u
 		return source(39);
 	});
 	option = rt.optionCloneFrom(option, _172, (a07: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
-		return rt.vecFrom(a07.d.map(copy$tuple2_u64_u8));
+		return rt.vecFrom(a07.items.map(copy$tuple2_u64_u8));
 	}, undefined, rt.vecCloneFromFn(16, copy$tuple2_u64_u8));
-	const part16 = rt.iterToVec(rt.iterOption(option), undefined, 12, true).d;
+	const part16 = rt.iterToVec(rt.iterOption(option), undefined, 12, true).items;
 	_17(part16, out);
 	if (rt.u8Rem(at(40), 2) === 0) {
 		result = rt.Ok(held(41));
@@ -1635,9 +1635,9 @@ export function cloneFromSteps$tuple2_u64_u8(data: rt.ByteSlice, make: (a0: rt.u
 		_204 = rt.Err(source(45));
 	}
 	_202.v = rt.resultCloneFrom(_202.v, _204, (a08: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
-		return rt.vecFrom(a08.d.map(copy$tuple2_u64_u8));
+		return rt.vecFrom(a08.items.map(copy$tuple2_u64_u8));
 	}, undefined, rt.vecCloneFromFn(16, copy$tuple2_u64_u8), (a09: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
-		return rt.vecFrom(a09.d.map(copy$tuple2_u64_u8));
+		return rt.vecFrom(a09.items.map(copy$tuple2_u64_u8));
 	}, undefined, rt.vecCloneFromFn(16, copy$tuple2_u64_u8));
 	rt.byteVecPush(out, result.ok ? 1 : 0);
 	const part17 = [result_unwrapOrElse$17cj159(result, (v2: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
@@ -1647,7 +1647,7 @@ export function cloneFromSteps$tuple2_u64_u8(data: rt.ByteSlice, make: (a0: rt.u
 	let cell: rt.RefCell<rt.Vec<[rt.u64, rt.u8]>> = new rt.RefCell(held(46));
 	const _235: rt.RefCell<rt.Vec<[rt.u64, rt.u8]>> = new rt.RefCell(source(47));
 	cell = rt.refCellCloneFrom(cell, _235, (a010: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
-		return rt.vecFrom(a010.d.map(copy$tuple2_u64_u8));
+		return rt.vecFrom(a010.items.map(copy$tuple2_u64_u8));
 	}, undefined, rt.vecCloneFromFn(16, copy$tuple2_u64_u8));
 	_17([cell.value], out);
 	let deep: rt.Vec<[rt.u64, rt.u8]>[] | undefined = [held(52)];
@@ -1655,17 +1655,17 @@ export function cloneFromSteps$tuple2_u64_u8(data: rt.ByteSlice, make: (a0: rt.u
 	deep = rt.optionCloneFrom(deep, _256, (a011: rt.Vec<[rt.u64, rt.u8]>[]): rt.Vec<[rt.u64, rt.u8]>[] => {
 		return a011.map((a012: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
 			return ((a013: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
-				return rt.vecFrom(a013.d.map(copy$tuple2_u64_u8));
+				return rt.vecFrom(a013.items.map(copy$tuple2_u64_u8));
 			})(a012);
 		});
 	}, undefined, rt.sliceCloneFromSliceFn((a014: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
 		return ((a015: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
-			return rt.vecFrom(a015.d.map(copy$tuple2_u64_u8));
+			return rt.vecFrom(a015.items.map(copy$tuple2_u64_u8));
 		})(a014);
 	}, undefined, rt.vecCloneFromFn(16, copy$tuple2_u64_u8)));
 	const part19 = rt.iterToVec(rt.iterOption(option_map$0rgpr92(deep, (_27: rt.Vec<[rt.u64, rt.u8]>[]): rt.Vec<[rt.u64, rt.u8]> => {
 		return _27[0];
-	})), undefined, 12, true).d;
+	})), undefined, 12, true).items;
 	_17(part19, out);
 	const part20 = len(54);
 	const _272: rt.Iter<rt.Vec<[rt.u64, rt.u8]>> = rt.vecIntoIter(holds(55, part20));
@@ -1674,18 +1674,18 @@ export function cloneFromSteps$tuple2_u64_u8(data: rt.ByteSlice, make: (a0: rt.u
 	const _283: rt.Iter<rt.Vec<[rt.u64, rt.u8]>> = rt.vecIntoIter(sources(59, part21));
 	const _282: rt.LinkedList<rt.Vec<[rt.u64, rt.u8]>> = rt.listExtend(rt.listNew() as rt.LinkedList<rt.Vec<[rt.u64, rt.u8]>>, _283);
 	rt.listCloneFrom(list, _282, (a016: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
-		return rt.vecFrom(a016.d.map(copy$tuple2_u64_u8));
+		return rt.vecFrom(a016.items.map(copy$tuple2_u64_u8));
 	}, undefined, rt.vecCloneFromFn(16, copy$tuple2_u64_u8));
-	const part22 = rt.iterToVec(rt.listIter(list), undefined, 12, true).d;
+	const part22 = rt.iterToVec(rt.listIter(list), undefined, 12, true).items;
 	_17(part22, out);
 	const part23 = len(62);
 	const deque: rt.VecDeque<rt.Vec<[rt.u64, rt.u8]>> = rt.dequeFromVec(holds(63, part23), 12) as rt.VecDeque<rt.Vec<[rt.u64, rt.u8]>>;
 	const part24 = len(66);
 	const _308: rt.VecDeque<rt.Vec<[rt.u64, rt.u8]>> = rt.dequeFromVec(sources(67, part24), 12) as rt.VecDeque<rt.Vec<[rt.u64, rt.u8]>>;
 	rt.dequeCloneFrom(deque, _308, (a017: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
-		return rt.vecFrom(a017.d.map(copy$tuple2_u64_u8));
+		return rt.vecFrom(a017.items.map(copy$tuple2_u64_u8));
 	});
-	const part25 = rt.dequeToVec(deque).d;
+	const part25 = rt.dequeToVec(deque).items;
 	_17(part25, out);
 	let heap: rt.BinaryHeap<[rt.u64, rt.u8]> = rt.heapFrom(held(70), rt.cmpLe(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])), rt.cmpGe(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])), rt.cmpLt(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])));
 	const _329: rt.BinaryHeap<[rt.u64, rt.u8]> = rt.heapFrom(source(71), rt.cmpLe(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])), rt.cmpGe(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])), rt.cmpLt(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])));
@@ -1705,7 +1705,7 @@ export function cloneFromSteps$tuple2_u64_u8(data: rt.ByteSlice, make: (a0: rt.u
 	put(out, rt.dequeCapacity(deques[0]));
 	let pair: [rt.Vec<[rt.u64, rt.u8]>, rt.u8] = [held(76), 0];
 	pair = rt.tupleClone([source(77), 1] as [rt.Vec<[rt.u64, rt.u8]>, rt.u8], [(a020: rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> => {
-		return rt.vecFrom(a020.d.map(copy$tuple2_u64_u8));
+		return rt.vecFrom(a020.items.map(copy$tuple2_u64_u8));
 	}, undefined]);
 	let holder: Holds.Holds<[rt.u64, rt.u8]> = new Holds.Holds(held(78));
 	holder = Holds.clone$Clone_tuple2_u64_u8(new Holds.Holds(source(79)));
@@ -1718,7 +1718,7 @@ export function cloneFromSteps$u16(data: rt.ByteSlice, make: (a0: rt.u8) => rt.u
 	const _17: (a0: rt.Vec<rt.u16>[], a1: rt.ByteVec) => undefined = (vs: rt.Vec<rt.u16>[], out2: rt.ByteVec): undefined => {
 		put(out2, vs.length);
 		for (const _8 of vs) {
-			put(out2, _8.d.length);
+			put(out2, _8.items.length);
 			put(out2, rt.vecCapacity(_8, 2));
 		}
 	};
@@ -1744,7 +1744,7 @@ export function cloneFromSteps$u16(data: rt.ByteSlice, make: (a0: rt.u8) => rt.u
 			const j: rt.u8 = _192;
 			const _243: rt.Vec<rt.u16> = v;
 			const _25: rt.u16 = make(j);
-			_243.d.push(_25);
+			_243.items.push(_25);
 		}
 	};
 	const source: (a0: rt.usize) => rt.Vec<rt.u16> = (i3: rt.usize): rt.Vec<rt.u16> => {
@@ -1766,16 +1766,16 @@ export function cloneFromSteps$u16(data: rt.ByteSlice, make: (a0: rt.u8) => rt.u
 	const array: rt.Vec<rt.u16>[] = [held(0), held(1)];
 	const _28: rt.Vec<rt.u16>[] = [source(2), source(3)];
 	rt.sliceCloneFromSlice(array, _28, (a0: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
-		return rt.vecFrom(a0.d.slice());
+		return rt.vecFrom(a0.items.slice());
 	}, undefined, rt.vecCloneFromFn(2));
 	_17(array, out);
 	const slice: rt.Vec<rt.u16>[] = [held(4), held(5), held(6)];
 	rt.sliceCloneFromSlice(rt.sliceRangeMut(slice, 1), [source(7), source(8)], (a02: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
-		return rt.vecFrom(a02.d.slice());
+		return rt.vecFrom(a02.items.slice());
 	}, undefined, rt.vecCloneFromFn(2));
 	_17(slice, out);
 	rt.sliceFill(slice, source(9), (a03: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
-		return rt.vecFrom(a03.d.slice());
+		return rt.vecFrom(a03.items.slice());
 	}, undefined, rt.vecCloneFromFn(2));
 	_17(slice, out);
 	const part6 = len(10);
@@ -1783,27 +1783,27 @@ export function cloneFromSteps$u16(data: rt.ByteSlice, make: (a0: rt.u8) => rt.u
 	const part7 = len(14);
 	const _88: rt.Vec<rt.Vec<rt.u16>> = sources(15, part7);
 	rt.vecCloneFrom(nested, _88, 12, (a04: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
-		return rt.vecFrom(a04.d.slice());
+		return rt.vecFrom(a04.items.slice());
 	}, undefined, rt.vecCloneFromFn(2));
-	_17(nested.d, out);
+	_17(nested.items, out);
 	const part9 = len(18);
 	const into: rt.Vec<rt.Vec<rt.u16>> = holds(19, part9);
 	const part10 = len(22);
-	const _106: rt.Vec<rt.u16>[] = rt.sliceRange(sources(23, part10).d, 0);
+	const _106: rt.Vec<rt.u16>[] = rt.sliceRange(sources(23, part10).items, 0);
 	rt.vecCloneFrom(into, _106, 12, (a05: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
-		return rt.vecFrom(a05.d.slice());
+		return rt.vecFrom(a05.items.slice());
 	}, undefined, rt.vecCloneFromFn(2));
-	_17(into.d, out);
+	_17(into.items, out);
 	const boxed: rt.Vec<rt.u16> = held(26);
 	const _127: rt.Vec<rt.u16> = source(27);
 	rt.vecCloneFrom(boxed, _127, 2);
 	_17([boxed], out);
 	const part13 = len(28);
-	let boxes: rt.Vec<rt.u16>[] = holds(29, part13).d;
+	let boxes: rt.Vec<rt.u16>[] = holds(29, part13).items;
 	const part14 = len(32);
-	const _148: rt.Vec<rt.u16>[] = sources(33, part14).d;
+	const _148: rt.Vec<rt.u16>[] = sources(33, part14).items;
 	boxes = rt.boxSliceCloneFrom(boxes, _148, (a06: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
-		return rt.vecFrom(a06.d.slice());
+		return rt.vecFrom(a06.items.slice());
 	}, undefined, rt.vecCloneFromFn(2));
 	_17(boxes, out);
 	let option: rt.Vec<rt.u16> | undefined = then$06am279(rt.u8Rem(at(36), 3) !== 0, (): rt.Vec<rt.u16> => {
@@ -1813,9 +1813,9 @@ export function cloneFromSteps$u16(data: rt.ByteSlice, make: (a0: rt.u8) => rt.u
 		return source(39);
 	});
 	option = rt.optionCloneFrom(option, _172, (a07: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
-		return rt.vecFrom(a07.d.slice());
+		return rt.vecFrom(a07.items.slice());
 	}, undefined, rt.vecCloneFromFn(2));
-	const part16 = rt.iterToVec(rt.iterOption(option), undefined, 12, true).d;
+	const part16 = rt.iterToVec(rt.iterOption(option), undefined, 12, true).items;
 	_17(part16, out);
 	if (rt.u8Rem(at(40), 2) === 0) {
 		result = rt.Ok(held(41));
@@ -1829,9 +1829,9 @@ export function cloneFromSteps$u16(data: rt.ByteSlice, make: (a0: rt.u8) => rt.u
 		_204 = rt.Err(source(45));
 	}
 	_202.v = rt.resultCloneFrom(_202.v, _204, (a08: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
-		return rt.vecFrom(a08.d.slice());
+		return rt.vecFrom(a08.items.slice());
 	}, undefined, rt.vecCloneFromFn(2), (a09: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
-		return rt.vecFrom(a09.d.slice());
+		return rt.vecFrom(a09.items.slice());
 	}, undefined, rt.vecCloneFromFn(2));
 	rt.byteVecPush(out, result.ok ? 1 : 0);
 	const part17 = [result_unwrapOrElse$1urqnv6(result, (v2: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
@@ -1841,7 +1841,7 @@ export function cloneFromSteps$u16(data: rt.ByteSlice, make: (a0: rt.u8) => rt.u
 	let cell: rt.RefCell<rt.Vec<rt.u16>> = new rt.RefCell(held(46));
 	const _235: rt.RefCell<rt.Vec<rt.u16>> = new rt.RefCell(source(47));
 	cell = rt.refCellCloneFrom(cell, _235, (a010: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
-		return rt.vecFrom(a010.d.slice());
+		return rt.vecFrom(a010.items.slice());
 	}, undefined, rt.vecCloneFromFn(2));
 	_17([cell.value], out);
 	let deep: rt.Vec<rt.u16>[] | undefined = [held(52)];
@@ -1849,17 +1849,17 @@ export function cloneFromSteps$u16(data: rt.ByteSlice, make: (a0: rt.u8) => rt.u
 	deep = rt.optionCloneFrom(deep, _256, (a011: rt.Vec<rt.u16>[]): rt.Vec<rt.u16>[] => {
 		return a011.map((a012: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
 			return ((a013: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
-				return rt.vecFrom(a013.d.slice());
+				return rt.vecFrom(a013.items.slice());
 			})(a012);
 		});
 	}, undefined, rt.sliceCloneFromSliceFn((a014: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
 		return ((a015: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
-			return rt.vecFrom(a015.d.slice());
+			return rt.vecFrom(a015.items.slice());
 		})(a014);
 	}, undefined, rt.vecCloneFromFn(2)));
 	const part19 = rt.iterToVec(rt.iterOption(option_map$1dj8fjk(deep, (_27: rt.Vec<rt.u16>[]): rt.Vec<rt.u16> => {
 		return _27[0];
-	})), undefined, 12, true).d;
+	})), undefined, 12, true).items;
 	_17(part19, out);
 	const part20 = len(54);
 	const _272: rt.Iter<rt.Vec<rt.u16>> = rt.vecIntoIter(holds(55, part20));
@@ -1868,18 +1868,18 @@ export function cloneFromSteps$u16(data: rt.ByteSlice, make: (a0: rt.u8) => rt.u
 	const _283: rt.Iter<rt.Vec<rt.u16>> = rt.vecIntoIter(sources(59, part21));
 	const _282: rt.LinkedList<rt.Vec<rt.u16>> = rt.listExtend(rt.listNew() as rt.LinkedList<rt.Vec<rt.u16>>, _283);
 	rt.listCloneFrom(list, _282, (a016: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
-		return rt.vecFrom(a016.d.slice());
+		return rt.vecFrom(a016.items.slice());
 	}, undefined, rt.vecCloneFromFn(2));
-	const part22 = rt.iterToVec(rt.listIter(list), undefined, 12, true).d;
+	const part22 = rt.iterToVec(rt.listIter(list), undefined, 12, true).items;
 	_17(part22, out);
 	const part23 = len(62);
 	const deque: rt.VecDeque<rt.Vec<rt.u16>> = rt.dequeFromVec(holds(63, part23), 12) as rt.VecDeque<rt.Vec<rt.u16>>;
 	const part24 = len(66);
 	const _308: rt.VecDeque<rt.Vec<rt.u16>> = rt.dequeFromVec(sources(67, part24), 12) as rt.VecDeque<rt.Vec<rt.u16>>;
 	rt.dequeCloneFrom(deque, _308, (a017: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
-		return rt.vecFrom(a017.d.slice());
+		return rt.vecFrom(a017.items.slice());
 	});
-	const part25 = rt.dequeToVec(deque).d;
+	const part25 = rt.dequeToVec(deque).items;
 	_17(part25, out);
 	let heap: rt.BinaryHeap<rt.u16> = rt.heapFrom(held(70), rt.le, rt.ge, rt.lt);
 	const _329: rt.BinaryHeap<rt.u16> = rt.heapFrom(source(71), rt.le, rt.ge, rt.lt);
@@ -1899,7 +1899,7 @@ export function cloneFromSteps$u16(data: rt.ByteSlice, make: (a0: rt.u8) => rt.u
 	put(out, rt.dequeCapacity(deques[0]));
 	let pair: [rt.Vec<rt.u16>, rt.u8] = [held(76), 0];
 	pair = rt.tupleClone([source(77), 1] as [rt.Vec<rt.u16>, rt.u8], [(a020: rt.Vec<rt.u16>): rt.Vec<rt.u16> => {
-		return rt.vecFrom(a020.d.slice());
+		return rt.vecFrom(a020.items.slice());
 	}, undefined]);
 	let holder: Holds.Holds<rt.u16> = new Holds.Holds(held(78));
 	holder = Holds.clone$Clone_u16(new Holds.Holds(source(79)));
@@ -1976,23 +1976,23 @@ export function cloneFromSteps$u8(data: rt.ByteSlice, make: (a0: rt.u8) => rt.u8
 	rt.vecCloneFrom(nested, _88, 12, (a04: rt.ByteVec): rt.ByteVec => {
 		return rt.byteVecFrom(rt.byteVecView(a04));
 	}, undefined, rt.byteVecCloneFromFn());
-	_17(nested.d, out);
+	_17(nested.items, out);
 	const part9 = len(18);
 	const into: rt.Vec<rt.ByteVec> = holds(19, part9);
 	const part10 = len(22);
-	const _106: rt.ByteVec[] = rt.sliceRange(sources(23, part10).d, 0);
+	const _106: rt.ByteVec[] = rt.sliceRange(sources(23, part10).items, 0);
 	rt.vecCloneFrom(into, _106, 12, (a05: rt.ByteVec): rt.ByteVec => {
 		return rt.byteVecFrom(rt.byteVecView(a05));
 	}, undefined, rt.byteVecCloneFromFn());
-	_17(into.d, out);
+	_17(into.items, out);
 	const boxed: rt.ByteVec = held(26);
 	const _127: rt.ByteVec = source(27);
 	rt.byteVecCloneFrom(boxed, _127);
 	_17([boxed], out);
 	const part13 = len(28);
-	let boxes: rt.ByteVec[] = holds(29, part13).d;
+	let boxes: rt.ByteVec[] = holds(29, part13).items;
 	const part14 = len(32);
-	const _148: rt.ByteVec[] = sources(33, part14).d;
+	const _148: rt.ByteVec[] = sources(33, part14).items;
 	boxes = rt.boxSliceCloneFrom(boxes, _148, (a06: rt.ByteVec): rt.ByteVec => {
 		return rt.byteVecFrom(rt.byteVecView(a06));
 	}, undefined, rt.byteVecCloneFromFn());
@@ -2006,7 +2006,7 @@ export function cloneFromSteps$u8(data: rt.ByteSlice, make: (a0: rt.u8) => rt.u8
 	option = rt.optionCloneFrom(option, _172, (a07: rt.ByteVec): rt.ByteVec => {
 		return rt.byteVecFrom(rt.byteVecView(a07));
 	}, undefined, rt.byteVecCloneFromFn());
-	const part16 = rt.iterToVec(rt.iterOption(option), undefined, 12, true).d;
+	const part16 = rt.iterToVec(rt.iterOption(option), undefined, 12, true).items;
 	_17(part16, out);
 	if (rt.u8Rem(at(40), 2) === 0) {
 		result = rt.Ok(held(41));
@@ -2050,7 +2050,7 @@ export function cloneFromSteps$u8(data: rt.ByteSlice, make: (a0: rt.u8) => rt.u8
 	}, undefined, rt.byteVecCloneFromFn()));
 	const part19 = rt.iterToVec(rt.iterOption(option_map$1p5j86b(deep, (_27: rt.ByteVec[]): rt.ByteVec => {
 		return _27[0];
-	})), undefined, 12, true).d;
+	})), undefined, 12, true).items;
 	_17(part19, out);
 	const part20 = len(54);
 	const _272: rt.Iter<rt.ByteVec> = rt.vecIntoIter(holds(55, part20));
@@ -2061,7 +2061,7 @@ export function cloneFromSteps$u8(data: rt.ByteSlice, make: (a0: rt.u8) => rt.u8
 	rt.listCloneFrom(list, _282, (a016: rt.ByteVec): rt.ByteVec => {
 		return rt.byteVecFrom(rt.byteVecView(a016));
 	}, undefined, rt.byteVecCloneFromFn());
-	const part22 = rt.iterToVec(rt.listIter(list), undefined, 12, true).d;
+	const part22 = rt.iterToVec(rt.listIter(list), undefined, 12, true).items;
 	_17(part22, out);
 	const part23 = len(62);
 	const deque: rt.VecDeque<rt.ByteVec> = rt.dequeFromVec(holds(63, part23), 12) as rt.VecDeque<rt.ByteVec>;
@@ -2070,7 +2070,7 @@ export function cloneFromSteps$u8(data: rt.ByteSlice, make: (a0: rt.u8) => rt.u8
 	rt.dequeCloneFrom(deque, _308, (a017: rt.ByteVec): rt.ByteVec => {
 		return rt.byteVecFrom(rt.byteVecView(a017));
 	});
-	const part25 = rt.dequeToVec(deque).d;
+	const part25 = rt.dequeToVec(deque).items;
 	_17(part25, out);
 	let heap: rt.BinaryHeap<rt.u8> = rt.heapFrom(rt.byteVecToVec(held(70)), rt.le, rt.ge, rt.lt);
 	const _329: rt.BinaryHeap<rt.u8> = rt.heapFrom(rt.byteVecToVec(source(71)), rt.le, rt.ge, rt.lt);
@@ -2104,7 +2104,7 @@ export function cloneFromSteps$unit(data: rt.ByteSlice, make: (a0: rt.u8) => und
 	const _17: (a0: rt.Vec<undefined>[], a1: rt.ByteVec) => undefined = (vs: rt.Vec<undefined>[], out2: rt.ByteVec): undefined => {
 		put(out2, vs.length);
 		for (const _8 of vs) {
-			put(out2, _8.d.length);
+			put(out2, _8.items.length);
 			put(out2, rt.vecCapacity(_8, 0));
 		}
 	};
@@ -2130,7 +2130,7 @@ export function cloneFromSteps$unit(data: rt.ByteSlice, make: (a0: rt.u8) => und
 			const j: rt.u8 = _192;
 			const _243: rt.Vec<undefined> = v;
 			make(j);
-			_243.d.push(undefined);
+			_243.items.push(undefined);
 		}
 	};
 	const source: (a0: rt.usize) => rt.Vec<undefined> = (i3: rt.usize): rt.Vec<undefined> => {
@@ -2152,16 +2152,16 @@ export function cloneFromSteps$unit(data: rt.ByteSlice, make: (a0: rt.u8) => und
 	const array: rt.Vec<undefined>[] = [held(0), held(1)];
 	const _28: rt.Vec<undefined>[] = [source(2), source(3)];
 	rt.sliceCloneFromSlice(array, _28, (a0: rt.Vec<undefined>): rt.Vec<undefined> => {
-		return rt.vecFrom(a0.d.slice());
+		return rt.vecFrom(a0.items.slice());
 	}, undefined, rt.vecCloneFromFn(0));
 	_17(array, out);
 	const slice: rt.Vec<undefined>[] = [held(4), held(5), held(6)];
 	rt.sliceCloneFromSlice(rt.sliceRangeMut(slice, 1), [source(7), source(8)], (a02: rt.Vec<undefined>): rt.Vec<undefined> => {
-		return rt.vecFrom(a02.d.slice());
+		return rt.vecFrom(a02.items.slice());
 	}, undefined, rt.vecCloneFromFn(0));
 	_17(slice, out);
 	rt.sliceFill(slice, source(9), (a03: rt.Vec<undefined>): rt.Vec<undefined> => {
-		return rt.vecFrom(a03.d.slice());
+		return rt.vecFrom(a03.items.slice());
 	}, undefined, rt.vecCloneFromFn(0));
 	_17(slice, out);
 	const part6 = len(10);
@@ -2169,27 +2169,27 @@ export function cloneFromSteps$unit(data: rt.ByteSlice, make: (a0: rt.u8) => und
 	const part7 = len(14);
 	const _88: rt.Vec<rt.Vec<undefined>> = sources(15, part7);
 	rt.vecCloneFrom(nested, _88, 12, (a04: rt.Vec<undefined>): rt.Vec<undefined> => {
-		return rt.vecFrom(a04.d.slice());
+		return rt.vecFrom(a04.items.slice());
 	}, undefined, rt.vecCloneFromFn(0));
-	_17(nested.d, out);
+	_17(nested.items, out);
 	const part9 = len(18);
 	const into: rt.Vec<rt.Vec<undefined>> = holds(19, part9);
 	const part10 = len(22);
-	const _106: rt.Vec<undefined>[] = rt.sliceRange(sources(23, part10).d, 0);
+	const _106: rt.Vec<undefined>[] = rt.sliceRange(sources(23, part10).items, 0);
 	rt.vecCloneFrom(into, _106, 12, (a05: rt.Vec<undefined>): rt.Vec<undefined> => {
-		return rt.vecFrom(a05.d.slice());
+		return rt.vecFrom(a05.items.slice());
 	}, undefined, rt.vecCloneFromFn(0));
-	_17(into.d, out);
+	_17(into.items, out);
 	const boxed: rt.Vec<undefined> = held(26);
 	const _127: rt.Vec<undefined> = source(27);
 	rt.vecCloneFrom(boxed, _127, 0);
 	_17([boxed], out);
 	const part13 = len(28);
-	let boxes: rt.Vec<undefined>[] = holds(29, part13).d;
+	let boxes: rt.Vec<undefined>[] = holds(29, part13).items;
 	const part14 = len(32);
-	const _148: rt.Vec<undefined>[] = sources(33, part14).d;
+	const _148: rt.Vec<undefined>[] = sources(33, part14).items;
 	boxes = rt.boxSliceCloneFrom(boxes, _148, (a06: rt.Vec<undefined>): rt.Vec<undefined> => {
-		return rt.vecFrom(a06.d.slice());
+		return rt.vecFrom(a06.items.slice());
 	}, undefined, rt.vecCloneFromFn(0));
 	_17(boxes, out);
 	let option: rt.Vec<undefined> | undefined = then$1svdnnn(rt.u8Rem(at(36), 3) !== 0, (): rt.Vec<undefined> => {
@@ -2199,9 +2199,9 @@ export function cloneFromSteps$unit(data: rt.ByteSlice, make: (a0: rt.u8) => und
 		return source(39);
 	});
 	option = rt.optionCloneFrom(option, _172, (a07: rt.Vec<undefined>): rt.Vec<undefined> => {
-		return rt.vecFrom(a07.d.slice());
+		return rt.vecFrom(a07.items.slice());
 	}, undefined, rt.vecCloneFromFn(0));
-	const part16 = rt.iterToVec(rt.iterOption(option), undefined, 12, true).d;
+	const part16 = rt.iterToVec(rt.iterOption(option), undefined, 12, true).items;
 	_17(part16, out);
 	if (rt.u8Rem(at(40), 2) === 0) {
 		result = rt.Ok(held(41));
@@ -2215,9 +2215,9 @@ export function cloneFromSteps$unit(data: rt.ByteSlice, make: (a0: rt.u8) => und
 		_204 = rt.Err(source(45));
 	}
 	_202.v = rt.resultCloneFrom(_202.v, _204, (a08: rt.Vec<undefined>): rt.Vec<undefined> => {
-		return rt.vecFrom(a08.d.slice());
+		return rt.vecFrom(a08.items.slice());
 	}, undefined, rt.vecCloneFromFn(0), (a09: rt.Vec<undefined>): rt.Vec<undefined> => {
-		return rt.vecFrom(a09.d.slice());
+		return rt.vecFrom(a09.items.slice());
 	}, undefined, rt.vecCloneFromFn(0));
 	rt.byteVecPush(out, result.ok ? 1 : 0);
 	const part17 = [result_unwrapOrElse$1341i4f(result, (v2: rt.Vec<undefined>): rt.Vec<undefined> => {
@@ -2227,7 +2227,7 @@ export function cloneFromSteps$unit(data: rt.ByteSlice, make: (a0: rt.u8) => und
 	let cell: rt.RefCell<rt.Vec<undefined>> = new rt.RefCell(held(46));
 	const _235: rt.RefCell<rt.Vec<undefined>> = new rt.RefCell(source(47));
 	cell = rt.refCellCloneFrom(cell, _235, (a010: rt.Vec<undefined>): rt.Vec<undefined> => {
-		return rt.vecFrom(a010.d.slice());
+		return rt.vecFrom(a010.items.slice());
 	}, undefined, rt.vecCloneFromFn(0));
 	_17([cell.value], out);
 	let deep: rt.Vec<undefined>[] | undefined = [held(52)];
@@ -2235,17 +2235,17 @@ export function cloneFromSteps$unit(data: rt.ByteSlice, make: (a0: rt.u8) => und
 	deep = rt.optionCloneFrom(deep, _256, (a011: rt.Vec<undefined>[]): rt.Vec<undefined>[] => {
 		return a011.map((a012: rt.Vec<undefined>): rt.Vec<undefined> => {
 			return ((a013: rt.Vec<undefined>): rt.Vec<undefined> => {
-				return rt.vecFrom(a013.d.slice());
+				return rt.vecFrom(a013.items.slice());
 			})(a012);
 		});
 	}, undefined, rt.sliceCloneFromSliceFn((a014: rt.Vec<undefined>): rt.Vec<undefined> => {
 		return ((a015: rt.Vec<undefined>): rt.Vec<undefined> => {
-			return rt.vecFrom(a015.d.slice());
+			return rt.vecFrom(a015.items.slice());
 		})(a014);
 	}, undefined, rt.vecCloneFromFn(0)));
 	const part19 = rt.iterToVec(rt.iterOption(option_map$0197mxk(deep, (_25: rt.Vec<undefined>[]): rt.Vec<undefined> => {
 		return _25[0];
-	})), undefined, 12, true).d;
+	})), undefined, 12, true).items;
 	_17(part19, out);
 	const part20 = len(54);
 	const _272: rt.Iter<rt.Vec<undefined>> = rt.vecIntoIter(holds(55, part20));
@@ -2254,18 +2254,18 @@ export function cloneFromSteps$unit(data: rt.ByteSlice, make: (a0: rt.u8) => und
 	const _283: rt.Iter<rt.Vec<undefined>> = rt.vecIntoIter(sources(59, part21));
 	const _282: rt.LinkedList<rt.Vec<undefined>> = rt.listExtend(rt.listNew() as rt.LinkedList<rt.Vec<undefined>>, _283);
 	rt.listCloneFrom(list, _282, (a016: rt.Vec<undefined>): rt.Vec<undefined> => {
-		return rt.vecFrom(a016.d.slice());
+		return rt.vecFrom(a016.items.slice());
 	}, undefined, rt.vecCloneFromFn(0));
-	const part22 = rt.iterToVec(rt.listIter(list), undefined, 12, true).d;
+	const part22 = rt.iterToVec(rt.listIter(list), undefined, 12, true).items;
 	_17(part22, out);
 	const part23 = len(62);
 	const deque: rt.VecDeque<rt.Vec<undefined>> = rt.dequeFromVec(holds(63, part23), 12) as rt.VecDeque<rt.Vec<undefined>>;
 	const part24 = len(66);
 	const _308: rt.VecDeque<rt.Vec<undefined>> = rt.dequeFromVec(sources(67, part24), 12) as rt.VecDeque<rt.Vec<undefined>>;
 	rt.dequeCloneFrom(deque, _308, (a017: rt.Vec<undefined>): rt.Vec<undefined> => {
-		return rt.vecFrom(a017.d.slice());
+		return rt.vecFrom(a017.items.slice());
 	});
-	const part25 = rt.dequeToVec(deque).d;
+	const part25 = rt.dequeToVec(deque).items;
 	_17(part25, out);
 	let heap: rt.BinaryHeap<undefined> = rt.heapFrom(held(70), rt.cmpLe(rt.cmpNothing), rt.cmpGe(rt.cmpNothing), rt.cmpLt(rt.cmpNothing));
 	const _329: rt.BinaryHeap<undefined> = rt.heapFrom(source(71), rt.cmpLe(rt.cmpNothing), rt.cmpGe(rt.cmpNothing), rt.cmpLt(rt.cmpNothing));
@@ -2285,7 +2285,7 @@ export function cloneFromSteps$unit(data: rt.ByteSlice, make: (a0: rt.u8) => und
 	put(out, rt.dequeCapacity(deques[0]));
 	let pair: [rt.Vec<undefined>, rt.u8] = [held(76), 0];
 	pair = rt.tupleClone([source(77), 1] as [rt.Vec<undefined>, rt.u8], [(a020: rt.Vec<undefined>): rt.Vec<undefined> => {
-		return rt.vecFrom(a020.d.slice());
+		return rt.vecFrom(a020.items.slice());
 	}, undefined]);
 	let holder: Holds.Holds<undefined> = new Holds.Holds(held(78));
 	holder = Holds.clone$Clone_unit(new Holds.Holds(source(79)));
@@ -3065,7 +3065,7 @@ export function heapSteps$array160_u64(dataData: Uint8Array, dataStart: number, 
 		} else if (_40 === 2) {
 			rt.heapPop(h, rt.cmpLe(rt.cmpSlice(rt.cmp)));
 		} else if (_40 === 3 || _40 === 4) {
-			const additional: rt.usize = amount(arg, h.d.length, size);
+			const additional: rt.usize = amount(arg, h.items.length, size);
 			if (rt.u8Rem(op, 15) === 3) {
 				rt.vecReserve(h, additional, 1280);
 			} else {
@@ -3085,7 +3085,7 @@ export function heapSteps$array160_u64(dataData: Uint8Array, dataStart: number, 
 			const _67: rt.u64[] = copy$array_u64(make(arg));
 			rt.heapPush(other, _67, rt.cmpLe(rt.cmpSlice(rt.cmp)));
 			rt.heapAppend(h, other, rt.cmpLe(rt.cmpSlice(rt.cmp)), rt.cmpGe(rt.cmpSlice(rt.cmp)), rt.cmpLt(rt.cmpSlice(rt.cmp)), 1280);
-			sized(out, other.d.length, rt.vecCapacity(other, 1280));
+			sized(out, other.items.length, rt.vecCapacity(other, 1280));
 		} else if (_40 === 10) {
 			rt.drop(rt.heapDrain(h));
 		} else if (_40 === 11) {
@@ -3099,7 +3099,7 @@ export function heapSteps$array160_u64(dataData: Uint8Array, dataStart: number, 
 		} else if (_40 === 12) {
 			h = rt.heapFrom(h, rt.cmpLe(rt.cmpSlice(rt.cmp)), rt.cmpGe(rt.cmpSlice(rt.cmp)), rt.cmpLt(rt.cmpSlice(rt.cmp)));
 		} else {
-			const additional2: rt.usize = amount(arg, h.d.length, size);
+			const additional2: rt.usize = amount(arg, h.items.length, size);
 			if (rt.u8Rem(op, 15) === 13) {
 				tried = rt.vecTryReserve(h, additional2, 1280);
 			} else {
@@ -3108,12 +3108,12 @@ export function heapSteps$array160_u64(dataData: Uint8Array, dataStart: number, 
 			const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(tried, f, rt.fmtUnit, rt.fmtTryReserveErrorDebug)];
 			rt.iterExtendBytes(out, rt.strBytes(rt.fmtFormat([args2[0]])), undefined, true);
 		}
-		sized(out, h.d.length, rt.vecCapacity(h, 1280));
+		sized(out, h.items.length, rt.vecCapacity(h, 1280));
 	}
 	const cloned: rt.Vec<rt.u64[]> = rt.heapClone(h, copy$array_u64);
-	sized(out, cloned.d.length, rt.vecCapacity(cloned, 1280));
+	sized(out, cloned.items.length, rt.vecCapacity(cloned, 1280));
 	const sorted: rt.Vec<rt.u64[]> = rt.heapIntoSortedVec(h, rt.cmpLe(rt.cmpSlice(rt.cmp)), rt.cmpGe(rt.cmpSlice(rt.cmp)), rt.cmpLt(rt.cmpSlice(rt.cmp)));
-	sized(out, sorted.d.length, rt.vecCapacity(sorted, 1280));
+	sized(out, sorted.items.length, rt.vecCapacity(sorted, 1280));
 }
 
 export function heapSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number, dataLen: number, make: (a0: rt.u8) => [rt.u64, rt.u8], out: rt.ByteVec): void {
@@ -3148,7 +3148,7 @@ export function heapSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number,
 		} else if (_40 === 2) {
 			rt.heapPop(h, rt.cmpLe(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])));
 		} else if (_40 === 3 || _40 === 4) {
-			const additional: rt.usize = amount(arg, h.d.length, size);
+			const additional: rt.usize = amount(arg, h.items.length, size);
 			if (rt.u8Rem(op, 15) === 3) {
 				rt.vecReserve(h, additional, 16);
 			} else {
@@ -3168,7 +3168,7 @@ export function heapSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number,
 			const _67: [rt.u64, rt.u8] = copy$tuple2_u64_u8(make(arg));
 			rt.heapPush(other, _67, rt.cmpLe(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])));
 			rt.heapAppend(h, other, rt.cmpLe(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])), rt.cmpGe(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])), rt.cmpLt(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])), 16);
-			sized(out, other.d.length, rt.vecCapacity(other, 16));
+			sized(out, other.items.length, rt.vecCapacity(other, 16));
 		} else if (_40 === 10) {
 			rt.drop(rt.heapDrain(h));
 		} else if (_40 === 11) {
@@ -3182,7 +3182,7 @@ export function heapSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number,
 		} else if (_40 === 12) {
 			h = rt.heapFrom(h, rt.cmpLe(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])), rt.cmpGe(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])), rt.cmpLt(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])));
 		} else {
-			const additional2: rt.usize = amount(arg, h.d.length, size);
+			const additional2: rt.usize = amount(arg, h.items.length, size);
 			if (rt.u8Rem(op, 15) === 13) {
 				tried = rt.vecTryReserve(h, additional2, 16);
 			} else {
@@ -3191,12 +3191,12 @@ export function heapSteps$tuple2_u64_u8(dataData: Uint8Array, dataStart: number,
 			const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(tried, f, rt.fmtUnit, rt.fmtTryReserveErrorDebug)];
 			rt.iterExtendBytes(out, rt.strBytes(rt.fmtFormat([args2[0]])), undefined, true);
 		}
-		sized(out, h.d.length, rt.vecCapacity(h, 16));
+		sized(out, h.items.length, rt.vecCapacity(h, 16));
 	}
 	const cloned: rt.Vec<[rt.u64, rt.u8]> = rt.heapClone(h, copy$tuple2_u64_u8);
-	sized(out, cloned.d.length, rt.vecCapacity(cloned, 16));
+	sized(out, cloned.items.length, rt.vecCapacity(cloned, 16));
 	const sorted: rt.Vec<[rt.u64, rt.u8]> = rt.heapIntoSortedVec(h, rt.cmpLe(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])), rt.cmpGe(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])), rt.cmpLt(rt.cmpTuple<[rt.u64, rt.u8], rt.Ordering | undefined>([rt.cmp, rt.cmp])));
-	sized(out, sorted.d.length, rt.vecCapacity(sorted, 16));
+	sized(out, sorted.items.length, rt.vecCapacity(sorted, 16));
 }
 
 export function heapSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: number, make: (a0: rt.u8) => rt.u16, out: rt.ByteVec): void {
@@ -3231,7 +3231,7 @@ export function heapSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: 
 		} else if (_40 === 2) {
 			rt.heapPop(h, rt.le);
 		} else if (_40 === 3 || _40 === 4) {
-			const additional: rt.usize = amount(arg, h.d.length, size);
+			const additional: rt.usize = amount(arg, h.items.length, size);
 			if (rt.u8Rem(op, 15) === 3) {
 				rt.vecReserve(h, additional, 2);
 			} else {
@@ -3251,7 +3251,7 @@ export function heapSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: 
 			const _67: rt.u16 = make(arg);
 			rt.heapPush(other, _67, rt.le);
 			rt.heapAppend(h, other, rt.le, rt.ge, rt.lt, 2);
-			sized(out, other.d.length, rt.vecCapacity(other, 2));
+			sized(out, other.items.length, rt.vecCapacity(other, 2));
 		} else if (_40 === 10) {
 			rt.drop(rt.heapDrain(h));
 		} else if (_40 === 11) {
@@ -3265,7 +3265,7 @@ export function heapSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: 
 		} else if (_40 === 12) {
 			h = rt.heapFrom(h, rt.le, rt.ge, rt.lt);
 		} else {
-			const additional2: rt.usize = amount(arg, h.d.length, size);
+			const additional2: rt.usize = amount(arg, h.items.length, size);
 			if (rt.u8Rem(op, 15) === 13) {
 				tried = rt.vecTryReserve(h, additional2, 2);
 			} else {
@@ -3274,12 +3274,12 @@ export function heapSteps$u16(dataData: Uint8Array, dataStart: number, dataLen: 
 			const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(tried, f, rt.fmtUnit, rt.fmtTryReserveErrorDebug)];
 			rt.iterExtendBytes(out, rt.strBytes(rt.fmtFormat([args2[0]])), undefined, true);
 		}
-		sized(out, h.d.length, rt.vecCapacity(h, 2));
+		sized(out, h.items.length, rt.vecCapacity(h, 2));
 	}
 	const cloned: rt.Vec<rt.u16> = rt.heapClone(h, undefined);
-	sized(out, cloned.d.length, rt.vecCapacity(cloned, 2));
+	sized(out, cloned.items.length, rt.vecCapacity(cloned, 2));
 	const sorted: rt.Vec<rt.u16> = rt.heapIntoSortedVec(h, rt.le, rt.ge, rt.lt);
-	sized(out, sorted.d.length, rt.vecCapacity(sorted, 2));
+	sized(out, sorted.items.length, rt.vecCapacity(sorted, 2));
 }
 
 export function heapSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: number, make: (a0: rt.u8) => rt.u8, out: rt.ByteVec): void {
@@ -3314,7 +3314,7 @@ export function heapSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: n
 		} else if (_40 === 2) {
 			rt.heapPop(h, rt.le);
 		} else if (_40 === 3 || _40 === 4) {
-			const additional: rt.usize = amount(arg, h.d.length, size);
+			const additional: rt.usize = amount(arg, h.items.length, size);
 			if (rt.u8Rem(op, 15) === 3) {
 				rt.vecReserve(h, additional, 1);
 			} else {
@@ -3334,7 +3334,7 @@ export function heapSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: n
 			const _67: rt.u8 = make(arg);
 			rt.heapPush(other, _67, rt.le);
 			rt.heapAppend(h, other, rt.le, rt.ge, rt.lt, 1);
-			sized(out, other.d.length, rt.vecCapacity(other, 1));
+			sized(out, other.items.length, rt.vecCapacity(other, 1));
 		} else if (_40 === 10) {
 			rt.drop(rt.heapDrain(h));
 		} else if (_40 === 11) {
@@ -3348,7 +3348,7 @@ export function heapSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: n
 		} else if (_40 === 12) {
 			h = rt.heapFrom(rt.byteVecToVec(rt.byteVecFromVec(h)), rt.le, rt.ge, rt.lt);
 		} else {
-			const additional2: rt.usize = amount(arg, h.d.length, size);
+			const additional2: rt.usize = amount(arg, h.items.length, size);
 			if (rt.u8Rem(op, 15) === 13) {
 				tried = rt.vecTryReserve(h, additional2, 1);
 			} else {
@@ -3357,7 +3357,7 @@ export function heapSteps$u8(dataData: Uint8Array, dataStart: number, dataLen: n
 			const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(tried, f, rt.fmtUnit, rt.fmtTryReserveErrorDebug)];
 			rt.iterExtendBytes(out, rt.strBytes(rt.fmtFormat([args2[0]])), undefined, true);
 		}
-		sized(out, h.d.length, rt.vecCapacity(h, 1));
+		sized(out, h.items.length, rt.vecCapacity(h, 1));
 	}
 	const cloned: rt.ByteVec = rt.byteVecFromVec(rt.heapClone(h, undefined));
 	sized(out, cloned.length, cloned.data.length);
@@ -3399,7 +3399,7 @@ export function heapSteps$unit(dataData: Uint8Array, dataStart: number, dataLen:
 		} else if (_40 === 2) {
 			rt.heapPop(h, rt.cmpLe(rt.cmpNothing), rt.None);
 		} else if (_40 === 3 || _40 === 4) {
-			const additional: rt.usize = amount(arg, h.d.length, size);
+			const additional: rt.usize = amount(arg, h.items.length, size);
 			if (rt.u8Rem(op, 15) === 3) {
 				rt.vecReserve(h, additional, 0);
 			} else {
@@ -3419,7 +3419,7 @@ export function heapSteps$unit(dataData: Uint8Array, dataStart: number, dataLen:
 			make(arg);
 			rt.heapPush(other, undefined, rt.cmpLe(rt.cmpNothing));
 			rt.heapAppend(h, other, rt.cmpLe(rt.cmpNothing), rt.cmpGe(rt.cmpNothing), rt.cmpLt(rt.cmpNothing), 0);
-			sized(out, other.d.length, rt.vecCapacity(other, 0));
+			sized(out, other.items.length, rt.vecCapacity(other, 0));
 		} else if (_40 === 10) {
 			rt.drop(rt.heapDrain(h));
 		} else if (_40 === 11) {
@@ -3433,7 +3433,7 @@ export function heapSteps$unit(dataData: Uint8Array, dataStart: number, dataLen:
 		} else if (_40 === 12) {
 			h = rt.heapFrom(h, rt.cmpLe(rt.cmpNothing), rt.cmpGe(rt.cmpNothing), rt.cmpLt(rt.cmpNothing));
 		} else {
-			const additional2: rt.usize = amount(arg, h.d.length, size);
+			const additional2: rt.usize = amount(arg, h.items.length, size);
 			if (rt.u8Rem(op, 15) === 13) {
 				tried = rt.vecTryReserve(h, additional2, 0);
 			} else {
@@ -3442,12 +3442,12 @@ export function heapSteps$unit(dataData: Uint8Array, dataStart: number, dataLen:
 			const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtResult(tried, f, rt.fmtUnit, rt.fmtTryReserveErrorDebug)];
 			rt.iterExtendBytes(out, rt.strBytes(rt.fmtFormat([args2[0]])), undefined, true);
 		}
-		sized(out, h.d.length, rt.vecCapacity(h, 0));
+		sized(out, h.items.length, rt.vecCapacity(h, 0));
 	}
 	const cloned: rt.Vec<undefined> = rt.heapClone(h, undefined);
-	sized(out, cloned.d.length, rt.vecCapacity(cloned, 0));
+	sized(out, cloned.items.length, rt.vecCapacity(cloned, 0));
 	const sorted: rt.Vec<undefined> = rt.heapIntoSortedVec(h, rt.cmpLe(rt.cmpNothing), rt.cmpGe(rt.cmpNothing), rt.cmpLt(rt.cmpNothing));
-	sized(out, sorted.d.length, rt.vecCapacity(sorted, 0));
+	sized(out, sorted.items.length, rt.vecCapacity(sorted, 0));
 }
 
 /**
@@ -3469,7 +3469,7 @@ export function collects(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const halves: rt.Vec<rt.u32> = rt.iterToVec(rt.iterMap(rt.vecIntoIter(pairs2), (_28: [rt.u32, rt.u32]): rt.u32 => {
 			return _28[0];
 		}), "next", 4, true, 8);
-		sized(out, halves.d.length, rt.vecCapacity(halves, 4));
+		sized(out, halves.items.length, rt.vecCapacity(halves, 4));
 	} else if (_18 === 1) {
 		const bytes: rt.ByteVec = rt.byteVecWithCapacity(rt.usizeAdd(n, 3));
 		const _34: rt.ByteSlice = rt.byteSliceRange(data, 0, rt.min(n, data.length));
@@ -3482,29 +3482,29 @@ export function collects(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const wide: rt.Vec<rt.u16> = rt.iterToVec(rt.iterMap(rt.byteVecIntoIter(bytes), (a0: rt.u8): rt.u16 => {
 			return a0 as rt.u16;
 		}), undefined, 2, true);
-		sized(out, wide.d.length, rt.vecCapacity(wide, 2));
+		sized(out, wide.items.length, rt.vecCapacity(wide, 2));
 	} else if (_18 === 2) {
-		const _65: rt.Iter<[rt.u32, rt.u32]> = rt.iterFilter(rt.iterSlice(pairs2.d), (_24: [rt.u32, rt.u32]): boolean => {
+		const _65: rt.Iter<[rt.u32, rt.u32]> = rt.iterFilter(rt.iterSlice(pairs2.items), (_24: [rt.u32, rt.u32]): boolean => {
 			return rt.u32Rem(_24[0], 2) === 0;
 		});
 		const _64: [rt.Vec<rt.u32>, rt.VecDeque<rt.u32>] = rt.tupleExtend([new rt.Vec(), rt.dequeNew(4) as rt.VecDeque<rt.u32>] as [rt.Vec<rt.u32>, rt.VecDeque<rt.u32>], _65, [rt.vecPart(4), rt.dequePart()]);
 		const a: rt.Vec<rt.u32> = _64[0];
 		const b: rt.VecDeque<rt.u32> = _64[1];
-		sized(out, a.d.length, rt.vecCapacity(a, 4));
+		sized(out, a.items.length, rt.vecCapacity(a, 4));
 		sized(out, b.n, rt.dequeCapacity(b));
-		const _83: rt.Iter<[rt.u8, rt.u32]> = rt.iterMap(rt.iterSlice(pairs2.d), (_26: [rt.u32, rt.u32]): [rt.u8, rt.u32] => {
+		const _83: rt.Iter<[rt.u8, rt.u32]> = rt.iterMap(rt.iterSlice(pairs2.items), (_26: [rt.u32, rt.u32]): [rt.u8, rt.u32] => {
 			return [_26[0] & 0xff, _26[1]] as [rt.u8, rt.u32];
 		});
 		const _82: [rt.ByteVec, rt.BinaryHeap<rt.u32>] = rt.tupleExtend([new rt.ByteVec(), rt.heapNew() as rt.BinaryHeap<rt.u32>] as [rt.ByteVec, rt.BinaryHeap<rt.u32>], _83, [rt.byteVecPart(), rt.heapPart(rt.le, 4)]);
 		const c: rt.ByteVec = _82[0];
 		const d: rt.BinaryHeap<rt.u32> = _82[1];
 		sized(out, c.length, c.data.length);
-		sized(out, d.d.length, rt.vecCapacity(d, 4));
+		sized(out, d.items.length, rt.vecCapacity(d, 4));
 	} else if (_18 === 3) {
 		const filled: rt.Vec<rt.u16> = rt.vecFromElem(0, n, undefined);
-		sized(out, filled.d.length, rt.vecCapacity(filled, 2));
+		sized(out, filled.items.length, rt.vecCapacity(filled, 2));
 		const units: rt.Vec<undefined> = rt.vecFromElem(undefined, n, undefined);
-		sized(out, units.d.length, rt.vecCapacity(units, 0));
+		sized(out, units.items.length, rt.vecCapacity(units, 0));
 	} else if (_18 === 4) {
 		put(out, rt.vecCapacity(rt.vecWithCapacity(rt.usizeSub(4294967295, n), 8), 8));
 	} else if (_18 === 5) {
@@ -3516,7 +3516,7 @@ export function collects(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		const q2: rt.VecDeque<rt.u8> = rt.dequeFromVec(rt.byteVecToVec(rt.byteVecFrom(rt.byteVecView(bytes2))), 1, true) as rt.VecDeque<rt.u8>;
 		sized(out, q2.n, rt.dequeCapacity(q2));
 		const heap: rt.BinaryHeap<rt.u8> = rt.heapFrom(rt.byteVecToVec(bytes2), rt.le, rt.ge, rt.lt);
-		sized(out, heap.d.length, rt.vecCapacity(heap, 1));
+		sized(out, heap.items.length, rt.vecCapacity(heap, 1));
 		const v2: rt.ByteVec = rt.byteVecFromVec(heap);
 		sized(out, v2.length, v2.data.length);
 	} else {

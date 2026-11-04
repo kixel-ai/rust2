@@ -3569,8 +3569,8 @@ export function searches(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 	const pick: rt.u8 = _6[0];
 	const s: string = text(_6[1]);
 	const alphabet: rt.Vec<rt.char> = rt.iterToVec(rt.strChars(text(rt.byteSliceFrom(Uint8Array.of(rt.u8Rem(pick, 16), rt.u8Div(pick, 16))))), "next", 4);
-	const _25: rt.char = alphabet.d[rt.idx(alphabet.d, 0)];
-	const _24: [rt.char, rt.char] = [_25, alphabet.d[rt.idx(alphabet.d, 1)]];
+	const _25: rt.char = alphabet.items[rt.idx(alphabet.items, 0)];
+	const _24: [rt.char, rt.char] = [_25, alphabet.items[rt.idx(alphabet.items, 1)]];
 	const c: rt.char = _25;
 	const d: rt.char = _24[1];
 	const n: rt.usize = rt.u8Rem(pick, 5) as rt.usize;
@@ -3578,7 +3578,7 @@ export function searches(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 	const seen: rt.RefCell<rt.Vec<rt.char>> = new rt.RefCell(new rt.Vec());
 	const p: (a0: rt.char) => boolean = (x2: rt.char): boolean => {
 		const _62: rt.RefCell<rt.Vec<rt.char>> = rt.refCellBorrowMut(seen);
-		_62.value.d.push(x2);
+		_62.value.items.push(x2);
 		rt.refMutRelease(_62);
 		if (!(x2 === c)) {
 			return rt.isAsciiDigit(x2);
@@ -3837,7 +3837,7 @@ export function searches(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void
 		}
 	}
 	const _501: rt.RefCell<rt.Vec<rt.char>> = rt.refCellBorrow(seen);
-	const iter: rt.Iter<rt.char> = rt.iterSlice(_501.value.d);
+	const iter: rt.Iter<rt.char> = rt.iterSlice(_501.value.items);
 	while (true) {
 		const _504: rt.char | rt.Done = iter.next();
 		if (_504 === rt.DONE) {
@@ -3873,7 +3873,7 @@ export function texts(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void {
 		harness_put(out, rt.strTrimEndMatches(s, rt.charIsWhitespace));
 		for (const _37 of rt.iterToVec(rt.iterMap(rt.strChars(s), (a0: rt.char): boolean => {
 			return rt.charIsWhitespace(a0);
-		}), "next", 1).d) {
+		}), "next", 1).items) {
 			rt.byteVecPush(out, _37 ? 1 : 0);
 		}
 	}

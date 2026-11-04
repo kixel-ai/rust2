@@ -16,11 +16,11 @@ export function nested(log: Log.Log, id: rt.u32, n: rt.u32): rt.Vec<rt.Vec<Guard
 	};
 	const all: rt.Vec<rt.Vec<Guard.Guard>> = new rt.Vec();
 	const _9: rt.Vec<Guard.Guard> = guards(n, rt.u32Add(n, 3));
-	all.d.push(_9);
+	all.items.push(_9);
 	const _16: rt.Vec<Guard.Guard> = guards(rt.u32Add(n, 3), rt.u32Add(n, 5));
-	all.d.push(_16);
+	all.items.push(_16);
 	const _25: rt.Vec<Guard.Guard> = guards(rt.u32Add(n, 5), rt.u32Add(n, 8));
-	all.d.push(_25);
+	all.items.push(_25);
 	return all;
 }
 
@@ -29,7 +29,7 @@ export function firsts(log: Log.Log, id: rt.u32, n: rt.u32): rt.Iter<Guard.Guard
 	const _5: rt.Iter<rt.Vec<Guard.Guard>> = rt.vecIntoIter(nested(log, id, n), lib_drop$Vec_model_Guard);
 	const captured = id;
 	return rt.iterFlatten(rt.iterMap(_5, (v: rt.Vec<Guard.Guard>): rt.Iter<Guard.Guard> => {
-		const part = rt.u32Sub(Guard.id(v.d[rt.idx(v.d, 0)]), captured);
+		const part = rt.u32Sub(Guard.id(v.items[rt.idx(v.items, 0)]), captured);
 		const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.u32Display(part, f)];
 		Log.note(log, rt.fmtFormat(["inner ", args2[0]]));
 		return rt.iterTake(rt.vecIntoIter(v, rt.drop), 1, rt.drop);
@@ -297,7 +297,7 @@ export function flattened(log: Log.Log, id: rt.u32, arg: rt.u8): void {
 		rt.drop(it19);
 	} else if (_6 === 8) {
 		const all: rt.Vec<Guard.Guard> = rt.iterToVec(firsts(log, id, 1), "next", 8);
-		const part5 = all.d.length;
+		const part5 = all.items.length;
 		const args68: rt.Fmt[] = [(f: rt.Formatter) => rt.usizeDisplay(part5, f)];
 		Log.note(log, rt.fmtFormat(["collect ", args68[0]]));
 		rt.dropVec(all);
