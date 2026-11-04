@@ -465,3 +465,59 @@ pub fn variable_celled(n: u32) -> u32 {
 	std::cell::Cell::from_mut(&mut pair).set((0, 0));
 	unsafe { (*p).0 + pair.1 }
 }
+
+/// A pointer to a value JS copies, cast to one to `()`, which would be a new identity each
+/// borrow.
+pub fn erased_place(n: u32) -> bool {
+	let p = &raw const n;
+	p as *const () == p.cast()
+}
+
+/// A pointer to a byte array, cast to one to `()`, which would be a new view each borrow.
+pub fn erased_bytes(b: &mut [u8; 4]) -> *mut () {
+	(b as *mut [u8; 4]).cast()
+}
+
+/// A pointer to a trait object, cast to one to `()`, which loses what it points at's size.
+pub fn erased_dyn(d: &dyn std::fmt::Debug) -> *const () {
+	d as *const dyn std::fmt::Debug as *const ()
+}
+
+/// A struct whose start is another struct.
+#[repr(C)]
+pub struct Outer {
+	head: Inner,
+	tail: u8,
+}
+
+/// The start of an `Outer`.
+pub struct Inner(u16);
+
+/// A pointer to a struct cast to one to `()`, whose address the object of its first field
+/// shares, which JS keeps apart.
+pub fn erased_start(outer: &Outer) -> bool {
+	let whole = &raw const *outer;
+	whole as *const () == (&raw const outer.head).cast() && outer.tail == outer.head.0 as u8
+}
+
+/// A pointer to a value of no bytes, cast to one to `()`.
+pub fn erased_empty() -> *const () {
+	let unit = ((), ());
+	(&raw const unit).cast()
+}
+
+/// A pointer to a box, cast to one to `()`, which JS keeps as what it holds.
+pub fn erased_box(b: Box<(u8, u8)>) -> bool {
+	let p = &raw const b;
+	p as *const () == (&raw const *b).cast()
+}
+
+/// An `Arc`'s raw pointer to a slice, which `from_raw` would take back to no `Arc`.
+pub fn arc_raw_slice(a: std::sync::Arc<[u32]>) -> *const [u32] {
+	std::sync::Arc::into_raw(a)
+}
+
+/// An `Rc` taken back from a raw pointer to bytes, which no `Rc` gave.
+pub fn rc_raw_bytes(p: *const [u8; 4]) -> u8 {
+	unsafe { std::rc::Rc::from_raw(p)[0] }
+}

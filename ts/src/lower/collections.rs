@@ -403,7 +403,7 @@ pub fn place_call<'tcx>(b: &Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> bool {
 	let name = tcx.item_name(call.def_id);
 	let coll = impl_self_ty(b, call);
 	let (methods, value): (&[&str], usize) = match std {
-		Std::Vec => (&["retain_mut", "dedup_by", "dedup_by_key", "pop_if"], 0),
+		Std::Vec => (&["retain_mut", "dedup_by", "dedup_by_key", "pop_if", "extract_if"], 0),
 		Std::VecDeque => (
 			&[
 				"get_mut",
@@ -429,7 +429,10 @@ pub fn place_call<'tcx>(b: &Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> bool {
 		Std::HashMap => (&["get_mut", "iter_mut", "values_mut", "retain", "extract_if"], 1),
 		Std::HashTable => (&["find_mut", "iter_mut", "retain"], 0),
 		Std::TableEntry => (&["get_mut", "into_mut", "and_modify"], 0),
-		Std::BTreeMap => (&["get_mut", "iter_mut", "values_mut", "range_mut", "retain"], 1),
+		Std::BTreeMap => (
+			&["get_mut", "iter_mut", "values_mut", "range_mut", "retain", "extract_if"],
+			1,
+		),
 		Std::Entry if is_vacant(b, coll) => (&["insert"], 1),
 		Std::Entry => (
 			&[
@@ -661,6 +664,11 @@ fn hash<'tcx>(
 		}
 		(_, "capacity" | "reserve" | "shrink_to" | "shrink_to_fit" | "allocation_size") => {
 			sized(b, coll, name, values, span)
+		}
+		// hashbrown's returns its own error, an enum of its variants.
+		(_, "try_reserve") if !super::stock::as_std(b.t.tcx, call.def_id) => {
+			values.push(hash_max(b, coll, span));
+			Expr::rt("hashTryReserve", values)
 		}
 		("Index", "index") => Expr::rt("hashIndex", values),
 		("Clone", "clone") => {
@@ -1335,6 +1343,25 @@ fn btree<'tcx>(
 			values.push(test_fn(b, target, "gt", span));
 		}
 	}
+	// It holds the range, reads its end at each key it reads, and checks each key against
+	// the end by `<=` or `<`, which a key of the crate's own does by its `PartialOrd`.
+	if name == "extract_if" {
+		let f = values.pop()?;
+		let range = bounds(b, call, values.pop()?);
+		let tests = match key.walk().filter_map(|arg| arg.as_type()).any(|t| local(b, t)) {
+			true => vec![test_fn(b, key, "le", span), test_fn(b, key, "lt", span)],
+			false => vec![Expr::undefined(), Expr::undefined()],
+		};
+		let name = match set {
+			true => "btreeExtractKeysIf",
+			false if b.t.needs_place(arg(coll, 1)) => "btreeExtractIfMut",
+			false => "btreeExtractIf",
+		};
+		return Some(range.held(|bounds, drop| {
+			values.extend([bounds, f]);
+			Expr::rt(name, super::iter::tail(values, [tests, vec![drop]].concat()))
+		}));
+	}
 	let none = library::sentinel_option(b.t, call).is_some();
 	let last = |values: Vec<Expr>| flagged(values, true, none);
 	let first = |values: Vec<Expr>| flagged(values, false, none);
@@ -1577,7 +1604,11 @@ fn deque<'tcx>(
 			values.extend(deque_items(b, item, span));
 			empty(b, Expr::rt("dequeWithCapacity", values), coll, span)
 		}
-		(_, "capacity" | "reserve" | "reserve_exact" | "shrink_to" | "shrink_to_fit") => {
+		(
+			_,
+			"capacity" | "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact" | "shrink_to"
+			| "shrink_to_fit",
+		) => {
 			if name == "shrink_to_fit" {
 				values.push(Expr::lit("0"));
 			}
@@ -1585,6 +1616,8 @@ fn deque<'tcx>(
 				"capacity" => "dequeCapacity",
 				"reserve" => "dequeReserve",
 				"reserve_exact" => "dequeReserveExact",
+				"try_reserve" => "dequeTryReserve",
+				"try_reserve_exact" => "dequeTryReserveExact",
 				_ => "dequeShrinkTo",
 			};
 			Expr::rt(f, values)
@@ -1613,6 +1646,26 @@ fn deque<'tcx>(
 			Expr::rt("dequeResize", values)
 		}
 		(_, "resize_with") => Expr::rt("dequeResizeWith", values),
+		(_, "swap") => Expr::rt("dequeSwap", values),
+		(_, "rotate_left") => Expr::rt("dequeRotate", values),
+		(_, "rotate_right") => Expr::rt("dequeRotate", flagged(values, true, false)),
+		(_, "make_contiguous") if matches!(item.kind(), ty::Uint(ty::UintTy::U8)) => {
+			Expr::rt("dequeByteMakeContiguous", values)
+		}
+		(_, "make_contiguous") => Expr::rt("dequeMakeContiguous", values),
+		(_, "binary_search") => {
+			values.push(cmp_fn(b, item, false, span));
+			Expr::rt("dequeBinarySearch", values)
+		}
+		(_, "binary_search_by") => Expr::rt("dequeBinarySearchBy", values),
+		// `VecDeque<T, A>::binary_search_by_key::<B, F>`.
+		(_, "binary_search_by_key") => {
+			let key = library::targ(call.args, 2);
+			values.push(cmp_fn(b, key, false, span));
+			let drop = b.t.dropper(key, span);
+			Expr::rt("dequeBinarySearchByKey", super::iter::tail(values, vec![drop]))
+		}
+		(_, "partition_point") => Expr::rt("dequePartitionPoint", values),
 		(_, "retain_mut") if b.t.needs_place(item) => Expr::rt("dequeRetainMut", values),
 		(_, "retain" | "retain_mut") => Expr::rt("dequeRetain", values),
 		(_, "remove") => Expr::rt("dequeRemove", values),
@@ -1786,7 +1839,11 @@ fn heap<'tcx>(
 			values.push(super::iter::size_of(b, item, span));
 			empty(b, Expr::rt("heapWithCapacity", values), coll, span)
 		}
-		(_, "capacity" | "reserve" | "reserve_exact" | "shrink_to" | "shrink_to_fit") => {
+		(
+			_,
+			"capacity" | "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact" | "shrink_to"
+			| "shrink_to_fit",
+		) => {
 			let h = values.remove(0);
 			values.insert(0, h.member("d"));
 			if name == "shrink_to_fit" {
@@ -1797,6 +1854,8 @@ fn heap<'tcx>(
 				"capacity" => "vecCapacity",
 				"reserve" => "vecReserve",
 				"reserve_exact" => "vecReserveExact",
+				"try_reserve" => "vecTryReserve",
+				"try_reserve_exact" => "vecTryReserveExact",
 				_ => "vecShrinkTo",
 			};
 			Expr::rt(f, values)
@@ -2549,7 +2608,10 @@ fn std_key<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 		ty::Adt(..) if b.t.std_of(ty).is_some_and(Std::record) => true,
 		ty::Adt(..) => {
 			library::string(b.t.tcx, ty)
-				|| matches!(b.t.std_of(ty), Some(Std::Ordering | Std::Duration | Std::Location))
+				|| matches!(
+					b.t.std_of(ty),
+					Some(Std::Ordering | Std::Duration | Std::Location | Std::TryReserveError)
+				)
 		}
 		_ => false,
 	}
@@ -2654,6 +2716,17 @@ impl Ranged {
 		};
 		let call = Expr::Lambda(vec![Param { name, ty: None }], Box::new(e));
 		Expr::rt("dropAfter", vec![range, call, drop])
+	}
+
+	/// `call` of the bounds and what drops the range, for a call whose result holds the
+	/// range and drops it as it drops: a range that drops, read once, and else `undefined`.
+	pub fn held(self, call: impl FnOnce(Expr, Expr) -> Expr) -> Expr {
+		let Some((range, name, drop)) = self.dropped else {
+			return call(self.bounds, Expr::undefined());
+		};
+		let dropper = Expr::Lambda(Vec::new(), Box::new(drop.call(vec![Expr::ident(&name)])));
+		let e = call(self.bounds, dropper);
+		Expr::Lambda(vec![Param { name, ty: None }], Box::new(e)).call(vec![range])
 	}
 
 	/// The bounds, for a call that checks more once `slice::range` has checked them within
@@ -2852,6 +2925,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		}
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rt("durationEq".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rt("locationEq".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::TryReserveError) => Expr::Rt("tryReserveErrorEq".into()),
 		ty::Tuple(tys) => {
 			let fns = tys.iter().map(|t| eq_fn(b, t, span)).collect();
 			Expr::rt("eqTuple", vec![Expr::Array(fns)])

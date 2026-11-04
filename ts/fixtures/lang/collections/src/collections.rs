@@ -2197,3 +2197,166 @@ pub fn extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		}
 	}
 }
+
+/// A B-tree key ordered by its number's low byte, whose `PartialOrd`'s `le` and `lt`, which
+/// std checks a range's end by, see only that byte halved. Each of those and its drop add its
+/// whole number to the log.
+struct Logged<'a>(u16, &'a std::cell::RefCell<Vec<u16>>);
+
+impl Drop for Logged<'_> {
+	fn drop(&mut self) {
+		self.1.borrow_mut().push(self.0);
+	}
+}
+
+impl PartialEq for Logged<'_> {
+	fn eq(&self, other: &Self) -> bool {
+		self.0 & 0xff == other.0 & 0xff
+	}
+}
+
+impl Eq for Logged<'_> {}
+
+impl PartialOrd for Logged<'_> {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		Some(self.cmp(other))
+	}
+
+	fn le(&self, other: &Self) -> bool {
+		self.1.borrow_mut().push(0x4000 | self.0);
+		(self.0 & 0xff) / 2 <= (other.0 & 0xff) / 2
+	}
+
+	fn lt(&self, other: &Self) -> bool {
+		self.1.borrow_mut().push(0x2000 | self.0);
+		(self.0 & 0xff) / 2 < (other.0 & 0xff) / 2
+	}
+}
+
+impl Ord for Logged<'_> {
+	fn cmp(&self, other: &Self) -> Ordering {
+		(self.0 & 0xff).cmp(&(other.0 & 0xff))
+	}
+}
+
+/// A range of its own, which logs each read of either bound.
+struct Window<'a> {
+	lo: u16,
+	hi: u16,
+	log: &'a std::cell::RefCell<Vec<u16>>,
+}
+
+impl std::ops::RangeBounds<u16> for Window<'_> {
+	fn start_bound(&self) -> Bound<&u16> {
+		self.log.borrow_mut().push(0xa000);
+		Bound::Included(&self.lo)
+	}
+
+	fn end_bound(&self) -> Bound<&u16> {
+		self.log.borrow_mut().push(0xb000);
+		Bound::Excluded(&self.hi)
+	}
+}
+
+/// The range form `form` picks of `lo` and `hi`, which may be backwards or empty and
+/// excluded at both ends, neither of which `extract_if` panics on.
+fn form(form: u8, lo: u16, hi: u16) -> (Bound<u16>, Bound<u16>) {
+	use Bound::*;
+	match form % 8 {
+		0 => (Unbounded, Unbounded),
+		1 => (Included(lo), Excluded(hi)),
+		2 => (Included(lo), Included(hi)),
+		3 => (Included(lo), Unbounded),
+		4 => (Unbounded, Excluded(hi)),
+		5 => (Unbounded, Included(hi)),
+		6 => (Excluded(lo), Excluded(hi)),
+		_ => (Excluded(lo), Included(lo)),
+	}
+}
+
+/// `extract_if` of B-tree maps and sets, large enough to merge and rebalance leaves as it
+/// takes entries out: each form of range, with values changed in place as each is read,
+/// read in full or part way, with what stays, the hint, and `Debug` of the iterator as it
+/// reads, which peeks past the range's end until it stops there. Then keys and values that
+/// log their drops and the `PartialOrd` tests std ends the range by, a closure and range
+/// that drop with the iterator, and a range of its own, whose start std reads only of a
+/// map with a root.
+pub fn btree_extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let at = |i: usize| data.get(i).copied().unwrap_or(0);
+	let n = u16::from(at(0)) * 2;
+	let (lo, hi) = (u16::from(at(1)) * 2, u16::from(at(2)) * 2);
+	let (every, limit) = (u16::from(at(3) % 5 + 1), at(4));
+	let range = form(at(5), lo, hi);
+	match kind % 3 {
+		0 => {
+			let mut map: BTreeMap<u16, u16> = (0..n).map(|k| (k, k ^ 0x100)).collect();
+			let mut it = map.extract_if(range, |k, v| {
+				*v += 1;
+				(*k ^ u16::from(limit)) % every == 0
+			});
+			crate::harness::put(out, &format!("{it:?} {:?}", it.size_hint()));
+			let taken: Vec<(u16, u16)> = it.by_ref().take(usize::from(limit)).collect();
+			crate::harness::put(out, &format!("{taken:?} {it:?} {:?}", it.size_hint()));
+			if limit % 2 == 0 {
+				crate::harness::put(out, &format!("{:?} {it:#?}", it.next()));
+			}
+			drop(it);
+			crate::harness::put(
+				out,
+				&format!("{} {:?}", map.len(), map.iter().step_by(7).collect::<Vec<_>>()),
+			);
+			let taken: Vec<(u16, u16)> = map.extract_if(.., |_, v| *v % 3 == 0).collect();
+			crate::harness::put(out, &format!("{taken:?} {map:?}"));
+		}
+		1 => {
+			let mut set: BTreeSet<u16> = (0..n).map(|k| k * 3 % (n + 1)).collect();
+			let mut it = set.extract_if(range, |k| k % every != 0);
+			crate::harness::put(out, &format!("{it:?}"));
+			let taken: Vec<u16> = it.by_ref().take(usize::from(limit)).collect();
+			crate::harness::put(out, &format!("{taken:?} {it:?} {:?}", it.size_hint()));
+			drop(it);
+			crate::harness::put(out, &format!("{set:?}"));
+			// Neither a set never added to nor one cleared has a root.
+			let mut empty: BTreeSet<u16> = BTreeSet::new();
+			crate::harness::put(out, &format!("{:?}", empty.extract_if(range, |_| true)));
+			set.clear();
+			crate::harness::put(out, &format!("{:?}", set.extract_if(.., |_| true)));
+		}
+		_ => {
+			let log = std::cell::RefCell::new(Vec::new());
+			let mut map: BTreeMap<Logged, Logged> = (0..n / 2)
+				.map(|k| (Logged(k, &log), Logged(0x1000 | k, &log)))
+				.collect();
+			let guard = Logged(0x800, &log);
+			let (start, end) = (Logged(0x900 | lo / 2, &log), Logged(0x900 | hi / 2, &log));
+			let mut it = map.extract_if((Bound::Excluded(start), Bound::Included(end)), move |k, v| {
+				let _ = &guard;
+				v.0 ^= 0x200;
+				k.0 % every == 0
+			});
+			let taken: Vec<(Logged, Logged)> = it.by_ref().take(usize::from(limit % 8)).collect();
+			drop(it);
+			out.extend(taken.iter().flat_map(|(k, v)| [k.0 as u8, v.0 as u8]));
+			drop(taken);
+			// Kept, each key in range is tested against the end, and the first past it.
+			let mut it = map.extract_if(Logged(0xa00 | lo / 4, &log)..Logged(0xa00 | hi / 4, &log), |_, _| false);
+			out.push(it.next().is_none() as u8);
+			drop(it);
+			// In key order, which std's drop of a whole tree does not keep, node by node.
+			map.into_iter().for_each(drop);
+			// A range of its own reads its start once, of a map with a root, and its end at each key.
+			let mut bytes: BTreeMap<u16, u8> = BTreeMap::new();
+			let window = |lo, hi| Window { lo, hi, log: &log };
+			bytes.extract_if(window(0, 9), |_, _| true).for_each(drop);
+			bytes.insert(1, 1);
+			bytes.remove(&1);
+			bytes.extract_if(window(0, 9), |_, _| true).for_each(drop);
+			bytes.extend((0..n).map(|k| (k, k as u8)));
+			let taken: Vec<(u16, u8)> = bytes
+				.extract_if(window(lo / 2, hi / 2), |k, _| k % every == 0)
+				.collect();
+			out.extend(taken.iter().map(|(_, v)| *v));
+			out.extend(log.take().iter().flat_map(|e| e.to_be_bytes()));
+		}
+	}
+}

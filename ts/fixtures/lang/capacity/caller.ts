@@ -10,23 +10,24 @@ export { ops, run } from "./lang.ts";
  * least capacity, made by `new` and by `with_capacity`; each step after a `reserve` or
  * `reserve_exact` that needed no room, whose floor it keeps; a run of pushes that doubles
  * it from each; a heap that a `reserve` gave room past its length, remade from its `Vec`
- * and cleared, which keeps that floor; and each way `collects` makes one, of each length
- * it tries.
+ * and cleared, which keeps that floor; each way `collects` makes one, of each length it
+ * tries; and each splice of a vector a run of pushes grew.
  */
 const capacityCases = [
-	...[["capacity::vecs", 35], ["capacity::deques", 26], ["capacity::heaps", 13]].flatMap(([name, steps]) =>
+	...[["capacity::vecs", 41], ["capacity::deques", 28], ["capacity::heaps", 15]].flatMap(([name, steps]) =>
 		Array.from({ length: 5 * 2 * (steps as number) * 4 }, (_, i) => {
 			const [kind, first, step, arg] = [i % 5, (Math.floor(i / 5) % 2) * 0x11, Math.floor(i / 10) % (steps as number), [3, 0xc1, 0xe3, 0x16][Math.floor(i / (10 * (steps as number)))]];
 			return Uint8Array.of(...op(name as string), kind, first, ...[0, 1, 0, 2, 0, 3, 0, 4, 0, 5].map((b, j) => (j % 2 === 0 ? b : b * 41)), step, arg, step, arg ^ 1);
 		}),
 	),
-	...[["capacity::vecs", 35], ["capacity::deques", 26], ["capacity::heaps", 13]].flatMap(([name, steps]) =>
+	...[["capacity::vecs", 41], ["capacity::deques", 28], ["capacity::heaps", 15]].flatMap(([name, steps]) =>
 		Array.from({ length: 5 * 2 * (steps as number) }, (_, i) => Uint8Array.of(...op(name as string), i % 5, 0, 0, 1, 3 + (Math.floor(i / 5) % 2), 3, Math.floor(i / 10), 0)),
 	),
 	...["capacity::vecs", "capacity::deques", "capacity::heaps"].flatMap((name) =>
 		Array.from({ length: 5 * 2 }, (_, i) => Uint8Array.of(...op(name), i % 5, Math.floor(i / 5) * 0x11, ...Array.from({ length: 40 }, (_, p) => [0, p]).flat())),
 	),
 	...Array.from({ length: 5 }, (_, kind) => Uint8Array.of(...op("capacity::heaps"), kind, 0, 8, 15, 3, 0, 12, 0, 7, 0)),
+	...Array.from({ length: 5 * 2 * 256 }, (_, i) => Uint8Array.of(...op("capacity::vecs"), i % 5, (Math.floor(i / 5) % 2) * 0x11, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 35, Math.floor(i / 10))),
 	...Array.from({ length: 8 * 6 }, (_, i) => Uint8Array.of(...op("capacity::collects"), i % 8, [0, 1, 2, 5, 9, 23][Math.floor(i / 8)], 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)),
 ];
 

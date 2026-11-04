@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
+import { Abort, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrHome, ptrWrite, type Result, stringAsBytes, vecAssign } from "../rt.ts";
 import type { Hasher } from "./hash.ts";
 
 // Drops
@@ -308,6 +308,34 @@ export function arcPlace<T>(arc: Arc<T>): Place<T> {
 	let at = places.get(arc);
 	if (at === undefined) places.set(arc, (at = valuePlace(arc)));
 	return at as Place<T>;
+}
+
+/** The `Arc` each raw pointer `Arc::into_raw` or `as_ptr` gave points into, by that pointer, which is its identity. */
+const RAW_ARCS = /* @__PURE__ */ new WeakMap<object, Arc<unknown>>();
+
+/** The `Rc` each raw pointer `Rc::into_raw` or `as_ptr` gave points into, as `RAW_ARCS`. */
+const RAW_RCS = /* @__PURE__ */ new WeakMap<object, Arc<unknown>>();
+
+/**
+ * `Arc::into_raw` or `as_ptr` of `arc`, an `Arc` or an `Rc` as `of` says: `p`, the pointer
+ * to its value, which `arcFromRaw` takes back to `arc`.
+ */
+export function arcRaw<P extends object>(arc: Arc<unknown>, p: P, of: "Arc" | "Rc"): P {
+	(of === "Arc" ? RAW_ARCS : RAW_RCS).set(p, arc);
+	return p;
+}
+
+/**
+ * `Arc::from_raw`, of an `Arc` or an `Rc` as `of` says: the one `p` points into, which
+ * `into_raw` or `as_ptr` gave, or arithmetic moved back to, and a count of which it takes,
+ * as std's does. Any other pointer, or one to a value already dropped, fails, as JS keeps
+ * no count beside it.
+ */
+export function arcFromRaw<T>(p: object, of: "Arc" | "Rc"): Arc<T> {
+	const arc = (of === "Arc" ? RAW_ARCS : RAW_RCS).get(ptrHome(p));
+	if (arc === undefined) throw new Error(`rust2-ts: \`${of}::from_raw\` of a pointer no \`${of}::into_raw\` or \`as_ptr\` gave`);
+	if (arc.strong === 0) throw new Error(`rust2-ts: \`${of}::from_raw\` of a pointer to a value already dropped`);
+	return arc as Arc<T>;
 }
 
 /** What a `Weak` that never upgrades points at, as `Weak::new`'s does: no strong count. */
@@ -1363,7 +1391,8 @@ export function pollOptionBranch<T, E, P extends typeof Pending | OuterPending, 
 
 /**
  * `Waker`: what an executor hands a future to wake its task. `data` and `vtable` are its
- * identity, std's `Waker::data` and `Waker::vtable`, which each of its clones shares.
+ * identity, std's `Waker::data` and `Waker::vtable`, which each of its clones shares, and
+ * which `Waker::new` makes a waker of the same task from.
  */
 export interface Waker extends Disposable {
 	readonly data: unknown;
@@ -1373,8 +1402,32 @@ export interface Waker extends Disposable {
 	clone(): Waker;
 }
 
-/** A waker's `&'static RawWakerVTable`, of which only its identity is read. */
-export type WakerVTable = object;
+/**
+ * A waker's `&'static RawWakerVTable`: what clones, wakes, and drops its data, under std's
+ * names. `will_wake` compares its identity, and `==` its functions.
+ */
+export interface WakerVTable {
+	readonly clone: (data: Place<undefined>) => RawWaker;
+	readonly wake: (data: Place<undefined>) => void;
+	readonly wakeByRef: (data: Place<undefined>) => void;
+	readonly drop: (data: Place<undefined>) => void;
+}
+
+/** `RawWakerVTable::new`. */
+export function wakerVTable(
+	clone: (data: Place<undefined>) => RawWaker,
+	wake: (data: Place<undefined>) => void,
+	wakeByRef: (data: Place<undefined>) => void,
+	drop: (data: Place<undefined>) => void,
+): WakerVTable {
+	return { clone, wake, wakeByRef, drop };
+}
+
+/** `RawWaker`: a waker's data and vtable, under std's names. */
+export interface RawWaker {
+	readonly data: Place<undefined>;
+	readonly vtable: WakerVTable;
+}
 
 /** `a.will_wake(b)`: whether their identities are the same, as std compares them. */
 export function willWake(a: Waker, b: Waker): boolean {
@@ -1395,74 +1448,88 @@ export function wakerCloneFromFn(): CloneFrom<Waker> {
 	return wakerCloneFrom;
 }
 
-/**
- * `Waker::from(arc)`: a waker that holds a count of `arc` and wakes through its `Wake`
- * impl, `wake` taking that count. Without a `wakeByRef` of its own, one wakes a clone, as
- * `Wake`'s default does. Its data is `arc`, which every clone of `arc` is, and its vtable
- * `wake`, one per `Wake` impl as std's vtable is.
- */
-export class ArcWaker<W> implements Waker {
-	readonly #arc: Arc<W>;
-	readonly #wake: (arc: Arc<W>) => void;
-	readonly #drop: (arc: Arc<W>) => void;
-	readonly #wakeByRef: ((arc: Arc<W>) => void) | undefined;
+/** `Waker::new(data, vtable)`: a waker that calls `vtable`'s functions on `data`, as std's does. */
+export class VTableWaker implements Waker {
+	readonly data: Place<undefined>;
+	readonly vtable: WakerVTable;
 
-	constructor(
-		arc: Arc<W>,
-		wake: (arc: Arc<W>) => void,
-		drop: (arc: Arc<W>) => void,
-		wakeByRef?: (arc: Arc<W>) => void,
-	) {
-		this.#arc = arc;
-		this.#wake = wake;
-		this.#drop = drop;
-		this.#wakeByRef = wakeByRef;
+	constructor(data: Place<undefined>, vtable: WakerVTable) {
+		this.data = data;
+		this.vtable = vtable;
 	}
 
 	wake(): void {
-		this.#wake(this.#arc);
+		this.vtable.wake(this.data);
 	}
 
 	wakeByRef(): void {
-		if (this.#wakeByRef === undefined) this.#wake(arcClone(this.#arc));
-		else this.#wakeByRef(this.#arc);
-	}
-
-	get data(): unknown {
-		return this.#arc;
-	}
-
-	get vtable(): WakerVTable {
-		return this.#wake;
+		this.vtable.wakeByRef(this.data);
 	}
 
 	clone(): Waker {
-		return new ArcWaker(arcClone(this.#arc), this.#wake, this.#drop, this.#wakeByRef);
+		return wakerFromRaw(this.vtable.clone(this.data));
 	}
 
 	[Symbol.dispose](): void {
-		this.#drop(this.#arc);
+		this.vtable.drop(this.data);
 	}
 }
 
-/** `Waker::noop()`'s waker, which does nothing: null data, as std's is. */
-class NoopWaker implements Waker {
-	readonly data = null;
-	readonly vtable: WakerVTable = Object.freeze({});
-
-	wake(): void {}
-
-	wakeByRef(): void {}
-
-	clone(): Waker {
-		return this;
-	}
-
-	[Symbol.dispose](): void {}
+/** `Waker::from_raw(raw)`. */
+export function wakerFromRaw(raw: RawWaker): Waker {
+	return new VTableWaker(raw.data, raw.vtable);
 }
 
-/** `Waker::noop()`: one waker for every call. */
-export const NOOP_WAKER: Waker = /* @__PURE__ */ new NoopWaker();
+/** Each `Wake` impl's vtable, by its `wake`, as std makes one per impl. */
+const ARC_VTABLES = /* @__PURE__ */ new WeakMap<object, WakerVTable>();
+
+/**
+ * `RawWaker::from(arc)`: data that is `arc`, whose count the waker holds, and the vtable of
+ * `arc`'s `Wake` impl, whose `wake` takes that count. Without a `wakeByRef` of its own, one
+ * wakes a clone, as `Wake`'s default does. `arc` is every clone of `arc`, as std's data is
+ * where they all point.
+ */
+export function arcRawWaker<W>(
+	arc: Arc<W>,
+	wake: (arc: Arc<W>) => void,
+	drop: (arc: Arc<W>) => void,
+	wakeByRef?: (arc: Arc<W>) => void,
+): RawWaker {
+	let vtable = ARC_VTABLES.get(wake);
+	if (vtable === undefined) {
+		const of = (data: Place<undefined>) => data as unknown as Arc<W>;
+		vtable = wakerVTable(
+			(data) => ({ data: arcClone(of(data)) as unknown as Place<undefined>, vtable: vtable! }),
+			(data) => wake(of(data)),
+			(data) => (wakeByRef === undefined ? wake(arcClone(of(data))) : wakeByRef(of(data))),
+			(data) => drop(of(data)),
+		);
+		ARC_VTABLES.set(wake, vtable);
+	}
+	return { data: arc as unknown as Place<undefined>, vtable };
+}
+
+/** `Waker::from(arc)`: the waker of `arcRawWaker`'s. */
+export function arcWaker<W>(
+	arc: Arc<W>,
+	wake: (arc: Arc<W>) => void,
+	drop: (arc: Arc<W>) => void,
+	wakeByRef?: (arc: Arc<W>) => void,
+): Waker {
+	return wakerFromRaw(arcRawWaker(arc, wake, drop, wakeByRef));
+}
+
+/** The vtable of `Waker::noop()`, whose functions do nothing. */
+const NOOP_VTABLE: WakerVTable = /* @__PURE__ */ wakerVTable(
+	() => ({ data: NULL, vtable: NOOP_VTABLE }),
+	() => {},
+	() => {},
+	() => {},
+);
+
+/** `Waker::noop()`: one waker for every call, whose data is null, as std's is. */
+// `rt.NULL`, which `rt.ts` makes after this module runs.
+export const NOOP_WAKER: Waker = /* @__PURE__ */ new VTableWaker(null as never, NOOP_VTABLE);
 
 /** `Context`, which carries only its waker. */
 export type Context = Waker;
@@ -1641,8 +1708,13 @@ function run(): void {
 	}
 }
 
-/** The vtable of every spawned task's waker. */
-const TASK_VTABLE: WakerVTable = /* @__PURE__ */ Object.freeze({});
+/** The vtable of every spawned task's waker, whose data is the task. */
+const TASK_VTABLE: WakerVTable = /* @__PURE__ */ wakerVTable(
+	(data) => ({ data, vtable: TASK_VTABLE }),
+	(data) => (data as unknown as Task<unknown>).schedule(),
+	(data) => (data as unknown as Task<unknown>).schedule(),
+	() => {},
+);
 
 /** A spawned future, which is also the waker of every poll it gets: its data. */
 class Task<T> implements Waker {

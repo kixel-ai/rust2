@@ -344,10 +344,10 @@ fn from<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>) ->
 		(Some(Std::Bytes), Some(Std::BytesMut)) => "bytesMutFreeze",
 		(Some(Std::Bytes), _) if byte_vec(from) => "bytesFromVec",
 		// A `&'static str`'s bytes are static. A `String`'s are a vector whose capacity is
-		// their length, as JS keeps none of the `String`'s, so its crate's reads of one are refused.
+		// their length, as JS keeps none of the `String`'s, so the program's reads of one are refused.
 		(Some(Std::Bytes), _) if from.is_ref() && string(tcx, from.peel_refs()) => "stringAsBytes",
 		(Some(Std::Bytes), _) if string(tcx, from) => {
-			b.t.string_bytes(call.span);
+			b.t.string_bytes();
 			let bytes = Expr::rt("stringIntoBytes", args.collect());
 			return Ok(Some(Expr::rt("bytesFromVec", vec![bytes])));
 		}
@@ -683,7 +683,13 @@ fn put<'tcx>(
 	// Into a `BytesMut` of no capacity, `bytes` copies it out whole and drops it, then takes
 	// the copy's storage if no other handle holds it, so the runtime drops it there.
 	if buffer == Buffer::BytesMut && !through {
-		if !matches!(source, Some(Buffer::BytesMut | Buffer::Slice)) {
+		// `bytes`' own puts fill a `BytesMut::with_capacity` of what they put, never one of no capacity.
+		let file = tcx
+			.sess
+			.source_map()
+			.lookup_source_file(call.span.source_callsite().lo());
+		let own = tcx.crate_name(file.cnum).as_str() == "bytes";
+		if !own && !matches!(source, Some(Buffer::BytesMut | Buffer::Slice)) {
 			b.t.string_capacity(call.span, "BufMut::put");
 		}
 		let f = match source {

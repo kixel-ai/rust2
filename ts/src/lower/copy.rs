@@ -53,6 +53,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Saturating,
 				) => (false, args.types().collect()),
 				Some(Std::Bound) => (true, args.types().collect()),
+				// Records of functions and pointers, which JS shares.
+				Some(Std::WakerVTable | Std::RawWaker) => (true, Vec::new()),
 				Some(Std::MaybeUninit | Std::ManuallyDrop) => return self.changes(args.type_at(0)),
 				Some(_) => return false,
 				None if self.own(adt.did()) && adt.all_fields().next().is_some() => {
@@ -272,6 +274,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						Box::new(Expr::As(Box::new(copy), ts_ty)),
 					))
 				}
+				Some(Std::WakerVTable) => {
+					let fns = ["clone", "wake", "wakeByRef", "drop"].map(|f| v().member(f));
+					ret(Expr::rt("wakerVTable", fns.into()))
+				}
+				Some(Std::RawWaker) => ret(super::task::raw_waker(v().member("data"), v().member("vtable"))),
 				Some(Std::ControlFlow) => {
 					let (residual, value) = (args.type_at(0), args.type_at(1));
 					ret(match (Flow::of(tcx, args), residual.kind()) {
@@ -1069,7 +1076,7 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 		let Some(made) = made.as_local() else {
 			return true;
 		};
-		let held = self.trace.holders(made, Holds::Pointers, false);
+		let held = self.trace.holders(made, Holds::Pointers, false, ty::List::empty());
 		let env = ty::TypingEnv::post_analysis(self.tcx, self.def_id);
 		let raw = |ty: Ty<'tcx>| {
 			ty.is_raw_ptr()

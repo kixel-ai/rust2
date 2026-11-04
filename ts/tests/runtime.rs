@@ -52,6 +52,20 @@ fn once_recursive() {
 	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
 }
 
+/// `try_reserve` of bytes gives std's `AllocError` where JS can't make them, which
+/// `reserve.ts` checks, as no allocation fails on demand natively.
+#[test]
+fn reserve_alloc_error() {
+	let script = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+		.join("tests")
+		.join("reserve.ts");
+	let output = Command::new("node")
+		.arg(script)
+		.output()
+		.expect("running node, which the dev shell provides");
+	assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+}
+
 /// A lazy thread-local's first value comes as wasm32's `LazyStorage` makes it, which
 /// `local.ts` checks.
 #[test]
@@ -151,6 +165,19 @@ fn btree_script() {
 				m = copy;
 			}
 			want.push(format!("kept {}", m.len()));
+		} else if step % 211 == 0 {
+			let j = rand() % keys;
+			let (lo, hi) = if k < j { (k, j) } else { (j, k) };
+			let limit = rand() % 400;
+			let copy = m.clone();
+			let taken: Vec<String> = (m.extract_if(lo..hi, |key, value| (*key ^ *value) % 3 != 0))
+				.take(limit as usize)
+				.map(|(k, _)| k.to_string())
+				.collect();
+			want.push(format!("extract {lo} {hi} {} {}", m.len(), taken.join(",")));
+			if rand() & 1 == 1 {
+				m = copy;
+			}
 		}
 	}
 	let keys: Vec<String> = m.keys().map(u32::to_string).collect();

@@ -133,7 +133,7 @@ const CLOSURES: [&str; 9] = [
 /// own calls do, which resolve to its override, or not at all: `eq` and `partial_cmp`, which
 /// `ne` and the orderings call as `library::Inherited` does, `collect`, which `own_collect`
 /// calls for the collections that collect a `Vec` first, and `by_ref`, which only
-/// `Vec::splice` calls, which is not supported.
+/// `Vec::splice` calls, which refuses an iterator that overrides it.
 const RESOLVED: [&str; 25] = [
 	"collect",
 	"eq",
@@ -1897,7 +1897,8 @@ pub(super) fn holds_closure(tcx: ty::TyCtxt<'_>, did: DefId) -> bool {
 			| ["iter", "sources", "once_with", "OnceWith"]
 			| ["iter", "sources", "successors", "Successors"]
 			| ["collections", "linked_list", "ExtractIf"]
-			| ["collections", "hash", "map" | "set", "ExtractIf"]
+			| ["vec", "extract_if", "ExtractIf"]
+			| ["collections", "hash" | "btree", "map" | "set", "ExtractIf"]
 			| [
 				"str",
 				"iter",

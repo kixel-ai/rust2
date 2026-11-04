@@ -7,6 +7,10 @@ export function copy$array_u64(v: rt.u64[]): rt.u64[] {
 	return v.slice();
 }
 
+export function copy$array_usize(v: rt.usize[]): rt.usize[] {
+	return v.slice();
+}
+
 export function copy$tuple2_u64_u8(v: [rt.u64, rt.u8]): [rt.u64, rt.u8] {
 	return [v[0], v[1]];
 }

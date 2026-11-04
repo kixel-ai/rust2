@@ -478,7 +478,7 @@ pub fn std_impl<'tcx>(
 				let pending = b.t.pending_arg(args.type_at(0));
 				rt("poll", [vec![value, f, ready], pending.into_iter().collect()].concat())
 			}
-			(Std::Waker | Std::Context | Std::WakerVTable, Trait::Debug) => b.err(
+			(Std::Waker | Std::Context | Std::WakerVTable | Std::RawWaker, Trait::Debug) => b.err(
 				span,
 				format!("`Debug` of `{ty}`, which writes addresses, which JS has no counterpart of"),
 			),
@@ -564,6 +564,8 @@ pub fn std_impl<'tcx>(
 			(Std::Location, Trait::Display) => rt("locationDisplay", vec![value, f]),
 			(Std::LayoutError, Trait::Debug) => rt("layoutErrorDebug", vec![value, f]),
 			(Std::LayoutError, Trait::Display) => rt("layoutErrorDisplay", vec![value, f]),
+			(Std::TryReserveError, Trait::Debug) => rt("tryReserveErrorDebug", vec![value, f]),
+			(Std::TryReserveError, Trait::Display) => rt("tryReserveErrorDisplay", vec![value, f]),
 			(Std::Bytes, Trait::Debug) => Expr::rt("bytesDebug", vec![value, f]),
 			(Std::BytesMut, Trait::Debug) => Expr::rt("bytesDebug", vec![Expr::rt("bytesMutView", vec![value]), f]),
 			_ => return None,
@@ -650,6 +652,16 @@ fn iter_debug<'tcx>(
 			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
 			return Some(call("fmtListExtractIf", vec![debug]));
 		}
+		// The entry it reads next, of a set its key.
+		["collections", "btree", map @ ("map" | "set"), "ExtractIf"] => {
+			let mut types = args.types();
+			let debug = b.fmt_fn(Trait::Debug, types.next()?, span);
+			let value = match *map == "map" {
+				true => vec![b.fmt_fn(Trait::Debug, types.next()?, span)],
+				false => Vec::new(),
+			};
+			return Some(call("fmtBTreeExtractIf", [vec![debug], value].concat()));
+		}
 		["iter", "sources", "from_fn", "FromFn"] => return write("FromFn".into()),
 		["iter", "sources", "once_with", "OnceWith"] => return Some(call("fmtOnceWith", Vec::new())),
 		["iter", "sources", "repeat", "Repeat"] | ["iter", "sources", "repeat_n", "RepeatN"] => {
@@ -735,6 +747,10 @@ fn iter_debug<'tcx>(
 			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
 			let call = vec![value.clone(), f.clone(), debug, Expr::Str((*name).into())];
 			return Some(Expr::rt("fmtDequeIter", call));
+		}
+		["vec", "extract_if", "ExtractIf"] => {
+			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
+			return Some(Expr::rt("fmtVecExtractIf", vec![value.clone(), f.clone(), debug]));
 		}
 		["collections", "vec_deque", "drain", "Drain"] => {
 			let len = b.fmt_fn(Trait::Debug, tcx.types.usize, span);
@@ -833,6 +849,11 @@ fn adaptor_debug<'tcx>(
 			call("fmtAdaptor", vec![name(adaptor), inner, name("it")])
 		}
 		["iter", "adapters", "enumerate", "Enumerate"] => call("fmtEnumerate", vec![wrapped(b, arg(0)?)]),
+		// Its drain, of what it has not yielded, and the iterator it fills the gap from.
+		["vec", "splice", "Splice"] => {
+			let debug = b.fmt_fn(Trait::Debug, b.t.iter_item(arg(0)?)?, span);
+			call("fmtVecSplice", vec![debug, wrapped(b, arg(0)?)])
+		}
 		["iter", "adapters", _, adaptor @ ("Skip" | "Take")] => {
 			call("fmtCounted", vec![name(adaptor), wrapped(b, arg(0)?)])
 		}

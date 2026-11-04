@@ -15,7 +15,8 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, type Capped, capHold, capOf, capReserve, capReserveExact, capSet, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, type FmtResult, type Formatter, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, fmtSet, type None, Ok, type Place, panic, type RangeBound, type Result, rangeCheck, sliceSort, sliceView, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, capHold, capOf, type Capped, capReserve, capReserveExact, capSet, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, Ok, OK, panic, type Place, type RangeBound, rangeCheck, type Result, searchBy, sliceSort, sliceView, vecCapacity, vecCloneFrom, vecExact, vecMax, vecReserve, vecWithCapacity } from "../rt.ts";
+import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
 import type { Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
 import {
@@ -29,8 +30,13 @@ import {
 	iterEmpty,
 	iterFilter,
 	iterFold,
+	iterExtend,
+	iterExtendBytes,
 	iterForEach,
+	iterHeld,
 	iterMap,
+	iterToArray,
+	iterToByteVec,
 	iterOnce,
 	iterSlice,
 	type RangeInclusive,
@@ -517,11 +523,17 @@ export function hashWithCapacity<K, V>(n: number, max: number, h?: Hashing<NoInf
  * entries. A `HashTable`'s takes its hasher, which it never calls, as it moves no item.
  */
 export function hashReserve<K, V>(m: HashMap<K, V>, additional: number, max: number, _hasher?: (item: V) => u64): void {
+	if (!hashTryReserve(m, additional, max).ok) panic("Hash table capacity overflow");
+}
+
+/** std's `try_reserve`: `reserve`'s room, or the error where it panics. */
+export function hashTryReserve<K, V>(m: HashMap<K, V>, additional: number, max: number): Result<undefined, TryReserveError> {
 	const n = hashLen(m);
 	const cap = hashCapacity(m);
-	if (additional <= cap - n) return;
-	if (n + additional > max) panic("Hash table capacity overflow");
+	if (additional <= cap - n) return OK;
+	if (n + additional > max) return CAPACITY_OVERFLOW;
 	m.cap = Math.min(Math.max(cap * 2, n + additional), max);
+	return OK;
 }
 
 /** `shrink_to`, and `shrink_to_fit` of 0: room for no fewer than `min` and what it holds. A table's hasher goes uncalled. */
@@ -2088,7 +2100,7 @@ export function btreeValues<K, V>(m: BTreeMap<K, V>, k?: (key: K) => void, v?: (
 /**
  * A range of keys or indices, as its value is: `a..b`, `a..=b`, `a..` as `{ start }`, `..b`
  * as `{ end }`, `..` as `undefined`, and `(Bound<K>, Bound<K>)` as its pair. Any other
- * `RangeBounds` is a function returning its `start_bound` and `end_bound`, called where
+ * `RangeBounds` is a `BoundsOf`, whose `start_bound` and `end_bound` are called where
  * std's calls them.
  */
 export type Bounds<K> =
@@ -2097,22 +2109,33 @@ export type Bounds<K> =
 	| { readonly start: K }
 	| { readonly end: K; readonly inclusive?: true }
 	| BoundPair<K>
-	| (() => BoundPair<K>)
+	| BoundsOf<K>
 	| undefined;
 
 type BoundPair<K> = readonly [RangeBound<K>, RangeBound<K>];
 
+/** Another `RangeBounds`: its `start_bound` and `end_bound`, each read as it is called. */
+interface BoundsOf<K> {
+	readonly startBound: () => RangeBound<K>;
+	readonly endBound: () => RangeBound<K>;
+}
+
 const UNBOUNDED: RangeBound<never> = { tag: "Unbounded" };
 
-/** Another `RangeBounds`, `r`, as `Bounds` reads it: by `start` and then `end`, once read. */
-export function boundsOf<R, K>(r: R, start: (r: R) => RangeBound<K>, end: (r: R) => RangeBound<K>): () => BoundPair<K> {
-	return () => [start(r), end(r)];
+/** Another `RangeBounds`, `r`, as `Bounds` reads it, by `start` and `end`. */
+export function boundsOf<R, K>(r: R, start: (r: R) => RangeBound<K>, end: (r: R) => RangeBound<K>): BoundsOf<K> {
+	return { startBound: () => start(r), endBound: () => end(r) };
+}
+
+/** Whether `r` is a `BoundsOf`: a field test, as `inclusive`'s is. */
+function other<K>(r: Bounds<K>): r is BoundsOf<K> {
+	return typeof r === "object" && "endBound" in r;
 }
 
 /** `RangeBounds`: `start_bound`, then `end_bound`. */
 function bounds<K>(r: Bounds<K>): BoundPair<K> {
 	if (r === undefined) return [UNBOUNDED, UNBOUNDED];
-	if (typeof r === "function") return r();
+	if (other(r)) return [r.startBound(), r.endBound()];
 	if (Array.isArray(r)) return r as BoundPair<K>;
 	if (inclusive(r)) return [rangeInclusiveStartBound(r), rangeInclusiveEndBound(r)];
 	const start: RangeBound<K> = "start" in r ? { tag: "Included", _0: r.start } : UNBOUNDED;
@@ -2161,6 +2184,135 @@ function edge<K, V>(m: BTreeMap<K, V>, key: K, past: boolean): [Leaf<K, V>, numb
 	const l = leafOf(m, key);
 	const i = search(l.k, key, m.c);
 	return [l, i < 0 ? ~i : past ? i + 1 : i];
+}
+
+/**
+ * `extract_if` of a B-tree: from the first key `r` starts at, each entry `f` returns true
+ * for, taken out as it is read, in key order, as `[key, value]`, or of a set its key, up to
+ * the first key past `r`'s end, which `r` is read for at each key and found past by `le` and
+ * `lt`, a key of the crate's own's `PartialOrd`, or else by the map's order. `f` is given
+ * each key and value or, with `places`, the value's place, and drops with the iterator,
+ * then `r`, by `drop`; what it has not read stays.
+ */
+class BTreeExtractIf<K, V, T> extends Iter<T> implements Disposable {
+	private readonly m: BTreeMap<K, V>;
+	/** The leaf of the entry it reads next, and its index, until it stops, as std's cursor. */
+	l: Leaf<K, V> | undefined;
+	i = 0;
+	private readonly r: Bounds<K>;
+	private readonly f: (key: K, value: V | Place<V>) => boolean;
+	private readonly places: boolean;
+	private readonly keys: boolean;
+	private readonly le: Test<K> | undefined;
+	private readonly lt: Test<K> | undefined;
+	private readonly drop: (() => void) | undefined;
+
+	constructor(m: BTreeMap<K, V>, r: Bounds<K>, f: (key: K, value: V | Place<V>) => boolean, places: boolean, keys: boolean, le?: Test<K>, lt?: Test<K>, drop?: () => void) {
+		super();
+		this.m = m;
+		this.r = r;
+		this.f = f;
+		this.places = places;
+		this.keys = keys;
+		this.le = le;
+		this.lt = lt;
+		this.drop = drop;
+		// std's reads the start only of a map with its root node.
+		if (!m.r) return;
+		const start = other(r) ? r.startBound() : bounds(r)[0];
+		if (start.tag === "Unbounded") this.at(end(m, false), 0);
+		else this.at(...edge(m, start._0, start.tag === "Excluded"));
+	}
+
+	/** Moves to index `i` of `l`, or to the next leaf's first where `i` is past `l`'s last. */
+	private at(l: Leaf<K, V>, i: number): void {
+		if (i === l.k.length && l.next !== undefined) {
+			l = l.next;
+			i = 0;
+		}
+		this.l = l;
+		this.i = i;
+	}
+
+	/** Whether `key` is within the end of `r`. */
+	private within(key: K): boolean {
+		const r = this.r;
+		const stop = other(r) ? r.endBound() : bounds(r)[1];
+		if (stop.tag === "Unbounded") return true;
+		if (stop.tag === "Included") return this.le !== undefined ? this.le(key, stop._0) : this.m.c(key, stop._0) <= 0;
+		return this.lt !== undefined ? this.lt(key, stop._0) : this.m.c(key, stop._0) < 0;
+	}
+
+	next(): T | Done {
+		const m = this.m;
+		for (let l = this.l; l !== undefined; l = this.l) {
+			let i = this.i;
+			// Stopped where it ends, past the end of `r`, or by a panic, as std's is.
+			this.l = undefined;
+			if (i === l.k.length) return DONE;
+			const key = l.k[i];
+			if (!this.within(key)) return DONE;
+			if (!this.f(key, this.places ? new AtIndex(l.v, i) : l.v[i])) {
+				this.at(l, i + 1);
+				continue;
+			}
+			const value = l.v[i];
+			// A leaf left too small evens out with a neighbor or merges with it. Only one that
+			// merges into the leaf before it or takes from it moves what is left of it.
+			const prev = l.prev;
+			const before = prev?.k.length ?? 0;
+			removeAt(m, l, i);
+			if (prev !== undefined && prev.next !== l) {
+				i += before;
+				l = prev;
+			} else if (prev !== undefined) {
+				i += before - prev.k.length;
+			}
+			this.at(l, i);
+			return (this.keys ? key : [key, value]) as T;
+		}
+		return DONE;
+	}
+
+	/** std's, which counts what it read and kept, too. */
+	override sizeHint(): SizeHint {
+		return [0, this.m.n];
+	}
+
+	[Symbol.dispose](): void {
+		dispose(this.f);
+		this.drop?.();
+	}
+}
+
+/** `Debug` of a B-tree's `ExtractIf`: the entry it reads next, if any, or of a set, with no `value`, its key. */
+export function fmtBTreeExtractIf<K, V>(it: Iter<unknown>, f: Formatter, key: Debug<K>, value?: Debug<V>): FmtResult {
+	const { l, i } = it as BTreeExtractIf<K, V, unknown>;
+	let peek: Fmt = (f) => f.out.writeStr("None");
+	if (l !== undefined && i < l.k.length) {
+		const k: Fmt = (f) => key(l.k[i], f);
+		const kv: Fmt = value === undefined ? k : (f) => fmtTuple([k, (f) => value(l.v[i], f)], f);
+		peek = (f) => fmtDebugTupleFields(f, "Some", [kv]);
+	}
+	return debugStructFinishNonExhaustive(debugStructField(fmtDebugStruct(f, "ExtractIf"), "peek", peek));
+}
+
+/**
+ * `BTreeMap::extract_if`, handing `f` each key and value, with what `BTreeExtractIf` takes:
+ * a key of the crate's own's `le` and `lt`, and what drops a range that drops.
+ */
+export function btreeExtractIf<K, V>(m: BTreeMap<K, V>, r: Bounds<K>, f: (key: K, value: V) => boolean, le?: Test<K>, lt?: Test<K>, drop?: () => void): Iter<[K, V]> {
+	return new BTreeExtractIf(m, r, f as (key: K, value: V | Place<V>) => boolean, false, false, le, lt, drop);
+}
+
+/** `BTreeMap::extract_if` of values JS copies: `f` takes the place of each. */
+export function btreeExtractIfMut<K, V>(m: BTreeMap<K, V>, r: Bounds<K>, f: (key: K, value: Place<V>) => boolean, le?: Test<K>, lt?: Test<K>, drop?: () => void): Iter<[K, V]> {
+	return new BTreeExtractIf(m, r, f as (key: K, value: V | Place<V>) => boolean, true, false, le, lt, drop);
+}
+
+/** `BTreeSet::extract_if`, handing `f` each key. */
+export function btreeExtractKeysIf<K>(m: BTreeSet<K>, r: Bounds<K>, f: (key: K) => boolean, le?: Test<K>, lt?: Test<K>, drop?: () => void): Iter<K> {
+	return new BTreeExtractIf(m, r, f as (key: K) => boolean, false, true, le, lt, drop);
 }
 
 /**
@@ -2891,6 +3043,28 @@ export function dequeReserveExact<T>(q: VecDeque<T>, additional: number): void {
 	regrow(q, capReserveExact(q.n, q.b.length, additional, q.s));
 }
 
+/** `VecDeque::try_reserve`: `reserve`'s capacity, or the error where it panics or JS can't make a byte deque's. */
+export function dequeTryReserve<T>(q: VecDeque<T>, additional: number): Result<undefined, TryReserveError> {
+	return dequeTried(q, capTryReserve(q.n, q.b.length, additional, q.s));
+}
+
+/** `VecDeque::try_reserve_exact`. */
+export function dequeTryReserveExact<T>(q: VecDeque<T>, additional: number): Result<undefined, TryReserveError> {
+	return dequeTried(q, capTryReserveExact(q.n, q.b.length, additional, q.s));
+}
+
+/** `q` regrown to `cap`, or the overflow `undefined` is, or the failure to allocate its bytes. */
+function dequeTried<T>(q: VecDeque<T>, cap: number | undefined): Result<undefined, TryReserveError> {
+	if (cap === undefined) return CAPACITY_OVERFLOW;
+	try {
+		regrow(q, cap);
+	} catch (e) {
+		if (!holdsBytes(q)) throw e;
+		return allocError(e, cap);
+	}
+	return OK;
+}
+
 /**
  * `VecDeque::shrink_to`, and `shrink_to_fit` of 0: the items moved within the slots kept
  * as std's moves them, the head to the front if the tail is past them, or else the part
@@ -3134,6 +3308,123 @@ export function dequeInsert<T>(q: VecDeque<T>, i: number, item: T): void {
 	}
 	q.b[at(q, i)] = item;
 	q.n++;
+}
+
+/** `swap` of items `i` and `j`, each checked as std's asserts. */
+export function dequeSwap<T>(q: VecDeque<T>, i: number, j: number): void {
+	if (i >= q.n) panic("assertion failed: i < self.len()");
+	if (j >= q.n) panic("assertion failed: j < self.len()");
+	const a = at(q, i);
+	const b = at(q, j);
+	const item = q.b[a];
+	q.b[a] = q.b[b];
+	q.b[b] = item;
+}
+
+/**
+ * `rotate_left` of `n`, or with `right`, `rotate_right`: as std's, the shorter side moved
+ * around the end of its slots, the first items past the last or the last before the first.
+ */
+export function dequeRotate<T>(q: VecDeque<T>, n: number, right = false): void {
+	if (n > q.n) panic("assertion failed: n <= self.len()");
+	const k = q.n - n;
+	if ((n <= k) !== right) rotateLeft(q, right ? k : n);
+	else rotateRight(q, right ? n : k);
+}
+
+/** The first `mid` items moved past the last, as std's `rotate_left_inner`. */
+function rotateLeft<T>(q: VecDeque<T>, mid: number): void {
+	// Each slot written is free or one already read.
+	const end = at(q, q.n);
+	for (let i = 0; i < mid; i++) {
+		const from = at(q, i);
+		const item = q.b[from];
+		q.b[from] = undefined;
+		q.b[wrap(q, end + i)] = item;
+	}
+	q.h = at(q, mid);
+}
+
+/**
+ * The last `k` items moved before the first, as std's `rotate_right_inner`, whose head
+ * steps back by `wrap_sub` even of none, which moves zero-sized items' `usize::MAX` slots'.
+ */
+function rotateRight<T>(q: VecDeque<T>, k: number): void {
+	const h = wrap(q, q.h - k + q.b.length);
+	// Back to front, so each slot written is free or one already read.
+	for (let i = k - 1; i >= 0; i--) {
+		const from = at(q, q.n - k + i);
+		const item = q.b[from];
+		q.b[from] = undefined;
+		q.b[wrap(q, h + i)] = item;
+	}
+	q.h = h;
+}
+
+/**
+ * The head `make_contiguous` leaves: where it was if the items do not wrap, else the
+ * front if the free slots hold the head's part, after the tail's part if they hold that,
+ * and else after the free slots or at the front, by which part is shorter, as std's.
+ * Zero-sized items' is the front.
+ */
+function contiguous<T>(q: VecDeque<T>): number {
+	const cap = q.b.length;
+	if (q.s === 0) return 0;
+	if (q.h <= cap - q.n) return q.h;
+	const free = cap - q.n;
+	const head = cap - q.h;
+	const tail = q.n - head;
+	if (free >= head) return 0;
+	if (free >= tail) return tail;
+	return head > tail ? free : 0;
+}
+
+/** `make_contiguous`: the items moved to one run of slots, as std's, and a view of them that writes into it. */
+export function dequeMakeContiguous<T>(q: VecDeque<T>): T[] {
+	const h = contiguous(q);
+	if (h !== q.h) place(q, q.b.length, h);
+	return sliceView(q.b as T[], q.h, q.h + q.n);
+}
+
+/** `make_contiguous` of bytes, viewing the deque's. */
+export function dequeByteMakeContiguous(q: VecDeque<number>): ByteSlice {
+	const h = contiguous(q);
+	if (h !== q.h) place(q, q.b.length, h);
+	return new ByteSlice(q.b as unknown as Uint8Array, q.h, q.n);
+}
+
+/**
+ * `binary_search_by`: by `f` of the second slice's first item, std's search of that slice
+ * if it is less, or else of the first slice, as `as_slices` splits them.
+ */
+export function dequeBinarySearchBy<T>(q: VecDeque<T>, f: (item: T) => Ordering): Result<usize, usize> {
+	const front = firstEnd(q, 0, q.n);
+	const order = front < q.n ? f(q.b[0] as T) : 1;
+	if (order === 0) return Ok(front);
+	if (order === 1) return searchBy(q.b as T[], at(q, 0), front, f);
+	const found = searchBy(q.b as T[], 0, q.n - front, f);
+	return found.ok ? Ok(found.value + front) : Err(found.error + front);
+}
+
+/** `binary_search`: by `cmp` of each item it probes with `x`. */
+export function dequeBinarySearch<T>(q: VecDeque<T>, x: T, cmp: (a: T, b: T) => Ordering): Result<usize, usize> {
+	return dequeBinarySearchBy(q, (item) => cmp(item, x));
+}
+
+/** `binary_search_by_key`: by `cmp` of the key `f` makes of each item it probes with `b`, dropping the key after. */
+export function dequeBinarySearchByKey<T, K>(q: VecDeque<T>, b: K, f: (item: T) => K, cmp: (a: K, b: K) => Ordering, drop?: (key: K) => void): Result<usize, usize> {
+	return dequeBinarySearchBy(q, (item) => {
+		const key = f(item);
+		const order = cmp(key, b);
+		drop?.(key);
+		return order;
+	});
+}
+
+/** `partition_point`: where the items `pred` holds for end, by std's search. */
+export function dequePartitionPoint<T>(q: VecDeque<T>, pred: (item: T) => boolean): usize {
+	const found = dequeBinarySearchBy(q, (item) => (pred(item) ? -1 : 1));
+	return found.ok ? found.value : found.error;
 }
 
 /**
@@ -3530,12 +3821,12 @@ export function vecDrain<T>(v: T[], r: Bounds<number>, drop?: (item: T) => void)
 
 /** A `Vec`'s drain: of `rest`, what followed the range's start, the range, then the tail. */
 class VecDrain<T> extends Iter<T> implements Disposable {
-	private readonly v: T[];
-	private readonly rest: T[];
+	protected readonly v: T[];
+	protected readonly rest: T[];
 	private front = 0;
 	private back: number;
 	/** Where the tail starts in `rest`. */
-	private readonly tail: number;
+	protected readonly tail: number;
 	private readonly drop: ((item: T) => void) | undefined;
 
 	constructor(v: T[], rest: T[], tail: number, drop?: (item: T) => void) {
@@ -3568,12 +3859,212 @@ class VecDrain<T> extends Iter<T> implements Disposable {
 	}
 
 	[Symbol.dispose](): void {
-		const from = this.front;
-		this.front = this.back;
-		if (this.drop !== undefined) dropRange(this.rest, this.drop, from, this.back);
+		this.dropRest();
 		for (let i = this.tail; i < this.rest.length; i++) this.v.push(this.rest[i]);
 		this.rest.length = this.tail;
 	}
+
+	/** Drop what it has not yielded, as std's `Drain` drops it before the tail moves back. */
+	protected dropRest(): void {
+		const from = this.front;
+		this.front = this.back;
+		if (this.drop !== undefined) dropRange(this.rest, this.drop, from, this.back);
+	}
+}
+
+/**
+ * `Vec::splice` of `size`-byte elements: a drain of `r` that, once dropped, drops what it
+ * has not yielded and fills the gap from the `items` `spliceFrom` gave it, as std's: after
+ * a drain to the end, by `extend`, which reserves for a `trusted`, `TrustedLen`, iterator
+ * as it does; else by each item until the gap is full, then the tail moved past room for
+ * `items`' lower bound, reserved for the whole vector, and then past room for the rest,
+ * collected as std's collects them. The tail moves back to the last item, and `items`
+ * drops last if it `drops`.
+ */
+export function vecSplice<T>(v: T[] & Capped, r: Bounds<number>, size: number, drop?: (item: T) => void): Iter<T> {
+	const [start, end] = boundsRange(r, v.length);
+	const cap = vecCapacity(v, size);
+	const rest = v.splice(start);
+	// Held by the vector, which keeps it if the splice is leaked.
+	capSet(v, start, cap, size);
+	return new VecSplice(v, rest, end - start, drop, size, cap);
+}
+
+/**
+ * A splice, of `vecSplice` or `byteVecSplice`, given the `items` it fills from, which std's
+ * makes once it has made the drain, and whether they are `trusted` and `drops`.
+ */
+export function spliceFrom<T>(s: Iter<T>, items: Iter<T>, trusted = false, drops = false): Iter<T> {
+	const splice = s as unknown as { items: Iter<T>; trusted: boolean; drops: boolean };
+	splice.items = items;
+	splice.trusted = trusted;
+	splice.drops = drops;
+	return s;
+}
+
+class VecSplice<T> extends VecDrain<T> {
+	items: Iter<T> = iterEmpty();
+	private readonly size: number;
+	/** The vector's capacity, which its length, cut to the drain's start, no longer gives. */
+	private cap: number;
+	trusted = false;
+	drops = false;
+
+	constructor(v: T[], rest: T[], tail: number, drop: ((item: T) => void) | undefined, size: number, cap: number) {
+		super(v, rest, tail, drop);
+		this.size = size;
+		this.cap = cap;
+	}
+
+	override [Symbol.dispose](): void {
+		this.dropRest();
+		const v = this.v as T[] & Capped;
+		const tailLen = this.rest.length - this.tail;
+		if (tailLen === 0) {
+			capSet(v, v.length, this.cap, this.size);
+			iterExtend(v, this.items, undefined, this.size, this.trusted);
+		} else {
+			this.splice(tailLen);
+			for (let i = this.tail; i < this.rest.length; i++) v.push(this.rest[i]);
+			capSet(v, v.length, this.cap, this.size);
+		}
+		this.rest.length = this.tail;
+		if (this.drops) dispose(this.items);
+	}
+
+	/** Each item of `items` pushed into the gap before the tail of `tailLen`, which moves as std's `move_tail` moves it. */
+	private splice(tailLen: number): void {
+		const v = this.v;
+		let tailStart = v.length + this.tail;
+		const fill = (from: Iter<T>) => {
+			while (v.length < tailStart) {
+				const item = from.next();
+				if (item === DONE) return false;
+				v.push(item);
+			}
+			return true;
+		};
+		const moveTail = (additional: number) => {
+			this.cap = capReserve(tailStart + tailLen, this.cap, additional, this.size);
+			tailStart += additional;
+		};
+		if (!fill(this.items)) return;
+		const lower = this.items.sizeHint()[0];
+		if (lower > 0) {
+			moveTail(lower);
+			if (!fill(this.items)) return;
+		}
+		const collected = iterToArray(this.items, undefined, this.size, this.trusted);
+		if (collected.length === 0) return;
+		moveTail(collected.length);
+		fill(iterSlice(collected));
+	}
+}
+
+/** `Debug` of a `Vec`'s `Splice`, as std's derives: its drain, of what it has not yielded, each by `debug`, and the iterator it fills from by `items`. */
+export function fmtVecSplice<T, I>(it: Iter<T>, f: Formatter, debug: Debug<T>, items: Debug<I>): FmtResult {
+	const drain = (f: Formatter) => fmtDebugTupleFields(f, "Drain", [(f) => fmtList(it.remaining() as Iterable<T>, f, debug)]);
+	const held = iterHeld<I>((it as unknown as { items: Iter<unknown> }).items);
+	return fmtDebugStructFields(f, "Splice", ["drain", "replace_with"], [drain, (f) => items(held, f)]);
+}
+
+/**
+ * `Vec::extract_if`: each element of `start..end` that `f` returns true for, taken out as
+ * it is read, front to back, with each it keeps moved back over the gaps, as std's; once
+ * dropped, those after the last it read moved back too, `put` gives the vector back the
+ * `len` it keeps of `a`, and `f` drops. `f` is given each element or, with `places`, its
+ * place. The vector holds none meanwhile, as std's, so one leaked leaves it empty.
+ */
+class VecExtractIf<T> extends Iter<T> implements Disposable {
+	private readonly put: (len: number) => void;
+	private readonly a: T[];
+	private idx: number;
+	private readonly end: number;
+	private del = 0;
+	/** The vector's length before, or -1 once given back. */
+	private old: number;
+	private readonly f: (item: T | Place<T>) => boolean;
+	private readonly places: boolean;
+
+	constructor(a: T[], old: number, r: Bounds<number>, f: (item: T | Place<T>) => boolean, places: boolean, put: (len: number) => void) {
+		super();
+		this.put = put;
+		this.a = a;
+		this.old = old;
+		[this.idx, this.end] = boundsRange(r, old);
+		this.f = f;
+		this.places = places;
+	}
+
+	next(): T | Done {
+		while (this.idx < this.end) {
+			const i = this.idx;
+			const taken = this.f(this.places ? new AtIndex(this.a, i) : this.a[i]);
+			this.idx++;
+			if (taken) {
+				this.del++;
+				return this.a[i];
+			}
+			if (this.del > 0) this.a[i - this.del] = this.a[i];
+		}
+		return DONE;
+	}
+
+	override sizeHint(): SizeHint {
+		return [0, this.end - this.idx];
+	}
+
+	/** What `Debug` writes of it: those it kept, those it has left to read, and those past its range. */
+	parts(): [Iterable<T>, Iterable<T>, Iterable<T>] {
+		const part = (start: number, end: number) => (this.a instanceof Uint8Array ? this.a.subarray(start, end) : this.a.slice(start, end)) as Iterable<T>;
+		return [part(0, this.idx - this.del), part(this.idx, this.end), part(this.end, this.old)];
+	}
+
+	[Symbol.dispose](): void {
+		if (this.old < 0) return;
+		if (this.del > 0) for (let i = this.idx; i < this.old; i++) this.a[i - this.del] = this.a[i];
+		this.put(this.old - this.del);
+		this.old = -1;
+		dispose(this.f);
+	}
+}
+
+/** `Vec::extract_if` of the elements within `r`, handing `f` each, or with `places`, its place. */
+function extractIf<T>(v: T[], r: Bounds<number>, f: (item: T | Place<T>) => boolean, places: boolean): Iter<T> {
+	const old = v.length;
+	const a = v.splice(0);
+	return new VecExtractIf(a, old, r, f, places, (len) => {
+		for (let i = 0; i < len; i++) v.push(a[i]);
+	});
+}
+
+/** `Vec::extract_if` of the elements within `r`, handing `f` each. */
+export function vecExtractIf<T>(v: T[], r: Bounds<number>, f: (item: T) => boolean): Iter<T> {
+	return extractIf(v, r, f as (item: T | Place<T>) => boolean, false);
+}
+
+/** `vecExtractIf` of elements JS copies: `f` takes the place of each. */
+export function vecExtractIfMut<T>(v: T[], r: Bounds<number>, f: (item: Place<T>) => boolean): Iter<T> {
+	return extractIf(v, r, f as (item: T | Place<T>) => boolean, true);
+}
+
+/** `Vec::extract_if` of bytes, whose places `f` takes in the vector's storage. */
+export function byteVecExtractIf(v: ByteVec, r: Bounds<number>, f: (byte: Place<number>) => boolean): Iter<number> {
+	const old = v.length;
+	v.length = 0;
+	return new VecExtractIf(v.data as unknown as number[], old, r, f as (item: number | Place<number>) => boolean, true, (len) => {
+		v.length = len;
+	});
+}
+
+/** `Debug` of a `Vec`'s `ExtractIf`, its parts each by `debug`, as std's. */
+export function fmtVecExtractIf<T>(it: Iter<T>, f: Formatter, debug: Debug<T>): FmtResult {
+	const parts = (it as VecExtractIf<T>).parts();
+	let b = fmtDebugStruct(f, "ExtractIf");
+	["retained", "remainder", "skipped_tail"].forEach((name, i) => {
+		b = debugStructField(b, name, (f) => fmtList(parts[i], f, debug));
+	});
+	return debugStructFinishNonExhaustive(b);
 }
 
 /** `Vec::extend_from_within` of `size`-byte elements: room reserved for those within `r`, then a clone of each by `clone` pushed in order. */
@@ -3601,13 +4092,13 @@ export function byteVecDrain(v: ByteVec, r: Bounds<number>): Iter<number> {
 
 /** A `Vec<u8>`'s drain, which reads the range from the vector's storage in place. */
 class ByteVecDrain extends Iter<number> implements Disposable {
-	private readonly v: ByteVec;
+	protected readonly v: ByteVec;
 	private readonly start: number;
-	private front: number;
-	private back: number;
-	private readonly end: number;
+	protected front: number;
+	protected back: number;
+	protected readonly end: number;
 	/** The vector's length before the drain, or -1 once the tail moved back. */
-	private length: number;
+	protected length: number;
 
 	constructor(v: ByteVec, start: number, end: number, length: number) {
 		super();
@@ -3644,6 +4135,65 @@ class ByteVecDrain extends Iter<number> implements Disposable {
 		this.v.data.copyWithin(this.start, this.end, this.length);
 		this.v.length = this.start + this.length - this.end;
 		this.length = -1;
+	}
+}
+
+/** `Vec::splice` of bytes, as `vecSplice`, given its items by `spliceFrom`. */
+export function byteVecSplice(v: ByteVec, r: Bounds<number>): Iter<number> {
+	const [start, end] = boundsRange(r, v.length);
+	const length = v.length;
+	v.length = start;
+	return new ByteVecSplice(v, start, end, length);
+}
+
+class ByteVecSplice extends ByteVecDrain {
+	items: Iter<number> = iterEmpty();
+	trusted = false;
+	drops = false;
+
+	override [Symbol.dispose](): void {
+		if (this.length < 0) return;
+		this.front = this.back;
+		const v = this.v;
+		const tailLen = this.length - this.end;
+		this.length = -1;
+		if (tailLen === 0) iterExtendBytes(v, this.items, undefined, this.trusted);
+		else {
+			let tailStart = this.end;
+			const fill = (from: Iter<number>) => {
+				while (v.length < tailStart) {
+					const byte = from.next();
+					if (byte === DONE) return false;
+					v.data[v.length++] = byte;
+				}
+				return true;
+			};
+			// Room reserved for the whole vector, its tail included, as std's `move_tail`.
+			const moveTail = (additional: number) => {
+				const filled = v.length;
+				v.length = tailStart + tailLen;
+				byteVecReserve(v, additional);
+				v.length = filled;
+				v.data.copyWithin(tailStart + additional, tailStart, tailStart + tailLen);
+				tailStart += additional;
+			};
+			const spliced = () => {
+				if (!fill(this.items)) return;
+				const lower = this.items.sizeHint()[0];
+				if (lower > 0) {
+					moveTail(lower);
+					if (!fill(this.items)) return;
+				}
+				const collected = iterToByteVec(this.items, undefined, this.trusted);
+				if (collected.length === 0) return;
+				moveTail(collected.length);
+				fill(iterSlice(collected.data.subarray(0, collected.length)));
+			};
+			spliced();
+			v.data.copyWithin(v.length, tailStart, tailStart + tailLen);
+			v.length += tailLen;
+		}
+		if (this.drops) dispose(this.items);
 	}
 }
 

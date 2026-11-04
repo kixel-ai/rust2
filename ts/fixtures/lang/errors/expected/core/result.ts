@@ -171,6 +171,16 @@ export function eq$0p1bb4y(self: rt.Result<rt.u8, rt.ParseIntError>, other: rt.R
 	return num_error_eq$18sin5z(self.error, (other as { ok: false; error: rt.ParseIntError }).error);
 }
 
+export function eq$0ktbno8(self: rt.Result<undefined, rt.TryReserveError>, other: rt.Result<undefined, rt.TryReserveError>): boolean {
+	if (!((self.ok ? 0 : 1) === (other.ok ? 0 : 1))) {
+		return false;
+	}
+	if (self.ok) {
+		return true;
+	}
+	return rt.tryReserveErrorEq(self.error, (other as { ok: false; error: rt.TryReserveError }).error);
+}
+
 export function eq$03gbayb(self: rt.Result<undefined, rt.FmtError>, other: rt.Result<undefined, rt.FmtError>): boolean {
 	if (!((self.ok ? 0 : 1) === (other.ok ? 0 : 1))) {
 		return false;
@@ -196,6 +206,13 @@ export function err$02r96h1(self: rt.Result<rt.char, rt.ParseCharError>): rt.Par
 }
 
 export function err$0jf6smd(self: rt.Result<rt.i8, rt.ParseIntError>): rt.ParseIntError | undefined {
+	if (self.ok) {
+		return undefined;
+	}
+	return self.error;
+}
+
+export function err$0bqdhnn(self: rt.Result<undefined, rt.TryReserveError>): rt.TryReserveError | undefined {
 	if (self.ok) {
 		return undefined;
 	}
@@ -256,6 +273,13 @@ export function mapErr$0u5yxjj(self: rt.Result<rt.u8, rt.ParseIntError>, op: (a0
 		return self as rt.Result<rt.u8, rt.IntErrorKind>;
 	}
 	return rt.Err(op(self.error));
+}
+
+export function clone$1nmm6up(self: rt.Result<undefined, rt.TryReserveError>): rt.Result<undefined, rt.TryReserveError> {
+	if (self.ok) {
+		return rt.OK;
+	}
+	return rt.Err(self.error);
 }
 
 //# sourceMappingURL=result.ts.map

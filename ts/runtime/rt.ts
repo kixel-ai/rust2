@@ -12,6 +12,7 @@ import { type char, type ParseCharError, type ParseIntError, type TryFromIntErro
 import type { Iter, Range, RangeInclusive } from "./rt/iter.ts";
 import { drop as dispose, dropAll, partPlace, type Pending } from "./rt/task.ts";
 
+import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./rt/alloc.ts";
 import { AtIndex } from "./rt/collections.ts";
 import { escapeDebug } from "./rt/char.ts";
 export * from "./rt/alloc.ts";
@@ -154,6 +155,55 @@ export function rawUnsizePlace<T, U>(p: Place<T>, make: (value: T) => U): Place<
 /** A dangling pointer to `()`, std's every one: a place that holds only `()`. */
 export const DANGLING_UNIT: Place<undefined> = { v: undefined };
 
+/** The types of the pointers cast to `*const ()`, by their JS value, which is its identity. */
+const ERASED = /* @__PURE__ */ new WeakMap<object, string[]>();
+
+/**
+ * A `*const ()` at an address no memory is at, as a dangling pointer cast to one is, by
+ * that address: `DANGLING_UNIT` at 1, as `NonNull::<()>::dangling()`'s is.
+ */
+const ERASED_AT = /* @__PURE__ */ new Map<number, Place<undefined>>([[1, DANGLING_UNIT]]);
+
+/** The address of `p`, a `*const ()` that is one of `ERASED_AT`'s, if it is. */
+function erasedAddress(p: Place<undefined>): number | undefined {
+	for (const [addr, at] of ERASED_AT) if (at === p) return addr;
+	return undefined;
+}
+
+/**
+ * `p as *const ()`, of a pointer to a value of Rust type `type`, aligned to `align` bytes:
+ * the same identity, which remembers `type` for a cast back. A dangling pointer is at
+ * `align`, which a cast back keeps.
+ */
+export function ptrErase(p: object, type: string, align: number): Place<undefined> {
+	if (p === NULL) return NULL;
+	if (p === DANGLING || p instanceof Address) {
+		const addr = p === DANGLING ? align : (p as Address).addr;
+		let at = ERASED_AT.get(addr);
+		if (at === undefined) ERASED_AT.set(addr, (at = { v: undefined }));
+		return at;
+	}
+	const types = ERASED.get(p);
+	if (types === undefined) ERASED.set(p, [type]);
+	else if (!types.includes(type)) types.push(type);
+	return p as Place<undefined>;
+}
+
+/**
+ * `p as *const T`, of a `*const ()`, where `T` is Rust type `type` aligned to `align`
+ * bytes: the pointer `ptrErase` erased, which must point at a `type`, since JS keeps no
+ * bytes to read as another, or one at the address it was.
+ */
+export function ptrUnerase(p: Place<undefined>, type: string, align: number): unknown {
+	if (p === NULL) return NULL;
+	const addr = erasedAddress(p);
+	if (addr !== undefined) return addr === align ? DANGLING : addressAt(addr);
+	const types = ERASED.get(p);
+	if (types?.includes(type)) return p;
+	const was = types === undefined ? "a value no cast to `*const ()` erased" : types.map((t) => `\`${t}\``).join(" or ");
+	throw new Error(`rust2-ts: a \`*const ()\` cast back to a pointer to \`${type}\`, which points at ${was}`);
+}
+
 /**
  * A generic type's pointer or reference to a `T` that only an instance decides: the object,
  * the `Place` of a value JS copies, or the `ByteSlice` of a `[u8; N]`'s bytes.
@@ -217,12 +267,44 @@ class Address implements Place<never> {
 	}
 }
 
+/** Each `Address` by its address, while any pointer holds it, so pointers at one compare as one. */
+const ADDRESSES = /* @__PURE__ */ new Map<number, WeakRef<Address>>();
+
+/** Forget an address once no pointer holds its `Address`. */
+const UNHELD = /* @__PURE__ */ new FinalizationRegistry<number>((addr) => {
+	if (ADDRESSES.get(addr)?.deref() === undefined) ADDRESSES.delete(addr);
+});
+
+/** The pointer at `addr`, which no memory is at: the same `Address` as every other one there. */
+function addressAt(addr: number): Address {
+	let at = ADDRESSES.get(addr)?.deref();
+	if (at === undefined) {
+		at = new Address(addr);
+		ADDRESSES.set(addr, new WeakRef(at));
+		UNHELD.register(at, addr);
+	}
+	return at;
+}
+
 function nowhere(): never {
 	throw new Error("rust2-ts: a read or write through a pointer to no memory");
 }
 
 /** The array of one element that a pointer to a value in no array points into, by its place. */
 const LONE = /* @__PURE__ */ new WeakMap<Place<unknown>, unknown[]>();
+
+/** What an array of one element `elemOf` made reads as the pointer it was made of. */
+const LONE_OF: unique symbol = /* @__PURE__ */ Symbol("loneOf");
+
+/**
+ * The pointer `p` was moved from, if `p` is element 0 of the array of one that a pointer
+ * to a value in no array points into, as arithmetic moving back to it gives: Rust's same
+ * address, which a table keyed by the pointer finds. Otherwise `p`.
+ */
+export function ptrHome<P extends object>(p: P): P {
+	if (!(p instanceof AtIndex) || p.index !== 0) return p;
+	return ((p.array as { [LONE_OF]?: P })[LONE_OF] ?? p) as P;
+}
 
 /** The traps of an array of one element, the value at `p`. */
 class Lone<T> implements ProxyHandler<T[]> {
@@ -233,6 +315,7 @@ class Lone<T> implements ProxyHandler<T[]> {
 	}
 
 	get(target: T[], key: string | symbol): unknown {
+		if (key === LONE_OF) return this.p;
 		return key === "0" ? this.p.v : Reflect.get(target, key);
 	}
 
@@ -301,7 +384,7 @@ export function ptrWrappingAdd<T>(p: Place<T>, n: number, size: number, align: n
 	if (p === NULL || p === DANGLING || p instanceof Address) {
 		const base = p === NULL ? 0 : p === DANGLING ? align : (p as Address).addr;
 		const addr = Number((BigInt(base) + BigInt(n | 0) * BigInt(size)) & 0xffffffffn);
-		return addr === 0 ? NULL : addr === align ? DANGLING : (new Address(addr) as Place<T>);
+		return addr === 0 ? NULL : addr === align ? DANGLING : (addressAt(addr) as Place<T>);
 	}
 	const e = elemOf(p);
 	return new AtIndex(e.array, wrapIndex(e.index, n | 0, size));
@@ -1098,16 +1181,20 @@ export function sliceContains<T>(s: ArrayLike<T>, x: T, eq: (a: T, b: T) => bool
  * equal elements gives std's index.
  */
 export function sliceBinarySearchBy<T>(s: ArrayLike<T>, f: (item: T) => Ordering): Result<usize, usize> {
-	let size = s.length;
+	return searchBy(s, 0, s.length, f);
+}
+
+/** `sliceBinarySearchBy` of the `size` elements of `s` from `start`, whose indices are from it. */
+export function searchBy<T>(s: ArrayLike<T>, start: number, size: number, f: (item: T) => Ordering): Result<usize, usize> {
 	if (size === 0) return Err(0);
 	let base = 0;
 	while (size > 1) {
 		const half = Math.floor(size / 2);
 		const mid = base + half;
-		if (f(s[mid]!) !== 1) base = mid;
+		if (f(s[start + mid]!) !== 1) base = mid;
 		size -= half;
 	}
-	const order = f(s[base]!);
+	const order = f(s[start + base]!);
 	return order === 0 ? Ok(base) : Err(order === -1 ? base + 1 : base);
 }
 
@@ -1554,6 +1641,27 @@ export function vecResizeWith<T>(v: T[] & Capped, len: number, f: () => T, size:
 export function vecSplitOff<T>(v: T[], at: number, size: number): T[] {
 	if (at > v.length) panic(`\`at\` split index (is ${at}) should be <= len (is ${v.length})`);
 	return vecExact(v.splice(at), size);
+}
+
+/**
+ * `Vec::into_flattened` of arrays of `n` `size`-byte elements: their elements in order,
+ * with room for `n` times as many as it had room for arrays, as std's keeps its buffer.
+ */
+export function vecIntoFlattened<T>(v: (T[] & Capped)[] & Capped, n: number, size: number): T[] {
+	if (size === 0 && v.length * n > USIZE_MAX) panic("the product of vec len and N shouldn't overflow");
+	const out: T[] & Capped = v.flat() as T[];
+	capSet(out, out.length, vecCapacity(v, size * n) * n, size);
+	return out;
+}
+
+/** `Vec::into_flattened` of byte arrays of `n`. */
+export function byteVecIntoFlattened(v: Uint8Array[] & Capped, n: number): ByteVec {
+	const out = new ByteVec(vecCapacity(v, n) * n);
+	for (const a of v) {
+		out.data.set(a, out.length);
+		out.length += n;
+	}
+	return out;
 }
 
 /** `Clone` of a tuple, by `clone` of each field in order, `undefined` for one whose value is itself. */
@@ -2054,21 +2162,29 @@ export function capHold(c: object & Capped, cap: number, size: number): void {
 }
 
 /**
- * The capacity `cap`, holding `len`, once `reserve` made room for `additional` more, as
- * std's `RawVec::grow_amortized`: at least double, or a panic past what it may hold.
+ * The capacity `cap`, holding `len`, once `try_reserve` made room for `additional` more, as
+ * std's `RawVec::grow_amortized`: at least double, or `undefined` past what it may hold.
  */
-export function capReserve(len: number, cap: number, additional: number, size: number): number {
+export function capTryReserve(len: number, cap: number, additional: number, size: number): number | undefined {
 	if (additional <= cap - len) return cap;
 	const grown = Math.max(cap * 2, len + additional, size === 1 ? 8 : size <= 1024 ? 4 : 1);
-	if (grown > vecMax(size)) panic("capacity overflow");
-	return grown;
+	return grown > vecMax(size) ? undefined : grown;
 }
 
-/** The capacity `cap`, holding `len`, once `reserve_exact` made room for `additional` more. */
-export function capReserveExact(len: number, cap: number, additional: number, size: number): number {
+/** The capacity `cap`, holding `len`, once `try_reserve_exact` made room for `additional` more, or `undefined` past what it may hold. */
+export function capTryReserveExact(len: number, cap: number, additional: number, size: number): number | undefined {
 	if (additional <= cap - len) return cap;
-	if (len + additional > vecMax(size)) panic("capacity overflow");
-	return len + additional;
+	return len + additional > vecMax(size) ? undefined : len + additional;
+}
+
+/** `capTryReserve`'s capacity, or the panic of `reserve` past what it may hold. */
+export function capReserve(len: number, cap: number, additional: number, size: number): number {
+	return capTryReserve(len, cap, additional, size) ?? panic("capacity overflow");
+}
+
+/** `capTryReserveExact`'s capacity, or the panic of `reserve_exact` past what it may hold. */
+export function capReserveExact(len: number, cap: number, additional: number, size: number): number {
+	return capTryReserveExact(len, cap, additional, size) ?? panic("capacity overflow");
 }
 
 /** The capacity `cap`, holding `len`, once `shrink_to` of `min` shrank it, as `shrink_to_fit` of 0 does. */
@@ -2097,6 +2213,23 @@ export function vecReserve<T>(v: T[] & Capped, additional: number, size: number)
 /** `Vec::reserve_exact` of `size`-byte elements. */
 export function vecReserveExact<T>(v: T[] & Capped, additional: number, size: number): void {
 	capHold(v, capReserveExact(v.length, vecCapacity(v, size), additional, size), size);
+}
+
+/** `Vec::try_reserve` of `size`-byte elements: `reserve`'s capacity, or the error where it panics. */
+export function vecTryReserve<T>(v: T[] & Capped, additional: number, size: number): Result<undefined, TryReserveError> {
+	return capTried(v, capTryReserve(v.length, vecCapacity(v, size), additional, size), size);
+}
+
+/** `Vec::try_reserve_exact` of `size`-byte elements. */
+export function vecTryReserveExact<T>(v: T[] & Capped, additional: number, size: number): Result<undefined, TryReserveError> {
+	return capTried(v, capTryReserveExact(v.length, vecCapacity(v, size), additional, size), size);
+}
+
+/** `v`'s capacity held at `cap`, or the overflow `undefined` is. */
+function capTried(v: object & Capped, cap: number | undefined, size: number): Result<undefined, TryReserveError> {
+	if (cap === undefined) return CAPACITY_OVERFLOW;
+	capHold(v, cap, size);
+	return OK;
 }
 
 /** `Vec::shrink_to` of `size`-byte elements, and `shrink_to_fit` of 0. */
@@ -2168,6 +2301,28 @@ export function byteVecReserve(v: ByteVec, additional: number): void {
 export function byteVecReserveExact(v: ByteVec, additional: number): void {
 	const cap = capReserveExact(v.length, v.data.length, additional, 1);
 	if (cap !== v.data.length) realloc(v, cap);
+}
+
+/** `Vec::try_reserve` of bytes: `reserve`'s storage, or the error where it panics or JS can't make it. */
+export function byteVecTryReserve(v: ByteVec, additional: number): Result<undefined, TryReserveError> {
+	return byteVecTried(v, capTryReserve(v.length, v.data.length, additional, 1));
+}
+
+/** `Vec::try_reserve_exact` of bytes. */
+export function byteVecTryReserveExact(v: ByteVec, additional: number): Result<undefined, TryReserveError> {
+	return byteVecTried(v, capTryReserveExact(v.length, v.data.length, additional, 1));
+}
+
+/** `v`'s storage moved to `cap` bytes, or the overflow `undefined` is, or the failure to allocate them. */
+function byteVecTried(v: ByteVec, cap: number | undefined): Result<undefined, TryReserveError> {
+	if (cap === undefined) return CAPACITY_OVERFLOW;
+	if (cap === v.data.length) return OK;
+	try {
+		realloc(v, cap);
+	} catch (e) {
+		return allocError(e, cap);
+	}
+	return OK;
 }
 
 /** `Vec::append` of bytes. */
