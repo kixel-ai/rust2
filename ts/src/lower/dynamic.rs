@@ -154,14 +154,9 @@ impl<'tcx> Translator<'_, 'tcx> {
 			self.define_object(principal, ty, span)?;
 		}
 		self.check_object(principal, ty, span);
-		let object = &self.objects[&principal];
-		let sym = object.sym;
-		let params: Vec<Slot> = object.params.iter().map(|(_, p)| *p).collect();
-		let args = params
-			.into_iter()
-			.map(|p| self.ty(param_ty(self.tcx, ty, p), span))
-			.collect();
-		Some(Type::Sym(sym, args))
+		let args = self.object_args(principal, ty, span);
+		let sym = self.objects[&principal].sym;
+		Some(Type::Sym(sym, args.into_iter().map(|(_, t)| t).collect()))
 	}
 
 	/// Make the object of `principal`, the trait of the trait object `ty`, unless it is
