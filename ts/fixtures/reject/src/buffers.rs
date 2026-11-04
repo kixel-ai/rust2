@@ -59,3 +59,8 @@ pub fn capacity_reads(mut b: bytes::Bytes, mut buf: bytes::BytesMut) -> usize {
 	let into = b.try_into_mut().map_or(0, |m| m.capacity());
 	usize::from(unique) + vec.capacity() + taken.capacity() + into
 }
+
+/// The room past a vector's length, whose size is its capacity.
+pub fn spare(v: &mut Vec<u16>) -> usize {
+	v.spare_capacity_mut().len()
+}
