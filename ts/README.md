@@ -490,7 +490,9 @@ A write of a value of no bytes, through a `&mut` or a pointer, reads and writes 
 A collection keeps Rust's key semantics. A hash map or set keeps a key that is a JS
 number, string, or boolean in a JS `Map`, which compares those as Rust's `Eq` does, and
 finds any other key, a 64-bit one past 2^53 included, through its translated `Hash` and
-`Eq`; a B-tree orders every key by its translated `Ord`. std's impls are the runtime's: an
+`Eq`; a B-tree orders every key by its translated `Ord`, calling `cmp` on the keys std's
+does, in the same order, so a tree a `collect` sorted by a `lt` that disagrees answers as
+std's does. std's impls are the runtime's: an
 `Option` orders `None` first, an `Option` and a `Poll` hash their variant and then what they hold, an `Arc` compares, orders, and hashes as what it holds,
 so a map of `Arc<str>` finds a `&str`, a `Cell` and a `RefCell` compare and order as
 what they hold, a `RefCell` borrowing each, a one-time cell compares its `Option`, and

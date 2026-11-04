@@ -6,8 +6,8 @@
 //
 // A key compares as Rust's `Eq` or `Ord` says, never by JS identity: a hash collection
 // finds a key that is a JS object through its translated `Hash` and `Eq`, and a B-tree
-// orders every key by its translated `Ord`. Which of those calls the runtime makes, and
-// how often, are its own, not std's.
+// orders every key by its translated `Ord`. Which `Hash` and `Eq` calls the runtime makes,
+// and how often, are its own, not std's; a B-tree makes std's `Ord` calls.
 //
 // No key, value, or item is ever `undefined`, which the translator refuses, so
 // `undefined` is a missing one.
@@ -1819,14 +1819,16 @@ function merge<K, V>(p: Node<K, V>, j: number): void {
 	const left = e[j];
 	const right = e[j + 1];
 	const old = left.k.length;
-	left.k.push(p.k[j], ...right.k);
-	left.v.push(p.v[j], ...right.v);
+	left.k.push(p.k[j]);
+	left.v.push(p.v[j]);
+	append(left.k, right.k, 0);
+	append(left.v, right.v, 0);
 	take(p.k, j);
 	take(p.v, j);
 	take(e, j + 1);
 	adopt(p, j + 1);
 	if (left.e !== undefined) {
-		left.e.push(...(right.e as Node<K, V>[]));
+		append(left.e, right.e as Node<K, V>[], 0);
 		adopt(left, old + 1);
 	}
 }
@@ -1840,16 +1842,24 @@ function stealLeft<K, V>(p: Node<K, V>, j: number, count: number): void {
 	const left = e[j];
 	const right = e[j + 1];
 	const keep = left.k.length - count;
-	const keys = left.k.splice(keep);
-	const values = left.v.splice(keep);
-	right.k.unshift(...keys.slice(1), p.k[j]);
-	right.v.unshift(...values.slice(1), p.v[j]);
-	p.k[j] = keys[0];
-	p.v[j] = values[0];
+	passRight(left.k, right.k, p.k, j, keep, count);
+	passRight(left.v, right.v, p.v, j, keep, count);
 	if (right.e !== undefined) {
-		right.e.unshift(...(left.e as Node<K, V>[]).splice(keep + 1));
+		const from = left.e as Node<K, V>[];
+		shiftUp(right.e, count);
+		for (let t = 0; t < count; t++) right.e[t] = from[keep + 1 + t];
+		from.length = keep + 1;
 		adopt(right);
 	}
+}
+
+/** Moves `from`'s items from `keep` on through index `j` of `parent` to the front of `to`, as `stealLeft` moves keys. */
+function passRight<T>(from: T[], to: T[], parent: T[], j: number, keep: number, count: number): void {
+	shiftUp(to, count);
+	for (let t = 0; t < count - 1; t++) to[t] = from[keep + 1 + t];
+	to[count - 1] = parent[j];
+	parent[j] = from[keep];
+	from.length = keep;
 }
 
 /**
@@ -1861,17 +1871,42 @@ function stealRight<K, V>(p: Node<K, V>, j: number, count: number): void {
 	const left = e[j];
 	const right = e[j + 1];
 	const old = left.k.length;
-	const keys = right.k.splice(0, count);
-	const values = right.v.splice(0, count);
-	left.k.push(p.k[j], ...keys.slice(0, count - 1));
-	left.v.push(p.v[j], ...values.slice(0, count - 1));
-	p.k[j] = keys[count - 1];
-	p.v[j] = values[count - 1];
+	passLeft(right.k, left.k, p.k, j, count);
+	passLeft(right.v, left.v, p.v, j, count);
 	if (left.e !== undefined) {
-		left.e.push(...(right.e as Node<K, V>[]).splice(0, count));
+		const from = right.e as Node<K, V>[];
+		for (let t = 0; t < count; t++) left.e.push(from[t]);
+		shiftDown(from, count);
 		adopt(left, old + 1);
 		adopt(right);
 	}
+}
+
+/** Moves `from`'s first `count` items through index `j` of `parent` to the end of `to`, as `stealRight` moves keys. */
+function passLeft<T>(from: T[], to: T[], parent: T[], j: number, count: number): void {
+	to.push(parent[j]);
+	for (let t = 0; t < count - 1; t++) to.push(from[t]);
+	parent[j] = from[count - 1];
+	shiftDown(from, count);
+}
+
+/** Moves each item of `a` up `count` slots, leaving the first `count` to be written. */
+function shiftUp<T>(a: T[], count: number): void {
+	const n = a.length;
+	for (let t = 0; t < count; t++) a.push(a[n - 1]);
+	for (let i = n - 1; i >= 0; i--) a[i + count] = a[i];
+}
+
+/** Takes the first `count` items out of `a`, moving the rest down. */
+function shiftDown<T>(a: T[], count: number): void {
+	const n = a.length - count;
+	for (let i = 0; i < n; i++) a[i] = a[i + count];
+	a.length = n;
+}
+
+/** Pushes `b`'s items from `from` on onto `a`. */
+function append<T>(a: T[], b: T[], from: number): void {
+	for (let i = from; i < b.length; i++) a.push(b[i]);
 }
 
 /** `BTreeMap::remove_entry`. */
