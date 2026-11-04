@@ -13,7 +13,7 @@ Have at least these sections:
 
 - **Problem**: a summary of the problem and why this PR is needed.
 - **Approach**: a summary of the approach taken to solve the problem.
-- **Impact**: a bullet point for every public API change. A breaking one also gets a `MIGRATE.md` entry.
+- **Impact**: a bullet point for every public API change.
 - **Alternatives**: any alternative approaches considered.
 - **Follow-ups**: any issues encountered or quests created.
 
