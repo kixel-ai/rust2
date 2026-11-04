@@ -663,9 +663,9 @@ pub fn is_std(tcx: TyCtxt<'_>, did: DefId) -> bool {
 }
 
 /// If `instance` is a method of std's `PartialEq`, `PartialOrd`, `Ord`, or `Hash` impl
-/// for references, which calls its referents' with the operands dereferenced, the
-/// generic arguments of that call. A reference is its referent in JS, so the operands
-/// pass as they are.
+/// for references, or of its `Hasher` or `fmt::Write` impl for a `&mut`, or its `Hasher`
+/// impl for a box, which calls its
+/// referents' with the operands dereferenced, the generic arguments of that call.
 pub fn referent<'tcx>(
 	tcx: TyCtxt<'tcx>,
 	def_id: DefId,
@@ -678,17 +678,21 @@ pub fn referent<'tcx>(
 	if !is_std(tcx, imp) {
 		return None;
 	}
-	let operands = match tcx.get_diagnostic_name(tr)?.as_str() {
-		"PartialEq" | "PartialOrd" => 2,
-		"Ord" | "Hash" => 1,
+	let hasher = std_path(tcx, tr) == ["hash", "Hasher"];
+	let operands = match tcx.get_diagnostic_name(tr).as_ref().map(|n| n.as_str()) {
+		Some("PartialEq" | "PartialOrd") => 2,
+		Some("Ord" | "Hash" | "FmtWrite") => 1,
+		_ if hasher => 1,
 		_ => return None,
 	};
 	let mut args = gargs.to_vec();
 	for arg in &mut args[..operands] {
-		let ty::Ref(_, pointee, _) = arg.as_type()?.kind() else {
-			return None;
+		let ty = arg.as_type()?;
+		*arg = match ty.kind() {
+			ty::Ref(_, pointee, _) => (*pointee).into(),
+			_ if hasher && let Some(held) = ty.boxed_ty() => held.into(),
+			_ => return None,
 		};
-		*arg = (*pointee).into();
 	}
 	Some(tcx.mk_args(&args))
 }
@@ -3081,6 +3085,16 @@ fn mapping<'tcx>(
 					Expr::rs("fmtToString", vec![value])
 				}
 			}
+		}
+		// `fmt::Write`'s, of a `String`, a `Formatter`, or the crate's own writer.
+		("Write", "write_str" | "write_char" | "write_fmt")
+			if tcx
+				.trait_of_assoc(call.def_id)
+				.is_some_and(|tr| tcx.is_diagnostic_item(rustc_span::Symbol::intern("FmtWrite"), tr)) =>
+		{
+			let args = <[Expr; 2]>::try_from(args).ok()?;
+			let literal = literal(&args[1]);
+			b.fmt_write(call.def_id, targ(gargs, 0), args, literal, span, out)?
 		}
 		("Formatter", "write_fmt") => {
 			let [f, parts] = <[Expr; 2]>::try_from(args).ok()?;

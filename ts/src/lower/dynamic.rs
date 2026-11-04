@@ -1,12 +1,12 @@
 //! Trait objects. A `dyn Trait` is a JS object with a method for each of the trait's
-//! dispatchable functions, its supertraits' included, or for std's `Error` and `bytes`'
-//! `Buf`, each that a call dispatches to, named as an impl's function is,
+//! dispatchable functions, its supertraits' included, or for std's or a mapped crate's
+//! trait, each that a call dispatches to, named as an impl's function is,
 //! for its trait (`area$Shape`), and taking the arguments after `self`. That is the
 //! trait's type, which a TS caller can implement, generic over the trait's type parameters
 //! and the associated types its objects bind (`Source<Item>`), and typed as the trait
 //! declares them, which a call casts to what its object's arguments return. A coercion to one wraps the value in a
 //! class of its type's own, shared by every trait object of the type, whose methods call
-//! that type's impls and whose `[Symbol.dispose]`, which a `Box<dyn Trait>` drops it by,
+//! that type's impls, a std type's through their mappings, and whose `[Symbol.dispose]`, which a `Box<dyn Trait>` drops it by,
 //! drops the value. An `Arc<dyn Trait>` is an `rs.ArcDyn` around the one a box would be. A
 //! struct whose last field unsizes to one, such as a `RefCell<dyn Trait>`, is an
 //! `rs.tailDyn` view of the struct it was made from, whose last field is that field's
@@ -65,9 +65,9 @@ struct Method<'tcx> {
 	tr: GenericArgsRef<'tcx>,
 	name: String,
 	/// Its type over the object type's parameters, once the object holds it: from the start for the trait of a crate that
-	/// translates whole, which a TS caller may call or implement, and else, for std's
-	/// `Error` and `bytes`' `Buf`, at the first call that dispatches to it, so a `dyn Buf`
-	/// holds a few of `Buf`'s many methods.
+	/// translates whole, which a TS caller may call or implement, and else, for std's or a
+	/// mapped crate's trait, at the first call that dispatches to it, so a `dyn Buf` holds a
+	/// few of `Buf`'s many methods, and a std type's class only the impls it calls.
 	ty: Option<Type>,
 }
 
@@ -162,14 +162,6 @@ impl<'tcx> Translator<'_, 'tcx> {
 	/// refused.
 	fn define_object(&mut self, principal: DefId, ty: Ty<'tcx>, span: Span) -> Option<()> {
 		let tcx = self.tcx;
-		// A trait of a crate translated from source is as the crate's own.
-		if !self.own(principal) && !is_any(tcx, principal) && !is_error(tcx, principal) && !is_buf(tcx, principal) {
-			self.unrepresented(
-				span,
-				format!("`{ty}`, a trait object of another crate's trait, which is not supported yet"),
-			);
-			return None;
-		}
 		let identity = ty::Binder::dummy(ty::TraitRef::identity(tcx, principal));
 		let mut params = Vec::new();
 		for param in &tcx.generics_of(principal).own_params {
