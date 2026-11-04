@@ -28,6 +28,7 @@ export function lengths(kind: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): void 
 	repeated$u8(data.data, data.start, data.length, 65, 66, out);
 	repeated$lengths_Loud(data.data, data.start, data.length, { _0: byte(1) }, { _0: byte(0) }, out);
 	loud(data, out);
+	zipped(data, out);
 	rt.localKeyWithBorrowMut(CLONES, (log: rt.ByteVec): undefined => {
 		rt.iterExtendBytes(out, rt.byteVecDrain(log, undefined), "fold", true);
 	});
@@ -424,8 +425,9 @@ export function recloned$u32_3(rows: rt.u32[][], out: rt.ByteVec): void {
 /**
  * Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
  * nothing points into them, the last two again from the values a vector's iterator gives
- * beside them, which std drops, then changed in place, a pair of tags through a pointer to
- * it, and read back.
+ * beside them, which std drops, then again beside the rows of a vector of arrays and the
+ * last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+ * changed in place, a pair of tags through a pointer to it, and read back.
  */
 export function filled$array0_u8_0(data: rt.ByteSlice, fill: Uint8Array[], out: rt.ByteVec): void {
 	let row!: Uint8Array[];
@@ -474,32 +476,57 @@ export function filled$array0_u8_0(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		rt.ptrWrite(uninit2, [copy$array_array0_u8(row), [0, 90] as [rt.u8, rt.u8]] as [Uint8Array[], [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	for (const byte of rt.byteSliceView(data)) {
-		const _62: rt.usize = rt.usizeRem(byte as rt.usize, 3);
-		if (!(_62 < 3)) {
-			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _62);
+	const rows: Uint8Array[][] = rt.vecFromElem(copy$array_array0_u8(fill), rt.usizeRem(data.length, 4), copy$array_array0_u8);
+	const iter4: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _65: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]] | rt.Done = iter4.next();
+		if (_65 === rt.DONE) {
+			break;
 		}
-		const slot: [Uint8Array[], [rt.u8, rt.u8]] = slots[_62];
+		const uninit3 = _65[0];
+		rt.ptrWrite(uninit3, [copy$array_array0_u8(_65[1]), [17, 0] as [rt.u8, rt.u8]] as [Uint8Array[], [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	const iter5: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterCopied(rt.iterLend(rt.iterSlice(fill), rt.byteSliceFrom), rt.byteSliceToArray), [false, false]);
+	while (true) {
+		const _85: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter5.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		const item2 = copy$array_u8(_85[1]);
+		const uninit4 = _85[0];
+		rt.ptrWrite(uninit4, [Array.from({ length: 0 }, (): Uint8Array => {
+			return copy$array_u8(item2);
+		}), [34, 0] as [rt.u8, rt.u8]] as [Uint8Array[], [rt.u8, rt.u8]]);
+		uninit4;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _103: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_103 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
+		}
+		const slot: [Uint8Array[], [rt.u8, rt.u8]] = slots[_103];
 		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(0, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
 	}
-	for (const _83 of slots) {
-		const _90: [Uint8Array[], [rt.u8, rt.u8]] = _83;
-		rt.iterForEach(rt.iterLend(rt.iterSlice(_90[0]), rt.byteSliceFrom), (v3: rt.ByteSlice): undefined => {
-			put$lengths_Put_array0_u8(v3, out);
+	for (const _124 of slots) {
+		const _131: [Uint8Array[], [rt.u8, rt.u8]] = _124;
+		rt.iterForEach(rt.iterLend(rt.iterSlice(_131[0]), rt.byteSliceFrom), (v4: rt.ByteSlice): undefined => {
+			put$lengths_Put_array0_u8(v4, out);
 		});
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_90[1][0], _90[1][1])), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
 
 /**
  * Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
  * nothing points into them, the last two again from the values a vector's iterator gives
- * beside them, which std drops, then changed in place, a pair of tags through a pointer to
- * it, and read back.
+ * beside them, which std drops, then again beside the rows of a vector of arrays and the
+ * last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+ * changed in place, a pair of tags through a pointer to it, and read back.
  */
 export function filled$array17_u8_17(data: rt.ByteSlice, fill: Uint8Array[], out: rt.ByteVec): void {
 	let row!: Uint8Array[];
@@ -548,32 +575,57 @@ export function filled$array17_u8_17(data: rt.ByteSlice, fill: Uint8Array[], out
 		rt.ptrWrite(uninit2, [copy$array_array17_u8(row), [17, 90] as [rt.u8, rt.u8]] as [Uint8Array[], [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	for (const byte of rt.byteSliceView(data)) {
-		const _62: rt.usize = rt.usizeRem(byte as rt.usize, 3);
-		if (!(_62 < 3)) {
-			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _62);
+	const rows: Uint8Array[][] = rt.vecFromElem(copy$array_array17_u8(fill), rt.usizeRem(data.length, 4), copy$array_array17_u8);
+	const iter4: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _65: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]] | rt.Done = iter4.next();
+		if (_65 === rt.DONE) {
+			break;
 		}
-		const slot: [Uint8Array[], [rt.u8, rt.u8]] = slots[_62];
+		const uninit3 = _65[0];
+		rt.ptrWrite(uninit3, [copy$array_array17_u8(_65[1]), [17, 17] as [rt.u8, rt.u8]] as [Uint8Array[], [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	const iter5: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterCopied(rt.iterLend(rt.iterSlice(fill), rt.byteSliceFrom), rt.byteSliceToArray), [false, false]);
+	while (true) {
+		const _85: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter5.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		const item2 = copy$array_u8(_85[1]);
+		const uninit4 = _85[0];
+		rt.ptrWrite(uninit4, [Array.from({ length: 17 }, (): Uint8Array => {
+			return copy$array_u8(item2);
+		}), [34, 17] as [rt.u8, rt.u8]] as [Uint8Array[], [rt.u8, rt.u8]]);
+		uninit4;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _103: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_103 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
+		}
+		const slot: [Uint8Array[], [rt.u8, rt.u8]] = slots[_103];
 		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(17, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
 	}
-	for (const _83 of slots) {
-		const _90: [Uint8Array[], [rt.u8, rt.u8]] = _83;
-		rt.iterForEach(rt.iterLend(rt.iterSlice(_90[0]), rt.byteSliceFrom), (v3: rt.ByteSlice): undefined => {
-			put$lengths_Put_array17_u8(v3, out);
+	for (const _124 of slots) {
+		const _131: [Uint8Array[], [rt.u8, rt.u8]] = _124;
+		rt.iterForEach(rt.iterLend(rt.iterSlice(_131[0]), rt.byteSliceFrom), (v4: rt.ByteSlice): undefined => {
+			put$lengths_Put_array17_u8(v4, out);
 		});
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_90[1][0], _90[1][1])), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
 
 /**
  * Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
  * nothing points into them, the last two again from the values a vector's iterator gives
- * beside them, which std drops, then changed in place, a pair of tags through a pointer to
- * it, and read back.
+ * beside them, which std drops, then again beside the rows of a vector of arrays and the
+ * last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+ * changed in place, a pair of tags through a pointer to it, and read back.
  */
 export function filled$array1_u8_1(data: rt.ByteSlice, fill: Uint8Array[], out: rt.ByteVec): void {
 	let row!: Uint8Array[];
@@ -622,32 +674,57 @@ export function filled$array1_u8_1(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		rt.ptrWrite(uninit2, [copy$array_array1_u8(row), [1, 90] as [rt.u8, rt.u8]] as [Uint8Array[], [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	for (const byte of rt.byteSliceView(data)) {
-		const _62: rt.usize = rt.usizeRem(byte as rt.usize, 3);
-		if (!(_62 < 3)) {
-			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _62);
+	const rows: Uint8Array[][] = rt.vecFromElem(copy$array_array1_u8(fill), rt.usizeRem(data.length, 4), copy$array_array1_u8);
+	const iter4: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _65: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]] | rt.Done = iter4.next();
+		if (_65 === rt.DONE) {
+			break;
 		}
-		const slot: [Uint8Array[], [rt.u8, rt.u8]] = slots[_62];
+		const uninit3 = _65[0];
+		rt.ptrWrite(uninit3, [copy$array_array1_u8(_65[1]), [17, 1] as [rt.u8, rt.u8]] as [Uint8Array[], [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	const iter5: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterCopied(rt.iterLend(rt.iterSlice(fill), rt.byteSliceFrom), rt.byteSliceToArray), [false, false]);
+	while (true) {
+		const _85: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter5.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		const item2 = copy$array_u8(_85[1]);
+		const uninit4 = _85[0];
+		rt.ptrWrite(uninit4, [Array.from({ length: 1 }, (): Uint8Array => {
+			return copy$array_u8(item2);
+		}), [34, 1] as [rt.u8, rt.u8]] as [Uint8Array[], [rt.u8, rt.u8]]);
+		uninit4;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _103: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_103 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
+		}
+		const slot: [Uint8Array[], [rt.u8, rt.u8]] = slots[_103];
 		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(1, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
 	}
-	for (const _83 of slots) {
-		const _90: [Uint8Array[], [rt.u8, rt.u8]] = _83;
-		rt.iterForEach(rt.iterLend(rt.iterSlice(_90[0]), rt.byteSliceFrom), (v3: rt.ByteSlice): undefined => {
-			put$lengths_Put_array1_u8(v3, out);
+	for (const _124 of slots) {
+		const _131: [Uint8Array[], [rt.u8, rt.u8]] = _124;
+		rt.iterForEach(rt.iterLend(rt.iterSlice(_131[0]), rt.byteSliceFrom), (v4: rt.ByteSlice): undefined => {
+			put$lengths_Put_array1_u8(v4, out);
 		});
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_90[1][0], _90[1][1])), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
 
 /**
  * Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
  * nothing points into them, the last two again from the values a vector's iterator gives
- * beside them, which std drops, then changed in place, a pair of tags through a pointer to
- * it, and read back.
+ * beside them, which std drops, then again beside the rows of a vector of arrays and the
+ * last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+ * changed in place, a pair of tags through a pointer to it, and read back.
  */
 export function filled$array3_u8_3(data: rt.ByteSlice, fill: Uint8Array[], out: rt.ByteVec): void {
 	let row!: Uint8Array[];
@@ -696,32 +773,57 @@ export function filled$array3_u8_3(data: rt.ByteSlice, fill: Uint8Array[], out: 
 		rt.ptrWrite(uninit2, [copy$array_array3_u8(row), [3, 90] as [rt.u8, rt.u8]] as [Uint8Array[], [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	for (const byte of rt.byteSliceView(data)) {
-		const _62: rt.usize = rt.usizeRem(byte as rt.usize, 3);
-		if (!(_62 < 3)) {
-			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _62);
+	const rows: Uint8Array[][] = rt.vecFromElem(copy$array_array3_u8(fill), rt.usizeRem(data.length, 4), copy$array_array3_u8);
+	const iter4: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _65: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array[]] | rt.Done = iter4.next();
+		if (_65 === rt.DONE) {
+			break;
 		}
-		const slot: [Uint8Array[], [rt.u8, rt.u8]] = slots[_62];
+		const uninit3 = _65[0];
+		rt.ptrWrite(uninit3, [copy$array_array3_u8(_65[1]), [17, 3] as [rt.u8, rt.u8]] as [Uint8Array[], [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	const iter5: rt.Iter<[[Uint8Array[], [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterCopied(rt.iterLend(rt.iterSlice(fill), rt.byteSliceFrom), rt.byteSliceToArray), [false, false]);
+	while (true) {
+		const _85: [[Uint8Array[], [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter5.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		const item2 = copy$array_u8(_85[1]);
+		const uninit4 = _85[0];
+		rt.ptrWrite(uninit4, [Array.from({ length: 3 }, (): Uint8Array => {
+			return copy$array_u8(item2);
+		}), [34, 3] as [rt.u8, rt.u8]] as [Uint8Array[], [rt.u8, rt.u8]]);
+		uninit4;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _103: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_103 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
+		}
+		const slot: [Uint8Array[], [rt.u8, rt.u8]] = slots[_103];
 		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(3, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
 	}
-	for (const _83 of slots) {
-		const _90: [Uint8Array[], [rt.u8, rt.u8]] = _83;
-		rt.iterForEach(rt.iterLend(rt.iterSlice(_90[0]), rt.byteSliceFrom), (v3: rt.ByteSlice): undefined => {
-			put$lengths_Put_array3_u8(v3, out);
+	for (const _124 of slots) {
+		const _131: [Uint8Array[], [rt.u8, rt.u8]] = _124;
+		rt.iterForEach(rt.iterLend(rt.iterSlice(_131[0]), rt.byteSliceFrom), (v4: rt.ByteSlice): undefined => {
+			put$lengths_Put_array3_u8(v4, out);
 		});
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_90[1][0], _90[1][1])), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
 
 /**
  * Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
  * nothing points into them, the last two again from the values a vector's iterator gives
- * beside them, which std drops, then changed in place, a pair of tags through a pointer to
- * it, and read back.
+ * beside them, which std drops, then again beside the rows of a vector of arrays and the
+ * last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+ * changed in place, a pair of tags through a pointer to it, and read back.
  */
 export function filled$lengths_Tagged_u32_0(data: rt.ByteSlice, fill: Tagged.Tagged<rt.u32>[], out: rt.ByteVec): void {
 	let row!: Tagged.Tagged<rt.u32>[];
@@ -765,32 +867,57 @@ export function filled$lengths_Tagged_u32_0(data: rt.ByteSlice, fill: Tagged.Tag
 		rt.ptrWrite(uninit2, [copy$array_lengths_Tagged_u32(row), [0, 90] as [rt.u8, rt.u8]] as [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	for (const byte of rt.byteSliceView(data)) {
-		const _62: rt.usize = rt.usizeRem(byte as rt.usize, 3);
-		if (!(_62 < 3)) {
-			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _62);
+	const rows: Tagged.Tagged<rt.u32>[][] = rt.vecFromElem(copy$array_lengths_Tagged_u32(fill), rt.usizeRem(data.length, 4), copy$array_lengths_Tagged_u32);
+	const iter4: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _65: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]] | rt.Done = iter4.next();
+		if (_65 === rt.DONE) {
+			break;
 		}
-		const slot: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = slots[_62];
+		const uninit3 = _65[0];
+		rt.ptrWrite(uninit3, [copy$array_lengths_Tagged_u32(_65[1]), [17, 0] as [rt.u8, rt.u8]] as [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	const iter5: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(fill), [false, false]);
+	while (true) {
+		const _85: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>] | rt.Done = iter5.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		const v3: Tagged.Tagged<rt.u32> = _85[1];
+		const uninit4 = _85[0];
+		rt.ptrWrite(uninit4, [Array.from({ length: 0 }, (): Tagged.Tagged<rt.u32> => {
+			return v3;
+		}), [34, 0] as [rt.u8, rt.u8]] as [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]);
+		uninit4;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _103: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_103 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
+		}
+		const slot: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = slots[_103];
 		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(0, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
 	}
-	for (const _83 of slots) {
-		const _90: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = _83;
-		rt.iterForEach(rt.iterSlice(_90[0]), (v3: Tagged.Tagged<rt.u32>): undefined => {
-			Tagged.put$lengths_Put_u32(v3, out);
+	for (const _124 of slots) {
+		const _131: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = _124;
+		rt.iterForEach(rt.iterSlice(_131[0]), (v4: Tagged.Tagged<rt.u32>): undefined => {
+			Tagged.put$lengths_Put_u32(v4, out);
 		});
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_90[1][0], _90[1][1])), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
 
 /**
  * Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
  * nothing points into them, the last two again from the values a vector's iterator gives
- * beside them, which std drops, then changed in place, a pair of tags through a pointer to
- * it, and read back.
+ * beside them, which std drops, then again beside the rows of a vector of arrays and the
+ * last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+ * changed in place, a pair of tags through a pointer to it, and read back.
  */
 export function filled$lengths_Tagged_u32_1(data: rt.ByteSlice, fill: Tagged.Tagged<rt.u32>[], out: rt.ByteVec): void {
 	let row!: Tagged.Tagged<rt.u32>[];
@@ -834,32 +961,57 @@ export function filled$lengths_Tagged_u32_1(data: rt.ByteSlice, fill: Tagged.Tag
 		rt.ptrWrite(uninit2, [copy$array_lengths_Tagged_u32(row), [1, 90] as [rt.u8, rt.u8]] as [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	for (const byte of rt.byteSliceView(data)) {
-		const _62: rt.usize = rt.usizeRem(byte as rt.usize, 3);
-		if (!(_62 < 3)) {
-			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _62);
+	const rows: Tagged.Tagged<rt.u32>[][] = rt.vecFromElem(copy$array_lengths_Tagged_u32(fill), rt.usizeRem(data.length, 4), copy$array_lengths_Tagged_u32);
+	const iter4: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _65: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]] | rt.Done = iter4.next();
+		if (_65 === rt.DONE) {
+			break;
 		}
-		const slot: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = slots[_62];
+		const uninit3 = _65[0];
+		rt.ptrWrite(uninit3, [copy$array_lengths_Tagged_u32(_65[1]), [17, 1] as [rt.u8, rt.u8]] as [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	const iter5: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(fill), [false, false]);
+	while (true) {
+		const _85: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>] | rt.Done = iter5.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		const v3: Tagged.Tagged<rt.u32> = _85[1];
+		const uninit4 = _85[0];
+		rt.ptrWrite(uninit4, [Array.from({ length: 1 }, (): Tagged.Tagged<rt.u32> => {
+			return v3;
+		}), [34, 1] as [rt.u8, rt.u8]] as [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]);
+		uninit4;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _103: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_103 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
+		}
+		const slot: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = slots[_103];
 		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(1, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
 	}
-	for (const _83 of slots) {
-		const _90: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = _83;
-		rt.iterForEach(rt.iterSlice(_90[0]), (v3: Tagged.Tagged<rt.u32>): undefined => {
-			Tagged.put$lengths_Put_u32(v3, out);
+	for (const _124 of slots) {
+		const _131: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = _124;
+		rt.iterForEach(rt.iterSlice(_131[0]), (v4: Tagged.Tagged<rt.u32>): undefined => {
+			Tagged.put$lengths_Put_u32(v4, out);
 		});
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_90[1][0], _90[1][1])), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
 
 /**
  * Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
  * nothing points into them, the last two again from the values a vector's iterator gives
- * beside them, which std drops, then changed in place, a pair of tags through a pointer to
- * it, and read back.
+ * beside them, which std drops, then again beside the rows of a vector of arrays and the
+ * last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+ * changed in place, a pair of tags through a pointer to it, and read back.
  */
 export function filled$lengths_Tagged_u32_17(data: rt.ByteSlice, fill: Tagged.Tagged<rt.u32>[], out: rt.ByteVec): void {
 	let row!: Tagged.Tagged<rt.u32>[];
@@ -903,32 +1055,57 @@ export function filled$lengths_Tagged_u32_17(data: rt.ByteSlice, fill: Tagged.Ta
 		rt.ptrWrite(uninit2, [copy$array_lengths_Tagged_u32(row), [17, 90] as [rt.u8, rt.u8]] as [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	for (const byte of rt.byteSliceView(data)) {
-		const _62: rt.usize = rt.usizeRem(byte as rt.usize, 3);
-		if (!(_62 < 3)) {
-			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _62);
+	const rows: Tagged.Tagged<rt.u32>[][] = rt.vecFromElem(copy$array_lengths_Tagged_u32(fill), rt.usizeRem(data.length, 4), copy$array_lengths_Tagged_u32);
+	const iter4: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _65: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]] | rt.Done = iter4.next();
+		if (_65 === rt.DONE) {
+			break;
 		}
-		const slot: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = slots[_62];
+		const uninit3 = _65[0];
+		rt.ptrWrite(uninit3, [copy$array_lengths_Tagged_u32(_65[1]), [17, 17] as [rt.u8, rt.u8]] as [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	const iter5: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(fill), [false, false]);
+	while (true) {
+		const _85: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>] | rt.Done = iter5.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		const v3: Tagged.Tagged<rt.u32> = _85[1];
+		const uninit4 = _85[0];
+		rt.ptrWrite(uninit4, [Array.from({ length: 17 }, (): Tagged.Tagged<rt.u32> => {
+			return v3;
+		}), [34, 17] as [rt.u8, rt.u8]] as [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]);
+		uninit4;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _103: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_103 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
+		}
+		const slot: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = slots[_103];
 		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(17, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
 	}
-	for (const _83 of slots) {
-		const _90: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = _83;
-		rt.iterForEach(rt.iterSlice(_90[0]), (v3: Tagged.Tagged<rt.u32>): undefined => {
-			Tagged.put$lengths_Put_u32(v3, out);
+	for (const _124 of slots) {
+		const _131: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = _124;
+		rt.iterForEach(rt.iterSlice(_131[0]), (v4: Tagged.Tagged<rt.u32>): undefined => {
+			Tagged.put$lengths_Put_u32(v4, out);
 		});
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_90[1][0], _90[1][1])), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
 
 /**
  * Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
  * nothing points into them, the last two again from the values a vector's iterator gives
- * beside them, which std drops, then changed in place, a pair of tags through a pointer to
- * it, and read back.
+ * beside them, which std drops, then again beside the rows of a vector of arrays and the
+ * last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+ * changed in place, a pair of tags through a pointer to it, and read back.
  */
 export function filled$lengths_Tagged_u32_3(data: rt.ByteSlice, fill: Tagged.Tagged<rt.u32>[], out: rt.ByteVec): void {
 	let row!: Tagged.Tagged<rt.u32>[];
@@ -972,32 +1149,57 @@ export function filled$lengths_Tagged_u32_3(data: rt.ByteSlice, fill: Tagged.Tag
 		rt.ptrWrite(uninit2, [copy$array_lengths_Tagged_u32(row), [3, 90] as [rt.u8, rt.u8]] as [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	for (const byte of rt.byteSliceView(data)) {
-		const _62: rt.usize = rt.usizeRem(byte as rt.usize, 3);
-		if (!(_62 < 3)) {
-			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _62);
+	const rows: Tagged.Tagged<rt.u32>[][] = rt.vecFromElem(copy$array_lengths_Tagged_u32(fill), rt.usizeRem(data.length, 4), copy$array_lengths_Tagged_u32);
+	const iter4: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _65: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>[]] | rt.Done = iter4.next();
+		if (_65 === rt.DONE) {
+			break;
 		}
-		const slot: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = slots[_62];
+		const uninit3 = _65[0];
+		rt.ptrWrite(uninit3, [copy$array_lengths_Tagged_u32(_65[1]), [17, 3] as [rt.u8, rt.u8]] as [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	const iter5: rt.Iter<[[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(fill), [false, false]);
+	while (true) {
+		const _85: [[Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]], Tagged.Tagged<rt.u32>] | rt.Done = iter5.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		const v3: Tagged.Tagged<rt.u32> = _85[1];
+		const uninit4 = _85[0];
+		rt.ptrWrite(uninit4, [Array.from({ length: 3 }, (): Tagged.Tagged<rt.u32> => {
+			return v3;
+		}), [34, 3] as [rt.u8, rt.u8]] as [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]]);
+		uninit4;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _103: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_103 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
+		}
+		const slot: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = slots[_103];
 		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(3, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
 	}
-	for (const _83 of slots) {
-		const _90: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = _83;
-		rt.iterForEach(rt.iterSlice(_90[0]), (v3: Tagged.Tagged<rt.u32>): undefined => {
-			Tagged.put$lengths_Put_u32(v3, out);
+	for (const _124 of slots) {
+		const _131: [Tagged.Tagged<rt.u32>[], [rt.u8, rt.u8]] = _124;
+		rt.iterForEach(rt.iterSlice(_131[0]), (v4: Tagged.Tagged<rt.u32>): undefined => {
+			Tagged.put$lengths_Put_u32(v4, out);
 		});
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_90[1][0], _90[1][1])), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
 
 /**
  * Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
  * nothing points into them, the last two again from the values a vector's iterator gives
- * beside them, which std drops, then changed in place, a pair of tags through a pointer to
- * it, and read back.
+ * beside them, which std drops, then again beside the rows of a vector of arrays and the
+ * last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+ * changed in place, a pair of tags through a pointer to it, and read back.
  */
 export function filled$u32_0(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec): void {
 	let row!: rt.u32[];
@@ -1039,32 +1241,57 @@ export function filled$u32_0(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 		rt.ptrWrite(uninit2, [copy$array_u32(row), [0, 90] as [rt.u8, rt.u8]] as [rt.u32[], [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	for (const byte of rt.byteSliceView(data)) {
-		const _62: rt.usize = rt.usizeRem(byte as rt.usize, 3);
-		if (!(_62 < 3)) {
-			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _62);
+	const rows: rt.u32[][] = rt.vecFromElem(copy$array_u32(fill), rt.usizeRem(data.length, 4), copy$array_u32);
+	const iter4: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _65: [[rt.u32[], [rt.u8, rt.u8]], rt.u32[]] | rt.Done = iter4.next();
+		if (_65 === rt.DONE) {
+			break;
 		}
-		const slot: [rt.u32[], [rt.u8, rt.u8]] = slots[_62];
+		const uninit3 = _65[0];
+		rt.ptrWrite(uninit3, [copy$array_u32(_65[1]), [17, 0] as [rt.u8, rt.u8]] as [rt.u32[], [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	const iter5: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(fill), [false, false]);
+	while (true) {
+		const _85: [[rt.u32[], [rt.u8, rt.u8]], rt.u32] | rt.Done = iter5.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		const v3: rt.u32 = _85[1];
+		const uninit4 = _85[0];
+		rt.ptrWrite(uninit4, [Array.from({ length: 0 }, (): rt.u32 => {
+			return v3;
+		}), [34, 0] as [rt.u8, rt.u8]] as [rt.u32[], [rt.u8, rt.u8]]);
+		uninit4;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _103: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_103 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
+		}
+		const slot: [rt.u32[], [rt.u8, rt.u8]] = slots[_103];
 		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(0, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
 	}
-	for (const _83 of slots) {
-		const _90: [rt.u32[], [rt.u8, rt.u8]] = _83;
-		rt.iterForEach(rt.iterSlice(_90[0]), (v3: rt.u32): undefined => {
-			put$lengths_Put_u32(v3, out);
+	for (const _124 of slots) {
+		const _131: [rt.u32[], [rt.u8, rt.u8]] = _124;
+		rt.iterForEach(rt.iterSlice(_131[0]), (v4: rt.u32): undefined => {
+			put$lengths_Put_u32(v4, out);
 		});
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_90[1][0], _90[1][1])), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
 
 /**
  * Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
  * nothing points into them, the last two again from the values a vector's iterator gives
- * beside them, which std drops, then changed in place, a pair of tags through a pointer to
- * it, and read back.
+ * beside them, which std drops, then again beside the rows of a vector of arrays and the
+ * last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+ * changed in place, a pair of tags through a pointer to it, and read back.
  */
 export function filled$u32_1(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec): void {
 	let row!: rt.u32[];
@@ -1106,32 +1333,57 @@ export function filled$u32_1(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 		rt.ptrWrite(uninit2, [copy$array_u32(row), [1, 90] as [rt.u8, rt.u8]] as [rt.u32[], [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	for (const byte of rt.byteSliceView(data)) {
-		const _62: rt.usize = rt.usizeRem(byte as rt.usize, 3);
-		if (!(_62 < 3)) {
-			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _62);
+	const rows: rt.u32[][] = rt.vecFromElem(copy$array_u32(fill), rt.usizeRem(data.length, 4), copy$array_u32);
+	const iter4: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _65: [[rt.u32[], [rt.u8, rt.u8]], rt.u32[]] | rt.Done = iter4.next();
+		if (_65 === rt.DONE) {
+			break;
 		}
-		const slot: [rt.u32[], [rt.u8, rt.u8]] = slots[_62];
+		const uninit3 = _65[0];
+		rt.ptrWrite(uninit3, [copy$array_u32(_65[1]), [17, 1] as [rt.u8, rt.u8]] as [rt.u32[], [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	const iter5: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(fill), [false, false]);
+	while (true) {
+		const _85: [[rt.u32[], [rt.u8, rt.u8]], rt.u32] | rt.Done = iter5.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		const v3: rt.u32 = _85[1];
+		const uninit4 = _85[0];
+		rt.ptrWrite(uninit4, [Array.from({ length: 1 }, (): rt.u32 => {
+			return v3;
+		}), [34, 1] as [rt.u8, rt.u8]] as [rt.u32[], [rt.u8, rt.u8]]);
+		uninit4;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _103: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_103 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
+		}
+		const slot: [rt.u32[], [rt.u8, rt.u8]] = slots[_103];
 		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(1, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
 	}
-	for (const _83 of slots) {
-		const _90: [rt.u32[], [rt.u8, rt.u8]] = _83;
-		rt.iterForEach(rt.iterSlice(_90[0]), (v3: rt.u32): undefined => {
-			put$lengths_Put_u32(v3, out);
+	for (const _124 of slots) {
+		const _131: [rt.u32[], [rt.u8, rt.u8]] = _124;
+		rt.iterForEach(rt.iterSlice(_131[0]), (v4: rt.u32): undefined => {
+			put$lengths_Put_u32(v4, out);
 		});
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_90[1][0], _90[1][1])), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
 
 /**
  * Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
  * nothing points into them, the last two again from the values a vector's iterator gives
- * beside them, which std drops, then changed in place, a pair of tags through a pointer to
- * it, and read back.
+ * beside them, which std drops, then again beside the rows of a vector of arrays and the
+ * last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+ * changed in place, a pair of tags through a pointer to it, and read back.
  */
 export function filled$u32_17(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec): void {
 	let row!: rt.u32[];
@@ -1173,32 +1425,57 @@ export function filled$u32_17(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVe
 		rt.ptrWrite(uninit2, [copy$array_u32(row), [17, 90] as [rt.u8, rt.u8]] as [rt.u32[], [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	for (const byte of rt.byteSliceView(data)) {
-		const _62: rt.usize = rt.usizeRem(byte as rt.usize, 3);
-		if (!(_62 < 3)) {
-			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _62);
+	const rows: rt.u32[][] = rt.vecFromElem(copy$array_u32(fill), rt.usizeRem(data.length, 4), copy$array_u32);
+	const iter4: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _65: [[rt.u32[], [rt.u8, rt.u8]], rt.u32[]] | rt.Done = iter4.next();
+		if (_65 === rt.DONE) {
+			break;
 		}
-		const slot: [rt.u32[], [rt.u8, rt.u8]] = slots[_62];
+		const uninit3 = _65[0];
+		rt.ptrWrite(uninit3, [copy$array_u32(_65[1]), [17, 17] as [rt.u8, rt.u8]] as [rt.u32[], [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	const iter5: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(fill), [false, false]);
+	while (true) {
+		const _85: [[rt.u32[], [rt.u8, rt.u8]], rt.u32] | rt.Done = iter5.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		const v3: rt.u32 = _85[1];
+		const uninit4 = _85[0];
+		rt.ptrWrite(uninit4, [Array.from({ length: 17 }, (): rt.u32 => {
+			return v3;
+		}), [34, 17] as [rt.u8, rt.u8]] as [rt.u32[], [rt.u8, rt.u8]]);
+		uninit4;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _103: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_103 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
+		}
+		const slot: [rt.u32[], [rt.u8, rt.u8]] = slots[_103];
 		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(17, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
 	}
-	for (const _83 of slots) {
-		const _90: [rt.u32[], [rt.u8, rt.u8]] = _83;
-		rt.iterForEach(rt.iterSlice(_90[0]), (v3: rt.u32): undefined => {
-			put$lengths_Put_u32(v3, out);
+	for (const _124 of slots) {
+		const _131: [rt.u32[], [rt.u8, rt.u8]] = _124;
+		rt.iterForEach(rt.iterSlice(_131[0]), (v4: rt.u32): undefined => {
+			put$lengths_Put_u32(v4, out);
 		});
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_90[1][0], _90[1][1])), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
 
 /**
  * Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
  * nothing points into them, the last two again from the values a vector's iterator gives
- * beside them, which std drops, then changed in place, a pair of tags through a pointer to
- * it, and read back.
+ * beside them, which std drops, then again beside the rows of a vector of arrays and the
+ * last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+ * changed in place, a pair of tags through a pointer to it, and read back.
  */
 export function filled$u32_3(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec): void {
 	let row!: rt.u32[];
@@ -1240,32 +1517,57 @@ export function filled$u32_3(data: rt.ByteSlice, fill: rt.u32[], out: rt.ByteVec
 		rt.ptrWrite(uninit2, [copy$array_u32(row), [3, 90] as [rt.u8, rt.u8]] as [rt.u32[], [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	for (const byte of rt.byteSliceView(data)) {
-		const _62: rt.usize = rt.usizeRem(byte as rt.usize, 3);
-		if (!(_62 < 3)) {
-			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _62);
+	const rows: rt.u32[][] = rt.vecFromElem(copy$array_u32(fill), rt.usizeRem(data.length, 4), copy$array_u32);
+	const iter4: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32[]]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _65: [[rt.u32[], [rt.u8, rt.u8]], rt.u32[]] | rt.Done = iter4.next();
+		if (_65 === rt.DONE) {
+			break;
 		}
-		const slot: [rt.u32[], [rt.u8, rt.u8]] = slots[_62];
+		const uninit3 = _65[0];
+		rt.ptrWrite(uninit3, [copy$array_u32(_65[1]), [17, 3] as [rt.u8, rt.u8]] as [rt.u32[], [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	const iter5: rt.Iter<[[rt.u32[], [rt.u8, rt.u8]], rt.u32]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(fill), [false, false]);
+	while (true) {
+		const _85: [[rt.u32[], [rt.u8, rt.u8]], rt.u32] | rt.Done = iter5.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		const v3: rt.u32 = _85[1];
+		const uninit4 = _85[0];
+		rt.ptrWrite(uninit4, [Array.from({ length: 3 }, (): rt.u32 => {
+			return v3;
+		}), [34, 3] as [rt.u8, rt.u8]] as [rt.u32[], [rt.u8, rt.u8]]);
+		uninit4;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _103: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_103 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
+		}
+		const slot: [rt.u32[], [rt.u8, rt.u8]] = slots[_103];
 		rt.sliceRotateLeft(slot[0], rt.usizeRem(byte as rt.usize, rt.max(3, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
 	}
-	for (const _83 of slots) {
-		const _90: [rt.u32[], [rt.u8, rt.u8]] = _83;
-		rt.iterForEach(rt.iterSlice(_90[0]), (v3: rt.u32): undefined => {
-			put$lengths_Put_u32(v3, out);
+	for (const _124 of slots) {
+		const _131: [rt.u32[], [rt.u8, rt.u8]] = _124;
+		rt.iterForEach(rt.iterSlice(_131[0]), (v4: rt.u32): undefined => {
+			put$lengths_Put_u32(v4, out);
 		});
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_90[1][0], _90[1][1])), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
 
 /**
  * Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
  * nothing points into them, the last two again from the values a vector's iterator gives
- * beside them, which std drops, then changed in place, a pair of tags through a pointer to
- * it, and read back.
+ * beside them, which std drops, then again beside the rows of a vector of arrays and the
+ * last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+ * changed in place, a pair of tags through a pointer to it, and read back.
  */
 export function filled$u8_0(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVec): void {
 	let row!: Uint8Array;
@@ -1304,32 +1606,55 @@ export function filled$u8_0(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 		rt.ptrWrite(uninit2, [copy$array_u8(row), [0, 90] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	for (const byte of rt.byteSliceView(data)) {
-		const _62: rt.usize = rt.usizeRem(byte as rt.usize, 3);
-		if (!(_62 < 3)) {
-			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _62);
+	const rows: Uint8Array[] = rt.vecFromElem(copy$array_u8(fill), rt.usizeRem(data.length, 4), copy$array_u8);
+	const iter4: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _65: [[Uint8Array, [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter4.next();
+		if (_65 === rt.DONE) {
+			break;
 		}
-		const slot: [Uint8Array, [rt.u8, rt.u8]] = slots[_62];
+		const uninit3 = _65[0];
+		rt.ptrWrite(uninit3, [copy$array_u8(_65[1]), [17, 0] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	const iter5: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(fill))), [false, false]);
+	while (true) {
+		const _85: [[Uint8Array, [rt.u8, rt.u8]], rt.u8] | rt.Done = iter5.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		const v3: rt.u8 = _85[1];
+		const uninit4 = _85[0];
+		rt.ptrWrite(uninit4, [rt.bytes(0).fill(v3), [34, 0] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
+		uninit4;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _103: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_103 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
+		}
+		const slot: [Uint8Array, [rt.u8, rt.u8]] = slots[_103];
 		rt.byteSliceRotateLeft(rt.byteSliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, rt.max(0, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
 	}
-	for (const _83 of slots) {
-		const _90: [Uint8Array, [rt.u8, rt.u8]] = _83;
-		rt.iterForEach(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(_90[0]))), (v3: rt.u8): undefined => {
-			put$lengths_Put_u8(v3, out);
+	for (const _124 of slots) {
+		const _131: [Uint8Array, [rt.u8, rt.u8]] = _124;
+		rt.iterForEach(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(_131[0]))), (v4: rt.u8): undefined => {
+			put$lengths_Put_u8(v4, out);
 		});
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_90[1][0], _90[1][1])), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
 
 /**
  * Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
  * nothing points into them, the last two again from the values a vector's iterator gives
- * beside them, which std drops, then changed in place, a pair of tags through a pointer to
- * it, and read back.
+ * beside them, which std drops, then again beside the rows of a vector of arrays and the
+ * last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+ * changed in place, a pair of tags through a pointer to it, and read back.
  */
 export function filled$u8_1(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVec): void {
 	let row!: Uint8Array;
@@ -1368,32 +1693,55 @@ export function filled$u8_1(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 		rt.ptrWrite(uninit2, [copy$array_u8(row), [1, 90] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	for (const byte of rt.byteSliceView(data)) {
-		const _62: rt.usize = rt.usizeRem(byte as rt.usize, 3);
-		if (!(_62 < 3)) {
-			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _62);
+	const rows: Uint8Array[] = rt.vecFromElem(copy$array_u8(fill), rt.usizeRem(data.length, 4), copy$array_u8);
+	const iter4: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _65: [[Uint8Array, [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter4.next();
+		if (_65 === rt.DONE) {
+			break;
 		}
-		const slot: [Uint8Array, [rt.u8, rt.u8]] = slots[_62];
+		const uninit3 = _65[0];
+		rt.ptrWrite(uninit3, [copy$array_u8(_65[1]), [17, 1] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	const iter5: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(fill))), [false, false]);
+	while (true) {
+		const _85: [[Uint8Array, [rt.u8, rt.u8]], rt.u8] | rt.Done = iter5.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		const v3: rt.u8 = _85[1];
+		const uninit4 = _85[0];
+		rt.ptrWrite(uninit4, [rt.bytes(1).fill(v3), [34, 1] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
+		uninit4;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _103: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_103 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
+		}
+		const slot: [Uint8Array, [rt.u8, rt.u8]] = slots[_103];
 		rt.byteSliceRotateLeft(rt.byteSliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, rt.max(1, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
 	}
-	for (const _83 of slots) {
-		const _90: [Uint8Array, [rt.u8, rt.u8]] = _83;
-		rt.iterForEach(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(_90[0]))), (v3: rt.u8): undefined => {
-			put$lengths_Put_u8(v3, out);
+	for (const _124 of slots) {
+		const _131: [Uint8Array, [rt.u8, rt.u8]] = _124;
+		rt.iterForEach(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(_131[0]))), (v4: rt.u8): undefined => {
+			put$lengths_Put_u8(v4, out);
 		});
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_90[1][0], _90[1][1])), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
 
 /**
  * Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
  * nothing points into them, the last two again from the values a vector's iterator gives
- * beside them, which std drops, then changed in place, a pair of tags through a pointer to
- * it, and read back.
+ * beside them, which std drops, then again beside the rows of a vector of arrays and the
+ * last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+ * changed in place, a pair of tags through a pointer to it, and read back.
  */
 export function filled$u8_17(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVec): void {
 	let row!: Uint8Array;
@@ -1432,32 +1780,55 @@ export function filled$u8_17(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteV
 		rt.ptrWrite(uninit2, [copy$array_u8(row), [17, 90] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	for (const byte of rt.byteSliceView(data)) {
-		const _62: rt.usize = rt.usizeRem(byte as rt.usize, 3);
-		if (!(_62 < 3)) {
-			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _62);
+	const rows: Uint8Array[] = rt.vecFromElem(copy$array_u8(fill), rt.usizeRem(data.length, 4), copy$array_u8);
+	const iter4: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _65: [[Uint8Array, [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter4.next();
+		if (_65 === rt.DONE) {
+			break;
 		}
-		const slot: [Uint8Array, [rt.u8, rt.u8]] = slots[_62];
+		const uninit3 = _65[0];
+		rt.ptrWrite(uninit3, [copy$array_u8(_65[1]), [17, 17] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	const iter5: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(fill))), [false, false]);
+	while (true) {
+		const _85: [[Uint8Array, [rt.u8, rt.u8]], rt.u8] | rt.Done = iter5.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		const v3: rt.u8 = _85[1];
+		const uninit4 = _85[0];
+		rt.ptrWrite(uninit4, [rt.bytes(17).fill(v3), [34, 17] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
+		uninit4;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _103: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_103 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
+		}
+		const slot: [Uint8Array, [rt.u8, rt.u8]] = slots[_103];
 		rt.byteSliceRotateLeft(rt.byteSliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, rt.max(17, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
 	}
-	for (const _83 of slots) {
-		const _90: [Uint8Array, [rt.u8, rt.u8]] = _83;
-		rt.iterForEach(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(_90[0]))), (v3: rt.u8): undefined => {
-			put$lengths_Put_u8(v3, out);
+	for (const _124 of slots) {
+		const _131: [Uint8Array, [rt.u8, rt.u8]] = _124;
+		rt.iterForEach(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(_131[0]))), (v4: rt.u8): undefined => {
+			put$lengths_Put_u8(v4, out);
 		});
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_90[1][0], _90[1][1])), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
 
 /**
  * Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
  * nothing points into them, the last two again from the values a vector's iterator gives
- * beside them, which std drops, then changed in place, a pair of tags through a pointer to
- * it, and read back.
+ * beside them, which std drops, then again beside the rows of a vector of arrays and the
+ * last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+ * changed in place, a pair of tags through a pointer to it, and read back.
  */
 export function filled$u8_3(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVec): void {
 	let row!: Uint8Array;
@@ -1496,24 +1867,46 @@ export function filled$u8_3(data: rt.ByteSlice, fill: Uint8Array, out: rt.ByteVe
 		rt.ptrWrite(uninit2, [copy$array_u8(row), [3, 90] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
 		uninit2;
 	}
-	for (const byte of rt.byteSliceView(data)) {
-		const _62: rt.usize = rt.usizeRem(byte as rt.usize, 3);
-		if (!(_62 < 3)) {
-			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _62);
+	const rows: Uint8Array[] = rt.vecFromElem(copy$array_u8(fill), rt.usizeRem(data.length, 4), copy$array_u8);
+	const iter4: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _65: [[Uint8Array, [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter4.next();
+		if (_65 === rt.DONE) {
+			break;
 		}
-		const slot: [Uint8Array, [rt.u8, rt.u8]] = slots[_62];
+		const uninit3 = _65[0];
+		rt.ptrWrite(uninit3, [copy$array_u8(_65[1]), [17, 3] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	const iter5: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(fill))), [false, false]);
+	while (true) {
+		const _85: [[Uint8Array, [rt.u8, rt.u8]], rt.u8] | rt.Done = iter5.next();
+		if (_85 === rt.DONE) {
+			break;
+		}
+		const v3: rt.u8 = _85[1];
+		const uninit4 = _85[0];
+		rt.ptrWrite(uninit4, [rt.bytes(3).fill(v3), [34, 3] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
+		uninit4;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _103: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_103 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _103);
+		}
+		const slot: [Uint8Array, [rt.u8, rt.u8]] = slots[_103];
 		rt.byteSliceRotateLeft(rt.byteSliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, rt.max(3, 1)));
 		const tags: [rt.u8, rt.u8] = slot[1];
 		tags[0] = tags[0] ^ byte;
 		tags[1] = rt.u8WrappingAdd(tags[1], byte);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
 	}
-	for (const _83 of slots) {
-		const _90: [Uint8Array, [rt.u8, rt.u8]] = _83;
-		rt.iterForEach(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(_90[0]))), (v3: rt.u8): undefined => {
-			put$lengths_Put_u8(v3, out);
+	for (const _124 of slots) {
+		const _131: [Uint8Array, [rt.u8, rt.u8]] = _124;
+		rt.iterForEach(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(_131[0]))), (v4: rt.u8): undefined => {
+			put$lengths_Put_u8(v4, out);
 		});
-		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_90[1][0], _90[1][1])), undefined, true);
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(_131[1][0], _131[1][1])), undefined, true);
 	}
 }
 
@@ -2136,6 +2529,75 @@ export function loud(data: rt.ByteSlice, out: rt.ByteVec): void {
 		const b3: rt.u8 = _104._1[1];
 		Loud.put$lengths_Put(value3, out);
 		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(a3, b3)), undefined, true);
+	}
+}
+
+/**
+ * [`filled`]'s zips in a body generic over none: slots of rows of bytes written whole
+ * beside rows collected from `data`, beside a row repeated by `vec!`, and beside a row's
+ * bytes copied, then their tags changed through a pointer and each slot read back.
+ */
+export function zipped(data: rt.ByteSlice, out: rt.ByteVec): void {
+	const fill: Uint8Array = rt.bytesFromFn(3, (i: rt.usize): rt.u8 => {
+		return option_unwrapOr$0r2bmpr(rt.byteSliceGet(data, i), i & 0xff);
+	});
+	const rows: Uint8Array[] = rt.iterToArray(rt.iterMap(rt.byteSliceChunks(data, 2), (c: rt.ByteSlice): Uint8Array => {
+		rt.idx(c, 0);
+		const _36: rt.u8 = c.data[c.start];
+		rt.idx(c, 0);
+		return Uint8Array.of(_36, ~c.data[c.start] & 0xff, c.length & 0xff);
+	}), undefined, 3, true);
+	const item = copy$mem_MaybeUninit_tuple2_array3_u8_tuple2_u8_u8([copy$array_u8(fill), [1, 2] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
+	const slots: [Uint8Array, [rt.u8, rt.u8]][] = Array.from({ length: 3 }, (): [Uint8Array, [rt.u8, rt.u8]] => {
+		return copy$mem_MaybeUninit_tuple2_array3_u8_tuple2_u8_u8(item);
+	});
+	const iter: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(rt.iterSlice(slots), rt.iterSlice(rows), "index");
+	while (true) {
+		const _18: [[Uint8Array, [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter.next();
+		if (_18 === rt.DONE) {
+			break;
+		}
+		const uninit = _18[0];
+		rt.ptrWrite(uninit, [copy$array_u8(_18[1]), [51, 3] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
+		uninit;
+	}
+	const _28: rt.Iter<[Uint8Array, [rt.u8, rt.u8]]> = rt.iterSkip(rt.iterSlice(slots), 1);
+	const _33: rt.usize = rt.usizeRem(data.length, 3);
+	const iter2: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], Uint8Array]> = rt.iterZip(_28, rt.iterSlice(rt.vecFromElem(copy$array_u8(fill), _33, copy$array_u8)), "index");
+	while (true) {
+		const _37: [[Uint8Array, [rt.u8, rt.u8]], Uint8Array] | rt.Done = iter2.next();
+		if (_37 === rt.DONE) {
+			break;
+		}
+		const uninit2 = _37[0];
+		rt.ptrWrite(uninit2, [copy$array_u8(_37[1]), [68, 3] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
+		uninit2;
+	}
+	const iter3: rt.Iter<[[Uint8Array, [rt.u8, rt.u8]], rt.u8]> = rt.iterZip(rt.iterSkip(rt.iterSlice(slots), 2), rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(fill))), [false, false]);
+	while (true) {
+		const _56: [[Uint8Array, [rt.u8, rt.u8]], rt.u8] | rt.Done = iter3.next();
+		if (_56 === rt.DONE) {
+			break;
+		}
+		const v: rt.u8 = _56[1];
+		const uninit3 = _56[0];
+		rt.ptrWrite(uninit3, [rt.bytes(3).fill(v), [85, v] as [rt.u8, rt.u8]] as [Uint8Array, [rt.u8, rt.u8]]);
+		uninit3;
+	}
+	for (const byte of rt.byteSliceView(data)) {
+		const _73: rt.usize = rt.usizeRem(byte as rt.usize, 3);
+		if (!(_73 < 3)) {
+			rt.panic("index out of bounds: the len is " + 3 + " but the index is " + _73);
+		}
+		const slot: [Uint8Array, [rt.u8, rt.u8]] = slots[_73];
+		rt.byteSliceRotateLeft(rt.byteSliceFrom(slot[0]), rt.usizeRem(byte as rt.usize, 3));
+		const tags: [rt.u8, rt.u8] = slot[1];
+		tags[0] = tags[0] ^ byte;
+		rt.iterExtendBytes(out, rt.iterSlice(Uint8Array.of(tags[0], tags[1])), undefined, true);
+	}
+	for (const _91 of slots) {
+		const _98: [Uint8Array, [rt.u8, rt.u8]] = _91;
+		rt.iterExtendBytes(out, rt.iterChain(rt.iterSlice(rt.byteSliceView(rt.byteSliceFrom(_98[0]))), rt.iterSlice([_98[1][0], _98[1][1]])), undefined, true);
 	}
 }
 
