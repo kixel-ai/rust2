@@ -9,7 +9,6 @@ roots = [
     "alloc::zeroed",
     "bound_ranges",
     "buffers::blank_bytes",
-    "buffers::bytes_mut_spare",
     "buffers::capacity_reads",
     "buffers::owned_bytes",
     "buffers::shared",

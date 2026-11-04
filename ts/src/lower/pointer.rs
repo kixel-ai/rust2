@@ -215,13 +215,18 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// What a `MaybeUninit<ty>` that holds nothing yet is, untyped.
 	pub fn shell(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
+		// A `MaybeUninit<u8>` is 0, as a typed array's bytes are before a write, so it is never
+		// `undefined`.
+		if !ty.is_integral() && super::byte(ty) {
+			return Expr::lit("0");
+		}
 		let ty = self.uninit_inner(ty);
 		match (self.pointee(ty), ty.kind()) {
 			(Pointee::Object, ty::Tuple(tys)) => Expr::Array(tys.iter().map(|t| self.shell(t, span)).collect()),
 			(Pointee::Object | Pointee::Bytes, ty::Array(elem, len)) => {
 				let len = Expr::lit(len.try_to_target_usize(self.tcx).unwrap_or(0).to_string());
-				match (elem.kind(), self.pointee(*elem)) {
-					(ty::Uint(ty::UintTy::U8), _) => Expr::New(Box::new(Expr::ident("Uint8Array")), vec![len]),
+				match (super::byte(*elem), self.pointee(*elem)) {
+					(true, _) => Expr::New(Box::new(Expr::ident("Uint8Array")), vec![len]),
 					(_, Pointee::Place) => Expr::New(Box::new(Expr::ident("Array")), vec![len]),
 					(_, Pointee::Object | Pointee::Bytes | Pointee::Slice) => {
 						let elem_ty = self.ty(*elem, span);
@@ -760,7 +765,7 @@ pub fn call<'tcx>(
 				_ => same.not(),
 			}
 		}
-		("MaybeUninit", "uninit") => b.t.uninit(pointee(), span),
+		("MaybeUninit", "uninit") => b.t.uninit(Ty::new_maybe_uninit(b.t.tcx, pointee()), span),
 		// A shared reference to a value JS copies is the value, which no write changes.
 		("MaybeUninit", "as_ptr") if kind(b, pointee()) == Some(Pointee::Place) => {
 			Expr::Object(vec![(crate::ts::Key::Name("v".into()), arg())])
@@ -810,8 +815,7 @@ pub fn call<'tcx>(
 			if let Some(why) = unmodeled(b, elem, "a pointer into") {
 				return Ok(Some(b.err(span, why)));
 			}
-			let byte = matches!(elem.kind(), ty::Uint(ty::UintTy::U8));
-			match (owner, byte) {
+			match (owner, super::byte(elem)) {
 				("slice", true) => Expr::rt("byteSliceAsPtr", vec![s]),
 				("Vec", true) => Expr::rt("byteVecAsPtr", vec![s]),
 				_ => Expr::rt("sliceAsPtr", vec![s]),
@@ -895,7 +899,7 @@ pub fn call<'tcx>(
 				// A raw pointer to a slice is where it starts and how long it is, which
 				// nothing checks until a read through it.
 				None if owner != "raw" => Expr::New(Box::new(Expr::Rt("RawSlice".into())), vec![p, len]),
-				None if matches!(pointee().kind(), ty::Uint(ty::UintTy::U8)) => {
+				None if super::byte(pointee()) => {
 					let shared = name == "from_raw_parts";
 					Expr::rt("ptrByteSlice", vec![p, len, Expr::lit(shared.to_string())])
 				}
@@ -1091,9 +1095,9 @@ fn write<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, value: Expr, ty: Ty<'tcx>, s
 	}
 }
 
-/// Whether `ty` is `[u8]`, whose slices are `rt.ByteSlice`s.
+/// Whether `ty` is `[u8]`, or one of `MaybeUninit<u8>`, whose slices are `rt.ByteSlice`s.
 pub fn slice_of_bytes(ty: Ty<'_>) -> bool {
-	matches!(ty.kind(), ty::Slice(elem) if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)))
+	matches!(ty.kind(), ty::Slice(elem) if super::byte(*elem))
 }
 
 /// Whether pointers `x` and `y` to `ty` point at the same place: the same object or
