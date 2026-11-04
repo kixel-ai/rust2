@@ -650,6 +650,16 @@ fn iter_debug<'tcx>(
 			let debug = b.fmt_fn(Trait::Debug, args.types().next()?, span);
 			return Some(call("fmtListExtractIf", vec![debug]));
 		}
+		// The entry it reads next, of a set its key.
+		["collections", "btree", map @ ("map" | "set"), "ExtractIf"] => {
+			let mut types = args.types();
+			let debug = b.fmt_fn(Trait::Debug, types.next()?, span);
+			let value = match *map == "map" {
+				true => vec![b.fmt_fn(Trait::Debug, types.next()?, span)],
+				false => Vec::new(),
+			};
+			return Some(call("fmtBTreeExtractIf", [vec![debug], value].concat()));
+		}
 		["iter", "sources", "from_fn", "FromFn"] => return write("FromFn".into()),
 		["iter", "sources", "once_with", "OnceWith"] => return Some(call("fmtOnceWith", Vec::new())),
 		["iter", "sources", "repeat", "Repeat"] | ["iter", "sources", "repeat_n", "RepeatN"] => {

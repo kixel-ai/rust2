@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- `rt.boundsOf` returns a record of the range's `startBound` and `endBound`, each read as
+  it is called, rather than a function reading both, which `rt.Bounds` takes as before.
 - `rt.ArcWaker` is gone: `Waker::from(arc)` is `rt.arcWaker(arc, wake, drop, wakeByRef?)`.
   An `rt.WakerVTable` is the record of the four functions std's `RawWakerVTable` holds,
   `clone`, `wake`, `wakeByRef`, and `drop`, each called on a waker's `data`, so a

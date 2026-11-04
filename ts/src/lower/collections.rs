@@ -429,7 +429,10 @@ pub fn place_call<'tcx>(b: &Body<'_, '_, 'tcx>, call: &Call<'tcx>) -> bool {
 		Std::HashMap => (&["get_mut", "iter_mut", "values_mut", "retain", "extract_if"], 1),
 		Std::HashTable => (&["find_mut", "iter_mut", "retain"], 0),
 		Std::TableEntry => (&["get_mut", "into_mut", "and_modify"], 0),
-		Std::BTreeMap => (&["get_mut", "iter_mut", "values_mut", "range_mut", "retain"], 1),
+		Std::BTreeMap => (
+			&["get_mut", "iter_mut", "values_mut", "range_mut", "retain", "extract_if"],
+			1,
+		),
 		Std::Entry if is_vacant(b, coll) => (&["insert"], 1),
 		Std::Entry => (
 			&[
@@ -1334,6 +1337,25 @@ fn btree<'tcx>(
 			values.push(eq_fn(b, target, span));
 			values.push(test_fn(b, target, "gt", span));
 		}
+	}
+	// It holds the range, reads its end at each key it reads, and checks each key against
+	// the end by `<=` or `<`, which a key of the crate's own does by its `PartialOrd`.
+	if name == "extract_if" {
+		let f = values.pop()?;
+		let range = bounds(b, call, values.pop()?);
+		let tests = match key.walk().filter_map(|arg| arg.as_type()).any(|t| local(b, t)) {
+			true => vec![test_fn(b, key, "le", span), test_fn(b, key, "lt", span)],
+			false => vec![Expr::undefined(), Expr::undefined()],
+		};
+		let name = match set {
+			true => "btreeExtractKeysIf",
+			false if b.t.needs_place(arg(coll, 1)) => "btreeExtractIfMut",
+			false => "btreeExtractIf",
+		};
+		return Some(range.held(|bounds, drop| {
+			values.extend([bounds, f]);
+			Expr::rt(name, super::iter::tail(values, [tests, vec![drop]].concat()))
+		}));
 	}
 	let none = library::sentinel_option(b.t, call).is_some();
 	let last = |values: Vec<Expr>| flagged(values, true, none);
@@ -2674,6 +2696,17 @@ impl Ranged {
 		};
 		let call = Expr::Lambda(vec![Param { name, ty: None }], Box::new(e));
 		Expr::rt("dropAfter", vec![range, call, drop])
+	}
+
+	/// `call` of the bounds and what drops the range, for a call whose result holds the
+	/// range and drops it as it drops: a range that drops, read once, and else `undefined`.
+	pub fn held(self, call: impl FnOnce(Expr, Expr) -> Expr) -> Expr {
+		let Some((range, name, drop)) = self.dropped else {
+			return call(self.bounds, Expr::undefined());
+		};
+		let dropper = Expr::Lambda(Vec::new(), Box::new(drop.call(vec![Expr::ident(&name)])));
+		let e = call(self.bounds, dropper);
+		Expr::Lambda(vec![Param { name, ty: None }], Box::new(e)).call(vec![range])
 	}
 
 	/// The bounds, for a call that checks more once `slice::range` has checked them within
