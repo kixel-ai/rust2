@@ -3,13 +3,16 @@
 //! parameter; `binary_search`, by a closure and by a key, and `partition_point` over runs
 //! of equal elements; `size_of_val` and `align_of_val`; slices, arrays, and cells of one
 //! value, written through; arrays as slices by `AsRef`, `AsMut`, `Borrow`, and
-//! `BorrowMut`, and `Vec`s by those and as themselves; `clone_from` of boxes; and raw
-//! pointers of references. Each is generic over the value, run for numbers JS copies,
+//! `BorrowMut`, and `Vec`s by those and as themselves; std's impls on references, which
+//! `AsRef`, `AsMut`, and the comparisons forward to what they point at and `Deref` and
+//! `Borrow` lend; `clone_from` of boxes; and raw pointers of references. Each is generic
+//! over the value, run for numbers JS copies,
 //! strings, `Option`s, arrays and `Vec`s of bytes and of numbers, a struct, and one that
 //! logs its clones and drops.
 
 use std::borrow::{Borrow, BorrowMut};
 use std::cell::{Cell, RefCell};
+use std::ops::Deref;
 use std::rc::Rc;
 
 /// A value made from the case's bytes, put back as bytes.
@@ -228,24 +231,47 @@ struct Held<T> {
 }
 
 /// Runs each conversion of the type `kind` picks, but a slice of one `u8`, whose `&mut`
-/// no slice can view, and [`searched`] of those that order.
+/// no slice can view, and [`searched`] of those that order; and [`referenced`] of one
+/// type of each form JS keeps a value in.
 pub fn conversions(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	match kind % 14 {
-		0 => ordered::<u32>(data, out),
-		1 => ordered::<u64>(data, out),
-		2 => ordered::<String>(data, out),
-		3 => ordered::<Option<u16>>(data, out),
+		0 => {
+			ordered::<u32>(data, out);
+			referenced::<u32>(data, out);
+		}
+		1 => {
+			ordered::<u64>(data, out);
+			referenced::<u64>(data, out);
+		}
+		2 => {
+			ordered::<String>(data, out);
+			referenced::<String>(data, out);
+		}
+		3 => {
+			ordered::<Option<u16>>(data, out);
+			referenced::<Option<u16>>(data, out);
+		}
 		4 => ordered::<[u8; 0]>(data, out),
 		5 => ordered::<[u8; 1]>(data, out),
-		6 => ordered::<[u8; 3]>(data, out),
+		6 => {
+			ordered::<[u8; 3]>(data, out);
+			referenced::<[u8; 3]>(data, out);
+		}
 		7 => ordered::<[u8; 40]>(data, out),
 		8 => ordered::<[u32; 2]>(data, out),
-		9 => ordered::<Named>(data, out),
+		9 => {
+			ordered::<Named>(data, out);
+			referenced::<Named>(data, out);
+		}
 		10 => ordered::<Vec<u32>>(data, out),
-		11 => ordered::<Vec<u8>>(data, out),
+		11 => {
+			ordered::<Vec<u8>>(data, out);
+			referenced::<Vec<u8>>(data, out);
+		}
 		12 => {
 			converted::<u8>(data, out);
 			searched::<u8>(data, out);
+			referenced::<u8>(data, out);
 		}
 		_ => {
 			// What an earlier case dropped at its end, which JS runs on after.
@@ -254,9 +280,11 @@ pub fn conversions(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			lent_one::<Logged>(data, out);
 			lent_through::<Logged>(data, out);
 			searched::<Logged>(data, out);
+			referenced::<Logged>(data, out);
 		}
 	}
 	measured(data, out);
+	referenced_bytes(data, out);
 	pointed(data, out);
 	boxed_kept(data, out);
 }
@@ -621,4 +649,108 @@ fn pointed(data: &[u8], out: &mut Vec<u8>) {
 	out.extend_from_slice(&a);
 	let one = std::array::from_ref(&a[1]);
 	out.extend_from_slice(one);
+}
+
+/// std's impls on references, reached by generic functions: `AsRef` and `AsMut` of
+/// slices, arrays, and `Vec`s through `&`, `&mut`, and a reference to either, which
+/// forward to what each points at; `Deref`, `Borrow`, and `BorrowMut` of a `&` and a
+/// `&mut`, which lend what it points at; and the comparisons of references to elements and to slices.
+fn referenced<T: Value + Ord>(data: &[u8], out: &mut Vec<u8>) {
+	let mut array = [T::make(data, 13), T::make(data, 14), T::make(data, 15)];
+	let mut list = vec![T::make(data, 16), T::make(data, 17)];
+	read_as(&array[..], out);
+	read_as(&&array[1..], out);
+	read_as(&array, out);
+	read_as(&list, out);
+	read_as(&mut list, out);
+	read_as(&&mut list, out);
+	write_as(&mut array[..], T::make(data, 18));
+	write_as(&mut array, T::make(data, 19));
+	write_as(&mut list, T::make(data, 20));
+	write_as(&mut &mut list, T::make(data, 21));
+	deref_put(&array[0], out);
+	deref_put(&mut list[0], out);
+	borrow_put::<T, _>(&array[1], out);
+	borrow_put::<T, _>(&mut list[1], out);
+	borrow_write(&mut list[1], T::make(data, 24));
+	borrow_write(&mut array[1], T::make(data, 25));
+	compared(&array[0], &array[1], out).put(out);
+	compared(&&list[1], &&array[2], out).put(out);
+	compared(&mut T::make(data, 22), &mut T::make(data, 23), out).put(out);
+	let max = compared(&array[..], &list[..], out);
+	out.push(max.len() as u8);
+	for x in array.iter().chain(&list) {
+		x.put(out);
+	}
+}
+
+/// Bytes through `AsRef<[u8]>` and text through `AsRef<str>` of strings, slices, and
+/// `Vec`s behind `&`, `&mut`, and a reference to one, as moq's buffers reach them.
+fn referenced_bytes(data: &[u8], out: &mut Vec<u8>) {
+	let mut text: String = data.iter().take(4).map(|&b| char::from(b)).collect();
+	let mut bytes = data.to_vec();
+	read_bytes(text.as_str(), out);
+	read_bytes(&text, out);
+	read_bytes(&mut text, out);
+	read_bytes(&&*text, out);
+	read_bytes(data, out);
+	read_bytes(&data, out);
+	read_bytes(&bytes, out);
+	read_bytes(&mut bytes, out);
+	read_str(text.as_str(), out);
+	read_str(&text, out);
+	read_str(&&mut text, out);
+}
+
+/// What `b` reads as a slice: its length, then each element.
+fn read_as<T: Value, B: AsRef<[T]>>(b: B, out: &mut Vec<u8>) {
+	let s = b.as_ref();
+	out.push(s.len() as u8);
+	for x in s {
+		x.put(out);
+	}
+}
+
+/// Writes `value` over the last element of what `b` lends as a slice.
+fn write_as<T: Value, B: AsMut<[T]>>(mut b: B, value: T) {
+	if let Some(last) = b.as_mut().last_mut() {
+		*last = value;
+	}
+}
+
+/// What `b` derefs to, by `deref` and by `*`.
+fn deref_put<T: Value, B: Deref<Target = T>>(b: B, out: &mut Vec<u8>) {
+	b.deref().put(out);
+	(*b).put(out);
+}
+
+/// What `b` lends by `borrow`.
+fn borrow_put<T: Value, B: Borrow<T>>(b: B, out: &mut Vec<u8>) {
+	b.borrow().put(out);
+}
+
+/// Writes `value` over what `b` lends by `borrow_mut`.
+fn borrow_write<T: Value, B: BorrowMut<T>>(mut b: B, value: T) {
+	*b.borrow_mut() = value;
+}
+
+/// Each comparison of `a` with `b`, and the greater.
+fn compared<A: Ord>(a: A, b: A, out: &mut Vec<u8>) -> A {
+	let order = [a == b, a != b, a < b, a <= b, a > b, a >= b];
+	out.extend(order.map(u8::from));
+	out.push(a.cmp(&b) as u8);
+	out.push(a.partial_cmp(&b).map_or(9, |o| o as u8));
+	a.max(b)
+}
+
+/// The bytes `b` reads as.
+fn read_bytes<B: AsRef<[u8]>>(b: B, out: &mut Vec<u8>) {
+	out.push(b.as_ref().len() as u8);
+	out.extend_from_slice(b.as_ref());
+}
+
+/// The text `s` reads as, as bytes.
+fn read_str<S: AsRef<str>>(s: S, out: &mut Vec<u8>) {
+	out.push(s.as_ref().len() as u8);
+	out.extend_from_slice(s.as_ref().as_bytes());
 }

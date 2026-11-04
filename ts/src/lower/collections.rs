@@ -71,16 +71,24 @@ pub fn call<'tcx>(
 				return Ok(Some(f.call(args)));
 			}
 			// `Ord`'s defaults, of a std type or the crate's, which compare by `PartialOrd`'s `<`,
-			// `<=`, and `>`.
+			// `<=`, and `>`, and of `&mut`s to values JS copies, their `rs.Place`s, by what they
+			// hold, as std's impls for a `&mut` forward them.
 			("Ord", "max" | "min" | "clamp", ..) if let Some(t) = self_ty => {
-				let t = peel_ord(b, t, false);
+				let held = b.t.place_pointee(t);
+				let t = peel_ord(b, held.unwrap_or(t), false);
 				let own = matches!(t.kind(), ty::Adt(adt, _) if b.t.own(adt.did())) || pointee(b, t).is_some();
-				if !(std_key(b, t) || own) || Int::of(t).is_some() {
+				if !(std_key(b, t) || own) || held.is_none() && Int::of(t).is_some() {
 					return Err(args);
 				}
 				let tests: &[&str] = if name == "clamp" { &["le", "lt", "gt"] } else { &["lt"] };
 				let mut values = args;
-				values.extend(tests.iter().map(|test| test_fn(b, t, test, span)));
+				for test in tests {
+					let f = test_fn(b, t, test, span);
+					values.push(match held {
+						Some(_) => Expr::rs("cellBy", vec![f]),
+						None => f,
+					});
+				}
 				// What drops the operands it does not return.
 				let Some(droppers) = b.t.droppers(self_ty, span) else {
 					return Ok(Some(Expr::undefined()));
@@ -155,9 +163,15 @@ pub fn call<'tcx>(
 			}
 			("Borrow", "borrow", ..) | ("BorrowMut", "borrow_mut", ..) if let Some(t) = self_ty => {
 				let by = library::targ(call.args, 1);
-				let value = match (same_key(b, t, by), arc_of(b, peel(b, t))) {
-					(true, _) => args.pop(),
-					(false, Some(inner)) if same_key(b, inner, by) => args.pop().map(|v| v.member("value")),
+				let value = match (same_key(b, t, by), arc_of(b, peel(b, t)), b.t.place_pointee(t)) {
+					(true, ..) => args.pop(),
+					(false, Some(inner), _) if same_key(b, inner, by) => args.pop().map(|v| v.member("value")),
+					// A `&mut` to a value JS copies, its `rs.Place`: what it holds for `borrow`, and
+					// itself for `borrow_mut`, whose receiver is given as what it points at.
+					(false, _, Some(inner)) if same_key(b, inner, by) => args.pop().map(|place| match name {
+						"borrow" => b.t.pointee_value(t, place),
+						_ => place,
+					}),
 					_ => return Err(args),
 				};
 				return Ok(value);
