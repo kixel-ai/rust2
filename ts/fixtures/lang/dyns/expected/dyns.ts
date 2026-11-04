@@ -2520,7 +2520,7 @@ export function generics(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const tasks: rs.Vec<Task.Task<undefined>> = rs.vecFrom([new of$dyns_Steps({ _0: 1, _1: a as rs.u32 })]);
 		const square: Task.Task<rs.u32> = new of$dyns_Square({ side: c as rs.u16 });
 		tasks.items[rs.idx(tasks.items, 0)].run$Task();
-		const ran: rs.usize = rs.iterCount(rs.iterMap(rs.iterSliceMut(tasks.items), (t: rs.Place<Task.Task<undefined>>): undefined => {
+		const ran: rs.usize = rs.iterCount(rs.iterMap(rs.iterSliceMut(rs.sliceFrom(tasks.items)), (t: rs.Place<Task.Task<undefined>>): undefined => {
 			t.v.run$Task();
 		}));
 		const _408: rs.u32 = square.run$Task();
