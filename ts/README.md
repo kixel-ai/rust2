@@ -183,7 +183,9 @@ A program that reaches `set_hook` has each panic carry the `Location` native cod
 it, std's own at the `/rustc/<commit>/library/...` path its build names, read from the
 toolchain's source, and runs its hook with a `PanicHookInfo` before throwing; a panic in
 the hook throws `rt.Abort`, as std aborts. The default hook writes nothing, as wasm32 has
-no stderr. A program without one passes no locations, so its output is unchanged.
+no stderr. A program without one passes no locations, and a bundler drops the hook's
+runtime, `rt/hook.ts`, from it; what stays is the location parameter of the runtime's
+panicking functions, which it leaves unset.
 
 `Location::caller` gives rustc's location: the file as the session names it, and line
 and column. A function rustc passes its caller's location to, such as a `#[track_caller]`

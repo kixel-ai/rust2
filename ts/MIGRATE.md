@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- `rt.handleAllocError`, and a `LocalKey` initialized while it drops, throw `rt.Abort`
+  rather than an `rt.Panic`, as std aborts there without running the panic hook. An
+  `rt.Abort` is an `rt.Panic`, so a caller catching one still catches both; one telling
+  them apart by `name` sees `"Abort"`.
 - `rt.boundsOf` returns a record of the range's `startBound` and `endBound`, each read as
   it is called, rather than a function reading both, which `rt.Bounds` takes as before.
 - `rt.ArcWaker` is gone: `Waker::from(arc)` is `rt.arcWaker(arc, wake, drop, wakeByRef?)`.
