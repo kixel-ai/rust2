@@ -233,6 +233,16 @@ fn codec() {
 	shake(&out);
 }
 
+/// moq-net's model at the moq pin, translated with the harness as one program.
+#[test]
+fn model() {
+	let out = translated("model");
+	snapshot("model", &out);
+	std::fs::copy(fixture("model").join("caller.ts"), out.join("caller.ts")).unwrap();
+	typecheck(&out);
+	differential("model-fixture", &["--config", GETRANDOM], &out, "caller.ts", 2_000);
+}
+
 /// A caller of two functions of a type, through its module, as moq's TypeScript calls
 /// the codec.
 const SHAKE: &str = r#"import * as Decoder from "./coding/decode.Decoder.ts";
