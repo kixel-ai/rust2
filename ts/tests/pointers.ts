@@ -120,3 +120,17 @@ const aligned = rt.ptrUnerase(two, "raw::Byte", 1) as object;
 assert.notEqual(aligned, rt.DANGLING);
 assert.equal(rt.ptrErase(aligned, "raw::Byte", 1), two);
 unsure(() => (aligned as rt.Place<number>).v);
+
+// `Arc::from_raw` of a pointer no `Arc::into_raw` or `as_ptr` gave, such as a box's, of an
+// `Rc`'s, or of one whose value dropped, which Rust leaves undefined.
+const task = new rt.Arc({ id: 1 });
+const raw = rt.arcRaw(task, task.value, "Arc");
+assert.equal(rt.arcFromRaw(raw, "Arc"), task);
+unsure(() => rt.arcFromRaw({ id: 1 }, "Arc"));
+unsure(() => rt.arcFromRaw(raw, "Rc"));
+task[Symbol.dispose]();
+assert.throws(() => rt.arcFromRaw(raw, "Arc"), /`Arc::from_raw` of a pointer to a value already dropped/);
+// Moved off its place by arithmetic and back, which is the same address.
+const counted = new rt.Arc(7);
+const at = rt.arcRaw(counted, rt.arcPlace(counted), "Rc");
+assert.equal(rt.arcFromRaw(rt.ptrAdd(rt.ptrAdd(at, 1), -1), "Rc"), counted);
