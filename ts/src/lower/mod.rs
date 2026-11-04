@@ -261,8 +261,9 @@ pub struct Translator<'a, 'tcx> {
 	objects: rustc_data_structures::fx::FxHashMap<DefId, dynamic::Object<'tcx>>,
 	/// The class wrapping each type, held each way, as every trait object.
 	object_classes: rustc_data_structures::fx::FxHashMap<(Ty<'tcx>, dynamic::Held), dynamic::Class>,
-	/// The trait method each of those classes' methods calls, by class and name.
-	class_methods: rustc_data_structures::fx::FxHashMap<(SymId, String), DefId>,
+	/// The trait method, with its arguments, each of those classes' methods calls, by class
+	/// and name.
+	class_methods: rustc_data_structures::fx::FxHashMap<(SymId, String), (DefId, GenericArgsRef<'tcx>)>,
 	/// The class of each coroutine instance.
 	pub coroutines: rustc_data_structures::fx::FxHashMap<Instance<'tcx>, mir::coroutine::Info<'tcx>>,
 	/// Whether [`Self::ty`] is typing a variable: see [`Self::held_ty`].
@@ -1583,10 +1584,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Type::Rs("Fmt", vec![])
 			}
 			ty::Dynamic(..) if let Some(f) = self.dyn_fn(ty) => self.fn_ty(&f.inputs, f.output, span),
-			ty::Dynamic(..) => match self.object(ty, span) {
-				Some(sym) => Type::Sym(sym, Vec::new()),
-				None => Type::Builtin("unknown"),
-			},
+			ty::Dynamic(..) => self.object(ty, span).unwrap_or(Type::Builtin("unknown")),
 			_ if self.deferred(ty) => Type::Builtin("unknown"),
 			_ => {
 				self.unrepresented(span, format!("unsupported type `{ty}`"));
@@ -1917,7 +1915,6 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let identity = ty::GenericArgs::identity_for_item(tcx, adt);
 		let ty = copy::field_ty(tcx, TypingEnv::post_analysis(tcx, adt), field.did, identity);
 		let ty = self.ty(ty, span);
-		let instanced = |t: &Type| matches!(t, Type::Rs("Ptr" | "ArrayOf" | "SliceOf" | "VecOf" | "CowOf", _));
 		if ty.any(&instanced) {
 			self.instanced_fields
 				.insert(field.did, ty.takes(&instanced).then(|| ty.clone()));
@@ -2283,6 +2280,12 @@ pub fn slice_parts(slice: ts::Expr) -> Option<[ts::Expr; 3]> {
 /// `&[u8]` is: a split's chunk is then no view.
 pub fn bytes_ref(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Ref(..)) && byte_array(ty.peel_refs())
+}
+
+/// Whether `ty` is a form only an instance of a generic definition decides, which the
+/// definition types as every form it may be.
+pub fn instanced(ty: &Type) -> bool {
+	matches!(ty, Type::Rs("Ptr" | "ArrayOf" | "SliceOf" | "VecOf" | "CowOf", _))
 }
 
 /// `snake_case` to `camelCase`, keeping leading underscores.

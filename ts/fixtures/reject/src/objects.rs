@@ -18,9 +18,78 @@ pub trait Scaled<T> {
 	fn scale(&self, by: T) -> T;
 }
 
-/// A trait object of a generic trait.
-pub fn generic_object(s: &dyn Scaled<u8>) -> u8 {
-	s.scale(2)
+impl Scaled<u8> for u8 {
+	fn scale(&self, by: u8) -> u8 {
+		self.wrapping_mul(by)
+	}
+}
+
+impl Scaled<u16> for u8 {
+	fn scale(&self, by: u16) -> u16 {
+		u16::from(*self).wrapping_mul(by)
+	}
+}
+
+/// One type as objects of two arguments of one generic trait, which the class of the
+/// value's own type, shared by its objects, can't both have.
+pub fn scaled_twice(x: &u8) -> u16 {
+	let a: &dyn Scaled<u8> = x;
+	let b: &dyn Scaled<u16> = x;
+	u16::from(a.scale(2)).wrapping_add(b.scale(3))
+}
+
+pub trait Taken {
+	type Item;
+	fn take(&mut self) -> Option<Self::Item>;
+}
+
+impl Taken for u8 {
+	type Item = Option<u8>;
+	fn take(&mut self) -> Option<Option<u8>> {
+		Some(self.checked_sub(1))
+	}
+}
+
+/// An object whose method returns an `Option` of its associated type, which its type has
+/// as `Item | undefined`, bound to an `Option` too, whose `None` that can't tell apart.
+pub fn nested_item(x: &mut u8) -> bool {
+	let s: &mut dyn Taken<Item = Option<u8>> = x;
+	s.take().is_some()
+}
+
+/// An object of nested options a caller made, which a call dispatches through.
+pub fn received(x: &mut dyn Taken<Item = Option<u16>>) -> bool {
+	x.take().is_some()
+}
+
+pub trait Passed<T> {
+	fn pass(&self) -> &dyn Passed<Option<u8>>;
+	fn item(&self) -> Option<T>;
+}
+
+impl<T> Passed<T> for u8 {
+	fn pass(&self) -> &dyn Passed<Option<u8>> {
+		&()
+	}
+	fn item(&self) -> Option<T> {
+		None
+	}
+}
+
+impl<T> Passed<T> for () {
+	fn pass(&self) -> &dyn Passed<Option<u8>> {
+		self
+	}
+	fn item(&self) -> Option<T> {
+		None
+	}
+}
+
+/// An object of nested options, whose type a method of the trait names before the method
+/// returning its `Item` is held.
+pub fn passed(x: &u8) -> bool {
+	let p: &dyn Passed<u8> = x;
+	p.pass().item().is_none()
 }
 
 pub trait First {
