@@ -15,7 +15,19 @@ rustc_private = true
 [workspace]
 # Its own workspace, apart from the repo's: the driver builds on ts/rust-toolchain.toml's
 # nightly, which the other projects do not use.
-members = ["fixtures/*"]
+members = [
+    "fixtures/bind",
+    "fixtures/census",
+    "fixtures/codec",
+    "fixtures/crates",
+    # A fixture per module of the language, beside what they share.
+    "fixtures/lang/*",
+    "fixtures/names",
+    "fixtures/reject",
+    "fixtures/share",
+    "fixtures/stock",
+    "fixtures/task",
+]
 resolver = "3"
 
 [workspace.package]
@@ -40,7 +52,14 @@ toml = "1.1.8"
 [lints]
 workspace = true
 
-# moq's profile for moq-wasm, which ships size-optimized: the benchmark's WASM route.
+# The differential tests' native side: optimized, since V8 runs a debug build's wasm several
+# times slower, with dev's overflow checks and debug assertions, so its panics match the
+# translation's.
+[profile.differential]
+inherits = "dev"
+opt-level = 1
+
+# The size-optimized profile moq's WASM shipped with: the benchmark's WASM route.
 [profile.wasm-release]
 inherits = "release"
 lto = "fat"

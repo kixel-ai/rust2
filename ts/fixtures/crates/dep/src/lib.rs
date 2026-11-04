@@ -1,6 +1,7 @@
 //! The dependency `crates-fixture` translates with: a type the package copies, which only
 //! this crate writes into, a generic function over the package's type, drops, an iterator,
-//! `unsafe` with a safe twin where it translates and without one, and a trait for objects.
+//! `unsafe` with a safe twin where it translates and without one, a trait for objects, and
+//! a `Bytes` of a `String`'s bytes.
 
 use std::sync::{Arc, Mutex};
 
@@ -77,7 +78,6 @@ impl Iterator for Countdown {
 	}
 }
 
-#[cfg(feature = "rev")]
 impl DoubleEndedIterator for Countdown {
 	fn next_back(&mut self) -> Option<u8> {
 		if self.next == self.last {
@@ -126,7 +126,7 @@ fn read(bytes: &[u8]) -> u8 {
 pub fn last(bytes: &[u8]) -> u8 {
 	assert!(!bytes.is_empty(), "no last byte");
 	// SAFETY: it holds a byte.
-	unsafe { *bytes.as_ptr().add(bytes.len() - 1) }
+	unsafe { *bytes.as_ptr().byte_add(bytes.len() - 1) }
 }
 
 /// What [`tally`] counts with, through trait objects of either crate's types.
@@ -170,4 +170,10 @@ pub fn tally(tallies: &mut [&mut dyn Tally], by: u8) -> u32 {
 		sum = sum.wrapping_add(t.count().wrapping_mul(t.scale()));
 	}
 	sum
+}
+
+/// A `String`'s bytes, in storage of its capacity, which JS keeps none of, so the package's
+/// reads of a `Bytes`' capacity are refused too.
+pub fn string_bytes(text: String) -> bytes::Bytes {
+	bytes::Bytes::from(text)
 }

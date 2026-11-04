@@ -1,0 +1,2 @@
+package = "lang-chars-fixture"
+roots = ["harness::run", "harness::op"]

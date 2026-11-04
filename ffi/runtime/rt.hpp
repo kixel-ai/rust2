@@ -1,5 +1,5 @@
-// The runtime every C++ binding shares: bytes, results, wakers, and futures over the C
-// ABI. rust2-ffi copies it into each header, inside the export's namespace, after
+// The runtime every C++ binding shares: handles, bytes, results, wakers, and futures over
+// the C ABI. rust2-ffi copies it into each header, inside the export's namespace, after
 // `detail` names the export's C types. It throws nothing and reads no type information,
 // so it builds with exceptions and RTTI off.
 
@@ -115,6 +115,85 @@ public:
 	}
 };
 
+// Frees a handle of the C type `R` with its `_free`.
+template <class R, void (*Free)(R *)>
+struct deleter {
+	void operator()(R *raw) const noexcept {
+		Free(raw);
+	}
+};
+
+// The handle of an object one C++ object owns, which moves and never copies. A moved-from
+// one holds null, which any call aborts on.
+template <class R, void (*Free)(R *)>
+class unique {
+	::std::unique_ptr<R, deleter<R, Free>> ptr_;
+
+public:
+	explicit unique(R *raw) noexcept : ptr_(raw) {}
+
+	R *get() const noexcept {
+		return ptr_.get();
+	}
+	// The handle for a call that moves the value out.
+	R *own() noexcept {
+		return ptr_.get();
+	}
+	// `raw`, which Rust lends for a call and frees itself.
+	static unique lend(R *raw) noexcept {
+		return unique(raw);
+	}
+	// Let go of the lent `raw` unfreed, or say how C++ kept it.
+	const char *give_back(R *raw) noexcept {
+		return ptr_.release() == raw ? nullptr : "a lent object was moved out of";
+	}
+};
+
+// The handle of an object whose copies share it, since its clone is a value no call
+// tells apart from the original but by an `Arc`'s or `Rc`'s count, which counts one for
+// every copy. The last copy frees it, on whichever thread drops it.
+template <class R, void (*Free)(R *), R *(*Clone)(const R *), bool (*Borrowed)(const R *)>
+class shared {
+	::std::shared_ptr<R> ptr_;
+
+	shared() noexcept = default;
+
+public:
+	explicit shared(R *raw) : ptr_(raw, deleter<R, Free>{}) {}
+
+	R *get() const noexcept {
+		return ptr_.get();
+	}
+	// The handle for a call that moves the value out, held by this copy alone: a clone's
+	// while another copy shares it, as Rust would move a clone out and leave the copy be.
+	// A pending future made from a copy holds no copy here, but borrows the value in Rust,
+	// as though it held one. A moved-from copy is left for the call to refuse, naming it.
+	R *own() {
+		if (ptr_.use_count() > 1 || (ptr_ != nullptr && Borrowed(ptr_.get()))) {
+			*this = shared(Clone(ptr_.get()));
+		}
+		return ptr_.get();
+	}
+	// `raw`, which Rust lends for a call and frees itself.
+	static shared lend(R *raw) {
+		shared s;
+		s.ptr_ = ::std::shared_ptr<R>(raw, [](R *) noexcept {});
+		return s;
+	}
+	// Let go of the lent `raw`, or say how C++ kept it: a copy left past the call would
+	// outlive the loan.
+	const char *give_back(R *raw) noexcept {
+		if (ptr_.get() != raw) {
+			return "a lent object was moved out of";
+		}
+		if (ptr_.use_count() != 1) {
+			return "a lent object was copied past its call";
+		}
+		ptr_.reset();
+		return nullptr;
+	}
+};
+
 // The bytes of a view, never null, so a view of none is told apart from a missing one.
 inline const ::std::uint8_t *bytes(const void *data, ::std::size_t len) noexcept {
 	static const ::std::uint8_t empty = 0;
@@ -128,7 +207,8 @@ inline const ::std::uint8_t *bytes(const void *data, ::std::size_t len) noexcept
 
 class buf;
 
-// Bytes lent to a call: text or binary, read during the call and never kept.
+// Bytes lent to a call: text or binary, read during the call and never kept. A contiguous
+// range, so from C++20 it converts to `std::span<const std::uint8_t>`, and back.
 class view {
 	const ::std::uint8_t *data_;
 	::std::size_t size_;
@@ -165,7 +245,8 @@ public:
 	friend struct detail::access;
 };
 
-// Owned bytes: returned by Rust without a copy, or copied from C++.
+// Owned bytes: returned by Rust without a copy, or copied from C++. They outlive the object
+// they came from; a view or span of them lives only as long as they do.
 class buf {
 	// Rust's when `owner` is set, else C++'s, allocated with `new[]` unless empty.
 	detail::c_buf raw_;
@@ -459,7 +540,11 @@ public:
 
 	// Poll once: the output when ready, else nothing, and `w` is woken when it is worth
 	// polling again. Polling after it is ready aborts.
-	poll_t<output> poll(const waker &w);
+	poll_t<output> poll(const waker &w) {
+		detail::slot<output> out;
+		poll_into(w, out);
+		return out.release();
+	}
 
 	// Block the calling thread until the output is ready.
 	output get() &&;
@@ -500,15 +585,26 @@ struct access {
 	}
 	template <class T>
 	static auto raw(const T &object) noexcept {
-		return object.raw_;
+		return object.raw_.get();
+	}
+	// The handle of an object a call moves the value out of.
+	template <class T>
+	static auto own(T &object) {
+		return object.raw_.own();
+	}
+	// `raw` owned by a `T`.
+	template <class T, class R>
+	static T wrap(R *raw) {
+		return T(decltype(T::raw_)(raw));
+	}
+	// `raw`, which Rust lends for a call, as a `T` that never frees it.
+	template <class T, class R>
+	static T lend(R *raw) {
+		return T(decltype(T::raw_)::lend(raw));
 	}
 	template <class T, class R>
-	static T wrap(R *raw) noexcept {
-		return T(raw);
-	}
-	template <class T>
-	static void release(T &object) noexcept {
-		object.raw_ = nullptr;
+	static const char *give_back(T &object, R *raw) noexcept {
+		return object.raw_.give_back(raw);
 	}
 };
 
@@ -522,13 +618,14 @@ class arena {
 
 public:
 	// `items` as the C array `C`, each lowered by `lower`: never null, so an empty one is
-	// told apart from a missing one.
+	// told apart from a missing one. Each item is mutable where `items` is, so a handle
+	// moved in can be owned alone.
 	template <class C, class R, class F>
-	C list(const R &items, F lower) {
+	C list(R &items, F lower) {
 		using E = ::std::remove_const_t<::std::remove_pointer_t<decltype(C{}.ptr)>>;
 		auto array = ::std::make_shared<::std::vector<E>>();
 		array->reserve(items.size());
-		for (const auto &item : items) {
+		for (auto &item : items) {
 			array->push_back(lower(item));
 		}
 		static const E empty{};
@@ -554,22 +651,25 @@ template <class T, class C, class F, class Free>
 }
 
 // An object Rust lends a closure for one call, as its class over the lent handle, which
-// it gives back unfreed. Moving out of it would keep the borrow past the call.
+// it gives back unfreed. Moving out of it, or keeping a copy past the call, would keep
+// the borrow past the call, so it aborts.
 template <class T, class R>
 class lent {
 	T object_;
 	R *raw_;
 
+	static ::std::remove_const_t<R> *mutable_(R *raw) noexcept {
+		return const_cast<::std::remove_const_t<R> *>(raw);
+	}
+
 public:
-	explicit lent(R *raw) noexcept
-		: object_(access::wrap<T>(const_cast<::std::remove_const_t<R> *>(raw))), raw_(raw) {}
+	explicit lent(R *raw) : object_(access::lend<T>(mutable_(raw))), raw_(raw) {}
 	lent(const lent &) = delete;
 	lent &operator=(const lent &) = delete;
 	~lent() {
-		if (access::raw(object_) != raw_) {
-			fail("a lent object was moved out of");
+		if (const char *kept = access::give_back(object_, mutable_(raw_))) {
+			fail(kept);
 		}
-		access::release(object_);
 	}
 
 	T &get() noexcept {
@@ -696,13 +796,6 @@ void future<Op>::poll_into(const waker &w, detail::slot<output> &out) {
 	detail::c_waker raw = n == last_ ? detail::lend(n) : detail::give(n);
 	last_ = n;
 	Op::poll(raw_, raw, out);
-}
-
-template <class Op>
-poll_t<typename future<Op>::output> future<Op>::poll(const waker &w) {
-	detail::slot<output> out;
-	poll_into(w, out);
-	return out.release();
 }
 
 template <class Op>

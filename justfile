@@ -6,6 +6,9 @@ mod ts
 # The C exporter, its own workspace on the TypeScript driver's nightly: `just ffi <recipe>`.
 mod ffi
 
+# The Go translator, its own workspace on the TypeScript driver's nightly: `just go <recipe>`.
+mod go
+
 # The drivers' shared front end and rust2-lint, its own workspace on the TypeScript driver's nightly: `just driver <recipe>`.
 mod driver
 
@@ -16,33 +19,25 @@ mod uniffi
 default:
     @just --list
 
-# Lint the repository tooling, the quest tree, the root workspace, and every project.
-check:
-    quest check
-    actionlint
-    shellcheck .claude/hooks/*.sh .codex/hooks/*.sh bench/*/*.sh
-    shfmt -d .claude/hooks/*.sh .codex/hooks/*.sh bench/*/*.sh
-    taplo format --check
-    nixfmt --check flake.nix bench/build/nix.nix
-    cargo fmt --all --check
-    cargo clippy --locked --workspace --all-targets -- -D warnings
-    just ts check
-    just ffi check
-    just driver check
-    just uniffi check
+# Lint what the branch changed since BASE: the merge group's base, or origin/main locally.
+check $BASE="":
+    sh/dispatch.sh check "$BASE"
 
-# Run what CI's Check runs: the lints, then the tests.
-ci:
-    just check
-    just test
+# Run what the merge queue runs: lint, then test, what the branch changed since BASE.
+ci $BASE="":
+    sh/dispatch.sh ci "$BASE"
 
-# Run the tests.
-test:
-    bash .claude/hooks/direnv.test.sh
-    just ts test
-    just ffi test
-    just driver test
-    just uniffi test
+# Print the modules `just ci` selects for the branch's changes since BASE.
+ci-select $BASE="":
+    sh/dispatch.sh ci "$BASE" --query
+
+# Lint and test every module, as the nightly does.
+gate:
+    sh/dispatch.sh ci --all
+
+# Test what the branch changed since BASE.
+test $BASE="":
+    sh/dispatch.sh test "$BASE"
 
 # Measure Rust build time on the pinned corpus; see bench/build/README.md.
 bench *args:
@@ -58,10 +53,11 @@ bench-ffi *args:
 
 # Apply formatters without changing program behavior.
 fix:
-    shfmt -w .claude/hooks/*.sh .codex/hooks/*.sh bench/*/*.sh
+    shfmt -w .claude/hooks/*.sh .codex/hooks/*.sh bench/*/*.sh sh/*.sh
     taplo format
     nixfmt flake.nix bench/build/nix.nix
     cargo fmt --all
     just ts fix
     just ffi fix
+    just go fix
     just driver fix

@@ -1,0 +1,2 @@
+package = "lang-captures-fixture"
+roots = ["harness::run", "harness::op"]

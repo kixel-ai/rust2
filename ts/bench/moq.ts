@@ -12,8 +12,12 @@ import { Version as Lite } from "moq/js/net/src/lite/version.ts";
 import { Cursor, Reader, type StreamVersion, Writer } from "moq/js/net/src/stream.ts";
 import * as Varint from "moq/js/net/src/varint.ts";
 
+import { format } from "./fmt.ts";
 import { iterate } from "./iter.ts";
 import { order } from "./order.ts";
+import { hashed } from "./hashed.ts";
+import { packets } from "./packets.ts";
+import { push } from "./push.ts";
 import { rescale } from "./rescale.ts";
 import { ordered } from "./sorted.ts";
 import { interleave, stamp } from "./timestamp.ts";
@@ -62,6 +66,14 @@ export function run(input: Uint8Array): Uint8Array | Promise<Uint8Array> {
 			return interleave(data);
 		case 12:
 			return order(selector, data);
+		case 13:
+			return push(selector, data);
+		case 14:
+			return hashed(selector, data);
+		case 15:
+			return packets(selector, data);
+		case 16:
+			return format(data);
 		default:
 			throw new Error(`unknown workload ${op}`);
 	}

@@ -46,6 +46,13 @@ export function iterate(chain: number, data: Uint8Array): Uint8Array {
 			for (let i = data.length - 1; i >= 0; i--) if ((i & 0xff) < data[i]) n++;
 			return u64(n);
 		}
+		case 8: {
+			// Both sides mapped as the front's `for ... of` reads them.
+			let n = 0;
+			let i = 0;
+			for (const a of data.values()) if (a >> 1 < (data[i++] ^ 3)) n++;
+			return u64(n);
+		}
 		default: {
 			let last = 0;
 			let i = 0;

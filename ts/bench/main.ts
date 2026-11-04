@@ -2,7 +2,7 @@
 // Node, Bun, Chrome, and Firefox, and reports the numbers with each route's bundle size.
 //
 // usage: bun main.ts --translated <dir> --wasm <file> --native <bin> --moq <checkout>
-//                    --moq-wasm <dir> --task <dir> --task-wasm <file> --task-native <bin>
+//                    --task <dir> --task-wasm <file> --task-native <bin>
 //                    --out <dir> [--sample-ms 2] [--rounds 25] [--seed <u32>] [--route <name>=<dir>]
 //
 // The task fixture's async handoff runs beside the codec, against moq's way with promises.
@@ -30,7 +30,6 @@ const { values: args } = parseArgs({
 		wasm: { type: "string" },
 		native: { type: "string" },
 		moq: { type: "string" },
-		"moq-wasm": { type: "string" },
 		task: { type: "string" },
 		"task-wasm": { type: "string" },
 		"task-native": { type: "string" },
@@ -160,13 +159,11 @@ await Promise.all([
 	extra && Bun.write(join(out, "task-route.js"), extra.task),
 ]);
 
-const moqWasm = arg("moq-wasm");
 const sizes = [
 	{ route: "wasm", files: [wasmBytes] },
 	{ route: "hand-written", files: [handBundle] },
 	{ route: "translated", files: [translation] },
 	...(extra ? [{ route: extra.name, files: [extra.codec] }] : []),
-	{ route: "moq-wasm package", files: [await read(join(moqWasm, "moq_bg.wasm")), await read(join(moqWasm, "moq.js"))] },
 ].map(measureSize);
 
 // The task fixture: its channel, its async functions, and their runtime, as each route ships them.
@@ -186,7 +183,7 @@ function measureSize({ route, files }: { route: string; files: Uint8Array<ArrayB
 const wasm = new Wasm(await WebAssembly.compile(wasmBytes));
 function expected(input: Uint8Array): Uint8Array {
 	const output = wasm.call(input);
-	if (output === "panic") throw new Error(`native Rust panics on ${hex(input)}`);
+	if (!(output instanceof Uint8Array)) throw new Error(`native Rust traps on ${hex(input)}`);
 	return output;
 }
 const list = workloads(expected);
@@ -222,7 +219,7 @@ async function native(): Promise<Engine> {
 	const taskWasm = new Wasm(await WebAssembly.compile(taskWasmBytes));
 	const handoff = (input: Uint8Array) => {
 		const output = taskWasm.call(input);
-		if (output === "panic") throw new Error(`native Rust panics on ${hex(input)}`);
+		if (!(output instanceof Uint8Array)) throw new Error(`native Rust traps on ${hex(input)}`);
 		return output;
 	};
 	const timings = [
@@ -362,16 +359,16 @@ function render(): string {
 		`- moq: ${text(["git", "-C", checkout, "rev-parse", "HEAD"])}`,
 		...engines.map((e) => `- ${e.engine}`),
 		"",
-		"Each cell is nanoseconds per item (a varint, a frame header, a message, a byte iterated, a key, or a timestamp converted, added, or compared): the median",
+		"Each cell is nanoseconds per item (a varint, a frame header, a message, a byte iterated, a key, a timestamp converted, added, or compared, or a line formatted): the median",
 		`of ${rounds} samples of at least ${sampleMs} ms, ± half their interquartile range. Each round runs`,
 		`the JS routes and workloads in a new random order, from seed ${seed}. \`native\` is a release`,
 		"build on the host, its workloads in a fixed order. `wasm` is the same",
-		"Rust at moq-wasm's size-optimized profile, run with its input already in memory;",
+		"Rust at the size-optimized profile moq's WASM shipped with, run with its input already in memory;",
 		"copying the input in and the output out are timed apart. `hand-written` is moq's",
 		"`js/net`, called as its own benchmarks call it, for `iter/` the same chain with ES",
-		"iterator helpers (`bench/iter.ts`), for `btree/` a sorted array (`bench/sorted.ts`), and",
+		"iterator helpers (`bench/iter.ts`), for `btree/` a sorted array (`bench/sorted.ts`), for `hash/` a `Map` (`bench/hashed.ts`), and",
 		"for `time/` conversions `bigint`, as moq's `js/hang` converts timescales (`bench/rescale.ts`),",
-		"and for `time/checked-add` and `time/ord` moq's own `Timestamp` (`bench/timestamp.ts`).",
+		"for `time/checked-add` and `time/ord` moq's own `Timestamp` (`bench/timestamp.ts`), and for `fmt/` a template literal (`bench/fmt.ts`).",
 		"Each JS route and `wasm` runs alone in a worker of its own, a fresh one each round. `A/A` is the translation again: its",
 		"gap from `translated` is the noise. A `reads` decode is the frame headers above as they",
 		"arrive that many bytes at a time, so a header cut by a read comes up short and is",
@@ -380,8 +377,7 @@ function render(): string {
 		"",
 		"## Bundle size",
 		"",
-		"Bytes for the same workloads, as timed: minified by Bun where JS. `moq-wasm package` is what moq",
-		"ships as WASM today, its bindgen glue included: the whole consume path, not only the codec.",
+		"Bytes for the same workloads, as timed: minified by Bun where JS.",
 		"",
 		"| route | raw | gzip |",
 		"| --- | ---: | ---: |",

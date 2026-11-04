@@ -44,7 +44,6 @@ Each project lives in its own top-level directory; the [quest tree](quest/README
 # Public API
 
 - Report the public API impact of every change in the PR description.
-- A breaking change adds an entry under `## Unreleased` in the affected package's `MIGRATE.md`.
 - Keep things private until a consumer needs them.
 - Never add `foo_with_x`, `foo_checked`, or a compatibility shim. Make the breaking change to `foo` instead.
 - Name by role, not today's implementation. Short names under a module namespace.
@@ -58,9 +57,9 @@ Use the Nix dev shell so tooling matches CI.
 direnv loads it automatically, but if not: `nix develop --command ...`.
 
 ```bash
-just check   # Lint everything, including the quest tree
-just test    # Run the tests
-just ci      # Both, as the land gate runs them; run before every push
+just check   # Lint what the branch changed, including the quest tree
+just test    # Test what the branch changed
+just ci      # Both, as the merge queue runs them; run before every push
 just fix     # Auto-fix formatting
 ```
 

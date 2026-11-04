@@ -19,7 +19,7 @@ what the census refuses and what moq waits on first, then the runtime, then the 
 What stays here is the end-to-end: moq-ffi shrinks to its remainder and takes the stand-in
 package's place.
 
-Every generator on the C ABI:
+Every generator:
 
 - checks `<prefix>_contract()` against the header's contract when it loads, before any
   other call, and fails loud on a mismatch;
@@ -45,9 +45,19 @@ Every generator on the C ABI:
   Each driver runs on a goroutine that lives as long as its object, and a call's `ctx`
   bounds only that call.
 
+Decided with the maintainer on 2026-11-01: the Swift, Python, Go, and Dart generators are
+independent and unranked, and each generates the crate's own API in its language's idiom, as
+Kotlin does. Only Python skips the C ABI, since a CPython extension calls about 40 times faster
+than `ctypes`; the others call C natively. moq's packages switch to them in moq's own
+[quest](https://github.com/moq-dev/moq/blob/main/quest/m2/uniffi-fork.md).
+
+Decided with the maintainer on 2026-11-02
+([moq-dev/rust2#460](https://github.com/moq-dev/rust2/pull/460)): the RSS glibc's per-thread
+arenas keep under Go's lent `Bytes` is the consumer's to fix with its global allocator, as
+`ffi/README.md` documents. moq declares mimalloc in its exported crate, in its own tree.
+
 ## Required
 
 - [Sessions on sans-IO QUIC](/quest/m1/ffi-export/session-quic.md) - bindings move UDP datagrams and drive the session's poll themselves, over moq's runtime-free QUIC driver once it lands
-- [C++ bindings on MSVC and Apple Clang](/quest/m1/ffi-export/cpp.md) - the nightly's MSVC and Apple Clang jobs pass the C++ checks
-- [Kotlin bindings on Android in the nightly](/quest/m1/ffi-export/kotlin-android.md) - the nightly's emulator job passes the Kotlin test, shrunk by R8, at API 24 and 35
+- [C++ bindings on MSVC](/quest/m1/ffi-export/cpp.md) - the nightly's MSVC job passes the C++ checks
 - [Waiting: moq-tokio within the recursion limit](/quest/m1/ffi-export/recursion-limit.md) - the exporter's moq pin moves past moq-dev/moq#7032 once moq-tokio's `Send` check fits the limit

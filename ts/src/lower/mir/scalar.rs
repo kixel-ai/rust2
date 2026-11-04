@@ -1,16 +1,16 @@
 //! Locals of byte slices held as their parts. A `&[u8]` is an `rt.ByteSlice`, so each
 //! split, and each tuple, `Option`, `Result`, or `ControlFlow` around one, makes objects
-//! V8 doesn't remove. A local built of them that nothing borrows or writes into, and
-//! that only splits, `ok_or`, `?`, aggregates, and copies assign, is instead a value per
-//! part: a slice's bytes, start, and length, a flag for which variant an enum is, and
-//! anything else, as an error, whole. A read that takes it apart reads its parts; any
-//! other read makes the object there. A local whose object would be made more than once
-//! on a path, or in a loop that doesn't make its parts again, stays an object, so
-//! nothing is made more often than before, as does one only ever assigned an object's
-//! parts, which saves none. A function that hands back a `Result` in a slot holds its
-//! result so, to hand back the `Ok`'s parts, and its callers read them back as parts. A
-//! byte slice parameter is passed as its parts when its body holds it so and never makes
-//! its object.
+//! V8 doesn't remove, as does a tuple or `Result` of numbers alone. A local built of them
+//! that nothing borrows or writes into, and that only splits, `ok_or`, `?`, aggregates,
+//! and copies assign, is instead a value per part: a slice's bytes, start, and length, a
+//! flag for which variant an enum is, and anything else, as an error, whole. A read that
+//! takes it apart reads its parts; any other read makes the object there. A local whose
+//! object would be made more than once on a path, or in a loop that doesn't make its
+//! parts again, stays an object, so nothing is made more often than before, as does one
+//! only ever assigned an object's parts, which saves none. A function that hands back a
+//! `Result` in a slot holds its result so, to hand back the `Ok`'s parts, and its callers
+//! read them back as parts; a local with no slice is held so only there. A byte slice
+//! parameter is passed as its parts when its body holds it so and never makes its object.
 
 use rustc_abi::VariantIdx;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
@@ -20,7 +20,7 @@ use rustc_middle::mir::{
 	StatementKind, TerminatorKind,
 };
 use rustc_middle::ty::adjustment::PointerCoercion;
-use rustc_middle::ty::{self, Ty};
+use rustc_middle::ty::{self, Ty, TyCtxt};
 use rustc_span::{Span, Spanned};
 
 use super::Fx;
@@ -32,7 +32,8 @@ use crate::ts::{Expr, Key, Stmt, StmtKind, Type};
 pub enum Shape<'tcx> {
 	/// No JS value: `()`.
 	Unit,
-	/// One JS value, held whole: a number, a reference to one, or an error.
+	/// One JS value, held whole: a number, a reference to one, an `Option` of one, or an
+	/// error.
 	Leaf(Ty<'tcx>),
 	/// `&[u8]` or `&[u8; N]`: its bytes, start, and length.
 	Slice,
@@ -62,6 +63,21 @@ impl<'tcx> Shape<'tcx> {
 			Shape::Unit | Shape::Leaf(_) => false,
 			Shape::Tuple(_, fields) => fields.iter().any(Shape::has_slice),
 			Shape::Enum(_, variants) => variants.iter().flatten().flatten().any(Shape::has_slice),
+		}
+	}
+
+	/// Whether its JS value is an object of its own, which making it from its parts makes
+	/// again: a tuple, a `Result` or `ControlFlow`, or an `Option` of one.
+	fn boxed(&self) -> bool {
+		match self {
+			Shape::Unit | Shape::Leaf(_) | Shape::Slice => false,
+			Shape::Tuple(..) => true,
+			Shape::Enum(ty, variants) => match ty.kind() {
+				ty::Adt(adt, _) if adt.variant(VariantIdx::from_usize(0)).name.as_str() == "None" => {
+					variants.iter().flatten().flatten().any(Shape::boxed)
+				}
+				_ => true,
+			},
 		}
 	}
 
@@ -121,11 +137,11 @@ impl<'tcx> Shape<'tcx> {
 
 	/// The parts that are JS objects as the local's object holds them: each slice, by its
 	/// bytes, and each value held whole that is no number.
-	fn objects(&self, at: usize, out: &mut Vec<usize>) {
+	fn objects(&self, tcx: TyCtxt<'tcx>, at: usize, out: &mut Vec<usize>) {
 		match self {
 			Shape::Unit => {}
 			Shape::Leaf(ty) => {
-				if !number(*ty) {
+				if !number(tcx, *ty) {
 					out.push(at);
 				}
 			}
@@ -133,14 +149,14 @@ impl<'tcx> Shape<'tcx> {
 			Shape::Tuple(_, fields) => {
 				let mut at = at;
 				for field in fields {
-					field.objects(at, out);
+					field.objects(tcx, at, out);
 					at += field.size();
 				}
 			}
 			Shape::Enum(_, variants) => {
 				let mut at = at + usize::from(self.flagged());
 				for field in variants.iter().flatten().flatten() {
-					field.objects(at, out);
+					field.objects(tcx, at, out);
 					at += field.size();
 				}
 			}
@@ -169,11 +185,20 @@ fn flag_name(ty: Ty<'_>) -> &'static str {
 	}
 }
 
-/// Whether a `ty`'s JS value is a number or flag, which making its object makes nothing of.
-fn number(ty: Ty<'_>) -> bool {
+/// Whether a `ty`'s JS value is a number or flag, which making its object makes nothing of,
+/// or an `Option` of one, which is that or `undefined`.
+fn number<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
+	match ty.kind() {
+		ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::Option) => plain_number(args.type_at(0)),
+		_ => plain_number(ty),
+	}
+}
+
+/// Whether a `ty`'s JS value is a number or flag.
+fn plain_number(ty: Ty<'_>) -> bool {
 	match ty.kind() {
 		ty::Bool | ty::Char | ty::Int(_) | ty::Uint(_) | ty::Float(_) => true,
-		ty::Ref(_, inner, _) => number(*inner),
+		ty::Ref(_, inner, _) => plain_number(*inner),
 		_ => false,
 	}
 }
@@ -305,11 +330,12 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 
 	/// Where `instance` hands back its `Ok`'s parts, if it does: a function of the crate's
 	/// that only translated code calls directly, and that returns a `Result` of byte slices
-	/// and scalars whose error is one value that is never `undefined`, such as
-	/// `Result<(u64, &[u8]), E>`, writes the `Ok`'s parts into a module-level slot its
-	/// caller reads at once, and returns its error or `undefined`. One whose first part is
-	/// a number returns that, or `undefined` for an error, and writes the error into the
-	/// slot instead.
+	/// and scalars, or of numbers alone, an `Option` of one counting as one, whose error is
+	/// one value that is never `undefined`, such as `Result<(u64, &[u8]), E>`,
+	/// `Result<(i64, u64), E>`, or `Result<Option<u64>, E>`, writes
+	/// the `Ok`'s parts into a module-level slot its caller reads at once, and returns its
+	/// error or `undefined`. One whose first part is a number returns that, or `undefined`
+	/// for an error, and writes the error into the slot instead.
 	pub(crate) fn slotted(&mut self, instance: ty::Instance<'tcx>) -> Option<Slotted<'tcx>> {
 		if let Some(slotted) = self.slotted.get(&instance) {
 			return slotted.clone();
@@ -337,11 +363,19 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 			return None;
 		}
 		let shape = self.shape(ok)?;
-		if !shape.has_slice() || shape.has_enum() || !matches!(self.shape(err), Some(Shape::Leaf(_))) {
+		if shape.has_enum() || !matches!(self.shape(err), Some(Shape::Leaf(_))) {
 			return None;
 		}
 		let mut parts = Vec::new();
 		shape.parts("", &mut parts);
+		// Byte slices, or else numbers alone, whose `Ok` would be the one object made.
+		let numbers = !parts.is_empty()
+			&& parts
+				.iter()
+				.all(|(_, part)| matches!(part, Part::Value(t) if number(self.tcx, *t)));
+		if !shape.has_slice() && !numbers {
+			return None;
+		}
 		let erased = self.erases_to(err);
 		if erased.undefined || erased.none || erased.param || erased.pending || erased.outer_pending {
 			return None;
@@ -355,7 +389,6 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 			Some(&sym) => sym,
 			None => self.slot(ok, instance, &parts, &fields, returned),
 		};
-		self.place_slot(sym, instance);
 		Some(Slotted {
 			sym,
 			ret,
@@ -368,7 +401,9 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 
 	/// The slot of `Ok` payloads of type `ok`, which every function returning one shares:
 	/// each of `fields`, or if the first part is `returned`, the error, of any of their
-	/// error types, and the rest. Each starts `undefined`, so V8 keeps it tagged.
+	/// error types, and the rest. Each starts `undefined`, so V8 keeps it tagged. It is in
+	/// `lib.ts` and named for `ok` alone, as the shims are, so reaching another function
+	/// that shares it renames nothing.
 	fn slot(
 		&mut self,
 		ok: Ty<'tcx>,
@@ -380,13 +415,13 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 		let span = self.tcx.def_span(instance.def_id());
 		let sym = self.program.sym(crate::program::Symbol {
 			module: Vec::new(),
-			base: String::new(),
-			suffix: String::new(),
+			base: "out".into(),
+			suffix: crate::lower::names::ty(self.tcx, ok),
 			owner: None,
 			kind: crate::program::SymKind::Value,
-			order: u32::MAX,
+			order: 0,
 			span,
-			instance: String::new(),
+			instance: ty::print::with_no_trimmed_paths!(ok.to_string()),
 			name: String::new(),
 			alias: None,
 		});
@@ -414,22 +449,6 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 		});
 		self.slots.insert(ok, sym);
 		sym
-	}
-
-	/// Put the slot `sym` beside `instance`, named for it and suffixed as it is, if it comes
-	/// first in the source of the functions that share it, whatever order translation
-	/// reaches them in.
-	fn place_slot(&mut self, sym: crate::ts::SymId, instance: ty::Instance<'tcx>) {
-		let owner = self.instance(instance);
-		let owner = &self.program.syms[owner];
-		let (order, module, suffix) = (owner.order, owner.module.clone(), owner.suffix.clone());
-		let slot = &self.program.syms[sym];
-		if !slot.base.is_empty() && (order, &module, &suffix) >= (slot.order, &slot.module, &slot.suffix) {
-			return;
-		}
-		let base = crate::lower::names::slot_base(self.tcx, instance.def_id());
-		let slot = &mut self.program.syms[sym];
-		(slot.order, slot.module, slot.base, slot.suffix) = (order, module, base, suffix);
 	}
 
 	/// What a function that hands back its `Ok`'s parts in `slotted` returns: the first
@@ -465,6 +484,14 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 			ty::Tuple(tys) => {
 				let fields = tys.iter().map(|t| self.shape(t)).collect::<Option<Vec<_>>>()?;
 				Some(Shape::Tuple(ty, fields))
+			}
+			// That or `undefined`, one JS value, as the number is.
+			ty::Adt(adt, args)
+				if Std::of(tcx, adt.did()) == Some(Std::Option)
+					&& plain_number(args.type_at(0))
+					&& matches!(self.shape(args.type_at(0)), Some(Shape::Leaf(_))) =>
+			{
+				Some(Shape::Leaf(ty))
 			}
 			ty::Adt(adt, args)
 				if matches!(
@@ -591,6 +618,15 @@ fn slot_fail(slot: &Slotted<'_>, err: Expr, loc: Option<crate::ts::Loc>) -> Vec<
 	}
 }
 
+/// The items of `value` if it is an array literal of `n` of them, as a tuple is made.
+fn tuple_items(value: &Expr, n: usize) -> Option<&[Expr]> {
+	match value {
+		Expr::As(inner, _) => tuple_items(inner, n),
+		Expr::Array(items) if items.len() == n => Some(items),
+		_ => None,
+	}
+}
+
 /// Whether `ty` is a `&[u8]` or `&[u8; N]`, which is an `rt.ByteSlice`.
 fn slice_ref(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Ref(_, inner, rustc_ast::Mutability::Not)
@@ -689,6 +725,9 @@ struct Made {
 	block: BasicBlock,
 	local: Local,
 	parts: std::ops::Range<usize>,
+	/// Whether it makes an object of its own, a tuple or `Result` say, and no slice, so
+	/// that object is what each of its parts makes.
+	boxed: bool,
 }
 
 impl<'tcx> Fx<'_, '_, '_, 'tcx> {
@@ -730,12 +769,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}),
 			_ => false,
 		};
-		let bytes = || {
-			gargs
-				.types()
-				.next()
-				.is_some_and(|t| matches!(t.kind(), ty::Uint(ty::UintTy::U8)))
-		};
+		let bytes = || gargs.types().next().is_some_and(crate::lower::byte);
 		match (owner.as_str(), name.as_str()) {
 			("slice", "split_first") if bytes() => Some(Producer::SplitFirst),
 			("slice", "split_first_chunk") if bytes() => {
@@ -967,11 +1001,12 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				continue;
 			}
 			if let Some(shape) = self.shape(ty)
-				&& shape.has_slice()
+				&& (shape.has_slice() || shape.boxed())
 			{
 				shapes.insert(local, shape);
 			}
 		}
+		self.slot_reach(&mut shapes);
 		let mut parted_calls: FxHashMap<BasicBlock, Vec<bool>> = FxHashMap::default();
 		for (bb, data) in mir.basic_blocks.iter_enumerated() {
 			if let TerminatorKind::Call { func, .. } = &data.terminator().kind {
@@ -999,6 +1034,67 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				},
 			);
 		}
+	}
+
+	/// Keep of `shapes` those with no slice only where they meet a slot: what a slotted
+	/// call returns, the result of a function with a slot, and what is assigned from or
+	/// into those. Elsewhere its own object is all one saves, and a std function such as
+	/// `Poll::map_ok` hands back the one it was given.
+	fn slot_reach(&self, shapes: &mut FxHashMap<Local, Shape<'tcx>>) {
+		struct Reads(Vec<Local>);
+		impl<'tcx> Visitor<'tcx> for Reads {
+			fn visit_local(&mut self, local: Local, _: PlaceContext, _: Location) {
+				self.0.push(local);
+			}
+		}
+		let mut roots = Vec::new();
+		if self.slot.is_some() {
+			roots.push(mir::RETURN_PLACE);
+		}
+		let mut edges: FxHashMap<Local, Vec<Local>> = FxHashMap::default();
+		let mut link = |a: Local, reads: Vec<Local>| {
+			for b in reads.into_iter().filter(|b| shapes.contains_key(b)) {
+				edges.entry(a).or_default().push(b);
+				edges.entry(b).or_default().push(a);
+			}
+		};
+		for (bb, data) in self.mir.basic_blocks.iter_enumerated() {
+			for (i, stmt) in data.statements.iter().enumerate() {
+				if let StatementKind::Assign(assign) = &stmt.kind
+					&& let Some(local) = assign.0.as_local().filter(|l| shapes.contains_key(l))
+				{
+					let mut reads = Reads(Vec::new());
+					reads.visit_rvalue(
+						&assign.1,
+						Location {
+							block: bb,
+							statement_index: i,
+						},
+					);
+					link(local, reads.0);
+				}
+			}
+			if let TerminatorKind::Call { args, destination, .. } = &data.terminator().kind
+				&& let Some(local) = destination.as_local().filter(|l| shapes.contains_key(l))
+			{
+				if self.slotted_calls.contains_key(&bb) {
+					roots.push(local);
+				}
+				let reads = args
+					.iter()
+					.filter_map(|arg| arg.node.place())
+					.map(|p| p.local)
+					.collect();
+				link(local, reads);
+			}
+		}
+		let mut reached: FxHashSet<Local> = FxHashSet::default();
+		while let Some(local) = roots.pop() {
+			if reached.insert(local) {
+				roots.extend(edges.get(&local).into_iter().flatten().copied());
+			}
+		}
+		shapes.retain(|local, shape| shape.has_slice() || reached.contains(local));
 	}
 
 	/// The locals of `shapes` that can't be held as their parts, given the others are: one
@@ -1175,6 +1271,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						block: at.block,
 						local: place.local,
 						parts: node.parts(),
+						boxed: node.shape.boxed() && !node.shape.has_slice(),
 					});
 				}
 			}
@@ -1212,7 +1309,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let none = FxHashSet::default();
 		let objects = |made: &Made| -> FxHashSet<(Local, usize)> {
 			let mut parts = Vec::new();
-			shapes[&made.local].objects(0, &mut parts);
+			match made.boxed {
+				true => parts.extend(made.parts.clone()),
+				false => shapes[&made.local].objects(self.tcx, 0, &mut parts),
+			}
 			parts
 				.into_iter()
 				.filter(|p| made.parts.contains(p))
@@ -1643,11 +1743,15 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							true => parts.push(pure(mid.clone().binary("<=", n.clone()), ns)),
 							false => {
 								let loc = self.b.t.loc(span);
+								let mut panic = vec![Expr::Str("mid > len".into())];
+								// Where `split_at`'s caller is, in a program with a panic hook.
+								if self.b.t.hooked {
+									let at = self.b.std_site.as_ref().and_then(|(_, at)| at.clone());
+									panic.push(at.unwrap_or_else(Expr::undefined));
+								}
 								let check = StmtKind::If {
 									cond: mid.clone().binary(">", n.clone()),
-									then: vec![
-										StmtKind::Expr(Expr::rt("panic", vec![Expr::Str("mid > len".into())])).at(loc),
-									],
+									then: vec![StmtKind::Expr(Expr::rt("panic", panic)).at(loc)],
 									els: Vec::new(),
 								}
 								.at(None);
@@ -1816,6 +1920,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let values = values.into_iter().map(Expr::typed).collect();
 		let mut pre = Vec::new();
 		let call = self.b.direct_call(instance, values, span, &mut pre);
+		let call = self.locate_arguments(call);
 		self.emit(pre, false, out);
 		match self.b.t.loc(span) {
 			Some(loc) => Expr::Located(loc, Box::new(call)),
@@ -2048,6 +2153,15 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					.map(|key| (super::place::slice_member(slice.clone(), key), true))
 					.collect()
 			}
+			// A tuple made here, or held back to make where it is read: its items, and no
+			// tuple.
+			Shape::Tuple(_, fields) if let Some(items) = self.made_tuple(&value, fields, span, out) => {
+				let mut parts = Vec::new();
+				for (item, field) in items.into_iter().zip(fields) {
+					parts.extend(self.take_apart(item, field, span, out));
+				}
+				parts
+			}
 			Shape::Tuple(ty, fields) => {
 				let ts_ty = self.b.t.ty(*ty, span);
 				let (tuple, _) = self.steady_value(value, "tuple", ts_ty, out);
@@ -2129,6 +2243,47 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 			_ => unreachable!("checked by find_scalars"),
 		}
+	}
+
+	/// The items of `value`, a tuple of `fields`, if it is made here or held back to make
+	/// where it is read, each read now, in order, unless it reads the same later and does
+	/// nothing; the tuple is then never made.
+	fn made_tuple(
+		&mut self,
+		value: &Expr,
+		fields: &[Shape<'tcx>],
+		span: Span,
+		out: &mut Vec<Stmt>,
+	) -> Option<Vec<Expr>> {
+		let held = match value {
+			Expr::Ident(name) => Some(
+				self.pending
+					.iter()
+					.position(|p| p.name == *name && !p.effect && !p.copy)?,
+			),
+			_ => None,
+		};
+		let made = held.map_or(value, |i| &self.pending[i].value);
+		let items = tuple_items(made, fields.len())?;
+		// Only a value held whole can be read now into a variable of its own.
+		if !std::iter::zip(items, fields).all(|(item, field)| matches!(field, Shape::Leaf(_)) || self.steady_expr(item))
+		{
+			return None;
+		}
+		let items = items.to_vec();
+		if let Some(i) = held {
+			self.pending.remove(i);
+		}
+		let items = std::iter::zip(items, fields)
+			.map(|(item, field)| match field {
+				Shape::Leaf(ty) => {
+					let ty = self.b.t.part_ty(Part::Value(*ty), span);
+					self.steady_value(item, "item", ty, out).0
+				}
+				_ => item,
+			})
+			.collect();
+		Some(items)
 	}
 
 	/// A value held whole as a part, and whether reading it later reads the same: one

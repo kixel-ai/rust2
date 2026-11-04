@@ -5,9 +5,11 @@
 //! call is always a direct call. Types are translated once, generically, and a function of
 //! a type is a module-level one taking `self` first, so a bundler drops what goes unused.
 
+mod alloc;
 mod bind;
 pub use bind::check_module;
 mod body;
+mod caller;
 mod collections;
 mod consts;
 mod copy;
@@ -209,6 +211,11 @@ pub struct Translator<'a, 'tcx> {
 	census: bool,
 	/// Refusals collected until translation settles, then reported or counted.
 	refusals: Option<Vec<(Span, String)>>,
+	/// Reads of a `Bytes`' capacity, refused once translation settles if `string_bytes`, as
+	/// [`Self::string_capacity`] notes them.
+	capacity_reads: Vec<(Span, String)>,
+	/// Whether a crate makes a `Bytes` or a `Vec<u8>` of a `String`'s bytes, whose capacity JS keeps none of.
+	string_bytes: bool,
 	/// Whether each type's drop does something JS can see, as [`Self::drops`] found.
 	drops: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, bool>,
 	/// The types [`Self::drops`] is still deciding, and whether the query open now read one.
@@ -216,6 +223,10 @@ pub struct Translator<'a, 'tcx> {
 	drops_cycle: bool,
 	/// The classes given drop glue.
 	glued: rustc_data_structures::fx::FxHashSet<DefId>,
+	/// Whether one class's glue drops every instance of each struct, as
+	/// [`Self::shared_glue`] found, and the structs it is still deciding.
+	shared_glues: rustc_data_structures::fx::FxHashMap<DefId, bool>,
+	shared_open: rustc_data_structures::fx::FxHashSet<DefId>,
 	/// The drop glue made from each type's drop shim.
 	pub drop_shims: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, SymId>,
 	/// The function copying each `Copy` aggregate type.
@@ -237,15 +248,21 @@ pub struct Translator<'a, 'tcx> {
 	cloned: rustc_data_structures::fx::FxHashSet<DefId>,
 	/// Those this run reached.
 	cloning: rustc_data_structures::fx::FxHashSet<DefId>,
-	/// The types with no `UnsafeCell` whose pointers the runs before compared, into which
-	/// a callee may keep a pointer through a reference.
+	/// The types whose pointers the runs before compared, by their storage.
 	compared: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
 	/// Those this run compared.
 	comparing: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
+	/// Whether the runs before reached a `panic::set_hook`, so every panic carries the
+	/// `rt.Location` its hook reads.
+	pub hooked: bool,
+	/// Whether this run did.
+	hooking: bool,
 	/// The trait of each trait object, by its principal trait.
-	objects: rustc_data_structures::fx::FxHashMap<DefId, dynamic::Object>,
-	/// The class wrapping each type as each trait object.
-	object_classes: rustc_data_structures::fx::FxHashMap<(Ty<'tcx>, SymId, dynamic::Held), dynamic::Class>,
+	objects: rustc_data_structures::fx::FxHashMap<DefId, dynamic::Object<'tcx>>,
+	/// The class wrapping each type, held each way, as every trait object.
+	object_classes: rustc_data_structures::fx::FxHashMap<(Ty<'tcx>, dynamic::Held), dynamic::Class>,
+	/// The trait method each of those classes' methods calls, by class and name.
+	class_methods: rustc_data_structures::fx::FxHashMap<(SymId, String), DefId>,
 	/// The class of each coroutine instance.
 	pub coroutines: rustc_data_structures::fx::FxHashMap<Instance<'tcx>, mir::coroutine::Info<'tcx>>,
 	/// Whether [`Self::ty`] is typing a variable: see [`Self::held_ty`].
@@ -270,6 +287,8 @@ pub struct Translator<'a, 'tcx> {
 	slotted: rustc_data_structures::fx::FxHashMap<Instance<'tcx>, Option<mir::Slotted<'tcx>>>,
 	/// The slot of each `Ok` payload type, which every function returning one shares.
 	slots: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, SymId>,
+	/// The `rt.HasherImpl` of each `Hasher` of the crate's own.
+	pub hashers: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, SymId>,
 	/// The field of each struct's byte slice field held as its parts that holds its bytes.
 	pub slices: rustc_data_structures::fx::FxHashSet<FieldId>,
 }
@@ -304,7 +323,7 @@ impl<'tcx> Crates<'tcx> {
 
 /// Whether `krate` is std or a crate std is built from: `-Zbuild-std` compiles those, and
 /// only those, with stability on every item.
-fn of_std(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
+pub(crate) fn of_std(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
 	tcx.lookup_stability(krate.as_def_id()).is_some()
 }
 
@@ -393,7 +412,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// writes it didn't read, or an instance of one writing a type parameter that it didn't
 	/// judge by. A closure's clone may come before or after the closure is made, which
 	/// makes it as its clones need, so it runs again too when it reaches a new one, and a
-	/// comparison of pointers may come before or after the borrows it decides.
+	/// comparison of pointers may come before or after the borrows and copies it decides.
+	/// Once it reaches a `panic::set_hook`, it runs again with every panic located.
 	fn settle<R>(
 		tcx: TyCtxt<'tcx>,
 		config: &'a Config,
@@ -403,8 +423,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let mut read = rustc_data_structures::fx::FxHashSet::default();
 		let mut cloned = rustc_data_structures::fx::FxHashSet::default();
 		let mut compared = rustc_data_structures::fx::FxHashSet::default();
+		let mut hooked = false;
 		loop {
-			let mut t = Self::new(tcx, config, census, read, cloned, compared)?;
+			let mut t = Self::new(tcx, config, census, read, cloned, compared, hooked)?;
 			t.bind();
 			let out = reach(&mut t);
 			let reached: Vec<Instance<'tcx>> = t
@@ -414,7 +435,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				.copied()
 				.filter(|&instance| t.crates.translates(instance.def_id()) && t.writes.unread(instance))
 				.collect();
-			if reached.is_empty() && t.cloning.is_subset(&t.cloned) && t.comparing.is_subset(&t.compared) {
+			if reached.is_empty()
+				&& t.cloning.is_subset(&t.cloned)
+				&& t.comparing.is_subset(&t.compared)
+				&& (t.hooked || !t.hooking)
+			{
+				t.refuse_capacity_reads();
 				return Some((t, out));
 			}
 			read = std::mem::take(&mut t.read);
@@ -423,7 +449,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			cloned.extend(t.cloning.drain());
 			compared = std::mem::take(&mut t.compared);
 			compared.extend(t.comparing.drain());
+			hooked |= t.hooking;
 		}
+	}
+
+	/// Note a `panic::set_hook`, after which every panic carries its location.
+	pub fn hook(&mut self) {
+		self.hooking = true;
 	}
 
 	/// Note a clone of the closure `def_id` that can't share it.
@@ -444,6 +476,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		read: rustc_data_structures::fx::FxHashSet<Instance<'tcx>>,
 		cloned: rustc_data_structures::fx::FxHashSet<DefId>,
 		compared: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
+		hooked: bool,
 	) -> Option<Self> {
 		if tcx.data_layout.pointer_size().bits() != 32 {
 			tcx.dcx().err(
@@ -465,13 +498,18 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			env: TypingEnv::fully_monomorphized(),
 			census,
 			refusals: Some(Vec::new()),
+			capacity_reads: Vec::new(),
+			string_bytes: false,
 			drops: Default::default(),
 			drops_open: Default::default(),
 			drops_cycle: false,
 			glued: Default::default(),
+			shared_glues: Default::default(),
+			shared_open: Default::default(),
 			coroutines: Default::default(),
 			objects: Default::default(),
 			object_classes: Default::default(),
+			class_methods: Default::default(),
 			drop_shims: Default::default(),
 			copy_shims: Default::default(),
 			values: Default::default(),
@@ -485,6 +523,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			cloning: Default::default(),
 			compared,
 			comparing: Default::default(),
+			hooked,
+			hooking: false,
 			held: false,
 			glue: false,
 			sites: Default::default(),
@@ -495,6 +535,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			parting: None,
 			slotted: Default::default(),
 			slots: Default::default(),
+			hashers: Default::default(),
 			slices: Default::default(),
 		})
 	}
@@ -542,7 +583,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	pub fn split(&self, field: &ty::FieldDef) -> bool {
 		let ty = self.tcx.type_of(field.did).instantiate_identity().skip_norm_wip();
 		matches!(ty.kind(), ty::Ref(_, inner, rustc_ast::Mutability::Not)
-			if (matches!(inner.kind(), ty::Slice(e) if matches!(e.kind(), ty::Uint(ty::UintTy::U8))) || byte_array(*inner)))
+			if (matches!(inner.kind(), ty::Slice(e) if byte(*e)) || byte_array(*inner)))
 			&& !self.tcx.visibility(field.did).is_public()
 	}
 
@@ -602,11 +643,46 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Refuse a construct outside the subset: inside a body of std's, at the crate's call.
 	pub fn err(&mut self, span: Span, msg: impl Into<String>) {
+		let (span, msg) = self.sited(span, msg.into());
+		self.refuse(span, msg);
+	}
+
+	/// Where a refusal at `span` reports: inside a body of std's, at the crate's call.
+	fn sited(&self, span: Span, msg: String) -> (Span, String) {
+		match self.site {
+			Some((site, def_id)) => (site, format!("{msg}, in `{}`", self.tcx.def_path_str(def_id))),
+			None => (span, msg),
+		}
+	}
+
+	/// Note a `Bytes` or a `Vec<u8>` made of a `String`'s bytes, whose capacity JS keeps none
+	/// of, so every crate is refused what [`Self::string_capacity`] notes: the bytes may
+	/// reach any of them.
+	pub fn string_bytes(&mut self) {
+		self.string_bytes = true;
+	}
+
+	/// Note `what`, which reads the capacity of a `Bytes`' storage, refused once translation
+	/// settles if any crate makes a `Bytes` or a `Vec<u8>` of a `String`'s bytes.
+	pub fn string_capacity(&mut self, span: Span, what: &str) {
+		let msg = format!(
+			"`{what}` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported"
+		);
+		let read = self.sited(span, msg);
+		self.capacity_reads.push(read);
+	}
+
+	fn refuse_capacity_reads(&mut self) {
+		let reads = std::mem::take(&mut self.capacity_reads);
+		if self.string_bytes {
+			for (span, msg) in reads {
+				self.refuse(span, msg);
+			}
+		}
+	}
+
+	fn refuse(&mut self, span: Span, msg: String) {
 		self.failed = true;
-		let (span, msg) = match self.site {
-			Some((site, def_id)) => (site, format!("{}, in `{}`", msg.into(), self.tcx.def_path_str(def_id))),
-			None => (span, msg.into()),
-		};
 		match &mut self.refusals {
 			Some(refusals) => refusals.push((span, msg)),
 			None => _ = self.tcx.dcx().span_err(span, format!("rust2-ts: {msg}")),
@@ -1127,7 +1203,6 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				}
 			})
 			.collect();
-		let identity = ty::GenericArgs::identity_for_item(tcx, did);
 		let item = match &info.repr {
 			AdtRepr::Struct { ctor, fields } => {
 				let variant = adt.non_enum_variant();
@@ -1138,7 +1213,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					match held {
 						StructField::Whole(id) => defined.push(ts::Field {
 							id,
-							ty: self.defined_field_ty(field, identity, span),
+							ty: self.defined_field_ty(field, did, span),
 							doc,
 							init: ts::FieldInit::Ctor,
 						}),
@@ -1199,7 +1274,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						let mut fields = vec![("tag".to_string(), Type::StrLit(v.name.to_string()))];
 						for (i, field) in v.fields.iter().enumerate() {
 							let span = tcx.def_span(field.did);
-							let ty = self.defined_field_ty(field, identity, span);
+							let ty = self.defined_field_ty(field, did, span);
 							fields.push((field_name(field.name.as_str(), i), ty));
 						}
 						Type::Object(fields)
@@ -1243,9 +1318,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// What kind of JS object a `&mut` to `ty` can change in place, if any.
 	pub fn object_kind(&self, ty: Ty<'tcx>) -> Option<ObjectKind> {
 		match ty.kind() {
-			ty::Array(elem, _) | ty::Slice(elem) => match elem.kind() {
-				ty::Uint(ty::UintTy::U8) => Some(ObjectKind::Bytes),
-				_ => Some(ObjectKind::Array),
+			ty::Array(elem, _) | ty::Slice(elem) => match byte(*elem) {
+				true => Some(ObjectKind::Bytes),
+				false => Some(ObjectKind::Array),
 			},
 			// A JS array, whose elements change in place as an array's do.
 			ty::Tuple(tys) if !tys.is_empty() => Some(ObjectKind::Array),
@@ -1278,10 +1353,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| library::Std::LazyLock
 					| library::Std::Waker
 					| library::Std::WakerVTable
+					| library::Std::RawWaker
 					| library::Std::Context
 					| library::Std::Pin
 					| library::Std::PollFn
 					| library::Std::Pending
+					| library::Std::Ready
 					| library::Std::Range
 					| library::Std::RangeInclusive
 					| library::Std::RangeFrom
@@ -1295,21 +1372,25 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| library::Std::BinaryHeap
 					| library::Std::PeekMut
 					| library::Std::Entry
+					| library::Std::HashTable
+					| library::Std::TableEntry
 					| library::Std::Hasher
 					| library::Std::BytesMut
 					| library::Std::ThreadRng,
 				) => Some(ObjectKind::Class),
+				// What it holds, which its JS value is.
+				Some(library::Std::AssertUnwindSafe) => self.object_kind(args.type_at(0)),
 				// A place, unless a pointer to what it holds is that object.
-				Some(library::Std::MaybeUninit) => match self.pointee(args.type_at(0)) {
+				Some(library::Std::MaybeUninit | library::Std::ManuallyDrop) => match self.pointee(args.type_at(0)) {
 					pointer::Pointee::Object | pointer::Pointee::Bytes => self.object_kind(args.type_at(0)),
-					pointer::Pointee::Place => None,
+					pointer::Pointee::Place | pointer::Pointee::Slice => None,
 				},
 				Some(_) => None,
 				None if adt.is_struct() || adt.is_union() => Some(ObjectKind::Class),
 				None => None,
 			},
 			// Its captures change through it, as a JS function's do.
-			ty::Closure(..) => Some(ObjectKind::Closure),
+			ty::Closure(..) | ty::CoroutineClosure(..) => Some(ObjectKind::Closure),
 			ty::Coroutine(..) | ty::Dynamic(..) => Some(ObjectKind::Class),
 			_ if self.deferred(ty) => Some(ObjectKind::Class),
 			_ => None,
@@ -1319,49 +1400,64 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether a JS value of `ty` is a copy that no JS value can point at, such as a number
 	/// or a reference, or an object its clones may share, as an `Arc`'s and a `Waker`'s are,
 	/// pinned or boxed too, which JS erases, so a `&mut` to it is an `rt.Place`: where the
-	/// value is, read and written through `v`.
+	/// value is, read and written through `v`. A `LocalKey`'s copies share its storage too.
 	pub fn needs_place(&self, ty: Ty<'tcx>) -> bool {
 		use library::Std;
 		if self.object_kind(ty).is_none() {
 			return true;
 		}
-		matches!(self.std_of(self.erased(ty)), Some(Std::Arc | Std::Waker))
+		matches!(
+			self.std_of(self.erased(ty)),
+			Some(Std::Arc | Std::Waker | Std::LocalKey)
+		)
 	}
 
-	/// What JS keeps of a `ty`: what it holds through any number of `Pin`s and `Box`es.
+	/// Whether `ty`'s JS value, through the `Pin`s, `Box`es, and `AssertUnwindSafe`s JS
+	/// erases, is of an `rt` class that keeps its state private, which `rt.ptrWrite` moves in
+	/// by its `$move`.
+	pub fn moves_private(&self, ty: Ty<'tcx>) -> bool {
+		use library::Std;
+		matches!(
+			self.std_of(self.erased(ty)),
+			Some(Std::PollFn | Std::Ready | Std::LazyCell | Std::LazyLock)
+		)
+	}
+
+	/// What JS keeps of a `ty`: what it holds through any number of `Pin`s, `Box`es, and
+	/// `AssertUnwindSafe`s.
 	pub fn erased(&self, ty: Ty<'tcx>) -> Ty<'tcx> {
 		use library::Std;
 		let mut erased = ty;
 		while let ty::Adt(adt, args) = erased.kind()
-			&& matches!(Std::of(self.tcx, adt.did()), Some(Std::Pin | Std::Box))
-		{
+			&& matches!(
+				Std::of(self.tcx, adt.did()),
+				Some(Std::Pin | Std::Box | Std::AssertUnwindSafe)
+			) {
 			erased = args.type_at(0);
 		}
 		erased
 	}
 
-	/// The kind of a `pointee`'s object, through the `Pin`s and `Box`es JS erases, where a
-	/// whole value of it can be written into the object in place: one only its owner
-	/// holds, unlike an `Arc`'s, which its clones share, and whose parts `Object.assign`
-	/// copies, unlike a binding's, an `rt.PollFn`'s or a future's private fields, or a
-	/// trait object's, whatever class it is.
+	/// The kind of a `pointee`'s object, through the `Pin`s, `Box`es, and `AssertUnwindSafe`s
+	/// JS erases, where a whole value of it can be written into the object in place: one only
+	/// its owner holds, unlike an `Arc`'s or a `LocalKey`'s, which its copies share, and whose
+	/// state a write reaches, unlike a binding's, or a future's, or a trait object's, whatever
+	/// class it is.
 	pub fn write_in(&self, pointee: Ty<'tcx>) -> Option<ObjectKind> {
 		use library::Std;
 		let erased = self.erased(pointee);
 		let hidden = match erased.kind() {
-			ty::Adt(adt, _) => {
-				self.bound_drops(adt.did()).is_some() || Std::of(self.tcx, adt.did()) == Some(Std::PollFn)
-			}
+			ty::Adt(adt, _) => self.bound_drops(adt.did()).is_some(),
 			ty::Dynamic(..) | ty::Closure(..) => true,
 			// A `Uint8Array`'s length never changes, as a boxed slice's may.
-			ty::Slice(elem) => matches!(elem.kind(), ty::Uint(ty::UintTy::U8)),
+			ty::Slice(elem) => byte(*elem),
 			_ => false,
 		};
 		// Copying fields into an object others share would change their handles too.
 		let shared = match erased.kind() {
 			ty::Adt(adt, _) => matches!(
 				Std::of(self.tcx, adt.did()),
-				Some(Std::Arc | Std::Waker | Std::Context | Std::MutexGuard | Std::Ref | Std::RefMut)
+				Some(Std::Arc | Std::Waker | Std::LocalKey | Std::Context | Std::MutexGuard | Std::Ref | Std::RefMut)
 			),
 			ty::Ref(..) | ty::Coroutine(..) => true,
 			_ => false,
@@ -1429,13 +1525,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Ref(_, inner, _) => self.ty(*inner, span),
 			ty::Array(elem, _) if self.open_elem(*elem) => Type::Rt("ArrayOf", vec![self.ty(*elem, span)]),
 			ty::Slice(elem) if self.open_elem(*elem) => Type::Rt("SliceOf", vec![self.ty(*elem, span)]),
-			ty::Array(elem, _) => match elem.kind() {
-				ty::Uint(ty::UintTy::U8) => Type::Builtin("Uint8Array"),
-				_ => Type::Array(Box::new(self.ty(*elem, span))),
+			ty::Array(elem, _) => match byte(*elem) {
+				true => Type::Builtin("Uint8Array"),
+				false => Type::Array(Box::new(self.ty(*elem, span))),
 			},
-			ty::Slice(elem) => match elem.kind() {
-				ty::Uint(ty::UintTy::U8) => Type::Rt("ByteSlice", vec![]),
-				_ => Type::Array(Box::new(self.ty(*elem, span))),
+			ty::Slice(elem) => match byte(*elem) {
+				true => Type::Rt("ByteSlice", vec![]),
+				false => Type::Array(Box::new(self.ty(*elem, span))),
 			},
 			ty::Param(param) => Type::Param(param.name.to_string()),
 			ty::FnDef(def_id, args) => {
@@ -1454,10 +1550,23 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				};
 				self.fn_ty(&inputs, sig.output(), span)
 			}
+			// A function returning the future of each call.
+			ty::CoroutineClosure(_, args) => {
+				let sig =
+					tcx.instantiate_bound_regions_with_erased(args.as_coroutine_closure().coroutine_closure_sig());
+				let params = sig
+					.tupled_inputs_ty
+					.tuple_fields()
+					.iter()
+					.map(|t| self.ty(t, span))
+					.collect();
+				Type::Func(params, Box::new(self.future_ty(sig.return_ty, span)))
+			}
 			ty::Adt(adt, args) => self.adt_ty(*adt, args, span),
 			ty::Pat(base, _) => self.ty(*base, span),
 			ty::Coroutine(_, args) => self.future_ty(args.as_coroutine().return_ty(), span),
 			ty::Dynamic(..) if let Some(output) = self.dyn_future(ty) => self.future_ty(output, span),
+			ty::Dynamic(..) if let Some(item) = self.dyn_iter(ty) => Type::Rt("Iter", vec![self.ty(item, span)]),
 			// `&dyn Debug` and `&dyn Display` are values ready to write.
 			ty::Dynamic(preds, ..)
 				if preds
@@ -1469,7 +1578,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			}
 			ty::Dynamic(..) if let Some(f) = self.dyn_fn(ty) => self.fn_ty(&f.inputs, f.output, span),
 			ty::Dynamic(..) => match self.object(ty, span) {
-				Some(object) => Type::Sym(object.sym, Vec::new()),
+				Some(sym) => Type::Sym(sym, Vec::new()),
 				None => Type::Builtin("unknown"),
 			},
 			_ if self.deferred(ty) => Type::Builtin("unknown"),
@@ -1581,16 +1690,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::Vec if self.open_elem(args.type_at(0)) => {
 					Type::Rt("VecOf", vec![self.ty(args.type_at(0), span)])
 				}
-				library::Std::Vec => match args.type_at(0).kind() {
-					ty::Uint(ty::UintTy::U8) => Type::Rt("ByteVec", vec![]),
-					_ => Type::Array(Box::new(self.ty(args.type_at(0), span))),
+				library::Std::Vec => match byte(args.type_at(0)) {
+					true => Type::Rt("ByteVec", vec![]),
+					false => Type::Rt("Vec", vec![self.ty(args.type_at(0), span)]),
 				},
 				library::Std::String => Type::Builtin("string"),
-				library::Std::Cow if library::string(tcx, Ty::new_adt(tcx, adt, args)) => Type::Builtin("string"),
+				library::Std::Cow if library::cow_str(tcx, Ty::new_adt(tcx, adt, args)) => Type::Rt("StrCow", vec![]),
 				library::Std::Cow if let Some(elem) = library::cow_slice(tcx, Ty::new_adt(tcx, adt, args)) => {
 					match elem.kind() {
 						_ if self.open_elem(elem) => Type::Rt("CowOf", vec![self.ty(elem, span)]),
-						ty::Uint(ty::UintTy::U8) => Type::Rt("ByteCow", vec![]),
+						_ if byte(elem) => Type::Rt("ByteCow", vec![]),
 						_ => Type::Rt("Cow", vec![self.ty(elem, span)]),
 					}
 				}
@@ -1600,6 +1709,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				}
 				library::Std::Box
 				| library::Std::Reverse
+				| library::Std::AssertUnwindSafe
 				| library::Std::NonZero
 				| library::Std::Wrapping
 				| library::Std::Saturating
@@ -1620,6 +1730,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::BorrowError => Type::Rt("BorrowError", vec![]),
 				library::Std::BorrowMutError => Type::Rt("BorrowMutError", vec![]),
 				library::Std::ParseCharError => Type::Rt("ParseCharError", vec![]),
+				library::Std::FromUtf16Error => Type::Rt("FromUtf16Error", vec![]),
+				library::Std::CharTryFromError => Type::Rt("CharTryFromError", vec![]),
+				library::Std::TryFromCharError => Type::Rt("TryFromCharError", vec![]),
+				library::Std::DecodeUtf16Error => Type::Rt("DecodeUtf16Error", vec![]),
+				library::Std::Utf8Chunk => Type::Rt("Utf8Chunk", vec![]),
 				library::Std::ParseFloatError => Type::Rt("ParseFloatError", vec![]),
 				library::Std::TryFromFloatSecsError => Type::Rt("TryFromFloatSecsError", vec![]),
 				library::Std::Formatter => Type::Rt("Formatter", vec![]),
@@ -1664,6 +1779,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::LazyLock => Type::Rt("LazyLock", vec![self.ty(args.type_at(0), span)]),
 				library::Std::Waker => Type::Rt("Waker", vec![]),
 				library::Std::WakerVTable => Type::Rt("WakerVTable", vec![]),
+				library::Std::RawWaker => Type::Rt("RawWaker", vec![]),
 				library::Std::Context => Type::Rt("Context", vec![]),
 				library::Std::Poll => {
 					if let Some(msg) = self.erasure_conflict(Ty::new_adt(tcx, adt, args)) {
@@ -1676,6 +1792,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					let output = self.future_output(Ty::new_adt(tcx, adt, args), span);
 					self.future_ty(output, span)
 				}
+				// Its own class, whose value `into_inner`, `clone`, and `Debug` read; refused where
+				// that can be pending, as any future's output is.
+				library::Std::Ready => {
+					self.future_ty(args.type_at(0), span);
+					Type::Rt("Ready", vec![self.ty(args.type_at(0), span)])
+				}
 				library::Std::Range => Type::Rt("Range", vec![self.ty(args.type_at(0), span)]),
 				library::Std::RangeInclusive => Type::Rt("RangeInclusive", vec![self.ty(args.type_at(0), span)]),
 				library::Std::RangeTo => Type::Object(vec![("end".into(), self.ty(args.type_at(0), span))]),
@@ -1684,10 +1806,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					("inclusive".into(), Type::Builtin("true")),
 				]),
 				library::Std::RangeFrom => Type::Rt("RangeFrom", vec![self.ty(args.type_at(0), span)]),
-				library::Std::RangeFull => Type::Builtin("undefined"),
+				library::Std::RangeFull | library::Std::BuildHasherDefault => Type::Builtin("undefined"),
 				library::Std::Argument => Type::Rt("Fmt", vec![]),
 				library::Std::NonNull => self.pointer_ty(args.type_at(0), span),
-				library::Std::MaybeUninit => self.ty(args.type_at(0), span),
+				library::Std::MaybeUninit | library::Std::ManuallyDrop => self.ty(args.type_at(0), span),
 				library::Std::Peekable => {
 					let item = self.iter_item(Ty::new_adt(tcx, adt, args));
 					Type::Rt("Peekable", vec![self.item_ty(item, span)])
@@ -1698,6 +1820,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				| library::Std::BTreeMap
 				| library::Std::Entry
 				| library::Std::HashSet
+				| library::Std::HashTable
+				| library::Std::TableEntry
 				| library::Std::BTreeSet
 				| library::Std::VecDeque
 				| library::Std::LinkedList
@@ -1708,6 +1832,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						library::Std::BTreeMap => ("BTreeMap", 2),
 						library::Std::Entry => ("Entry", 2),
 						library::Std::HashSet => ("HashSet", 1),
+						library::Std::HashTable => ("HashTable", 1),
+						library::Std::TableEntry => ("TableEntry", 1),
 						library::Std::BTreeSet => ("BTreeSet", 1),
 						library::Std::BinaryHeap => ("BinaryHeap", 1),
 						library::Std::PeekMut => ("PeekMut", 1),
@@ -1721,6 +1847,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::Hasher => Type::Rt("Hasher", vec![]),
 				library::Std::RandomState => Type::Rt("RandomState", vec![]),
 				library::Std::Duration => Type::Rt("Duration", vec![]),
+				library::Std::Layout => Type::Rt("Layout", vec![]),
+				library::Std::Location => Type::Rt("Location", vec![]),
+				library::Std::PanicHookInfo => Type::Rt("PanicHookInfo", vec![]),
+				library::Std::LayoutError => Type::Rt("LayoutError", vec![]),
+				library::Std::TryReserveError => Type::Rt("TryReserveError", vec![]),
 				library::Std::Bytes => Type::Rt("ByteSlice", vec![]),
 				library::Std::BytesMut => Type::Rt("BytesMut", vec![]),
 				library::Std::ThreadRng => Type::Rt("ThreadRng", vec![]),
@@ -1770,11 +1901,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		Type::Sym(info.sym, args)
 	}
 
-	/// The TypeScript type of `field` in its type's definition, with `identity` its own
-	/// parameters, noting a field that holds a form only an instance decides for
+	/// The TypeScript type of `field` in the definition of `adt`, over its own parameters,
+	/// noting a field that holds a form only an instance decides for
 	/// [`Self::held_field`].
-	fn defined_field_ty(&mut self, field: &ty::FieldDef, identity: GenericArgsRef<'tcx>, span: Span) -> Type {
-		let ty = self.ty(field.ty(self.tcx, identity).skip_norm_wip(), span);
+	fn defined_field_ty(&mut self, field: &ty::FieldDef, adt: DefId, span: Span) -> Type {
+		let tcx = self.tcx;
+		// A projection it names, such as `<S as BuildHasher>::Hasher` of a known `S`, is the
+		// type it normalizes to.
+		let identity = ty::GenericArgs::identity_for_item(tcx, adt);
+		let ty = copy::field_ty(tcx, TypingEnv::post_analysis(tcx, adt), field.did, identity);
+		let ty = self.ty(ty, span);
 		let instanced = |t: &Type| matches!(t, Type::Rt("Ptr" | "ArrayOf" | "SliceOf" | "VecOf" | "CowOf", _));
 		if ty.any(&instanced) {
 			self.instanced_fields
@@ -1915,10 +2051,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// The JS value of `Pending` in a `Poll<inner>`: `rt.Pending`, or `rt.OuterPending`
 	/// where `inner` can already be `rt.Pending`.
 	pub fn pending(&self, inner: Ty<'tcx>) -> ts::Expr {
-		match self.erases_to(inner).pending {
-			true => ts::Expr::Rt("OuterPending".into()),
-			false => ts::Expr::Rt("Pending".into()),
-		}
+		self.pending_arg(inner)
+			.unwrap_or_else(|| ts::Expr::Rt("Pending".into()))
+	}
+
+	/// `rt.OuterPending` where it is a `Poll<inner>`'s `Pending`, for a runtime function
+	/// whose `pending` is `rt.Pending` unless given.
+	pub fn pending_arg(&self, inner: Ty<'tcx>) -> Option<ts::Expr> {
+		self.erases_to(inner)
+			.pending
+			.then(|| ts::Expr::Rt("OuterPending".into()))
 	}
 
 	/// The JS value of `None` in an `Option<inner>`, and of `Break` in a `ControlFlow`
@@ -1954,14 +2096,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					library::Std::Box
 					| library::Std::Pin
 					| library::Std::Reverse
+					| library::Std::AssertUnwindSafe
 					| library::Std::NonZero
 					| library::Std::Wrapping
 					| library::Std::Saturating
-					| library::Std::PoisonError,
+					| library::Std::PoisonError
+					| library::Std::ManuallyDrop,
 				) => self.erases_to(args.type_at(0)),
-				// `undefined` while it holds nothing.
+				// `undefined` while it holds nothing, but for a byte, which is then 0.
 				Some(library::Std::MaybeUninit) => Erased {
-					undefined: true,
+					undefined: !byte(ty),
 					..self.erases_to(args.type_at(0))
 				},
 				Some(library::Std::Option) => self.erases_to(args.type_at(0)).option(),
@@ -2053,9 +2197,44 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 }
 
-/// Whether `ty` is `[u8; N]`, which is a `Uint8Array`.
+/// What the closure or async closure `ty` captured, in order.
+pub fn captured<'tcx>(ty: Ty<'tcx>) -> Option<&'tcx ty::List<Ty<'tcx>>> {
+	match ty.kind() {
+		ty::Closure(_, args) => Some(args.as_closure().upvar_tys()),
+		ty::CoroutineClosure(_, args) => Some(args.as_coroutine_closure().upvar_tys()),
+		_ => None,
+	}
+}
+
+/// The function trait that calls the closure or async closure `ty`.
+pub fn closure_kind(ty: Ty<'_>) -> Option<ty::ClosureKind> {
+	match ty.kind() {
+		ty::Closure(_, args) => Some(args.as_closure().kind()),
+		ty::CoroutineClosure(_, args) => Some(args.as_coroutine_closure().kind()),
+		_ => None,
+	}
+}
+
+/// Whether `ty` is a byte: a `u8`, or a `MaybeUninit` of one through any number of them,
+/// which JS keeps as the `u8`, so that a run of any is a typed array's and a write through
+/// a `[MaybeUninit<u8>]` reaches the bytes it lends.
+pub fn byte(ty: Ty<'_>) -> bool {
+	match ty.kind() {
+		ty::Uint(ty::UintTy::U8) => true,
+		// The context every lowering runs in, so the many callers that name no `TyCtxt` need none.
+		ty::Adt(adt, args)
+			if adt.is_union()
+				&& ty::tls::with(|tcx| tcx.is_lang_item(adt.did(), rustc_attr_ir::LangItem::MaybeUninit)) =>
+		{
+			byte(args.type_at(0))
+		}
+		_ => false,
+	}
+}
+
+/// Whether `ty` is `[u8; N]`, or one of `MaybeUninit<u8>`, which is a `Uint8Array`.
 pub fn byte_array(ty: Ty<'_>) -> bool {
-	matches!(ty.kind(), ty::Array(elem, _) if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)))
+	matches!(ty.kind(), ty::Array(elem, _) if byte(*elem))
 }
 
 /// The parts of `slice`, an `rt.ByteSlice`, each read once: those it is made of, or those of a

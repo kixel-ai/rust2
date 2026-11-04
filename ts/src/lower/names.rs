@@ -14,8 +14,9 @@ impl<'tcx> Translator<'_, 'tcx> {
 	/// What tells this instance apart from others of its item, after a `$`: the items it is
 	/// nested in below its module, the trait it implements with the trait's type arguments,
 	/// then its self type and its own type arguments, each as [`ty`] spells it. In its
-	/// type's module, `owned`, the type goes without saying, but not its arguments nor the
-	/// references to it: `fmt_Display_copy_Pair` for `Wrap<copy::Pair>`'s `Display::fmt`.
+	/// type's module, `owned`, the type goes without saying, but not its arguments nor, after
+	/// them, the references to it: `fmt_Display_copy_Pair` for `Wrap<copy::Pair>`'s
+	/// `Display::fmt`, and `bytes_Buf_u8_mut` for `&mut Wrap<u8>`'s `Buf::chunk`.
 	/// It depends on the instance alone, so reaching another renames nothing; empty for a
 	/// function of its module that is neither generic, of a type, nor of a trait.
 	pub(super) fn suffix(&self, instance: Instance<'tcx>, owned: bool) -> String {
@@ -41,9 +42,11 @@ impl<'tcx> Translator<'_, 'tcx> {
 				inner = *pointee;
 			}
 			match inner.kind() {
+				// The references after the arguments, which no spelling of a type ends in, so
+				// `&mut Take<T>`'s differ from `Take<&mut T>`'s.
 				ty::Adt(_, args) if owned => {
-					parts.extend(refs);
 					parts.extend(args.types().map(|t| ty(tcx, t)));
+					parts.extend(refs);
 				}
 				_ => parts.push(ty(tcx, self_ty)),
 			}
@@ -71,8 +74,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 	pub(super) fn names(&self) -> Names {
 		let tcx = self.tcx;
 		let mut names = Names::default();
-		// The copies and drops `lib.ts` makes.
-		for shim in ["copy", "drop"] {
+		// The copies, drops, slots of `Ok` parts, and trait objects' classes `lib.ts` makes.
+		for shim in ["copy", "drop", "out", "of", "ofPlace"] {
 			importable(&mut names, shim, Vec::new());
 		}
 		for (module, namespace, prefix) in self.bound_files() {
@@ -129,7 +132,6 @@ impl<'tcx> Translator<'_, 'tcx> {
 		match tcx.def_kind(def_id) {
 			DefKind::Fn => {
 				importable(names, &escape(&fn_base(tcx, def_id)), module());
-				self.slot_names(def_id, names);
 			}
 			DefKind::Const | DefKind::Static { .. } | DefKind::AssocConst => {
 				importable(names, &escape(tcx.item_name(def_id).as_str()), module())
@@ -148,7 +150,6 @@ impl<'tcx> Translator<'_, 'tcx> {
 				};
 				if named {
 					importable(names, &escape(&camel(tcx.item_name(def_id).as_str())), module());
-					self.slot_names(def_id, names);
 				}
 			}
 			// A coroutine's class, beside the function it is of.
@@ -159,15 +160,6 @@ impl<'tcx> Translator<'_, 'tcx> {
 				}
 			}
 			_ => {}
-		}
-	}
-
-	/// The slot of `Ok` parts beside the function `def_id`, if it returns a `Result`.
-	fn slot_names(&self, def_id: DefId, names: &mut Names) {
-		let output = self.tcx.fn_sig(def_id).skip_binder().output().skip_binder();
-		if matches!(output.kind(), ty::Adt(adt, _) if library::Std::of(self.tcx, adt.did()) == Some(library::Std::Result))
-		{
-			importable(names, &slot_base(self.tcx, def_id), self.module_of(def_id));
 		}
 	}
 
@@ -192,11 +184,6 @@ pub fn fn_base(tcx: TyCtxt<'_>, def_id: DefId) -> String {
 		Some(key) => format!("{}$init", tcx.item_name(key)),
 		None => camel(tcx.item_name(def_id).as_str()),
 	}
-}
-
-/// The name of the slot the function `def_id` hands back its `Ok`'s parts in.
-pub fn slot_base(tcx: TyCtxt<'_>, def_id: DefId) -> String {
-	format!("{}Out", camel(tcx.item_name(def_id).as_str()))
 }
 
 /// The name of the class of a coroutine of the function `name`.

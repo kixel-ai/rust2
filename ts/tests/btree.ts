@@ -1,6 +1,7 @@
 // The runtime's B-tree through a script of random operations, large enough to split, merge,
 // and rebalance its nodes at every height, and to empty it again: inserts, removals, pops,
-// lookups, ranges and iterators walked from both ends, `retain`, and `clone`. Prints what
+// lookups, ranges and iterators walked from both ends, `retain`, `extract_if` read part way,
+// and `clone`. Prints what
 // each returns, which `runtime.rs` compares with std's `BTreeMap` running the same script.
 //
 // usage: node btree.ts
@@ -109,10 +110,25 @@ for (let step = 0; step < steps; step++) {
 		out.push(`retain ${rt.btreeLen(m)} ${rt.btreeFirst(m)?.join(" ") ?? "-"} ${rt.btreeFirst(m, true)?.join(" ") ?? "-"}`);
 		m = rand() & 1 ? copy : m;
 		out.push(`kept ${rt.btreeLen(m)}`);
+	} else if (step % 211 === 0) {
+		const j = rand() % keys;
+		const [lo, hi] = k < j ? [k, j] : [j, k];
+		const limit = rand() % 400;
+		const copy = rt.btreeClone(m);
+		const it = rt.btreeExtractIf(m, { start: lo, end: hi }, (key, value) => (key ^ value) % 3 !== 0);
+		const taken: number[] = [];
+		for (let i = 0; i < limit; i++) {
+			const entry = it.next();
+			if (entry === rt.DONE) break;
+			taken.push(entry[0]);
+		}
+		out.push(`extract ${lo} ${hi} ${rt.btreeLen(m)} ${taken.join(",")}`);
+		check(m);
+		m = rand() & 1 ? copy : m;
 	}
 	if (step % 499 === 0) check(m);
 }
-out.push(`end ${rt.btreeLen(m)} ${rt.iterToArray(rt.btreeKeys(m)).join(",")}`);
+out.push(`end ${rt.btreeLen(m)} ${rt.iterToVec(rt.btreeKeys(m)).items.join(",")}`);
 // Emptied from both ends, down to its root leaf.
 const drained: number[] = [];
 while (rt.btreeLen(m) > 0) {

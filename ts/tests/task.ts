@@ -57,15 +57,22 @@ export interface Fixture<V> {
 		cells(log: Log, id: number, arg: number): void;
 		folded(log: Log, id: number, arg: number): void;
 		rfolded(log: Log, id: number, arg: number): void;
+		called(log: Log, id: number, arg: number): void;
 		inside(log: Log, id: number, arg: number): void;
+		released(log: Log, id: number, arg: number): void;
+		flattened(log: Log, id: number, arg: number): void;
+		indexed(log: Log, id: number, arg: number): void;
+		orders(log: Log, id: number, arg: number): void;
 		compared(log: Log, id: number, arg: number): void;
 		lists(log: Log, id: number, arg: number): void;
+		searched(log: Log, id: number, arg: number): void;
 	};
 	futures: {
 		helpers(rx: Consumer, guard: Guard): Future<V>;
 		boxed(rx: Consumer, guard: Guard): Future<V>;
 		wakers(rx: Consumer, guard: Guard): Future<V>;
 	};
+	closures: { closures(rx: Consumer, guard: Guard): Future<V> };
 }
 
 /** What every waker of one task points at. */
@@ -88,8 +95,13 @@ class Wake {
 	}
 }
 
-/** The vtable of every task's waker. */
-const TASK_VTABLE = {};
+/** The vtable of every task's waker: what one of its data does, as `Waker::new` of a waker's parts calls it. */
+const TASK_VTABLE = {
+	clone: (data: Wake) => ({ data, vtable: new TaskWaker(data).clone().vtable }),
+	wake: (data: Wake) => new TaskWaker(data).wake(),
+	wakeByRef: (data: Wake) => new TaskWaker(data).wakeByRef(),
+	drop: (data: Wake) => new TaskWaker(data)[Symbol.dispose](),
+};
 
 class TaskWaker implements Waker {
 	readonly target: Wake;
@@ -207,7 +219,7 @@ const guard = <V>(r: Run<V>) => r.f.Guard.new(r.exec.tasks.length, r.f.Log.clone
  * Each step and its name, which a script's op picks modulo their count: `harness.rs`'s
  * `steps`, in the same order.
  */
-export const steps: [string, (r: Run<unknown>, arg: number) => void][] = [
+const steps: [string, (r: Run<unknown>, arg: number) => void][] = [
 	[
 		"open",
 		(r) => {
@@ -306,6 +318,7 @@ export const steps: [string, (r: Run<unknown>, arg: number) => void][] = [
 	["cells", (r, arg) => r.f.drops.cells(r.log, 1000 * r.exec.tasks.length, arg)],
 	["folded", (r, arg) => r.f.drops.folded(r.log, 1000 * r.exec.tasks.length, arg)],
 	["rfolded", (r, arg) => r.f.drops.rfolded(r.log, 1000 * r.exec.tasks.length, arg)],
+	["called", (r, arg) => r.f.drops.called(r.log, 1000 * r.exec.tasks.length, arg)],
 	[
 		"watch",
 		(r, arg) => {
@@ -321,6 +334,10 @@ export const steps: [string, (r: Run<unknown>, arg: number) => void][] = [
 		},
 	],
 	["inside", (r, arg) => r.f.drops.inside(r.log, 1000 * r.exec.tasks.length, arg)],
+	["released", (r, arg) => r.f.drops.released(r.log, 1000 * r.exec.tasks.length, arg)],
+	["flattened", (r, arg) => r.f.drops.flattened(r.log, 1000 * r.exec.tasks.length, arg)],
+	["indexed", (r, arg) => r.f.drops.indexed(r.log, 1000 * r.exec.tasks.length, arg)],
+	["orders", (r, arg) => r.f.drops.orders(r.log, 1000 * r.exec.tasks.length, arg)],
 	["compared", (r, arg) => r.f.drops.compared(r.log, 1000 * r.exec.tasks.length, arg)],
 	[
 		"wakers",
@@ -330,6 +347,14 @@ export const steps: [string, (r: Run<unknown>, arg: number) => void][] = [
 		},
 	],
 	["lists", (r, arg) => r.f.drops.lists(r.log, 1000 * r.exec.tasks.length, arg)],
+	[
+		"closures",
+		(r, arg) => {
+			const c = pick(r.channels.length, arg);
+			if (c !== undefined) r.exec.spawn(r.f.closures.closures(r.f.Channel.consumer(r.channels[c]), guard(r)));
+		},
+	],
+	["searched", (r, arg) => r.f.drops.searched(r.log, 1000 * r.exec.tasks.length, arg)],
 ];
 
 /** The script runner, as `harness.rs` runs it natively. */
@@ -351,6 +376,25 @@ export function harness<V>(f: Fixture<V>): (input: Uint8Array) => Bytes {
 		});
 		return f.Log.text(log);
 	};
+}
+
+/** Each step's name and the byte that picks it. */
+export const ops = new Map(steps.map(([name], i): [string, Uint8Array] => [name, Uint8Array.of(i)]));
+
+/** The steps that drive what others spawn, the only ones a step's random scripts mix in. */
+export const drivers = ["open", "send", "close", "clone", "run", "step", "poll", "drop"];
+
+/**
+ * Step `name`'s script from the bytes generated for it: the step with the first byte, then
+ * a step per pair, `name` for an odd first byte or else a driver, with the second. Mixing
+ * in only drivers keeps a step's scripts as they are when other steps are added.
+ */
+export function input(name: string, tail: Uint8Array): Uint8Array {
+	const picks: [string, number][] = [[name, tail[0] ?? 0]];
+	for (let i = 1; i < tail.length; i += 2) {
+		picks.push([tail[i] & 1 ? name : drivers[(tail[i] >> 1) % drivers.length], tail[i + 1] ?? 0]);
+	}
+	return script(...picks);
 }
 
 /** A script of steps, each by name and with its argument. */
@@ -415,15 +459,34 @@ export const cases: Uint8Array[] = [
 	...Array.from({ length: 6 }, (_, arg) => script(["cells", arg])),
 	// Each scenario of adaptors' closures that drop, folded either way.
 	...Array.from({ length: 42 }, (_, arg) => script(["folded", arg])),
-	...Array.from({ length: 9 }, (_, arg) => script(["rfolded", arg])),
+	...Array.from({ length: 18 }, (_, arg) => script(["rfolded", arg])),
+	...Array.from({ length: 12 }, (_, arg) => script(["called", arg])),
 	// Where std drops values inside its iterators and formatting.
 	...[...Array.from({ length: 10 }, (_, arg) => arg), 19, 29].map((arg) => script(["inside", arg])),
+	// Where std drops a closure given to a consumer or an entry.
+	...Array.from({ length: 7 }, (_, arg) => script(["released", arg])),
+	// What a `flatten` drops of inner iterators that hold items once they end.
+	...Array.from({ length: 10 }, (_, arg) => script(["flattened", arg])),
+	// What std drops of a zip it reads by index.
+	...Array.from({ length: 9 }, (_, arg) => script(["indexed", arg])),
+	// What std drops as it orders.
+	...Array.from({ length: 8 }, (_, arg) => script(["orders", arg])),
 	// What std's comparisons of iterators drop.
 	...Array.from({ length: 9 }, (_, arg) => script(["compared", arg])),
 	// What a `LinkedList` drops, and when.
 	...Array.from({ length: 8 }, (_, arg) => script(["lists", arg])),
+	// Where std drops a closure given to a string's search or edit.
+	...Array.from({ length: 9 }, (_, arg) => script(["searched", arg])),
 	// Wakers' identities, as kio's `Polling` keeps one: a task's own across its polls, then
 	// another task's in between.
 	script(["open", 0], ["wakers", 0], ["run", 0], ["send", 3], ["run", 0], ["close", 0], ["run", 0]),
 	script(["open", 0], ["wakers", 0], ["wakers", 0], ["run", 0], ["send", 2], ["step", 0], ["step", 0], ["drop", 1], ["send", 5], ["run", 0], ["drop", 0]),
+	// Async closures, cancelled at each await in turn: a borrowing closure's own future,
+	// one through `AsyncFnMut`, the future that owns a consumed closure's guard, a read
+	// beside closures that borrow and own, and the future of a consumed box of a closure;
+	// then returning, and closed early.
+	...Array.from({ length: 7 }, (_, sends) =>
+		script(["open", 0], ["closures", 0], ["run", 0], ...Array.from({ length: sends }, (_, i): [string, number][] => [["send", i + 1], ["run", 0]]).flat(), ["drop", 0]),
+	),
+	script(["open", 0], ["closures", 0], ["run", 0], ["send", 6], ["run", 0], ["close", 0], ["run", 0]),
 ];

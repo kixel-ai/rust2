@@ -5,22 +5,21 @@ import type * as Waiter from "./kio.Waiter.ts";
 
 /** Wakers waiting for one event, held weakly. */
 export class WaiterList {
-	entries: rt.Weak<rt.Waker>[];
+	entries: rt.Vec<rt.Weak<rt.Waker>>;
 	cursor: rt.usize;
 
-	constructor(entries: rt.Weak<rt.Waker>[], cursor: rt.usize) {
+	constructor(entries: rt.Vec<rt.Weak<rt.Waker>>, cursor: rt.usize) {
 		this.entries = entries;
 		this.cursor = cursor;
 	}
 
 	[Symbol.dispose](): void {
-		rt.dropAll(this.entries);
+		rt.dropVec(this.entries);
 	}
 }
 
 function new_(): WaiterList {
-	const _1: rt.Weak<rt.Waker>[] = [];
-	return new WaiterList(_1, 0);
+	return new WaiterList(new rt.Vec(), 0);
 }
 
 export function register(self: WaiterList, waiter: Waiter.Waiter): void {
@@ -30,48 +29,48 @@ export function register(self: WaiterList, waiter: Waiter.Waiter): void {
 	_58 = true;
 	b0: {
 		b1: {
-			for (const _8 of self.entries) {
+			for (const _8 of self.entries.items) {
 				if (_8.arc === weak.arc) {
 					break b1;
 				}
 			}
-			let probes: rt.usize = rt.min(self.entries.length, 2);
+			let probes: rt.usize = rt.min(self.entries.items.length, 2);
 			while (probes > 0) {
-				if (!(self.entries[rt.idx(self.entries, self.cursor)].arc.strong === 0)) {
-					self.cursor = rt.usizeRem(rt.usizeAdd(self.cursor, 1), self.entries.length);
+				if (!(self.entries.items[rt.idx(self.entries.items, self.cursor)].arc.strong === 0)) {
+					self.cursor = rt.usizeRem(rt.usizeAdd(self.cursor, 1), self.entries.items.length);
 					probes = rt.usizeSub(probes, 1);
 				} else {
 					_58 = false;
 					const _24: rt.Weak<rt.Waker> = weak;
-					const at2 = rt.idx(self.entries, self.cursor);
-					self.entries[at2][Symbol.dispose]();
-					self.entries[at2] = _24;
+					const at2 = rt.idx(self.entries.items, self.cursor);
+					self.entries.items[at2][Symbol.dispose]();
+					self.entries.items[at2] = _24;
 					break b1;
 				}
 			}
-			if (self.entries.length >= 4) {
-				const live: rt.Weak<rt.Waker>[] = [];
+			if (self.entries.items.length >= 4) {
+				const live: rt.Vec<rt.Weak<rt.Waker>> = new rt.Vec();
 				const taken = self.entries;
-				self.entries = [];
-				for (const _43 of taken) {
+				self.entries = new rt.Vec();
+				for (const _43 of taken.items) {
 					_57 = true;
 					const entry: rt.Weak<rt.Waker> = _43;
 					if (entry.arc.strong > 0) {
 						_57 = false;
-						live.push(entry);
+						live.items.push(entry);
 					}
 					if (_57) {
 						entry[Symbol.dispose]();
 					}
 					_57 = false;
 				}
-				const _53: rt.Weak<rt.Waker>[] = live;
-				rt.dropAll(self.entries);
+				const _53: rt.Vec<rt.Weak<rt.Waker>> = live;
+				rt.dropVec(self.entries);
 				self.entries = _53;
 				self.cursor = 0;
 			}
 			_58 = false;
-			self.entries.push(weak);
+			self.entries.items.push(weak);
 			_58 = false;
 			break b0;
 		}
@@ -86,7 +85,7 @@ export function register(self: WaiterList, waiter: Waiter.Waiter): void {
 export function take(self: WaiterList): WaiterList {
 	self.cursor = 0;
 	const taken = self.entries;
-	self.entries = [];
+	self.entries = new rt.Vec();
 	return new WaiterList(taken, 0);
 }
 
@@ -94,8 +93,8 @@ export function take(self: WaiterList): WaiterList {
 export function wake(self: WaiterList): void {
 	self.cursor = 0;
 	const taken = self.entries;
-	self.entries = [];
-	for (const entry of taken) {
+	self.entries = new rt.Vec();
+	for (const entry of taken.items) {
 		const _10: rt.Arc<rt.Waker> | undefined = rt.weakUpgrade(entry);
 		if (_10 !== undefined) {
 			const waker: rt.Arc<rt.Waker> = _10;

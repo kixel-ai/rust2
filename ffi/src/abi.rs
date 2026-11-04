@@ -371,7 +371,7 @@ impl<'a> Abi<'a> {
 	}
 
 	/// A type's name within the prefix, for naming the structs and instances built from it.
-	fn key(&self, ty: &Type) -> String {
+	pub fn key(&self, ty: &Type) -> String {
 		let strip = |name: String| name[self.prefix.len() + 1..].to_string();
 		match ty {
 			Type::Unit => "unit".to_string(),
@@ -601,8 +601,8 @@ impl<'a> Abi<'a> {
 			.map(|r| r.span)
 			.or_else(|| api.objects.first().map(|o| o.span))
 			.unwrap_or(rustc_span::DUMMY_SP);
-		// C's runtime, then what C++'s adds in the namespace its types share, and Kotlin's
-		// in its package.
+		// C's runtime, then what C++'s adds in the namespace its types share, Kotlin's in its
+		// package, and Swift's in its module and the atomics header its runtime adds.
 		for runtime in [
 			"contract",
 			"buf",
@@ -619,10 +619,15 @@ impl<'a> Abi<'a> {
 			"detail",
 			"native",
 			"bytes",
+			"atomic_load",
+			"atomic_store",
+			"atomic_add",
+			"atomic_exchange",
+			"atomic_cas",
 		] {
 			self.claim(self.rt(runtime), "the runtime".to_string(), crate_span);
 		}
-		for constant in ["CONTRACT", "POLL_PENDING", "POLL_READY", "POLL_ERROR"] {
+		for constant in ["CONTRACT", "POLL_PENDING", "POLL_READY", "POLL_ERROR", "ATOMICS_H"] {
 			let name = format!("{}_{constant}", self.prefix.to_uppercase());
 			self.claim(name, "the runtime".to_string(), crate_span);
 		}
@@ -668,6 +673,9 @@ impl<'a> Abi<'a> {
 			let name = self.object(i);
 			let what = format!("type `{}`", api.rust(&object.path, &object.args));
 			self.claim(format!("{name}_free"), what.clone(), object.span);
+			if object.shared {
+				self.claim(format!("{name}_borrowed"), what.clone(), object.span);
+			}
 			self.claim_traits(&name, &what, object.span, object.traits, false);
 			self.claim(name.clone(), what, object.span);
 			let owner = Ty::Handle { name, constant: false };
@@ -882,8 +890,29 @@ pub fn snake(name: &str) -> String {
 	out
 }
 
-/// A name that C or C++, which includes the header, would read as a keyword, with `_`
-/// prepended.
+/// A language's names of parameters made distinct where Rust's differ only in what its
+/// case drops, such as underscores: a later one takes the lowest free number after it.
+pub fn distinct(names: impl IntoIterator<Item = String>) -> Vec<String> {
+	let names: Vec<String> = names.into_iter().collect();
+	let mut taken = std::collections::BTreeSet::new();
+	(names.iter())
+		.map(|name| {
+			let mut unique = name.clone();
+			let mut n = 2;
+			while taken.contains(&unique) || (unique != *name && names.contains(&unique)) {
+				unique = format!("{name}{n}");
+				n += 1;
+			}
+			taken.insert(unique.clone());
+			unique
+		})
+		.collect()
+}
+
+/// A name that C or C++, which includes the header, would read as a keyword with `_`
+/// appended, and one starting with a digit with `_` prepended. Appended, since MSVC reads
+/// `_inline`, `_asm`, and `_try` as keywords too; a name already ending in `_` takes
+/// another, so no two names escape to one.
 pub fn escape(name: &str) -> String {
 	const KEYWORDS: &[&str] = &[
 		"auto",
@@ -989,9 +1018,10 @@ pub fn escape(name: &str) -> String {
 	let out = name
 		.strip_prefix("out")
 		.is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()));
-	match out || KEYWORDS.contains(&name) || name.chars().next().is_some_and(|c| c.is_ascii_digit()) {
-		true => format!("_{name}"),
-		false => name.to_string(),
+	match name.chars().next() {
+		Some(c) if c.is_ascii_digit() => format!("_{name}"),
+		_ if out || name.ends_with('_') || KEYWORDS.contains(&name) => format!("{name}_"),
+		_ => name.to_string(),
 	}
 }
 

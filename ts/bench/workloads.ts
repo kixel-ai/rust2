@@ -5,8 +5,8 @@
 export interface Workload {
 	/** What is coded, such as `varint/quic/2B` or `frames/video/lite-07`, iterated, or converted. */
 	name: string;
-	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "handoff";
-	/** Varints, frame headers, messages, items, keys, timestamps, integers, or handoffs per call, which each time is divided by. */
+	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "number" | "format" | "handoff";
+	/** Varints, frame headers, messages, items, keys, timestamps, integers, packets, lines, or handoffs per call, which each time is divided by. */
 	items: number;
 	input: Uint8Array;
 }
@@ -58,7 +58,7 @@ export function workloads(encode: (input: Uint8Array) => Uint8Array): Workload[]
 	// Iterator chains over bytes, as `bench.rs`'s op 6 picks them by selector; no byte is
 	// 0xff, so `any` reads them all.
 	const bytes = Uint8Array.from({ length: 1024 }, (_, i) => (i * 167 + 13) % 255);
-	const chains = ["map-filter-count", "any", "filter-collect", "sum", "skip-take-fold", "enumerate-for", "zip-filter-count", "zip-rev-filter-count"];
+	const chains = ["map-filter-count", "any", "filter-collect", "sum", "skip-take-fold", "enumerate-for", "zip-filter-count", "zip-rev-filter-count", "zip-map-filter-count"];
 	chains.forEach((chain, selector) => {
 		out.push({ name: `iter/${chain}`, op: "iterate", items: bytes.length, input: Uint8Array.of(6, selector, ...bytes) });
 	});
@@ -66,6 +66,12 @@ export function workloads(encode: (input: Uint8Array) => Uint8Array): Workload[]
 	// A `BTreeMap` of each size, through `bench.rs`'s op 8: each key inserted, looked up, and removed.
 	for (const count of [16, 256, 4096]) {
 		out.push({ name: `btree/${count}`, op: "map", items: count, input: Uint8Array.of(8, 0, ...u64(BigInt(count))) });
+	}
+	// A `HashMap` of each size, through `bench.rs`'s op 14: each key inserted, looked up, and
+	// removed, and each key inserted alone.
+	for (const count of [16, 256, 4096]) {
+		out.push({ name: `hash/${count}`, op: "map", items: count, input: Uint8Array.of(14, 0, ...u64(BigInt(count))) });
+		out.push({ name: `hash/insert/${count}`, op: "map", items: count, input: Uint8Array.of(14, 1, ...u64(BigInt(count))) });
 	}
 
 	// Microseconds since moq's 2020 epoch, a frame apart at 30 fps, to 90 kHz and back:
@@ -99,6 +105,21 @@ export function workloads(encode: (input: Uint8Array) => Uint8Array): Workload[]
 	orders.forEach((name, selector) => {
 		out.push({ name: `order/${name}`, op: "order", items: count, input: Uint8Array.of(12, selector, ...u64(BigInt(count))) });
 	});
+
+	// `bench.rs`'s op 13: pushes, which grow a vector by std's capacity, and a stack's pops.
+	["vec", "deque", "stack"].forEach((name, selector) => {
+		out.push({ name: `push/${name}`, op: "push", items: count, input: Uint8Array.of(13, selector, ...u64(BigInt(count))) });
+	});
+
+	// `bench.rs`'s op 15: TS packets numbered as moq-mux numbers them, through `as_chunks_mut`,
+	// and each also read by value first, which copies it; as many as a 64 KiB segment holds.
+	const packets = 348;
+	["ts/number", "ts/number-copy"].forEach((name, selector) => {
+		out.push({ name: `packets/${name}`, op: "number", items: packets, input: Uint8Array.of(15, selector, ...u64(BigInt(packets))) });
+	});
+
+	// `bench.rs`'s op 16: log lines formatted into one `String`.
+	out.push({ name: "fmt/lines", op: "format", items: count, input: Uint8Array.of(16, 0, ...u64(BigInt(count))) });
 	return out;
 }
 

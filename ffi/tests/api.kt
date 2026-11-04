@@ -110,8 +110,8 @@ fun script() {
 		println(if (doubled == null) "doubled None" else "doubled Some((${doubled.first?.let { "Some($it)" } ?: "None"},))")
 	}
 	// A borrowed or boxed tuple of one is a tuple, not its element.
-	val lentOne = lentBack(Tuple1(byteArrayOf(1, 2))).first.use { it.toByteArray().toList() }
-	val boxedOne = boxedTuple(byteArrayOf(3)).first.use { it.toByteArray().toList() }
+	val lentOne = lentBack(Tuple1(byteArrayOf(1, 2))).first.toByteArray().toList()
+	val boxedOne = boxedTuple(byteArrayOf(3)).first.toByteArray().toList()
 	println("lent back $lentOne boxed $boxedOne")
 	// A borrowed string and an owned one share a tuple struct.
 	println("title Some((\"${title(true)!!.first}\",)) ${if (title(false) == null) "None" else "Some"} named Some((\"${named("x")!!.first}\",))")
@@ -237,7 +237,7 @@ fun script() {
 	runBlocking {
 		channel.send(byteArrayOf())
 		try {
-			println("nonempty ${channel.recvNonempty().use { it.buffer.remaining() }}")
+			println("nonempty ${channel.recvNonempty().size}")
 		} catch (e: ErrorException) {
 			println("nonempty err ${e.message}")
 		}
@@ -341,14 +341,14 @@ fun script() {
 	println("ports ${ports(listOf(v4, v6))}")
 	val peer = Peer(v6, listOf("a", "b")).next("c")
 	println("peer ${peer.debug()} ${peer.aliases().joinToString(", ", "[", "]") { "\"$it\"" }}")
-	val file = file("dir", "f")
-	println("file $file")
-	println("parents ${parents(listOf(file, "/")).joinToString(" ") { it ?: "none" }}")
+	val file = file("dir", "f\\'\"\t")
+	println("file ${escaped(file)}")
+	println("parents ${parents(listOf(file, "/")).joinToString(" ") { it?.let(::escaped) ?: "none" }}")
 	val words = words(" one two  three ")
 	println("words ${words.size} ${words.joinToString(", ", "[", "]") { "\"$it\"" }}")
 	println("sentence ${sentence(words)} ${sentence(null)}")
 	println("sentence ${sentence(emptyList())}|")
-	println("chunks ${chunks("abcde".encodeToByteArray(), 2uL).map { it.use { b -> b.toByteArray().toList() } }}")
+	println("chunks ${chunks("abcde".encodeToByteArray(), 2uL).map { it.toByteArray().toList() }}")
 	val counters = counters(listOf("x", "y"))
 	println("counters ${counters.joinToString(", ") { "${it.name()} ${it.get()}" }}")
 	// Each counter moves in, so Kotlin closes it.
@@ -356,6 +356,9 @@ fun script() {
 	for (counter in counters) {
 		check(runCatching { counter.get() }.exceptionOrNull() is IllegalStateException, "a counter moved in is closed")
 	}
+	println("held ${listOf(heldCount(Tuple1(Counter.new("h", 4u))), heldCount(null)).joinToString(" ") { if (it == null) "None" else "Some($it)" }}")
+	println("boxed ${boxedName(boxedCounter("b"))?.let { "Some(\"$it\")" }} ${boxedName(null) ?: "None"} ${boxedCounter(null) == null}")
+	println("less ${less(5u, 2u)}")
 	println("sums ${sums(listOf(listOf(1u, 2u), emptyList(), listOf(3u)))}")
 	val summed = summed(listOf(Point(1, 2), Point(-4, 6)))
 	val noneSummed = summed(emptyList())
@@ -378,7 +381,7 @@ fun script() {
 	Trail.new(listOf(Point(1, 2), Point(3, 4)), listOf("a", "b")).use { trail ->
 		println("trail ${trail.points().joinToString(", ", "[", "]") { it.debug() }} ${trail.labels().joinToString(", ", "[", "]") { it.debug() }}")
 		// Returned iterators, each collected at the call: drained labels are gone after.
-		println("iterated ${trail.iter().joinToString(", ", "[", "]") { it.debug() }} ${trail.names().joinToString(", ", "[", "]") { "\"$it\"" }} ${trail.bytes().use { it.toByteArray() }.joinToString(", ", "[", "]") { it.toUByte().toString() }}")
+		println("iterated ${trail.iter().joinToString(", ", "[", "]") { it.debug() }} ${trail.names().joinToString(", ", "[", "]") { "\"$it\"" }} ${trail.bytes().toByteArray().joinToString(", ", "[", "]") { it.toUByte().toString() }}")
 		println("drained ${trail.drain().joinToString(", ", "[", "]") { it.debug() }} then ${trail.labels().joinToString(", ", "[", "]") { it.debug() }}")
 	}
 	val numbered = numbered(listOf("p", "q"))
@@ -390,8 +393,20 @@ fun script() {
 	println("nexts ${next4.address.hostAddress} ${next4.port} ${next6.port} ${(next6.address as java.net.Inet6Address).scopeId}")
 }
 
-/** The bytes as text, closing them. */
-fun Bytes.text(): String = use { it.toByteArray().decodeToString() }
+/** A path's UTF-8 bytes as Rust's `escape_ascii` prints them. */
+fun escaped(path: String): String = path.encodeToByteArray().joinToString("") {
+	when (val b = it.toInt() and 0xff) {
+		'\t'.code -> "\\t"
+		'\r'.code -> "\\r"
+		'\n'.code -> "\\n"
+		'\\'.code, '\''.code, '"'.code -> "\\${b.toChar()}"
+		in 0x20 until 0x7f -> b.toChar().toString()
+		else -> "\\x%02x".format(b)
+	}
+}
+
+/** The bytes as text. */
+fun Bytes.text(): String = toByteArray().decodeToString()
 
 fun check(ok: Boolean, what: String) {
 	if (!ok) {
@@ -538,43 +553,82 @@ fun broken(which: String) {
 	}
 }
 
-// What frees an object or bytes nobody closed: the GC, once each is collected, and only
-// what closing did not free already. Rust's bytes up to 1 KiB cross copied, freed at the
-// call, and longer ones lent until closed or collected.
+// What frees what: an object's close, or the GC once it is collected if never closed, and
+// Rust's bytes only the GC, once no Bytes reaching them is reachable. Rust's bytes up to
+// 1 KiB cross copied, freed at the call, and longer ones lent.
 fun owned() {
+	budgeted()
 	for (n in 1023..1025) {
 		val payload = ByteArray(n) { it.toByte() }
 		val packet = nextPacket(Packet(1u, Bytes(payload)))
-		check(packet.seq == 2u && packet.payload.use { it.toByteArray() }.contentEquals(payload), "a record's $n bytes cross both ways")
+		check(packet.seq == 2u && packet.payload.toByteArray().contentEquals(payload), "a record's $n bytes cross both ways")
+		val sliced = nextPacket(Packet(1u, packet.payload.slice(1, n - 1))).payload
+		check(sliced.toByteArray().contentEquals(payload.copyOfRange(1, n - 1)), "a slice of a record's $n bytes crosses as its range")
 	}
 	var freed = dropped()
-	for (n in 1023u..1025u) {
-		val bytes = tokenBytes(n, n)
-		if (n <= 1024u) freed++
+	for (n in 1023..1025) {
+		val bytes = tokenBytes(n.toUInt(), n.toUInt())
+		if (n <= 1024) freed++
 		check(dropped() == freed, "$n bytes are freed at the call only if copied")
-		check(bytes.toByteArray().contentEquals(ByteArray(n.toInt()) { n.toByte() }), "$n bytes read back")
-		bytes.close()
-		if (n > 1024u) freed++
-		check(dropped() == freed, "closing $n bytes frees them")
-		bytes.close()
-		check(dropped() == freed, "closing $n bytes again frees nothing")
-		check(runCatching { bytes.toByteArray() }.isFailure, "closed $n bytes refuse a read")
+		reads(bytes, n.toByte(), "$n bytes")
 	}
+	collected(freed + 1u, "the GC frees lent bytes nothing reaches")
+	reads(Bytes(ByteArray(1025) { 9 }), 9, "Kotlin's bytes")
 
+	// A call after close throws, and close frees at once, once.
 	val before = dropped()
-	Token.new(1u).close()
-	tokenBytes(2u, 1025u).close()
-	check(dropped() == before + 2u, "closing frees at once")
+	val token = Token.new(1u)
+	token.close()
+	check(dropped() == before + 1u, "closing frees at once")
+	token.close()
+	check(dropped() == before + 1u, "closing again frees nothing")
+	check(runCatching { token.id }.exceptionOrNull()?.message == "Token is closed", "a call after close throws")
+
+	// Bytes outlive the object that returned them and the record that held them.
+	val body = ByteArray(2048) { 'b'.code.toByte() }
+	val message = Message.new(Stamp.fromMillis(1u), body)
+	val payload = message.payload
+	message.close()
+	val carried = nextPacket(Packet(1u, Bytes(body))).payload
+	uncollected(before + 1u, "the GC frees nothing still reachable")
+	check(payload.toByteArray().contentEquals(body), "bytes outlive the object that returned them")
+	check(carried.toByteArray().contentEquals(body), "bytes outlive the record that held them")
+
+	// Never closed, each is freed once collected, but a slice keeps its bytes.
 	unclosed()
-	val deadline = System.nanoTime() + 10.seconds.inWholeNanoseconds
-	while (dropped() < before + 4u) {
-		check(System.nanoTime() < deadline, "the GC frees what nobody closed")
-		// Not System.gc(), which ART skips unless finalization ran since its last call.
-		Runtime.getRuntime().gc()
-		Thread.sleep(1)
+	collected(before + 3u, "the GC frees what nobody closed")
+	keptBySlice(before + 3u)
+	collected(before + 4u, "the GC frees bytes once no slice reaches them")
+
+	raced()
+	compared()
+}
+
+// Every read of [bytes], each of which is [value].
+fun reads(bytes: Bytes, value: Byte, what: String) {
+	val n = bytes.size
+	val all = bytes.toByteArray()
+	check(all.size == n && all.all { it == value }, "$what read back")
+	check(bytes[0] == value && bytes[n - 1] == value, "$what read by index")
+	val into = bytes.copyInto(ByteArray(n + 1) { 7 }, 1, 1, n)
+	check(into[0] == 7.toByte() && (1 until n).all { into[it] == value } && into[n] == 7.toByte(), "$what copied into a range")
+	val slice = bytes.slice(2, n - 1).slice(1)
+	check(slice.size == n - 4 && slice.toByteArray().all { it == value } && slice[n - 5] == value, "$what sliced twice")
+	check(bytes.slice(n).size == 0 && bytes.slice(0, 0).toByteArray().isEmpty(), "$what sliced empty")
+	val outOfRange = listOf<() -> Any>(
+		{ bytes[n] },
+		{ bytes[-1] },
+		{ slice[slice.size] },
+		{ bytes.slice(2, 1) },
+		{ bytes.slice(0, n + 1) },
+		{ slice.slice(0, slice.size + 1) },
+		{ bytes.copyInto(ByteArray(n - 1)) },
+		{ bytes.copyInto(ByteArray(n), 1) },
+		{ bytes.copyInto(ByteArray(n), -1, 0, 1) },
+	)
+	for (read in outOfRange) {
+		check(runCatching(read).exceptionOrNull() is IndexOutOfBoundsException, "$what refuse a read out of range")
 	}
-	// The closed ones were collected by the same collections, and not freed again.
-	check(dropped() == before + 4u, "the GC frees each once")
 }
 
 // In its own frame, so nothing on the caller's keeps them reachable. The bytes are long
@@ -582,6 +636,143 @@ fun owned() {
 fun unclosed() {
 	Token.new(3u)
 	tokenBytes(4u, 1025u)
+}
+
+// A slice of Rust's bytes, made in its own frame so nothing keeps the Bytes it came from,
+// which keeps Rust's buffer while it reads.
+fun keptBySlice(freed: UInt) {
+	val view = sliced(5u)
+	uncollected(freed, "a slice keeps Rust's bytes")
+	check(view.size == 10 && view.toByteArray().all { it == 5.toByte() }, "a slice reads Rust's bytes once the Bytes it came from are gone")
+}
+
+fun sliced(id: UInt): Bytes = tokenBytes(id, 1025u).slice(1015)
+
+// Frees racing calls: a close racing calls on other threads, and the GC freeing what a
+// call reads while it runs.
+fun raced() {
+	// Each call either runs, holding the handle so Rust's value outlives it, or throws.
+	var before = dropped()
+	val token = Token.new(5u)
+	val ran = java.util.concurrent.atomic.AtomicInteger()
+	val failed = java.util.concurrent.atomic.AtomicInteger()
+	val callers = List(8) {
+		thread {
+			while (true) {
+				val id = try {
+					token.id
+				} catch (e: IllegalStateException) {
+					check(e.message == "Token is closed", "a call racing close throws")
+					failed.incrementAndGet()
+					return@thread
+				}
+				check(id == 5u, "a call racing close reads the live value")
+				ran.incrementAndGet()
+			}
+		}
+	}
+	while (ran.get() < 100) Thread.yield()
+	token.close()
+	callers.forEach { it.join() }
+	check(failed.get() == 8 && dropped() == before + 1u, "close racing calls drops Rust's value once")
+
+	// Calls on values nothing else reaches, while another thread collects: each reads what
+	// it was given, never a buffer freed under it and reused by the next, which holds
+	// another id.
+	before = dropped()
+	val collecting = java.util.concurrent.atomic.AtomicBoolean(true)
+	val cycles = java.util.concurrent.atomic.AtomicInteger()
+	val collector = thread {
+		while (collecting.get()) {
+			Runtime.getRuntime().gc()
+			cycles.incrementAndGet()
+		}
+	}
+	var rounds = 0u
+	while (cycles.get() < 50) {
+		val id = rounds % 100u + 1u
+		check(tokenBytes(id, 2048u)[2047] == id.toByte(), "a read by index races the GC")
+		check(tokenBytes(id, 2048u).slice(1024).toByteArray().all { it == id.toByte() }, "a slice's copy races the GC")
+		check(Token.new(id).id == id, "a call on an object races the GC")
+		rounds++
+	}
+	collecting.set(false)
+	collector.join()
+	collected(before + 3u * rounds, "the GC frees what each call raced")
+}
+
+// At most 64 MiB of Rust's bytes are lent at once, freed or not, since the GC sees none of
+// them: past that, bytes cross copied, freed at the call, until the GC frees what was lent.
+// First, so no bytes an earlier step lent count against it.
+fun budgeted() {
+	val before = dropped()
+	lentToBudget(before)
+	collected(before + 65u, "the GC frees bytes lent up to the budget")
+	check(tokenBytes(3u, 2048u)[2047] == 3.toByte() && dropped() == before + 65u, "bytes cross lent again once the GC frees them")
+	collected(before + 66u, "the GC frees bytes lent once the budget is free")
+}
+
+// In its own frame, so nothing on the caller's keeps them reachable.
+fun lentToBudget(before: UInt) {
+	val mib = 1 shl 20
+	val held = List(64) { tokenBytes(1u, mib.toUInt()) }
+	check(dropped() == before, "64 MiB of Rust's bytes cross lent")
+	val copied = tokenBytes(2u, mib.toUInt())
+	check(dropped() == before + 1u, "bytes past 64 MiB lent cross copied, freed at the call")
+	check(copied.size == mib && copied[0] == 2.toByte() && copied[mib - 1] == 2.toByte() && held[63][mib - 1] == 1.toByte(), "bytes past the budget read as lent ones do")
+	val carried = nextPacket(Packet(1u, Bytes(ByteArray(2048) { 4 }))).payload
+	check(carried.size == 2048 && carried.toByteArray().all { it == 4.toByte() }, "a record's bytes past the budget cross copied")
+}
+
+// Bytes compare and hash by their contents wherever each keeps them, Kotlin's or Rust's,
+// copied or lent, whole or sliced, and so do records holding them, as map keys too.
+fun compared() {
+	val body = ByteArray(2050) { (it * 7).toByte() }
+	// Rust's whole are lent, its 1000 copied; the middle two differ by a shift.
+	val ranges = listOf(0 to 2050, 1 to 1001, 2 to 1002, 5 to 5)
+	val forms = ranges.map { (from, until) ->
+		listOf(
+			Bytes(body.copyOfRange(from, until)),
+			Bytes(body).slice(from, until),
+			nextPacket(Packet(1u, Bytes(body.copyOfRange(from, until)))).payload,
+			nextPacket(Packet(1u, Bytes(body))).payload.slice(from, until),
+		)
+	}
+	val keys = HashMap<Packet, Int>()
+	forms.forEachIndexed { i, same -> keys[Packet(1u, same[0])] = i }
+	val all = forms.flatMapIndexed { i, same -> same.map { i to it } }
+	for ((i, a) in all) {
+		for ((j, b) in all) {
+			check((a == b) == (i == j) && (Packet(1u, a) == Packet(1u, b)) == (i == j), "bytes ${ranges[i]} and ${ranges[j]} compare by content")
+			if (i == j) check(a.hashCode() == b.hashCode() && Packet(1u, a).hashCode() == Packet(1u, b).hashCode(), "bytes ${ranges[i]} hash by content")
+		}
+		check(keys[Packet(1u, a)] == i, "a record holding bytes ${ranges[i]} finds its key")
+	}
+	check(all.map { it.second }.toSet().size == ranges.size, "a set holds bytes once per content")
+	val last = Bytes(body.copyOf().also { it[body.size - 1]++ })
+	check(last != forms[0][3] && forms[0][3] != last, "bytes differing in their last byte differ")
+	check(!forms[0][3].equals(body), "bytes differ from a ByteArray")
+}
+
+// Collect until Rust's values dropped count [n], and none past it.
+fun collected(n: UInt, what: String) {
+	val deadline = System.nanoTime() + 10.seconds.inWholeNanoseconds
+	while (dropped() < n) {
+		check(System.nanoTime() < deadline, what)
+		// Not System.gc(), which ART skips unless finalization ran since its last call.
+		Runtime.getRuntime().gc()
+		Thread.sleep(1)
+	}
+	uncollected(n, "$what, each once")
+}
+
+// Collect a few times, checking that Rust's values dropped still count [n].
+fun uncollected(n: UInt, what: String) {
+	repeat(5) {
+		Runtime.getRuntime().gc()
+		Thread.sleep(1)
+	}
+	check(dropped() == n, what)
 }
 
 fun main(args: Array<String>) {

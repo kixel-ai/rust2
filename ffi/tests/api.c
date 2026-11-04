@@ -101,10 +101,27 @@ static void print_escaped(const char *before, api_buf buf, const char *after) {
 	printf("%s", before);
 	for (size_t i = 0; i < buf.len; i++) {
 		uint8_t b = buf.ptr[i];
-		if (b >= 0x20 && b < 0x7f && b != '\\' && b != '\'' && b != '"') {
-			putchar(b);
-		} else {
-			printf("\\x%02x", b);
+		switch (b) {
+		case '\t':
+			printf("\\t");
+			break;
+		case '\r':
+			printf("\\r");
+			break;
+		case '\n':
+			printf("\\n");
+			break;
+		case '\\':
+		case '\'':
+		case '"':
+			printf("\\%c", b);
+			break;
+		default:
+			if (b >= 0x20 && b < 0x7f) {
+				putchar(b);
+			} else {
+				printf("\\x%02x", b);
+			}
 		}
 	}
 	printf("%s", after);
@@ -708,7 +725,7 @@ static int script(void) {
 	}
 	api_buf_free(stray);
 	api_buf_free(in_stray);
-	api_buf file = api_file(str("dir"), str("f"));
+	api_buf file = api_file(str("dir"), str("f\\'\"\t"));
 	api_buf paths[] = {file, str("/")};
 	api_vec_option_path parents = api_parents((api_vec_path){.ptr = paths, .len = 2});
 	print_escaped("file ", file, "\n");
@@ -763,6 +780,26 @@ static int script(void) {
 	uint64_t none = api_worth((api_vec_counter){0}, (api_vec_counter){.ptr = counters.ptr, .len = 0});
 	printf("worth %llu %llu\n", (unsigned long long)worth, (unsigned long long)none);
 	api_vec_counter_free(counters);
+	api_counter *held = api_counter_new(str("h"), 4);
+	api_option_u64 counts[] = {
+		api_held_count((api_option_tuple_counter){.some = true, .value = {._0 = held}}),
+		api_held_count((api_option_tuple_counter){0}),
+	};
+	api_counter_free(held);
+	printf("held");
+	for (size_t i = 0; i < 2; i++) {
+		if (counts[i].some) {
+			printf(" Some(%llu)", (unsigned long long)counts[i].value);
+		} else {
+			printf(" None");
+		}
+	}
+	printf("\n");
+	api_counter *boxed = api_boxed_counter(str("b"));
+	print("boxed Some(\"", api_boxed_name(boxed), "\") ");
+	api_counter_free(boxed);
+	printf("%s %s\n", api_boxed_name(NULL).ptr ? "Some" : "None", api_boxed_counter((api_buf){0}) ? "false" : "true");
+	printf("less %u\n", api_less(5, 2));
 
 	uint32_t row0[] = {1, 2};
 	uint32_t row2[] = {3};

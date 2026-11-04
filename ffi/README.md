@@ -24,10 +24,14 @@ to what the library builds with on any platform, read off cargo's resolution, wh
 it was declared (the manifest, cargo's config, `--config`, or the environment), keyed by
 its source's URL.
 A `[replace]` from the source it replaces, which no `[patch]` can carry, is an error.
-Beside the C header, `include/<prefix>.hpp` holds the same API in C++, and
+Beside the C header, `include/<prefix>.hpp` holds the same API in C++,
 `kotlin/<prefix>.kt` holds it in Kotlin, over JNI functions the crate builds with
 `--features kotlin`, and `kotlin/<prefix>.pro` the R8 and ProGuard rules keeping what
-those functions look up by name.
+those functions look up by name. `python/<prefix>.py` holds it in Python, over a CPython
+extension the crate builds with `--features python`, `swift/<prefix>.swift` holds it in
+Swift, over the C header as a clang module, `go/<prefix>.go` holds it in Go, over the C
+ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI through
+`dart:ffi` and what the crate builds with `--features dart`.
 
 ```toml
 # ffi.toml, beside the package's Cargo.toml unless --manifest-path says otherwise.
@@ -122,7 +126,9 @@ refused, and the census counts why.
   refuse at compile time aborts, naming the function, as does a null or moved-out handle:
   there is no Rust caller to return an error to. A setter borrows as `&mut T` and takes
   its value as `T`, so it writes the value the handle holds, or the one Rust lent it,
-  while a getter's copy is C's own: a nested field is got, set, and set back.
+  while a getter's copy is C's own: a nested field is got, set, and set back. A type
+  whose C++ copies share one value has `_borrowed`, true while a call or future borrows
+  it, so moving it out would abort.
 - **Arrays** of a `Vec` are a pointer, a length, and an owner, as a buffer is: passed
   in, Rust copies each element out of C's array; returned, `<prefix>_vec_<T>_free` frees
   the array and its first `len` elements, so a binding that takes the elements sets
@@ -191,23 +197,47 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   `moq::track_producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
   as does a member named as its class or one of its fields, and a parameter named as a
   member or as anything in the namespace, which it would hide.
-- **Objects** are classes owning their handle, move-only unless `Clone`, whose copy
-  clones. `&self` methods are `const`, and `self` methods are `&&`, so a call that moves
-  the value out reads `std::move(c).into_label()`. A handle taken by value is moved into,
-  by a parameter taken by value.
+- **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
+  calls `_free`, so they move and never copy, and a `Clone` type's `clone()` crosses into
+  Rust for a value of its own. A type whose copies may share one value, by the rule below,
+  owns it through a `std::shared_ptr` instead: a copy shares the handle without crossing
+  into Rust, and the last copy frees it, on whichever thread drops it. `&self` methods are
+  `const`, and `self` methods are `&&`, so a call that moves the value out reads
+  `std::move(c).into_label()`. A handle taken by value is moved into, by a parameter taken
+  by value; moving out of a shared copy another copy holds, or a pending future borrows,
+  moves out a clone, leaving that copy whole, as Rust leaves a clone. A call on a
+  moved-from object, or one a call moved the value out of, aborts; a dangling reference
+  to an object is C++'s own undefined behavior.
+- **Sharing** stands in for `clone` where no call can tell the two apart but by counting
+  an `Arc`'s or `Rc`'s clones, which the exporter decides at compile time. A type's copies share when it is `Clone`; `Sync`,
+  since one that is not is borrowed on one thread at a time, which copies on two threads
+  would contend for; borrowed mutably by no export, through `&mut self`, a `&mut`
+  parameter, or a closure lent one; and its clone owns no state that changes behind `&`.
+  For that last, what a field reaches through an `Arc`, an `Rc`, or a shared reference,
+  the clone shares, and any other field must clone by a derived `Clone` or std's, with no
+  `Drop` of its own, and hold only such values. So a `Mutex`, `OnceLock`, or atomic it
+  owns, even behind a `Box`, keeps copies apart, as does a raw pointer, or a `Clone` or
+  `Drop` written by hand, which may count clones. std's `Clone` of a `Copy` type copies
+  it. The one difference: every C++ copy of a shared object is one Rust value, so
+  `Arc::strong_count`, `Rc::strong_count`, or a weak count of what it holds counts one for
+  all of them, where Rust's clones would count one each. Of moq's types, `path`, `timestamp`, and `url`
+  share, and its producers and consumers, whose `Clone` counts them, cross.
 - **Records** are structs, and **enums** an `enum class`, or for one with data a
   `std::variant` of a struct per variant, `<enum>_<variant>`. An enum's methods and
   traits are free functions taking it first. `PartialEq` is `==`, `Display` `to_string()`,
   `Debug` `debug()`, and `Default` `default_()`.
 - **Bytes** are passed as a `view`, which any contiguous bytes convert to, and returned as
-  a `buf`, which owns Rust's buffer without a copy. A `Vec<T>` is a `std::vector`, of
+  a `buf`, which owns Rust's buffer without a copy, so it outlives the object it came
+  from. From C++20, either converts to `std::span<const std::uint8_t>`. A `view` or span
+  lives only as long as the bytes it views, and a `view` lent to a callback only for the
+  call; reading one past that is C++'s own undefined behavior. A `Vec<T>` is a `std::vector`, of
   `view`s for bytes passed in, and a socket address `socket_addr`, the C struct. `Option<T>` is `std::optional<T>`, a
   tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
   error.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
 - **Closures** lent for a call are any callable, taken by a template parameter, which
   Rust calls only during the call, from any thread. An object it lends is a reference to
-  its class for that call: moving out of it aborts.
+  its class for that call: moving out of it, or keeping a copy past the call, aborts.
 - **Futures** are move-only `future<...>`s, freed when destroyed, which cancels them and
   loses nothing. `poll(waker)` polls once; `std::move(f).get()` blocks the thread;
   `std::move(f).then(exec, callback)` polls on an executor and calls back there, returning
@@ -243,11 +273,16 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   or for one with data a sealed class of a data class per variant. `Display` is
   `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`.
 - **Bytes** passed in are a `ByteArray`, copied, as are those Rust lends a closure or trait
-  method. Bytes Rust returns, or a record holds, are a `Bytes`, a read-only `ByteBuffer`:
-  up to 1 KiB copied, and longer ones lending Rust's buffer as a direct one until `close()`
-  frees it, or, never closed, until the GC collects that buffer, since a copy undercuts
-  `NewDirectByteBuffer` only that far; `Bytes(ByteArray)` holds Kotlin's for a record
-  passed in.
+  method. Bytes Rust returns, or a record holds, are a `Bytes`, read only through `size`,
+  `get`, `slice`, `copyInto`, and `toByteArray()`, so no view of Rust's memory escapes and
+  no read meets it freed. Up to 1 KiB are copied, which costs less than the GC's cleanup;
+  longer ones stay in Rust's buffer, each read a JNI call that passes the buffer's owner,
+  which JNI keeps reachable until the call returns, and are freed once the GC finds no
+  `Bytes` reaching them, slices included. The GC sees none of Rust's buffers, so at most
+  64 MiB are lent at once, freed or not; past that, longer ones are copied too, and that
+  garbage in Kotlin's heap runs the GC, which frees them. `Bytes(ByteArray)` holds
+  Kotlin's for a record passed in. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
+  record holding bytes does too; Rust's lent ones are copied across in one call to compare.
   Strings are `String`, `Option<T>` `T?`, a tuple `Pair`,
   `Triple`, or else a generated `Tuple<n>`, though a tuple of one returned whole is its element, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
   holding it, whose message is its `Display`.
@@ -272,6 +307,255 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   Android library ships it as a consumer rule (`consumerProguardFiles`), which its AAR
   carries to each app that shrinks it.
 
+## Python
+
+`<prefix>.py` is Python over a CPython extension that `--features python` builds into the
+same library on the stable ABI, so one build loads in CPython 3.11 and later. The module
+loads the library from beside itself: `lib<prefix>.so`, `lib<prefix>.dylib`, or
+`<prefix>.dll`. Its glue converts each Python value to the C value and calls the C ABI
+function in-process, so a call is one crossing, which releases the GIL while Rust runs.
+Each function, method, and property but an `async def` is the extension's own, bound in
+the module or set on its class as it loads, so a call enters it with no Python frame
+between; the Python declares them under `typing.TYPE_CHECKING`, for type checkers. They
+take arguments by position or keyword, raise as a `def` would, and carry their
+docstrings and signatures.
+
+- **Names** are in the module: types in PascalCase without the prefix, members in
+  snake_case without their type's name (`moq.TrackProducer.append_group`). A keyword, a
+  member Python gives every such class, or a method named as a field takes a trailing `_`.
+  Constructors such as `new` stay static methods: `Counter.new(1)`.
+- **Objects** are classes owning their handle, freed once their last reference goes,
+  which a call holds until it returns, so there is no `close()`. A `self` method, or
+  passing the object by value, moves its value out and closes it once the call returns,
+  after which a call raises `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable. A field is a
+  property, and its setter a method, `set_first(value)`, since setting an object moves it
+  in and closes it, which an assignment would hide.
+- **Records** are slotted dataclasses, compared by their fields, and **enums** an `Enum`
+  of upper-case members, or for one with data a class of a dataclass per variant,
+  `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
+  `default()`. Constants are module or class attributes, made anew on each read unless a
+  literal.
+- **Bytes** passed in are any buffer: `bytes` is read in place, and others, which Python
+  may change while Rust reads, are copied. Bytes Rust returns, or a record holds, are a
+  read-only `memoryview` lending Rust's buffer until it and its views are released. Those
+  Rust lends a closure or trait method are copied into `bytes`. Strings are `str`,
+  `Option<T>` `T | None`, a tuple a `tuple`, `Duration` `datetime.timedelta`, truncated to
+  the microsecond, with `timedelta.max` for any longer and for `Duration::MAX`, a `Range` a
+  `range`, and an `Err` a raised `<E>Exception` holding it in `error`, whose `str` is its
+  `Display`.
+- A **path** is a `str`, or any path passed in, which crosses as `os.fsencode` encodes it, so
+  one that is not UTF-8 keeps its bytes. A `SocketAddr` is the `socket` module's tuple,
+  `(host, port)` or `(host, port, flowinfo, scope_id)`, of that family for `V4` or `V6`.
+  A `Vec<T>` or `&[T]` is a `list`, and passing a `Vec` by value closes each object in it.
+  An integer out of its Rust type's range raises `OverflowError`.
+- **Traits** are abstract classes an implementation subclasses; once Rust drops one, its
+  `close()` is called if it has one.
+- **Closures** lent for a call are any callable, which Rust calls only during the call,
+  from any thread. An object it lends is closed once the call returns. An exception a
+  closure or trait method raises prints its traceback and aborts, since Rust has nowhere
+  to unwind it to.
+- **Futures** are `async def`s, which run nothing until awaited, or for a function that is
+  not `async`, an awaitable the call returns. They resume on the running event loop and
+  never inside a wake: a wake from any thread queues the future's token and writes a byte
+  to a socket the loop reads, without the GIL, or during a call on the loop's own thread,
+  writes nothing and schedules the loop's dispatch once the call returns. Cancelling the task frees the future and
+  loses nothing. The call polls it once before suspending, and a future is awaited once,
+  as a coroutine is.
+- A **waker** is a `Waker(callback)`, which Rust may wake from any thread, calling
+  `callback` on its event loop.
+- **The contract** is checked when the module imports, before any other call: a Python
+  file and a library from different builds raise `ImportError`.
+
+## Swift
+
+`swift/<prefix>.swift` is Swift over the C ABI, for Apple's platforms and Linux. It imports
+the header as the clang module `<Prefix>FFI`, which `swift/module.modulemap` declares
+beside `swift/<prefix>_atomics.h`, the atomics its runtime needs that Swift's standard
+library has only from macOS 15: a build puts `swift/` on its import path and links the
+static library. It needs Swift 6 and, for `Swift.Duration`, macOS 13 or iOS 16, and builds
+in either language mode.
+
+- **Names** are as Kotlin's, at the module's top level: types in PascalCase without the
+  prefix, members in camelCase without their type's name (`TrackProducer.appendGroup`). A
+  keyword is quoted in backticks, and a member named as one Swift gives its type, such as
+  `init`, takes a trailing `_`. Parameters have no labels, so a call reads as Rust's, and a
+  constructor such as `new` stays a static function: `Counter.new(1)`.
+- **Objects** are final classes owning their handle, freed in `deinit`, which a call
+  holds off until it returns, so there is no `close()`. A `self` method, or passing the
+  object by value, moves its value out and closes it once the call returns, after which a
+  call traps. `Clone` is `clone()`, and `PartialEq`
+  is `==`. A field is a computed property, and its setter a function, `setFirst(value)`,
+  since setting an object moves it in and closes its handle, which an assignment would
+  hide. An object is `Sendable`, since Rust checks each borrow at run time.
+- **Records** are structs and **enums** Swift enums, with a variant's data as associated
+  values, all `Sendable`. `PartialEq` is `==`, through Rust's; `Display` is `description`,
+  `Debug` `debugDescription`, and `Default` a static `default()`.
+- **Bytes** are `Data`. Passed in at a call's top level, Rust reads Swift's own; nested in
+  another value, they are copied in. Bytes Rust returns lend its buffer until Swift
+  releases the `Data`, though `Data` copies a few bytes inline, freeing Rust's at once.
+  Strings are `String`, copied, `char` `Unicode.Scalar`, `usize` `UInt`, `Option<T>` `T?`,
+  a tuple a Swift tuple, though a tuple of one is its element, and `Duration`
+  `Swift.Duration`. An `Err` is thrown: an exported type as itself, which conforms to
+  `Swift.Error`, and any other in a generated `<T>Error` holding it.
+- A **path** is a `String`: one Rust returns that is not UTF-8 traps. A `SocketAddr`,
+  `SocketAddrV4`, or `SocketAddrV6` is the runtime's `SocketAddr`, its IP's 4 or 16 bytes
+  and its port, flow label, and scope, whose family Rust checks. A `Vec<T>` or `&[T]` is
+  an array, and passing a `Vec` by value closes each object in it once the call returns.
+- **Traits** are `Sendable` protocols, which Rust releases once it drops an implementation.
+- **Closures** lent for a call are `@Sendable` function types, which Rust calls only during
+  the call, from any thread. An object it lends is closed once the call returns.
+- **Futures** are `async throws` functions, which resume on the task's executor, never
+  inside a wake. Cancelling the task frees the future, losing nothing, and throws
+  `CancellationError`. Each call is its own future, so it has one poller. The call polls it
+  once before suspending, and makes the signal it parks on only if that poll pends; the
+  signal latches a wake that lands before it parks.
+- A **waker** is a `@Sendable () -> Void`, which Rust may call from any thread.
+- **The contract** is checked once, at the first call into the library: a Swift file and a
+  library from different builds trap.
+## Go
+
+`<prefix>.go` is the Go package `<prefix>` over the C header through cgo, for Go 1.24 or
+later. It includes `<prefix>.h` from `../include`, as the export lays them out, or from its
+own directory, and links the library through `CGO_LDFLAGS`.
+
+- **Names** are the C names without the prefix, in Pascal case: `moq_track_producer` is
+  `TrackProducer`, and its method `moq_track_producer_append_group` is
+  `TrackProducer.AppendGroup`. A function of a type that takes no receiver is a function of
+  the package named through its type (`CounterSeededPoint`), but `new`, which is
+  `NewCounter`. A constant keeps its upper case (`LIMIT`), and one that is not a `bool` or
+  integer is a function of that name (`GREETINGS()`). A method named `Close` or `Error`
+  takes a trailing `_`, and a parameter named as a Go keyword, a predeclared name, or a
+  package the code uses takes one too.
+- **Objects** are pointers to structs owning their handle. `Close()` frees it once no call
+  holds it, and a second `Close()` does nothing; one never closed is closed once the GC
+  collects it, through `runtime.AddCleanup`. A call that meets a closed object, as its
+  receiver or anywhere in its arguments, returns an error matching `ErrClosed`, even when
+  `Close` races it on another goroutine, so every such call returns an `error`; `String()`
+  and `GoString()`, which return none, return its text. A `self` method, or passing the object by value, closes
+  it once the call returns. `Clone` is `Clone()`, and a `pub` field a getter, `First()`,
+  and a setter, `SetFirst(v)`.
+- **Records** are structs, and **plain enums** an `int32` type with a constant per
+  variant (`ShapeSquare`). An enum with data is an interface each variant's struct
+  implements (`EventMoved{V0: p}`), sealed so only the package's do; its methods are the
+  interface's. Positional fields are `V0`, `V1`, and so on. `Display` is `String()`,
+  `Debug` `GoString()`, `PartialEq` `Equal(other)`, all through Rust's, and `Default` a
+  function of the package, `PointDefault()`.
+- **Bytes** a call takes are a `[]byte`, and text a `string`, each read in place: Go's
+  memory, pinned where C reads it through other memory. Bytes Rust passes a callback are
+  copied into a `[]byte`. Bytes anywhere else, such as those Rust returns or a record
+  holds, are a `Bytes`, made from Go's with `NewBytes`. One of 512 B or more from Rust
+  reads its buffer in place through `Len`, `At`, `Slice`, `CopyTo`, `Read`, and
+  `WriteTo`, and frees it once the GC finds no `Bytes` reaching it, so no Go code holds a
+  slice of freed memory; a smaller one is copied, which costs less than lending it. Up to
+  16 buffers lent one after another, within 64 KiB, share one GC cleanup and free
+  together, so a `Bytes` kept long keeps at most 64 KiB of the others.
+  The GC sees none of Rust's buffers, so at most 64 MiB are lent at once, freed or not;
+  past that, larger ones are copied too, and that garbage in Go's heap runs the GC, which
+  frees them. On glibc, each thread's malloc arena keeps what is freed into it for that
+  thread to reuse, and a goroutine moves between threads, so reading lent bytes at full
+  speed can hold up to 64 MiB of RSS per thread the reads ran on. A global allocator that
+  returns freed memory, such as [mimalloc](https://crates.io/crates/mimalloc), declared in
+  the exported crate, holds it near what is lent. `Copy()` copies it out. Text Rust returns is copied once into a `string`, and Rust's
+  freed at the call. A path is a `string`
+  of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object its
+  pointer, nil for `None`. A tuple is `Tuple2[A, B]` and so on, but a tuple of one is its
+  element, and one returned whole is the function's results. `Duration` is
+  `time.Duration`: a negative one passed in, or one Rust returns past its 292 years,
+  panics. A socket address is a `netip.AddrPort`, whose zone names an IPv6 scope by its
+  number or its interface's name; one Rust returns with an IPv6 flow label, which
+  `netip` does not keep, panics. A `Vec<T>` or `&[T]` is a `[]T`.
+- **Errors**: a `Result` returns an `error` last. An exported error type is returned as
+  itself, implementing `error` with its `Display`, else its `Debug`, and any other in a struct
+  `<T>Error{Value}`, such as `StringError`.
+- **Traits** are interfaces. Once Rust drops an implementation, it is closed if it is an
+  `io.Closer`.
+- **Closures** lent for a call are funcs, which Rust calls only during the call, from any
+  thread. An object it lends is closed once the call returns.
+- **Futures** are calls taking a `context.Context` first, which block until the future is
+  ready. The call polls it once before it waits, and makes the waker it waits on only if
+  that poll pends; a wake from any thread signals the waiting goroutine, which polls
+  again, so a wake never polls inside Rust, and one that lands before the wait is kept. A
+  context done before the call, or while it waits, returns its error and frees the future,
+  which cancels it in Rust and loses nothing: the next call takes what it would have.
+  Each call is its own future, so it has one poller, and its context bounds only it.
+- A **waker** is a `func()`, which Rust may call from any thread.
+- **The contract** is checked when the package loads, before any other call: a Go file and
+  a library from different builds panic.
+
+## Dart
+
+`<prefix>.dart` is the library `package:<prefix>/<prefix>.dart` over the C ABI through
+`dart:ffi`, tested on Dart 3.13. Each C function is an `@Native` external, which finds
+the shared library the crate builds with `--features dart` as the package's native asset:
+the library's own URI, mapped to the library by a build hook or by `--native-assets`.
+
+- **Names** are the C names without the prefix: a type in Pascal case and a member in
+  camel case, so `moq_track_producer` is `TrackProducer`, and its method
+  `moq_track_producer_append_group` is `TrackProducer.appendGroup`. A function of a type
+  that returns it is a constructor, which may share its name with a field: an object's
+  `new` is its unnamed one (`Counter('c', 1)`), and any other a named one
+  (`Position.group`). A type's other functions are static members. A reserved word takes
+  a trailing `_` (`Point.default_()`). An item whose Dart name clashes with another's, or
+  with a name the runtime declares, fails the export: give it a `rename`.
+- **Objects** are final classes owning their handle. `close()` frees it once no call
+  holds it, and a second does nothing; one never closed is freed once the garbage
+  collector finds it unreachable, through a finalizable handle of Dart's C API. Any call that meets a
+  closed object, as its receiver or anywhere in its arguments, throws a `StateError`
+  before Rust sees it, and moves none of the call's other arguments. An isolate cannot
+  send an object to another, so no `close()` races a call. A `self` method, or passing the
+  object by value, closes it once the call returns. `Clone` is `clone()`, and a `pub`
+  field a getter and a setter.
+- **Records** are final classes with a named, required parameter per field, and
+  positional fields are `$0`, `$1`, and so on. **Plain enums** are Dart enums, and an enum
+  with data a sealed class with a final class per variant (`EventMoved`), so a `switch`
+  over it is exhaustive. `Display` is `toString()`, `Debug` `debug()`, `PartialEq` `==`, all
+  through Rust's, with a `hashCode` that throws an `UnsupportedError`, since no hash Dart
+  computes agrees with Rust's `==`, and `Default` a constructor, `default_()`. A plain enum's `==` is Dart's, by its value.
+- **Integers** are `int`. A narrower one passed in throws a `RangeError` when out of its
+  range, and a `u64` passes its 64 bits, so one past `i64`'s range is negative in Dart.
+  A `char` is a `String` of one Unicode scalar.
+- **Bytes** a call takes are a `Uint8List`, and text a `String`, each copied into a
+  buffer the call frees. Bytes Rust returns are a `Uint8List` owned by Dart's memory
+  manager: up to 64 KiB copied, with Rust's freed at the call, and a longer one an
+  unmodifiable view of Rust's buffer, freed once neither it nor any view of it is
+  reachable, so no view outlives its memory. A lent view costs a finalizer and charges the
+  garbage collector its length, which costs more than a copy up to about 64 KiB. Text Rust
+  returns is copied into a `String`. A path is a `String`, and one Rust returns that is
+  not UTF-8 aborts, since a throw would leave the rest of a list or record being lifted
+  unfreed. `Option<T>` is `T?`, a tuple a Dart record, and a `Vec<T>` or `&[T]` a
+  `List<T>`. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
+  in throws an `ArgumentError`, and Rust's longest is Dart's. A socket address is a
+  `SocketAddr` of an `InternetAddress`, a port, and IPv6's flow label and scope; one passed
+  in of the wrong family throws an `ArgumentError`, and a port, label, or scope out of its
+  range a `RangeError`.
+- **Errors**: a `Result`'s error is thrown. An exported error type is thrown as itself,
+  implementing `Exception`, and any other in a final class `<T>Exception` holding it as
+  `error`, such as `StringException`.
+- **Traits** are abstract classes. Rust calls an implementation's methods on the isolate's
+  thread, and once it drops one, calls its `close()`, which does nothing unless overridden.
+  A call that throws before Rust sees it gives Rust none of its implementations.
+- **Closures** lent for a call are Dart functions, which Rust calls only during the call,
+  on the isolate's thread. An object it lends lives only for that call of the closure.
+- **Futures** are `Cancelable<T>`, a `Future<T>` completed on the isolate that made it:
+  an extension type on Dart's own future, which `await` takes its shortest path through.
+  The call polls it once, returning it complete if that poll finished, and makes a waker
+  only if it pends. A wake, from any
+  thread, posts to the isolate's port, and its event loop polls again, so a wake never
+  polls inside Rust, and one that lands during a poll is kept. `cancel()` frees the
+  future unless it finished, which cancels it in Rust and loses nothing: the next call
+  takes what it would have, and it completes with `Cancelled`. A pending future keeps
+  the isolate alive, as a timer does.
+- A **waker** is a `void Function()`, which runs on the isolate's event loop.
+- **Threads**: Dart runs code only on its isolate's thread, so Rust reaches it from any
+  other through the isolate's port, and waits for its event loop to run the call. While
+  Rust holds an implementation or a lent closure of the isolate, each call into Rust, a
+  future's poll and `cancel()` included, runs on a thread of its own, acting as the
+  caller's for the handles it borrows, while the isolate's thread runs what Rust calls
+  into Dart meanwhile. Any other call runs on the isolate's thread, since nothing it waits
+  on can call into Dart.
+- **The contract** is checked at the first call, before any other: a Dart file and a
+  library from different builds throw a `StateError`.
+
 ## IR
 
 [`src/ir.rs`](src/ir.rs) is the API as each generator reads it, with no language decided:
@@ -280,10 +564,17 @@ its Rust path, its span, and its docs. A type is in the exact form Rust takes or
 (`&str` apart from `String`, `Box<dyn Trait>` apart from `impl Trait`), so a generator can
 borrow where Rust borrows. [`src/abi.rs`](src/abi.rs) decides the C ABI from it once,
 names and signatures, so [`src/c.rs`](src/c.rs), [`src/cpp.rs`](src/cpp.rs),
-[`src/kotlin.rs`](src/kotlin.rs), and [`src/glue.rs`](src/glue.rs) agree; the runtime the
-glue includes is [`runtime/rt.rs`](runtime/rt.rs), the one the C++ header includes
-[`runtime/rt.hpp`](runtime/rt.hpp), and the ones Kotlin and its JNI glue include
-[`runtime/rt.kt`](runtime/rt.kt) and [`runtime/jni.rs`](runtime/jni.rs).
+[`src/kotlin.rs`](src/kotlin.rs), [`src/python.rs`](src/python.rs),
+[`src/swift.rs`](src/swift.rs), [`src/go.rs`](src/go.rs), [`src/dart.rs`](src/dart.rs), and
+[`src/glue.rs`](src/glue.rs)
+agree; the runtime the glue includes is [`runtime/rt.rs`](runtime/rt.rs), the one the C++
+header includes [`runtime/rt.hpp`](runtime/rt.hpp), the ones Kotlin and its JNI glue
+include [`runtime/rt.kt`](runtime/rt.kt) and [`runtime/jni.rs`](runtime/jni.rs), the ones
+Python and its extension include [`runtime/rt.py`](runtime/rt.py) and
+[`runtime/python.rs`](runtime/python.rs), the one the Swift includes
+[`runtime/rt.swift`](runtime/rt.swift), the one the Go includes
+[`runtime/rt.go`](runtime/rt.go), and the ones the Dart and its glue include
+[`runtime/rt.dart`](runtime/rt.dart) and [`runtime/dart.rs`](runtime/dart.rs).
 
 ## Census
 
@@ -296,12 +587,13 @@ refusal, which is a bug in the exporter's inference rather than in the crate.
 ## Tests
 
 ```bash
-just ffi test     # export the fixtures, build them, and drive api from C, C++, and Kotlin
-just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, and moq/moq.kt
+just ffi test     # export the fixtures, build them, and drive api from C, C++, Kotlin, Python, Swift, Go, and Dart
+just ffi moq      # export moq's crates at the pinned revision, build them, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
+just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi census   # census each into target/census
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
-nix develop .#bench --command just ffi bench  # frame writes and reads, through the export from C, C++, and Kotlin, and moq's rs/moq-c
+nix develop .#bench --command just ffi bench  # frame writes and reads, through the export from C, C++, Kotlin, Python, Swift, Go, and Dart, and moq's rs/moq-c
 ```
 
 The `api` fixture covers each rule once, and names the `dep` fixture's types, which
@@ -311,13 +603,31 @@ then it breaks each runtime check, which must abort with its message. `tests/api
 runs the script through the C++ header at C++17, 20, and 23, with exceptions and RTTI off
 at 17 and 23, then checks its futures: a wake that lands during a poll, a cancel between a
 wake and its poll that loses nothing, and a coroutine resumed or destroyed. `tests/api.kt`
-runs the script through the Kotlin on the JVM, checks its futures the same way, and breaks
-each runtime check, which must throw or abort with its message. `just ffi android` runs the
-same on ART: the Kotlin and `tests/api.kt`, shrunk by R8 into an app's dex with only the
+runs the script through the Kotlin on the JVM, checks its futures the same way, that a call
+after `close()` throws, that `Bytes` and their slices keep Rust's buffer, past the object or
+record they came from, until the GC frees it, and that calls racing `close()` or the GC
+read live values, and breaks each runtime check, which must throw or abort with its message. `just ffi android` runs
+the same on ART: the Kotlin and `tests/api.kt`, shrunk by R8 into an app's dex with only the
 generated rules keeping what JNI looks up, against the library built by the NDK for the
 device's ABI, which ANDROID_HOME and ANDROID_NDK_HOME locate. Nightly runs it on an
-x86_64 emulator at API 24, the oldest moq's Android library supports, and at API 35. The `reject`
-fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
+x86_64 emulator at API 24, the oldest moq's Android library supports, and at API 35.
+`tests/api.py` runs the script through the Python, in CPython's development mode with
+warnings as errors, checks its futures the same way, what frees an object or bytes nobody
+closed, and the values Python's types bound, and breaks each runtime check, which must raise or
+abort with its message; the Python with another contract must refuse the library.
+`tests/api.swift` runs the script through the Swift, built as a module in Swift 6's
+language mode and type-checked in Swift 5's, checks its futures the same way and that
+releasing frees, and breaks each runtime check, which must trap or abort with its message.
+It runs with nixpkgs' Swift on Linux, which builds none for aarch64-linux
+([quest](/quest/m2/uniffi-swift-arm.md)), and nightly with Apple's on macOS.
+`tests/api.go` runs the script through the Go after `go vet`, checks its futures the same
+way, plus a context done before the call, a deadline, and a handle closed during a call,
+checks that bytes cross both ways, that a `Bytes` keeps Rust's buffer while only a sub-view
+or a reader reaches it and that the GC frees it once none does, that the GC frees an object
+never closed, and that each kind of call meeting a closed object, including one racing
+`Close`, returns `ErrClosed`, and breaks
+each runtime check, which must panic with its message; a Go file from another build must
+fail its contract check. The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. `moq/moq.c` publishes and subscribes to a moq-net
 track in one process, polling each read, scopes an origin to moq-pattern's patterns and
@@ -327,7 +637,13 @@ serves a broadcast from a moq-tokio server bound to port 0 to a client that read
 QUIC, both on moq-tokio's fallback runtime, whose threads wake C's. `moq/moq.cpp` does the
 same through the C++ header, short of the catalog's field, at C++17 without exceptions or
 RTTI, as OBS builds it, serving on an executor's thread and blocking on each read, and
-`moq/moq.kt` through the Kotlin, serving in a coroutine and suspending on each read.
+`moq/moq.kt` through the Kotlin, serving in a coroutine and suspending on each read,
+`moq/moq.py` through the Python, running the origin's driver and the server as asyncio
+tasks and awaiting each read, `moq/moq.swift` through the Swift, serving in a task and
+awaiting each read, `moq/moq.go` through the Go, running the origin's driver on a
+goroutine of its own and serving on another, each read blocking under a context, and
+`moq/moq.dart` through the Dart, polling the origin's driver from the isolate's event loop
+on each wake and at its deadline's `Timer`, and awaiting each read.
 
 The C++ builds take `CXX`, or `c++`, with every warning an error and `-Wshadow`, which
 stands in for MSVC's warnings that a name hides another. On Windows they take MSVC's `cl`

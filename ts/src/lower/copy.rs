@@ -1,10 +1,10 @@
 //! Copies of `Copy` aggregates, by their type.
 //!
 //! JS shares an object where Rust copies its value, so a `Copy` value that is a JS object
-//! the crate's code writes into in place is copied where Rust copies it. A function made
-//! for its type copies what it holds by value and shares what it holds by reference, as
-//! Rust does. A value of a type nothing writes into never changes once made, so sharing
-//! it is a copy no one can tell apart.
+//! the crate's code writes into in place, or compares pointers to, is copied where Rust
+//! copies it. A function made for its type copies what it holds by value and shares what
+//! it holds by reference, as Rust does. A value of a type nothing writes into or compares
+//! pointers to never changes once made, so sharing it is a copy no one can tell apart.
 
 use std::cell::RefCell;
 
@@ -21,19 +21,20 @@ use rustc_mir_dataflow::impls::MaybeLiveLocals;
 use rustc_span::Span;
 
 use super::library::{Flow, Std};
-use super::mir::holders::{Filled, Trace};
+use super::mir::holders::{Filled, Holds, Trace};
 use super::{AdtRepr, Translator, field_name, names};
 use crate::program::{SymKind, Symbol};
 use crate::ts::{self, Expr, Key, Param, Stmt, StmtKind};
 
 impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether a `ty` is copied where Rust copies it: a `Copy` value that is, or holds by
-	/// value, a JS object the crate's code writes into in place.
+	/// value, a JS object the crate's code writes into in place or compares pointers to.
 	pub fn needs_copy(&self, ty: Ty<'tcx>) -> bool {
 		self.is_copy(ty) && self.changes(ty)
 	}
 
-	/// Whether a value of `ty` is, or holds by value, a JS object the crate writes into.
+	/// Whether a value of `ty` is, or holds by value, a JS object the crate writes into or
+	/// compares pointers to.
 	fn changes(&self, ty: Ty<'tcx>) -> bool {
 		let (object, parts): (bool, Vec<Ty<'tcx>>) = match ty.kind() {
 			ty::Tuple(tys) if !tys.is_empty() => (true, tys.to_vec()),
@@ -47,11 +48,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Result
 					| Std::ControlFlow
 					| Std::Reverse
+					| Std::AssertUnwindSafe
 					| Std::Wrapping
 					| Std::Saturating,
 				) => (false, args.types().collect()),
 				Some(Std::Bound) => (true, args.types().collect()),
-				Some(Std::MaybeUninit) => return self.changes(args.type_at(0)),
+				// Records of functions and pointers, which JS shares.
+				Some(Std::WakerVTable | Std::RawWaker) => (true, Vec::new()),
+				Some(Std::MaybeUninit | Std::ManuallyDrop) => return self.changes(args.type_at(0)),
 				Some(_) => return false,
 				None if self.own(adt.did()) && adt.all_fields().next().is_some() => {
 					(true, adt.all_fields().map(|f| self.field_ty(f.did, args)).collect())
@@ -60,8 +64,20 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			},
 			_ => return false,
 		};
-		object && self.writes.contains(&self.writes.into, false, self.tcx, ty)
+		object && (self.writes.contains(&self.writes.into, false, self.tcx, ty) || self.addressed(ty))
 			|| parts.into_iter().any(|t| self.changes(t))
+	}
+
+	/// Whether the runs before compared pointers to a `ty`, or to a type it holds by value,
+	/// so each copy of one is at an address of its own, as in Rust, wherever it is read.
+	pub fn held_addressed(&self, ty: Ty<'tcx>) -> bool {
+		!self.compared.is_empty() && by_value(self.tcx, self.typing_env(), ty).any(|part| self.addressed(part))
+	}
+
+	/// Whether the runs before compared pointers to a `ty`. A slice shares its storage
+	/// with its arrays, but pointers to one never compare.
+	fn addressed(&self, ty: Ty<'tcx>) -> bool {
+		!ty.is_slice() && self.compared.contains(&storage(self.tcx, ty))
 	}
 
 	/// Whether the crate may give the part of a `ty` kept as a JS object in the field `at`,
@@ -94,25 +110,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		})
 	}
 
-	/// Note a comparison of pointers to a `ty`, which [`Self::taken`] counts from the next
-	/// run on if a pointer may be made into it, or into what holds it, through a reference,
-	/// by any body.
+	/// Note a comparison of pointers to a `ty`, which the next run copies each value of as
+	/// it is read, and which [`Self::taken`] counts if a pointer may be made into it, or into
+	/// what holds it, through a reference, by any body.
 	pub fn compare(&mut self, ty: Ty<'tcx>) {
-		let (tcx, env, writes) = (self.tcx, self.typing_env(), &self.writes);
-		let stored = storage(tcx, ty);
-		let kept = (ty.has_param() || ty.is_freeze(tcx, env))
-			&& std::iter::once(&writes.taken)
-				.chain(writes.taken_in.values())
-				.any(|taken| {
-					writes.contains(taken, true, tcx, ty)
-						|| taken
-							.concrete
-							.iter()
-							.any(|&taken| by_value(tcx, env, taken).any(|part| storage(tcx, part) == stored))
-				});
-		if kept {
-			self.comparing.insert(stored);
-		}
+		self.comparing.insert(storage(self.tcx, ty));
 	}
 
 	/// Whether the runs before compared pointers to a `ty`, a type parameter standing for
@@ -128,10 +130,15 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// copies its bytes: the JS objects it holds by value copied where the crate's code
 	/// writes into them in place.
 	pub fn snapshot(&mut self, value: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
-		match self.changes(ty).then(|| self.shim(ty, span)).flatten() {
+		match self.snapshot_fn(ty, span) {
 			Some(copy) => copy.call(vec![value]),
 			None => value,
 		}
+	}
+
+	/// The function [`Self::snapshot`] calls on a `ty`, if it copies one.
+	pub fn snapshot_fn(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
+		self.changes(ty).then(|| self.shim(ty, span)).flatten()
 	}
 
 	/// `value`, copied if a `ty` is.
@@ -150,11 +157,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		self.shim(ty, span)
 	}
 
-	/// The function copying a `ty`, made the first time.
-	fn shim(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
+	/// The function copying a `ty`, made the first time: a new object of it, whatever the
+	/// crate writes, holding the parts [`Self::snapshot`] copies.
+	pub fn shim(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
 		// An array's copy is the same at every length, so its name has none: `array_u8`.
 		let tcx = self.tcx;
 		let (ty, any_length) = match ty.kind() {
+			// The copy of what it holds.
+			ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::ManuallyDrop) => {
+				return self.shim(args.type_at(0), span);
+			}
 			ty::Array(elem, _) => (Ty::new_array(tcx, *elem, 0), true),
 			ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::MaybeUninit) => match args.type_at(0).kind() {
 				ty::Array(elem, _) => (Ty::new_maybe_uninit(tcx, Ty::new_array(tcx, *elem, 0)), true),
@@ -242,10 +254,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					body.extend(self.copy_parts(args.type_at(0), true, span));
 					body
 				}
+				Some(Std::ManuallyDrop) => self.copy_parts(args.type_at(0), uninit, span),
 				Some(Std::Option) => ret(self.copy_unless(self.none(args.type_at(0)), args.type_at(0), span)),
 				Some(Std::Poll) => ret(self.copy_unless(self.pending(args.type_at(0)), args.type_at(0), span)),
 				Some(Std::Result) => ret(self.copy_result(args.type_at(0), args.type_at(1), span)),
-				Some(Std::Reverse | Std::Wrapping | Std::Saturating) => ret(self.snapshot(v(), args.type_at(0), span)),
+				Some(Std::Reverse | Std::AssertUnwindSafe | Std::Wrapping | Std::Saturating) => {
+					ret(self.snapshot(v(), args.type_at(0), span))
+				}
 				Some(Std::Bound) => {
 					let ts_ty = self.ty(ty, span);
 					let held = self.snapshot(v().member("_0"), args.type_at(0), span);
@@ -259,6 +274,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						Box::new(Expr::As(Box::new(copy), ts_ty)),
 					))
 				}
+				Some(Std::WakerVTable) => {
+					let fns = ["clone", "wake", "wakeByRef", "drop"].map(|f| v().member(f));
+					ret(Expr::rt("wakerVTable", fns.into()))
+				}
+				Some(Std::RawWaker) => ret(super::task::raw_waker(v().member("data"), v().member("vtable"))),
 				Some(Std::ControlFlow) => {
 					let (residual, value) = (args.type_at(0), args.type_at(1));
 					ret(match (Flow::of(tcx, args), residual.kind()) {
@@ -546,12 +566,12 @@ impl<'tcx> Types<'tcx> {
 	}
 }
 
-/// `ty` as [`Types`] keys it: without regions, a `MaybeUninit` as what it holds, and an
-/// array as a slice of its element.
+/// `ty` as [`Types`] keys it: without regions, a `MaybeUninit` or `ManuallyDrop` as what
+/// it holds, and an array as a slice of its element.
 fn storage<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
 	let mut ty = tcx.erase_and_anonymize_regions(ty);
 	while let ty::Adt(adt, args) = ty.kind()
-		&& Std::of(tcx, adt.did()) == Some(Std::MaybeUninit)
+		&& matches!(Std::of(tcx, adt.did()), Some(Std::MaybeUninit | Std::ManuallyDrop))
 	{
 		ty = args.type_at(0);
 	}
@@ -755,7 +775,7 @@ fn retargeted_in<'tcx>(
 	for (data, bb) in body.basic_blocks.iter().zip(body.basic_blocks.indices()) {
 		if let mir::TerminatorKind::Call { func, args, .. } = &data.terminator().kind
 			&& let Some((i, _, rebinds)) = rebinding(args, func)
-			&& i < rebinds
+			&& rebinds.contains(&i)
 		{
 			let by = args[i].node.place().and_then(|p| p.as_local());
 			if by.is_some_and(|by| uses.get(&by) == Some(&vec![body.terminator_loc(bb)])) {
@@ -876,8 +896,13 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 	}
 
 	/// `ty`, and each type it holds by value, as replaced: a write of a whole `ty` gives
-	/// each part it holds another object, and so each part those hold, at any depth.
+	/// each part it holds another object, and so each part those hold, at any depth. Nothing
+	/// writes a whole unsized value, and what a trait object's methods replace counts where
+	/// it became one.
 	fn replace(&mut self, ty: Ty<'tcx>) {
+		if !ty.is_sized(self.tcx, ty::TypingEnv::post_analysis(self.tcx, self.def_id)) {
+			return;
+		}
 		for ty in self.parts(ty) {
 			self.writes.replaced.insert(self.tcx, self.def_id, ty);
 		}
@@ -891,14 +916,15 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 	}
 
 	/// Whether a `ty` may be kept as a JS object that a pointer to it is: a tuple, an
-	/// array, a struct or union of a crate that translates, or a `MaybeUninit` of one; or
-	/// an `UnsafeCell`'s `rt.Cell`, which the pointer `get` gives is or holds.
+	/// array, a struct or union of a crate that translates, or a `MaybeUninit` or
+	/// `ManuallyDrop` of one; or an `UnsafeCell`'s `rt.Cell`, which the pointer `get`
+	/// gives is or holds.
 	fn inline(&self, ty: Ty<'tcx>) -> bool {
 		match ty.kind() {
 			ty::Tuple(tys) => !tys.is_empty(),
 			ty::Array(..) | ty::Param(_) | ty::Alias(..) => true,
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did()) {
-				Some(Std::MaybeUninit) => self.inline(args.type_at(0)),
+				Some(Std::MaybeUninit | Std::ManuallyDrop) => self.inline(args.type_at(0)),
 				Some(Std::Cell) => self.tcx.is_lang_item(adt.did(), rustc_attr_ir::LangItem::UnsafeCell),
 				Some(_) => false,
 				None => !adt.is_enum() && (self.own)(adt.did()),
@@ -964,12 +990,13 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 	}
 
 	/// Whether the call at `at` given `arg` as a `ty`, a mutable reference or pointer to a
-	/// type that may be kept as an object, fills memory nothing points into yet there.
+	/// type that holds by value one that may be kept as an object, as an array's iterator
+	/// does, fills memory nothing points into yet there.
 	fn fills_fresh(&mut self, ty: Ty<'tcx>, arg: &mir::Operand<'tcx>, at: Location, made: Option<Local>) -> bool {
 		let (ty::Ref(_, inner, ty::Mutability::Mut) | ty::RawPtr(inner, ty::Mutability::Mut)) = *ty.kind() else {
 			return false;
 		};
-		self.inline(inner)
+		!self.parts(inner).is_empty()
 			&& arg
 				.place()
 				.and_then(|p| p.as_local())
@@ -1049,7 +1076,7 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 		let Some(made) = made.as_local() else {
 			return true;
 		};
-		let held = self.trace.holders(made, false, false);
+		let held = self.trace.holders(made, Holds::Pointers, false, ty::List::empty());
 		let env = ty::TypingEnv::post_analysis(self.tcx, self.def_id);
 		let raw = |ty: Ty<'tcx>| {
 			ty.is_raw_ptr()
@@ -1111,8 +1138,8 @@ impl<'tcx> Visitor<'tcx> for BodyWrites<'_, '_, '_, 'tcx> {
 			}
 			let rebound = func
 				.const_fn_def()
-				.map_or(0, |(def_id, _)| super::pointer::rebinds(self.tcx, def_id));
-			for arg in args[..rebound].iter().filter_map(|a| a.node.place()) {
+				.map_or(&[][..], |(def_id, _)| super::pointer::rebinds(self.tcx, def_id));
+			for arg in rebound.iter().filter_map(|&i| args.get(i)?.node.place()) {
 				self.store_through(self.tcx.mk_place_deref(arg), location);
 			}
 		}
@@ -1136,12 +1163,9 @@ impl<'tcx> Visitor<'tcx> for BodyWrites<'_, '_, '_, 'tcx> {
 			&& let ty::FnDef(def_id, args) = *constant.ty().kind()
 			&& !self.crate_fn(def_id, args.skip_binder())
 		{
-			let sig = self
-				.tcx
-				.fn_sig(def_id)
-				.instantiate(self.tcx, args.skip_binder())
-				.skip_norm_wip();
-			if let Some(&this) = sig.skip_binder().inputs().first()
+			let sig = self.tcx.fn_sig(def_id).instantiate(self.tcx, args.skip_binder());
+			let sig = self.tcx.instantiate_bound_regions_with_erased(sig.skip_norm_wip());
+			if let Some(&this) = sig.inputs().first()
 				&& let Some(value) = replaces(self.tcx, def_id, this)
 			{
 				self.replace(value);
@@ -1161,7 +1185,7 @@ impl<'tcx> Visitor<'tcx> for BodyWrites<'_, '_, '_, 'tcx> {
 				}
 				_ => None,
 			};
-			for (i, &input) in sig.skip_binder().inputs().iter().enumerate() {
+			for (i, &input) in sig.inputs().iter().enumerate() {
 				let fresh = replace
 					&& call.is_some_and(|(args, made)| {
 						args.get(i)

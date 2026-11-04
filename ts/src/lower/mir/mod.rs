@@ -10,6 +10,7 @@
 //! Library calls go through the mappings in `library`, which take their arguments
 //! lowered: a `Body` holds the names, and its translator everything else.
 
+mod alloc;
 mod call;
 mod cfg;
 pub mod coroutine;
@@ -18,6 +19,7 @@ pub mod glue;
 pub(super) mod holders;
 mod inline;
 mod memory;
+mod origin;
 mod place;
 mod rvalue;
 mod scalar;
@@ -58,6 +60,14 @@ pub fn function<'a, 'tcx>(t: &mut Translator<'a, 'tcx>, instance: Instance<'tcx>
 	b.slotted = slotted.clone();
 	let mut fx = Fx::new(&mut b, &mir, Env::Plain, span);
 	let mut params = fx.params();
+	if crate::lower::caller::tracks(fx.b.t, instance) {
+		let caller = fx.b.fresh("caller");
+		params.push(Param {
+			name: caller.clone(),
+			ty: Some(crate::lower::caller::param_ty()),
+		});
+		fx.caller = Some(caller);
+	}
 	let body = fx.lower();
 	fx.mark_unread_parts(&mut params, &body);
 	let ret_span = fx.local_span(mir::RETURN_PLACE);
@@ -76,6 +86,62 @@ pub fn function<'a, 'tcx>(t: &mut Translator<'a, 'tcx>, instance: Instance<'tcx>
 		loc: None,
 		doc: None,
 	})
+}
+
+/// A function as a value: an arrow whose body is its reify shim, which calls it as a
+/// written call does, so std's that replace what a `&mut` borrows, such as `mem::take`,
+/// lower as their calls do. Its spans are `span`'s, where the function is named.
+pub fn fn_value<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	def_id: rustc_hir::def_id::DefId,
+	args: ty::GenericArgsRef<'tcx>,
+	span: Span,
+) -> Expr {
+	let tcx = b.t.tcx;
+	let shim = Instance {
+		def: ty::InstanceKind::Shim(ty::ShimKind::Reify(def_id, None)),
+		args,
+	};
+	let mut mir = shim.instantiate_mir_and_normalize_erasing_regions(
+		tcx,
+		b.t.typing_env_pub(),
+		EarlyBinder::bind(tcx, tcx.instance_mir(shim.def).clone()),
+	);
+	mir.span = span;
+	for decl in mir.local_decls.iter_mut() {
+		decl.source_info.span = span;
+	}
+	// Its arguments are named `a0` on, as debug info names a function's.
+	let args: Vec<Local> = mir.args_iter().collect();
+	for (i, local) in args.into_iter().enumerate() {
+		mir.var_debug_info.push(mir::VarDebugInfo {
+			name: rustc_span::Symbol::intern(&format!("a{i}")),
+			source_info: mir.local_decls[local].source_info,
+			composite: None,
+			value: mir::VarDebugInfoContents::Place(local.into()),
+			argument_index: Some(i as u16 + 1),
+		});
+	}
+	for block in mir.basic_blocks.as_mut() {
+		for stmt in &mut block.statements {
+			stmt.source_info.span = span;
+		}
+		let term = block.terminator_mut();
+		term.source_info.span = span;
+		if let TerminatorKind::Call { fn_span, .. } = &mut term.kind {
+			*fn_span = span;
+		}
+	}
+	// The shim's parameters are whole, whatever the body it is in takes.
+	let parted = std::mem::take(&mut b.parted);
+	let slotted = b.slotted.take();
+	let mut fx = Fx::new(b, &mir, Env::Plain, span);
+	let params = fx.params();
+	let body = fx.lower();
+	b.parted = parted;
+	b.slotted = slotted;
+	let ret = b.t.ty(mir.return_ty(), span);
+	Expr::Arrow(params, ret, body)
 }
 
 /// The MIR of `instance`, with its generic arguments in place.
@@ -273,6 +339,8 @@ struct Pending {
 	decl: bool,
 	/// Whether reading it again, wherever and however often, reads the same.
 	rereads: bool,
+	/// The Rust it is made from, which the source map names wherever it folds.
+	loc: Option<ts::Loc>,
 }
 
 pub struct Fx<'m, 'b, 'a, 'tcx> {
@@ -280,6 +348,8 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	pub mir: &'m mir::Body<'tcx>,
 	pub tcx: TyCtxt<'tcx>,
 	env: Env,
+	/// The parameter a `#[track_caller]` function takes its caller's location by.
+	caller: Option<String>,
 	slots: IndexVec<Local, Slot<'tcx>>,
 	/// Where each local assigned once is assigned, by a statement.
 	def_at: IndexVec<Local, Option<(BasicBlock, usize)>>,
@@ -309,7 +379,7 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	assigned: IndexVec<Local, bool>,
 	span: Span,
 	pub labels: u32,
-	/// Whether this is an `Iterator::next`, which returns an item or `rt.DONE`.
+	/// Whether this is an `Iterator::next`'s body, which returns an item or `rt.DONE`.
 	next: bool,
 	/// Blocks whose only statement is `unreachable`.
 	unreachable: FxHashSet<BasicBlock>,
@@ -320,6 +390,9 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	redirect: FxHashMap<BasicBlock, BasicBlock>,
 	/// Whether the operands lowered now go to a local nothing changes in place.
 	into_frozen: bool,
+	/// Each argument read from a place for the call being lowered, and its Rust, which
+	/// [`Self::locate_arguments`] locates in the call once std's mappings made it.
+	arguments: Vec<(Expr, ts::Loc)>,
 	/// Whether the value held back next is copied unless it folds into an argument.
 	copy_on_flush: bool,
 	/// Whether a copy lowered now shares what it copies, whatever it reads from.
@@ -432,11 +505,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			assigned: IndexVec::from_elem_n(false, n),
 			span,
 			labels: 0,
-			next: crate::lower::iter::is_next(tcx, mir.source.def_id()),
+			// A shim of `next`, such as its value's, returns the `Option` its callers take.
+			next: matches!(mir.source.instance, ty::InstanceKind::Item(_))
+				&& crate::lower::iter::is_next(tcx, mir.source.def_id()),
 			unreachable: FxHashSet::default(),
 			rereadable_parts: None,
 			redirect: FxHashMap::default(),
 			into_frozen: false,
+			arguments: Vec::new(),
 			copy_on_flush: false,
 			force_share: false,
 			arg_use: IndexVec::from_elem_n(false, n),
@@ -467,6 +543,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			remade: FxHashSet::default(),
 			part_params: Vec::new(),
 			slot,
+			caller: None,
 			slotted_calls: FxHashMap::default(),
 			returning: FxHashSet::default(),
 			narrowing,
@@ -926,6 +1003,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		let span = self.local_span(local);
 		Some(self.const_value(mir::ConstValue::ZeroSized, ty, span))
+	}
+
+	/// Whether `local` is drop glue's pointer, which is the value it drops.
+	fn glue_pointer(&self, local: Local) -> bool {
+		matches!(self.env, Env::Shim) && local.as_u32() == 1
 	}
 
 	/// Whether `local` is a box's pointer, as a box's dereference reads it.
@@ -1563,13 +1645,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		// A closure that captures nothing holds nothing, so MIR never assigns it: JS needs
 		// its function.
 		for local in self.mir.local_decls.indices() {
-			if let ty::Closure(def_id, args) = *self.mir.local_decls[local].ty.kind()
+			let ty = self.mir.local_decls[local].ty;
+			if matches!(ty.kind(), ty::Closure(..) | ty::CoroutineClosure(..))
 				&& self.defs[local] == 0
 				&& !self.is_arg(local)
 				&& self.uses[local] > 0
 				&& let Slot::Var(name) = self.slots[local].clone()
 			{
-				let f = self.bare_closure(def_id, args, self.span);
+				let f = self.bare_closure(ty, self.span);
 				self.assigned[local] = true;
 				entry.push(StmtKind::Expr(Expr::ident(&name).assign(f)).at(None));
 			}
@@ -1634,6 +1717,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		out.extend(entry);
 		out.extend(body);
+		if self.b.t.hooked && crate::lower::caller::unlocated_in(&mut out) {
+			self.err(
+				self.span,
+				"a panic of the runtime's whose location translation gave nowhere",
+			);
+		}
 		drop_self_assignments(&mut out);
 		// A return folds in the value assigned only to a local: a closure's captures are
 		// read after it returns.
@@ -1835,6 +1924,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
+	/// Where the MIR statement or terminator being lowered is, for the source map.
+	fn here(&mut self) -> Option<ts::Loc> {
+		let span = self.mir.source_info(self.at).span;
+		self.b.t.loc(span)
+	}
+
 	/// The value held back for `local`, if it is.
 	fn held(&self, local: Local) -> Option<&Pending> {
 		let name = self.var(local)?;
@@ -2015,8 +2110,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let mut kept = Vec::new();
 		for (i, p) in pending.into_iter().enumerate() {
 			if fold[i] {
+				let value = located(p.value, p.loc);
 				for stmt in &mut stmts {
-					if subst_stmt(stmt, &p.name, &p.value) {
+					if subst_stmt(stmt, &p.name, &value) {
 						break;
 					}
 				}
@@ -2043,13 +2139,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			_ => p.value,
 		};
 		out.push(match p.decl {
-			true => StmtKind::decl(false, p.name, None, Some(value)).at(None),
-			false => StmtKind::Expr(Expr::ident(&p.name).assign(value)).at(None),
+			true => StmtKind::decl(false, p.name, None, Some(value)).at(p.loc),
+			false => StmtKind::Expr(Expr::ident(&p.name).assign(value)).at(p.loc),
 		});
 	}
 
-	/// Emit the pending temporaries `e` reads, and those held back before them, so that
-	/// `e` can be read more than once, or later.
+	/// Emit the pending temporaries `e` reads, those held back before them, and those
+	/// after them that do or read anything, so that `e` can be read more than once, or
+	/// later. What `out` gathers is often emitted after, which would run those first.
 	pub(super) fn materialize(&mut self, e: &Expr, out: &mut Vec<Stmt>) {
 		let mut names = Vec::new();
 		reads_of(e, &mut names);
@@ -2063,7 +2160,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return;
 		};
 		let pending = std::mem::take(&mut self.pending);
-		let (flush, keep): (Vec<Pending>, Vec<Pending>) = pending.into_iter().partition(|p| p.order <= last);
+		let (flush, keep): (Vec<Pending>, Vec<Pending>) =
+			(pending.into_iter()).partition(|p| p.order <= last || p.effect || p.memory);
 		self.pending = keep;
 		for p in flush {
 			self.flush_one(p, out);
@@ -2111,6 +2209,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let mut reads = Vec::new();
 		reads_of(&value, &mut reads);
 		let copy = std::mem::take(&mut self.copy_on_flush);
+		let loc = self.here();
+		let mut value = value;
+		if let Some(at) = self.panic_at() {
+			crate::lower::caller::locate_expr(&mut value, &at);
+		}
 		self.pending.push(Pending {
 			name,
 			value,
@@ -2122,15 +2225,20 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			copy,
 			decl: false,
 			rereads,
+			loc,
 		});
 	}
 
 	/// Hold back `value`, the assignment of the flag `flag`, to fold into the switch that
 	/// reads it.
-	fn hold_flag(&mut self, flag: String, value: Expr) {
+	fn hold_flag(&mut self, flag: String, mut value: Expr) {
+		if let Some(at) = self.panic_at() {
+			crate::lower::caller::locate_expr(&mut value, &at);
+		}
 		self.order += 1;
 		let mut reads = Vec::new();
 		reads_of(&value, &mut reads);
+		let loc = self.here();
 		self.pending.push(Pending {
 			name: flag,
 			value,
@@ -2142,6 +2250,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			copy: false,
 			decl: false,
 			rereads: false,
+			loc,
 		});
 	}
 
@@ -2196,6 +2305,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					copy: false,
 					decl: true,
 					rereads: false,
+					loc: p.loc,
 				},
 			);
 			held += 1;
@@ -2262,12 +2372,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			self.set_stepped(local, value, out);
 			return;
 		}
+		let loc = self.here();
 		match self.slots[local].clone() {
 			Slot::Var(name) => {
 				if self.uses[local] == 0 {
 					// Nothing reads it: only its effects run.
 					if effect {
-						self.emit(vec![StmtKind::Expr(value).at(None)], false, out);
+						self.emit(vec![StmtKind::Expr(value).at(loc)], false, out);
 					}
 					return;
 				}
@@ -2307,7 +2418,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					return;
 				}
 				self.assigned[local] = true;
-				let stmt = StmtKind::Expr(Expr::ident(&name).assign(value)).at(None);
+				let stmt = StmtKind::Expr(Expr::ident(&name).assign(value)).at(loc);
 				self.emit(vec![stmt], false, out);
 				// An aggregate assigned once and never changed: its operands, as emitted,
 				// read in place of its fields.
@@ -2324,7 +2435,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			Slot::Unit => {
 				if effect {
-					self.emit(vec![StmtKind::Expr(value).at(None)], false, out);
+					self.emit(vec![StmtKind::Expr(value).at(loc)], false, out);
 				}
 			}
 			Slot::Alias(_) | Slot::Discr(_) | Slot::Flag(_) => unreachable!("set by their own assignment"),
@@ -2342,7 +2453,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					block: bb,
 					statement_index: i,
 				};
+				let start = out.len();
 				self.statement(stmt, out);
+				self.locate(&mut out[start..]);
 				if self.returning.contains(&self.at) {
 					self.flush(out);
 					return Exit::End;
@@ -2356,7 +2469,30 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			block: bb,
 			statement_index: data.statements.len(),
 		};
-		self.terminator(data.terminator(), out)
+		let start = out.len();
+		let exit = self.terminator(data.terminator(), out);
+		self.locate(&mut out[start..]);
+		exit
+	}
+
+	/// Where a panic the statement being lowered makes is, in a program with a panic hook:
+	/// its caller's, if this function takes one, as rustc's codegen passes it.
+	fn panic_at(&self) -> Option<Expr> {
+		if !self.b.t.hooked {
+			return None;
+		}
+		Some(match &self.caller {
+			Some(caller) => Expr::ident(caller),
+			None => crate::lower::caller::location(self.tcx, self.mir.source_info(self.at).span),
+		})
+	}
+
+	/// Pass where the statement being lowered is to each runtime call in `stmts` that
+	/// panics there, in a program with a panic hook.
+	fn locate(&self, stmts: &mut [Stmt]) {
+		if let Some(at) = self.panic_at() {
+			crate::lower::caller::locate(stmts, &at);
+		}
 	}
 
 	fn statement(&mut self, stmt: &mir::Statement<'tcx>, out: &mut Vec<Stmt>) {
@@ -2595,6 +2731,57 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			.collect()
 	}
 
+	/// The function a call of `func` at `span` calls, if it takes its caller's location,
+	/// and the location the call passes: its own caller's, if this function takes one, or
+	/// else the call's own.
+	fn site(&self, func: &Operand<'tcx>, span: Span) -> Option<(Instance<'tcx>, Expr)> {
+		let ty::FnDef(def_id, args) = *func.ty(&self.mir.local_decls, self.tcx).kind() else {
+			return None;
+		};
+		let env = self.b.t.typing_env_pub();
+		let instance = Instance::try_resolve(self.tcx, env, def_id, args.skip_binder()).ok()??;
+		if !(crate::lower::caller::is_caller(self.tcx, def_id) || crate::lower::caller::tracks(self.b.t, instance)) {
+			return None;
+		}
+		let location = match &self.caller {
+			Some(caller) => Expr::ident(caller),
+			None => crate::lower::caller::location(self.tcx, span),
+		};
+		Some((instance, location))
+	}
+
+	/// The std function a call of `func` at `span` runs a mapping of, in a program with a
+	/// panic hook, and where its panics are: its caller's if it takes it, for one a macro
+	/// defines, as an integer's methods are, that macro's call, and else where std's source
+	/// has it, if known.
+	fn std_site(&self, func: &Operand<'tcx>, span: Span) -> Option<(Instance<'tcx>, Option<Expr>)> {
+		if !self.b.t.hooked {
+			return None;
+		}
+		let ty::FnDef(def_id, args) = *func.ty(&self.mir.local_decls, self.tcx).kind() else {
+			return None;
+		};
+		let env = self.b.t.typing_env_pub();
+		let instance = Instance::try_resolve(self.tcx, env, def_id, args.skip_binder()).ok()??;
+		if self.b.t.crates.translates(def_id) || self.b.t.lowers(env, instance) {
+			return None;
+		}
+		let at = match instance.def.requires_caller_location(self.tcx) {
+			true => Some(match &self.caller {
+				Some(caller) => Expr::ident(caller),
+				None => crate::lower::caller::location(self.tcx, span),
+			}),
+			false => {
+				let def = self.tcx.def_span(instance.def_id());
+				match def.from_expansion() {
+					true => Some(crate::lower::caller::location(self.tcx, def)),
+					false => crate::lower::caller::callee_site(self.tcx, instance.def_id()),
+				}
+			}
+		};
+		Some((instance, at))
+	}
+
 	fn terminator(&mut self, term: &mir::Terminator<'tcx>, out: &mut Vec<Stmt>) -> Exit {
 		let span = term.source_info.span;
 		match &term.kind {
@@ -2609,6 +2796,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			TerminatorKind::Return if !self.mir.local_decls[mir::RETURN_PLACE].ty.is_never() => {
 				let ret = self.mir.local_decls[mir::RETURN_PLACE].ty;
+				// At the tail it returns, if it is held back, rather than the body's end.
+				let loc = match self.held(mir::RETURN_PLACE) {
+					Some(p) => p.loc,
+					None => self.b.t.loc(span),
+				};
 				let value = match self.zero_sized(ret) {
 					true => None,
 					false => {
@@ -2619,7 +2811,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						Some(value)
 					}
 				};
-				let loc = self.b.t.loc(span);
 				self.emit(vec![StmtKind::Return(value).at(loc)], false, out);
 				self.flush(out);
 				Exit::End
@@ -2641,7 +2832,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				if let Env::Closure(captures) = &self.env
 					&& place.local.as_u32() == 1
 					&& place.projection.is_empty()
-					&& matches!(ty.kind(), ty::Closure(..))
+					&& matches!(ty.kind(), ty::Closure(..) | ty::CoroutineClosure(..))
 				{
 					let mut glue = self.b.t.closure_glue(ty, &captures.clone(), span);
 					// In a block of its own, whose variable no other drop's can clash with.
@@ -2677,7 +2868,19 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				fn_span,
 				..
 			} => {
+				// Where rustc's codegen says the call is: from the callee's name on.
+				self.b.site = self.site(func, *fn_span);
+				self.b.std_site = self.std_site(func, *fn_span);
 				self.call(func, args, *destination, *fn_span, out);
+				self.b.std_site = None;
+				if let Some((instance, _)) = self.b.site.take()
+					&& self.b.t.crates.translates(instance.def_id())
+				{
+					let path = self.tcx.def_path_str(instance.def_id());
+					let msg =
+						format!("a call of `{path}`, a `#[track_caller]` function, that passes no caller's location");
+					self.err(span, msg);
+				}
 				match target {
 					Some(_) if self.returning.contains(&self.at) => {
 						self.flush(out);
@@ -2935,6 +3138,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		match msg {
 			AssertKind::ResumedAfterReturn(kind) if async_fn(kind) => Some(Expr::rt("asyncFnResumed", Vec::new())),
 			AssertKind::ResumedAfterPanic(kind) if async_fn(kind) => Some(Expr::rt("asyncFnResumedPanic", Vec::new())),
+			// A hook reads a bounds check's message as the `String` std formats.
+			AssertKind::BoundsCheck { .. } if let Some(at) = self.panic_at() => {
+				let message = self.assert_message(msg, operands, span)?;
+				Some(Expr::rt("panic", vec![message, at, Expr::lit("true")]))
+			}
 			_ => {
 				let message = self.assert_message(msg, operands, span)?;
 				Some(Expr::rt("panic", vec![message]))
@@ -3098,7 +3306,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					stack.extend(adt.all_fields().map(|field| self.b.t.field_ty(field.did, args)))
 				}
 				ty::Adt(_, args) => stack.extend(args.types()),
-				ty::Closure(_, args) => stack.extend(args.as_closure().upvar_tys()),
+				ty::Closure(..) | ty::CoroutineClosure(..) => {
+					stack.extend(crate::lower::captured(ty).unwrap_or_default())
+				}
 				_ => {}
 			}
 		}
@@ -3154,20 +3364,28 @@ pub(super) fn whole(value: Expr, ty: Type) -> Result<Expr, Expr> {
 }
 
 impl<'tcx> Translator<'_, 'tcx> {
-	/// Whether a value of `ty` reaches somewhere that could take a `part` in: a raw
-	/// pointer, or a mutable reference to or interior mutability around what could hold one.
-	/// `env` holds the bounds of the body naming `ty`.
+	/// Whether a value of `ty` reaches somewhere that std's code could take a `part` in: a
+	/// raw pointer, or a mutable reference to or interior mutability around what could hold
+	/// one. Std's code generic over a type parameter puts in its place only a whole value of
+	/// it. `env` holds the bounds of the body naming `ty`.
 	pub(crate) fn stores(&self, env: TypingEnv<'tcx>, ty: Ty<'tcx>, part: Ty<'tcx>) -> bool {
 		use rustc_middle::ty::TypeVisitableExt;
+		let holds = |t| self.holds_as(env, t, part, false);
 		self.reaches(env, ty, |t| match t.kind() {
 			ty::RawPtr(..) => true,
-			ty::Ref(_, inner, rustc_ast::Mutability::Mut) => self.holds(env, *inner, part),
-			_ => !t.has_escaping_bound_vars() && !t.is_freeze(self.tcx, env) && self.holds(env, t, part),
+			ty::Ref(_, inner, rustc_ast::Mutability::Mut) => holds(*inner),
+			_ => !t.has_escaping_bound_vars() && !t.is_freeze(self.tcx, env) && holds(t),
 		})
 	}
 
 	/// Whether a value of `ty` could hold a `part`: holds its type, or hides what it holds.
 	pub(crate) fn holds(&self, env: TypingEnv<'tcx>, ty: Ty<'tcx>, part: Ty<'tcx>) -> bool {
+		self.holds_as(env, ty, part, true)
+	}
+
+	/// [`Self::holds`], where a type parameter's value hides what it holds only with
+	/// `params`, and is otherwise a `part` only as its whole.
+	fn holds_as(&self, env: TypingEnv<'tcx>, ty: Ty<'tcx>, part: Ty<'tcx>, params: bool) -> bool {
 		// An array and a slice of its element share storage through an unsizing coercion.
 		let storage = |t: Ty<'tcx>| match t.kind() {
 			ty::Array(elem, _) => Ty::new_slice(self.tcx, *elem),
@@ -3178,8 +3396,9 @@ impl<'tcx> Translator<'_, 'tcx> {
 			storage(t) == part
 				|| matches!(
 					t.kind(),
-					ty::Dynamic(..) | ty::Alias(..) | ty::Param(_) | ty::Closure(..) | ty::Coroutine(..)
+					ty::Dynamic(..) | ty::Alias(..) | ty::Closure(..) | ty::Coroutine(..)
 				)
+				|| params && matches!(t.kind(), ty::Param(_))
 		})
 	}
 
@@ -3366,6 +3585,15 @@ fn reads_only(name: &str) -> bool {
 	)
 }
 
+/// `value` under `loc` if it is a call, which the source map names where it folds, as it
+/// does a call with effects where it is made.
+fn located(value: Expr, loc: Option<ts::Loc>) -> Expr {
+	match (loc, &value) {
+		(Some(loc), Expr::Call(..) | Expr::New(..)) => Expr::Located(loc, Box::new(value)),
+		_ => value,
+	}
+}
+
 /// Replace the one read of `name` in `stmt` with `value`; whether it was there.
 fn subst_stmt(stmt: &mut Stmt, name: &str, value: &Expr) -> bool {
 	match &mut stmt.kind {
@@ -3443,7 +3671,17 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 		Expr::Unary(_, e) | Expr::Located(_, e) | Expr::As(e, _) | Expr::Instantiate(e, _) | Expr::Postfix(e, _) => {
 			subst(e, name, value)
 		}
-		Expr::Binary(l, _, r) | Expr::Assign(l, r) => subst(l, name, value) || subst(r, name, value),
+		Expr::Binary(l, op, r) => {
+			if !(subst(l, name, value) || subst(r, name, value)) {
+				return false;
+			}
+			// A constant held in a temporary compares as one written in place.
+			if compares(op) {
+				*e = fold(std::mem::replace(e, Expr::This));
+			}
+			true
+		}
+		Expr::Assign(l, r) => subst(l, name, value) || subst(r, name, value),
 		Expr::Cond(c, a, b) => subst(c, name, value) || subst(a, name, value) || subst(b, name, value),
 		Expr::Arrow(..) | Expr::Lambda(..) => false,
 	}
@@ -3812,19 +4050,37 @@ fn parts_of(value: &Expr, slices: &FxHashSet<crate::ts::FieldId>) -> Option<Vec<
 	}
 }
 
-/// `e` with comparisons of two number literals, and their negations, worked out.
+/// Whether the JS operator `op` compares its operands.
+fn compares(op: &str) -> bool {
+	matches!(op, "<" | "<=" | ">" | ">=" | "===" | "!==")
+}
+
+/// `e` with comparisons of two number literals or two boolean ones, and their negations,
+/// worked out. `tsc` refuses an equality of two literals that differ, as an instance of a
+/// generic function can compare its constants.
 pub fn fold(e: Expr) -> Expr {
 	match e {
 		Expr::Binary(l, op, r) => {
 			let (l, r) = (fold(*l), fold(*r));
-			let num = |e: &Expr| match e {
+			let num = |e: &Expr| match e.unlocated() {
 				Expr::Lit(t) => t.parse::<f64>().ok(),
 				_ => None,
 			};
+			// A boolean compares as JS does, as the number it converts to.
+			let boolean = |e: &Expr| match e.unlocated() {
+				Expr::Lit(t) if t == "true" => Some(1.0),
+				Expr::Lit(t) if t == "false" => Some(0.0),
+				_ => None,
+			};
+			if let (Some(a), Some(b)) = (boolean(&l), boolean(&r))
+				&& compares(op)
+			{
+				return Expr::lit(compare(op, a, b).to_string());
+			}
 			if let (Some(a), Some(b)) = (num(&l), num(&r)) {
 				// Integer arithmetic JS does exactly, in 32 bits for the bitwise operators. An
 				// `f64` literal is spelled with a point or an exponent, and its -0.0 is no integer.
-				let int = |e: &Expr| matches!(e, Expr::Lit(t) if !t.contains(['.', 'e']));
+				let int = |e: &Expr| matches!(e.unlocated(), Expr::Lit(t) if !t.contains(['.', 'e']));
 				let small = |v: f64| v.fract() == 0.0 && v.abs() < 2f64.powi(31);
 				if int(&l) && int(&r) && small(a) && small(b) {
 					let (x, y) = (a as i64, b as i64);
@@ -3844,17 +4100,8 @@ pub fn fold(e: Expr) -> Expr {
 						return Expr::lit(v.to_string());
 					}
 				}
-				let value = match op {
-					"<" => Some(a < b),
-					"<=" => Some(a <= b),
-					">" => Some(a > b),
-					">=" => Some(a >= b),
-					"===" => Some(a == b),
-					"!==" => Some(a != b),
-					_ => None,
-				};
-				if let Some(value) = value {
-					return Expr::lit(value.to_string());
+				if compares(op) {
+					return Expr::lit(compare(op, a, b).to_string());
 				}
 			}
 			Expr::Binary(Box::new(l), op, Box::new(r))
@@ -3884,7 +4131,23 @@ pub fn fold(e: Expr) -> Expr {
 			Expr::Lit(t) if t == "false" => Expr::lit("true"),
 			inner => Expr::Unary("!", Box::new(inner)),
 		},
+		Expr::Located(loc, inner) => match fold(*inner) {
+			lit @ Expr::Lit(_) => lit,
+			inner => Expr::Located(loc, Box::new(inner)),
+		},
 		e => e,
+	}
+}
+
+/// `a op b`, for an `op` that [`compares`].
+fn compare(op: &str, a: f64, b: f64) -> bool {
+	match op {
+		"<" => a < b,
+		"<=" => a <= b,
+		">" => a > b,
+		">=" => a >= b,
+		"===" => a == b,
+		_ => a != b,
 	}
 }
 
@@ -4020,11 +4283,13 @@ fn return_assigned(stmts: &mut Vec<Stmt>, returnable: &FxHashSet<String>) -> boo
 	if !moves {
 		return false;
 	}
-	let StmtKind::Expr(Expr::Assign(_, value)) = stmts.remove(at).kind else {
+	let assigned = stmts.remove(at);
+	let StmtKind::Expr(Expr::Assign(_, value)) = assigned.kind else {
 		unreachable!("found above")
 	};
 	let last = stmts.last_mut().expect("the return");
 	last.kind = StmtKind::Return(Some(*value));
+	last.loc = assigned.loc.or(last.loc);
 	true
 }
 

@@ -10,6 +10,7 @@ use rustc_middle::ty::{self, Instance, Ty, TyCtxt};
 use rustc_span::Span;
 
 use super::{Capture, Env, Fx, Slot};
+use crate::lower::dynamic;
 use crate::lower::library::Std;
 use crate::lower::num::{self, Int};
 use crate::lower::pointer::Pointee;
@@ -77,6 +78,28 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let pointee = place.ty(&self.mir.local_decls, tcx).ty;
 				match self.b.t.pointee(pointee) {
 					Pointee::Object => self.place_expr(*place, span, out),
+					// `&raw mut *p` of a raw pointer is `p`; of a reference, the slice's start and
+					// length.
+					Pointee::Slice => match place.projection.as_slice() {
+						[rest @ .., mir::ProjectionElem::Deref]
+							if Place::ty_from(place.local, rest, &self.mir.local_decls, tcx)
+								.ty
+								.is_raw_ptr() =>
+						{
+							let base = Place {
+								local: place.local,
+								projection: tcx.mk_place_elems(rest),
+							};
+							self.place_expr(base, span, out)
+						}
+						_ => {
+							let value = self.place_expr(*place, span, out);
+							match crate::lower::pointer::slice_of_bytes(pointee) {
+								true => Expr::rt("rawByteSliceOf", vec![value]),
+								false => Expr::rt("rawSliceOf", vec![value]),
+							}
+						}
+					},
 					// A slice of all of an array's bytes, as a borrow of it is.
 					Pointee::Bytes => {
 						let value = self.place_expr(*place, span, out);
@@ -103,6 +126,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 							};
 							self.place_expr(base, span, out)
 						}
+						// A reference to an `Arc`'s value, which is that value's one place.
+						[mir::ProjectionElem::Deref]
+							if let Some(p) = self.arc_raw(&Operand::Copy(Place::from(place.local)), span, out) =>
+						{
+							p
+						}
 						_ if self.b.t.identity_pointee(pointee) => self.err(
 							span,
 							"a raw pointer to a place of `()`, which has no address of its own",
@@ -114,6 +143,29 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 								"a raw pointer to `{pointee}` behind a reference, which is the object and not where it is kept"
 							),
 						),
+						// A pointer to an element is where it is in its array, which pointer
+						// arithmetic moves within.
+						[
+							array @ ..,
+							mir::ProjectionElem::Index(_) | mir::ProjectionElem::ConstantIndex { .. },
+						] => {
+							// It points into the array, which must stay where it is.
+							let array = Place {
+								local: place.local,
+								projection: tcx.mk_place_elems(array),
+							};
+							if let Some(why) = self.out_of_step(array, false) {
+								return Some(self.err(span, why));
+							}
+							let target = self.place_expr(*place, span, out);
+							let target = self.stable_target(*place, target, span, out);
+							match target.unlocated() {
+								Expr::Index(array, index) => {
+									Expr::rt("sliceAsPtr", vec![*array.clone(), *index.clone()])
+								}
+								_ => self.place_of(target, None),
+							}
+						}
 						_ => {
 							let target = self.place_expr(*place, span, out);
 							self.make_place(*place, target, span, out)
@@ -170,7 +222,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					expr: rv,
 					value: self.const_int(r),
 				};
-				num::binary(self.b, op, l, r, lty, rty, span)
+				let value = num::binary(self.b, op, l, r, lty, rty, span);
+				match op {
+					BinOp::Eq | BinOp::Ne | BinOp::Lt | BinOp::Le | BinOp::Gt | BinOp::Ge => super::fold(value),
+					_ => value,
+				}
 			}
 			Rvalue::UnaryOp(op, operand) => {
 				let aty = operand.ty(&self.mir.local_decls, tcx);
@@ -213,6 +269,28 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// The integer an operand has, if it is a constant one, a named `const` included.
+	/// `p`, a raw pointer to an array, `from`, as one to a slice of all of it: its first
+	/// element's pointer and the array's length.
+	fn raw_unsize(&mut self, p: Expr, from: Ty<'tcx>, span: Span) -> Expr {
+		let Some(array) = from.builtin_deref(true) else {
+			return self.err(span, format!("a coercion of `{from}` to a pointer to a slice"));
+		};
+		let ty::Array(elem, len) = *array.kind() else {
+			return self.err(span, format!("a coercion of `{from}` to a pointer to a slice"));
+		};
+		let Some(len) = len.try_to_target_usize(self.tcx) else {
+			return self.err(
+				span,
+				format!("a coercion of `{from}`, of no fixed length, to a pointer to a slice"),
+			);
+		};
+		let first = crate::lower::pointer::cast(self.b, p, array, elem, span);
+		Expr::New(
+			Box::new(Expr::Rt("RawSlice".into())),
+			vec![first, Expr::lit(len.to_string())],
+		)
+	}
+
 	pub(super) fn const_int(&self, op: &Operand<'tcx>) -> Option<i128> {
 		let Operand::Constant(c) = op else {
 			return None;
@@ -254,7 +332,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		let v = self.operand(op, span, out);
 		match elem_ty.kind() {
-			ty::Uint(ty::UintTy::U8) => {
+			_ if crate::lower::byte(elem_ty) => {
 				let array = Expr::rt("bytes", vec![Expr::lit(n.to_string())]);
 				match &v {
 					Expr::Lit(text) if text == "0" => array,
@@ -272,6 +350,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn cast(&mut self, kind: CastKind, op: &Operand<'tcx>, to: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let tcx = self.tcx;
 		let from = op.ty(&self.mir.local_decls, tcx);
+		// A `Pin` is the pointer it holds, which unsizes as it does.
+		let (from, to) = match kind {
+			CastKind::PointerCoercion(PointerCoercion::Unsize, _) => unpinned(tcx, from, to),
+			_ => (from, to),
+		};
 		match kind {
 			CastKind::IntToInt | CastKind::IntToFloat | CastKind::FloatToInt | CastKind::FloatToFloat => {
 				let value = self.operand(op, span, out);
@@ -282,6 +365,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				num::cast(self.b, operand, from, to, span)
 			}
 			CastKind::PointerCoercion(coercion, _) => match coercion {
+				// A raw pointer, as the `&mut` it is in JS unsizes.
+				PointerCoercion::Unsize
+					if from.is_raw_ptr() && to.builtin_deref(true).is_some_and(|t| dynamic::unsized_object(tcx, t)) =>
+				{
+					let value = self.operand(op, span, out);
+					self.b.raw_object(value, from, to, span)
+				}
 				PointerCoercion::Unsize if let Some(tr) = self.b.fmt_object(to) => {
 					let value = self.operand(op, span, out);
 					let value = self.path(value, "arg", out);
@@ -291,12 +381,32 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let value = self.operand(op, span, out);
 					self.arc_object(value, pointee, object, span, out)
 				}
+				PointerCoercion::Unsize if let Some((pointee, object)) = weak_object(tcx, from, to) => {
+					let value = self.operand(op, span, out);
+					self.weak_object(value, pointee, object, span, out)
+				}
+				// A struct whose last field unsizes, as a view of it.
+				PointerCoercion::Unsize
+					if to
+						.builtin_deref(true)
+						.is_some_and(|t| t.is_adt() && dynamic::unsized_object(tcx, t)) =>
+				{
+					let value = self.operand(op, span, out);
+					self.b.object_of(value, from, to, span)
+				}
 				// A future, as the `rt.Future` a `dyn Future` is.
 				PointerCoercion::Unsize
 					if unsized_to(from, to).is_some_and(|part| self.b.t.dyn_future(part).is_some()) =>
 				{
 					let value = self.operand(op, span, out);
 					self.b.dyn_future(from, to, value, span)
+				}
+				// An iterator, as the `rt.Iter` a `dyn Iterator` is.
+				PointerCoercion::Unsize
+					if unsized_to(from, to).is_some_and(|part| self.b.t.dyn_iter(part).is_some()) =>
+				{
+					let value = self.operand(op, span, out);
+					self.b.dyn_iter(from, to, value, span)
 				}
 				PointerCoercion::Unsize if unsized_to(from, to).is_some_and(|t| t.is_trait()) => {
 					let value = self.operand(op, span, out);
@@ -309,10 +419,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 							let value = self.operand(op, span, out);
 							match crate::lower::bytes_ref(from) {
 								true => value,
-								// A raw pointer to a slice is an `rt.Place` of one, which one to an array is not.
-								false if from.is_raw_ptr() => {
-									self.err(span, format!("a coercion of `{from}` to `{to}`, a pointer to a slice"))
-								}
+								false if from.is_raw_ptr() => self.raw_unsize(value, from, span),
 								false => Expr::rt("byteSliceFrom", vec![value]),
 							}
 						}
@@ -320,18 +427,40 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					}
 				}
 				PointerCoercion::Unsize
+					if from.is_raw_ptr() && to.builtin_deref(true).is_some_and(|t| t.is_slice()) =>
+				{
+					let value = self.operand(op, span, out);
+					self.raw_unsize(value, from, span)
+				}
+				// A `#[track_caller]` function's pointer passes the function's own location.
+				PointerCoercion::ReifyFnPointer(_)
+					if let ty::FnDef(def_id, args) = *from.kind()
+						&& let Ok(Some(item)) =
+							Instance::try_resolve(self.tcx, self.b.t.typing_env_pub(), def_id, args.skip_binder())
+						&& let Some(reified) = self.b.reified(item, span) =>
+				{
+					reified
+				}
+				PointerCoercion::Unsize
 				| PointerCoercion::ReifyFnPointer(_)
 				| PointerCoercion::ClosureFnPointer(_)
 				| PointerCoercion::MutToConstPointer => self.operand(op, span, out),
 				_ => self.err(span, format!("unsupported pointer coercion {coercion:?}")),
 			},
-			// The same pointer, as one to the same pointee: `*mut T` as `*const T`, or a
-			// `MaybeUninit<T>` as the `T` it holds.
+			// The same pointer, as one to the same pointee, `*mut T` as `*const T` or a
+			// `MaybeUninit<T>` as the `T` it holds, or one to the first element of an array.
 			CastKind::PtrToPtr
 				if let (Some(a), Some(b)) = (from.builtin_deref(true), to.builtin_deref(true))
-					&& self.b.t.uninit_inner(a) == self.b.t.uninit_inner(b) =>
+					&& from.is_raw_ptr() =>
 			{
-				self.operand(op, span, out)
+				if let Some(why) = self.erased_borrow(op, a, b) {
+					return self.err(span, why);
+				}
+				if let Some(cast) = self.alloc_cast(op, a, b, span, out) {
+					return cast;
+				}
+				let p = self.operand(op, span, out);
+				crate::lower::pointer::cast(self.b, p, a, b, span)
 			}
 			CastKind::PtrToPtr => self.err(
 				span,
@@ -355,9 +484,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
-	/// `arc`, an `Arc` of `pointee` unsized to one of the trait object `object`: an
-	/// `rt.ArcDyn` sharing its count, over what a box of its value unsizes to, or the same
-	/// `Arc` upcast.
+	/// `arc`, an `Arc` of `pointee` unsized to one of `object`, a trait object or a struct
+	/// of one: an `rt.ArcDyn` sharing its count, over what a box of its value unsizes to, or
+	/// the same `Arc` upcast.
 	fn arc_object(&mut self, arc: Expr, pointee: Ty<'tcx>, object: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let tcx = self.tcx;
 		// An upcast of a function is the same `rt.ArcDyn`: nothing calls an `Arc` through `FnOnce`.
@@ -373,14 +502,43 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 		};
 		let (from, to) = (Ty::new_box(tcx, pointee), Ty::new_box(tcx, object));
-		let value = match self.b.t.dyn_future(object) {
-			Some(_) => self.b.dyn_future(from, to, value, span),
-			None => self.b.object_of(value, from, to, span),
+		let value = if self.b.t.dyn_future(object).is_some() {
+			self.b.dyn_future(from, to, value, span)
+		} else if self.b.t.dyn_iter(object).is_some() {
+			self.b.dyn_iter(from, to, value, span)
+		} else {
+			self.b.object_of(value, from, to, span)
 		};
 		match arc {
 			Some(arc) => Expr::New(Box::new(Expr::Rt("ArcDyn".into())), vec![arc, value]),
 			None => value,
 		}
+	}
+
+	/// `weak`, a `Weak` of `pointee` unsized to one of `object`, as `arc_object`: `rt.weakDyn`
+	/// of it, which makes the `Arc` an upgrade gives as `arc_object` does, or the same `Weak`
+	/// upcast, which `arc_object` checks.
+	fn weak_object(
+		&mut self,
+		weak: Expr,
+		pointee: Ty<'tcx>,
+		object: Ty<'tcx>,
+		span: Span,
+		out: &mut Vec<Stmt>,
+	) -> Expr {
+		if pointee.is_trait() {
+			return self.arc_object(weak, pointee, object, span, out);
+		}
+		let name = self.b.fresh("arc");
+		let mut body = Vec::new();
+		let arc = self.arc_object(Expr::ident(name.clone()), pointee, object, span, &mut body);
+		body.push(StmtKind::Return(Some(arc)).at(None));
+		let param = crate::ts::Param {
+			name,
+			ty: Some(crate::ts::Type::Rt("Arc", vec![self.b.t.ty(pointee, span)])),
+		};
+		let ret = crate::ts::Type::Rt("Arc", vec![self.b.t.ty(object, span)]);
+		Expr::rt("weakDyn", vec![weak, Expr::Arrow(vec![param], ret, body)])
 	}
 
 	/// A discriminant as its number, of a whole `next` result if `next`.
@@ -400,7 +558,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					.map(|(i, d)| (i, int.fold(d as i128) as u128))
 					.collect();
 				match Std::of(tcx, adt.did()) {
-					Some(Std::Option | Std::Poll | Std::Result | Std::Entry) => {
+					Some(Std::Option | Std::Poll | Std::Result | Std::Entry | Std::TableEntry) => {
 						let scrut = self.path(scrut, "scrutinee", out);
 						let first = self.variant_test(&scrut, ty, discrs[0].1, next, span);
 						Expr::Cond(
@@ -411,15 +569,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					}
 					// The value is its discriminant.
 					Some(Std::Ordering | Std::AtomicOrdering) => scrut,
-					Some(Std::Cow) if let Some(elem) = crate::lower::library::cow_slice(tcx, ty) => {
-						let borrows = crate::lower::library::cow_borrows(scrut, elem);
+					Some(Std::Cow) if let Some(borrowed) = crate::lower::library::cow_borrowed(tcx, ty) => {
+						let borrows = crate::lower::library::cow_borrows(scrut, borrowed);
 						Expr::Cond(
 							Box::new(borrows),
 							Box::new(int.lit(discrs[0].1 as i128)),
 							Box::new(int.lit(discrs[1].1 as i128)),
 						)
 					}
-					Some(Std::Cow) => self.err(span, crate::lower::library::cow_variant(ty)),
 					Some(std @ (Std::Bound | Std::TryLockError | Std::ErrorKind)) => {
 						let table = discrs
 							.iter()
@@ -460,11 +617,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		out: &mut Vec<Stmt>,
 	) -> Option<Expr> {
 		match kind {
-			AggregateKind::Closure(def_id, args) => return Some(self.closure(*def_id, args, ops, span, out)),
+			AggregateKind::Closure(def_id, args) => {
+				return Some(self.closure(Ty::new_closure(self.tcx, *def_id, args), ops, span, out));
+			}
+			AggregateKind::CoroutineClosure(def_id, args) => {
+				return Some(self.closure(Ty::new_coroutine_closure(self.tcx, *def_id, args), ops, span, out));
+			}
 			AggregateKind::Coroutine(def_id, args) => {
 				return Some(super::coroutine::construct(self, *def_id, args, ops, span, out));
 			}
-			AggregateKind::CoroutineClosure(..) => return Some(self.err(span, "async closures are not supported")),
 			AggregateKind::RawPtr(..) => return Some(self.err(span, "a raw pointer made from parts")),
 			_ => {}
 		}
@@ -475,11 +636,20 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let mut rereadable = Vec::with_capacity(ops.len());
 		for op in ops.iter() {
 			let v = self.operand(op, span, out);
-			let is_ref = op.ty(&self.mir.local_decls, self.tcx).is_ref();
-			let reread = is_ref && v.is_path() && op.place().is_none_or(|place| self.rereads(place));
-			let v = match parts_read && is_ref && !reread {
-				true => self.path(v, "part", out),
-				false => v,
+			let op_ty = op.ty(&self.mir.local_decls, self.tcx);
+			let is_ref = op_ty.is_ref();
+			// Shared references to what holds nothing are `undefined` wherever they point, unlike
+			// a `&mut`, which may be an `rt.Place`.
+			let mut pointee = op_ty;
+			while let ty::Ref(_, inner, rustc_ast::Mutability::Not) = pointee.kind() {
+				pointee = *inner;
+			}
+			let empty = is_ref && crate::lower::library::nothing(self.tcx, pointee) && !self.part_reads(&v).0;
+			let reread = empty || is_ref && v.is_path() && op.place().is_none_or(|place| self.rereads(place));
+			let v = match (empty, parts_read && is_ref && !reread) {
+				(true, _) => Expr::undefined(),
+				(false, true) => self.path(v, "part", out),
+				(false, false) => v,
 			};
 			values.push(v);
 			rereadable.push(reread);
@@ -492,7 +662,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Expr::As(Box::new(Expr::Array(values)), ts_ty)
 			}
 			AggregateKind::Array(elem) => match elem.kind() {
-				ty::Uint(ty::UintTy::U8) => Expr::ident("Uint8Array").member("of").call(values),
+				_ if crate::lower::byte(*elem) => Expr::ident("Uint8Array").member("of").call(values),
 				_ => Expr::Array(values),
 			},
 			AggregateKind::Adt(def_id, variant, args, _, active) => {
@@ -612,21 +782,25 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				(Std::Poll, 1) => self.b.t.pending(args.type_at(0)),
 				(Std::Option | Std::Poll | Std::Pin, _) => values.pop().unwrap(),
 				// Either variant is its text.
-				(Std::Cow, _) if crate::lower::library::string(tcx, ty) => values.pop().unwrap(),
-				(Std::Cow, _) if let Some(elem) = crate::lower::library::cow_slice(tcx, ty) => {
-					crate::lower::library::cow_made(elem, variant, values.pop().unwrap())
+				(Std::Cow, _) if let Some(borrowed) = crate::lower::library::cow_borrowed(tcx, ty) => {
+					crate::lower::library::cow_made(borrowed, variant, values.pop().unwrap())
 				}
 				(Std::Result, i) => Expr::result(i == 0, values.pop().unwrap()),
 				(Std::FmtError, _) => Expr::New(Box::new(Expr::Rt("FmtError".into())), Vec::new()),
-				(std @ (Std::ParseBoolError | Std::BorrowError | Std::BorrowMutError), _) => {
-					Expr::New(Box::new(Expr::Rt(format!("{std:?}"))), Vec::new())
-				}
+				(
+					std @ (Std::ParseBoolError
+					| Std::BorrowError
+					| Std::BorrowMutError
+					| Std::CharTryFromError
+					| Std::TryFromCharError),
+					_,
+				) => Expr::New(Box::new(Expr::Rt(format!("{std:?}"))), Vec::new()),
 				// `ResumeTy`, an async body's context.
 				(Std::Context, _) => values.pop().unwrap_or_else(Expr::undefined),
 				(Std::RangeTo | Std::RangeToInclusive, _) => {
 					crate::lower::library::range_to(values.pop().unwrap(), std == Std::RangeToInclusive)
 				}
-				(Std::Reverse | Std::Wrapping | Std::Saturating, _) => values.pop().unwrap(),
+				(Std::Reverse | Std::AssertUnwindSafe | Std::Wrapping | Std::Saturating, _) => values.pop().unwrap(),
 				(Std::Bound | Std::TryLockError, _) => {
 					let ts_ty = self.b.t.ty(ty, span);
 					crate::lower::library::tagged(def.name.as_str(), values.pop(), ts_ty)
@@ -635,7 +809,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					values.extend(crate::lower::library::range_step(tcx, args.type_at(0), true));
 					Expr::New(Box::new(Expr::Rt("RangeFrom".into())), values)
 				}
-				(Std::RangeFull, _) => Expr::undefined(),
+				(Std::RangeFull | Std::BuildHasherDefault, _) => Expr::undefined(),
+				(Std::Pending, _) => Expr::Rt("NEVER".into()),
+				(Std::WakerVTable, _) => Expr::rt("wakerVTable", values),
+				(Std::RawWaker, _) => {
+					let [data, vtable] = <[Expr; 2]>::try_from(values).expect("a raw waker's two fields");
+					crate::lower::task::raw_waker(data, vtable)
+				}
+				(Std::LayoutError, _) => Expr::Rt("LAYOUT_ERROR".into()),
 				(Std::ParseIntError, _) => Expr::Object(vec![(Key::Name("kind".into()), values.pop().unwrap())]),
 				(Std::ErrorKind, _) => Expr::As(Box::new(Expr::Str(def.name.to_string())), self.b.t.ty(ty, span)),
 				(Std::Ordering, _) => crate::lower::collections::ordering_variant(variant),
@@ -725,25 +906,25 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// A closure that captures nothing, as an arrow function.
-	pub(super) fn bare_closure(
-		&mut self,
-		def_id: rustc_hir::def_id::DefId,
-		args: ty::GenericArgsRef<'tcx>,
-		span: Span,
-	) -> Expr {
-		self.closure(def_id, args, &IndexVec::new(), span, &mut Vec::new())
+	pub(super) fn bare_closure(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
+		self.closure(ty, &IndexVec::new(), span, &mut Vec::new())
 	}
 
-	/// A closure, as an arrow function over what it captured.
+	/// A closure, as an arrow function over what it captured. An async closure's makes the
+	/// future of a call, borrowing what it captured, and one that owns what drops and that
+	/// `Fn` or `FnMut` call also carries what makes the future of a call that consumes it,
+	/// which owns what it captured, as rustc's by-move body does.
 	fn closure(
 		&mut self,
-		def_id: rustc_hir::def_id::DefId,
-		args: ty::GenericArgsRef<'tcx>,
+		ty: Ty<'tcx>,
 		ops: &IndexVec<FieldIdx, Operand<'tcx>>,
 		span: Span,
 		out: &mut Vec<Stmt>,
 	) -> Expr {
 		let tcx = self.tcx;
+		let (ty::Closure(def_id, args) | ty::CoroutineClosure(def_id, args)) = *ty.kind() else {
+			unreachable!("a closure")
+		};
 		let instance = Instance::new_raw(def_id, args);
 		let Some(mir) = super::instance_mir(self.b.t, instance, span) else {
 			return Expr::undefined();
@@ -813,25 +994,46 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			};
 			captures.push(Capture { value, pointee: false });
 		}
-		let sig = tcx.instantiate_bound_regions_with_erased(args.as_closure().sig());
 		// A value, whose `()` result is `undefined` as its type says.
 		let ret = self
 			.b
 			.t
-			.ty(sig.output(), mir.local_decls[mir::RETURN_PLACE].source_info.span);
-		let ty = Ty::new_closure(tcx, def_id, args);
-		let glue = match self.b.t.drops(ty) {
-			true => Some(self.b.t.closure_glue(ty, &captures, span)),
-			false => None,
+			.ty(mir.return_ty(), mir.local_decls[mir::RETURN_PLACE].source_info.span);
+		let drops = self.b.t.drops(ty);
+		let glue = drops.then(|| self.b.t.closure_glue(ty, &captures, span));
+		let by_move = match ty.kind() {
+			ty::CoroutineClosure(_, args) if drops && args.as_coroutine_closure().kind() != ty::ClosureKind::FnOnce => {
+				let shim = Instance {
+					def: ty::InstanceKind::Shim(ty::ShimKind::ConstructCoroutineInClosure {
+						coroutine_closure_def_id: def_id,
+						receiver_by_ref: false,
+					}),
+					args,
+				};
+				let mir = shim.instantiate_mir_and_normalize_erasing_regions(
+					tcx,
+					self.b.t.typing_env_pub(),
+					ty::EarlyBinder::bind(tcx, tcx.instance_mir(shim.def).clone()),
+				);
+				let ret = self.b.t.ty(mir.return_ty(), span);
+				let mut inner = Fx::new(&mut *self.b, &mir, Env::Closure(captures.clone()), span);
+				let inputs = inner.params();
+				let body = inner.lower();
+				Some(Expr::Arrow(inputs, ret, body))
+			}
+			_ => None,
 		};
 		let mut inner = Fx::new(&mut *self.b, &mir, Env::Closure(captures), span);
 		let inputs = inner.params();
 		let body = inner.lower();
 		let mut f = Expr::Arrow(inputs, ret, body);
+		if let Some(once) = by_move {
+			f = Expr::rt("byMove", vec![f, once]);
+		}
 		let make = made.then(|| self.b.fresh("make"));
 		if let Some(make) = &make {
 			// Its clone, made again of each capture's, in order, as rustc's clones them.
-			let upvars = args.as_closure().upvar_tys();
+			let upvars = crate::lower::captured(ty).unwrap_or_default();
 			let clones = std::iter::zip(&params, upvars)
 				.map(|(param, ty)| {
 					let value = Expr::ident(&param.name);
@@ -916,13 +1118,35 @@ fn unsized_to<'tcx>(from: Ty<'tcx>, to: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	}
 }
 
-/// What an `Arc` unsized to an `Arc` of a trait object points at, and that object.
+/// What an `Arc` unsized to an `Arc` of a trait object, or of a struct of one, points at,
+/// and that object or struct.
 fn arc_object<'tcx>(tcx: TyCtxt<'tcx>, from: Ty<'tcx>, to: Ty<'tcx>) -> Option<(Ty<'tcx>, Ty<'tcx>)> {
 	let (ty::Adt(adt, from_args), ty::Adt(_, to_args)) = (from.kind(), to.kind()) else {
 		return None;
 	};
 	let object = to_args.type_at(0);
-	(Std::of(tcx, adt.did()) == Some(Std::Arc) && object.is_trait()).then(|| (from_args.type_at(0), object))
+	(Std::of(tcx, adt.did()) == Some(Std::Arc) && dynamic::unsized_object(tcx, object))
+		.then(|| (from_args.type_at(0), object))
+}
+
+/// What a `Weak` unsized as `arc_object` is points at, and that object or struct.
+fn weak_object<'tcx>(tcx: TyCtxt<'tcx>, from: Ty<'tcx>, to: Ty<'tcx>) -> Option<(Ty<'tcx>, Ty<'tcx>)> {
+	let (ty::Adt(adt, from_args), ty::Adt(_, to_args)) = (from.kind(), to.kind()) else {
+		return None;
+	};
+	let object = to_args.type_at(0);
+	(Std::of(tcx, adt.did()) == Some(Std::Weak) && dynamic::unsized_object(tcx, object))
+		.then(|| (from_args.type_at(0), object))
+}
+
+/// `from` and `to`, each the pointer the `Pin` it is holds, if both are pins.
+fn unpinned<'tcx>(tcx: TyCtxt<'tcx>, from: Ty<'tcx>, to: Ty<'tcx>) -> (Ty<'tcx>, Ty<'tcx>) {
+	match (from.kind(), to.kind()) {
+		(ty::Adt(a, a_args), ty::Adt(b, b_args)) if a.did() == b.did() && Std::of(tcx, a.did()) == Some(Std::Pin) => {
+			(a_args.type_at(0), b_args.type_at(0))
+		}
+		_ => (from, to),
+	}
 }
 
 /// Whether evaluating `rvalue` can do or throw anything.
