@@ -4,6 +4,7 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
+use bytes::buf::UninitSlice;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 /// A `BytesMut` split, frozen, grown, written, and joined, its handles and `Bytes` dropped,
@@ -592,6 +593,165 @@ pub fn vec_spares(data: &[u8], out: &mut Vec<u8>) {
 		}
 	}
 	out.extend_from_slice(&vec);
+}
+
+/// A `Vec<u8>`, a `BytesMut`, each through a `&mut`, and writers of the crate's own,
+/// written through the chunk `chunk_mut` lends, which grows a full buffer by 64 bytes, and
+/// taken in by `advance_mut`. Each step puts the chunk's length and the room left, and at
+/// the end each buffer's capacity and bytes: a write that missed the storage would show.
+pub fn chunks(data: &[u8], out: &mut Vec<u8>) {
+	let [first, cap, data @ ..] = data else {
+		return;
+	};
+	let cap = usize::from(*cap % 24);
+	let (mut vec, mut buf) = (Vec::with_capacity(cap), BytesMut::with_capacity(cap));
+	let mut fixed = Fixed {
+		bytes: [0; 48],
+		len: cap,
+	};
+	let mut spare = Spare(Vec::with_capacity(cap), cap % 2 == 0);
+	// Each first in turn, so each one's panic is reached.
+	for i in 0..6 {
+		match first.wrapping_add(i) % 6 {
+			0 => chunk_all(&mut vec, data, out),
+			1 => chunk_all(&mut buf, data, out),
+			2 => chunk_all(&mut &mut vec, data, out),
+			3 => chunk_all(&mut Box::new(&mut buf), data, out),
+			4 => chunk_all(&mut fixed, data, out),
+			_ => chunk_all(&mut spare, data, out),
+		}
+	}
+	for cap in [vec.capacity(), buf.capacity(), spare.0.capacity()] {
+		out.extend_from_slice(&(cap as u32).to_le_bytes());
+	}
+	out.extend_from_slice(&vec);
+	out.extend_from_slice(&buf);
+	out.extend_from_slice(&fixed.bytes[..fixed.len]);
+	out.extend_from_slice(&spare.0);
+}
+
+/// A write through `buf`'s chunk by each pair of `data`'s bytes, of each range of it, and
+/// past it, which panics as `bytes` does, then `advance_mut` over what it wrote, or past
+/// the chunk, which panics too; or a provided write, which a writer of the crate's own
+/// makes through its chunk.
+fn chunk_all<B: BufMut>(buf: &mut B, data: &[u8], out: &mut Vec<u8>) {
+	let mut data = data;
+	while let [op, n, rest @ ..] = data {
+		data = rest;
+		let (op, n) = (*op, *n);
+		match op % 13 {
+			10 => buf.put_slice(&[n; 70][..usize::from(n) % 71]),
+			11 => buf.put_u32_le(u32::from(n) * 0x0101_0101),
+			_ => {
+				let chunk = buf.chunk_mut();
+				let room = chunk.len();
+				let written = chunk_write(chunk, op, n, out);
+				let cnt = if n % 16 == 15 { room + 1 } else { written };
+				// SAFETY: none past the chunk, where `bytes` panics first; else what was written.
+				unsafe { buf.advance_mut(cnt) };
+				out.extend_from_slice(&(room as u32).to_le_bytes());
+			}
+		}
+		out.extend_from_slice(&(buf.remaining_mut() as u32).to_le_bytes());
+	}
+}
+
+/// A write into `chunk` that `op` picks, of `n`'s bytes: how many from its front it wrote.
+fn chunk_write(chunk: &mut UninitSlice, op: u8, n: u8, out: &mut Vec<u8>) -> usize {
+	let room = chunk.len();
+	let k = usize::from(n) % (room + 1);
+	let src: Vec<u8> = (0..k).map(|i| n.wrapping_add(i as u8)).collect();
+	let half = k / 2;
+	match op % 13 {
+		0 => {
+			for (i, &b) in src.iter().enumerate() {
+				chunk.write_byte(i, b);
+			}
+		}
+		1 => chunk[..k].copy_from_slice(&src),
+		// SAFETY: `k` is at most the chunk's length.
+		2 => unsafe { std::ptr::copy_nonoverlapping(src.as_ptr(), chunk.as_mut_ptr(), k) },
+		// SAFETY: only initialized bytes are written.
+		3 => {
+			unsafe { chunk.as_uninit_slice_mut()[..k].write_copy_of_slice(&src) };
+		}
+		4 => {
+			chunk[half..][..k - half].copy_from_slice(&src[half..]);
+			chunk[0..half].copy_from_slice(&src[..half]);
+		}
+		5 if k > 0 => {
+			chunk[..=k - 1].copy_from_slice(&src);
+			chunk[half..=half].write_byte(0, !n);
+		}
+		6 => chunk[..][..k].copy_from_slice(&src),
+		// Past the chunk where `k` is all of it.
+		7 => {
+			chunk[k..].write_byte(0, n);
+			chunk[..k].copy_from_slice(&src);
+			return k + 1;
+		}
+		// Of a slice of another length unless `k` is 3.
+		8 => chunk[..k].copy_from_slice(&[n; 3]),
+		// Past either end, or of a start past its end, shared or not.
+		9 => match n % 3 {
+			0 => out.push(chunk[..room + 1].len() as u8),
+			1 => chunk[k + 1..k].write_byte(0, n),
+			_ => chunk[room + 1..].write_byte(0, n),
+		},
+		_ => {
+			out.extend_from_slice(format!("{chunk:?}").as_bytes());
+			return 0;
+		}
+	}
+	k
+}
+
+/// A writer of the crate's own into an array, whose chunk is the room left in it.
+struct Fixed {
+	bytes: [u8; 48],
+	len: usize,
+}
+
+// SAFETY: the chunk is the array past what was written, which `advance_mut` takes in.
+unsafe impl BufMut for Fixed {
+	fn remaining_mut(&self) -> usize {
+		self.bytes.len() - self.len
+	}
+
+	unsafe fn advance_mut(&mut self, cnt: usize) {
+		assert!(cnt <= self.remaining_mut(), "advanced {cnt} past the array");
+		self.len += cnt;
+	}
+
+	fn chunk_mut(&mut self) -> &mut UninitSlice {
+		UninitSlice::new(&mut self.bytes[self.len..])
+	}
+}
+
+/// A writer of the crate's own into a vector's spare room, lent as `bytes` lends a
+/// vector's, by its pointer, or by `spare_capacity_mut` if `.1`: none once it is full.
+struct Spare(Vec<u8>, bool);
+
+// SAFETY: the chunk is the vector's spare room, which `advance_mut` takes in.
+unsafe impl BufMut for Spare {
+	fn remaining_mut(&self) -> usize {
+		self.0.capacity() - self.0.len()
+	}
+
+	unsafe fn advance_mut(&mut self, cnt: usize) {
+		assert!(cnt <= self.remaining_mut(), "advanced {cnt} past the capacity");
+		// SAFETY: within the capacity, over what the caller wrote.
+		unsafe { self.0.set_len(self.0.len() + cnt) };
+	}
+
+	fn chunk_mut(&mut self) -> &mut UninitSlice {
+		if self.1 {
+			return self.0.spare_capacity_mut().into();
+		}
+		let (len, cap) = (self.0.len(), self.0.capacity());
+		// SAFETY: the room past the length is within the allocation.
+		unsafe { UninitSlice::from_raw_parts_mut(self.0.as_mut_ptr().add(len), cap - len) }
+	}
 }
 
 /// The same writes into a `Vec<u8>` and a `BytesMut`, which must match, and through the

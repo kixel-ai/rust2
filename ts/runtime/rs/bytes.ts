@@ -14,6 +14,7 @@ import {
 	byteVecExtendFromSlice,
 	byteVecPush,
 	byteVecReserve,
+	byteVecSpare,
 	CountedBytes,
 	capReserve,
 	copyBytes,
@@ -770,10 +771,16 @@ function checkRoom(length: number, cnt: number): void {
 	if (cnt > ISIZE_MAX - length) panicAdvance(cnt, ISIZE_MAX - length);
 }
 
-/** `<BytesMut as BufMut>::chunk_mut`: how many bytes fit past the end, once it reserved 64 if none did. */
+/** How many bytes fit past the end of `b`, once it reserved 64 if none did, as `chunk_mut` makes room. */
 function bytesMutRoom(b: BytesMut): number {
 	if (b.cap === b.length) bytesMutReserve(b, 64 as usize);
 	return b.cap - b.length;
+}
+
+/** `<BytesMut as BufMut>::chunk_mut`: the room past its bytes, a slice of its storage, once it reserved 64 if there was none. */
+export function bytesMutChunkMut(b: BytesMut): ByteSlice {
+	bytesMutRoom(b);
+	return bytesMutSpare(b);
 }
 
 /** The provided `BufMut::put_bytes` of a `BytesMut`. */
@@ -983,10 +990,16 @@ export function byteVecAdvanceMut(v: ByteVec, cnt: usize): void {
 	v.length += cnt;
 }
 
-/** `<Vec<u8> as BufMut>::chunk_mut`: how many bytes fit past the end, once it reserved 64 if none did. */
+/** How many bytes fit past the end of `v`, once it reserved 64 if none did, as `chunk_mut` makes room. */
 function byteVecRoom(v: ByteVec): number {
 	if (v.data.length === v.length) byteVecReserve(v, 64);
 	return v.data.length - v.length;
+}
+
+/** `<Vec<u8> as BufMut>::chunk_mut`: the room past its bytes, a slice of its storage, once it reserved 64 if there was none. */
+export function byteVecChunkMut(v: ByteVec): ByteSlice {
+	byteVecRoom(v);
+	return byteVecSpare(v);
 }
 
 /** The provided `BufMut::put_bytes` of a `Vec<u8>`. */

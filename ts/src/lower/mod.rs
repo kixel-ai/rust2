@@ -1334,6 +1334,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Adt(adt, _) if self.bound_drops(adt.did()).is_some() => {
 				(!self.is_copy(ty)).then_some(ObjectKind::Class)
 			}
+			ty::Adt(..) if let Some(slice) = stock::uninit_slice(self.tcx, ty) => self.object_kind(slice),
 			ty::Adt(adt, args) => match library::Std::of(self.tcx, adt.did()) {
 				Some(library::Std::Vec) => Some(ObjectKind::Vec),
 				Some(
