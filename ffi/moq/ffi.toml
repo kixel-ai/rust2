@@ -396,7 +396,7 @@ exclude = [
 # The rule makes this media clock's methods, such as `now`, kio's clock's: `moq_clock_now`.
 "Clock" = "mux_clock"
 # The rule makes both this constant and the method `Clock::timescale` `moq_mux_clock_timescale`.
-"Clock::TIMESCALE" = "mux_clock_fixed_timescale"
+"Clock::TIMESCALE" = "clock_fixed_timescale"
 # The rule makes each of these functions and its module's `Config` `moq_codec_<codec>_config`.
 "codec::aac::config" = "codec_aac_audio_config"
 "codec::mp3::config" = "codec_mp3_audio_config"
