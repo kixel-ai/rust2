@@ -295,8 +295,8 @@ export function tallies(data: rt.ByteSlice, out: rt.ByteVec): void {
 	rt.byteVecPush(out, rt.cmpList(Tally.cmp$cmp_Ord)(l, copy) & 0xff);
 	rt.byteVecPush(out, rt.u64Eq(hashOf$collections_LinkedList_lists_Tally(taken), hashOf$collections_LinkedList_lists_Tally(rest)) ? 1 : 0);
 	let text: string = "";
-	const part = rt.iterToArray(rt.iterTake(rt.iterRev(rt.listIter(rest)), 2), undefined, 4, true);
-	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part, f, (value: Tally.Tally, f: rt.Formatter) => Tally.fmt$fmt_Debug(value, f))];
+	const part = rt.iterToVec(rt.iterTake(rt.iterRev(rt.listIter(rest)), 2), undefined, 4, true);
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(part.items, f, (value: Tally.Tally, f: rt.Formatter) => Tally.fmt$fmt_Debug(value, f))];
 	text = rt.fmtWriteString(text, [args2[0]]).s;
 	const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.fmtList(rt.listIter(taken), f, (value: Tally.Tally, f: rt.Formatter) => Tally.fmt$fmt_Debug(value, f))];
 	text = rt.fmtWriteString(text, [rt.fmtSpec({ alternate: true }, args4[0])]).s;

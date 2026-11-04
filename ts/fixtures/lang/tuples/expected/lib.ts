@@ -16,8 +16,8 @@ export function drop$Result_tuple2_tuples_Logged_u8_u8(_1: rt.Result<[Logged.Log
 	}
 }
 
-export function drop$tuple2_Vec_tuples_Logged_tuples_Tally(_1: [Logged.Logged[], Tally.Tally]): void {
-	rt.dropAll(_1[0]);
+export function drop$tuple2_Vec_tuples_Logged_tuples_Tally(_1: [rt.Vec<Logged.Logged>, Tally.Tally]): void {
+	rt.dropVec(_1[0]);
 }
 
 export function drop$tuple2_tuples_Logged_u8(_1: [Logged.Logged, rt.u8]): void {
@@ -32,8 +32,8 @@ export function drop$tuple2_u8_tuples_Logged(_1: [rt.u8, Logged.Logged]): void {
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["tuples::tuples", tuples as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["tuples::tuples", tuples as (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

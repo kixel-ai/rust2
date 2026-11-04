@@ -43,7 +43,7 @@ export function unwrapOrDefault$1q0ps0j(self: rt.u8 | undefined): rt.u8 {
 	return self;
 }
 
-export function map$12l9avg(self: rt.u8 | undefined, f: (a0: rt.u8) => Ticked.Ticked[]): Ticked.Ticked[] | undefined {
+export function map$0zbvahh(self: rt.u8 | undefined, f: (a0: rt.u8) => rt.Vec<Ticked.Ticked>): rt.Vec<Ticked.Ticked> | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -127,11 +127,11 @@ export function andThen$1bd14ex(self: rt.u8 | undefined, f: (a0: rt.u8) => rt.u8
 	return f(self);
 }
 
-export function clone$0hmts8n(self: rt.u16[] | undefined): rt.u16[] | undefined {
+export function clone$11qe8jq(self: rt.Vec<rt.u16> | undefined): rt.Vec<rt.u16> | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
-	return rt.vecExact(self.slice(), 2);
+	return rt.vecFrom(self.items.slice());
 }
 
 export function clone$1grnave(self: rt.ByteVec | undefined): rt.ByteVec | undefined {

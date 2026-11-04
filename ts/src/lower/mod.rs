@@ -1692,7 +1692,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				}
 				library::Std::Vec => match byte(args.type_at(0)) {
 					true => Type::Rt("ByteVec", vec![]),
-					false => Type::Array(Box::new(self.ty(args.type_at(0), span))),
+					false => Type::Rt("Vec", vec![self.ty(args.type_at(0), span)]),
 				},
 				library::Std::String => Type::Builtin("string"),
 				library::Std::Cow if library::cow_str(tcx, Ty::new_adt(tcx, adt, args)) => Type::Rt("StrCow", vec![]),

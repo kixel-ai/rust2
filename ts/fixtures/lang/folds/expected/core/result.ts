@@ -2,7 +2,7 @@
 
 import * as rt from "../rt.ts";
 
-export function map$0d4vpmj(self: rt.Result<rt.i64[], undefined>, op: (a0: rt.i64[]) => rt.usize): rt.Result<rt.usize, undefined> {
+export function map$0ip8nd6(self: rt.Result<rt.Vec<rt.i64>, undefined>, op: (a0: rt.Vec<rt.i64>) => rt.usize): rt.Result<rt.usize, undefined> {
 	if (self.ok) {
 		return rt.Ok(op(self.value));
 	}

@@ -16,21 +16,21 @@ export function unwrapOrDefault$0301ewp(self: rt.ByteSlice | undefined): rt.Byte
 	return self;
 }
 
-export function map$0pu5crb(self: rt.u64[][][] | undefined, f: (a0: rt.u64[][][]) => rt.u64[][]): rt.u64[][] | undefined {
+export function map$1e3rrc6(self: rt.Vec<rt.u64[]>[] | undefined, f: (a0: rt.Vec<rt.u64[]>[]) => rt.Vec<rt.u64[]>): rt.Vec<rt.u64[]> | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$1t2yvv7(self: [rt.u64, rt.u8][][] | undefined, f: (a0: [rt.u64, rt.u8][][]) => [rt.u64, rt.u8][]): [rt.u64, rt.u8][] | undefined {
+export function map$0rgpr92(self: rt.Vec<[rt.u64, rt.u8]>[] | undefined, f: (a0: rt.Vec<[rt.u64, rt.u8]>[]) => rt.Vec<[rt.u64, rt.u8]>): rt.Vec<[rt.u64, rt.u8]> | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return f(self);
 }
 
-export function map$03ib3yq(self: rt.u16[][] | undefined, f: (a0: rt.u16[][]) => rt.u16[]): rt.u16[] | undefined {
+export function map$1dj8fjk(self: rt.Vec<rt.u16>[] | undefined, f: (a0: rt.Vec<rt.u16>[]) => rt.Vec<rt.u16>): rt.Vec<rt.u16> | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -44,7 +44,7 @@ export function map$1p5j86b(self: rt.ByteVec[] | undefined, f: (a0: rt.ByteVec[]
 	return f(self);
 }
 
-export function map$1k50kwu(self: undefined[][] | undefined, f: (a0: undefined[][]) => undefined[]): undefined[] | undefined {
+export function map$0197mxk(self: rt.Vec<undefined>[] | undefined, f: (a0: rt.Vec<undefined>[]) => rt.Vec<undefined>): rt.Vec<undefined> | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

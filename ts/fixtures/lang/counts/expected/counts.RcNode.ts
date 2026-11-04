@@ -9,11 +9,11 @@ import type * as Noisy from "./counts.Noisy.ts";
  */
 export class RcNode {
 	this: rt.Weak<RcNode>;
-	more: rt.Weak<RcNode>[];
+	more: rt.Vec<rt.Weak<RcNode>>;
 	noisy: Noisy.Noisy;
 	seen: Uint8Array;
 
-	constructor(this_: rt.Weak<RcNode>, more: rt.Weak<RcNode>[], noisy: Noisy.Noisy, seen: Uint8Array) {
+	constructor(this_: rt.Weak<RcNode>, more: rt.Vec<rt.Weak<RcNode>>, noisy: Noisy.Noisy, seen: Uint8Array) {
 		this.this = this_;
 		this.more = more;
 		this.noisy = noisy;
@@ -22,14 +22,14 @@ export class RcNode {
 
 	[Symbol.dispose](): void {
 		this.this[Symbol.dispose]();
-		rt.dropAll(this.more);
+		rt.dropVec(this.more);
 		this.noisy[Symbol.dispose]();
 	}
 }
 
 function new_(this_: rt.Weak<RcNode>, noisy: Noisy.Noisy, more: rt.u8): RcNode {
 	const _4: rt.Weak<RcNode> = rt.weakClone(this_);
-	const _5: rt.Weak<RcNode>[] = rt.iterToArray(rt.iterMap(new rt.Range(0, more), (_2: rt.u8): rt.Weak<RcNode> => {
+	const _5: rt.Vec<rt.Weak<RcNode>> = rt.iterToVec(rt.iterMap(new rt.Range(0, more), (_2: rt.u8): rt.Weak<RcNode> => {
 		return rt.weakClone(this_);
 	}), undefined, 4, true);
 	const _13: rt.Arc<RcNode> | undefined = rt.weakUpgrade(this_);

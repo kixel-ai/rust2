@@ -183,8 +183,8 @@ export function drop$tuple3_cell_Ref_String_cell_Ref_array4_u8_cell_Ref_u32(_1: 
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
-export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined][] {
-	return [["borrows::borrows", (_22: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
+export function cases(): rt.Vec<[string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]> {
+	return rt.vecFrom([["borrows::borrows", (_22: rt.u8, data: rt.ByteSlice, out: rt.ByteVec): undefined => {
 		borrows(data, out);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["borrows::guards", (_23: rt.u8, data2: rt.ByteSlice, out2: rt.ByteVec): undefined => {
 		guards(data2, out2);
@@ -196,7 +196,7 @@ export function cases(): [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) 
 		leaks(data5, out5);
 	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined], ["borrows::printed", (_27: rt.u8, data6: rt.ByteSlice, out6: rt.ByteVec): undefined => {
 		printed(data6, out6);
-	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]];
+	}] as [string, (a0: rt.u8, a1: rt.ByteSlice, a2: rt.ByteVec) => undefined]]);
 }
 
 //# sourceMappingURL=lib.ts.map

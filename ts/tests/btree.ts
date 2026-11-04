@@ -119,7 +119,7 @@ for (let step = 0; step < steps; step++) {
 		check(right);
 		m = rand() & 1 ? right : m;
 	} else if (step % 2003 === 0) {
-		const entries = rt.iterToArray(rt.btreeIter(m));
+		const entries = rt.iterToVec(rt.btreeIter(m)).items;
 		m = rt.btreeCollect(rt.btreeNew<number, number>(cmp), entries, 8, true, (a, b) => a === b);
 		say(`collect ${rt.btreeLen(m)}`);
 	} else if (step % 211 === 0) {
@@ -140,7 +140,7 @@ for (let step = 0; step < steps; step++) {
 	}
 	if (step % 499 === 0) check(m);
 }
-say(`end ${rt.btreeLen(m)} ${rt.iterToArray(rt.btreeKeys(m)).join(",")}`);
+say(`end ${rt.btreeLen(m)} ${rt.iterToVec(rt.btreeKeys(m)).items.join(",")}`);
 // Emptied from both ends, down to its root leaf.
 const drained: number[] = [];
 while (rt.btreeLen(m) > 0) {
