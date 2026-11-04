@@ -332,7 +332,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		let v = self.operand(op, span, out);
 		match elem_ty.kind() {
-			ty::Uint(ty::UintTy::U8) => {
+			_ if crate::lower::byte(elem_ty) => {
 				let array = Expr::rt("bytes", vec![Expr::lit(n.to_string())]);
 				match &v {
 					Expr::Lit(text) if text == "0" => array,
@@ -663,7 +663,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Expr::As(Box::new(Expr::Array(values)), ts_ty)
 			}
 			AggregateKind::Array(elem) => match elem.kind() {
-				ty::Uint(ty::UintTy::U8) => Expr::ident("Uint8Array").member("of").call(values),
+				_ if crate::lower::byte(*elem) => Expr::ident("Uint8Array").member("of").call(values),
 				_ => Expr::Array(values),
 			},
 			AggregateKind::Adt(def_id, variant, args, _, active) => {

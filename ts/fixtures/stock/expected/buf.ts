@@ -18,13 +18,15 @@ import { map$0c3nzkx as result_map$0c3nzkx, map$0hs8st9 as result_map$0hs8st9, m
 
 /**
  * A `BytesMut` split, frozen, grown, written, and joined, its handles and `Bytes` dropped,
- * cloned, and taken back, ending with every piece's bytes and capacity: a write to one
- * that reached another would show, and so would a capacity `bytes` reclaimed only once the
- * other handles of its storage dropped.
+ * cloned, and taken back, and written past its length through `spare_capacity_mut`, ending
+ * with every piece's bytes and capacity: a write to one that reached another would show,
+ * and so would a capacity `bytes` reclaimed only once the other handles of its storage
+ * dropped, or a write to its spare room that missed its storage.
  */
 export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 	let _80!: rt.usize;
 	let _101!: rt.usize;
+	let _351!: rt.usize;
 	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
 	let buf: rt.BytesMut = rt.bytesMutWithCapacity(rt.usizeRem(Ops.byte(ops) as rt.usize, 24));
 	const pieces: rt.BytesMut[] = [];
@@ -34,7 +36,7 @@ export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 		if (_13 !== undefined) {
 			const op: rt.u8 = _13;
 			const n: rt.usize = Ops.byte(ops) as rt.usize;
-			const _20: rt.u8 = rt.u8Rem(op, 27);
+			const _20: rt.u8 = rt.u8Rem(op, 30);
 			if (_20 === 0) {
 				const _23: rt.ByteSlice = Ops.take(ops, rt.usizeRem(n, 12));
 				rt.bytesMutExtend(buf, _23);
@@ -260,6 +262,48 @@ export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 					}
 					continue;
 				}
+				if (_20 === 26) {
+					const spare: rt.ByteSlice = rt.bytesMutSpare(buf);
+					rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(spare.length as rt.u32).reverse()));
+					const k: rt.usize = rt.usizeRem(n, rt.usizeAdd(spare.length, 1));
+					const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceRange(spare, 0, k))));
+					while (true) {
+						const _314: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
+						if (_314 === rt.DONE) {
+							break;
+						}
+						_314[1].v = (n & 0xff) ^ (_314[0] & 0xff);
+					}
+					rt.bytesMutSetLen(buf, rt.usizeAdd(buf.length, k));
+					continue;
+				}
+				if (_20 === 27) {
+					const src: rt.ByteSlice = Ops.take(ops, rt.usizeRem(n, 6));
+					const spare2: rt.ByteSlice = rt.bytesMutSpare(buf);
+					const _337: [rt.usize, rt.usize] = [rt.min(src.length, spare2.length), spare2.length];
+					const k2: rt.usize = _337[0];
+					const room: rt.usize = _337[1];
+					rt.byteSliceCopyFromSlice(rt.byteSliceRange(spare2, 0, k2), rt.byteSliceRange(src, 0, k2));
+					if (!(rt.usizeRem(n, 16) === 15)) {
+						_351 = k2;
+					} else {
+						_351 = rt.usizeAdd(room, 1);
+					}
+					rt.bytesMutAdvanceMut(buf, _351);
+					continue;
+				}
+				if (_20 === 28) {
+					const _356: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(rt.byteSliceView(rt.bytesMutSpare(buf)));
+					if (_356 !== undefined) {
+						_356.v = n & 0xff;
+					}
+					const _363: rt.u8 | undefined = rt.byteSliceFirst(rt.bytesMutSpare(buf));
+					if (_363 !== undefined) {
+						rt.byteVecPush(out, _363);
+						continue;
+					}
+					continue;
+				}
 			}
 			rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(buf.cap as rt.u32).reverse()));
 		} else {
@@ -268,22 +312,22 @@ export function bytesMut(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	const tail: rt.BytesMut = rt.bytesMutFrom(rt.byteSliceRange(rt.byteSliceFrom(Uint8Array.of(116, 97, 105, 108)), 0));
 	rt.byteVecPush(out, rt.byteSliceEq(rt.bytesMutView(buf), rt.bytesMutView(tail)) ? 1 : 0);
-	const _311: rt.BytesMut = rt.bytesMutFrom(rt.bytesMutView(buf));
-	const _313: rt.ByteSlice = rt.byteSliceRange(rt.bytesMutView(buf), 0);
-	rt.byteVecPush(out, rt.byteSliceEq(rt.bytesMutView(_311), _313) ? 1 : 0);
-	_311[Symbol.dispose]();
-	const _324: rt.usize = buf.length;
-	const _327: rt.usize = buf.cap;
-	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.bytesDebug(rt.bytesMutView(buf), f), (f: rt.Formatter) => rt.usizeDisplay(_324, f), (f: rt.Formatter) => rt.usizeDisplay(_327, f)];
+	const _390: rt.BytesMut = rt.bytesMutFrom(rt.bytesMutView(buf));
+	const _392: rt.ByteSlice = rt.byteSliceRange(rt.bytesMutView(buf), 0);
+	rt.byteVecPush(out, rt.byteSliceEq(rt.bytesMutView(_390), _392) ? 1 : 0);
+	_390[Symbol.dispose]();
+	const _403: rt.usize = buf.length;
+	const _406: rt.usize = buf.cap;
+	const args2: rt.Fmt[] = [(f: rt.Formatter) => rt.bytesDebug(rt.bytesMutView(buf), f), (f: rt.Formatter) => rt.usizeDisplay(_403, f), (f: rt.Formatter) => rt.usizeDisplay(_406, f)];
 	rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args2[0], " ", args2[1], " ", args2[2], "\n"])));
 	for (const piece6 of pieces) {
-		const _351: rt.usize = piece6.cap;
-		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.bytesDebug(rt.bytesMutView(piece6), f), (f: rt.Formatter) => rt.usizeDisplay(_351, f)];
+		const _430: rt.usize = piece6.cap;
+		const args4: rt.Fmt[] = [(f: rt.Formatter) => rt.bytesDebug(rt.bytesMutView(piece6), f), (f: rt.Formatter) => rt.usizeDisplay(_430, f)];
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args4[0], " ", args4[1], "\n"])));
 	}
 	for (const bytes3 of frozen) {
-		const _373: boolean = rt.bytesIsUnique(bytes3);
-		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.bytesDebug(bytes3, f), (f: rt.Formatter) => rt.fmtBool(_373, f)];
+		const _452: boolean = rt.bytesIsUnique(bytes3);
+		const args6: rt.Fmt[] = [(f: rt.Formatter) => rt.bytesDebug(bytes3, f), (f: rt.Formatter) => rt.fmtBool(_452, f)];
 		rt.byteVecExtendFromSlice(out, rt.stringAsBytes(rt.fmtFormat([args6[0], " ", args6[1], "\n"])));
 	}
 	const vec2: rt.ByteVec = rt.bytesMutToByteVec(buf);
@@ -2687,6 +2731,95 @@ export function lateTake(data: rt.ByteSlice, out: rt.ByteVec): void {
 	}
 	rt.byteVecPush(out, remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf(boxed) & 0xff);
 	rt.drop(boxed);
+}
+
+/**
+ * A `Vec<u8>` written past its length through `spare_capacity_mut`, by element, by
+ * `write_copy_of_slice` and through the slice it gives back, through a pointer, and
+ * split, then lengthened over what was written by `set_len` or by `advance_mut`, which
+ * panics past the room; written and read again through a second call; grown and cut. Each
+ * step puts its length, capacity, and room, then its bytes.
+ */
+export function vecSpares(data: rt.ByteSlice, out: rt.ByteVec): void {
+	let _67!: rt.usize;
+	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
+	const vec: rt.ByteVec = rt.byteVecWithCapacity(rt.usizeRem(Ops.byte(ops) as rt.usize, 20));
+	while (true) {
+		const _10: rt.u8 | undefined = Ops.next(ops);
+		if (_10 !== undefined) {
+			const op: rt.u8 = _10;
+			const n: rt.u8 = Ops.byte(ops);
+			const spare: rt.ByteSlice = rt.byteVecSpare(vec);
+			const _20: [rt.usize, rt.usize] = [spare.length, rt.usizeRem(n as rt.usize, rt.usizeAdd(spare.length, 1))];
+			const room: rt.usize = _20[0];
+			const k: rt.usize = _20[1];
+			const _31: rt.u8 = rt.u8Rem(op, 7);
+			if (_31 === 0) {
+				const iter: rt.Iter<[rt.usize, rt.Place<rt.u8>]> = rt.iterEnumerate(rt.iterSliceMut(rt.byteSliceView(rt.byteSliceRange(spare, 0, k))));
+				while (true) {
+					const _39: [rt.usize, rt.Place<rt.u8>] | rt.Done = iter.next();
+					if (_39 === rt.DONE) {
+						break;
+					}
+					const uninit2 = _39[1];
+					uninit2.v = n ^ (_39[0] & 0xff);
+					uninit2;
+				}
+				rt.byteVecSetLen(vec, rt.usizeAdd(vec.length, k));
+			} else if (_31 === 1) {
+				const src: rt.ByteVec = rt.iterToByteVec(rt.iterMap(new rt.Range(0, k & 0xff), (i2: rt.u8): rt.u8 => {
+					return rt.u8WrappingAdd(n, i2);
+				}), undefined, true);
+				const dst = rt.byteSliceRange(spare, 0, k);
+				rt.byteSliceCopyFromSlice(dst, rt.byteVecSlice(src));
+				rt.byteSliceView(dst).reverse();
+				if (!(rt.u8Rem(n, 16) === 15)) {
+					_67 = k;
+				} else {
+					_67 = rt.usizeAdd(room, 1);
+				}
+				rt.byteVecAdvanceMut(vec, _67);
+			} else if (_31 === 2) {
+				const src2: Uint8Array = rt.bytes(64).fill(n);
+				const k2: rt.usize = rt.min(k, rt.byteSliceFrom(src2).length);
+				rt.ptrCopy(rt.byteSliceAsPtr(rt.byteSliceFrom(src2)), rt.byteSliceAsPtr(spare), k2);
+				rt.byteVecSetLen(vec, rt.usizeAdd(vec.length, k2));
+			} else if (_31 === 3) {
+				rt.byteSliceFill(rt.byteSliceRange(spare, 0, k), n);
+				const _93: rt.Place<rt.u8> | undefined = rt.sliceLastMut(rt.byteSliceView(rt.byteSliceSplitAt(rt.byteSliceRange(spare, 0, k), rt.usizeDiv(k, 2))[0]));
+				if (_93 !== undefined) {
+					_93.v = ~n & 0xff;
+				}
+				rt.byteVecSetLen(vec, rt.usizeAdd(vec.length, k));
+			} else if (_31 === 4) {
+				const _109: rt.Place<rt.u8> | undefined = rt.sliceFirstMut(rt.byteSliceView(spare));
+				if (_109 !== undefined) {
+					const uninit = _109;
+					uninit.v = n;
+					uninit;
+				}
+				const _113: rt.u8 | undefined = rt.byteSliceFirst(rt.byteVecSpare(vec));
+				if (_113 !== undefined) {
+					rt.byteVecPush(out, _113);
+				}
+			} else if (_31 === 5) {
+				rt.byteVecReserve(vec, rt.usizeRem(n as rt.usize, 40));
+			} else {
+				rt.byteVecTruncate(vec, rt.usizeRem(n as rt.usize, rt.usizeAdd(vec.length, 1)));
+			}
+			const iter2: rt.Iter<rt.usize> = rt.iterSlice([vec.length, vec.data.length, rt.byteVecSpare(vec).length]);
+			while (true) {
+				const _145: rt.usize | rt.Done = iter2.next();
+				if (_145 === rt.DONE) {
+					break;
+				}
+				rt.byteVecExtendFromSlice(out, rt.byteSliceFrom(rt.u32ToBeBytes(_145 as rt.u32).reverse()));
+			}
+		} else {
+			break;
+		}
+	}
+	rt.byteVecExtendFromSlice(out, rt.byteVecSlice(vec));
 }
 
 /**

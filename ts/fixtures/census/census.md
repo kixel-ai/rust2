@@ -12,7 +12,7 @@
 | 2 | a cast from `_` to `_`, between a pointer and an integer | fixtures/census/src/lib.rs:9:2 |
 | 2 | a cast from a pointer to `_` to one to `_`, which reads the bytes of one type as another | fixtures/census/src/lib.rs:19:12 |
 | 2 | a mutable static, which any code may write | fixtures/census/src/lib.rs:38:3 |
-| 1 | `BytesMut::spare_capacity_mut`, whose slice of uninitialized bytes JS holds apart from the storage, which is not supported | fixtures/census/src/lib.rs:45:36 |
+| 1 | `Bytes::from_owner` of `_`, which would drop with the last clone of what it makes, which is not supported | fixtures/census/src/lib.rs:45:2 |
 | 1 | `Pointer` formatting, as in `{:p}`, is not supported | fixtures/census/src/lib.rs:24:2 |
 | 1 | union `_`, whose fields overlap in `_` and `f64`, which JS keeps apart | fixtures/census/src/lib.rs:28:1 |
 
@@ -29,12 +29,14 @@ The type or module each refused type or path belongs to.
 | 1 | `*const T` | fixtures/census/src/lib.rs:14:2 |
 | 1 | `*const u32` | fixtures/census/src/lib.rs:9:2 |
 | 1 | `Bits` | fixtures/census/src/lib.rs:28:1 |
+| 1 | `std::sync::Arc` | fixtures/census/src/lib.rs:45:2 |
 
 ## By type or path
 
 | Count | Construct | Type or path | First |
 | ---: | --- | --- | --- |
 | 2 | a raw pointer to `_` behind a reference, which is the object and not where it is kept | `u32` | fixtures/census/src/lib.rs:9:2 |
+| 1 | `Bytes::from_owner` of `_`, which would drop with the last clone of what it makes, which is not supported | `std::sync::Arc` | fixtures/census/src/lib.rs:45:2 |
 | 1 | a cast from `_` to `_`, between a pointer and an integer | `*const T`, `usize` | fixtures/census/src/lib.rs:14:2 |
 | 1 | a cast from `_` to `_`, between a pointer and an integer | `*const u32`, `usize` | fixtures/census/src/lib.rs:9:2 |
 | 1 | a cast from a pointer to `_` to one to `_`, which reads the bytes of one type as another | `u32`, `u8` | fixtures/census/src/lib.rs:19:12 |
@@ -73,9 +75,9 @@ The type or module each refused type or path belongs to.
 
 </details>
 
-<details><summary>`BytesMut::spare_capacity_mut`, whose slice of uninitialized bytes JS holds apart from the storage, which is not supported (1)</summary>
+<details><summary>`Bytes::from_owner` of `_`, which would drop with the last clone of what it makes, which is not supported (1)</summary>
 
-- fixtures/census/src/lib.rs:45:36: `BytesMut::spare_capacity_mut`, whose slice of uninitialized bytes JS holds apart from the storage, which is not supported
+- fixtures/census/src/lib.rs:45:2: `Bytes::from_owner` of `std::sync::Arc<[u8]>`, which would drop with the last clone of what it makes, which is not supported
 
 </details>
 

@@ -77,7 +77,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				let inner = args.type_at(0);
 				match self.initialized(val, inner) {
 					Some(true) => self.const_value(val, inner, span),
-					Some(false) => self.b.t.uninit(inner, span),
+					Some(false) => self.b.t.uninit(ty, span),
 					None => self.unreadable(ty, span),
 				}
 			}

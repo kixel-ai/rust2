@@ -10,10 +10,10 @@ use rustc_hir::def_id::DefId;
 use rustc_middle::ty::{self, GenericArgsRef, Instance, Ty, TyCtxt, TypingEnv};
 use rustc_span::Span;
 
-use super::Translator;
 use super::body::Body;
 use super::fmt;
 use super::num::{self, Int, Operand, Overflow};
+use super::{Translator, byte};
 use crate::ts::{Expr, Stmt, StmtKind};
 
 /// A type with a representation of its own: std's, or a well-known crate's that
@@ -574,7 +574,7 @@ pub fn cow_slice<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 /// The slice `cow`, a `Cow<[elem]>`, derefs to: an `rt.ByteSlice` of bytes, or an array.
 pub fn cow_deref(cow: Expr, elem: Ty<'_>) -> Expr {
 	match elem.kind() {
-		ty::Uint(ty::UintTy::U8) => Expr::rt("byteCowSlice", vec![cow]),
+		_ if byte(elem) => Expr::rt("byteCowSlice", vec![cow]),
 		_ => Expr::rt("cowSlice", vec![cow]),
 	}
 }
@@ -582,7 +582,7 @@ pub fn cow_deref(cow: Expr, elem: Ty<'_>) -> Expr {
 /// A `Cow<[elem]>` made by its variant `variant` of `value`: the `Vec` it owns, or the
 /// slice it borrows, wrapped in an `rt.Borrowed` unless it is bytes.
 pub fn cow_made(elem: Ty<'_>, variant: rustc_abi::VariantIdx, value: Expr) -> Expr {
-	match variant.index() == 0 && !matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) {
+	match variant.index() == 0 && !byte(elem) {
 		true => Expr::New(Box::new(Expr::Rt("Borrowed".into())), vec![value]),
 		false => value,
 	}
@@ -591,7 +591,7 @@ pub fn cow_made(elem: Ty<'_>, variant: rustc_abi::VariantIdx, value: Expr) -> Ex
 /// Whether `cow`, a `Cow<[elem]>`, borrows: whether it is of the class its borrowed variant is.
 pub fn cow_borrows(cow: Expr, elem: Ty<'_>) -> Expr {
 	let class = match elem.kind() {
-		ty::Uint(ty::UintTy::U8) => "ByteSlice",
+		_ if byte(elem) => "ByteSlice",
 		_ => "Borrowed",
 	};
 	cow.binary("instanceof", Expr::Rt(class.into()))
@@ -1501,8 +1501,7 @@ fn mapping<'tcx>(
 	}
 
 	let self_ty = || gargs.types().next();
-	let is_u8 = |t: Ty<'tcx>| matches!(t.kind(), ty::Uint(ty::UintTy::U8));
-	let byte_slice = |t: Ty<'tcx>| matches!(t.kind(), ty::Slice(e) if is_u8(*e));
+	let byte_slice = |t: Ty<'tcx>| matches!(t.kind(), ty::Slice(e) if byte(*e));
 	let range = matches!(inherent_std(tcx, call.def_id), Some(Std::Range | Std::RangeInclusive));
 
 	let e = match (owner.as_str(), name.as_str()) {
@@ -1560,7 +1559,7 @@ fn mapping<'tcx>(
 				&& b.t.std_of(from) == Some(Std::VecDeque)
 			{
 				let v = Expr::rt("dequeToVec", vec![value]);
-				return Some(match is_u8(vargs.type_at(0)) {
+				return Some(match byte(vargs.type_at(0)) {
 					true => Expr::rt("byteVecFromVec", vec![v]),
 					false => v,
 				});
@@ -1618,7 +1617,7 @@ fn mapping<'tcx>(
 			if let ty::Adt(adt, args) = from.kind()
 				&& Std::of(tcx, adt.did()) == Some(Std::BinaryHeap)
 			{
-				return Some(super::collections::heap_vec(value.member("d"), is_u8(args.type_at(0))));
+				return Some(super::collections::heap_vec(value.member("d"), byte(args.type_at(0))));
 			}
 			// Each `From` between integers, `char`, and floats, or from `bool`, is as `as`.
 			let scalar = |t: Ty<'tcx>| Int::of(t).is_some() || t.is_char() || super::float::is(t);
@@ -1669,7 +1668,7 @@ fn mapping<'tcx>(
 					_ => from_value.clone(),
 				};
 				// The bytes keep their buffer, as std keeps the allocation.
-				let array = match is_u8(*elem) {
+				let array = match byte(*elem) {
 					true => Expr::rt("byteSliceView", vec![boxed]),
 					false => boxed,
 				};
@@ -1790,7 +1789,7 @@ fn mapping<'tcx>(
 			let values = args;
 			let value = values.into_iter().next()?;
 			match ty.kind() {
-				ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::Vec) && is_u8(args.type_at(0)) => {
+				ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::Vec) && byte(args.type_at(0)) => {
 					Expr::rt("byteVecFrom", vec![Expr::rt("byteVecView", vec![value])])
 				}
 				ty::Adt(..) if string(tcx, ty) => value,
@@ -1859,7 +1858,7 @@ fn mapping<'tcx>(
 		("Option", "is_none") => args.pop()?.binary("===", b.t.none(targ(gargs, 0))),
 		("Option", "as_ref" | "as_mut") => args.pop()?,
 		// The payload, if any, as a slice of one, as `slice::from_ref` makes it.
-		("Option", "as_slice") if is_u8(targ(gargs, 0)) => Expr::rt("byteOptionAsSlice", args),
+		("Option", "as_slice") if byte(targ(gargs, 0)) => Expr::rt("byteOptionAsSlice", args),
 		("Option", "as_slice") => {
 			args.extend(b.t.none_arg(targ(gargs, 0)));
 			Expr::rt("optionAsSlice", args)
@@ -2025,7 +2024,7 @@ fn mapping<'tcx>(
 		("slice", "split_first" | "split_at" | "split_at_checked" | "first" | "get")
 			if name != "get" || Int::of(targ(gargs, 1)).is_some() =>
 		{
-			let of = match is_u8(targ(gargs, 0)) {
+			let of = match byte(targ(gargs, 0)) {
 				true => "byteSlice",
 				false => "slice",
 			};
@@ -2042,7 +2041,7 @@ fn mapping<'tcx>(
 			};
 			rt2(values, "slice", &super::camel(name))
 		}
-		("slice", "windows" | "chunks" | "chunks_exact" | "rchunks" | "rchunks_exact") => match is_u8(targ(gargs, 0)) {
+		("slice", "windows" | "chunks" | "chunks_exact" | "rchunks" | "rchunks_exact") => match byte(targ(gargs, 0)) {
 			true => rt2(args, "byteSlice", &super::camel(&name)),
 			false => rt2(args, "slice", &super::camel(&name)),
 		},
@@ -2052,14 +2051,14 @@ fn mapping<'tcx>(
 			let n = gargs.consts().next()?.try_to_target_usize(tcx)?;
 			let mut values = args;
 			values.push(Expr::lit(n.to_string()));
-			match is_u8(targ(gargs, 0)) {
+			match byte(targ(gargs, 0)) {
 				true => rt2(values, "byteSlice", &super::camel(&name)),
 				false => rt2(values, "slice", &super::camel(&name)),
 			}
 		}
 		// A part of bytes is a view already, and one of other values the runtime's view.
 		("slice", "chunks_mut" | "chunks_exact_mut" | "rchunks_mut" | "rchunks_exact_mut") => {
-			match is_u8(targ(gargs, 0)) {
+			match byte(targ(gargs, 0)) {
 				true => rt2(args, "byteSlice", &super::camel(name.strip_suffix("_mut")?)),
 				false => rt2(args, "slice", &super::camel(&name)),
 			}
@@ -2078,7 +2077,7 @@ fn mapping<'tcx>(
 			| "splitn_mut"
 			| "rsplitn"
 			| "rsplitn_mut",
-		) => match is_u8(targ(gargs, 0)) {
+		) => match byte(targ(gargs, 0)) {
 			true => rt2(
 				args,
 				"byteSlice",
@@ -2088,12 +2087,12 @@ fn mapping<'tcx>(
 		},
 		("Split", "as_slice") => Expr::rt("splitAsSlice", args),
 		// Halves of bytes are views already, and of other values the runtime's views.
-		("slice", "split_at_mut" | "split_at_mut_checked") => match is_u8(targ(gargs, 0)) {
+		("slice", "split_at_mut" | "split_at_mut_checked") => match byte(targ(gargs, 0)) {
 			true => rt2(args, "byteSlice", &super::camel(&name.replace("_mut", ""))),
 			false => rt2(args, "slice", &super::camel(&name)),
 		},
 		// The element is lent as `first_mut` lends it, and the rest as a view.
-		("slice", "split_first_mut" | "split_last_mut") => match is_u8(targ(gargs, 0)) {
+		("slice", "split_first_mut" | "split_last_mut") => match byte(targ(gargs, 0)) {
 			true => rt2(args, "byteSlice", &super::camel(&name)),
 			false => {
 				let mut values = args;
@@ -2118,7 +2117,7 @@ fn mapping<'tcx>(
 			| "split_last_chunk_mut",
 		) => {
 			let n = gargs.consts().next()?.try_to_target_usize(tcx)?;
-			let (of, name) = match is_u8(targ(gargs, 0)) {
+			let (of, name) = match byte(targ(gargs, 0)) {
 				true => ("byteSlice", name.strip_suffix("_mut").unwrap_or(&name)),
 				false => ("slice", name.as_str()),
 			};
@@ -2141,7 +2140,7 @@ fn mapping<'tcx>(
 			if owner == "array" || std_path(tcx, call.def_id) == ["slice", "raw", "from_ref"] =>
 		{
 			let value = args.pop()?;
-			match is_u8(targ(gargs, 0)) {
+			match byte(targ(gargs, 0)) {
 				true => Expr::rt(
 					"byteSliceFrom",
 					vec![Expr::ident("Uint8Array").member("of").call(vec![value])],
@@ -2195,7 +2194,7 @@ fn mapping<'tcx>(
 		// a `TrivialClone`'s copies, as std specializes `fill` to.
 		("slice", "fill") => {
 			let elem = targ(gargs, 0);
-			if is_u8(elem) {
+			if byte(elem) {
 				return Some(rt2(args, "byteSlice", "fill"));
 			}
 			let fns = clone_from_fns(b, elem, span);
@@ -2208,7 +2207,7 @@ fn mapping<'tcx>(
 			// Its own droppers, before what clones over a slot.
 			return Some(Expr::rt("sliceFill", [values, fns].concat()));
 		}
-		("slice", "fill_with" | "rotate_left" | "rotate_right") => match is_u8(targ(gargs, 0)) {
+		("slice", "fill_with" | "rotate_left" | "rotate_right") => match byte(targ(gargs, 0)) {
 			true => rt2(args, "byteSlice", &super::camel(&name)),
 			false => rt2(args, "slice", &super::camel(&name)),
 		},
@@ -2217,13 +2216,30 @@ fn mapping<'tcx>(
 			if name == "copy_from_slice" || super::iter::implements(b.t, targ(gargs, 0), "TrivialClone") =>
 		{
 			let elem = targ(gargs, 0);
-			if is_u8(elem) {
+			if byte(elem) {
 				return Some(rt2(args, "byteSlice", "copyFromSlice"));
 			}
 			let mut values = args;
 			values.extend(b.t.copy_fn(elem, span));
 			Expr::rt("sliceCopyFromSlice", values)
 		}
+		// The slice it wrote, which JS holds as what a `MaybeUninit` holds.
+		("slice", "write_copy_of_slice") => {
+			let [dst, src] = <[Expr; 2]>::try_from(args).ok()?;
+			let dst = b.spill(dst, "dst", out);
+			let elem = targ(gargs, 0);
+			let copy = match byte(elem) {
+				true => rt2(vec![dst.clone(), src], "byteSlice", "copyFromSlice"),
+				false => {
+					let mut values = vec![dst.clone(), src];
+					values.extend(b.t.copy_fn(elem, span));
+					Expr::rt("sliceCopyFromSlice", values)
+				}
+			};
+			out.push(StmtKind::Expr(copy).at(None));
+			dst
+		}
+		("slice", "assume_init_ref" | "assume_init_mut") => args.pop()?,
 		("slice", "clone_from_slice") => {
 			let mut values = args;
 			let fns = clone_from_fns(b, targ(gargs, 0), span);
@@ -2235,7 +2251,7 @@ fn mapping<'tcx>(
 			Expr::rt("byteSliceEq", args)
 		}
 		("slice", "to_vec") => slice_to_vec(b, args.pop()?, targ(gargs, 0), span),
-		("slice", "last" | "swap") => match is_u8(targ(gargs, 0)) {
+		("slice", "last" | "swap") => match byte(targ(gargs, 0)) {
 			true => rt2(args, "byteSlice", &super::camel(&name)),
 			false => rt2(args, "slice", &super::camel(&name)),
 		},
@@ -2243,7 +2259,7 @@ fn mapping<'tcx>(
 		("slice", "contains") => {
 			let elem = targ(gargs, 0);
 			let [s, x] = <[Expr; 2]>::try_from(args).ok()?;
-			match is_u8(elem) {
+			match byte(elem) {
 				true => Expr::rt("byteSliceView", vec![s]).method("includes", vec![x]),
 				false => {
 					let eq = super::collections::eq_fn(b, elem, span);
@@ -2262,7 +2278,7 @@ fn mapping<'tcx>(
 			let s = elements(values.next()?, Ty::new_slice(tcx, elem));
 			let less = match name.as_str() {
 				// A typed array sorts its numbers by value, and equal bytes are alike.
-				"sort" | "sort_unstable" if is_u8(elem) => return Some(s.method("sort", Vec::new())),
+				"sort" | "sort_unstable" if byte(elem) => return Some(s.method("sort", Vec::new())),
 				"sort" | "sort_unstable" => super::collections::test_fn(b, elem, "lt", span),
 				"sort_by" | "sort_unstable_by" => Expr::rt("cmpLt", vec![values.next()?]),
 				_ => {
@@ -2342,7 +2358,7 @@ fn mapping<'tcx>(
 		("boxed", "box_assume_init_into_vec_unsafe") => {
 			let elem = targ(gargs, 0);
 			let value = args.pop()?;
-			if is_u8(elem) {
+			if byte(elem) {
 				return Some(Expr::rt("byteVecFrom", vec![value]));
 			}
 			match (b.t.copy_fn(elem, span), value) {
@@ -2359,7 +2375,7 @@ fn mapping<'tcx>(
 		("vec", "from_elem") => {
 			let elem = targ(gargs, 0);
 			let mut values = args;
-			match is_u8(elem) {
+			match byte(elem) {
 				true => Expr::rt("byteVecOf", values),
 				false => {
 					values.push(super::collections::clone_fn(b, elem, span));
@@ -2369,20 +2385,20 @@ fn mapping<'tcx>(
 		}
 
 		// Vectors.
-		("Vec", "new") => match is_u8(targ(gargs, 0)) {
+		("Vec", "new") => match byte(targ(gargs, 0)) {
 			true => Expr::New(Box::new(Expr::Rt("ByteVec".into())), Vec::new()),
 			false => Expr::Array(Vec::new()),
 		},
 		// What reads or sets a capacity is given the size of the elements, by which std's
 		// grows it.
-		("Vec", "with_capacity") if is_u8(targ(gargs, 0)) => Expr::rt("byteVecWithCapacity", args),
-		("Vec", "capacity") if is_u8(targ(gargs, 0)) => args.pop()?.member("data").member("length"),
+		("Vec", "with_capacity") if byte(targ(gargs, 0)) => Expr::rt("byteVecWithCapacity", args),
+		("Vec", "capacity") if byte(targ(gargs, 0)) => args.pop()?.member("data").member("length"),
 		("Vec", "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact" | "shrink_to")
-			if is_u8(targ(gargs, 0)) =>
+			if byte(targ(gargs, 0)) =>
 		{
 			rt2(args, "byteVec", &super::camel(&name))
 		}
-		("Vec", "shrink_to_fit") if is_u8(targ(gargs, 0)) => {
+		("Vec", "shrink_to_fit") if byte(targ(gargs, 0)) => {
 			Expr::rt("byteVecShrinkTo", vec![args.pop()?, Expr::lit("0")])
 		}
 		(
@@ -2403,7 +2419,7 @@ fn mapping<'tcx>(
 		}
 		("Vec", "push") => {
 			let mut values = args;
-			match is_u8(targ(gargs, 0)) {
+			match byte(targ(gargs, 0)) {
 				true => Expr::rt("byteVecPush", values),
 				false => {
 					let v = values.remove(0);
@@ -2411,19 +2427,19 @@ fn mapping<'tcx>(
 				}
 			}
 		}
-		("Vec", "pop") if is_u8(targ(gargs, 0)) => Expr::rt("byteVecPop", args),
+		("Vec", "pop") if byte(targ(gargs, 0)) => Expr::rt("byteVecPop", args),
 		// JS's `pop` returns `undefined` for no element, where an `rt.None` must follow.
 		("Vec", "pop") if sentinel_option(b.t, call).is_some() => Expr::rt("vecPop", args),
 		("Vec", "pop") => args.pop()?.method("pop", vec![]),
 		// The last element is lent to the test as its place where JS copies it.
-		("Vec", "pop_if") if is_u8(targ(gargs, 0)) => Expr::rt("byteVecPopIf", args),
+		("Vec", "pop_if") if byte(targ(gargs, 0)) => Expr::rt("byteVecPopIf", args),
 		("Vec", "pop_if") if b.t.needs_place(targ(gargs, 0)) => Expr::rt("vecPopIfMut", args),
 		("Vec", "pop_if") => Expr::rt("vecPopIf", args),
 		("Vec", "len") => args.pop()?.member("length"),
 		("Vec", "is_empty") => args.pop()?.member("length").binary("===", Expr::lit("0")),
-		("Vec", "truncate") if is_u8(targ(gargs, 0)) => Expr::rt("byteVecTruncate", args),
-		("Vec", "clear") if is_u8(targ(gargs, 0)) => Expr::rt("byteVecClear", args),
-		("Vec", "extend_from_slice") if is_u8(targ(gargs, 0)) => Expr::rt("byteVecExtendFromSlice", args),
+		("Vec", "truncate") if byte(targ(gargs, 0)) => Expr::rt("byteVecTruncate", args),
+		("Vec", "clear") if byte(targ(gargs, 0)) => Expr::rt("byteVecClear", args),
+		("Vec", "extend_from_slice") if byte(targ(gargs, 0)) => Expr::rt("byteVecExtendFromSlice", args),
 		("Vec", "extend_from_slice") => {
 			let mut values = args;
 			values.push(super::iter::size_of(b, targ(gargs, 0), span));
@@ -2434,7 +2450,7 @@ fn mapping<'tcx>(
 			Expr::rt("vecExtendFromSlice", values)
 		}
 		("Vec", "insert" | "remove" | "swap_remove" | "append" | "resize" | "resize_with" | "split_off")
-			if is_u8(targ(gargs, 0)) =>
+			if byte(targ(gargs, 0)) =>
 		{
 			rt2(args, "byteVec", &super::camel(&name))
 		}
@@ -2453,7 +2469,7 @@ fn mapping<'tcx>(
 			let elem = targ(gargs, 0);
 			let ranged = super::collections::bounds(b, call, args.pop()?);
 			args.push(ranged.bounds.clone());
-			return Some(ranged.after(match is_u8(elem) {
+			return Some(ranged.after(match byte(elem) {
 				true => Expr::rt("byteVecExtendFromWithin", args),
 				false => {
 					args.push(super::iter::size_of(b, elem, span));
@@ -2478,7 +2494,7 @@ fn mapping<'tcx>(
 				));
 			}
 			let elem = targ(gargs, 0);
-			let of = match is_u8(elem) {
+			let of = match byte(elem) {
 				true => "byteVec",
 				false => "vec",
 			};
@@ -2490,7 +2506,7 @@ fn mapping<'tcx>(
 			let f = match name.as_str() {
 				"retain" => "retain".to_string(),
 				"retain_mut" => format!("retain{lend}"),
-				"dedup" if is_u8(elem) => "dedup".to_string(),
+				"dedup" if byte(elem) => "dedup".to_string(),
 				"dedup" => {
 					values.push(super::collections::eq_fn(b, elem, span));
 					"dedupBy".to_string()
@@ -2515,7 +2531,7 @@ fn mapping<'tcx>(
 		("Vec", "drain") => {
 			let ranged = super::collections::bounds(b, call, args.pop()?);
 			args.push(ranged.bounds.clone());
-			return Some(ranged.after(match is_u8(targ(gargs, 0)) {
+			return Some(ranged.after(match byte(targ(gargs, 0)) {
 				true => Expr::rt("byteVecDrain", args),
 				false => {
 					let dropper = b.t.dropper(targ(gargs, 0), span);
@@ -2544,7 +2560,7 @@ fn mapping<'tcx>(
 			let items = args.pop()?;
 			let ranged = super::collections::bounds(b, call, args.pop()?);
 			args.push(ranged.bounds.clone());
-			let drain = match is_u8(elem) {
+			let drain = match byte(elem) {
 				true => Expr::rt("byteVecSplice", args),
 				false => {
 					args.push(super::iter::size_of(b, elem, span));
@@ -2568,7 +2584,7 @@ fn mapping<'tcx>(
 			let f = args.pop()?;
 			let ranged = super::collections::bounds(b, call, args.pop()?);
 			args.extend([ranged.bounds.clone(), f]);
-			let extract = match (is_u8(elem), b.t.needs_place(elem)) {
+			let extract = match (byte(elem), b.t.needs_place(elem)) {
 				(true, _) => "byteVecExtractIf",
 				(false, true) => "vecExtractIfMut",
 				(false, false) => "vecExtractIf",
@@ -2588,7 +2604,7 @@ fn mapping<'tcx>(
 			};
 			let mut values = args;
 			values.push(Expr::lit(n.to_string()));
-			return Some(match is_u8(elem) {
+			return Some(match byte(elem) {
 				true => Expr::rt("byteVecIntoFlattened", values),
 				false => {
 					values.push(super::iter::size_of(b, elem, span));
@@ -2596,6 +2612,9 @@ fn mapping<'tcx>(
 				}
 			});
 		}
+		// The room past a byte vector's length, a slice of its storage.
+		("Vec", "spare_capacity_mut") if byte(targ(gargs, 0)) => Expr::rt("byteVecSpare", args),
+		("Vec", "set_len") if byte(targ(gargs, 0)) => Expr::rt("byteVecSetLen", args),
 		// The room past its length, whose size is a capacity the runtime holds only as std
 		// guarantees it.
 		("Vec", "spare_capacity_mut") => {
@@ -2944,14 +2963,14 @@ fn mapping<'tcx>(
 		("array", "from_fn") => {
 			let n = gargs.consts().next()?.try_to_target_usize(tcx)?;
 			let f = match targ(gargs, 0).kind() {
-				ty::Uint(ty::UintTy::U8) => "bytesFromFn",
+				_ if byte(targ(gargs, 0)) => "bytesFromFn",
 				_ => "arrayFromFn",
 			};
 			Expr::rt(f, vec![Expr::lit(n.to_string()), args.pop()?])
 		}
 		("array", "map") => {
 			let f = match targ(gargs, 2).kind() {
-				ty::Uint(ty::UintTy::U8) => "bytesMap",
+				_ if byte(targ(gargs, 2)) => "bytesMap",
 				_ => "arrayMap",
 			};
 			Expr::rt(f, args)
@@ -3145,7 +3164,7 @@ pub(super) fn box_slice_clone_from<'tcx>(
 	elem: Ty<'tcx>,
 	span: Span,
 ) -> Expr {
-	if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) {
+	if byte(elem) {
 		return Expr::rt("byteBoxSliceCloneFrom", vec![slot, source]);
 	}
 	let fns = clone_from_fns(b, elem, span);
@@ -3205,7 +3224,7 @@ fn std_clone_from<'tcx>(
 	// A `Cow<[T]>`'s: an owned one's `Vec` clones into itself over an owned one's.
 	if let Some(elem) = cow_slice(b.t.tcx, own) {
 		return Ok(match elem.kind() {
-			ty::Uint(ty::UintTy::U8) => ("byteCowCloneFrom", vec![]),
+			_ if byte(elem) => ("byteCowCloneFrom", vec![]),
 			_ => {
 				let size = super::iter::size_of(b, elem, span);
 				("cowCloneFrom", [vec![size], clone_from_fns(b, elem, span)].concat())
@@ -3217,9 +3236,7 @@ fn std_clone_from<'tcx>(
 	};
 	let first = args.types().next();
 	match (b.t.std_of(own), first) {
-		(Some(Std::Vec), Some(elem)) if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) => {
-			Ok(("byteVecCloneFrom", vec![]))
-		}
+		(Some(Std::Vec), Some(elem)) if byte(elem) => Ok(("byteVecCloneFrom", vec![])),
 		// A heap's is its vector's.
 		(Some(Std::Vec | Std::BinaryHeap), Some(elem)) => {
 			let name = match b.t.std_of(own) {
@@ -3339,7 +3356,7 @@ fn slices_join<'tcx>(
 		},
 		_ => (by, false),
 	};
-	let bytes = matches!(elem.kind(), ty::Uint(ty::UintTy::U8));
+	let bytes = byte(elem);
 	let sep = match (one, bytes) {
 		(true, true) => Expr::rt(
 			"byteSliceFrom",
@@ -3380,7 +3397,7 @@ fn trimmed(mut args: Vec<Expr>) -> Vec<Expr> {
 /// clones what it borrows, or for `Clone` what it owns, by each item's `Clone`, into a
 /// `Vec` with room for exactly them.
 pub fn cow_cloned<'tcx>(b: &mut Body<'_, '_, 'tcx>, op: &str, cow: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
-	if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) {
+	if byte(elem) {
 		return Expr::rt(format!("byteCow{op}"), vec![cow]);
 	}
 	let size = super::iter::size_of(b, elem, span);
@@ -3391,7 +3408,7 @@ pub fn cow_cloned<'tcx>(b: &mut Body<'_, '_, 'tcx>, op: &str, cow: Expr, elem: T
 /// `to_vec` of `slice`, of `elem`s: a `Vec` of clones of them.
 pub(super) fn slice_to_vec<'tcx>(b: &mut Body<'_, '_, 'tcx>, slice: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
 	match elem.kind() {
-		ty::Uint(ty::UintTy::U8) => Expr::rt("byteSliceToByteVec", vec![slice]),
+		_ if byte(elem) => Expr::rt("byteSliceToByteVec", vec![slice]),
 		_ => vec_clone(b, slice, elem, span),
 	}
 }
@@ -3416,7 +3433,7 @@ fn slice_clone<'tcx>(b: &mut Body<'_, '_, 'tcx>, value: Expr, elem: Ty<'tcx>, sp
 /// make one.
 fn slice_boxed<'tcx>(b: &mut Body<'_, '_, 'tcx>, slice: Expr, elem: Ty<'tcx>, span: Span) -> Option<Expr> {
 	match elem.kind() {
-		ty::Uint(ty::UintTy::U8) => Some(Expr::rt(
+		_ if byte(elem) => Some(Expr::rt(
 			"byteSliceFrom",
 			vec![Expr::rt("byteSliceToArray", vec![slice])],
 		)),
@@ -3428,7 +3445,7 @@ fn slice_boxed<'tcx>(b: &mut Body<'_, '_, 'tcx>, slice: Expr, elem: Ty<'tcx>, sp
 /// std's shrinks its capacity to them, which no translated `Vec` reports.
 pub(super) fn vec_boxed(v: Expr, elem: Ty<'_>) -> Expr {
 	match elem.kind() {
-		ty::Uint(ty::UintTy::U8) => Expr::rt("byteVecSlice", vec![v]),
+		_ if byte(elem) => Expr::rt("byteVecSlice", vec![v]),
 		_ => v,
 	}
 }
@@ -3437,7 +3454,7 @@ pub(super) fn vec_boxed(v: Expr, elem: Ty<'_>) -> Expr {
 /// for exactly its elements.
 fn boxed_vec<'tcx>(b: &mut Body<'_, '_, 'tcx>, boxed: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
 	match elem.kind() {
-		ty::Uint(ty::UintTy::U8) => Expr::rt("byteSliceToByteVec", vec![boxed]),
+		_ if byte(elem) => Expr::rt("byteSliceToByteVec", vec![boxed]),
 		_ => Expr::rt("vecExact", vec![boxed, super::iter::size_of(b, elem, span)]),
 	}
 }
@@ -3445,7 +3462,7 @@ fn boxed_vec<'tcx>(b: &mut Body<'_, '_, 'tcx>, boxed: Expr, elem: Ty<'tcx>, span
 /// The `Box<[elem]>` that `From<[elem; N]>` moves `array` into: its elements.
 fn array_boxed(array: Expr, elem: Ty<'_>) -> Expr {
 	match elem.kind() {
-		ty::Uint(ty::UintTy::U8) => Expr::rt("byteSliceFrom", vec![array]),
+		_ if byte(elem) => Expr::rt("byteSliceFrom", vec![array]),
 		_ => array,
 	}
 }
@@ -3837,7 +3854,7 @@ pub fn primitive(ty: Ty<'_>) -> bool {
 /// A `Vec` of `elem`s as a slice: an `rt.ByteSlice` of a byte vector, or the array itself.
 pub fn vec_view(v: Expr, elem: Ty<'_>) -> Expr {
 	match elem.kind() {
-		ty::Uint(ty::UintTy::U8) => Expr::rt("byteVecSlice", vec![v]),
+		_ if byte(elem) => Expr::rt("byteVecSlice", vec![v]),
 		_ => v,
 	}
 }
@@ -3847,16 +3864,9 @@ pub fn vec_view(v: Expr, elem: Ty<'_>) -> Expr {
 /// index.
 pub fn elements(v: Expr, ty: Ty<'_>) -> Expr {
 	match ty.peel_refs().kind() {
-		ty::Slice(elem) if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) => Expr::rt("byteSliceView", vec![v]),
+		ty::Slice(elem) if byte(*elem) => Expr::rt("byteSliceView", vec![v]),
 		_ if super::bytes_ref(ty) => Expr::rt("byteSliceView", vec![v]),
-		ty::Adt(_, args)
-			if args
-				.types()
-				.next()
-				.is_some_and(|t| matches!(t.kind(), ty::Uint(ty::UintTy::U8))) =>
-		{
-			Expr::rt("byteVecView", vec![v])
-		}
+		ty::Adt(_, args) if args.types().next().is_some_and(byte) => Expr::rt("byteVecView", vec![v]),
 		_ => v,
 	}
 }
@@ -3894,7 +3904,7 @@ pub fn default_value<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span,
 		ty::Array(elem, n) => {
 			let n = n.try_to_target_usize(tcx)?;
 			match elem.kind() {
-				ty::Uint(ty::UintTy::U8) => return Some(Expr::rt("bytes", vec![Expr::lit(n.to_string())])),
+				_ if byte(*elem) => return Some(Expr::rt("bytes", vec![Expr::lit(n.to_string())])),
 				// Whatever its element, which needn't have a default.
 				_ if n == 0 => return Some(Expr::Array(Vec::new())),
 				_ => {}
@@ -3914,7 +3924,7 @@ pub fn default_value<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span,
 		_ if let Some(float) = super::float::Float::of(ty) => float.lit(0.0),
 		ty::Char => Expr::lit("0"),
 		ty::Ref(_, inner, _) => match inner.kind() {
-			ty::Slice(elem) if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)) => Expr::rt(
+			ty::Slice(elem) if byte(*elem) => Expr::rt(
 				"byteSliceFrom",
 				vec![Expr::New(Box::new(Expr::ident("Uint8Array")), vec![Expr::lit("0")])],
 			),
@@ -3925,14 +3935,14 @@ pub fn default_value<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span,
 		ty::Adt(adt, args) => match Std::of(tcx, adt.did())? {
 			Std::Option => b.t.none(args.type_at(0)),
 			Std::Vec => match args.type_at(0).kind() {
-				ty::Uint(ty::UintTy::U8) => Expr::New(Box::new(Expr::Rt("ByteVec".into())), Vec::new()),
+				_ if byte(args.type_at(0)) => Expr::New(Box::new(Expr::Rt("ByteVec".into())), Vec::new()),
 				_ => Expr::Array(Vec::new()),
 			},
 			Std::String => Expr::Str(String::new()),
 			Std::Cow if string(tcx, ty) => Expr::Str(String::new()),
 			// An owned empty `Vec`.
 			Std::Cow if let Some(elem) = cow_slice(tcx, ty) => match elem.kind() {
-				ty::Uint(ty::UintTy::U8) => Expr::New(Box::new(Expr::Rt("ByteVec".into())), Vec::new()),
+				_ if byte(elem) => Expr::New(Box::new(Expr::Rt("ByteVec".into())), Vec::new()),
 				_ => Expr::Array(Vec::new()),
 			},
 			Std::Duration => super::time::zero(),
