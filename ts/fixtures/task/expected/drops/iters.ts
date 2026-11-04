@@ -350,7 +350,7 @@ export function collected(log: Log.Log, id: rs.u32): void {
 			return rs.Ok(g2);
 		}
 		return rs.Err(g2);
-	}), (values: rs.Iter<Guard.Guard>) => rs.iterToVec(values, "next", 8, false, 8), lib_drop$Vec_model_Guard);
+	}), (values: rs.Iter<Guard.Guard>) => rs.iterToVec(values, "next", 8, false, 8), lib_drop$Vec_model_Guard, rs.drop);
 	const part = results.ok;
 	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part, f)];
 	Log.note(log, rs.fmtFormat(["result ", args4[0]]));
