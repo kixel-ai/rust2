@@ -77,12 +77,14 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							borrows.insert(to, from);
 						}
 					}
-					Rvalue::Use(Operand::Move(from), _) if from.as_local().is_some() => {
-						let from = from.as_local().unwrap();
+					// A move into a field, such as a coroutine's for a local held across an
+					// `.await`, needs the `rt.Iter` the field's type says, so it isn't counted.
+					Rvalue::Use(Operand::Move(from), _)
+						if let Some(from) = from.as_local()
+							&& let Some(to) = place.as_local() =>
+					{
 						*reads.entry(from).or_default() += 1;
-						if let Some(to) = place.as_local() {
-							moves.push((from, to));
-						}
+						moves.push((from, to));
 					}
 					Rvalue::Aggregate(..) if let Some(to) = place.as_local() => {
 						made.insert(to);

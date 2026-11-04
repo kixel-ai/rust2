@@ -340,7 +340,8 @@ compare the best and then the next, and a B-tree's iterators read their ends. `e
 `try_fold` and the other by `next`, as std's `iter_compare` does, and `eq` of two
 `TrustedLen` iterators whose size hints' upper bounds differ reads neither.
 An iterator over a slice, array, or `Vec`, or a small range, that only its `next` and
-moves read steps in place, as two variables: the array and an index into it, or the
+moves into other variables read steps in place, not one moved into a field, as an `async`
+block's is when held across an `.await`, as two variables: the array and an index into it, or the
 range's bounds, with no `rt.Iter` made. The crate's own `impl Iterator` returns `rt.DONE` from its `next` too, and joins
 std's adaptors through `rt.iterFrom`, which calls its own `size_hint`, `next_back`, `len`, `nth`, and `nth_back`,
 and of one it owns, not borrows by `&mut` or boxes, its own `fold`, `rfold`, `count`, `last`,
