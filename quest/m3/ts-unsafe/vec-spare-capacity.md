@@ -14,8 +14,10 @@ keeps it in` (`ts/runtime/rs/collections.ts`) where Rust defines it.
 `rs.Vec` holds std's capacity since [#555](https://github.com/moq-dev/rust2/pull/555);
 the spare slots need to live outside the array's length until `set_len` takes them, as a
 byte `Vec`'s do since [#568](https://github.com/moq-dev/rust2/pull/568). Removing the
-run-time throw is also a gap of [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md);
-a read of a slot never written stays an abort, since Rust leaves it undefined.
+run-time throw is also a gap of [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md).
+Copying a `MaybeUninit` slot never written is defined Rust and must translate, preserving
+it as Rust does; only a read that produces an invalid `T` may abort, as a precondition
+abort.
 
 No consumer at the moq pin. [Vec::drain](/quest/m3/ts-unsafe/vec-drain-mir.md) and
 [BinaryHeap](/quest/m3/ts-unsafe/binary-heap-mir.md) from std's MIR need it.

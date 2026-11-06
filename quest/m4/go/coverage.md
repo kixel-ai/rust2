@@ -29,7 +29,8 @@ translation.
 Decided with the maintainer on 2026-11-06: coverage waits on [speed](/quest/m4/go/speed.md),
 as the epic orders them, and splits into one quest per construct above only once speed
 reaches its bar. A failed speed result deletes `go/`, so planning the constructs earlier
-would be wasted.
+would be wasted. The last coverage child reruns `just go bench` against speed's bar, since
+constructs such as `Vec::capacity` change what the stream workload runs.
 
 - ✅ Gate on speed, split later.
 - Split now, each child requiring speed.

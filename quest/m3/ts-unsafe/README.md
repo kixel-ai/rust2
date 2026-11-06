@@ -34,7 +34,8 @@ none of its own `unsafe`.
 - Decided with the maintainer on 2026-11-01, typed allocation: memory from `alloc` for a
   `Layout::array::<T>(n)`, or an equal layout of `T`'s size and alignment, cast to `*mut T`
   is a fresh JS array of `T`s, which `realloc` copies and `dealloc` frees. Untyped and
-  byte allocation stay refused.
+  byte allocation stay refused. smallvec spills to it, and
+  [`Vec::from_raw_parts` of it](/quest/m3/ts-unsafe/vec-from-raw-parts.md) is left.
 - Decided with the maintainer on 2026-11-02: a raw slice pointer is `rs.RawSlice`, its
   first element's pointer and its length, read through only where Rust reads, and an empty
   slice from a pointer into no array keeps that pointer through every part of it.
@@ -47,6 +48,9 @@ construct still open at `b3df54b6c`, all in m3:
 - ✅ All children in m3. Rejected: spare capacity in m2; smallvec's constructs in m2.
   No child blocks moq: the model's only hits are smallvec's (7 of its 10 refusals), and
   moq drops or binds smallvec.
+- `Vec::from_raw_parts` of a typed allocation is its own child, restored on review of
+  [#618](https://github.com/moq-dev/rust2/pull/618): the spare-capacity child fills an
+  existing `Vec`, not one adopting an allocation.
 - The 2026-11-01 clauses that let a pointer from elsewhere, a `Vec`'s spare capacity, and
   a byte pointer past its view fail loudly at run time are superseded by
   [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md) (2026-11-04, #597): where
@@ -67,6 +71,7 @@ Public API: the translator's output.
 
 - [A Vec's spare capacity](/quest/m3/ts-unsafe/vec-spare-capacity.md) - writes through `as_mut_ptr` past the length, committed by `set_len`, translate for any `Vec<T>`
 - [A raw pointer behind a reference](/quest/m3/ts-unsafe/raw-behind-ref.md) - `&raw const *r` of a value JS copies points where the reference came from
+- [Vec::from_raw_parts of a typed allocation](/quest/m3/ts-unsafe/vec-from-raw-parts.md) - a `Vec` adopts an `alloc`ed array of `T`s, with its length, capacity, and drops
 - [Unions over a type parameter](/quest/m3/ts-unsafe/generic-unions.md) - each instance of a generic union is laid out with its own offsets
 - [Vec::drain from std's MIR](/quest/m3/ts-unsafe/vec-drain-mir.md) - std's `Drain` translates, replacing the runtime's port
 - [BinaryHeap from std's MIR](/quest/m3/ts-unsafe/binary-heap-mir.md) - std's `BinaryHeap` and `PeekMut` translate, replacing the runtime's port
