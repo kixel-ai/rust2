@@ -28,6 +28,11 @@ pub fn run(
 ) -> ExitCode {
 	args.remove(1);
 	let early_dcx = EarlyDiagCtxt::new(ErrorOutputType::default());
+	// Read `@path` argfiles as rustc does, so the job sees the arguments themselves: cargo
+	// passes them in one once they overflow a command line, as many `-L`s do on Windows.
+	let expanded = rustc_driver::args::arg_expand_all(&early_dcx, &args[1..]);
+	args.truncate(1);
+	args.extend(expanded);
 	rustc_driver::init_rustc_env_logger(&early_dcx);
 	rustc_driver::install_ice_hook(BUG_REPORT_URL, |_| ());
 	let job = match job(&mut args) {
