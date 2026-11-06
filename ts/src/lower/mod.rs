@@ -2010,7 +2010,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				}
 				let held = ty::EarlyBinder::bind(tcx, part).instantiate(tcx, args).skip_norm_wip();
 				if let Some(msg) = self.erasure_conflict(held) {
-					return Some(format!("`{ty}` is not supported: its field `{}` is `{held}`: {msg}", field.name));
+					return Some(format!(
+						"`{ty}` is not supported: its field `{}` is `{held}`: {msg}",
+						field.name
+					));
 				}
 				let instance = ty::EarlyBinder::bind(tcx, inner).instantiate(tcx, args).skip_norm_wip();
 				let at = self.erases_to(instance);

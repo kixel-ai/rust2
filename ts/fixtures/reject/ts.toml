@@ -204,6 +204,7 @@ roots = [
     "values::block_cloned",
     "values::dangling_enum",
     "values::float",
+    "values::generic_nested",
     "values::generic_uninit",
     "values::lists",
     "values::manual_impls",

@@ -282,6 +282,8 @@ fixtures/reject/src/values.rs:float+0:14: unsupported type `f16`
 fixtures/reject/src/values.rs:float+0:25: unsupported type `f16`
 fixtures/reject/src/values.rs:float+1:2: a scalar constant of type `f16`
 fixtures/reject/src/values.rs:float+1:2: arithmetic on `f16`
+fixtures/reject/src/values.rs:generic_nested+1:6: `values::Maybe<std::option::Option<()>>` is not supported: its field `value` is `std::option::Option<std::option::Option<()>>`: `Option<std::option::Option<()>>` is not supported: its `None` and `Some` would both be `rs.None`
+fixtures/reject/src/values.rs:generic_nested+1:48: `Option<std::option::Option<()>>` is not supported: its `None` and `Some` would both be `rs.None`
 fixtures/reject/src/values.rs:generic_uninit+1:2: `values::Maybe<std::mem::MaybeUninit<u32>>` is not supported: its field `value` is `std::option::Option<T>`, typed `rs.OptionOf<T>`, which decides by TypeScript's type of `std::mem::MaybeUninit<u32>` otherwise than `std::option::Option<std::mem::MaybeUninit<u32>>` erases
 fixtures/reject/src/values.rs:lists+1:4: `std::collections::LinkedList::<T, A>::retain` with a mutable reference to a value JS copies, which its mapping would copy
 fixtures/reject/src/values.rs:manual_impls+2:11: unsupported call to `<std::mem::ManuallyDrop<u32> as std::fmt::Debug>::fmt`

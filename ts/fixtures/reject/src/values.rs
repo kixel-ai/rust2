@@ -26,6 +26,14 @@ pub fn generic_uninit(value: u32) -> bool {
 	.is_some()
 }
 
+/// A generic type's `Option<T>` of an `Option<()>`, whose `None` and `Some(None)` would
+/// both be `rs.None`.
+pub fn generic_nested(unit: bool) -> bool {
+	let maybe: Maybe<Option<()>> = Maybe { value: None };
+	drop(maybe);
+	unit
+}
+
 /// Parsing an address is not translated yet.
 pub fn addr_parsed(s: &str) -> Result<std::net::Ipv4Addr, std::net::AddrParseError> {
 	s.parse()
