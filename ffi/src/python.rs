@@ -1298,7 +1298,8 @@ impl<'a> Gen<'a> {
 		let mut c_args = Vec::new();
 		let mut py_params = Vec::new();
 		let mut py_args = Vec::new();
-		// Its native function's parameters, declared for type checkers.
+		// Its native function's parameters, declared for type checkers by position, so no
+		// Rust name clashes with the receiver's.
 		let mut native_params = Vec::new();
 		let mut n = 0;
 		let mut c_params = export.call.params.iter();
@@ -1308,7 +1309,7 @@ impl<'a> Gen<'a> {
 			let ty = owner_ty.expect("a method has its type").0.clone();
 			py_params.push("self".to_string());
 			py_args.push("self".to_string());
-			native_params.push(format!("this: {}", self.py_ty(&ty)));
+			native_params.push(format!("p0: {}", self.py_ty(&ty)));
 			match c {
 				Ty::Handle { .. } => {
 					let ty = match receiver {
@@ -1331,7 +1332,7 @@ impl<'a> Gen<'a> {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
 			let name = param_name(&param.name);
 			py_params.push(format!("{name}: {}", self.py_param(&param.ty)));
-			native_params.push(format!("{name}: {}", self.py_param(&param.ty)));
+			native_params.push(format!("p{}: {}", native_params.len(), self.py_param(&param.ty)));
 			py_args.push(name.clone());
 			match (&param.ty, c) {
 				(Type::Closure(lent, ret), Ty::Fn(c_lent, c_ret)) => {
