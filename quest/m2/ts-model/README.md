@@ -37,7 +37,7 @@ Decided with the maintainer on 2026-10-27, from a census of the model's 22 publi
   safe `cfg` twins in moq, so differential tests cover it, and a dependency containing
   `unsafe` is bound by the consumer. These are stopgaps: decided with the maintainer on
   2026-10-27, a stock crate translates with no annotations or config, so
-  [unsafe code the translator can model](/quest/m3/ts-unsafe.md) and
+  [unsafe code the translator can model](/quest/m3/ts-unsafe/README.md) and
   [trait objects](/quest/m3/ts-dyn.md) remove them. Only true platform boundaries (clocks and
   DEFLATE) stay bound.
 - Each child measures this target by the census of `ts/moq/model.toml`, rooted at those
@@ -52,7 +52,7 @@ model, so each child below unblocks all of them together. The rest is moq's, for
 research quest: kio's `log.rs` reads bytes as its segments and retires them through
 crossbeam-epoch, whose tagged pointers and inline closures (36 refusals) translation
 refuses for good, and smallvec's union over a type parameter and raw parts (10) wait on
-[unsafe](/quest/m3/ts-unsafe.md), so both need safe `cfg(rust2_ts)` twins or bindings
+[unsafe](/quest/m3/ts-unsafe/README.md), so both need safe `cfg(rust2_ts)` twins or bindings
 there, as does the `unsafe` slice of `model/frame.rs`'s `Filled`.
 
 Decided with the maintainer on 2026-11-04, from a census at the bumped pin
