@@ -4,6 +4,7 @@ import * as rs from "./rs.ts";
 import { bytesMut, far, reclaims, reads, dyns, late, vecSpares, chunks, writes, edits, owners, chains } from "./buf.ts";
 import * as Owner from "./harness.Owner.ts";
 import { map as maps_map, table, capacity, linked, linkedIters, nested, ownHasher, ownFromIter, equal, defaultHasher } from "./maps.ts";
+import { ranges } from "./ranges.ts";
 
 /**
  * Each case's name and what it runs. The first byte picks one modulo their count, so a
@@ -40,7 +41,7 @@ export function cases(): rs.Vec<[string, (a0: rs.ByteSlice, a1: rs.ByteVec) => u
 		chunks(a014.data, a014.start, a014.length, a114);
 	}] as [string, (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined], ["buf::owners", (a015: rs.ByteSlice, a115: rs.ByteVec): undefined => {
 		owners(a015.data, a015.start, a015.length, a115);
-	}] as [string, (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined]]);
+	}] as [string, (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined], ["ranges", ranges as (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined] as [string, (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined]]);
 }
 
 /** Run one case. */
