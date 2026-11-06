@@ -69,7 +69,6 @@ kept separate since each lands alone; rejected: one quest for `ArrayString`.
 - [Const generic types](/quest/m2/ts-model/const-generics.md) - `ArrayString<CAP>` and other types with const parameters
 - [panic! in a 2015 or 2018 crate](/quest/m2/ts-model/begin-panic.md) - the `begin_panic` mapping keyed by its defining module
 - [A string's bytes through its pointer](/quest/m2/ts-model/str-as-ptr.md) - `str::as_ptr` reads the string's UTF-8
-- [Scheduler hints](/quest/m2/ts-model/scheduler-hints.md) - `thread::yield_now` and `hint::spin_loop` translate to nothing
 - [Slices not yet written](/quest/m2/ts-model/uninit-slices.md) - `Box::new_uninit_slice` of a frame's segment
 
 Public API: the translator's output for moq-net's model.
