@@ -25,6 +25,18 @@ generated packages need it.
 integer is an id unique among live objects, a multiple of the type's alignment, and whatever
 has no exact answer, such as a pointer made back from an address, is refused at translation.
 
+✅ Decided with the maintainer on 2026-11-06, refining that: only an `Arc`'s or `Rc`'s value
+has an address. Its id belongs to the `rs.Arc` allocation and is freed for reuse when its
+strong and weak counts reach 0, exactly as Rust frees it. Reading the address of a type the
+program keeps anywhere else (a borrowed local, a field, a `Box`, a collection, a static), and
+moving one out of its `Arc` (`into_inner`, `try_unwrap`, `unwrap_or_clone`, `make_mut`, a
+whole write through `get_mut`), is refused with a span. Rejected: freeing an id when JS
+collects its object, since GC never runs within one synchronous job, so churning
+allocations could exhaust wasm32's 4 GiB where Rust reuses the freed memory; freeing at each
+type's drop, which changes drop emission and still refuses values never dropped; and a
+counter that never reuses, since `usize` is 32 bits on wasm32, so a long-running program
+would exhaust the address space where Rust reuses freed blocks.
+
 Decided with the maintainer on 2026-10-23, for the subset: `u128` stays, on the
 [wide-integer](/ts/README.md#design) representation.
 
@@ -49,12 +61,12 @@ Decided with the maintainer on 2026-10-27, from a census of the model's 22 publi
 - The end-to-end work stays here: the model's roots, its differential harness, and the
   `frames.ts` workload. moq writes the binding files `model.toml` names, in its own tree.
 
-The census at the pin on 2026-11-04: 69 refusals. `Timestamp` alone refuses nothing, and
+The census at the pin on 2026-11-06: 86 refusals. `Timestamp` alone refuses nothing, and
 the [model fixture](/ts/README.md#tests)'s harness runs it against native moq-net at the
 pin; each case it adds as a type translates. Every other root reaches the rest of the
 model, so each child below unblocks all of them together. The rest is moq's, for its
 research quest: kio's `log.rs` reads bytes as its segments and retires them through
-crossbeam-epoch, whose tagged pointers and inline closures (29 refusals) translation
+crossbeam-epoch, whose tagged pointers and inline closures (30 refusals) translation
 refuses for good, and smallvec's union over a type parameter and raw parts (10) wait on
 [unsafe](/quest/m3/ts-unsafe.md), so both need safe `cfg(rust2_ts)` twins or bindings
 there, as does the `unsafe` slice of `model/frame.rs`'s `Filled`.

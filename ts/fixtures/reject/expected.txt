@@ -2,14 +2,20 @@ no item `bound_ranges` in the crate
 no item `clones::slice_of_object` in the crate
 no item `lopsided` in the crate
 no item `missing` in the crate
+fixtures/reject/src/addresses.rs:borrowed+2:2: the address of a pointer to `addresses::Borrowed`, which a local keeps that the program borrows, drops, or gives std, where only an `Arc`'s or `Rc`'s value has an address JS frees as Rust does
+fixtures/reject/src/addresses.rs:boxed+2:2: the address of a pointer to `addresses::Boxed`, which `std::boxed::Box<addresses::Boxed>` holds, where only an `Arc`'s or `Rc`'s value has an address JS frees as Rust does
 fixtures/reject/src/addresses.rs:cyclic+3:10: `Weak::as_ptr` of a `Weak<addresses::Cyclic>`, which `Arc::new_cyclic` makes and JS has no value of until its closure returns
-fixtures/reject/src/addresses.rs:elements+1:19: the address of a pointer to `addresses::Element`, which `[addresses::Element]` holds many of in one allocation, as far apart as Rust fixes and JS can't show
-fixtures/reject/src/addresses.rs:late+1:2: the address of a pointer to `addresses::Late`, which `addresses::Early` holds at an offset its alignment fixes the address of, which JS can't show
+fixtures/reject/src/addresses.rs:dropped+3:2: the address of a pointer to `addresses::Dropped`, which a local keeps that the program borrows, drops, or gives std, where only an `Arc`'s or `Rc`'s value has an address JS frees as Rust does
+fixtures/reject/src/addresses.rs:elements+1:19: the address of a pointer to `addresses::Element`, which `[addresses::Element]` holds, where only an `Arc`'s or `Rc`'s value has an address JS frees as Rust does
+fixtures/reject/src/addresses.rs:given_at+1:2: the address of a pointer to `addresses::Given`, which JS keeps, as `addresses::given` takes or returns one, where only an `Arc`'s or `Rc`'s value has an address JS frees as Rust does
+fixtures/reject/src/addresses.rs:held+1:2: the address of a pointer to `addresses::Held`, which a static or constant holds, where only an `Arc`'s or `Rc`'s value has an address JS frees as Rust does
+fixtures/reject/src/addresses.rs:inner+1:11: the address of a pointer to `addresses::Inner`, which `std::option::Option<addresses::Inner>` holds, where only an `Arc`'s or `Rc`'s value has an address JS frees as Rust does
+fixtures/reject/src/addresses.rs:inner+2:7: `Arc::into_inner` of an `Arc` or `Rc` of `addresses::Inner`, which moves it out of the allocation whose address the program reads
 fixtures/reject/src/addresses.rs:made+1:5: a pointer made of an address, which JS has no memory at
 fixtures/reject/src/addresses.rs:made+1:20: a pointer made of an address, which JS has no memory at
 fixtures/reject/src/addresses.rs:made+1:54: a cast from `usize` to `*const addresses::Element`, between a pointer and an integer
-fixtures/reject/src/addresses.rs:parts+1:34: the address of a pointer to `addresses::Part`, which `addresses::Pair` holds beside another value whose address is read, in one allocation, as far apart as Rust fixes and JS can't show
-fixtures/reject/src/addresses.rs:parts+1:76: the address of a pointer to `addresses::Part`, which `addresses::Pair` holds beside another value whose address is read, in one allocation, as far apart as Rust fixes and JS can't show
+fixtures/reject/src/addresses.rs:parts+1:34: the address of a pointer to `addresses::Part`, which `addresses::Pair` holds, where only an `Arc`'s or `Rc`'s value has an address JS frees as Rust does
+fixtures/reject/src/addresses.rs:parts+1:76: the address of a pointer to `addresses::Part`, which `addresses::Pair` holds, where only an `Arc`'s or `Rc`'s value has an address JS frees as Rust does
 fixtures/reject/src/addresses.rs:place_keys+1:13: the address of a pointer to `u32`, each a place JS makes of its own
 fixtures/reject/src/addresses.rs:place_keys+1:47: a raw pointer to `u32` behind a reference, which is the object and not where it is kept
 fixtures/reject/src/addresses.rs:place_keys+2:15: comparing pointers to `u32`, each a place JS makes of its own
@@ -21,6 +27,10 @@ fixtures/reject/src/addresses.rs:place_keys+3:50: a raw pointer to `u32` behind 
 fixtures/reject/src/addresses.rs:places+1:2: the address of a pointer to `u32`, each a place JS makes of its own
 fixtures/reject/src/addresses.rs:places+1:35: a raw pointer to a place of `()`, which has no address of its own
 fixtures/reject/src/addresses.rs:places+1:35: the address of a pointer to `()`, which has no bytes and so no address of its own
+fixtures/reject/src/addresses.rs:rewritten+4:2: the address of a pointer to `addresses::Rewritten`, which the crate writes whole in place, moving another into its `Arc`, where only an `Arc`'s or `Rc`'s value has an address JS frees as Rust does
+fixtures/reject/src/addresses.rs:unshared+1:2: `Arc::make_mut` of an `Arc` or `Rc` of `addresses::Unshared`, which moves it out of the allocation whose address the program reads
+fixtures/reject/src/addresses.rs:unwrapped+1:2: unsupported call to `std::sync::Arc::<addresses::Inner>::try_unwrap`
+fixtures/reject/src/addresses.rs:unwrapped+1:55: unsupported call to `std::sync::Arc::<addresses::Unshared>::unwrap_or_clone`
 fixtures/reject/src/alloc.rs:addressed+1:17: the address of a pointer to `u32`, each a place JS makes of its own
 fixtures/reject/src/alloc.rs:alloc_retyped+4:7: memory from `alloc` cast to pointers to `u32` and to `i32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:alloc_retyped+5:11: memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another

@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, addressAt, arrayAssign, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, stringAsBytes, type Vec } from "../rs.ts";
+import { Abort, addressAt, arrayAssign, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, stringAsBytes, unaddress, type Vec } from "../rs.ts";
 import type { Hasher } from "./hash.ts";
 import type { Location } from "./location.ts";
 
@@ -125,8 +125,21 @@ export class Arc<T> implements Disposable {
 	}
 
 	[Symbol.dispose](): void {
-		if (--this.strong === 0) drop(this.value);
+		if (--this.strong === 0) {
+			this.weak++;
+			drop(this.value);
+			release(this);
+		}
 	}
+}
+
+/**
+ * Release the weak count `arc` holds while its last strong one drops its value, as std's
+ * strong `Arc`s share one, freeing the allocation if no `Weak` is left.
+ */
+function release(arc: Arc<unknown>): void {
+	const root = arcRoot(arc);
+	if (--root.weak === 0) unaddress(root.value);
 }
 
 /**
@@ -160,7 +173,11 @@ export class ArcDyn<T, U> implements Disposable {
 	}
 
 	[Symbol.dispose](): void {
-		if (--this.arc.strong === 0) drop(this.value);
+		if (--this.arc.strong === 0) {
+			this.arc.weak++;
+			drop(this.value);
+			release(this.arc);
+		}
 	}
 }
 
@@ -218,7 +235,11 @@ export function arcStrBytes(arc: Arc<string>): Arc<ByteSlice> {
  * by `f`, or not at all without one, as a borrow.
  */
 export function arcDrop<T>(arc: Arc<T>, f?: (value: T) => void): void {
-	if (--arc.strong === 0) f?.(arc.value);
+	if (--arc.strong === 0) {
+		arc.weak++;
+		f?.(arc.value);
+		release(arc);
+	}
 }
 
 /** `Arc::clone`: the same value, counted once more. */
@@ -396,7 +417,7 @@ export class Weak<T> implements Disposable {
 	}
 
 	[Symbol.dispose](): void {
-		this.arc.weak--;
+		if (--this.arc.weak === 0 && this.arc.strong === 0) unaddress(arcRoot(this.arc).value);
 	}
 }
 

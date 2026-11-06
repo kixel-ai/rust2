@@ -1,18 +1,18 @@
 //! Addresses read as integers: `p as usize`, `addr`, and `expose_provenance`.
 //!
 //! Rust promises of an allocation's address only that it is aligned and that no other
-//! live allocation overlaps it, so `rs.addr` numbers each object as an allocator would
-//! place it, on its first read, while JS keeps the object. A pointer's address is then
-//! exact wherever its identity is, as [`Translator::unidentified`] decides for comparing
-//! pointers, with one more condition: Rust fixes how far apart two values in one
-//! allocation are, as the fields of a struct or the elements of a `Vec` are, which the
-//! objects JS keeps apart can't show. So an address is read only of a type no allocation
-//! holds beside another whose address is read, nor holds many of. Nothing makes a pointer
-//! of an address, which JS has no memory at.
+//! live allocation overlaps it. JS frees an object only when it collects it, which no
+//! program can see or time, so the one allocation JS frees as Rust does is an `Arc`'s or
+//! `Rc`'s, when its strong and weak counts reach 0. `rs.addr` numbers each value an `Arc`
+//! or `Rc` holds as an allocator places that allocation, and frees the number with it. A
+//! pointer's address is then exact wherever its identity is, as
+//! [`Translator::unidentified`] decides for comparing pointers, of a type the program keeps
+//! only as an `Arc`'s or `Rc`'s value, which it never moves out of one. Nothing makes a
+//! pointer of an address, which JS has no memory at.
 
-use rustc_abi::{FieldsShape, Variants};
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
-use rustc_middle::ty::layout::{LayoutCx, TyAndLayout};
+use rustc_hir::def_id::DefId;
+use rustc_middle::mir::{self, Operand, Rvalue, StatementKind, TerminatorKind};
 use rustc_middle::ty::{self, Ty, TyCtxt, TypeVisitableExt};
 use rustc_span::Span;
 
@@ -30,11 +30,9 @@ pub fn address<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Sp
 	}
 }
 
-/// The size and alignment `rs.addr` reads the address of a pointer to `ty` by, with the
-/// alignment of where the program keeps one, or the
+/// The size and alignment `rs.addr` reads the address of a pointer to `ty` by, or the
 /// refusal of a type whose address JS has no counterpart of.
-pub fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Result<[Expr; 3], Expr> {
-	let (tcx, env) = (b.t.tcx, b.t.typing_env_pub());
+pub fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Result<[Expr; 2], Expr> {
 	// Only an instance decides what a parameter is, and is refused on its own.
 	if !(b.t.polymorphic() && ty.has_param()) {
 		let why = match b.t.pointee(ty) {
@@ -47,25 +45,14 @@ pub fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Resul
 		if let Some(why) = why {
 			return Err(b.err(span, format!("{what}, {why}")));
 		}
-		let read = b.t.sited(span, what.clone());
+		let read = b.t.sited(span, what);
 		b.t.addresses.push((ty, read.0, read.1));
-		let layout = tcx.layout_of(env.as_query_input(ty)).ok();
-		let size = layout.map_or(0, |l| l.size.bytes());
-		let own = layout.map_or(1, |l| l.align.abi.bytes());
-		return match b.t.alignment(ty) {
-			Ok(kept) => Ok([size, own, kept].map(|n| Expr::lit(n.to_string()))),
-			Err(holder) => Err(b.err(
-				span,
-				format!(
-					"{what}, which `{holder}` holds at an offset its alignment fixes the address of, which JS can't show"
-				),
-			)),
-		};
 	}
+	let (tcx, env) = (b.t.tcx, b.t.typing_env_pub());
 	let layout = tcx.layout_of(env.as_query_input(ty)).ok();
 	let size = layout.map_or(0, |l| l.size.bytes());
 	let align = layout.map_or(1, |l| l.align.abi.bytes());
-	Ok([size, align, align].map(|n| Expr::lit(n.to_string())))
+	Ok([size, align].map(|n| Expr::lit(n.to_string())))
 }
 
 impl<'a, 'tcx> Translator<'a, 'tcx> {
@@ -86,34 +73,19 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			.push((self.tcx.erase_and_anonymize_regions(ty), span, msg));
 	}
 
-	/// The alignment `rs.addr` numbers the addresses of a `ty` by: the largest of its own
-	/// and each allocation's that holds one at an offset that alignment keeps, as an
-	/// `Arc`'s counts before its value do, or else the type of an allocation that holds one
-	/// where its alignment fixes the address apart from it.
-	fn alignment(&mut self, ty: Ty<'tcx>) -> Result<u64, Ty<'tcx>> {
-		let tcx = self.tcx;
-		let ty = super::copy::storage(tcx, ty);
-		if let Some(&found) = self.alignments.get(&ty) {
-			return found;
-		}
-		let env = ty::TypingEnv::fully_monomorphized();
-		let own = tcx.layout_of(env.as_query_input(ty)).map_or(1, |l| l.align.abi.bytes());
-		let mut placed = Placed {
-			tcx,
-			cx: LayoutCx::new(tcx, env),
-			target: ty,
-			own,
-			align: own,
-			roots: self.writes.locals(tcx).map(|t| (t, None)).collect(),
-			seen: FxHashSet::default(),
-		};
-		let found = placed.run();
-		self.alignments.insert(ty, found);
-		found
+	/// Note `name`, such as `into_inner`, moving a `ty` out of its `Arc` or `Rc` at `span`,
+	/// refused once translation settles if the program reads the address of one.
+	pub fn arc_moved(&mut self, ty: Ty<'tcx>, name: &str, span: Span) {
+		let msg = format!(
+			"`{name}` of an `Arc` or `Rc` of `{ty}`, which moves it out of the allocation whose address the program reads"
+		);
+		let (span, msg) = self.sited(span, msg);
+		self.arc_moves.push((super::copy::storage(self.tcx, ty), span, msg));
 	}
 
-	/// Refuse each address read of a type an allocation holds beside another whose address
-	/// is read, or many of, and each `Weak::as_ptr` of a value `Arc::new_cyclic` makes.
+	/// Refuse each address read of a type the program keeps anywhere but as an `Arc`'s or
+	/// `Rc`'s value, or writes whole in place, each move of one out of its `Arc`, and each
+	/// `Weak::as_ptr` of a value `Arc::new_cyclic` makes.
 	pub(super) fn refuse_addresses(&mut self) {
 		for (ty, span, msg) in std::mem::take(&mut self.weak_pointers) {
 			if self.cyclic.contains(&ty) {
@@ -121,308 +93,217 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			}
 		}
 		let reads = std::mem::take(&mut self.addresses);
+		let moves = std::mem::take(&mut self.arc_moves);
 		if reads.is_empty() {
 			return;
 		}
 		let tcx = self.tcx;
 		let addressed: FxHashSet<Ty<'tcx>> = reads.iter().map(|&(ty, ..)| super::copy::storage(tcx, ty)).collect();
-		let shared = shared(tcx, &addressed, self.writes.locals(tcx));
+		let mut walk = Kept::new(tcx, &addressed);
+		walk.roots
+			.extend(self.writes.constants(tcx).map(|ty| (ty, Some(Holder::Static))));
+		walk.roots
+			.extend(self.writes.kept(tcx).map(|ty| (ty, Some(Holder::Local))));
+		// What the outside calls takes and returns whole, which JS keeps where it likes.
+		for instance in &self.roots {
+			let sig = self.sig(instance.def_id(), instance.args);
+			let fn_name = tcx.def_path_str(instance.def_id());
+			walk.roots.extend(
+				sig.inputs_and_output
+					.iter()
+					.map(|ty| (ty, Some(Holder::Js(fn_name.clone())))),
+			);
+		}
+		// Last, so first: what holds one by value names it before the local it came from.
+		walk.roots.extend(self.writes.locals(tcx).map(|ty| (ty, None)));
+		let kept = walk.run();
 		for (ty, span, msg) in reads {
-			if let Some(&(holder, many)) = shared.get(&super::copy::storage(tcx, ty)) {
-				let held = match many {
-					true => "many of",
-					false => "beside another value whose address is read,",
-				};
-				let why = format!(
-					"{msg}, which `{holder}` holds {held} in one allocation, as far apart as Rust fixes and JS can't show"
-				);
-				self.refuse(span, why);
-			}
-		}
-	}
-}
-
-/// Each of `addressed` that an allocation holds beside another, or many of, by the type
-/// it holds them in and whether it holds many, of the allocations `locals` hold or point at.
-fn shared<'tcx>(
-	tcx: TyCtxt<'tcx>,
-	addressed: &FxHashSet<Ty<'tcx>>,
-	locals: impl Iterator<Item = Ty<'tcx>>,
-) -> FxHashMap<Ty<'tcx>, (Ty<'tcx>, bool)> {
-	let mut held = Held::new(tcx, addressed);
-	held.roots.extend(locals.map(|ty| (ty, false)));
-	let mut seen = FxHashSet::default();
-	let mut shared = FxHashMap::default();
-	while let Some((ty, many)) = held.roots.pop() {
-		if !seen.insert((ty, many)) {
-			continue;
-		}
-		let n = held.count(ty);
-		if n < 2 && !(many && n == 1) {
-			continue;
-		}
-		for &each in addressed {
-			let one = FxHashSet::from_iter([each]);
-			if Held::new(tcx, &one).count(ty) > 0 {
-				shared
-					.entry(each)
-					.or_insert((ty, many || matches!(ty.kind(), ty::Array(..) | ty::Slice(_))));
-			}
-		}
-	}
-	shared
-}
-
-/// How many values of the `addressed` types a value holds, and the allocations it points
-/// at, each with whether it may hold many.
-struct Held<'s, 'tcx> {
-	tcx: TyCtxt<'tcx>,
-	addressed: &'s FxHashSet<Ty<'tcx>>,
-	counts: FxHashMap<Ty<'tcx>, u8>,
-	roots: Vec<(Ty<'tcx>, bool)>,
-}
-
-impl<'s, 'tcx> Held<'s, 'tcx> {
-	fn new(tcx: TyCtxt<'tcx>, addressed: &'s FxHashSet<Ty<'tcx>>) -> Self {
-		Held {
-			tcx,
-			addressed,
-			counts: FxHashMap::default(),
-			roots: Vec::new(),
-		}
-	}
-
-	/// How many values of the addressed types a `ty` holds by value, up to 2, which is
-	/// many. A std type holds its type arguments as its kind says, and the crate's own
-	/// raw pointers each point at one value, as no arithmetic moves one to an object.
-	fn count(&mut self, ty: Ty<'tcx>) -> u8 {
-		let tcx = self.tcx;
-		let env = ty::TypingEnv::fully_monomorphized();
-		let ty = tcx
-			.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(ty))
-			.unwrap_or(ty);
-		if let Some(&n) = self.counts.get(&ty) {
-			return n;
-		}
-		self.counts.insert(ty, 0);
-		let own = u8::from(self.addressed.contains(&super::copy::storage(tcx, ty)));
-		let parts = match *ty.kind() {
-			ty::Array(elem, len) => match (len.try_to_target_usize(tcx), self.count(elem)) {
-				(Some(0), _) | (_, 0) => 0,
-				(Some(1), n) => n,
-				_ => 2,
-			},
-			ty::Slice(elem) => 2 * self.count(elem).min(1),
-			ty::Pat(elem, _) => self.count(elem),
-			ty::Tuple(tys) => total(tys.iter().map(|t| self.count(t))),
-			ty::Ref(_, pointee, _) | ty::RawPtr(pointee, _) => self.point(pointee, false),
-			ty::Adt(adt, args) if super::library::is_std(tcx, adt.did()) => match Std::of(tcx, adt.did()) {
-				// An allocation of one value, or a pointer to one.
-				Some(Std::Box | Std::Arc | Std::Weak | Std::NonNull) => self.point(args.type_at(0), false),
-				_ if adt.is_phantom_data() => 0,
-				Some(Std::Range | Std::RangeInclusive) => 2 * self.count(args.type_at(0)).min(1),
-				// Each of its type arguments, at most one of each, by value.
-				_ if by_value(tcx, adt) => total(args.types().map(|t| self.count(t))),
-				// A collection, or anything else of std's, may hold many of each in one
-				// allocation of its own.
-				_ => {
-					self.roots.extend(args.types().map(|t| (t, true)));
-					0
+			let ty = super::copy::storage(tcx, ty);
+			let why = match kept.get(&ty) {
+				Some(Holder::Type(holder)) => format!("which `{holder}` holds"),
+				Some(Holder::Local) => "which a local keeps that the program borrows, drops, or gives std".into(),
+				Some(Holder::Static) => "which a static or constant holds".into(),
+				Some(Holder::Js(name)) => format!("which JS keeps, as `{name}` takes or returns one"),
+				None if self.written_whole(ty) => {
+					"which the crate writes whole in place, moving another into its `Arc`".into()
 				}
-			},
-			ty::Adt(adt, args) => {
-				let mut counts = adt.variants().iter().map(|v| {
-					v.fields
-						.iter()
-						.map(|f| self.count(f.ty(tcx, args).skip_norm_wip()))
-						.collect::<Vec<u8>>()
-				});
-				match adt.is_union() {
-					// Its fields overlap, as an enum's variants do.
-					true => counts.next().into_iter().flatten().max().unwrap_or(0),
-					false => counts.map(|c| total(c.into_iter())).max().unwrap_or(0),
-				}
-			}
-			ty::Closure(_, args) => total(args.as_closure().upvar_tys().iter().map(|t| self.count(t))),
-			ty::CoroutineClosure(_, args) => {
-				total(args.as_coroutine_closure().upvar_tys().iter().map(|t| self.count(t)))
-			}
-			// Its captures, and the locals it keeps across an `.await`.
-			ty::Coroutine(def_id, args) => {
-				let upvars = total(args.as_coroutine().upvar_tys().iter().map(|t| self.count(t)));
-				let saved = match tcx.coroutine_layout(def_id, args) {
-					Ok(layout) => total(layout.field_tys.iter().map(|f| {
-						let saved = ty::EarlyBinder::bind(tcx, f.ty);
-						self.count(tcx.instantiate_and_normalize_erasing_regions(args, env, saved))
-					})),
-					Err(_) => 0,
-				};
-				upvars.saturating_add(saved)
-			}
-			_ => 0,
-		};
-		let n = own.saturating_add(parts).min(2);
-		self.counts.insert(ty, n);
-		n
-	}
-
-	/// A pointer to `pointee`, an allocation of its own, which holds nothing beside the
-	/// pointer: of many where `many` says it may be.
-	fn point(&mut self, pointee: Ty<'tcx>, many: bool) -> u8 {
-		self.roots.push((pointee, many));
-		0
-	}
-}
-
-/// Where the program's allocations hold values of the `target` type: at what offset
-/// from where each starts, aligned as its type is, or as an `Arc`'s allocation is.
-struct Placed<'tcx> {
-	tcx: TyCtxt<'tcx>,
-	cx: LayoutCx<'tcx>,
-	target: Ty<'tcx>,
-	/// The target's own alignment.
-	own: u64,
-	/// The largest alignment of an allocation holding one at an offset it keeps.
-	align: u64,
-	/// The allocations still to look in, each with the offset of its value and the
-	/// alignment of the allocation, if it holds more before it, as an `Arc`'s does.
-	roots: Vec<(Ty<'tcx>, Option<(u64, u64)>)>,
-	seen: FxHashSet<(Ty<'tcx>, Option<(u64, u64)>)>,
-}
-
-impl<'tcx> Placed<'tcx> {
-	fn run(&mut self) -> Result<u64, Ty<'tcx>> {
-		let env = ty::TypingEnv::fully_monomorphized();
-		while let Some((ty, header)) = self.roots.pop() {
-			let ty = (self.tcx)
-				.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(ty))
-				.unwrap_or(ty);
-			if !self.seen.insert((ty, header)) {
-				continue;
-			}
-			// A slice's elements are each at a multiple of their own alignment.
-			let ty = match ty.kind() {
-				ty::Slice(elem) => *elem,
-				ty::Str | ty::Dynamic(..) => continue,
-				_ => ty,
+				None => continue,
 			};
-			let Ok(layout) = self.tcx.layout_of(env.as_query_input(ty)) else {
+			self.refuse(
+				span,
+				format!("{msg}, {why}, where only an `Arc`'s or `Rc`'s value has an address JS frees as Rust does"),
+			);
+		}
+		for (ty, span, msg) in moves {
+			if addressed.contains(&ty) {
+				self.refuse(span, msg);
+			}
+		}
+	}
+}
+
+/// What `body` keeps where the program may read its address, other than as an `Arc`'s or
+/// `Rc`'s value: the type of each local it borrows whole, drops, or gives a function that
+/// `own` says doesn't translate, but `Arc::new`, `Rc::new`, or their `pin`, and apart,
+/// the type each constant reference points at, as a static's is.
+pub(super) fn kept<'tcx>(
+	tcx: TyCtxt<'tcx>,
+	body: &mir::Body<'tcx>,
+	own: &dyn Fn(DefId) -> bool,
+) -> (Vec<Ty<'tcx>>, Vec<Ty<'tcx>>) {
+	let mut locals = FxHashSet::default();
+	let mut constants = Vec::new();
+	let constant = |operand: &Operand<'tcx>, constants: &mut Vec<Ty<'tcx>>| {
+		if let Operand::Constant(c) = operand
+			&& let ty::Ref(_, pointee, _) | ty::RawPtr(pointee, _) = *c.ty().kind()
+		{
+			constants.push(pointee);
+		}
+	};
+	for data in body.basic_blocks.iter() {
+		for stmt in &data.statements {
+			let StatementKind::Assign(assign) = &stmt.kind else {
 				continue;
 			};
-			let (offset, align) = header.unwrap_or((0, layout.align.abi.bytes()));
-			self.visit(layout, offset, align, ty)?;
-		}
-		Ok(self.align)
-	}
-
-	/// Look for the target in `layout`, `offset` bytes into an allocation of `holder`
-	/// aligned to `align`.
-	fn visit(&mut self, layout: TyAndLayout<'tcx>, offset: u64, align: u64, holder: Ty<'tcx>) -> Result<(), Ty<'tcx>> {
-		let tcx = self.tcx;
-		if super::copy::storage(tcx, layout.ty) == self.target && align > self.own {
-			match offset % align {
-				0 => self.align = self.align.max(align),
-				_ => return Err(holder),
+			match &assign.1 {
+				Rvalue::Ref(_, _, place) | Rvalue::RawPtr(_, place) if let Some(local) = place.as_local() => {
+					locals.insert(local);
+				}
+				Rvalue::Use(op, _) | Rvalue::Cast(_, op, _) | Rvalue::UnaryOp(_, op) => constant(op, &mut constants),
+				Rvalue::Aggregate(_, ops) => ops.iter().for_each(|op| constant(op, &mut constants)),
+				_ => {}
 			}
 		}
-		match *layout.ty.kind() {
-			ty::Ref(_, pointee, _) | ty::RawPtr(pointee, _) => self.roots.push((pointee, None)),
-			ty::Adt(adt, args) if super::library::is_std(tcx, adt.did()) => match Std::of(tcx, adt.did()) {
-				Some(Std::Box | Std::NonNull) => self.roots.push((args.type_at(0), None)),
-				// The value after the counts, at an offset of its own alignment.
-				Some(Std::Arc | Std::Weak) => {
-					let value = args.type_at(0);
-					let env = ty::TypingEnv::fully_monomorphized();
-					if let Ok(inner) = tcx.layout_of(env.as_query_input(value)) {
-						let pointer = tcx.data_layout.pointer_size().bytes();
-						let align = inner.align.abi.bytes();
-						let at = (2 * pointer).div_ceil(align) * align;
-						let whole = align.max(tcx.data_layout.pointer_align().abi.bytes());
-						self.roots.push((value, Some((at, whole))));
+		match &data.terminator().kind {
+			TerminatorKind::Drop { place, .. } if let Some(local) = place.as_local() => {
+				locals.insert(local);
+			}
+			TerminatorKind::Call { func, args, .. } => {
+				args.iter().for_each(|arg| constant(&arg.node, &mut constants));
+				let env = ty::TypingEnv::post_analysis(tcx, body.source.def_id());
+				let given = match func.const_fn_def() {
+					Some((def_id, args))
+						if let Ok(Some(instance)) = ty::Instance::try_resolve(tcx, env, def_id, args)
+							&& let ty::InstanceKind::Item(did) = instance.def
+							&& own(did) =>
+					{
+						false
 					}
+					Some((def_id, _)) => !matches!(
+						super::library::key(tcx, def_id),
+						Some((owner, name)) if matches!(owner.as_str(), "Arc" | "Rc") && matches!(name.as_str(), "new" | "pin")
+					),
+					None => true,
+				};
+				if given {
+					locals.extend(args.iter().filter_map(|arg| arg.node.place()?.as_local()));
 				}
-				_ if adt.is_phantom_data() => {}
-				_ if by_value(tcx, adt) => self.fields(layout, offset, align, holder)?,
-				_ => self.roots.extend(args.types().map(|t| (t, None))),
-			},
-			ty::Coroutine(..) => {
-				let held = super::copy::by_value(tcx, ty::TypingEnv::fully_monomorphized(), layout.ty)
-					.any(|part| super::copy::storage(tcx, part) == self.target);
-				if held && layout.align.abi.bytes() > self.own {
-					return Err(layout.ty);
-				}
-				self.fields(layout, offset, align, holder)?;
-			}
-			ty::Adt(..) | ty::Tuple(_) | ty::Array(..) | ty::Closure(..) | ty::CoroutineClosure(..) | ty::Pat(..) => {
-				self.fields(layout, offset, align, holder)?
 			}
 			_ => {}
 		}
-		Ok(())
+	}
+	let locals = locals.into_iter().map(|local| body.local_decls[local].ty).collect();
+	(locals, constants)
+}
+
+/// Where the program keeps a value of an addressed type other than as an `Arc`'s or
+/// `Rc`'s value.
+#[derive(Clone)]
+enum Holder<'tcx> {
+	/// By value in a value of this type: a field, an element, a payload, or a capture, or
+	/// in a `Box` or a collection.
+	Type(Ty<'tcx>),
+	/// In a local a body borrows, drops, or gives std.
+	Local,
+	/// In a static or constant.
+	Static,
+	/// Where JS keeps what the function named takes or returns.
+	Js(String),
+}
+
+/// The addressed types each value a program keeps holds where they have no address JS
+/// frees as Rust does, walking what each holds by value and points at.
+struct Kept<'s, 'tcx> {
+	tcx: TyCtxt<'tcx>,
+	addressed: &'s FxHashSet<Ty<'tcx>>,
+	/// The values still to look in, each with what holds it, or `None` where it is a
+	/// local, an `Arc`'s or `Rc`'s value, or what a reference points at, which hold it
+	/// where an address may be its own.
+	roots: Vec<(Ty<'tcx>, Option<Holder<'tcx>>)>,
+	seen: FxHashSet<Ty<'tcx>>,
+	found: FxHashMap<Ty<'tcx>, Holder<'tcx>>,
+}
+
+impl<'s, 'tcx> Kept<'s, 'tcx> {
+	fn new(tcx: TyCtxt<'tcx>, addressed: &'s FxHashSet<Ty<'tcx>>) -> Self {
+		Kept {
+			tcx,
+			addressed,
+			roots: Vec::new(),
+			seen: FxHashSet::default(),
+			found: FxHashMap::default(),
+		}
 	}
 
-	/// Look in each field of each variant of `layout`, and in the first two elements of an
-	/// array, whose others are where those two say.
-	fn fields(&mut self, layout: TyAndLayout<'tcx>, offset: u64, align: u64, holder: Ty<'tcx>) -> Result<(), Ty<'tcx>> {
-		let variants = match &layout.variants {
-			Variants::Multiple { variants, .. } => {
-				variants.indices().map(|v| layout.for_variant(&self.cx, v)).collect()
+	fn run(mut self) -> FxHashMap<Ty<'tcx>, Holder<'tcx>> {
+		let tcx = self.tcx;
+		let env = ty::TypingEnv::fully_monomorphized();
+		while let Some((ty, holder)) = self.roots.pop() {
+			let ty = tcx
+				.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(ty))
+				.unwrap_or(ty);
+			let ty = tcx.erase_and_anonymize_regions(ty);
+			if let Some(holder) = &holder
+				&& self.addressed.contains(&super::copy::storage(tcx, ty))
+			{
+				self.found
+					.entry(super::copy::storage(tcx, ty))
+					.or_insert_with(|| holder.clone());
 			}
-			Variants::Single { .. } => vec![layout],
-			Variants::Empty => Vec::new(),
-		};
-		for variant in variants {
-			let count = match variant.fields {
-				FieldsShape::Array { count, .. } => count.min(2) as usize,
-				_ => variant.fields.count(),
-			};
-			for i in 0..count {
-				let field = variant.field(&self.cx, i);
-				self.visit(field, offset + variant.fields.offset(i).bytes(), align, holder)?;
+			// What a type holds is held alike wherever the type is.
+			if !self.seen.insert(ty) {
+				continue;
+			}
+			let held = Some(Holder::Type(ty));
+			match *ty.kind() {
+				ty::Array(elem, _) | ty::Slice(elem) | ty::Pat(elem, _) => self.roots.push((elem, held)),
+				ty::Tuple(tys) => self.roots.extend(tys.iter().map(|t| (t, held.clone()))),
+				ty::Ref(_, pointee, _) | ty::RawPtr(pointee, _) => self.roots.push((pointee, None)),
+				ty::Adt(adt, args) if super::library::is_std(tcx, adt.did()) => match Std::of(tcx, adt.did()) {
+					// The value of its own allocation, which JS frees as Rust does.
+					Some(Std::Arc | Std::Weak | Std::NonNull) => self.roots.push((args.type_at(0), None)),
+					_ if adt.is_phantom_data() => {}
+					// Each of its type arguments, by value or in a `Box` or a collection.
+					_ => self.roots.extend(args.types().map(|t| (t, held.clone()))),
+				},
+				ty::Adt(adt, args) => self.roots.extend(
+					adt.all_fields()
+						.map(|f| (f.ty(tcx, args).skip_norm_wip(), held.clone())),
+				),
+				ty::Closure(_, args) => self
+					.roots
+					.extend(args.as_closure().upvar_tys().iter().map(|t| (t, held.clone()))),
+				ty::CoroutineClosure(_, args) => self.roots.extend(
+					args.as_coroutine_closure()
+						.upvar_tys()
+						.iter()
+						.map(|t| (t, held.clone())),
+				),
+				// Its captures, and the locals it keeps across an `.await`.
+				ty::Coroutine(def_id, args) => {
+					self.roots
+						.extend(args.as_coroutine().upvar_tys().iter().map(|t| (t, held.clone())));
+					if let Ok(layout) = tcx.coroutine_layout(def_id, args) {
+						for f in layout.field_tys.iter() {
+							let saved = ty::EarlyBinder::bind(tcx, f.ty);
+							let saved = tcx.instantiate_and_normalize_erasing_regions(args, env, saved);
+							self.roots.push((saved, held.clone()));
+						}
+					}
+				}
+				_ => {}
 			}
 		}
-		Ok(())
+		self.found
 	}
-}
-
-/// Whether std's `adt` holds each of its type arguments by value, at most one of each, as
-/// [`Held::count`] counts them.
-fn by_value(tcx: TyCtxt<'_>, adt: ty::AdtDef<'_>) -> bool {
-	adt.is_unsafe_cell()
-		|| matches!(
-			Std::of(tcx, adt.did()),
-			Some(
-				Std::Option
-					| Std::Result
-					| Std::Cow
-					| Std::Cell
-					| Std::RefCell
-					| Std::Mutex
-					| Std::OnceCell
-					| Std::OnceLock
-					| Std::LazyCell
-					| Std::LazyLock
-					| Std::Poll
-					| Std::Ready
-					| Std::Pin
-					| Std::ControlFlow
-					| Std::Bound
-					| Std::Range
-					| Std::RangeInclusive
-					| Std::RangeTo
-					| Std::RangeFrom
-					| Std::RangeToInclusive
-					| Std::Reverse
-					| Std::Wrapping
-					| Std::Saturating
-					| Std::AssertUnwindSafe
-					| Std::MaybeUninit
-					| Std::ManuallyDrop
-			)
-		)
-}
-
-/// The sum of `counts`, up to many.
-fn total(counts: impl Iterator<Item = u8>) -> u8 {
-	counts.fold(0, u8::saturating_add)
 }

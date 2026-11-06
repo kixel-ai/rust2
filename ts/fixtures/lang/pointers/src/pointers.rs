@@ -2295,17 +2295,18 @@ impl Drop for Keyed {
 }
 
 /// Addresses read as integers, as `addr`, and as a raw pointer's `Hash` and `Ord` read
-/// them: made `Arc`s and dropped ones keyed by address in a B-tree, a hash map, and sets of
-/// pointers, which must stay unique and aligned among those alive, order pointers as their
-/// addresses, and stay a `Weak`'s once its value drops. Only what Rust fixes is written:
-/// equality, counts, alignment, and the order's agreement, never an address itself.
+/// them: made `Arc`s, dropped ones, and freed ones keyed by address in a B-tree, a hash
+/// map, and sets of pointers, which must stay unique and aligned among the allocations a
+/// strong `Arc` or a `Weak` holds, order pointers as their addresses, and stay a `Weak`'s
+/// once its value drops. Only what Rust fixes is written: equality, counts, alignment, and
+/// the order's agreement, never an address itself.
 pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
 	use std::collections::{BTreeSet, HashMap, HashSet};
 	use std::sync::Weak;
 	let registry = Rc::new(std::cell::RefCell::new(BTreeMap::new()));
 	let left = Rc::new(Cell::new(0u8));
 	let align = align_of::<Keyed>();
-	let mut by_address: HashMap<usize, u8> = HashMap::new();
+	let mut held: HashMap<usize, u8> = HashMap::new();
 	let mut live: Vec<Arc<Keyed>> = Vec::new();
 	let mut weaks: Vec<(Weak<Keyed>, usize)> = Vec::new();
 	let mut ordered: BTreeSet<*const Keyed> = BTreeSet::new();
@@ -2332,7 +2333,8 @@ pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
 				let p = Arc::as_ptr(&keyed);
 				let address = p as usize;
 				out.push(u8::from(address % align == 0 && address != 0 && p.addr() == address));
-				out.push(u8::from(by_address.insert(address, keyed.id).is_none()));
+				// Apart from every allocation still held, a freed one's included.
+				out.push(u8::from(held.insert(address, keyed.id).is_none()));
 				registry
 					.borrow_mut()
 					.insert((keyed.id % 4, p.expose_provenance()), keyed.id);
@@ -2343,8 +2345,15 @@ pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
 			1 if !live.is_empty() => {
 				let keyed = live.remove(usize::from(byte / 4) % live.len());
 				let p = Arc::as_ptr(&keyed);
-				out.push(u8::from(by_address.remove(&(p as usize)) == Some(keyed.id)));
+				let address = p as usize;
+				out.push(u8::from(held.get(&address) == Some(&keyed.id)));
 				out.push(u8::from(ordered.remove(&p) && hashed.remove(&p)));
+				drop(keyed);
+				// Its `Weak` too, which frees the allocation for another to reuse.
+				if byte & 4 != 0 {
+					weaks.retain(|(_, at)| *at != address);
+					held.remove(&address);
+				}
 			}
 			// A `Weak` keeps its address once its value drops, as it keeps the allocation.
 			2 => {
@@ -2352,7 +2361,7 @@ pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
 					let at = weak.as_ptr() as usize;
 					let alive = weak.upgrade().is_some_and(|keyed| Arc::as_ptr(&keyed) as usize == at);
 					out.push(u8::from(at == *address) + 2 * u8::from(alive));
-					out.push(u8::from(by_address.contains_key(&at) == alive));
+					out.push(u8::from(held.contains_key(&at)));
 				}
 			}
 			_ => {
@@ -2370,27 +2379,20 @@ pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
 				for group in 0..4u8 {
 					out.push(registry.range((group, 0)..(group + 1, 0)).count() as u8);
 				}
-				out.push(u8::from(
-					registry.values().all(|id| by_address.values().any(|live| live == id)),
-				));
+				out.push(u8::from(registry.values().all(|id| held.values().any(|h| h == id))));
 			}
 		}
 	}
-	// Aligned as what holds them: an `Arc`'s counts, and a struct more aligned than its parts.
+	// A value of no alignment of its own, aligned as the counts before it in its `Arc`.
 	let small = [Arc::new(Small(1, 2)), Arc::new(Small(3, 4))];
-	let first = Aligned(Small(5, 6));
-	let second = Aligned(Small(7, 8));
-	for (arc, holder) in small.iter().zip([&first, &second]) {
-		let (shared, held) = (Arc::as_ptr(arc).addr(), ptr::from_ref(&holder.0).addr());
-		out.push(u8::from(
-			NonNull::<Small>::dangling().as_ptr().addr() == align_of::<Small>(),
-		));
+	for arc in &small {
 		out.extend([
-			u8::from(shared % align_of::<usize>() == 0),
-			u8::from(held % 64 == 0),
-			arc.0 ^ holder.0.1,
+			u8::from(Arc::as_ptr(arc).addr() % align_of::<usize>() == 0),
+			u8::from(NonNull::<Small>::dangling().as_ptr().addr() == align_of::<Small>()),
+			arc.0 ^ arc.1,
 		]);
 	}
+	out.push(u8::from(Arc::as_ptr(&small[0]) != Arc::as_ptr(&small[1])));
 	out.extend([
 		left.get(),
 		weaks.iter().filter(|(weak, _)| weak.upgrade().is_some()).count() as u8,
@@ -2399,12 +2401,8 @@ pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
 	out.extend([left.get(), u8::from(registry.borrow().is_empty())]);
 }
 
-/// A value of no alignment of its own, whose address an `Arc` or a struct aligns.
+/// A value of no alignment of its own, whose address its `Arc` aligns.
 struct Small(u8, u8);
-
-/// A struct more aligned than what it holds.
-#[repr(C, align(64))]
-struct Aligned(Small);
 
 /// Pointers to arrays of other values than bytes, made of the array, of references to it
 /// and its parts, by `first_chunk`, `split_first_chunk`, a subslice pattern, and

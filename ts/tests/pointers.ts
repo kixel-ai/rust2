@@ -131,3 +131,32 @@ const flagAt = rs.arcRaw(flag, rs.arcPlace(flag), "Arc");
 assert.equal(rs.arcErase(rs.ptrAdd(rs.ptrAdd(flagAt, 1), -1), "bool", 1), flagAt);
 assert.equal(rs.arcErase(rs.NULL, "bool", 1), rs.NULL);
 assert.throws(() => rs.arcErase({ v: false }, "bool", 1), /only an `Arc`'s or `Rc`'s raw pointer keeps the place of/);
+
+// An `Arc`'s value's address, freed with the allocation once its strong and weak counts
+// reach 0, which the next of its size reuses, as an allocator does, so churning far past
+// wasm32's 4 GiB never runs out. One a `Weak` holds stays apart from every other.
+const MIB = 2 ** 20;
+const churned = new rs.Arc({ n: 0 });
+const churnedAt = rs.addr(churned.value, MIB, 8);
+churned[Symbol.dispose]();
+for (let n = 1; n <= 10_000; n++) {
+	const arc = new rs.Arc({ n });
+	assert.equal(rs.addr(arc.value, MIB, 8), churnedAt);
+	arc[Symbol.dispose]();
+}
+const weakly = new rs.Arc({ n: 0 });
+const weak = new rs.Weak(weakly);
+const weaklyAt = rs.addr(weakly.value, MIB, 8);
+weakly[Symbol.dispose]();
+const beside = new rs.Arc({ n: 1 });
+assert.notEqual(rs.addr(beside.value, MIB, 8), weaklyAt);
+assert.equal(rs.addr(rs.weakAsPtr(weak), MIB, 8), weaklyAt);
+weak[Symbol.dispose]();
+assert.equal(rs.addr(new rs.Arc({ n: 2 }).value, MIB, 8), weaklyAt);
+// A value whose allocation was freed before its address was read: a pointer to it has
+// one, which the next allocation may reuse.
+const unread = new rs.Arc({ n: 3 });
+unread[Symbol.dispose]();
+const unreadAt = rs.addr(unread.value, MIB, 8);
+assert.equal(rs.addr(new rs.Arc({ n: 4 }).value, MIB, 8), unreadAt);
+assert.equal(rs.addr(unread.value, MIB, 8), unreadAt);

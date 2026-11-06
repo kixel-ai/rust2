@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 
-/** A value of no alignment of its own, whose address an `Arc` or a struct aligns. */
+/** A value of no alignment of its own, whose address its `Arc` aligns. */
 export interface Small {
 	_0: rs.u8;
 	_1: rs.u8;

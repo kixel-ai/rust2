@@ -163,6 +163,7 @@ pub fn call<'tcx>(
 			match name {
 				"get_mut" => Expr::rs(format!("arcGetMut{place}"), args),
 				_ => {
+					b.t.arc_moved(value, &format!("{owner}::make_mut"), call.span);
 					let cloned = shared_box(tcx, value).unwrap_or(value);
 					let clone = super::collections::clone_fn(b, cloned, call.span);
 					let arc = b.t.sig(call.def_id, call.args).inputs()[0].peel_refs();
@@ -221,6 +222,7 @@ pub fn call<'tcx>(
 		("Arc" | "Rc", "downgrade") | ("Weak", "new") => Expr::New(Box::new(Expr::Rs("Weak".into())), args),
 		// The value of the last strong one, which its count says, and else its `None`.
 		("Arc" | "Rc", "into_inner") => {
+			b.t.arc_moved(call.args.type_at(0), &format!("{owner}::into_inner"), call.span);
 			let none = b.t.none_arg(call.args.type_at(0));
 			Expr::rs("arcIntoInner", args.into_iter().chain(none).collect())
 		}

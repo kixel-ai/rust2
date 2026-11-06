@@ -313,46 +313,66 @@ function nowhere(): never {
 	throw new Error("rust2-ts: a read or write through a pointer to no memory");
 }
 
-/** The address `addr` gave each object, while JS keeps it. */
+/** The address `addr` gave each `Arc`'s or `Rc`'s value, or `UNREAD` once freed before any. */
 const ADDRESSED = /* @__PURE__ */ new WeakMap<object, number>();
 
-/** The addresses of objects JS no longer keeps, by the size and alignment of their blocks. */
-const FREED = /* @__PURE__ */ new Map<string, number[]>();
+/** What `ADDRESSED` holds for a value whose allocation was freed before its address was read. */
+const UNREAD = -1;
 
-/** Free an object's address once JS no longer keeps it, as an allocator reuses a freed block. */
-const UNADDRESSED = /* @__PURE__ */ new FinalizationRegistry<[string, number]>(([block, at]) => {
-	let free = FREED.get(block);
-	if (free === undefined) FREED.set(block, (free = []));
-	free.push(at);
-});
+/** The block each address `addr` gave is in, by its size and alignment, and where it starts, while its allocation lives. */
+const BLOCKS = /* @__PURE__ */ new Map<number, [string, number]>();
+
+/** The addresses of freed allocations, by the size and alignment of their blocks. */
+const FREED = /* @__PURE__ */ new Map<string, number[]>();
 
 /** Where the next new block starts: past wasm32's first page, as a heap is. */
 let brk = 0x10000;
 
+/** Whether `addr` has given an address, after which freeing an allocation frees its own. */
+let addressing = false;
+
 /**
- * `p as usize`, of a pointer to a value of `size` bytes aligned to `align`, which the
- * program keeps where `kept` aligns it: null's 0, a dangling pointer's `align`, an
- * address no memory is at, or else the object's own, as an allocator places each
- * allocation: a multiple of `kept`, in a block no other object JS keeps overlaps, with
- * room before it for an `Arc`'s counts. Running out of wasm32's addresses aborts, as a
- * failed allocation does.
+ * `p as usize`, of a pointer to a value of `size` bytes aligned to `align`: null's 0, a
+ * dangling pointer's `align`, an address no memory is at, or else that of the value's
+ * `Arc` or `Rc` allocation, which `unaddress` frees, as an allocator places it: after its
+ * two counts, in a block no live allocation's overlaps, reusing a freed one. Running out
+ * of wasm32's addresses aborts, as a failed allocation does.
  */
-export function addr(p: object, size: number, align: number, kept: number): number {
+export function addr(p: object, size: number, align: number): number {
 	if (p === NULL) return 0;
 	if (p === DANGLING) return align;
 	if (p instanceof Address) return p.addr;
-	let at = ADDRESSED.get(p);
-	if (at !== undefined) return at;
-	const block = `${size}:${kept}`;
-	at = FREED.get(block)?.pop();
-	if (at === undefined) {
-		at = Math.ceil((brk + Math.max(16, kept)) / kept) * kept;
-		if (at + size > 2 ** 32) throw new Abort(`memory allocation of ${size} bytes failed`);
-		brk = at + size;
+	const at = ADDRESSED.get(p);
+	if (at !== undefined && at !== UNREAD) return at;
+	addressing = true;
+	// The two `usize` counts, then the value at a multiple of its alignment.
+	const head = Math.ceil(8 / align) * align;
+	const block = `${head + size}:${Math.max(align, 4)}`;
+	let start = FREED.get(block)?.pop();
+	if (start === undefined) {
+		start = Math.ceil(brk / Math.max(align, 4)) * Math.max(align, 4);
+		if (start + head + size > 2 ** 32) throw new Abort(`memory allocation of ${size} bytes failed`);
+		brk = start + head + size;
 	}
-	ADDRESSED.set(p, at);
-	UNADDRESSED.register(p, [block, at]);
-	return at;
+	ADDRESSED.set(p, start + head);
+	BLOCKS.set(start + head, [block, start]);
+	// A pointer to a freed allocation keeps the address it had, which another may reuse.
+	if (at === UNREAD) unaddress(p);
+	return start + head;
+}
+
+/** Free the address of `value`, whose `Arc` or `Rc` allocation Rust frees now. */
+export function unaddress(value: unknown): void {
+	if (!addressing || (typeof value !== "object" && typeof value !== "function") || value === null) return;
+	const at = ADDRESSED.get(value);
+	if (at === undefined) return void ADDRESSED.set(value, UNREAD);
+	const held = BLOCKS.get(at);
+	if (held === undefined) return;
+	BLOCKS.delete(at);
+	const [block, start] = held;
+	let free = FREED.get(block);
+	if (free === undefined) FREED.set(block, (free = []));
+	free.push(start);
 }
 
 /** The array of one element that a pointer to a value in no array points into, by its place. */

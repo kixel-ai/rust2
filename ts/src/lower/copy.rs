@@ -92,6 +92,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				.is_some_and(|holders| writes.contains(holders, false, self.tcx, ty))
 	}
 
+	/// Whether the crate may write a whole `ty`, or a value holding one, in place.
+	pub fn written_whole(&self, ty: Ty<'tcx>) -> bool {
+		self.writes.contains(&self.writes.replaced, true, self.tcx, ty)
+	}
+
 	/// Whether a `ty` is, or holds by value at any depth, a part that `object` says is a JS
 	/// object, into which a raw pointer may be made through a reference that the crate's
 	/// code can't follow back to where it was borrowed, by any body or by `body` alone. A
@@ -470,6 +475,11 @@ pub struct Writes<'tcx> {
 	/// The type of each local of each body read, by that body: every allocation the
 	/// crate's code makes is one, or what one points at.
 	locals: FxIndexSet<(DefId, Ty<'tcx>)>,
+	/// The locals each body read keeps where their address may be read, by that body, as
+	/// [`super::address::kept`] finds them.
+	kept: FxIndexSet<(DefId, Ty<'tcx>)>,
+	/// What the constant references of each body read point at, by that body.
+	constants: FxIndexSet<(DefId, Ty<'tcx>)>,
 }
 
 /// Types, each without type parameters or over those of the body naming it.
@@ -519,6 +529,13 @@ impl<'tcx> Writes<'tcx> {
 					.locals
 					.insert((def_id, tcx.erase_and_anonymize_regions(local.ty)));
 			}
+			let (kept, constants) = super::address::kept(tcx, body, own);
+			for ty in kept {
+				writes.kept.insert((def_id, tcx.erase_and_anonymize_regions(ty)));
+			}
+			for ty in constants {
+				writes.constants.insert((def_id, tcx.erase_and_anonymize_regions(ty)));
+			}
 			// Another crate lists none of its closures' bodies.
 			for local in body.local_decls.iter() {
 				queue.extend(local.ty.walk().filter_map(|arg| match *arg.as_type()?.kind() {
@@ -564,8 +581,29 @@ impl<'tcx> Writes<'tcx> {
 	/// The type of each local of the bodies read, one over type parameters for each
 	/// instance translation reached of its body.
 	pub fn locals(&self, tcx: TyCtxt<'tcx>) -> impl Iterator<Item = Ty<'tcx>> {
+		self.instances(tcx, &self.locals)
+	}
+
+	/// The locals the bodies read keep where their address may be read, as
+	/// [`Self::locals`] are.
+	pub fn kept(&self, tcx: TyCtxt<'tcx>) -> impl Iterator<Item = Ty<'tcx>> {
+		self.instances(tcx, &self.kept)
+	}
+
+	/// What the constant references of the bodies read point at, as [`Self::locals`] are.
+	pub fn constants(&self, tcx: TyCtxt<'tcx>) -> impl Iterator<Item = Ty<'tcx>> {
+		self.instances(tcx, &self.constants)
+	}
+
+	/// Each of `types`, by the body naming it, one over type parameters for each instance
+	/// translation reached of its body.
+	fn instances<'s>(
+		&'s self,
+		tcx: TyCtxt<'tcx>,
+		types: &'s FxIndexSet<(DefId, Ty<'tcx>)>,
+	) -> impl Iterator<Item = Ty<'tcx>> + 's {
 		let env = ty::TypingEnv::fully_monomorphized();
-		self.locals.iter().flat_map(move |&(def_id, ty)| {
+		types.iter().flat_map(move |&(def_id, ty)| {
 			let instances: Vec<Ty<'tcx>> = match ty.has_param() {
 				false => vec![ty],
 				true => (self.reached.get(&def_id).into_iter().flatten())

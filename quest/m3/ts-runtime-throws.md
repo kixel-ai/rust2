@@ -28,7 +28,7 @@ JS keeps in two arrays, `Bytes::slice_ref` of other storage, `alloc`'s bytes rea
 values, ranges stepped without their type, and fmt widths written as a placeholder.
 `git grep 'rust2-ts: ' ts/runtime` lists them; classify each before fixing. The pointer
 comparisons [#584](https://github.com/moq-dev/rust2/pull/584) refuses at translation are
-in scope too, through [addresses](/quest/m2/ts-model/addresses.md)' identities.
+in scope too.
 
 Public API: the translator's output, and which crates translate.
 
