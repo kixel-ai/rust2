@@ -2341,6 +2341,22 @@ pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
 				out.push(u8::from(ordered.insert(p) && hashed.insert(p)));
 				weaks.push((Arc::downgrade(&keyed), address));
 				live.push(keyed);
+				// Two made and freed together, read only after: apart from each other and
+				// from every allocation held while they lived.
+				if byte & 4 != 0 {
+					let make = |id: u8| {
+						Arc::new(Keyed {
+							id,
+							registry: Rc::clone(&registry),
+							left: Rc::clone(&left),
+						})
+					};
+					let pair = [make(i as u8), make(i as u8)];
+					let pointers = pair.each_ref().map(Arc::as_ptr);
+					drop(pair);
+					let [a, b] = pointers.map(|p| p as usize);
+					out.push(u8::from(a != b && !held.contains_key(&a) && !held.contains_key(&b)));
+				}
 			}
 			1 if !live.is_empty() => {
 				let keyed = live.remove(usize::from(byte / 4) % live.len());

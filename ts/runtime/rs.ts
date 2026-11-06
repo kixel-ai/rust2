@@ -313,51 +313,53 @@ function nowhere(): never {
 	throw new Error("rust2-ts: a read or write through a pointer to no memory");
 }
 
-/** The address `addr` gave each `Arc`'s or `Rc`'s value, or `UNREAD` once freed before any. */
+/** The address of each `Arc`'s or `Rc`'s value that `addrNew` gave one. */
 const ADDRESSED = /* @__PURE__ */ new WeakMap<object, number>();
 
-/** What `ADDRESSED` holds for a value whose allocation was freed before its address was read. */
-const UNREAD = -1;
-
-/** The block each address `addr` gave is in, by its size and alignment, and where it starts, while its allocation lives. */
+/** The block each address `addrNew` gave is in, by its size and alignment, and where it starts, while its allocation lives. */
 const BLOCKS = /* @__PURE__ */ new Map<number, [string, number]>();
 
-/** The addresses of freed allocations, by the size and alignment of their blocks. */
+/** The starts of freed blocks, by their size and alignment. */
 const FREED = /* @__PURE__ */ new Map<string, number[]>();
 
 /** Where the next new block starts: past wasm32's first page, as a heap is. */
 let brk = 0x10000;
 
-/** Whether `addr` has given an address, after which freeing an allocation frees its own. */
+/** Whether `addrNew` has given an address, after which freeing an allocation frees its own. */
 let addressing = false;
 
 /**
  * `p as usize`, of a pointer to a value of `size` bytes aligned to `align`: null's 0, a
- * dangling pointer's `align`, an address no memory is at, or else that of the value's
- * `Arc` or `Rc` allocation, which `unaddress` frees, as an allocator places it: after its
- * two counts, in a block no live allocation's overlaps, reusing a freed one. Running out
- * of wasm32's addresses aborts, as a failed allocation does.
+ * dangling pointer's `align`, an address no memory is at, or else that of the `Arc`'s or
+ * `Rc`'s value it points at, which the allocation keeps once freed, as a pointer to it
+ * does in Rust.
  */
 export function addr(p: object, size: number, align: number): number {
 	if (p === NULL) return 0;
 	if (p === DANGLING) return align;
 	if (p instanceof Address) return p.addr;
-	const at = ADDRESSED.get(p);
-	if (at !== undefined && at !== UNREAD) return at;
+	return ADDRESSED.get(p) ?? addrNew(p, size, align);
+}
+
+/**
+ * Give `value`, a new `Arc`'s or `Rc`'s of `size` bytes aligned to `align`, its address,
+ * as an allocator places the allocation: after its two counts, at a multiple of `align`,
+ * in a block no live allocation's overlaps, reusing a freed one, which `unaddress` frees.
+ * Running out of wasm32's addresses aborts, as a failed allocation does.
+ */
+export function addrNew(value: object, size: number, align: number): number {
 	addressing = true;
-	// The two `usize` counts, then the value at a multiple of its alignment.
 	const head = Math.ceil(8 / align) * align;
-	const block = `${head + size}:${Math.max(align, 4)}`;
+	const whole = Math.max(align, 4);
+	const block = `${head + size}:${whole}`;
 	let start = FREED.get(block)?.pop();
 	if (start === undefined) {
-		start = Math.ceil(brk / Math.max(align, 4)) * Math.max(align, 4);
+		start = Math.ceil(brk / whole) * whole;
 		if (start + head + size > 2 ** 32) throw new Abort(`memory allocation of ${size} bytes failed`);
 		brk = start + head + size;
 	}
-	ADDRESSED.set(p, start + head);
+	ADDRESSED.set(value, start + head);
 	BLOCKS.set(start + head, [block, start]);
-	// A pointer to a freed allocation keeps the address it had, which another may reuse.
-	if (at === UNREAD) unaddress(p);
 	return start + head;
 }
 
@@ -365,10 +367,9 @@ export function addr(p: object, size: number, align: number): number {
 export function unaddress(value: unknown): void {
 	if (!addressing || (typeof value !== "object" && typeof value !== "function") || value === null) return;
 	const at = ADDRESSED.get(value);
-	if (at === undefined) return void ADDRESSED.set(value, UNREAD);
-	const held = BLOCKS.get(at);
+	const held = at === undefined ? undefined : BLOCKS.get(at);
 	if (held === undefined) return;
-	BLOCKS.delete(at);
+	BLOCKS.delete(at as number);
 	const [block, start] = held;
 	let free = FREED.get(block);
 	if (free === undefined) FREED.set(block, (free = []));

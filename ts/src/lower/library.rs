@@ -1665,7 +1665,8 @@ fn mapping<'tcx>(
 					|| args.type_at(0).is_sized(tcx, b.t.typing_env()))
 				&& !super::byte_array(args.type_at(0))
 			{
-				return Some(Expr::New(Box::new(Expr::Rs("Arc".into())), vec![value]));
+				let arc = Expr::New(Box::new(Expr::Rs("Arc".into())), vec![value]);
+				return Some(super::address::numbered(b, arc, args.type_at(0)));
 			}
 			// An error, boxed as a `dyn Error`, which `?` converts it by. One of a string boxes
 			// std's own private error type.
@@ -4142,7 +4143,10 @@ pub fn default_value<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span,
 				}
 			}
 			Std::Box | Std::Wrapping | Std::Saturating => part(b, args.type_at(0), out),
-			Std::Arc => Expr::New(Box::new(Expr::Rs("Arc".into())), vec![part(b, args.type_at(0), out)]),
+			Std::Arc => {
+				let arc = Expr::New(Box::new(Expr::Rs("Arc".into())), vec![part(b, args.type_at(0), out)]);
+				super::address::numbered(b, arc, args.type_at(0))
+			}
 			Std::Mutex => Expr::New(Box::new(Expr::Rs("Mutex".into())), vec![part(b, args.type_at(0), out)]),
 			Std::RefCell => Expr::New(
 				Box::new(Expr::Rs("RefCell".into())),

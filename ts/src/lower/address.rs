@@ -47,12 +47,30 @@ pub fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Resul
 		}
 		let read = b.t.sited(span, what);
 		b.t.addresses.push((ty, read.0, read.1));
+		let stored = super::copy::storage(b.t.tcx, ty);
+		b.t.addressing.insert(stored);
 	}
+	Ok(layout(b, ty))
+}
+
+/// The size and alignment of a `ty`, as `rs.addr` takes them.
+fn layout<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> [Expr; 2] {
 	let (tcx, env) = (b.t.tcx, b.t.typing_env_pub());
 	let layout = tcx.layout_of(env.as_query_input(ty)).ok();
 	let size = layout.map_or(0, |l| l.size.bytes());
 	let align = layout.map_or(1, |l| l.align.abi.bytes());
-	Ok([size, align].map(|n| Expr::lit(n.to_string())))
+	[size, align].map(|n| Expr::lit(n.to_string()))
+}
+
+/// `arc`, a new `Arc` or `Rc` of a `value`, given its address as it is made where the
+/// runs before read the address of one, as an allocator places an allocation, so
+/// allocations whose lives overlap have addresses apart even where a pointer is read only
+/// once its allocation is freed.
+pub fn numbered<'tcx>(b: &Body<'_, '_, 'tcx>, arc: Expr, value: Ty<'tcx>) -> Expr {
+	match b.t.addressed.contains(&super::copy::storage(b.t.tcx, value)) {
+		true => Expr::rs("arcAt", [arc].into_iter().chain(layout(b, value)).collect()),
+		false => arc,
+	}
 }
 
 impl<'a, 'tcx> Translator<'a, 'tcx> {

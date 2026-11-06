@@ -137,13 +137,15 @@ pub fn call<'tcx>(
 	// A clone of a reference is that reference, not a clone of what it points at.
 	let owned_std = self_std.filter(|_| self_ty.is_some_and(|t| !t.is_ref()));
 	let e = match (owner, name) {
-		("Arc" | "Rc", "new") => Expr::New(Box::new(Expr::Rs("Arc".into())), args),
+		// JS erases the pin.
+		("Arc" | "Rc", "new" | "pin") => {
+			let arc = Expr::New(Box::new(Expr::Rs("Arc".into())), args);
+			super::address::numbered(b, arc, call.args.type_at(0))
+		}
 		("Arc" | "Rc", "new_cyclic") => {
 			b.t.cyclic(call.args.type_at(0));
-			Expr::rs("arcNewCyclic", args)
+			super::address::numbered(b, Expr::rs("arcNewCyclic", args), call.args.type_at(0))
 		}
-		// JS erases the pin.
-		("Arc" | "Rc", "pin") => Expr::New(Box::new(Expr::Rs("Arc".into())), args),
 		// The object of one of a trait object, which every pointer to it shares. A `dyn Any`'s
 		// may hold a copy of a value JS copies, which `Arc::downcast` would not see written.
 		("Arc" | "Rc", "get_mut")

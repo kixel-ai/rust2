@@ -267,6 +267,11 @@ pub struct Translator<'a, 'tcx> {
 	compared: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
 	/// Those this run compared.
 	comparing: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
+	/// The types whose addresses the runs before read, by their storage, whose `Arc`s are
+	/// given their addresses as they are made.
+	addressed: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
+	/// Those this run read.
+	addressing: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
 	/// Whether the runs before reached a `panic::set_hook`, so every panic carries the
 	/// `rs.Location` its hook reads.
 	pub hooked: bool,
@@ -422,6 +427,21 @@ impl Erased {
 	}
 }
 
+/// What the runs before found, which the next judges by.
+#[derive(Default)]
+struct Before<'tcx> {
+	/// The instances whose bodies' writes they read.
+	read: rustc_data_structures::fx::FxHashSet<Instance<'tcx>>,
+	/// The closures cloned where they can't share.
+	cloned: rustc_data_structures::fx::FxHashSet<DefId>,
+	/// The types whose pointers they compared.
+	compared: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
+	/// The types whose addresses they read.
+	addressed: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
+	/// Whether they reached a `panic::set_hook`.
+	hooked: bool,
+}
+
 impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// A translator that has run `reach`, with what it copies and refuses settled. Whether
 	/// code writes into a type in place decides that, and of another crate's code, only what
@@ -430,7 +450,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// writes it didn't read, or an instance of one writing a type parameter that it didn't
 	/// judge by. A closure's clone may come before or after the closure is made, which
 	/// makes it as its clones need, so it runs again too when it reaches a new one, and a
-	/// comparison of pointers may come before or after the borrows and copies it decides.
+	/// comparison of pointers may come before or after the borrows and copies it decides,
+	/// and an address read before or after the `Arc`s it numbers as they are made.
 	/// Once it reaches a `panic::set_hook`, it runs again with every panic located.
 	fn settle<R>(
 		tcx: TyCtxt<'tcx>,
@@ -438,12 +459,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		census: bool,
 		mut reach: impl FnMut(&mut Self) -> R,
 	) -> Option<(Self, R)> {
-		let mut read = rustc_data_structures::fx::FxHashSet::default();
-		let mut cloned = rustc_data_structures::fx::FxHashSet::default();
-		let mut compared = rustc_data_structures::fx::FxHashSet::default();
-		let mut hooked = false;
+		let mut before = Before::default();
 		loop {
-			let mut t = Self::new(tcx, config, census, read, cloned, compared, hooked)?;
+			let mut t = Self::new(tcx, config, census, before)?;
 			t.bind();
 			let out = reach(&mut t);
 			let reached: Vec<Instance<'tcx>> = t
@@ -456,19 +474,29 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			if reached.is_empty()
 				&& t.cloning.is_subset(&t.cloned)
 				&& t.comparing.is_subset(&t.compared)
+				&& t.addressing.is_subset(&t.addressed)
 				&& (t.hooked || !t.hooking)
 			{
 				t.refuse_capacity_reads();
 				t.refuse_addresses();
 				return Some((t, out));
 			}
-			read = std::mem::take(&mut t.read);
-			read.extend(reached);
-			cloned = std::mem::take(&mut t.cloned);
-			cloned.extend(t.cloning.drain());
-			compared = std::mem::take(&mut t.compared);
-			compared.extend(t.comparing.drain());
-			hooked |= t.hooking;
+			before = Before {
+				read: std::mem::take(&mut t.read).into_iter().chain(reached).collect(),
+				cloned: std::mem::take(&mut t.cloned)
+					.into_iter()
+					.chain(t.cloning.drain())
+					.collect(),
+				compared: std::mem::take(&mut t.compared)
+					.into_iter()
+					.chain(t.comparing.drain())
+					.collect(),
+				addressed: std::mem::take(&mut t.addressed)
+					.into_iter()
+					.chain(t.addressing.drain())
+					.collect(),
+				hooked: t.hooked || t.hooking,
+			};
 		}
 	}
 
@@ -488,15 +516,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		self.cloned.contains(&def_id)
 	}
 
-	fn new(
-		tcx: TyCtxt<'tcx>,
-		config: &'a Config,
-		census: bool,
-		read: rustc_data_structures::fx::FxHashSet<Instance<'tcx>>,
-		cloned: rustc_data_structures::fx::FxHashSet<DefId>,
-		compared: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
-		hooked: bool,
-	) -> Option<Self> {
+	fn new(tcx: TyCtxt<'tcx>, config: &'a Config, census: bool, before: Before<'tcx>) -> Option<Self> {
+		let Before {
+			read,
+			cloned,
+			compared,
+			addressed,
+			hooked,
+		} = before;
 		if tcx.data_layout.pointer_size().bits() != 32 {
 			tcx.dcx().err(
 				"rust2-ts: translation needs a 32-bit target, such as wasm32-unknown-unknown, so usize is a number",
@@ -547,6 +574,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			cloning: Default::default(),
 			compared,
 			comparing: Default::default(),
+			addressed,
+			addressing: Default::default(),
 			hooked,
 			hooking: false,
 			held: false,
