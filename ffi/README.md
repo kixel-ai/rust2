@@ -347,7 +347,9 @@ caller imports it with no ignores.
 - A **path** is a `str`, or any path passed in, which crosses as `os.fsencode` encodes it, so
   one that is not UTF-8 keeps its bytes. A `SocketAddr` is the `socket` module's tuple,
   `(host, port)` or `(host, port, flowinfo, scope_id)`, of that family for `V4` or `V6`.
-  A `Vec<T>` or `&[T]` is a `list`, and passing a `Vec` by value closes each object in it.
+  A `Vec<T>` or `&[T]` Rust returns is a `list`, and passed in is any iterable other than a `str`,
+  annotated `Iterable`, or `Sequence` in a record, which keeps it. Passing a `Vec` by value closes
+  each object in it.
   An integer out of its Rust type's range raises `OverflowError`.
 - **Traits** are abstract classes an implementation subclasses; once Rust drops one, its
   `close()` is called if it has one.

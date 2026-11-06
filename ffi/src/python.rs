@@ -428,19 +428,33 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// The Python annotation of a parameter of type `ty`, or a record's field, either way:
-	/// its bytes are any buffer, and its path any path.
+	/// The Python annotation of a parameter of type `ty`, or of what Python returns to Rust:
+	/// its bytes are any buffer, its path any path, and its list any iterable, which
+	/// `rt::list_in` reads once.
 	fn py_param(&self, ty: &Type) -> String {
+		self.py_in(ty, "_typing.Iterable")
+	}
+
+	/// The Python annotation of a record's field of type `ty`: as a parameter's, but its list
+	/// is a sequence, since the record keeps it and Rust may read it more than once.
+	fn py_field(&self, ty: &Type) -> String {
+		self.py_in(ty, "_typing.Sequence")
+	}
+
+	/// The Python annotation of a value of type `ty` that Python passes in, each list as the
+	/// covariant container `list` names, so a caller's `list` of one alternative of a widened
+	/// element type checks.
+	fn py_in(&self, ty: &Type, list: &str) -> String {
 		match ty {
 			Type::Slice | Type::Vec | Type::Bytes => BUFFER.to_string(),
 			Type::Path | Type::PathBuf => "str".to_string(),
 			// Python's own IPv6 address may leave out its flowinfo and scope_id.
 			Type::SocketAddr(Family::V6) => format!("{V4} | {V6}"),
-			Type::List(inner) => format!("list[{}]", self.py_param(inner)),
-			Type::Option(inner) => format!("{} | None", self.py_param(inner)),
-			Type::Box(inner) | Type::Ref(_, inner) => self.py_param(inner),
+			Type::List(inner) => format!("{list}[{}]", self.py_in(inner, list)),
+			Type::Option(inner) => format!("{} | None", self.py_in(inner, list)),
+			Type::Box(inner) | Type::Ref(_, inner) => self.py_in(inner, list),
 			Type::Tuple(elements) => {
-				let elements: Vec<String> = elements.iter().map(|e| self.py_param(e)).collect();
+				let elements: Vec<String> = elements.iter().map(|e| self.py_in(e, list)).collect();
 				format!("tuple[{}]", elements.join(", "))
 			}
 			_ => self.py_ty(ty),
@@ -904,7 +918,7 @@ impl<'a> Gen<'a> {
 				format!(
 					"\t{}: {}\n{}",
 					field_name(&f.name),
-					self.py_param(&f.ty),
+					self.py_field(&f.ty),
 					docstring(&f.docs, "\t")
 				)
 			})
@@ -1010,7 +1024,7 @@ impl<'a> Gen<'a> {
 			let fields: String = variant
 				.fields
 				.iter()
-				.map(|f| format!("\t{}: {}\n", field_name(&f.name), self.py_param(&f.ty)))
+				.map(|f| format!("\t{}: {}\n", field_name(&f.name), self.py_field(&f.ty)))
 				.collect();
 			let fields = match fields.is_empty() {
 				true => "\tpass\n".to_string(),

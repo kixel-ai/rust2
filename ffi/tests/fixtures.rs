@@ -572,20 +572,26 @@ fn api_python() {
 	);
 }
 
-/// The api fixture's Python passes mypy and pyright, both strict, at the oldest CPython
-/// its extension loads in. Apart from `api_python`, which the runners without the dev
-/// shell's checkers run alone.
+/// The api fixture's Python, and `tests/api_types.py` calling it as a typed caller does,
+/// pass mypy and pyright, both strict, at the oldest CPython its extension loads in. Apart
+/// from `api_python`, which the runners without the dev shell's checkers run alone.
 #[test]
 fn api_py_types() {
-	let api = api().out.join("python").join("api.py");
+	let dir = scratch().join("api").join("python-types");
+	let _ = std::fs::remove_dir_all(&dir);
+	std::fs::create_dir_all(&dir).unwrap();
+	let module = dir.join("api.py");
+	let caller = dir.join("api_types.py");
+	std::fs::copy(api().out.join("python").join("api.py"), &module).unwrap();
+	std::fs::copy(manifest_dir().join("tests").join("api_types.py"), &caller).unwrap();
 	run(Command::new("mypy")
 		.args(["--strict", "--python-version", "3.11", "--cache-dir"])
 		.arg(scratch().join("mypy"))
-		.arg(&api));
-	run(Command::new("pyright")
-		.arg("-p")
-		.arg(manifest_dir().join("tests").join("pyright.json"))
-		.arg(&api));
+		.args([&module, &caller]));
+	// Rooted in `dir`, so `import api` finds the module rather than `tests/api.py`.
+	let config = dir.join("pyrightconfig.json");
+	std::fs::copy(manifest_dir().join("tests").join("pyright.json"), &config).unwrap();
+	run(Command::new("pyright").arg("-p").arg(&config).args([&module, &caller]));
 }
 
 /// The contract a Kotlin file checks its library against.
