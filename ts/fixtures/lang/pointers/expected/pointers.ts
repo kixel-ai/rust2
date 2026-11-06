@@ -2284,7 +2284,7 @@ export function tagged$u8(a: Aimed.Aimed<rs.u8>): [rs.Place<rs.u8>, rs.u8] {
 
 /** Reads and writes through an `AtomicPtr` to what `to` points at, swapped in for null. */
 export function swappedIn$Cell_u8(to: rs.Place<rs.Cell<rs.u8>>, n: rs.u8, out: rs.ByteVec): void {
-	const shared: Swapped.Swapped<rs.Cell<rs.u8>> = { at: new rs.Atomic(rs.NULL) };
+	const shared: Swapped.Swapped<rs.Cell<rs.u8>> = { at: new rs.Atomic(rs.NULL) as rs.Atomic<rs.Ptr<rs.Cell<rs.u8>>> };
 	rs.byteVecPush(out, rs.atomicLoad(shared.at as rs.Atomic<rs.Place<rs.Cell<rs.u8>>>, 4) === rs.NULL ? 1 : 0);
 	rs.atomicStore(shared.at as rs.Atomic<rs.Place<rs.Cell<rs.u8>>>, to, 4);
 	const at: rs.Place<rs.Cell<rs.u8>> = rs.atomicLoad(shared.at as rs.Atomic<rs.Place<rs.Cell<rs.u8>>>, 4);
@@ -2295,7 +2295,7 @@ export function swappedIn$Cell_u8(to: rs.Place<rs.Cell<rs.u8>>, n: rs.u8, out: r
 
 /** Reads and writes through an `AtomicPtr` to what `to` points at, swapped in for null. */
 export function swappedIn$array2_u16(to: rs.Slice<rs.u16>, n: rs.u8, out: rs.ByteVec): void {
-	const shared: Swapped.Swapped<rs.u16[]> = { at: new rs.Atomic(rs.NULL) };
+	const shared: Swapped.Swapped<rs.u16[]> = { at: new rs.Atomic(rs.NULL) as rs.Atomic<rs.Ptr<rs.u16[]>> };
 	rs.byteVecPush(out, rs.atomicLoad(shared.at as rs.Atomic<rs.Slice<rs.u16>>, 4) === rs.NULL ? 1 : 0);
 	rs.atomicStore(shared.at as rs.Atomic<rs.Slice<rs.u16>>, to, 4);
 	const at: rs.Slice<rs.u16> = rs.atomicLoad(shared.at as rs.Atomic<rs.Slice<rs.u16>>, 4);
@@ -2306,7 +2306,7 @@ export function swappedIn$array2_u16(to: rs.Slice<rs.u16>, n: rs.u8, out: rs.Byt
 
 /** Reads and writes through an `AtomicPtr` to what `to` points at, swapped in for null. */
 export function swappedIn$array4_u8(to: rs.ByteSlice, n: rs.u8, out: rs.ByteVec): void {
-	const shared: Swapped.Swapped<Uint8Array> = { at: new rs.Atomic(rs.NULL) };
+	const shared: Swapped.Swapped<Uint8Array> = { at: new rs.Atomic(rs.NULL) as rs.Atomic<rs.Ptr<Uint8Array>> };
 	rs.byteVecPush(out, rs.atomicLoad(shared.at as rs.Atomic<rs.ByteSlice>, 4) === rs.NULL ? 1 : 0);
 	rs.atomicStore(shared.at as rs.Atomic<rs.ByteSlice>, to, 4);
 	const at: rs.ByteSlice = rs.atomicLoad(shared.at as rs.Atomic<rs.ByteSlice>, 4);
@@ -2317,7 +2317,7 @@ export function swappedIn$array4_u8(to: rs.ByteSlice, n: rs.u8, out: rs.ByteVec)
 
 /** Reads and writes through an `AtomicPtr` to what `to` points at, swapped in for null. */
 export function swappedIn$pointers_Housed_u8(to: Housed.Housed<rs.u8>, n: rs.u8, out: rs.ByteVec): void {
-	const shared: Swapped.Swapped<Housed.Housed<rs.u8>> = { at: new rs.Atomic(rs.NULL) };
+	const shared: Swapped.Swapped<Housed.Housed<rs.u8>> = { at: new rs.Atomic(rs.NULL) as rs.Atomic<rs.Ptr<Housed.Housed<rs.u8>>> };
 	rs.byteVecPush(out, rs.atomicLoad(shared.at as rs.Atomic<Housed.Housed<rs.u8>>, 4) === rs.NULL ? 1 : 0);
 	rs.atomicStore(shared.at as rs.Atomic<Housed.Housed<rs.u8>>, to, 4);
 	const at: Housed.Housed<rs.u8> = rs.atomicLoad(shared.at as rs.Atomic<Housed.Housed<rs.u8>>, 4);
@@ -2328,7 +2328,7 @@ export function swappedIn$pointers_Housed_u8(to: Housed.Housed<rs.u8>, n: rs.u8,
 
 /** Reads and writes through an `AtomicPtr` to what `to` points at, swapped in for null. */
 export function swappedIn$pointers_Leaning(to: rs.Place<Leaning.Leaning>, n: rs.u8, out: rs.ByteVec): void {
-	const shared: Swapped.Swapped<Leaning.Leaning> = { at: new rs.Atomic(rs.NULL) };
+	const shared: Swapped.Swapped<Leaning.Leaning> = { at: new rs.Atomic(rs.NULL) as rs.Atomic<rs.Ptr<Leaning.Leaning>> };
 	rs.byteVecPush(out, rs.atomicLoad(shared.at as rs.Atomic<rs.Place<Leaning.Leaning>>, 4) === rs.NULL ? 1 : 0);
 	rs.atomicStore(shared.at as rs.Atomic<rs.Place<Leaning.Leaning>>, to, 4);
 	const at: rs.Place<Leaning.Leaning> = rs.atomicLoad(shared.at as rs.Atomic<rs.Place<Leaning.Leaning>>, 4);
@@ -2339,7 +2339,7 @@ export function swappedIn$pointers_Leaning(to: rs.Place<Leaning.Leaning>, n: rs.
 
 /** Reads and writes through an `AtomicPtr` to what `to` points at, swapped in for null. */
 export function swappedIn$pointers_Paired(to: Paired.Paired, n: rs.u8, out: rs.ByteVec): void {
-	const shared: Swapped.Swapped<Paired.Paired> = { at: new rs.Atomic(rs.NULL) };
+	const shared: Swapped.Swapped<Paired.Paired> = { at: new rs.Atomic(rs.NULL) as rs.Atomic<rs.Ptr<Paired.Paired>> };
 	rs.byteVecPush(out, rs.atomicLoad(shared.at as rs.Atomic<Paired.Paired>, 4) === rs.NULL ? 1 : 0);
 	rs.atomicStore(shared.at as rs.Atomic<Paired.Paired>, to, 4);
 	const at: Paired.Paired = rs.atomicLoad(shared.at as rs.Atomic<Paired.Paired>, 4);
@@ -2350,7 +2350,7 @@ export function swappedIn$pointers_Paired(to: Paired.Paired, n: rs.u8, out: rs.B
 
 /** Reads and writes through an `AtomicPtr` to what `to` points at, swapped in for null. */
 export function swappedIn$u8(to: rs.Place<rs.u8>, n: rs.u8, out: rs.ByteVec): void {
-	const shared: Swapped.Swapped<rs.u8> = { at: new rs.Atomic(rs.NULL) };
+	const shared: Swapped.Swapped<rs.u8> = { at: new rs.Atomic(rs.NULL) as rs.Atomic<rs.Ptr<rs.u8>> };
 	rs.byteVecPush(out, rs.atomicLoad(shared.at as rs.Atomic<rs.Place<rs.u8>>, 4) === rs.NULL ? 1 : 0);
 	rs.atomicStore(shared.at as rs.Atomic<rs.Place<rs.u8>>, to, 4);
 	const at: rs.Place<rs.u8> = rs.atomicLoad(shared.at as rs.Atomic<rs.Place<rs.u8>>, 4);

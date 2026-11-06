@@ -38,12 +38,14 @@ pub fn is_next(tcx: ty::TyCtxt<'_>, def_id: DefId) -> bool {
 
 impl<'tcx> Translator<'_, 'tcx> {
 	/// `Iterator::Item` of `ty`, if `ty` is an iterator. A type over parameters, which a
-	/// generic type's fields and a census have, may leave it a projection.
+	/// generic type's fields and a census have, may leave it a projection; a field's
+	/// normalizes by its type's bounds.
 	pub fn iter_item(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 		let tcx = self.tcx;
 		let (_, item) = trait_items(tcx)?;
 		let projection = Ty::new_projection(tcx, ty::IsRigid::No, item, [ty]);
-		tcx.try_normalize_erasing_regions(self.typing_env_pub(), ty::Unnormalized::new_wip(projection))
+		let env = self.defining.unwrap_or(self.typing_env_pub());
+		tcx.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(projection))
 			.ok()
 	}
 

@@ -3,6 +3,7 @@
 import * as rs from "../rs.ts";
 import type * as ByRef from "../collections.ByRef.ts";
 import type * as ByVal from "../collections.ByVal.ts";
+import type * as Lent from "../collections.Lent.ts";
 import type * as Mixed from "../collections.Mixed.ts";
 import type * as Nibble from "../collections.Nibble.ts";
 import type * as Picky from "../collections.Picky.ts";
@@ -67,6 +68,13 @@ export function map$14ju55r(self: rs.usize | undefined, f: (a0: rs.usize) => rs.
 }
 
 export function mapOr$14runhi(self: rs.Ordering | undefined, default_: rs.u8, f: (a0: rs.Ordering) => rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$0tj0y3q(self: Lent.Lent | undefined, default_: rs.u16, f: (a0: Lent.Lent) => rs.u16): rs.u16 {
 	if (self === undefined) {
 		return default_;
 	}
@@ -158,6 +166,13 @@ export function mapOr$1d4bp7c(self: rs.u8 | undefined, default_: rs.usize, f: (a
 }
 
 export function mapOr$188iunt(self: rs.usize | undefined, default_: rs.u8, f: (a0: rs.usize) => rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$1f8lrju(self: [Lent.Lent, rs.u16] | undefined, default_: rs.u16, f: (a0: [Lent.Lent, rs.u16]) => rs.u16): rs.u16 {
 	if (self === undefined) {
 		return default_;
 	}

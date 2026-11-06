@@ -75,6 +75,20 @@ export function map$167hjon(self: rs.StrCow | undefined, _: (a0: rs.StrCow) => s
 	return rs.strCowStr(self);
 }
 
+export function map$1p2lbl3(self: [rs.u8, rs.String] | undefined, f: (a0: [rs.u8, rs.String]) => rs.String): rs.String | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1oqs2fe(self: [rs.u8, rs.u16] | undefined, f: (a0: [rs.u8, rs.u16]) => rs.u16): rs.u16 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$0vu84i0(self: rs.u8 | undefined, f: (a0: rs.u8) => Badge.Badge): Badge.Badge | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -181,7 +195,7 @@ export function mapOr$02sqh24(self: rs.Place<rs.u8> | undefined, default_: rs.u8
 	return f(self);
 }
 
-export function mapOr$1nyk1yj(self: string | undefined, default_: rs.u8, f: (a0: string) => rs.u8): rs.u8 {
+export function mapOr$085bdex(self: rs.String | undefined, default_: rs.u32, f: (a0: rs.String) => rs.u32): rs.u32 {
 	if (self === undefined) {
 		return default_;
 	}
@@ -189,6 +203,20 @@ export function mapOr$1nyk1yj(self: string | undefined, default_: rs.u8, f: (a0:
 }
 
 export function mapOr$0vxw5sq(self: rs.u8 | undefined, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$1nyk1yj(self: string | undefined, default_: rs.u8, f: (a0: string) => rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$164lw4w(self: rs.u16 | undefined, default_: rs.u32, f: (a0: rs.u16) => rs.u32): rs.u32 {
 	if (self === undefined) {
 		return default_;
 	}
@@ -277,6 +305,20 @@ export function asDeref$0pg0e8a(self: rs.StrCow | undefined): string | undefined
 	});
 }
 
+export function andThen$1x5oz34(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.String | undefined): rs.String | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function andThen$1fnqvxl(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u16 | undefined): rs.u16 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function filter$0hq86nl(self: rs.u8 | undefined, predicate: (a0: rs.u8) => boolean): rs.u8 | undefined {
 	if (self !== undefined) {
 		const x: rs.u8 = self;
@@ -285,6 +327,13 @@ export function filter$0hq86nl(self: rs.u8 | undefined, predicate: (a0: rs.u8) =
 		}
 	}
 	return undefined;
+}
+
+export function clone$0dg4ec5(self: rs.String | undefined): rs.String | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return rs.stringClone(self);
 }
 
 //# sourceMappingURL=option.ts.map

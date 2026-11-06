@@ -1512,10 +1512,33 @@ export function btreeNew<K, V>(cmp: (a: NoInfer<K>, b: NoInfer<K>) => Ordering):
 let idx = 0;
 
 /**
+ * A key of another type `Q`, which a B-tree's keys borrow as, that it is searched by as
+ * std's search by a `Borrow` form is: by `Q`'s `Ord::cmp` of it against each key's `borrow`.
+ */
+export class By<K> {
+	readonly q: unknown;
+	/** `Q`'s `Ord::cmp`. */
+	readonly cmp: (a: unknown, b: unknown) => Ordering;
+	/** `Q`'s `Ord::cmp` of a `Q` against a key's `borrow`. */
+	readonly c: (q: unknown, k: K) => Ordering;
+
+	constructor(q: unknown, cmp: (a: unknown, b: unknown) => Ordering, c: (q: unknown, k: K) => Ordering) {
+		this.q = q;
+		this.cmp = cmp;
+		this.c = c;
+	}
+}
+
+/** `q`, a key or a range of keys of type `Q`, by `Q`'s `cmp` against each key `K`'s `borrow`. */
+export function by<Q, K>(q: NoInfer<Q | Bounds<Q>>, cmp: (a: Q, b: Q) => Ordering, borrow: (k: K) => Q): By<K> {
+	return new By(q, cmp as (a: unknown, b: unknown) => Ordering, (q, k) => cmp(q as Q, borrow(k)));
+}
+
+/**
  * std's `find_key_index`: the index of the first of `n`'s keys from `from` on that `key` is
  * not greater than, by `key.cmp(k)`, if equal, or else the bitwise not of the edge before it.
  */
-function find<K, V>(cmp: (a: K, b: K) => Ordering, n: Node<K, V>, key: K, from = 0): number {
+function find<Q, K, V>(cmp: (a: Q, b: K) => Ordering, n: Node<K, V>, key: Q, from = 0): number {
 	const keys = n.k;
 	const len = keys.length;
 	for (let i = from; i < len; i++) {
@@ -1531,7 +1554,16 @@ function find<K, V>(cmp: (a: K, b: K) => Ordering, n: Node<K, V>, key: K, from =
  * the leaf it would go in, with `idx` the bitwise not of the edge it goes at.
  */
 function seek<K, V>(m: BTreeMap<K, V>, key: K): Node<K, V> {
-	const cmp = m.c;
+	return seekBy(m, m.c, key);
+}
+
+/** `seek` by `key`, or by what a `By` holds, as std's lookups search by a `Borrow` form. */
+function lookup<K, V>(m: BTreeMap<K, V>, key: K | By<K>): Node<K, V> {
+	return key instanceof By ? seekBy(m, key.c, key.q) : seekBy(m, m.c, key);
+}
+
+/** `seek` by `cmp`, of `key` against each key. */
+function seekBy<Q, K, V>(m: BTreeMap<K, V>, cmp: (a: Q, b: K) => Ordering, key: Q): Node<K, V> {
 	let n = m.t;
 	for (;;) {
 		const i = find(cmp, n, key);
@@ -1579,30 +1611,30 @@ export function btreeLen<K, V>(m: BTreeMap<K, V>): number {
 }
 
 /** `BTreeMap::get`: the value there, or else `none`, the `None` of an `Option` of a value that can be `undefined`. */
-export function btreeGet<K, V>(m: BTreeMap<K, V>, key: K): V | undefined;
-export function btreeGet<K, V>(m: BTreeMap<K, V>, key: K, none: None): V | None;
-export function btreeGet<K, V>(m: BTreeMap<K, V>, key: K, none?: None): V | None | undefined {
-	const n = seek(m, key);
+export function btreeGet<K, V>(m: BTreeMap<K, V>, key: K | By<K>): V | undefined;
+export function btreeGet<K, V>(m: BTreeMap<K, V>, key: K | By<K>, none: None): V | None;
+export function btreeGet<K, V>(m: BTreeMap<K, V>, key: K | By<K>, none?: None): V | None | undefined {
+	const n = lookup(m, key);
 	return idx < 0 ? none : n.v[idx];
 }
 
 /** `BTreeMap::get_mut` of a value JS copies: its place, if the map holds `key`. */
-export function btreeGetMut<K, V>(m: BTreeMap<K, V>, key: K): Place<V> | undefined {
-	const n = seek(m, key);
+export function btreeGetMut<K, V>(m: BTreeMap<K, V>, key: K | By<K>): Place<V> | undefined {
+	const n = lookup(m, key);
 	return idx < 0 ? undefined : new AtIndex(n.v, idx);
 }
 
 /** `BTreeMap::get_key_value`: the equal key the map holds, and its value. */
-export function btreeGetKeyValue<K, V>(m: BTreeMap<K, V>, key: K): [K, V] | undefined {
-	const n = seek(m, key);
+export function btreeGetKeyValue<K, V>(m: BTreeMap<K, V>, key: K | By<K>): [K, V] | undefined {
+	const n = lookup(m, key);
 	return idx < 0 ? undefined : [n.k[idx], n.v[idx]];
 }
 
 /** `BTreeSet::get`, and `BTreeSet::take` if `take`: the equal key the set holds, or else `none`. */
-export function btreeKey<K, V>(m: BTreeMap<K, V>, key: K, take?: boolean): K | undefined;
-export function btreeKey<K, V>(m: BTreeMap<K, V>, key: K, take: boolean, none: None): K | None;
-export function btreeKey<K, V>(m: BTreeMap<K, V>, key: K, take = false, none?: None): K | None | undefined {
-	const n = seek(m, key);
+export function btreeKey<K, V>(m: BTreeMap<K, V>, key: K | By<K>, take?: boolean): K | undefined;
+export function btreeKey<K, V>(m: BTreeMap<K, V>, key: K | By<K>, take: boolean, none: None): K | None;
+export function btreeKey<K, V>(m: BTreeMap<K, V>, key: K | By<K>, take = false, none?: None): K | None | undefined {
+	const n = lookup(m, key);
 	const i = idx;
 	if (i < 0) return none;
 	const held = n.k[i];
@@ -1625,14 +1657,14 @@ export function btreeReplace<K>(m: BTreeSet<K>, key: K, none?: None): K | None |
 	return old;
 }
 
-export function btreeContains<K, V>(m: BTreeMap<K, V>, key: K): boolean {
-	seek(m, key);
+export function btreeContains<K, V>(m: BTreeMap<K, V>, key: K | By<K>): boolean {
+	lookup(m, key);
 	return idx >= 0;
 }
 
 /** `BTreeMap::index`: `map[&key]`. */
-export function btreeIndex<K, V>(m: BTreeMap<K, V>, key: K, at?: Location): V {
-	const n = seek(m, key);
+export function btreeIndex<K, V>(m: BTreeMap<K, V>, key: K | By<K>, at?: Location): V {
+	const n = lookup(m, key);
 	if (idx < 0) panic("no entry found for key", at, true);
 	return n.v[idx];
 }
@@ -1928,8 +1960,8 @@ function append<T>(a: T[], b: T[], from: number): void {
 }
 
 /** `BTreeMap::remove_entry`. */
-export function btreeRemoveEntry<K, V>(m: BTreeMap<K, V>, key: K): [K, V] | undefined {
-	const n = seek(m, key);
+export function btreeRemoveEntry<K, V>(m: BTreeMap<K, V>, key: K | By<K>): [K, V] | undefined {
+	const n = lookup(m, key);
 	const i = idx;
 	if (i < 0) return undefined;
 	const entry: [K, V] = [n.k[i], n.v[i]];
@@ -1938,10 +1970,10 @@ export function btreeRemoveEntry<K, V>(m: BTreeMap<K, V>, key: K): [K, V] | unde
 }
 
 /** `BTreeMap::remove`: the value there, whose key drops, or else `none`. */
-export function btreeRemove<K, V>(m: BTreeMap<K, V>, key: K, k?: (key: K) => void): V | undefined;
-export function btreeRemove<K, V>(m: BTreeMap<K, V>, key: K, k: ((key: K) => void) | undefined, none: None): V | None;
-export function btreeRemove<K, V>(m: BTreeMap<K, V>, key: K, k?: (key: K) => void, none?: None): V | None | undefined {
-	const n = seek(m, key);
+export function btreeRemove<K, V>(m: BTreeMap<K, V>, key: K | By<K>, k?: (key: K) => void): V | undefined;
+export function btreeRemove<K, V>(m: BTreeMap<K, V>, key: K | By<K>, k: ((key: K) => void) | undefined, none: None): V | None;
+export function btreeRemove<K, V>(m: BTreeMap<K, V>, key: K | By<K>, k?: (key: K) => void, none?: None): V | None | undefined {
+	const n = lookup(m, key);
 	const i = idx;
 	if (i < 0) return none;
 	const held = n.k[i];
@@ -1952,8 +1984,8 @@ export function btreeRemove<K, V>(m: BTreeMap<K, V>, key: K, k?: (key: K) => voi
 }
 
 /** `BTreeSet::remove`: whether `key` was there. The key it held drops. */
-export function btreeDelete<K>(m: BTreeSet<K>, key: K, k?: (key: K) => void): boolean {
-	const n = seek(m, key);
+export function btreeDelete<K>(m: BTreeSet<K>, key: K | By<K>, k?: (key: K) => void): boolean {
+	const n = lookup(m, key);
 	const i = idx;
 	if (i < 0) return false;
 	const held = n.k[i];
@@ -2085,16 +2117,17 @@ export function btreeClear<K, V>(m: BTreeMap<K, V>, k?: (key: K) => void, v?: (v
  * the path to it into a column of empty nodes, whose borders then even out. Like std's,
  * the new tree has a root unless `m` was empty.
  */
-export function btreeSplitOff<K, V>(m: BTreeMap<K, V>, key: K): BTreeMap<K, V> {
+export function btreeSplitOff<K, V>(m: BTreeMap<K, V>, key: K | By<K>): BTreeMap<K, V> {
 	const out = btreeNew<K, V>(m.c);
 	if (m.n === 0) return out;
+	const [cmp, q] = key instanceof By ? [key.c, key.q] : [m.c as (a: unknown, b: K) => Ordering, key];
 	out.t = pillar(m.h);
 	out.h = m.h;
 	out.r = true;
 	let left = m.t;
 	let right = out.t;
 	for (;;) {
-		const i = find(m.c, left, key);
+		const i = find(cmp, left, q);
 		const cut = i < 0 ? ~i : i;
 		right.k = left.k.splice(cut);
 		right.v = left.v.splice(cut);
@@ -2366,21 +2399,28 @@ function bounds<K>(r: Bounds<K>): BoundPair<K> {
 }
 
 /**
- * `BTreeMap::range` and `range_mut`: the entries within `r`. A key of the crate's own gives
- * its `PartialEq::eq` and `PartialOrd::gt`, which std checks the ends by.
+ * `BTreeMap::range` and `range_mut`: the entries within `r`, or within the range of another
+ * type a `By` holds. A key of the crate's own gives its `PartialEq::eq` and
+ * `PartialOrd::gt`, which std checks the ends by.
  */
-export function btreeRange<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>>>, eq?: Test<K>, gt?: Test<K>): Iter<[K, V]> {
-	return range(m, r as Bounds<K>, ENTRIES, "BTreeMap", eq, gt);
+export function btreeRange<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>>>, eq?: Test<K>, gt?: Test<K>): Iter<[K, V]>;
+export function btreeRange<K, V, Q>(m: BTreeMap<K, V>, r: By<K>, eq?: Test<Q>, gt?: Test<Q>): Iter<[K, V]>;
+export function btreeRange<K, V>(m: BTreeMap<K, V>, r: Bounds<K> | By<K>, eq?: Test<unknown>, gt?: Test<unknown>): Iter<[K, V]> {
+	return range(m, r, ENTRIES, "BTreeMap", eq, gt);
 }
 
 /** `range_mut` of values JS copies: each key within `r` and the place of its value. */
-export function btreeRangeMut<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>>>, eq?: Test<K>, gt?: Test<K>): Iter<[K, Place<V>]> {
-	return range(m, r as Bounds<K>, PLACES, "BTreeMap", eq, gt);
+export function btreeRangeMut<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>>>, eq?: Test<K>, gt?: Test<K>): Iter<[K, Place<V>]>;
+export function btreeRangeMut<K, V, Q>(m: BTreeMap<K, V>, r: By<K>, eq?: Test<Q>, gt?: Test<Q>): Iter<[K, Place<V>]>;
+export function btreeRangeMut<K, V>(m: BTreeMap<K, V>, r: Bounds<K> | By<K>, eq?: Test<unknown>, gt?: Test<unknown>): Iter<[K, Place<V>]> {
+	return range(m, r, PLACES, "BTreeMap", eq, gt);
 }
 
 /** `BTreeSet::range`: the keys within `r`. */
-export function btreeRangeKeys<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>>>, eq?: Test<K>, gt?: Test<K>): Iter<K> {
-	return range(m, r as Bounds<K>, KEYS, "BTreeSet", eq, gt);
+export function btreeRangeKeys<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>>>, eq?: Test<K>, gt?: Test<K>): Iter<K>;
+export function btreeRangeKeys<K, V, Q>(m: BTreeMap<K, V>, r: By<K>, eq?: Test<Q>, gt?: Test<Q>): Iter<K>;
+export function btreeRangeKeys<K, V>(m: BTreeMap<K, V>, r: Bounds<K> | By<K>, eq?: Test<unknown>, gt?: Test<unknown>): Iter<K> {
+	return range(m, r, KEYS, "BTreeSet", eq, gt);
 }
 
 /**
@@ -2391,26 +2431,30 @@ export function btreeRangeKeys<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>
 type Key<K> = K | (K extends (infer E)[] ? Slice<E> : never) | (K extends RsString | Borrowed<string> ? string : never);
 
 /**
- * The items of `m` within `r`, checked as std checks it: by `eq` and `gt`, or by `m`'s
- * order. Its ends are found as std's `find_leaf_edges_spanning_range` finds them: down one
- * path while both lie below the same edge, then each down its own.
+ * The items of `m` within `r`, checked as std checks it: by `eq` and `gt`, or by the order
+ * of its keys, `m`'s or a `By`'s. Its ends are found as std's
+ * `find_leaf_edges_spanning_range` finds them: down one path while both lie below the same
+ * edge, then each down its own.
  */
-function range<K, V, T>(m: BTreeMap<K, V>, r: Bounds<K>, pick: Pick, name: string, eq?: Test<K>, gt?: Test<K>): Iter<T> {
+function range<K, V, T>(m: BTreeMap<K, V>, r: Bounds<K> | By<K>, pick: Pick, name: string, eq?: Test<unknown>, gt?: Test<unknown>): Iter<T> {
 	if (!m.r) return new BTreeIter<K, V, T>(pick, m.t, 0, m.t, 0);
-	const [start, stop] = bounds(r);
+	const by = r instanceof By ? r : undefined;
+	const order = (by?.cmp ?? m.c) as (a: unknown, b: unknown) => Ordering;
+	const cmp = (by?.c ?? m.c) as (a: unknown, b: K) => Ordering;
+	const [start, stop] = bounds((by === undefined ? r : by.q) as Bounds<unknown>);
 	if (start.tag !== "Unbounded" && stop.tag !== "Unbounded") {
 		const s = start._0;
 		const e = stop._0;
-		if (start.tag === "Excluded" && stop.tag === "Excluded" && (eq === undefined ? m.c(s, e) === 0 : eq(s, e))) {
+		if (start.tag === "Excluded" && stop.tag === "Excluded" && (eq === undefined ? order(s, e) === 0 : eq(s, e))) {
 			panic(`range start and end are equal and excluded in ${name}`, `btree_range_equal_${name}`);
 		}
-		if (gt === undefined ? m.c(s, e) > 0 : gt(s, e)) panic(`range start is greater than range end in ${name}`, `btree_range_order_${name}`);
+		if (gt === undefined ? order(s, e) > 0 : gt(s, e)) panic(`range start is greater than range end in ${name}`, `btree_range_order_${name}`);
 	}
 	const lo = side(start);
 	const hi = side(stop);
 	for (let n = m.t; ; ) {
-		const fi = lower(m.c, n, lo);
-		const bi = upper(m.c, n, hi, fi);
+		const fi = lower(cmp, n, lo);
+		const bi = upper(cmp, n, hi, fi);
 		if (fi < bi) {
 			let fl = n;
 			let bl = n;
@@ -2418,9 +2462,9 @@ function range<K, V, T>(m: BTreeMap<K, V>, r: Bounds<K>, pick: Pick, name: strin
 			let b = bi;
 			while (fl.e !== undefined) {
 				fl = fl.e[f];
-				f = lower(m.c, fl, lo);
+				f = lower(cmp, fl, lo);
 				bl = (bl.e as Node<K, V>[])[b];
-				b = upper(m.c, bl, hi, 0);
+				b = upper(cmp, bl, hi, 0);
 			}
 			return new BTreeIter<K, V, T>(pick, fl, f, bl, b);
 		}
@@ -2447,10 +2491,10 @@ function side<K>(b: RangeBound<K>): Side<K> {
 }
 
 /** std's `find_lower_bound_index`: the edge of `n` a range from `s` starts at, narrowing `s` for the child below it. */
-function lower<K, V>(cmp: (a: K, b: K) => Ordering, n: Node<K, V>, s: Side<K>): number {
+function lower<Q, K, V>(cmp: (a: Q, b: K) => Ordering, n: Node<K, V>, s: Side<Q>): number {
 	if (s.tag === ALL_INCLUDED) return 0;
 	if (s.tag === ALL_EXCLUDED) return n.k.length;
-	const i = find(cmp, n, s.key as K);
+	const i = find(cmp, n, s.key as Q);
 	if (i < 0) return ~i;
 	if (s.tag === INCLUDED) {
 		s.tag = ALL_EXCLUDED;
@@ -2461,10 +2505,10 @@ function lower<K, V>(cmp: (a: K, b: K) => Ordering, n: Node<K, V>, s: Side<K>): 
 }
 
 /** std's `find_upper_bound_index`: the edge of `n` from `from` on that a range to `s` ends at, narrowing `s` likewise. */
-function upper<K, V>(cmp: (a: K, b: K) => Ordering, n: Node<K, V>, s: Side<K>, from: number): number {
+function upper<Q, K, V>(cmp: (a: Q, b: K) => Ordering, n: Node<K, V>, s: Side<Q>, from: number): number {
 	if (s.tag === ALL_INCLUDED) return n.k.length;
 	if (s.tag === ALL_EXCLUDED) return from;
-	const i = find(cmp, n, s.key as K, from);
+	const i = find(cmp, n, s.key as Q, from);
 	if (i < 0) return ~i;
 	if (s.tag === INCLUDED) {
 		s.tag = ALL_EXCLUDED;
