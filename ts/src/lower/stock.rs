@@ -270,9 +270,7 @@ impl Buffer {
 /// whose impl reads the slices the runtime's deque has, which translate.
 fn mapped_self<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	match ty.kind() {
-		ty::Adt(adt, _) => {
-			library::Std::of(tcx, adt.did()).is_some_and(|std| std != Std::VecDeque) && !ty.has_param()
-		}
+		ty::Adt(adt, _) => library::Std::of(tcx, adt.did()).is_some_and(|std| std != Std::VecDeque) && !ty.has_param(),
 		ty::Ref(_, inner, _) => matches!(inner.kind(), ty::Slice(e) if is_u8(*e)),
 		_ => false,
 	}
