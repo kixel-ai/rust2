@@ -55,9 +55,9 @@ export function uninits(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	const k: rs.usize = rs.min(wide.items.length, rs.sliceFrom(words).length);
 	const _88: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words), 0, k);
-	const slice2 = rs.sliceFrom(wide.items);
+	const slice = rs.sliceFrom(wide.items);
 	const dst2 = _88;
-	rs.sliceCopyFromSlice(dst2, rs.sliceRange(slice2, 0, k));
+	rs.sliceCopyFromSlice(dst2, rs.sliceRange(slice, 0, k));
 	const _86: rs.Place<rs.u16> | undefined = rs.sliceFirstMut(dst2);
 	if (_86 !== undefined) {
 		_86.v = _86.v ^ 257;
@@ -91,9 +91,9 @@ export function uninits(data: rs.ByteSlice, out: rs.ByteVec): void {
 			dst5;
 		} else if (_155 === 255) {
 			const _164: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(words), 0, 1);
-			const slice5 = rs.sliceFrom(wide.items);
+			const slice2 = rs.sliceFrom(wide.items);
 			const dst4 = _164;
-			rs.sliceCopyFromSlice(dst4, rs.sliceRange(slice5, 0, 0));
+			rs.sliceCopyFromSlice(dst4, rs.sliceRange(slice2, 0, 0));
 			dst4;
 		}
 	}

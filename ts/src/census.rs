@@ -178,6 +178,7 @@ const VERBATIM: &[&str] = &[
 	"Weak",
 	"Weak::as_ptr",
 	"alloc",
+	"array::from_ref",
 	"async fn",
 	"become",
 	"bool",

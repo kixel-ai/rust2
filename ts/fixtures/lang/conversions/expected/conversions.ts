@@ -7,7 +7,7 @@ import * as Kept from "./conversions.Kept.ts";
 import * as Logged from "./conversions.Logged.ts";
 import * as Named from "./conversions.Named.ts";
 import { thenSome$1gvhopg } from "./core/bool.ts";
-import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, clone$0wpatp7 as option_clone$0wpatp7, clone$14nprly as option_clone$14nprly, clone$13oewp0 as option_clone$13oewp0, clone$0xr8mw0 as option_clone$0xr8mw0, clone$17fv6u9 as option_clone$17fv6u9, clone$0fp7wpk as option_clone$0fp7wpk, clone$1lfse5o as option_clone$1lfse5o, clone$08wmfj8 as option_clone$08wmfj8, clone$1aebjgp as option_clone$1aebjgp } from "./core/option.ts";
+import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, mapOr$14runhi as option_mapOr$14runhi, clone$0wpatp7 as option_clone$0wpatp7, clone$14nprly as option_clone$14nprly, clone$13oewp0 as option_clone$13oewp0, clone$0xr8mw0 as option_clone$0xr8mw0, clone$17fv6u9 as option_clone$17fv6u9, clone$0fp7wpk as option_clone$0fp7wpk, clone$1lfse5o as option_clone$1lfse5o, clone$08wmfj8 as option_clone$08wmfj8, clone$1aebjgp as option_clone$1aebjgp } from "./core/option.ts";
 
 /** The byte at `at`, past `data`'s end its index. */
 export function byte(data: rs.ByteSlice, at: rs.usize): rs.u8 {
@@ -47,8 +47,7 @@ export function put$conversions_Value_u64(self: rs.u64, out: rs.ByteVec): void {
 /** The value `data` makes from `at`. */
 export function make$conversions_Value_String(data: rs.ByteSlice, at: rs.usize): string {
 	const part = rs.u8Rem(byte(data, at), 16);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(part, f)];
-	return rs.fmtFormat(["s", args2[0]]);
+	return rs.fmtFormat(["s", (f: rs.Formatter) => rs.u8Display(part, f)]);
 }
 
 /** Its bytes. */
@@ -133,8 +132,8 @@ export function make$conversions_Value_array2_u32(data: rs.ByteSlice, at: rs.usi
 }
 
 /** Its bytes. */
-export function put$conversions_Value_array2_u32(self: rs.u32[], out: rs.ByteVec): void {
-	for (const _5 of self) {
+export function put$conversions_Value_array2_u32(self: rs.Slice<rs.u32>, out: rs.ByteVec): void {
+	for (const _5 of rs.sliceItems(self)) {
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(_5)), undefined, true);
 	}
 }
@@ -177,37 +176,46 @@ export function LOG$init(_1: undefined): rs.Arc<rs.RefCell<rs.ByteVec>> {
 
 /**
  * Runs each conversion of the type `kind` picks, but a slice of one `u8`, whose `&mut`
- * no slice can view, and [`searched`] of those that order.
+ * no slice can view, and [`searched`] of those that order; and [`referenced`] of one
+ * type of each form JS keeps a value in.
  */
 export function conversions(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _5: rs.u8 = rs.u8Rem(kind, 14);
 	if (_5 === 0) {
 		ordered$u32(data, out);
+		referenced$u32(data, out);
 	} else if (_5 === 1) {
 		ordered$u64(data, out);
+		referenced$u64(data, out);
 	} else if (_5 === 2) {
 		ordered$String(data, out);
+		referenced$String(data, out);
 	} else if (_5 === 3) {
 		ordered$Option_u16(data, out);
+		referenced$Option_u16(data, out);
 	} else if (_5 === 4) {
 		ordered$array0_u8(data, out);
 	} else if (_5 === 5) {
 		ordered$array1_u8(data, out);
 	} else if (_5 === 6) {
 		ordered$array3_u8(data, out);
+		referenced$array3_u8(data, out);
 	} else if (_5 === 7) {
 		ordered$array40_u8(data, out);
 	} else if (_5 === 8) {
 		ordered$array2_u32(data, out);
 	} else if (_5 === 9) {
 		ordered$conversions_Named(data, out);
+		referenced$conversions_Named(data, out);
 	} else if (_5 === 10) {
 		ordered$Vec_u32(data, out);
 	} else if (_5 === 11) {
 		ordered$Vec_u8(data, out);
+		referenced$Vec_u8(data, out);
 	} else if (_5 === 12) {
 		converted$u8(data, out);
 		searched$u8(data, out);
+		referenced$u8(data, out);
 	} else {
 		((log: rs.Arc<rs.RefCell<rs.ByteVec>>): undefined => {
 			const _52: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
@@ -218,8 +226,10 @@ export function conversions(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 		lentOne$conversions_Logged(data, out);
 		lentThrough$conversions_Logged(data, out);
 		searched$conversions_Logged(data, out);
+		referenced$conversions_Logged(data, out);
 	}
 	measured(data, out);
+	referencedBytes(data, out);
 	pointed(data, out);
 	boxedKept(data, out);
 }
@@ -351,8 +361,8 @@ export function cloneFromParam$array1_u8(to: rs.ByteSlice, from: rs.ByteSlice): 
 }
 
 /** `clone_from` through a `&mut` whose place only the caller knows. */
-export function cloneFromParam$array2_u32(to: rs.u32[], from: rs.u32[]): void {
-	rs.replaceIn(to, copy$array_u32(from));
+export function cloneFromParam$array2_u32(to: rs.Slice<rs.u32>, from: rs.Slice<rs.u32>): void {
+	rs.replaceIn(rs.sliceView(to), rs.sliceToArray(from));
 }
 
 /** `clone_from` through a `&mut` whose place only the caller knows. */
@@ -421,8 +431,8 @@ export function cloneIntoParam$array1_u8(from: rs.ByteSlice, to: rs.ByteSlice): 
 }
 
 /** `clone_into` through a `&mut` whose place only the caller knows. */
-export function cloneIntoParam$array2_u32(from: rs.u32[], to: rs.u32[]): void {
-	rs.replaceIn(to, copy$array_u32(from));
+export function cloneIntoParam$array2_u32(from: rs.Slice<rs.u32>, to: rs.Slice<rs.u32>): void {
+	rs.replaceIn(rs.sliceView(to), rs.sliceToArray(from));
 }
 
 /** `clone_into` through a `&mut` whose place only the caller knows. */
@@ -539,8 +549,9 @@ export function writeFirst$array1_u8(s: rs.Slice<Uint8Array>, value: Uint8Array)
 export function writeFirst$array2_u32(s: rs.Slice<rs.u32[]>, value: rs.u32[]): rs.u32[] {
 	value = copy$array_u32(value);
 	rs.idx(s, 0);
-	const _8: rs.u32[] = copy$array_u32(copy$array_u32(value));
-	const old: rs.u32[] = rs.sliceReplace(s.data, s.start, _8);
+	const _3: rs.Slice<rs.u32> = rs.sliceFrom(s.data[s.start]);
+	const _8: rs.u32[] = copy$array_u32(value.slice());
+	const old: rs.u32[] = rs.replaceIn(rs.sliceView(_3), _8);
 	const _10: rs.u32[] = value;
 	rs.idx(s, 0);
 	s.data[s.start] = _10;
@@ -629,79 +640,80 @@ export function writeFirst$u64(s: rs.Slice<rs.u64>, value: rs.u64): rs.u64 {
 /** `mem::replace` of the first array, as a function given any slice of them makes it. */
 export function replaceFirst$Option_u16(s: rs.Slice<Array<rs.u16 | undefined>>, value: Array<rs.u16 | undefined>): Array<rs.u16 | undefined> {
 	rs.idx(s, 0);
-	return rs.sliceReplace(s.data, s.start, copy$array_Option_u16(value));
+	return rs.replaceIn(rs.sliceView(rs.sliceFrom(s.data[s.start])), copy$array_Option_u16(value));
 }
 
 /** `mem::replace` of the first array, as a function given any slice of them makes it. */
 export function replaceFirst$String(s: rs.Slice<string[]>, value: string[]): string[] {
 	rs.idx(s, 0);
-	return rs.sliceReplace(s.data, s.start, value);
+	return rs.replaceIn(rs.sliceView(rs.sliceFrom(s.data[s.start])), value);
 }
 
 /** `mem::replace` of the first array, as a function given any slice of them makes it. */
 export function replaceFirst$Vec_u32(s: rs.Slice<rs.Vec<rs.u32>[]>, value: rs.Vec<rs.u32>[]): rs.Vec<rs.u32>[] {
 	rs.idx(s, 0);
-	return rs.sliceReplace(s.data, s.start, value, 1);
+	return rs.replaceIn(rs.sliceView(rs.sliceFrom(s.data[s.start])), value, 1);
 }
 
 /** `mem::replace` of the first array, as a function given any slice of them makes it. */
 export function replaceFirst$Vec_u8(s: rs.Slice<rs.ByteVec[]>, value: rs.ByteVec[]): rs.ByteVec[] {
 	rs.idx(s, 0);
-	return rs.sliceReplace(s.data, s.start, value, 1);
+	return rs.replaceIn(rs.sliceView(rs.sliceFrom(s.data[s.start])), value, 1);
 }
 
 /** `mem::replace` of the first array, as a function given any slice of them makes it. */
 export function replaceFirst$array0_u8(s: rs.Slice<Uint8Array[]>, value: Uint8Array[]): Uint8Array[] {
 	rs.idx(s, 0);
+	rs.sliceFrom(s.data[s.start]);
 	return copy$array_array0_u8(value);
 }
 
 /** `mem::replace` of the first array, as a function given any slice of them makes it. */
 export function replaceFirst$array1_u8(s: rs.Slice<Uint8Array[]>, value: Uint8Array[]): Uint8Array[] {
 	rs.idx(s, 0);
-	return rs.sliceReplace(s.data, s.start, copy$array_array1_u8(value), 1);
+	return rs.replaceIn(rs.sliceView(rs.sliceFrom(s.data[s.start])), copy$array_array1_u8(value), 1);
 }
 
 /** `mem::replace` of the first array, as a function given any slice of them makes it. */
 export function replaceFirst$array2_u32(s: rs.Slice<rs.u32[][]>, value: rs.u32[][]): rs.u32[][] {
 	rs.idx(s, 0);
-	return rs.sliceReplace(s.data, s.start, copy$array_array2_u32(value), 1);
+	return rs.replaceIn(rs.sliceView(rs.sliceFrom(s.data[s.start])), copy$array_array2_u32(value), 1);
 }
 
 /** `mem::replace` of the first array, as a function given any slice of them makes it. */
 export function replaceFirst$array3_u8(s: rs.Slice<Uint8Array[]>, value: Uint8Array[]): Uint8Array[] {
 	rs.idx(s, 0);
-	return rs.sliceReplace(s.data, s.start, copy$array_array3_u8(value), 1);
+	return rs.replaceIn(rs.sliceView(rs.sliceFrom(s.data[s.start])), copy$array_array3_u8(value), 1);
 }
 
 /** `mem::replace` of the first array, as a function given any slice of them makes it. */
 export function replaceFirst$array40_u8(s: rs.Slice<Uint8Array[]>, value: Uint8Array[]): Uint8Array[] {
 	rs.idx(s, 0);
-	return rs.sliceReplace(s.data, s.start, copy$array_array40_u8(value), 1);
+	return rs.replaceIn(rs.sliceView(rs.sliceFrom(s.data[s.start])), copy$array_array40_u8(value), 1);
 }
 
 /** `mem::replace` of the first array, as a function given any slice of them makes it. */
 export function replaceFirst$conversions_Logged(s: rs.Slice<Logged.Logged[]>, value: Logged.Logged[]): Logged.Logged[] {
 	rs.idx(s, 0);
-	return rs.sliceReplace(s.data, s.start, value, 1);
+	return rs.replaceIn(rs.sliceView(rs.sliceFrom(s.data[s.start])), value, 1);
 }
 
 /** `mem::replace` of the first array, as a function given any slice of them makes it. */
 export function replaceFirst$conversions_Named(s: rs.Slice<Named.Named[]>, value: Named.Named[]): Named.Named[] {
 	rs.idx(s, 0);
-	return rs.sliceReplace(s.data, s.start, value, 1);
+	return rs.replaceIn(rs.sliceView(rs.sliceFrom(s.data[s.start])), value, 1);
 }
 
 /** `mem::replace` of the first array, as a function given any slice of them makes it. */
 export function replaceFirst$u32(s: rs.Slice<rs.u32[]>, value: rs.u32[]): rs.u32[] {
 	rs.idx(s, 0);
-	return rs.sliceReplace(s.data, s.start, copy$array_u32(value));
+	return rs.replaceIn(rs.sliceView(rs.sliceFrom(s.data[s.start])), copy$array_u32(value));
 }
 
 /** `mem::replace` of the first array, as a function given any slice of them makes it. */
 export function replaceFirst$u64(s: rs.Slice<rs.u64[]>, value: rs.u64[]): rs.u64[] {
 	rs.idx(s, 0);
-	return rs.sliceReplace(s.data, s.start, copy$array_u64(value));
+	return rs.replaceIn(rs.sliceView(rs.sliceFrom(s.data[s.start])), copy$array_u64(value));
 }
 
 /**
@@ -742,16 +754,16 @@ export function lentParam$Option_u16(to: rs.Place<rs.u16 | undefined>, data: rs.
 	rs.idx(s, 0);
 	const borrowed = s.data;
 	const borrowed2 = s.start;
-	const a: Array<rs.u16 | undefined> = rs.arrayOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
+	const a: rs.Slice<rs.u16 | undefined> = rs.sliceOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
 	const _77: Array<rs.u16 | undefined> = [make$conversions_Value_Option_u16(data, 22)];
-	put$conversions_Value_Option_u16(rs.replaceIn(a, _77)[0], out);
+	put$conversions_Value_Option_u16(rs.replaceIn(rs.sliceView(a), _77)[0], out);
 	let by: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 23);
 	rs.idx(s, 0);
 	const borrowed3 = s.start;
 	let r: rs.Place<rs.u16 | undefined> = rs.place(() => s.data[borrowed3], (value2) => s.data[borrowed3] = value2);
-	const _89: rs.Place<rs.u16 | undefined>[] = rs.arrayOfPlace(rs.place(() => r, (value3) => r = value3));
+	const _89: rs.Slice<rs.Place<rs.u16 | undefined>> = rs.sliceOfPlace(rs.place(() => r, (value3) => r = value3));
 	const _91: rs.Place<rs.u16 | undefined>[] = [rs.place(() => by, (value4) => by = value4)];
-	rs.replaceIn(_89, _91)[0].v = make$conversions_Value_Option_u16(data, 24);
+	rs.replaceIn(rs.sliceView(_89), _91)[0].v = make$conversions_Value_Option_u16(data, 24);
 	put$conversions_Value_Option_u16(r.v, out);
 	rs.idx(s, 0);
 	put$conversions_Value_Option_u16(s.data[s.start], out);
@@ -762,15 +774,15 @@ export function lentParam$Option_u16(to: rs.Place<rs.u16 | undefined>, data: rs.
 	rs.idx(s, 0);
 	const borrowed6 = s.data;
 	const borrowed7 = s.start;
-	put$conversions_Value_Option_u16(rs.cellReplace(rs.cellIn(rs.arrayOfPlace(rs.place(() => borrowed6[borrowed7], (value6) => borrowed6[borrowed7] = value6))), [make$conversions_Value_Option_u16(data, 26)])[0], out);
+	put$conversions_Value_Option_u16(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed6[borrowed7], (value6) => borrowed6[borrowed7] = value6)))), [make$conversions_Value_Option_u16(data, 26)])[0], out);
 	rs.idx(s, 0);
 	const borrowed8 = s.data;
 	const borrowed9 = s.start;
-	put$conversions_Value_Option_u16(replaceFirst$Option_u16(rs.sliceIn(rs.arrayOfPlace(rs.place(() => borrowed8[borrowed9], (value7) => borrowed8[borrowed9] = value7))), [make$conversions_Value_Option_u16(data, 27)])[0], out);
+	put$conversions_Value_Option_u16(replaceFirst$Option_u16(rs.sliceIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed8[borrowed9], (value7) => borrowed8[borrowed9] = value7)))), [make$conversions_Value_Option_u16(data, 27)])[0], out);
 	rs.idx(s, 0);
 	const borrowed10 = s.data;
 	const borrowed11 = s.start;
-	put$conversions_Value_Option_u16(rs.cellReplace(rs.cellIn(rs.arrayIn(rs.arrayOfPlace(rs.place(() => borrowed10[borrowed11], (value8) => borrowed10[borrowed11] = value8))), 1), [[make$conversions_Value_Option_u16(data, 28)]])[0][0], out);
+	put$conversions_Value_Option_u16(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed10[borrowed11], (value8) => borrowed10[borrowed11] = value8))))), 1), [[make$conversions_Value_Option_u16(data, 28)]])[0][0], out);
 	rs.idx(s, 0);
 	s.data[s.start] = other;
 	rs.idx(s, 0);
@@ -815,16 +827,16 @@ export function lentParam$String(to: rs.Place<string>, data: rs.ByteSlice, out: 
 	rs.idx(s, 0);
 	const borrowed = s.data;
 	const borrowed2 = s.start;
-	const a: string[] = rs.arrayOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
+	const a: rs.Slice<string> = rs.sliceOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
 	const _77: string[] = [make$conversions_Value_String(data, 22)];
-	put$conversions_Value_String(rs.replaceIn(a, _77)[0], out);
+	put$conversions_Value_String(rs.replaceIn(rs.sliceView(a), _77)[0], out);
 	let by: string = make$conversions_Value_String(data, 23);
 	rs.idx(s, 0);
 	const borrowed3 = s.start;
 	let r: rs.Place<string> = rs.place(() => s.data[borrowed3], (value2) => s.data[borrowed3] = value2);
-	const _89: rs.Place<string>[] = rs.arrayOfPlace(rs.place(() => r, (value3) => r = value3));
+	const _89: rs.Slice<rs.Place<string>> = rs.sliceOfPlace(rs.place(() => r, (value3) => r = value3));
 	const _91: rs.Place<string>[] = [rs.place(() => by, (value4) => by = value4)];
-	rs.replaceIn(_89, _91)[0].v = make$conversions_Value_String(data, 24);
+	rs.replaceIn(rs.sliceView(_89), _91)[0].v = make$conversions_Value_String(data, 24);
 	put$conversions_Value_String(r.v, out);
 	rs.idx(s, 0);
 	put$conversions_Value_String(s.data[s.start], out);
@@ -835,15 +847,15 @@ export function lentParam$String(to: rs.Place<string>, data: rs.ByteSlice, out: 
 	rs.idx(s, 0);
 	const borrowed6 = s.data;
 	const borrowed7 = s.start;
-	put$conversions_Value_String(rs.cellReplace(rs.cellIn(rs.arrayOfPlace(rs.place(() => borrowed6[borrowed7], (value6) => borrowed6[borrowed7] = value6))), [make$conversions_Value_String(data, 26)])[0], out);
+	put$conversions_Value_String(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed6[borrowed7], (value6) => borrowed6[borrowed7] = value6)))), [make$conversions_Value_String(data, 26)])[0], out);
 	rs.idx(s, 0);
 	const borrowed8 = s.data;
 	const borrowed9 = s.start;
-	put$conversions_Value_String(replaceFirst$String(rs.sliceIn(rs.arrayOfPlace(rs.place(() => borrowed8[borrowed9], (value7) => borrowed8[borrowed9] = value7))), [make$conversions_Value_String(data, 27)])[0], out);
+	put$conversions_Value_String(replaceFirst$String(rs.sliceIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed8[borrowed9], (value7) => borrowed8[borrowed9] = value7)))), [make$conversions_Value_String(data, 27)])[0], out);
 	rs.idx(s, 0);
 	const borrowed10 = s.data;
 	const borrowed11 = s.start;
-	put$conversions_Value_String(rs.cellReplace(rs.cellIn(rs.arrayIn(rs.arrayOfPlace(rs.place(() => borrowed10[borrowed11], (value8) => borrowed10[borrowed11] = value8))), 1), [[make$conversions_Value_String(data, 28)]])[0][0], out);
+	put$conversions_Value_String(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed10[borrowed11], (value8) => borrowed10[borrowed11] = value8))))), 1), [[make$conversions_Value_String(data, 28)]])[0][0], out);
 	rs.idx(s, 0);
 	s.data[s.start] = other;
 	rs.idx(s, 0);
@@ -880,15 +892,15 @@ export function lentParam$Vec_u32(to: rs.Vec<rs.u32>, data: rs.ByteSlice, out: r
 	rs.idx(s, 0);
 	const borrowed = s.data;
 	const borrowed2 = s.start;
-	const a: rs.Vec<rs.u32>[] = rs.arrayOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
+	const a: rs.Slice<rs.Vec<rs.u32>> = rs.sliceOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
 	const _77: rs.Vec<rs.u32>[] = [make$conversions_Value_Vec_u32(data, 22)];
-	put$conversions_Value_Vec_u32(rs.replaceIn(a, _77, 1)[0], out);
+	put$conversions_Value_Vec_u32(rs.replaceIn(rs.sliceView(a), _77, 1)[0], out);
 	const by: rs.Vec<rs.u32> = make$conversions_Value_Vec_u32(data, 23);
 	rs.idx(s, 0);
 	let r: rs.Vec<rs.u32> = s.data[s.start];
-	const _89: rs.Vec<rs.u32>[] = rs.arrayOfPlace(rs.place(() => r, (value2) => r = value2));
+	const _89: rs.Slice<rs.Vec<rs.u32>> = rs.sliceOfPlace(rs.place(() => r, (value2) => r = value2));
 	const _91: rs.Vec<rs.u32>[] = [by];
-	Object.assign(rs.replaceIn(_89, _91)[0], make$conversions_Value_Vec_u32(data, 24));
+	Object.assign(rs.replaceIn(rs.sliceView(_89), _91)[0], make$conversions_Value_Vec_u32(data, 24));
 	put$conversions_Value_Vec_u32(r, out);
 	rs.idx(s, 0);
 	put$conversions_Value_Vec_u32(s.data[s.start], out);
@@ -897,15 +909,15 @@ export function lentParam$Vec_u32(to: rs.Vec<rs.u32>, data: rs.ByteSlice, out: r
 	rs.idx(s, 0);
 	const borrowed3 = s.data;
 	const borrowed4 = s.start;
-	put$conversions_Value_Vec_u32(rs.cellReplace(rs.cellIn(rs.arrayOfPlace(rs.place(() => borrowed3[borrowed4], (value3) => borrowed3[borrowed4] = value3)), 1), [make$conversions_Value_Vec_u32(data, 26)])[0], out);
+	put$conversions_Value_Vec_u32(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed3[borrowed4], (value3) => borrowed3[borrowed4] = value3))), 1), [make$conversions_Value_Vec_u32(data, 26)])[0], out);
 	rs.idx(s, 0);
 	const borrowed5 = s.data;
 	const borrowed6 = s.start;
-	put$conversions_Value_Vec_u32(replaceFirst$Vec_u32(rs.sliceIn(rs.arrayOfPlace(rs.place(() => borrowed5[borrowed6], (value4) => borrowed5[borrowed6] = value4))), [make$conversions_Value_Vec_u32(data, 27)])[0], out);
+	put$conversions_Value_Vec_u32(replaceFirst$Vec_u32(rs.sliceIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed5[borrowed6], (value4) => borrowed5[borrowed6] = value4)))), [make$conversions_Value_Vec_u32(data, 27)])[0], out);
 	rs.idx(s, 0);
 	const borrowed7 = s.data;
 	const borrowed8 = s.start;
-	put$conversions_Value_Vec_u32(rs.cellReplace(rs.cellIn(rs.arrayIn(rs.arrayOfPlace(rs.place(() => borrowed7[borrowed8], (value5) => borrowed7[borrowed8] = value5))), 2), [[make$conversions_Value_Vec_u32(data, 28)]])[0][0], out);
+	put$conversions_Value_Vec_u32(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed7[borrowed8], (value5) => borrowed7[borrowed8] = value5))))), 2), [[make$conversions_Value_Vec_u32(data, 28)]])[0][0], out);
 	rs.idx(s, 0);
 	rs.vecCloneFrom(s.data[s.start], other, 4);
 	rs.idx(s, 0);
@@ -942,15 +954,15 @@ export function lentParam$Vec_u8(to: rs.ByteVec, data: rs.ByteSlice, out: rs.Byt
 	rs.idx(s, 0);
 	const borrowed = s.data;
 	const borrowed2 = s.start;
-	const a: rs.ByteVec[] = rs.arrayOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
+	const a: rs.Slice<rs.ByteVec> = rs.sliceOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
 	const _77: rs.ByteVec[] = [make$conversions_Value_Vec_u8(data, 22)];
-	put$conversions_Value_Vec_u8(rs.replaceIn(a, _77, 1)[0], out);
+	put$conversions_Value_Vec_u8(rs.replaceIn(rs.sliceView(a), _77, 1)[0], out);
 	const by: rs.ByteVec = make$conversions_Value_Vec_u8(data, 23);
 	rs.idx(s, 0);
 	let r: rs.ByteVec = s.data[s.start];
-	const _89: rs.ByteVec[] = rs.arrayOfPlace(rs.place(() => r, (value2) => r = value2));
+	const _89: rs.Slice<rs.ByteVec> = rs.sliceOfPlace(rs.place(() => r, (value2) => r = value2));
 	const _91: rs.ByteVec[] = [by];
-	Object.assign(rs.replaceIn(_89, _91)[0], make$conversions_Value_Vec_u8(data, 24));
+	Object.assign(rs.replaceIn(rs.sliceView(_89), _91)[0], make$conversions_Value_Vec_u8(data, 24));
 	put$conversions_Value_Vec_u8(r, out);
 	rs.idx(s, 0);
 	put$conversions_Value_Vec_u8(s.data[s.start], out);
@@ -959,15 +971,15 @@ export function lentParam$Vec_u8(to: rs.ByteVec, data: rs.ByteSlice, out: rs.Byt
 	rs.idx(s, 0);
 	const borrowed3 = s.data;
 	const borrowed4 = s.start;
-	put$conversions_Value_Vec_u8(rs.cellReplace(rs.cellIn(rs.arrayOfPlace(rs.place(() => borrowed3[borrowed4], (value3) => borrowed3[borrowed4] = value3)), 1), [make$conversions_Value_Vec_u8(data, 26)])[0], out);
+	put$conversions_Value_Vec_u8(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed3[borrowed4], (value3) => borrowed3[borrowed4] = value3))), 1), [make$conversions_Value_Vec_u8(data, 26)])[0], out);
 	rs.idx(s, 0);
 	const borrowed5 = s.data;
 	const borrowed6 = s.start;
-	put$conversions_Value_Vec_u8(replaceFirst$Vec_u8(rs.sliceIn(rs.arrayOfPlace(rs.place(() => borrowed5[borrowed6], (value4) => borrowed5[borrowed6] = value4))), [make$conversions_Value_Vec_u8(data, 27)])[0], out);
+	put$conversions_Value_Vec_u8(replaceFirst$Vec_u8(rs.sliceIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed5[borrowed6], (value4) => borrowed5[borrowed6] = value4)))), [make$conversions_Value_Vec_u8(data, 27)])[0], out);
 	rs.idx(s, 0);
 	const borrowed7 = s.data;
 	const borrowed8 = s.start;
-	put$conversions_Value_Vec_u8(rs.cellReplace(rs.cellIn(rs.arrayIn(rs.arrayOfPlace(rs.place(() => borrowed7[borrowed8], (value5) => borrowed7[borrowed8] = value5))), 2), [[make$conversions_Value_Vec_u8(data, 28)]])[0][0], out);
+	put$conversions_Value_Vec_u8(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed7[borrowed8], (value5) => borrowed7[borrowed8] = value5))))), 2), [[make$conversions_Value_Vec_u8(data, 28)]])[0][0], out);
 	rs.idx(s, 0);
 	rs.byteVecCloneFrom(s.data[s.start], other);
 	rs.idx(s, 0);
@@ -1006,15 +1018,15 @@ export function lentParam$array0_u8(to: rs.ByteSlice, data: rs.ByteSlice, out: r
 	rs.idx(t, 1);
 	put$conversions_Value_array0_u8(rs.byteSliceFrom(t.data[t.start + 1]), out);
 	rs.idx(s, 0);
-	rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])));
+	rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])));
 	const _76: Uint8Array[] = [copy$array_u8(make$conversions_Value_array0_u8(data, 22))];
 	put$conversions_Value_array0_u8(rs.byteSliceFrom(_76[0]), out);
 	const by: Uint8Array = copy$array_u8(make$conversions_Value_array0_u8(data, 23));
 	rs.idx(s, 0);
 	let r: rs.ByteSlice = rs.byteSliceFrom(s.data[s.start]);
-	const _89: rs.ByteSlice[] = rs.arrayOfPlace(rs.place(() => r, (value) => r = value));
+	const _89: rs.Slice<rs.ByteSlice> = rs.sliceOfPlace(rs.place(() => r, (value) => r = value));
 	const _91: rs.ByteSlice[] = [rs.byteSliceFrom(by)];
-	const _88: rs.ByteSlice[] = rs.replaceIn(_89, _91);
+	const _88: rs.ByteSlice[] = rs.replaceIn(rs.sliceView(_89), _91);
 	const _93: Uint8Array = copy$array_u8(make$conversions_Value_array0_u8(data, 24));
 	_88[0].data.set(_93, _88[0].start);
 	put$conversions_Value_array0_u8(r, out);
@@ -1023,11 +1035,11 @@ export function lentParam$array0_u8(to: rs.ByteSlice, data: rs.ByteSlice, out: r
 	rs.idx(s, 0);
 	put$conversions_Value_array0_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start]))), copy$array_u8(make$conversions_Value_array0_u8(data, 25)))), out);
 	rs.idx(s, 0);
-	put$conversions_Value_array0_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start]))), 1), [copy$array_u8(make$conversions_Value_array0_u8(data, 26))])[0]), out);
+	put$conversions_Value_array0_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])))), 1), [copy$array_u8(make$conversions_Value_array0_u8(data, 26))])[0]), out);
 	rs.idx(s, 0);
-	put$conversions_Value_array0_u8(rs.byteSliceFrom(replaceFirst$array0_u8(rs.sliceIn(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])))), [make$conversions_Value_array0_u8(data, 27)])[0]), out);
+	put$conversions_Value_array0_u8(rs.byteSliceFrom(replaceFirst$array0_u8(rs.sliceIn(rs.sliceView(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start]))))), [make$conversions_Value_array0_u8(data, 27)])[0]), out);
 	rs.idx(s, 0);
-	put$conversions_Value_array0_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.arrayIn(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])))), 2), [[copy$array_u8(make$conversions_Value_array0_u8(data, 28))]])[0][0]), out);
+	put$conversions_Value_array0_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.sliceView(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])))))), 2), [[copy$array_u8(make$conversions_Value_array0_u8(data, 28))]])[0][0]), out);
 	rs.idx(s, 0);
 	const _154: rs.ByteSlice = rs.byteSliceFrom(s.data[s.start]);
 	const _159: rs.ByteSlice = rs.byteSliceFrom(other);
@@ -1080,15 +1092,15 @@ export function lentParam$array1_u8(to: rs.ByteSlice, data: rs.ByteSlice, out: r
 	rs.idx(t, 1);
 	put$conversions_Value_array1_u8(rs.byteSliceFrom(t.data[t.start + 1]), out);
 	rs.idx(s, 0);
-	const a: Uint8Array[] = rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])));
+	const a: rs.Slice<Uint8Array> = rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])));
 	const _77: Uint8Array[] = [copy$array_u8(make$conversions_Value_array1_u8(data, 22))];
-	put$conversions_Value_array1_u8(rs.byteSliceFrom(rs.replaceIn(a, _77, 1)[0]), out);
+	put$conversions_Value_array1_u8(rs.byteSliceFrom(rs.replaceIn(rs.sliceView(a), _77, 1)[0]), out);
 	const by: Uint8Array = copy$array_u8(make$conversions_Value_array1_u8(data, 23));
 	rs.idx(s, 0);
 	let r: rs.ByteSlice = rs.byteSliceFrom(s.data[s.start]);
-	const _89: rs.ByteSlice[] = rs.arrayOfPlace(rs.place(() => r, (value) => r = value));
+	const _89: rs.Slice<rs.ByteSlice> = rs.sliceOfPlace(rs.place(() => r, (value) => r = value));
 	const _91: rs.ByteSlice[] = [rs.byteSliceFrom(by)];
-	const _88: rs.ByteSlice[] = rs.replaceIn(_89, _91);
+	const _88: rs.ByteSlice[] = rs.replaceIn(rs.sliceView(_89), _91);
 	const _93: Uint8Array = copy$array_u8(make$conversions_Value_array1_u8(data, 24));
 	_88[0].data.set(_93, _88[0].start);
 	put$conversions_Value_array1_u8(r, out);
@@ -1097,11 +1109,11 @@ export function lentParam$array1_u8(to: rs.ByteSlice, data: rs.ByteSlice, out: r
 	rs.idx(s, 0);
 	put$conversions_Value_array1_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start]))), copy$array_u8(make$conversions_Value_array1_u8(data, 25)))), out);
 	rs.idx(s, 0);
-	put$conversions_Value_array1_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start]))), 1), [copy$array_u8(make$conversions_Value_array1_u8(data, 26))])[0]), out);
+	put$conversions_Value_array1_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])))), 1), [copy$array_u8(make$conversions_Value_array1_u8(data, 26))])[0]), out);
 	rs.idx(s, 0);
-	put$conversions_Value_array1_u8(rs.byteSliceFrom(replaceFirst$array1_u8(rs.sliceIn(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])))), [make$conversions_Value_array1_u8(data, 27)])[0]), out);
+	put$conversions_Value_array1_u8(rs.byteSliceFrom(replaceFirst$array1_u8(rs.sliceIn(rs.sliceView(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start]))))), [make$conversions_Value_array1_u8(data, 27)])[0]), out);
 	rs.idx(s, 0);
-	put$conversions_Value_array1_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.arrayIn(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])))), 2), [[copy$array_u8(make$conversions_Value_array1_u8(data, 28))]])[0][0]), out);
+	put$conversions_Value_array1_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.sliceView(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])))))), 2), [[copy$array_u8(make$conversions_Value_array1_u8(data, 28))]])[0][0]), out);
 	rs.idx(s, 0);
 	const _154: rs.ByteSlice = rs.byteSliceFrom(s.data[s.start]);
 	const _159: rs.ByteSlice = rs.byteSliceFrom(other);
@@ -1116,60 +1128,64 @@ export function lentParam$array1_u8(to: rs.ByteSlice, data: rs.ByteSlice, out: r
  * another slice's element, as an array, of a reference to it, by a cell, and nested in
  * arrays, and written in place.
  */
-export function lentParam$array2_u32(to: rs.u32[], data: rs.ByteSlice, out: rs.ByteVec): void {
-	const s: rs.Slice<rs.u32[]> = rs.sliceIn(to);
-	put$conversions_Value_array2_u32(writeFirst$array2_u32(s, make$conversions_Value_array2_u32(data, 18)), out);
-	let other: rs.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 19));
+export function lentParam$array2_u32(to: rs.Slice<rs.u32>, data: rs.ByteSlice, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u32[]> = rs.sliceIn(rs.sliceView(to));
+	put$conversions_Value_array2_u32(rs.sliceFrom(writeFirst$array2_u32(s, make$conversions_Value_array2_u32(data, 18))), out);
+	const other: rs.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 19));
 	rs.idx(s, 0);
-	other = rs.sliceReplace(s.data, s.start, other);
-	put$conversions_Value_array2_u32(other, out);
+	const _11: rs.Slice<rs.u32> = rs.sliceFrom(s.data[s.start]);
+	const _16: rs.Slice<rs.u32> = rs.sliceFrom(other);
+	rs.sliceSet(_16, rs.replaceIn(rs.sliceView(_11), rs.sliceToArray(_16)));
+	put$conversions_Value_array2_u32(rs.sliceFrom(other), out);
+	const _20: rs.Slice<rs.u32> = rs.sliceFrom(other);
 	rs.idx(s, 0);
-	other = rs.sliceReplace(s.data, s.start, other);
-	put$conversions_Value_array2_u32(other, out);
+	const _21: rs.Slice<rs.u32> = rs.sliceFrom(s.data[s.start]);
+	rs.sliceSet(_21, rs.replaceIn(rs.sliceView(_20), rs.sliceToArray(_21)));
+	put$conversions_Value_array2_u32(rs.sliceFrom(other), out);
 	const t: rs.Slice<rs.u32[]> = rs.sliceFrom(rs.vecFrom(copy$array_array2_u32([make$conversions_Value_array2_u32(data, 20), make$conversions_Value_array2_u32(data, 21)]).map(copy$array_u32)).items);
 	rs.idx(s, 0);
+	const _35: rs.Slice<rs.u32> = rs.sliceFrom(s.data[s.start]);
 	rs.idx(t, 1);
-	rs.sliceSwapAcross(s.data, s.start, t.data, t.start + 1);
+	const _40: rs.Slice<rs.u32> = rs.sliceFrom(t.data[t.start + 1]);
+	rs.sliceSet(_40, rs.replaceIn(rs.sliceView(_35), rs.sliceToArray(_40)));
 	rs.idx(t, 0);
+	const _46: rs.Slice<rs.u32> = rs.sliceFrom(t.data[t.start]);
 	rs.idx(s, 0);
-	rs.sliceSwapAcross(t.data, t.start, s.data, s.start);
+	const _51: rs.Slice<rs.u32> = rs.sliceFrom(s.data[s.start]);
+	rs.sliceSet(_51, rs.replaceIn(rs.sliceView(_46), rs.sliceToArray(_51)));
 	rs.idx(t, 0);
-	put$conversions_Value_array2_u32(t.data[t.start], out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(t.data[t.start]), out);
 	rs.idx(t, 1);
-	put$conversions_Value_array2_u32(t.data[t.start + 1], out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(t.data[t.start + 1]), out);
 	rs.idx(s, 0);
-	const borrowed = s.data;
-	const borrowed2 = s.start;
-	const a: rs.u32[][] = rs.arrayOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
+	const a: rs.Slice<rs.u32[]> = rs.sliceIn(rs.sliceView(rs.sliceFrom(s.data[s.start])));
 	const _77: rs.u32[][] = [copy$array_u32(make$conversions_Value_array2_u32(data, 22))];
-	put$conversions_Value_array2_u32(rs.replaceIn(a, _77, 1)[0], out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(rs.replaceIn(rs.sliceView(a), _77, 1)[0]), out);
 	const by: rs.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 23));
 	rs.idx(s, 0);
-	let r: rs.u32[] = s.data[s.start];
-	const _89: rs.u32[][] = rs.arrayOfPlace(rs.place(() => r, (value2) => r = value2));
-	const _91: rs.u32[][] = [by];
-	Object.assign(rs.replaceIn(_89, _91)[0], copy$array_u32(make$conversions_Value_array2_u32(data, 24)));
+	let r: rs.Slice<rs.u32> = rs.sliceFrom(s.data[s.start]);
+	const _89: rs.Slice<rs.Slice<rs.u32>> = rs.sliceOfPlace(rs.place(() => r, (value) => r = value));
+	const _91: rs.Slice<rs.u32>[] = [rs.sliceFrom(by)];
+	const _88: rs.Slice<rs.u32>[] = rs.replaceIn(rs.sliceView(_89), _91);
+	const _93: rs.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 24));
+	rs.sliceSet(_88[0], _93);
 	put$conversions_Value_array2_u32(r, out);
 	rs.idx(s, 0);
-	put$conversions_Value_array2_u32(s.data[s.start], out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(s.data[s.start]), out);
 	rs.idx(s, 0);
-	put$conversions_Value_array2_u32(rs.cellReplace(rs.cellIn(s.data[s.start]), copy$array_u32(make$conversions_Value_array2_u32(data, 25))), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceFrom(s.data[s.start]))), copy$array_u32(make$conversions_Value_array2_u32(data, 25)))), out);
 	rs.idx(s, 0);
-	const borrowed3 = s.data;
-	const borrowed4 = s.start;
-	put$conversions_Value_array2_u32(rs.cellReplace(rs.cellIn(rs.arrayOfPlace(rs.place(() => borrowed3[borrowed4], (value3) => borrowed3[borrowed4] = value3)), 1), [copy$array_u32(make$conversions_Value_array2_u32(data, 26))])[0], out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.sliceView(rs.sliceFrom(s.data[s.start])))), 1), [copy$array_u32(make$conversions_Value_array2_u32(data, 26))])[0]), out);
 	rs.idx(s, 0);
-	const borrowed5 = s.data;
-	const borrowed6 = s.start;
-	put$conversions_Value_array2_u32(replaceFirst$array2_u32(rs.sliceIn(rs.arrayOfPlace(rs.place(() => borrowed5[borrowed6], (value4) => borrowed5[borrowed6] = value4))), [make$conversions_Value_array2_u32(data, 27)])[0], out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(replaceFirst$array2_u32(rs.sliceIn(rs.sliceView(rs.sliceIn(rs.sliceView(rs.sliceFrom(s.data[s.start]))))), [make$conversions_Value_array2_u32(data, 27)])[0]), out);
 	rs.idx(s, 0);
-	const borrowed7 = s.data;
-	const borrowed8 = s.start;
-	put$conversions_Value_array2_u32(rs.cellReplace(rs.cellIn(rs.arrayIn(rs.arrayOfPlace(rs.place(() => borrowed7[borrowed8], (value5) => borrowed7[borrowed8] = value5))), 2), [[copy$array_u32(make$conversions_Value_array2_u32(data, 28))]])[0][0], out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.sliceView(rs.sliceIn(rs.sliceView(rs.sliceFrom(s.data[s.start])))))), 2), [[copy$array_u32(make$conversions_Value_array2_u32(data, 28))]])[0][0]), out);
 	rs.idx(s, 0);
-	s.data[s.start] = copy$array_u32(other);
+	const _154: rs.Slice<rs.u32> = rs.sliceFrom(s.data[s.start]);
+	const _159: rs.Slice<rs.u32> = rs.sliceFrom(other);
+	rs.replaceIn(rs.sliceView(_154), rs.sliceToArray(_159));
 	rs.idx(s, 0);
-	put$conversions_Value_array2_u32(s.data[s.start], out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(s.data[s.start]), out);
 }
 
 /**
@@ -1216,15 +1232,15 @@ export function lentParam$array3_u8(to: rs.ByteSlice, data: rs.ByteSlice, out: r
 	rs.idx(t, 1);
 	put$conversions_Value_array3_u8(rs.byteSliceFrom(t.data[t.start + 1]), out);
 	rs.idx(s, 0);
-	const a: Uint8Array[] = rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])));
+	const a: rs.Slice<Uint8Array> = rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])));
 	const _77: Uint8Array[] = [copy$array_u8(make$conversions_Value_array3_u8(data, 22))];
-	put$conversions_Value_array3_u8(rs.byteSliceFrom(rs.replaceIn(a, _77, 1)[0]), out);
+	put$conversions_Value_array3_u8(rs.byteSliceFrom(rs.replaceIn(rs.sliceView(a), _77, 1)[0]), out);
 	const by: Uint8Array = copy$array_u8(make$conversions_Value_array3_u8(data, 23));
 	rs.idx(s, 0);
 	let r: rs.ByteSlice = rs.byteSliceFrom(s.data[s.start]);
-	const _89: rs.ByteSlice[] = rs.arrayOfPlace(rs.place(() => r, (value) => r = value));
+	const _89: rs.Slice<rs.ByteSlice> = rs.sliceOfPlace(rs.place(() => r, (value) => r = value));
 	const _91: rs.ByteSlice[] = [rs.byteSliceFrom(by)];
-	const _88: rs.ByteSlice[] = rs.replaceIn(_89, _91);
+	const _88: rs.ByteSlice[] = rs.replaceIn(rs.sliceView(_89), _91);
 	const _93: Uint8Array = copy$array_u8(make$conversions_Value_array3_u8(data, 24));
 	_88[0].data.set(_93, _88[0].start);
 	put$conversions_Value_array3_u8(r, out);
@@ -1233,11 +1249,11 @@ export function lentParam$array3_u8(to: rs.ByteSlice, data: rs.ByteSlice, out: r
 	rs.idx(s, 0);
 	put$conversions_Value_array3_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start]))), copy$array_u8(make$conversions_Value_array3_u8(data, 25)))), out);
 	rs.idx(s, 0);
-	put$conversions_Value_array3_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start]))), 1), [copy$array_u8(make$conversions_Value_array3_u8(data, 26))])[0]), out);
+	put$conversions_Value_array3_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])))), 1), [copy$array_u8(make$conversions_Value_array3_u8(data, 26))])[0]), out);
 	rs.idx(s, 0);
-	put$conversions_Value_array3_u8(rs.byteSliceFrom(replaceFirst$array3_u8(rs.sliceIn(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])))), [make$conversions_Value_array3_u8(data, 27)])[0]), out);
+	put$conversions_Value_array3_u8(rs.byteSliceFrom(replaceFirst$array3_u8(rs.sliceIn(rs.sliceView(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start]))))), [make$conversions_Value_array3_u8(data, 27)])[0]), out);
 	rs.idx(s, 0);
-	put$conversions_Value_array3_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.arrayIn(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])))), 2), [[copy$array_u8(make$conversions_Value_array3_u8(data, 28))]])[0][0]), out);
+	put$conversions_Value_array3_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.sliceView(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])))))), 2), [[copy$array_u8(make$conversions_Value_array3_u8(data, 28))]])[0][0]), out);
 	rs.idx(s, 0);
 	const _154: rs.ByteSlice = rs.byteSliceFrom(s.data[s.start]);
 	const _159: rs.ByteSlice = rs.byteSliceFrom(other);
@@ -1290,15 +1306,15 @@ export function lentParam$array40_u8(to: rs.ByteSlice, data: rs.ByteSlice, out: 
 	rs.idx(t, 1);
 	put$conversions_Value_array40_u8(rs.byteSliceFrom(t.data[t.start + 1]), out);
 	rs.idx(s, 0);
-	const a: Uint8Array[] = rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])));
+	const a: rs.Slice<Uint8Array> = rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])));
 	const _77: Uint8Array[] = [copy$array_u8(make$conversions_Value_array40_u8(data, 22))];
-	put$conversions_Value_array40_u8(rs.byteSliceFrom(rs.replaceIn(a, _77, 1)[0]), out);
+	put$conversions_Value_array40_u8(rs.byteSliceFrom(rs.replaceIn(rs.sliceView(a), _77, 1)[0]), out);
 	const by: Uint8Array = copy$array_u8(make$conversions_Value_array40_u8(data, 23));
 	rs.idx(s, 0);
 	let r: rs.ByteSlice = rs.byteSliceFrom(s.data[s.start]);
-	const _89: rs.ByteSlice[] = rs.arrayOfPlace(rs.place(() => r, (value) => r = value));
+	const _89: rs.Slice<rs.ByteSlice> = rs.sliceOfPlace(rs.place(() => r, (value) => r = value));
 	const _91: rs.ByteSlice[] = [rs.byteSliceFrom(by)];
-	const _88: rs.ByteSlice[] = rs.replaceIn(_89, _91);
+	const _88: rs.ByteSlice[] = rs.replaceIn(rs.sliceView(_89), _91);
 	const _93: Uint8Array = copy$array_u8(make$conversions_Value_array40_u8(data, 24));
 	_88[0].data.set(_93, _88[0].start);
 	put$conversions_Value_array40_u8(r, out);
@@ -1307,11 +1323,11 @@ export function lentParam$array40_u8(to: rs.ByteSlice, data: rs.ByteSlice, out: 
 	rs.idx(s, 0);
 	put$conversions_Value_array40_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start]))), copy$array_u8(make$conversions_Value_array40_u8(data, 25)))), out);
 	rs.idx(s, 0);
-	put$conversions_Value_array40_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start]))), 1), [copy$array_u8(make$conversions_Value_array40_u8(data, 26))])[0]), out);
+	put$conversions_Value_array40_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])))), 1), [copy$array_u8(make$conversions_Value_array40_u8(data, 26))])[0]), out);
 	rs.idx(s, 0);
-	put$conversions_Value_array40_u8(rs.byteSliceFrom(replaceFirst$array40_u8(rs.sliceIn(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])))), [make$conversions_Value_array40_u8(data, 27)])[0]), out);
+	put$conversions_Value_array40_u8(rs.byteSliceFrom(replaceFirst$array40_u8(rs.sliceIn(rs.sliceView(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start]))))), [make$conversions_Value_array40_u8(data, 27)])[0]), out);
 	rs.idx(s, 0);
-	put$conversions_Value_array40_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.arrayIn(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])))), 2), [[copy$array_u8(make$conversions_Value_array40_u8(data, 28))]])[0][0]), out);
+	put$conversions_Value_array40_u8(rs.byteSliceFrom(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.sliceView(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(s.data[s.start])))))), 2), [[copy$array_u8(make$conversions_Value_array40_u8(data, 28))]])[0][0]), out);
 	rs.idx(s, 0);
 	const _154: rs.ByteSlice = rs.byteSliceFrom(s.data[s.start]);
 	const _159: rs.ByteSlice = rs.byteSliceFrom(other);
@@ -1353,17 +1369,17 @@ export function lentParam$conversions_Logged(to: Logged.Logged, data: rs.ByteSli
 	rs.idx(s, 0);
 	const borrowed = s.data;
 	const borrowed2 = s.start;
-	const a: Logged.Logged[] = rs.arrayOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
+	const a: rs.Slice<Logged.Logged> = rs.sliceOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
 	const _77: Logged.Logged[] = [Logged.make$conversions_Value(data, 22)];
-	const _76: Logged.Logged[] = rs.replaceIn(a, _77, 1);
+	const _76: Logged.Logged[] = rs.replaceIn(rs.sliceView(a), _77, 1);
 	Logged.put$conversions_Value(_76[0], out);
 	rs.dropAll(_76);
 	const by: Logged.Logged = Logged.make$conversions_Value(data, 23);
 	rs.idx(s, 0);
 	let r: Logged.Logged = s.data[s.start];
-	const _89: Logged.Logged[] = rs.arrayOfPlace(rs.place(() => r, (value2) => r = value2));
+	const _89: rs.Slice<Logged.Logged> = rs.sliceOfPlace(rs.place(() => r, (value2) => r = value2));
 	const _91: Logged.Logged[] = [by];
-	const _88: Logged.Logged[] = rs.replaceIn(_89, _91);
+	const _88: Logged.Logged[] = rs.replaceIn(rs.sliceView(_89), _91);
 	const _93: Logged.Logged = Logged.make$conversions_Value(data, 24);
 	_88[0][Symbol.dispose]();
 	Object.assign(_88[0], _93);
@@ -1377,17 +1393,17 @@ export function lentParam$conversions_Logged(to: Logged.Logged, data: rs.ByteSli
 	rs.idx(s, 0);
 	const borrowed3 = s.data;
 	const borrowed4 = s.start;
-	const old: Logged.Logged = rs.cellReplace(rs.cellIn(rs.arrayOfPlace(rs.place(() => borrowed3[borrowed4], (value3) => borrowed3[borrowed4] = value3)), 1), [Logged.make$conversions_Value(data, 26)])[0];
+	const old: Logged.Logged = rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed3[borrowed4], (value3) => borrowed3[borrowed4] = value3))), 1), [Logged.make$conversions_Value(data, 26)])[0];
 	Logged.put$conversions_Value(old, out);
 	rs.idx(s, 0);
 	const borrowed5 = s.data;
 	const borrowed6 = s.start;
-	const old2: Logged.Logged = replaceFirst$conversions_Logged(rs.sliceIn(rs.arrayOfPlace(rs.place(() => borrowed5[borrowed6], (value4) => borrowed5[borrowed6] = value4))), [Logged.make$conversions_Value(data, 27)])[0];
+	const old2: Logged.Logged = replaceFirst$conversions_Logged(rs.sliceIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed5[borrowed6], (value4) => borrowed5[borrowed6] = value4)))), [Logged.make$conversions_Value(data, 27)])[0];
 	Logged.put$conversions_Value(old2, out);
 	rs.idx(s, 0);
 	const borrowed7 = s.data;
 	const borrowed8 = s.start;
-	const old3: Logged.Logged = rs.cellReplace(rs.cellIn(rs.arrayIn(rs.arrayOfPlace(rs.place(() => borrowed7[borrowed8], (value5) => borrowed7[borrowed8] = value5))), 2), [[Logged.make$conversions_Value(data, 28)]])[0][0];
+	const old3: Logged.Logged = rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed7[borrowed8], (value5) => borrowed7[borrowed8] = value5))))), 2), [[Logged.make$conversions_Value(data, 28)]])[0][0];
 	Logged.put$conversions_Value(old3, out);
 	rs.idx(s, 0);
 	rs.sliceReplace(s.data, s.start, Logged.clone$Clone(other))[Symbol.dispose]();
@@ -1431,15 +1447,15 @@ export function lentParam$conversions_Named(to: Named.Named, data: rs.ByteSlice,
 	rs.idx(s, 0);
 	const borrowed = s.data;
 	const borrowed2 = s.start;
-	const a: Named.Named[] = rs.arrayOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
+	const a: rs.Slice<Named.Named> = rs.sliceOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
 	const _77: Named.Named[] = [Named.make$conversions_Value(data, 22)];
-	Named.put$conversions_Value(rs.replaceIn(a, _77, 1)[0], out);
+	Named.put$conversions_Value(rs.replaceIn(rs.sliceView(a), _77, 1)[0], out);
 	const by: Named.Named = Named.make$conversions_Value(data, 23);
 	rs.idx(s, 0);
 	let r: Named.Named = s.data[s.start];
-	const _89: Named.Named[] = rs.arrayOfPlace(rs.place(() => r, (value2) => r = value2));
+	const _89: rs.Slice<Named.Named> = rs.sliceOfPlace(rs.place(() => r, (value2) => r = value2));
 	const _91: Named.Named[] = [by];
-	Object.assign(rs.replaceIn(_89, _91)[0], Named.make$conversions_Value(data, 24));
+	Object.assign(rs.replaceIn(rs.sliceView(_89), _91)[0], Named.make$conversions_Value(data, 24));
 	Named.put$conversions_Value(r, out);
 	rs.idx(s, 0);
 	Named.put$conversions_Value(s.data[s.start], out);
@@ -1448,15 +1464,15 @@ export function lentParam$conversions_Named(to: Named.Named, data: rs.ByteSlice,
 	rs.idx(s, 0);
 	const borrowed3 = s.data;
 	const borrowed4 = s.start;
-	Named.put$conversions_Value(rs.cellReplace(rs.cellIn(rs.arrayOfPlace(rs.place(() => borrowed3[borrowed4], (value3) => borrowed3[borrowed4] = value3)), 1), [Named.make$conversions_Value(data, 26)])[0], out);
+	Named.put$conversions_Value(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed3[borrowed4], (value3) => borrowed3[borrowed4] = value3))), 1), [Named.make$conversions_Value(data, 26)])[0], out);
 	rs.idx(s, 0);
 	const borrowed5 = s.data;
 	const borrowed6 = s.start;
-	Named.put$conversions_Value(replaceFirst$conversions_Named(rs.sliceIn(rs.arrayOfPlace(rs.place(() => borrowed5[borrowed6], (value4) => borrowed5[borrowed6] = value4))), [Named.make$conversions_Value(data, 27)])[0], out);
+	Named.put$conversions_Value(replaceFirst$conversions_Named(rs.sliceIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed5[borrowed6], (value4) => borrowed5[borrowed6] = value4)))), [Named.make$conversions_Value(data, 27)])[0], out);
 	rs.idx(s, 0);
 	const borrowed7 = s.data;
 	const borrowed8 = s.start;
-	Named.put$conversions_Value(rs.cellReplace(rs.cellIn(rs.arrayIn(rs.arrayOfPlace(rs.place(() => borrowed7[borrowed8], (value5) => borrowed7[borrowed8] = value5))), 2), [[Named.make$conversions_Value(data, 28)]])[0][0], out);
+	Named.put$conversions_Value(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed7[borrowed8], (value5) => borrowed7[borrowed8] = value5))))), 2), [[Named.make$conversions_Value(data, 28)]])[0][0], out);
 	rs.idx(s, 0);
 	s.data[s.start] = Named.clone$Clone(other);
 	rs.idx(s, 0);
@@ -1501,16 +1517,16 @@ export function lentParam$u32(to: rs.Place<rs.u32>, data: rs.ByteSlice, out: rs.
 	rs.idx(s, 0);
 	const borrowed = s.data;
 	const borrowed2 = s.start;
-	const a: rs.u32[] = rs.arrayOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
+	const a: rs.Slice<rs.u32> = rs.sliceOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
 	const _77: rs.u32[] = [make$conversions_Value_u32(data, 22)];
-	put$conversions_Value_u32(rs.replaceIn(a, _77)[0], out);
+	put$conversions_Value_u32(rs.replaceIn(rs.sliceView(a), _77)[0], out);
 	let by: rs.u32 = make$conversions_Value_u32(data, 23);
 	rs.idx(s, 0);
 	const borrowed3 = s.start;
 	let r: rs.Place<rs.u32> = rs.place(() => s.data[borrowed3], (value2) => s.data[borrowed3] = value2);
-	const _89: rs.Place<rs.u32>[] = rs.arrayOfPlace(rs.place(() => r, (value3) => r = value3));
+	const _89: rs.Slice<rs.Place<rs.u32>> = rs.sliceOfPlace(rs.place(() => r, (value3) => r = value3));
 	const _91: rs.Place<rs.u32>[] = [rs.place(() => by, (value4) => by = value4)];
-	rs.replaceIn(_89, _91)[0].v = make$conversions_Value_u32(data, 24);
+	rs.replaceIn(rs.sliceView(_89), _91)[0].v = make$conversions_Value_u32(data, 24);
 	put$conversions_Value_u32(r.v, out);
 	rs.idx(s, 0);
 	put$conversions_Value_u32(s.data[s.start], out);
@@ -1521,15 +1537,15 @@ export function lentParam$u32(to: rs.Place<rs.u32>, data: rs.ByteSlice, out: rs.
 	rs.idx(s, 0);
 	const borrowed6 = s.data;
 	const borrowed7 = s.start;
-	put$conversions_Value_u32(rs.cellReplace(rs.cellIn(rs.arrayOfPlace(rs.place(() => borrowed6[borrowed7], (value6) => borrowed6[borrowed7] = value6))), [make$conversions_Value_u32(data, 26)])[0], out);
+	put$conversions_Value_u32(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed6[borrowed7], (value6) => borrowed6[borrowed7] = value6)))), [make$conversions_Value_u32(data, 26)])[0], out);
 	rs.idx(s, 0);
 	const borrowed8 = s.data;
 	const borrowed9 = s.start;
-	put$conversions_Value_u32(replaceFirst$u32(rs.sliceIn(rs.arrayOfPlace(rs.place(() => borrowed8[borrowed9], (value7) => borrowed8[borrowed9] = value7))), [make$conversions_Value_u32(data, 27)])[0], out);
+	put$conversions_Value_u32(replaceFirst$u32(rs.sliceIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed8[borrowed9], (value7) => borrowed8[borrowed9] = value7)))), [make$conversions_Value_u32(data, 27)])[0], out);
 	rs.idx(s, 0);
 	const borrowed10 = s.data;
 	const borrowed11 = s.start;
-	put$conversions_Value_u32(rs.cellReplace(rs.cellIn(rs.arrayIn(rs.arrayOfPlace(rs.place(() => borrowed10[borrowed11], (value8) => borrowed10[borrowed11] = value8))), 1), [[make$conversions_Value_u32(data, 28)]])[0][0], out);
+	put$conversions_Value_u32(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed10[borrowed11], (value8) => borrowed10[borrowed11] = value8))))), 1), [[make$conversions_Value_u32(data, 28)]])[0][0], out);
 	rs.idx(s, 0);
 	s.data[s.start] = other;
 	rs.idx(s, 0);
@@ -1574,16 +1590,16 @@ export function lentParam$u64(to: rs.Place<rs.u64>, data: rs.ByteSlice, out: rs.
 	rs.idx(s, 0);
 	const borrowed = s.data;
 	const borrowed2 = s.start;
-	const a: rs.u64[] = rs.arrayOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
+	const a: rs.Slice<rs.u64> = rs.sliceOfPlace(rs.place(() => borrowed[borrowed2], (value) => borrowed[borrowed2] = value));
 	const _77: rs.u64[] = [make$conversions_Value_u64(data, 22)];
-	put$conversions_Value_u64(rs.replaceIn(a, _77)[0], out);
+	put$conversions_Value_u64(rs.replaceIn(rs.sliceView(a), _77)[0], out);
 	let by: rs.u64 = make$conversions_Value_u64(data, 23);
 	rs.idx(s, 0);
 	const borrowed3 = s.start;
 	let r: rs.Place<rs.u64> = rs.place(() => s.data[borrowed3], (value2) => s.data[borrowed3] = value2);
-	const _89: rs.Place<rs.u64>[] = rs.arrayOfPlace(rs.place(() => r, (value3) => r = value3));
+	const _89: rs.Slice<rs.Place<rs.u64>> = rs.sliceOfPlace(rs.place(() => r, (value3) => r = value3));
 	const _91: rs.Place<rs.u64>[] = [rs.place(() => by, (value4) => by = value4)];
-	rs.replaceIn(_89, _91)[0].v = make$conversions_Value_u64(data, 24);
+	rs.replaceIn(rs.sliceView(_89), _91)[0].v = make$conversions_Value_u64(data, 24);
 	put$conversions_Value_u64(r.v, out);
 	rs.idx(s, 0);
 	put$conversions_Value_u64(s.data[s.start], out);
@@ -1594,15 +1610,15 @@ export function lentParam$u64(to: rs.Place<rs.u64>, data: rs.ByteSlice, out: rs.
 	rs.idx(s, 0);
 	const borrowed6 = s.data;
 	const borrowed7 = s.start;
-	put$conversions_Value_u64(rs.cellReplace(rs.cellIn(rs.arrayOfPlace(rs.place(() => borrowed6[borrowed7], (value6) => borrowed6[borrowed7] = value6))), [make$conversions_Value_u64(data, 26)])[0], out);
+	put$conversions_Value_u64(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed6[borrowed7], (value6) => borrowed6[borrowed7] = value6)))), [make$conversions_Value_u64(data, 26)])[0], out);
 	rs.idx(s, 0);
 	const borrowed8 = s.data;
 	const borrowed9 = s.start;
-	put$conversions_Value_u64(replaceFirst$u64(rs.sliceIn(rs.arrayOfPlace(rs.place(() => borrowed8[borrowed9], (value7) => borrowed8[borrowed9] = value7))), [make$conversions_Value_u64(data, 27)])[0], out);
+	put$conversions_Value_u64(replaceFirst$u64(rs.sliceIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed8[borrowed9], (value7) => borrowed8[borrowed9] = value7)))), [make$conversions_Value_u64(data, 27)])[0], out);
 	rs.idx(s, 0);
 	const borrowed10 = s.data;
 	const borrowed11 = s.start;
-	put$conversions_Value_u64(rs.cellReplace(rs.cellIn(rs.arrayIn(rs.arrayOfPlace(rs.place(() => borrowed10[borrowed11], (value8) => borrowed10[borrowed11] = value8))), 1), [[make$conversions_Value_u64(data, 28)]])[0][0], out);
+	put$conversions_Value_u64(rs.cellReplace(rs.cellIn(rs.sliceView(rs.sliceIn(rs.sliceView(rs.sliceOfPlace(rs.place(() => borrowed10[borrowed11], (value8) => borrowed10[borrowed11] = value8))))), 1), [[make$conversions_Value_u64(data, 28)]])[0][0], out);
 	rs.idx(s, 0);
 	s.data[s.start] = other;
 	rs.idx(s, 0);
@@ -1735,15 +1751,15 @@ export function lentThrough$array2_u32(data: rs.ByteSlice, out: rs.ByteVec): voi
 	const a: rs.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 0));
 	const held: Held.Held<rs.u32[]> = new Held.Held(copy$array_u32(make$conversions_Value_array2_u32(data, 1)));
 	const v: rs.Vec<rs.u32[]> = rs.vecFrom(copy$array_array2_u32([make$conversions_Value_array2_u32(data, 2), make$conversions_Value_array2_u32(data, 4)]).map(copy$array_u32));
-	lentParam$array2_u32(a, data, out);
-	lentParam$array2_u32(held.value, data, out);
-	lentParam$array2_u32(v.items[rs.idx(v.items, 1)], data, out);
-	let _19: rs.u32[] = v.items[rs.idx(v.items, 0)];
+	lentParam$array2_u32(rs.sliceFrom(a), data, out);
+	lentParam$array2_u32(rs.sliceFrom(held.value), data, out);
+	lentParam$array2_u32(rs.sliceFrom(v.items[rs.idx(v.items, 1)]), data, out);
+	let _19: rs.Slice<rs.u32> = rs.sliceFrom(v.items[rs.idx(v.items, 0)]);
 	lentNested$array2_u32(rs.place(() => _19, (value) => _19 = value), data, out);
-	put$conversions_Value_array2_u32(a, out);
-	put$conversions_Value_array2_u32(held.value, out);
-	put$conversions_Value_array2_u32(v.items[rs.idx(v.items, 0)], out);
-	put$conversions_Value_array2_u32(v.items[rs.idx(v.items, 1)], out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(a), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(held.value), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(v.items[rs.idx(v.items, 0)]), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(v.items[rs.idx(v.items, 1)]), out);
 }
 
 /**
@@ -1898,7 +1914,7 @@ export function lentNested$array1_u8(to: rs.Place<rs.ByteSlice>, data: rs.ByteSl
 }
 
 /** [`lent_param`] of what a `&mut` to a `&mut` points at. */
-export function lentNested$array2_u32(to: rs.Place<rs.u32[]>, data: rs.ByteSlice, out: rs.ByteVec): void {
+export function lentNested$array2_u32(to: rs.Place<rs.Slice<rs.u32>>, data: rs.ByteSlice, out: rs.ByteVec): void {
 	lentParam$array2_u32(to.v, data, out);
 }
 
@@ -1963,8 +1979,8 @@ export function setThrough$array1_u8(to: rs.ByteSlice, value: Uint8Array): Uint8
 }
 
 /** A cell of what a `&mut` whose place only the caller knows points at, written through. */
-export function setThrough$array2_u32(to: rs.u32[], value: rs.u32[]): rs.u32[] {
-	return rs.cellReplace(rs.cellIn(to), copy$array_u32(value));
+export function setThrough$array2_u32(to: rs.Slice<rs.u32>, value: rs.u32[]): rs.u32[] {
+	return rs.cellReplace(rs.cellIn(rs.sliceView(to)), copy$array_u32(value));
 }
 
 /** A cell of what a `&mut` whose place only the caller knows points at, written through. */
@@ -2025,10 +2041,10 @@ export function converted$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void 
 	put$conversions_Value_Option_u16(held.value, out);
 	put$conversions_Value_Option_u16(v.items[rs.idx(v.items, 0)], out);
 	put$conversions_Value_Option_u16(v.items[rs.idx(v.items, 1)], out);
-	const one: Array<rs.u16 | undefined> = [b];
-	rs.byteVecPush(out, rs.sliceFrom(one).length & 0xff);
-	const copied: rs.u16 | undefined = one[0];
-	put$conversions_Value_Option_u16(one[0], out);
+	const one: rs.Slice<rs.u16 | undefined> = rs.sliceFrom([b]);
+	rs.byteVecPush(out, one.length & 0xff);
+	const copied: rs.u16 | undefined = one.data[one.start];
+	put$conversions_Value_Option_u16(one.data[one.start], out);
 	a = copied;
 	put$conversions_Value_Option_u16(copied, out);
 	put$conversions_Value_Option_u16(a, out);
@@ -2112,10 +2128,10 @@ export function converted$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_String(held.value, out);
 	put$conversions_Value_String(v.items[rs.idx(v.items, 0)], out);
 	put$conversions_Value_String(v.items[rs.idx(v.items, 1)], out);
-	const one: string[] = [b];
-	rs.byteVecPush(out, rs.sliceFrom(one).length & 0xff);
-	const copied: string = one[0];
-	put$conversions_Value_String(one[0], out);
+	const one: rs.Slice<string> = rs.sliceFrom([b]);
+	rs.byteVecPush(out, one.length & 0xff);
+	const copied: string = one.data[one.start];
+	put$conversions_Value_String(one.data[one.start], out);
 	a = copied;
 	put$conversions_Value_String(copied, out);
 	put$conversions_Value_String(a, out);
@@ -2199,10 +2215,10 @@ export function converted$Vec_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_Vec_u32(held.value, out);
 	put$conversions_Value_Vec_u32(v.items[rs.idx(v.items, 0)], out);
 	put$conversions_Value_Vec_u32(v.items[rs.idx(v.items, 1)], out);
-	const one: rs.Vec<rs.u32>[] = [b];
-	rs.byteVecPush(out, rs.sliceFrom(one).length & 0xff);
-	const copied: rs.Vec<rs.u32> = rs.vecFrom(one[0].items.slice());
-	put$conversions_Value_Vec_u32(one[0], out);
+	const one: rs.Slice<rs.Vec<rs.u32>> = rs.sliceFrom([b]);
+	rs.byteVecPush(out, one.length & 0xff);
+	const copied: rs.Vec<rs.u32> = rs.vecFrom(one.data[one.start].items.slice());
+	put$conversions_Value_Vec_u32(one.data[one.start], out);
 	rs.vecCloneFrom(a, copied, 4);
 	put$conversions_Value_Vec_u32(copied, out);
 	put$conversions_Value_Vec_u32(a, out);
@@ -2287,10 +2303,10 @@ export function converted$Vec_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_Vec_u8(held.value, out);
 	put$conversions_Value_Vec_u8(v.items[rs.idx(v.items, 0)], out);
 	put$conversions_Value_Vec_u8(v.items[rs.idx(v.items, 1)], out);
-	const one: rs.ByteVec[] = [b];
-	rs.byteVecPush(out, rs.sliceFrom(one).length & 0xff);
-	const copied: rs.ByteVec = rs.byteVecFrom(rs.byteVecView(one[0]));
-	put$conversions_Value_Vec_u8(one[0], out);
+	const one: rs.Slice<rs.ByteVec> = rs.sliceFrom([b]);
+	rs.byteVecPush(out, one.length & 0xff);
+	const copied: rs.ByteVec = rs.byteVecFrom(rs.byteVecView(one.data[one.start]));
+	put$conversions_Value_Vec_u8(one.data[one.start], out);
 	rs.byteVecCloneFrom(a, copied);
 	put$conversions_Value_Vec_u8(copied, out);
 	put$conversions_Value_Vec_u8(a, out);
@@ -2385,10 +2401,10 @@ export function converted$array0_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_array0_u8(rs.byteSliceFrom(held.value), out);
 	put$conversions_Value_array0_u8(rs.byteSliceFrom(v.items[rs.idx(v.items, 0)]), out);
 	put$conversions_Value_array0_u8(rs.byteSliceFrom(v.items[rs.idx(v.items, 1)]), out);
-	const one: Uint8Array[] = [rs.byteSliceView(rs.byteSliceFrom(b))];
-	rs.byteVecPush(out, rs.sliceFrom(one).length & 0xff);
-	const copied: Uint8Array = rs.byteSliceToArray(rs.byteSliceFrom(one[0]));
-	put$conversions_Value_array0_u8(rs.byteSliceFrom(one[0]), out);
+	const one: rs.Slice<Uint8Array> = rs.sliceFrom([rs.byteSliceView(rs.byteSliceFrom(b))]);
+	rs.byteVecPush(out, one.length & 0xff);
+	const copied: Uint8Array = rs.byteSliceToArray(rs.byteSliceFrom(one.data[one.start]));
+	put$conversions_Value_array0_u8(rs.byteSliceFrom(one.data[one.start]), out);
 	const _70: rs.ByteSlice = rs.byteSliceFrom(a);
 	const _71: rs.ByteSlice = rs.byteSliceFrom(copied);
 	_70.data.set(rs.byteSliceToArray(_71), _70.start);
@@ -2493,10 +2509,10 @@ export function converted$array1_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_array1_u8(rs.byteSliceFrom(held.value), out);
 	put$conversions_Value_array1_u8(rs.byteSliceFrom(v.items[rs.idx(v.items, 0)]), out);
 	put$conversions_Value_array1_u8(rs.byteSliceFrom(v.items[rs.idx(v.items, 1)]), out);
-	const one: Uint8Array[] = [rs.byteSliceView(rs.byteSliceFrom(b))];
-	rs.byteVecPush(out, rs.sliceFrom(one).length & 0xff);
-	const copied: Uint8Array = rs.byteSliceToArray(rs.byteSliceFrom(one[0]));
-	put$conversions_Value_array1_u8(rs.byteSliceFrom(one[0]), out);
+	const one: rs.Slice<Uint8Array> = rs.sliceFrom([rs.byteSliceView(rs.byteSliceFrom(b))]);
+	rs.byteVecPush(out, one.length & 0xff);
+	const copied: Uint8Array = rs.byteSliceToArray(rs.byteSliceFrom(one.data[one.start]));
+	put$conversions_Value_array1_u8(rs.byteSliceFrom(one.data[one.start]), out);
 	const _70: rs.ByteSlice = rs.byteSliceFrom(a);
 	const _71: rs.ByteSlice = rs.byteSliceFrom(copied);
 	_70.data.set(rs.byteSliceToArray(_71), _70.start);
@@ -2571,57 +2587,72 @@ export function converted$array1_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Each conversion of a `T`, its copies put after a write to what they copied. */
 export function converted$array2_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
-	let a: rs.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 0));
+	const a: rs.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 0));
 	const b: rs.u32[] = make$conversions_Value_array2_u32(data, 3);
-	const owned: rs.u32[] = copy$array_u32(a);
-	a = copy$array_u32(b);
-	put$conversions_Value_array2_u32(owned, out);
-	put$conversions_Value_array2_u32(a, out);
-	let c: rs.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 6));
-	c = copy$array_u32(owned);
-	put$conversions_Value_array2_u32(c, out);
-	cloneFromParam$array2_u32(c, b);
-	cloneIntoParam$array2_u32(owned, a);
-	put$conversions_Value_array2_u32(c, out);
-	put$conversions_Value_array2_u32(a, out);
+	const owned: rs.u32[] = a.slice();
+	const _8: rs.Slice<rs.u32> = rs.sliceFrom(a);
+	const _9: rs.Slice<rs.u32> = rs.sliceFrom(b);
+	rs.replaceIn(rs.sliceView(_8), rs.sliceToArray(_9));
+	put$conversions_Value_array2_u32(rs.sliceFrom(owned), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(a), out);
+	const c: rs.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 6));
+	const _16: rs.Slice<rs.u32> = rs.sliceFrom(owned);
+	rs.replaceIn(rs.sliceView(rs.sliceFrom(c)), rs.sliceToArray(_16));
+	put$conversions_Value_array2_u32(rs.sliceFrom(c), out);
+	cloneFromParam$array2_u32(rs.sliceFrom(c), rs.sliceFrom(b));
+	cloneIntoParam$array2_u32(rs.sliceFrom(owned), rs.sliceFrom(a));
+	put$conversions_Value_array2_u32(rs.sliceFrom(c), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(a), out);
 	const held: Held.Held<rs.u32[]> = new Held.Held(copy$array_u32(make$conversions_Value_array2_u32(data, 1)));
-	held.value = copy$array_u32(c);
+	const _33: rs.Slice<rs.u32> = rs.sliceFrom(held.value);
+	const _34: rs.Slice<rs.u32> = rs.sliceFrom(c);
+	rs.replaceIn(rs.sliceView(_33), rs.sliceToArray(_34));
 	const v: rs.Vec<rs.u32[]> = rs.vecFrom(copy$array_array2_u32([make$conversions_Value_array2_u32(data, 2), make$conversions_Value_array2_u32(data, 4)]).map(copy$array_u32));
-	v.items[rs.idx(v.items, 1)] = copy$array_u32(held.value);
-	v.items[rs.idx(v.items, 0)] = copy$array_u32(b);
-	put$conversions_Value_array2_u32(held.value, out);
-	put$conversions_Value_array2_u32(v.items[rs.idx(v.items, 0)], out);
-	put$conversions_Value_array2_u32(v.items[rs.idx(v.items, 1)], out);
-	const one: rs.u32[][] = [b];
-	rs.byteVecPush(out, rs.sliceFrom(one).length & 0xff);
-	const copied: rs.u32[] = copy$array_u32(one[0]);
-	put$conversions_Value_array2_u32(one[0], out);
-	a = copy$array_u32(copied);
-	put$conversions_Value_array2_u32(copied, out);
-	put$conversions_Value_array2_u32(a, out);
-	const cell: rs.Cell<rs.u32[]> = rs.cellIn(c);
+	const _40: rs.Slice<rs.u32> = rs.sliceFrom(v.items[rs.idx(v.items, 1)]);
+	const _42: rs.Slice<rs.u32> = rs.sliceFrom(held.value);
+	rs.replaceIn(rs.sliceView(_40), rs.sliceToArray(_42));
+	const _44: rs.Slice<rs.u32> = rs.sliceFrom(b);
+	rs.replaceIn(rs.sliceView(rs.sliceFrom(v.items[rs.idx(v.items, 0)])), rs.sliceToArray(_44));
+	put$conversions_Value_array2_u32(rs.sliceFrom(held.value), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(v.items[rs.idx(v.items, 0)]), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(v.items[rs.idx(v.items, 1)]), out);
+	const one: rs.Slice<rs.u32[]> = rs.sliceFrom([b]);
+	rs.byteVecPush(out, one.length & 0xff);
+	const copied: rs.u32[] = one.data[one.start].slice();
+	put$conversions_Value_array2_u32(rs.sliceFrom(one.data[one.start]), out);
+	const _70: rs.Slice<rs.u32> = rs.sliceFrom(a);
+	const _71: rs.Slice<rs.u32> = rs.sliceFrom(copied);
+	rs.replaceIn(rs.sliceView(_70), rs.sliceToArray(_71));
+	put$conversions_Value_array2_u32(rs.sliceFrom(copied), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(a), out);
+	const cell: rs.Cell<rs.u32[]> = rs.cellIn(rs.sliceView(rs.sliceFrom(c)));
 	const old: rs.u32[] = rs.cellReplace(cell, copy$array_u32(make$conversions_Value_array2_u32(data, 10)));
 	rs.cellSet(cell, copy$array_u32(make$conversions_Value_array2_u32(data, 11)));
-	put$conversions_Value_array2_u32(old, out);
-	put$conversions_Value_array2_u32(c, out);
-	const at5 = rs.idx(v.items, 0);
-	const _91: rs.u32[] = make$conversions_Value_array2_u32(data, 12);
-	put$conversions_Value_array2_u32(setThrough$array2_u32(v.items[at5], _91), out);
-	put$conversions_Value_array2_u32(v.items[rs.idx(v.items, 0)], out);
-	rs.cellSet(rs.cellIn(held.value), copy$array_u32(make$conversions_Value_array2_u32(data, 17)));
-	put$conversions_Value_array2_u32(held.value, out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(old), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(c), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(setThrough$array2_u32(rs.sliceFrom(v.items[rs.idx(v.items, 0)]), make$conversions_Value_array2_u32(data, 12))), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(v.items[rs.idx(v.items, 0)]), out);
+	rs.cellSet(rs.cellIn(rs.sliceView(rs.sliceFrom(held.value))), copy$array_u32(make$conversions_Value_array2_u32(data, 17)));
+	put$conversions_Value_array2_u32(rs.sliceFrom(held.value), out);
 	const array: rs.u32[][] = [copy$array_u32(make$conversions_Value_array2_u32(data, 13)), copy$array_u32(make$conversions_Value_array2_u32(data, 14)), copy$array_u32(make$conversions_Value_array2_u32(data, 15))];
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.sliceFrom(array).length, rs.sliceFrom(array).length], (n: rs.usize): rs.u8 => {
 		return n & 0xff;
 	})), undefined, true);
-	const _114: rs.u32[] = copy$array_u32(copy$array_u32(b));
+	const _114: rs.u32[] = copy$array_u32(b.slice());
 	const _116: rs.Slice<rs.u32[]> = rs.sliceFrom(array);
 	rs.idx(_116, 0);
 	_116.data[_116.start] = _114;
 	const _124: rs.Slice<rs.u32[]> = rs.sliceFrom(array);
 	rs.idx(_124, 2);
-	_124.data[_124.start + 2] = copy$array_u32(c);
-	for (const _134 of array) {
+	const _123: rs.Slice<rs.u32> = rs.sliceFrom(_124.data[_124.start + 2]);
+	const _130: rs.Slice<rs.u32> = rs.sliceFrom(c);
+	rs.replaceIn(rs.sliceView(_123), rs.sliceToArray(_130));
+	const iter: rs.Iter<rs.Slice<rs.u32>> = rs.iterLend(rs.iterSlice(array), rs.sliceFrom);
+	while (true) {
+		const _134: rs.Slice<rs.u32> | rs.Done = iter.next();
+		if (_134 === rs.DONE) {
+			break;
+		}
 		put$conversions_Value_array2_u32(_134, out);
 	}
 	const list: rs.Vec<rs.u32[]> = rs.vecFrom(copy$array_array2_u32([make$conversions_Value_array2_u32(data, 13), make$conversions_Value_array2_u32(data, 14)]).map(copy$array_u32));
@@ -2629,32 +2660,34 @@ export function converted$array2_u32(data: rs.ByteSlice, out: rs.ByteVec): void 
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.sliceFrom(list.items).length, list.items.length, rs.sliceFrom(none.items).length, rs.sliceFrom(none.items).length, rs.sliceFrom(list.items).length], (n2: rs.usize): rs.u8 => {
 		return n2 & 0xff;
 	})), undefined, true);
-	const _163: rs.u32[] = copy$array_u32(copy$array_u32(b));
+	const _163: rs.u32[] = copy$array_u32(b.slice());
 	const _165: rs.Slice<rs.u32[]> = rs.sliceFrom(list.items);
 	rs.idx(_165, 0);
 	_165.data[_165.start] = _163;
 	const _173: rs.Slice<rs.u32[]> = rs.sliceFrom(list.items);
 	rs.idx(_173, 1);
-	_173.data[_173.start + 1] = copy$array_u32(c);
+	const _172: rs.Slice<rs.u32> = rs.sliceFrom(_173.data[_173.start + 1]);
+	const _179: rs.Slice<rs.u32> = rs.sliceFrom(c);
+	rs.replaceIn(rs.sliceView(_172), rs.sliceToArray(_179));
 	rs.sliceSwap(rs.sliceFrom(list.items), 0, 1);
 	const _184: rs.Vec<rs.u32[]> = list;
 	const _186: rs.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 15));
 	_184.items.push(_186);
 	const _188: rs.Vec<rs.u32[]> = none;
-	const _190: rs.u32[] = copy$array_u32(copy$array_u32(a));
+	const _190: rs.u32[] = copy$array_u32(a.slice());
 	_188.items.push(_190);
-	const iter2: rs.Iter<rs.u32[]> = rs.iterChain(rs.iterSlice(list.items), rs.iterSlice(none.items));
+	const iter2: rs.Iter<rs.Slice<rs.u32>> = rs.iterChain(rs.iterLend(rs.iterSlice(list.items), rs.sliceFrom), rs.iterLend(rs.iterSlice(none.items), rs.sliceFrom));
 	while (true) {
-		const _199: rs.u32[] | rs.Done = iter2.next();
+		const _199: rs.Slice<rs.u32> | rs.Done = iter2.next();
 		if (_199 === rs.DONE) {
 			break;
 		}
 		put$conversions_Value_array2_u32(_199, out);
 	}
 	boxed$array2_u32(data, out);
-	put$conversions_Value_array2_u32(b, out);
-	rs.ptrWrite(c, copy$array_u32(make$conversions_Value_array2_u32(data, 16)));
-	put$conversions_Value_array2_u32(c, out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(b), out);
+	rs.sliceSet(rs.sliceFrom(c), copy$array_u32(make$conversions_Value_array2_u32(data, 16)));
+	put$conversions_Value_array2_u32(rs.sliceFrom(c), out);
 }
 
 /** Each conversion of a `T`, its copies put after a write to what they copied. */
@@ -2690,10 +2723,10 @@ export function converted$array3_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_array3_u8(rs.byteSliceFrom(held.value), out);
 	put$conversions_Value_array3_u8(rs.byteSliceFrom(v.items[rs.idx(v.items, 0)]), out);
 	put$conversions_Value_array3_u8(rs.byteSliceFrom(v.items[rs.idx(v.items, 1)]), out);
-	const one: Uint8Array[] = [rs.byteSliceView(rs.byteSliceFrom(b))];
-	rs.byteVecPush(out, rs.sliceFrom(one).length & 0xff);
-	const copied: Uint8Array = rs.byteSliceToArray(rs.byteSliceFrom(one[0]));
-	put$conversions_Value_array3_u8(rs.byteSliceFrom(one[0]), out);
+	const one: rs.Slice<Uint8Array> = rs.sliceFrom([rs.byteSliceView(rs.byteSliceFrom(b))]);
+	rs.byteVecPush(out, one.length & 0xff);
+	const copied: Uint8Array = rs.byteSliceToArray(rs.byteSliceFrom(one.data[one.start]));
+	put$conversions_Value_array3_u8(rs.byteSliceFrom(one.data[one.start]), out);
 	const _70: rs.ByteSlice = rs.byteSliceFrom(a);
 	const _71: rs.ByteSlice = rs.byteSliceFrom(copied);
 	_70.data.set(rs.byteSliceToArray(_71), _70.start);
@@ -2799,10 +2832,10 @@ export function converted$array40_u8(data: rs.ByteSlice, out: rs.ByteVec): void 
 	put$conversions_Value_array40_u8(rs.byteSliceFrom(held.value), out);
 	put$conversions_Value_array40_u8(rs.byteSliceFrom(v.items[rs.idx(v.items, 0)]), out);
 	put$conversions_Value_array40_u8(rs.byteSliceFrom(v.items[rs.idx(v.items, 1)]), out);
-	const one: Uint8Array[] = [rs.byteSliceView(rs.byteSliceFrom(b))];
-	rs.byteVecPush(out, rs.sliceFrom(one).length & 0xff);
-	const copied: Uint8Array = rs.byteSliceToArray(rs.byteSliceFrom(one[0]));
-	put$conversions_Value_array40_u8(rs.byteSliceFrom(one[0]), out);
+	const one: rs.Slice<Uint8Array> = rs.sliceFrom([rs.byteSliceView(rs.byteSliceFrom(b))]);
+	rs.byteVecPush(out, one.length & 0xff);
+	const copied: Uint8Array = rs.byteSliceToArray(rs.byteSliceFrom(one.data[one.start]));
+	put$conversions_Value_array40_u8(rs.byteSliceFrom(one.data[one.start]), out);
 	const _70: rs.ByteSlice = rs.byteSliceFrom(a);
 	const _71: rs.ByteSlice = rs.byteSliceFrom(copied);
 	_70.data.set(rs.byteSliceToArray(_71), _70.start);
@@ -2910,10 +2943,10 @@ export function converted$conversions_Logged(data: rs.ByteSlice, out: rs.ByteVec
 	Logged.put$conversions_Value(held.value, out);
 	Logged.put$conversions_Value(v.items[rs.idx(v.items, 0)], out);
 	Logged.put$conversions_Value(v.items[rs.idx(v.items, 1)], out);
-	const one: Logged.Logged[] = [b];
-	rs.byteVecPush(out, rs.sliceFrom(one).length & 0xff);
-	const copied: Logged.Logged = Logged.clone$Clone(one[0]);
-	Logged.put$conversions_Value(one[0], out);
+	const one: rs.Slice<Logged.Logged> = rs.sliceFrom([b]);
+	rs.byteVecPush(out, one.length & 0xff);
+	const copied: Logged.Logged = Logged.clone$Clone(one.data[one.start]);
+	Logged.put$conversions_Value(one.data[one.start], out);
 	const old7 = a;
 	a = Logged.clone$Clone(copied);
 	old7[Symbol.dispose]();
@@ -3018,10 +3051,10 @@ export function converted$conversions_Named(data: rs.ByteSlice, out: rs.ByteVec)
 	Named.put$conversions_Value(held.value, out);
 	Named.put$conversions_Value(v.items[rs.idx(v.items, 0)], out);
 	Named.put$conversions_Value(v.items[rs.idx(v.items, 1)], out);
-	const one: Named.Named[] = [b];
-	rs.byteVecPush(out, rs.sliceFrom(one).length & 0xff);
-	const copied: Named.Named = Named.clone$Clone(one[0]);
-	Named.put$conversions_Value(one[0], out);
+	const one: rs.Slice<Named.Named> = rs.sliceFrom([b]);
+	rs.byteVecPush(out, one.length & 0xff);
+	const copied: Named.Named = Named.clone$Clone(one.data[one.start]);
+	Named.put$conversions_Value(one.data[one.start], out);
 	a = Named.clone$Clone(copied);
 	Named.put$conversions_Value(copied, out);
 	Named.put$conversions_Value(a, out);
@@ -3106,10 +3139,10 @@ export function converted$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_u32(held.value, out);
 	put$conversions_Value_u32(v.items[rs.idx(v.items, 0)], out);
 	put$conversions_Value_u32(v.items[rs.idx(v.items, 1)], out);
-	const one: rs.u32[] = [b];
-	rs.byteVecPush(out, rs.sliceFrom(one).length & 0xff);
-	const copied: rs.u32 = one[0];
-	put$conversions_Value_u32(one[0], out);
+	const one: rs.Slice<rs.u32> = rs.sliceFrom([b]);
+	rs.byteVecPush(out, one.length & 0xff);
+	const copied: rs.u32 = one.data[one.start];
+	put$conversions_Value_u32(one.data[one.start], out);
 	a = copied;
 	put$conversions_Value_u32(copied, out);
 	put$conversions_Value_u32(a, out);
@@ -3193,10 +3226,10 @@ export function converted$u64(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_u64(held.value, out);
 	put$conversions_Value_u64(v.items[rs.idx(v.items, 0)], out);
 	put$conversions_Value_u64(v.items[rs.idx(v.items, 1)], out);
-	const one: rs.u64[] = [b];
-	rs.byteVecPush(out, rs.sliceFrom(one).length & 0xff);
-	const copied: rs.u64 = one[0];
-	put$conversions_Value_u64(one[0], out);
+	const one: rs.Slice<rs.u64> = rs.sliceFrom([b]);
+	rs.byteVecPush(out, one.length & 0xff);
+	const copied: rs.u64 = one.data[one.start];
+	put$conversions_Value_u64(one.data[one.start], out);
 	a = copied;
 	put$conversions_Value_u64(copied, out);
 	put$conversions_Value_u64(a, out);
@@ -3705,31 +3738,31 @@ export function boxed$array1_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function boxed$array2_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let boxed: rs.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 19));
 	boxed = copy$array_u32(copy$array_u32(make$conversions_Value_array2_u32(data, 3)));
-	put$conversions_Value_array2_u32(boxed, out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(boxed), out);
 	const source: rs.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 20));
 	boxed = copy$array_u32(source);
-	put$conversions_Value_array2_u32(boxed, out);
-	put$conversions_Value_array2_u32(source, out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(boxed), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(source), out);
 	let nested: rs.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 21));
 	const _27: rs.u32[] = copy$array_u32(source);
 	nested = ((a0: rs.u32[]): rs.u32[] => {
 		return copy$array_u32(a0);
 	})(_27);
-	put$conversions_Value_array2_u32(nested, out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(nested), out);
 	let maybe: rs.u32[] | undefined = copy$array_u32(make$conversions_Value_array2_u32(data, 22));
 	maybe = option_clone$0xr8mw0(copy$array_u32(boxed));
 	maybe = option_clone$0xr8mw0(undefined);
 	rs.byteVecPush(out, maybe === undefined ? 1 : 0);
 	maybe = option_clone$0xr8mw0(copy$array_u32(source));
 	rs.iterForEach(rs.iterOption(maybe), (x: rs.u32[]): undefined => {
-		put$conversions_Value_array2_u32(x, out);
+		put$conversions_Value_array2_u32(rs.sliceFrom(x), out);
 	});
 	const slots: rs.u32[][] = [copy$array_u32(make$conversions_Value_array2_u32(data, 23)), copy$array_u32(make$conversions_Value_array2_u32(data, 24))];
 	rs.sliceCloneFromSlice(rs.sliceFrom(slots), rs.sliceFrom([source, boxed]), (a02: rs.u32[]): rs.u32[] => {
 		return copy$array_u32(a02);
 	});
 	for (const _73 of slots) {
-		put$conversions_Value_array2_u32(_73, out);
+		put$conversions_Value_array2_u32(rs.sliceFrom(_73), out);
 	}
 	const n: rs.usize = rs.u8Rem(byte(data, 25), 3) as rs.usize;
 	const whole: rs.Slice<rs.u32[]> = rs.sliceFrom(rs.iterToVec(rs.iterMap(new rs.Range(0, n), (i: rs.usize): rs.u32[] => {
@@ -3740,9 +3773,9 @@ export function boxed$array2_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), undefined, 8, true).items);
 	into = rs.boxSliceCloneFrom(into, whole, copy$array_u32);
 	rs.byteVecPush(out, into.length & 0xff);
-	const iter2: rs.Iter<rs.u32[]> = rs.iterChain(rs.iterSlice(rs.sliceItems(into)), rs.iterSlice(rs.sliceItems(whole)));
+	const iter2: rs.Iter<rs.Slice<rs.u32>> = rs.iterChain(rs.iterLend(rs.iterSlice(rs.sliceItems(into)), rs.sliceFrom), rs.iterLend(rs.iterSlice(rs.sliceItems(whole)), rs.sliceFrom));
 	while (true) {
-		const _108: rs.u32[] | rs.Done = iter2.next();
+		const _108: rs.Slice<rs.u32> | rs.Done = iter2.next();
 		if (_108 === rs.DONE) {
 			break;
 		}
@@ -4183,10 +4216,10 @@ export function lentOne$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const at = rs.idx(v.items, 1);
 	const borrowed2 = v.items;
 	const borrowed3 = at;
-	put$conversions_Value_Option_u16(writeFirst$Option_u16(rs.sliceFrom(rs.arrayOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3))), make$conversions_Value_Option_u16(data, 8)), out);
+	put$conversions_Value_Option_u16(writeFirst$Option_u16(rs.sliceOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3)), make$conversions_Value_Option_u16(data, 8)), out);
 	put$conversions_Value_Option_u16(v.items[rs.idx(v.items, 1)], out);
 	rs.sliceFill(rs.sliceOfPlace(rs.place(() => c, (value4) => c = value4)), b, undefined);
-	const iter: rs.Iter<rs.Place<rs.u16 | undefined>> = rs.iterSliceMut(rs.sliceFrom(rs.arrayOfPlace(rs.place(() => a, (value5) => a = value5))));
+	const iter: rs.Iter<rs.Place<rs.u16 | undefined>> = rs.iterSliceMut(rs.sliceOfPlace(rs.place(() => a, (value5) => a = value5)));
 	while (true) {
 		const _61: rs.Place<rs.u16 | undefined> | rs.Done = iter.next();
 		if (_61 === rs.DONE) {
@@ -4223,10 +4256,10 @@ export function lentOne$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const at = rs.idx(v.items, 1);
 	const borrowed2 = v.items;
 	const borrowed3 = at;
-	put$conversions_Value_String(writeFirst$String(rs.sliceFrom(rs.arrayOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3))), make$conversions_Value_String(data, 8)), out);
+	put$conversions_Value_String(writeFirst$String(rs.sliceOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3)), make$conversions_Value_String(data, 8)), out);
 	put$conversions_Value_String(v.items[rs.idx(v.items, 1)], out);
 	rs.sliceFill(rs.sliceOfPlace(rs.place(() => c, (value4) => c = value4)), b, undefined);
-	const iter: rs.Iter<rs.Place<string>> = rs.iterSliceMut(rs.sliceFrom(rs.arrayOfPlace(rs.place(() => a, (value5) => a = value5))));
+	const iter: rs.Iter<rs.Place<string>> = rs.iterSliceMut(rs.sliceOfPlace(rs.place(() => a, (value5) => a = value5)));
 	while (true) {
 		const _61: rs.Place<string> | rs.Done = iter.next();
 		if (_61 === rs.DONE) {
@@ -4261,12 +4294,12 @@ export function lentOne$Vec_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const at = rs.idx(v.items, 1);
 	const borrowed2 = v.items;
 	const borrowed3 = at;
-	put$conversions_Value_Vec_u32(writeFirst$Vec_u32(rs.sliceFrom(rs.arrayOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3))), make$conversions_Value_Vec_u32(data, 8)), out);
+	put$conversions_Value_Vec_u32(writeFirst$Vec_u32(rs.sliceOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3)), make$conversions_Value_Vec_u32(data, 8)), out);
 	put$conversions_Value_Vec_u32(v.items[rs.idx(v.items, 1)], out);
 	rs.sliceFill(rs.sliceOfPlace(rs.place(() => c, (value4) => c = value4)), rs.vecFrom(b.items.slice()), (a0: rs.Vec<rs.u32>): rs.Vec<rs.u32> => {
 		return rs.vecFrom(a0.items.slice());
 	}, undefined, rs.vecCloneFromFn(4));
-	for (const _61 of rs.arrayOfPlace(rs.place(() => a, (value5) => a = value5))) {
+	for (const _61 of rs.sliceItems(rs.sliceOfPlace(rs.place(() => a, (value5) => a = value5)))) {
 		Object.assign(_61, make$conversions_Value_Vec_u32(data, 9));
 	}
 	put$conversions_Value_Vec_u32(c, out);
@@ -4296,12 +4329,12 @@ export function lentOne$Vec_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const at = rs.idx(v.items, 1);
 	const borrowed2 = v.items;
 	const borrowed3 = at;
-	put$conversions_Value_Vec_u8(writeFirst$Vec_u8(rs.sliceFrom(rs.arrayOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3))), make$conversions_Value_Vec_u8(data, 8)), out);
+	put$conversions_Value_Vec_u8(writeFirst$Vec_u8(rs.sliceOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3)), make$conversions_Value_Vec_u8(data, 8)), out);
 	put$conversions_Value_Vec_u8(v.items[rs.idx(v.items, 1)], out);
 	rs.sliceFill(rs.sliceOfPlace(rs.place(() => c, (value4) => c = value4)), rs.byteVecFrom(rs.byteVecView(b)), (a0: rs.ByteVec): rs.ByteVec => {
 		return rs.byteVecFrom(rs.byteVecView(a0));
 	}, undefined, rs.byteVecCloneFromFn());
-	for (const _61 of rs.arrayOfPlace(rs.place(() => a, (value5) => a = value5))) {
+	for (const _61 of rs.sliceItems(rs.sliceOfPlace(rs.place(() => a, (value5) => a = value5)))) {
 		Object.assign(_61, make$conversions_Value_Vec_u8(data, 9));
 	}
 	put$conversions_Value_Vec_u8(c, out);
@@ -4327,10 +4360,10 @@ export function lentOne$array0_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_array0_u8(rs.byteSliceFrom(a), out);
 	put$conversions_Value_array0_u8(rs.byteSliceFrom(writeFirst$array0_u8(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(held.value))), make$conversions_Value_array0_u8(data, 7))), out);
 	put$conversions_Value_array0_u8(rs.byteSliceFrom(held.value), out);
-	put$conversions_Value_array0_u8(rs.byteSliceFrom(writeFirst$array0_u8(rs.sliceFrom(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(v.items[rs.idx(v.items, 1)])))), make$conversions_Value_array0_u8(data, 8))), out);
+	put$conversions_Value_array0_u8(rs.byteSliceFrom(writeFirst$array0_u8(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(v.items[rs.idx(v.items, 1)]))), make$conversions_Value_array0_u8(data, 8))), out);
 	put$conversions_Value_array0_u8(rs.byteSliceFrom(v.items[rs.idx(v.items, 1)]), out);
 	rs.sliceFill(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(c))), copy$array_u8(rs.byteSliceToArray(rs.byteSliceFrom(b))), copy$array_u8);
-	const iter: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(a)))), rs.byteSliceFrom);
+	const iter: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.sliceItems(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(a))))), rs.byteSliceFrom);
 	while (true) {
 		const _61: rs.ByteSlice | rs.Done = iter.next();
 		if (_61 === rs.DONE) {
@@ -4364,10 +4397,10 @@ export function lentOne$array1_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_array1_u8(rs.byteSliceFrom(a), out);
 	put$conversions_Value_array1_u8(rs.byteSliceFrom(writeFirst$array1_u8(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(held.value))), make$conversions_Value_array1_u8(data, 7))), out);
 	put$conversions_Value_array1_u8(rs.byteSliceFrom(held.value), out);
-	put$conversions_Value_array1_u8(rs.byteSliceFrom(writeFirst$array1_u8(rs.sliceFrom(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(v.items[rs.idx(v.items, 1)])))), make$conversions_Value_array1_u8(data, 8))), out);
+	put$conversions_Value_array1_u8(rs.byteSliceFrom(writeFirst$array1_u8(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(v.items[rs.idx(v.items, 1)]))), make$conversions_Value_array1_u8(data, 8))), out);
 	put$conversions_Value_array1_u8(rs.byteSliceFrom(v.items[rs.idx(v.items, 1)]), out);
 	rs.sliceFill(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(c))), copy$array_u8(rs.byteSliceToArray(rs.byteSliceFrom(b))), copy$array_u8);
-	const iter: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(a)))), rs.byteSliceFrom);
+	const iter: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.sliceItems(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(a))))), rs.byteSliceFrom);
 	while (true) {
 		const _61: rs.ByteSlice | rs.Done = iter.next();
 		if (_61 === rs.DONE) {
@@ -4385,31 +4418,33 @@ export function lentOne$array1_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function lentOne$array2_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _6: [rs.u32[], rs.u32[], rs.u32[]] = [copy$array_u32(make$conversions_Value_array2_u32(data, 0)), copy$array_u32(make$conversions_Value_array2_u32(data, 3)), copy$array_u32(make$conversions_Value_array2_u32(data, 6))];
-	let a: rs.u32[] = _6[0];
+	const a: rs.u32[] = _6[0];
 	const b: rs.u32[] = _6[1];
-	let c: rs.u32[] = _6[2];
+	const c: rs.u32[] = _6[2];
 	const held: Held.Held<rs.u32[]> = new Held.Held(copy$array_u32(make$conversions_Value_array2_u32(data, 1)));
 	const v: rs.Vec<rs.u32[]> = rs.vecFrom(copy$array_array2_u32([make$conversions_Value_array2_u32(data, 2), make$conversions_Value_array2_u32(data, 4)]).map(copy$array_u32));
-	const s: rs.Slice<rs.u32[]> = rs.sliceOfPlace(rs.place(() => a, (value) => a = value));
+	const s: rs.Slice<rs.u32[]> = rs.sliceIn(rs.sliceView(rs.sliceFrom(a)));
 	rs.byteVecPush(out, s.length & 0xff);
 	rs.idx(s, 0);
+	const _23: rs.Slice<rs.u32> = rs.sliceFrom(s.data[s.start]);
 	const _28: rs.u32[] = copy$array_u32(make$conversions_Value_array2_u32(data, 5));
-	put$conversions_Value_array2_u32(rs.sliceReplace(s.data, s.start, _28), out);
-	put$conversions_Value_array2_u32(a, out);
-	const borrowed = held;
-	put$conversions_Value_array2_u32(writeFirst$array2_u32(rs.sliceOfPlace(rs.place(() => borrowed.value, (value2) => borrowed.value = value2)), make$conversions_Value_array2_u32(data, 7)), out);
-	put$conversions_Value_array2_u32(held.value, out);
-	const at = rs.idx(v.items, 1);
-	const borrowed2 = v.items;
-	const borrowed3 = at;
-	put$conversions_Value_array2_u32(writeFirst$array2_u32(rs.sliceFrom(rs.arrayOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3))), make$conversions_Value_array2_u32(data, 8)), out);
-	put$conversions_Value_array2_u32(v.items[rs.idx(v.items, 1)], out);
-	rs.sliceFill(rs.sliceOfPlace(rs.place(() => c, (value4) => c = value4)), copy$array_u32(copy$array_u32(b)), copy$array_u32);
-	for (const _61 of rs.arrayOfPlace(rs.place(() => a, (value5) => a = value5))) {
-		Object.assign(_61, copy$array_u32(make$conversions_Value_array2_u32(data, 9)));
+	put$conversions_Value_array2_u32(rs.sliceFrom(rs.replaceIn(rs.sliceView(_23), _28)), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(a), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(writeFirst$array2_u32(rs.sliceIn(rs.sliceView(rs.sliceFrom(held.value))), make$conversions_Value_array2_u32(data, 7))), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(held.value), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(writeFirst$array2_u32(rs.sliceIn(rs.sliceView(rs.sliceFrom(v.items[rs.idx(v.items, 1)]))), make$conversions_Value_array2_u32(data, 8))), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(v.items[rs.idx(v.items, 1)]), out);
+	rs.sliceFill(rs.sliceIn(rs.sliceView(rs.sliceFrom(c))), copy$array_u32(b.slice()), copy$array_u32);
+	const iter: rs.Iter<rs.Slice<rs.u32>> = rs.iterLend(rs.iterSlice(rs.sliceItems(rs.sliceIn(rs.sliceView(rs.sliceFrom(a))))), rs.sliceFrom);
+	while (true) {
+		const _61: rs.Slice<rs.u32> | rs.Done = iter.next();
+		if (_61 === rs.DONE) {
+			break;
+		}
+		rs.sliceSet(_61, copy$array_u32(make$conversions_Value_array2_u32(data, 9)));
 	}
-	put$conversions_Value_array2_u32(c, out);
-	put$conversions_Value_array2_u32(a, out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(c), out);
+	put$conversions_Value_array2_u32(rs.sliceFrom(a), out);
 }
 
 /**
@@ -4434,10 +4469,10 @@ export function lentOne$array3_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_array3_u8(rs.byteSliceFrom(a), out);
 	put$conversions_Value_array3_u8(rs.byteSliceFrom(writeFirst$array3_u8(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(held.value))), make$conversions_Value_array3_u8(data, 7))), out);
 	put$conversions_Value_array3_u8(rs.byteSliceFrom(held.value), out);
-	put$conversions_Value_array3_u8(rs.byteSliceFrom(writeFirst$array3_u8(rs.sliceFrom(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(v.items[rs.idx(v.items, 1)])))), make$conversions_Value_array3_u8(data, 8))), out);
+	put$conversions_Value_array3_u8(rs.byteSliceFrom(writeFirst$array3_u8(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(v.items[rs.idx(v.items, 1)]))), make$conversions_Value_array3_u8(data, 8))), out);
 	put$conversions_Value_array3_u8(rs.byteSliceFrom(v.items[rs.idx(v.items, 1)]), out);
 	rs.sliceFill(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(c))), copy$array_u8(rs.byteSliceToArray(rs.byteSliceFrom(b))), copy$array_u8);
-	const iter: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(a)))), rs.byteSliceFrom);
+	const iter: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.sliceItems(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(a))))), rs.byteSliceFrom);
 	while (true) {
 		const _61: rs.ByteSlice | rs.Done = iter.next();
 		if (_61 === rs.DONE) {
@@ -4471,10 +4506,10 @@ export function lentOne$array40_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_array40_u8(rs.byteSliceFrom(a), out);
 	put$conversions_Value_array40_u8(rs.byteSliceFrom(writeFirst$array40_u8(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(held.value))), make$conversions_Value_array40_u8(data, 7))), out);
 	put$conversions_Value_array40_u8(rs.byteSliceFrom(held.value), out);
-	put$conversions_Value_array40_u8(rs.byteSliceFrom(writeFirst$array40_u8(rs.sliceFrom(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(v.items[rs.idx(v.items, 1)])))), make$conversions_Value_array40_u8(data, 8))), out);
+	put$conversions_Value_array40_u8(rs.byteSliceFrom(writeFirst$array40_u8(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(v.items[rs.idx(v.items, 1)]))), make$conversions_Value_array40_u8(data, 8))), out);
 	put$conversions_Value_array40_u8(rs.byteSliceFrom(v.items[rs.idx(v.items, 1)]), out);
 	rs.sliceFill(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(c))), copy$array_u8(rs.byteSliceToArray(rs.byteSliceFrom(b))), copy$array_u8);
-	const iter: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.arrayIn(rs.byteSliceView(rs.byteSliceFrom(a)))), rs.byteSliceFrom);
+	const iter: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.sliceItems(rs.sliceIn(rs.byteSliceView(rs.byteSliceFrom(a))))), rs.byteSliceFrom);
 	while (true) {
 		const _61: rs.ByteSlice | rs.Done = iter.next();
 		if (_61 === rs.DONE) {
@@ -4511,11 +4546,11 @@ export function lentOne$conversions_Logged(data: rs.ByteSlice, out: rs.ByteVec):
 	const at = rs.idx(v.items, 1);
 	const borrowed2 = v.items;
 	const borrowed3 = at;
-	const old3: Logged.Logged = writeFirst$conversions_Logged(rs.sliceFrom(rs.arrayOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3))), Logged.make$conversions_Value(data, 8));
+	const old3: Logged.Logged = writeFirst$conversions_Logged(rs.sliceOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3)), Logged.make$conversions_Value(data, 8));
 	Logged.put$conversions_Value(old3, out);
 	Logged.put$conversions_Value(v.items[rs.idx(v.items, 1)], out);
 	rs.sliceFill(rs.sliceOfPlace(rs.place(() => c, (value4) => c = value4)), Logged.clone$Clone(b), Logged.clone$Clone, rs.drop);
-	for (const _61 of rs.arrayOfPlace(rs.place(() => a, (value5) => a = value5))) {
+	for (const _61 of rs.sliceItems(rs.sliceOfPlace(rs.place(() => a, (value5) => a = value5)))) {
 		const _65: Logged.Logged = Logged.make$conversions_Value(data, 9);
 		_61[Symbol.dispose]();
 		Object.assign(_61, _65);
@@ -4555,10 +4590,10 @@ export function lentOne$conversions_Named(data: rs.ByteSlice, out: rs.ByteVec): 
 	const at = rs.idx(v.items, 1);
 	const borrowed2 = v.items;
 	const borrowed3 = at;
-	Named.put$conversions_Value(writeFirst$conversions_Named(rs.sliceFrom(rs.arrayOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3))), Named.make$conversions_Value(data, 8)), out);
+	Named.put$conversions_Value(writeFirst$conversions_Named(rs.sliceOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3)), Named.make$conversions_Value(data, 8)), out);
 	Named.put$conversions_Value(v.items[rs.idx(v.items, 1)], out);
 	rs.sliceFill(rs.sliceOfPlace(rs.place(() => c, (value4) => c = value4)), Named.clone$Clone(b), Named.clone$Clone);
-	for (const _61 of rs.arrayOfPlace(rs.place(() => a, (value5) => a = value5))) {
+	for (const _61 of rs.sliceItems(rs.sliceOfPlace(rs.place(() => a, (value5) => a = value5)))) {
 		Object.assign(_61, Named.make$conversions_Value(data, 9));
 	}
 	Named.put$conversions_Value(c, out);
@@ -4590,10 +4625,10 @@ export function lentOne$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const at = rs.idx(v.items, 1);
 	const borrowed2 = v.items;
 	const borrowed3 = at;
-	put$conversions_Value_u32(writeFirst$u32(rs.sliceFrom(rs.arrayOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3))), make$conversions_Value_u32(data, 8)), out);
+	put$conversions_Value_u32(writeFirst$u32(rs.sliceOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3)), make$conversions_Value_u32(data, 8)), out);
 	put$conversions_Value_u32(v.items[rs.idx(v.items, 1)], out);
 	rs.sliceFill(rs.sliceOfPlace(rs.place(() => c, (value4) => c = value4)), b, undefined);
-	const iter: rs.Iter<rs.Place<rs.u32>> = rs.iterSliceMut(rs.sliceFrom(rs.arrayOfPlace(rs.place(() => a, (value5) => a = value5))));
+	const iter: rs.Iter<rs.Place<rs.u32>> = rs.iterSliceMut(rs.sliceOfPlace(rs.place(() => a, (value5) => a = value5)));
 	while (true) {
 		const _61: rs.Place<rs.u32> | rs.Done = iter.next();
 		if (_61 === rs.DONE) {
@@ -4630,10 +4665,10 @@ export function lentOne$u64(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const at = rs.idx(v.items, 1);
 	const borrowed2 = v.items;
 	const borrowed3 = at;
-	put$conversions_Value_u64(writeFirst$u64(rs.sliceFrom(rs.arrayOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3))), make$conversions_Value_u64(data, 8)), out);
+	put$conversions_Value_u64(writeFirst$u64(rs.sliceOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3)), make$conversions_Value_u64(data, 8)), out);
 	put$conversions_Value_u64(v.items[rs.idx(v.items, 1)], out);
 	rs.sliceFill(rs.sliceOfPlace(rs.place(() => c, (value4) => c = value4)), b, undefined);
-	const iter: rs.Iter<rs.Place<rs.u64>> = rs.iterSliceMut(rs.sliceFrom(rs.arrayOfPlace(rs.place(() => a, (value5) => a = value5))));
+	const iter: rs.Iter<rs.Place<rs.u64>> = rs.iterSliceMut(rs.sliceOfPlace(rs.place(() => a, (value5) => a = value5)));
 	while (true) {
 		const _61: rs.Place<rs.u64> | rs.Done = iter.next();
 		if (_61 === rs.DONE) {
@@ -5013,7 +5048,7 @@ export function searched$array2_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return make$conversions_Value_array2_u32(data, i2);
 	}), undefined, 8, true);
 	rs.sliceSort(rs.sliceFrom(v.items), rs.cmpLt(rs.cmpSlice(rs.cmp)), 8, true);
-	const tagged: rs.Vec<[rs.u32[], rs.u8]> = rs.iterToVec(rs.iterZip(rs.iterMap(rs.iterSlice(v.items), copy$array_u32), new rs.RangeFrom(0, rs.u8Step), "len"), undefined, 12, true);
+	const tagged: rs.Vec<[rs.u32[], rs.u8]> = rs.iterToVec(rs.iterZip(rs.iterMap(rs.iterLend(rs.iterSlice(v.items), rs.sliceFrom), rs.sliceToArray), new rs.RangeFrom(0, rs.u8Step), "len"), undefined, 12, true);
 	const iter: rs.Iter<rs.usize> = rs.iterSlice([0, 1, 2, 3, v.items.length]);
 	l1: while (true) {
 		const _24: rs.usize | rs.Done = iter.next();
@@ -5031,16 +5066,21 @@ export function searched$array2_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 				continue l1;
 			}
 			const x: rs.u32[] = make$conversions_Value_array2_u32(data, rs.usizeAdd(rs.usizeMul(_45, 2), 1));
-			const iter3: rs.Iter<rs.Result<rs.usize, rs.usize>> = rs.iterSlice([rs.sliceBinarySearch(s, x, rs.cmpSlice(rs.cmp)), rs.sliceBinarySearchBy(s, (e: rs.u32[]): rs.Ordering => {
+			const _59: rs.Slice<rs.u32> = rs.sliceFrom(x);
+			const _58: (a0: rs.Slice<rs.u32>) => rs.Ordering = (e: rs.Slice<rs.u32>): rs.Ordering => {
 				put$conversions_Value_array2_u32(e, out);
-				return rs.cmpSlice(rs.cmp)(e, x);
-			}), rs.sliceBinarySearchByKey(t, x, (_2: [rs.u32[], rs.u8]): rs.u32[] => {
+				return rs.cmpSlice(rs.cmp)(e, _59);
+			};
+			const _66: rs.Slice<rs.u32> = rs.sliceFrom(x);
+			const _65: (a0: rs.Slice<rs.u32>) => boolean = (e3: rs.Slice<rs.u32>): boolean => {
+				put$conversions_Value_array2_u32(e3, out);
+				return rs.cmpSlice(rs.cmp)(e3, _66) === -1;
+			};
+			const iter3: rs.Iter<rs.Result<rs.usize, rs.usize>> = rs.iterSlice([rs.sliceBinarySearch(s, x, rs.cmpSlice(rs.cmp)), rs.sliceBinarySearchBy(s, (held) => _58(rs.sliceFrom(held))), rs.sliceBinarySearchByKey(t, x, (_2: [rs.u32[], rs.u8]): rs.u32[] => {
+				const e2: rs.Slice<rs.u32> = rs.sliceFrom(_2[0]);
 				rs.byteVecPush(out, _2[1]);
-				return copy$array_u32(_2[0]);
-			}, rs.cmpSlice(rs.cmp)), rs.Ok(rs.slicePartitionPoint(s, (e2: rs.u32[]): boolean => {
-				put$conversions_Value_array2_u32(e2, out);
-				return rs.cmpSlice(rs.cmp)(e2, x) === -1;
-			}))]);
+				return rs.sliceToArray(e2);
+			}, rs.cmpSlice(rs.cmp)), rs.Ok(rs.slicePartitionPoint(s, (held2) => _65(rs.sliceFrom(held2))))]);
 			while (true) {
 				const _69: rs.Result<rs.usize, rs.usize> | rs.Done = iter3.next();
 				if (_69 === rs.DONE) {
@@ -5496,17 +5536,17 @@ export function measured(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _48: [rs.usize, rs.usize] = [_49, 2];
 	const _59: [rs.usize, rs.usize] = [8, 4];
 	const _72: rs.u16 = n & 0xffff;
-	Array.from({ length: 3 }, (): rs.u16 => {
+	rs.sliceFrom(Array.from({ length: 3 }, (): rs.u16 => {
 		return _72;
-	});
+	}));
 	const _69: rs.usize = 6;
 	const _76: rs.u16 = n & 0xffff;
 	const iter: rs.Iter<[rs.usize, rs.usize]> = rs.iterSlice([_12, _19, _22, _29, _36, _41, _48, _59, [_69, 2] as [rs.usize, rs.usize], [16, 4] as [rs.usize, rs.usize], [12, 4] as [rs.usize, rs.usize], [0, 1] as [rs.usize, rs.usize]]);
 	while (true) {
 		const _94: [rs.usize, rs.usize] | rs.Done = iter.next();
-		Array.from({ length: 3 }, (): rs.u16 => {
+		rs.sliceFrom(Array.from({ length: 3 }, (): rs.u16 => {
 			return _76;
-		});
+		}));
 		if (_94 === rs.DONE) {
 			break;
 		}
@@ -5532,6 +5572,2326 @@ export function pointed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	p.data[p.start] = p.data[p.start] ^ 16;
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(a));
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a[1])));
+}
+
+/**
+ * std's impls on references, reached by generic functions: `AsRef` and `AsMut` of
+ * slices, arrays, and `Vec`s through `&`, `&mut`, and a reference to either, which
+ * forward to what each points at; `Deref`, `Borrow`, and `BorrowMut` of a `&` and a
+ * `&mut`, which lend what it points at; and the comparisons of references to elements and to slices.
+ */
+export function referenced$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const array: Array<rs.u16 | undefined> = [make$conversions_Value_Option_u16(data, 13), make$conversions_Value_Option_u16(data, 14), make$conversions_Value_Option_u16(data, 15)];
+	const list: rs.Vec<rs.u16 | undefined> = rs.vecFrom([make$conversions_Value_Option_u16(data, 16), make$conversions_Value_Option_u16(data, 17)]);
+	readAs$Option_u16_ref_slice_Option_u16(rs.sliceFrom(array), out);
+	readAs$Option_u16_ref_ref_slice_Option_u16(rs.sliceRange(rs.sliceFrom(array), 1), out);
+	readAs$Option_u16_ref_array3_Option_u16(rs.sliceFrom(array), out);
+	readAs$Option_u16_ref_Vec_Option_u16(list, out);
+	readAs$Option_u16_mut_Vec_Option_u16(list, out);
+	readAs$Option_u16_ref_mut_Vec_Option_u16(list, out);
+	writeAs$Option_u16_mut_slice_Option_u16(rs.sliceFrom(array), make$conversions_Value_Option_u16(data, 18));
+	writeAs$Option_u16_mut_array3_Option_u16(rs.sliceFrom(array), make$conversions_Value_Option_u16(data, 19));
+	const _38: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 20);
+	writeAs$Option_u16_mut_Vec_Option_u16(list, _38);
+	let _41: rs.Vec<rs.u16 | undefined> = list;
+	const _42: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 21);
+	writeAs$Option_u16_mut_mut_Vec_Option_u16(rs.place(() => _41, (value) => _41 = value), _42);
+	derefPut$Option_u16_ref_Option_u16(array[0], out);
+	const at = rs.idx(list.items, 0);
+	derefPut$Option_u16_mut_Option_u16(rs.place(() => list.items[at], (value2) => list.items[at] = value2), out);
+	borrowPut$Option_u16_ref_Option_u16(array[1], out);
+	const at2 = rs.idx(list.items, 1);
+	borrowPut$Option_u16_mut_Option_u16(rs.place(() => list.items[at2], (value3) => list.items[at2] = value3), out);
+	const at3 = rs.idx(list.items, 1);
+	const _60: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 24);
+	borrowWrite$Option_u16_mut_Option_u16(rs.place(() => list.items[at3], (value4) => list.items[at3] = value4), _60);
+	const _65: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 25);
+	borrowWrite$Option_u16_mut_Option_u16(rs.place(() => array[1], (value5) => array[1] = value5), _65);
+	let whole: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 26);
+	whole = make$conversions_Value_Option_u16(data, 27);
+	put$conversions_Value_Option_u16(whole, out);
+	const _74: rs.Vec<rs.u16 | undefined> = list;
+	const _77: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 28);
+	_74.items.push(_77);
+	const other: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 29);
+	let r: rs.u16 | undefined = whole;
+	r = other;
+	put$conversions_Value_Option_u16(r, out);
+	put$conversions_Value_Option_u16(compared$ref_Option_u16(array[0], array[1], out), out);
+	put$conversions_Value_Option_u16(compared$ref_ref_Option_u16(list.items[rs.idx(list.items, 1)], array[2], out), out);
+	let _107: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 22);
+	let _109: rs.u16 | undefined = make$conversions_Value_Option_u16(data, 23);
+	put$conversions_Value_Option_u16(compared$mut_Option_u16(rs.place(() => _107, (value9) => _107 = value9), rs.place(() => _109, (value10) => _109 = value10), out).v, out);
+	rs.byteVecPush(out, compared$ref_slice_Option_u16(rs.sliceFrom(array), rs.sliceFrom(list.items), out).length & 0xff);
+	const iter: rs.Iter<rs.u16 | undefined> = rs.iterChain(rs.iterSlice(array), rs.iterSlice(list.items));
+	while (true) {
+		const _125: rs.u16 | undefined | rs.Done = iter.next();
+		if (_125 === rs.DONE) {
+			break;
+		}
+		put$conversions_Value_Option_u16(_125, out);
+	}
+}
+
+/**
+ * std's impls on references, reached by generic functions: `AsRef` and `AsMut` of
+ * slices, arrays, and `Vec`s through `&`, `&mut`, and a reference to either, which
+ * forward to what each points at; `Deref`, `Borrow`, and `BorrowMut` of a `&` and a
+ * `&mut`, which lend what it points at; and the comparisons of references to elements and to slices.
+ */
+export function referenced$String(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const array: string[] = [make$conversions_Value_String(data, 13), make$conversions_Value_String(data, 14), make$conversions_Value_String(data, 15)];
+	const list: rs.Vec<string> = rs.vecFrom([make$conversions_Value_String(data, 16), make$conversions_Value_String(data, 17)]);
+	readAs$String_ref_slice_String(rs.sliceFrom(array), out);
+	readAs$String_ref_ref_slice_String(rs.sliceRange(rs.sliceFrom(array), 1), out);
+	readAs$String_ref_array3_String(rs.sliceFrom(array), out);
+	readAs$String_ref_Vec_String(list, out);
+	readAs$String_mut_Vec_String(list, out);
+	readAs$String_ref_mut_Vec_String(list, out);
+	writeAs$String_mut_slice_String(rs.sliceFrom(array), make$conversions_Value_String(data, 18));
+	writeAs$String_mut_array3_String(rs.sliceFrom(array), make$conversions_Value_String(data, 19));
+	const _38: string = make$conversions_Value_String(data, 20);
+	writeAs$String_mut_Vec_String(list, _38);
+	let _41: rs.Vec<string> = list;
+	const _42: string = make$conversions_Value_String(data, 21);
+	writeAs$String_mut_mut_Vec_String(rs.place(() => _41, (value) => _41 = value), _42);
+	derefPut$String_ref_String(array[0], out);
+	const at = rs.idx(list.items, 0);
+	derefPut$String_mut_String(rs.place(() => list.items[at], (value2) => list.items[at] = value2), out);
+	borrowPut$String_ref_String(array[1], out);
+	const at2 = rs.idx(list.items, 1);
+	borrowPut$String_mut_String(rs.place(() => list.items[at2], (value3) => list.items[at2] = value3), out);
+	const at3 = rs.idx(list.items, 1);
+	const _60: string = make$conversions_Value_String(data, 24);
+	borrowWrite$String_mut_String(rs.place(() => list.items[at3], (value4) => list.items[at3] = value4), _60);
+	const _65: string = make$conversions_Value_String(data, 25);
+	borrowWrite$String_mut_String(rs.place(() => array[1], (value5) => array[1] = value5), _65);
+	let whole: string = make$conversions_Value_String(data, 26);
+	whole = make$conversions_Value_String(data, 27);
+	put$conversions_Value_String(whole, out);
+	const _74: rs.Vec<string> = list;
+	const _77: string = make$conversions_Value_String(data, 28);
+	_74.items.push(_77);
+	const other: string = make$conversions_Value_String(data, 29);
+	let r: string = whole;
+	r = other;
+	put$conversions_Value_String(r, out);
+	put$conversions_Value_String(compared$ref_String(array[0], array[1], out), out);
+	put$conversions_Value_String(compared$ref_ref_String(list.items[rs.idx(list.items, 1)], array[2], out), out);
+	let _107: string = make$conversions_Value_String(data, 22);
+	let _109: string = make$conversions_Value_String(data, 23);
+	put$conversions_Value_String(compared$mut_String(rs.place(() => _107, (value9) => _107 = value9), rs.place(() => _109, (value10) => _109 = value10), out).v, out);
+	rs.byteVecPush(out, compared$ref_slice_String(rs.sliceFrom(array), rs.sliceFrom(list.items), out).length & 0xff);
+	const iter: rs.Iter<string> = rs.iterChain(rs.iterSlice(array), rs.iterSlice(list.items));
+	while (true) {
+		const _125: string | rs.Done = iter.next();
+		if (_125 === rs.DONE) {
+			break;
+		}
+		put$conversions_Value_String(_125, out);
+	}
+}
+
+/**
+ * std's impls on references, reached by generic functions: `AsRef` and `AsMut` of
+ * slices, arrays, and `Vec`s through `&`, `&mut`, and a reference to either, which
+ * forward to what each points at; `Deref`, `Borrow`, and `BorrowMut` of a `&` and a
+ * `&mut`, which lend what it points at; and the comparisons of references to elements and to slices.
+ */
+export function referenced$Vec_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const array: rs.ByteVec[] = [make$conversions_Value_Vec_u8(data, 13), make$conversions_Value_Vec_u8(data, 14), make$conversions_Value_Vec_u8(data, 15)];
+	const list: rs.Vec<rs.ByteVec> = rs.vecFrom([make$conversions_Value_Vec_u8(data, 16), make$conversions_Value_Vec_u8(data, 17)]);
+	readAs$Vec_u8_ref_slice_Vec_u8(rs.sliceFrom(array), out);
+	readAs$Vec_u8_ref_ref_slice_Vec_u8(rs.sliceRange(rs.sliceFrom(array), 1), out);
+	readAs$Vec_u8_ref_array3_Vec_u8(rs.sliceFrom(array), out);
+	readAs$Vec_u8_ref_Vec_Vec_u8(list, out);
+	readAs$Vec_u8_mut_Vec_Vec_u8(list, out);
+	readAs$Vec_u8_ref_mut_Vec_Vec_u8(list, out);
+	writeAs$Vec_u8_mut_slice_Vec_u8(rs.sliceFrom(array), make$conversions_Value_Vec_u8(data, 18));
+	writeAs$Vec_u8_mut_array3_Vec_u8(rs.sliceFrom(array), make$conversions_Value_Vec_u8(data, 19));
+	const _38: rs.ByteVec = make$conversions_Value_Vec_u8(data, 20);
+	writeAs$Vec_u8_mut_Vec_Vec_u8(list, _38);
+	let _41: rs.Vec<rs.ByteVec> = list;
+	const _42: rs.ByteVec = make$conversions_Value_Vec_u8(data, 21);
+	writeAs$Vec_u8_mut_mut_Vec_Vec_u8(rs.place(() => _41, (value) => _41 = value), _42);
+	derefPut$Vec_u8_ref_Vec_u8(array[0], out);
+	derefPut$Vec_u8_mut_Vec_u8(list.items[rs.idx(list.items, 0)], out);
+	borrowPut$Vec_u8_ref_Vec_u8(array[1], out);
+	borrowPut$Vec_u8_mut_Vec_u8(list.items[rs.idx(list.items, 1)], out);
+	const at3 = rs.idx(list.items, 1);
+	const _60: rs.ByteVec = make$conversions_Value_Vec_u8(data, 24);
+	borrowWrite$Vec_u8_mut_Vec_u8(list.items[at3], _60);
+	const _65: rs.ByteVec = make$conversions_Value_Vec_u8(data, 25);
+	borrowWrite$Vec_u8_mut_Vec_u8(array[1], _65);
+	const whole: rs.ByteVec = make$conversions_Value_Vec_u8(data, 26);
+	const _67: rs.ByteVec = make$conversions_Value_Vec_u8(data, 27);
+	Object.assign(whole, _67);
+	put$conversions_Value_Vec_u8(whole, out);
+	const _74: rs.Vec<rs.ByteVec> = list;
+	const _77: rs.ByteVec = make$conversions_Value_Vec_u8(data, 28);
+	_74.items.push(_77);
+	const other: rs.ByteVec = make$conversions_Value_Vec_u8(data, 29);
+	let r: rs.ByteVec = whole;
+	r = other;
+	put$conversions_Value_Vec_u8(r, out);
+	put$conversions_Value_Vec_u8(compared$ref_Vec_u8(array[0], array[1], out), out);
+	put$conversions_Value_Vec_u8(compared$ref_ref_Vec_u8(list.items[rs.idx(list.items, 1)], array[2], out), out);
+	const _107: rs.ByteVec = make$conversions_Value_Vec_u8(data, 22);
+	const _109: rs.ByteVec = make$conversions_Value_Vec_u8(data, 23);
+	put$conversions_Value_Vec_u8(compared$mut_Vec_u8(_107, _109, out), out);
+	rs.byteVecPush(out, compared$ref_slice_Vec_u8(rs.sliceFrom(array), rs.sliceFrom(list.items), out).length & 0xff);
+	const iter: rs.Iter<rs.ByteVec> = rs.iterChain(rs.iterSlice(array), rs.iterSlice(list.items));
+	while (true) {
+		const _125: rs.ByteVec | rs.Done = iter.next();
+		if (_125 === rs.DONE) {
+			break;
+		}
+		put$conversions_Value_Vec_u8(_125, out);
+	}
+}
+
+/**
+ * std's impls on references, reached by generic functions: `AsRef` and `AsMut` of
+ * slices, arrays, and `Vec`s through `&`, `&mut`, and a reference to either, which
+ * forward to what each points at; `Deref`, `Borrow`, and `BorrowMut` of a `&` and a
+ * `&mut`, which lend what it points at; and the comparisons of references to elements and to slices.
+ */
+export function referenced$array3_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const array: Uint8Array[] = [copy$array_u8(make$conversions_Value_array3_u8(data, 13)), copy$array_u8(make$conversions_Value_array3_u8(data, 14)), copy$array_u8(make$conversions_Value_array3_u8(data, 15))];
+	const list: rs.Vec<Uint8Array> = rs.vecFrom(copy$array_array3_u8([make$conversions_Value_array3_u8(data, 16), make$conversions_Value_array3_u8(data, 17)]).map(copy$array_u8));
+	readAs$array3_u8_ref_slice_array3_u8(rs.sliceFrom(array), out);
+	readAs$array3_u8_ref_ref_slice_array3_u8(rs.sliceRange(rs.sliceFrom(array), 1), out);
+	readAs$array3_u8_ref_array3_array3_u8(rs.sliceFrom(array), out);
+	readAs$array3_u8_ref_Vec_array3_u8(list, out);
+	readAs$array3_u8_mut_Vec_array3_u8(list, out);
+	readAs$array3_u8_ref_mut_Vec_array3_u8(list, out);
+	writeAs$array3_u8_mut_slice_array3_u8(rs.sliceFrom(array), make$conversions_Value_array3_u8(data, 18));
+	writeAs$array3_u8_mut_array3_array3_u8(rs.sliceFrom(array), make$conversions_Value_array3_u8(data, 19));
+	const _38: Uint8Array = make$conversions_Value_array3_u8(data, 20);
+	writeAs$array3_u8_mut_Vec_array3_u8(list, _38);
+	let _41: rs.Vec<Uint8Array> = list;
+	const _42: Uint8Array = make$conversions_Value_array3_u8(data, 21);
+	writeAs$array3_u8_mut_mut_Vec_array3_u8(rs.place(() => _41, (value) => _41 = value), _42);
+	derefPut$array3_u8_ref_array3_u8(rs.byteSliceFrom(array[0]), out);
+	derefPut$array3_u8_mut_array3_u8(rs.byteSliceFrom(list.items[rs.idx(list.items, 0)]), out);
+	borrowPut$array3_u8_ref_array3_u8(rs.byteSliceFrom(array[1]), out);
+	borrowPut$array3_u8_mut_array3_u8(rs.byteSliceFrom(list.items[rs.idx(list.items, 1)]), out);
+	borrowWrite$array3_u8_mut_array3_u8(rs.byteSliceFrom(list.items[rs.idx(list.items, 1)]), make$conversions_Value_array3_u8(data, 24));
+	borrowWrite$array3_u8_mut_array3_u8(rs.byteSliceFrom(array[1]), make$conversions_Value_array3_u8(data, 25));
+	const whole: Uint8Array = copy$array_u8(make$conversions_Value_array3_u8(data, 26));
+	const _67: Uint8Array = copy$array_u8(make$conversions_Value_array3_u8(data, 27));
+	const _68: rs.ByteSlice = rs.byteSliceFrom(rs.byteSliceView(rs.byteSliceFrom(whole)));
+	_68.data.set(_67, _68.start);
+	put$conversions_Value_array3_u8(rs.byteSliceFrom(rs.byteSliceView(rs.byteSliceFrom(whole))), out);
+	const _74: rs.Vec<Uint8Array> = list;
+	const _77: Uint8Array = copy$array_u8(make$conversions_Value_array3_u8(data, 28));
+	_74.items.push(_77);
+	const other: Uint8Array = make$conversions_Value_array3_u8(data, 29);
+	let r: rs.ByteSlice = rs.byteSliceFrom(whole);
+	r = rs.byteSliceFrom(other);
+	put$conversions_Value_array3_u8(r, out);
+	put$conversions_Value_array3_u8(compared$ref_array3_u8(rs.byteSliceFrom(array[0]), rs.byteSliceFrom(array[1]), out), out);
+	put$conversions_Value_array3_u8(compared$ref_ref_array3_u8(rs.byteSliceFrom(list.items[rs.idx(list.items, 1)]), rs.byteSliceFrom(array[2]), out), out);
+	put$conversions_Value_array3_u8(compared$mut_array3_u8(rs.byteSliceFrom(copy$array_u8(make$conversions_Value_array3_u8(data, 22))), rs.byteSliceFrom(copy$array_u8(make$conversions_Value_array3_u8(data, 23))), out), out);
+	rs.byteVecPush(out, compared$ref_slice_array3_u8(rs.sliceFrom(array), rs.sliceFrom(list.items), out).length & 0xff);
+	const iter: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterSlice(array), rs.byteSliceFrom), rs.iterLend(rs.iterSlice(list.items), rs.byteSliceFrom));
+	while (true) {
+		const _125: rs.ByteSlice | rs.Done = iter.next();
+		if (_125 === rs.DONE) {
+			break;
+		}
+		put$conversions_Value_array3_u8(_125, out);
+	}
+}
+
+/**
+ * std's impls on references, reached by generic functions: `AsRef` and `AsMut` of
+ * slices, arrays, and `Vec`s through `&`, `&mut`, and a reference to either, which
+ * forward to what each points at; `Deref`, `Borrow`, and `BorrowMut` of a `&` and a
+ * `&mut`, which lend what it points at; and the comparisons of references to elements and to slices.
+ */
+export function referenced$conversions_Logged(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const array: Logged.Logged[] = [Logged.make$conversions_Value(data, 13), Logged.make$conversions_Value(data, 14), Logged.make$conversions_Value(data, 15)];
+	const list: rs.Vec<Logged.Logged> = rs.vecFrom([Logged.make$conversions_Value(data, 16), Logged.make$conversions_Value(data, 17)]);
+	readAs$conversions_Logged_ref_slice_conversions_Logged(rs.sliceFrom(array), out);
+	readAs$conversions_Logged_ref_ref_slice_conversions_Logged(rs.sliceRange(rs.sliceFrom(array), 1), out);
+	readAs$conversions_Logged_ref_array3_conversions_Logged(rs.sliceFrom(array), out);
+	readAs$conversions_Logged_ref_Vec_conversions_Logged(list, out);
+	readAs$conversions_Logged_mut_Vec_conversions_Logged(list, out);
+	readAs$conversions_Logged_ref_mut_Vec_conversions_Logged(list, out);
+	writeAs$conversions_Logged_mut_slice_conversions_Logged(rs.sliceFrom(array), Logged.make$conversions_Value(data, 18));
+	writeAs$conversions_Logged_mut_array3_conversions_Logged(rs.sliceFrom(array), Logged.make$conversions_Value(data, 19));
+	const _38: Logged.Logged = Logged.make$conversions_Value(data, 20);
+	writeAs$conversions_Logged_mut_Vec_conversions_Logged(list, _38);
+	let _41: rs.Vec<Logged.Logged> = list;
+	const _42: Logged.Logged = Logged.make$conversions_Value(data, 21);
+	writeAs$conversions_Logged_mut_mut_Vec_conversions_Logged(rs.place(() => _41, (value) => _41 = value), _42);
+	derefPut$conversions_Logged_ref_conversions_Logged(array[0], out);
+	derefPut$conversions_Logged_mut_conversions_Logged(list.items[rs.idx(list.items, 0)], out);
+	borrowPut$conversions_Logged_ref_conversions_Logged(array[1], out);
+	borrowPut$conversions_Logged_mut_conversions_Logged(list.items[rs.idx(list.items, 1)], out);
+	const at3 = rs.idx(list.items, 1);
+	const _60: Logged.Logged = Logged.make$conversions_Value(data, 24);
+	borrowWrite$conversions_Logged_mut_conversions_Logged(list.items[at3], _60);
+	const _65: Logged.Logged = Logged.make$conversions_Value(data, 25);
+	borrowWrite$conversions_Logged_mut_conversions_Logged(array[1], _65);
+	const whole: Logged.Logged = Logged.make$conversions_Value(data, 26);
+	const _67: Logged.Logged = Logged.make$conversions_Value(data, 27);
+	const _68: Logged.Logged = whole;
+	_68[Symbol.dispose]();
+	Object.assign(_68, _67);
+	Logged.put$conversions_Value(whole, out);
+	const _74: rs.Vec<Logged.Logged> = list;
+	const _77: Logged.Logged = Logged.make$conversions_Value(data, 28);
+	_74.items.push(_77);
+	const other: Logged.Logged = Logged.make$conversions_Value(data, 29);
+	let r: Logged.Logged = whole;
+	r = other;
+	Logged.put$conversions_Value(r, out);
+	Logged.put$conversions_Value(compared$ref_conversions_Logged(array[0], array[1], out), out);
+	Logged.put$conversions_Value(compared$ref_ref_conversions_Logged(list.items[rs.idx(list.items, 1)], array[2], out), out);
+	const _107: Logged.Logged = Logged.make$conversions_Value(data, 22);
+	const _109: Logged.Logged = Logged.make$conversions_Value(data, 23);
+	Logged.put$conversions_Value(compared$mut_conversions_Logged(_107, _109, out), out);
+	_109[Symbol.dispose]();
+	_107[Symbol.dispose]();
+	rs.byteVecPush(out, compared$ref_slice_conversions_Logged(rs.sliceFrom(array), rs.sliceFrom(list.items), out).length & 0xff);
+	const iter: rs.Iter<Logged.Logged> = rs.iterChain(rs.iterSlice(array), rs.iterSlice(list.items));
+	while (true) {
+		const _125: Logged.Logged | rs.Done = iter.next();
+		if (_125 === rs.DONE) {
+			break;
+		}
+		Logged.put$conversions_Value(_125, out);
+	}
+	other[Symbol.dispose]();
+	whole[Symbol.dispose]();
+	rs.dropVec(list);
+	rs.dropAll(array);
+}
+
+/**
+ * std's impls on references, reached by generic functions: `AsRef` and `AsMut` of
+ * slices, arrays, and `Vec`s through `&`, `&mut`, and a reference to either, which
+ * forward to what each points at; `Deref`, `Borrow`, and `BorrowMut` of a `&` and a
+ * `&mut`, which lend what it points at; and the comparisons of references to elements and to slices.
+ */
+export function referenced$conversions_Named(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const array: Named.Named[] = [Named.make$conversions_Value(data, 13), Named.make$conversions_Value(data, 14), Named.make$conversions_Value(data, 15)];
+	const list: rs.Vec<Named.Named> = rs.vecFrom([Named.make$conversions_Value(data, 16), Named.make$conversions_Value(data, 17)]);
+	readAs$conversions_Named_ref_slice_conversions_Named(rs.sliceFrom(array), out);
+	readAs$conversions_Named_ref_ref_slice_conversions_Named(rs.sliceRange(rs.sliceFrom(array), 1), out);
+	readAs$conversions_Named_ref_array3_conversions_Named(rs.sliceFrom(array), out);
+	readAs$conversions_Named_ref_Vec_conversions_Named(list, out);
+	readAs$conversions_Named_mut_Vec_conversions_Named(list, out);
+	readAs$conversions_Named_ref_mut_Vec_conversions_Named(list, out);
+	writeAs$conversions_Named_mut_slice_conversions_Named(rs.sliceFrom(array), Named.make$conversions_Value(data, 18));
+	writeAs$conversions_Named_mut_array3_conversions_Named(rs.sliceFrom(array), Named.make$conversions_Value(data, 19));
+	const _38: Named.Named = Named.make$conversions_Value(data, 20);
+	writeAs$conversions_Named_mut_Vec_conversions_Named(list, _38);
+	let _41: rs.Vec<Named.Named> = list;
+	const _42: Named.Named = Named.make$conversions_Value(data, 21);
+	writeAs$conversions_Named_mut_mut_Vec_conversions_Named(rs.place(() => _41, (value) => _41 = value), _42);
+	derefPut$conversions_Named_ref_conversions_Named(array[0], out);
+	derefPut$conversions_Named_mut_conversions_Named(list.items[rs.idx(list.items, 0)], out);
+	borrowPut$conversions_Named_ref_conversions_Named(array[1], out);
+	borrowPut$conversions_Named_mut_conversions_Named(list.items[rs.idx(list.items, 1)], out);
+	const at3 = rs.idx(list.items, 1);
+	const _60: Named.Named = Named.make$conversions_Value(data, 24);
+	borrowWrite$conversions_Named_mut_conversions_Named(list.items[at3], _60);
+	const _65: Named.Named = Named.make$conversions_Value(data, 25);
+	borrowWrite$conversions_Named_mut_conversions_Named(array[1], _65);
+	const whole: Named.Named = Named.make$conversions_Value(data, 26);
+	const _67: Named.Named = Named.make$conversions_Value(data, 27);
+	Object.assign(whole, _67);
+	Named.put$conversions_Value(whole, out);
+	const _74: rs.Vec<Named.Named> = list;
+	const _77: Named.Named = Named.make$conversions_Value(data, 28);
+	_74.items.push(_77);
+	const other: Named.Named = Named.make$conversions_Value(data, 29);
+	let r: Named.Named = whole;
+	r = other;
+	Named.put$conversions_Value(r, out);
+	Named.put$conversions_Value(compared$ref_conversions_Named(array[0], array[1], out), out);
+	Named.put$conversions_Value(compared$ref_ref_conversions_Named(list.items[rs.idx(list.items, 1)], array[2], out), out);
+	const _107: Named.Named = Named.make$conversions_Value(data, 22);
+	const _109: Named.Named = Named.make$conversions_Value(data, 23);
+	Named.put$conversions_Value(compared$mut_conversions_Named(_107, _109, out), out);
+	rs.byteVecPush(out, compared$ref_slice_conversions_Named(rs.sliceFrom(array), rs.sliceFrom(list.items), out).length & 0xff);
+	const iter: rs.Iter<Named.Named> = rs.iterChain(rs.iterSlice(array), rs.iterSlice(list.items));
+	while (true) {
+		const _125: Named.Named | rs.Done = iter.next();
+		if (_125 === rs.DONE) {
+			break;
+		}
+		Named.put$conversions_Value(_125, out);
+	}
+}
+
+/**
+ * std's impls on references, reached by generic functions: `AsRef` and `AsMut` of
+ * slices, arrays, and `Vec`s through `&`, `&mut`, and a reference to either, which
+ * forward to what each points at; `Deref`, `Borrow`, and `BorrowMut` of a `&` and a
+ * `&mut`, which lend what it points at; and the comparisons of references to elements and to slices.
+ */
+export function referenced$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const array: rs.u32[] = [make$conversions_Value_u32(data, 13), make$conversions_Value_u32(data, 14), make$conversions_Value_u32(data, 15)];
+	const list: rs.Vec<rs.u32> = rs.vecFrom([make$conversions_Value_u32(data, 16), make$conversions_Value_u32(data, 17)]);
+	readAs$u32_ref_slice_u32(rs.sliceFrom(array), out);
+	readAs$u32_ref_ref_slice_u32(rs.sliceRange(rs.sliceFrom(array), 1), out);
+	readAs$u32_ref_array3_u32(rs.sliceFrom(array), out);
+	readAs$u32_ref_Vec_u32(list, out);
+	readAs$u32_mut_Vec_u32(list, out);
+	readAs$u32_ref_mut_Vec_u32(list, out);
+	writeAs$u32_mut_slice_u32(rs.sliceFrom(array), make$conversions_Value_u32(data, 18));
+	writeAs$u32_mut_array3_u32(rs.sliceFrom(array), make$conversions_Value_u32(data, 19));
+	const _38: rs.u32 = make$conversions_Value_u32(data, 20);
+	writeAs$u32_mut_Vec_u32(list, _38);
+	let _41: rs.Vec<rs.u32> = list;
+	const _42: rs.u32 = make$conversions_Value_u32(data, 21);
+	writeAs$u32_mut_mut_Vec_u32(rs.place(() => _41, (value) => _41 = value), _42);
+	derefPut$u32_ref_u32(array[0], out);
+	const at = rs.idx(list.items, 0);
+	derefPut$u32_mut_u32(rs.place(() => list.items[at], (value2) => list.items[at] = value2), out);
+	borrowPut$u32_ref_u32(array[1], out);
+	const at2 = rs.idx(list.items, 1);
+	borrowPut$u32_mut_u32(rs.place(() => list.items[at2], (value3) => list.items[at2] = value3), out);
+	const at3 = rs.idx(list.items, 1);
+	const _60: rs.u32 = make$conversions_Value_u32(data, 24);
+	borrowWrite$u32_mut_u32(rs.place(() => list.items[at3], (value4) => list.items[at3] = value4), _60);
+	const _65: rs.u32 = make$conversions_Value_u32(data, 25);
+	borrowWrite$u32_mut_u32(rs.place(() => array[1], (value5) => array[1] = value5), _65);
+	let whole: rs.u32 = make$conversions_Value_u32(data, 26);
+	whole = make$conversions_Value_u32(data, 27);
+	put$conversions_Value_u32(whole, out);
+	const _74: rs.Vec<rs.u32> = list;
+	const _77: rs.u32 = make$conversions_Value_u32(data, 28);
+	_74.items.push(_77);
+	const other: rs.u32 = make$conversions_Value_u32(data, 29);
+	let r: rs.u32 = whole;
+	r = other;
+	put$conversions_Value_u32(r, out);
+	put$conversions_Value_u32(compared$ref_u32(array[0], array[1], out), out);
+	put$conversions_Value_u32(compared$ref_ref_u32(list.items[rs.idx(list.items, 1)], array[2], out), out);
+	let _107: rs.u32 = make$conversions_Value_u32(data, 22);
+	let _109: rs.u32 = make$conversions_Value_u32(data, 23);
+	put$conversions_Value_u32(compared$mut_u32(rs.place(() => _107, (value9) => _107 = value9), rs.place(() => _109, (value10) => _109 = value10), out).v, out);
+	rs.byteVecPush(out, compared$ref_slice_u32(rs.sliceFrom(array), rs.sliceFrom(list.items), out).length & 0xff);
+	const iter: rs.Iter<rs.u32> = rs.iterChain(rs.iterSlice(array), rs.iterSlice(list.items));
+	while (true) {
+		const _125: rs.u32 | rs.Done = iter.next();
+		if (_125 === rs.DONE) {
+			break;
+		}
+		put$conversions_Value_u32(_125, out);
+	}
+}
+
+/**
+ * std's impls on references, reached by generic functions: `AsRef` and `AsMut` of
+ * slices, arrays, and `Vec`s through `&`, `&mut`, and a reference to either, which
+ * forward to what each points at; `Deref`, `Borrow`, and `BorrowMut` of a `&` and a
+ * `&mut`, which lend what it points at; and the comparisons of references to elements and to slices.
+ */
+export function referenced$u64(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const array: rs.u64[] = [make$conversions_Value_u64(data, 13), make$conversions_Value_u64(data, 14), make$conversions_Value_u64(data, 15)];
+	const list: rs.Vec<rs.u64> = rs.vecFrom([make$conversions_Value_u64(data, 16), make$conversions_Value_u64(data, 17)]);
+	readAs$u64_ref_slice_u64(rs.sliceFrom(array), out);
+	readAs$u64_ref_ref_slice_u64(rs.sliceRange(rs.sliceFrom(array), 1), out);
+	readAs$u64_ref_array3_u64(rs.sliceFrom(array), out);
+	readAs$u64_ref_Vec_u64(list, out);
+	readAs$u64_mut_Vec_u64(list, out);
+	readAs$u64_ref_mut_Vec_u64(list, out);
+	writeAs$u64_mut_slice_u64(rs.sliceFrom(array), make$conversions_Value_u64(data, 18));
+	writeAs$u64_mut_array3_u64(rs.sliceFrom(array), make$conversions_Value_u64(data, 19));
+	const _38: rs.u64 = make$conversions_Value_u64(data, 20);
+	writeAs$u64_mut_Vec_u64(list, _38);
+	let _41: rs.Vec<rs.u64> = list;
+	const _42: rs.u64 = make$conversions_Value_u64(data, 21);
+	writeAs$u64_mut_mut_Vec_u64(rs.place(() => _41, (value) => _41 = value), _42);
+	derefPut$u64_ref_u64(array[0], out);
+	const at = rs.idx(list.items, 0);
+	derefPut$u64_mut_u64(rs.place(() => list.items[at], (value2) => list.items[at] = value2), out);
+	borrowPut$u64_ref_u64(array[1], out);
+	const at2 = rs.idx(list.items, 1);
+	borrowPut$u64_mut_u64(rs.place(() => list.items[at2], (value3) => list.items[at2] = value3), out);
+	const at3 = rs.idx(list.items, 1);
+	const _60: rs.u64 = make$conversions_Value_u64(data, 24);
+	borrowWrite$u64_mut_u64(rs.place(() => list.items[at3], (value4) => list.items[at3] = value4), _60);
+	const _65: rs.u64 = make$conversions_Value_u64(data, 25);
+	borrowWrite$u64_mut_u64(rs.place(() => array[1], (value5) => array[1] = value5), _65);
+	let whole: rs.u64 = make$conversions_Value_u64(data, 26);
+	whole = make$conversions_Value_u64(data, 27);
+	put$conversions_Value_u64(whole, out);
+	const _74: rs.Vec<rs.u64> = list;
+	const _77: rs.u64 = make$conversions_Value_u64(data, 28);
+	_74.items.push(_77);
+	const other: rs.u64 = make$conversions_Value_u64(data, 29);
+	let r: rs.u64 = whole;
+	r = other;
+	put$conversions_Value_u64(r, out);
+	put$conversions_Value_u64(compared$ref_u64(array[0], array[1], out), out);
+	put$conversions_Value_u64(compared$ref_ref_u64(list.items[rs.idx(list.items, 1)], array[2], out), out);
+	let _107: rs.u64 = make$conversions_Value_u64(data, 22);
+	let _109: rs.u64 = make$conversions_Value_u64(data, 23);
+	put$conversions_Value_u64(compared$mut_u64(rs.place(() => _107, (value9) => _107 = value9), rs.place(() => _109, (value10) => _109 = value10), out).v, out);
+	rs.byteVecPush(out, compared$ref_slice_u64(rs.sliceFrom(array), rs.sliceFrom(list.items), out).length & 0xff);
+	const iter: rs.Iter<rs.u64> = rs.iterChain(rs.iterSlice(array), rs.iterSlice(list.items));
+	while (true) {
+		const _125: rs.u64 | rs.Done = iter.next();
+		if (_125 === rs.DONE) {
+			break;
+		}
+		put$conversions_Value_u64(_125, out);
+	}
+}
+
+/**
+ * std's impls on references, reached by generic functions: `AsRef` and `AsMut` of
+ * slices, arrays, and `Vec`s through `&`, `&mut`, and a reference to either, which
+ * forward to what each points at; `Deref`, `Borrow`, and `BorrowMut` of a `&` and a
+ * `&mut`, which lend what it points at; and the comparisons of references to elements and to slices.
+ */
+export function referenced$u8(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const array: Uint8Array = Uint8Array.of(make$conversions_Value_u8(data, 13), make$conversions_Value_u8(data, 14), make$conversions_Value_u8(data, 15));
+	const list: rs.ByteVec = rs.byteVecFrom(Uint8Array.of(make$conversions_Value_u8(data, 16), make$conversions_Value_u8(data, 17)));
+	readAs$u8_ref_slice_u8(rs.byteSliceRange(rs.byteSliceFrom(array), 0), out);
+	readAs$u8_ref_ref_slice_u8(rs.byteSliceRange(rs.byteSliceFrom(array), 1), out);
+	readAs$u8_ref_array3_u8(rs.byteSliceFrom(array), out);
+	readAs$u8_ref_Vec_u8(list, out);
+	readAs$u8_mut_Vec_u8(list, out);
+	readAs$u8_ref_mut_Vec_u8(list, out);
+	writeAs$u8_mut_slice_u8(rs.byteSliceRange(rs.byteSliceFrom(array), 0), make$conversions_Value_u8(data, 18));
+	writeAs$u8_mut_array3_u8(rs.byteSliceFrom(array), make$conversions_Value_u8(data, 19));
+	const _38: rs.u8 = make$conversions_Value_u8(data, 20);
+	writeAs$u8_mut_Vec_u8(list, _38);
+	let _41: rs.ByteVec = list;
+	const _42: rs.u8 = make$conversions_Value_u8(data, 21);
+	writeAs$u8_mut_mut_Vec_u8(rs.place(() => _41, (value) => _41 = value), _42);
+	derefPut$u8_ref_u8(array[0], out);
+	const at = rs.idx(list, 0);
+	derefPut$u8_mut_u8(rs.place(() => list.data[at], (value2) => list.data[at] = value2), out);
+	borrowPut$u8_ref_u8(array[1], out);
+	const at2 = rs.idx(list, 1);
+	borrowPut$u8_mut_u8(rs.place(() => list.data[at2], (value3) => list.data[at2] = value3), out);
+	const at3 = rs.idx(list, 1);
+	const _60: rs.u8 = make$conversions_Value_u8(data, 24);
+	borrowWrite$u8_mut_u8(rs.place(() => list.data[at3], (value4) => list.data[at3] = value4), _60);
+	const _65: rs.u8 = make$conversions_Value_u8(data, 25);
+	borrowWrite$u8_mut_u8(rs.place(() => array[1], (value5) => array[1] = value5), _65);
+	let whole: rs.u8 = make$conversions_Value_u8(data, 26);
+	whole = make$conversions_Value_u8(data, 27);
+	put$conversions_Value_u8(whole, out);
+	rs.byteVecPush(list, make$conversions_Value_u8(data, 28));
+	const other: rs.u8 = make$conversions_Value_u8(data, 29);
+	let r: rs.u8 = whole;
+	r = other;
+	put$conversions_Value_u8(r, out);
+	put$conversions_Value_u8(compared$ref_u8(array[0], array[1], out), out);
+	put$conversions_Value_u8(compared$ref_ref_u8(list.data[rs.idx(list, 1)], array[2], out), out);
+	let _107: rs.u8 = make$conversions_Value_u8(data, 22);
+	let _109: rs.u8 = make$conversions_Value_u8(data, 23);
+	put$conversions_Value_u8(compared$mut_u8(rs.place(() => _107, (value9) => _107 = value9), rs.place(() => _109, (value10) => _109 = value10), out).v, out);
+	rs.byteVecPush(out, compared$ref_slice_u8(rs.byteSliceRange(rs.byteSliceFrom(array), 0), rs.byteSliceRange(rs.byteVecSlice(list), 0), out).length & 0xff);
+	const iter: rs.Iter<rs.u8> = rs.iterChain(rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(array))), rs.iterSlice(rs.byteVecView(list)));
+	while (true) {
+		const _125: rs.u8 | rs.Done = iter.next();
+		if (_125 === rs.DONE) {
+			break;
+		}
+		put$conversions_Value_u8(_125, out);
+	}
+}
+
+/**
+ * Bytes through `AsRef<[u8]>` and text through `AsRef<str>` of strings, slices, and
+ * `Vec`s behind `&`, `&mut`, and a reference to one, as moq's buffers reach them.
+ */
+export function referencedBytes(data: rs.ByteSlice, out: rs.ByteVec): void {
+	let text: string = rs.stringExtendChars("", rs.iterMap(rs.iterTake(rs.iterSlice(rs.byteSliceView(data)), 4), (_2: rs.u8): rs.char => {
+		return _2 as rs.char;
+	}));
+	const bytes: rs.ByteVec = rs.byteSliceToByteVec(data);
+	readBytes$ref_str(text, out);
+	readBytes$ref_String(text, out);
+	readBytes$mut_String(rs.place(() => text, (value) => text = value), out);
+	readBytes$ref_ref_str(text, out);
+	readBytes$ref_slice_u8(data, out);
+	readBytes$ref_ref_slice_u8(data, out);
+	readBytes$ref_Vec_u8(bytes, out);
+	readBytes$mut_Vec_u8(bytes, out);
+	readStr$ref_str(text, out);
+	readStr$ref_String(text, out);
+	readStr$ref_mut_String(rs.place(() => text, (value2) => text = value2), out);
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$Option_u16_mut_Vec_Option_u16(b: rs.Vec<rs.u16 | undefined>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u16 | undefined> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_Option_u16(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$Option_u16_ref_Vec_Option_u16(b: rs.Vec<rs.u16 | undefined>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u16 | undefined> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_Option_u16(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$Option_u16_ref_array3_Option_u16(b: rs.Slice<rs.u16 | undefined>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u16 | undefined> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_Option_u16(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$Option_u16_ref_mut_Vec_Option_u16(b: rs.Vec<rs.u16 | undefined>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u16 | undefined> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_Option_u16(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$Option_u16_ref_ref_slice_Option_u16(b: rs.Slice<rs.u16 | undefined>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u16 | undefined> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_Option_u16(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$Option_u16_ref_slice_Option_u16(b: rs.Slice<rs.u16 | undefined>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u16 | undefined> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_Option_u16(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$String_mut_Vec_String(b: rs.Vec<string>, out: rs.ByteVec): void {
+	const s: rs.Slice<string> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_String(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$String_ref_Vec_String(b: rs.Vec<string>, out: rs.ByteVec): void {
+	const s: rs.Slice<string> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_String(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$String_ref_array3_String(b: rs.Slice<string>, out: rs.ByteVec): void {
+	const s: rs.Slice<string> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_String(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$String_ref_mut_Vec_String(b: rs.Vec<string>, out: rs.ByteVec): void {
+	const s: rs.Slice<string> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_String(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$String_ref_ref_slice_String(b: rs.Slice<string>, out: rs.ByteVec): void {
+	const s: rs.Slice<string> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_String(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$String_ref_slice_String(b: rs.Slice<string>, out: rs.ByteVec): void {
+	const s: rs.Slice<string> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_String(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$Vec_u8_mut_Vec_Vec_u8(b: rs.Vec<rs.ByteVec>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.ByteVec> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_Vec_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$Vec_u8_ref_Vec_Vec_u8(b: rs.Vec<rs.ByteVec>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.ByteVec> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_Vec_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$Vec_u8_ref_array3_Vec_u8(b: rs.Slice<rs.ByteVec>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.ByteVec> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_Vec_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$Vec_u8_ref_mut_Vec_Vec_u8(b: rs.Vec<rs.ByteVec>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.ByteVec> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_Vec_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$Vec_u8_ref_ref_slice_Vec_u8(b: rs.Slice<rs.ByteVec>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.ByteVec> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_Vec_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$Vec_u8_ref_slice_Vec_u8(b: rs.Slice<rs.ByteVec>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.ByteVec> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_Vec_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$array3_u8_mut_Vec_array3_u8(b: rs.Vec<Uint8Array>, out: rs.ByteVec): void {
+	const s: rs.Slice<Uint8Array> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	const iter: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.sliceItems(s)), rs.byteSliceFrom);
+	while (true) {
+		const _10: rs.ByteSlice | rs.Done = iter.next();
+		if (_10 === rs.DONE) {
+			break;
+		}
+		put$conversions_Value_array3_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$array3_u8_ref_Vec_array3_u8(b: rs.Vec<Uint8Array>, out: rs.ByteVec): void {
+	const s: rs.Slice<Uint8Array> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	const iter: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.sliceItems(s)), rs.byteSliceFrom);
+	while (true) {
+		const _10: rs.ByteSlice | rs.Done = iter.next();
+		if (_10 === rs.DONE) {
+			break;
+		}
+		put$conversions_Value_array3_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$array3_u8_ref_array3_array3_u8(b: rs.Slice<Uint8Array>, out: rs.ByteVec): void {
+	const s: rs.Slice<Uint8Array> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	const iter: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.sliceItems(s)), rs.byteSliceFrom);
+	while (true) {
+		const _10: rs.ByteSlice | rs.Done = iter.next();
+		if (_10 === rs.DONE) {
+			break;
+		}
+		put$conversions_Value_array3_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$array3_u8_ref_mut_Vec_array3_u8(b: rs.Vec<Uint8Array>, out: rs.ByteVec): void {
+	const s: rs.Slice<Uint8Array> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	const iter: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.sliceItems(s)), rs.byteSliceFrom);
+	while (true) {
+		const _10: rs.ByteSlice | rs.Done = iter.next();
+		if (_10 === rs.DONE) {
+			break;
+		}
+		put$conversions_Value_array3_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$array3_u8_ref_ref_slice_array3_u8(b: rs.Slice<Uint8Array>, out: rs.ByteVec): void {
+	const s: rs.Slice<Uint8Array> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	const iter: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.sliceItems(s)), rs.byteSliceFrom);
+	while (true) {
+		const _10: rs.ByteSlice | rs.Done = iter.next();
+		if (_10 === rs.DONE) {
+			break;
+		}
+		put$conversions_Value_array3_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$array3_u8_ref_slice_array3_u8(b: rs.Slice<Uint8Array>, out: rs.ByteVec): void {
+	const s: rs.Slice<Uint8Array> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	const iter: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.sliceItems(s)), rs.byteSliceFrom);
+	while (true) {
+		const _10: rs.ByteSlice | rs.Done = iter.next();
+		if (_10 === rs.DONE) {
+			break;
+		}
+		put$conversions_Value_array3_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$conversions_Logged_mut_Vec_conversions_Logged(b: rs.Vec<Logged.Logged>, out: rs.ByteVec): void {
+	const s: rs.Slice<Logged.Logged> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		Logged.put$conversions_Value(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$conversions_Logged_ref_Vec_conversions_Logged(b: rs.Vec<Logged.Logged>, out: rs.ByteVec): void {
+	const s: rs.Slice<Logged.Logged> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		Logged.put$conversions_Value(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$conversions_Logged_ref_array3_conversions_Logged(b: rs.Slice<Logged.Logged>, out: rs.ByteVec): void {
+	const s: rs.Slice<Logged.Logged> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		Logged.put$conversions_Value(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$conversions_Logged_ref_mut_Vec_conversions_Logged(b: rs.Vec<Logged.Logged>, out: rs.ByteVec): void {
+	const s: rs.Slice<Logged.Logged> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		Logged.put$conversions_Value(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$conversions_Logged_ref_ref_slice_conversions_Logged(b: rs.Slice<Logged.Logged>, out: rs.ByteVec): void {
+	const s: rs.Slice<Logged.Logged> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		Logged.put$conversions_Value(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$conversions_Logged_ref_slice_conversions_Logged(b: rs.Slice<Logged.Logged>, out: rs.ByteVec): void {
+	const s: rs.Slice<Logged.Logged> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		Logged.put$conversions_Value(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$conversions_Named_mut_Vec_conversions_Named(b: rs.Vec<Named.Named>, out: rs.ByteVec): void {
+	const s: rs.Slice<Named.Named> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		Named.put$conversions_Value(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$conversions_Named_ref_Vec_conversions_Named(b: rs.Vec<Named.Named>, out: rs.ByteVec): void {
+	const s: rs.Slice<Named.Named> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		Named.put$conversions_Value(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$conversions_Named_ref_array3_conversions_Named(b: rs.Slice<Named.Named>, out: rs.ByteVec): void {
+	const s: rs.Slice<Named.Named> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		Named.put$conversions_Value(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$conversions_Named_ref_mut_Vec_conversions_Named(b: rs.Vec<Named.Named>, out: rs.ByteVec): void {
+	const s: rs.Slice<Named.Named> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		Named.put$conversions_Value(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$conversions_Named_ref_ref_slice_conversions_Named(b: rs.Slice<Named.Named>, out: rs.ByteVec): void {
+	const s: rs.Slice<Named.Named> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		Named.put$conversions_Value(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$conversions_Named_ref_slice_conversions_Named(b: rs.Slice<Named.Named>, out: rs.ByteVec): void {
+	const s: rs.Slice<Named.Named> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		Named.put$conversions_Value(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u32_mut_Vec_u32(b: rs.Vec<rs.u32>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u32> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_u32(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u32_ref_Vec_u32(b: rs.Vec<rs.u32>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u32> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_u32(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u32_ref_array3_u32(b: rs.Slice<rs.u32>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u32> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_u32(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u32_ref_mut_Vec_u32(b: rs.Vec<rs.u32>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u32> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_u32(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u32_ref_ref_slice_u32(b: rs.Slice<rs.u32>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u32> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_u32(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u32_ref_slice_u32(b: rs.Slice<rs.u32>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u32> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_u32(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u64_mut_Vec_u64(b: rs.Vec<rs.u64>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u64> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_u64(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u64_ref_Vec_u64(b: rs.Vec<rs.u64>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u64> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_u64(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u64_ref_array3_u64(b: rs.Slice<rs.u64>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u64> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_u64(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u64_ref_mut_Vec_u64(b: rs.Vec<rs.u64>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u64> = rs.sliceFrom(b.items);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_u64(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u64_ref_ref_slice_u64(b: rs.Slice<rs.u64>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u64> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_u64(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u64_ref_slice_u64(b: rs.Slice<rs.u64>, out: rs.ByteVec): void {
+	const s: rs.Slice<rs.u64> = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.sliceItems(s)) {
+		put$conversions_Value_u64(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u8_mut_Vec_u8(b: rs.ByteVec, out: rs.ByteVec): void {
+	const s: rs.ByteSlice = rs.byteVecSlice(b);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.byteSliceView(s)) {
+		put$conversions_Value_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u8_ref_Vec_u8(b: rs.ByteVec, out: rs.ByteVec): void {
+	const s: rs.ByteSlice = rs.byteVecSlice(b);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.byteSliceView(s)) {
+		put$conversions_Value_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u8_ref_array3_u8(b: rs.ByteSlice, out: rs.ByteVec): void {
+	const s: rs.ByteSlice = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.byteSliceView(s)) {
+		put$conversions_Value_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u8_ref_mut_Vec_u8(b: rs.ByteVec, out: rs.ByteVec): void {
+	const s: rs.ByteSlice = rs.byteVecSlice(b);
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.byteSliceView(s)) {
+		put$conversions_Value_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u8_ref_ref_slice_u8(b: rs.ByteSlice, out: rs.ByteVec): void {
+	const s: rs.ByteSlice = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.byteSliceView(s)) {
+		put$conversions_Value_u8(_10, out);
+	}
+}
+
+/** What `b` reads as a slice: its length, then each element. */
+export function readAs$u8_ref_slice_u8(b: rs.ByteSlice, out: rs.ByteVec): void {
+	const s: rs.ByteSlice = b;
+	rs.byteVecPush(out, s.length & 0xff);
+	for (const _10 of rs.byteSliceView(s)) {
+		put$conversions_Value_u8(_10, out);
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$Option_u16_mut_Vec_Option_u16(b: rs.Vec<rs.u16 | undefined>, value: rs.u16 | undefined): void {
+	const _3: rs.Place<rs.u16 | undefined> | undefined = rs.sliceLastMut(rs.sliceFrom(b.items));
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$Option_u16_mut_array3_Option_u16(b: rs.Slice<rs.u16 | undefined>, value: rs.u16 | undefined): void {
+	const _3: rs.Place<rs.u16 | undefined> | undefined = rs.sliceLastMut(b);
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$Option_u16_mut_mut_Vec_Option_u16(b: rs.Place<rs.Vec<rs.u16 | undefined>>, value: rs.u16 | undefined): void {
+	const _3: rs.Place<rs.u16 | undefined> | undefined = rs.sliceLastMut(rs.sliceFrom(b.v.items));
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$Option_u16_mut_slice_Option_u16(b: rs.Slice<rs.u16 | undefined>, value: rs.u16 | undefined): void {
+	const _3: rs.Place<rs.u16 | undefined> | undefined = rs.sliceLastMut(b);
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$String_mut_Vec_String(b: rs.Vec<string>, value: string): void {
+	const _3: rs.Place<string> | undefined = rs.sliceLastMut(rs.sliceFrom(b.items));
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$String_mut_array3_String(b: rs.Slice<string>, value: string): void {
+	const _3: rs.Place<string> | undefined = rs.sliceLastMut(b);
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$String_mut_mut_Vec_String(b: rs.Place<rs.Vec<string>>, value: string): void {
+	const _3: rs.Place<string> | undefined = rs.sliceLastMut(rs.sliceFrom(b.v.items));
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$String_mut_slice_String(b: rs.Slice<string>, value: string): void {
+	const _3: rs.Place<string> | undefined = rs.sliceLastMut(b);
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$Vec_u8_mut_Vec_Vec_u8(b: rs.Vec<rs.ByteVec>, value: rs.ByteVec): void {
+	const _3: rs.ByteVec | undefined = rs.sliceLast(rs.sliceFrom(b.items));
+	if (_3 !== undefined) {
+		Object.assign(_3, value);
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$Vec_u8_mut_array3_Vec_u8(b: rs.Slice<rs.ByteVec>, value: rs.ByteVec): void {
+	const _3: rs.ByteVec | undefined = rs.sliceLast(b);
+	if (_3 !== undefined) {
+		Object.assign(_3, value);
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$Vec_u8_mut_mut_Vec_Vec_u8(b: rs.Place<rs.Vec<rs.ByteVec>>, value: rs.ByteVec): void {
+	const _3: rs.ByteVec | undefined = rs.sliceLast(rs.sliceFrom(b.v.items));
+	if (_3 !== undefined) {
+		Object.assign(_3, value);
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$Vec_u8_mut_slice_Vec_u8(b: rs.Slice<rs.ByteVec>, value: rs.ByteVec): void {
+	const _3: rs.ByteVec | undefined = rs.sliceLast(b);
+	if (_3 !== undefined) {
+		Object.assign(_3, value);
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$array3_u8_mut_Vec_array3_u8(b: rs.Vec<Uint8Array>, value: Uint8Array): void {
+	value = copy$array_u8(value);
+	const _3: rs.ByteSlice | undefined = rs.optionMap(rs.sliceLast(rs.sliceFrom(b.items)), rs.byteSliceFrom);
+	if (_3 !== undefined) {
+		_3.data.set(value, _3.start);
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$array3_u8_mut_array3_array3_u8(b: rs.Slice<Uint8Array>, value: Uint8Array): void {
+	value = copy$array_u8(value);
+	const _3: rs.ByteSlice | undefined = rs.optionMap(rs.sliceLast(b), rs.byteSliceFrom);
+	if (_3 !== undefined) {
+		_3.data.set(value, _3.start);
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$array3_u8_mut_mut_Vec_array3_u8(b: rs.Place<rs.Vec<Uint8Array>>, value: Uint8Array): void {
+	value = copy$array_u8(value);
+	const _3: rs.ByteSlice | undefined = rs.optionMap(rs.sliceLast(rs.sliceFrom(b.v.items)), rs.byteSliceFrom);
+	if (_3 !== undefined) {
+		_3.data.set(value, _3.start);
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$array3_u8_mut_slice_array3_u8(b: rs.Slice<Uint8Array>, value: Uint8Array): void {
+	value = copy$array_u8(value);
+	const _3: rs.ByteSlice | undefined = rs.optionMap(rs.sliceLast(b), rs.byteSliceFrom);
+	if (_3 !== undefined) {
+		_3.data.set(value, _3.start);
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$conversions_Logged_mut_Vec_conversions_Logged(b: rs.Vec<Logged.Logged>, value: Logged.Logged): void {
+	let _9: boolean = false;
+	_9 = true;
+	const _3: Logged.Logged | undefined = rs.sliceLast(rs.sliceFrom(b.items));
+	if (_3 !== undefined) {
+		_9 = false;
+		_3[Symbol.dispose]();
+		Object.assign(_3, value);
+	}
+	if (_9) {
+		value[Symbol.dispose]();
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$conversions_Logged_mut_array3_conversions_Logged(b: rs.Slice<Logged.Logged>, value: Logged.Logged): void {
+	let _9: boolean = false;
+	_9 = true;
+	const _3: Logged.Logged | undefined = rs.sliceLast(b);
+	if (_3 !== undefined) {
+		_9 = false;
+		_3[Symbol.dispose]();
+		Object.assign(_3, value);
+	}
+	if (_9) {
+		value[Symbol.dispose]();
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$conversions_Logged_mut_mut_Vec_conversions_Logged(b: rs.Place<rs.Vec<Logged.Logged>>, value: Logged.Logged): void {
+	let _9: boolean = false;
+	_9 = true;
+	const _3: Logged.Logged | undefined = rs.sliceLast(rs.sliceFrom(b.v.items));
+	if (_3 !== undefined) {
+		_9 = false;
+		_3[Symbol.dispose]();
+		Object.assign(_3, value);
+	}
+	if (_9) {
+		value[Symbol.dispose]();
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$conversions_Logged_mut_slice_conversions_Logged(b: rs.Slice<Logged.Logged>, value: Logged.Logged): void {
+	let _9: boolean = false;
+	_9 = true;
+	const _3: Logged.Logged | undefined = rs.sliceLast(b);
+	if (_3 !== undefined) {
+		_9 = false;
+		_3[Symbol.dispose]();
+		Object.assign(_3, value);
+	}
+	if (_9) {
+		value[Symbol.dispose]();
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$conversions_Named_mut_Vec_conversions_Named(b: rs.Vec<Named.Named>, value: Named.Named): void {
+	const _3: Named.Named | undefined = rs.sliceLast(rs.sliceFrom(b.items));
+	if (_3 !== undefined) {
+		Object.assign(_3, value);
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$conversions_Named_mut_array3_conversions_Named(b: rs.Slice<Named.Named>, value: Named.Named): void {
+	const _3: Named.Named | undefined = rs.sliceLast(b);
+	if (_3 !== undefined) {
+		Object.assign(_3, value);
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$conversions_Named_mut_mut_Vec_conversions_Named(b: rs.Place<rs.Vec<Named.Named>>, value: Named.Named): void {
+	const _3: Named.Named | undefined = rs.sliceLast(rs.sliceFrom(b.v.items));
+	if (_3 !== undefined) {
+		Object.assign(_3, value);
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$conversions_Named_mut_slice_conversions_Named(b: rs.Slice<Named.Named>, value: Named.Named): void {
+	const _3: Named.Named | undefined = rs.sliceLast(b);
+	if (_3 !== undefined) {
+		Object.assign(_3, value);
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$u32_mut_Vec_u32(b: rs.Vec<rs.u32>, value: rs.u32): void {
+	const _3: rs.Place<rs.u32> | undefined = rs.sliceLastMut(rs.sliceFrom(b.items));
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$u32_mut_array3_u32(b: rs.Slice<rs.u32>, value: rs.u32): void {
+	const _3: rs.Place<rs.u32> | undefined = rs.sliceLastMut(b);
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$u32_mut_mut_Vec_u32(b: rs.Place<rs.Vec<rs.u32>>, value: rs.u32): void {
+	const _3: rs.Place<rs.u32> | undefined = rs.sliceLastMut(rs.sliceFrom(b.v.items));
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$u32_mut_slice_u32(b: rs.Slice<rs.u32>, value: rs.u32): void {
+	const _3: rs.Place<rs.u32> | undefined = rs.sliceLastMut(b);
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$u64_mut_Vec_u64(b: rs.Vec<rs.u64>, value: rs.u64): void {
+	const _3: rs.Place<rs.u64> | undefined = rs.sliceLastMut(rs.sliceFrom(b.items));
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$u64_mut_array3_u64(b: rs.Slice<rs.u64>, value: rs.u64): void {
+	const _3: rs.Place<rs.u64> | undefined = rs.sliceLastMut(b);
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$u64_mut_mut_Vec_u64(b: rs.Place<rs.Vec<rs.u64>>, value: rs.u64): void {
+	const _3: rs.Place<rs.u64> | undefined = rs.sliceLastMut(rs.sliceFrom(b.v.items));
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$u64_mut_slice_u64(b: rs.Slice<rs.u64>, value: rs.u64): void {
+	const _3: rs.Place<rs.u64> | undefined = rs.sliceLastMut(b);
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$u8_mut_Vec_u8(b: rs.ByteVec, value: rs.u8): void {
+	const _3: rs.Place<rs.u8> | undefined = rs.sliceLastMut(rs.byteVecSlice(b));
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$u8_mut_array3_u8(b: rs.ByteSlice, value: rs.u8): void {
+	const _3: rs.Place<rs.u8> | undefined = rs.sliceLastMut(b);
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$u8_mut_mut_Vec_u8(b: rs.Place<rs.ByteVec>, value: rs.u8): void {
+	const _3: rs.Place<rs.u8> | undefined = rs.sliceLastMut(rs.byteVecSlice(b.v));
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** Writes `value` over the last element of what `b` lends as a slice. */
+export function writeAs$u8_mut_slice_u8(b: rs.ByteSlice, value: rs.u8): void {
+	const _3: rs.Place<rs.u8> | undefined = rs.sliceLastMut(b);
+	if (_3 !== undefined) {
+		_3.v = value;
+	}
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$Option_u16_mut_Option_u16(b: rs.Place<rs.u16 | undefined>, out: rs.ByteVec): void {
+	put$conversions_Value_Option_u16(b.v, out);
+	put$conversions_Value_Option_u16(b.v, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$Option_u16_ref_Option_u16(b: rs.u16 | undefined, out: rs.ByteVec): void {
+	put$conversions_Value_Option_u16(b, out);
+	put$conversions_Value_Option_u16(b, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$String_mut_String(b: rs.Place<string>, out: rs.ByteVec): void {
+	put$conversions_Value_String(b.v, out);
+	put$conversions_Value_String(b.v, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$String_ref_String(b: string, out: rs.ByteVec): void {
+	put$conversions_Value_String(b, out);
+	put$conversions_Value_String(b, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$Vec_u8_mut_Vec_u8(b: rs.ByteVec, out: rs.ByteVec): void {
+	put$conversions_Value_Vec_u8(b, out);
+	put$conversions_Value_Vec_u8(b, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$Vec_u8_ref_Vec_u8(b: rs.ByteVec, out: rs.ByteVec): void {
+	put$conversions_Value_Vec_u8(b, out);
+	put$conversions_Value_Vec_u8(b, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$array3_u8_mut_array3_u8(b: rs.ByteSlice, out: rs.ByteVec): void {
+	put$conversions_Value_array3_u8(b, out);
+	put$conversions_Value_array3_u8(b, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$array3_u8_ref_array3_u8(b: rs.ByteSlice, out: rs.ByteVec): void {
+	put$conversions_Value_array3_u8(b, out);
+	put$conversions_Value_array3_u8(b, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$conversions_Logged_mut_conversions_Logged(b: Logged.Logged, out: rs.ByteVec): void {
+	Logged.put$conversions_Value(b, out);
+	Logged.put$conversions_Value(b, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$conversions_Logged_ref_conversions_Logged(b: Logged.Logged, out: rs.ByteVec): void {
+	Logged.put$conversions_Value(b, out);
+	Logged.put$conversions_Value(b, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$conversions_Named_mut_conversions_Named(b: Named.Named, out: rs.ByteVec): void {
+	Named.put$conversions_Value(b, out);
+	Named.put$conversions_Value(b, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$conversions_Named_ref_conversions_Named(b: Named.Named, out: rs.ByteVec): void {
+	Named.put$conversions_Value(b, out);
+	Named.put$conversions_Value(b, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$u32_mut_u32(b: rs.Place<rs.u32>, out: rs.ByteVec): void {
+	put$conversions_Value_u32(b.v, out);
+	put$conversions_Value_u32(b.v, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$u32_ref_u32(b: rs.u32, out: rs.ByteVec): void {
+	put$conversions_Value_u32(b, out);
+	put$conversions_Value_u32(b, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$u64_mut_u64(b: rs.Place<rs.u64>, out: rs.ByteVec): void {
+	put$conversions_Value_u64(b.v, out);
+	put$conversions_Value_u64(b.v, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$u64_ref_u64(b: rs.u64, out: rs.ByteVec): void {
+	put$conversions_Value_u64(b, out);
+	put$conversions_Value_u64(b, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$u8_mut_u8(b: rs.Place<rs.u8>, out: rs.ByteVec): void {
+	put$conversions_Value_u8(b.v, out);
+	put$conversions_Value_u8(b.v, out);
+}
+
+/** What `b` derefs to, by `deref` and by `*`. */
+export function derefPut$u8_ref_u8(b: rs.u8, out: rs.ByteVec): void {
+	put$conversions_Value_u8(b, out);
+	put$conversions_Value_u8(b, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$Option_u16_mut_Option_u16(b: rs.Place<rs.u16 | undefined>, out: rs.ByteVec): void {
+	put$conversions_Value_Option_u16(b.v, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$Option_u16_ref_Option_u16(b: rs.u16 | undefined, out: rs.ByteVec): void {
+	put$conversions_Value_Option_u16(b, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$String_mut_String(b: rs.Place<string>, out: rs.ByteVec): void {
+	put$conversions_Value_String(b.v, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$String_ref_String(b: string, out: rs.ByteVec): void {
+	put$conversions_Value_String(b, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$Vec_u8_mut_Vec_u8(b: rs.ByteVec, out: rs.ByteVec): void {
+	put$conversions_Value_Vec_u8(b, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$Vec_u8_ref_Vec_u8(b: rs.ByteVec, out: rs.ByteVec): void {
+	put$conversions_Value_Vec_u8(b, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$array3_u8_mut_array3_u8(b: rs.ByteSlice, out: rs.ByteVec): void {
+	put$conversions_Value_array3_u8(b, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$array3_u8_ref_array3_u8(b: rs.ByteSlice, out: rs.ByteVec): void {
+	put$conversions_Value_array3_u8(b, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$conversions_Logged_mut_conversions_Logged(b: Logged.Logged, out: rs.ByteVec): void {
+	Logged.put$conversions_Value(b, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$conversions_Logged_ref_conversions_Logged(b: Logged.Logged, out: rs.ByteVec): void {
+	Logged.put$conversions_Value(b, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$conversions_Named_mut_conversions_Named(b: Named.Named, out: rs.ByteVec): void {
+	Named.put$conversions_Value(b, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$conversions_Named_ref_conversions_Named(b: Named.Named, out: rs.ByteVec): void {
+	Named.put$conversions_Value(b, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$u32_mut_u32(b: rs.Place<rs.u32>, out: rs.ByteVec): void {
+	put$conversions_Value_u32(b.v, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$u32_ref_u32(b: rs.u32, out: rs.ByteVec): void {
+	put$conversions_Value_u32(b, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$u64_mut_u64(b: rs.Place<rs.u64>, out: rs.ByteVec): void {
+	put$conversions_Value_u64(b.v, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$u64_ref_u64(b: rs.u64, out: rs.ByteVec): void {
+	put$conversions_Value_u64(b, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$u8_mut_u8(b: rs.Place<rs.u8>, out: rs.ByteVec): void {
+	put$conversions_Value_u8(b.v, out);
+}
+
+/** What `b` lends by `borrow`. */
+export function borrowPut$u8_ref_u8(b: rs.u8, out: rs.ByteVec): void {
+	put$conversions_Value_u8(b, out);
+}
+
+/** Writes `value` over what `b` lends by `borrow_mut`. */
+export function borrowWrite$Option_u16_mut_Option_u16(b: rs.Place<rs.u16 | undefined>, value: rs.u16 | undefined): void {
+	b.v = value;
+}
+
+/** Writes `value` over what `b` lends by `borrow_mut`. */
+export function borrowWrite$String_mut_String(b: rs.Place<string>, value: string): void {
+	b.v = value;
+}
+
+/** Writes `value` over what `b` lends by `borrow_mut`. */
+export function borrowWrite$Vec_u8_mut_Vec_u8(b: rs.ByteVec, value: rs.ByteVec): void {
+	Object.assign(b, value);
+}
+
+/** Writes `value` over what `b` lends by `borrow_mut`. */
+export function borrowWrite$array3_u8_mut_array3_u8(b: rs.ByteSlice, value: Uint8Array): void {
+	const _3: rs.ByteSlice = b;
+	_3.data.set(copy$array_u8(value), _3.start);
+}
+
+/** Writes `value` over what `b` lends by `borrow_mut`. */
+export function borrowWrite$conversions_Logged_mut_conversions_Logged(b: Logged.Logged, value: Logged.Logged): void {
+	const _3: Logged.Logged = b;
+	_3[Symbol.dispose]();
+	Object.assign(_3, value);
+}
+
+/** Writes `value` over what `b` lends by `borrow_mut`. */
+export function borrowWrite$conversions_Named_mut_conversions_Named(b: Named.Named, value: Named.Named): void {
+	Object.assign(b, value);
+}
+
+/** Writes `value` over what `b` lends by `borrow_mut`. */
+export function borrowWrite$u32_mut_u32(b: rs.Place<rs.u32>, value: rs.u32): void {
+	b.v = value;
+}
+
+/** Writes `value` over what `b` lends by `borrow_mut`. */
+export function borrowWrite$u64_mut_u64(b: rs.Place<rs.u64>, value: rs.u64): void {
+	b.v = value;
+}
+
+/** Writes `value` over what `b` lends by `borrow_mut`. */
+export function borrowWrite$u8_mut_u8(b: rs.Place<rs.u8>, value: rs.u8): void {
+	b.v = value;
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$mut_Option_u16(a: rs.Place<rs.u16 | undefined>, b: rs.Place<rs.u16 | undefined>, out: rs.ByteVec): rs.Place<rs.u16 | undefined> {
+	const _5: boolean = a.v === b.v;
+	const _8: boolean = a.v !== b.v;
+	const _11: boolean = rs.cmpOption(rs.cmp)(a.v, b.v) === -1;
+	const order2 = rs.cmpOption(rs.cmp)(a.v, b.v);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpOption(rs.cmp)(a.v, b.v) === 1;
+	const order3 = rs.cmpOption(rs.cmp)(a.v, b.v);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpOption(rs.cmp)(a.v, b.v) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpOption(rs.cmp)(a.v, b.v), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cellBy(rs.cmpLt(rs.cmpOption(rs.cmp))));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$mut_String(a: rs.Place<string>, b: rs.Place<string>, out: rs.ByteVec): rs.Place<string> {
+	const _5: boolean = a.v === b.v;
+	const _8: boolean = a.v !== b.v;
+	const _11: boolean = rs.cmpStr(a.v, b.v) === -1;
+	const order2 = rs.cmpStr(a.v, b.v);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpStr(a.v, b.v) === 1;
+	const order3 = rs.cmpStr(a.v, b.v);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpStr(a.v, b.v) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpStr(a.v, b.v), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cellBy(rs.cmpLt(rs.cmpStr)));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$mut_Vec_u8(a: rs.ByteVec, b: rs.ByteVec, out: rs.ByteVec): rs.ByteVec {
+	const _5: boolean = rs.eqBytes(a, b);
+	const _8: boolean = !rs.eqBytes(a, b);
+	const _11: boolean = rs.cmpBytes(a, b) === -1;
+	const order2 = rs.cmpBytes(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpBytes(a, b) === 1;
+	const order3 = rs.cmpBytes(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpBytes(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpBytes(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpBytes));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$mut_array3_u8(a: rs.ByteSlice, b: rs.ByteSlice, out: rs.ByteVec): rs.ByteSlice {
+	const _5: boolean = rs.eqBytes(a, b);
+	const _8: boolean = !rs.eqBytes(a, b);
+	const _11: boolean = rs.cmpBytes(a, b) === -1;
+	const order2 = rs.cmpBytes(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpBytes(a, b) === 1;
+	const order3 = rs.cmpBytes(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpBytes(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpBytes(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpBytes));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$mut_conversions_Logged(a: Logged.Logged, b: Logged.Logged, out: rs.ByteVec): Logged.Logged {
+	const _5: boolean = Logged.eq$cmp_PartialEq(a, b);
+	const _8: boolean = !Logged.eq$cmp_PartialEq(a, b);
+	const _11: boolean = Logged.partialCmp$cmp_PartialOrd(a, b) === -1;
+	const order2 = Logged.partialCmp$cmp_PartialOrd(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = Logged.partialCmp$cmp_PartialOrd(a, b) === 1;
+	const order3 = Logged.partialCmp$cmp_PartialOrd(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, Logged.cmp$cmp_Ord(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(Logged.partialCmp$cmp_PartialOrd(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(Logged.partialCmp$cmp_PartialOrd));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$mut_conversions_Named(a: Named.Named, b: Named.Named, out: rs.ByteVec): Named.Named {
+	const _5: boolean = Named.eq$cmp_PartialEq(a, b);
+	const _8: boolean = !Named.eq$cmp_PartialEq(a, b);
+	const _11: boolean = Named.partialCmp$cmp_PartialOrd(a, b) === -1;
+	const order2 = Named.partialCmp$cmp_PartialOrd(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = Named.partialCmp$cmp_PartialOrd(a, b) === 1;
+	const order3 = Named.partialCmp$cmp_PartialOrd(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, Named.cmp$cmp_Ord(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(Named.partialCmp$cmp_PartialOrd(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(Named.partialCmp$cmp_PartialOrd));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$mut_u32(a: rs.Place<rs.u32>, b: rs.Place<rs.u32>, out: rs.ByteVec): rs.Place<rs.u32> {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([a.v === b.v, a.v !== b.v, a.v < b.v, a.v <= b.v, a.v > b.v, a.v >= b.v], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmp(a.v, b.v) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmp(a.v, b.v), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cellBy(rs.lt));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$mut_u64(a: rs.Place<rs.u64>, b: rs.Place<rs.u64>, out: rs.ByteVec): rs.Place<rs.u64> {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.u64Eq(a.v, b.v), rs.u64Ne(a.v, b.v), rs.u64Lt(a.v, b.v), rs.u64Le(a.v, b.v), rs.u64Gt(a.v, b.v), rs.u64Ge(a.v, b.v)], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmp(a.v, b.v) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmp(a.v, b.v), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cellBy(rs.lt));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$mut_u8(a: rs.Place<rs.u8>, b: rs.Place<rs.u8>, out: rs.ByteVec): rs.Place<rs.u8> {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([a.v === b.v, a.v !== b.v, a.v < b.v, a.v <= b.v, a.v > b.v, a.v >= b.v], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmp(a.v, b.v) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmp(a.v, b.v), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cellBy(rs.lt));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_Option_u16(a: rs.u16 | undefined, b: rs.u16 | undefined, out: rs.ByteVec): rs.u16 | undefined {
+	const _5: boolean = a === b;
+	const _8: boolean = a !== b;
+	const _11: boolean = rs.cmpOption(rs.cmp)(a, b) === -1;
+	const order2 = rs.cmpOption(rs.cmp)(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpOption(rs.cmp)(a, b) === 1;
+	const order3 = rs.cmpOption(rs.cmp)(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpOption(rs.cmp)(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpOption(rs.cmp)(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpOption(rs.cmp)));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_String(a: string, b: string, out: rs.ByteVec): string {
+	const _5: boolean = a === b;
+	const _8: boolean = a !== b;
+	const _11: boolean = rs.cmpStr(a, b) === -1;
+	const order2 = rs.cmpStr(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpStr(a, b) === 1;
+	const order3 = rs.cmpStr(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpStr(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpStr(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpStr));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_Vec_u8(a: rs.ByteVec, b: rs.ByteVec, out: rs.ByteVec): rs.ByteVec {
+	const _5: boolean = rs.eqBytes(a, b);
+	const _8: boolean = !rs.eqBytes(a, b);
+	const _11: boolean = rs.cmpBytes(a, b) === -1;
+	const order2 = rs.cmpBytes(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpBytes(a, b) === 1;
+	const order3 = rs.cmpBytes(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpBytes(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpBytes(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpBytes));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_array3_u8(a: rs.ByteSlice, b: rs.ByteSlice, out: rs.ByteVec): rs.ByteSlice {
+	const _5: boolean = rs.eqBytes(a, b);
+	const _8: boolean = !rs.eqBytes(a, b);
+	const _11: boolean = rs.cmpBytes(a, b) === -1;
+	const order2 = rs.cmpBytes(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpBytes(a, b) === 1;
+	const order3 = rs.cmpBytes(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpBytes(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpBytes(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpBytes));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_conversions_Logged(a: Logged.Logged, b: Logged.Logged, out: rs.ByteVec): Logged.Logged {
+	const _5: boolean = Logged.eq$cmp_PartialEq(a, b);
+	const _8: boolean = !Logged.eq$cmp_PartialEq(a, b);
+	const _11: boolean = Logged.partialCmp$cmp_PartialOrd(a, b) === -1;
+	const order2 = Logged.partialCmp$cmp_PartialOrd(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = Logged.partialCmp$cmp_PartialOrd(a, b) === 1;
+	const order3 = Logged.partialCmp$cmp_PartialOrd(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, Logged.cmp$cmp_Ord(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(Logged.partialCmp$cmp_PartialOrd(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(Logged.partialCmp$cmp_PartialOrd));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_conversions_Named(a: Named.Named, b: Named.Named, out: rs.ByteVec): Named.Named {
+	const _5: boolean = Named.eq$cmp_PartialEq(a, b);
+	const _8: boolean = !Named.eq$cmp_PartialEq(a, b);
+	const _11: boolean = Named.partialCmp$cmp_PartialOrd(a, b) === -1;
+	const order2 = Named.partialCmp$cmp_PartialOrd(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = Named.partialCmp$cmp_PartialOrd(a, b) === 1;
+	const order3 = Named.partialCmp$cmp_PartialOrd(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, Named.cmp$cmp_Ord(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(Named.partialCmp$cmp_PartialOrd(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(Named.partialCmp$cmp_PartialOrd));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_ref_Option_u16(a: rs.u16 | undefined, b: rs.u16 | undefined, out: rs.ByteVec): rs.u16 | undefined {
+	const _5: boolean = a === b;
+	const _8: boolean = a !== b;
+	const _11: boolean = rs.cmpOption(rs.cmp)(a, b) === -1;
+	const order2 = rs.cmpOption(rs.cmp)(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpOption(rs.cmp)(a, b) === 1;
+	const order3 = rs.cmpOption(rs.cmp)(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpOption(rs.cmp)(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpOption(rs.cmp)(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpOption(rs.cmp)));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_ref_String(a: string, b: string, out: rs.ByteVec): string {
+	const _5: boolean = a === b;
+	const _8: boolean = a !== b;
+	const _11: boolean = rs.cmpStr(a, b) === -1;
+	const order2 = rs.cmpStr(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpStr(a, b) === 1;
+	const order3 = rs.cmpStr(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpStr(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpStr(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpStr));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_ref_Vec_u8(a: rs.ByteVec, b: rs.ByteVec, out: rs.ByteVec): rs.ByteVec {
+	const _5: boolean = rs.eqBytes(a, b);
+	const _8: boolean = !rs.eqBytes(a, b);
+	const _11: boolean = rs.cmpBytes(a, b) === -1;
+	const order2 = rs.cmpBytes(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpBytes(a, b) === 1;
+	const order3 = rs.cmpBytes(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpBytes(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpBytes(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpBytes));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_ref_array3_u8(a: rs.ByteSlice, b: rs.ByteSlice, out: rs.ByteVec): rs.ByteSlice {
+	const _5: boolean = rs.eqBytes(a, b);
+	const _8: boolean = !rs.eqBytes(a, b);
+	const _11: boolean = rs.cmpBytes(a, b) === -1;
+	const order2 = rs.cmpBytes(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpBytes(a, b) === 1;
+	const order3 = rs.cmpBytes(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpBytes(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpBytes(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpBytes));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_ref_conversions_Logged(a: Logged.Logged, b: Logged.Logged, out: rs.ByteVec): Logged.Logged {
+	const _5: boolean = Logged.eq$cmp_PartialEq(a, b);
+	const _8: boolean = !Logged.eq$cmp_PartialEq(a, b);
+	const _11: boolean = Logged.partialCmp$cmp_PartialOrd(a, b) === -1;
+	const order2 = Logged.partialCmp$cmp_PartialOrd(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = Logged.partialCmp$cmp_PartialOrd(a, b) === 1;
+	const order3 = Logged.partialCmp$cmp_PartialOrd(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, Logged.cmp$cmp_Ord(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(Logged.partialCmp$cmp_PartialOrd(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(Logged.partialCmp$cmp_PartialOrd));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_ref_conversions_Named(a: Named.Named, b: Named.Named, out: rs.ByteVec): Named.Named {
+	const _5: boolean = Named.eq$cmp_PartialEq(a, b);
+	const _8: boolean = !Named.eq$cmp_PartialEq(a, b);
+	const _11: boolean = Named.partialCmp$cmp_PartialOrd(a, b) === -1;
+	const order2 = Named.partialCmp$cmp_PartialOrd(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = Named.partialCmp$cmp_PartialOrd(a, b) === 1;
+	const order3 = Named.partialCmp$cmp_PartialOrd(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, Named.cmp$cmp_Ord(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(Named.partialCmp$cmp_PartialOrd(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(Named.partialCmp$cmp_PartialOrd));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_ref_u32(a: rs.u32, b: rs.u32, out: rs.ByteVec): rs.u32 {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([a === b, a !== b, a < b, a <= b, a > b, a >= b], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmp(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmp(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.max(a, b);
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_ref_u64(a: rs.u64, b: rs.u64, out: rs.ByteVec): rs.u64 {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.u64Eq(a, b), rs.u64Ne(a, b), rs.u64Lt(a, b), rs.u64Le(a, b), rs.u64Gt(a, b), rs.u64Ge(a, b)], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmp(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmp(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.u64Max(a, b);
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_ref_u8(a: rs.u8, b: rs.u8, out: rs.ByteVec): rs.u8 {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([a === b, a !== b, a < b, a <= b, a > b, a >= b], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmp(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmp(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.max(a, b);
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_slice_Option_u16(a: rs.Slice<rs.u16 | undefined>, b: rs.Slice<rs.u16 | undefined>, out: rs.ByteVec): rs.Slice<rs.u16 | undefined> {
+	const _5: boolean = rs.eqSlice(rs.same)(a, b);
+	const _8: boolean = !rs.eqSlice(rs.same)(a, b);
+	const _11: boolean = rs.cmpSlice(rs.cmpOption(rs.cmp))(a, b) === -1;
+	const order2 = rs.cmpSlice(rs.cmpOption(rs.cmp))(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpSlice(rs.cmpOption(rs.cmp))(a, b) === 1;
+	const order3 = rs.cmpSlice(rs.cmpOption(rs.cmp))(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpSlice(rs.cmpOption(rs.cmp))(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpSlice(rs.cmpOption(rs.cmp))(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpSlice(rs.cmpOption(rs.cmp))));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_slice_String(a: rs.Slice<string>, b: rs.Slice<string>, out: rs.ByteVec): rs.Slice<string> {
+	const _5: boolean = rs.eqSlice(rs.same)(a, b);
+	const _8: boolean = !rs.eqSlice(rs.same)(a, b);
+	const _11: boolean = rs.cmpSlice(rs.cmpStr)(a, b) === -1;
+	const order2 = rs.cmpSlice(rs.cmpStr)(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpSlice(rs.cmpStr)(a, b) === 1;
+	const order3 = rs.cmpSlice(rs.cmpStr)(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpSlice(rs.cmpStr)(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpSlice(rs.cmpStr)(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpSlice(rs.cmpStr)));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_slice_Vec_u8(a: rs.Slice<rs.ByteVec>, b: rs.Slice<rs.ByteVec>, out: rs.ByteVec): rs.Slice<rs.ByteVec> {
+	const _5: boolean = rs.eqSlice(rs.eqBytes)(a, b);
+	const _8: boolean = !rs.eqSlice(rs.eqBytes)(a, b);
+	const _11: boolean = rs.cmpSlice(rs.cmpBytes)(a, b) === -1;
+	const order2 = rs.cmpSlice(rs.cmpBytes)(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpSlice(rs.cmpBytes)(a, b) === 1;
+	const order3 = rs.cmpSlice(rs.cmpBytes)(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpSlice(rs.cmpBytes)(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpSlice(rs.cmpBytes)(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpSlice(rs.cmpBytes)));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_slice_array3_u8(a: rs.Slice<Uint8Array>, b: rs.Slice<Uint8Array>, out: rs.ByteVec): rs.Slice<Uint8Array> {
+	const _5: boolean = rs.eqSlice(rs.eqBytes)(a, b);
+	const _8: boolean = !rs.eqSlice(rs.eqBytes)(a, b);
+	const _11: boolean = rs.cmpSlice(rs.cmpBytes)(a, b) === -1;
+	const order2 = rs.cmpSlice(rs.cmpBytes)(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpSlice(rs.cmpBytes)(a, b) === 1;
+	const order3 = rs.cmpSlice(rs.cmpBytes)(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpSlice(rs.cmpBytes)(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpSlice(rs.cmpBytes)(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpSlice(rs.cmpBytes)));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_slice_conversions_Logged(a: rs.Slice<Logged.Logged>, b: rs.Slice<Logged.Logged>, out: rs.ByteVec): rs.Slice<Logged.Logged> {
+	const _5: boolean = rs.eqSlice(Logged.eq$cmp_PartialEq)(a, b);
+	const _8: boolean = !rs.eqSlice(Logged.eq$cmp_PartialEq)(a, b);
+	const _11: boolean = rs.cmpSlice(Logged.partialCmp$cmp_PartialOrd)(a, b) === -1;
+	const order2 = rs.cmpSlice(Logged.partialCmp$cmp_PartialOrd)(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpSlice(Logged.partialCmp$cmp_PartialOrd)(a, b) === 1;
+	const order3 = rs.cmpSlice(Logged.partialCmp$cmp_PartialOrd)(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpSlice(Logged.cmp$cmp_Ord)(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpSlice(Logged.partialCmp$cmp_PartialOrd)(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpSlice(Logged.partialCmp$cmp_PartialOrd)));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_slice_conversions_Named(a: rs.Slice<Named.Named>, b: rs.Slice<Named.Named>, out: rs.ByteVec): rs.Slice<Named.Named> {
+	const _5: boolean = rs.eqSlice(Named.eq$cmp_PartialEq)(a, b);
+	const _8: boolean = !rs.eqSlice(Named.eq$cmp_PartialEq)(a, b);
+	const _11: boolean = rs.cmpSlice(Named.partialCmp$cmp_PartialOrd)(a, b) === -1;
+	const order2 = rs.cmpSlice(Named.partialCmp$cmp_PartialOrd)(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpSlice(Named.partialCmp$cmp_PartialOrd)(a, b) === 1;
+	const order3 = rs.cmpSlice(Named.partialCmp$cmp_PartialOrd)(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpSlice(Named.cmp$cmp_Ord)(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpSlice(Named.partialCmp$cmp_PartialOrd)(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpSlice(Named.partialCmp$cmp_PartialOrd)));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_slice_u32(a: rs.Slice<rs.u32>, b: rs.Slice<rs.u32>, out: rs.ByteVec): rs.Slice<rs.u32> {
+	const _5: boolean = rs.eqSlice(rs.same)(a, b);
+	const _8: boolean = !rs.eqSlice(rs.same)(a, b);
+	const _11: boolean = rs.cmpSlice(rs.cmp)(a, b) === -1;
+	const order2 = rs.cmpSlice(rs.cmp)(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpSlice(rs.cmp)(a, b) === 1;
+	const order3 = rs.cmpSlice(rs.cmp)(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpSlice(rs.cmp)(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpSlice(rs.cmp)(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpSlice(rs.cmp)));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_slice_u64(a: rs.Slice<rs.u64>, b: rs.Slice<rs.u64>, out: rs.ByteVec): rs.Slice<rs.u64> {
+	const _5: boolean = rs.eqSlice(rs.u64Eq)(a, b);
+	const _8: boolean = !rs.eqSlice(rs.u64Eq)(a, b);
+	const _11: boolean = rs.cmpSlice(rs.cmp)(a, b) === -1;
+	const order2 = rs.cmpSlice(rs.cmp)(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpSlice(rs.cmp)(a, b) === 1;
+	const order3 = rs.cmpSlice(rs.cmp)(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpSlice(rs.cmp)(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpSlice(rs.cmp)(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpSlice(rs.cmp)));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_slice_u8(a: rs.ByteSlice, b: rs.ByteSlice, out: rs.ByteVec): rs.ByteSlice {
+	const _5: boolean = rs.byteSliceEq(a, b);
+	const _8: boolean = !rs.byteSliceEq(a, b);
+	const _11: boolean = rs.cmpBytes(a, b) === -1;
+	const order2 = rs.cmpBytes(a, b);
+	const _14: boolean = order2 !== undefined && order2 <= 0;
+	const _17: boolean = rs.cmpBytes(a, b) === 1;
+	const order3 = rs.cmpBytes(a, b);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_5, _8, _11, _14, _17, order3 !== undefined && order3 >= 0], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmpBytes(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmpBytes(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.ordMax(a, b, rs.cmpLt(rs.cmpBytes));
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_u32(a: rs.u32, b: rs.u32, out: rs.ByteVec): rs.u32 {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([a === b, a !== b, a < b, a <= b, a > b, a >= b], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmp(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmp(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.max(a, b);
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_u64(a: rs.u64, b: rs.u64, out: rs.ByteVec): rs.u64 {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.u64Eq(a, b), rs.u64Ne(a, b), rs.u64Lt(a, b), rs.u64Le(a, b), rs.u64Gt(a, b), rs.u64Ge(a, b)], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmp(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmp(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.u64Max(a, b);
+}
+
+/** Each comparison of `a` with `b`, and the greater. */
+export function compared$ref_u8(a: rs.u8, b: rs.u8, out: rs.ByteVec): rs.u8 {
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([a === b, a !== b, a < b, a <= b, a > b, a >= b], (a0: boolean): rs.u8 => {
+		return a0 ? 1 : 0;
+	})), undefined, true);
+	rs.byteVecPush(out, rs.cmp(a, b) & 0xff);
+	rs.byteVecPush(out, option_mapOr$14runhi(rs.cmp(a, b), 9, (o: rs.Ordering): rs.u8 => {
+		return o & 0xff;
+	}));
+	return rs.max(a, b);
+}
+
+/** The bytes `b` reads as. */
+export function readBytes$mut_String(b: rs.Place<string>, out: rs.ByteVec): void {
+	rs.byteVecPush(out, rs.stringAsBytes(b.v).length & 0xff);
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(b.v));
+}
+
+/** The bytes `b` reads as. */
+export function readBytes$mut_Vec_u8(b: rs.ByteVec, out: rs.ByteVec): void {
+	rs.byteVecPush(out, rs.byteVecSlice(b).length & 0xff);
+	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(b));
+}
+
+/** The bytes `b` reads as. */
+export function readBytes$ref_String(b: string, out: rs.ByteVec): void {
+	rs.byteVecPush(out, rs.stringAsBytes(b).length & 0xff);
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(b));
+}
+
+/** The bytes `b` reads as. */
+export function readBytes$ref_Vec_u8(b: rs.ByteVec, out: rs.ByteVec): void {
+	rs.byteVecPush(out, rs.byteVecSlice(b).length & 0xff);
+	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(b));
+}
+
+/** The bytes `b` reads as. */
+export function readBytes$ref_ref_slice_u8(b: rs.ByteSlice, out: rs.ByteVec): void {
+	rs.byteVecPush(out, b.length & 0xff);
+	rs.byteVecExtendFromSlice(out, b);
+}
+
+/** The bytes `b` reads as. */
+export function readBytes$ref_ref_str(b: string, out: rs.ByteVec): void {
+	rs.byteVecPush(out, rs.stringAsBytes(b).length & 0xff);
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(b));
+}
+
+/** The bytes `b` reads as. */
+export function readBytes$ref_slice_u8(b: rs.ByteSlice, out: rs.ByteVec): void {
+	rs.byteVecPush(out, b.length & 0xff);
+	rs.byteVecExtendFromSlice(out, b);
+}
+
+/** The bytes `b` reads as. */
+export function readBytes$ref_str(b: string, out: rs.ByteVec): void {
+	rs.byteVecPush(out, rs.stringAsBytes(b).length & 0xff);
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(b));
+}
+
+/** The text `s` reads as, as bytes. */
+export function readStr$ref_String(s: string, out: rs.ByteVec): void {
+	rs.byteVecPush(out, rs.stringLen(s) & 0xff);
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(s));
+}
+
+/** The text `s` reads as, as bytes. */
+export function readStr$ref_mut_String(s: rs.Place<string>, out: rs.ByteVec): void {
+	rs.byteVecPush(out, rs.stringLen(s.v) & 0xff);
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(s.v));
+}
+
+/** The text `s` reads as, as bytes. */
+export function readStr$ref_str(s: string, out: rs.ByteVec): void {
+	rs.byteVecPush(out, rs.stringLen(s) & 0xff);
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(s));
 }
 
 //# sourceMappingURL=conversions.ts.map

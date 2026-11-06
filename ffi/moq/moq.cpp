@@ -1,6 +1,6 @@
 // moq.c's script through the generated C++ header: a broadcast's track, published and
 // subscribed to in one process, with every read polled as a future, and an origin, with
-// moq-pattern, moq-clock, moq-tokio, hang, and moq-mux exported into the same library,
+// moq-pattern, kio, moq-tokio, hang, and moq-mux exported into the same library,
 // the catalog lent to C++ for a call, and a session's config filled in field by field.
 //
 // The local reads need no runtime: the waker counts wakes, and each poll that must wait
@@ -156,8 +156,8 @@ int main() {
 		const moq::frame_frame &hello = *frame->value();
 		CHECK(is(hello.payload(), "hello"));
 		CHECK(!hello.timestamp());
-		// When it arrived: moq-clock's `Instant`, from moq-clock's own export.
-		CHECK(moq::now().checked_duration_since(hello.arrived()).has_value());
+		// When it arrived: kio's clock's `Instant`, from kio's own export.
+		CHECK(moq::clock_now().checked_duration_since(hello.arrived()).has_value());
 	}
 
 	// A timestamp is a `Copy` value behind a handle: passing it copies it out. The track is
@@ -216,7 +216,7 @@ int main() {
 
 		// Paths own their segments, so C++ builds them, and relative ones, from a string.
 		auto empty = moq::path::new_("/cam/");
-		CHECK(!empty && empty.error() == moq::path_invalid::empty_segment);
+		CHECK(!empty && empty.error() == moq::path_error::empty_segment);
 		auto cam = moq::path::new_("cam");
 		CHECK(cam && is(cam->as_str(), "cam"));
 		auto joined = path.join(*cam);
@@ -234,7 +234,7 @@ int main() {
 	// made from the waker and held across polls, since what a poll registers lives only as
 	// long as its waiter. It runs until every owner of the origin is gone.
 	moq::waiter waiter = moq::waiter::new_(waker);
-	CHECK(driver.poll(moq::now(), waiter));
+	CHECK(driver.poll(moq::clock_now(), waiter));
 	{
 		// A client publishes the origin through moq-net's generic `with_publisher`, at each
 		// type that implements its bound, by reference, so C++ keeps its handle.
@@ -247,7 +247,7 @@ int main() {
 	}
 	// The last owner's drop wakes the driver, which then finishes, cleanly.
 	CHECK(wakes > before);
-	auto closed = driver.poll(moq::now(), waiter);
+	auto closed = driver.poll(moq::clock_now(), waiter);
 	CHECK(!closed && is(closed.error().to_string(), "closed"));
 
 	// moq-mux reads an OpusHead into hang's catalog config: 44.1 kHz in, stereo, which the
@@ -298,7 +298,9 @@ int main() {
 		// A JSON track the catalog lists, published through moq-mux's generic
 		// `json_snapshot` at a JSON document, and a section C++ parses from text, set in the
 		// lent catalog and read back as text.
-		auto status = publisher.create_track("status", std::nullopt);
+		// Its track has a timescale, since every write is stamped.
+		auto milli = moq::timescale::milli();
+		auto status = publisher.create_track("status", moq::track_info::default_().with_timescale(&milli));
 		CHECK(status);
 		auto status_snapshot = catalog->json_snapshot_config(std::move(*status), moq::json_config::default_(),
 		                                                     moq::json_options::default_());
@@ -306,7 +308,7 @@ int main() {
 		CHECK(catalog->is_claimed_json_config("status"));
 		// A value C++ parses is published as the track's latest, which a subscriber reads
 		// back as JSON text.
-		CHECK(status_snapshot->update(moq::json::parse(R"({"on": true})").value()));
+		CHECK(status_snapshot->update(moq::json::parse(R"({"on": true})").value(), moq::timestamp::now()));
 		moq::track_subscriber status_subscriber = status_snapshot->consume();
 		auto status_group = status_subscriber.recv_group().get();
 		CHECK(status_group && status_group.value());
@@ -424,7 +426,7 @@ int main() {
 		auto established = std::move(*connection).established().get();
 		CHECK(established);
 
-		auto remote_broadcast = remote.request_broadcast("live", std::nullopt).get();
+		auto remote_broadcast = remote.request("live", std::nullopt).get();
 		CHECK(remote_broadcast);
 		auto remote_track = remote_broadcast->track("video");
 		CHECK(remote_track);

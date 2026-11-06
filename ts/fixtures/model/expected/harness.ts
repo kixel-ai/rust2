@@ -4,7 +4,7 @@ import * as rs from "./rs.ts";
 import { from$convert_From_moq_net_Timescale_u64 as time_from$convert_From_moq_net_Timescale_u64, from$convert_From_moq_net_Timescale_num_NonZero_u64 as time_from$convert_From_moq_net_Timescale_num_NonZero_u64, from$convert_From_moq_net_Timestamp_time_Duration as time_from$convert_From_moq_net_Timestamp_time_Duration } from "./moq_net/model/time.ts";
 import * as TimeOverflow from "./moq_net/model/time.TimeOverflow.ts";
 import * as Timescale from "./moq_net/model/time.Timescale.ts";
-import * as time_Timestamp from "./moq_net/model/time.Timestamp.ts";
+import * as Timestamp from "./moq_net/model/time.Timestamp.ts";
 
 /**
  * Each case's name and what it runs. The first byte picks one modulo their count, so a
@@ -72,11 +72,11 @@ export function takeScale(data: rs.ByteSlice): [rs.u64, rs.ByteSlice] {
 }
 
 /** A timestamp, or the error its value or scale makes. */
-export function takeTimestamp(data: rs.ByteSlice): [rs.Result<time_Timestamp.Timestamp, TimeOverflow.TimeOverflow>, rs.ByteSlice] {
+export function takeTimestamp(data: rs.ByteSlice): [rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow>, rs.ByteSlice] {
 	const _4: [rs.u64, rs.ByteSlice] = takeValue(data);
 	const value: rs.u64 = _4[0];
 	const _7: [rs.u64, rs.ByteSlice] = takeScale(_4[1]);
-	return [time_Timestamp.fromScale(value, _7[0]), _7[1]] as [rs.Result<time_Timestamp.Timestamp, TimeOverflow.TimeOverflow>, rs.ByteSlice];
+	return [Timestamp.fromScale(value, _7[0]), _7[1]] as [rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow>, rs.ByteSlice];
 }
 
 export function putU64(out: rs.ByteVec, value: rs.u64): void {
@@ -108,8 +108,7 @@ export function putResult$moq_net_Timescale_harness_conversions_closure0(out: rs
 		const arg = {};
 		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
 		const arg2 = {};
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)];
-		putText(out, rs.fmtFormat([args2[0]]));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
 	}
 }
 
@@ -124,8 +123,7 @@ export function putResult$moq_net_Timescale_harness_timescales_closure0(out: rs.
 		const arg = {};
 		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
 		const arg2 = {};
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)];
-		putText(out, rs.fmtFormat([args2[0]]));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
 	}
 }
 
@@ -140,8 +138,7 @@ export function putResult$moq_net_Timescale_harness_timescales_closure1(out: rs.
 		const arg = {};
 		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
 		const arg2 = {};
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)];
-		putText(out, rs.fmtFormat([args2[0]]));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
 	}
 }
 
@@ -156,15 +153,14 @@ export function putResult$moq_net_Timescale_harness_timescales_closure2(out: rs.
 		const arg = {};
 		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
 		const arg2 = {};
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)];
-		putText(out, rs.fmtFormat([args2[0]]));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
 	}
 }
 
 /** A result's tag, then the value `ok` records or the error's `Display` and `Debug`. */
-export function putResult$moq_net_Timestamp_harness_durations_closure0(out: rs.ByteVec, result: rs.Result<time_Timestamp.Timestamp, TimeOverflow.TimeOverflow>, ok: (a0: rs.ByteVec, a1: time_Timestamp.Timestamp) => undefined): void {
+export function putResult$moq_net_Timestamp_harness_durations_closure0(out: rs.ByteVec, result: rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow>, ok: (a0: rs.ByteVec, a1: Timestamp.Timestamp) => undefined): void {
 	if (result.ok) {
-		const value: time_Timestamp.Timestamp = result.value;
+		const value: Timestamp.Timestamp = result.value;
 		rs.byteVecPush(out, 1);
 		ok(out, value);
 	} else {
@@ -172,15 +168,14 @@ export function putResult$moq_net_Timestamp_harness_durations_closure0(out: rs.B
 		const arg = {};
 		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
 		const arg2 = {};
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)];
-		putText(out, rs.fmtFormat([args2[0]]));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
 	}
 }
 
 /** A result's tag, then the value `ok` records or the error's `Display` and `Debug`. */
-export function putResult$moq_net_Timestamp_harness_put_timestamp(out: rs.ByteVec, result: rs.Result<time_Timestamp.Timestamp, TimeOverflow.TimeOverflow>, _: (a0: rs.ByteVec, a1: time_Timestamp.Timestamp) => undefined): void {
+export function putResult$moq_net_Timestamp_harness_put_timestamp(out: rs.ByteVec, result: rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow>, _: (a0: rs.ByteVec, a1: Timestamp.Timestamp) => undefined): void {
 	if (result.ok) {
-		const value: time_Timestamp.Timestamp = result.value;
+		const value: Timestamp.Timestamp = result.value;
 		rs.byteVecPush(out, 1);
 		putTimestamp(out, value);
 	} else {
@@ -188,22 +183,20 @@ export function putResult$moq_net_Timestamp_harness_put_timestamp(out: rs.ByteVe
 		const arg = {};
 		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
 		const arg2 = {};
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)];
-		putText(out, rs.fmtFormat([args2[0]]));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
 	}
 }
 
 /** Everything a timestamp reads back. */
-export function putTimestamp(out: rs.ByteVec, time: time_Timestamp.Timestamp): void {
-	putU64(out, time_Timestamp.value(time));
-	putU64(out, Timescale.asU64(time_Timestamp.scale(time)));
-	rs.byteVecPush(out, time_Timestamp.isZero(time) ? 1 : 0);
-	putU64(out, time_Timestamp.asSecs(time));
-	putU128(out, time_Timestamp.asMillis(time));
-	putU128(out, time_Timestamp.asMicros(time));
-	putU128(out, time_Timestamp.asNanos(time));
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => time_Timestamp.fmt$fmt_Debug(time, f)];
-	putText(out, rs.fmtFormat([args2[0]]));
+export function putTimestamp(out: rs.ByteVec, time: Timestamp.Timestamp): void {
+	putU64(out, Timestamp.value(time));
+	putU64(out, Timescale.asU64(Timestamp.scale(time)));
+	rs.byteVecPush(out, Timestamp.isZero(time) ? 1 : 0);
+	putU64(out, Timestamp.asSecs(time));
+	putU128(out, Timestamp.asMillis(time));
+	putU128(out, Timestamp.asMicros(time));
+	putU128(out, Timestamp.asNanos(time));
+	putText(out, rs.fmtFormat([(f: rs.Formatter) => Timestamp.fmt$fmt_Debug(time, f)]));
 }
 
 /** A raw scale through each constructor, and what the scale reads back. */
@@ -213,10 +206,8 @@ export function timescales(data: rs.ByteSlice, out: rs.ByteVec): void {
 		putU64(out2, Timescale.asU64(scale));
 		putU64(out2, time_from$convert_From_moq_net_Timescale_u64(scale));
 		putU64(out2, time_from$convert_From_moq_net_Timescale_num_NonZero_u64(scale));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => Timescale.fmt$fmt_Debug(scale, f)];
-		putText(out2, rs.fmtFormat([args2[0]]));
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Timescale.fmt$fmt_Display(scale, f)];
-		putText(out2, rs.fmtFormat([args4[0]]));
+		putText(out2, rs.fmtFormat([(f: rs.Formatter) => Timescale.fmt$fmt_Debug(scale, f)]));
+		putText(out2, rs.fmtFormat([(f: rs.Formatter) => Timescale.fmt$fmt_Display(scale, f)]));
 	});
 	putResult$moq_net_Timescale_harness_timescales_closure1(out, Timescale.tryFrom$convert_TryFrom_u64(raw), (out3: rs.ByteVec, scale2: Timescale.Timescale): undefined => {
 		putU64(out3, Timescale.asU64(scale2));
@@ -233,26 +224,26 @@ export function timescales(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function timestamps(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _5: [rs.u64, rs.ByteSlice] = takeValue(data);
 	const value: rs.u64 = _5[0];
-	putResult$moq_net_Timestamp_harness_put_timestamp(out, time_Timestamp.fromScale(value, takeScale(_5[1])[0]), putTimestamp as (a0: rs.ByteVec, a1: time_Timestamp.Timestamp) => undefined);
-	putResult$moq_net_Timestamp_harness_put_timestamp(out, time_Timestamp.fromSecs(value), putTimestamp as (a0: rs.ByteVec, a1: time_Timestamp.Timestamp) => undefined);
-	putResult$moq_net_Timestamp_harness_put_timestamp(out, time_Timestamp.fromMillis(value), putTimestamp as (a0: rs.ByteVec, a1: time_Timestamp.Timestamp) => undefined);
-	putResult$moq_net_Timestamp_harness_put_timestamp(out, time_Timestamp.fromMicros(value), putTimestamp as (a0: rs.ByteVec, a1: time_Timestamp.Timestamp) => undefined);
-	putResult$moq_net_Timestamp_harness_put_timestamp(out, time_Timestamp.fromNanos(value), putTimestamp as (a0: rs.ByteVec, a1: time_Timestamp.Timestamp) => undefined);
+	putResult$moq_net_Timestamp_harness_put_timestamp(out, Timestamp.fromScale(value, takeScale(_5[1])[0]), putTimestamp as (a0: rs.ByteVec, a1: Timestamp.Timestamp) => undefined);
+	putResult$moq_net_Timestamp_harness_put_timestamp(out, Timestamp.fromSecs(value), putTimestamp as (a0: rs.ByteVec, a1: Timestamp.Timestamp) => undefined);
+	putResult$moq_net_Timestamp_harness_put_timestamp(out, Timestamp.fromMillis(value), putTimestamp as (a0: rs.ByteVec, a1: Timestamp.Timestamp) => undefined);
+	putResult$moq_net_Timestamp_harness_put_timestamp(out, Timestamp.fromMicros(value), putTimestamp as (a0: rs.ByteVec, a1: Timestamp.Timestamp) => undefined);
+	putResult$moq_net_Timestamp_harness_put_timestamp(out, Timestamp.fromNanos(value), putTimestamp as (a0: rs.ByteVec, a1: Timestamp.Timestamp) => undefined);
 	putTimestamp(out, { value: 0, scale: { _0: 1 } });
 }
 
 /** A timestamp re-expressed at another scale. */
 export function conversions(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _5: [rs.Result<time_Timestamp.Timestamp, TimeOverflow.TimeOverflow>, rs.ByteSlice] = takeTimestamp(data);
-	const time: rs.Result<time_Timestamp.Timestamp, TimeOverflow.TimeOverflow> = _5[0];
+	const _5: [rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow>, rs.ByteSlice] = takeTimestamp(data);
+	const time: rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow> = _5[0];
 	const target: rs.u64 = takeScale(_5[1])[0];
 	if (time.ok) {
-		const time2: time_Timestamp.Timestamp = time.value;
+		const time2: Timestamp.Timestamp = time.value;
 		putResult$moq_net_Timescale_harness_conversions_closure0(out, Timescale.new(target), (out2: rs.ByteVec, target2: Timescale.Timescale): undefined => {
-			putU128(out2, time_Timestamp.asScale(time2, target2));
-			putResult$moq_net_Timestamp_harness_put_timestamp(out2, time_Timestamp.convert(time2, target2), putTimestamp as (a0: rs.ByteVec, a1: time_Timestamp.Timestamp) => undefined);
+			putU128(out2, Timestamp.asScale(time2, target2));
+			putResult$moq_net_Timestamp_harness_put_timestamp(out2, Timestamp.convert(time2, target2), putTimestamp as (a0: rs.ByteVec, a1: Timestamp.Timestamp) => undefined);
 		});
-		putResult$moq_net_Timestamp_harness_put_timestamp(out, time_Timestamp.convert(time2, { _0: 1000 }), putTimestamp as (a0: rs.ByteVec, a1: time_Timestamp.Timestamp) => undefined);
+		putResult$moq_net_Timestamp_harness_put_timestamp(out, Timestamp.convert(time2, { _0: 1000 }), putTimestamp as (a0: rs.ByteVec, a1: Timestamp.Timestamp) => undefined);
 	} else {
 		rs.byteVecPush(out, 238);
 	}
@@ -260,28 +251,27 @@ export function conversions(data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Two timestamps added, subtracted, compared, and sorted with a third. */
 export function arithmetic(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _5: [rs.Result<time_Timestamp.Timestamp, TimeOverflow.TimeOverflow>, rs.ByteSlice] = takeTimestamp(data);
-	const a: rs.Result<time_Timestamp.Timestamp, TimeOverflow.TimeOverflow> = _5[0];
-	const _8: [rs.Result<time_Timestamp.Timestamp, TimeOverflow.TimeOverflow>, rs.ByteSlice] = takeTimestamp(_5[1]);
+	const _5: [rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow>, rs.ByteSlice] = takeTimestamp(data);
+	const a: rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow> = _5[0];
+	const _8: [rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow>, rs.ByteSlice] = takeTimestamp(_5[1]);
 	b0: {
-		const b: rs.Result<time_Timestamp.Timestamp, TimeOverflow.TimeOverflow> = _8[0];
-		const c: rs.Result<time_Timestamp.Timestamp, TimeOverflow.TimeOverflow> = takeTimestamp(_8[1])[0];
+		const b: rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow> = _8[0];
+		const c: rs.Result<Timestamp.Timestamp, TimeOverflow.TimeOverflow> = takeTimestamp(_8[1])[0];
 		if (a.ok) {
 			if (b.ok) {
-				const a2: time_Timestamp.Timestamp = a.value;
-				const b2: time_Timestamp.Timestamp = b.value;
-				putResult$moq_net_Timestamp_harness_put_timestamp(out, time_Timestamp.checkedAdd(a2, b2), putTimestamp as (a0: rs.ByteVec, a1: time_Timestamp.Timestamp) => undefined);
-				putResult$moq_net_Timestamp_harness_put_timestamp(out, time_Timestamp.checkedSub(a2, b2), putTimestamp as (a0: rs.ByteVec, a1: time_Timestamp.Timestamp) => undefined);
-				putResult$moq_net_Timestamp_harness_put_timestamp(out, time_Timestamp.checkedSub(b2, a2), putTimestamp as (a0: rs.ByteVec, a1: time_Timestamp.Timestamp) => undefined);
-				putOrdering(out, time_Timestamp.cmp$cmp_Ord(a2, b2));
-				rs.byteVecPush(out, time_Timestamp.eq$cmp_PartialEq(a2, b2) ? 1 : 0);
-				rs.byteVecPush(out, time_Timestamp.partialCmp$cmp_PartialOrd(a2, b2) === -1 ? 1 : 0);
-				rs.byteVecPush(out, time_Timestamp.partialCmp$cmp_PartialOrd(a2, b2) === 1 ? 1 : 0);
-				const part = rs.ordMax(a2, b2, rs.cmpLt(time_Timestamp.partialCmp$cmp_PartialOrd));
-				const args2: rs.Fmt[] = [(f: rs.Formatter) => time_Timestamp.fmt$fmt_Debug(part, f)];
-				putText(out, rs.fmtFormat([args2[0]]));
-				const sorted: rs.Vec<time_Timestamp.Timestamp> = rs.iterToVec(rs.iterChain(rs.iterSlice([a2, b2]), rs.iterResult(c)), undefined, 16, true);
-				rs.sliceSort(rs.sliceFrom(sorted.items), rs.cmpLt(time_Timestamp.partialCmp$cmp_PartialOrd), 16, true);
+				const a2: Timestamp.Timestamp = a.value;
+				const b2: Timestamp.Timestamp = b.value;
+				putResult$moq_net_Timestamp_harness_put_timestamp(out, Timestamp.checkedAdd(a2, b2), putTimestamp as (a0: rs.ByteVec, a1: Timestamp.Timestamp) => undefined);
+				putResult$moq_net_Timestamp_harness_put_timestamp(out, Timestamp.checkedSub(a2, b2), putTimestamp as (a0: rs.ByteVec, a1: Timestamp.Timestamp) => undefined);
+				putResult$moq_net_Timestamp_harness_put_timestamp(out, Timestamp.checkedSub(b2, a2), putTimestamp as (a0: rs.ByteVec, a1: Timestamp.Timestamp) => undefined);
+				putOrdering(out, Timestamp.cmp$cmp_Ord(a2, b2));
+				rs.byteVecPush(out, Timestamp.eq$cmp_PartialEq(a2, b2) ? 1 : 0);
+				rs.byteVecPush(out, Timestamp.partialCmp$cmp_PartialOrd(a2, b2) === -1 ? 1 : 0);
+				rs.byteVecPush(out, Timestamp.partialCmp$cmp_PartialOrd(a2, b2) === 1 ? 1 : 0);
+				const part = rs.ordMax(a2, b2, rs.cmpLt(Timestamp.partialCmp$cmp_PartialOrd));
+				putText(out, rs.fmtFormat([(f: rs.Formatter) => Timestamp.fmt$fmt_Debug(part, f)]));
+				const sorted: rs.Vec<Timestamp.Timestamp> = rs.iterToVec(rs.iterChain(rs.iterSlice([a2, b2]), rs.iterResult(c)), undefined, 16, true);
+				rs.sliceSort(rs.sliceFrom(sorted.items), rs.cmpLt(Timestamp.partialCmp$cmp_PartialOrd), 16, true);
 				for (const _65 of sorted.items) {
 					putTimestamp(out, _65);
 				}
@@ -297,8 +287,8 @@ export function durations(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _5: [rs.u64, rs.ByteSlice] = takeValue(data);
 	const secs: rs.u64 = _5[0];
 	const _8: [rs.u64, rs.ByteSlice] = takeU64(_5[1]);
-	putResult$moq_net_Timestamp_harness_put_timestamp(out, time_Timestamp.tryFrom$convert_TryFrom_time_Duration(rs.durationNew(secs, rs.u64Low(rs.u64Rem(_8[0], 1000000000)))), putTimestamp as (a0: rs.ByteVec, a1: time_Timestamp.Timestamp) => undefined);
-	putResult$moq_net_Timestamp_harness_durations_closure0(out, takeTimestamp(_8[1])[0], (out2: rs.ByteVec, time2: time_Timestamp.Timestamp): undefined => {
+	putResult$moq_net_Timestamp_harness_put_timestamp(out, Timestamp.tryFrom$convert_TryFrom_time_Duration(rs.durationNew(secs, rs.u64Low(rs.u64Rem(_8[0], 1000000000)))), putTimestamp as (a0: rs.ByteVec, a1: Timestamp.Timestamp) => undefined);
+	putResult$moq_net_Timestamp_harness_durations_closure0(out, takeTimestamp(_8[1])[0], (out2: rs.ByteVec, time2: Timestamp.Timestamp): undefined => {
 		const duration2: rs.Duration = time_from$convert_From_moq_net_Timestamp_time_Duration(time2);
 		putU64(out2, rs.durationAsSecs(duration2));
 		rs.byteVecExtendFromSlice(out2, rs.byteSliceFrom(rs.u32ToBeBytes(rs.durationSubsecNanos(duration2))));

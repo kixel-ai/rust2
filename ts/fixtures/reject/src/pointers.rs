@@ -315,9 +315,9 @@ pub fn byte_pointer_parts(a: [u8; 4], b: [[u8; 2]; 3]) -> bool {
 	std::ptr::eq(x, y) || std::ptr::eq(&b[0], &b[1])
 }
 
-/// Pointers to arrays of other values than bytes, which a slice lends as copies, compared.
-pub fn array_pointers(a: [u16; 2], s: &[u16]) -> bool {
-	s.first_chunk::<2>().is_some_and(|c| std::ptr::eq(c, &a))
+/// Pointers to arrays of one, which JS makes of its own for a value, compared.
+pub fn array_of_one(n: u32) -> bool {
+	std::ptr::eq(std::array::from_ref(&n), std::array::from_ref(&n))
 }
 
 /// Pointers to an array of bytes in a variable assigned again while they point there,
@@ -533,4 +533,10 @@ pub fn rc_raw_bytes(p: *const [u8; 4]) -> u8 {
 /// shows holds, which JS copies.
 pub fn arc_from_borrow(n: &u32) -> u32 {
 	unsafe { *std::sync::Arc::from_raw(std::ptr::from_ref(n)) }
+}
+
+/// The greater of two pointers to numbers, which orders by their addresses.
+pub fn pointers_ordered(a: &u32, b: &u32) -> bool {
+	let (p, q) = (std::ptr::from_ref(a), std::ptr::from_ref(b));
+	std::cmp::max(p, q) == p
 }

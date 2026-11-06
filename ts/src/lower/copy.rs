@@ -141,6 +141,36 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		self.changes(ty).then(|| self.shim(ty, span)).flatten()
 	}
 
+	/// A copy of the `ty`, a `[T; N]`, that `s`, the slice a reference to one is, holds, as
+	/// a read through the reference copies it: an array of its own, with each element JS
+	/// keeps as an object the crate writes into copied too.
+	pub fn array_copy(&mut self, s: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+		let elem = match self.uninit_inner(ty).kind() {
+			ty::Array(elem, _) => *elem,
+			_ => unreachable!("an array's slice"),
+		};
+		if super::byte(elem) {
+			return Expr::rs("byteSliceToArray", vec![s]);
+		}
+		let mut values = vec![s];
+		values.extend(self.changes(elem).then(|| self.shim(elem, span)).flatten());
+		Expr::rs("sliceToArray", values)
+	}
+
+	/// The function [`Self::array_copy`] calls on a slice of a `ty`.
+	pub fn array_copy_fn(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
+		match self.array_copy(Expr::ident("s"), ty, span) {
+			Expr::Call(f, args) if args.len() == 1 => *f,
+			copy => Expr::Lambda(
+				vec![ts::Param {
+					name: "s".into(),
+					ty: None,
+				}],
+				Box::new(copy),
+			),
+		}
+	}
+
 	/// `value`, copied if a `ty` is.
 	pub fn copied(&mut self, value: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
 		match self.copy_fn(ty, span) {

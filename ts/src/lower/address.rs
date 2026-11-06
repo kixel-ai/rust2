@@ -39,7 +39,7 @@ pub fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Resul
 	if !(b.t.polymorphic() && ty.has_param()) {
 		let why = match b.t.pointee(ty) {
 			_ if b.t.zero_sized(ty) => Some("which has no bytes and so no address of its own"),
-			Pointee::Bytes => Some("a view JS makes of its own of bytes that may be in a larger array"),
+			Pointee::Array => Some("a view JS makes of its own of an array that may be in a larger one"),
 			_ if b.t.erased(ty) != ty => Some("which JS keeps as what it holds"),
 			_ => b.t.unidentified(ty),
 		};

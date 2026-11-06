@@ -80,8 +80,8 @@ export function zeros(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		phantom$u8();
 		rs.byteVecPush(out, (Unit.eq$cmp_PartialEq(_11, {}) ? 1 : 0) | (((Unit.eq$cmp_PartialEq(_13._0, _16) ? 1 : 0) << 1) & 0xff));
 		const _40: One.One = One.clone$Clone("Only" as One.One);
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => Unit.fmt$fmt_Debug(_11, f), (f: rs.Formatter) => One.fmt$fmt_Debug(_40, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1]])), undefined, true);
+		const args6 = [(f: rs.Formatter) => Unit.fmt$fmt_Debug(_11, f), (f: rs.Formatter) => One.fmt$fmt_Debug(_40, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
 	} else if (_8 === 1) {
 		rs.byteVecPush(out, rs.iterCount(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_213: rs.u8): Uint8Array => {
 			return Uint8Array.of();
@@ -100,12 +100,12 @@ export function zeros(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, One.eq$cmp_PartialEq(_72(1), one()) ? 1 : 0);
 	} else if (_8 === 2) {
 		const _87: Unit.Unit = unit();
-		const _89: string[] = none$String();
-		const _91: Unit.Unit[] = units();
+		const _88: rs.Slice<string> = rs.sliceFrom(none$String());
+		const _90: rs.Slice<Unit.Unit> = rs.sliceFrom(units());
 		const _93: One.One = one();
 		const _95: [undefined, Unit.Unit, Uint8Array] = tuple();
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Unit.fmt$fmt_Debug(_87, f), (f: rs.Formatter) => rs.fmtList(_89, f, rs.fmtStr), (f: rs.Formatter) => rs.fmtList(_91, f, (value: Unit.Unit, f: rs.Formatter) => Unit.fmt$fmt_Debug(value, f)), (f: rs.Formatter) => One.fmt$fmt_Debug(_93, f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtUnit(_95[0], f), (f: rs.Formatter) => Unit.fmt$fmt_Debug(_95[1], f), (f: rs.Formatter) => rs.fmtList(_95[2], f, rs.u8Debug)], f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " ", args4[3], " ", args4[4]])), undefined, true);
+		const args5 = [(f: rs.Formatter) => Unit.fmt$fmt_Debug(_87, f), (f: rs.Formatter) => rs.fmtList(rs.sliceItems(_88), f, rs.fmtStr), (f: rs.Formatter) => rs.fmtList(rs.sliceItems(_90), f, (value: Unit.Unit, f: rs.Formatter) => Unit.fmt$fmt_Debug(value, f)), (f: rs.Formatter) => One.fmt$fmt_Debug(_93, f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtUnit(_95[0], f), (f: rs.Formatter) => Unit.fmt$fmt_Debug(_95[1], f), (f: rs.Formatter) => rs.fmtList(_95[2], f, rs.u8Debug)], f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4]])), undefined, true);
 	} else if (_8 === 3) {
 		const _108: (a0: rs.u8) => rs.u8 = adder();
 		adder();
@@ -286,11 +286,11 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const copied: Tagged.Tagged<rs.u8> = { n: _15, of: undefined, pin: undefined, unit: undefined };
 		const again: Tagged.Tagged<rs.u8> = copied;
 		const _27: Names.Names = Names.default$Default();
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => Tagged.fmt$fmt_Debug_String(t, f), (f: rs.Formatter) => Tagged.fmt$fmt_Debug_u8(copied, f), (f: rs.Formatter) => Tagged.fmt$fmt_Debug_u8(again, f), (f: rs.Formatter) => Names.fmt$fmt_Debug(_27, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", rs.fmtSpec({ alternate: true }, args2[2]), " ", rs.fmtSpec({ alternate: true }, args2[3])])), undefined, true);
+		const args5 = [(f: rs.Formatter) => Tagged.fmt$fmt_Debug_String(t, f), (f: rs.Formatter) => Tagged.fmt$fmt_Debug_u8(copied, f), (f: rs.Formatter) => Tagged.fmt$fmt_Debug_u8(again, f), (f: rs.Formatter) => Names.fmt$fmt_Debug(_27, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", rs.fmtSpec({ alternate: true }, args5[2]), " ", rs.fmtSpec({ alternate: true }, args5[3])])), undefined, true);
 		const _38: Rest.Rest = Rest.clone$Clone(Rest.default$Default());
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Rest.fmt$fmt_Debug(_38, f), (f: rs.Formatter) => rs.fmtWriteStr(f, "PhantomPinned"), (f: rs.Formatter) => rs.fmtWriteFmt(f, ["PhantomData<", "u8", ">"])];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", rs.fmtSpec({ alternate: true }, args4[0]), " ", rs.fmtSpec({ align: ">", width: 9 }, args4[1]), "|", rs.fmtSpec({ align: "<", width: 9 }, args4[2]), "|"])), undefined, true);
+		const args6 = [(f: rs.Formatter) => Rest.fmt$fmt_Debug(_38, f), (f: rs.Formatter) => rs.fmtWriteStr(f, "PhantomPinned"), (f: rs.Formatter) => rs.fmtWriteFmt(f, ["PhantomData<", "u8", ">"])];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", rs.fmtSpec({ alternate: true }, args6[0]), " ", rs.fmtSpec({ align: ">", width: 9 }, args6[1]), "|", rs.fmtSpec({ align: "<", width: 9 }, args6[2]), "|"])), undefined, true);
 		rs.byteVecPush(out, rs.iterCount(rs.iterEmpty() as rs.Iter<rs.u8>) & 0xff);
 	} else if (_7 === 1) {
 		const sorted: rs.Vec<Tagged.Tagged<string>> = rs.vecFrom(tags.items.map(Tagged.clone$Clone_String));
@@ -540,10 +540,11 @@ export function writes(kind: rs.u8, _dataData: Uint8Array, _dataStart: number, d
 		rs.cellReplace(_113, undefined);
 		rs.cellReplace(_113, undefined);
 		rs.cellSet(_113, undefined);
-		rs.sliceSwap(rs.sliceFrom([undefined, undefined, undefined]), 0, n as rs.usize);
+		const units: rs.Slice<undefined> = rs.sliceFrom([undefined, undefined, undefined]);
+		rs.sliceSwap(units, 0, n as rs.usize);
 		const v: rs.Vec<Unit.Unit> = rs.vecFromElem({}, 2, undefined);
 		rs.sliceSwap(rs.sliceFrom(v.items), 0, 1);
-		rs.byteVecPush(out, (rs.sliceFrom([undefined, undefined, undefined]).length & 0xff) | (((v.items.length & 0xff) << 4) & 0xff));
+		rs.byteVecPush(out, (units.length & 0xff) | (((v.items.length & 0xff) << 4) & 0xff));
 		const _141: rs.Cell<undefined> = new rs.Cell(undefined);
 		rs.cellReplace(_141, undefined);
 		rs.cellReplace(_141, undefined);

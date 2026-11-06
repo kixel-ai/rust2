@@ -30,8 +30,7 @@ export function map$wrap_Pair_u8_run_closure1(self: Wrap<Pair.Pair>, f: (a0: Pai
 
 export function fmt$fmt_Display_wrap_Pair(self: Wrap<Pair.Pair>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const arg = self._0;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => Pair.fmt$fmt_Display(arg, f)];
-	return rs.fmtWriteFmt(f, ["[", args2[0], "]"]);
+	return rs.fmtWriteFmt(f, ["[", (f: rs.Formatter) => Pair.fmt$fmt_Display(arg, f), "]"]);
 }
 
 //# sourceMappingURL=wrap.Wrap.ts.map

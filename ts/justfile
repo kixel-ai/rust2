@@ -11,7 +11,8 @@ export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { env
 # The model fixture, its own workspace, which builds moq-net at the moq pin.
 model := "fixtures/model/Cargo.toml"
 
-# The moq revision `moq` and `census` translate by default: the one the model fixture builds.
+# The moq revision `moq` and `census` translate and `just ffi` exports by default: the one
+# the model fixture builds.
 moq_rev := `taplo get -f fixtures/model/Cargo.toml dependencies.moq-net.rev`
 
 default:
