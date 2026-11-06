@@ -364,7 +364,7 @@ export function hashMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		}
 		rs.byteVecPush(out, rs.hashLen(tuples) & 0xff);
 	} else {
-		const words: rs.HashMap<rs.String, rs.ByteVec> = rs.hashNew(rs.hashing(rs.hashStr, rs.eqStr, true)) as rs.HashMap<rs.String, rs.ByteVec>;
+		const words: rs.HashMap<rs.String, rs.ByteVec> = rs.hashNew(rs.HASH_TEXT) as rs.HashMap<rs.String, rs.ByteVec>;
 		for (const b6 of rs.byteSliceView(data)) {
 			const _515: rs.usize = rs.usizeRem(b6 as rs.usize, rs.sliceFrom(["", "a", "ab", "b", "é", "", "￿", "𐀀"]).length);
 			if (!(_515 < 8)) {

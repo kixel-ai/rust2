@@ -1249,7 +1249,7 @@ export function equal(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _3: rs.Iter<rs.String> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes3)), (_2: rs.u8): rs.String => {
 			return text(rs.byteSliceFrom(Uint8Array.of(rs.u8Rem(_2, 4))));
 		});
-		return rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.hashStr, rs.eqStr, true)) as rs.HashSet<rs.String>, _3, undefined, undefined, 117440512);
+		return rs.hashExtendKeys(rs.hashNew(rs.HASH_TEXT) as rs.HashSet<rs.String>, _3, undefined, undefined, 117440512);
 	};
 	const _175: (a0: rs.ByteSlice) => hashes_Index.Index = (bytes4: rs.ByteSlice): hashes_Index.Index => {
 		const _46: rs.Iter<[rs.u8, rs.String]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes4)), (_22: rs.u8): [rs.u8, rs.String] => {

@@ -33,7 +33,7 @@ export function put(out: rs.ByteVec, n: rs.usize): void {
 export function map(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const own: rs.HashMap<rs.u16, rs.u32> = rs.hashNew() as rs.HashMap<rs.u16, rs.u32>;
 	const pairs: rs.HashMap<[rs.u8, rs.u8], rs.u32> = rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same]))) as rs.HashMap<[rs.u8, rs.u8], rs.u32>;
-	const set: rs.HashSet<rs.String> = rs.hashWithCapacity(rs.usizeDiv(data.length, 4), 117440512, rs.hashing(rs.hashStr, rs.eqStr, true)) as rs.HashSet<rs.String>;
+	const set: rs.HashSet<rs.String> = rs.hashWithCapacity(rs.usizeDiv(data.length, 4), 117440512, rs.HASH_TEXT) as rs.HashSet<rs.String>;
 	const iter: rs.Iter<rs.ByteSlice> = rs.byteSliceChunks(data, 2);
 	while (true) {
 		const _12: rs.ByteSlice | rs.Done = iter.next();

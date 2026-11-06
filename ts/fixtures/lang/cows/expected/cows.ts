@@ -367,10 +367,10 @@ export function variants(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		});
 		rs.iterExtendBytes(out, rs.iterMap(rs.btreeRangeKeys(rs.btreeExtendKeys(rs.btreeNew(rs.cowBy(rs.cmpStr)) as rs.BTreeSet<rs.StrCow>, _336, true, undefined, undefined, 12, true), [{ tag: "Unbounded" } as rs.RangeBound<string>, { tag: "Included", _0: rest } as rs.RangeBound<string>] as [rs.RangeBound<string>, rs.RangeBound<string>]), borrows), "next");
 		const _347: rs.Iter<[rs.StrCow, rs.u8]> = rs.btreeIter(counts);
-		const hashed: rs.HashMap<rs.StrCow, rs.u8> = rs.hashExtend(rs.hashNew(rs.hashing(rs.hashCow(rs.hashStr), rs.eqStr, true)) as rs.HashMap<rs.StrCow, rs.u8>, _347, undefined, undefined, undefined, 58720256);
+		const hashed: rs.HashMap<rs.StrCow, rs.u8> = rs.hashExtend(rs.hashNew(rs.HASH_TEXT) as rs.HashMap<rs.StrCow, rs.u8>, _347, undefined, undefined, undefined, 58720256);
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.hashGet(hashed, (first as unknown) as rs.StrCow), 255));
 		rs.byteVecPush(out, rs.hashContains(hashed, (rest as unknown) as rs.StrCow) ? 1 : 0);
-		const both: rs.HashSet<rs.StrCow> = rs.hashNew(rs.hashing(rs.hashCow(rs.hashStr), rs.eqStr, true)) as rs.HashSet<rs.StrCow>;
+		const both: rs.HashSet<rs.StrCow> = rs.hashNew(rs.HASH_TEXT) as rs.HashSet<rs.StrCow>;
 		const _361: rs.StrCow = cow(first, owned);
 		rs.hashAdd(both, _361);
 		const _366: rs.StrCow = cow(first, !owned);

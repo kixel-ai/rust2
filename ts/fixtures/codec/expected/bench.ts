@@ -639,7 +639,7 @@ export function keyed(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		const args3 = [(f: rs.Formatter) => rs.fmtPad(f, part), (f: rs.Formatter) => rs.u32Display(i2, f)];
 		return rs.fmtFormat([args3[0], "/", args3[1]]);
 	}), undefined, 12, true);
-	const map: rs.HashMap<rs.String, rs.u64> = rs.hashNew(rs.hashing(rs.hashStr, rs.eqStr, true)) as rs.HashMap<rs.String, rs.u64>;
+	const map: rs.HashMap<rs.String, rs.u64> = rs.hashNew(rs.HASH_TEXT) as rs.HashMap<rs.String, rs.u64>;
 	const iter: rs.Iter<[rs.usize, rs.String]> = rs.iterEnumerate(rs.iterSlice(keys.items));
 	while (true) {
 		const _32: [rs.usize, rs.String] | rs.Done = iter.next();

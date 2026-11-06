@@ -757,9 +757,12 @@ export function hashFinish(s: Hasher): u64 {
 	return s.finish();
 }
 
+/** The JS map key a hash collection files a key that is a JS object under: its hash, or its text. */
+export type HashKey = number | string;
+
 /** How a hash collection finds a key that is a JS object: its `Hash` and `Eq`. */
 export interface Hashing<K> {
-	readonly hash: (key: K) => number;
+	readonly hash: (key: K) => HashKey;
 	readonly eq: (a: K, b: K) => boolean;
 	/** Whether a key that is a JS primitive goes by them too: an enum with its own `Eq`. */
 	readonly all: boolean;

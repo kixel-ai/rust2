@@ -1111,6 +1111,10 @@ fn hashing<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, key: Ty<'tcx>, span
 		b.t.err(span, format!("hashing by the hasher of `{coll}`"));
 		return None;
 	};
+	// Text goes by itself, as a JS map key the engine hashes.
+	if library::owned_string(b.t.tcx, peeled) || library::cow_str(b.t.tcx, peeled) {
+		return Some(Some(Expr::Rs("HASH_TEXT".into())));
+	}
 	let mut values = vec![hash_fn(b, key, hasher, span), eq_fn(b, key, span)];
 	// A fieldless enum is a JS string, and a bound value may be any primitive, which its
 	// own `Eq` may tell apart where JS can't, and a `String` and an owned `Cow<str>` are

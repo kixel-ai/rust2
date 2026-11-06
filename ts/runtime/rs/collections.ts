@@ -17,7 +17,7 @@
 
 import { Borrowed, ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity } from "../rs.ts";
 import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
-import type { Hashing } from "./hash.ts";
+import type { HashKey, Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
 import type { String as RsString } from "./str.ts";
 import {
@@ -321,6 +321,13 @@ function textOf(s: string | RsString | Borrowed<string>): string {
 	return typeof s === "string" ? s : s instanceof Borrowed ? s.slice : s.v;
 }
 
+/**
+ * How a hash collection finds a key that is a `String` or a `Cow<str>`, or a `str` looking
+ * one up: by its text, which the engine hashes as a JS map key, so the keys filed under
+ * one are equal.
+ */
+export const HASH_TEXT: Hashing<string | RsString | Borrowed<string>> = { hash: textOf, eq: () => true, all: true };
+
 /** `PartialEq::eq` of tuples, from each field's. */
 export function eqTuple<T extends readonly unknown[]>(fields: readonly ((a: never, b: never) => boolean)[]): (a: T, b: T) => boolean {
 	return (a, b) => {
@@ -455,12 +462,12 @@ interface Slot<K, V> {
  * `HashMap<K, V>`, and `HashSet<K>` as a map to `undefined`, std's or hashbrown's. A key
  * that is a JS primitive, a number, string, or boolean, is its own JS map key, as Rust
  * compares it; a key that is an object goes by its hash, to a chain of the keys `Eq`
- * tells apart. Iteration visits the first kind in insertion order and then the second by
+ * tells apart, or by its text where it is a `String` or a `Cow<str>`, as `HASH_TEXT` finds one. Iteration visits the first kind in insertion order and then the second by
  * hash, an order Rust leaves unspecified.
  */
 export interface HashMap<K, V> {
 	p: Map<K, V>;
-	o: Map<number, Slot<K, V>> | undefined;
+	o: Map<HashKey, Slot<K, V>> | undefined;
 	/** How many keys `o` holds. */
 	n: number;
 	/** How to find a key that is an object, or `undefined` if no key is one. */
@@ -495,7 +502,7 @@ function hashed<K, V>(m: HashMap<K, V>, key: K): boolean {
  * The slot holding a key equal to `key`, a hashed key whose hash is `hash` if given, which
  * compares by `key`'s `eq`, as std's lookups do.
  */
-function slot<K, V>(m: HashMap<K, V>, key: K, hash?: number): Slot<K, V> | undefined {
+function slot<K, V>(m: HashMap<K, V>, key: K, hash?: HashKey): Slot<K, V> | undefined {
 	const h = m.h as Hashing<K>;
 	for (let s = m.o?.get(hash ?? h.hash(key)); s !== undefined; s = s.next) if (h.eq(key, s.k)) return s;
 	return undefined;
@@ -702,8 +709,8 @@ export function hashRemoveEntry<K, V>(m: HashMap<K, V>, key: K): [K, V] | undefi
 }
 
 /** Take `s`, a slot whose key's hash is `hash`, out of `m`. */
-function unlink<K, V>(m: HashMap<K, V>, hash: number, s: Slot<K, V>): void {
-	const o = m.o as Map<number, Slot<K, V>>;
+function unlink<K, V>(m: HashMap<K, V>, hash: HashKey, s: Slot<K, V>): void {
+	const o = m.o as Map<HashKey, Slot<K, V>>;
 	let prev = o.get(hash) as Slot<K, V>;
 	if (prev === s) {
 		if (s.next !== undefined) o.set(hash, s.next);
@@ -829,9 +836,9 @@ function retainHash<K, V>(m: HashMap<K, V>, f: (key: K, value: V | Place<V>) => 
 class HashExtractIf<K, V, T> extends Iter<T> implements Disposable {
 	private readonly m: HashMap<K, V>;
 	private readonly p: Iterator<[K, V]>;
-	private readonly o: Iterator<[number, Slot<K, V>]> | undefined;
+	private readonly o: Iterator<[HashKey, Slot<K, V>]> | undefined;
 	/** The chain it reads, by its hash, the slot it reads next, and the last it kept there. */
-	private hash = 0;
+	private hash: HashKey = 0;
 	private at: Slot<K, V> | undefined;
 	private kept: Slot<K, V> | undefined;
 	private readonly f: (key: K, value: V | Place<V>) => boolean;
@@ -865,7 +872,7 @@ class HashExtractIf<K, V, T> extends Iter<T> implements Disposable {
 				return (this.keys ? key : [key, now]) as T;
 			}
 			if (this.at === undefined) {
-				[this.hash, this.at] = (this.o as Iterator<[number, Slot<K, V>]>).next().value as [number, Slot<K, V>];
+				[this.hash, this.at] = (this.o as Iterator<[HashKey, Slot<K, V>]>).next().value as [HashKey, Slot<K, V>];
 				this.kept = undefined;
 			}
 			const s = this.at;
@@ -874,7 +881,7 @@ class HashExtractIf<K, V, T> extends Iter<T> implements Disposable {
 				this.kept = s;
 				continue;
 			}
-			const o = m.o as Map<number, Slot<K, V>>;
+			const o = m.o as Map<HashKey, Slot<K, V>>;
 			if (this.kept !== undefined) this.kept.next = s.next;
 			else if (s.next !== undefined) o.set(this.hash, s.next);
 			else o.delete(this.hash);
@@ -3091,7 +3098,7 @@ export interface Entry<K, V> {
 	readonly o: boolean;
 	/** A hashed key's slot if it is occupied, and its hash. */
 	readonly s: Slot<K, V> | undefined;
-	readonly h: number | undefined;
+	readonly h: HashKey | undefined;
 	/** A B-tree's node holding the key, and its index there, or else the leaf and the complement of where it goes. */
 	readonly l: Node<K, V> | undefined;
 	readonly i: number;
