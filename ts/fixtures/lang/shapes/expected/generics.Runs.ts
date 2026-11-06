@@ -6,7 +6,7 @@ import { clone$14vwxlf as option_clone$14vwxlf, clone$0e53k5z as option_clone$0e
 import type * as Run from "./generics.Run.ts";
 
 export function clone$Clone_u16(self: Runs<rs.u16>): Runs<rs.u16> {
-	return new Runs(copy$array_u16(copy$array_u16(self.array as rs.u16[])), rs.vecFrom((self.list as rs.Vec<rs.u16>).items.slice()), self.view as rs.Slice<rs.u16>, rs.sliceFrom(rs.sliceToArray(self.boxed as rs.Slice<rs.u16>)), rs.cowClone(self.cow as rs.Cow<rs.u16>), rs.vecFrom((self.pairs as rs.Vec<rs.u16[]>).items.map(copy$array_u16)), option_clone$14vwxlf(self.maybe as rs.Vec<rs.u16> | undefined));
+	return new Runs(copy$array_u16((self.array as rs.u16[]).slice()), rs.vecFrom((self.list as rs.Vec<rs.u16>).items.slice()), self.view as rs.Slice<rs.u16>, rs.sliceFrom(rs.sliceToArray(self.boxed as rs.Slice<rs.u16>)), rs.cowClone(self.cow as rs.Cow<rs.u16>), rs.vecFrom((self.pairs as rs.Vec<rs.u16[]>).items.map(copy$array_u16)), option_clone$14vwxlf(self.maybe as rs.Vec<rs.u16> | undefined));
 }
 
 export function clone$Clone_u8(self: Runs<rs.u8>): Runs<rs.u8> {
@@ -14,25 +14,25 @@ export function clone$Clone_u8(self: Runs<rs.u8>): Runs<rs.u8> {
 }
 
 export function fmt$fmt_Debug_u16(self: Runs<rs.u16>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const arg = self.array as rs.u16[];
-	const _7: rs.Fmt = (f: rs.Formatter) => rs.fmtList(arg, f, rs.u16Debug);
-	const arg2 = self.list as rs.Vec<rs.u16>;
-	const _9: rs.Fmt = (f: rs.Formatter) => rs.fmtList(arg2.items, f, rs.u16Debug);
-	const arg3 = self.view as rs.Slice<rs.u16>;
-	const _11: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.sliceItems(arg3), f, rs.u16Debug);
-	const arg4 = self.boxed as rs.Slice<rs.u16>;
-	const _13: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.sliceItems(arg4), f, rs.u16Debug);
-	const arg5 = self.cow as rs.Cow<rs.u16>;
-	const _15: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.sliceItems(rs.cowSlice(arg5)), f, rs.u16Debug);
-	const arg6 = self.pairs as rs.Vec<rs.u16[]>;
-	const _17: rs.Fmt = (f: rs.Formatter) => rs.fmtList(arg6.items, f, (value: rs.u16[], f: rs.Formatter) => rs.fmtList(value, f, rs.u16Debug));
-	const arg7 = self.maybe as rs.Vec<rs.u16> | undefined;
-	const names: string[] = ["array", "list", "view", "boxed", "cow", "pairs", "maybe"];
-	return rs.fmtDebugStructFields(f, "Runs", names, [_7, _9, _11, _13, _15, _17, (f: rs.Formatter) => rs.fmtOption(arg7, f, (value: rs.Vec<rs.u16>, f: rs.Formatter) => rs.fmtList(value.items, f, rs.u16Debug))]);
+	const names: rs.Slice<string> = rs.sliceFrom(["array", "list", "view", "boxed", "cow", "pairs", "maybe"]);
+	const _8: rs.Slice<rs.u16> = rs.sliceFrom(self.array as rs.u16[]);
+	const arg = self.list as rs.Vec<rs.u16>;
+	const _9: rs.Fmt = (f: rs.Formatter) => rs.fmtList(arg.items, f, rs.u16Debug);
+	const arg2 = self.view as rs.Slice<rs.u16>;
+	const _11: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.sliceItems(arg2), f, rs.u16Debug);
+	const arg3 = self.boxed as rs.Slice<rs.u16>;
+	const _13: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.sliceItems(arg3), f, rs.u16Debug);
+	const arg4 = self.cow as rs.Cow<rs.u16>;
+	const _15: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.sliceItems(rs.cowSlice(arg4)), f, rs.u16Debug);
+	const arg5 = self.pairs as rs.Vec<rs.u16[]>;
+	const _17: rs.Fmt = (f: rs.Formatter) => rs.fmtList(arg5.items, f, (value: rs.u16[], f: rs.Formatter) => rs.fmtList(value, f, rs.u16Debug));
+	const arg6 = self.maybe as rs.Vec<rs.u16> | undefined;
+	const values: rs.Slice<rs.Fmt> = rs.sliceFrom([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(_8), f, rs.u16Debug), _9, _11, _13, _15, _17, (f: rs.Formatter) => rs.fmtOption(arg6, f, (value: rs.Vec<rs.u16>, f: rs.Formatter) => rs.fmtList(value.items, f, rs.u16Debug))]);
+	return rs.fmtDebugStructFields(f, "Runs", rs.sliceItems(names), rs.sliceItems(values));
 }
 
 export function fmt$fmt_Debug_u8(self: Runs<rs.u8>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const names: string[] = ["array", "list", "view", "boxed", "cow", "pairs", "maybe"];
+	const names: rs.Slice<string> = rs.sliceFrom(["array", "list", "view", "boxed", "cow", "pairs", "maybe"]);
 	const _8: rs.ByteSlice = rs.byteSliceFrom(self.array as Uint8Array);
 	const arg = self.list as rs.ByteVec;
 	const _9: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(arg), f, rs.u8Debug);
@@ -45,11 +45,14 @@ export function fmt$fmt_Debug_u8(self: Runs<rs.u8>, f: rs.Formatter): rs.Result<
 	const arg5 = self.pairs as rs.Vec<Uint8Array>;
 	const _17: rs.Fmt = (f: rs.Formatter) => rs.fmtList(arg5.items, f, (value: Uint8Array, f: rs.Formatter) => rs.fmtList(value, f, rs.u8Debug));
 	const arg6 = self.maybe as rs.ByteVec | undefined;
-	return rs.fmtDebugStructFields(f, "Runs", names, [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_8), f, rs.u8Debug), _9, _11, _13, _15, _17, (f: rs.Formatter) => rs.fmtOption(arg6, f, (value: rs.ByteVec, f: rs.Formatter) => rs.fmtList(rs.byteVecView(value), f, rs.u8Debug))]);
+	const values: rs.Slice<rs.Fmt> = rs.sliceFrom([(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_8), f, rs.u8Debug), _9, _11, _13, _15, _17, (f: rs.Formatter) => rs.fmtOption(arg6, f, (value: rs.ByteVec, f: rs.Formatter) => rs.fmtList(rs.byteVecView(value), f, rs.u8Debug))]);
+	return rs.fmtDebugStructFields(f, "Runs", rs.sliceItems(names), rs.sliceItems(values));
 }
 
 export function eq$cmp_PartialEq_u16(self: Runs<rs.u16>, other: Runs<rs.u16>): boolean {
-	if (rs.eqSlice(rs.same)(self.array as rs.u16[], other.array as rs.u16[])) {
+	const _4: rs.Slice<rs.u16> = rs.sliceFrom(self.array as rs.u16[]);
+	const _5: rs.Slice<rs.u16> = rs.sliceFrom(other.array as rs.u16[]);
+	if (rs.eqSlice(rs.same)(_4, _5)) {
 		if (rs.eqSlice(rs.same)(self.list as rs.Vec<rs.u16>, other.list as rs.Vec<rs.u16>)) {
 			if (rs.eqSlice(rs.same)(self.view as rs.Slice<rs.u16>, other.view as rs.Slice<rs.u16>)) {
 				if (rs.eqSlice(rs.same)(self.boxed as rs.Slice<rs.u16>, other.boxed as rs.Slice<rs.u16>)) {

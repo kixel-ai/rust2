@@ -316,24 +316,26 @@ export function retagged$3(rows: rs.Slice<Uint8Array>, out: rs.ByteVec): void {
 
 /** [`retagged`] of a type parameter's values. */
 export function recloned$u32_0(rows: rs.Slice<rs.u32[]>, out: rs.ByteVec): void {
-	const iter: rs.Iter<[rs.usize, rs.u32[]]> = rs.iterEnumerate(rs.iterSlice(rs.sliceItems(rows)));
+	const iter: rs.Iter<[rs.usize, rs.Slice<rs.u32>]> = rs.iterEnumerate(rs.iterLend(rs.iterSlice(rs.sliceItems(rows)), rs.sliceFrom));
 	while (true) {
-		const _7: [rs.usize, rs.u32[]] | rs.Done = iter.next();
+		const _7: [rs.usize, rs.Slice<rs.u32>] | rs.Done = iter.next();
 		if (_7 === rs.DONE) {
 			break;
 		}
 		const at: rs.usize = _7[0];
-		const pair: [Tagged.Tagged<rs.u32[]> | undefined, rs.u8] = [new Tagged.Tagged(copy$array_u32(copy$array_u32(_7[1])), at & 0xff), 0];
+		const pair: [Tagged.Tagged<rs.u32[]> | undefined, rs.u8] = [new Tagged.Tagged(copy$array_u32(rs.sliceToArray(_7[1])), at & 0xff), 0];
 		let copy: Tagged.Tagged<rs.u32[]> | undefined = copy$Option_lengths_Tagged_array0_u32(copy$Option_lengths_Tagged_array0_u32(pair[0]));
 		pair[0] = copy$Option_lengths_Tagged_array0_u32(copy);
 		const part = rs.place(() => pair[0], (value) => pair[0] = value);
 		const part2 = rs.place(() => copy, (value2) => copy = value2);
 		if (part.v !== undefined) {
 			if (part2.v !== undefined) {
-				rs.sliceReverse(rs.sliceFrom(part.v._0));
+				const a: rs.Slice<rs.u32> = rs.sliceFrom(part.v._0);
+				const b: rs.Slice<rs.u32> = rs.sliceFrom(part2.v._0);
+				rs.sliceReverse(a);
 				part2.v._1 = part2.v._1 ^ 255;
 				rs.byteVecPush(out, part2.v._1);
-				rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(part.v._0), rs.iterSlice(part2.v._0)), (_2: rs.u32): rs.u8 => {
+				rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(rs.sliceItems(a)), rs.iterSlice(rs.sliceItems(b))), (_2: rs.u32): rs.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -343,24 +345,26 @@ export function recloned$u32_0(rows: rs.Slice<rs.u32[]>, out: rs.ByteVec): void 
 
 /** [`retagged`] of a type parameter's values. */
 export function recloned$u32_1(rows: rs.Slice<rs.u32[]>, out: rs.ByteVec): void {
-	const iter: rs.Iter<[rs.usize, rs.u32[]]> = rs.iterEnumerate(rs.iterSlice(rs.sliceItems(rows)));
+	const iter: rs.Iter<[rs.usize, rs.Slice<rs.u32>]> = rs.iterEnumerate(rs.iterLend(rs.iterSlice(rs.sliceItems(rows)), rs.sliceFrom));
 	while (true) {
-		const _7: [rs.usize, rs.u32[]] | rs.Done = iter.next();
+		const _7: [rs.usize, rs.Slice<rs.u32>] | rs.Done = iter.next();
 		if (_7 === rs.DONE) {
 			break;
 		}
 		const at: rs.usize = _7[0];
-		const pair: [Tagged.Tagged<rs.u32[]> | undefined, rs.u8] = [new Tagged.Tagged(copy$array_u32(copy$array_u32(_7[1])), at & 0xff), 0];
+		const pair: [Tagged.Tagged<rs.u32[]> | undefined, rs.u8] = [new Tagged.Tagged(copy$array_u32(rs.sliceToArray(_7[1])), at & 0xff), 0];
 		let copy: Tagged.Tagged<rs.u32[]> | undefined = copy$Option_lengths_Tagged_array1_u32(copy$Option_lengths_Tagged_array1_u32(pair[0]));
 		pair[0] = copy$Option_lengths_Tagged_array1_u32(copy);
 		const part = rs.place(() => pair[0], (value) => pair[0] = value);
 		const part2 = rs.place(() => copy, (value2) => copy = value2);
 		if (part.v !== undefined) {
 			if (part2.v !== undefined) {
-				rs.sliceReverse(rs.sliceFrom(part.v._0));
+				const a: rs.Slice<rs.u32> = rs.sliceFrom(part.v._0);
+				const b: rs.Slice<rs.u32> = rs.sliceFrom(part2.v._0);
+				rs.sliceReverse(a);
 				part2.v._1 = part2.v._1 ^ 255;
 				rs.byteVecPush(out, part2.v._1);
-				rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(part.v._0), rs.iterSlice(part2.v._0)), (_2: rs.u32): rs.u8 => {
+				rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(rs.sliceItems(a)), rs.iterSlice(rs.sliceItems(b))), (_2: rs.u32): rs.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -370,24 +374,26 @@ export function recloned$u32_1(rows: rs.Slice<rs.u32[]>, out: rs.ByteVec): void 
 
 /** [`retagged`] of a type parameter's values. */
 export function recloned$u32_17(rows: rs.Slice<rs.u32[]>, out: rs.ByteVec): void {
-	const iter: rs.Iter<[rs.usize, rs.u32[]]> = rs.iterEnumerate(rs.iterSlice(rs.sliceItems(rows)));
+	const iter: rs.Iter<[rs.usize, rs.Slice<rs.u32>]> = rs.iterEnumerate(rs.iterLend(rs.iterSlice(rs.sliceItems(rows)), rs.sliceFrom));
 	while (true) {
-		const _7: [rs.usize, rs.u32[]] | rs.Done = iter.next();
+		const _7: [rs.usize, rs.Slice<rs.u32>] | rs.Done = iter.next();
 		if (_7 === rs.DONE) {
 			break;
 		}
 		const at: rs.usize = _7[0];
-		const pair: [Tagged.Tagged<rs.u32[]> | undefined, rs.u8] = [new Tagged.Tagged(copy$array_u32(copy$array_u32(_7[1])), at & 0xff), 0];
+		const pair: [Tagged.Tagged<rs.u32[]> | undefined, rs.u8] = [new Tagged.Tagged(copy$array_u32(rs.sliceToArray(_7[1])), at & 0xff), 0];
 		let copy: Tagged.Tagged<rs.u32[]> | undefined = copy$Option_lengths_Tagged_array17_u32(copy$Option_lengths_Tagged_array17_u32(pair[0]));
 		pair[0] = copy$Option_lengths_Tagged_array17_u32(copy);
 		const part = rs.place(() => pair[0], (value) => pair[0] = value);
 		const part2 = rs.place(() => copy, (value2) => copy = value2);
 		if (part.v !== undefined) {
 			if (part2.v !== undefined) {
-				rs.sliceReverse(rs.sliceFrom(part.v._0));
+				const a: rs.Slice<rs.u32> = rs.sliceFrom(part.v._0);
+				const b: rs.Slice<rs.u32> = rs.sliceFrom(part2.v._0);
+				rs.sliceReverse(a);
 				part2.v._1 = part2.v._1 ^ 255;
 				rs.byteVecPush(out, part2.v._1);
-				rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(part.v._0), rs.iterSlice(part2.v._0)), (_2: rs.u32): rs.u8 => {
+				rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(rs.sliceItems(a)), rs.iterSlice(rs.sliceItems(b))), (_2: rs.u32): rs.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -397,24 +403,26 @@ export function recloned$u32_17(rows: rs.Slice<rs.u32[]>, out: rs.ByteVec): void
 
 /** [`retagged`] of a type parameter's values. */
 export function recloned$u32_3(rows: rs.Slice<rs.u32[]>, out: rs.ByteVec): void {
-	const iter: rs.Iter<[rs.usize, rs.u32[]]> = rs.iterEnumerate(rs.iterSlice(rs.sliceItems(rows)));
+	const iter: rs.Iter<[rs.usize, rs.Slice<rs.u32>]> = rs.iterEnumerate(rs.iterLend(rs.iterSlice(rs.sliceItems(rows)), rs.sliceFrom));
 	while (true) {
-		const _7: [rs.usize, rs.u32[]] | rs.Done = iter.next();
+		const _7: [rs.usize, rs.Slice<rs.u32>] | rs.Done = iter.next();
 		if (_7 === rs.DONE) {
 			break;
 		}
 		const at: rs.usize = _7[0];
-		const pair: [Tagged.Tagged<rs.u32[]> | undefined, rs.u8] = [new Tagged.Tagged(copy$array_u32(copy$array_u32(_7[1])), at & 0xff), 0];
+		const pair: [Tagged.Tagged<rs.u32[]> | undefined, rs.u8] = [new Tagged.Tagged(copy$array_u32(rs.sliceToArray(_7[1])), at & 0xff), 0];
 		let copy: Tagged.Tagged<rs.u32[]> | undefined = copy$Option_lengths_Tagged_array3_u32(copy$Option_lengths_Tagged_array3_u32(pair[0]));
 		pair[0] = copy$Option_lengths_Tagged_array3_u32(copy);
 		const part = rs.place(() => pair[0], (value) => pair[0] = value);
 		const part2 = rs.place(() => copy, (value2) => copy = value2);
 		if (part.v !== undefined) {
 			if (part2.v !== undefined) {
-				rs.sliceReverse(rs.sliceFrom(part.v._0));
+				const a: rs.Slice<rs.u32> = rs.sliceFrom(part.v._0);
+				const b: rs.Slice<rs.u32> = rs.sliceFrom(part2.v._0);
+				rs.sliceReverse(a);
 				part2.v._1 = part2.v._1 ^ 255;
 				rs.byteVecPush(out, part2.v._1);
-				rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(part.v._0), rs.iterSlice(part2.v._0)), (_2: rs.u32): rs.u8 => {
+				rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(rs.sliceItems(a)), rs.iterSlice(rs.sliceItems(b))), (_2: rs.u32): rs.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -1939,16 +1947,18 @@ export function put$lengths_Put_array3_u8(self: rs.ByteSlice, out: rs.ByteVec): 
  * either changes.
  */
 export function swapped$u32_0(data: rs.ByteSlice, rows: rs.Slice<rs.u32[]>, out: rs.ByteVec): void {
-	const _6: [rs.u32[], rs.Slice<rs.u32[]>] | undefined = rs.sliceSplitFirst(rows);
+	const _6: [rs.Slice<rs.u32>, rs.Slice<rs.u32[]>] | undefined = rs.optionMap(rs.sliceSplitFirst(rows), (held): [rs.Slice<rs.u32>, rs.Slice<rs.u32[]>] => {
+		return [rs.sliceFrom(held[0]), held[1]];
+	});
 	b0: {
 		if (_6 !== undefined) {
-			const item = copy$array_u32(copy$array_u32(_6[0]));
+			const item = copy$array_u32(rs.sliceToArray(_6[0]));
 			const grid: rs.u32[][] = Array.from({ length: 2 }, (): rs.u32[] => {
 				return copy$array_u32(item);
 			});
-			const _9: rs.u32[] | undefined = rs.sliceFirst(_6[1]);
+			const _9: rs.Slice<rs.u32> | undefined = rs.optionMap(rs.sliceFirst(_6[1]), rs.sliceFrom);
 			if (_9 !== undefined) {
-				const next: rs.u32[] = copy$array_u32(_9);
+				const next: rs.u32[] = rs.sliceToArray(_9);
 				grid[1] = copy$array_u32(next);
 			}
 			const iterS: Uint8Array = rs.byteSliceView(data);
@@ -1977,7 +1987,7 @@ export function swapped$u32_0(data: rs.ByteSlice, rows: rs.Slice<rs.u32[]>, out:
 						_32.v = _31[1];
 					}
 				}
-				rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(row), rs.iterFlatten(rs.iterSlice(grid), (value: rs.u32[]) => rs.iterSlice(value), true, 0)), (_2: rs.u32): rs.u8 => {
+				rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(row), rs.iterFlatten(rs.iterLend(rs.iterSlice(grid), rs.sliceFrom), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 0)), (_2: rs.u32): rs.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -1990,16 +2000,18 @@ export function swapped$u32_0(data: rs.ByteSlice, rows: rs.Slice<rs.u32[]>, out:
  * either changes.
  */
 export function swapped$u32_1(data: rs.ByteSlice, rows: rs.Slice<rs.u32[]>, out: rs.ByteVec): void {
-	const _6: [rs.u32[], rs.Slice<rs.u32[]>] | undefined = rs.sliceSplitFirst(rows);
+	const _6: [rs.Slice<rs.u32>, rs.Slice<rs.u32[]>] | undefined = rs.optionMap(rs.sliceSplitFirst(rows), (held): [rs.Slice<rs.u32>, rs.Slice<rs.u32[]>] => {
+		return [rs.sliceFrom(held[0]), held[1]];
+	});
 	b0: {
 		if (_6 !== undefined) {
-			const item = copy$array_u32(copy$array_u32(_6[0]));
+			const item = copy$array_u32(rs.sliceToArray(_6[0]));
 			const grid: rs.u32[][] = Array.from({ length: 2 }, (): rs.u32[] => {
 				return copy$array_u32(item);
 			});
-			const _9: rs.u32[] | undefined = rs.sliceFirst(_6[1]);
+			const _9: rs.Slice<rs.u32> | undefined = rs.optionMap(rs.sliceFirst(_6[1]), rs.sliceFrom);
 			if (_9 !== undefined) {
-				const next: rs.u32[] = copy$array_u32(_9);
+				const next: rs.u32[] = rs.sliceToArray(_9);
 				grid[1] = copy$array_u32(next);
 			}
 			const iterS: Uint8Array = rs.byteSliceView(data);
@@ -2028,7 +2040,7 @@ export function swapped$u32_1(data: rs.ByteSlice, rows: rs.Slice<rs.u32[]>, out:
 						_32.v = _31[1];
 					}
 				}
-				rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(row), rs.iterFlatten(rs.iterSlice(grid), (value: rs.u32[]) => rs.iterSlice(value), true, 1)), (_2: rs.u32): rs.u8 => {
+				rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(row), rs.iterFlatten(rs.iterLend(rs.iterSlice(grid), rs.sliceFrom), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 1)), (_2: rs.u32): rs.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -2041,16 +2053,18 @@ export function swapped$u32_1(data: rs.ByteSlice, rows: rs.Slice<rs.u32[]>, out:
  * either changes.
  */
 export function swapped$u32_17(data: rs.ByteSlice, rows: rs.Slice<rs.u32[]>, out: rs.ByteVec): void {
-	const _6: [rs.u32[], rs.Slice<rs.u32[]>] | undefined = rs.sliceSplitFirst(rows);
+	const _6: [rs.Slice<rs.u32>, rs.Slice<rs.u32[]>] | undefined = rs.optionMap(rs.sliceSplitFirst(rows), (held): [rs.Slice<rs.u32>, rs.Slice<rs.u32[]>] => {
+		return [rs.sliceFrom(held[0]), held[1]];
+	});
 	b0: {
 		if (_6 !== undefined) {
-			const item = copy$array_u32(copy$array_u32(_6[0]));
+			const item = copy$array_u32(rs.sliceToArray(_6[0]));
 			const grid: rs.u32[][] = Array.from({ length: 2 }, (): rs.u32[] => {
 				return copy$array_u32(item);
 			});
-			const _9: rs.u32[] | undefined = rs.sliceFirst(_6[1]);
+			const _9: rs.Slice<rs.u32> | undefined = rs.optionMap(rs.sliceFirst(_6[1]), rs.sliceFrom);
 			if (_9 !== undefined) {
-				const next: rs.u32[] = copy$array_u32(_9);
+				const next: rs.u32[] = rs.sliceToArray(_9);
 				grid[1] = copy$array_u32(next);
 			}
 			const iterS: Uint8Array = rs.byteSliceView(data);
@@ -2079,7 +2093,7 @@ export function swapped$u32_17(data: rs.ByteSlice, rows: rs.Slice<rs.u32[]>, out
 						_32.v = _31[1];
 					}
 				}
-				rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(row), rs.iterFlatten(rs.iterSlice(grid), (value: rs.u32[]) => rs.iterSlice(value), true, 17)), (_2: rs.u32): rs.u8 => {
+				rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(row), rs.iterFlatten(rs.iterLend(rs.iterSlice(grid), rs.sliceFrom), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 17)), (_2: rs.u32): rs.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}
@@ -2092,16 +2106,18 @@ export function swapped$u32_17(data: rs.ByteSlice, rows: rs.Slice<rs.u32[]>, out
  * either changes.
  */
 export function swapped$u32_3(data: rs.ByteSlice, rows: rs.Slice<rs.u32[]>, out: rs.ByteVec): void {
-	const _6: [rs.u32[], rs.Slice<rs.u32[]>] | undefined = rs.sliceSplitFirst(rows);
+	const _6: [rs.Slice<rs.u32>, rs.Slice<rs.u32[]>] | undefined = rs.optionMap(rs.sliceSplitFirst(rows), (held): [rs.Slice<rs.u32>, rs.Slice<rs.u32[]>] => {
+		return [rs.sliceFrom(held[0]), held[1]];
+	});
 	b0: {
 		if (_6 !== undefined) {
-			const item = copy$array_u32(copy$array_u32(_6[0]));
+			const item = copy$array_u32(rs.sliceToArray(_6[0]));
 			const grid: rs.u32[][] = Array.from({ length: 2 }, (): rs.u32[] => {
 				return copy$array_u32(item);
 			});
-			const _9: rs.u32[] | undefined = rs.sliceFirst(_6[1]);
+			const _9: rs.Slice<rs.u32> | undefined = rs.optionMap(rs.sliceFirst(_6[1]), rs.sliceFrom);
 			if (_9 !== undefined) {
-				const next: rs.u32[] = copy$array_u32(_9);
+				const next: rs.u32[] = rs.sliceToArray(_9);
 				grid[1] = copy$array_u32(next);
 			}
 			const iterS: Uint8Array = rs.byteSliceView(data);
@@ -2130,7 +2146,7 @@ export function swapped$u32_3(data: rs.ByteSlice, rows: rs.Slice<rs.u32[]>, out:
 						_32.v = _31[1];
 					}
 				}
-				rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(row), rs.iterFlatten(rs.iterSlice(grid), (value: rs.u32[]) => rs.iterSlice(value), true, 3)), (_2: rs.u32): rs.u8 => {
+				rs.iterExtendBytes(out, rs.iterMap(rs.iterChain(rs.iterSlice(row), rs.iterFlatten(rs.iterLend(rs.iterSlice(grid), rs.sliceFrom), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 3)), (_2: rs.u32): rs.u8 => {
 					return _2 & 0xff;
 				}), undefined, true);
 			}

@@ -315,9 +315,9 @@ pub fn byte_pointer_parts(a: [u8; 4], b: [[u8; 2]; 3]) -> bool {
 	std::ptr::eq(x, y) || std::ptr::eq(&b[0], &b[1])
 }
 
-/// Pointers to arrays of other values than bytes, which a slice lends as copies, compared.
-pub fn array_pointers(a: [u16; 2], s: &[u16]) -> bool {
-	s.first_chunk::<2>().is_some_and(|c| std::ptr::eq(c, &a))
+/// Pointers to arrays of one, which JS makes of its own for a value, compared.
+pub fn array_of_one(n: u32) -> bool {
+	std::ptr::eq(std::array::from_ref(&n), std::array::from_ref(&n))
 }
 
 /// Pointers to an array of bytes in a variable assigned again while they point there,

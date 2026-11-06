@@ -45,7 +45,7 @@ Decided with the maintainer on 2026-10-27, from a census of the model's 22 publi
 - The end-to-end work stays here: the model's roots, its differential harness, and the
   `frames.ts` workload. moq writes the binding files `model.toml` names, in its own tree.
 
-The census at the pin on 2026-11-04: 69 refusals. `Timestamp` alone refuses nothing, and
+The census at the pin on 2026-11-04: 82 refusals. `Timestamp` alone refuses nothing, and
 the [model fixture](/ts/README.md#tests)'s harness runs it against native moq-net at the
 pin; each case it adds as a type translates. Every other root reaches the rest of the
 model, so each child below unblocks all of them together. The rest is moq's, for its
@@ -55,11 +55,21 @@ refuses for good, and smallvec's union over a type parameter and raw parts (10) 
 [unsafe](/quest/m3/ts-unsafe.md), so both need safe `cfg(rust2_ts)` twins or bindings
 there, as does the `unsafe` slice of `model/frame.rs`'s `Filled`.
 
+Decided with the maintainer on 2026-11-04, from a census at the bumped pin
+(moq-dev/rust2#390): the refusals no quest owned became the children below. ✅ arrayvec's
+`ArrayString` needs three of them (const generic types, `begin_panic`, `str::as_ptr`),
+kept separate since each lands alone; rejected: one quest for `ArrayString`.
+
 ## Required
 
-- [Iterators into a crate's own collections](/quest/m2/ts-model/from-iterator.md) - `collect`, `flat_map`, and `flatten` through moq-pattern's `Patterns`
 - [Bytes from an owner that drops](/quest/m2/ts-model/bytes-owner.md) - `Bytes::from_owner` of a frame's segment
 - [rangemap](/quest/m2/ts-model/rangemap.md) - B-tree ranges by a borrowed key, and std's iterators in a crate's fields
 - [Addresses as identity](/quest/m2/ts-model/addresses.md) - `Arc::as_ptr(a) as usize` as a key, which needs a decision
+- [Option fields at a unit instance](/quest/m2/ts-model/unit-option-fields.md) - `Idle<()>`'s `Option<T>` field tells `Some(())` from `None`
+- [Const generic types](/quest/m2/ts-model/const-generics.md) - `ArrayString<CAP>` and other types with const parameters
+- [panic! in a 2015 or 2018 crate](/quest/m2/ts-model/begin-panic.md) - the `begin_panic` mapping keyed by its defining module
+- [A string's bytes through its pointer](/quest/m2/ts-model/str-as-ptr.md) - `str::as_ptr` reads the string's UTF-8
+- [Scheduler hints](/quest/m2/ts-model/scheduler-hints.md) - `thread::yield_now` and `hint::spin_loop` translate to nothing
+- [Slices not yet written](/quest/m2/ts-model/uninit-slices.md) - `Box::new_uninit_slice` of a frame's segment
 
 Public API: the translator's output for moq-net's model.
