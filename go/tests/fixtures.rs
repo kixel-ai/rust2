@@ -311,6 +311,10 @@ fn items() {
 		"func TalliesSum(",
 		"type Meter struct",
 		"func MeterNew(",
+		"type Byte = Value[uint8]",
+		"type Level = uint8",
+		"type Pair[T any] = tuple2[T, T]",
+		"func Unwrap(",
 	] {
 		assert!(text.contains(exported), "items.go lacks `{exported}`");
 	}

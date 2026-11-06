@@ -83,7 +83,8 @@ pub const PREDECLARED: &[&str] = &[
 /// The crate's `pub` API: each item a path of `pub` names from the crate root reaches,
 /// through its modules, re-exports, and those of the crates it re-exports modules of, by
 /// its shortest such path, the first in definition order of those as short. A module is
-/// walked rather than listed, and an alias stands for its type where no path reaches it.
+/// walked rather than listed, and an alias of a type with the alias's own parameters
+/// stands for the type where no other path reaches it.
 pub fn public(tcx: TyCtxt<'_>) -> Vec<(String, DefId)> {
 	let root = CRATE_DEF_ID.to_def_id();
 	let mut items = Vec::new();
@@ -109,18 +110,20 @@ pub fn public(tcx: TyCtxt<'_>) -> Vec<(String, DefId)> {
 			};
 			match kind {
 				DefKind::Mod => modules.push_back((path, def_id)),
-				DefKind::TyAlias => {
-					if let ty::Adt(adt, _) = tcx.type_of(def_id).instantiate_identity().skip_norm_wip().kind() {
-						aliased.push((path, adt.did()));
-					}
-				}
+				DefKind::TyAlias => aliased.push((path, def_id)),
 				_ => items.push((path, def_id)),
 			}
 		}
 	}
-	for (path, def_id) in aliased {
-		if seen.insert(def_id) {
-			items.push((path, def_id));
+	for (path, alias) in aliased {
+		let identity = ty::GenericArgs::identity_for_item(tcx, alias);
+		match *tcx.type_of(alias).instantiate_identity().skip_norm_wip().kind() {
+			ty::Adt(adt, args)
+				if args == identity && super::library::mapped(tcx, adt.did()).is_none() && seen.insert(adt.did()) =>
+			{
+				items.push((path, adt.did()))
+			}
+			_ => items.push((path, alias)),
 		}
 	}
 	items

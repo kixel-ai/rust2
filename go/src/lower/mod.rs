@@ -231,8 +231,8 @@ impl<'tcx> Translator<'tcx> {
 	}
 
 	/// An item of the `pub` API, by the path the crate exports it at, exported to Go
-	/// callers: a function, or a type with its `pub` inherent methods. A trait comes along
-	/// as its impls are called, and a module's items and an alias's type are their own.
+	/// callers: a function, a type with its `pub` inherent methods, or an alias as Go's.
+	/// A trait comes along as its impls are called, and a module's items are their own.
 	fn root(&mut self, path: &str, def_id: DefId) {
 		let tcx = self.tcx;
 		let span = tcx.def_span(def_id);
@@ -253,6 +253,11 @@ impl<'tcx> Translator<'tcx> {
 						}
 					}
 				}
+			}
+			DefKind::TyAlias => {
+				let name = names::exported(path);
+				self.claim(&name, span);
+				self.alias_decl(&name, def_id);
 			}
 			DefKind::Const | DefKind::Static { .. } => self.root_const(span),
 			_ => {}

@@ -61,6 +61,24 @@ mod gauge {
 /// The only path to `Gauge`, so Go names it `Meter`.
 pub type Meter = gauge::Gauge;
 
+mod value {
+	pub struct Value<T>(pub T);
+}
+
+/// A Go alias of a specialized type: `type Byte = Value[uint8]`.
+pub type Byte = value::Value<u8>;
+
+/// A Go alias of a type with no declaration of its own: `type Level = uint8`.
+pub type Level = u8;
+
+/// A Go alias of a generic type: `type Pair[T any] = tuple2[T, T]`.
+pub type Pair<T> = (T, T);
+
+/// `Unwrap`, through the aliases.
+pub fn unwrap(b: Byte) -> Pair<Level> {
+	(b.0, b.0.wrapping_add(1))
+}
+
 /// Another crate's module, whose `pub` items Go callers reach as this crate's.
 pub use items_dep::shapes;
 
@@ -120,7 +138,15 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 			let b = Count::new(at(1));
 			let bumped = a.bump();
 			let meter = Meter::new(at(2));
-			vec![bumped, tallies::sum(&a, &b).sum, meter.0, shapes::area(at(3), at(4))]
+			let (x, y) = unwrap(value::Value(at(5)));
+			vec![
+				bumped,
+				tallies::sum(&a, &b).sum,
+				meter.0,
+				shapes::area(at(3), at(4)),
+				x,
+				y,
+			]
 		}
 	}
 }

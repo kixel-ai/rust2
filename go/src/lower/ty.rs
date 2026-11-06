@@ -145,6 +145,37 @@ impl<'tcx> Translator<'tcx> {
 		}
 	}
 
+	/// A `pub` type alias, as a Go alias named `name` of its type, generic where Rust's is.
+	pub(super) fn alias_decl(&mut self, name: &str, def_id: DefId) {
+		let tcx = self.tcx;
+		let params = self.type_params(def_id);
+		let ty = tcx.type_of(def_id).instantiate_identity().skip_norm_wip();
+		let target = self.go_ty(ty, tcx.def_span(def_id), true);
+		let doc = format!("// {name} is Rust's `{}`.\n", tcx.def_path_str(def_id));
+		self.declare(def_id.krate, name, format!("{doc}type {name}{params} = {target}\n"));
+	}
+
+	/// The Go type parameters of a type's or alias's declaration, as its own Rust ones.
+	fn type_params(&mut self, def_id: DefId) -> String {
+		let tcx = self.tcx;
+		let mut params = Vec::new();
+		for param in &tcx.generics_of(def_id).own_params {
+			match param.kind {
+				ty::GenericParamDefKind::Lifetime => {}
+				ty::GenericParamDefKind::Type { .. } => {
+					params.push(format!("{} any", names::ident(param.name.as_str())))
+				}
+				ty::GenericParamDefKind::Const { .. } => {
+					self.err(tcx.def_span(def_id), "a type with a const parameter is not supported");
+				}
+			}
+		}
+		match params.is_empty() {
+			true => String::new(),
+			false => format!("[{}]", params.join(", ")),
+		}
+	}
+
 	/// The Go name of an ADT's declaration, declaring it if new: generic over its type
 	/// parameters, as the Rust type is.
 	pub(super) fn adt_decl(&mut self, adt: AdtDef<'tcx>, span: Span) -> String {
@@ -166,23 +197,7 @@ impl<'tcx> Translator<'tcx> {
 			}
 		};
 		self.types.insert(TypeKey::Adt(did), name.clone());
-		let generics = tcx.generics_of(did);
-		let mut params = Vec::new();
-		for param in &generics.own_params {
-			match param.kind {
-				ty::GenericParamDefKind::Lifetime => {}
-				ty::GenericParamDefKind::Type { .. } => {
-					params.push(format!("{} any", names::ident(param.name.as_str())))
-				}
-				ty::GenericParamDefKind::Const { .. } => {
-					self.err(tcx.def_span(did), "a type with a const parameter is not supported");
-				}
-			}
-		}
-		let params = match params.is_empty() {
-			true => String::new(),
-			false => format!("[{}]", params.join(", ")),
-		};
+		let params = self.type_params(did);
 		let identity = ty::GenericArgs::identity_for_item(tcx, did);
 		let mut fields = String::new();
 		if adt.is_union() {
