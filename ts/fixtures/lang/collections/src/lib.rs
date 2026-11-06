@@ -33,6 +33,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("collections::extracts", collections::extracts),
 		("collections::btree_extracts", collections::btree_extracts),
 		("collections::btree_searches", collections::btree_searches),
+		("collections::btree_borrows", collections::btree_borrows),
 		("collections::btree_drops", collections::btree_drops),
 	]
 }
