@@ -208,7 +208,7 @@ func script() {
 	expect(must(joined.AsStr()) == "room/alice/cam", "paths join")
 	expect(must(must(joined.StripPrefix(path)).Equal(cam)), "a path strips its prefix")
 	expect(must(path.StripPrefix(joined)) == nil, "a path strips no longer prefix")
-	expect(must(must(joined.Resolve(must(moq.NewRelative("../bob")))).AsStr()) == "room/bob", "a relative path resolves")
+	expect(must(must(joined.Resolve(must(moq.NewPathRelative("../bob")))).AsStr()) == "room/bob", "a relative path resolves")
 
 	// A client publishes the origin through moq-net's generic `with_publisher`, at each
 	// type that implements its bound, by reference, so Go keeps its handle.
@@ -253,7 +253,7 @@ func script() {
 	// the catalog to Go.
 	publisher := must(moq.NewBroadcastInfo().Produce())
 	extra := must(moq.CatalogConfigDefault().WithCatalogExtra(moq.HangCatalogExtraDefault()))
-	catalog := must(moq.NewCatalogProducerExtra(publisher, extra))
+	catalog := must(moq.NewMuxCatalogProducerExtra(publisher, extra))
 	expect(!must(catalog.IsClaimedBinaryConfig("state")), "an unclaimed name is not claimed")
 	read := 0
 	expect(catalog.Mutate(func(lent *moq.HangCatalogExtra) {
@@ -330,10 +330,10 @@ func script() {
 	expect(len(alpns) > 0 && !slices.Contains(alpns, ""), "each version has an ALPN")
 	versions.Close()
 	// A socket address, crossing in a listener's bind.
-	bind := moq.ListenBind(moq.ListenBindAddr{V0: netip.MustParseAddrPort("[::1]:4443")})
+	bind := moq.TokioListenBind(moq.TokioListenBindAddr{V0: netip.MustParseAddrPort("[::1]:4443")})
 	expect(fmt.Sprint(bind) == "[::1]:4443", "an IPv6 bind prints as Rust's")
 	v4 := netip.MustParseAddrPort("127.0.0.1:0")
-	expect(moq.ListenBindAddr{V0: v4}.String() == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
+	expect(moq.TokioListenBindAddr{V0: v4}.String() == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
 	listen := moq.ListenConfigDefault()
 	check(listen.SetBind(&bind))
 	// The preferred address of each family, which takes only that family.
@@ -369,7 +369,7 @@ func session() {
 
 	serverConfig := moq.ServerConfigDefault()
 	listen := must(serverConfig.Listen())
-	var bind moq.ListenBind = moq.ListenBindAddr{V0: netip.MustParseAddrPort("[::]:0")}
+	var bind moq.TokioListenBind = moq.TokioListenBindAddr{V0: netip.MustParseAddrPort("[::]:0")}
 	check(listen.SetBind(&bind))
 	tls := must(listen.Tls())
 	check(tls.SetGenerate([]string{"localhost"}))

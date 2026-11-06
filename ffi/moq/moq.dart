@@ -178,7 +178,7 @@ Future<void> origin() async {
   expect(joined.asStr() == 'room/alice/cam', 'paths join');
   expect(joined.stripPrefix(path) == cam, 'a path strips its prefix');
   expect(path.stripPrefix(joined) == null, 'a path strips no longer prefix');
-  expect(joined.resolve(moq.Relative('../bob')).asStr() == 'room/bob', 'a relative path resolves');
+  expect(joined.resolve(moq.PathRelative('../bob')).asStr() == 'room/bob', 'a relative path resolves');
 
   // The driver, polled from the event loop until every owner of the origin is gone.
   final driving = drive(driver);
@@ -223,8 +223,8 @@ Future<void> catalog() async {
   // `is_claimed` is named by the last segment of its argument, and whose `mutate` lends
   // the catalog to Dart.
   final publisher = moq.BroadcastInfo().produce();
-  final extra = moq.CatalogConfig.default_().withCatalogExtra(moq.HangCatalogExtra.default_());
-  final producer = moq.CatalogProducerExtra(publisher, extra);
+  final extra = moq.MuxCatalogConfig.default_().withCatalogExtra(moq.HangCatalogExtra.default_());
+  final producer = moq.MuxCatalogProducerExtra(publisher, extra);
   expect(!producer.isClaimedBinaryConfig('state'), 'an unclaimed name is not claimed');
   var read = 0;
   producer.mutate((lent) {
@@ -237,8 +237,8 @@ Future<void> catalog() async {
   // back as text.
   final status = producer.jsonSnapshotConfig(
     publisher.createTrack('status', moq.TrackInfo.default_().withTimescale(moq.Timescale.milli)),
-    moq.JsonConfig.default_(),
-    moq.JsonOptions.default_(),
+    moq.MuxJsonConfig.default_(),
+    moq.MuxJsonOptions.default_(),
   );
   expect(status.name() == 'status', "a JSON snapshot has its track's name");
   expect(producer.isClaimedJsonConfig('status'), 'the JSON snapshot claims its name');
@@ -267,7 +267,7 @@ Future<void> catalog() async {
     "a parse error is serde_json's",
   );
   throws<moq.MuxError>(
-    () => moq.CatalogHangExtra.default_().set('json', moq.Json.parse('1')),
+    () => moq.MuxCatalogHangExtra.default_().set('json', moq.Json.parse('1')),
     (e) => '$e' == 'reserved catalog section: json',
     "a reserved section is moq-mux's error",
   );
@@ -275,8 +275,8 @@ Future<void> catalog() async {
 
 void config() {
   // moq-tokio's terminal connect errors, which moq-net's `Error` shares no names with.
-  expect(moq.ConnectError.unauthorized.isAuth(), 'unauthorized is an auth error');
-  expect('${moq.ConnectError.unauthorized}' == 'unauthorized', "a connect error prints as Rust's");
+  expect(moq.TokioConnectError.unauthorized.isAuth(), 'unauthorized is an auth error');
+  expect('${moq.TokioConnectError.unauthorized}' == 'unauthorized', "a connect error prints as Rust's");
 
   // Session config's foreign types. A URL is parsed from text, failing with why.
   throws<moq.StringException>(
@@ -285,7 +285,7 @@ void config() {
     "a URL's parse error is Rust's",
   );
   // A session's config, its URL and pinned fingerprints set as Rust assigns them.
-  final connect = moq.ConnectConfig.default_();
+  final connect = moq.TokioConnectConfig.default_();
   final tls = connect.tls;
   tls.setFingerprint(['ab:cd']);
   connect.setTls(tls);
@@ -311,21 +311,21 @@ void config() {
   expect(alpns.isNotEmpty && alpns.every((a) => a.isNotEmpty), 'each version has an ALPN');
   versions.close();
   // A socket address, crossing in a listener's bind.
-  final bind = moq.ListenBindAddr(moq.SocketAddr(InternetAddress('::1'), 4443));
+  final bind = moq.TokioListenBindAddr(moq.SocketAddr(InternetAddress('::1'), 4443));
   expect('$bind' == '[::1]:4443', "an IPv6 bind prints as Rust's");
   final v4 = moq.SocketAddr(InternetAddress('127.0.0.1'), 0);
-  expect('${moq.ListenBindAddr(v4)}' == '127.0.0.1:0', "an IPv4 bind prints as Rust's");
-  final listen = moq.ListenConfig.default_();
+  expect('${moq.TokioListenBindAddr(v4)}' == '127.0.0.1:0', "an IPv4 bind prints as Rust's");
+  final listen = moq.TokioListenConfig.default_();
   listen.setBind(bind);
   // The preferred address of each family, which takes only that family.
   listen.setPreferredV4(v4);
   expect(listen.preferredV4 == v4 && listen.preferredV6 == null, 'a listener keeps its preferred IPv4 address');
   // A variant without Rust's `PartialEq` compares by identity, so by its field.
   final listening = listen.bind;
-  expect(listening is moq.ListenBindAddr && listening.$0 == bind.$0, "a listener's config keeps its bind");
+  expect(listening is moq.TokioListenBindAddr && listening.$0 == bind.$0, "a listener's config keeps its bind");
   listen.close();
   // TLS files, as OS paths, and fingerprints, as strings: none by default.
-  final defaults = moq.TlsConnect.default_();
+  final defaults = moq.TokioTlsConnect.default_();
   expect(defaults.root.isEmpty && defaults.fingerprint.isEmpty, 'a default TLS config lists none');
   defaults.close();
 }
@@ -343,9 +343,9 @@ Future<void> session() async {
   liveGroup.writeFrame(null, utf8.encode('hello'));
   liveGroup.finish();
 
-  final serverConfig = moq.ServerConfig.default_();
+  final serverConfig = moq.TokioServerConfig.default_();
   final listen = serverConfig.listen;
-  listen.setBind(moq.ListenBindAddr(moq.SocketAddr(InternetAddress('::'), 0)));
+  listen.setBind(moq.TokioListenBindAddr(moq.SocketAddr(InternetAddress('::'), 0)));
   final tls = listen.tls;
   tls.setGenerate(['localhost']);
   listen.setTls(tls);
@@ -355,12 +355,12 @@ Future<void> session() async {
   expect(local.port != 0, 'a server bound to port 0 reads back the port it got');
   final serving = server.servePublish(served.consume());
 
-  final connect = moq.ConnectConfig.default_();
+  final connect = moq.TokioConnectConfig.default_();
   connect.setUrl(moq.Url.parse('moqt://localhost:${local.port}'));
   final insecure = connect.tls;
   insecure.setInsecure(true);
   connect.setTls(insecure);
-  final clientConfig = moq.ClientConfig.default_();
+  final clientConfig = moq.TokioClientConfig.default_();
   clientConfig.setConnect(connect);
   final client = clientConfig.init();
   final received = moq.originSpawn();

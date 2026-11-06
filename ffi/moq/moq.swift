@@ -133,7 +133,7 @@ func origin(_ waiter: Waiter, _ wakes: Cell<Int>) throws -> (OriginDriver, Int) 
 		expect(joined.asStr() == "room/alice/cam", "paths join")
 		expect(joined.stripPrefix(path) == cam, "a path strips its prefix")
 		expect(path.stripPrefix(joined) == nil, "a path strips no longer prefix")
-		expect(try joined.resolve(Relative.new("../bob")).asStr() == "room/bob", "a relative path resolves")
+		expect(try joined.resolve(PathRelative.new("../bob")).asStr() == "room/bob", "a relative path resolves")
 	}
 
 	_ = try driver.poll(clockNow(), waiter)
@@ -248,8 +248,8 @@ func script() throws {
 	// `is_claimed` is named by the last segment of its argument, and whose `mutate` lends
 	// the catalog to Swift.
 	let publisher = BroadcastInfo.new().produce()
-	let extra = CatalogConfig.default().withCatalogExtra(HangCatalogExtra.default())
-	let catalog = try CatalogProducerExtra.new(publisher, extra)
+	let extra = MuxCatalogConfig.default().withCatalogExtra(HangCatalogExtra.default())
+	let catalog = try MuxCatalogProducerExtra.new(publisher, extra)
 	expect(!catalog.isClaimedBinaryConfig("state"), "an unclaimed name is not claimed")
 	let read = Cell(0)
 	try catalog.mutate { lent in
@@ -263,7 +263,7 @@ func script() throws {
 	// a JSON document, and a section Swift parses from text, set in the lent catalog and
 	// read back as text.
 	let status = try catalog.jsonSnapshotConfig(
-		try publisher.createTrack("status", TrackInfo.default().withTimescale(Timescale.MILLI)), JsonConfig.default(), JsonOptions.default())
+		try publisher.createTrack("status", TrackInfo.default().withTimescale(Timescale.MILLI)), MuxJsonConfig.default(), MuxJsonOptions.default())
 	expect(status.name() == "status", "a JSON snapshot has its track's name")
 	expect(catalog.isClaimedJsonConfig("status"), "the JSON snapshot claims its name")
 	// A value Swift parses is published as the track's latest, which a subscriber reads
@@ -293,15 +293,15 @@ func script() throws {
 		expect(e.error == "EOF while parsing a value at line 1 column 5", "a parse error is serde_json's")
 	}
 	do {
-		try CatalogHangExtra.default().set("json", Json.parse("1"))
+		try MuxCatalogHangExtra.default().set("json", Json.parse("1"))
 		expect(false, "a reserved section is an error")
 	} catch let e as MuxError {
 		expect("\(e)" == "reserved catalog section: json", "a reserved section is moq-mux's error")
 	}
 
 	// moq-tokio's terminal connect errors, which moq-net's `Error` shares no names with.
-	expect(ConnectError.unauthorized.isAuth(), "unauthorized is an auth error")
-	expect("\(ConnectError.unauthorized)" == "unauthorized", "a connect error prints as Rust's")
+	expect(TokioConnectError.unauthorized.isAuth(), "unauthorized is an auth error")
+	expect("\(TokioConnectError.unauthorized)" == "unauthorized", "a connect error prints as Rust's")
 
 	// Session config's foreign types. A URL is parsed from text, failing with why.
 	do {
@@ -311,7 +311,7 @@ func script() throws {
 		expect(e.error == "relative URL without a base", "a URL's parse error is Rust's")
 	}
 	// A session's config, its URL and pinned fingerprints set as Rust assigns them.
-	let connect = ConnectConfig.default()
+	let connect = TokioConnectConfig.default()
 	let tls = connect.tls
 	tls.setFingerprint(["ab:cd"])
 	connect.setTls(tls)
@@ -328,18 +328,18 @@ func script() throws {
 	expect(!alpns.isEmpty && alpns.allSatisfy { !$0.isEmpty }, "each version has an ALPN")
 	// A socket address, crossing in a listener's bind.
 	let loopback: [UInt8] = Array(repeating: 0, count: 15) + [1]
-	let bind = ListenBind.addr(SocketAddr(ip: loopback, port: 4443))
+	let bind = TokioListenBind.addr(SocketAddr(ip: loopback, port: 4443))
 	expect("\(bind)" == "[::1]:4443", "an IPv6 bind prints as Rust's")
 	let v4 = SocketAddr(ip: [127, 0, 0, 1], port: 0)
-	expect("\(ListenBind.addr(v4))" == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
-	let listen = ListenConfig.default()
+	expect("\(TokioListenBind.addr(v4))" == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
+	let listen = TokioListenConfig.default()
 	listen.setBind(bind)
 	// The preferred address of each family, which takes only that family.
 	listen.setPreferredV4(v4)
 	expect(listen.preferredV4 == v4 && listen.preferredV6 == nil, "a listener keeps its preferred IPv4 address")
 	expect(listen.bind == bind, "a listener's config keeps its bind")
 	// TLS files, as OS paths, and fingerprints, as strings: none by default.
-	let defaults = TlsConnect.default()
+	let defaults = TokioTlsConnect.default()
 	expect(defaults.root.isEmpty && defaults.fingerprint.isEmpty, "a default TLS config lists none")
 
 	// A session, as moq.c runs it: a server bound to port 0 reads back the port it got and
@@ -359,7 +359,7 @@ func script() throws {
 		try liveGroup.writeFrame(nil, Data("hello".utf8))
 		try liveGroup.finish()
 
-		let serverConfig = ServerConfig.default()
+		let serverConfig = TokioServerConfig.default()
 		let listen = serverConfig.listen
 		listen.setBind(.addr(SocketAddr(ip: Array(repeating: 0, count: 16), port: 0)))
 		let tls = listen.tls
@@ -371,12 +371,12 @@ func script() throws {
 		expect(local.port != 0, "a server bound to port 0 reads back the port it got")
 		let serving = Task { try await server.servePublish(served.consume()) }
 
-		let connect = ConnectConfig.default()
+		let connect = TokioConnectConfig.default()
 		connect.setUrl(try Url.parse("moqt://localhost:\(local.port)"))
 		let insecure = connect.tls
 		insecure.setInsecure(true)
 		connect.setTls(insecure)
-		let clientConfig = ClientConfig.default()
+		let clientConfig = TokioClientConfig.default()
 		clientConfig.setConnect(connect)
 		let client = try clientConfig.init_()
 		let received = originSpawn()

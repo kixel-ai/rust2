@@ -149,7 +149,7 @@ fun main() {
 		expect(joined.asStr() == "room/alice/cam", "paths join")
 		expect(joined.stripPrefix(path) == cam, "a path strips its prefix")
 		expect(path.stripPrefix(joined) == null, "a path strips no longer prefix")
-		expect(joined.resolve(Relative.new("../bob")).asStr() == "room/bob", "a relative path resolves")
+		expect(joined.resolve(PathRelative.new("../bob")).asStr() == "room/bob", "a relative path resolves")
 	}
 
 	// The driver, polled as a language's event loop would: at the time, and with a waiter
@@ -178,7 +178,7 @@ fun main() {
 	val audio = codecOpusAudioConfig(head)
 	expect(audio.sampleRate == 48000u, "Opus decodes at 48 kHz")
 	expect(audio.channelCount == 2u, "the head is stereo")
-	expect(audio.codec == CatalogAudioCodec.Opus, "the codec is Opus")
+	expect(audio.codec == HangCatalogAudioCodec.Opus, "the codec is Opus")
 	expect(audio.description?.toByteArray()?.contentEquals(head) == true, "the head is the description")
 	// A truncated head is moq-mux's error.
 	try {
@@ -199,8 +199,8 @@ fun main() {
 	// `is_claimed` is named by the last segment of its argument, and whose `mutate` lends
 	// the catalog to Kotlin.
 	val publisher = BroadcastInfo.new().produce()
-	val extra = CatalogConfig.default().withCatalogExtra(HangCatalogExtra.default())
-	val catalog = CatalogProducerExtra.new(publisher, extra)
+	val extra = MuxCatalogConfig.default().withCatalogExtra(HangCatalogExtra.default())
+	val catalog = MuxCatalogProducerExtra.new(publisher, extra)
 	expect(!catalog.isClaimedBinaryConfig("state"), "an unclaimed name is not claimed")
 	var read = 0
 	catalog.mutate { lent ->
@@ -211,7 +211,7 @@ fun main() {
 	// A JSON track the catalog lists, published through moq-mux's generic `json_snapshot` at
 	// a JSON document, and a section Kotlin parses from text, set in the lent catalog and
 	// read back as text.
-	val status = catalog.jsonSnapshotConfig(publisher.createTrack("status", TrackInfo.default().withTimescale(Timescale.MILLI)), JsonConfig.default(), JsonOptions.default())
+	val status = catalog.jsonSnapshotConfig(publisher.createTrack("status", TrackInfo.default().withTimescale(Timescale.MILLI)), MuxJsonConfig.default(), MuxJsonOptions.default())
 	expect(status.name() == "status", "a JSON snapshot has its track's name")
 	expect(catalog.isClaimedJsonConfig("status"), "the JSON snapshot claims its name")
 	// A value Kotlin parses is published as the track's latest, which a subscriber reads
@@ -240,15 +240,15 @@ fun main() {
 		expect(e.error == "EOF while parsing a value at line 1 column 5", "a parse error is serde_json's")
 	}
 	try {
-		CatalogHangExtra.default().use { it.set("json", Json.parse("1")) }
+		MuxCatalogHangExtra.default().use { it.set("json", Json.parse("1")) }
 		expect(false, "a reserved section is an error")
 	} catch (e: MuxErrorException) {
 		expect(e.message == "reserved catalog section: json", "a reserved section is moq-mux's error")
 	}
 
 	// moq-tokio's terminal connect errors, which moq-net's `Error` shares no names with.
-	expect(ConnectError.UNAUTHORIZED.isAuth(), "unauthorized is an auth error")
-	expect(ConnectError.UNAUTHORIZED.toString() == "unauthorized", "a connect error prints as Rust's")
+	expect(TokioConnectError.UNAUTHORIZED.isAuth(), "unauthorized is an auth error")
+	expect(TokioConnectError.UNAUTHORIZED.toString() == "unauthorized", "a connect error prints as Rust's")
 
 	// Session config's foreign types. A URL is parsed from text, failing with why.
 	try {
@@ -258,7 +258,7 @@ fun main() {
 		expect(e.message == "relative URL without a base", "a URL's parse error is Rust's")
 	}
 	// A session's config, its URL and pinned fingerprints set as Rust assigns them.
-	val connect = ConnectConfig.default()
+	val connect = TokioConnectConfig.default()
 	connect.tls.use { tls ->
 		tls.setFingerprint(listOf("ab:cd"))
 		connect.setTls(tls)
@@ -284,11 +284,11 @@ fun main() {
 	versions.close()
 	// A socket address, crossing in a listener's bind.
 	val loopback = ByteArray(16).also { it[15] = 1 }
-	val bind = ListenBind.Addr(java.net.InetSocketAddress(java.net.Inet6Address.getByAddress(null, loopback, null as java.net.NetworkInterface?), 4443))
+	val bind = TokioListenBind.Addr(java.net.InetSocketAddress(java.net.Inet6Address.getByAddress(null, loopback, null as java.net.NetworkInterface?), 4443))
 	expect(bind.toString() == "[::1]:4443", "an IPv6 bind prints as Rust's")
-	val v4 = ListenBind.Addr(java.net.InetSocketAddress(java.net.InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)), 0))
+	val v4 = TokioListenBind.Addr(java.net.InetSocketAddress(java.net.InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)), 0))
 	expect(v4.toString() == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
-	ListenConfig.default().use { listen ->
+	TokioListenConfig.default().use { listen ->
 		listen.setBind(bind)
 		// The preferred address of each family, which takes only that family.
 		listen.setPreferredV4(v4._0)
@@ -296,7 +296,7 @@ fun main() {
 		expect(listen.bind == bind, "a listener's config keeps its bind")
 	}
 	// TLS files, as OS paths, and fingerprints, as strings: none by default.
-	TlsConnect.default().use { tls ->
+	TokioTlsConnect.default().use { tls ->
 		expect(tls.root.isEmpty() && tls.fingerprint.isEmpty(), "a default TLS config lists none")
 	}
 
@@ -314,9 +314,9 @@ fun main() {
 			liveGroup.writeFrame(null, "hello".encodeToByteArray())
 			liveGroup.finish()
 
-			val serverConfig = ServerConfig.default()
+			val serverConfig = TokioServerConfig.default()
 			val listen = serverConfig.listen
-			listen.setBind(ListenBind.Addr(InetSocketAddress(InetAddress.getByName("::"), 0)))
+			listen.setBind(TokioListenBind.Addr(InetSocketAddress(InetAddress.getByName("::"), 0)))
 			val tls = listen.tls
 			tls.setGenerate(listOf("localhost"))
 			listen.setTls(tls)
@@ -326,12 +326,12 @@ fun main() {
 			expect(local.port != 0, "a server bound to port 0 reads back the port it got")
 			val serving = launch { server.servePublish(served.consume()) }
 
-			val connect = ConnectConfig.default()
+			val connect = TokioConnectConfig.default()
 			connect.setUrl(Url.parse("moqt://localhost:${local.port}"))
 			val insecure = connect.tls
 			insecure.setInsecure(true)
 			connect.setTls(insecure)
-			val clientConfig = ClientConfig.default()
+			val clientConfig = TokioClientConfig.default()
 			clientConfig.setConnect(connect)
 			val client = clientConfig.init()
 			val received = originSpawn()

@@ -155,8 +155,9 @@ refused, and the census counts why.
   where the facade re-exports them, so two of one name need two paths. A field's getter
   and setter add `_get` and `_set` to its path, as SWIG's do, so they stay apart from a
   method of the field's name and from a `set_` method, which Rust names verb first:
-  moq-tokio's `Backoff::initial` field is `moq_Backoff_initial_get` and
-  `moq_Backoff_initial_set` beside the method `moq_Backoff_initial`. An enum variant's
+  moq-tokio's `Backoff::initial` field, which moq's facade re-exports in `tokio`, is
+  `moq_tokio_Backoff_initial_get` and `moq_tokio_Backoff_initial_set` beside the method
+  `moq_tokio_Backoff_initial`. An enum variant's
   payload is `<enum>_<Variant>`, and its tag and a constant are the name in upper case.
   Joining still loses where segments split, and the runtime shares the prefix, so every C
   name is registered, and two items claiming one, which only names Rust's conventions
@@ -165,9 +166,9 @@ refused, and the census counts why.
 
   An instance is named by its generic item's name, then each argument but those at their
   defaults after the last that is not, so the instance at its defaults is named as the
-  item. Each argument takes the last segment of its C name, such as `Extra` for moq-mux's
-  `catalog::hang::Extra`, so `catalog::Producer<catalog::hang::Extra>` is
-  `moq_catalog_Producer_Extra`. Where two instances of one item would still share a name,
+  item. Each argument takes the last segment of its C name, such as `Extra` for
+  `mux::catalog::hang::Extra`, so `mux::catalog::Producer<mux::catalog::hang::Extra>` is
+  `moq_mux_catalog_Producer_Extra`. Where two instances of one item would still share a name,
   each argument that tells them apart takes one more segment at a time, until they
   differ: the api fixture's `Counter::seeded` is `api_Counter_seeded_Point` at its
   `Point`, and `api_Counter_seeded_polar_Point` at `polar::Point`. The names depend on
@@ -175,16 +176,16 @@ refused, and the census counts why.
   name. A type instance's methods are named through it, and a function instance appends
   its arguments' names, a reference's by what it borrows. An `exclude` of a type or method
   by the generic type's path leaves it out of every instance, and by the instance's path
-  (`"catalog::Producer<moq::catalog::hang::Extra>::stats"`) out of that one.
+  (`"mux::catalog::Producer<moq::mux::catalog::hang::Extra>::stats"`) out of that one.
 
 ## C++
 
 `<prefix>.hpp` is header-only C++ over the C header, for C++17, 20, and 23, with
 exceptions and RTTI on or off: it throws nothing and reads no type information.
 
-- **Names** are the C names without the prefix, in a namespace of it: `moq_track_producer`
-  is `moq::track_producer`, and its method `moq_track_producer_append_group` is
-  `moq::track_producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
+- **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
+  is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
+  `moq::track_Producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
   as does a member named as its class or one of its fields, and a parameter named as a
   member or as anything in the namespace, which it would hide.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
@@ -257,8 +258,9 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   no call holds it; a call after it throws. One never closed is closed once the GC
   collects it, on a daemon thread a phantom reference queue feeds. A `self` method, or passing the object by
   value, closes it once the call returns. `Clone` is `clone()`, and `PartialEq` is `equals`.
-  A field is a `val`, and its setter a function, `setFirst(value)`, since setting an object
-  moves it in and closes its handle, which an assignment would hide.
+  A field is a `val`, `firstGet`, and its setter a function, `firstSet(value)`, named as
+  the C ones, since setting an object moves it in and closes its handle, which an
+  assignment would hide.
 - **Records** are data classes, compared by their fields, and **enums** an `enum class`,
   or for one with data a sealed class of a data class per variant. `Display` is
   `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`.
@@ -318,8 +320,8 @@ docstrings and signatures.
   which a call holds until it returns, so there is no `close()`. A `self` method, or
   passing the object by value, moves its value out and closes it once the call returns,
   after which a call raises `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable. A field is a
-  property, and its setter a method, `set_first(value)`, since setting an object moves it
-  in and closes it, which an assignment would hide.
+  property, `first_get`, and its setter a method, `first_set(value)`, named as the C ones,
+  since setting an object moves it in and closes it, which an assignment would hide.
 - **Records** are slotted dataclasses, compared by their fields, and **enums** an `Enum`
   of upper-case members, or for one with data a class of a dataclass per variant,
   `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
@@ -374,9 +376,9 @@ in either language mode.
   holds off until it returns, so there is no `close()`. A `self` method, or passing the
   object by value, moves its value out and closes it once the call returns, after which a
   call traps. `Clone` is `clone()`, and `PartialEq`
-  is `==`. A field is a computed property, and its setter a function, `setFirst(value)`,
-  since setting an object moves it in and closes its handle, which an assignment would
-  hide. An object is `Sendable`, since Rust checks each borrow at run time.
+  is `==`. A field is a computed property, `firstGet`, and its setter a function,
+  `firstSet(value)`, named as the C ones, since setting an object moves it in and closes
+  its handle, which an assignment would hide. An object is `Sendable`, since Rust checks each borrow at run time.
 - **Records** are structs and **enums** Swift enums, with a variant's data as associated
   values, all `Sendable`. `PartialEq` is `==`, through Rust's; `Display` is `description`,
   `Debug` `debugDescription`, and `Default` a static `default()`.
@@ -408,13 +410,14 @@ in either language mode.
 later. It includes `<prefix>.h` from `../include`, as the export lays them out, or from its
 own directory, and links the library through `CGO_LDFLAGS`.
 
-- **Names** are the C names without the prefix, in Pascal case: `moq_track_producer` is
-  `TrackProducer`, and its method `moq_track_producer_append_group` is
+- **Names** are the C names without the prefix, in Pascal case: `moq_track_Producer` is
+  `TrackProducer`, and its method `moq_track_Producer_append_group` is
   `TrackProducer.AppendGroup`. A function of a type that takes no receiver is a function of
   the package named through its type (`CounterSeededPoint`), but `new`, which is
   `NewCounter`. A constant keeps its upper case (`LIMIT`), and one that is not a `bool` or
-  integer is a function of that name (`GREETINGS()`). A method named `Close` or `Error`
-  takes a trailing `_`, and a parameter named as a Go keyword, a predeclared name, or a
+  integer is a function of that name (`GREETINGS()`). A method named `Close` or `Error`,
+  and a function of the package named as a type, such as moq's `clock::wall` beside
+  `clock::Wall`, takes a trailing `_`, and a parameter named as a Go keyword, a predeclared name, or a
   package the code uses takes one too.
 - **Objects** are pointers to structs owning their handle. `Close()` frees it once no call
   holds it, and a second `Close()` does nothing; one never closed is closed once the GC
@@ -422,8 +425,8 @@ own directory, and links the library through `CGO_LDFLAGS`.
   receiver or anywhere in its arguments, returns an error matching `ErrClosed`, even when
   `Close` races it on another goroutine, so every such call returns an `error`; `String()`
   and `GoString()`, which return none, return its text. A `self` method, or passing the object by value, closes
-  it once the call returns. `Clone` is `Clone()`, and a `pub` field a getter, `First()`,
-  and a setter, `SetFirst(v)`.
+  it once the call returns. `Clone` is `Clone()`, and a `pub` field a getter, `FirstGet()`,
+  and a setter, `FirstSet(v)`.
 - **Records** are structs, and **plain enums** an `int32` type with a constant per
   variant (`ShapeSquare`). An enum with data is an interface each variant's struct
   implements (`EventMoved{V0: p}`), sealed so only the package's do; its methods are the
@@ -480,13 +483,14 @@ the shared library the crate builds with `--features dart` as the package's nati
 the library's own URI, mapped to the library by a build hook or by `--native-assets`.
 
 - **Names** are the C names without the prefix: a type in Pascal case and a member in
-  camel case, so `moq_track_producer` is `TrackProducer`, and its method
-  `moq_track_producer_append_group` is `TrackProducer.appendGroup`. A function of a type
+  camel case, so `moq_track_Producer` is `TrackProducer`, and its method
+  `moq_track_Producer_append_group` is `TrackProducer.appendGroup`, and a constant in
+  upper case (`LIMIT`). A function of a type
   that returns it is a constructor, which may share its name with a field: an object's
   `new` is its unnamed one (`Counter('c', 1)`), and any other a named one
   (`Position.group`). A type's other functions are static members. A reserved word takes
   a trailing `_` (`Point.default_()`). An item whose Dart name clashes with another's, or
-  with a name the runtime declares, fails the export: give it a `rename`.
+  with a name the runtime declares, fails the export: rename one in the source or exclude it.
 - **Objects** are final classes owning their handle. `close()` frees it once no call
   holds it, and a second does nothing; one never closed is freed once the garbage
   collector finds it unreachable, through a finalizable handle of Dart's C API. Any call that meets a

@@ -100,7 +100,7 @@ Future<void> until(bool Function() done, String what) async {
 }
 
 Future<void> script() async {
-  print('limit ${api.limit}');
+  print('limit ${api.LIMIT}');
 
   final p = const api.Point(x: 1, y: 2).offset(2, 3);
   print('offset ${p.x} ${p.y}');
@@ -376,7 +376,7 @@ Future<void> script() async {
   );
   print('cross $cross outer ${api.OuterInnerU8(4).get()}');
   // A bound that outlives the call takes a value, and an instance only a constant names.
-  print('kept ${api.keptPoint(const api.Point(x: 1, y: -2))} boxed ${api.boxed.value}');
+  print('kept ${api.keptPoint(const api.Point(x: 1, y: -2))} boxed ${api.BOXED.value}');
   print('keep ${api.keepPoint(const api.Point(x: 1, y: -2))}');
   // Inferred instances taking a lent closure and a foreign implementation, and one only
   // its impl of a trait names.
@@ -473,7 +473,7 @@ Future<void> script() async {
         api.Label l => l.debug(),
         _ => throw ArgumentError(v),
       }).join(', ')}]';
-  print('shapes ${debugs(api.Shape.all)} greetings ${quoted(api.greetings)}');
+  print('shapes ${debugs(api.Shape.ALL)} greetings ${quoted(api.GREETINGS)}');
   final trail = api.Trail([const api.Point(x: 1, y: 2), const api.Point(x: 3, y: 4)], ['a', 'b']);
   print('trail ${debugs(trail.points())} ${debugs(trail.labels())}');
   // Returned iterators, each collected at the call: drained labels are gone after.

@@ -43,9 +43,16 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<String, 
 		closures: BTreeMap::new(),
 		tuples: BTreeSet::new(),
 		names: BTreeMap::new(),
+		classes: BTreeSet::new(),
 		errors: Vec::new(),
 		thrown: BTreeMap::new(),
 	};
+	let api = abi.api;
+	let types = (0..api.records.len()).map(|i| abi.record(i));
+	let types = types.chain((0..api.enums.len()).map(|i| abi.enumeration(i)));
+	let types = types.chain((0..api.objects.len()).map(|i| abi.object(i)));
+	let types = types.chain((0..api.callbacks.len()).map(|i| abi.callback(i)));
+	g.classes = types.map(|c| g.class(&c)).collect();
 	g.write();
 	if !g.errors.is_empty() {
 		return Err(g.errors.join("\n"));
@@ -167,6 +174,8 @@ struct Gen<'a> {
 	tuples: BTreeSet<usize>,
 	/// Each package-level Go name, with what claimed it.
 	names: BTreeMap<String, String>,
+	/// Each exported type's Go name.
+	classes: BTreeSet<String>,
 	errors: Vec<String>,
 	/// The struct each error type that is no exported type returns as, by name.
 	thrown: BTreeMap<String, Type>,
@@ -1005,8 +1014,7 @@ impl<'a> Gen<'a> {
 		);
 		let mut variants = Vec::new();
 		for variant in &e.variants {
-			let snake = abi::snake(&variant.name);
-			let vname = format!("{name}{}", pascal(&snake));
+			let vname = format!("{name}{}", pascal(&variant.name));
 			self.claim(&vname, format!("variant `{rust}::{}`", variant.name));
 			let fields: Vec<(String, String)> = (variant.fields.iter())
 				.map(|f| (field_name(&f.name), self.go(&f.ty)))
@@ -1037,7 +1045,7 @@ impl<'a> Gen<'a> {
 				};
 				self.types.push_str(&forward.write());
 			}
-			variants.push((variant, snake, vname, fields));
+			variants.push((variant, vname, fields));
 		}
 		for function in statics {
 			self.types.push_str(&function.write());
@@ -1045,7 +1053,7 @@ impl<'a> Gen<'a> {
 		// Its conversions.
 		let mut lifts = Vec::new();
 		let mut lowers = Vec::new();
-		for (n, (variant, snake, vname, fields)) in variants.iter().enumerate() {
+		for (n, (variant, vname, fields)) in variants.iter().enumerate() {
 			let payload = abi::payload(&c, &variant.name);
 			if variant.fields.is_empty() {
 				lifts.push(format!("\tcase {n}:\n\t\treturn {vname}{{}}\n"));
@@ -1322,6 +1330,8 @@ impl<'a> Gen<'a> {
 		let member = match (receiver.is_some(), member.as_str()) {
 			// What every object or value of the type already has.
 			(true, "Close" | "Error") => format!("{member}_"),
+			// A type's name, which Go's case cannot keep apart from a function's as C's does.
+			(false, name) if self.classes.contains(name) => format!("{member}_"),
 			_ => member,
 		};
 

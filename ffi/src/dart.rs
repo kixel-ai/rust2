@@ -1076,7 +1076,7 @@ impl<'a> Gen<'a> {
 			self.range(c, ty);
 		}
 		for constant in &api.constants {
-			let name = member(&self.bare(&abi.name(&constant.path)).to_lowercase(), &[]);
+			let name = abi::snake(self.bare(&abi.name(&constant.path))).to_uppercase();
 			self.claim(&name, format!("const `{}`", constant.path.join("::")));
 			let value = match constant.value {
 				Literal::Bool(b) => b.to_string(),
@@ -1670,7 +1670,11 @@ impl<'a> Gen<'a> {
 			reserved.push("close");
 		}
 		let snake = own.unwrap_or(&bare);
-		let member = member(snake, &reserved);
+		// A constant in upper case, as Rust names it, apart from a method of its name.
+		let member = match function.access {
+			Access::Const => abi::snake(snake).to_uppercase(),
+			_ => member(snake, &reserved),
+		};
 
 		let receiver = function.receiver.filter(|_| owner.is_some());
 		let mut pre = Vec::new();

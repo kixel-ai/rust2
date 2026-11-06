@@ -47,9 +47,10 @@ pub struct Package {
 }
 
 impl Package {
-	/// The first segment of its items' paths in the IR, which the glue depends on it by.
+	/// The first segment of its items' paths in the IR, which the glue depends on it by:
+	/// its crate's name, as Rust code spells its paths.
 	pub fn root(&self) -> String {
-		self.name.replace('-', "_")
+		self.lib.clone()
 	}
 
 	/// [`env::PACKAGE`]'s value.
