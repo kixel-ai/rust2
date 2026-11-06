@@ -924,9 +924,9 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 			let view = self.tail_object(value, pointee, object, from.is_box(), span);
 			return view.unwrap_or_else(|| unsupported(self));
 		}
-		// A box holds one as a `Uint8Array` and a reference as an `rs.ByteSlice`, which one
+		// A box holds an array as a JS array and a reference as an `rs.Slice` of it, which one
 		// class's methods can't both take.
-		if super::byte_array(pointee) {
+		if pointee.is_array() {
 			return self.err(
 				span,
 				format!("a trait object of `{pointee}`, which is not supported yet"),

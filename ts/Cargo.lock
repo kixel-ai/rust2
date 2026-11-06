@@ -220,6 +220,10 @@ name = "lang-collections-fixture"
 version = "0.0.0"
 
 [[package]]
+name = "lang-collects-fixture"
+version = "0.0.0"
+
+[[package]]
 name = "lang-combinators-fixture"
 version = "0.0.0"
 

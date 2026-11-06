@@ -189,7 +189,8 @@ export function owned(a: rs.u8 | undefined, b: rs.u8 | undefined, out: rs.ByteVe
 		return a0 as rs.u16;
 	}));
 	if (wide.ok) {
-		wide.value[0] = 9;
+		const p: rs.Slice<rs.u32> = rs.sliceFrom(wide.value);
+		p.data[p.start] = 9;
 	}
 	if (pair.ok) {
 		matched = rs.Ok(copy$array_u32(pair.value));
@@ -197,7 +198,8 @@ export function owned(a: rs.u8 | undefined, b: rs.u8 | undefined, out: rs.ByteVe
 		matched = rs.Err(pair.error as rs.u16);
 	}
 	if (matched.ok) {
-		matched.value[1] = 8;
+		const p3: rs.Slice<rs.u32> = rs.sliceFrom(matched.value);
+		p3.data[p3.start + 1] = 8;
 	}
 	const iter2: rs.Iter<rs.Result<rs.u32[], rs.u16>> = rs.iterSlice([copy$Result_array2_u32_u16(result_mapErr$12sqndm(pair, (a02: rs.u8): rs.u16 => {
 		return a02 as rs.u16;
@@ -222,13 +224,11 @@ export function panics(a: rs.u8 | undefined, b: rs.u8 | undefined, limit: rs.u8,
 		if (!(x === limit)) {
 			return b;
 		}
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(x, f)];
-		rs.panicFmt(["closure saw ", args2[0]]);
+		rs.panicFmt(["closure saw ", (f: rs.Formatter) => rs.u8Display(x, f)]);
 	}), 1));
 	rs.byteVecPush(out, result_unwrapOrElse$1iet7cd(option_okOr$1j8owgb(b, limit), (e: rs.u8): rs.u8 => {
 		if (rs.u8Rem(e, 4) === 0) {
-			const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(e, f)];
-			rs.panicFmt(["error ", args4[0]]);
+			rs.panicFmt(["error ", (f: rs.Formatter) => rs.u8Display(e, f)]);
 		} else {
 			return e;
 		}

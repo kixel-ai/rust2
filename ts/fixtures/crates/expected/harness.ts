@@ -88,7 +88,7 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 	}
 	const kept: rs.i16[] = [(input.length << 16) >> 16, 7];
 	const filled: rs.i16[] = copy$array_i16(kept);
-	Slots.fill(Slots.withBase(kept[0]), filled);
+	Slots.fill(Slots.withBase(kept[0]), rs.sliceFrom(filled));
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(kept[0] & 0xff, kept[1] & 0xff, filled[0] & 0xff, filled[1] & 0xff)), undefined, true);
 	const _202: rs.u8 = first(input.data, input.start, input.length);
 	rs.byteVecPush(out, _202);

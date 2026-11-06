@@ -63,8 +63,7 @@ export function fmt$fmt_Debug(self: Timescale, f: rs.Formatter): rs.Result<undef
 			if (!rs.u64Eq(1000000, self._0)) {
 				if (!rs.u64Eq(1000000000, self._0)) {
 					const part = self._0;
-					const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Display(part, f)];
-					return rs.fmtWriteFmt(f, ["Timescale(", args2[0], ")"]);
+					return rs.fmtWriteFmt(f, ["Timescale(", (f: rs.Formatter) => rs.u64Display(part, f), ")"]);
 				}
 				return rs.fmtWriteFmt(f, ["Timescale::NANO"]);
 			}
@@ -77,8 +76,7 @@ export function fmt$fmt_Debug(self: Timescale, f: rs.Formatter): rs.Result<undef
 
 export function fmt$fmt_Display(self: Timescale, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const arg = self._0;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Display(arg, f)];
-	return rs.fmtWriteFmt(f, [args2[0]]);
+	return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.u64Display(arg, f)]);
 }
 
 export { new_ as new };

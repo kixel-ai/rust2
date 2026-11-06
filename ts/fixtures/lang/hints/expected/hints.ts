@@ -2237,9 +2237,9 @@ export function typed$array275_u32_hints_reserves_closure5(kind: rs.u8, data: rs
 	} else if (shape === 1) {
 		fill$array275_u32_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_array275_u32_hints_reserves_closure5(coll, rs.iterSkip(rs.iterMap(new rs.RangeInclusive(0, last, rs.u32Step), f), 1), seed, out);
 	} else if (shape === 2) {
-		fill$array275_u32_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_array275_u32_hints_reserves_closure5_hints_typed_closure2_array275_u32_hints_reserves_closure5(coll, rs.iterFilter(rs.iterMap(new rs.RangeInclusive(0, last, rs.u32Step), f), (_2: rs.u32[]): boolean => {
+		fill$array275_u32_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_array275_u32_hints_reserves_closure5_hints_typed_closure2_array275_u32_hints_reserves_closure5(coll, rs.iterFilter(rs.iterMap(new rs.RangeInclusive(0, last, rs.u32Step), f), rs.lending((_2: rs.Slice<rs.u32>): boolean => {
 			return true;
-		}), seed, out);
+		}, (f3) => (held2) => f3(rs.sliceFrom(held2)))), seed, out);
 	} else if (shape === 3) {
 		fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_u32_2_hints_typed_closure1_array275_u32_hints_reserves_closure5(coll, rs.iterMap(rs.iterFlatten(rs.iterSlice([new rs.RangeInclusive(0, 2, rs.u32Step), new rs.RangeInclusive(0, last, rs.u32Step)]), undefined, true), f), seed, out);
 	} else {
@@ -2618,19 +2618,19 @@ export function fill$array275_u32_iter_Filter_iter_Map_ops_RangeInclusive_u32_hi
 		rs.iterExtend(v, items, "next", 1100);
 		len = v.items.length;
 	} else if (coll === 2) {
-		const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed, 2, undefined);
+		const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed.slice(), 2, undefined);
 		rs.iterExtend(v2, items, "next", 1100);
 		len = v2.items.length;
 	} else if (coll === 3) {
 		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1100), 1100) as rs.VecDeque<rs.u32[]>).n;
 	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
+		const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed.slice(), 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
 		rs.dequeExtend(q, items, "next");
 		len = q.n;
 	} else if (coll === 5) {
 		len = rs.heapFrom(rs.iterToVec(items, "next", 1100), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp))).items.length;
 	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
+		const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed.slice(), 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
 		rs.heapExtend(h, items, rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)), "next", 1100);
 		len = h.items.length;
 	} else if (coll === 7) {
@@ -2687,19 +2687,19 @@ export function fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_Range
 		rs.iterExtend(v, items, "next", 1100);
 		len = v.items.length;
 	} else if (coll === 2) {
-		const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed, 2, undefined);
+		const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed.slice(), 2, undefined);
 		rs.iterExtend(v2, items, "next", 1100);
 		len = v2.items.length;
 	} else if (coll === 3) {
 		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1100), 1100) as rs.VecDeque<rs.u32[]>).n;
 	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
+		const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed.slice(), 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
 		rs.dequeExtend(q, items, "next");
 		len = q.n;
 	} else if (coll === 5) {
 		len = rs.heapFrom(rs.iterToVec(items, "next", 1100), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp))).items.length;
 	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
+		const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed.slice(), 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
 		rs.heapExtend(h, items, rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)), "next", 1100);
 		len = h.items.length;
 	} else if (coll === 7) {
@@ -2756,19 +2756,19 @@ export function fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_Range
 		rs.iterExtend(v, items, "next", 1100);
 		len = v.items.length;
 	} else if (coll === 2) {
-		const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed, 2, undefined);
+		const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed.slice(), 2, undefined);
 		rs.iterExtend(v2, items, "next", 1100);
 		len = v2.items.length;
 	} else if (coll === 3) {
 		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1100), 1100) as rs.VecDeque<rs.u32[]>).n;
 	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
+		const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed.slice(), 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
 		rs.dequeExtend(q, items, "next");
 		len = q.n;
 	} else if (coll === 5) {
 		len = rs.heapFrom(rs.iterToVec(items, "next", 1100), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp))).items.length;
 	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
+		const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed.slice(), 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
 		rs.heapExtend(h, items, rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)), "next", 1100);
 		len = h.items.length;
 	} else if (coll === 7) {
@@ -2825,19 +2825,19 @@ export function fill$array275_u32_iter_Map_ops_RangeInclusive_u32_hints_typed_cl
 		rs.iterExtend(v, items, undefined, 1100, true);
 		len = v.items.length;
 	} else if (coll === 2) {
-		const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed, 2, undefined);
+		const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed.slice(), 2, undefined);
 		rs.iterExtend(v2, items, undefined, 1100, true);
 		len = v2.items.length;
 	} else if (coll === 3) {
 		len = (rs.dequeFromVec(rs.iterToVec(items, undefined, 1100, true), 1100) as rs.VecDeque<rs.u32[]>).n;
 	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
+		const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed.slice(), 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
 		rs.dequeExtend(q, items, undefined, true);
 		len = q.n;
 	} else if (coll === 5) {
 		len = rs.heapFrom(rs.iterToVec(items, undefined, 1100, true), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp))).items.length;
 	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
+		const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed.slice(), 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
 		rs.heapExtend(h, items, rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)), undefined, 1100, true);
 		len = h.items.length;
 	} else if (coll === 7) {
@@ -2894,19 +2894,19 @@ export function fill$array275_u32_iter_Skip_iter_Map_ops_RangeInclusive_u32_hint
 		rs.iterExtend(v, items, "next", 1100);
 		len = v.items.length;
 	} else if (coll === 2) {
-		const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed, 2, undefined);
+		const v2: rs.Vec<rs.u32[]> = rs.vecFromElem(seed.slice(), 2, undefined);
 		rs.iterExtend(v2, items, "next", 1100);
 		len = v2.items.length;
 	} else if (coll === 3) {
 		len = (rs.dequeFromVec(rs.iterToVec(items, "next", 1100), 1100) as rs.VecDeque<rs.u32[]>).n;
 	} else if (coll === 4) {
-		const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed, 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
+		const q: rs.VecDeque<rs.u32[]> = rs.dequeFromVec(rs.vecFromElem(seed.slice(), 2, undefined), 1100) as rs.VecDeque<rs.u32[]>;
 		rs.dequeExtend(q, items, "next");
 		len = q.n;
 	} else if (coll === 5) {
 		len = rs.heapFrom(rs.iterToVec(items, "next", 1100), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp))).items.length;
 	} else if (coll === 6) {
-		const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed, 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
+		const h: rs.BinaryHeap<rs.u32[]> = rs.heapFrom(rs.vecFromElem(seed.slice(), 2, undefined), rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)));
 		rs.heapExtend(h, items, rs.cmpLe(rs.cmpSlice(rs.cmp)), rs.cmpGe(rs.cmpSlice(rs.cmp)), rs.cmpLt(rs.cmpSlice(rs.cmp)), "next", 1100);
 		len = h.items.length;
 	} else if (coll === 7) {

@@ -241,9 +241,8 @@ export function printed(l: rs.LinkedList<rs.u8>, m: rs.LinkedList<rs.u8>, out: r
 	rs.iterToOption(owned.nextBack());
 	const lent: rs.Iter<rs.Place<rs.u8>> = rs.listIterMut(rs.listClone(m, undefined));
 	lent.next();
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.listIter(l), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.listIter(m), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtListIter(it, f, rs.u8Debug, rs.usizeDebug, "Iter"), (f: rs.Formatter) => rs.fmtIter(owned, f, rs.u8Debug, ["IntoIter"]), (f: rs.Formatter) => rs.fmtListIter(lent, f, rs.u8Debug, rs.usizeDebug, "IterMut")];
-	const _19: rs.Arguments = [args2[0], "|", rs.fmtSpec({ alternate: true }, args2[1]), "|", args2[2], "|", rs.fmtSpec({ debugHex: "x" }, args2[2]), "|", rs.fmtSpec({ alternate: true }, args2[2]), "|", args2[3], "|", args2[4]];
-	rs.fmtWriteString(text, _19);
+	const args3 = [(f: rs.Formatter) => rs.fmtList(rs.listIter(l), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.listIter(m), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtListIter(it, f, rs.u8Debug, rs.usizeDebug, "Iter"), (f: rs.Formatter) => rs.fmtIter(owned, f, rs.u8Debug, ["IntoIter"]), (f: rs.Formatter) => rs.fmtListIter(lent, f, rs.u8Debug, rs.usizeDebug, "IterMut")];
+	rs.fmtWriteString(text, [args3[0], "|", rs.fmtSpec({ alternate: true }, args3[1]), "|", args3[2], "|", rs.fmtSpec({ debugHex: "x" }, args3[2]), "|", rs.fmtSpec({ alternate: true }, args3[2]), "|", args3[3], "|", args3[4]]);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(text.v))), undefined, true);
 }
 
@@ -297,12 +296,10 @@ export function tallies(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, rs.u64Eq(hashOf$collections_LinkedList_lists_Tally(taken), hashOf$collections_LinkedList_lists_Tally(rest)) ? 1 : 0);
 	const text: rs.String = rs.stringNew();
 	const part = rs.iterToVec(rs.iterTake(rs.iterRev(rs.listIter(rest)), 2), undefined, 4, true);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part.items, f, (value: Tally.Tally, f: rs.Formatter) => Tally.fmt$fmt_Debug(value, f))];
-	const _83: rs.Arguments = [args2[0]];
-	rs.fmtWriteString(text, _83);
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.listIter(taken), f, (value: Tally.Tally, f: rs.Formatter) => Tally.fmt$fmt_Debug(value, f))];
-	const _97: rs.Arguments = [rs.fmtSpec({ alternate: true }, args4[0])];
-	rs.fmtWriteString(text, _97);
+	const args5 = [(f: rs.Formatter) => rs.fmtList(part.items, f, (value: Tally.Tally, f: rs.Formatter) => Tally.fmt$fmt_Debug(value, f))];
+	rs.fmtWriteString(text, [args5[0]]);
+	const args6 = [(f: rs.Formatter) => rs.fmtList(rs.listIter(taken), f, (value: Tally.Tally, f: rs.Formatter) => Tally.fmt$fmt_Debug(value, f))];
+	rs.fmtWriteString(text, [rs.fmtSpec({ alternate: true }, args6[0])]);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(text.v))), undefined, true);
 }
 

@@ -326,9 +326,9 @@ pub fn std_impl<'tcx>(
 	let rs = |name: &str, args: Vec<Expr>| Expr::rs_of("fmt", name).call(args);
 	let text = matches!(tr, Trait::Display | Trait::Debug);
 	Some(match ty.kind() {
-		// A reference to an array of bytes is a slice of them, written as a slice is.
-		ty::Ref(_, inner, _) if super::byte_array(*inner) => {
-			b.fmt_call(tr, Ty::new_slice(tcx, tcx.types.u8), value, f, span)
+		// A reference to an array is a slice of it, written as a slice is.
+		ty::Ref(_, inner, _) if let ty::Array(elem, _) = inner.kind() => {
+			b.fmt_call(tr, Ty::new_slice(tcx, *elem), value, f, span)
 		}
 		ty::Ref(_, inner, _) => {
 			let value = b.t.pointee_value(ty, value);

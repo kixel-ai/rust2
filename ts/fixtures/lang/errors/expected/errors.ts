@@ -599,14 +599,14 @@ export function DROPPED$init(): rs.Cell<rs.u32> {
 
 /** Each error in the chain, by `Display` and `Debug`. */
 export function chain(e: Error.Error): rs.String {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => e.fmt$Display(f), (f: rs.Formatter) => e.fmt$Debug(f)];
-	const s: rs.String = rs.fmtFormat([args2[0], " ", args2[1]]);
+	const args5 = [(f: rs.Formatter) => e.fmt$Display(f), (f: rs.Formatter) => e.fmt$Debug(f)];
+	const s: rs.String = rs.fmtFormat([args5[0], " ", args5[1]]);
 	let cur: Error.Error | undefined = e.source$Error();
 	while (true) {
 		if (cur !== undefined) {
 			const c: Error.Error = cur;
-			const args4: rs.Fmt[] = [(f: rs.Formatter) => c.fmt$Display(f), (f: rs.Formatter) => c.fmt$Debug(f)];
-			const _17: string = rs.fmtFormat([" <- ", args4[0], " ", args4[1]]).v;
+			const args6 = [(f: rs.Formatter) => c.fmt$Display(f), (f: rs.Formatter) => c.fmt$Debug(f)];
+			const _17: string = rs.fmtFormat([" <- ", args6[0], " ", args6[1]]).v;
 			rs.stringPushStr(s, _17);
 			cur = c.source$Error();
 		} else {
@@ -633,8 +633,8 @@ export function failure(kind: rs.u8, n: rs.u8): Failure.Failure {
 /** `?` boxes a `Failure` as a `dyn Error`, as does `into`. */
 export function checked(kind: rs.u8, n: rs.u8): rs.Result<rs.u8, Error.Error> {
 	if (!(rs.u8Rem(n, 4) === 0)) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(n, f)];
-		const _8: rs.Result<rs.u8, Failure.Failure> = result_mapErr$09oysgi(num_fromStr$1t58fis(rs.fmtFormat([args2[0], args2[0]]).v), (a0: rs.ParseIntError): Failure.Failure => {
+		const args3 = [(f: rs.Formatter) => rs.u8Display(n, f)];
+		const _8: rs.Result<rs.u8, Failure.Failure> = result_mapErr$09oysgi(num_fromStr$1t58fis(rs.fmtFormat([args3[0], args3[0]]).v), (a0: rs.ParseIntError): Failure.Failure => {
 			return { tag: "Parse", _0: a0 };
 		});
 		if (_8.ok) {
@@ -664,34 +664,33 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 		const _21: rs.String = chain(new of$errors_Failure(_24));
 		const _29: Leaf.Leaf = new Leaf.Leaf(a);
 		const _26: rs.String = chain(new of$errors_Leaf(_29));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _21.v), (f: rs.Formatter) => rs.fmtPad(f, _26.v)];
-		const _17: rs.String = rs.fmtFormat([args2[0], " | ", args2[1], " | "]);
+		const args41 = [(f: rs.Formatter) => rs.fmtPad(f, _21.v), (f: rs.Formatter) => rs.fmtPad(f, _26.v)];
+		const _17: rs.String = rs.fmtFormat([args41[0], " | ", args41[1], " | "]);
 		_29[Symbol.dispose]();
 		drop$errors_Failure(_24);
 		put(out, _17.v);
 		const part = chain(new of$num_ParseIntError(rs.resultUnwrapErr(num_fromStr$1t58fis("x"), rs.u8Debug)));
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part.v)];
-		put(out, rs.fmtFormat([args4[0], " | "]).v);
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPad(f, part.v), " | "]).v);
 		const reserved: Error.Error = rs.resultUnwrapErr(reserve(a), rs.fmtUnit);
 		const _63: rs.String = chain(reserved);
 		const _66: boolean = reserved instanceof of$collections_TryReserveError || reserved instanceof ofPlace$collections_TryReserveError;
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _63.v), (f: rs.Formatter) => reserved.fmt$Debug(f), (f: rs.Formatter) => rs.fmtBool(_66, f)];
-		put(out, rs.fmtFormat([args6[0], " ", rs.fmtSpec({ alternate: true }, args6[1]), " ", args6[2], " | "]).v);
+		const args43 = [(f: rs.Formatter) => rs.fmtPad(f, _63.v), (f: rs.Formatter) => reserved.fmt$Debug(f), (f: rs.Formatter) => rs.fmtBool(_66, f)];
+		put(out, rs.fmtFormat([args43[0], " ", rs.fmtSpec({ alternate: true }, args43[1]), " ", args43[2], " | "]).v);
 		const held: Failure.Failure = failure(a, b);
 		const _86: rs.String = chain(new of$boxed_Box_errors_Failure(held));
 		const _90: rs.String = chain(new of$ref_errors_Failure(held));
-		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _86.v), (f: rs.Formatter) => rs.fmtPad(f, _90.v)];
-		put(out, rs.fmtFormat([args8[0], " | ", args8[1], " | "]).v);
+		const args44 = [(f: rs.Formatter) => rs.fmtPad(f, _86.v), (f: rs.Formatter) => rs.fmtPad(f, _90.v)];
+		put(out, rs.fmtFormat([args44[0], " | ", args44[1], " | "]).v);
 		const coded: Coded.Coded = new of$errors_Failure(failure(b, a));
 		const up: Error.Error = coded;
 		const _111: rs.u8 = coded.code$Coded();
 		const _114: rs.String = chain(up);
-		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(_111, f), (f: rs.Formatter) => rs.fmtPad(f, _114.v)];
-		put(out, rs.fmtFormat([args10[0], " ", args10[1], " | "]).v);
+		const args45 = [(f: rs.Formatter) => rs.u8Display(_111, f), (f: rs.Formatter) => rs.fmtPad(f, _114.v)];
+		put(out, rs.fmtFormat([args45[0], " ", args45[1], " | "]).v);
 		const boxed: Transported.Transported = new Transported.Transported(coded);
 		const _129: rs.String = chain(new of$errors_Transported(boxed));
-		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _129.v), (f: rs.Formatter) => Transported.fmt$fmt_Debug(boxed, f)];
-		put(out, rs.fmtFormat([args12[0], " ", rs.fmtSpec({ alternate: true }, args12[1]), " | "]).v);
+		const args46 = [(f: rs.Formatter) => rs.fmtPad(f, _129.v), (f: rs.Formatter) => Transported.fmt$fmt_Debug(boxed, f)];
+		put(out, rs.fmtFormat([args46[0], " ", rs.fmtSpec({ alternate: true }, args46[1]), " | "]).v);
 		set$1ljkjlf(DROPPED, 0);
 		const results: rs.Vec<rs.Result<rs.u8, Error.Error>> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2))), (_2: rs.u8): rs.Result<rs.u8, Error.Error> => {
 			const n: rs.u8 = _2;
@@ -700,41 +699,33 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 		for (const _149 of results.items) {
 			if (_149.ok) {
 				const arg = _149.value;
-				const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg, f)];
-				put(out, rs.fmtFormat([args14[0], " "]).v);
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg, f), " "]).v);
 			} else {
 				const part2 = chain(_149.error);
-				const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part2.v)];
-				put(out, rs.fmtFormat([args16[0], " "]).v);
+				put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPad(f, part2.v), " "]).v);
 			}
 		}
 		rs.dropVec(results, drop$Result_u8_boxed_Box_dyn_Error_marker_Sync_marker_Send);
 		const part3 = get$0q7640n(DROPPED);
-		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part3, f)];
-		put(out, rs.fmtFormat(["| ", args18[0], " "]).v);
+		put(out, rs.fmtFormat(["| ", (f: rs.Formatter) => rs.u32Display(part3, f), " "]).v);
 		set$1ljkjlf(DROPPED, 0);
 		const leaf: Leaf.Leaf = new Leaf.Leaf(b);
 		const borrowed: Error.Error = new of$ref_errors_Leaf(leaf);
 		const part4 = chain(borrowed);
-		const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part4.v)];
-		put(out, rs.fmtFormat([args20[0], " "]).v);
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPad(f, part4.v), " "]).v);
 		rs.drop(borrowed);
 		const part5 = get$0q7640n(DROPPED);
-		const args22: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part5, f)];
-		put(out, rs.fmtFormat([args22[0], " "]).v);
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(part5, f), " "]).v);
 		leaf[Symbol.dispose]();
 		const part6 = get$0q7640n(DROPPED);
-		const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part6, f)];
-		put(out, rs.fmtFormat([args24[0], " | "]).v);
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(part6, f), " | "]).v);
 		const coded2: Coded.Coded = new of$errors_Failure(failure(a, b));
 		const part7 = downcast(coded2);
-		const args26: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part7.v)];
-		put(out, rs.fmtFormat([args26[0], " "]).v);
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPad(f, part7.v), " "]).v);
 		const errors: rs.Vec<Error.Error> = rs.vecFrom([coded2, new of$errors_Leaf(new Leaf.Leaf(a)), new of$num_ParseIntError(rs.resultUnwrapErr(num_fromStr$1t58fis("x"), rs.u8Debug))]);
 		for (const _277 of errors.items) {
 			const part8 = downcast(_277);
-			const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part8.v)];
-			put(out, rs.fmtFormat([args28[0], " "]).v);
+			put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPad(f, part8.v), " "]).v);
 		}
 		const leaf2: Leaf.Leaf = new Leaf.Leaf(a);
 		const e: Error.Error = new of$errors_Leaf(leaf2);
@@ -743,8 +734,7 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 			_298.code = rs.u8WrappingAdd(_298.code, b);
 		}
 		const arg2 = leaf2.code;
-		const args30: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg2, f)];
-		put(out, rs.fmtFormat([args30[0], " "]).v);
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg2, f), " "]).v);
 		set$1ljkjlf(DROPPED, 0);
 		for (const e2 of errors.items) {
 			const _324: rs.Result<Failure.Failure, Error.Error> = e2 instanceof of$errors_Failure ? rs.Ok(e2.v) : rs.Err(e2);
@@ -752,8 +742,8 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 				f = _324.value;
 				const _334: rs.u8 = Failure.code$errors_Coded(f);
 				const _337: rs.u32 = get$0q7640n(DROPPED);
-				const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(_334, f), (f: rs.Formatter) => rs.u32Display(_337, f)];
-				put(out, rs.fmtFormat(["failure ", args32[0], " ", args32[1], " "]).v);
+				const args58 = [(f: rs.Formatter) => rs.u8Display(_334, f), (f: rs.Formatter) => rs.u32Display(_337, f)];
+				put(out, rs.fmtFormat(["failure ", args58[0], " ", args58[1], " "]).v);
 				drop$errors_Failure(f);
 			} else {
 				const e3: Error.Error = _324.error;
@@ -762,20 +752,18 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 					const l: Leaf.Leaf = _345.value;
 					const _356: rs.u32 = get$0q7640n(DROPPED);
 					const arg3 = l.code;
-					const args34: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg3, f), (f: rs.Formatter) => rs.u32Display(_356, f)];
-					put(out, rs.fmtFormat(["leaf ", args34[0], " ", args34[1], " "]).v);
+					const args57 = [(f: rs.Formatter) => rs.u8Display(arg3, f), (f: rs.Formatter) => rs.u32Display(_356, f)];
+					put(out, rs.fmtFormat(["leaf ", args57[0], " ", args57[1], " "]).v);
 					l[Symbol.dispose]();
 				} else {
 					const e4: Error.Error = _345.error;
-					const args36: rs.Fmt[] = [(f: rs.Formatter) => e4.fmt$Display(f)];
-					put(out, rs.fmtFormat([args36[0], " "]).v);
+					put(out, rs.fmtFormat([(f: rs.Formatter) => e4.fmt$Display(f), " "]).v);
 					rs.drop(e4);
 				}
 			}
 		}
 		const part9 = get$0q7640n(DROPPED);
-		const args38: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part9, f)];
-		put(out, rs.fmtFormat([args38[0], " "]).v);
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(part9, f), " "]).v);
 		const part10 = result_mapErr$1102tun(result_mapErr$0ka0di9(checked(b, rs.u8WrappingMul(a, 4)), (e5: Error.Error): rs.Result<rs.u8, Error.Error> => {
 			return result_map$18dk705(e5 instanceof of$errors_Failure ? rs.Ok(e5.v) : rs.Err(e5), (f2: Failure.Failure): rs.u8 => {
 				const _03: rs.u8 = Failure.code$errors_Coded(f2);
@@ -789,8 +777,7 @@ export function objects(dataData: Uint8Array, dataStart: number, dataLen: number
 				return _05;
 			});
 		});
-		const args40: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtResult(part10, f, rs.u8Debug, (value: rs.Result<rs.u8, rs.String>, f: rs.Formatter) => rs.fmtResult(value, f, rs.u8Debug, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)))];
-		put(out, rs.fmtFormat([args40[0]]).v);
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(part10, f, rs.u8Debug, (value: rs.Result<rs.u8, rs.String>, f: rs.Formatter) => rs.fmtResult(value, f, rs.u8Debug, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)))]).v);
 		leaf2[Symbol.dispose]();
 		boxed[Symbol.dispose]();
 		drop$errors_Failure(held);
@@ -809,8 +796,8 @@ export function downcast(e: Error.Error): rs.String {
 	const _12: rs.u8 | undefined = option_map$0jqf1o0(e instanceof of$errors_Failure ? e.v : e instanceof ofPlace$errors_Failure ? e.v.v : undefined, (f: Failure.Failure): rs.u8 => {
 		return Failure.code$errors_Coded(f);
 	});
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtBool(is[0], f), (f: rs.Formatter) => rs.fmtBool(is[1], f), (f: rs.Formatter) => rs.fmtBool(is[2], f)], f), (f: rs.Formatter) => rs.fmtOption(source, f, (value: [boolean, rs.IntErrorKind | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtBool(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, (value: rs.IntErrorKind, f: rs.Formatter) => rs.fmtWriteStr(f, value))], f)), (f: rs.Formatter) => rs.fmtOption(_12, f, rs.u8Debug)];
-	return rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]]);
+	const args3 = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtBool(is[0], f), (f: rs.Formatter) => rs.fmtBool(is[1], f), (f: rs.Formatter) => rs.fmtBool(is[2], f)], f), (f: rs.Formatter) => rs.fmtOption(source, f, (value: [boolean, rs.IntErrorKind | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtBool(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, (value: rs.IntErrorKind, f: rs.Formatter) => rs.fmtWriteStr(f, value))], f)), (f: rs.Formatter) => rs.fmtOption(_12, f, rs.u8Debug)];
+	return rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2]]);
 }
 
 //# sourceMappingURL=errors.ts.map

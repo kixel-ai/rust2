@@ -14,7 +14,7 @@ use crate::lower::dynamic;
 use crate::lower::library::Std;
 use crate::lower::num::{self, Int};
 use crate::lower::pointer::Pointee;
-use crate::lower::{AdtRepr, StructField, byte_array, field_name};
+use crate::lower::{AdtRepr, StructField, field_name};
 use crate::ts::{Expr, Key, Param, Stmt, StmtKind, Type};
 
 impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
@@ -36,7 +36,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				if self.union_whole(*place, span).is_some() {
 					return Some(self.err(span, "a reference to a union's field kept in more than one slot"));
 				}
-				if let Some(e) = self.mut_subslice(*kind, *place, span, out) {
+				if let Some(e) = self.array_subslice(*kind, *place, span, out) {
 					return Some(e);
 				}
 				if let mir::BorrowKind::Mut { .. } = kind {
@@ -56,12 +56,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					}
 				}
 				let value = self.place_expr(*place, span, out);
-				// A borrow of an array of bytes is a slice of all of it, sharing its bytes. One of
-				// a `MaybeUninit` of them through a raw pointer is a view of the pointer's bytes.
+				// A borrow of an array is a slice of all of it, sharing its elements. One of a
+				// `MaybeUninit` of one through a raw pointer is the array of the pointer's
+				// elements: a view of bytes, and else the array where the slice is all of it.
 				let pointee = place.ty(&self.mir.local_decls, tcx).ty;
-				match (byte_array(pointee), self.in_bytes(*place)) {
-					(true, false) => Expr::rs("byteSliceFrom", vec![value]),
-					(false, true) => Expr::rs("byteSliceView", vec![value]),
+				match (pointee.is_array(), self.in_array(*place)) {
+					(true, false) => self.b.t.array_rs(pointee, "From").call(vec![value]),
+					(false, true) if self.in_bytes(*place) => Expr::rs("byteSliceView", vec![value]),
+					(false, true) => crate::lower::library::slice_items(value),
 					_ => value,
 				}
 			}
@@ -100,12 +102,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 							}
 						}
 					},
-					// A slice of all of an array's bytes, as a borrow of it is.
-					Pointee::Bytes => {
+					// A slice of all of an array, as a borrow of it is.
+					Pointee::Array => {
+						if let Some(e) = self.array_subslice(mir::BorrowKind::Shared, *place, span, out) {
+							return Some(e);
+						}
 						let value = self.place_expr(*place, span, out);
-						match self.in_bytes(*place) {
+						match self.in_array(*place) {
 							true => value,
-							false => Expr::rs("byteSliceFrom", vec![value]),
+							false => self.b.t.array_rs(pointee, "From").call(vec![value]),
 						}
 					}
 					// `&raw mut *p` is `p`. A pointer to `()` is an identity, which only another
@@ -432,13 +437,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let value = self.operand(op, span, out);
 					self.raw_unsize(value, from, span)
 				}
-				// An array, as the slice of all of it. An `Arc`'s or `Rc`'s would need the slice made
-				// inside it, which every owner sharing its count would see.
+				// An array, as the slice of all of it: a reference to one is one already.
 				PointerCoercion::Unsize if unsized_to(from, to).is_some_and(|t| t.is_slice()) => {
 					match to.builtin_deref(true) {
 						Some(pointee) if pointee.is_slice() => {
 							let value = self.operand(op, span, out);
-							Expr::rs("sliceFrom", vec![value])
+							match crate::lower::array_ref(from) {
+								Some(_) => value,
+								None => Expr::rs("sliceFrom", vec![value]),
+							}
 						}
 						_ => self.err(span, format!("a coercion to `{to}`")),
 					}
@@ -495,9 +502,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
-	/// `arc`, an `Arc` of `pointee` unsized to one of `object`, a trait object or a struct
-	/// of one: an `rs.ArcDyn` sharing its count, over what a box of its value unsizes to, or
-	/// the same `Arc` upcast, or `Weak` that `ptr` names.
+	/// `arc`, an `Arc` of `pointee` unsized to one of `object`, a trait object, a struct of
+	/// one, or the slice of an array: an `rs.ArcDyn` sharing its count, over what a box of
+	/// its value unsizes to, or the same `Arc` upcast, or `Weak` that `ptr` names.
 	fn arc_object(
 		&mut self,
 		ptr: &'static str,
@@ -521,7 +528,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 		};
 		let (from, to) = (Ty::new_box(tcx, pointee), Ty::new_box(tcx, object));
-		let value = if self.b.t.dyn_future(object).is_some() {
+		let value = if pointee.is_array() && object.is_slice() {
+			crate::lower::array_fn(pointee, "From").call(vec![value])
+		} else if self.b.t.dyn_future(object).is_some() {
 			self.b.dyn_future(from, to, value, span)
 		} else if self.b.t.dyn_iter(object).is_some() {
 			self.b.dyn_iter(from, to, value, span)
@@ -1147,8 +1156,14 @@ fn arc_object<'tcx>(tcx: TyCtxt<'tcx>, from: Ty<'tcx>, to: Ty<'tcx>) -> Option<(
 		return None;
 	};
 	let object = to_args.type_at(0);
-	(Std::of(tcx, adt.did()) == Some(Std::Arc) && dynamic::unsized_object(tcx, object))
+	(Std::of(tcx, adt.did()) == Some(Std::Arc) && unsizes(tcx, from_args.type_at(0), object))
 		.then(|| (from_args.type_at(0), object))
+}
+
+/// Whether `pointee` unsizes to `object`, a trait object, a struct of one, or the slice of
+/// an array.
+fn unsizes<'tcx>(tcx: TyCtxt<'tcx>, pointee: Ty<'tcx>, object: Ty<'tcx>) -> bool {
+	dynamic::unsized_object(tcx, object) || pointee.is_array() && object.is_slice()
 }
 
 /// What a `Weak` unsized as `arc_object` is points at, and that object or struct.
@@ -1157,7 +1172,7 @@ fn weak_object<'tcx>(tcx: TyCtxt<'tcx>, from: Ty<'tcx>, to: Ty<'tcx>) -> Option<
 		return None;
 	};
 	let object = to_args.type_at(0);
-	(Std::of(tcx, adt.did()) == Some(Std::Weak) && dynamic::unsized_object(tcx, object))
+	(Std::of(tcx, adt.did()) == Some(Std::Weak) && unsizes(tcx, from_args.type_at(0), object))
 		.then(|| (from_args.type_at(0), object))
 }
 

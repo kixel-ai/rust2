@@ -322,17 +322,17 @@ export function bytesMut(data: rs.ByteSlice, out: rs.ByteVec): void {
 	_390[Symbol.dispose]();
 	const _403: rs.usize = buf.length;
 	const _406: rs.usize = buf.cap;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.bytesDebug(rs.bytesMutView(buf), f), (f: rs.Formatter) => rs.usizeDisplay(_403, f), (f: rs.Formatter) => rs.usizeDisplay(_406, f)];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], "\n"]).v));
+	const args7 = [(f: rs.Formatter) => rs.bytesDebug(rs.bytesMutView(buf), f), (f: rs.Formatter) => rs.usizeDisplay(_403, f), (f: rs.Formatter) => rs.usizeDisplay(_406, f)];
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2], "\n"]).v));
 	for (const piece6 of pieces.items) {
 		const _430: rs.usize = piece6.cap;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.bytesDebug(rs.bytesMutView(piece6), f), (f: rs.Formatter) => rs.usizeDisplay(_430, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1], "\n"]).v));
+		const args8 = [(f: rs.Formatter) => rs.bytesDebug(rs.bytesMutView(piece6), f), (f: rs.Formatter) => rs.usizeDisplay(_430, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args8[0], " ", args8[1], "\n"]).v));
 	}
 	for (const bytes3 of frozen.items) {
 		const _452: boolean = rs.bytesIsUnique(bytes3);
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.bytesDebug(bytes3, f), (f: rs.Formatter) => rs.fmtBool(_452, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], "\n"]).v));
+		const args9 = [(f: rs.Formatter) => rs.bytesDebug(bytes3, f), (f: rs.Formatter) => rs.fmtBool(_452, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args9[0], " ", args9[1], "\n"]).v));
 	}
 	const vec2: rs.ByteVec = rs.bytesMutToByteVec(buf);
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(vec2.data.length as rs.u32).reverse()));
@@ -3217,8 +3217,7 @@ export function chunkWrite(chunk: rs.ByteSlice, op: rs.u8, n: rs.u8, out: rs.Byt
 				break b1;
 			}
 		}
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => UninitSlice.fmt$fmt_Debug(chunk, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0]]).v));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => UninitSlice.fmt$fmt_Debug(chunk, f)]).v));
 		return 0;
 	}
 	return k;
@@ -3947,8 +3946,8 @@ export function edits(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		const _65: boolean = rs.bytesIsUnique(part);
 		const _68: boolean = rs.bytesIsUnique(bytes);
 		const _70: rs.ByteSlice = part;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.bytesDebug(_70, f), (f: rs.Formatter) => rs.bytesDebug(bytes, f), (f: rs.Formatter) => rs.fmtBool(_65, f), (f: rs.Formatter) => rs.fmtBool(_68, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3]]).v));
+		const args3 = [(f: rs.Formatter) => rs.bytesDebug(_70, f), (f: rs.Formatter) => rs.bytesDebug(bytes, f), (f: rs.Formatter) => rs.fmtBool(_65, f), (f: rs.Formatter) => rs.fmtBool(_68, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3]]).v));
 		rs.bytesDrop(part);
 		rs.bytesDrop(bytes);
 	}

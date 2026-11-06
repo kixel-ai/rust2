@@ -341,8 +341,8 @@ export function onces(data: rs.ByteSlice, out: rs.ByteVec): void {
 export const SHOWN: rs.LazyLock<rs.String> = /* @__PURE__ */ new rs.LazyLock(shown);
 
 export function shown(): rs.String {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => SHOWN.debug(f, "LazyLock", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
-	return rs.fmtFormat([args2[0], " ", rs.fmtSpec({ alternate: true }, args2[0]), " ", rs.fmtSpec({ align: ">", width: 12 }, args2[0])]);
+	const args3 = [(f: rs.Formatter) => SHOWN.debug(f, "LazyLock", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
+	return rs.fmtFormat([args3[0], " ", rs.fmtSpec({ alternate: true }, args3[0]), " ", rs.fmtSpec({ align: ">", width: 12 }, args3[0])]);
 }
 
 export const FORCING: rs.LocalKey<rs.RefCell<rs.Arc<rs.LazyCell<rs.String>> | undefined>> = /* @__PURE__ */ new rs.LocalKey(FORCING$init, false);
@@ -364,66 +364,66 @@ export function lazies(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const cell: rs.LazyCell<rs.u8> = new rs.LazyCell((): rs.u8 => {
 				return rs.u8Add(rs.atomicFetch(FORCED, rs.u8WrappingAdd, 1, 0), 10);
 			});
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => cell.debug(f, "LazyCell", rs.u8Debug)];
-			const before: rs.String = rs.fmtFormat([args2[0], " ", rs.fmtSpec({ alternate: true }, args2[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args2[0]), "|"]);
+			const args49 = [(f: rs.Formatter) => cell.debug(f, "LazyCell", rs.u8Debug)];
+			const before: rs.String = rs.fmtFormat([args49[0], " ", rs.fmtSpec({ alternate: true }, args49[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args49[0]), "|"]);
 			const forced: rs.u8 = rs.atomicLoad(FORCED, 0);
 			cell.force();
 			rs.atomicSwap(FORCED, 0, 0);
-			const args5: rs.Fmt[] = [(f: rs.Formatter) => cell.debug(f, "LazyCell", rs.u8Debug)];
-			const _34: rs.String = rs.fmtFormat([args5[0], " ", rs.fmtSpec({ alternate: true }, args5[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args5[0]), "|"]);
-			const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, before.v), (f: rs.Formatter) => rs.u8Display(forced, f), (f: rs.Formatter) => rs.fmtPad(f, _34.v)];
-			text = rs.fmtFormat([args6[0], args6[1], args6[2]]);
+			const args50 = [(f: rs.Formatter) => cell.debug(f, "LazyCell", rs.u8Debug)];
+			const _34: rs.String = rs.fmtFormat([args50[0], " ", rs.fmtSpec({ alternate: true }, args50[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args50[0]), "|"]);
+			const args51 = [(f: rs.Formatter) => rs.fmtPad(f, before.v), (f: rs.Formatter) => rs.u8Display(forced, f), (f: rs.Formatter) => rs.fmtPad(f, _34.v)];
+			text = rs.fmtFormat([args51[0], args51[1], args51[2]]);
 		} else if (_10 === 1) {
 			const cell2: rs.LazyCell<undefined> = new rs.LazyCell((): undefined => {});
-			const args8: rs.Fmt[] = [(f: rs.Formatter) => cell2.debug(f, "LazyCell", rs.fmtUnit)];
-			const before2: rs.String = rs.fmtFormat([args8[0], " ", rs.fmtSpec({ alternate: true }, args8[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args8[0]), "|"]);
+			const args46 = [(f: rs.Formatter) => cell2.debug(f, "LazyCell", rs.fmtUnit)];
+			const before2: rs.String = rs.fmtFormat([args46[0], " ", rs.fmtSpec({ alternate: true }, args46[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args46[0]), "|"]);
 			cell2.force();
-			const args11: rs.Fmt[] = [(f: rs.Formatter) => cell2.debug(f, "LazyCell", rs.fmtUnit)];
-			const _67: rs.String = rs.fmtFormat([args11[0], " ", rs.fmtSpec({ alternate: true }, args11[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args11[0]), "|"]);
-			const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, before2.v), (f: rs.Formatter) => rs.fmtPad(f, _67.v)];
-			text = rs.fmtFormat([args12[0], args12[1]]);
+			const args47 = [(f: rs.Formatter) => cell2.debug(f, "LazyCell", rs.fmtUnit)];
+			const _67: rs.String = rs.fmtFormat([args47[0], " ", rs.fmtSpec({ alternate: true }, args47[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args47[0]), "|"]);
+			const args48 = [(f: rs.Formatter) => rs.fmtPad(f, before2.v), (f: rs.Formatter) => rs.fmtPad(f, _67.v)];
+			text = rs.fmtFormat([args48[0], args48[1]]);
 		} else if (_10 === 2) {
 			const lock: rs.LazyLock<rs.u8 | undefined> = new rs.LazyLock((): rs.u8 | undefined => {
 				return undefined;
 			});
-			const args14: rs.Fmt[] = [(f: rs.Formatter) => lock.debug(f, "LazyLock", (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))];
-			const before3: rs.String = rs.fmtFormat([args14[0], " ", rs.fmtSpec({ alternate: true }, args14[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args14[0]), "|"]);
+			const args43 = [(f: rs.Formatter) => lock.debug(f, "LazyLock", (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))];
+			const before3: rs.String = rs.fmtFormat([args43[0], " ", rs.fmtSpec({ alternate: true }, args43[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args43[0]), "|"]);
 			lock.force();
-			const args17: rs.Fmt[] = [(f: rs.Formatter) => lock.debug(f, "LazyLock", (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))];
-			const _98: rs.String = rs.fmtFormat([args17[0], " ", rs.fmtSpec({ alternate: true }, args17[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args17[0]), "|"]);
-			const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, before3.v), (f: rs.Formatter) => rs.fmtPad(f, _98.v)];
-			text = rs.fmtFormat([args18[0], args18[1]]);
+			const args44 = [(f: rs.Formatter) => lock.debug(f, "LazyLock", (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))];
+			const _98: rs.String = rs.fmtFormat([args44[0], " ", rs.fmtSpec({ alternate: true }, args44[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args44[0]), "|"]);
+			const args45 = [(f: rs.Formatter) => rs.fmtPad(f, before3.v), (f: rs.Formatter) => rs.fmtPad(f, _98.v)];
+			text = rs.fmtFormat([args45[0], args45[1]]);
 		} else if (_10 === 3) {
 			const lock2: rs.LazyLock<rs.Vec<string>> = new rs.LazyLock((): rs.Vec<string> => {
 				return rs.vecFrom(["a", "bc"]);
 			});
-			const args20: rs.Fmt[] = [(f: rs.Formatter) => lock2.debug(f, "LazyLock", (value: rs.Vec<string>, f: rs.Formatter) => rs.fmtList(value.items, f, rs.fmtStr))];
-			const before4: rs.String = rs.fmtFormat([args20[0], " ", rs.fmtSpec({ alternate: true }, args20[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args20[0]), "|"]);
+			const args40 = [(f: rs.Formatter) => lock2.debug(f, "LazyLock", (value: rs.Vec<string>, f: rs.Formatter) => rs.fmtList(value.items, f, rs.fmtStr))];
+			const before4: rs.String = rs.fmtFormat([args40[0], " ", rs.fmtSpec({ alternate: true }, args40[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args40[0]), "|"]);
 			lock2.force().items.length;
-			const args23: rs.Fmt[] = [(f: rs.Formatter) => lock2.debug(f, "LazyLock", (value: rs.Vec<string>, f: rs.Formatter) => rs.fmtList(value.items, f, rs.fmtStr))];
-			const _130: rs.String = rs.fmtFormat([args23[0], " ", rs.fmtSpec({ alternate: true }, args23[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args23[0]), "|"]);
-			const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, before4.v), (f: rs.Formatter) => rs.fmtPad(f, _130.v)];
-			text = rs.fmtFormat([args24[0], args24[1]]);
+			const args41 = [(f: rs.Formatter) => lock2.debug(f, "LazyLock", (value: rs.Vec<string>, f: rs.Formatter) => rs.fmtList(value.items, f, rs.fmtStr))];
+			const _130: rs.String = rs.fmtFormat([args41[0], " ", rs.fmtSpec({ alternate: true }, args41[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args41[0]), "|"]);
+			const args42 = [(f: rs.Formatter) => rs.fmtPad(f, before4.v), (f: rs.Formatter) => rs.fmtPad(f, _130.v)];
+			text = rs.fmtFormat([args42[0], args42[1]]);
 		} else if (_10 === 4) {
 			const _148: rs.String = SHOWN.force();
-			const args27: rs.Fmt[] = [(f: rs.Formatter) => SHOWN.debug(f, "LazyLock", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
-			const _151: rs.String = rs.fmtFormat([args27[0], " ", rs.fmtSpec({ alternate: true }, args27[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args27[0]), "|"]);
-			const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _148.v), (f: rs.Formatter) => rs.fmtPad(f, _151.v)];
-			text = rs.fmtFormat([args28[0], " ", args28[1]]);
+			const args38 = [(f: rs.Formatter) => SHOWN.debug(f, "LazyLock", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
+			const _151: rs.String = rs.fmtFormat([args38[0], " ", rs.fmtSpec({ alternate: true }, args38[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args38[0]), "|"]);
+			const args39 = [(f: rs.Formatter) => rs.fmtPad(f, _148.v), (f: rs.Formatter) => rs.fmtPad(f, _151.v)];
+			text = rs.fmtFormat([args39[0], " ", args39[1]]);
 		} else {
 			const cell3: rs.Arc<rs.LazyCell<rs.String>> = new rs.Arc(new rs.LazyCell((): rs.String => {
 				return withBorrow$15t368r(FORCING, (me: rs.Arc<rs.LazyCell<rs.String>> | undefined): rs.String => {
 					const part = rs.optionUnwrap(me);
-					const args34: rs.Fmt[] = [(f: rs.Formatter) => part.value.debug(f, "LazyCell", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
-					return rs.fmtFormat([args34[0], " ", rs.fmtSpec({ alternate: true }, args34[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args34[0]), "|"]);
+					const args35 = [(f: rs.Formatter) => part.value.debug(f, "LazyCell", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
+					return rs.fmtFormat([args35[0], " ", rs.fmtSpec({ alternate: true }, args35[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args35[0]), "|"]);
 				});
 			}));
 			rs.localKeyRefCellSet(FORCING, rs.arcClone(cell3), rs.drop);
 			const _175: rs.String = cell3.value.force();
-			const args31: rs.Fmt[] = [(f: rs.Formatter) => cell3.value.debug(f, "LazyCell", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
-			const _179: rs.String = rs.fmtFormat([args31[0], " ", rs.fmtSpec({ alternate: true }, args31[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args31[0]), "|"]);
-			const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _175.v), (f: rs.Formatter) => rs.fmtPad(f, _179.v)];
-			const text2: rs.String = rs.fmtFormat([args32[0], " ", args32[1]]);
+			const args36 = [(f: rs.Formatter) => cell3.value.debug(f, "LazyCell", (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
+			const _179: rs.String = rs.fmtFormat([args36[0], " ", rs.fmtSpec({ alternate: true }, args36[0]), " ", rs.fmtSpec({ align: ">", width: 6 }, args36[0]), "|"]);
+			const args37 = [(f: rs.Formatter) => rs.fmtPad(f, _175.v), (f: rs.Formatter) => rs.fmtPad(f, _179.v)];
+			const text2: rs.String = rs.fmtFormat([args37[0], " ", args37[1]]);
 			rs.drop(take$1o1xmz7(FORCING));
 			text = text2;
 			cell3[Symbol.dispose]();
@@ -501,8 +501,7 @@ export function writes(data: rs.ByteSlice, out: rs.ByteVec): void {
 
 export function written$cell_LazyCell_statics_Dropped_statics_cell_closure0(op: rs.u8, make: (a0: rs.u8) => rs.LazyCell<Dropped.Dropped>, out: rs.ByteVec): void {
 	const _18: (a0: rs.LazyCell<Dropped.Dropped>) => rs.String = (l: rs.LazyCell<Dropped.Dropped>): rs.String => {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => l.debug(f, "LazyCell", (value: Dropped.Dropped, f: rs.Formatter) => Dropped.fmt$fmt_Debug(value, f))];
-		return rs.fmtFormat([args2[0], "|"]);
+		return rs.fmtFormat([(f: rs.Formatter) => l.debug(f, "LazyCell", (value: Dropped.Dropped, f: rs.Formatter) => Dropped.fmt$fmt_Debug(value, f)), "|"]);
 	};
 	let _103: boolean = false;
 	let a: rs.LazyCell<Dropped.Dropped> = make(1);
@@ -568,8 +567,7 @@ export function written$cell_LazyCell_statics_Dropped_statics_cell_closure0(op: 
 
 export function written$sync_LazyLock_statics_Dropped_statics_lock_closure0(op: rs.u8, make: (a0: rs.u8) => rs.LazyLock<Dropped.Dropped>, out: rs.ByteVec): void {
 	const _18: (a0: rs.LazyLock<Dropped.Dropped>) => rs.String = (l: rs.LazyLock<Dropped.Dropped>): rs.String => {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => l.debug(f, "LazyLock", (value: Dropped.Dropped, f: rs.Formatter) => Dropped.fmt$fmt_Debug(value, f))];
-		return rs.fmtFormat([args2[0], "|"]);
+		return rs.fmtFormat([(f: rs.Formatter) => l.debug(f, "LazyLock", (value: Dropped.Dropped, f: rs.Formatter) => Dropped.fmt$fmt_Debug(value, f)), "|"]);
 	};
 	let _103: boolean = false;
 	let a: rs.LazyLock<Dropped.Dropped> = make(1);

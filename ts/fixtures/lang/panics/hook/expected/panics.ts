@@ -135,8 +135,8 @@ export function wrapped(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const _138: rs.i8 = -1;
 		const _140: Point.Point = { x: first, y: 0 };
 		const _144: [rs.u8, string] = [first, "a"];
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rs.Formatter) => rs.u8Debug(_132, f)]), (f: rs.Formatter) => rs.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rs.Formatter) => rs.u8Debug(_134, f)]), (f: rs.Formatter) => rs.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rs.Formatter) => rs.fmtStr(_136.v, f)]), (f: rs.Formatter) => rs.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rs.Formatter) => rs.i8Debug(_138, f)]), (f: rs.Formatter) => rs.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rs.Formatter) => rs.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rs.Formatter) => Point.fmt$fmt_Debug(_140, f)])]), (f: rs.Formatter) => rs.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_144[0], f), (f: rs.Formatter) => rs.fmtStr(_144[1], f)], f)])];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], "|", rs.fmtSpec({ alternate: true }, args2[1]), "|", args2[2], "|", rs.fmtSpec({ width: 5 }, args2[3]), "|", args2[4], "|", rs.fmtSpec({ alternate: true }, args2[5])]).v));
+		const args3 = [(f: rs.Formatter) => rs.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rs.Formatter) => rs.u8Debug(_132, f)]), (f: rs.Formatter) => rs.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rs.Formatter) => rs.u8Debug(_134, f)]), (f: rs.Formatter) => rs.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rs.Formatter) => rs.fmtStr(_136.v, f)]), (f: rs.Formatter) => rs.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rs.Formatter) => rs.i8Debug(_138, f)]), (f: rs.Formatter) => rs.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rs.Formatter) => rs.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rs.Formatter) => Point.fmt$fmt_Debug(_140, f)])]), (f: rs.Formatter) => rs.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(_144[0], f), (f: rs.Formatter) => rs.fmtStr(_144[1], f)], f)])];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args3[0], "|", rs.fmtSpec({ alternate: true }, args3[1]), "|", args3[2], "|", rs.fmtSpec({ width: 5 }, args3[3]), "|", args3[4], "|", rs.fmtSpec({ alternate: true }, args3[5])]).v));
 	} else if (_7 === 4) {
 		const d: rs.u8 = 0;
 		const s2: rs.String = rs.stringNew();
@@ -231,8 +231,7 @@ export function called(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return rs.iterToByteVec(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), undefined, true);
 		})));
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(caught$String_panics_called_closure6((): rs.String => {
-			const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(first, f)];
-			return rs.fmtFormat([args6[0]]);
+			return rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(first, f)]);
 		}).v));
 	} else if (_10 === 3) {
 		rs.byteVecPush(out, caught$u8_ref_panics_called_closure7((): rs.u8 => {
@@ -284,8 +283,8 @@ export function called(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _120: rs.u8 = result_mapOr$171qvtg(asRef$11fb4n1(r4), 0, (n2: rs.u8): rs.u8 => {
 			return n2;
 		});
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtResult(r4, f, rs.u8Debug, (_value: Any.Any, f: rs.Formatter) => rs.debugStructFinishNonExhaustive(rs.fmtDebugStruct(f, "Any"))), (f: rs.Formatter) => rs.fmtBool(_117, f), (f: rs.Formatter) => rs.u8Display(_120, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]]).v));
+		const args6 = [(f: rs.Formatter) => rs.fmtResult(r4, f, rs.u8Debug, (_value: Any.Any, f: rs.Formatter) => rs.debugStructFinishNonExhaustive(rs.fmtDebugStruct(f, "Any"))), (f: rs.Formatter) => rs.fmtBool(_117, f), (f: rs.Formatter) => rs.u8Display(_120, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2]]).v));
 		drop$Result_u8_boxed_Box_dyn_Any_marker_Send(r4);
 	} else {
 		const owned3: Logged.Logged = new Logged.Logged(1, _8);
@@ -294,8 +293,7 @@ export function called(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return first;
 			}
 			const part = owned3._0;
-			const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(part, f)];
-			rs.panicFmt(["caught ", args4[0]], { file: "fixtures/lang/panics/src/panics.rs", line: 206, col: 21 });
+			rs.panicFmt(["caught ", (f: rs.Formatter) => rs.u8Display(part, f)], { file: "fixtures/lang/panics/src/panics.rs", line: 206, col: 21 });
 		})()), (_value: Any.Any, f: rs.Formatter) => rs.debugStructFinishNonExhaustive(rs.fmtDebugStruct(f, "Any")), { file: "fixtures/lang/panics/src/panics.rs", line: 210, col: 24 }));
 		owned3[Symbol.dispose]();
 		const _147: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(_8, { file: "fixtures/lang/panics/src/panics.rs", line: 212, col: 28 });
@@ -524,8 +522,8 @@ export function raised(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const boxed: Any.Any = new of$u8(first);
 		new of$u8(first);
 		const synced: Any.Any = new of$String(rs.stringNew());
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.debugStructFinishNonExhaustive(rs.fmtDebugStruct(f, "Any")), (f: rs.Formatter) => rs.debugStructFinishNonExhaustive(rs.fmtDebugStruct(f, "Any")), (f: rs.Formatter) => rs.debugStructFinishNonExhaustive(rs.fmtDebugStruct(f, "Any")), (f: rs.Formatter) => rs.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rs.Formatter) => rs.debugStructFinishNonExhaustive(rs.fmtDebugStruct(f, "Any"))])];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], "|", rs.fmtSpec({ alternate: true }, args2[1]), "|", rs.fmtSpec({ align: ">", width: 20 }, args2[2]), "|", args2[3]]).v));
+		const args3 = [(f: rs.Formatter) => rs.debugStructFinishNonExhaustive(rs.fmtDebugStruct(f, "Any")), (f: rs.Formatter) => rs.debugStructFinishNonExhaustive(rs.fmtDebugStruct(f, "Any")), (f: rs.Formatter) => rs.debugStructFinishNonExhaustive(rs.fmtDebugStruct(f, "Any")), (f: rs.Formatter) => rs.fmtDebugTupleFields(f, "AssertUnwindSafe", [(f: rs.Formatter) => rs.debugStructFinishNonExhaustive(rs.fmtDebugStruct(f, "Any"))])];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args3[0], "|", rs.fmtSpec({ alternate: true }, args3[1]), "|", rs.fmtSpec({ align: ">", width: 20 }, args3[2]), "|", args3[3]]).v));
 		rs.drop(synced);
 		rs.drop(boxed);
 	}

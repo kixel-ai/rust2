@@ -54,12 +54,11 @@ export function hashInto(h: Hasher.Hasher, data: rs.ByteSlice, keys: rs.Slice<Dy
 
 /** Each of `fmt::Write`'s methods through the object, a placeholder too. */
 export function render(w: fmt_Write.Write, n: rs.u8, s: string): rs.Result<undefined, rs.FmtError> {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(n, f)];
-	if (w.writeFmt$Write(["[", args2[0]]).ok) {
+	if (w.writeFmt$Write(["[", (f: rs.Formatter) => rs.u8Display(n, f)]).ok) {
 		if (w.writeChar$Write(233).ok) {
 			if (w.writeStr$Write(s).ok) {
-				const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, s), (f: rs.Formatter) => rs.u8LowerHex(n, f)];
-				if (w.writeFmt$Write([rs.fmtSpec({ align: ">", width: 5 }, args4[0]), "|", rs.fmtSpec({ alternate: true }, args4[1]), "]"]).ok) {
+				const args6 = [(f: rs.Formatter) => rs.fmtPad(f, s), (f: rs.Formatter) => rs.u8LowerHex(n, f)];
+				if (w.writeFmt$Write([rs.fmtSpec({ align: ">", width: 5 }, args6[0]), "|", rs.fmtSpec({ alternate: true }, args6[1]), "]"]).ok) {
 					return w.writeFmt$Write(["!"]);
 				}
 				return rs.Err(new rs.FmtError());
@@ -106,8 +105,8 @@ export function stds(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _71: rs.Fmt = (f: rs.Formatter) => rs.u64Display(_53, f);
 		const _72: rs.Fmt = (f: rs.Formatter) => rs.u64Display(_59, f);
 		const arg = sum._0;
-		const args2: rs.Fmt[] = [_70, _71, _72, (f: rs.Formatter) => rs.u32Display(arg, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_66.value), f, rs.u8Debug)];
-		const _43: rs.String = rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " "]);
+		const args17 = [_70, _71, _72, (f: rs.Formatter) => rs.u32Display(arg, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_66.value), f, rs.u8Debug)];
+		const _43: rs.String = rs.fmtFormat([args17[0], " ", args17[1], " ", args17[2], " ", args17[3], " ", args17[4], " "]);
 		rs.refRelease(_66);
 		put(out, _43.v);
 		const _79: rs.u8 = rs.u8Rem(a, 3);
@@ -134,18 +133,16 @@ export function stds(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _128: rs.Fmt = (f: rs.Formatter) => rs.u64Display(_121, f);
 		const _129: rs.Fmt = (f: rs.Formatter) => rs.u64Display(_124, f);
 		const arg2 = sum2._0;
-		const args4: rs.Fmt[] = [_128, _129, (f: rs.Formatter) => rs.u32Display(arg2, f)];
-		put(out, rs.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " "]).v);
+		const args18 = [_128, _129, (f: rs.Formatter) => rs.u32Display(arg2, f)];
+		put(out, rs.fmtFormat([args18[0], " ", args18[1], " ", args18[2], " "]).v);
 		rs.drop(boxed);
 		const _143: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_143.value), f, rs.u8Debug)];
-		const _139: rs.String = rs.fmtFormat([args6[0], " "]);
+		const _139: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_143.value), f, rs.u8Debug), " "]);
 		rs.refRelease(_143);
 		put(out, _139.v);
 		fnv[Symbol.dispose]();
 		const _160: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_160.value), f, rs.u8Debug)];
-		const _156: rs.String = rs.fmtFormat([args8[0], " "]);
+		const _156: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_160.value), f, rs.u8Debug), " "]);
 		rs.refRelease(_160);
 		put(out, _156.v);
 		const _170: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
@@ -168,14 +165,14 @@ export function stds(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _230: rs.Fmt = (f: rs.Formatter) => rs.fmtPad(f, arg3.v);
 		const _231: rs.Fmt = (f: rs.Formatter) => rs.fmtResult(failed, f, rs.fmtUnit, rs.fmtErrorDebug);
 		const arg4 = counter._0;
-		const args10: rs.Fmt[] = [_228, _229, _230, _231, (f: rs.Formatter) => rs.usizeDisplay(arg4, f), (f: rs.Formatter) => rs.fmtResult(counted, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtResult(again2, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_219.value), f, rs.u8Debug)];
-		const _213: rs.String = rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " ", args10[3], " ", args10[4], " ", args10[5], " ", args10[6], " ", args10[7], " "]);
+		const args21 = [_228, _229, _230, _231, (f: rs.Formatter) => rs.usizeDisplay(arg4, f), (f: rs.Formatter) => rs.fmtResult(counted, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtResult(again2, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_219.value), f, rs.u8Debug)];
+		const _213: rs.String = rs.fmtFormat([args21[0], " ", args21[1], " ", args21[2], " ", args21[3], " ", args21[4], " ", args21[5], " ", args21[6], " ", args21[7], " "]);
 		rs.refRelease(_219);
 		put(out, _213.v);
 		const _246: Rendered.Rendered = { _0: a };
 		const _248: Rendered.Rendered = { _0: b };
-		const args12: rs.Fmt[] = [(f: rs.Formatter) => Rendered.fmt$fmt_Display(_246, f), (f: rs.Formatter) => Rendered.fmt$fmt_Display(_248, f)];
-		put(out, rs.fmtFormat([args12[0], " ", rs.fmtSpec({ align: ">", width: 12 }, args12[1]), " "]).v);
+		const args22 = [(f: rs.Formatter) => Rendered.fmt$fmt_Display(_246, f), (f: rs.Formatter) => Rendered.fmt$fmt_Display(_248, f)];
+		put(out, rs.fmtFormat([args22[0], " ", rs.fmtSpec({ align: ">", width: 12 }, args22[1]), " "]).v);
 		if (rs.u8Rem(b, 2) === 0) {
 			_255 = new of$stds_Counter({ _0: a as rs.usize });
 		} else {
@@ -185,14 +182,13 @@ export function stds(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const written2: rs.Result<undefined, rs.FmtError> = render(boxed2, b, "b");
 		rs.drop(boxed2);
 		const _278: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-		const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtResult(written2, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_278.value), f, rs.u8Debug)];
-		const _274: rs.String = rs.fmtFormat([args14[0], " ", args14[1], " "]);
+		const args23 = [(f: rs.Formatter) => rs.fmtResult(written2, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(_278.value), f, rs.u8Debug)];
+		const _274: rs.String = rs.fmtFormat([args23[0], " ", args23[1], " "]);
 		rs.refRelease(_278);
 		put(out, _274.v);
 		upper[Symbol.dispose]();
 		const _297: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_297.value), f, rs.u8Debug)];
-		const _293: rs.String = rs.fmtFormat([args16[0]]);
+		const _293: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(_297.value), f, rs.u8Debug)]);
 		rs.refRelease(_297);
 		put(out, _293.v);
 		log[Symbol.dispose]();

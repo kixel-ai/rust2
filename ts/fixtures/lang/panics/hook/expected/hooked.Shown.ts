@@ -13,8 +13,7 @@ export interface Shown {
 
 export function fmt$fmt_Display(self: Shown, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const part = rs.panicking();
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part, f)];
-	const line: rs.String = rs.fmtFormat(["shown ", args2[0], "\n"]);
+	const line: rs.String = rs.fmtFormat(["shown ", (f: rs.Formatter) => rs.fmtBool(part, f), "\n"]);
 	rs.localKeyWithBorrowMut(NOTE, (note: rs.String): undefined => {
 		rs.stringPushStr(note, line.v);
 	}, { file: "/rustc/7df81381d027710708209f36b98d11b1c88f8d2e/library/std/src/thread/local.rs", line: 721, col: 38 });

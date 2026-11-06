@@ -520,9 +520,8 @@ export function format(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const point: Point.Point = { x: i, y: rs.i64Neg(i) };
 		const _26: rs.f64 = rs.i64ToF64(i) / 3.0;
 		const _29: rs.i64 = rs.i64Neg(i);
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.i64Display(i, f), (f: rs.Formatter) => Point.fmt$fmt_Debug(point, f), (f: rs.Formatter) => rs.f64Display(_26, f), (f: rs.Formatter) => rs.i64Display(_29, f)];
-		const _23: rs.Arguments = [rs.fmtSpec({ align: ">", width: 6 }, args2[0]), "|", args2[1], "|", rs.fmtSpec({ precision: 2 }, args2[2]), "|", args2[3], "\n"];
-		rs.fmtWriteString(s, _23);
+		const args3 = [(f: rs.Formatter) => rs.i64Display(i, f), (f: rs.Formatter) => Point.fmt$fmt_Debug(point, f), (f: rs.Formatter) => rs.f64Display(_26, f), (f: rs.Formatter) => rs.i64Display(_29, f)];
+		rs.fmtWriteString(s, [rs.fmtSpec({ align: ">", width: 6 }, args3[0]), "|", args3[1], "|", rs.fmtSpec({ precision: 2 }, args3[2]), "|", args3[3], "\n"]);
 	}
 	putUsize(out, s.len);
 	harness_putU64(out, rs.iterSum(rs.iterMap(rs.strBytes(s.v), (a0: rs.u8): rs.u64 => {
@@ -637,8 +636,8 @@ export function keyed(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	const _7: string[] = ["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"];
 	const keys: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u64Low(rs.u64Min(count, 65536))), (i2: rs.u32): rs.String => {
 		const part = _7[_8];
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part), (f: rs.Formatter) => rs.u32Display(i2, f)];
-		return rs.fmtFormat([args2[0], "/", args2[1]]);
+		const args3 = [(f: rs.Formatter) => rs.fmtPad(f, part), (f: rs.Formatter) => rs.u32Display(i2, f)];
+		return rs.fmtFormat([args3[0], "/", args3[1]]);
 	}), undefined, 12, true);
 	const map: rs.HashMap<rs.String, rs.u64> = rs.hashNew(rs.hashing(rs.hashStr, rs.eqStr, true)) as rs.HashMap<rs.String, rs.u64>;
 	const iter: rs.Iter<[rs.usize, rs.String]> = rs.iterEnumerate(rs.iterSlice(keys.items));
