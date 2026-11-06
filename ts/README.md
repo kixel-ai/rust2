@@ -1030,10 +1030,11 @@ they need.
   where JS fails to allocate a byte `Vec`'s or `VecDeque`'s `Uint8Array` (decided with the
   maintainer on 2026-11-03). A `LinkedList` is nodes linked both ways, as std's are,
   so `append` is O(1) and `split_off` walks from the nearer end; each node is the place
-  `iter_mut` and `front_mut` lend of an item JS copies. Dropping a whole map or set drops its entries in the
-  runtime's order, keys' for a B-tree, not std's node by node: std leaves that order
-  undocumented ([#272](https://github.com/moq-dev/rust2/pull/272)). Maintainer's decision
-  on 2026-10-30; a map's `IntoIter` still drops in std's order.
+  `iter_mut` and `front_mut` lend of an item JS copies. Dropping a whole hash map or set drops its entries in the
+  runtime's order, not hashbrown's: std leaves that order undocumented
+  ([#272](https://github.com/moq-dev/rust2/pull/272)). Maintainer's decision on 2026-10-30.
+  A whole B-tree drops as std's `drop_tree` does, node by node in postorder, and its
+  `IntoIter` in key order, as std's does.
 - A slice's `sort` and `sort_unstable` are std's driftsort and ipnsort, ported to the
   runtime with the choices std makes by the element's size on wasm32 and whether it is
   `Freeze` and `Copy`, so each calls the comparator in std's order and leaves equal
