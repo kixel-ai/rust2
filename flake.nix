@@ -26,7 +26,7 @@
     # The compiler cache the benchmark's Nix comparison measures, at the release
     # moq's CI runs. Bumping it is a corpus change, like ra-jit's.
     mbx = {
-      url = "github:jdx/mr-boxington/v1.27.0";
+      url = "github:jdx/mr-boxington/v1.29.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
