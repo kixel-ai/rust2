@@ -115,8 +115,9 @@ impl Callbacks for Export {
 				}
 				for (path, count) in &report.excluded {
 					if *count == 0 {
-						tcx.dcx()
-							.err(format!("rust2-ffi: exclude `{path}` in the config names nothing exported"));
+						tcx.dcx().err(format!(
+							"rust2-ffi: exclude `{path}` in the config names nothing exported"
+						));
 					}
 				}
 				for (name, (first, first_span), (second, second_span)) in &abi.clashes {

@@ -747,7 +747,12 @@ impl<'tcx> Collector<'tcx> {
 					}
 					DefKind::Macro(_) => self.refuse(&path, "macro", span, vec![why("macro", "")]),
 					DefKind::Static { .. } => self.refuse(&path, "static", span, vec![why("static", "")]),
-					DefKind::Struct | DefKind::Enum | DefKind::Union | DefKind::Trait | DefKind::Fn | DefKind::Const => {
+					DefKind::Struct
+					| DefKind::Enum
+					| DefKind::Union
+					| DefKind::Trait
+					| DefKind::Fn
+					| DefKind::Const => {
 						if !self.crates.contains(&def_id.krate) {
 							self.crates.push(def_id.krate);
 						}

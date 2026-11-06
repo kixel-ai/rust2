@@ -75,11 +75,7 @@ fn main() {
 	let empty = api::Note {
 		text: Some(String::new()),
 	};
-	println!(
-		"note {} {}",
-		api::has_text(empty),
-		api::has_text(api::Note::default())
-	);
+	println!("note {} {}", api::has_text(empty), api::has_text(api::Note::default()));
 
 	let (below, above) = Counter::new("s", 7).split(5);
 	println!(
@@ -363,16 +359,8 @@ fn main() {
 	let right = api::Right {
 		value: api::Left { value: 2u8 },
 	};
-	println!(
-		"cross {} outer {}",
-		api::cross(left, right),
-		api::Outer::new(4).get()
-	);
-	println!(
-		"kept {} boxed {}",
-		api::kept(Point { x: 1, y: -2 }),
-		api::BOXED.value
-	);
+	println!("cross {} outer {}", api::cross(left, right), api::Outer::new(4).get());
+	println!("kept {} boxed {}", api::kept(Point { x: 1, y: -2 }), api::BOXED.value);
 	println!("keep {}", api::keep(Point { x: 1, y: -2 }));
 	let sides = Pair { left: 2u32, right: 5 };
 	println!("apply {}", api::apply(sides, |side| side * 3));
@@ -431,11 +419,7 @@ fn main() {
 	println!("parents {}", parents.join(" "));
 	let words = api::words(" one two  three ");
 	println!("words {} {words:?}", words.len());
-	println!(
-		"sentence {} {}",
-		api::sentence(Some(words)),
-		api::sentence(None)
-	);
+	println!("sentence {} {}", api::sentence(Some(words)), api::sentence(None));
 	println!("sentence {}|", api::sentence(Some(Vec::new())));
 	println!("chunks {:?}", api::chunks(b"abcde", 2));
 	let mut counters = api::counters(vec!["x".to_string(), "y".to_string()]);

@@ -485,7 +485,7 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 			"lent moved",
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
-		("callback threw", "api_fixture::Log::log: a call into Kotlin threw"),
+		("callback threw", "api::Log::log: a call into Kotlin threw"),
 		("stray", "MalformedInputException"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 	] {
@@ -538,7 +538,7 @@ fn api_python() {
 			"lent moved",
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
-		("callback threw", "api_fixture::Log::log: a call into Python raised"),
+		("callback threw", "api::Log::log: a call into Python raised"),
 		("family", "ValueError: an IPv6 address has no Rust SocketAddrV4"),
 	] {
 		let output = python(&dir, &[case]).output().unwrap();
@@ -708,7 +708,7 @@ fn api_dart() {
 			"lent moved",
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
-		("callback threw", "api_fixture::Log::log: a call into Dart threw"),
+		("callback threw", "api::Log::log: a call into Dart threw"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
@@ -1009,8 +1009,9 @@ fn feature_of_dependency() {
 	assert!(!output.status.success(), "exporting with bytes/std succeeded");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
-		stderr
-			.contains("--features bytes/std: the export builds api-fixture's dependencies with only the features it enables in them"),
+		stderr.contains(
+			"--features bytes/std: the export builds api-fixture's dependencies with only the features it enables in them"
+		),
 		"{stderr}"
 	);
 }

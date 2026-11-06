@@ -10,16 +10,16 @@ publish = false
 [lib]
 name = "api"
 
+[features]
+# Doubles each area's size in dep-fixture, which the export must build as the check did.
+doubled = ["dep-fixture/doubled"]
+
 [dependencies]
 bytes = "1.11.1"
 dep-fixture = { path = "../dep" }
 serde = "1.0.229"
 serde_json = "1.0.154"
 url = "2.5.8"
-
-[features]
-# Doubles each area's size in dep-fixture, which the export must build as the check did.
-doubled = ["dep-fixture/doubled"]
 
 [lints]
 workspace = true
