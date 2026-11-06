@@ -247,14 +247,17 @@ impl<'tcx> Translator<'tcx> {
 					}
 				}
 			}
-			DefKind::Const { .. } | DefKind::Static { .. } => self.root_const(span),
+			DefKind::Const | DefKind::Static { .. } => self.root_const(span),
 			_ => {}
 		}
 	}
 
 	/// A `pub` constant or static, which Go callers would read as a variable.
 	fn root_const(&mut self, span: Span) {
-		self.err(span, "a `pub` constant or static, which Go callers would read as a variable, is not supported");
+		self.err(
+			span,
+			"a `pub` constant or static, which Go callers would read as a variable, is not supported",
+		);
 	}
 
 	/// A root function, exported to Go callers by its path in camel case.

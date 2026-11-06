@@ -31,10 +31,13 @@ impl Args {
 	/// Parse `args`, without the program name, or `None` after printing `usage` for
 	/// `--help`. An error ends with `usage`.
 	pub fn parse(args: &[String], usage: &str) -> Result<Option<Self>, String> {
-		let Some((config, args)) = parse(args, usage, true)? else {
+		let Some(args) = parse(args, usage, true)? else {
 			return Ok(None);
 		};
-		let config = config.ok_or_else(|| format!("--config is required\n\n{usage}"))?;
+		let config = args
+			.config
+			.clone()
+			.ok_or_else(|| format!("--config is required\n\n{usage}"))?;
 		Ok(Some(args.with(config)))
 	}
 }
@@ -42,28 +45,24 @@ impl Args {
 impl Args<()> {
 	/// Parse `args` as [`Args::parse`] does, refusing `--config`.
 	pub fn parse_configless(args: &[String], usage: &str) -> Result<Option<Self>, String> {
-		Ok(parse(args, usage, false)?.map(|(_, args)| args))
+		Ok(parse(args, usage, false)?.map(|args| args.with(())))
 	}
+}
 
-	fn with<Config>(self, config: Config) -> Args<Config> {
-		let Self {
-			config: (),
-			output,
-			manifest,
-			cargo,
-		} = self;
+impl<Config> Args<Config> {
+	fn with<Other>(self, config: Other) -> Args<Other> {
 		Args {
 			config,
-			output,
-			manifest,
-			cargo,
+			output: self.output,
+			manifest: self.manifest,
+			cargo: self.cargo,
 		}
 	}
 }
 
 /// Parse `args`, taking `--config` if `configured`, and defaulting the manifest to the
 /// one beside the config, or else in the current directory.
-fn parse(args: &[String], usage: &str, configured: bool) -> Result<Option<(Option<PathBuf>, Args<()>)>, String> {
+fn parse(args: &[String], usage: &str, configured: bool) -> Result<Option<Args<Option<PathBuf>>>, String> {
 	let mut config = None;
 	let mut out = None;
 	let mut census = None;
@@ -111,13 +110,12 @@ fn parse(args: &[String], usage: &str, configured: bool) -> Result<Option<(Optio
 			.join("Cargo.toml"),
 		(None, None) => absolute(Path::new("Cargo.toml"))?,
 	};
-	let args = Args {
-		config: (),
+	Ok(Some(Args {
+		config,
 		output,
 		manifest,
 		cargo: cargo.to_vec(),
-	};
-	Ok(Some((config, args)))
+	}))
 }
 
 /// A `cargo check` of one package's library, with this executable as rustc.

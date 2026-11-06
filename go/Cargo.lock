@@ -124,7 +124,6 @@ dependencies = [
  "items",
  "order",
  "rust2-driver",
- "serde",
  "toml",
  "vecs",
 ]

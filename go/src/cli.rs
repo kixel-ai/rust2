@@ -56,12 +56,15 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 
 /// The name of the package `manifest` declares.
 fn package(manifest: &Path) -> Result<String, String> {
-	let text =
-		std::fs::read_to_string(manifest).map_err(|err| format!("reading {}: {err}", manifest.display()))?;
+	let text = std::fs::read_to_string(manifest).map_err(|err| format!("reading {}: {err}", manifest.display()))?;
 	let table: toml::Table = text
 		.parse()
 		.map_err(|err| format!("parsing {}: {err}", manifest.display()))?;
-	match table.get("package").and_then(|p| p.get("name")).and_then(|n| n.as_str()) {
+	match table
+		.get("package")
+		.and_then(|p| p.get("name"))
+		.and_then(|n| n.as_str())
+	{
 		Some(name) => Ok(name.to_string()),
 		None => Err(format!("{} declares no package", manifest.display())),
 	}

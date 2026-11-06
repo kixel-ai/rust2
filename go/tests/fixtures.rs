@@ -303,7 +303,12 @@ fn vecs() {
 fn items() {
 	differential("items", items::run, "Run", cases(3, 4, 1_000));
 	let text = std::fs::read_to_string(scratch().join("items/out/items.go")).unwrap();
-	for exported in ["type Counter struct", "func CounterNew(", "func CounterBump(", "func TalliesTotal("] {
+	for exported in [
+		"type Counter struct",
+		"func CounterNew(",
+		"func CounterBump(",
+		"func TalliesTotal(",
+	] {
 		assert!(text.contains(exported), "items.go lacks `{exported}`");
 	}
 	for unexported in ["TalliesCounter", "CounterHidden"] {
