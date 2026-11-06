@@ -197,8 +197,8 @@ pub struct Translator<'a, 'tcx> {
 	adts: rustc_data_structures::fx::FxHashMap<DefId, Adt>,
 	/// The fields of generic types whose definition types a form only an instance decides,
 	/// such as an `rs.Ptr` or an `rs.VecOf`, which an instance's read casts to what it
-	/// holds, with that type where a function type in it takes one, which an instance's
-	/// value is cast to.
+	/// holds, with that type where a function type or a type argument in it takes one,
+	/// which an instance's value is cast to.
 	instanced_fields: rustc_data_structures::fx::FxHashMap<DefId, Option<Type>>,
 	/// The fields of generic types whose definition types an `rs.OptionOf` or `rs.PollOf`,
 	/// by that type, which an instance's value is cast to so TypeScript infers the
@@ -210,6 +210,9 @@ pub struct Translator<'a, 'tcx> {
 	/// Where trait bounds come from: none outside a census, which lowers some functions
 	/// over their own type parameters.
 	env: TypingEnv<'tcx>,
+	/// Where the bounds of a generic type's parameters come from while its fields lower, by
+	/// which an iterator's item type over them normalizes.
+	defining: Option<TypingEnv<'tcx>>,
 	/// Whether this is a census, which lowers some functions over their type parameters and
 	/// writes nothing.
 	census: bool,
@@ -504,6 +507,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			sources: Default::default(),
 			failed: false,
 			env: TypingEnv::fully_monomorphized(),
+			defining: None,
 			census,
 			refusals: Some(Vec::new()),
 			capacity_reads: Vec::new(),
@@ -1923,8 +1927,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		// A projection it names, such as `<S as BuildHasher>::Hasher` of a known `S`, is the
 		// type it normalizes to.
 		let identity = ty::GenericArgs::identity_for_item(tcx, adt);
-		let ty = copy::field_ty(tcx, TypingEnv::post_analysis(tcx, adt), field.did, identity);
+		let env = TypingEnv::post_analysis(tcx, adt);
+		let ty = copy::field_ty(tcx, env, field.did, identity);
+		let outer = self.defining.replace(env);
 		let ty = self.ty(ty, span);
+		self.defining = outer;
 		if ty.any(&instanced) {
 			self.instanced_fields
 				.insert(field.did, ty.takes(&instanced).then(|| ty.clone()));
@@ -1936,9 +1943,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// `value`, for `field` of an instance of `adt` with `args`, cast to the field's type in
-	/// the definition at those arguments where a function type in it takes a form only an
-	/// instance decides, as a function taking what the instance holds takes no other form,
-	/// or where it holds an `rs.OptionOf` or `rs.PollOf`.
+	/// the definition at those arguments where a function type or a type argument in it
+	/// takes a form only an instance decides, as a function taking what the instance holds,
+	/// or a generic type over it, takes no other form, or where it holds an `rs.OptionOf` or
+	/// `rs.PollOf`.
 	pub fn field_value(
 		&mut self,
 		value: ts::Expr,
