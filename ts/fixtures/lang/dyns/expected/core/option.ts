@@ -27,6 +27,13 @@ export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u
 	return self;
 }
 
+export function unwrapOrDefault$15dio94(self: rs.u128 | undefined): rs.u128 {
+	if (self === undefined) {
+		return 0;
+	}
+	return self;
+}
+
 export function map$1rkcfqi(self: rs.Arc<rs.RefCell<Shape.Shape>> | undefined, f: (a0: rs.Arc<rs.RefCell<Shape.Shape>>) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -91,6 +98,13 @@ export function map$1bn5ufk(self: rs.Arc<rs.u32> | undefined, f: (a0: rs.Arc<rs.
 }
 
 export function map$1aeqf1p(self: [Tagged.Tagged, Tagged.Tagged] | undefined, f: (a0: [Tagged.Tagged, Tagged.Tagged]) => [rs.u8, rs.u8]): [rs.u8, rs.u8] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1tqulv0(self: rs.u128 | undefined, f: (a0: rs.u128) => string): string | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

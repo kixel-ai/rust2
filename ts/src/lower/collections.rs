@@ -2760,7 +2760,7 @@ fn std_key<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 			library::string(b.t.tcx, ty)
 				|| matches!(
 					b.t.std_of(ty),
-					Some(Std::Ordering | Std::Duration | Std::Location | Std::TryReserveError)
+					Some(Std::Ordering | Std::Duration | Std::TypeId | Std::Location | Std::TryReserveError)
 				)
 		}
 		_ => false,
@@ -3008,6 +3008,7 @@ pub fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, spa
 		ty::Adt(..) if library::string(tcx, ty) => Expr::Rs("cmpStr".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Ordering) => Expr::Rs("cmp".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rs("durationCmp".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::TypeId) => Expr::Rs("typeIdCmp".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rs("locationCmp".into()),
 		_ if library::nothing(tcx, ty) => Expr::Rs("cmpNothing".into()),
 		ty::Tuple(tys) => {
@@ -3083,7 +3084,10 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		}
 		ty::Bool | ty::Char | ty::Int(_) | ty::Uint(_) | ty::Float(_) | ty::Str => Expr::Rs("same".into()),
 		_ if library::nothing(tcx, ty) => Expr::Rs("same".into()),
-		ty::Adt(..) if library::string(tcx, ty) || matches!(b.t.std_of(ty), Some(Std::Ordering | Std::ErrorKind)) => {
+		ty::Adt(..)
+			if library::string(tcx, ty)
+				|| matches!(b.t.std_of(ty), Some(Std::Ordering | Std::ErrorKind | Std::TypeId)) =>
+		{
 			Expr::Rs("same".into())
 		}
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rs("durationEq".into()),
@@ -3320,6 +3324,7 @@ fn hash_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, hasher: Ty<'tcx>, spa
 		// Its derived `Hash` writes its `i8` discriminant.
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Ordering) => Expr::Rs("hashI8".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rs("durationHash".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::TypeId) => Expr::Rs("typeIdHash".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rs("locationHash".into()),
 		_ if library::nothing(tcx, ty) => Expr::Rs("hashNothing".into()),
 		ty::Tuple(tys) => {

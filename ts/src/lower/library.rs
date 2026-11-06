@@ -190,6 +190,9 @@ pub enum Std {
 	BuildHasherDefault,
 	/// `rs.Duration`: its seconds and nanoseconds, never changed once made.
 	Duration,
+	/// `rs.TypeId`: rustc's 128-bit hash of the type, which std's `TypeId` holds at run time,
+	/// as 32 hex digits.
+	TypeId,
 	/// `rs.Layout`: its size and alignment, never changed once made.
 	Layout,
 	/// `rs.Location`: a panic's file, line, and column, never changed once made.
@@ -297,6 +300,7 @@ impl Std {
 			}
 		}
 		for (item, std) in [
+			(rustc_attr_ir::LangItem::TypeId, Self::TypeId),
 			(rustc_attr_ir::LangItem::UnsafeCell, Self::Cell),
 			(rustc_attr_ir::LangItem::Context, Self::Context),
 			(rustc_attr_ir::LangItem::ResumeTy, Self::Context),

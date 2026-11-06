@@ -79,7 +79,7 @@ and each type a module of its own beside it, holding the type and its functions
 from. `rs.ts` beside them is the
 runtime: what std does that JS does not, with iterators in `rs/iter.ts`, `str`'s searches
 in `rs/str.ts`, the ASCII methods of `u8`, `char`, `[u8]`, and `str` in `rs/ascii.ts`, `char`'s Unicode classes, case maps, escapes, and encodings, and `str`'s case maps and escapes, in `rs/char.ts`, collections in `rs/collections.ts`, hashing in `rs/hash.ts`, ownership, atomics, and async in
-`rs/task.ts`, `f64`'s and `f32`'s methods in `rs/float.ts`, `Duration` in `rs/time.ts`, and `Layout` and memory from `alloc` in `rs/alloc.ts`. What translates from std's own MIR,
+`rs/task.ts`, `f64`'s and `f32`'s methods in `rs/float.ts`, `Duration` in `rs/time.ts`, `TypeId` in `rs/any.ts`, and `Layout` and memory from `alloc` in `rs/alloc.ts`. What translates from std's own MIR,
 `Option`'s, `Result`'s, and `Poll`'s methods, `==` of std's errors, `==` and ordering of a `Result` and a `Poll`, `cmp::max` and `min`, and the `str::parse` and
 `from_str_radix` of an integer or a `NonZero` and `bool`'s `str::parse`, goes in a module under its crate's name, as
 `core/option.ts` holds `map$1cf8u0y`. A dependency's modules go
@@ -121,13 +121,14 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `PeekMut<T>` | `rs.PeekMut<T>`, the `rs.Place` of a heap's greatest element, which sifts it down as it drops once `DerefMut` lent it |
 | `Ordering`, `DefaultHasher`, `RandomState`, `BuildHasherDefault<H>` | `rs.Ordering`, which is `-1`, `0`, or `1`; `rs.Hasher`; `rs.RandomState`, the keys of the `DefaultHasher` it builds, never changed once made; `undefined`, as `PhantomData` is, whose `build_hasher` is `H::default()` |
 | `Duration` | `rs.Duration`: `{ secs, nanos }`, std's whole seconds as an `rs.u64` and the nanoseconds past them, never changed once made |
+| `TypeId` | `rs.TypeId`: rustc's 128-bit hash of the type, which std's holds at run time, as 32 hex digits, equal by `===`; ordered as std's derive orders the hash's pointer-sized words, lowest first, hashed as its high 64 bits, and written as `TypeId(0x…)`, as std's are |
 | `Layout`, `alloc::alloc` | `rs.Layout`: `{ size, align }`, never changed once made, checked as std's constructors check it; `alloc` gives an `rs.Block` of its bytes, which a cast of its pointer to `*mut T` the body shows came from `alloc` or `realloc` makes a JS array of `T`s, values JS copies, as an `rs.AtIndex` of its first; a cast back to `*mut u8` only as what `dealloc` or `realloc` takes, which free the array or copy it into a new one; its bytes, read, written, or cast to any other type, are refused, and fail at run time through a pointer from elsewhere |
 | closure | an arrow function, with `[Symbol.dispose]` if it owns a value that drops, and what makes its clone if a clone can't be itself |
 | `fn` pointer, function item as a value | the function, or std's an arrow that calls it as a written call does, as a closure is typed: a `()` result is `undefined`, where a declared function returns `void` |
 | `&dyn Trait`, `&mut dyn Trait`, `Box<dyn Trait>`, `Arc<dyn Trait>`, `Rc<dyn Trait>`, `Weak<dyn Trait>`, `Pin<P>` of one | an object with the trait's methods, its supertraits' included: `shape.area$Shape()`; behind an `Arc` or an `Rc`, an `rs.ArcDyn` sharing the count of the `Arc` it was made from |
 | a pointer to a struct whose last field unsizes to a trait object: `Rc<RefCell<dyn Trait>>`, `Arc<Mutex<dyn Trait>>`, `Arc<RwLock<dyn Trait>>`, `&mut Cell<dyn Trait>`, `Rc<UnsafeCell<dyn Trait>>`, `Arc<Mutex<dyn Future + Unpin>>`, the crate's own `&Tail<dyn Trait>` | `rs.tailDyn` of the struct it was made from: the same struct, whose other fields, borrows, and lock are that struct's own, and whose last field is the trait object a `&mut` to that field would be, made where it is read; a `dyn Future`'s polls the one future in place and drops it with the struct. A `ManuallyDrop<dyn Trait>` is the trait object of what it holds, which a box of it never drops |
 | `dyn Error` | an object of its `fmt$Debug` and `fmt$Display`, and its `source` where a call dispatches to it: `e.source$Error()` |
-| `dyn Any` | an instance of the class its value's type was wrapped in, which a downcast checks for: `a instanceof of$dyns_Square ? a.v : undefined` |
+| `dyn Any` | an instance of the class its value's type was wrapped in, which a downcast checks for: `a instanceof of$dyns_Square ? a.v : undefined`, and whose `type_id` gives that type's: `a.typeId$Any()` |
 | `dyn Fn`, `dyn FnMut`, `dyn FnOnce` | the closure or function it was made of: `(a0: rs.u8) => rs.u32` |
 | `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator`, `dyn FusedIterator` | `rs.Iter<Item>`: `rs.iterDyn` of the iterator it was made of |
 | constant | its value, inlined as Rust inlines it, so each use of one holding a cell is a cell of its own; one with no value tree, or holding a cell, read from the memory rustc evaluated |
@@ -631,9 +632,11 @@ mapping makes, such as a `Vec<u8>`'s `io::Write`, is refused where a call dispat
 A `dyn Buf` holds no `chunks_vectored`, whose `IoSlice` has no JS value, so a call of it
 fails.
 
-A `dyn Any` is such an object with no methods, whose class `is`, `downcast_ref`,
+A `dyn Any` is such an object of `type_id` alone, whose class `is`, `downcast_ref`,
 `downcast_mut`, and `Box`'s, `Arc`'s, and `Rc`'s `downcast` check for: `a instanceof of$dyns_Square ?
-a.v : undefined`. Its `Debug` writes `Any { .. }`, as std's does. A `&mut` one of a value JS copies is the class holding its `rs.Place`,
+a.v : undefined`. Its `Debug` writes `Any { .. }`, as std's does. Its `type_id`, which it
+holds once a call dispatches to it, and a crate's own trait over `Any` from the start, is a
+constant of its class's type's `TypeId`, as `TypeId::of` and a value's `type_id` are. A `&mut` one of a value JS copies is the class holding its `rs.Place`,
 or the class itself behind a `Box`, as a `&mut dyn Trait`'s is, and `Arc::downcast` gives
 back the `Arc<T>` the object was made from, or, of one made from a box, an `rs.ArcDyn` of
 the value sharing its count.
@@ -665,7 +668,7 @@ box drops the iterator it owns, and the last `Arc` the one they share. `Arc::get
 `Arc` or `Weak` shares it, but a `dyn Any`'s, whose value `Arc::downcast` gives back.
 
 A trait object of a trait with a const parameter, of a byte array, or behind any other
-pointer, such as a struct's last field, is refused, and so is `Any::type_id`.
+pointer, such as a struct's last field, is refused.
 
 An `async fn` returns a future without running anything: an instance of a class of its
 own (`sumFuture`), the state machine MIR's coroutine transform makes. Its fields are the
@@ -919,6 +922,11 @@ they need.
   `rs.Borrowed`, so it clones and drops as std's does and only the borrowed side pays a
   wrapper. Untagged, as `Cow<str>` is, `to_mut` would clone on every call and a `match`
   would be refused; tagged, every `Cow` would be wrapped.
+- A `TypeId` is the hash std's holds, rather than the class of its type, which a `&mut dyn
+  Any` of a value JS copies has a second of and a type no object holds has none of, or
+  the type's path, whose order and `Debug` are not std's. It is the crate's metadata's, so
+  a translation and a native build of one crate agree on which types are equal but not on
+  the bits.
 - A `Duration` keeps std's fields, whole seconds and nanoseconds, rather than one count
   of nanoseconds, so its overflow, `checked_*`, and ordering are std's exactly, and a
   lowering of its methods from core's MIR would read the same fields.

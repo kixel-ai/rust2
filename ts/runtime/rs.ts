@@ -18,6 +18,7 @@ import { AtIndex } from "./rs/collections.ts";
 import { escapeDebug } from "./rs/char.ts";
 import { strFromUtf8Unchecked } from "./rs/str.ts";
 export * from "./rs/alloc.ts";
+export * from "./rs/any.ts";
 export * from "./rs/ascii.ts";
 export * from "./rs/bytes.ts";
 export * from "./rs/char.ts";

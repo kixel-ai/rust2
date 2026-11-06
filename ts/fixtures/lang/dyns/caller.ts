@@ -20,4 +20,12 @@ const shared = [[], [1], [0, 0], [255, 255, 0, 1, 2, 3, 4, 5], [7, 0xff, 255, 25
 	Uint8Array.of(...op("dyns::shared"), 0, ...bytes),
 );
 
-export const cases: Uint8Array[] = [...dyns, ...shared];
+/**
+ * `ids::ids` too short to run, and boxing each kind of value, the first two bytes picking
+ * ids at both ends of the list.
+ */
+const ids = [[], [1], [0, 12, 0, 1, 2], [12, 0, 255, 254, 253, 3]].map((bytes) =>
+	Uint8Array.of(...op("ids::ids"), 0, ...bytes),
+);
+
+export const cases: Uint8Array[] = [...dyns, ...shared, ...ids];

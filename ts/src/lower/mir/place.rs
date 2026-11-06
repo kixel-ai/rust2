@@ -1577,6 +1577,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		if let Some(value) = self.cell_value(val, ty, span) {
 			return value;
 		}
+		if self.b.t.std_of(ty) == Some(Std::TypeId) {
+			return match self.type_id_const(val, ty) {
+				Some(of) => self.b.t.type_id(of),
+				None => self.err(span, format!("a constant of type `{ty}` that names no type")),
+			};
+		}
 		// An aggregate, field by field.
 		if let ty::Adt(..) | ty::Tuple(_) | ty::Array(..) = ty.kind()
 			&& !matches!(ty.kind(), ty::Tuple(tys) if tys.is_empty())
@@ -1697,6 +1703,22 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Some(val) => self.const_value(val, ty, span),
 				None => self.err(span, format!("a constant of type `{ty}` held in memory")),
 			},
+		}
+	}
+
+	/// The type the constant `TypeId` `val` is of, which the allocation its first word points
+	/// into names, as const evaluation writes it.
+	fn type_id_const(&self, val: ConstValue, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+		let tcx = self.tcx;
+		let id = tcx.try_destructure_mir_constant_for_user_output(val, ty)?;
+		let &(words, words_ty) = id.fields.first()?;
+		let words = tcx.try_destructure_mir_constant_for_user_output(words, words_ty)?;
+		let &(ConstValue::Scalar(Scalar::Ptr(ptr, _)), _) = words.fields.first()? else {
+			return None;
+		};
+		match tcx.global_alloc(ptr.provenance.alloc_id()) {
+			GlobalAlloc::TypeId { ty } => Some(ty),
+			_ => None,
 		}
 	}
 
