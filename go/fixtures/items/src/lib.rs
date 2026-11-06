@@ -34,8 +34,8 @@ pub mod tallies {
 	pub use crate::counter::Counter;
 
 	/// `TalliesTotal`, by its module path.
-	pub fn total(counters: &[crate::Counter]) -> u8 {
-		counters.iter().fold(0, |sum, c| sum.wrapping_add(c.count))
+	pub fn total(a: &crate::Counter, b: &crate::Counter) -> u8 {
+		a.count.wrapping_add(b.count)
 	}
 }
 
@@ -91,9 +91,10 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 		}
 		1 => vec![std::ptr::eq(byte(), byte()) as u8, std::ptr::eq(bytes(), bytes()) as u8],
 		_ => {
-			let mut counters = [Counter::new(at(0)), Counter::new(at(1))];
-			let bumped = counters[0].bump();
-			vec![bumped, tallies::total(&counters)]
+			let mut a = Counter::new(at(0));
+			let b = Counter::new(at(1));
+			let bumped = a.bump();
+			vec![bumped, tallies::total(&a, &b)]
 		}
 	}
 }
