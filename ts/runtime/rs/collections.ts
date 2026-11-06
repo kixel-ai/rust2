@@ -2061,12 +2061,12 @@ export function btreePopKey<K, V>(m: BTreeMap<K, V>, last = false, none?: None):
  * does, node by node in postorder, so each node's entries in order after its children's.
  */
 export function btreeDrop<K, V>(m: BTreeMap<K, V>, k: ((key: K) => void) | undefined, v?: (value: V) => void): void {
-	dropNode(m.t, k, v);
+	dropTree(m.t, k, v);
 }
 
 /** Drops the entries of `n` and the nodes below it, as `btreeDrop` does. */
-function dropNode<K, V>(n: Node<K, V>, k: ((key: K) => void) | undefined, v?: (value: V) => void): void {
-	if (n.e !== undefined) for (const child of n.e) dropNode(child, k, v);
+function dropTree<K, V>(n: Node<K, V>, k: ((key: K) => void) | undefined, v?: (value: V) => void): void {
+	if (n.e !== undefined) for (const child of n.e) dropTree(child, k, v);
 	dropPairs(n.k, n.v, k, v);
 }
 
