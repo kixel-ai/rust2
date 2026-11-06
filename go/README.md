@@ -5,19 +5,20 @@ semantics of the Rust source. It is a spike, measuring whether Go users are bett
 a translation than by the C ABI [rust2-ffi](../ffi/README.md) exports, on moq's codec.
 
 ```bash
-rust2-go --config go.toml --out dir [--manifest-path Cargo.toml] [-- cargo args]
+rust2-go --out dir [--manifest-path Cargo.toml] [-- cargo args]
 ```
 
-```toml
-# go.toml: the Go package's name, and the functions it exports by their paths from the
-# crate root, `harness::run` as `HarnessRun`.
-package = "codec"
-roots = ["harness::run"]
-```
+It translates the library of the package whose `Cargo.toml` is in the current directory,
+or wherever `--manifest-path` says, to a Go package named after the crate. There is no
+config: the crate's `pub` API is what Go callers reach, each item by the shortest path the
+crate exports it at, in camel case. A function is exported, `harness::run` as
+`HarnessRun`, and a type is declared with its `pub` inherent methods, `Counter::new` as
+`CounterNew`. A trait comes along as its impls are called. A generic function or method,
+and a constant or static, are refused.
 
 It runs `cargo check` on the host with itself as `RUSTC_WRAPPER`, through the front end
 it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver), building std from
-source so every std function has MIR. From each root it translates every function
+source so every std function has MIR. From the `pub` API it translates every function
 instance reached, monomorphized, and every type they name, into one `.go` file per crate
 and the runtime in `runtime/`, then runs `gofmt`. What it can't translate is a compile
 error at its span, and nothing is written.
@@ -48,8 +49,9 @@ drop what the translation held.
 ## Refused
 
 `fixtures/reject/expected.txt` lists them with their spans: 128-bit integers, floats, a
-`Drop` impl, a trait object of any trait but `Display` and `Debug`, a union, and a type
-generic over a constant, such as an array's by-value iterator.
+`Drop` impl, a trait object of any trait but `Display` and `Debug`, a union, a type
+generic over a constant, such as an array's by-value iterator, and a `pub` item that is
+generic, a constant, or a static.
 
 ## Tests
 

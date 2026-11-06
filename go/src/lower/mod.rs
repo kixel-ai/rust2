@@ -1,4 +1,4 @@
-//! MIR to Go: every function instance the roots reach, monomorphized, becomes a Go
+//! MIR to Go: every function instance the `pub` API reaches, monomorphized, becomes a Go
 //! function of one package, its body the MIR's blocks structured into loops and `if`s
 //! and its locals as variables. Types become Go types, generic where Rust's are, and std's functions
 //! translate from their own MIR down to the bindings that stand in for what Go does
@@ -20,8 +20,6 @@ use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{CrateNum, DefId, LOCAL_CRATE};
 use rustc_middle::ty::{Instance, Ty, TyCtxt, TypingEnv, Unnormalized};
 use rustc_span::Span;
-
-use crate::config::Config;
 
 /// The runtime's files, copied into the package beside the translation.
 const RUNTIME: &[(&str, &str)] = &[
@@ -66,12 +64,12 @@ fn runtime_names(text: &str) -> Vec<String> {
 	names
 }
 
-/// Translate the crate from the config's roots, or `None` after reporting what it
-/// refuses. Each file is a name and its text.
-pub fn translate(tcx: TyCtxt<'_>, config: &Config) -> Option<Vec<(String, String)>> {
+/// Translate the crate from its `pub` API, or `None` after reporting what it refuses.
+/// Each file is a name and its text.
+pub fn translate(tcx: TyCtxt<'_>) -> Option<Vec<(String, String)>> {
 	let mut t = Translator::new(tcx);
-	for root in &config.roots {
-		t.root(root);
+	for (path, def_id) in names::public(tcx) {
+		t.root(&path, def_id);
 	}
 	while let Some((instance, span)) = t.queue.pop_front() {
 		let text = body::function(&mut t, instance, span);
@@ -224,20 +222,49 @@ impl<'tcx> Translator<'tcx> {
 		}
 	}
 
-	/// A root function, by its path from the crate root, exported to Go callers.
-	fn root(&mut self, path: &str) {
+	/// An item of the `pub` API, by the path the crate exports it at, exported to Go
+	/// callers: a function, or a type with its `pub` inherent methods. A trait comes along
+	/// as its impls are called, and a module's items and an alias's type are their own.
+	fn root(&mut self, path: &str, def_id: DefId) {
 		let tcx = self.tcx;
-		let Some(def_id) = names::resolve(tcx, path) else {
-			tcx.dcx().err(format!("rust2-go: no item `{path}` in the crate"));
-			self.failed = true;
-			return;
-		};
-		if tcx.def_kind(def_id) != DefKind::Fn {
-			self.err(tcx.def_span(def_id), "a root must be a function");
-			return;
+		let span = tcx.def_span(def_id);
+		match tcx.def_kind(def_id) {
+			DefKind::Fn => self.root_fn(path, def_id),
+			DefKind::Struct | DefKind::Enum | DefKind::Union => {
+				if library::mapped(tcx, def_id).is_none() {
+					self.adt_decl(tcx.adt_def(def_id), span);
+				}
+				for &imp in tcx.inherent_impls(def_id) {
+					for item in tcx.associated_items(imp).in_definition_order() {
+						if !tcx.visibility(item.def_id).is_public() {
+							continue;
+						}
+						let path = format!("{path}::{}", item.name());
+						match item.is_fn() {
+							true => self.root_fn(&path, item.def_id),
+							false => self.root_const(tcx.def_span(item.def_id)),
+						}
+					}
+				}
+			}
+			DefKind::Const { .. } | DefKind::Static { .. } => self.root_const(span),
+			_ => {}
 		}
+	}
+
+	/// A `pub` constant or static, which Go callers would read as a variable.
+	fn root_const(&mut self, span: Span) {
+		self.err(span, "a `pub` constant or static, which Go callers would read as a variable, is not supported");
+	}
+
+	/// A root function, exported to Go callers by its path in camel case.
+	fn root_fn(&mut self, path: &str, def_id: DefId) {
+		let tcx = self.tcx;
 		if tcx.generics_of(def_id).requires_monomorphization(tcx) {
-			self.err(tcx.def_span(def_id), "a root must not be generic");
+			self.err(
+				tcx.def_span(def_id),
+				"a generic `pub` function, which translates only as its callers instantiate it, is not supported",
+			);
 			return;
 		}
 		let instance = Instance::mono(tcx, def_id);

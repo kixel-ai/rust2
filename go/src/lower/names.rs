@@ -1,6 +1,8 @@
 //! Go names: items resolved by their paths from the crate root, and every Rust item's
 //! package-level Go name.
 
+use std::collections::{HashSet, VecDeque};
+
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::def_id::{CRATE_DEF_ID, DefId, LOCAL_CRATE};
 use rustc_middle::ty::{self, GenericArgKind, Instance, InstanceKind, ShimKind, Ty, TyCtxt};
@@ -78,24 +80,33 @@ pub const PREDECLARED: &[&str] = &[
 	"comparable",
 ];
 
-/// The item a path from the crate root names, through modules.
-pub fn resolve(tcx: TyCtxt<'_>, path: &str) -> Option<DefId> {
-	let mut item = CRATE_DEF_ID.to_def_id();
-	for segment in path.split("::") {
-		let local = item.as_local()?;
-		item = tcx
-			.module_children_local(local)
-			.iter()
-			.find_map(|child| match child.res {
-				Res::Def(kind, def_id)
-					if child.ident.as_str() == segment && !matches!(kind, DefKind::Ctor(..) | DefKind::Macro(_)) =>
-				{
-					Some(def_id)
-				}
-				_ => None,
-			})?;
+/// The crate's `pub` API: each item a path of `pub` names from the crate root reaches,
+/// through its modules and re-exports, by its shortest such path, the first in
+/// definition order of those as short. A module is walked rather than listed.
+pub fn public(tcx: TyCtxt<'_>) -> Vec<(String, DefId)> {
+	let mut items = Vec::new();
+	let mut seen = HashSet::new();
+	let mut modules = VecDeque::from([(String::new(), CRATE_DEF_ID)]);
+	while let Some((prefix, module)) = modules.pop_front() {
+		for child in tcx.module_children_local(module) {
+			let Res::Def(kind, def_id) = child.res else {
+				continue;
+			};
+			if !child.vis.is_public() || matches!(kind, DefKind::Ctor(..)) || !seen.insert(def_id) {
+				continue;
+			}
+			let name = child.ident.name;
+			let path = match prefix.is_empty() {
+				true => name.to_string(),
+				false => format!("{prefix}::{name}"),
+			};
+			match (kind, def_id.as_local()) {
+				(DefKind::Mod, Some(local)) => modules.push_back((path, local)),
+				_ => items.push((path, def_id)),
+			}
+		}
 	}
-	Some(item)
+	items
 }
 
 /// The item a path names in another crate, from its root through modules.

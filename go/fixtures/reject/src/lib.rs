@@ -1,11 +1,14 @@
-//! Constructs outside the subset: each root fails translation with a span, and no
+//! Constructs outside the subset: each `pub` item fails translation with a span, and no
 //! output is written.
 
-#![allow(dead_code, reason = "each item is a translation root, not called from Rust")]
+#![allow(dead_code, reason = "each `pub` item is a translation root, not called from Rust")]
 
 pub fn generic<T>(t: T) -> T {
 	t
 }
+
+/// Go callers would read it as a variable, which no translation declares yet.
+pub const LIMIT: u8 = 4;
 
 /// Go has no 128-bit integer.
 pub fn wide(a: u64, b: u64) -> u128 {

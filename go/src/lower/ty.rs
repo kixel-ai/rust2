@@ -147,7 +147,7 @@ impl<'tcx> Translator<'tcx> {
 
 	/// The Go name of an ADT's declaration, declaring it if new: generic over its type
 	/// parameters, as the Rust type is.
-	fn adt_decl(&mut self, adt: AdtDef<'tcx>, span: Span) -> String {
+	pub(super) fn adt_decl(&mut self, adt: AdtDef<'tcx>, span: Span) -> String {
 		let tcx = self.tcx;
 		let did = adt.did();
 		if let Some(name) = self.types.get(&TypeKey::Adt(did)) {

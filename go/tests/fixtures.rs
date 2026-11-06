@@ -23,8 +23,6 @@ fn translated(name: &str) -> PathBuf {
 	let module = scratch().join(name);
 	let out = module.join("out");
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-go"))
-		.arg("--config")
-		.arg(fixture(name).join("go.toml"))
 		.arg("--manifest-path")
 		.arg(fixture(name).join("Cargo.toml"))
 		.arg("--out")
@@ -299,11 +297,18 @@ fn vecs() {
 	differential("vecs", vecs::run, "Run", cases);
 }
 
-/// Fields and variants whose escaped names could meet, and constant memory, which each
-/// use shares.
+/// Fields and variants whose escaped names could meet, constant memory, which each use
+/// shares, and the `pub` API, exported by the paths the crate exports it at.
 #[test]
 fn items() {
-	differential("items", items::run, "Run", cases(2, 4, 1_000));
+	differential("items", items::run, "Run", cases(3, 4, 1_000));
+	let text = std::fs::read_to_string(scratch().join("items/out/items.go")).unwrap();
+	for exported in ["type Counter struct", "func CounterNew(", "func CounterBump(", "func TalliesTotal("] {
+		assert!(text.contains(exported), "items.go lacks `{exported}`");
+	}
+	for unexported in ["TalliesCounter", "CounterHidden"] {
+		assert!(!text.contains(unexported), "items.go has `{unexported}`");
+	}
 }
 
 /// Enums Go holds as their parts, behind pointers where a part is over four words.
@@ -326,8 +331,6 @@ fn reject() {
 	let name = "reject";
 	let out = scratch().join(name).join("out");
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-go"))
-		.arg("--config")
-		.arg(fixture(name).join("go.toml"))
 		.arg("--manifest-path")
 		.arg(fixture(name).join("Cargo.toml"))
 		.arg("--out")

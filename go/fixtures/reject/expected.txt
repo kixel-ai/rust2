@@ -1,24 +1,23 @@
-no item `missing` in the crate
-a root must not be generic at fixtures/reject/src/lib.rs:6:1
-`Callback`, an enum held as its parts that a function pointer in it takes or returns, is not supported at fixtures/reject/src/lib.rs:96:1
-`Callback`, an enum held as its parts that a function pointer in it takes or returns, is not supported at fixtures/reject/src/lib.rs:92:7
-`u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:11:1
-`u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:12:2
-`u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:12:14
-`u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:12:2
-`u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:11:32
-dropping `Logged`, which runs `reject::Logged`'s `Drop` impl, is not supported at fixtures/reject/src/lib.rs:25:1
-`dyn std::iter::Iterator<Item = u8>`, a trait object of a trait other than `Display` and `Debug` is not supported at fixtures/reject/src/lib.rs:27:1
-a call through a trait object is not supported at fixtures/reject/src/lib.rs:28:4
-a union is not supported at fixtures/reject/src/lib.rs:31:1
-a union is not supported at fixtures/reject/src/lib.rs:37:11
-dropping `std::array::IntoIter<u8, 4>`, which runs `core::array::iter::IntoIter`'s `Drop` impl, is not supported at fixtures/reject/src/lib.rs:45:2
+a generic `pub` function, which translates only as its callers instantiate it, is not supported at fixtures/reject/src/lib.rs:6:1
+a `pub` constant or static, which Go callers would read as a variable, is not supported at fixtures/reject/src/lib.rs:11:1
+`Callback`, an enum held as its parts that a function pointer in it takes or returns, is not supported at fixtures/reject/src/lib.rs:95:7
+`u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:14:1
+`u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:15:2
+`u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:15:14
+`u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:15:2
+`u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:14:32
+dropping `Logged`, which runs `reject::Logged`'s `Drop` impl, is not supported at fixtures/reject/src/lib.rs:28:1
+`dyn std::iter::Iterator<Item = u8>`, a trait object of a trait other than `Display` and `Debug` is not supported at fixtures/reject/src/lib.rs:30:1
+a call through a trait object is not supported at fixtures/reject/src/lib.rs:31:4
+a union is not supported at fixtures/reject/src/lib.rs:34:1
+a union is not supported at fixtures/reject/src/lib.rs:40:11
+dropping `std::array::IntoIter<u8, 4>`, which runs `core::array::iter::IntoIter`'s `Drop` impl, is not supported at fixtures/reject/src/lib.rs:48:2
 a type with a const parameter is not supported at library/core/src/array/iter.rs:20:1
 `[std::mem::MaybeUninit<T>; N]`, an array of a length generic in its type is not supported at library/core/src/array/iter.rs:21:5
-a scalar constant of type `f32` is not supported at fixtures/reject/src/lib.rs:50:2
-`Mul` of `f32` is not supported at fixtures/reject/src/lib.rs:50:2
-`Vec::capacity`, which Go's growth would make differ from Rust's is not supported at fixtures/reject/src/lib.rs:55:30
-`Eq` of `*const [u8]` is not supported at fixtures/reject/src/lib.rs:71:2
-`Lt` of `*const u8` is not supported at fixtures/reject/src/lib.rs:76:2
-a reference into constant memory that another reference points into at another offset or type is not supported at fixtures/reject/src/lib.rs:86:15
+a scalar constant of type `f32` is not supported at fixtures/reject/src/lib.rs:53:2
+`Mul` of `f32` is not supported at fixtures/reject/src/lib.rs:53:2
+`Vec::capacity`, which Go's growth would make differ from Rust's is not supported at fixtures/reject/src/lib.rs:58:30
+`Eq` of `*const [u8]` is not supported at fixtures/reject/src/lib.rs:74:2
+`Lt` of `*const u8` is not supported at fixtures/reject/src/lib.rs:79:2
+a reference into constant memory that another reference points into at another offset or type is not supported at fixtures/reject/src/lib.rs:89:15
 an unsizing of `&mut std::array::iter::iter_inner::PolymorphicIter<[std::mem::MaybeUninit<u8>; 4]>` to `&mut std::array::iter::iter_inner::PolymorphicIter<[std::mem::MaybeUninit<u8>]>` is not supported at library/core/src/array/iter.rs:33:9
