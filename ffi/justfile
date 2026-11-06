@@ -8,8 +8,9 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 
 export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { env("RUST2_TS_TOOLCHAIN") / "bin:" + env("PATH") }
 
-# The moq revision these recipes export by default: `just ts`'s, so both follow one moq.
-moq_rev := shell(just_executable() + " --justfile ../ts/justfile --evaluate moq_rev")
+# The moq revision these recipes export by default: `just ts`'s, so both follow one moq. The
+# executable is quoted, since on Windows its path's backslashes would be bash escapes.
+moq_rev := shell('"$1" --justfile ../ts/justfile --evaluate moq_rev', just_executable())
 
 default:
     @just --list
