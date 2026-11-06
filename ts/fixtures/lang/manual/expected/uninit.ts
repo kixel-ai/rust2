@@ -2,6 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { map$1yjmt5m as option_map$1yjmt5m } from "./core/option.ts";
+import * as Counted from "./uninit.Counted.ts";
 
 /**
  * An array of bytes not yet written, a `Vec` of them, and an array of `u16`s, each
@@ -97,6 +98,117 @@ export function uninits(data: rs.ByteSlice, out: rs.ByteVec): void {
 			dst4;
 		}
 	}
+}
+
+/**
+ * Boxed slices not yet written, of bytes, `u16`s, `String`s, and values that count
+ * their clones and drops: written by element, by `write_copy_of_slice`, and by
+ * `write_clone_of_slice`, which clones each in without dropping what was there, then
+ * read as what they hold.
+ */
+export function boxedUninits(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const bytes: rs.ByteSlice = rs.byteSliceNewUninit(data.length);
+	rs.byteVecPush(out, bytes.length & 0xff);
+	const dst = bytes;
+	rs.byteSliceCopyFromSlice(dst, data);
+	rs.byteSliceView(dst).reverse();
+	rs.byteVecExtendFromSlice(out, bytes);
+	const cloned: rs.ByteSlice = rs.byteSliceNewUninit(rs.usizeDiv(data.length, 2));
+	rs.byteSliceView(rs.byteSliceWriteCloneOfSlice(cloned, rs.byteSliceRange(data, 0, rs.usizeDiv(data.length, 2)))).sort();
+	rs.byteVecExtendFromSlice(out, cloned);
+	const words: rs.Slice<rs.u16> = rs.sliceNewUninit(rs.usizeDiv(data.length, 2), 2, (): rs.u16 => {
+		return (undefined as unknown) as rs.u16;
+	});
+	const iter: rs.Iter<[rs.Place<rs.u16>, rs.ByteSlice]> = rs.iterZip(rs.iterSliceMut(words), rs.byteSliceChunksExact(data, 2), [false, false]);
+	while (true) {
+		const _41: [rs.Place<rs.u16>, rs.ByteSlice] | rs.Done = iter.next();
+		if (_41 === rs.DONE) {
+			break;
+		}
+		rs.idx(_41[1], 0);
+		const _49: rs.u8 = _41[1].data[_41[1].start];
+		rs.idx(_41[1], 1);
+		const uninit = _41[0];
+		uninit.v = rs.u16FromBeBytes(Uint8Array.of(_49, _41[1].data[_41[1].start + 1]).slice().reverse());
+		uninit;
+	}
+	const iter2: rs.Iter<rs.u16> = rs.iterSlice(rs.sliceItems(words));
+	while (true) {
+		const _60: rs.u16 | rs.Done = iter2.next();
+		if (_60 === rs.DONE) {
+			break;
+		}
+		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(_60).reverse()));
+	}
+	const src: rs.Vec<string> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b: rs.u8): string => {
+		return rs.fmtFormat([(f: rs.Formatter) => rs.u8LowerHex(b, f)]);
+	}), undefined, 12, true);
+	const strings: rs.Slice<string> = rs.sliceNewUninit(src.items.length, 12, (): string => {
+		return (undefined as unknown) as string;
+	});
+	rs.sliceSort(rs.sliceWriteCloneOfSlice(strings, rs.sliceFrom(src.items), undefined), rs.cmpLt(rs.cmpStr), 12, true);
+	rs.sliceReverse(rs.sliceRange(rs.sliceWriteCloneOfSlice(strings, rs.sliceFrom(src.items), undefined), 0));
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(strings)), (s: string): rs.Iter<rs.u8> => {
+		return rs.strBytes(s);
+	}, undefined, true), "next");
+	const counts: rs.Cell<[rs.u8, rs.u8]> = new rs.Cell([0, 0] as [rs.u8, rs.u8]);
+	const src2: rs.Vec<Counted.Counted> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): Counted.Counted => {
+		return new Counted.Counted(_2, counts);
+	}), undefined, 8, true);
+	const counted: rs.Slice<Counted.Counted> = rs.sliceNewUninit(src2.items.length, 8, (): Counted.Counted => {
+		return (new Counted.Counted((undefined as unknown) as rs.u8, (undefined as unknown) as rs.Cell<[rs.u8, rs.u8]>) as unknown) as Counted.Counted;
+	});
+	rs.sliceWriteCloneOfSlice(counted, rs.sliceFrom(src2.items), Counted.clone$Clone);
+	rs.sliceWriteCloneOfSlice(counted, rs.sliceFrom(src2.items), Counted.clone$Clone);
+	rs.byteVecPush(out, counts.v[0]);
+	rs.byteVecPush(out, counts.v[1]);
+	const counted2: rs.Slice<Counted.Counted> = counted;
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(counted2)), (c: Counted.Counted): rs.u8 => {
+		return c._0;
+	}), undefined, true);
+	rs.byteVecPush(out, counts.v[1]);
+	rs.byteVecExtendFromSlice(out, boxedClone$u8(data));
+	const _134: rs.Slice<Counted.Counted> = boxedClone$uninit_Counted(counted2);
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(_134)), (c2: Counted.Counted): rs.u8 => {
+		return c2._0;
+	}), undefined, true);
+	rs.dropAll(_134);
+	rs.dropAll(counted2);
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(counts.v[0], counts.v[1])), undefined, true);
+	const len: rs.usize = data.length;
+	const p: rs.Place<rs.u8> = rs.rawByteSliceOf(rs.byteSliceNewUninit(len)).ptr;
+	rs.ptrCopy(rs.byteSliceAsPtr(data), p, len);
+	if (len > 1) {
+		rs.ptrAdd(p, 1).v = 170;
+	}
+	rs.byteVecExtendFromSlice(out, new rs.RawSlice(p, len).derefBytes(false));
+	const _162: rs.u8 | undefined = rs.byteSliceFirst(data);
+	if (_162 !== undefined) {
+		if (_162 === 252) {
+			rs.byteSliceWriteCloneOfSlice(rs.byteSliceNewUninit(1), rs.byteSliceRange(data, 0, 0));
+		} else if (_162 === 253) {
+			rs.sliceWriteCloneOfSlice(rs.sliceNewUninit(0, 8, (): Counted.Counted => {
+				return (new Counted.Counted((undefined as unknown) as rs.u8, (undefined as unknown) as rs.Cell<[rs.u8, rs.u8]>) as unknown) as Counted.Counted;
+			}), rs.sliceRange(rs.sliceFrom(src2.items), 0, 1), Counted.clone$Clone);
+		}
+	}
+	rs.dropVec(src2);
+}
+
+/** A boxed clone of `src`, built in slots not yet written. */
+export function boxedClone$u8(src: rs.ByteSlice): rs.ByteSlice {
+	const slots: rs.ByteSlice = rs.byteSliceNewUninit(src.length);
+	rs.byteSliceWriteCloneOfSlice(slots, src);
+	return slots;
+}
+
+/** A boxed clone of `src`, built in slots not yet written. */
+export function boxedClone$uninit_Counted(src: rs.Slice<Counted.Counted>): rs.Slice<Counted.Counted> {
+	const slots: rs.Slice<Counted.Counted> = rs.sliceNewUninit(src.length, 8, (): Counted.Counted => {
+		return (new Counted.Counted((undefined as unknown) as rs.u8, (undefined as unknown) as rs.Cell<[rs.u8, rs.u8]>) as unknown) as Counted.Counted;
+	});
+	rs.sliceWriteCloneOfSlice(slots, src, Counted.clone$Clone);
+	return slots;
 }
 
 //# sourceMappingURL=uninit.ts.map
