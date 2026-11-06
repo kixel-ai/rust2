@@ -1989,22 +1989,6 @@ function bulk<K, V>(m: BTreeMap<K, V>, keys: K[], values: V[]): void {
 	}
 }
 
-/** Each key in order, and each one's value. */
-function flatten<K, V>(m: BTreeMap<K, V>): [K[], V[]] {
-	const keys: K[] = [];
-	const values: V[] = [];
-	const visit = (n: Node<K, V>) => {
-		for (let i = 0; i < n.k.length; i++) {
-			if (n.e !== undefined) visit(n.e[i]);
-			keys.push(n.k[i]);
-			values.push(n.v[i]);
-		}
-		if (n.e !== undefined) visit(n.e[n.k.length]);
-	};
-	visit(m.t);
-	return [keys, values];
-}
-
 /** `first_key_value`, and with `last`, `last_key_value`. */
 export function btreeFirst<K, V>(m: BTreeMap<K, V>, last = false): [K, V] | undefined {
 	if (m.n === 0) return undefined;
@@ -2040,13 +2024,21 @@ export function btreePopKey<K, V>(m: BTreeMap<K, V>, last = false, none?: None):
 	return entry === undefined ? none : entry[0];
 }
 
-/** Drop `m`: each key by `k` and each value by `v`, of those that drop, in key order. */
+/**
+ * Drop `m`: each key by `k` and each value by `v`, of those that drop, as std's `drop_tree`
+ * does, node by node in postorder, so each node's entries in order after its children's.
+ */
 export function btreeDrop<K, V>(m: BTreeMap<K, V>, k: ((key: K) => void) | undefined, v?: (value: V) => void): void {
-	const [keys, values] = flatten(m);
-	dropPairs(keys, values, k, v);
+	dropNode(m.t, k, v);
 }
 
-/** `clear`, which leaves the map empty and then drops each entry in key order. */
+/** Drops the entries of `n` and the nodes below it, as `btreeDrop` does. */
+function dropNode<K, V>(n: Node<K, V>, k: ((key: K) => void) | undefined, v?: (value: V) => void): void {
+	if (n.e !== undefined) for (const child of n.e) dropNode(child, k, v);
+	dropPairs(n.k, n.v, k, v);
+}
+
+/** `clear`, which leaves the map empty and then drops it, as `btreeDrop` does. */
 export function btreeClear<K, V>(m: BTreeMap<K, V>, k?: (key: K) => void, v?: (value: V) => void): void {
 	if (k !== undefined || v !== undefined) {
 		const old: BTreeMap<K, V> = { t: m.t, h: m.h, n: m.n, c: m.c, r: m.r };
