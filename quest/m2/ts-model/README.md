@@ -33,12 +33,12 @@ Decided with the maintainer on 2026-10-27, from a census of the model's 22 publi
   the translator is specific to moq: dependencies follow general rules, and moq's own
   changes (safe `cfg` twins of its `unsafe`, dropping or binding `hashlink`, `slab`, and
   `smallvec`) are one research-tier quest in moq's tree.
-- Until `unsafe` and trait objects translate, internal `unsafe` in moq-net and kio gets
+- Until `unsafe` translates, internal `unsafe` in moq-net and kio gets
   safe `cfg` twins in moq, so differential tests cover it, and a dependency containing
   `unsafe` is bound by the consumer. These are stopgaps: decided with the maintainer on
   2026-10-27, a stock crate translates with no annotations or config, so
-  [unsafe code the translator can model](/quest/m3/ts-unsafe.md) and
-  [trait objects](/quest/m3/ts-dyn.md) remove them. Only true platform boundaries (clocks and
+  [unsafe code the translator can model](/quest/m3/ts-unsafe.md) removes them, as trait
+  objects, which translate, already have. Only true platform boundaries (clocks and
   DEFLATE) stay bound.
 - Each child measures this target by the census of `ts/moq/model.toml`, rooted at those
   types with the boundaries bound, which nightly reports beside the whole crate.
