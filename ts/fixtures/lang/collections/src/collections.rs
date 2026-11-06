@@ -2552,3 +2552,133 @@ pub fn btree_searches(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		}
 	}
 }
+
+/// A B-tree key ordered by its `start`, which lends its `end`, as rangemap's start wrapper
+/// lends its end wrapper, and its `id`, a form of std's.
+struct Lent<'a> {
+	start: Probe<'a>,
+	end: Probe<'a>,
+	id: u16,
+}
+
+impl PartialEq for Lent<'_> {
+	fn eq(&self, other: &Self) -> bool {
+		self.start == other.start
+	}
+}
+
+impl Eq for Lent<'_> {}
+
+impl PartialOrd for Lent<'_> {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		Some(self.cmp(other))
+	}
+}
+
+impl Ord for Lent<'_> {
+	fn cmp(&self, other: &Self) -> Ordering {
+		self.start.cmp(&other.start)
+	}
+}
+
+impl<'a> std::borrow::Borrow<Probe<'a>> for Lent<'a> {
+	fn borrow(&self) -> &Probe<'a> {
+		&self.end
+	}
+}
+
+impl std::borrow::Borrow<u16> for Lent<'_> {
+	fn borrow(&self) -> &u16 {
+		&self.id
+	}
+}
+
+/// std's B-tree searched by a form its keys lend by the crate's own `Borrow`, which it
+/// orders by that form's `Ord` against what each key lends, as `Probe` logs: of a map and a
+/// set whose keys' ends and ids rise with their starts, or of odd `kind`s fall, so a search
+/// by one disagrees with the tree's order. Each answer is followed by the log.
+pub fn btree_borrows(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let log = std::cell::Cell::new(0u32);
+	let at = |i: usize| data.get(i).copied().unwrap_or(0);
+	let put = |out: &mut Vec<u8>, answer: u16| {
+		out.extend(answer.to_le_bytes());
+		out.extend(log.replace(0).to_le_bytes());
+	};
+	let n = usize::from(at(0)) + 1;
+	let falls = kind % 2 == 1;
+	let lent = |i: usize| {
+		let start = (i * 7) as u16 & 0x3ff;
+		let end = if falls { 0x3ff - start } else { start + 3 };
+		Lent {
+			start: Probe(start, &log),
+			end: Probe(end, &log),
+			id: end ^ 0x100,
+		}
+	};
+	let probe = |b: u8| Probe(u16::from(b) * 4 + u16::from(b >> 6), &log);
+	let id = |b: u8| (u16::from(b) * 4) ^ 0x100;
+	let some = |v: Option<&u16>| v.map_or(0xffff, |v| *v);
+	let mut map: BTreeMap<Lent, u16> = BTreeMap::new();
+	let mut set: BTreeSet<Lent> = BTreeSet::new();
+	for i in 0..n {
+		map.insert(lent(i), i as u16);
+		set.insert(lent(i * 2));
+	}
+	put(out, map.len() as u16);
+	for &b in &data[data.len().min(4)..] {
+		put(out, some(map.get(&probe(b))));
+		put(out, some(map.get(&id(b))));
+		if let Some(v) = map.get_mut(&probe(b ^ 1)) {
+			*v += 1;
+		}
+		put(out, map.get_key_value(&probe(b)).map_or(0xffff, |(k, v)| k.start.0 ^ v));
+		put(out, map.contains_key(&id(b ^ 2)) as u16);
+		if map.contains_key(&probe(b)) {
+			put(out, map[&probe(b)]);
+		}
+		put(out, set.contains(&probe(b)) as u16);
+		put(out, set.get(&id(b)).map_or(0xffff, |k| k.start.0));
+		match b % 5 {
+			0 => put(out, map.remove(&probe(b)).unwrap_or(0xffff)),
+			1 => put(out, map.remove_entry(&id(b)).map_or(0xffff, |(k, v)| k.id ^ v)),
+			2 => put(out, set.remove(&probe(b)) as u16),
+			3 => put(out, set.take(&id(b)).map_or(0xffff, |k| k.id)),
+			_ => put(out, map.len() as u16),
+		}
+	}
+	// Backwards with `kind` 2, which std's checks by the form's `gt` and panics on.
+	let (lo, hi) = match kind % 4 < 2 {
+		true => (at(1).min(at(2)), at(1).max(at(2))),
+		false => (at(1), at(2)),
+	};
+	let ranges: [(Bound<Probe>, Bound<Probe>); 4] = [
+		(Bound::Excluded(probe(lo)), Bound::Unbounded),
+		(Bound::Included(probe(lo)), Bound::Excluded(probe(hi))),
+		(Bound::Unbounded, Bound::Included(probe(hi))),
+		(Bound::Excluded(probe(lo)), Bound::Included(probe(hi))),
+	];
+	for range in ranges {
+		for (k, v) in map.range::<Probe, _>(range) {
+			put(out, k.start.0 ^ v);
+		}
+	}
+	// rangemap's form: a bound of a reference.
+	let sliver = probe(lo);
+	for (k, v) in map.range::<Probe, (Bound<&Probe>, Bound<_>)>((Bound::Excluded(&sliver), Bound::Unbounded)) {
+		put(out, k.start.0 ^ v);
+	}
+	for (_, v) in map.range_mut::<u16, _>(id(lo)..=id(hi)) {
+		*v ^= 0x55;
+	}
+	for k in set.range::<u16, _>(id(lo)..id(hi)) {
+		put(out, k.id);
+	}
+	for k in set.range::<Probe, _>(..probe(hi)).rev() {
+		put(out, k.start.0);
+	}
+	let right = map.split_off(&probe(at(3)));
+	put(out, (map.len() * 1000 + right.len()) as u16);
+	let high = set.split_off(&id(at(3)));
+	put(out, (set.len() * 1000 + high.len()) as u16);
+	put(out, right.values().fold(0, |a, v| a ^ v));
+}
