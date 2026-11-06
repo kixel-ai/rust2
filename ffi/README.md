@@ -336,14 +336,14 @@ caller imports it with no ignores.
   `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
   `default()`. Constants are module or class attributes, made anew on each read unless a
   literal.
-- **Bytes** passed in are any buffer, `bytes | bytearray | memoryview`: `bytes` is read in place, and others, which Python
-  may change while Rust reads, are copied. Bytes Rust returns, or a record holds, are a
-  read-only `memoryview` lending Rust's buffer until it and its views are released. Those
-  Rust lends a closure or trait method are copied into `bytes`. Strings are `str`,
-  `Option<T>` `T | None`, a tuple a `tuple`, `Duration` `datetime.timedelta`, truncated to
-  the microsecond, with `timedelta.max` for any longer and for `Duration::MAX`, a `Range` a
-  `range`, and an `Err` a raised `<E>Exception` holding it in `error`, whose `str` is its
-  `Display`.
+- **Bytes** passed in are any buffer, `bytes | bytearray | memoryview`: `bytes` is read in
+  place, and others, which Python may change while Rust reads, are copied. Bytes Rust
+  returns, or a record holds, are a read-only `memoryview` lending Rust's buffer until it
+  and its views are released. Those Rust lends a closure or trait method are copied into
+  `bytes`. Strings are `str`, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
+  `datetime.timedelta`, truncated to the microsecond, with `timedelta.max` for any longer
+  and for `Duration::MAX`, a `Range` a `range`, and an `Err` a raised `<E>Exception`
+  holding it in `error`, whose `str` is its `Display`.
 - A **path** is a `str`, or any path passed in, which crosses as `os.fsencode` encodes it, so
   one that is not UTF-8 keeps its bytes. A `SocketAddr` is the `socket` module's tuple,
   `(host, port)` or `(host, port, flowinfo, scope_id)`, of that family for `V4` or `V6`.
@@ -572,8 +572,8 @@ agree; the runtime the glue includes is [`runtime/rt.rs`](runtime/rt.rs), the on
 header includes [`runtime/rt.hpp`](runtime/rt.hpp), the ones Kotlin and its JNI glue
 include [`runtime/rt.kt`](runtime/rt.kt) and [`runtime/jni.rs`](runtime/jni.rs), the ones
 Python and its extension include [`runtime/rt.py`](runtime/rt.py),
-[`runtime/native.py`](runtime/native.py), and [`runtime/python.rs`](runtime/python.rs), the one the Swift includes
-[`runtime/rt.swift`](runtime/rt.swift), the one the Go includes
+[`runtime/native.py`](runtime/native.py), and [`runtime/python.rs`](runtime/python.rs),
+the one the Swift includes [`runtime/rt.swift`](runtime/rt.swift), the one the Go includes
 [`runtime/rt.go`](runtime/rt.go), and the ones the Dart and its glue include
 [`runtime/rt.dart`](runtime/rt.dart) and [`runtime/dart.rs`](runtime/dart.rs).
 
