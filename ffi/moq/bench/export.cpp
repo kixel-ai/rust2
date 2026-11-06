@@ -22,9 +22,9 @@ double per_frame(std::chrono::steady_clock::time_point start) {
 } // namespace
 
 int main() {
-	moq::broadcast_producer broadcast = moq::broadcast_info::new_().produce();
-	moq::timescale micro = moq::timescale::micro();
-	auto track = broadcast.create_track("bench", moq::track_info::default_().with_timescale(&micro));
+	moq::broadcast_Producer broadcast = moq::broadcast_Info::new_().produce();
+	moq::Timescale micro = moq::Timescale::MICRO();
+	auto track = broadcast.create_track("bench", moq::track_Info::default_().with_timescale(&micro));
 	if (!track) {
 		return 1;
 	}
@@ -36,9 +36,9 @@ int main() {
 	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
 	auto start = std::chrono::steady_clock::now();
 	for (int g = 0; g < groups; g++) {
-		moq::group_producer group = std::move(*track->append_group());
+		moq::group_Producer group = std::move(*track->append_group());
 		for (int f = 0; f < frames; f++) {
-			moq::timestamp at = std::move(*moq::timestamp::from_micros(micros++));
+			moq::Timestamp at = std::move(*moq::Timestamp::from_micros(micros++));
 			if (!group.write_frame(&at, frame)) {
 				return 2;
 			}
@@ -48,10 +48,10 @@ int main() {
 	double stamped = per_frame(start);
 
 	// The same, reusing one timestamp handle: what the handle costs.
-	moq::timestamp at = std::move(*moq::timestamp::from_micros(micros));
+	moq::Timestamp at = std::move(*moq::Timestamp::from_micros(micros));
 	start = std::chrono::steady_clock::now();
 	for (int g = 0; g < groups; g++) {
-		moq::group_producer group = std::move(*track->append_group());
+		moq::group_Producer group = std::move(*track->append_group());
 		for (int f = 0; f < frames; f++) {
 			if (!group.write_frame(&at, frame)) {
 				return 3;
@@ -71,21 +71,21 @@ int main() {
 
 	// Reads: each frame written, then read through a new future polled once, ready.
 	moq::waker waker([]() {});
-	moq::track_consumer consumer = track->consume();
+	moq::track_Consumer consumer = track->consume();
 	auto subscribed = consumer.subscribe(std::nullopt).poll(waker);
 	if (!subscribed || !*subscribed) {
 		return 4;
 	}
-	moq::track_subscriber subscriber = std::move(**subscribed);
-	std::optional<moq::frame_frame> last;
+	moq::track_Subscriber subscriber = std::move(**subscribed);
+	std::optional<moq::frame_Frame> last;
 	start = std::chrono::steady_clock::now();
 	for (int g = 0; g < groups; g++) {
-		moq::group_producer group = std::move(*track->append_group());
+		moq::group_Producer group = std::move(*track->append_group());
 		auto received = subscriber.recv_group().poll(waker);
 		if (!received || !*received || !received->value()) {
 			return 5;
 		}
-		moq::group_consumer reader = std::move(*received->value());
+		moq::group_Consumer reader = std::move(*received->value());
 		for (int f = 0; f < frames; f++) {
 			if (!group.write_frame(&at, frame)) {
 				return 6;
@@ -105,7 +105,7 @@ int main() {
 	// Payload reads: the last frame's 100 bytes, owned without a copy, then freed.
 	start = std::chrono::steady_clock::now();
 	for (int i = 0; i < groups * frames; i++) {
-		closed += last->payload().data()[0];
+		closed += last->payload_get().data()[0];
 	}
 	double lent = per_frame(start);
 

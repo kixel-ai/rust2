@@ -125,14 +125,14 @@ func round() string {
 	lent := func(frame *moq.FrameFrame) float64 {
 		start := time.Now()
 		for range groups * frames {
-			closed += int(must(frame.Payload()).At(0))
+			closed += int(must(frame.PayloadGet()).At(0))
 		}
 		return perFrame(start)
 	}
 	copied := func(frame *moq.FrameFrame) float64 {
 		start := time.Now()
 		for range groups * frames {
-			closed += int(must(frame.Payload()).Copy()[0])
+			closed += int(must(frame.PayloadGet()).Copy()[0])
 		}
 		return perFrame(start)
 	}
