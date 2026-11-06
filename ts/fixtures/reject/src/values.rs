@@ -11,14 +11,19 @@ pub fn nested(x: Option<Option<Option<u8>>>) -> bool {
 	x.is_some()
 }
 
-/// A generic type's `Option<T>` is `T | undefined`, which can't hold `rs.None`, the `None`
-/// of an `Option<()>`.
+/// A generic type's `Option<T>` is an `rs.OptionOf<T>`, which decides its `None` by
+/// whether TypeScript's type of `T` can be `undefined`, as a `MaybeUninit<u32>`'s `number`
+/// can't, though its value can, so an `Option<MaybeUninit<u32>>`'s `None` is `rs.None`.
 pub struct Maybe<T> {
 	pub value: Option<T>,
 }
 
-pub fn generic_unit(value: Option<()>) -> bool {
-	Maybe { value }.value.is_some()
+pub fn generic_uninit(value: u32) -> bool {
+	Maybe {
+		value: Some(std::mem::MaybeUninit::new(value)),
+	}
+	.value
+	.is_some()
 }
 
 /// Parsing an address is not translated yet.
