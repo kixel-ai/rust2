@@ -9,12 +9,12 @@ mod counter {
 	}
 
 	impl Counter {
-		/// `CounterNew`.
+		/// `CountNew`.
 		pub fn new(count: u8) -> Self {
 			Self { count }
 		}
 
-		/// `CounterBump`.
+		/// `CountBump`.
 		pub fn bump(&mut self) -> u8 {
 			self.count = self.count.wrapping_add(1);
 			self.hidden()
@@ -27,17 +27,42 @@ mod counter {
 	}
 }
 
-/// Re-exported twice, so Go names it by its shorter path: `Counter`, not `TalliesCounter`.
-pub use counter::Counter;
+/// Re-exported renamed and again under `tallies`, so Go names it by the shorter path:
+/// `Count`, not `TalliesCounter`.
+pub use counter::Counter as Count;
 
 pub mod tallies {
 	pub use crate::counter::Counter;
 
 	/// `TalliesTotal`, by its module path.
-	pub fn total(a: &crate::Counter, b: &crate::Counter) -> u8 {
-		a.count.wrapping_add(b.count)
+	pub struct Total {
+		pub sum: u8,
+	}
+
+	/// `TalliesSum`.
+	pub fn sum(a: &crate::Count, b: &crate::Count) -> Total {
+		Total {
+			sum: a.count.wrapping_add(b.count),
+		}
 	}
 }
+
+mod gauge {
+	pub struct Gauge(pub u8);
+
+	impl Gauge {
+		/// `MeterNew`.
+		pub fn new(v: u8) -> Self {
+			Self(v)
+		}
+	}
+}
+
+/// The only path to `Gauge`, so Go names it `Meter`.
+pub type Meter = gauge::Gauge;
+
+/// Another crate's module, whose `pub` items Go callers reach as this crate's.
+pub use items_dep::shapes;
 
 /// Fields Go would name alike if escaping were not one to one.
 struct Fields {
@@ -91,10 +116,11 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 		}
 		1 => vec![std::ptr::eq(byte(), byte()) as u8, std::ptr::eq(bytes(), bytes()) as u8],
 		_ => {
-			let mut a = Counter::new(at(0));
-			let b = Counter::new(at(1));
+			let mut a = Count::new(at(0));
+			let b = Count::new(at(1));
 			let bumped = a.bump();
-			vec![bumped, tallies::total(&a, &b)]
+			let meter = Meter::new(at(2));
+			vec![bumped, tallies::sum(&a, &b).sum, meter.0, shapes::area(at(3), at(4))]
 		}
 	}
 }

@@ -153,13 +153,18 @@ impl<'tcx> Translator<'tcx> {
 		if let Some(name) = self.types.get(&TypeKey::Adt(did)) {
 			return name.clone();
 		}
-		let base = tcx.item_name(did).to_string();
-		let base = match did.krate == LOCAL_CRATE && self.local_names.get(&base).is_some_and(|&n| n > 1) {
-			// Its module's path, so two modules' `Version` stay apart.
-			true => module_path(tcx, did),
-			false => base,
+		let name = match self.type_names.get(&did) {
+			Some(name) => name.clone(),
+			None => {
+				let base = tcx.item_name(did).to_string();
+				let base = match did.krate == LOCAL_CRATE && self.local_names.get(&base).is_some_and(|&n| n > 1) {
+					// Its module's path, so two modules' `Version` stay apart.
+					true => module_path(tcx, did),
+					false => base,
+				};
+				self.fresh(&base)
+			}
 		};
-		let name = self.fresh(&base);
 		self.types.insert(TypeKey::Adt(did), name.clone());
 		let generics = tcx.generics_of(did);
 		let mut params = Vec::new();

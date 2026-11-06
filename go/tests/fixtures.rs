@@ -304,15 +304,26 @@ fn items() {
 	differential("items", items::run, "Run", cases(3, 4, 1_000));
 	let text = std::fs::read_to_string(scratch().join("items/out/items.go")).unwrap();
 	for exported in [
-		"type Counter struct",
-		"func CounterNew(",
-		"func CounterBump(",
-		"func TalliesTotal(",
+		"type Count struct",
+		"func CountNew(",
+		"func CountBump(",
+		"type TalliesTotal struct",
+		"func TalliesSum(",
+		"type Meter struct",
+		"func MeterNew(",
 	] {
 		assert!(text.contains(exported), "items.go lacks `{exported}`");
 	}
-	for unexported in ["TalliesCounter", "CounterHidden"] {
-		assert!(!text.contains(unexported), "items.go has `{unexported}`");
+	let dep = std::fs::read_to_string(scratch().join("items/out/items_dep.go")).unwrap();
+	assert!(
+		dep.contains("func ShapesArea("),
+		"items_dep.go lacks `func ShapesArea(`"
+	);
+	for unexported in ["TalliesCounter", "CountHidden", "type Gauge"] {
+		assert!(
+			!text.contains(unexported) && !dep.contains(unexported),
+			"items has `{unexported}`"
+		);
 	}
 }
 

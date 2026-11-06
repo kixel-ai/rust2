@@ -68,7 +68,12 @@ fn runtime_names(text: &str) -> Vec<String> {
 /// Each file is a name and its text.
 pub fn translate(tcx: TyCtxt<'_>) -> Option<Vec<(String, String)>> {
 	let mut t = Translator::new(tcx);
-	for (path, def_id) in names::public(tcx) {
+	let public = names::public(tcx);
+	// Before any root's signature declares one by its own name.
+	for (path, def_id) in &public {
+		t.name_type(path, *def_id);
+	}
+	for (path, def_id) in public {
 		t.root(&path, def_id);
 	}
 	while let Some((instance, span)) = t.queue.pop_front() {
@@ -160,6 +165,8 @@ pub struct Translator<'tcx> {
 	/// Each type declared, by what it declares: an ADT's definition, or a closure's or a
 	/// trait object adapter's monomorphic type.
 	types: HashMap<TypeKey<'tcx>, String>,
+	/// The Go name of each type of the `pub` API, which its declaration takes.
+	type_names: HashMap<DefId, String>,
 	/// Every local ADT's name, to tell which names must be qualified by their module.
 	local_names: HashMap<String, usize>,
 	out: BTreeMap<CrateNum, CrateOut>,
@@ -199,6 +206,7 @@ impl<'tcx> Translator<'tcx> {
 			queue: VecDeque::new(),
 			taken,
 			types: HashMap::new(),
+			type_names: HashMap::new(),
 			local_names,
 			out: BTreeMap::new(),
 			allocs: HashMap::new(),
@@ -230,10 +238,9 @@ impl<'tcx> Translator<'tcx> {
 		let span = tcx.def_span(def_id);
 		match tcx.def_kind(def_id) {
 			DefKind::Fn => self.root_fn(path, def_id),
-			DefKind::Struct | DefKind::Enum | DefKind::Union => {
-				if library::mapped(tcx, def_id).is_none() {
-					self.adt_decl(tcx.adt_def(def_id), span);
-				}
+			// A type std's are mapped to is Go's, not the crate's.
+			DefKind::Struct | DefKind::Enum | DefKind::Union if library::mapped(tcx, def_id).is_none() => {
+				self.adt_decl(tcx.adt_def(def_id), span);
 				for &imp in tcx.inherent_impls(def_id) {
 					for item in tcx.associated_items(imp).in_definition_order() {
 						if !tcx.visibility(item.def_id).is_public() {
@@ -249,6 +256,18 @@ impl<'tcx> Translator<'tcx> {
 			}
 			DefKind::Const | DefKind::Static { .. } => self.root_const(span),
 			_ => {}
+		}
+	}
+
+	/// Name a type of the `pub` API by its path in camel case, as its declaration takes.
+	fn name_type(&mut self, path: &str, def_id: DefId) {
+		let tcx = self.tcx;
+		if matches!(tcx.def_kind(def_id), DefKind::Struct | DefKind::Enum | DefKind::Union)
+			&& library::mapped(tcx, def_id).is_none()
+		{
+			let name = names::exported(path);
+			self.claim(&name, tcx.def_span(def_id));
+			self.type_names.insert(def_id, name);
 		}
 	}
 

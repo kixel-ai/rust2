@@ -81,14 +81,21 @@ pub const PREDECLARED: &[&str] = &[
 ];
 
 /// The crate's `pub` API: each item a path of `pub` names from the crate root reaches,
-/// through its modules and re-exports, by its shortest such path, the first in
-/// definition order of those as short. A module is walked rather than listed.
+/// through its modules, re-exports, and those of the crates it re-exports modules of, by
+/// its shortest such path, the first in definition order of those as short. A module is
+/// walked rather than listed, and an alias stands for its type where no path reaches it.
 pub fn public(tcx: TyCtxt<'_>) -> Vec<(String, DefId)> {
+	let root = CRATE_DEF_ID.to_def_id();
 	let mut items = Vec::new();
-	let mut seen = HashSet::new();
-	let mut modules = VecDeque::from([(String::new(), CRATE_DEF_ID)]);
+	let mut aliased = Vec::new();
+	let mut seen = HashSet::from([root]);
+	let mut modules = VecDeque::from([(String::new(), root)]);
 	while let Some((prefix, module)) = modules.pop_front() {
-		for child in tcx.module_children_local(module) {
+		let children = match module.as_local() {
+			Some(local) => tcx.module_children_local(local),
+			None => tcx.module_children(module),
+		};
+		for child in children {
 			let Res::Def(kind, def_id) = child.res else {
 				continue;
 			};
@@ -100,10 +107,20 @@ pub fn public(tcx: TyCtxt<'_>) -> Vec<(String, DefId)> {
 				true => name.to_string(),
 				false => format!("{prefix}::{name}"),
 			};
-			match (kind, def_id.as_local()) {
-				(DefKind::Mod, Some(local)) => modules.push_back((path, local)),
+			match kind {
+				DefKind::Mod => modules.push_back((path, def_id)),
+				DefKind::TyAlias => {
+					if let ty::Adt(adt, _) = tcx.type_of(def_id).instantiate_identity().skip_norm_wip().kind() {
+						aliased.push((path, adt.did()));
+					}
+				}
 				_ => items.push((path, def_id)),
 			}
+		}
+	}
+	for (path, def_id) in aliased {
+		if seen.insert(def_id) {
+			items.push((path, def_id));
 		}
 	}
 	items
