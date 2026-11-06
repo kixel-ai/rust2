@@ -14,9 +14,10 @@
 //! the conversions and the types the extension defines.
 //!
 //! The glue converts each Python value to its C value and back itself, so a call is one
-//! crossing and the Python is a thin layer naming each function: a record crosses as its
-//! fields, read and set by name, and bytes returned as a `memoryview` lending Rust's
-//! buffer.
+//! crossing: a record crosses as its fields, read and set by name, and bytes returned as a
+//! `memoryview` lending Rust's buffer. Each function but an `async def` is the
+//! extension's own, which `_register` sets on its class or the module binds, so Python
+//! calls it with no frame of its own; the Python only declares it, for type checkers.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
@@ -48,6 +49,7 @@ const TAKEN: &[&str] = &[
 	"_Wakeup",
 	"_wakeups",
 	"_wakeup",
+	"_resume",
 	"_Const",
 	"_PENDING",
 	"_consts",
@@ -69,8 +71,9 @@ const TAKEN: &[&str] = &[
 	"_AttributeError",
 ];
 
-/// The registry's first classes, the runtime's: the glue's `T_FUTURE` and `T_TIMEDELTA`.
-const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta"];
+/// The registry's first entries, the runtime's: the glue's `T_FUTURE`, `T_TIMEDELTA`, and
+/// `T_RESUME`.
+const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume"];
 
 /// The Python for `abi`, whose header's contract is `contract`, or the names two items
 /// claim alike. The Python's own contract hashes the header's with everything it and its
@@ -83,6 +86,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		consts: Vec::new(),
 		glue: String::new(),
 		table: Vec::new(),
+		members: Vec::new(),
 		types: RUNTIME_TYPES.iter().map(|t| t.to_string()).collect(),
 		index: BTreeMap::new(),
 		keys: BTreeSet::new(),
@@ -166,6 +170,9 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		{}\
 		\trt::END,\n\
 		]));\n\n\
+		static MEMBERS: rt::Gil<[rt::Member; {}]> = rt::Gil::new([\n\
+		{}\
+		]);\n\n\
 		static MODULE: rt::Gil<PyModuleDef> = rt::Gil::new(PyModuleDef {{\n\
 		\tm_base: PyModuleDef_HEAD_INIT,\n\
 		\tm_name: c\"_{p}\".as_ptr(),\n\
@@ -182,7 +189,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\tunsafe {{\n\
 		\t\tlet def = MODULE.get();\n\
 		\t\tdef.m_methods = METHODS.ptr();\n\
-		\t\trt::module(def)\n\
+		\t\trt::module(def, MEMBERS.get())\n\
 		\t}}\n\
 		}}\n",
 		{
@@ -195,6 +202,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		},
 		g.table.len() + 2,
 		g.table.iter().map(|t| format!("\t{t},\n")).collect::<String>(),
+		g.members.len(),
+		g.members.iter().map(|m| format!("\t{m},\n")).collect::<String>(),
 	);
 	Ok(Output { python: body, glue })
 }
@@ -210,6 +219,44 @@ enum Place {
 	Top,
 }
 
+/// What a native function Python calls directly is.
+struct Direct<'s> {
+	/// Its Python name.
+	member: &'s str,
+	place: Place,
+	/// Whether it is a read-only property.
+	property: bool,
+	/// The C name of the class it is a member of, which `_register` sets it on.
+	owner: Option<&'s str>,
+	/// Its parameters' Python names, after its `self`.
+	params: &'s [String],
+	docs: &'s str,
+}
+
+/// A class's members: those Python defines, and those the glue does, which the class
+/// declares only for type checkers.
+#[derive(Default)]
+struct Body {
+	python: Vec<String>,
+	native: Vec<String>,
+}
+
+impl Body {
+	fn codes(&self) -> impl Iterator<Item = &String> {
+		self.python.iter().chain(&self.native)
+	}
+
+	/// Each member's code, the glue's in one block.
+	fn members(&self) -> Vec<String> {
+		let mut members = self.python.clone();
+		if !self.native.is_empty() {
+			let native: Vec<String> = self.native.iter().map(|m| indent_by(m, 1)).collect();
+			members.push(format!("\tif _typing.TYPE_CHECKING:\n{}", native.join("\n")));
+		}
+		members
+	}
+}
+
 struct Gen<'a> {
 	abi: &'a Abi<'a>,
 	/// The classes, then the module-level functions.
@@ -220,6 +267,8 @@ struct Gen<'a> {
 	glue: String,
 	/// The extension's method table entries.
 	table: Vec<String>,
+	/// The members `_register` sets on their classes.
+	members: Vec<String>,
 	/// The classes the glue makes values of, in the order the Python registers them.
 	types: Vec<String>,
 	/// Each registered class's index, by the C name or key it is registered under.
@@ -511,11 +560,29 @@ impl<'a> Gen<'a> {
 		for i in 0..api.callbacks.len() {
 			self.callback(i);
 		}
+		// The glue's functions, declared for type checkers and bound to its own.
+		let (mut declared, mut bound) = (Vec::new(), Vec::new());
 		for function in &api.functions {
-			if let Some(code) = self.function(function, None, None, Place::Top) {
-				self.top.push_str(&code);
-				self.top.push_str("\n\n");
+			match self.function(function, None, None, Place::Top) {
+				Some((code, true)) => {
+					let name = member_name(&code).expect("a function's name");
+					bound.push(format!("\t{name} = _n.{name}\n"));
+					declared.push(indent_by(&code, 1));
+				}
+				Some((code, false)) => {
+					self.top.push_str(&code);
+					self.top.push_str("\n\n");
+				}
+				None => {}
 			}
+		}
+		if !declared.is_empty() {
+			let _ = write!(
+				self.top,
+				"if _typing.TYPE_CHECKING:\n{}\nelse:\n{}\n\n",
+				declared.join("\n\n"),
+				bound.concat()
+			);
 		}
 		for (name, ty) in &self.exceptions.clone() {
 			let py = self.py_ty(ty);
@@ -622,7 +689,7 @@ impl<'a> Gen<'a> {
 	/// The Python members a type's std traits export beyond Python's own, with their glue:
 	/// `__str__` from `Display`, `__repr__` from `Debug`, a static `default` from
 	/// `Default`, and `clone` and `__eq__` for an object.
-	fn traits(&mut self, ty: &Type, c: &str, t: Traits, body: &mut Vec<String>) {
+	fn traits(&mut self, ty: &Type, c: &str, t: Traits, body: &mut Body) {
 		let bare = self.bare(c).to_string();
 		let class = self.class(c);
 		let object = matches!(ty, Type::Object(_));
@@ -639,28 +706,37 @@ impl<'a> Gen<'a> {
 			true => "this",
 			false => "&this",
 		};
-		let unary = |g: &mut Self, suffix: &str, lower: String| {
-			g.native(
+		let unary = |g: &mut Self, suffix: &str, member: &str, docs: &str, lower: String| {
+			let d = Direct {
+				member,
+				place: Place::Member,
+				property: false,
+				owner: Some(c),
+				params: &[],
+				docs,
+			};
+			g.direct(
 				&format!("{bare}_{suffix}"),
-				1,
+				d,
 				&format!(
 					"let this = {this}?;\n\t\tlet ret = rt::call(|| crate::{c}_{suffix}({pass}));\n\t\ts.done();\n\t\t{lower}"
 				),
 			);
 		};
 		if t.display {
-			unary(self, "to_string", "rt::str_out(ret)".to_string());
-			body.push(format!("\tdef __str__(self):\n\t\treturn _n.{bare}_to_string(self)\n"));
+			unary(self, "to_string", "__str__", "", "rt::str_out(ret)".to_string());
+			body.native.push("\tdef __str__(self) -> str: ...\n".to_string());
 		}
 		if t.debug {
-			unary(self, "debug", "rt::str_out(ret)".to_string());
-			body.push(format!("\tdef __repr__(self):\n\t\treturn _n.{bare}_debug(self)\n"));
+			unary(self, "debug", "__repr__", "", "rt::str_out(ret)".to_string());
+			body.native.push("\tdef __repr__(self) -> str: ...\n".to_string());
 		}
 		if object && t.clone {
 			let lower = self.lower(ty, "ret");
-			unary(self, "clone", lower);
-			body.push(format!(
-				"\tdef clone(self) -> {class}:\n\t\t\"\"\"A new handle to a clone.\"\"\"\n\t\treturn _n.{bare}_clone(self)\n"
+			let docs = "A new handle to a clone.";
+			unary(self, "clone", "clone", docs, lower);
+			body.native.push(format!(
+				"\tdef clone(self) -> {class}:\n\t\t\"\"\"{docs}\"\"\"\n\t\t...\n"
 			));
 		}
 		if object && t.eq {
@@ -676,19 +752,28 @@ impl<'a> Gen<'a> {
 					"let this = {this}?;\n\t\tlet other = {other}?;\n\t\tlet ret = rt::call(|| crate::{c}_eq(this, other));\n\t\ts.done();\n\t\trt::bool_out(ret)"
 				),
 			);
-			body.push(format!(
+			body.python.push(format!(
 				"\tdef __eq__(self, other):\n\t\treturn _isinstance(other, {class}) and _n.{bare}_eq(self, other)\n\n\t__hash__ = None\n"
 			));
 		}
 		if t.default {
 			let lower = self.lower(ty, "ret");
-			self.native(
+			let docs = "Rust's `Default`.";
+			let d = Direct {
+				member: "default",
+				place: Place::Static,
+				property: false,
+				owner: Some(c),
+				params: &[],
+				docs,
+			};
+			self.direct(
 				&format!("{bare}_default"),
-				0,
+				d,
 				&format!("let ret = rt::call(|| crate::{c}_default());\n\t\ts.done();\n\t\t{lower}"),
 			);
-			body.push(format!(
-				"\t@_staticmethod\n\tdef default() -> {class}:\n\t\t\"\"\"Rust's `Default`.\"\"\"\n\t\treturn _n.{bare}_default()\n"
+			body.native.push(format!(
+				"\t@_staticmethod\n\tdef default() -> {class}:\n\t\t\"\"\"{docs}\"\"\"\n\t\t...\n"
 			));
 		}
 	}
@@ -702,7 +787,7 @@ impl<'a> Gen<'a> {
 		(ty, owner, rust): (&Type, &Ty, &str),
 		data: &[String],
 		reserved: &[&str],
-		body: &mut Vec<String>,
+		body: &mut Body,
 	) {
 		let reserved: Vec<&str> = reserved
 			.iter()
@@ -714,21 +799,20 @@ impl<'a> Gen<'a> {
 				Some(_) => Place::Member,
 				None => Place::Static,
 			};
-			if let Some(code) = self.function(method, Some(owner), Some((ty, &reserved)), place) {
-				body.push(indent_by(&code, 1));
+			if let Some((code, native)) = self.function(method, Some(owner), Some((ty, &reserved)), place) {
+				match native {
+					true => body.native.push(indent_by(&code, 1)),
+					false => body.python.push(indent_by(&code, 1)),
+				}
 			}
 		}
-		self.distinct(rust, data, body);
+		self.distinct(rust, data, body.codes());
 	}
 
-	/// Check that the members `body` of the type `rust` and its data's names `data` differ.
-	fn distinct(&mut self, rust: &str, data: &[String], body: &[String]) {
+	/// Check that the members `codes` of the type `rust` and its data's names `data` differ.
+	fn distinct<'c>(&mut self, rust: &str, data: &[String], codes: impl Iterator<Item = &'c String>) {
 		let mut seen = BTreeSet::new();
-		for name in data
-			.iter()
-			.cloned()
-			.chain(body.iter().filter_map(|code| member_name(code)))
-		{
+		for name in data.iter().cloned().chain(codes.filter_map(|code| member_name(code))) {
 			if !seen.insert(name.clone()) {
 				self.errors.push(format!(
 					"two members of `{rust}` are both `{name}` in Python: rename one in the config"
@@ -746,7 +830,7 @@ impl<'a> Gen<'a> {
 		self.claim(&name, format!("struct `{rust}`"));
 		let t = self.register(&c, name.clone());
 		let ty = Type::Record(i);
-		let mut body = Vec::new();
+		let mut body = Body::default();
 		self.traits(&ty, &c, record.traits, &mut body);
 		let owner = Ty::Struct(c.clone());
 		let data: Vec<String> = record.fields.iter().map(|f| field_name(&f.name)).collect();
@@ -771,7 +855,7 @@ impl<'a> Gen<'a> {
 			self.py,
 			"@_dataclass(slots=True{repr})\nclass {name}:\n{}{fields}{}\n\n",
 			docstring(&format!("{rust}\n\n{}", record.docs), "\t"),
-			body.iter().map(|m| format!("\n{m}")).collect::<String>()
+			body.members().iter().map(|m| format!("\n{m}")).collect::<String>()
 		);
 		// The glue.
 		let mut reads = Vec::new();
@@ -808,7 +892,7 @@ impl<'a> Gen<'a> {
 		self.claim(&name, format!("enum `{rust}`"));
 		let t = self.register(&c, name.clone());
 		let ty = Type::Enum(i);
-		let mut body = Vec::new();
+		let mut body = Body::default();
 		self.traits(&ty, &c, e.traits, &mut body);
 		let owner = abi.ty(&ty);
 		if e.plain() {
@@ -824,7 +908,7 @@ impl<'a> Gen<'a> {
 				self.py,
 				"class {name}(_enum.Enum):\n{}{entries}{}\n\n",
 				docstring(&format!("{rust}\n\n{}", e.docs), "\t"),
-				body.iter().map(|m| format!("\n{m}")).collect::<String>()
+				body.members().iter().map(|m| format!("\n{m}")).collect::<String>()
 			);
 			return;
 		}
@@ -842,7 +926,7 @@ impl<'a> Gen<'a> {
 			self.py,
 			"class {name}:\n{}\t__slots__ = ()\n{}\n\n",
 			docstring(&format!("{rust}\n\n{}", e.docs), "\t"),
-			body.iter().map(|m| format!("\n{m}")).collect::<String>()
+			body.members().iter().map(|m| format!("\n{m}")).collect::<String>()
 		);
 		let repr = match e.traits.debug {
 			true => ", repr=False",
@@ -915,7 +999,10 @@ impl<'a> Gen<'a> {
 		self.claim(&name, format!("type `{rust}`"));
 		self.register(&c, name.clone());
 		let ty = Type::Object(i);
-		let mut body = vec!["\t__slots__ = ()\n".to_string()];
+		let mut body = Body {
+			python: vec!["\t__slots__ = ()\n".to_string()],
+			native: Vec::new(),
+		};
 		self.traits(&ty, &c, object.traits, &mut body);
 		let owner = Ty::Handle {
 			name: c.clone(),
@@ -930,7 +1017,7 @@ impl<'a> Gen<'a> {
 			self.py,
 			"class {name}(_n.Object):\n{}{}\n\n",
 			docstring(text.trim(), "\t"),
-			body.join("\n")
+			body.members().join("\n")
 		);
 	}
 
@@ -974,7 +1061,7 @@ impl<'a> Gen<'a> {
 			);
 			table.push(format!("{}: Some({trampoline})", method.name()));
 		}
-		self.distinct(&rust, &[], &body);
+		self.distinct(&rust, &[], body.iter());
 		let text = format!(
 			"{rust}: implemented in Python. Rust calls its methods from any thread, and once it\ndrops the implementation, calls its `close()` if it has one.\n\n{}",
 			callback.docs
@@ -1054,14 +1141,63 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// A native function `bare`, taking `n` arguments as `a`, whose glue runs `body` with
-	/// a scope `s`, returning an `R<Obj>`.
+	/// A native function `bare`, which the generated Python calls by position with `n`
+	/// arguments as `a`, whose glue runs `body` with a scope `s`, returning an `R<Obj>`.
 	fn native(&mut self, bare: &str, n: usize, body: &str) {
 		let _ = write!(
 			self.glue,
 			"unsafe extern \"C\" fn f_{bare}(_: *mut PyObject, a: *mut *mut PyObject, n: Py_ssize_t) -> *mut PyObject {{\n\trt::wrap(|| unsafe {{\n\t\tlet a = rt::args(a, n, {n}, \"{bare}\")?;\n\t\tlet s = &mut rt::Scope::default();\n\t\t{body}\n\t}})\n}}\n\n"
 		);
 		self.table.push(format!("rt::method(c\"{bare}\", f_{bare})"));
+	}
+
+	/// A native function `bare` that Python calls as `d` describes, with no Python
+	/// frame between. Its glue runs `body` like a [`Gen::native`]'s, with `a` holding
+	/// `self` first if it has one.
+	fn direct(&mut self, bare: &str, d: Direct<'_>, body: &str) {
+		let member = d.member;
+		let class = d.owner.map(|c| (self.t(c), self.class(c)));
+		if d.property {
+			let (t, _) = class.expect("a property has its class");
+			let _ = write!(
+				self.glue,
+				"unsafe extern \"C\" fn f_{bare}(this: *mut PyObject, _: *mut std::ffi::c_void) -> *mut PyObject {{\n\trt::wrap(|| unsafe {{\n\t\tlet a = [this];\n\t\tlet s = &mut rt::Scope::default();\n\t\t{body}\n\t}})\n}}\n\n"
+			);
+			let doc = match d.docs.trim() {
+				"" => "None".to_string(),
+				docs => format!("Some({})", c_str(docs)),
+			};
+			self.members.push(format!(
+				"rt::Member::Get({t}, rt::property(c\"{member}\", {doc}, f_{bare}))"
+			));
+			return;
+		}
+		let method = d.place == Place::Member;
+		let qual = match &class {
+			Some((_, name)) => format!("{name}.{member}"),
+			None => member.to_string(),
+		};
+		let names: Vec<String> = d.params.iter().map(|p| format!("\"{p}\"")).collect();
+		let _ = write!(
+			self.glue,
+			"unsafe extern \"C\" fn f_{bare}(this: *mut PyObject, a: *const *mut PyObject, n: Py_ssize_t, kw: *mut PyObject) -> *mut PyObject {{\n\trt::wrap(|| unsafe {{\n\t\tlet a = rt::params::<{}>({}, a, n, kw, &[{}], \"{qual}\")?;\n\t\tlet s = &mut rt::Scope::default();\n\t\t{body}\n\t}})\n}}\n\n",
+			d.params.len() + method as usize,
+			if method { "Some(this)" } else { "None" },
+			names.join(", "),
+		);
+		// The signature `inspect.signature` reads, before the docstring.
+		let params: Vec<&str> = method
+			.then_some("$self")
+			.into_iter()
+			.chain(d.params.iter().map(String::as_str))
+			.collect();
+		let doc = c_str(&format!("{member}({})\n--\n\n{}", params.join(", "), d.docs.trim()));
+		let def = format!("rt::function(c\"{member}\", {doc}, f_{bare})");
+		match (class, d.place) {
+			(Some((t, _)), Place::Member) => self.members.push(format!("rt::Member::Method({t}, {def})")),
+			(Some((t, _)), Place::Static) => self.members.push(format!("rt::Member::Static({t}, {def})")),
+			_ => self.table.push(def),
+		}
 	}
 
 	/// `function`'s Python form, a member of `owner` if it has one (whose IR type and
@@ -1072,7 +1208,7 @@ impl<'a> Gen<'a> {
 		owner: Option<&Ty>,
 		owner_ty: Option<(&Type, &[&str])>,
 		place: Place,
-	) -> Option<String> {
+	) -> Option<(String, bool)> {
 		let abi = self.abi;
 		let export = abi.export(function, owner);
 		let c_name = export.call.name.clone();
@@ -1201,11 +1337,7 @@ impl<'a> Gen<'a> {
 				args.join(", ")
 			));
 		}
-		self.native(&bare, n, &stmts.join("\n\t\t"));
-
 		// The Python.
-		let native = format!("_n.{bare}({})", py_args.join(", "));
-		let ret = self.py_ty(&ok);
 		let mut text = function.docs.clone();
 		for param in &function.params {
 			if let Type::Closure(lent, _) = &param.ty {
@@ -1220,37 +1352,60 @@ impl<'a> Gen<'a> {
 				}
 			}
 		}
+		let body = stmts.join("\n\t\t");
+		let constant = function.access == Access::Const && function.params.is_empty() && place != Place::Member;
+		// An `async def` stays Python's, as callers may need a coroutine.
+		let direct = !constant && (export.future.is_none() || function.eager);
+		let property = matches!(function.access, Access::Field { set: false, .. }) && place == Place::Member;
+		match direct {
+			true => {
+				let names: Vec<String> = function.params.iter().map(|p| param_name(&p.name)).collect();
+				let d = Direct {
+					member: &member,
+					place,
+					property,
+					owner: owner_c.as_deref(),
+					params: &names,
+					docs: &text,
+				};
+				self.direct(&bare, d, &body);
+			}
+			false => self.native(&bare, n, &body),
+		}
+		let native = format!("_n.{bare}({})", py_args.join(", "));
+		let ret = self.py_ty(&ok);
 		let docs = docstring(text.trim(), "\t");
 		let params = py_params.join(", ");
+		// The glue's own is only declared, for type checkers.
 		let code = match (export.future.is_some(), function.eager) {
 			(true, false) => format!(
 				"async def {member}({params}) -> {ret}:\n{docs}\tr = {native}\n\treturn (await r) if r.__class__ is _Future else r"
 			),
-			(true, true) => format!("def {member}({params}) -> _typing.Awaitable[{ret}]:\n{docs}\treturn {native}"),
-			(false, _) => format!("def {member}({params}) -> {ret}:\n{docs}\treturn {native}"),
+			(true, true) => format!("def {member}({params}) -> _typing.Awaitable[{ret}]:\n{docs}\t..."),
+			(false, _) => format!("def {member}({params}) -> {ret}:\n{docs}\t..."),
 		};
 		let code = match (function.access, place) {
-			(Access::Const, Place::Top) if function.params.is_empty() => {
+			(Access::Const, Place::Top) if constant => {
 				let name = member.to_uppercase();
 				self.claim(&name, format!("const `{}`", function.path.join("::")));
 				self.consts.push((name, bare));
 				return None;
 			}
-			(Access::Const, Place::Static) if function.params.is_empty() => {
+			(Access::Const, Place::Static) if constant => {
 				format!(
 					"{} = _Const(_n.{bare})\n{}",
 					member.to_uppercase(),
 					docstring(text.trim(), "")
 				)
 			}
-			(Access::Field { set: false, .. }, Place::Member) => format!("@_property\n{code}"),
+			_ if property => format!("@_property\n{code}"),
 			(_, Place::Static) => format!("@_staticmethod\n{code}"),
 			_ => code,
 		};
 		if place == Place::Top {
 			self.claim(&member, format!("fn `{}`", function.path.join("::")));
 		}
-		Some(code)
+		Some((code, direct))
 	}
 
 	/// The out values of `outs`, for a function returning `ok` or raising `err` as
@@ -1386,6 +1541,11 @@ fn member_name(code: &str) -> Option<String> {
 		return Some(name.split(':').next().unwrap_or(name).trim().to_string());
 	}
 	None
+}
+
+/// A C string literal of `text`.
+fn c_str(text: &str) -> String {
+	format!("c{text:?}")
 }
 
 /// A docstring holding `docs`, each line indented by `indent`, or nothing for none.

@@ -1,9 +1,11 @@
 //! A part of the language the driver translates, exercised against native Rust: what
 //! each of its modules says.
 
+mod awaits;
 mod futures;
 #[path = "../../harness.rs"]
 pub mod harness;
+mod raw;
 #[cfg(target_arch = "wasm32")]
 #[path = "../../../wasm.rs"]
 mod wasm;
@@ -15,5 +17,9 @@ use harness::Case;
 /// Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
 /// their count, so a case added at the end moves no other.
 fn cases() -> Vec<(&'static str, Case)> {
-	vec![("futures::futures", futures::futures)]
+	vec![
+		("futures::futures", futures::futures),
+		("raw::raw", raw::raw),
+		("awaits::awaits", awaits::awaits),
+	]
 }

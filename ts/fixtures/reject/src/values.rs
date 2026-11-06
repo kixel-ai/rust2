@@ -6,12 +6,12 @@ pub fn float(a: f16) -> f16 {
 	a * 2.0
 }
 
-/// `None` and `Some(None)` would both be `rt.None`, as `Some(Some(None))` is `undefined`.
+/// `None` and `Some(None)` would both be `rs.None`, as `Some(Some(None))` is `undefined`.
 pub fn nested(x: Option<Option<Option<u8>>>) -> bool {
 	x.is_some()
 }
 
-/// A generic type's `Option<T>` is `T | undefined`, which can't hold `rt.None`, the `None`
+/// A generic type's `Option<T>` is `T | undefined`, which can't hold `rs.None`, the `None`
 /// of an `Option<()>`.
 pub struct Maybe<T> {
 	pub value: Option<T>,

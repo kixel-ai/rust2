@@ -51,5 +51,9 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("shapes::uninhabited", |_, data, out| shapes::uninhabited(data, out)),
 		("fmt::adaptors", |_, data, out| fmt::adaptors(data, out)),
 		("fmt::sources", |_, data, out| fmt::sources(data, out)),
+		("fmt::sets", |_, data, out| fmt::sets(data, out)),
+		("fmt::calls", |_, data, out| fmt::calls(data, out)),
+		("fmt::cells", |_, data, out| fmt::cells(data, out)),
+		("fmt::searches", |_, data, out| fmt::searches(data, out)),
 	]
 }

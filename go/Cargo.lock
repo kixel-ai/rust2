@@ -18,6 +18,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "enums"
+version = "0.0.0"
+
+[[package]]
 name = "equivalent"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -114,6 +118,7 @@ name = "rust2-go"
 version = "0.0.0"
 dependencies = [
  "codec",
+ "enums",
  "fmt",
  "ints",
  "items",

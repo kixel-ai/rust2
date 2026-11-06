@@ -5,13 +5,15 @@
 //! The glue holds the GIL only while it touches Python: it releases it around each call
 //! into the C ABI, so Rust may call Python back from any thread, as a lent closure or a
 //! trait method, while the caller waits. A wake never takes the GIL: it queues a token
-//! and writes a byte to a socket the event loop reads, and the loop does the rest.
+//! and writes a byte to a socket the event loop reads, and the loop does the rest. A wake
+//! on the loop's own thread, during a call, writes nothing: the call schedules the loop's
+//! dispatch once it returns.
 
-use std::cell::UnsafeCell;
+use std::cell::{Cell, RefCell, UnsafeCell};
 use std::ffi::{CStr, c_char, c_int, c_void};
 use std::io::{Read, Write};
 use std::ptr::{NonNull, null, null_mut};
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicPtr, AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicPtr, AtomicU8, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 pub use pyo3_ffi::*;
@@ -137,15 +139,172 @@ pub unsafe fn args<'a>(args: *mut *mut PyObject, nargs: Py_ssize_t, n: usize, na
 	}
 }
 
+/// The arguments of a call of `name`, a function Python calls directly whose parameters
+/// are `names`, in their order after `this`, its `self` if it is a method: `n`
+/// positional ones at `a`, then one for each name in `kw`. A wrong call raises as Python
+/// raises for a `def` with these parameters.
+///
+/// # Safety
+/// `a` points at `n` live objects, then one for each name in `kw`, a tuple of `str` or
+/// null.
+pub unsafe fn params<const N: usize>(
+	this: Option<*mut PyObject>,
+	a: *const *mut PyObject,
+	n: Py_ssize_t,
+	kw: *mut PyObject,
+	names: &[&str],
+	name: &str,
+) -> R<[*mut PyObject; N]> {
+	let mut out = [null_mut(); N];
+	let skip = match this {
+		Some(this) => {
+			out[0] = this;
+			1
+		}
+		None => 0,
+	};
+	let n = n as usize;
+	if n > names.len() {
+		let (takes, given) = (names.len() + skip, n + skip);
+		let s = if takes == 1 { "" } else { "s" };
+		let was = if given == 1 { "was" } else { "were" };
+		return type_error(&format!("{name}() takes {takes} positional argument{s} but {given} {was} given"));
+	}
+	// SAFETY: the caller's contract; `a` may be null when it points at nothing.
+	unsafe {
+		if n != 0 {
+			out[skip..skip + n].copy_from_slice(std::slice::from_raw_parts(a, n));
+		}
+		if !kw.is_null() {
+			for k in 0..PyTuple_Size(kw) {
+				let mut len = 0;
+				let key = PyUnicode_AsUTF8AndSize(PyTuple_GetItem(kw, k), &mut len);
+				if key.is_null() {
+					return Err(Raised);
+				}
+				let key = std::slice::from_raw_parts(key.cast::<u8>(), len as usize);
+				let key = String::from_utf8_lossy(key);
+				let Some(p) = names.iter().position(|name| *name == key) else {
+					return type_error(&format!("{name}() got an unexpected keyword argument '{key}'"));
+				};
+				if !out[skip + p].is_null() {
+					return type_error(&format!("{name}() got multiple values for argument '{key}'"));
+				}
+				out[skip + p] = *a.add(n + k as usize);
+			}
+		}
+	}
+	let missing: Vec<String> = names
+		.iter()
+		.zip(&out[skip..])
+		.filter(|(_, arg)| arg.is_null())
+		.map(|(name, _)| format!("'{name}'"))
+		.collect();
+	if let Some((last, rest)) = missing.split_last() {
+		let (s, list) = match rest.len() {
+			0 => ("", last.clone()),
+			1 => ("s", format!("{} and {last}", rest[0])),
+			_ => ("s", format!("{}, and {last}", rest.join(", "))),
+		};
+		return type_error(&format!(
+			"{name}() missing {} required positional argument{s}: {list}",
+			missing.len()
+		));
+	}
+	Ok(out)
+}
+
 /// Call into the C ABI with the GIL released, so Rust may call Python back from any
-/// thread while this one waits.
+/// thread while this one waits, then resume what it woke on this thread's loop.
 pub fn call<T>(f: impl FnOnce() -> T) -> T {
+	// A call inside another keeps its loop: none starts on a thread one runs on.
+	let outer = RUNNING.get();
+	if outer == 0 && WAITS.with_borrow(|waits| waits.as_ref().is_some_and(|w| w.load(Ordering::Relaxed) != 0)) {
+		let running = running_loop();
+		if running == 0 {
+			// Until a loop polls or takes here again, which it does once it runs.
+			WAITS.take();
+		}
+		RUNNING.set(running);
+	}
 	// SAFETY: this thread holds the GIL, and touches no Python object until it retakes it.
 	let state = unsafe { PyEval_SaveThread() };
 	let result = f();
 	// SAFETY: released just above.
 	unsafe { PyEval_RestoreThread(state) };
+	RUNNING.set(outer);
+	if !RESUMES.with_borrow(Vec::is_empty) {
+		resume();
+	}
 	result
+}
+
+thread_local! {
+	/// The count of what waits on the event loop that last polled or took on this thread,
+	/// until a call finds none running: a call looks for the loop running only while
+	/// something waits, as only then may it wake something on the loop.
+	static WAITS: RefCell<Option<Arc<AtomicUsize>>> = const { RefCell::new(None) };
+	/// The address of the event loop running on this thread, during a call, else `0`.
+	static RUNNING: Cell<usize> = const { Cell::new(0) };
+	/// The queues woken on their loop's thread during the calls it is in.
+	static RESUMES: RefCell<Vec<Arc<Queue>>> = const { RefCell::new(Vec::new()) };
+}
+
+static GET_RUNNING_LOOP: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
+
+/// The address of the event loop running on this thread, or `0`: none is while an
+/// exception is set, which a call must not run Python over.
+fn running_loop() -> usize {
+	// SAFETY: the GIL is held, and `asyncio._get_running_loop` neither raises nor runs
+	// Python code.
+	unsafe {
+		if !PyErr_Occurred().is_null() {
+			return 0;
+		}
+		let get = GET_RUNNING_LOOP.get().expect("loaded").ptr();
+		let Ok(running) = Obj::new(PyObject_CallNoArgs(get)) else {
+			PyErr_Clear();
+			return 0;
+		};
+		match is_none(running.ptr()) {
+			true => 0,
+			false => running.ptr() as usize,
+		}
+	}
+}
+
+/// Schedule the dispatch of each queue a call woke on its loop's thread, as the loop's
+/// next callback, or else through its socket as a wake from another thread is.
+#[cold]
+fn resume() {
+	let woken = RESUMES.with_borrow_mut(std::mem::take);
+	let resume = ty(T_RESUME);
+	// SAFETY: the GIL is held. An exception the caller has set is kept aside while Python
+	// runs, and put back after.
+	unsafe {
+		let (mut kind, mut value, mut trace) = (null_mut(), null_mut(), null_mut());
+		PyErr_Fetch(&mut kind, &mut value, &mut trace);
+		let running = match Obj::new(PyObject_CallNoArgs(resume)) {
+			Ok(queue) => is_type(queue.ptr(), &QUEUE).then(|| queue_of(queue.ptr()).ok()).flatten(),
+			Err(Raised) => {
+				// Nothing is lost: each queue's socket signals it instead, and an interrupt
+				// its Python ran into is raised again at the thread's next chance.
+				if PyErr_ExceptionMatches(PyExc_KeyboardInterrupt) != 0 {
+					PyErr_Clear();
+					PyErr_SetInterrupt();
+				} else {
+					PyErr_WriteUnraisable(resume);
+				}
+				None
+			}
+		};
+		for queue in woken {
+			if !running.as_ref().is_some_and(|running| Arc::ptr_eq(running, &queue)) {
+				queue.signal();
+			}
+		}
+		PyErr_Restore(kind, value, trace);
+	}
 }
 
 /// Run `f` calling into Python, from whatever thread Rust calls on, holding the GIL; an
@@ -198,8 +357,9 @@ impl Key {
 pub struct Scope {
 	keep: Vec<Obj>,
 	arrays: Vec<Box<dyn std::any::Any>>,
-	held: Vec<Obj>,
-	moved: Vec<*mut Handle>,
+	/// The handles held, each with whether the call moves its value out. Inline, as a
+	/// call holds few, so holding one allocates nothing.
+	held: smallvec::SmallVec<[(Obj, bool); 4]>,
 	/// The objects Rust lends a callback, ended once it returns.
 	lent: Vec<Obj>,
 	/// Python implementations and waker nodes given to Rust, taken back unless the call
@@ -219,11 +379,13 @@ impl Scope {
 	/// Note that the call happened: what it moved out of is closed, and what it was given
 	/// is Rust's.
 	pub fn done(&mut self) {
-		for handle in self.moved.drain(..) {
-			// SAFETY: a handle this scope holds, so live.
-			unsafe { close(handle) };
+		for (held, moved) in &self.held {
+			if *moved {
+				// SAFETY: a handle this scope holds, so live.
+				unsafe { close(held.ptr().cast()) };
+			}
 		}
-		for given in self.given.drain(..) {
+		while let Some(given) = self.given.pop() {
 			given.into_ptr();
 		}
 		self.nodes.clear();
@@ -231,38 +393,40 @@ impl Scope {
 
 	/// The handles held, which a future keeps until it ends.
 	pub fn take_held(&mut self) -> Vec<Obj> {
-		std::mem::take(&mut self.held)
+		self.held.drain(..).map(|(held, _)| held).collect()
 	}
 }
 
+// Popping rather than draining, as each call drops a scope whose lists are mostly empty.
 impl Drop for Scope {
 	fn drop(&mut self) {
-		for waker in self.nodes.drain(..) {
+		while let Some(waker) = self.nodes.pop() {
 			// SAFETY: a reference the call never took.
 			unsafe { node_drop(waker.data) };
 		}
-		for lent in self.lent.drain(..) {
+		while let Some(lent) = self.lent.pop() {
 			// SAFETY: an object [`lent`] made.
 			unsafe { end(lent.ptr().cast()) };
 		}
-		for held in self.held.drain(..) {
+		while let Some((held, _)) = self.held.pop() {
 			// SAFETY: a handle this scope holds.
 			unsafe { release(held.ptr().cast()) };
 		}
 	}
 }
 
-/// The classes the generated Python registers, by the index the glue names each with:
-/// the runtime's, then the API's.
+/// The objects the generated Python registers, by the index the glue names each with:
+/// the runtime's, then the API's classes.
 static TYPES: Gil<Vec<Obj>> = Gil::new(Vec::new());
 
 /// The plain enums' members, by class, with their discriminants.
 static MEMBERS: Gil<Vec<Option<Vec<(i64, Obj)>>>> = Gil::new(Vec::new());
 
-/// The runtime's classes, at the start of the registry: the awaitable a pending future
-/// is, and `datetime.timedelta`.
+/// The runtime's entries, at the start of the registry: the awaitable a pending future
+/// is, `datetime.timedelta`, and `_resume`, which schedules the running loop's dispatch.
 pub const T_FUTURE: usize = 0;
 const T_TIMEDELTA: usize = 1;
+const T_RESUME: usize = 2;
 
 /// The class registered at `index`.
 pub fn ty(index: usize) -> *mut PyObject {
@@ -270,7 +434,8 @@ pub fn ty(index: usize) -> *mut PyObject {
 	(unsafe { TYPES.get() })[index].ptr()
 }
 
-/// `_register(*classes)`: note the classes the glue makes values of.
+/// `_register(*classes)`: note the classes the glue makes values of, and set the glue's
+/// members on them.
 unsafe extern "C" fn register(_: *mut PyObject, args: *mut *mut PyObject, nargs: Py_ssize_t) -> *mut PyObject {
 	// SAFETY: Python's call.
 	let args = unsafe { std::slice::from_raw_parts(args, nargs as usize) };
@@ -279,7 +444,40 @@ unsafe extern "C" fn register(_: *mut PyObject, args: *mut *mut PyObject, nargs:
 		*TYPES.get() = args.iter().map(|&class| Obj::borrowed(class)).collect();
 		*MEMBERS.get() = (0..args.len()).map(|_| None).collect();
 	}
-	none().map_or(null_mut(), Obj::into_ptr)
+	wrap(|| {
+		// SAFETY: the GIL is held, and each member's index one `_register` was passed.
+		unsafe { install() }?;
+		none()
+	})
+}
+
+/// Set each of the glue's members on its class: a method as a method descriptor, which
+/// CPython calls without binding it, as it does a builtin type's.
+unsafe fn install() -> R<()> {
+	// SAFETY: the GIL is held, and `INSTALL` lives as long as the interpreter.
+	unsafe {
+		let mut staticmethod = None;
+		for member in INSTALL.get().iter_mut() {
+			let (class, name, value) = match member {
+				Member::Method(class, def) => (*class, def.ml_name, PyDescr_NewMethod(ty(*class).cast(), def)),
+				Member::Get(class, def) => (*class, def.name, PyDescr_NewGetSet(ty(*class).cast(), def)),
+				Member::Static(class, def) => {
+					let f = Obj::new(PyCMethod_New(def, null_mut(), null_mut(), null_mut()));
+					if staticmethod.is_none() {
+						let builtins = Obj::new(PyImport_ImportModule(c"builtins".as_ptr()))?;
+						staticmethod = Some(Obj::new(PyObject_GetAttrString(builtins.ptr(), c"staticmethod".as_ptr()))?);
+					}
+					let wrap = staticmethod.as_ref().expect("just set").ptr();
+					(*class, def.ml_name, call_py(wrap, vec![f]).map_or(null_mut(), Obj::into_ptr))
+				}
+			};
+			let value = Obj::new(value)?;
+			if PyObject_SetAttrString(ty(class), name, value.ptr()) != 0 {
+				return Err(Raised);
+			}
+		}
+	}
+	Ok(())
 }
 
 pub fn none() -> R<Obj> {
@@ -1015,10 +1213,7 @@ pub fn hold(obj: *mut PyObject, index: usize, s: &mut Scope, moved: bool) -> R<*
 			return value_error(&format!("{} is closed", type_name(ty(index))));
 		}
 		(*handle).holds += 1;
-		s.held.push(Obj::borrowed(obj));
-		if moved {
-			s.moved.push(handle);
-		}
+		s.held.push((Obj::borrowed(obj), moved));
 		Ok((*handle).raw)
 	}
 }
@@ -1152,10 +1347,17 @@ unsafe extern "C" fn bytes_dealloc(obj: *mut PyObject) {
 }
 
 /// What a wake does: queue a token for the event loop, and write a byte it reads, once
-/// until it takes them.
+/// until it takes them; or, during a call on the thread running the loop, note the queue
+/// for the call to resume once it returns.
 pub struct Queue {
 	tokens: Mutex<Vec<i64>>,
 	signaled: AtomicBool,
+	/// Whether a call holds the queue to resume, until it is taken.
+	woken: AtomicBool,
+	/// The address of its event loop, which [`RUNNING`] matches while it runs a call.
+	event_loop: usize,
+	/// How many of its futures are parked and its `Waker`s alive, which a wake may queue.
+	waits: Arc<AtomicUsize>,
 	tx: Socket,
 	rx: Socket,
 }
@@ -1188,20 +1390,46 @@ fn socket_pair() -> std::io::Result<(Socket, Socket)> {
 }
 
 impl Queue {
-	fn push(&self, token: i64) {
+	fn push(self: &Arc<Self>, token: i64) {
 		self.tokens.lock().unwrap_or_else(|e| e.into_inner()).push(token);
+		// During a call on the thread running the loop, which runs nothing until it returns.
+		if RUNNING.get() == self.event_loop {
+			if !self.woken.swap(true, Ordering::SeqCst) {
+				RESUMES.with_borrow_mut(|resumes| resumes.push(self.clone()));
+			}
+			return;
+		}
+		self.signal();
+	}
+
+	/// Note this thread as running the queue's loop, so its calls look for the loop while
+	/// something on the queue waits.
+	fn here(&self) {
+		WAITS.with_borrow_mut(|waits| {
+			if !waits.as_ref().is_some_and(|w| Arc::ptr_eq(w, &self.waits)) {
+				*waits = Some(self.waits.clone());
+			}
+		});
+	}
+
+	fn signal(&self) {
 		if !self.signaled.swap(true, Ordering::SeqCst) {
 			// A full socket already signals.
 			let _ = (&self.tx).write(&[1]);
 		}
 	}
 
-	/// The tokens queued, each once, in the order first queued: drained, then the signal
-	/// reset, then the queue taken, so a token queued after is signaled again.
-	fn take(&self) -> Vec<i64> {
-		let mut sink = [0u8; 64];
-		while matches!((&self.rx).read(&mut sink), Ok(n) if n > 0) {}
-		self.signaled.store(false, Ordering::SeqCst);
+	/// The tokens queued, each once, in the order first queued: the socket drained if
+	/// `read`, as the loop does once it signals, then each signal reset, then the queue
+	/// taken, so a token queued after is signaled again.
+	fn take(&self, read: bool) -> Vec<i64> {
+		self.here();
+		if read {
+			let mut sink = [0u8; 64];
+			while matches!((&self.rx).read(&mut sink), Ok(n) if n > 0) {}
+			self.signaled.store(false, Ordering::SeqCst);
+		}
+		self.woken.store(false, Ordering::SeqCst);
 		let tokens = std::mem::take(&mut *self.tokens.lock().unwrap_or_else(|e| e.into_inner()));
 		let mut seen = std::collections::HashSet::new();
 		tokens.into_iter().filter(|t| seen.insert(*t)).collect()
@@ -1227,12 +1455,39 @@ static TOKENS: AtomicI64 = AtomicI64::new(1);
 
 impl Node {
 	fn new(queue: Arc<Queue>, waker: bool) -> Arc<Self> {
+		if waker {
+			queue.waits.fetch_add(1, Ordering::Relaxed);
+		}
 		Arc::new(Self {
 			state: AtomicU8::new(IDLE),
 			token: TOKENS.fetch_add(1, Ordering::Relaxed),
 			queue,
 			waker,
 		})
+	}
+
+	/// Move to `state`, returning the state it left: a node that leaves `PARKED` no
+	/// longer waits.
+	fn enter(&self, state: u8) -> u8 {
+		let left = self.state.swap(state, Ordering::AcqRel);
+		if left == PARKED {
+			self.queue.waits.fetch_sub(1, Ordering::Relaxed);
+		}
+		left
+	}
+
+	/// Park after a poll that pended, unless woken while it polled.
+	fn park(&self) -> bool {
+		// Counted first, so a wake that unparks it at once never takes the count below zero.
+		self.queue.waits.fetch_add(1, Ordering::Relaxed);
+		let parked = self
+			.state
+			.compare_exchange(POLLING, PARKED, Ordering::AcqRel, Ordering::Acquire)
+			.is_ok();
+		if !parked {
+			self.queue.waits.fetch_sub(1, Ordering::Relaxed);
+		}
+		parked
 	}
 
 	/// A C waker holding a new reference to the node.
@@ -1257,6 +1512,7 @@ impl Node {
 impl Drop for Node {
 	fn drop(&mut self) {
 		if self.waker {
+			self.queue.waits.fetch_sub(1, Ordering::Relaxed);
 			self.queue.push(-self.token);
 		}
 	}
@@ -1269,7 +1525,7 @@ unsafe extern "C" fn node_wake(data: *mut c_void) {
 	match node.waker {
 		true => node.queue.push(node.token),
 		false => {
-			if node.state.swap(WOKEN, Ordering::AcqRel) == PARKED {
+			if node.enter(WOKEN) == PARKED {
 				node.queue.push(node.token);
 			}
 		}
@@ -1281,38 +1537,37 @@ unsafe extern "C" fn node_drop(data: *mut c_void) {
 	drop(unsafe { Arc::from_raw(data.cast::<Node>()) });
 }
 
-/// `Queue`: the queue of one event loop, with its socket's file descriptor to read.
+/// `Queue(loop)`: the queue of one event loop, with its socket's file descriptor to read.
 #[repr(C)]
 struct QueueObj {
 	ob_base: PyObject,
 	queue: Option<Arc<Queue>>,
 }
 
-unsafe extern "C" fn queue_new(class: *mut PyTypeObject, _: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
-	let (tx, rx) = match socket_pair() {
-		Ok(pair) => pair,
-		Err(err) => {
+unsafe extern "C" fn queue_new(class: *mut PyTypeObject, args: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
+	wrap(|| {
+		let event_loop = tuple_item(args, 0, 1)? as usize;
+		let (tx, rx) = match socket_pair() {
+			Ok(pair) => pair,
 			// SAFETY: a static exception type.
-			let _ = raise::<()>(unsafe { PyExc_OSError }, &err.to_string());
-			return null_mut();
+			Err(err) => return raise(unsafe { PyExc_OSError }, &err.to_string()),
+		};
+		// SAFETY: the GIL is held, and `class` is `Queue`.
+		unsafe {
+			let obj = Obj::new(PyType_GenericAlloc(class, 0))?;
+			let queue = Queue {
+				tokens: Mutex::new(Vec::new()),
+				signaled: AtomicBool::new(false),
+				woken: AtomicBool::new(false),
+				event_loop,
+				waits: Arc::new(AtomicUsize::new(0)),
+				tx,
+				rx,
+			};
+			std::ptr::write(&raw mut (*obj.ptr().cast::<QueueObj>()).queue, Some(Arc::new(queue)));
+			Ok(obj)
 		}
-	};
-	// SAFETY: the GIL is held, and `class` is `Queue`.
-	unsafe {
-		let obj = PyType_GenericAlloc(class, 0);
-		if !obj.is_null() {
-			std::ptr::write(
-				&raw mut (*obj.cast::<QueueObj>()).queue,
-				Some(Arc::new(Queue {
-					tokens: Mutex::new(Vec::new()),
-					signaled: AtomicBool::new(false),
-					tx,
-					rx,
-				})),
-			);
-		}
-		obj
-	}
+	})
 }
 
 unsafe extern "C" fn queue_dealloc(obj: *mut PyObject) {
@@ -1342,10 +1597,12 @@ unsafe extern "C" fn queue_fileno(obj: *mut PyObject, _: *mut PyObject) -> *mut 
 	int_out(fd).map_or(null_mut(), Obj::into_ptr)
 }
 
-unsafe extern "C" fn queue_take(obj: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
+/// `take(read)`: the tokens queued, the socket drained first if `read`.
+unsafe extern "C" fn queue_take(obj: *mut PyObject, read: *mut PyObject) -> *mut PyObject {
 	// SAFETY: Python calls it on a `Queue`.
 	let queue = unsafe { (*obj.cast::<QueueObj>()).queue.as_ref() }.expect("a live queue");
-	let tokens = queue.take();
+	// SAFETY: comparing addresses.
+	let tokens = queue.take(read == unsafe { Py_True() });
 	wrap(|| {
 		let list = rt::List::owned(tokens);
 		list_out(list, int_out)
@@ -1485,7 +1742,10 @@ unsafe fn future_close(future: *mut Future) {
 			let raw = std::mem::replace(&mut (*future).raw, null_mut());
 			call(|| free(raw));
 		}
-		(*future).node = None;
+		// Woken for good: a wake Rust makes after queues nothing.
+		if let Some(node) = (*future).node.take() {
+			node.enter(WOKEN);
+		}
 		for held in std::mem::take(&mut (*future).held) {
 			release(held.ptr().cast());
 		}
@@ -1521,8 +1781,9 @@ unsafe extern "C" fn future_poll(obj: *mut PyObject, args: *mut *mut PyObject, n
 					node
 				}
 			};
+			node.queue.here();
 			loop {
-				let first = node.state.swap(POLLING, Ordering::AcqRel) == IDLE;
+				let first = node.enter(POLLING) == IDLE;
 				// The first poll with the node gives the C ABI a reference, which it keeps
 				// while it reuses the waker.
 				let waker = match first {
@@ -1541,11 +1802,7 @@ unsafe extern "C" fn future_poll(obj: *mut PyObject, args: *mut *mut PyObject, n
 					future_close(future);
 					return done;
 				}
-				if node
-					.state
-					.compare_exchange(POLLING, PARKED, Ordering::AcqRel, Ordering::Acquire)
-					.is_ok()
-				{
+				if node.park() {
 					return Ok(Obj::borrowed(PENDING.get().expect("loaded").ptr()));
 				}
 				// Woken while it polled: the wake is for this poll's registration, so poll again.
@@ -1610,7 +1867,57 @@ const fn noargs(name: &'static CStr, f: PyCFunction) -> PyMethodDef {
 	}
 }
 
+const fn onearg(name: &'static CStr, f: PyCFunction) -> PyMethodDef {
+	PyMethodDef {
+		ml_name: name.as_ptr(),
+		ml_meth: PyMethodDefPointer { PyCFunction: f },
+		ml_flags: METH_O,
+		ml_doc: null(),
+	}
+}
+
 pub const END: PyMethodDef = PyMethodDef::zeroed();
+
+/// A member the glue defines natively, which `_register` sets on the class registered
+/// at its index, so Python calls into the extension with no frame of its own between.
+pub enum Member {
+	/// A method taking `self`.
+	Method(usize, PyMethodDef),
+	/// A static method.
+	Static(usize, PyMethodDef),
+	/// A read-only property.
+	Get(usize, PyGetSetDef),
+}
+
+/// A method or function Python calls directly, by position or keyword, whose `doc`
+/// starts with its signature, as `inspect.signature` reads it.
+pub const fn function(name: &'static CStr, doc: &'static CStr, f: PyCFunctionFastWithKeywords) -> PyMethodDef {
+	PyMethodDef {
+		ml_name: name.as_ptr(),
+		ml_meth: PyMethodDefPointer {
+			PyCFunctionFastWithKeywords: f,
+		},
+		ml_flags: METH_FASTCALL | METH_KEYWORDS,
+		ml_doc: doc.as_ptr(),
+	}
+}
+
+/// A read-only property.
+pub const fn property(name: &'static CStr, doc: Option<&'static CStr>, f: getter) -> PyGetSetDef {
+	PyGetSetDef {
+		name: name.as_ptr(),
+		get: Some(f),
+		set: None,
+		doc: match doc {
+			Some(doc) => doc.as_ptr(),
+			None => null(),
+		},
+		closure: null_mut(),
+	}
+}
+
+/// The glue's members, which `_register` sets on their classes.
+static INSTALL: Gil<&'static mut [Member]> = Gil::new(&mut []);
 
 /// A table of methods Python reads for the interpreter's life.
 pub struct Methods<const N: usize>(pub UnsafeCell<[PyMethodDef; N]>);
@@ -1633,7 +1940,7 @@ static FUTURE_METHODS: Methods<4> = Methods(UnsafeCell::new([
 
 static QUEUE_METHODS: Methods<3> = Methods(UnsafeCell::new([
 	noargs(c"fileno", queue_fileno),
-	noargs(c"take", queue_take),
+	onearg(c"take", queue_take),
 	END,
 ]));
 
@@ -1683,13 +1990,14 @@ fn module_name(module: *mut PyObject) -> String {
 }
 
 /// Make the extension module `def` names, with the runtime's types and functions beside
-/// the glue's.
+/// the glue's, whose `members` `_register` sets on their classes.
 ///
 /// # Safety
 /// Python calls the module's `PyInit_` with the GIL held, once per interpreter.
-pub unsafe fn module(def: *mut PyModuleDef) -> *mut PyObject {
+pub unsafe fn module(def: *mut PyModuleDef, members: &'static mut [Member]) -> *mut PyObject {
 	// SAFETY: the caller's contract.
 	unsafe {
+		*INSTALL.get() = members;
 		let Ok(module) = Obj::new(PyModule_Create(def)) else {
 			return null_mut();
 		};
@@ -1744,6 +2052,9 @@ unsafe fn runtime(module: *mut PyObject) -> R<()> {
 			return Err(Raised);
 		}
 		let _ = PENDING.set(Static(pending));
+		let asyncio = Obj::new(PyImport_ImportModule(c"asyncio".as_ptr()))?;
+		let get = Obj::new(PyObject_GetAttrString(asyncio.ptr(), c"_get_running_loop".as_ptr()))?;
+		let _ = GET_RUNNING_LOOP.set(Static(get));
 	}
 	Ok(())
 }

@@ -12,10 +12,12 @@ import { Version as Lite } from "moq/js/net/src/lite/version.ts";
 import { Cursor, Reader, type StreamVersion, Writer } from "moq/js/net/src/stream.ts";
 import * as Varint from "moq/js/net/src/varint.ts";
 
+import { format } from "./fmt.ts";
 import { iterate } from "./iter.ts";
 import { order } from "./order.ts";
 import { hashed } from "./hashed.ts";
 import { packets } from "./packets.ts";
+import { parts } from "./parts.ts";
 import { push } from "./push.ts";
 import { rescale } from "./rescale.ts";
 import { ordered } from "./sorted.ts";
@@ -66,11 +68,15 @@ export function run(input: Uint8Array): Uint8Array | Promise<Uint8Array> {
 		case 12:
 			return order(selector, data);
 		case 13:
-			return push(data);
+			return push(selector, data);
 		case 14:
 			return hashed(selector, data);
 		case 15:
 			return packets(selector, data);
+		case 16:
+			return format(data);
+		case 17:
+			return parts(selector, data);
 		default:
 			throw new Error(`unknown workload ${op}`);
 	}
@@ -196,7 +202,7 @@ function decodeSplit(data: Uint8Array, version: Version): Uint8Array {
 }
 
 function encodeGroup(data: Uint8Array, version: Version): Promise<Uint8Array> {
-	const group = new Group({ subscribe: u64(data, 0), sequence: Number(u64(data, 1)) });
+	const group = new Group({ subscribe: u64(data, 0), sequence: u64(data, 1) });
 	return Writer.collect(version, (w) => group.encode(w, version));
 }
 

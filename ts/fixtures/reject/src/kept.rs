@@ -2,7 +2,7 @@
 
 use crate::parts::cell;
 
-/// Structs JS keeps as objects, each holding an `rt.Cell` of an object, one for each write
+/// Structs JS keeps as objects, each holding an `rs.Cell` of an object, one for each write
 /// of fresh memory made while a pointer into it may still be read, which gives the cell
 /// another object.
 pub struct Escaped(pub std::cell::UnsafeCell<(u16, u16)>);
@@ -202,7 +202,7 @@ pub fn pushed_part_kept(n: u16) -> u16 {
 	unsafe { (*part).0 }
 }
 
-/// Structs JS keeps as objects, each holding an `rt.Cell`, one for each path by which a
+/// Structs JS keeps as objects, each holding an `rs.Cell`, one for each path by which a
 /// pointer kept in memory reaches a whole write of what it points at, which gives it
 /// another cell, while a pointer to the cell, taken through a reference to the struct,
 /// may still be read.
@@ -372,7 +372,7 @@ pub fn atomic_exchanged(n: u16) -> u16 {
 	unsafe { *part }
 }
 
-/// Structs JS keeps as objects, each holding an `rt.Cell`, one for each std function that
+/// Structs JS keeps as objects, each holding an `rs.Cell`, one for each std function that
 /// puts another object in place of a `RefCell`'s value through a shared reference, while a
 /// pointer to the cell, taken through a borrow of that value, may still be read.
 pub struct ByRefReplace(pub std::cell::UnsafeCell<u16>);
@@ -457,4 +457,58 @@ pub fn reversed(n: u16) -> u16 {
 	let part = &raw mut slot.0.0;
 	std::mem::swap(&mut slot, &mut other);
 	unsafe { (*part).0 }
+}
+
+pub struct Zipped(pub [u8; 2], pub (u8, u8));
+
+/// `value`, borrowed for as long as the caller likes.
+fn unbound<'a, T>(value: &T) -> &'a T {
+	unsafe { &*(value as *const T) }
+}
+
+/// Slots written whole beside an iterator zipped with them over references to their own
+/// rows, each read after the write replaced it.
+pub fn zipped_parts(fill: [u8; 2]) -> u8 {
+	let mut slots = [Zipped(fill, (0, 1)), Zipped(fill, (2, 3))];
+	let rows = [unbound(&slots[0].0), unbound(&slots[1].0)];
+	let mut sum = 0;
+	for (slot, row) in slots.iter_mut().zip(rows) {
+		*slot = Zipped([0, 0], (0, 1));
+		let tags = &raw mut slot.1;
+		unsafe { (*tags).0 ^= row[0] };
+		sum ^= unsafe { (*tags).0 };
+	}
+	sum
+}
+
+/// Slots of rows written whole beside the rows std's `flatten` reads out of the slots,
+/// zipped again with rows read out of another value the same way, whose iterator is of the
+/// same type: the next row is the replaced second row of the slot just written.
+pub fn rezipped_parts(fill: [[u8; 3]; 2], other: [[[u8; 3]; 2]; 2]) -> u8 {
+	let mut slots = [fill; 2];
+	let alias = unsafe { &*(&raw const slots) };
+	let mut sum = 0;
+	for ((slot, row), o) in slots.iter_mut().zip(alias.iter().flatten()).zip(other.iter().flatten()) {
+		sum ^= row[0];
+		*slot = [*o, [0, 1, 2]];
+	}
+	sum ^ unbound(&slots[1][0])[0]
+}
+
+pub struct Collected(pub [u8; 2], pub (u8, u8));
+
+/// [`zipped_parts`] with the references collected into a vector first, whose type
+/// `collect` relates to its iterator's only through a bound.
+pub fn collected_parts(fill: [u8; 2]) -> u8 {
+	let mut slots = [Collected(fill, (0, 1)), Collected(fill, (2, 3))];
+	let rows = [unbound(&slots[0].0), unbound(&slots[1].0)];
+	let rows: Vec<&[u8; 2]> = rows.into_iter().collect();
+	let mut sum = 0;
+	for (slot, row) in slots.iter_mut().zip(rows) {
+		*slot = Collected([0, 0], (0, 1));
+		let tags = &raw mut slot.1;
+		unsafe { (*tags).0 ^= row[0] };
+		sum ^= unsafe { (*tags).0 };
+	}
+	sum
 }

@@ -21,7 +21,7 @@ Decided with the maintainer on 2026-11-01, settling
   decided on 2026-11-02 in [#428](https://github.com/moq-dev/rust2/pull/428)), delete
   `go/` and this epic, keeping the measurements in the PR that does.
 - **Share rust2-ts's front end piece by piece,** as Go needs each piece, starting with
-  the control-flow structuring in `ts/src/lower/mir/cfg.rs`. No shared crate lands ahead
+  the control-flow structuring, now `driver/src/cfg.rs`. No shared crate lands ahead
   of a Go use. About a quarter of `ts/src` would serve Go, nearly all of it inside files
   whose lowering returns TypeScript's AST.
 
@@ -34,5 +34,5 @@ adds 324 KB to a Go binary where cgo adds 1.15 MB and a libc dependency.
 ## Required
 
 - [Match cgo on the crate](/quest/m4/go/speed.md) - the translated crate within 2x of cgo on a group's stream end to end
-- [Show why a differential test fails](/quest/m4/go/failures.md) - a failing fixture test prints its differences instead of only that it failed
 - [moq-net beyond the codec](/quest/m4/go/coverage.md) - `Drop`, floats, 128-bit integers, trait objects, and collections, so moq-net translates whole
+- [rust2-go with no go.toml](/quest/m4/go/configless.md) - a crate's whole `pub` API translates with no config

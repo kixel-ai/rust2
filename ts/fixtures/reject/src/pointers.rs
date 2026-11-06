@@ -84,7 +84,7 @@ pub fn element_pointer(n: u32) -> u32 {
 	unsafe { (*p).0 }
 }
 
-/// The pointer `UnsafeCell::get` gives to the object its `rt.Cell` holds, which a whole
+/// The pointer `UnsafeCell::get` gives to the object its `rs.Cell` holds, which a whole
 /// write of the cell elsewhere replaces with another object.
 pub fn cell_replaced(n: u32) -> u32 {
 	let mut cell = std::cell::UnsafeCell::new((n, n));
@@ -93,7 +93,7 @@ pub fn cell_replaced(n: u32) -> u32 {
 	unsafe { (*p).0 + old.into_inner().1 }
 }
 
-/// The pointer `UnsafeCell::get` gives to a number, the `rt.Cell` itself, which an
+/// The pointer `UnsafeCell::get` gives to a number, the `rs.Cell` itself, which an
 /// assignment of the whole variable replaces.
 pub fn cell_reassigned(n: u32) -> u32 {
 	let mut cell = std::cell::UnsafeCell::new(n);
@@ -106,7 +106,7 @@ pub struct Hits {
 	pub count: std::cell::UnsafeCell<u32>,
 }
 
-/// The pointer `UnsafeCell::get` gives to a number, the `rt.Cell` itself, which
+/// The pointer `UnsafeCell::get` gives to a number, the `rs.Cell` itself, which
 /// `mem::take` of the whole variable replaces.
 pub fn cell_taken(n: u32) -> u32 {
 	let mut cell = std::cell::UnsafeCell::new(n);
@@ -115,7 +115,7 @@ pub fn cell_taken(n: u32) -> u32 {
 	unsafe { *p + old.into_inner() }
 }
 
-/// The pointer `UnsafeCell::get` gives to a number, the `rt.Cell` in a struct, which a
+/// The pointer `UnsafeCell::get` gives to a number, the `rs.Cell` in a struct, which a
 /// write of the whole field replaces.
 pub fn cell_field_replaced(n: u32) -> u32 {
 	let mut hits = Hits {
@@ -315,9 +315,9 @@ pub fn byte_pointer_parts(a: [u8; 4], b: [[u8; 2]; 3]) -> bool {
 	std::ptr::eq(x, y) || std::ptr::eq(&b[0], &b[1])
 }
 
-/// Pointers to arrays of other values than bytes, which a slice lends as copies, compared.
-pub fn array_pointers(a: [u16; 2], s: &[u16]) -> bool {
-	s.first_chunk::<2>().is_some_and(|c| std::ptr::eq(c, &a))
+/// Pointers to arrays of one, which JS makes of its own for a value, compared.
+pub fn array_of_one(n: u32) -> bool {
+	std::ptr::eq(std::array::from_ref(&n), std::array::from_ref(&n))
 }
 
 /// Pointers to an array of bytes in a variable assigned again while they point there,
@@ -432,12 +432,12 @@ pub fn reached_out(h: Halves, lanes: [u32; 4]) -> u32 {
 	}
 }
 
-/// A slice of one `u8`'s place, which no `rt.ByteSlice` views.
+/// A slice of one `u8`'s place, which no `rs.ByteSlice` views.
 pub fn byte_slice_of_place(b: &mut u8) {
 	std::slice::from_mut(b)[0] = 1;
 }
 
-/// A slice of an `Option`'s byte, which no `rt.ByteSlice` views either.
+/// A slice of an `Option`'s byte, which no `rs.ByteSlice` views either.
 pub fn byte_option_slice(o: &mut Option<u8>) {
 	o.as_mut_slice().fill(1);
 }
@@ -464,4 +464,79 @@ pub fn variable_celled(n: u32) -> u32 {
 	let p = &raw mut pair;
 	std::cell::Cell::from_mut(&mut pair).set((0, 0));
 	unsafe { (*p).0 + pair.1 }
+}
+
+/// A pointer to a value JS copies, cast to one to `()`, which would be a new identity each
+/// borrow.
+pub fn erased_place(n: u32) -> bool {
+	let p = &raw const n;
+	p as *const () == p.cast()
+}
+
+/// A pointer to a byte array, cast to one to `()`, which would be a new view each borrow.
+pub fn erased_bytes(b: &mut [u8; 4]) -> *mut () {
+	(b as *mut [u8; 4]).cast()
+}
+
+/// A pointer to a trait object, cast to one to `()`, which loses what it points at's size.
+pub fn erased_dyn(d: &dyn std::fmt::Debug) -> *const () {
+	d as *const dyn std::fmt::Debug as *const ()
+}
+
+/// A struct whose start is another struct.
+#[repr(C)]
+pub struct Outer {
+	head: Inner,
+	tail: u8,
+}
+
+/// The start of an `Outer`.
+pub struct Inner(u16);
+
+/// A pointer to a struct cast to one to `()`, whose address the object of its first field
+/// shares, which JS keeps apart.
+pub fn erased_start(outer: &Outer) -> bool {
+	let whole = &raw const *outer;
+	whole as *const () == (&raw const outer.head).cast() && outer.tail == outer.head.0 as u8
+}
+
+/// A pointer to a value of no bytes, cast to one to `()`.
+pub fn erased_empty() -> *const () {
+	let unit = ((), ());
+	(&raw const unit).cast()
+}
+
+/// Pointers to values JS copies that no `Arc` holds, cast to ones to `()`, which would be
+/// a new identity each borrow, beside one to an `Arc`'s value, which is its one place.
+pub fn erased_borrows(n: &u32, c: &std::cell::UnsafeCell<u32>, a: &std::sync::Arc<u32>) -> bool {
+	let arc = std::ptr::from_ref(&**a).cast::<()>();
+	std::ptr::from_ref(n) as *const () == arc && c.get().cast_const().cast() == arc
+}
+
+/// A pointer to a box, cast to one to `()`, which JS keeps as what it holds.
+pub fn erased_box(b: Box<(u8, u8)>) -> bool {
+	let p = &raw const b;
+	p as *const () == (&raw const *b).cast()
+}
+
+/// An `Arc`'s raw pointer to a slice, which `from_raw` would take back to no `Arc`.
+pub fn arc_raw_slice(a: std::sync::Arc<[u32]>) -> *const [u32] {
+	std::sync::Arc::into_raw(a)
+}
+
+/// An `Rc` taken back from a raw pointer to bytes, which no `Rc` gave.
+pub fn rc_raw_bytes(p: *const [u8; 4]) -> u8 {
+	unsafe { std::rc::Rc::from_raw(p)[0] }
+}
+
+/// An `Arc` taken back from a pointer remade from a reference to a number no `Arc` the body
+/// shows holds, which JS copies.
+pub fn arc_from_borrow(n: &u32) -> u32 {
+	unsafe { *std::sync::Arc::from_raw(std::ptr::from_ref(n)) }
+}
+
+/// The greater of two pointers to numbers, which orders by their addresses.
+pub fn pointers_ordered(a: &u32, b: &u32) -> bool {
+	let (p, q) = (std::ptr::from_ref(a), std::ptr::from_ref(b));
+	std::cmp::max(p, q) == p
 }

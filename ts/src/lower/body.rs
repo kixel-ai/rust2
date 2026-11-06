@@ -19,6 +19,15 @@ pub struct Body<'b, 'a, 'tcx> {
 	/// Where the function hands back its `Ok`'s parts, by [`Translator::slotted`], until
 	/// its own body takes it.
 	pub slotted: Option<super::mir::Slotted<'tcx>>,
+	/// The function the call being lowered calls, if it takes its caller's location, and
+	/// the location the call passes, until a call of it takes it.
+	pub site: Option<(Instance<'tcx>, Expr)>,
+	/// The std function the call being lowered maps, in a program with a panic hook, and
+	/// where its panics are, if rustc says, until its mapping takes it.
+	pub std_site: Option<(Instance<'tcx>, Option<Expr>)>,
+	/// Where the std function whose mapping is being lowered panics, in a program with a
+	/// panic hook, if known.
+	pub panic_at: Option<Expr>,
 }
 
 impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
@@ -28,6 +37,9 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			names: FxHashSet::default(),
 			parted: Vec::new(),
 			slotted: None,
+			site: None,
+			std_site: None,
+			panic_at: None,
 		}
 	}
 
@@ -96,12 +108,23 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			Ok(None) if self.t.polymorphic() && gargs.has_param() => return Expr::undefined(),
 			_ => return self.err(span, format!("`{}` does not resolve", tcx.def_path_str(def_id))),
 		};
+		let std_site = match self.std_site.take() {
+			Some((at, located)) if at == instance => Some(located),
+			other => {
+				self.std_site = other;
+				None
+			}
+		};
 		if let Some(sym) = self.t.bound_fn(instance, span) {
 			return Expr::Sym(sym).call(args.into_iter().map(Expr::typed).collect());
 		}
 		if let ty::InstanceKind::Virtual(method, _) = instance.def
 			&& self.t.dispatches(instance)
 		{
+			let mut args = args;
+			if super::caller::tracks(self.t, instance) {
+				args.push(self.caller_arg(instance, span));
+			}
 			return self.virtual_call(method, gargs.type_at(0), args, span);
 		}
 		// An `async` body's `Future::poll`, which its future has itself.
@@ -116,12 +139,16 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			&& self.t.lowers(self.t.typing_env_pub(), instance)
 		{
 			let values: Vec<Expr> = args.into_iter().map(Expr::typed).collect();
-			// An `async fn` that only makes its future: the future, made here.
+			// An `async fn` that only makes its future: the future, made here. Its body is
+			// the future's, so its caller's location is never read.
 			if let Some(class) = super::mir::coroutine::of_async_fn(self.t, instance, span) {
+				if self.site.as_ref().is_some_and(|(at, _)| *at == instance) {
+					self.site = None;
+				}
 				return Expr::New(Box::new(Expr::Sym(class)), values);
 			}
 			let call = self.direct_call(instance, values, span, out);
-			// The crate's own `next` returns an item or `rt.DONE`, and its caller an `Option`.
+			// The crate's own `next` returns an item or `rs.DONE`, and its caller an `Option`.
 			if super::iter::is_next(tcx, did) {
 				let option = self.t.sig(did, instance.args).output();
 				self.t.ty(option, span);
@@ -129,7 +156,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 					unreachable!("`next` returns an `Option`")
 				};
 				let none = self.t.none_arg(option_args.type_at(0));
-				return Expr::rt("iterToOption", [call].into_iter().chain(none).collect());
+				return Expr::rs("iterToOption", [call].into_iter().chain(none).collect());
 			}
 			// One that hands back its `Ok`'s parts, made whole here, before anything else can
 			// write its slot.
@@ -144,13 +171,58 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			}
 			return call;
 		}
+		let start = out.len();
+		let outer = self.panic_at.clone();
+		if let Some(at) = &std_site {
+			self.panic_at = at.clone();
+		}
+		let mut call = self.library_call(def_id, gargs, instance, args, span, out);
+		self.panic_at = outer;
+		if let Some(at) = std_site {
+			Self::locate_std(at, &mut call, &mut out[start..]);
+		}
+		call
+	}
+
+	/// A call of std's `instance`, by `def_id` with `gargs`, which its mapping makes.
+	fn library_call(
+		&mut self,
+		def_id: rustc_hir::def_id::DefId,
+		gargs: GenericArgsRef<'tcx>,
+		instance: Instance<'tcx>,
+		args: Vec<Expr>,
+		span: Span,
+		out: &mut Vec<Stmt>,
+	) -> Expr {
+		let tcx = self.t.tcx;
 		if let Some(referent) = library::referent(tcx, def_id, gargs, instance) {
-			// An operand that was a reference to an `rt.Place`, as `&&mut u32` is, passes
-			// what the Place points at.
+			// An operand that was a reference to an `rs.Place`, as `&&mut u32` is, passes
+			// what the Place points at, and a `&mut` to a `&mut` or a box what the place it
+			// is holds, as JS holds a box as what it holds, but where that is a place too. A
+			// mapping that takes what a `&mut` points at, as `pointees` says, was given the
+			// inner `&mut`, and takes what that points at.
 			let inputs = |gargs| self.t.sig(def_id, gargs).inputs().to_vec();
+			let pointees = |gargs| super::pointer::pointees(self.t, def_id, gargs);
+			let (given, taken) = (pointees(gargs), pointees(referent));
 			let args = std::iter::zip(args, std::iter::zip(inputs(gargs), inputs(referent)))
-				.map(|(arg, (was, now))| match was.kind() {
-					ty::Ref(_, inner, _) if was != now => self.t.pointee_value(*inner, arg),
+				.enumerate()
+				.map(|(i, (arg, (was, now)))| match was.kind() {
+					_ if was == now => arg,
+					ty::Ref(_, inner, mutability) if inner.is_box() => match mutability {
+						ty::Mutability::Mut if self.t.place_pointee(now).is_none() => self.t.pointee_value(was, arg),
+						_ => arg,
+					},
+					ty::Ref(_, _, ty::Mutability::Mut) => {
+						let inner = match given[i] {
+							true => arg,
+							false => self.t.pointee_value(was, arg),
+						};
+						match taken[i] {
+							true => self.t.pointee_value(now, inner),
+							false => inner,
+						}
+					}
+					ty::Ref(_, inner, _) => self.t.pointee_value(*inner, arg),
 					_ => arg,
 				})
 				.collect();
@@ -172,6 +244,15 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 				format!("unsupported call to `{}`", tcx.def_path_str_with_args(def_id, gargs)),
 			),
 		}
+	}
+
+	/// Pass `at`, where std's `instance` panics, to each runtime call its mapping made,
+	/// `call` and `stmts`, that panics there. Without one, each passes `undefined`, so a
+	/// panic there finds no location for its hook, which the runtime throws on.
+	fn locate_std(at: Option<Expr>, call: &mut Expr, stmts: &mut [Stmt]) {
+		let at = at.unwrap_or_else(Expr::undefined);
+		super::caller::locate_expr(call, &at);
+		super::caller::locate(stmts, &at);
 	}
 
 	fn ctor(
@@ -196,9 +277,10 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 			let mut values = values;
 			return match (std, variant.index()) {
 				(library::Std::Option, 1) | (library::Std::Poll, 0) => values.pop().unwrap(),
-				(library::Std::Cow, _) if library::string(tcx, Ty::new_adt(tcx, adt, gargs)) => values.pop().unwrap(),
-				(library::Std::Cow, _) if let Some(elem) = library::cow_slice(tcx, Ty::new_adt(tcx, adt, gargs)) => {
-					library::cow_made(elem, variant, values.pop().unwrap())
+				(library::Std::Cow, _)
+					if let Some(borrowed) = library::cow_borrowed(tcx, Ty::new_adt(tcx, adt, gargs)) =>
+				{
+					library::cow_made(borrowed, variant, values.pop().unwrap())
 				}
 				(library::Std::Result, i) => Expr::result(i == 0, values.pop().unwrap()),
 				(
@@ -262,10 +344,13 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 		out: &mut Vec<Stmt>,
 	) -> Expr {
 		let parted = self.t.parted(instance);
-		let values = match parted.is_empty() {
+		let mut values = match parted.is_empty() {
 			true => values,
 			false => self.slice_args(values, &parted, out),
 		};
+		if super::caller::tracks(self.t, instance) {
+			values.push(self.caller_arg(instance, span));
+		}
 		Expr::Sym(self.t.callee(instance, span)).call(values)
 	}
 
@@ -322,7 +407,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 		// Typed, as what reads it may infer nothing of it.
 		if library::empty_iter(tcx, adt.did()) {
 			let ts_ty = self.t.ty(ty, span);
-			return Ok(Expr::As(Box::new(Expr::rt("iterEmpty", Vec::new())), ts_ty));
+			return Ok(Expr::As(Box::new(Expr::rs("iterEmpty", Vec::new())), ts_ty));
 		}
 		let Some((make, gargs)) = super::iter::maker(self.t, ty) else {
 			return Err(values);
@@ -357,10 +442,21 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 		}
 		// A binding's export, or a function whose body translates, is named directly.
 		if let Ok(Some(instance)) = Instance::try_resolve(tcx, self.t.typing_env_pub(), def_id, gargs) {
+			// Std's `Fn` impls call it from their own source, whose location it would take, as
+			// would `Location::caller` itself.
+			if super::caller::tracks(self.t, instance) || super::caller::is_caller(tcx, def_id) {
+				let path = tcx.def_path_str(def_id);
+				return self.err(
+					span,
+					format!(
+						"`{path}`, a `#[track_caller]` function, as a value std's code calls, whose caller is in std's source"
+					),
+				);
+			}
 			let sym = match self.t.bound_fn(instance, span) {
 				Some(sym) => Some(sym),
 				// One that takes byte slices as their parts, hands back its `Ok`'s parts, or is a
-				// `next`, which returns an item or `rt.DONE`, is wrapped to take and return what
+				// `next`, which returns an item or `rs.DONE`, is wrapped to take and return what
 				// a call does.
 				None => (self.t.lowers(self.t.typing_env_pub(), instance)
 					&& self.t.parted(instance).is_empty()

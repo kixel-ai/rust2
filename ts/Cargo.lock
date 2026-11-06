@@ -80,6 +80,9 @@ dependencies = [
 [[package]]
 name = "crates-dep"
 version = "0.0.0"
+dependencies = [
+ "bytes",
+]
 
 [[package]]
 name = "crates-fixture"
@@ -217,6 +220,10 @@ version = "0.0.0"
 
 [[package]]
 name = "lang-collections-fixture"
+version = "0.0.0"
+
+[[package]]
+name = "lang-collects-fixture"
 version = "0.0.0"
 
 [[package]]
@@ -366,6 +373,9 @@ version = "0.0.0"
 [[package]]
 name = "lang-panics-fixture"
 version = "0.0.0"
+dependencies = [
+ "bytes",
+]
 
 [[package]]
 name = "lang-pointers-fixture"

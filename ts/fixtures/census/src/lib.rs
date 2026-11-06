@@ -40,7 +40,7 @@ pub fn counted() -> u8 {
 	}
 }
 
-/// A `BytesMut`'s capacity, which `bytes` reclaims only once the `Bytes` it froze drops.
-pub fn capacity(n: usize) -> usize {
-	bytes::BytesMut::with_capacity(n).capacity()
+/// A `Bytes` of an owner that drops, which would drop with the last clone of what it makes.
+pub fn owned(owner: std::sync::Arc<[u8]>) -> usize {
+	bytes::Bytes::from_owner(owner).len()
 }

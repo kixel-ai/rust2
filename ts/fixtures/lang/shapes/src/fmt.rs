@@ -6,7 +6,7 @@
 #![allow(dead_code, reason = "fields only `Debug` reads")]
 
 use std::cell::{Cell, RefCell};
-use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque};
 use std::fmt::{self, Debug, Display};
 use std::ops::{Range, RangeToInclusive};
 use std::rc::Rc;
@@ -794,7 +794,7 @@ pub fn enums(data: &[u8], out: &mut Vec<u8>) {
 		0 => ControlFlow::Break(None),
 		_ => ControlFlow::Continue(at(2)),
 	};
-	// `()` is `undefined`, so its `None` is `rt.None`.
+	// `()` is `undefined`, so its `None` is `rs.None`.
 	let unit_none: ControlFlow<Option<Infallible>> = match at(2) % 2 {
 		0 => ControlFlow::Break(None),
 		_ => ControlFlow::Continue(()),
@@ -1346,7 +1346,8 @@ fn result(out: &mut Vec<u8>, r: fmt::Result) {
 	out.push(r.is_ok() as u8);
 }
 
-/// `fmt::Write` for a `String`, through `&mut W`, and for the crate's own writers.
+/// `fmt::Write` for a `String`, through `&mut W`, and for the crate's own writers, which see
+/// each call std makes.
 pub fn writes(data: &[u8], out: &mut Vec<u8>) {
 	use std::fmt::Write as _;
 	let at = |i: usize| data.get(i).copied().unwrap_or(0);
@@ -1373,6 +1374,11 @@ pub fn writes(data: &[u8], out: &mut Vec<u8>) {
 	result(out, literals(&mut capped, c));
 	result(out, capped.write_char(c));
 	result(out, write!(capped, "z"));
+	// Placeholders, whose fills and signs std's `write_char` writes through `write_str`.
+	result(
+		out,
+		write!(capped, "{:>4}|{}|{c:^5}|{:?}", at(10), -i16::from(at(11)), "q\"b"),
+	);
 	result(out, literals(&mut &mut capped, 'é'));
 	out.push(capped.calls);
 	put(out, &capped.text);
@@ -1380,6 +1386,23 @@ pub fn writes(data: &[u8], out: &mut Vec<u8>) {
 	result(out, literals(&mut twice, c));
 	result(out, twice.write_char('ß'));
 	put(out, &twice.0);
+	named(out, at(12), at(13));
+}
+
+/// Placeholders into writers named as the translation's own callback parameters might be.
+fn named(out: &mut Vec<u8>, first: u8, second: u8) {
+	use std::fmt::Write as _;
+	let mut s = Twice(String::new());
+	let mut c = Capped {
+		text: String::new(),
+		calls: 0,
+		cap: 64,
+	};
+	result(out, write!(s, "{first}{:>3}", 'x'));
+	result(out, write!(c, "{second:<3}{}", s.0));
+	put(out, &s.0);
+	put(out, &c.text);
+	out.push(c.calls);
 }
 
 /// Writes what its cell holds as it is written.
@@ -1576,6 +1599,23 @@ pub fn sources(data: &[u8], out: &mut Vec<u8>) {
 	let it = std::iter::once(b).chain([at(3), at(4)]).map(|x| x / 2);
 	put(out, &format!("{it:?}|{it:#?}"));
 
+	// What a `Repeat` and a `RepeatN` hold, and whether a `OnceWith` still holds its
+	// closure, which std writes unpadded.
+	let it = std::iter::repeat(b);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	put(
+		out,
+		&format!("{:?}", ends(std::iter::repeat(Pair(b, 7)).take(3), front, back)),
+	);
+	let n = usize::from(at(3) % 4);
+	let it = ends(std::iter::repeat_n(b, n), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let mut it = std::iter::repeat_n(Pair(b, 8), n);
+	it.nth(usize::from(at(4) % 4));
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = ends(std::iter::once_with(|| b), front % 2, back % 2);
+	put(out, &format!("{it:?}|{it:#?}|{it:>20?}"));
+
 	// The bytes before the front, and the chars left.
 	let text: String = bytes
 		.iter()
@@ -1672,4 +1712,463 @@ pub fn sources(data: &[u8], out: &mut Vec<u8>) {
 			one.union(&other)
 		),
 	);
+}
+
+/// A `BTreeSet`'s set operations' `Debug`, each the way std picked to make it and what that
+/// reads: merged, each key of the smaller looked up in a set 16 times its size, or answered
+/// by where the sets meet, fresh and part read, plain and pretty. And each `ExtractIf`'s: a
+/// list's the item it reads next, a hash map's and set's nothing.
+pub fn sets(data: &[u8], out: &mut Vec<u8>) {
+	let at = |i: usize| data.get(i).copied().unwrap_or(0);
+	let front = usize::from(at(0) % 4);
+	fn fronts<I: Iterator>(mut it: I, front: usize) -> I {
+		for _ in 0..front {
+			it.next();
+		}
+		it
+	}
+	let b = at(1) % 64;
+	let small: BTreeSet<u8> = data
+		.iter()
+		.skip(2)
+		.take(usize::from(at(2) % 4))
+		.map(|&x| x % 64)
+		.collect();
+	let large: BTreeSet<u8> = (0..usize::from(at(3) % 3) * 24)
+		.map(|i| (i as u8).wrapping_mul(at(4) | 1) % 64)
+		.collect();
+	// Sets where one's least key is the other's greatest.
+	let low: BTreeSet<u8> = [b, b + 1, b + 2].into();
+	let high: BTreeSet<u8> = [b + 2, b + 70].into();
+	for (x, y) in [
+		(&small, &large),
+		(&large, &small),
+		(&small, &small),
+		(&low, &high),
+		(&high, &low),
+	] {
+		let it = fronts(x.difference(y), front);
+		put(out, &format!("{it:?}|{it:#?}"));
+		let it = fronts(x.intersection(y), front);
+		put(out, &format!("{it:?}|{it:#?}"));
+		let it = fronts(x.union(y), front);
+		put(out, &format!("{it:?}|{it:#?}"));
+		let it = fronts(x.symmetric_difference(y), front);
+		put(out, &format!("{it:?}|{it:#?}"));
+	}
+	let pairs: BTreeSet<(u8, char)> = data.iter().take(3).map(|&x| (x % 4, 'p')).collect();
+	let more: BTreeSet<(u8, char)> = data.iter().skip(1).take(3).map(|&x| (x % 4, 'q')).collect();
+	let it = fronts(pairs.union(&more), front);
+	put(out, &format!("{it:?}|{it:x?}"));
+	let it = fronts(pairs.difference(&more), front);
+	put(out, &format!("{it:#?}"));
+
+	let mut list: LinkedList<u8> = data.iter().take(6).copied().collect();
+	let it = fronts(list.extract_if(|x| *x % 2 == 0), front);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	drop(it);
+	let mut pairs: LinkedList<Pair> = data.iter().take(3).map(|&x| Pair(x, 2)).collect();
+	let it = fronts(pairs.extract_if(|p| p.0 % 3 == 0), front);
+	put(out, &format!("{it:?}"));
+	drop(it);
+	let mut map: HashMap<u8, u8> = data.iter().map(|&x| (x, x)).collect();
+	let mut set: HashSet<u8> = data.iter().copied().collect();
+	put(
+		out,
+		&format!("{:?}|{:#?}", map.extract_if(|k, _| *k > 9), set.extract_if(|k| *k > 9)),
+	);
+}
+
+/// A writer of the crate's own that logs each call std makes to it, a `write_str` by `s` and
+/// a `write_char` by `c` before its text, and fails each call past its `budget` with `!`.
+pub struct Log {
+	text: String,
+	budget: usize,
+}
+
+impl Log {
+	fn new(budget: usize) -> Self {
+		Self {
+			text: String::new(),
+			budget,
+		}
+	}
+
+	fn open(&mut self, kind: char) -> fmt::Result {
+		if self.budget == 0 {
+			self.text.push('!');
+			return Err(fmt::Error);
+		}
+		self.budget -= 1;
+		self.text.push(kind);
+		Ok(())
+	}
+}
+
+impl fmt::Write for Log {
+	fn write_str(&mut self, s: &str) -> fmt::Result {
+		self.open('s')?;
+		self.text.push_str(s);
+		self.text.push('\u{1}');
+		Ok(())
+	}
+
+	fn write_char(&mut self, c: char) -> fmt::Result {
+		self.open('c')?;
+		self.text.push(c);
+		self.text.push('\u{1}');
+		Ok(())
+	}
+}
+
+/// `write!` into a [`Log`] that takes every call, then into one that fails past `budget`
+/// calls: each log, and `+` or `-` for the result.
+macro_rules! logged {
+	($out:expr, $budget:expr, $($args:tt)*) => {{
+		use std::fmt::Write as _;
+		for budget in [usize::MAX, $budget] {
+			let mut log = Log::new(budget);
+			let r = write!(log, $($args)*);
+			log.text.push(if r.is_ok() { '+' } else { '-' });
+			put($out, &log.text);
+		}
+	}};
+}
+
+/// `Display` through a `Formatter`'s `write_char`, `pad`, and `write!`.
+struct Lettered(char);
+
+impl Display for Lettered {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		use std::fmt::Write as _;
+		f.write_char(self.0)?;
+		f.pad("xy")?;
+		write!(f, "{}{:>3}", self.0, self.0)
+	}
+}
+
+/// `args` written to a [`Log`], made elsewhere than where they are written.
+fn passed(out: &mut Vec<u8>, budget: usize, args: fmt::Arguments<'_>) {
+	logged!(out, budget, "{args}");
+	let mut log = Log::new(budget);
+	let r = fmt::Write::write_fmt(&mut log, args);
+	log.text.push(if r.is_ok() { '+' } else { '-' });
+	put(out, &log.text);
+}
+
+/// Each call std makes to a writer of the crate's own, in order: each placeholder's fills,
+/// sign, digits, a float's parts, a string's escapes in runs, and the builders' pieces, and
+/// where a call that fails stops the rest.
+pub fn calls(data: &[u8], out: &mut Vec<u8>) {
+	use std::alloc::Layout;
+	use std::any::Any;
+	use std::cell::UnsafeCell;
+	use std::marker::PhantomData;
+	use std::time::Duration;
+
+	let at = |i: usize| data.get(i).copied().unwrap_or(0);
+	let budget = usize::from(at(0) % 64);
+	let v = i32::from_be_bytes([at(1), at(2), at(3), at(4)]) >> (at(5) % 32);
+	logged!(
+		out,
+		budget,
+		"a{v:>4}|{v}|{v:<+6}|{v:^#9x}|{v:08}|{v:#010b}|{v:+#o}|{v:#}|{v:#?}|{v:x?}|{v:e}|{v:.3e}|{v:+012.2E}|{v:*^12e}|{v:.0e}|{v:.12e}|{v:#e}"
+	);
+	let w = u64::from_be_bytes([at(6), at(7), at(8), at(9), at(1), at(2), at(3), at(4)]);
+	let n = i128::from(v) * -(1 << 70);
+	logged!(
+		out,
+		budget,
+		"{w:>24}|{w:#x}|{n}|{n:+045}|{n:e}|{:>5}|{:#06x}|{:.45E}",
+		at(6),
+		at(7) as i8,
+		v
+	);
+	let x = match at(10) % 9 {
+		0 => f64::NAN,
+		1 => -0.0,
+		2 => f64::NEG_INFINITY,
+		3 => 1e300,
+		4 => -1.5e-300,
+		5 => 1.5,
+		6 => 0.1,
+		7 => 2.0,
+		_ => f64::from_bits(w),
+	};
+	logged!(
+		out,
+		budget,
+		"{x}|{x:?}|{x:10.3}|{x:<+12}|{x:^012.1}|{x:e}|{x:.2e}|{x:.30}|{x:#?}|{x:+.0}|{x:>9?}|{x:E}|{x:08}|{x:+09.3e}|{x:.0e}"
+	);
+	let y = x as f32;
+	logged!(
+		out,
+		budget,
+		"{x:.70}|{x:.330}|{x:.20e}|{y}|{y:?}|{y:.3}|{y:e}|{y:.12e}|{y:.50}"
+	);
+	let s = STRINGS[usize::from(at(11)) % STRINGS.len()];
+	let c = char::from_u32(u32::from(at(12)) * 0x101).unwrap_or('?');
+	let flag = at(13) % 2 == 0;
+	logged!(
+		out,
+		budget,
+		"{s}|{s:?}|{s:>8}|{s:^9.2}|{s:-<3}|{s:#?}|{c}|{c:?}|{c:>3}|{c:.0}|{c:^5?}|{:?}{:?}{:?}{:?}|{flag}|{:?}|{flag:>7}",
+		'\'',
+		'"',
+		'\u{301}',
+		'é',
+		()
+	);
+	let value = nested(data);
+	logged!(out, budget, "{value:?}");
+	logged!(out, budget, "{value:#?}");
+	let manual = Manual {
+		id: at(14),
+		list: [1, 2].to_vec(),
+	};
+	let seq = Seq([Pair(at(15), -2)].to_vec());
+	logged!(
+		out,
+		budget,
+		"{:?}|{:#?}|{manual:?}|{manual:#?}|{seq:#?}|{:?}|{:#?}|{:?}",
+		Tup(at(16), None),
+		Tup(1, Some(2)),
+		(at(17),),
+		(1, "t"),
+		Unit
+	);
+	let map: BTreeMap<u8, &str> = data.iter().take(3).map(|&b| (b % 8, "v")).collect();
+	let set: BTreeSet<u8> = data.iter().take(2).copied().collect();
+	let deque: VecDeque<i8> = data.iter().take(2).map(|&b| b as i8).collect();
+	let mut range = 1..=at(18) % 3;
+	for _ in &mut range {}
+	logged!(
+		out,
+		budget,
+		"{map:?}|{map:#?}|{set:?}|{set:#?}|{deque:?}|{:?}|{:?}|{range:?}|{:?}|{:?}",
+		Some(Ok::<u8, ()>(at(19))),
+		None::<u8>,
+		..at(20),
+		std::ops::Bound::Included(3)
+	);
+	let mut bytes = data.escape_ascii();
+	if at(21) % 2 == 0 {
+		bytes.next();
+	}
+	if at(22) % 2 == 0 {
+		bytes.next_back();
+	}
+	let mut spent = c.escape_debug();
+	spent.next();
+	logged!(
+		out,
+		budget,
+		"{bytes}|{bytes:?}|{}|{:?}|{}|{}|{}|{}|{spent}|{spent:?}|{}|{}",
+		b'\n'.escape_ascii(),
+		b'q'.escape_ascii(),
+		c.escape_debug(),
+		c.escape_default(),
+		c.escape_unicode(),
+		'ß'.to_uppercase(),
+		s.escape_debug(),
+		"a\"".escape_default()
+	);
+	let d = Duration::new(
+		u64::from(at(23) % 3) * u64::from(at(24)),
+		u32::from_be_bytes([0, at(25), at(26), at(27)]) % 1_000_000_000,
+	);
+	logged!(
+		out,
+		budget,
+		"{d:?}|{d:>12?}|{d:.2?}|{d:+?}|{d:^15.11?}|{d:<4.0?}|{d:*>20.3?}"
+	);
+	match std::str::from_utf8(data) {
+		Ok(_) => logged!(out, budget, "{:?}", data.utf8_chunks()),
+		Err(e) => logged!(out, budget, "{e}|{e:?}|{:?}", data.utf8_chunks()),
+	}
+	// Cut short, or else with a byte that may end it.
+	let cut = [b'a', 0xe6, 0x97, at(32)];
+	if let Err(e) = std::str::from_utf8(&cut[..3 + usize::from(at(32) % 2)]) {
+		logged!(out, budget, "{e}");
+	}
+	let layout = Layout::from_size_align(usize::from(at(28)), 1 << (at(29) % 8)).unwrap();
+	let reserve = Vec::<u8>::new().try_reserve(usize::MAX).unwrap_err();
+	let byte = at(33);
+	let any: &dyn Any = &byte;
+	logged!(
+		out,
+		budget,
+		"{layout:?}|{reserve}|{reserve:?}|{:?}|{:?}|{:?}|{:?}|{:?}",
+		PhantomData::<u8>,
+		any,
+		UnsafeCell::new(1),
+		"ab".encode_utf16(),
+		std::iter::repeat_with(|| 1)
+	);
+	logged!(
+		out,
+		budget,
+		"{}|{:>6}|{}",
+		Lettered(c),
+		Lettered('é'),
+		format_args!("a{}b{v:>3}", at(30))
+	);
+	passed(out, budget, format_args!("{v:+}|{:?}|{s:?}", Pair(at(31), 1)));
+	passed(out, budget, format_args!("lit"));
+	passed(out, budget, format_args!(""));
+}
+
+/// A [`Log`] that sets or forces each of the cells it holds as it is given `trigger`.
+struct Setter<'a> {
+	log: Log,
+	trigger: &'a str,
+	cell: &'a Cell<u8>,
+	once: &'a std::cell::OnceCell<u8>,
+	lazy: &'a std::cell::LazyCell<u8>,
+	lock: &'a std::sync::OnceLock<u8>,
+	forced: &'a std::sync::LazyLock<u8>,
+}
+
+impl fmt::Write for Setter<'_> {
+	fn write_str(&mut self, s: &str) -> fmt::Result {
+		if s == self.trigger {
+			self.cell.set(9);
+			let _ = self.once.set(9);
+			std::cell::LazyCell::force(self.lazy);
+			let _ = self.lock.set(9);
+			std::sync::LazyLock::force(self.forced);
+		}
+		self.log.write_str(s)
+	}
+}
+
+/// `Debug` of cells that the writer sets as it is written, which shows when std reads each.
+pub fn cells(data: &[u8], out: &mut Vec<u8>) {
+	use std::fmt::Write as _;
+	const TRIGGERS: [&str; 7] = ["Cell", "OnceCell", "LazyCell", "OnceLock", "LazyLock", "(", " { "];
+	let trigger = TRIGGERS[usize::from(data.first().copied().unwrap_or(0)) % TRIGGERS.len()];
+	let cell = Cell::new(1);
+	let once = std::cell::OnceCell::new();
+	let lazy: std::cell::LazyCell<u8> = std::cell::LazyCell::new(|| 5);
+	let lock = std::sync::OnceLock::new();
+	let forced: std::sync::LazyLock<u8> = std::sync::LazyLock::new(|| 6);
+	let mut setter = Setter {
+		log: Log::new(usize::MAX),
+		trigger,
+		cell: &cell,
+		once: &once,
+		lazy: &lazy,
+		lock: &lock,
+		forced: &forced,
+	};
+	let r = write!(
+		setter,
+		"{cell:?}|{once:?}|{lazy:?}|{lock:?}|{forced:?}|{cell:?}|{once:?}"
+	);
+	setter.log.text.push(if r.is_ok() { '+' } else { '-' });
+	put(out, &setter.log.text);
+}
+
+/// A `str` search's `Debug`, its searcher's state in UTF-8 bytes, of each pattern: fresh,
+/// read from either end, and past the end, plain, pretty, and in hex. A `&str`'s two-way
+/// search keeps what it last compared, which a search that finds nothing leaves.
+pub fn searches(data: &[u8], out: &mut Vec<u8>) {
+	let at = |i: usize| data.get(i).copied().unwrap_or(0);
+	let (front, back) = (usize::from(at(0) % 6), usize::from(at(1) % 4));
+	fn ends<I: DoubleEndedIterator>(mut it: I, front: usize, back: usize) -> I {
+		for _ in 0..front {
+			it.next();
+		}
+		for _ in 0..back {
+			it.next_back();
+		}
+		it
+	}
+	fn fronts<I: Iterator>(mut it: I, front: usize) -> I {
+		for _ in 0..front {
+			it.next();
+		}
+		it
+	}
+	let rest = data.get(4..).unwrap_or_default();
+	let text: String = (rest.iter().take(10))
+		.map(|&b| ['a', 'b', 'é', '🦀', ' ', '\n', '\r', '\u{3000}', '\t'][usize::from(b % 9)])
+		.collect();
+	let text = text.as_str();
+	let c = ['a', 'é', '🦀', ' '][usize::from(at(2) % 4)];
+
+	// A `char`'s.
+	let it = ends(text.split(c), front, back);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	put(out, &format!("{:?}", ends(text.rsplit(c), front, back)));
+	put(out, &format!("{:?}", ends(text.split_terminator(c), front, back)));
+	put(out, &format!("{:?}", ends(text.rsplit_terminator(c), front, back)));
+	put(
+		out,
+		&format!("{:?}", fronts(text.splitn(usize::from(at(3) % 4), c), front)),
+	);
+	put(out, &format!("{:#?}", fronts(text.rsplitn(2, c), front)));
+	put(out, &format!("{:?}", ends(text.split_inclusive(c), front, back)));
+	put(out, &format!("{:?}", ends(text.matches(c), front, back)));
+	put(out, &format!("{:?}", ends(text.rmatches(c), front, back)));
+	put(out, &format!("{:x?}", ends(text.match_indices(c), front, back)));
+	put(out, &format!("{:?}", ends(text.rmatch_indices(c), front, back)));
+
+	// Chars, by an array, a reference to one, a slice, a closure, and a function.
+	let set = [c, 'b'];
+	put(out, &format!("{:?}", ends(text.split(set), front, back)));
+	put(out, &format!("{:#?}", ends(text.matches(&set), front, back)));
+	put(out, &format!("{:?}", ends(text.rsplit(&set[..1]), front, back)));
+	put(out, &format!("{:?}", ends(text.split(|x: char| x == c), front, back)));
+	put(
+		out,
+		&format!("{:#?}", ends(text.match_indices(char::is_whitespace), front, back)),
+	);
+
+	// A `&str`'s, read from the end it searches from, in text of few chars so that its
+	// needle often nearly matches. A needle of one char's period is short, as `aa`'s, and
+	// `ab`'s long.
+	let few: String = rest
+		.iter()
+		.take(16)
+		.map(|&b| ['a', 'b', 'é'][usize::from(b % 3)])
+		.collect();
+	let few = few.as_str();
+	let needle = ["", "a", "aa", "ab", "aab", "aba", "abab", "bé", "aaba", "éaé"][usize::from(at(2) % 10)];
+	let it = fronts(few.split(needle), front);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}"));
+	put(out, &format!("{:?}", fronts(few.rsplit(needle), front)));
+	put(out, &format!("{:?}", fronts(few.split_terminator(needle), front)));
+	put(
+		out,
+		&format!("{:?}", fronts(few.splitn(usize::from(at(3) % 4), needle), front)),
+	);
+	put(
+		out,
+		&format!("{:?}", fronts(few.rsplitn(usize::from(at(3) % 4), needle), front)),
+	);
+	put(out, &format!("{:?}", fronts(few.split_inclusive(needle), front)));
+	put(out, &format!("{:?}", fronts(few.matches(needle), front * 2)));
+	put(out, &format!("{:?}", fronts(few.rmatches(needle), front * 2)));
+	put(out, &format!("{:?}", fronts(few.match_indices(needle), front)));
+	put(out, &format!("{:x?}", fronts(few.rmatch_indices(needle), front)));
+	let owned = needle.to_string();
+	put(out, &format!("{:?}", fronts(text.split(&owned), front)));
+	// Each match, past the last, and once more.
+	let mut it = few.matches(needle);
+	while it.next().is_some() {}
+	put(out, &format!("{it:?}"));
+	it.next();
+	put(out, &format!("{it:?}"));
+	let mut it = few.rmatch_indices(needle);
+	while it.next().is_some() {}
+	put(out, &format!("{it:?}"));
+
+	// Lines, and the parts between whitespace, Unicode's and ASCII's.
+	let it = ends(text.lines(), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = ends(text.split_whitespace(), front, back);
+	put(out, &format!("{it:?}|{it:#?}"));
+	let it = ends(text.split_ascii_whitespace(), front, back);
+	put(out, &format!("{it:?}|{it:#?}|{it:x?}|{:?}", it.size_hint()));
 }

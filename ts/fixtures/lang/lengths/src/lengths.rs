@@ -2,8 +2,9 @@
 //! arrays of bytes, of a type parameter's values, and of arrays, each at a length of none,
 //! one, and more. Their writes are judged in the bounds of the body making them, as
 //! filling memory nothing points into yet or giving what they replace another object,
-//! through what std's iterators and a vector's accessors give back and what `copied` and
-//! `vec![x; n]` make of a `Copy` type whose `Clone` logs and panics.
+//! through what std's iterators and a vector's accessors give back, beside an iterator
+//! zipped with them that points at what a slot holds, and what `copied` and `vec![x; n]`
+//! make of a `Copy` type whose `Clone` logs and panics.
 
 use std::cell::RefCell;
 use std::mem::MaybeUninit;
@@ -22,6 +23,7 @@ pub fn lengths(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	repeated::<u8>(data, 0x41, 0x42, out);
 	repeated::<Loud>(data, Loud(byte(1)), Loud(byte(0)), out);
 	loud(data, out);
+	zipped(data, out);
 	CLONES.with_borrow_mut(|log| out.extend(log.drain(..)));
 }
 
@@ -94,8 +96,9 @@ fn recloned<T: Copy + Into<u32>, const N: usize>(rows: &[[T; N]], out: &mut Vec<
 
 /// Slots of `MaybeUninit` arrays of `T`, each written whole through an iterator while
 /// nothing points into them, the last two again from the values a vector's iterator gives
-/// beside them, which std drops, then changed in place, a pair of tags through a pointer to
-/// it, and read back.
+/// beside them, which std drops, then again beside the rows of a vector of arrays and the
+/// last beside `fill`'s values copied, whose iterators point at what a slot holds, then
+/// changed in place, a pair of tags through a pointer to it, and read back.
 fn filled<T: Copy + Put, const N: usize>(data: &[u8], fill: [T; N], out: &mut Vec<u8>) {
 	let mut slots: [MaybeUninit<([T; N], (u8, u8))>; 3] = [const { MaybeUninit::uninit() }; 3];
 	for (slot, at) in slots.iter_mut().zip(0u8..) {
@@ -111,6 +114,13 @@ fn filled<T: Copy + Put, const N: usize>(data: &[u8], fill: [T; N], out: &mut Ve
 			None => fill,
 		};
 		slot.write((row, (N as u8, 0x5a)));
+	}
+	let rows: Vec<[T; N]> = vec![fill; data.len() % 4];
+	for (slot, row) in slots.iter_mut().zip(rows) {
+		slot.write((row, (0x11, N as u8)));
+	}
+	for (slot, v) in slots.iter_mut().skip(2).zip(fill.iter().copied()) {
+		slot.write(([v; N], (0x22, N as u8)));
 	}
 	for &byte in data {
 		let slot = unsafe { slots[usize::from(byte) % 3].assume_init_mut() };
@@ -260,4 +270,35 @@ fn repeated<T: Copy + Put>(data: &[u8], x: T, y: T, out: &mut Vec<u8>) {
 fn loud(data: &[u8], out: &mut Vec<u8>) {
 	let byte = |at: usize| u16::from(data.get(at).copied().unwrap_or(0));
 	repeated!(data, Loud(byte(2)), Loud(byte(0)), out);
+}
+
+/// [`filled`]'s zips in a body generic over none: slots of rows of bytes written whole
+/// beside rows collected from `data`, beside a row repeated by `vec!`, and beside a row's
+/// bytes copied, then their tags changed through a pointer and each slot read back.
+fn zipped(data: &[u8], out: &mut Vec<u8>) {
+	let fill: [u8; 3] = std::array::from_fn(|i| data.get(i).copied().unwrap_or(i as u8));
+	let rows: Vec<[u8; 3]> = data.chunks(2).map(|c| [c[0], !c[0], c.len() as u8]).collect();
+	let mut slots: [MaybeUninit<([u8; 3], (u8, u8))>; 3] = [MaybeUninit::new((fill, (1, 2))); 3];
+	for (slot, row) in slots.iter_mut().zip(rows) {
+		slot.write((row, (0x33, 3)));
+	}
+	for (slot, row) in slots.iter_mut().skip(1).zip(vec![fill; data.len() % 3]) {
+		slot.write((row, (0x44, 3)));
+	}
+	for (slot, v) in slots.iter_mut().skip(2).zip(fill.iter().copied()) {
+		slot.write(([v; 3], (0x55, v)));
+	}
+	for &byte in data {
+		let slot = unsafe { slots[usize::from(byte) % 3].assume_init_mut() };
+		slot.0.rotate_left(usize::from(byte) % 3);
+		let tags = &raw mut slot.1;
+		unsafe {
+			(*tags).0 ^= byte;
+			out.extend([(*tags).0, (*tags).1]);
+		}
+	}
+	for slot in &slots {
+		let (row, (a, b)) = unsafe { slot.assume_init_ref() };
+		out.extend(row.iter().chain([a, b]));
+	}
 }

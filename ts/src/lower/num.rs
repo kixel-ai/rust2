@@ -45,9 +45,9 @@ impl Int {
 		self.bits > 32
 	}
 
-	/// The TypeScript type of a value, named as the runtime's: `rt.u32`.
+	/// The TypeScript type of a value, named as the runtime's: `rs.u32`.
 	pub fn ty(self) -> Type {
-		Type::Rt(self.rt(), Vec::new())
+		Type::Rs(self.rs(), Vec::new())
 	}
 
 	pub fn min(self) -> i128 {
@@ -76,8 +76,8 @@ impl Int {
 		}
 	}
 
-	/// The runtime's name for the type: `rt.u32`.
-	pub fn rt(self) -> &'static str {
+	/// The runtime's name for the type: `rs.u32`.
+	pub fn rs(self) -> &'static str {
 		match (self.signed, self.bits, self.pointer) {
 			(false, _, true) => "usize",
 			(true, _, true) => "isize",
@@ -105,7 +105,7 @@ impl Int {
 
 	/// A literal of this type spelled `text`, JS number digits of `value`. A wide value
 	/// past 2^53 is its limbs, written out as the runtime makes them, `{ hi: 0xffffffff,
-	/// lo: 0xffffffff } as rt.u64`: an object literal costs what a hoisted constant does,
+	/// lo: 0xffffffff } as rs.u64`: an object literal costs what a hoisted constant does,
 	/// where converting a bigint cost more than the arithmetic around it.
 	fn spelled(self, text: String, value: i128) -> Expr {
 		let safe = (1 - (1i128 << 53)..(1 << 53)).contains(&value) && (self.signed || value >= 0);
@@ -130,14 +130,14 @@ impl Int {
 		Expr::As(Box::new(Expr::Object(fields)), self.ty())
 	}
 
-	/// A call of the type's runtime function `name`: `rt.u8Add` for `add`.
+	/// A call of the type's runtime function `name`: `rs.u8Add` for `add`.
 	pub fn method(self, name: &str, args: Vec<Expr>) -> Expr {
 		self.func(name).call(args)
 	}
 
 	/// The type's runtime function `name`, uncalled.
 	pub fn func(self, name: &str) -> Expr {
-		Expr::rt_of(self.rt(), name)
+		Expr::rs_of(self.rs(), name)
 	}
 
 	/// `value`, an exact integer of at most 32 bits, wrapped into this narrow type's range.
@@ -234,6 +234,9 @@ pub fn binary<'tcx>(
 		return match lty.kind() {
 			ty::Int(_) | ty::Uint(_) => Int::of(lty).unwrap().compare(js, l.expr, r.expr),
 			ty::Bool | ty::Char => l.expr.binary(js, r.expr),
+			// A function is its JS function, which Rust leaves free to compare as another's
+			// or apart from itself, and which has no address to order by.
+			ty::FnPtr(..) if matches!(op, BinOp::Eq | BinOp::Ne) => l.expr.binary(js, r.expr),
 			_ => b.err(span, format!("comparing `{lty}`")),
 		};
 	}
@@ -244,8 +247,8 @@ pub fn binary<'tcx>(
 			// Both sides are already evaluated, so short-circuiting changes nothing.
 			BinOp::BitAnd if r.expr.is_path() => l.expr.binary("&&", r.expr),
 			BinOp::BitOr if r.expr.is_path() => l.expr.binary("||", r.expr),
-			BinOp::BitAnd => Expr::rt("and", vec![l.expr, r.expr]),
-			BinOp::BitOr => Expr::rt("or", vec![l.expr, r.expr]),
+			BinOp::BitAnd => Expr::rs("and", vec![l.expr, r.expr]),
+			BinOp::BitOr => Expr::rs("or", vec![l.expr, r.expr]),
 			_ => b.err(span, format!("`{op:?}` on `bool`")),
 		};
 	}
@@ -447,7 +450,7 @@ pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, value: Operand, from: Ty<'tcx>, to
 	}
 	// Only a `u8` casts to a `char`, whose scalar value it is.
 	if let (ty::Char, ty::Uint(ty::UintTy::U8)) = (to.kind(), from.kind()) {
-		return Expr::As(Box::new(value.expr), Type::Rt("char", Vec::new()));
+		return Expr::As(Box::new(value.expr), Type::Rs("char", Vec::new()));
 	}
 	let Some(target) = Int::of(to) else {
 		return b.err(span, format!("a cast to `{to}`"));
@@ -491,7 +494,7 @@ pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, value: Operand, from: Ty<'tcx>, to
 	}
 	let fits = target.min() <= source.min() && source.max() <= target.max();
 	// A cast that keeps the value still changes the type `tsc` checks it as.
-	let retyped = |value: Expr| match source.rt() == target.rt() {
+	let retyped = |value: Expr| match source.rs() == target.rs() {
 		true => value,
 		false => Expr::As(Box::new(value), target.ty()),
 	};
@@ -507,7 +510,7 @@ pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, value: Operand, from: Ty<'tcx>, to
 		}
 		// A narrow integer is already a wide one's number.
 		(false, true) if fits => retyped(value.expr),
-		(true, true) if source.rt() == target.rt() => value.expr,
+		(true, true) if source.rs() == target.rs() => value.expr,
 		_ => target.method("cast", vec![value.expr]),
 	}
 }

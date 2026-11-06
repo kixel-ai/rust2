@@ -1,19 +1,19 @@
 // `blob::Blob`, which contains `unsafe`: immutable bytes that its slices and clones
 // share, as a byte slice of them is.
 
-import * as rt from "../rt.ts";
+import * as rs from "../rs.ts";
 
-export type Blob = rt.ByteSlice;
+export type Blob = rs.ByteSlice;
 
-export function copyFromSlice(data: rt.ByteSlice): Blob {
-	return rt.byteSliceFrom(rt.byteSliceView(data).slice());
+export function copyFromSlice(data: rs.ByteSlice): Blob {
+	return rs.byteSliceFrom(rs.byteSliceView(data).slice());
 }
 
-export function from$convert_From_Vec_u8(vec: rt.ByteVec): Blob {
-	return rt.byteVecSlice(vec);
+export function from$convert_From_Vec_u8(vec: rs.ByteVec): Blob {
+	return rs.byteVecSlice(vec);
 }
 
-export function len(self: Blob): rt.usize {
+export function len(self: Blob): rs.usize {
 	return self.length;
 }
 
@@ -24,43 +24,43 @@ export function isEmpty(self: Blob): boolean {
 /** Over each range translated code makes: `a..b`, `a..=b`, `a..`, `..b`, and `..`. */
 export function slice(
 	self: Blob,
-	range: rt.Range<rt.usize> | rt.RangeInclusive<rt.usize> | { start: rt.usize } | { end: rt.usize } | undefined,
+	range: rs.Range<rs.usize> | rs.RangeInclusive<rs.usize> | { start: rs.usize } | { end: rs.usize } | undefined,
 ): Blob {
 	let begin = 0;
 	let end = self.length;
-	if (range instanceof rt.RangeInclusive) {
+	if (range instanceof rs.RangeInclusive) {
 		begin = range.lo;
-		end = rt.usizeAdd(range.hi, 1);
+		end = rs.usizeAdd(range.hi, 1);
 	} else if (range !== undefined) {
 		if ("start" in range) begin = range.start;
 		if ("end" in range) end = range.end;
 	}
-	if (begin > end) rt.panic(`range start must not be greater than end: ${begin} <= ${end}`);
-	if (end > self.length) rt.panic(`range end out of bounds: ${end} <= ${self.length}`);
-	return new rt.ByteSlice(self.data, self.start + begin, end - begin);
+	if (begin > end) rs.panic(`range start must not be greater than end: ${begin} <= ${end}`);
+	if (end > self.length) rs.panic(`range end out of bounds: ${end} <= ${self.length}`);
+	return new rs.ByteSlice(self.data, self.start + begin, end - begin);
 }
 
 export function clone$Clone(self: Blob): Blob {
 	return self;
 }
 
-export function deref$ops_Deref(self: Blob): rt.ByteSlice {
+export function deref$ops_Deref(self: Blob): rs.ByteSlice {
 	return self;
 }
 
 export function eq$cmp_PartialEq(self: Blob, other: Blob): boolean {
-	return rt.byteSliceEq(self, other);
+	return rs.byteSliceEq(self, other);
 }
 
-export function hash$Hash(self: Blob, state: rt.Hasher): undefined {
-	rt.hashBytes(self, state);
+export function hash$Hash(self: Blob, state: rs.Hasher): undefined {
+	rs.hashBytes(self, state);
 	return undefined;
 }
 
-export function partialCmp$cmp_PartialOrd(self: Blob, other: Blob): rt.Ordering {
-	return rt.cmpBytes(self, other);
+export function partialCmp$cmp_PartialOrd(self: Blob, other: Blob): rs.Ordering {
+	return rs.cmpBytes(self, other);
 }
 
-export function cmp$cmp_Ord(self: Blob, other: Blob): rt.Ordering {
-	return rt.cmpBytes(self, other);
+export function cmp$cmp_Ord(self: Blob, other: Blob): rs.Ordering {
+	return rs.cmpBytes(self, other);
 }

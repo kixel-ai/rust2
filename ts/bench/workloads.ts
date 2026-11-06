@@ -5,8 +5,8 @@
 export interface Workload {
 	/** What is coded, such as `varint/quic/2B` or `frames/video/lite-07`, iterated, or converted. */
 	name: string;
-	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "number" | "handoff";
-	/** Varints, frame headers, messages, items, keys, timestamps, integers, packets, or handoffs per call, which each time is divided by. */
+	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "number" | "format" | "write" | "handoff";
+	/** Varints, frame headers, messages, items, keys, timestamps, integers, packets, lines, steps, or handoffs per call, which each time is divided by. */
 	items: number;
 	input: Uint8Array;
 }
@@ -106,8 +106,8 @@ export function workloads(encode: (input: Uint8Array) => Uint8Array): Workload[]
 		out.push({ name: `order/${name}`, op: "order", items: count, input: Uint8Array.of(12, selector, ...u64(BigInt(count))) });
 	});
 
-	// `bench.rs`'s op 13: pushes, which grow a vector by std's capacity.
-	["vec", "deque"].forEach((name, selector) => {
+	// `bench.rs`'s op 13: pushes, which grow a vector by std's capacity, and a stack's pops.
+	["vec", "deque", "stack"].forEach((name, selector) => {
 		out.push({ name: `push/${name}`, op: "push", items: count, input: Uint8Array.of(13, selector, ...u64(BigInt(count))) });
 	});
 
@@ -117,6 +117,18 @@ export function workloads(encode: (input: Uint8Array) => Uint8Array): Workload[]
 	["ts/number", "ts/number-copy"].forEach((name, selector) => {
 		out.push({ name: `packets/${name}`, op: "number", items: packets, input: Uint8Array.of(15, selector, ...u64(BigInt(packets))) });
 	});
+
+	// `bench.rs`'s op 16: log lines formatted into one `String`.
+	out.push({ name: "fmt/lines", op: "format", items: count, input: Uint8Array.of(16, 0, ...u64(BigInt(count))) });
+
+	// `bench.rs`'s op 17: steps through the mutable parts of a slice, a heap's sift through
+	// `split_at_mut` and the writes of a prefix, at each size.
+	for (const [selector, name] of ["heap-sift", "prefix-writes"].entries()) {
+		for (const size of [16, 256, 4096]) {
+			const input = Uint8Array.of(17, selector, ...[BigInt(count), BigInt(size)].flatMap(u64));
+			out.push({ name: `parts/${name}/${size}`, op: "write", items: count, input });
+		}
+	}
 	return out;
 }
 

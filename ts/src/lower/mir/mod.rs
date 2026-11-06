@@ -12,7 +12,6 @@
 
 mod alloc;
 mod call;
-mod cfg;
 pub mod coroutine;
 mod decided;
 pub mod glue;
@@ -26,6 +25,7 @@ mod scalar;
 mod step;
 mod vec;
 
+use rust2_driver::cfg;
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_hir::def::DefKind;
 use rustc_index::IndexVec;
@@ -33,7 +33,6 @@ use rustc_middle::mir::{self, BasicBlock, Local, Operand, Place, Rvalue, Stateme
 use rustc_middle::ty::{self, EarlyBinder, Instance, Ty, TyCtxt, TypingEnv};
 use rustc_span::{Span, Spanned};
 
-use self::cfg::Exit;
 pub use self::place::{made_slice, slice_member, writes_captures};
 pub use self::scalar::Slotted;
 use super::Translator;
@@ -41,6 +40,9 @@ use super::body::Body;
 use super::copy::field_ty;
 
 use crate::ts::{self, Expr, Param, Stmt, StmtKind, Type};
+
+/// How a block leaves.
+type Exit = cfg::Exit<Expr>;
 
 /// Translate one function instance's body from its MIR.
 pub fn function<'a, 'tcx>(t: &mut Translator<'a, 'tcx>, instance: Instance<'tcx>) -> Option<ts::Function> {
@@ -60,12 +62,20 @@ pub fn function<'a, 'tcx>(t: &mut Translator<'a, 'tcx>, instance: Instance<'tcx>
 	b.slotted = slotted.clone();
 	let mut fx = Fx::new(&mut b, &mir, Env::Plain, span);
 	let mut params = fx.params();
+	if crate::lower::caller::tracks(fx.b.t, instance) {
+		let caller = fx.b.fresh("caller");
+		params.push(Param {
+			name: caller.clone(),
+			ty: Some(crate::lower::caller::param_ty()),
+		});
+		fx.caller = Some(caller);
+	}
 	let body = fx.lower();
 	fx.mark_unread_parts(&mut params, &body);
 	let ret_span = fx.local_span(mir::RETURN_PLACE);
 	let ret = match (next, ret_ty.kind()) {
 		(true, ty::Adt(_, args)) => {
-			Type::Union(vec![fx.b.t.ty(args.type_at(0), ret_span), Type::Rt("Done", Vec::new())])
+			Type::Union(vec![fx.b.t.ty(args.type_at(0), ret_span), Type::Rs("Done", Vec::new())])
 		}
 		(_, ty::Adt(..)) if let Some(slotted) = &slotted => fx.b.t.slot_ret_ty(slotted, ret_span),
 		_ => fx.b.t.ret_ty(ret_ty, ret_span),
@@ -286,7 +296,7 @@ pub enum Env {
 pub struct Capture {
 	pub value: Expr,
 	/// Whether `value` is the place a `&mut` captured by reference borrows, which the
-	/// closure reads and writes as JS's do, rather than an `rt.Place` of it or the object
+	/// closure reads and writes as JS's do, rather than an `rs.Place` of it or the object
 	/// there.
 	pub pointee: bool,
 }
@@ -340,6 +350,8 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	pub mir: &'m mir::Body<'tcx>,
 	pub tcx: TyCtxt<'tcx>,
 	env: Env,
+	/// The parameter a `#[track_caller]` function takes its caller's location by.
+	caller: Option<String>,
 	slots: IndexVec<Local, Slot<'tcx>>,
 	/// Where each local assigned once is assigned, by a statement.
 	def_at: IndexVec<Local, Option<(BasicBlock, usize)>>,
@@ -369,7 +381,7 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	assigned: IndexVec<Local, bool>,
 	span: Span,
 	pub labels: u32,
-	/// Whether this is an `Iterator::next`'s body, which returns an item or `rt.DONE`.
+	/// Whether this is an `Iterator::next`'s body, which returns an item or `rs.DONE`.
 	next: bool,
 	/// Blocks whose only statement is `unreachable`.
 	unreachable: FxHashSet<BasicBlock>,
@@ -397,7 +409,7 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	ignored_sites: Vec<Span>,
 	/// The operands of aggregates assigned once to locals nothing changes.
 	var_parts: FxHashMap<Local, Vec<Expr>>,
-	/// Locals holding what `Iterator::next` returns by the protocol: an item or `rt.DONE`.
+	/// Locals holding what `Iterator::next` returns by the protocol: an item or `rs.DONE`.
 	next_results: FxHashSet<Local>,
 	/// Next results of a range of numbers stepped in place: each holds only the item, so
 	/// JS keeps it a number, and a flag holds whether there was one.
@@ -418,7 +430,7 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	/// Statements that change nothing: a swap through a temporary nothing else names, as
 	/// an async body moves its context at each `await`.
 	noops: FxHashSet<(BasicBlock, usize)>,
-	/// The lengths a bounds check compares with, of the slices whose `rt.idx` it is.
+	/// The lengths a bounds check compares with, of the slices whose `rs.idx` it is.
 	idx_of: FxHashMap<Local, Place<'tcx>>,
 	/// The halves a `|` joins into a `u64`, by the local of the shift that is its left side.
 	halves: FxHashMap<Local, (&'m Operand<'tcx>, &'m Operand<'tcx>)>,
@@ -533,6 +545,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			remade: FxHashSet::default(),
 			part_params: Vec::new(),
 			slot,
+			caller: None,
 			slotted_calls: FxHashMap::default(),
 			returning: FxHashSet::default(),
 			narrowing,
@@ -680,7 +693,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 			}
 		}
-		// A bounds check of a slice's length is `rt.idx` of the slice; others test their
+		// A bounds check of a slice's length is `rs.idx` of the slice; others test their
 		// condition, and show their operands.
 		for (cond, len, index) in bounds {
 			if let Operand::Copy(l) | Operand::Move(l) = len
@@ -1082,10 +1095,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			// A borrow: borrow checking keeps the place as it is but through the borrow,
 			// unless the path to it goes through a reference held in a field or element,
 			// which can be replaced while the borrow lives.
-			// A borrow of bytes not yet in a slice makes one, and one of a `MaybeUninit` of
-			// bytes in a slice a view of them.
+			// A borrow of an array not yet in a slice makes one, and one of a `MaybeUninit` of
+			// an array in a slice the array of its elements.
 			(ty::Ref(..), Rvalue::Ref(_, _, place))
-				if crate::lower::byte_array(place.ty(&mir.local_decls, self.tcx).ty) != self.in_bytes(*place) =>
+				if place.ty(&mir.local_decls, self.tcx).ty.is_array() != self.in_array(*place) =>
 			{
 				false
 			}
@@ -1225,7 +1238,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// Locals an `Iterator::next` assigns that only a switch on their variant and a read
-	/// of `Some`'s value read: each holds the item or `rt.DONE`, as the protocol returns
+	/// of `Some`'s value read: each holds the item or `rs.DONE`, as the protocol returns
 	/// it, so an iterator of `Option` keeps each `None` apart from its end.
 	fn find_next_results(&mut self) {
 		use rustc_middle::mir::visit::{MutatingUseContext, NonMutatingUseContext, PlaceContext, Visitor};
@@ -1283,7 +1296,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				continue;
 			};
 			// The return place leaves as the `Option` the signature declares, unless this is a
-			// `next` itself, which returns the protocol's item or `rt.DONE` below.
+			// `next` itself, which returns the protocol's item or `rs.DONE` below.
 			if crate::lower::iter::is_next(tcx, def_id) && self.defs[local] == 1 && local != mir::RETURN_PLACE {
 				nexts.push((local, gargs.skip_binder().type_at(0)));
 			}
@@ -1312,7 +1325,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			if !uses.ok {
 				continue;
 			}
-			// What `?` branches to holds the same: the item, or `rt.DONE` to return early.
+			// What `?` branches to holds the same: the item, or `rs.DONE` to return early.
 			if let Some((_, to)) = branch {
 				let mut uses = Uses {
 					local: to,
@@ -1331,19 +1344,19 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			self.next_results.insert(local);
 		}
-		// An `Iterator::next` returns the item or `rt.DONE` too.
+		// An `Iterator::next` returns the item or `rs.DONE` too.
 		if self.next {
 			self.next_results.insert(mir::RETURN_PLACE);
 		}
 	}
 
-	/// Whether `place` is a whole `next` result, which holds the item or `rt.DONE`.
+	/// Whether `place` is a whole `next` result, which holds the item or `rs.DONE`.
 	fn next_result(&self, place: Place<'tcx>) -> bool {
 		place.as_local().is_some_and(|l| self.next_results.contains(&l))
 	}
 
 	/// Each `(hi as u64) << 32 | lo as u64` of halves of at most 32 bits, as moq's
-	/// `from_halves` writes it, which lowers to `rt.u64FromHalves(hi, lo)`: no shift that
+	/// `from_halves` writes it, which lowers to `rs.u64FromHalves(hi, lo)`: no shift that
 	/// boxes limbs past 2^53, and no `|` that unboxes them. Its shift and casts go
 	/// unlowered, so it reads the halves where the `|` is, which takes temporaries read
 	/// once, of halves nothing assigns again.
@@ -1449,17 +1462,17 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// An `Option` this `Iterator::next` returns, as it returns it: the item, or
-	/// `rt.DONE` for `None`.
+	/// `rs.DONE` for `None`.
 	pub(super) fn done_of(&self, option: Expr) -> Expr {
 		let ty::Adt(_, args) = self.mir.return_ty().kind() else {
 			unreachable!("`next` returns an `Option`")
 		};
 		let none = self.b.t.none(args.type_at(0));
 		match option {
-			option if option == none => Expr::Rt("DONE".into()),
+			option if option == none => Expr::Rs("DONE".into()),
 			option => {
 				let none = self.b.t.none_arg(args.type_at(0));
-				Expr::rt("iterFromOption", [option].into_iter().chain(none).collect())
+				Expr::rs("iterFromOption", [option].into_iter().chain(none).collect())
 			}
 		}
 	}
@@ -1617,8 +1630,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let mut entry = Vec::new();
 		// A slice passed as its parts that isn't held so, made from them.
 		for (local, name, parts) in std::mem::take(&mut self.rebuilt) {
-			let slice = Expr::New(Box::new(Expr::Rt("ByteSlice".into())), parts.map(Expr::ident).to_vec());
-			let ty = Type::Rt("ByteSlice", Vec::new());
+			let slice = Expr::New(Box::new(Expr::Rs("ByteSlice".into())), parts.map(Expr::ident).to_vec());
+			let ty = Type::Rs("ByteSlice", Vec::new());
 			entry.push(StmtKind::decl(self.defs[local] > 0, name, Some(ty), Some(slice)).at(None));
 		}
 		for local in self.mir.args_iter() {
@@ -1706,6 +1719,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		out.extend(entry);
 		out.extend(body);
+		if self.b.t.hooked && crate::lower::caller::unlocated_in(&mut out) {
+			self.err(
+				self.span,
+				"a panic of the runtime's whose location translation gave nowhere",
+			);
+		}
 		drop_self_assignments(&mut out);
 		// A return folds in the value assigned only to a local: a closure's captures are
 		// read after it returns.
@@ -1805,7 +1824,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			if self.range_nexts.contains(&local) {
 				return item;
 			}
-			return Type::Union(vec![item, Type::Rt("Done", Vec::new())]);
+			return Type::Union(vec![item, Type::Rs("Done", Vec::new())]);
 		}
 		let ty = match (self.checked.contains(&local), ty.kind()) {
 			(true, ty::Tuple(tys)) => tys[0],
@@ -2193,6 +2212,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		reads_of(&value, &mut reads);
 		let copy = std::mem::take(&mut self.copy_on_flush);
 		let loc = self.here();
+		let mut value = value;
+		if let Some(at) = self.panic_at() {
+			crate::lower::caller::locate_expr(&mut value, &at);
+		}
 		self.pending.push(Pending {
 			name,
 			value,
@@ -2210,7 +2233,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 
 	/// Hold back `value`, the assignment of the flag `flag`, to fold into the switch that
 	/// reads it.
-	fn hold_flag(&mut self, flag: String, value: Expr) {
+	fn hold_flag(&mut self, flag: String, mut value: Expr) {
+		if let Some(at) = self.panic_at() {
+			crate::lower::caller::locate_expr(&mut value, &at);
+		}
 		self.order += 1;
 		let mut reads = Vec::new();
 		reads_of(&value, &mut reads);
@@ -2429,7 +2455,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					block: bb,
 					statement_index: i,
 				};
+				let start = out.len();
 				self.statement(stmt, out);
+				self.locate(&mut out[start..]);
 				if self.returning.contains(&self.at) {
 					self.flush(out);
 					return Exit::End;
@@ -2443,7 +2471,30 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			block: bb,
 			statement_index: data.statements.len(),
 		};
-		self.terminator(data.terminator(), out)
+		let start = out.len();
+		let exit = self.terminator(data.terminator(), out);
+		self.locate(&mut out[start..]);
+		exit
+	}
+
+	/// Where a panic the statement being lowered makes is, in a program with a panic hook:
+	/// its caller's, if this function takes one, as rustc's codegen passes it.
+	fn panic_at(&self) -> Option<Expr> {
+		if !self.b.t.hooked {
+			return None;
+		}
+		Some(match &self.caller {
+			Some(caller) => Expr::ident(caller),
+			None => crate::lower::caller::location(self.tcx, self.mir.source_info(self.at).span),
+		})
+	}
+
+	/// Pass where the statement being lowered is to each runtime call in `stmts` that
+	/// panics there, in a program with a panic hook.
+	fn locate(&self, stmts: &mut [Stmt]) {
+		if let Some(at) = self.panic_at() {
+			crate::lower::caller::locate(stmts, &at);
+		}
 	}
 
 	fn statement(&mut self, stmt: &mir::Statement<'tcx>, out: &mut Vec<Stmt>) {
@@ -2495,12 +2546,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			match self.slots[local] {
 				Slot::Alias(_) => {
 					let target = match rvalue {
-						Rvalue::Ref(_, kind, p) => match self.mut_subslice(*kind, *p, span, out) {
+						Rvalue::Ref(_, kind, p) => match self.array_subslice(*kind, *p, span, out) {
 							// One view, however many times it is read.
 							Some(e) => self.path(e, "view", out),
 							None => match self.reborrowed(*kind, *p, span, out) {
 								Some(e) => e,
-								// Read whole, the place is held as it is now for its `rt.Place`.
+								// Read whole, the place is held as it is now for its `rs.Place`.
 								None if self.points_at_place(local) && self.read_whole(local) => {
 									let target = self.place_expr(*p, span, out);
 									self.stable_target(*p, target, span, out)
@@ -2605,7 +2656,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		) {
 			(false, _) => value,
 			(true, Rvalue::Aggregate(kind, _)) if matches!(**kind, mir::AggregateKind::Adt(_, v, ..) if v.as_u32() == 0) => {
-				Expr::Rt("DONE".into())
+				Expr::Rs("DONE".into())
 			}
 			(true, Rvalue::Aggregate(..)) => value,
 			(true, Rvalue::Use(Operand::Move(p) | Operand::Copy(p), _))
@@ -2649,7 +2700,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		Expr::ident(name)
 	}
 
-	/// Hold `slice`, an `rt.ByteSlice` to read more than once, in a path, as a tuple's part
+	/// Hold `slice`, an `rs.ByteSlice` to read more than once, in a path, as a tuple's part
 	/// already is.
 	pub(super) fn slice_path(&mut self, slice: Expr, out: &mut Vec<Stmt>) -> Expr {
 		match &slice {
@@ -2667,7 +2718,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// of, if it is one at a constant offset.
 	pub(super) fn bytes_at(&mut self, slice: Expr, n: u64, out: &mut Vec<Stmt>) -> Vec<Expr> {
 		let range = match &slice {
-			Expr::Call(f, args) if matches!(&**f, Expr::Rt(name) if name == "byteSliceRange") => {
+			Expr::Call(f, args) if matches!(&**f, Expr::Rs(name) if name == "byteSliceRange") => {
 				match args.as_slice() {
 					[base, Expr::Lit(from), ..] => from.parse::<u64>().ok().map(|from| (base.clone(), from)),
 					_ => None,
@@ -2678,8 +2729,59 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let (base, from) = range.unwrap_or((slice, 0));
 		let base = self.slice_path(base, out);
 		(from..from + n)
-			.map(|i| place::byte_at(base.clone(), Expr::lit(i.to_string())))
+			.map(|i| place::slice_at(base.clone(), Expr::lit(i.to_string())))
 			.collect()
+	}
+
+	/// The function a call of `func` at `span` calls, if it takes its caller's location,
+	/// and the location the call passes: its own caller's, if this function takes one, or
+	/// else the call's own.
+	fn site(&self, func: &Operand<'tcx>, span: Span) -> Option<(Instance<'tcx>, Expr)> {
+		let ty::FnDef(def_id, args) = *func.ty(&self.mir.local_decls, self.tcx).kind() else {
+			return None;
+		};
+		let env = self.b.t.typing_env_pub();
+		let instance = Instance::try_resolve(self.tcx, env, def_id, args.skip_binder()).ok()??;
+		if !(crate::lower::caller::is_caller(self.tcx, def_id) || crate::lower::caller::tracks(self.b.t, instance)) {
+			return None;
+		}
+		let location = match &self.caller {
+			Some(caller) => Expr::ident(caller),
+			None => crate::lower::caller::location(self.tcx, span),
+		};
+		Some((instance, location))
+	}
+
+	/// The std function a call of `func` at `span` runs a mapping of, in a program with a
+	/// panic hook, and where its panics are: its caller's if it takes it, for one a macro
+	/// defines, as an integer's methods are, that macro's call, and else where std's source
+	/// has it, if known.
+	fn std_site(&self, func: &Operand<'tcx>, span: Span) -> Option<(Instance<'tcx>, Option<Expr>)> {
+		if !self.b.t.hooked {
+			return None;
+		}
+		let ty::FnDef(def_id, args) = *func.ty(&self.mir.local_decls, self.tcx).kind() else {
+			return None;
+		};
+		let env = self.b.t.typing_env_pub();
+		let instance = Instance::try_resolve(self.tcx, env, def_id, args.skip_binder()).ok()??;
+		if self.b.t.crates.translates(def_id) || self.b.t.lowers(env, instance) {
+			return None;
+		}
+		let at = match instance.def.requires_caller_location(self.tcx) {
+			true => Some(match &self.caller {
+				Some(caller) => Expr::ident(caller),
+				None => crate::lower::caller::location(self.tcx, span),
+			}),
+			false => {
+				let def = self.tcx.def_span(instance.def_id());
+				match def.from_expansion() {
+					true => Some(crate::lower::caller::location(self.tcx, def)),
+					false => crate::lower::caller::callee_site(self.tcx, instance.def_id()),
+				}
+			}
+		};
+		Some((instance, at))
 	}
 
 	fn terminator(&mut self, term: &mir::Terminator<'tcx>, out: &mut Vec<Stmt>) -> Exit {
@@ -2719,7 +2821,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			// unreachable too: it has no value to return, and `tsc` must see that.
 			TerminatorKind::Unreachable | TerminatorKind::Return => {
 				self.emit(
-					vec![StmtKind::Expr(Expr::rt("unreachable", vec![Expr::undefined()])).at(None)],
+					vec![StmtKind::Expr(Expr::rs("unreachable", vec![Expr::undefined()])).at(None)],
 					false,
 					out,
 				);
@@ -2768,7 +2870,19 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				fn_span,
 				..
 			} => {
+				// Where rustc's codegen says the call is: from the callee's name on.
+				self.b.site = self.site(func, *fn_span);
+				self.b.std_site = self.std_site(func, *fn_span);
 				self.call(func, args, *destination, *fn_span, out);
+				self.b.std_site = None;
+				if let Some((instance, _)) = self.b.site.take()
+					&& self.b.t.crates.translates(instance.def_id())
+				{
+					let path = self.tcx.def_path_str(instance.def_id());
+					let msg =
+						format!("a call of `{path}`, a `#[track_caller]` function, that passes no caller's location");
+					self.err(span, msg);
+				}
 				match target {
 					Some(_) if self.returning.contains(&self.at) => {
 						self.flush(out);
@@ -2973,7 +3087,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				self.emit(pre, false, out);
 				return;
 			}
-			pre.push(StmtKind::Expr(Expr::rt("idx", vec![slice, index])).at(self.b.t.loc(span)));
+			pre.push(StmtKind::Expr(Expr::rs("idx", vec![slice, index])).at(self.b.t.loc(span)));
 			self.emit(pre, false, out);
 			return;
 		}
@@ -3018,17 +3132,22 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// The panic of an assert that fails: the runtime's own function for a coroutine
-	/// resumed out of turn, as rustc calls a lang item, else `rt.panic`.
+	/// resumed out of turn, as rustc calls a lang item, else `rs.panic`.
 	fn assert_panic(&mut self, msg: &mir::AssertMessage<'tcx>, operands: Vec<Expr>, span: Span) -> Option<Expr> {
 		use mir::AssertKind;
 		use rustc_hir::{CoroutineDesugaring, CoroutineKind};
 		let async_fn = |kind: &CoroutineKind| matches!(kind, CoroutineKind::Desugared(CoroutineDesugaring::Async, _));
 		match msg {
-			AssertKind::ResumedAfterReturn(kind) if async_fn(kind) => Some(Expr::rt("asyncFnResumed", Vec::new())),
-			AssertKind::ResumedAfterPanic(kind) if async_fn(kind) => Some(Expr::rt("asyncFnResumedPanic", Vec::new())),
+			AssertKind::ResumedAfterReturn(kind) if async_fn(kind) => Some(Expr::rs("asyncFnResumed", Vec::new())),
+			AssertKind::ResumedAfterPanic(kind) if async_fn(kind) => Some(Expr::rs("asyncFnResumedPanic", Vec::new())),
+			// A hook reads a bounds check's message as the `String` std formats.
+			AssertKind::BoundsCheck { .. } if let Some(at) = self.panic_at() => {
+				let message = self.assert_message(msg, operands, span)?;
+				Some(Expr::rs("panic", vec![message, at, Expr::lit("true")]))
+			}
 			_ => {
 				let message = self.assert_message(msg, operands, span)?;
-				Some(Expr::rt("panic", vec![message]))
+				Some(Expr::rs("panic", vec![message]))
 			}
 		}
 	}
@@ -3079,7 +3198,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 }
 
-impl cfg::Lower for Fx<'_, '_, '_, '_> {
+impl cfg::Lower<Stmt> for Fx<'_, '_, '_, '_> {
 	fn node(&mut self, node: usize, out: &mut Vec<Stmt>) -> Exit {
 		let exit = self.block(BasicBlock::from_usize(node), out);
 		let forward = |to: usize| self.forward(BasicBlock::from_usize(to)).as_usize();
@@ -3100,7 +3219,7 @@ impl cfg::Lower for Fx<'_, '_, '_, '_> {
 
 impl Fx<'_, '_, '_, '_> {
 	fn flush(&mut self, out: &mut Vec<Stmt>) {
-		cfg::Lower::flush(self, out);
+		cfg::Lower::<Stmt>::flush(self, out);
 	}
 }
 
@@ -3241,7 +3360,7 @@ pub(super) fn whole(value: Expr, ty: Type) -> Result<Expr, Expr> {
 	}
 	match inner {
 		Expr::As(_, t) if *t == ty => Ok(value),
-		Expr::Call(f, _) if matches!(&**f, Expr::Rt(n) if n == "Ok" || n == "Err") => Err(value),
+		Expr::Call(f, _) if matches!(&**f, Expr::Rs(n) if n == "Ok" || n == "Err") => Err(value),
 		_ => Ok(Expr::As(Box::new(value.typed()), ty)),
 	}
 }
@@ -3363,11 +3482,11 @@ fn field(base: &Expr) -> Read {
 fn scan(e: &Expr, reads: &mut Vec<Read>, lazy: bool) {
 	match e {
 		Expr::Ident(name) => reads.push(Read::Ident(name.clone(), lazy)),
-		Expr::This | Expr::Sym(_) | Expr::Rt(_) | Expr::Lit(_) | Expr::Str(_) => {}
+		Expr::This | Expr::Sym(_) | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => {}
 		Expr::Array(items) => items.iter().for_each(|e| scan(e, reads, lazy)),
 		Expr::Object(props) => props.iter().for_each(|(_, e)| scan(e, reads, lazy)),
 		// The runtime's and the program's own items never change.
-		Expr::Member(base, _) if matches!(&**base, Expr::Rt(_) | Expr::Sym(_)) => {}
+		Expr::Member(base, _) if matches!(&**base, Expr::Rs(_) | Expr::Sym(_)) => {}
 		Expr::Member(base, _) => {
 			scan(base, reads, lazy);
 			reads.push(field(base));
@@ -3378,7 +3497,7 @@ fn scan(e: &Expr, reads: &mut Vec<Read>, lazy: bool) {
 			reads.push(field(base));
 		}
 		// A byte slice made of its parts only holds them.
-		Expr::New(f, args) if matches!(&**f, Expr::Rt(name) if name == "ByteSlice") => {
+		Expr::New(f, args) if matches!(&**f, Expr::Rs(name) if name == "ByteSlice") => {
 			args.iter().for_each(|e| scan(e, reads, lazy))
 		}
 		Expr::Call(f, args) | Expr::New(f, args) => {
@@ -3389,7 +3508,7 @@ fn scan(e: &Expr, reads: &mut Vec<Read>, lazy: bool) {
 			}
 			args.iter().for_each(|e| scan(e, reads, lazy));
 			reads.push(match &**f {
-				Expr::Rt(name) if reads_only(name) => Read::Panic,
+				Expr::Rs(name) if reads_only(name) => Read::Panic,
 				_ => Read::Effect,
 			});
 		}
@@ -3493,7 +3612,7 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 			*e = value.clone();
 			true
 		}
-		Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rt(_) | Expr::Lit(_) | Expr::Str(_) => false,
+		Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => false,
 		Expr::Array(items) => items.iter_mut().any(|e| subst(e, name, value)),
 		Expr::Object(props) => props.iter_mut().any(|(_, e)| subst(e, name, value)),
 		Expr::Member(base, key) => {
@@ -3502,14 +3621,14 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 			}
 			// The payload of a `Result` made here is what it was made of, which `tsc` reads
 			// where it can't narrow the `Result`, cast to its variant or not, and so is what an
-			// `rt.Place` made here holds.
+			// `rs.Place` made here holds.
 			let made = match step::peel(base) {
 				Expr::As(made, _) => step::peel(made),
 				base => base,
 			};
 			let folded = match (made, &*key) {
 				(Expr::Call(f, args), ts::Key::Name(key))
-					if let Expr::Rt(ctor) = step::peel(f)
+					if let Expr::Rs(ctor) = step::peel(f)
 						&& matches!((ctor.as_str(), key.as_str()), ("Ok", "value") | ("Err", "error"))
 						&& let [payload] = args.as_slice() =>
 				{
@@ -3523,14 +3642,31 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 			}
 			true
 		}
-		Expr::Index(base, index) => subst(base, name, value) || subst(index, name, value),
+		Expr::Index(base, index) => {
+			if !(subst(base, name, value) || subst(index, name, value)) {
+				return false;
+			}
+			// An element of an array made in place, as `format_args!`'s are, of items that
+			// do nothing as they are made.
+			if let Expr::Index(base, index) = &*e
+				&& let (Expr::Array(items), Expr::Lit(at)) = (base.unlocated(), index.unlocated())
+				&& let Ok(at) = at.parse::<usize>()
+				&& at < items.len()
+				&& items
+					.iter()
+					.all(|e| e.is_path() || matches!(e.unlocated(), Expr::Arrow(..) | Expr::Lambda(..)))
+			{
+				*e = items[at].clone();
+			}
+			true
+		}
 		Expr::Call(f, args) | Expr::New(f, args) => {
 			if !(subst(f, name, value) || args.iter_mut().any(|e| subst(e, name, value))) {
 				return false;
 			}
 			// A result of what folded in as `undefined` is the shared one.
 			if let Expr::Call(f, args) = &*e
-				&& let (Expr::Rt(ctor), [arg]) = (&**f, args.as_slice())
+				&& let (Expr::Rs(ctor), [arg]) = (&**f, args.as_slice())
 				&& matches!(ctor.as_str(), "Ok" | "Err")
 			{
 				*e = Expr::result(ctor == "Ok", arg.clone());
@@ -3538,16 +3674,29 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 			// An `Ok` made in place unwraps to its value, as a lock's does, unless what would
 			// show or replace an error has an effect.
 			if let Expr::Call(f, args) = &*e
-				&& let (Expr::Rt(unwrap), [result, rest @ ..]) = (&**f, args.as_slice())
+				&& let (Expr::Rs(unwrap), [result, rest @ ..]) = (&**f, args.as_slice())
 				&& matches!(unwrap.as_str(), "resultUnwrap" | "resultExpect" | "resultUnwrapOrElse")
 				&& let Expr::Call(ok, value) = result.unlocated()
-				&& matches!(&**ok, Expr::Rt(ok) if ok == "Ok")
+				&& matches!(&**ok, Expr::Rs(ok) if ok == "Ok")
 				&& let [value] = value.as_slice()
 				&& rest
 					.iter()
 					.all(|e| e.is_path() || matches!(e.unlocated(), Expr::Arrow(..) | Expr::Lambda(..)))
 			{
 				*e = value.clone();
+			}
+			// The elements of a slice of all of an array are the array, and a copy of them its copy.
+			if let Expr::Call(f, args) = &*e
+				&& let (Expr::Rs(read), [slice]) = (&**f, args.as_slice())
+				&& matches!(read.as_str(), "sliceItems" | "sliceToArray")
+				&& let Expr::Call(from, items) = slice.unlocated()
+				&& matches!(&**from, Expr::Rs(from) if from == "sliceFrom")
+				&& let [items] = items.as_slice()
+			{
+				*e = match read.as_str() {
+					"sliceItems" => items.clone(),
+					_ => items.clone().member("slice").call(Vec::new()),
+				};
 			}
 			true
 		}
@@ -3659,7 +3808,7 @@ fn assigned(stmts: &[Stmt]) -> FxHashSet<String> {
 fn reads_of(e: &Expr, out: &mut Vec<String>) {
 	match e {
 		Expr::Ident(name) => out.push(name.clone()),
-		Expr::This | Expr::Sym(_) | Expr::Rt(_) | Expr::Lit(_) | Expr::Str(_) => {}
+		Expr::This | Expr::Sym(_) | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => {}
 		Expr::Array(items) => items.iter().for_each(|e| reads_of(e, out)),
 		Expr::Object(props) => props.iter().for_each(|(_, e)| reads_of(e, out)),
 		Expr::Member(base, _) => reads_of(base, out),
@@ -3873,7 +4022,7 @@ fn visit_stmt(stmt: &Stmt, f: &mut dyn FnMut(&Expr)) {
 fn visit_expr(e: &Expr, f: &mut dyn FnMut(&Expr)) {
 	f(e);
 	match e {
-		Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rt(_) | Expr::Lit(_) | Expr::Str(_) => {}
+		Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => {}
 		Expr::Array(items) => items.iter().for_each(|e| visit_expr(e, f)),
 		Expr::Object(props) => props.iter().for_each(|(_, e)| visit_expr(e, f)),
 		Expr::Member(e, _)
@@ -3917,7 +4066,7 @@ fn parts_of(value: &Expr, slices: &FxHashSet<crate::ts::FieldId>) -> Option<Vec<
 					crate::ts::Key::Field(id) if slices.contains(id) => {
 						let (start, length) = (props.next()?.1.clone(), props.next()?.1.clone());
 						Expr::New(
-							Box::new(Expr::Rt("ByteSlice".into())),
+							Box::new(Expr::Rs("ByteSlice".into())),
 							vec![value.clone(), start, length],
 						)
 					}
@@ -3926,7 +4075,7 @@ fn parts_of(value: &Expr, slices: &FxHashSet<crate::ts::FieldId>) -> Option<Vec<
 			}
 			Some(parts)
 		}
-		Expr::New(f, items) if matches!(&**f, Expr::Rt(name) if name == "Range" || name == "RangeFrom") => {
+		Expr::New(f, items) if matches!(&**f, Expr::Rs(name) if name == "Range" || name == "RangeFrom") => {
 			Some(items.clone())
 		}
 		_ => None,
@@ -4189,7 +4338,7 @@ fn sink_return(stmts: &mut Vec<Stmt>) {
 		match &mut last.kind {
 			StmtKind::If { then, els, .. } => {
 				for branch in [then, els] {
-					if !crate::ts::diverges(branch) {
+					if !cfg::diverges(branch) {
 						branch.push(ret.clone());
 					}
 				}
@@ -4201,7 +4350,7 @@ fn sink_return(stmts: &mut Vec<Stmt>) {
 			} => {
 				let label = label.clone();
 				breaks_to_return(body, &label, &ret);
-				if !crate::ts::diverges(body) {
+				if !cfg::diverges(body) {
 					body.push(ret);
 				}
 				let StmtKind::Block { body, .. } = stmts.pop().expect("checked above").kind else {

@@ -4,17 +4,20 @@
 //! and compared; pointers to the parts of a struct kept as objects; the pointers
 //! `UnsafeCell::get` gives; slots of fresh memory written whole before any pointer
 //! into them is taken, by index or through std's iterators over them; pointers into
-//! nodes that an `AtomicPtr` and memory hold pointers to; pointers to arrays of bytes; a
-//! pointer into a cell that other functions write whole through a `&mut` to it; and
-//! pointers a generic type holds to its parameter, at each form a pointer takes.
+//! nodes that an `AtomicPtr` and memory hold pointers to; pointers to arrays, compared
+//! where they point; a
+//! pointer into a cell that other functions write whole through a `&mut` to it;
+//! pointers a generic type holds to its parameter, at each form a pointer takes; and the
+//! raw pointers of an `Arc` and an `Rc`, counted and taken back.
 
 use std::cell::{Cell, UnsafeCell};
-use std::mem::MaybeUninit;
+use std::mem::{self, MaybeUninit};
 use std::ptr::{self, NonNull};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::sync::atomic::Ordering::SeqCst;
 use std::sync::atomic::{AtomicBool, AtomicPtr};
+use std::task::{RawWaker, RawWakerVTable, Waker};
 
 struct Links<V> {
 	next: NonNull<Node<V>>,
@@ -1087,7 +1090,7 @@ pub fn iterated_runs(data: &[u8], out: &mut Vec<u8>) {
 	}
 }
 
-/// A struct JS keeps as an object, holding an `rt.Cell`.
+/// A struct JS keeps as an object, holding an `rs.Cell`.
 struct Stable(UnsafeCell<u8>);
 
 fn first_set<T>(pair: &mut (T, Stable), value: T) {
@@ -2025,4 +2028,384 @@ pub fn distinct(data: &[u8], out: &mut Vec<u8>) {
 			})),
 		]);
 	}
+}
+
+/// What an `Arc` or `Rc` holds through its raw pointer, which notes its drop in the
+/// `Cell` beside it.
+struct Counted<'a> {
+	id: u8,
+	dropped: &'a Cell<u8>,
+}
+
+impl Drop for Counted<'_> {
+	fn drop(&mut self) {
+		self.dropped.set(self.dropped.get().wrapping_add(self.id));
+	}
+}
+
+/// What two `Arc`s hold copies of, which nothing compares pointers to.
+#[derive(Clone, Copy)]
+struct Twin(u8, u8);
+
+/// `Arc`s and `Rc`s of a number, a struct, `()`, and a value that drops, through the
+/// pointers `into_raw` and `as_ptr` give: counted up and down by `increment_strong_count`
+/// and `decrement_strong_count`, the value dropping with the last, taken back by
+/// `from_raw`, cast to `*const ()` and back first, and compared, as `strong_count` reads.
+pub fn raw_arcs(data: &[u8], out: &mut Vec<u8>) {
+	let dropped = Cell::new(0);
+	let num = Arc::new(7u32);
+	let duo = Rc::new(Duo(1, 2));
+	let unit = Arc::new(());
+	let other = Arc::new(());
+	let held = Rc::new(Counted {
+		id: 3,
+		dropped: &dropped,
+	});
+	let num_at = Arc::as_ptr(&num);
+	let (num_raw, duo_raw) = (Arc::into_raw(Arc::clone(&num)), Rc::into_raw(Rc::clone(&duo)));
+	let (unit_raw, other_raw) = (Arc::into_raw(Arc::clone(&unit)), Arc::into_raw(other));
+	let held_raw = Rc::into_raw(held);
+	out.extend([ptr::eq(duo_raw, &*duo), unit_raw == other_raw].map(u8::from));
+	out.extend(
+		[
+			unit_raw == Arc::as_ptr(&unit),
+			duo_raw.cast::<()>() == Rc::as_ptr(&duo).cast(),
+		]
+		.map(u8::from),
+	);
+	for &byte in data {
+		match byte % 6 {
+			// Moved off and back, which is the same address.
+			0 => unsafe { Arc::increment_strong_count(num_raw.add(1).sub(1)) },
+			// Never the count `num` and `num_raw` hold.
+			1 if Arc::strong_count(&num) > 2 => {
+				let back = usize::from(byte >> 3);
+				unsafe { Arc::decrement_strong_count(num_at.wrapping_add(back).wrapping_sub(back)) }
+			}
+			2 => unsafe { Rc::increment_strong_count(duo_raw) },
+			// Through `*const ()`, as a waker's data is.
+			3 if dropped.get() == 0 => unsafe { Rc::increment_strong_count(held_raw.cast::<()>().cast::<Counted>()) },
+			4 if dropped.get() == 0 => unsafe { Rc::decrement_strong_count(held_raw as *const () as *const Counted) },
+			1 | 3 | 4 => {}
+			_ => {
+				let taken = unsafe { Rc::from_raw(duo_raw) };
+				out.push(Rc::strong_count(&taken) as u8);
+				mem::forget(taken);
+			}
+		}
+		// Each count as a borrowed `Arc` reads it, until the value drops.
+		if dropped.get() == 0 {
+			let held = mem::ManuallyDrop::new(unsafe { Rc::from_raw(held_raw) });
+			out.extend([Rc::strong_count(&held) as u8, held.id]);
+		}
+		out.extend([
+			Arc::strong_count(&num) as u8,
+			Rc::strong_count(&duo) as u8,
+			dropped.get(),
+		]);
+	}
+	// Taken back, and dropped, as many times as they were counted.
+	let num_back = unsafe { Arc::from_raw(num_raw) };
+	let duo_back = unsafe { Rc::from_raw(duo_raw) };
+	let unit_back = unsafe { Arc::from_raw(unit_raw.cast::<()>()) };
+	out.extend(
+		[
+			Arc::ptr_eq(&num_back, &num),
+			Rc::ptr_eq(&duo_back, &duo),
+			Arc::ptr_eq(&unit_back, &unit),
+		]
+		.map(u8::from),
+	);
+	out.extend([*num_back as u8, duo_back.1, Arc::strong_count(&unit) as u8]);
+	drop((num_back, duo_back, unit_back));
+	out.extend([
+		Arc::strong_count(&num) as u8,
+		Rc::strong_count(&duo) as u8,
+		Arc::strong_count(&unit) as u8,
+	]);
+	drop(unsafe { Arc::from_raw(other_raw) });
+	// Two `Arc`s of copies of one value, which are two allocations though no pointers to a
+	// `Twin` compare.
+	let twin = Twin(data.len() as u8, 1);
+	let (a, b) = (Arc::new(twin), Rc::new(twin));
+	let (c, d) = (Arc::new(twin), Rc::new(twin));
+	let (p, q) = (Arc::into_raw(Arc::clone(&a)), Rc::into_raw(Rc::clone(&b)));
+	let (r, s) = (Arc::into_raw(Arc::clone(&c)), Rc::into_raw(Rc::clone(&d)));
+	unsafe {
+		Arc::increment_strong_count(p);
+		Rc::increment_strong_count(q);
+	}
+	out.extend([a.as_ref(), &b, &c, &d].map(|t| t.0 ^ t.1));
+	out.extend(
+		[
+			Arc::strong_count(&a),
+			Rc::strong_count(&b),
+			Arc::strong_count(&c),
+			Rc::strong_count(&d),
+		]
+		.map(|n| n as u8),
+	);
+	unsafe {
+		drop((Arc::from_raw(p), Arc::from_raw(p), Rc::from_raw(q), Rc::from_raw(q)));
+		drop((Arc::from_raw(r), Rc::from_raw(s)));
+	}
+	while dropped.get() == 0 {
+		unsafe { Rc::decrement_strong_count(held_raw) };
+		out.push(dropped.get());
+	}
+	out.push(dropped.get());
+}
+
+/// A waker's data, an `Arc<AtomicBool>`'s raw pointer, which waking sets.
+unsafe fn flag_clone(data: *const ()) -> RawWaker {
+	unsafe { Arc::increment_strong_count(data.cast::<AtomicBool>()) };
+	RawWaker::new(data, &FLAG)
+}
+
+unsafe fn flag_wake(data: *const ()) {
+	unsafe { Arc::from_raw(data as *const AtomicBool) }.store(true, SeqCst);
+}
+
+unsafe fn flag_wake_by_ref(data: *const ()) {
+	unsafe { &*data.cast::<AtomicBool>() }.store(true, SeqCst);
+}
+
+unsafe fn flag_drop(data: *const ()) {
+	unsafe { Arc::decrement_strong_count(data as *const AtomicBool) };
+}
+
+static FLAG: RawWakerVTable = RawWakerVTable::new(flag_clone, flag_wake, flag_wake_by_ref, flag_drop);
+
+/// A waker that sets `flag`, holding a count of it.
+fn flag_waker(flag: &Arc<AtomicBool>) -> Waker {
+	let data = Arc::into_raw(Arc::clone(flag)) as *const ();
+	unsafe { Waker::from_raw(RawWaker::new(data, &FLAG)) }
+}
+
+/// `p`, a pointer this body doesn't show the source of, erased.
+fn erase_flag(p: *const AtomicBool) -> *const () {
+	p.cast()
+}
+
+/// The raw pointers of `Arc`s and `Rc`s of values JS copies: a number's remade from a
+/// shared reference to its value, counted up and down, cloned, and taken back through it,
+/// and an `Arc<AtomicBool>`'s cast to `*const ()` and back, as a waker's data, which its
+/// vtable counts, wakes, and drops. Each compares as the pointer `as_ptr` gives.
+pub fn raw_places(data: &[u8], out: &mut Vec<u8>) {
+	let num = Arc::new(data.len() as u32);
+	let rc = Rc::new(9u16);
+	let flag = Arc::new(AtomicBool::new(false));
+	let mut wakers = vec![flag_waker(&flag)];
+	for &byte in data {
+		let num_at = ptr::from_ref(&*num);
+		let rc_at = &*rc as *const u16;
+		match byte % 8 {
+			0 => unsafe { Arc::increment_strong_count(num_at) },
+			1 if Arc::strong_count(&num) > 1 => unsafe { Arc::decrement_strong_count(num_at) },
+			2 => unsafe { Rc::increment_strong_count(rc_at) },
+			3 if Rc::strong_count(&rc) > 1 => drop(unsafe { Rc::from_raw(rc_at) }),
+			// A clone of the `Arc` `from_raw` takes back, which the count holds after.
+			4 => {
+				let taken = mem::ManuallyDrop::new(unsafe { Arc::from_raw(NonNull::from(&*num).as_ptr()) });
+				mem::forget(Arc::clone(&taken));
+			}
+			5 => wakers.push(wakers[usize::from(byte) % wakers.len()].clone()),
+			6 if wakers.len() > 1 => drop(wakers.swap_remove(usize::from(byte) % wakers.len())),
+			_ => {
+				flag.store(false, SeqCst);
+				match byte & 8 {
+					0 => wakers[0].wake_by_ref(),
+					_ => wakers.pop().unwrap().wake(),
+				}
+				if wakers.is_empty() {
+					wakers.push(flag_waker(&flag));
+				}
+			}
+		}
+		let taken = mem::ManuallyDrop::new(unsafe { Arc::from_raw(ptr::from_ref(&*num)) });
+		out.extend([
+			Arc::strong_count(&num) as u8,
+			u8::from(Arc::ptr_eq(&taken, &num)),
+			Rc::strong_count(&rc) as u8,
+			Arc::strong_count(&flag) as u8,
+			u8::from(flag.load(SeqCst)),
+		]);
+		// Erased, the pointers compare as `as_ptr`'s, which is the value's one place.
+		out.extend(
+			[
+				num_at as *const () == Arc::as_ptr(&num).cast(),
+				rc_at.cast::<()>() == Rc::as_ptr(&rc) as *const (),
+				erase_flag(Arc::as_ptr(&flag)) == wakers[0].data(),
+				ptr::from_ref(&*flag).cast::<()>() == wakers[0].data(),
+			]
+			.map(u8::from),
+		);
+	}
+	drop(wakers);
+	out.push(Arc::strong_count(&flag) as u8);
+	while Arc::strong_count(&num) > 1 {
+		unsafe { Arc::decrement_strong_count(Arc::as_ptr(&num)) };
+	}
+	while Rc::strong_count(&rc) > 1 {
+		unsafe { Rc::decrement_strong_count(&*rc) };
+	}
+	out.extend([Arc::strong_count(&num) as u8, Rc::strong_count(&rc) as u8, *rc as u8]);
+	// A pointer remade from a reference borrowed through another reference, which the body
+	// points elsewhere after: still at the value it borrowed.
+	let (first, second) = (Shelf(Arc::new(1)), Shelf(Arc::new(2)));
+	let mut shelf = &first;
+	let value = &*shelf.0;
+	if data.first().is_some_and(|b| b % 2 == 0) {
+		shelf = &second;
+	}
+	let p = ptr::from_ref(value);
+	out.extend([unsafe { *p } as u8, *shelf.0 as u8]);
+	// And one a `&mut` to it points elsewhere.
+	let mut shelf = &first;
+	let value = &*shelf.0;
+	if data.len() % 3 == 0 {
+		let _ = mem::replace(&mut shelf, &second);
+	}
+	let p = ptr::from_ref(value);
+	out.extend([unsafe { *p } as u8, *shelf.0 as u8]);
+}
+
+/// What holds an `Arc` a reference to it borrows through.
+struct Shelf(Arc<u32>);
+
+/// Pointers to arrays of other values than bytes, made of the array, of references to it
+/// and its parts, by `first_chunk`, `split_first_chunk`, a subslice pattern, and
+/// `array::from_mut`: compared where they point, and written through.
+pub fn arrays(data: &[u8], out: &mut Vec<u8>) {
+	for &n in data {
+		let w = u32::from(n) * 257;
+		let mut a = [w, w ^ 1, w ^ 2, w ^ 3];
+		let b = a;
+		let p: *const [u32; 4] = &a;
+		let s: &[u32] = &a;
+		let first: *const [u32; 2] = s.first_chunk().unwrap();
+		let again: *const [u32; 2] = a[..3].first_chunk().unwrap();
+		let (_, rest) = a.split_first_chunk::<1>().unwrap();
+		let middle: *const [u32; 2] = rest.first_chunk().unwrap();
+		out.extend([
+			u8::from(ptr::eq(p, &a)),
+			u8::from(ptr::eq(p, &b)),
+			u8::from(ptr::eq(first, again)),
+			u8::from(ptr::eq(first, middle)),
+			u8::from(ptr::eq(p, ptr::null())),
+		]);
+		let chunk = a.first_chunk_mut::<2>().unwrap();
+		chunk[1] ^= 0x8000;
+		let made: *const [u32; 2] = chunk;
+		out.push(u8::from(ptr::eq(made, first)) | u8::from(ptr::eq(made, middle)) << 1);
+		if let [x, .., y] = &mut a {
+			*x ^= 1;
+			mem::swap(x, y);
+		}
+		let one = std::array::from_mut(&mut a[2]);
+		one[0] ^= 0x10;
+		let whole: &mut [u32; 4] = &mut a;
+		let r: *const [u32; 4] = whole;
+		out.push(u8::from(ptr::eq(r, p)));
+		out.extend(a.iter().map(|&x| (x ^ x >> 8) as u8));
+		// A read through a pointer of arrays of arrays, a value of its own.
+		let nested = [[w, 1], [2, 3]];
+		let mut read = unsafe { ptr::read(&nested) };
+		read[0][0] ^= 0xff;
+		out.extend([nested[0][0] as u8, read[0][0] as u8]);
+		out.extend(runs(n));
+		out.extend(lent(n));
+	}
+}
+
+/// Pointers to arrays in a `Vec`, compared where they point.
+fn runs(n: u8) -> [u8; 4] {
+	let mut v = vec![
+		[n, n ^ 1].map(|b| char::from(b).to_string()),
+		[String::new(), String::from("x")],
+	];
+	let first: *const [String; 2] = &v[0];
+	let last: *const [String; 2] = v.last().unwrap();
+	v[1][0].push('y');
+	[
+		u8::from(ptr::eq(first, &v[0])),
+		u8::from(ptr::eq(first, last)),
+		u8::from(ptr::eq(last, &v[1])),
+		v[1][0].len() as u8,
+	]
+}
+
+/// Pointers to arrays each way the language and std lend one, the runs of a shared
+/// slice's `as_chunks` and `as_rchunks` included, compared where they point.
+fn lent(n: u8) -> Vec<u8> {
+	let w = u32::from(n);
+	let a = [w, w + 1, w + 2, w + 3];
+	let v = vec![w, w + 1, w + 2, w + 3];
+	let mut o = Vec::new();
+	let (chunks, _) = a.as_chunks::<2>();
+	o.push(u8::from(ptr::eq(
+		chunks.first().unwrap(),
+		a.first_chunk::<2>().unwrap(),
+	)));
+	let (_, back) = a.as_rchunks::<2>();
+	o.push(u8::from(ptr::eq(back.last().unwrap(), a.last_chunk::<2>().unwrap())));
+	let (vc, _) = v.as_chunks::<2>();
+	o.push(u8::from(ptr::eq(
+		vc.iter().nth(1).unwrap(),
+		v.last_chunk::<2>().unwrap(),
+	)));
+	o.push(u8::from(ptr::eq(
+		a[1..3].first_chunk::<2>().unwrap(),
+		a[1..].first_chunk::<2>().unwrap(),
+	)));
+	o.push(u8::from(ptr::eq(
+		v[1..3].first_chunk::<2>().unwrap(),
+		v[1..].first_chunk::<2>().unwrap(),
+	)));
+	o.push(u8::from(ptr::eq(
+		v.windows(2).nth(1).unwrap().first_chunk::<2>().unwrap(),
+		v[1..].first_chunk::<2>().unwrap(),
+	)));
+	o.push(u8::from(ptr::eq(
+		v.chunks(2).nth(1).unwrap().first_chunk::<2>().unwrap(),
+		v.last_chunk::<2>().unwrap(),
+	)));
+	o.push(u8::from(ptr::eq(
+		a.chunks_exact(2).next().unwrap().first_chunk::<2>().unwrap(),
+		a.first_chunk::<2>().unwrap(),
+	)));
+	let (l, _) = a.split_at(2);
+	o.push(u8::from(ptr::eq(
+		l.first_chunk::<2>().unwrap(),
+		a.first_chunk::<2>().unwrap(),
+	)));
+	let pairs = vec![[w, 1], [2, 3]];
+	o.push(u8::from(ptr::eq(pairs.iter().next().unwrap(), pairs.first().unwrap())));
+	let boxed = Box::new([w, 2]);
+	o.push(u8::from(ptr::eq(&*boxed, &*boxed)));
+	let opt = Some([w, 2]);
+	o.push(u8::from(ptr::eq(opt.as_ref().unwrap(), opt.as_ref().unwrap())));
+	let rc = Rc::new([w, 2]);
+	let rc2 = Rc::clone(&rc);
+	o.push(u8::from(ptr::eq(&*rc, &*rc2)));
+	let cell = std::cell::RefCell::new([w, 2]);
+	let p1: *const [u32; 2] = &*cell.borrow();
+	let p2: *const [u32; 2] = &*cell.borrow();
+	o.push(u8::from(ptr::eq(p1, p2)));
+	let mut map = std::collections::HashMap::new();
+	map.insert(1u8, [w, 2]);
+	o.push(u8::from(ptr::eq(map.get(&1).unwrap(), map.get(&1).unwrap())));
+	let st = Holder { arr: [w, 5] };
+	o.push(u8::from(ptr::eq(&st.arr, &st.arr)));
+	let held = Arc::new([w, 2]);
+	let un: Arc<[u32]> = held.clone();
+	o.push(u8::from(ptr::eq(un.first_chunk::<2>().unwrap(), &*held)));
+	let nested = [[w, 1], [2, 3]];
+	o.push(u8::from(ptr::eq(nested.last().unwrap(), nested.iter().nth(1).unwrap())));
+	o
+}
+
+/// What holds an array in a field.
+struct Holder {
+	arr: [u32; 2],
 }

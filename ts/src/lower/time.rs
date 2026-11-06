@@ -1,4 +1,4 @@
-//! `std::time::Duration`, as `rt/time.ts` gives it: std's seconds and nanoseconds in an
+//! `std::time::Duration`, as `rs/time.ts` gives it: std's seconds and nanoseconds in an
 //! object that never changes, so its arithmetic, overflow, and ordering are std's.
 
 use rustc_middle::ty::{self, Ty, ValTree};
@@ -76,7 +76,7 @@ pub fn call<'tcx>(
 		("Div", "div") if is(0) => "durationDiv",
 		_ => return Err(args),
 	};
-	Ok(Some(Expr::rt(f, args)))
+	Ok(Some(Expr::rs(f, args)))
 }
 
 /// `Duration::ZERO`, which `Default` makes.

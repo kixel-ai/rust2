@@ -1,2 +1,2 @@
 package = "lang-panics-fixture"
-roots = ["harness::run", "harness::op"]
+roots = ["harness::run", "harness::op", "note"]

@@ -1,35 +1,46 @@
-# [L] Waiting: a slice object for a mutable part of other values
+# [M] rs.Slice
 
 ## Goal
 
-Decide, from a profile of moq, whether a mutable part of a slice of other values, such as
-`&mut v[a..b]`, `split_at_mut`, or `chunks_mut` lends, needs a faster form than the
-runtime's `Proxy` view. Waits until a profile of translated moq shows the view's traps
-matter, by time spent in `sliceView`'s handler or in code reading through a view. If it
-does, a `&mut [T]` becomes an object of its array, start, and length, as `rt.ByteSlice`
-is for bytes, which splits in O(1) and reads at near a plain array's speed. Proven by the
-lang fixture's differential tests and a benchmark against the view.
+[rust2-ts](/ts/README.md) translates slices and references to arrays as `rs.Slice` and
+`rs.ByteSlice`, their array, start, and length. What remains:
+
+- A `&mut [[T; N]]` that `as_chunks_mut` and `as_rchunks_mut` lend holds its runs where
+  the slice holds their elements, rather than as the runtime's `Runs` and `ByteRuns`
+  `Proxy` views and `arrayView`, along with the detaching copies they need before a
+  whole write.
+- `slice::from_mut` and `array::from_mut` of a `&mut u8` translate, writing the byte
+  through the slice where the caller holds it.
+- Pointers to a `[T]` of values JS copies compare where they point, as pointers to a
+  `[T; N]` do.
+
+Each is proven by differential tests against native Rust.
 
 ## Plan
 
-Decided on 2026-10-30 in [moq-dev/rust2#274](https://github.com/moq-dev/rust2/pull/274):
-lend the `Proxy` view, since it covers every part, including one returned or stored, and
-moq's sites run per timer operation or control message, not per frame. The traps cost
-per operation, in ns, Node 24, from that PR's scratch benchmark:
+Decided with the maintainer on 2026-11-03: Rust types the runtime can't hold as std's do
+get a runtime wrapper, converted at API boundaries, rather than a JS native type
+([#555](https://github.com/moq-dev/rust2/pull/555) made `Vec` one).
 
-| shape | plain array | Proxy view | copy-back | `{ s, start, length }` |
-|---|---|---|---|---|
-| heap of 16, one wasmtimer sift step | 8 | 582 | 55 | 17 |
-| heap of 256, one sift step | 8 | 669 | 296 | 9 |
-| heap of 4096, one sift step | 7 | 3776 | 9020 | 9 |
-| `parts[..1]` written | 6 | 301 | 21 | 5 |
-| `parts[..4]` written | 5 | 965 | 24 | 6 |
-| `parts[..32]` written | 13 | 7274 | 74 | 16 |
+A slice of arrays holds each array as a JS array of its own, so a run of a flat slice has
+no array to be. One option is a slice of runs over the flat array, whose element `i` is
+the `rs.Slice` of run `i`, which a `&mut [[T; N]]` would be wherever its runs alias
+another slice's elements.
 
-A tuned `Proxy` measured about the same, so the trap is the floor. Copy-back, the part
-copied and written back as its borrow ends, can't lend a part that outlives its scope.
+A slice of one over a `&mut u8` was found fragile when it meant a one-byte buffer for each
+local; an `rs.ByteSlice` whose storage can be an `rs.Place` may avoid that. Measure what
+each form costs a hot `&mut u8`, such as `read_exact(slice::from_mut(&mut byte))`.
 
-The object changes every mapping that takes a `&mut [T]`, the coercion to `&[T]`, and
-what a hand-written caller passes, so weigh whether `&[T]` takes the same form.
+✅ Decided with the maintainer on 2026-11-04: generated code fails at run time only where
+Rust panics, so a pointer comparison the translator can't answer exactly is refused at
+translation with a span. Pointers to arrays compare as slices; comparing pointers to
+elements and other places of values JS copies, which JS may make two `rs.Place`s for,
+stays refused, as do pointers to an array of one, and their exact path is
+[a quest of its own](/quest/m3/ts-runtime-throws.md).
 
-Public API: the translator's output and what a caller passes for a slice.
+Public API: the translator's output and what a hand-written caller passes for a slice of
+arrays.
+
+## Related
+
+- [rs.String](/quest/m3/ts-string-capacity.md) - the other native mapping becoming a wrapper

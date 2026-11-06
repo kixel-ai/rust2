@@ -86,3 +86,16 @@ pub fn aliased() -> bool {
 	let (a, b) = PAIR;
 	std::ptr::eq(&a[1], b)
 }
+
+/// Held as its parts, which would hold a Go function type holding itself.
+pub enum Callback {
+	Call(fn(Callback) -> u8),
+	Data([u8; 8]),
+}
+
+pub fn called(c: Callback) -> u8 {
+	match c {
+		Callback::Call(f) => f(Callback::Data([0; 8])),
+		Callback::Data(d) => d[0],
+	}
+}

@@ -15,7 +15,7 @@ the consumer [at first](/ts/README.md#bindings), and moq gives its own `unsafe` 
 annotations or config; this quest is what retires them.
 
 Decided with the maintainer on 2026-10-28, typed pointers: a raw pointer is what its
-reference is, the object, an `rt.Place`, or `rt.NULL`, and a pointer into a slice or `Vec`
+reference is, the object, an `rs.Place`, or `rs.NULL`, and a pointer into a slice or `Vec`
 is `{ array, index }`. Byte reinterpretation, pointer-to-integer casts, and raw allocation
 are refused with a span. [#201](https://github.com/moq-dev/rust2/pull/201) landed `Box`
 to raw and back, `NonNull`, `MaybeUninit`, raw reads and writes, `get_unchecked`, and
@@ -25,7 +25,7 @@ none of its own `unsafe`.
 - An `unsafe` operation outside the modeled set is refused with its span, as today.
 - Undefined behavior in Rust need not be reproduced, but a translated program never
   silently differs from native where Rust's behavior is defined.
-- Element pointers into arrays of values JS copies are `rt.AtIndex`, `{ array, index }`,
+- Element pointers into arrays of values JS copies are `rs.AtIndex`, `{ array, index }`,
   which `add`, `offset`, `offset_from`, `ptr::copy`, and `slice::from_raw_parts` act on.
   Decided with the maintainer on 2026-11-01: where one body shows a pointer crossing what
   JS keeps apart (a value in no array, a copied shared subslice), translation refuses it
@@ -38,7 +38,7 @@ none of its own `unsafe`.
   is a fresh JS array of `T`s, which `realloc` copies and `dealloc` frees. Untyped and
   byte allocation stay refused. smallvec spills to it, and `Vec::from_raw_parts` of it is
   left.
-- Decided with the maintainer on 2026-11-02: a raw slice pointer is `rt.RawSlice`, its
+- Decided with the maintainer on 2026-11-02: a raw slice pointer is `rs.RawSlice`, its
   first element's pointer and its length, read through only where Rust reads, and an empty
   slice from a pointer into no array keeps that pointer through every part of it.
 - A union over a type parameter, whose layout has no fixed offsets until an instance
@@ -47,8 +47,8 @@ none of its own `unsafe`.
   foldhash's seed and arrayvec's `as_ptr`: the reference is the value, not where it is
   kept, so it needs the place the reference came from.
 - A `Vec`'s spare capacity written through `as_mut_ptr` and committed by `set_len`:
-  `set_len` is refused, and a write past the length fails loudly at run time, since the
-  JS array would grow by it. The spare slots need to live outside the array's length
+  `set_len` is refused but a byte `Vec`'s, and a write past the length fails loudly at run
+  time, since the JS array would grow by it. The spare slots need to live outside the array's length
   until `set_len` takes them.
 - `UnsafeCell::raw_get`, `from_mut`, and `replace`, refused with their span: none is in
   moq's census at the pin.
@@ -68,14 +68,14 @@ none of its own `unsafe`.
   defines it, but a debug build aborts on a violated precondition where the checked form
   panics with another message.
 - `BinaryHeap` and `PeekMut` translate from std's MIR, whose `Hole` moves elements
-  through raw pointers into the `Vec`'s storage, replacing `rt.BinaryHeap` and
-  `rt.PeekMut`, the hand-written port of std's sifts that
+  through raw pointers into the `Vec`'s storage, replacing `rs.BinaryHeap` and
+  `rs.PeekMut`, the hand-written port of std's sifts that
   [#252](https://github.com/moq-dev/rust2/pull/252) mapped them to and that must track
   std's by hand. The lang fixture's `orders` differential case proves the translation
   still matches std's comparisons, pop order, and drops.
 - `Vec::drain` translates from std's MIR, whose `Drain` reads its range out and moves the
-  tail back through raw pointers into the `Vec`'s storage, replacing `rt.vecDrain` and
-  `rt.byteVecDrain`, the runtime port that
+  tail back through raw pointers into the `Vec`'s storage, replacing `rs.vecDrain` and
+  `rs.byteVecDrain`, the runtime port that
   [the slice gaps' PR](https://github.com/moq-dev/rust2/pull/259) mapped it to. The lang
   fixture's `slices::drains` differential case proves the translation still matches std's
   items, drops, and what a forgotten drain leaves.

@@ -1,13 +1,13 @@
 //! `VecDeque`'s ring buffer, as std places its items: each step that moves them, then
 //! where `as_slices` splits them, and `{:?}` of its `Iter`, `IterMut`, and `Drain` read in
-//! part, from either end, by `nth`, and by `try_fold`. Run for items of each size std's
+//! part, from either end, by `nth`, and by `try_fold`, and what its binary searches probe. Run for items of each size std's
 //! growth tells apart, bytes, which its slices view, zero-sized ones, and ones that drop.
 
 use std::collections::VecDeque;
 use std::fmt::Debug;
 
 /// An item a byte makes, which a write through a `&mut` changes.
-trait Item: Clone + Debug {
+trait Item: Clone + Debug + Ord {
 	fn make(b: u8) -> Self;
 
 	fn bump(&mut self);
@@ -50,7 +50,7 @@ impl Item for () {
 }
 
 /// Past 1 KiB, which std's grows from one slot rather than four.
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct Big {
 	id: u8,
 	pad: [u8; 1100],
@@ -106,7 +106,7 @@ fn steps<T: Item>(data: &[u8], out: &mut Vec<u8>) {
 	for step in rest.chunks(2) {
 		let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
 		let at = usize::from(arg) % (q.len() + 1);
-		match op % 30 {
+		match op % 35 {
 			0..=3 => q.push_back(T::make(arg)),
 			4 | 5 => q.push_front(T::make(arg)),
 			6 => drop(q.pop_front()),
@@ -156,11 +156,31 @@ fn steps<T: Item>(data: &[u8], out: &mut Vec<u8>) {
 				text(out, &it);
 			}
 			// Into a `Vec`, which std's makes of its buffer once contiguous, and back.
-			_ => {
+			29 => {
 				let v = Vec::from(q);
 				put(out, v.capacity());
 				q = VecDeque::from(v);
 			}
+			// By a count within its length, which std's moves the shorter side for.
+			30 => q.rotate_left(at),
+			31 => q.rotate_right(at),
+			32 => {
+				if !q.is_empty() {
+					q.swap(usize::from(arg) % q.len(), usize::from(arg >> 4) % q.len());
+				}
+			}
+			// Bumped at both ends of the run std's moves its items to.
+			33 => {
+				let s = q.make_contiguous();
+				if let Some(x) = s.first_mut() {
+					x.bump();
+				}
+				if let Some(x) = s.last_mut() {
+					x.bump();
+				}
+				text(out, &s);
+			}
+			_ => searched(&q, arg, out),
 		}
 		put(out, q.len());
 		put(out, q.capacity());
@@ -280,6 +300,29 @@ fn mutated<T: Item>(q: &mut VecDeque<T>, arg: u8, out: &mut Vec<u8>) {
 		x.bump();
 	}
 	text(out, &it);
+}
+
+/// Where each binary search finds an item `arg` makes, of items that need not be sorted,
+/// and each item it probes.
+fn searched<T: Item>(q: &VecDeque<T>, arg: u8, out: &mut Vec<u8>) {
+	let x = T::make(arg);
+	text(out, &q.binary_search(&x));
+	let found = q.binary_search_by(|y| {
+		text(out, y);
+		y.cmp(&x)
+	});
+	text(out, &found);
+	let key = format!("{x:?}");
+	let found = q.binary_search_by_key(&key, |y| {
+		text(out, y);
+		format!("{y:?}")
+	});
+	text(out, &found);
+	let point = q.partition_point(|y| {
+		text(out, y);
+		*y < x
+	});
+	put(out, point);
 }
 
 /// `q`'s `Iter`, written before and after each of three reads `arg` picks.

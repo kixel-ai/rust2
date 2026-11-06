@@ -40,7 +40,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Tuple(tys) if !tys.is_empty() => (true, tys.to_vec()),
 			ty::Array(elem, _) => (true, vec![*elem]),
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did()) {
-				// Their payload, or no object at all; a write into an `rt.Result`'s payload
+				// Their payload, or no object at all; a write into an `rs.Result`'s payload
 				// replaces the result.
 				Some(
 					Std::Option
@@ -53,6 +53,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::Saturating,
 				) => (false, args.types().collect()),
 				Some(Std::Bound) => (true, args.types().collect()),
+				// Records of functions and pointers, which JS shares.
+				Some(Std::WakerVTable | Std::RawWaker) => (true, Vec::new()),
 				Some(Std::MaybeUninit | Std::ManuallyDrop) => return self.changes(args.type_at(0)),
 				Some(_) => return false,
 				None if self.own(adt.did()) && adt.all_fields().next().is_some() => {
@@ -137,6 +139,36 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// The function [`Self::snapshot`] calls on a `ty`, if it copies one.
 	pub fn snapshot_fn(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
 		self.changes(ty).then(|| self.shim(ty, span)).flatten()
+	}
+
+	/// A copy of the `ty`, a `[T; N]`, that `s`, the slice a reference to one is, holds, as
+	/// a read through the reference copies it: an array of its own, with each element JS
+	/// keeps as an object the crate writes into copied too.
+	pub fn array_copy(&mut self, s: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+		let elem = match self.uninit_inner(ty).kind() {
+			ty::Array(elem, _) => *elem,
+			_ => unreachable!("an array's slice"),
+		};
+		if super::byte(elem) {
+			return Expr::rs("byteSliceToArray", vec![s]);
+		}
+		let mut values = vec![s];
+		values.extend(self.changes(elem).then(|| self.shim(elem, span)).flatten());
+		Expr::rs("sliceToArray", values)
+	}
+
+	/// The function [`Self::array_copy`] calls on a slice of a `ty`.
+	pub fn array_copy_fn(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
+		match self.array_copy(Expr::ident("s"), ty, span) {
+			Expr::Call(f, args) if args.len() == 1 => *f,
+			copy => Expr::Lambda(
+				vec![ts::Param {
+					name: "s".into(),
+					ty: None,
+				}],
+				Box::new(copy),
+			),
+		}
 	}
 
 	/// `value`, copied if a `ty` is.
@@ -272,6 +304,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						Box::new(Expr::As(Box::new(copy), ts_ty)),
 					))
 				}
+				Some(Std::WakerVTable) => {
+					let fns = ["clone", "wake", "wakeByRef", "drop"].map(|f| v().member(f));
+					ret(Expr::rs("wakerVTable", fns.into()))
+				}
+				Some(Std::RawWaker) => ret(super::task::raw_waker(v().member("data"), v().member("vtable"))),
 				Some(Std::ControlFlow) => {
 					let (residual, value) = (args.type_at(0), args.type_at(1));
 					ret(match (Flow::of(tcx, args), residual.kind()) {
@@ -346,13 +383,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 	}
 
-	/// A copy of `v`, an `rt.Result` of `ok` or `err`.
+	/// A copy of `v`, an `rs.Result` of `ok` or `err`.
 	fn copy_result(&mut self, ok: Ty<'tcx>, err: Ty<'tcx>, span: Span) -> Expr {
 		let v = || Expr::ident("v");
 		Expr::Cond(
 			Box::new(v().member("ok")),
-			Box::new(Expr::rt("Ok", vec![self.snapshot(v().member("value"), ok, span)])),
-			Box::new(Expr::rt("Err", vec![self.snapshot(v().member("error"), err, span)])),
+			Box::new(Expr::rs("Ok", vec![self.snapshot(v().member("value"), ok, span)])),
+			Box::new(Expr::rs("Err", vec![self.snapshot(v().member("error"), err, span)])),
 		)
 	}
 
@@ -910,7 +947,7 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 
 	/// Whether a `ty` may be kept as a JS object that a pointer to it is: a tuple, an
 	/// array, a struct or union of a crate that translates, or a `MaybeUninit` or
-	/// `ManuallyDrop` of one; or an `UnsafeCell`'s `rt.Cell`, which the pointer `get`
+	/// `ManuallyDrop` of one; or an `UnsafeCell`'s `rs.Cell`, which the pointer `get`
 	/// gives is or holds.
 	fn inline(&self, ty: Ty<'tcx>) -> bool {
 		match ty.kind() {
@@ -1069,7 +1106,7 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 		let Some(made) = made.as_local() else {
 			return true;
 		};
-		let held = self.trace.holders(made, Holds::Pointers, false);
+		let held = self.trace.holders(made, Holds::Pointers, false, ty::List::empty());
 		let env = ty::TypingEnv::post_analysis(self.tcx, self.def_id);
 		let raw = |ty: Ty<'tcx>| {
 			ty.is_raw_ptr()

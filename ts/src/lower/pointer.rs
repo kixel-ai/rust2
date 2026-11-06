@@ -1,19 +1,20 @@
 //! Raw pointers, `NonNull`, `MaybeUninit`, and `ManuallyDrop`.
 //!
 //! A raw pointer is what a `&mut` to its pointee is where JS keeps the pointee where Rust
-//! does: the object, a tuple's or array's or the crate's own struct's, or the
-//! `rt.ByteSlice` of a `[u8; N]`'s bytes, which may be part of a larger array or a slice.
-//! To anything else it is an `rt.Place` of the place holding the value, as a `&mut` to a
+//! does: the object, a tuple's or the crate's own struct's, or the `rs.Slice` of a
+//! `[T; N]`'s elements, an `rs.ByteSlice` of bytes, which may be part of a larger array or
+//! a slice.
+//! To anything else it is an `rs.Place` of the place holding the value, as a `&mut` to a
 //! value JS copies is, which a `Vec` or an `Arc` also is here: its JS object is what it
-//! owns, not where Rust keeps it. Null is `rt.NULL`, and a dangling pointer `rt.DANGLING`.
+//! owns, not where Rust keeps it. Null is `rs.NULL`, and a dangling pointer `rs.DANGLING`.
 //!
-//! An `rt.Place` into an array, slice, or `Vec` is the `rt.AtIndex` of its element, which
+//! An `rs.Place` into an array, slice, or `Vec` is the `rs.AtIndex` of its element, which
 //! pointer arithmetic moves within the array. A pointer to an element JS keeps as an
 //! object is that object, which knows no array it is in, so arithmetic on one is refused.
 //!
 //! A pointer to `()`, as std erases one, is an identity that compares as itself: null,
-//! `rt.DANGLING_UNIT`, or a waker's data. One to a place of `()` or from a reference to
-//! one is refused, as an `rt.Place` of it would be an identity of its own each borrow.
+//! `rs.DANGLING_UNIT`, or a waker's data. One to a place of `()` or from a reference to
+//! one is refused, as an `rs.Place` of it would be an identity of its own each borrow.
 //!
 //! A whole value written through a pointer to an object is copied into that object, so
 //! every pointer to it sees the write. That goes one object deep, as `*r = v` does through
@@ -27,7 +28,7 @@
 //! A `MaybeUninit<T>` is a `T`: `undefined` where JS copies a `T` and it holds none yet,
 //! or an object whose parts hold none yet where a pointer to it is the object. A
 //! `ManuallyDrop<T>` is a `T` that nothing drops but its own `drop`. An `UnsafeCell<T>` is
-//! an `rt.Cell`, which is the place a pointer to `T` is, or else holds the object it is.
+//! an `rs.Cell`, which is the place a pointer to `T` is, or else holds the object it is.
 
 use rustc_middle::ty::{self, Ty, TypeVisitableExt};
 use rustc_span::Span;
@@ -40,14 +41,14 @@ use crate::ts::{Expr, Key, Stmt, StmtKind, Type};
 /// What a raw pointer to a type is in JS.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Pointee {
-	/// An `rt.Place` of the value, which JS copies.
+	/// An `rs.Place` of the value, which JS copies.
 	Place,
 	/// The object it points at.
 	Object,
-	/// An `rt.ByteSlice` of the `[u8; N]` it points at, as a reference to one is, which
-	/// compares by where its bytes are.
-	Bytes,
-	/// An `rt.RawSlice` of a `[T]`: the pointer to its first element and its length, which
+	/// An `rs.Slice` of the `[T; N]` it points at, or an `rs.ByteSlice` of bytes, as a
+	/// reference to one is, which compares by where its elements are.
+	Array,
+	/// An `rs.RawSlice` of a `[T]`: the pointer to its first element and its length, which
 	/// a read through it makes the slice of.
 	Slice,
 }
@@ -60,14 +61,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			return Pointee::Object;
 		}
 		let ty = self.uninit_inner(ty);
-		if super::byte_array(ty) {
-			return Pointee::Bytes;
+		if ty.is_array() {
+			return Pointee::Array;
 		}
 		if ty.is_slice() {
 			return Pointee::Slice;
 		}
 		let object = match (self.object_kind(ty), ty.kind()) {
-			(Some(ObjectKind::Array | ObjectKind::Bytes), ty::Array(..) | ty::Tuple(_)) => true,
+			(Some(ObjectKind::Array), ty::Tuple(_)) => true,
 			// An async body passes its context as a pointer to it, and a waker's vtable is
 			// one that is its identity.
 			(Some(ObjectKind::Class), ty::Adt(adt, _)) => match Std::of(self.tcx, adt.did()) {
@@ -84,15 +85,21 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 	}
 
+	/// The runtime's function `name` of the slice a pointer or reference to `ty`, a
+	/// `[T; N]` through any `MaybeUninit`s, is: `byteSlice{name}` of bytes, and else
+	/// `slice{name}`.
+	pub fn array_rs(&self, ty: Ty<'tcx>, name: &str) -> Expr {
+		super::array_fn(self.uninit_inner(ty), name)
+	}
+
 	/// Whether a pointer to `ty` is an identity: one to `()`, through any `MaybeUninit`s.
 	pub fn identity_pointee(&self, ty: Ty<'tcx>) -> bool {
 		self.uninit_inner(ty).is_unit()
 	}
 
-	/// Why pointers to `ty` that are not null don't compare as their JS values, if they
-	/// don't. Two `rt.Place`s of one place are two objects, and Rust leaves where a value of
-	/// no bytes is unspecified, but a pointer to `()` is an identity. Notes the comparison of
-	/// those that do, for [`Self::taken`].
+	/// Why pointers to `ty` that are not null can't compare, if they can't: Rust leaves
+	/// where a value of no bytes is unspecified, but a pointer to `()` is an identity. Notes
+	/// the comparison of objects, for [`Self::taken`].
 	pub fn incomparable(&mut self, ty: Ty<'tcx>) -> Option<String> {
 		if self.identity_pointee(ty) {
 			return None;
@@ -102,22 +109,23 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				"comparing pointers to `{ty}`, which has no bytes and so no address of its own"
 			));
 		}
-		// A slice lends a run of other values as an array of its own, by `first_chunk` or
-		// `as_chunks`, so where one points says nothing of where the slice holds it.
-		if let ty::Array(..) = self.uninit_inner(ty).kind()
-			&& self.pointee(ty) == Pointee::Object
-		{
-			return Some(format!(
-				"comparing pointers to `{ty}`, which a slice lends as a copy of its own"
-			));
-		}
 		if ty.is_trait() {
 			return Some(format!(
 				"comparing pointers to `{ty}`, each an object JS makes of its own as it unsizes"
 			));
 		}
 		match self.pointee(ty) {
-			Pointee::Object | Pointee::Bytes => {
+			// `from_ref`, `from_mut` of a variable, and `Option::as_slice` make an array of
+			// one of their own for a value, so only longer arrays are always where Rust's are.
+			Pointee::Array
+				if let ty::Array(_, len) = self.uninit_inner(ty).kind()
+					&& len.try_to_target_usize(self.tcx).is_none_or(|n| n == 1) =>
+			{
+				Some(format!(
+					"comparing pointers to `{ty}`, an array of one JS may make of its own for a value, as `array::from_ref` does"
+				))
+			}
+			Pointee::Object | Pointee::Array => {
 				self.compare(ty);
 				None
 			}
@@ -130,10 +138,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 	}
 
+	/// What tells whether two pointers to `ty` point at the same place where `===` can't:
+	/// the slices' of an array.
+	pub fn same_fn(&self, ty: Ty<'tcx>) -> Option<Expr> {
+		(self.pointee(ty) == Pointee::Array).then(|| self.array_rs(ty, "Same"))
+	}
+
 	/// What a `MaybeUninit` or `ManuallyDrop` holds, through any number of them, or `ty`
-	/// itself: JS keeps each as what it holds.
+	/// itself: JS keeps each as what it holds, and an `UninitSlice` as its slice.
 	pub fn uninit_inner(&self, ty: Ty<'tcx>) -> Ty<'tcx> {
-		let mut ty = ty;
+		let mut ty = super::stock::uninit_slice(self.tcx, ty).unwrap_or(ty);
 		while let ty::Adt(adt, args) = ty.kind()
 			&& matches!(Std::of(self.tcx, adt.did()), Some(Std::MaybeUninit | Std::ManuallyDrop))
 		{
@@ -160,14 +174,18 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// The TypeScript type of a raw pointer or `NonNull` to `pointee`.
 	pub fn pointer_ty(&mut self, pointee: Ty<'tcx>, span: Span) -> Type {
 		if self.instance_pointee(pointee) {
-			return Type::Rt("Ptr", vec![self.ty(pointee, span)]);
+			return Type::Rs("Ptr", vec![self.ty(pointee, span)]);
 		}
 		match self.pointee(pointee) {
-			Pointee::Place => Type::Rt("Place", vec![self.ty(pointee, span)]),
+			Pointee::Place => Type::Rs("Place", vec![self.ty(pointee, span)]),
 			Pointee::Object => self.ty(pointee, span),
-			Pointee::Bytes => Type::Rt("ByteSlice", Vec::new()),
-			Pointee::Slice => match pointee.kind() {
-				ty::Slice(elem) => Type::Rt("RawSlice", vec![self.ty(*elem, span)]),
+			Pointee::Array => match self.uninit_inner(pointee).kind() {
+				ty::Array(elem, _) if super::byte(*elem) => Type::Rs("ByteSlice", Vec::new()),
+				ty::Array(elem, _) => Type::Rs("Slice", vec![self.ty(*elem, span)]),
+				_ => unreachable!("an array's pointee"),
+			},
+			Pointee::Slice => match self.uninit_inner(pointee).kind() {
+				ty::Slice(elem) => Type::Rs("RawSlice", vec![self.ty(*elem, span)]),
 				_ => unreachable!("a slice's pointee"),
 			},
 		}
@@ -197,7 +215,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 	}
 
-	/// What `ty` points at, if it is a raw pointer that is an `rt.Place`.
+	/// What `ty` points at, if it is a raw pointer that is an `rs.Place`.
 	pub fn raw_place(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 		match ty.kind() {
 			ty::RawPtr(inner, _) if self.pointee(*inner) == Pointee::Place => Some(*inner),
@@ -215,15 +233,20 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// What a `MaybeUninit<ty>` that holds nothing yet is, untyped.
 	pub fn shell(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
+		// A `MaybeUninit<u8>` is 0, as a typed array's bytes are before a write, so it is never
+		// `undefined`.
+		if !ty.is_integral() && super::byte(ty) {
+			return Expr::lit("0");
+		}
 		let ty = self.uninit_inner(ty);
 		match (self.pointee(ty), ty.kind()) {
 			(Pointee::Object, ty::Tuple(tys)) => Expr::Array(tys.iter().map(|t| self.shell(t, span)).collect()),
-			(Pointee::Object | Pointee::Bytes, ty::Array(elem, len)) => {
+			(Pointee::Array, ty::Array(elem, len)) => {
 				let len = Expr::lit(len.try_to_target_usize(self.tcx).unwrap_or(0).to_string());
-				match (elem.kind(), self.pointee(*elem)) {
-					(ty::Uint(ty::UintTy::U8), _) => Expr::New(Box::new(Expr::ident("Uint8Array")), vec![len]),
+				match (super::byte(*elem), self.pointee(*elem)) {
+					(true, _) => Expr::New(Box::new(Expr::ident("Uint8Array")), vec![len]),
 					(_, Pointee::Place) => Expr::New(Box::new(Expr::ident("Array")), vec![len]),
-					(_, Pointee::Object | Pointee::Bytes | Pointee::Slice) => {
+					(_, Pointee::Object | Pointee::Array | Pointee::Slice) => {
 						let elem_ty = self.ty(*elem, span);
 						let each = Expr::Arrow(
 							Vec::new(),
@@ -372,7 +395,7 @@ pub fn rebinds(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> &'stati
 }
 
 /// Whether std's `def_id` is one this module maps that lends a place: it makes the
-/// `rt.Place` of the `&mut` it returns.
+/// `rs.Place` of the `&mut` it returns.
 pub fn lends(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
 	matches!(
 		super::library::key(tcx, def_id),
@@ -415,12 +438,12 @@ pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args
 	keeps || from_reference(tcx, def_id, args)
 }
 
-/// Whether std's `def_id` of `args` is one a mapping takes the `rt.Place` a `&mut` is for,
+/// Whether std's `def_id` of `args` is one a mapping takes the `rs.Place` a `&mut` is for,
 /// rather than what it points at: a `MaybeUninit`'s or a `ManuallyDrop`'s, which it points
 /// into, an `Arc`'s that `make_mut` replaces, a `String`'s that a drain edits as it drops,
 /// a `Result`'s whose payload JS copies, which `iter_mut` lends as a place that writes the
-/// whole `Result`, an iterator's that `by_ref` returns, the crate's own iterator's that its
-/// `next` reads through, and a well-known crate's, such as a
+/// whole `Result`, an iterator's that `by_ref` returns, what `borrow_mut` lends, the crate's
+/// own iterator's that its `next` reads through, and a well-known crate's, such as a
 /// `Bytes` that `Buf::advance` moves past its front.
 fn takes_place<'tcx>(
 	t: &Translator<'_, 'tcx>,
@@ -433,16 +456,17 @@ fn takes_place<'tcx>(
 			|| matches!(owner.as_str(), "Arc" | "Rc") && name == "make_mut"
 			|| (owner.as_str(), name.as_str()) == ("String", "drain")
 			|| (owner.as_str(), name.as_str()) == ("Iterator", "by_ref")
+			|| (owner.as_str(), name.as_str()) == ("BorrowMut", "borrow_mut")
 			|| matches!(owner.as_str(), "Iterator" | "DoubleEndedIterator") && super::iter::held_own(t, args.type_at(0))
 			|| (owner.as_str(), name.as_str()) == ("Result", "iter_mut") && t.needs_place(args.type_at(0))
-			// The `&mut` to the crate's own hasher, which its methods take as it is.
-			|| (owner.as_str(), name.as_str()) == ("Hash", "hash") && super::collections::own_hasher(t, args.type_at(1))
-			|| owner == "Hasher" && super::collections::own_hasher(t, args.type_at(0))
+			// The `&mut` to a hasher whose methods take it as it is.
+			|| (owner.as_str(), name.as_str()) == ("Hash", "hash") && super::collections::called_hasher(t, args.type_at(1))
+			|| owner == "Hasher" && super::collections::called_hasher(t, args.type_at(0))
 	) || super::stock::is_stock(t.tcx, def_id)
 }
 
 /// Which of std's `def_id`'s parameters its mapping of `args` takes as what the `&mut` it
-/// declares points at, rather than the `rt.Place` that `&mut` may be: not a type parameter
+/// declares points at, rather than the `rs.Place` that `&mut` may be: not a type parameter
 /// that one instantiates, as `Pin::new`'s pointer.
 pub fn pointees<'tcx>(
 	t: &Translator<'_, 'tcx>,
@@ -474,16 +498,22 @@ pub fn call<'tcx>(
 	let gargs = call.args;
 	let pointee = || targ(gargs, 0);
 	let kind = |b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>| Some(b.t.pointee(ty));
-	// A mapping holds a `[u8; N]`, and hands out a reference to one, as the `Uint8Array`,
-	// which a pointer to it is an `rt.ByteSlice` of.
-	let bytes = |b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>| b.t.pointee(ty) == Pointee::Bytes;
-	let to_pointer = |e: Expr| Expr::rt("byteSliceFrom", vec![e]);
-	let to_reference = |e: Expr| Expr::rt("byteSliceView", vec![e]);
+	// A mapping holds a `[T; N]`, and hands out a reference to one, as the JS array, which a
+	// pointer to it is an `rs.Slice` of, or an `rs.ByteSlice` of bytes.
+	let array = |b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>| b.t.pointee(ty) == Pointee::Array;
+	let to_pointer = |b: &Body<'_, '_, 'tcx>, e: Expr| match super::byte_array(b.t.uninit_inner(pointee())) {
+		true => Expr::rs("byteSliceFrom", vec![e]),
+		false => super::library::slice_from(e),
+	};
+	let to_reference = |b: &Body<'_, '_, 'tcx>, e: Expr| match super::byte_array(b.t.uninit_inner(pointee())) {
+		true => Expr::rs("byteSliceView", vec![e]),
+		false => super::library::slice_view(e),
+	};
 	// A raw pointer to a slice, from a reference to one, and the slice a read through it
 	// makes, shared if nothing writes through it.
 	let raw_of = |ty: Ty<'tcx>, s: Expr| match slice_of_bytes(ty) {
-		true => Expr::rt("rawByteSliceOf", vec![s]),
-		false => Expr::rt("rawSliceOf", vec![s]),
+		true => Expr::rs("rawByteSliceOf", vec![s]),
+		false => Expr::rs("rawSliceOf", vec![s]),
 	};
 	let deref = |ty: Ty<'tcx>, p: Expr, shared: bool| match slice_of_bytes(ty) {
 		true => p.member("derefBytes").call(vec![Expr::lit(shared.to_string())]),
@@ -492,8 +522,8 @@ pub fn call<'tcx>(
 	let mut args = args.into_iter();
 	let mut arg = || args.next().expect("an argument");
 	let e = match (owner, name) {
-		("ptr", "null" | "null_mut") => Expr::Rt("NULL".into()),
-		// A pointer to `()` is an identity, which the `rt.Place` of a place or a reference
+		("ptr", "null" | "null_mut") => Expr::Rs("NULL".into()),
+		// A pointer to `()` is an identity, which the `rs.Place` of a place or a reference
 		// is not. A box of one holds nothing, so its pointer is dangling.
 		("MaybeUninit", "as_ptr" | "as_mut_ptr") | ("UnsafeCell", "get") | ("Cell", "as_ptr")
 			if b.t.identity_pointee(pointee()) =>
@@ -511,11 +541,11 @@ pub fn call<'tcx>(
 			span,
 			"a raw pointer to a place of `()`, which has no address of its own",
 		),
-		("Box", "into_raw" | "leak") if b.t.identity_pointee(pointee()) => Expr::Rt("DANGLING_UNIT".into()),
+		("Box", "into_raw" | "leak") if b.t.identity_pointee(pointee()) => Expr::Rs("DANGLING_UNIT".into()),
 		// One to a value of no bytes points at one, which every read of it reads. One to
 		// `()` is an identity, the same for every call, as its address is.
 		("NonNull", "dangling") | ("ptr", "dangling" | "dangling_mut") if b.t.identity_pointee(pointee()) => {
-			Expr::Rt("DANGLING_UNIT".into())
+			Expr::Rs("DANGLING_UNIT".into())
 		}
 		("NonNull", "dangling") | ("ptr", "dangling" | "dangling_mut") if b.t.zero_sized(pointee()) => {
 			match (b.t.empty(pointee()), kind(b, pointee())) {
@@ -527,10 +557,14 @@ pub fn call<'tcx>(
 					),
 				),
 				(true, Some(Pointee::Place)) => Expr::Object(vec![(Key::Name("v".into()), b.t.shell(pointee(), span))]),
+				(true, Some(Pointee::Array)) => {
+					let array = b.t.uninit(pointee(), span);
+					to_pointer(b, array)
+				}
 				(true, _) => b.t.uninit(pointee(), span),
 			}
 		}
-		("NonNull", "dangling") | ("ptr", "dangling" | "dangling_mut") => Expr::Rt("DANGLING".into()),
+		("NonNull", "dangling") | ("ptr", "dangling" | "dangling_mut") => Expr::Rs("DANGLING".into()),
 		("ptr" | "NonNull", "cast") => {
 			let p = arg();
 			cast(b, p, pointee(), targ(gargs, 1), span)
@@ -540,16 +574,16 @@ pub fn call<'tcx>(
 		}
 		// A raw pointer to a slice is null where its first element's is.
 		("ptr", "is_null") if kind(b, pointee()) == Some(Pointee::Slice) => {
-			arg().member("ptr").binary("===", Expr::Rt("NULL".into()))
+			arg().member("ptr").binary("===", Expr::Rs("NULL".into()))
 		}
 		// Only a pointer to a slice has these, generic over its element.
 		("ptr" | "NonNull", "len") => arg().member("length"),
 		("ptr" | "NonNull", "is_empty") => arg().member("length").binary("===", Expr::lit("0")),
-		("ptr", "is_null") => arg().binary("===", Expr::Rt("NULL".into())),
+		("ptr", "is_null") => arg().binary("===", Expr::Rs("NULL".into())),
 		("NonNull", "as_ref" | "as_mut") if kind(b, pointee()) == Some(Pointee::Slice) => {
 			deref(pointee(), arg(), name == "as_ref")
 		}
-		("NonNull", "as_mut") if bytes(b, pointee()) => to_reference(arg()),
+		("NonNull", "as_mut") if array(b, pointee()) => to_reference(b, arg()),
 		// The same pointer, as another type of the same pointee.
 		("ptr", "cast_const" | "cast_mut")
 		| ("NonNull", "as_ptr" | "new_unchecked" | "cast_const" | "cast_mut")
@@ -568,8 +602,8 @@ pub fn call<'tcx>(
 				(Some(Pointee::Place), ty::Ref(_, _, ty::Mutability::Not)) => {
 					Expr::Object(vec![(crate::ts::Key::Name("v".into()), arg())])
 				}
-				// A reference to a `MaybeUninit` of bytes is the `Uint8Array`.
-				(Some(Pointee::Bytes), _) if !super::bytes_ref(from) => to_pointer(arg()),
+				// A reference to a `MaybeUninit` of an array is the JS array.
+				(Some(Pointee::Array), _) if super::array_ref(from).is_none() => to_pointer(b, arg()),
 				(Some(Pointee::Slice), _) => raw_of(ty, arg()),
 				_ => arg(),
 			}
@@ -578,7 +612,7 @@ pub fn call<'tcx>(
 		("ptr", "from_ref" | "from_mut") if kind(b, pointee()) == Some(Pointee::Slice) => raw_of(pointee(), arg()),
 		("ptr", "from_ref") => match kind(b, pointee()) {
 			Some(Pointee::Place) => Expr::Object(vec![(crate::ts::Key::Name("v".into()), arg())]),
-			Some(Pointee::Bytes) => to_pointer(arg()),
+			Some(Pointee::Array) => to_pointer(b, arg()),
 			_ => arg(),
 		},
 		("NonNull", "new") => {
@@ -588,7 +622,7 @@ pub fn call<'tcx>(
 				_ => p.clone(),
 			};
 			Expr::Cond(
-				Box::new(at.binary("===", Expr::Rt("NULL".into()))),
+				Box::new(at.binary("===", Expr::Rs("NULL".into()))),
 				Box::new(Expr::undefined()),
 				Box::new(p),
 			)
@@ -596,7 +630,7 @@ pub fn call<'tcx>(
 		("ptr", "as_ref" | "as_mut") if kind(b, pointee()) == Some(Pointee::Slice) => {
 			let p = b.spill(arg(), "pointer", out);
 			Expr::Cond(
-				Box::new(p.clone().member("ptr").binary("===", Expr::Rt("NULL".into()))),
+				Box::new(p.clone().member("ptr").binary("===", Expr::Rs("NULL".into()))),
 				Box::new(Expr::undefined()),
 				Box::new(deref(pointee(), p, name == "as_ref")),
 			)
@@ -607,47 +641,90 @@ pub fn call<'tcx>(
 			let shared = name == "as_ref" && kind(b, pointee()) == Some(super::pointer::Pointee::Place);
 			let (some, none) = match shared {
 				true => (p.clone().member("v"), b.t.none(pointee())),
-				false if bytes(b, pointee()) => (to_reference(p.clone()), Expr::undefined()),
+				false if array(b, pointee()) => (to_reference(b, p.clone()), Expr::undefined()),
 				false => (p.clone(), Expr::undefined()),
 			};
 			Expr::Cond(
-				Box::new(p.binary("===", Expr::Rt("NULL".into()))),
+				Box::new(p.binary("===", Expr::Rs("NULL".into()))),
 				Box::new(none),
 				Box::new(some),
 			)
 		}
 		("NonNull", "as_ref") | ("MaybeUninit", "assume_init_ref") => match kind(b, pointee()) {
 			Some(Pointee::Place) if owner == "NonNull" => arg().member("v"),
-			Some(Pointee::Bytes) if owner == "NonNull" => to_reference(arg()),
+			Some(Pointee::Array) if owner == "NonNull" => to_reference(b, arg()),
 			_ => arg(),
 		},
-		// An `rt.Arc` is its allocation, which has one place of its value: the pointer to a
+		// An `rs.Arc` is its allocation, which has one place of its value: the pointer to a
 		// value JS copies and to `()`, whose pointer is an identity. Otherwise the value is
 		// where a reference to it points, a pointer to which is made as `ptr::from_ref`
 		// makes one.
-		("Arc" | "Rc", "as_ptr") if pointee().is_trait() || super::dynamic::unsized_object(b.t.tcx, pointee()) => {
+		("Arc" | "Rc", "as_ptr" | "into_raw" | "from_raw" | "increment_strong_count" | "decrement_strong_count")
+			if pointee().is_trait() || super::dynamic::unsized_object(b.t.tcx, pointee()) =>
+		{
 			b.err(span, format!("a raw pointer to the `{}` an `Arc` holds", pointee()))
 		}
-		("Arc" | "Rc", "as_ptr") => {
-			let arc = arg();
+		("Arc" | "Rc", "as_ptr") if matches!(kind(b, pointee()), Some(Pointee::Slice | Pointee::Array)) => {
+			let value = arg().member("value");
 			match kind(b, pointee()) {
-				Some(Pointee::Slice) => raw_of(pointee(), arc.member("value")),
-				Some(Pointee::Place) => Expr::rt("arcPlace", vec![arc]),
-				Some(Pointee::Bytes) => to_pointer(arc.member("value")),
-				_ => arc.member("value"),
+				Some(Pointee::Slice) => raw_of(pointee(), value),
+				_ => to_pointer(b, value),
+			}
+		}
+		// A raw pointer `from_raw` takes back to its `Arc` is one JS keeps the identity of.
+		("Arc" | "Rc", "into_raw" | "from_raw" | "increment_strong_count" | "decrement_strong_count")
+			if matches!(kind(b, pointee()), Some(Pointee::Slice | Pointee::Array)) =>
+		{
+			b.err(
+				span,
+				format!(
+					"an `{owner}`'s raw pointer to `{}`, which JS makes anew each time",
+					pointee()
+				),
+			)
+		}
+		// The pointer, which `from_raw` and the counts take back to the `Arc` it is of. One
+		// to an object finds it by that object, which each copy of its type then needs of
+		// its own, as a comparison of pointers to it does.
+		("Arc" | "Rc", "as_ptr" | "into_raw") => {
+			let arc = b.spill(arg(), "arc", out);
+			let p = match kind(b, pointee()) {
+				Some(Pointee::Place) => Expr::rs("arcPlace", vec![arc.clone()]),
+				_ => {
+					b.t.compare(pointee());
+					arc.clone().member("value")
+				}
+			};
+			Expr::rs("arcRaw", vec![arc, p, Expr::Str(owner.into())])
+		}
+		("Arc" | "Rc", "from_raw") => Expr::rs("arcFromRaw", vec![arg(), Expr::Str(owner.into())]),
+		("Arc" | "Rc", "increment_strong_count") => {
+			let arc = Expr::rs("arcFromRaw", vec![arg(), Expr::Str(owner.into())]);
+			out.push(StmtKind::Expr(Expr::rs("arcClone", vec![arc])).at(None));
+			Expr::undefined()
+		}
+		// The `Arc` `from_raw` takes back, dropped.
+		("Arc" | "Rc", "decrement_strong_count") => {
+			let tcx = b.t.tcx;
+			let imp = tcx.inherent_impl_of_assoc(call.def_id).expect("an inherent function");
+			let ty = tcx.type_of(imp).instantiate(tcx, gargs).skip_norm_wip();
+			let arc = Expr::rs("arcFromRaw", vec![arg(), Expr::Str(owner.into())]);
+			match b.t.drop_value(arc.clone(), ty, span) {
+				Some(dropped) => dropped,
+				None => Expr::rs("arcDrop", vec![arc]),
 			}
 		}
 		// A pointer to what a box held, which no box holds any longer.
 		("Box", "into_raw" | "leak") => match kind(b, pointee()) {
 			Some(Pointee::Slice) if name == "into_raw" => raw_of(pointee(), arg()),
 			Some(Pointee::Place) => Expr::Object(vec![(crate::ts::Key::Name("v".into()), arg())]),
-			Some(Pointee::Bytes) if name == "into_raw" => to_pointer(arg()),
+			Some(Pointee::Array) if name == "into_raw" => to_pointer(b, arg()),
 			_ => arg(),
 		},
 		("Box", "from_raw") => match kind(b, pointee()) {
 			Some(Pointee::Slice) => deref(pointee(), arg(), false),
 			Some(Pointee::Place) => arg().member("v"),
-			Some(Pointee::Bytes) => to_reference(arg()),
+			Some(Pointee::Array) => to_reference(b, arg()),
 			_ => arg(),
 		},
 		("ptr", "read" | "read_unaligned" | "read_volatile") => {
@@ -717,18 +794,18 @@ pub fn call<'tcx>(
 				_ => same.not(),
 			}
 		}
-		("MaybeUninit", "uninit") => b.t.uninit(pointee(), span),
+		("MaybeUninit", "uninit") => b.t.uninit(Ty::new_maybe_uninit(b.t.tcx, pointee()), span),
 		// A shared reference to a value JS copies is the value, which no write changes.
 		("MaybeUninit", "as_ptr") if kind(b, pointee()) == Some(Pointee::Place) => {
 			Expr::Object(vec![(crate::ts::Key::Name("v".into()), arg())])
 		}
-		("MaybeUninit", "as_ptr" | "as_mut_ptr") if bytes(b, pointee()) => to_pointer(arg()),
+		("MaybeUninit", "as_ptr" | "as_mut_ptr") if array(b, pointee()) => to_pointer(b, arg()),
 		("MaybeUninit", "as_ptr" | "as_mut_ptr") => arg(),
 		("MaybeUninit", "write") => {
 			let p = b.spill(arg(), "uninit", out);
 			let value = arg();
-			let write = match bytes(b, pointee()) {
-				true => Expr::rt("ptrWrite", vec![p.clone(), value]),
+			let write = match array(b, pointee()) {
+				true => Expr::rs("ptrWrite", vec![p.clone(), value]),
 				false => write(b, p.clone(), value, pointee(), span),
 			};
 			out.push(StmtKind::Expr(write).at(None));
@@ -753,25 +830,25 @@ pub fn call<'tcx>(
 			};
 			b.t.snapshot(value, pointee(), span)
 		}
-		// An `rt.Cell`, a `Cell`'s too, which is the place a pointer to a value JS copies is,
+		// An `rs.Cell`, a `Cell`'s too, which is the place a pointer to a value JS copies is,
 		// and holds the object a pointer to any other is.
-		("UnsafeCell", "new") => Expr::New(Box::new(Expr::Rt("Cell".into())), vec![arg()]),
+		("UnsafeCell", "new") => Expr::New(Box::new(Expr::Rs("Cell".into())), vec![arg()]),
 		("UnsafeCell", "get") | ("Cell", "as_ptr") if kind(b, pointee()) == Some(Pointee::Place) => arg(),
-		("UnsafeCell", "get") | ("Cell", "as_ptr") if bytes(b, pointee()) => to_pointer(arg().member("v")),
+		("UnsafeCell", "get") | ("Cell", "as_ptr") if array(b, pointee()) => to_pointer(b, arg().member("v")),
 		("UnsafeCell" | "Cell", "get_mut") if b.t.needs_place(pointee()) => arg(),
 		("UnsafeCell", "get" | "get_mut" | "into_inner") | ("Cell", "as_ptr" | "get_mut") => arg().member("v"),
-		// Pointers into an array: `rt.AtIndex`es, which a `Vec`'s and a slice's give.
+		// Pointers into an array: `rs.AtIndex`es, which a `Vec`'s and a slice's give.
 		("slice" | "Vec", "as_ptr" | "as_mut_ptr") => {
 			let elem = targ(gargs, 0);
 			let s = arg();
 			if let Some(why) = unmodeled(b, elem, "a pointer into") {
 				return Ok(Some(b.err(span, why)));
 			}
-			let byte = matches!(elem.kind(), ty::Uint(ty::UintTy::U8));
-			match (owner, byte) {
-				("slice", true) => Expr::rt("byteSliceAsPtr", vec![s]),
-				("Vec", true) => Expr::rt("byteVecAsPtr", vec![s]),
-				_ => Expr::rt("sliceAsPtr", vec![s]),
+			match (owner, super::byte(elem)) {
+				("slice", true) => Expr::rs("byteSliceAsPtr", vec![s]),
+				("Vec", true) => Expr::rs("byteVecAsPtr", vec![s]),
+				("slice", false) => Expr::rs("sliceAsPtr", vec![s]),
+				_ => Expr::rs("arrayAsPtr", vec![s.member("items")]),
 			}
 		}
 		("ptr" | "NonNull", "add" | "sub" | "offset" | "wrapping_add" | "wrapping_sub" | "wrapping_offset") => {
@@ -789,13 +866,13 @@ pub fn call<'tcx>(
 				};
 				match name.starts_with("wrapping") {
 					true => match super::iter::layout(b, pointee(), span) {
-						Ok((size, align)) => Expr::rt(
+						Ok((size, align)) => Expr::rs(
 							"ptrWrappingAdd",
 							vec![p, n, Expr::lit(size.to_string()), Expr::lit(align.to_string())],
 						),
 						Err(e) => e,
 					},
-					false => Expr::rt("ptrAdd", vec![p, n]),
+					false => Expr::rs("ptrAdd", vec![p, n]),
 				}
 			}
 		}
@@ -808,7 +885,7 @@ pub fn call<'tcx>(
 					format!("`offset_from` of pointers to `{}`, which has no bytes", pointee()),
 				),
 				Some(why) => b.err(span, why),
-				None => Expr::rt("ptrOffsetFrom", vec![p, origin]),
+				None => Expr::rs("ptrOffsetFrom", vec![p, origin]),
 			}
 		}
 		(
@@ -834,7 +911,7 @@ pub fn call<'tcx>(
 			} else {
 				let mut args = vec![src, dst, n];
 				args.extend(b.t.snapshot_fn(pointee(), span));
-				Expr::rt("ptrCopy", args)
+				Expr::rs("ptrCopy", args)
 			}
 		}
 		("raw", "from_raw_parts" | "from_raw_parts_mut")
@@ -851,18 +928,95 @@ pub fn call<'tcx>(
 				Some(why) => return Ok(Some(b.err(span, why))),
 				// A raw pointer to a slice is where it starts and how long it is, which
 				// nothing checks until a read through it.
-				None if owner != "raw" => Expr::New(Box::new(Expr::Rt("RawSlice".into())), vec![p, len]),
-				None if matches!(pointee().kind(), ty::Uint(ty::UintTy::U8)) => {
+				None if owner != "raw" => Expr::New(Box::new(Expr::Rs("RawSlice".into())), vec![p, len]),
+				None if super::byte(pointee()) => {
 					let shared = name == "from_raw_parts";
-					Expr::rt("ptrByteSlice", vec![p, len, Expr::lit(shared.to_string())])
+					Expr::rs("ptrByteSlice", vec![p, len, Expr::lit(shared.to_string())])
 				}
-				None => Expr::rt("ptrSlice", vec![p, len]),
+				None => Expr::rs("ptrSlice", vec![p, len]),
 			}
 		}
 		("mem", "forget") => Expr::undefined(),
 		_ => return Err(args.collect()),
 	};
 	Ok(Some(e))
+}
+
+/// Why a pointer to `ty` can't be erased to a `*const ()`, an identity that compares as
+/// itself, if it can't: one JS reaches through a slice's places, or a view of bytes, is a
+/// new one each borrow, and one to a value of no fixed size loses its size. Of a place,
+/// only an `Arc`'s is the value's one, which `rs.arcErase` checks where the body doesn't
+/// show it.
+pub fn unerasable<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<String> {
+	if b.t.polymorphic() && ty.has_param() {
+		return None;
+	}
+	let erase = format!("a pointer to `{ty}` cast to one to `()`");
+	if !ty.is_sized(b.t.tcx, b.t.typing_env_pub()) {
+		return Some(format!("{erase}, which loses its size"));
+	}
+	if b.t.zero_sized(ty) {
+		return Some(format!("{erase}, which has no bytes and so no address of its own"));
+	}
+	let what = match b.t.pointee(ty) {
+		_ if b.t.erased(ty) != ty => return Some(format!("{erase}, which JS keeps as what it holds")),
+		Pointee::Object => {
+			return shares_start(b, ty).map(|part| {
+				format!(
+					"{erase}, whose address its `{part}` at its start shares, which JS keeps as an object of its own"
+				)
+			});
+		}
+		Pointee::Place => return None,
+		Pointee::Slice => "a place",
+		Pointee::Array => "a view",
+	};
+	Some(format!("{erase}, whose JS value is {what} of its own each borrow"))
+}
+
+/// Why a borrow's pointer to `ty`, which JS copies, can't be erased to a `*const ()`.
+pub fn erased_place(ty: Ty<'_>) -> String {
+	format!("a pointer to `{ty}` cast to one to `()`, whose JS value is a place of its own each borrow")
+}
+
+/// A part `ty` holds by value at its start, at any depth, which a pointer to is an object
+/// of its own, or another type JS keeps as what it holds: at `ty`'s address in Rust, but
+/// another identity in JS. Any field of an enum's or a union's may be at the start.
+fn shares_start<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	let (tcx, env) = (b.t.tcx, b.t.typing_env_pub());
+	let normalize = |t: Ty<'tcx>| {
+		tcx.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(t))
+			.unwrap_or(t)
+	};
+	let at_start = |i: usize| {
+		tcx.layout_of(env.as_query_input(ty))
+			.is_ok_and(|l| l.fields.offset(i) == rustc_abi::Size::ZERO)
+	};
+	let parts: Vec<Ty<'tcx>> = match *ty.kind() {
+		ty::Array(elem, _) | ty::Pat(elem, _) => vec![elem],
+		ty::Tuple(tys) => (tys.iter().enumerate())
+			.filter(|&(i, _)| at_start(i))
+			.map(|(_, t)| t)
+			.collect(),
+		ty::Adt(adt, args) if adt.is_struct() => (adt.non_enum_variant().fields.iter().enumerate())
+			.filter(|&(i, _)| at_start(i))
+			.map(|(_, f)| normalize(f.ty(tcx, args).skip_norm_wip()))
+			.collect(),
+		ty::Adt(adt, args) => adt
+			.all_fields()
+			.map(|f| normalize(f.ty(tcx, args).skip_norm_wip()))
+			.collect(),
+		_ => Vec::new(),
+	};
+	parts
+		.into_iter()
+		.filter(|&part| !b.t.zero_sized(part))
+		.find_map(
+			|part| match b.t.erased(part) != part || b.t.pointee(part) == Pointee::Object {
+				true => Some(part),
+				false => shares_start(b, part),
+			},
+		)
 }
 
 /// Why pointers to `ty` can't point into an array, if they can't: an element JS keeps as
@@ -874,19 +1028,43 @@ fn unmodeled<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, what: &str) -> Option<S
 	}
 	match b.t.pointee(ty) {
 		Pointee::Place => None,
-		Pointee::Object | Pointee::Bytes | Pointee::Slice => Some(format!(
+		Pointee::Object | Pointee::Array | Pointee::Slice => Some(format!(
 			"{what} `{ty}`, which JS keeps as an object that knows no array it is in"
 		)),
 	}
 }
 
 /// The pointer `p` to `from`, as one to `to`: the same pointer, as one to what a
-/// `MaybeUninit` holds or the other way, or the pointer to the first element of the array
-/// or slice it points at.
+/// `MaybeUninit` holds or the other way, erased to or back from a `*const ()`, or the
+/// pointer to the first element of the array or slice it points at.
 pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
 	let (inner, into) = (b.t.uninit_inner(from), b.t.uninit_inner(to));
-	if inner == into {
+	// Bytes are bytes, initialized or not, so a slice of either is the same `rs.ByteSlice`.
+	let byte_slice = |t: Ty<'tcx>| matches!(t.kind(), ty::Slice(e) if super::byte(*e));
+	if inner == into || byte_slice(inner) && byte_slice(into) {
 		return p;
+	}
+	// The type a pointer to it remembers, which a cast back must name, or fails at run time,
+	// and where a dangling one is.
+	let (tcx, env) = (b.t.tcx, b.t.typing_env_pub());
+	let key = |t: Ty<'tcx>| Expr::Str(tcx.erase_and_anonymize_regions(t).to_string());
+	let align = |t: Ty<'tcx>| {
+		let align = tcx.layout_of(env.as_query_input(t)).map_or(1, |l| l.align.abi.bytes());
+		Expr::lit(align.to_string())
+	};
+	if b.t.identity_pointee(into) {
+		if let Some(why) = unerasable(b, inner) {
+			return b.err(span, why);
+		}
+		let erase = match b.t.pointee(inner) {
+			Pointee::Place => "arcErase",
+			_ => "ptrErase",
+		};
+		return Expr::rs(erase, vec![p, key(inner), align(inner)]);
+	}
+	if b.t.identity_pointee(inner) {
+		let restored = Expr::rs("ptrUnerase", vec![p, key(into), align(into)]);
+		return Expr::As(Box::new(restored), b.t.pointer_ty(into, span));
 	}
 	let elem = match inner.kind() {
 		ty::Array(elem, _) | ty::Slice(elem) if b.t.uninit_inner(*elem) == into => Some(*elem),
@@ -902,11 +1080,10 @@ pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, from: Ty<'tcx>, to: Ty<'t
 		return b.err(span, why);
 	}
 	// A pointer to a slice holds the pointer to its first element, and one to an array is
-	// the array, or the `rt.ByteSlice` of its bytes.
+	// the slice of its elements.
 	match b.t.pointee(inner) {
 		Pointee::Slice => p.member("ptr"),
-		Pointee::Bytes => Expr::rt("byteSliceAsPtr", vec![p]),
-		_ => Expr::rt("sliceAsPtr", vec![p]),
+		_ => b.t.array_rs(inner, "AsPtr").call(vec![p]),
 	}
 }
 
@@ -930,7 +1107,10 @@ fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span) -> 
 	let value = match b.t.pointee(ty) {
 		Pointee::Place => p.member("v"),
 		Pointee::Object => p,
-		Pointee::Bytes => return Expr::rt("byteSliceToArray", vec![p]),
+		Pointee::Array => {
+			let ty = b.t.uninit_inner(ty);
+			return b.t.array_copy(p, ty, span);
+		}
 		Pointee::Slice => return b.err(span, format!("a read of `{ty}`, which has no size")),
 	};
 	b.t.snapshot(value, ty, span)
@@ -943,26 +1123,37 @@ fn write<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, value: Expr, ty: Ty<'tcx>, s
 	}
 	match b.t.pointee(ty) {
 		Pointee::Place => p.member("v").assign(value),
-		Pointee::Object => Expr::rt("ptrWrite", vec![p, value]),
-		Pointee::Bytes => Expr::rt("byteSliceSet", vec![p, value]),
+		Pointee::Object => Expr::rs("ptrWrite", vec![p, value]),
+		Pointee::Array => b.t.array_rs(ty, "Set").call(vec![p, value]),
 		Pointee::Slice => b.err(span, format!("a write of `{ty}`, which has no size")),
 	}
 }
 
-/// Whether `ty` is `[u8]`, whose slices are `rt.ByteSlice`s.
+/// Whether `ty` is `[u8]`, one of `MaybeUninit<u8>`, or an `UninitSlice`, whose slices are
+/// `rs.ByteSlice`s.
 pub fn slice_of_bytes(ty: Ty<'_>) -> bool {
-	matches!(ty.kind(), ty::Slice(elem) if matches!(elem.kind(), ty::Uint(ty::UintTy::U8)))
+	match ty.kind() {
+		ty::Slice(elem) => super::byte(*elem),
+		// The context every lowering runs in, as for [`super::byte`].
+		ty::Adt(adt, _) => ty::tls::with(|tcx| super::stock::is_uninit_slice(tcx, adt.did())),
+		_ => false,
+	}
 }
 
 /// Whether pointers `x` and `y` to `ty` point at the same place: the same object or
 /// bytes, or null both.
 pub fn compare<'tcx>(b: &mut Body<'_, '_, 'tcx>, x: Expr, y: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
-	let null = |e: &Expr| matches!(e, Expr::Rt(n) if n == "NULL");
+	let null = |e: &Expr| matches!(e, Expr::Rs(n) if n == "NULL");
 	match b.t.incomparable(ty) {
 		Some(why) if !null(&x) && !null(&y) => b.err(span, why),
-		_ if b.t.pointee(ty) == Pointee::Bytes && !null(&x) && !null(&y) => Expr::rt("byteSliceSame", vec![x, y]),
+		_ if !null(&x)
+			&& !null(&y)
+			&& let Some(same) = b.t.same_fn(ty) =>
+		{
+			same.call(vec![x, y])
+		}
 		// Each is a view of the struct it was made from.
-		_ if !ty.is_trait() && super::dynamic::unsized_object(b.t.tcx, ty) => Expr::rt("tailSame", vec![x, y]),
+		_ if !ty.is_trait() && super::dynamic::unsized_object(b.t.tcx, ty) => Expr::rs("tailSame", vec![x, y]),
 		_ => x.binary("===", y),
 	}
 }

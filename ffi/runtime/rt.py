@@ -29,19 +29,20 @@ class _Future(_n.Future):
 
 class _Wakeup:
 	"""One event loop's wakes: Rust queues a token and writes a byte to a socket the loop
-	reads, from any thread and without the GIL, and the loop resumes what each names."""
+	reads, from any thread and without the GIL, and the loop resumes what each names. A wake
+	during a call on the loop's own thread writes nothing: `_resume` dispatches it."""
 
 	__slots__ = ("queue", "parked", "wakers", "pump", "__weakref__")
 
 	def __init__(self, loop):
-		self.queue = _n.Queue()
+		self.queue = _n.Queue(loop)
 		# The future each parked poll waits on, and each `Waker`'s callback, by token.
 		self.parked = {}
 		self.wakers = {}
 		self.pump = None
 		fd = self.queue.fileno()
 		try:
-			loop.add_reader(fd, self.dispatch)
+			loop.add_reader(fd, self.dispatch, True)
 		except NotImplementedError:
 			# A proactor loop, Windows' default, reads only through its own calls.
 			sock = _socket.fromfd(fd, _socket.AF_INET if _sys.platform == "win32" else _socket.AF_UNIX, _socket.SOCK_STREAM)
@@ -52,11 +53,11 @@ class _Wakeup:
 		with sock:
 			while True:
 				await loop.sock_recv(sock, 64)
-				self.dispatch()
+				self.dispatch(True)
 
-	def dispatch(self):
+	def dispatch(self, read):
 		loop = None
-		for token in self.queue.take():
+		for token in self.queue.take(read):
 			if token < 0:
 				self.wakers.pop(-token, None)
 				continue
@@ -71,6 +72,18 @@ class _Wakeup:
 
 
 _wakeups = _weakref.WeakKeyDictionary()
+
+
+def _resume():
+	"""Called once a call on the running loop's thread returns having woken some of its
+	futures or wakers: schedule their dispatch as the loop's next callback, never inside
+	the call, and return the queue it takes from."""
+	loop = _get_running_loop()
+	w = _wakeups.get(loop)
+	if w is None:
+		return None
+	loop.call_soon(w.dispatch, False)
+	return w.queue
 
 
 def _wakeup(loop):

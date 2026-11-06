@@ -2,16 +2,16 @@
 // `key::Nibble`, a byte that compares, hashes, and orders by its low four bits, which the
 // `===` of its number would not.
 
-import * as rt from "../rt.ts";
+import * as rs from "../rs.ts";
 
-export type Nibble = rt.u8;
+export type Nibble = rs.u8;
 
-function make(byte: rt.u8): Nibble {
+function make(byte: rs.u8): Nibble {
 	return byte;
 }
 export { make as new };
 
-export function get(self: Nibble): rt.u8 {
+export function get(self: Nibble): rs.u8 {
 	return self;
 }
 
@@ -19,15 +19,15 @@ export function eq$cmp_PartialEq(self: Nibble, other: Nibble): boolean {
 	return (self & 0xf) === (other & 0xf);
 }
 
-export function hash$Hash(self: Nibble, state: rt.Hasher): undefined {
-	rt.hash8(self & 0xf, state);
+export function hash$Hash(self: Nibble, state: rs.Hasher): undefined {
+	rs.hash8(self & 0xf, state);
 	return undefined;
 }
 
-export function partialCmp$cmp_PartialOrd(self: Nibble, other: Nibble): rt.Ordering {
+export function partialCmp$cmp_PartialOrd(self: Nibble, other: Nibble): rs.Ordering {
 	return cmp$cmp_Ord(self, other);
 }
 
-export function cmp$cmp_Ord(self: Nibble, other: Nibble): rt.Ordering {
-	return rt.cmp(self & 0xf, other & 0xf);
+export function cmp$cmp_Ord(self: Nibble, other: Nibble): rs.Ordering {
+	return rs.cmp(self & 0xf, other & 0xf);
 }

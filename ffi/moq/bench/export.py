@@ -52,6 +52,15 @@ def round(loop):
 			closed += 1
 	call = per_frame(start)
 
+	# A u64 getter, timed as bench/ffi/README.md timed BoltFFI's `group.sequence()`: a bound
+	# method called in a loop. BoltFFI holds the GIL through the call, where the export
+	# releases it so Rust may call Python back from another thread, at about 40 ns a call.
+	sequence = track.append_group().demand().sequence
+	start = time.perf_counter_ns()
+	for _ in range(GROUPS * FRAMES):
+		sequence()
+	getter = per_frame(start)
+
 	# A record returned: the track's info, its fields made as Python objects.
 	start = time.perf_counter_ns()
 	for _ in range(GROUPS * FRAMES):
@@ -93,6 +102,15 @@ def round(loop):
 
 	wake = loop.run_until_complete(woken())
 
+	# A handle call inside the loop the woken reads ran on, once nothing waits on it.
+	async def looped():
+		start = time.perf_counter_ns()
+		for _ in range(GROUPS * FRAMES):
+			track.is_closed()
+		return per_frame(start)
+
+	in_loop = loop.run_until_complete(looped())
+
 	# Payload reads: the last frame's 100 bytes, lent without a copy, then released.
 	start = time.perf_counter_ns()
 	for _ in range(GROUPS * FRAMES):
@@ -103,7 +121,7 @@ def round(loop):
 	bang = "!" if closed != 0 else ""
 	return (
 		f"export (Python): {stamped:.0f} ns per stamped 100 B frame, {reused:.0f} reusing the timestamp, "
-		f"{call:.1f} ns per handle call, {info:.0f} ns per record return, {read:.0f} ns per frame written and read, "
+		f"{call:.1f} ns per handle call ({in_loop:.1f} in a loop), {getter:.1f} ns per u64 getter, {info:.0f} ns per record return, {read:.0f} ns per frame written and read, "
 		f"{wake:.0f} ns per frame written and read after a wake, {lent:.0f} ns per payload read{bang}"
 	)
 

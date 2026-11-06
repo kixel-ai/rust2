@@ -3,16 +3,18 @@
 //
 // usage: node differential.ts <fixture.wasm> <harness.ts> [cases]
 //
-// A harness, or a hand-written caller wrapping one, exports `run(input: rt.ByteSlice):
+// A harness, or a hand-written caller wrapping one, exports `run(input: rs.ByteSlice):
 // Vec<u8>`, what `inputs.ts` reads to pick its inputs, and may export `within(input,
 // native, translated)`, which accepts outputs that differ only where Rust leaves the
 // result to the platform, as libm's are. [cases] random inputs run, or that many per case
-// of a harness that names its cases.
+// of a harness that names its cases. One whose panic hooks write a note exports `note()`,
+// and its wasm build `note` and `note_len`, which the two compare after each case.
 // The wasm build exports `input`, `run`, and `output` around the crate's entry, which
 // `wasm.ts` calls. A panic traps natively and throws `Panic` in
 // TypeScript, and the two agree only if their messages do. An abort traps natively
 // without a panic message, as wasm32 has nowhere to print std's, and throws `Abort` in
-// TypeScript, so the two agree that it aborted but not on why.
+// TypeScript, so the two agree that it aborted but not on why. Either leaves the native
+// side a fresh instance, so the translation's hook is reset after one.
 
 import { readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -27,17 +29,17 @@ const count = Number(countArg ?? "20000");
 
 const harness = await import(pathToFileURL(harnessPath).href);
 // The translation's runtime, beside the harness, which makes the input its slice type.
-const rt = await import(pathToFileURL(join(dirname(harnessPath), "rt.ts")).href);
+const rs = await import(pathToFileURL(join(dirname(harnessPath), "rs.ts")).href);
 const wasm = new Wasm(await WebAssembly.compile(await readFile(wasmPath)));
 
 function translated(input: Uint8Array): Outcome {
 	try {
-		const out = harness.run(rt.byteSliceFrom(input));
+		const out = harness.run(rs.byteSliceFrom(input));
 		return out.data.slice(0, out.length);
 	} catch (err) {
-		if (err instanceof Error && err.name === "Abort") return "abort";
-		if (err instanceof Error && err.name === "Panic") return { panic: err.message };
-		throw err;
+		if (!(err instanceof Error) || (err.name !== "Abort" && err.name !== "Panic")) throw err;
+		rs.takeHook();
+		return err.name === "Abort" ? "abort" : { panic: err.message };
 	}
 }
 
@@ -61,9 +63,12 @@ let panics = 0;
 let aborts = 0;
 for (const input of cases) {
 	const want = wasm.call(input);
+	const wantNote = wasm.note;
 	let got: Outcome;
+	let gotNote = "";
 	try {
 		got = translated(input);
+		gotNote = harness.note?.() ?? "";
 	} catch (err) {
 		console.error(`input ${show(input)}: the translation threw ${err}`);
 		failures++;
@@ -72,10 +77,11 @@ for (const input of cases) {
 	if (want === "abort") aborts++;
 	else if (!(want instanceof Uint8Array)) panics++;
 	const close = want instanceof Uint8Array && got instanceof Uint8Array && harness.within?.(input, want, got) === true;
-	if (show(want) !== show(got) && !close) {
+	if ((show(want) !== show(got) && !close) || wantNote !== gotNote) {
 		failures++;
 		if (failures <= 20) {
-			console.error(`input  ${show(input)}\nnative ${display(want)}\nts     ${display(got)}\n`);
+			const note = (note: string) => (note ? `\nnoted\n${note}` : "");
+			console.error(`input  ${show(input)}\nnative ${display(want)}${note(wantNote)}\nts     ${display(got)}${note(gotNote)}\n`);
 		}
 	}
 }

@@ -1,4 +1,4 @@
-//! Locals of byte slices held as their parts. A `&[u8]` is an `rt.ByteSlice`, so each
+//! Locals of byte slices held as their parts. A `&[u8]` is an `rs.ByteSlice`, so each
 //! split, and each tuple, `Option`, `Result`, or `ControlFlow` around one, makes objects
 //! V8 doesn't remove, as does a tuple or `Result` of numbers alone. A local built of them
 //! that nothing borrows or writes into, and that only splits, `ok_or`, `?`, aggregates,
@@ -246,7 +246,7 @@ impl<'tcx> crate::lower::Translator<'_, 'tcx> {
 	}
 
 	/// Which of `instance`'s parameters it takes as a byte slice's parts, its `data`,
-	/// `start`, and `length`, rather than an `rt.ByteSlice`: each `&[u8]` or `&[u8; N]` of a
+	/// `start`, and `length`, rather than an `rs.ByteSlice`: each `&[u8]` or `&[u8; N]` of a
 	/// function only translated code calls directly, that its body holds as its parts and
 	/// never makes the object of. One it would make takes the object its caller has, or
 	/// makes once. Empty if none.
@@ -576,8 +576,8 @@ impl<'tcx> Slotted<'tcx> {
 		};
 		Expr::Cond(
 			Box::new(failed),
-			Box::new(Expr::rt("Err", vec![Expr::As(Box::new(err), err_ty)])),
-			Box::new(Expr::rt("Ok", vec![ok])),
+			Box::new(Expr::rs("Err", vec![Expr::As(Box::new(err), err_ty)])),
+			Box::new(Expr::rs("Ok", vec![ok])),
 		)
 	}
 }
@@ -592,7 +592,7 @@ fn build_plain<'tcx>(
 	match shape {
 		Shape::Unit => Expr::undefined(),
 		Shape::Leaf(_) => parts[0].clone(),
-		Shape::Slice => Expr::New(Box::new(Expr::Rt("ByteSlice".into())), parts.to_vec()),
+		Shape::Slice => Expr::New(Box::new(Expr::Rs("ByteSlice".into())), parts.to_vec()),
 		Shape::Tuple(ty, fields) => {
 			let mut at = 0;
 			let mut items = Vec::with_capacity(fields.len());
@@ -627,7 +627,7 @@ fn tuple_items(value: &Expr, n: usize) -> Option<&[Expr]> {
 	}
 }
 
-/// Whether `ty` is a `&[u8]` or `&[u8; N]`, which is an `rt.ByteSlice`.
+/// Whether `ty` is a `&[u8]` or `&[u8; N]`, which is an `rs.ByteSlice`.
 fn slice_ref(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Ref(_, inner, rustc_ast::Mutability::Not)
 		if super::place::byte_slice(*inner) || crate::lower::byte_array(*inner))
@@ -769,12 +769,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}),
 			_ => false,
 		};
-		let bytes = || {
-			gargs
-				.types()
-				.next()
-				.is_some_and(|t| matches!(t.kind(), ty::Uint(ty::UintTy::U8)))
-		};
+		let bytes = || gargs.types().next().is_some_and(crate::lower::byte);
 		match (owner.as_str(), name.as_str()) {
 			("slice", "split_first") if bytes() => Some(Producer::SplitFirst),
 			("slice", "split_first_chunk") if bytes() => {
@@ -1604,7 +1599,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			// The parts of a slice bound whole are that slice.
 			Shape::Slice => match members(parts) {
 				Some(slice) => Expr::ident(slice),
-				None => Expr::New(Box::new(Expr::Rt("ByteSlice".into())), parts.to_vec()),
+				None => Expr::New(Box::new(Expr::Rs("ByteSlice".into())), parts.to_vec()),
 			},
 			Shape::Tuple(ty, fields) => {
 				let mut at = 0;
@@ -1748,11 +1743,15 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							true => parts.push(pure(mid.clone().binary("<=", n.clone()), ns)),
 							false => {
 								let loc = self.b.t.loc(span);
+								let mut panic = vec![Expr::Str("mid > len".into())];
+								// Where `split_at`'s caller is, in a program with a panic hook.
+								if self.b.t.hooked {
+									let at = self.b.std_site.as_ref().and_then(|(_, at)| at.clone());
+									panic.push(at.unwrap_or_else(Expr::undefined));
+								}
 								let check = StmtKind::If {
 									cond: mid.clone().binary(">", n.clone()),
-									then: vec![
-										StmtKind::Expr(Expr::rt("panic", vec![Expr::Str("mid > len".into())])).at(loc),
-									],
+									then: vec![StmtKind::Expr(Expr::rs("panic", panic)).at(loc)],
 									els: Vec::new(),
 								}
 								.at(None);
@@ -1818,7 +1817,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 								&& !p.effect
 								&& !p.copy
 								&& let Expr::Call(f, items) = &p.value
-								&& matches!(&**f, Expr::Rt(n) if n == "Err")
+								&& matches!(&**f, Expr::Rs(n) if n == "Err")
 								&& items.len() == 1 =>
 						{
 							let Expr::Call(_, mut items) = self.pending.remove(i).value else {
@@ -1827,7 +1826,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							items.pop().expect("checked above")
 						}
 						// Made in place: its error.
-						Expr::Call(f, mut items) if matches!(&*f, Expr::Rt(n) if n == "Err") && items.len() == 1 => {
+						Expr::Call(f, mut items) if matches!(&*f, Expr::Rs(n) if n == "Err") && items.len() == 1 => {
 							items.pop().expect("checked above")
 						}
 						value => {
@@ -2148,7 +2147,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				.map(|part| (part.clone(), self.steady_expr(part)))
 				.collect(),
 			Shape::Slice => {
-				let (slice, _) = self.steady_value(value, "slice", Type::Rt("ByteSlice", Vec::new()), out);
+				let (slice, _) = self.steady_value(value, "slice", Type::Rs("ByteSlice", Vec::new()), out);
 				["data", "start", "length"]
 					.into_iter()
 					.map(|key| (super::place::slice_member(slice.clone(), key), true))
@@ -2309,7 +2308,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// memory, as a cast, a comparison, or an object literal.
 	pub(super) fn steady_expr(&self, e: &Expr) -> bool {
 		match e {
-			Expr::Lit(_) | Expr::Str(_) | Expr::Rt(_) => true,
+			Expr::Lit(_) | Expr::Str(_) | Expr::Rs(_) => true,
 			Expr::Ident(name) => {
 				!self.pending.iter().any(|p| p.name == *name) && (self.steady.contains(name) || self.stable_name(e))
 			}
@@ -2325,7 +2324,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// in a variable named after `base` of type `ty` assigned it now.
 	fn steady_value(&mut self, value: Expr, base: &str, ty: Type, out: &mut Vec<Stmt>) -> (Expr, bool) {
 		let made =
-			matches!(&value, Expr::New(f, args) if matches!(&**f, Expr::Rt(n) if n == "ByteSlice") && args.len() == 3);
+			matches!(&value, Expr::New(f, args) if matches!(&**f, Expr::Rs(n) if n == "ByteSlice") && args.len() == 3);
 		if made || self.steady_expr(&value) {
 			return (value, true);
 		}

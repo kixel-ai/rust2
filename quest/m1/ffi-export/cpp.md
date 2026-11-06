@@ -10,8 +10,6 @@ Clang on Linux and Apple Clang on macOS.
 
 - Read the next nightly's run, and fix what it finds at the source, in the generator or the
   recipes, never by loosening flags.
-- The exporter runs on Windows, and `tests/api.cpp` and `moq/moq.cpp` compile with the
-  job's cl (19.51) at each standard the checks build, as Compiler Explorer's cl shows.
-  Nothing has linked or run there yet: cl's lookup of `link.exe` from Git Bash, where Git's
-  `/usr/bin/link` may shadow it; the native libraries rustc prints; the transcripts; and the
-  job's Python step, between the C++ checks and `just ffi moq-cpp`.
+- The C++ checks pass with the job's cl (19.51), linking and running from Git Bash. Nothing
+  after them has run on Windows yet: the Python's cases past its transcript, such as its
+  futures on the proactor loop, and `just ffi moq-cpp`'s export of moq, link, and session.

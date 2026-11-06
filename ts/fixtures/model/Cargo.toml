@@ -1,0 +1,25 @@
+[package]
+name = "model-fixture"
+description = "A harness over moq-net's model at the moq revision `just ts moq` translates"
+version = "0.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# Its own workspace and lockfile, so the moq checkout it builds stays out of the
+# rust2-ts package's inputs.
+[workspace]
+
+[lib]
+# The cdylib is the native side of the differential test, built for wasm32.
+crate-type = ["lib", "cdylib"]
+
+[dependencies]
+# The moq pin, which `just ts moq`, `just ts census`, and `just ffi` check out too; bumping it is
+# `cargo update -p moq-net` after this rev. Without `async`, the model builds without a runtime.
+moq-net = { git = "https://github.com/moq-dev/moq", rev = "ffcb7cd9748422daa30e935ec464108b5a8ebb71", default-features = false }
+
+# The ts workspace's differential profile, which the tests build the native side with.
+[profile.differential]
+inherits = "dev"
+opt-level = 1

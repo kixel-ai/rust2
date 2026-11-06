@@ -6,7 +6,7 @@
 import { strict as assert } from "node:assert";
 
 import { exactMulAdd, mulAddsWithin } from "../fixtures/lang/floats/fma.ts";
-import * as rt from "../runtime/rt.ts";
+import * as rs from "../runtime/rs.ts";
 
 function double(bits: bigint): number {
 	const view = new DataView(new ArrayBuffer(8));
@@ -59,7 +59,7 @@ for (let i = 0; i < 20000; i++) {
 	const c = i % 2 === 0 ? double(next()) : -(a * b);
 	const exact = exactMulAdd(a, b, c);
 	if (exact === undefined) continue;
-	assert.ok(Object.is(exact, rt.f64MulAdd(a, b, c)), `${a}, ${b}, ${c}`);
+	assert.ok(Object.is(exact, rs.f64MulAdd(a, b, c)), `${a}, ${b}, ${c}`);
 }
 
 // A product of half `c`'s last place that only its error moves off the tie, which wasm32's
