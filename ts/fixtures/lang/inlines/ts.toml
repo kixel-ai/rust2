@@ -1,0 +1,2 @@
+package = "lang-inlines-fixture"
+roots = ["harness::run", "harness::op"]

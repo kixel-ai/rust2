@@ -436,7 +436,7 @@ refused.
 
 Functions and members are camelCase. Functions are monomorphized: each instance is its
 own function, suffixed after a `$` by the items it is nested in below its module, its
-trait, then its type's type arguments and its own, as in `roundtripLite$lite_group_Group`,
+trait, then its type's type and const arguments and its own, as in `roundtripLite$lite_group_Group`,
 `Wrap.new$fmt_Pair`, `Pair.fmt$fmt_Debug`, `DecodeError.from$convert_From_coding_varint_BoundsExceeded`,
 and `through$u16s` for a `through` declared in `fn u16s`. Each type, trait, and closure
 in a suffix goes by its path: the crate's own by its module path, a dependency's by its
@@ -445,7 +445,9 @@ crate or a module its item repeats, as `Option`, `fmt_Display`, and `io_Error`. 
 goes by where it is defined, `hints_typed_closure1` for `hints::typed::{closure#1}`, with
 the type arguments of what it is in, and an impl by its trait and self type. A reference
 is `ref` or `mut`, a slice `slice`, and an array or tuple goes by its length, `array4` or
-`tuple2`, each before what it holds: `ref_slice_u8` for `&[u8]`, but a reference to a
+`tuple2`, each before what it holds, and a const argument by its value: `4`, `neg4`,
+`true`, and a `char` as itself if an ASCII letter or digit, else as `u` and its hex code
+point, `u1f600`. A suffix spells `&[u8]` as `ref_slice_u8`, but a reference to a
 generic type in its module after the type's arguments: `chunk$bytes_Buf_u8_mut` for `&mut
 Wrap<u8>`'s, apart from `Wrap<&mut u8>`'s `chunk$bytes_Buf_mut_u8`. The suffix depends on
 the instance alone, and is there even when no other instance is, so reaching one renames
@@ -454,8 +456,11 @@ in a function has its module suffixed alike, `copy.Pair$run`, and an async block
 by where its function holds it, `blocksFuture$closure1`. An instance of a generic std
 function is suffixed instead by a hash of its text, with what it calls by name, as
 `map$1cf8u0y`: instances that print the same are one function, whichever of them
-translation reaches. Types are translated once, generically, so a function of a generic
-type is one instance's, declaring the instance it takes as `self`:
+translation reaches. Types are translated once, generically over their type parameters
+but not their const ones, which type nothing in TS: arrayvec's `ArrayString<4>` and
+`ArrayString<16>` are one `ArrayString`, and each instance's functions read its own
+`CAP`. So a function of a generic type is one instance's, declaring the instance it
+takes as `self`:
 `fmt$fmt_Debug_fmt_Pair(self: Wrap<Pair.Pair>, f: rs.Formatter)`. A reference or pointer
 in a generic type to what only an instance decides the form of, such as `*mut T` or
 `&'a mut T`, is an `rs.Ptr<T>`: the object, an `rs.Place<T>`, or an `rs.ByteSlice`,
