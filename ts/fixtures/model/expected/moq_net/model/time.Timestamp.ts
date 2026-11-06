@@ -198,20 +198,16 @@ export function fmt$fmt_Debug(self: Timestamp, f: rs.Formatter): rs.Result<undef
 	if (!rs.u128IsMultipleOf(nanos, 1000000000)) {
 		if (!rs.u128IsMultipleOf(nanos, 1000000)) {
 			if (!rs.u128IsMultipleOf(nanos, 1000)) {
-				const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.u128Display(nanos, f)];
-				return rs.fmtWriteFmt(f, [args8[0], "ns"]);
+				return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.u128Display(nanos, f), "ns"]);
 			}
 			const part3 = rs.u128Div(nanos, 1000);
-			const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u128Display(part3, f)];
-			return rs.fmtWriteFmt(f, [args6[0], "µs"]);
+			return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.u128Display(part3, f), "µs"]);
 		}
 		const part2 = rs.u128Div(nanos, 1000000);
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u128Display(part2, f)];
-		return rs.fmtWriteFmt(f, [args4[0], "ms"]);
+		return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.u128Display(part2, f), "ms"]);
 	}
 	const part = rs.u128Div(nanos, 1000000000);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u128Display(part, f)];
-	return rs.fmtWriteFmt(f, [args2[0], "s"]);
+	return rs.fmtWriteFmt(f, [(f: rs.Formatter) => rs.u128Display(part, f), "s"]);
 }
 
 export function partialCmp$cmp_PartialOrd(self: Timestamp, other: Timestamp): rs.Ordering | undefined {

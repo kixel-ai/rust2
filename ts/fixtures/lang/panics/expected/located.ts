@@ -72,8 +72,7 @@ export function generic$u8(t: rs.u8): rs.Location {
 /** Each location's `Display`, a line each. */
 export function lines(out: rs.ByteVec, at: rs.Slice<rs.Location>): void {
 	for (const _5 of rs.sliceItems(at)) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtLocationDisplay(_5, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], "\n"])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtLocationDisplay(_5, f), "\n"])));
 	}
 }
 
@@ -130,8 +129,8 @@ export function called(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const wide: string = "é😀　";
 		const _105: rs.Location = here({ file: "fixtures/lang/panics/src/located.rs", line: 188, col: 49 });
 		const _107: rs.Location = { file: "fixtures/lang/panics/src/located.rs", line: 188, col: 57 };
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, wide), (f: rs.Formatter) => rs.fmtLocationDisplay(_105, f), (f: rs.Formatter) => rs.fmtLocationDisplay(_107, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], args2[1], args2[0], args2[2]])));
+		const args3 = [(f: rs.Formatter) => rs.fmtPad(f, wide), (f: rs.Formatter) => rs.fmtLocationDisplay(_105, f), (f: rs.Formatter) => rs.fmtLocationDisplay(_107, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args3[0], args3[1], args3[0], args3[2]])));
 	}
 }
 
@@ -148,12 +147,12 @@ export function read(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _18: string = a.file;
 		const _20: rs.u32 = a.line;
 		const _22: rs.u32 = a.col;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _18), (f: rs.Formatter) => rs.u32Display(_20, f), (f: rs.Formatter) => rs.u32Display(_22, f)];
-		const written = rs.fmtWriteString(s, [args2[0], "|", args2[1], "|", args2[2], "|"]);
+		const args8 = [(f: rs.Formatter) => rs.fmtPad(f, _18), (f: rs.Formatter) => rs.u32Display(_20, f), (f: rs.Formatter) => rs.u32Display(_22, f)];
+		const written = rs.fmtWriteString(s, [args8[0], "|", args8[1], "|", args8[2], "|"]);
 		s = written.s;
 		rs.resultUnwrap(written.result, rs.fmtErrorDebug);
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtLocationDisplay(a, f), (f: rs.Formatter) => rs.fmtLocationDebug(a, f), (f: rs.Formatter) => rs.fmtLocationDebug(b, f)];
-		const written2 = rs.fmtWriteString(s, [rs.fmtSpec({ align: ">", width: 60 }, args4[0]), "|", args4[1], "|", rs.fmtSpec({ alternate: true }, args4[2]), "|", rs.fmtSpec({ debugHex: "x" }, args4[2])]);
+		const args9 = [(f: rs.Formatter) => rs.fmtLocationDisplay(a, f), (f: rs.Formatter) => rs.fmtLocationDebug(a, f), (f: rs.Formatter) => rs.fmtLocationDebug(b, f)];
+		const written2 = rs.fmtWriteString(s, [rs.fmtSpec({ align: ">", width: 60 }, args9[0]), "|", args9[1], "|", rs.fmtSpec({ alternate: true }, args9[2]), "|", rs.fmtSpec({ debugHex: "x" }, args9[2])]);
 		s = written2.s;
 		rs.resultUnwrap(written2.result, rs.fmtErrorDebug);
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(s));
@@ -190,8 +189,8 @@ export function read(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		});
 		const held: Held$read.Held = { at: a, maybe: _117 };
 		const _127: rs.u8 = Held$read.eq$read_cmp_PartialEq(held, held) ? 1 : 0;
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => Held$read.fmt$read_fmt_Debug(held, f), (f: rs.Formatter) => rs.u8Display(_127, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], "|", args6[1]])));
+		const args7 = [(f: rs.Formatter) => Held$read.fmt$read_fmt_Debug(held, f), (f: rs.Formatter) => rs.u8Display(_127, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args7[0], "|", args7[1]])));
 	}
 }
 
@@ -218,8 +217,7 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 
 export function check$panicked(ok: boolean, caller: rs.Location): void {
 	if (!ok) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtLocationDisplay(caller, f)];
-		rs.panicFmt(["failed at ", args2[0]]);
+		rs.panicFmt(["failed at ", (f: rs.Formatter) => rs.fmtLocationDisplay(caller, f)]);
 	}
 }
 

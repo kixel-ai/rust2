@@ -2,20 +2,17 @@
 
 ## Goal
 
-[rust2-ts](/ts/README.md) translates `&[T]`, `&mut [T]`, and `Box<[T]>` of values other
-than bytes as `rs.Slice`, its array, start, and length, as `rs.ByteSlice` is for bytes.
-What remains:
+[rust2-ts](/ts/README.md) translates slices and references to arrays as `rs.Slice` and
+`rs.ByteSlice`, their array, start, and length. What remains:
 
-- A `&[T; N]` and `&mut [T; N]` of other values is an `rs.Slice` too, as `&[u8; N]` is an
-  `rs.ByteSlice`, so the run `first_chunk_mut`, `split_first_chunk_mut`, an array subslice
-  pattern, and `array::from_mut` lend is where the slice holds it, rather than the
-  runtime's `arrayView` `Proxy`.
-- Pointers to a `[T; N]` and to elements JS copies compare where they point, as `ptr::eq`
-  does natively, lifting the refusal of
-  [moq-dev/rust2#510](https://github.com/moq-dev/rust2/pull/510) and of comparing two
-  `rs.Place`s of one element.
+- A `&mut [[T; N]]` that `as_chunks_mut` and `as_rchunks_mut` lend holds its runs where
+  the slice holds their elements, rather than as the runtime's `Runs` and `ByteRuns`
+  `Proxy` views and `arrayView`, along with the detaching copies they need before a
+  whole write.
 - `slice::from_mut` and `array::from_mut` of a `&mut u8` translate, writing the byte
   through the slice where the caller holds it.
+- Pointers to a `[T]` of values JS copies compare where they point, as pointers to a
+  `[T; N]` do.
 
 Each is proven by differential tests against native Rust.
 
@@ -25,20 +22,24 @@ Decided with the maintainer on 2026-11-03: Rust types the runtime can't hold as 
 get a runtime wrapper, converted at API boundaries, rather than a JS native type
 ([#555](https://github.com/moq-dev/rust2/pull/555) made `Vec` one).
 
-A `[T; N]` value stays a JS array. A reference to one would be an `rs.Slice` of it, as
-`Pointee::Bytes` makes a reference to a `[u8; N]` an `rs.ByteSlice`, generalized to any
-element. Then `as_chunks_mut`'s `Runs` and `ByteRuns` views and `arrayView` go, along with
-the detaching copies they need before a whole write.
-
-Pointer identity then compares an `rs.AtIndex` by its array and index, and an `rs.Slice`
-by its data, start, and length, as `rs.ByteSlice` already does.
+A slice of arrays holds each array as a JS array of its own, so a run of a flat slice has
+no array to be. One option is a slice of runs over the flat array, whose element `i` is
+the `rs.Slice` of run `i`, which a `&mut [[T; N]]` would be wherever its runs alias
+another slice's elements.
 
 A slice of one over a `&mut u8` was found fragile when it meant a one-byte buffer for each
-local; a slice whose storage can be an `rs.Place` may avoid that. Measure what each form
-costs a hot `&mut u8`, such as `read_exact(slice::from_mut(&mut byte))`.
+local; an `rs.ByteSlice` whose storage can be an `rs.Place` may avoid that. Measure what
+each form costs a hot `&mut u8`, such as `read_exact(slice::from_mut(&mut byte))`.
 
-Public API: the translator's output and what a hand-written caller passes for a
-reference to an array.
+✅ Decided with the maintainer on 2026-11-04: generated code fails at run time only where
+Rust panics, so a pointer comparison the translator can't answer exactly is refused at
+translation with a span. Pointers to arrays compare as slices; comparing pointers to
+elements and other places of values JS copies, which JS may make two `rs.Place`s for,
+stays refused, as do pointers to an array of one, and their exact path is
+[a quest of its own](/quest/m3/ts-runtime-throws.md).
+
+Public API: the translator's output and what a hand-written caller passes for a slice of
+arrays.
 
 ## Related
 
