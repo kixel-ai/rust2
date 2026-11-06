@@ -2,8 +2,16 @@
 
 import * as rs from "../rs.ts";
 
+export function min$10dxkeu(v1: rs.u64, v2: rs.u64): rs.u64 {
+	return rs.u64Min(v1, v2);
+}
+
 export function min$00xoube(v1: rs.usize, v2: rs.usize): rs.usize {
 	return rs.min(v1, v2);
+}
+
+export function max$10jofma(v1: rs.u64, v2: rs.u64): rs.u64 {
+	return rs.u64Max(v1, v2);
 }
 
 //# sourceMappingURL=cmp.ts.map
