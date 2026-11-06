@@ -369,6 +369,9 @@ Future<void> script() async {
 
   // A trait implemented for `Point` and `&Point` apart: one instance.
   print('weigh ${api.weighPoint(const api.Point(x: -1, y: 2))}');
+  // A function named as the type it returns, and one named as a type it does not.
+  print('polar ${api.polarPoint(2)!.distance} ${api.polarPoint(0) == null} '
+      'area ${api.area(const api.Size(width: 2, height: 3))}');
   // Instances that name each other, and one made only by an impl of it.
   final cross = api.cross(
     const api.LeftRightU8(value: api.RightU8(value: 1)),

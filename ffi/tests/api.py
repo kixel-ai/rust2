@@ -384,6 +384,10 @@ def script():
 
 	# A trait implemented for `Point` and `&Point` apart: one instance.
 	print(f"weigh {api.weigh_point(api.Point(-1, 2))}")
+	# A function named as the type it returns, and one named as a type it does not.
+	polar = api.polar_point(2)
+	check(polar is not None, "a point off the origin")
+	print(f"polar {polar.distance} {flag(api.polar_point(0) is None)} area {api.area(api.Size(2, 3))}")
 	# Instances that name each other, and one made only by an impl of it.
 	cross = api.cross(api.LeftRightU8(api.RightU8(1)), api.RightLeftU8(api.LeftU8(2)))
 	print(f"cross {cross} outer {api.OuterInnerU8.new(4).get()}")

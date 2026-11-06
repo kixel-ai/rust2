@@ -298,6 +298,8 @@ fun script() {
 
 	// A trait implemented for `Point` and `&Point` apart: one instance.
 	println("weigh ${weighPoint(Point(-1, 2))}")
+	// A function named as the type it returns, and one named as a type it does not.
+	println("polar ${polarPoint(2u)!!.distance} ${polarPoint(0u) == null} area ${area(Size(2u, 3u))}")
 	// Instances that name each other, and one made only by an impl of it.
 	println("cross ${cross(LeftRightU8(RightU8(1u)), RightLeftU8(LeftU8(2u)))} outer ${OuterInnerU8.new(4u).get()}")
 	// A bound that outlives the call takes a value, and an instance only a constant names.

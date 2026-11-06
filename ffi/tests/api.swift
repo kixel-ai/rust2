@@ -422,6 +422,8 @@ func script() {
 
 	// A trait implemented for `Point` and `&Point` apart: one instance.
 	print("weigh \(weighPoint(Point(x: -1, y: 2)))")
+	// A function named as the type it returns, and one named as a type it does not.
+	print("polar \(polarPoint(2)!.distance) \(polarPoint(0) == nil) area \(area(Size(width: 2, height: 3)))")
 	// Instances that name each other, and one made only by an impl of it.
 	let crossed = cross(LeftRightU8(value: RightU8(value: 1)), RightLeftU8(value: LeftU8(value: 2)))
 	print("cross \(crossed) outer \(OuterInnerU8.new(4).get())")

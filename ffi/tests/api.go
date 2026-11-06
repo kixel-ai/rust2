@@ -425,6 +425,10 @@ func script() {
 
 	// A trait implemented for `Point` and `&Point` apart: one instance.
 	fmt.Printf("weigh %d\n", api.WeighPoint(api.Point{X: -1, Y: 2}))
+	// A function named as the type it returns, and one named as a type it does not.
+	polar := api.NewPolarPoint(2)
+	check(polar != nil, "a point off the origin")
+	fmt.Printf("polar %d %t area %d\n", polar.Distance, api.NewPolarPoint(0) == nil, api.Area_(api.Size{Width: 2, Height: 3}))
 	// Instances that name each other, and one made only by an impl of it.
 	crossed := api.Cross(api.LeftRightU8{Value: api.RightU8{Value: 1}}, api.RightLeftU8{Value: api.LeftU8{Value: 2}})
 	fmt.Printf("cross %d outer %d\n", crossed, must(api.NewOuterInnerU8(4).Get()))

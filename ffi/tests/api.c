@@ -623,6 +623,9 @@ static int script(void) {
 
 	/* A trait implemented for `Point` and `&Point` apart: one instance. */
 	printf("weigh %u\n", api_weigh_Point((api_Point){.x = -1, .y = 2}));
+	/* A function named as the type it returns, and one named as a type it does not. */
+	printf("polar %u %s area %llu\n", api_polar_point(2).value.distance, api_polar_point(0).some ? "false" : "true",
+	       (unsigned long long)api_area((api_Size){.width = 2, .height = 3}));
 	/* Instances that name each other, and one made only by an impl of it. */
 	api_Outer_Inner_u8 *outer = api_Outer_Inner_u8_new(4);
 	printf("cross %u outer %u\n",

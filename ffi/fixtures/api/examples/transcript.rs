@@ -353,6 +353,14 @@ fn main() {
 	);
 
 	println!("weigh {}", api::weigh(Point { x: -1, y: 2 }));
+	// A function named as the type it returns, and one named as a type it does not.
+	let polar = api::polar::point(2).expect("a point off the origin");
+	println!(
+		"polar {} {} area {}",
+		polar.distance,
+		api::polar::point(0).is_none(),
+		api::area(Size { width: 2, height: 3 })
+	);
 	let left = api::Left {
 		value: api::Right { value: 1u8 },
 	};

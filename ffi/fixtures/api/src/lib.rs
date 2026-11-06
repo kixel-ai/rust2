@@ -1414,6 +1414,17 @@ pub mod polar {
 			u64::from(self.turns) + u64::from(self.distance)
 		}
 	}
+
+	/// The point `distance` out at turn zero, or none at the origin, which has no angle: a
+	/// function named as the type it returns.
+	pub fn point(distance: u32) -> Option<Point> {
+		(distance > 0).then_some(Point { turns: 0, distance })
+	}
+}
+
+/// The area of `size`: a function named as a type it does not return.
+pub fn area(size: Size) -> u64 {
+	u64::from(size.width) * u64::from(size.height)
 }
 
 impl Counter {

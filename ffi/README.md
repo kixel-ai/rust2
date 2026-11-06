@@ -415,10 +415,12 @@ own directory, and links the library through `CGO_LDFLAGS`.
   `TrackProducer.AppendGroup`. A function of a type that takes no receiver is a function of
   the package named through its type (`CounterSeededPoint`), but `new`, which is
   `NewCounter`. A constant keeps its upper case (`LIMIT`), and one that is not a `bool` or
-  integer is a function of that name (`GREETINGS()`). A method named `Close` or `Error`,
-  and a function of the package named as a type, such as moq's `clock::wall` beside
-  `clock::Wall`, takes a trailing `_`, and a parameter named as a Go keyword, a predeclared name, or a
-  package the code uses takes one too.
+  integer is a function of that name (`GREETINGS()`). A function of the package named as a
+  type, which Go's case cannot keep apart as C's does, is `New` and that name when it
+  returns that type, or an `Option` of it (moq's `clock::interval` is `NewClockInterval`),
+  and otherwise takes a trailing `_` (`mux::codec::opus::config` is `MuxCodecOpusConfig_`).
+  A method named `Close` or `Error`, and a parameter named as a Go keyword, a predeclared
+  name, or a package the code uses, take a trailing `_` too.
 - **Objects** are pointers to structs owning their handle. `Close()` frees it once no call
   holds it, and a second `Close()` does nothing; one never closed is closed once the GC
   collects it, through `runtime.AddCleanup`. A call that meets a closed object, as its

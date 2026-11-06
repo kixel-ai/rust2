@@ -1330,8 +1330,24 @@ impl<'a> Gen<'a> {
 		let member = match (receiver.is_some(), member.as_str()) {
 			// What every object or value of the type already has.
 			(true, "Close" | "Error") => format!("{member}_"),
-			// A type's name, which Go's case cannot keep apart from a function's as C's does.
-			(false, name) if self.classes.contains(name) => format!("{member}_"),
+			// A type's name, which Go's case cannot keep apart from a function's as C's does:
+			// one that returns that type makes it, as `new` does, and any other is escaped.
+			(false, name) if self.classes.contains(name) => {
+				let made = match &function.ok {
+					Type::Option(inner) => inner,
+					ok => ok,
+				};
+				let made = match made {
+					Type::Record(i) => Some(abi.record(*i)),
+					Type::Enum(i) => Some(abi.enumeration(*i)),
+					Type::Object(i) => Some(abi.object(*i)),
+					_ => None,
+				};
+				match made {
+					Some(c) if self.class(&c) == name => format!("New{member}"),
+					_ => format!("{member}_"),
+				}
+			}
 			_ => member,
 		};
 
