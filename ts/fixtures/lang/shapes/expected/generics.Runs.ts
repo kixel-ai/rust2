@@ -6,11 +6,11 @@ import { clone$14vwxlf as option_clone$14vwxlf, clone$0e53k5z as option_clone$0e
 import type * as Run from "./generics.Run.ts";
 
 export function clone$Clone_u16(self: Runs<rs.u16>): Runs<rs.u16> {
-	return new Runs(copy$array_u16((self.array as rs.u16[]).slice()), rs.vecFrom((self.list as rs.Vec<rs.u16>).items.slice()), self.view as rs.Slice<rs.u16>, rs.sliceFrom(rs.sliceToArray(self.boxed as rs.Slice<rs.u16>)), rs.cowClone(self.cow as rs.Cow<rs.u16>), rs.vecFrom((self.pairs as rs.Vec<rs.u16[]>).items.map(copy$array_u16)), option_clone$14vwxlf(self.maybe as rs.Vec<rs.u16> | undefined));
+	return new Runs(copy$array_u16((self.array as rs.u16[]).slice()), rs.vecFrom((self.list as rs.Vec<rs.u16>).items.slice()), self.view as rs.Slice<rs.u16>, rs.sliceFrom(rs.sliceToArray(self.boxed as rs.Slice<rs.u16>)), rs.cowClone(self.cow as rs.Cow<rs.u16>), rs.vecFrom((self.pairs as rs.Vec<rs.u16[]>).items.map(copy$array_u16)) as rs.Vec<rs.ArrayOf<rs.u16>>, option_clone$14vwxlf(self.maybe as rs.Vec<rs.u16> | undefined));
 }
 
 export function clone$Clone_u8(self: Runs<rs.u8>): Runs<rs.u8> {
-	return new Runs(copy$array_u8(rs.byteSliceToArray(rs.byteSliceFrom(self.array as Uint8Array))), rs.byteVecFrom(rs.byteVecView(self.list as rs.ByteVec)), self.view as rs.ByteSlice, rs.byteSliceFrom(rs.byteSliceToArray(self.boxed as rs.ByteSlice)), rs.byteCowClone(self.cow as rs.ByteCow), rs.vecFrom((self.pairs as rs.Vec<Uint8Array>).items.map(copy$array_u8)), option_clone$0e53k5z(self.maybe as rs.ByteVec | undefined));
+	return new Runs(copy$array_u8(rs.byteSliceToArray(rs.byteSliceFrom(self.array as Uint8Array))), rs.byteVecFrom(rs.byteVecView(self.list as rs.ByteVec)), self.view as rs.ByteSlice, rs.byteSliceFrom(rs.byteSliceToArray(self.boxed as rs.ByteSlice)), rs.byteCowClone(self.cow as rs.ByteCow), rs.vecFrom((self.pairs as rs.Vec<Uint8Array>).items.map(copy$array_u8)) as rs.Vec<rs.ArrayOf<rs.u8>>, option_clone$0e53k5z(self.maybe as rs.ByteVec | undefined));
 }
 
 export function fmt$fmt_Debug_u16(self: Runs<rs.u16>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
