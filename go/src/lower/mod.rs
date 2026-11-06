@@ -18,7 +18,7 @@ use std::path::Path;
 
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{CrateNum, DefId, LOCAL_CRATE};
-use rustc_middle::ty::{Instance, Ty, TyCtxt, TypingEnv, Unnormalized};
+use rustc_middle::ty::{Instance, Ty, TyCtxt, TyKind, TypingEnv, Unnormalized};
 use rustc_span::Span;
 
 /// The runtime's files, copied into the package beside the translation.
@@ -165,7 +165,7 @@ pub struct Translator<'tcx> {
 	/// Each type declared, by what it declares: an ADT's definition, or a closure's or a
 	/// trait object adapter's monomorphic type.
 	types: HashMap<TypeKey<'tcx>, String>,
-	/// The Go name of each type of the `pub` API, which its declaration takes.
+	/// The Go name of each type and alias of the `pub` API, which its declaration takes.
 	type_names: HashMap<DefId, String>,
 	/// Every local ADT's name, to tell which names must be qualified by their module.
 	local_names: HashMap<String, usize>,
@@ -242,34 +242,59 @@ impl<'tcx> Translator<'tcx> {
 			DefKind::Struct | DefKind::Enum | DefKind::Union if library::mapped(tcx, def_id).is_none() => {
 				self.adt_decl(tcx.adt_def(def_id), span);
 				for &imp in tcx.inherent_impls(def_id) {
-					for item in tcx.associated_items(imp).in_definition_order() {
-						if !tcx.visibility(item.def_id).is_public() {
-							continue;
-						}
-						let path = format!("{path}::{}", item.name());
-						match item.is_fn() {
-							true => self.root_fn(&path, item.def_id),
-							false => self.root_const(tcx.def_span(item.def_id)),
-						}
-					}
+					self.root_impl(path, imp);
 				}
 			}
 			DefKind::TyAlias => {
-				let name = names::exported(path);
-				self.claim(&name, span);
+				let name = self.type_names[&def_id].clone();
 				self.alias_decl(&name, def_id);
+				// A type no other path reaches brings the methods Rust callers reach on the
+				// alias: a generic impl's, which are refused, and those of an impl of it.
+				let ty = tcx.type_of(def_id).instantiate_identity().skip_norm_wip();
+				let erased = |t: Ty<'tcx>| tcx.erase_and_anonymize_regions(t);
+				if let TyKind::Adt(adt, _) = ty.kind()
+					&& library::mapped(tcx, adt.did()).is_none()
+					&& !self.type_names.contains_key(&adt.did())
+				{
+					for &imp in tcx.inherent_impls(adt.did()) {
+						let generic = tcx.generics_of(imp).requires_monomorphization(tcx);
+						let of = tcx.type_of(imp).instantiate_identity().skip_norm_wip();
+						if generic || erased(of) == erased(ty) {
+							self.root_impl(path, imp);
+						}
+					}
+				}
 			}
 			DefKind::Const | DefKind::Static { .. } => self.root_const(span),
 			_ => {}
 		}
 	}
 
-	/// Name a type of the `pub` API by its path in camel case, as its declaration takes.
+	/// The `pub` items of an inherent impl, under the path of the type it names.
+	fn root_impl(&mut self, path: &str, imp: DefId) {
+		let tcx = self.tcx;
+		for item in tcx.associated_items(imp).in_definition_order() {
+			if !tcx.visibility(item.def_id).is_public() {
+				continue;
+			}
+			let path = format!("{path}::{}", item.name());
+			match item.is_fn() {
+				true => self.root_fn(&path, item.def_id),
+				false => self.root_const(tcx.def_span(item.def_id)),
+			}
+		}
+	}
+
+	/// Name a type or alias of the `pub` API by its path in camel case, as its
+	/// declaration takes.
 	fn name_type(&mut self, path: &str, def_id: DefId) {
 		let tcx = self.tcx;
-		if matches!(tcx.def_kind(def_id), DefKind::Struct | DefKind::Enum | DefKind::Union)
-			&& library::mapped(tcx, def_id).is_none()
-		{
+		let named = match tcx.def_kind(def_id) {
+			DefKind::Struct | DefKind::Enum | DefKind::Union => library::mapped(tcx, def_id).is_none(),
+			DefKind::TyAlias => true,
+			_ => false,
+		};
+		if named {
 			let name = names::exported(path);
 			self.claim(&name, tcx.def_span(def_id));
 			self.type_names.insert(def_id, name);

@@ -311,7 +311,9 @@ fn items() {
 		"func TalliesSum(",
 		"type Meter struct",
 		"func MeterNew(",
-		"type Byte = Value[uint8]",
+		"type Byte = Value_2[uint8]",
+		"func ByteNew(",
+		"type Value = uint16",
 		"type Level = uint8",
 		"type Pair[T any] = tuple2[T, T]",
 		"func Unwrap(",
@@ -323,7 +325,7 @@ fn items() {
 		dep.contains("func ShapesArea("),
 		"items_dep.go lacks `func ShapesArea(`"
 	);
-	for unexported in ["TalliesCounter", "CountHidden", "type Gauge"] {
+	for unexported in ["TalliesCounter", "CountHidden", "type Gauge", "Wide"] {
 		assert!(
 			!text.contains(unexported) && !dep.contains(unexported),
 			"items has `{unexported}`"
