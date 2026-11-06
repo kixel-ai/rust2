@@ -236,9 +236,10 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			},
 		};
 		c.walk();
-		// A foreign type the facade reaches is its own export.
+		// A foreign type the facade re-exports is its own export, whatever else of its
+		// crate the facade reaches.
 		c.foreign = (foreign.iter())
-			.filter(|ty| !c.exported(ty.krate))
+			.filter(|&&ty| !c.items.iter().any(|(item, _)| *item == ty))
 			.map(|&ty| (ty, 0))
 			.collect();
 		c.infer();
