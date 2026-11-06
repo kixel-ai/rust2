@@ -718,11 +718,14 @@ pub fn strings(first: u8, steps: &[u8], out: &mut Vec<u8>) {
 				sized(out, copy.len(), copy.capacity());
 				s = s.clone();
 			}
-			// Grown from `with_capacity` only where it holds fewer.
+			// Grown from `with_capacity` only where it holds fewer, by a `String`'s or a `str`'s.
 			20 => {
 				let mut over = String::with_capacity(usize::from(arg % 24));
 				over.push_str(text(arg >> 2));
-				over.clone_from(&s);
+				match arg & 0x80 {
+					0 => over.clone_from(&s),
+					_ => s.as_str().clone_into(&mut over),
+				}
 				s = over;
 			}
 			21 => s.extend(text(arg).chars().filter(|c| *c != 'e')),

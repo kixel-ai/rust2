@@ -813,8 +813,8 @@ fn bind() {
 /// A package and its dependency translate as one program, trait objects of the
 /// dependency's trait and its safe twin of its `unsafe` included, and run as native Rust
 /// does. Its `unsafe` that nothing binds is refused at its span, and so are a module of
-/// the package's that would share the dependency's files, two instances whose suffixes
-/// are alike, and the package's read of the capacity of the dependency's `String` bytes.
+/// the package's that would share the dependency's files, and two instances whose
+/// suffixes are alike.
 #[test]
 fn crates() {
 	let out = translated("crates");

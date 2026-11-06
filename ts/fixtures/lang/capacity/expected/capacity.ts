@@ -3714,9 +3714,9 @@ export function boundary(s: string, arg: rs.u8): rs.usize {
  */
 export function strings(first: rs.u8, steps: rs.ByteSlice, out: rs.ByteVec): void {
 	let s!: rs.String;
-	let _314!: rs.String;
-	let _346!: rs.String;
-	let _417!: rs.String;
+	let _318!: rs.String;
+	let _350!: rs.String;
+	let _421!: rs.String;
 	const _4: (a0: rs.u8) => string = (arg2: rs.u8): string => {
 		const _42: rs.usize = rs.usizeRem(arg2 as rs.usize, rs.sliceFrom(["", "ab", "démo", "アリス📷, and more text past sixteen bytes"]).length);
 		if (!(_42 < 4)) {
@@ -3817,7 +3817,11 @@ export function strings(first: rs.u8, steps: rs.ByteSlice, out: rs.ByteVec): voi
 			let over: rs.String = rs.stringWithCapacity(rs.u8Rem(arg, 24) as rs.usize);
 			const _214: string = _4(arg >> 2);
 			rs.stringPushStr(over, _214);
-			over = rs.stringCloneFrom(over, s);
+			if ((arg & 128) === 0) {
+				over = rs.stringCloneFrom(over, s);
+			} else {
+				over = rs.stringCloneFrom(over, s.v);
+			}
 			s = over;
 		} else if (_64 === 21) {
 			rs.stringExtendChars(s, rs.iterFilter(rs.strChars(_4(arg)), (c3: rs.char): boolean => {
@@ -3832,10 +3836,10 @@ export function strings(first: rs.u8, steps: rs.ByteSlice, out: rs.ByteVec): voi
 		} else if (_64 === 25) {
 			rs.stringPushStr(s, _4(arg));
 		} else if (_64 === 26) {
-			const _264: rs.String = s;
-			const _268: string = _4(arg >> 2);
-			const args18 = [(f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.fmtPad(f, _268)];
-			rs.resultUnwrap(rs.fmtWriteString(_264, [args18[0], "-", args18[1]]), rs.fmtErrorDebug);
+			const _268: rs.String = s;
+			const _272: string = _4(arg >> 2);
+			const args18 = [(f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.fmtPad(f, _272)];
+			rs.resultUnwrap(rs.fmtWriteString(_268, [args18[0], "-", args18[1]]), rs.fmtErrorDebug);
 		} else if (_64 === 27) {
 			const args17 = [(f: rs.Formatter) => rs.fmtPad(f, s.v), (f: rs.Formatter) => rs.u8Display(arg, f)];
 			s = rs.fmtFormat([args17[0], args17[1]]);
@@ -3847,24 +3851,24 @@ export function strings(first: rs.u8, steps: rs.ByteSlice, out: rs.ByteVec): voi
 		} else if (_64 === 30) {
 			s = rs.fmtFormat(["text alone"]);
 		} else if (_64 === 31) {
-			const _315: rs.u8 = rs.u8Rem(arg, 6);
-			if (_315 === 0) {
-				const _318: rs.i8 = (arg << 24) >> 24;
-				_314 = rs.fmtToString((f: rs.Formatter) => rs.i8Display(_318, f), 3);
-			} else if (_315 === 1) {
-				const _320: rs.i32 = rs.i32Sub(arg as rs.i32, 128);
-				_314 = rs.fmtToString((f: rs.Formatter) => rs.i32Display(_320, f), 10);
-			} else if (_315 === 2) {
-				_314 = rs.fmtToString((f: rs.Formatter) => rs.u8Display(arg, f), 0);
-			} else if (_315 === 3) {
-				_314 = rs.fmtToString((f: rs.Formatter) => rs.fmtCharDisplay(c, f), 0);
-			} else if (_315 === 4) {
-				const _326: boolean = rs.u8Rem(arg, 2) === 0;
-				_314 = rs.fmtToString((f: rs.Formatter) => rs.fmtBool(_326, f), 0);
+			const _319: rs.u8 = rs.u8Rem(arg, 6);
+			if (_319 === 0) {
+				const _322: rs.i8 = (arg << 24) >> 24;
+				_318 = rs.fmtToString((f: rs.Formatter) => rs.i8Display(_322, f), 3);
+			} else if (_319 === 1) {
+				const _324: rs.i32 = rs.i32Sub(arg as rs.i32, 128);
+				_318 = rs.fmtToString((f: rs.Formatter) => rs.i32Display(_324, f), 10);
+			} else if (_319 === 2) {
+				_318 = rs.fmtToString((f: rs.Formatter) => rs.u8Display(arg, f), 0);
+			} else if (_319 === 3) {
+				_318 = rs.fmtToString((f: rs.Formatter) => rs.fmtCharDisplay(c, f), 0);
+			} else if (_319 === 4) {
+				const _330: boolean = rs.u8Rem(arg, 2) === 0;
+				_318 = rs.fmtToString((f: rs.Formatter) => rs.fmtBool(_330, f), 0);
 			} else {
-				_314 = rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg, f)]);
+				_318 = rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(arg, f)]);
 			}
-			s = _314;
+			s = _318;
 		} else if (_64 === 32) {
 			s = rs.strToLowercase(s.v);
 		} else if (_64 === 33) {
@@ -3872,21 +3876,21 @@ export function strings(first: rs.u8, steps: rs.ByteSlice, out: rs.ByteVec): voi
 		} else if (_64 === 34) {
 			s = rs.stringFrom(rs.strToAsciiUppercase(s.v));
 		} else if (_64 === 35) {
-			const _347: rs.u8 = rs.u8Rem(arg, 5);
-			if (_347 === 0) {
-				_346 = rs.strReplace(s.v, "a", "b", true);
-			} else if (_347 === 1) {
-				_346 = rs.strReplace(s.v, "a", "xyz", true);
-			} else if (_347 === 2) {
-				_346 = rs.strReplace(s.v, String.fromCodePoint(c), "", true);
-			} else if (_347 === 3) {
-				_346 = rs.strReplace(s.v, (c2: rs.char): boolean => {
+			const _351: rs.u8 = rs.u8Rem(arg, 5);
+			if (_351 === 0) {
+				_350 = rs.strReplace(s.v, "a", "b", true);
+			} else if (_351 === 1) {
+				_350 = rs.strReplace(s.v, "a", "xyz", true);
+			} else if (_351 === 2) {
+				_350 = rs.strReplace(s.v, String.fromCodePoint(c), "", true);
+			} else if (_351 === 3) {
+				_350 = rs.strReplace(s.v, (c2: rs.char): boolean => {
 					return rs.charIsAlphabetic(c2);
 				}, "-", false);
 			} else {
-				_346 = rs.strReplace(s.v, rs.stringFrom("é").v, "e", true);
+				_350 = rs.strReplace(s.v, rs.stringFrom("é").v, "e", true);
 			}
-			s = _346;
+			s = _350;
 		} else if (_64 === 36) {
 			s = rs.strReplacen(s.v, "a", "bc", rs.u8Rem(arg, 3) as rs.usize);
 		} else if (_64 === 37) {
@@ -3900,37 +3904,37 @@ export function strings(first: rs.u8, steps: rs.ByteSlice, out: rs.ByteVec): voi
 			sized(out, bytes3.length, bytes3.data.length);
 			s = rs.resultUnwrap(rs.stringFromUtf8(bytes3), rs.fmtFromUtf8ErrorDebug);
 		} else if (_64 === 39) {
-			const _400: rs.Iter<rs.char> = rs.iterRev(rs.strChars(s.v));
-			s = rs.stringExtendChars(rs.stringNew(), _400);
+			const _404: rs.Iter<rs.char> = rs.iterRev(rs.strChars(s.v));
+			s = rs.stringExtendChars(rs.stringNew(), _404);
 		} else if (_64 === 40) {
 			s = rs.stringFromStrings(rs.vecIntoIter(rs.vecFrom([s, rs.stringFrom(_4(arg))])));
 		} else if (_64 === 41) {
 			const units: rs.Vec<rs.u16> = rs.iterToVec(rs.strEncodeUtf16(s.v), "next", 2);
 			if (rs.u8Rem(arg, 2) === 0) {
-				_417 = rs.resultUnwrap(rs.stringFromUtf16(rs.sliceFrom(units.items)), rs.fmtFromUtf16ErrorDebug);
+				_421 = rs.resultUnwrap(rs.stringFromUtf16(rs.sliceFrom(units.items)), rs.fmtFromUtf16ErrorDebug);
 			} else {
-				_417 = rs.stringFromUtf16Lossy(rs.sliceFrom(units.items));
+				_421 = rs.stringFromUtf16Lossy(rs.sliceFrom(units.items));
 			}
-			s = _417;
+			s = _421;
 		} else if (_64 === 42) {
 			const bytes4: rs.ByteVec = rs.stringIntoBytes(s);
 			rs.byteVecPush(bytes4, 255);
 			s = rs.strCowIntoOwned(rs.stringFromUtf8Lossy(rs.byteVecSlice(bytes4)));
 		} else if (_64 === 43) {
-			const _434: rs.Slice<string> = rs.sliceFrom([s.v, _4(arg)]);
-			const _442: string = _4(arg >> 2);
-			s = rs.strsJoin(rs.sliceItems(_434), _442);
+			const _438: rs.Slice<string> = rs.sliceFrom([s.v, _4(arg)]);
+			const _446: string = _4(arg >> 2);
+			s = rs.strsJoin(rs.sliceItems(_438), _446);
 		} else if (_64 === 44) {
 			s = rs.stringFrom(s.v);
 		} else if (_64 === 45) {
 			let cow: rs.StrCow = new rs.Borrowed(_4(arg));
 			cow = rs.strCowAdd(cow, new rs.Borrowed(s.v));
-			const _461: string = _4(arg >> 2);
-			cow = rs.strCowAdd(cow, new rs.Borrowed(_461));
+			const _465: string = _4(arg >> 2);
+			cow = rs.strCowAdd(cow, new rs.Borrowed(_465));
 			s = rs.strCowIntoOwned(cow);
 		} else if (_64 === 46) {
-			const _470: string[] = [_4(arg), _4(arg >> 2)];
-			s = rs.stringExtendArray(rs.stringNew(), rs.iterSlice(_470));
+			const _474: string[] = [_4(arg), _4(arg >> 2)];
+			s = rs.stringExtendArray(rs.stringNew(), rs.iterSlice(_474));
 		} else if (_64 === 47) {
 			s = rs.stringAdd(rs.replaceIn(s, rs.stringNew()), _4(arg));
 		}

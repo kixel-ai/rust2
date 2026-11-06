@@ -1379,11 +1379,15 @@ export function stringClone(s: RsString): RsString {
 	return new RsString(s.v, s.len, s.len);
 }
 
-/** `clone_from` of `src` into `s`, as `Vec<u8>`'s clears it and extends it by `src`'s bytes. */
-export function stringCloneFrom(s: RsString, src: RsString): RsString {
+/**
+ * `clone_from` of `src` into `s`, as `Vec<u8>`'s clears it and extends it by `src`'s bytes,
+ * and `str::clone_into`, which clears it and pushes the text.
+ */
+export function stringCloneFrom(s: RsString, src: RsString | string): RsString {
 	s.v = "";
 	s.len = 0 as usize;
-	stringPushStr(s, src.v, src.len);
+	if (typeof src === "string") stringPushStr(s, src);
+	else stringPushStr(s, src.v, src.len);
 	return s;
 }
 
