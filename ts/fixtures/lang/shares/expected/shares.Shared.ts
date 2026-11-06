@@ -21,15 +21,15 @@ export class Shared<T> {
 }
 
 export function new$shares_Logged(items: rs.Vec<Logged.Logged>): Shared<Logged.Logged> {
-	return new Shared(new rs.Arc(rs.sliceFrom(items.items)));
+	return new Shared(new rs.Arc(rs.sliceFrom(items.items)) as rs.Arc<rs.SliceOf<Logged.Logged>>);
 }
 
 export function new$u8(items: rs.ByteVec): Shared<rs.u8> {
-	return new Shared(new rs.Arc(rs.byteVecSlice(items)));
+	return new Shared(new rs.Arc(rs.byteVecSlice(items)) as rs.Arc<rs.SliceOf<rs.u8>>);
 }
 
 export function collected$u16_iter_Map_slice_Iter_u8_shares_generics_closure0(items: rs.Iter<rs.u16>): Shared<rs.u16> {
-	return new Shared(new rs.Arc(rs.sliceFrom(rs.iterToVec(items, undefined, 2, true).items)));
+	return new Shared(new rs.Arc(rs.sliceFrom(rs.iterToVec(items, undefined, 2, true).items)) as rs.Arc<rs.SliceOf<rs.u16>>);
 }
 
 export function first$shares_Logged(self: Shared<Logged.Logged>): Logged.Logged | undefined {
@@ -78,15 +78,15 @@ export function setLast$u8(self: Shared<rs.u8>, item: rs.u8): void {
 }
 
 export function clone$Clone_shares_Logged(self: Shared<Logged.Logged>): Shared<Logged.Logged> {
-	return new Shared(rs.arcClone(self.items as rs.Arc<rs.Slice<Logged.Logged>>));
+	return new Shared(rs.arcClone(self.items as rs.Arc<rs.Slice<Logged.Logged>>) as rs.Arc<rs.SliceOf<Logged.Logged>>);
 }
 
 export function clone$Clone_u16(self: Shared<rs.u16>): Shared<rs.u16> {
-	return new Shared(rs.arcClone(self.items as rs.Arc<rs.Slice<rs.u16>>));
+	return new Shared(rs.arcClone(self.items as rs.Arc<rs.Slice<rs.u16>>) as rs.Arc<rs.SliceOf<rs.u16>>);
 }
 
 export function clone$Clone_u8(self: Shared<rs.u8>): Shared<rs.u8> {
-	return new Shared(rs.arcClone(self.items as rs.Arc<rs.ByteSlice>));
+	return new Shared(rs.arcClone(self.items as rs.Arc<rs.ByteSlice>) as rs.Arc<rs.SliceOf<rs.u8>>);
 }
 
 //# sourceMappingURL=shares.Shared.ts.map

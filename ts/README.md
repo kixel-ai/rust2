@@ -999,7 +999,9 @@ they need.
   children below internal ones, each searched from its first key by `key.cmp(k)`, split,
   merged, and evened out with a sibling where std's are, built by `collect` and
   `split_off` as std's builds them, and cloned node for node, so a key's own `cmp` runs
-  on the same keys in the same order as std's. Iterators climb and descend leaf edges as
+  on the same keys in the same order as std's. A search by another type the keys lend by
+  the crate's own `Borrow` is an `rs.By`, which orders that type by its own `cmp` against
+  each key's `borrow`, as std's does. Iterators climb and descend leaf edges as
   std's do. On `just ts bench`'s `btree/` workloads it takes 0.8-1.0x the time the B+
   tree of 64-key nodes it replaced did in Chrome, 1.0-1.3x in Node and Firefox, within
   their noise, and 1.3-1.6x in Bun, from 16 keys to 4096; bisecting a node's keys measured
@@ -1080,7 +1082,7 @@ they need.
 ## Not yet
 
 Byte reinterpretation, pointer addresses, pointer arithmetic on a value JS keeps as an object (other than wrapping arithmetic on a null or dangling pointer), memory from `alloc` other than an array of values JS copies, and unions whose
-fields overlap in different types ([unsafe](/quest/m3/ts-unsafe.md)), and trait objects of a trait
+fields overlap in different types ([unsafe](/quest/m3/ts-unsafe/README.md)), and trait objects of a trait
 with a const parameter, of an array, or behind a pointer other than `&`, `&mut`, `Box`, `Arc`, `Rc`,
 `Weak`, or `Pin`, fail translation. Until they translate, an item that needs one, such as a `Box<dyn Error>` made `From` a string, binds to
 hand-written TS ([bindings](#bindings)).
@@ -1167,8 +1169,8 @@ so adding, removing, or reordering a case changes no other case's inputs.
   impls, beside values that drop inside std's types. Its caller is hand-written TS (`tests/task.ts`): a FIFO executor that runs a
   script of spawns, sends, polls, and drops, and logs every poll, wake, and drop, as the
   fixture's native executor does. The logs must match byte for byte.
-- `stock` calls `bytes`, `hashbrown`, `rand`, and `tracing` with no config, and `hashlink`
-  over `hashbrown`, against native Rust, whose
+- `stock` calls `bytes`, `hashbrown`, `rand`, and `tracing` with no config, `hashlink`
+  over `hashbrown`, and `rangemap` over std's B-tree, against native Rust, whose
   `rand::rng()` reads the fixture's own getrandom backend on wasm32. It checks `Bytes`'s
   slices and panics, how each is made and printed, that no event evaluates a field, and
   that each random value is in its range, every value of a small range drawn. It splits,
@@ -1179,7 +1181,9 @@ so adding, removing, or reordering a case changes no other case's inputs.
   `dyn Buf`s, at either end of each half and past the end. It changes hashbrown's maps and sets, keyed by JS primitives and by
   tuples, and `HashTable`s of tuples and of numbers, whose places it writes, under hashes
   that collide and that pass 2^53, checks their capacity by std's guarantees, and writes a
-  `hashlink::LinkedHashMap` in its own order. `caller.ts` names the inputs that read a `BytesMut` past
+  `hashlink::LinkedHashMap` in its own order. It inserts, removes, looks up, overlaps, and
+  gaps `rangemap`'s maps and sets, which search their B-trees by what each key lends by
+  rangemap's own `Borrow`. `caller.ts` names the inputs that read a `BytesMut` past
   where `bytes` shares a vector's storage, 128 MiB, and drop each pick of a storage's
   handles before reserving.
 - `bind` binds `buf::Blob`, a renamed dependency's type with `unsafe` inside, and a function and a type of its own that read through raw

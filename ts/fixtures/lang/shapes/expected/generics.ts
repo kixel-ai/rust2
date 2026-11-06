@@ -154,7 +154,7 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return _2;
 	}), undefined, true);
 	const n: rs.u8 = option_unwrapOrDefault$03apme8(rs.byteSliceFirst(rs.byteVecSlice(data2)));
-	const runs: Runs.Runs<rs.u8> = new Runs.Runs(rs.bytes(3).fill(n), rs.byteVecFrom(rs.byteVecView(data2)), rs.byteVecSlice(data2), rs.byteVecSlice(rs.byteVecFrom(rs.byteVecView(data2))), rs.byteVecSlice(data2), new rs.Vec(), then$0y7on52(rs.usizeRem(data2.length, 2) === 0, (): rs.ByteVec => {
+	const runs: Runs.Runs<rs.u8> = new Runs.Runs(rs.bytes(3).fill(n), rs.byteVecFrom(rs.byteVecView(data2)), rs.byteVecSlice(data2), rs.byteVecSlice(rs.byteVecFrom(rs.byteVecView(data2))), rs.byteVecSlice(data2), new rs.Vec() as rs.Vec<rs.ArrayOf<rs.u8>>, then$0y7on52(rs.usizeRem(data2.length, 2) === 0, (): rs.ByteVec => {
 		return new rs.ByteVec();
 	}));
 	const before: Runs.Runs<rs.u8> = Runs.clone$Clone_u8(runs);
@@ -200,7 +200,7 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const n2: rs.u16 = option_unwrapOrDefault$0w7995p(rs.sliceFirst(rs.sliceFrom(data3.items)));
 	const runs2: Runs.Runs<rs.u16> = new Runs.Runs(Array.from({ length: 3 }, (): rs.u16 => {
 		return n2;
-	}), rs.vecFrom(data3.items.slice()), rs.sliceFrom(data3.items), rs.sliceFrom(rs.vecFrom(data3.items.slice()).items), new rs.Borrowed(rs.sliceFrom(data3.items)), new rs.Vec(), then$01xsbgy(rs.usizeRem(data3.items.length, 2) === 0, (): rs.Vec<rs.u16> => {
+	}), rs.vecFrom(data3.items.slice()), rs.sliceFrom(data3.items), rs.sliceFrom(rs.vecFrom(data3.items.slice()).items), new rs.Borrowed(rs.sliceFrom(data3.items)), new rs.Vec() as rs.Vec<rs.ArrayOf<rs.u16>>, then$01xsbgy(rs.usizeRem(data3.items.length, 2) === 0, (): rs.Vec<rs.u16> => {
 		return new rs.Vec();
 	}));
 	const before2: Runs.Runs<rs.u16> = Runs.clone$Clone_u16(runs2);
@@ -256,7 +256,7 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else {
 		_266 = rs.vecFrom([tick(7)]);
 	}
-	new Runs.Runs(_246, _256, _258, _260, _266, rs.vecFrom([[tick(5), tick(6)]]), option_map$0ggarad(rs.byteSliceFirst(data), (_210: rs.u8): rs.Vec<Ticked.Ticked> => {
+	new Runs.Runs(_246, _256, _258, _260, _266, rs.vecFrom([[tick(5), tick(6)]]) as rs.Vec<rs.ArrayOf<Ticked.Ticked>>, option_map$0ggarad(rs.byteSliceFirst(data), (_210: rs.u8): rs.Vec<Ticked.Ticked> => {
 		return rs.vecFrom([tick(~_210 & 0xff)]);
 	}))[Symbol.dispose]();
 	const _292: rs.usize = rs.usizeRem(data.length, 3);
