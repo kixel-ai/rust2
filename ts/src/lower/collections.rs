@@ -250,11 +250,14 @@ pub fn call<'tcx>(
 		// or a range's bounds, stands in as it is, as JS reads it as an owned `Cow`. An `Arc`'s
 		// are its value's, so the value it is looked up by stands in as an `Arc` of it, which
 		// the collection only compares.
+		// A B-tree searches by what the crate's own `Borrow` lends of each key, which
+		// `btree` gives it.
+		let lent = matches!(std, Std::BTreeMap | Std::BTreeSet) && own_borrow(b, key, by);
 		let key = peel(b, key);
 		let cow = cow_of(b, key).is_some_and(|borrowed| same_key(b, borrowed, by));
 		let arc = arc_of(b, key).is_some_and(|inner| same_key(b, inner, by));
 		match args.get_mut(1) {
-			_ if cow => {}
+			_ if cow || lent => {}
 			Some(key) if arc && !matches!(name, "range" | "range_mut") => {
 				let value = std::mem::replace(key, Expr::undefined());
 				*key = Expr::New(Box::new(Expr::Rs("Arc".into())), vec![value]);
@@ -412,6 +415,17 @@ fn lookup_ty<'tcx>(b: &Body<'_, '_, 'tcx>, std: Std, call: &Call<'tcx>, owner: &
 		}
 		_ => None,
 	}
+}
+
+/// Whether `<key as Borrow<by>>::borrow` is the crate's own, so a search by a `by` orders
+/// what it lends of each key, as std's does.
+fn own_borrow<'tcx>(b: &Body<'_, '_, 'tcx>, key: Ty<'tcx>, by: Ty<'tcx>) -> bool {
+	let tcx = b.t.tcx;
+	let f = trait_fn(tcx, "Borrow", "borrow");
+	Instance::try_resolve(tcx, b.t.typing_env_pub(), f, tcx.mk_args(&[key.into(), by.into()]))
+		.ok()
+		.flatten()
+		.is_some_and(|instance| b.t.own(instance.def_id()))
 }
 
 /// Whether a key of type `by` is a JS value that hashes, compares, and orders as one of
@@ -1491,6 +1505,22 @@ fn btree<'tcx>(
 			values.push(eq_fn(b, target, span));
 			values.push(test_fn(b, target, "gt", span));
 		}
+	}
+	// A key, or a range of keys, of a type each key lends by the crate's own `Borrow`, which
+	// is searched by that type's `Ord` against what each key lends.
+	if let Some(by) = b.t.std_of(coll).and_then(|std| lookup_ty(b, std, call, owner, name))
+		&& own_borrow(b, key, by)
+		&& let Some(at) = values.get_mut(1)
+	{
+		let tcx = b.t.tcx;
+		let at = std::mem::replace(at, Expr::undefined());
+		let cmp = cmp_fn(b, by, false, span);
+		let borrow = b.fn_value(
+			trait_fn(tcx, "Borrow", "borrow"),
+			tcx.mk_args(&[key.into(), by.into()]),
+			span,
+		);
+		values[1] = Expr::rs("by", vec![at, cmp, borrow]);
 	}
 	// It holds the range, reads its end at each key it reads, and checks each key against
 	// the end by `<=` or `<`, which a key of the crate's own does by its `PartialOrd`.

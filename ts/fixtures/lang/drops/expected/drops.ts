@@ -519,7 +519,7 @@ export function drops(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}, how, log);
 	} else if (_27 === 4) {
 		ways$drops_InPlain_drops_Logged_drops_drops_closure7((b8: rs.u8): InPlain.InPlain<Logged.Logged> => {
-			return new InPlain.InPlain(new Plain.Plain(rs.vecFrom([l(rs.u8Add(b8, 1)), l(rs.u8Add(b8, 2))]), b8), [either(rs.u8Add(b8, 3)), l(rs.u8Add(b8, 5))] as [Either.Either<Logged.Logged>, Logged.Logged]);
+			return new InPlain.InPlain(new Plain.Plain(rs.vecFrom([l(rs.u8Add(b8, 1)), l(rs.u8Add(b8, 2))]), b8) as Plain.Plain<rs.VecOf<Logged.Logged>>, [either(rs.u8Add(b8, 3)), l(rs.u8Add(b8, 5))] as [Either.Either<Logged.Logged>, Logged.Logged]);
 		}, how, log);
 	} else if (_27 === 5) {
 		ways$drops_InBox_drops_Logged_drops_drops_closure8((b7: rs.u8): InBox.InBox<Logged.Logged> => {

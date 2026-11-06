@@ -1691,11 +1691,12 @@ function toByteVec(it: Iter<number>, take?: Take, trusted = false): ByteVec {
 }
 
 /**
- * `collect` of `Result`s: the first error, or every value collected by `into`, which drops
- * the iterator. On an error, what it collected drops by `drop`.
+ * `collect` of `Result`s: the last error `into` read, or every value collected by `into`,
+ * which drops the iterator. On an error, what it collected drops by `drop`, and an error a
+ * later one replaced by `dropError`.
  */
-export function iterCollectResult<U, E, C>(it: Iter<Result<U, E>>, into: (values: Iter<U>) => C, drop?: Drop<C>): Result<C, E> {
-	const shunt = new ResultShunt(it);
+export function iterCollectResult<U, E, C>(it: Iter<Result<U, E>>, into: (values: Iter<U>) => C, drop?: Drop<C>, dropError?: Drop<E>): Result<C, E> {
+	const shunt = new ResultShunt(it, dropError);
 	const values = into(shunt);
 	if (shunt.error === undefined) return Ok(values);
 	const error = Err(shunt.error.value);
@@ -4928,16 +4929,25 @@ export function peekableNextIfEq<T, U>(p: Peekable<T>, expected: U, eq: (a: T, b
 	return peekableNextIf(p, (item: T) => eq(item, expected), none);
 }
 
-/** What `iterCollectResult` collects from: values until the first error, which it keeps. */
+/**
+ * What `iterCollectResult` collects from: values until an error, which it keeps. Read
+ * again, it reads on, as std's does, and a later error replaces it, which drops by `dropError`.
+ */
 class ResultShunt<U, E> extends Adaptor<Result<U, E>, U> {
 	error: { value: E } | undefined;
+	private readonly dropError: Drop<E> | undefined;
+
+	constructor(inner: Iter<Result<U, E>>, dropError: Drop<E> | undefined) {
+		super(inner);
+		this.dropError = dropError;
+	}
 
 	/** std's, by `try_for_each`, which folds its iterator. */
 	next(): U | Done {
-		if (this.error !== undefined) return DONE;
 		const item = this.inner.folded().next();
 		if (item === DONE) return DONE;
 		if (item.ok) return item.value;
+		if (this.error !== undefined) this.dropError?.(this.error.value);
 		this.error = { value: item.error };
 		return DONE;
 	}
@@ -4947,7 +4957,10 @@ class ResultShunt<U, E> extends Adaptor<Result<U, E>, U> {
 	}
 }
 
-/** What `iterCollectOption` collects from: values until the first `None`, which is `itemNone`. */
+/**
+ * What `iterCollectOption` collects from: values until a `None`, which is `itemNone`. Read
+ * again, it reads on, as std's does.
+ */
 class OptionShunt<U> extends Adaptor<U | undefined | None, U> {
 	none = false;
 	private readonly itemNone: None | undefined;
@@ -4958,7 +4971,6 @@ class OptionShunt<U> extends Adaptor<U | undefined | None, U> {
 	}
 
 	next(): U | Done {
-		if (this.none) return DONE;
 		const item = this.inner.folded().next();
 		if (item === DONE) return DONE;
 		if (item !== this.itemNone) return item as U;
