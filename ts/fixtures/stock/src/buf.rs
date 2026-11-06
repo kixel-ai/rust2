@@ -934,9 +934,10 @@ impl Drop for Tagged {
 	}
 }
 
-/// Handles of two owners' `Bytes` cloned, sliced, split, truncated, taken back, put, and
+/// Handles of three owners' `Bytes` cloned, sliced, split, truncated, taken back, put, and
 /// dropped, each op logged after it: an owner drops with the last handle of its bytes, in
 /// the order the handles drop, and a handle of one is never unique, so taking it back copies.
+/// Two are `Tagged`, and one is an `Arc<[u8]>` itself, whose strong count shows when it drops.
 pub fn owners(data: &[u8], out: &mut Vec<u8>) {
 	let [cut, ops @ ..] = data else {
 		return;
@@ -951,7 +952,8 @@ pub fn owners(data: &[u8], out: &mut Vec<u8>) {
 		})
 	};
 	let (a, b) = input.split_at(*cut as usize % (input.len() + 1));
-	let mut handles = vec![owner(0xf0, a), owner(0xf1, b)];
+	let shared: Arc<[u8]> = Arc::from(input);
+	let mut handles = vec![owner(0xf0, a), owner(0xf1, b), Bytes::from_owner(shared.clone())];
 	for &op in ops {
 		let i = usize::from(op >> 4) % handles.len().max(1);
 		if handles.is_empty() {
@@ -1031,6 +1033,7 @@ pub fn owners(data: &[u8], out: &mut Vec<u8>) {
 		};
 		let mut log = log.lock().unwrap();
 		log.push(op);
+		log.push(Arc::strong_count(&shared) as u8);
 		log.extend_from_slice(&noted);
 	}
 	for handle in &handles {
@@ -1038,6 +1041,9 @@ pub fn owners(data: &[u8], out: &mut Vec<u8>) {
 	}
 	drop(handles);
 	out.extend_from_slice(&log.lock().unwrap());
+	// No owner outlives its handles: only these two counts are left.
+	out.push(Arc::strong_count(&shared) as u8);
+	out.push(Arc::strong_count(&log) as u8);
 }
 
 /// `Chain`s of buffers of each kind, nested, and as and of `dyn Buf`s: `copy_to_bytes` of a
