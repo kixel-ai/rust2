@@ -37,6 +37,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 			("hooked::aborted", hooked::aborted),
 			("hooked::sited", hooked::sited),
 			("hooked::stock", hooked::stock),
+			("hooked::edition2018_panicked", hooked::edition2018_panicked),
 		])
 		.collect();
 	cases

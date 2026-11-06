@@ -25,10 +25,14 @@ use super::library::{self, Std};
 use crate::ts::{Expr, Key, Param, Stmt, StmtKind, Type};
 
 /// The `rs.Location` rustc gives a call at `span`: where the outermost macro call it came
-/// from is, in the file as the native build names it, by line and column from 1.
+/// from is, in the file as the native build names it, by line and column from 1. The column
+/// counts a tab as 4, which rustc reads from the file's source, so a dependency's file,
+/// imported without it, is loaded first.
 pub fn location(tcx: TyCtxt<'_>, span: Span) -> Expr {
 	let topmost = span.ctxt().outer_expn().expansion_cause().unwrap_or(span);
-	let pos = tcx.sess.source_map().lookup_char_pos(topmost.lo());
+	let map = tcx.sess.source_map();
+	map.ensure_source_file_source_present(&map.lookup_source_file(topmost.lo()));
+	let pos = map.lookup_char_pos(topmost.lo());
 	object(file(tcx, &pos.file), pos.line, pos.col_display + 1)
 }
 
