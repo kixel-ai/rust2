@@ -363,7 +363,7 @@ int main(void) {
 	CHECK(moq_hang_catalog_AudioConfig_sample_rate_get(audio) == 48000);
 	CHECK(moq_hang_catalog_AudioConfig_channel_count_get(audio) == 2);
 	moq_hang_catalog_AudioCodec codec = moq_hang_catalog_AudioConfig_codec_get(audio);
-	CHECK(codec.tag == MOQ_CATALOG_AUDIO_CODEC_OPUS);
+	CHECK(codec.tag == MOQ_HANG_CATALOG_AUDIOCODEC_OPUS);
 	moq_hang_catalog_AudioCodec_free(&codec);
 	moq_buf description = moq_hang_catalog_AudioConfig_description_get(audio);
 	CHECK(description.len == sizeof head && memcmp(description.ptr, head, sizeof head) == 0);
@@ -498,7 +498,7 @@ int main(void) {
 	moq_tokio_Client_free(tokio_client);
 
 	/* moq-tokio's terminal connect errors, which moq-net's `Error` shares no names with. */
-	moq_tokio_ConnectError unauthorized = MOQ_CONNECT_ERROR_UNAUTHORIZED;
+	moq_tokio_ConnectError unauthorized = MOQ_TOKIO_CONNECTERROR_UNAUTHORIZED;
 	CHECK(moq_tokio_ConnectError_is_auth(&unauthorized));
 	CHECK(is(moq_tokio_ConnectError_to_string(&unauthorized), "unauthorized"));
 
@@ -565,9 +565,9 @@ int main(void) {
 	moq_vec_string_free(alpns);
 	moq_Versions_free(versions);
 	/* A socket address, crossing in a listener's bind, set on its config and read back. */
-	moq_tokio_listen_Bind bind = {.tag = MOQ_LISTEN_BIND_ADDR, .addr = {._0 = {.ip = {[15] = 1}, .port = 4443, .v6 = true}}};
+	moq_tokio_listen_Bind bind = {.tag = MOQ_TOKIO_LISTEN_BIND_ADDR, .addr = {._0 = {.ip = {[15] = 1}, .port = 4443, .v6 = true}}};
 	CHECK(is(moq_tokio_listen_Bind_to_string(&bind), "[::1]:4443"));
-	moq_tokio_listen_Bind v4 = {.tag = MOQ_LISTEN_BIND_ADDR, .addr = {._0 = {.ip = {127, 0, 0, 1}, .port = 0}}};
+	moq_tokio_listen_Bind v4 = {.tag = MOQ_TOKIO_LISTEN_BIND_ADDR, .addr = {._0 = {.ip = {127, 0, 0, 1}, .port = 0}}};
 	CHECK(is(moq_tokio_listen_Bind_to_string(&v4), "127.0.0.1:0"));
 	CHECK(!moq_tokio_listen_Bind_eq(&bind, &v4));
 	moq_tokio_listen_Config *listen = moq_tokio_listen_Config_default();
@@ -607,7 +607,7 @@ int main(void) {
 
 	moq_tokio_server_Config *server_config = moq_tokio_server_Config_default();
 	moq_tokio_listen_Config *listen_config = moq_tokio_server_Config_listen_get(server_config);
-	moq_tokio_listen_Bind any = {.tag = MOQ_LISTEN_BIND_ADDR, .addr = {._0 = {.port = 0, .v6 = true}}};
+	moq_tokio_listen_Bind any = {.tag = MOQ_TOKIO_LISTEN_BIND_ADDR, .addr = {._0 = {.port = 0, .v6 = true}}};
 	moq_tokio_listen_Config_bind_set(listen_config, (moq_option_tokio_listen_Bind){.some = true, .value = any});
 	moq_tokio_tls_Listen *tls_listen = moq_tokio_tls_Listen_default();
 	moq_buf names[] = {str("localhost")};

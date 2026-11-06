@@ -146,8 +146,8 @@ func script() {
 	<-waitFrame.waiting
 	expect(writer.WriteFrame(nil, []byte("hello")) == nil, "a frame writes")
 	hello := within(frame, "a frame's arrival wakes the read")
-	expect(string(must(hello.Payload()).Copy()) == "hello", "a frame has its payload")
-	expect(must(hello.Timestamp()) == nil, "an untimed frame has no timestamp")
+	expect(string(must(hello.PayloadGet()).Copy()) == "hello", "a frame has its payload")
+	expect(must(hello.TimestampGet()) == nil, "an untimed frame has no timestamp")
 	// When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(must(moq.ClockNow().CheckedDurationSince(must(hello.Arrived()))) != nil, "a frame arrived before now")
 
@@ -164,7 +164,7 @@ func script() {
 	expect(writer.WriteFrame(nil, world) == nil, "the last frame writes")
 	expect(writer.Finish() == nil, "a group finishes")
 	last := must(first.ReadFrame(ctx))
-	expect(last != nil && bytes.Equal(must(last.Payload()).Copy(), world), "the last frame reads")
+	expect(last != nil && bytes.Equal(must(last.PayloadGet()).Copy(), world), "the last frame reads")
 	expect(must(first.ReadFrame(ctx)) == nil, "a finished group reads nil")
 
 	// An origin and the driver that runs it, a pair. Its root, which it lends, is returned
@@ -193,7 +193,7 @@ func script() {
 	// handle to it is closed, since an open one keeps it, and so the origin, alive.
 	publication := must(origin.CreateBroadcast("room/alice"))
 	created := must(publication.Broadcast())
-	path := must(must(created.Info()).Path())
+	path := must(must(created.Info()).PathGet())
 	created.Close()
 	publication.Close()
 	expect(must(path.AsStr()) == "room/alice", "a broadcast has its path")
@@ -226,14 +226,14 @@ func script() {
 	// moq-mux reads an OpusHead into hang's catalog config: 44.1 kHz in, stereo, which the
 	// catalog lists at the decoder's 48 kHz, keeping the head as its description.
 	head := append([]byte("OpusHead"), 1, 2, 0x38, 0x01, 0x44, 0xac, 0, 0, 0, 0, 0)
-	audio := must(moq.CodecOpusAudioConfig(head))
-	expect(must(audio.SampleRate()) == 48000, "Opus decodes at 48 kHz")
-	expect(must(audio.ChannelCount()) == 2, "the head is stereo")
-	expect(must(audio.Codec()) == moq.CatalogAudioCodecOpus{}, "the codec is Opus")
-	description := must(audio.Description())
+	audio := must(moq.MuxCodecOpusConfig_(head))
+	expect(must(audio.SampleRateGet()) == 48000, "Opus decodes at 48 kHz")
+	expect(must(audio.ChannelCountGet()) == 2, "the head is stereo")
+	expect(must(audio.CodecGet()) == moq.HangCatalogAudioCodecOpus{}, "the codec is Opus")
+	description := must(audio.DescriptionGet())
 	expect(description != nil && bytes.Equal(description.Copy(), head), "the head is the description")
 	// A truncated head is moq-mux's error.
-	_, err = moq.CodecOpusAudioConfig(head[:8])
+	_, err = moq.MuxCodecOpusConfig_(head[:8])
 	var mux *moq.MuxError
 	expect(errors.As(err, &mux) && err.Error() != "", "a truncated head's error has a message")
 
@@ -243,7 +243,7 @@ func script() {
 		End:   moq.BoundU64{Kind: moq.BoundExcluded, Value: 6},
 	})
 	ranges := []moq.TrackRange{moq.TrackRangeLive(), groups}
-	ranged := must(must(moq.TrackSubscriptionDefault().WithRanges(ranges)).Ranges())
+	ranged := must(must(moq.TrackSubscriptionDefault().WithRanges(ranges)).RangesGet())
 	expect(slices.EqualFunc(ranged, ranges, func(a, b moq.TrackRange) bool { return must(a.Equal(b)) }), "a subscription keeps its ranges")
 	expect(groups.Start == moq.TrackAnchorAbsolute{V0: 2}, "groups start at their first")
 	expect(groups.End != nil && *groups.End == moq.TrackAnchorAbsolute{V0: 6}, "groups end before their end")
@@ -252,7 +252,7 @@ func script() {
 	// `is_claimed` is named by the last segment of its argument, and whose `mutate` lends
 	// the catalog to Go.
 	publisher := must(moq.NewBroadcastInfo().Produce())
-	extra := must(moq.CatalogConfigDefault().WithCatalogExtra(moq.HangCatalogExtraDefault()))
+	extra := must(moq.MuxCatalogConfigDefault().WithCatalogExtra(moq.HangCatalogExtraDefault()))
 	catalog := must(moq.NewMuxCatalogProducerExtra(publisher, extra))
 	expect(!must(catalog.IsClaimedBinaryConfig("state")), "an unclaimed name is not claimed")
 	read := 0
@@ -266,7 +266,7 @@ func script() {
 	// A JSON track the catalog lists, published through moq-mux's generic `json_snapshot` at
 	// a JSON document, and a section Go parses from text, set in the lent catalog and read
 	// back as text.
-	status := must(catalog.JsonSnapshotConfig(must(publisher.CreateTrack("status", must(moq.TrackInfoDefault().WithTimescale(moq.TimescaleMILLI())))), moq.JsonConfigDefault(), moq.JsonOptionsDefault()))
+	status := must(catalog.JsonSnapshotConfig(must(publisher.CreateTrack("status", must(moq.TrackInfoDefault().WithTimescale(moq.TimescaleMILLI())))), moq.MuxJsonConfigDefault(), moq.MuxJsonOptionsDefault()))
 	expect(must(status.Name()) == "status", "a JSON snapshot has its track's name")
 	expect(must(catalog.IsClaimedJsonConfig("status")), "the JSON snapshot claims its name")
 	// A value Go parses is published as the track's latest, which a subscriber reads back
@@ -275,16 +275,16 @@ func script() {
 	expect(status.Update(on, moq.TimestampNow()) == nil, "a JSON snapshot updates")
 	on.Close()
 	latest := must(must(must(status.Consume()).RecvGroup(ctx)).ReadFrame(ctx))
-	expect(latest != nil && string(must(latest.Payload()).Copy()) == `{"on":true}`, "a subscriber reads the latest value")
+	expect(latest != nil && string(must(latest.PayloadGet()).Copy()) == `{"on":true}`, "a subscriber reads the latest value")
 	expect(catalog.Mutate(func(lent *moq.HangCatalogExtra) {
-		sections := must(lent.Ext())
+		sections := must(lent.ExtGet())
 		expect(sections.Set("app", must(moq.JsonParse(`{"v": [1, true]}`))) == nil, "a section sets")
-		check(lent.SetExt(sections))
+		check(lent.ExtSet(sections))
 	}) == nil, "mutate sets a section")
 	var app *string
 	expect(catalog.Mutate(func(lent *moq.HangCatalogExtra) {
 		expect(strings.Contains(must(lent.ToJson()), `"status"`), "the catalog lists the JSON track")
-		if section := must(must(lent.Ext()).Get("app")); section != nil {
+		if section := must(must(lent.ExtGet()).Get("app")); section != nil {
 			text := must(section.ToText())
 			app = &text
 		}
@@ -294,30 +294,30 @@ func script() {
 	_, err = moq.JsonParse(`{"v":`)
 	var parse moq.StringError
 	expect(errors.As(err, &parse) && parse.Value == "EOF while parsing a value at line 1 column 5", "a parse error is serde_json's")
-	err = moq.CatalogHangExtraDefault().Set("json", must(moq.JsonParse("1")))
+	err = moq.MuxCatalogHangExtraDefault().Set("json", must(moq.JsonParse("1")))
 	expect(errors.As(err, &mux) && err.Error() == "reserved catalog section: json", "a reserved section is moq-mux's error")
 
 	// moq-tokio's terminal connect errors, which moq-net's `Error` shares no names with.
-	expect(moq.ConnectErrorUnauthorized.IsAuth(), "unauthorized is an auth error")
-	expect(moq.ConnectErrorUnauthorized.String() == "unauthorized", "a connect error prints as Rust's")
+	expect(moq.TokioConnectErrorUnauthorized.IsAuth(), "unauthorized is an auth error")
+	expect(moq.TokioConnectErrorUnauthorized.String() == "unauthorized", "a connect error prints as Rust's")
 
 	// Session config's foreign types. A URL is parsed from text, failing with why.
 	_, err = moq.UrlParse("relay.example")
 	expect(errors.As(err, &parse) && parse.Value == "relative URL without a base", "a URL's parse error is Rust's")
 	// A session's config, its URL and pinned fingerprints set as Rust assigns them.
-	connect := moq.ConnectConfigDefault()
-	tls := must(connect.Tls())
-	check(tls.SetFingerprint([]string{"ab:cd"}))
-	check(connect.SetTls(tls))
+	connect := moq.TokioConnectConfigDefault()
+	tls := must(connect.TlsGet())
+	check(tls.FingerprintSet([]string{"ab:cd"}))
+	check(connect.TlsSet(tls))
 	tls.Close()
-	check(connect.SetUrl(must(moq.UrlParse("https://relay.example:4443/demo"))))
-	expect(slices.Equal(must(must(connect.Tls()).Fingerprint()), []string{"ab:cd"}), "a TLS config keeps its fingerprints")
-	url := must(connect.Url())
+	check(connect.UrlSet(must(moq.UrlParse("https://relay.example:4443/demo"))))
+	expect(slices.Equal(must(must(connect.TlsGet()).FingerprintGet()), []string{"ab:cd"}), "a TLS config keeps its fingerprints")
+	url := must(connect.UrlGet())
 	connect.Close()
 	versions := moq.VersionsDefault()
 	tokens := must(moq.NewAuthTokens(nil))
 	dial := must(tokens.Dial(url, versions))
-	dialed := must(dial.Url())
+	dialed := must(dial.UrlGet())
 	expect(must(dialed.Equal(url)), "a dial keeps its URL")
 	expect(dialed.String() == "https://relay.example:4443/demo", "a URL prints as Rust's")
 	dialed.Close()
@@ -334,18 +334,18 @@ func script() {
 	expect(fmt.Sprint(bind) == "[::1]:4443", "an IPv6 bind prints as Rust's")
 	v4 := netip.MustParseAddrPort("127.0.0.1:0")
 	expect(moq.TokioListenBindAddr{V0: v4}.String() == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
-	listen := moq.ListenConfigDefault()
-	check(listen.SetBind(&bind))
+	listen := moq.TokioListenConfigDefault()
+	check(listen.BindSet(&bind))
 	// The preferred address of each family, which takes only that family.
-	check(listen.SetPreferredV4(&v4))
-	preferred := must(listen.PreferredV4())
-	expect(preferred != nil && *preferred == v4 && must(listen.PreferredV6()) == nil, "a listener keeps its preferred IPv4 address")
-	kept := must(listen.Bind())
+	check(listen.PreferredV4Set(&v4))
+	preferred := must(listen.PreferredV4Get())
+	expect(preferred != nil && *preferred == v4 && must(listen.PreferredV6Get()) == nil, "a listener keeps its preferred IPv4 address")
+	kept := must(listen.BindGet())
 	expect(kept != nil && *kept == bind, "a listener's config keeps its bind")
 	listen.Close()
 	// TLS files, as OS paths, and fingerprints, as strings: none by default.
-	defaults := moq.TlsConnectDefault()
-	expect(len(must(defaults.Root())) == 0 && len(must(defaults.Fingerprint())) == 0, "a default TLS config lists none")
+	defaults := moq.TokioTlsConnectDefault()
+	expect(len(must(defaults.RootGet())) == 0 && len(must(defaults.FingerprintGet())) == 0, "a default TLS config lists none")
 	defaults.Close()
 
 	session()
@@ -359,7 +359,7 @@ func session() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	served := moq.OriginSpawn()
+	served := moq.TokioOriginSpawn()
 	live := must(served.CreateBroadcast("live"))
 	expect(live.Announce(moq.OriginRouteDefault()) == nil, "a broadcast announces")
 	liveTrack := must(must(live.Broadcast()).CreateTrack("video", nil))
@@ -367,14 +367,14 @@ func session() {
 	expect(liveGroup.WriteFrame(nil, []byte("hello")) == nil, "a served frame writes")
 	expect(liveGroup.Finish() == nil, "a served group finishes")
 
-	serverConfig := moq.ServerConfigDefault()
-	listen := must(serverConfig.Listen())
+	serverConfig := moq.TokioServerConfigDefault()
+	listen := must(serverConfig.ListenGet())
 	var bind moq.TokioListenBind = moq.TokioListenBindAddr{V0: netip.MustParseAddrPort("[::]:0")}
-	check(listen.SetBind(&bind))
-	tls := must(listen.Tls())
-	check(tls.SetGenerate([]string{"localhost"}))
-	check(listen.SetTls(tls))
-	check(serverConfig.SetListen(listen))
+	check(listen.BindSet(&bind))
+	tls := must(listen.TlsGet())
+	check(tls.GenerateSet([]string{"localhost"}))
+	check(listen.TlsSet(tls))
+	check(serverConfig.ListenSet(listen))
 	server := must(serverConfig.Init())
 	local := must(server.LocalAddr())
 	expect(local.Port() != 0, "a server bound to port 0 reads back the port it got")
@@ -382,16 +382,16 @@ func session() {
 	defer stop()
 	go server.ServePublish(serving, must(served.Consume()))
 
-	connect := moq.ConnectConfigDefault()
-	check(connect.SetUrl(must(moq.UrlParse(fmt.Sprintf("moqt://localhost:%d", local.Port())))))
-	insecure := must(connect.Tls())
+	connect := moq.TokioConnectConfigDefault()
+	check(connect.UrlSet(must(moq.UrlParse(fmt.Sprintf("moqt://localhost:%d", local.Port())))))
+	insecure := must(connect.TlsGet())
 	yes := true
-	check(insecure.SetInsecure(&yes))
-	check(connect.SetTls(insecure))
-	clientConfig := moq.ClientConfigDefault()
-	check(clientConfig.SetConnect(connect))
+	check(insecure.InsecureSet(&yes))
+	check(connect.TlsSet(insecure))
+	clientConfig := moq.TokioClientConfigDefault()
+	check(clientConfig.ConnectSet(connect))
 	client := must(clientConfig.Init())
-	received := moq.OriginSpawn()
+	received := moq.TokioOriginSpawn()
 	remote := must(received.Consume())
 	connection := must(must(must(client.Clone()).WithReconnect(false)).Consume(received))
 	expect(connection != nil, "a client with a URL dials it")
@@ -399,7 +399,7 @@ func session() {
 
 	subscriber := must(must(must(remote.Request(ctx, "live", nil)).Track("video")).Subscribe(ctx, nil))
 	frame := must(must(subscriber.RecvGroup(ctx)).ReadFrame(ctx))
-	expect(frame != nil && string(must(frame.Payload()).Copy()) == "hello", "a session reads the frame the server serves")
+	expect(frame != nil && string(must(frame.PayloadGet()).Copy()) == "hello", "a session reads the frame the server serves")
 
 	expect(established.Close_(ctx) == nil, "a connection closes")
 	expect(client.Close_(ctx) == nil, "a client closes")

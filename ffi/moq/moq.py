@@ -78,8 +78,8 @@ def local(loop):
 	expect(not read.done(), "a read waits for a frame")
 	writer.write_frame(None, b"hello")
 	hello = loop.run_until_complete(asyncio.wait_for(read, 5))
-	expect(text(hello.payload) == "hello", "a frame has its payload")
-	expect(hello.timestamp is None, "an untimed frame has no timestamp")
+	expect(text(hello.payload_get) == "hello", "a frame has its payload")
+	expect(hello.timestamp_get is None, "an untimed frame has no timestamp")
 	# When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(moq.clock_now().checked_duration_since(hello.arrived()) is not None, "a frame arrived before now")
 
@@ -99,7 +99,7 @@ def local(loop):
 	writer.write_frame(None, world)
 	writer.finish()
 	last = loop.run_until_complete(first.read_frame())
-	expect(last is not None and bytes(last.payload) == world, "the last frame reads")
+	expect(last is not None and bytes(last.payload_get) == world, "the last frame reads")
 	expect(loop.run_until_complete(first.read_frame()) is None, "a finished group reads None")
 
 
@@ -123,7 +123,7 @@ def origin(loop):
 
 	# A broadcast the origin creates is stamped with its path, which its info lends.
 	publication = origin.create_broadcast("room/alice")
-	path = publication.broadcast().info().path
+	path = publication.broadcast().info().path_get
 	expect(path.as_str() == "room/alice", "a broadcast has its path")
 
 	# Paths own their segments, so Python builds them, and relative ones, from a string.
@@ -162,14 +162,14 @@ def catalog(loop):
 	# moq-mux reads an OpusHead into hang's catalog config: 44.1 kHz in, stereo, which the
 	# catalog lists at the decoder's 48 kHz, keeping the head as its description.
 	head = b"OpusHead" + bytes([1, 2, 0x38, 0x01, 0x44, 0xAC, 0, 0, 0, 0, 0])
-	audio = moq.codec_opus_audio_config(head)
-	expect(audio.sample_rate == 48000, "Opus decodes at 48 kHz")
-	expect(audio.channel_count == 2, "the head is stereo")
-	expect(audio.codec == moq.HangCatalogAudioCodec.Opus(), "the codec is Opus")
-	expect(audio.description is not None and bytes(audio.description) == head, "the head is the description")
+	audio = moq.mux_codec_opus_config(head)
+	expect(audio.sample_rate_get == 48000, "Opus decodes at 48 kHz")
+	expect(audio.channel_count_get == 2, "the head is stereo")
+	expect(audio.codec_get == moq.HangCatalogAudioCodec.Opus(), "the codec is Opus")
+	expect(audio.description_get is not None and bytes(audio.description_get) == head, "the head is the description")
 	# A truncated head is moq-mux's error.
 	try:
-		moq.codec_opus_audio_config(head[:8])
+		moq.mux_codec_opus_config(head[:8])
 		expect(False, "a truncated head is an error")
 	except moq.MuxErrorException as e:
 		expect(str(e) != "", "a truncated head's error has a message")
@@ -177,7 +177,7 @@ def catalog(loop):
 	# A subscription's ranges, from any iterable of them: a list.
 	b = moq.Bound
 	groups = moq.TrackRange.groups(moq.BoundsU64(moq.BoundU64(b.INCLUDED, 2), moq.BoundU64(b.EXCLUDED, 6)))
-	ranged = moq.TrackSubscription.default().with_ranges([moq.TrackRange.live(), groups]).ranges
+	ranged = moq.TrackSubscription.default().with_ranges([moq.TrackRange.live(), groups]).ranges_get
 	expect(ranged == [moq.TrackRange.live(), groups], "a subscription keeps its ranges")
 	expect(groups.start == moq.TrackAnchor.Absolute(2), "groups start at their first")
 	expect(groups.end == moq.TrackAnchor.Absolute(6), "groups end before their end")
@@ -216,12 +216,12 @@ def catalog(loop):
 		return None if group is None else await group.read_frame()
 
 	frame = loop.run_until_complete(latest())
-	expect(frame is not None and text(frame.payload) == '{"on":true}', "a subscriber reads the latest value")
+	expect(frame is not None and text(frame.payload_get) == '{"on":true}', "a subscriber reads the latest value")
 
 	def section(lent):
-		sections = lent.ext
+		sections = lent.ext_get
 		sections.set("app", moq.Json.parse('{"v": [1, true]}'))
-		lent.set_ext(sections)
+		lent.ext_set(sections)
 
 	producer.mutate(section)
 	app = None
@@ -229,7 +229,7 @@ def catalog(loop):
 	def back(lent):
 		nonlocal app
 		expect('"status"' in lent.to_json(), "the catalog lists the JSON track")
-		value = lent.ext.get("app")
+		value = lent.ext_get.get("app")
 		app = None if value is None else value.to_text()
 
 	producer.mutate(back)
@@ -260,14 +260,14 @@ def config():
 		expect(str(e) == "relative URL without a base", "a URL's parse error is Rust's")
 	# A session's config, its URL and pinned fingerprints set as Rust assigns them.
 	connect = moq.TokioConnectConfig.default()
-	tls = connect.tls
-	tls.set_fingerprint(["ab:cd"])
-	connect.set_tls(tls)
-	connect.set_url(moq.Url.parse("https://relay.example:4443/demo"))
-	expect(connect.tls.fingerprint == ["ab:cd"], "a TLS config keeps its fingerprints")
-	url = connect.url
+	tls = connect.tls_get
+	tls.fingerprint_set(["ab:cd"])
+	connect.tls_set(tls)
+	connect.url_set(moq.Url.parse("https://relay.example:4443/demo"))
+	expect(connect.tls_get.fingerprint_get == ["ab:cd"], "a TLS config keeps its fingerprints")
+	url = connect.url_get
 	versions = moq.Versions.default()
-	dialed = moq.AuthTokens.new([]).dial(url, versions).url
+	dialed = moq.AuthTokens.new([]).dial(url, versions).url_get
 	expect(dialed == url, "a dial keeps its URL")
 	expect(str(dialed) == "https://relay.example:4443/demo", "a URL prints as Rust's")
 	# A `Vec<String>`, as a list.
@@ -280,14 +280,14 @@ def config():
 	v4 = moq.TokioListenBind.Addr(("127.0.0.1", 0))
 	expect(str(v4) == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
 	listen = moq.TokioListenConfig.default()
-	listen.set_bind(bind)
+	listen.bind_set(bind)
 	# The preferred address of each family, which takes only that family.
-	listen.set_preferred_v4(v4._0)
-	expect(listen.preferred_v4 == v4._0 and listen.preferred_v6 is None, "a listener keeps its preferred IPv4 address")
-	expect(listen.bind == bind, "a listener's config keeps its bind")
+	listen.preferred_v4_set(v4._0)
+	expect(listen.preferred_v4_get == v4._0 and listen.preferred_v6_get is None, "a listener keeps its preferred IPv4 address")
+	expect(listen.bind_get == bind, "a listener's config keeps its bind")
 	# TLS files, as OS paths, and fingerprints, as strings: none by default.
 	tls = moq.TokioTlsConnect.default()
-	expect(tls.root == [] and tls.fingerprint == [], "a default TLS config lists none")
+	expect(tls.root_get == [] and tls.fingerprint_get == [], "a default TLS config lists none")
 
 
 async def session():
@@ -295,7 +295,7 @@ async def session():
 	and serves with one call, in a task of its own, and a client dials it with one call and
 	reads a frame back, each await resuming once moq-tokio's fallback runtime wakes it from
 	its threads."""
-	served = moq.origin_spawn()
+	served = moq.tokio_origin_spawn()
 	live = served.create_broadcast("live")
 	live.announce(moq.OriginRoute.default())
 	live_track = live.broadcast().create_track("video", None)
@@ -304,26 +304,26 @@ async def session():
 	live_group.finish()
 
 	server_config = moq.TokioServerConfig.default()
-	listen = server_config.listen
-	listen.set_bind(moq.TokioListenBind.Addr(("::", 0, 0, 0)))
-	tls = listen.tls
-	tls.set_generate(["localhost"])
-	listen.set_tls(tls)
-	server_config.set_listen(listen)
+	listen = server_config.listen_get
+	listen.bind_set(moq.TokioListenBind.Addr(("::", 0, 0, 0)))
+	tls = listen.tls_get
+	tls.generate_set(["localhost"])
+	listen.tls_set(tls)
+	server_config.listen_set(listen)
 	server = server_config.init()
 	local = server.local_addr()
 	expect(local[1] != 0, "a server bound to port 0 reads back the port it got")
 	serving = asyncio.create_task(server.serve_publish(served.consume()))
 
 	connect = moq.TokioConnectConfig.default()
-	connect.set_url(moq.Url.parse(f"moqt://localhost:{local[1]}"))
-	insecure = connect.tls
-	insecure.set_insecure(True)
-	connect.set_tls(insecure)
+	connect.url_set(moq.Url.parse(f"moqt://localhost:{local[1]}"))
+	insecure = connect.tls_get
+	insecure.insecure_set(True)
+	connect.tls_set(insecure)
 	client_config = moq.TokioClientConfig.default()
-	client_config.set_connect(connect)
+	client_config.connect_set(connect)
 	client = client_config.init()
-	received = moq.origin_spawn()
+	received = moq.tokio_origin_spawn()
 	remote = received.consume()
 	connection = client.clone().with_reconnect(False).consume(received)
 	expect(connection is not None, "a client with a URL dials it")
@@ -333,7 +333,7 @@ async def session():
 	subscriber = await broadcast.track("video").subscribe(None)
 	group = await subscriber.recv_group()
 	frame = None if group is None else await group.read_frame()
-	expect(frame is not None and text(frame.payload) == "hello", "a session reads the frame the server serves")
+	expect(frame is not None and text(frame.payload_get) == "hello", "a session reads the frame the server serves")
 
 	await established.close()
 	await client.close()

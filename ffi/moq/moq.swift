@@ -117,7 +117,7 @@ func origin(_ waiter: Waiter, _ wakes: Cell<Int>) throws -> (OriginDriver, Int) 
 	// A broadcast the origin creates is stamped with its path, which its info lends.
 	do {
 		let publication = try origin.createBroadcast("room/alice")
-		let path = publication.broadcast().info().path
+		let path = publication.broadcast().info().pathGet
 		expect(path.asStr() == "room/alice", "a broadcast has its path")
 
 		// Paths own their segments, so Swift builds them, and relative ones, from a string.
@@ -180,8 +180,8 @@ func script() throws {
 	expect(q.size == 1, "a frame's arrival wakes the read")
 	q.drain()
 	let hello = frame.value!
-	expect(text(hello.payload) == "hello", "a frame has its payload")
-	expect(hello.timestamp == nil, "an untimed frame has no timestamp")
+	expect(text(hello.payloadGet) == "hello", "a frame has its payload")
+	expect(hello.timestampGet == nil, "an untimed frame has no timestamp")
 	// When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(clockNow().checkedDurationSince(hello.arrived()) != nil, "a frame arrived before now")
 
@@ -202,7 +202,7 @@ func script() throws {
 	try writer.writeFrame(nil, world)
 	try writer.finish()
 	try block {
-		expect(try await first.readFrame()?.payload == world, "the last frame reads")
+		expect(try await first.readFrame()?.payloadGet == world, "the last frame reads")
 		expect(try await first.readFrame() == nil, "a finished group reads nil")
 	}
 
@@ -224,14 +224,14 @@ func script() throws {
 	// moq-mux reads an OpusHead into hang's catalog config: 44.1 kHz in, stereo, which the
 	// catalog lists at the decoder's 48 kHz, keeping the head as its description.
 	let head = Data("OpusHead".utf8) + Data([1, 2, 0x38, 0x01, 0x44, 0xac, 0, 0, 0, 0, 0])
-	let audio = try codecOpusAudioConfig(head)
-	expect(audio.sampleRate == 48000, "Opus decodes at 48 kHz")
-	expect(audio.channelCount == 2, "the head is stereo")
-	expect(audio.codec == .opus, "the codec is Opus")
-	expect(audio.description == head, "the head is the description")
+	let audio = try muxCodecOpusConfig(head)
+	expect(audio.sampleRateGet == 48000, "Opus decodes at 48 kHz")
+	expect(audio.channelCountGet == 2, "the head is stereo")
+	expect(audio.codecGet == .opus, "the codec is Opus")
+	expect(audio.descriptionGet == head, "the head is the description")
 	// A truncated head is moq-mux's error.
 	do {
-		_ = try codecOpusAudioConfig(head.prefix(8))
+		_ = try muxCodecOpusConfig(head.prefix(8))
 		expect(false, "a truncated head is an error")
 	} catch let e as MuxError {
 		expect(!"\(e)".isEmpty, "a truncated head's error has a message")
@@ -239,7 +239,7 @@ func script() throws {
 
 	// A subscription's ranges, from any iterable of them: an array.
 	let groups = TrackRange.groups(BoundsU64(start: .included(2), end: .excluded(6)))
-	let ranged = TrackSubscription.default().withRanges([TrackRange.live(), groups]).ranges
+	let ranged = TrackSubscription.default().withRanges([TrackRange.live(), groups]).rangesGet
 	expect(ranged == [TrackRange.live(), groups], "a subscription keeps its ranges")
 	expect(groups.start == .absolute(2), "groups start at their first")
 	expect(groups.end == .absolute(6), "groups end before their end")
@@ -272,17 +272,17 @@ func script() throws {
 	try status.update(on, Timestamp.now())
 	try block {
 		let frame = try await status.consume().recvGroup()?.readFrame()
-		expect(text(frame?.payload) == #"{"on":true}"#, "a subscriber reads the latest value")
+		expect(text(frame?.payloadGet) == #"{"on":true}"#, "a subscriber reads the latest value")
 	}
 	try catalog.mutate { lent in
-		let sections = lent.ext
+		let sections = lent.extGet
 		try! sections.set("app", Json.parse(#"{"v": [1, true]}"#))
-		lent.setExt(sections)
+		lent.extSet(sections)
 	}
 	let app = Cell<String?>(nil)
 	try catalog.mutate { lent in
 		expect(try! lent.toJson().contains("\"status\""), "the catalog lists the JSON track")
-		app.value = lent.ext.get("app")?.toText()
+		app.value = lent.extGet.get("app")?.toText()
 	}
 	expect(app.value == #"{"v":[1,true]}"#, "the catalog reads its section back as text")
 	// Malformed text fails to parse, and a reserved section is moq-mux's error.
@@ -312,14 +312,14 @@ func script() throws {
 	}
 	// A session's config, its URL and pinned fingerprints set as Rust assigns them.
 	let connect = TokioConnectConfig.default()
-	let tls = connect.tls
-	tls.setFingerprint(["ab:cd"])
-	connect.setTls(tls)
-	connect.setUrl(try Url.parse("https://relay.example:4443/demo"))
-	expect(connect.tls.fingerprint == ["ab:cd"], "a TLS config keeps its fingerprints")
-	let url = connect.url!
+	let tls = connect.tlsGet
+	tls.fingerprintSet(["ab:cd"])
+	connect.tlsSet(tls)
+	connect.urlSet(try Url.parse("https://relay.example:4443/demo"))
+	expect(connect.tlsGet.fingerprintGet == ["ab:cd"], "a TLS config keeps its fingerprints")
+	let url = connect.urlGet!
 	let versions = Versions.default()
-	let dialed = AuthTokens.new([]).dial(url, versions).url
+	let dialed = AuthTokens.new([]).dial(url, versions).urlGet
 	expect(dialed == url, "a dial keeps its URL")
 	expect("\(dialed)" == "https://relay.example:4443/demo", "a URL prints as Rust's")
 	// A `Vec<String>`, as an array.
@@ -333,14 +333,14 @@ func script() throws {
 	let v4 = SocketAddr(ip: [127, 0, 0, 1], port: 0)
 	expect("\(TokioListenBind.addr(v4))" == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
 	let listen = TokioListenConfig.default()
-	listen.setBind(bind)
+	listen.bindSet(bind)
 	// The preferred address of each family, which takes only that family.
-	listen.setPreferredV4(v4)
-	expect(listen.preferredV4 == v4 && listen.preferredV6 == nil, "a listener keeps its preferred IPv4 address")
-	expect(listen.bind == bind, "a listener's config keeps its bind")
+	listen.preferredV4Set(v4)
+	expect(listen.preferredV4Get == v4 && listen.preferredV6Get == nil, "a listener keeps its preferred IPv4 address")
+	expect(listen.bindGet == bind, "a listener's config keeps its bind")
 	// TLS files, as OS paths, and fingerprints, as strings: none by default.
 	let defaults = TokioTlsConnect.default()
-	expect(defaults.root.isEmpty && defaults.fingerprint.isEmpty, "a default TLS config lists none")
+	expect(defaults.rootGet.isEmpty && defaults.fingerprintGet.isEmpty, "a default TLS config lists none")
 
 	// A session, as moq.c runs it: a server bound to port 0 reads back the port it got and
 	// serves with one call, in a task of its own, and a client dials it with one call and
@@ -351,7 +351,7 @@ func script() throws {
 		exit(1)
 	}
 	try block {
-		let served = originSpawn()
+		let served = tokioOriginSpawn()
 		let live = try served.createBroadcast("live")
 		try live.announce(OriginRoute.default())
 		let liveTrack = try live.broadcast().createTrack("video", nil)
@@ -360,26 +360,26 @@ func script() throws {
 		try liveGroup.finish()
 
 		let serverConfig = TokioServerConfig.default()
-		let listen = serverConfig.listen
-		listen.setBind(.addr(SocketAddr(ip: Array(repeating: 0, count: 16), port: 0)))
-		let tls = listen.tls
-		tls.setGenerate(["localhost"])
-		listen.setTls(tls)
-		serverConfig.setListen(listen)
+		let listen = serverConfig.listenGet
+		listen.bindSet(.addr(SocketAddr(ip: Array(repeating: 0, count: 16), port: 0)))
+		let tls = listen.tlsGet
+		tls.generateSet(["localhost"])
+		listen.tlsSet(tls)
+		serverConfig.listenSet(listen)
 		let server = try serverConfig.init_()
 		let local = try server.localAddr()
 		expect(local.port != 0, "a server bound to port 0 reads back the port it got")
 		let serving = Task { try await server.servePublish(served.consume()) }
 
 		let connect = TokioConnectConfig.default()
-		connect.setUrl(try Url.parse("moqt://localhost:\(local.port)"))
-		let insecure = connect.tls
-		insecure.setInsecure(true)
-		connect.setTls(insecure)
+		connect.urlSet(try Url.parse("moqt://localhost:\(local.port)"))
+		let insecure = connect.tlsGet
+		insecure.insecureSet(true)
+		connect.tlsSet(insecure)
 		let clientConfig = TokioClientConfig.default()
-		clientConfig.setConnect(connect)
+		clientConfig.connectSet(connect)
 		let client = try clientConfig.init_()
-		let received = originSpawn()
+		let received = tokioOriginSpawn()
 		let remote = received.consume()
 		let connection = client.clone().withReconnect(false).consume(received)
 		expect(connection != nil, "a client with a URL dials it")
@@ -387,7 +387,7 @@ func script() throws {
 
 		let subscriber = try await remote.request("live", nil).track("video").subscribe(nil)
 		let frame = try await subscriber.recvGroup()?.readFrame()
-		expect(text(frame?.payload) == "hello", "a session reads the frame the server serves")
+		expect(text(frame?.payloadGet) == "hello", "a session reads the frame the server serves")
 
 		try await established.close()
 		try await client.close()

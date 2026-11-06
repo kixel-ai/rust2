@@ -84,8 +84,8 @@ fun main() {
 	expect(q.size == 1, "a frame's arrival wakes the read")
 	q.drain()
 	val hello = frame!!
-	expect(hello.payload.toByteArray().decodeToString() == "hello", "a frame has its payload")
-	expect(hello.timestamp == null, "an untimed frame has no timestamp")
+	expect(hello.payloadGet.toByteArray().decodeToString() == "hello", "a frame has its payload")
+	expect(hello.timestampGet == null, "an untimed frame has no timestamp")
 	// When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(clockNow().checkedDurationSince(hello.arrived()) != null, "a frame arrived before now")
 
@@ -106,7 +106,7 @@ fun main() {
 	writer.writeFrame(null, world)
 	writer.finish()
 	runBlocking {
-		expect(first.readFrame()?.payload?.toByteArray()?.contentEquals(world) == true, "the last frame reads")
+		expect(first.readFrame()?.payloadGet?.toByteArray()?.contentEquals(world) == true, "the last frame reads")
 		expect(first.readFrame() == null, "a finished group reads null")
 	}
 
@@ -133,7 +133,7 @@ fun main() {
 	// A broadcast the origin creates is stamped with its path, which its info lends. Each
 	// handle to it is closed, since an open one keeps it, and so the origin, alive.
 	origin.createBroadcast("room/alice").use { publication ->
-		val path = publication.broadcast().use { it.info().path }
+		val path = publication.broadcast().use { it.info().pathGet }
 		expect(path.asStr() == "room/alice", "a broadcast has its path")
 
 		// Paths own their segments, so Kotlin builds them, and relative ones, from a string.
@@ -175,14 +175,14 @@ fun main() {
 	// moq-mux reads an OpusHead into hang's catalog config: 44.1 kHz in, stereo, which the
 	// catalog lists at the decoder's 48 kHz, keeping the head as its description.
 	val head = "OpusHead".encodeToByteArray() + byteArrayOf(1, 2, 0x38, 0x01, 0x44, 0xac.toByte(), 0, 0, 0, 0, 0)
-	val audio = codecOpusAudioConfig(head)
-	expect(audio.sampleRate == 48000u, "Opus decodes at 48 kHz")
-	expect(audio.channelCount == 2u, "the head is stereo")
-	expect(audio.codec == HangCatalogAudioCodec.Opus, "the codec is Opus")
-	expect(audio.description?.toByteArray()?.contentEquals(head) == true, "the head is the description")
+	val audio = muxCodecOpusConfig(head)
+	expect(audio.sampleRateGet == 48000u, "Opus decodes at 48 kHz")
+	expect(audio.channelCountGet == 2u, "the head is stereo")
+	expect(audio.codecGet == HangCatalogAudioCodec.Opus, "the codec is Opus")
+	expect(audio.descriptionGet?.toByteArray()?.contentEquals(head) == true, "the head is the description")
 	// A truncated head is moq-mux's error.
 	try {
-		codecOpusAudioConfig(head.copyOf(8))
+		muxCodecOpusConfig(head.copyOf(8))
 		expect(false, "a truncated head is an error")
 	} catch (e: MuxErrorException) {
 		expect(e.message.isNotEmpty(), "a truncated head's error has a message")
@@ -190,7 +190,7 @@ fun main() {
 
 	// A subscription's ranges, from any iterable of them: a list.
 	val groups = TrackRange.groups(BoundsU64(BoundU64(Bound.INCLUDED, 2u), BoundU64(Bound.EXCLUDED, 6u)))
-	val ranged = TrackSubscription.default().withRanges(listOf(TrackRange.live(), groups)).ranges
+	val ranged = TrackSubscription.default().withRanges(listOf(TrackRange.live(), groups)).rangesGet
 	expect(ranged == listOf(TrackRange.live(), groups), "a subscription keeps its ranges")
 	expect(groups.start == TrackAnchor.Absolute(2u), "groups start at their first")
 	expect(groups.end == TrackAnchor.Absolute(6u), "groups end before their end")
@@ -219,17 +219,17 @@ fun main() {
 	Json.parse("""{"on": true}""").use { status.update(it, Timestamp.now()) }
 	runBlocking {
 		val frame = status.consume().recvGroup()?.readFrame()
-		expect(frame?.payload?.toByteArray()?.decodeToString() == """{"on":true}""", "a subscriber reads the latest value")
+		expect(frame?.payloadGet?.toByteArray()?.decodeToString() == """{"on":true}""", "a subscriber reads the latest value")
 	}
 	catalog.mutate { lent ->
-		val sections = lent.ext
+		val sections = lent.extGet
 		sections.set("app", Json.parse("""{"v": [1, true]}"""))
-		lent.setExt(sections)
+		lent.extSet(sections)
 	}
 	var app: String? = null
 	catalog.mutate { lent ->
 		expect(lent.toJson().contains("\"status\""), "the catalog lists the JSON track")
-		app = lent.ext.get("app")?.use { it.toText() }
+		app = lent.extGet.get("app")?.use { it.toText() }
 	}
 	expect(app == """{"v":[1,true]}""", "the catalog reads its section back as text")
 	// Malformed text fails to parse, and a reserved section is moq-mux's error.
@@ -259,18 +259,18 @@ fun main() {
 	}
 	// A session's config, its URL and pinned fingerprints set as Rust assigns them.
 	val connect = TokioConnectConfig.default()
-	connect.tls.use { tls ->
-		tls.setFingerprint(listOf("ab:cd"))
-		connect.setTls(tls)
+	connect.tlsGet.use { tls ->
+		tls.fingerprintSet(listOf("ab:cd"))
+		connect.tlsSet(tls)
 	}
-	connect.setUrl(Url.parse("https://relay.example:4443/demo"))
-	connect.tls.use { tls -> expect(tls.fingerprint == listOf("ab:cd"), "a TLS config keeps its fingerprints") }
-	val url = connect.url!!
+	connect.urlSet(Url.parse("https://relay.example:4443/demo"))
+	connect.tlsGet.use { tls -> expect(tls.fingerprintGet == listOf("ab:cd"), "a TLS config keeps its fingerprints") }
+	val url = connect.urlGet!!
 	connect.close()
 	val versions = Versions.default()
 	AuthTokens.new(emptyList()).use { tokens ->
 		tokens.dial(url, versions).use { dial ->
-			dial.url.use { dialed ->
+			dial.urlGet.use { dialed ->
 				expect(dialed == url, "a dial keeps its URL")
 				expect(dialed.toString() == "https://relay.example:4443/demo", "a URL prints as Rust's")
 			}
@@ -289,15 +289,15 @@ fun main() {
 	val v4 = TokioListenBind.Addr(java.net.InetSocketAddress(java.net.InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1)), 0))
 	expect(v4.toString() == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
 	TokioListenConfig.default().use { listen ->
-		listen.setBind(bind)
+		listen.bindSet(bind)
 		// The preferred address of each family, which takes only that family.
-		listen.setPreferredV4(v4._0)
-		expect(listen.preferredV4 == v4._0 && listen.preferredV6 == null, "a listener keeps its preferred IPv4 address")
-		expect(listen.bind == bind, "a listener's config keeps its bind")
+		listen.preferredV4Set(v4._0)
+		expect(listen.preferredV4Get == v4._0 && listen.preferredV6Get == null, "a listener keeps its preferred IPv4 address")
+		expect(listen.bindGet == bind, "a listener's config keeps its bind")
 	}
 	// TLS files, as OS paths, and fingerprints, as strings: none by default.
 	TokioTlsConnect.default().use { tls ->
-		expect(tls.root.isEmpty() && tls.fingerprint.isEmpty(), "a default TLS config lists none")
+		expect(tls.rootGet.isEmpty() && tls.fingerprintGet.isEmpty(), "a default TLS config lists none")
 	}
 
 	// A session, as moq.c runs it: a server bound to port 0 reads back the port it got and
@@ -306,7 +306,7 @@ fun main() {
 	// wakes it from its threads. A stall fails with the timeout's exception.
 	runBlocking {
 		withTimeout(30.seconds) {
-			val served = originSpawn()
+			val served = tokioOriginSpawn()
 			val live = served.createBroadcast("live")
 			live.announce(OriginRoute.default())
 			val liveTrack = live.broadcast().createTrack("video", null)
@@ -315,26 +315,26 @@ fun main() {
 			liveGroup.finish()
 
 			val serverConfig = TokioServerConfig.default()
-			val listen = serverConfig.listen
-			listen.setBind(TokioListenBind.Addr(InetSocketAddress(InetAddress.getByName("::"), 0)))
-			val tls = listen.tls
-			tls.setGenerate(listOf("localhost"))
-			listen.setTls(tls)
-			serverConfig.setListen(listen)
+			val listen = serverConfig.listenGet
+			listen.bindSet(TokioListenBind.Addr(InetSocketAddress(InetAddress.getByName("::"), 0)))
+			val tls = listen.tlsGet
+			tls.generateSet(listOf("localhost"))
+			listen.tlsSet(tls)
+			serverConfig.listenSet(listen)
 			val server = serverConfig.init()
 			val local = server.localAddr()
 			expect(local.port != 0, "a server bound to port 0 reads back the port it got")
 			val serving = launch { server.servePublish(served.consume()) }
 
 			val connect = TokioConnectConfig.default()
-			connect.setUrl(Url.parse("moqt://localhost:${local.port}"))
-			val insecure = connect.tls
-			insecure.setInsecure(true)
-			connect.setTls(insecure)
+			connect.urlSet(Url.parse("moqt://localhost:${local.port}"))
+			val insecure = connect.tlsGet
+			insecure.insecureSet(true)
+			connect.tlsSet(insecure)
 			val clientConfig = TokioClientConfig.default()
-			clientConfig.setConnect(connect)
+			clientConfig.connectSet(connect)
 			val client = clientConfig.init()
-			val received = originSpawn()
+			val received = tokioOriginSpawn()
 			val remote = received.consume()
 			val connection = client.clone().withReconnect(false).consume(received)
 			expect(connection != null, "a client with a URL dials it")
@@ -342,7 +342,7 @@ fun main() {
 
 			val subscriber = remote.request("live", null).track("video").subscribe(null)
 			val frame = subscriber.recvGroup()?.readFrame()
-			expect(frame?.payload?.toByteArray()?.decodeToString() == "hello", "a session reads the frame the server serves")
+			expect(frame?.payloadGet?.toByteArray()?.decodeToString() == "hello", "a session reads the frame the server serves")
 
 			established.close_()
 			client.close_()
