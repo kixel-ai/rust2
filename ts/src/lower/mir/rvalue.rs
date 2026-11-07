@@ -216,7 +216,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						local: place.local,
 						projection: tcx.mk_place_elems(rest),
 					};
-					let borrowed = match Place::ty_from(place.local, rest, &self.mir.local_decls, tcx).ty.is_ref() {
+					let borrowed = match Place::ty_from(place.local, rest, &self.mir.local_decls, tcx)
+						.ty
+						.is_ref()
+					{
 						true => self.borrowed_pointer(base, span, out),
 						false => None,
 					};
@@ -261,9 +264,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let target = self.place_expr(place, span, out);
 					let target = self.stable_target(place, target, span, out);
 					match target.unlocated() {
-						Expr::Index(array, index) => {
-							Expr::rs("arrayAsPtr", vec![*array.clone(), *index.clone()])
-						}
+						Expr::Index(array, index) => Expr::rs("arrayAsPtr", vec![*array.clone(), *index.clone()]),
 						_ => self.place_of(target, None),
 					}
 				}
