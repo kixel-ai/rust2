@@ -66,15 +66,28 @@ pub fn cell_pointer_reassigned(n: u32) -> u32 {
 	unsafe { *p }
 }
 
-/// A pointer `UnsafeCell::raw_get` makes of a raw pointer to a cell, read after the
-/// variable holding the cell is given another.
+/// Pointers `UnsafeCell::raw_get` makes of a raw pointer to a cell, and of one to either
+/// of two, and `get` through the first, read after the variable holding the cell is given
+/// another.
 pub fn cell_raw_reassigned(n: u32) -> u32 {
 	let mut c = std::cell::UnsafeCell::new(n);
+	let d = std::cell::UnsafeCell::new(n ^ 2);
 	let to = &raw const c;
 	let p = unsafe { std::cell::UnsafeCell::raw_get(to) };
+	let either = if n > 3 { &raw const c } else { &raw const d };
+	let q = unsafe { std::cell::UnsafeCell::raw_get(either) };
+	let r = unsafe { (*to).get() };
 	c = std::cell::UnsafeCell::new(n ^ 1);
-	let _ = &c;
-	unsafe { *p }
+	let _ = (&c, &d);
+	unsafe { *p ^ *q ^ *r }
+}
+
+/// A `get_mut` and an `as_mut_unchecked` of a cell of a pinned `Box`, whose old value
+/// `mem::replace` would give back as a copy.
+pub fn pinned_lent(c: &mut std::cell::UnsafeCell<Pin<Box<(u8, u8)>>>) -> u8 {
+	let old = std::mem::replace(c.get_mut(), Box::pin((1, 2)));
+	let older = std::mem::replace(unsafe { c.as_mut_unchecked() }, Box::pin((3, 4)));
+	old.0 ^ older.0
 }
 
 /// Casts between pointers to bytes and to values outside memory from `alloc`, which read

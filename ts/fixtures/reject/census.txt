@@ -17,7 +17,11 @@ fixtures/reject/src/alloc.rs:cell_of_objects+7:15: `Cell::from_mut` of `std::pin
 fixtures/reject/src/alloc.rs:cell_of_objects+8:34: `array::from_mut` of `std::pin::Pin<std::boxed::Box<(u8, u8)>>`, an object a whole write through it changes in place, so a value read out before would change too or be a copy at another address
 fixtures/reject/src/alloc.rs:cell_pointer_kept+2:45: a raw pointer to `std::cell::UnsafeCell<u32>` behind a reference, which is the object and not where it is kept
 fixtures/reject/src/alloc.rs:cell_pointer_reassigned+2:10: a raw pointer to `std::cell::UnsafeCell<u32>` in a variable assigned again while it may point there
-fixtures/reject/src/alloc.rs:cell_raw_reassigned+3:19: a raw pointer to `std::cell::UnsafeCell<u32>` in a variable assigned again while it may point there
+fixtures/reject/src/alloc.rs:cell_raw_reassigned+4:19: a raw pointer to `std::cell::UnsafeCell<u32>` in a variable assigned again while it may point there
+fixtures/reject/src/alloc.rs:cell_raw_reassigned+6:19: a raw pointer to `std::cell::UnsafeCell<u32>` in a variable assigned again while it may point there
+fixtures/reject/src/alloc.rs:cell_raw_reassigned+7:25: a raw pointer to `std::cell::UnsafeCell<u32>` in a variable assigned again while it may point there
+fixtures/reject/src/alloc.rs:pinned_lent+1:32: `UnsafeCell::get_mut` of `std::pin::Pin<std::boxed::Box<(u8, u8)>>`, an object a whole write through the reference changes in place, so a value read out before would be a copy at another address
+fixtures/reject/src/alloc.rs:pinned_lent+2:43: `UnsafeCell::as_mut_unchecked` of `std::pin::Pin<std::boxed::Box<(u8, u8)>>`, an object a whole write through the reference changes in place, so a value read out before would be a copy at another address
 fixtures/reject/src/alloc.rs:reinterpreted+1:27: a cast from a pointer to `u32` to one to `u8`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:vec_pointer+1:10: a raw pointer to `std::vec::Vec<u8>` behind a reference, which is the object and not where it is kept
 fixtures/reject/src/alloc.rs:zeroed+1:12: a cast from a pointer to `u8` to one to `u32`, which reads the bytes of one type as another

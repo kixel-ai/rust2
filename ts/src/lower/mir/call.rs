@@ -339,24 +339,32 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				if let Some(err) = self.std_places(def_id, gargs, result, span) {
 					return err;
 				}
-				// `raw_get`'s pointer is judged as `get`'s, of the cell it points at: the place
-				// it was made of, where one `&raw` made it.
+				// The cell `get`'s reference or `raw_get`'s pointer points at is judged as each
+				// place a pointer it is made through may have been made of, where every
+				// assignment of that pointer is known.
 				let raw_get = library::key(tcx, def_id).is_some_and(|(o, n)| o == "UnsafeCell" && n == "raw_get");
-				let made = |p: Place<'tcx>| {
-					p.as_local()
-						.filter(|&l| raw_get && self.defs[l] == 1)
-						.and_then(|l| self.def_rvalue(l))
-				};
-				let pointee = |p: Place<'tcx>| match made(p) {
-					Some(rustc_middle::mir::Rvalue::RawPtr(_, made)) => *made,
-					_ => tcx.mk_place_deref(p),
+				let pointees = |p: Place<'tcx>| {
+					let local = p.as_local();
+					// A reference that reborrows what a pointer points at, as `(*p).get()` does.
+					let reborrowed = |l: rustc_middle::mir::Local| match self.def_rvalue(l) {
+						Some(rustc_middle::mir::Rvalue::Ref(_, _, at))
+							if self.defs[l] == 1 && at.projection.as_slice() == [ProjectionElem::Deref] =>
+						{
+							Some(at.local)
+						}
+						_ => None,
+					};
+					let pointer = if raw_get { local } else { local.and_then(reborrowed) };
+					pointer
+						.and_then(|l| self.raw_origins(l, &mut Vec::new()))
+						.unwrap_or_else(|| vec![tcx.mk_place_deref(p)])
 				};
 				if (raw_get || crate::lower::pointer::from_reference(tcx, def_id, gargs))
-					&& let Some(why) = args[0]
-						.node
-						.place()
-						.and_then(|p| self.made_out_of_step(def_id, gargs, pointee(p)))
-				{
+					&& let Some(why) = args[0].node.place().and_then(|p| {
+						pointees(p)
+							.into_iter()
+							.find_map(|at| self.made_out_of_step(def_id, gargs, at))
+					}) {
 					return self.err(span, why);
 				}
 				crate::lower::pointer::pointees(self.b.t, def_id, gargs)
@@ -1419,6 +1427,48 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		Some(borrowed)
 	}
 
+	/// The places the raw pointer `local` may have been made of, by `&raw` or a reference,
+	/// through copies and casts, or `None` if any assignment of it is something else.
+	fn raw_origins(
+		&self,
+		local: rustc_middle::mir::Local,
+		seen: &mut Vec<rustc_middle::mir::Local>,
+	) -> Option<Vec<Place<'tcx>>> {
+		use rustc_middle::mir::{Rvalue, StatementKind};
+		if seen.contains(&local) {
+			return Some(Vec::new());
+		}
+		seen.push(local);
+		if (1..=self.mir.arg_count).contains(&local.as_usize()) || self.mutated[local] {
+			return None;
+		}
+		let (mut found, mut origins) = (0, Vec::new());
+		for (bb, data) in self.mir.basic_blocks.iter_enumerated() {
+			for (i, stmt) in data.statements.iter().enumerate() {
+				let StatementKind::Assign(assign) = &stmt.kind else {
+					continue;
+				};
+				let (place, rvalue) = &**assign;
+				if place.as_local() != Some(local)
+					|| self.noops.contains(&(bb, i))
+					|| self.in_ignored(stmt.source_info.span)
+				{
+					continue;
+				}
+				found += 1;
+				match rvalue {
+					Rvalue::RawPtr(_, made) | Rvalue::Ref(_, _, made) => origins.push(*made),
+					Rvalue::Use(Operand::Copy(from) | Operand::Move(from), _)
+					| Rvalue::Cast(_, Operand::Copy(from) | Operand::Move(from), _) => {
+						origins.extend(self.raw_origins(from.as_local()?, seen)?)
+					}
+					_ => return None,
+				}
+			}
+		}
+		(found == self.defs[local]).then_some(origins)
+	}
+
 	/// `slice::from_mut`, `array::from_mut`, or `from_mut` of `owner`, `Cell` or
 	/// `UnsafeCell`, of `op`, a `&mut` to a `ty`: of the `rs.Place` it is or of the place it
 	/// names, or else in place of the bytes or the object it is, which a cell lends as itself,
@@ -1460,7 +1510,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		// A whole write through what this makes lands in the object, so a value read out
 		// before would change with it unless copied, as a `Cell`'s or a slice's read is, but
 		// a pinned `Box`'s copy is another allocation.
-		if place_of && self.b.t.write_in(ty).is_some() && (owner == "UnsafeCell" || self.b.t.erased(ty) != ty) {
+		if owner == "UnsafeCell" && place_of && self.b.t.write_in(ty).is_some() || self.b.t.boxed_object(ty) {
 			let path = if owner == "raw" { "slice" } else { owner };
 			return Some(self.err(
 				span,

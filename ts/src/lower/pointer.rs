@@ -867,6 +867,17 @@ pub fn call<'tcx>(
 			let value = arg();
 			replace(b, p, value, pointee(), span, out)
 		}
+		// A whole write through the `&mut` lands in the allocation, which a value read out
+		// before could keep only as a copy, another allocation.
+		("UnsafeCell" | "Cell", "get_mut") | ("UnsafeCell", "as_mut_unchecked") if b.t.boxed_object(pointee()) => {
+			let ty = pointee();
+			b.err(
+				span,
+				format!(
+					"`{owner}::{name}` of `{ty}`, an object a whole write through the reference changes in place, so a value read out before would be a copy at another address"
+				),
+			)
+		}
 		// What `get` points at, lent as `get_mut` lends it.
 		("UnsafeCell" | "Cell", "get_mut") | ("UnsafeCell", "as_mut_unchecked") if b.t.needs_place(pointee()) => arg(),
 		("UnsafeCell", "get_mut" | "as_ref_unchecked" | "as_mut_unchecked" | "into_inner") | ("Cell", "get_mut") => {
