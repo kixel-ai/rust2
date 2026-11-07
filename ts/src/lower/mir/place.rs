@@ -681,7 +681,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let bytes = crate::lower::library::cow_slice(tcx, ty).is_some_and(crate::lower::byte);
 					let owned = variant.is_some_and(|v| v.index() == 1);
 					// What an `rs.Borrowed` holds, and what it owns: an `rs.Slice` and an
-					// `rs.Vec`, or text.
+					// `rs.Vec`, or text and an `rs.String`.
 					let (held, owns) = match borrowed.kind() {
 						ty::Slice(elem) => {
 							let elem = self.b.t.ty(*elem, span);
@@ -690,7 +690,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 								crate::ts::Type::Rs("Vec", vec![elem]),
 							)
 						}
-						_ => (crate::ts::Type::Builtin("string"), crate::ts::Type::Builtin("string")),
+						_ => (
+							crate::ts::Type::Builtin("string"),
+							crate::ts::Type::Rs("String", Vec::new()),
+						),
 					};
 					let class = match (bytes, owned) {
 						(true, false) => crate::ts::Type::Rs("ByteSlice", Vec::new()),

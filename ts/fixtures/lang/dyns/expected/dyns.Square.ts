@@ -42,7 +42,7 @@ export function grow$dyns_Shape(self: Square, by: rs.u8): void {
 	self.side = rs.u16WrappingAdd(self.side, by as rs.u16);
 }
 
-export function label$dyns_Named(self: Square): string {
+export function label$dyns_Named(self: Square): rs.String {
 	const arg = self.side;
 	return rs.fmtFormat(["square ", (f: rs.Formatter) => rs.u16Display(arg, f)]);
 }

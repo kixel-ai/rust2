@@ -22,7 +22,3 @@ the `rs.ByteSlice` over a `Uint8Array` every other byte slice is.
 
 Public API: the translator's output, and what a hand-written caller may receive as a
 `rs.ByteSlice`.
-
-## Related
-
-- [rs.String](/quest/m3/ts-string-capacity.md) - another runtime wrapper over storage JS holds differently

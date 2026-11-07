@@ -51,8 +51,5 @@ elements to a depth where a write lands in them; a slice's form needs the same, 
 `rs.arraySliceReplace` and `rs.cellOfArraySlice` do for arrays. A raw pointer to an array of arrays
 that std's mapping gives back as a reference is refused today.
 
-Public API: the translator's output.
-
-## Related
-
-- [rs.String](/quest/m3/ts-string-capacity.md) - the other native mapping becoming a wrapper
+Public API: the translator's output and what a hand-written caller passes for a slice of
+arrays.

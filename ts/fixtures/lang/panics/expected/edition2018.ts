@@ -14,7 +14,7 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		rs.panic("a literal");
 	} else if (_7 === 2) {
 		const arg2 = data.length;
-		rs.panic(rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg2, f), " bytes"]));
+		rs.panic(rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg2, f), " bytes"]).v);
 	} else if (_7 === 3) {
 		if (!(rs.u8Rem(first, 2) === 0)) {
 			_23 = "odd";

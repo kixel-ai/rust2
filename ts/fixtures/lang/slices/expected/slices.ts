@@ -2874,22 +2874,24 @@ export function arrayForms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		rs.cellSet(other, _51);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(refs[0][0].v, refs[1][0].v)), undefined, true);
 	} else if (_8 === 1) {
-		const words: rs.Vec<string[]> = rs.iterToVec(rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), (p4: rs.ByteSlice): string[] => {
+		const words: rs.Vec<rs.String[]> = rs.iterToVec(rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), (p4: rs.ByteSlice): rs.String[] => {
 			const arg = p4.data[p4.start];
-			const _310: string = rs.fmtToString((f: rs.Formatter) => rs.u8Display(arg, f));
+			const _310: rs.String = rs.fmtToString((f: rs.Formatter) => rs.u8Display(arg, f), 0);
 			const arg2 = p4.data[p4.start + 1];
-			return [_310, rs.fmtToString((f: rs.Formatter) => rs.u8Display(arg2, f))];
+			return [_310, rs.fmtToString((f: rs.Formatter) => rs.u8Display(arg2, f), 0)];
 		}), undefined, 24, true);
 		const part = rs.min(words.items.length, 1);
-		const cloned: rs.Vec<string[]> = rs.vecFrom(rs.arraySliceItems(rs.arraySliceRange(rs.arraySliceFrom(words.items, rs.sliceFrom), part)).map((a: string[]) => a.slice()));
+		const cloned: rs.Vec<rs.String[]> = rs.vecFrom(rs.arraySliceItems(rs.arraySliceRange(rs.arraySliceFrom(words.items, rs.sliceFrom), part)).map((a: rs.String[]) => a.map((a0: rs.String): rs.String => {
+			return rs.stringClone(a0);
+		})));
 		rs.byteVecPush(out, cloned.items.length & 0xff);
-		const iter: rs.Iter<rs.Slice<string>> = rs.iterLend(rs.iterSlice(cloned.items), rs.sliceFrom);
+		const iter: rs.Iter<rs.Slice<rs.String>> = rs.iterLend(rs.iterSlice(cloned.items), rs.sliceFrom);
 		while (true) {
-			const _85: rs.Slice<string> | rs.Done = iter.next();
+			const _85: rs.Slice<rs.String> | rs.Done = iter.next();
 			if (_85 === rs.DONE) {
 				break;
 			}
-			rs.iterExtendBytes(out, rs.iterChain(rs.strBytes(_85.data[_85.start]), rs.strBytes(_85.data[_85.start + 1])), undefined, true);
+			rs.iterExtendBytes(out, rs.iterChain(rs.strBytes(_85.data[_85.start].v), rs.strBytes(_85.data[_85.start + 1].v)), undefined, true);
 		}
 		const boxed: rs.ArraySlice<rs.ByteSlice> = rs.arraySliceFrom(rs.vecFrom(pairs.items.map(copy$array_u8)).items, rs.byteSliceFrom);
 		putRuns$2(rs.arraySliceFrom(rs.arraySliceItems(boxed).map(copy$array_u8), rs.byteSliceFrom), out);

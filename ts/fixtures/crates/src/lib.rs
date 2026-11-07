@@ -20,11 +20,6 @@ pub fn alike() -> u8 {
 	}
 	one(fmt::Error) + one(std::fmt::Error)
 }
-/// Whether the dependency's `Bytes` of a `String`'s bytes is the one handle of its storage,
-/// which the `String`'s capacity decides: translation refuses it, as the bytes cross crates.
-pub fn unique(text: String) -> bool {
-	::crates_dep::string_bytes(text).is_unique()
-}
 
 #[cfg(target_arch = "wasm32")]
 #[path = "../../wasm.rs"]

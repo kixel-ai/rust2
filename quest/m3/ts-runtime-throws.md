@@ -36,7 +36,7 @@ addresses stay refused (decided 2026-11-07 in [the model epic](/quest/m2/ts-mode
 ✅ Decided with the maintainer on 2026-11-06 in
 [moq-dev/rust2#608](https://github.com/moq-dev/rust2/pull/608): comparing `*const [T]` of
 values JS copies moved here from [rs.Slice](/quest/m3/ts-slice-object.md). The options
-were to wait on [rs.String](/quest/m3/ts-string-capacity.md) and run only if `&str` shares
+were to wait on rs.String ([moq-dev/rust2#574](https://github.com/moq-dev/rust2/pull/574)) and run only if `&str` shares
 its bytes, or to move it here with the other comparisons left refused (picked). Its only
 consumer in moq-net is form_urlencoded 1.2.2's `src/lib.rs:417`,
 `debug_assert!(ptr::eq(s.as_bytes(), vec))`, of the `&str` that

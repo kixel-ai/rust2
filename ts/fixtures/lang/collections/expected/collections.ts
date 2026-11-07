@@ -28,7 +28,7 @@ import * as Tally from "./collections.Tally.ts";
 import * as Window from "./collections.Window.ts";
 import * as Wrap from "./collections.Wrap.ts";
 import { thenSome$0quywni } from "./core/bool.ts";
-import { unwrapOr$1szdyfq as option_unwrapOr$1szdyfq, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1pdxnel as option_map$1pdxnel, map$093awy8 as option_map$093awy8, map$0aug5m6 as option_map$0aug5m6, map$16w3l9s as option_map$16w3l9s, map$1y26nmr as option_map$1y26nmr, map$14ju55r as option_map$14ju55r, mapOr$14runhi as option_mapOr$14runhi, mapOr$0tj0y3q as option_mapOr$0tj0y3q, mapOr$0f7cus0 as option_mapOr$0f7cus0, mapOr$0vkblkh as option_mapOr$0vkblkh, mapOr$07jk2xl as option_mapOr$07jk2xl, mapOr$1rg5gkk as option_mapOr$1rg5gkk, mapOr$1lwzqm5 as option_mapOr$1lwzqm5, mapOr$0pgapuk as option_mapOr$0pgapuk, mapOr$13kt6x8 as option_mapOr$13kt6x8, mapOr$1wei0sy as option_mapOr$1wei0sy, mapOr$031uhqp as option_mapOr$031uhqp, mapOr$18dcmgz as option_mapOr$18dcmgz, mapOr$0vxw5sq as option_mapOr$0vxw5sq, mapOr$1d4bp7c as option_mapOr$1d4bp7c, mapOr$188iunt as option_mapOr$188iunt, mapOr$1f8lrju as option_mapOr$1f8lrju, mapOr$05q90i2 as option_mapOr$05q90i2, mapOr$0955beb as option_mapOr$0955beb, mapOr$1h9hu6n as option_mapOr$1h9hu6n, clone$14nprly as option_clone$14nprly, flatten$0ux6gqw as option_flatten$0ux6gqw } from "./core/option.ts";
+import { unwrapOr$1szdyfq as option_unwrapOr$1szdyfq, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1pdxnel as option_map$1pdxnel, map$093awy8 as option_map$093awy8, map$0aug5m6 as option_map$0aug5m6, map$16w3l9s as option_map$16w3l9s, map$0n6ziv9 as option_map$0n6ziv9, map$14ju55r as option_map$14ju55r, mapOr$14runhi as option_mapOr$14runhi, mapOr$0tj0y3q as option_mapOr$0tj0y3q, mapOr$0f7cus0 as option_mapOr$0f7cus0, mapOr$0vkblkh as option_mapOr$0vkblkh, mapOr$07jk2xl as option_mapOr$07jk2xl, mapOr$1rg5gkk as option_mapOr$1rg5gkk, mapOr$1lwzqm5 as option_mapOr$1lwzqm5, mapOr$0pgapuk as option_mapOr$0pgapuk, mapOr$13kt6x8 as option_mapOr$13kt6x8, mapOr$1wei0sy as option_mapOr$1wei0sy, mapOr$031uhqp as option_mapOr$031uhqp, mapOr$18dcmgz as option_mapOr$18dcmgz, mapOr$0vxw5sq as option_mapOr$0vxw5sq, mapOr$1d4bp7c as option_mapOr$1d4bp7c, mapOr$188iunt as option_mapOr$188iunt, mapOr$1f8lrju as option_mapOr$1f8lrju, mapOr$05q90i2 as option_mapOr$05q90i2, mapOr$0955beb as option_mapOr$0955beb, mapOr$1h9hu6n as option_mapOr$1h9hu6n, clone$0dg4ec5 as option_clone$0dg4ec5, flatten$0ux6gqw as option_flatten$0ux6gqw } from "./core/option.ts";
 import { eq$1a91ieh as result_eq$1a91ieh, eq$122baxc as result_eq$122baxc } from "./core/result.ts";
 import { put } from "./harness.ts";
 
@@ -366,35 +366,37 @@ export function hashMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		}
 		rs.byteVecPush(out, rs.hashLen(tuples) & 0xff);
 	} else {
-		const words: rs.HashMap<string, rs.ByteVec> = rs.hashNew() as rs.HashMap<string, rs.ByteVec>;
+		const words: rs.HashMap<rs.String, rs.ByteVec> = rs.hashNew(rs.HASH_TEXT) as rs.HashMap<rs.String, rs.ByteVec>;
 		for (const b6 of rs.byteSliceView(data)) {
 			const _515: rs.usize = rs.usizeRem(b6 as rs.usize, rs.sliceFrom(["", "a", "ab", "b", "é", "", "￿", "𐀀"]).length);
 			if (!(_515 < 8)) {
 				rs.panic("index out of bounds: the len is " + 8 + " but the index is " + _515);
 			}
-			rs.byteVecPush(rs.entryOrInsertWith(rs.entry(words, ["", "a", "ab", "b", "é", "", "￿", "𐀀"][_515]), (): rs.ByteVec => {
+			const word: rs.String = rs.stringFrom(["", "a", "ab", "b", "é", "", "￿", "𐀀"][_515]);
+			rs.byteVecPush(rs.entryOrInsertWith(rs.entry(words, word), (): rs.ByteVec => {
 				return new rs.ByteVec();
 			}), b6);
 		}
-		const lens: rs.BTreeMap<string, rs.usize> = rs.btreeNew(rs.cmpStr) as rs.BTreeMap<string, rs.usize>;
-		const iter16: rs.Iter<[string, rs.ByteVec]> = rs.hashIter(words);
+		const lens: rs.BTreeMap<rs.String, rs.usize> = rs.btreeNew(rs.cmpStr) as rs.BTreeMap<rs.String, rs.usize>;
+		const iter16: rs.Iter<[rs.String, rs.ByteVec]> = rs.hashIter(words);
 		while (true) {
-			const _530: [string, rs.ByteVec] | rs.Done = iter16.next();
+			const _530: [rs.String, rs.ByteVec] | rs.Done = iter16.next();
 			if (_530 === rs.DONE) {
 				break;
 			}
-			rs.btreeInsert(lens, _530[0], _530[1].length);
+			const _537: rs.String = rs.stringClone(_530[0]);
+			rs.btreeInsert(lens, _537, _530[1].length);
 		}
-		const iter17: rs.Iter<[string, rs.usize]> = rs.btreeIter(lens);
+		const iter17: rs.Iter<[rs.String, rs.usize]> = rs.btreeIter(lens);
 		while (true) {
-			const _542: [string, rs.usize] | rs.Done = iter17.next();
+			const _542: [rs.String, rs.usize] | rs.Done = iter17.next();
 			if (_542 === rs.DONE) {
 				break;
 			}
-			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_542[0]));
+			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_542[0].v));
 			rs.byteVecPush(out, _542[1] & 0xff);
 		}
-		rs.byteVecPush(out, rs.iterSum(rs.iterMap(rs.hashDrain(words), (_2: [string, rs.ByteVec]): rs.usize => {
+		rs.byteVecPush(out, rs.iterSum(rs.iterMap(rs.hashDrain(words), (_2: [rs.String, rs.ByteVec]): rs.usize => {
 			return _2[1].length;
 		}), rs.usizeAdd, 0) & 0xff);
 		rs.byteVecPush(out, rs.hashLen(words) === 0 ? 1 : 0);
@@ -1108,7 +1110,7 @@ export function dequeRanges(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 		it = rs.dequeRange(q, new rs.Range(a, a));
 	}
 	rs.byteVecPush(out, it.len() & 0xff);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtDequeIter(it, f, rs.u8Debug, "Iter")])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtDequeIter(it, f, rs.u8Debug, "Iter")]).v));
 	let i2: rs.i32 = 0;
 	while (true) {
 		if ((rs.u8Shr(kind, rs.i32Add(5, rs.i32Rem(i2, 3))) & 1) === 1) {
@@ -1118,7 +1120,7 @@ export function dequeRanges(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 		}
 		if (item !== undefined) {
 			rs.byteVecPush(out, item);
-			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtDequeIter(it, f, rs.u8Debug, "Iter")])));
+			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtDequeIter(it, f, rs.u8Debug, "Iter")]).v));
 			if (i2 === 1) {
 				rs.iterExtendBytes(out, rs.iterRev(it.clone()), undefined, true);
 			}
@@ -1134,15 +1136,15 @@ export function dequeRanges(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 
 /** `vec![a, b]` and `vec![x; n]`, of bytes, numbers, `Copy` tuples, and types that clone. */
 export function vecs(data: rs.ByteSlice, out: rs.ByteVec): void {
-	let name!: string;
+	let name!: rs.String;
 	const a: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
 	const b: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceGet(data, 1), 0);
 	const n: rs.usize = rs.usizeRem(option_unwrapOr$1fr498u(rs.byteSliceGet(data, 2), 0) as rs.usize, 5);
-	const _16: rs.Result<string, rs.FromUtf8Error> = rs.stringFromUtf8(rs.byteSliceToByteVec(data));
+	const _16: rs.Result<rs.String, rs.FromUtf8Error> = rs.stringFromUtf8(rs.byteSliceToByteVec(data));
 	if (_16.ok) {
 		name = _16.value;
 	} else {
-		name = "?";
+		name = rs.stringFrom("?");
 	}
 	const bytes: rs.ByteVec = rs.byteVecFrom(Uint8Array.of(a, b, 66));
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(bytes));
@@ -1153,9 +1155,9 @@ export function vecs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	for (const _39 of pairs.items) {
 		rs.byteVecPush(out, _39[0] ^ (_39[1] & 0xff));
 	}
-	const names: rs.Vec<string> = rs.vecFrom([name, "x", name]);
+	const names: rs.Vec<rs.String> = rs.vecFrom([rs.stringClone(name), rs.stringFrom("x"), rs.stringClone(name)]);
 	rs.byteVecPush(out, names.items.length & 0xff);
-	const one: rs.Vec<Cloned.Cloned> = rs.vecFrom([{ depth: a, name: name }]);
+	const one: rs.Vec<Cloned.Cloned> = rs.vecFrom([{ depth: a, name: rs.stringClone(name) }]);
 	rs.byteVecPush(out, one.items[rs.idx(one.items, 0)].depth);
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(rs.byteVecOf(b, n)));
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.vecFromElem(rs.u16Mul(a as rs.u16, 257), n, undefined).items), (w: rs.u16): rs.u8 => {
@@ -1168,13 +1170,15 @@ export function vecs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(tuples.items), (t: [rs.u8, rs.u8]): rs.u8 => {
 		return t[0] ^ t[1];
 	}), undefined, true);
-	rs.byteVecPush(out, rs.vecFromElem(name, n, undefined).items.length & 0xff);
+	rs.byteVecPush(out, rs.vecFromElem(rs.stringClone(name), n, (a0: rs.String): rs.String => {
+		return rs.stringClone(a0);
+	}).items.length & 0xff);
 	const cloned: rs.Vec<Cloned.Cloned> = rs.vecFromElem({ depth: 0, name }, n, Cloned.clone$Clone);
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(cloned.items), (c: Cloned.Cloned): rs.u8 => {
 		return c.depth;
 	}), undefined, true);
 	rs.byteVecPush(out, rs.iterAll(rs.iterSlice(cloned.items), (c2: Cloned.Cloned): boolean => {
-		return rs.stringLen(c2.name) === data.length;
+		return c2.name.len === data.length;
 	}) ? 1 : 0);
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.vecFromElem({ _0: b }, n, Bumped.clone$Clone).items), (o: Bumped.Bumped): rs.u8 => {
 		return o._0;
@@ -1221,8 +1225,8 @@ export function vecs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(wrapped.items), (w2: Wrap.Wrap<rs.u8>): rs.u8 => {
 		return w2.value ^ w2.count;
 	}), undefined, true);
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(names.items), (s2: string): rs.u8 => {
-		return rs.stringLen(s2) & 0xff;
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(names.items), (s2: rs.String): rs.u8 => {
+		return s2.len & 0xff;
 	}), undefined, true);
 }
 
@@ -1348,7 +1352,7 @@ export function stores(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(pair[0], pair[1])));
 }
 
-export function get$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(self: rs.HashMap<rs.u8, string | undefined>, k: rs.u8): string | undefined | rs.None {
+export function get$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(self: rs.HashMap<rs.u8, rs.String | undefined>, k: rs.u8): rs.String | undefined | rs.None {
 	return rs.hashGet(self, k, rs.None);
 }
 
@@ -1360,7 +1364,7 @@ export function get$collections_OptionMap_unit_collections_HashMap_u8_unit(self:
 	return rs.hashGet(self, k, rs.None);
 }
 
-export function insert$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(self: rs.HashMap<rs.u8, string | undefined>, k: rs.u8, v: string | undefined): string | undefined | rs.None {
+export function insert$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(self: rs.HashMap<rs.u8, rs.String | undefined>, k: rs.u8, v: rs.String | undefined): rs.String | undefined | rs.None {
 	return rs.hashInsert(self, k, v, undefined, rs.None);
 }
 
@@ -1372,7 +1376,7 @@ export function insert$collections_OptionMap_unit_collections_HashMap_u8_unit(se
 	return rs.hashInsert(self, k, undefined, undefined, rs.None);
 }
 
-export function remove$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(self: rs.HashMap<rs.u8, string | undefined>, k: rs.u8): string | undefined | rs.None {
+export function remove$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(self: rs.HashMap<rs.u8, rs.String | undefined>, k: rs.u8): rs.String | undefined | rs.None {
 	return rs.hashRemove(self, k, undefined, rs.None);
 }
 
@@ -1384,7 +1388,7 @@ export function remove$collections_OptionMap_unit_collections_HashMap_u8_unit(se
 	return rs.hashRemove(self, k, undefined, rs.None);
 }
 
-export function getMut$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(self: rs.HashMap<rs.u8, string | undefined>, k: rs.u8): rs.Place<string | undefined> | undefined {
+export function getMut$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(self: rs.HashMap<rs.u8, rs.String | undefined>, k: rs.u8): rs.Place<rs.String | undefined> | undefined {
 	return rs.hashGetMut(self, k);
 }
 
@@ -1396,11 +1400,11 @@ export function getMut$collections_OptionMap_unit_collections_HashMap_u8_unit(se
 	return rs.hashGetMut(self, k);
 }
 
-export function sorted$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(self: rs.HashMap<rs.u8, string | undefined>): rs.Vec<[rs.u8, string | undefined]> {
-	const all: rs.Vec<[rs.u8, string | undefined]> = rs.iterToVec(rs.iterMap(rs.hashIter(self), (_2: [rs.u8, string | undefined]): [rs.u8, string | undefined] => {
-		return [_2[0], option_clone$14nprly(_2[1])] as [rs.u8, string | undefined];
+export function sorted$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(self: rs.HashMap<rs.u8, rs.String | undefined>): rs.Vec<[rs.u8, rs.String | undefined]> {
+	const all: rs.Vec<[rs.u8, rs.String | undefined]> = rs.iterToVec(rs.iterMap(rs.hashIter(self), (_2: [rs.u8, rs.String | undefined]): [rs.u8, rs.String | undefined] => {
+		return [_2[0], option_clone$0dg4ec5(_2[1])] as [rs.u8, rs.String | undefined];
 	}), "next", 16);
-	rs.sliceSort(rs.sliceFrom(all.items), rs.keyLt((_22: [rs.u8, string | undefined]): rs.u8 => {
+	rs.sliceSort(rs.sliceFrom(all.items), rs.keyLt((_22: [rs.u8, rs.String | undefined]): rs.u8 => {
 		return _22[0];
 	}, rs.lt), 16, true);
 	return all;
@@ -1478,36 +1482,36 @@ export function sorted$collections_OptionMap_unit_collections_BTreeMap_u8_unit(s
  * Run `data` on `map`, each byte a key in its low nibble and an operation above it, and
  * `value` making what `insert` and `get_mut` put.
  */
-export function optional$Option_String_collections_HashMap_u8_Option_String(map: rs.HashMap<rs.u8, string | undefined>, data: rs.ByteSlice, value: (a0: rs.u8) => string | undefined, out: rs.ByteVec): void {
-	let read!: string;
+export function optional$Option_String_collections_HashMap_u8_Option_String(map: rs.HashMap<rs.u8, rs.String | undefined>, data: rs.ByteSlice, value: (a0: rs.u8) => rs.String | undefined, out: rs.ByteVec): void {
+	let read!: rs.String;
 	for (const b of rs.byteSliceView(data)) {
 		const k: rs.u8 = rs.u8Rem(b, 8);
 		const _14: rs.u8 = rs.u8Rem(rs.u8Div(b, 8), 4);
 		if (_14 === 0) {
-			const _24: string | undefined = value(b);
+			const _24: rs.String | undefined = value(b);
 			const part3 = insert$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(map, k, _24);
-			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part3, f, (value: string | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.fmtStr), rs.None), " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part3, f, (value: rs.String | undefined, f: rs.Formatter) => rs.fmtOption(value, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), rs.None), " "]);
 		} else if (_14 === 1) {
 			const part2 = get$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(map, k);
-			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part2, f, (value: string | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.fmtStr), rs.None), " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part2, f, (value: rs.String | undefined, f: rs.Formatter) => rs.fmtOption(value, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), rs.None), " "]);
 		} else if (_14 === 2) {
 			const part = remove$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(map, k);
-			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part, f, (value: string | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.fmtStr), rs.None), " "]);
+			read = rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part, f, (value: rs.String | undefined, f: rs.Formatter) => rs.fmtOption(value, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), rs.None), " "]);
 		} else {
-			const _49: rs.Place<string | undefined> | undefined = getMut$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(map, k);
+			const _49: rs.Place<rs.String | undefined> | undefined = getMut$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(map, k);
 			if (_49 === undefined) {
-				read = "- ";
+				read = rs.stringFrom("- ");
 			} else {
-				const v: rs.Place<string | undefined> = _49;
-				const _53: string | undefined = value(rs.u8Div(b, 2));
+				const v: rs.Place<rs.String | undefined> = _49;
+				const _53: rs.String | undefined = value(rs.u8Div(b, 2));
 				v.v = _53;
-				read = rs.fmtFormat(["=", (f: rs.Formatter) => rs.fmtOption(v.v, f, rs.fmtStr), " "]);
+				read = rs.fmtFormat(["=", (f: rs.Formatter) => rs.fmtOption(v.v, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), " "]);
 			}
 		}
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(read));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(read.v));
 	}
 	const part4 = sorted$collections_OptionMap_Option_String_collections_HashMap_u8_Option_String(map);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, string | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.fmtStr)], f))])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, rs.String | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))], f))]).v));
 }
 
 /**
@@ -1515,7 +1519,7 @@ export function optional$Option_String_collections_HashMap_u8_Option_String(map:
  * `value` making what `insert` and `get_mut` put.
  */
 export function optional$Option_u8_collections_BTreeMap_u8_Option_u8(map: rs.BTreeMap<rs.u8, rs.u8 | undefined>, data: rs.ByteSlice, value: (a0: rs.u8) => rs.u8 | undefined, out: rs.ByteVec): void {
-	let read!: string;
+	let read!: rs.String;
 	for (const b of rs.byteSliceView(data)) {
 		const k: rs.u8 = rs.u8Rem(b, 8);
 		const _14: rs.u8 = rs.u8Rem(rs.u8Div(b, 8), 4);
@@ -1532,7 +1536,7 @@ export function optional$Option_u8_collections_BTreeMap_u8_Option_u8(map: rs.BTr
 		} else {
 			const _49: rs.Place<rs.u8 | undefined> | undefined = getMut$collections_OptionMap_Option_u8_collections_BTreeMap_u8_Option_u8(map, k);
 			if (_49 === undefined) {
-				read = "- ";
+				read = rs.stringFrom("- ");
 			} else {
 				const v: rs.Place<rs.u8 | undefined> = _49;
 				const _53: rs.u8 | undefined = value(rs.u8Div(b, 2));
@@ -1540,10 +1544,10 @@ export function optional$Option_u8_collections_BTreeMap_u8_Option_u8(map: rs.BTr
 				read = rs.fmtFormat(["=", (f: rs.Formatter) => rs.fmtOption(v.v, f, rs.u8Debug), " "]);
 			}
 		}
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(read));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(read.v));
 	}
 	const part4 = sorted$collections_OptionMap_Option_u8_collections_BTreeMap_u8_Option_u8(map);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug)], f))])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug)], f))]).v));
 }
 
 /**
@@ -1551,7 +1555,7 @@ export function optional$Option_u8_collections_BTreeMap_u8_Option_u8(map: rs.BTr
  * `value` making what `insert` and `get_mut` put.
  */
 export function optional$Option_u8_collections_HashMap_u8_Option_u8(map: rs.HashMap<rs.u8, rs.u8 | undefined>, data: rs.ByteSlice, value: (a0: rs.u8) => rs.u8 | undefined, out: rs.ByteVec): void {
-	let read!: string;
+	let read!: rs.String;
 	for (const b of rs.byteSliceView(data)) {
 		const k: rs.u8 = rs.u8Rem(b, 8);
 		const _14: rs.u8 = rs.u8Rem(rs.u8Div(b, 8), 4);
@@ -1568,7 +1572,7 @@ export function optional$Option_u8_collections_HashMap_u8_Option_u8(map: rs.Hash
 		} else {
 			const _49: rs.Place<rs.u8 | undefined> | undefined = getMut$collections_OptionMap_Option_u8_collections_HashMap_u8_Option_u8(map, k);
 			if (_49 === undefined) {
-				read = "- ";
+				read = rs.stringFrom("- ");
 			} else {
 				const v: rs.Place<rs.u8 | undefined> = _49;
 				const _53: rs.u8 | undefined = value(rs.u8Div(b, 2));
@@ -1576,10 +1580,10 @@ export function optional$Option_u8_collections_HashMap_u8_Option_u8(map: rs.Hash
 				read = rs.fmtFormat(["=", (f: rs.Formatter) => rs.fmtOption(v.v, f, rs.u8Debug), " "]);
 			}
 		}
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(read));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(read.v));
 	}
 	const part4 = sorted$collections_OptionMap_Option_u8_collections_HashMap_u8_Option_u8(map);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug)], f))])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug)], f))]).v));
 }
 
 /**
@@ -1587,7 +1591,7 @@ export function optional$Option_u8_collections_HashMap_u8_Option_u8(map: rs.Hash
  * `value` making what `insert` and `get_mut` put.
  */
 export function optional$unit_collections_BTreeMap_u8_unit(map: rs.BTreeMap<rs.u8, undefined>, data: rs.ByteSlice, value: (a0: rs.u8) => undefined, out: rs.ByteVec): void {
-	let read!: string;
+	let read!: rs.String;
 	for (const b of rs.byteSliceView(data)) {
 		const k: rs.u8 = rs.u8Rem(b, 8);
 		const _14: rs.u8 = rs.u8Rem(rs.u8Div(b, 8), 4);
@@ -1604,7 +1608,7 @@ export function optional$unit_collections_BTreeMap_u8_unit(map: rs.BTreeMap<rs.u
 		} else {
 			const _49: rs.Place<undefined> | undefined = getMut$collections_OptionMap_unit_collections_BTreeMap_u8_unit(map, k);
 			if (_49 === undefined) {
-				read = "- ";
+				read = rs.stringFrom("- ");
 			} else {
 				const v: rs.Place<undefined> = _49;
 				value(rs.u8Div(b, 2));
@@ -1612,10 +1616,10 @@ export function optional$unit_collections_BTreeMap_u8_unit(map: rs.BTreeMap<rs.u
 				read = rs.fmtFormat(["=", (f: rs.Formatter) => rs.fmtUnit(v.v, f), " "]);
 			}
 		}
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(read));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(read.v));
 	}
 	const part4 = sorted$collections_OptionMap_unit_collections_BTreeMap_u8_unit(map);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtUnit(value[1], f)], f))])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtUnit(value[1], f)], f))]).v));
 }
 
 /**
@@ -1623,7 +1627,7 @@ export function optional$unit_collections_BTreeMap_u8_unit(map: rs.BTreeMap<rs.u
  * `value` making what `insert` and `get_mut` put.
  */
 export function optional$unit_collections_HashMap_u8_unit(map: rs.HashMap<rs.u8, undefined>, data: rs.ByteSlice, value: (a0: rs.u8) => undefined, out: rs.ByteVec): void {
-	let read!: string;
+	let read!: rs.String;
 	for (const b of rs.byteSliceView(data)) {
 		const k: rs.u8 = rs.u8Rem(b, 8);
 		const _14: rs.u8 = rs.u8Rem(rs.u8Div(b, 8), 4);
@@ -1640,7 +1644,7 @@ export function optional$unit_collections_HashMap_u8_unit(map: rs.HashMap<rs.u8,
 		} else {
 			const _49: rs.Place<undefined> | undefined = getMut$collections_OptionMap_unit_collections_HashMap_u8_unit(map, k);
 			if (_49 === undefined) {
-				read = "- ";
+				read = rs.stringFrom("- ");
 			} else {
 				const v: rs.Place<undefined> = _49;
 				value(rs.u8Div(b, 2));
@@ -1648,10 +1652,10 @@ export function optional$unit_collections_HashMap_u8_unit(map: rs.HashMap<rs.u8,
 				read = rs.fmtFormat(["=", (f: rs.Formatter) => rs.fmtUnit(v.v, f), " "]);
 			}
 		}
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(read));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(read.v));
 	}
 	const part4 = sorted$collections_OptionMap_unit_collections_HashMap_u8_unit(map);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtUnit(value[1], f)], f))])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part4.items, f, (value: [rs.u8, undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtUnit(value[1], f)], f))]).v));
 }
 
 /** `b`, unless a multiple of 3. */
@@ -1665,8 +1669,8 @@ export function made$collections_BTreeMap_u8_Option_u8(): rs.BTreeMap<rs.u8, rs.
 }
 
 /** What `Default` makes of `T`, as kio's `Shared<T>::default` makes its map. */
-export function made$collections_HashMap_u8_Option_String(): rs.HashMap<rs.u8, string | undefined> {
-	return rs.hashNew() as rs.HashMap<rs.u8, string | undefined>;
+export function made$collections_HashMap_u8_Option_String(): rs.HashMap<rs.u8, rs.String | undefined> {
+	return rs.hashNew() as rs.HashMap<rs.u8, rs.String | undefined>;
 }
 
 /**
@@ -1685,9 +1689,9 @@ export function optionals(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	} else if (_4 === 3) {
 		optional$unit_collections_BTreeMap_u8_unit(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, undefined>, data, (_2: rs.u8): undefined => {}, out);
 	} else if (_4 === 4) {
-		optional$Option_String_collections_HashMap_u8_Option_String(made$collections_HashMap_u8_Option_String(), data, (b2: rs.u8): string | undefined => {
-			return option_map$1y26nmr(some(b2), (b3: rs.u8): string => {
-				return rs.fmtToString((f: rs.Formatter) => rs.u8Display(b3, f));
+		optional$Option_String_collections_HashMap_u8_Option_String(made$collections_HashMap_u8_Option_String(), data, (b2: rs.u8): rs.String | undefined => {
+			return option_map$0n6ziv9(some(b2), (b3: rs.u8): rs.String => {
+				return rs.fmtToString((f: rs.Formatter) => rs.u8Display(b3, f), 0);
 			});
 		}, out);
 	} else {
@@ -1709,11 +1713,11 @@ export function optionals(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			const _53: boolean = rs.hashContains(map, k);
 			const _56: rs.u8 | undefined | rs.None = read;
 			const args5 = [(f: rs.Formatter) => rs.fmtOption(_56, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None), (f: rs.Formatter) => rs.fmtOption(_50, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtBool(_53, f)];
-			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " "])));
+			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " "]).v));
 		}
 		const all: rs.Vec<[[rs.u8, boolean], rs.u8 | undefined]> = rs.iterToVec(rs.hashIter(map), "next", 4);
 		rs.sliceSort(rs.sliceFrom(all.items), rs.cmpLt(rs.cmpTuple<[[rs.u8, boolean], rs.u8 | undefined], rs.Ordering | undefined>([rs.cmpTuple<[rs.u8, boolean], rs.Ordering | undefined>([rs.cmp, rs.cmp]), rs.cmpOption(rs.cmp)])), 4, true);
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(all.items, f, (value: [[rs.u8, boolean], rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0][0], f), (f: rs.Formatter) => rs.fmtBool(value[0][1], f)], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug)], f))])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(all.items, f, (value: [[rs.u8, boolean], rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0][0], f), (f: rs.Formatter) => rs.fmtBool(value[0][1], f)], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug)], f))]).v));
 	}
 }
 
@@ -4391,11 +4395,11 @@ export function cellEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	putCmp(rs.cellBy(rs.cmpOption(rs.cmp))(oa, ob), log, out);
 	const _261: rs.u16 = at(0);
 	const _267: rs.u16 = at(1);
-	const _257: [rs.RefCell<string>, rs.RefCell<string>] = [new rs.RefCell(rs.fmtToString((f: rs.Formatter) => rs.u16Display(_261, f))), new rs.RefCell(rs.fmtToString((f: rs.Formatter) => rs.u16Display(_267, f)))];
-	const sa: rs.RefCell<string> = _257[0];
-	const sb: rs.RefCell<string> = _257[1];
-	putEq(rs.refCellBy(rs.same)(sa, sb), log, out);
-	putEq(!rs.refCellBy(rs.same)(sa, sb), log, out);
+	const _257: [rs.RefCell<rs.String>, rs.RefCell<rs.String>] = [new rs.RefCell(rs.fmtToString((f: rs.Formatter) => rs.u16Display(_261, f), 0)), new rs.RefCell(rs.fmtToString((f: rs.Formatter) => rs.u16Display(_267, f), 0))];
+	const sa: rs.RefCell<rs.String> = _257[0];
+	const sb: rs.RefCell<rs.String> = _257[1];
+	putEq(rs.refCellBy(rs.eqStr)(sa, sb), log, out);
+	putEq(!rs.refCellBy(rs.eqStr)(sa, sb), log, out);
 	putEq(rs.refCellBy(rs.cmpStr)(sa, sb) === -1, log, out);
 	const order5 = rs.refCellBy(rs.cmpStr)(sa, sb);
 	putEq(order5 !== undefined && order5 <= 0, log, out);
@@ -5847,27 +5851,27 @@ export function btreeExtracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec):
 		});
 		const _62: [rs.usize, rs.usize | undefined] = it.sizeHint();
 		const args26 = [(f: rs.Formatter) => rs.fmtBTreeExtractIf(it, f, rs.u16Debug, rs.u16Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_62[0], f), (f: rs.Formatter) => rs.fmtOption(_62[1], f, rs.usizeDebug)], f)];
-		put(out, rs.fmtFormat([args26[0], " ", args26[1]]));
+		put(out, rs.fmtFormat([args26[0], " ", args26[1]]).v);
 		const _72: rs.Iter<[rs.u16, rs.u16]> = it;
 		const _74: rs.usize = limit as rs.usize;
 		const taken: rs.Vec<[rs.u16, rs.u16]> = rs.iterToVec(rs.iterTake(rs.iterBorrow(_72), _74), "next", 4);
 		const _83: [rs.usize, rs.usize | undefined] = it.sizeHint();
 		const args27 = [(f: rs.Formatter) => rs.fmtList(taken.items, f, (value: [rs.u16, rs.u16], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u16Debug(value[0], f), (f: rs.Formatter) => rs.u16Debug(value[1], f)], f)), (f: rs.Formatter) => rs.fmtBTreeExtractIf(it, f, rs.u16Debug, rs.u16Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_83[0], f), (f: rs.Formatter) => rs.fmtOption(_83[1], f, rs.usizeDebug)], f)];
-		put(out, rs.fmtFormat([args27[0], " ", args27[1], " ", args27[2]]));
+		put(out, rs.fmtFormat([args27[0], " ", args27[1], " ", args27[2]]).v);
 		if (rs.u8Rem(limit, 2) === 0) {
 			const _104: [rs.u16, rs.u16] | undefined = rs.iterToOption(it.next());
 			const args28 = [(f: rs.Formatter) => rs.fmtOption(_104, f, (value: [rs.u16, rs.u16], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u16Debug(value[0], f), (f: rs.Formatter) => rs.u16Debug(value[1], f)], f)), (f: rs.Formatter) => rs.fmtBTreeExtractIf(it, f, rs.u16Debug, rs.u16Debug)];
-			put(out, rs.fmtFormat([args28[0], " ", rs.fmtSpec({ alternate: true }, args28[1])]));
+			put(out, rs.fmtFormat([args28[0], " ", rs.fmtSpec({ alternate: true }, args28[1])]).v);
 		}
 		const _122: rs.usize = rs.btreeLen(map);
 		const _125: rs.Vec<[rs.u16, rs.u16]> = rs.iterToVec(rs.iterStepBy(rs.btreeIter(map), 7), "next", 8);
 		const args29 = [(f: rs.Formatter) => rs.usizeDisplay(_122, f), (f: rs.Formatter) => rs.fmtList(_125.items, f, (value: [rs.u16, rs.u16], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u16Debug(value[0], f), (f: rs.Formatter) => rs.u16Debug(value[1], f)], f))];
-		put(out, rs.fmtFormat([args29[0], " ", args29[1]]));
+		put(out, rs.fmtFormat([args29[0], " ", args29[1]]).v);
 		const taken2: rs.Vec<[rs.u16, rs.u16]> = rs.iterToVec(rs.btreeExtractIfMut(map, undefined, (_217: rs.u16, v3: rs.Place<rs.u16>): boolean => {
 			return rs.u16Rem(v3.v, 3) === 0;
 		}), "next", 4);
 		const args30 = [(f: rs.Formatter) => rs.fmtList(taken2.items, f, (value: [rs.u16, rs.u16], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u16Debug(value[0], f), (f: rs.Formatter) => rs.u16Debug(value[1], f)], f)), (f: rs.Formatter) => rs.fmtMap(rs.btreeIter(map), f, rs.u16Debug, rs.u16Debug)];
-		put(out, rs.fmtFormat([args30[0], " ", args30[1]]));
+		put(out, rs.fmtFormat([args30[0], " ", args30[1]]).v);
 	} else if (_44 === 1) {
 		const _152: rs.Iter<rs.u16> = rs.iterMap(new rs.Range(0, n), (k5: rs.u16): rs.u16 => {
 			return rs.u16Rem(rs.u16Mul(k5, 3), rs.u16Add(n, 1));
@@ -5876,23 +5880,23 @@ export function btreeExtracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec):
 		const it2: rs.Iter<rs.u16> = rs.btreeExtractKeysIf(set, range, (k6: rs.u16): boolean => {
 			return rs.u16Rem(k6, every) !== 0;
 		});
-		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtBTreeExtractIf(it2, f, rs.u16Debug)]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtBTreeExtractIf(it2, f, rs.u16Debug)]).v);
 		const _174: rs.Iter<rs.u16> = it2;
 		const _176: rs.usize = limit as rs.usize;
 		const taken3: rs.Vec<rs.u16> = rs.iterToVec(rs.iterTake(rs.iterBorrow(_174), _176), "next", 2);
 		const _185: [rs.usize, rs.usize | undefined] = it2.sizeHint();
 		const args22 = [(f: rs.Formatter) => rs.fmtList(taken3.items, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtBTreeExtractIf(it2, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(_185[0], f), (f: rs.Formatter) => rs.fmtOption(_185[1], f, rs.usizeDebug)], f)];
-		put(out, rs.fmtFormat([args22[0], " ", args22[1], " ", args22[2]]));
-		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtSet(rs.btreeKeys(set), f, rs.u16Debug)]));
+		put(out, rs.fmtFormat([args22[0], " ", args22[1], " ", args22[2]]).v);
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtSet(rs.btreeKeys(set), f, rs.u16Debug)]).v);
 		const part3 = rs.btreeExtractKeysIf(rs.btreeNew(rs.cmp) as rs.BTreeSet<rs.u16>, range, (_212: rs.u16): boolean => {
 			return true;
 		});
-		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtBTreeExtractIf(part3, f, rs.u16Debug)]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtBTreeExtractIf(part3, f, rs.u16Debug)]).v);
 		rs.btreeClear(set);
 		const part4 = rs.btreeExtractKeysIf(set, undefined, (_216: rs.u16): boolean => {
 			return true;
 		});
-		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtBTreeExtractIf(part4, f, rs.u16Debug)]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtBTreeExtractIf(part4, f, rs.u16Debug)]).v);
 	} else {
 		const log: rs.RefCell<rs.Vec<rs.u16>> = new rs.RefCell(new rs.Vec());
 		const _243: rs.Iter<[Logged.Logged, Logged.Logged]> = rs.iterMap(new rs.Range(0, rs.u16Div(n, 2)), (k: rs.u16): [Logged.Logged, Logged.Logged] => {
