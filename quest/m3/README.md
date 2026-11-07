@@ -26,4 +26,3 @@ generic std gap is planned here even when moq never calls it.
 - [rust2-ts with no ts.toml](/quest/m3/ts-configless.md) - a crate's whole `pub` API translates with no config and no bound items
 - [Buf on a deque of bytes](/quest/m3/ts-vecdeque-buf.md) - `bytes`' `Buf` for a deque of bytes translates
 - [std's panic messages hold std's capacity](/quest/m3/ts-panic-payload-capacity.md) - a hook reads native's `String` capacity from std's own formatted panics
-- [A B-tree drops as std's does](/quest/m3/ts-btree-drop-order.md) - keys and values drop node by node, in std's order
