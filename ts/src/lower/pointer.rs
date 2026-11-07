@@ -856,7 +856,7 @@ pub fn call<'tcx>(
 					let p = b.spill(boxed, "uninit", out);
 					let write = match array(b, pointee()) {
 						true => Expr::rs("ptrWrite", vec![p.clone(), value]),
-						false => write(b, p.clone(), value, pointee(), span),
+						false => write(b, p.clone(), value, pointee(), span, out),
 					};
 					out.push(StmtKind::Expr(write).at(None));
 					p
