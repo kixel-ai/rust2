@@ -523,8 +523,7 @@ fn atomic<'tcx>(
 		&& matches!(
 			name,
 			"compare_exchange" | "compare_exchange_weak" | "try_update" | "fetch_update" | "update"
-		)
-		&& b.t.incomparable(pointee).is_some()
+		) && b.t.incomparable(pointee).is_some()
 	{
 		return Ok(Some(b.err(
 			call.span,

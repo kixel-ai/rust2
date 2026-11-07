@@ -144,8 +144,7 @@ pub fn call<'tcx>(
 				let comparable = matches!(b.t.std_of(t), Some(Std::ErrorKind | Std::HashMap | Std::HashSet));
 				if matches!(t.kind(), ty::Bool | ty::Int(_) | ty::Uint(_))
 					|| library::nothing(tcx, t)
-					|| bytes(b, t)
-					|| !(std_key(b, t) || comparable)
+					|| bytes(b, t) || !(std_key(b, t) || comparable)
 					|| !alike(b, t, rhs)
 				{
 					return Err(args);
@@ -3534,8 +3533,7 @@ pub fn collect<'tcx>(
 			// hashbrown's map takes its items and reads their size hint before it makes its
 			// hasher, where std's and hashbrown's set make it first.
 			if std == Std::HashMap
-				&& held
-				&& matches!(ty.kind(), ty::Adt(adt, _) if super::stock::as_std(b.t.tcx, adt.did()))
+				&& held && matches!(ty.kind(), ty::Adt(adt, _) if super::stock::as_std(b.t.tcx, adt.did()))
 			{
 				let make = Expr::Lambda(Vec::new(), Box::new(target));
 				let tail = hash_extend_tail(b, ty, from, span);

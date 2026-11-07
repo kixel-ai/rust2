@@ -69,7 +69,6 @@ Public API: the translator's output.
 
 ## Required
 
-- [A Vec's spare capacity](/quest/m3/ts-unsafe/vec-spare-capacity.md) - writes through `as_mut_ptr` past the length, committed by `set_len`, translate for any `Vec<T>`
 - [A raw pointer behind a reference](/quest/m3/ts-unsafe/raw-behind-ref.md) - `&raw const *r` of a value JS copies points where the reference came from
 - [Vec::from_raw_parts of a typed allocation](/quest/m3/ts-unsafe/vec-from-raw-parts.md) - a `Vec` adopts an `alloc`ed array of `T`s, with its length, capacity, and drops
 - [Unions over a type parameter](/quest/m3/ts-unsafe/generic-unions.md) - each instance of a generic union is laid out with its own offsets

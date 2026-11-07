@@ -1083,18 +1083,14 @@ fn releases(owner: &str, name: &str) -> bool {
 		(
 			"Iterator",
 			"for_each"
-				| "fold"
-				| "try_fold"
+				| "fold" | "try_fold"
 				| "try_for_each"
 				| "partition"
-				| "reduce"
-				| "max_by"
-				| "min_by"
-				| "max_by_key"
+				| "reduce" | "max_by"
+				| "min_by" | "max_by_key"
 				| "min_by_key"
 				| "is_sorted_by_key"
-				| "eq_by"
-				| "cmp_by"
+				| "eq_by" | "cmp_by"
 				| "partial_cmp_by"
 		) | ("DoubleEndedIterator", "rfold" | "try_rfold")
 			| ("Entry", "or_insert_with" | "or_insert_with_key" | "and_modify")
@@ -1108,8 +1104,7 @@ pub fn maps_guard(owner: &str, name: &str) -> bool {
 		(owner, name),
 		(
 			"Ref"
-				| "RefMut"
-				| "MutexGuard"
+				| "RefMut" | "MutexGuard"
 				| "MappedMutexGuard"
 				| "RwLockReadGuard"
 				| "RwLockWriteGuard"
@@ -1141,8 +1136,7 @@ fn takes_none(owner: &str, name: &str) -> bool {
 				| (
 					"OnceCell" | "OnceLock",
 					"get" | "get_mut" | "set" | "get_or_init" | "get_or_try_init" | "take" | "into_inner"
-				)
-				| ("Arc" | "Rc", "into_inner")
+				) | ("Arc" | "Rc", "into_inner")
 				| ("DoubleEndedIterator", "next_back" | "nth_back" | "rfind" | "try_rfold")
 				| ("dyn Any" | "dyn Error", "downcast_ref" | "downcast_mut")
 				| ("ptr", "as_ref" | "as_mut")
@@ -1163,29 +1157,22 @@ pub(super) fn none_last(owner: &str, name: &str) -> bool {
 			| (
 				"VecDeque",
 				"pop_front"
-					| "pop_back"
-					| "front"
-					| "back"
-					| "front_mut"
-					| "back_mut"
-					| "get"
-					| "get_mut"
-					| "remove"
+					| "pop_back" | "front"
+					| "back" | "front_mut"
+					| "back_mut" | "get"
+					| "get_mut" | "remove"
 					| "swap_remove_front"
 					| "swap_remove_back"
-			)
-			| (
-				"LinkedList",
-				"pop_front" | "pop_back" | "front" | "back" | "front_mut" | "back_mut"
-			)
-			| ("BinaryHeap", "pop" | "peek")
+			) | (
+			"LinkedList",
+			"pop_front" | "pop_back" | "front" | "back" | "front_mut" | "back_mut"
+		) | ("BinaryHeap", "pop" | "peek")
 			| ("HashSet", "get" | "take" | "replace")
 			| ("HashTable", "find")
 			| (
 				"BTreeSet",
 				"first" | "last" | "pop_first" | "pop_last" | "get" | "take" | "replace"
-			)
-			| ("HashMap" | "BTreeMap", "get" | "get_mut" | "insert" | "remove")
+			) | ("HashMap" | "BTreeMap", "get" | "get_mut" | "insert" | "remove")
 	)
 }
 
@@ -2703,12 +2690,25 @@ fn mapping<'tcx>(
 		// The room past a byte vector's length, a slice of its storage.
 		("Vec", "spare_capacity_mut") if byte(targ(gargs, 0)) => Expr::rs("byteVecSpare", args),
 		("Vec", "set_len") if byte(targ(gargs, 0)) => Expr::rs("byteVecSetLen", args),
-		// The room past its length, which no JS array holds.
-		("Vec", "spare_capacity_mut") => {
-			return Some(b.err(
-				span,
-				"`Vec::spare_capacity_mut` of other than bytes, whose room past its length no JS array holds, which is not supported yet",
-			));
+		// The room past any other's, which the runtime keeps apart from its items, given
+		// the size its capacity grows by and what a slot holds before a write.
+		("Vec", "spare_capacity_mut" | "set_len") => {
+			let elem = targ(gargs, 0);
+			let uninit = Ty::new_maybe_uninit(tcx, elem);
+			let value = b.t.uninit(uninit, span);
+			let each = Expr::Arrow(
+				Vec::new(),
+				b.t.ty(uninit, span),
+				vec![StmtKind::Return(Some(value)).at(None)],
+			);
+			let mut values = args;
+			values.push(super::iter::size_of(b, elem, span));
+			values.push(each);
+			let f = match name.as_str() {
+				"set_len" => "vecSetLen",
+				_ => "vecSpare",
+			};
+			Expr::rs(f, values)
 		}
 		// Its elements, which nothing drops.
 		("Vec", "leak") => {

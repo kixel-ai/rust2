@@ -390,12 +390,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						t.std_of(ty.peel_refs()),
 						Some(
 							Std::Vec
-								| Std::Option
-								| Std::Result
-								| Std::HashMap
-								| Std::HashTable
-								| Std::BTreeMap
-								| Std::VecDeque
+								| Std::Option | Std::Result
+								| Std::HashMap | Std::HashTable
+								| Std::BTreeMap | Std::VecDeque
 								| Std::LinkedList
 						)
 					),
@@ -616,8 +613,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			("Clone", "clone_from") | ("ToOwned", "clone_into")
 				if let Some(ty) = targ(0)
 					&& let own = library::unboxed(self.b.t, ty)
-					&& own != ty
-					&& let clone_from = crate::lower::collections::trait_fn(tcx, "Clone", "clone_from")
+					&& own != ty && let clone_from = crate::lower::collections::trait_fn(tcx, "Clone", "clone_from")
 					&& self.b.t.translated(clone_from, tcx.mk_args(&[own.into()])) =>
 			{
 				let (target, source) = match name.as_str() {
@@ -1054,8 +1050,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						|| targ(0).is_some_and(|t| {
 							matches!(self.b.t.std_of(t), Some(Std::MutexGuard | Std::RefMut))
 								|| self.b.t.needs_place(t) && self.b.t.needs_place(*pointee)
-						}))
-					&& self.b.t.mapped(def_id, gargs)
+						})) && self.b.t.mapped(def_id, gargs)
 					&& let Some(local) = dest.as_local()
 					&& self.defs[local] == 1
 					&& matches!(self.slots[local], Slot::Var(_)) =>

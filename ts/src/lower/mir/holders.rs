@@ -236,8 +236,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 								&& matches!(
 									**kind,
 									AggregateKind::Closure(..)
-										| AggregateKind::Coroutine(..)
-										| AggregateKind::CoroutineClosure(..)
+										| AggregateKind::Coroutine(..) | AggregateKind::CoroutineClosure(..)
 								) {
 								held.escapes.push(at);
 								continue;

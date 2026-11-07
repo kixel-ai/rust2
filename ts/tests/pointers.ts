@@ -37,12 +37,29 @@ const shared = rs.ptrByteSlice(lone, 1, true);
 assert.deepEqual(shared.data, Uint8Array.of(3));
 unsure(() => rs.ptrOffsetFrom(rs.byteSliceAsPtr(shared), lone));
 
-// A write into a `Vec`'s capacity past its length, which a JS array would grow by.
+// A write past an array that is no `Vec`'s items, which a JS array would grow by.
 const vec: number[] = [7];
 unsure(() => {
 	rs.ptrAdd(rs.arrayAsPtr(vec), 1).v = 8;
 });
 assert.equal(vec.length, 1);
+
+// A write past a `Vec`'s length lands in its room, but not past its capacity, nor
+// through a pointer into the items it held before something replaced them.
+const held = rs.vecFrom([7]);
+const end = rs.ptrAdd(rs.vecAsPtr(held, 4), 1);
+unsure(() => {
+	end.v = 8;
+});
+rs.vecReserveExact(held, 1, 4);
+end.v = 8;
+assert.deepEqual(held.items, [7]);
+rs.vecSetLen(held, 2, 4, () => 0);
+assert.deepEqual(held.items, [7, 8]);
+rs.vecReserveExact(held, 4, 4);
+rs.ptrAdd(end, 1).v = 9;
+held.items = [1, 2];
+unsure(() => rs.ptrAdd(end, 1).v);
 
 // Memory from `alloc`, which JS keeps as values once a cast types it: its bytes, typed as
 // another type of the same size, a pointer past the start of what it holds cast back to
