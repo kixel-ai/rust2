@@ -35,3 +35,8 @@ adds 324 KB to a Go binary where cgo adds 1.15 MB and a libc dependency.
 
 - [Match cgo on the crate](/quest/m4/go/speed.md) - the translated crate within 2x of cgo on a group's stream end to end
 - [moq-net beyond the codec](/quest/m4/go/coverage.md) - `Drop`, floats, 128-bit integers, trait objects, and collections, so moq-net translates whole
+- [pub constants and statics](/quest/m4/go/consts.md) - exported as Go declarations instead of refused, so a crate with any translates
+- [Exported names off the runtime's](/quest/m4/go/runtime-names.md) - a crate's own `Result` or `Formatter` exports beside the runtime's
+- [A Go API for exported enums](/quest/m4/go/enums.md) - Go callers in another package build, match, and pass a `pub enum`, pinned by an external test package
+- [Trait-impl methods](/quest/m4/go/trait-impls.md) - a `pub` type's `Display`, `Debug`, `From`, and other impls callable from Go by a naming rule
+- [Methods through a specialized alias](/quest/m4/go/alias-methods.md) - a private generic type's methods exported through `pub type Byte = Value<u8>` instead of refused
