@@ -34,16 +34,17 @@ pub fn vec_pointer(v: &mut Vec<u8>) -> usize {
 
 /// `UnsafeCell`s of objects a pointer is the place of, which a whole write through `get`
 /// lands in, so a value `replace` reads out before would change too or be a copy, and a
-/// `Cell` of a pinned `Box`, whose copy is another allocation.
+/// `Cell` and an array of a pinned `Box`, whose copy is another allocation.
 pub fn cell_of_objects(v: &mut Vec<u8>, s: &mut String, p: &mut Pin<Box<(u8, u8)>>, q: &mut Pin<Box<(u8, u8)>>) -> u8 {
 	let v = std::cell::UnsafeCell::from_mut(v);
 	let s = std::cell::UnsafeCell::from_mut(s);
 	let p = std::cell::UnsafeCell::from_mut(p);
-	let q = std::cell::Cell::from_mut(q);
 	let first = unsafe {
 		v.replace(Vec::new()).len() as u8 ^ s.replace(String::new()).len() as u8 ^ p.replace(Box::pin((3, 4))).0
 	};
-	first ^ q.replace(Box::pin((5, 6))).0
+	let second = std::cell::Cell::from_mut(q).replace(Box::pin((5, 6))).0;
+	let [third] = std::mem::replace(std::array::from_mut(q), [Box::pin((7, 8))]);
+	first ^ second ^ third.0
 }
 
 /// A pointer to a cell behind a reference, made before a call that `UnsafeCell::raw_get`
@@ -60,6 +61,17 @@ pub fn cell_pointer_kept(c: &std::cell::UnsafeCell<u32>, n: u32) -> u32 {
 pub fn cell_pointer_reassigned(n: u32) -> u32 {
 	let mut c = std::cell::UnsafeCell::new(n);
 	let p = std::cell::UnsafeCell::raw_get(&c);
+	c = std::cell::UnsafeCell::new(n ^ 1);
+	let _ = &c;
+	unsafe { *p }
+}
+
+/// A pointer `UnsafeCell::raw_get` makes of a raw pointer to a cell, read after the
+/// variable holding the cell is given another.
+pub fn cell_raw_reassigned(n: u32) -> u32 {
+	let mut c = std::cell::UnsafeCell::new(n);
+	let to = &raw const c;
+	let p = unsafe { std::cell::UnsafeCell::raw_get(to) };
 	c = std::cell::UnsafeCell::new(n ^ 1);
 	let _ = &c;
 	unsafe { *p }

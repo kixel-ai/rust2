@@ -7,6 +7,7 @@ roots = [
     "alloc::cell_of_objects",
     "alloc::cell_pointer_kept",
     "alloc::cell_pointer_reassigned",
+    "alloc::cell_raw_reassigned",
     "alloc::reinterpreted",
     "alloc::vec_pointer",
     "alloc::zeroed",

@@ -339,11 +339,23 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				if let Some(err) = self.std_places(def_id, gargs, result, span) {
 					return err;
 				}
-				if crate::lower::pointer::from_reference(tcx, def_id, gargs)
+				// `raw_get`'s pointer is judged as `get`'s, of the cell it points at: the place
+				// it was made of, where one `&raw` made it.
+				let raw_get = library::key(tcx, def_id).is_some_and(|(o, n)| o == "UnsafeCell" && n == "raw_get");
+				let made = |p: Place<'tcx>| {
+					p.as_local()
+						.filter(|&l| raw_get && self.defs[l] == 1)
+						.and_then(|l| self.def_rvalue(l))
+				};
+				let pointee = |p: Place<'tcx>| match made(p) {
+					Some(rustc_middle::mir::Rvalue::RawPtr(_, made)) => *made,
+					_ => tcx.mk_place_deref(p),
+				};
+				if (raw_get || crate::lower::pointer::from_reference(tcx, def_id, gargs))
 					&& let Some(why) = args[0]
 						.node
 						.place()
-						.and_then(|p| self.made_out_of_step(def_id, gargs, tcx.mk_place_deref(p)))
+						.and_then(|p| self.made_out_of_step(def_id, gargs, pointee(p)))
 				{
 					return self.err(span, why);
 				}
@@ -1414,7 +1426,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// place of reads a copy of, as its writes replace the value it read, and a slice writes
 	/// its element into. A slice of one byte no array holds is refused, as is any of an
 	/// object JS can't write a whole value into, an `UnsafeCell` of an object a pointer is
-	/// the place of, such as a `Vec`, and either cell of a pinned `Box`.
+	/// the place of, such as a `Vec`, and any of a pinned `Box`.
 	fn one_of(
 		&mut self,
 		owner: &str,
@@ -1445,14 +1457,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				"a slice of one byte's place, which a byte slice can view only in an array of bytes",
 			));
 		}
-		// A write through the cell's pointer lands in the object, so a value read out before
-		// would change with it unless copied, as a `Cell`'s read is, but a pinned `Box`'s copy
-		// is another allocation.
-		if cell && place_of && self.b.t.write_in(ty).is_some() && (owner == "UnsafeCell" || self.b.t.erased(ty) != ty) {
+		// A whole write through what this makes lands in the object, so a value read out
+		// before would change with it unless copied, as a `Cell`'s or a slice's read is, but
+		// a pinned `Box`'s copy is another allocation.
+		if place_of && self.b.t.write_in(ty).is_some() && (owner == "UnsafeCell" || self.b.t.erased(ty) != ty) {
+			let path = if owner == "raw" { "slice" } else { owner };
 			return Some(self.err(
 				span,
 				format!(
-					"`{owner}::from_mut` of `{ty}`, an object a write through the cell's pointer changes in place, so a value read out before would change too or be a copy at another address"
+					"`{path}::from_mut` of `{ty}`, an object a whole write through it changes in place, so a value read out before would change too or be a copy at another address"
 				),
 			));
 		}
