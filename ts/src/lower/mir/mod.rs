@@ -3144,7 +3144,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			AssertKind::BoundsCheck { .. } if let Some(at) = self.panic_at() => {
 				let [len, index] = <[Expr; 2]>::try_from(operands).ok()?;
 				let text = |s: &str| Expr::Str(s.to_string());
-				let message = vec![text("index out of bounds: the len is "), len, text(" but the index is "), index];
+				let message = vec![
+					text("index out of bounds: the len is "),
+					len,
+					text(" but the index is "),
+					index,
+				];
 				Some(Expr::rs("panicSizes", vec![Expr::Array(message), at]))
 			}
 			_ => {
