@@ -24,10 +24,10 @@ pub fn allocated() -> u8 {
 	}
 }
 
-/// A pointer to a `Vec`, whose JS array is its heap, not where Rust keeps the `Vec`.
-pub fn vec_pointer(v: &mut Vec<u8>) -> usize {
-	let p = &raw const *v;
-	unsafe { (*p).len() }
+/// A pointer from a reference the body is given, which JS keeps in no array, moved past
+/// it.
+pub fn past_reference(r: &u32) -> u32 {
+	unsafe { *(r as *const u32).add(2) }
 }
 
 /// Casts between pointers to bytes and to values outside memory from `alloc`, which read
