@@ -34,6 +34,20 @@ pub fn generic_nested(unit: bool) -> bool {
 	unit
 }
 
+/// A generic type's `Option<MaybeUninit<T>>` is `T | rs.None`, as a `MaybeUninit` can be
+/// `undefined`, but for a byte, whose `None` is `undefined`.
+pub struct MaybeByte<T> {
+	pub value: Option<std::mem::MaybeUninit<T>>,
+}
+
+pub fn generic_uninit_byte(b: u8) -> bool {
+	MaybeByte {
+		value: Some(std::mem::MaybeUninit::new(b)),
+	}
+	.value
+	.is_some()
+}
+
 /// Parsing an address is not translated yet.
 pub fn addr_parsed(s: &str) -> Result<std::net::Ipv4Addr, std::net::AddrParseError> {
 	s.parse()

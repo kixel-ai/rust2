@@ -1987,16 +1987,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	/// Why an instance of the crate's generic `adt` with `args` can't hold its fields' values,
 	/// if it can't: an `Option` or a `Poll` over a type parameter whose `None` or `Pending`
-	/// this instance makes `rs.None` or `rs.OuterPending`, where its definition types it
-	/// `T | undefined` or `rs.Poll<T>`, or where an `rs.OptionOf<T>` or `rs.PollOf<T>`
-	/// would decide otherwise from TypeScript's type of `T`, or which can't tell its values
-	/// apart at all.
+	/// this instance makes other than its definition types it, as an `rs.OptionOf<T>` or
+	/// `rs.PollOf<T>` decides by TypeScript's type of `T`, and otherwise by the definition's
+	/// own parameter, or which can't tell its values apart at all.
 	fn generic_erasure(&mut self, adt: AdtDef<'tcx>, args: GenericArgsRef<'tcx>, span: Span) -> Option<String> {
 		let tcx = self.tcx;
-		if !args.types().any(|t| {
-			let erased = self.erases_to(t);
-			erased.undefined || erased.pending
-		}) {
+		if args.has_param() {
 			return None;
 		}
 		let ty = Ty::new_adt(tcx, adt, args);
@@ -2058,7 +2054,19 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 							field.name
 						)
 					}),
-					_ => None,
+					// A `MaybeUninit<T>`, which can be `undefined` but for a byte.
+					_ if option => (!at.undefined).then(|| {
+						format!(
+							"`{ty}` is not supported: its field `{}` is `Option<{inner}>`, typed `{inner} | rs.None`, whose `None` would be `undefined` as `Option<{instance}>`",
+							field.name
+						)
+					}),
+					_ => (!at.pending).then(|| {
+						format!(
+							"`{ty}` is not supported: its field `{}` is `Poll<{inner}>`, typed `{inner} | rs.OuterPending`, whose `Pending` would be `rs.Pending` as `Poll<{instance}>`",
+							field.name
+						)
+					}),
 				};
 				if msg.is_some() {
 					return msg;

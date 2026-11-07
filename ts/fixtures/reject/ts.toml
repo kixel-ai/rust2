@@ -206,6 +206,7 @@ roots = [
     "values::float",
     "values::generic_nested",
     "values::generic_uninit",
+    "values::generic_uninit_byte",
     "values::lists",
     "values::manual_impls",
     "values::nested",
