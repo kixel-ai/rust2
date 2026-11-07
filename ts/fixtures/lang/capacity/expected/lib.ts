@@ -19,6 +19,22 @@ export function copy$tuple2_u64_u8(v: [rs.u64, rs.u8]): [rs.u64, rs.u8] {
 	return [v[0], v[1]];
 }
 
+export class of$String {
+	v: rs.String;
+
+	constructor(v: rs.String) {
+		this.v = v;
+	}
+
+	borrow$Borrow(): rs.Ptr<string> {
+		return this.v.v as rs.Ptr<string>;
+	}
+
+	borrowMut$BorrowMut(): rs.Ptr<string> {
+		return this.v as rs.Ptr<string>;
+	}
+}
+
 /**
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.

@@ -678,7 +678,7 @@ pub fn strings(first: u8, steps: &[u8], out: &mut Vec<u8>) {
 	for step in steps.chunks(2) {
 		let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
 		let c = CHARS[usize::from(arg) % CHARS.len()];
-		match op % 48 {
+		match op % 49 {
 			0 => s.push(c),
 			1 => s.push_str(text(arg)),
 			2 => s.reserve(amount(arg, s.len(), 1)),
@@ -802,6 +802,14 @@ pub fn strings(first: u8, steps: &[u8], out: &mut Vec<u8>) {
 			}
 			46 => s = String::from_iter([text(arg), text(arg >> 2)]),
 			47 => s = mem::take(&mut s) + text(arg),
+			// Its `str` lent through a trait object, which a write through changes in place.
+			48 => {
+				use std::borrow::{Borrow, BorrowMut};
+				let lent: &mut dyn BorrowMut<str> = &mut s;
+				lent.borrow_mut().make_ascii_uppercase();
+				let shared: &dyn Borrow<str> = &s;
+				put(out, shared.borrow().len());
+			}
 			_ => {}
 		}
 		sized(out, s.len(), s.capacity());

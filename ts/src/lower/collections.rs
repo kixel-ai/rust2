@@ -170,8 +170,8 @@ pub fn call<'tcx>(
 				let held = mut_place(b, t).is_some_and(|inner| same_key(b, inner, by));
 				let text = library::owned_string(tcx, peel(b, t)) && !library::owned_string(tcx, peel(b, by));
 				let value = match arc_of(b, peel(b, t)) {
-					// A `String`'s `str` is its text.
-					_ if text && same_key(b, t, by) => args.pop().map(|v| v.member("v")),
+					// A `String`'s `str` is its text, and its `&mut str` the `String`, the place of it.
+					_ if text && name == "borrow" && same_key(b, t, by) => args.pop().map(|v| v.member("v")),
 					_ if held || same_key(b, t, by) => args.pop().map(|value| match name {
 						"borrow" if held => b.t.pointee_value(t, value),
 						// Given the place of its receiver, which a `&mut` holds, but where it lends
