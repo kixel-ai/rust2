@@ -292,7 +292,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 
 	/// Refuse the trait object `ty` of `principal` if a method its object holds takes or
 	/// returns, at its arguments, what its type gives in another form than a cast reaches,
-	/// as a `T | undefined` of an `Option<T>` whose `T` is an `Option` too. Checked where a
+	/// as an `rs.OptionOf<T>` whose `T` is a `MaybeUninit<u32>`, which can be `undefined`
+	/// though its type can't. Checked where a
 	/// value becomes one or a call dispatches through one, by which time the object holds each method of a crate's own
 	/// trait, and not where a type names one, as a method may return an object of other
 	/// arguments without end, `Nest<Vec<T>>` of `Nest<T>`.
@@ -816,6 +817,24 @@ fn fits(defined: &Type, called: &Type) -> bool {
 		_ if defined == called || super::instanced(defined) => true,
 		// The `()` a declared method returns as `void`.
 		(Type::Builtin("undefined"), Type::Builtin("void")) => true,
+		// What an `rs.OptionOf` or `rs.PollOf` resolves to at the called type's argument.
+		(Type::Rs("OptionOf", x), Type::Union(y)) => match (&x[..], &y[..]) {
+			([x], [some, none]) => {
+				fits(x, some)
+					&& *none
+						== match super::holds_undefined(some) {
+							true => Type::Rs("None", vec![]),
+							false => Type::Builtin("undefined"),
+						}
+			}
+			_ => false,
+		},
+		(Type::Rs("PollOf", x), called) => match (&x[..], called) {
+			([x], Type::Rs("Poll", y)) => matches!(&y[..], [ready] if fits(x, ready) && !super::holds_pending(ready)),
+			([x], Type::Union(y)) => matches!(&y[..], [ready, pending]
+				if fits(x, ready) && super::holds_pending(ready) && *pending == Type::Rs("OuterPending", vec![])),
+			_ => false,
+		},
 		(Type::Rs(a, x), Type::Rs(b, y)) => a == b && all(x, y),
 		(Type::Sym(a, x), Type::Sym(b, y)) => a == b && all(x, y),
 		(Type::Union(x), Type::Union(y)) | (Type::Tuple(x), Type::Tuple(y)) => all(x, y),

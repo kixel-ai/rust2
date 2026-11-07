@@ -45,53 +45,19 @@ pub trait Taken {
 	fn take(&mut self) -> Option<Self::Item>;
 }
 
-impl Taken for u8 {
-	type Item = Option<u8>;
-	fn take(&mut self) -> Option<Option<u8>> {
-		Some(self.checked_sub(1))
+impl Taken for u32 {
+	type Item = std::mem::MaybeUninit<u32>;
+	fn take(&mut self) -> Option<std::mem::MaybeUninit<u32>> {
+		Some(std::mem::MaybeUninit::new(*self))
 	}
 }
 
 /// An object whose method returns an `Option` of its associated type, which its type has
-/// as `Item | undefined`, bound to an `Option` too, whose `None` that can't tell apart.
-pub fn nested_item(x: &mut u8) -> bool {
-	let s: &mut dyn Taken<Item = Option<u8>> = x;
+/// as an `rs.OptionOf<Item>`, bound to a `MaybeUninit<u32>`, whose `None` is `rs.None`
+/// though TypeScript's type of it, a `number`, can't be `undefined`.
+pub fn uninit_item(x: &mut u32) -> bool {
+	let s: &mut dyn Taken<Item = std::mem::MaybeUninit<u32>> = x;
 	s.take().is_some()
-}
-
-/// An object of nested options a caller made, which a call dispatches through.
-pub fn received(x: &mut dyn Taken<Item = Option<u16>>) -> bool {
-	x.take().is_some()
-}
-
-pub trait Passed<T> {
-	fn pass(&self) -> &dyn Passed<Option<u8>>;
-	fn item(&self) -> Option<T>;
-}
-
-impl<T> Passed<T> for u8 {
-	fn pass(&self) -> &dyn Passed<Option<u8>> {
-		&()
-	}
-	fn item(&self) -> Option<T> {
-		None
-	}
-}
-
-impl<T> Passed<T> for () {
-	fn pass(&self) -> &dyn Passed<Option<u8>> {
-		self
-	}
-	fn item(&self) -> Option<T> {
-		None
-	}
-}
-
-/// An object of nested options, whose type a method of the trait names before the method
-/// returning its `Item` is held.
-pub fn passed(x: &u8) -> bool {
-	let p: &dyn Passed<u8> = x;
-	p.pass().item().is_none()
 }
 
 pub trait First {

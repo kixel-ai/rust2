@@ -8,9 +8,9 @@ import type * as Item from "./collects.Item.ts";
  * a `None`, as nothing stops it from doing.
  */
 export class Tries<T> {
-	_0: rs.Vec<T | undefined>;
+	_0: rs.Vec<rs.OptionOf<T>>;
 
-	constructor(_0: rs.Vec<T | undefined>) {
+	constructor(_0: rs.Vec<rs.OptionOf<T>>) {
 		this._0 = _0;
 	}
 
@@ -23,14 +23,14 @@ export function fromIter$iter_FromIterator_collects_Item_collects_Item_iter_adap
 	const iter2: rs.Iter<Item.Item> = iter;
 	return new Tries(rs.iterToVec(rs.iterMap(new rs.Range(0, 3), (_2: rs.i32): Item.Item | undefined => {
 		return rs.iterToOption(iter2.next());
-	}), undefined, 8, true));
+	}), undefined, 8, true) as rs.Vec<rs.OptionOf<Item.Item>>);
 }
 
 export function fromIter$iter_FromIterator_u8_u8_iter_adapters_GenericShunt_iter_Map_slice_Iter_u8_collects_collects_closure10_Result_never_collects_Item(iter: rs.Iter<rs.u8>): Tries<rs.u8> {
 	const iter2: rs.Iter<rs.u8> = iter;
 	return new Tries(rs.iterToVec(rs.iterMap(new rs.Range(0, 3), (_2: rs.i32): rs.u8 | undefined => {
 		return rs.iterToOption(iter2.next());
-	}), undefined, 2, true));
+	}), undefined, 2, true) as rs.Vec<rs.OptionOf<rs.u8>>);
 }
 
 //# sourceMappingURL=collects.Tries.ts.map
