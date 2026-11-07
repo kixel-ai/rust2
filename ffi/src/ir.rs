@@ -57,9 +57,10 @@ pub type Path = Vec<String>;
 /// The crate an item belongs to, and how much of its path lies outside that crate.
 #[derive(Clone, Default, PartialEq, Eq, Debug)]
 pub struct Home {
-	/// The crate's name: the one defining the item, or for an instance, the last of its
-	/// own and its arguments' crates in [`Api::crates`], so a crate's items name only
-	/// types of crates before it.
+	/// The crate's name, followed by `#` and a number for a later crate of a name an
+	/// earlier one has: the one defining the item, or for an instance, the last of its own
+	/// and its arguments' crates in [`Api::crates`], so a crate's items name only types of
+	/// crates before it.
 	pub krate: String,
 	/// How many leading segments of its `shown` path, the facade's root among them, name
 	/// no module of that crate: the facade's own modules, and a crate root re-exported as

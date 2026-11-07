@@ -67,7 +67,9 @@ impl Packages {
 		let mut errors = Vec::new();
 		let strip = format!("{}_", abi.prefix);
 		for krate in &abi.api.crates {
-			let name = krate.strip_prefix(&strip).unwrap_or(krate).replace('_', "");
+			// A later crate of an earlier one's name takes its count after it.
+			let (base, count) = krate.split_once('#').unwrap_or((krate, ""));
+			let name = base.strip_prefix(&strip).unwrap_or(base).replace('_', "") + count;
 			let taken = STD.iter().any(|(n, _)| *n == name) || ["C", "main", "rt"].contains(&name.as_str());
 			if taken || keyword(&name) {
 				errors.push(format!(

@@ -151,6 +151,8 @@ struct Collector<'tcx> {
 	/// How many leading segments of each item's path lie outside its crate, as
 	/// [`Home::outside`] counts them.
 	outside: rustc_data_structures::fx::FxHashMap<DefId, usize>,
+	/// Each crate's [`Home::krate`].
+	keys: rustc_data_structures::fx::FxHashMap<CrateNum, String>,
 	decls: rustc_data_structures::fx::FxHashMap<Key<'tcx>, Decl>,
 	/// The instances generic types export at, each type's by how reports name them.
 	instances: Vec<Site<'tcx>>,
@@ -180,6 +182,16 @@ struct Collector<'tcx> {
 	/// Objects no export returns, refused.
 	orphans: rustc_data_structures::fx::FxHashSet<Key<'tcx>>,
 	api: Api,
+}
+
+/// Every crate, each after those it depends on, the facade's last.
+fn order(tcx: TyCtxt<'_>) -> Vec<CrateNum> {
+	let mut order: Vec<CrateNum> = (tcx.postorder_cnums(()).iter())
+		.copied()
+		.filter(|&k| k != LOCAL_CRATE)
+		.collect();
+	order.push(LOCAL_CRATE);
+	order
 }
 
 /// Collect the facade's API, leaving out what its `exclude` names.
@@ -216,11 +228,25 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			_ => None,
 		}
 	});
+	// A later crate of an earlier one's name takes `#` and how many have it so far.
+	let mut keys = rustc_data_structures::fx::FxHashMap::default();
+	let mut seen: std::collections::HashMap<rustc_span::Symbol, usize> = Default::default();
+	for krate in order(tcx) {
+		let name = tcx.crate_name(krate);
+		let count = seen.entry(name).or_default();
+		*count += 1;
+		let key = match *count {
+			1 => name.to_string(),
+			n => format!("{name}#{n}"),
+		};
+		keys.insert(krate, key);
+	}
 	let pass = |orphans: &rustc_data_structures::fx::FxHashSet<Key<'tcx>>| {
 		let mut c = Collector {
 			tcx,
 			items: Vec::new(),
 			outside: Default::default(),
+			keys: keys.clone(),
 			decls: Default::default(),
 			crates: vec![LOCAL_CRATE],
 			report: Report {
@@ -308,7 +334,7 @@ impl<'tcx> Collector<'tcx> {
 			},
 		};
 		Home {
-			krate: tcx.crate_name(item.krate).to_string(),
+			krate: self.keys[&item.krate].clone(),
 			outside: self.outside[&item],
 		}
 	}
@@ -318,11 +344,7 @@ impl<'tcx> Collector<'tcx> {
 	/// that leaves its crate shows its whole path there.
 	fn rehome(&mut self) {
 		let tcx = self.tcx;
-		let mut order: Vec<String> = (tcx.postorder_cnums(()).iter())
-			.filter(|&&k| k != LOCAL_CRATE)
-			.map(|&k| tcx.crate_name(k).to_string())
-			.collect();
-		order.push(tcx.crate_name(LOCAL_CRATE).to_string());
+		let order: Vec<String> = order(tcx).into_iter().map(|k| self.keys[&k].clone()).collect();
 		let rank = |krate: &str| {
 			order
 				.iter()
@@ -1159,7 +1181,7 @@ impl<'tcx> Collector<'tcx> {
 		Object {
 			path: path(""),
 			home: Home {
-				krate: krate.to_string(),
+				krate: self.keys[&def_id.krate].clone(),
 				outside: 1,
 			},
 			shown: shown(""),
