@@ -201,7 +201,6 @@ roots = [
     "values::addr_parsed",
     "values::ascii_octal",
     "values::bits",
-    "values::block_cloned",
     "values::dangling_enum",
     "values::float",
     "values::generic_nested",

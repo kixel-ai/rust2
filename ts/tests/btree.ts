@@ -1,8 +1,9 @@
 // The runtime's B-tree through a script of random operations, large enough to split, merge,
 // and rebalance its nodes at every height, and to empty it again: inserts, removals, pops,
 // lookups, ranges and iterators walked from both ends, `retain`, `extract_if` read part way,
-// `clone`, `split_off`, and `collect`. Prints what each returns and which keys each compared,
-// which `runtime.rs` compares with std's `BTreeMap` running the same script.
+// `clone`, `split_off`, and `collect`, and drops whole trees. Prints what each returns, which
+// keys each compared, and which values each whole drop dropped in what order, which
+// `runtime.rs` compares with std's `BTreeMap` running the same script.
 //
 // usage: node btree.ts
 
@@ -33,6 +34,16 @@ const say = (line: string) => {
 	out.push(`${line} #${calls} ${hash}`);
 	calls = 0;
 	hash = 0;
+};
+/** How `f` drops values through the dropper it is given: how many, and their hash, as `runtime.rs` logs them. */
+const logged = (f: (v: (value: number) => void) => void) => {
+	let n = 0;
+	let h = 0;
+	f((value) => {
+		n++;
+		h = (Math.imul(h, 31) + value) >>> 0;
+	});
+	return `drop ${n} ${h}`;
 };
 const show = (v: number | undefined) => (v === undefined ? "-" : String(v));
 const walk = (it: rs.Iter<[number, number]>) => {
@@ -111,17 +122,21 @@ for (let step = 0; step < steps; step++) {
 		const copy = rs.btreeClone(m);
 		rs.btreeRetain(m, (key) => key % 7 !== k % 7);
 		say(`retain ${rs.btreeLen(m)} ${rs.btreeFirst(m)?.join(" ") ?? "-"} ${rs.btreeFirst(m, true)?.join(" ") ?? "-"}`);
-		m = rand() & 1 ? copy : m;
-		say(`kept ${rs.btreeLen(m)}`);
+		const [kept, unused] = rand() & 1 ? [copy, m] : [m, copy];
+		m = kept;
+		say(`kept ${rs.btreeLen(m)} ${logged((v) => rs.btreeDrop(unused, undefined, v))}`);
 	} else if (step % 1301 === 0) {
 		const right = rs.btreeSplitOff(m, k);
 		say(`split ${k} ${rs.btreeLen(m)} ${rs.btreeLen(right)}`);
 		check(right);
-		m = rand() & 1 ? right : m;
+		const [kept, unused] = rand() & 1 ? [right, m] : [m, right];
+		m = kept;
+		say(logged((v) => rs.btreeClear(unused, undefined, v)));
 	} else if (step % 2003 === 0) {
 		const entries = rs.iterToVec(rs.btreeIter(m)).items;
+		const old = m;
 		m = rs.btreeCollect(rs.btreeNew<number, number>(cmp), entries, 8, true, (a, b) => a === b);
-		say(`collect ${rs.btreeLen(m)}`);
+		say(`collect ${rs.btreeLen(m)} ${logged((v) => rs.btreeDrop(old, undefined, v))}`);
 	} else if (step % 211 === 0) {
 		const j = rand() % keys;
 		const [lo, hi] = k < j ? [k, j] : [j, k];
@@ -136,7 +151,9 @@ for (let step = 0; step < steps; step++) {
 		}
 		say(`extract ${lo} ${hi} ${rs.btreeLen(m)} ${taken.join(",")}`);
 		check(m);
-		m = rand() & 1 ? copy : m;
+		const [kept, unused] = rand() & 1 ? [copy, m] : [m, copy];
+		m = kept;
+		say(logged((v) => rs.btreeDrop(unused, undefined, v)));
 	}
 	if (step % 499 === 0) check(m);
 }

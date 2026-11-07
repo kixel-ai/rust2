@@ -1205,14 +1205,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			.iter()
 			.filter_map(|param| match param.kind {
 				ty::GenericParamDefKind::Type { .. } => Some(param.name.to_string()),
-				ty::GenericParamDefKind::Lifetime => None,
-				ty::GenericParamDefKind::Const { .. } => {
-					self.err(
-						span,
-						format!("const generic types are not supported: `{}`", tcx.def_path_str(did)),
-					);
-					None
-				}
+				// A const parameter types nothing in JS: each instance's functions read its own.
+				ty::GenericParamDefKind::Lifetime | ty::GenericParamDefKind::Const { .. } => None,
 			})
 			.collect();
 		let item = match &info.repr {
