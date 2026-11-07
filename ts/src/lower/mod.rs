@@ -1921,7 +1921,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		// and one that holds itself again names its alias.
 		if self.defining_state.projecting > 0
 			&& !instance.has_param()
-			&& args.types().next().is_some()
+			&& args.iter().any(|arg| arg.as_region().is_none())
 			&& self.may_project(adt.did())
 		{
 			return self.instance_alias(instance, &info, span);

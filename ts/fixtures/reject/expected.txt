@@ -262,7 +262,7 @@ fixtures/reject/src/values.rs:Links+0:1: dropping `values::Links<values::Succ<va
 fixtures/reject/src/values.rs:Nested+2:2: `values::Nested<<C as values::Chain>::Next>` is not supported: a type that holds itself at other arguments than its own parameters, through a projection of them, which would name new projections without end
 fixtures/reject/src/values.rs:Over+1:2: `values::Lent<values::Relent<T>>` is not supported yet: a projection of its parameters is a type whose arguments hold `values::Lent<values::Relent<T>>` again, so its TypeScript type arguments would never end
 fixtures/reject/src/values.rs:Sprawl+2:2: `values::Sprawl<values::Widen<u8>>` is not supported: its projections' values nest instances past the crate's recursion limit
-fixtures/reject/src/values.rs:Spread+2:2: `values::Spread<values::Wrapped<S>>` is not supported: a type that holds itself at other arguments than its own parameters, through a projection of them, which would name new projections without end
+fixtures/reject/src/values.rs:Spread+2:2: `values::Spread<values::Wrapped<S>>` is not supported: its projections' values nest instances past the crate's recursion limit
 fixtures/reject/src/values.rs:addr_parsed+0:32: unsupported type `std::net::AddrParseError` from another crate
 fixtures/reject/src/values.rs:addr_parsed+0:32: unsupported type `std::net::Ipv4Addr` from another crate
 fixtures/reject/src/values.rs:addr_parsed+1:4: unsupported call to `core::str::<impl str>::parse::<std::net::Ipv4Addr>`

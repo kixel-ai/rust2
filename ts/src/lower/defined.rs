@@ -480,10 +480,11 @@ impl<'tcx> Translator<'_, 'tcx> {
 	}
 
 	/// Fill in the projection arguments of the instance `pending[i]` typed, from its
-	/// definition's projections so far, refusing an instance at other than type parameters
-	/// whose projections there name a new projection or another instance still being typed,
-	/// as a type that holds itself at other arguments would without end, and one without
-	/// type parameters named through more instances than the crate's recursion limit.
+	/// definition's projections so far. Filling them in may name more projections or
+	/// instances, which are filled in turn until none is new; a type that holds itself at
+	/// ever other arguments would name them without end, so an instance named through more
+	/// instances than the crate's recursion limit is refused, as is filling one in that
+	/// leaves its definition with more projections than that.
 	fn fill_pending(&mut self, i: usize) {
 		let p = &self.defining_state.pending[i];
 		let projections: Vec<Ty<'tcx>> = (self.defining_state.records[&p.adt].projections.iter())
@@ -493,7 +494,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 			return;
 		}
 		let (adt, args, at, field, span, depth, root) = (p.adt, p.args, p.at, p.field, p.span, p.depth, p.root);
-		if !args.has_param() && depth > self.tcx.recursion_limit().0 {
+		let limit = self.tcx.recursion_limit().0;
+		if depth > limit {
 			// Named by the one its definition's field typed, which the source wrote.
 			let root = &self.defining_state.pending[root];
 			let instance = Ty::new_adt(self.tcx, self.tcx.adt_def(root.adt), root.args);
@@ -510,7 +512,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 		}
 		let env = at.map_or(self.typing_env(), |(_, env)| env);
 		let named = |state: &Defining<'tcx>| at.map_or(0, |(did, _)| state.records[&did].projections.len());
-		let before = (named(&self.defining_state), self.defining_state.pending.len());
+		let before = self.defining_state.pending.len();
 		let outer = std::mem::replace(&mut self.defining, at);
 		let outer_field = std::mem::replace(&mut self.defining_state.field, field);
 		self.defining_state.projecting += 1;
@@ -526,9 +528,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 		self.defining_state.filling = filling;
 		self.defining = outer;
 		self.defining_state.field = outer_field;
-		let after = (named(&self.defining_state), self.defining_state.pending.len());
-		// Instances without type parameters each have an alias, so a finite chain of them ends.
-		let refused = after != before && args.has_param() && !args.types().all(|t| matches!(t.kind(), ty::Param(_)));
+		let refused = named(&self.defining_state) > limit;
 		if refused {
 			let instance = Ty::new_adt(self.tcx, self.tcx.adt_def(adt), args);
 			self.err(
@@ -539,7 +539,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 			);
 			tys = vec![Type::Builtin("unknown"); projections.len()];
 			// Nor are the instances it named filled in, which would name more.
-			for named in &mut self.defining_state.pending[before.1..] {
+			for named in &mut self.defining_state.pending[before..] {
 				named.filled = Some(Vec::new());
 				named.refused = true;
 			}

@@ -2,8 +2,8 @@
 
 import * as rs from "./rs.ts";
 import { copy$array_generics_Either_u8_shapes_Point, copy$generics_Fixed_u16, copy$generics_Fixed_u8, copy$generics_Wrap_shapes_Point, copy$generics_Wrap_u8, copy$shapes_Gauge, drop$generics_Pile_generics_Ticks, drop$generics_Run_generics_Ticked } from "./lib.ts";
-import { thenSome$1ctlqen, thenSome$0tbnivw, thenSome$19pue01, thenSome$0quywni, thenSome$1n1oy1h, then$01xsbgy, then$0y7on52, then$1qflv5x } from "./core/bool.ts";
-import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$0w7995p as option_unwrapOrDefault$0w7995p, unwrapOrDefault$03apme8 as option_unwrapOrDefault$03apme8, map$00jdj9f as option_map$00jdj9f, map$0983ug4 as option_map$0983ug4, map$1ug09xc as option_map$1ug09xc, map$1747o3c as option_map$1747o3c, map$1mvacy3 as option_map$1mvacy3, map$1es1113 as option_map$1es1113, map$1ub01y7 as option_map$1ub01y7, map$0ggarad as option_map$0ggarad, map$132wgz4 as option_map$132wgz4, map$1olalbb as option_map$1olalbb, map$1htvaju as option_map$1htvaju, map$0xpm57l as option_map$0xpm57l, map$0ydco3f as option_map$0ydco3f, map$057a36e as option_map$057a36e, asDeref$10lhnlx as option_asDeref$10lhnlx, asDeref$1z13rqi as option_asDeref$1z13rqi } from "./core/option.ts";
+import { thenSome$1ctlqen, thenSome$0bd8znh, thenSome$0tbnivw, thenSome$19pue01, thenSome$0quywni, thenSome$1n1oy1h, then$01xsbgy, then$0y7on52, then$1qflv5x } from "./core/bool.ts";
+import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$0w7995p as option_unwrapOrDefault$0w7995p, unwrapOrDefault$03apme8 as option_unwrapOrDefault$03apme8, map$00jdj9f as option_map$00jdj9f, map$0xoixq7 as option_map$0xoixq7, map$0983ug4 as option_map$0983ug4, map$04m4r6n as option_map$04m4r6n, map$1ug09xc as option_map$1ug09xc, map$1747o3c as option_map$1747o3c, map$1mvacy3 as option_map$1mvacy3, map$1es1113 as option_map$1es1113, map$1ub01y7 as option_map$1ub01y7, map$1a3j889 as option_map$1a3j889, map$0ggarad as option_map$0ggarad, map$132wgz4 as option_map$132wgz4, map$1olalbb as option_map$1olalbb, map$1htvaju as option_map$1htvaju, map$0xpm57l as option_map$0xpm57l, map$0ydco3f as option_map$0ydco3f, map$057a36e as option_map$057a36e, asDeref$10lhnlx as option_asDeref$10lhnlx, asDeref$1z13rqi as option_asDeref$1z13rqi, andThen$0jij6xn as option_andThen$0jij6xn } from "./core/option.ts";
 import { eq$1qrb1lw as poll_eq$1qrb1lw, isPending$07fnw8g, isPending$1imonrp, isPending$189w6zf, isPending$1yqrsts } from "./core/task/poll.ts";
 import type * as Pair from "./fmt.Pair.ts";
 import * as Ahead from "./generics.Ahead.ts";
@@ -12,6 +12,7 @@ import * as Batch from "./generics.Batch.ts";
 import * as Branch from "./generics.Branch.ts";
 import * as Carried from "./generics.Carried.ts";
 import * as Chain from "./generics.Chain.ts";
+import * as Counted from "./generics.Counted.ts";
 import * as Deep from "./generics.Deep.ts";
 import * as Defaulted from "./generics.Defaulted.ts";
 import type * as Depth from "./generics.Depth.ts";
@@ -24,6 +25,7 @@ import * as Forked from "./generics.Forked.ts";
 import * as Ghost from "./generics.Ghost.ts";
 import type * as Head from "./generics.Head.ts";
 import * as Kept from "./generics.Kept.ts";
+import * as Layer from "./generics.Layer.ts";
 import type * as Lends from "./generics.Lends.ts";
 import type * as Lent from "./generics.Lent.ts";
 import type * as Linked from "./generics.Linked.ts";
@@ -33,6 +35,7 @@ import * as Node from "./generics.Node.ts";
 import * as Odd from "./generics.Odd.ts";
 import * as Parked from "./generics.Parked.ts";
 import type * as Paths from "./generics.Paths.ts";
+import type * as Peel from "./generics.Peel.ts";
 import * as Pile from "./generics.Pile.ts";
 import * as Ping from "./generics.Ping.ts";
 import type * as Pong from "./generics.Pong.ts";
@@ -44,6 +47,7 @@ import * as Tagged from "./generics.Tagged.ts";
 import type * as Tail from "./generics.Tail.ts";
 import * as Ticked from "./generics.Ticked.ts";
 import type * as Ticks from "./generics.Ticks.ts";
+import type * as Top from "./generics.Top.ts";
 import * as Tree from "./generics.Tree.ts";
 import * as Wrap from "./generics.Wrap.ts";
 import { put } from "./harness.ts";
@@ -730,7 +734,7 @@ export function projectedCycles(data: rs.ByteSlice, out: rs.ByteVec): void {
  * once per path.
  */
 export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _110!: Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
+	let _149!: Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
 	const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
 	const tick: (a0: rs.u8) => Ticked.Ticked = (id: rs.u8): Ticked.Ticked => {
 		return new Ticked.Ticked(id, rs.arcClone(log));
@@ -778,23 +782,40 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	const _91: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(ids2), f, rs.u8Debug);
 	const arg = node.item;
-	const args10 = [_91, (f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.fmtOption(held2, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2]]).v);
+	const args12 = [_91, (f: rs.Formatter) => rs.u8Display(arg, f), (f: rs.Formatter) => rs.fmtOption(held2, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2]]).v);
+	const under: Layer.Layer<Peel.Peel<Top.Top>, boolean, rs.u8> = new Layer.Layer(true, undefined);
+	const layer: Layer.Layer<Top.Top, rs.u16, boolean> = new Layer.Layer(((option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.u16) << 4) & 0xffff, thenSome$0bd8znh(rs.usizeRem(data.length, 2) === 1, under));
+	const count: rs.u8 | undefined = option_map$04m4r6n(option_andThen$0jij6xn(rs.iterFold(rs.iterSlice(rs.byteSliceView(data)), undefined as Counted.Counted<Counted.Counted$0> | undefined, (next5: Counted.Counted<Counted.Counted$0> | undefined, _39: rs.u8): Counted.Counted<Counted.Counted$0> | undefined => {
+		return new Counted.Counted(_39, option_map$0xoixq7(next5, (a03: Counted.Counted<Counted.Counted$0>): Counted.Counted<Counted.Counted$0> => {
+			return a03;
+		}) as rs.OptionOf<Counted.Counted$0>);
+	}), (c: Counted.Counted<Counted.Counted$0>): Counted.Counted<Counted.Counted$0> | undefined => {
+		return c.next;
+	}), (c2: Counted.Counted<Counted.Counted$0>): rs.u8 => {
+		return c2.id;
+	});
+	const _126: [boolean, boolean] | undefined = option_map$1a3j889(layer.under, (u: Layer.Layer<Peel.Peel<Top.Top>, boolean, rs.u8>): [boolean, boolean] => {
+		return [u.item, u.under !== undefined] as [boolean, boolean];
+	});
+	const arg2 = layer.item;
+	const args13 = [(f: rs.Formatter) => rs.u16Display(arg2, f), (f: rs.Formatter) => rs.fmtOption(_126, f, (value: [boolean, boolean], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtBool(value[0], f), (f: rs.Formatter) => rs.fmtBool(value[1], f)], f)), (f: rs.Formatter) => rs.fmtOption(count, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args13[0], " ", args13[1], " ", args13[2]]).v);
 	let ping: Ping.Ping<Rally.Rally, Pong.Pong$generics_Rally> = new Ping.Ping(238, undefined as rs.OptionOf<Pong.Pong$generics_Rally>);
 	const iter2: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
 	while (true) {
-		const _102: [rs.usize, rs.u8] | rs.Done = iter2.next();
-		if (_102 === rs.DONE) {
+		const _141: [rs.usize, rs.u8] | rs.Done = iter2.next();
+		if (_141 === rs.DONE) {
 			break;
 		}
-		const i: rs.usize = _102[0];
-		const b2: rs.u8 = _102[1];
+		const i: rs.usize = _141[0];
+		const b2: rs.u8 = _141[1];
 		if (rs.usizeRem(i, 3) === 0) {
-			_110 = { tag: "Miss" } as Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
+			_149 = { tag: "Miss" } as Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
 		} else {
-			_110 = { tag: "Hit", _0: ~b2 & 0xff, _1: ping } as Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
+			_149 = { tag: "Hit", _0: ~b2 & 0xff, _1: ping } as Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
 		}
-		ping = new Ping.Ping(b2, _110 as rs.OptionOf<Pong.Pong$generics_Rally>);
+		ping = new Ping.Ping(b2, _149 as rs.OptionOf<Pong.Pong$generics_Rally>);
 	}
 	const ids3: rs.ByteVec = new rs.ByteVec();
 	Ping.ids$generics_Rally(ping, ids3);
@@ -806,9 +827,9 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}) as rs.OptionOf<Ticked.Ticked>) as rs.OptionOf<Forked.Forked$generics_Depth_24>);
 	const fork: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_1, Forked.Forked$generics_Depth_1> = new Forked.Forked(0, undefined as rs.OptionOf<Forked.Forked$generics_Depth_1>, undefined as rs.OptionOf<Forked.Forked$generics_Depth_1>);
 	if (rs.usizeRem(data.length, 2) === 0) {
-		const _150: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_2, Forked.Forked$generics_Depth_2> | undefined = new Forked.Forked(1, undefined as rs.OptionOf<Forked.Forked$generics_Depth_2>, undefined as rs.OptionOf<Forked.Forked$generics_Depth_2>);
+		const _189: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_2, Forked.Forked$generics_Depth_2> | undefined = new Forked.Forked(1, undefined as rs.OptionOf<Forked.Forked$generics_Depth_2>, undefined as rs.OptionOf<Forked.Forked$generics_Depth_2>);
 		rs.drop(fork.left);
-		fork.left = _150;
+		fork.left = _189;
 	}
 	const ids4: [rs.u8, rs.u8 | undefined, rs.u8] = [fork.id, option_map$1747o3c(fork.left, (f: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_2, Forked.Forked$generics_Depth_2>): rs.u8 => {
 		return f.id;
@@ -820,13 +841,13 @@ export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return t.id;
 		})] as [rs.u8, rs.u8 | undefined, rs.u8 | undefined];
 	});
-	const args12 = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(ids4[0], f), (f: rs.Formatter) => rs.fmtOption(ids4[1], f, rs.u8Debug), (f: rs.Formatter) => rs.u8Debug(ids4[2], f)], f), (f: rs.Formatter) => rs.fmtOption(right, f, (value: [rs.u8, rs.u8 | undefined, rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(value[2], f, rs.u8Debug)], f))];
-	put(out, rs.fmtFormat([args12[0], " ", args12[1]]).v);
+	const args15 = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(ids4[0], f), (f: rs.Formatter) => rs.fmtOption(ids4[1], f, rs.u8Debug), (f: rs.Formatter) => rs.u8Debug(ids4[2], f)], f), (f: rs.Formatter) => rs.fmtOption(right, f, (value: [rs.u8, rs.u8 | undefined, rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(value[2], f, rs.u8Debug)], f))];
+	put(out, rs.fmtFormat([args15[0], " ", args15[1]]).v);
 	below[Symbol.dispose]();
 	fork[Symbol.dispose]();
-	const _186: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_186.value))), undefined, true);
-	rs.refRelease(_186);
+	const _225: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_225.value))), undefined, true);
+	rs.refRelease(_225);
 	log[Symbol.dispose]();
 }
 

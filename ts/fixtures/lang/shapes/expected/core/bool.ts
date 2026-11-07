@@ -2,7 +2,10 @@
 
 import * as rs from "../rs.ts";
 import type * as Pair from "../fmt.Pair.ts";
+import type * as Layer from "../generics.Layer.ts";
+import type * as Peel from "../generics.Peel.ts";
 import type * as Ticked from "../generics.Ticked.ts";
+import type * as Top from "../generics.Top.ts";
 import type * as Void from "../shapes.Void.ts";
 
 export function thenSome$1ctlqen(self: boolean, t: rs.u8 | undefined): rs.u8 | undefined | rs.None {
@@ -27,6 +30,13 @@ export function thenSome$1ou04rm(self: boolean, t: Pair.Pair): Pair.Pair | undef
 }
 
 export function thenSome$05ku0zn(self: boolean, t: rs.i32): rs.i32 | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return t;
+}
+
+export function thenSome$0bd8znh(self: boolean, t: Layer.Layer<Peel.Peel<Top.Top>, boolean, rs.u8>): Layer.Layer<Peel.Peel<Top.Top>, boolean, rs.u8> | undefined {
 	if (!self) {
 		return undefined;
 	}

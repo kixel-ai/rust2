@@ -982,6 +982,48 @@ impl Source for Tail {
 	type Item = u8;
 }
 
+/// A layered source's item, and the item of the layer peeled off it.
+trait Layered {
+	type Item;
+	type Other;
+}
+
+/// A layer lending the one under it, peeled, whose item is a projection its own definition
+/// names only once that instance is filled in.
+struct Layer<S: Layered + 'static> {
+	item: S::Item,
+	under: Option<&'static Layer<Peel<S>>>,
+}
+
+/// A source with a layer peeled off.
+struct Peel<S>(S);
+
+impl<S: Layered> Layered for Peel<S> {
+	type Item = S::Other;
+	type Other = u8;
+}
+
+/// The outermost layer.
+struct Top;
+
+impl Layered for Top {
+	type Item = u16;
+	type Other = bool;
+}
+
+/// What a source at a depth holds next, an instance only of its const parameter.
+struct Counted<const N: usize>
+where
+	Depth<N>: Source,
+{
+	id: u8,
+	next: Option<Box<<Depth<N> as Source>::Item>>,
+}
+
+impl Source for Depth<0> {
+	type Item = Counted<0>;
+}
+
 /// Two types a source names, each holding the other.
 trait Duo {
 	type Ping;
@@ -1112,6 +1154,30 @@ pub fn projected_selves(data: &[u8], out: &mut Vec<u8>) {
 	};
 	let held = node.next.as_ref().map(|n| n.item.item);
 	put(out, &format!("{ids:?} {} {held:?}", node.item));
+
+	let under: &'static Layer<Peel<Top>> = &Layer {
+		item: true,
+		under: None,
+	};
+	let layer = Layer::<Top> {
+		item: u16::from(data.first().copied().unwrap_or(0)) << 4,
+		under: (data.len() % 2 == 1).then_some(under),
+	};
+	let counted = data.iter().fold(None::<Counted<0>>, |next, &b| {
+		Some(Counted {
+			id: b,
+			next: next.map(Box::new),
+		})
+	});
+	let count = counted.as_ref().and_then(|c| c.next.as_ref()).map(|c| c.id);
+	put(
+		out,
+		&format!(
+			"{} {:?} {count:?}",
+			layer.item,
+			layer.under.map(|u| (u.item, u.under.is_some()))
+		),
+	);
 
 	let mut ping = Ping::<Rally> { id: 0xee, pong: None };
 	for (i, &b) in data.iter().enumerate() {

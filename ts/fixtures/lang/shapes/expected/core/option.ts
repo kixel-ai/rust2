@@ -3,13 +3,17 @@
 import * as rs from "../rs.ts";
 import type * as Back from "../generics.Back.ts";
 import type * as Carried from "../generics.Carried.ts";
+import type * as Counted from "../generics.Counted.ts";
 import type * as Defaulted from "../generics.Defaulted.ts";
 import type * as Depth from "../generics.Depth.ts";
 import type * as Forked from "../generics.Forked.ts";
 import type * as Head from "../generics.Head.ts";
+import type * as Layer from "../generics.Layer.ts";
 import type * as Looped from "../generics.Looped.ts";
 import type * as Node from "../generics.Node.ts";
+import type * as Peel from "../generics.Peel.ts";
 import type * as Ticked from "../generics.Ticked.ts";
+import type * as Top from "../generics.Top.ts";
 import { from$convert_From_shapes_Dir_u8 } from "../shapes.ts";
 import type * as Dir from "../shapes.Dir.ts";
 import type * as Meters from "../shapes.Meters.ts";
@@ -58,11 +62,25 @@ export function map$00jdj9f(self: Carried.Carried<Looped.Looped, Carried.Carried
 	return self;
 }
 
+export function map$0xoixq7(self: Counted.Counted<Counted.Counted$0> | undefined, _: (a0: Counted.Counted<Counted.Counted$0>) => Counted.Counted<Counted.Counted$0>): Counted.Counted<Counted.Counted$0> | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return self;
+}
+
 export function map$0983ug4(self: Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back> | undefined, _: (a0: Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back>) => Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back>): Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back> | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
 	return self;
+}
+
+export function map$04m4r6n(self: Counted.Counted<Counted.Counted$0> | undefined, f: (a0: Counted.Counted<Counted.Counted$0>) => rs.u8): rs.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
 }
 
 export function map$1ug09xc(self: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_1, Forked.Forked$generics_Depth_1> | undefined, f: (a0: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_1, Forked.Forked$generics_Depth_1>) => rs.u8): rs.u8 | undefined {
@@ -94,6 +112,13 @@ export function map$1es1113(self: Node.Node<Head.Head, Node.Node$generics_Tail> 
 }
 
 export function map$1ub01y7(self: Ticked.Ticked | undefined, f: (a0: Ticked.Ticked) => rs.u8): rs.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1a3j889(self: Layer.Layer<Peel.Peel<Top.Top>, boolean, rs.u8> | undefined, f: (a0: Layer.Layer<Peel.Peel<Top.Top>, boolean, rs.u8>) => [boolean, boolean]): [boolean, boolean] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -230,6 +255,13 @@ export function asDeref$1z13rqi(self: Defaulted.Defaulted<Back.Back, Defaulted.D
 	return map$0983ug4(self, (a0: Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back>): Defaulted.Defaulted<Back.Back, Defaulted.Defaulted$generics_Back> => {
 		return a0;
 	});
+}
+
+export function andThen$0jij6xn(self: Counted.Counted<Counted.Counted$0> | undefined, f: (a0: Counted.Counted<Counted.Counted$0>) => Counted.Counted<Counted.Counted$0> | undefined): Counted.Counted<Counted.Counted$0> | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
 }
 
 export function andThen$0jc4o0i(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8 | undefined | rs.None): rs.u8 | undefined | rs.None {
