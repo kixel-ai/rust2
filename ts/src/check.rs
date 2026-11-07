@@ -186,7 +186,7 @@ pub fn typecheck(tcx: TyCtxt<'_>, program: &Program, out: &Path, written: &[(Pat
 			None => _ = tcx.dcx().err(format!("rust2-ts: {msg}")),
 		}
 	}
-	// DEBUGKEEP _ = crate::program::clean(out);
+	_ = crate::program::clean(out);
 }
 
 /// The span where `loc` is.
