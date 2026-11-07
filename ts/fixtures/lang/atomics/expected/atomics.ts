@@ -1245,6 +1245,27 @@ export function shared(data: rs.ByteSlice, out: rs.ByteVec): void {
 	stats[Symbol.dispose]();
 }
 
+/**
+ * A spin-wait, as moq-net's frame has on a write another thread runs, between each of
+ * `data`'s steps: neither hint promises anything observable, so the wait ends on what its
+ * own loop changes.
+ */
+export function spins(kind: rs.u8, dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
+	const left: rs.Atomic<rs.usize> = new rs.Atomic(dataLen);
+	while (rs.atomicLoad(left, 4) > 0) {
+		const _13: rs.usize = rs.usizeSub(rs.atomicLoad(left, 0), 1);
+		if (_13 >= dataLen) {
+			rs.panic("index out of bounds: the len is " + dataLen + " but the index is " + _13);
+		}
+		if (!(((dataData[dataStart + _13] ^ kind) & 1) === 0)) {
+			undefined;
+		} else {
+			undefined;
+		}
+		rs.byteVecPush(out, rs.atomicFetch(left, rs.usizeWrappingSub, 1, 4) & 0xff);
+	}
+}
+
 export function atomics(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _4: rs.u8 = rs.u8Rem(kind, 12);
 	if (_4 === 0) {
