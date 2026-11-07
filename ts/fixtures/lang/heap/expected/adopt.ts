@@ -268,16 +268,26 @@ export function readopted(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(grown.items), (x3: rs.u32): Uint8Array => {
 		return rs.u32ToBeBytes(x3).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
-	const boxed: rs.Vec<rs.u32> = rs.vecFromRawParts({ v: rs.u32Mul(n as rs.u32, 7) }, rs.usizeRem(n, 2), 1, 4);
+	const p6: rs.Place<rs.u32> = { v: rs.u32Mul(n as rs.u32, 7) };
+	const boxed: rs.Vec<rs.u32> = rs.vecFromRawParts(p6, rs.usizeRem(n, 2), 1, 4);
 	rs.vecSetLen(boxed, 1, 4, (): rs.u32 => {
 		return (undefined as unknown) as rs.u32;
 	});
+	const at = rs.idx(boxed.items, 0);
+	boxed.items[at] = rs.u32Add(boxed.items[at], 1);
+	p6.v = rs.u32Add(p6.v, 2);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(p6.v).reverse()), undefined, true);
 	boxed.items.push(3);
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(boxed.items.length & 0xff, rs.vecCapacity(boxed, 4) & 0xff)), undefined, true);
 	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(boxed.items), (x4: rs.u32): Uint8Array => {
 		return rs.u32ToBeBytes(x4).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
-	const byte: rs.ByteVec = rs.byteVecFromRawParts({ v: n & 0xff }, 1, 1);
+	const b: rs.Place<rs.u8> = { v: n & 0xff };
+	const byte: rs.ByteVec = rs.byteVecFromRawParts(b, 1, 1);
+	const at2 = rs.idx(byte, 0);
+	byte.data[at2] = byte.data[at2] ^ 1;
+	b.v = rs.u8WrappingAdd(b.v, 1);
+	rs.byteVecPush(out, b.v);
 	rs.byteVecPush(byte, 4);
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(byte));
 	const fresh: rs.ByteVec = rs.byteVecFromRawParts(rs.alloc(rs.resultUnwrap(rs.layoutArray(rs.usizeAdd(extra, 1), 1, 1), rs.fmtLayoutErrorDebug)), 0, rs.usizeAdd(extra, 1));

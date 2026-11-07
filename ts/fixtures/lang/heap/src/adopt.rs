@@ -142,12 +142,20 @@ pub fn readopted(data: &[u8], out: &mut Vec<u8>) {
 	out.extend([grown.len() as u8, grown.capacity() as u8]);
 	out.extend(grown.iter().flat_map(|x| x.to_le_bytes()));
 
-	let mut boxed = unsafe { Vec::from_raw_parts(Box::into_raw(Box::new(n as u32 * 7)), n % 2, 1) };
+	let p = Box::into_raw(Box::new(n as u32 * 7));
+	let mut boxed = unsafe { Vec::from_raw_parts(p, n % 2, 1) };
 	unsafe { boxed.set_len(1) };
+	boxed[0] += 1;
+	unsafe { *p += 2 };
+	out.extend(unsafe { *p }.to_le_bytes());
 	boxed.push(3);
 	out.extend([boxed.len() as u8, boxed.capacity() as u8]);
 	out.extend(boxed.iter().flat_map(|x| x.to_le_bytes()));
-	let mut byte = unsafe { Vec::from_raw_parts(Box::into_raw(Box::new(n as u8)), 1, 1) };
+	let b = Box::into_raw(Box::new(n as u8));
+	let mut byte = unsafe { Vec::from_raw_parts(b, 1, 1) };
+	byte[0] ^= 1;
+	unsafe { *b = b.read().wrapping_add(1) };
+	out.push(unsafe { *b });
 	byte.push(4);
 	out.extend_from_slice(&byte);
 	let raw = unsafe { alloc::alloc(Layout::array::<u8>(extra + 1).unwrap()) };

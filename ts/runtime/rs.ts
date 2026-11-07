@@ -2656,6 +2656,20 @@ function rawPartsOf(p: Place<unknown>): object | undefined {
 }
 
 /**
+ * The place `p` of a value in no array, which a `Vec` adopted, made the place `at` of its
+ * first slot, so a write through either reads through the other, as both are Rust's one
+ * memory.
+ */
+function rehome(p: Place<unknown>, at: Place<unknown>): void {
+	Object.defineProperty(p, "v", {
+		get: () => at.v,
+		set: (value: unknown) => {
+			at.v = value;
+		},
+	});
+}
+
+/**
  * `Vec::from_raw_parts` of `size`-byte elements: the `Vec` of the array `p` starts, memory
  * from `alloc` or a `Vec`'s, holding its first `length` and the rest in its room, with
  * room for `cap`. Past the capacity it panics, as `vecSetLen` does.
@@ -2667,6 +2681,7 @@ export function vecFromRawParts<T>(p: Place<T>, length: number, cap: number, siz
 	const v = new Vec(items as T[], cap);
 	// The room the items had, which this `Vec` holds now, or a new one.
 	relength(v, roomOf(v, size), length);
+	if (!(p instanceof AtIndex)) rehome(p, new AtIndex(v.items, 0));
 	return v;
 }
 
@@ -2682,6 +2697,7 @@ export function byteVecFromRawParts(p: Place<number>, length: number, cap: numbe
 		v.data = data;
 	} else if (data !== undefined) {
 		v.data.set(data as number[]);
+		rehome(p, new AtIndex(v.data, 0));
 	}
 	v.length = length;
 	return v;
