@@ -1,4 +1,3 @@
-# The codec fixture's C ABI: only its entry points, as the rest is no API.
+# The codec fixture's C ABI: only its entry points, the rest being crate-private.
 package = "codec"
 prefix = "codec"
-exclude = ["SessionError", "Timescale", "Version", "stats"]

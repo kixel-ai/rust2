@@ -28,10 +28,12 @@ JS keeps in two arrays, a pointer moved past the array JS keeps it in (`AtIndex.
 as one kept in a field), `Bytes::slice_ref` of other storage, `alloc`'s bytes read as
 values, ranges stepped without their type, fmt widths written as a placeholder, a read
 through a substring's `str::as_ptr` outside its own bytes but inside its text's
-(`s[..1].as_ptr().add(1)`, `s[1..].as_ptr().wrapping_sub(1)`), and a raw
-slice of a byte in no array cast to `*const [u8; N]` by a route the body doesn't show,
-which [a byte local in a buffer of its own](/quest/m3/ts-unsafe/lone-byte-buffers.md) owns
-for locals.
+(`s[..1].as_ptr().add(1)`, `s[1..].as_ptr().wrapping_sub(1)`), and a raw or mutable slice
+of a byte in a field (a struct's, a tuple's, a closure's capture, or one an async body keeps
+across an `.await`), or a cast of one to `*const [u8; N]`: a field's byte has no buffer of
+its own, unlike a `u8` local whose `&raw` the body takes, so the fix is a `Uint8Array(1)`
+for each `u8` field whose address is taken. A `u8` local whose address only a call takes,
+as `ptr::from_mut(&mut b)` does, has none either.
 The substring reads are UB under Stacked Borrows and allowed under Tree Borrows, so they
 throw until Rust settles its memory model (decided 2026-11-07 in
 [#634](https://github.com/moq-dev/rust2/pull/634)); if Rust rules them defined, a

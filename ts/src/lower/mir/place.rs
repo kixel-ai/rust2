@@ -37,6 +37,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		match &self.slots[local] {
 			Slot::Var(name) => Expr::ident(name),
+			Slot::Byte(name) => Expr::ident(name).index(Expr::lit("0")),
 			// A value of type `!`, as a generic instantiated at `!` reads: native code never
 			// gets here, and `tsc` sees that through `rs.unreachable`.
 			Slot::Unit if self.mir.local_decls[local].ty.is_never() => Expr::rs("unreachable", vec![Expr::undefined()]),
@@ -792,10 +793,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let Expr::Ident(name) = e else {
 			return false;
 		};
-		self.local_named(name).is_some_and(|local| {
-			let assigned = self.defs[local] + u32::from(self.is_arg(local));
-			assigned <= 1 && !self.mutated[local]
-		})
+		// A byte's buffer is the same one throughout.
+		self.byte_named(name)
+			|| self.local_named(name).is_some_and(|local| {
+				let assigned = self.defs[local] + u32::from(self.is_arg(local));
+				assigned <= 1 && !self.mutated[local]
+			})
 	}
 
 	/// Whether `place` is part of a local's own value that nothing changes in place.
@@ -1197,6 +1200,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// The `rs.Place` that reads and writes `target`, a path that stays put, read as
 	/// `payload` if it is a variant's.
 	pub(super) fn place_of(&mut self, target: Expr, payload: Option<crate::ts::Type>) -> Expr {
+		if let Some(p) = self.byte_place(&target) {
+			return p;
+		}
 		let value = self.b.fresh("value");
 		let param = crate::ts::Param {
 			name: value.clone(),
@@ -1219,6 +1225,24 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			None => Expr::Lambda(vec![param], Box::new(target.assign(Expr::ident(value)))),
 		};
 		Expr::rs("place", vec![get, set])
+	}
+
+	/// The pointer to the byte `target` reads, if it is a [`Slot::Byte`]'s: element 0 of its
+	/// buffer, the same each time it is taken.
+	fn byte_place(&self, target: &Expr) -> Option<Expr> {
+		let Expr::Index(buffer, index) = target.unlocated() else {
+			return None;
+		};
+		let Expr::Ident(name) = buffer.unlocated() else {
+			return None;
+		};
+		(self.byte_named(name) && matches!(index.unlocated(), Expr::Lit(i) if i == "0"))
+			.then(|| Expr::rs("arrayAsPtr", vec![Expr::ident(name)]))
+	}
+
+	/// Whether `name` is a [`Slot::Byte`]'s buffer.
+	fn byte_named(&self, name: &str) -> bool {
+		self.slots.iter().any(|slot| matches!(slot, Slot::Byte(n) if n == name))
 	}
 
 	/// The `rs.Place` of `place`, a reborrow `&mut *r` of a reference or pointer `r` that is

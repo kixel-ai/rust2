@@ -224,6 +224,8 @@ pub fn call_with<'tcx>(
 	}
 	let key = key(tcx, did);
 	let targ = |i: usize| instance.args.types().nth(i).expect("a binding's type argument");
+	// A `Vec<u8>`, whose storage the runtime owns while the translation holds it.
+	let bytes = || matches!(targ(0).kind(), ty::Uint(ty::UintTy::U8));
 	let dest = |fx: &mut Fx<'_, 'tcx>| fx.ty(dest_ty, span);
 	let expr = Bound::Expr;
 	let stmt = Bound::Stmt;
@@ -235,10 +237,12 @@ pub fn call_with<'tcx>(
 		"<alloc::boxed::Box>::new" => expr(format!("ptrTo({})", a[0])),
 		"alloc::boxed::box_assume_init_into_vec_unsafe" => expr(format!("(*{})[:]", a[0])),
 		"<alloc::vec::Vec>::new" => expr(format!("{}(nil)", dest(fx))),
+		"<alloc::vec::Vec>::with_capacity" if bytes() => expr(format!("bytesWithCapacity({})", a[0])),
 		"<alloc::vec::Vec>::with_capacity" => {
 			let size = tcx.layout_of(fx.t_env().as_query_input(targ(0))).ok()?.size.bytes();
 			expr(format!("vecWithCapacity[{}]({}, {size})", fx.ty(targ(0), span), a[0]))
 		}
+		"<alloc::vec::Vec>::push" if bytes() => stmt(format!("bytesPush({}, {})", a[0], a[1])),
 		"<alloc::vec::Vec>::push" => stmt(format!("vecPush({}, {})", a[0], a[1])),
 		"<alloc::vec::Vec>::pop" => expr(format!("vecPop({})", a[0])),
 		"<alloc::vec::Vec>::len" => expr(format!("uint(len(*{}))", a[0])),
@@ -246,14 +250,17 @@ pub fn call_with<'tcx>(
 			expr(fx.err(span, "`Vec::capacity`, which Go's growth would make differ from Rust's"))
 		}
 		"<alloc::vec::Vec>::is_empty" => expr(format!("len(*{}) == 0", a[0])),
+		"<alloc::vec::Vec>::truncate" if bytes() => stmt(format!("bytesTruncate({}, {})", a[0], a[1])),
 		"<alloc::vec::Vec>::truncate" => {
 			fx_drop_check(fx, targ(0), span);
 			stmt(format!("vecTruncate({}, {})", a[0], a[1]))
 		}
+		"<alloc::vec::Vec>::clear" if bytes() => stmt(format!("*{0} = (*{0})[:0]", a[0])),
 		"<alloc::vec::Vec>::clear" => {
 			fx_drop_check(fx, targ(0), span);
-			stmt(format!("*{0} = (*{0})[:0]", a[0]))
+			stmt(format!("vecTruncate({}, 0)", a[0]))
 		}
+		"<alloc::vec::Vec>::extend_from_slice" if bytes() => stmt(format!("bytesExtend({}, {})", a[0], a[1])),
 		"<alloc::vec::Vec>::extend_from_slice" => {
 			copy_check(fx, targ(0), span);
 			stmt(format!("vecExtend({}, {})", a[0], a[1]))
@@ -262,6 +269,7 @@ pub fn call_with<'tcx>(
 		| "<alloc::vec::Vec>::as_mut_slice"
 		| "<alloc::vec::Vec as core::ops::deref::Deref>::deref"
 		| "<alloc::vec::Vec as core::ops::deref::DerefMut>::deref_mut" => expr(format!("*{}", a[0])),
+		"<alloc::vec::Vec as core::clone::Clone>::clone" if bytes() => expr(format!("bytesClone(*{})", a[0])),
 		"<alloc::vec::Vec as core::clone::Clone>::clone" => {
 			copy_check(fx, targ(0), span);
 			expr(format!("append({}(nil), (*{})...)", dest(fx), a[0]))
@@ -305,6 +313,7 @@ pub fn call_with<'tcx>(
 		"<core::slice::iter::Iter as core::iter::traits::iterator::Iterator>::next" => {
 			expr(format!("sliceIterNext({})", a[0]))
 		}
+		"<[T]>::to_vec" if bytes() => expr(format!("bytesClone({})", a[0])),
 		"<[T]>::to_vec" => {
 			copy_check(fx, targ(0), span);
 			expr(format!("append({}(nil), {}...)", dest(fx), a[0]))
