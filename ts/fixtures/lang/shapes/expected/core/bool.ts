@@ -2,12 +2,18 @@
 
 import * as rs from "../rs.ts";
 import type * as Pair from "../fmt.Pair.ts";
+import type * as Copse from "../generics.Copse.ts";
+import type * as Grove from "../generics.Grove.ts";
 import type * as Layer from "../generics.Layer.ts";
 import type * as Peel from "../generics.Peel.ts";
 import type * as Remade from "../generics.Remade.ts";
+import type * as Seed from "../generics.Seed.ts";
+import type * as Shoot from "../generics.Shoot.ts";
 import type * as Sibling from "../generics.Sibling.ts";
+import type * as Sprout from "../generics.Sprout.ts";
 import type * as Ticked from "../generics.Ticked.ts";
 import type * as Top from "../generics.Top.ts";
+import type * as Twig from "../generics.Twig.ts";
 import type * as Void from "../shapes.Void.ts";
 
 export function thenSome$1ctlqen(self: boolean, t: rs.u8 | undefined): rs.u8 | undefined | rs.None {
@@ -45,6 +51,13 @@ export function thenSome$0bd8znh(self: boolean, t: Layer.Layer<Peel.Peel<Top.Top
 	return t;
 }
 
+export function thenSome$0czqe00(self: boolean, t: Shoot.Shoot<Seed.Seed, Copse.Copse$generics_Tail>): Shoot.Shoot<Seed.Seed, Copse.Copse$generics_Tail> | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return t;
+}
+
 export function thenSome$0rdxccx(self: boolean, t: Sibling.Sibling<Remade.Remade<rs.u8>, rs.u8, rs.u8>): Sibling.Sibling<Remade.Remade<rs.u8>, rs.u8, rs.u8> | undefined {
 	if (!self) {
 		return undefined;
@@ -53,6 +66,13 @@ export function thenSome$0rdxccx(self: boolean, t: Sibling.Sibling<Remade.Remade
 }
 
 export function thenSome$0tbnivw(self: boolean, t: Ticked.Ticked): Ticked.Ticked | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return t;
+}
+
+export function thenSome$0epplxd(self: boolean, t: Twig.Twig<Sprout.Sprout, Grove.Grove$generics_Tail>): Twig.Twig<Sprout.Sprout, Grove.Grove$generics_Tail> | undefined {
 	if (!self) {
 		return undefined;
 	}

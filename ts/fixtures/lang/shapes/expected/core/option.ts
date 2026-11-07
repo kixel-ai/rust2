@@ -3,19 +3,25 @@
 import * as rs from "../rs.ts";
 import type * as Back from "../generics.Back.ts";
 import type * as Carried from "../generics.Carried.ts";
+import type * as Copse from "../generics.Copse.ts";
 import type * as Counted from "../generics.Counted.ts";
 import type * as Defaulted from "../generics.Defaulted.ts";
 import type * as Depth from "../generics.Depth.ts";
 import type * as Forked from "../generics.Forked.ts";
+import type * as Grove from "../generics.Grove.ts";
 import type * as Head from "../generics.Head.ts";
 import type * as Layer from "../generics.Layer.ts";
 import type * as Looped from "../generics.Looped.ts";
 import type * as Node from "../generics.Node.ts";
 import type * as Peel from "../generics.Peel.ts";
 import type * as Remade from "../generics.Remade.ts";
+import type * as Seed from "../generics.Seed.ts";
+import type * as Shoot from "../generics.Shoot.ts";
 import type * as Sibling from "../generics.Sibling.ts";
+import type * as Sprout from "../generics.Sprout.ts";
 import type * as Ticked from "../generics.Ticked.ts";
 import type * as Top from "../generics.Top.ts";
+import type * as Twig from "../generics.Twig.ts";
 import { from$convert_From_shapes_Dir_u8 } from "../shapes.ts";
 import type * as Dir from "../shapes.Dir.ts";
 import type * as Meters from "../shapes.Meters.ts";
@@ -127,7 +133,21 @@ export function map$1a3j889(self: Layer.Layer<Peel.Peel<Top.Top>, boolean, rs.u8
 	return f(self);
 }
 
+export function map$1avgfgw(self: Shoot.Shoot<Seed.Seed, Copse.Copse$generics_Tail> | undefined, f: (a0: Shoot.Shoot<Seed.Seed, Copse.Copse$generics_Tail>) => boolean): boolean | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$0e9v36n(self: Sibling.Sibling<Remade.Remade<rs.u8>, rs.u8, rs.u8> | undefined, f: (a0: Sibling.Sibling<Remade.Remade<rs.u8>, rs.u8, rs.u8>) => [rs.u8, boolean]): [rs.u8, boolean] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1i2swnz(self: Twig.Twig<Sprout.Sprout, Grove.Grove$generics_Tail> | undefined, f: (a0: Twig.Twig<Sprout.Sprout, Grove.Grove$generics_Tail>) => boolean): boolean | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

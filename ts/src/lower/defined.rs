@@ -23,8 +23,12 @@ pub struct Defined<'tcx> {
 	/// Each projection from its type parameters its fields' types name, by the name of the
 	/// TypeScript type parameter it is, after its own.
 	pub projections: Vec<(Ty<'tcx>, String)>,
-	/// Each `Option`, `Poll`, or `ControlFlow` its fields' types type over a type parameter.
+	/// Each `Option`, `Poll`, or `ControlFlow` its fields' types type over a type parameter,
+	/// including those of each instance in [`Self::held`] at its arguments.
 	pub decided: Vec<Decided<'tcx>>,
+	/// Each instance of the crate's generic types over its type parameters its fields' types
+	/// type, and the field whose type does.
+	held: Vec<(DefId, Ty<'tcx>)>,
 	/// While it is typed, the shallowest definition still being typed that it was typed
 	/// with, by its depth in [`Defining::typing`]; `None` once it is complete.
 	open: Option<usize>,
@@ -56,7 +60,8 @@ pub struct Defining<'tcx> {
 	members: Vec<Member>,
 	/// Instances of definitions still being typed, by the [`Type::Later`] each typed.
 	pending: Vec<Pending<'tcx>>,
-	/// How many projections every record holds, which grows while instances are filled.
+	/// How many projections and decided parts every record holds, which grows while
+	/// instances are filled.
 	recorded: usize,
 	/// The field of the definition being typed whose type is.
 	pub field: Option<DefId>,
@@ -156,14 +161,15 @@ impl<'tcx> Translator<'_, 'tcx> {
 			span,
 		});
 		let low = state.records[&adt].open.expect("an open definition");
-		if low < depth {
-			state.typing.pop();
-			let parent = state.typing.len() - 1;
-			state.lower_typing(parent, low);
+		if low == depth && self.complete(depth) {
+			self.defining_state.typing.pop();
 			return;
 		}
-		self.complete(depth);
-		self.defining_state.typing.pop();
+		let state = &mut self.defining_state;
+		let low = state.records[&adt].open.expect("an open definition");
+		state.typing.pop();
+		let parent = state.typing.len() - 1;
+		state.lower_typing(parent, low);
 	}
 
 	/// The TypeScript parameter a projection `ty` from type parameters is in the definition
@@ -220,6 +226,24 @@ impl<'tcx> Translator<'_, 'tcx> {
 				defined: defined.clone(),
 				option,
 			});
+			self.defining_state.recorded += 1;
+		}
+	}
+
+	/// Note that the definition being typed typed `instance`, an instance of the crate's
+	/// generic type, so it checks the parts that instance's definition decided too.
+	pub(super) fn note_held(&mut self, instance: Ty<'tcx>) {
+		let (Some((adt, _)), Some(field)) = (self.defining, self.defining_state.field) else {
+			return;
+		};
+		if !instance.has_param() {
+			return;
+		}
+		let Some(record) = self.defining_state.records.get_mut(&adt) else {
+			return;
+		};
+		if record.open.is_some() && !record.held.contains(&(field, instance)) {
+			record.held.push((field, instance));
 		}
 	}
 
@@ -385,14 +409,17 @@ impl<'tcx> Translator<'_, 'tcx> {
 	}
 
 	/// Complete the definition at `depth` in [`Defining::typing`] and every one typed with
-	/// it: fill in the projection arguments of the instances they typed until no record
-	/// grows, then close their records and settle what reads them.
+	/// it: fill in the projection arguments of the instances they typed, and take in what
+	/// each instance they hold decided, until no record grows, then close their records and
+	/// settle what reads them. Filling may name an instance of a definition further out
+	/// that is still being typed, which then completes them with its own, so this returns
+	/// whether they completed.
 	///
 	/// Each round fills in what the round before named, so a finite layout settles in as
 	/// many rounds as its chain of instances and projections is long. A type that holds
 	/// itself at ever other arguments never settles, so, as rustc bounds its own recursion,
 	/// more rounds than the crate's recursion limit are refused at the definition.
-	fn complete(&mut self, depth: usize) {
+	fn complete(&mut self, depth: usize) -> bool {
 		let tcx = self.tcx;
 		let (members, pending, items) = {
 			let typing = &self.defining_state.typing[depth];
@@ -405,6 +432,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 			for i in pending..count {
 				self.fill_pending(i);
 			}
+			self.take_held(members);
 			if self.defining_state.recorded == recorded && self.defining_state.pending.len() == count {
 				break true;
 			}
@@ -432,6 +460,10 @@ impl<'tcx> Translator<'_, 'tcx> {
 					"`{instance}` is not supported: it holds itself at ever other arguments, whose projections name new instances or projections past the crate's recursion limit"
 				),
 			);
+		}
+		let root = self.defining_state.typing[depth].adt;
+		if self.defining_state.records[&root].open.is_some_and(|low| low < depth) {
+			return false;
 		}
 		let done: Vec<Member> = self.defining_state.members.drain(members..).collect();
 		for member in &done {
@@ -494,6 +526,44 @@ impl<'tcx> Translator<'_, 'tcx> {
 			let adt = tcx.adt_def(member.adt);
 			let info = self.adts[&member.adt].clone();
 			self.drop_glue(adt, &info, member.span);
+		}
+		true
+	}
+
+	/// Take into each definition from `members` on in [`Defining::members`] the parts each
+	/// instance it holds decided, at that instance's arguments, so an instance of the
+	/// definition checks them: `Outer<S>` holding `Inner<S>` checks `Inner`'s
+	/// `Option<S::Item>` at `Outer`'s instances.
+	fn take_held(&mut self, members: usize) {
+		let tcx = self.tcx;
+		let adts: Vec<DefId> = self.defining_state.members[members..].iter().map(|m| m.adt).collect();
+		for adt in adts {
+			let env = TypingEnv::post_analysis(tcx, adt);
+			let held = self.defining_state.records[&adt].held.clone();
+			for (field, instance) in held {
+				let ty::Adt(def, args) = *instance.kind() else {
+					unreachable!("an instance of a generic type")
+				};
+				let Some(record) = self.defining_state.records.get(&def.did()) else {
+					continue;
+				};
+				for d in record.decided.clone() {
+					let part = super::copy::instantiate(tcx, env, d.part, args);
+					if self.defining_state.records[&adt].decided.iter().any(|d| d.part == part) {
+						continue;
+					}
+					let inner = super::copy::instantiate(tcx, env, d.inner, args);
+					if !self.erases_to(inner).param {
+						continue;
+					}
+					let outer = self.defining.replace((adt, env));
+					let outer_field = self.defining_state.field.replace(field);
+					let defined = self.ty(inner, tcx.def_span(field));
+					self.note_decided(part, inner, &defined, d.option);
+					self.defining = outer;
+					self.defining_state.field = outer_field;
+				}
+			}
 		}
 	}
 

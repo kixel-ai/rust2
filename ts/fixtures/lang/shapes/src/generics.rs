@@ -982,6 +982,46 @@ impl Source for Tail {
 	type Item = u8;
 }
 
+/// A grove's branch, or its source's item, its branch typed first: typing [`Twig`] names
+/// `Grove<Tail>` while the grove's own definition, still being typed, has yet to name its
+/// item, so the twig completes with the grove.
+enum Grove<S: Source + 'static> {
+	Branch(Twig<S>),
+	Item(S::Item),
+}
+
+/// A twig lending the twig at [`Sprout`], whose item is a grove, and its source's item.
+struct Twig<S: Source + 'static> {
+	next: Option<&'static Twig<Sprout>>,
+	item: S::Item,
+}
+
+/// The source of a [`Twig`]'s next.
+struct Sprout;
+
+impl Source for Sprout {
+	type Item = Grove<Tail>;
+}
+
+/// A [`Grove`] with its item typed first.
+enum Copse<S: Source + 'static> {
+	Item(S::Item),
+	Branch(Shoot<S>),
+}
+
+/// A [`Twig`] of a [`Copse`].
+struct Shoot<S: Source + 'static> {
+	next: Option<&'static Shoot<Seed>>,
+	item: S::Item,
+}
+
+/// The source of a [`Shoot`]'s next.
+struct Seed;
+
+impl Source for Seed {
+	type Item = Copse<Tail>;
+}
+
 /// A layered source's item, and the item of the layer peeled off it.
 trait Layered {
 	type Item;
@@ -1239,6 +1279,38 @@ pub fn projected_selves(data: &[u8], out: &mut Vec<u8>) {
 	};
 	let held = node.next.as_ref().map(|n| n.item.item);
 	put(out, &format!("{ids:?} {} {held:?}", node.item));
+
+	let twig: &'static Twig<Sprout> = &Twig {
+		next: None,
+		item: Grove::Item(5),
+	};
+	let grove = match data.first() {
+		Some(&b) => Grove::<Tail>::Branch(Twig {
+			next: (b % 2 == 0).then_some(twig),
+			item: b,
+		}),
+		None => Grove::Item(data.len() as u8),
+	};
+	let shoot: &'static Shoot<Seed> = &Shoot {
+		next: None,
+		item: Copse::Item(6),
+	};
+	let copse = match data.last() {
+		Some(&b) => Copse::<Tail>::Branch(Shoot {
+			next: (b % 2 == 1).then_some(shoot),
+			item: !b,
+		}),
+		None => Copse::Item(0),
+	};
+	let grown = match &grove {
+		Grove::Branch(twig) => (twig.item, twig.next.map(|t| matches!(t.item, Grove::Item(5)))),
+		Grove::Item(item) => (*item, None),
+	};
+	let sown = match &copse {
+		Copse::Branch(shoot) => (shoot.item, shoot.next.map(|s| matches!(s.item, Copse::Item(6)))),
+		Copse::Item(item) => (*item, None),
+	};
+	put(out, &format!("{grown:?} {sown:?}"));
 
 	let under: &'static Layer<Peel<Top>> = &Layer {
 		item: true,

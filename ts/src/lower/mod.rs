@@ -1973,6 +1973,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let ty::Adt(adt, args) = *instance.kind() else {
 			unreachable!("an instance of a generic type")
 		};
+		self.note_held(instance);
 		// Of a definition still being typed, whose instances are checked once it is complete.
 		if let Some(later) = self.later_projections(adt.did(), args, span) {
 			let mut tys: Vec<Type> = args.types().map(|t| self.ty(t, span)).collect();

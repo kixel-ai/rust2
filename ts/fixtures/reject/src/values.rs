@@ -105,6 +105,21 @@ pub fn projected_nested(unit: bool) -> bool {
 	unit
 }
 
+/// A [`Projected`] held by another generic type at its own parameter.
+pub struct Outside<S: Holds> {
+	pub inside: Projected<S>,
+}
+
+/// `Outside<()>` holds `Projected<()>`'s `Option<()>`, whose `None` and `Some(None)` would
+/// both be `rs.None`, though it never names `Projected<()>`.
+pub fn projected_outside(outside: &Outside<()>) -> u8 {
+	match outside.inside.value {
+		None => 0,
+		Some(None) => 1,
+		Some(Some(())) => 2,
+	}
+}
+
 /// What a source yields, named by an associated type.
 pub trait Source {
 	type Item;
