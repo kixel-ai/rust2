@@ -80,3 +80,7 @@ Public API: the translator's output.
 - [NonZero's unchecked arithmetic](/quest/m3/ts-unsafe/nonzero-unchecked-ops.md) - `NonZero::unchecked_add` and `unchecked_mul` translate, aborting at std's site
 - [UnsafeCell's raw accessors](/quest/m3/ts-unsafe/unsafecell.md) - `UnsafeCell::raw_get`, `from_mut`, and `replace` translate
 - [A byte local whose address is taken, in a buffer of its own](/quest/m3/ts-unsafe/lone-byte-buffers.md) - raw and mutable slices of a `u8` local, and casts of them to byte arrays, translate instead of being refused
+- [Zeroed values beyond one Box](/quest/m3/ts-unsafe/zeroed-values.md) - `MaybeUninit::zeroed`, `mem::zeroed`, and `Box::new_zeroed_slice` translate through the zero-value code
+- [Rc and Arc of an uninitialized value](/quest/m3/ts-unsafe/rc-arc-uninit.md) - `Rc` and `Arc`'s `new_uninit`, `new_zeroed`, slice forms, and `assume_init` translate
+- [A raw pointer into a nested array](/quest/m3/ts-unsafe/nested-array-pointers.md) - `&raw mut (*p)[1][0]` points into its inner array
+- [ptr::write_bytes beyond bytes](/quest/m3/ts-unsafe/write-bytes-any.md) - `write_bytes` of integers, floats, and arrays and tuples of them translates
