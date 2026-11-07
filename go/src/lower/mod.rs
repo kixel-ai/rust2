@@ -418,8 +418,8 @@ impl<'tcx> Translator<'tcx> {
 		let inputs: Vec<Ty<'tcx>> = sig.inputs().iter().map(|t| normal(*t)).collect();
 		let output = normal(sig.output());
 		let splits = inputs.iter().chain([&output]).any(|t| self.split(*t, span).is_some());
-		let hands = inputs.iter().any(|t| self.hands(*t, Hand::In) || self.hands_back(*t))
-			|| self.hands(output, Hand::Out);
+		let hands =
+			inputs.iter().any(|t| self.hands(*t, Hand::In) || self.hands_back(*t)) || self.hands(output, Hand::Out);
 		self.refuse_unhandable(&inputs, output, span);
 		if !splits && !hands {
 			self.funcs.insert(instance, name);

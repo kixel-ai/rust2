@@ -293,10 +293,14 @@ impl<'tcx> Translator<'tcx> {
 		}
 		let mut refused = Vec::new();
 		if let Some(f) = find(&sig, &|t, _| matches!(t.kind(), ty::FnPtr(..) | ty::Dynamic(..))) {
-			refused.push(format!("`{f}`, a callback in the signature of a root that reaches byte storage,"));
+			refused.push(format!(
+				"`{f}`, a callback in the signature of a root that reaches byte storage,"
+			));
 		}
 		if let Some(p) = find(&sig, &|t, _| t.is_raw_ptr()) {
-			refused.push(format!("`{p}`, a raw pointer in the signature of a root that reaches byte storage,"));
+			refused.push(format!(
+				"`{p}`, a raw pointer in the signature of a root that reaches byte storage,"
+			));
 		}
 		let below: Vec<Ty<'tcx>> = inputs
 			.iter()
