@@ -776,7 +776,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		debug_assert!(
 			self.lent_items.keys().all(|&l| matches!(self.slots[l], Slot::Alias(_))),
-			"an item lent by index is an alias, as `lent_items` checked"
+			"an item lent by index is an alias, as find_stepped checked"
 		);
 		self.find_tested();
 		// Names: what debug info calls a local, else its number.
