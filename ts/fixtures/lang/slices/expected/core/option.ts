@@ -6,6 +6,14 @@ import { digest, digestWords } from "../slices.ts";
 import type * as Item from "../slices.Item.ts";
 import * as Noisy from "../slices.Noisy.ts";
 import type * as Pair from "../slices.Pair.ts";
+import type * as Probe from "../slices.Probe.ts";
+
+export function isSomeAnd$1s2tplg(self: Probe.Probe | undefined, f: (a0: Probe.Probe) => boolean): boolean {
+	if (self === undefined) {
+		return false;
+	}
+	return f(self);
+}
 
 export function isSomeAnd$1ouf3e6(self: [rs.ByteSlice, rs.ByteSlice] | undefined, f: (a0: [rs.ByteSlice, rs.ByteSlice]) => boolean): boolean {
 	if (self === undefined) {

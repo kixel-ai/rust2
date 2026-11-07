@@ -1462,18 +1462,19 @@ pub fn array_forms(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	}
 }
 
-/// What counts its own clones, in itself, so a clone of a copy of it counts none.
-struct Probe {
+/// What logs, as it is cloned, whether it is the one its `home` points at.
+struct Probe<'a> {
 	tag: u8,
-	clones: std::cell::Cell<u8>,
+	home: &'a std::cell::Cell<Option<&'a Probe<'a>>>,
 }
 
-impl Clone for Probe {
+impl Clone for Probe<'_> {
 	fn clone(&self) -> Self {
-		self.clones.set(self.clones.get() + 1);
+		let home = self.home.get().is_some_and(|home| std::ptr::eq(home, self));
+		LOG.with_borrow_mut(|log| log.push(self.tag ^ home as u8));
 		Probe {
 			tag: self.tag,
-			clones: std::cell::Cell::new(0),
+			home: self.home,
 		}
 	}
 }
@@ -1527,28 +1528,27 @@ pub fn array_identity(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let nested: Vec<[[u8; 2]; 2]> = rows.windows(2).map(|w| [w[0], w[1]]).collect();
 			lent_words(&words[words.len().min(1)..], &nested[nested.len() / 2..], out);
 		}
-		// `join`'s separator, an array, cloned by each element's `Clone` in place.
+		// `join`'s separator, an array, cloned by each element's `Clone` where it is.
 		_ => {
+			let away = std::cell::Cell::new(None);
 			let probes = |at: usize| -> Vec<[Probe; 1]> {
 				rows[at..]
 					.iter()
 					.map(|r| {
 						[Probe {
-							tag: r[0],
-							clones: std::cell::Cell::new(0),
+							tag: r[0] & 0xfe,
+							home: &away,
 						}]
 					})
 					.collect()
 			};
 			let (a, b) = (probes(0), probes(rows.len() / 2));
-			let sep = [Probe {
-				tag: 0xee,
-				clones: std::cell::Cell::new(0),
-			}];
+			let home = std::cell::Cell::new(None);
+			let sep = [Probe { tag: 0xee, home: &home }];
+			home.set(Some(&sep[0]));
 			let joined = [&a[..], &b[..], &a[..1.min(a.len())]].join(&sep);
-			out.push(sep[0].clones.get());
 			out.extend(joined.iter().map(|[p]| p.tag));
-			out.extend(a.iter().map(|[p]| p.clones.get()));
+			flush(out);
 		}
 	}
 }

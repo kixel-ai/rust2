@@ -3066,27 +3066,26 @@ export function arrayIdentity(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec):
 		const part5 = rs.usizeDiv(nested.items.length, 2);
 		lentWords(_36, rs.runsRange(rs.runsFrom(nested.items, rs.runsOf(rs.byteSliceFrom)), part5), out);
 	} else {
+		const away: rs.Cell<Probe.Probe | undefined> = new rs.Cell(undefined as Probe.Probe | undefined);
 		const probes: (a0: rs.usize) => rs.Vec<Probe.Probe[]> = (at: rs.usize): rs.Vec<Probe.Probe[]> => {
 			return rs.iterToVec(rs.iterMap(rs.runsIter(rs.runsRange(rs.runsFrom(rows.items, rs.byteSliceFrom), at)), (r: rs.ByteSlice): Probe.Probe[] => {
-				return [{ tag: r.data[r.start], clones: new rs.Cell(0) }];
-			}), undefined, 2, true);
+				return [{ tag: r.data[r.start] & 254, home: away }];
+			}), undefined, 8, true);
 		};
-		const _54: rs.Vec<Probe.Probe[]> = probes(0);
-		const _53: [rs.Vec<Probe.Probe[]>, rs.Vec<Probe.Probe[]>] = [_54, probes(rs.usizeDiv(rows.items.length, 2))];
-		const a: rs.Vec<Probe.Probe[]> = _54;
-		const b: rs.Vec<Probe.Probe[]> = _53[1];
-		const sep: Probe.Probe[] = [{ tag: 238, clones: new rs.Cell(0) }];
-		const _71: rs.Runs<rs.Slice<Probe.Probe>> = rs.runsFrom(a.items, rs.sliceFrom);
-		const _73: rs.Runs<rs.Slice<Probe.Probe>> = rs.runsFrom(b.items, rs.sliceFrom);
+		const _57: rs.Vec<Probe.Probe[]> = probes(0);
+		const _56: [rs.Vec<Probe.Probe[]>, rs.Vec<Probe.Probe[]>] = [_57, probes(rs.usizeDiv(rows.items.length, 2))];
+		const a: rs.Vec<Probe.Probe[]> = _57;
+		const b: rs.Vec<Probe.Probe[]> = _56[1];
+		const home: rs.Cell<Probe.Probe | undefined> = new rs.Cell(undefined as Probe.Probe | undefined);
+		const sep: Probe.Probe[] = [{ tag: 238, home }];
+		rs.cellSet(home, sep[0]);
+		const _82: rs.Runs<rs.Slice<Probe.Probe>> = rs.runsFrom(a.items, rs.sliceFrom);
+		const _84: rs.Runs<rs.Slice<Probe.Probe>> = rs.runsFrom(b.items, rs.sliceFrom);
 		const part2 = rs.min(1, a.items.length);
-		const joined: rs.Vec<Probe.Probe[]> = rs.slicesJoin(rs.sliceFrom([_71, _73, rs.runsRange(rs.runsFrom(a.items, rs.sliceFrom), 0, part2)]), 2, rs.runsItems(rs.runsOne(rs.sliceFrom(sep), 1)), rs.runsItems, (a: Probe.Probe[]) => a.map(Probe.clone$Clone));
-		rs.byteVecPush(out, sep[0].clones.v);
-		rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(rs.runsFrom(joined.items, rs.sliceFrom)), (_2: rs.Slice<Probe.Probe>): rs.u8 => {
+		rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(rs.runsFrom(rs.slicesJoin(rs.sliceFrom([_82, _84, rs.runsRange(rs.runsFrom(a.items, rs.sliceFrom), 0, part2)]), 8, rs.runsItems(rs.runsOne(rs.sliceFrom(sep), 1)), rs.runsItems, (a: Probe.Probe[]) => a.map(Probe.clone$Clone)).items, rs.sliceFrom)), (_2: rs.Slice<Probe.Probe>): rs.u8 => {
 			return _2.data[_2.start].tag;
 		}), undefined, true);
-		rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(rs.runsFrom(a.items, rs.sliceFrom)), (_23: rs.Slice<Probe.Probe>): rs.u8 => {
-			return _23.data[_23.start].clones.v;
-		}), undefined, true);
+		flush(out);
 	}
 }
 
