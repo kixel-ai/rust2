@@ -124,6 +124,11 @@ pub fn iter(xs: &[u8]) -> std::slice::Iter<'_, u8> {
 	xs.iter()
 }
 
+/// An iterator over `v`'s buffers.
+pub fn iter_nested(v: &[Vec<u8>]) -> std::slice::Iter<'_, Vec<u8>> {
+	v.iter()
+}
+
 /// Push `n` bytes of `n` onto `v`, then pop and outgrow them, leaving the slot vacated.
 pub fn vacate(v: &mut Vec<Vec<u8>>, n: u8) -> usize {
 	v.push(fill(n));

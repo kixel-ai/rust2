@@ -60,8 +60,10 @@ impl<'tcx> Translator<'tcx> {
 			ty::Adt(adt, args) => match library::mapped(tcx, adt.did()) {
 				Some(Mapped::Vec) => is_u8(args.type_at(0)) || self.hands_in(args.type_at(0), hand, seen),
 				Some(Mapped::Box) => self.hands_behind(args.type_at(0), true, hand, seen),
-				// Its first argument is the slice's lifetime.
-				Some(Mapped::SliceIter) => hand == Hand::Out && args.types().next().is_some_and(is_u8),
+				// What it holds is shared, so only a result's is handed.
+				Some(Mapped::SliceIter) => {
+					hand == Hand::Out && self.hands_behind(self.iter_slice(args), false, hand, seen)
+				}
 				Some(Mapped::Transparent) => self.hands_in(args.type_at(0), hand, seen),
 				Some(Mapped::Option | Mapped::Result) | None => adt
 					.all_fields()
@@ -108,6 +110,12 @@ impl<'tcx> Translator<'tcx> {
 		}
 	}
 
+	/// The slice a `slice::Iter` with `args` walks, whose first is the slice's lifetime.
+	fn iter_slice(&self, args: ty::GenericArgsRef<'tcx>) -> Ty<'tcx> {
+		let elem = args.types().next().expect("a slice iterator's element type");
+		Ty::new_slice(self.tcx, elem)
+	}
+
 	/// A field's type at `args`.
 	fn mono_field_ty(&self, field: &ty::FieldDef, args: ty::GenericArgsRef<'tcx>) -> Ty<'tcx> {
 		let fty = field.ty(self.tcx, args).skip_norm_wip();
@@ -148,7 +156,10 @@ impl<'tcx> Translator<'tcx> {
 					}
 				}
 				Some(Mapped::Box) => self.hand_behind(args.type_at(0), true, true, hand, "p", &mut body, span),
-				Some(Mapped::SliceIter) => body.push("clip(&p.s)".into()),
+				Some(Mapped::SliceIter) => {
+					let slice = self.iter_slice(args);
+					self.hand_behind(slice, false, false, hand, "&p.s", &mut body, span)
+				}
 				Some(Mapped::Transparent) => {
 					let f = self.hand(args.type_at(0), hand, span);
 					body.push(format!("{f}(p)"));
