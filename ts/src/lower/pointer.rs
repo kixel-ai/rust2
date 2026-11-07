@@ -871,6 +871,8 @@ pub fn call<'tcx>(
 		("UnsafeCell", "get") | ("Cell", "as_ptr") if array(b, pointee()) => to_pointer(b, arg().member("v")),
 		("UnsafeCell" | "Cell", "get_mut") if b.t.needs_place(pointee()) => arg(),
 		("UnsafeCell", "get" | "get_mut" | "into_inner") | ("Cell", "as_ptr" | "get_mut") => arg().member("v"),
+		// Into the UTF-8 of a `str`, which JS keeps as text: an encoding no write may reach.
+		("str", "as_ptr") => Expr::rs("strAsPtr", vec![arg()]),
 		// Pointers into an array: `rs.AtIndex`es, which a `Vec`'s and a slice's give.
 		("slice" | "Vec", "as_ptr" | "as_mut_ptr") => {
 			let elem = targ(gargs, 0);

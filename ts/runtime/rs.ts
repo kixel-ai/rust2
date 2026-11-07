@@ -296,6 +296,34 @@ export function byteSliceAsPtr(s: ByteSlice, index = 0): Place<number> {
 	return new AtIndex(s.data, s.start + index);
 }
 
+/**
+ * A pointer into a `str`'s UTF-8, which JS encodes anew from its text, so a write through
+ * it, which Rust forbids, would change nothing the text reads: it fails instead.
+ */
+class TextAt extends AtIndex<number> {
+	override get v(): number {
+		return super.v;
+	}
+
+	override set v(_: number) {
+		throw textWrite();
+	}
+
+	override at(index: number): TextAt {
+		return new TextAt(this.array, index);
+	}
+}
+
+/** The failure of a write, or a mutable slice, through a `TextAt`. */
+function textWrite(): Error {
+	return new Error("rust2-ts: a write through a pointer into a `str`'s bytes, which Rust forbids");
+}
+
+/** `str::as_ptr`: the read-only pointer to the first byte of its UTF-8. */
+export function strAsPtr(s: string): Place<number> {
+	return new TextAt(encoder.encode(s), 0);
+}
+
 /** The pointer to the first byte of `v`'s storage. */
 export function byteVecAsPtr(v: ByteVec): Place<number> {
 	return new AtIndex(v.data, 0);
@@ -427,7 +455,7 @@ function wrapIndex(index: number, n: number, size: number): number {
 export function ptrAdd<T>(p: Place<T>, n: number): Place<T> {
 	if (n === 0) return p;
 	const e = elemOf(p);
-	return new AtIndex(e.array, e.index + n);
+	return e.at(e.index + n);
 }
 
 /**
@@ -443,7 +471,7 @@ export function ptrWrappingAdd<T>(p: Place<T>, n: number, size: number, align: n
 		return addr === 0 ? NULL : addr === align ? DANGLING : (addressAt(addr) as Place<T>);
 	}
 	const e = elemOf(p);
-	return new AtIndex(e.array, wrapIndex(e.index, n | 0, size));
+	return e.at(wrapIndex(e.index, n | 0, size));
 }
 
 /** `p.offset_from(origin)`: how many elements `p` is past `origin`, in the same array or byte buffer. */
@@ -466,6 +494,7 @@ export function ptrOffsetFrom<T>(p: Place<T>, origin: Place<T>): number {
 export function ptrCopy<T>(src: Place<T>, dst: Place<T>, n: number, copy?: (value: T) => T): void {
 	if (n === 0) return;
 	const [from, to] = [elemOf(src), elemOf(dst)];
+	if (to instanceof TextAt) throw textWrite();
 	from.reach(n);
 	to.reach(n);
 	if (ArrayBuffer.isView(from.array) && ArrayBuffer.isView(to.array)) {
@@ -641,6 +670,7 @@ export function ptrByteSlice(p: Place<number>, len: number, shared: boolean): By
 	}
 	const at = elemOf(p);
 	at.reach(len);
+	if (!shared && len !== 0 && at instanceof TextAt) throw textWrite();
 	if (at.array instanceof Uint8Array) return new ByteSlice(at.array, at.index, len);
 	// A byte in no array, which no `Uint8Array` can share.
 	if (!shared) throw new Error("rust2-ts: a raw or mutable slice of a byte in no array of bytes");

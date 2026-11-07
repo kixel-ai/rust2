@@ -140,6 +140,13 @@ export function map$1nxhy7e(self: [rs.u16, rs.u32] | undefined, f: (a0: [rs.u16,
 	return f(self);
 }
 
+export function mapOr$0yzb10z(self: rs.char | undefined, default_: rs.u32, _: (a0: rs.char) => rs.u32): rs.u32 {
+	if (self === undefined) {
+		return default_;
+	}
+	return self as rs.u32;
+}
+
 export function mapOr$00octnd(self: Logged.Logged | undefined, default_: rs.u8, f: (a0: Logged.Logged) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
