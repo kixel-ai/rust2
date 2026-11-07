@@ -28,23 +28,33 @@ Decided with the maintainer on 2026-11-06:
   imports now, with no consumer). At web-sys and js-sys 0.3.107 those attributes are
   `method`, `js_class`, `js_name`, `js_namespace`, `getter`, `setter`, `constructor`,
   `static_method_of`, `catch`, `extends`, `variadic`, `indexing_getter`, `indexing_setter`,
-  `indexing_deleter`, `typescript_type`, `is_type_of`, `final`, `structural`, and
-  `thread_local_v2`.
+  `indexing_deleter`, `typescript_type`, `is_type_of`, `final`, `structural`,
+  `thread_local_v2`, and `vendor_prefix`. js-sys's JSPI bridge also declares a
+  `suspending` import, which suspends the WASM stack on a promise. No JS call can, so it
+  is refused where reached, and no translated path reaches it (see
+  [closures](/quest/m3/ts-wasm-bindgen/closures.md)).
 - ✅ The wasm-bindgen crate is mapped into the runtime, as std is (rejected: translating it
   from source). Its real implementation is `unsafe` glue between WASM memory and a JS heap
   table, which means nothing when the caller is JS: `JsValue` is the JS value itself,
   `JsCast` checks with `instanceof` or the import's `is_type_of`, `Closure` is a JS
-  function, and `JsFuture` and `spawn_local` are a promise and a microtask.
+  function, and `JsFuture` and `spawn_local`, which js-sys now defines and
+  wasm-bindgen-futures re-exports, are a promise and a microtask.
 - ✅ web-rs's web-codecs is the first consumer, and the epic joins m3 (rejected: moq's clock
   first, staying in m2). moq calls no wasm-bindgen import at the
   [model fixture](/ts/fixtures/model/Cargo.toml)'s pin: kio's clock reads `std::time` and
   tokio, so `ts/moq/model.toml`'s clock binds stay with
   [the no-ts.toml quest](/quest/m3/ts-configless.md). Rejected: having moq give kio a
   wasm32 clock over js-sys first, a moq change made only for translation.
-- ✅ The [spike](/quest/m3/ts-wasm-bindgen/spike.md) decides how translation reads each
-  import's JS shape, and its report rescopes the quests after it.
+- ✅ Translation reads each import's JS shape from the program the macro encodes in a
+  `link_section` static, not from the `extern` blocks' source. The
+  [spike](https://github.com/moq-dev/rust2/pull/638) has the measurements:
+  `macro_rules!`-made imports, which source reading misses, are on the encoder's path.
+- Open: web-codecs' `VideoEncoder` also hands its frames and errors through tokio's
+  `sync::mpsc` and `sync::watch`. Translation refuses those today, in their intrusive
+  lists and raw pointers into `UnsafeCell`s, about 50 refusals in the spike's census. So
+  web-codecs translating end to end needs them too, beyond the quests below.
 
 ## Required
 
-- [Spike: how rust2-ts reads wasm-bindgen imports](/quest/m3/ts-wasm-bindgen/spike.md) - picks how translation reads each import's JS shape, and rescopes the imports quest
-- [Translate wasm-bindgen imports](/quest/m3/ts-wasm-bindgen/imports.md) - web-sys, js-sys, and wasm-bindgen's runtime mapping, proven on web-codecs' encoder
+- [Translate wasm-bindgen imports](/quest/m3/ts-wasm-bindgen/imports.md) - web-sys and js-sys imports read from the encoded program, with `JsValue` and imported types as JS values, proven on synchronous calls
+- [wasm-bindgen closures and promises](/quest/m3/ts-wasm-bindgen/closures.md) - `Closure` and js-sys's futures mapped, proven on web-sys's `VideoEncoder` in headless Chromium
