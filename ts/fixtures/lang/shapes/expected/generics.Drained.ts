@@ -8,30 +8,36 @@ import type * as Flags from "./generics.Flags.ts";
  * directly, in an `Option`, whose `None` each instance decides, and through a slice's
  * iterator.
  */
-export interface Drained<_S, Item> {
+export class Drained<_S, Item> {
 	last: rs.OptionOf<Item>;
 	iter: rs.Iter<rs.Ptr<Item>>;
 	first: Item;
+
+	constructor(last: rs.OptionOf<Item>, iter: rs.Iter<rs.Ptr<Item>>, first: Item) {
+		this.last = last;
+		this.iter = iter;
+		this.first = first;
+	}
 }
 
 export function new$array1_Option_u8(first: rs.u8 | undefined, items: rs.Slice<rs.u8 | undefined>): Drained<Array<rs.u8 | undefined>, rs.u8 | undefined> {
-	return { last: rs.None as rs.OptionOf<rs.u8 | undefined>, iter: rs.iterSlice(rs.sliceItems(items)) as rs.Iter<rs.Ptr<rs.u8 | undefined>>, first };
+	return new Drained(rs.None as rs.OptionOf<rs.u8 | undefined>, rs.iterSlice(rs.sliceItems(items)) as rs.Iter<rs.Ptr<rs.u8 | undefined>>, first);
 }
 
 export function new$array2_u16(first: rs.u16, items: rs.Slice<rs.u16>): Drained<rs.u16[], rs.u16> {
-	return { last: undefined as rs.OptionOf<rs.u16>, iter: rs.iterSlice(rs.sliceItems(items)) as rs.Iter<rs.Ptr<rs.u16>>, first };
+	return new Drained(undefined as rs.OptionOf<rs.u16>, rs.iterSlice(rs.sliceItems(items)) as rs.Iter<rs.Ptr<rs.u16>>, first);
 }
 
 export function new$array3_unit(_: undefined, items: rs.Slice<undefined>): Drained<undefined[], undefined> {
-	return { last: rs.None as rs.OptionOf<undefined>, iter: rs.iterSlice(rs.sliceItems(items)) as rs.Iter<rs.Ptr<undefined>>, first: undefined };
+	return new Drained(rs.None as rs.OptionOf<undefined>, rs.iterSlice(rs.sliceItems(items)) as rs.Iter<rs.Ptr<undefined>>, undefined);
 }
 
 export function new$array4_u8(first: rs.u8, items: rs.ByteSlice): Drained<Uint8Array, rs.u8> {
-	return { last: undefined as rs.OptionOf<rs.u8>, iter: rs.iterSlice(rs.byteSliceView(items)) as rs.Iter<rs.Ptr<rs.u8>>, first };
+	return new Drained(undefined as rs.OptionOf<rs.u8>, rs.iterSlice(rs.byteSliceView(items)) as rs.Iter<rs.Ptr<rs.u8>>, first);
 }
 
 export function new$generics_Flags(first: boolean, items: rs.Slice<boolean>): Drained<Flags.Flags, boolean> {
-	return { last: undefined as rs.OptionOf<boolean>, iter: rs.iterSlice(rs.sliceItems(items)) as rs.Iter<rs.Ptr<boolean>>, first };
+	return new Drained(undefined as rs.OptionOf<boolean>, rs.iterSlice(rs.sliceItems(items)) as rs.Iter<rs.Ptr<boolean>>, first);
 }
 
 export function next$array1_Option_u8(self: Drained<Array<rs.u8 | undefined>, rs.u8 | undefined>): rs.u8 | undefined | rs.None {

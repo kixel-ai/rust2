@@ -1938,7 +1938,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// types name, such as smallvec's `<A as Array>::Item`, each a TypeScript type parameter
 	/// of its own, by its name: the associated type's, numbered past any it would shadow.
 	/// They include those of the crate's generic types its fields hold, at its arguments, and
-	/// the item type of an iterator from another crate, which `rs.Iter` types.
+	/// the item type of an iterator from another crate, which `rs.Iter` types, but none that
+	/// only what types nothing holds, such as a `PhantomData`.
 	fn projections(&mut self, adt: DefId) -> Vec<(Ty<'tcx>, String)> {
 		if let Some(named) = self.projections.get(&adt) {
 			return named.clone();
@@ -2001,10 +2002,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						self.find_projections(copy::instantiate(tcx, env, projection, args), env, found);
 					}
 				}
-				ty::Adt(adt, _) if !self.crates.translates(adt.did()) => {
-					if let Some(item) = self.iter_item(t) {
-						self.find_projections(item, env, found);
-					}
+				// `undefined`, whatever it holds.
+				ty::Adt(..) if library::nothing(tcx, t) => walker.skip_current_subtree(),
+				// An `rs.Iter` of its items, whatever it iterates.
+				ty::Adt(adt, _)
+					if !self.crates.translates(adt.did())
+						&& matches!(library::Std::of(tcx, adt.did()), None | Some(library::Std::Peekable))
+						&& let Some(item) = self.iter_item(t) =>
+				{
+					self.find_projections(item, env, found);
+					walker.skip_current_subtree();
 				}
 				_ => {}
 			}

@@ -124,8 +124,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Closure(..) | ty::CoroutineClosure(..) => {
 				super::captured(ty).is_some_and(|tys| tys.iter().any(|t| self.drops(t)))
 			}
-			// Whatever it was made of may drop.
+			// Whatever it was made of may drop, as may what a projection from a type
+			// parameter is at an instance.
 			ty::Coroutine(..) | ty::Param(_) | ty::Dynamic(..) => true,
+			ty::Alias(..) => ty.has_param(),
 			_ => false,
 		};
 		self.drops_open.remove(&ty);
@@ -200,7 +202,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				None | Some(Std::Peekable) if self.std_iter(ty) => self.closures_held(ty),
 				Some(_) => false,
 				None if self.shared_glue(*adt) => {
-					if !args.types().all(|t| self.disposable(t, glue)) {
+					// What its glue drops through its type parameters, and the projections
+					// from them its fields name.
+					let env = self.typing_env_pub();
+					let projections = self.projections(adt.did()).into_iter().map(|(p, _)| p);
+					let held: Vec<Ty<'tcx>> = (args.types())
+						.chain(projections.map(|p| super::copy::instantiate(self.tcx, env, p, args)))
+						.collect();
+					if !held.into_iter().all(|t| self.disposable(t, glue)) {
 						return false;
 					}
 					if let Some(span) = glue {
@@ -213,7 +222,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			},
 			// A closure's `[Symbol.dispose]` drops what it owns, a `dyn Future`'s what it is, and
 			// another trait object's what it wraps.
-			ty::Closure(..) | ty::CoroutineClosure(..) | ty::Coroutine(..) | ty::Param(_) | ty::Dynamic(..) => true,
+			ty::Closure(..)
+			| ty::CoroutineClosure(..)
+			| ty::Coroutine(..)
+			| ty::Param(_)
+			| ty::Alias(..)
+			| ty::Dynamic(..) => true,
 			_ => false,
 		}
 	}
@@ -673,8 +687,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		// Only an instance whose parameters drop runs the glue, so none is a byte: a field
 		// whose definition's type an instance decides is read as an array of them holds it.
 		let glue = std::mem::replace(&mut self.glue, true);
+		// Its fields' types over its parameters, and the projections from them it names.
+		let identity = ty::GenericArgs::identity_for_item(tcx, adt.did());
+		let env = ty::TypingEnv::post_analysis(tcx, adt.did());
+		let defining = self.defining.replace((adt.did(), env));
 		for (field, &id) in adt.non_enum_variant().fields.iter().zip(fields) {
-			let ty = tcx.type_of(field.did).instantiate_identity().skip_norm_wip();
+			let ty = super::copy::field_ty(tcx, env, field.did, identity);
 			let read = match self.instanced_fields.contains_key(&field.did) {
 				true => Expr::As(Box::new(Translator::read_field(Expr::This, id)), self.ty(ty, span)),
 				false => Translator::read_field(Expr::This, id),
@@ -684,6 +702,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			}
 		}
 		self.glue = glue;
+		self.defining = defining;
 		let sym = self.program.sym(Symbol {
 			module: self.module_of(adt.did()),
 			base: "[Symbol.dispose]".into(),

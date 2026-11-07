@@ -604,6 +604,37 @@ where
 	}
 }
 
+/// A store of [`Ticked`]s, which drops nothing itself.
+struct Ticks;
+
+impl Store for Ticks {
+	type Item = Ticked;
+	const LEN: usize = 1;
+}
+
+/// Items that drop beside the store that names them, which drops nothing, so only the
+/// items' type decides whether and how each instance drops.
+struct Kept<S: Store> {
+	item: S::Item,
+	store: S,
+	rest: Vec<S::Item>,
+	maybe: Option<S::Item>,
+}
+
+/// A store of what translation types no other way, which only a `PhantomData` names.
+struct Paths;
+
+impl Store for Paths {
+	type Item = std::path::PathBuf;
+	const LEN: usize = 0;
+}
+
+/// A projection that only a `PhantomData` holds, which types nothing.
+struct Marked<S: Store> {
+	marker: std::marker::PhantomData<S::Item>,
+	count: u8,
+}
+
 /// [`Drained`] and [`Batch`] of `$store`, of the items `$item` makes of each byte.
 macro_rules! drained_at {
 	($data:expr, $out:expr, $store:ty, $item:expr) => {{
@@ -674,4 +705,38 @@ pub fn projections(data: &[u8], out: &mut Vec<u8>) {
 		out,
 		&format!("{:?} {} {:?} {}", deep.inner, deep.len, units.inner, units.len),
 	);
+
+	let log = Rc::new(RefCell::new(Vec::new()));
+	let tick = |id: u8| Ticked { id, log: log.clone() };
+	for &b in data {
+		let kept = Kept::<Ticks> {
+			item: tick(b),
+			store: Ticks,
+			rest: vec![tick(b ^ 1), tick(b ^ 2)],
+			maybe: (b % 2 == 0).then(|| tick(b ^ 3)),
+		};
+		drop(kept);
+		let mut ticks = Pile::<Ticks>::Empty;
+		for id in 0..b % 3 {
+			ticks = Pile::Linked {
+				item: tick(id),
+				next: Box::new(ticks),
+			};
+		}
+		log.borrow_mut().push(0xfe);
+		drop(ticks);
+		let kept = Kept::<[u8; 1]> {
+			item: b,
+			store: [b],
+			rest: vec![b],
+			maybe: None,
+		};
+		log.borrow_mut().extend([kept.item, kept.store[0], kept.rest[0]]);
+	}
+	let marked = Marked::<Paths> {
+		marker: std::marker::PhantomData,
+		count: data.len() as u8,
+	};
+	log.borrow_mut().push(marked.count);
+	out.extend(log.borrow().iter());
 }

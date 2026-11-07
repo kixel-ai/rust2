@@ -5,8 +5,10 @@ import { ints, strings, derived, written, counts, rounding, panics, wrapped, col
 import { methods, runs, units, projections } from "./generics.ts";
 import type * as Either from "./generics.Either.ts";
 import * as Fixed from "./generics.Fixed.ts";
+import type * as Pile from "./generics.Pile.ts";
 import type * as Run from "./generics.Run.ts";
 import type * as Ticked from "./generics.Ticked.ts";
+import type * as Ticks from "./generics.Ticks.ts";
 import * as Wrap from "./generics.Wrap.ts";
 import { copies, order, discriminants, loops, patterns, uninhabited, closures, library, flows } from "./shapes.ts";
 import type * as shapes_Gauge from "./shapes.Gauge.ts";
@@ -135,6 +137,17 @@ export function copy$tuple2_shapes_Point_u8(v: [Point.Point, rs.u8]): [Point.Poi
 
 export function copy$tuple2_u8_u8(v: [rs.u8, rs.u8]): [rs.u8, rs.u8] {
 	return [v[0], v[1]];
+}
+
+export function drop$generics_Pile_generics_Ticks(_1: Pile.Pile<Ticks.Ticks, Ticked.Ticked>): void {
+	if (_1.tag !== "Empty") {
+		if (_1.tag === "Full") {
+			_1._0[Symbol.dispose]();
+		} else {
+			_1.item[Symbol.dispose]();
+			drop$generics_Pile_generics_Ticks(_1.next);
+		}
+	}
 }
 
 export function drop$generics_Run_generics_Ticked(_1: Run.Run<Ticked.Ticked>): void {

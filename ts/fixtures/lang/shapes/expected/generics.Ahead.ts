@@ -8,10 +8,16 @@ import type * as Flags from "./generics.Flags.ts";
  * projection named again; a parameter named for an associated type, so each projection's
  * name is numbered past it.
  */
-export interface Ahead<_Item, _I, Item2, Item3> {
+export class Ahead<_Item, _I, Item2, Item3> {
 	iter: rs.Peekable<Item2>;
 	seen: rs.VecOf<Item2>;
 	stored: rs.OptionOf<Item3>;
+
+	constructor(iter: rs.Peekable<Item2>, seen: rs.VecOf<Item2>, stored: rs.OptionOf<Item3>) {
+		this.iter = iter;
+		this.seen = seen;
+		this.stored = stored;
+	}
 }
 
 /** Takes each item that repeats the one before it. */

@@ -5,9 +5,14 @@ import * as Drained from "./generics.Drained.ts";
 import type * as Flags from "./generics.Flags.ts";
 
 /** A [`Drained`] in another generic type, which names the projection only through it. */
-export interface Batch<S, Item> {
+export class Batch<S, Item> {
 	drain: Drained.Drained<S, Item>;
 	taken: rs.u8;
+
+	constructor(drain: Drained.Drained<S, Item>, taken: rs.u8) {
+		this.drain = drain;
+		this.taken = taken;
+	}
 }
 
 export function take$array1_Option_u8(self: Batch<Array<rs.u8 | undefined>, rs.u8 | undefined>): rs.u8 | undefined | rs.None {
