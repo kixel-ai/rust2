@@ -14,8 +14,12 @@ segments in Pascal case, which loses where they split: moq-tokio's `ConnectError
 `ConnectTargetError`. Go's package functions share the namespace with types, so a
 function named as a type of its module is `New` and that name when it returns that type,
 and takes a trailing `_` otherwise (`NewClockInterval`, `MuxCodecOpusConfig_`). Each such
-clash is within one Rust module, so a Go package per module keeps the rule
-(`clock.NewInterval(p)`, `opus.Config_(init)`). Each generator either nests a
+clash is within one Rust module, so a Go package per module would keep the rule
+(`clock.NewInterval(p)`, `opus.Config_(init)`). Go forbids import cycles, though, and
+moq's modules name each other's types in three cycles: the root and 16 moq-net modules
+(`track`, `group`, and `frame` name each other, and nearly all name the root's `Error`), 12
+of `hang` and `mux`, and the 7 of `tokio`. So a Go package that defines a module's types
+cannot hold moq. Each generator either nests a
 facade module as its language's namespace (Kotlin and Swift nested objects, Python
 submodules, Dart prefixed imports) or fails the export at both spans, as C does on a
 residual clash. Measure which moq would hit before choosing.
