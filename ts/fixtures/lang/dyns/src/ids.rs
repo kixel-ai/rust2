@@ -91,7 +91,12 @@ impl Write for Capped {
 
 /// `id`'s `Debug`, written into a `Capped` of `cap` bytes.
 fn capped(id: TypeId, cap: usize) -> (fmt::Result, Capped) {
-	let mut w = Capped { log: Vec::new(), len: 0, calls: 0, cap };
+	let mut w = Capped {
+		log: Vec::new(),
+		len: 0,
+		calls: 0,
+		cap,
+	};
 	let result = write!(w, "{id:?}");
 	(result, w)
 }
