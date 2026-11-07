@@ -81,7 +81,7 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let n = data.first().copied().unwrap_or(0);
 	hook();
 	let v = vec![n, n];
-	match kind % 32 {
+	match kind % 35 {
 		0 => panic!("literal"),
 		1 => panic!("formatted {n}"),
 		2 => out.push(v[usize::from(n) + 2]),

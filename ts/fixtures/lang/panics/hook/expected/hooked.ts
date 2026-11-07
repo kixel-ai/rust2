@@ -89,7 +89,7 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	const n: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
 	hook();
 	const v: rs.ByteVec = rs.byteVecFrom(Uint8Array.of(n, n));
-	const _10: rs.u8 = rs.u8Rem(kind, 32, { file: "fixtures/lang/panics/src/hooked.rs", line: 84, col: 11 });
+	const _10: rs.u8 = rs.u8Rem(kind, 35, { file: "fixtures/lang/panics/src/hooked.rs", line: 84, col: 11 });
 	if (_10 === 0) {
 		rs.panicFmt(["literal"], { file: "fixtures/lang/panics/src/hooked.rs", line: 85, col: 14 });
 	} else if (_10 === 1) {
