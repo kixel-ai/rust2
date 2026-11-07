@@ -1,6 +1,7 @@
 //! A part of the language the driver translates, exercised against native Rust: what
 //! each of its modules says.
 
+mod adopt;
 #[path = "../../harness.rs"]
 pub mod harness;
 mod heap;
@@ -19,5 +20,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("heap::spills", |_, data, out| heap::spills(data, out)),
 		("heap::layouts", |_, data, out| heap::layouts(data, out)),
 		("heap::remnants", |_, data, out| heap::remnants(data, out)),
+		("adopt::allocated", |_, data, out| adopt::allocated(data, out)),
+		("adopt::readopted", |_, data, out| adopt::readopted(data, out)),
 	]
 }

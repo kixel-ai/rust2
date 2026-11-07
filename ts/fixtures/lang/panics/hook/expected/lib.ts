@@ -81,7 +81,7 @@ export class of$panics_Point {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "8e48006f0a085ab0ca68bcd6079f396f";
+		return "37e450afe4d41be326161cb6b122df94";
 	}
 }
 

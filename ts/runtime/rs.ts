@@ -2622,13 +2622,61 @@ export function vecSetLen<T>(v: Vec<T>, length: number, size: number, uninit: ()
 	const cap = vecCapacity(v, size);
 	if (length > cap) panic(SET_LEN, "vec_set_len");
 	vecHold(v, cap);
-	const items = v.items;
-	if (length === items.length) return;
+	if (length === v.items.length) return;
 	const room = roomOf(v, size);
 	room.uninit = uninit;
-	for (let i = length; i < items.length; i++) room.set(i, items[i]);
+	relength(v, room, length);
+}
+
+/** `v`'s items cut or lengthened to `length`: what they give up kept in `room`, and what they take in from there. */
+function relength<T>(v: Vec<T>, room: Room<T>, length: number): void {
+	const items = v.items;
+	// A slot never written, as memory from `alloc` has, stays one.
+	for (let i = length; i < items.length; i++) if (i in items) room.set(i, items[i]);
 	for (let i = items.length; i < length; i++) items.push(room.take(i));
 	if (length < items.length) items.length = length;
+}
+
+/** What std's check of `from_raw_parts`'s precondition says. */
+const FROM_RAW_PARTS = "unsafe precondition(s) violated: Vec::from_raw_parts_in requires that length <= capacity\n\nThis indicates a bug in the program. This Undefined Behavior check is optional, and cannot be relied on for safety.";
+
+/** The array the pointer `p`, which `Vec::from_raw_parts` takes, starts: memory from `alloc` or a `Vec`'s, or `undefined` if dangling. */
+function rawPartsOf(p: Place<unknown>): object | undefined {
+	if (p === DANGLING) return undefined;
+	if (!(p instanceof AtIndex) || p.index !== 0) {
+		throw new Error("rust2-ts: `Vec::from_raw_parts` of a pointer that isn't to the start of memory from `alloc` or a `Vec`'s");
+	}
+	return p.array;
+}
+
+/**
+ * `Vec::from_raw_parts` of `size`-byte elements: the `Vec` of the array `p` starts, memory
+ * from `alloc` or a `Vec`'s, holding its first `length` and the rest in its room, with
+ * room for `cap`. Past the capacity it panics, as `vecSetLen` does.
+ */
+export function vecFromRawParts<T>(p: Place<T>, length: number, cap: number, size: number): Vec<T> {
+	if (length > cap) panic(FROM_RAW_PARTS, "vec_from_raw_parts");
+	const items = rawPartsOf(p);
+	if (items === undefined) return new Vec<T>([], cap);
+	const v = new Vec(items as T[], cap);
+	// The room the items had, which this `Vec` holds now, or a new one.
+	relength(v, roomOf(v, size), length);
+	return v;
+}
+
+/** `Vec::from_raw_parts` of bytes: the `Vec` of the storage `p` starts, which is exactly `cap` bytes, holding its first `length`. */
+export function byteVecFromRawParts(p: Place<number>, length: number, cap: number): ByteVec {
+	if (length > cap) panic(FROM_RAW_PARTS, "vec_from_raw_parts");
+	const data = rawPartsOf(p);
+	const v = new ByteVec(data === undefined ? cap : 0);
+	if (data !== undefined) {
+		if (!(data instanceof Uint8Array) || data.length !== cap) {
+			throw new Error(`rust2-ts: \`Vec::from_raw_parts\` of bytes with a capacity of ${cap}, which isn't the storage's`);
+		}
+		v.data = data;
+	}
+	v.length = length;
+	return v;
 }
 
 /**

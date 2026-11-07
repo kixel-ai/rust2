@@ -69,3 +69,12 @@ pub fn alloc_retyped() -> i32 {
 pub fn zeroed() -> u32 {
 	unsafe { *(std::alloc::alloc_zeroed(std::alloc::Layout::new::<u32>()) as *mut u32) }
 }
+
+/// `Vec`s adopting memory by `from_raw_parts`: of the crate's struct, which JS keeps as an
+/// object that knows no array it is in, and of `()`, which has no bytes.
+pub fn adopted() -> usize {
+	let dangling = std::ptr::NonNull::dangling().as_ptr();
+	let halves = unsafe { Vec::<Halves>::from_raw_parts(dangling, 0, 0) };
+	let units = unsafe { Vec::<()>::from_raw_parts(std::ptr::NonNull::dangling().as_ptr(), 3, 0) };
+	halves.len() + units.len()
+}

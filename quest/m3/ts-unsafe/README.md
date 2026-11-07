@@ -37,8 +37,8 @@ none of its own `unsafe`. A union over a type parameter lays out each instance s
 - Decided with the maintainer on 2026-11-01, typed allocation: memory from `alloc` for a
   `Layout::array::<T>(n)`, or an equal layout of `T`'s size and alignment, cast to `*mut T`
   is a fresh JS array of `T`s, which `realloc` copies and `dealloc` frees. Untyped and
-  byte allocation stay refused. smallvec spills to it, and
-  [`Vec::from_raw_parts` of it](/quest/m3/ts-unsafe/vec-from-raw-parts.md) is left.
+  byte allocation stay refused. smallvec spills to it, and `Vec::from_raw_parts` adopts
+  it, or a `Vec`'s own, as the `Vec`'s items.
 - Decided with the maintainer on 2026-11-02: a raw slice pointer is `rs.RawSlice`, its
   first element's pointer and its length, read through only where Rust reads, and an empty
   slice from a pointer into no array keeps that pointer through every part of it.
@@ -73,7 +73,6 @@ Public API: the translator's output.
 ## Required
 
 - [A raw pointer behind a reference](/quest/m3/ts-unsafe/raw-behind-ref.md) - `&raw const *r` of a value JS copies points where the reference came from
-- [Vec::from_raw_parts of a typed allocation](/quest/m3/ts-unsafe/vec-from-raw-parts.md) - a `Vec` adopts an `alloc`ed array of `T`s, with its length, capacity, and drops
 - [Vec::drain from std's MIR](/quest/m3/ts-unsafe/vec-drain-mir.md) - std's `Drain` translates, replacing the runtime's port
 - [BinaryHeap from std's MIR](/quest/m3/ts-unsafe/binary-heap-mir.md) - std's `BinaryHeap` and `PeekMut` translate, replacing the runtime's port
 - [Unchecked integer operations](/quest/m3/ts-unsafe/unchecked-ops.md) - `unchecked_*` and `NonZero::new_unchecked` translate, aborting on a violated precondition

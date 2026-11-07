@@ -853,6 +853,27 @@ pub fn call<'tcx>(
 				_ => Expr::rs("vecAsPtr", vec![s, super::iter::size_of(b, elem, span)]),
 			}
 		}
+		// The `Vec` of the array a pointer starts, memory from `alloc` or a `Vec`'s, which it
+		// holds the first `len` of, and keeps the rest of in its room, up to `cap`.
+		("Vec", "from_raw_parts") => {
+			let elem = pointee();
+			let (p, len, cap) = (arg(), arg(), arg());
+			if b.t.zero_sized(elem) {
+				return Ok(Some(
+					b.err(span, format!("`Vec::from_raw_parts` of `{elem}`, which has no bytes")),
+				));
+			}
+			if let Some(why) = unmodeled(b, elem, "`Vec::from_raw_parts` of") {
+				return Ok(Some(b.err(span, why)));
+			}
+			match super::byte(elem) {
+				true => Expr::rs("byteVecFromRawParts", vec![p, len, cap]),
+				false => Expr::rs(
+					"vecFromRawParts",
+					vec![p, len, cap, super::iter::size_of(b, elem, span)],
+				),
+			}
+		}
 		("ptr" | "NonNull", "add" | "sub" | "offset" | "wrapping_add" | "wrapping_sub" | "wrapping_offset") => {
 			let (p, n) = (arg(), arg());
 			if b.t.zero_sized(pointee()) {

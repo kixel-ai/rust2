@@ -200,7 +200,7 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let deque = VecDeque::from(v.clone());
 	let map = BTreeMap::from([(u16::from(n), n)]);
 	let set = BTreeSet::from([u16::from(n)]);
-	match kind % 75 {
+	match kind % 76 {
 		0 => out.push(Vec::<u8>::with_capacity(usize::MAX - at).len() as u8),
 		1 => v.clone().rotate_right(at + 3),
 		2 => out.push(n.clamp(n.max(1), n.max(1) - 1)),
@@ -346,6 +346,11 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			std::io::IoSlice::advance_slices(&mut left, at % 2 + 3);
 			out.push(left.len() as u8);
 		}
+		// SAFETY: none, past the capacity: std's check of its precondition aborts.
+		74 => out.push(
+			unsafe { Vec::<u32>::from_raw_parts(std::ptr::NonNull::dangling().as_ptr(), at % 2 + 1, at % 2) }.len()
+				as u8,
+		),
 		_ => out.push(Lying(n).len() as u8),
 	}
 }

@@ -123,7 +123,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `Ordering`, `DefaultHasher`, `RandomState`, `BuildHasherDefault<H>` | `rs.Ordering`, which is `-1`, `0`, or `1`; `rs.Hasher`; `rs.RandomState`, the keys of the `DefaultHasher` it builds, never changed once made; `undefined`, as `PhantomData` is, whose `build_hasher` is `H::default()` |
 | `Duration` | `rs.Duration`: `{ secs, nanos }`, std's whole seconds as an `rs.u64` and the nanoseconds past them, never changed once made |
 | `TypeId` | `rs.TypeId`: rustc's 128-bit hash of the type, which std's holds at run time, as 32 hex digits, equal by `===`; ordered as std's derive orders the hash's pointer-sized words, lowest first, hashed as its high 64 bits, and written as `TypeId(0x…)`, as std's are |
-| `Layout`, `alloc::alloc` | `rs.Layout`: `{ size, align }`, never changed once made, checked as std's constructors check it; `alloc` gives an `rs.Block` of its bytes, which a cast of its pointer to `*mut T` the body shows came from `alloc` or `realloc` makes a JS array of `T`s, values JS copies, as an `rs.AtIndex` of its first; a cast back to `*mut u8` only as what `dealloc` or `realloc` takes, which free the array or copy it into a new one; its bytes, read, written, or cast to any other type, are refused, and fail at run time through a pointer from elsewhere |
+| `Layout`, `alloc::alloc` | `rs.Layout`: `{ size, align }`, never changed once made, checked as std's constructors check it; `alloc` gives an `rs.Block` of its bytes, which a cast of its pointer to `*mut T` the body shows came from `alloc` or `realloc` makes a JS array of `T`s, values JS copies, as an `rs.AtIndex` of its first; a cast back to `*mut u8` only as what `dealloc` or `realloc` take, an array `Vec::from_raw_parts` adopts as a `Vec`'s itemss, which free the array or copy it into a new one; its bytes, read, written, or cast to any other type, are refused, and fail at run time through a pointer from elsewhere |
 | closure | an arrow function, with `[Symbol.dispose]` if it owns a value that drops, and what makes its clone if a clone can't be itself |
 | `fn` pointer, function item as a value | the function, or std's an arrow that calls it as a written call does, as a closure is typed: a `()` result is `undefined`, where a declared function returns `void` |
 | `&dyn Trait`, `&mut dyn Trait`, `Box<dyn Trait>`, `Arc<dyn Trait>`, `Rc<dyn Trait>`, `Weak<dyn Trait>`, `Pin<P>` of one | an object with the trait's methods, its supertraits' included: `shape.area$Shape()`; behind an `Arc` or an `Rc`, an `rs.ArcDyn` sharing the count of the `Arc` it was made from |
@@ -1060,7 +1060,12 @@ they need.
   `truncate`, leaves the room as it was: std's `Vec` makes no promise to keep what it
   removes, so the slot it gave up is uninitialized, and `set_len` requires every slot it
   takes in to be initialized, which makes lengthening over that slot undefined in Rust
-  (decided with the maintainer on 2026-11-07). Their `try_reserve` and `try_reserve_exact`, and a
+  (decided with the maintainer on 2026-11-07). `Vec::from_raw_parts` of a pointer to the
+  start of memory from `alloc` or of a `Vec`'s, given up by `ManuallyDrop`, is the `Vec`
+  of that same storage, holding its first `length` items and, but for bytes, the rest in
+  its room, with the capacity it is given, so it drops and reads back what std's does; a
+  length past the capacity panics as std's check does, which can't unwind, and one of
+  values JS keeps as objects or of no bytes is refused. Their `try_reserve` and `try_reserve_exact`, and a
   `String`'s, give `Ok` where `reserve` makes room and `TryReserveError`'s
   `CapacityOverflow` where it panics, and `AllocError`, of the layout std's asks for, only
   where JS fails to allocate a byte `Vec`'s or `VecDeque`'s `Uint8Array` (decided with the

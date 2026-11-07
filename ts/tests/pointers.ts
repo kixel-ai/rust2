@@ -82,6 +82,11 @@ unsure(() => rs.realloc(words, 16));
 const grown = rs.realloc(rs.allocBytes(words, 4, "u32"), 18);
 assert.deepEqual(Array.from(grown.array ?? []), [0xffffffff, undefined, undefined, undefined]);
 
+// A `Vec` adopting memory from a pointer past where it starts, which no allocation does,
+// and bytes with a capacity other than the storage's.
+unsure(() => rs.vecFromRawParts(rs.ptrAdd(rs.allocAs<number>(rs.alloc({ size: 8, align: 4 }), 4, "u32"), 1), 0, 1, 4));
+unsure(() => rs.byteVecFromRawParts(rs.byteVecAsPtr(rs.byteVecWithCapacity(4)), 0, 8));
+
 // A dangling pointer read through, written through, or copied from, which Rust leaves
 // undefined, rather than reading `undefined`.
 const dangling: rs.Place<number> = rs.DANGLING;

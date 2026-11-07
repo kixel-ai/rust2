@@ -3,6 +3,8 @@ no item `clones::slice_of_object` in the crate
 no item `lopsided` in the crate
 no item `missing` in the crate
 fixtures/reject/src/alloc.rs:addressed+1:17: a pointer's address, which JS has no counterpart of
+fixtures/reject/src/alloc.rs:adopted+2:24: `Vec::from_raw_parts` of `pointers::Halves`, which JS keeps as an object that knows no array it is in
+fixtures/reject/src/alloc.rs:adopted+3:23: `Vec::from_raw_parts` of `()`, which has no bytes
 fixtures/reject/src/alloc.rs:alloc_retyped+4:7: memory from `alloc` cast to pointers to `u32` and to `i32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:alloc_retyped+5:11: memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:alloc_retyped+7:17: memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another

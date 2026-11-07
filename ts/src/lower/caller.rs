@@ -117,6 +117,12 @@ const SITES: &[(&str, &str, &str, &str)] = &[
 		"ub_checks::assert_unsafe_precondition!(",
 	),
 	(
+		"vec_from_raw_parts",
+		"alloc/src/vec/mod.rs",
+		"pub const unsafe fn from_raw_parts_in(",
+		"ub_checks::assert_unsafe_precondition!(",
+	),
+	(
 		"into_flattened",
 		"alloc/src/vec/mod.rs",
 		"pub fn into_flattened",
