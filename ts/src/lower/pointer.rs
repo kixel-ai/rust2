@@ -122,6 +122,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				"comparing pointers to `{ty}`, each an object JS makes of its own as it unsizes"
 			));
 		}
+		let inner = self.uninit_inner(ty);
+		if self.pointee(ty) == Pointee::Array && inner != ty && !super::byte_array(inner) {
+			return Some(format!(
+				"comparing pointers to `{ty}`, an array a `MaybeUninit` or `ManuallyDrop` holds, whose shared reference through a raw pointer to part of an array is a copy"
+			));
+		}
 		match self.pointee(ty) {
 			// `from_ref`, `from_mut` of a variable, and `Option::as_slice` make an array of
 			// one of their own for a value, so only longer arrays are always where Rust's are.
@@ -846,9 +852,14 @@ pub fn call<'tcx>(
 		("Box", "from_raw") => match kind(b, pointee()) {
 			Some(Pointee::Slice) => deref(pointee(), arg(), false),
 			Some(Pointee::Place) => arg().member("v"),
-			// A box of an array is the array, all of which `into_raw` pointed at.
+			// A box of an array is the array, all of which `into_raw` pointed at. Arrays
+			// `as_chunks` split from one flat array have no array of their own to box.
 			Some(Pointee::Array) => match b.t.uninit_inner(pointee()) {
 				ty if super::byte_array(ty) => Expr::rs("byteSliceView", vec![arg()]),
+				ty if super::array_slice::of_arrays(ty) => b.err(
+					span,
+					format!("`Box::from_raw` of `{ty}`, which may be arrays `as_chunks` split from one flat array, which is not supported yet"),
+				),
 				_ => Expr::rs("boxArrayFromRaw", vec![arg()]),
 			},
 			_ => arg(),

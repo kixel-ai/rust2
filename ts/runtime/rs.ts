@@ -915,23 +915,12 @@ export function sliceReplaceAll<T>(s: Slice<T>, items: ArrayLike<T>, depth = 0):
 }
 
 /**
- * `Box::from_raw` of a `*mut [T; N]`, `s`, the slice of its elements or of its arrays, which
- * must point at all of an allocation, as a box owns all of its own: the array it is, or the
- * arrays of one `as_chunks` split, each made an array of its own, which the box alone holds.
+ * `Box::from_raw` of a `*mut [T; N]`, `s`: the array `Box::into_raw` pointed at all of, as a
+ * box owns all of its allocation.
  */
-export function boxArrayFromRaw<T>(s: Slice<T>): T[];
-export function boxArrayFromRaw<S extends ArrayRef>(s: ArraySlice<S>): LentArray<S>[];
-export function boxArrayFromRaw(s: Slice<unknown> | ArraySlice<ArrayRef>): unknown[] {
-	precondition(s instanceof Slice || s instanceof ArraySlice ? arrayRefAll(s) || undefined : undefined, "Box::from_raw requires a pointer Box::into_raw gave");
-	if (s instanceof Slice) return s.data;
-	return s.items !== undefined ? (s.items as unknown[]) : arraySliceCopy(s);
-}
-
-/** Whether `s`, a slice a pointer to an array is, spans all of the storage it is of. */
-function arrayRefAll(s: ArrayRef): boolean {
-	if (!(s instanceof ArraySlice)) return s.start === 0 && s.length === s.data.length;
-	if (s.items !== undefined) return s.start === 0 && s.length === s.items.length;
-	return arrayRefAll(arrayRefPart(s.flat as ArrayRef, s.start * s.n, s.length * s.n));
+export function boxArrayFromRaw<T>(s: Slice<T>): T[] {
+	const all = s instanceof Slice && s.start === 0 && s.length === s.data.length;
+	return precondition(all ? s.data : undefined, "Box::from_raw requires a pointer Box::into_raw gave");
 }
 
 /**

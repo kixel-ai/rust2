@@ -3037,8 +3037,7 @@ fn tripled(mut b: u8) -> u8 {
 
 /// A raw pointer to a `[T; N]` and to a `[[T; N]; M]` that is part of a slice, lent back as
 /// a reference by `as_mut` and `NonNull::as_mut`, and the first written whole by
-/// `ptr::replace` and `ptr::swap`; a box of each taken back by `Box::from_raw`, and of arrays
-/// `as_chunks_mut` split from all of a box's array; and arrays a
+/// `ptr::replace` and `ptr::swap` and taken back as a box by `Box::from_raw`; and arrays a
 /// `MaybeUninit` holds, lent by `as_ref` and by a cell's `get_mut` and `as_mut_unchecked`.
 pub fn array_parts(data: &[u8], out: &mut Vec<u8>) {
 	let n = data.first().map_or(0, |&b| u32::from(b));
@@ -3071,17 +3070,6 @@ pub fn array_parts(data: &[u8], out: &mut Vec<u8>) {
 	let mut nn = NonNull::new(p).unwrap();
 	unsafe { nn.as_mut()[0][1] = n + 5 };
 	out.extend(rows.iter().flatten().map(|&w| w as u8));
-	let raw = Box::into_raw(Box::new([[n, 1], [2, n]]));
-	unsafe { (*raw)[1][1] = 8 };
-	let back = unsafe { Box::from_raw(raw) };
-	out.extend(back.iter().flatten().map(|&w| w as u8));
-	// Arrays `as_chunks_mut` split from all of a box's array, which has their layout.
-	let flat = Box::into_raw(Box::new([n, 1, 2, n + 3]));
-	let (runs, _) = unsafe { (*flat).as_chunks_mut::<2>() };
-	let whole: *mut [[u32; 2]; 2] = runs.first_chunk_mut().unwrap();
-	let mut back = unsafe { Box::from_raw(whole) };
-	back[1][0] = 9;
-	out.extend(back.iter().flatten().map(|&w| w as u8));
 	// Of arrays a `MaybeUninit` holds, whose reference is the array.
 	let mu = MaybeUninit::new([n, 1]);
 	let p: *const MaybeUninit<[u32; 2]> = &mu;
