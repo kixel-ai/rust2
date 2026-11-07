@@ -2832,8 +2832,8 @@ struct Celled {
 
 /// Whole writes of values holding cells into a cell, a tuple, and a struct, each read back
 /// through a pointer saved into an inner cell before: `UnsafeCell::replace`, `ptr::replace`,
-/// `ptr::write`, `ptr::swap`, and `Cell`'s writes; a value `ptr::read` copies out before
-/// one; and `ptr::write`s into memory not written yet.
+/// `ptr::write`, `ptr::swap`, `Cell`'s writes, and assignments through a raw pointer; a
+/// value `ptr::read` copies out before one; and `ptr::write`s into memory not written yet.
 pub fn nested_cells(data: &[u8], out: &mut Vec<u8>) {
 	let nest = UnsafeCell::new(UnsafeCell::new(1u32));
 	let deep = UnsafeCell::new(UnsafeCell::new(UnsafeCell::new(2u32)));
@@ -2923,7 +2923,10 @@ pub fn nested_cells(data: &[u8], out: &mut Vec<u8>) {
 						*parts.assume_init_ref().0.get() as u8,
 					]);
 				}
-				_ => out.push(n),
+				_ => {
+					*nest.get() = UnsafeCell::new(u32::from(n) ^ 13);
+					*deep.get() = UnsafeCell::new(UnsafeCell::new(u32::from(n) ^ 14));
+				}
 			}
 			out.extend([*to_nest as u8, *to_deep as u8, *to_pair as u8, *to_strukt as u8]);
 			out.extend([(*to_obj).0, (*to_obj).1, *to_cell as u8, *to_wrapped as u8]);

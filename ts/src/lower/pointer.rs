@@ -1305,24 +1305,11 @@ pub(super) fn write<'tcx>(
 		return Expr::undefined();
 	}
 	if b.t.keeps_cells(ty) {
-		if b.t.pointee(ty) == Pointee::Object {
-			write_kept(b, p, value, ty, span, out);
-			return Expr::undefined();
-		}
-		// Memory not written yet, as `ptr::write` may fill, holds no cell to keep.
-		let (p, value) = (b.spill(p, "pointer", out), b.spill(value, "value", out));
-		let mut kept = Vec::new();
-		write_kept(b, p.clone().member("v"), value.clone(), ty, span, &mut kept);
-		let whole = p.clone().member("v").assign(value);
-		let cond = p.member("v").binary("===", Expr::undefined());
-		out.push(
-			StmtKind::If {
-				cond,
-				then: vec![StmtKind::Expr(whole).at(None)],
-				els: kept,
-			}
-			.at(None),
-		);
+		let at = match b.t.pointee(ty) {
+			Pointee::Object => p,
+			_ => b.spill(p, "pointer", out).member("v"),
+		};
+		write_kept_at(b, at, value, ty, span, out);
 		return Expr::undefined();
 	}
 	match b.t.pointee(ty) {
@@ -1340,6 +1327,35 @@ fn pointed<'tcx>(b: &Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>) -> Expr {
 		Pointee::Place => p.member("v"),
 		_ => p,
 	}
+}
+
+/// The write of `value`, a `ty` that keeps cells, where `at` names its JS value: into the
+/// cells there in place, or whole where memory not written yet, as `ptr::write` may fill,
+/// holds no cell to keep. `at` is read more than once.
+pub(super) fn write_kept_at<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	at: Expr,
+	value: Expr,
+	ty: Ty<'tcx>,
+	span: Span,
+	out: &mut Vec<Stmt>,
+) {
+	if b.t.pointee(ty) == Pointee::Object {
+		return write_kept(b, at, value, ty, span, out);
+	}
+	let value = b.spill(value, "value", out);
+	let mut kept = Vec::new();
+	write_kept(b, at.clone(), value.clone(), ty, span, &mut kept);
+	let whole = StmtKind::Expr(at.clone().assign(value)).at(None);
+	let cond = at.binary("===", Expr::undefined());
+	out.push(
+		StmtKind::If {
+			cond,
+			then: vec![whole],
+			els: kept,
+		}
+		.at(None),
+	);
 }
 
 /// The write of `value` into `at`, the JS value of a `ty` that keeps cells, in place: a
