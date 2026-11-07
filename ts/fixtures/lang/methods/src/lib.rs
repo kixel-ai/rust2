@@ -1,7 +1,7 @@
 //! A part of the language the driver translates, exercised against native Rust: what
 //! each of its modules says.
 
-#![feature(wrapping_int_impl, wrapping_next_power_of_two)]
+#![feature(nonzero_ops, wrapping_int_impl, wrapping_next_power_of_two)]
 
 #[path = "../../harness.rs"]
 pub mod harness;
