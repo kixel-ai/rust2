@@ -319,7 +319,7 @@ class TextAt extends AtIndex<number> {
 	}
 }
 
-/** A write, or a mutable slice, through a `TextAt`, which a shared reference made. */
+/** A write through a `TextAt`, which a shared reference made. */
 function textWrite(): never {
 	return violated("a write requires a pointer not made from a shared reference, as `str::as_ptr`'s is");
 }
@@ -679,7 +679,9 @@ export function ptrByteSlice(p: Place<number>, len: number, shared: boolean): By
 	}
 	const at = elemOf(p);
 	at.reach(len);
-	if (!shared && len !== 0 && at instanceof TextAt) textWrite();
+	// Stacked Borrows makes it undefined, though Tree Borrows allows it until a write, as
+	// with a substring's pointer moved back into its text, which throws until Rust settles.
+	if (!shared && len !== 0 && at instanceof TextAt) throw new Error("rust2-ts: a mutable slice of a `str`'s bytes through `str::as_ptr`");
 	if (at.array instanceof Uint8Array) return new ByteSlice(at.array, at.index, len);
 	// A byte in no array, which no `Uint8Array` can share.
 	if (!shared) throw new Error("rust2-ts: a raw or mutable slice of a byte in no array of bytes");
