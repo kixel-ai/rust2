@@ -8,6 +8,7 @@ import { unwrapOrDefault$15dio94 as option_unwrapOrDefault$15dio94, map$1tqulv0 
 import { ok$03r6cuf } from "./core/result.ts";
 import { put } from "./harness.ts";
 import type * as Byte from "./ids.Byte.ts";
+import * as Capped from "./ids.Capped.ts";
 import * as Log from "./ids.Log.ts";
 import type * as Marked from "./ids.Marked.ts";
 import type * as Mood from "./ids.Mood.ts";
@@ -15,6 +16,13 @@ import * as WithId from "./ids.WithId.ts";
 
 export function tag$ids_Marked_u8(self: rs.u8): rs.u8 {
 	return self;
+}
+
+/** `id`'s `Debug`, written into a `Capped` of `cap` bytes. */
+export function capped(id: rs.TypeId, cap: rs.usize): [rs.Result<undefined, rs.FmtError>, Capped.Capped] {
+	const w: Capped.Capped = { log: new rs.Vec(), len: 0, calls: 0, cap };
+	const args3 = [(f: rs.Formatter) => rs.fmtTypeIdDebug(id, f)];
+	return [rs.fmtWrite((s) => Capped.writeStr$fmt_Write(w, s), (c) => Capped.writeStr$fmt_Write(w, String.fromCodePoint(c)), [args3[0]]), w] as [rs.Result<undefined, rs.FmtError>, Capped.Capped];
 }
 
 /** `T`'s `TypeId`, through a type parameter. */
@@ -90,8 +98,9 @@ export function words(id: rs.TypeId): rs.Vec<rs.u128> {
 export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
 	let mood!: Mood.Mood;
 	let _196!: Any.Any;
-	let _392!: rs.TypeId;
-	const _486: (a0: WithId.WithId, a1: WithId.WithId) => rs.Ordering = (k: WithId.WithId, l: WithId.WithId): rs.Ordering => {
+	let _420!: boolean;
+	let _515!: rs.TypeId;
+	const _609: (a0: WithId.WithId, a1: WithId.WithId) => rs.Ordering = (k: WithId.WithId, l: WithId.WithId): rs.Ordering => {
 		const _62: rs.Vec<rs.u128> = words(k.id);
 		const _9: rs.Vec<rs.u128> = words(l.id);
 		return rs.orderingThen(rs.cmpSlice(rs.cmp)(_62, _9), rs.cmp(k.n, l.n));
@@ -156,8 +165,8 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 			});
 			const _168: boolean = _146.typeId$Any() === any.typeId$Any();
 			const _174: boolean = idOfVal$dyn_ids_Marked(_146) === "21b3f780835871567b1dbe5c04134c71";
-			const args32 = [(f: rs.Formatter) => rs.u8Display(_159, f), (f: rs.Formatter) => rs.fmtOption(_161, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtBool(_168, f), (f: rs.Formatter) => rs.fmtBool(_174, f)];
-			put(out, rs.fmtFormat([args32[0], " ", args32[1], " ", args32[2], " ", args32[3], " "]));
+			const args40 = [(f: rs.Formatter) => rs.u8Display(_159, f), (f: rs.Formatter) => rs.fmtOption(_161, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtBool(_168, f), (f: rs.Formatter) => rs.fmtBool(_174, f)];
+			put(out, rs.fmtFormat([args40[0], " ", args40[1], " ", args40[2], " ", args40[3], " "]));
 		}
 		const boxes: rs.Vec<Any.Any> = new rs.Vec();
 		for (const x of rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 2, dataLen - 2))) {
@@ -177,8 +186,8 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 				return i5 === inner;
 			});
 			const _229: boolean = "37a732caafaf8e089d3a9d4c07b2ec78" === "37a732caafaf8e089d3a9d4c07b2ec78";
-			const args33 = [(f: rs.Formatter) => rs.fmtOption(_221, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtBool(_229, f)];
-			put(out, rs.fmtFormat([args33[0], " ", args33[1], " "]));
+			const args41 = [(f: rs.Formatter) => rs.fmtOption(_221, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtBool(_229, f)];
+			put(out, rs.fmtFormat([args41[0], " ", args41[1], " "]));
 		}
 		const _240: rs.Arc<Byte.Byte> = new rs.Arc(byte);
 		const shared: rs.Arc<Any.Any> = new rs.ArcDyn(_240, new of$ids_Byte(_240.value));
@@ -186,8 +195,8 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 		const _251: boolean = shared.value.typeId$Any() === "2dfe447c5824b47a6710c76af5f599c5";
 		const _259: boolean = "6864f1ad0ca168ae5e502d6898f6f9c3" === "6864f1ad0ca168ae5e502d6898f6f9c3";
 		const _266: boolean = boxed.typeId$Any() === "cfb1622e7734f8af272d8d182905dc25";
-		const args34 = [(f: rs.Formatter) => rs.fmtBool(_251, f), (f: rs.Formatter) => rs.fmtBool(_259, f), (f: rs.Formatter) => rs.fmtBool(_266, f)];
-		put(out, rs.fmtFormat([args34[0], " ", args34[1], " ", args34[2], " "]));
+		const args42 = [(f: rs.Formatter) => rs.fmtBool(_251, f), (f: rs.Formatter) => rs.fmtBool(_259, f), (f: rs.Formatter) => rs.fmtBool(_266, f)];
+		put(out, rs.fmtFormat([args42[0], " ", args42[1], " ", args42[2], " "]));
 		const _279: rs.Slice<rs.TypeId> = rs.sliceFrom(ids);
 		const pairs: () => rs.Iter<[rs.usize, rs.TypeId, rs.usize, rs.TypeId]> = (): rs.Iter<[rs.usize, rs.TypeId, rs.usize, rs.TypeId]> => {
 			return rs.iterFlatMap(rs.iterEnumerate(rs.iterSlice(rs.sliceItems(_279))), (_210: [rs.usize, rs.TypeId]): rs.Iter<[rs.usize, rs.TypeId, rs.usize, rs.TypeId]> => {
@@ -222,18 +231,18 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 		const _298: boolean = rs.iterAll(pairs(), (_215: [rs.usize, rs.TypeId, rs.usize, rs.TypeId]): boolean => {
 			const x6: rs.TypeId = _215[1];
 			const y5: rs.TypeId = _215[3];
-			const _611: rs.Ordering | undefined = rs.typeIdCmp(x6, y5);
+			const _619: rs.Ordering | undefined = rs.typeIdCmp(x6, y5);
 			const _134: rs.Vec<rs.u128> = words(x6);
 			const _157: rs.Vec<rs.u128> = words(y5);
-			return _611 === rs.cmpSlice(rs.cmp)(_134, _157) as rs.Ordering | undefined;
+			return _619 === rs.cmpSlice(rs.cmp)(_134, _157) as rs.Ordering | undefined;
 		});
 		const _303: boolean = rs.iterAll(pairs(), (_219: [rs.usize, rs.TypeId, rs.usize, rs.TypeId]): boolean => {
 			const x7: rs.TypeId = _219[1];
 			const y6: rs.TypeId = _219[3];
-			const _612: boolean = rs.typeIdCmp(x7, y6) === -1;
+			const _620: boolean = rs.typeIdCmp(x7, y6) === -1;
 			const _1112: rs.Vec<rs.u128> = words(x7);
 			const _139: rs.Vec<rs.u128> = words(y6);
-			if (!(_612 === (rs.cmpSlice(rs.cmp)(_1112, _139) === -1))) {
+			if (!(_620 === (rs.cmpSlice(rs.cmp)(_1112, _139) === -1))) {
 				return false;
 			}
 			const order2 = rs.typeIdCmp(x7, y6);
@@ -243,8 +252,8 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 			const order3 = rs.cmpSlice(rs.cmp)(_192, _2110);
 			return _145 === (order3 !== undefined && order3 >= 0);
 		});
-		const args35 = [(f: rs.Formatter) => rs.fmtBool(_288, f), (f: rs.Formatter) => rs.fmtBool(_293, f), (f: rs.Formatter) => rs.fmtBool(_298, f), (f: rs.Formatter) => rs.fmtBool(_303, f)];
-		put(out, rs.fmtFormat([args35[0], " ", args35[1], " ", args35[2], " ", args35[3], " "]));
+		const args43 = [(f: rs.Formatter) => rs.fmtBool(_288, f), (f: rs.Formatter) => rs.fmtBool(_293, f), (f: rs.Formatter) => rs.fmtBool(_298, f), (f: rs.Formatter) => rs.fmtBool(_303, f)];
+		put(out, rs.fmtFormat([args43[0], " ", args43[1], " ", args43[2], " ", args43[3], " "]));
 		const _318: rs.usize = rs.usizeRem(a as rs.usize, rs.sliceFrom(ids).length);
 		if (!(_318 < 13)) {
 			rs.panic("index out of bounds: the len is " + 13 + " but the index is " + _318);
@@ -261,67 +270,105 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 			return hashOf(_220) !== undefined;
 		});
 		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtBool(part4, f), " "]));
+		const _352: [rs.Result<undefined, rs.FmtError>, Capped.Capped] = capped(x2, rs.u8Rem(a, 10) as rs.usize);
+		const result: rs.Result<undefined, rs.FmtError> = _352[0];
+		const w: Capped.Capped = _352[1];
+		const _367: rs.Fmt = (f: rs.Formatter) => rs.fmtResult(result, f, rs.fmtUnit, rs.fmtErrorDebug);
+		const arg = w.calls;
+		const _368: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(arg, f);
+		const arg2 = w.log;
+		const args45 = [_367, _368, (f: rs.Formatter) => rs.fmtList(arg2.items, f, rs.fmtStr)];
+		put(out, rs.fmtFormat([args45[0], " ", args45[1], " ", args45[2], " "]));
+		const debug: string = rs.fmtFormat([(f: rs.Formatter) => rs.fmtTypeIdDebug(x2, f)]);
+		const zeros: rs.usize = rs.min(rs.iterCount(rs.iterTakeWhile(rs.strBytes(rs.strSlice(debug, 9)), (_222: rs.u8): boolean => {
+			return _222 === 48;
+		})), 31);
+		const _390: [rs.Result<undefined, rs.FmtError>, Capped.Capped] = capped(x2, 4294967295);
+		const result2: rs.Result<undefined, rs.FmtError> = _390[0];
+		const w2: Capped.Capped = _390[1];
+		const part5 = rs.usizeSub(w2.log.items.length, 1);
+		const _394: rs.Slice<string> = rs.sliceRange(rs.sliceFrom(w2.log.items), 2, part5);
+		const n2: rs.usize = w2.log.items.length;
+		const _412: rs.Slice<string> = rs.sliceRange(rs.sliceFrom(w2.log.items), 0, 2);
+		const _416: string | undefined = rs.sliceLast(rs.sliceFrom(w2.log.items));
+		if (!(n2 === rs.usizeAdd(4, zeros))) {
+			_420 = false;
+		} else {
+			_420 = rs.iterAll(rs.iterSlice(rs.sliceItems(rs.sliceRange(_394, 0, zeros))), (d: string): boolean => {
+				return d === "0";
+			});
+		}
+		const _419: boolean = _420;
+		const _429: boolean = rs.strsJoin(rs.sliceItems(_394), "") === rs.strSlice(debug, 9, 41);
+		const args47 = [(f: rs.Formatter) => rs.fmtResult(result2, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtList(rs.sliceItems(_412), f, rs.fmtStr), (f: rs.Formatter) => rs.fmtOption(_416, f, rs.fmtStr), (f: rs.Formatter) => rs.fmtBool(_419, f), (f: rs.Formatter) => rs.fmtBool(_429, f)];
+		put(out, rs.fmtFormat([args47[0], " ", args47[1], " ", args47[2], " ", args47[3], " ", args47[4], " "]));
+		const _447: rs.usize = rs.usizeSub(rs.stringLen(debug), 1);
+		const _446: [rs.Result<undefined, rs.FmtError>, Capped.Capped] = capped(x2, _447);
+		const result3: rs.Result<undefined, rs.FmtError> = _446[0];
+		const _459: boolean = rs.strsJoin(_446[1].log.items, "") + ")" === debug;
+		const args48 = [(f: rs.Formatter) => rs.fmtResult(result3, f, rs.fmtUnit, rs.fmtErrorDebug), (f: rs.Formatter) => rs.fmtBool(_459, f)];
+		put(out, rs.fmtFormat([args48[0], " ", args48[1], " "]));
 		const log: Log.Log = Log.default$Default();
 		rs.typeIdHash(x2, new rs.OwnHasher(log, Log.hasher$hash_Hasher));
 		const high: string | undefined = option_map$1tqulv0(hashOf(x2), (h: rs.u128): string => {
-			const part5 = rs.u128Shr(h, 64);
-			return rs.fmtFormat(["u64 ", (f: rs.Formatter) => rs.u128LowerHex(part5, f)]);
+			const part6 = rs.u128Shr(h, 64);
+			return rs.fmtFormat(["u64 ", (f: rs.Formatter) => rs.u128LowerHex(part6, f)]);
 		});
-		const _364: rs.usize = log._0.items.length;
-		const _367: boolean = rs.sliceFirst(rs.sliceFrom(log._0.items)) === high;
-		const args40 = [(f: rs.Formatter) => rs.usizeDisplay(_364, f), (f: rs.Formatter) => rs.fmtBool(_367, f)];
-		put(out, rs.fmtFormat([args40[0], " ", args40[1], " "]));
-		const _390: rs.TypeId = rs.ordMax(x2, y, rs.cmpLt(rs.typeIdCmp));
-		const _395: rs.Vec<rs.u128> = words(x2);
-		const _397: rs.Vec<rs.u128> = words(y);
-		if (!(rs.cmpSlice(rs.cmp)(_395, _397) === -1)) {
-			_392 = x2;
+		const _487: rs.usize = log._0.items.length;
+		const _490: boolean = rs.sliceFirst(rs.sliceFrom(log._0.items)) === high;
+		const args52 = [(f: rs.Formatter) => rs.usizeDisplay(_487, f), (f: rs.Formatter) => rs.fmtBool(_490, f)];
+		put(out, rs.fmtFormat([args52[0], " ", args52[1], " "]));
+		const _513: rs.TypeId = rs.ordMax(x2, y, rs.cmpLt(rs.typeIdCmp));
+		const _518: rs.Vec<rs.u128> = words(x2);
+		const _520: rs.Vec<rs.u128> = words(y);
+		if (!(rs.cmpSlice(rs.cmp)(_518, _520) === -1)) {
+			_515 = x2;
 		} else {
-			_392 = y;
+			_515 = y;
 		}
-		const arg = _390 === _392;
-		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtBool(arg, f), " "]));
+		const arg3 = _513 === _515;
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtBool(arg3, f), " "]));
 		const sorted: rs.Vec<rs.TypeId> = rs.vecFrom(ids.slice());
 		rs.sliceSort(rs.sliceFrom(sorted.items), rs.cmpLt(rs.typeIdCmp), 16, true);
-		const ordered: boolean = rs.iterAll(rs.sliceWindows(rs.sliceFrom(sorted.items), 2), (w: rs.Slice<rs.TypeId>): boolean => {
-			rs.idx(w, 0);
-			const _429: rs.Vec<rs.u128> = words(w.data[w.start]);
-			rs.idx(w, 1);
-			const _1011: rs.Vec<rs.u128> = words(w.data[w.start + 1]);
-			return rs.cmpSlice(rs.cmp)(_429, _1011) === -1;
+		const ordered: boolean = rs.iterAll(rs.sliceWindows(rs.sliceFrom(sorted.items), 2), (w4: rs.Slice<rs.TypeId>): boolean => {
+			rs.idx(w4, 0);
+			const _424: rs.Vec<rs.u128> = words(w4.data[w4.start]);
+			rs.idx(w4, 1);
+			const _1011: rs.Vec<rs.u128> = words(w4.data[w4.start + 1]);
+			return rs.cmpSlice(rs.cmp)(_424, _1011) === -1;
 		});
-		const _414: rs.Iter<rs.TypeId> = rs.iterChain(rs.iterSlice(ids), rs.iterSlice(found));
-		const set: rs.BTreeSet<rs.TypeId> = rs.btreeExtendKeys(rs.btreeNew(rs.typeIdCmp) as rs.BTreeSet<rs.TypeId>, _414, true, undefined, undefined, 16, true);
-		const _421: rs.Iter<rs.TypeId> = rs.iterChain(rs.iterSlice(ids), rs.iterSlice(found));
-		const hashed: rs.HashSet<rs.TypeId> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.typeIdHash, rs.same)) as rs.HashSet<rs.TypeId>, _421, undefined, undefined, 58720256);
-		const _435: rs.usize = rs.btreeLen(set);
-		const _438: rs.usize = rs.hashLen(hashed);
-		const args42 = [(f: rs.Formatter) => rs.fmtBool(ordered, f), (f: rs.Formatter) => rs.usizeDisplay(_435, f), (f: rs.Formatter) => rs.usizeDisplay(_438, f)];
-		put(out, rs.fmtFormat([args42[0], " ", args42[1], " ", args42[2], " "]));
-		const _448: rs.Iter<[rs.TypeId, string]> = rs.iterSlice([["cfb1622e7734f8af272d8d182905dc25", "u8"] as [rs.TypeId, string], ["2dfe447c5824b47a6710c76af5f599c5", "byte"] as [rs.TypeId, string], ["ff641c451ae80e5aeea189eeac47965a", "mood"] as [rs.TypeId, string]]);
-		const names: rs.HashMap<rs.TypeId, string> = rs.hashExtend(rs.hashNew(rs.hashing(rs.typeIdHash, rs.same)) as rs.HashMap<rs.TypeId, string>, _448, undefined, undefined, undefined, 58720256);
-		for (const _461 of boxes.items) {
-			const part6 = rs.hashGet(names, _461.typeId$Any());
-			put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part6, f, rs.fmtStr), " "]));
+		const _537: rs.Iter<rs.TypeId> = rs.iterChain(rs.iterSlice(ids), rs.iterSlice(found));
+		const set: rs.BTreeSet<rs.TypeId> = rs.btreeExtendKeys(rs.btreeNew(rs.typeIdCmp) as rs.BTreeSet<rs.TypeId>, _537, true, undefined, undefined, 16, true);
+		const _544: rs.Iter<rs.TypeId> = rs.iterChain(rs.iterSlice(ids), rs.iterSlice(found));
+		const hashed: rs.HashSet<rs.TypeId> = rs.hashExtendKeys(rs.hashNew(rs.hashing(rs.typeIdHash, rs.same)) as rs.HashSet<rs.TypeId>, _544, undefined, undefined, 58720256);
+		const _558: rs.usize = rs.btreeLen(set);
+		const _561: rs.usize = rs.hashLen(hashed);
+		const args54 = [(f: rs.Formatter) => rs.fmtBool(ordered, f), (f: rs.Formatter) => rs.usizeDisplay(_558, f), (f: rs.Formatter) => rs.usizeDisplay(_561, f)];
+		put(out, rs.fmtFormat([args54[0], " ", args54[1], " ", args54[2], " "]));
+		const _571: rs.Iter<[rs.TypeId, string]> = rs.iterSlice([["cfb1622e7734f8af272d8d182905dc25", "u8"] as [rs.TypeId, string], ["2dfe447c5824b47a6710c76af5f599c5", "byte"] as [rs.TypeId, string], ["ff641c451ae80e5aeea189eeac47965a", "mood"] as [rs.TypeId, string]]);
+		const names: rs.HashMap<rs.TypeId, string> = rs.hashExtend(rs.hashNew(rs.hashing(rs.typeIdHash, rs.same)) as rs.HashMap<rs.TypeId, string>, _571, undefined, undefined, undefined, 58720256);
+		for (const _584 of boxes.items) {
+			const part7 = rs.hashGet(names, _584.typeId$Any());
+			put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(part7, f, rs.fmtStr), " "]));
 		}
 		const keys: WithId.WithId[] = [{ id: x2, n: a }, { id: y, n: b }, { id: x2, n: b }];
-		const _494: rs.Slice<WithId.WithId> = rs.sliceFrom(keys);
-		const part9 = rs.iterToVec(rs.iterMap(rs.iterFlatMap(rs.iterSlice(keys), (k2: WithId.WithId): rs.Iter<[WithId.WithId, WithId.WithId]> => {
-			return rs.iterMap(rs.iterSlice(rs.sliceItems(_494)), (l2: WithId.WithId): [WithId.WithId, WithId.WithId] => {
+		const _617: rs.Slice<WithId.WithId> = rs.sliceFrom(keys);
+		const part10 = rs.iterToVec(rs.iterMap(rs.iterFlatMap(rs.iterSlice(keys), (k2: WithId.WithId): rs.Iter<[WithId.WithId, WithId.WithId]> => {
+			return rs.iterMap(rs.iterSlice(rs.sliceItems(_617)), (l2: WithId.WithId): [WithId.WithId, WithId.WithId] => {
 				return [k2, l2] as [WithId.WithId, WithId.WithId];
 			});
-		}, undefined, true), (_222: [WithId.WithId, WithId.WithId]): [boolean, boolean] => {
-			const k3: WithId.WithId = _222[0];
-			const l3: WithId.WithId = _222[1];
-			return [WithId.eq$cmp_PartialEq(k3, l3), WithId.cmp$cmp_Ord(k3, l3) === _486(k3, l3)] as [boolean, boolean];
+		}, undefined, true), (_227: [WithId.WithId, WithId.WithId]): [boolean, boolean] => {
+			const k3: WithId.WithId = _227[0];
+			const l3: WithId.WithId = _227[1];
+			return [WithId.eq$cmp_PartialEq(k3, l3), WithId.cmp$cmp_Ord(k3, l3) === _609(k3, l3)] as [boolean, boolean];
 		}), "next", 2);
-		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part9.items, f, (value: [boolean, boolean], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtBool(value[0], f), (f: rs.Formatter) => rs.fmtBool(value[1], f)], f)), " "]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(part10.items, f, (value: [boolean, boolean], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtBool(value[0], f), (f: rs.Formatter) => rs.fmtBool(value[1], f)], f)), " "]));
 		const log2: Log.Log = Log.default$Default();
 		WithId.hash$Hash_ids_Log(keys[0], log2);
-		const _523: rs.usize = log2._0.items.length;
-		const _526: string | undefined = rs.sliceGet(rs.sliceFrom(log2._0.items), 1);
-		const args45 = [(f: rs.Formatter) => rs.usizeDisplay(_523, f), (f: rs.Formatter) => rs.fmtOption(_526, f, rs.fmtStr)];
-		put(out, rs.fmtFormat([args45[0], " ", args45[1]]));
+		const _646: rs.usize = log2._0.items.length;
+		const _649: string | undefined = rs.sliceGet(rs.sliceFrom(log2._0.items), 1);
+		const args57 = [(f: rs.Formatter) => rs.usizeDisplay(_646, f), (f: rs.Formatter) => rs.fmtOption(_649, f, rs.fmtStr)];
+		put(out, rs.fmtFormat([args57[0], " ", args57[1]]));
 		rs.drop(boxed);
 		shared[Symbol.dispose]();
 		rs.dropVec(boxes);
