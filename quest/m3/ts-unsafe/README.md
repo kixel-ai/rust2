@@ -79,4 +79,3 @@ Public API: the translator's output.
 - [Unchecked integer operations](/quest/m3/ts-unsafe/unchecked-ops.md) - `unchecked_*` and `NonZero::new_unchecked` translate, aborting on a violated precondition
 - [NonZero's unchecked arithmetic](/quest/m3/ts-unsafe/nonzero-unchecked-ops.md) - `NonZero::unchecked_add` and `unchecked_mul` translate, aborting at std's site
 - [UnsafeCell's raw accessors](/quest/m3/ts-unsafe/unsafecell.md) - `UnsafeCell::raw_get`, `from_mut`, and `replace` translate
-- [A Box of one uninitialized value](/quest/m3/ts-unsafe/box-new-uninit.md) - `Box::new_uninit` and `new_zeroed` for one value translate, through `write` and `assume_init`
