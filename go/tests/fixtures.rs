@@ -297,6 +297,25 @@ fn vecs() {
 	differential("vecs", vecs::run, "Run", cases);
 }
 
+/// Byte storage the runtime owns, made, grown, copied, and shrunk each way, and handed
+/// to Go code, which `tests/hand/hand_test.go` holds onto as Go code may.
+#[test]
+fn hand() {
+	differential("hand", hand::run, "Run", cases(0, 0, 500));
+	let out = scratch().join("hand/out");
+	// Go code reaches the translation only through its roots, named in camel case, which
+	// hand storage over.
+	let text = std::fs::read_to_string(out.join("hand.go")).unwrap();
+	for name in text.lines().filter_map(|l| l.strip_prefix("func ")?.split('(').next()) {
+		assert!(
+			!name.starts_with(|c: char| c.is_ascii_uppercase()) || !name.contains('_'),
+			"hand: `{name}` is exported past the roots"
+		);
+	}
+	std::fs::copy(manifest_dir().join("tests/hand/hand_test.go"), out.join("hand_test.go")).unwrap();
+	go(&out, &["test", "-count=1", "."]);
+}
+
 /// Fields and variants whose escaped names could meet, constant memory, which each use
 /// shares, constants and statics, and the `pub` API, exported by the paths the crate
 /// exports it at.

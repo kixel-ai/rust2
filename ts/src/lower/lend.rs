@@ -56,7 +56,7 @@ pub struct Closure<'tcx> {
 /// What a call of std's `def_id` lends.
 pub fn plan<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgsRef<'tcx>) -> Plan<'tcx> {
 	let tcx = t.tcx;
-	if t.translated(def_id, args) || !args.types().any(owns_array) {
+	if t.translated(def_id, args) || !args.types().any(owns_array) || super::array_slice::native(tcx, def_id, args) {
 		return Plan::Untouched;
 	}
 	let self_ty = args.types().next();
@@ -405,6 +405,17 @@ fn cross_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, w
 	if let ty::Ref(_, inner, mutability) = ty.kind()
 		&& let ty::Array(elem, _) = inner.kind()
 	{
+		// An array slice, each array lent as its own `From` lends it, and given as copies, which a `&` reads.
+		if elem.is_array() {
+			return match (way, mutability) {
+				(Way::Lent, _) => super::array_fn(*inner, "From"),
+				(Way::Given, ty::Mutability::Not) => Expr::Rs("arraySliceItems".into()),
+				(Way::Given, ty::Mutability::Mut) => b.err(
+					span,
+					format!("giving std a `{ty}` to write through as an array, which is not supported yet"),
+				),
+			};
+		}
 		return Expr::Rs(
 			match (way, super::byte(*elem), mutability) {
 				(Way::Lent, true, _) => "byteSliceFrom",

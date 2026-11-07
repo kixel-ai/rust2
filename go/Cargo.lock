@@ -32,6 +32,10 @@ name = "fmt"
 version = "0.0.0"
 
 [[package]]
+name = "hand"
+version = "0.0.0"
+
+[[package]]
 name = "hashbrown"
 version = "0.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -127,6 +131,7 @@ dependencies = [
  "codec",
  "enums",
  "fmt",
+ "hand",
  "ints",
  "items",
  "order",

@@ -408,25 +408,16 @@ pub fn pointers_apart(n: u32, h: Halves, r: Rows, byte: u8) -> isize {
 	}
 }
 
-/// A raw and a mutable slice of a byte in no array, which no `Uint8Array` can share.
-pub fn lone_byte_slices(mut b: u8) -> u8 {
-	let raw = std::ptr::slice_from_raw_parts_mut(&raw mut b, 1);
-	let s = unsafe { std::slice::from_raw_parts_mut(&raw mut b, 1) };
-	s[0] = 1;
-	unsafe { (*raw)[0] }
+/// `offset_from` between pointers into a `str`'s bytes, which JS encodes anew at each
+/// `as_ptr`: a substring's against its text's, and two of one text.
+pub fn text_apart(s: &str) -> isize {
+	unsafe { s[1..].as_ptr().offset_from(s.as_ptr()) + s.as_ptr().offset_from(s.as_ptr()) }
 }
 
-/// None of a byte in no array, cast to a pointer to bytes from it, which no `Uint8Array`
-/// can share, though Rust reads nothing at the cast.
-pub fn lone_byte_arrays(b: u8) -> bool {
-	let none = std::ptr::slice_from_raw_parts(&raw const b, 0);
-	let pair = none as *const [u8; 2];
-	let one = none.cast::<[u8; 1]>();
-	let empty = unsafe { std::slice::from_raw_parts(&raw const b, 0) };
-	let lent = empty as *const [u8] as *const [u8; 1];
-	let from = std::ptr::from_ref(empty).cast::<[u8; 1]>();
-	let made = std::ptr::NonNull::from(empty).cast::<[u8; 1]>();
-	pair.is_null() || one.is_null() || lent.is_null() || from.is_null() || made.as_ptr().is_null()
+/// A pointer into a substring's bytes moved back before them, into its text's, which JS
+/// encodes apart, and read.
+pub fn text_before(s: &str) -> u8 {
+	unsafe { *s[1..].as_ptr().sub(1) }
 }
 
 /// Pointers, slices, and copies the body shows reach out of an array of one or a copied
@@ -562,4 +553,30 @@ pub fn arc_from_borrow(n: &u32) -> u32 {
 pub fn pointers_ordered(a: &u32, b: &u32) -> bool {
 	let (p, q) = (std::ptr::from_ref(a), std::ptr::from_ref(b));
 	std::cmp::max(p, q) == p
+}
+
+/// A mutable reborrow of a `MaybeUninit` of arrays of arrays through a raw pointer, whose
+/// arrays `as_chunks_mut` may have split from one slice with no JS array of their own.
+pub fn uninit_rows_mut(rows: &mut [[u8; 2]]) -> u8 {
+	let Some(first) = rows.first_chunk_mut::<2>() else {
+		return 0;
+	};
+	let p = std::ptr::from_mut(first).cast::<std::mem::MaybeUninit<[[u8; 2]; 2]>>();
+	let wrapped = unsafe { &mut *p };
+	let rows = unsafe { wrapped.assume_init_mut() };
+	rows[0][0] = 99;
+	rows[1][1]
+}
+
+/// A mutable reborrow of a `MaybeUninit` of an array through a raw pointer into part of a
+/// slice, which no JS array holds alone.
+pub fn uninit_part_mut(words: &mut [u32]) -> u32 {
+	if words.len() < 3 {
+		return 0;
+	}
+	let p = (&mut words[1..] as *mut [u32]).cast::<std::mem::MaybeUninit<[u32; 2]>>();
+	let wrapped = unsafe { &mut *p };
+	let pair = unsafe { wrapped.assume_init_mut() };
+	pair[0] = 99;
+	pair[1]
 }

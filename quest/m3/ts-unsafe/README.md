@@ -2,9 +2,9 @@
 
 ## Goal
 
-[rust2-ts](/ts/README.md) translates every `unsafe` construct it can give exact semantics
-in JS, each proven by differential tests against native Rust, so a stock crate's `unsafe`
-never needs a hand binding or a rewrite in its consumer.
+[rust2-ts](/ts/README.md) translates the `unsafe` constructs that fit its pointer forms
+with exact semantics in JS, each proven by differential tests against native Rust, and
+refuses the rest with a span, as [m3's unsafe policy](/quest/m3/README.md) decides.
 
 ## Plan
 
@@ -37,8 +37,10 @@ none of its own `unsafe`. A union over a type parameter lays out each instance s
 - Decided with the maintainer on 2026-11-01, typed allocation: memory from `alloc` for a
   `Layout::array::<T>(n)`, or an equal layout of `T`'s size and alignment, cast to `*mut T`
   is a fresh JS array of `T`s, which `realloc` copies and `dealloc` frees. Untyped and
-  byte allocation stay refused. smallvec spills to it, and
-  [`Vec::from_raw_parts` of it](/quest/m3/ts-unsafe/vec-from-raw-parts.md) is left.
+  byte allocation stay refused. smallvec spills to it. `Vec::from_raw_parts` of it stays
+  refused, deleted on 2026-11-07 under m3's unsafe policy: a `Vec` adopting that array
+  needs storage tracked apart from the pointer
+  ([#635](https://github.com/moq-dev/rust2/pull/635)).
 - Decided with the maintainer on 2026-11-02: a raw slice pointer is `rs.RawSlice`, its
   first element's pointer and its length, read through only where Rust reads, and an empty
   slice from a pointer into no array keeps that pointer through every part of it.
@@ -46,14 +48,16 @@ none of its own `unsafe`. A union over a type parameter lays out each instance s
 Decided with the maintainer on 2026-11-06, splitting this quest into one child per
 construct still open at `b3df54b6c`, all in m3:
 
-- ✅ Goal: every `unsafe` construct rust2-ts can make exact, one quest each.
-  Rejected: only the constructs moq's dependencies hit.
+- Goal: every `unsafe` construct rust2-ts can make exact, one quest each. Rejected: only
+  the constructs moq's dependencies hit. Narrowed on 2026-11-07 by m3's unsafe policy to
+  the constructs that fit the existing pointer forms.
 - ✅ All children in m3. Rejected: spare capacity in m2; smallvec's constructs in m2.
   No child blocks moq: the model's only hits are smallvec's (7 of its 10 refusals), and
   moq drops or binds smallvec.
 - `Vec::from_raw_parts` of a typed allocation is its own child, restored on review of
   [#618](https://github.com/moq-dev/rust2/pull/618): the spare-capacity child fills an
-  existing `Vec`, not one adopting an allocation.
+  existing `Vec`, not one adopting an allocation. Deleted on 2026-11-07 under m3's unsafe
+  policy, above.
 - The 2026-11-01 clauses that let a pointer from elsewhere, a `Vec`'s spare capacity, and
   a byte pointer past its view fail loudly at run time are superseded by
   [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md) (2026-11-04, #597): where
@@ -73,8 +77,5 @@ Public API: the translator's output.
 ## Required
 
 - [A raw pointer behind a reference](/quest/m3/ts-unsafe/raw-behind-ref.md) - `&raw const *r` of a value JS copies points where the reference came from
-- [Vec::from_raw_parts of a typed allocation](/quest/m3/ts-unsafe/vec-from-raw-parts.md) - a `Vec` adopts an `alloc`ed array of `T`s, with its length, capacity, and drops
-- [Unchecked integer operations](/quest/m3/ts-unsafe/unchecked-ops.md) - `unchecked_*` and `NonZero::new_unchecked` translate, aborting on a violated precondition
 - [NonZero's unchecked arithmetic](/quest/m3/ts-unsafe/nonzero-unchecked-ops.md) - `NonZero::unchecked_add` and `unchecked_mul` translate, aborting at std's site
 - [UnsafeCell's raw accessors](/quest/m3/ts-unsafe/unsafecell.md) - `UnsafeCell::raw_get`, `from_mut`, and `replace` translate
-- [A byte local whose address is taken, in a buffer of its own](/quest/m3/ts-unsafe/lone-byte-buffers.md) - raw and mutable slices of a `u8` local, and casts of them to byte arrays, translate instead of being refused

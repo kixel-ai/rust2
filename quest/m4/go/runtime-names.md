@@ -37,3 +37,8 @@ named as another runtime export, and its Go callers use both.
 
 Public API: what a translation exports, and the runtime's package (breaking for Go code
 naming `Option` or `Result` from the translated package).
+
+## Waiting
+
+- Go consumers: one needs moq in pure Go, which [the epic](/quest/m4/go/README.md) is
+  parked until; check with the maintainer before starting.

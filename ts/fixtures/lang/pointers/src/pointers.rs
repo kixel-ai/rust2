@@ -2528,3 +2528,71 @@ pub fn generic_unions(data: &[u8], out: &mut Vec<u8>) {
 		}
 	}
 }
+
+/// Bytes whose `&raw` the body takes, a parameter's included: raw, mutable, and shared
+/// slices of each, and pointers to arrays cast from them by each route, are views of
+/// where the byte is, so a write through one reaches it and `offset_from` measures them.
+pub fn lone_bytes(data: &[u8], out: &mut Vec<u8>) {
+	for &d in data {
+		let mut b = d;
+		let p = &raw mut b;
+		let raw = ptr::slice_from_raw_parts_mut(p, 1);
+		unsafe { (*raw)[0] ^= 0x5a };
+		out.push(b);
+		let s = unsafe { std::slice::from_raw_parts_mut(&raw mut b, 1) };
+		s[0] = s[0].wrapping_add(1);
+		out.push(b);
+		b = b.rotate_left(3);
+		let shared = unsafe { std::slice::from_raw_parts(&raw const b, 1) };
+		out.push(shared[0]);
+		out.push(unsafe { shared.as_ptr().offset_from(&raw const b) } as u8);
+		// To an array, by a cast, `cast`, and from an empty slice of it, whose pointer still
+		// reaches the byte.
+		let one = ptr::slice_from_raw_parts_mut(&raw mut b, 1) as *mut [u8; 1];
+		unsafe { (*one)[0] = (*one)[0].wrapping_mul(5) };
+		let none = ptr::slice_from_raw_parts(&raw const b, 0).cast::<[u8; 1]>();
+		out.push(unsafe { (*none)[0] });
+		let empty = unsafe { std::slice::from_raw_parts(&raw const b, 0) };
+		let lent = unsafe { *(&raw const *empty).cast::<[u8; 1]>() };
+		let from = unsafe { *NonNull::from(empty).cast::<[u8; 1]>().as_ptr() };
+		out.extend([lent[0], from[0]]);
+		let nn = NonNull::new(&raw mut b).unwrap();
+		let made = NonNull::slice_from_raw_parts(nn, 1).cast::<[u8; 1]>();
+		unsafe { (*made.as_ptr())[0] ^= 0xff };
+		// A `&mut` to it and a closure's are where its pointers are.
+		let r = &mut b;
+		*r = r.wrapping_add(7);
+		let mut bump = |by: u8| b = b.wrapping_add(by);
+		bump(d);
+		out.push(b);
+		out.push(tripled(b));
+		// Through a pointer cast from a `&mut`, and a `MaybeUninit` byte's.
+		let mut c = d;
+		let cast = unsafe { std::slice::from_raw_parts_mut(&mut c as *mut u8, 1) };
+		cast[0] = cast[0].wrapping_sub(9);
+		let p: *const u8 = &c;
+		out.push(unsafe { std::slice::from_raw_parts(p, 1)[0] });
+		let mut m = MaybeUninit::<u8>::uninit();
+		unsafe { std::slice::from_raw_parts_mut(&raw mut m, 1)[0] = MaybeUninit::new(c) };
+		out.push(unsafe { m.assume_init() });
+		// Through a reference redirected by a `&mut` to it, at the byte it now points at.
+		let (mut e, mut f) = (d, d ^ 1);
+		let mut r = &mut e;
+		redirect(&mut r, &mut f);
+		let p = &raw mut *r;
+		unsafe { *p = 9 };
+		out.extend([e, f]);
+	}
+}
+
+/// `r` pointed at `to`.
+fn redirect<'a>(r: &mut &'a mut u8, to: &'a mut u8) {
+	*r = to;
+}
+
+/// `b` tripled through a mutable slice of the parameter.
+fn tripled(mut b: u8) -> u8 {
+	let s = unsafe { std::slice::from_raw_parts_mut(&raw mut b, 1) };
+	s[0] = s[0].wrapping_mul(3);
+	b
+}

@@ -203,6 +203,8 @@ const VERBATIM: &[&str] = &[
 	"rs.Pending",
 	"self",
 	"skip",
+	"str",
+	"str::as_ptr",
 	"undefined",
 	"write_bytes",
 	"write_str",

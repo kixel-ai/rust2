@@ -189,13 +189,6 @@ fixtures/reject/src/pointers.rs:erased_empty+2:20: a pointer to `((), ())` cast 
 fixtures/reject/src/pointers.rs:erased_place+2:2: a pointer to `u32` cast to one to `()`, whose JS value is a place of its own each borrow
 fixtures/reject/src/pointers.rs:erased_place+2:22: a pointer to `u32` cast to one to `()`, whose JS value is a place of its own each borrow
 fixtures/reject/src/pointers.rs:erased_start+2:2: a pointer to `pointers::Outer` cast to one to `()`, whose address its `pointers::Inner` at its start shares, which JS keeps as an object of its own
-fixtures/reject/src/pointers.rs:lone_byte_arrays+2:13: a raw or mutable slice of a byte in no array of bytes
-fixtures/reject/src/pointers.rs:lone_byte_arrays+3:17: a raw or mutable slice of a byte in no array of bytes
-fixtures/reject/src/pointers.rs:lone_byte_arrays+5:13: a raw or mutable slice of a byte in no array of bytes
-fixtures/reject/src/pointers.rs:lone_byte_arrays+6:39: a raw or mutable slice of a byte in no array of bytes
-fixtures/reject/src/pointers.rs:lone_byte_arrays+7:44: a raw or mutable slice of a byte in no array of bytes
-fixtures/reject/src/pointers.rs:lone_byte_slices+1:12: a raw or mutable slice of a byte in no array of bytes
-fixtures/reject/src/pointers.rs:lone_byte_slices+2:19: a raw or mutable slice of a byte in no array of bytes
 fixtures/reject/src/pointers.rs:made_part_replaced+5:10: a raw pointer to `(u32, u32)` in `pointers::Gap`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:made_part_replaced+6:10: a raw pointer to `(u32, u32)` in `pointers::Gap`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:made_part_replaced+7:58: a raw pointer to `(u32, u32)` in `pointers::Gap`, which the crate may put another object in place of
@@ -218,7 +211,6 @@ fixtures/reject/src/pointers.rs:pointers_apart+9:5: `offset_from` between a poin
 fixtures/reject/src/pointers.rs:pointers_apart+10:26: `offset_from` between a pointer into a value in no array and one into a value in no array, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:pointers_apart+11:24: `offset_from` between a pointer into an array of this body's own and one into an array of this body's own, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:pointers_apart+12:23: `offset_from` between a pointer into an array of this body's own and one into an array of this body's own, which JS keeps in different arrays
-fixtures/reject/src/pointers.rs:pointers_apart+14:21: `offset_from` between a pointer into a shared slice JS copies and one into a value in no array, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:pointers_ordered+2:2: comparing pointers to `u32`, each a place JS makes of its own
 fixtures/reject/src/pointers.rs:pointers_ordered+2:2: ordering `*const u32` by its address, which JS has no counterpart of, in `std::cmp::max`
 fixtures/reject/src/pointers.rs:put_replaced+2:10: a raw pointer to `(u32, u32)` in `pointers::Plain`, which the crate may put another object in place of
@@ -226,8 +218,13 @@ fixtures/reject/src/pointers.rs:range_of+1:2: a raw pointer to `(u32, u32)` in `
 fixtures/reject/src/pointers.rs:rc_raw_bytes+1:11: an `Rc`'s raw pointer to `[u8; 4]`, which JS makes anew each time
 fixtures/reject/src/pointers.rs:reached_out+7:6: a slice reaching past a value in no array, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/pointers.rs:reached_out+8:27: a pointer reaching past a value in no array, which JS keeps apart from what holds it in Rust
+fixtures/reject/src/pointers.rs:text_apart+1:27: `offset_from` between pointers of two `str::as_ptr` calls, each into an encoding of the text of its own, which JS keeps in different arrays
+fixtures/reject/src/pointers.rs:text_apart+1:64: `offset_from` between pointers of two `str::as_ptr` calls, each into an encoding of the text of its own, which JS keeps in different arrays
+fixtures/reject/src/pointers.rs:text_before+1:28: a pointer reaching past a `str`'s bytes, which JS keeps apart from what holds it in Rust
+fixtures/reject/src/pointers.rs:uninit_part_mut+5:25: a mutable reborrow of `std::mem::MaybeUninit<[u32; 2]>` through a raw pointer, which may point into part of an array with no JS array of its own, which is not supported yet
 fixtures/reject/src/pointers.rs:uninit_part_replaced+5:19: a raw pointer to `std::mem::MaybeUninit<(u32, u32)>` in `pointers::Gap`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:uninit_part_replaced+6:19: a raw pointer to `std::mem::MaybeUninit<(u32, u32)>` in `pointers::Gap`, which the crate may put another object in place of
+fixtures/reject/src/pointers.rs:uninit_rows_mut+5:25: a mutable reborrow of `std::mem::MaybeUninit<[[u8; 2]; 2]>` through a raw pointer, which may point into part of an array with no JS array of its own, which is not supported yet
 fixtures/reject/src/pointers.rs:unit_elements+1:13: `offset_from` of pointers to `()`, which has no bytes
 fixtures/reject/src/pointers.rs:unit_elements+1:39: a slice of `()`, which has no bytes, from a pointer
 fixtures/reject/src/pointers.rs:variable_celled+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there

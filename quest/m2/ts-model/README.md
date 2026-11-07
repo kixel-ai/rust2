@@ -1,4 +1,4 @@
-# Translate moq-net's model to TypeScript
+# [L] Translate moq-net's model to TypeScript
 
 ## Goal
 
@@ -42,20 +42,19 @@ Decided with the maintainer on 2026-10-27, from a census of the model's 22 publi
 - The end-to-end work stays here: the model's roots, its differential harness, and the
   `frames.ts` workload. moq writes the binding files `model.toml` names, in its own tree.
 
-The census at the pin on 2026-11-06: 71 refusals. `Timestamp` alone refuses nothing, and
+The census at the pin on 2026-11-07: 51 refusals. `Timestamp` alone refuses nothing, and
 the [model fixture](/ts/README.md#tests)'s harness runs it against native moq-net at the
 pin; each case it adds as a type translates. Every other root reaches the rest of the
-model, so each child below unblocks all of them together. The rest is moq's, for its
-research quest: kio's `log.rs` reads bytes as its segments and retires them through
-crossbeam-epoch, whose tagged pointers and inline closures (36 refusals) translation
-refuses for good, and smallvec's union over a type parameter and raw parts (10) wait on
-[unsafe](/quest/m3/ts-unsafe/README.md), so moq rewrites or drops them, as it does the
-`unsafe` slice of `model/frame.rs`'s `Filled`.
+model, all of it moq's, for its research quest: kio's `log.rs` reads bytes as its segments
+and retires them through crossbeam-epoch, whose tagged pointers and inline closures (36
+refusals) translation refuses for good, and smallvec's union over a type parameter and
+raw parts (10) wait on [unsafe](/quest/m3/ts-unsafe/README.md), so moq rewrites or drops
+them, as it does the `unsafe` slice of `model/frame.rs`'s `Filled`.
 
 Decided with the maintainer on 2026-11-04, from a census at the bumped pin
-(moq-dev/rust2#390): the refusals no quest owned became the children below. ✅ arrayvec's
-`ArrayString` needs three of them (const generic types, `begin_panic`, `str::as_ptr`),
-kept separate since each lands alone; rejected: one quest for `ArrayString`.
+(moq-dev/rust2#390): the refusals no quest owned became child quests, since finished.
+✅ arrayvec's `ArrayString` needs three of them (const generic types, `begin_panic`,
+`str::as_ptr`), kept separate since each lands alone; rejected: one quest for `ArrayString`.
 
 Decided with the maintainer on 2026-11-07, after three designs for addresses as identity
 ([#596](https://github.com/moq-dev/rust2/pull/596)) each left values whose ids were never freed
@@ -73,9 +72,5 @@ or pointers whose comparison disagreed with Rust after an address was reused:
 - ✅ moq gives its `unsafe` no `cfg(rust2_ts)` twins; it decides per item, when its quest
   starts, whether to rewrite one in safe Rust for both builds or wait for this translator.
   Rejected: twins until [unsafe](/quest/m3/ts-unsafe/README.md) translates them.
-
-## Required
-
-- [A string's bytes through its pointer](/quest/m2/ts-model/str-as-ptr.md) - `str::as_ptr` reads the string's UTF-8
 
 Public API: the translator's output for moq-net's model.
