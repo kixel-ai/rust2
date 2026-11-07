@@ -18,6 +18,7 @@ import { AtIndex } from "./rs/collections.ts";
 import { escapeDebug } from "./rs/char.ts";
 import { byteSliceUtf8Chunks, String as RsString, strFromUtf8Unchecked, stringClone, stringCloneFrom, stringFrom, stringLen, stringNew, stringOf, stringPush, stringPushStr, stringWithCapacity } from "./rs/str.ts";
 export * from "./rs/alloc.ts";
+export * from "./rs/any.ts";
 export * from "./rs/ascii.ts";
 export * from "./rs/bytes.ts";
 export * from "./rs/char.ts";
@@ -221,6 +222,9 @@ export function ptrUnerase(p: Place<undefined>, type: string, align: number): un
  * of a `[u8; N]`'s, and the `ArraySlice` of a `[[T; N]; M]`'s.
  */
 export type Ptr<T> = T | Place<T> | ByteSlice | (T extends readonly (infer E)[] ? Slice<E> | ArraySlice<ArrayRef> : never);
+
+/** A generic union whose layout only an instance decides: its slots, each read cast to its part's type. */
+export type Slots = { [slot: string]: unknown };
 
 /** A generic type's `[T; N]`: the array, or the `Uint8Array` of a `[u8; N]`. */
 export type ArrayOf<T> = T[] | Uint8Array;
@@ -441,9 +445,30 @@ export function ptrCopy<T>(src: Place<T>, dst: Place<T>, n: number, copy?: (valu
 		(to.array as unknown as Uint8Array).set(bytes.subarray(from.index, from.index + n), to.index);
 		return;
 	}
-	const values = Array.from({ length: n }, (_, i) => from.array[from.index + i]);
+	const values = Array.from({ length: n }, (_, i) => elemGet(from.array, from.index + i));
 	// Memory nothing wrote yet is copied as it is, which no value's copy can read.
-	for (let i = 0; i < n; i++) to.array[to.index + i] = copy && values[i] !== undefined ? copy(values[i]) : values[i];
+	for (let i = 0; i < n; i++) elemSet(to.array, to.index + i, copy && values[i] !== undefined ? copy(values[i]) : values[i]);
+}
+
+/** Element `i` of `array`, or of the room past it, which `AtIndex.reach` found. */
+function elemGet<T>(array: { [i: number]: T }, i: number): T {
+	return i < (array as ArrayLike<T>).length ? array[i] : (roomPast<T>(array, i + 1) as Room<T>).get(i);
+}
+
+/** A write of element `i` of `array`, or of the room past it, which `AtIndex.reach` found. */
+function elemSet<T>(array: { [i: number]: T }, i: number, value: T): void {
+	if (i < (array as ArrayLike<T>).length) array[i] = value;
+	else (roomPast<T>(array, i + 1) as Room<T>).set(i, value);
+}
+
+/**
+ * The array a slice of `len` elements from `at` reads, from the same index: `at`'s own,
+ * or where it runs past it into a `Vec`'s room, a view of both.
+ */
+function sliceArray<T>(at: AtIndex<T>, len: number): T[] {
+	const end = at.index + len;
+	const room = end > (at.array as ArrayLike<T>).length ? roomPast<T>(at.array, end) : undefined;
+	return room !== undefined ? roomView(room, end) : (at.array as T[]);
 }
 
 /**
@@ -462,7 +487,7 @@ export function ptrSlice<T>(p: Place<T>, len: number): Slice<T> {
 	}
 	const at = elemOf(p);
 	at.reach(len);
-	return new Slice(at.array as T[], at.index, len);
+	return new Slice(sliceArray(at, len), at.index, len);
 }
 
 /**
@@ -869,7 +894,7 @@ export function byteOptionAsSlice(o: number | undefined): ByteSlice {
 export function sliceOfPlace<T>(p: Place<T>): Slice<T> {
 	const e = elemOf(p);
 	if (!(p instanceof AtIndex)) ONE.add(e.array);
-	return new Slice(e.array as T[], e.index, 1);
+	return new Slice(sliceArray(e, 1), e.index, 1);
 }
 
 /**
@@ -2347,12 +2372,7 @@ export function byteVecSpare(v: ByteVec): ByteSlice {
  * one that can't unwind, so it runs the hook, then aborts, as every panic here does.
  */
 export function byteVecSetLen(v: ByteVec, length: number): void {
-	if (length > v.data.length) {
-		panic(
-			"unsafe precondition(s) violated: Vec::set_len requires that new_len <= capacity()\n\nThis indicates a bug in the program. This Undefined Behavior check is optional, and cannot be relied on for safety.",
-			"vec_set_len",
-		);
-	}
+	if (length > v.data.length) panic(SET_LEN, "vec_set_len");
 	v.length = length;
 }
 
@@ -2545,6 +2565,144 @@ function capTried<T>(v: Vec<T>, cap: number | undefined): Result<undefined, TryR
 /** `Vec::shrink_to` of `size`-byte elements, and `shrink_to_fit` of 0. */
 export function vecShrinkTo<T>(v: Vec<T>, min: number, size: number): void {
 	vecHold(v, capShrink(v.items.length, vecCapacity(v, size), min));
+}
+
+// Spare capacity. A `Vec`'s items are a JS array as long as it is, which a write past its
+// end would lengthen, so what Rust keeps past its length is apart, in its `Room`: what a
+// write through a pointer from `as_ptr` or `as_mut_ptr`, or through a slot
+// `spare_capacity_mut` lends, put there, and what `set_len` gave up, by index, until
+// `set_len` takes it in.
+
+/**
+ * The room past a `Vec`'s length, up to its capacity: what each slot there holds. It is
+ * the allocation's, so it follows the items to whichever `rs.Vec` holds them now, as a
+ * move such as `mem::take` hands them to another.
+ */
+export class Room<T> {
+	/** The items, the allocation's array, which its views read before the room. */
+	readonly items: T[];
+	/** The `Vec` that last held the items, which gives the capacity. */
+	v: Vec<T>;
+	readonly size: number;
+	readonly slots = new Map<number, T>();
+	/** What a slot holds before any write: a `MaybeUninit` that holds nothing yet. */
+	uninit: (() => T) | undefined;
+
+	constructor(v: Vec<T>, size: number) {
+		this.items = v.items;
+		this.v = v;
+		this.size = size;
+	}
+
+	/** What slot `i` holds, kept so a write into its parts lands there. */
+	get(i: number): T {
+		if (this.slots.has(i)) return this.slots.get(i) as T;
+		const value = this.uninit?.() as T;
+		this.slots.set(i, value);
+		return value;
+	}
+
+	set(i: number, value: T): void {
+		this.slots.set(i, value);
+	}
+
+	/** What slot `i` holds, which leaves the room for the items. */
+	take(i: number): T {
+		const value = this.get(i);
+		this.slots.delete(i);
+		return value;
+	}
+}
+
+/** Each `Vec`'s room, by the items it is past. */
+const ROOMS = /* @__PURE__ */ new WeakMap<object, Room<unknown>>();
+
+/** `v`'s room, of `size`-byte elements. */
+function roomOf<T>(v: Vec<T>, size: number): Room<T> {
+	let room = ROOMS.get(v.items) as Room<T> | undefined;
+	if (room === undefined) {
+		room = new Room(v, size);
+		ROOMS.set(v.items, room);
+	}
+	room.v = v;
+	return room;
+}
+
+/**
+ * The room past `array` that holds its elements up to `end`, if `array` is the items of a
+ * `Vec` a pointer was taken from: within its capacity while that `Vec` holds them, and
+ * else unchecked, as the `Vec` they moved to is unknown here.
+ */
+export function roomPast<T>(array: object, end: number): Room<T> | undefined {
+	const room = ROOMS.get(array) as Room<T> | undefined;
+	if (room === undefined || (room.v.items === room.items && end > vecCapacity(room.v, room.size))) return undefined;
+	return room;
+}
+
+/** The traps of a view of a `Vec`'s storage, its items and then its room, from `start`. */
+class RoomView<T> extends View<T> {
+	readonly room: Room<T>;
+
+	constructor(room: Room<T>, items: T[], start: number, length: number) {
+		super(items, start, length);
+		this.room = room;
+	}
+
+	override part(start: number, length: number): RoomView<T> {
+		return new RoomView(this.room, this.s as T[], this.start + start, length);
+	}
+
+	override item(i: number): T {
+		return i < (this.s as T[]).length ? this.s[i] : this.room.get(i);
+	}
+
+	override put(i: number, value: T): void {
+		if (i < (this.s as T[]).length) this.s[i] = value;
+		else this.room.set(i, value);
+	}
+}
+
+/** The first `end` elements of the allocation `room` is past, its items and then itself, as a JS array read and written where they are. */
+function roomView<T>(room: Room<T>, end: number): T[] {
+	return new Proxy(new Array<T>(end), new RoomView(room, room.items, 0, end));
+}
+
+/** `Vec::as_ptr` and `as_mut_ptr` of `size`-byte elements: the pointer to its first, which reaches its room. */
+export function vecAsPtr<T>(v: Vec<T>, size: number): Place<T> {
+	roomOf(v, size);
+	return new AtIndex(v.items, 0);
+}
+
+/**
+ * `Vec::spare_capacity_mut` of `size`-byte elements: the slots past its length, each
+ * holding what `uninit` makes until a write.
+ */
+export function vecSpare<T>(v: Vec<T>, size: number, uninit: () => T): Slice<T> {
+	const cap = vecCapacity(v, size);
+	const room = roomOf(v, size);
+	room.uninit = uninit;
+	return new Slice(roomView(room, cap), v.items.length, cap - v.items.length);
+}
+
+/** What std's check of `set_len`'s precondition says. */
+const SET_LEN = "unsafe precondition(s) violated: Vec::set_len requires that new_len <= capacity()\n\nThis indicates a bug in the program. This Undefined Behavior check is optional, and cannot be relied on for safety.";
+
+/**
+ * `Vec::set_len` of `size`-byte elements: what it gives up kept in its room, and what it
+ * takes in from there, a slot never written holding what `uninit` makes. Past the
+ * capacity it panics, as `byteVecSetLen` does.
+ */
+export function vecSetLen<T>(v: Vec<T>, length: number, size: number, uninit: () => T): void {
+	const cap = vecCapacity(v, size);
+	if (length > cap) panic(SET_LEN, "vec_set_len");
+	vecHold(v, cap);
+	const items = v.items;
+	if (length === items.length) return;
+	const room = roomOf(v, size);
+	room.uninit = uninit;
+	for (let i = length; i < items.length; i++) room.set(i, items[i]);
+	for (let i = items.length; i < length; i++) items.push(room.take(i));
+	if (length < items.length) items.length = length;
 }
 
 /**

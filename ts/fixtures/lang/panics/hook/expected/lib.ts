@@ -39,6 +39,10 @@ export class of$String {
 	constructor(v: rs.String) {
 		this.v = v;
 	}
+
+	typeId$Any(): rs.TypeId {
+		return "1430db79e63c4bb92bf94c26df7c977d";
+	}
 }
 
 export class of$located_Inherits {
@@ -75,6 +79,10 @@ export class of$panics_Point {
 	constructor(v: Point.Point) {
 		this.v = v;
 	}
+
+	typeId$Any(): rs.TypeId {
+		return "37e450afe4d41be326161cb6b122df94";
+	}
 }
 
 export class of$ref_str {
@@ -83,6 +91,10 @@ export class of$ref_str {
 	constructor(v: string) {
 		this.v = v;
 	}
+
+	typeId$Any(): rs.TypeId {
+		return "24c161f26c70c1f1b9f602dc5fe9f65c";
+	}
 }
 
 export class of$u32 {
@@ -90,6 +102,10 @@ export class of$u32 {
 
 	constructor(v: rs.u32) {
 		this.v = v;
+	}
+
+	typeId$Any(): rs.TypeId {
+		return "79f19461b401588885a89e43144b08f1";
 	}
 }
 
@@ -104,16 +120,12 @@ export class of$u8 {
 		return at$located_Tracked_u8(this.v, caller);
 	}
 
+	typeId$Any(): rs.TypeId {
+		return "cfb1622e7734f8af272d8d182905dc25";
+	}
+
 	via$Tracked(): rs.Location {
 		return via$located_Tracked_u8(this.v);
-	}
-}
-
-export class ofPlace$ref_str {
-	v: rs.Place<string>;
-
-	constructor(v: rs.Place<string>) {
-		this.v = v;
 	}
 }
 
@@ -123,6 +135,10 @@ export class ofPlace$u32 {
 	constructor(v: rs.Place<rs.u32>) {
 		this.v = v;
 	}
+
+	typeId$Any(): rs.TypeId {
+		return "79f19461b401588885a89e43144b08f1";
+	}
 }
 
 export class ofPlace$u8 {
@@ -130,6 +146,10 @@ export class ofPlace$u8 {
 
 	constructor(v: rs.Place<rs.u8>) {
 		this.v = v;
+	}
+
+	typeId$Any(): rs.TypeId {
+		return "cfb1622e7734f8af272d8d182905dc25";
 	}
 }
 

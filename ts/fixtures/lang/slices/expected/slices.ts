@@ -1104,7 +1104,7 @@ export function subslices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			const l: rs.usize = _292[0];
 			const r: rs.usize = _292[1];
 			const at: rs.Place<rs.u16> = rs.sliceAsPtr(rs.sliceRange(rs.sliceFrom(words.items), l, r));
-			rs.byteVecPush(out, rs.ptrOffsetFrom(at, rs.arrayAsPtr(words.items)) & 0xff);
+			rs.byteVecPush(out, rs.ptrOffsetFrom(at, rs.vecAsPtr(words, 2)) & 0xff);
 			if (l > 0) {
 				rs.byteVecPush(out, rs.ptrAdd(at, -1).v & 0xff);
 			}

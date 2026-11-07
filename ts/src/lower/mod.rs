@@ -196,6 +196,8 @@ pub struct Translator<'a, 'tcx> {
 	instances: rustc_data_structures::fx::FxHashMap<Instance<'tcx>, SymId>,
 	queue: VecDeque<(Instance<'tcx>, SymId)>,
 	adts: rustc_data_structures::fx::FxHashMap<DefId, Adt>,
+	/// Each union instance's slots, by its type.
+	overlays: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, unions::Overlay<'tcx>>,
 	/// The fields of generic types whose definition types a form only an instance decides,
 	/// such as an `rs.Ptr` or an `rs.VecOf`, which an instance's read casts to what it
 	/// holds, with that type where a function type or a type argument in it takes one,
@@ -346,8 +348,9 @@ pub enum AdtRepr {
 	Tags,
 	/// An enum: an object per variant, tagged by its name.
 	Union,
-	/// A union: an object of slots, and each field's parts in them, as `unions` has it.
-	Slots(unions::Fields),
+	/// A union: an object of slots, and each field's parts in them, as `unions` lays each
+	/// instance out.
+	Slots(unions::Layout),
 }
 
 /// The JS fields of a struct's field.
@@ -497,6 +500,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			instances: Default::default(),
 			queue: VecDeque::new(),
 			adts: Default::default(),
+			overlays: Default::default(),
 			instanced_fields: Default::default(),
 			decided_fields: Default::default(),
 			sources: Default::default(),
@@ -1098,7 +1102,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	fn define(&mut self, adt: AdtDef<'tcx>, span: Span) -> Adt {
 		let tcx = self.tcx;
 		let did = adt.did();
-		let mut overlay = Vec::new();
+		let mut overlay = None;
 		let repr = match () {
 			_ if adt.is_struct() => {
 				let variant = adt.non_enum_variant();
@@ -1114,14 +1118,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			}
 			_ if adt.is_enum() && adt.variants().iter().all(|v| v.fields.is_empty()) => AdtRepr::Tags,
 			_ if adt.is_enum() => AdtRepr::Union,
-			_ => match self.overlay(adt, span) {
-				Ok((fields, slots)) => {
-					overlay = slots;
-					AdtRepr::Slots(fields)
+			// A union whose layout only an instance decides is laid out by each.
+			_ => match self.defined_overlay(adt) {
+				Ok((layout, slots)) => {
+					overlay = (layout == unions::Layout::Typed).then_some(slots);
+					AdtRepr::Slots(layout)
 				}
 				Err(msg) => {
 					self.err(span, msg);
-					AdtRepr::Slots(vec![Vec::new(); adt.non_enum_variant().fields.len()])
+					overlay = Some(Vec::new());
+					AdtRepr::Slots(unions::Layout::Refused)
 				}
 			},
 		};
@@ -1236,7 +1242,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			AdtRepr::Slots(_) => Item::Union {
 				sym,
 				params,
-				ty: self.overlay_ty(overlay, span),
+				ty: match overlay.take() {
+					Some(slots) => self.overlay_ty(slots, span),
+					None => Type::Rs("Slots", Vec::new()),
+				},
 				doc: self.doc(did),
 			},
 			AdtRepr::Union => {
@@ -1834,6 +1843,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::Hasher => Type::Rs("Hasher", vec![]),
 				library::Std::RandomState => Type::Rs("RandomState", vec![]),
 				library::Std::Duration => Type::Rs("Duration", vec![]),
+				library::Std::TypeId => Type::Rs("TypeId", vec![]),
 				library::Std::Layout => Type::Rs("Layout", vec![]),
 				library::Std::Location => Type::Rs("Location", vec![]),
 				library::Std::PanicHookInfo => Type::Rs("PanicHookInfo", vec![]),

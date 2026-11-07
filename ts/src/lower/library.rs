@@ -190,6 +190,9 @@ pub enum Std {
 	BuildHasherDefault,
 	/// `rs.Duration`: its seconds and nanoseconds, never changed once made.
 	Duration,
+	/// `rs.TypeId`: rustc's 128-bit hash of the type, which std's `TypeId` holds at run time,
+	/// as 32 hex digits.
+	TypeId,
 	/// `rs.Layout`: its size and alignment, never changed once made.
 	Layout,
 	/// `rs.Location`: a panic's file, line, and column, never changed once made.
@@ -297,6 +300,7 @@ impl Std {
 			}
 		}
 		for (item, std) in [
+			(rustc_attr_ir::LangItem::TypeId, Self::TypeId),
 			(rustc_attr_ir::LangItem::UnsafeCell, Self::Cell),
 			(rustc_attr_ir::LangItem::Context, Self::Context),
 			(rustc_attr_ir::LangItem::ResumeTy, Self::Context),
@@ -2742,12 +2746,25 @@ fn mapping<'tcx>(
 		// The room past a byte vector's length, a slice of its storage.
 		("Vec", "spare_capacity_mut") if byte(targ(gargs, 0)) => Expr::rs("byteVecSpare", args),
 		("Vec", "set_len") if byte(targ(gargs, 0)) => Expr::rs("byteVecSetLen", args),
-		// The room past its length, which no JS array holds.
-		("Vec", "spare_capacity_mut") => {
-			return Some(b.err(
-				span,
-				"`Vec::spare_capacity_mut` of other than bytes, whose room past its length no JS array holds, which is not supported yet",
-			));
+		// The room past any other's, which the runtime keeps apart from its items, given
+		// the size its capacity grows by and what a slot holds before a write.
+		("Vec", "spare_capacity_mut" | "set_len") => {
+			let elem = targ(gargs, 0);
+			let uninit = Ty::new_maybe_uninit(tcx, elem);
+			let value = b.t.uninit(uninit, span);
+			let each = Expr::Arrow(
+				Vec::new(),
+				b.t.ty(uninit, span),
+				vec![StmtKind::Return(Some(value)).at(None)],
+			);
+			let mut values = args;
+			values.push(super::iter::size_of(b, elem, span));
+			values.push(each);
+			let f = match name.as_str() {
+				"set_len" => "vecSetLen",
+				_ => "vecSpare",
+			};
+			Expr::rs(f, values)
 		}
 		// Its elements, which nothing drops.
 		("Vec", "leak") => {

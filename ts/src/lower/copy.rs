@@ -377,18 +377,19 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 							body
 						}
 						// A slot no field was written into yet holds nothing.
-						AdtRepr::Slots(_) => {
-							let (_, slots) = self.overlay(*adt, span).expect("a union is laid out where it is made");
+						AdtRepr::Slots(layout) => {
+							let (_, slots) = self.laid_out(*adt, args, span);
 							let ts_ty = self.ty(ty, span);
 							let slots = slots
 								.into_iter()
 								.map(|(name, slot_ty)| {
-									let slot_ty = instantiate(tcx, self.typing_env(), slot_ty, args);
-									let value = self.snapshot(
-										v().member(name.clone()),
-										Ty::new_maybe_uninit(tcx, slot_ty),
-										span,
-									);
+									let read = match layout {
+										super::unions::Layout::Open => {
+											Expr::As(Box::new(v().member(name.clone())), self.ty(slot_ty, span))
+										}
+										_ => v().member(name.clone()),
+									};
+									let value = self.snapshot(read, Ty::new_maybe_uninit(tcx, slot_ty), span);
 									(name, value)
 								})
 								.collect();

@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { type ArrayRef, ArraySlice, arraySliceOfSlice, Borrowed, ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity } from "../rs.ts";
+import { type ArrayRef, ArraySlice, arraySliceOfSlice, Borrowed, ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, type Room, roomPast, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity } from "../rs.ts";
 import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
 import type { HashKey, Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
@@ -411,26 +411,30 @@ export class AtIndex<T> implements Place<T> {
 	}
 
 	get v(): T {
-		this.reach(1);
-		return this.array[this.index];
+		if (this.index >= 0 && this.index < (this.array as ArrayLike<T>).length) return this.array[this.index];
+		return this.room(1).get(this.index);
 	}
 
 	set v(value: T) {
-		this.reach(1);
-		this.array[this.index] = value;
+		if (this.index >= 0 && this.index < (this.array as ArrayLike<T>).length) this.array[this.index] = value;
+		else this.room(1).set(this.index, value);
 	}
 
 	/**
 	 * Fails where `n` elements from here run past either end of the array, which JS
-	 * doesn't keep Rust's memory around: a JS array grows by a write past its end, where a
-	 * `Vec`'s length stays until `set_len`, and a shared subslice is a copy, which a
-	 * pointer moved past it would read nothing of.
+	 * doesn't keep Rust's memory around, but into the room of the `Vec` it is the items
+	 * of: a shared subslice is a copy, which a pointer moved past it would read nothing of.
 	 */
 	reach(n: number): void {
-		const length = (this.array as ArrayLike<T>).length;
-		if (this.index < 0 || this.index + n > length) {
-			throw new Error("rust2-ts: a read or write through a pointer past the array JS keeps it in");
-		}
+		if (this.index >= 0 && this.index + n <= (this.array as ArrayLike<T>).length) return;
+		this.room(n);
+	}
+
+	/** The room past the array that holds `n` elements from here, which `reach` requires. */
+	private room(n: number): Room<T> {
+		const room = this.index >= 0 ? roomPast<T>(this.array, this.index + n) : undefined;
+		if (room === undefined) throw new Error("rust2-ts: a read or write through a pointer past the array JS keeps it in");
+		return room;
 	}
 }
 

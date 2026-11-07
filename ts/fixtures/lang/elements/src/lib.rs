@@ -4,6 +4,7 @@
 mod elements;
 #[path = "../../harness.rs"]
 pub mod harness;
+mod spare;
 #[cfg(target_arch = "wasm32")]
 #[path = "../../../wasm.rs"]
 mod wasm;
@@ -23,5 +24,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("elements::edges", |_, data, out| elements::edges(data, out)),
 		("elements::raw_slices", |_, data, out| elements::raw_slices(data, out)),
 		("elements::empty_parts", |_, data, out| elements::empty_parts(data, out)),
+		("spare::spares", spare::spares),
 	]
 }

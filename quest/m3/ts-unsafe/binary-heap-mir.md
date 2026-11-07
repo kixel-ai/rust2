@@ -15,7 +15,3 @@ No consumer at the moq pin; the port works but must track std by hand. The B-tre
 [#577](https://github.com/moq-dev/rust2/pull/577) is the precedent.
 
 Public API: the translator's output.
-
-## Required
-
-- [A Vec's spare capacity](/quest/m3/ts-unsafe/vec-spare-capacity.md) - std's `PeekMut` calls `set_len`
