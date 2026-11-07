@@ -11,7 +11,7 @@ export function map$0k3subg(self: rs.Slice<rs.String> | undefined, _: (a0: rs.Sl
 	return sumTexts(self);
 }
 
-export function map$1fgo7n1(self: rs.Slice<Uint8Array> | undefined, _: (a0: rs.Slice<Uint8Array>) => rs.u8): rs.u8 | undefined {
+export function map$10ynzkb(self: rs.ArraySlice<rs.ByteSlice> | undefined, _: (a0: rs.ArraySlice<rs.ByteSlice>) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -46,7 +46,7 @@ export function mapOr$1jad7d1(self: rs.Slice<rs.String> | undefined, default_: r
 	return sumTexts(self);
 }
 
-export function mapOr$1bxom2b(self: rs.Slice<Uint8Array> | undefined, default_: rs.u8, _: (a0: rs.Slice<Uint8Array>) => rs.u8): rs.u8 {
+export function mapOr$08f08k5(self: rs.ArraySlice<rs.ByteSlice> | undefined, default_: rs.u8, _: (a0: rs.ArraySlice<rs.ByteSlice>) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}

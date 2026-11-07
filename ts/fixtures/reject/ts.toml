@@ -169,6 +169,7 @@ roots = [
     "pointers::variable_reassigned",
     "pointers::variable_replaced",
     "pointers::variable_swapped",
+    "pointers::written_bytes",
     "rebound::bytes_compared_rebound",
     "rebound::cell_rebound",
     "rebound::chosen_compared_rebound",

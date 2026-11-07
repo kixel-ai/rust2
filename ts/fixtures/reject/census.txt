@@ -218,8 +218,10 @@ fixtures/reject/src/pointers.rs:range_of+1:2: a raw pointer to `(u32, u32)` in `
 fixtures/reject/src/pointers.rs:rc_raw_bytes+1:11: an `Rc`'s raw pointer to `[u8; 4]`, which JS makes anew each time
 fixtures/reject/src/pointers.rs:reached_out+7:6: a slice reaching past a value in no array, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/pointers.rs:reached_out+8:27: a pointer reaching past a value in no array, which JS keeps apart from what holds it in Rust
+fixtures/reject/src/pointers.rs:uninit_part_mut+5:25: a mutable reborrow of `std::mem::MaybeUninit<[u32; 2]>` through a raw pointer, which may point into part of an array with no JS array of its own, which is not supported yet
 fixtures/reject/src/pointers.rs:uninit_part_replaced+5:19: a raw pointer to `std::mem::MaybeUninit<(u32, u32)>` in `pointers::Gap`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:uninit_part_replaced+6:19: a raw pointer to `std::mem::MaybeUninit<(u32, u32)>` in `pointers::Gap`, which the crate may put another object in place of
+fixtures/reject/src/pointers.rs:uninit_rows_mut+5:25: a mutable reborrow of `std::mem::MaybeUninit<[[u8; 2]; 2]>` through a raw pointer, which may point into part of an array with no JS array of its own, which is not supported yet
 fixtures/reject/src/pointers.rs:unit_elements+1:13: `offset_from` of pointers to `()`, which has no bytes
 fixtures/reject/src/pointers.rs:unit_elements+1:39: a slice of `()`, which has no bytes, from a pointer
 fixtures/reject/src/pointers.rs:variable_celled+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
@@ -228,6 +230,8 @@ fixtures/reject/src/pointers.rs:variable_cloned_into+2:10: a raw pointer to `(u3
 fixtures/reject/src/pointers.rs:variable_reassigned+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:variable_replaced+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:variable_swapped+3:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
+fixtures/reject/src/pointers.rs:written_bytes+2:3: `write_bytes` of a pointer to `u32`, whose bytes JS keeps as a value
+fixtures/reject/src/pointers.rs:written_bytes+3:16: a write reaching past a value in no array, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/rebound.rs:bytes_compared_rebound+2:19: a reference to `[u8; 4]`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there
 fixtures/reject/src/rebound.rs:cell_rebound+2:18: a reference to `std::cell::UnsafeCell<u64>`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there
 fixtures/reject/src/rebound.rs:chosen_compared_rebound+3:17: a reference to `rebound::Chosen`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there
