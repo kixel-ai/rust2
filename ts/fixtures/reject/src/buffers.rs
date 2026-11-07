@@ -23,8 +23,3 @@ impl bytes::Buf for Blank {
 pub fn blank_bytes(len: usize) -> usize {
 	bytes::Buf::copy_to_bytes(&mut Blank::Empty, len).len()
 }
-
-/// The room past a vector's length, whose size is its capacity.
-pub fn spare(v: &mut Vec<u16>) -> usize {
-	v.spare_capacity_mut().len()
-}

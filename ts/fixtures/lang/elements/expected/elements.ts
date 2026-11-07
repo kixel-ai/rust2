@@ -20,7 +20,7 @@ export function vecs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtend(v, rs.iterSlice([7, 8]), undefined, 4, true);
 	const len: rs.usize = v.items.length;
 	const at: rs.usize = rs.usizeRem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.usize, rs.usizeSub(len, 1));
-	const p: rs.Place<rs.u32> = rs.arrayAsPtr(v.items);
+	const p: rs.Place<rs.u32> = rs.vecAsPtr(v, 4);
 	rs.ptrCopy(rs.ptrAdd(p, at), rs.ptrAdd(p, rs.usizeAdd(at, 1)), rs.usizeSub(rs.usizeSub(len, at), 1));
 	rs.ptrAdd(p, at).v = 1000;
 	emit(rs.ptrSlice(p, len), out);
@@ -41,9 +41,9 @@ export function vecs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	part.data[part.start] = rs.u32Add(part.data[part.start], 3);
 	rs.sliceReverse(part);
 	const w: rs.Vec<rs.u32> = rs.vecFromElem(0, len, undefined);
-	rs.ptrCopy(p, rs.arrayAsPtr(w.items), len);
-	rs.ptrCopy(p, rs.ptrAdd(rs.arrayAsPtr(w.items), at), 1);
-	rs.ptrCopy(p, rs.ptrAdd(rs.arrayAsPtr(w.items), rs.usizeSub(len, 1)), 1);
+	rs.ptrCopy(p, rs.vecAsPtr(w, 4), len);
+	rs.ptrCopy(p, rs.ptrAdd(rs.vecAsPtr(w, 4), at), 1);
+	rs.ptrCopy(p, rs.ptrAdd(rs.vecAsPtr(w, 4), rs.usizeSub(len, 1)), 1);
 	emit(rs.sliceFrom(w.items), out);
 	emit(rs.sliceFrom(v.items), out);
 	rs.byteVecPush(out, rs.ptrAdd(rs.sliceAsPtr(rs.sliceFrom(v.items)), rs.usizeDiv(len, 2)).v & 0xff);
@@ -182,7 +182,7 @@ export function inline(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return [_22, 4] as [rs.u8, rs.u8];
 	})]).map(copy$Option_tuple2_u8_u8));
 	const dst: rs.Vec<[rs.u8, rs.u8] | undefined> = rs.vecFromElem(undefined as [rs.u8, rs.u8] | undefined, 3, copy$Option_tuple2_u8_u8);
-	rs.ptrCopy(rs.arrayAsPtr(src.items), rs.arrayAsPtr(dst.items), 3, copy$Option_tuple2_u8_u8);
+	rs.ptrCopy(rs.vecAsPtr(src, 3), rs.vecAsPtr(dst, 3), 3, copy$Option_tuple2_u8_u8);
 	const at2 = rs.idx(dst.items, 0);
 	if (dst.items[at2] !== undefined) {
 		dst.items[at2][0] = 9;
@@ -343,7 +343,7 @@ export function rawSlices(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return _2 as rs.u32;
 	}), rs.iterSlice([5, 6, 7])), undefined, 4, true);
 	const len: rs.usize = v.items.length;
-	const p: rs.RawSlice<rs.u32> = new rs.RawSlice(rs.arrayAsPtr(v.items), len);
+	const p: rs.RawSlice<rs.u32> = new rs.RawSlice(rs.vecAsPtr(v, 4), len);
 	rs.idx(p, 0);
 	const slice = p.deref();
 	const _19: rs.u32 = rs.u32Add(slice.data[slice.start], 1);
@@ -381,7 +381,7 @@ export function rawSlices(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const long: rs.RawSlice<rs.u32> = new rs.RawSlice(rs.sliceAsPtr(rs.sliceFrom(short)), 10);
 	rs.byteVecPush(out, long.length & 0xff);
 	rs.byteVecPush(out, rs.ptrAdd(long.ptr, 1).v & 0xff);
-	const pointer = rs.arrayAsPtr(v.items);
+	const pointer = rs.vecAsPtr(v, 4);
 	const nn: rs.RawSlice<rs.u32> = new rs.RawSlice(rs.optionUnwrap(pointer === rs.NULL ? undefined : pointer), 2);
 	rs.byteVecPush(out, nn.length & 0xff);
 	const _103: rs.RawSlice<rs.u32> = nn;
