@@ -120,11 +120,8 @@ export function scramble(b: rs.ByteSlice): void {
 	const iterS: Uint8Array = b.data;
 	let iterI: number = b.start;
 	const iterE: number = b.start + b.length;
-	while (true) {
-		const _6: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-		if (_6 === rs.DONE) {
-			break;
-		}
+	while (iterI < iterE) {
+		const _6: number = iterI++;
 		iterS[_6] = rs.u8WrappingAdd(iterS[_6], 1);
 	}
 	const _12: rs.Place<rs.u8> | undefined = rs.sliceFirstMut(b);

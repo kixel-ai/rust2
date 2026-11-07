@@ -629,6 +629,31 @@ fn loops(
 			}
 		}
 		let stmt = &mut stmts[at];
+		// Any other loop over an iterator stepped in place tests for an item as its own
+		// condition, `while (i < s.length) { const item = s[i++]; ... }`, which V8 and
+		// JavaScriptCore step as a counted loop, where a test of the item against
+		// `rs.DONE` costs several times as much.
+		if let StmtKind::While { label, cond, body } = &mut stmt.kind
+			&& matches!(cond, Expr::Lit(l) if l == "true")
+			&& let Some((test, item)) = stepped_header(body, label.as_deref())
+		{
+			*cond = test;
+			body.remove(1);
+			if let StmtKind::Decl { ty, init, .. } = &mut body[0].kind {
+				*init = Some(item);
+				*ty = ty.take().map(|ty| match ty {
+					Type::Union(mut tys) => {
+						tys.retain(|t| !matches!(t, Type::Rs(name, _) if *name == "Done"));
+						match tys.len() {
+							1 => tys.pop().unwrap(),
+							_ => Type::Union(tys),
+						}
+					}
+					ty => ty,
+				});
+			}
+		}
+		let stmt = &mut stmts[at];
 		at += 1;
 		match &mut stmt.kind {
 			StmtKind::If { then, els, .. } => {
@@ -743,6 +768,43 @@ fn header(body: &[Stmt], label: Option<&str>) -> Option<(String, String, String)
 	let tests = matches!(peel(cond), Expr::Binary(l, "===", r)
 		if same(l, item) && matches!(peel(r), Expr::Rs(d) if d == "DONE"));
 	(leaves && tests && els.is_empty()).then(|| (item.clone(), array.clone(), index.clone()))
+}
+
+/// The test and the item of a loop that starts `const item = test ? next : rs.DONE; if
+/// (item === rs.DONE) break;`, the `break` leaving it, where `next` steps an iterator in
+/// place: `s[i++]`, or `i++` of one lending each item as its index, neither ever `rs.DONE`.
+fn stepped_header(body: &[Stmt], label: Option<&str>) -> Option<(Expr, Expr)> {
+	let [next, test, ..] = body else {
+		return None;
+	};
+	let StmtKind::Decl {
+		mutable: false,
+		name: item,
+		init: Some(init),
+		..
+	} = &next.kind
+	else {
+		return None;
+	};
+	let Expr::Cond(c, a, b) = peel(init) else {
+		return None;
+	};
+	let steps = |e: &Expr| matches!(peel(e), Expr::Postfix(i, "++") if matches!(peel(i), Expr::Ident(_)));
+	let stepped = match peel(a) {
+		Expr::Index(s, i) => matches!(peel(s), Expr::Ident(_)) && steps(i),
+		e => steps(e),
+	};
+	if !stepped || !matches!(peel(b), Expr::Rs(done) if done == "DONE") {
+		return None;
+	}
+	let StmtKind::If { cond, then, els } = &test.kind else {
+		return None;
+	};
+	let leaves = matches!(then.as_slice(), [Stmt { kind: StmtKind::Break(target), .. }]
+		if target.is_none() || target.as_deref() == label);
+	let tests = matches!(peel(cond), Expr::Binary(l, "===", r)
+		if matches!(peel(l), Expr::Ident(n) if n == item) && matches!(peel(r), Expr::Rs(d) if d == "DONE"));
+	(leaves && tests && els.is_empty()).then(|| ((**c).clone(), (**a).clone()))
 }
 
 /// `e` without its source location.

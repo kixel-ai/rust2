@@ -52,12 +52,8 @@ export function copied(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const iterS2: rs.Result<rs.u8, rs.u8>[] = results.items;
 	let iterI2: number = 0;
 	const iterE: number = results.items.length;
-	l3: while (true) {
-		const _34: number | rs.Done = iterI2 < iterE ? iterI2++ : rs.DONE;
-		if (_34 === rs.DONE) {
-			break;
-		}
-		const iter3: rs.Iter<rs.Place<rs.u8>> = rs.iterOption(rs.resultAsMut(rs.arrayAsPtr(iterS2, _34)));
+	l3: while (iterI2 < iterE) {
+		const iter3: rs.Iter<rs.Place<rs.u8>> = rs.iterOption(rs.resultAsMut(rs.arrayAsPtr(iterS2, iterI2++)));
 		while (true) {
 			const _41: rs.Place<rs.u8> | rs.Done = iter3.next();
 			if (_41 === rs.DONE) {
@@ -69,12 +65,8 @@ export function copied(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const iterS3: rs.Result<rs.u8, rs.u8>[] = results.items;
 	let iterI3: number = 0;
 	const iterE2: number = results.items.length;
-	l6: while (true) {
-		const _50: number | rs.Done = iterI3 < iterE2 ? iterI3++ : rs.DONE;
-		if (_50 === rs.DONE) {
-			break;
-		}
-		const iter5: rs.Iter<rs.Place<rs.u8>> = rs.iterOption(rs.resultAsMut(rs.arrayAsPtr(iterS3, _50)));
+	l6: while (iterI3 < iterE2) {
+		const iter5: rs.Iter<rs.Place<rs.u8>> = rs.iterOption(rs.resultAsMut(rs.arrayAsPtr(iterS3, iterI3++)));
 		while (true) {
 			const _56: rs.Place<rs.u8> | rs.Done = iter5.next();
 			if (_56 === rs.DONE) {
@@ -186,12 +178,8 @@ export function owned(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const iterS3: rs.Result<Logged.Logged, Logged.Logged>[] = results.items;
 	let iterI3: number = 0;
 	const iterE: number = results.items.length;
-	l7: while (true) {
-		const _59: number | rs.Done = iterI3 < iterE ? iterI3++ : rs.DONE;
-		if (_59 === rs.DONE) {
-			break;
-		}
-		const iter5: rs.Iter<Logged.Logged> = rs.iterResult(iterS3[_59]);
+	l7: while (iterI3 < iterE) {
+		const iter5: rs.Iter<Logged.Logged> = rs.iterResult(iterS3[iterI3++]);
 		while (true) {
 			const _65: Logged.Logged | rs.Done = iter5.next();
 			if (_65 === rs.DONE) {
@@ -248,12 +236,8 @@ export function units(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const iterS: rs.Result<undefined, rs.u8>[] = results.items;
 	let iterI: number = 0;
 	const iterE: number = results.items.length;
-	while (true) {
-		const _16: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-		if (_16 === rs.DONE) {
-			break;
-		}
-		const it: rs.Iter<rs.Place<undefined>> = rs.iterOption(rs.resultAsMut(rs.arrayAsPtr(iterS, _16)));
+	while (iterI < iterE) {
+		const it: rs.Iter<rs.Place<undefined>> = rs.iterOption(rs.resultAsMut(rs.arrayAsPtr(iterS, iterI++)));
 		rs.byteVecPush(out, rs.iterToOption(it.next()) !== undefined ? 1 : 0);
 		rs.byteVecPush(out, rs.iterToOption(it.next()) !== undefined ? 1 : 0);
 	}
@@ -367,12 +351,8 @@ export function arrays$0(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const iterS: rs.Result<Uint8Array, rs.u8>[] = results.items;
 	let iterI: number = 0;
 	const iterE: number = results.items.length;
-	l7: while (true) {
-		const _51: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-		if (_51 === rs.DONE) {
-			break;
-		}
-		const iter5: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterResult(iterS[_51]), rs.byteSliceFrom);
+	l7: while (iterI < iterE) {
+		const iter5: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterResult(iterS[iterI++]), rs.byteSliceFrom);
 		while (true) {
 			const _58: rs.ByteSlice | rs.Done = iter5.next();
 			if (_58 === rs.DONE) {
@@ -477,12 +457,8 @@ export function arrays$1(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const iterS: rs.Result<Uint8Array, rs.u8>[] = results.items;
 	let iterI: number = 0;
 	const iterE: number = results.items.length;
-	l7: while (true) {
-		const _51: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-		if (_51 === rs.DONE) {
-			break;
-		}
-		const iter5: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterResult(iterS[_51]), rs.byteSliceFrom);
+	l7: while (iterI < iterE) {
+		const iter5: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterResult(iterS[iterI++]), rs.byteSliceFrom);
 		while (true) {
 			const _58: rs.ByteSlice | rs.Done = iter5.next();
 			if (_58 === rs.DONE) {
@@ -587,12 +563,8 @@ export function arrays$5(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const iterS: rs.Result<Uint8Array, rs.u8>[] = results.items;
 	let iterI: number = 0;
 	const iterE: number = results.items.length;
-	l7: while (true) {
-		const _51: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-		if (_51 === rs.DONE) {
-			break;
-		}
-		const iter5: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterResult(iterS[_51]), rs.byteSliceFrom);
+	l7: while (iterI < iterE) {
+		const iter5: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterResult(iterS[iterI++]), rs.byteSliceFrom);
 		while (true) {
 			const _58: rs.ByteSlice | rs.Done = iter5.next();
 			if (_58 === rs.DONE) {
@@ -697,21 +669,15 @@ export function optionSlices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): 
 				const iterS2: Array<rs.u16 | undefined> = wides;
 				let iterI2: number = 0;
 				const iterE: number = wides.length;
-				while (true) {
-					const _60: number | rs.Done = iterI2 < iterE ? iterI2++ : rs.DONE;
-					if (_60 === rs.DONE) {
-						break;
-					}
+				while (iterI2 < iterE) {
+					const _60: number = iterI2++;
 					const borrowed = iterS2;
 					const _65: rs.Slice<rs.u16> = iterS2[_60] === undefined ? rs.sliceFrom([]) : rs.sliceOfPlace(rs.place(() => borrowed[_60] as rs.u16, (value4) => borrowed[_60] = value4));
 					const iterS3: rs.u16[] = _65.data;
 					let iterI3: number = _65.start;
 					const iterE2: number = _65.start + _65.length;
-					while (true) {
-						const _67: number | rs.Done = iterI3 < iterE2 ? iterI3++ : rs.DONE;
-						if (_67 === rs.DONE) {
-							break;
-						}
+					while (iterI3 < iterE2) {
+						const _67: number = iterI3++;
 						iterS3[_67] = iterS3[_67] ^ 3855;
 					}
 					const borrowed2 = iterS2;
@@ -767,11 +733,8 @@ export function swapHalves(o: rs.Place<rs.u16 | undefined>): void {
 	const iterS: rs.u16[] = _3.data;
 	let iterI: number = _3.start;
 	const iterE: number = _3.start + _3.length;
-	while (true) {
-		const _5: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-		if (_5 === rs.DONE) {
-			break;
-		}
+	while (iterI < iterE) {
+		const _5: number = iterI++;
 		iterS[_5] = rs.intSwapBytes(iterS[_5], 16, false);
 	}
 }

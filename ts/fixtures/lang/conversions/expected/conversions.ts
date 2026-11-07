@@ -4234,12 +4234,8 @@ export function lentOne$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const iterS: Array<rs.u16 | undefined> = _58.data;
 	let iterI: number = _58.start;
 	const iterE: number = _58.start + _58.length;
-	while (true) {
-		const _61: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-		if (_61 === rs.DONE) {
-			break;
-		}
-		iterS[_61] = make$conversions_Value_Option_u16(data, 9);
+	while (iterI < iterE) {
+		iterS[iterI++] = make$conversions_Value_Option_u16(data, 9);
 	}
 	put$conversions_Value_Option_u16(c, out);
 	put$conversions_Value_Option_u16(a, out);
@@ -4649,12 +4645,8 @@ export function lentOne$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const iterS: rs.u32[] = _58.data;
 	let iterI: number = _58.start;
 	const iterE: number = _58.start + _58.length;
-	while (true) {
-		const _61: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-		if (_61 === rs.DONE) {
-			break;
-		}
-		iterS[_61] = make$conversions_Value_u32(data, 9);
+	while (iterI < iterE) {
+		iterS[iterI++] = make$conversions_Value_u32(data, 9);
 	}
 	put$conversions_Value_u32(c, out);
 	put$conversions_Value_u32(a, out);
@@ -4692,12 +4684,8 @@ export function lentOne$u64(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const iterS: rs.u64[] = _58.data;
 	let iterI: number = _58.start;
 	const iterE: number = _58.start + _58.length;
-	while (true) {
-		const _61: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-		if (_61 === rs.DONE) {
-			break;
-		}
-		iterS[_61] = make$conversions_Value_u64(data, 9);
+	while (iterI < iterE) {
+		iterS[iterI++] = make$conversions_Value_u64(data, 9);
 	}
 	put$conversions_Value_u64(c, out);
 	put$conversions_Value_u64(a, out);

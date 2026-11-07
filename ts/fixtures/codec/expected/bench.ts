@@ -801,11 +801,8 @@ export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			const iterS: rs.u64[] = part.data;
 			let iterI: number = part.start;
 			const iterE: number = part.start + part.length;
-			while (true) {
-				const _111: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-				if (_111 === rs.DONE) {
-					break;
-				}
+			while (iterI < iterE) {
+				const _111: number = iterI++;
 				iterS[_111] = rs.u64WrappingAdd(iterS[_111], 1);
 			}
 			const _120: rs.usize = rs.usizeSub(part.length, 1);

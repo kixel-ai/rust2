@@ -52,11 +52,8 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 		const iterS: Tally.Tally[] = boxed.items;
 		let iterI: number = 0;
 		const iterE: number = boxed.items.length;
-		while (true) {
-			const _113: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-			if (_113 === rs.DONE) {
-				break;
-			}
+		while (iterI < iterE) {
+			const _113: number = iterI++;
 			iterS[_113].add$Tally(input.data[input.start + 2]);
 			const _122: rs.u8 = iterS[_113].count$Tally() & 0xff;
 			rs.byteVecPush(out, _122);

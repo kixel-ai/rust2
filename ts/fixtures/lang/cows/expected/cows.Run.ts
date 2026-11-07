@@ -37,11 +37,8 @@ export function bump(self: Run): void {
 	const iterS: rs.u16[] = owned.items;
 	let iterI: number = 0;
 	const iterE: number = owned.items.length;
-	while (true) {
-		const _8: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-		if (_8 === rs.DONE) {
-			break;
-		}
+	while (iterI < iterE) {
+		const _8: number = iterI++;
 		iterS[_8] = rs.u16WrappingAdd(iterS[_8], 1);
 	}
 }

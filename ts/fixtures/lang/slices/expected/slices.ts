@@ -141,11 +141,8 @@ export function scribble(i: rs.usize, chunk: rs.ByteSlice): void {
 	const iterS: Uint8Array = chunk.data;
 	let iterI: number = chunk.start;
 	const iterE: number = chunk.start + chunk.length;
-	while (true) {
-		const _26: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-		if (_26 === rs.DONE) {
-			break;
-		}
+	while (iterI < iterE) {
+		const _26: number = iterI++;
 		iterS[_26] = iterS[_26] ^ 90;
 	}
 }
@@ -579,11 +576,8 @@ export function chunked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 			const iterS: rs.u16[] = _885.data;
 			let iterI: number = _885.start;
 			const iterE: number = _885.start + _885.length;
-			while (true) {
-				const _888: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-				if (_888 === rs.DONE) {
-					break;
-				}
+			while (iterI < iterE) {
+				const _888: number = iterI++;
 				iterS[_888] = rs.u16WrappingAdd(iterS[_888], 1);
 			}
 			const _894: Pair.Pair | undefined = rs.sliceFirst(rs.partsRemainder(rs.sliceChunksExact(rs.sliceFrom(pairs.items), size)));
@@ -3216,11 +3210,8 @@ export function itemWrites(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 				const iterS: rs.u64[] = part.data;
 				let iterI: number = part.start;
 				const iterE: number = part.start + part.length;
-				while (true) {
-					const _31: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-					if (_31 === rs.DONE) {
-						break;
-					}
+				while (iterI < iterE) {
+					const _31: number = iterI++;
 					iterS[_31] = rs.u64WrappingAdd(iterS[_31], 1);
 				}
 				const _38: rs.Slice<rs.u64> = rs.sliceRange(rs.sliceFrom(wide.items), cut);
@@ -3251,11 +3242,8 @@ export function itemWrites(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 				const iterS3: rs.u32[] = array;
 				let iterI3: number = 0;
 				const iterE3: number = array.length;
-				while (true) {
-					const _64: number | rs.Done = iterI3 < iterE3 ? iterI3++ : rs.DONE;
-					if (_64 === rs.DONE) {
-						break;
-					}
+				while (iterI3 < iterE3) {
+					const _64: number = iterI3++;
 					iterS3[_64] = rs.intRotateLeft(iterS3[_64], 5, 32, false);
 				}
 				rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(array), (x: rs.u32): Uint8Array => {
@@ -3264,11 +3252,8 @@ export function itemWrites(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 				const iterS4: Uint8Array = bytes.data;
 				let iterI4: number = 0;
 				const iterE4: number = bytes.length;
-				while (true) {
-					const _78: number | rs.Done = iterI4 < iterE4 ? iterI4++ : rs.DONE;
-					if (_78 === rs.DONE) {
-						break;
-					}
+				while (iterI4 < iterE4) {
+					const _78: number = iterI4++;
 					const before: rs.u8 = iterS4[_78];
 					iterS4[_78] = rs.intRotateLeft(before, 3, 8, false) ^ before;
 				}
@@ -3278,11 +3263,8 @@ export function itemWrites(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 				const iterS5: rs.u16[] = held.words.items;
 				let iterI5: number = 0;
 				const iterE5: number = held.words.items.length;
-				while (true) {
-					const _95: number | rs.Done = iterI5 < iterE5 ? iterI5++ : rs.DONE;
-					if (_95 === rs.DONE) {
-						break;
-					}
+				while (iterI5 < iterE5) {
+					const _95: number = iterI5++;
 					iterS5[_95] = rs.u16WrappingMul(iterS5[_95], 3);
 				}
 				rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(held.words.items), (w2: rs.u16): Uint8Array => {
@@ -3293,11 +3275,8 @@ export function itemWrites(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 					const iterS6: rs.u32[] = words.items;
 					let iterI6: number = 0;
 					const iterE6: number = words.items.length;
-					while (true) {
-						const _111: number | rs.Done = iterI6 < iterE6 ? iterI6++ : rs.DONE;
-						if (_111 === rs.DONE) {
-							break;
-						}
+					while (iterI6 < iterE6) {
+						const _111: number = iterI6++;
 						if (!(iterS6[_111] > 2147483648)) {
 							iterS6[_111] = rs.u32Add(iterS6[_111], 1);
 						} else {
@@ -3332,11 +3311,8 @@ export function itemWrites(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 					const iterS8: Array<rs.u16 | undefined> = options.items;
 					let iterI8: number = 0;
 					const iterE8: number = options.items.length;
-					while (true) {
-						const _149: number | rs.Done = iterI8 < iterE8 ? iterI8++ : rs.DONE;
-						if (_149 === rs.DONE) {
-							break;
-						}
+					while (iterI8 < iterE8) {
+						const _149: number = iterI8++;
 						if (iterS8[_149] !== undefined) {
 							iterS8[_149] = rs.u16CheckedMul(iterS8[_149], 300);
 						}
@@ -3360,22 +3336,15 @@ export function itemWrites(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 					const iterS10: rs.u32[] = words.items;
 					let iterI10: number = 0;
 					const iterE10: number = words.items.length;
-					while (true) {
-						const _174: number | rs.Done = iterI10 < iterE10 ? iterI10++ : rs.DONE;
-						if (_174 === rs.DONE) {
-							break;
-						}
-						bump(rs.arrayAsPtr(iterS10, _174));
+					while (iterI10 < iterE10) {
+						bump(rs.arrayAsPtr(iterS10, iterI10++));
 					}
 					let carry: rs.u32 = 0;
 					const iterS11: rs.u32[] = words.items;
 					let iterI11: number = 0;
 					const iterE11: number = words.items.length;
-					while (true) {
-						const _185: number | rs.Done = iterI11 < iterE11 ? iterI11++ : rs.DONE;
-						if (_185 === rs.DONE) {
-							break;
-						}
+					while (iterI11 < iterE11) {
+						const _185: number = iterI11++;
 						const swapped = iterS11[_185];
 						iterS11[_185] = carry;
 						carry = swapped;

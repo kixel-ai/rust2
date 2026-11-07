@@ -1468,11 +1468,8 @@ export function optionItems(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const iterS5: Array<rs.u32 | undefined> = words.items;
 	let iterI5: number = 0;
 	const iterE: number = words.items.length;
-	while (true) {
-		const _72: number | rs.Done = iterI5 < iterE ? iterI5++ : rs.DONE;
-		if (_72 === rs.DONE) {
-			break;
-		}
+	while (iterI5 < iterE) {
+		const _72: number = iterI5++;
 		if (iterS5[_72] === undefined) {
 			iterS5[_72] = 165;
 		} else {
@@ -1482,11 +1479,8 @@ export function optionItems(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const iterS6: Array<undefined | rs.None> = units.items;
 	let iterI6: number = 0;
 	const iterE2: number = units.items.length;
-	while (true) {
-		const _83: number | rs.Done = iterI6 < iterE2 ? iterI6++ : rs.DONE;
-		if (_83 === rs.DONE) {
-			break;
-		}
+	while (iterI6 < iterE2) {
+		const _83: number = iterI6++;
 		if (iterS6[_83] === rs.None) {
 			_87 = undefined;
 		} else {
@@ -1497,11 +1491,8 @@ export function optionItems(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const iterS7: Array<rs.u8 | undefined | rs.None> = nested.items;
 	let iterI7: number = 0;
 	const iterE3: number = nested.items.length;
-	while (true) {
-		const _94: number | rs.Done = iterI7 < iterE3 ? iterI7++ : rs.DONE;
-		if (_94 === rs.DONE) {
-			break;
-		}
+	while (iterI7 < iterE3) {
+		const _94: number = iterI7++;
 		if (iterS7[_94] !== rs.None) {
 			if (iterS7[_94] !== undefined) {
 				iterS7[_94] = rs.u8WrappingAdd(iterS7[_94], 1);

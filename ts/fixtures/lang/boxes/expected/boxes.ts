@@ -87,11 +87,8 @@ export function scramble(b: rs.Place<rs.ByteSlice>): void {
 	const iterS: Uint8Array = _36.data;
 	let iterI: number = _36.start;
 	const iterE: number = _36.start + _36.length;
-	while (true) {
-		const _12: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-		if (_12 === rs.DONE) {
-			break;
-		}
+	while (iterI < iterE) {
+		const _12: number = iterI++;
 		iterS[_12] = rs.u8WrappingAdd(iterS[_12], 1);
 	}
 	rs.iterForEach(rs.byteSliceChunksExact(b.v, 2), (c: rs.ByteSlice): undefined => {
@@ -234,11 +231,8 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const iterS: rs.u16[] = fromRef2.data;
 		let iterI: number = fromRef2.start;
 		const iterE: number = fromRef2.start + fromRef2.length;
-		while (true) {
-			const _282: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-			if (_282 === rs.DONE) {
-				break;
-			}
+		while (iterI < iterE) {
+			const _282: number = iterI++;
 			iterS[_282] = iterS[_282] ^ 3855;
 		}
 		wides(fromRef2, out);
@@ -591,12 +585,8 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const iterS: rs.u32[] = v.items;
 			let iterI: number = 0;
 			const iterE: number = v.items.length;
-			while (true) {
-				const _130: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-				if (_130 === rs.DONE) {
-					break;
-				}
-				bump(rs.arrayAsPtr(iterS, _130), by);
+			while (iterI < iterE) {
+				bump(rs.arrayAsPtr(iterS, iterI++), by);
 			}
 			v.items.push(by as rs.u32);
 		} else if (_58 === 21) {
@@ -739,11 +729,8 @@ export function flip$boxed_Box_slice_u8(x: rs.Place<rs.ByteSlice>): void {
 	const iterS: Uint8Array = _3.data;
 	let iterI: number = _3.start;
 	const iterE: number = _3.start + _3.length;
-	while (true) {
-		const _5: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-		if (_5 === rs.DONE) {
-			break;
-		}
+	while (iterI < iterE) {
+		const _5: number = iterI++;
 		iterS[_5] = iterS[_5] ^ 15;
 	}
 }

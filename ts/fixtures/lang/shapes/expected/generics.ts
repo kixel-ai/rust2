@@ -121,12 +121,8 @@ export function fill$u16(run: rs.Slice<rs.u16>, item: rs.u16): void {
 	const iterS: rs.u16[] = run.data;
 	let iterI: number = run.start;
 	const iterE: number = run.start + run.length;
-	while (true) {
-		const _5: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-		if (_5 === rs.DONE) {
-			break;
-		}
-		iterS[_5] = item;
+	while (iterI < iterE) {
+		iterS[iterI++] = item;
 	}
 }
 
@@ -135,12 +131,8 @@ export function fill$u8(run: rs.ByteSlice, item: rs.u8): void {
 	const iterS: Uint8Array = run.data;
 	let iterI: number = run.start;
 	const iterE: number = run.start + run.length;
-	while (true) {
-		const _5: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
-		if (_5 === rs.DONE) {
-			break;
-		}
-		iterS[_5] = item;
+	while (iterI < iterE) {
+		iterS[iterI++] = item;
 	}
 }
 
