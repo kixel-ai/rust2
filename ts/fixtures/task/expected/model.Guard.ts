@@ -46,7 +46,7 @@ export function log(self: Guard): Log.Log {
 export function note(self: Guard, event: string): void {
 	const arg = self.id;
 	const args3 = [(f: rs.Formatter) => rs.u32Display(arg, f), (f: rs.Formatter) => rs.fmtPad(f, event)];
-	const _5: string = rs.fmtFormat(["g", args3[0], " ", args3[1]]);
+	const _5: rs.String = rs.fmtFormat(["g", args3[0], " ", args3[1]]);
 	Log.note(self.log, _5);
 }
 
@@ -65,7 +65,7 @@ export function unbox(self: Guard, event: string): rs.u32 {
 
 export function drop$ops_Drop(self: Guard): void {
 	const arg = self.id;
-	const _4: string = rs.fmtFormat(["g", (f: rs.Formatter) => rs.u32Display(arg, f), " drop"]);
+	const _4: rs.String = rs.fmtFormat(["g", (f: rs.Formatter) => rs.u32Display(arg, f), " drop"]);
 	Log.note(self.log, _4);
 }
 

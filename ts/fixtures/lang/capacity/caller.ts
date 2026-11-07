@@ -12,7 +12,9 @@ export { ops, run } from "./lang.ts";
  * that a `reserve` gave room past its length, remade from its `Vec` and cleared, which
  * keeps that room; pushes past pops, a truncate, and a clear of a vector and a heap,
  * which grow only past the most each held; each way `collects` makes one, of each length
- * it tries; and each splice of a vector a run of pushes grew.
+ * it tries; each splice of a vector a run of pushes grew; and each step of a string, of a
+ * char and a text of each width, by a few, past what it may hold, and within eight of
+ * `usize::MAX`, from each way it is made, once pushes grew it.
  */
 const capacityCases = [
 	...[["capacity::vecs", 41], ["capacity::deques", 28], ["capacity::heaps", 15]].flatMap(([name, steps]) =>
@@ -33,6 +35,10 @@ const capacityCases = [
 	),
 	...Array.from({ length: 5 * 2 * 256 }, (_, i) => Uint8Array.of(...op("capacity::vecs"), i % 5, (Math.floor(i / 5) % 2) * 0x11, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 35, Math.floor(i / 10))),
 	...Array.from({ length: 8 * 6 }, (_, i) => Uint8Array.of(...op("capacity::collects"), i % 8, [0, 1, 2, 5, 9, 23][Math.floor(i / 8)], 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)),
+	...Array.from({ length: 48 * 4 * 4 }, (_, i) => {
+		const [step, first, arg] = [i % 48, [0, 0x29, 0x0e, 0x0f][Math.floor(i / 48) % 4], [1, 6, 0xc3, 0xe2][Math.floor(i / 192)]];
+		return Uint8Array.of(...op("capacity::strings"), first, 1, 3, 0, 2, 1, 1, step, arg, step, arg ^ 3, 0, 1);
+	}),
 ];
 
 export const cases: Uint8Array[] = [...capacityCases];

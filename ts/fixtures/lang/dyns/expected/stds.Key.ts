@@ -26,7 +26,7 @@ export function hash$Hash_mut_stds_Sum(self: Key, state: rs.Place<stds_Sum.Sum>)
 /** A key of the crate's own, which hashes its fields into whichever hasher it is given. */
 export interface Key {
 	id: rs.u16;
-	name: string;
+	name: rs.String;
 	tags: rs.ByteVec;
 }
 

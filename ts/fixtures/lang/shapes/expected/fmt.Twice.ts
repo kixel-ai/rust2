@@ -4,7 +4,7 @@ import * as rs from "./rs.ts";
 
 /** A writer of the crate's own that writes each `char` twice through its own `write_char`. */
 export interface Twice {
-	_0: string;
+	_0: rs.String;
 }
 
 export function writeStr$fmt_Write(self: Twice, s: string): rs.Result<undefined, rs.FmtError> {
@@ -14,14 +14,14 @@ export function writeStr$fmt_Write(self: Twice, s: string): rs.Result<undefined,
 		if (_6 === rs.DONE) {
 			break;
 		}
-		self._0 = self._0 + String.fromCodePoint(_6);
+		rs.stringPush(self._0, _6);
 	}
 	return rs.OK;
 }
 
 export function writeChar$fmt_Write(self: Twice, c: rs.char): rs.Result<undefined, rs.FmtError> {
-	self._0 = self._0 + String.fromCodePoint(c);
-	self._0 = self._0 + String.fromCodePoint(c);
+	rs.stringPush(self._0, c);
+	rs.stringPush(self._0, c);
 	return rs.OK;
 }
 

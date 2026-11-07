@@ -10,19 +10,20 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	const first: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
 	const _7: rs.u8 = rs.u8Rem(kind, 7, { file: "fixtures/lang/panics/edition2018/src/lib.rs", line: 8, col: 11 });
 	if (_7 === 0) {
-		rs.panic("explicit panic", { file: "fixtures/lang/panics/edition2018/src/lib.rs", line: 9, col: 14 }, false);
+		rs.panic("explicit panic", { file: "fixtures/lang/panics/edition2018/src/lib.rs", line: 9, col: 14 });
 	} else if (_7 === 1) {
-		rs.panic("a literal", { file: "fixtures/lang/panics/edition2018/src/lib.rs", line: 10, col: 14 }, false);
+		rs.panic("a literal", { file: "fixtures/lang/panics/edition2018/src/lib.rs", line: 10, col: 14 });
 	} else if (_7 === 2) {
 		const arg2 = data.length;
-		rs.panic(rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg2, f), " bytes"]), { file: "fixtures/lang/panics/edition2018/src/lib.rs", line: 11, col: 14 }, true);
+		const _12: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(arg2, f), " bytes"]);
+		rs.panic(_12.v, { file: "fixtures/lang/panics/edition2018/src/lib.rs", line: 11, col: 14 }, _12);
 	} else if (_7 === 3) {
 		if (!(rs.u8Rem(first, 2, { file: "fixtures/lang/panics/edition2018/src/lib.rs", line: 12, col: 24 }) === 0)) {
 			_23 = "odd";
 		} else {
 			_23 = "even";
 		}
-		rs.panic(_23, { file: "fixtures/lang/panics/edition2018/src/lib.rs", line: 12, col: 14 }, false);
+		rs.panic(_23, { file: "fixtures/lang/panics/edition2018/src/lib.rs", line: 12, col: 14 });
 	} else if (_7 === 4) {
 		rs.panicAny(new of$u8(first), { file: "fixtures/lang/panics/edition2018/src/lib.rs", line: 13, col: 14 });
 	} else if (_7 === 5) {
@@ -31,7 +32,7 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	} else if (!(first > 200)) {
 		rs.byteVecPush(out, first);
 	} else {
-		rs.panic("past 200", { file: "fixtures/lang/panics/edition2018/src/lib.rs", line: 17, col: 17 }, false);
+		rs.panic("past 200", { file: "fixtures/lang/panics/edition2018/src/lib.rs", line: 17, col: 17 });
 	}
 }
 

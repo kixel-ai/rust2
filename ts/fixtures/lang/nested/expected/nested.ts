@@ -123,7 +123,7 @@ export function made(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const tagged: Tagged.Tagged<undefined | rs.None> = new Tagged.Tagged(u, _106);
 		rs.byteVecPush(out, (tagged.value !== rs.None ? 1 : 0) | ((order(tagged.order) << 1) & 0xff));
 		const args3 = [(f: rs.Formatter) => rs.fmtOption(o, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None), (f: rs.Formatter) => rs.fmtOption(u, f, rs.fmtUnit, rs.None)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args3[0], " ", args3[1]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args3[0], " ", args3[1]]).v));
 	}
 }
 
@@ -451,7 +451,7 @@ export function closures(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (240 <= data.data[data.start]) {
 			if (data.data[data.start] <= 255) {
 				const b: rs.u8 = data.data[data.start];
-				let s: string = "";
+				const s: rs.String = rs.stringNew();
 				const rest3: rs.Iter<rs.char> = rs.iterMap(new rs.Range(0, 2147483647), (_224: rs.usize): rs.char => {
 					rs.panicFmt(["read"]);
 				});
@@ -461,14 +461,14 @@ export function closures(data: rs.ByteSlice, out: rs.ByteVec): void {
 					}, undefined, rs.None), (_30: undefined): rs.char => {
 						return 97;
 					}), rest3);
-					s = rs.stringExtendChars(s, _137);
+					rs.stringExtendChars(s, _137);
 				} else {
 					const _142: rs.Iter<rs.char> = rs.iterChain(rs.iterMap(rs.iterSuccessors(undefined as rs.u8 | undefined | rs.None, (_225: rs.u8 | undefined): rs.u8 | undefined | rs.None => {
 						return rs.None;
 					}, undefined, rs.None), (_226: rs.u8 | undefined): rs.char => {
 						return 97;
 					}), rest3);
-					s = rs.stringExtendChars(s, _142);
+					rs.stringExtendChars(s, _142);
 				}
 			}
 		}
@@ -780,7 +780,7 @@ export function units(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const e: rs.Result<rs.u8, undefined> = result_mapErr$136pgpq(option_okOr$06f2ml7(rs.byteSliceFirst(data), undefined), (_: undefined): undefined => {});
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(o !== rs.None ? 1 : 0, none !== rs.None ? 1 : 0, r.ok ? 1 : 0, !e.ok ? 1 : 0)), undefined, true);
 	const args3 = [(f: rs.Formatter) => rs.fmtList(units.items, f, rs.fmtUnit), (f: rs.Formatter) => rs.fmtOption(o, f, rs.fmtUnit, rs.None), (f: rs.Formatter) => rs.fmtOption(none, f, rs.fmtUnit, rs.None), (f: rs.Formatter) => rs.fmtResult(r, f, rs.fmtUnit, rs.u8Debug), (f: rs.Formatter) => rs.fmtResult(e, f, rs.u8Debug, rs.fmtUnit)];
-	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]])))), undefined, true);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v))), undefined, true);
 }
 
 //# sourceMappingURL=nested.ts.map

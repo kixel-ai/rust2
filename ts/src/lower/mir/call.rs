@@ -731,20 +731,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				);
 				done(next, true)
 			}
-			// A JS string can't change in place, so what the `&mut` borrows gets a new one.
+			// A `String` is an object, which each of its own steps edits in place.
 			("String", "push" | "push_str") | ("AddAssign", "add_assign")
 				if owner == "String"
-					|| (targ(0).is_some_and(|t| library::string(tcx, t)) && !self.b.t.translated(def_id, gargs)) =>
+					|| (targ(0).is_some_and(|t| library::owned_string(tcx, t))
+						&& !self.b.t.translated(def_id, gargs)) =>
 			{
-				let place = self.borrowed_place(&args[0].node, span, out)?;
-				let text = self.operand(&args[1].node, span, out);
-				let text = match name.as_str() {
-					"push" => library::char_text(text),
-					_ => text,
-				};
-				let pushed = place.0.clone().binary("+", text);
-				self.set_borrowed(&place, pushed, span, out);
-				done(Expr::undefined(), false)
+				let values = self.operands(false, &[], args, tcx.types.unit, span, out);
+				let f = if name == "push" { "stringPush" } else { "stringPushStr" };
+				done(Expr::rs(f, values), true)
 			}
 			("AddAssign", "add_assign")
 				if targ(0).is_some_and(|t| library::cow_str(tcx, t)) && !self.b.t.translated(def_id, gargs) =>
@@ -757,7 +752,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				done(Expr::undefined(), false)
 			}
 			// What the `&mut` borrows gets the value of the other case, as a byte, a char, and a
-			// JS string can't change in place.
+			// JS string can't change in place, and the case of ASCII keeps its length.
 			("u8" | "char" | "str", "make_ascii_uppercase" | "make_ascii_lowercase") => {
 				let place = self.borrowed_place(&args[0].node, span, out)?;
 				let to = crate::lower::camel(&name.replacen("make", "to", 1));
@@ -769,37 +764,39 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				self.set_borrowed(&place, changed, span, out);
 				done(Expr::undefined(), false)
 			}
-			// The extended string, from the iterator read as std's `Extend` reads it.
+			// The string extended, by the iterator read as std's `Extend` reads it.
 			("Extend", "extend") if targ(0).is_some_and(|t| self.b.t.std_of(t) == Some(Std::String)) => {
 				let (item, source) = (targ(1)?, targ(2)?);
-				let place = self.borrowed_place(&args[0].node, span, out)?;
+				let s = self.operand(&args[0].node, span, out);
 				let items = self.operand(&args[1].node, span, out);
 				let iter = crate::lower::iter::iter_of(self.b.t, source)?;
 				let items = crate::lower::iter::into_iter(self.b, source, items, span)?;
-				let extended = crate::lower::iter::string_extend(self.b, place.0.clone(), items, item, iter, span)?;
-				self.set_borrowed(&place, extended, span, out);
-				done(Expr::undefined(), false)
+				if crate::lower::iter::str_array(source) {
+					return done(Expr::rs("stringExtendArray", vec![s, items]), true);
+				}
+				done(
+					crate::lower::iter::string_extend(self.b, s, items, item, iter, span)?,
+					true,
+				)
 			}
-			// No capacity is kept, and reading one is refused, but reserving past `isize::MAX`
-			// panics as std's does.
-			("String", "reserve" | "reserve_exact") => {
-				let values = self.operands(false, &[true, true], args, tcx.types.unit, span, out);
-				done(Expr::rs("stringReserve", values), true)
+			("String", "reserve" | "reserve_exact" | "try_reserve" | "try_reserve_exact") => {
+				let values = self.operands(false, &[], args, tcx.types.unit, span, out);
+				done(Expr::rs_of("string", &crate::lower::camel(&name)).call(values), true)
 			}
-			// The error where `reserve` panics.
-			("String", "try_reserve" | "try_reserve_exact") => {
-				let values = self.operands(false, &[true, true], args, tcx.types.unit, span, out);
-				done(Expr::rs("stringTryReserve", values), false)
+			("String", "shrink_to_fit" | "shrink_to") => {
+				let mut values = self.operands(false, &[], args, tcx.types.unit, span, out);
+				if name == "shrink_to_fit" {
+					values.push(Expr::lit("0"));
+				}
+				done(Expr::rs("stringShrinkTo", values), true)
 			}
-			("String", "shrink_to_fit" | "shrink_to") => done(Expr::undefined(), false),
-			// The edited string, from the runtime with what it takes after the string.
+			// The string edited in place, by the runtime with what it takes after the string.
 			(
 				"String",
 				"clear" | "truncate" | "insert" | "insert_str" | "retain" | "replace_range" | "extend_from_within",
 			) => {
-				let place = self.borrowed_place(&args[0].node, span, out)?;
 				let result = dest.ty(&self.mir.local_decls, tcx).ty;
-				let mut values = vec![place.0.clone()];
+				let mut values = vec![self.operand(&args[0].node, span, out)];
 				values.extend(self.operands(false, &[], &args[1..], result, span, out));
 				if name == "insert" {
 					let c = values.pop()?;
@@ -825,35 +822,31 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						span,
 					};
 					let range = std::mem::replace(&mut values[1], Expr::undefined());
-					let len = Expr::rs("stringLen", vec![values[0].clone()]);
+					let len = values[0].clone().member("len");
 					values[1] = crate::lower::collections::bounds(self.b, &call, range).within(len);
 				}
-				let edited = match name.as_str() {
-					"clear" => Expr::Str(String::new()),
-					"truncate" => Expr::rs("stringTruncate", values),
-					"insert" | "insert_str" => Expr::rs("stringInsertStr", values),
-					"retain" => Expr::rs("stringRetain", values),
-					"replace_range" => Expr::rs("stringReplaceRange", values),
-					_ => Expr::rs("stringExtendFromWithin", values),
+				let f = match name.as_str() {
+					"clear" => "stringClear",
+					"truncate" => "stringTruncate",
+					"insert" | "insert_str" => "stringInsertStr",
+					"retain" => "stringRetain",
+					"replace_range" => "stringReplaceRange",
+					_ => "stringExtendFromWithin",
 				};
-				self.set_borrowed(&place, edited, span, out);
+				out.push(StmtKind::Expr(Expr::rs(f, values)).at(None));
 				out.extend(spent.map(|drop| StmtKind::Expr(drop).at(None)));
 				done(Expr::undefined(), false)
 			}
-			// The runtime gives the edited string and what the edit returns.
 			("String", "pop" | "remove" | "split_off") => {
-				let place = self.borrowed_place(&args[0].node, span, out)?;
 				let result = dest.ty(&self.mir.local_decls, tcx).ty;
-				let mut values = vec![place.0.clone()];
+				let mut values = vec![self.operand(&args[0].node, span, out)];
 				values.extend(self.operands(false, &[], &args[1..], result, span, out));
 				let f = match name.as_str() {
 					"pop" => "stringPop",
 					"remove" => "stringRemove",
 					_ => "stringSplitOff",
 				};
-				let edit = self.path(Expr::rs(f, values), "edit", out);
-				self.set_borrowed(&place, edit.clone().index(Expr::lit("0")), span, out);
-				done(edit.index(Expr::lit("1")), false)
+				done(Expr::rs(f, values), true)
 			}
 			("Write", "write_str" | "write_char" | "write_fmt")
 				if tcx
@@ -884,16 +877,25 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				self.set_borrowed(&place, value, span, out);
 				done(Expr::undefined(), false)
 			}
-			// A borrowed `Cow<str>` owns its text first, the `String` it then is, and a `String`
-			// is its `str`, so the `&mut` borrows the same place.
+			// A borrowed `Cow<str>` owns its text first, and the `&mut` is the `String` it then is.
 			("Cow", "to_mut") if targ(0).is_some_and(|t| t.is_str()) => {
 				let place = self.borrowed_place(&args[0].node, span, out)?;
-				self.set_borrowed(&place, Expr::rs("strCowStr", vec![place.0.clone()]), span, out);
-				self.same_place(args, dest, span, out)
+				self.set_borrowed(&place, Expr::rs("strCowIntoOwned", vec![place.0.clone()]), span, out);
+				done(
+					Expr::As(Box::new(place.0), crate::ts::Type::Rs("String", Vec::new())),
+					false,
+				)
 			}
-			("String", "as_mut_str") => self.same_place(args, dest, span, out),
+			// A `String` is the place of its `str`.
+			("String", "as_mut_str" | "leak") => done(self.operand(&args[0].node, span, out), false),
 			("DerefMut", "deref_mut") | ("AsMut", "as_mut") | ("BorrowMut", "borrow_mut")
-				if targ(0).is_some_and(|t| t.is_str() || self.b.t.std_of(t) == Some(Std::String))
+				if targ(0).is_some_and(|t| self.b.t.std_of(t) == Some(Std::String))
+					&& dest.ty(&self.mir.local_decls, tcx).ty.peel_refs().is_str() =>
+			{
+				done(self.operand(&args[0].node, span, out), false)
+			}
+			("DerefMut", "deref_mut") | ("AsMut", "as_mut") | ("BorrowMut", "borrow_mut")
+				if targ(0).is_some_and(|t| t.is_str())
 					&& dest.ty(&self.mir.local_decls, tcx).ty.peel_refs().is_str() =>
 			{
 				self.same_place(args, dest, span, out)
@@ -907,11 +909,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			{
 				self.same_place(args, dest, span, out)
 			}
-			// A place nothing else holds: the `String` leaked, or `Default`'s empty `str`.
-			("String", "leak") => {
-				let leaked = self.operand(&args[0].node, span, out);
-				done(Expr::Object(vec![(crate::ts::Key::Name("v".into()), leaked)]), true)
-			}
+			// A place nothing else holds: `Default`'s empty `str`.
 			("Default", "default")
 				if targ(0)
 					.and_then(|t| self.b.t.place_pointee(t))
@@ -1536,16 +1534,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			_ => None,
 		};
 		if std == Some(Std::String) {
-			let place = match through {
-				Some(value) => (self.path(value, "w", out).member("v"), None),
-				None => self.borrowed_place(&args[0].node, span, out)?,
+			let s = match through {
+				Some(value) => value,
+				None => self.operand(&args[0].node, span, out),
 			};
 			let [arg] = <[Expr; 1]>::try_from(self.operands(true, &[], &args[1..], result, span, out)).ok()?;
 			let mut written = Vec::new();
-			let (value, result) = self.b.string_write(name, place.0.clone(), arg, literal, &mut written);
+			let result = self.b.string_write(name, s, arg, literal, &mut written);
 			self.emit(written, false, out);
-			self.set_borrowed(&place, value, span, out);
-			return done(result, false);
+			return done(result, true);
 		}
 		let receiver = match through {
 			Some(value) => value,
@@ -1875,6 +1872,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		if container.is_str() || self.b.t.std_of(container) == Some(Std::String) {
 			let get = matches!(name, "get" | "get_mut");
 			let base = self.operand(&args[0].node, span, out);
+			// A `String` is the place of its text.
+			let base = match self.b.t.std_of(container) == Some(Std::String) && !matches!(name, "index_mut" | "get_mut")
+			{
+				true => base.member("v"),
+				false => base,
+			};
 			let (base, (start, end)) = match self.range_bounds(&args[1].node, index_ty, span, out) {
 				Some(bounds) if get => (base, bounds),
 				Some(bounds) => (self.path(base, "s", out), bounds),

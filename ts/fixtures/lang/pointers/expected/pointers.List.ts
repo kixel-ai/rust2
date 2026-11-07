@@ -21,7 +21,7 @@ export class List<V> {
 	}
 }
 
-export function new$String(): List<string> {
+export function new$String(): List<rs.String> {
 	return new List(undefined, undefined, 0);
 }
 
@@ -29,13 +29,13 @@ export function new$sync_Arc_u8(): List<rs.Arc<rs.u8>> {
 	return new List(undefined, undefined, 0);
 }
 
-export function guard$String(self: List<string>): Node.Node<string> {
+export function guard$String(self: List<rs.String>): Node.Node<rs.String> {
 	if (self.guard !== undefined) {
 		return self.guard;
 	}
-	const guard2: Node.Node<string> = Node.new$String();
-	const _8: Links.Links<string> = { next: guard2, prev: guard2 };
-	const _11: Node.Node<string> = guard2;
+	const guard2: Node.Node<rs.String> = Node.new$String();
+	const _8: Links.Links<rs.String> = { next: guard2, prev: guard2 };
+	const _11: Node.Node<rs.String> = guard2;
 	_11.link.at0 = _8.next;
 	_11.link.at4 = _8.prev;
 	self.guard = guard2;
@@ -55,11 +55,11 @@ export function guard$sync_Arc_u8(self: List<rs.Arc<rs.u8>>): Node.Node<rs.Arc<r
 	return guard2;
 }
 
-export function alloc$String(self: List<string>): Node.Node<string> {
+export function alloc$String(self: List<rs.String>): Node.Node<rs.String> {
 	if (self.free === undefined) {
 		return Node.new$String();
 	}
-	const free: Node.Node<string> = self.free;
+	const free: Node.Node<rs.String> = self.free;
 	self.free = free.link.at0;
 	return free;
 }
@@ -73,10 +73,10 @@ export function alloc$sync_Arc_u8(self: List<rs.Arc<rs.u8>>): Node.Node<rs.Arc<r
 	return free;
 }
 
-export function pushBack$String(self: List<string>, key: rs.u8, value: string): void {
-	const guard: Node.Node<string> = guard$String(self);
-	const node: Node.Node<string> = alloc$String(self);
-	rs.ptrWrite(node.entry, [key, value] as [rs.u8, string]);
+export function pushBack$String(self: List<rs.String>, key: rs.u8, value: rs.String): void {
+	const guard: Node.Node<rs.String> = guard$String(self);
+	const node: Node.Node<rs.String> = alloc$String(self);
+	rs.ptrWrite(node.entry, [key, value] as [rs.u8, rs.String]);
 	attachBefore$String(node, guard);
 	self.len = rs.usizeAdd(self.len, 1);
 }
@@ -89,14 +89,14 @@ export function pushBack$sync_Arc_u8(self: List<rs.Arc<rs.u8>>, key: rs.u8, valu
 	self.len = rs.usizeAdd(self.len, 1);
 }
 
-export function find$String(self: List<string>, key: rs.u8): Node.Node<string> | undefined {
-	const _4: Node.Node<string> | undefined = self.guard;
+export function find$String(self: List<rs.String>, key: rs.u8): Node.Node<rs.String> | undefined {
+	const _4: Node.Node<rs.String> | undefined = self.guard;
 	if (_4 !== undefined) {
-		const guard: Node.Node<string> = _4;
-		let at: Node.Node<string> = guard.link.at0 as Node.Node<string>;
+		const guard: Node.Node<rs.String> = _4;
+		let at: Node.Node<rs.String> = guard.link.at0 as Node.Node<rs.String>;
 		while (at !== guard) {
 			if (!(at.entry[0] === key)) {
-				at = at.link.at0 as Node.Node<string>;
+				at = at.link.at0 as Node.Node<rs.String>;
 			} else {
 				return at;
 			}
@@ -123,13 +123,13 @@ export function find$sync_Arc_u8(self: List<rs.Arc<rs.u8>>, key: rs.u8): Node.No
 	return undefined;
 }
 
-export function remove$String(self: List<string>, key: rs.u8): [rs.u8, string] | undefined {
-	const _4: Node.Node<string> | undefined = find$String(self, key);
+export function remove$String(self: List<rs.String>, key: rs.u8): [rs.u8, rs.String] | undefined {
+	const _4: Node.Node<rs.String> | undefined = find$String(self, key);
 	if (_4 !== undefined) {
-		const node: Node.Node<string> = _4;
+		const node: Node.Node<rs.String> = _4;
 		detach$String(node);
-		const entry: [rs.u8, string] = copy$tuple2_u8_String(node.entry);
-		const _16: Free.Free<string> = { next: self.free };
+		const entry: [rs.u8, rs.String] = copy$tuple2_u8_String(node.entry);
+		const _16: Free.Free<rs.String> = { next: self.free };
 		node.link.at0 = _16.next;
 		self.free = node;
 		self.len = rs.usizeSub(self.len, 1);
@@ -153,14 +153,14 @@ export function remove$sync_Arc_u8(self: List<rs.Arc<rs.u8>>, key: rs.u8): [rs.u
 	return undefined;
 }
 
-export function toFront$String(self: List<string>, key: rs.u8): boolean {
-	const _4: Node.Node<string> | undefined = find$String(self, key);
+export function toFront$String(self: List<rs.String>, key: rs.u8): boolean {
+	const _4: Node.Node<rs.String> | undefined = find$String(self, key);
 	if (_4 !== undefined) {
-		const node: Node.Node<string> = _4;
+		const node: Node.Node<rs.String> = _4;
 		if (self.guard !== undefined) {
-			const guard: Node.Node<string> = self.guard;
+			const guard: Node.Node<rs.String> = self.guard;
 			detach$String(node);
-			attachBefore$String(node, guard.link.at0 as Node.Node<string>);
+			attachBefore$String(node, guard.link.at0 as Node.Node<rs.String>);
 			return true;
 		}
 		return false;
@@ -183,39 +183,38 @@ export function toFront$sync_Arc_u8(self: List<rs.Arc<rs.u8>>, key: rs.u8): bool
 	return false;
 }
 
-export function getMut$String(self: List<string>, key: rs.u8): rs.Place<string> | undefined {
-	const _3: Node.Node<string> | undefined = find$String(self, key);
+export function getMut$String(self: List<rs.String>, key: rs.u8): rs.String | undefined {
+	const _3: Node.Node<rs.String> | undefined = find$String(self, key);
 	if (_3 !== undefined) {
-		const _9: [rs.u8, string] = _3.entry;
-		return rs.place(() => _9[1], (value) => _9[1] = value);
+		return _3.entry[1];
 	}
 	return undefined;
 }
 
-export function each$String(self: List<string>, out: rs.ByteVec): void {
+export function each$String(self: List<rs.String>, out: rs.ByteVec): void {
 	b0: {
 		if (self.guard !== undefined) {
-			const guard: Node.Node<string> = self.guard;
-			let at: Node.Node<string> = guard.link.at0 as Node.Node<string>;
+			const guard: Node.Node<rs.String> = self.guard;
+			let at: Node.Node<rs.String> = guard.link.at0 as Node.Node<rs.String>;
 			while (true) {
 				if (!(at !== guard)) {
 					break b0;
 				}
-				const _13: [rs.u8, string] = at.entry;
+				const _13: [rs.u8, rs.String] = at.entry;
 				rs.byteVecPush(out, _13[0]);
-				rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_13[1]));
-				at = at.link.at0 as Node.Node<string>;
+				rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_13[1].v));
+				at = at.link.at0 as Node.Node<rs.String>;
 			}
 		}
 	}
 }
 
-export function drop$ops_Drop_String(self: List<string>): void {
+export function drop$ops_Drop_String(self: List<rs.String>): void {
 	if (self.guard !== undefined) {
-		const guard: Node.Node<string> = self.guard;
-		let at: Node.Node<string> = guard.link.at0 as Node.Node<string>;
+		const guard: Node.Node<rs.String> = self.guard;
+		let at: Node.Node<rs.String> = guard.link.at0 as Node.Node<rs.String>;
 		while (at !== guard) {
-			at = at.link.at0 as Node.Node<string>;
+			at = at.link.at0 as Node.Node<rs.String>;
 		}
 	}
 	while (self.free !== undefined) {
