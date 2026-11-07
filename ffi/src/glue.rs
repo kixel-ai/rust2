@@ -211,6 +211,22 @@ impl Crate<'_> {
 	}
 }
 
+/// The path a `go.mod` line declares, if it is the module directive: `module`, then
+/// whitespace and the path, bare or quoted, then any `//` comment. A module path holds no
+/// quote or backslash to unescape.
+fn module_path(line: &str) -> Option<&str> {
+	let rest = line.trim_start().strip_prefix("module")?;
+	if !rest.starts_with(char::is_whitespace) {
+		return None;
+	}
+	let rest = rest.trim_start();
+	let path = match rest.strip_prefix(['"', '`']) {
+		Some(quoted) => quoted.split(['"', '`']).next()?,
+		None => rest.split("//").next()?.split_whitespace().next()?,
+	};
+	(!path.is_empty()).then_some(path)
+}
+
 /// The import path of `<out>/go`, from the `go.mod` of the module above it, or else the
 /// module `prefix`, with the `go.mod` declaring it there.
 fn go_module(out: &Path, prefix: &str) -> Result<(String, Option<String>), String> {
@@ -222,8 +238,7 @@ fn go_module(out: &Path, prefix: &str) -> Result<(String, Option<String>), Strin
 			continue;
 		};
 		let module = (text.lines())
-			.find_map(|line| line.trim().strip_prefix("module "))
-			.map(|module| module.trim().trim_matches('"'))
+			.find_map(module_path)
 			.ok_or_else(|| format!("{} declares no module", path.display()))?;
 		let rest = out.join("go");
 		let rest = rest.strip_prefix(dir).expect("an ancestor holds it");
@@ -1222,5 +1237,26 @@ impl Gen<'_> {
 				false => call,
 			},
 		));
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::module_path;
+
+	#[test]
+	fn module_directive() {
+		for (line, path) in [
+			("module example.com/app", Some("example.com/app")),
+			("module\texample.com/app", Some("example.com/app")),
+			("module example.com/app // the app", Some("example.com/app")),
+			("module \"example.com/app\" // quoted", Some("example.com/app")),
+			("module `example.com/app`", Some("example.com/app")),
+			("modules example.com/app", None),
+			("// module example.com/app", None),
+			("go 1.24", None),
+		] {
+			assert_eq!(module_path(line), path, "{line:?}");
+		}
 	}
 }

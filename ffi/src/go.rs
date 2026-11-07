@@ -41,8 +41,7 @@ use crate::ir::{Access, Family, Function, Home, Int, Literal, Param, Receiver, T
 const RUNTIME: &str = include_str!("../runtime/rt.go");
 const CONVERSIONS: &str = include_str!("../runtime/cgo.go");
 
-/// The standard library's packages the generated items name, which no crate's package may
-/// be named.
+/// The standard library's packages the generated items name.
 const STD: &[(&str, &str)] = &[
 	("context", "context"),
 	("cgo", "runtime/cgo"),
@@ -70,8 +69,7 @@ impl Packages {
 			// A later crate of an earlier one's name takes its count after it.
 			let (base, count) = krate.split_once('#').unwrap_or((krate, ""));
 			let name = base.strip_prefix(&strip).unwrap_or(base).replace('_', "") + count;
-			let taken = STD.iter().any(|(n, _)| *n == name) || ["C", "main", "rt"].contains(&name.as_str());
-			if taken || keyword(&name) {
+			if ["C", "main", "rt"].contains(&name.as_str()) || keyword(&name) {
 				errors.push(format!(
 					"crate `{krate}` is the Go package `{name}`, which Go or the export's runtime names: rename its lib"
 				));
@@ -219,6 +217,13 @@ fn rest<'c>(prefix: &str, c: &'c str, shown: &[String], home: &Home) -> &'c str 
 			.and_then(|rest| rest.strip_prefix('_'))
 			.unwrap_or_else(|| panic!("`{c}` starts with `{outside}`")),
 	}
+}
+
+/// The name the generated code imports the generated package `name` by, which no local,
+/// predeclared name, or other import takes: no parameter's name holds a `_` but at its
+/// end, and no other local starts `p_`.
+fn alias(name: &str) -> String {
+	format!("p_{name}")
 }
 
 /// Whether Go reads `name` as a keyword.
@@ -378,8 +383,12 @@ impl<'a> Gen<'a> {
 			.filter(|(name, _)| uses(&code, name))
 			.map(|(_, path)| format!("\t\"{path}\""))
 			.collect();
+		imports.sort();
 		let mut ours: Vec<String> = (self.imports.iter())
-			.map(|krate| format!("\t\"{}\"", self.set.by_crate[krate].1))
+			.map(|krate| {
+				let (name, path) = &self.set.by_crate[krate];
+				format!("\t{} \"{path}\"", alias(name))
+			})
 			.collect();
 		ours.sort();
 		if !imports.is_empty() && !ours.is_empty() {
@@ -452,7 +461,7 @@ impl<'a> Gen<'a> {
 			return name.to_string();
 		}
 		self.imports.insert(krate.to_string());
-		format!("{}.{name}", self.set.name(krate))
+		format!("{}.{name}", alias(self.set.name(krate)))
 	}
 
 	/// The crate an exported type belongs to, and its Go name there.
@@ -503,17 +512,9 @@ impl<'a> Gen<'a> {
 		pascal(self.bare(c))
 	}
 
-	/// The Go names of parameters, each [`local`], [`abi::distinct`], and apart from the
-	/// packages a call may name.
+	/// The Go names of parameters, each [`local`], [`abi::distinct`].
 	fn locals(&self, params: &[Param]) -> Vec<String> {
-		let names = params.iter().map(|p| {
-			let name = local(&p.name);
-			match self.set.by_crate.values().any(|(pkg, _)| *pkg == name) {
-				true => format!("{name}_"),
-				false => name,
-			}
-		});
-		abi::distinct(names)
+		abi::distinct(params.iter().map(|p| local(&p.name)))
 	}
 
 	/// Claim the package-level Go name `name` for `what`.
