@@ -23,7 +23,6 @@ fixtures/reject/src/buffers.rs:capacity_reads+6:6: `BufMut::put` in a program th
 fixtures/reject/src/buffers.rs:capacity_reads+7:4: `Bytes::truncate` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
 fixtures/reject/src/buffers.rs:capacity_reads+8:4: `Bytes::clear` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
 fixtures/reject/src/buffers.rs:capacity_reads+9:15: `Bytes::try_into_mut` in a program that makes bytes of a String, whose capacity JS keeps none of, which is not supported
-fixtures/reject/src/buffers.rs:owned_bytes+1:2: `Bytes::from_owner` of `std::sync::Arc<[u8]>`, which would drop with the last clone of what it makes, which is not supported
 fixtures/reject/src/buffers.rs:spare+1:4: `Vec::spare_capacity_mut` of other than bytes, whose room past its length no JS array holds, which is not supported yet
 fixtures/reject/src/clones.rs:given_slots+6:2: a raw pointer to `(u8, u8)` in `([clones::Touched; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:greatest_slot+6:13: a raw pointer to `(u8, u8)` in `([clones::Greatest; 2], (u8, u8))`, which the crate may put another object in place of
@@ -274,7 +273,6 @@ fixtures/reject/src/strs.rs:str_bytes_mut+1:13: unsupported call to `core::str::
 fixtures/reject/src/strs.rs:str_bytes_mut+2:13: `core::str::<impl str>::get_unchecked_mut` with a mutable reference to a value JS copies, which its mapping would copy
 fixtures/reject/src/strs.rs:str_from_bytes_mut+1:20: `std::str::from_utf8_mut` with a mutable reference to a value JS copies, which its mapping would copy
 fixtures/reject/src/values.rs:Bits+0:1: union `values::Bits`, whose fields overlap in `u32` and `f64`, which JS keeps apart
-fixtures/reject/src/values.rs:Block+0:1: const generic types are not supported: `values::Block`
 fixtures/reject/src/values.rs:addr_parsed+0:32: unsupported type `std::net::AddrParseError` from another crate
 fixtures/reject/src/values.rs:addr_parsed+0:32: unsupported type `std::net::Ipv4Addr` from another crate
 fixtures/reject/src/values.rs:addr_parsed+1:4: unsupported call to `core::str::<impl str>::parse::<std::net::Ipv4Addr>`
@@ -291,7 +289,6 @@ fixtures/reject/src/values.rs:manual_impls+2:25: unsupported call to `<std::mem:
 fixtures/reject/src/values.rs:manual_impls+2:34: a constant of type `std::mem::ManuallyDrop<u32>`
 fixtures/reject/src/values.rs:nested+0:15: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rs.None`
 fixtures/reject/src/values.rs:nested+1:2: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rs.None`
-fixtures/reject/src/values.rs:reclone+3:13: a reference to `std::option::Option<values::Block<2>>`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there
 fixtures/reject/src/values.rs:units_compared+2:15: a raw pointer to a place of `()`, which has no address of its own
 fixtures/reject/src/values.rs:units_compared+2:29: a raw pointer to a place of `()`, which has no address of its own
 fixtures/reject/src/values.rs:units_compared+2:70: comparing pointers to `places::Bare`, which has no bytes and so no address of its own

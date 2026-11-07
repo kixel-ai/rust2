@@ -5,8 +5,8 @@
 export interface Workload {
 	/** What is coded, such as `varint/quic/2B` or `frames/video/lite-07`, iterated, or converted. */
 	name: string;
-	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "number" | "format" | "write" | "handoff";
-	/** Varints, frame headers, messages, items, keys, timestamps, integers, packets, lines, steps, or handoffs per call, which each time is divided by. */
+	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "number" | "format" | "write" | "split" | "handoff";
+	/** Varints, frame headers, messages, items, keys, timestamps, integers, packets, lines, steps, frames, or handoffs per call, which each time is divided by. */
 	items: number;
 	input: Uint8Array;
 }
@@ -129,6 +129,9 @@ export function workloads(encode: (input: Uint8Array) => Uint8Array): Workload[]
 			out.push({ name: `parts/${name}/${size}`, op: "write", items: count, input });
 		}
 	}
+	// `bench.rs`'s op 18: frames' `Bytes` split off a group's, cloned, sliced, and dropped,
+	// as moq-net's model hands them to its consumers. Their size costs the handles nothing.
+	out.push({ name: "bytes/frames", op: "split", items: count, input: Uint8Array.of(18, 0, ...[BigInt(count), 64n].flatMap(u64)) });
 	return out;
 }
 
