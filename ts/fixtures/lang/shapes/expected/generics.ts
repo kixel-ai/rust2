@@ -2,12 +2,14 @@
 
 import * as rs from "./rs.ts";
 import { copy$array_generics_Either_u8_shapes_Point, copy$generics_Fixed_u16, copy$generics_Fixed_u8, copy$generics_Wrap_shapes_Point, copy$generics_Wrap_u8, copy$shapes_Gauge, drop$generics_Run_generics_Ticked } from "./lib.ts";
-import { then$01xsbgy, then$0y7on52 } from "./core/bool.ts";
+import { thenSome$1ctlqen, thenSome$19pue01, thenSome$0quywni, thenSome$1n1oy1h, then$01xsbgy, then$0y7on52 } from "./core/bool.ts";
 import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$0w7995p as option_unwrapOrDefault$0w7995p, unwrapOrDefault$03apme8 as option_unwrapOrDefault$03apme8, map$0ggarad as option_map$0ggarad } from "./core/option.ts";
+import { eq$1qrb1lw as poll_eq$1qrb1lw, isPending$07fnw8g, isPending$1imonrp, isPending$189w6zf, isPending$1yqrsts } from "./core/task/poll.ts";
 import type * as Pair from "./fmt.Pair.ts";
 import * as Either from "./generics.Either.ts";
 import * as Fixed from "./generics.Fixed.ts";
 import type * as Lends from "./generics.Lends.ts";
+import * as Parked from "./generics.Parked.ts";
 import * as Run from "./generics.Run.ts";
 import * as Runs from "./generics.Runs.ts";
 import * as Tagged from "./generics.Tagged.ts";
@@ -34,8 +36,8 @@ export function methods(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const meters: Wrap.Wrap<Meters.Meters> = new Wrap.Wrap({ _0: at(3) as rs.u64 }, at(4));
 	const shape: Wrap.Wrap<Shape.Shape> = Wrap.new$shapes_Shape({ tag: "Rect", corner: Wrap.intoInner$shapes_Point(point), width: at(5) as rs.u16, height: 3 } as Shape.Shape);
 	const args13 = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_shapes_Point(point, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_u8(byte, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_generics_Wrap_fmt_Pair(nested, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_shapes_Shape(shape, f)];
-	put(out, rs.fmtFormat([args13[0], " ", args13[1], " ", args13[2], " ", args13[3]]));
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => Wrap.fmt$fmt_Debug_generics_Wrap_fmt_Pair(nested, f))]));
+	put(out, rs.fmtFormat([args13[0], " ", args13[1], " ", args13[2], " ", args13[3]]).v);
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => Wrap.fmt$fmt_Debug_generics_Wrap_fmt_Pair(nested, f))]).v);
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(Wrap.double$u8(byte))));
 	rs.byteVecPush(out, Wrap.get$u8(byte));
 	rs.byteVecPush(out, Wrap.get$fmt_Pair(Wrap.get$generics_Wrap_fmt_Pair(nested))._0);
@@ -49,7 +51,7 @@ export function methods(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _119: Wrap.Wrap<Pair.Pair> = Wrap.new$fmt_Pair({ _0: at(1), _1: 0 });
 	const _116: boolean = Wrap.eq$cmp_PartialEq_fmt_Pair(mapped, _119);
 	const args15 = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_fmt_Pair(mapped, f), (f: rs.Formatter) => rs.fmtBool(_116, f)];
-	put(out, rs.fmtFormat([args15[0], " ", args15[1]]));
+	put(out, rs.fmtFormat([args15[0], " ", args15[1]]).v);
 	const iter: rs.Iter<Either.Either<rs.u8, Point.Point>> = rs.iterSlice(copy$array_generics_Either_u8_shapes_Point([{ tag: "Left", _0: at(7) } as Either.Either<rs.u8, Point.Point>, { tag: "Right", value: Point.new(1, -1) } as Either.Either<rs.u8, Point.Point>, { tag: "Neither" } as Either.Either<rs.u8, Point.Point>]));
 	while (true) {
 		const _140: Either.Either<rs.u8, Point.Point> | rs.Done = iter.next();
@@ -61,7 +63,7 @@ export function methods(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _153: rs.u8 | undefined = Either.left$u8_shapes_Point(either);
 		const _156: Point.Point | undefined = Either.left$shapes_Point_u8(flipped);
 		const args16 = [(f: rs.Formatter) => Either.fmt$fmt_Debug_u8_shapes_Point(either, f), (f: rs.Formatter) => Either.fmt$fmt_Debug_shapes_Point_u8(flipped, f), (f: rs.Formatter) => rs.fmtOption(_153, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(_156, f, (value: Point.Point, f: rs.Formatter) => Point.fmt$fmt_Debug(value, f))];
-		put(out, rs.fmtFormat([args16[0], " ", rs.fmtSpec({ alternate: true }, args16[1]), " ", args16[2], " ", args16[3]]));
+		put(out, rs.fmtFormat([args16[0], " ", rs.fmtSpec({ alternate: true }, args16[1]), " ", args16[2], " ", args16[3]]).v);
 	}
 	const list: Wrap.Wrap<rs.Vec<rs.u16>> = new Wrap.Wrap(new rs.Vec(), 1);
 	const _171: rs.u16 = at(10) as rs.u16;
@@ -72,11 +74,11 @@ export function methods(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const err: Wrap.Wrap<rs.Result<rs.u8, Shape.Shape>> = new Wrap.Wrap(rs.Err({ tag: "Dot" } as Shape.Shape), 2);
 	const _193: rs.u8 = option_unwrapOr$1fr498u(Wrap.get$Option_u8(none), some.count);
 	const args17 = [(f: rs.Formatter) => Wrap.fmt$fmt_Debug_Vec_u16(list, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_Option_u8(none, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_Option_u8(some, f), (f: rs.Formatter) => Wrap.fmt$fmt_Debug_Result_u8_shapes_Shape(err, f), (f: rs.Formatter) => rs.u8Debug(_193, f)];
-	put(out, rs.fmtFormat([args17[0], " ", args17[1], " ", args17[2], " ", args17[3], " ", args17[4]]));
+	put(out, rs.fmtFormat([args17[0], " ", args17[1], " ", args17[2], " ", args17[3], " ", args17[4]]).v);
 	const tagged: Tagged.Tagged<Either.Either<rs.u8, rs.u16>, rs.i16> = new Tagged.Tagged({ tag: "Right", value: 500 } as Either.Either<rs.u8, rs.u16>, Wrap.new$i16(rs.i16Sub(at(8) as rs.i16, 100)), rs.vecFrom([Wrap.new$i16(-1), Wrap.new$i16(at(9) as rs.i16)].slice()));
 	const _237: Wrap.Wrap<rs.i16> | undefined = Tagged.first$generics_Either_u8_u16_i16(tagged);
 	const args18 = [(f: rs.Formatter) => Tagged.fmt$fmt_Debug_generics_Either_u8_u16_i16(tagged, f), (f: rs.Formatter) => rs.fmtOption(_237, f, (value: Wrap.Wrap<rs.i16>, f: rs.Formatter) => Wrap.fmt$fmt_Debug_i16(value, f))];
-	put(out, rs.fmtFormat([args18[0], " ", args18[1]]));
+	put(out, rs.fmtFormat([args18[0], " ", args18[1]]).v);
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(tagged.inner.value)));
 	rs.byteVecPush(out, option_unwrapOr$1fr498u(Either.left$u8_u16(tagged.key), 0));
 }
@@ -193,7 +195,7 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _91: boolean = Runs.eq$cmp_PartialEq_u8(runs, before);
 	const _95: rs.u8 | undefined = Run.first$u8(run);
 	const args5 = [(f: rs.Formatter) => Runs.fmt$fmt_Debug_u8(runs, f), (f: rs.Formatter) => Runs.fmt$fmt_Debug_u8(before, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(taken), f, rs.u8Debug), (f: rs.Formatter) => Run.fmt$fmt_Debug_u8(run, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(fixed, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(copy, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u8(swapped, f), (f: rs.Formatter) => rs.usizeDisplay(_88, f), (f: rs.Formatter) => rs.fmtBool(_91, f), (f: rs.Formatter) => rs.fmtOption(_95, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(last, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7], " ", args5[8], " ", args5[9], " ", args5[10]]));
+	put(out, rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4], " ", args5[5], " ", args5[6], " ", args5[7], " ", args5[8], " ", args5[9], " ", args5[10]]).v);
 	const data3: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): rs.u16 => {
 		return _22 as rs.u16;
 	}), undefined, 2, true);
@@ -239,7 +241,7 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _207: boolean = Runs.eq$cmp_PartialEq_u16(runs2, before2);
 	const _211: rs.u16 | undefined = Run.first$u16(run2);
 	const args6 = [(f: rs.Formatter) => Runs.fmt$fmt_Debug_u16(runs2, f), (f: rs.Formatter) => Runs.fmt$fmt_Debug_u16(before2, f), (f: rs.Formatter) => rs.fmtList(taken2.items, f, rs.u16Debug), (f: rs.Formatter) => Run.fmt$fmt_Debug_u16(run2, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u16(fixed2, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u16(copy2, f), (f: rs.Formatter) => Fixed.fmt$fmt_Debug_u16(swapped2, f), (f: rs.Formatter) => rs.usizeDisplay(_204, f), (f: rs.Formatter) => rs.fmtBool(_207, f), (f: rs.Formatter) => rs.fmtOption(_211, f, rs.u16Debug), (f: rs.Formatter) => rs.fmtOption(last2, f, rs.u16Debug)];
-	put(out, rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", args6[6], " ", args6[7], " ", args6[8], " ", args6[9], " ", args6[10]]));
+	put(out, rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", args6[6], " ", args6[7], " ", args6[8], " ", args6[9], " ", args6[10]]).v);
 	const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
 	const tick: (a0: rs.u8) => Ticked.Ticked = (id: rs.u8): Ticked.Ticked => {
 		return new Ticked.Ticked(id, rs.arcClone(log));
@@ -273,6 +275,124 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_315.value))), undefined, true);
 	rs.refRelease(_315);
 	log[Symbol.dispose]();
+}
+
+/**
+ * [`Parked`] at `()`, `Option<u8>`, `Poll<u8>`, and `u8`, whose `None` and `Pending` are
+ * each a value JS keeps apart from what the instance holds.
+ */
+export function units(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const parked: Parked.Parked<undefined> = Parked.new$unit();
+	for (const b of rs.byteSliceView(data)) {
+		const _12: rs.usize = rs.usizeRem(b >> 4 as rs.usize, rs.sliceFrom([undefined]).length);
+		if (!(_12 < 1)) {
+			rs.panic("index out of bounds: the len is " + 1 + " but the index is " + _12);
+		}
+		const _22: rs.u8 = rs.u8Rem(b, 4);
+		if (_22 === 0) {
+			rs.byteVecPush(out, Parked.park$unit(parked, undefined) ? 1 : 0);
+		} else if (_22 === 1) {
+			rs.byteVecPush(out, isPending$1yqrsts(Parked.ready$unit(parked, undefined)) ? 1 : 0);
+		} else if (_22 === 2) {
+			const _37: undefined | rs.None = thenSome$1n1oy1h((b & 4) !== 0, undefined);
+			rs.byteVecPush(out, Parked.send$unit(parked, _37) !== rs.None ? 1 : 0);
+		} else {
+			const _42: [undefined | rs.None, undefined | rs.None] = Parked.disarm$unit(parked);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_42[0] !== rs.None ? 1 : 0, _42[1] !== rs.None ? 1 : 0)), undefined, true);
+		}
+	}
+	const again: boolean = parked.parked === undefined;
+	const _61: [undefined | rs.None, rs.Poll<undefined>, undefined | rs.None] = [parked.parked, parked.ready, Parked.send$unit(parked, rs.None)];
+	const was2: undefined | rs.None = _61[0];
+	const ready: rs.Poll<undefined> = _61[1];
+	const sent2: undefined | rs.None = _61[2];
+	const args9 = [(f: rs.Formatter) => rs.fmtOption(was2, f, rs.fmtUnit, rs.None), (f: rs.Formatter) => rs.fmtPoll(ready, f, rs.fmtUnit), (f: rs.Formatter) => rs.fmtOption(sent2, f, rs.fmtUnit, rs.None), (f: rs.Formatter) => rs.fmtBool(again, f)];
+	put(out, rs.fmtFormat([args9[0], " ", args9[1], " ", args9[2], " ", args9[3]]).v);
+	const items: Array<rs.u8 | undefined> = [undefined, 1, 2];
+	const parked2: Parked.Parked<rs.u8 | undefined> = Parked.new$Option_u8();
+	for (const b2 of rs.byteSliceView(data)) {
+		const _98: rs.usize = rs.usizeRem(b2 >> 4 as rs.usize, rs.sliceFrom(items).length);
+		if (!(_98 < 3)) {
+			rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _98);
+		}
+		const item: rs.u8 | undefined = items[_98];
+		const _108: rs.u8 = rs.u8Rem(b2, 4);
+		if (_108 === 0) {
+			rs.byteVecPush(out, Parked.park$Option_u8(parked2, item) ? 1 : 0);
+		} else if (_108 === 1) {
+			rs.byteVecPush(out, isPending$07fnw8g(Parked.ready$Option_u8(parked2, item)) ? 1 : 0);
+		} else if (_108 === 2) {
+			const _123: rs.u8 | undefined | rs.None = thenSome$1ctlqen((b2 & 4) !== 0, item);
+			rs.byteVecPush(out, Parked.send$Option_u8(parked2, _123) !== rs.None ? 1 : 0);
+		} else {
+			const _128: [rs.u8 | undefined | rs.None, rs.u8 | undefined | rs.None] = Parked.disarm$Option_u8(parked2);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_128[0] !== rs.None ? 1 : 0, _128[1] !== rs.None ? 1 : 0)), undefined, true);
+		}
+	}
+	const again2: boolean = parked2.parked === items[0] as rs.u8 | undefined | rs.None;
+	const _148: [rs.u8 | undefined | rs.None, rs.Poll<rs.u8 | undefined>, rs.u8 | undefined | rs.None] = [parked2.parked, parked2.ready, Parked.send$Option_u8(parked2, rs.None)];
+	const was4: rs.u8 | undefined | rs.None = _148[0];
+	const ready2: rs.Poll<rs.u8 | undefined> = _148[1];
+	const sent4: rs.u8 | undefined | rs.None = _148[2];
+	const args10 = [(f: rs.Formatter) => rs.fmtOption(was4, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None), (f: rs.Formatter) => rs.fmtPoll(ready2, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug)), (f: rs.Formatter) => rs.fmtOption(sent4, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None), (f: rs.Formatter) => rs.fmtBool(again2, f)];
+	put(out, rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " ", args10[3]]).v);
+	const items2: rs.Poll<rs.u8>[] = [rs.Pending, 1];
+	const parked3: Parked.Parked<rs.Poll<rs.u8>> = Parked.new$task_Poll_u8();
+	for (const b3 of rs.byteSliceView(data)) {
+		const _184: rs.usize = rs.usizeRem(b3 >> 4 as rs.usize, rs.sliceFrom(items2).length);
+		if (!(_184 < 2)) {
+			rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _184);
+		}
+		const item2: rs.Poll<rs.u8> = items2[_184];
+		const _194: rs.u8 = rs.u8Rem(b3, 4);
+		if (_194 === 0) {
+			rs.byteVecPush(out, Parked.park$task_Poll_u8(parked3, item2) ? 1 : 0);
+		} else if (_194 === 1) {
+			rs.byteVecPush(out, isPending$1imonrp(Parked.ready$task_Poll_u8(parked3, item2)) ? 1 : 0);
+		} else if (_194 === 2) {
+			const _209: rs.Poll<rs.u8> | undefined = thenSome$19pue01((b3 & 4) !== 0, item2);
+			rs.byteVecPush(out, Parked.send$task_Poll_u8(parked3, _209) !== undefined ? 1 : 0);
+		} else {
+			const _214: [rs.Poll<rs.u8> | undefined, rs.Poll<rs.u8> | undefined] = Parked.disarm$task_Poll_u8(parked3);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_214[0] !== undefined ? 1 : 0, _214[1] !== undefined ? 1 : 0)), undefined, true);
+		}
+	}
+	const _227 = items2[0] as rs.Poll<rs.u8> | undefined;
+	const again3: boolean = rs.eqOption(poll_eq$1qrb1lw)(parked3.parked, _227);
+	const _234: [rs.Poll<rs.u8> | undefined, rs.Poll<rs.u8> | rs.OuterPending, rs.Poll<rs.u8> | undefined] = [parked3.parked, parked3.ready, Parked.send$task_Poll_u8(parked3, undefined)];
+	const was6: rs.Poll<rs.u8> | undefined = _234[0];
+	const ready3: rs.Poll<rs.u8> | rs.OuterPending = _234[1];
+	const sent6: rs.Poll<rs.u8> | undefined = _234[2];
+	const args11 = [(f: rs.Formatter) => rs.fmtOption(was6, f, (value: rs.Poll<rs.u8>, f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug)), (f: rs.Formatter) => rs.fmtPoll(ready3, f, (value: rs.Poll<rs.u8>, f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug), rs.OuterPending), (f: rs.Formatter) => rs.fmtOption(sent6, f, (value: rs.Poll<rs.u8>, f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug)), (f: rs.Formatter) => rs.fmtBool(again3, f)];
+	put(out, rs.fmtFormat([args11[0], " ", args11[1], " ", args11[2], " ", args11[3]]).v);
+	const items3: Uint8Array = Uint8Array.of(3, 4);
+	const parked4: Parked.Parked<rs.u8> = Parked.new$u8();
+	for (const b4 of rs.byteSliceView(data)) {
+		const _268: rs.usize = rs.usizeRem(b4 >> 4 as rs.usize, rs.byteSliceFrom(items3).length);
+		if (!(_268 < 2)) {
+			rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _268);
+		}
+		const item3: rs.u8 = items3[_268];
+		const _278: rs.u8 = rs.u8Rem(b4, 4);
+		if (_278 === 0) {
+			rs.byteVecPush(out, Parked.park$u8(parked4, item3) ? 1 : 0);
+		} else if (_278 === 1) {
+			rs.byteVecPush(out, isPending$189w6zf(Parked.ready$u8(parked4, item3)) ? 1 : 0);
+		} else if (_278 === 2) {
+			const _293: rs.u8 | undefined = thenSome$0quywni((b4 & 4) !== 0, item3);
+			rs.byteVecPush(out, Parked.send$u8(parked4, _293) !== undefined ? 1 : 0);
+		} else {
+			const _298: [rs.u8 | undefined, rs.u8 | undefined] = Parked.disarm$u8(parked4);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_298[0] !== undefined ? 1 : 0, _298[1] !== undefined ? 1 : 0)), undefined, true);
+		}
+	}
+	const again4: boolean = parked4.parked === items3[0];
+	const _318: [rs.u8 | undefined, rs.Poll<rs.u8>, rs.u8 | undefined] = [parked4.parked, parked4.ready, Parked.send$u8(parked4, undefined)];
+	const was8: rs.u8 | undefined = _318[0];
+	const ready4: rs.Poll<rs.u8> = _318[1];
+	const sent8: rs.u8 | undefined = _318[2];
+	const args12 = [(f: rs.Formatter) => rs.fmtOption(was8, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtPoll(ready4, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(sent8, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtBool(again4, f)];
+	put(out, rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " ", args12[3]]).v);
 }
 
 //# sourceMappingURL=generics.ts.map

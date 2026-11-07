@@ -31,15 +31,12 @@ Decided with the maintainer on 2026-10-27, from a census of the model's 22 publi
 
 - Each group of refusals is its own quest. moq must work, but nothing in
   the translator is specific to moq: dependencies follow general rules, and moq's own
-  changes (safe `cfg` twins of its `unsafe`, dropping or binding `hashlink`, `slab`, and
+  changes (to its `unsafe` and its address keys, dropping or binding `hashlink`, `slab`, and
   `smallvec`) are one research-tier quest in moq's tree.
-- Until `unsafe` and trait objects translate, internal `unsafe` in moq-net and kio gets
-  safe `cfg` twins in moq, so differential tests cover it, and a dependency containing
-  `unsafe` is bound by the consumer. These are stopgaps: decided with the maintainer on
-  2026-10-27, a stock crate translates with no annotations or config, so
-  [unsafe code the translator can model](/quest/m3/ts-unsafe/README.md) and
-  [trait objects](/quest/m3/ts-dyn.md) remove them. Only true platform boundaries (clocks and
-  DEFLATE) stay bound.
+- A dependency containing `unsafe` is bound by the consumer until
+  [unsafe code the translator can model](/quest/m3/ts-unsafe/README.md) translates it: decided
+  with the maintainer on 2026-10-27, a stock crate translates with no annotations or config.
+  Only true platform boundaries (clocks and DEFLATE) stay bound.
 - Each child measures this target by the census of `ts/moq/model.toml`, rooted at those
   types with the boundaries bound, which nightly reports beside the whole crate.
 - The end-to-end work stays here: the model's roots, its differential harness, and the
@@ -52,18 +49,33 @@ model, so each child below unblocks all of them together. The rest is moq's, for
 research quest: kio's `log.rs` reads bytes as its segments and retires them through
 crossbeam-epoch, whose tagged pointers and inline closures (36 refusals) translation
 refuses for good, and smallvec's union over a type parameter and raw parts (10) wait on
-[unsafe](/quest/m3/ts-unsafe/README.md), so both need safe `cfg(rust2_ts)` twins or bindings
-there, as does the `unsafe` slice of `model/frame.rs`'s `Filled`.
+[unsafe](/quest/m3/ts-unsafe/README.md), so moq rewrites or drops them, as it does the
+`unsafe` slice of `model/frame.rs`'s `Filled`.
 
 Decided with the maintainer on 2026-11-04, from a census at the bumped pin
 (moq-dev/rust2#390): the refusals no quest owned became the children below. ✅ arrayvec's
 `ArrayString` needs three of them (const generic types, `begin_panic`, `str::as_ptr`),
 kept separate since each lands alone; rejected: one quest for `ArrayString`.
 
+Decided with the maintainer on 2026-11-07, after three designs for addresses as identity
+([#596](https://github.com/moq-dev/rust2/pull/596)) each left values whose ids were never freed
+or pointers whose comparison disagreed with Rust after an address was reused:
+
+- ✅ Addresses stay refused: every read of a pointer's address as an integer (`as usize`,
+  `addr`, `expose_provenance`, a raw pointer's `Hash` or `Ord`) is refused with a span, and
+  pointer identity (`ptr::eq`, `Arc::ptr_eq`, `Weak::ptr_eq`) keeps translating as JS
+  identity. Rejected: ids for an `Arc`'s or `Rc`'s value, and only for pointers that visibly
+  come from one (each still refuses moq's two reads in `Drop`); exact addresses for every
+  pointer, which needs a linear-memory model. Plan pointer addresses again once a library
+  other than moq needs them.
+- ✅ moq keys `Track` and `FrameContent` by an explicit id in both builds, in place of their
+  addresses (`model/cache.rs`, `model/frame.rs`).
+- ✅ moq gives its `unsafe` no `cfg(rust2_ts)` twins; it decides per item, when its quest
+  starts, whether to rewrite one in safe Rust for both builds or wait for this translator.
+  Rejected: twins until [unsafe](/quest/m3/ts-unsafe/README.md) translates them.
+
 ## Required
 
-- [Addresses as identity](/quest/m2/ts-model/addresses.md) - `Arc::as_ptr(a) as usize` as a key, which needs a decision
-- [Option fields at a unit instance](/quest/m2/ts-model/unit-option-fields.md) - `Idle<()>`'s `Option<T>` field tells `Some(())` from `None`
 - [A string's bytes through its pointer](/quest/m2/ts-model/str-as-ptr.md) - `str::as_ptr` reads the string's UTF-8
 
 Public API: the translator's output for moq-net's model.

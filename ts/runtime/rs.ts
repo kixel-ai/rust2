@@ -16,7 +16,7 @@ import { drop as dispose, dropAll, partPlace, type Pending } from "./rs/task.ts"
 import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./rs/alloc.ts";
 import { AtIndex } from "./rs/collections.ts";
 import { escapeDebug } from "./rs/char.ts";
-import { strFromUtf8Unchecked } from "./rs/str.ts";
+import { byteSliceUtf8Chunks, String as RsString, strFromUtf8Unchecked, stringClone, stringCloneFrom, stringFrom, stringLen, stringNew, stringOf, stringPush, stringPushStr, stringWithCapacity } from "./rs/str.ts";
 export * from "./rs/alloc.ts";
 export * from "./rs/ascii.ts";
 export * from "./rs/bytes.ts";
@@ -40,7 +40,7 @@ export class Panic extends Error {
 	 * What `panic` runs before it throws, once a program sets a hook: `rs/hook.ts`'s, which
 	 * gives the text it formatted, if any.
 	 */
-	declare static hooked?: (message: string | Arguments, at: Location | string | undefined, owned?: boolean) => string | undefined;
+	declare static hooked?: (message: string | Arguments, at: Location | string | undefined, owned?: boolean | RsString) => string | undefined;
 	override name = "Panic";
 }
 
@@ -51,9 +51,10 @@ export class Abort extends Panic {
 
 /**
  * Panic with `message`, at `at`, or at the key of std's or `bytes`' site the hook finds it at, whose
- * text is a `String` if `owned` says so, as `Panic.hooked` reads it.
+ * payload is the `String` `owned`, or one `message` is written into if `owned` is true, as
+ * `Panic.hooked` reads it.
  */
-export function panic(message: string, at?: Location | string, owned?: boolean): never {
+export function panic(message: string, at?: Location | string, owned?: boolean | RsString): never {
 	Panic.hooked?.(message, at, owned);
 	throw new Panic(message);
 }
@@ -68,7 +69,7 @@ export function resumeUnwind(): never {
  * to format, as std's does. A hook formats it as it runs, as std formats it once panicking.
  */
 export function panicFmt(message: Arguments, at?: Location | string): never {
-	throw new Panic(Panic.hooked?.(message, at) ?? fmtWriteString("", message).s);
+	throw new Panic(Panic.hooked?.(message, at) ?? fmtFormatText(message));
 }
 
 /** A `match` without arms, on a value Rust proved can't exist, such as a `(Void, u8)`. */
@@ -663,6 +664,9 @@ export const None: unique symbol = /* @__PURE__ */ Symbol("None");
 
 /** The type of `None`. */
 export type None = typeof None;
+
+/** A generic type's `Option<T>`, whose `None` each instance decides: `T | undefined`, or `T | None` where `T` can already be `undefined`. */
+export type OptionOf<T> = T | (undefined extends T ? None : undefined);
 
 /** `f` of what `o` holds, or `None`: `Option::map` of a payload that is never `undefined`. */
 export function optionMap<T, U>(o: T | undefined, f: (value: T) => U): U | undefined {
@@ -2569,7 +2573,7 @@ export type Cow<T> = Vec<T> | Borrowed<Slice<T>>;
 /** `Cow<[u8]>`: the `Vec<u8>` it owns, or the bytes it borrows. */
 export type ByteCow = ByteVec | ByteSlice;
 /** `Cow<str>`: the `String` it owns, or the `str` it borrows. */
-export type StrCow = string | Borrowed<string>;
+export type StrCow = RsString | Borrowed<string>;
 
 /** `Deref` of a `Cow<[T]>`: its slice. */
 export function cowSlice<T>(c: Cow<T>): Slice<T> {
@@ -2654,25 +2658,58 @@ export function hashCow<B, S>(hash: (value: B, s: S) => void): (value: B | Borro
 	return (value, s) => hash(cowDeref(value), s);
 }
 
-/** `Deref` of a `Cow<str>`, and its `into_owned`: its text. */
+/** `Deref` of a `Cow<str>`: its text. */
 export function strCowStr(c: StrCow): string {
-	return c instanceof Borrowed ? c.slice : c;
+	return c instanceof Borrowed ? c.slice : c.v;
 }
 
-/** `Clone` of a `Cow<str>`: a borrow of the same text, or its text. */
+/** `Cow::into_owned` of a `Cow<str>`: the `String` it owns, or one of the text it borrows. */
+export function strCowIntoOwned(c: StrCow): RsString {
+	return c instanceof Borrowed ? stringFrom(c.slice) : c;
+}
+
+/** `Clone` of a `Cow<str>`: a borrow of the same text, or a clone of its `String`. */
 export function strCowClone(c: StrCow): StrCow {
-	return c instanceof Borrowed ? new Borrowed(c.slice) : c;
+	return c instanceof Borrowed ? new Borrowed(c.slice) : stringClone(c);
+}
+
+/** `clone_from` of a `Cow<str>`: an owned one's `String`, of an owned one's, as `String`'s clones into it, and else `src`'s clone. */
+export function strCowCloneFrom(c: StrCow, src: StrCow): StrCow {
+	if (c instanceof Borrowed || src instanceof Borrowed) return strCowClone(src);
+	c.v = "";
+	c.len = 0 as usize;
+	stringPushStr(c, src.v, src.len);
+	return c;
+}
+
+/** `strCowCloneFrom` as a `CloneFrom`. */
+export function strCowCloneFromFn(): CloneFrom<StrCow> {
+	return strCowCloneFrom;
+}
+
+/** `stringCloneFrom` as a `CloneFrom`. */
+export function stringCloneFromFn(): CloneFrom<RsString> {
+	return stringCloneFrom;
 }
 
 /**
- * `+` of two `Cow<str>`s, and `+=`: the right one if the left is empty, the left if the
- * right is, and else the text they join, owned.
+ * `+` of two `Cow<str>`s, and `+=`: the right one if the left is empty, and else the left,
+ * which owns room for both if it borrowed, once it pushed the right's text.
  */
 export function strCowAdd(a: StrCow, b: StrCow): StrCow {
 	const left = strCowStr(a);
 	if (left === "") return b;
 	const right = strCowStr(b);
-	return right === "" ? a : left + right;
+	if (right === "") return a;
+	const len = b instanceof Borrowed ? stringLen(right) : b.len;
+	if (!(a instanceof Borrowed)) {
+		stringPushStr(a, right, len);
+		return a;
+	}
+	const owned = stringWithCapacity((stringLen(left) + len) as usize);
+	stringPushStr(owned, left);
+	stringPushStr(owned, right, len);
+	return owned;
 }
 
 // Strings
@@ -2741,23 +2778,36 @@ export function strFromUtf8(bytes: ByteSlice): Result<string, Utf8Error> {
 	}
 }
 
-/** `String::from_utf8_lossy`: the text of valid UTF-8, borrowed, or else with each invalid sequence replaced by U+FFFD, owned. */
+/**
+ * `String::from_utf8_lossy`: the text of valid UTF-8, borrowed, or else with each invalid
+ * sequence replaced by U+FFFD, owned, with room for a byte of each and grown by each push.
+ */
 export function stringFromUtf8Lossy(bytes: ByteSlice): StrCow {
 	const v = byteSliceView(bytes);
 	try {
 		return new Borrowed(decoder.decode(v));
 	} catch {
-		return strFromUtf8Unchecked(bytes);
+		const s = stringWithCapacity(bytes.length as usize);
+		for (const chunk of byteSliceUtf8Chunks(bytes)) {
+			stringPushStr(s, chunk.valid);
+			if (chunk.invalid.length > 0) stringPushStr(s, "\ufffd", 3 as usize);
+		}
+		return s;
 	}
 }
 
-/** `String::from_utf8`. */
-export function stringFromUtf8(bytes: ByteVec): Result<string, FromUtf8Error> {
+/** `String::from_utf8`: its text, with the room `bytes` had. */
+export function stringFromUtf8(bytes: ByteVec): Result<RsString, FromUtf8Error> {
 	try {
-		return Ok(decoder.decode(byteVecView(bytes)));
+		return Ok(stringOf(decoder.decode(byteVecView(bytes)), bytes.length as usize, bytes.data.length as usize));
 	} catch {
 		return Err(new FromUtf8Error(bytes));
 	}
+}
+
+/** `String::from_utf8_unchecked` of UTF-8, which keeps the room `bytes` had. */
+export function stringFromUtf8Unchecked(bytes: ByteVec): RsString {
+	return stringOf(strFromUtf8Unchecked(byteVecSlice(bytes)), bytes.length as usize, bytes.data.length as usize);
 }
 
 /** `str::as_bytes`: its UTF-8 bytes. */
@@ -2765,14 +2815,16 @@ export function stringAsBytes(s: string): ByteSlice {
 	return byteSliceFrom(encoder.encode(s));
 }
 
-/** `String::into_bytes`: its UTF-8 bytes. */
-export function stringIntoBytes(s: string): ByteVec {
-	return byteVecFrom(encoder.encode(s));
+/** `String::into_bytes`: its UTF-8 bytes, with its room. */
+export function stringIntoBytes(s: RsString): ByteVec {
+	const v = new ByteVec(s.cap);
+	v.length = encoder.encodeInto(s.v, v.data).written;
+	return v;
 }
 
-/** `str::len`: its length in UTF-8 bytes. */
-export function stringLen(s: string): number {
-	return encoder.encode(s).length;
+/** `<[u8]>::to_vec` of a `str`'s bytes, with room for exactly them. */
+export function strToBytes(s: string): ByteVec {
+	return byteVecFrom(encoder.encode(s));
 }
 
 /** `char::from_u32`: `n`, unless it is a surrogate or past the last char. */
@@ -2848,18 +2900,30 @@ export interface Write {
 	writeChar(c: char): FmtResult;
 }
 
+/** `impl fmt::Write for String`: each `write_str` a `push_str`, and each `write_char` a `push`. */
 class StringWriter implements Write {
-	s = "";
+	readonly s: RsString;
+
+	constructor(s: RsString) {
+		this.s = s;
+	}
 
 	writeStr(s: string): FmtResult {
-		this.s += s;
+		stringPushStr(this.s, s);
 		return OK;
 	}
 
 	writeChar(c: char): FmtResult {
-		this.s += String.fromCodePoint(c);
+		stringPush(this.s, c);
 		return OK;
 	}
+}
+
+/** The text `args` writes, before any value failed to, as a panic's message. */
+export function fmtFormatText(args: Arguments): string {
+	const s = stringNew();
+	write(new StringWriter(s), args);
+	return s.v;
 }
 
 /** Indents each line it writes, for `{:#?}`'s nesting. */
@@ -2937,12 +3001,9 @@ export function fmtWriteFmt(f: Formatter, args: Arguments): FmtResult {
 	return write(f.out, args);
 }
 
-/** `write!` into a `String`, `s`: `s` with what was written, even before an error, and the result. */
-export function fmtWriteString(s: string, args: Arguments): { s: string; result: FmtResult } {
-	const out = new StringWriter();
-	out.s = s;
-	const result = write(out, args);
-	return { s: out.s, result };
+/** `write!` into a `String`, which keeps what was written before an error. */
+export function fmtWriteString(s: RsString, args: Arguments): FmtResult {
+	return write(new StringWriter(s), args);
 }
 
 /** `Formatter::alternate`: whether the spec has `#`. */
@@ -3260,20 +3321,47 @@ function closePretty(f: Formatter, close: string): FmtResult {
 
 // `Debug` and `Display` of what std defines them for. A string's `Display` is `fmtPad`.
 
-/** `format!`, from `alloc::fmt::format`. */
-export function fmtFormat(args: Arguments): string {
-	const out = new StringWriter();
-	if (!write(out, args).ok) {
+/**
+ * `format!`, from `alloc::fmt::format`: room for `Arguments::estimated_capacity`, which
+ * each write grows.
+ */
+export function fmtFormat(args: Arguments): RsString {
+	const s = stringWithCapacity(estimate(args) as usize);
+	if (!write(new StringWriter(s), args).ok) {
 		panic("a formatting trait implementation returned an error when the underlying stream did not: Error", "format", true);
 	}
-	return out.s;
+	return s;
 }
 
-/** `ToString::to_string` of a `Display` value. */
-export function fmtToString(value: Fmt): string {
-	const out = new StringWriter();
-	if (!value({ out, spec: {} }).ok) panic("a Display implementation returned an error unexpectedly: Error", "to_string", true);
-	return out.s;
+/**
+ * `Arguments::estimated_capacity`: the text's bytes if it has no placeholder, none if one
+ * comes first and the text is under 16 bytes, and else twice the text's bytes.
+ */
+function estimate(args: Arguments): number {
+	let len = 0;
+	let placeholders = false;
+	let first = false;
+	for (const part of args) {
+		if (typeof part === "string") len += stringLen(part);
+		else {
+			first ||= len === 0;
+			placeholders = true;
+		}
+	}
+	if (!placeholders) return len;
+	return first && len < 16 ? 0 : len * 2;
+}
+
+/**
+ * `ToString::to_string` of a `Display` value. std's room for a signed integer is `size`
+ * digits, and its sign if negative; for other primitives, given a `size` of 0, exactly its
+ * bytes; and else what each write grows from none.
+ */
+export function fmtToString(value: Fmt, size?: number): RsString {
+	const s = stringNew();
+	if (!value({ out: new StringWriter(s), spec: {} }).ok) panic("a Display implementation returned an error unexpectedly: Error", "to_string", true);
+	if (size !== undefined) s.cap = (size === 0 ? s.len : size + (s.v.startsWith("-") ? 1 : 0)) as usize;
+	return s;
 }
 
 /** A placeholder with options, which replace the defaults its value is written with. */

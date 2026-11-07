@@ -7,54 +7,54 @@ import * as Text from "./inlines.Text.ts";
 
 /** At most `N` values, held inline, which logs its capacity and length as it drops. */
 export class Stack<T> {
-	items: Array<T | undefined>;
+	items: rs.OptionOf<T>[];
 	len: rs.usize;
 
-	constructor(items: Array<T | undefined>, len: rs.usize) {
+	constructor(items: rs.OptionOf<T>[], len: rs.usize) {
 		this.items = items;
 		this.len = len;
 	}
 }
 
-export function new$String_0(): Stack<string> {
-	return new Stack(rs.arrayFromFn(0, (_2: rs.usize): string | undefined => {
+export function new$String_0(): Stack<rs.String> {
+	return new Stack(rs.arrayFromFn(0, (_2: rs.usize): rs.String | undefined => {
 		return undefined;
-	}), 0);
+	}) as rs.OptionOf<rs.String>[], 0);
 }
 
-export function new$String_2(): Stack<string> {
-	return new Stack(rs.arrayFromFn(2, (_2: rs.usize): string | undefined => {
+export function new$String_2(): Stack<rs.String> {
+	return new Stack(rs.arrayFromFn(2, (_2: rs.usize): rs.String | undefined => {
 		return undefined;
-	}), 0);
+	}) as rs.OptionOf<rs.String>[], 0);
 }
 
 export function new$inlines_Stack_u8_1_2(): Stack<Stack<rs.u8>> {
 	return new Stack(rs.arrayFromFn(2, (_2: rs.usize): Stack<rs.u8> | undefined => {
 		return undefined;
-	}), 0);
+	}) as rs.OptionOf<Stack<rs.u8>>[], 0);
 }
 
 export function new$inlines_Text_2_4(): Stack<Text.Text> {
 	return new Stack(copy$array_Option_inlines_Text_2(rs.arrayFromFn(4, (_2: rs.usize): Text.Text | undefined => {
 		return undefined;
-	})), 0);
+	})) as rs.OptionOf<Text.Text>[], 0);
 }
 
 export function new$u8_1(): Stack<rs.u8> {
 	return new Stack(copy$array_Option_u8(rs.arrayFromFn(1, (_2: rs.usize): rs.u8 | undefined => {
 		return undefined;
-	})), 0);
+	})) as rs.OptionOf<rs.u8>[], 0);
 }
 
 export function new$u8_3(): Stack<rs.u8> {
 	return new Stack(copy$array_Option_u8(rs.arrayFromFn(3, (_2: rs.usize): rs.u8 | undefined => {
 		return undefined;
-	})), 0);
+	})) as rs.OptionOf<rs.u8>[], 0);
 }
 
 /** `t`, or it back once full. */
-export function push$String_0(self: Stack<string>, t: string): rs.Result<undefined, string> {
-	const _3: rs.Place<string | undefined> | undefined = rs.sliceGetMut(rs.sliceFrom(self.items), self.len);
+export function push$String_0(self: Stack<rs.String>, t: rs.String): rs.Result<undefined, rs.String> {
+	const _3: rs.Place<rs.String | undefined> | undefined = rs.sliceGetMut(rs.sliceFrom(self.items), self.len);
 	if (_3 === undefined) {
 		return rs.Err(t);
 	}
@@ -64,8 +64,8 @@ export function push$String_0(self: Stack<string>, t: string): rs.Result<undefin
 }
 
 /** `t`, or it back once full. */
-export function push$String_2(self: Stack<string>, t: string): rs.Result<undefined, string> {
-	const _3: rs.Place<string | undefined> | undefined = rs.sliceGetMut(rs.sliceFrom(self.items), self.len);
+export function push$String_2(self: Stack<rs.String>, t: rs.String): rs.Result<undefined, rs.String> {
+	const _3: rs.Place<rs.String | undefined> | undefined = rs.sliceGetMut(rs.sliceFrom(self.items), self.len);
 	if (_3 === undefined) {
 		return rs.Err(t);
 	}
@@ -120,7 +120,7 @@ export function push$u8_3(self: Stack<rs.u8>, t: rs.u8): rs.Result<undefined, rs
 	return rs.OK;
 }
 
-export function pop$String_2(self: Stack<string>): string | undefined {
+export function pop$String_2(self: Stack<rs.String>): rs.String | undefined {
 	const _2: rs.usize | undefined = rs.usizeCheckedSub(self.len, 1);
 	if (_2 !== undefined) {
 		self.len = _2;
@@ -150,12 +150,12 @@ export function pop$u8_3(self: Stack<rs.u8>): rs.u8 | undefined {
 	return undefined;
 }
 
-export function iter$String_0(self: Stack<string>): rs.Iter<string> {
-	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(self.items), 0, self.len))), (value: string | undefined) => rs.iterOption(value), true, undefined, true);
+export function iter$String_0(self: Stack<rs.String>): rs.Iter<rs.String> {
+	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(self.items), 0, self.len))), (value: rs.String | undefined) => rs.iterOption(value), true, undefined, true);
 }
 
-export function iter$String_2(self: Stack<string>): rs.Iter<string> {
-	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(self.items), 0, self.len))), (value: string | undefined) => rs.iterOption(value), true, undefined, true);
+export function iter$String_2(self: Stack<rs.String>): rs.Iter<rs.String> {
+	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(self.items), 0, self.len))), (value: rs.String | undefined) => rs.iterOption(value), true, undefined, true);
 }
 
 export function iter$inlines_Stack_u8_1_2(self: Stack<Stack<rs.u8>>): rs.Iter<Stack<rs.u8>> {
@@ -174,13 +174,13 @@ export function iter$u8_3(self: Stack<rs.u8>): rs.Iter<rs.u8> {
 	return rs.iterFlatten(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(self.items), 0, self.len))), (value: rs.u8 | undefined) => rs.iterOption(value), true, undefined, true);
 }
 
-export function drop$ops_Drop_String_0(self: Stack<string>): void {
+export function drop$ops_Drop_String_0(self: Stack<rs.String>): void {
 	rs.localKeyWithBorrowMut(DROPS, (log: rs.ByteVec): undefined => {
 		rs.iterExtendBytes(log, rs.iterSlice(Uint8Array.of(0, self.len & 0xff)), undefined, true);
 	});
 }
 
-export function drop$ops_Drop_String_2(self: Stack<string>): void {
+export function drop$ops_Drop_String_2(self: Stack<rs.String>): void {
 	rs.localKeyWithBorrowMut(DROPS, (log: rs.ByteVec): undefined => {
 		rs.iterExtendBytes(log, rs.iterSlice(Uint8Array.of(2, self.len & 0xff)), undefined, true);
 	});
@@ -210,16 +210,16 @@ export function drop$ops_Drop_u8_3(self: Stack<rs.u8>): void {
 	});
 }
 
-export function fmt$fmt_Debug_String_0(self: Stack<string>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
+export function fmt$fmt_Debug_String_0(self: Stack<rs.String>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const _5: rs.DebugList = rs.fmtDebugList(f);
-	const _6: rs.Iter<string> = iter$String_0(self);
-	return rs.debugListFinish(rs.debugListEntries(_5, _6, rs.fmtStr));
+	const _6: rs.Iter<rs.String> = iter$String_0(self);
+	return rs.debugListFinish(rs.debugListEntries(_5, _6, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)));
 }
 
-export function fmt$fmt_Debug_String_2(self: Stack<string>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
+export function fmt$fmt_Debug_String_2(self: Stack<rs.String>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const _5: rs.DebugList = rs.fmtDebugList(f);
-	const _6: rs.Iter<string> = iter$String_2(self);
-	return rs.debugListFinish(rs.debugListEntries(_5, _6, rs.fmtStr));
+	const _6: rs.Iter<rs.String> = iter$String_2(self);
+	return rs.debugListFinish(rs.debugListEntries(_5, _6, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)));
 }
 
 export function fmt$fmt_Debug_inlines_Stack_u8_1_2(self: Stack<Stack<rs.u8>>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {

@@ -3,7 +3,7 @@
 import * as rs from "../rs.ts";
 import * as Item from "../orders.Item.ts";
 
-export function min$0tf7r1u(v1: string, v2: string): string {
+export function min$10ohimp(v1: rs.String, v2: rs.String): rs.String {
 	return rs.ordMin(v1, v2, rs.cmpLt(rs.cmpStr));
 }
 
@@ -74,7 +74,7 @@ export function minByKey$1qsvvgc(v1: Item.Item, v2: Item.Item, f: (a0: Item.Item
 	return _0;
 }
 
-export function max$0mrbrbr(v1: string, v2: string): string {
+export function max$16nac37(v1: rs.String, v2: rs.String): rs.String {
 	return rs.ordMax(v1, v2, rs.cmpLt(rs.cmpStr));
 }
 

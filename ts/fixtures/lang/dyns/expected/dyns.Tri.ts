@@ -56,7 +56,7 @@ export function intoArea$dyns_Shape(self: Tri): rs.u32 {
 	return rs.u32WrappingMul(area$dyns_Shape(self), 2);
 }
 
-export function label$dyns_Named(self: Tri): string {
+export function label$dyns_Named(self: Tri): rs.String {
 	return rs.fmtFormat(["tri ", (f: rs.Formatter) => fmt$fmt_Debug(self, f)]);
 }
 
@@ -72,28 +72,27 @@ export function asAnyMut$dyns_Erased(self: rs.Place<Tri>): Any.Any {
  * Provided, taking a function of a reference to the argument, which the trait's type
  * takes in each form a reference may be.
  */
-export function apply$dyns_Scaled_String(self: Tri, f: (a0: string) => string, x: string): string {
+export function apply$dyns_Scaled_String(self: Tri, f: (a0: rs.String) => rs.String, x: rs.String): rs.String {
 	return f(scale$dyns_Scaled_String(self, x));
 }
 
-export function scale$dyns_Scaled_String(self: Tri, by: string): string {
-	const args3 = [(f: rs.Formatter) => rs.fmtPad(f, by), (f: rs.Formatter) => fmt$fmt_Debug(self, f)];
+export function scale$dyns_Scaled_String(self: Tri, by: rs.String): rs.String {
+	const args3 = [(f: rs.Formatter) => rs.fmtPad(f, by.v), (f: rs.Formatter) => fmt$fmt_Debug(self, f)];
 	return rs.fmtFormat([args3[0], args3[1]]);
 }
 
 /** Writes through a `&mut` to the argument, an `rs.Place` for a number. */
-export function bump$dyns_Scaled_String(self: Tri, at: rs.Place<string>): void {
+export function bump$dyns_Scaled_String(self: Tri, at: rs.String): void {
 	const _8: rs.u32 = area$dyns_Shape(self);
-	const _4: string = rs.fmtToString((f: rs.Formatter) => rs.u32Display(_8, f));
-	at.v = at.v + _4;
+	rs.stringPushStr(at, rs.fmtToString((f: rs.Formatter) => rs.u32Display(_8, f), 0).v);
 }
 
 /**
  * Takes and returns references to the argument, which the trait's type has in each
  * form a reference may be.
  */
-export function pick$dyns_Scaled_String(_self: Tri, a: string, b: string): string {
-	if (!(rs.stringLen(a) >= rs.stringLen(b))) {
+export function pick$dyns_Scaled_String(_self: Tri, a: rs.String, b: rs.String): rs.String {
+	if (!(a.len >= b.len)) {
 		return b;
 	}
 	return a;

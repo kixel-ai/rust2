@@ -4,7 +4,7 @@ import * as rs from "../rs.ts";
 import { sum, sumWords, sumPairs, sumTexts, sumTwos } from "../separated.ts";
 import type * as Pair from "../separated.Pair.ts";
 
-export function map$13p7ywa(self: rs.Slice<string> | undefined, _: (a0: rs.Slice<string>) => rs.u8): rs.u8 | undefined {
+export function map$0k3subg(self: rs.Slice<rs.String> | undefined, _: (a0: rs.Slice<rs.String>) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -39,7 +39,7 @@ export function map$0x0c7ki(self: rs.ByteSlice | undefined, _: (a0: rs.ByteSlice
 	return sum(self);
 }
 
-export function mapOr$1dcbyoa(self: rs.Slice<string> | undefined, default_: rs.u8, _: (a0: rs.Slice<string>) => rs.u8): rs.u8 {
+export function mapOr$1jad7d1(self: rs.Slice<rs.String> | undefined, default_: rs.u8, _: (a0: rs.Slice<rs.String>) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}

@@ -20,12 +20,12 @@ export class Over<T> {
 	}
 }
 
-export function run$String(self: Over<string>): string | undefined {
-	const _3: string | undefined = self.source.take$Source();
+export function run$String(self: Over<rs.String>): rs.String | undefined {
+	const _3: rs.String | undefined = self.source.take$Source() as rs.String | undefined;
 	if (_3 !== undefined) {
-		const next: string = _3;
-		const other: string = self.scale.scale$Scaled(next);
-		return self.scale.pick$Scaled(next as rs.Ptr<string>, other as rs.Ptr<string>) as string;
+		const next: rs.String = _3;
+		const other: rs.String = self.scale.scale$Scaled(rs.stringClone(next));
+		return rs.stringClone(self.scale.pick$Scaled(next as rs.Ptr<rs.String>, other as rs.Ptr<rs.String>) as rs.String);
 	}
 	return undefined;
 }

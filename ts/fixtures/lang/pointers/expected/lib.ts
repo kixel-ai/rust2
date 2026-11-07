@@ -176,7 +176,7 @@ export function copy$tuple2_u32_u32(v: [rs.u32, rs.u32]): [rs.u32, rs.u32] {
 	return [v[0], v[1]];
 }
 
-export function copy$tuple2_u8_String(v: [rs.u8, string]): [rs.u8, string] {
+export function copy$tuple2_u8_String(v: [rs.u8, rs.String]): [rs.u8, rs.String] {
 	return [v[0], v[1]];
 }
 
@@ -188,7 +188,7 @@ export function copy$tuple2_u8_u8(v: [rs.u8, rs.u8]): [rs.u8, rs.u8] {
 	return [v[0], v[1]];
 }
 
-export function drop$pointers_List_String(_1: List.List<string>): void {
+export function drop$pointers_List_String(_1: List.List<rs.String>): void {
 	List.drop$ops_Drop_String(_1);
 }
 
