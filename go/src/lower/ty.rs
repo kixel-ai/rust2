@@ -145,13 +145,15 @@ impl<'tcx> Translator<'tcx> {
 		}
 	}
 
-	/// Refuse a `pub` field Go cannot export by its name: one starting with `_` or an
-	/// uppercase letter, which capitalizing would not keep apart from its neighbors.
+	/// Refuse a named `pub` field Go cannot export by its name: one not starting with an
+	/// ASCII lowercase letter, which capitalizing would leave unexported or not keep apart
+	/// from its neighbors.
 	fn check_field(&mut self, field: &ty::FieldDef) {
-		if field.vis.is_public() && field.name.as_str().starts_with(|c: char| c == '_' || c.is_uppercase()) {
+		let name = field.name.as_str();
+		if field.vis.is_public() && name.parse::<usize>().is_err() && !name.starts_with(|c: char| c.is_ascii_lowercase()) {
 			self.err(
 				self.tcx.def_span(field.did),
-				"a `pub` field named with a leading `_` or uppercase letter, which Go cannot export one to one, is not supported",
+				"a `pub` field not named with a leading ASCII lowercase letter, which Go cannot export one to one, is not supported",
 			);
 		}
 	}
