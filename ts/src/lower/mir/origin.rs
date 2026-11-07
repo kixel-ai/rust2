@@ -460,6 +460,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					op,
 					_,
 				) if self.same_pointee(op, local) => self.raw_start(op),
+				// `&raw const *s`, of the slice `s`.
+				Rvalue::RawPtr(_, place) if place.projection.as_slice() == [ProjectionElem::Deref] => {
+					self.start(&Operand::Copy(mir::Place::from(place.local)))
+				}
 				_ => None,
 			};
 		}
@@ -467,6 +471,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let (owner, name) = library::key(self.tcx, def_id)?;
 		match (owner.as_str(), name.as_str()) {
 			("ptr" | "NonNull", "slice_from_raw_parts" | "slice_from_raw_parts_mut") => self.origin(&args[0].node),
+			("ptr", "from_ref" | "from_mut") => self.start(&args[0].node),
 			("NonNull", "as_ptr" | "new_unchecked") => self.raw_start(&args[0].node),
 			_ => None,
 		}
