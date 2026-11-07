@@ -198,8 +198,8 @@ pub struct Function {
 	pub access: Access,
 	/// The instance it is, if a type parameter exports at several.
 	pub instance: Option<Instance>,
-	/// Where a function of no type belongs; a method belongs with its type, and leaves it
-	/// empty.
+	/// Where it belongs: a method with its type, unless its instance names a later crate's
+	/// type, which it then belongs with.
 	pub home: Home,
 }
 

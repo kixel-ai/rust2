@@ -293,9 +293,18 @@ impl<'tcx> Collector<'tcx> {
 
 	/// Where the item `def_id` the walk reached belongs, before any instance moves on.
 	fn home(&self, def_id: DefId) -> Home {
+		let tcx = self.tcx;
+		// An associated item, whose path goes through its type's, is at home with it.
+		let item = match self.outside.contains_key(&def_id) {
+			true => def_id,
+			false => match tcx.type_of(tcx.parent(def_id)).instantiate_identity().skip_norm_wip().kind() {
+				ty::Adt(adt, _) => adt.did(),
+				other => unreachable!("an associated item of {other:?}"),
+			},
+		};
 		Home {
-			krate: self.tcx.crate_name(def_id.krate).to_string(),
-			outside: self.outside[&def_id],
+			krate: tcx.crate_name(item.krate).to_string(),
+			outside: self.outside[&item],
 		}
 	}
 
@@ -357,6 +366,55 @@ impl<'tcx> Collector<'tcx> {
 				};
 				*home = Home { krate, outside: 1 };
 			}
+		}
+		// A method whose instance names a later crate's type belongs there too; any other
+		// with its type.
+		let method_homes = |owner: &Home, methods: &[Function]| -> Vec<Home> {
+			(methods.iter())
+				.map(|f| {
+					let mut last = owner.krate.clone();
+					let types = (f.params.iter().map(|p| &p.ty)).chain([&f.ok]).chain(&f.err);
+					for ty in types {
+						crate::ir::each(ty, &mut |named| {
+							let krate = match named {
+								Type::Record(i) => &api.records[*i].home.krate,
+								Type::Enum(i) => &api.enums[*i].home.krate,
+								Type::Object(i) => &api.objects[*i].home.krate,
+								Type::Callback(i, _) => &api.callbacks[*i].home.krate,
+								_ => return,
+							};
+							if rank(krate) > rank(&last) {
+								last = krate.clone();
+							}
+						});
+					}
+					match last == owner.krate {
+						true => owner.clone(),
+						false => Home { krate: last, outside: 1 },
+					}
+				})
+				.collect()
+		};
+		let records: Vec<Vec<Home>> = api.records.iter().map(|r| method_homes(&r.home, &r.methods)).collect();
+		let enums: Vec<Vec<Home>> = api.enums.iter().map(|e| method_homes(&e.home, &e.methods)).collect();
+		let objects: Vec<Vec<Home>> = api.objects.iter().map(|o| method_homes(&o.home, &o.methods)).collect();
+		let callbacks: Vec<Vec<Home>> = api.callbacks.iter().map(|c| method_homes(&c.home, &c.methods)).collect();
+		let set = |methods: &mut [Function], homes: Vec<Home>| {
+			for (method, home) in methods.iter_mut().zip(homes) {
+				method.home = home;
+			}
+		};
+		for (r, homes) in api.records.iter_mut().zip(records) {
+			set(&mut r.methods, homes);
+		}
+		for (e, homes) in api.enums.iter_mut().zip(enums) {
+			set(&mut e.methods, homes);
+		}
+		for (o, homes) in api.objects.iter_mut().zip(objects) {
+			set(&mut o.methods, homes);
+		}
+		for (c, homes) in api.callbacks.iter_mut().zip(callbacks) {
+			set(&mut c.methods, homes);
 		}
 		let homes = (api.records.iter().map(|r| &r.home.krate))
 			.chain(api.enums.iter().map(|e| &e.home.krate))

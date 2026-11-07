@@ -963,7 +963,51 @@ impl<'a> Gen<'a> {
 			self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
 			self.top.push_str(&method.write());
 		}
+		self.moved();
 		self.errors_of();
+	}
+
+	/// Each method of another package's type whose instance names a type of this one's,
+	/// which Go keeps from that package, as Go keeps a type's methods in its own: a function
+	/// of this one, named through its type and taking its receiver first.
+	fn moved(&mut self) {
+		let abi = self.abi;
+		let api = abi.api;
+		let records = (0..api.records.len()).map(|i| {
+			let c = abi.record(i);
+			(Type::Record(i), Ty::Struct(c), &api.records[i].home, &api.records[i].methods)
+		});
+		let enums = (0..api.enums.len()).map(|i| {
+			let c = abi.enumeration(i);
+			let owner = match api.enums[i].plain() {
+				true => Ty::Enum(c),
+				false => Ty::Struct(c),
+			};
+			(Type::Enum(i), owner, &api.enums[i].home, &api.enums[i].methods)
+		});
+		let objects = (0..api.objects.len()).map(|i| {
+			let owner = Ty::Handle {
+				name: abi.object(i),
+				constant: false,
+			};
+			(Type::Object(i), owner, &api.objects[i].home, &api.objects[i].methods)
+		});
+		let pkg = self.pkg;
+		for (ty, owner, home, methods) in records.chain(enums).chain(objects) {
+			if home.krate == pkg {
+				continue;
+			}
+			for function in methods.iter().filter(|f| f.home.krate == pkg) {
+				let mut method = self.function(function, Some(&owner), Some(&ty));
+				if let Some(receiver) = method.receiver.take() {
+					let go = receiver.strip_prefix("self ").expect("a receiver is `self`").to_string();
+					method.params.insert(0, ("self".to_string(), go));
+					method.name = format!("{}{}", self.named(&ty).1, method.name);
+				}
+				self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
+				self.top.push_str(&method.write());
+			}
+		}
 	}
 
 	/// The runtime's types: each range's and bound's, and each error's of no crate's.
@@ -1337,7 +1381,8 @@ impl<'a> Gen<'a> {
 			self.claim(&default.name, format!("`{rust}`'s Default"));
 			statics.push(default);
 		}
-		for function in functions {
+		let pkg = self.pkg;
+		for function in functions.iter().filter(|f| f.home.krate == pkg) {
 			let method = self.function(function, Some(owner), Some(ty));
 			match method.receiver {
 				Some(_) => methods.push(method),
