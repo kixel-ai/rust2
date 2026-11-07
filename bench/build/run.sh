@@ -235,8 +235,9 @@ check_graph() { # corpus rule cargo-args...
 }
 
 # Enters a variant's toolchain, flags, and target directory for the cargo calls that
-# follow, sets `sub` to what goes between cargo and its subcommand, and `rajit` to
-# whether the ra-jit daemon builds.
+# follow, sets `sub` to what goes between cargo and its subcommand, and `cfg` to
+# what follows the command. Cargo does not forward a `--config` before an external
+# subcommand such as nextest, so the variant's config goes last.
 use_variant() { # corpus variant
     case $(field variant "$2" .toolchain) in
         stable) PATH=$stable_path ;;
@@ -244,12 +245,12 @@ use_variant() { # corpus variant
         ra-jit) PATH=$rajit_path ;;
         *) die "variant $2 has no valid toolchain" ;;
     esac
-    mapfile -t sub < <(field variant "$2" '(.config // [])[] | "--config=" + .')
     case $(field variant "$2" .subcommand) in
-        '') rajit=0 ;;
-        ra-jit) rajit=1 && sub+=(ra-jit) ;;
+        '') sub=() ;;
+        ra-jit) sub=(ra-jit) ;;
         *) die "variant $2 has no valid subcommand" ;;
     esac
+    mapfile -t cfg < <(field variant "$2" '(.config // [])[] | "--config=" + .')
     RUSTFLAGS=$(field variant "$2" .rustflags)
     CARGO_TARGET_DIR=$work/target/$1/$2
     export PATH RUSTFLAGS CARGO_TARGET_DIR
@@ -317,13 +318,13 @@ time_once() { # corpus dir scenario variant prepare cargo-args...
         use_variant "$corpus" "$variant"
         cd "$dir"
         local before after counts measurement summary
-        if ((rajit)); then
+        if ((${#sub[@]})); then
             before=$(rajit_settle "$dir")
             counts=$(rajit_counts "$dir")
         fi
         # hyperfine sends only stdout to the log; nextest and cargo report on stderr.
         hyperfine --style none --runs 1 --prepare "$prepare && sync" --export-json "$json" --output "$log" "${failure[@]}" \
-            --shell bash "$(printf '%q ' cargo "${sub[@]}" "$@") 2>&1" ||
+            --shell bash "$(printf '%q ' cargo "${sub[@]}" "$@" "${cfg[@]}") 2>&1" ||
             { tail -40 "$log" >&2 && die "$corpus $scenario failed with $variant"; }
         measurement=$(jq -c '.results[0].measurements[0]' "$json")
         if ((${#failure[@]})); then
@@ -333,7 +334,7 @@ time_once() { # corpus dir scenario variant prepare cargo-args...
             measurement=$(jq -c --arg summary "$summary" '($summary | split(" ") | map(tonumber)) as [$run, $passed]
                 | . + {tests: {run: $run, failed: ($run - $passed)}}' <<<"$measurement")
         fi
-        if ((rajit)); then
+        if ((${#sub[@]})); then
             after=$(rajit_settle "$dir")
             measurement=$(jq -c --argjson before "$counts" --argjson after "$(rajit_counts "$dir")" \
                 --arg was "$before" --arg now "$after" '
@@ -412,8 +413,8 @@ bench_corpus() { # corpus dir
             rm -rf "$CARGO_TARGET_DIR"
             cd "$dir"
             # The `||` below turns errexit off in here, so a failed build has to exit itself.
-            cargo "${sub[@]}" build --locked --offline "${args[@]}" >"$out/logs/$corpus.$variant.log" 2>&1 || exit
-            ((rajit == 0)) || rajit_settle "$dir" >/dev/null
+            cargo "${sub[@]}" build --locked --offline "${args[@]}" "${cfg[@]}" >"$out/logs/$corpus.$variant.log" 2>&1 || exit
+            ((${#sub[@]} == 0)) || rajit_settle "$dir" >/dev/null
         ) || { tail -40 "$out/logs/$corpus.$variant.log" >&2 && die "$corpus failed to build with $variant"; }
     done
 
@@ -460,8 +461,8 @@ bench_corpus() { # corpus dir
                 (
                     use_variant "$corpus" "$variant"
                     cd "$dir"
-                    cargo "${sub[@]}" "${cmd[@]}"
-                    ((rajit == 0)) || rajit_settle "$dir" >/dev/null
+                    cargo "${sub[@]}" "${cmd[@]}" "${cfg[@]}"
+                    ((${#sub[@]} == 0)) || rajit_settle "$dir" >/dev/null
                 )
             done
         fi
