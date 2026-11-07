@@ -49,5 +49,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("pointers::raw_arcs", |_, data, out| pointers::raw_arcs(data, out)),
 		("pointers::raw_places", |_, data, out| pointers::raw_places(data, out)),
 		("pointers::arrays", |_, data, out| pointers::arrays(data, out)),
+		("pointers::array_casts", |_, data, out| pointers::array_casts(data, out)),
 	]
 }

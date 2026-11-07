@@ -484,6 +484,28 @@ export class RawSlice<T> {
 		return ptrSlice(this.ptr, this.length);
 	}
 
+	/**
+	 * `p as *const [T; N]`: the pointer to the `n` elements from its first, which nothing
+	 * checks until a read through it, as in Rust. Null and dangling point at nothing.
+	 */
+	array(n: number): Slice<T> {
+		if (ptrNowhere(this.ptr)) return this.ptr as never;
+		const at = elemOf(this.ptr);
+		return new Slice(at.array as T[], at.index, n);
+	}
+
+	/**
+	 * `p as *const [u8; N]`, as `array` casts it, of bytes in an array of bytes. Not over
+	 * `RawSlice<number>`, as a null one's element type is unknown.
+	 */
+	byteArray(n: number): ByteSlice {
+		if (ptrNowhere(this.ptr)) return this.ptr as never;
+		const at = elemOf(this.ptr);
+		// A byte in no array, which no `Uint8Array` can share.
+		if (!(at.array instanceof Uint8Array)) throw new Error("rust2-ts: a raw or mutable slice of a byte in no array of bytes");
+		return new ByteSlice(at.array, at.index, n);
+	}
+
 	/** The bytes it points at, read through it, `shared` as `ptrByteSlice` takes it. */
 	derefBytes(this: RawSlice<number>, shared: boolean): ByteSlice {
 		if (this.#made !== undefined) return this.#made;

@@ -1035,8 +1035,9 @@ fn unmodeled<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, what: &str) -> Option<S
 }
 
 /// The pointer `p` to `from`, as one to `to`: the same pointer, as one to what a
-/// `MaybeUninit` holds or the other way, erased to or back from a `*const ()`, or the
-/// pointer to the first element of the array or slice it points at.
+/// `MaybeUninit` holds or the other way, erased to or back from a `*const ()`, the pointer
+/// to the first element of the array or slice it points at, or one to a slice as one to an
+/// array of its elements.
 pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
 	let (inner, into) = (b.t.uninit_inner(from), b.t.uninit_inner(to));
 	// Bytes are bytes, initialized or not, so a slice of either is the same `rs.ByteSlice`.
@@ -1065,6 +1066,20 @@ pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, from: Ty<'tcx>, to: Ty<'t
 	if b.t.identity_pointee(inner) {
 		let restored = Expr::rs("ptrUnerase", vec![p, key(into), align(into)]);
 		return Expr::As(Box::new(restored), b.t.pointer_ty(into, span));
+	}
+	// A pointer to a slice as one to an array of its elements, which reinterprets nothing:
+	// `N` elements from its first, read through only where Rust reads.
+	if let (ty::Slice(from_elem), ty::Array(elem, n)) = (inner.kind(), into.kind())
+		&& (from_elem == elem || super::byte(*from_elem) && super::byte(*elem))
+	{
+		let Some(n) = n.try_to_target_usize(tcx) else {
+			return b.err(span, format!("a cast from a pointer to `{from}` to one to `{to}`, of no fixed length"));
+		};
+		let array = match byte_slice(inner) {
+			true => "byteArray",
+			false => "array",
+		};
+		return p.member(array).call(vec![Expr::lit(n.to_string())]);
 	}
 	let elem = match inner.kind() {
 		ty::Array(elem, _) | ty::Slice(elem) if b.t.uninit_inner(*elem) == into => Some(*elem),
