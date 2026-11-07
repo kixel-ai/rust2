@@ -14,6 +14,7 @@ roots = [
     "alloc::collection_moved",
     "alloc::infallible_cell",
     "alloc::joined_reference",
+    "alloc::joined_twice",
     "alloc::lazy_moved",
     "alloc::past_reference",
     "alloc::peeked_moved",

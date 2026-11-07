@@ -119,6 +119,17 @@ pub fn joined_reference(r: &u32, flag: bool) -> u32 {
 	unsafe { p.offset_from(std::ptr::from_ref(r)) as u32 + q.add(1).read() }
 }
 
+/// Pointers from a reference the body is given, through a branch whose other path makes
+/// another from it, and through a branch over such a branch: each `offset_from` measures
+/// pointers JS keeps in different arrays on some path, where Rust's are one place.
+pub fn joined_twice(r: &u32, a: bool, b: bool) -> isize {
+	let q = r as *const u32;
+	let p = if a { q } else { r as *const u32 };
+	let s = if a { r as *const u32 } else { std::ptr::null() };
+	let t = if b { s } else { std::ptr::null() };
+	unsafe { p.offset_from(q) + if a && b { t.offset_from(r as *const u32) } else { 0 } }
+}
+
 /// A pointer from a reference the body is given, which JS keeps in no array, moved past
 /// it.
 pub fn past_reference(r: &u32) -> u32 {

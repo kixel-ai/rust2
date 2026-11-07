@@ -360,9 +360,6 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	slots: IndexVec<Local, Slot<'tcx>>,
 	/// Where each local assigned once is assigned, by a statement.
 	def_at: IndexVec<Local, Option<(BasicBlock, usize)>>,
-	/// Whether `origin` is following the assignments of a pointer assigned more than once,
-	/// which it follows no deeper.
-	joining: std::cell::Cell<bool>,
 	/// How many times each local is read, and assigned whole.
 	uses: IndexVec<Local, u32>,
 	defs: IndexVec<Local, u32>,
@@ -525,7 +522,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			env,
 			slots: IndexVec::from_elem_n(Slot::Unit, n),
 			def_at: IndexVec::from_elem_n(None, n),
-			joining: std::cell::Cell::new(false),
 			uses: IndexVec::from_elem_n(0, n),
 			defs: IndexVec::from_elem_n(0, n),
 			borrowed: IndexVec::from_elem_n(false, n),
