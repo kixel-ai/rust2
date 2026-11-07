@@ -858,7 +858,9 @@ pub fn call<'tcx>(
 				ty if super::byte_array(ty) => Expr::rs("byteSliceView", vec![arg()]),
 				ty if super::array_slice::of_arrays(ty) => b.err(
 					span,
-					format!("`Box::from_raw` of `{ty}`, which may be arrays `as_chunks` split from one flat array, which is not supported yet"),
+					format!(
+						"`Box::from_raw` of `{ty}`, which may be arrays `as_chunks` split from one flat array, which is not supported yet"
+					),
 				),
 				_ => Expr::rs("boxArrayFromRaw", vec![arg()]),
 			},
