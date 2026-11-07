@@ -178,9 +178,9 @@ pub fn ident(name: &str) -> String {
 }
 
 /// A field's Go name: `F<i>` for a tuple's, else its Rust name escaped as [`escaped`],
-/// exported when the field is `pub` so Go callers in other packages reach it. A name Go
-/// would otherwise export or that starts with `_` takes a leading `_`, which keeps the
-/// mapping one to one.
+/// exported when the field is `pub` so Go callers in other packages reach it. Any other
+/// name Go would export, or that starts with `_`, takes a leading `_`, which keeps the
+/// mapping one to one; a `pub` one is refused where its type is declared.
 pub fn field(field: &ty::FieldDef, index: usize) -> String {
 	let name = field.name.as_str();
 	if name.parse::<usize>().is_ok() || name.is_empty() {

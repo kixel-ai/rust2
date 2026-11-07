@@ -145,6 +145,17 @@ impl<'tcx> Translator<'tcx> {
 		}
 	}
 
+	/// Refuse a `pub` field Go cannot export by its name: one starting with `_` or an
+	/// uppercase letter, which capitalizing would not keep apart from its neighbors.
+	fn check_field(&mut self, field: &ty::FieldDef) {
+		if field.vis.is_public() && field.name.as_str().starts_with(|c: char| c == '_' || c.is_uppercase()) {
+			self.err(
+				self.tcx.def_span(field.did),
+				"a `pub` field named with a leading `_` or uppercase letter, which Go cannot export one to one, is not supported",
+			);
+		}
+	}
+
 	/// A `pub` type alias, as a Go alias named `name` of its type, generic where Rust's is.
 	pub(super) fn alias_decl(&mut self, name: &str, def_id: DefId) {
 		let tcx = self.tcx;
@@ -204,6 +215,7 @@ impl<'tcx> Translator<'tcx> {
 			self.err(tcx.def_span(did), "a union is not supported");
 		} else if adt.is_struct() {
 			for (i, field) in adt.non_enum_variant().fields.iter().enumerate() {
+				self.check_field(field);
 				let fty = self.field_ty(field.did, identity, tcx.def_span(field.did));
 				fields.push_str(&format!("\t{} {fty}\n", names::field(field, i)));
 			}
@@ -216,6 +228,7 @@ impl<'tcx> Translator<'tcx> {
 				}
 				let mut inner = Vec::new();
 				for (i, field) in variant.fields.iter().enumerate() {
+					self.check_field(field);
 					let fty = self.field_ty(field.did, identity, tcx.def_span(field.did));
 					inner.push(format!("{} {fty}", names::field(field, i)));
 				}
