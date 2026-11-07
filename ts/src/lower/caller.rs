@@ -612,7 +612,8 @@ fn crate_sites(t: &mut Translator<'_, '_>, span: Span, name: &str, table: CrateS
 
 /// The `rs.Location` of the first `needle` after each of `after` in turn in `file`, under
 /// `krate`'s `src/`, named as the session names it, if it is there: `None` where the build
-/// compiled no such file.
+/// compiled no such file. A file is known by the end of its path, its own `src/` or not, as
+/// `--remap-path-prefix` rewrites only what comes before it.
 fn crate_find(
 	tcx: TyCtxt<'_>,
 	krate: rustc_span::def_id::CrateNum,
@@ -621,9 +622,15 @@ fn crate_find(
 	needle: &str,
 ) -> Option<Option<Expr>> {
 	let map = tcx.sess.source_map();
-	let suffix = format!("/src/{file}");
+	let suffix = format!("/{file}");
 	let source = (map.files().iter())
-		.find(|f| f.cnum == krate && self::file(tcx, f).ends_with(&suffix))
+		.filter(|f| f.cnum == krate)
+		.filter(|f| {
+			let name = self::file(tcx, f);
+			name == file || name.ends_with(&suffix)
+		})
+		// The shortest is the crate's own, rather than one at the same path below another.
+		.min_by_key(|f| self::file(tcx, f).len())
 		.cloned()?;
 	let found = || {
 		if !map.ensure_source_file_source_present(&source) {
