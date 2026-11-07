@@ -8,8 +8,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/bits"
-	"reflect"
-	"unsafe"
+	"slices"
 )
 
 type tuple1[A any] struct{ F0 A }
@@ -315,26 +314,9 @@ func vecExtend[T any](v *[]T, xs []T) {
 
 // vecGrow makes room for n more elements as std's `RawVec` does, to at least twice the
 // capacity, where `append` grows a slice past 256 elements by about 1.25x and so copies
-// a growing buffer several times as often. It grows through the runtime's growslice,
-// which leaves the new storage of pointer-free elements unzeroed, since appends write it
-// before the slice's length reaches it, where `slices.Grow` zeroes it first.
+// a growing buffer several times as often.
 func vecGrow[T any](v *[]T, n int) {
-	old := *v
-	want := max(2*cap(old), len(old)+n)
-	t := reflect.TypeFor[T]()
-	// A reflect.Type holds the runtime's type descriptor as its data word.
-	et := (*[2]unsafe.Pointer)(unsafe.Pointer(&t))[1]
-	s := growslice(unsafe.Pointer(unsafe.SliceData(old)), want, cap(old), want-len(old), et)
-	*v = unsafe.Slice((*T)(s.ptr), s.cap)[:len(old)]
-}
-
-// growslice is the runtime's, which keeps its signature for the packages that link it:
-// go.dev/issue/67401.
-//
-//go:linkname growslice runtime.growslice
-func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et unsafe.Pointer) struct {
-	ptr      unsafe.Pointer
-	len, cap int
+	*v = slices.Grow(*v, max(2*cap(*v), len(*v)+n)-len(*v))
 }
 
 func vecTruncate[T any](v *[]T, n uint) {

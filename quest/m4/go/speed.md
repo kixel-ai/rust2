@@ -28,23 +28,30 @@ memory, is its tag and its variants' fields, each a Go variable, parameter, and 
 and a field of over four words goes behind a pointer, which a function returning it
 writes only for that variant, so `?` hands an error on in its caller's storage. Each
 variable is declared where it is used, so Go zeroes it only on a path that reaches it.
-Growing through the runtime's `growslice`, which leaves a pointer-free buffer's new
-storage unzeroed for the append that writes it, cut a video stream's time 27 to 45% and
-left audio's within noise.
 
 What remains is the **allocator**. The translated codec is now a small part of each
 stream's profile; most of the rest is growing the output: allocating each larger
-buffer, copying into it, and the collector reclaiming the ones it leaves behind, along
-with the page faults of memory the scavenger returned to the kernel. Rust's `realloc`
-reuses what the old buffer frees. Recycling a grown-out buffer into the next grow, a
-free list of power-of-two byte buffers, brings every stream within 2x, but no
-translation does it soundly yet: Go keeps an array an `append` moved off untouched, so a
-Go caller may still read one through another slice, such as a struct's field read
-before a method that grows it, where Rust's borrow checker rules that out. Ratios of
-wall time to cgo's, medians of six runs alternating the three, on a host at load 17
+buffer, zeroing and copying into it, and the collector reclaiming the ones it leaves
+behind, along with the page faults of memory the scavenger returned to the kernel.
+Rust's `realloc` reuses what the old buffer frees and leaves spare capacity
+uninitialized. Two levers do the same in Go, and together they bring every stream
+within 2x:
+
+- **No zeroing:** growing through the runtime's `growslice` (linked as
+  [go.dev/issue/67401](https://go.dev/issue/67401) keeps open), which leaves a
+  pointer-free buffer's new storage unzeroed until appends write it.
+- **Recycling:** a free list of power-of-two byte buffers, each grow taking its storage
+  from it and giving back the buffer it outgrew.
+
+Neither is sound once a `Vec`'s storage reaches Go code outside the translation, where
+Rust's borrow checker no longer holds. Go code may read a slice's spare capacity
+through `s[:cap(s)]`, which would show stale heap contents; and Go keeps an array an
+`append` moved off untouched, so a caller may still read a grown-out buffer through
+another slice, such as a struct's field read before a method that grows it. Ratios of
+wall time to cgo's, medians of six runs alternating the variants, on a host at load 17
 to 50 of 32 cores:
 
-| Workload | Go before | Go | Recycling | cgo |
+| Workload | Go | No zeroing | Both | cgo |
 | --- | --- | --- | --- | --- |
 | `stream/video/lite-06/encode` | 3.0x | 2.1x | 1.6x | 111..139 µs |
 | `stream/video/lite-06/decode` | 2.9x | 2.2x | 1.9x | 100..130 µs |
@@ -54,6 +61,8 @@ to 50 of 32 cores:
 | `stream/video/lite-07/decode` | 3.6x | 2.4x | 1.6x | 117..135 µs |
 | `stream/audio/lite-07/encode` | 2.9x | 2.8x | 1.8x | 2.7..3.5 µs |
 | `stream/audio/lite-07/decode` | 3.4x | 2.5x | 1.8x | 2.6..3.7 µs |
+
+Recycling alone, zeroing each fresh buffer, measured 1.6 to 3.0x.
 
 A video group is 60 frames, 577 KB; an audio group is 50 frames of 160 bytes. Measure
 each change on these, comparing `cpu-ns/item` as well as wall time on a loaded host,
@@ -65,14 +74,16 @@ Public API: none.
 
 ## Waiting
 
-- Maintainer: whether to recycle a `Vec`'s grown-out storage, the one lever measured to
-  bring every stream within 2x. (1) Plan sound recycling as its own quest: the runtime
-  recycles only storage it allocated that never reached Go code outside the
-  translation, tracked where a public function takes or returns a value holding a
-  `Vec`; the tracking eats into a 1.6 to 1.9x margin. (2) Recycle every grown-out
-  buffer and document that a Go caller keeps no other slice of a `Vec` it hands the
-  translation or reads from it, which corrupts data silently when broken. (3) Drop the
-  translator, as [the epic](/quest/m4/go/README.md) records for a missed bar.
-  Recommended: (1), holding its result to the same bar, since recycling is the only
-  route measured to meet it and (2) breaks the guarantee Go code relies on after an
-  `append`. An agent cannot pick, since each option sets the epic's course.
+- Maintainer: whether the translation should own a `Vec`'s storage until it reaches Go
+  code outside it, the one route measured to bring every stream within 2x. (1) Plan it
+  as its own quest: the runtime skips zeroing and recycles only storage that never
+  reached Go code outside the translation, clipping a slice's capacity and marking its
+  storage shared where a public function takes or returns a value holding a `Vec`; that
+  bookkeeping eats into a 1.6 to 1.9x margin. (2) Skip zeroing and recycle everywhere,
+  documenting that a Go caller keeps no other slice of a `Vec` it hands the translation
+  or reads from it and never reads past its length, which leaks or corrupts data
+  silently when broken. (3) Drop the translator, as
+  [the epic](/quest/m4/go/README.md) records for a missed bar. Recommended: (1),
+  holding its result to the same bar, since it is the only route measured to meet it
+  and (2) breaks guarantees Go code relies on. An agent cannot pick, since each option
+  sets the epic's course.
