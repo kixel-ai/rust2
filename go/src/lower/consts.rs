@@ -1,9 +1,11 @@
-//! Constants: rustc evaluates each, and its value is written at each use, as Rust
-//! inlines it.
+//! Constants and statics: rustc evaluates each. A constant's value is written at each
+//! use, as Rust inlines it, and a static is one Go variable, which every use shares.
 
 use rustc_abi::Size;
+use rustc_hir::def::DefKind;
+use rustc_hir::def_id::DefId;
 use rustc_hir::def_id::LOCAL_CRATE;
-use rustc_middle::mir::interpret::{AllocId, GlobalAlloc, Scalar, alloc_range};
+use rustc_middle::mir::interpret::{AllocId, ConstAllocation, GlobalAlloc, Scalar, alloc_range};
 use rustc_middle::mir::{self, ConstValue};
 use rustc_middle::ty::{self, Ty};
 use rustc_span::Span;
@@ -21,7 +23,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	}
 
 	/// The value of a constant `val` of type `ty`.
-	fn const_value(&mut self, val: ConstValue, ty: Ty<'tcx>, span: Span) -> String {
+	pub fn const_value(&mut self, val: ConstValue, ty: Ty<'tcx>, span: Span) -> String {
 		let tcx = self.tcx;
 		if ty.is_unit() {
 			return "struct{}{}".into();
@@ -66,11 +68,28 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			},
 			ConstValue::Scalar(Scalar::Ptr(ptr, _)) => {
 				let (prov, offset) = ptr.prov_and_relative_offset();
+				if let GlobalAlloc::Static(def_id) = tcx.global_alloc(prov.alloc_id())
+					&& tcx.static_mutability(def_id) == Some(rustc_hir::Mutability::Mut)
+				{
+					return self.err(span, format!("`{}`, a `static mut`,", tcx.def_path_str(def_id)));
+				}
 				let ty::Ref(_, inner, _) = ty.kind() else {
 					return self.err(span, format!("a pointer constant of type `{ty}`"));
 				};
 				match tcx.global_alloc(prov.alloc_id()) {
-					GlobalAlloc::Memory(alloc) => {
+					GlobalAlloc::Static(def_id)
+						if !matches!(tcx.def_kind(def_id), DefKind::Static { nested: true, .. }) =>
+					{
+						let var = self.static_var(def_id, span);
+						match offset.bytes() == 0 && *inner == self.static_ty(def_id) {
+							true => format!("&{var}"),
+							false => self.err(span, "a reference into part of a static"),
+						}
+					}
+					GlobalAlloc::Memory(_) | GlobalAlloc::Static(_) => {
+						let Some(alloc) = self.memory(prov.alloc_id(), span) else {
+							return "struct{}{}".into();
+						};
 						if let ty::Array(elem, len) = inner.kind()
 							&& let (Some(len), ty::Uint(ty::UintTy::U8)) = (len.try_to_target_usize(tcx), elem.kind())
 						{
@@ -103,18 +122,22 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 							),
 						}
 					}
-					_ => self.err(
-						span,
-						format!("a constant of type `{ty}` pointing into a static or function"),
-					),
+					_ => self.err(span, format!("a constant of type `{ty}` pointing into a function")),
 				}
 			}
-			ConstValue::Slice { alloc_id, .. } => match val.try_get_slice_bytes_for_diagnostics(tcx) {
-				Some(bytes) if matches!(ty.builtin_deref(true).map(|t| t.kind()), Some(ty::Str | ty::Slice(_))) => {
-					self.shared(alloc_id, (0, bytes.len() as u64, ty), bytes_lit(bytes), span)
+			ConstValue::Slice { alloc_id, meta } => {
+				if let Some(inner) = ty.builtin_deref(true)
+					&& let Some(slice) = self.static_slice(alloc_id, Size::ZERO, meta, inner, span)
+				{
+					return slice;
 				}
-				_ => self.err(span, format!("a slice constant of type `{ty}`")),
-			},
+				match val.try_get_slice_bytes_for_diagnostics(tcx) {
+					Some(bytes) if matches!(ty.builtin_deref(true).map(|t| t.kind()), Some(ty::Str | ty::Slice(_))) => {
+						self.shared(alloc_id, (0, bytes.len() as u64, ty), bytes_lit(bytes), span)
+					}
+					_ => self.err(span, format!("a slice constant of type `{ty}`")),
+				}
+			}
 			ConstValue::ZeroSized => format!("{}{{}}", self.ty(ty, span)),
 			ConstValue::Indirect { alloc_id, offset } => self.in_memory(alloc_id, offset, ty, span),
 		}
@@ -142,12 +165,128 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		name
 	}
 
+	/// The memory of a constant allocation or a static, whose value rustc evaluated.
+	fn memory(&mut self, alloc: AllocId, span: Span) -> Option<ConstAllocation<'tcx>> {
+		let tcx = self.tcx;
+		match tcx.global_alloc(alloc) {
+			GlobalAlloc::Memory(memory) => Some(memory),
+			GlobalAlloc::Static(def_id) if !tcx.is_foreign_item(def_id) => match tcx.eval_static_initializer(def_id) {
+				Ok(memory) => Some(memory),
+				Err(_) => {
+					self.err(span, "a static that fails to evaluate");
+					None
+				}
+			},
+			_ => {
+				self.err(span, "a constant pointing outside memory");
+				None
+			}
+		}
+	}
+
+	/// The slice of `len` elements of `inner`, a slice or `str`, at `offset` in `alloc`, if
+	/// that is a static: its Go variable's array sliced, which aliases it as Rust's does.
+	fn static_slice(&mut self, alloc: AllocId, offset: Size, len: u64, inner: Ty<'tcx>, span: Span) -> Option<String> {
+		let tcx = self.tcx;
+		let GlobalAlloc::Static(def_id) = tcx.global_alloc(alloc) else {
+			return None;
+		};
+		if matches!(tcx.def_kind(def_id), DefKind::Static { nested: true, .. }) {
+			return None;
+		}
+		let var = self.static_var(def_id, span);
+		let elem = match inner.kind() {
+			ty::Str => tcx.types.u8,
+			ty::Slice(elem) => *elem,
+			_ => return Some(self.err(span, format!("a constant of type `{inner}` pointing into a static"))),
+		};
+		let size = tcx
+			.layout_of(self.t_env().as_query_input(elem))
+			.map_or(0, |layout| layout.size.bytes());
+		Some(match self.static_ty(def_id).kind() {
+			ty::Array(of, n)
+				if *of == elem
+					&& size > 0 && offset.bytes() % size == 0
+					&& n.try_to_target_usize(tcx)
+						.is_some_and(|n| offset.bytes() / size + len <= n) =>
+			{
+				let from = offset.bytes() / size;
+				format!("{var}[{from}:{}]", from + len)
+			}
+			_ => self.err(span, "a slice of a static of another type"),
+		})
+	}
+
+	/// The type of a static.
+	pub fn static_ty(&self, def_id: DefId) -> Ty<'tcx> {
+		let ty = self.tcx.type_of(def_id).instantiate_identity().skip_norm_wip();
+		self.tcx
+			.normalize_erasing_regions(self.t_env(), ty::Unnormalized::new_wip(ty))
+	}
+
+	/// The Go variable of the static `def_id`, declared at its first use, with the value
+	/// rustc evaluated for it: one place, which translated code and Go callers share, as
+	/// Rust's uses of a static do. A static whose value reaches back to it is assigned in
+	/// an `init`, since Go refuses a variable whose initializer refers to it. `span` is
+	/// where it is used.
+	pub fn static_var(&mut self, def_id: DefId, span: Span) -> String {
+		let tcx = self.tcx;
+		if let Some(name) = self.t.statics.get(&def_id) {
+			if self.t.initializing.contains(&def_id) {
+				self.t.cyclic.insert(def_id);
+			}
+			return name.clone();
+		}
+		let path = tcx.def_path_str(def_id);
+		let ty = self.static_ty(def_id);
+		if tcx.static_mutability(def_id) == Some(rustc_hir::Mutability::Mut) {
+			return self.err(span, format!("`{path}`, a `static mut`,"));
+		}
+		if tcx.is_thread_local_static(def_id) {
+			return self.err(span, format!("`{path}`, a thread-local static,"));
+		}
+		if tcx.is_foreign_item(def_id) {
+			return self.err(span, format!("`{path}`, a static another language defines,"));
+		}
+		if !ty.is_freeze(tcx, self.t_env()) {
+			return self.err(
+				span,
+				format!(
+					"`{path}`, a static of `{ty}`, which has interior mutability Go callers would share unsynchronized,"
+				),
+			);
+		}
+		let name = match self.t.static_names.get(&def_id) {
+			Some(name) => name.clone(),
+			None => self.t.fresh(&super::names::static_base(tcx, def_id)),
+		};
+		self.t.statics.insert(def_id, name.clone());
+		self.t.initializing.push(def_id);
+		let go = self.ty(ty, span);
+		let value = self.const_value(
+			ConstValue::Indirect {
+				alloc_id: tcx.reserve_and_set_static_alloc(def_id),
+				offset: Size::ZERO,
+			},
+			ty,
+			span,
+		);
+		self.t.initializing.pop();
+		let decl = match self.t.cyclic.contains(&def_id) {
+			false => format!("var {name} {go} = {value}\n"),
+			true => format!("var {name} {go}\n\nfunc init() {{\n\t{name} = {value}\n}}\n"),
+		};
+		self.t
+			.declare(def_id.krate, &name, format!("// {name} is `{path}`.\n{decl}"));
+		name
+	}
+
 	/// The value of a scalar or a reference of type `ty` at `offset` in a constant's
 	/// memory, as a promoted `&1` or `&"text"` holds it.
 	fn in_memory(&mut self, alloc_id: AllocId, offset: Size, ty: Ty<'tcx>, span: Span) -> String {
 		let tcx = self.tcx;
-		let GlobalAlloc::Memory(alloc) = tcx.global_alloc(alloc_id) else {
-			return self.err(span, format!("a constant of type `{ty}` outside memory"));
+		let Some(alloc) = self.memory(alloc_id, span) else {
+			return "struct{}{}".into();
 		};
 		let ptr = tcx.data_layout.pointer_size();
 		// A pointer is read with what it points to, and an integer without.
@@ -162,21 +301,38 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					return self.err(span, format!("a constant of type `{ty}` in memory"));
 				};
 				let (prov, start) = to.prov_and_relative_offset();
-				let GlobalAlloc::Memory(bytes) = tcx.global_alloc(prov.alloc_id()) else {
-					return self.err(span, format!("a constant of type `{ty}` pointing outside memory"));
+				let len = len.to_target_usize(tcx);
+				if let Some(slice) = self.static_slice(prov.alloc_id(), start, len, *inner, span) {
+					return slice;
+				}
+				let Some(bytes) = self.memory(prov.alloc_id(), span) else {
+					return "struct{}{}".into();
 				};
-				let start = start.bytes() as usize;
-				let len = len.to_target_usize(tcx) as usize;
+				let at = (start.bytes(), len, ty);
 				match inner.kind() {
 					ty::Str => {
+						let start = start.bytes() as usize;
 						let value = bytes_lit(
 							bytes
 								.inner()
-								.inspect_with_uninit_and_ptr_outside_interpreter(start..start + len),
+								.inspect_with_uninit_and_ptr_outside_interpreter(start..start + len as usize),
 						);
-						self.shared(prov.alloc_id(), (start as u64, len as u64, ty), value, span)
+						self.shared(prov.alloc_id(), at, value, span)
 					}
-					_ => self.err(span, format!("a slice constant of type `{ty}` in memory")),
+					// The elements as an array's, which the slice is of.
+					ty::Slice(elem) => {
+						let array = ty::Ty::new_array(tcx, *elem, len);
+						let value = self.const_value(
+							ConstValue::Indirect {
+								alloc_id: prov.alloc_id(),
+								offset: start,
+							},
+							array,
+							span,
+						);
+						format!("{}[:]", self.shared(prov.alloc_id(), at, value, span))
+					}
+					_ => self.err(span, format!("a constant of type `{ty}` in memory")),
 				}
 			}
 			ty::Bool | ty::Char | ty::Int(_) | ty::Uint(_) | ty::Ref(..) => {
@@ -195,7 +351,12 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 
 /// Bytes as a Go `[]uint8` literal, through a string literal.
 pub fn bytes_lit(bytes: &[u8]) -> String {
-	let mut s = String::from("[]uint8(\"");
+	format!("[]uint8({})", go_string(bytes))
+}
+
+/// Bytes as a Go string literal.
+pub fn go_string(bytes: &[u8]) -> String {
+	let mut s = String::from("\"");
 	for &b in bytes {
 		match b {
 			b'"' => s.push_str("\\\""),
@@ -204,6 +365,6 @@ pub fn bytes_lit(bytes: &[u8]) -> String {
 			_ => s.push_str(&format!("\\x{b:02x}")),
 		}
 	}
-	s.push_str("\")");
+	s.push('"');
 	s
 }

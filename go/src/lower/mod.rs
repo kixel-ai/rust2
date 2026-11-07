@@ -71,7 +71,7 @@ pub fn translate(tcx: TyCtxt<'_>) -> Option<Vec<(String, String)>> {
 	let public = names::public(tcx);
 	// Before any root's signature declares one by its own name.
 	for (path, def_id, _) in &public {
-		t.name_type(path, *def_id);
+		t.name_item(path, *def_id);
 	}
 	for (path, def_id, export) in public {
 		t.root(&path, def_id, export);
@@ -173,6 +173,14 @@ pub struct Translator<'tcx> {
 	/// The package-level variable holding each constant allocation, and the offset,
 	/// length, and type it holds it at.
 	allocs: HashMap<rustc_middle::mir::interpret::AllocId, ((u64, u64, Ty<'tcx>), String)>,
+	/// The Go variable of each static reached, and the name of each `pub` one, which its
+	/// declaration takes.
+	statics: HashMap<DefId, String>,
+	static_names: HashMap<DefId, String>,
+	/// The statics whose values are being lowered, and those of them a value reached
+	/// again, which Go would refuse as an initialization cycle.
+	initializing: Vec<DefId>,
+	cyclic: HashSet<DefId>,
 	/// Each type's parts, if Go holds it split.
 	splits: HashMap<Ty<'tcx>, Option<std::rc::Rc<split::Split<'tcx>>>>,
 	/// The types whose parts are being found.
@@ -210,6 +218,10 @@ impl<'tcx> Translator<'tcx> {
 			local_names,
 			out: BTreeMap::new(),
 			allocs: HashMap::new(),
+			statics: HashMap::new(),
+			static_names: HashMap::new(),
+			initializing: Vec::new(),
+			cyclic: HashSet::new(),
 			splits: HashMap::new(),
 			splitting: Vec::new(),
 			reported: HashSet::new(),
@@ -273,7 +285,8 @@ impl<'tcx> Translator<'tcx> {
 					);
 				}
 			}
-			DefKind::Const | DefKind::Static { .. } => self.root_const(span),
+			DefKind::Const => self.root_const(path, def_id, export),
+			DefKind::Static { .. } => self.root_static(def_id, export),
 			_ => {}
 		}
 	}
@@ -286,35 +299,91 @@ impl<'tcx> Translator<'tcx> {
 				continue;
 			}
 			let path = format!("{path}::{}", item.name());
-			match item.is_fn() {
-				true => self.root_fn(&path, item.def_id),
-				false => self.root_const(tcx.def_span(item.def_id)),
+			match tcx.def_kind(item.def_id) {
+				DefKind::AssocFn => self.root_fn(&path, item.def_id),
+				DefKind::AssocConst => self.root_const(&path, item.def_id, tcx.def_span(item.def_id)),
+				_ => {}
 			}
 		}
 	}
 
-	/// Name a type or alias of the `pub` API by its path in camel case, as its
-	/// declaration takes.
-	fn name_type(&mut self, path: &str, def_id: DefId) {
+	/// Name a type, alias, or static of the `pub` API by its path in camel case, as its
+	/// declaration takes, since another item's may reach it first.
+	fn name_item(&mut self, path: &str, def_id: DefId) {
 		let tcx = self.tcx;
-		let named = match tcx.def_kind(def_id) {
-			DefKind::Struct | DefKind::Enum | DefKind::Union => library::mapped(tcx, def_id).is_none(),
-			DefKind::TyAlias => true,
-			_ => false,
-		};
-		if named {
-			let name = names::exported(path);
-			self.claim(&name, tcx.def_span(def_id));
-			self.type_names.insert(def_id, name);
+		let span = tcx.def_span(def_id);
+		match tcx.def_kind(def_id) {
+			DefKind::Struct | DefKind::Enum | DefKind::Union if library::mapped(tcx, def_id).is_some() => {}
+			DefKind::Struct | DefKind::Enum | DefKind::Union | DefKind::TyAlias => {
+				let name = names::exported(path);
+				self.claim(&name, span);
+				self.type_names.insert(def_id, name);
+			}
+			DefKind::Static { .. } => {
+				let name = names::exported_value(path);
+				self.claim(&name, span);
+				self.static_names.insert(def_id, name);
+			}
+			_ => {}
 		}
 	}
 
-	/// A `pub` constant or static, which Go callers would read as a variable.
-	fn root_const(&mut self, span: Span) {
-		self.err(
-			span,
-			"a `pub` constant or static, which Go callers would read as a variable, is not supported",
+	/// A `pub` constant, evaluated once as rustc does: a Go `const` where Go has a constant
+	/// of its type, an integer, `bool`, `char`, or `&str`, as a Go string. Any other is a
+	/// function returning its value, so each use is a fresh one, as Rust's is, which no Go
+	/// caller can change for another. `export` is where it is exported.
+	fn root_const(&mut self, path: &str, def_id: DefId, export: Span) {
+		let tcx = self.tcx;
+		let span = tcx.def_span(def_id);
+		if tcx.generics_of(def_id).requires_monomorphization(tcx) {
+			self.err(
+				span,
+				"a `pub` constant of a generic type, which translates only as its uses instantiate it, is not supported",
+			);
+			return;
+		}
+		let name = names::exported_value(path);
+		self.claim(&name, span);
+		let ty = tcx.normalize_erasing_regions(
+			self.env(),
+			Unnormalized::new_wip(tcx.type_of(def_id).instantiate_identity().skip_norm_wip()),
 		);
+		let Ok(val) = tcx.const_eval_poly(def_id) else {
+			self.err(span, "a constant that fails to evaluate is not supported");
+			return;
+		};
+		let body = rustc_middle::mir::Body::new_cfg_only(rustc_index::IndexVec::new());
+		let mut fx = body::Fx::new(self, &body, export, def_id.is_local());
+		let doc = format!("// {name} is `{path}`.\n");
+		match ty.kind() {
+			TyKind::Ref(_, inner, _) if inner.is_str() => match val.try_get_slice_bytes_for_diagnostics(tcx) {
+				Some(bytes) => {
+					let text = format!("{doc}const {name} = {}\n", consts::go_string(bytes));
+					self.declare(def_id.krate, &name, text);
+				}
+				None => {
+					fx.err(span, "a `&str` constant whose bytes can't be read");
+				}
+			},
+			TyKind::Int(_) | TyKind::Uint(_) | TyKind::Bool | TyKind::Char => {
+				let text = format!("{doc}const {name} = {}\n", fx.const_value(val, ty, span));
+				self.declare(def_id.krate, &name, text);
+			}
+			_ => {
+				let go = fx.ty(ty, span);
+				let value = fx.const_value(val, ty, span);
+				let text = format!("{doc}func {name}() {go} {{\n\treturn {value}\n}}\n");
+				self.out.entry(def_id.krate).or_default().funcs.push((name, text));
+			}
+		}
+	}
+
+	/// A `pub` static: the Go variable translated code reads it through, which Go callers
+	/// share. `export` is where it is exported.
+	fn root_static(&mut self, def_id: DefId, export: Span) {
+		let body = rustc_middle::mir::Body::new_cfg_only(rustc_index::IndexVec::new());
+		let mut fx = body::Fx::new(self, &body, export, def_id.is_local());
+		fx.static_var(def_id, fx.tcx.def_span(def_id));
 	}
 
 	/// A root function, exported to Go callers by its path in camel case.
