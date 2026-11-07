@@ -1235,7 +1235,7 @@ pub fn test_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, test: &str, span:
 		}
 		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => {
 			let f = test_fn(b, inner, test, span);
-			cell_by(b, by, f, test)
+			cell_by(b, ty, by, f, test, span)
 		}
 		_ => {
 			let f = trait_fn(tcx, "PartialOrd", test);
@@ -3047,10 +3047,17 @@ fn cell_of<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, &'st
 
 /// The runtime's `by` of `f`, as [`cell_of`] says a cell compares, for its `method`: given
 /// where a `RefCell`'s borrows, in a program with a panic hook.
-fn cell_by(b: &Body<'_, '_, '_>, by: &str, f: Expr, method: &str) -> Expr {
+/// A `Cell`'s values are compared as copies, as its `get` gives them, since a comparison
+/// may write the cell, and a write lands in an object it holds.
+fn cell_by<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, by: &str, f: Expr, method: &str, span: Span) -> Expr {
 	let mut values = vec![f];
 	if by == "refCellBy" && b.t.hooked {
 		values.extend(super::caller::cell_sites(b.t.tcx, method));
+	}
+	if let ty::Adt(_, args) = ty.kind()
+		&& b.t.std_of(ty) == Some(Std::Cell)
+	{
+		values.extend(b.t.copy_fn(args.type_at(0), span));
 	}
 	Expr::rs(by, values)
 }
@@ -3091,7 +3098,7 @@ pub fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, spa
 		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => Expr::rs("cmpArc", vec![cmp_fn(b, inner, partial, span)]),
 		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => {
 			let cmp = cmp_fn(b, inner, partial, span);
-			cell_by(b, by, cmp, if partial { "partial_cmp" } else { "cmp" })
+			cell_by(b, ty, by, cmp, if partial { "partial_cmp" } else { "cmp" }, span)
 		}
 		// An `rs.Place` compares by its value, as std's impl on `&mut` does by what it points at.
 		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => {
@@ -3189,7 +3196,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		// Whose `ne` is `!eq`, which compares what it holds by `eq`.
 		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => {
 			let eq = eq_fn(b, inner, span);
-			cell_by(b, by, eq, "eq")
+			cell_by(b, ty, by, eq, "eq", span)
 		}
 		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => Expr::rs("cellBy", vec![eq_fn(b, inner, span)]),
 		_ if by_own(b, ty) || derived_std(b, ty) || b.t.std_of(ty).is_some_and(Std::record) => {
