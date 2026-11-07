@@ -41,7 +41,7 @@ export class of$String {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "1430db79e63c4bb92bf94c26df7c977d";
+		return "<TypeId 1>";
 	}
 }
 
@@ -81,7 +81,7 @@ export class of$panics_Point {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "37e450afe4d41be326161cb6b122df94";
+		return "<TypeId 2>";
 	}
 }
 
@@ -93,7 +93,7 @@ export class of$ref_str {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "24c161f26c70c1f1b9f602dc5fe9f65c";
+		return "<TypeId 3>";
 	}
 }
 
@@ -105,7 +105,7 @@ export class of$u32 {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "79f19461b401588885a89e43144b08f1";
+		return "<TypeId 4>";
 	}
 }
 
@@ -121,7 +121,7 @@ export class of$u8 {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "cfb1622e7734f8af272d8d182905dc25";
+		return "<TypeId 5>";
 	}
 
 	via$Tracked(): rs.Location {
@@ -137,7 +137,7 @@ export class ofPlace$u32 {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "79f19461b401588885a89e43144b08f1";
+		return "<TypeId 4>";
 	}
 }
 
@@ -149,7 +149,7 @@ export class ofPlace$u8 {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "cfb1622e7734f8af272d8d182905dc25";
+		return "<TypeId 5>";
 	}
 }
 

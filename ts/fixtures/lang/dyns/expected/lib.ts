@@ -337,7 +337,7 @@ export class of$Option_u8 {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "3801bd64778907c7633cf473fe556a70";
+		return "<TypeId 1>";
 	}
 }
 
@@ -583,7 +583,7 @@ export class of$dyns_Noisy {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "629ea3d0db74a6a4121c4b5c2ea86c5d";
+		return "<TypeId 2>";
 	}
 }
 
@@ -659,7 +659,7 @@ export class of$dyns_Square {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "4d27e589f80a9b722ffd015b418dab46";
+		return "<TypeId 3>";
 	}
 }
 
@@ -751,7 +751,7 @@ export class of$dyns_Tri {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "db6a2678079cd6de1063f521a32772c0";
+		return "<TypeId 4>";
 	}
 }
 
@@ -859,7 +859,7 @@ export class of$ids_Byte {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "eb8e0be2af5c781063b1d1468b15a0f1";
+		return "<TypeId 5>";
 	}
 }
 
@@ -871,7 +871,7 @@ export class of$ids_Mood {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "180954c559d9dbe8afcd63c1da176c31";
+		return "<TypeId 6>";
 	}
 }
 
@@ -887,7 +887,7 @@ export class of$ref_str {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "24c161f26c70c1f1b9f602dc5fe9f65c";
+		return "<TypeId 7>";
 	}
 }
 
@@ -1129,7 +1129,7 @@ export class of$tuple2_u8_u8 {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "7d311253455a5117c9570c9455e07dcc";
+		return "<TypeId 8>";
 	}
 }
 
@@ -1205,7 +1205,7 @@ export class of$u32 {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "79f19461b401588885a89e43144b08f1";
+		return "<TypeId 9>";
 	}
 }
 
@@ -1237,7 +1237,7 @@ export class of$u8 {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "cfb1622e7734f8af272d8d182905dc25";
+		return "<TypeId 10>";
 	}
 }
 
@@ -1249,7 +1249,7 @@ export class of$unit {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "05fc01408e45e7cddf9e041e3391eafc";
+		return "<TypeId 11>";
 	}
 }
 
@@ -1261,7 +1261,7 @@ export class ofPlace$Option_u8 {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "3801bd64778907c7633cf473fe556a70";
+		return "<TypeId 1>";
 	}
 }
 
@@ -1341,7 +1341,7 @@ export class ofPlace$dyns_Tri {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "db6a2678079cd6de1063f521a32772c0";
+		return "<TypeId 4>";
 	}
 }
 
@@ -1353,7 +1353,7 @@ export class ofPlace$ids_Mood {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "180954c559d9dbe8afcd63c1da176c31";
+		return "<TypeId 6>";
 	}
 }
 
@@ -1423,7 +1423,7 @@ export class ofPlace$u32 {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "79f19461b401588885a89e43144b08f1";
+		return "<TypeId 9>";
 	}
 }
 
@@ -1443,7 +1443,7 @@ export class ofPlace$u8 {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "cfb1622e7734f8af272d8d182905dc25";
+		return "<TypeId 10>";
 	}
 }
 
@@ -1455,7 +1455,7 @@ export class ofPlace$unit {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "05fc01408e45e7cddf9e041e3391eafc";
+		return "<TypeId 11>";
 	}
 }
 
