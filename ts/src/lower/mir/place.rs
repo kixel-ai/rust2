@@ -793,10 +793,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let Expr::Ident(name) = e else {
 			return false;
 		};
-		// A byte's buffer is the same one throughout, as is the array an item lent by index
-		// is held in.
+		// A byte's buffer is the same one throughout.
 		self.byte_named(name)
-			|| self.item_arrays.contains(name)
 			|| self.local_named(name).is_some_and(|local| {
 				let assigned = self.defs[local] + u32::from(self.is_arg(local));
 				assigned <= 1 && !self.mutated[local]
@@ -1196,6 +1194,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return e;
 		}
 		let name = self.b.fresh("borrowed");
+		// A copy of the array items lent by index are in is one too.
+		if matches!(&e, Expr::Ident(array) if self.item_arrays.contains(array)) {
+			self.item_arrays.insert(name.clone());
+		}
 		let stmt = StmtKind::decl(false, name.clone(), None, Some(e)).at(None);
 		self.emit(vec![stmt], false, out);
 		Expr::ident(name)
@@ -1208,8 +1210,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return p;
 		}
 		// An item a slice's `iter_mut` lends by index, the element's place, as `rs.iterSliceMut`
-		// lends it.
-		if let Expr::Index(array, index) = target.unlocated()
+		// lends it. A payload's is of the payload's type, which an `rs.place` reads it as.
+		if payload.is_none()
+			&& let Expr::Index(array, index) = target.unlocated()
 			&& let Expr::Ident(name) = array.unlocated()
 			&& self.item_arrays.contains(name)
 		{

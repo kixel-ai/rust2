@@ -441,8 +441,10 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	lent_items: FxHashMap<Local, Local>,
 	/// The `next` results holding those indexes, or `rs.DONE`.
 	lent_nexts: FxHashSet<Local>,
-	/// The names of the arrays those items index where a place is made of one, which
-	/// `rs.arrayAsPtr` makes as `rs.iterSliceMut` would have.
+	/// The names of the arrays those items index, and of copies held of them, each the
+	/// same while an item is: the iterator is made again only once no item it lent is
+	/// left. An item's place is `rs.arrayAsPtr` of its element, as `rs.iterSliceMut` would
+	/// have made it.
 	item_arrays: FxHashSet<String>,
 	/// Statements that change nothing: a swap through a temporary nothing else names, as
 	/// an async body moves its context at each `await`.
@@ -2649,17 +2651,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					};
 					let index = self.place_expr(*p, span, out);
 					let array = Expr::ident(&self.stepped_vars[&iter][0]);
-					// Made a place of, the array is held as it is now, as the borrow fixes it,
-					// since the variable steps another slice's once the iterator is made again.
-					let array = match self.read_whole(local) {
-						true => {
-							let name = self.b.fresh("items");
-							self.emit(vec![StmtKind::decl(false, name.clone(), None, Some(array)).at(None)], false, out);
-							self.item_arrays.insert(name.clone());
-							Expr::ident(name)
-						}
-						false => array,
-					};
 					self.slots[local] = Slot::Alias(Some(array.index(index)));
 					return;
 				}
@@ -3762,7 +3753,7 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 				{
 					Some(payload.clone())
 				}
-				(_, ts::Key::Name(key)) if key == "v" => step::peel(base).place_read().cloned(),
+				(_, ts::Key::Name(key)) if key == "v" => step::peel(base).place_read(),
 				_ => None,
 			};
 			if let Some(folded) = folded {

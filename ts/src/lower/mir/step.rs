@@ -331,7 +331,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				}
 				name
 			})
-			.collect();
+			.collect::<Vec<_>>();
+		if self.lends_places(local) {
+			self.item_arrays.insert(vars[0].clone());
+		}
 		self.stepped_vars.insert(local, vars);
 	}
 

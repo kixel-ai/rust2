@@ -57,7 +57,7 @@ export function copied(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_34 === rs.DONE) {
 			break;
 		}
-		const iter3: rs.Iter<rs.Place<rs.u8>> = rs.iterOption(rs.resultAsMut(rs.place(() => iterS2[_34], (value) => iterS2[_34] = value)));
+		const iter3: rs.Iter<rs.Place<rs.u8>> = rs.iterOption(rs.resultAsMut(rs.arrayAsPtr(iterS2, _34)));
 		while (true) {
 			const _41: rs.Place<rs.u8> | rs.Done = iter3.next();
 			if (_41 === rs.DONE) {
@@ -113,7 +113,7 @@ export function copied(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.byteVecPush(out, rs.u8WrappingSub(_126[0], _126[1]));
 	}
-	const iter8: rs.Iter<rs.Place<rs.u8>> = rs.iterOption(rs.resultAsMut(rs.place(() => first, (value2) => first = value2)));
+	const iter8: rs.Iter<rs.Place<rs.u8>> = rs.iterOption(rs.resultAsMut(rs.place(() => first, (value) => first = value)));
 	while (true) {
 		const _138: rs.Place<rs.u8> | rs.Done = iter8.next();
 		if (_138 === rs.DONE) {
@@ -191,7 +191,7 @@ export function owned(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_59 === rs.DONE) {
 			break;
 		}
-		const iter5: rs.Iter<Logged.Logged> = rs.iterResult(rs.arrayAsPtr(iterS3, _59).v);
+		const iter5: rs.Iter<Logged.Logged> = rs.iterResult(iterS3[_59]);
 		while (true) {
 			const _65: Logged.Logged | rs.Done = iter5.next();
 			if (_65 === rs.DONE) {
@@ -253,7 +253,7 @@ export function units(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_16 === rs.DONE) {
 			break;
 		}
-		const it: rs.Iter<rs.Place<undefined>> = rs.iterOption(rs.resultAsMut(rs.place(() => iterS[_16], (value) => iterS[_16] = value)));
+		const it: rs.Iter<rs.Place<undefined>> = rs.iterOption(rs.resultAsMut(rs.arrayAsPtr(iterS, _16)));
 		rs.byteVecPush(out, rs.iterToOption(it.next()) !== undefined ? 1 : 0);
 		rs.byteVecPush(out, rs.iterToOption(it.next()) !== undefined ? 1 : 0);
 	}

@@ -523,19 +523,19 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const by: rs.u8 = _52[1];
 		const _58: rs.u8 = rs.u8Rem(by, 26);
 		if (_58 === 0) {
-			const r: rs.Place<rs.u32> = rs.place(() => n, (value28) => n = value28);
+			const r: rs.Place<rs.u32> = rs.place(() => n, (value27) => n = value27);
 			r.v = rs.u32WrappingMul(r.v, 3);
 		} else if (_58 === 1) {
-			bump(rs.place(() => n, (value27) => n = value27), by);
+			bump(rs.place(() => n, (value26) => n = value26), by);
 		} else if (_58 === 2) {
-			const _65: rs.Place<rs.u32> = rs.place(() => n, (value25) => n = value25);
-			bump(rs.place(() => _65.v, (value26) => _65.v = value26), by);
+			const _65: rs.Place<rs.u32> = rs.place(() => n, (value24) => n = value24);
+			bump(rs.place(() => _65.v, (value25) => _65.v = value25), by);
 		} else if (_58 === 3) {
-			const _67: rs.Place<rs.u32> = rs.place(() => n, (value23) => n = value23);
-			bump(rs.place(() => _67.v, (value24) => _67.v = value24), by);
+			const _67: rs.Place<rs.u32> = rs.place(() => n, (value22) => n = value22);
+			bump(rs.place(() => _67.v, (value23) => _67.v = value23), by);
 		} else if (_58 === 4) {
-			const _69: rs.Place<rs.u32> = rs.place(() => n, (value21) => n = value21);
-			bump(rs.place(() => _69.v, (value22) => _69.v = value22), by);
+			const _69: rs.Place<rs.u32> = rs.place(() => n, (value20) => n = value20);
+			bump(rs.place(() => _69.v, (value21) => _69.v = value21), by);
 		} else if (_58 === 5) {
 			n = (n ^ by as rs.u32) >>> 0;
 		} else if (_58 === 6) {
@@ -554,17 +554,17 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_58 === 10) {
 			rs.stringInsertStr(s, 0, "<");
 		} else if (_58 === 11) {
-			shout(rs.place(() => t, (value20) => t = value20), by);
+			shout(rs.place(() => t, (value19) => t = value19), by);
 		} else if (_58 === 12) {
-			const _92: rs.Place<string> = rs.place(() => t, (value18) => t = value18);
-			shout(rs.place(() => _92.v, (value19) => _92.v = value19), by);
+			const _92: rs.Place<string> = rs.place(() => t, (value17) => t = value17);
+			shout(rs.place(() => _92.v, (value18) => _92.v = value18), by);
 		} else if (_58 === 13) {
-			const _94: rs.Place<string> = rs.place(() => t, (value17) => t = value17);
+			const _94: rs.Place<string> = rs.place(() => t, (value16) => t = value16);
 			_94.v = rs.strToAsciiLowercase(_94.v);
 		} else if (_58 === 14) {
 			t = rs.strSlice(s.v, 0);
 		} else if (_58 === 15) {
-			bump(rs.place(() => nested, (value16) => nested = value16), by);
+			bump(rs.place(() => nested, (value15) => nested = value15), by);
 		} else if (_58 === 16) {
 			nested = rs.u32WrappingAdd(nested, by as rs.u32);
 		} else if (_58 === 17) {
@@ -574,7 +574,7 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			maybe = rs.u32Add(maybe as rs.u32, 1);
 			if (maybe !== undefined) {
-				bump(rs.place(() => maybe as rs.u32, (value15) => maybe = value15), by);
+				bump(rs.place(() => maybe as rs.u32, (value14) => maybe = value14), by);
 			}
 		} else if (_58 === 18) {
 			reach(held, by);
@@ -582,7 +582,7 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const at2 = rs.idx(v.items, rs.usizeRem(by as rs.usize, v.items.length));
 			const borrowed2 = v.items;
 			const borrowed3 = at2;
-			bump(rs.place(() => borrowed2[borrowed3], (value14) => borrowed2[borrowed3] = value14), by);
+			bump(rs.place(() => borrowed2[borrowed3], (value13) => borrowed2[borrowed3] = value13), by);
 			const _120: rs.Place<rs.u32> | undefined = rs.sliceLastMut(rs.sliceFrom(v.items));
 			if (_120 !== undefined) {
 				_120.v = (_120.v ^ 16) >>> 0;
@@ -596,8 +596,7 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				if (_130 === rs.DONE) {
 					break;
 				}
-				const borrowed = iterS;
-				bump(rs.place(() => borrowed[_130], (value13) => borrowed[_130] = value13), by);
+				bump(rs.arrayAsPtr(iterS, _130), by);
 			}
 			v.items.push(by as rs.u32);
 		} else if (_58 === 21) {
