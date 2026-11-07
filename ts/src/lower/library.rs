@@ -2120,7 +2120,11 @@ fn mapping<'tcx>(
 			let n = gargs.consts().next()?.try_to_target_usize(tcx)?;
 			let mut values = args;
 			values.push(Expr::lit(n.to_string()));
-			rt2(values, "slice", &super::camel(name.strip_suffix("_mut").unwrap_or(&name)))
+			rt2(
+				values,
+				"slice",
+				&super::camel(name.strip_suffix("_mut").unwrap_or(&name)),
+			)
 		}
 		// A part is a slice of the same storage, shared or mutable alike.
 		("slice", "chunks_mut" | "chunks_exact_mut" | "rchunks_mut" | "rchunks_exact_mut") => rt2(

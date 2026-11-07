@@ -831,7 +831,9 @@ fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr,
 	};
 	match ty.peel_refs().kind() {
 		// Each run, where a slice of arrays holds it.
-		ty::Slice(elem) | ty::Array(elem, _) if ty.is_ref() && elem.is_array() => Some(Expr::rs("runsIter", vec![value])),
+		ty::Slice(elem) | ty::Array(elem, _) if ty.is_ref() && elem.is_array() => {
+			Some(Expr::rs("runsIter", vec![value]))
+		}
 		ty::Slice(elem) | ty::Array(elem, _) if places(b, *elem) => {
 			Some(Expr::rs("iterSliceMut", vec![library::slice_of(value, ty)]))
 		}

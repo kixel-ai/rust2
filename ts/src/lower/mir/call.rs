@@ -659,7 +659,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					if elem.is_array() {
 						let name = self.b.fresh("runs");
 						let source = Expr::rs("runsItems", vec![source]);
-						let e = Expr::rs("sliceCloneFromSlice", [vec![Expr::ident(name.clone()), source], fns].concat());
+						let e = Expr::rs(
+							"sliceCloneFromSlice",
+							[vec![Expr::ident(name.clone()), source], fns].concat(),
+						);
 						let e = crate::lower::runs::wrap(e, ts::Type::Builtin("void"), Vec::new(), vec![(name, to)]);
 						return done(e, true);
 					}
@@ -1696,7 +1699,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let read = Expr::As(Box::new(target.clone()), self.b.t.ty(payload_ty, span));
 		// A reference to an array is a slice of it.
 		if payload_ty.is_array() {
-			return Some(Some((crate::lower::array_slice(self.b.t.uninit_inner(payload_ty), read), true)));
+			return Some(Some((
+				crate::lower::array_slice(self.b.t.uninit_inner(payload_ty), read),
+				true,
+			)));
 		}
 		if let Some(local) = dest.as_local()
 			&& self.defs[local] == 1
@@ -1983,7 +1989,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				};
 				// A reference to an array is a slice of it.
 				if elem_ty.is_array() {
-					return Some(Some((crate::lower::array_slice(self.b.t.uninit_inner(elem_ty), place), true)));
+					return Some(Some((
+						crate::lower::array_slice(self.b.t.uninit_inner(elem_ty), place),
+						true,
+					)));
 				}
 				// The reference reads and writes the element where it is.
 				if let Some(local) = dest.as_local()

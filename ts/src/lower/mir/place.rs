@@ -439,7 +439,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				ProjectionElem::Deref => self.array_behind(place.local, at, ty),
 				ProjectionElem::Subslice { .. } => in_array || ty.is_slice(),
 				ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. } => {
-					(in_array || ty.is_slice()) && matches!(ty.kind(), ty::Slice(e) | ty::Array(e, _) if self.b.t.uninit_inner(*e).is_array())
+					(in_array || ty.is_slice())
+						&& matches!(ty.kind(), ty::Slice(e) | ty::Array(e, _) if self.b.t.uninit_inner(*e).is_array())
 				}
 				_ => false,
 			};
