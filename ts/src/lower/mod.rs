@@ -1505,7 +1505,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// otherwise the reference's own JS value.
 	pub fn pointee_value(&self, ty: Ty<'tcx>, value: ts::Expr) -> ts::Expr {
 		match (self.place_pointee(ty), value.place_read()) {
-			(Some(_), Some(read)) => read.clone(),
+			(Some(_), Some(read)) => read,
 			(Some(_), None) => value.member("v"),
 			(None, _) => value,
 		}
