@@ -4,6 +4,7 @@
 use std::cell::Cell;
 use std::collections::VecDeque;
 use std::io::IoSlice;
+use std::mem::MaybeUninit;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -601,9 +602,9 @@ pub fn vec_spares(data: &[u8], out: &mut Vec<u8>) {
 				vec.set_len(vec.len() + k);
 			},
 			3 => {
-				spare[..k].fill(std::mem::MaybeUninit::new(n));
+				spare[..k].fill(MaybeUninit::new(n));
 				if let Some(slot) = spare[..k].split_at_mut(k / 2).0.last_mut() {
-					*slot = std::mem::MaybeUninit::new(!n);
+					*slot = MaybeUninit::new(!n);
 				}
 				unsafe { vec.set_len(vec.len() + k) };
 			}
@@ -782,6 +783,65 @@ unsafe impl BufMut for Spare {
 		// SAFETY: the room past the length is within the allocation.
 		unsafe { UninitSlice::from_raw_parts_mut(self.0.as_mut_ptr().add(len), cap - len) }
 	}
+}
+
+/// Writes into an array through a `&mut [u8]` and a `&mut [MaybeUninit<u8>]` of the room
+/// its input picks, which write at the front and advance past what they wrote, or panic
+/// past the room, directly, through a `&mut`, and through a `Box`: the room left, then
+/// each array whole, so a write that missed it or landed off the front would show.
+pub fn slices(data: &[u8], out: &mut Vec<u8>) {
+	let [kind, room, data @ ..] = data else {
+		return;
+	};
+	let room = usize::from(*room);
+	let mut bytes = [0xa5; 255];
+	let mut uninit = [MaybeUninit::new(0x5a); 255];
+	let left = match kind % 8 {
+		0 => {
+			let mut s = &mut bytes[..room];
+			write_all(&mut s, data);
+			s.len()
+		}
+		1 => {
+			let mut s = &mut bytes[..room];
+			chunk_all(&mut s, data, out);
+			s.len()
+		}
+		2 => {
+			let mut s = &mut uninit[..room];
+			write_all(&mut s, data);
+			s.len()
+		}
+		3 => {
+			let mut s = &mut uninit[..room];
+			chunk_all(&mut s, data, out);
+			s.len()
+		}
+		4 => {
+			let mut s = &mut bytes[..room];
+			write_all(&mut &mut s, data);
+			s.len()
+		}
+		5 => {
+			let mut s = &mut uninit[..room];
+			chunk_all(&mut Box::new(&mut s), data, out);
+			s.len()
+		}
+		6 => {
+			let mut s = &mut bytes[..room];
+			chunk_all(&mut Box::new(&mut s), data, out);
+			s.len()
+		}
+		_ => {
+			let mut s = &mut uninit[..room];
+			write_all(&mut &mut s, data);
+			s.len()
+		}
+	};
+	out.push(left as u8);
+	out.extend_from_slice(&bytes);
+	// SAFETY: every slot starts initialized, and a write leaves it so.
+	out.extend(uninit.iter().map(|b| unsafe { b.assume_init() }));
 }
 
 /// The same writes into a `Vec<u8>` and a `BytesMut`, which must match, and through the
