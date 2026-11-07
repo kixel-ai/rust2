@@ -236,7 +236,7 @@ pub fn call<'tcx>(
 		&& (key.is_array() || b.t.std_of(key) == Some(Std::Vec))
 		&& let Some(at) = args.get_mut(1)
 	{
-		*at = Expr::rs("sliceItems", vec![std::mem::replace(at, Expr::undefined())]);
+		*at = super::library::items_of(std::mem::replace(at, Expr::undefined()), *elem);
 	}
 	// Elements of any form, an array, a slice, or a `Vec`, hash and compare alike, so each
 	// finds the others. A reference key finds what it points at by that value's own impls,

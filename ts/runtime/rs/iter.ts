@@ -2077,7 +2077,7 @@ class RunsIter<S extends Run> extends Iter<S> {
 	}
 
 	override remaining(): Iterable<unknown> {
-		return runsArray(runsPart(this.r, this.front, this.back - this.front));
+		return runsArray(runsPart(this.r, this.front, this.back));
 	}
 
 	override clone(): Iter<S> {

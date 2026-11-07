@@ -3557,7 +3557,7 @@ pub(super) fn slice_to_vec<'tcx>(b: &mut Body<'_, '_, 'tcx>, slice: Expr, elem: 
 fn items_clone<'tcx>(b: &mut Body<'_, '_, 'tcx>, slice: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
 	match super::collections::clone_fn(b, elem, span) {
 		Expr::Lit(l) if l == "undefined" => Expr::rs("sliceToArray", vec![slice]),
-		clone => slice_items(slice).method("map", vec![clone]),
+		clone => items_of(slice, elem).method("map", vec![clone]),
 	}
 }
 
@@ -3598,7 +3598,7 @@ pub(super) fn vec_boxed(v: Expr, elem: Ty<'_>) -> Expr {
 fn boxed_vec(boxed: Expr, elem: Ty<'_>) -> Expr {
 	match elem.kind() {
 		_ if byte(elem) => Expr::rs("byteSliceToByteVec", vec![boxed]),
-		_ => Expr::rs("vecFrom", vec![slice_items(boxed)]),
+		_ => Expr::rs("vecFrom", vec![items_of(boxed, elem)]),
 	}
 }
 
@@ -4053,9 +4053,7 @@ pub fn elements(v: Expr, ty: Ty<'_>) -> Expr {
 	match ty.peel_refs().kind() {
 		ty::Slice(elem) if byte(*elem) => Expr::rs("byteSliceView", vec![v]),
 		// Copies of the runs of a slice of arrays, which a read can't tell from them.
-		ty::Slice(elem) | ty::Array(elem, _) if elem.is_array() && (ty.is_ref() || ty.is_slice()) => {
-			Expr::rs("runsArray", vec![v])
-		}
+		ty::Slice(elem) | ty::Array(elem, _) if elem.is_array() && (ty.is_ref() || ty.is_slice()) => items_of(v, *elem),
 		ty::Slice(_) => slice_items(v),
 		_ if super::bytes_ref(ty) => Expr::rs("byteSliceView", vec![v]),
 		_ if super::array_ref(ty).is_some() => slice_items(v),
@@ -4073,6 +4071,15 @@ pub fn slice_items(s: Expr) -> Expr {
 	array_of(s, "sliceItems")
 }
 
+/// The elements of `s`, a slice of `elem`s, as [`slice_items`] reads them: of arrays, the
+/// arrays of its runs, as `rs.runsArray` reads them.
+pub fn items_of(s: Expr, elem: Ty<'_>) -> Expr {
+	match elem.is_array() {
+		true => array_of(s, "runsArray"),
+		false => slice_items(s),
+	}
+}
+
 /// The array of `s`, an `rs.Slice`, as `rs.sliceView` writes through it: all of an array is
 /// the array.
 pub fn slice_view(s: Expr) -> Expr {
@@ -4086,7 +4093,7 @@ fn array_of(s: Expr, read: &str) -> Expr {
 			args.pop().unwrap()
 		}
 		// All of the arrays of a slice of arrays, which only a read takes as they are.
-		Expr::Call(f, mut args) if matches!(&*f, Expr::Rs(n) if n == "runsFrom") && read == "sliceItems" => {
+		Expr::Call(f, mut args) if matches!(&*f, Expr::Rs(n) if n == "runsFrom") && read == "runsArray" => {
 			args.swap_remove(0)
 		}
 		s => Expr::rs(read, vec![s]),

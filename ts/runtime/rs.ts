@@ -711,10 +711,7 @@ export function sliceFrom<T>(items: T[]): Slice<T> {
  * The elements of `s` as a JS array, for what only reads one: the storage itself where `s`
  * is all of it, or else a copy, which nothing can tell from it while the borrow lives.
  */
-export function sliceItems<T>(s: Slice<T>): T[];
-export function sliceItems<S extends Run>(s: Runs<S>): RunArray<S>[];
-export function sliceItems<T>(s: Slice<T> | Runs<Run>): unknown[] {
-	if (s instanceof Runs) return runsArray(s);
+export function sliceItems<T>(s: Slice<T>): T[] {
 	return s.start === 0 && s.length === s.data.length ? s.data : s.data.slice(s.start, s.start + s.length);
 }
 
@@ -738,10 +735,12 @@ export function sliceLength(s: Elements<unknown>): number {
 
 /**
  * A copy of the elements of `s`, as an array of its own, as `to_vec` of what JS copies makes
- * one, and `*r` of a `&[T; N]` with each element made a value of its own by `copy`.
+ * one, and `*r` of a `&[T; N]` with each element made a value of its own by `copy`, or, of
+ * objects a write lands in, as a `sliceIn`'s, by `objectCopy`, as a later write would change them.
  */
 export function sliceToArray<T>(s: Slice<T>, copy?: (value: T) => T): T[] {
 	const items = s.data.slice(s.start, s.start + s.length);
+	copy ??= writesIn(s.data) ? (value) => (typeof value === "object" && value !== null ? objectCopy(value) : value) : undefined;
 	if (copy) for (let i = 0; i < items.length; i++) items[i] = copy(items[i]);
 	return items;
 }
@@ -1079,7 +1078,8 @@ function runSet(s: Run, value: unknown): void {
 
 /**
  * The run `s` as a `[T; N]` of its own: a copy of its elements, and of the runs it holds at
- * any depth, but not of the objects its elements are, which a write of it moves.
+ * any depth, but not of the objects its elements are, which a write of it moves, unless a
+ * write lands in them, as `sliceToArray` copies them.
  */
 function runCopy<S extends Run>(s: S): RunArray<S> {
 	if (s instanceof ByteSlice) return byteSliceToArray(s) as RunArray<S>;

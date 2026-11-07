@@ -454,7 +454,7 @@ export function copies(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), undefined, 2, true).items, rs.byteSliceFrom));
 	let copy: rs.Arc<rs.Runs<rs.ByteSlice>> = rs.arcClone(quads);
 	const _79: rs.ByteSlice | undefined = rs.runsFirst(rs.arcMakeMut(rs.place(() => copy, (value2) => copy = value2), (a02: rs.Runs<rs.ByteSlice>): rs.Runs<rs.ByteSlice> => {
-		return rs.runsFrom(rs.sliceItems(a02).map(copy$array_u8), rs.byteSliceFrom);
+		return rs.runsFrom(rs.runsArray(a02).map(copy$array_u8), rs.byteSliceFrom);
 	}, rs.drop));
 	if (_79 !== undefined) {
 		_79.data[_79.start] = 119;

@@ -151,7 +151,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 		} else if (_39 === 16) {
 			v = rs.vecFrom(v.items.map(copy$array_u64));
 		} else if (_39 === 17) {
-			v = rs.vecFrom(rs.sliceItems(rs.runsFrom(v.items, rs.sliceFrom)));
+			v = rs.vecFrom(rs.runsArray(rs.runsFrom(v.items, rs.sliceFrom)));
 		} else if (_39 === 18) {
 			const keep2: () => boolean = alternate();
 			v = rs.iterToVec(rs.iterFilter(rs.vecIntoIter(v), rs.lending((_27: rs.Slice<rs.u64>): boolean => {

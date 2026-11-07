@@ -7746,7 +7746,7 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _263: Logged.Logged = logged(part10);
 		const part11 = at(3);
 		const grid: Logged.Logged[][] = [_249, [_263, logged(part11)]];
-		const copy2: Logged.Logged[][] = rs.sliceItems(rs.runsFrom(grid, rs.sliceFrom)).map((a: Logged.Logged[]) => a.map(Logged.clone$Clone));
+		const copy2: Logged.Logged[][] = rs.runsArray(rs.runsFrom(grid, rs.sliceFrom)).map((a: Logged.Logged[]) => a.map(Logged.clone$Clone));
 		flush(log.value, out);
 		rs.dropAll(grid, drop$array2_clones_Logged);
 		flush(log.value, out);

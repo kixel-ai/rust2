@@ -367,7 +367,7 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.idx(c, 1);
 			return Uint8Array.of(_3, c.data[c.start + 1]);
 		}), undefined, 2, true).items, rs.byteSliceFrom);
-		const quadsV: rs.Vec<Uint8Array> = rs.vecFrom(rs.sliceItems(rs.runsFrom(rs.sliceItems(quads).map(copy$array_u8), rs.byteSliceFrom)));
+		const quadsV: rs.Vec<Uint8Array> = rs.vecFrom(rs.runsArray(rs.runsFrom(rs.runsArray(quads).map(copy$array_u8), rs.byteSliceFrom)));
 		const _554: rs.ByteSlice | undefined = rs.runsFirst(rs.runsFrom(quadsV.items, rs.byteSliceFrom));
 		if (_554 !== undefined) {
 			_554.data[_554.start] = 119;

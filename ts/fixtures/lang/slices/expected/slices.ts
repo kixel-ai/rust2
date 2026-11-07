@@ -2351,32 +2351,30 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			rs.idx(_196[0], 0);
 			const _204: rs.usize = rs.usizeSub(n, 2);
 			rs.idx(_196[1], _204);
-			const slice87 = rs.runsAt(_196[0], 0);
-			const slice88 = rs.runsAt(_196[1], _204);
-			const swapped8 = rs.byteSliceToArray(slice87);
-			const slice89 = rs.runsAt(_196[0], 0);
-			slice89.data.set(rs.byteSliceToArray(slice88), slice89.start);
-			const slice90 = rs.runsAt(_196[1], _204);
-			slice90.data.set(swapped8, slice90.start);
+			const slice79 = rs.runsAt(_196[0], 0);
+			const slice80 = rs.runsAt(_196[1], _204);
+			const swapped8 = rs.byteSliceToArray(slice79);
+			slice79.data.set(rs.byteSliceToArray(slice80), slice79.start);
+			slice80.data.set(swapped8, slice80.start);
 			rs.idx(_142[0], 0);
-			const old13 = rs.byteSliceToArray(rs.runsAt(_142[0], 0));
-			const slice92 = rs.runsAt(_142[0], 0);
-			slice92.data.set(Uint8Array.of(7, 8), slice92.start);
+			const slice81 = rs.runsAt(_142[0], 0);
+			const old13 = rs.byteSliceToArray(slice81);
+			slice81.data.set(Uint8Array.of(7, 8), slice81.start);
 			const old: Uint8Array = old13;
 			const _216: rs.usize = rs.usizeSub(n, 1);
 			rs.idx(_142[0], _216);
-			const slice93 = rs.runsAt(_142[0], _216);
-			slice93.data.set(copy$array_u8(old), slice93.start);
+			const slice82 = rs.runsAt(_142[0], _216);
+			slice82.data.set(copy$array_u8(old), slice82.start);
 			rs.idx(_142[0], 1);
 			const kept3: Uint8Array = rs.byteSliceToArray(rs.runsAt(_142[0], 1));
 			rs.idx(_142[0], 0);
 			const _226: Uint8Array = rs.byteSliceToArray(rs.runsAt(_142[0], 0));
 			rs.idx(_142[0], 1);
-			const slice94 = rs.runsAt(_142[0], 1);
-			slice94.data.set(_226, slice94.start);
+			const slice83 = rs.runsAt(_142[0], 1);
+			slice83.data.set(_226, slice83.start);
 			rs.idx(_142[0], 0);
-			const slice95 = rs.runsAt(_142[0], 0);
-			slice95.data.set(copy$array_u8(kept3), slice95.start);
+			const slice84 = rs.runsAt(_142[0], 0);
+			slice84.data.set(copy$array_u8(kept3), slice84.start);
 			const _239: rs.ByteSlice | undefined = rs.runsLast(_142[0]);
 			if (_239 !== undefined) {
 				_239.data.set(Uint8Array.of(9, 10), _239.start);
@@ -2426,10 +2424,9 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			rs.idx(_307[0], 0);
 			const _315: rs.usize = rs.usizeSub(n2, 2);
 			rs.idx(_307[1], _315);
-			const slice11 = rs.runsAt(_307[0], 0);
-			const slice12 = rs.runsAt(_307[1], _315);
-			const swapped3 = rs.replaceIn(rs.sliceView(slice11), rs.sliceToArray(slice12));
-			rs.sliceSet(rs.runsAt(_307[1], _315), swapped3);
+			const slice10 = rs.runsAt(_307[0], 0);
+			const slice11 = rs.runsAt(_307[1], _315);
+			rs.sliceSet(slice11, rs.replaceIn(rs.sliceView(slice10), rs.sliceToArray(slice11)));
 			rs.idx(_253[1], 0);
 			const old2: rs.u16[] = rs.replaceIn(rs.sliceView(rs.runsAt(_253[1], 0)), [7, 8]);
 			const _327: rs.usize = rs.usizeSub(n2, 1);
@@ -2491,32 +2488,30 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			rs.idx(_418[0], 0);
 			const _426: rs.usize = rs.usizeSub(n3, 2);
 			rs.idx(_418[1], _426);
-			const slice21 = rs.runsAt(_418[0], 0);
-			const slice22 = rs.runsAt(_418[1], _426);
-			const swapped4 = rs.byteSliceToArray(slice21);
-			const slice23 = rs.runsAt(_418[0], 0);
-			slice23.data.set(rs.byteSliceToArray(slice22), slice23.start);
-			const slice24 = rs.runsAt(_418[1], _426);
-			slice24.data.set(swapped4, slice24.start);
+			const slice19 = rs.runsAt(_418[0], 0);
+			const slice20 = rs.runsAt(_418[1], _426);
+			const swapped4 = rs.byteSliceToArray(slice19);
+			slice19.data.set(rs.byteSliceToArray(slice20), slice19.start);
+			slice20.data.set(swapped4, slice20.start);
 			rs.idx(_364[1], 0);
-			const old9 = rs.byteSliceToArray(rs.runsAt(_364[1], 0));
-			const slice26 = rs.runsAt(_364[1], 0);
-			slice26.data.set(Uint8Array.of(1, 2, 3, 4), slice26.start);
+			const slice21 = rs.runsAt(_364[1], 0);
+			const old9 = rs.byteSliceToArray(slice21);
+			slice21.data.set(Uint8Array.of(1, 2, 3, 4), slice21.start);
 			const old3: Uint8Array = old9;
 			const _438: rs.usize = rs.usizeSub(n3, 1);
 			rs.idx(_364[1], _438);
-			const slice27 = rs.runsAt(_364[1], _438);
-			slice27.data.set(copy$array_u8(old3), slice27.start);
+			const slice22 = rs.runsAt(_364[1], _438);
+			slice22.data.set(copy$array_u8(old3), slice22.start);
 			rs.idx(_364[1], 1);
 			const kept7: Uint8Array = rs.byteSliceToArray(rs.runsAt(_364[1], 1));
 			rs.idx(_364[1], 0);
 			const _448: Uint8Array = rs.byteSliceToArray(rs.runsAt(_364[1], 0));
 			rs.idx(_364[1], 1);
-			const slice28 = rs.runsAt(_364[1], 1);
-			slice28.data.set(_448, slice28.start);
+			const slice23 = rs.runsAt(_364[1], 1);
+			slice23.data.set(_448, slice23.start);
 			rs.idx(_364[1], 0);
-			const slice29 = rs.runsAt(_364[1], 0);
-			slice29.data.set(copy$array_u8(kept7), slice29.start);
+			const slice24 = rs.runsAt(_364[1], 0);
+			slice24.data.set(copy$array_u8(kept7), slice24.start);
 			const _461: rs.ByteSlice | undefined = rs.runsLast(_364[1]);
 			if (_461 !== undefined) {
 				_461.data.set(rs.bytes(4).fill(5), _461.start);
@@ -2546,17 +2541,17 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			const _512: { end: rs.usize } = { end: rs.usizeSub(n4, 1) };
 			rs.runsCopyWithin(_479[0], 0, _512.end, 1, copy$array_array2_u8);
 			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(rs.runsFrom([copy$array_array2_u8(first4), copy$array_array2_u8(last4), copy$array_array2_u8(kept8)], rs.runsOf(rs.byteSliceFrom))), (c13: rs.Runs<rs.ByteSlice>): rs.u8 => {
-				const slice33 = rs.runsAt(c13, 0);
-				const _342: rs.u8 = slice33.data[slice33.start];
-				const slice34 = rs.runsAt(c13, 1);
-				return _342 ^ slice34.data[slice34.start + 1];
+				const slice28 = rs.runsAt(c13, 0);
+				const _342: rs.u8 = slice28.data[slice28.start];
+				const slice29 = rs.runsAt(c13, 1);
+				return _342 ^ slice29.data[slice29.start + 1];
 			}), undefined, true);
 			rs.runsBy(_479[0], (runs25) => rs.sliceSort(runs25, rs.cmpLt(rs.cmpSlice(rs.cmpBytes)), 4, true));
 			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_479[0]), (c14: rs.Runs<rs.ByteSlice>): rs.u8 => {
-				const slice35 = rs.runsAt(c14, 0);
-				const _346: rs.u8 = slice35.data[slice35.start];
-				const slice36 = rs.runsAt(c14, 1);
-				return _346 ^ slice36.data[slice36.start + 1];
+				const slice30 = rs.runsAt(c14, 0);
+				const _346: rs.u8 = slice30.data[slice30.start];
+				const slice31 = rs.runsAt(c14, 1);
+				return _346 ^ slice31.data[slice31.start + 1];
 			}), undefined, true);
 			const f6 = (c15: rs.Runs<rs.ByteSlice>): Uint8Array => {
 				return rs.byteSliceToArray(rs.runsAt(c15, 1));
@@ -2571,8 +2566,9 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			rs.idx(_531[0], 0);
 			const _539: rs.usize = rs.usizeSub(n4, 2);
 			rs.idx(_531[1], _539);
-			const swapped5 = rs.runsReplace(rs.runsAt(_531[0], 0), rs.runsToArray(rs.runsAt(_531[1], _539), rs.byteSliceToArray));
-			rs.runsSet(rs.runsAt(_531[1], _539), swapped5);
+			const slice32 = rs.runsAt(_531[0], 0);
+			const slice33 = rs.runsAt(_531[1], _539);
+			rs.runsSet(slice33, rs.runsReplace(slice32, rs.runsToArray(slice33, rs.byteSliceToArray)));
 			rs.idx(_479[0], 0);
 			const _550: Uint8Array[] = [Uint8Array.of(1, 2), Uint8Array.of(3, 4)];
 			const old4: Uint8Array[] = rs.runsReplace(rs.runsAt(_479[0], 0), _550);
@@ -2592,10 +2588,10 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 				rs.runsSet(_576, [Uint8Array.of(5, 6), Uint8Array.of(7, 8)]);
 			}
 			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_479[0]), (c17: rs.Runs<rs.ByteSlice>): rs.u8 => {
-				const slice44 = rs.runsAt(c17, 0);
-				const _353: rs.u8 = slice44.data[slice44.start];
-				const slice45 = rs.runsAt(c17, 1);
-				return _353 ^ slice45.data[slice45.start + 1];
+				const slice38 = rs.runsAt(c17, 0);
+				const _353: rs.u8 = slice38.data[slice38.start];
+				const slice39 = rs.runsAt(c17, 1);
+				return _353 ^ slice39.data[slice39.start + 1];
 			}), undefined, true);
 			const _586: rs.Runs<rs.Runs<rs.ByteSlice>> = rs.runsRange(_479[0], rs.usizeDiv(n4, 2));
 			const _590: Uint8Array[] = [Uint8Array.of(5, 6), Uint8Array.of(7, 8)];
@@ -2620,17 +2616,17 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			const _640: { end: rs.usize } = { end: rs.usizeSub(n5, 1) };
 			rs.runsCopyWithin(_600[0], 0, _640.end, 1, copy$array_array2_array2_u8);
 			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(rs.runsFrom([copy$array_array2_array2_u8(first5), copy$array_array2_array2_u8(last5), copy$array_array2_array2_u8(kept10)], rs.runsOf(rs.runsOf(rs.byteSliceFrom)))), (c18: rs.Runs<rs.Runs<rs.ByteSlice>>): rs.u8 => {
-				const slice50 = rs.runsAt(rs.runsAt(c18, 0), 0);
-				const _356: rs.u8 = slice50.data[slice50.start];
-				const slice52 = rs.runsAt(rs.runsAt(c18, 1), 1);
-				return _356 ^ slice52.data[slice52.start + 1];
+				const slice44 = rs.runsAt(rs.runsAt(c18, 0), 0);
+				const _356: rs.u8 = slice44.data[slice44.start];
+				const slice46 = rs.runsAt(rs.runsAt(c18, 1), 1);
+				return _356 ^ slice46.data[slice46.start + 1];
 			}), undefined, true);
 			rs.runsBy(_600[0], (runs34) => rs.sliceSort(runs34, rs.cmpLt(rs.cmpSlice(rs.cmpSlice(rs.cmpBytes))), 8, true));
 			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_600[0]), (c19: rs.Runs<rs.Runs<rs.ByteSlice>>): rs.u8 => {
-				const slice54 = rs.runsAt(rs.runsAt(c19, 0), 0);
-				const _357: rs.u8 = slice54.data[slice54.start];
-				const slice56 = rs.runsAt(rs.runsAt(c19, 1), 1);
-				return _357 ^ slice56.data[slice56.start + 1];
+				const slice48 = rs.runsAt(rs.runsAt(c19, 0), 0);
+				const _357: rs.u8 = slice48.data[slice48.start];
+				const slice50 = rs.runsAt(rs.runsAt(c19, 1), 1);
+				return _357 ^ slice50.data[slice50.start + 1];
 			}), undefined, true);
 			const f8 = (c20: rs.Runs<rs.Runs<rs.ByteSlice>>): Uint8Array[] => {
 				return rs.runsToArray(rs.runsAt(c20, 1), rs.byteSliceToArray);
@@ -2645,8 +2641,9 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			rs.idx(_659[0], 0);
 			const _667: rs.usize = rs.usizeSub(n5, 2);
 			rs.idx(_659[1], _667);
-			const swapped6 = rs.runsReplace(rs.runsAt(_659[0], 0), rs.runsToArray(rs.runsAt(_659[1], _667), (s) => rs.runsToArray(s, rs.byteSliceToArray)));
-			rs.runsSet(rs.runsAt(_659[1], _667), swapped6);
+			const slice51 = rs.runsAt(_659[0], 0);
+			const slice52 = rs.runsAt(_659[1], _667);
+			rs.runsSet(slice52, rs.runsReplace(slice51, rs.runsToArray(slice52, (s) => rs.runsToArray(s, rs.byteSliceToArray))));
 			rs.idx(_600[0], 0);
 			const old5: Uint8Array[][] = rs.runsReplace(rs.runsAt(_600[0], 0), copy$array_array2_array2_u8(one));
 			const _678: rs.usize = rs.usizeSub(n5, 1);
@@ -2671,10 +2668,10 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 				}));
 			}
 			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_600[0]), (c22: rs.Runs<rs.Runs<rs.ByteSlice>>): rs.u8 => {
-				const slice65 = rs.runsAt(rs.runsAt(c22, 0), 0);
-				const _367: rs.u8 = slice65.data[slice65.start];
-				const slice67 = rs.runsAt(rs.runsAt(c22, 1), 1);
-				return _367 ^ slice67.data[slice67.start + 1];
+				const slice58 = rs.runsAt(rs.runsAt(c22, 0), 0);
+				const _367: rs.u8 = slice58.data[slice58.start];
+				const slice60 = rs.runsAt(rs.runsAt(c22, 1), 1);
+				return _367 ^ slice60.data[slice60.start + 1];
 			}), undefined, true);
 			const _711: rs.Runs<rs.Runs<rs.Runs<rs.ByteSlice>>> = rs.runsRange(_600[0], rs.usizeDiv(n5, 2));
 			const _717: Uint8Array = rs.bytes(2).fill(9);
@@ -2726,17 +2723,17 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			const _793: { end: rs.usize } = { end: rs.usizeSub(n6, 1) };
 			rs.runsCopyWithin(_760[0], 0, _793.end, 1, copy$array_array2_u16);
 			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(rs.runsFrom([first6, last6, kept12], rs.runsOf(rs.sliceFrom))), (c23: rs.Runs<rs.Slice<rs.u16>>): rs.u8 => {
-				const slice71 = rs.runsAt(c23, 0);
-				const _415: rs.u16 = slice71.data[slice71.start];
-				const slice72 = rs.runsAt(c23, 1);
-				return (_415 ^ slice72.data[slice72.start + 1]) & 0xff;
+				const slice64 = rs.runsAt(c23, 0);
+				const _415: rs.u16 = slice64.data[slice64.start];
+				const slice65 = rs.runsAt(c23, 1);
+				return (_415 ^ slice65.data[slice65.start + 1]) & 0xff;
 			}), undefined, true);
 			rs.runsBy(_760[0], (runs43) => rs.sliceSort(runs43, rs.cmpLt(rs.cmpSlice(rs.cmpSlice(rs.cmp))), 8, true));
 			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_760[0]), (c24: rs.Runs<rs.Slice<rs.u16>>): rs.u8 => {
-				const slice73 = rs.runsAt(c24, 0);
-				const _416: rs.u16 = slice73.data[slice73.start];
-				const slice74 = rs.runsAt(c24, 1);
-				return (_416 ^ slice74.data[slice74.start + 1]) & 0xff;
+				const slice66 = rs.runsAt(c24, 0);
+				const _416: rs.u16 = slice66.data[slice66.start];
+				const slice67 = rs.runsAt(c24, 1);
+				return (_416 ^ slice67.data[slice67.start + 1]) & 0xff;
 			}), undefined, true);
 			const f10 = (c25: rs.Runs<rs.Slice<rs.u16>>): rs.u16[] => {
 				return rs.sliceToArray(rs.runsAt(c25, 1));
@@ -2751,8 +2748,9 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			rs.idx(_812[0], 0);
 			const _820: rs.usize = rs.usizeSub(n6, 2);
 			rs.idx(_812[1], _820);
-			const swapped7 = rs.runsReplace(rs.runsAt(_812[0], 0), rs.runsToArray(rs.runsAt(_812[1], _820), rs.sliceToArray));
-			rs.runsSet(rs.runsAt(_812[1], _820), swapped7);
+			const slice68 = rs.runsAt(_812[0], 0);
+			const slice69 = rs.runsAt(_812[1], _820);
+			rs.runsSet(slice69, rs.runsReplace(slice68, rs.runsToArray(slice69, rs.sliceToArray)));
 			rs.idx(_760[0], 0);
 			const _831: rs.u16[][] = [[1, 2], [3, 4]];
 			const old6: rs.u16[][] = rs.runsReplace(rs.runsAt(_760[0], 0), _831);
@@ -2772,10 +2770,10 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 				rs.runsSet(_857, [[5, 6], [7, 8]]);
 			}
 			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_760[0]), (c27: rs.Runs<rs.Slice<rs.u16>>): rs.u8 => {
-				const slice82 = rs.runsAt(c27, 0);
-				const _417: rs.u16 = slice82.data[slice82.start];
-				const slice83 = rs.runsAt(c27, 1);
-				return (_417 ^ slice83.data[slice83.start + 1]) & 0xff;
+				const slice74 = rs.runsAt(c27, 0);
+				const _417: rs.u16 = slice74.data[slice74.start];
+				const slice75 = rs.runsAt(c27, 1);
+				return (_417 ^ slice75.data[slice75.start + 1]) & 0xff;
 			}), undefined, true);
 			const _867: rs.Runs<rs.Runs<rs.Slice<rs.u16>>> = rs.runsRange(_760[0], rs.usizeDiv(n6, 2));
 			const _871: rs.u16[][] = [[5, 6], [7, 8]];
@@ -2808,8 +2806,7 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			rs.idx(_909[1], 0);
 			const slice6 = rs.runsAt(_909[0], 0);
 			const slice7 = rs.runsAt(_909[1], 0);
-			const swapped2 = rs.replaceIn(rs.sliceView(slice6), rs.sliceToArray(slice7), 1);
-			rs.sliceSet(rs.runsAt(_909[1], 0), swapped2);
+			rs.sliceSet(slice7, rs.replaceIn(rs.sliceView(slice6), rs.sliceToArray(slice7), 1));
 			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_875[0]), (c2: rs.Slice<Item.Item>): rs.u8 => {
 				return _11(c2);
 			}), undefined, true);

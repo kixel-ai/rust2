@@ -87,8 +87,8 @@ pub fn native<'tcx>(tcx: TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args: t
 pub fn give<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>) -> Result<Given, Expr> {
 	let tcx = b.t.tcx;
 	let mut given = Given { args, by: Vec::new() };
-	// Only a slice's own methods; a trait's mapping reads runs as their type says.
-	if native(tcx, call.def_id, call.args) || library::key(tcx, call.def_id).is_none_or(|(owner, _)| owner != "slice") {
+	// Only std's own functions and methods; a trait's mapping reads runs as their type says.
+	if native(tcx, call.def_id, call.args) || tcx.trait_of_assoc(call.def_id).is_some() {
 		return Ok(given);
 	}
 	let generic = tcx
