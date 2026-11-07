@@ -79,7 +79,8 @@ fn local_lazy() {
 }
 
 /// The runtime's B-tree runs `btree.ts`'s script of random operations as std's does, calling
-/// `Ord::cmp` on the same keys in the same order.
+/// `Ord::cmp` on the same keys in the same order and dropping a whole tree's values in the
+/// same order.
 #[test]
 fn btree_script() {
 	use std::cell::Cell;
@@ -89,6 +90,8 @@ fn btree_script() {
 	thread_local! {
 		/// The calls of `Key::cmp` since the last line, and a hash of their keys.
 		static CALLS: Cell<(u32, u32)> = const { Cell::new((0, 0)) };
+		/// While a whole tree drops, how many of its values have, and a hash of them in order.
+		static DROPS: Cell<Option<(u32, u32)>> = const { Cell::new(None) };
 	}
 	/// A key whose `cmp` counts and hashes each call, as `btree.ts`'s does.
 	#[derive(Clone, Copy, PartialEq, Eq)]
@@ -110,6 +113,21 @@ fn btree_script() {
 		fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
 			Some(self.cmp(other))
 		}
+	}
+	/// A value that counts and hashes its drop while `DROPS` logs, as `btree.ts`'s dropper does.
+	#[derive(Clone)]
+	struct Val(u32);
+	impl Drop for Val {
+		fn drop(&mut self) {
+			DROPS.with(|d| d.set(d.get().map(|(n, h)| (n + 1, h.wrapping_mul(31).wrapping_add(self.0)))));
+		}
+	}
+	/// How `f` drops values: how many, and their hash.
+	fn logged(f: impl FnOnce()) -> String {
+		DROPS.with(|d| d.set(Some((0, 0))));
+		f();
+		let (n, h) = DROPS.with(|d| d.take()).unwrap();
+		format!("drop {n} {h}")
 	}
 	let say = |want: &mut Vec<String>, line: String| {
 		let (n, h) = CALLS.with(|c| c.replace((0, 0)));
@@ -134,7 +152,7 @@ fn btree_script() {
 	};
 	fn walk<'a>(
 		rand: &mut impl FnMut() -> u32,
-		it: &mut impl DoubleEndedIterator<Item = (&'a Key, &'a u32)>,
+		it: &mut impl DoubleEndedIterator<Item = (&'a Key, &'a Val)>,
 	) -> String {
 		let mut seen = Vec::new();
 		for _ in 0..40 {
@@ -144,11 +162,11 @@ fn btree_script() {
 		}
 		seen.join(",")
 	}
-	let show = |v: Option<u32>| v.map_or("-".to_string(), |v| v.to_string());
-	let entry = |e: Option<(&Key, &u32)>| e.map_or("-".to_string(), |(k, v)| format!("{} {v}", k.0));
+	let show = |v: Option<Val>| v.map_or("-".to_string(), |v| v.0.to_string());
+	let entry = |e: Option<(&Key, &Val)>| e.map_or("-".to_string(), |(k, v)| format!("{} {}", k.0, v.0));
 
 	let mut want = Vec::new();
-	let mut m: BTreeMap<Key, u32> = BTreeMap::new();
+	let mut m: BTreeMap<Key, Val> = BTreeMap::new();
 	let steps = 120_000;
 	for step in 0..steps {
 		let keys = 65_536;
@@ -157,12 +175,12 @@ fn btree_script() {
 		let k = rand() % keys;
 		if op < 5 {
 			if phase == 0 || (phase == 1 && k % 2 == 0) {
-				say(&mut want, format!("insert {k} {}", show(m.insert(Key(k), step))));
+				say(&mut want, format!("insert {k} {}", show(m.insert(Key(k), Val(step)))));
 			} else {
 				say(&mut want, format!("remove {k} {}", show(m.remove(&Key(k)))));
 			}
 		} else if op == 5 {
-			say(&mut want, format!("get {k} {}", show(m.get(&Key(k)).copied())));
+			say(&mut want, format!("get {k} {}", show(m.get(&Key(k)).cloned())));
 		} else if op == 6 {
 			let j = rand() % keys;
 			let (lo, hi) = if k < j { (k, j) } else { (j, k) };
@@ -179,7 +197,7 @@ fn btree_script() {
 				&mut want,
 				format!(
 					"pop {last} {}",
-					popped.map_or("-".to_string(), |(k, v)| format!("{} {v}", k.0))
+					popped.map_or("-".to_string(), |(k, v)| format!("{} {}", k.0, v.0))
 				),
 			);
 		} else if op == 8 {
@@ -200,32 +218,41 @@ fn btree_script() {
 					entry(m.last_key_value())
 				),
 			);
-			if rand() & 1 == 1 {
-				m = copy;
-			}
-			say(&mut want, format!("kept {}", m.len()));
+			let unused = if rand() & 1 == 1 {
+				std::mem::replace(&mut m, copy)
+			} else {
+				copy
+			};
+			say(&mut want, format!("kept {} {}", m.len(), logged(|| drop(unused))));
 		} else if step % 1301 == 0 {
 			let right = m.split_off(&Key(k));
 			say(&mut want, format!("split {k} {} {}", m.len(), right.len()));
-			if rand() & 1 == 1 {
-				m = right;
-			}
+			let mut unused = if rand() & 1 == 1 {
+				std::mem::replace(&mut m, right)
+			} else {
+				right
+			};
+			say(&mut want, logged(|| unused.clear()));
 		} else if step % 2003 == 0 {
-			m = m.iter().map(|(k, v)| (*k, *v)).collect();
-			say(&mut want, format!("collect {}", m.len()));
+			let collected = m.iter().map(|(k, v)| (*k, v.clone())).collect();
+			let old = std::mem::replace(&mut m, collected);
+			say(&mut want, format!("collect {} {}", m.len(), logged(|| drop(old))));
 		} else if step % 211 == 0 {
 			let j = rand() % keys;
 			let (lo, hi) = if k < j { (k, j) } else { (j, k) };
 			let limit = rand() % 400;
 			let copy = m.clone();
-			let taken: Vec<String> = (m.extract_if(Key(lo)..Key(hi), |key, value| (key.0 ^ *value) % 3 != 0))
+			let taken: Vec<String> = (m.extract_if(Key(lo)..Key(hi), |key, value| (key.0 ^ value.0) % 3 != 0))
 				.take(limit as usize)
 				.map(|(k, _)| k.0.to_string())
 				.collect();
 			say(&mut want, format!("extract {lo} {hi} {} {}", m.len(), taken.join(",")));
-			if rand() & 1 == 1 {
-				m = copy;
-			}
+			let unused = if rand() & 1 == 1 {
+				std::mem::replace(&mut m, copy)
+			} else {
+				copy
+			};
+			say(&mut want, logged(|| drop(unused)));
 		}
 	}
 	let keys: Vec<String> = m.keys().map(|k| k.0.to_string()).collect();
