@@ -3288,12 +3288,10 @@ export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return new rs.Cell(b as rs.u32);
 		}), b) & 0xff);
 	}
-	const arc: rs.Arc<rs.u8> = new rs.Arc(bits);
-	const _178: rs.Place<rs.u8> = rs.arcRaw(arc, rs.arcPlace(arc), "Arc");
-	const _181: rs.Place<rs.u8> = rs.arcRaw(arc, rs.arcPlace(arc), "Arc");
-	const p: rs.Place<rs.u8> = _178;
-	rs.byteVecPush(out, rs.ptrOffsetFrom(p, _181) & 0xff);
-	rs.byteVecPush(out, p.v);
+	const arc: rs.Arc<rs.u32> = new rs.Arc(bits as rs.u32);
+	const q: rs.Place<rs.u32> = rs.arcRaw(arc, rs.arcPlace(arc), "Arc");
+	rs.byteVecPush(out, rs.ptrOffsetFrom(rs.arcRaw(arc, rs.arcPlace(arc), "Arc"), q) & 0xff);
+	rs.byteVecPush(out, q.v & 0xff);
 	arc[Symbol.dispose]();
 }
 
