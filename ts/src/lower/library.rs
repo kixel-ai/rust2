@@ -205,6 +205,8 @@ pub enum Std {
 	TryReserveError,
 	/// `bytes::Bytes`: an `rs.ByteSlice`, as `&[u8]` is.
 	Bytes,
+	/// `io::IoSlice`: the `rs.ByteSlice` of the `&[u8]` it wraps.
+	IoSlice,
 	/// `bytes::BytesMut`: `rs.BytesMut`, a window of storage it shares with what it splits off.
 	BytesMut,
 	/// `rand::rngs::ThreadRng`: `rs.ThreadRng`, which holds no state.
@@ -350,6 +352,7 @@ impl Std {
 			["char", "TryFromCharError"] => Some(Self::TryFromCharError),
 			["char", "decode", "DecodeUtf16Error"] => Some(Self::DecodeUtf16Error),
 			["str", "lossy", "Utf8Chunk"] => Some(Self::Utf8Chunk),
+			["io", "io_slice", "IoSlice"] => Some(Self::IoSlice),
 			["fmt", "Formatter"] => Some(Self::Formatter),
 			["fmt", "Arguments"] => Some(Self::Arguments),
 			["fmt", "Error"] => Some(Self::FmtError),
@@ -2045,6 +2048,10 @@ fn mapping<'tcx>(
 			}
 		}
 
+		// An `IoSlice` is the bytes it lends, which `advance` moves its place past the front of.
+		("IoSlice", "new") => args.pop()?,
+		("IoSlice", "advance") => Expr::rs("ioSliceAdvance", args),
+		("IoSlice", "advance_slices") => Expr::rs("ioSliceAdvanceSlices", args),
 		// A `NonZero` is its integer.
 		("NonZero", "get") => args.pop()?,
 		("NonZero", "new") => Expr::rs("nonZero", args),
@@ -2785,7 +2792,7 @@ fn mapping<'tcx>(
 					Some(Std::Vec) => vec_view(v, vargs.type_at(0)),
 					// A `String` is the place of its text, as a `&mut str` of it is.
 					Some(Std::String) if name == "deref" => v.member("v"),
-					Some(Std::String | Std::Box | Std::ManuallyDrop | Std::AssertUnwindSafe) => v,
+					Some(Std::String | Std::Box | Std::ManuallyDrop | Std::AssertUnwindSafe | Std::IoSlice) => v,
 					Some(Std::Cow) if let Some(borrowed) = cow_borrowed(tcx, ty) => cow_deref(v, borrowed),
 					// The greatest element of a heap, which `DerefMut` marks to sift once lent.
 					Some(Std::PeekMut) => {

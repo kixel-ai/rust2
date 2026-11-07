@@ -5284,7 +5284,7 @@ function forward<T>(n: T, by: number, int: Step<T> | undefined): T {
 	if (int === undefined) throw new Error("rust2-ts: stepping a range of no integer type");
 	const [sum, over] = int(n, by);
 	if (!over) return sum;
-	if (int === (charStep as unknown)) panic("overflow in `Step::forward`", "char_forward");
+	if (int === (charStep as unknown)) panic("overflow in `Step::forward`", "char_forward", true);
 	return panic("attempt to add with overflow", "int_forward");
 }
 

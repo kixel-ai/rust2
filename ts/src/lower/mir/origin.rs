@@ -14,7 +14,7 @@ use rustc_span::Spanned;
 
 use super::Fx;
 use crate::lower::library::{self, Std};
-use crate::lower::pointer::Pointee;
+use crate::lower::pointer::{self, Pointee};
 use crate::ts::{Expr, Stmt};
 
 /// The array JS keeps what a pointer points at in.
@@ -73,6 +73,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let (owner, name) = library::key(self.tcx, def_id)?;
 		let arg = |i: usize| args.get(i).map(|a| &a.node);
 		let pointee = gargs.types().next()?;
+		if matches!((owner.as_str(), name.as_str()), ("ptr" | "NonNull", "cast"))
+			&& let Some(why) = self.lone_byte_array(arg(0)?, pointee, gargs.types().nth(1)?)
+		{
+			return Some(why);
+		}
 		if self.b.t.zero_sized(pointee) || self.b.t.pointee(pointee) != Pointee::Place {
 			return None;
 		}
@@ -424,8 +429,56 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	pub(super) fn erased_borrow(&self, op: &Operand<'tcx>, from: ty::Ty<'tcx>, to: ty::Ty<'tcx>) -> Option<String> {
 		let t = &self.b.t;
 		let erases = t.identity_pointee(to) && !t.identity_pointee(from) && t.pointee(from) == Pointee::Place;
-		(erases && crate::lower::pointer::unerasable(self.b, from).is_none() && self.arc_pointer(op) == Some(false))
-			.then(|| crate::lower::pointer::erased_place(t.uninit_inner(from)))
+		(erases && pointer::unerasable(self.b, from).is_none() && self.arc_pointer(op) == Some(false))
+			.then(|| pointer::erased_place(t.uninit_inner(from)))
+	}
+
+	/// Why the cast of the raw slice `op` of bytes, a pointer to `from`, to one to `to`, an
+	/// array of some of them, would fail at run time where Rust's is defined: the body shows
+	/// the slice starts at a byte in no array, which no `Uint8Array` can share.
+	pub(super) fn lone_byte_array(&self, op: &Operand<'tcx>, from: ty::Ty<'tcx>, to: ty::Ty<'tcx>) -> Option<String> {
+		let t = &self.b.t;
+		let (ty::Slice(from), ty::Array(to, n)) = (t.uninit_inner(from).kind(), t.uninit_inner(to).kind()) else {
+			return None;
+		};
+		if !crate::lower::byte(*from) || !crate::lower::byte(*to) || n.try_to_target_usize(self.tcx) == Some(0) {
+			return None;
+		}
+		matches!(self.raw_start(op)?.array, Array::Lone(_))
+			.then(|| "a raw or mutable slice of a byte in no array of bytes".into())
+	}
+
+	/// Where the raw slice, `NonNull` of one, or slice `op` starts, if the body shows it.
+	fn raw_start(&self, op: &Operand<'tcx>) -> Option<Origin<'tcx>> {
+		let local = self.traced(op)?;
+		if self.def_at[local].is_some() {
+			return match self.def_rvalue(local)? {
+				Rvalue::Use(op, _)
+				| Rvalue::Cast(
+					mir::CastKind::PtrToPtr
+					| mir::CastKind::PointerCoercion(ty::adjustment::PointerCoercion::MutToConstPointer, _),
+					op,
+					_,
+				) if self.same_pointee(op, local) => self.raw_start(op),
+				// `&raw const *s`, of the slice `s`.
+				Rvalue::RawPtr(_, place) if place.projection.as_slice() == [ProjectionElem::Deref] => {
+					self.raw_start(&Operand::Copy(mir::Place::from(place.local)))
+				}
+				_ => self.start(op),
+			};
+		}
+		let (def_id, gargs, args) = self.def_call(local)?;
+		// A pointer or reference to where its first argument points, as a whole.
+		if pointer::from_reference(self.tcx, def_id, gargs)
+			|| pointer::derives(self.tcx, def_id) == Some(pointer::Derives::Same)
+		{
+			return self.raw_start(&args.first()?.node);
+		}
+		let (owner, name) = library::key(self.tcx, def_id)?;
+		match (owner.as_str(), name.as_str()) {
+			("ptr" | "NonNull", "slice_from_raw_parts" | "slice_from_raw_parts_mut") => self.origin(&args[0].node),
+			_ => self.start(op),
+		}
 	}
 
 	/// The local `op` reads whole, if the body assigns it once.

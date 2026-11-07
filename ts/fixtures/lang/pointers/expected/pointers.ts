@@ -2981,6 +2981,91 @@ export function lent(n: rs.u8): rs.ByteVec {
 }
 
 /**
+ * Pointers to slices cast to ones to arrays of their elements, of bytes and of numbers:
+ * read whole, borrowed, and written through, at every offset; compared with the arrays
+ * std's safe casts give; cast past where the slice ends and read only where its elements
+ * are; and cast from null, dangling, and empty ones, which point at nothing.
+ */
+export function arrayCasts(data: rs.ByteSlice, out: rs.ByteVec): void {
+	let _9!: rs.usize;
+	let _91!: rs.usize;
+	const bytes: rs.ByteVec = rs.byteSliceToByteVec(data);
+	const _6: rs.usize = bytes.length;
+	let iterStart: rs.usize = 0;
+	const iterEnd: rs.usize = _6;
+	while ((_9 = iterStart++) < iterEnd) {
+		const at: rs.usize = _9;
+		const rest: rs.ByteSlice = rs.byteSliceRange(rs.byteVecSlice(bytes), at);
+		const pair: rs.ByteSlice = rs.rawByteSliceOf(rest).byteArray(2);
+		if (rest.length >= 2) {
+			rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceToArray(pair)), undefined, true);
+			rs.byteVecPush(out, rs.byteSliceSame(pair, rs.optionUnwrap(rs.byteSliceGetRange(rest, 0, 2))) ? 1 : 0);
+			rs.byteVecPush(out, rs.byteSliceSame(pair, rs.optionUnwrap(rs.byteSliceGetRange(rest, 0, 2))) ? 1 : 0);
+		}
+		const _43: rs.ByteSlice = rs.byteSliceFrom(rs.byteSliceView(rs.rawByteSliceOf(rs.byteSliceRange(rs.byteVecSlice(bytes), at)).byteArray(1)));
+		rs.byteVecPush(out, _43.data[_43.start]);
+	}
+	if (bytes.length >= 3) {
+		const part = rs.usizeSub(bytes.length, 3);
+		const _55: rs.ByteSlice = rs.rawByteSliceOf(rs.byteSliceRange(rs.byteVecSlice(bytes), part)).byteArray(3);
+		_55.data[_55.start] = _55.data[_55.start] ^ _55.data[_55.start + 2];
+		rs.byteSliceView(_55).reverse();
+		const _68: rs.ByteSlice = rs.rawByteSliceOf(rs.byteSliceRange(rs.byteVecSlice(bytes), 0)).byteArray(3);
+		const _72: rs.u8 = rs.u8WrappingAdd(_68.data[_68.start + 1], 1);
+		_68.data[_68.start + 1] = _72;
+	}
+	rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(bytes)), undefined, true);
+	const words: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u32 => {
+		return rs.u32Mul(_2 as rs.u32, 65793);
+	}), undefined, 4, true);
+	const copy: rs.Vec<rs.u32> = rs.vecFrom(words.items.slice());
+	const _87: rs.usize = rs.usizeSaturatingSub(words.items.length, 1);
+	let iterStart2: rs.usize = 0;
+	const iterEnd2: rs.usize = _87;
+	while ((_91 = iterStart2++) < iterEnd2) {
+		const at2: rs.usize = _91;
+		const three: rs.Slice<rs.u32> = rs.rawSliceOf(rs.sliceRange(rs.sliceFrom(words.items), at2)).array(3);
+		if (rs.usizeSub(words.items.length, at2) >= 3) {
+			rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceToArray(three)), (w: rs.u32): Uint8Array => {
+				return rs.u32ToBeBytes(w).reverse();
+			}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
+			rs.byteVecPush(out, rs.sliceSame(three, rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(words.items), at2), 0, 3))) ? 1 : 0);
+		}
+		const _121: rs.Slice<rs.u32> = rs.rawSliceOf(rs.sliceRange(rs.sliceFrom(copy.items), at2)).array(2);
+		rs.sliceSwap(_121, 0, 1);
+		_121.data[_121.start] = (_121.data[_121.start] ^ 257) >>> 0;
+	}
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(copy.items), (w2: rs.u32): Uint8Array => {
+		return rs.u32ToBeBytes(w2).reverse();
+	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
+	const pairs: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): Uint8Array => {
+		const b2: rs.u8 = _22;
+		return Uint8Array.of(b2, ~b2 & 0xff);
+	}), undefined, 2, true);
+	if (pairs.items.length >= 3) {
+		const _142: rs.ArraySlice<rs.ByteSlice> = rs.rawArraySliceOf(rs.arraySliceRange(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom), 1)).array(2);
+		const slice9 = rs.arraySliceAt(_142, 1);
+		const _147: rs.u8 = slice9.data[slice9.start];
+		const slice10 = rs.arraySliceAt(_142, 0);
+		const slice11 = rs.arraySliceAt(_142, 0);
+		slice11.data[slice11.start + 1] = slice10.data[slice10.start + 1] ^ _147;
+		rs.arraySliceSwap(_142, 0, 1, undefined);
+		rs.iterExtendBytes(out, rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(rs.arraySliceToArray(rs.rawArraySliceOf(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)).array(3), rs.byteSliceToArray), rs.byteSliceFrom)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), undefined, true);
+	}
+	rs.iterExtendBytes(out, rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), undefined, true);
+	const part2 = bytes.length;
+	rs.rawByteSliceOf(rs.byteSliceRange(rs.byteVecSlice(bytes), part2));
+	rs.byteVecPush(out, rs.byteSliceFrom(Uint8Array.of()).length & 0xff);
+	let byte: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 7);
+	const lone: rs.ByteSlice = new rs.RawSlice(rs.place(() => byte, (value) => byte = value), 0).byteArray(0);
+	rs.byteVecPush(out, lone === rs.NULL ? 1 : 0);
+	rs.byteVecPush(out, new rs.RawSlice(rs.byteSliceAsPtr(lone), 0).derefBytes(false).length & 0xff);
+	let word: rs.u32 = rs.u32Mul(byte as rs.u32, 3);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.sliceToArray(new rs.RawSlice(rs.place(() => word, (value2) => word = value2), 1).array(1))[0]).reverse()), undefined, true);
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(new rs.RawSlice(rs.NULL, 4).byteArray(4) === rs.NULL ? 1 : 0, rs.sliceSame(new rs.RawSlice(rs.DANGLING, 0).array(2), rs.DANGLING) ? 1 : 0)), undefined, true);
+}
+
+/**
  * Each instance of a union over a type parameter: written as one field, in part through
  * another and through a reference into it, and whole as a third, read as each, and copied
  * before it changes.
