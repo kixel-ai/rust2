@@ -876,6 +876,9 @@ pub fn byte_places(_kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	h.tag = at(14);
 	out.extend_from_slice(&copy);
 	out.push(h.tag);
+	// Only read through, so nothing is written back.
+	let s = std::slice::from_mut(&mut h.pair.1);
+	out.push(s[0]);
 	// Made again each round, the byte written between.
 	for i in 0..3 {
 		cursor.read_exact(std::slice::from_mut(&mut h.tag));

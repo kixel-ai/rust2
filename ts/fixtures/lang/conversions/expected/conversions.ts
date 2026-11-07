@@ -8149,7 +8149,7 @@ export function readAdd(b: rs.Place<rs.u8>, by: rs.u8, out: rs.ByteVec): void {
  * swapped, and made again in a loop with the byte written between.
  */
 export function bytePlaces(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	let _207!: rs.u8;
+	let _215!: rs.u8;
 	let one!: rs.ByteMirror | undefined;
 	let one10!: rs.ByteMirror | undefined;
 	let one11!: rs.ByteMirror | undefined;
@@ -8257,11 +8257,11 @@ export function bytePlaces(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 			break;
 		}
 		rs.idx(_152.v, 0);
-		const _273: rs.ByteSlice = _152.v;
-		const _156: rs.u8 = rs.u8WrappingAdd(_273.data[_273.start], at(13));
+		const _281: rs.ByteSlice = _152.v;
+		const _156: rs.u8 = rs.u8WrappingAdd(_281.data[_281.start], at(13));
 		rs.idx(_152.v, 0);
-		const _275: rs.ByteSlice = _152.v;
-		_275.data[_275.start] = _156;
+		const _283: rs.ByteSlice = _152.v;
+		_283.data[_283.start] = _156;
 		rs.byteMirrorFlush(one10);
 		rs.byteMirrorFlush(one11);
 	}
@@ -8275,9 +8275,9 @@ export function bytePlaces(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 	rs.byteMirrorFlush(one10);
 	rs.byteMirrorFlush(one11);
 	rs.idx(v.items[at2], 0);
-	const _277: rs.ByteSlice = v.items[at2];
-	const _278: rs.ByteSlice = v.items[at2];
-	_277.data[_277.start] = _278.data[_278.start] ^ 1;
+	const _285: rs.ByteSlice = v.items[at2];
+	const _286: rs.ByteSlice = v.items[at2];
+	_285.data[_285.start] = _286.data[_286.start] ^ 1;
 	rs.byteMirrorFlush(one10);
 	rs.byteMirrorFlush(one11);
 	rs.byteMirrorFlush(one10);
@@ -8299,35 +8299,39 @@ export function bytePlaces(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 	rs.byteVecExtendFromSlice(out, _200);
 	rs.byteMirrorFlush(one12);
 	rs.byteVecPush(out, h.tag);
+	const borrowed13 = h.pair;
+	const s5: rs.ByteSlice = rs.byteMirror(rs.place(() => borrowed13[1], (value13) => borrowed13[1] = value13)).s;
+	rs.idx(s5, 0);
+	rs.byteVecPush(out, s5.data[s5.start]);
 	let iterStart: rs.u8 = 0;
 	const iterEnd: rs.u8 = 3;
-	while ((_207 = iterStart++) < iterEnd) {
-		const i: rs.u8 = _207;
-		const borrowed13 = h;
-		const _213: rs.ByteSlice = (one13 = rs.byteMirror(rs.place(() => borrowed13.tag, (value13) => borrowed13.tag = value13))).s;
-		Cursor.readExact(cursor, _213);
+	while ((_215 = iterStart++) < iterEnd) {
+		const i: rs.u8 = _215;
+		const borrowed14 = h;
+		const _221: rs.ByteSlice = (one13 = rs.byteMirror(rs.place(() => borrowed14.tag, (value14) => borrowed14.tag = value14))).s;
+		Cursor.readExact(cursor, _221);
 		rs.byteMirrorFlush(one13);
-		const _215: rs.u8 = rs.u8WrappingAdd(h.tag, i);
-		h.tag = _215;
+		const _223: rs.u8 = rs.u8WrappingAdd(h.tag, i);
+		h.tag = _223;
 		rs.byteVecPush(out, h.tag);
 	}
-	const _219: rs.u8 = at(15);
-	const borrowed14 = h;
-	const _223: rs.ByteSlice = (one14 = rs.byteMirror(rs.place(() => borrowed14.uninit, (value14) => borrowed14.uninit = value14))).s;
-	rs.idx(_223, 0);
-	_223.data[_223.start] = _219;
+	const _227: rs.u8 = at(15);
+	const borrowed15 = h;
+	const _231: rs.ByteSlice = (one14 = rs.byteMirror(rs.place(() => borrowed15.uninit, (value15) => borrowed15.uninit = value15))).s;
+	rs.idx(_231, 0);
+	_231.data[_231.start] = _227;
 	rs.byteMirrorFlush(one14);
 	rs.byteVecPush(out, h.uninit);
-	const _234: rs.u8 = at(16);
-	fillOne(rs.place(() => h.tag, (value15) => h.tag = value15), _234);
-	const _239: rs.u8 = at(17);
-	readAdd(rs.place(() => h.pair[0], (value16) => h.pair[0] = value16), _239, out);
-	const _246: rs.u8 = at(18);
-	readAdd(rs.place(() => h.bytes[0], (value17) => h.bytes[0] = value17), _246, out);
+	const _242: rs.u8 = at(16);
+	fillOne(rs.place(() => h.tag, (value16) => h.tag = value16), _242);
+	const _247: rs.u8 = at(17);
+	readAdd(rs.place(() => h.pair[0], (value17) => h.pair[0] = value17), _247, out);
+	const _254: rs.u8 = at(18);
+	readAdd(rs.place(() => h.bytes[0], (value18) => h.bytes[0] = value18), _254, out);
 	let b: rs.u8 = at(19);
-	const _254: rs.u8 = at(20);
-	readAdd(rs.place(() => b, (value18) => b = value18), _254, out);
-	const r: rs.Place<rs.u8> = rs.place(() => h.pair[1], (value19) => h.pair[1] = value19);
+	const _262: rs.u8 = at(20);
+	readAdd(rs.place(() => b, (value19) => b = value19), _262, out);
+	const r: rs.Place<rs.u8> = rs.place(() => h.pair[1], (value20) => h.pair[1] = value20);
 	readAdd(r, at(21), out);
 	fillOne(r, at(22));
 	rs.byteVecPush(out, b);

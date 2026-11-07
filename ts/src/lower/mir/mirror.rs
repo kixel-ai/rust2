@@ -24,6 +24,14 @@ use super::holders::Trace;
 use crate::lower::library;
 use crate::ts::{Expr, Stmt, StmtKind};
 
+/// Why a slice of one byte's place kept where no variable of the function holds it is
+/// refused.
+const KEPT: &str = "a slice of one byte's place, which JS copies, kept where no variable of the function holds it, such as in memory a parameter points at or in what the function returns, so the copy is never written back";
+
+/// Why a slice of one byte's place that may still be used once its call makes another is
+/// refused.
+const AGAIN: &str = "a slice of one byte's place, which JS copies, that may still be used once the call makes another, which the variable written back from holds instead";
+
 /// The slices of one byte's place a body makes, and where each mirror is written back.
 #[derive(Default)]
 pub(super) struct Mirrors {
@@ -41,9 +49,8 @@ pub(super) struct Mirrors {
 
 /// How a slice of one byte's place a call makes is held.
 enum Made {
-	/// Refused, as it may be used where no variable of the function holds it, or after the
-	/// call makes another.
-	Refused,
+	/// Refused, for this reason.
+	Refused(&'static str),
 	/// Nothing writes through it, so its mirror, if any, needs no variable to be written back.
 	Unwritten,
 	/// In this variable, which its mirror, if any, is written back from.
@@ -94,21 +101,22 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				continue;
 			}
 			let site = mir.terminator_loc(bb);
-			let held = self.slice_holders(*destination).filter(|held| {
-				// What may still hold the slice an earlier run of the call made, which the
-				// one variable can't keep apart from this run's.
-				let live = live.get_or_insert_with(|| {
-					MaybeLiveLocals
-						.iterate_to_fixpoint(self.tcx, mir, None)
-						.into_results_cursor(mir)
-				});
-				live.seek_after_primary_effect(site);
-				!held.iter().any(|h| live.get().contains(h))
-			});
-			let Some(held) = held else {
-				mirrors.made.insert(bb, Made::Refused);
+			let Some(held) = self.slice_holders(*destination) else {
+				mirrors.made.insert(bb, Made::Refused(KEPT));
 				continue;
 			};
+			// What may still hold the slice an earlier run of the call made, which the one
+			// variable can't keep apart from this run's.
+			let live = live.get_or_insert_with(|| {
+				MaybeLiveLocals
+					.iterate_to_fixpoint(self.tcx, mir, None)
+					.into_results_cursor(mir)
+			});
+			live.seek_after_primary_effect(site);
+			if held.iter().any(|h| live.get().contains(h)) {
+				mirrors.made.insert(bb, Made::Refused(AGAIN));
+				continue;
+			}
 			let (mut after, mut entry) = (Vec::new(), Vec::new());
 			for (block, data) in mir.basic_blocks.iter_enumerated() {
 				if data.is_cleanup {
@@ -395,10 +403,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		match self.mirrors.made.get(&self.at.block) {
 			Some(Made::Var(name)) => Expr::ident(name).assign(Expr::rs("byteMirror", vec![p])).member("s"),
 			Some(Made::Unwritten) => Expr::rs("byteMirror", vec![p]).member("s"),
-			_ => self.err(
-				span,
-				"a slice of one byte's place that may be used where no variable of the function holds it, or after the call makes another",
-			),
+			Some(&Made::Refused(why)) => self.err(span, why),
+			None => self.err(span, "a slice of one byte's place no call makes"),
 		}
 	}
 
