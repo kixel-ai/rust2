@@ -14,7 +14,3 @@ message). About 64 runtime sites pass such a message. Build each as std's `forma
 without slowing the paths that never panic.
 
 Public API: the runtime's panic sites, not their messages.
-
-## Required
-
-- [rs.String](/quest/m3/ts-string-capacity.md) - `String` holds std's capacity, which a hook then reads

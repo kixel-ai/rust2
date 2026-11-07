@@ -40,7 +40,3 @@ stays refused, as do pointers to an array of one, and their exact path is
 
 Public API: the translator's output and what a hand-written caller passes for a slice of
 arrays.
-
-## Related
-
-- [rs.String](/quest/m3/ts-string-capacity.md) - the other native mapping becoming a wrapper

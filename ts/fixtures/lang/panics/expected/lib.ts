@@ -20,9 +20,9 @@ export function drop$Result_u8_boxed_Box_dyn_Any_marker_Send(_1: rs.Result<rs.u8
 }
 
 export class of$String {
-	v: string;
+	v: rs.String;
 
-	constructor(v: string) {
+	constructor(v: rs.String) {
 		this.v = v;
 	}
 }
@@ -87,18 +87,16 @@ export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.By
 	return rs.vecFrom([["panics::wrapped", wrapped as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::called", panics_called as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::awaited", awaited as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::raised", raised as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::called", located_called as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::read", read as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::panicked", located_panicked as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["edition2018::panicked", edition2018_panicked as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }
 
-export const NOTE: rs.LocalKey<rs.RefCell<string>> = /* @__PURE__ */ new rs.LocalKey(NOTE$init, false);
+export const NOTE: rs.LocalKey<rs.RefCell<rs.String>> = /* @__PURE__ */ new rs.LocalKey(NOTE$init, false);
 
-export function NOTE$init(): rs.RefCell<string> {
-	return new rs.RefCell("");
+export function NOTE$init(): rs.RefCell<rs.String> {
+	return new rs.RefCell(rs.stringNew());
 }
 
 /** Take what the hooks wrote since the last call. */
-export function note(): string {
-	return rs.localKeyWithBorrowMutPlace(NOTE, (a0: rs.Place<string>): string => {
-		const taken = a0.v;
-		a0.v = "";
-		return taken;
+export function note(): rs.String {
+	return rs.localKeyWithBorrowMut(NOTE, (a0: rs.String): rs.String => {
+		return rs.replaceIn(a0, rs.stringNew());
 	});
 }
 

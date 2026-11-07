@@ -24,15 +24,16 @@ export type Bytes = { data: Uint8Array; length: number };
 type Channel = Disposable;
 
 /**
- * What the harness drives: the translation's roots, and the runtime's `Pending` and
- * `u64`, whose values are `V`.
+ * What the harness drives: the translation's roots, and the runtime's `Pending`, `u64`,
+ * whose values are `V`, and `String`, whose values are `S`.
  */
-export interface Fixture<V> {
+export interface Fixture<V, S> {
 	Pending: symbol;
 	u64: { of(value: number): V };
+	string(text: string): S;
 	Log: {
 		"new"(): Log;
-		note(log: Log, event: string): void;
+		note(log: Log, event: S): void;
 		text(log: Log): Bytes;
 		clone$Clone(log: Log): Log;
 	};
@@ -202,7 +203,7 @@ class Executor {
 
 /** What a step acts on: one script's fixture, log, executor, and channels. */
 interface Run<V> {
-	f: Fixture<V>;
+	f: Fixture<V, unknown>;
 	log: Log;
 	note: (event: string) => void;
 	exec: Executor;
@@ -358,10 +359,10 @@ const steps: [string, (r: Run<unknown>, arg: number) => void][] = [
 ];
 
 /** The script runner, as `harness.rs` runs it natively. */
-export function harness<V>(f: Fixture<V>): (input: Uint8Array) => Bytes {
+export function harness<V, S>(f: Fixture<V, S>): (input: Uint8Array) => Bytes {
 	return (input) => {
 		const log = f.Log.new();
-		const note = (event: string) => f.Log.note(log, event);
+		const note = (event: string) => f.Log.note(log, f.string(event));
 		const exec = new Executor(note, f.Pending);
 		const r: Run<V> = { f, log, note, exec, channels: [] };
 		for (let i = 0; i < input.length; i += 2) {

@@ -7,11 +7,11 @@ import * as rs from "./rs.ts";
  * `limit` bytes, logs each char `write_char` writes itself, and logs as it drops.
  */
 export class Upper {
-	s: string;
+	s: rs.String;
 	limit: rs.usize;
 	log: rs.Arc<rs.RefCell<rs.ByteVec>>;
 
-	constructor(s: string, limit: rs.usize, log: rs.Arc<rs.RefCell<rs.ByteVec>>) {
+	constructor(s: rs.String, limit: rs.usize, log: rs.Arc<rs.RefCell<rs.ByteVec>>) {
 		this.s = s;
 		this.limit = limit;
 		this.log = log;
@@ -24,9 +24,9 @@ export class Upper {
 }
 
 export function writeStr$fmt_Write(self: Upper, s: string): rs.Result<undefined, rs.FmtError> {
-	if (!(rs.usizeAdd(rs.stringLen(self.s), rs.stringLen(s)) > self.limit)) {
-		const _12: string = rs.strToUppercase(s);
-		self.s = self.s + _12;
+	if (!(rs.usizeAdd(self.s.len, rs.stringLen(s)) > self.limit)) {
+		const _12: string = rs.strToUppercase(s).v;
+		rs.stringPushStr(self.s, _12);
 		return rs.OK;
 	}
 	return rs.Err(new rs.FmtError());

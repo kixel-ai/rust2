@@ -8,5 +8,9 @@ exclude = ["Called", "Caller", "Cell<u16>", "Excluded", "Grows", "Held", "Holder
 "Cell<u16>" = "short_cell"
 "field@Limit::min" = "limit_min"
 
-# Another export, whose `Size` claims the same C name as this one's.
+# Another export, whose `Size` claims the same C name as this one's. `Gone` names nothing,
+# while a `cfg` leaves `gone` out of this build, so its paths name it for the builds that
+# have it.
 [crates.dep-fixture]
+exclude = ["Gone", "gone::Gone"]
+rename = { "gone::Gone" = "gone" }

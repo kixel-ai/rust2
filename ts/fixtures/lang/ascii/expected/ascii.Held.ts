@@ -5,7 +5,7 @@ import * as rs from "./rs.ts";
 /** A struct whose fields change case where they are. */
 export interface Held {
 	n: rs.u8;
-	text: string;
+	text: rs.String;
 }
 
 //# sourceMappingURL=ascii.Held.ts.map

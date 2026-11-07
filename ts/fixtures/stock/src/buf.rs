@@ -1145,6 +1145,37 @@ fn chained<B: Buf + ?Sized>(at: [usize; 2], buf: &mut B, pick: &u8, ops: &[u8], 
 }
 
 /// The bytes of a case's input, taken from the front.
+/// A `Bytes` of a `String`, which takes its storage, of the room its first bytes pick past
+/// its text: whether it is the one handle of it, and the room a `BytesMut` or a `Vec` taken
+/// back of it holds, with a clone of it held or not.
+pub fn strings(data: &[u8], out: &mut Vec<u8>) {
+	let mut ops = Ops(data);
+	let mut s = String::with_capacity(ops.byte() as usize % 24);
+	let n = ops.byte() as usize % 12;
+	s.push_str(&String::from_utf8_lossy(ops.take(n)));
+	s.reserve(ops.byte() as usize % 7);
+	let bytes = Bytes::from(s);
+	out.push(bytes.is_unique() as u8);
+	let held = (ops.byte() % 2 == 1).then(|| bytes.clone());
+	let (len, cap) = match ops.byte() % 3 {
+		0 => {
+			let m = BytesMut::from(bytes);
+			(m.len(), m.capacity())
+		}
+		1 => match bytes.try_into_mut() {
+			Ok(m) => (m.len(), m.capacity()),
+			Err(_) => (usize::MAX, 0),
+		},
+		_ => {
+			let v: Vec<u8> = bytes.into();
+			(v.len(), v.capacity())
+		}
+	};
+	out.extend_from_slice(&(len as u32).to_le_bytes());
+	out.extend_from_slice(&(cap as u32).to_le_bytes());
+	drop(held);
+}
+
 struct Ops<'a>(&'a [u8]);
 
 impl<'a> Ops<'a> {
