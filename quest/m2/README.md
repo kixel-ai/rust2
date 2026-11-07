@@ -27,6 +27,5 @@ The fork's feature quests folded into the [exporter](/quest/m1/ffi-export/README
 ## Required
 
 - [Translate moq-net's model to TypeScript](/quest/m2/ts-model/README.md) - the model translates with kio and moq-pattern, as moq's browser route
-- [Browser APIs through wasm-bindgen](/quest/m2/ts-wasm-bindgen/README.md) - web-sys and js-sys imports become direct JS calls, so idiomatic crates such as web-rs translate as stock crates
 - [Waiting: Swift 6.4 in nixpkgs-unstable](/quest/m2/uniffi-swift-arm.md) - the nightly UniFFI fixtures move back to arm
 - [Waiting: ubrn reads UniFFI 0.32](/quest/m2/ubrn-release.md) - the binding benchmark's browser runner pins a ubrn release, not an open PR
