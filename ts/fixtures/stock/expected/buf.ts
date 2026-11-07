@@ -9,12 +9,14 @@ import * as Ops from "./buf.Ops.ts";
 import * as Pieces from "./buf.Pieces.ts";
 import * as Provided from "./buf.Provided.ts";
 import * as Spare from "./buf.Spare.ts";
-import { tryGetU8$bytes_Buf_bytes_Bytes, tryGetU8$bytes_Buf_bytes_BytesMut, tryGetU8$bytes_Buf_ref_slice_u8, take$bytes_Buf_bytes_Bytes as buf_impl_take$bytes_Buf_bytes_Bytes, take$bytes_Buf_ref_slice_u8 as buf_impl_take$bytes_Buf_ref_slice_u8, chain$bytes_Buf_boxed_Box_dyn_bytes_Buf_bytes_Bytes, chain$bytes_Buf_bytes_Bytes_bytes_buf_Chain_buf_Provided_ref_slice_u8, chain$bytes_Buf_bytes_Bytes_ref_slice_u8, chain$bytes_Buf_ref_slice_u8_bytes_Bytes, chain$bytes_Buf_ref_slice_u8_bytes_BytesMut, advance$bytes_Buf_mut_bytes_Bytes, advance$bytes_Buf_mut_dyn_bytes_Buf, advance$bytes_Buf_mut_ref_slice_u8, copyToBytes$bytes_Buf_mut_bytes_Bytes, copyToBytes$bytes_Buf_mut_dyn_bytes_Buf, copyToBytes$bytes_Buf_mut_ref_slice_u8, copyToSlice$bytes_Buf_mut_bytes_Bytes, copyToSlice$bytes_Buf_mut_dyn_bytes_Buf, copyToSlice$bytes_Buf_mut_ref_slice_u8, getF32Le$bytes_Buf_mut_bytes_Bytes, getF32Le$bytes_Buf_mut_dyn_bytes_Buf, getF32Le$bytes_Buf_mut_ref_slice_u8, getF64$bytes_Buf_mut_bytes_Bytes, getF64$bytes_Buf_mut_dyn_bytes_Buf, getF64$bytes_Buf_mut_ref_slice_u8, getI128$bytes_Buf_mut_bytes_Bytes, getI128$bytes_Buf_mut_dyn_bytes_Buf, getI128$bytes_Buf_mut_ref_slice_u8, getI16Le$bytes_Buf_mut_bytes_Bytes, getI16Le$bytes_Buf_mut_dyn_bytes_Buf, getI16Le$bytes_Buf_mut_ref_slice_u8, getI32$bytes_Buf_mut_bytes_Bytes, getI32$bytes_Buf_mut_dyn_bytes_Buf, getI32$bytes_Buf_mut_ref_slice_u8, getI64Le$bytes_Buf_mut_bytes_Bytes, getI64Le$bytes_Buf_mut_dyn_bytes_Buf, getI64Le$bytes_Buf_mut_ref_slice_u8, getI8$bytes_Buf_mut_bytes_Bytes, getI8$bytes_Buf_mut_dyn_bytes_Buf, getI8$bytes_Buf_mut_ref_slice_u8, getIntLe$bytes_Buf_mut_bytes_Bytes, getIntLe$bytes_Buf_mut_dyn_bytes_Buf, getIntLe$bytes_Buf_mut_ref_slice_u8, getU128Le$bytes_Buf_mut_bytes_Bytes, getU128Le$bytes_Buf_mut_dyn_bytes_Buf, getU128Le$bytes_Buf_mut_ref_slice_u8, getU16$bytes_Buf_mut_bytes_Bytes, getU16$bytes_Buf_mut_dyn_bytes_Buf, getU16$bytes_Buf_mut_ref_slice_u8, getU32Le$bytes_Buf_mut_bytes_Bytes, getU32Le$bytes_Buf_mut_dyn_bytes_Buf, getU32Le$bytes_Buf_mut_ref_slice_u8, getU64$bytes_Buf_mut_bytes_Bytes, getU64$bytes_Buf_mut_dyn_bytes_Buf, getU64$bytes_Buf_mut_ref_slice_u8, getU8$bytes_Buf_mut_bytes_Bytes, getU8$bytes_Buf_mut_dyn_bytes_Buf, getU8$bytes_Buf_mut_ref_slice_u8, getUint$bytes_Buf_mut_bytes_Bytes, getUint$bytes_Buf_mut_dyn_bytes_Buf, getUint$bytes_Buf_mut_ref_slice_u8, hasRemaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf, hasRemaining$bytes_Buf_mut_bytes_Bytes, hasRemaining$bytes_Buf_mut_bytes_BytesMut, hasRemaining$bytes_Buf_mut_dyn_buf_Leased, hasRemaining$bytes_Buf_mut_dyn_bytes_Buf, hasRemaining$bytes_Buf_mut_mut_bytes_Bytes, hasRemaining$bytes_Buf_mut_mut_dyn_bytes_Buf, hasRemaining$bytes_Buf_mut_mut_ref_slice_u8, hasRemaining$bytes_Buf_mut_ref_slice_u8, remaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf, remaining$bytes_Buf_mut_bytes_Bytes, remaining$bytes_Buf_mut_bytes_BytesMut, remaining$bytes_Buf_mut_dyn_buf_Leased, remaining$bytes_Buf_mut_dyn_bytes_Buf, remaining$bytes_Buf_mut_mut_bytes_Bytes, remaining$bytes_Buf_mut_mut_dyn_bytes_Buf, remaining$bytes_Buf_mut_mut_ref_slice_u8, remaining$bytes_Buf_mut_ref_slice_u8, tryGetI64Le$bytes_Buf_mut_bytes_Bytes, tryGetI64Le$bytes_Buf_mut_dyn_bytes_Buf, tryGetI64Le$bytes_Buf_mut_ref_slice_u8, tryGetU128$bytes_Buf_mut_bytes_Bytes, tryGetU128$bytes_Buf_mut_dyn_bytes_Buf, tryGetU128$bytes_Buf_mut_ref_slice_u8, tryGetU16$bytes_Buf_mut_bytes_Bytes, tryGetU16$bytes_Buf_mut_dyn_bytes_Buf, tryGetU16$bytes_Buf_mut_ref_slice_u8, tryGetU8$bytes_Buf_mut_bytes_Bytes, tryGetU8$bytes_Buf_mut_dyn_bytes_Buf, tryGetU8$bytes_Buf_mut_ref_slice_u8, advance$bytes_Buf_boxed_Box_dyn_bytes_Buf, copyToBytes$bytes_Buf_boxed_Box_dyn_bytes_Buf, copyToSlice$bytes_Buf_boxed_Box_dyn_bytes_Buf, getF32Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, getF64$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI128$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI16Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI16Ne$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI32$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI64Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI8$bytes_Buf_boxed_Box_dyn_bytes_Buf, getIntLe$bytes_Buf_boxed_Box_dyn_bytes_Buf, getU128Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, getU16$bytes_Buf_boxed_Box_dyn_bytes_Buf, getU32Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, getU64$bytes_Buf_boxed_Box_dyn_bytes_Buf, getU8$bytes_Buf_boxed_Box_dyn_bytes_Buf, getUint$bytes_Buf_boxed_Box_dyn_bytes_Buf, remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf, tryGetI64Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, tryGetU128$bytes_Buf_boxed_Box_dyn_bytes_Buf, tryGetU16$bytes_Buf_boxed_Box_dyn_bytes_Buf, tryGetU8$bytes_Buf_boxed_Box_dyn_bytes_Buf } from "./bytes/buf/buf_impl.ts";
+import * as Tagged from "./buf.Tagged.ts";
+import { copyToSlice$bytes_Buf_collections_VecDeque_u8, getU8$bytes_Buf_collections_VecDeque_u8, getI8$bytes_Buf_collections_VecDeque_u8, getUint$bytes_Buf_collections_VecDeque_u8, getIntLe$bytes_Buf_collections_VecDeque_u8, getF32Le$bytes_Buf_collections_VecDeque_u8, getF64$bytes_Buf_collections_VecDeque_u8, tryGetU8$bytes_Buf_bytes_Bytes, tryGetU8$bytes_Buf_bytes_BytesMut, tryGetU8$bytes_Buf_collections_VecDeque_u8, tryGetU8$bytes_Buf_ref_slice_u8, take$bytes_Buf_bytes_Bytes as buf_impl_take$bytes_Buf_bytes_Bytes, take$bytes_Buf_ref_slice_u8 as buf_impl_take$bytes_Buf_ref_slice_u8, chain$bytes_Buf_boxed_Box_dyn_bytes_Buf_bytes_Bytes, chain$bytes_Buf_bytes_Bytes_bytes_buf_Chain_buf_Provided_ref_slice_u8, chain$bytes_Buf_bytes_Bytes_ref_slice_u8, chain$bytes_Buf_ref_slice_u8_bytes_Bytes, chain$bytes_Buf_ref_slice_u8_bytes_BytesMut, advance$bytes_Buf_mut_bytes_Bytes as buf_impl_advance$bytes_Buf_mut_bytes_Bytes, advance$bytes_Buf_mut_collections_VecDeque_u8 as buf_impl_advance$bytes_Buf_mut_collections_VecDeque_u8, advance$bytes_Buf_mut_dyn_bytes_Buf as buf_impl_advance$bytes_Buf_mut_dyn_bytes_Buf, advance$bytes_Buf_mut_ref_slice_u8 as buf_impl_advance$bytes_Buf_mut_ref_slice_u8, copyToBytes$bytes_Buf_mut_bytes_Bytes, copyToBytes$bytes_Buf_mut_collections_VecDeque_u8, copyToBytes$bytes_Buf_mut_dyn_bytes_Buf, copyToBytes$bytes_Buf_mut_ref_slice_u8, copyToSlice$bytes_Buf_mut_bytes_Bytes, copyToSlice$bytes_Buf_mut_collections_VecDeque_u8, copyToSlice$bytes_Buf_mut_dyn_bytes_Buf, copyToSlice$bytes_Buf_mut_ref_slice_u8, getF32Le$bytes_Buf_mut_bytes_Bytes, getF32Le$bytes_Buf_mut_collections_VecDeque_u8, getF32Le$bytes_Buf_mut_dyn_bytes_Buf, getF32Le$bytes_Buf_mut_ref_slice_u8, getF64$bytes_Buf_mut_bytes_Bytes, getF64$bytes_Buf_mut_collections_VecDeque_u8, getF64$bytes_Buf_mut_dyn_bytes_Buf, getF64$bytes_Buf_mut_ref_slice_u8, getI128$bytes_Buf_mut_bytes_Bytes, getI128$bytes_Buf_mut_collections_VecDeque_u8, getI128$bytes_Buf_mut_dyn_bytes_Buf, getI128$bytes_Buf_mut_ref_slice_u8, getI16Le$bytes_Buf_mut_bytes_Bytes, getI16Le$bytes_Buf_mut_collections_VecDeque_u8, getI16Le$bytes_Buf_mut_dyn_bytes_Buf, getI16Le$bytes_Buf_mut_ref_slice_u8, getI32$bytes_Buf_mut_bytes_Bytes, getI32$bytes_Buf_mut_collections_VecDeque_u8, getI32$bytes_Buf_mut_dyn_bytes_Buf, getI32$bytes_Buf_mut_ref_slice_u8, getI64Le$bytes_Buf_mut_bytes_Bytes, getI64Le$bytes_Buf_mut_collections_VecDeque_u8, getI64Le$bytes_Buf_mut_dyn_bytes_Buf, getI64Le$bytes_Buf_mut_ref_slice_u8, getI8$bytes_Buf_mut_bytes_Bytes, getI8$bytes_Buf_mut_collections_VecDeque_u8, getI8$bytes_Buf_mut_dyn_bytes_Buf, getI8$bytes_Buf_mut_ref_slice_u8, getIntLe$bytes_Buf_mut_bytes_Bytes, getIntLe$bytes_Buf_mut_collections_VecDeque_u8, getIntLe$bytes_Buf_mut_dyn_bytes_Buf, getIntLe$bytes_Buf_mut_ref_slice_u8, getU128Le$bytes_Buf_mut_bytes_Bytes, getU128Le$bytes_Buf_mut_collections_VecDeque_u8, getU128Le$bytes_Buf_mut_dyn_bytes_Buf, getU128Le$bytes_Buf_mut_ref_slice_u8, getU16$bytes_Buf_mut_bytes_Bytes, getU16$bytes_Buf_mut_collections_VecDeque_u8, getU16$bytes_Buf_mut_dyn_bytes_Buf, getU16$bytes_Buf_mut_ref_slice_u8, getU32Le$bytes_Buf_mut_bytes_Bytes, getU32Le$bytes_Buf_mut_collections_VecDeque_u8, getU32Le$bytes_Buf_mut_dyn_bytes_Buf, getU32Le$bytes_Buf_mut_ref_slice_u8, getU64$bytes_Buf_mut_bytes_Bytes, getU64$bytes_Buf_mut_collections_VecDeque_u8, getU64$bytes_Buf_mut_dyn_bytes_Buf, getU64$bytes_Buf_mut_ref_slice_u8, getU8$bytes_Buf_mut_bytes_Bytes, getU8$bytes_Buf_mut_collections_VecDeque_u8, getU8$bytes_Buf_mut_dyn_bytes_Buf, getU8$bytes_Buf_mut_ref_slice_u8, getUint$bytes_Buf_mut_bytes_Bytes, getUint$bytes_Buf_mut_collections_VecDeque_u8, getUint$bytes_Buf_mut_dyn_bytes_Buf, getUint$bytes_Buf_mut_ref_slice_u8, hasRemaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf, hasRemaining$bytes_Buf_mut_bytes_Bytes, hasRemaining$bytes_Buf_mut_bytes_BytesMut, hasRemaining$bytes_Buf_mut_dyn_buf_Leased, hasRemaining$bytes_Buf_mut_dyn_bytes_Buf, hasRemaining$bytes_Buf_mut_mut_bytes_Bytes, hasRemaining$bytes_Buf_mut_mut_collections_VecDeque_u8, hasRemaining$bytes_Buf_mut_mut_dyn_bytes_Buf, hasRemaining$bytes_Buf_mut_mut_ref_slice_u8, hasRemaining$bytes_Buf_mut_ref_slice_u8, remaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf as buf_impl_remaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf, remaining$bytes_Buf_mut_bytes_Bytes as buf_impl_remaining$bytes_Buf_mut_bytes_Bytes, remaining$bytes_Buf_mut_bytes_BytesMut as buf_impl_remaining$bytes_Buf_mut_bytes_BytesMut, remaining$bytes_Buf_mut_dyn_buf_Leased as buf_impl_remaining$bytes_Buf_mut_dyn_buf_Leased, remaining$bytes_Buf_mut_dyn_bytes_Buf as buf_impl_remaining$bytes_Buf_mut_dyn_bytes_Buf, remaining$bytes_Buf_mut_mut_bytes_Bytes as buf_impl_remaining$bytes_Buf_mut_mut_bytes_Bytes, remaining$bytes_Buf_mut_mut_collections_VecDeque_u8 as buf_impl_remaining$bytes_Buf_mut_mut_collections_VecDeque_u8, remaining$bytes_Buf_mut_mut_dyn_bytes_Buf as buf_impl_remaining$bytes_Buf_mut_mut_dyn_bytes_Buf, remaining$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_remaining$bytes_Buf_mut_mut_ref_slice_u8, remaining$bytes_Buf_mut_ref_slice_u8 as buf_impl_remaining$bytes_Buf_mut_ref_slice_u8, tryGetI64Le$bytes_Buf_mut_bytes_Bytes, tryGetI64Le$bytes_Buf_mut_collections_VecDeque_u8, tryGetI64Le$bytes_Buf_mut_dyn_bytes_Buf, tryGetI64Le$bytes_Buf_mut_ref_slice_u8, tryGetU128$bytes_Buf_mut_bytes_Bytes, tryGetU128$bytes_Buf_mut_collections_VecDeque_u8, tryGetU128$bytes_Buf_mut_dyn_bytes_Buf, tryGetU128$bytes_Buf_mut_ref_slice_u8, tryGetU16$bytes_Buf_mut_bytes_Bytes, tryGetU16$bytes_Buf_mut_collections_VecDeque_u8, tryGetU16$bytes_Buf_mut_dyn_bytes_Buf, tryGetU16$bytes_Buf_mut_ref_slice_u8, tryGetU8$bytes_Buf_mut_bytes_Bytes, tryGetU8$bytes_Buf_mut_collections_VecDeque_u8, tryGetU8$bytes_Buf_mut_dyn_bytes_Buf, tryGetU8$bytes_Buf_mut_ref_slice_u8, advance$bytes_Buf_boxed_Box_dyn_bytes_Buf as buf_impl_advance$bytes_Buf_boxed_Box_dyn_bytes_Buf, copyToBytes$bytes_Buf_boxed_Box_dyn_bytes_Buf, copyToSlice$bytes_Buf_boxed_Box_dyn_bytes_Buf, getF32Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, getF64$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI128$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI16Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI16Ne$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI32$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI64Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI8$bytes_Buf_boxed_Box_dyn_bytes_Buf, getIntLe$bytes_Buf_boxed_Box_dyn_bytes_Buf, getU128Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, getU16$bytes_Buf_boxed_Box_dyn_bytes_Buf, getU32Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, getU64$bytes_Buf_boxed_Box_dyn_bytes_Buf, getU8$bytes_Buf_boxed_Box_dyn_bytes_Buf, getUint$bytes_Buf_boxed_Box_dyn_bytes_Buf, remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf as buf_impl_remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf, tryGetI64Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, tryGetU128$bytes_Buf_boxed_Box_dyn_bytes_Buf, tryGetU16$bytes_Buf_boxed_Box_dyn_bytes_Buf, tryGetU8$bytes_Buf_boxed_Box_dyn_bytes_Buf } from "./bytes/buf/buf_impl.ts";
 import type * as Buf from "./bytes/buf/buf_impl.Buf.ts";
 import { advanceMut$bytes_BufMut_mut_Vec_u8, chunkMut$bytes_BufMut_mut_Vec_u8, putI16Le$bytes_BufMut_mut_Vec_u8, putI16Le$bytes_BufMut_mut_bytes_BytesMut, putI32Le$bytes_BufMut_mut_Vec_u8, putI32Le$bytes_BufMut_mut_bytes_BytesMut, putI64$bytes_BufMut_mut_Vec_u8, putI64$bytes_BufMut_mut_bytes_BytesMut, putI8$bytes_BufMut_mut_Vec_u8, putI8$bytes_BufMut_mut_bytes_BytesMut, putSlice$bytes_BufMut_mut_Vec_u8, putSlice$bytes_BufMut_mut_bytes_BytesMut, putU16$bytes_BufMut_mut_Vec_u8, putU16$bytes_BufMut_mut_bytes_BytesMut, putU32$bytes_BufMut_mut_Vec_u8, putU32$bytes_BufMut_mut_bytes_BytesMut, putU32Le$bytes_BufMut_mut_Vec_u8, putU64Le$bytes_BufMut_mut_Vec_u8, putU64Le$bytes_BufMut_mut_bytes_BytesMut, putU8$bytes_BufMut_mut_Vec_u8, putU8$bytes_BufMut_mut_bytes_BytesMut, remainingMut$bytes_BufMut_mut_Vec_u8, remainingMut$bytes_BufMut_mut_boxed_Box_Vec_u8, remainingMut$bytes_BufMut_mut_boxed_Box_bytes_BytesMut, remainingMut$bytes_BufMut_mut_boxed_Box_mut_bytes_BytesMut, remainingMut$bytes_BufMut_mut_bytes_BytesMut, remainingMut$bytes_BufMut_mut_mut_Vec_u8, remainingMut$bytes_BufMut_mut_mut_bytes_BytesMut, advanceMut$bytes_BufMut_boxed_Box_mut_bytes_BytesMut, chunkMut$bytes_BufMut_boxed_Box_mut_bytes_BytesMut, putI16Le$bytes_BufMut_boxed_Box_Vec_u8, putI16Le$bytes_BufMut_boxed_Box_bytes_BytesMut, putI32Le$bytes_BufMut_boxed_Box_Vec_u8, putI32Le$bytes_BufMut_boxed_Box_bytes_BytesMut, putI64$bytes_BufMut_boxed_Box_Vec_u8, putI64$bytes_BufMut_boxed_Box_bytes_BytesMut, putI8$bytes_BufMut_boxed_Box_Vec_u8, putI8$bytes_BufMut_boxed_Box_bytes_BytesMut, putSlice$bytes_BufMut_boxed_Box_Vec_u8, putSlice$bytes_BufMut_boxed_Box_bytes_BytesMut, putSlice$bytes_BufMut_boxed_Box_mut_bytes_BytesMut, putU16$bytes_BufMut_boxed_Box_Vec_u8, putU16$bytes_BufMut_boxed_Box_bytes_BytesMut, putU32$bytes_BufMut_boxed_Box_Vec_u8, putU32$bytes_BufMut_boxed_Box_bytes_BytesMut, putU32Le$bytes_BufMut_boxed_Box_mut_bytes_BytesMut, putU64Le$bytes_BufMut_boxed_Box_Vec_u8, putU64Le$bytes_BufMut_boxed_Box_bytes_BytesMut, putU8$bytes_BufMut_boxed_Box_Vec_u8, putU8$bytes_BufMut_boxed_Box_bytes_BytesMut } from "./bytes/buf/buf_mut.ts";
 import * as Chain from "./bytes/buf/chain.Chain.ts";
 import * as Take from "./bytes/buf/take.Take.ts";
 import * as UninitSlice from "./bytes/buf/uninit_slice.UninitSlice.ts";
+import { remaining$bytes_Buf_collections_VecDeque_u8 as vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, chunk$bytes_Buf_collections_VecDeque_u8 as vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, advance$bytes_Buf_collections_VecDeque_u8 as vec_deque_advance$bytes_Buf_collections_VecDeque_u8 } from "./bytes/buf/vec_deque.ts";
 import type * as TryGetError from "./bytes.TryGetError.ts";
 import { clone$1i3gmk3 as option_clone$1i3gmk3 } from "./core/option.ts";
 import { map$1rpus2m as result_map$1rpus2m, map$1cosroz as result_map$1cosroz, map$1k6isgs as result_map$1k6isgs } from "./core/result.ts";
@@ -1499,6 +1501,90 @@ export function read$bytes_buf_Take_bytes_Bytes(buf: Take.Take<rs.ByteSlice>, n:
  * A scalar read off the front of a buffer by `n`'s pick, as a `u128`'s bytes, or a
  * `try_get_*`'s error as what it asked for and what remained.
  */
+export function read$collections_VecDeque_u8(buf: rs.VecDeque<rs.u8>, n: rs.usize): rs.u128 {
+	const _3: (a0: rs.Result<rs.u128, TryGetError.TryGetError>) => rs.u128 = (got: rs.Result<rs.u128, TryGetError.TryGetError>): rs.u128 => {
+		if (got.ok) {
+			return got.value;
+		}
+		const e: TryGetError.TryGetError = got.error;
+		return rs.u128Or(rs.u128Shl(e.requested as rs.u128, 64), e.available as rs.u128);
+	};
+	const _4: rs.usize = rs.usizeRem(n, 19);
+	if (_4 === 15) {
+		const part7 = result_map$1cosroz(rs.bufTryGet(buf, 2, false, rs.u16FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined), (a02: rs.u16): rs.u128 => {
+			return a02 as rs.u128;
+		});
+		return _3(part7);
+	}
+	if (_4 === 16) {
+		const part6 = result_map$1rpus2m(rs.bufTryGet(buf, 8, true, rs.i64FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined), (v2: rs.i64): rs.u128 => {
+			return rs.u128Cast(v2);
+		});
+		return _3(part6);
+	}
+	if (_4 === 17) {
+		const part5 = rs.bufTryGet(buf, 16, false, rs.u128FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined);
+		return _3(part5);
+	}
+	if (_4 === 18) {
+		const part3: rs.u8 | undefined = tryGetU8$bytes_Buf_collections_VecDeque_u8(buf);
+		const err: TryGetError.TryGetError | undefined = part3 === undefined ? out$u8.err as TryGetError.TryGetError : undefined;
+		const part4 = result_map$1k6isgs((err !== undefined ? rs.Err(err as TryGetError.TryGetError) : rs.Ok(part3 as rs.u8)) as rs.Result<rs.u8, TryGetError.TryGetError>, (a0: rs.u8): rs.u128 => {
+			return a0 as rs.u128;
+		});
+		return _3(part4);
+	}
+	if (_4 === 0) {
+		return getU8$bytes_Buf_collections_VecDeque_u8(buf) as rs.u128;
+	}
+	if (_4 === 1) {
+		return rs.u128Cast(getI8$bytes_Buf_collections_VecDeque_u8(buf));
+	}
+	if (_4 === 2) {
+		return rs.bufGet(buf, 2, false, rs.u16FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined) as rs.u128;
+	}
+	if (_4 === 3) {
+		return rs.u128Cast(rs.bufGet(buf, 2, true, rs.i16FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined));
+	}
+	if (_4 === 4) {
+		return rs.bufGet(buf, 4, true, rs.u32FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined) as rs.u128;
+	}
+	if (_4 === 5) {
+		return rs.u128Cast(rs.bufGet(buf, 4, false, rs.i32FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined));
+	}
+	if (_4 === 6) {
+		return rs.u128Cast(rs.bufGet(buf, 8, false, rs.u64FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined));
+	}
+	if (_4 === 7) {
+		return rs.u128Cast(rs.bufGet(buf, 8, true, rs.i64FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined));
+	}
+	if (_4 === 8) {
+		return rs.bufGet(buf, 16, true, rs.u128FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined);
+	}
+	if (_4 === 9) {
+		return rs.u128Cast(rs.bufGet(buf, 16, false, rs.i128FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined));
+	}
+	if (_4 === 10) {
+		return rs.u128Cast(getUint$bytes_Buf_collections_VecDeque_u8(buf, rs.usizeRem(n, 10)));
+	}
+	if (_4 === 11) {
+		return rs.u128Cast(getIntLe$bytes_Buf_collections_VecDeque_u8(buf, rs.usizeRem(n, 10)));
+	}
+	if (_4 === 12) {
+		return rs.u128Cast(rs.f64ToBits(getF64$bytes_Buf_collections_VecDeque_u8(buf)));
+	}
+	if (_4 === 13) {
+		return rs.f32ToBits(getF32Le$bytes_Buf_collections_VecDeque_u8(buf)) as rs.u128;
+	}
+	const dst: Uint8Array = rs.bytes(3);
+	copyToSlice$bytes_Buf_collections_VecDeque_u8(buf, rs.byteSliceRange(rs.byteSliceFrom(dst), 0, rs.usizeRem(n, 4)));
+	return ((dst[0] << 16) | (dst[1] << 8) | dst[2]) as rs.u128;
+}
+
+/**
+ * A scalar read off the front of a buffer by `n`'s pick, as a `u128`'s bytes, or a
+ * `try_get_*`'s error as what it asked for and what remained.
+ */
 export function read$dyn_buf_Leased(buf: Leased.Leased, n: rs.usize): rs.u128 {
 	const _3: (a0: rs.Result<rs.u128, TryGetError.TryGetError>) => rs.u128 = (got: rs.Result<rs.u128, TryGetError.TryGetError>): rs.u128 => {
 		if (got.ok) {
@@ -1836,6 +1922,96 @@ export function read$mut_bytes_Bytes(buf: rs.Place<rs.Place<rs.ByteSlice>>, n: r
 	}
 	const dst: Uint8Array = rs.bytes(3);
 	copyToSlice$bytes_Buf_mut_bytes_Bytes(buf, rs.byteSliceRange(rs.byteSliceFrom(dst), 0, rs.usizeRem(n, 4)));
+	return ((dst[0] << 16) | (dst[1] << 8) | dst[2]) as rs.u128;
+}
+
+/**
+ * A scalar read off the front of a buffer by `n`'s pick, as a `u128`'s bytes, or a
+ * `try_get_*`'s error as what it asked for and what remained.
+ */
+export function read$mut_collections_VecDeque_u8(buf: rs.Place<rs.VecDeque<rs.u8>>, n: rs.usize): rs.u128 {
+	const _3: (a0: rs.Result<rs.u128, TryGetError.TryGetError>) => rs.u128 = (got: rs.Result<rs.u128, TryGetError.TryGetError>): rs.u128 => {
+		if (got.ok) {
+			return got.value;
+		}
+		const e: TryGetError.TryGetError = got.error;
+		return rs.u128Or(rs.u128Shl(e.requested as rs.u128, 64), e.available as rs.u128);
+	};
+	const _4: rs.usize = rs.usizeRem(n, 19);
+	if (_4 === 15) {
+		const part8: rs.u16 | undefined = tryGetU16$bytes_Buf_mut_collections_VecDeque_u8(buf);
+		const err4: TryGetError.TryGetError | undefined = part8 === undefined ? out$u16.err as TryGetError.TryGetError : undefined;
+		const part9 = result_map$1cosroz((err4 !== undefined ? rs.Err(err4 as TryGetError.TryGetError) : rs.Ok(part8 as rs.u16)) as rs.Result<rs.u16, TryGetError.TryGetError>, (a02: rs.u16): rs.u128 => {
+			return a02 as rs.u128;
+		});
+		return _3(part9);
+	}
+	if (_4 === 16) {
+		const part6: rs.i64 | undefined = tryGetI64Le$bytes_Buf_mut_collections_VecDeque_u8(buf);
+		const err3: TryGetError.TryGetError | undefined = part6 === undefined ? out$i64.err as TryGetError.TryGetError : undefined;
+		const part7 = result_map$1rpus2m((err3 !== undefined ? rs.Err(err3 as TryGetError.TryGetError) : rs.Ok(part6 as rs.i64)) as rs.Result<rs.i64, TryGetError.TryGetError>, (v2: rs.i64): rs.u128 => {
+			return rs.u128Cast(v2);
+		});
+		return _3(part7);
+	}
+	if (_4 === 17) {
+		const part5: rs.u128 | undefined = tryGetU128$bytes_Buf_mut_collections_VecDeque_u8(buf);
+		const err2: TryGetError.TryGetError | undefined = part5 === undefined ? out$u128.err as TryGetError.TryGetError : undefined;
+		const args = [(err2 !== undefined ? rs.Err(err2 as TryGetError.TryGetError) : rs.Ok(part5 as rs.u128)) as rs.Result<rs.u128, TryGetError.TryGetError>] as [rs.Result<rs.u128, TryGetError.TryGetError>];
+		return _3(args[0]);
+	}
+	if (_4 === 18) {
+		const part3: rs.u8 | undefined = tryGetU8$bytes_Buf_mut_collections_VecDeque_u8(buf);
+		const err: TryGetError.TryGetError | undefined = part3 === undefined ? out$u8.err as TryGetError.TryGetError : undefined;
+		const part4 = result_map$1k6isgs((err !== undefined ? rs.Err(err as TryGetError.TryGetError) : rs.Ok(part3 as rs.u8)) as rs.Result<rs.u8, TryGetError.TryGetError>, (a0: rs.u8): rs.u128 => {
+			return a0 as rs.u128;
+		});
+		return _3(part4);
+	}
+	if (_4 === 0) {
+		return getU8$bytes_Buf_mut_collections_VecDeque_u8(buf) as rs.u128;
+	}
+	if (_4 === 1) {
+		return rs.u128Cast(getI8$bytes_Buf_mut_collections_VecDeque_u8(buf));
+	}
+	if (_4 === 2) {
+		return getU16$bytes_Buf_mut_collections_VecDeque_u8(buf) as rs.u128;
+	}
+	if (_4 === 3) {
+		return rs.u128Cast(getI16Le$bytes_Buf_mut_collections_VecDeque_u8(buf));
+	}
+	if (_4 === 4) {
+		return getU32Le$bytes_Buf_mut_collections_VecDeque_u8(buf) as rs.u128;
+	}
+	if (_4 === 5) {
+		return rs.u128Cast(getI32$bytes_Buf_mut_collections_VecDeque_u8(buf));
+	}
+	if (_4 === 6) {
+		return rs.u128Cast(getU64$bytes_Buf_mut_collections_VecDeque_u8(buf));
+	}
+	if (_4 === 7) {
+		return rs.u128Cast(getI64Le$bytes_Buf_mut_collections_VecDeque_u8(buf));
+	}
+	if (_4 === 8) {
+		return getU128Le$bytes_Buf_mut_collections_VecDeque_u8(buf);
+	}
+	if (_4 === 9) {
+		return rs.u128Cast(getI128$bytes_Buf_mut_collections_VecDeque_u8(buf));
+	}
+	if (_4 === 10) {
+		return rs.u128Cast(getUint$bytes_Buf_mut_collections_VecDeque_u8(buf, rs.usizeRem(n, 10)));
+	}
+	if (_4 === 11) {
+		return rs.u128Cast(getIntLe$bytes_Buf_mut_collections_VecDeque_u8(buf, rs.usizeRem(n, 10)));
+	}
+	if (_4 === 12) {
+		return rs.u128Cast(rs.f64ToBits(getF64$bytes_Buf_mut_collections_VecDeque_u8(buf)));
+	}
+	if (_4 === 13) {
+		return rs.f32ToBits(getF32Le$bytes_Buf_mut_collections_VecDeque_u8(buf)) as rs.u128;
+	}
+	const dst: Uint8Array = rs.bytes(3);
+	copyToSlice$bytes_Buf_mut_collections_VecDeque_u8(buf, rs.byteSliceRange(rs.byteSliceFrom(dst), 0, rs.usizeRem(n, 4)));
 	return ((dst[0] << 16) | (dst[1] << 8) | dst[2]) as rs.u128;
 }
 
@@ -2303,10 +2479,10 @@ export function readAll$boxed_Box_dyn_bytes_Buf(buf: rs.Place<Buf.Buf>, ops: rs.
 			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(read$boxed_Box_dyn_bytes_Buf(buf, op as rs.usize))));
 			rs.byteVecPush(out, hasRemaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf(buf) ? 1 : 0);
 		} else {
-			advance$bytes_Buf_boxed_Box_dyn_bytes_Buf(buf, 1);
+			buf_impl_advance$bytes_Buf_boxed_Box_dyn_bytes_Buf(buf, 1);
 		}
 	}
-	const n: rs.usize = remaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf(buf);
+	const n: rs.usize = buf_impl_remaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf(buf);
 	const _26: rs.ByteSlice = copyToBytes$bytes_Buf_boxed_Box_dyn_bytes_Buf(buf, n);
 	const _0: rs.ByteVec = rs.byteSliceToByteVec(_26);
 	rs.bytesDrop(_26);
@@ -2357,7 +2533,7 @@ export function readAll$bytes_Bytes(buf: rs.Place<rs.ByteSlice>, ops: rs.ByteSli
 			rs.bytesAdvance(buf, 1);
 		}
 	}
-	const n: rs.usize = remaining$bytes_Buf_mut_bytes_Bytes(buf);
+	const n: rs.usize = buf_impl_remaining$bytes_Buf_mut_bytes_Bytes(buf);
 	const _26: rs.ByteSlice = rs.bytesSplitTo(buf, n);
 	const _0: rs.ByteVec = rs.byteSliceToByteVec(_26);
 	rs.bytesDrop(_26);
@@ -2374,7 +2550,7 @@ export function readAll$bytes_BytesMut(buf: rs.BytesMut, ops: rs.ByteSlice, out:
 			rs.bytesMutAdvance(buf, 1);
 		}
 	}
-	const n: rs.usize = remaining$bytes_Buf_mut_bytes_BytesMut(buf);
+	const n: rs.usize = buf_impl_remaining$bytes_Buf_mut_bytes_BytesMut(buf);
 	const _26: rs.ByteSlice = rs.bytesMutFreeze(rs.bytesMutSplitTo(buf, n));
 	const _0: rs.ByteVec = rs.byteSliceToByteVec(_26);
 	rs.bytesDrop(_26);
@@ -2527,7 +2703,7 @@ export function readAll$dyn_buf_Leased(buf: Leased.Leased, ops: rs.ByteSlice, ou
 			buf.advance$Buf(1);
 		}
 	}
-	const n: rs.usize = remaining$bytes_Buf_mut_dyn_buf_Leased(buf);
+	const n: rs.usize = buf_impl_remaining$bytes_Buf_mut_dyn_buf_Leased(buf);
 	const _26: rs.ByteSlice = buf.copyToBytes$Buf(n);
 	const _0: rs.ByteVec = rs.byteSliceToByteVec(_26);
 	rs.bytesDrop(_26);
@@ -2544,7 +2720,7 @@ export function readAll$dyn_bytes_Buf(buf: Buf.Buf, ops: rs.ByteSlice, out: rs.B
 			buf.advance$Buf(1);
 		}
 	}
-	const n: rs.usize = remaining$bytes_Buf_mut_dyn_bytes_Buf(buf);
+	const n: rs.usize = buf_impl_remaining$bytes_Buf_mut_dyn_bytes_Buf(buf);
 	const _26: rs.ByteSlice = buf.copyToBytes$Buf(n);
 	const _0: rs.ByteVec = rs.byteSliceToByteVec(_26);
 	rs.bytesDrop(_26);
@@ -2575,11 +2751,28 @@ export function readAll$mut_bytes_Bytes(buf: rs.Place<rs.Place<rs.ByteSlice>>, o
 			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(read$mut_bytes_Bytes(buf, op as rs.usize))));
 			rs.byteVecPush(out, hasRemaining$bytes_Buf_mut_mut_bytes_Bytes(buf) ? 1 : 0);
 		} else {
-			advance$bytes_Buf_mut_bytes_Bytes(buf, 1);
+			buf_impl_advance$bytes_Buf_mut_bytes_Bytes(buf, 1);
 		}
 	}
-	const n: rs.usize = remaining$bytes_Buf_mut_mut_bytes_Bytes(buf);
+	const n: rs.usize = buf_impl_remaining$bytes_Buf_mut_mut_bytes_Bytes(buf);
 	const _26: rs.ByteSlice = copyToBytes$bytes_Buf_mut_bytes_Bytes(buf, n);
+	const _0: rs.ByteVec = rs.byteSliceToByteVec(_26);
+	rs.bytesDrop(_26);
+	return _0;
+}
+
+/** `read`s by each of `ops`, then the rest, as `copy_to_bytes` takes it. */
+export function readAll$mut_collections_VecDeque_u8(buf: rs.Place<rs.VecDeque<rs.u8>>, ops: rs.ByteSlice, out: rs.ByteVec): rs.ByteVec {
+	for (const op of rs.byteSliceView(ops)) {
+		if (!(op === 255)) {
+			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(read$mut_collections_VecDeque_u8(buf, op as rs.usize))));
+			rs.byteVecPush(out, hasRemaining$bytes_Buf_mut_mut_collections_VecDeque_u8(buf) ? 1 : 0);
+		} else {
+			buf_impl_advance$bytes_Buf_mut_collections_VecDeque_u8(buf, 1);
+		}
+	}
+	const n: rs.usize = buf_impl_remaining$bytes_Buf_mut_mut_collections_VecDeque_u8(buf);
+	const _26: rs.ByteSlice = copyToBytes$bytes_Buf_mut_collections_VecDeque_u8(buf, n);
 	const _0: rs.ByteVec = rs.byteSliceToByteVec(_26);
 	rs.bytesDrop(_26);
 	return _0;
@@ -2592,10 +2785,10 @@ export function readAll$mut_dyn_bytes_Buf(buf: rs.Place<Buf.Buf>, ops: rs.ByteSl
 			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(read$mut_dyn_bytes_Buf(buf, op as rs.usize))));
 			rs.byteVecPush(out, hasRemaining$bytes_Buf_mut_mut_dyn_bytes_Buf(buf) ? 1 : 0);
 		} else {
-			advance$bytes_Buf_mut_dyn_bytes_Buf(buf, 1);
+			buf_impl_advance$bytes_Buf_mut_dyn_bytes_Buf(buf, 1);
 		}
 	}
-	const n: rs.usize = remaining$bytes_Buf_mut_mut_dyn_bytes_Buf(buf);
+	const n: rs.usize = buf_impl_remaining$bytes_Buf_mut_mut_dyn_bytes_Buf(buf);
 	const _26: rs.ByteSlice = copyToBytes$bytes_Buf_mut_dyn_bytes_Buf(buf, n);
 	const _0: rs.ByteVec = rs.byteSliceToByteVec(_26);
 	rs.bytesDrop(_26);
@@ -2609,10 +2802,10 @@ export function readAll$mut_ref_slice_u8(buf: rs.Place<rs.Place<rs.ByteSlice>>, 
 			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(read$mut_ref_slice_u8(buf, op as rs.usize))));
 			rs.byteVecPush(out, hasRemaining$bytes_Buf_mut_mut_ref_slice_u8(buf) ? 1 : 0);
 		} else {
-			advance$bytes_Buf_mut_ref_slice_u8(buf, 1);
+			buf_impl_advance$bytes_Buf_mut_ref_slice_u8(buf, 1);
 		}
 	}
-	const n: rs.usize = remaining$bytes_Buf_mut_mut_ref_slice_u8(buf);
+	const n: rs.usize = buf_impl_remaining$bytes_Buf_mut_mut_ref_slice_u8(buf);
 	const _26: rs.ByteSlice = copyToBytes$bytes_Buf_mut_ref_slice_u8(buf, n);
 	const _0: rs.ByteVec = rs.byteSliceToByteVec(_26);
 	rs.bytesDrop(_26);
@@ -2629,11 +2822,47 @@ export function readAll$ref_slice_u8(buf: rs.Place<rs.ByteSlice>, ops: rs.ByteSl
 			rs.byteSliceAdvance(buf, 1);
 		}
 	}
-	const n: rs.usize = remaining$bytes_Buf_mut_ref_slice_u8(buf);
+	const n: rs.usize = buf_impl_remaining$bytes_Buf_mut_ref_slice_u8(buf);
 	const _26: rs.ByteSlice = rs.byteSliceCopyToBytes(buf, n);
 	const _0: rs.ByteVec = rs.byteSliceToByteVec(_26);
 	rs.bytesDrop(_26);
 	return _0;
+}
+
+/**
+ * The reads of `reads` off a `VecDeque<u8>` whose ring wraps `cut` slots from its end,
+ * each after its `chunk`, the front slice until that is read, then the rest through a
+ * `&mut`. An `advance` past what remains panics.
+ */
+export function deques(dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
+	if (dataLen >= 1) {
+		const mid: number = rs.usizeDiv(dataLen - 1, 2);
+		if (mid > dataLen - 1) {
+			rs.panic("mid > len");
+		}
+		const deque: rs.VecDeque<rs.u8> = rs.dequeWithCapacity(dataLen - 1 - mid, 1, true) as rs.VecDeque<rs.u8>;
+		const _17: rs.usize = rs.usizeRem(dataData[dataStart] as rs.usize, rs.usizeAdd(dataLen - 1 - mid, 1));
+		let iterStart: rs.usize = 0;
+		const iterEnd: rs.usize = _17;
+		while (iterStart++ < iterEnd) {
+			rs.dequePushBack(deque, 0);
+			rs.dequePopFront(deque);
+		}
+		rs.dequeExtend(deque, rs.iterSlice(rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 1 + mid, dataLen - 1 - mid))), undefined, true);
+		for (const op of rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 1, mid))) {
+			const chunk: rs.ByteSlice = vec_deque_chunk$bytes_Buf_collections_VecDeque_u8(deque);
+			rs.byteVecPush(out, chunk.length & 0xff);
+			rs.byteVecExtendFromSlice(out, rs.byteSliceRange(chunk, 0, rs.min(chunk.length, 1)));
+			const _51: rs.u8 | undefined = rs.u8CheckedSub(op, 240);
+			if (_51 === undefined) {
+				rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u128ToBeBytes(read$collections_VecDeque_u8(deque, op as rs.usize))));
+			} else {
+				vec_deque_advance$bytes_Buf_collections_VecDeque_u8(deque, _51 as rs.usize);
+			}
+		}
+		let _64: rs.VecDeque<rs.u8> = deque;
+		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(readAll$mut_collections_VecDeque_u8(rs.place(() => _64, (value) => _64 = value), rs.byteSliceFrom(Uint8Array.of()), out)));
+	}
 }
 
 /**
@@ -2720,7 +2949,7 @@ export function dyns(dataData: Uint8Array, dataStart: number, dataLen: number, o
 export function late(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let slice: rs.ByteSlice = data;
 	const buf: Buf.Buf = new ofPlace$ref_slice_u8(rs.place(() => slice, (value) => slice = value));
-	if (remaining$bytes_Buf_mut_dyn_bytes_Buf(buf) >= 2) {
+	if (buf_impl_remaining$bytes_Buf_mut_dyn_bytes_Buf(buf) >= 2) {
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(buf.getI16Ne$Buf()).reverse()));
 	}
 	lateTake(slice, out);
@@ -2729,10 +2958,10 @@ export function late(data: rs.ByteSlice, out: rs.ByteVec): void {
 /** `get_i16_ne` through a box of a `Take` of `data`, a type no other `dyn Buf` is made of. */
 export function lateTake(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let boxed: Buf.Buf = new of$bytes_buf_Take_ref_slice_u8(buf_impl_take$bytes_Buf_ref_slice_u8(data, rs.usizeSaturatingSub(data.length, 1)));
-	while (remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf(boxed) >= 2) {
+	while (buf_impl_remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf(boxed) >= 2) {
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.i16ToBeBytes(getI16Ne$bytes_Buf_boxed_Box_dyn_bytes_Buf(rs.place(() => boxed, (value) => boxed = value))).reverse()));
 	}
-	rs.byteVecPush(out, remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf(boxed) & 0xff);
+	rs.byteVecPush(out, buf_impl_remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf(boxed) & 0xff);
 	rs.drop(boxed);
 }
 
@@ -3161,7 +3390,7 @@ export function chunkWrite(chunk: rs.ByteSlice, op: rs.u8, n: rs.u8, out: rs.Byt
 			}
 		}
 		if (_20 === 1) {
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(chunk, { end: k }, { file: "fixtures/stock/src/buf.rs", line: 671, col: 19 }), rs.byteVecSlice(src));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(chunk, { end: k }, { file: "fixtures/stock/src/buf.rs", line: 700, col: 19 }), rs.byteVecSlice(src));
 			break b1;
 		}
 		if (_20 === 2) {
@@ -3173,46 +3402,46 @@ export function chunkWrite(chunk: rs.ByteSlice, op: rs.u8, n: rs.u8, out: rs.Byt
 			break b1;
 		}
 		if (_20 === 4) {
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(UninitSlice.indexMut$ops_IndexMut_ops_RangeFrom_usize(chunk, new rs.RangeFrom(half, rs.usizeStep), { file: "fixtures/stock/src/buf.rs", line: 679, col: 18 }), { end: rs.usizeSub(k, half) }, { file: "fixtures/stock/src/buf.rs", line: 679, col: 26 }), rs.byteSliceRange(rs.byteVecSlice(src), half));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_Range_usize(chunk, new rs.Range(0, half), { file: "fixtures/stock/src/buf.rs", line: 680, col: 18 }), rs.byteSliceRange(rs.byteVecSlice(src), 0, half));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(UninitSlice.indexMut$ops_IndexMut_ops_RangeFrom_usize(chunk, new rs.RangeFrom(half, rs.usizeStep), { file: "fixtures/stock/src/buf.rs", line: 708, col: 18 }), { end: rs.usizeSub(k, half) }, { file: "fixtures/stock/src/buf.rs", line: 708, col: 26 }), rs.byteSliceRange(rs.byteVecSlice(src), half));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_Range_usize(chunk, new rs.Range(0, half), { file: "fixtures/stock/src/buf.rs", line: 709, col: 18 }), rs.byteSliceRange(rs.byteVecSlice(src), 0, half));
 			break b1;
 		}
 		if (_20 === 5) {
 			if (k > 0) {
 				const _66: { end: rs.usize; inclusive: true } = { end: rs.usizeSub(k, 1), inclusive: true };
-				UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeToInclusive_usize(chunk, _66, { file: "fixtures/stock/src/buf.rs", line: 683, col: 18 }), rs.byteVecSlice(src));
+				UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeToInclusive_usize(chunk, _66, { file: "fixtures/stock/src/buf.rs", line: 712, col: 18 }), rs.byteVecSlice(src));
 				const _73: rs.RangeInclusive<rs.usize> = new rs.RangeInclusive(half, half, rs.usizeStep);
-				UninitSlice.writeByte(UninitSlice.indexMut$ops_IndexMut_ops_RangeInclusive_usize(chunk, _73, { file: "fixtures/stock/src/buf.rs", line: 684, col: 18 }), 0, ~n & 0xff);
+				UninitSlice.writeByte(UninitSlice.indexMut$ops_IndexMut_ops_RangeInclusive_usize(chunk, _73, { file: "fixtures/stock/src/buf.rs", line: 713, col: 18 }), 0, ~n & 0xff);
 				break b1;
 			}
 		} else {
 			if (_20 === 6) {
-				UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(UninitSlice.indexMut$ops_IndexMut_ops_RangeFull(chunk, undefined, { file: "fixtures/stock/src/buf.rs", line: 686, col: 19 }), { end: k }, { file: "fixtures/stock/src/buf.rs", line: 686, col: 23 }), rs.byteVecSlice(src));
+				UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(UninitSlice.indexMut$ops_IndexMut_ops_RangeFull(chunk, undefined, { file: "fixtures/stock/src/buf.rs", line: 715, col: 19 }), { end: k }, { file: "fixtures/stock/src/buf.rs", line: 715, col: 23 }), rs.byteVecSlice(src));
 				break b1;
 			}
 			if (_20 === 7) {
-				UninitSlice.writeByte(UninitSlice.indexMut$ops_IndexMut_ops_RangeFrom_usize(chunk, new rs.RangeFrom(k, rs.usizeStep), { file: "fixtures/stock/src/buf.rs", line: 689, col: 18 }), 0, n);
-				UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(chunk, { end: k }, { file: "fixtures/stock/src/buf.rs", line: 690, col: 18 }), rs.byteVecSlice(src));
+				UninitSlice.writeByte(UninitSlice.indexMut$ops_IndexMut_ops_RangeFrom_usize(chunk, new rs.RangeFrom(k, rs.usizeStep), { file: "fixtures/stock/src/buf.rs", line: 718, col: 18 }), 0, n);
+				UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(chunk, { end: k }, { file: "fixtures/stock/src/buf.rs", line: 719, col: 18 }), rs.byteVecSlice(src));
 				return rs.usizeAdd(k, 1);
 			}
 			if (_20 === 8) {
-				UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(chunk, { end: k }, { file: "fixtures/stock/src/buf.rs", line: 694, col: 19 }), rs.byteSliceFrom(rs.bytes(3).fill(n)));
+				UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(chunk, { end: k }, { file: "fixtures/stock/src/buf.rs", line: 723, col: 19 }), rs.byteSliceFrom(rs.bytes(3).fill(n)));
 				break b1;
 			}
 			if (_20 === 9) {
 				const _94: rs.u8 = rs.u8Rem(n, 3);
 				if (_94 === 0) {
 					const _100: { end: rs.usize } = { end: rs.usizeAdd(room, 1) };
-					rs.byteVecPush(out, UninitSlice.len(UninitSlice.index$ops_Index_ops_RangeTo_usize(chunk, _100, { file: "fixtures/stock/src/buf.rs", line: 697, col: 32 })) & 0xff);
+					rs.byteVecPush(out, UninitSlice.len(UninitSlice.index$ops_Index_ops_RangeTo_usize(chunk, _100, { file: "fixtures/stock/src/buf.rs", line: 726, col: 32 })) & 0xff);
 					break b1;
 				}
 				if (_94 === 1) {
 					const _104: rs.Range<rs.usize> = new rs.Range(rs.usizeAdd(k, 1), k);
-					UninitSlice.writeByte(UninitSlice.indexMut$ops_IndexMut_ops_Range_usize(chunk, _104, { file: "fixtures/stock/src/buf.rs", line: 698, col: 23 }), 0, n);
+					UninitSlice.writeByte(UninitSlice.indexMut$ops_IndexMut_ops_Range_usize(chunk, _104, { file: "fixtures/stock/src/buf.rs", line: 727, col: 23 }), 0, n);
 					break b1;
 				}
 				const _108: rs.RangeFrom<rs.usize> = new rs.RangeFrom(rs.usizeAdd(room, 1), rs.usizeStep);
-				UninitSlice.writeByte(UninitSlice.indexMut$ops_IndexMut_ops_RangeFrom_usize(chunk, _108, { file: "fixtures/stock/src/buf.rs", line: 699, col: 23 }), 0, n);
+				UninitSlice.writeByte(UninitSlice.indexMut$ops_IndexMut_ops_RangeFrom_usize(chunk, _108, { file: "fixtures/stock/src/buf.rs", line: 728, col: 23 }), 0, n);
 				break b1;
 			}
 		}
@@ -3953,6 +4182,139 @@ export function edits(dataData: Uint8Array, dataStart: number, dataLen: number, 
 }
 
 /**
+ * Handles of three owners' `Bytes` cloned, sliced, split, truncated, taken back, put, and
+ * dropped, each op logged after it: an owner drops with the last handle of its bytes, in
+ * the order the handles drop, and a handle of one is never unique, so taking it back copies.
+ * Two are `Tagged`, and one is an `Arc<[u8]>` itself, whose strong count shows when it drops.
+ */
+export function owners(dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
+	let noted!: rs.ByteVec;
+	if (dataLen >= 1) {
+		const mid: number = rs.usizeDiv(dataLen - 1, 2);
+		if (mid > dataLen - 1) {
+			rs.panic("mid > len");
+		}
+		const input: rs.ByteSlice = new rs.ByteSlice(dataData, dataStart + 1 + mid, dataLen - 1 - mid);
+		const log: rs.Arc<rs.Mutex<rs.ByteVec>> = new rs.Arc(new rs.Mutex(new rs.ByteVec()));
+		const owner: (a0: rs.u8, a1: rs.ByteSlice) => rs.ByteSlice = (tag: rs.u8, data2: rs.ByteSlice): rs.ByteSlice => {
+			const owner2 = new Tagged.Tagged(new rs.Arc(rs.byteSliceToByteVec(data2)), tag, rs.arcClone(log));
+			return rs.bytesFromOwner(owner2, Tagged.asRef$convert_AsRef_slice_u8(owner2), rs.drop);
+		};
+		const mid2: number = rs.usizeRem(dataData[dataStart] as rs.usize, rs.usizeAdd(input.length, 1));
+		if (mid2 > input.length) {
+			rs.panic("mid > len");
+		}
+		const shared: rs.Arc<rs.ByteSlice> = new rs.Arc(rs.byteSliceFrom(rs.byteSliceToArray(input)));
+		const args3 = [240, new rs.ByteSlice(input.data, input.start, mid2)] as [rs.u8, rs.ByteSlice];
+		const _31: rs.ByteSlice = owner(args3[0], args3[1]);
+		const args4 = [241, new rs.ByteSlice(input.data, input.start + mid2, input.length - mid2)] as [rs.u8, rs.ByteSlice];
+		const _34: rs.ByteSlice = owner(args4[0], args4[1]);
+		const owner3 = rs.arcClone(shared);
+		const handles: rs.Vec<rs.ByteSlice> = rs.vecFrom([_31, _34, rs.bytesFromOwner(owner3, owner3.value, rs.drop)]);
+		for (const op of rs.byteSliceView(new rs.ByteSlice(dataData, dataStart + 1, mid))) {
+			const i: rs.usize = rs.usizeRem(op >> 4 as rs.usize, rs.max(handles.items.length, 1));
+			if (handles.items.length === 0) {
+				const _59: rs.ByteSlice = owner(242, input);
+				handles.items.push(_59);
+			}
+			const at: rs.usize = rs.usizeRem(op >> 4 as rs.usize, rs.usizeAdd(handles.items[rs.idx(handles.items, i)].length, 1));
+			const _74: rs.u8 = rs.u8Rem(op, 16);
+			if (_74 === 0) {
+				const clone: rs.ByteSlice = rs.bytesClone(handles.items[rs.idx(handles.items, i)]);
+				handles.items.push(clone);
+				noted = new rs.ByteVec();
+			} else if (_74 === 1) {
+				const part: rs.ByteSlice = rs.bytesSlice(handles.items[rs.idx(handles.items, i)], at);
+				handles.items.push(part);
+				noted = new rs.ByteVec();
+			} else if (_74 === 2) {
+				const at12 = rs.idx(handles.items, i);
+				const part2: rs.ByteSlice = rs.bytesSplitTo(rs.place(() => handles.items[at12], (value6) => handles.items[at12] = value6), at);
+				handles.items.push(part2);
+				noted = new rs.ByteVec();
+			} else if (_74 === 3) {
+				const at11 = rs.idx(handles.items, i);
+				const part3: rs.ByteSlice = rs.bytesSplitOff(rs.place(() => handles.items[at11], (value5) => handles.items[at11] = value5), at);
+				handles.items.push(part3);
+				noted = new rs.ByteVec();
+			} else if (_74 === 4) {
+				const at10 = rs.idx(handles.items, i);
+				rs.bytesTruncate(rs.place(() => handles.items[at10], (value4) => handles.items[at10] = value4), at);
+				noted = new rs.ByteVec();
+			} else if (_74 === 5) {
+				const at9 = rs.idx(handles.items, i);
+				rs.bytesTruncate(rs.place(() => handles.items[at9], (value3) => handles.items[at9] = value3), 0);
+				noted = new rs.ByteVec();
+			} else if (_74 === 6) {
+				noted = rs.byteVecFrom(Uint8Array.of(rs.bytesIsUnique(handles.items[rs.idx(handles.items, i)]) ? 1 : 0));
+			} else if (_74 === 7) {
+				const _108: rs.Result<rs.BytesMut, rs.ByteSlice> = rs.bytesTryIntoMut(rs.vecRemove(handles, i));
+				if (_108.ok) {
+					const _115: rs.ByteSlice = rs.bytesMutFreeze(_108.value);
+					handles.items.push(_115);
+					noted = rs.byteVecFrom(Uint8Array.of(1));
+				} else {
+					rs.vecInsert(handles, i, _108.error);
+					noted = rs.byteVecFrom(Uint8Array.of(0));
+				}
+			} else if (_74 === 8) {
+				noted = rs.bytesToByteVec(rs.vecRemove(handles, i));
+			} else if (_74 === 9) {
+				const _125: rs.BytesMut = rs.bytesMutFromBytes(rs.vecRemove(handles, i));
+				noted = rs.byteSliceToByteVec(rs.bytesMutView(_125));
+				_125[Symbol.dispose]();
+			} else if (_74 === 10) {
+				rs.bytesDrop(rs.vecRemove(handles, i));
+				noted = new rs.ByteVec();
+			} else if (_74 === 11) {
+				const at7 = rs.idx(handles.items, i);
+				rs.bytesAdvance(rs.place(() => handles.items[at7], (value2) => handles.items[at7] = value2), at);
+				noted = new rs.ByteVec();
+			} else if (_74 === 12) {
+				const at6 = rs.idx(handles.items, i);
+				const part4: rs.ByteSlice = rs.bytesSplitTo(rs.place(() => handles.items[at6], (value) => handles.items[at6] = value), at);
+				handles.items.push(part4);
+				noted = new rs.ByteVec();
+			} else if (_74 === 13) {
+				const sub: rs.ByteSlice = rs.byteSliceRange(handles.items[rs.idx(handles.items, i)], at);
+				const part5: rs.ByteSlice = rs.bytesSliceRef(handles.items[rs.idx(handles.items, i)], sub);
+				handles.items.push(part5);
+				noted = new rs.ByteVec();
+			} else if (_74 === 14) {
+				const buf: rs.BytesMut = rs.bytesMutWithCapacity(0);
+				const _152: rs.ByteSlice = rs.vecRemove(handles, i);
+				rs.bytesMutPutStorage(buf, _152);
+				noted = rs.byteSliceToByteVec(rs.bytesMutView(buf));
+				buf[Symbol.dispose]();
+			} else {
+				const _156: rs.ByteSlice = rs.bytesNew();
+				const at3 = rs.idx(handles.items, i);
+				rs.bytesDrop(handles.items[at3]);
+				handles.items[at3] = _156;
+				noted = new rs.ByteVec();
+			}
+			const log2: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
+			rs.byteVecPush(log2.value, op);
+			rs.byteVecPush(log2.value, shared.strong & 0xff);
+			const _175: rs.ByteSlice = rs.byteVecSlice(noted);
+			rs.byteVecExtendFromSlice(log2.value, _175);
+			rs.mutexUnlock(log2);
+		}
+		for (const _180 of handles.items) {
+			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.bytesDebug(_180, f)])));
+		}
+		rs.dropVec(handles, rs.bytesDrop);
+		const _202: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
+		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_202.value));
+		rs.mutexUnlock(_202);
+		rs.byteVecPush(out, shared.strong & 0xff);
+		rs.byteVecPush(out, log.strong & 0xff);
+		shared[Symbol.dispose]();
+		log[Symbol.dispose]();
+	}
+}
+
+/**
  * `Chain`s of buffers of each kind, nested, and as and of `dyn Buf`s: `copy_to_bytes` of a
  * length picked about where the first half ends, which takes from either half or copies
  * across both, then the reads of `reads` across them.
@@ -4237,7 +4599,7 @@ export function chained$bytes_buf_Chain_ref_slice_u8_bytes_BytesMut(at: rs.usize
  */
 export function chained$dyn_bytes_Buf(at: rs.usize[], buf: Buf.Buf, pick: rs.u8, ops: rs.ByteSlice, out: rs.ByteVec): rs.ByteVec {
 	let len!: rs.usize;
-	const all: rs.usize = remaining$bytes_Buf_mut_dyn_bytes_Buf(buf);
+	const all: rs.usize = buf_impl_remaining$bytes_Buf_mut_dyn_bytes_Buf(buf);
 	const _9: rs.u8 = rs.u8Rem(pick, 8);
 	if (_9 === 0) {
 		len = at[0];

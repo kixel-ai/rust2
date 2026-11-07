@@ -4,14 +4,15 @@
 
 [rust2-ts](/ts/README.md) translates every `unsafe` construct it can give exact semantics
 in JS, each proven by differential tests against native Rust, so a stock crate's `unsafe`
-never needs a hand binding or a moq `cfg(rust2_ts)` twin.
+never needs a hand binding or a rewrite in its consumer.
 
 ## Plan
 
 Decided with the maintainer on 2026-10-27: a dependency containing `unsafe` is bound by
-the consumer [at first](/ts/README.md#bindings), and moq gives its own `unsafe` safe
-`cfg(rust2_ts)` twins. Both are stopgaps, since a stock crate should translate with no
-annotations or config; this epic is what retires them.
+the consumer [at first](/ts/README.md#bindings), a stopgap, since a stock crate should
+translate with no annotations or config; this epic is what retires it. Decided on 2026-11-07
+in [the model epic](/quest/m2/ts-model/README.md): moq writes no `cfg(rust2_ts)` twins of
+its own `unsafe`.
 
 Decided with the maintainer on 2026-10-28, typed pointers: a raw pointer is what its
 reference is, the object, an `rs.Place`, or `rs.NULL`, and a pointer into a slice or `Vec`
@@ -79,3 +80,4 @@ Public API: the translator's output.
 - [A slice's pointer cast to an array's](/quest/m3/ts-unsafe/array-casts.md) - `*(s as *const [u8] as *const [u8; N])` in a crate's own code, and `IoSlice`
 - [Unchecked integer operations](/quest/m3/ts-unsafe/unchecked-ops.md) - `unchecked_*` and `NonZero::new_unchecked` translate, aborting on a violated precondition
 - [UnsafeCell's raw accessors](/quest/m3/ts-unsafe/unsafecell.md) - `UnsafeCell::raw_get`, `from_mut`, and `replace` translate
+- [A Box of one uninitialized value](/quest/m3/ts-unsafe/box-new-uninit.md) - `Box::new_uninit` and `new_zeroed` for one value translate, through `write` and `assume_init`
