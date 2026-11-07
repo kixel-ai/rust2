@@ -18,6 +18,7 @@ import { AtIndex } from "./rs/collections.ts";
 import { escapeDebug } from "./rs/char.ts";
 import { byteSliceUtf8Chunks, String as RsString, strFromUtf8Unchecked, stringClone, stringCloneFrom, stringFrom, stringLen, stringNew, stringOf, stringPush, stringPushStr, stringWithCapacity } from "./rs/str.ts";
 export * from "./rs/alloc.ts";
+export * from "./rs/any.ts";
 export * from "./rs/ascii.ts";
 export * from "./rs/bytes.ts";
 export * from "./rs/char.ts";

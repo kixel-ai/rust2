@@ -109,11 +109,6 @@ pub fn same_named(x: &u8) -> u8 {
 	a.name().wrapping_add(b.name())
 }
 
-/// A `TypeId`, which no value stands for yet.
-pub fn any_type_id(a: &dyn std::any::Any) -> bool {
-	a.type_id() == std::any::TypeId::of::<u8>()
-}
-
 pub trait Source {
 	type Item: Reading;
 	fn item(&self) -> &Self::Item;
