@@ -557,7 +557,7 @@ export class RawSlice<T> {
 	array(n: number): Slice<T> {
 		if (ptrNowhere(this.ptr)) return this.ptr as never;
 		const at = elemOf(this.ptr);
-		return new Slice(at.array as T[], at.index, n);
+		return new Slice(sliceArray(at, n), at.index, n);
 	}
 
 	/**

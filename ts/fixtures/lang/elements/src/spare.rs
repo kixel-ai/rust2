@@ -145,6 +145,12 @@ fn pointers<T: Item>(data: &[u8], out: &mut Vec<u8>) {
 				for i in 0..k {
 					end.add(i).write(T::of(n.wrapping_add(i as u8)));
 				}
+				// The room's raw slice cast to an array, read and written through.
+				if k >= 2 {
+					let pair = &mut *(ptr::slice_from_raw_parts_mut(end, k) as *mut [T; 2]);
+					pair.swap(0, 1);
+					pair[0].put(out);
+				}
 				// Moved to another binding and back, which keeps its storage, read through
 				// the pointer from before the move.
 				let mut moved = std::mem::take(&mut v);
