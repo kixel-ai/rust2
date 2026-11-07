@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { copy$Option_pointers_Pair, copy$Option_tuple2_u16_u8, copy$array_array2_u32, copy$array_ptr_array4_u8, copy$array_u16, copy$array_u32, copy$array_u8, copy$mem_MaybeUninit_array_u32, copy$mem_MaybeUninit_array_u8, copy$mem_MaybeUninit_tuple2_u8_u8, copy$pointers_Aimed_Cell_u8, copy$pointers_Aimed_array2_u16, copy$pointers_Aimed_array4_u8, copy$pointers_Aimed_pointers_Housed_u8, copy$pointers_Aimed_pointers_Leaning, copy$pointers_Aimed_pointers_Paired, copy$pointers_Aimed_u8, copy$pointers_ByCall, copy$pointers_ByClosure, copy$pointers_ByObject, copy$pointers_Duo, copy$pointers_Halves, copy$pointers_Outer, copy$pointers_Pair, copy$pointers_Spot, copy$pointers_Twin, copy$tuple2_array2_u32_u8, copy$tuple2_u16_u8, copy$tuple2_u32_u32, copy$tuple2_u8_u8, drop$pointers_List_String, drop$pointers_List_sync_Arc_u8, drop$tuple2_sync_Arc_pointers_Twin_Rc_pointers_Twin, drop$tuple3_sync_Arc_u32_Rc_pointers_Duo_sync_Arc_unit, drop$tuple4_sync_Arc_pointers_Twin_sync_Arc_pointers_Twin_Rc_pointers_Twin_Rc_pointers_Twin, of$pointers_Bin_pointers_ByObject } from "./lib.ts";
-import { thenSome$1gvhopg, then$0bgt67i, then$1a5xgoh, then$0jw3xip } from "./core/bool.ts";
+import { thenSome$1gvhopg, then$01qpu7s, then$0bgt67i, then$1a5xgoh, then$0jw3xip } from "./core/bool.ts";
 import { isSomeAnd$1s2u5lz, isSomeAnd$1nosv3e, isSomeAnd$07atiew, unwrapOr$0mkoact as option_unwrapOr$0mkoact, unwrapOr$179xo1w as option_unwrapOr$179xo1w, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1cfrse5 as option_map$1cfrse5, mapOr$078vnqn as option_mapOr$078vnqn, mapOr$00zno7m as option_mapOr$00zno7m, mapOr$173j2gr as option_mapOr$173j2gr, mapOr$0smr0aj as option_mapOr$0smr0aj, filter$0wvwd70 } from "./core/option.ts";
 import type * as Aimed from "./pointers.Aimed.ts";
 import * as Bin from "./pointers.Bin.ts";
@@ -3175,10 +3175,30 @@ export function behind(r: rs.u32, how: rs.u8): rs.u32 {
 }
 
 /**
+ * Whether the `Option` a pointer from a shared reference the body is given points at
+ * holds a cell, and the number in it, read through the pointer made each way std makes
+ * one.
+ */
+export function cellBehind(r: rs.Cell<rs.u32> | undefined, how: rs.u8): rs.u32 {
+	let p!: rs.Place<rs.Cell<rs.u32> | undefined>;
+	if (rs.u8Rem(how, 2) === 0) {
+		p = { v: r };
+	} else {
+		p = { v: r };
+	}
+	const _6: rs.Cell<rs.u32> | undefined = p.v;
+	if (_6 === undefined) {
+		return 0;
+	}
+	return rs.u32Add(_6.v, 1);
+}
+
+/**
  * Raw pointers from references: smallvec's `Drain` and `retain`, over values JS copies, a
  * library type, and an `Option`; pointers from a reference the body borrowed, which move
- * within the array it borrowed from; and from references the body is given, to a number
- * and to a `Vec`, read and written whole.
+ * within the array it borrowed from; from references the body is given, to a number, to an
+ * `Option` of a cell, and to a `Vec`, read and written whole; and from references to an
+ * `Arc`'s value, measured against each other.
  */
 export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _112!: rs.usize;
@@ -3261,8 +3281,20 @@ export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_153 === rs.DONE) {
 			break;
 		}
-		rs.byteVecPush(out, behind(_153[1] as rs.u32, _153[0] & 0xff) & 0xff);
+		const i2: rs.usize = _153[0];
+		const b: rs.u8 = _153[1];
+		rs.byteVecPush(out, behind(b as rs.u32, i2 & 0xff) & 0xff);
+		rs.byteVecPush(out, cellBehind(then$01qpu7s(rs.u8Rem(b, 3) !== 0, (): rs.Cell<rs.u32> => {
+			return new rs.Cell(b as rs.u32);
+		}), b) & 0xff);
 	}
+	const arc: rs.Arc<rs.u8> = new rs.Arc(bits);
+	const _178: rs.Place<rs.u8> = rs.arcRaw(arc, rs.arcPlace(arc), "Arc");
+	const _181: rs.Place<rs.u8> = rs.arcRaw(arc, rs.arcPlace(arc), "Arc");
+	const p: rs.Place<rs.u8> = _178;
+	rs.byteVecPush(out, rs.ptrOffsetFrom(p, _181) & 0xff);
+	rs.byteVecPush(out, p.v);
+	arc[Symbol.dispose]();
 }
 
 //# sourceMappingURL=pointers.ts.map

@@ -280,7 +280,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// `rs.Place`, where `r` is no `rs.Place` itself but the value: the place the body shows
 	/// `r` borrowed, as [`Self::borrowed_pointer`] finds it. Otherwise it is a place of its
 	/// own, as `ptr::from_ref` makes: of the value, where `r` is shared and nothing may write
-	/// the value while the pointer lives, and else writing a whole value into the object `r`
+	/// a whole value through the pointer, and else writing a whole value into the object `r`
 	/// is in place, as `*r = v` does.
 	pub(super) fn behind_reference(&mut self, r: Place<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let tcx = self.tcx;
@@ -293,8 +293,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			r.ty(&self.mir.local_decls, tcx).ty.kind(),
 			ty::Ref(_, _, rustc_ast::Mutability::Not)
 		);
+		// Through a shared reference, a whole write is undefined unless every byte of the
+		// value is in an `UnsafeCell`, as no enum's tag is.
+		let tagged = matches!(ty.kind(), ty::Adt(adt, _) if adt.is_enum() && adt.variants().len() > 1);
 		let value = self.place_expr(pointee, span, out);
-		if shared && ty.is_freeze(tcx, self.b.t.typing_env_pub()) {
+		if shared && (tagged || ty.is_freeze(tcx, self.b.t.typing_env_pub())) {
 			return Expr::Object(vec![(Key::Name("v".into()), value)]);
 		}
 		let target = self.b.spill(value, "target", out);

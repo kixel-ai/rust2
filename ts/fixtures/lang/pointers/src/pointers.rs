@@ -2497,10 +2497,25 @@ fn behind(r: &u32, how: u8) -> u32 {
 	unsafe { ptr::read(p) }
 }
 
+/// Whether the `Option` a pointer from a shared reference the body is given points at
+/// holds a cell, and the number in it, read through the pointer made each way std makes
+/// one.
+fn cell_behind(r: &Option<Cell<u32>>, how: u8) -> u32 {
+	let p = match how % 2 {
+		0 => &raw const *r,
+		_ => ptr::from_ref(r),
+	};
+	match unsafe { &*p } {
+		Some(cell) => cell.get() + 1,
+		None => 0,
+	}
+}
+
 /// Raw pointers from references: smallvec's `Drain` and `retain`, over values JS copies, a
 /// library type, and an `Option`; pointers from a reference the body borrowed, which move
-/// within the array it borrowed from; and from references the body is given, to a number
-/// and to a `Vec`, read and written whole.
+/// within the array it borrowed from; from references the body is given, to a number, to an
+/// `Option` of a cell, and to a `Vec`, read and written whole; and from references to an
+/// `Arc`'s value, measured against each other.
 pub fn behind_refs(data: &[u8], out: &mut Vec<u8>) {
 	let bits = data.first().copied().unwrap_or(0);
 	let nums: Vec<u32> = data.iter().map(|&b| u32::from(b) * 3).collect();
@@ -2560,5 +2575,13 @@ pub fn behind_refs(data: &[u8], out: &mut Vec<u8>) {
 	out.extend(&v);
 	for (i, &b) in data.iter().enumerate() {
 		out.push(behind(&u32::from(b), i as u8) as u8);
+		let cell = (b % 3 != 0).then(|| Cell::new(u32::from(b)));
+		out.push(cell_behind(&cell, b) as u8);
 	}
+	// Pointers from references to an `Arc`'s value, which is its one place.
+	let arc = Arc::new(u32::from(bits));
+	let p = ptr::from_ref(&*arc);
+	let q = ptr::from_ref(&*arc);
+	out.push(unsafe { p.offset_from(q) } as u8);
+	out.push(unsafe { *q } as u8);
 }

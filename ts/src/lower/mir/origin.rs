@@ -260,7 +260,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// a place of its own, or, where `r` is an `rs.Place`, where that points.
 	fn reference_origin(&self, r: mir::Place<'tcx>, at: Location) -> Option<Origin<'tcx>> {
 		let ty = r.ty(&self.mir.local_decls, self.tcx).ty;
-		if !ty.is_ref() {
+		// A reference to an `Arc`'s value points at that value's one place.
+		if !ty.is_ref() || self.arc_of(&Operand::Copy(r)).is_some() {
 			return None;
 		}
 		let pointee = self.tcx.mk_place_deref(r);
