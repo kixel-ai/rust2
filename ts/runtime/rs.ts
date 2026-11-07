@@ -2451,6 +2451,8 @@ export function vecShrinkTo<T>(v: Vec<T>, min: number, size: number): void {
  * move such as `mem::take` hands them to another.
  */
 export class Room<T> {
+	/** The items, the allocation's array, which its views read before the room. */
+	readonly items: T[];
 	/** The `Vec` that last held the items, which gives the capacity. */
 	v: Vec<T>;
 	readonly size: number;
@@ -2459,6 +2461,7 @@ export class Room<T> {
 	uninit: (() => T) | undefined;
 
 	constructor(v: Vec<T>, size: number) {
+		this.items = v.items;
 		this.v = v;
 		this.size = size;
 	}
@@ -2504,7 +2507,7 @@ function roomOf<T>(v: Vec<T>, size: number): Room<T> {
  */
 export function roomPast<T>(array: object, end: number): Room<T> | undefined {
 	const room = ROOMS.get(array) as Room<T> | undefined;
-	if (room === undefined || (room.v.items === array && end > vecCapacity(room.v, room.size))) return undefined;
+	if (room === undefined || (room.v.items === room.items && end > vecCapacity(room.v, room.size))) return undefined;
 	return room;
 }
 
@@ -2531,9 +2534,9 @@ class RoomView<T> extends View<T> {
 	}
 }
 
-/** The first `end` elements of the storage of the `Vec` `room` is past, as a JS array read and written where they are. */
+/** The first `end` elements of the allocation `room` is past, its items and then itself, as a JS array read and written where they are. */
 function roomView<T>(room: Room<T>, end: number): T[] {
-	return new Proxy(new Array<T>(end), new RoomView(room, room.v.items, 0, end));
+	return new Proxy(new Array<T>(end), new RoomView(room, room.items, 0, end));
 }
 
 /** `Vec::as_ptr` and `as_mut_ptr` of `size`-byte elements: the pointer to its first, which reaches its room. */

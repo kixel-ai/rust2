@@ -194,8 +194,8 @@ export function state$u32(v: rs.Vec<rs.u32>, out: rs.ByteVec): void {
  */
 export function pointers$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _43!: rs.usize;
-	let _143!: rs.usize;
-	let _172!: rs.usize;
+	let _155!: rs.usize;
+	let _184!: rs.usize;
 	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
 	let v: rs.Vec<rs.u16 | undefined> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 4);
 	while (!(ops._0Len === 0)) {
@@ -216,6 +216,9 @@ export function pointers$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 					rs.ptrAdd(end, i).v = of$spare_Item_Option_u16(rs.u8WrappingAdd(n, i & 0xff));
 				}
 				const moved: rs.Vec<rs.u16 | undefined> = rs.replaceIn(v, new rs.Vec());
+				for (const _61 of rs.sliceItems(rs.ptrSlice(rs.ptrAdd(end, -len), rs.usizeAdd(len, k)))) {
+					put$spare_Item_Option_u16(_61, out);
+				}
 				rs.vecSetLen(moved, rs.usizeAdd(len, k), 4, (): rs.u16 | undefined => {
 					return (undefined as unknown) as rs.u16 | undefined;
 				});
@@ -232,13 +235,13 @@ export function pointers$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 				break b2;
 			}
 			if (_35 === 2) {
-				const iter2: rs.Iter<[rs.usize, rs.Place<rs.u16 | undefined>]> = rs.iterRev(rs.iterEnumerate(rs.iterSliceMut(rs.ptrSlice(rs.ptrAdd(rs.vecAsPtr(v, 4), len), k))));
+				const iter3: rs.Iter<[rs.usize, rs.Place<rs.u16 | undefined>]> = rs.iterRev(rs.iterEnumerate(rs.iterSliceMut(rs.ptrSlice(rs.ptrAdd(rs.vecAsPtr(v, 4), len), k))));
 				while (true) {
-					const _86: [rs.usize, rs.Place<rs.u16 | undefined>] | rs.Done = iter2.next();
-					if (_86 === rs.DONE) {
+					const _98: [rs.usize, rs.Place<rs.u16 | undefined>] | rs.Done = iter3.next();
+					if (_98 === rs.DONE) {
 						break;
 					}
-					_86[1].v = of$spare_Item_Option_u16(rs.u8WrappingSub(n, _86[0] & 0xff));
+					_98[1].v = of$spare_Item_Option_u16(rs.u8WrappingSub(n, _98[0] & 0xff));
 				}
 				rs.vecSetLen(v, rs.usizeAdd(len, k), 4, (): rs.u16 | undefined => {
 					return (undefined as unknown) as rs.u16 | undefined;
@@ -266,8 +269,8 @@ export function pointers$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 					const p2: rs.Place<rs.u16 | undefined> = rs.vecAsPtr(v, 4);
 					let iterStart2: rs.usize = at2;
 					const iterEnd2: rs.usize = end2;
-					while ((_143 = iterStart2++) < iterEnd2) {
-						put$spare_Item_Option_u16(rs.ptrAdd(p2, _143).v, out);
+					while ((_155 = iterStart2++) < iterEnd2) {
+						put$spare_Item_Option_u16(rs.ptrAdd(p2, _155).v, out);
 					}
 					rs.ptrCopy(rs.ptrAdd(p2, end2), rs.ptrAdd(p2, at2), rs.usizeSub(len, end2));
 					rs.vecSetLen(v, rs.usizeSub(len, rs.usizeSub(end2, at2)), 4, (): rs.u16 | undefined => {
@@ -284,8 +287,8 @@ export function pointers$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 					let kept: rs.usize = 0;
 					let iterStart3: rs.usize = 0;
 					const iterEnd3: rs.usize = len;
-					while ((_172 = iterStart3++) < iterEnd3) {
-						const i4: rs.usize = _172;
+					while ((_184 = iterStart3++) < iterEnd3) {
+						const i4: rs.usize = _184;
 						const x: rs.u16 | undefined = rs.ptrAdd(p3, i4).v;
 						if (rs.usizeRem(rs.usizeAdd(i4, n as rs.usize), 3) !== 0) {
 							rs.ptrAdd(p3, kept).v = x;
@@ -318,8 +321,8 @@ export function pointers$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _43!: rs.usize;
-	let _143!: rs.usize;
-	let _172!: rs.usize;
+	let _155!: rs.usize;
+	let _184!: rs.usize;
 	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
 	let v: rs.Vec<string> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 12);
 	while (!(ops._0Len === 0)) {
@@ -340,6 +343,9 @@ export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 					rs.ptrAdd(end, i).v = of$spare_Item_String(rs.u8WrappingAdd(n, i & 0xff));
 				}
 				const moved: rs.Vec<string> = rs.replaceIn(v, new rs.Vec());
+				for (const _61 of rs.sliceItems(rs.ptrSlice(rs.ptrAdd(end, -len), rs.usizeAdd(len, k)))) {
+					put$spare_Item_String(_61, out);
+				}
 				rs.vecSetLen(moved, rs.usizeAdd(len, k), 12, (): string => {
 					return (undefined as unknown) as string;
 				});
@@ -356,13 +362,13 @@ export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 				break b2;
 			}
 			if (_35 === 2) {
-				const iter2: rs.Iter<[rs.usize, rs.Place<string>]> = rs.iterRev(rs.iterEnumerate(rs.iterSliceMut(rs.ptrSlice(rs.ptrAdd(rs.vecAsPtr(v, 12), len), k))));
+				const iter3: rs.Iter<[rs.usize, rs.Place<string>]> = rs.iterRev(rs.iterEnumerate(rs.iterSliceMut(rs.ptrSlice(rs.ptrAdd(rs.vecAsPtr(v, 12), len), k))));
 				while (true) {
-					const _86: [rs.usize, rs.Place<string>] | rs.Done = iter2.next();
-					if (_86 === rs.DONE) {
+					const _98: [rs.usize, rs.Place<string>] | rs.Done = iter3.next();
+					if (_98 === rs.DONE) {
 						break;
 					}
-					_86[1].v = of$spare_Item_String(rs.u8WrappingSub(n, _86[0] & 0xff));
+					_98[1].v = of$spare_Item_String(rs.u8WrappingSub(n, _98[0] & 0xff));
 				}
 				rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): string => {
 					return (undefined as unknown) as string;
@@ -390,8 +396,8 @@ export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 					const p2: rs.Place<string> = rs.vecAsPtr(v, 12);
 					let iterStart2: rs.usize = at2;
 					const iterEnd2: rs.usize = end2;
-					while ((_143 = iterStart2++) < iterEnd2) {
-						put$spare_Item_String(rs.ptrAdd(p2, _143).v, out);
+					while ((_155 = iterStart2++) < iterEnd2) {
+						put$spare_Item_String(rs.ptrAdd(p2, _155).v, out);
 					}
 					rs.ptrCopy(rs.ptrAdd(p2, end2), rs.ptrAdd(p2, at2), rs.usizeSub(len, end2));
 					rs.vecSetLen(v, rs.usizeSub(len, rs.usizeSub(end2, at2)), 12, (): string => {
@@ -408,8 +414,8 @@ export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 					let kept: rs.usize = 0;
 					let iterStart3: rs.usize = 0;
 					const iterEnd3: rs.usize = len;
-					while ((_172 = iterStart3++) < iterEnd3) {
-						const i4: rs.usize = _172;
+					while ((_184 = iterStart3++) < iterEnd3) {
+						const i4: rs.usize = _184;
 						const x: string = rs.ptrAdd(p3, i4).v;
 						if (rs.usizeRem(rs.usizeAdd(i4, n as rs.usize), 3) !== 0) {
 							rs.ptrAdd(p3, kept).v = x;
@@ -442,8 +448,8 @@ export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function pointers$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _43!: rs.usize;
-	let _143!: rs.usize;
-	let _172!: rs.usize;
+	let _155!: rs.usize;
+	let _184!: rs.usize;
 	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
 	let v: rs.Vec<rs.u32> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 4);
 	while (!(ops._0Len === 0)) {
@@ -464,6 +470,9 @@ export function pointers$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 					rs.ptrAdd(end, i).v = of$spare_Item_u32(rs.u8WrappingAdd(n, i & 0xff));
 				}
 				const moved: rs.Vec<rs.u32> = rs.replaceIn(v, new rs.Vec());
+				for (const _61 of rs.sliceItems(rs.ptrSlice(rs.ptrAdd(end, -len), rs.usizeAdd(len, k)))) {
+					put$spare_Item_u32(_61, out);
+				}
 				rs.vecSetLen(moved, rs.usizeAdd(len, k), 4, (): rs.u32 => {
 					return (undefined as unknown) as rs.u32;
 				});
@@ -480,13 +489,13 @@ export function pointers$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 				break b2;
 			}
 			if (_35 === 2) {
-				const iter2: rs.Iter<[rs.usize, rs.Place<rs.u32>]> = rs.iterRev(rs.iterEnumerate(rs.iterSliceMut(rs.ptrSlice(rs.ptrAdd(rs.vecAsPtr(v, 4), len), k))));
+				const iter3: rs.Iter<[rs.usize, rs.Place<rs.u32>]> = rs.iterRev(rs.iterEnumerate(rs.iterSliceMut(rs.ptrSlice(rs.ptrAdd(rs.vecAsPtr(v, 4), len), k))));
 				while (true) {
-					const _86: [rs.usize, rs.Place<rs.u32>] | rs.Done = iter2.next();
-					if (_86 === rs.DONE) {
+					const _98: [rs.usize, rs.Place<rs.u32>] | rs.Done = iter3.next();
+					if (_98 === rs.DONE) {
 						break;
 					}
-					_86[1].v = of$spare_Item_u32(rs.u8WrappingSub(n, _86[0] & 0xff));
+					_98[1].v = of$spare_Item_u32(rs.u8WrappingSub(n, _98[0] & 0xff));
 				}
 				rs.vecSetLen(v, rs.usizeAdd(len, k), 4, (): rs.u32 => {
 					return (undefined as unknown) as rs.u32;
@@ -514,8 +523,8 @@ export function pointers$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 					const p2: rs.Place<rs.u32> = rs.vecAsPtr(v, 4);
 					let iterStart2: rs.usize = at2;
 					const iterEnd2: rs.usize = end2;
-					while ((_143 = iterStart2++) < iterEnd2) {
-						put$spare_Item_u32(rs.ptrAdd(p2, _143).v, out);
+					while ((_155 = iterStart2++) < iterEnd2) {
+						put$spare_Item_u32(rs.ptrAdd(p2, _155).v, out);
 					}
 					rs.ptrCopy(rs.ptrAdd(p2, end2), rs.ptrAdd(p2, at2), rs.usizeSub(len, end2));
 					rs.vecSetLen(v, rs.usizeSub(len, rs.usizeSub(end2, at2)), 4, (): rs.u32 => {
@@ -532,8 +541,8 @@ export function pointers$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 					let kept: rs.usize = 0;
 					let iterStart3: rs.usize = 0;
 					const iterEnd3: rs.usize = len;
-					while ((_172 = iterStart3++) < iterEnd3) {
-						const i4: rs.usize = _172;
+					while ((_184 = iterStart3++) < iterEnd3) {
+						const i4: rs.usize = _184;
 						const x: rs.u32 = rs.ptrAdd(p3, i4).v;
 						if (rs.usizeRem(rs.usizeAdd(i4, n as rs.usize), 3) !== 0) {
 							rs.ptrAdd(p3, kept).v = x;

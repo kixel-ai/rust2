@@ -145,8 +145,12 @@ fn pointers<T: Item>(data: &[u8], out: &mut Vec<u8>) {
 				for i in 0..k {
 					end.add(i).write(T::of(n.wrapping_add(i as u8)));
 				}
-				// Moved to another binding and back, which keeps its storage.
+				// Moved to another binding and back, which keeps its storage, read through
+				// the pointer from before the move.
 				let mut moved = std::mem::take(&mut v);
+				for x in slice::from_raw_parts(end.sub(len), len + k) {
+					x.put(out);
+				}
 				moved.set_len(len + k);
 				v = moved;
 			},

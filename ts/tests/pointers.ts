@@ -60,6 +60,7 @@ rs.vecReserveExact(held, 4, 4);
 rs.ptrAdd(end, 1).v = 9;
 const taken = new rs.Vec(held.items, held.cap);
 held.items = [];
+assert.deepEqual(Array.from(rs.ptrSlice(rs.ptrAdd(end, -1), 3).data.slice(0, 3)), [7, 8, 9]);
 rs.vecSetLen(taken, 3, 4, () => 0);
 assert.deepEqual(taken.items, [7, 8, 9]);
 
