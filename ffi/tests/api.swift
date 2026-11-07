@@ -388,9 +388,9 @@ func script() {
 	print("both \(bumpBoth(tally, tally))")
 	print("peek \(peek(tally) { lent in lent.bump() })")
 
-	let area = grow(Area.new(Size(width: 2, height: 3)), 1)
-	let size = area.size()
-	print("area \(size.width) \(size.height) \(area.pixels())")
+	let grown = grow(Area.new(Size(width: 2, height: 3)), 1)
+	let size = grown.size()
+	print("area \(size.width) \(size.height) \(grown.pixels())")
 
 	// Generic types, each at the instances it infers, named by their arguments.
 	let pair = PairU32(left: 2, right: 5)
