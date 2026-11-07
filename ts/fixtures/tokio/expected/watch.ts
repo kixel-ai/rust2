@@ -368,7 +368,6 @@ export class stepRunFuture$closure1 {
 		} else if (this.#state === 3) {
 			rs.drop(this.#awaitee);
 			this.#rx[Symbol.dispose]();
-			this.#seen[Symbol.dispose]();
 			this.#slot[Symbol.dispose]();
 		}
 	}
@@ -376,25 +375,27 @@ export class stepRunFuture$closure1 {
 	poll(_2: rs.Context): rs.Poll<rs.String> {
 		let line!: rs.String;
 		if (this.#state === 0) {
-			this.#awaitee = rs.watchWaitFor(this.#rx, (v: Item.Item): boolean => {
-				const _102: rs.Fmt = (f: rs.Formatter) => Item.fmt$fmt_Display(v, f);
-				const arg = this.#seen;
-				const args7 = [_102, (f: rs.Formatter) => Item.fmt$fmt_Display(arg, f)];
+			const captured = this.#seen;
+			const captured2 = this.#by;
+			this.#awaitee = rs.watchWaitFor(this.#rx, rs.closure((v: Item.Item): boolean => {
+				const args7 = [(f: rs.Formatter) => Item.fmt$fmt_Display(v, f), (f: rs.Formatter) => Item.fmt$fmt_Display(captured, f)];
 				note(rs.fmtFormat(["wait_for sees ", args7[0], " beside ", args7[1]]));
-				return rs.u8Rem(v._0, this.#by) === 0;
-			}, { _0: undefined });
+				return rs.u8Rem(v._0, captured2) === 0;
+			}, (): void => {
+				captured[Symbol.dispose]();
+			}), { _0: undefined }, rs.drop);
 		} else if (this.#state === 1) {
 			rs.asyncFnResumed();
 		}
-		const _10: rs.Poll<rs.Result<rs.WatchRef<Item.Item>, watch_error_RecvError.RecvError>> = this.#awaitee.poll(_2);
-		if (_10 !== rs.Pending) {
-			const result: rs.Result<rs.WatchRef<Item.Item>, watch_error_RecvError.RecvError> = _10;
+		const _8: rs.Poll<rs.Result<rs.WatchRef<Item.Item>, watch_error_RecvError.RecvError>> = this.#awaitee.poll(_2);
+		if (_8 !== rs.Pending) {
+			const result: rs.Result<rs.WatchRef<Item.Item>, watch_error_RecvError.RecvError> = _8;
 			rs.drop(this.#awaitee);
 			if (result.ok) {
 				const r: rs.WatchRef<Item.Item> = result.value;
-				const _23: Item.Item = r.value;
-				const _26: boolean = r.hasChanged;
-				const args9 = [(f: rs.Formatter) => Item.fmt$fmt_Display(_23, f), (f: rs.Formatter) => rs.fmtBool(_26, f)];
+				const _21: Item.Item = r.value;
+				const _24: boolean = r.hasChanged;
+				const args9 = [(f: rs.Formatter) => Item.fmt$fmt_Display(_21, f), (f: rs.Formatter) => rs.fmtBool(_24, f)];
 				line = rs.fmtFormat(["wait_for ", args9[0], " changed ", args9[1]]);
 				r[Symbol.dispose]();
 			} else {
@@ -402,12 +403,11 @@ export class stepRunFuture$closure1 {
 				const args8 = [(f: rs.Formatter) => watch_error_RecvError.fmt$fmt_Display(e, f), (f: rs.Formatter) => watch_error_RecvError.fmt$fmt_Debug(e, f)];
 				line = rs.fmtFormat(["wait_for ", args8[0], " ", args8[1]]);
 			}
-			const _43: rs.WatchReceiver<Item.Item> | undefined = this.#rx;
-			const _47: rs.RefCell<rs.WatchReceiver<Item.Item> | undefined> = rs.refCellBorrowMut(this.#slot.value);
-			rs.drop(_47.value);
-			_47.value = _43;
-			rs.refMutRelease(_47);
-			this.#seen[Symbol.dispose]();
+			const _41: rs.WatchReceiver<Item.Item> | undefined = this.#rx;
+			const _45: rs.RefCell<rs.WatchReceiver<Item.Item> | undefined> = rs.refCellBorrowMut(this.#slot.value);
+			rs.drop(_45.value);
+			_45.value = _41;
+			rs.refMutRelease(_45);
 			this.#slot[Symbol.dispose]();
 			this.#state = 1;
 			return line;

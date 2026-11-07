@@ -79,7 +79,8 @@ fn step_run(s: &mut State, op: u8, arg: u8) {
 				});
 			}
 		}
-		// Wait for a value divisible by `arg % 3 + 1`.
+		// Wait for a value divisible by `arg % 3 + 1`, by a closure that owns what it logs,
+		// which drops with the future.
 		1 => {
 			if let Some(slot) = s.slot(arg) {
 				let mut rx = slot.borrow_mut().take().expect("live");
@@ -87,7 +88,7 @@ fn step_run(s: &mut State, op: u8, arg: u8) {
 				let seen = Item(100 + by);
 				s.exec.spawn(async move {
 					let line = match rx
-						.wait_for(|v| {
+						.wait_for(move |v| {
 							note(format!("wait_for sees {v} beside {seen}"));
 							v.0 % by == 0
 						})

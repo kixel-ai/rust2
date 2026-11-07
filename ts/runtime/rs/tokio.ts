@@ -1199,12 +1199,12 @@ export function watchChanged<T, E>(rx: WatchReceiver<T>, error: E): Future<Resul
 class WaitFor<T, E> extends AsyncFn<Result<WatchRef<T>, E>> {
 	readonly #rx: WatchReceiver<T>;
 	readonly #f: (value: T) => boolean;
-	readonly #dropF: (() => void) | undefined;
+	readonly #dropF: Drop<(value: T) => boolean>;
 	readonly #error: E;
 	#closed = false;
 	#changed: Changed<T> | undefined;
 
-	constructor(rx: WatchReceiver<T>, f: (value: T) => boolean, error: E, dropF?: () => void) {
+	constructor(rx: WatchReceiver<T>, f: (value: T) => boolean, error: E, dropF?: Drop<(value: T) => boolean>) {
 		super();
 		this.#rx = rx;
 		this.#f = f;
@@ -1221,14 +1221,22 @@ class WaitFor<T, E> extends AsyncFn<Result<WatchRef<T>, E>> {
 				const changed = rx.version !== version;
 				rx.version = version;
 				if (!this.#closed || changed) {
-					if (this.#f(lock.value)) {
-						this.#dropF?.();
+					let accepted: boolean;
+					try {
+						accepted = this.#f(lock.value);
+					} catch (err) {
+						// tokio releases the lock before the panic goes on, so it poisons nothing.
+						refRelease(lock);
+						throw err;
+					}
+					if (accepted) {
+						this.#dropF?.(this.#f);
 						return Ok(new WatchRef(lock, changed));
 					}
 				}
 				refRelease(lock);
 				if (this.#closed) {
-					this.#dropF?.();
+					this.#dropF?.(this.#f);
 					return Err(this.#error);
 				}
 				this.#changed = new Changed(rx);
@@ -1242,12 +1250,12 @@ class WaitFor<T, E> extends AsyncFn<Result<WatchRef<T>, E>> {
 
 	protected override cancel(): void {
 		this.#changed?.[Symbol.dispose]();
-		this.#dropF?.();
+		this.#dropF?.(this.#f);
 	}
 }
 
 /** A receiver's `wait_for(f)`, whose closure `dropF` drops, if it drops. */
-export function watchWaitFor<T, E>(rx: WatchReceiver<T>, f: (value: T) => boolean, error: E, dropF?: () => void): Future<Result<WatchRef<T>, E>> {
+export function watchWaitFor<T, E>(rx: WatchReceiver<T>, f: (value: T) => boolean, error: E, dropF?: Drop<(value: T) => boolean>): Future<Result<WatchRef<T>, E>> {
 	return new WaitFor(rx, f, error, dropF);
 }
 
