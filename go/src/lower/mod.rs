@@ -418,12 +418,9 @@ impl<'tcx> Translator<'tcx> {
 		let inputs: Vec<Ty<'tcx>> = sig.inputs().iter().map(|t| normal(*t)).collect();
 		let output = normal(sig.output());
 		let splits = inputs.iter().chain([&output]).any(|t| self.split(*t, span).is_some());
-		let hands = inputs
-			.iter()
-			.any(|t| self.hands(*t, Hand::In) || self.hands(*t, Hand::Back))
+		let hands = inputs.iter().any(|t| self.hands(*t, Hand::In) || self.hands_back(*t))
 			|| self.hands(output, Hand::Out);
-		let sig: Vec<Ty<'tcx>> = inputs.iter().copied().chain([output]).collect();
-		self.refuse_callback(&sig, span);
+		self.refuse_unhandable(&inputs, output, span);
 		if !splits && !hands {
 			self.funcs.insert(instance, name);
 			self.queue.push_back((instance, span));
@@ -456,8 +453,8 @@ impl<'tcx> Translator<'tcx> {
 			if self.hands(*input, Hand::In) {
 				enter.push_str(&format!("\t{}(&{param})\n", self.hand(*input, Hand::In, span)));
 			}
-			if self.hands(*input, Hand::Back) {
-				back.push(format!("{}(&{param})", self.hand(*input, Hand::Back, span)));
+			if self.hands_back(*input) {
+				back.push(format!("{}(&{param})", self.hand(*input, Hand::Out, span)));
 			}
 			match self.split(*input, span) {
 				Some(split) => args.extend(split.parts.iter().map(|p| match p.big {

@@ -36,3 +36,8 @@ Fixtures: `go/fixtures/items` gives an exported type `Display`, `Debug`, `Partia
 two `From` impls, called from Go and checked by differential.
 
 Public API: what a translation exports.
+
+## Waiting
+
+- Go consumers: one needs moq in pure Go, which [the epic](/quest/m4/go/README.md) is
+  parked until; check with the maintainer before starting.

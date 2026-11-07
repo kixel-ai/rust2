@@ -26,10 +26,18 @@ Decided with the maintainer on 2026-11-01, settling
   whose lowering returns TypeScript's AST.
 
 Decided with the maintainer on 2026-11-07, settling
-[moq-dev/rust2#643](https://github.com/moq-dev/rust2/pull/643): speed met the bar. With
-the translation owning a `Vec<u8>`'s storage and clipping it at escape, every `stream/`
-workload of `just go bench` runs within 2x of cgo, the worst at 2.07x CPU time, which
-counts as noise.
+[moq-dev/rust2#643](https://github.com/moq-dev/rust2/pull/643):
+
+- **Speed met the bar.** With the translation owning a `Vec<u8>`'s storage and clipping
+  it at escape, every `stream/` workload of `just go bench` runs within 2x of cgo, the
+  worst at 2.07x CPU time, which counts as noise.
+- ✅ **Parked until a consumer needs pure Go.** None has asked, and the cgo exporter
+  stays moq's Go route. This epic and its children don't start until one does; each
+  child's `Waiting` item holds it. When one does, first weigh running moq compiled to
+  WASM inside Go on a pure-Go runtime such as [wazero](https://wazero.io) (no cgo, a
+  plain `go get`; unmeasured for moq-net's I/O) against finishing this translation.
+  Rejected: splitting [coverage](/quest/m4/go/coverage.md) into a quest per construct
+  now; deleting `go/`, whose translator and measurements are kept.
 
 The spike ([moq-dev/rust2#410](https://github.com/moq-dev/rust2/pull/410)) translated
 moq's codec held to rust2-ts's bar: 35,273 codec cases and 124,193 integer cases match

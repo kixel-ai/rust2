@@ -64,9 +64,11 @@ never recycled either; Go's `append` to such a slice copies. It works on a copy 
 container an argument owns, a `Box`'s pointee or a `Vec`'s elements, so Go code still
 holding one never sees what the translation moved or grew out of it: a `Box` Go passes
 by value is left as it was, as Rust's move would leave it unread. Only roots are
-exported. A function pointer or trait object in the signature of a root that reaches
-byte storage is refused, since Go code could fill it with a function that keeps what it
-is handed or reads a place the translation is still writing.
+exported. A root that reaches byte storage refuses a function pointer or trait object in
+its signature, since Go code could fill it with a function that keeps what it is handed
+or reads a place the translation is still writing; a raw pointer, which could see what
+handing in copied; and a reference anywhere in an argument but its outermost type,
+which the translation could move out of what handing back walks.
 
 A panic is a Go panic of `RustPanic` carrying native Rust's message. As with
 `panic = "abort"`, no cleanup runs on the way out, so a caller that recovers one must
@@ -78,8 +80,9 @@ drop what the translation held.
 `Drop` impl, a trait object of any trait but `Display` and `Debug`, a union, a type
 generic over a constant, such as an array's by-value iterator, a `pub` item that is
 generic, a `static mut`, a static with interior mutability, such as an atomic, or of another
-language, a reference into part of a static, and a function pointer or trait object in
-the signature of a root that reaches byte storage.
+language, a reference into part of a static, and, in the signature of a root that
+reaches byte storage, a function pointer, trait object, raw pointer, or reference
+inside an argument.
 
 ## Tests
 

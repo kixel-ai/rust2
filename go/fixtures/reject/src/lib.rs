@@ -175,3 +175,16 @@ pub fn beside(v: &mut Vec<u8>, f: fn()) {
 	f();
 	v.push(2);
 }
+
+/// A reference inside an argument beside byte storage, which the translation could move
+/// out of what handing back walks.
+pub fn popped(mut refs: Vec<&mut Vec<u8>>) {
+	if let Some(v) = refs.pop() {
+		v.push(1);
+	}
+}
+
+/// A raw pointer beside byte storage, which could see that handing in copied it.
+pub fn same(v: Vec<u8>, p: *const u8) -> bool {
+	std::ptr::eq(&v[0], p)
+}
