@@ -430,6 +430,18 @@ const CALLEES: &[(&str, &str, &str, &str)] = &[
 		"pub fn from_secs_f32(secs: f32)",
 		"panic!(",
 	),
+	(
+		"mem::maybe_uninit::write_copy_of_slice",
+		"core/src/mem/maybe_uninit.rs",
+		"pub const fn write_copy_of_slice(",
+		"copy_from_slice(",
+	),
+	(
+		"mem::maybe_uninit::write_clone_of_slice",
+		"core/src/mem/maybe_uninit.rs",
+		"pub fn write_clone_of_slice(",
+		"assert_eq!(",
+	),
 	("cell::take", "core/src/cell.rs", "pub fn take(&self) -> T", "replace("),
 	(
 		"thread::local::with_borrow_mut",
