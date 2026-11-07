@@ -2575,7 +2575,19 @@ pub fn lone_bytes(data: &[u8], out: &mut Vec<u8>) {
 		let mut m = MaybeUninit::<u8>::uninit();
 		unsafe { std::slice::from_raw_parts_mut(&raw mut m, 1)[0] = MaybeUninit::new(c) };
 		out.push(unsafe { m.assume_init() });
+		// Through a reference redirected by a `&mut` to it, at the byte it now points at.
+		let (mut e, mut f) = (d, d ^ 1);
+		let mut r = &mut e;
+		redirect(&mut r, &mut f);
+		let p = &raw mut *r;
+		unsafe { *p = 9 };
+		out.extend([e, f]);
 	}
+}
+
+/// `r` pointed at `to`.
+fn redirect<'a>(r: &mut &'a mut u8, to: &'a mut u8) {
+	*r = to;
 }
 
 /// `b` tripled through a mutable slice of the parameter.

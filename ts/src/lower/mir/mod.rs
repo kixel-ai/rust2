@@ -841,11 +841,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// The byte local `place`, the place of a `&raw`, is: the local, or what a reference
-	/// to it made here points at.
+	/// to it made here, which nothing redirects through a `&mut` to it, points at.
 	fn raw_byte(&self, place: Place<'tcx>) -> Option<Local> {
 		let local = match place.projection.as_slice() {
 			[] => place.local,
-			[mir::ProjectionElem::Deref] if self.defs[place.local] == 1 && !self.is_arg(place.local) => {
+			[mir::ProjectionElem::Deref]
+				if self.defs[place.local] == 1 && !self.is_arg(place.local) && !self.mutated[place.local] =>
+			{
 				match self.def_rvalue(place.local)? {
 					Rvalue::Ref(_, _, p) if p.projection.is_empty() => p.local,
 					_ => return None,

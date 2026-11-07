@@ -3199,7 +3199,19 @@ export function loneBytes(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.idx(_124, 0);
 		_124.data[_124.start] = _122;
 		rs.byteVecPush(out, m[0]);
+		const _135: [rs.u8, rs.u8] = [d, d ^ 1];
+		let e: rs.u8 = d;
+		let f: rs.u8 = _135[1];
+		let r2: rs.Place<rs.u8> = rs.place(() => e, (value) => e = value);
+		redirect(rs.place(() => r2, (value2) => r2 = value2), rs.place(() => f, (value3) => f = value3));
+		r2.v = 9;
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(e, f)), undefined, true);
 	}
+}
+
+/** `r` pointed at `to`. */
+export function redirect(r: rs.Place<rs.Place<rs.u8>>, to: rs.Place<rs.u8>): void {
+	r.v = to;
 }
 
 /** `b` tripled through a mutable slice of the parameter. */
