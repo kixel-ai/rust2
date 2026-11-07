@@ -199,6 +199,26 @@ pub trait Duo {
 	type Pong;
 }
 
+/// A source widened once more.
+pub struct Widen<T>(pub T);
+
+impl<T: 'static> Source for Widen<T> {
+	type Item = Sprawl<Widen<Widen<T>>>;
+}
+
+/// A type holding an instance of itself without type parameters, typed while its own
+/// definition is, whose item is it at a source widened again.
+pub struct Sprawl<S: Source + 'static> {
+	pub item: Option<&'static S::Item>,
+	pub wide: Option<&'static Sprawl<Widen<u8>>>,
+}
+
+/// `Sprawl<S>`'s definition would name an instance at each widening.
+pub fn projected_sprawl(deep: bool) -> bool {
+	let sprawl: Sprawl<Widen<u8>> = Sprawl { item: None, wide: None };
+	sprawl.wide.is_none() && deep
+}
+
 /// What a duo's ping and pong both are at a wrapped duo: the same type at one wrapped again.
 pub struct Fork<D: Duo + 'static> {
 	pub ping: Option<&'static D::Ping>,

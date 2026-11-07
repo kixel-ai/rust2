@@ -214,6 +214,7 @@ roots = [
     "values::projected_nested",
     "values::projected_over",
     "values::projected_spread",
+    "values::projected_sprawl",
     "values::projected_uninit",
     "values::units_compared",
 ]

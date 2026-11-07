@@ -58,6 +58,9 @@ pub struct Defining<'tcx> {
 	pending: Vec<Pending<'tcx>>,
 	/// How many projections every record holds, which grows while instances are filled.
 	recorded: usize,
+	/// The [`Pending::depth`] and [`Pending::root`] of the instance whose projection
+	/// arguments are being filled.
+	filling: Option<(usize, usize)>,
 	/// The field of the definition being typed whose type is.
 	pub field: Option<DefId>,
 	/// The instances being typed in the type expression being typed, which a definition
@@ -115,6 +118,10 @@ struct Pending<'tcx> {
 	filled: Option<Vec<Type>>,
 	/// Whether it was refused, and so is filled for good.
 	refused: bool,
+	/// How many instances' projection arguments named it in turn, from one a definition's
+	/// fields typed, and that one, by its index in [`Defining::pending`].
+	depth: usize,
+	root: usize,
 }
 
 impl<'tcx> Translator<'_, 'tcx> {
@@ -251,6 +258,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 			span,
 			filled: None,
 			refused: false,
+			depth: state.filling.map_or(0, |(depth, _)| depth + 1),
+			root: state.filling.map_or(state.pending.len(), |(_, root)| root),
 		});
 		Some(Type::Later(state.pending.len() - 1))
 	}
@@ -274,11 +283,11 @@ impl<'tcx> Translator<'_, 'tcx> {
 			unreachable!("an instance of a generic type")
 		};
 		let did = adt.did();
-		let args = tcx.generics_of(did).own_args_no_defaults(tcx, args);
+		// Defaults included, so no alias is named as its type is.
 		let alias = self.program.sym(Symbol {
 			module: self.type_module(did),
 			base: tcx.item_name(did).to_string(),
-			suffix: super::names::args(tcx, args).collect::<Vec<_>>().join("_"),
+			suffix: super::names::args(tcx, args.as_slice()).collect::<Vec<_>>().join("_"),
 			owner: None,
 			kind: SymKind::Union,
 			order: self.order(tcx.def_span(did)),
@@ -473,7 +482,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 	/// Fill in the projection arguments of the instance `pending[i]` typed, from its
 	/// definition's projections so far, refusing an instance at other than type parameters
 	/// whose projections there name a new projection or another instance still being typed,
-	/// as a type that holds itself at other arguments would without end.
+	/// as a type that holds itself at other arguments would without end, and one without
+	/// type parameters named through more instances than the crate's recursion limit.
 	fn fill_pending(&mut self, i: usize) {
 		let p = &self.defining_state.pending[i];
 		let projections: Vec<Ty<'tcx>> = (self.defining_state.records[&p.adt].projections.iter())
@@ -482,13 +492,29 @@ impl<'tcx> Translator<'_, 'tcx> {
 		if p.refused || p.filled.as_ref().is_some_and(|f| f.len() == projections.len()) {
 			return;
 		}
-		let (adt, args, at, field, span) = (p.adt, p.args, p.at, p.field, p.span);
+		let (adt, args, at, field, span, depth, root) = (p.adt, p.args, p.at, p.field, p.span, p.depth, p.root);
+		if !args.has_param() && depth > self.tcx.recursion_limit().0 {
+			// Named by the one its definition's field typed, which the source wrote.
+			let root = &self.defining_state.pending[root];
+			let instance = Ty::new_adt(self.tcx, self.tcx.adt_def(root.adt), root.args);
+			self.err(
+				root.span,
+				format!(
+					"`{instance}` is not supported: its projections' values nest instances past the crate's recursion limit"
+				),
+			);
+			let p = &mut self.defining_state.pending[i];
+			p.filled = Some(vec![Type::Builtin("unknown"); projections.len()]);
+			p.refused = true;
+			return;
+		}
 		let env = at.map_or(self.typing_env(), |(_, env)| env);
 		let named = |state: &Defining<'tcx>| at.map_or(0, |(did, _)| state.records[&did].projections.len());
 		let before = (named(&self.defining_state), self.defining_state.pending.len());
 		let outer = std::mem::replace(&mut self.defining, at);
 		let outer_field = std::mem::replace(&mut self.defining_state.field, field);
 		self.defining_state.projecting += 1;
+		let filling = self.defining_state.filling.replace((depth, root));
 		let mut tys: Vec<Type> = projections
 			.iter()
 			.map(|&p| {
@@ -497,10 +523,12 @@ impl<'tcx> Translator<'_, 'tcx> {
 			})
 			.collect();
 		self.defining_state.projecting -= 1;
+		self.defining_state.filling = filling;
 		self.defining = outer;
 		self.defining_state.field = outer_field;
 		let after = (named(&self.defining_state), self.defining_state.pending.len());
-		let refused = after != before && !args.types().all(|t| matches!(t.kind(), ty::Param(_)));
+		// Instances without type parameters each have an alias, so a finite chain of them ends.
+		let refused = after != before && args.has_param() && !args.types().all(|t| matches!(t.kind(), ty::Param(_)));
 		if refused {
 			let instance = Ty::new_adt(self.tcx, self.tcx.adt_def(adt), args);
 			self.err(

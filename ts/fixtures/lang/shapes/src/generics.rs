@@ -947,6 +947,41 @@ impl Chain<Linked> {
 	}
 }
 
+/// What a source holds next, whose source defaults to the one whose items are it again,
+/// so its alias is named by the default too.
+struct Defaulted<S: Source = Back> {
+	id: u8,
+	next: Option<Box<S::Item>>,
+}
+
+/// The default source of a [`Defaulted`].
+struct Back;
+
+impl Source for Back {
+	type Item = Defaulted;
+}
+
+/// A node holding the node at [`Head`], typed while its own definition is, whose item is the
+/// node at [`Tail`], whose item ends the chain.
+struct Node<S: Source> {
+	item: S::Item,
+	next: Option<Box<Node<Head>>>,
+}
+
+/// The source of the node a [`Node`] holds.
+struct Head;
+
+impl Source for Head {
+	type Item = Node<Tail>;
+}
+
+/// The last source of a [`Node`] chain.
+struct Tail;
+
+impl Source for Tail {
+	type Item = u8;
+}
+
 /// Two types a source names, each holding the other.
 trait Duo {
 	type Ping;
@@ -1053,6 +1088,30 @@ pub fn projected_selves(data: &[u8], out: &mut Vec<u8>) {
 	let mut ids = Vec::new();
 	chain.ids(&mut ids);
 	put(out, &format!("{ids:?}"));
+
+	let defaulted = data.iter().fold(None::<Defaulted>, |next, &b| {
+		Some(Defaulted {
+			id: b,
+			next: next.map(Box::new),
+		})
+	});
+	let mut ids = Vec::new();
+	let mut at = defaulted.as_ref();
+	while let Some(next) = at {
+		ids.push(next.id);
+		at = next.next.as_deref();
+	}
+	let node = Node::<Tail> {
+		item: data.len() as u8,
+		next: data.first().map(|&b| {
+			Box::new(Node::<Head> {
+				item: Node { item: b, next: None },
+				next: None,
+			})
+		}),
+	};
+	let held = node.next.as_ref().map(|n| n.item.item);
+	put(out, &format!("{ids:?} {} {held:?}", node.item));
 
 	let mut ping = Ping::<Rally> { id: 0xee, pong: None };
 	for (i, &b) in data.iter().enumerate() {
