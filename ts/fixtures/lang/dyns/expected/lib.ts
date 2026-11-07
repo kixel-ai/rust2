@@ -3,7 +3,8 @@
 import * as rs from "./rs.ts";
 import type * as Any from "./core/any.Any.ts";
 import type * as Hasher from "./core/hash.Hasher.ts";
-import { sides$dyns_Shape_u32, intoArea$dyns_Shape_u32, larger$dyns_Shape_u32, tally$dyns_Shape_u32, area$dyns_Shape_u32, grow$dyns_Shape_u32, dyns, shared, asAny$dyns_Erased_u32, asAnyMut$dyns_Erased_u32, key$dyns_Keyed_u32, anys, fns, iters, pointers, boxes, tails, rests, apply$dyns_Scaled_u16_u16, scale$dyns_Scaled_u16_u16, bump$dyns_Scaled_u16_u16, pick$dyns_Scaled_u16_u16, take$dyns_Source_u8 as dyns_take$dyns_Source_u8, left$dyns_Source_u8, generics } from "./dyns.ts";
+import { sides$dyns_Shape_u32, intoArea$dyns_Shape_u32, larger$dyns_Shape_u32, tally$dyns_Shape_u32, area$dyns_Shape_u32, grow$dyns_Shape_u32, dyns, shared, asAny$dyns_Erased_u32, asAnyMut$dyns_Erased_u32, key$dyns_Keyed_u32, anys, fns, iters, pointers, boxes, tails, rests, apply$dyns_Scaled_u16_u16, scale$dyns_Scaled_u16_u16, bump$dyns_Scaled_u16_u16, pick$dyns_Scaled_u16_u16, take$dyns_Source_u8 as dyns_take$dyns_Source_u8, left$dyns_Source_u8, generics, peek$dyns_Peek_unit_u8, peek$dyns_Peek_Option_u8_u16, options } from "./dyns.ts";
+import * as Beats from "./dyns.Beats.ts";
 import * as By from "./dyns.By.ts";
 import * as Drained from "./dyns.Drained.ts";
 import * as Guarded from "./dyns.Guarded.ts";
@@ -16,6 +17,7 @@ import * as Many from "./dyns.Many.ts";
 import type * as Nest from "./dyns.Nest.ts";
 import * as Noisy from "./dyns.Noisy.ts";
 import type * as Shape from "./dyns.Shape.ts";
+import * as Skips from "./dyns.Skips.ts";
 import * as Square from "./dyns.Square.ts";
 import * as Steps from "./dyns.Steps.ts";
 import type * as Tagged from "./dyns.Tagged.ts";
@@ -332,6 +334,44 @@ export class of$Option_u8 {
 	}
 }
 
+export class of$String {
+	v: rs.String;
+
+	constructor(v: rs.String) {
+		this.v = v;
+	}
+
+	writeChar$Write(a: rs.char): rs.Result<undefined, rs.FmtError> {
+		rs.stringPush(this.v, a);
+		return rs.OK;
+	}
+
+	writeFmt$Write(a: rs.Arguments): rs.Result<undefined, rs.FmtError> {
+		return rs.fmtWriteString(this.v, a);
+	}
+
+	writeStr$Write(a: string): rs.Result<undefined, rs.FmtError> {
+		rs.stringPushStr(this.v, a);
+		return rs.OK;
+	}
+}
+
+export class of$dyns_Beats {
+	v: Beats.Beats;
+
+	constructor(v: Beats.Beats) {
+		this.v = v;
+	}
+
+	left$Source(): rs.usize {
+		return Beats.left$dyns_Source(this.v);
+	}
+
+	take$Source(): rs.OptionOf<undefined> {
+		return Beats.take$dyns_Source(this.v) as rs.OptionOf<undefined>;
+	}
+}
+
 export class of$dyns_By {
 	v: By.By;
 
@@ -371,8 +411,8 @@ export class of$dyns_Drained {
 		return Drained.left$dyns_Source(this.v);
 	}
 
-	take$Source(): Noisy.Noisy | undefined {
-		return Drained.take$dyns_Source(this.v);
+	take$Source(): rs.OptionOf<Noisy.Noisy> {
+		return Drained.take$dyns_Source(this.v) as rs.OptionOf<Noisy.Noisy>;
 	}
 }
 
@@ -536,6 +576,22 @@ export class of$dyns_Noisy {
 	}
 }
 
+export class of$dyns_Skips {
+	v: Skips.Skips;
+
+	constructor(v: Skips.Skips) {
+		this.v = v;
+	}
+
+	left$Source(): rs.usize {
+		return Skips.left$dyns_Source(this.v);
+	}
+
+	take$Source(): rs.OptionOf<rs.u8 | undefined> {
+		return Skips.take$dyns_Source(this.v) as rs.OptionOf<rs.u8 | undefined>;
+	}
+}
+
 export class of$dyns_Square {
 	v: Square.Square;
 
@@ -571,7 +627,7 @@ export class of$dyns_Square {
 		return Square.key$dyns_Keyed(this.v);
 	}
 
-	label$Named(): string {
+	label$Named(): rs.String {
 		return Square.label$dyns_Named(this.v);
 	}
 
@@ -623,8 +679,8 @@ export class of$dyns_Tri {
 		this.v = v;
 	}
 
-	apply$Scaled(a: (a0: rs.Ptr<string>) => string, a2: string): string {
-		return Tri.apply$dyns_Scaled_String(this.v, a as (a0: string) => string, a2);
+	apply$Scaled(a: (a0: rs.Ptr<rs.String>) => rs.String, a2: rs.String): rs.String {
+		return Tri.apply$dyns_Scaled_String(this.v, a as (a0: rs.String) => rs.String, a2);
 	}
 
 	area$Shape(): rs.u32 {
@@ -639,8 +695,8 @@ export class of$dyns_Tri {
 		return Tri.asAnyMut$dyns_Erased(this);
 	}
 
-	bump$Scaled(a: rs.Ptr<string>): void {
-		return Tri.bump$dyns_Scaled_String(this.v, a as rs.Place<string>);
+	bump$Scaled(a: rs.Ptr<rs.String>): void {
+		return Tri.bump$dyns_Scaled_String(this.v, a as rs.String);
 	}
 
 	fmt$Debug(a: rs.Formatter): rs.Result<undefined, rs.FmtError> {
@@ -655,7 +711,7 @@ export class of$dyns_Tri {
 		return Tri.intoArea$dyns_Shape(this.v);
 	}
 
-	label$Named(): string {
+	label$Named(): rs.String {
 		return Tri.label$dyns_Named(this.v);
 	}
 
@@ -663,11 +719,11 @@ export class of$dyns_Tri {
 		return Tri.larger$dyns_Shape(this.v, a);
 	}
 
-	pick$Scaled(a: rs.Ptr<string>, a2: rs.Ptr<string>): rs.Ptr<string> {
-		return Tri.pick$dyns_Scaled_String(this.v, a as string, a2 as string) as rs.Ptr<string>;
+	pick$Scaled(a: rs.Ptr<rs.String>, a2: rs.Ptr<rs.String>): rs.Ptr<rs.String> {
+		return Tri.pick$dyns_Scaled_String(this.v, a as rs.String, a2 as rs.String) as rs.Ptr<rs.String>;
 	}
 
-	scale$Scaled(a: string): string {
+	scale$Scaled(a: rs.String): rs.String {
 		return Tri.scale$dyns_Scaled_String(this.v, a);
 	}
 
@@ -1037,6 +1093,10 @@ export class of$u16 {
 		return bump$dyns_Scaled_u16_u16(this.v, a as rs.Place<rs.u16>);
 	}
 
+	peek$Peek(): rs.OptionOf<rs.u8 | undefined> {
+		return peek$dyns_Peek_Option_u8_u16(this.v) as rs.OptionOf<rs.u8 | undefined>;
+	}
+
 	pick$Scaled(a: rs.Ptr<rs.u16>, a2: rs.Ptr<rs.u16>): rs.Ptr<rs.u16> {
 		return pick$dyns_Scaled_u16_u16(this.v, a as rs.u16, a2 as rs.u16) as rs.Ptr<rs.u16>;
 	}
@@ -1105,8 +1165,12 @@ export class of$u8 {
 		return left$dyns_Source_u8(this.v);
 	}
 
-	take$Source(): string | undefined {
-		return dyns_take$dyns_Source_u8(this);
+	peek$Peek(): rs.OptionOf<undefined> {
+		return peek$dyns_Peek_unit_u8(this.v) as rs.OptionOf<undefined>;
+	}
+
+	take$Source(): rs.OptionOf<rs.String> {
+		return dyns_take$dyns_Source_u8(this) as rs.OptionOf<rs.String>;
 	}
 }
 
@@ -1123,30 +1187,6 @@ export class ofPlace$Option_u8 {
 
 	constructor(v: rs.Place<rs.u8 | undefined>) {
 		this.v = v;
-	}
-}
-
-export class ofPlace$String {
-	v: rs.Place<string>;
-
-	constructor(v: rs.Place<string>) {
-		this.v = v;
-	}
-
-	writeChar$Write(a: rs.char): rs.Result<undefined, rs.FmtError> {
-		this.v.v = this.v.v + String.fromCodePoint(a);
-		return rs.OK;
-	}
-
-	writeFmt$Write(a: rs.Arguments): rs.Result<undefined, rs.FmtError> {
-		const written = rs.fmtWriteString(this.v.v, a);
-		this.v.v = written.s;
-		return written.result;
-	}
-
-	writeStr$Write(a: string): rs.Result<undefined, rs.FmtError> {
-		this.v.v = this.v.v + a;
-		return rs.OK;
 	}
 }
 
@@ -1209,7 +1249,7 @@ export class ofPlace$dyns_Tri {
 		return Tri.intoArea$dyns_Shape(this.v.v);
 	}
 
-	label$Named(): string {
+	label$Named(): rs.String {
 		return Tri.label$dyns_Named(this.v.v);
 	}
 
@@ -1227,25 +1267,23 @@ export class ofPlace$dyns_Tri {
 }
 
 export class ofPlace$mut_String {
-	v: rs.Place<rs.Place<string>>;
+	v: rs.Place<rs.String>;
 
-	constructor(v: rs.Place<rs.Place<string>>) {
+	constructor(v: rs.Place<rs.String>) {
 		this.v = v;
 	}
 
 	writeChar$Write(a: rs.char): rs.Result<undefined, rs.FmtError> {
-		this.v.v.v = this.v.v.v + String.fromCodePoint(a);
+		rs.stringPush(this.v.v, a);
 		return rs.OK;
 	}
 
 	writeFmt$Write(a: rs.Arguments): rs.Result<undefined, rs.FmtError> {
-		const written = rs.fmtWriteString(this.v.v.v, a);
-		this.v.v.v = written.s;
-		return written.result;
+		return rs.fmtWriteString(this.v.v, a);
 	}
 
 	writeStr$Write(a: string): rs.Result<undefined, rs.FmtError> {
-		this.v.v.v = this.v.v.v + a;
+		rs.stringPushStr(this.v.v, a);
 		return rs.OK;
 	}
 }
@@ -1305,8 +1343,8 @@ export class ofPlace$u8 {
 		return left$dyns_Source_u8(this.v.v);
 	}
 
-	take$Source(): string | undefined {
-		return dyns_take$dyns_Source_u8(this.v);
+	take$Source(): rs.OptionOf<rs.String> {
+		return dyns_take$dyns_Source_u8(this.v) as rs.OptionOf<rs.String>;
 	}
 }
 
@@ -1345,6 +1383,8 @@ export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.By
 		generics(data10, out10);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["stds::stds", (_220: rs.u8, data11: rs.ByteSlice, out11: rs.ByteVec): undefined => {
 		stds(data11, out11);
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::options", (_221: rs.u8, data12: rs.ByteSlice, out12: rs.ByteVec): undefined => {
+		options(data12, out12);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }
 

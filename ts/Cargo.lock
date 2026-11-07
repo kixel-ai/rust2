@@ -80,9 +80,6 @@ dependencies = [
 [[package]]
 name = "crates-dep"
 version = "0.0.0"
-dependencies = [
- "bytes",
-]
 
 [[package]]
 name = "crates-fixture"
@@ -90,6 +87,10 @@ version = "0.0.0"
 dependencies = [
  "crates-dep",
 ]
+
+[[package]]
+name = "edition2018"
+version = "0.0.0"
 
 [[package]]
 name = "equivalent"
@@ -379,6 +380,7 @@ name = "lang-panics-fixture"
 version = "0.0.0"
 dependencies = [
  "bytes",
+ "edition2018",
 ]
 
 [[package]]

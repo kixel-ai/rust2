@@ -38,7 +38,8 @@ ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI throu
 ```toml
 # ffi.toml, beside the package's Cargo.toml unless --manifest-path says otherwise.
 # Paths from the facade's root left out: a module, an item, or one method or field. Each
-# must name something exported. Nothing else leaves an item out. As in rustdoc, a path a
+# must name something exported, or what a `cfg` leaves out of this build, as moq-tokio's
+# `unix` is on Windows. Nothing else leaves an item out. As in rustdoc, a path a
 # method or constant shares with a field names the method, and `field@` the field.
 exclude = ["track::Producer::poll_closed"]
 ```

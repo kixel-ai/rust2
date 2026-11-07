@@ -1,8 +1,9 @@
 //! `panic::set_hook` and `take_hook`, and the `PanicHookInfo` a hook reads: its payload,
 //! as text and downcast, its location, and its `Display`, for panics of the crate's own
 //! code, of std's functions that take their caller's location, of those an integer's macro
-//! defines, and of std's own code, at the path the native build names; a hook that
-//! panics, which aborts; and `thread::panicking` within one and outside.
+//! defines, of std's own code, at the path the native build names, and of a 2018-edition
+//! crate's `panic!`, whose payload is any value; a hook that panics, which aborts; and
+//! `thread::panicking` within one and outside.
 //!
 //! Each case's hook writes what it read to [`NOTE`], which the host reads once the panic
 //! traps, and passes the panic on to the hook it replaced, the harness's natively.
@@ -33,6 +34,8 @@ fn record(info: &PanicHookInfo<'_>) {
 		"String".to_string()
 	} else if let Some(n) = payload.downcast_ref::<u32>() {
 		format!("u32 {n}")
+	} else if let Some(n) = payload.downcast_ref::<u8>() {
+		format!("u8 {n}")
 	} else {
 		"other".to_string()
 	};
@@ -71,6 +74,17 @@ fn hook() {
 	}));
 }
 
+/// Have the hook also write a `String` payload's capacity, which `panic!` formats into one
+/// from empty and `panic_any` keeps.
+fn sized() {
+	let prev = panic::take_hook();
+	panic::set_hook(Box::new(move |info| {
+		let capacity = info.payload().downcast_ref::<String>().map(String::capacity);
+		NOTE.with_borrow_mut(|note| note.push_str(&format!("capacity {capacity:?}\n")));
+		prev(info);
+	}));
+}
+
 #[track_caller]
 fn tracked(n: u8) -> u8 {
 	panic!("tracked {n}")
@@ -83,7 +97,10 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let v = vec![n, n];
 	match kind % 32 {
 		0 => panic!("literal"),
-		1 => panic!("formatted {n}"),
+		1 => {
+			sized();
+			panic!("formatted {n}")
+		}
 		2 => out.push(v[usize::from(n) + 2]),
 		3 => out.push(n.max(200) + n.max(100)),
 		4 => out.push(Some(n).filter(|_| false).unwrap()),
@@ -102,7 +119,10 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		13 => v.clone().rotate_left(usize::from(n) + 3),
 		14 => out.push(HashMap::<u8, u8>::new()[&n]),
 		15 => panic::panic_any(u32::from(n)),
-		16 => panic::panic_any(format!("any {n}")),
+		16 => {
+			sized();
+			panic::panic_any(format!("any {n}"))
+		}
 		17 => assert_eq!(n, n.wrapping_add(1), "differ"),
 		18 => out.push(tracked(n)),
 		19 => out.push(VecDeque::from(v.clone())[usize::from(n) + 2]),
@@ -456,4 +476,13 @@ pub fn stock(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		_ => out.push(BytesMut::zeroed(usize::MAX - at).len() as u8),
 	}
 	out.extend_from_slice(&shared);
+}
+
+/// The 2018-edition crate's panics, with a hook set on the paths that panic, so the hook
+/// does not outlive a case that returns.
+pub fn edition2018_panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	if kind % 7 != 6 || data.first().copied().unwrap_or(0) > 200 {
+		hook();
+	}
+	edition2018::panicked(kind, data, out);
 }

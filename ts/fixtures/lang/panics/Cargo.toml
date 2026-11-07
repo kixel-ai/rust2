@@ -17,6 +17,7 @@ hook = ["dep:bytes"]
 
 [dependencies]
 bytes = { version = "1.12.1", optional = true }
+edition2018 = { path = "edition2018" }
 
 [lints]
 workspace = true

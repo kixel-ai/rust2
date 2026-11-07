@@ -3,11 +3,11 @@
 import * as rs from "./rs.ts";
 
 export interface Named {
-	name: string;
+	name: rs.String;
 }
 
 export function add(self: Named, c: rs.char): void {
-	self.name = self.name + String.fromCodePoint(c);
+	rs.stringPush(self.name, c);
 }
 
 //# sourceMappingURL=strs.Named.ts.map

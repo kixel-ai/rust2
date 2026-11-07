@@ -11,7 +11,7 @@ use rustc_hir::def_id::{CrateNum, DefId};
 use rustc_middle::ty::{self, Instance, Ty, TyCtxt, TypeVisitableExt};
 
 use super::body::Body;
-use super::library::{self, Call, Std, key, string, targ};
+use super::library::{self, Call, Std, key, owned_string, string, targ};
 use super::num::Int;
 use crate::ts::{Expr, Stmt, StmtKind};
 
@@ -91,7 +91,7 @@ pub fn is_opaque_crate(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
 /// `BytesMut`, and their functions and impls, and the crate's impls of std's byte slices
 /// and vectors. The mapping of a function stands in for it or refuses it. The impls that
 /// forward through a reference or a `Box`, and the crate's other types and functions,
-/// translate.
+/// translate, as does its impl for a `VecDeque<u8>`.
 pub fn mapped(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	if tcx.crate_name(did.krate).as_str() != "bytes" {
 		return false;
@@ -266,10 +266,11 @@ impl Buffer {
 
 /// Whether `ty`, the `Self` of a function of `bytes`, has a representation of its own or
 /// is std's, so a mapping stands in for its impls: not a type parameter, through which an
-/// impl forwards, nor the crate's own buffer or another crate's, which translate.
+/// impl forwards, nor the crate's own buffer or another crate's, nor a `VecDeque<u8>`,
+/// whose impl reads the slices the runtime's deque has, which translate.
 fn mapped_self<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	match ty.kind() {
-		ty::Adt(adt, _) => library::Std::of(tcx, adt.did()).is_some() && !ty.has_param(),
+		ty::Adt(adt, _) => library::Std::of(tcx, adt.did()).is_some_and(|std| std != Std::VecDeque) && !ty.has_param(),
 		ty::Ref(_, inner, _) => matches!(inner.kind(), ty::Slice(e) if is_u8(*e)),
 		_ => false,
 	}
@@ -341,6 +342,7 @@ fn as_slice<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr) -> Option<E
 		ty::Slice(e) if is_u8(*e) => value,
 		ty::Array(e, _) if is_u8(*e) => Expr::rs("byteSliceFrom", vec![value]),
 		_ if string(b.t.tcx, ty) => Expr::rs("stringAsBytes", vec![value]),
+		_ if owned_string(b.t.tcx, ty) => Expr::rs("stringAsBytes", vec![value.member("v")]),
 		_ => match b.t.std_of(ty)? {
 			Std::Bytes => value,
 			Std::BytesMut => view(value),
@@ -364,11 +366,9 @@ fn from<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>) ->
 	let f = match (b.t.std_of(to), b.t.std_of(from)) {
 		(Some(Std::Bytes), Some(Std::BytesMut)) => "bytesMutFreeze",
 		(Some(Std::Bytes), _) if byte_vec(from) => "bytesFromVec",
-		// A `&'static str`'s bytes are static. A `String`'s are a vector whose capacity is
-		// their length, as JS keeps none of the `String`'s, so the program's reads of one are refused.
+		// A `&'static str`'s bytes are static, and a `String`'s are its vector, with its capacity.
 		(Some(Std::Bytes), _) if from.is_ref() && string(tcx, from.peel_refs()) => "stringAsBytes",
-		(Some(Std::Bytes), _) if string(tcx, from) => {
-			b.t.string_bytes();
+		(Some(Std::Bytes), _) if owned_string(tcx, from) => {
 			let bytes = Expr::rs("stringIntoBytes", args.collect());
 			return Ok(Some(Expr::rs("bytesFromVec", vec![bytes])));
 		}
@@ -377,18 +377,12 @@ fn from<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>) ->
 		(Some(Std::BytesMut), _) => {
 			let bytes = match as_slice(b, from.peel_refs(), args.next().expect("an operand")) {
 				Some(bytes) if from.is_ref() => Expr::rs("bytesMutFrom", vec![bytes]),
-				Some(bytes) if b.t.std_of(from) == Some(Std::Bytes) => {
-					b.t.string_capacity(call.span, "BytesMut::from(Bytes)");
-					Expr::rs("bytesMutFromBytes", vec![bytes])
-				}
+				Some(bytes) if b.t.std_of(from) == Some(Std::Bytes) => Expr::rs("bytesMutFromBytes", vec![bytes]),
 				_ => return Ok(None),
 			};
 			return Ok(Some(bytes));
 		}
-		(_, Some(Std::Bytes)) if byte_vec(to) => {
-			b.t.string_capacity(call.span, "Vec::from(Bytes)");
-			"bytesToByteVec"
-		}
+		(_, Some(Std::Bytes)) if byte_vec(to) => "bytesToByteVec",
 		(_, Some(Std::BytesMut)) if byte_vec(to) => "bytesMutToByteVec",
 		(_, Some(Std::Bytes | Std::BytesMut)) => return Ok(None),
 		_ => return Err(args.collect()),
@@ -448,10 +442,6 @@ fn bytes_own<'tcx>(
 	out: &mut Vec<Stmt>,
 ) -> Option<Expr> {
 	let tcx = b.t.tcx;
-	// Whether the storage is unique, and whether truncating gives it up, hinge on its capacity.
-	if matches!(name, "is_unique" | "try_into_mut" | "truncate" | "clear") {
-		b.t.string_capacity(call.span, &format!("Bytes::{name}"));
-	}
 	let mut args = args.into_iter();
 	Some(match name {
 		"new" => Expr::rs("bytesNew", vec![]),
@@ -709,15 +699,6 @@ fn put<'tcx>(
 	// Into a `BytesMut` of no capacity, `bytes` copies it out whole and drops it, then takes
 	// the copy's storage if no other handle holds it, so the runtime drops it there.
 	if buffer == Buffer::BytesMut && !through {
-		// `bytes`' own puts fill a `BytesMut::with_capacity` of what they put, never one of no capacity.
-		let file = tcx
-			.sess
-			.source_map()
-			.lookup_source_file(call.span.source_callsite().lo());
-		let own = tcx.crate_name(file.cnum).as_str() == "bytes";
-		if !own && !matches!(source, Some(Buffer::BytesMut | Buffer::Slice)) {
-			b.t.string_capacity(call.span, "BufMut::put");
-		}
 		let f = match source {
 			Some(Buffer::Bytes) => "bytesMutPutStorage",
 			Some(Buffer::BytesMut) => "bytesMutPutMut",

@@ -33,3 +33,7 @@ impl Area {
 		u64::from(self.size.width) * u64::from(self.size.height)
 	}
 }
+
+/// What no build compiles, which a config still names, as it does what one platform builds.
+#[cfg(any())]
+pub mod gone {}

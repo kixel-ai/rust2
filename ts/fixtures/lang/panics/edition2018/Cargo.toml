@@ -1,0 +1,10 @@
+[package]
+name = "edition2018"
+description = "A 2018-edition crate's panics, which expand to std's `begin_panic`"
+version = "0.0.0"
+edition = "2018"
+license.workspace = true
+publish = false
+
+[lints]
+workspace = true

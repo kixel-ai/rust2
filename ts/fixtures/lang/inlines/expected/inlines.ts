@@ -18,41 +18,41 @@ import * as Text from "./inlines.Text.ts";
  * instance's own `Display` stands behind.
  */
 export function texts(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const s: string = text(data);
+	const s: rs.String = text(data);
 	const small: Text.Text = copy$inlines_Text_3(Text.new$3());
 	const large: Text.Text = copy$inlines_Text_16(Text.default$Default_16());
 	const none: Text.Text = copy$inlines_Text_0(Text.new$0());
-	const failed: rs.Vec<string> = new rs.Vec();
-	const iter: rs.Iter<rs.char> = rs.strChars(s);
+	const failed: rs.Vec<rs.String> = new rs.Vec();
+	const iter: rs.Iter<rs.char> = rs.strChars(s.v);
 	while (true) {
 		const _14: rs.char | rs.Done = iter.next();
 		if (_14 === rs.DONE) {
 			break;
 		}
-		const c2: string = rs.charEncodeUtf8(_14, rs.byteSliceFrom(rs.bytes(4))).v;
-		const _24: rs.Result<undefined, Full.Full> = Text.tryPushStr$3(small, c2);
+		const c2: rs.String = rs.stringFrom(rs.charEncodeUtf8(_14, rs.byteSliceFrom(rs.bytes(4))).v);
+		const _24: rs.Result<undefined, Full.Full> = Text.tryPushStr$3(small, c2.v);
 		if (!_24.ok) {
 			const arg = _24.error;
-			const _32: string = rs.fmtFormat([(f: rs.Formatter) => Full.fmt$fmt_Debug_3(arg, f)]);
+			const _32: rs.String = rs.fmtFormat([(f: rs.Formatter) => Full.fmt$fmt_Debug_3(arg, f)]);
 			failed.items.push(_32);
 		}
-		if (!Text.tryPushStr$16(large, c2).ok) {
+		if (!Text.tryPushStr$16(large, c2.v).ok) {
 			const part = rs.stringLen(Text.deref$ops_Deref_16(large));
-			const _49: string = rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(part, f)]);
+			const _49: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.usizeDisplay(part, f)]);
 			failed.items.push(_49);
 		}
-		if (!Text.tryPushStr$0(none, c2).ok) {
+		if (!Text.tryPushStr$0(none, c2.v).ok) {
 			if (Text.tryPushStr$0(none, "").ok) {
-				const _74: string = rs.fmtFormat([(f: rs.Formatter) => Text.fmt$fmt_Display_0(none, f)]);
+				const _74: rs.String = rs.fmtFormat([(f: rs.Formatter) => Text.fmt$fmt_Display_0(none, f)]);
 				failed.items.push(_74);
 			}
 		}
 	}
-	const cut: Text.Text = Text.truncated$5(s);
+	const cut: Text.Text = Text.truncated$5(s.v);
 	const again: Text.Text = Text.truncated$5(Text.deref$ops_Deref_5(cut));
 	const shown: rs.Vec<rs.Fmt> = rs.vecFrom([rs.fmtOwned(copy$inlines_Text_3(small), (value: Text.Text, f: rs.Formatter) => Text.fmt$fmt_Display_3(value, f)), rs.fmtOwned(copy$inlines_Text_16(large), (value: Text.Text, f: rs.Formatter) => Text.fmt$fmt_Display_16(value, f)), rs.fmtOwned(copy$inlines_Text_5(cut), (value: Text.Text, f: rs.Formatter) => Text.fmt$fmt_Display_5(value, f)), rs.fmtOwned(copy$inlines_Text_0(none), (value: Text.Text, f: rs.Formatter) => Text.fmt$fmt_Display_0(value, f))]);
 	for (const _105 of shown.items) {
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => _105(f))));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => _105(f)).v));
 		rs.byteVecPush(out, 124);
 	}
 	const _119: rs.usize = Text.capacity$3(small);
@@ -61,8 +61,8 @@ export function texts(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _128: boolean = Text.eq$cmp_PartialEq_5(cut, again);
 	const _132: rs.Ordering = Text.cmp$cmp_Ord_5(cut, again);
 	const _136: rs.Ordering | undefined = Text.partialCmp$cmp_PartialOrd_4(Text.truncated$4(Text.deref$ops_Deref_3(small)), Text.truncated$4(Text.deref$ops_Deref_16(large)));
-	const args12 = [(f: rs.Formatter) => Text.fmt$fmt_Debug_3(small, f), (f: rs.Formatter) => Text.fmt$fmt_Debug_16(large, f), (f: rs.Formatter) => rs.usizeDisplay(_119, f), (f: rs.Formatter) => rs.usizeDisplay(_122, f), (f: rs.Formatter) => rs.usizeDisplay(_125, f), (f: rs.Formatter) => rs.fmtBool(_128, f), (f: rs.Formatter) => rs.fmtOrdering(_132, f), (f: rs.Formatter) => rs.fmtOption(_136, f, rs.fmtOrdering), (f: rs.Formatter) => rs.fmtList(failed.items, f, rs.fmtStr)];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " ", args12[3], " ", args12[4], " ", args12[5], " ", args12[6], " ", args12[7], " ", args12[8]])));
+	const args12 = [(f: rs.Formatter) => Text.fmt$fmt_Debug_3(small, f), (f: rs.Formatter) => Text.fmt$fmt_Debug_16(large, f), (f: rs.Formatter) => rs.usizeDisplay(_119, f), (f: rs.Formatter) => rs.usizeDisplay(_122, f), (f: rs.Formatter) => rs.usizeDisplay(_125, f), (f: rs.Formatter) => rs.fmtBool(_128, f), (f: rs.Formatter) => rs.fmtOrdering(_132, f), (f: rs.Formatter) => rs.fmtOption(_136, f, rs.fmtOrdering), (f: rs.Formatter) => rs.fmtList(failed.items, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))];
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " ", args12[3], " ", args12[4], " ", args12[5], " ", args12[6], " ", args12[7], " ", args12[8]]).v));
 	rs.dropVec(shown);
 }
 
@@ -103,7 +103,7 @@ export function values(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _28: Mark.Mark = {};
 	const _29: Mark.Mark = {};
 	const args7 = [(f: rs.Formatter) => Mark.fmt$fmt_Display_x_false(_27, f), (f: rs.Formatter) => Mark.fmt$fmt_Display_ue9_true(_28, f), (f: rs.Formatter) => Mark.fmt$fmt_Display_u1f600_true(_29, f)];
-	const marks: string = rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]]);
+	const marks: rs.String = rs.fmtFormat([args7[0], " ", args7[1], " ", args7[2]]);
 	const two: Small.Small = Small.from$2(data);
 	const four: Small.Small = Small.from$4(data);
 	const halves: rs.Vec<Small.Small> = rs.iterToVec(rs.iterMap(rs.byteSliceChunks(data, 3), Small.from$4), undefined, 12, true);
@@ -117,8 +117,8 @@ export function values(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}));
 	const _57: Mod.Mod = seven;
 	const _58: Mod.Mod = big;
-	const args8 = [(f: rs.Formatter) => Mod.fmt$fmt_Debug_7(_57, f), (f: rs.Formatter) => Mod.fmt$fmt_Debug_4294967291(_58, f), (f: rs.Formatter) => rs.fmtPad(f, marks), (f: rs.Formatter) => Small.fmt$fmt_Debug_2(two, f), (f: rs.Formatter) => Small.fmt$fmt_Debug_4(four, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_46), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_49), f, rs.u8Debug), (f: rs.Formatter) => rs.usizeDisplay(_52, f)];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args8[0], " ", args8[1], " ", args8[2], " ", args8[3], " ", args8[4], " ", args8[5], " ", args8[6], " ", args8[7]])));
+	const args8 = [(f: rs.Formatter) => Mod.fmt$fmt_Debug_7(_57, f), (f: rs.Formatter) => Mod.fmt$fmt_Debug_4294967291(_58, f), (f: rs.Formatter) => rs.fmtPad(f, marks.v), (f: rs.Formatter) => Small.fmt$fmt_Debug_2(two, f), (f: rs.Formatter) => Small.fmt$fmt_Debug_4(four, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_46), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_49), f, rs.u8Debug), (f: rs.Formatter) => rs.usizeDisplay(_52, f)];
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args8[0], " ", args8[1], " ", args8[2], " ", args8[3], " ", args8[4], " ", args8[5], " ", args8[6], " ", args8[7]]).v));
 	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(halves.items), (h2: Small.Small): rs.ByteSlice => {
 		return Small.bytes$4(h2);
 	}, (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true), "next");
@@ -129,7 +129,7 @@ export function values(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	block._0[0] = block._0[0] ^ 255;
 	const _94: Block.Block | undefined = reclone$0(undefined);
 	const args9 = [(f: rs.Formatter) => Block.fmt$fmt_Debug_3(block, f), (f: rs.Formatter) => rs.fmtOption(copied, f, (value: Block.Block, f: rs.Formatter) => Block.fmt$fmt_Debug_3(value, f)), (f: rs.Formatter) => rs.fmtOption(_94, f, (value: Block.Block, f: rs.Formatter) => Block.fmt$fmt_Debug_0(value, f))];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args9[0], " ", args9[1], " ", args9[2]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args9[0], " ", args9[1], " ", args9[2]]).v));
 }
 
 export const DROPS: rs.LocalKey<rs.RefCell<rs.ByteVec>> = /* @__PURE__ */ new rs.LocalKey(DROPS$init, false);
@@ -147,10 +147,10 @@ export function stacks(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecClear(a0);
 	});
 	const bytes: Stack.Stack<rs.u8> = Stack.new$u8_3();
-	const words: Stack.Stack<string> = Stack.new$String_2();
+	const words: Stack.Stack<rs.String> = Stack.new$String_2();
 	const texts: Stack.Stack<Text.Text> = Stack.new$inlines_Text_2_4();
 	const nested: Stack.Stack<Stack.Stack<rs.u8>> = Stack.new$inlines_Stack_u8_1_2();
-	const none: Stack.Stack<string> = Stack.new$String_0();
+	const none: Stack.Stack<rs.String> = Stack.new$String_0();
 	for (const b of rs.byteSliceView(data)) {
 		const _18: rs.u8 = rs.u8Rem(b, 4);
 		if (_18 === 0) {
@@ -160,18 +160,18 @@ export function stacks(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (!_23.ok) {
 				rs.byteVecPush(out, _23.error);
 			}
-			const _30: string = rs.fmtFormat(["n", (f: rs.Formatter) => rs.u8Display(b, f)]);
-			const _28: rs.Result<undefined, string> = Stack.push$String_0(none, _30);
+			const _30: rs.String = rs.fmtFormat(["n", (f: rs.Formatter) => rs.u8Display(b, f)]);
+			const _28: rs.Result<undefined, rs.String> = Stack.push$String_0(none, _30);
 			if (!_28.ok) {
-				rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_28.error));
+				rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_28.error.v));
 			}
 		} else if (_18 === 2) {
-			const _46: string = rs.fmtFormat(["w", (f: rs.Formatter) => rs.u8Display(b, f)]);
-			const _44: rs.Result<undefined, string> = Stack.push$String_2(words, _46);
+			const _46: rs.String = rs.fmtFormat(["w", (f: rs.Formatter) => rs.u8Display(b, f)]);
+			const _44: rs.Result<undefined, rs.String> = Stack.push$String_2(words, _46);
 			if (!_44.ok) {
-				rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_44.error));
+				rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_44.error.v));
 			}
-			const _62: Text.Text = Text.truncated$2(rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(b, f)]));
+			const _62: Text.Text = Text.truncated$2(rs.fmtFormat([(f: rs.Formatter) => rs.u8Display(b, f)]).v);
 			Stack.push$inlines_Text_2_4(texts, _62);
 		} else {
 			const inner: Stack.Stack<rs.u8> = Stack.new$u8_1();
@@ -185,7 +185,7 @@ export function stacks(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 	}
 	const args12 = [(f: rs.Formatter) => Stack.fmt$fmt_Debug_u8_3(bytes, f), (f: rs.Formatter) => Stack.fmt$fmt_Debug_String_2(words, f), (f: rs.Formatter) => Stack.fmt$fmt_Debug_inlines_Text_2_4(texts, f), (f: rs.Formatter) => Stack.fmt$fmt_Debug_inlines_Stack_u8_1_2(nested, f), (f: rs.Formatter) => Stack.fmt$fmt_Debug_String_0(none, f)];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " ", args12[3], " ", args12[4]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " ", args12[3], " ", args12[4]]).v));
 	drop$inlines_Stack_String_0(none);
 	drop$inlines_Stack_inlines_Stack_u8_1_2(nested);
 	drop$inlines_Stack_inlines_Text_2_4(texts);

@@ -4,7 +4,10 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use rustc_data_structures::fx::FxHashSet;
 use rustc_driver::{Callbacks, Compilation};
+use rustc_hir::def::{DefKind, Res};
+use rustc_hir::def_id::{DefId, LOCAL_CRATE};
 use rustc_interface::interface::Compiler;
 use rustc_middle::ty::TyCtxt;
 use rustc_span::Span;
@@ -15,7 +18,7 @@ use crate::{census, collect, glue};
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
 pub fn run(args: Vec<String>) -> ExitCode {
-	rust2_driver::rustc::run("rust2-ffi", args, |args| {
+	rust2_driver::rustc::run("rust2-ffi", args, |args, _| {
 		Ok(Export::for_args(args)?.map(|job| Box::new(job) as rust2_driver::rustc::Job))
 	})
 }
@@ -114,7 +117,7 @@ impl Callbacks for Export {
 					refuse(tcx, refusal, "exclude it in the config to leave it out");
 				}
 				for (path, count) in &report.excluded {
-					if *count == 0 {
+					if *count == 0 && !configured_out(tcx, path) {
 						tcx.dcx().err(format!(
 							"rust2-ffi: exclude `{path}` in the config names nothing exported"
 						));
@@ -199,4 +202,39 @@ pub fn write(path: &Path, text: &str) -> Result<(), String> {
 		std::fs::create_dir_all(dir).map_err(|err| format!("creating {}: {err}", dir.display()))?;
 	}
 	std::fs::write(path, text).map_err(|err| format!("writing {}: {err}", path.display()))
+}
+
+/// Whether `path`, from the facade's root, names an item a `cfg` leaves out of this build:
+/// the config names it for the builds that have it. Its first segment no module has is
+/// stripped from that module or from one the module re-exports items of, as a glob does.
+fn configured_out(tcx: TyCtxt<'_>, path: &str) -> bool {
+	let path = path.strip_prefix("field@").unwrap_or(path);
+	let mut module = LOCAL_CRATE.as_def_id();
+	for segment in path.split("::") {
+		let name = segment.split('<').next().unwrap_or(segment);
+		let children = match module.as_local() {
+			Some(local) => tcx.module_children_local(local),
+			None => tcx.module_children(module),
+		};
+		if let Some(child) = children.iter().find(|child| child.ident.as_str() == name) {
+			match child.res {
+				Res::Def(DefKind::Mod, def_id) => {
+					module = def_id;
+					continue;
+				}
+				// A member of an item, which no `cfg` this checks strips.
+				_ => return false,
+			}
+		}
+		let sources = (children.iter())
+			.filter_map(|child| child.res.opt_def_id())
+			.filter_map(|def_id| tcx.opt_parent(def_id))
+			.chain([module]);
+		let stripped = |source: DefId| {
+			(tcx.stripped_cfg_items(source.krate).iter())
+				.any(|item| item.parent_scope == source && item.ident.as_str() == name)
+		};
+		return sources.collect::<FxHashSet<_>>().into_iter().any(stripped);
+	}
+	false
 }

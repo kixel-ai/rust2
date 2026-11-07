@@ -114,10 +114,10 @@ export function encodeFailed(out: rs.ByteVec, err: EncodeError.EncodeError): voi
 }
 
 /** An error's thiserror `Display` and derived `Debug`, which callers see. */
-export function putText(out: rs.ByteVec, display: string, debug: string): void {
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(display));
+export function putText(out: rs.ByteVec, display: rs.String, debug: rs.String): void {
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(display.v));
 	rs.byteVecPush(out, 0);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(debug));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(debug.v));
 	rs.byteVecPush(out, 0);
 }
 
@@ -278,9 +278,9 @@ export function decodeStep(r: Decoder.Decoder, step: rs.u8, out: rs.ByteVec): rs
 			return rs.Err(err3 as DecodeError.DecodeError);
 		}
 	} else if (_5 === 6) {
-		const _49: rs.Result<string, DecodeError.DecodeError> = Decoder.string(r);
+		const _49: rs.Result<rs.String, DecodeError.DecodeError> = Decoder.string(r);
 		if (_49.ok) {
-			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_49.value));
+			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(_49.value.v));
 		} else {
 			return _49;
 		}
@@ -362,9 +362,9 @@ export function encodeScript(dataData: Uint8Array, dataStart: number, dataLen: n
 					const _51: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(rs.u64ToBeBytes(value)), 0, rs.u8Rem(rs.u8Div(step, 10), 9) as rs.usize);
 					result = Encoder.bytes(w, _51);
 				} else if (_33 === 6) {
-					const _60: rs.Result<string, rs.FromUtf8Error> = rs.stringFromUtf8(rs.byteSliceToByteVec(rs.byteSliceFrom(rs.u64ToBeBytes(value))));
+					const _60: rs.Result<rs.String, rs.FromUtf8Error> = rs.stringFromUtf8(rs.byteSliceToByteVec(rs.byteSliceFrom(rs.u64ToBeBytes(value))));
 					if (_60.ok) {
-						result = Encoder.string(w, _60.value);
+						result = Encoder.string(w, _60.value.v);
 					} else {
 						result = Encoder.string(w, "not utf-8");
 					}
@@ -574,7 +574,7 @@ export function errors(dataData: Uint8Array, dataStart: number, dataLen: number,
 			} else if (_10 === 3) {
 				err = { tag: "Session", _0: { tag: "ProtocolViolation" } as SessionError.SessionError } as DecodeError.DecodeError;
 			} else if (_10 === 4) {
-				const _20: rs.Result<string, rs.FromUtf8Error> = rs.stringFromUtf8(rs.byteSliceToByteVec(data2));
+				const _20: rs.Result<rs.String, rs.FromUtf8Error> = rs.stringFromUtf8(rs.byteSliceToByteVec(data2));
 				if (_20.ok) {
 					err = { tag: "Missing" } as DecodeError.DecodeError;
 				} else {
@@ -585,7 +585,7 @@ export function errors(dataData: Uint8Array, dataStart: number, dataLen: number,
 			} else {
 				if (_10 === 6) {
 					const arg = {};
-					const _26: string = rs.fmtToString((f: rs.Formatter) => BoundsExceeded.fmt$fmt_Display(arg, f));
+					const _26: rs.String = rs.fmtToString((f: rs.Formatter) => BoundsExceeded.fmt$fmt_Display(arg, f));
 					const arg2 = {};
 					const args7 = [(f: rs.Formatter) => BoundsExceeded.fmt$fmt_Debug(arg2, f)];
 					putText(out, _26, rs.fmtFormat([args7[0], " ", rs.fmtSpec({ alternate: true }, args7[0])]));

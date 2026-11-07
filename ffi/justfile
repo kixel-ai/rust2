@@ -9,7 +9,8 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { env("RUST2_TS_TOOLCHAIN") / "bin:" + env("PATH") }
 
 # The moq revision these recipes export by default: `just ts`'s, so both follow one moq.
-moq_rev := shell(just_executable() + " --justfile ../ts/justfile --evaluate moq_rev")
+# just's own path is quoted wherever bash runs it: on Windows, its backslashes are escapes.
+moq_rev := shell(quote(just_executable()) + " --justfile ../ts/justfile --evaluate moq_rev")
 
 default:
     @just --list
@@ -58,11 +59,11 @@ bench checkout="": (moq checkout)
     cc -O2 -std=c11 -Wall -Wextra -Werror -I "$out/include" moq/bench/export.c "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export
     cc -O2 -std=c11 -Wall -Wextra -Werror -I "$moqc/include" moq/bench/moq-c.c "$src/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-moq-c
     c++ -O2 -std=c++17 -Wall -Wextra -Werror -I "$out/include" moq/bench/export.cpp "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export-cpp
-    {{ just_executable() }} go-module bench-go moq/bench/export.go
+    {{ quote(just_executable()) }} go-module bench-go moq/bench/export.go
     read -ra native < target/moq-native
     export CGO_LDFLAGS="$PWD/$out/target/release/libmoq.a ${native[*]}" GOFLAGS=-buildvcs=false
     (cd target/bench-go && go build -o bench .)
-    {{ just_executable() }} dart-program bench-dart moq/bench/export.dart
+    {{ quote(just_executable()) }} dart-program bench-dart moq/bench/export.dart
     rm -rf target/bench-kt
     kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/bench/export.kt -d target/bench-kt
     swift=true
@@ -70,8 +71,8 @@ bench checkout="": (moq checkout)
         echo "skipping the Swift: nixpkgs builds no Swift for aarch64-linux (quest/m2/uniffi-swift-arm.md)" >&2
         swift=false
     else
-        {{ just_executable() }} swift-module -O
-        swiftc -O -warnings-as-errors $({{ just_executable() }} swift-target 15) -I target/swift -I "$out/swift" moq/bench/export.swift target/swift/libMoq.a "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export-swift
+        {{ quote(just_executable()) }} swift-module -O
+        swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I "$out/swift" moq/bench/export.swift target/swift/libMoq.a "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export-swift
     fi
     for _ in 1 2 3; do
         target/bench-moq-c
@@ -104,14 +105,14 @@ moq checkout="": (moq-cpp checkout)
     if [ "{{ os() }}-{{ arch() }}" = linux-aarch64 ]; then
         echo "skipping moq/moq.swift: nixpkgs builds no Swift for aarch64-linux (quest/m2/uniffi-swift-arm.md)" >&2
     else
-        {{ just_executable() }} moq-swift-run
+        {{ quote(just_executable()) }} moq-swift-run
     fi
     # The Go, through cgo, linking the library and what it needs besides.
-    {{ just_executable() }} go-module moq-go moq/moq.go
+    {{ quote(just_executable()) }} go-module moq-go moq/moq.go
     export CGO_LDFLAGS="$PWD/$out/target/release/libmoq.a ${native[*]}" GOFLAGS=-buildvcs=false
     (cd target/moq-go && go vet ./... && go run .)
     # The Dart, through the shared library the dart feature builds.
-    {{ just_executable() }} dart-program moq-dart moq/moq.dart
+    {{ quote(just_executable()) }} dart-program moq-dart moq/moq.dart
     dart --enable-asserts target/moq-dart/main.dill
 
 # Export and build moq's crates' C ABI as `just ffi moq` does, and run only moq/moq.cpp against it, built by $CXX or the platform's compiler: MSVC's on Windows, from a developer environment.
@@ -140,8 +141,8 @@ moq-swift-run:
     set -euo pipefail
     out=target/export/moq
     read -ra native < target/moq-native
-    {{ just_executable() }} swift-module
-    swiftc -warnings-as-errors $({{ just_executable() }} swift-target 15) -parse-as-library -I target/swift -I "$out/swift" moq/moq.swift target/swift/libMoq.a "$out/target/release/libmoq.a" "${native[@]}" -o target/moq-swift-test
+    {{ quote(just_executable()) }} swift-module
+    swiftc -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -parse-as-library -I target/swift -I "$out/swift" moq/moq.swift target/swift/libMoq.a "$out/target/release/libmoq.a" "${native[@]}" -o target/moq-swift-test
     target/moq-swift-test
 
 # Build target/export/moq's Swift as the module Moq in target/swift, at Swift 6's language mode. Its deployment target is the oldest its `Swift.Duration` allows.
@@ -152,7 +153,7 @@ swift-module *flags:
     out=target/export/moq/swift
     rm -rf target/swift
     mkdir -p target/swift
-    swiftc -warnings-as-errors $({{ just_executable() }} swift-target 13) -swift-version 6 {{ flags }} -parse-as-library -module-name Moq -emit-module -emit-module-path target/swift/Moq.swiftmodule -emit-library -static -I "$out" "$out/moq.swift" -o target/swift/libMoq.a
+    swiftc -warnings-as-errors $({{ quote(just_executable()) }} swift-target 13) -swift-version 6 {{ flags }} -parse-as-library -module-name Moq -emit-module -emit-module-path target/swift/Moq.swiftmodule -emit-library -static -I "$out" "$out/moq.swift" -o target/swift/libMoq.a
 
 # swiftc's target at this macOS deployment target on macOS, and nothing elsewhere.
 [private]
@@ -231,7 +232,7 @@ standin checkout="":
     set -euo pipefail
     src="{{ checkout }}"
     if [ -z "$src" ]; then
-        {{ just_executable() }} moq-pin
+        {{ quote(just_executable()) }} moq-pin
         src=target/moq
     fi
     src=$(realpath "$src")

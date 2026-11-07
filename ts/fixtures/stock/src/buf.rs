@@ -2,6 +2,7 @@
 //! differential test reaches their panics and what `split_to` and `freeze` share.
 
 use std::cell::Cell;
+use std::collections::VecDeque;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -422,6 +423,33 @@ fn read_all<B: Buf + ?Sized>(buf: &mut B, ops: &[u8], out: &mut Vec<u8>) -> Vec<
 	}
 	let n = buf.remaining();
 	buf.copy_to_bytes(n).to_vec()
+}
+
+/// The reads of `reads` off a `VecDeque<u8>` whose ring wraps `cut` slots from its end,
+/// each after its `chunk`, the front slice until that is read, then the rest through a
+/// `&mut`. An `advance` past what remains panics.
+pub fn deques(data: &[u8], out: &mut Vec<u8>) {
+	let [cut, ops @ ..] = data else {
+		return;
+	};
+	let (ops, input) = ops.split_at(ops.len() / 2);
+	let mut deque = VecDeque::with_capacity(input.len());
+	for _ in 0..*cut as usize % (input.len() + 1) {
+		deque.push_back(0);
+		deque.pop_front();
+	}
+	deque.extend(input);
+	for &op in ops {
+		let chunk = deque.chunk();
+		out.push(chunk.len() as u8);
+		out.extend_from_slice(&chunk[..chunk.len().min(1)]);
+		match op.checked_sub(0xf0) {
+			Some(n) => deque.advance(n.into()),
+			None => out.extend_from_slice(&read(&mut deque, op.into()).to_be_bytes()),
+		}
+	}
+	let rest = read_all(&mut &mut deque, &[], out);
+	out.extend_from_slice(&rest);
 }
 
 /// A buffer of the crate's own over `Buf`, as moq's transports lend a stream's chunks.
@@ -1117,6 +1145,37 @@ fn chained<B: Buf + ?Sized>(at: [usize; 2], buf: &mut B, pick: &u8, ops: &[u8], 
 }
 
 /// The bytes of a case's input, taken from the front.
+/// A `Bytes` of a `String`, which takes its storage, of the room its first bytes pick past
+/// its text: whether it is the one handle of it, and the room a `BytesMut` or a `Vec` taken
+/// back of it holds, with a clone of it held or not.
+pub fn strings(data: &[u8], out: &mut Vec<u8>) {
+	let mut ops = Ops(data);
+	let mut s = String::with_capacity(ops.byte() as usize % 24);
+	let n = ops.byte() as usize % 12;
+	s.push_str(&String::from_utf8_lossy(ops.take(n)));
+	s.reserve(ops.byte() as usize % 7);
+	let bytes = Bytes::from(s);
+	out.push(bytes.is_unique() as u8);
+	let held = (ops.byte() % 2 == 1).then(|| bytes.clone());
+	let (len, cap) = match ops.byte() % 3 {
+		0 => {
+			let m = BytesMut::from(bytes);
+			(m.len(), m.capacity())
+		}
+		1 => match bytes.try_into_mut() {
+			Ok(m) => (m.len(), m.capacity()),
+			Err(_) => (usize::MAX, 0),
+		},
+		_ => {
+			let v: Vec<u8> = bytes.into();
+			(v.len(), v.capacity())
+		}
+	};
+	out.extend_from_slice(&(len as u32).to_le_bytes());
+	out.extend_from_slice(&(cap as u32).to_le_bytes());
+	drop(held);
+}
+
 struct Ops<'a>(&'a [u8]);
 
 impl<'a> Ops<'a> {

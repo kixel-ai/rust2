@@ -3,7 +3,8 @@
 import * as rs from "./rs.ts";
 import type * as Take from "./bytes/buf/take.Take.ts";
 import type * as Any from "./core/any.Any.ts";
-import { panicked as hooked_panicked, aborted, sited, stock } from "./hooked.ts";
+import { panicked as edition2018_panicked } from "./edition2018.ts";
+import { panicked as hooked_panicked, aborted, sited, stock, edition2018Panicked } from "./hooked.ts";
 import { via$located_Tracked_u8, at$located_Tracked_u8, called as located_called, read, panicked as located_panicked } from "./located.ts";
 import * as Inherits from "./located.Inherits.ts";
 import * as Own from "./located.Own.ts";
@@ -33,9 +34,9 @@ export function drop$bytes_buf_Take_bytes_Bytes(_1: Take.Take<rs.ByteSlice>): vo
 }
 
 export class of$String {
-	v: string;
+	v: rs.String;
 
-	constructor(v: string) {
+	constructor(v: rs.String) {
 		this.v = v;
 	}
 }
@@ -108,14 +109,6 @@ export class of$u8 {
 	}
 }
 
-export class ofPlace$String {
-	v: rs.Place<string>;
-
-	constructor(v: rs.Place<string>) {
-		this.v = v;
-	}
-}
-
 export class ofPlace$ref_str {
 	v: rs.Place<string>;
 
@@ -132,27 +125,33 @@ export class ofPlace$u32 {
 	}
 }
 
+export class ofPlace$u8 {
+	v: rs.Place<rs.u8>;
+
+	constructor(v: rs.Place<rs.u8>) {
+		this.v = v;
+	}
+}
+
 /**
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.
  */
 export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]> {
-	return rs.iterToVec(rs.iterChain(rs.vecIntoIter(rs.vecFrom([["panics::wrapped", wrapped as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::called", panics_called as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::awaited", awaited as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::raised", raised as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::called", located_called as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::read", read as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::panicked", located_panicked as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]])), rs.iterSlice([["hooked::panicked", hooked_panicked as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hooked::aborted", aborted as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hooked::sited", sited as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hooked::stock", stock as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]])), undefined, 12, true);
+	return rs.iterToVec(rs.iterChain(rs.vecIntoIter(rs.vecFrom([["panics::wrapped", wrapped as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::called", panics_called as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::awaited", awaited as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::raised", raised as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::called", located_called as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::read", read as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::panicked", located_panicked as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["edition2018::panicked", edition2018_panicked as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]])), rs.iterSlice([["hooked::panicked", hooked_panicked as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hooked::aborted", aborted as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hooked::sited", sited as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hooked::stock", stock as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["hooked::edition2018_panicked", edition2018Panicked as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]])), undefined, 12, true);
 }
 
-export const NOTE: rs.LocalKey<rs.RefCell<string>> = /* @__PURE__ */ new rs.LocalKey(NOTE$init, false);
+export const NOTE: rs.LocalKey<rs.RefCell<rs.String>> = /* @__PURE__ */ new rs.LocalKey(NOTE$init, false);
 
-export function NOTE$init(): rs.RefCell<string> {
-	return new rs.RefCell("");
+export function NOTE$init(): rs.RefCell<rs.String> {
+	return new rs.RefCell(rs.stringNew());
 }
 
 /** Take what the hooks wrote since the last call. */
-export function note(): string {
-	return rs.localKeyWithBorrowMutPlace(NOTE, (a0: rs.Place<string>): string => {
-		const taken = a0.v;
-		a0.v = "";
-		return taken;
-	}, { file: "fixtures/lang/panics/src/lib.rs", line: 51, col: 5 });
+export function note(): rs.String {
+	return rs.localKeyWithBorrowMut(NOTE, (a0: rs.String): rs.String => {
+		return rs.replaceIn(a0, rs.stringNew());
+	}, { file: "fixtures/lang/panics/src/lib.rs", line: 53, col: 5 });
 }
 
 //# sourceMappingURL=lib.ts.map

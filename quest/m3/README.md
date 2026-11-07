@@ -21,9 +21,9 @@ generic std gap is planned here even when moq never calls it.
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
 - [rs.Slice](/quest/m3/ts-slice-object.md) - references to arrays of other values are a runtime slice too, and pointers compare by where they point
 - [Writes through iter_mut without a Place per item](/quest/m3/ts-iter-mut-places.md) - a loop over `iter_mut()` of copy values writes the slice's array by index
-- [rs.String](/quest/m3/ts-string-capacity.md) - `String`, `Box<str>`, and `&str` are a runtime type holding std's capacity
 - [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md) - no runtime `rust2-ts:` error where native Rust goes on: an exact slower path, or a refusal at translation
 - [rust2-ts with no ts.toml](/quest/m3/ts-configless.md) - a crate's whole `pub` API translates with no config and no bound items
-- [Buf on a deque of bytes](/quest/m3/ts-vecdeque-buf.md) - `bytes`' `Buf` for a deque of bytes translates
 - [std's panic messages hold std's capacity](/quest/m3/ts-panic-payload-capacity.md) - a hook reads native's `String` capacity from std's own formatted panics
 - [Browser APIs through wasm-bindgen](/quest/m3/ts-wasm-bindgen/README.md) - web-sys and js-sys imports become direct JS calls, so idiomatic crates such as web-rs's web-codecs translate as stock crates
+- [BufMut on a byte slice](/quest/m3/ts-bufmut-slices.md) - `bytes`' `BufMut` for `&mut [u8]` and `&mut [MaybeUninit<u8>]` translates
+- [Fields typed by an associated type](/quest/m3/ts-assoc-type-fields.md) - a generic struct's field of `<T as Trait>::Item` translates at each instance

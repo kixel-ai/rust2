@@ -8,13 +8,13 @@ export interface Counted<T> {
 	nexts: rs.Cell<rs.u8>;
 }
 
-export function next$iter_Iterator_String(self: Counted<string>): string | rs.Done {
+export function next$iter_Iterator_String(self: Counted<rs.String>): rs.String | rs.Done {
 	rs.cellSet(self.nexts, rs.u8Add(self.nexts.v, 1));
-	const _8: [string, rs.Slice<string>] | undefined = rs.sliceSplitFirst(self.items as rs.Slice<string>);
+	const _8: [rs.String, rs.Slice<rs.String>] | undefined = rs.sliceSplitFirst(self.items as rs.Slice<rs.String>);
 	if (_8 !== undefined) {
-		const val: [string, rs.Slice<string>] = _8;
-		(self.items as rs.Slice<string>) = val[1];
-		return val[0];
+		const val: [rs.String, rs.Slice<rs.String>] = _8;
+		(self.items as rs.Slice<rs.String>) = val[1];
+		return rs.stringClone(val[0]);
 	}
 	return rs.DONE;
 }

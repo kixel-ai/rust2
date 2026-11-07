@@ -1049,6 +1049,28 @@ fn package(name: &str) -> PathBuf {
 	package
 }
 
+/// rustc's arguments in an argfile, as cargo passes them once they overflow a command line:
+/// on Windows, moq-ffi's many `-L`s do. One argument past every platform's limit forces it,
+/// and starts with `@`, which inside an argfile rustc reads as itself, not another file.
+#[test]
+fn argfile() {
+	let package = package("argfile");
+	let value = format!("@{}=/", "a".repeat(1 << 21));
+	write_all(
+		&package,
+		&[(
+			".cargo/config.toml",
+			&format!("build.rustflags = [\"--remap-path-prefix\", \"{value}\"]\n"),
+		)],
+	);
+	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
+	assert!(
+		output.status.success(),
+		"the census failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+}
+
 /// A census of the package whose config is `config` with these cargo args, to run.
 fn census(config: &Path, cargo: &[&str]) -> Command {
 	let dir = config.parent().unwrap();
@@ -1228,6 +1250,49 @@ fn foreign_role_names() {
 		],
 	);
 	export_and_build(&package, &[]);
+}
+
+/// An exclude may name what a `cfg` leaves out of this build, whether the facade's own
+/// module or another crate's that the facade re-exports through a glob, but not what no
+/// build has.
+#[test]
+fn configured_out() {
+	let package = package("configured_out");
+	let dep = manifest_dir().join("fixtures/dep");
+	let manifest = format!(
+		"[package]\nname = \"configured_out\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+		[dependencies]\ndep = {{ package = \"dep-fixture\", path = {:?} }}\n\n[workspace]\n",
+		dep.display().to_string()
+	);
+	write_all(
+		&package,
+		&[
+			("Cargo.toml", &manifest),
+			(
+				"src/lib.rs",
+				"pub mod dep {\n\tpub use ::dep::*;\n}\n\n#[cfg(any())]\npub mod local {}\n",
+			),
+			(
+				"ffi.toml",
+				"exclude = [\"Gone\", \"dep::gone::Gone\", \"local::Gone\"]\n",
+			),
+		],
+	);
+	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--out")
+		.arg(package.join("out"))
+		.env("CARGO_TARGET_DIR", package.join("build"))
+		.output()
+		.unwrap();
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	let errors: Vec<&str> = stderr.lines().filter(|l| l.starts_with("error: rust2-ffi:")).collect();
+	assert_eq!(
+		errors,
+		["error: rust2-ffi: exclude `Gone` in the config names nothing exported"],
+		"{stderr}"
+	);
 }
 
 /// Writes each `(path, text)` into `dir`.
