@@ -621,6 +621,14 @@ struct Kept<S: Store> {
 	maybe: Option<S::Item>,
 }
 
+/// A store that lends [`Ticked`]s, whose items drop nothing.
+struct Lent<'a>(std::marker::PhantomData<&'a ()>);
+
+impl<'a> Store for Lent<'a> {
+	type Item = &'a Ticked;
+	const LEN: usize = 1;
+}
+
 /// A store of what translation types no other way, which only a `PhantomData` names.
 struct Paths;
 
@@ -629,9 +637,10 @@ impl Store for Paths {
 	const LEN: usize = 0;
 }
 
-/// A projection that only a `PhantomData` holds, which types nothing.
+/// A projection that only a `PhantomData` holds, which types nothing, in an `Option` too.
 struct Marked<S: Store> {
 	marker: std::marker::PhantomData<S::Item>,
+	maybe: std::marker::PhantomData<Option<S::Item>>,
 	count: u8,
 }
 
@@ -732,11 +741,29 @@ pub fn projections(data: &[u8], out: &mut Vec<u8>) {
 			maybe: None,
 		};
 		log.borrow_mut().extend([kept.item, kept.store[0], kept.rest[0]]);
+		// What lends its items drops none of them, behind an `Rc` too.
+		let owner = tick(b ^ 4);
+		let lent = Rc::new(Kept::<Lent<'_>> {
+			item: &owner,
+			store: Lent(std::marker::PhantomData),
+			rest: vec![&owner],
+			maybe: (b % 2 == 1).then_some(&owner),
+		});
+		log.borrow_mut().push(lent.item.id);
+		drop(lent);
+		log.borrow_mut().push(0xfd);
+		drop(owner);
 	}
 	let marked = Marked::<Paths> {
 		marker: std::marker::PhantomData,
+		maybe: std::marker::PhantomData,
 		count: data.len() as u8,
 	};
-	log.borrow_mut().push(marked.count);
+	let bytes = Marked::<[u8; 2]> {
+		marker: std::marker::PhantomData,
+		maybe: std::marker::PhantomData,
+		count: !marked.count,
+	};
+	log.borrow_mut().extend([marked.count, bytes.count]);
 	out.extend(log.borrow().iter());
 }

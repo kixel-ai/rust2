@@ -2,9 +2,10 @@
 
 import * as rs from "./rs.ts";
 
-/** A projection that only a `PhantomData` holds, which types nothing. */
+/** A projection that only a `PhantomData` holds, which types nothing, in an `Option` too. */
 export interface Marked<_S> {
 	marker: undefined;
+	maybe: undefined;
 	count: rs.u8;
 }
 

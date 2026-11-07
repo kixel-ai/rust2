@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { copy$array_generics_Either_u8_shapes_Point, copy$generics_Fixed_u16, copy$generics_Fixed_u8, copy$generics_Wrap_shapes_Point, copy$generics_Wrap_u8, copy$shapes_Gauge, drop$generics_Pile_generics_Ticks, drop$generics_Run_generics_Ticked } from "./lib.ts";
-import { thenSome$1ctlqen, thenSome$19pue01, thenSome$0quywni, thenSome$1n1oy1h, then$01xsbgy, then$0y7on52, then$1qflv5x } from "./core/bool.ts";
+import { thenSome$1ctlqen, thenSome$0tbnivw, thenSome$19pue01, thenSome$0quywni, thenSome$1n1oy1h, then$01xsbgy, then$0y7on52, then$1qflv5x } from "./core/bool.ts";
 import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$0w7995p as option_unwrapOrDefault$0w7995p, unwrapOrDefault$03apme8 as option_unwrapOrDefault$03apme8, map$0ggarad as option_map$0ggarad, map$132wgz4 as option_map$132wgz4, map$0ydco3f as option_map$0ydco3f, map$057a36e as option_map$057a36e } from "./core/option.ts";
 import { eq$1qrb1lw as poll_eq$1qrb1lw, isPending$07fnw8g, isPending$1imonrp, isPending$189w6zf, isPending$1yqrsts } from "./core/task/poll.ts";
 import type * as Pair from "./fmt.Pair.ts";
@@ -15,7 +15,10 @@ import * as Fixed from "./generics.Fixed.ts";
 import type * as Flags from "./generics.Flags.ts";
 import * as Kept from "./generics.Kept.ts";
 import type * as Lends from "./generics.Lends.ts";
+import type * as Lent from "./generics.Lent.ts";
+import type * as Marked from "./generics.Marked.ts";
 import * as Parked from "./generics.Parked.ts";
+import type * as Paths from "./generics.Paths.ts";
 import * as Pile from "./generics.Pile.ts";
 import * as Run from "./generics.Run.ts";
 import * as Runs from "./generics.Runs.ts";
@@ -623,13 +626,27 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const slice6 = kept2.rest as rs.ByteVec;
 		rs.iterExtendBytes(_454.value, rs.iterSlice(Uint8Array.of(_458, _459, slice6.data[rs.idx(slice6, 0)])), undefined, true);
 		rs.refMutRelease(_454);
+		const owner: Ticked.Ticked = tick(b2 ^ 4);
+		const _472: rs.Vec<Ticked.Ticked> = rs.vecFrom([owner]);
+		const _475: Ticked.Ticked | undefined = thenSome$0tbnivw(rs.u8Rem(b2, 2) === 1, owner);
+		const lent: rs.Arc<Kept.Kept<Lent.Lent, Ticked.Ticked>> = new rs.Arc(new Kept.Kept(owner, { _0: undefined }, _472, _475 as rs.OptionOf<Ticked.Ticked>));
+		const _483: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
+		rs.byteVecPush(_483.value, lent.value.item.id);
+		rs.refMutRelease(_483);
+		rs.arcDrop(lent);
+		const _493: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
+		rs.byteVecPush(_493.value, 253);
+		rs.refMutRelease(_493);
+		owner[Symbol.dispose]();
 	}
-	const _471: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
-	rs.byteVecPush(_471.value, data.length & 0xff);
-	rs.refMutRelease(_471);
-	const _480: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_480.value))), undefined, true);
-	rs.refRelease(_480);
+	const marked: Marked.Marked<Paths.Paths> = { marker: undefined, maybe: undefined, count: data.length & 0xff };
+	const bytes2: Marked.Marked<Uint8Array> = { marker: undefined, maybe: undefined, count: ~marked.count & 0xff };
+	const _506: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
+	rs.iterExtendBytes(_506.value, rs.iterSlice(Uint8Array.of(marked.count, bytes2.count)), undefined, true);
+	rs.refMutRelease(_506);
+	const _517: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_517.value))), undefined, true);
+	rs.refRelease(_517);
 	log[Symbol.dispose]();
 }
 

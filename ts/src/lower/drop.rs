@@ -202,14 +202,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				None | Some(Std::Peekable) if self.std_iter(ty) => self.closures_held(ty),
 				Some(_) => false,
 				None if self.shared_glue(*adt) => {
-					// What its glue drops through its type parameters, and the projections
-					// from them its fields name.
-					let env = self.typing_env_pub();
-					let projections = self.projections(adt.did()).into_iter().map(|(p, _)| p);
-					let held: Vec<Ty<'tcx>> = (args.types())
-						.chain(projections.map(|p| super::copy::instantiate(self.tcx, env, p, args)))
-						.collect();
-					if !held.into_iter().all(|t| self.disposable(t, glue)) {
+					if !self.glue_held(*adt, args).into_iter().all(|t| self.disposable(t, glue)) {
 						return false;
 					}
 					if let Some(span) = glue {
@@ -230,6 +223,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			| ty::Dynamic(..) => true,
 			_ => false,
 		}
+	}
+
+	/// What a generic struct's glue drops through, at an instance with `args`: each type
+	/// argument, and what each projection from them its fields name is there.
+	fn glue_held(&mut self, adt: AdtDef<'tcx>, args: ty::GenericArgsRef<'tcx>) -> Vec<Ty<'tcx>> {
+		let env = self.typing_env_pub();
+		let projections = self.projections(adt.did()).into_iter().map(|(p, _)| p);
+		(args.types())
+			.chain(projections.map(|p| super::copy::instantiate(self.tcx, env, p, args)))
+			.collect()
 	}
 
 	/// Whether every JS value of `ty`, a type that drops and is [`Self::disposable`], is an
@@ -404,7 +407,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Some(Std::Context) => false,
 				Some(_) => true,
 				// Its glue, if an instance that drops gave it one, drops its type parameters' fields.
-				None if adt.is_struct() => args.types().all(|t| self.inert(t)),
+				None if adt.is_struct() => self.glue_held(*adt, args).into_iter().all(|t| self.inert(t)),
 				None => true,
 			},
 			_ => true,

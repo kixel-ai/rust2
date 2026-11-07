@@ -2087,6 +2087,23 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let identity = ty::GenericArgs::identity_for_item(tcx, adt.did());
 		let defining = (adt.did(), TypingEnv::post_analysis(tcx, adt.did()));
 		let env = self.defining.map_or(self.typing_env(), |(_, env)| env);
+		let projections: Vec<Ty<'tcx>> = self.projections(adt.did()).into_iter().map(|(p, _)| p).collect();
+		// Whether `t` names a projection its definition types nothing of, as a `PhantomData`'s.
+		let untyped = |t: Ty<'tcx>| {
+			let mut walker = t.walk();
+			while let Some(arg) = walker.next() {
+				let Some(t) = arg.as_type() else { continue };
+				if let ty::Alias(..) = t.kind()
+					&& t.has_param()
+				{
+					if !projections.contains(&t) {
+						return true;
+					}
+					walker.skip_current_subtree();
+				}
+			}
+			false
+		};
 		for field in adt.all_fields() {
 			let generic = copy::field_ty(tcx, defining.1, field.did, identity);
 			for part in generic.walk().filter_map(|arg| arg.as_type()) {
@@ -2100,7 +2117,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				};
 				let inner = wrapper_args.type_at(0);
 				let erased = self.erases_to(inner);
-				if !erased.param {
+				if !erased.param || untyped(inner) {
 					continue;
 				}
 				let held = copy::instantiate(tcx, env, part, args);

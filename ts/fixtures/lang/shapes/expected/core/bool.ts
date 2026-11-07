@@ -33,6 +33,13 @@ export function thenSome$05ku0zn(self: boolean, t: rs.i32): rs.i32 | undefined {
 	return t;
 }
 
+export function thenSome$0tbnivw(self: boolean, t: Ticked.Ticked): Ticked.Ticked | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return t;
+}
+
 export function thenSome$19pue01(self: boolean, t: rs.Poll<rs.u8>): rs.Poll<rs.u8> | undefined {
 	if (!self) {
 		return undefined;
