@@ -871,6 +871,7 @@ pub fn call<'tcx>(
 			}
 		}
 		// A shared reference to a value JS copies is the value.
+		("MaybeUninit", "assume_init_read") if b.t.keeps_cells(pointee()) => copy_kept(b, arg(), pointee(), span, out),
 		("MaybeUninit", "assume_init_read") => b.t.snapshot(arg(), pointee(), span),
 		("MaybeUninit", "assume_init_drop") | ("ManuallyDrop", "drop") => {
 			let p = arg();
@@ -887,7 +888,10 @@ pub fn call<'tcx>(
 				Some(Pointee::Place) => p.member("v"),
 				_ => p,
 			};
-			b.t.snapshot(value, pointee(), span)
+			match b.t.keeps_cells(pointee()) {
+				true => copy_kept(b, value, pointee(), span, out),
+				false => b.t.snapshot(value, pointee(), span),
+			}
 		}
 		// An `rs.Cell`, a `Cell`'s too, which is the place a pointer to a value JS copies is,
 		// and holds the object a pointer to any other is.
@@ -897,7 +901,8 @@ pub fn call<'tcx>(
 			cell_pointer(b, cell, pointee())
 		}
 		// `get` of the cell where the pointer points, an `rs.Place` of where it is kept, or
-		// the pointer itself if it points at no memory, as a cast of it would.
+		// the pointer itself if it points at no memory, as a cast of it would. A cell of an
+		// object or array must be there, as the pointer is what it holds.
 		("UnsafeCell", "raw_get") => {
 			let tcx = b.t.tcx;
 			let cell = tcx
@@ -910,7 +915,24 @@ pub fn call<'tcx>(
 			}
 			let name = b.fresh("p");
 			let p = Expr::ident(&name);
-			let made = cell_pointer(b, if object { p } else { p.member("v") }, pointee());
+			let made = match (object, b.t.pointee(pointee())) {
+				// The place of the value in whatever cell is there as it is read, so the
+				// memory may hold none yet, as a `Vec`'s room past its length doesn't.
+				(false, Pointee::Place) => {
+					let value = b.fresh("value");
+					let at = || p.clone().member("v").member("v");
+					let get = Expr::Lambda(Vec::new(), Box::new(at()));
+					let set = Expr::Lambda(
+						vec![crate::ts::Param {
+							name: value.clone(),
+							ty: None,
+						}],
+						Box::new(at().assign(Expr::ident(&value))),
+					);
+					Expr::rs("place", vec![get, set])
+				}
+				_ => cell_pointer(b, if object { p } else { p.member("v") }, pointee()),
+			};
 			// Typed, as a null pointer's own type is none.
 			let ty = Some(b.t.ty(Ty::new_imm_ptr(tcx, cell), span));
 			let make = Expr::Lambda(vec![crate::ts::Param { name, ty }], Box::new(made));

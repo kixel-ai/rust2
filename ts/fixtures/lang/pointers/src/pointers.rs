@@ -2931,6 +2931,16 @@ pub fn nested_cells(data: &[u8], out: &mut Vec<u8>) {
 					ptr::write(to_slot, UnsafeCell::new(u32::from(n) ^ 17));
 					ptr::write(to_pair_slot, UnsafeCell::new((n, !n)));
 					out.extend([*early as u8, (*early_pair).1]);
+					let mut room = Vec::<UnsafeCell<u32>>::with_capacity(2);
+					let to_room = room.as_mut_ptr();
+					let (first, past) = (UnsafeCell::raw_get(to_room), UnsafeCell::raw_get(to_room.add(2)));
+					ptr::write(to_room, UnsafeCell::new(u32::from(n) ^ 18));
+					room.set_len(1);
+					out.extend([*first as u8, past.is_null() as u8, room[0].get().read() as u8]);
+					let mut uninit = MaybeUninit::new(UnsafeCell::new(u32::from(n)));
+					let read_out = uninit.assume_init_read();
+					ptr::write(uninit.as_mut_ptr(), UnsafeCell::new(u32::from(n) ^ 19));
+					out.extend([read_out.into_inner() as u8, *uninit.assume_init_ref().get() as u8]);
 					let src = UnsafeCell::new((UnsafeCell::new(u32::from(n)), (2u32, 3u32)));
 					let copy = ptr::read(src.get());
 					(*src.get()).1.0 = 9;
