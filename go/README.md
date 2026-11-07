@@ -33,7 +33,7 @@ error at its span, and nothing is written.
 | a function instance | a function, its MIR blocks structured into loops and `if`s as rust2-ts structures them, a `goto` leaving a block where JS would `break` it, its locals as variables but a temporary assigned and read once, which folds into its reader |
 | `u8`..`u64`, `i8`..`i64`, `usize`, `isize` | `uint8`..`uint64`, `int8`..`int64`, `uint`, `int` (64-bit hosts) |
 | an overflow check, a bounds check | native Rust's panic message, as a `RustPanic` |
-| a struct, a tuple | a struct, generic where Rust's is; `tuple2[A, B]` and so on |
+| a struct, a tuple | a struct, generic where Rust's is, its `pub` fields exported (`count` as `Count`) and a tuple's as `F0` and so on; `tuple2[A, B]` and so on |
 | an enum | a struct of its tag and a field per variant with fields; one of over four words, which Go would keep in memory, as its tag and each variant's fields, a variable, parameter, and result each, a field of over four words behind a pointer: an argument's the callee only reads, a result's the caller passes for the callee to write |
 | `&T`, `Box<T>` | `*T` |
 | `&[T]`, `&str`, `Vec<T>` | `[]T`, `[]uint8`, `[]T` |
