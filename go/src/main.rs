@@ -1,9 +1,9 @@
 //! rust2-go: translate a Rust subset to pure Go, with no cgo.
 //!
 //! The binary is two programs, as rust2-ts is. Run directly, it is the CLI: it runs
-//! cargo on the configured package with itself as `RUSTC_WRAPPER`. Run by cargo as that
-//! wrapper, it is rustc, which translates the configured crate after type and borrow
-//! checking and compiles every other crate as rustc would.
+//! cargo on the package with itself as `RUSTC_WRAPPER`. Run by cargo as that wrapper,
+//! it is rustc, which translates the package's library after type and borrow checking
+//! and compiles every other crate as rustc would.
 
 #![feature(rustc_private)]
 
@@ -17,7 +17,6 @@ extern crate rustc_session;
 extern crate rustc_span;
 
 mod cli;
-mod config;
 mod driver;
 mod lower;
 

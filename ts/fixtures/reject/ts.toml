@@ -10,7 +10,6 @@ roots = [
     "alloc::zeroed",
     "bound_ranges",
     "buffers::blank_bytes",
-    "buffers::spare",
     "clones::cloned_slots",
     "clones::dropped_slots",
     "clones::ranked_slots",
@@ -207,6 +206,7 @@ roots = [
     "values::generic_uninit_byte_open",
     "values::lists",
     "values::manual_impls",
+    "values::mixed_byte",
     "values::nested",
     "values::units_compared",
 ]
