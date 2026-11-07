@@ -5265,12 +5265,7 @@ export function vectored(data: rs.ByteSlice, out: rs.ByteVec): void {
 		let left: rs.Slice<rs.ByteSlice> = rs.sliceRange(dst2, 0, n);
 		rs.ioSliceAdvanceSlices(rs.place(() => left, (value3) => left = value3), skip);
 		rs.byteVecPush(out, left.length & 0xff);
-		const iter2: rs.Iter<rs.ByteSlice> = rs.iterSlice(rs.sliceItems(left));
-		while (true) {
-			const _159: rs.ByteSlice | rs.Done = iter2.next();
-			if (_159 === rs.DONE) {
-				break;
-			}
+		for (const _159 of rs.sliceItems(left)) {
 			rs.byteVecExtendFromSlice(out, _159);
 		}
 		rs.drop(boxed);

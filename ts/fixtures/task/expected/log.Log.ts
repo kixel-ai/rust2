@@ -34,12 +34,7 @@ export function note(self: Log, event: rs.String): void {
 export function text(self: Log): rs.ByteVec {
 	const events: rs.Mutex<rs.Vec<rs.String>> = rs.mutexLock(self._0.value);
 	const out: rs.ByteVec = new rs.ByteVec();
-	const iter: rs.Iter<rs.String> = rs.iterSlice(events.value.items);
-	while (true) {
-		const _13: rs.String | rs.Done = iter.next();
-		if (_13 === rs.DONE) {
-			break;
-		}
+	for (const _13 of events.value.items) {
 		const _19: rs.ByteSlice = rs.stringAsBytes(_13.v);
 		rs.byteVecExtendFromSlice(out, _19);
 		rs.byteVecPush(out, 10);

@@ -3860,12 +3860,7 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		}
 	}
 	const _501: rs.RefCell<rs.Vec<rs.char>> = rs.refCellBorrow(seen);
-	const iter: rs.Iter<rs.char> = rs.iterSlice(_501.value.items);
-	while (true) {
-		const _504: rs.char | rs.Done = iter.next();
-		if (_504 === rs.DONE) {
-			break;
-		}
+	for (const _504 of _501.value.items) {
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_504 as rs.u32)));
 	}
 	rs.refRelease(_501);

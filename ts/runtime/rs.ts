@@ -1001,6 +1001,46 @@ export function sliceIn<T extends object>(p: T): Slice<T> {
 const ONE = /* @__PURE__ */ new WeakSet<object>();
 
 /**
+ * A slice `byteMirror` made of one byte's place, `s`: a view of the bytes it is in, or
+ * else a copy of its own, its mirror, which `byteMirrorFlush` writes back to `p`, the place,
+ * holding `last`, the byte it last wrote there.
+ */
+export class ByteMirror {
+	readonly s: ByteSlice;
+	readonly p: Place<number> | undefined;
+	last: number;
+
+	constructor(s: ByteSlice, p: Place<number> | undefined) {
+		this.s = s;
+		this.p = p;
+		this.last = s.data[s.start];
+	}
+}
+
+/**
+ * `slice::from_mut` or `array::from_mut` of the byte at `p`: a view of the bytes it is in,
+ * or for a byte in no array of bytes, such as a field's, a mirror of it.
+ */
+export function byteMirror(p: Place<number>): ByteMirror {
+	if (p instanceof AtIndex && p.array instanceof Uint8Array) return new ByteMirror(new ByteSlice(p.array, p.index, 1), undefined);
+	// A typed array of a length, then the byte, as `Uint8Array.of` takes twice as long.
+	const data = new Uint8Array(1);
+	data[0] = p.v;
+	return new ByteMirror(new ByteSlice(data, 0, 1), p);
+}
+
+/**
+ * Write the byte of `m`'s mirror back to its place if it changed since it was last written
+ * there. Rust reaches the byte only through the slice while it is in use, and once it no
+ * longer is, the mirror no longer changes, so this writes nothing over a later write.
+ */
+export function byteMirrorFlush(m: ByteMirror | undefined): void {
+	if (m === undefined || m.p === undefined) return;
+	const byte = m.s.data[0];
+	if (byte !== m.last) m.p.v = m.last = byte;
+}
+
+/**
  * Whether a whole write of an element of `s`, an array a slice holds, may land in the object
  * there, as one of `sliceIn`'s does, or of a place in one, which only `sliceOfPlace`'s can be.
  */

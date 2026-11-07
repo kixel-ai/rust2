@@ -83,13 +83,13 @@ export function scramble(b: rs.Place<rs.ByteSlice>): void {
 	if (_4 !== undefined) {
 		_4.v = _4.v ^ 255;
 	}
-	const iter: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(b.v);
-	while (true) {
-		const _12: rs.Place<rs.u8> | rs.Done = iter.next();
-		if (_12 === rs.DONE) {
-			break;
-		}
-		_12.v = rs.u8WrappingAdd(_12.v, 1);
+	const _36: rs.ByteSlice = b.v;
+	const iterS: Uint8Array = _36.data;
+	let iterI: number = _36.start;
+	const iterE: number = _36.start + _36.length;
+	while (iterI < iterE) {
+		const _12: number = iterI++;
+		iterS[_12] = rs.u8WrappingAdd(iterS[_12], 1);
 	}
 	rs.iterForEach(rs.byteSliceChunksExact(b.v, 2), (c: rs.ByteSlice): undefined => {
 		rs.byteSliceSwap(c, 0, 1);
@@ -228,13 +228,12 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}), undefined, 2, true);
 		const fromRef2: rs.Slice<rs.u16> = rs.sliceFrom(wide.items.slice());
 		rs.sliceReverse(fromRef2);
-		const iter2: rs.Iter<rs.Place<rs.u16>> = rs.iterSliceMut(fromRef2);
-		while (true) {
-			const _282: rs.Place<rs.u16> | rs.Done = iter2.next();
-			if (_282 === rs.DONE) {
-				break;
-			}
-			_282.v = _282.v ^ 3855;
+		const iterS: rs.u16[] = fromRef2.data;
+		let iterI: number = fromRef2.start;
+		const iterE: number = fromRef2.start + fromRef2.length;
+		while (iterI < iterE) {
+			const _282: number = iterI++;
+			iterS[_282] = iterS[_282] ^ 3855;
 		}
 		wides(fromRef2, out);
 		wides(rs.sliceFrom(wide.items), out);
@@ -345,12 +344,7 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return [b2, ((b2 as rs.u16) << 4) & 0xffff] as [rs.u8, rs.u16];
 		}), undefined, 4, true);
 		const boxed3: rs.Slice<[rs.u8, rs.u16]> = rs.sliceFrom(pairs.items.map(copy$tuple2_u8_u16));
-		const iter3: rs.Iter<[rs.u8, rs.u16]> = rs.iterSlice(rs.sliceItems(boxed3));
-		while (true) {
-			const _533: [rs.u8, rs.u16] | rs.Done = iter3.next();
-			if (_533 === rs.DONE) {
-				break;
-			}
+		for (const _533 of rs.sliceItems(boxed3)) {
 			_533[0] = _533[0] ^ 255;
 		}
 		const _537: [rs.u8, rs.u16] | undefined = rs.sliceFirst(boxed3);
@@ -523,19 +517,19 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const by: rs.u8 = _52[1];
 		const _58: rs.u8 = rs.u8Rem(by, 26);
 		if (_58 === 0) {
-			const r: rs.Place<rs.u32> = rs.place(() => n, (value28) => n = value28);
+			const r: rs.Place<rs.u32> = rs.place(() => n, (value27) => n = value27);
 			r.v = rs.u32WrappingMul(r.v, 3);
 		} else if (_58 === 1) {
-			bump(rs.place(() => n, (value27) => n = value27), by);
+			bump(rs.place(() => n, (value26) => n = value26), by);
 		} else if (_58 === 2) {
-			const _65: rs.Place<rs.u32> = rs.place(() => n, (value25) => n = value25);
-			bump(rs.place(() => _65.v, (value26) => _65.v = value26), by);
+			const _65: rs.Place<rs.u32> = rs.place(() => n, (value24) => n = value24);
+			bump(rs.place(() => _65.v, (value25) => _65.v = value25), by);
 		} else if (_58 === 3) {
-			const _67: rs.Place<rs.u32> = rs.place(() => n, (value23) => n = value23);
-			bump(rs.place(() => _67.v, (value24) => _67.v = value24), by);
+			const _67: rs.Place<rs.u32> = rs.place(() => n, (value22) => n = value22);
+			bump(rs.place(() => _67.v, (value23) => _67.v = value23), by);
 		} else if (_58 === 4) {
-			const _69: rs.Place<rs.u32> = rs.place(() => n, (value21) => n = value21);
-			bump(rs.place(() => _69.v, (value22) => _69.v = value22), by);
+			const _69: rs.Place<rs.u32> = rs.place(() => n, (value20) => n = value20);
+			bump(rs.place(() => _69.v, (value21) => _69.v = value21), by);
 		} else if (_58 === 5) {
 			n = (n ^ by as rs.u32) >>> 0;
 		} else if (_58 === 6) {
@@ -554,17 +548,17 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_58 === 10) {
 			rs.stringInsertStr(s, 0, "<");
 		} else if (_58 === 11) {
-			shout(rs.place(() => t, (value20) => t = value20), by);
+			shout(rs.place(() => t, (value19) => t = value19), by);
 		} else if (_58 === 12) {
-			const _92: rs.Place<string> = rs.place(() => t, (value18) => t = value18);
-			shout(rs.place(() => _92.v, (value19) => _92.v = value19), by);
+			const _92: rs.Place<string> = rs.place(() => t, (value17) => t = value17);
+			shout(rs.place(() => _92.v, (value18) => _92.v = value18), by);
 		} else if (_58 === 13) {
-			const _94: rs.Place<string> = rs.place(() => t, (value17) => t = value17);
+			const _94: rs.Place<string> = rs.place(() => t, (value16) => t = value16);
 			_94.v = rs.strToAsciiLowercase(_94.v);
 		} else if (_58 === 14) {
 			t = rs.strSlice(s.v, 0);
 		} else if (_58 === 15) {
-			bump(rs.place(() => nested, (value16) => nested = value16), by);
+			bump(rs.place(() => nested, (value15) => nested = value15), by);
 		} else if (_58 === 16) {
 			nested = rs.u32WrappingAdd(nested, by as rs.u32);
 		} else if (_58 === 17) {
@@ -574,27 +568,25 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			maybe = rs.u32Add(maybe as rs.u32, 1);
 			if (maybe !== undefined) {
-				bump(rs.place(() => maybe as rs.u32, (value15) => maybe = value15), by);
+				bump(rs.place(() => maybe as rs.u32, (value14) => maybe = value14), by);
 			}
 		} else if (_58 === 18) {
 			reach(held, by);
 		} else if (_58 === 19) {
 			const at2 = rs.idx(v.items, rs.usizeRem(by as rs.usize, v.items.length));
-			const borrowed = v.items;
-			const borrowed2 = at2;
-			bump(rs.place(() => borrowed[borrowed2], (value14) => borrowed[borrowed2] = value14), by);
+			const borrowed2 = v.items;
+			const borrowed3 = at2;
+			bump(rs.place(() => borrowed2[borrowed3], (value13) => borrowed2[borrowed3] = value13), by);
 			const _120: rs.Place<rs.u32> | undefined = rs.sliceLastMut(rs.sliceFrom(v.items));
 			if (_120 !== undefined) {
 				_120.v = (_120.v ^ 16) >>> 0;
 			}
 		} else if (_58 === 20) {
-			const iter2: rs.Iter<rs.Place<rs.u32>> = rs.iterSliceMut(rs.sliceFrom(v.items));
-			while (true) {
-				const _130: rs.Place<rs.u32> | rs.Done = iter2.next();
-				if (_130 === rs.DONE) {
-					break;
-				}
-				bump(rs.place(() => _130.v, (value13) => _130.v = value13), by);
+			const iterS: rs.u32[] = v.items;
+			let iterI: number = 0;
+			const iterE: number = v.items.length;
+			while (iterI < iterE) {
+				bump(rs.arrayAsPtr(iterS, iterI++), by);
 			}
 			v.items.push(by as rs.u32);
 		} else if (_58 === 21) {
@@ -733,13 +725,13 @@ export function sum$boxed_Box_slice_u8(x: rs.ByteSlice): rs.u8 {
 
 /** Writes through what `x` lends by its `AsMut`. */
 export function flip$boxed_Box_slice_u8(x: rs.Place<rs.ByteSlice>): void {
-	const iter: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(x.v);
-	while (true) {
-		const _5: rs.Place<rs.u8> | rs.Done = iter.next();
-		if (_5 === rs.DONE) {
-			break;
-		}
-		_5.v = _5.v ^ 15;
+	const _3: rs.ByteSlice = x.v;
+	const iterS: Uint8Array = _3.data;
+	let iterI: number = _3.start;
+	const iterE: number = _3.start + _3.length;
+	while (iterI < iterE) {
+		const _5: number = iterI++;
+		iterS[_5] = iterS[_5] ^ 15;
 	}
 }
 

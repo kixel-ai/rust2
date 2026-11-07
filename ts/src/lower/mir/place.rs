@@ -1043,6 +1043,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	pub(super) fn alias_of_place(&self, local: Local) -> bool {
 		matches!(self.slots[local], Slot::Alias(_))
 			&& match self.def_rvalue(local) {
+				// An item a slice's `iter_mut` lends by index: the element it indexes.
+				_ if self.lent_items.contains_key(&local) => true,
 				// A reborrow of what an alias of a borrowed place points at borrows that place.
 				// A box's pointer is the box, so what it points at is the place holding the box.
 				Some(mir::Rvalue::Ref(_, _, p)) => match p.projection.as_slice() {
@@ -1230,6 +1232,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return e;
 		}
 		let name = self.b.fresh("borrowed");
+		// A copy of the array items lent by index are in is one too.
+		if matches!(&e, Expr::Ident(array) if self.item_arrays.contains(array)) {
+			self.item_arrays.insert(name.clone());
+		}
 		let stmt = StmtKind::decl(false, name.clone(), None, Some(e)).at(None);
 		self.emit(vec![stmt], false, out);
 		Expr::ident(name)
@@ -1240,6 +1246,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	pub(super) fn place_of(&mut self, target: Expr, payload: Option<crate::ts::Type>) -> Expr {
 		if let Some(p) = self.byte_place(&target) {
 			return p;
+		}
+		// An item a slice's `iter_mut` lends by index, the element's place, as `rs.iterSliceMut`
+		// lends it. A payload's is of the payload's type, which an `rs.place` reads it as.
+		if payload.is_none()
+			&& let Expr::Index(array, index) = target.unlocated()
+			&& let Expr::Ident(name) = array.unlocated()
+			&& self.item_arrays.contains(name)
+		{
+			return Expr::rs("arrayAsPtr", vec![(**array).clone(), (**index).clone()]);
 		}
 		let value = self.b.fresh("value");
 		let param = crate::ts::Param {
