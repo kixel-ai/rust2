@@ -2656,6 +2656,14 @@ pub fn behind_refs(data: &[u8], out: &mut Vec<u8>) {
 	};
 	let second: NonNull<u32> = (&halves).into();
 	out.push(unsafe { *second.as_ptr() } as u8);
+	// A pointer to a cell from a shared reference to it, read and written in place by
+	// `UnsafeCell::raw_get` after a call between.
+	let cell = UnsafeCell::new(u32::from(bits));
+	let shared = &cell;
+	let at_cell: *const UnsafeCell<u32> = shared;
+	let len = vec_len(&v);
+	unsafe { *UnsafeCell::raw_get(at_cell) += len as u32 };
+	out.push(unsafe { *cell.get() } as u8);
 	// A pointer one past a variable, stored whole through a pointer to a pointer, and one
 	// moved off a value of no bytes and borrowed: valid, as neither reads past its value.
 	let lone = u32::from(bits);
@@ -2987,6 +2995,444 @@ pub fn generic_unions(data: &[u8], out: &mut Vec<u8>) {
 		}
 		for (v, tag) in either(byte, byte.wrapping_mul(3), i as u8) {
 			out.extend([v, tag]);
+		}
+	}
+}
+
+/// A struct holding cells, reached through a raw pointer to it.
+struct Slots {
+	num: UnsafeCell<u32>,
+	held: UnsafeCell<Held>,
+	pair: UnsafeCell<(u8, u16)>,
+}
+
+/// What `UnsafeCell::raw_get` gives of a reference to a cell of a number, a struct Rust
+/// copies, one JS keeps as an object, a tuple, and arrays of bytes and of numbers; of a
+/// pointer to a variable's cell, to a field through a pointer to its struct, and from
+/// `MaybeUninit::as_ptr`; cells `UnsafeCell::from_mut` makes of a variable, an object,
+/// an element, and an array, written through `get`; `UnsafeCell::replace` of each, which a
+/// pointer taken before sees, giving back what it held undropped; what `as_ref_unchecked`
+/// and `as_mut_unchecked` lend; and the allocations of boxes and pinned boxes replaced and
+/// swapped through pointers, `UnsafeCell`s, one `from_mut` makes, and `Cell`s.
+pub fn raw_cells(data: &[u8], out: &mut Vec<u8>) {
+	let count = Rc::new(());
+	let num = UnsafeCell::new(7u32);
+	let duo = UnsafeCell::new(Duo(1, 2));
+	let held = UnsafeCell::new(Held {
+		n: 3,
+		count: Rc::clone(&count),
+	});
+	let pair = UnsafeCell::new((4u8, 5u16));
+	let bytes = UnsafeCell::new([6u8, 7]);
+	let wide = UnsafeCell::new([8u16, 9]);
+	let slots = Slots {
+		num: UnsafeCell::new(10),
+		held: UnsafeCell::new(Held {
+			n: 11,
+			count: Rc::clone(&count),
+		}),
+		pair: UnsafeCell::new((12, 13)),
+	};
+	let slot = MaybeUninit::new(UnsafeCell::new(14u32));
+	let mut local = 15u32;
+	let mut whole = Held {
+		n: 16,
+		count: Rc::clone(&count),
+	};
+	let mut elems = [17u16, 18, 19];
+	for &op in data {
+		let n = op / 8;
+		match op % 8 {
+			// Through references, each read back through `get`.
+			0 => unsafe {
+				*UnsafeCell::raw_get(&num) ^= u32::from(n) << 20;
+				*UnsafeCell::raw_get(&num as *const _) ^= u32::from(n);
+				(*UnsafeCell::raw_get(&duo)).1 ^= n;
+				(*UnsafeCell::raw_get(&held)).n ^= n;
+				(*UnsafeCell::raw_get(&pair)).1 ^= u16::from(n) << 8;
+				(*UnsafeCell::raw_get(&bytes))[usize::from(n % 2)] ^= n;
+				(*UnsafeCell::raw_get(&wide))[usize::from(n % 2)] ^= u16::from(n) << 4;
+				out.extend((*num.get()).to_le_bytes());
+				out.extend([(*duo.get()).1, (*held.get()).n]);
+				out.extend((*pair.get()).1.to_le_bytes());
+				out.extend(*bytes.get());
+				out.extend((*wide.get())[1].to_le_bytes());
+			},
+			// Through raw pointers to where each cell is kept.
+			1 => unsafe {
+				let p = &raw const num;
+				*UnsafeCell::raw_get(p) = (*UnsafeCell::raw_get(p)).wrapping_mul(u32::from(n) | 1);
+				let s = &raw const slots;
+				*UnsafeCell::raw_get(&raw const (*s).num) += u32::from(n);
+				(*UnsafeCell::raw_get(&raw const (*s).held)).n ^= n;
+				(*UnsafeCell::raw_get(&raw const (*s).pair)).0 ^= n;
+				*UnsafeCell::raw_get(slot.as_ptr()) ^= u32::from(n);
+				out.extend((*num.get()).to_le_bytes());
+				out.extend((*slots.num.get()).to_le_bytes());
+				out.extend([(*slots.held.get()).n, (*slots.pair.get()).0]);
+				out.extend((*slot.assume_init_ref().get()).to_le_bytes());
+			},
+			// Cells of what a `&mut` borrows, written through `get` and seen by the borrowed.
+			2 => unsafe {
+				let c = UnsafeCell::from_mut(&mut local);
+				*c.get() = (*c.get()).rotate_left(u32::from(n));
+				let h = UnsafeCell::from_mut(&mut whole);
+				(*h.get()).n ^= n;
+				let e = UnsafeCell::from_mut(&mut elems[usize::from(n % 3)]);
+				*e.get() ^= u16::from(n);
+				out.extend(local.to_le_bytes());
+				out.push(whole.n);
+				out.extend(elems.iter().flat_map(|e| e.to_le_bytes()));
+			},
+			// Each replaced, what it held given back, a pointer taken before seeing the new.
+			3 => unsafe {
+				let p = num.get();
+				let old = num.replace(u32::from(n) << 3);
+				out.extend(old.to_le_bytes());
+				out.extend((*p).to_le_bytes());
+				let p = held.get();
+				let old = held.replace(Held {
+					n,
+					count: Rc::clone(&count),
+				});
+				out.extend([old.n, (*p).n, Rc::strong_count(&count) as u8]);
+				drop(old);
+				out.push(Rc::strong_count(&count) as u8);
+				let p = pair.get();
+				let old = pair.replace((n, u16::from(n) * 3));
+				out.extend([old.0, (*p).0]);
+				let p = bytes.get();
+				let old = bytes.replace([n, !n]);
+				out.extend(old);
+				out.extend(*p);
+				let old = duo.replace(Duo(n, n ^ 1));
+				out.extend([old.0, old.1, (*duo.get()).0]);
+			},
+			// Through cells `from_mut` makes, each replaced.
+			4 => unsafe {
+				let old = UnsafeCell::from_mut(&mut local).replace(u32::from(n));
+				out.extend(old.to_le_bytes());
+				let h = UnsafeCell::from_mut(&mut whole);
+				let p = h.get();
+				let old = h.replace(Held {
+					n: !n,
+					count: Rc::clone(&count),
+				});
+				out.extend([old.n, (*p).n, whole.n, Rc::strong_count(&count) as u8]);
+				let old = UnsafeCell::from_mut(&mut elems[usize::from(n % 3)]).replace(u16::from(n));
+				out.extend(old.to_le_bytes());
+				out.extend(local.to_le_bytes());
+			},
+			// What the unchecked references lend, and a cell of an array a `&mut` borrows.
+			5 => unsafe {
+				*num.as_mut_unchecked() ^= u32::from(n);
+				let r = num.as_mut_unchecked();
+				*r = r.rotate_left(1);
+				held.as_mut_unchecked().n ^= n;
+				pair.as_mut_unchecked().1 ^= u16::from(n);
+				bytes.as_mut_unchecked()[1] ^= n;
+				*wide.as_mut_unchecked() = [u16::from(n), 1];
+				out.extend(num.as_ref_unchecked().to_le_bytes());
+				out.extend([held.as_ref_unchecked().n, duo.as_ref_unchecked().0]);
+				out.extend(pair.as_ref_unchecked().1.to_le_bytes());
+				out.extend(bytes.as_ref_unchecked());
+				out.extend(wide.as_ref_unchecked()[0].to_le_bytes());
+				let mut arr = [n, 1, 2];
+				let a = UnsafeCell::from_mut(&mut arr);
+				(*a.get())[usize::from(n % 3)] ^= 0x40;
+				let old = a.replace([3, n, 4]);
+				out.extend(old);
+				out.extend(arr);
+			},
+			// Boxes replaced and swapped through pointers and cells, each allocation moving
+			// with its box.
+			6 => unsafe {
+				let held = |n| Held {
+					n,
+					count: Rc::clone(&count),
+				};
+				let mut a = Box::new(held(n));
+				let at_a: *const Held = &*a;
+				let old = ptr::replace(&mut a, Box::new(held(!n)));
+				let mut other = Box::new(held(n ^ 1));
+				let (at_new, at_other): (*const Held, *const Held) = (&*a, &*other);
+				ptr::swap(&mut a, &mut other);
+				out.extend([u8::from(ptr::eq(at_a, &*old)), u8::from(ptr::eq(at_new, &*other))]);
+				out.extend([u8::from(ptr::eq(at_other, &*a)), old.n, a.n, other.n]);
+				let pinned = UnsafeCell::new(Box::pin((n, 1u16)));
+				let at_pinned: *const (u8, u16) = &**pinned.get();
+				let was = pinned.replace(Box::pin((n ^ 2, 2)));
+				let (x, y) = (Cell::new(Box::pin((n, 3u16))), Cell::new(Box::pin((!n, 4u16))));
+				let at_x: *const (u8, u16) = &**x.as_ptr();
+				x.swap(&y);
+				out.extend([u8::from(ptr::eq(at_x, &**y.as_ptr())), x.into_inner().0]);
+				out.extend([u8::from(ptr::eq(at_pinned, &*was)), was.0, pinned.into_inner().0]);
+				let cell = UnsafeCell::new(Box::new(held(n ^ 3)));
+				let at_cell: *const Held = &**cell.get();
+				let was = cell.replace(Box::new(held(n ^ 4)));
+				let mut boxed = Box::new(held(n ^ 7));
+				let at_boxed: *const Held = &*boxed;
+				let lent = UnsafeCell::from_mut(&mut boxed).replace(Box::new(held(n)));
+				out.extend([u8::from(ptr::eq(at_boxed, &*lent)), lent.n, boxed.n]);
+				let (x, y) = (Cell::new(Box::new(held(n ^ 5))), Cell::new(Box::new(held(n ^ 6))));
+				let at_x: *const Held = &**x.as_ptr();
+				x.swap(&y);
+				out.extend([u8::from(ptr::eq(at_cell, &*was)), was.n, (*cell.get()).n]);
+				out.extend([u8::from(ptr::eq(at_x, &**y.as_ptr())), Rc::strong_count(&count) as u8]);
+			},
+			_ => out.push(n),
+		}
+	}
+	out.extend(num.into_inner().to_le_bytes());
+	out.extend([held.into_inner().n, Rc::strong_count(&count) as u8]);
+	out.extend(slots.num.into_inner().to_le_bytes());
+	drop(slots.held);
+	out.extend([whole.n, Rc::strong_count(&count) as u8]);
+	out.extend(elems.iter().flat_map(|e| e.to_le_bytes()));
+}
+
+thread_local! {
+	/// The cell `Reentrant`'s `default` and `eq` write.
+	static REENTERED: Cell<Reentrant> = const { Cell::new(Reentrant(1, 1)) };
+}
+
+/// A struct Rust copies whose `default` and `eq` write the cell holding it.
+#[derive(Clone, Copy)]
+struct Reentrant(u8, u8);
+
+impl Default for Reentrant {
+	fn default() -> Self {
+		REENTERED.with(|c| c.set(Reentrant(7, 7)));
+		Reentrant(0, 0)
+	}
+}
+
+impl PartialEq for Reentrant {
+	fn eq(&self, other: &Self) -> bool {
+		REENTERED.with(|c| c.set(Reentrant(9, 9)));
+		self.0 == other.0
+	}
+}
+
+/// What `Cell`s of a tuple, a struct Rust copies, one that owns a count, and arrays of bytes
+/// and of numbers, and cells `Cell::from_mut` makes of a tuple and an array, hold after
+/// `replace`, `set`, `swap` (but of the arrays), `take`, and `update`, each read back
+/// through a pointer `as_ptr` gave before, and what each gives back and drops; and `take`
+/// and `==` of a cell its value's `default` and `eq` write.
+pub fn cell_writes(data: &[u8], out: &mut Vec<u8>) {
+	let count = Rc::new(());
+	let held = |n: u8| Held {
+		n,
+		count: Rc::clone(&count),
+	};
+	let pair = Cell::new((1u8, 2u16));
+	let duo = Cell::new(Duo(3, 4));
+	let owner = Cell::new(held(5));
+	let bytes = Cell::new([6u8, 7]);
+	let wide = Cell::new([8u16, 9]);
+	let (to_pair, to_duo, to_owner) = (pair.as_ptr(), duo.as_ptr(), owner.as_ptr());
+	let (to_bytes, to_wide) = (bytes.as_ptr(), wide.as_ptr());
+	let mut lent = (10u8, 11u16);
+	let mut lent_bytes = [12u8, 13];
+	for &op in data {
+		let n = op / 8;
+		match op % 8 {
+			0 => {
+				let old = pair.replace((n, u16::from(n) << 8));
+				out.extend([old.0, duo.replace(Duo(n, !n)).1, owner.replace(held(n)).n]);
+				out.extend(bytes.replace([n, 1]));
+				out.extend(wide.replace([u16::from(n), 2])[1].to_le_bytes());
+			}
+			1 => {
+				pair.set((n ^ 1, 3));
+				duo.set(Duo(n ^ 2, 4));
+				owner.set(held(n ^ 3));
+				bytes.set([n ^ 4, 5]);
+				wide.set([6, u16::from(n) << 4]);
+			}
+			2 => {
+				pair.swap(&Cell::new((n, 7)));
+				let other = Cell::new(Duo(8, n));
+				duo.swap(&other);
+				out.extend([other.get().0, other.get().1]);
+				let other = Cell::new(held(n ^ 5));
+				owner.swap(&other);
+				out.push(other.into_inner().n);
+			}
+			3 => {
+				out.push(pair.take().0);
+				out.extend(bytes.take());
+				out.extend(wide.take()[0].to_le_bytes());
+			}
+			4 => {
+				pair.update(|(a, b)| (a.wrapping_add(n), b ^ 1));
+				duo.update(|Duo(a, b)| Duo(b, a ^ n));
+				bytes.update(|[a, b]| [b, a.wrapping_mul(n)]);
+				wide.update(|[a, b]| [b.rotate_left(u32::from(n)), a]);
+			}
+			6 => REENTERED.with(|c| {
+				c.set(Reentrant(n, 1));
+				let taken = c.take();
+				out.extend([taken.0, c.get().0]);
+				c.set(Reentrant(n, 1));
+				let same = *c == Cell::new(Reentrant(n, 2));
+				out.extend([u8::from(same), c.get().0]);
+			}),
+			5 => unsafe {
+				let c = Cell::from_mut(&mut lent);
+				let p = c.as_ptr();
+				c.set((n, 1));
+				let old = c.replace((n ^ 1, 2));
+				c.swap(&Cell::new((n ^ 2, 3)));
+				c.update(|(a, b)| (a ^ 4, b));
+				out.extend([old.0, (*p).0, c.take().0]);
+				let c = Cell::from_mut(&mut lent_bytes);
+				let p = c.as_ptr();
+				let old = c.replace([n, 5]);
+				c.update(|[a, b]| [b, a]);
+				out.extend(old);
+				out.extend(*p);
+				out.extend([lent.0, lent_bytes[0]]);
+			},
+			_ => out.push(n),
+		}
+		unsafe {
+			out.extend([(*to_pair).0, (*to_duo).0, (*to_duo).1, (*to_owner).n]);
+			out.extend((*to_pair).1.to_le_bytes());
+			out.extend(*to_bytes);
+			out.extend((*to_wide)[1].to_le_bytes());
+		}
+		out.push(Rc::strong_count(&count) as u8);
+	}
+	out.extend([pair.get().0, duo.get().1, owner.into_inner().n, bytes.get()[1]]);
+	out.push(Rc::strong_count(&count) as u8);
+}
+
+/// A struct holding a cell beside a number.
+struct Celled {
+	c: UnsafeCell<u32>,
+	n: u8,
+}
+
+/// Whole writes of values holding cells into a cell, a tuple, and a struct, each read back
+/// through a pointer saved into an inner cell before: `UnsafeCell::replace`, `ptr::replace`,
+/// `ptr::write`, `ptr::swap`, `Cell`'s writes, and assignments through a raw pointer; a
+/// value `ptr::read` copies out before one, and before a write into a part holding no
+/// cell; `ptr::write`s into memory not written yet; and pointers `UnsafeCell::raw_get`
+/// makes into such memory before the write.
+pub fn nested_cells(data: &[u8], out: &mut Vec<u8>) {
+	let nest = UnsafeCell::new(UnsafeCell::new(1u32));
+	let deep = UnsafeCell::new(UnsafeCell::new(UnsafeCell::new(2u32)));
+	let pair = UnsafeCell::new((UnsafeCell::new(3u32), 4u8));
+	let strukt = UnsafeCell::new(Celled {
+		c: UnsafeCell::new(5),
+		n: 6,
+	});
+	let obj = UnsafeCell::new(UnsafeCell::new((7u8, 8u8)));
+	let cell = Cell::new((UnsafeCell::new(9u32), 10u8));
+	let wrapped = Cell::new(UnsafeCell::new(11u32));
+	unsafe {
+		let to_wrapped = (*wrapped.as_ptr()).get();
+		let to_nest = (*nest.get()).get();
+		let to_deep = (*(*deep.get()).get()).get();
+		let to_pair = (*pair.get()).0.get();
+		let to_strukt = (*strukt.get()).c.get();
+		let to_obj = (*obj.get()).get();
+		let to_cell = (*cell.as_ptr()).0.get();
+		for &op in data {
+			let n = op / 8;
+			match op % 8 {
+				0 => {
+					let old = nest.replace(UnsafeCell::new(u32::from(n)));
+					out.push(old.into_inner() as u8);
+					let old = deep.replace(UnsafeCell::new(UnsafeCell::new(u32::from(n) + 1)));
+					out.push(old.into_inner().into_inner() as u8);
+					let old = pair.replace((UnsafeCell::new(u32::from(n) + 2), n));
+					out.extend([old.0.into_inner() as u8, old.1]);
+					let old = strukt.replace(Celled {
+						c: UnsafeCell::new(u32::from(n) + 3),
+						n,
+					});
+					out.extend([old.c.into_inner() as u8, old.n]);
+					let old = obj.replace(UnsafeCell::new((n, n ^ 1)));
+					out.push(old.into_inner().1);
+				}
+				1 => {
+					let old = ptr::replace(nest.get(), UnsafeCell::new(u32::from(n) ^ 1));
+					out.push(old.into_inner() as u8);
+					let old = ptr::replace(pair.get(), (UnsafeCell::new(u32::from(n) ^ 2), n));
+					out.push(old.0.into_inner() as u8);
+				}
+				2 => {
+					ptr::write(nest.get(), UnsafeCell::new(u32::from(n) ^ 3));
+					ptr::write(
+						strukt.get(),
+						Celled {
+							c: UnsafeCell::new(u32::from(n) ^ 4),
+							n,
+						},
+					);
+				}
+				3 => {
+					let other = UnsafeCell::new(UnsafeCell::new(u32::from(n) ^ 5));
+					ptr::swap(nest.get(), other.get());
+					out.push(other.into_inner().into_inner() as u8);
+					let mut other = Celled {
+						c: UnsafeCell::new(u32::from(n) ^ 12),
+						n: !n,
+					};
+					ptr::swap(strukt.get(), &raw mut other);
+					out.extend([other.c.into_inner() as u8, other.n]);
+				}
+				4 => {
+					let old = cell.replace((UnsafeCell::new(u32::from(n) ^ 6), n));
+					out.push(old.0.into_inner() as u8);
+					cell.set((UnsafeCell::new(u32::from(n) ^ 7), n));
+				}
+				5 => {
+					*to_nest = u32::from(n) * 3;
+					*to_pair = u32::from(n) * 5;
+					let kept = ptr::read(nest.get());
+					ptr::write(nest.get(), UnsafeCell::new(u32::from(n) + 7));
+					out.push(kept.into_inner() as u8);
+				}
+				6 => {
+					let old = wrapped.replace(UnsafeCell::new(u32::from(n) ^ 8));
+					out.push(old.into_inner() as u8);
+					wrapped.set(UnsafeCell::new(u32::from(n) ^ 9));
+					let mut fresh = MaybeUninit::<UnsafeCell<u32>>::uninit();
+					ptr::write(fresh.as_mut_ptr(), UnsafeCell::new(u32::from(n) ^ 10));
+					let mut parts = MaybeUninit::<(UnsafeCell<u32>, u8)>::uninit();
+					ptr::write(parts.as_mut_ptr(), (UnsafeCell::new(u32::from(n) ^ 11), n));
+					out.extend([
+						*fresh.assume_init_ref().get() as u8,
+						*parts.assume_init_ref().0.get() as u8,
+					]);
+					let mut slot = MaybeUninit::<UnsafeCell<u32>>::uninit();
+					let mut pair_slot = MaybeUninit::<UnsafeCell<(u8, u8)>>::uninit();
+					let to_slot = slot.as_mut_ptr();
+					let to_pair_slot = pair_slot.as_mut_ptr();
+					let (early, early_pair) = (UnsafeCell::raw_get(to_slot), UnsafeCell::raw_get(to_pair_slot));
+					ptr::write(to_slot, UnsafeCell::new(u32::from(n) ^ 17));
+					ptr::write(to_pair_slot, UnsafeCell::new((n, !n)));
+					out.extend([*early as u8, (*early_pair).1]);
+					let mut uninit = MaybeUninit::new(UnsafeCell::new(u32::from(n)));
+					let read_out = uninit.assume_init_read();
+					ptr::write(uninit.as_mut_ptr(), UnsafeCell::new(u32::from(n) ^ 19));
+					out.extend([read_out.into_inner() as u8, *uninit.assume_init_ref().get() as u8]);
+					let src = UnsafeCell::new((UnsafeCell::new(u32::from(n)), (2u32, 3u32)));
+					let copy = ptr::read(src.get());
+					(*src.get()).1.0 = 9;
+					out.extend([copy.1.0 as u8, (*src.get()).1.0 as u8]);
+				}
+				_ => {
+					*nest.get() = UnsafeCell::new(u32::from(n) ^ 13);
+					*deep.get() = UnsafeCell::new(UnsafeCell::new(u32::from(n) ^ 14));
+				}
+			}
+			out.extend([*to_nest as u8, *to_deep as u8, *to_pair as u8, *to_strukt as u8]);
+			out.extend([(*to_obj).0, (*to_obj).1, *to_cell as u8, *to_wrapped as u8]);
+			out.extend([(*nest.get()).get().read() as u8, (*pair.get()).1, (*strukt.get()).n]);
 		}
 	}
 }

@@ -79,7 +79,7 @@ and each type a module of its own beside it, holding the type and its functions
 from. `rs.ts` beside them is the
 runtime: what std does that JS does not, with iterators in `rs/iter.ts`, `str`'s searches
 in `rs/str.ts`, the ASCII methods of `u8`, `char`, `[u8]`, and `str` in `rs/ascii.ts`, `char`'s Unicode classes, case maps, escapes, and encodings, and `str`'s case maps and escapes, in `rs/char.ts`, collections in `rs/collections.ts`, hashing in `rs/hash.ts`, ownership, atomics, and async in
-`rs/task.ts`, `f64`'s and `f32`'s methods in `rs/float.ts`, `Duration` in `rs/time.ts`, `TypeId` in `rs/any.ts`, and `Layout` and memory from `alloc` in `rs/alloc.ts`. What translates from std's own MIR,
+`rs/task.ts`, `f64`'s and `f32`'s methods in `rs/float.ts`, `Duration` in `rs/time.ts`, tokio's channels in `rs/tokio.ts`, `TypeId` in `rs/any.ts`, and `Layout` and memory from `alloc` in `rs/alloc.ts`. What translates from std's own MIR,
 `Option`'s, `Result`'s, and `Poll`'s methods, `==` of std's errors, `==` and ordering of a `Result` and a `Poll`, `cmp::max` and `min`, and the `str::parse` and
 `from_str_radix` of an integer or a `NonZero` and `bool`'s `str::parse`, goes in a module under its crate's name, as
 `core/option.ts` holds `map$1cf8u0y`. A dependency's modules go
@@ -154,6 +154,9 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `bytes::BytesMut` | `rs.BytesMut`: a window of storage, which what it splits off and freezes share without overlapping |
 | `rand::rngs::ThreadRng` | `rs.ThreadRng`, which holds no state |
 | `hashbrown::HashMap`, `HashSet` | `rs.HashMap<K, V>` and `rs.HashSet<K>`, as std's, which are hashbrown's |
+| `tokio::sync::mpsc::Sender<T>`, `UnboundedSender<T>`, `WeakSender<T>`, `WeakUnboundedSender<T>`, `Receiver<T>`, `UnboundedReceiver<T>` | `rs.MpscSender<T>`, `rs.MpscWeakSender<T>`, and `rs.MpscReceiver<T>`, either kind of channel's, which share an `rs/tokio.ts` channel; its `Permit`, `PermitIterator`, and `OwnedPermit` are `rs.MpscPermit<T>`, `rs.MpscPermits<T>`, an `rs.Iter` of them, and `rs.MpscOwnedPermit<T>` |
+| `tokio::sync::watch::Sender<T>`, `Receiver<T>`, `Ref<'_, T>` | `rs.WatchSender<T>`, `rs.WatchReceiver<T>`, and `rs.WatchRef<T>`, which holds the value's lock read until it drops |
+| `tokio::sync::oneshot::Sender<T>`, `Receiver<T>` | `rs.OneshotSender<T>` and `rs.OneshotReceiver<T>`, a future of its value |
 | `hashbrown::HashTable<T>` | `rs.HashTable<T>`: an `rs.HashMap` of nothing to each item, under the hash its caller gives; its entries are `rs.TableEntry<T>`, the place of the item an occupied one holds |
 
 `Vec<u8>` storage and `[x; N]` byte arrays up to 1 KiB share 8 KiB `ArrayBuffer`s, as Node's
@@ -805,6 +808,22 @@ of them:
   `crypto.getRandomValues`, uniform as `rand`'s are, though no seed reproduces them, as
   none reproduces `rand::rng()`'s. An empty range panics as `rand`'s does. A seeded
   generator, such as `StdRng`, is refused, since its values would have to be `rand`'s.
+- tokio's `sync::mpsc`, bounded and unbounded, `sync::watch`, and `sync::oneshot` map to
+  `rs/tokio.ts`, which keeps each channel's waiters in queues it wakes as tokio's do: a
+  bounded channel's senders wait for room in turn, first come first served, each permit
+  `reserve_many` takes counting as tokio's semaphore counts it, a watch channel's
+  receivers wake in a random order, as tokio's eight shards do, and each handle's drop
+  closes, wakes, and drops values as tokio's does. Their constructors and methods,
+  `Clone`, the futures they make, `Default` of a watch sender, and `Debug` of a watch or
+  oneshot handle and of a weak sender map, with tokio's values, versions, counts, errors,
+  and panics: a send while a `watch::Ref` is held aborts, as the `std` lock tokio holds
+  it by does on wasm32, and a oneshot receiver polled after it completed panics. tokio's
+  errors translate from its MIR, as does `select!`, whose start at random is
+  `crypto`'s, through tokio's `thread_rng_n` and `poll_budget_available`. Refused: what
+  blocks the thread (`blocking_send`, `blocking_recv`, and the like), `send_timeout`,
+  which needs tokio's timer, `Debug` of an mpsc handle other than a weak sender, which
+  writes addresses, and the rest of `tokio::sync` (`Notify`, `Mutex`, `RwLock`,
+  `Semaphore`, `broadcast`), which translates from tokio's MIR, refused where that is.
 - `tracing`'s events, `trace!` through `error!` and `event!`, are left out where they are
   written. Translated code installs no subscriber, and without one an event evaluates none
   of its fields and does nothing, so leaving it out is exact. Installing one, as
@@ -1235,6 +1254,15 @@ so adding, removing, or reordering a case changes no other case's inputs.
   width in an `ArrayString` until it is full. `caller.ts` names the inputs that read a `BytesMut` past
   where `bytes` shares a vector's storage, 128 MiB, drop each pick of a storage's
   handles before reserving, and read a deque across where its ring wraps and past its end.
+- `tokio` passes values through tokio's mpsc, watch, and oneshot channels with no config,
+  against tokio itself, by scripts of steps its input picks: tasks that wait to receive,
+  to send, to reserve, for a change or a value, and for the other side to close, beside
+  sends, tries, closes, clones, drops, and cancelled tasks. A small executor, translated
+  with the rest, polls the woken tasks in the order they were spawned, so the log shows
+  each value, its order and drop, each error and count, and after each step which tasks
+  were woken and became ready. It waits on a frame or a close with a biased `select!`, as
+  web-codecs' decoder does, and on two channels with an unbiased one, one branch ready at
+  a time. `caller.ts` names the scripts that panic as tokio does.
 - `bind` binds `buf::Blob`, a renamed dependency's type with `unsafe` inside, and a function and a type of its own that read through raw
   pointers, the type dropping an `Arc` where Rust drops it, to the TS in `bind/`. It keys
   hash and B-tree collections by `Blob` and by `key::Nibble`, a JS number equal to another

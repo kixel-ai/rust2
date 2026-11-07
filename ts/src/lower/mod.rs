@@ -28,6 +28,7 @@ pub mod pointer;
 mod stock;
 mod task;
 mod time;
+mod tokio;
 pub mod unions;
 
 use std::collections::VecDeque;
@@ -1365,7 +1366,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| library::Std::TableEntry
 					| library::Std::Hasher
 					| library::Std::BytesMut
-					| library::Std::ThreadRng,
+					| library::Std::ThreadRng
+					| library::Std::Sync,
 				) => Some(ObjectKind::Class),
 				// What it holds, which its JS value is.
 				Some(library::Std::AssertUnwindSafe) => self.object_kind(args.type_at(0)),
@@ -1427,6 +1429,22 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		erased
 	}
 
+	/// Whether `ty` is a `Box` of an object a whole write lands in, through any `Pin`s and
+	/// `AssertUnwindSafe`s, as a pinned `Box` is: a copy of the value there is another
+	/// allocation.
+	pub fn boxed_object(&self, ty: Ty<'tcx>) -> bool {
+		use library::Std;
+		let mut at = ty;
+		while let ty::Adt(adt, args) = at.kind() {
+			match Std::of(self.tcx, adt.did()) {
+				Some(Std::Box) => return self.write_in(ty).is_some(),
+				Some(Std::Pin | Std::AssertUnwindSafe) => at = args.type_at(0),
+				_ => break,
+			}
+		}
+		false
+	}
+
 	/// The kind of a `pointee`'s object, through the `Pin`s, `Box`es, and `AssertUnwindSafe`s
 	/// JS erases, where a whole value of it can be written into the object in place: one only
 	/// its owner holds, unlike an `Arc`'s or a `LocalKey`'s, which its copies share, and whose
@@ -1457,6 +1475,21 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ObjectKind::Closure => None,
 			kind => Some(kind),
 		}
+	}
+
+	/// How many levels of arrays of objects a write may land in `ty` nests, whose items a
+	/// copy of a view of one copies too, unlike references, which move as they are: the
+	/// runtime's `depth`, if any.
+	pub fn copy_depth(&self, ty: Ty<'tcx>) -> Option<ts::Expr> {
+		let mut depth = 0;
+		let mut at = ty;
+		while let ty::Array(elem, _) = at.kind()
+			&& self.write_in(*elem).is_some()
+		{
+			depth += 1;
+			at = *elem;
+		}
+		(depth > 0).then(|| ts::Expr::lit(depth.to_string()))
 	}
 
 	/// What `ty` points at, if it is a `&mut` that is an `rs.Place`.
@@ -1852,6 +1885,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::Bytes | library::Std::IoSlice => Type::Rs("ByteSlice", vec![]),
 				library::Std::BytesMut => Type::Rs("BytesMut", vec![]),
 				library::Std::ThreadRng => Type::Rs("ThreadRng", vec![]),
+				// A handle over the type of the values its channel holds.
+				library::Std::Sync => {
+					let handle = tokio::Handle::of(tcx, adt.did()).expect("a tokio handle");
+					Type::Rs(handle.class(), vec![self.ty(tokio::held(args), span)])
+				}
 				library::Std::ControlFlow => {
 					if let Some(msg) = self.erasure_conflict(Ty::new_adt(tcx, adt, args)) {
 						self.err(span, msg);

@@ -1,5 +1,7 @@
 //! Memory from `alloc` and raw pointers read as other types' bytes or as addresses.
 
+use std::pin::Pin;
+
 use crate::pointers::Halves;
 
 /// A pointer read as another type's bytes.
@@ -100,6 +102,138 @@ pub fn beside_reference(r: &u32, n: usize) -> u32 {
 /// it.
 pub fn past_reference(r: &u32) -> u32 {
 	unsafe { *(r as *const u32).add(2) }
+}
+
+/// `UnsafeCell`s of objects a pointer is the place of, which a whole write through `get`
+/// lands in, so a value `replace` reads out before would change too or be a copy, and a
+/// `Cell` and an array of a pinned `Box`, whose copy is another allocation.
+pub fn cell_of_objects(v: &mut Vec<u8>, s: &mut String, p: &mut Pin<Box<(u8, u8)>>, q: &mut Pin<Box<(u8, u8)>>) -> u8 {
+	let v = std::cell::UnsafeCell::from_mut(v);
+	let s = std::cell::UnsafeCell::from_mut(s);
+	let p = std::cell::UnsafeCell::from_mut(p);
+	let first = unsafe {
+		v.replace(Vec::new()).len() as u8 ^ s.replace(String::new()).len() as u8 ^ p.replace(Box::pin((3, 4))).0
+	};
+	let second = std::cell::Cell::from_mut(q).replace(Box::pin((5, 6))).0;
+	let [third] = std::mem::replace(std::array::from_mut(q), [Box::pin((7, 8))]);
+	first ^ second ^ third.0
+}
+
+/// The length of the `Vec` a pointer from the reference given points at, which translates:
+/// a call for `cell_pointer_kept` to make between its pointer and the read.
+fn vec_pointer(v: &mut Vec<u8>) -> usize {
+	let p = &raw const *v;
+	unsafe { (*p).len() }
+}
+
+/// A pointer to a cell behind a reference, made before a call that `UnsafeCell::raw_get`
+/// comes after, which reads it in its place only right after it is made.
+pub fn cell_pointer_kept(c: &std::cell::UnsafeCell<u32>, n: u32) -> u32 {
+	let x = n.wrapping_mul(3);
+	let p: *const std::cell::UnsafeCell<u32> = c;
+	let y = vec_pointer(&mut vec![0; x as usize]);
+	unsafe { *std::cell::UnsafeCell::raw_get(p) + y as u32 }
+}
+
+/// A pointer `UnsafeCell::raw_get` makes of a reference to a cell, read after the variable
+/// holding the cell is given another.
+pub fn cell_pointer_reassigned(n: u32) -> u32 {
+	let mut c = std::cell::UnsafeCell::new(n);
+	let p = std::cell::UnsafeCell::raw_get(&c);
+	c = std::cell::UnsafeCell::new(n ^ 1);
+	let _ = &c;
+	unsafe { *p }
+}
+
+/// Pointers `UnsafeCell::raw_get` makes of a raw pointer to a cell, of one to either of
+/// two, of one to it or else null or a parameter, and of a `MaybeUninit`'s, and `get`
+/// through the first, read after the variable holding the cell is given another.
+pub fn cell_raw_reassigned(n: u32, given: *const std::cell::UnsafeCell<u32>) -> u32 {
+	let mut c = std::cell::UnsafeCell::new(n);
+	let d = std::cell::UnsafeCell::new(n ^ 2);
+	let to = &raw const c;
+	let p = unsafe { std::cell::UnsafeCell::raw_get(to) };
+	let either = if n > 3 { &raw const c } else { &raw const d };
+	let q = unsafe { std::cell::UnsafeCell::raw_get(either) };
+	let r = unsafe { (*to).get() };
+	let or_null = if n > 5 { &raw const c } else { std::ptr::null() };
+	let s = unsafe { std::cell::UnsafeCell::raw_get(or_null) };
+	let or_given = if n > 7 { &raw const c } else { given };
+	let t = unsafe { std::cell::UnsafeCell::raw_get(or_given) };
+	let mut slot = std::mem::MaybeUninit::new(std::cell::UnsafeCell::new(n ^ 3));
+	let u = unsafe { std::cell::UnsafeCell::raw_get(slot.as_ptr()) };
+	c = std::cell::UnsafeCell::new(n ^ 1);
+	slot = std::mem::MaybeUninit::new(std::cell::UnsafeCell::new(n ^ 4));
+	let _ = (&c, &d, &slot);
+	unsafe { *p ^ *q ^ *r ^ *s ^ *t ^ *u }
+}
+
+/// `UnsafeCell::raw_get` of pointers no known place of a cell makes: into an empty `Vec`'s
+/// room for cells of a tuple and of a number, which hold no cell yet, past an array's first
+/// cell by arithmetic, and through a parameter.
+pub fn cell_raw_unknown(n: u32, given: *const std::cell::UnsafeCell<u32>) -> u32 {
+	let mut pairs = Vec::<std::cell::UnsafeCell<(u32, u32)>>::with_capacity(1);
+	let mut nums = Vec::<std::cell::UnsafeCell<u32>>::with_capacity(1);
+	let cells = [std::cell::UnsafeCell::new(n), std::cell::UnsafeCell::new(n ^ 1)];
+	unsafe {
+		let empty = std::cell::UnsafeCell::raw_get(pairs.as_mut_ptr()).is_null();
+		std::cell::UnsafeCell::raw_get(nums.as_mut_ptr()).write(7);
+		nums.set_len(1);
+		let next = *std::cell::UnsafeCell::raw_get(cells.as_ptr()).add(1);
+		let at = *std::cell::UnsafeCell::raw_get(&raw const (*given));
+		u32::from(empty) ^ *nums[0].get() ^ next ^ at
+	}
+}
+
+/// A `MaybeUninit` of a cell, whose `assume_init_mut` is the place the cell is kept in, lent
+/// as the value by `get_mut`.
+pub fn uninit_cell_lent(n: u32) -> u32 {
+	let mut slot = std::mem::MaybeUninit::new(std::cell::UnsafeCell::new(n));
+	unsafe { *slot.assume_init_mut().get_mut() + 1 }
+}
+
+/// Whole writes of values holding a cell in a `MaybeUninit` or `ManuallyDrop`, which would
+/// put another cell in place of one a pointer `get` gave points into: `UnsafeCell::replace`
+/// of a wrapped tuple and of a wrapped cell, `ptr::write` of a tuple holding one,
+/// `Cell::set`, and an assignment through a raw pointer.
+pub fn wrapped_cells(n: u32) -> u32 {
+	use std::cell::{Cell, UnsafeCell};
+	use std::mem::{ManuallyDrop, MaybeUninit};
+	let tuple = UnsafeCell::new(MaybeUninit::new((UnsafeCell::new(n), n)));
+	let manual = UnsafeCell::new(ManuallyDrop::new(UnsafeCell::new(n)));
+	let mut pair = (MaybeUninit::new(UnsafeCell::new(n)), n);
+	let cell = Cell::new(ManuallyDrop::new(UnsafeCell::new(n)));
+	unsafe {
+		let old = tuple.replace(MaybeUninit::new((UnsafeCell::new(1), 1)));
+		let older = manual.replace(ManuallyDrop::new(UnsafeCell::new(2)));
+		std::ptr::write(&raw mut pair, (MaybeUninit::new(UnsafeCell::new(3)), 3));
+		cell.set(ManuallyDrop::new(UnsafeCell::new(4)));
+		*manual.get() = ManuallyDrop::new(UnsafeCell::new(5));
+		old.assume_init().1 ^ ManuallyDrop::into_inner(older).into_inner() ^ pair.1
+	}
+}
+
+/// An `UnsafeCell::from_mut` of arrays of arrays, which a cell may read a copy of, and
+/// `Cell::swap`s of arrays, whose cells may partially overlap.
+pub fn cell_of_arrays(a: &mut [[u16; 2]; 2]) -> u16 {
+	let c = std::cell::UnsafeCell::from_mut(a);
+	let first = unsafe { (*c.get())[0][0] };
+	let (x, y) = (
+		std::cell::Cell::new([[1u16, 2]; 2]),
+		std::cell::Cell::new([[3u16, 4]; 2]),
+	);
+	x.swap(&y);
+	let (v, w) = (std::cell::Cell::new([5u32, 6]), std::cell::Cell::new([7u32, 8]));
+	v.swap(&w);
+	first ^ x.into_inner()[0][0] ^ v.into_inner()[0] as u16
+}
+
+/// A `get_mut` and an `as_mut_unchecked` of a cell of a pinned `Box`, whose old value
+/// `mem::replace` would give back as a copy.
+pub fn pinned_lent(c: &mut std::cell::UnsafeCell<Pin<Box<(u8, u8)>>>) -> u8 {
+	let old = std::mem::replace(c.get_mut(), Box::pin((1, 2)));
+	let older = std::mem::replace(unsafe { c.as_mut_unchecked() }, Box::pin((3, 4)));
+	old.0 ^ older.0
 }
 
 /// Casts between pointers to bytes and to values outside memory from `alloc`, which read

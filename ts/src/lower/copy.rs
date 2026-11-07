@@ -68,7 +68,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Some(Std::Bound) => (true, args.types().collect()),
 				// Records of functions and pointers, which JS shares.
 				Some(Std::WakerVTable | Std::RawWaker) => (true, Vec::new()),
-				Some(Std::MaybeUninit | Std::ManuallyDrop) => return self.changes(args.type_at(0)),
+				// What it holds, which a `Pin` is in JS too.
+				Some(Std::MaybeUninit | Std::ManuallyDrop | Std::Pin) => return self.changes(args.type_at(0)),
 				// A library object a whole write lands in in place, which a copy copies one
 				// object deep; through a shared reference too, where it has interior
 				// mutability, which no write the crate shows records.
@@ -326,7 +327,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let tcx = self.tcx;
 		let (ty, any_length) = match ty.kind() {
 			// The copy of what it holds.
-			ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::ManuallyDrop) => {
+			ty::Adt(adt, args) if matches!(Std::of(tcx, adt.did()), Some(Std::ManuallyDrop | Std::Pin)) => {
 				return self.shim(args.type_at(0), span);
 			}
 			ty::Array(elem, _) => (Ty::new_array(tcx, *elem, 0), true),
@@ -684,6 +685,7 @@ impl<'tcx> Writes<'tcx> {
 			}
 			BodyWrites {
 				tcx,
+				t,
 				body,
 				def_id,
 				writes: &mut writes,
@@ -802,8 +804,8 @@ fn by_value<'tcx>(tcx: TyCtxt<'tcx>, env: ty::TypingEnv<'tcx>, ty: Ty<'tcx>) -> 
 
 /// The value std's `def_id`, given `this` as its `self`, writes whole through that shared
 /// reference, putting another object in its place: the value of the `RefCell` it is, or
-/// that a thread-local's `RefCell` holds. A `Cell`'s are left out, as none of its methods
-/// that translate lends a reference into its value.
+/// that a thread-local's `RefCell` holds. A `Cell`'s and an `UnsafeCell`'s are left out,
+/// as each writes into the object it holds, which [`cell_writes`] says.
 fn replaces<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, this: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	let (owner, name) = super::library::key(tcx, def_id)?;
 	let replaces = matches!(
@@ -824,6 +826,35 @@ fn replaces<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, this: Ty<'tcx>) -> Option<Ty
 			_ => return None,
 		}
 	}
+}
+
+/// The value std's `def_id`, a method of a cell of it, writes whole in place of the one the
+/// cell holds: as a write through the pointer `as_ptr` or `get` gives, into the object or
+/// array it is. A `Cell`'s arrays of arrays are put in its place instead, and its `swap`
+/// of an array is refused.
+fn cell_writes<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> Option<Ty<'tcx>> {
+	let (owner, name) = super::library::key(tcx, def_id)?;
+	let writes = match owner.as_str() {
+		// Refused of an array.
+		"Cell" if name == "swap" && args.type_at(0).is_array() => false,
+		"Cell" if super::array_slice::of_arrays(args.type_at(0)) => false,
+		"Cell" => matches!(name.as_str(), "replace" | "set" | "swap" | "take" | "update"),
+		"UnsafeCell" => name == "replace",
+		_ => false,
+	};
+	(writes && super::library::is_std(tcx, def_id)).then(|| args.type_at(0))
+}
+
+/// The type std's `def_id` writes whole through a raw pointer to one, by the runtime's
+/// write of a pointer's value: `ptr::write`, `replace`, or `swap`.
+fn pointer_writes<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> Option<Ty<'tcx>> {
+	let (owner, name) = super::library::key(tcx, def_id)?;
+	let writes = owner == "ptr"
+		&& matches!(
+			name.as_str(),
+			"write" | "write_unaligned" | "write_volatile" | "replace" | "swap"
+		);
+	(writes && super::library::is_std(tcx, def_id)).then(|| args.type_at(0))
 }
 
 /// The place each local of `body` borrows, where its one assignment is a borrow and
@@ -1072,6 +1103,7 @@ impl<'tcx> Visitor<'tcx> for UsesOf<'_> {
 /// The writes of one body.
 struct BodyWrites<'w, 'm, 'a, 'tcx> {
 	tcx: TyCtxt<'tcx>,
+	t: &'m Translator<'a, 'tcx>,
 	body: &'m mir::Body<'tcx>,
 	def_id: DefId,
 	writes: &'w mut Writes<'tcx>,
@@ -1099,6 +1131,30 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 		}
 		for ty in self.parts(ty) {
 			self.writes.replaced.insert(self.tcx, self.def_id, ty);
+		}
+	}
+
+	/// A whole `ty` written into in place by the runtime's write of a cell's value, which
+	/// keeps each cell it [keeps](Translator::keeps_cells), writing into it in place too,
+	/// and replaces the rest as [`Self::replace`] does.
+	fn replace_kept(&mut self, ty: Ty<'tcx>) {
+		use super::pointer::KeptCells;
+		self.insert(ty);
+		match self.t.kept_cells(ty) {
+			Some(KeptCells::Cell(held)) => self.replace_kept(held),
+			Some(KeptCells::Fields(fields)) => {
+				for (i, (field, kept)) in fields.into_iter().enumerate() {
+					match kept {
+						true => self.replace_kept(field),
+						false => {
+							let holders = self.writes.holders.entry(Some(FieldIdx::from_usize(i))).or_default();
+							holders.insert(self.tcx, self.def_id, ty);
+							self.replace(field);
+						}
+					}
+				}
+			}
+			None => self.replace(ty),
 		}
 	}
 
@@ -1364,8 +1420,16 @@ impl<'tcx> Visitor<'tcx> for BodyWrites<'_, '_, '_, 'tcx> {
 			{
 				self.replace(value);
 			}
+			if let Some(held) = cell_writes(self.tcx, def_id, args.skip_binder()) {
+				self.replace_kept(held);
+			}
+			// A pointer's whole write keeps the cells a value keeps, as a cell's does.
+			let kept = pointer_writes(self.tcx, def_id, args.skip_binder()).filter(|&ty| self.t.keeps_cells(ty));
+			if let Some(ty) = kept {
+				self.replace_kept(ty);
+			}
 			// Those that point a pointer elsewhere or read through it replace nothing.
-			let replace = !super::pointer::keeps(self.tcx, def_id, args.skip_binder());
+			let replace = kept.is_none() && !super::pointer::keeps(self.tcx, def_id, args.skip_binder());
 			// A call's argument may point into memory nothing else points into yet.
 			let body = self.body;
 			let call = match &body[location.block].terminator().kind {

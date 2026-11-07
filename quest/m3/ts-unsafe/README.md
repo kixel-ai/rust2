@@ -73,7 +73,3 @@ construct still open at `b3df54b6c`, all in m3:
 Census at the moq pin on 2026-11-07: model 45, kio 72, moq-net 344 refusals.
 
 Public API: the translator's output.
-
-## Required
-
-- [UnsafeCell's raw accessors](/quest/m3/ts-unsafe/unsafecell.md) - `UnsafeCell::raw_get`, `from_mut`, and `replace` translate
