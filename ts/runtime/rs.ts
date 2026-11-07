@@ -501,8 +501,12 @@ export class RawSlice<T> {
 	byteArray(n: number): ByteSlice {
 		if (ptrNowhere(this.ptr)) return this.ptr as never;
 		const at = elemOf(this.ptr);
-		// A byte in no array, which no `Uint8Array` can share.
-		if (!(at.array instanceof Uint8Array)) throw new Error("rust2-ts: a raw or mutable slice of a byte in no array of bytes");
+		if (!(at.array instanceof Uint8Array)) {
+			// None of a byte in no array keeps where it points, as `ptrByteSlice`'s does.
+			if (n === 0) return ptrByteSlice(this.ptr as Place<number>, 0, false);
+			// A byte in no array, which no `Uint8Array` can share.
+			throw new Error("rust2-ts: a raw or mutable slice of a byte in no array of bytes");
+		}
 		return new ByteSlice(at.array, at.index, n);
 	}
 

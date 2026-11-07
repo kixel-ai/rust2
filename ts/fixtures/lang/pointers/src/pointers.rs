@@ -2464,6 +2464,14 @@ pub fn array_casts(data: &[u8], out: &mut Vec<u8>) {
 	let empty: &[u8] = &bytes[bytes.len()..];
 	let none = empty as *const [u8] as *const [u8; 0];
 	out.push(unsafe { *none }.len() as u8);
+	// Values in no array, an empty slice of a byte and a whole one of a number.
+	let byte = data.first().copied().unwrap_or(7);
+	let lone = ptr::slice_from_raw_parts(&raw const byte, 0).cast::<[u8; 0]>();
+	out.push(u8::from(lone.is_null()));
+	out.push(unsafe { &*(lone as *const [u8]) }.len() as u8);
+	let word = u32::from(byte) * 3;
+	let one = ptr::slice_from_raw_parts(&raw const word, 1) as *const [u32; 1];
+	out.extend(unsafe { *one }[0].to_le_bytes());
 	let null = ptr::slice_from_raw_parts(ptr::null::<u8>(), 4) as *const [u8; 4];
 	let dangling = NonNull::<[u32]>::slice_from_raw_parts(NonNull::dangling(), 0).cast::<[u32; 2]>();
 	out.extend([

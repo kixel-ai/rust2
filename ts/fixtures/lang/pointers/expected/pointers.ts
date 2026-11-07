@@ -3052,6 +3052,12 @@ export function arrayCasts(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part2 = bytes.length;
 	rs.rawByteSliceOf(rs.byteSliceRange(rs.byteVecSlice(bytes), part2));
 	rs.byteVecPush(out, rs.byteSliceFrom(Uint8Array.of()).length & 0xff);
+	let byte: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 7);
+	const lone: rs.ByteSlice = new rs.RawSlice(rs.place(() => byte, (value) => byte = value), 0).byteArray(0);
+	rs.byteVecPush(out, lone === rs.NULL ? 1 : 0);
+	rs.byteVecPush(out, new rs.RawSlice(rs.byteSliceAsPtr(lone), 0).derefBytes(false).length & 0xff);
+	let word: rs.u32 = rs.u32Mul(byte as rs.u32, 3);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.sliceToArray(new rs.RawSlice(rs.place(() => word, (value2) => word = value2), 1).array(1))[0]).reverse()), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(new rs.RawSlice(rs.NULL, 4).byteArray(4) === rs.NULL ? 1 : 0, rs.sliceSame(new rs.RawSlice(rs.DANGLING, 0).array(2), rs.DANGLING) ? 1 : 0)), undefined, true);
 }
 
