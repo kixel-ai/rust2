@@ -211,20 +211,29 @@ impl Crate<'_> {
 	}
 }
 
-/// The path a `go.mod` line declares, if it is the module directive: `module`, then
-/// whitespace and the path, bare or quoted, then any `//` comment. A module path holds no
-/// quote or backslash to unescape.
-fn module_path(line: &str) -> Option<&str> {
-	let rest = line.trim_start().strip_prefix("module")?;
-	if !rest.starts_with(char::is_whitespace) {
-		return None;
+/// The path a `go.mod` declares in its module directive: `module`, then the path, bare or
+/// quoted, on its line or alone on the next of a `module (` block, then any `//` comment. A
+/// module path holds no quote, backslash, or `//`.
+fn module_path(text: &str) -> Option<&str> {
+	let mut lines = text
+		.lines()
+		.map(|line| line.split("//").next().unwrap_or_default().trim());
+	while let Some(line) = lines.next() {
+		let Some(rest) = line.strip_prefix("module") else {
+			continue;
+		};
+		let rest = match rest.trim_start() {
+			"(" => lines.find(|line| !line.is_empty())?,
+			path if path.len() < rest.len() || path.starts_with(['"', '`']) => path,
+			_ => continue,
+		};
+		let path = match rest.strip_prefix(['"', '`']) {
+			Some(quoted) => quoted.split(['"', '`']).next()?,
+			None => rest.split_whitespace().next()?,
+		};
+		return (!path.is_empty() && path != ")").then_some(path);
 	}
-	let rest = rest.trim_start();
-	let path = match rest.strip_prefix(['"', '`']) {
-		Some(quoted) => quoted.split(['"', '`']).next()?,
-		None => rest.split("//").next()?.split_whitespace().next()?,
-	};
-	(!path.is_empty()).then_some(path)
+	None
 }
 
 /// The import path of `<out>/go`, from the `go.mod` of the module above it, or else the
@@ -237,9 +246,7 @@ fn go_module(out: &Path, prefix: &str) -> Result<(String, Option<String>), Strin
 		let Ok(text) = std::fs::read_to_string(&path) else {
 			continue;
 		};
-		let module = (text.lines())
-			.find_map(module_path)
-			.ok_or_else(|| format!("{} declares no module", path.display()))?;
+		let module = module_path(&text).ok_or_else(|| format!("{} declares no module", path.display()))?;
 		let rest = out.join("go");
 		let rest = rest.strip_prefix(dir).expect("an ancestor holds it");
 		let rest: Vec<String> = rest
@@ -1246,17 +1253,25 @@ mod tests {
 
 	#[test]
 	fn module_directive() {
-		for (line, path) in [
-			("module example.com/app", Some("example.com/app")),
-			("module\texample.com/app", Some("example.com/app")),
+		for (text, path) in [
+			("module example.com/app\n\ngo 1.24\n", Some("example.com/app")),
+			("// the app\nmodule\texample.com/app\n", Some("example.com/app")),
 			("module example.com/app // the app", Some("example.com/app")),
 			("module \"example.com/app\" // quoted", Some("example.com/app")),
 			("module `example.com/app`", Some("example.com/app")),
-			("modules example.com/app", None),
-			("// module example.com/app", None),
-			("go 1.24", None),
+			("module (\n\texample.com/app\n)\n", Some("example.com/app")),
+			(
+				"module( // a block\n\n\t\"example.com/app\"\n)\n",
+				Some("example.com/app"),
+			),
+			("module (\n)\n", None),
+			(
+				"modules example.com/app\nmodule example.com/app",
+				Some("example.com/app"),
+			),
+			("// module example.com/app\ngo 1.24", None),
 		] {
-			assert_eq!(module_path(line), path, "{line:?}");
+			assert_eq!(module_path(text), path, "{text:?}");
 		}
 	}
 }

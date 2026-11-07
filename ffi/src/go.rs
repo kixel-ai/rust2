@@ -20,7 +20,7 @@
 //! interface; a closure a function; a future a call taking a `context.Context` that blocks
 //! until the future is ready; a `Result` an `error`. The runtime they share,
 //! [`runtime/rt.go`](../runtime/rt.go), holds the handles and the bytes Rust returns, and
-//! each package's copy of [`runtime/cgo.go`](../runtime/cgo.go) the arena a call lowers
+//! each package's copy of [`runtime/ffi_cgo.go`](../runtime/ffi_cgo.go) the arena a call lowers
 //! nested values into, and the wait of a future: cgo gives each package C types of its
 //! own, so packages reach each other only through Go's.
 //!
@@ -39,7 +39,7 @@ use crate::abi::{self, Abi, Ty, pascal};
 use crate::ir::{Access, Family, Function, Home, Int, Literal, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.go");
-const CONVERSIONS: &str = include_str!("../runtime/cgo.go");
+const CONVERSIONS: &str = include_str!("../runtime/ffi_cgo.go");
 
 /// The standard library's packages the generated items name.
 const STD: &[(&str, &str)] = &[
@@ -114,7 +114,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 			p = abi.prefix
 		);
 		files.push((format!("{name}/{name}.go"), g.file(&doc)));
-		files.push((format!("{name}/cgo.go"), g.conversions()));
+		// No package name holds a `_`, so the helpers never take the API's file.
+		files.push((format!("{name}/ffi_cgo.go"), g.conversions()));
 	}
 	errors.append(&mut rt.errors);
 	if !errors.is_empty() {

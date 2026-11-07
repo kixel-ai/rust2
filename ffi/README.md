@@ -591,7 +591,7 @@ Python and its extension include [`runtime/rt.py`](runtime/rt.py),
 [`runtime/native.py`](runtime/native.py), and [`runtime/python.rs`](runtime/python.rs),
 the one the Swift includes [`runtime/rt.swift`](runtime/rt.swift), the ones the Go's
 runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
-[`runtime/cgo.go`](runtime/cgo.go), and the ones the Dart and its glue include
+[`runtime/ffi_cgo.go`](runtime/ffi_cgo.go), and the ones the Dart and its glue include
 [`runtime/rt.dart`](runtime/rt.dart) and [`runtime/dart.rs`](runtime/dart.rs).
 
 ## Census

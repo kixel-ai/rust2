@@ -2,7 +2,7 @@
 // buffer as cBuf, its frees as cBufFree and cBufsFree, and its callbacks into Go as goCall
 // and goRelease: the handles objects own, the bytes Rust returns, and what Rust keeps of
 // Go's. Each generated package keeps its own copy of what converts its C types, which
-// cgo makes its own, in cgo.go; it reaches this through Go's types alone.
+// cgo makes its own, in ffi_cgo.go; it reaches this through Go's types alone.
 
 // The holds a handle counts, one for its owner until closed and one per call, shifted
 // past a bit set once closed.
