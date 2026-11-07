@@ -3010,47 +3010,50 @@ export function rawCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _43: rs.u32 = ((n as rs.u32) << 20) >>> 0;
 			const _47: rs.Place<rs.u32> = num;
 			_47.v = (_47.v ^ _43) >>> 0;
-			const _50: Duo.Duo = duo.v;
-			_50._1 = _50._1 ^ n;
-			const _53: Held.Held = held.v;
-			_53.n = _53.n ^ n;
-			const _56: rs.u16 = ((n as rs.u16) << 8) & 0xffff;
-			const _60: [rs.u8, rs.u16] = pair.v;
-			_60[1] = _60[1] ^ _56;
-			const _63: rs.ByteSlice = rs.byteSliceFrom(bytes.v);
-			const _66: rs.usize = rs.u8Rem(n, 2) as rs.usize;
-			if (!(_66 < 2)) {
-				rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _66);
+			const _50: rs.u32 = n as rs.u32;
+			const _51: rs.Place<rs.u32> = num;
+			_51.v = (_51.v ^ _50) >>> 0;
+			const _54: Duo.Duo = duo.v;
+			_54._1 = _54._1 ^ n;
+			const _57: Held.Held = held.v;
+			_57.n = _57.n ^ n;
+			const _60: rs.u16 = ((n as rs.u16) << 8) & 0xffff;
+			const _64: [rs.u8, rs.u16] = pair.v;
+			_64[1] = _64[1] ^ _60;
+			const _67: rs.ByteSlice = rs.byteSliceFrom(bytes.v);
+			const _70: rs.usize = rs.u8Rem(n, 2) as rs.usize;
+			if (!(_70 < 2)) {
+				rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _70);
 			}
-			_63.data[_63.start + _66] = _63.data[_63.start + _66] ^ n;
-			const _70: rs.u16 = ((n as rs.u16) << 4) & 0xffff;
-			const _74: rs.Slice<rs.u16> = rs.sliceFrom(wide.v);
-			const _77: rs.usize = rs.u8Rem(n, 2) as rs.usize;
-			if (!(_77 < 2)) {
-				rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _77);
+			_67.data[_67.start + _70] = _67.data[_67.start + _70] ^ n;
+			const _74: rs.u16 = ((n as rs.u16) << 4) & 0xffff;
+			const _78: rs.Slice<rs.u16> = rs.sliceFrom(wide.v);
+			const _81: rs.usize = rs.u8Rem(n, 2) as rs.usize;
+			if (!(_81 < 2)) {
+				rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _81);
 			}
-			_74.data[_74.start + _77] = _74.data[_74.start + _77] ^ _70;
+			_78.data[_78.start + _81] = _78.data[_78.start + _81] ^ _74;
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(num.v).reverse()), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(duo.v._1, held.v.n)), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(pair.v[1]).reverse()), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceToArray(rs.byteSliceFrom(bytes.v))), undefined, true);
-			const _106: rs.Slice<rs.u16> = rs.sliceFrom(wide.v);
-			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(_106.data[_106.start + 1]).reverse()), undefined, true);
+			const _110: rs.Slice<rs.u16> = rs.sliceFrom(wide.v);
+			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(_110.data[_110.start + 1]).reverse()), undefined, true);
 		} else if (_41 === 1) {
 			const p: rs.Place<rs.Cell<rs.u32>> = rs.place(() => num, (value5) => num = value5);
-			const _111: rs.u32 = rs.u32WrappingMul(p.v.v, ((n as rs.u32) | 1) >>> 0);
-			p.v.v = _111;
+			const _115: rs.u32 = rs.u32WrappingMul(p.v.v, ((n as rs.u32) | 1) >>> 0);
+			p.v.v = _115;
 			const s: Slots.Slots = slots;
-			const _118: rs.u32 = n as rs.u32;
-			const _119: rs.Place<rs.u32> = Slots.num(s);
-			_119.v = rs.u32Add(_119.v, _118);
-			const _121: Held.Held = s.held.v;
-			_121.n = _121.n ^ n;
-			const _123: [rs.u8, rs.u16] = s.pair.v;
-			_123[0] = _123[0] ^ n;
-			const _125: rs.u32 = n as rs.u32;
-			const _126: rs.Place<rs.u32> = { v: slot }.v;
-			_126.v = (_126.v ^ _125) >>> 0;
+			const _122: rs.u32 = n as rs.u32;
+			const _123: rs.Place<rs.u32> = Slots.num(s);
+			_123.v = rs.u32Add(_123.v, _122);
+			const _125: Held.Held = s.held.v;
+			_125.n = _125.n ^ n;
+			const _127: [rs.u8, rs.u16] = s.pair.v;
+			_127[0] = _127[0] ^ n;
+			const _129: rs.u32 = n as rs.u32;
+			const _130: rs.Place<rs.u32> = { v: slot }.v;
+			_130.v = (_130.v ^ _129) >>> 0;
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(num.v).reverse()), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(slots.num.v).reverse()), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(slots.held.v.n, slots.pair.v[0])), undefined, true);
@@ -3058,17 +3061,17 @@ export function rawCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_41 === 2) {
 			const c: rs.Cell<rs.u32> = rs.cellOfPlace(rs.place(() => local, (value3) => local = value3));
 			c.v = rs.intRotateLeft(c.v, n as rs.u32, 32, false);
-			const _164: Held.Held = rs.cellOfPlace(rs.partPlace(whole)).v;
-			_164.n = _164.n ^ n;
-			const _168: rs.usize = rs.u8Rem(n, 3) as rs.usize;
-			if (!(_168 < 3)) {
-				rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _168);
+			const _168: Held.Held = rs.cellOfPlace(rs.partPlace(whole)).v;
+			_168.n = _168.n ^ n;
+			const _172: rs.usize = rs.u8Rem(n, 3) as rs.usize;
+			if (!(_172 < 3)) {
+				rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _172);
 			}
 			const borrowed2 = elems;
-			const e: rs.Cell<rs.u16> = rs.cellOfPlace(rs.place(() => borrowed2[_168], (value4) => borrowed2[_168] = value4));
-			const _172: rs.u16 = n as rs.u16;
-			const _173: rs.Place<rs.u16> = e;
-			_173.v = _173.v ^ _172;
+			const e: rs.Cell<rs.u16> = rs.cellOfPlace(rs.place(() => borrowed2[_172], (value4) => borrowed2[_172] = value4));
+			const _176: rs.u16 = n as rs.u16;
+			const _177: rs.Place<rs.u16> = e;
+			_177.v = _177.v ^ _176;
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(local).reverse()), undefined, true);
 			rs.byteVecPush(out, whole.n);
 			rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(elems), (e2: rs.u16): Uint8Array => {
@@ -3076,26 +3079,26 @@ export function rawCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
 		} else if (_41 === 3) {
 			const p2: rs.Place<rs.u32> = num;
-			const _189: rs.u32 = ((n as rs.u32) << 3) >>> 0;
+			const _193: rs.u32 = ((n as rs.u32) << 3) >>> 0;
 			const pointer5 = num;
 			const old14 = pointer5.v;
-			pointer5.v = _189;
+			pointer5.v = _193;
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(old14).reverse()), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(p2.v).reverse()), undefined, true);
 			const p3: Held.Held = held.v;
-			const _202: Held.Held = new Held.Held(n, rs.arcClone(count));
+			const _206: Held.Held = new Held.Held(n, rs.arcClone(count));
 			const pointer6 = held.v;
 			const old15 = copy$pointers_Held(pointer6);
-			rs.ptrWrite(pointer6, _202);
+			rs.ptrWrite(pointer6, _206);
 			const old2: Held.Held = old15;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(old2.n, p3.n, count.strong & 0xff)), undefined, true);
 			old2[Symbol.dispose]();
 			rs.byteVecPush(out, count.strong & 0xff);
 			const p4: [rs.u8, rs.u16] = pair.v;
-			const _221: [rs.u8, rs.u16] = [n, rs.u16Mul(n as rs.u16, 3)];
+			const _225: [rs.u8, rs.u16] = [n, rs.u16Mul(n as rs.u16, 3)];
 			const pointer7 = pair.v;
 			const old16 = copy$tuple2_u8_u16(pointer7);
-			rs.ptrWrite(pointer7, _221);
+			rs.ptrWrite(pointer7, _225);
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(old16[0], p4[0])), undefined, true);
 			const p5: rs.ByteSlice = rs.byteSliceFrom(bytes.v);
 			const pointer8 = rs.byteSliceFrom(bytes.v);
@@ -3109,61 +3112,61 @@ export function rawCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const old5: Duo.Duo = old18;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(old5._0, old5._1, duo.v._0)), undefined, true);
 		} else if (_41 === 4) {
-			const _251: rs.Cell<rs.u32> = rs.cellOfPlace(rs.place(() => local, (value) => local = value));
-			const _253: rs.u32 = n as rs.u32;
-			const pointer2 = _251;
+			const _255: rs.Cell<rs.u32> = rs.cellOfPlace(rs.place(() => local, (value) => local = value));
+			const _257: rs.u32 = n as rs.u32;
+			const pointer2 = _255;
 			const old11 = pointer2.v;
-			pointer2.v = _253;
+			pointer2.v = _257;
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(old11).reverse()), undefined, true);
 			const h2: rs.Cell<Held.Held> = rs.cellOfPlace(rs.partPlace(whole));
 			const p6: Held.Held = h2.v;
-			const _262: Held.Held = new Held.Held(~n & 0xff, rs.arcClone(count));
+			const _266: Held.Held = new Held.Held(~n & 0xff, rs.arcClone(count));
 			const pointer3 = h2.v;
 			const old12 = copy$pointers_Held(pointer3);
-			rs.ptrWrite(pointer3, _262);
+			rs.ptrWrite(pointer3, _266);
 			const old7: Held.Held = old12;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(old7.n, p6.n, whole.n, count.strong & 0xff)), undefined, true);
-			const _278: rs.usize = rs.u8Rem(n, 3) as rs.usize;
-			if (!(_278 < 3)) {
-				rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _278);
+			const _282: rs.usize = rs.u8Rem(n, 3) as rs.usize;
+			if (!(_282 < 3)) {
+				rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _282);
 			}
 			const borrowed = elems;
-			const _276: rs.Cell<rs.u16> = rs.cellOfPlace(rs.place(() => borrowed[_278], (value2) => borrowed[_278] = value2));
-			const _282: rs.u16 = n as rs.u16;
-			const pointer4 = _276;
+			const _280: rs.Cell<rs.u16> = rs.cellOfPlace(rs.place(() => borrowed[_282], (value2) => borrowed[_282] = value2));
+			const _286: rs.u16 = n as rs.u16;
+			const pointer4 = _280;
 			const old13 = pointer4.v;
-			pointer4.v = _282;
+			pointer4.v = _286;
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(old13).reverse()), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(local).reverse()), undefined, true);
 			old7[Symbol.dispose]();
 		} else if (_41 === 5) {
-			const _288: rs.u32 = n as rs.u32;
-			const _289: rs.Place<rs.u32> = num;
-			_289.v = (_289.v ^ _288) >>> 0;
+			const _292: rs.u32 = n as rs.u32;
+			const _293: rs.Place<rs.u32> = num;
+			_293.v = (_293.v ^ _292) >>> 0;
 			const r: rs.Place<rs.u32> = num;
 			r.v = rs.intRotateLeft(r.v, 1, 32, false);
-			const _295: Held.Held = held.v;
-			_295.n = _295.n ^ n;
-			const _297: rs.u16 = n as rs.u16;
-			const _298: [rs.u8, rs.u16] = pair.v;
-			_298[1] = _298[1] ^ _297;
-			const _300: rs.ByteSlice = rs.byteSliceFrom(bytes.v);
-			_300.data[_300.start + 1] = _300.data[_300.start + 1] ^ n;
+			const _299: Held.Held = held.v;
+			_299.n = _299.n ^ n;
+			const _301: rs.u16 = n as rs.u16;
+			const _302: [rs.u8, rs.u16] = pair.v;
+			_302[1] = _302[1] ^ _301;
+			const _304: rs.ByteSlice = rs.byteSliceFrom(bytes.v);
+			_304.data[_304.start + 1] = _304.data[_304.start + 1] ^ n;
 			rs.sliceSet(rs.sliceFrom(wide.v), [n as rs.u16, 1]);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(num.v).reverse()), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(held.v.n, duo.v._0)), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(pair.v[1]).reverse()), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(bytes.v))), undefined, true);
-			const _331: rs.Slice<rs.u16> = rs.sliceFrom(wide.v);
-			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(_331.data[_331.start]).reverse()), undefined, true);
+			const _335: rs.Slice<rs.u16> = rs.sliceFrom(wide.v);
+			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(_335.data[_335.start]).reverse()), undefined, true);
 			const arr: Uint8Array = Uint8Array.of(n, 1, 2);
 			const a: rs.Cell<Uint8Array> = rs.cellOfPlace(rs.partPlace(rs.byteSliceView(rs.byteSliceFrom(arr))));
-			const _338: rs.ByteSlice = rs.byteSliceFrom(a.v);
-			const _340: rs.usize = rs.u8Rem(n, 3) as rs.usize;
-			if (!(_340 < 3)) {
-				rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _340);
+			const _342: rs.ByteSlice = rs.byteSliceFrom(a.v);
+			const _344: rs.usize = rs.u8Rem(n, 3) as rs.usize;
+			if (!(_344 < 3)) {
+				rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _344);
 			}
-			_338.data[_338.start + _340] = _338.data[_338.start + _340] ^ 64;
+			_342.data[_342.start + _344] = _342.data[_342.start + _344] ^ 64;
 			const pointer = rs.byteSliceFrom(a.v);
 			const old10 = rs.byteSliceToArray(pointer);
 			rs.byteSliceSet(pointer, Uint8Array.of(3, n, 4));
@@ -3174,9 +3177,9 @@ export function rawCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 	}
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(num.v).reverse()), undefined, true);
-	const _357: Held.Held = held.v;
-	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_357.n, count.strong & 0xff)), undefined, true);
-	_357[Symbol.dispose]();
+	const _361: Held.Held = held.v;
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_361.n, count.strong & 0xff)), undefined, true);
+	_361[Symbol.dispose]();
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(slots.num.v).reverse()), undefined, true);
 	slots.held[Symbol.dispose]();
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(whole.n, count.strong & 0xff)), undefined, true);

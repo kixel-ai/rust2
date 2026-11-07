@@ -1421,7 +1421,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// Find the pointers [`Self::raw_cells`] holds: `&raw const *r` of a reference `r`,
-	/// read once, as the argument of the `UnsafeCell::raw_get` its block ends in, with
+	/// read once, as the argument of the `UnsafeCell::raw_get` its own block ends in, with
 	/// nothing but storage markers between.
 	fn find_raw_cells(&mut self) {
 		let mir: &'m mir::Body<'tcx> = self.mir;
@@ -1439,13 +1439,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			{
 				continue;
 			}
-			let Some(Operand::Move(p)) = args.first().map(|a| &a.node) else {
+			let Some(Operand::Copy(p) | Operand::Move(p)) = args.first().map(|a| &a.node) else {
 				continue;
 			};
 			let Some(local) = p.as_local().filter(|&l| self.defs[l] == 1 && self.uses[l] == 1) else {
 				continue;
 			};
-			let Some((at, i)) = self.def_at[local] else {
+			let Some((_, i)) = self.def_at[local].filter(|&(at, _)| at == bb) else {
 				continue;
 			};
 			let Some(Rvalue::RawPtr(mir::RawPtrKind::Const | mir::RawPtrKind::Mut, cell)) = self.def_rvalue(local)
@@ -1464,7 +1464,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					StatementKind::StorageLive(_) | StatementKind::StorageDead(_) | StatementKind::Nop
 				)
 			});
-			if behind_ref && at == bb && next {
+			if behind_ref && next {
 				self.raw_cells.insert(local, *cell);
 				self.joined.insert(local);
 			}

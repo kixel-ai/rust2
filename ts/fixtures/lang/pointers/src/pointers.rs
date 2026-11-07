@@ -2464,6 +2464,7 @@ pub fn raw_cells(data: &[u8], out: &mut Vec<u8>) {
 			// Through references, each read back through `get`.
 			0 => unsafe {
 				*UnsafeCell::raw_get(&num) ^= u32::from(n) << 20;
+				*UnsafeCell::raw_get(&num as *const _) ^= u32::from(n);
 				(*UnsafeCell::raw_get(&duo)).1 ^= n;
 				(*UnsafeCell::raw_get(&held)).n ^= n;
 				(*UnsafeCell::raw_get(&pair)).1 ^= u16::from(n) << 8;
