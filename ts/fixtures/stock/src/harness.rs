@@ -41,6 +41,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("ranges", crate::ranges::ranges),
 		("buf::deques", crate::buf::deques),
 		("buf::vectored", crate::buf::vectored),
+		("fixed::strings", crate::fixed::strings),
 	]
 }
 

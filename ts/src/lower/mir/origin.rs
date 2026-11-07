@@ -27,6 +27,8 @@ enum Array<'tcx> {
 	Copy(BasicBlock, Option<i128>),
 	/// The array of a variable of this body's own, or of a field of one, at this place.
 	Owned(mir::Place<'tcx>),
+	/// A `str`'s UTF-8, which JS encodes anew at each `as_ptr`, the call ending this block.
+	Text(BasicBlock),
 }
 
 impl<'tcx> Array<'tcx> {
@@ -35,7 +37,7 @@ impl<'tcx> Array<'tcx> {
 		match self {
 			Array::Lone(_) => Some(1),
 			Array::Copy(_, len) => len,
-			Array::Owned(_) => None,
+			Array::Owned(_) | Array::Text(_) => None,
 		}
 	}
 
@@ -45,6 +47,7 @@ impl<'tcx> Array<'tcx> {
 			Array::Lone(_) => "a value in no array",
 			Array::Copy(..) => "a shared slice JS copies",
 			Array::Owned(_) => "an array of this body's own",
+			Array::Text(_) => "a `str`'s bytes",
 		}
 	}
 }
@@ -110,6 +113,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 			("ptr" | "NonNull", "offset_from" | "offset_from_unsigned") => {
 				let (a, b) = (self.origin(arg(0)?)?, self.origin(arg(1)?)?);
+				if let (Array::Text(_), Array::Text(_)) = (a.array, b.array) {
+					return (a.array != b.array).then(|| {
+						"`offset_from` between pointers of two `str::as_ptr` calls, each into an encoding of the text of its own, which JS keeps in different arrays".into()
+					});
+				}
 				self.apart(a.array, b.array).then(|| {
 					format!(
 						"`offset_from` between a pointer into {} and one into {}, which JS keeps in different arrays",
@@ -234,6 +242,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 			("NonNull", "as_ptr" | "new_unchecked") => self.origin(&args[0].node),
 			("slice" | "Vec", "as_ptr" | "as_mut_ptr") => self.start(&args[0].node),
+			// At no index the body shows: a substring's starts past its text's, which `sub` may move back to.
+			("str", "as_ptr") => Some(Origin {
+				array: Array::Text(self.def_block(local)?),
+				index: None,
+			}),
 			_ => None,
 		}
 	}

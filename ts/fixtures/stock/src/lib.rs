@@ -1,10 +1,12 @@
 //! Calls into `bytes`, `hashbrown`, `rand`, and `tracing`, which translation maps itself,
-//! into `hashlink`, which translates over `hashbrown`, and into `rangemap`, which translates
-//! over std's B-tree, so this config binds and leaves out nothing.
+//! into `hashlink`, which translates over `hashbrown`, into `rangemap`, which translates
+//! over std's B-tree, and into `arrayvec`'s `ArrayString`, which translates over raw
+//! pointers, so this config binds and leaves out nothing.
 //!
 //! `harness::run` is the entry point both sides of the differential test run.
 
 mod buf;
+mod fixed;
 pub mod harness;
 mod maps;
 mod ranges;

@@ -416,6 +416,11 @@ export class AtIndex<T> implements Place<T> {
 		else this.room(1).set(this.index, value);
 	}
 
+	/** The place of element `index` of the same array, as pointer arithmetic moves to it. */
+	at(index: number): AtIndex<T> {
+		return new AtIndex(this.array, index);
+	}
+
 	/**
 	 * Fails where `n` elements from here run past either end of the array, which JS
 	 * doesn't keep Rust's memory around, but into the room of the `Vec` it is the items

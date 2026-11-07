@@ -226,6 +226,8 @@ fixtures/reject/src/pointers.rs:range_of+1:2: a raw pointer to `(u32, u32)` in `
 fixtures/reject/src/pointers.rs:rc_raw_bytes+1:11: an `Rc`'s raw pointer to `[u8; 4]`, which JS makes anew each time
 fixtures/reject/src/pointers.rs:reached_out+7:6: a slice reaching past a value in no array, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/pointers.rs:reached_out+8:27: a pointer reaching past a value in no array, which JS keeps apart from what holds it in Rust
+fixtures/reject/src/pointers.rs:text_apart+1:27: `offset_from` between pointers of two `str::as_ptr` calls, each into an encoding of the text of its own, which JS keeps in different arrays
+fixtures/reject/src/pointers.rs:text_apart+1:64: `offset_from` between pointers of two `str::as_ptr` calls, each into an encoding of the text of its own, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:uninit_part_replaced+5:19: a raw pointer to `std::mem::MaybeUninit<(u32, u32)>` in `pointers::Gap`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:uninit_part_replaced+6:19: a raw pointer to `std::mem::MaybeUninit<(u32, u32)>` in `pointers::Gap`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:unit_elements+1:13: `offset_from` of pointers to `()`, which has no bytes

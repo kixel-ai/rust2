@@ -1,11 +1,15 @@
 //! `str` and `String` over `char`: iterated from both ends, searched by a `char`, a
 //! predicate, or a `&str`, trimmed, split, sliced by byte offsets, built a char at a
 //! time, edited in place, parsed into a `bool`, a `char`, or a `NonZero`, mapped by case,
-//! escaped, and encoded as and decoded from UTF-16. Text is made of chars of every UTF-8
-//! width and those next to UTF-16's surrogates, so byte offsets and code units part.
+//! escaped, encoded as and decoded from UTF-16, and read through `as_ptr`. Text is made
+//! of chars of every UTF-8 width and those next to UTF-16's surrogates, so byte offsets
+//! and code units part.
 //! Predicates log each char they are called with, so where a search stops is output too.
 
+use std::mem::MaybeUninit;
 use std::ops::Bound;
+use std::ptr::{self, NonNull};
+use std::{slice, str};
 
 use crate::harness::{ALPHABET, put, text};
 
@@ -1225,4 +1229,108 @@ pub fn utf16(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		.map(|r| r.is_ok())
 		.collect();
 	put(out, &format!("{each:?}|{ok:?}"));
+}
+
+/// A `str`'s UTF-8 read through `as_ptr`, of the text and of a substring from the char
+/// boundary the kind picks, whose bytes start past the text's: copied by
+/// `ptr::copy_nonoverlapping` and `ptr::copy`, viewed by `slice::from_raw_parts`, read a
+/// byte at a time between pointers `offset_from` measures, and pushed into a buffer of
+/// `MaybeUninit` bytes as arrayvec's `ArrayString::try_push_str` pushes.
+pub fn pointers(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let s = text(data);
+	let starts: Vec<usize> = s.char_indices().map(|(i, _)| i).chain([s.len()]).collect();
+	let sub = &s[starts[usize::from(kind / 4) % starts.len()]..];
+	match kind % 4 {
+		0 => {
+			// Into a `Vec`'s room, and between bytes of another `Vec`.
+			let mut whole = Vec::<u8>::with_capacity(s.len());
+			// SAFETY: `whole` has room for `s`'s bytes, which it doesn't overlap.
+			unsafe {
+				ptr::copy_nonoverlapping(s.as_ptr(), whole.as_mut_ptr(), s.len());
+				whole.set_len(s.len());
+			}
+			out.extend_from_slice(&whole);
+			let mut framed = vec![0xaa; sub.len() + 2];
+			// SAFETY: `framed` holds `sub`'s bytes after its first.
+			unsafe { ptr::copy(sub.as_ptr(), framed.as_mut_ptr().add(1), sub.len()) };
+			out.extend_from_slice(&framed);
+		}
+		1 => {
+			// Every tail, and the whole as text again.
+			let p = sub.as_ptr();
+			for i in 0..=sub.len() {
+				// SAFETY: the `sub.len() - i` bytes from `i` are `sub`'s.
+				let tail = unsafe { slice::from_raw_parts(p.add(i), sub.len() - i) };
+				out.push(tail.len() as u8);
+				out.extend_from_slice(tail.get(..2).unwrap_or(tail));
+			}
+			// SAFETY: `sub`'s bytes, which are UTF-8.
+			put(out, unsafe {
+				str::from_utf8_unchecked(slice::from_raw_parts(p, sub.len()))
+			});
+		}
+		2 => {
+			// Forward to the end and back to the start, by `*` and through a `NonNull`.
+			let p = s.as_ptr();
+			// SAFETY: one past `s`'s last byte, and each read is between it and `p`.
+			unsafe {
+				let end = p.add(s.len());
+				let mut q = p;
+				while end.offset_from(q) > 0 {
+					out.push(*q);
+					q = q.add(1);
+				}
+				out.push(q.offset_from_unsigned(p) as u8);
+				let mut back = NonNull::new(end.cast_mut()).unwrap();
+				while back.as_ptr().cast_const().offset_from(p) > 0 {
+					back = back.sub(1);
+					out.push(*back.as_ptr());
+				}
+			}
+		}
+		_ => {
+			// Each part between `/`s, until one doesn't fit, then the substring.
+			let mut fixed = Fixed::new();
+			for part in s.split('/').chain([sub]) {
+				match fixed.try_push_str(part) {
+					Ok(()) => out.push(fixed.len as u8),
+					Err(e) => put(out, e),
+				}
+			}
+			put(out, fixed.as_str());
+		}
+	}
+}
+
+/// Text in a fixed buffer, pushed as arrayvec's `ArrayString` pushes it.
+struct Fixed {
+	xs: [MaybeUninit<u8>; 12],
+	len: usize,
+}
+
+impl Fixed {
+	fn new() -> Self {
+		Fixed {
+			xs: [MaybeUninit::uninit(); 12],
+			len: 0,
+		}
+	}
+
+	fn try_push_str<'a>(&mut self, s: &'a str) -> Result<(), &'a str> {
+		if s.len() > self.xs.len() - self.len {
+			return Err(s);
+		}
+		// SAFETY: there is room for `s` after the first `len` bytes.
+		unsafe {
+			let dst = (self.xs.as_mut_ptr() as *mut u8).add(self.len);
+			ptr::copy_nonoverlapping(s.as_ptr(), dst, s.len());
+		}
+		self.len += s.len();
+		Ok(())
+	}
+
+	fn as_str(&self) -> &str {
+		// SAFETY: the first `len` bytes were written, whole `str`s each.
+		unsafe { str::from_utf8_unchecked(slice::from_raw_parts(self.xs.as_ptr() as *const u8, self.len)) }
+	}
 }
