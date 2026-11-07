@@ -15,10 +15,11 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, type Room, roomPast, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity } from "../rs.ts";
+import { Borrowed, ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, type Room, roomPast, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity } from "../rs.ts";
 import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
-import type { Hashing } from "./hash.ts";
+import type { HashKey, Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
+import type { String as RsString } from "./str.ts";
 import {
 	type Clones,
 	DONE,
@@ -68,7 +69,9 @@ export function cmp<T extends number | boolean | Limbs>(a: T, b: T): Ordering {
  * `Ord::cmp` of two strings, by code point as Rust's UTF-8 bytes sort. JS's `<` compares
  * UTF-16 units, which puts a character past U+FFFF, a surrogate pair, below U+E000.
  */
-export function cmpStr(a: string, b: string): Ordering {
+export function cmpStr(x: string | RsString, y: string | RsString): Ordering {
+	const a = typeof x === "string" ? x : x.v;
+	const b = typeof y === "string" ? y : y.v;
 	if (a === b) return 0;
 	const n = Math.min(a.length, b.length);
 	for (let i = 0; i < n; i++) {
@@ -308,6 +311,23 @@ export function same<T>(a: T, b: T): boolean {
 	return a === b;
 }
 
+/** `PartialEq::eq` of text of any form, a `str`, a `String`, or a `Cow<str>`: their text. */
+export function eqStr(a: string | RsString | Borrowed<string>, b: string | RsString | Borrowed<string>): boolean {
+	return textOf(a) === textOf(b);
+}
+
+/** The text of a `str`, a `String`, or a `Cow<str>`. */
+function textOf(s: string | RsString | Borrowed<string>): string {
+	return typeof s === "string" ? s : s instanceof Borrowed ? s.slice : s.v;
+}
+
+/**
+ * How a hash collection finds a key that is a `String` or a `Cow<str>`, or a `str` looking
+ * one up: by its text, which the engine hashes as a JS map key, so the keys filed under
+ * one are equal.
+ */
+export const HASH_TEXT: Hashing<string | RsString | Borrowed<string>> = { hash: textOf, eq: () => true, all: true };
+
 /** `PartialEq::eq` of tuples, from each field's. */
 export function eqTuple<T extends readonly unknown[]>(fields: readonly ((a: never, b: never) => boolean)[]): (a: T, b: T) => boolean {
 	return (a, b) => {
@@ -446,12 +466,12 @@ interface Slot<K, V> {
  * `HashMap<K, V>`, and `HashSet<K>` as a map to `undefined`, std's or hashbrown's. A key
  * that is a JS primitive, a number, string, or boolean, is its own JS map key, as Rust
  * compares it; a key that is an object goes by its hash, to a chain of the keys `Eq`
- * tells apart. Iteration visits the first kind in insertion order and then the second by
+ * tells apart, or by its text where it is a `String` or a `Cow<str>`, as `HASH_TEXT` finds one. Iteration visits the first kind in insertion order and then the second by
  * hash, an order Rust leaves unspecified.
  */
 export interface HashMap<K, V> {
 	p: Map<K, V>;
-	o: Map<number, Slot<K, V>> | undefined;
+	o: Map<HashKey, Slot<K, V>> | undefined;
 	/** How many keys `o` holds. */
 	n: number;
 	/** How to find a key that is an object, or `undefined` if no key is one. */
@@ -486,7 +506,7 @@ function hashed<K, V>(m: HashMap<K, V>, key: K): boolean {
  * The slot holding a key equal to `key`, a hashed key whose hash is `hash` if given, which
  * compares by `key`'s `eq`, as std's lookups do.
  */
-function slot<K, V>(m: HashMap<K, V>, key: K, hash?: number): Slot<K, V> | undefined {
+function slot<K, V>(m: HashMap<K, V>, key: K, hash?: HashKey): Slot<K, V> | undefined {
 	const h = m.h as Hashing<K>;
 	for (let s = m.o?.get(hash ?? h.hash(key)); s !== undefined; s = s.next) if (h.eq(key, s.k)) return s;
 	return undefined;
@@ -693,8 +713,8 @@ export function hashRemoveEntry<K, V>(m: HashMap<K, V>, key: K): [K, V] | undefi
 }
 
 /** Take `s`, a slot whose key's hash is `hash`, out of `m`. */
-function unlink<K, V>(m: HashMap<K, V>, hash: number, s: Slot<K, V>): void {
-	const o = m.o as Map<number, Slot<K, V>>;
+function unlink<K, V>(m: HashMap<K, V>, hash: HashKey, s: Slot<K, V>): void {
+	const o = m.o as Map<HashKey, Slot<K, V>>;
 	let prev = o.get(hash) as Slot<K, V>;
 	if (prev === s) {
 		if (s.next !== undefined) o.set(hash, s.next);
@@ -820,9 +840,9 @@ function retainHash<K, V>(m: HashMap<K, V>, f: (key: K, value: V | Place<V>) => 
 class HashExtractIf<K, V, T> extends Iter<T> implements Disposable {
 	private readonly m: HashMap<K, V>;
 	private readonly p: Iterator<[K, V]>;
-	private readonly o: Iterator<[number, Slot<K, V>]> | undefined;
+	private readonly o: Iterator<[HashKey, Slot<K, V>]> | undefined;
 	/** The chain it reads, by its hash, the slot it reads next, and the last it kept there. */
-	private hash = 0;
+	private hash: HashKey = 0;
 	private at: Slot<K, V> | undefined;
 	private kept: Slot<K, V> | undefined;
 	private readonly f: (key: K, value: V | Place<V>) => boolean;
@@ -856,7 +876,7 @@ class HashExtractIf<K, V, T> extends Iter<T> implements Disposable {
 				return (this.keys ? key : [key, now]) as T;
 			}
 			if (this.at === undefined) {
-				[this.hash, this.at] = (this.o as Iterator<[number, Slot<K, V>]>).next().value as [number, Slot<K, V>];
+				[this.hash, this.at] = (this.o as Iterator<[HashKey, Slot<K, V>]>).next().value as [HashKey, Slot<K, V>];
 				this.kept = undefined;
 			}
 			const s = this.at;
@@ -865,7 +885,7 @@ class HashExtractIf<K, V, T> extends Iter<T> implements Disposable {
 				this.kept = s;
 				continue;
 			}
-			const o = m.o as Map<number, Slot<K, V>>;
+			const o = m.o as Map<HashKey, Slot<K, V>>;
 			if (this.kept !== undefined) this.kept.next = s.next;
 			else if (s.next !== undefined) o.set(this.hash, s.next);
 			else o.delete(this.hash);
@@ -2401,9 +2421,10 @@ export function btreeRangeKeys<K, V>(m: BTreeMap<K, V>, r: Bounds<K> | By<K>, eq
 
 /**
  * What a range of keys `K` is bounded by: a key, or for an array's or a `Vec`'s, a `Slice`,
- * which `cmpSlice` orders alike.
+ * which `cmpSlice` orders alike, or for a `String`'s or a `Cow<str>`'s, a `str`, which
+ * `cmpStr` orders alike.
  */
-type Key<K> = K | (K extends (infer E)[] ? Slice<E> : never);
+type Key<K> = K | (K extends (infer E)[] ? Slice<E> : never) | (K extends RsString | Borrowed<string> ? string : never);
 
 /**
  * The items of `m` within `r`, checked as std checks it: by `eq` and `gt`, or by the order
@@ -3117,7 +3138,7 @@ export interface Entry<K, V> {
 	readonly o: boolean;
 	/** A hashed key's slot if it is occupied, and its hash. */
 	readonly s: Slot<K, V> | undefined;
-	readonly h: number | undefined;
+	readonly h: HashKey | undefined;
 	/** A B-tree's node holding the key, and its index there, or else the leaf and the complement of where it goes. */
 	readonly l: Node<K, V> | undefined;
 	readonly i: number;

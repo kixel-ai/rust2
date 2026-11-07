@@ -16,12 +16,12 @@ export function put$spare_Item_u32(self: rs.u32, out: rs.ByteVec): void {
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(self).reverse()));
 }
 
-export function of$spare_Item_String(n: rs.u8): string {
+export function of$spare_Item_String(n: rs.u8): rs.String {
 	return rs.fmtFormat([(f: rs.Formatter) => rs.u8LowerHex(n, f)]);
 }
 
-export function put$spare_Item_String(self: string, out: rs.ByteVec): void {
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(self));
+export function put$spare_Item_String(self: rs.String, out: rs.ByteVec): void {
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(self.v));
 	rs.byteVecPush(out, 255);
 }
 
@@ -70,9 +70,9 @@ export function state$Option_u16(v: rs.Vec<rs.u16 | undefined>, out: rs.ByteVec)
 }
 
 /** The length, capacity, and room of `v`, how many `Noted`s dropped, and its items. */
-export function state$String(v: rs.Vec<string>, out: rs.ByteVec): void {
-	const iter: rs.Iter<rs.usize> = rs.iterSlice([v.items.length, rs.vecCapacity(v, 12), rs.vecSpare(v, 12, (): string => {
-		return (undefined as unknown) as string;
+export function state$String(v: rs.Vec<rs.String>, out: rs.ByteVec): void {
+	const iter: rs.Iter<rs.usize> = rs.iterSlice([v.items.length, rs.vecCapacity(v, 12), rs.vecSpare(v, 12, (): rs.String => {
+		return (undefined as unknown) as rs.String;
 	}).length]);
 	while (true) {
 		const _13: rs.usize | rs.Done = iter.next();
@@ -82,9 +82,9 @@ export function state$String(v: rs.Vec<string>, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_13 as rs.u32).reverse()));
 	}
 	rs.byteVecPush(out, rs.atomicLoad(DROPS, 0));
-	const iter2: rs.Iter<string> = rs.iterSlice(v.items);
+	const iter2: rs.Iter<rs.String> = rs.iterSlice(v.items);
 	while (true) {
-		const _31: string | rs.Done = iter2.next();
+		const _31: rs.String | rs.Done = iter2.next();
 		if (_31 === rs.DONE) {
 			break;
 		}
@@ -324,7 +324,7 @@ export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _155!: rs.usize;
 	let _184!: rs.usize;
 	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
-	let v: rs.Vec<string> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 12);
+	let v: rs.Vec<rs.String> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 12);
 	while (!(ops._0Len === 0)) {
 		const _13: [rs.u8, rs.u8] = [Ops.byte(ops), Ops.byte(ops)];
 		const op: rs.u8 = _13[0];
@@ -335,54 +335,54 @@ export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 		b2: {
 			const _35: rs.u8 = rs.u8Rem(op, 8);
 			if (_35 === 0) {
-				const end: rs.Place<string> = rs.ptrAdd(rs.vecAsPtr(v, 12), len);
+				const end: rs.Place<rs.String> = rs.ptrAdd(rs.vecAsPtr(v, 12), len);
 				let iterStart: rs.usize = 0;
 				const iterEnd: rs.usize = k;
 				while ((_43 = iterStart++) < iterEnd) {
 					const i: rs.usize = _43;
 					rs.ptrAdd(end, i).v = of$spare_Item_String(rs.u8WrappingAdd(n, i & 0xff));
 				}
-				const moved: rs.Vec<string> = rs.replaceIn(v, new rs.Vec());
+				const moved: rs.Vec<rs.String> = rs.replaceIn(v, new rs.Vec());
 				for (const _61 of rs.sliceItems(rs.ptrSlice(rs.ptrAdd(end, -len), rs.usizeAdd(len, k)))) {
 					put$spare_Item_String(_61, out);
 				}
-				rs.vecSetLen(moved, rs.usizeAdd(len, k), 12, (): string => {
-					return (undefined as unknown) as string;
+				rs.vecSetLen(moved, rs.usizeAdd(len, k), 12, (): rs.String => {
+					return (undefined as unknown) as rs.String;
 				});
 				v = moved;
 				break b2;
 			}
 			if (_35 === 1) {
-				rs.ptrCopy(rs.vecAsPtr(rs.iterToVec(rs.iterMap(new rs.Range(0, k), (i5: rs.usize): string => {
+				rs.ptrCopy(rs.vecAsPtr(rs.iterToVec(rs.iterMap(new rs.Range(0, k), (i5: rs.usize): rs.String => {
 					return of$spare_Item_String(n ^ (i5 & 0xff));
 				}), undefined, 12, true), 12), rs.ptrAdd(rs.vecAsPtr(v, 12), len), k);
-				rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): string => {
-					return (undefined as unknown) as string;
+				rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): rs.String => {
+					return (undefined as unknown) as rs.String;
 				});
 				break b2;
 			}
 			if (_35 === 2) {
-				const iter3: rs.Iter<[rs.usize, rs.Place<string>]> = rs.iterRev(rs.iterEnumerate(rs.iterSliceMut(rs.ptrSlice(rs.ptrAdd(rs.vecAsPtr(v, 12), len), k))));
+				const iter3: rs.Iter<[rs.usize, rs.Place<rs.String>]> = rs.iterRev(rs.iterEnumerate(rs.iterSliceMut(rs.ptrSlice(rs.ptrAdd(rs.vecAsPtr(v, 12), len), k))));
 				while (true) {
-					const _98: [rs.usize, rs.Place<string>] | rs.Done = iter3.next();
+					const _98: [rs.usize, rs.Place<rs.String>] | rs.Done = iter3.next();
 					if (_98 === rs.DONE) {
 						break;
 					}
 					_98[1].v = of$spare_Item_String(rs.u8WrappingSub(n, _98[0] & 0xff));
 				}
-				rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): string => {
-					return (undefined as unknown) as string;
+				rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): rs.String => {
+					return (undefined as unknown) as rs.String;
 				});
 				break b2;
 			}
 			if (_35 === 3) {
 				rs.vecReserve(v, 1, 12);
 				const at: rs.usize = rs.usizeRem(n as rs.usize, rs.usizeAdd(len, 1));
-				const p: rs.Place<string> = rs.ptrAdd(rs.vecAsPtr(v, 12), at);
+				const p: rs.Place<rs.String> = rs.ptrAdd(rs.vecAsPtr(v, 12), at);
 				rs.ptrCopy(p, rs.ptrAdd(p, 1), rs.usizeSub(len, at));
 				p.v = of$spare_Item_String(n);
-				rs.vecSetLen(v, rs.usizeAdd(len, 1), 12, (): string => {
-					return (undefined as unknown) as string;
+				rs.vecSetLen(v, rs.usizeAdd(len, 1), 12, (): rs.String => {
+					return (undefined as unknown) as rs.String;
 				});
 				break b2;
 			}
@@ -390,40 +390,40 @@ export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 				if (len > 0) {
 					const at2: rs.usize = rs.usizeRem(n as rs.usize, len);
 					const end2: rs.usize = rs.usizeAdd(at2, rs.usizeRem(n >> 4 as rs.usize, rs.usizeAdd(rs.usizeSub(len, at2), 1)));
-					rs.vecSetLen(v, at2, 12, (): string => {
-						return (undefined as unknown) as string;
+					rs.vecSetLen(v, at2, 12, (): rs.String => {
+						return (undefined as unknown) as rs.String;
 					});
-					const p2: rs.Place<string> = rs.vecAsPtr(v, 12);
+					const p2: rs.Place<rs.String> = rs.vecAsPtr(v, 12);
 					let iterStart2: rs.usize = at2;
 					const iterEnd2: rs.usize = end2;
 					while ((_155 = iterStart2++) < iterEnd2) {
 						put$spare_Item_String(rs.ptrAdd(p2, _155).v, out);
 					}
 					rs.ptrCopy(rs.ptrAdd(p2, end2), rs.ptrAdd(p2, at2), rs.usizeSub(len, end2));
-					rs.vecSetLen(v, rs.usizeSub(len, rs.usizeSub(end2, at2)), 12, (): string => {
-						return (undefined as unknown) as string;
+					rs.vecSetLen(v, rs.usizeSub(len, rs.usizeSub(end2, at2)), 12, (): rs.String => {
+						return (undefined as unknown) as rs.String;
 					});
 					break b2;
 				}
 			} else {
 				if (_35 === 5) {
-					rs.vecSetLen(v, 0, 12, (): string => {
-						return (undefined as unknown) as string;
+					rs.vecSetLen(v, 0, 12, (): rs.String => {
+						return (undefined as unknown) as rs.String;
 					});
-					const p3: rs.Place<string> = rs.vecAsPtr(v, 12);
+					const p3: rs.Place<rs.String> = rs.vecAsPtr(v, 12);
 					let kept: rs.usize = 0;
 					let iterStart3: rs.usize = 0;
 					const iterEnd3: rs.usize = len;
 					while ((_184 = iterStart3++) < iterEnd3) {
 						const i4: rs.usize = _184;
-						const x: string = rs.ptrAdd(p3, i4).v;
+						const x: rs.String = rs.ptrAdd(p3, i4).v;
 						if (rs.usizeRem(rs.usizeAdd(i4, n as rs.usize), 3) !== 0) {
 							rs.ptrAdd(p3, kept).v = x;
 							kept = rs.usizeAdd(kept, 1);
 						}
 					}
-					rs.vecSetLen(v, kept, 12, (): string => {
-						return (undefined as unknown) as string;
+					rs.vecSetLen(v, kept, 12, (): rs.String => {
+						return (undefined as unknown) as rs.String;
 					});
 					break b2;
 				}
@@ -660,71 +660,73 @@ export function slots$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function slots$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
-	let v: rs.Vec<string> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 12);
+	let v: rs.Vec<rs.String> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 12);
 	while (!(ops._0Len === 0)) {
 		const _13: [rs.u8, rs.u8] = [Ops.byte(ops), Ops.byte(ops)];
 		const op: rs.u8 = _13[0];
 		const n: rs.u8 = _13[1];
 		const len: rs.usize = v.items.length;
-		const spare: rs.Slice<string> = rs.vecSpare(v, 12, (): string => {
-			return (undefined as unknown) as string;
+		const spare: rs.Slice<rs.String> = rs.vecSpare(v, 12, (): rs.String => {
+			return (undefined as unknown) as rs.String;
 		});
 		const k: rs.usize = rs.usizeRem(n as rs.usize, rs.usizeAdd(spare.length, 1));
 		const _30: rs.u8 = rs.u8Rem(op, 6);
 		if (_30 === 0) {
-			const iter: rs.Iter<[rs.usize, rs.Place<string>]> = rs.iterEnumerate(rs.iterSliceMut(rs.sliceRange(spare, 0, k)));
+			const iter: rs.Iter<[rs.usize, rs.Place<rs.String>]> = rs.iterEnumerate(rs.iterSliceMut(rs.sliceRange(spare, 0, k)));
 			while (true) {
-				const _38: [rs.usize, rs.Place<string>] | rs.Done = iter.next();
+				const _38: [rs.usize, rs.Place<rs.String>] | rs.Done = iter.next();
 				if (_38 === rs.DONE) {
 					break;
 				}
 				_38[1].v = of$spare_Item_String(n ^ (_38[0] & 0xff));
 			}
-			rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): string => {
-				return (undefined as unknown) as string;
+			rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): rs.String => {
+				return (undefined as unknown) as rs.String;
 			});
 		} else if (_30 === 1) {
-			const iter2: rs.Iter<[rs.usize, rs.Place<string>]> = rs.iterRev(rs.iterEnumerate(rs.iterSliceMut(rs.sliceRange(spare, 0, k))));
+			const iter2: rs.Iter<[rs.usize, rs.Place<rs.String>]> = rs.iterRev(rs.iterEnumerate(rs.iterSliceMut(rs.sliceRange(spare, 0, k))));
 			while (true) {
-				const _58: [rs.usize, rs.Place<string>] | rs.Done = iter2.next();
+				const _58: [rs.usize, rs.Place<rs.String>] | rs.Done = iter2.next();
 				if (_58 === rs.DONE) {
 					break;
 				}
 				_58[1].v = of$spare_Item_String(rs.u8WrappingAdd(n, _58[0] & 0xff));
 			}
-			rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): string => {
-				return (undefined as unknown) as string;
+			rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): rs.String => {
+				return (undefined as unknown) as rs.String;
 			});
 		} else if (_30 === 2) {
-			const src: rs.Vec<string> = rs.iterToVec(rs.iterMap(new rs.Range(0, k), (i3: rs.usize): string => {
+			const src: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(new rs.Range(0, k), (i3: rs.usize): rs.String => {
 				return of$spare_Item_String(rs.u8WrappingMul(n, i3 & 0xff));
 			}), undefined, 12, true);
-			rs.sliceReverse(rs.sliceWriteCloneOfSlice(rs.sliceRange(spare, 0, k), rs.sliceFrom(src.items), undefined));
-			rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): string => {
-				return (undefined as unknown) as string;
+			rs.sliceReverse(rs.sliceWriteCloneOfSlice(rs.sliceRange(spare, 0, k), rs.sliceFrom(src.items), (a0: rs.String): rs.String => {
+				return rs.stringClone(a0);
+			}));
+			rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): rs.String => {
+				return (undefined as unknown) as rs.String;
 			});
 		} else if (_30 === 3) {
-			rs.sliceFillWith(rs.sliceRange(spare, 0, k), (): string => {
+			rs.sliceFillWith(rs.sliceRange(spare, 0, k), (): rs.String => {
 				return of$spare_Item_String(n);
 			});
-			rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): string => {
-				return (undefined as unknown) as string;
+			rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): rs.String => {
+				return (undefined as unknown) as rs.String;
 			});
 		} else if (_30 === 4) {
-			const _95: rs.Place<string> | undefined = rs.sliceFirstMut(spare);
+			const _95: rs.Place<rs.String> | undefined = rs.sliceFirstMut(spare);
 			if (_95 !== undefined) {
 				_95.v = of$spare_Item_String(~n & 0xff);
 				put$spare_Item_String(_95.v, out);
 			}
-			const _105: rs.Place<string> | undefined = rs.sliceFirstMut(rs.vecSpare(v, 12, (): string => {
-				return (undefined as unknown) as string;
+			const _105: rs.Place<rs.String> | undefined = rs.sliceFirstMut(rs.vecSpare(v, 12, (): rs.String => {
+				return (undefined as unknown) as rs.String;
 			}));
 			if (_105 !== undefined) {
 				_105.v = of$spare_Item_String(n);
-				let swapped: rs.Vec<string> = new rs.Vec();
+				let swapped: rs.Vec<rs.String> = new rs.Vec();
 				swapped = rs.replaceIn(v, swapped);
-				rs.vecSetLen(swapped, rs.usizeAdd(len, 1), 12, (): string => {
-					return (undefined as unknown) as string;
+				rs.vecSetLen(swapped, rs.usizeAdd(len, 1), 12, (): rs.String => {
+					return (undefined as unknown) as rs.String;
 				});
 				v = swapped;
 			}

@@ -4,17 +4,17 @@ import * as rs from "./rs.ts";
 import { put$spare_Item_String as spare_put$spare_Item_String } from "./spare.ts";
 
 export function clone$Clone(self: Pair): Pair {
-	return { a: self.a, b: self.b };
+	return { a: self.a, b: rs.stringClone(self.b) };
 }
 
 /** A struct JS keeps as an object. */
 export interface Pair {
 	a: rs.u8;
-	b: string;
+	b: rs.String;
 }
 
 export function of$spare_Item(n: rs.u8): Pair {
-	const _2: string = rs.fmtToString((f: rs.Formatter) => rs.u8Display(n, f));
+	const _2: rs.String = rs.fmtToString((f: rs.Formatter) => rs.u8Display(n, f), 0);
 	return { a: n, b: _2 };
 }
 

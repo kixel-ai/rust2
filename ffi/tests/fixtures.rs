@@ -1048,6 +1048,28 @@ fn package(name: &str) -> PathBuf {
 	package
 }
 
+/// rustc's arguments in an argfile, as cargo passes them once they overflow a command line:
+/// on Windows, moq-ffi's many `-L`s do. One argument past every platform's limit forces it,
+/// and starts with `@`, which inside an argfile rustc reads as itself, not another file.
+#[test]
+fn argfile() {
+	let package = package("argfile");
+	let value = format!("@{}=/", "a".repeat(1 << 21));
+	write_all(
+		&package,
+		&[(
+			".cargo/config.toml",
+			&format!("build.rustflags = [\"--remap-path-prefix\", \"{value}\"]\n"),
+		)],
+	);
+	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
+	assert!(
+		output.status.success(),
+		"the census failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+}
+
 /// A census of the package whose config is `config` with these cargo args, to run.
 fn census(config: &Path, cargo: &[&str]) -> Command {
 	let dir = config.parent().unwrap();

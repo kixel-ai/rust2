@@ -3,7 +3,6 @@
 import * as rs from "./rs.ts";
 import { unwrapOr$1fr498u as option_unwrapOr$1fr498u } from "./core/option.ts";
 
-/** The bytes of a case's input, taken from the front. */
 export interface Ops {
 	_0Data: Uint8Array;
 	_0Start: number;

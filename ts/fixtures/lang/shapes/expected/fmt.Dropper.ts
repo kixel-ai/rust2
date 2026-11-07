@@ -24,7 +24,7 @@ export function fmt$fmt_Debug(self: Dropper, f: rs.Formatter): rs.Result<undefin
 
 export function fmt$fmt_Display(self: Dropper, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const arg = self.tag;
-	return rs.fmtPad(f, rs.fmtFormat(["n", (f: rs.Formatter) => rs.u8Display(arg, f)]));
+	return rs.fmtPad(f, rs.fmtFormat(["n", (f: rs.Formatter) => rs.u8Display(arg, f)]).v);
 }
 
 export function drop$ops_Drop(self: Dropper): void {

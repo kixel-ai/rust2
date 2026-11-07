@@ -321,7 +321,7 @@ pub fn call_with<'tcx>(
 			let range = instance.args.type_at(1);
 			match range.kind() {
 				ty::Adt(adt, _) if super::library::path(tcx, adt.did()) == "core::ops::range::Range" => stmt(format!(
-					"sliceCopyWithin({0}, {1}.start, {1}.end, {2})",
+					"sliceCopyWithin({0}, {1}.Start, {1}.End, {2})",
 					a[0], a[1], a[2]
 				)),
 				_ => {

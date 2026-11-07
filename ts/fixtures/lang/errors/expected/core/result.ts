@@ -31,12 +31,12 @@ export function eq$1amzj8d(self: rs.Result<rs.Result<rs.char, rs.ParseCharError>
 	return str_error_eq$1lr55px(self.error, (other as { ok: false; error: rs.ParseBoolError }).error);
 }
 
-export function eq$1357wj0(self: rs.Result<string, rs.FromUtf8Error>, other: rs.Result<string, rs.FromUtf8Error>): boolean {
+export function eq$1h622n4(self: rs.Result<rs.String, rs.FromUtf8Error>, other: rs.Result<rs.String, rs.FromUtf8Error>): boolean {
 	if (!((self.ok ? 0 : 1) === (other.ok ? 0 : 1))) {
 		return false;
 	}
 	if (self.ok) {
-		return self.value === (other as { ok: true; value: string }).value;
+		return rs.eqStr(self.value, (other as { ok: true; value: rs.String }).value);
 	}
 	return string_eq$1enuhj8(self.error, (other as { ok: false; error: rs.FromUtf8Error }).error);
 }
@@ -240,9 +240,9 @@ export function map$07r5pce(self: rs.Result<rs.u8, rs.ParseIntError>, op: (a0: r
 	return self as rs.Result<rs.u8 | undefined, rs.ParseIntError>;
 }
 
-export function mapErr$1scmdah(self: rs.Result<rs.u8, rs.Result<rs.u8, Error.Error>>, op: (a0: rs.Result<rs.u8, Error.Error>) => rs.Result<rs.u8, string>): rs.Result<rs.u8, rs.Result<rs.u8, string>> {
+export function mapErr$1102tun(self: rs.Result<rs.u8, rs.Result<rs.u8, Error.Error>>, op: (a0: rs.Result<rs.u8, Error.Error>) => rs.Result<rs.u8, rs.String>): rs.Result<rs.u8, rs.Result<rs.u8, rs.String>> {
 	if (self.ok) {
-		return self as rs.Result<rs.u8, rs.Result<rs.u8, string>>;
+		return self as rs.Result<rs.u8, rs.Result<rs.u8, rs.String>>;
 	}
 	return rs.Err(op(self.error));
 }
@@ -254,9 +254,9 @@ export function mapErr$0ka0di9(self: rs.Result<rs.u8, Error.Error>, op: (a0: Err
 	return rs.Err(op(self.error));
 }
 
-export function mapErr$1a5uolr(self: rs.Result<rs.u8, Error.Error>, op: (a0: Error.Error) => string): rs.Result<rs.u8, string> {
+export function mapErr$1lqaapp(self: rs.Result<rs.u8, Error.Error>, op: (a0: Error.Error) => rs.String): rs.Result<rs.u8, rs.String> {
 	if (self.ok) {
-		return self as rs.Result<rs.u8, string>;
+		return self as rs.Result<rs.u8, rs.String>;
 	}
 	return rs.Err(op(self.error));
 }

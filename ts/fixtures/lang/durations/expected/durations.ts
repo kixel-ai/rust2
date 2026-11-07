@@ -154,11 +154,11 @@ export function durations(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		const c: rs.Duration = rs.durationNew(0, rs.durationSubsecNanos(b));
 		const d2: rs.Duration = rs.durationFromNanos(rs.u32Rem(n, 1000000) as rs.u64);
 		const args10 = [(f: rs.Formatter) => rs.durationDebug(a, f), (f: rs.Formatter) => rs.durationDebug(c, f), (f: rs.Formatter) => rs.durationDebug(d2, f), (f: rs.Formatter) => rs.fmtOption(b, f, rs.durationDebug)];
-		put(out, rs.fmtFormat([args10[0], "|", args10[1], "|", args10[2], "|", rs.fmtSpec({ align: ">", width: 16 }, args10[1]), "|", rs.fmtSpec({ fill: "*", align: "^", width: 14 }, args10[2]), "|", rs.fmtSpec({ align: "<", width: 12 }, args10[1]), "|", rs.fmtSpec({ zero: true, width: 8 }, args10[0]), "|", args10[3]]));
+		put(out, rs.fmtFormat([args10[0], "|", args10[1], "|", args10[2], "|", rs.fmtSpec({ align: ">", width: 16 }, args10[1]), "|", rs.fmtSpec({ fill: "*", align: "^", width: 14 }, args10[2]), "|", rs.fmtSpec({ align: "<", width: 12 }, args10[1]), "|", rs.fmtSpec({ zero: true, width: 8 }, args10[0]), "|", args10[3]]).v);
 		const p: rs.usize = rs.u32Rem(n, 13) as rs.usize;
 		const _234: rs.Duration | undefined = b;
 		const args11 = [(f: rs.Formatter) => rs.durationDebug(a, f), (f: rs.Formatter) => rs.durationDebug(c, f), (f: rs.Formatter) => rs.durationDebug(d2, f), rs.fmtCount(p), (f: rs.Formatter) => rs.fmtOption(_234, f, rs.durationDebug)];
-		put(out, rs.fmtFormat([rs.fmtSpec({ precision: 0 }, args11[0]), "|", rs.fmtSpec({ precision: 3 }, args11[0]), "|", rs.fmtSpec({ precision: 1 }, args11[1]), "|", rs.fmtSpec({ precision: 12 }, args11[2]), "|", rs.fmtSpec({ plus: true }, args11[0]), "|", rs.fmtSpec({ plus: true, width: 12, precision: 2 }, args11[1]), "|", rs.fmtSpec({ align: "<", width: 10, precision: 1 }, args11[2]), "|", rs.fmtSpec({ precision: rs.fmtCountOf(args11[3]) }, args11[0]), "|", rs.fmtSpec({ precision: 1 }, args11[4])]));
+		put(out, rs.fmtFormat([rs.fmtSpec({ precision: 0 }, args11[0]), "|", rs.fmtSpec({ precision: 3 }, args11[0]), "|", rs.fmtSpec({ precision: 1 }, args11[1]), "|", rs.fmtSpec({ precision: 12 }, args11[2]), "|", rs.fmtSpec({ plus: true }, args11[0]), "|", rs.fmtSpec({ plus: true, width: 12, precision: 2 }, args11[1]), "|", rs.fmtSpec({ align: "<", width: 10, precision: 1 }, args11[2]), "|", rs.fmtSpec({ precision: rs.fmtCountOf(args11[3]) }, args11[0]), "|", rs.fmtSpec({ precision: 1 }, args11[4])]).v);
 		const iter4: rs.Iter<rs.u64> = rs.iterSlice([1500000000, 2500000000, 1250000, 1350000, 999500, 1999999999]);
 		while (true) {
 			const _250: rs.u64 | rs.Done = iter4.next();
@@ -167,7 +167,7 @@ export function durations(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			const part = rs.durationFromNanos(_250);
 			const args12 = [(f: rs.Formatter) => rs.durationDebug(part, f)];
-			put(out, rs.fmtFormat([rs.fmtSpec({ precision: 0 }, args12[0]), " ", rs.fmtSpec({ precision: 1 }, args12[0]), " ", rs.fmtSpec({ precision: 2 }, args12[0])]));
+			put(out, rs.fmtFormat([rs.fmtSpec({ precision: 0 }, args12[0]), " ", rs.fmtSpec({ precision: 1 }, args12[0]), " ", rs.fmtSpec({ precision: 2 }, args12[0])]).v);
 		}
 	} else if (_24 === 10) {
 		let c2: rs.Duration = a;
@@ -236,7 +236,7 @@ export function durations(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		rs.byteVecPush(out, rs.hashLen(rs.hashExtendKeys(rs.hashNew(rs.hashing(Window.hash$Hash_hash_DefaultHasher as (a0: Window.Window, a1: rs.Hasher) => undefined, Window.eq$cmp_PartialEq)) as rs.HashSet<Window.Window>, _398, undefined, undefined, 29360128)) & 0xff);
 		const _413: Window.Window = Window.default$Default();
 		const args9 = [(f: rs.Formatter) => Window.fmt$fmt_Debug(w2, f), (f: rs.Formatter) => Window.fmt$fmt_Debug(_413, f)];
-		put(out, rs.fmtFormat([args9[0], "|", rs.fmtSpec({ alternate: true }, args9[1])]));
+		put(out, rs.fmtFormat([args9[0], "|", rs.fmtSpec({ alternate: true }, args9[1])]).v);
 	}
 }
 

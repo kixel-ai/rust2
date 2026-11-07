@@ -74,6 +74,17 @@ fn hook() {
 	}));
 }
 
+/// Have the hook also write a `String` payload's capacity, which `panic!` formats into one
+/// from empty and `panic_any` keeps.
+fn sized() {
+	let prev = panic::take_hook();
+	panic::set_hook(Box::new(move |info| {
+		let capacity = info.payload().downcast_ref::<String>().map(String::capacity);
+		NOTE.with_borrow_mut(|note| note.push_str(&format!("capacity {capacity:?}\n")));
+		prev(info);
+	}));
+}
+
 #[track_caller]
 fn tracked(n: u8) -> u8 {
 	panic!("tracked {n}")
@@ -86,7 +97,10 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let v = vec![n, n];
 	match kind % 32 {
 		0 => panic!("literal"),
-		1 => panic!("formatted {n}"),
+		1 => {
+			sized();
+			panic!("formatted {n}")
+		}
 		2 => out.push(v[usize::from(n) + 2]),
 		3 => out.push(n.max(200) + n.max(100)),
 		4 => out.push(Some(n).filter(|_| false).unwrap()),
@@ -105,7 +119,10 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		13 => v.clone().rotate_left(usize::from(n) + 3),
 		14 => out.push(HashMap::<u8, u8>::new()[&n]),
 		15 => panic::panic_any(u32::from(n)),
-		16 => panic::panic_any(format!("any {n}")),
+		16 => {
+			sized();
+			panic::panic_any(format!("any {n}"))
+		}
 		17 => assert_eq!(n, n.wrapping_add(1), "differ"),
 		18 => out.push(tracked(n)),
 		19 => out.push(VecDeque::from(v.clone())[usize::from(n) + 2]),
