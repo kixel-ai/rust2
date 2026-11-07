@@ -152,6 +152,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		if super::byte(elem) {
 			return Expr::rs("byteSliceToArray", vec![s]);
 		}
+		if self.uninit_inner(elem).is_array() {
+			let copy = self.array_copy_fn(elem, span);
+			return Expr::rs("runsToArray", vec![s, copy]);
+		}
 		let mut values = vec![s];
 		values.extend(self.changes(elem).then(|| self.shim(elem, span)).flatten());
 		Expr::rs("sliceToArray", values)

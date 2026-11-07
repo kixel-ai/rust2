@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, arrayAssign, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, stringAsBytes, type Vec } from "../rs.ts";
+import { Abort, arrayAssign, type ByteSlice, type Run, Runs, runsArray, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, stringAsBytes, type Vec } from "../rs.ts";
 import type { Hasher } from "./hash.ts";
 import type { Location } from "./location.ts";
 
@@ -16,8 +16,9 @@ export function drop(value: unknown): void {
 }
 
 /** Drop every element of `values`, an array or a boxed slice, from `from` on, in order, by `f` if it has no `[Symbol.dispose]`. */
-export function dropAll<T>(values: ArrayLike<T> | Slice<T> | undefined, f: (value: T) => void = drop, from = 0): void {
+export function dropAll<T>(values: ArrayLike<T> | Slice<T> | Runs<Run> | undefined, f: (value: T) => void = drop, from = 0): void {
 	if (values instanceof Slice) dropRange(values.data, f, values.start + from, values.start + values.length);
+	else if (values instanceof Runs) dropRange(runsArray(values) as unknown as ArrayLike<T>, f, from, values.length);
 	else if (values !== undefined) dropRange(values, f, from, values.length);
 }
 
@@ -909,6 +910,14 @@ export function cellDebug<T>(get: () => T, f: Formatter, debug: Debug<T>): FmtRe
 /** `Cell::from_mut` of the place `p`: a cell of it, which nothing drops, as nothing owns it. */
 export function cellOfPlace<T>(p: Place<T>): Cell<T> {
 	return p as Cell<T>;
+}
+
+/**
+ * `Cell::from_mut` of a `&mut [[T; N]; M]`, which is the runs `r`: a read is `copy`'s of
+ * them, and a write `set`s them.
+ */
+export function cellOfRuns<S extends Run, A>(r: Runs<S>, copy: (r: Runs<S>) => A, set: (r: Runs<S>, value: A) => void): Cell<A> {
+	return cellOfPlace(place(() => copy(r), (value) => set(r, value)));
 }
 
 /**

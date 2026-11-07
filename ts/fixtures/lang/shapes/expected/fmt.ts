@@ -1015,10 +1015,10 @@ export function iters(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.idx(c, 1);
 		return Uint8Array.of(_33, c.data[c.start + 1]);
 	}), undefined, 2, true);
-	const part5 = ends$iters_slice_Iter_array2_u8(rs.iterLend(rs.iterSlice(arrays.items), rs.byteSliceFrom), front, back);
+	const part5 = ends$iters_slice_Iter_array2_u8(rs.runsIter(rs.runsFrom(arrays.items, rs.byteSliceFrom)), front, back);
 	const args87 = [(f: rs.Formatter) => rs.fmtIter(part5, f, (value: Uint8Array, f: rs.Formatter) => rs.fmtList(value, f, rs.u8Debug), ["Iter"])];
 	put(out, rs.fmtFormat([args87[0], "|", rs.fmtSpec({ alternate: true }, args87[0])]));
-	const part6 = ends$iters_slice_IterMut_array2_u8(rs.iterLend(rs.iterSlice(arrays.items), rs.byteSliceFrom), back, front);
+	const part6 = ends$iters_slice_IterMut_array2_u8(rs.runsIter(rs.runsFrom(arrays.items, rs.byteSliceFrom)), back, front);
 	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtIter(part6, f, (value: Uint8Array, f: rs.Formatter) => rs.fmtList(value, f, rs.u8Debug), ["IterMut"])]));
 	const _174: rs.Iter<rs.u8 | undefined> = rs.iterSlice([]);
 	const _176: rs.Iter<rs.u8> = rs.byteVecIntoIter(new rs.ByteVec());
@@ -1870,12 +1870,12 @@ export function adaptors(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), undefined, 12, true).items)), front, back);
 	const args147 = [(f: rs.Formatter) => rs.fmtAdaptor(part10, f, "Cloned", (value: rs.Iter<string>, f: rs.Formatter) => rs.fmtIter(value, f, rs.fmtStr, ["Iter"]), "it")];
 	put(out, rs.fmtFormat([args147[0], "|", rs.fmtSpec({ alternate: true }, args147[0])]));
-	const part11 = ends$adaptors_iter_Copied_slice_Iter_array2_u8(rs.iterCopied(rs.iterLend(rs.iterSlice(rs.iterToVec(rs.iterMap(rs.iterTake(rs.byteSliceChunksExact(data, 2), 3), (c: rs.ByteSlice): Uint8Array => {
+	const part11 = ends$adaptors_iter_Copied_slice_Iter_array2_u8(rs.iterCopied(rs.runsIter(rs.runsFrom(rs.iterToVec(rs.iterMap(rs.iterTake(rs.byteSliceChunksExact(data, 2), 3), (c: rs.ByteSlice): Uint8Array => {
 		rs.idx(c, 0);
 		const _32: rs.u8 = c.data[c.start];
 		rs.idx(c, 1);
 		return Uint8Array.of(_32, c.data[c.start + 1]);
-	}), undefined, 2, true).items), rs.byteSliceFrom), rs.byteSliceToArray), front, back);
+	}), undefined, 2, true).items, rs.byteSliceFrom)), rs.byteSliceToArray), front, back);
 	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtAdaptor(part11, f, "Copied", (value: rs.Iter<rs.ByteSlice>, f: rs.Formatter) => rs.fmtIter(value, f, (value: Uint8Array, f: rs.Formatter) => rs.fmtList(value, f, rs.u8Debug), ["Iter"]), "it")]));
 	const part12 = ends$adaptors_iter_Enumerate_slice_Iter_u8(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(bytes))), front, back);
 	const args149 = [(f: rs.Formatter) => rs.fmtEnumerate(part12, f, (value: rs.Iter<rs.u8>, f: rs.Formatter) => rs.fmtIter(value, f, rs.u8Debug, ["Iter"]))];

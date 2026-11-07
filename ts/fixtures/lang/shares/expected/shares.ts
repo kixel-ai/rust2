@@ -446,20 +446,20 @@ export function copies(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	pairs(shared.value, out);
 	pairs(fromRef.value, out);
-	const quads: rs.Arc<rs.Slice<Uint8Array>> = new rs.Arc(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.byteSliceChunksExact(data2, 2), (c: rs.ByteSlice): Uint8Array => {
+	const quads: rs.Arc<rs.Runs<rs.ByteSlice>> = new rs.Arc(rs.runsFrom(rs.iterToVec(rs.iterMap(rs.byteSliceChunksExact(data2, 2), (c: rs.ByteSlice): Uint8Array => {
 		rs.idx(c, 0);
 		const _3: rs.u8 = c.data[c.start];
 		rs.idx(c, 1);
 		return Uint8Array.of(_3, c.data[c.start + 1]);
-	}), undefined, 2, true).items));
-	let copy: rs.Arc<rs.Slice<Uint8Array>> = rs.arcClone(quads);
-	const _79: rs.ByteSlice | undefined = rs.optionMap(rs.sliceFirst(rs.arcMakeMut(rs.place(() => copy, (value2) => copy = value2), (a02: rs.Slice<Uint8Array>): rs.Slice<Uint8Array> => {
-		return rs.sliceFrom(rs.sliceItems(a02).map(copy$array_u8));
-	}, rs.drop)), rs.byteSliceFrom);
+	}), undefined, 2, true).items, rs.byteSliceFrom));
+	let copy: rs.Arc<rs.Runs<rs.ByteSlice>> = rs.arcClone(quads);
+	const _79: rs.ByteSlice | undefined = rs.runsFirst(rs.arcMakeMut(rs.place(() => copy, (value2) => copy = value2), (a02: rs.Runs<rs.ByteSlice>): rs.Runs<rs.ByteSlice> => {
+		return rs.runsFrom(rs.sliceItems(a02).map(copy$array_u8), rs.byteSliceFrom);
+	}, rs.drop));
 	if (_79 !== undefined) {
 		_79.data[_79.start] = 119;
 	}
-	const iter2: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterSlice(rs.sliceItems(quads.value)), rs.byteSliceFrom), rs.iterLend(rs.iterSlice(rs.sliceItems(copy.value)), rs.byteSliceFrom));
+	const iter2: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.runsIter(quads.value), rs.runsIter(copy.value));
 	while (true) {
 		const _95: rs.ByteSlice | rs.Done = iter2.next();
 		if (_95 === rs.DONE) {

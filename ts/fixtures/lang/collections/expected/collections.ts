@@ -3733,7 +3733,7 @@ export function unlikeEqs(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		rs.idx(c, 1);
 		return Uint8Array.of(_36, c.data[c.start + 1]);
 	}), undefined, 2, true);
-	const _148: rs.Slice<Uint8Array> = rs.sliceFrom(pairs.items);
+	const _148: rs.Runs<rs.ByteSlice> = rs.runsFrom(pairs.items, rs.byteSliceFrom);
 	const part = rs.min(pairs.items.length, rights_.items.length);
 	const _150: rs.Slice<Right.Right> = rs.sliceRange(rs.sliceFrom(rights_.items), 0, part);
 	putEq(rs.eqSeq((a15: Uint8Array, b20: Right.Right): boolean => {
@@ -4710,12 +4710,12 @@ export function unlikeCompares(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec)
 		rs.idx(c, 1);
 		return Uint8Array.of(_35, c.data[c.start + 1]);
 	}), undefined, 2, true);
-	putEq(rs.iterEq(rs.iterCopied(rs.iterLend(rs.iterSlice(pairs.items), rs.byteSliceFrom), rs.byteSliceToArray), rs.vecIntoIter(rights_()), (a: Uint8Array, b3: Right.Right): boolean => {
+	putEq(rs.iterEq(rs.iterCopied(rs.runsIter(rs.runsFrom(pairs.items, rs.byteSliceFrom)), rs.byteSliceToArray), rs.vecIntoIter(rights_()), (a: Uint8Array, b3: Right.Right): boolean => {
 		return ((a0: rs.ByteSlice, a1: Right.Right): boolean => {
 			return eq$cmp_PartialEq_collections_Right_array2_u8(a0.data, a0.start, a0.length, a1);
 		})(rs.byteSliceFrom(a), b3);
 	}, true), log, out);
-	putEq(rs.iterEq(rs.iterLend(rs.iterSlice(pairs.items), rs.byteSliceFrom), rs.iterSlice(theirs.items), (a02: rs.ByteSlice, a12: Right.Right): boolean => {
+	putEq(rs.iterEq(rs.runsIter(rs.runsFrom(pairs.items, rs.byteSliceFrom)), rs.iterSlice(theirs.items), (a02: rs.ByteSlice, a12: Right.Right): boolean => {
 		return eq$cmp_PartialEq_collections_Right_array2_u8(a02.data, a02.start, a02.length, a12);
 	}, true), log, out);
 	const part3 = rs.iterCmp(rs.iterSlice(mine.items), rs.iterSlice(theirs.items), Left.partialCmp$cmp_PartialOrd_collections_Right);
@@ -4725,13 +4725,13 @@ export function unlikeCompares(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec)
 	putEq(rs.iterCmp(rs.vecIntoIter(lefts()), rs.vecIntoIter(rights_()), Left.partialCmp$cmp_PartialOrd_collections_Right) === -1, log, out);
 	const order = rs.iterCmp(rs.iterSlice(mine.items), rs.iterSlice(theirs.items), Left.partialCmp$cmp_PartialOrd_collections_Right);
 	putEq(order !== undefined && order >= 0, log, out);
-	const part7 = rs.iterCmp(rs.iterCopied(rs.iterLend(rs.iterSlice(pairs.items), rs.byteSliceFrom), rs.byteSliceToArray), rs.vecIntoIter(rights_()), (a2: Uint8Array, b4: Right.Right): rs.Ordering | undefined => {
+	const part7 = rs.iterCmp(rs.iterCopied(rs.runsIter(rs.runsFrom(pairs.items, rs.byteSliceFrom)), rs.byteSliceToArray), rs.vecIntoIter(rights_()), (a2: Uint8Array, b4: Right.Right): rs.Ordering | undefined => {
 		return ((a03: rs.ByteSlice, a13: Right.Right): rs.Ordering | undefined => {
 			return partialCmp$cmp_PartialOrd_collections_Right_array2_u8(a03.data, a03.start, a03.length, a13);
 		})(rs.byteSliceFrom(a2), b4);
 	});
 	_9(part7, log, out);
-	const part9 = rs.iterCmp(rs.iterLend(rs.iterSlice(pairs.items), rs.byteSliceFrom), rs.iterSlice(theirs.items), (a04: rs.ByteSlice, a14: Right.Right): rs.Ordering | undefined => {
+	const part9 = rs.iterCmp(rs.runsIter(rs.runsFrom(pairs.items, rs.byteSliceFrom)), rs.iterSlice(theirs.items), (a04: rs.ByteSlice, a14: Right.Right): rs.Ordering | undefined => {
 		return partialCmp$cmp_PartialOrd_collections_Right_array2_u8(a04.data, a04.start, a04.length, a14);
 	});
 	_9(part9, log, out);

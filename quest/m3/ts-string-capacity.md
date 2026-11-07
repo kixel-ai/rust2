@@ -40,4 +40,4 @@ Public API: the translator's output and what a hand-written caller passes for a 
 
 ## Related
 
-- [rs.Slice](/quest/m3/ts-slice-object.md) - the other native mapping becoming a wrapper
+- [Parts of arrays without arrayView](/quest/m3/ts-slice-object.md) - the other native mapping becoming a wrapper

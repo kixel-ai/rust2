@@ -136,12 +136,12 @@ export function adaptors(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 						const b3: rs.u8 = _2;
 						return Uint8Array.of(b3, ~b3 & 0xff);
 					}), undefined, 2, true);
-					const copies: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterCopied(rs.iterLend(rs.iterSlice(pairs.items), rs.byteSliceFrom), rs.byteSliceToArray), undefined, 2, true);
+					const copies: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterCopied(rs.runsIter(rs.runsFrom(pairs.items, rs.byteSliceFrom)), rs.byteSliceToArray), undefined, 2, true);
 					if (!(copies.items.length === 0)) {
 						const _174: rs.ByteSlice = rs.byteSliceFrom(copies.items[rs.idx(copies.items, 0)]);
 						_174.data[_174.start] = 85;
 					}
-					const iter4: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterSlice(pairs.items), rs.byteSliceFrom), rs.iterLend(rs.iterSlice(copies.items), rs.byteSliceFrom));
+					const iter4: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.runsIter(rs.runsFrom(pairs.items, rs.byteSliceFrom)), rs.runsIter(rs.runsFrom(copies.items, rs.byteSliceFrom)));
 					while (true) {
 						const _187: rs.ByteSlice | rs.Done = iter4.next();
 						if (_187 === rs.DONE) {
@@ -1001,10 +1001,10 @@ export function skips(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return _28[0] ^ _28[1];
 		}));
 		rs.byteVecPush(out, rest14.len() & 0xff);
-		const rest15: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_29: rs.u8): Uint8Array => {
+		const rest15: rs.Iter<rs.ByteSlice> = rs.runsIter(rs.runsFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_29: rs.u8): Uint8Array => {
 			const b5: rs.u8 = _29;
 			return Uint8Array.of(b5, ~b5 & 0xff);
-		}), undefined, 2, true).items), rs.byteSliceFrom);
+		}), undefined, 2, true).items, rs.byteSliceFrom));
 		const it30: rs.Iter<Uint8Array> = rs.iterCopied(rs.iterTake(rs.iterBorrow(rest15), limit), rs.byteSliceToArray);
 		if (!back) {
 			item28 = rs.iterNth(it30, n);

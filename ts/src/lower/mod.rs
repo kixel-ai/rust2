@@ -24,6 +24,7 @@ mod mir;
 pub(crate) mod names;
 mod num;
 pub mod pointer;
+pub mod runs;
 mod stock;
 mod task;
 mod time;
@@ -1512,6 +1513,18 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		false
 	}
 
+	/// The TypeScript type of a slice of `elem`s, as behind a reference, which a
+	/// reference to a `[elem; N]` is too: an `rs.ByteSlice` of bytes, an `rs.Runs` of
+	/// arrays, lending each as this of its own elements, and else an `rs.Slice`.
+	pub fn slice_ty(&mut self, elem: Ty<'tcx>, span: Span) -> Type {
+		match elem.kind() {
+			_ if byte(elem) => Type::Rs("ByteSlice", vec![]),
+			_ if self.open_elem(elem) => Type::Rs("SliceOf", vec![self.ty(elem, span)]),
+			ty::Array(inner, _) => Type::Rs("Runs", vec![self.slice_ty(*inner, span)]),
+			_ => Type::Rs("Slice", vec![self.ty(elem, span)]),
+		}
+	}
+
 	/// The TypeScript type of a Rust type.
 	pub fn ty(&mut self, ty: Ty<'tcx>, span: Span) -> Type {
 		let tcx = self.tcx;
@@ -1529,22 +1542,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Type::Rs("Place", vec![self.ty(*inner, span)])
 			}
 			ty::RawPtr(inner, _) => self.pointer_ty(*inner, span),
-			ty::Ref(..) if let Some(elem) = array_ref(ty) => match byte(elem) {
-				true => Type::Rs("ByteSlice", vec![]),
-				false if self.open_elem(elem) => Type::Rs("SliceOf", vec![self.ty(elem, span)]),
-				false => Type::Rs("Slice", vec![self.ty(elem, span)]),
-			},
+			ty::Ref(..) if let Some(elem) = array_ref(ty) => self.slice_ty(elem, span),
 			ty::Ref(_, inner, _) => self.ty(*inner, span),
 			ty::Array(elem, _) if self.open_elem(*elem) => Type::Rs("ArrayOf", vec![self.ty(*elem, span)]),
-			ty::Slice(elem) if self.open_elem(*elem) => Type::Rs("SliceOf", vec![self.ty(*elem, span)]),
 			ty::Array(elem, _) => match byte(*elem) {
 				true => Type::Builtin("Uint8Array"),
 				false => Type::Array(Box::new(self.ty(*elem, span))),
 			},
-			ty::Slice(elem) => match byte(*elem) {
-				true => Type::Rs("ByteSlice", vec![]),
-				false => Type::Rs("Slice", vec![self.ty(*elem, span)]),
-			},
+			ty::Slice(elem) => self.slice_ty(*elem, span),
 			ty::Param(param) => Type::Param(param.name.to_string()),
 			ty::FnDef(def_id, args) => {
 				let sig = self.sig(*def_id, args.skip_binder());
@@ -2288,13 +2293,36 @@ pub fn bytes_ref(ty: Ty<'_>) -> bool {
 }
 
 /// The runtime's function `name` of the slice a reference to `ty`, a `[T; N]`, is:
-/// `byteSlice{name}` of bytes, and else `slice{name}`.
+/// `byteSlice{name}` of bytes, `runs{name}` of arrays, and else `slice{name}`. `From`
+/// of arrays, which lends each by its own `From`, is `rs.runsOf` of that.
 pub fn array_fn(ty: Ty<'_>, name: &str) -> ts::Expr {
-	let prefix = match byte_array(ty) {
-		true => "byteSlice",
-		false => "slice",
+	let prefix = match ty.kind() {
+		_ if byte_array(ty) => "byteSlice",
+		ty::Array(elem, _) if elem.is_array() => match name {
+			"From" => return ts::Expr::rs("runsOf", vec![array_fn(*elem, "From")]),
+			_ => "runs",
+		},
+		_ => "slice",
 	};
 	ts::Expr::Rs(format!("{prefix}{name}"))
+}
+
+/// `value`, the JS array of a `ty`, a `[T; N]`, as the slice a reference to it is.
+pub fn array_slice(ty: Ty<'_>, value: ts::Expr) -> ts::Expr {
+	match ty.kind() {
+		ty::Array(elem, _) => slice_items_from(value, *elem),
+		_ => unreachable!("an array's slice"),
+	}
+}
+
+/// `items`, a JS array of `elem`s, or their `Uint8Array`, as the slice of all of them: an
+/// `rs.ByteSlice`, an `rs.Runs` of arrays, lending each by its own slice, or an `rs.Slice`.
+pub fn slice_items_from(items: ts::Expr, elem: Ty<'_>) -> ts::Expr {
+	match elem.kind() {
+		_ if byte(elem) => ts::Expr::rs("byteSliceFrom", vec![items]),
+		ty::Array(..) => ts::Expr::rs("runsFrom", vec![items, array_fn(elem, "From")]),
+		_ => library::slice_from(items),
+	}
 }
 
 /// The element of the `[T; N]` that `ty` is a reference to, if it is one: an `rs.Slice` of

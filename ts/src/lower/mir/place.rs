@@ -250,7 +250,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					e = match in_slice {
 						true => {
 							let base = self.slice_path(e, out);
-							slice_at(base, i)
+							self.slice_elem(base, i, ty)
 						}
 						false => e.index(i),
 					};
@@ -269,7 +269,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						true => super::scalar::sub(slice_member(base.clone(), "length"), Expr::lit(offset.to_string())),
 					};
 					e = match in_slice {
-						true => slice_at(base, i),
+						true => self.slice_elem(base, i, ty),
 						false => base.index(i),
 					};
 				}
@@ -281,7 +281,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				} if let ty::Slice(elem_ty) = ty.kind() => {
 					let base = self.slice_path(e, out);
 					// A range of parts, which the pattern that took it checked the length for.
-					if let Some([data, start, length]) = made_slice(&base) {
+					if elem_ty.is_array() {
+						let end = base.clone().member("length").binary("-", Expr::lit(to.to_string()));
+						e = Expr::rs("runsPart", vec![base, Expr::lit(from.to_string()), end]);
+					} else if let Some([data, start, length]) = made_slice(&base) {
 						let len = super::scalar::sub(length.clone(), Expr::lit((from + to).to_string()));
 						let start = super::scalar::add(start.clone(), Expr::lit(from.to_string()));
 						e = Expr::New(
@@ -311,6 +314,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					};
 					let base = self.slice_path(e, out);
 					e = match made_slice(&base) {
+						_ if elem.is_array() => Expr::rs(
+							"runsPart",
+							vec![base, Expr::lit(from.to_string()), Expr::lit(end.to_string())],
+						),
 						// In bounds of the array's.
 						Some([data, start, _]) => Expr::New(
 							Box::new(Expr::Rs(slice_class(elem).into())),
@@ -346,14 +353,30 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				| ProjectionElem::UnwrapUnsafeBinder(_)
 				| ProjectionElem::PhantomDeref => {}
 			}
+			let next = pty.projection_ty(tcx, elem);
 			in_slice = match elem {
 				ProjectionElem::Deref => self.array_behind(place.local, read, ty),
 				ProjectionElem::Subslice { .. } => in_slice,
+				// A run of a slice of arrays is the slice of its elements.
+				ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. } => {
+					in_slice && self.b.t.uninit_inner(next.ty).is_array()
+				}
 				_ => false,
 			};
-			pty = pty.projection_ty(tcx, elem);
+			pty = next;
 		}
 		e
+	}
+
+	/// Element `i` of `base`, the slice a place of `ty`, a `[T]` or a `[T; N]`, is: an
+	/// `rs.Runs`' run, lent as the slice of its elements, of arrays.
+	fn slice_elem(&self, base: Expr, i: Expr, ty: Ty<'tcx>) -> Expr {
+		match ty.kind() {
+			ty::Slice(elem) | ty::Array(elem, _) if self.b.t.uninit_inner(*elem).is_array() => {
+				Expr::rs("runsAt", vec![base, i])
+			}
+			_ => slice_at(base, i),
+		}
 	}
 
 	/// The parts of field `field` of union `adt` that `rest`, the projections after it,
@@ -415,6 +438,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			in_array = match elem {
 				ProjectionElem::Deref => self.array_behind(place.local, at, ty),
 				ProjectionElem::Subslice { .. } => in_array || ty.is_slice(),
+				ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. } => {
+					(in_array || ty.is_slice()) && matches!(ty.kind(), ty::Slice(e) | ty::Array(e, _) if self.b.t.uninit_inner(*e).is_array())
+				}
 				_ => false,
 			};
 		}
@@ -769,6 +795,23 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		!self.mutated[place.local] && place.projection.iter().all(|e| !matches!(e, ProjectionElem::Deref))
 	}
 
+	/// The statement that copies `value` into `target`, the slice an array `place` a
+	/// reference points at is, named as [`Self::slice_path`] names it.
+	pub(super) fn store_in_slice(&mut self, place: Place<'tcx>, target: Expr, value: Expr, span: Span) -> Stmt {
+		let e = match self.in_bytes(place) {
+			true => target
+				.clone()
+				.member("data")
+				.member("set")
+				.call(vec![value, target.member("start")]),
+			false => {
+				let ty = self.b.t.uninit_inner(place.ty(&self.mir.local_decls, self.tcx).ty);
+				crate::lower::array_fn(ty, "Set").call(vec![target, value])
+			}
+		};
+		StmtKind::Expr(e).at(self.b.t.loc(span))
+	}
+
 	/// The statements that assign `value` to `place`, which has projections.
 	pub(super) fn store(&mut self, place: Place<'tcx>, value: Expr, span: Span) -> Vec<Stmt> {
 		let (place, value) = self.rebuilt(place, value, span);
@@ -799,15 +842,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		if self.in_array(place) {
 			let target = self.place_expr(place, span, &mut out);
 			let target = self.slice_path(target, &mut out);
-			let e = match self.in_bytes(place) {
-				true => target
-					.clone()
-					.member("data")
-					.member("set")
-					.call(vec![value, target.member("start")]),
-				false => Expr::rs("sliceSet", vec![target, value]),
-			};
-			out.push(StmtKind::Expr(e).at(self.b.t.loc(span)));
+			out.push(self.store_in_slice(place, target, value, span));
 			return out;
 		}
 		// `*r = v` replaces the object `r` points at in place, which other references and

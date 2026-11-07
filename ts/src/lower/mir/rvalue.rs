@@ -61,7 +61,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				// elements: a view of bytes, and else the array where the slice is all of it.
 				let pointee = place.ty(&self.mir.local_decls, tcx).ty;
 				match (pointee.is_array(), self.in_array(*place)) {
-					(true, false) => self.b.t.array_rs(pointee, "From").call(vec![value]),
+					(true, false) => crate::lower::array_slice(self.b.t.uninit_inner(pointee), value),
 					(false, true) if self.in_bytes(*place) => Expr::rs("byteSliceView", vec![value]),
 					(false, true) => crate::lower::library::slice_items(value),
 					_ => value,
@@ -110,7 +110,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						let value = self.place_expr(*place, span, out);
 						match self.in_array(*place) {
 							true => value,
-							false => self.b.t.array_rs(pointee, "From").call(vec![value]),
+							false => crate::lower::array_slice(self.b.t.uninit_inner(pointee), value),
 						}
 					}
 					// `&raw mut *p` is `p`. A pointer to `()` is an identity, which only another
@@ -440,11 +440,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				// An array, as the slice of all of it: a reference to one is one already.
 				PointerCoercion::Unsize if unsized_to(from, to).is_some_and(|t| t.is_slice()) => {
 					match to.builtin_deref(true) {
-						Some(pointee) if pointee.is_slice() => {
+						Some(pointee) if let ty::Slice(elem) = pointee.kind() => {
 							let value = self.operand(op, span, out);
 							match crate::lower::array_ref(from) {
 								Some(_) => value,
-								None => Expr::rs("sliceFrom", vec![value]),
+								None => crate::lower::slice_items_from(value, *elem),
 							}
 						}
 						_ => self.err(span, format!("a coercion to `{to}`")),
@@ -529,7 +529,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		};
 		let (from, to) = (Ty::new_box(tcx, pointee), Ty::new_box(tcx, object));
 		let value = if pointee.is_array() && object.is_slice() {
-			crate::lower::array_fn(pointee, "From").call(vec![value])
+			crate::lower::array_slice(pointee, value)
 		} else if self.b.t.dyn_future(object).is_some() {
 			self.b.dyn_future(from, to, value, span)
 		} else if self.b.t.dyn_iter(object).is_some() {

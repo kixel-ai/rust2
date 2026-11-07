@@ -180,8 +180,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			Pointee::Place => Type::Rs("Place", vec![self.ty(pointee, span)]),
 			Pointee::Object => self.ty(pointee, span),
 			Pointee::Array => match self.uninit_inner(pointee).kind() {
-				ty::Array(elem, _) if super::byte(*elem) => Type::Rs("ByteSlice", Vec::new()),
-				ty::Array(elem, _) => Type::Rs("Slice", vec![self.ty(*elem, span)]),
+				ty::Array(elem, _) => self.slice_ty(*elem, span),
 				_ => unreachable!("an array's pointee"),
 			},
 			Pointee::Slice => match self.uninit_inner(pointee).kind() {
@@ -501,13 +500,18 @@ pub fn call<'tcx>(
 	// A mapping holds a `[T; N]`, and hands out a reference to one, as the JS array, which a
 	// pointer to it is an `rs.Slice` of, or an `rs.ByteSlice` of bytes.
 	let array = |b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>| b.t.pointee(ty) == Pointee::Array;
-	let to_pointer = |b: &Body<'_, '_, 'tcx>, e: Expr| match super::byte_array(b.t.uninit_inner(pointee())) {
-		true => Expr::rs("byteSliceFrom", vec![e]),
-		false => super::library::slice_from(e),
+	let to_pointer = |b: &Body<'_, '_, 'tcx>, e: Expr| match b.t.uninit_inner(pointee()).kind() {
+		ty::Array(elem, _) => super::slice_items_from(e, *elem),
+		_ => super::library::slice_from(e),
 	};
-	let to_reference = |b: &Body<'_, '_, 'tcx>, e: Expr| match super::byte_array(b.t.uninit_inner(pointee())) {
-		true => Expr::rs("byteSliceView", vec![e]),
-		false => super::library::slice_view(e),
+	// The runs of an array of arrays have no JS array to write through.
+	let to_reference = |b: &mut Body<'_, '_, 'tcx>, e: Expr| match b.t.uninit_inner(pointee()) {
+		ty if super::byte_array(ty) => Expr::rs("byteSliceView", vec![e]),
+		ty if super::runs::of_arrays(ty) => b.err(
+			span,
+			format!("a reference to `{ty}` from a raw pointer, which is not supported yet"),
+		),
+		_ => super::library::slice_view(e),
 	};
 	// A raw pointer to a slice, from a reference to one, and the slice a read through it
 	// makes, shared if nothing writes through it.

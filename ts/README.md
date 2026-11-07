@@ -104,8 +104,8 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `Option<T>` | `T \| undefined`; `T \| rs.None` where `T` can already be `undefined`, as `()` and `Option` can, so `Option<()>` and `Option<Option<u64>>` keep `None` apart from each `Some` |
 | `Result<T, E>` | `rs.Result<T, E>`: `{ ok: true, value }` or `{ ok: false, error }`; `rs.OK` or `rs.ERR` where the payload is `undefined`, as in `Ok(())` |
 | `ControlFlow<B, C>` | `rs.Result<C, B>`, `Ok` to continue; what `?` branches on is the value it was applied to, but for a `Poll`'s `Pending` and `Ready(None)`, which continue as `Ok` of themselves |
-| tuple, `[T; N]`, `&[T; N]` | an array, and `rs.Slice<T>` of all of it for `&[T; N]`; for bytes, `u8` or `MaybeUninit<u8>`, `Uint8Array` for `[u8; N]`, and `rs.ByteSlice` for `&[u8; N]` |
-| `&[T]`, `&mut [T]`, `Box<[T]>` | `rs.Slice<T>`, a range of an array; `rs.ByteSlice` for bytes |
+| tuple, `[T; N]`, `&[T; N]` | an array, and `rs.Slice<T>` of all of it for `&[T; N]`, `rs.Runs` for an array of arrays; for bytes, `u8` or `MaybeUninit<u8>`, `Uint8Array` for `[u8; N]`, and `rs.ByteSlice` for `&[u8; N]` |
+| `&[T]`, `&mut [T]`, `Box<[T]>` | `rs.Slice<T>`, a range of an array; `rs.ByteSlice` for bytes; `rs.Runs` of the slice each array is for a slice of arrays |
 | `Vec<T>` | `rs.Vec<T>`: its items, the array `items`, and the capacity std's holds; `rs.vecFrom(items)` makes one of an array with room for exactly them. `rs.ByteVec` of bytes |
 | `Cow<[T]>`, `Cow<str>` | `rs.Cow<T>`: the `Vec` it owns, or an `rs.Borrowed` holding the slice it borrows; `rs.ByteCow` for bytes, an `rs.ByteVec` or an `rs.ByteSlice`; `rs.StrCow` for text, the string it owns or an `rs.Borrowed` holding the one it borrows, which `rs.strCowStr` reads |
 | `&T`, `&mut T`, `Box<T>`, `Reverse<T>`, `NonZero<T>`, `AssertUnwindSafe<T>` | the value; a `&mut` to a value JS copies, such as a number, an `Option`, a `String`, or a reference, or to an `Arc`, a `Waker`, or a `LocalKey`, whose copies share what it points at, is an `rs.Place<T>`, which for what a box holds is the place holding the box |
@@ -170,14 +170,19 @@ same array. A caller passes one as `rs.sliceFrom(array)` and reads one it gets a
 JS array, and a `&[T; N]` or `&mut [T; N]` is an `rs.Slice` of its elements where they
 are, as a `&[u8; N]` is an `rs.ByteSlice`, so `first_chunk_mut`, `split_first_chunk_mut`,
 a subslice pattern, and `array::from_mut` lend part of the same array, and a whole write
-through one writes each element in place. A slice of arrays has each as a JS array of its
-own, so `as_chunks_mut` and `as_rchunks_mut` lend their runs as a `Proxy` of an array
-whose elements are views of each run, a `Uint8Array` one for bytes, and a whole write of
-a run copies into it.
-Before that write, a view of other values that a read took detaches to a copy of what it
-held. A byte run's view can't, so it is copied wherever it is read by value: the
-call counts as a write into the bytes, which has translated code copy each `[u8; N]` it
-reads, and the runtime's swaps, rotations, and sorts move copies of the runs.
+through one writes each element in place. A slice of arrays, a `&[[T; N]]`,
+`&mut [[T; N]]`, `&[[T; N]; M]`, or `Box<[[T; N]]>`, is an `rs.Runs` of the slice each
+array is, `rs.Runs<rs.Slice<T>>`, `rs.Runs<rs.ByteSlice>` for bytes, and `rs.Runs` of
+`rs.Runs` for arrays of arrays: its element `i` is the slice of run `i`, read and written
+where the runs are, whether each is a JS array of its own, as a `Vec<[T; N]>` or a
+`[[T; N]; M]` holds them, or a part of one slice, as `as_chunks_mut` and `as_rchunks_mut`
+split it. A caller passes one as `rs.runsFrom(arrays, rs.sliceFrom)`, `rs.byteSliceFrom`
+for bytes and `rs.runsOf(rs.sliceFrom)` for arrays of arrays, and reads one as
+`rs.runsArray(runs)`, the arrays themselves where the runs are all of them. std's methods
+that lend runs or parts of the slice, such as `iter_mut`, `split_at_mut`, `chunks_mut`,
+and `swap`, take them where they are; any other, such as `sort` or `rotate_left`, reads
+copies of the runs, which a `&mut` one writes back once it returns, as Rust moves their
+elements.
 
 `usize` is 32 bits, as on wasm32, so it is exact in a `number`. Arithmetic is checked as
 a debug build checks it, so translated code panics where native code would: it never
