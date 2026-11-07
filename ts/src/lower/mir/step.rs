@@ -4,10 +4,12 @@
 //! adaptors from. Variables, not an object of both: V8 took up to 1.25x as long over a
 //! `BTreeMap` stepping an object's fields.
 //!
-//! A slice's `iter_mut` of values JS copies lends each item's place. Where each item is
-//! only read and written through, or passed on from a local nothing else assigns, it is
-//! three variables, the array, an index, and the end, and each item is its index, which
-//! the item reads and writes the array at, as `&mut v[i]` does: no `rs.Place` per item.
+//! A slice's `iter_mut` of values JS copies lends each item as its place. Where its `next`
+//! results are read only by a switch on their variant and by moving the item into a
+//! reference assigned nothing else, it is three variables, the array, an index, and the
+//! end, and each item is its index: the item reads and writes the array there, as
+//! `&mut v[i]` does, and one passed on whole is `rs.arrayAsPtr` of its element, as
+//! `rs.iterSliceMut` would have lent it, rather than an `rs.Place` made for every item.
 
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_middle::mir::{self, Local, Operand, Rvalue, StatementKind, TerminatorKind};
@@ -166,7 +168,6 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		ok.retain(|&l| reads.get(&l).copied().unwrap_or(0) == self.uses[l]);
 		ok.retain(|&l| made.contains(&l) || moves.iter().any(|&(_, to)| to == l));
 		ok.retain(|&l| borrows.iter().all(|(&b, &from)| from != l || stepping(self, b)));
-
 		// One lending places steps by index only where each `next` it steps by lends items
 		// that index allows.
 		let mut lent: Vec<(Local, Local, Vec<Local>)> = Vec::new();
@@ -229,7 +230,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		};
 		let path = library::std_path(self.tcx, adt.did());
 		path.iter().map(String::as_str).eq(["slice", "iter", "IterMut"])
-			&& args.types().next().is_some_and(|elem| !elem.is_array() && self.b.t.needs_place(elem))
+			&& args
+				.types()
+				.next()
+				.is_some_and(|elem| !elem.is_array() && self.b.t.needs_place(elem))
 	}
 
 	/// The locals the item `next`, a `next` result, lends is moved into, if that is all that
@@ -406,28 +410,34 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				object(vec![("s", Expr::rs("byteVecView", args)), ("i", Expr::lit("0"))])
 			}
 			Expr::Call(f, mut args) if rs(&f, "iterSliceMut") && args.len() == 1 => {
-				// All of an array, or of a `Vec<u8>`'s bytes, held back or not, reads its parts
-				// from where they are. Any other slice is held in a variable of its own.
-				let whole = |e: &Expr| {
-					matches!(peel(e), Expr::Call(f, a)
-						if (rs(f, "sliceFrom") || rs(f, "byteVecSlice")) && a.len() == 1 && a[0].is_path())
+				// All of an array, or of a `Vec<u8>`'s bytes, held back or not, is read where
+				// they are: the array or `ByteVec`, and whether it is a `ByteVec`. Any other
+				// slice is held in a variable of its own.
+				let whole = |e: &Expr| match peel(e) {
+					Expr::Call(f, a) if a.len() == 1 && a[0].is_path() && rs(f, "sliceFrom") => {
+						Some((a[0].clone(), false))
+					}
+					Expr::Call(f, a) if a.len() == 1 && a[0].is_path() && rs(f, "byteVecSlice") => {
+						Some((a[0].clone(), true))
+					}
+					_ => None,
 				};
 				let mut slice = args.pop().unwrap();
 				if let Expr::Ident(name) = peel(&slice)
-					&& self.pending.iter().any(|p| p.name == *name && whole(&p.value))
+					&& self
+						.pending
+						.iter()
+						.any(|p| p.name == *name && whole(&p.value).is_some())
 				{
 					slice = self.fold_exprs(Vec::new(), vec![slice], false, out).remove(0);
 				}
-				let (s, i, e) = match peel(&slice) {
-					Expr::Call(f, a) if rs(f, "sliceFrom") && a.len() == 1 && a[0].is_path() => {
-						let a = self.path(a[0].clone(), "items", out);
-						(a.clone(), Expr::lit("0"), a.member("length"))
+				let (s, i, e) = match whole(&slice) {
+					Some((v, bytes)) => {
+						let v = self.path(v, "items", out);
+						let s = if bytes { v.clone().member("data") } else { v.clone() };
+						(s, Expr::lit("0"), v.member("length"))
 					}
-					Expr::Call(f, v) if rs(f, "byteVecSlice") && v.len() == 1 && v[0].is_path() => {
-						let v = self.path(v[0].clone(), "bytes", out);
-						(v.clone().member("data"), Expr::lit("0"), v.member("length"))
-					}
-					_ => {
+					None => {
 						let slice = self.path(slice, "slice", out);
 						let start = slice.clone().member("start");
 						let end = start.clone().binary("+", slice.clone().member("length"));

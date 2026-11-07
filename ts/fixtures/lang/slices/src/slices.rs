@@ -1782,7 +1782,11 @@ pub fn item_writes(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			for v in payloads {
 				*v = v.wrapping_add(1000);
 			}
-			out.extend(grid.into_iter().flatten().flat_map(|o| o.map_or([0xee, 0xee], u16::to_le_bytes)));
+			out.extend(
+				grid.into_iter()
+					.flatten()
+					.flat_map(|o| o.map_or([0xee, 0xee], u16::to_le_bytes)),
+			);
 		}
 		// Overflow panics where Rust's does, part way through.
 		_ => {
