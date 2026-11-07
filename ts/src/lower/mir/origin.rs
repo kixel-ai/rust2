@@ -93,15 +93,18 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		{
 			return Some(super::alloc::BYTES.into());
 		}
+		// An offset or a count the body doesn't fix may reach out of an array of one.
+		let unfixed = |o: Origin<'tcx>, what: &str| {
+			matches!(o.array, Array::Lone(_)).then(|| {
+				format!(
+					"{what} the body doesn't fix, from {}, which JS keeps apart from what holds it in Rust",
+					o.array.what()
+				)
+			})
+		};
 		let out = |o: Origin<'tcx>, n: Option<i128>, what: &str| {
-			// An offset the body doesn't fix may move a pointer out of an array of one.
 			let Some(index) = o.index else {
-				return matches!(o.array, Array::Lone(_)).then(|| {
-					format!(
-						"{what} moved by an offset the body doesn't fix from {}, which JS keeps apart from what holds it in Rust",
-						o.array.what()
-					)
-				});
+				return unfixed(o, &format!("{what} moved by an offset"));
 			};
 			let past = o.array.len().is_some_and(|len| index + n.unwrap_or(0) > len);
 			(index < 0 || past).then(|| {
@@ -139,6 +142,14 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				let o = self.moved(self.origin(arg(0)?)?, name.as_str(), arg(1)?);
 				out(o, None, "a pointer")
 			}
+			// A wrapping offset may leave the array while nothing reads through it.
+			("ptr" | "NonNull", "wrapping_add" | "wrapping_sub" | "wrapping_offset") => {
+				let o = self.origin(arg(0)?)?;
+				match self.const_int(arg(1)?) {
+					Some(_) => None,
+					None => unfixed(o, "a pointer moved by an offset"),
+				}
+			}
 			("raw", "from_raw_parts" | "from_raw_parts_mut")
 			| ("ptr", "slice_from_raw_parts" | "slice_from_raw_parts_mut")
 			| ("NonNull", "slice_from_raw_parts") => {
@@ -165,11 +176,21 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			)
 			| ("NonNull", "copy_to" | "copy_to_nonoverlapping" | "copy_from" | "copy_from_nonoverlapping") => {
 				let n = self.const_int(arg(2)?);
-				[arg(0)?, arg(1)?]
-					.into_iter()
-					.find_map(|p| out(self.origin(p)?, n, "a copy"))
+				[arg(0)?, arg(1)?].into_iter().find_map(|p| {
+					let o = self.origin(p)?;
+					match n {
+						Some(_) => out(o, n, "a copy"),
+						None => unfixed(o, "a copy of a count"),
+					}
+				})
 			}
-			("ptr" | "NonNull", "write_bytes") => out(self.origin(arg(0)?)?, self.const_int(arg(2)?), "a write"),
+			("ptr" | "NonNull", "write_bytes") => {
+				let o = self.origin(arg(0)?)?;
+				match self.const_int(arg(2)?) {
+					Some(n) => out(o, Some(n), "a write"),
+					None => unfixed(o, "a write of a count"),
+				}
+			}
 			_ => None,
 		}
 	}

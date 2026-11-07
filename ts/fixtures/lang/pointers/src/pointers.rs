@@ -2780,6 +2780,13 @@ fn shrunk_moved(
 	(old_v, old_q, popped)
 }
 
+/// A cell written whole through a pointer from the shared reference given, which may be
+/// the cell `Cell::from_mut` makes of another place.
+#[inline(never)]
+fn cell_rewritten(r: &Cell<u32>, n: u32) {
+	unsafe { ptr::from_ref(r).cast_mut().write(Cell::new(n)) }
+}
+
 /// A `HashMap` written whole through a pointer from the `&mut` given, which holds what the
 /// new one does, its capacity included.
 #[inline(never)]
@@ -2870,6 +2877,13 @@ pub fn moved_out(data: &[u8], out: &mut Vec<u8>) {
 	map.extend(nums.iter().map(|&n| (n, n)));
 	map_rewritten(&mut map);
 	out.extend([map.len() as u8, map.capacity() as u8]);
+	for &b in data {
+		let mut x = u32::from(b);
+		cell_rewritten(Cell::from_mut(&mut x), u32::from(b) + 1);
+		let cell = Cell::new(u32::from(b));
+		cell_rewritten(&cell, u32::from(b) + 2);
+		out.extend([x as u8, cell.get() as u8]);
+	}
 }
 
 /// Pointers to slices cast to ones to arrays of their elements, of bytes and of numbers:

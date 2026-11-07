@@ -41,9 +41,16 @@ pub fn lazy_moved(cell: std::cell::Cell<u32>) -> u32 {
 }
 
 /// A pointer from a reference the body is given moved by an offset the body doesn't fix,
-/// which may reach past the value JS keeps in no array.
-pub fn offset_reference(r: &u32, n: usize) -> u32 {
-	unsafe { *std::ptr::from_ref(r).add(n) }
+/// wrapping or not, and copied from by a count it doesn't fix, each of which may reach
+/// past the value JS keeps in no array.
+pub fn unfixed_reference(r: &u32, n: usize) -> [u32; 3] {
+	let mut out = [0u32; 3];
+	unsafe {
+		out[0] = *std::ptr::from_ref(r).add(n);
+		out[1] = *std::ptr::from_ref(r).wrapping_add(n);
+		std::ptr::copy_nonoverlapping(std::ptr::from_ref(r), out.as_mut_ptr(), n);
+	}
+	out
 }
 
 /// A `Peekable` moved out through a pointer with a cell peeked, which only its runtime

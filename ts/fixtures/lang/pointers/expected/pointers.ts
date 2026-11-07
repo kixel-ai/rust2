@@ -3616,6 +3616,14 @@ export function shrunkMoved(v: rs.Vec<rs.u32>, q: rs.VecDeque<rs.u32>): [rs.Vec<
 }
 
 /**
+ * A cell written whole through a pointer from the shared reference given, which may be
+ * the cell `Cell::from_mut` makes of another place.
+ */
+export function cellRewritten(r: rs.Cell<rs.u32>, n: rs.u32): void {
+	rs.placeIn(r).v = new rs.Cell(n);
+}
+
+/**
  * A `HashMap` written whole through a pointer from the `&mut` given, which holds what the
  * new one does, its capacity included.
  */
@@ -3643,8 +3651,8 @@ export function movedOut(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _7!: rs.u8;
 	let _28!: rs.u8;
 	const with_: (a0: rs.u8) => rs.ByteVec = (n: rs.u8): rs.ByteVec => {
-		return rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b2: rs.u8): rs.u8 => {
-			return rs.u8WrappingAdd(b2, n);
+		return rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b3: rs.u8): rs.u8 => {
+			return rs.u8WrappingAdd(b3, n);
 		}), undefined, true);
 	};
 	let iterStart: rs.u8 = 0;
@@ -3769,6 +3777,13 @@ export function movedOut(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.hashExtend(map, _232, undefined, undefined, undefined, 117440512);
 	mapRewritten(map);
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(rs.hashLen(map) & 0xff, rs.hashCapacity(map) & 0xff)), undefined, true);
+	for (const b2 of rs.byteSliceView(data)) {
+		let x2: rs.u32 = b2 as rs.u32;
+		cellRewritten(rs.cellOfPlace(rs.place(() => x2, (value3) => x2 = value3)), rs.u32Add(b2 as rs.u32, 1));
+		const cell2: rs.Cell<rs.u32> = new rs.Cell(b2 as rs.u32);
+		cellRewritten(cell2, rs.u32Add(b2 as rs.u32, 2));
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(x2 & 0xff, cell2.v & 0xff)), undefined, true);
+	}
 }
 
 /**
