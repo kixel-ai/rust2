@@ -1168,7 +1168,7 @@ function without a mapping of its own that makes or reads an `Option` whose `Non
 or of a projection from one, that can be `undefined` though TypeScript's type of it can't, as a `MaybeUninit<u32>`
 can, or an `Option` or a `Poll` of another form of it whose instance can be `undefined` or pending, an instance of a generic type
 over type parameters whose projection is a type holding that instance again, in a generic type's definition (`Held<Wrap<T>>` where `Wrap<T>::Item` is a `Held<Wrap<T>>`), a generic type that
-holds itself at other arguments than its own parameters whose projections there are new ones each time, a `String`'s `capacity`, looking up a key by
+holds itself at other arguments than its own parameters whose instances name new instances or projections for more rounds than the crate's recursion limit, a `String`'s `capacity`, looking up a key by
 another type it borrows as through the crate's own `Borrow`, a `&mut` to a value JS
 copies that std makes, other than a map's, or hands a closure, as `iter_mut` and
 `and_modify` do, one into a `Result`'s payload passed on or kept, the adaptors
