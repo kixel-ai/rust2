@@ -230,9 +230,8 @@ struct Held<T> {
 	value: T,
 }
 
-/// Runs each conversion of the type `kind` picks, but a slice of one `u8`, whose `&mut`
-/// no slice can view, and [`searched`] of those that order; and [`referenced`] of one
-/// type of each form JS keeps a value in.
+/// Runs each conversion of the type `kind` picks, and [`searched`] of those that order;
+/// and [`referenced`] of one type of each form JS keeps a value in.
 pub fn conversions(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	match kind % 14 {
 		0 => {
@@ -269,8 +268,7 @@ pub fn conversions(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			referenced::<Vec<u8>>(data, out);
 		}
 		12 => {
-			converted::<u8>(data, out);
-			searched::<u8>(data, out);
+			ordered::<u8>(data, out);
 			referenced::<u8>(data, out);
 		}
 		_ => {

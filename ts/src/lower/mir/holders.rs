@@ -665,7 +665,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 	}
 
 	/// Whether a value of `ty` could hold a pointer or a reference, in any field of any type.
-	fn carries(&self, ty: Ty<'tcx>) -> bool {
+	pub fn carries(&self, ty: Ty<'tcx>) -> bool {
 		self.holds_pointer(ty, true)
 	}
 
@@ -676,9 +676,54 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 		self.holds_pointer(ty, false)
 	}
 
+	/// Whether safe code could put a pointer or a reference in a value of `ty`: as
+	/// [`Self::carries`], but std's types hold only what their type arguments do, as the
+	/// pointers of their own are private.
+	pub fn takes_pointer(&self, ty: Ty<'tcx>) -> bool {
+		self.holds_pointer_as(ty, true, true)
+	}
+
+	/// Whether a value of `ty` points at memory safe code could put a pointer or a
+	/// reference in, as [`Self::takes_pointer`] tells, through a pointer it holds.
+	pub fn points_at_taker(&self, ty: Ty<'tcx>) -> bool {
+		let tcx = self.t.tcx;
+		let mut seen = FxHashSet::default();
+		let mut stack = vec![ty];
+		while let Some(ty) = stack.pop() {
+			if !seen.insert(ty) {
+				continue;
+			}
+			match ty.kind() {
+				ty::Bool
+				| ty::Char
+				| ty::Int(_)
+				| ty::Uint(_)
+				| ty::Float(_)
+				| ty::Str
+				| ty::Never
+				| ty::FnDef(..)
+				| ty::FnPtr(..) => {}
+				ty::Ref(_, inner, _) | ty::RawPtr(inner, _) if self.takes_pointer(*inner) => return true,
+				ty::Ref(..) | ty::RawPtr(..) => {}
+				ty::Array(elem, _) | ty::Slice(elem) | ty::Pat(elem, _) => stack.push(*elem),
+				ty::Tuple(tys) => stack.extend(tys.iter()),
+				ty::Closure(_, args) => stack.extend(args.as_closure().upvar_tys()),
+				ty::Adt(adt, args) if crate::lower::library::is_std(tcx, adt.did()) => stack.extend(args.types()),
+				ty::Adt(adt, args) => stack.extend(adt.all_fields().map(|field| field_ty(tcx, self.env, field.did, args))),
+				_ => return true,
+			}
+		}
+		false
+	}
+
 	/// Whether a value of `ty` could hold a pointer or a reference, in any field of any
 	/// type, and with `params`, in a type parameter's value.
 	fn holds_pointer(&self, ty: Ty<'tcx>, params: bool) -> bool {
+		self.holds_pointer_as(ty, params, false)
+	}
+
+	/// [`Self::holds_pointer`], or with `std_args`, [`Self::takes_pointer`].
+	fn holds_pointer_as(&self, ty: Ty<'tcx>, params: bool, std_args: bool) -> bool {
 		let mut seen = FxHashSet::default();
 		let mut stack = vec![ty];
 		while let Some(ty) = stack.pop() {
@@ -697,6 +742,12 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 				| ty::FnPtr(..) => {}
 				ty::Array(elem, _) | ty::Slice(elem) | ty::Pat(elem, _) => stack.push(*elem),
 				ty::Tuple(tys) => stack.extend(tys.iter()),
+				ty::Adt(adt, args) if std_args && crate::lower::library::is_std(self.t.tcx, adt.did()) => {
+					if args.regions().next().is_some() {
+						return true;
+					}
+					stack.extend(args.types());
+				}
 				ty::Adt(adt, args) => stack.extend(
 					adt.all_fields()
 						.map(|field| field_ty(self.t.tcx, self.env, field.did, args)),

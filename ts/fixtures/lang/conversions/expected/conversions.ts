@@ -175,9 +175,8 @@ export function LOG$init(_1: undefined): rs.Arc<rs.RefCell<rs.ByteVec>> {
 }
 
 /**
- * Runs each conversion of the type `kind` picks, but a slice of one `u8`, whose `&mut`
- * no slice can view, and [`searched`] of those that order; and [`referenced`] of one
- * type of each form JS keeps a value in.
+ * Runs each conversion of the type `kind` picks, and [`searched`] of those that order;
+ * and [`referenced`] of one type of each form JS keeps a value in.
  */
 export function conversions(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _5: rs.u8 = rs.u8Rem(kind, 14);
@@ -213,8 +212,7 @@ export function conversions(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 		ordered$Vec_u8(data, out);
 		referenced$Vec_u8(data, out);
 	} else if (_5 === 12) {
-		converted$u8(data, out);
-		searched$u8(data, out);
+		ordered$u8(data, out);
 		referenced$u8(data, out);
 	} else {
 		((log: rs.Arc<rs.RefCell<rs.ByteVec>>): undefined => {
@@ -328,6 +326,14 @@ export function ordered$u64(data: rs.ByteSlice, out: rs.ByteVec): void {
 	lentOne$u64(data, out);
 	lentThrough$u64(data, out);
 	searched$u64(data, out);
+}
+
+/** Each conversion of a `T` that orders. */
+export function ordered$u8(data: rs.ByteSlice, out: rs.ByteVec): void {
+	converted$u8(data, out);
+	lentOne$u8(data, out);
+	lentThrough$u8(data, out);
+	searched$u8(data, out);
 }
 
 /** `clone_from` through a `&mut` whose place only the caller knows. */
@@ -637,6 +643,19 @@ export function writeFirst$u64(s: rs.Slice<rs.u64>, value: rs.u64): rs.u64 {
 	return old;
 }
 
+/** A whole write into what a slice holds, as a function given any slice makes it. */
+export function writeFirst$u8(s: rs.ByteSlice, value: rs.u8): rs.u8 {
+	rs.idx(s, 0);
+	const _8: rs.u8 = value;
+	const old2 = s.data[s.start];
+	s.data[s.start] = _8;
+	const old: rs.u8 = old2;
+	const _10: rs.u8 = value;
+	rs.idx(s, 0);
+	s.data[s.start] = _10;
+	return old;
+}
+
 /** `mem::replace` of the first array, as a function given any slice of them makes it. */
 export function replaceFirst$Option_u16(s: rs.ArraySlice<rs.Slice<rs.u16 | undefined>>, value: Array<rs.u16 | undefined>): Array<rs.u16 | undefined> {
 	rs.idx(s, 0);
@@ -713,6 +732,15 @@ export function replaceFirst$u32(s: rs.ArraySlice<rs.Slice<rs.u32>>, value: rs.u
 export function replaceFirst$u64(s: rs.ArraySlice<rs.Slice<rs.u64>>, value: rs.u64[]): rs.u64[] {
 	rs.idx(s, 0);
 	return rs.replaceIn(rs.sliceView(rs.arraySliceAt(s, 0)), copy$array_u64(value));
+}
+
+/** `mem::replace` of the first array, as a function given any slice of them makes it. */
+export function replaceFirst$u8(s: rs.ArraySlice<rs.ByteSlice>, value: Uint8Array): Uint8Array {
+	rs.idx(s, 0);
+	const slice = rs.arraySliceAt(s, 0);
+	const old = rs.byteSliceToArray(slice);
+	slice.data.set(copy$array_u8(value), slice.start);
+	return old;
 }
 
 /**
@@ -1606,6 +1634,117 @@ export function lentParam$u64(to: rs.Place<rs.u64>, data: rs.ByteSlice, out: rs.
 }
 
 /**
+ * A slice of what a `&mut` whose place only the caller knows points at: written whole,
+ * read out by `mem::replace` and by `mem::swap` either way round, with a local, with
+ * another slice's element, as an array, of a reference to it, by a cell, and nested in
+ * arrays, and written in place.
+ */
+export function lentParam$u8(to: rs.Place<rs.u8>, data: rs.ByteSlice, out: rs.ByteVec): void {
+	let one!: rs.ByteMirror | undefined;
+	const s: rs.ByteSlice = (one = rs.byteMirror(to)).s;
+	const _7: rs.u8 = writeFirst$u8(s, make$conversions_Value_u8(data, 18));
+	rs.byteMirrorFlush(one);
+	put$conversions_Value_u8(_7, out);
+	let other: rs.u8 = make$conversions_Value_u8(data, 19);
+	rs.idx(s, 0);
+	const swapped = s.data[s.start];
+	s.data[s.start] = other;
+	other = swapped;
+	rs.byteMirrorFlush(one);
+	put$conversions_Value_u8(other, out);
+	rs.idx(s, 0);
+	const swapped2 = other;
+	other = s.data[s.start];
+	s.data[s.start] = swapped2;
+	rs.byteMirrorFlush(one);
+	put$conversions_Value_u8(other, out);
+	const t: rs.ByteSlice = rs.byteSliceRange(rs.byteVecSlice(rs.byteVecFrom(Uint8Array.of(make$conversions_Value_u8(data, 20), make$conversions_Value_u8(data, 21)))), 0);
+	rs.idx(s, 0);
+	rs.idx(t, 1);
+	const swapped3 = s.data[s.start];
+	s.data[s.start] = t.data[t.start + 1];
+	t.data[t.start + 1] = swapped3;
+	rs.byteMirrorFlush(one);
+	rs.idx(t, 0);
+	rs.idx(s, 0);
+	const swapped4 = t.data[t.start];
+	t.data[t.start] = s.data[s.start];
+	s.data[s.start] = swapped4;
+	rs.byteMirrorFlush(one);
+	rs.idx(t, 0);
+	put$conversions_Value_u8(t.data[t.start], out);
+	rs.idx(t, 1);
+	put$conversions_Value_u8(t.data[t.start + 1], out);
+	rs.idx(s, 0);
+	const a: rs.ByteSlice = new rs.ByteSlice(s.data, s.start, 1);
+	rs.byteMirrorFlush(one);
+	const _77: Uint8Array = Uint8Array.of(make$conversions_Value_u8(data, 22));
+	const old4 = rs.byteSliceToArray(a);
+	a.data.set(_77, a.start);
+	const _76: Uint8Array = old4;
+	rs.byteMirrorFlush(one);
+	put$conversions_Value_u8(_76[0], out);
+	let by: rs.u8 = make$conversions_Value_u8(data, 23);
+	rs.idx(s, 0);
+	const borrowed = s.start;
+	let r: rs.Place<rs.u8> = rs.place(() => s.data[borrowed], (value) => s.data[borrowed] = value);
+	const _89: rs.Slice<rs.Place<rs.u8>> = rs.sliceOfPlace(rs.place(() => r, (value2) => r = value2));
+	rs.byteMirrorFlush(one);
+	const _91: rs.Place<rs.u8>[] = [rs.place(() => by, (value3) => by = value3)];
+	const _88: rs.Place<rs.u8>[] = rs.replaceIn(rs.sliceView(_89), _91);
+	rs.byteMirrorFlush(one);
+	const _93: rs.u8 = make$conversions_Value_u8(data, 24);
+	rs.byteMirrorFlush(one);
+	_88[0].v = _93;
+	rs.byteMirrorFlush(one);
+	put$conversions_Value_u8(r.v, out);
+	rs.byteMirrorFlush(one);
+	rs.idx(s, 0);
+	put$conversions_Value_u8(s.data[s.start], out);
+	rs.byteMirrorFlush(one);
+	rs.idx(s, 0);
+	const borrowed2 = s.data;
+	const borrowed3 = s.start;
+	const _105: rs.Cell<rs.u8> = rs.cellOfPlace(rs.place(() => borrowed2[borrowed3], (value4) => borrowed2[borrowed3] = value4));
+	rs.byteMirrorFlush(one);
+	const _104: rs.u8 = rs.cellReplace(_105, make$conversions_Value_u8(data, 25));
+	rs.byteMirrorFlush(one);
+	put$conversions_Value_u8(_104, out);
+	rs.idx(s, 0);
+	const _115: rs.ByteSlice = new rs.ByteSlice(s.data, s.start, 1);
+	rs.byteMirrorFlush(one);
+	const _114: rs.Cell<Uint8Array> = rs.cellIn(rs.byteSliceView(_115));
+	rs.byteMirrorFlush(one);
+	const _113: Uint8Array = rs.cellReplace(_114, Uint8Array.of(make$conversions_Value_u8(data, 26)));
+	rs.byteMirrorFlush(one);
+	put$conversions_Value_u8(_113[0], out);
+	rs.idx(s, 0);
+	const a2: rs.ByteSlice = new rs.ByteSlice(s.data, s.start, 1);
+	rs.byteMirrorFlush(one);
+	const _133: rs.ArraySlice<rs.ByteSlice> = rs.arraySliceOne(a2, 1);
+	rs.byteMirrorFlush(one);
+	const _132: Uint8Array = replaceFirst$u8(_133, Uint8Array.of(make$conversions_Value_u8(data, 27)));
+	rs.byteMirrorFlush(one);
+	put$conversions_Value_u8(_132[0], out);
+	rs.idx(s, 0);
+	const _139: rs.ByteSlice = new rs.ByteSlice(s.data, s.start, 1);
+	rs.byteMirrorFlush(one);
+	const b: rs.ArraySlice<rs.ByteSlice> = rs.arraySliceOne(_139, 1);
+	rs.byteMirrorFlush(one);
+	const _147: rs.Cell<Uint8Array[]> = rs.cellOfArraySlice(b);
+	rs.byteMirrorFlush(one);
+	const _146: Uint8Array[] = rs.cellReplace(_147, [Uint8Array.of(make$conversions_Value_u8(data, 28))]);
+	rs.byteMirrorFlush(one);
+	put$conversions_Value_u8(_146[0][0], out);
+	rs.idx(s, 0);
+	s.data[s.start] = other;
+	rs.byteMirrorFlush(one);
+	rs.idx(s, 0);
+	put$conversions_Value_u8(s.data[s.start], out);
+	rs.byteMirrorFlush(one);
+}
+
+/**
  * [`lent_param`] of a local, a field, an element, and through a `&mut` to a `&mut`, each
  * read after.
  */
@@ -1861,6 +2000,27 @@ export function lentThrough$u64(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_u64(v.items[rs.idx(v.items, 1)], out);
 }
 
+/**
+ * [`lent_param`] of a local, a field, an element, and through a `&mut` to a `&mut`, each
+ * read after.
+ */
+export function lentThrough$u8(data: rs.ByteSlice, out: rs.ByteVec): void {
+	let a: rs.u8 = make$conversions_Value_u8(data, 0);
+	const held: Held.Held<rs.u8> = new Held.Held(make$conversions_Value_u8(data, 1));
+	const v: rs.ByteVec = rs.byteVecFrom(Uint8Array.of(make$conversions_Value_u8(data, 2), make$conversions_Value_u8(data, 4)));
+	lentParam$u8(rs.place(() => a, (value) => a = value), data, out);
+	lentParam$u8(rs.place(() => held.value, (value2) => held.value = value2), data, out);
+	const at = rs.idx(v, 1);
+	lentParam$u8(rs.place(() => v.data[at], (value3) => v.data[at] = value3), data, out);
+	const at2 = rs.idx(v, 0);
+	let _19: rs.Place<rs.u8> = rs.place(() => v.data[at2], (value4) => v.data[at2] = value4);
+	lentNested$u8(rs.place(() => _19, (value5) => _19 = value5), data, out);
+	put$conversions_Value_u8(a, out);
+	put$conversions_Value_u8(held.value, out);
+	put$conversions_Value_u8(v.data[rs.idx(v, 0)], out);
+	put$conversions_Value_u8(v.data[rs.idx(v, 1)], out);
+}
+
 /** [`lent_param`] of what a `&mut` to a `&mut` points at. */
 export function lentNested$Option_u16(to: rs.Place<rs.Place<rs.u16 | undefined>>, data: rs.ByteSlice, out: rs.ByteVec): void {
 	lentParam$Option_u16(to.v, data, out);
@@ -1924,6 +2084,11 @@ export function lentNested$u32(to: rs.Place<rs.Place<rs.u32>>, data: rs.ByteSlic
 /** [`lent_param`] of what a `&mut` to a `&mut` points at. */
 export function lentNested$u64(to: rs.Place<rs.Place<rs.u64>>, data: rs.ByteSlice, out: rs.ByteVec): void {
 	lentParam$u64(to.v, data, out);
+}
+
+/** [`lent_param`] of what a `&mut` to a `&mut` points at. */
+export function lentNested$u8(to: rs.Place<rs.Place<rs.u8>>, data: rs.ByteSlice, out: rs.ByteVec): void {
+	lentParam$u8(to.v, data, out);
 }
 
 /** A cell of what a `&mut` whose place only the caller knows points at, written through. */
@@ -4692,6 +4857,48 @@ export function lentOne$u64(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	put$conversions_Value_u64(c, out);
 	put$conversions_Value_u64(a, out);
+}
+
+/**
+ * Slices and arrays of one value of a local, a field, and an element, written through as
+ * a whole, the old value read out, and through std's slice methods.
+ */
+export function lentOne$u8(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const a = new Uint8Array(1);
+	const c = new Uint8Array(1);
+	let one!: rs.ByteMirror | undefined;
+	const _6: [rs.u8, rs.u8, rs.u8] = [make$conversions_Value_u8(data, 0), make$conversions_Value_u8(data, 3), make$conversions_Value_u8(data, 6)];
+	a[0] = _6[0];
+	const b: rs.u8 = _6[1];
+	c[0] = _6[2];
+	const held: Held.Held<rs.u8> = new Held.Held(make$conversions_Value_u8(data, 1));
+	const v: rs.ByteVec = rs.byteVecFrom(Uint8Array.of(make$conversions_Value_u8(data, 2), make$conversions_Value_u8(data, 4)));
+	const s: rs.ByteSlice = new rs.ByteSlice(a, 0, 1);
+	rs.byteVecPush(out, s.length & 0xff);
+	rs.idx(s, 0);
+	const _28: rs.u8 = make$conversions_Value_u8(data, 5);
+	const old4 = s.data[s.start];
+	s.data[s.start] = _28;
+	put$conversions_Value_u8(old4, out);
+	put$conversions_Value_u8(a[0], out);
+	const borrowed = held;
+	const old2: rs.u8 = writeFirst$u8((one = rs.byteMirror(rs.place(() => borrowed.value, (value) => borrowed.value = value))).s, make$conversions_Value_u8(data, 7));
+	rs.byteMirrorFlush(one);
+	put$conversions_Value_u8(old2, out);
+	put$conversions_Value_u8(held.value, out);
+	put$conversions_Value_u8(writeFirst$u8(new rs.ByteSlice(v.data, rs.idx(v, 1), 1), make$conversions_Value_u8(data, 8)), out);
+	put$conversions_Value_u8(v.data[rs.idx(v, 1)], out);
+	rs.byteSliceFill(new rs.ByteSlice(c, 0, 1), b);
+	const iter: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(new rs.ByteSlice(a, 0, 1));
+	while (true) {
+		const _61: rs.Place<rs.u8> | rs.Done = iter.next();
+		if (_61 === rs.DONE) {
+			break;
+		}
+		_61.v = make$conversions_Value_u8(data, 9);
+	}
+	put$conversions_Value_u8(c[0], out);
+	put$conversions_Value_u8(a[0], out);
 }
 
 /**

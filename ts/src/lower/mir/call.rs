@@ -1009,13 +1009,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			// empty one.
 			("Option", "as_mut_slice") => {
 				let inner = targ(0)?;
-				if crate::lower::byte(inner) {
-					let refused = self.err(
-						span,
-						"a slice of one byte's place, which a byte slice can view only in an array of bytes",
-					);
-					return done(refused, true);
-				}
 				let (target, payload) = self.payload_place(&args[0].node, inner, span, out)?;
 				let Some(payload) = payload else {
 					return done(target, true);
@@ -1028,7 +1021,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let e = Expr::Cond(Box::new(none), Box::new(runs(Vec::new())), Box::new(runs(vec![target])));
 					return done(e, true);
 				}
-				let some = if self.b.t.needs_place(inner) {
+				let bytes = crate::lower::byte(inner);
+				let some = if bytes {
+					let place = self.make_place(payload, target, span, out);
+					self.byte_slice_of(place, span)
+				} else if self.b.t.needs_place(inner) {
 					Expr::rs("sliceOfPlace", vec![self.make_place(payload, target, span, out)])
 				} else if self.b.t.write_in(inner).is_some() {
 					Expr::rs("sliceIn", vec![target])
@@ -1041,7 +1038,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				done(
 					Expr::Cond(
 						Box::new(none),
-						Box::new(Expr::rs("sliceFrom", vec![Expr::Array(vec![])])),
+						Box::new(match bytes {
+							true => Expr::rs("byteSliceFrom", vec![Expr::New(Box::new(Expr::ident("Uint8Array")), vec![Expr::lit("0")])]),
+							false => Expr::rs("sliceFrom", vec![Expr::Array(vec![])]),
+						}),
 						Box::new(some),
 					),
 					true,
@@ -1430,9 +1430,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// `slice::from_mut`, `array::from_mut`, or with `cell`, `Cell::from_mut` of `op`, a
 	/// `&mut` to a `ty`: of the `rs.Place` it is or of the place it names, or else in place
 	/// of the bytes or the object it is, which a cell reads a copy of, as a `Cell` only
-	/// moves or copies a value out, and a slice writes its element into. A slice of one
-	/// byte no array holds is refused, as is either of an object JS can't write a whole
-	/// value into.
+	/// moves or copies a value out, and a slice writes its element into, or for a byte, as
+	/// [`Self::byte_slice_of`] makes it. Either of an object JS can't write a whole value
+	/// into is refused.
 	fn one_of(
 		&mut self,
 		cell: bool,
@@ -1449,7 +1449,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			true => ("cellOfPlace", "cellIn"),
 			false => ("sliceOfPlace", "sliceIn"),
 		};
-		let of = |made: Expr| Expr::rs(of_place, vec![made]);
+		let bytes = !cell && crate::lower::byte(ty);
+		if bytes && self.mirrors.views.contains(&self.at.block) {
+			let view = self.byte_view(place.local);
+			return Some(view.unwrap_or_else(|| self.err(span, "a view of a byte whose array translation lost")));
+		}
+		let of = |fx: &mut Self, made: Expr| match bytes {
+			true => fx.byte_slice_of(made, span),
+			false => Expr::rs(of_place, vec![made]),
+		};
 		// A `&mut [T; N]` is the slice it views: a slice of it is the array slice of that one, and a
 		// cell of an array of arrays reads a copy of the arrays it views and writes into them.
 		if let ty::Array(elem, len) = ty.kind()
@@ -1465,12 +1473,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			let n = len.try_to_target_usize(tcx).unwrap_or(0);
 			return Some(Expr::rs("arraySliceOne", vec![slice, Expr::lit(n.to_string())]));
-		}
-		if !cell && crate::lower::byte(ty) {
-			return Some(self.err(
-				span,
-				"a slice of one byte's place, which a byte slice can view only in an array of bytes",
-			));
 		}
 		if self.in_array(deref) {
 			let slice = self.place_expr(deref, span, out);
@@ -1493,11 +1495,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		{
 			let target = target.clone();
 			let target = self.stable_target(deref, target, span, out);
-			return Some(of(self.place_of(target, None)));
+			let made = self.place_of(target, None);
+			return Some(of(self, made));
 		}
 		if self.b.t.needs_place(ty) {
 			let made = self.operand(op, span, out);
-			return Some(of(made));
+			return Some(of(self, made));
 		}
 		if self.b.t.write_in(ty).is_some() {
 			let object = self.operand(op, span, out);
