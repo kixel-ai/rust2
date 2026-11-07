@@ -800,6 +800,13 @@ impl Gauge {
 		yielded(0).await;
 		self.level()
 	}
+
+	/// Whether the level reaches `this`, read once [`yielded`] finishes: a parameter named
+	/// as a binding might name the receiver.
+	pub async fn reaches(&self, this: u64) -> bool {
+		yielded(0).await;
+		self.level() >= this
+	}
 }
 
 /// The gauge lent shared to `watch` for the call.
