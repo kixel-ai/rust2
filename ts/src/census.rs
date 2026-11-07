@@ -182,6 +182,7 @@ const VERBATIM: &[&str] = &[
 	"Vec::splice",
 	"alloc",
 	"array::from_ref",
+	"as_chunks",
 	"async",
 	"async fn",
 	"become",
