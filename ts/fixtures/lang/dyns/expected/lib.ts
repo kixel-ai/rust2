@@ -22,6 +22,9 @@ import * as Square from "./dyns.Square.ts";
 import * as Steps from "./dyns.Steps.ts";
 import type * as Tagged from "./dyns.Tagged.ts";
 import * as Tri from "./dyns.Tri.ts";
+import { tag$ids_Marked_u8, ids } from "./ids.ts";
+import * as Byte from "./ids.Byte.ts";
+import type * as Mood from "./ids.Mood.ts";
 import { dynHash$stds_DynHash_ref_str, dynHash$stds_DynHash_u8, stds } from "./stds.ts";
 import * as Counter from "./stds.Counter.ts";
 import * as Fnv from "./stds.Fnv.ts";
@@ -332,6 +335,10 @@ export class of$Option_u8 {
 	constructor(v: rs.u8 | undefined) {
 		this.v = v;
 	}
+
+	typeId$Any(): rs.TypeId {
+		return "3801bd64778907c7633cf473fe556a70";
+	}
 }
 
 export class of$String {
@@ -574,6 +581,10 @@ export class of$dyns_Noisy {
 	tally$Shape(a: rs.Place<rs.u32>): void {
 		return Noisy.tally$dyns_Shape(this.v, a);
 	}
+
+	typeId$Any(): rs.TypeId {
+		return "8abb48f5c9ad521e17c8b05ce0f1d679";
+	}
 }
 
 export class of$dyns_Skips {
@@ -645,6 +656,10 @@ export class of$dyns_Square {
 
 	tally$Shape(a: rs.Place<rs.u32>): void {
 		return Square.tally$dyns_Shape(this.v, a);
+	}
+
+	typeId$Any(): rs.TypeId {
+		return "0ba6291209e997830eaef6cade61afd2";
 	}
 }
 
@@ -733,6 +748,10 @@ export class of$dyns_Tri {
 
 	tally$Shape(a: rs.Place<rs.u32>): void {
 		return Tri.tally$dyns_Shape(this.v, a);
+	}
+
+	typeId$Any(): rs.TypeId {
+		return "66772eb3554749a10355c03efd41f5ad";
 	}
 }
 
@@ -828,6 +847,34 @@ export class of$hash_DefaultHasher {
 	}
 }
 
+export class of$ids_Byte {
+	v: Byte.Byte;
+
+	constructor(v: Byte.Byte) {
+		this.v = v;
+	}
+
+	tag$Marked(): rs.u8 {
+		return Byte.tag$ids_Marked(this.v);
+	}
+
+	typeId$Any(): rs.TypeId {
+		return "8f5d7517f5a241dab4213252fd0d53e8";
+	}
+}
+
+export class of$ids_Mood {
+	v: Mood.Mood;
+
+	constructor(v: Mood.Mood) {
+		this.v = v;
+	}
+
+	typeId$Any(): rs.TypeId {
+		return "328e59b82c6cb0a6eb720af972265604";
+	}
+}
+
 export class of$ref_str {
 	v: string;
 
@@ -837,6 +884,10 @@ export class of$ref_str {
 
 	dynHash$DynHash(a: Hasher.Hasher): void {
 		return dynHash$stds_DynHash_ref_str(this.v, a);
+	}
+
+	typeId$Any(): rs.TypeId {
+		return "24c161f26c70c1f1b9f602dc5fe9f65c";
 	}
 }
 
@@ -1076,6 +1127,10 @@ export class of$tuple2_u8_u8 {
 	constructor(v: [rs.u8, rs.u8]) {
 		this.v = v;
 	}
+
+	typeId$Any(): rs.TypeId {
+		return "7d311253455a5117c9570c9455e07dcc";
+	}
 }
 
 export class of$u16 {
@@ -1148,6 +1203,10 @@ export class of$u32 {
 	tally$Shape(a: rs.Place<rs.u32>): void {
 		return tally$dyns_Shape_u32(this.v, a);
 	}
+
+	typeId$Any(): rs.TypeId {
+		return "79f19461b401588885a89e43144b08f1";
+	}
 }
 
 export class of$u8 {
@@ -1169,8 +1228,16 @@ export class of$u8 {
 		return peek$dyns_Peek_unit_u8(this.v) as rs.OptionOf<undefined>;
 	}
 
+	tag$Marked(): rs.u8 {
+		return tag$ids_Marked_u8(this.v);
+	}
+
 	take$Source(): rs.OptionOf<rs.String> {
 		return dyns_take$dyns_Source_u8(this) as rs.OptionOf<rs.String>;
+	}
+
+	typeId$Any(): rs.TypeId {
+		return "cfb1622e7734f8af272d8d182905dc25";
 	}
 }
 
@@ -1180,6 +1247,10 @@ export class of$unit {
 	constructor(v: undefined) {
 		this.v = v;
 	}
+
+	typeId$Any(): rs.TypeId {
+		return "05fc01408e45e7cddf9e041e3391eafc";
+	}
 }
 
 export class ofPlace$Option_u8 {
@@ -1187,6 +1258,10 @@ export class ofPlace$Option_u8 {
 
 	constructor(v: rs.Place<rs.u8 | undefined>) {
 		this.v = v;
+	}
+
+	typeId$Any(): rs.TypeId {
+		return "3801bd64778907c7633cf473fe556a70";
 	}
 }
 
@@ -1264,6 +1339,22 @@ export class ofPlace$dyns_Tri {
 	tally$Shape(a: rs.Place<rs.u32>): void {
 		return Tri.tally$dyns_Shape(this.v.v, a);
 	}
+
+	typeId$Any(): rs.TypeId {
+		return "66772eb3554749a10355c03efd41f5ad";
+	}
+}
+
+export class ofPlace$ids_Mood {
+	v: rs.Place<Mood.Mood>;
+
+	constructor(v: rs.Place<Mood.Mood>) {
+		this.v = v;
+	}
+
+	typeId$Any(): rs.TypeId {
+		return "328e59b82c6cb0a6eb720af972265604";
+	}
 }
 
 export class ofPlace$mut_String {
@@ -1330,6 +1421,10 @@ export class ofPlace$u32 {
 	tally$Shape(a: rs.Place<rs.u32>): void {
 		return tally$dyns_Shape_u32(this.v.v, a);
 	}
+
+	typeId$Any(): rs.TypeId {
+		return "79f19461b401588885a89e43144b08f1";
+	}
 }
 
 export class ofPlace$u8 {
@@ -1346,6 +1441,10 @@ export class ofPlace$u8 {
 	take$Source(): rs.OptionOf<rs.String> {
 		return dyns_take$dyns_Source_u8(this.v) as rs.OptionOf<rs.String>;
 	}
+
+	typeId$Any(): rs.TypeId {
+		return "cfb1622e7734f8af272d8d182905dc25";
+	}
 }
 
 export class ofPlace$unit {
@@ -1353,6 +1452,10 @@ export class ofPlace$unit {
 
 	constructor(v: rs.Place<undefined>) {
 		this.v = v;
+	}
+
+	typeId$Any(): rs.TypeId {
+		return "05fc01408e45e7cddf9e041e3391eafc";
 	}
 }
 
@@ -1385,6 +1488,8 @@ export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.By
 		stds(data11, out11);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::options", (_221: rs.u8, data12: rs.ByteSlice, out12: rs.ByteVec): undefined => {
 		options(data12, out12);
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["ids::ids", (_222: rs.u8, data13: rs.ByteSlice, out13: rs.ByteVec): undefined => {
+		ids(data13.data, data13.start, data13.length, out13);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }
 

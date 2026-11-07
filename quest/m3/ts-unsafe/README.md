@@ -75,8 +75,8 @@ Public API: the translator's output.
 - [Vec::from_raw_parts of a typed allocation](/quest/m3/ts-unsafe/vec-from-raw-parts.md) - a `Vec` adopts an `alloc`ed array of `T`s, with its length, capacity, and drops
 - [Vec::drain from std's MIR](/quest/m3/ts-unsafe/vec-drain-mir.md) - std's `Drain` translates, replacing the runtime's port
 - [BinaryHeap from std's MIR](/quest/m3/ts-unsafe/binary-heap-mir.md) - std's `BinaryHeap` and `PeekMut` translate, replacing the runtime's port
-- [A slice's pointer cast to an array's](/quest/m3/ts-unsafe/array-casts.md) - `*(s as *const [u8] as *const [u8; N])` in a crate's own code, and `IoSlice`
 - [Unchecked integer operations](/quest/m3/ts-unsafe/unchecked-ops.md) - `unchecked_*` and `NonZero::new_unchecked` translate, aborting on a violated precondition
 - [NonZero's unchecked arithmetic](/quest/m3/ts-unsafe/nonzero-unchecked-ops.md) - `NonZero::unchecked_add` and `unchecked_mul` translate, aborting at std's site
 - [UnsafeCell's raw accessors](/quest/m3/ts-unsafe/unsafecell.md) - `UnsafeCell::raw_get`, `from_mut`, and `replace` translate
 - [A Box of one uninitialized value](/quest/m3/ts-unsafe/box-new-uninit.md) - `Box::new_uninit` and `new_zeroed` for one value translate, through `write` and `assume_init`
+- [A byte local whose address is taken, in a buffer of its own](/quest/m3/ts-unsafe/lone-byte-buffers.md) - raw and mutable slices of a `u8` local, and casts of them to byte arrays, translate instead of being refused

@@ -3,6 +3,6 @@
 import * as rs from "./rs.ts";
 
 /** A trait over `Any`, whose objects upcast to `dyn Any`. */
-export type Keyed = { key$Keyed: () => rs.u32 };
+export type Keyed = { key$Keyed: () => rs.u32; typeId$Any: () => rs.TypeId };
 
 //# sourceMappingURL=dyns.Keyed.ts.map

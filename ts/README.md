@@ -79,7 +79,7 @@ and each type a module of its own beside it, holding the type and its functions
 from. `rs.ts` beside them is the
 runtime: what std does that JS does not, with iterators in `rs/iter.ts`, `str`'s searches
 in `rs/str.ts`, the ASCII methods of `u8`, `char`, `[u8]`, and `str` in `rs/ascii.ts`, `char`'s Unicode classes, case maps, escapes, and encodings, and `str`'s case maps and escapes, in `rs/char.ts`, collections in `rs/collections.ts`, hashing in `rs/hash.ts`, ownership, atomics, and async in
-`rs/task.ts`, `f64`'s and `f32`'s methods in `rs/float.ts`, `Duration` in `rs/time.ts`, and `Layout` and memory from `alloc` in `rs/alloc.ts`. What translates from std's own MIR,
+`rs/task.ts`, `f64`'s and `f32`'s methods in `rs/float.ts`, `Duration` in `rs/time.ts`, `TypeId` in `rs/any.ts`, and `Layout` and memory from `alloc` in `rs/alloc.ts`. What translates from std's own MIR,
 `Option`'s, `Result`'s, and `Poll`'s methods, `==` of std's errors, `==` and ordering of a `Result` and a `Poll`, `cmp::max` and `min`, and the `str::parse` and
 `from_str_radix` of an integer or a `NonZero` and `bool`'s `str::parse`, goes in a module under its crate's name, as
 `core/option.ts` holds `map$1cf8u0y`. A dependency's modules go
@@ -110,7 +110,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `Vec<T>` | `rs.Vec<T>`: its items, the array `items`, and the capacity std's holds; `rs.vecFrom(items)` makes one of an array with room for exactly them. `rs.ByteVec` of bytes |
 | `Cow<[T]>`, `Cow<str>` | `rs.Cow<T>`: the `Vec` it owns, or an `rs.Borrowed` holding the slice it borrows; `rs.ByteCow` for bytes, an `rs.ByteVec` or an `rs.ByteSlice`; `rs.StrCow` for text, the `rs.String` it owns or an `rs.Borrowed` holding the string it borrows, whose text `rs.strCowStr` reads |
 | `&T`, `&mut T`, `Box<T>`, `Reverse<T>`, `NonZero<T>`, `AssertUnwindSafe<T>` | the value; a `&mut` to a value JS copies, such as a number, an `Option`, or a reference, or to an `Arc`, a `Waker`, or a `LocalKey`, whose copies share what it points at, is an `rs.Place<T>`, which for what a box holds is the place holding the box |
-| `*const T`, `*mut T`, `NonNull<T>` | what a `&mut T` is: the object, an `rs.Slice` of a `[T; N]`'s elements or an `rs.ByteSlice` of a `[u8; N]`'s bytes, which compares by the array or buffer and offset they are at, refused for an array of one, which `array::from_ref`, `from_mut` of a variable, and `Option::as_slice` make of their own, or an `rs.Place<T>` to a value JS copies and to a library type such as a `Vec` or an `Arc`, which into an array, slice, or `Vec` is the `rs.AtIndex` of its element, which `add`, `sub`, `offset`, their wrapping forms, `offset_from`, `ptr::copy`, and `slice::from_raw_parts` move, measure, copy between, and view; one to a value in no array is element 0 of an array of one, as in Rust; JS keeps that array, and a shared subslice, which JS copies, apart from what holds it in Rust, so a pointer, slice, or copy the body shows reaching past either, a raw or mutable slice of a byte in no array, and `offset_from` between pointers the body shows JS keeps in different arrays are refused, and through a pointer from elsewhere, such as a field, any of these, or a read or write past the array JS keeps it in but for a `Vec`'s room up to its capacity, fails at run time; a pointer into an array of values JS keeps as objects is refused, as is comparing pointers to other values JS copies, each a place JS makes of its own; `rs.NULL` for null and `rs.DANGLING` for dangling. One made from a reference, by `&raw const *r`, `as`, `ptr::from_ref` or `from_mut`, or `NonNull::from`, is where the body shows the reference borrowed, as the `rs.AtIndex` of the element `&v[i]` lends, and else a place of its own: holding the value of a shared reference, which nothing may write while the pointer lives, or an `rs.placeIn` writing a whole value into the object a `&mut` is in place, which `ptr::read`, `replace`, `swap`, and `copy` move out a copy of. A `*const ()` is an identity, such as a waker's data, and `rs.DANGLING_UNIT` when dangling; one to a place of `()` or from a reference to one is refused. A pointer to a value JS keeps as an object cast to one, by `as` or `cast`, is the same object, which `rs.ptrErase` notes the type of, so a cast back to a pointer to another type fails at run time, and null and dangling stay so, dangling at the alignment of the type it was cast from; one to a value JS copies is the same place where an `Arc`'s or `Rc`'s `into_raw` or `as_ptr` gave it, its value's one place, which `rs.arcErase` checks where the body doesn't show it, and refused where the body shows a borrow's, a new place each borrow, as is casting one to a view of bytes, a new one each borrow, or one of no fixed size. A write of a whole object copies into it one object deep, as an assignment through a `&mut` does, the state an `rs` class such as `rs.LazyCell` keeps private included, so a pointer to a part kept as an object, such as a field of a tuple or struct type, is refused wherever the crate may put another object there while a pointer into that memory may still be read, which a write into a fresh allocation, or a variable before any pointer into it is taken, can't, whether by index or through std's iterators over its slots; a read copies what the crate writes into in place |
+| `*const T`, `*mut T`, `NonNull<T>` | what a `&mut T` is: the object, an `rs.Slice` of a `[T; N]`'s elements or an `rs.ByteSlice` of a `[u8; N]`'s bytes, which compares by the array or buffer and offset they are at, refused for an array of one, which `array::from_ref`, `from_mut` of a variable, and `Option::as_slice` make of their own, or an `rs.Place<T>` to a value JS copies and to a library type such as a `Vec` or an `Arc`, which into an array, slice, or `Vec` is the `rs.AtIndex` of its element, which `add`, `sub`, `offset`, their wrapping forms, `offset_from`, `ptr::copy`, and `slice::from_raw_parts` move, measure, copy between, and view; one to a value in no array is element 0 of an array of one, as in Rust; JS keeps that array, and a shared subslice, which JS copies, apart from what holds it in Rust, so a pointer, slice, or copy the body shows reaching past either, a raw or mutable slice of a byte in no array, and `offset_from` between pointers the body shows JS keeps in different arrays are refused, and through a pointer from elsewhere, such as a field, any of these, or a read or write past the array JS keeps it in but for a `Vec`'s room up to its capacity, fails at run time; a pointer into an array of values JS keeps as objects is refused, as is comparing pointers to other values JS copies, each a place JS makes of its own; `rs.NULL` for null and `rs.DANGLING` for dangling. A pointer to a slice cast to one to an array of its elements is the `rs.Slice` or `rs.ByteSlice` of that many from its first, read through only where Rust reads. One made from a reference, by `&raw const *r`, `as`, `ptr::from_ref` or `from_mut`, or `NonNull::from`, is where the body shows the reference borrowed, as the `rs.AtIndex` of the element `&v[i]` lends, and else a place of its own: holding the value of a shared reference, which nothing may write while the pointer lives, or an `rs.placeIn` writing a whole value into the object a `&mut` is in place, which `ptr::read`, `replace`, `swap`, and `copy` move out a copy of. A `*const ()` is an identity, such as a waker's data, and `rs.DANGLING_UNIT` when dangling; one to a place of `()` or from a reference to one is refused. A pointer to a value JS keeps as an object cast to one, by `as` or `cast`, is the same object, which `rs.ptrErase` notes the type of, so a cast back to a pointer to another type fails at run time, and null and dangling stay so, dangling at the alignment of the type it was cast from; one to a value JS copies is the same place where an `Arc`'s or `Rc`'s `into_raw` or `as_ptr` gave it, its value's one place, which `rs.arcErase` checks where the body doesn't show it, and refused where the body shows a borrow's, a new place each borrow, as is casting one to a view of bytes, a new one each borrow, or one of no fixed size. A write of a whole object copies into it one object deep, as an assignment through a `&mut` does, the state an `rs` class such as `rs.LazyCell` keeps private included, so a pointer to a part kept as an object, such as a field of a tuple or struct type, is refused wherever the crate may put another object there while a pointer into that memory may still be read, which a write into a fresh allocation, or a variable before any pointer into it is taken, can't, whether by index or through std's iterators over its slots; a read copies what the crate writes into in place |
 | `MaybeUninit<T>` | `T`: `undefined` until written, `0` for a byte, or an object whose parts kept as objects are there, holding `undefined`, as each of `Box::new_uninit_slice`'s is; a slice's `write_clone_of_slice` clones into its slots without dropping what they held |
 | `ManuallyDrop<T>` | `T`, which nothing drops but its own `drop`; its `Debug`, comparisons, and constants are refused |
 | `union` | an object of slots named by offset, `at0` and `at8`, each holding the field part kept there; fields must overlap in the same type, or in a non-null pointer and an `Option` of it |
@@ -122,13 +122,14 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `PeekMut<T>` | `rs.PeekMut<T>`, the `rs.Place` of a heap's greatest element, which sifts it down as it drops once `DerefMut` lent it |
 | `Ordering`, `DefaultHasher`, `RandomState`, `BuildHasherDefault<H>` | `rs.Ordering`, which is `-1`, `0`, or `1`; `rs.Hasher`; `rs.RandomState`, the keys of the `DefaultHasher` it builds, never changed once made; `undefined`, as `PhantomData` is, whose `build_hasher` is `H::default()` |
 | `Duration` | `rs.Duration`: `{ secs, nanos }`, std's whole seconds as an `rs.u64` and the nanoseconds past them, never changed once made |
+| `TypeId` | `rs.TypeId`: rustc's 128-bit hash of the type, which std's holds at run time, as 32 hex digits, equal by `===`; ordered as std's derive orders the hash's pointer-sized words, lowest first, hashed as its high 64 bits, and written as `TypeId(0x…)`, as std's are |
 | `Layout`, `alloc::alloc` | `rs.Layout`: `{ size, align }`, never changed once made, checked as std's constructors check it; `alloc` gives an `rs.Block` of its bytes, which a cast of its pointer to `*mut T` the body shows came from `alloc` or `realloc` makes a JS array of `T`s, values JS copies, as an `rs.AtIndex` of its first; a cast back to `*mut u8` only as what `dealloc` or `realloc` takes, which free the array or copy it into a new one; its bytes, read, written, or cast to any other type, are refused, and fail at run time through a pointer from elsewhere |
 | closure | an arrow function, with `[Symbol.dispose]` if it owns a value that drops, and what makes its clone if a clone can't be itself |
 | `fn` pointer, function item as a value | the function, or std's an arrow that calls it as a written call does, as a closure is typed: a `()` result is `undefined`, where a declared function returns `void` |
 | `&dyn Trait`, `&mut dyn Trait`, `Box<dyn Trait>`, `Arc<dyn Trait>`, `Rc<dyn Trait>`, `Weak<dyn Trait>`, `Pin<P>` of one | an object with the trait's methods, its supertraits' included: `shape.area$Shape()`; behind an `Arc` or an `Rc`, an `rs.ArcDyn` sharing the count of the `Arc` it was made from |
 | a pointer to a struct whose last field unsizes to a trait object: `Rc<RefCell<dyn Trait>>`, `Arc<Mutex<dyn Trait>>`, `Arc<RwLock<dyn Trait>>`, `&mut Cell<dyn Trait>`, `Rc<UnsafeCell<dyn Trait>>`, `Arc<Mutex<dyn Future + Unpin>>`, the crate's own `&Tail<dyn Trait>` | `rs.tailDyn` of the struct it was made from: the same struct, whose other fields, borrows, and lock are that struct's own, and whose last field is the trait object a `&mut` to that field would be, made where it is read; a `dyn Future`'s polls the one future in place and drops it with the struct. A `ManuallyDrop<dyn Trait>` is the trait object of what it holds, which a box of it never drops |
 | `dyn Error` | an object of its `fmt$Debug` and `fmt$Display`, and its `source` where a call dispatches to it: `e.source$Error()` |
-| `dyn Any` | an instance of the class its value's type was wrapped in, which a downcast checks for: `a instanceof of$dyns_Square ? a.v : undefined` |
+| `dyn Any` | an instance of the class its value's type was wrapped in, which a downcast checks for: `a instanceof of$dyns_Square ? a.v : undefined`, and whose `type_id` gives that type's: `a.typeId$Any()` |
 | `dyn Fn`, `dyn FnMut`, `dyn FnOnce` | the closure or function it was made of: `(a0: rs.u8) => rs.u32` |
 | `dyn Iterator`, `dyn DoubleEndedIterator`, `dyn ExactSizeIterator`, `dyn FusedIterator` | `rs.Iter<Item>`: `rs.iterDyn` of the iterator it was made of |
 | constant | its value, inlined as Rust inlines it, so each use of one holding a cell is a cell of its own; one with no value tree, or holding a cell, read from the memory rustc evaluated |
@@ -149,6 +150,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `pin!(x)`, `poll_fn(f)`, `future::pending()`, `future::ready(v)` | `x`; `rs.PollFn`, which drops `f` with itself; `rs.NEVER`, which every `Pending` is; `rs.Ready`, whose first poll or `into_inner` takes `v` and a later one panics, and which drops `v` with itself unless one took it |
 | `Box::pin(x)`, `dyn Future<Output = T>` | `x`; `rs.Future<T>`: an `async` body or std's future as it is, and another future as an `rs.DynFuture` over its `poll`, which drops it with itself unless borrowed |
 | `bytes::Bytes` | `rs.ByteSlice`, as `&[u8]` is: its clones and slices share bytes that never change |
+| `io::IoSlice` | `rs.ByteSlice`, the `&[u8]` it lends, which `advance` and `advance_slices` move past |
 | `bytes::BytesMut` | `rs.BytesMut`: a window of storage, which what it splits off and freezes share without overlapping |
 | `rand::rngs::ThreadRng` | `rs.ThreadRng`, which holds no state |
 | `hashbrown::HashMap`, `HashSet` | `rs.HashMap<K, V>` and `rs.HashSet<K>`, as std's, which are hashbrown's |
@@ -648,12 +650,12 @@ not all of `Buf`'s; a TS caller sees the same in its type. Hashing into a `dyn H
 each of `Hasher`'s. A class of a std type's value calls the mapping of its impl, such as
 `DefaultHasher`'s `Hasher`, or a `String`'s or a `Formatter`'s `fmt::Write`, and one no
 mapping makes, such as a `Vec<u8>`'s `io::Write`, is refused where a call dispatches to it.
-A `dyn Buf` holds no `chunks_vectored`, whose `IoSlice` has no JS value, so a call of it
-fails.
 
-A `dyn Any` is such an object with no methods, whose class `is`, `downcast_ref`,
+A `dyn Any` is such an object of `type_id` alone, whose class `is`, `downcast_ref`,
 `downcast_mut`, and `Box`'s, `Arc`'s, and `Rc`'s `downcast` check for: `a instanceof of$dyns_Square ?
-a.v : undefined`. Its `Debug` writes `Any { .. }`, as std's does. A `&mut` one of a value JS copies is the class holding its `rs.Place`,
+a.v : undefined`. Its `Debug` writes `Any { .. }`, as std's does. Its `type_id`, which it
+holds once a call dispatches to it, and a crate's own trait over `Any` from the start, is a
+constant of its class's type's `TypeId`, as `TypeId::of` and a value's `type_id` are. A `&mut` one of a value JS copies is the class holding its `rs.Place`,
 or the class itself behind a `Box`, as a `&mut dyn Trait`'s is, and `Arc::downcast` gives
 back the `Arc<T>` the object was made from, or, of one made from a box, an `rs.ArcDyn` of
 the value sharing its count.
@@ -685,7 +687,7 @@ box drops the iterator it owns, and the last `Arc` the one they share. `Arc::get
 `Arc` or `Weak` shares it, but a `dyn Any`'s, whose value `Arc::downcast` gives back.
 
 A trait object of a trait with a const parameter, of a byte array, or behind any other
-pointer, such as a struct's last field, is refused, and so is `Any::type_id`.
+pointer, such as a struct's last field, is refused.
 
 An `async fn` returns a future without running anything: an instance of a class of its
 own (`sumFuture`), the state machine MIR's coroutine transform makes. Its fields are the
@@ -942,6 +944,11 @@ they need.
   `rs.Borrowed`, so it clones and drops as std's does and only the borrowed side pays a
   wrapper. Untagged, `to_mut` would clone on every call and a `match` would be refused;
   tagged, every `Cow` would be wrapped.
+- A `TypeId` is the hash std's holds, rather than the class of its type, which a `&mut dyn
+  Any` of a value JS copies has a second of and a type no object holds has none of, or
+  the type's path, whose order and `Debug` are not std's. It is the crate's metadata's, so
+  a translation and a native build of one crate agree on which types are equal but not on
+  the bits.
 - A `Duration` keeps std's fields, whole seconds and nanoseconds, rather than one count
   of nanoseconds, so its overflow, `checked_*`, and ordering are std's exactly, and a
   lowering of its methods from core's MIR would read the same fields.
@@ -1109,9 +1116,9 @@ they need.
 ## Not yet
 
 Byte reinterpretation, pointer addresses, pointer arithmetic on a value JS keeps as an object (other than wrapping arithmetic on a null or dangling pointer), memory from `alloc` other than an array of values JS copies, and unions whose
-fields overlap in different types ([unsafe](/quest/m3/ts-unsafe/README.md)), and trait objects other than
-`dyn Debug`, `dyn Display`, `dyn Future`, `dyn Any`, `dyn Error`, `dyn Fn*`, `dyn Buf`, `dyn Iterator` and its subtraits, and the translated crates' traits'
-behind `&`, `&mut`, `Box`, `Arc`, `Rc`, `Weak`, or `Pin` ([trait objects](/quest/m3/ts-dyn.md)), fail translation. Until they translate, an item that needs one, such as a `Box<dyn Error>` made `From` a string, binds to
+fields overlap in different types ([unsafe](/quest/m3/ts-unsafe/README.md)), and trait objects of a trait
+with a const parameter, of an array, or behind a pointer other than `&`, `&mut`, `Box`, `Arc`, `Rc`,
+`Weak`, or `Pin`, fail translation. Until they translate, an item that needs one, such as a `Box<dyn Error>` made `From` a string, binds to
 hand-written TS ([bindings](#bindings)).
 
 These fail translation: `f16` and `f128`, a `Poll` of a `Poll` of a `Poll`, a future whose output can be pending, a closure that owns a value
