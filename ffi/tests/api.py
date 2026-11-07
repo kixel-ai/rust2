@@ -387,6 +387,8 @@ def script():
 	polar = api.polar_point(2)
 	check(polar is not None, "a point off the origin")
 	print(f"polar {polar.distance} {flag(api.polar_point(0) is None)} area {api.area(api.Size(2, 3))}")
+	# Two types whose paths join alike, the second kept apart where its path splits.
+	print(f"wind {api.wind(api.PolarTurn(2), api.Polar_Turn(3))}")
 	# Instances that name each other, and one made only by an impl of it.
 	cross = api.cross(api.LeftRightU8(api.RightU8(1)), api.RightLeftU8(api.LeftU8(2)))
 	print(f"cross {cross} outer {api.OuterInnerU8.new(4).get()}")

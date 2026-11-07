@@ -432,10 +432,20 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	/// References a call returns to what its `&mut` argument borrows, as `Cow::to_mut`'s:
 	/// the place each reads and writes, which a store through one rebuilds as a `Ref`'s.
 	reborrows: FxHashMap<Local, Place<'tcx>>,
-	/// The two variables each holds its fields in, by `step`.
-	stepped_vars: FxHashMap<Local, [String; 2]>,
+	/// The variables each holds its fields in, by `step`.
+	stepped_vars: FxHashMap<Local, Vec<String>>,
 	/// Those moved into another, which shares its variables.
 	stepped_into: FxHashMap<Local, Local>,
+	/// The items those lending places lend by index, each a reference read as the element
+	/// of the array it indexes, by the iterator that lends it.
+	lent_items: FxHashMap<Local, Local>,
+	/// The `next` results holding those indexes, or `rs.DONE`.
+	lent_nexts: FxHashSet<Local>,
+	/// The names of the arrays those items index, and of copies held of them, each the
+	/// same while an item is: the iterator is made again only once no item it lent is
+	/// left. An item's place is `rs.arrayAsPtr` of its element, as `rs.iterSliceMut` would
+	/// have made it.
+	item_arrays: FxHashSet<String>,
 	/// Statements that change nothing: a swap through a temporary nothing else names, as
 	/// an async body moves its context at each `await`.
 	noops: FxHashSet<(BasicBlock, usize)>,
@@ -443,8 +453,13 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	idx_of: FxHashMap<Local, Place<'tcx>>,
 	/// The halves a `|` joins into a `u64`, by the local of the shift that is its left side.
 	halves: FxHashMap<Local, (&'m Operand<'tcx>, &'m Operand<'tcx>)>,
-	/// Temporaries of those joins, whose assignments go unlowered.
+	/// Temporaries of those joins, and the pointers of `raw_cells`, whose assignments go
+	/// unlowered.
 	joined: FxHashSet<Local>,
+	/// Pointers made of a reference to an `UnsafeCell` that only `UnsafeCell::raw_get`
+	/// reads, right after, by the place the reference points at, which it reads in their
+	/// place: the cell itself, where a raw pointer to it would be where it is kept.
+	raw_cells: FxHashMap<Local, Place<'tcx>>,
 	/// The paths a switch lowered so far tests the variant of, with the enum it tests,
 	/// which `tsc` narrows in its arms. An `Option`'s `Some` is the path itself, so it
 	/// may be tested as both.
@@ -541,10 +556,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			reborrows: FxHashMap::default(),
 			stepped_vars: FxHashMap::default(),
 			stepped_into: FxHashMap::default(),
+			lent_items: FxHashMap::default(),
+			lent_nexts: FxHashSet::default(),
+			item_arrays: FxHashSet::default(),
 			noops: FxHashSet::default(),
 			idx_of: FxHashMap::default(),
 			halves: FxHashMap::default(),
 			joined: FxHashSet::default(),
+			raw_cells: FxHashMap::default(),
 			switched: FxHashSet::default(),
 			tested: IndexVec::from_elem_n(false, n),
 			widened: FxHashSet::default(),
@@ -727,6 +746,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		self.find_stepped();
 		self.unborrow_passed();
 		self.find_halves();
+		self.find_raw_cells();
 		self.find_slotted_calls();
 		self.find_scalars();
 		self.find_returning();
@@ -761,6 +781,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				self.b.t.check_erased(held, self.local_span(local));
 			}
 		}
+		debug_assert!(
+			self.lent_items.keys().all(|&l| matches!(self.slots[l], Slot::Alias(_))),
+			"an item lent by index is an alias, as find_stepped checked"
+		);
 		self.find_tested();
 		// Names: what debug info calls a local, else its number.
 		let mut named: FxHashMap<Local, rustc_span::Symbol> = FxHashMap::default();
@@ -1477,6 +1501,57 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
+	/// Find the pointers [`Self::raw_cells`] holds: `&raw const *r` of a reference `r`,
+	/// read once, as the argument of the `UnsafeCell::raw_get` its own block ends in, with
+	/// nothing but storage markers between.
+	fn find_raw_cells(&mut self) {
+		let mir: &'m mir::Body<'tcx> = self.mir;
+		let tcx = self.tcx;
+		for (bb, data) in mir.basic_blocks.iter_enumerated() {
+			let TerminatorKind::Call { func, args, .. } = &data.terminator().kind else {
+				continue;
+			};
+			let ty::FnDef(def_id, _) = *func.ty(&mir.local_decls, tcx).kind() else {
+				continue;
+			};
+			if !crate::lower::library::is_std(tcx, def_id)
+				|| crate::lower::library::key(tcx, def_id)
+					.is_none_or(|(owner, name)| (owner.as_str(), name.as_str()) != ("UnsafeCell", "raw_get"))
+			{
+				continue;
+			}
+			let Some(Operand::Copy(p) | Operand::Move(p)) = args.first().map(|a| &a.node) else {
+				continue;
+			};
+			let Some(local) = p.as_local().filter(|&l| self.defs[l] == 1 && self.uses[l] == 1) else {
+				continue;
+			};
+			let Some((_, i)) = self.def_at[local].filter(|&(at, _)| at == bb) else {
+				continue;
+			};
+			let Some(Rvalue::RawPtr(mir::RawPtrKind::Const | mir::RawPtrKind::Mut, cell)) = self.def_rvalue(local)
+			else {
+				continue;
+			};
+			let behind_ref = match cell.projection.as_slice() {
+				[rest @ .., mir::ProjectionElem::Deref] => {
+					Place::ty_from(cell.local, rest, &mir.local_decls, tcx).ty.is_ref()
+				}
+				_ => false,
+			};
+			let next = data.statements[i + 1..].iter().all(|s| {
+				matches!(
+					s.kind,
+					StatementKind::StorageLive(_) | StatementKind::StorageDead(_) | StatementKind::Nop
+				)
+			});
+			if behind_ref && next {
+				self.raw_cells.insert(local, *cell);
+				self.joined.insert(local);
+			}
+		}
+	}
+
 	/// Mark the locals whose variant a switch or a library call's test tests, that a
 	/// closure or async block captures and could test, or that std takes, whose runtime
 	/// function infers its type parameters from them, and what references to them borrow.
@@ -1896,6 +1971,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// A local's declared type: the value's, for a checked pair.
 	fn decl_ty(&mut self, local: Local) -> Type {
 		let ty = self.mir.local_decls[local].ty;
+		if self.lent_nexts.contains(&local) {
+			return Type::Union(vec![Type::Builtin("number"), Type::Rs("Done", Vec::new())]);
+		}
 		if self.next_results.contains(&local) {
 			let item = self.b.t.held_ty(next_item(self.tcx, ty), self.local_span(local));
 			if self.range_nexts.contains(&local) {
@@ -2625,6 +2703,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				return;
 			}
 			match self.slots[local] {
+				Slot::Alias(_) if let Some(&iter) = self.lent_items.get(&local) => {
+					let Rvalue::Use(Operand::Copy(p) | Operand::Move(p), _) = rvalue else {
+						unreachable!("checked by lent_items")
+					};
+					let index = self.place_expr(*p, span, out);
+					let array = Expr::ident(&self.stepped_vars[&iter][0]);
+					self.slots[local] = Slot::Alias(Some(array.index(index)));
+					return;
+				}
 				Slot::Alias(_) => {
 					let target = match rvalue {
 						Rvalue::Ref(_, kind, p) => match self.array_subslice(*kind, *p, span, out) {
@@ -2719,7 +2806,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		let value = self.rvalue(rvalue, place, span, &mut pre);
 		let value = match (value, place.as_local()) {
-			(Some(value), Some(local)) if self.stepped.contains(&local) => Some(self.stepped_make(value, span)),
+			(Some(value), Some(local)) if self.stepped.contains(&local) => {
+				Some(self.stepped_make(value, span, &mut pre))
+			}
 			(value, _) => value,
 		};
 		self.into_frozen = false;
@@ -3731,7 +3820,7 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 				{
 					Some(payload.clone())
 				}
-				(_, ts::Key::Name(key)) if key == "v" => step::peel(base).place_read().cloned(),
+				(_, ts::Key::Name(key)) if key == "v" => step::peel(base).place_read(),
 				_ => None,
 			};
 			if let Some(folded) = folded {

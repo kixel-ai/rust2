@@ -308,7 +308,8 @@
               dart
             ];
             # ... and its generated Swift, where nixpkgs builds Swift: not on aarch64-linux.
-            nativeBuildInputs = pkgs.lib.optional (!pkgs.swift.meta.broken) pkgs.swift;
+            # The `swift` wrapper doesn't copy its compiler's `broken`, so ask the compiler.
+            nativeBuildInputs = pkgs.lib.optional (!pkgs.swift.swiftc.meta.broken) pkgs.swift;
             RUST2_TS_TOOLCHAIN = tsToolchain;
             RUST2_TS_SYSROOT = rust2-ts-std;
             KOTLINX_COROUTINES = "${kotlinx-coroutines}";

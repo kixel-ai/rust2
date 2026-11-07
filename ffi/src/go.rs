@@ -9,7 +9,8 @@
 //! above it, or else the module `<prefix>` of the `go.mod` the export writes there.
 //!
 //! Each name is its C name without the prefix and the segments outside its crate, in
-//! Pascal case: `moq_track_producer` is `TrackProducer`, and its method
+//! Pascal case, kept [`apart`](abi::apart) from another type's of the package that would
+//! match: `moq_track_producer` is `TrackProducer`, and its method
 //! `moq_track_producer_append_group` is `TrackProducer.AppendGroup`. A function of a type
 //! that takes no receiver is a function of the package, named through its type
 //! (`CounterSeeded`), but `new`, which is `NewCounter`. An object is a pointer to a struct
@@ -32,7 +33,7 @@
 //! it holds, such as a session, must end promptly. Text Rust returns is copied once into a
 //! `string`, and Rust's freed at once.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
@@ -99,14 +100,15 @@ impl Packages {
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> Result<Vec<(String, String)>, String> {
 	let set = Packages::new(abi, module);
 	let thrown = thrown(abi);
-	let classes = classes(abi, &set);
+	let types = abi.classes(|home| (home.krate.clone(), home.outside - 1));
+	let classes = classes(abi, &types);
 	let mut files = Vec::new();
 	let mut errors = Vec::new();
 	let mut tuples = BTreeSet::new();
-	let mut rt = Gen::new(abi, &set, Packages::RT, &thrown, &classes);
+	let mut rt = Gen::new(abi, &set, Packages::RT, &thrown, &types, &classes);
 	rt.write_rt();
 	for krate in &abi.api.crates {
-		let mut g = Gen::new(abi, &set, krate, &thrown, &classes);
+		let mut g = Gen::new(abi, &set, krate, &thrown, &types, &classes);
 		g.write();
 		errors.append(&mut g.errors);
 		tuples.extend(g.tuples.iter().copied());
@@ -183,31 +185,18 @@ fn last(abi: &Abi<'_>, ty: &Type) -> String {
 	last
 }
 
-/// Each exported type's Go name, by package.
-fn classes(abi: &Abi<'_>, set: &Packages) -> BTreeMap<String, BTreeSet<String>> {
+/// Each exported type's Go name, of those by C name in `types`, by package.
+fn classes(abi: &Abi<'_>, types: &HashMap<String, String>) -> BTreeMap<String, BTreeSet<String>> {
 	let api = abi.api;
 	let mut classes: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-	let types = (0..api.records.len()).map(|i| (abi.record(i), &api.records[i].shown, &api.records[i].home));
-	let types =
-		types.chain((0..api.enums.len()).map(|i| (abi.enumeration(i), &api.enums[i].shown, &api.enums[i].home)));
-	let types =
-		types.chain((0..api.objects.len()).map(|i| (abi.object(i), &api.objects[i].shown, &api.objects[i].home)));
-	let types = types
-		.chain((0..api.callbacks.len()).map(|i| (abi.callback(i), &api.callbacks[i].path, &api.callbacks[i].home)));
-	for (c, shown, home) in types {
-		let _ = set;
-		classes
-			.entry(home.krate.clone())
-			.or_default()
-			.insert(short(&abi.prefix, &c, shown, home));
+	let names = (0..api.records.len()).map(|i| (abi.record(i), &api.records[i].home));
+	let names = names.chain((0..api.enums.len()).map(|i| (abi.enumeration(i), &api.enums[i].home)));
+	let names = names.chain((0..api.objects.len()).map(|i| (abi.object(i), &api.objects[i].home)));
+	let names = names.chain((0..api.callbacks.len()).map(|i| (abi.callback(i), &api.callbacks[i].home)));
+	for (c, home) in names {
+		classes.entry(home.krate.clone()).or_default().insert(types[&c].clone());
 	}
 	classes
-}
-
-/// The Go name of the item whose C name is `c`, shown as `shown`, belonging to `home`: its
-/// [`rest`] in Pascal case.
-fn short(prefix: &str, c: &str, shown: &[String], home: &Home) -> String {
-	pascal(rest(prefix, c, shown, home))
 }
 
 /// The C name `c` of an item shown as `shown`, belonging to `home`, without the prefix and
@@ -318,6 +307,8 @@ struct Gen<'a> {
 	tuples: BTreeSet<usize>,
 	/// Each package-level Go name, with what claimed it.
 	names: BTreeMap<String, String>,
+	/// Each exported type's Go name, by its C name.
+	type_names: &'a HashMap<String, String>,
 	/// Each exported type's Go name, by package.
 	classes: &'a BTreeMap<String, BTreeSet<String>>,
 	/// The other packages the package's items name, by crate.
@@ -334,6 +325,7 @@ impl<'a> Gen<'a> {
 		set: &'a Packages,
 		pkg: &'a str,
 		thrown: &'a BTreeMap<String, (String, Type)>,
+		type_names: &'a HashMap<String, String>,
 		classes: &'a BTreeMap<String, BTreeSet<String>>,
 	) -> Self {
 		Self {
@@ -348,6 +340,7 @@ impl<'a> Gen<'a> {
 			closures: BTreeMap::new(),
 			tuples: BTreeSet::new(),
 			names: BTreeMap::new(),
+			type_names,
 			classes,
 			imports: BTreeSet::new(),
 			errors: Vec::new(),
@@ -472,32 +465,15 @@ impl<'a> Gen<'a> {
 	fn named(&self, ty: &Type) -> (&'a str, String) {
 		let abi = self.abi;
 		let api = abi.api;
-		let prefix = &abi.prefix;
-		match ty {
-			Type::Record(i) => (
-				&api.records[*i].home.krate,
-				short(prefix, &abi.record(*i), &api.records[*i].shown, &api.records[*i].home),
-			),
-			Type::Enum(i) => (
-				&api.enums[*i].home.krate,
-				short(prefix, &abi.enumeration(*i), &api.enums[*i].shown, &api.enums[*i].home),
-			),
-			Type::Object(i) => (
-				&api.objects[*i].home.krate,
-				short(prefix, &abi.object(*i), &api.objects[*i].shown, &api.objects[*i].home),
-			),
-			Type::Callback(i, _) => (
-				&api.callbacks[*i].home.krate,
-				short(
-					prefix,
-					&abi.callback(*i),
-					&api.callbacks[*i].path,
-					&api.callbacks[*i].home,
-				),
-			),
-			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => (Packages::RT, self.class(&abi.range(ty))),
+		let (krate, c) = match ty {
+			Type::Record(i) => (&api.records[*i].home.krate, abi.record(*i)),
+			Type::Enum(i) => (&api.enums[*i].home.krate, abi.enumeration(*i)),
+			Type::Object(i) => (&api.objects[*i].home.krate, abi.object(*i)),
+			Type::Callback(i, _) => (&api.callbacks[*i].home.krate, abi.callback(*i)),
+			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => return (Packages::RT, self.class(&abi.range(ty))),
 			other => unreachable!("{other:?} is no exported type"),
-		}
+		};
+		(krate, self.type_names[&c].clone())
 	}
 
 	/// The Go name of an exported type from this package.

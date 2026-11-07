@@ -527,6 +527,7 @@ int script() {
 	// A function named as the type it returns, and one named as a type it does not.
 	std::printf("polar %u %s area %llu\n", api::polar_point(2).value().distance, yes(!api::polar_point(0)),
 	            ull(api::area({2, 3})));
+	std::printf("wind %u\n", api::wind(api::PolarTurn{2}, api::polar_Turn{3}));
 	// Instances that name each other, and one made only by an impl of it.
 	std::printf("cross %u outer %u\n", api::cross(api::Left_Right_u8{api::Right_u8{1}}, api::Right_Left_u8{api::Left_u8{2}}),
 	            api::Outer_Inner_u8::new_(4).get());

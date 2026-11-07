@@ -84,11 +84,15 @@ impl Expr {
 		Self::Member(Box::new(self), Key::Name(name.into()))
 	}
 
-	/// What `self` reads, if it is an `rs.Place` made here: `rs.place(() => read, set)`.
-	pub fn place_read(&self) -> Option<&Expr> {
+	/// What `self` reads, if it is an `rs.Place` made here: `rs.place(() => read, set)`, or
+	/// `rs.arrayAsPtr(array, index)`, which a borrow of an element in bounds makes.
+	pub fn place_read(&self) -> Option<Expr> {
 		let Self::Call(f, args) = self else { return None };
 		match (&**f, args.as_slice()) {
-			(Self::Rs(name), [Self::Lambda(params, read), _]) if name == "place" && params.is_empty() => Some(read),
+			(Self::Rs(name), [Self::Lambda(params, read), _]) if name == "place" && params.is_empty() => {
+				Some((**read).clone())
+			}
+			(Self::Rs(name), [array, index]) if name == "arrayAsPtr" => Some(array.clone().index(index.clone())),
 			_ => None,
 		}
 	}

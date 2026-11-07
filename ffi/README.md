@@ -255,7 +255,11 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
 `ByteArray` as its C struct holds it.
 
 - **Names** are in a package of the prefix: types in PascalCase without it, members in
-  camelCase without their type's name (`moq.TrackProducer.appendGroup`). A keyword is
+  camelCase without their type's name (`moq.TrackProducer.appendGroup`). Pascal case
+  loses where segments split, so two types whose names would match each keep a `_` at
+  every split after the leading segments they share: moq's `tokio::ConnectError` and
+  `tokio::connect::Error` are `TokioConnectError` and `TokioConnect_Error`. Two whose
+  segments differ only by case still match, and fail the export. A keyword is
   quoted in backticks, and a member named as one Kotlin gives its type takes a trailing
   `_`. A constructor such as `new` stays a companion function: `Counter.new(1)`.
 - **Objects** are classes owning their handle, `AutoCloseable`, which `close()` frees once
@@ -318,7 +322,8 @@ docstrings and signatures. The module passes mypy and pyright, both strict, so a
 caller imports it with no ignores.
 
 - **Names** are in the module: types in PascalCase without the prefix, members in
-  snake_case without their type's name (`moq.TrackProducer.append_group`). A keyword, a
+  snake_case without their type's name (`moq.TrackProducer.append_group`), and two types
+  whose names would match kept apart as Kotlin's are (`TokioConnect_Error`). A keyword, a
   member Python gives every such class, or a method named as a field takes a trailing `_`.
   Constructors such as `new` stay static methods: `Counter.new(1)`.
 - **Objects** are classes owning their handle, freed once their last reference goes,
@@ -434,7 +439,10 @@ reads a go.mod.
 - **Names** are the C names without the prefix and the segments outside the item's crate,
   such as the facade's module re-exporting it, in Pascal case: `moq_track_Producer` is
   `net.TrackProducer`, its method `moq_track_Producer_append_group` is
-  `TrackProducer.AppendGroup`, and `moq_mux_codec_opus_Config` is `mux.CodecOpusConfig`. An
+  `TrackProducer.AppendGroup`, and `moq_mux_codec_opus_Config` is `mux.CodecOpusConfig`. Two
+  types of a package whose names would match are kept apart as Kotlin's are, after the
+  segments outside the crate: moq-tokio's `ConnectError` and `connect::Error` are
+  `tokio.ConnectError` and `tokio.Connect_Error`. An
   instance in another crate's package keeps its whole path. A function of a type that takes no receiver is a function of
   the package named through its type (`CounterSeededPoint`), but `new`, which is
   `NewCounter`. A constant keeps its upper case (`LIMIT`), and one that is not a `bool` or
@@ -518,7 +526,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   upper case (`LIMIT`). A function of a type
   that returns it is a constructor, which may share its name with a field: an object's
   `new` is its unnamed one (`Counter('c', 1)`), and any other a named one
-  (`Position.group`). A type's other functions are static members. A reserved word takes
+  (`Position.group`). A type's other functions are static members. Two types whose
+  names would match are kept apart as Kotlin's are (`TokioConnect_Error`). A reserved word takes
   a trailing `_` (`Point.default_()`). An item whose Dart name clashes with another's, or
   with a name the runtime declares, fails the export: rename one in the source or exclude it.
 - **Objects** are final classes owning their handle. `close()` frees it once no call
