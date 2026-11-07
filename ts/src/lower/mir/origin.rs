@@ -209,10 +209,12 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				_ => None,
 			};
 		}
-		let (def_id, _, args) = self.def_call(local)?;
+		let (def_id, gargs, args) = self.def_call(local)?;
 		let (owner, name) = library::key(self.tcx, def_id)?;
 		match (owner.as_str(), name.as_str()) {
-			("ptr", "from_ref" | "from_mut") | ("From", "from") | ("Into", "into") => {
+			("ptr", "from_ref" | "from_mut") | ("From", "from") | ("Into", "into")
+				if crate::lower::pointer::from_reference(self.tcx, def_id, gargs) =>
+			{
 				let block = self.def_block(local)?;
 				let at = Location {
 					block,

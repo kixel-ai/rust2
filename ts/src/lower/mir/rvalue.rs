@@ -281,7 +281,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// `r` borrowed, as [`Self::borrowed_pointer`] finds it. Otherwise it is a place of its
 	/// own, as `ptr::from_ref` makes: of the value, where `r` is shared and nothing may write
 	/// a whole value through the pointer, and else an `rs.placeIn` writing a whole value into
-	/// the object `r` is in place, as `*r = v` does, which a read moving out copies.
+	/// the object `r` is in place, as `*r = v` does.
 	pub(super) fn behind_reference(&mut self, r: Place<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let tcx = self.tcx;
 		if let Some(p) = self.borrowed_pointer(r, span, out) {
@@ -309,9 +309,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				format!("a raw pointer to `{ty}` behind a reference, which JS can't write a whole value into in place"),
 			);
 		}
-		let mut made = vec![value];
-		made.extend(self.copy_depth(ty));
-		Expr::rs("placeIn", made)
+		Expr::rs("placeIn", vec![value])
 	}
 
 	/// The raw pointer to the place the body shows the reference `r` borrowed, if it does:

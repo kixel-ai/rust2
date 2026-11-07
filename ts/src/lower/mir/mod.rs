@@ -3634,6 +3634,14 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 				{
 					Some(payload.clone())
 				}
+				// A pointer made here of a shared reference holds its value.
+				(Expr::Object(members), ts::Key::Name(key))
+					if key == "v"
+						&& let [(ts::Key::Name(v), value)] = members.as_slice()
+						&& v == "v" =>
+				{
+					Some(value.clone())
+				}
 				(_, ts::Key::Name(key)) if key == "v" => step::peel(base).place_read().cloned(),
 				_ => None,
 			};
@@ -3682,16 +3690,6 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 				&& rest
 					.iter()
 					.all(|e| e.is_path() || matches!(e.unlocated(), Expr::Arrow(..) | Expr::Lambda(..)))
-			{
-				*e = value.clone();
-			}
-			// A read through a pointer made here of a shared reference is the value it holds.
-			if let Expr::Call(f, args) = &*e
-				&& let (Expr::Rs(read), [p]) = (&**f, args.as_slice())
-				&& read == "ptrRead"
-				&& let Expr::Object(members) = step::peel(p)
-				&& let [(ts::Key::Name(v), value)] = members.as_slice()
-				&& v == "v"
 			{
 				*e = value.clone();
 			}

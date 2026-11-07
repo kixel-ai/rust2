@@ -2446,6 +2446,9 @@ fn drained<T>(v: Vec<T>, bits: u8) -> Vec<T> {
 		out.push(next);
 		i += 1;
 	}
+	// Its elements moved out, its room is freed without dropping them again.
+	let mut v = mem::ManuallyDrop::into_inner(v);
+	unsafe { v.set_len(0) };
 	out
 }
 
@@ -2464,8 +2467,8 @@ fn retained<T>(v: &mut Vec<T>, mut keep: impl FnMut(&mut T) -> bool) {
 			write += 1;
 		}
 	}
-	// What `set_len` leaves past the length, which nothing drops again.
-	mem::forget(v.split_off(write));
+	// What is past the length, dropped or moved, which nothing drops again.
+	unsafe { v.set_len(write) };
 }
 
 /// The length of the `Vec` a pointer from a reference the body is given points at.
@@ -2576,6 +2579,17 @@ pub fn behind_refs(data: &[u8], out: &mut Vec<u8>) {
 		r[0] % 2 == 0
 	});
 	out.extend(runs.iter().flatten());
+	// Each element it drops, dropped once.
+	let dropped = Cell::new(0);
+	let mut counted: Vec<Rc<Counted>> = data
+		.iter()
+		.map(|&id| Rc::new(Counted { id, dropped: &dropped }))
+		.collect();
+	retained(&mut counted, |c| c.id % 2 == 0);
+	out.push(dropped.get());
+	out.extend(counted.iter().map(|c| c.id));
+	drop(counted);
+	out.push(dropped.get());
 
 	// From a reference the body borrowed, where the element is.
 	let mut nums: Vec<u32> = data.iter().map(|&b| u32::from(b)).collect();
@@ -2616,6 +2630,143 @@ pub fn behind_refs(data: &[u8], out: &mut Vec<u8>) {
 	let q = ptr::from_ref(&*arc);
 	out.push(unsafe { p.offset_from(q) } as u8);
 	out.push(unsafe { *q } as u8);
+	let n: NonNull<u32> = (&*arc).into();
+	out.push(unsafe { n.as_ptr().offset_from(p) } as u8);
+	// A conversion of the crate's own, which runs as written.
+	let halves = Halves32 {
+		first: u32::from(bits),
+		second: u32::from(bits) ^ 0x55,
+	};
+	let second: NonNull<u32> = (&halves).into();
+	out.push(unsafe { *second.as_ptr() } as u8);
+}
+
+/// Two numbers, the second of which a pointer from a reference to them points at.
+struct Halves32 {
+	first: u32,
+	second: u32,
+}
+
+impl From<&Halves32> for NonNull<u32> {
+	fn from(halves: &Halves32) -> Self {
+		let _ = halves.first;
+		NonNull::from(&halves.second)
+	}
+}
+
+/// `with` written whole into the `Vec` `r` is, in place, dropping nothing, as a body that
+/// can't see where it is kept writes it.
+#[inline(never)]
+fn refill_in(r: &mut Vec<u8>, with: Vec<u8>) {
+	unsafe { ptr::write(r, with) };
+}
+
+/// What the `Vec` `v` held, moved out through a pointer made each way `how` picks: from a
+/// shared reborrow, cast to one to a `MaybeUninit` or a `ManuallyDrop` of it, or swapped
+/// through such a cast with another; then `with` is written whole into `v` in place.
+fn moved_vec(v: &mut Vec<u8>, with: Vec<u8>, how: u8) -> Vec<u8> {
+	let old = match how % 4 {
+		0 => unsafe { ptr::read(&*v as *const Vec<u8>) },
+		1 => unsafe { ptr::read(ptr::from_mut(v).cast::<MaybeUninit<Vec<u8>>>()).assume_init() },
+		2 => mem::ManuallyDrop::into_inner(unsafe { ptr::read(ptr::from_mut(v).cast::<mem::ManuallyDrop<Vec<u8>>>()) }),
+		_ => {
+			let mut other = MaybeUninit::new(vec![how]);
+			unsafe { ptr::swap(ptr::from_mut(v).cast::<MaybeUninit<Vec<u8>>>(), &mut other) };
+			unsafe { other.assume_init() }
+		}
+	};
+	refill_in(v, with);
+	old
+}
+
+/// A `Vec` with a tag, which a pointer to one moves out whole.
+struct TaggedVec {
+	v: Vec<u8>,
+	tag: u8,
+}
+
+/// What an `Option`, a tuple, and a struct each holding a `Vec` held, moved out through
+/// pointers from `&mut`s to them: read, or copied, replaced, and swapped, as `how` picks;
+/// then `with` is written whole into each `Vec` they hold, in place.
+fn moved_nested(
+	o: &mut Option<Vec<u8>>,
+	t: &mut (Vec<u8>, u8),
+	s: &mut TaggedVec,
+	with: &[u8],
+	how: u8,
+) -> (Option<Vec<u8>>, (Vec<u8>, u8), TaggedVec) {
+	let old = match how % 2 {
+		0 => unsafe { (ptr::read(o), ptr::read(t), ptr::read(s)) },
+		_ => unsafe {
+			let mut slot = MaybeUninit::uninit();
+			ptr::copy_nonoverlapping(ptr::from_mut(o), slot.as_mut_ptr(), 1);
+			let old_t = ptr::replace(ptr::from_mut(t), (vec![how], how));
+			let mut old_s = TaggedVec { v: vec![how], tag: how };
+			ptr::swap(ptr::from_mut(s), &mut old_s);
+			(slot.assume_init(), old_t, old_s)
+		},
+	};
+	if let Some(v) = o {
+		refill_in(v, with.to_vec());
+	}
+	refill_in(&mut t.0, with.to_vec());
+	refill_in(&mut s.v, with.to_vec());
+	old
+}
+
+/// The `Option` of a cell a shared reference points at, moved out through a pointer from
+/// it, whose cell is then set.
+fn cell_moved(r: &Option<Cell<u32>>) -> Option<Cell<u32>> {
+	let old = unsafe { ptr::read(r) };
+	if let Some(cell) = &old {
+		cell.set(cell.get() + 5);
+	}
+	old
+}
+
+/// Values holding a library object, moved out through pointers made each way, at any
+/// depth, and then written in place: what was moved out keeps what it held.
+pub fn moved_out(data: &[u8], out: &mut Vec<u8>) {
+	let with = |n: u8| -> Vec<u8> { data.iter().map(|b| b.wrapping_add(n)).collect() };
+	for how in 0..4 {
+		let mut v = data.to_vec();
+		let old = moved_vec(&mut v, with(how + 1), how);
+		out.extend(&old);
+		out.push(0xfe);
+		out.extend(&v);
+		out.push(0xff);
+	}
+	for how in 0..2 {
+		let mut o = data.first().map(|_| data.to_vec());
+		let mut t = (data.to_vec(), how);
+		let mut s = TaggedVec {
+			v: data.to_vec(),
+			tag: how,
+		};
+		let (old_o, old_t, old_s) = moved_nested(&mut o, &mut t, &mut s, &with(9), how);
+		for v in [
+			old_o.as_ref(),
+			Some(&old_t.0),
+			Some(&old_s.v),
+			o.as_ref(),
+			Some(&t.0),
+			Some(&s.v),
+		]
+		.into_iter()
+		.flatten()
+		{
+			out.extend(v);
+			out.push(0xfe);
+		}
+		out.extend([old_t.1, old_s.tag, t.1, s.tag]);
+	}
+	for &b in data {
+		let cell = (b % 3 != 0).then(|| Cell::new(u32::from(b)));
+		let old = cell_moved(&cell);
+		for c in [&cell, &old] {
+			out.push(c.as_ref().map_or(0, Cell::get) as u8);
+		}
+	}
 }
 
 /// Pointers to slices cast to ones to arrays of their elements, of bytes and of numbers:

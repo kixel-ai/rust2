@@ -292,7 +292,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 /// Whether std's `def_id` with `args` makes a raw pointer to what its first argument, a
 /// reference, points at: `UnsafeCell::get`, `MaybeUninit::as_ptr` and `as_mut_ptr`,
-/// `ptr::from_ref` and `from_mut`, and `NonNull::from` and `into`.
+/// `ptr::from_ref` and `from_mut`, and `NonNull::from` and `into` of a reference to its
+/// pointee, which only std's impl converts, as any other would overlap it.
 pub fn from_reference<'tcx>(
 	tcx: ty::TyCtxt<'tcx>,
 	def_id: rustc_hir::def_id::DefId,
@@ -311,7 +312,8 @@ pub fn from_reference<'tcx>(
 				"From" => (args.type_at(0), args.type_at(1)),
 				_ => (args.type_at(1), args.type_at(0)),
 			};
-			matches!(to.kind(), ty::Adt(adt, _) if Std::of(tcx, adt.did()) == Some(Std::NonNull)) && from.is_ref()
+			matches!(to.kind(), ty::Adt(adt, to) if Std::of(tcx, adt.did()) == Some(Std::NonNull)
+				&& from.ref_mutability().is_some() && from.builtin_deref(true) == Some(to.type_at(0)))
 		}
 		_ => false,
 	}
@@ -1138,8 +1140,6 @@ fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span) -> 
 			{
 				value.clone()
 			}
-			// It may be an `rs.placeIn`, whose object the next write through it changes.
-			_ if b.t.write_in(ty).is_some() => Expr::rs("ptrRead", vec![p]),
 			_ => p.member("v"),
 		},
 		Pointee::Object => p,

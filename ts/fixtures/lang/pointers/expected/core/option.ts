@@ -83,6 +83,13 @@ export function map$070fw7m(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u32)
 	return f(self);
 }
 
+export function map$1px2rk4(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.ByteVec): rs.ByteVec | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function mapOr$078vnqn(self: Pair.Pair | undefined, default_: rs.u8, f: (a0: Pair.Pair) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
@@ -95,6 +102,13 @@ export function mapOr$00zno7m(self: Spot.Spot | undefined, default_: Spot.Spot, 
 		return default_;
 	}
 	return f(copy$pointers_Spot(self));
+}
+
+export function mapOr$18adzvj(self: rs.Cell<rs.u32> | undefined, default_: rs.u32, _: (a0: rs.Cell<rs.u32>) => rs.u32): rs.u32 {
+	if (self === undefined) {
+		return default_;
+	}
+	return self.v;
 }
 
 export function mapOr$173j2gr(self: [rs.u8, rs.Arc<rs.u8>] | undefined, default_: rs.u8, f: (a0: [rs.u8, rs.Arc<rs.u8>]) => rs.u8): rs.u8 {

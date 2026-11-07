@@ -526,16 +526,16 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let done = |e: Expr, effect: bool| Some(Some((e, effect)));
 		match (owner.as_str(), name.as_str()) {
 			// A pointer from a reference to an `Arc`'s value, which is that value's one place.
-			("ptr", "from_ref") | ("From", "from")
-				if (owner == "ptr"
-					|| crate::lower::pointer::raw_pointee(tcx, dest.ty(&self.mir.local_decls, tcx).ty).is_some())
+			("ptr", "from_ref") | ("From", "from") | ("Into", "into")
+				if crate::lower::pointer::from_reference(tcx, def_id, gargs)
 					&& let Some(p) = self.arc_raw(&args[0].node, span, out) =>
 			{
 				done(p, false)
 			}
 			// A pointer from a reference to a value JS keeps in a place, as `&raw const *r` makes.
 			("ptr", "from_ref" | "from_mut") | ("From", "from") | ("Into", "into")
-				if let Some(r) = args[0].node.place()
+				if crate::lower::pointer::from_reference(tcx, def_id, gargs)
+					&& let Some(r) = args[0].node.place()
 					&& crate::lower::pointer::raw_pointee(tcx, dest.ty(&self.mir.local_decls, tcx).ty)
 						.is_some_and(|pointee| self.behind_place(r, pointee)) =>
 			{
@@ -1834,7 +1834,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// How many levels of arrays of objects a write may land in `ty` nests, whose items a
 	/// copy of a view of one copies too, unlike references, which move as they are: the
 	/// runtime's `depth`, if any.
-	pub(super) fn copy_depth(&self, ty: Ty<'tcx>) -> Option<Expr> {
+	fn copy_depth(&self, ty: Ty<'tcx>) -> Option<Expr> {
 		let mut depth = 0;
 		let mut at = ty;
 		while let ty::Array(elem, _) = at.kind()

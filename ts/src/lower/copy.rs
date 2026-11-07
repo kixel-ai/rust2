@@ -1,10 +1,13 @@
-//! Copies of `Copy` aggregates, by their type.
+//! Copies of `Copy` aggregates, and of values a read through a pointer moves out, by
+//! their type.
 //!
 //! JS shares an object where Rust copies its value, so a `Copy` value that is a JS object
 //! the crate's code writes into in place, or compares pointers to, is copied where Rust
-//! copies it. A function made for its type copies what it holds by value and shares what
-//! it holds by reference, as Rust does. A value of a type nothing writes into or compares
-//! pointers to never changes once made, so sharing it is a copy no one can tell apart.
+//! copies it, as is each such object a read through a pointer moves out, a library
+//! object such as a `Vec` included, one object deep. A function made for its type copies
+//! what it holds by value and shares what it holds by reference, as Rust does. A value of
+//! a type nothing writes into or compares pointers to never changes once made, so sharing
+//! it is a copy no one can tell apart.
 
 use std::cell::RefCell;
 
@@ -56,6 +59,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				// Records of functions and pointers, which JS shares.
 				Some(Std::WakerVTable | Std::RawWaker) => (true, Vec::new()),
 				Some(Std::MaybeUninit | Std::ManuallyDrop) => return self.changes(args.type_at(0)),
+				// A library object a whole write lands in in place, which a copy copies one
+				// object deep; through a shared reference too, where it has interior
+				// mutability, which no write the crate shows records.
+				Some(_) if self.write_in(ty).is_some() => {
+					return self.writes.contains(&self.writes.into, false, self.tcx, ty)
+						|| self.addressed(ty)
+						|| !ty.is_freeze(self.tcx, self.typing_env());
+				}
 				Some(_) => return false,
 				None if self.own(adt.did()) && adt.all_fields().next().is_some() => {
 					(true, adt.all_fields().map(|f| self.field_ty(f.did, args)).collect())
@@ -317,6 +328,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						_ => self.copy_result(value, residual, span),
 					})
 				}
+				// A library object, which [`Self::changes`] says a whole write lands in.
+				Some(_) => ret(Expr::rs("objectCopy", vec![v()])),
 				_ => {
 					let info = self.adt(*adt, span);
 					match info.repr {
