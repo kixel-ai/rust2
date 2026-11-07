@@ -25,7 +25,7 @@ export class Slots {
 
 /** The pointer to the count, through a pointer to the struct. */
 export function num(this_: Slots): rs.Place<rs.u32> {
-	return this_.num;
+	return rs.rawUnsize(rs.place(() => this_.num, (value) => this_.num = value), (p: rs.Place<rs.Cell<rs.u32>>) => p.v);
 }
 
 //# sourceMappingURL=pointers.Slots.ts.map

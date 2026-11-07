@@ -340,7 +340,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					return err;
 				}
 				if crate::lower::pointer::from_reference(tcx, def_id, gargs)
-					&& let Some(why) = self.made_out_of_step(def_id, gargs, &args[0].node)
+					&& let Some(why) = args[0]
+						.node
+						.place()
+						.and_then(|p| self.made_out_of_step(def_id, gargs, tcx.mk_place_deref(p)))
 				{
 					return self.err(span, why);
 				}
@@ -541,6 +544,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					.place()
 					.and_then(|p| self.raw_cells.get(&p.as_local()?).copied()) =>
 			{
+				if let Some(why) = self.made_out_of_step(def_id, gargs, cell) {
+					return Some(Some((self.err(span, why), false)));
+				}
 				let cell = self.place_expr(cell, span, out);
 				let get = tcx
 					.associated_items(tcx.parent(def_id))
@@ -590,7 +596,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					&& let (Some((s, i)), Some((t, j))) = (self.element_in(&a, ty), self.element_in(&c, ty))
 				{
 					let mut made = vec![s, i, t, j];
-					made.extend(self.copy_depth(ty));
+					made.extend(self.b.t.copy_depth(ty));
 					out.push(StmtKind::Expr(Expr::rs("sliceSwapAcross", made)).at(None));
 					return done(Expr::undefined(), false);
 				}
@@ -1403,10 +1409,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 
 	/// `slice::from_mut`, `array::from_mut`, or `from_mut` of `owner`, `Cell` or
 	/// `UnsafeCell`, of `op`, a `&mut` to a `ty`: of the `rs.Place` it is or of the place it
-	/// names, or else in place of the bytes or the object it is, which a `Cell` reads a copy
-	/// of, as it only moves or copies a value out, an `UnsafeCell` lends as itself, as its
-	/// `get` points at it, and a slice writes its element into. A slice of one byte no array
-	/// holds is refused, as is any of an object JS can't write a whole value into.
+	/// names, or else in place of the bytes or the object it is, which a cell lends as itself,
+	/// as its `get` or `as_ptr` points at it, but a `Cell` of an object a pointer is the
+	/// place of reads a copy of, as its writes replace the value it read, and a slice writes
+	/// its element into. A slice of one byte no array holds is refused, as is any of an
+	/// object JS can't write a whole value into.
 	fn one_of(
 		&mut self,
 		owner: &str,
@@ -1424,11 +1431,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			_ => "sliceOfPlace",
 		};
 		let of = |made: Expr| Expr::rs(of_place, vec![made]);
-		// A `Cell` of an object reads a copy, to the depth a copy of it goes.
-		let depth = (owner == "Cell").then(|| self.copy_depth(ty)).flatten();
+		let place_of = self.b.t.pointee(ty) == crate::lower::pointer::Pointee::Place;
 		let of_object = |object: Expr| match owner {
-			"Cell" => Expr::rs("cellIn", [object].into_iter().chain(depth.clone()).collect()),
-			"UnsafeCell" => of(Expr::rs("partPlace", vec![object])),
+			"Cell" if place_of => Expr::rs("cellIn", vec![object]),
+			"Cell" | "UnsafeCell" => of(Expr::rs("partPlace", vec![object])),
 			_ => Expr::rs("sliceIn", vec![object]),
 		};
 		let cell = owner != "raw" && owner != "array";
@@ -1771,7 +1777,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				None => place.0,
 			};
 			let mut made = vec![object, value];
-			made.extend(self.copy_depth(ty));
+			made.extend(self.b.t.copy_depth(ty));
 			let old = Expr::rs("replaceIn", made);
 			let Some(base) = base else {
 				out.push(StmtKind::Expr(old).at(None));
@@ -1788,7 +1794,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let name = self.b.fresh(base);
 		if let Some((slice, index)) = self.element_in(&place, ty) {
 			let mut made = vec![slice, index, value];
-			made.extend(self.copy_depth(ty));
+			made.extend(self.b.t.copy_depth(ty));
 			let old = Expr::rs("sliceReplace", made);
 			out.push(StmtKind::decl(false, name.clone(), None, Some(old)).at(None));
 			return Expr::ident(name);
@@ -1837,21 +1843,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			unreachable!("an element's path is an index: {read:?}")
 		};
 		Some(((**slice).clone(), (**index).clone()))
-	}
-
-	/// How many levels of arrays of objects a write may land in `ty` nests, whose items a
-	/// copy of a view of one copies too, unlike references, which move as they are: the
-	/// runtime's `depth`, if any.
-	fn copy_depth(&self, ty: Ty<'tcx>) -> Option<Expr> {
-		let mut depth = 0;
-		let mut at = ty;
-		while let ty::Array(elem, _) = at.kind()
-			&& self.b.t.write_in(*elem).is_some()
-		{
-			depth += 1;
-			at = *elem;
-		}
-		(depth > 0).then(|| Expr::lit(depth.to_string()))
 	}
 
 	/// Set what a `&mut` borrows to `value`.

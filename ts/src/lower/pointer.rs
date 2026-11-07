@@ -514,13 +514,6 @@ pub fn call<'tcx>(
 		true => Expr::rs("byteSliceFrom", vec![e]),
 		false => super::library::slice_from(e),
 	};
-	// The pointer an `rs.Cell` gives to what it holds: the cell, the place of a value JS
-	// copies, or else the object or array it holds.
-	let cell_pointer = |b: &Body<'_, '_, 'tcx>, cell: Expr| match b.t.pointee(pointee()) {
-		Pointee::Place => cell,
-		Pointee::Array => to_pointer(b, cell.member("v")),
-		_ => cell.member("v"),
-	};
 	let to_reference = |b: &Body<'_, '_, 'tcx>, e: Expr| match super::byte_array(b.t.uninit_inner(pointee())) {
 		true => Expr::rs("byteSliceView", vec![e]),
 		false => super::library::slice_view(e),
@@ -763,13 +756,8 @@ pub fn call<'tcx>(
 			replace(b, p, value, pointee(), span, out)
 		}
 		("ptr", "swap") => {
-			let (x, y) = (b.spill(arg(), "x", out), b.spill(arg(), "y", out));
-			let old = read(b, x.clone(), pointee(), span);
-			let old = b.spill(old, "old", out);
-			let from_y = read(b, y.clone(), pointee(), span);
-			let into_x = write(b, x, from_y, pointee(), span);
-			out.push(StmtKind::Expr(into_x).at(None));
-			write(b, y, old, pointee(), span)
+			let (x, y) = (arg(), arg());
+			swap(b, x, y, pointee(), span, out)
 		}
 		("ptr", "drop_in_place") => {
 			let p = arg();
@@ -846,20 +834,27 @@ pub fn call<'tcx>(
 		("UnsafeCell", "new") => Expr::New(Box::new(Expr::Rs("Cell".into())), vec![arg()]),
 		("UnsafeCell", "get") | ("Cell", "as_ptr") => {
 			let cell = arg();
-			cell_pointer(b, cell)
+			cell_pointer(b, cell, pointee())
 		}
-		// `get` of the cell where the pointer points, an `rs.Place` of where it is kept.
+		// `get` of the cell where the pointer points, an `rs.Place` of where it is kept, or
+		// the pointer itself if it points at no memory, as a cast of it would.
 		("UnsafeCell", "raw_get") => {
 			let tcx = b.t.tcx;
 			let cell = tcx
 				.type_of(tcx.parent(call.def_id))
 				.instantiate(tcx, gargs)
 				.skip_norm_wip();
-			let cell = match b.t.pointee(cell) {
-				Pointee::Object => arg(),
-				_ => arg().member("v"),
-			};
-			cell_pointer(b, cell)
+			let object = b.t.pointee(cell) == Pointee::Object;
+			if object && b.t.pointee(pointee()) == Pointee::Place {
+				return Ok(Some(arg()));
+			}
+			let name = b.fresh("p");
+			let p = Expr::ident(&name);
+			let made = cell_pointer(b, if object { p } else { p.member("v") }, pointee());
+			// Typed, as a null pointer's own type is none.
+			let ty = Some(b.t.ty(Ty::new_imm_ptr(tcx, cell), span));
+			let make = Expr::Lambda(vec![crate::ts::Param { name, ty }], Box::new(made));
+			Expr::rs("rawUnsize", vec![arg(), make])
 		}
 		// `ptr::replace` of the pointer `get` gives.
 		("UnsafeCell", "replace") if b.t.zero_sized(pointee()) => {
@@ -868,7 +863,7 @@ pub fn call<'tcx>(
 		}
 		("UnsafeCell", "replace") => {
 			let cell = arg();
-			let p = cell_pointer(b, cell);
+			let p = cell_pointer(b, cell, pointee());
 			let value = arg();
 			replace(b, p, value, pointee(), span, out)
 		}
@@ -1142,8 +1137,26 @@ pub fn raw_pointee<'tcx>(tcx: ty::TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>
 	}
 }
 
+/// The pointer an `rs.Cell` holding a `ty` gives to it, as `UnsafeCell::get` and
+/// `Cell::as_ptr` do: the cell, the place of a value JS copies, or else the object, array,
+/// or slice it holds.
+pub(super) fn cell_pointer<'tcx>(b: &Body<'_, '_, 'tcx>, cell: Expr, ty: Ty<'tcx>) -> Expr {
+	let pointee = b.t.pointee(ty);
+	if pointee == Pointee::Place {
+		return cell;
+	}
+	let held = cell.member("v");
+	match pointee {
+		Pointee::Array if super::byte_array(b.t.uninit_inner(ty)) => Expr::rs("byteSliceFrom", vec![held]),
+		Pointee::Array => super::library::slice_from(held),
+		Pointee::Slice if slice_of_bytes(ty) => Expr::rs("rawByteSliceOf", vec![held]),
+		Pointee::Slice => Expr::rs("rawSliceOf", vec![held]),
+		Pointee::Place | Pointee::Object => held,
+	}
+}
+
 /// The value `p`, a pointer to `ty`, points at, as a value of its own.
-fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+pub(super) fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
 	let value = match b.t.pointee(ty) {
 		Pointee::Place => p.member("v"),
 		Pointee::Object => p,
@@ -1158,7 +1171,7 @@ fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span) -> 
 
 /// `ptr::replace` of `p`, a pointer to `ty`, with `value`: what it held, as a value of its
 /// own.
-fn replace<'tcx>(
+pub(super) fn replace<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	p: Expr,
 	value: Expr,
@@ -1167,15 +1180,51 @@ fn replace<'tcx>(
 	out: &mut Vec<Stmt>,
 ) -> Expr {
 	let p = b.spill(p, "pointer", out);
-	let old = read(b, p.clone(), ty, span);
+	let old = copied_out(b, p.clone(), ty, span);
 	let old = b.spill(old, "old", out);
 	let write = write(b, p, value, ty, span);
 	out.push(StmtKind::Expr(write).at(None));
 	old
 }
 
+/// What `p`, a pointer to `ty`, points at, as a value of its own that a whole write there
+/// after leaves as it was. The write may land in the object there rather than replace it,
+/// as in one a `from_mut` cell holds, so an object, or an array to the depth `objectCopy`
+/// copies its elements, is copied one object deep.
+fn copied_out<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+	match b.t.pointee(ty) {
+		_ if b.t.zero_sized(ty) => read(b, p, ty, span),
+		Pointee::Object => Expr::rs("objectCopy", vec![p]),
+		Pointee::Array if !super::byte_array(b.t.uninit_inner(ty)) => {
+			let depth = b.t.copy_depth(b.t.uninit_inner(ty));
+			let view = super::library::slice_view(p);
+			Expr::rs("objectCopy", std::iter::once(view).chain(depth).collect())
+		}
+		Pointee::Place if b.t.write_in(ty).is_some() => Expr::rs("objectCopy", vec![p.member("v")]),
+		_ => read(b, p, ty, span),
+	}
+}
+
+/// `ptr::swap` of `x` and `y`, pointers to `ty`.
+pub(super) fn swap<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	x: Expr,
+	y: Expr,
+	ty: Ty<'tcx>,
+	span: Span,
+	out: &mut Vec<Stmt>,
+) -> Expr {
+	let (x, y) = (b.spill(x, "x", out), b.spill(y, "y", out));
+	let old = copied_out(b, x.clone(), ty, span);
+	let old = b.spill(old, "old", out);
+	let from_y = copied_out(b, y.clone(), ty, span);
+	let into_x = write(b, x, from_y, ty, span);
+	out.push(StmtKind::Expr(into_x).at(None));
+	write(b, y, old, ty, span)
+}
+
 /// The write of `value`, a `ty`, where `p` points.
-fn write<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, value: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+pub(super) fn write<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, value: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
 	if b.t.zero_sized(ty) {
 		return Expr::undefined();
 	}
