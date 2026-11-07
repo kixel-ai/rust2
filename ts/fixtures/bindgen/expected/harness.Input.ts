@@ -33,39 +33,36 @@ export function flag(self: Input): boolean {
 
 export function bytes$16(self: Input): Uint8Array {
 	const buf: Uint8Array = rs.bytes(16);
-	const iter: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(rs.byteSliceFrom(buf));
-	while (true) {
-		const _6: rs.Place<rs.u8> | rs.Done = iter.next();
-		if (_6 === rs.DONE) {
-			break;
-		}
-		_6.v = u8(self);
+	const _4: rs.ByteSlice = rs.byteSliceFrom(buf);
+	const iterS: Uint8Array = _4.data;
+	let iterI: number = _4.start;
+	const iterE: number = _4.start + _4.length;
+	while (iterI < iterE) {
+		iterS[iterI++] = u8(self);
 	}
 	return copy$array_u8(buf);
 }
 
 export function bytes$4(self: Input): Uint8Array {
 	const buf: Uint8Array = rs.bytes(4);
-	const iter: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(rs.byteSliceFrom(buf));
-	while (true) {
-		const _6: rs.Place<rs.u8> | rs.Done = iter.next();
-		if (_6 === rs.DONE) {
-			break;
-		}
-		_6.v = u8(self);
+	const _4: rs.ByteSlice = rs.byteSliceFrom(buf);
+	const iterS: Uint8Array = _4.data;
+	let iterI: number = _4.start;
+	const iterE: number = _4.start + _4.length;
+	while (iterI < iterE) {
+		iterS[iterI++] = u8(self);
 	}
 	return copy$array_u8(buf);
 }
 
 export function bytes$8(self: Input): Uint8Array {
 	const buf: Uint8Array = rs.bytes(8);
-	const iter: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(rs.byteSliceFrom(buf));
-	while (true) {
-		const _6: rs.Place<rs.u8> | rs.Done = iter.next();
-		if (_6 === rs.DONE) {
-			break;
-		}
-		_6.v = u8(self);
+	const _4: rs.ByteSlice = rs.byteSliceFrom(buf);
+	const iterS: Uint8Array = _4.data;
+	let iterI: number = _4.start;
+	const iterE: number = _4.start + _4.length;
+	while (iterI < iterE) {
+		iterS[iterI++] = u8(self);
 	}
 	return copy$array_u8(buf);
 }
