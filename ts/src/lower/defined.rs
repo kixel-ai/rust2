@@ -3,7 +3,8 @@
 //!
 //! A projection from a generic type's parameters that typing its fields names, such as
 //! smallvec's `<A as Array>::Item`, becomes a TypeScript type parameter of its own, which
-//! each instance gives what the projection is there. A type typed with itself, directly or
+//! each instance gives what the projection is there. An instance without type parameters
+//! that a projection argument holds is named by an alias, typed once. A type typed with itself, directly or
 //! through others, names instances of a definition that is still being typed, whose
 //! projections are not all known yet: those instances' projection arguments are filled in
 //! once every definition typed with them is.
@@ -12,8 +13,9 @@ use rustc_hir::def_id::DefId;
 use rustc_middle::ty::{self, GenericArgsRef, Ty, TypeVisitableExt, TypingEnv};
 use rustc_span::Span;
 
-use super::Translator;
-use crate::ts::{Item, Type};
+use super::{Adt, Translator};
+use crate::program::{SymKind, Symbol};
+use crate::ts::{Item, SymId, Type};
 
 /// The account of one generic type's definition.
 #[derive(Default)]
@@ -69,6 +71,21 @@ pub struct Defining<'tcx> {
 	pub(super) too_deep: bool,
 	/// The instances whose drop glue is being classified, by what it drops through.
 	pub(super) glue_open: Vec<Ty<'tcx>>,
+	/// The shallowest of [`Self::glue_open`] the classification under way rested on.
+	pub(super) glue_rests: usize,
+	/// Each classification of an instance's glue, once it rests on none still under way.
+	pub(super) glue_known: rustc_data_structures::fx::FxHashMap<(Ty<'tcx>, super::drop::Asked), bool>,
+	/// Each that holds if the one under way it rested on, by its depth there, does.
+	pub(super) glue_resting: rustc_data_structures::fx::FxHashMap<(Ty<'tcx>, super::drop::Asked), usize>,
+	/// Those, in the order they were classified.
+	pub(super) glue_order: Vec<(Ty<'tcx>, super::drop::Asked)>,
+	/// How deep in projection arguments the type being typed is.
+	pub(super) projecting: usize,
+	/// The alias naming each instance without type parameters a projection argument held.
+	aliases: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, SymId>,
+	/// The aliases of enum instances, by the enum, whose union each spells out at its
+	/// instance, as TypeScript refuses an alias that names itself through a generic alias.
+	enum_aliases: Vec<(SymId, SymId)>,
 }
 
 struct Typing {
@@ -238,17 +255,98 @@ impl<'tcx> Translator<'_, 'tcx> {
 		Some(Type::Later(state.pending.len() - 1))
 	}
 
+	/// Whether an instance of the crate's generic `adt` may name projections: it names some,
+	/// or its definition is still being typed.
+	pub(super) fn may_project(&self, adt: DefId) -> bool {
+		(self.defining_state.records.get(&adt)).is_some_and(|r| r.open.is_some() || !r.projections.is_empty())
+	}
+
+	/// The alias naming `instance`, an instance of the crate's generic type `info` without
+	/// type parameters, which a projection argument holds: `Held$Looped` for `Held<Looped>`,
+	/// whose module exports `type Held$Looped = Held<Looped, Held$Looped>`. Defined the first
+	/// time, and named while it is, so an instance its own projections hold again names it.
+	pub(super) fn instance_alias(&mut self, instance: Ty<'tcx>, info: &Adt, span: Span) -> Type {
+		if let Some(&alias) = self.defining_state.aliases.get(&instance) {
+			return Type::Sym(alias, Vec::new());
+		}
+		let tcx = self.tcx;
+		let ty::Adt(adt, args) = *instance.kind() else {
+			unreachable!("an instance of a generic type")
+		};
+		let did = adt.did();
+		let args = tcx.generics_of(did).own_args_no_defaults(tcx, args);
+		let alias = self.program.sym(Symbol {
+			module: self.type_module(did),
+			base: tcx.item_name(did).to_string(),
+			suffix: super::names::args(tcx, args).collect::<Vec<_>>().join("_"),
+			owner: None,
+			kind: SymKind::Union,
+			order: self.order(tcx.def_span(did)),
+			span: tcx.def_span(did),
+			instance: String::new(),
+			name: String::new(),
+			alias: None,
+		});
+		self.defining_state.aliases.insert(instance, alias);
+		// Typed as anywhere else, outside the projection argument.
+		let projecting = std::mem::take(&mut self.defining_state.projecting);
+		let ty = self.instance_ty(instance, info, span);
+		self.defining_state.projecting = projecting;
+		// Refused past the recursion limit, as each use of it is again.
+		if self.defining_state.too_deep {
+			self.defining_state.aliases.remove(&instance);
+			return Type::Builtin("unknown");
+		}
+		if adt.is_enum() {
+			self.defining_state.enum_aliases.push((alias, info.sym));
+		}
+		self.program.items.push(Item::Union {
+			sym: alias,
+			params: Vec::new(),
+			ty,
+			doc: None,
+		});
+		Type::Sym(alias, Vec::new())
+	}
+
+	/// Spell out each enum instance's alias as the enum's union at the instance, once every
+	/// definition is complete.
+	pub(super) fn expand_enum_aliases(&mut self) {
+		let items: rustc_data_structures::fx::FxHashMap<SymId, usize> = (self.program.items.iter().enumerate())
+			.filter_map(|(i, item)| match item {
+				Item::Union { sym, .. } => Some((*sym, i)),
+				_ => None,
+			})
+			.collect();
+		for (alias, adt) in std::mem::take(&mut self.defining_state.enum_aliases) {
+			let Item::Union { params, ty: union, .. } = &self.program.items[items[&adt]] else {
+				unreachable!("an enum's union")
+			};
+			let Item::Union {
+				ty: Type::Sym(_, args), ..
+			} = &self.program.items[items[&alias]]
+			else {
+				unreachable!("an alias of an enum instance")
+			};
+			let expanded = union.subst(&|name| params.iter().position(|p| p == name).map(|i| args[i].clone()));
+			let Item::Union { ty, .. } = &mut self.program.items[items[&alias]] else {
+				unreachable!("an alias")
+			};
+			*ty = expanded;
+		}
+	}
+
 	/// Start typing `instance`, an instance of the crate's generic type, unless it is
-	/// typed already further out in the same type expression: a projection of its
-	/// parameters is then a type whose arguments hold it again, so its TypeScript type
-	/// arguments would never end, which is refused.
+	/// typed already further out in the same type expression over type parameters, which no
+	/// alias names: a projection of its parameters is then a type whose arguments hold it
+	/// again, so its TypeScript type arguments would never end, which is refused.
 	pub(super) fn enter_instance(&mut self, instance: Ty<'tcx>, span: Span) -> bool {
 		let instancing = &self.defining_state.instancing;
 		if self.defining_state.too_deep {
 			return false;
 		}
 		let msg = match () {
-			_ if instancing.contains(&instance) => format!(
+			_ if instance.has_param() && instancing.contains(&instance) => format!(
 				"`{instance}` is not supported yet: a projection of its parameters is a type whose arguments hold `{instance}` again, so its TypeScript type arguments would never end"
 			),
 			// Named by the outermost, which the source wrote.
@@ -390,6 +488,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 		let before = (named(&self.defining_state), self.defining_state.pending.len());
 		let outer = std::mem::replace(&mut self.defining, at);
 		let outer_field = std::mem::replace(&mut self.defining_state.field, field);
+		self.defining_state.projecting += 1;
 		let mut tys: Vec<Type> = projections
 			.iter()
 			.map(|&p| {
@@ -397,6 +496,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 				self.ty(at, span)
 			})
 			.collect();
+		self.defining_state.projecting -= 1;
 		self.defining = outer;
 		self.defining_state.field = outer_field;
 		let after = (named(&self.defining_state), self.defining_state.pending.len());

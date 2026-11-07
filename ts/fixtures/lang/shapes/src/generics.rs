@@ -904,3 +904,202 @@ pub fn projected_cycles(data: &[u8], out: &mut Vec<u8>) {
 	};
 	put(out, &format!("{:?}", ghost.item));
 }
+
+/// What a source yields, named by an associated type.
+trait Source {
+	type Item;
+}
+
+/// What a source holds next, which TypeScript names through an alias where the item is it
+/// again.
+struct Carried<S: Source> {
+	tick: Ticked,
+	next: Option<Box<S::Item>>,
+}
+
+/// A source whose items hold it again.
+struct Looped;
+
+impl Source for Looped {
+	type Item = Carried<Looped>;
+}
+
+/// An enum of what a source holds next, whose alias at an instance whose items are it again
+/// spells out its union.
+enum Chain<S: Source> {
+	End,
+	Link(u8, Box<S::Item>),
+}
+
+/// A source whose items chain it again.
+struct Linked;
+
+impl Source for Linked {
+	type Item = Chain<Linked>;
+}
+
+impl Chain<Linked> {
+	fn ids(&self, out: &mut Vec<u8>) {
+		if let Chain::Link(id, next) = self {
+			out.push(*id);
+			next.ids(out);
+		}
+	}
+}
+
+/// Two types a source names, each holding the other.
+trait Duo {
+	type Ping;
+	type Pong;
+}
+
+/// What holds a [`Duo`]'s pong.
+struct Ping<D: Duo> {
+	id: u8,
+	pong: Option<Box<D::Pong>>,
+}
+
+/// What holds a [`Duo`]'s ping, or misses.
+enum Pong<D: Duo> {
+	Miss,
+	Hit(u8, Box<D::Ping>),
+}
+
+/// A duo of its own ping and pong.
+struct Rally;
+
+impl Duo for Rally {
+	type Ping = Ping<Rally>;
+	type Pong = Pong<Rally>;
+}
+
+impl Ping<Rally> {
+	fn ids(&self, out: &mut Vec<u8>) {
+		out.push(self.id);
+		if let Some(pong) = &self.pong
+			&& let Pong::Hit(id, ping) = &**pong
+		{
+			out.push(*id);
+			ping.ids(out);
+		}
+	}
+}
+
+/// Two projections, each naming the next instance down to the last.
+trait Fork {
+	type Left;
+	type Right;
+}
+
+/// A fork of what its source's projections both are.
+struct Forked<F: Fork> {
+	id: u8,
+	left: Option<Box<F::Left>>,
+	right: Option<Box<F::Right>>,
+}
+
+/// The source at a depth.
+struct Depth<const N: usize>;
+
+/// Each depth's projections, the next depth's [`Forked`].
+macro_rules! forks {
+	($($depth:literal => $next:literal),* $(,)?) => {$(
+		impl Fork for Depth<$depth> {
+			type Left = Forked<Depth<$next>>;
+			type Right = Forked<Depth<$next>>;
+		}
+	)*};
+}
+
+forks!(
+	0 => 1, 1 => 2, 2 => 3, 3 => 4, 4 => 5, 5 => 6, 6 => 7, 7 => 8, 8 => 9, 9 => 10, 10 => 11,
+	11 => 12, 12 => 13, 13 => 14, 14 => 15, 15 => 16, 16 => 17, 17 => 18, 18 => 19, 19 => 20,
+	20 => 21, 21 => 22, 22 => 23, 23 => 24,
+);
+
+/// The last depth, whose left is the first's fork again and whose right drops.
+impl Fork for Depth<24> {
+	type Left = Forked<Depth<0>>;
+	type Right = Ticked;
+}
+
+/// Types whose projections hold their instances again, directly or through each other, as
+/// structs and enums, and a type whose two projections each name the next of 25 instances,
+/// the last holding the first again, which an alias per instance names once rather than
+/// once per path.
+pub fn projected_selves(data: &[u8], out: &mut Vec<u8>) {
+	let log = Rc::new(RefCell::new(Vec::new()));
+	let tick = |id: u8| Ticked { id, log: log.clone() };
+	let mut held = None::<Carried<Looped>>;
+	for &b in data {
+		held = Some(Carried {
+			tick: tick(b),
+			next: held.map(Box::new),
+		});
+	}
+	let mut depth = 0;
+	let mut at = held.as_ref();
+	while let Some(next) = at {
+		depth += 1;
+		at = next.next.as_deref();
+	}
+	log.borrow_mut().push(depth);
+	drop(held);
+
+	let chain = data
+		.iter()
+		.rev()
+		.fold(Chain::<Linked>::End, |next, &b| Chain::Link(b, Box::new(next)));
+	let mut ids = Vec::new();
+	chain.ids(&mut ids);
+	put(out, &format!("{ids:?}"));
+
+	let mut ping = Ping::<Rally> { id: 0xee, pong: None };
+	for (i, &b) in data.iter().enumerate() {
+		ping = Ping {
+			id: b,
+			pong: Some(Box::new(match i % 3 {
+				0 => Pong::Miss,
+				_ => Pong::Hit(!b, Box::new(ping)),
+			})),
+		};
+	}
+	let mut ids = Vec::new();
+	ping.ids(&mut ids);
+	put(out, &format!("{ids:?}"));
+
+	let last = Forked::<Depth<24>> {
+		id: 24,
+		left: data.first().map(|&b| {
+			Box::new(Forked {
+				id: b,
+				left: None,
+				right: None,
+			})
+		}),
+		right: data.last().map(|&b| Box::new(tick(!b))),
+	};
+	let below = Forked::<Depth<23>> {
+		id: 23,
+		left: None,
+		right: Some(Box::new(last)),
+	};
+	let mut fork = Forked::<Depth<0>> {
+		id: 0,
+		left: None,
+		right: None,
+	};
+	if data.len() % 2 == 0 {
+		fork.left = Some(Box::new(Forked {
+			id: 1,
+			left: None,
+			right: None,
+		}));
+	}
+	let ids = (fork.id, fork.left.as_ref().map(|f| f.id), below.id);
+	let right = (below.right.as_ref()).map(|f| (f.id, f.left.as_ref().map(|f| f.id), f.right.as_ref().map(|t| t.id)));
+	put(out, &format!("{ids:?} {right:?}"));
+	drop(below);
+	drop(fork);
+	out.extend(log.borrow().iter());
+}

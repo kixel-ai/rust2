@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { ints, strings, derived, written, counts, rounding, panics, wrapped, collections, enums, iters, adaptors, writes, objects, sources, sets, calls, cells, searches } from "./fmt.ts";
-import { methods, runs, units, projections, projectedCycles } from "./generics.ts";
+import { methods, runs, units, projections, projectedCycles, projectedSelves } from "./generics.ts";
 import type * as Either from "./generics.Either.ts";
 import * as Fixed from "./generics.Fixed.ts";
 import type * as Pile from "./generics.Pile.ts";
@@ -237,6 +237,8 @@ export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.By
 		projections(data29, out30);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["generics::projected_cycles", (_240: rs.u8, data30: rs.ByteSlice, out31: rs.ByteVec): undefined => {
 		projectedCycles(data30, out31);
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["generics::projected_selves", (_241: rs.u8, data31: rs.ByteSlice, out32: rs.ByteVec): undefined => {
+		projectedSelves(data31, out32);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }
 

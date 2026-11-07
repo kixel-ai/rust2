@@ -60,5 +60,8 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("generics::projected_cycles", |_, data, out| {
 			generics::projected_cycles(data, out)
 		}),
+		("generics::projected_selves", |_, data, out| {
+			generics::projected_selves(data, out)
+		}),
 	]
 }

@@ -15,6 +15,15 @@ use super::{Adt, AdtRepr, Translator};
 use crate::program::{SymKind, Symbol};
 use crate::ts::{self, Expr, Param, Stmt, StmtKind, Type};
 
+/// What [`Translator::glue_all`] asks of what an instance's glue drops through.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Asked {
+	/// That JS sees none of it drop.
+	Inert,
+	/// That each drops through its own `[Symbol.dispose]`, giving glue where it needs it if so.
+	Disposable(bool),
+}
+
 impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether dropping a `ty` does something JS can see.
 	pub fn drops(&mut self, ty: Ty<'tcx>) -> bool {
@@ -202,7 +211,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				None | Some(Std::Peekable) if self.std_iter(ty) => self.closures_held(ty),
 				Some(_) => false,
 				None if self.shared_glue(*adt) => {
-					if !self.glue_all(ty, *adt, args, |t, held| t.disposable(held, glue)) {
+					if !self.glue_all(ty, *adt, args, Asked::Disposable(glue.is_some()), |t, held| {
+						t.disposable(held, glue)
+					}) {
 						return false;
 					}
 					if let Some(span) = glue {
@@ -225,20 +236,38 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 	}
 
-	/// Whether `f` holds of everything [`Self::glue_held`] has `ty`, an instance of `adt` with
-	/// `args`, drop through. It holds of an instance already being asked about, which only a
-	/// projection whose value holds the instance again reaches, and which typing the
-	/// instance refuses. What nests past the crate's recursion limit is refused.
+	/// Whether `f`, which `asked` names, holds of everything [`Self::glue_held`] has `ty`, an
+	/// instance of `adt` with `args`, drop through. It holds of an instance already being
+	/// asked about, which a projection whose value holds the instance again reaches: what
+	/// the instance drops through there it drops through already. Each answer is kept, once
+	/// it no longer rests on an instance still being asked about, so an instance is asked
+	/// about once however many paths reach it. What nests past the crate's recursion limit
+	/// is refused.
 	fn glue_all(
 		&mut self,
 		ty: Ty<'tcx>,
 		adt: AdtDef<'tcx>,
 		args: ty::GenericArgsRef<'tcx>,
+		asked: Asked,
 		f: impl Fn(&mut Self, Ty<'tcx>) -> bool,
 	) -> bool {
-		if self.defining_state.glue_open.len() > self.tcx.recursion_limit().0 {
+		let key = (ty, asked);
+		let state = &mut self.defining_state;
+		if let Some(&all) = state.glue_known.get(&key) {
+			return all;
+		}
+		// What rests on the instances it rested on.
+		if let Some(&rests) = state.glue_resting.get(&key) {
+			state.glue_rests = state.glue_rests.min(rests);
+			return true;
+		}
+		if let Some(open) = state.glue_open.iter().position(|t| *t == ty) {
+			state.glue_rests = state.glue_rests.min(open);
+			return true;
+		}
+		if state.glue_open.len() > self.tcx.recursion_limit().0 {
 			// At the definition of the outermost, which it names.
-			let outer = self.defining_state.glue_open[0];
+			let outer = state.glue_open[0];
 			let span = match outer.kind() {
 				ty::Adt(outer, _) => self.tcx.def_span(outer.did()),
 				_ => self.tcx.def_span(adt.did()),
@@ -251,12 +280,32 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			);
 			return false;
 		}
-		if self.defining_state.glue_open.contains(&ty) {
-			return true;
-		}
-		self.defining_state.glue_open.push(ty);
+		let depth = state.glue_open.len();
+		state.glue_open.push(ty);
+		let outer_rests = std::mem::replace(&mut state.glue_rests, usize::MAX);
+		let resting = state.glue_order.len();
 		let all = self.glue_held(adt, args).into_iter().all(|held| f(self, held));
-		self.defining_state.glue_open.pop();
+		let state = &mut self.defining_state;
+		state.glue_open.pop();
+		let rests = std::mem::replace(&mut state.glue_rests, outer_rests);
+		match () {
+			// Still resting on one further out, whose answer decides it too.
+			_ if all && rests < depth => {
+				state.glue_rests = state.glue_rests.min(rests);
+				state.glue_resting.insert(key, rests);
+				state.glue_order.push(key);
+			}
+			_ => {
+				// Each answer that rested on it holds if it does.
+				for rested in state.glue_order.drain(resting..) {
+					state.glue_resting.remove(&rested);
+					if all {
+						state.glue_known.insert(rested, true);
+					}
+				}
+				state.glue_known.insert(key, all);
+			}
+		}
 		all
 	}
 
@@ -448,7 +497,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Some(Std::Context) => false,
 				Some(_) => true,
 				// Its glue, if an instance that drops gave it one, drops its type parameters' fields.
-				None if adt.is_struct() => self.glue_all(ty, *adt, args, |t, held| t.inert(held)),
+				None if adt.is_struct() => self.glue_all(ty, *adt, args, Asked::Inert, |t, held| t.inert(held)),
 				None => true,
 			},
 			_ => true,

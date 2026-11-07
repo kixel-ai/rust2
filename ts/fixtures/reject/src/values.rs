@@ -110,27 +110,6 @@ pub trait Source {
 	type Item;
 }
 
-/// What a source holds next.
-pub struct Held<S: Source> {
-	pub next: Option<Box<S::Item>>,
-}
-
-/// A source whose items hold it again.
-pub struct Looped;
-
-impl Source for Looped {
-	type Item = Held<Looped>;
-}
-
-/// `Held<Looped>`'s projection argument is `Held<Looped>` itself, which TypeScript can name
-/// only through a type alias of its own.
-pub fn projected_self(deep: bool) -> bool {
-	let held: Held<Looped> = Held {
-		next: deep.then(|| Box::new(Held { next: None })),
-	};
-	held.next.is_some()
-}
-
 /// What a source lends next, which drops nothing itself.
 pub struct Lent<S: Source + 'static> {
 	pub next: Option<&'static S::Item>,
@@ -149,6 +128,26 @@ pub fn projected_inert(deep: bool) -> bool {
 	let lent = std::rc::Rc::new(Lent::<Lends> { next: None });
 	drop(lent);
 	deep
+}
+
+/// A source wrapped once, whose items lend it again at any `T`.
+pub struct Relent<T>(pub T);
+
+impl<T: 'static> Source for Relent<T> {
+	type Item = Lent<Relent<T>>;
+}
+
+/// A generic type holding an instance over its own parameter whose projection holds that
+/// instance again, which no alias names, as an alias names only instances without type
+/// parameters.
+pub struct Over<T: 'static> {
+	pub held: Option<&'static Lent<Relent<T>>>,
+}
+
+/// `Over<T>`'s definition would hold `Lent<Relent<T>>` without end.
+pub fn projected_over(deep: bool) -> bool {
+	let over = Over::<u8> { held: None };
+	over.held.is_none() && deep
 }
 
 /// What a source lends next, beside what it owns, so it drops.
@@ -192,6 +191,12 @@ pub struct Spread<S: Source + 'static> {
 pub fn projected_spread(deep: bool) -> bool {
 	let spread: Spread<Wrapped<u8>> = Spread { item: None, next: None };
 	spread.next.is_none() && deep
+}
+
+/// Two types a source names.
+pub trait Duo {
+	type Ping;
+	type Pong;
 }
 
 /// What a duo's ping and pong both are at a wrapped duo: the same type at one wrapped again.
@@ -245,38 +250,6 @@ pub type Deep = Ten<Ten<Ten<Ten<Ten<Ten<Ten<Ten<Ten<Ten<Ten<Ten<Ten<Ten<Zero>>>>
 /// Dropping a shared chain drops none of what it lends.
 pub fn projected_deep(chain: std::rc::Rc<Links<Deep>>) {
 	drop(chain);
-}
-
-/// Two types a source names, each holding the other.
-pub trait Duo {
-	type Ping;
-	type Pong;
-}
-
-/// What holds a [`Duo`]'s pong.
-pub struct Ping<D: Duo> {
-	pub pong: Option<Box<D::Pong>>,
-}
-
-/// What holds a [`Duo`]'s ping.
-pub struct Pong<D: Duo> {
-	pub ping: Option<Box<D::Ping>>,
-}
-
-/// A duo of its own ping and pong.
-pub struct Rally;
-
-impl Duo for Rally {
-	type Ping = Ping<Rally>;
-	type Pong = Pong<Rally>;
-}
-
-/// `Ping<Rally>`'s projection argument is `Pong<Rally>`, whose own is `Ping<Rally>` again.
-pub fn projected_rally(deep: bool) -> bool {
-	let ping: Ping<Rally> = Ping {
-		pong: deep.then(|| Box::new(Pong { ping: None })),
-	};
-	ping.pong.is_some()
 }
 
 /// A chain of types, each naming the next.

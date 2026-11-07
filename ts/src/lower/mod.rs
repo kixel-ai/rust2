@@ -65,6 +65,7 @@ pub fn translate<'tcx>(tcx: TyCtxt<'tcx>, config: &Config) -> Option<Program> {
 	if t.failed {
 		return None;
 	}
+	t.expand_enum_aliases();
 	t.program.names = t.names();
 	t.program.mark_unread();
 	t.program.merge();
@@ -1104,10 +1105,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let instancing = std::mem::take(&mut self.defining_state.instancing);
 		let instanced = std::mem::take(&mut self.defining_state.instanced);
 		let too_deep = std::mem::take(&mut self.defining_state.too_deep);
+		let projecting = std::mem::take(&mut self.defining_state.projecting);
 		let info = self.define(adt, span);
 		(self.held, self.glue, self.defining, self.defining_state.field) = (held, glue, defining, field);
 		(self.defining_state.instancing, self.defining_state.instanced) = (instancing, instanced);
-		self.defining_state.too_deep = too_deep;
+		(self.defining_state.too_deep, self.defining_state.projecting) = (too_deep, projecting);
 		info
 	}
 
@@ -1913,13 +1915,32 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			return Type::Builtin("unknown");
 		}
 		let info = self.adt(adt, span);
+		let instance = Ty::new_adt(tcx, adt, args);
+		// In a projection argument, named by an alias, so a type whose projections hold
+		// instances is typed once per instance, however many paths through them reach it,
+		// and one that holds itself again names its alias.
+		if self.defining_state.projecting > 0
+			&& !instance.has_param()
+			&& args.types().next().is_some()
+			&& self.may_project(adt.did())
+		{
+			return self.instance_alias(instance, &info, span);
+		}
+		self.instance_ty(instance, &info, span)
+	}
+
+	/// The TypeScript type of `instance`, an instance of the crate's generic type `info`:
+	/// its type arguments, then what each of its projections is at them.
+	fn instance_ty(&mut self, instance: Ty<'tcx>, info: &Adt, span: Span) -> Type {
+		let ty::Adt(adt, args) = *instance.kind() else {
+			unreachable!("an instance of a generic type")
+		};
 		// Of a definition still being typed, whose instances are checked once it is complete.
 		if let Some(later) = self.later_projections(adt.did(), args, span) {
 			let mut tys: Vec<Type> = args.types().map(|t| self.ty(t, span)).collect();
 			tys.push(later);
 			return Type::Sym(info.sym, tys);
 		}
-		let instance = Ty::new_adt(tcx, adt, args);
 		if let Some(ty) = self.instanced(instance) {
 			return ty;
 		}
@@ -1936,8 +1957,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			self.err(span, msg);
 		}
 		tys.extend(self.projection_args(adt.did(), args, span).into_iter().map(|(_, t)| t));
-		// Past the recursion limit, refused already: what it typed is not kept, as each
-		// projection may double it.
+		// Past the recursion limit, refused already: what it typed is not kept.
 		if self.defining_state.too_deep {
 			self.leave_instance(instance, None);
 			return Type::Builtin("unknown");
@@ -1981,9 +2001,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let (projections, names): (Vec<Ty<'tcx>>, Vec<String>) = self.defined(adt).projections.iter().cloned().unzip();
 		let env = self.defining.map_or(self.typing_env(), |(_, env)| env);
 		let tcx = self.tcx;
-		(projections.into_iter().zip(names))
+		self.defining_state.projecting += 1;
+		let args = (projections.into_iter().zip(names))
 			.map(|(projection, name)| (name, self.ty(copy::instantiate(tcx, env, projection, args), span)))
-			.collect()
+			.collect();
+		self.defining_state.projecting -= 1;
+		args
 	}
 
 	/// The TypeScript type of `field` in the definition of `adt`, over its own parameters.
@@ -2093,7 +2116,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						continue;
 					};
 					let arg = copy::instantiate(tcx, env, param, args);
+					self.defining_state.projecting += 1;
 					let decided = self.ty(arg, span);
+					self.defining_state.projecting -= 1;
 					let (holds, alias) = match option {
 						true => (holds_undefined(&decided) == at.undefined, "OptionOf"),
 						false => (holds_pending(&decided) == at.pending, "PollOf"),

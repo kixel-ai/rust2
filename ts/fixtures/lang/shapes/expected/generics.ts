@@ -3,27 +3,36 @@
 import * as rs from "./rs.ts";
 import { copy$array_generics_Either_u8_shapes_Point, copy$generics_Fixed_u16, copy$generics_Fixed_u8, copy$generics_Wrap_shapes_Point, copy$generics_Wrap_u8, copy$shapes_Gauge, drop$generics_Pile_generics_Ticks, drop$generics_Run_generics_Ticked } from "./lib.ts";
 import { thenSome$1ctlqen, thenSome$0tbnivw, thenSome$19pue01, thenSome$0quywni, thenSome$1n1oy1h, then$01xsbgy, then$0y7on52, then$1qflv5x } from "./core/bool.ts";
-import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$0w7995p as option_unwrapOrDefault$0w7995p, unwrapOrDefault$03apme8 as option_unwrapOrDefault$03apme8, map$0ggarad as option_map$0ggarad, map$132wgz4 as option_map$132wgz4, map$0ydco3f as option_map$0ydco3f, map$057a36e as option_map$057a36e } from "./core/option.ts";
+import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$0w7995p as option_unwrapOrDefault$0w7995p, unwrapOrDefault$03apme8 as option_unwrapOrDefault$03apme8, map$00jdj9f as option_map$00jdj9f, map$1ug09xc as option_map$1ug09xc, map$1747o3c as option_map$1747o3c, map$1mvacy3 as option_map$1mvacy3, map$1ub01y7 as option_map$1ub01y7, map$0ggarad as option_map$0ggarad, map$132wgz4 as option_map$132wgz4, map$1olalbb as option_map$1olalbb, map$0xpm57l as option_map$0xpm57l, map$0ydco3f as option_map$0ydco3f, map$057a36e as option_map$057a36e, asDeref$10lhnlx as option_asDeref$10lhnlx } from "./core/option.ts";
 import { eq$1qrb1lw as poll_eq$1qrb1lw, isPending$07fnw8g, isPending$1imonrp, isPending$189w6zf, isPending$1yqrsts } from "./core/task/poll.ts";
 import type * as Pair from "./fmt.Pair.ts";
 import * as Ahead from "./generics.Ahead.ts";
 import * as Batch from "./generics.Batch.ts";
 import * as Branch from "./generics.Branch.ts";
+import * as Carried from "./generics.Carried.ts";
+import * as Chain from "./generics.Chain.ts";
 import * as Deep from "./generics.Deep.ts";
+import type * as Depth from "./generics.Depth.ts";
 import * as Drained from "./generics.Drained.ts";
 import * as Either from "./generics.Either.ts";
 import * as Even from "./generics.Even.ts";
 import * as Fixed from "./generics.Fixed.ts";
 import type * as Flags from "./generics.Flags.ts";
+import * as Forked from "./generics.Forked.ts";
 import * as Ghost from "./generics.Ghost.ts";
 import * as Kept from "./generics.Kept.ts";
 import type * as Lends from "./generics.Lends.ts";
 import type * as Lent from "./generics.Lent.ts";
+import type * as Linked from "./generics.Linked.ts";
+import type * as Looped from "./generics.Looped.ts";
 import type * as Marked from "./generics.Marked.ts";
 import * as Odd from "./generics.Odd.ts";
 import * as Parked from "./generics.Parked.ts";
 import type * as Paths from "./generics.Paths.ts";
 import * as Pile from "./generics.Pile.ts";
+import * as Ping from "./generics.Ping.ts";
+import type * as Pong from "./generics.Pong.ts";
+import type * as Rally from "./generics.Rally.ts";
 import * as Run from "./generics.Run.ts";
 import * as Runs from "./generics.Runs.ts";
 import * as Swap from "./generics.Swap.ts";
@@ -707,6 +716,91 @@ export function projectedCycles(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put(out, shown.v);
 	const arg = new Ghost.Ghost(option_map$057a36e(rs.byteSliceFirst(data), (_23: rs.u8): undefined => {}), undefined).item;
 	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(arg, f, rs.fmtUnit, rs.None)]).v);
+}
+
+/**
+ * Types whose projections hold their instances again, directly or through each other, as
+ * structs and enums, and a type whose two projections each name the next of 25 instances,
+ * the last holding the first again, which an alias per instance names once rather than
+ * once per path.
+ */
+export function projectedSelves(data: rs.ByteSlice, out: rs.ByteVec): void {
+	let _73!: Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
+	const log: rs.Arc<rs.RefCell<rs.ByteVec>> = new rs.Arc(new rs.RefCell(new rs.ByteVec()));
+	const tick: (a0: rs.u8) => Ticked.Ticked = (id: rs.u8): Ticked.Ticked => {
+		return new Ticked.Ticked(id, rs.arcClone(log));
+	};
+	let held: Carried.Carried<Looped.Looped, Carried.Carried$generics_Looped> | undefined = undefined;
+	for (const _11 of rs.byteSliceView(data)) {
+		held = new Carried.Carried(tick(_11), option_map$00jdj9f(held, (a0: Carried.Carried<Looped.Looped, Carried.Carried$generics_Looped>): Carried.Carried<Looped.Looped, Carried.Carried$generics_Looped> => {
+			return a0;
+		}) as rs.OptionOf<Carried.Carried$generics_Looped>);
+	}
+	let depth: rs.u8 = 0;
+	let at: Carried.Carried<Looped.Looped, Carried.Carried$generics_Looped> | undefined = held;
+	while (at !== undefined) {
+		const next: Carried.Carried<Looped.Looped, Carried.Carried$generics_Looped> = at;
+		depth = rs.u8Add(depth, 1);
+		at = option_asDeref$10lhnlx(next.next);
+	}
+	const _33: rs.RefCell<rs.ByteVec> = rs.refCellBorrowMut(log.value);
+	rs.byteVecPush(_33.value, depth);
+	rs.refMutRelease(_33);
+	rs.drop(held);
+	const chain: Chain.Chain<Linked.Linked, Chain.Chain$generics_Linked> = rs.iterFold(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), { tag: "End" } as Chain.Chain<Linked.Linked, Chain.Chain$generics_Linked>, (next2: Chain.Chain<Linked.Linked, Chain.Chain$generics_Linked>, _32: rs.u8): Chain.Chain<Linked.Linked, Chain.Chain$generics_Linked> => {
+		return { tag: "Link", _0: _32, _1: next2 } as Chain.Chain<Linked.Linked, Chain.Chain$generics_Linked>;
+	});
+	const ids: rs.ByteVec = new rs.ByteVec();
+	Chain.ids$generics_Linked(chain, ids);
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(ids), f, rs.u8Debug)]).v);
+	let ping: Ping.Ping<Rally.Rally, Pong.Pong$generics_Rally> = new Ping.Ping(238, undefined as rs.OptionOf<Pong.Pong$generics_Rally>);
+	const iter2: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	while (true) {
+		const _65: [rs.usize, rs.u8] | rs.Done = iter2.next();
+		if (_65 === rs.DONE) {
+			break;
+		}
+		const i: rs.usize = _65[0];
+		const b2: rs.u8 = _65[1];
+		if (rs.usizeRem(i, 3) === 0) {
+			_73 = { tag: "Miss" } as Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
+		} else {
+			_73 = { tag: "Hit", _0: ~b2 & 0xff, _1: ping } as Pong.Pong<Rally.Rally, Ping.Ping$generics_Rally>;
+		}
+		ping = new Ping.Ping(b2, _73 as rs.OptionOf<Pong.Pong$generics_Rally>);
+	}
+	const ids2: rs.ByteVec = new rs.ByteVec();
+	Ping.ids$generics_Rally(ping, ids2);
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(ids2), f, rs.u8Debug)]).v);
+	const below: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_24, Forked.Forked$generics_Depth_24> = new Forked.Forked(23, undefined as rs.OptionOf<Forked.Forked$generics_Depth_24>, new Forked.Forked(24, option_map$1olalbb(rs.byteSliceFirst(data), (_2: rs.u8): Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_1, Forked.Forked$generics_Depth_1> => {
+		return new Forked.Forked(_2, undefined as rs.OptionOf<Forked.Forked$generics_Depth_1>, undefined as rs.OptionOf<Forked.Forked$generics_Depth_1>);
+	}) as rs.OptionOf<Forked.Forked$generics_Depth_0>, option_map$0xpm57l(rs.byteSliceLast(data), (_22: rs.u8): Ticked.Ticked => {
+		return tick(~_22 & 0xff);
+	}) as rs.OptionOf<Ticked.Ticked>) as rs.OptionOf<Forked.Forked$generics_Depth_24>);
+	const fork: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_1, Forked.Forked$generics_Depth_1> = new Forked.Forked(0, undefined as rs.OptionOf<Forked.Forked$generics_Depth_1>, undefined as rs.OptionOf<Forked.Forked$generics_Depth_1>);
+	if (rs.usizeRem(data.length, 2) === 0) {
+		const _113: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_2, Forked.Forked$generics_Depth_2> | undefined = new Forked.Forked(1, undefined as rs.OptionOf<Forked.Forked$generics_Depth_2>, undefined as rs.OptionOf<Forked.Forked$generics_Depth_2>);
+		rs.drop(fork.left);
+		fork.left = _113;
+	}
+	const ids3: [rs.u8, rs.u8 | undefined, rs.u8] = [fork.id, option_map$1747o3c(fork.left, (f: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_2, Forked.Forked$generics_Depth_2>): rs.u8 => {
+		return f.id;
+	}), below.id];
+	const right: [rs.u8, rs.u8 | undefined, rs.u8 | undefined] | undefined = option_map$1mvacy3(below.right, (f2: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_0, Ticked.Ticked>): [rs.u8, rs.u8 | undefined, rs.u8 | undefined] => {
+		return [f2.id, option_map$1ug09xc(f2.left, (f3: Forked.Forked<Depth.Depth, Forked.Forked$generics_Depth_1, Forked.Forked$generics_Depth_1>): rs.u8 => {
+			return f3.id;
+		}), option_map$1ub01y7(f2.right, (t: Ticked.Ticked): rs.u8 => {
+			return t.id;
+		})] as [rs.u8, rs.u8 | undefined, rs.u8 | undefined];
+	});
+	const args9 = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(ids3[0], f), (f: rs.Formatter) => rs.fmtOption(ids3[1], f, rs.u8Debug), (f: rs.Formatter) => rs.u8Debug(ids3[2], f)], f), (f: rs.Formatter) => rs.fmtOption(right, f, (value: [rs.u8, rs.u8 | undefined, rs.u8 | undefined], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.fmtOption(value[1], f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(value[2], f, rs.u8Debug)], f))];
+	put(out, rs.fmtFormat([args9[0], " ", args9[1]]).v);
+	below[Symbol.dispose]();
+	fork[Symbol.dispose]();
+	const _149: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log.value);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_149.value))), undefined, true);
+	rs.refRelease(_149);
+	log[Symbol.dispose]();
 }
 
 //# sourceMappingURL=generics.ts.map
