@@ -26,14 +26,42 @@ The rest are gaps. At `main` they include a panic its hook cannot locate
 [#565](https://github.com/moq-dev/rust2/pull/565)), `offset_from` of one Rust allocation
 JS keeps in two arrays, a pointer moved past the array JS keeps it in (`AtIndex.reach`, such
 as one kept in a field), `Bytes::slice_ref` of other storage, `alloc`'s bytes read as
-values, ranges stepped without their type, fmt widths written as a placeholder, and a raw
-slice of a byte in no array cast to `*const [u8; N]` by a route the body doesn't show,
-which [a byte local in a buffer of its own](/quest/m3/ts-unsafe/lone-byte-buffers.md) owns
-for locals.
+values, ranges stepped without their type, fmt widths written as a placeholder, a read
+through a substring's `str::as_ptr` outside its own bytes but inside its text's
+(`s[..1].as_ptr().add(1)`, `s[1..].as_ptr().wrapping_sub(1)`), and a raw or mutable slice
+of a byte in a field (a struct's, a tuple's, a closure's capture, or one an async body keeps
+across an `.await`), or a cast of one to `*const [u8; N]`: a field's byte has no buffer of
+its own, unlike a `u8` local whose `&raw` the body takes, so the fix is a `Uint8Array(1)`
+for each `u8` field whose address is taken. A `u8` local whose address only a call takes,
+as `ptr::from_mut(&mut b)` does, has none either.
+The substring reads are UB under Stacked Borrows and allowed under Tree Borrows, so they
+throw until Rust settles its memory model (decided 2026-11-07 in
+[#634](https://github.com/moq-dev/rust2/pull/634)); if Rust rules them defined, a
+substring's pointer carries its text's encoding and offset.
 `git grep 'rust2-ts: ' ts/runtime` lists them; classify each before fixing. The pointer
 comparisons [#584](https://github.com/moq-dev/rust2/pull/584) refuses at translation, where
 JS may make two `rs.Place`s for one place, are out of scope: addresses were their route, and
 addresses stay refused (decided 2026-11-07 in [the model epic](/quest/m2/ts-model/README.md)).
+
+✅ Decided with the maintainer on 2026-11-06 in
+[moq-dev/rust2#608](https://github.com/moq-dev/rust2/pull/608): comparing `*const [T]` of
+values JS copies moved here from [rs.Slice](/quest/m3/ts-slice-object.md). The options
+were to wait on rs.String ([moq-dev/rust2#574](https://github.com/moq-dev/rust2/pull/574)) and run only if `&str` shares
+its bytes, or to move it here with the other comparisons left refused (picked). Its only
+consumer in moq-net is form_urlencoded 1.2.2's `src/lib.rs:417`,
+`debug_assert!(ptr::eq(s.as_bytes(), vec))`, of the `&str` that
+`String::from_utf8_lossy(&vec)` borrowed. Under
+[moq-dev/rust2#574](https://github.com/moq-dev/rust2/pull/574)'s decision a `&str` stays a
+JS string, so `as_bytes` makes fresh bytes and today's refusal is exact; comparing by array
+and offset would answer `false` where Rust answers `true`. Look for an exact slower path.
+
+✅ Decided with the maintainer on 2026-11-07 in
+[moq-dev/rust2#608](https://github.com/moq-dev/rust2/pull/608): `ptr::eq` of an array that
+`as_chunks` split from one flat slice, as std lends it to a callback, moved here. Such an
+array has no JS array of its own, so `rs.arraySliceItems` gives std a copy of it, and
+`ptr::eq` with the array lent elsewhere answers `false` where Rust answers `true`. Arrays
+that are each a JS array of their own keep their identity. Look for an exact slower path
+with the `*const [T]` comparisons above.
 
 Public API: the translator's output, and which crates translate.
 

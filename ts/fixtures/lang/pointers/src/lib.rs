@@ -58,6 +58,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("pointers::nested_cells", |_, data, out| {
 			pointers::nested_cells(data, out)
 		}),
+		("pointers::lone_bytes", |_, data, out| pointers::lone_bytes(data, out)),
 	]
 }
 

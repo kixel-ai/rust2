@@ -12,7 +12,7 @@ use rustc_middle::mir::{self, BasicBlock, Local, Location, Operand, ProjectionEl
 use rustc_middle::ty::{self, GenericArgsRef};
 use rustc_span::Spanned;
 
-use super::Fx;
+use super::{Fx, Slot};
 use crate::lower::library::{self, Std};
 use crate::lower::pointer::{self, Pointee};
 use crate::ts::{Expr, Stmt};
@@ -22,29 +22,34 @@ use crate::ts::{Expr, Stmt};
 enum Array<'tcx> {
 	/// An array of one, around the place a `&raw` here took, which each `&raw` makes anew.
 	Lone(Location),
+	/// The `Uint8Array` of one a byte variable, whose `&raw` the body takes, is kept in.
+	Byte(Local),
 	/// A shared slice JS copies, of a byte in no array, made by the call ending this block,
 	/// with its length if the body fixes it.
 	Copy(BasicBlock, Option<i128>),
 	/// The array of a variable of this body's own, or of a field of one, at this place.
 	Owned(mir::Place<'tcx>),
+	/// A `str`'s UTF-8, which JS encodes anew at each `as_ptr`, the call ending this block.
+	Text(BasicBlock),
 }
 
 impl<'tcx> Array<'tcx> {
 	/// How many elements the array holds, if the body shows it.
 	fn len(self) -> Option<i128> {
 		match self {
-			Array::Lone(_) => Some(1),
+			Array::Lone(_) | Array::Byte(_) => Some(1),
 			Array::Copy(_, len) => len,
-			Array::Owned(_) => None,
+			Array::Owned(_) | Array::Text(_) => None,
 		}
 	}
 
 	/// What the array is, as a refusal names it.
 	fn what(self) -> &'static str {
 		match self {
-			Array::Lone(_) => "a value in no array",
+			Array::Lone(_) | Array::Byte(_) => "a value in no array",
 			Array::Copy(..) => "a shared slice JS copies",
 			Array::Owned(_) => "an array of this body's own",
+			Array::Text(_) => "a `str`'s bytes",
 		}
 	}
 }
@@ -58,9 +63,8 @@ struct Origin<'tcx> {
 
 impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// Why the call of std's `def_id` would fail at run time where Rust's is defined, if the
-	/// body proves it would: `offset_from` between pointers JS keeps in different arrays, a
-	/// raw or mutable slice of a byte in no array of bytes, or a pointer, slice, or copy
-	/// reaching out of an array of one or a copied byte.
+	/// body proves it would: `offset_from` between pointers JS keeps in different arrays, or
+	/// a pointer, slice, copy, or write reaching out of an array of one or a copied byte.
 	pub(super) fn stray(
 		&self,
 		def_id: rustc_hir::def_id::DefId,
@@ -73,11 +77,6 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let (owner, name) = library::key(self.tcx, def_id)?;
 		let arg = |i: usize| args.get(i).map(|a| &a.node);
 		let pointee = gargs.types().next()?;
-		if matches!((owner.as_str(), name.as_str()), ("ptr" | "NonNull", "cast"))
-			&& let Some(why) = self.lone_byte_array(arg(0)?, pointee, gargs.types().nth(1)?)
-		{
-			return Some(why);
-		}
 		if self.b.t.zero_sized(pointee) || self.b.t.pointee(pointee) != Pointee::Place {
 			return None;
 		}
@@ -110,6 +109,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 			("ptr" | "NonNull", "offset_from" | "offset_from_unsigned") => {
 				let (a, b) = (self.origin(arg(0)?)?, self.origin(arg(1)?)?);
+				if let (Array::Text(_), Array::Text(_)) = (a.array, b.array) {
+					return (a.array != b.array).then(|| {
+						"`offset_from` between pointers of two `str::as_ptr` calls, each into an encoding of the text of its own, which JS keeps in different arrays".into()
+					});
+				}
 				self.apart(a.array, b.array).then(|| {
 					format!(
 						"`offset_from` between a pointer into {} and one into {}, which JS keeps in different arrays",
@@ -126,11 +130,6 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			| ("ptr", "slice_from_raw_parts" | "slice_from_raw_parts_mut")
 			| ("NonNull", "slice_from_raw_parts") => {
 				let o = self.origin(arg(0)?)?;
-				let byte = crate::lower::byte(pointee);
-				let none = self.const_int(arg(1)?) == Some(0);
-				if byte && name != "from_raw_parts" && !none && matches!(o.array, Array::Lone(_)) {
-					return Some("a raw or mutable slice of a byte in no array of bytes".into());
-				}
 				// A raw pointer to a slice reads nothing until a read through it.
 				if owner != "raw" {
 					return None;
@@ -200,6 +199,15 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					op,
 					_,
 				) if self.same_pointee(op, local) => self.origin(op),
+				Rvalue::RawPtr(mir::RawPtrKind::Const | mir::RawPtrKind::Mut, place)
+					if let Some(local) = self.raw_byte(*place)
+						&& matches!(self.slots[local], Slot::Byte(_)) =>
+				{
+					Some(Origin {
+						array: Array::Byte(local),
+						index: Some(0),
+					})
+				}
 				Rvalue::RawPtr(mir::RawPtrKind::Const | mir::RawPtrKind::Mut, place) => {
 					match place.projection.as_slice() {
 						// `&raw mut *p` is `p`.
@@ -235,6 +243,12 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 			("NonNull", "as_ptr" | "new_unchecked") => self.origin(&args[0].node),
 			("slice" | "Vec", "as_ptr" | "as_mut_ptr") => self.start(&args[0].node),
+			// The start of its own text's encoding, though a substring's bytes start past its
+			// text's in Rust, so a move back before it is refused, as one off a copy is.
+			("str", "as_ptr") => Some(Origin {
+				array: Array::Text(self.def_block(local)?),
+				index: Some(0),
+			}),
 			_ => None,
 		}
 	}
@@ -434,54 +448,6 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let erases = t.identity_pointee(to) && !t.identity_pointee(from) && t.pointee(from) == Pointee::Place;
 		(erases && pointer::unerasable(self.b, from).is_none() && self.arc_pointer(op) == Some(false))
 			.then(|| pointer::erased_place(t.uninit_inner(from)))
-	}
-
-	/// Why the cast of the raw slice `op` of bytes, a pointer to `from`, to one to `to`, an
-	/// array of some of them, would fail at run time where Rust's is defined: the body shows
-	/// the slice starts at a byte in no array, which no `Uint8Array` can share.
-	pub(super) fn lone_byte_array(&self, op: &Operand<'tcx>, from: ty::Ty<'tcx>, to: ty::Ty<'tcx>) -> Option<String> {
-		let t = &self.b.t;
-		let (ty::Slice(from), ty::Array(to, n)) = (t.uninit_inner(from).kind(), t.uninit_inner(to).kind()) else {
-			return None;
-		};
-		if !crate::lower::byte(*from) || !crate::lower::byte(*to) || n.try_to_target_usize(self.tcx) == Some(0) {
-			return None;
-		}
-		matches!(self.raw_start(op)?.array, Array::Lone(_))
-			.then(|| "a raw or mutable slice of a byte in no array of bytes".into())
-	}
-
-	/// Where the raw slice, `NonNull` of one, or slice `op` starts, if the body shows it.
-	fn raw_start(&self, op: &Operand<'tcx>) -> Option<Origin<'tcx>> {
-		let local = self.traced(op)?;
-		if self.def_at[local].is_some() {
-			return match self.def_rvalue(local)? {
-				Rvalue::Use(op, _)
-				| Rvalue::Cast(
-					mir::CastKind::PtrToPtr
-					| mir::CastKind::PointerCoercion(ty::adjustment::PointerCoercion::MutToConstPointer, _),
-					op,
-					_,
-				) if self.same_pointee(op, local) => self.raw_start(op),
-				// `&raw const *s`, of the slice `s`.
-				Rvalue::RawPtr(_, place) if place.projection.as_slice() == [ProjectionElem::Deref] => {
-					self.raw_start(&Operand::Copy(mir::Place::from(place.local)))
-				}
-				_ => self.start(op),
-			};
-		}
-		let (def_id, gargs, args) = self.def_call(local)?;
-		// A pointer or reference to where its first argument points, as a whole.
-		if pointer::from_reference(self.tcx, def_id, gargs)
-			|| pointer::derives(self.tcx, def_id) == Some(pointer::Derives::Same)
-		{
-			return self.raw_start(&args.first()?.node);
-		}
-		let (owner, name) = library::key(self.tcx, def_id)?;
-		match (owner.as_str(), name.as_str()) {
-			("ptr" | "NonNull", "slice_from_raw_parts" | "slice_from_raw_parts_mut") => self.origin(&args[0].node),
-			_ => self.start(op),
-		}
 	}
 
 	/// The local `op` reads whole, if the body assigns it once.

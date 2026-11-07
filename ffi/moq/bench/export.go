@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"moqtest/moq"
+	"moq/net"
 )
 
 const (
@@ -36,9 +36,9 @@ func check(err error) {
 }
 
 func round() string {
-	broadcast := must(moq.NewBroadcastInfo().Produce())
-	micro := moq.TimescaleMICRO()
-	track := must(broadcast.CreateTrack("bench", must(moq.TrackInfoDefault().WithTimescale(micro))))
+	broadcast := must(net.NewBroadcastInfo().Produce())
+	micro := net.TimescaleMICRO()
+	track := must(broadcast.CreateTrack("bench", must(net.TrackInfoDefault().WithTimescale(micro))))
 	micro.Close()
 
 	// A frame of 100 zero bytes, as bench/export.c writes.
@@ -50,7 +50,7 @@ func round() string {
 	for range groups {
 		group := must(track.AppendGroup())
 		for range frames {
-			at := must(moq.TimestampFromMicros(micros))
+			at := must(net.TimestampFromMicros(micros))
 			micros++
 			check(group.WriteFrame(at, frame))
 			at.Close()
@@ -61,7 +61,7 @@ func round() string {
 	stamped := perFrame(start)
 
 	// The same, reusing one timestamp handle: what the handle costs.
-	at := must(moq.TimestampFromMicros(micros))
+	at := must(net.TimestampFromMicros(micros))
 	start = time.Now()
 	for range groups {
 		group := must(track.AppendGroup())
@@ -89,7 +89,7 @@ func round() string {
 	consumer := must(track.Consume())
 	subscriber := must(consumer.Subscribe(ctx, nil))
 	consumer.Close()
-	var last *moq.FrameFrame
+	var last *net.FrameFrame
 	start = time.Now()
 	for g := range groups {
 		group := must(track.AppendGroup())
@@ -122,17 +122,17 @@ func round() string {
 
 	// Payload reads: each frame's bytes, as a Bytes, then copied out of it. 100 B are copied
 	// at the call; from 512 B, they are lent without a copy until the GC frees them.
-	lent := func(frame *moq.FrameFrame) float64 {
+	lent := func(frame *net.FrameFrame) float64 {
 		start := time.Now()
 		for range groups * frames {
-			closed += int(must(frame.Payload()).At(0))
+			closed += int(must(frame.PayloadGet()).At(0))
 		}
 		return perFrame(start)
 	}
-	copied := func(frame *moq.FrameFrame) float64 {
+	copied := func(frame *net.FrameFrame) float64 {
 		start := time.Now()
 		for range groups * frames {
-			closed += int(must(frame.Payload()).Copy()[0])
+			closed += int(must(frame.PayloadGet()).Copy()[0])
 		}
 		return perFrame(start)
 	}

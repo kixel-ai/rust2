@@ -1442,6 +1442,7 @@ export function swapCell(c: rs.Cell<rs.u8>, n: rs.u8): void {
 export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _17!: Paired.Paired | undefined;
 	let _22!: To.To<Paired.Paired>;
+	const num = new Uint8Array(1);
 	let _43!: rs.Place<rs.u8> | undefined;
 	let _48!: To.To<rs.u8>;
 	let signed!: Leaning.Leaning;
@@ -1524,8 +1525,8 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 		swappedIn$pointers_Paired(pair, n, out);
 		lend$pointers_Paired(pair, n, out);
 		rs.byteVecPush(out, Paired.get$pointers_Aim(pair));
-		let num: rs.u8 = n;
-		const at2: rs.Place<rs.u8> = rs.place(() => num, (value) => num = value);
+		num[0] = n;
+		const at2: rs.Place<rs.u8> = rs.arrayAsPtr(num);
 		const pointer2 = at2;
 		const held2: rs.Place<rs.u8> = rs.optionUnwrap(pointer2 === rs.NULL ? undefined : pointer2);
 		const _42: rs.Place<rs.u8> = at2;
@@ -1541,15 +1542,15 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_48 = { tag: "At", _0: at2 } as To.To<rs.u8>;
 		}
 		through$u8({ inner: { at: at2, seen: _42, held: held2, maybe: _43, tagged: _47, to: _48, read: readThrough$u8 as (a0: rs.Ptr<rs.u8>) => rs.u8 } }, n, out);
-		swappedIn$u8(rs.place(() => num, (value2) => num = value2), n, out);
-		lend$u8(rs.place(() => num, (value3) => num = value3), n, out);
-		rs.byteVecPush(out, get$pointers_Aim_u8(num));
+		swappedIn$u8(rs.arrayAsPtr(num), n, out);
+		lend$u8(rs.arrayAsPtr(num), n, out);
+		rs.byteVecPush(out, get$pointers_Aim_u8(num[0]));
 		if (!(rs.u8Rem(n, 2) === 0)) {
 			signed = { tag: "Neg", _0: n } as Leaning.Leaning;
 		} else {
 			signed = { tag: "Pos", _0: n } as Leaning.Leaning;
 		}
-		const at3: rs.Place<Leaning.Leaning> = rs.place(() => signed, (value4) => signed = value4);
+		const at3: rs.Place<Leaning.Leaning> = rs.place(() => signed, (value) => signed = value);
 		const pointer3 = at3;
 		const held3: rs.Place<Leaning.Leaning> = rs.optionUnwrap(pointer3 === rs.NULL ? undefined : pointer3);
 		const _71: rs.Place<Leaning.Leaning> = at3;
@@ -1565,8 +1566,8 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_77 = { tag: "At", _0: at3 } as To.To<Leaning.Leaning>;
 		}
 		through$pointers_Leaning({ inner: { at: at3, seen: _71, held: held3, maybe: _72, tagged: _76, to: _77, read: readThrough$pointers_Leaning as (a0: rs.Ptr<Leaning.Leaning>) => rs.u8 } }, n, out);
-		swappedIn$pointers_Leaning(rs.place(() => signed, (value5) => signed = value5), n, out);
-		lend$pointers_Leaning(rs.place(() => signed, (value6) => signed = value6), n, out);
+		swappedIn$pointers_Leaning(rs.place(() => signed, (value2) => signed = value2), n, out);
+		lend$pointers_Leaning(rs.place(() => signed, (value3) => signed = value3), n, out);
 		rs.byteVecPush(out, Leaning.get$pointers_Aim(signed));
 		const bytes: Uint8Array = rs.bytes(4).fill(n);
 		const at4: rs.ByteSlice = rs.byteSliceFrom(bytes);
@@ -1590,7 +1591,7 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _116: rs.ByteSlice = rs.byteSliceFrom(bytes);
 		rs.byteVecPush(out, get$pointers_Aim_array4_u8(_116.data, _116.start, _116.length));
 		let cell: rs.Cell<rs.u8> = new rs.Cell(n);
-		const at5: rs.Place<rs.Cell<rs.u8>> = rs.place(() => cell, (value7) => cell = value7);
+		const at5: rs.Place<rs.Cell<rs.u8>> = rs.place(() => cell, (value4) => cell = value4);
 		const pointer5 = at5;
 		const held5: rs.Place<rs.Cell<rs.u8>> = rs.optionUnwrap(pointer5 === rs.NULL ? undefined : pointer5);
 		const _123: rs.Place<rs.Cell<rs.u8>> = at5;
@@ -1606,7 +1607,7 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_129 = { tag: "At", _0: at5 } as To.To<rs.Cell<rs.u8>>;
 		}
 		through$Cell_u8({ inner: { at: at5, seen: _123, held: held5, maybe: _124, tagged: _128, to: _129, read: readThrough$Cell_u8 as (a0: rs.Ptr<rs.Cell<rs.u8>>) => rs.u8 } }, n, out);
-		swappedIn$Cell_u8(rs.place(() => cell, (value8) => cell = value8), n, out);
+		swappedIn$Cell_u8(rs.place(() => cell, (value5) => cell = value5), n, out);
 		lend$Cell_u8(cell, n, out);
 		rs.byteVecPush(out, cell.v);
 		const _144: rs.u16 = ((n as rs.u16) << 4) & 0xffff;
@@ -2894,7 +2895,7 @@ export function arrays(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return ((x ^ (x >>> 8)) >>> 0) & 0xff;
 		}), undefined, true);
 		const nested: rs.u32[][] = [[w, 1], [2, 3]];
-		const read: rs.u32[][] = copy$array_array2_u32(rs.sliceToArray(rs.sliceFrom(nested), copy$array_u32));
+		const read: rs.u32[][] = copy$array_array2_u32(rs.arraySliceToArray(rs.arraySliceFrom(nested, rs.sliceFrom), rs.sliceToArray));
 		read[0][0] = (read[0][0] ^ 255) >>> 0;
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(nested[0][0] & 0xff, read[0][0] & 0xff)), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(runs(n)), undefined, true);
@@ -2909,7 +2910,7 @@ export function runs(n: rs.u8): Uint8Array {
 		return rs.fmtToString((f: rs.Formatter) => rs.fmtCharDisplay(_44, f), 0);
 	}), [rs.stringNew(), rs.stringFrom("x")]]);
 	const first: rs.Slice<rs.String> = rs.sliceFrom(v.items[rs.idx(v.items, 0)]);
-	const last: rs.Slice<rs.String> = rs.optionUnwrap(rs.optionMap(rs.sliceLast(rs.sliceFrom(v.items)), rs.sliceFrom));
+	const last: rs.Slice<rs.String> = rs.optionUnwrap(rs.arraySliceLast(rs.arraySliceFrom(v.items, rs.sliceFrom)));
 	const _20: rs.Slice<rs.String> = rs.sliceFrom(v.items[rs.idx(v.items, 1)]);
 	rs.stringPush(_20.data[_20.start], 121);
 	const _24: rs.u8 = rs.sliceSame(first, rs.sliceFrom(v.items[rs.idx(v.items, 0)])) ? 1 : 0;
@@ -2928,11 +2929,11 @@ export function lent(n: rs.u8): rs.ByteVec {
 	const a: rs.u32[] = [w, rs.u32Add(w, 1), rs.u32Add(w, 2), rs.u32Add(w, 3)];
 	const v: rs.Vec<rs.u32> = rs.vecFrom([w, rs.u32Add(w, 1), rs.u32Add(w, 2), rs.u32Add(w, 3)]);
 	const o: rs.ByteVec = new rs.ByteVec();
-	const _25: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.optionMap(rs.sliceFirst(rs.sliceAsChunks(rs.sliceFrom(a), 2)[0]), rs.sliceFrom)), rs.optionUnwrap(rs.sliceGetRange(rs.sliceFrom(a), 0, 2))) ? 1 : 0;
+	const _25: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.arraySliceFirst(rs.sliceAsChunks(rs.sliceFrom(a), 2)[0])), rs.optionUnwrap(rs.sliceGetRange(rs.sliceFrom(a), 0, 2))) ? 1 : 0;
 	rs.byteVecPush(o, _25);
-	const _41: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.optionMap(rs.sliceLast(rs.sliceAsRchunks(rs.sliceFrom(a), 2)[1]), rs.sliceFrom)), rs.optionUnwrap(rs.sliceLastChunk(rs.sliceFrom(a), 2))) ? 1 : 0;
+	const _41: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.arraySliceLast(rs.sliceAsRchunks(rs.sliceFrom(a), 2)[1])), rs.optionUnwrap(rs.sliceLastChunk(rs.sliceFrom(a), 2))) ? 1 : 0;
 	rs.byteVecPush(o, _41);
-	const _57: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.iterNth(rs.iterLend(rs.iterSlice(rs.sliceItems(rs.sliceAsChunks(rs.sliceFrom(v.items), 2)[0])), rs.sliceFrom), 1)), rs.optionUnwrap(rs.sliceLastChunk(rs.sliceFrom(v.items), 2))) ? 1 : 0;
+	const _57: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.iterNth(rs.arraySliceIter(rs.sliceAsChunks(rs.sliceFrom(v.items), 2)[0]), 1)), rs.optionUnwrap(rs.sliceLastChunk(rs.sliceFrom(v.items), 2))) ? 1 : 0;
 	rs.byteVecPush(o, _57);
 	const _71: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(a), 1, 3), 0, 2)), rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(a), 1), 0, 2))) ? 1 : 0;
 	rs.byteVecPush(o, _71);
@@ -2947,7 +2948,7 @@ export function lent(n: rs.u8): rs.ByteVec {
 	const _162: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.sliceGetRange(rs.sliceSplitAt(rs.sliceFrom(a), 2)[0], 0, 2)), rs.optionUnwrap(rs.sliceGetRange(rs.sliceFrom(a), 0, 2))) ? 1 : 0;
 	rs.byteVecPush(o, _162);
 	const pairs: rs.Vec<rs.u32[]> = rs.vecFrom(copy$array_array2_u32([[w, 1], [2, 3]]).map(copy$array_u32));
-	const _178: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.iterToOption(rs.iterLend(rs.iterSlice(pairs.items), rs.sliceFrom).next())), rs.optionUnwrap(rs.optionMap(rs.sliceFirst(rs.sliceFrom(pairs.items)), rs.sliceFrom))) ? 1 : 0;
+	const _178: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.iterToOption(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.sliceFrom)).next())), rs.optionUnwrap(rs.arraySliceFirst(rs.arraySliceFrom(pairs.items, rs.sliceFrom)))) ? 1 : 0;
 	rs.byteVecPush(o, _178);
 	const boxed: rs.u32[] = [w, 2];
 	const _196: rs.u8 = rs.sliceSame(rs.sliceFrom(boxed), rs.sliceFrom(boxed)) ? 1 : 0;
@@ -2978,7 +2979,7 @@ export function lent(n: rs.u8): rs.ByteVec {
 	const _281: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.sliceGetRange(un.value, 0, 2)), rs.sliceFrom(held.value)) ? 1 : 0;
 	rs.byteVecPush(o, _281);
 	const nested: rs.u32[][] = [[w, 1], [2, 3]];
-	const _296: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.optionMap(rs.sliceLast(rs.sliceFrom(nested)), rs.sliceFrom)), rs.optionUnwrap(rs.iterNth(rs.iterLend(rs.iterSlice(nested), rs.sliceFrom), 1))) ? 1 : 0;
+	const _296: rs.u8 = rs.sliceSame(rs.optionUnwrap(rs.arraySliceLast(rs.arraySliceFrom(nested, rs.sliceFrom))), rs.optionUnwrap(rs.iterNth(rs.arraySliceIter(rs.arraySliceFrom(nested, rs.sliceFrom)), 1))) ? 1 : 0;
 	rs.byteVecPush(o, _296);
 	un[Symbol.dispose]();
 	held[Symbol.dispose]();
@@ -2998,6 +2999,7 @@ export function lent(n: rs.u8): rs.ByteVec {
 export function arrayCasts(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _9!: rs.usize;
 	let _91!: rs.usize;
+	const byte = new Uint8Array(1);
 	const bytes: rs.ByteVec = rs.byteSliceToByteVec(data);
 	const _6: rs.usize = bytes.length;
 	let iterStart: rs.usize = 0;
@@ -3052,21 +3054,26 @@ export function arrayCasts(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return Uint8Array.of(b2, ~b2 & 0xff);
 	}), undefined, 2, true);
 	if (pairs.items.length >= 3) {
-		const _142: rs.Slice<Uint8Array> = rs.rawSliceOf(rs.sliceRange(rs.sliceFrom(pairs.items), 1)).array(2);
-		_142.data[_142.start][1] = _142.data[_142.start][1] ^ _142.data[_142.start + 1][0];
-		rs.sliceSwap(_142, 0, 1);
-		rs.iterExtendBytes(out, rs.iterFlatten(rs.iterLend(rs.iterSlice(rs.sliceToArray(rs.rawSliceOf(rs.sliceFrom(pairs.items)).array(3), copy$array_u8)), rs.byteSliceFrom), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), undefined, true);
+		const _142: rs.ArraySlice<rs.ByteSlice> = rs.rawArraySliceOf(rs.arraySliceRange(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom), 1)).array(2);
+		const slice9 = rs.arraySliceAt(_142, 1);
+		const _147: rs.u8 = slice9.data[slice9.start];
+		const slice10 = rs.arraySliceAt(_142, 0);
+		const slice11 = rs.arraySliceAt(_142, 0);
+		slice11.data[slice11.start + 1] = slice10.data[slice10.start + 1] ^ _147;
+		rs.arraySliceSwap(_142, 0, 1, undefined);
+		rs.iterExtendBytes(out, rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(rs.arraySliceToArray(rs.rawArraySliceOf(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)).array(3), rs.byteSliceToArray), rs.byteSliceFrom)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), undefined, true);
 	}
-	rs.iterExtendBytes(out, rs.iterFlatten(rs.iterLend(rs.iterSlice(pairs.items), rs.byteSliceFrom), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), undefined, true);
+	rs.iterExtendBytes(out, rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), undefined, true);
 	const part2 = bytes.length;
 	rs.rawByteSliceOf(rs.byteSliceRange(rs.byteVecSlice(bytes), part2));
 	rs.byteVecPush(out, rs.byteSliceFrom(Uint8Array.of()).length & 0xff);
-	let byte: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 7);
-	const lone: rs.ByteSlice = new rs.RawSlice(rs.place(() => byte, (value) => byte = value), 0).byteArray(0);
+	const _187: rs.u8 | undefined = rs.byteSliceFirst(data);
+	byte[0] = option_unwrapOr$1fr498u(_187, 7);
+	const lone: rs.ByteSlice = new rs.RawSlice(rs.arrayAsPtr(byte), 0).byteArray(0);
 	rs.byteVecPush(out, lone === rs.NULL ? 1 : 0);
 	rs.byteVecPush(out, new rs.RawSlice(rs.byteSliceAsPtr(lone), 0).derefBytes(false).length & 0xff);
-	let word: rs.u32 = rs.u32Mul(byte as rs.u32, 3);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.sliceToArray(new rs.RawSlice(rs.place(() => word, (value2) => word = value2), 1).array(1))[0]).reverse()), undefined, true);
+	let word: rs.u32 = rs.u32Mul(byte[0] as rs.u32, 3);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.sliceToArray(new rs.RawSlice(rs.place(() => word, (value) => word = value), 1).array(1))[0]).reverse()), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(new rs.RawSlice(rs.NULL, 4).byteArray(4) === rs.NULL ? 1 : 0, rs.sliceSame(new rs.RawSlice(rs.DANGLING, 0).array(2), rs.DANGLING) ? 1 : 0)), undefined, true);
 }
 
@@ -3148,8 +3155,7 @@ export function genericUnions(data: rs.ByteSlice, out: rs.ByteVec): void {
  * `MaybeUninit::as_ptr`; cells `UnsafeCell::from_mut` makes of a variable, an object,
  * an element, and an array, written through `get`; `UnsafeCell::replace` of each, which a
  * pointer taken before sees, giving back what it held undropped; what `as_ref_unchecked`
- * and `as_mut_unchecked` lend; `raw_get` of pointers to no cell; and the allocations of
- * boxes and pinned boxes replaced and swapped through pointers, `UnsafeCell`s, one
+ * and `as_mut_unchecked` lend; and the allocations of boxes and pinned boxes replaced and swapped through pointers, `UnsafeCell`s, one
  * `from_mut` makes, and `Cell`s.
  */
 export function rawCells(data: rs.ByteSlice, out: rs.ByteVec): void {
@@ -3202,38 +3208,38 @@ export function rawCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _110: rs.Slice<rs.u16> = rs.sliceFrom(wide.v);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(_110.data[_110.start + 1]).reverse()), undefined, true);
 		} else if (_41 === 1) {
-			const p: rs.Place<rs.Cell<rs.u32>> = rs.place(() => num, (value11) => num = value11);
-			const _115: rs.u32 = rs.u32WrappingMul(rs.rawUnsize(p, (p10: rs.Place<rs.Cell<rs.u32>>) => rs.place(() => p10.v.v, (value12) => p10.v.v = value12)).v, ((n as rs.u32) | 1) >>> 0);
-			rs.rawUnsize(p, (p11: rs.Place<rs.Cell<rs.u32>>) => rs.place(() => p11.v.v, (value13) => p11.v.v = value13)).v = _115;
+			const p: rs.Place<rs.Cell<rs.u32>> = rs.place(() => num, (value9) => num = value9);
+			const _115: rs.u32 = rs.u32WrappingMul(p.v.v, ((n as rs.u32) | 1) >>> 0);
+			p.v.v = _115;
 			const s: Slots.Slots = slots;
 			const _122: rs.u32 = n as rs.u32;
-			const _123: rs.Place<rs.u32> = Slots.num(s);
+			const _123: rs.Place<rs.u32> = s.num;
 			_123.v = rs.u32Add(_123.v, _122);
-			const _125: Held.Held = rs.rawUnsize(rs.place(() => s.held, (value14) => s.held = value14), (p12: rs.Place<rs.Cell<Held.Held>>) => p12.v.v);
-			_125.n = _125.n ^ n;
-			const _127: [rs.u8, rs.u16] = rs.rawUnsize(rs.place(() => s.pair, (value15) => s.pair = value15), (p13: rs.Place<rs.Cell<[rs.u8, rs.u16]>>) => p13.v.v);
-			_127[0] = _127[0] ^ n;
-			const _129: rs.u32 = n as rs.u32;
-			const _130: rs.Place<rs.u32> = rs.rawUnsize({ v: slot }, (p14: rs.Place<rs.Cell<rs.u32>>) => rs.place(() => p14.v.v, (value16) => p14.v.v = value16));
-			_130.v = (_130.v ^ _129) >>> 0;
+			const _126: Held.Held = s.held.v;
+			_126.n = _126.n ^ n;
+			const _128: [rs.u8, rs.u16] = s.pair.v;
+			_128[0] = _128[0] ^ n;
+			const _130: rs.u32 = n as rs.u32;
+			const _131: rs.Place<rs.u32> = { v: slot }.v;
+			_131.v = (_131.v ^ _130) >>> 0;
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(num.v).reverse()), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(slots.num.v).reverse()), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(slots.held.v.n, slots.pair.v[0])), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(slot.v).reverse()), undefined, true);
 		} else if (_41 === 2) {
-			const c: rs.Cell<rs.u32> = rs.cellOfPlace(rs.place(() => local, (value9) => local = value9));
+			const c: rs.Cell<rs.u32> = rs.cellOfPlace(rs.place(() => local, (value7) => local = value7));
 			c.v = rs.intRotateLeft(c.v, n as rs.u32, 32, false);
-			const _168: Held.Held = rs.cellOfPlace(rs.partPlace(whole)).v;
-			_168.n = _168.n ^ n;
-			const _172: rs.usize = rs.u8Rem(n, 3) as rs.usize;
-			if (!(_172 < 3)) {
-				rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _172);
+			const _169: Held.Held = rs.cellOfPlace(rs.partPlace(whole)).v;
+			_169.n = _169.n ^ n;
+			const _173: rs.usize = rs.u8Rem(n, 3) as rs.usize;
+			if (!(_173 < 3)) {
+				rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _173);
 			}
 			const borrowed2 = elems;
-			const e: rs.Cell<rs.u16> = rs.cellOfPlace(rs.place(() => borrowed2[_172], (value10) => borrowed2[_172] = value10));
-			const _176: rs.u16 = n as rs.u16;
-			const _177: rs.Place<rs.u16> = e;
-			_177.v = _177.v ^ _176;
+			const e: rs.Cell<rs.u16> = rs.cellOfPlace(rs.place(() => borrowed2[_173], (value8) => borrowed2[_173] = value8));
+			const _177: rs.u16 = n as rs.u16;
+			const _178: rs.Place<rs.u16> = e;
+			_178.v = _178.v ^ _177;
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(local).reverse()), undefined, true);
 			rs.byteVecPush(out, whole.n);
 			rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(elems), (e2: rs.u16): Uint8Array => {
@@ -3241,26 +3247,26 @@ export function rawCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
 		} else if (_41 === 3) {
 			const p2: rs.Place<rs.u32> = num;
-			const _193: rs.u32 = ((n as rs.u32) << 3) >>> 0;
+			const _194: rs.u32 = ((n as rs.u32) << 3) >>> 0;
 			const pointer9 = num;
 			const old22 = pointer9.v;
-			pointer9.v = _193;
+			pointer9.v = _194;
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(old22).reverse()), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(p2.v).reverse()), undefined, true);
 			const p3: Held.Held = held.v;
-			const _206: Held.Held = new Held.Held(n, rs.arcClone(count));
+			const _207: Held.Held = new Held.Held(n, rs.arcClone(count));
 			const pointer10 = held.v;
 			const old23 = rs.objectCopy(pointer10);
-			rs.ptrWrite(pointer10, _206);
+			rs.ptrWrite(pointer10, _207);
 			const old2: Held.Held = old23;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(old2.n, p3.n, count.strong & 0xff)), undefined, true);
 			old2[Symbol.dispose]();
 			rs.byteVecPush(out, count.strong & 0xff);
 			const p4: [rs.u8, rs.u16] = pair.v;
-			const _225: [rs.u8, rs.u16] = [n, rs.u16Mul(n as rs.u16, 3)];
+			const _226: [rs.u8, rs.u16] = [n, rs.u16Mul(n as rs.u16, 3)];
 			const pointer11 = pair.v;
 			const old24 = rs.objectCopy(pointer11);
-			rs.ptrWrite(pointer11, _225);
+			rs.ptrWrite(pointer11, _226);
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(old24[0], p4[0])), undefined, true);
 			const p5: rs.ByteSlice = rs.byteSliceFrom(bytes.v);
 			const pointer12 = rs.byteSliceFrom(bytes.v);
@@ -3274,86 +3280,84 @@ export function rawCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const old5: Duo.Duo = old26;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(old5._0, old5._1, duo.v._0)), undefined, true);
 		} else if (_41 === 4) {
-			const _255: rs.Cell<rs.u32> = rs.cellOfPlace(rs.place(() => local, (value7) => local = value7));
-			const _257: rs.u32 = n as rs.u32;
-			const pointer6 = _255;
+			const _256: rs.Cell<rs.u32> = rs.cellOfPlace(rs.place(() => local, (value5) => local = value5));
+			const _258: rs.u32 = n as rs.u32;
+			const pointer6 = _256;
 			const old19 = pointer6.v;
-			pointer6.v = _257;
+			pointer6.v = _258;
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(old19).reverse()), undefined, true);
 			const h2: rs.Cell<Held.Held> = rs.cellOfPlace(rs.partPlace(whole));
 			const p6: Held.Held = h2.v;
-			const _266: Held.Held = new Held.Held(~n & 0xff, rs.arcClone(count));
+			const _267: Held.Held = new Held.Held(~n & 0xff, rs.arcClone(count));
 			const pointer7 = h2.v;
 			const old20 = rs.objectCopy(pointer7);
-			rs.ptrWrite(pointer7, _266);
+			rs.ptrWrite(pointer7, _267);
 			const old7: Held.Held = old20;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(old7.n, p6.n, whole.n, count.strong & 0xff)), undefined, true);
-			const _282: rs.usize = rs.u8Rem(n, 3) as rs.usize;
-			if (!(_282 < 3)) {
-				rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _282);
+			const _283: rs.usize = rs.u8Rem(n, 3) as rs.usize;
+			if (!(_283 < 3)) {
+				rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _283);
 			}
 			const borrowed = elems;
-			const _280: rs.Cell<rs.u16> = rs.cellOfPlace(rs.place(() => borrowed[_282], (value8) => borrowed[_282] = value8));
-			const _286: rs.u16 = n as rs.u16;
-			const pointer8 = _280;
+			const _281: rs.Cell<rs.u16> = rs.cellOfPlace(rs.place(() => borrowed[_283], (value6) => borrowed[_283] = value6));
+			const _287: rs.u16 = n as rs.u16;
+			const pointer8 = _281;
 			const old21 = pointer8.v;
-			pointer8.v = _286;
+			pointer8.v = _287;
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(old21).reverse()), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(local).reverse()), undefined, true);
 			old7[Symbol.dispose]();
 		} else if (_41 === 5) {
-			const _292: rs.u32 = n as rs.u32;
-			const _293: rs.Place<rs.u32> = num;
-			_293.v = (_293.v ^ _292) >>> 0;
+			const _293: rs.u32 = n as rs.u32;
+			const _294: rs.Place<rs.u32> = num;
+			_294.v = (_294.v ^ _293) >>> 0;
 			const r: rs.Place<rs.u32> = num;
 			r.v = rs.intRotateLeft(r.v, 1, 32, false);
-			const _299: Held.Held = held.v;
-			_299.n = _299.n ^ n;
-			const _301: rs.u16 = n as rs.u16;
-			const _302: [rs.u8, rs.u16] = pair.v;
-			_302[1] = _302[1] ^ _301;
-			const _304: rs.ByteSlice = rs.byteSliceFrom(bytes.v);
-			_304.data[_304.start + 1] = _304.data[_304.start + 1] ^ n;
+			const _300: Held.Held = held.v;
+			_300.n = _300.n ^ n;
+			const _302: rs.u16 = n as rs.u16;
+			const _303: [rs.u8, rs.u16] = pair.v;
+			_303[1] = _303[1] ^ _302;
+			const _305: rs.ByteSlice = rs.byteSliceFrom(bytes.v);
+			_305.data[_305.start + 1] = _305.data[_305.start + 1] ^ n;
 			rs.sliceSet(rs.sliceFrom(wide.v), [n as rs.u16, 1]);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(num.v).reverse()), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(held.v.n, duo.v._0)), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(pair.v[1]).reverse()), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(bytes.v))), undefined, true);
-			const _335: rs.Slice<rs.u16> = rs.sliceFrom(wide.v);
-			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(_335.data[_335.start]).reverse()), undefined, true);
+			const _336: rs.Slice<rs.u16> = rs.sliceFrom(wide.v);
+			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(_336.data[_336.start]).reverse()), undefined, true);
 			const arr: Uint8Array = Uint8Array.of(n, 1, 2);
 			const a: rs.Cell<Uint8Array> = rs.cellOfPlace(rs.partPlace(rs.byteSliceView(rs.byteSliceFrom(arr))));
-			const _342: rs.ByteSlice = rs.byteSliceFrom(a.v);
-			const _344: rs.usize = rs.u8Rem(n, 3) as rs.usize;
-			if (!(_344 < 3)) {
-				rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _344);
+			const _343: rs.ByteSlice = rs.byteSliceFrom(a.v);
+			const _345: rs.usize = rs.u8Rem(n, 3) as rs.usize;
+			if (!(_345 < 3)) {
+				rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _345);
 			}
-			_342.data[_342.start + _344] = _342.data[_342.start + _344] ^ 64;
+			_343.data[_343.start + _345] = _343.data[_343.start + _345] ^ 64;
 			const pointer5 = rs.byteSliceFrom(a.v);
 			const old18 = rs.byteSliceToArray(pointer5);
 			rs.byteSliceSet(pointer5, Uint8Array.of(3, n, 4));
 			rs.iterExtendBytes(out, rs.iterSlice(old18), undefined, true);
 			rs.iterExtendBytes(out, rs.iterSlice(copy$array_u8(arr)), undefined, true);
 		} else if (_41 === 6) {
-			const null_: rs.Place<rs.Cell<rs.u32>> = rs.NULL;
-			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(rs.rawUnsize(null_, (p7: rs.Place<rs.Cell<rs.u32>>) => rs.place(() => p7.v.v, (value) => p7.v.v = value)) === rs.NULL ? 1 : 0, rs.rawUnsize(rs.NULL, (p8: rs.Place<rs.Cell<Duo.Duo>>) => p8.v.v) === rs.NULL ? 1 : 0, rs.rawUnsize(rs.ptrWrappingAdd(null_, rs.u8Rem(n, 4) as rs.usize, 4, 4), (p9: rs.Place<rs.Cell<rs.u32>>) => rs.place(() => p9.v.v, (value2) => p9.v.v = value2)) === rs.NULL ? 1 : 0)), undefined, true);
 			const held2: (a0: rs.u8) => Held.Held = (n2: rs.u8): Held.Held => {
 				return new Held.Held(n2, rs.arcClone(count));
 			};
 			let a2: Held.Held = held2(n);
 			const atA: Held.Held = a2;
-			const _381: rs.Place<Held.Held> = rs.place(() => a2, (value3) => a2 = value3);
-			const _383: Held.Held = held2(~n & 0xff);
-			const pointer = _381;
+			const _364: rs.Place<Held.Held> = rs.place(() => a2, (value) => a2 = value);
+			const _366: Held.Held = held2(~n & 0xff);
+			const pointer = _364;
 			const old11 = pointer.v;
-			pointer.v = _383;
+			pointer.v = _366;
 			const old10: Held.Held = old11;
 			let other: Held.Held = held2(n ^ 1);
-			const _395: [Held.Held, Held.Held] = [a2, other];
-			const atNew: Held.Held = _395[0];
-			const atOther: Held.Held = _395[1];
-			const x3 = rs.place(() => a2, (value4) => a2 = value4);
-			const y3 = rs.place(() => other, (value5) => other = value5);
+			const _378: [Held.Held, Held.Held] = [a2, other];
+			const atNew: Held.Held = _378[0];
+			const atOther: Held.Held = _378[1];
+			const x3 = rs.place(() => a2, (value2) => a2 = value2);
+			const y3 = rs.place(() => other, (value3) => other = value3);
 			const old12 = x3.v;
 			x3.v = y3.v;
 			y3.v = old12;
@@ -3361,14 +3365,14 @@ export function rawCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(atOther === a2 ? 1 : 0, old10.n, a2.n, other.n)), undefined, true);
 			const pinned: rs.Cell<[rs.u8, rs.u16]> = new rs.Cell([n, 1] as [rs.u8, rs.u16]);
 			const atPinned: [rs.u8, rs.u16] = pinned.v;
-			const _434: [rs.u8, rs.u16] = [n ^ 2, 2];
+			const _417: [rs.u8, rs.u16] = [n ^ 2, 2];
 			const pointer2 = pinned;
 			const old13 = pointer2.v;
-			pointer2.v = _434;
+			pointer2.v = _417;
 			const was: [rs.u8, rs.u16] = old13;
-			const _439: [rs.Cell<[rs.u8, rs.u16]>, rs.Cell<[rs.u8, rs.u16]>] = [new rs.Cell([n, 3] as [rs.u8, rs.u16]), new rs.Cell([~n & 0xff, 4] as [rs.u8, rs.u16])];
-			const x: rs.Cell<[rs.u8, rs.u16]> = _439[0];
-			const y: rs.Cell<[rs.u8, rs.u16]> = _439[1];
+			const _422: [rs.Cell<[rs.u8, rs.u16]>, rs.Cell<[rs.u8, rs.u16]>] = [new rs.Cell([n, 3] as [rs.u8, rs.u16]), new rs.Cell([~n & 0xff, 4] as [rs.u8, rs.u16])];
+			const x: rs.Cell<[rs.u8, rs.u16]> = _422[0];
+			const y: rs.Cell<[rs.u8, rs.u16]> = _422[1];
 			const atX: [rs.u8, rs.u16] = x.v;
 			const x4 = x;
 			const y4 = y;
@@ -3379,23 +3383,23 @@ export function rawCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(atPinned === was ? 1 : 0, was[0], pinned.v[0])), undefined, true);
 			const cell: rs.Cell<Held.Held> = new rs.Cell(held2(n ^ 3));
 			const atCell: Held.Held = cell.v;
-			const _496: Held.Held = held2(n ^ 4);
+			const _479: Held.Held = held2(n ^ 4);
 			const pointer3 = cell;
 			const old15 = pointer3.v;
-			pointer3.v = _496;
+			pointer3.v = _479;
 			const was2: Held.Held = old15;
 			let boxed: Held.Held = held2(n ^ 7);
 			const atBoxed: Held.Held = boxed;
-			const _510: rs.Cell<Held.Held> = rs.cellOfPlace(rs.place(() => boxed, (value6) => boxed = value6));
-			const _512: Held.Held = held2(n);
-			const pointer4 = _510;
+			const _493: rs.Cell<Held.Held> = rs.cellOfPlace(rs.place(() => boxed, (value4) => boxed = value4));
+			const _495: Held.Held = held2(n);
+			const pointer4 = _493;
 			const old16 = pointer4.v;
-			pointer4.v = _512;
+			pointer4.v = _495;
 			const lent: Held.Held = old16;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(atBoxed === lent ? 1 : 0, lent.n, boxed.n)), undefined, true);
-			const _526: [rs.Cell<Held.Held>, rs.Cell<Held.Held>] = [new rs.Cell(held2(n ^ 5)), new rs.Cell(held2(n ^ 6))];
-			const x2: rs.Cell<Held.Held> = _526[0];
-			const y2: rs.Cell<Held.Held> = _526[1];
+			const _509: [rs.Cell<Held.Held>, rs.Cell<Held.Held>] = [new rs.Cell(held2(n ^ 5)), new rs.Cell(held2(n ^ 6))];
+			const x2: rs.Cell<Held.Held> = _509[0];
+			const y2: rs.Cell<Held.Held> = _509[1];
 			const atX2: Held.Held = x2.v;
 			const x5 = x2;
 			const y5 = y2;
@@ -3418,9 +3422,9 @@ export function rawCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 	}
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(num.v).reverse()), undefined, true);
-	const _574: Held.Held = held.v;
-	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_574.n, count.strong & 0xff)), undefined, true);
-	_574[Symbol.dispose]();
+	const _557: Held.Held = held.v;
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_557.n, count.strong & 0xff)), undefined, true);
+	_557[Symbol.dispose]();
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(slots.num.v).reverse()), undefined, true);
 	slots.held[Symbol.dispose]();
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(whole.n, count.strong & 0xff)), undefined, true);
@@ -3657,122 +3661,122 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _60: rs.u8 = rs.u8Rem(op, 8);
 		if (_60 === 0) {
 			const _64: rs.Cell<rs.u32> = new rs.Cell(n as rs.u32);
-			const pointer17 = nest;
-			const old16 = new rs.Cell(pointer17.v.v);
-			const pointer18 = pointer17;
-			const value29 = _64;
-			if (pointer18.v === undefined) {
-				pointer18.v = value29;
+			const pointer16 = nest;
+			const old16 = new rs.Cell(pointer16.v.v);
+			const pointer17 = pointer16;
+			const value25 = _64;
+			if (pointer17.v === undefined) {
+				pointer17.v = value25;
 			} else {
-				pointer18.v.v = value29.v;
+				pointer17.v.v = value25.v;
 			}
 			undefined;
 			rs.byteVecPush(out, old16.v & 0xff);
 			const _71: rs.Cell<rs.Cell<rs.u32>> = new rs.Cell(new rs.Cell(rs.u32Add(n as rs.u32, 1)));
-			const pointer19 = deep;
-			const old17 = new rs.Cell(new rs.Cell(pointer19.v.v.v));
-			const pointer20 = pointer19;
-			const value30 = _71;
-			if (pointer20.v === undefined) {
-				pointer20.v = value30;
+			const pointer18 = deep;
+			const old17 = new rs.Cell(new rs.Cell(pointer18.v.v.v));
+			const pointer19 = pointer18;
+			const value26 = _71;
+			if (pointer19.v === undefined) {
+				pointer19.v = value26;
 			} else {
-				pointer20.v.v.v = value30.v.v;
+				pointer19.v.v.v = value26.v.v;
 			}
 			undefined;
 			rs.byteVecPush(out, old17.v.v & 0xff);
 			const _82: [rs.Cell<rs.u32>, rs.u8] = [new rs.Cell(rs.u32Add(n as rs.u32, 2)), n];
-			const pointer21 = pair.v;
-			const object13 = pointer21;
+			const pointer20 = pair.v;
+			const object13 = pointer20;
 			const copy7 = rs.objectCopy(object13);
 			copy7[0] = new rs.Cell(object13[0].v);
 			const old18 = copy7;
-			const object14 = pointer21;
-			const value31 = _82;
+			const object14 = pointer20;
+			const value27 = _82;
 			const cell9 = object14[0];
-			rs.ptrWrite(object14, value31);
+			rs.ptrWrite(object14, value27);
 			if (cell9 !== undefined) {
 				object14[0] = cell9;
-				cell9.v = value31[0].v;
+				cell9.v = value27[0].v;
 			}
 			undefined;
 			const old3: [rs.Cell<rs.u32>, rs.u8] = old18;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(old3[0].v & 0xff, old3[1])), undefined, true);
 			const _95: Celled.Celled = { c: new rs.Cell(rs.u32Add(n as rs.u32, 3)), n };
-			const pointer22 = strukt.v;
-			const object15 = pointer22;
+			const pointer21 = strukt.v;
+			const object15 = pointer21;
 			const copy8 = rs.objectCopy(object15);
 			copy8.c = new rs.Cell(object15.c.v);
 			const old19 = copy8;
-			const object16 = pointer22;
-			const value32 = _95;
+			const object16 = pointer21;
+			const value28 = _95;
 			const cell10 = object16.c;
-			rs.ptrWrite(object16, value32);
+			rs.ptrWrite(object16, value28);
 			if (cell10 !== undefined) {
 				object16.c = cell10;
-				cell10.v = value32.c.v;
+				cell10.v = value28.c.v;
 			}
 			undefined;
 			const old4: Celled.Celled = old19;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(old4.c.v & 0xff, old4.n)), undefined, true);
 			const _108: rs.Cell<[rs.u8, rs.u8]> = new rs.Cell([n, n ^ 1] as [rs.u8, rs.u8]);
-			const pointer23 = obj;
-			const old20 = new rs.Cell(copy$tuple2_u8_u8(pointer23.v.v));
-			const pointer24 = pointer23;
-			const value33 = _108;
-			if (pointer24.v === undefined) {
-				pointer24.v = value33;
+			const pointer22 = obj;
+			const old20 = new rs.Cell(copy$tuple2_u8_u8(pointer22.v.v));
+			const pointer23 = pointer22;
+			const value29 = _108;
+			if (pointer23.v === undefined) {
+				pointer23.v = value29;
 			} else {
-				rs.ptrWrite(pointer24.v.v, value33.v);
+				rs.ptrWrite(pointer23.v.v, value29.v);
 			}
 			undefined;
 			rs.byteVecPush(out, old20.v[1]);
 		} else if (_60 === 1) {
 			const _115: rs.Place<rs.Cell<rs.u32>> = nest;
 			const _117: rs.Cell<rs.u32> = new rs.Cell(((n as rs.u32) ^ 1) >>> 0);
-			const pointer14 = _115;
-			const old14 = new rs.Cell(pointer14.v.v);
-			const pointer15 = pointer14;
-			const value27 = _117;
-			if (pointer15.v === undefined) {
-				pointer15.v = value27;
+			const pointer13 = _115;
+			const old14 = new rs.Cell(pointer13.v.v);
+			const pointer14 = pointer13;
+			const value23 = _117;
+			if (pointer14.v === undefined) {
+				pointer14.v = value23;
 			} else {
-				pointer15.v.v = value27.v;
+				pointer14.v.v = value23.v;
 			}
 			undefined;
 			rs.byteVecPush(out, old14.v & 0xff);
 			const _124: [rs.Cell<rs.u32>, rs.u8] = pair.v;
 			const _126: [rs.Cell<rs.u32>, rs.u8] = [new rs.Cell(((n as rs.u32) ^ 2) >>> 0), n];
-			const pointer16 = _124;
-			const object11 = pointer16;
+			const pointer15 = _124;
+			const object11 = pointer15;
 			const copy6 = rs.objectCopy(object11);
 			copy6[0] = new rs.Cell(object11[0].v);
 			const old15 = copy6;
-			const object12 = pointer16;
-			const value28 = _126;
+			const object12 = pointer15;
+			const value24 = _126;
 			const cell8 = object12[0];
-			rs.ptrWrite(object12, value28);
+			rs.ptrWrite(object12, value24);
 			if (cell8 !== undefined) {
 				object12[0] = cell8;
-				cell8.v = value28[0].v;
+				cell8.v = value24[0].v;
 			}
 			undefined;
 			rs.byteVecPush(out, old15[0].v & 0xff);
 		} else if (_60 === 2) {
-			const pointer13 = nest;
-			const value25 = new rs.Cell(((n as rs.u32) ^ 3) >>> 0);
-			if (pointer13.v === undefined) {
-				pointer13.v = value25;
+			const pointer12 = nest;
+			const value21 = new rs.Cell(((n as rs.u32) ^ 3) >>> 0);
+			if (pointer12.v === undefined) {
+				pointer12.v = value21;
 			} else {
-				pointer13.v.v = value25.v;
+				pointer12.v.v = value21.v;
 			}
 			undefined;
 			const object10 = strukt.v;
-			const value26 = { c: new rs.Cell(((n as rs.u32) ^ 4) >>> 0), n };
+			const value22 = { c: new rs.Cell(((n as rs.u32) ^ 4) >>> 0), n };
 			const cell7 = object10.c;
-			rs.ptrWrite(object10, value26);
+			rs.ptrWrite(object10, value22);
 			if (cell7 !== undefined) {
 				object10.c = cell7;
-				cell7.v = value26.c.v;
+				cell7.v = value22.c.v;
 			}
 			undefined;
 		} else if (_60 === 3) {
@@ -3780,20 +3784,20 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const x = nest;
 			const y = other;
 			const old12 = new rs.Cell(x.v.v);
-			const pointer11 = x;
-			const value21 = new rs.Cell(y.v.v);
-			if (pointer11.v === undefined) {
-				pointer11.v = value21;
+			const pointer10 = x;
+			const value17 = new rs.Cell(y.v.v);
+			if (pointer10.v === undefined) {
+				pointer10.v = value17;
 			} else {
-				pointer11.v.v = value21.v;
+				pointer10.v.v = value17.v;
 			}
 			undefined;
-			const pointer12 = y;
-			const value22 = old12;
-			if (pointer12.v === undefined) {
-				pointer12.v = value22;
+			const pointer11 = y;
+			const value18 = old12;
+			if (pointer11.v === undefined) {
+				pointer11.v = value18;
 			} else {
-				pointer12.v.v = value22.v;
+				pointer11.v.v = value18.v;
 			}
 			undefined;
 			rs.byteVecPush(out, other.v.v & 0xff);
@@ -3808,61 +3812,61 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const copy5 = rs.objectCopy(object7);
 			copy5.c = new rs.Cell(object7.c.v);
 			const object8 = x2;
-			const value23 = copy5;
+			const value19 = copy5;
 			const cell5 = object8.c;
-			rs.ptrWrite(object8, value23);
+			rs.ptrWrite(object8, value19);
 			if (cell5 !== undefined) {
 				object8.c = cell5;
-				cell5.v = value23.c.v;
+				cell5.v = value19.c.v;
 			}
 			undefined;
 			const object9 = y2;
-			const value24 = old13;
+			const value20 = old13;
 			const cell6 = object9.c;
-			rs.ptrWrite(object9, value24);
+			rs.ptrWrite(object9, value20);
 			if (cell6 !== undefined) {
 				object9.c = cell6;
-				cell6.v = value24.c.v;
+				cell6.v = value20.c.v;
 			}
 			undefined;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(other2.c.v & 0xff, other2.n)), undefined, true);
 		} else if (_60 === 4) {
 			const _178: [rs.Cell<rs.u32>, rs.u8] = [new rs.Cell(((n as rs.u32) ^ 6) >>> 0), n];
-			const pointer10 = cell.v;
-			const object3 = pointer10;
+			const pointer9 = cell.v;
+			const object3 = pointer9;
 			const copy3 = rs.objectCopy(object3);
 			copy3[0] = new rs.Cell(object3[0].v);
 			const old11 = copy3;
-			const object4 = pointer10;
-			const value19 = _178;
+			const object4 = pointer9;
+			const value15 = _178;
 			const cell3 = object4[0];
-			rs.ptrWrite(object4, value19);
+			rs.ptrWrite(object4, value15);
 			if (cell3 !== undefined) {
 				object4[0] = cell3;
-				cell3.v = value19[0].v;
+				cell3.v = value15[0].v;
 			}
 			undefined;
 			rs.byteVecPush(out, old11[0].v & 0xff);
 			const _188: [rs.Cell<rs.u32>, rs.u8] = [new rs.Cell(((n as rs.u32) ^ 7) >>> 0), n];
 			const object5 = cell.v;
-			const value20 = _188;
+			const value16 = _188;
 			const cell4 = object5[0];
-			rs.ptrWrite(object5, value20);
+			rs.ptrWrite(object5, value16);
 			if (cell4 !== undefined) {
 				object5[0] = cell4;
-				cell4.v = value20[0].v;
+				cell4.v = value16[0].v;
 			}
 			undefined;
 		} else if (_60 === 5) {
 			toNest.v = rs.u32Mul(n as rs.u32, 3);
 			toPair.v = rs.u32Mul(n as rs.u32, 5);
 			const kept: rs.Cell<rs.u32> = new rs.Cell(nest.v.v);
-			const pointer9 = nest;
-			const value18 = new rs.Cell(rs.u32Add(n as rs.u32, 7));
-			if (pointer9.v === undefined) {
-				pointer9.v = value18;
+			const pointer8 = nest;
+			const value14 = new rs.Cell(rs.u32Add(n as rs.u32, 7));
+			if (pointer8.v === undefined) {
+				pointer8.v = value14;
 			} else {
-				pointer9.v.v = value18.v;
+				pointer8.v.v = value14.v;
 			}
 			undefined;
 			rs.byteVecPush(out, kept.v & 0xff);
@@ -3910,54 +3914,36 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(fresh.v & 0xff, parts[0].v & 0xff)), undefined, true);
 			let slot: rs.Cell<rs.u32> = (new rs.Cell(undefined) as unknown) as rs.Cell<rs.u32>;
 			let pairSlot: rs.Cell<[rs.u8, rs.u8]> = (new rs.Cell([undefined, undefined]) as unknown) as rs.Cell<[rs.u8, rs.u8]>;
-			const _255: [rs.Place<rs.Cell<rs.u32>>, rs.Place<rs.Cell<[rs.u8, rs.u8]>>] = [rs.place(() => slot, (value8) => slot = value8), rs.place(() => pairSlot, (value9) => pairSlot = value9)];
-			const toSlot: rs.Place<rs.Cell<rs.u32>> = _255[0];
-			const toPairSlot: rs.Place<rs.Cell<[rs.u8, rs.u8]>> = _255[1];
-			const _262: [rs.Place<rs.u32>, [rs.u8, rs.u8]] = [rs.rawUnsize(toSlot, (p: rs.Place<rs.Cell<rs.u32>>) => rs.place(() => p.v.v, (value10) => p.v.v = value10)), rs.rawUnsize(toPairSlot, (p2: rs.Place<rs.Cell<[rs.u8, rs.u8]>>) => p2.v.v)];
-			const early: rs.Place<rs.u32> = _262[0];
-			const earlyPair: [rs.u8, rs.u8] = _262[1];
+			const toSlot: rs.Place<rs.Cell<rs.u32>> = rs.place(() => slot, (value8) => slot = value8);
+			const toPairSlot: rs.Place<rs.Cell<[rs.u8, rs.u8]>> = rs.place(() => pairSlot, (value9) => pairSlot = value9);
+			const _259: [rs.Place<rs.u32>, [rs.u8, rs.u8]] = [toSlot.v, toPairSlot.v.v];
+			const early: rs.Place<rs.u32> = _259[0];
+			const earlyPair: [rs.u8, rs.u8] = _259[1];
 			const pointer5 = toSlot;
-			const value11 = new rs.Cell(((n as rs.u32) ^ 17) >>> 0);
+			const value10 = new rs.Cell(((n as rs.u32) ^ 17) >>> 0);
 			if (pointer5.v === undefined) {
-				pointer5.v = value11;
+				pointer5.v = value10;
 			} else {
-				pointer5.v.v = value11.v;
+				pointer5.v.v = value10.v;
 			}
 			undefined;
 			const pointer6 = toPairSlot;
-			const value12 = new rs.Cell([n, ~n & 0xff] as [rs.u8, rs.u8]);
+			const value11 = new rs.Cell([n, ~n & 0xff] as [rs.u8, rs.u8]);
 			if (pointer6.v === undefined) {
-				pointer6.v = value12;
+				pointer6.v = value11;
 			} else {
-				rs.ptrWrite(pointer6.v.v, value12.v);
+				rs.ptrWrite(pointer6.v.v, value11.v);
 			}
 			undefined;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(early.v & 0xff, earlyPair[1])), undefined, true);
-			const room: rs.Vec<rs.Cell<rs.u32>> = rs.vecWithCapacity(2, 4);
-			const toRoom: rs.Place<rs.Cell<rs.u32>> = rs.vecAsPtr(room, 4);
-			const _285: [rs.Place<rs.u32>, rs.Place<rs.u32>] = [rs.rawUnsize(toRoom, (p3: rs.Place<rs.Cell<rs.u32>>) => rs.place(() => p3.v.v, (value13) => p3.v.v = value13)), rs.rawUnsize(rs.ptrAdd(toRoom, 2), (p4: rs.Place<rs.Cell<rs.u32>>) => rs.place(() => p4.v.v, (value14) => p4.v.v = value14))];
-			const first: rs.Place<rs.u32> = _285[0];
-			const past: rs.Place<rs.u32> = _285[1];
-			const pointer7 = toRoom;
-			const value15 = new rs.Cell(((n as rs.u32) ^ 18) >>> 0);
-			if (pointer7.v === undefined) {
-				pointer7.v = value15;
-			} else {
-				pointer7.v.v = value15.v;
-			}
-			undefined;
-			rs.vecSetLen(room, 1, 4, (): rs.Cell<rs.u32> => {
-				return (new rs.Cell(undefined) as unknown) as rs.Cell<rs.u32>;
-			});
-			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(first.v & 0xff, past === rs.NULL ? 1 : 0, room.items[rs.idx(room.items, 0)].v & 0xff)), undefined, true);
 			let uninit: rs.Cell<rs.u32> = new rs.Cell(n as rs.u32);
 			const readOut: rs.Cell<rs.u32> = new rs.Cell(uninit.v);
-			const pointer8 = rs.place(() => uninit, (value16) => uninit = value16);
-			const value17 = new rs.Cell(((n as rs.u32) ^ 19) >>> 0);
-			if (pointer8.v === undefined) {
-				pointer8.v = value17;
+			const pointer7 = rs.place(() => uninit, (value12) => uninit = value12);
+			const value13 = new rs.Cell(((n as rs.u32) ^ 19) >>> 0);
+			if (pointer7.v === undefined) {
+				pointer7.v = value13;
 			} else {
-				pointer8.v.v = value17.v;
+				pointer7.v.v = value13.v;
 			}
 			undefined;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(readOut.v & 0xff, uninit.v & 0xff)), undefined, true);
@@ -3970,27 +3956,117 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			src.v[1][0] = 9;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(copy[1][0] & 0xff, src.v[1][0] & 0xff)), undefined, true);
 		} else {
-			const _347: rs.Cell<rs.u32> = new rs.Cell(((n as rs.u32) ^ 13) >>> 0);
-			const _350: rs.Place<rs.Cell<rs.u32>> = nest;
-			const value = _347;
-			if (_350.v === undefined) {
-				_350.v = value;
+			const _316: rs.Cell<rs.u32> = new rs.Cell(((n as rs.u32) ^ 13) >>> 0);
+			const _319: rs.Place<rs.Cell<rs.u32>> = nest;
+			const value = _316;
+			if (_319.v === undefined) {
+				_319.v = value;
 			} else {
-				_350.v.v = value.v;
+				_319.v.v = value.v;
 			}
-			const _352: rs.Cell<rs.Cell<rs.u32>> = new rs.Cell(new rs.Cell(((n as rs.u32) ^ 14) >>> 0));
-			const _356: rs.Place<rs.Cell<rs.Cell<rs.u32>>> = deep;
-			const value2 = _352;
-			if (_356.v === undefined) {
-				_356.v = value2;
+			const _321: rs.Cell<rs.Cell<rs.u32>> = new rs.Cell(new rs.Cell(((n as rs.u32) ^ 14) >>> 0));
+			const _325: rs.Place<rs.Cell<rs.Cell<rs.u32>>> = deep;
+			const value2 = _321;
+			if (_325.v === undefined) {
+				_325.v = value2;
 			} else {
-				_356.v.v.v = value2.v.v;
+				_325.v.v.v = value2.v.v;
 			}
 		}
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(toNest.v & 0xff, toDeep.v & 0xff, toPair.v & 0xff, toStrukt.v & 0xff)), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(toObj[0], toObj[1], toCell.v & 0xff, toWrapped.v & 0xff)), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(nest.v.v & 0xff, pair.v[1], strukt.v.n)), undefined, true);
 	}
+}
+
+/**
+ * Bytes whose `&raw` the body takes, a parameter's included: raw, mutable, and shared
+ * slices of each, and pointers to arrays cast from them by each route, are views of
+ * where the byte is, so a write through one reaches it and `offset_from` measures them.
+ */
+export function loneBytes(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const b = new Uint8Array(1);
+	const c = new Uint8Array(1);
+	const m = new Uint8Array(1);
+	for (const d of rs.byteSliceView(data)) {
+		b[0] = d;
+		const raw: rs.RawSlice<rs.u8> = new rs.RawSlice(rs.arrayAsPtr(b), 1);
+		rs.idx(raw, 0);
+		const slice = raw.derefBytes(false);
+		const slice2 = raw.derefBytes(false);
+		slice2.data[slice2.start] = slice.data[slice.start] ^ 90;
+		rs.byteVecPush(out, b[0]);
+		const s: rs.ByteSlice = rs.ptrByteSlice(rs.arrayAsPtr(b), 1, false);
+		rs.idx(s, 0);
+		const _19: rs.u8 = rs.u8WrappingAdd(s.data[s.start], 1);
+		rs.idx(s, 0);
+		s.data[s.start] = _19;
+		rs.byteVecPush(out, b[0]);
+		const _31: rs.u8 = rs.intRotateLeft(b[0], 3, 8, false);
+		b[0] = _31;
+		const shared: rs.ByteSlice = rs.ptrByteSlice(rs.arrayAsPtr(b), 1, true);
+		rs.idx(shared, 0);
+		rs.byteVecPush(out, shared.data[shared.start]);
+		rs.byteVecPush(out, rs.ptrOffsetFrom(rs.byteSliceAsPtr(shared), rs.arrayAsPtr(b)) & 0xff);
+		const one: rs.ByteSlice = new rs.RawSlice(rs.arrayAsPtr(b), 1).byteArray(1);
+		const _48: rs.u8 = rs.u8WrappingMul(one.data[one.start], 5);
+		one.data[one.start] = _48;
+		const none: rs.ByteSlice = new rs.RawSlice(rs.arrayAsPtr(b), 0).byteArray(1);
+		rs.byteVecPush(out, none.data[none.start]);
+		const empty: rs.ByteSlice = rs.ptrByteSlice(rs.arrayAsPtr(b), 0, true);
+		const lent: Uint8Array = rs.byteSliceToArray(rs.rawByteSliceOf(empty).byteArray(1));
+		const from: Uint8Array = rs.byteSliceToArray(rs.rawByteSliceOf(empty).byteArray(1));
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lent[0], from[0])), undefined, true);
+		const pointer = rs.arrayAsPtr(b);
+		const _83: rs.ByteSlice = new rs.RawSlice(rs.optionUnwrap(pointer === rs.NULL ? undefined : pointer), 1).byteArray(1);
+		_83.data[_83.start] = _83.data[_83.start] ^ 255;
+		const r: rs.Place<rs.u8> = rs.arrayAsPtr(b);
+		r.v = rs.u8WrappingAdd(r.v, 7);
+		const _90: rs.Place<rs.u8> = rs.arrayAsPtr(b);
+		((by: rs.u8): undefined => {
+			_90.v = rs.u8WrappingAdd(_90.v, by);
+		})(d);
+		rs.byteVecPush(out, b[0]);
+		rs.byteVecPush(out, tripled(b[0]));
+		c[0] = d;
+		const cast: rs.ByteSlice = rs.ptrByteSlice(rs.arrayAsPtr(c), 1, false);
+		rs.idx(cast, 0);
+		const _103: rs.u8 = rs.u8WrappingSub(cast.data[cast.start], 9);
+		rs.idx(cast, 0);
+		cast.data[cast.start] = _103;
+		const _117: rs.ByteSlice = rs.ptrByteSlice(rs.arrayAsPtr(c), 1, true);
+		rs.idx(_117, 0);
+		rs.byteVecPush(out, _117.data[_117.start]);
+		m[0] = (0 as unknown) as rs.u8;
+		const _122: rs.u8 = c[0];
+		const _124: rs.ByteSlice = rs.ptrByteSlice(rs.arrayAsPtr(m), 1, false);
+		rs.idx(_124, 0);
+		_124.data[_124.start] = _122;
+		rs.byteVecPush(out, m[0]);
+		const _135: [rs.u8, rs.u8] = [d, d ^ 1];
+		let e: rs.u8 = d;
+		let f: rs.u8 = _135[1];
+		let r2: rs.Place<rs.u8> = rs.place(() => e, (value) => e = value);
+		redirect(rs.place(() => r2, (value2) => r2 = value2), rs.place(() => f, (value3) => f = value3));
+		r2.v = 9;
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(e, f)), undefined, true);
+	}
+}
+
+/** `r` pointed at `to`. */
+export function redirect(r: rs.Place<rs.Place<rs.u8>>, to: rs.Place<rs.u8>): void {
+	r.v = to;
+}
+
+/** `b` tripled through a mutable slice of the parameter. */
+export function tripled(b: rs.u8): rs.u8 {
+	const b2 = Uint8Array.of(b);
+	const s: rs.ByteSlice = rs.ptrByteSlice(rs.arrayAsPtr(b2), 1, false);
+	rs.idx(s, 0);
+	const _4: rs.u8 = rs.u8WrappingMul(s.data[s.start], 3);
+	rs.idx(s, 0);
+	s.data[s.start] = _4;
+	return b2[0];
 }
 
 //# sourceMappingURL=pointers.ts.map

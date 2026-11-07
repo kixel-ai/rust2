@@ -347,31 +347,62 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				if let Some(err) = self.std_places(def_id, gargs, result, span) {
 					return err;
 				}
-				// The cell `get`'s reference or `raw_get`'s pointer points at is judged as each
-				// place a pointer it is made through may have been made of, and as what it
-				// points at where not every assignment of that pointer is known.
-				let raw_get = library::key(tcx, def_id).is_some_and(|(o, n)| o == "UnsafeCell" && n == "raw_get");
-				let pointees = |p: Place<'tcx>| {
-					let local = p.as_local();
-					// A reference that reborrows what a pointer points at, as `(*p).get()` does.
-					let reborrowed = |l: rustc_middle::mir::Local| match self.def_rvalue(l) {
-						Some(rustc_middle::mir::Rvalue::Ref(_, _, at))
-							if self.defs[l] == 1 && at.projection.as_slice() == [ProjectionElem::Deref] =>
-						{
-							Some(at.local)
-						}
-						_ => None,
+				// `raw_get`'s pointer must be made of places of its cell, as one into memory
+				// holding no cell yet, such as a `Vec`'s room past its length, or one moved off
+				// the cell it was made of, has no cell to give. Each is judged as `get` of it.
+				if library::key(tcx, def_id).is_some_and(|(o, n)| o == "UnsafeCell" && n == "raw_get") {
+					let cell = tcx.type_of(tcx.parent(def_id)).instantiate(tcx, gargs).skip_norm_wip();
+					let origins = args[0]
+						.node
+						.place()
+						.and_then(|p| self.raw_origins(p.as_local()?, &mut Vec::new()))
+						.filter(|o| {
+							o.iter().all(|at| {
+								// Or a `MaybeUninit` of it, which `as_ptr` points into.
+								let ty = at.ty(&self.mir.local_decls, tcx).ty;
+								ty == cell
+									|| matches!(ty.kind(), ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::MaybeUninit) && args.type_at(0) == cell)
+							})
+						});
+					let Some(origins) = origins else {
+						return self.err(
+							span,
+							format!(
+								"`UnsafeCell::raw_get` of a pointer not made of a place of `{cell}`, such as a parameter, a vector's or a slice's, or one moved by arithmetic, which may point where no cell is"
+							),
+						);
 					};
-					let pointer = if raw_get { local } else { local.and_then(reborrowed) };
-					let mut origins = Vec::new();
-					if !pointer.is_some_and(|l| self.raw_origins(l, &mut Vec::new(), &mut origins)) {
-						origins.push(tcx.mk_place_deref(p));
+					let judged =
+						origins
+							.into_iter()
+							.find_map(|at| match at.ty(&self.mir.local_decls, tcx).ty == cell {
+								true => self.made_out_of_step(def_id, gargs, at),
+								// What holds the slot, which holds the cell, is judged whole.
+								false => self.out_of_step(at, true),
+							});
+					if let Some(why) = judged {
+						return self.err(span, why);
 					}
-					origins
+				}
+				// The cell `get`'s reference points at is judged as each place the pointer it
+				// reborrows, as `(*p).get()` does, may have been made of, where all are known,
+				// and else as what the reference points at.
+				let reborrowed = |l: rustc_middle::mir::Local| match self.def_rvalue(l) {
+					Some(rustc_middle::mir::Rvalue::Ref(_, _, at))
+						if self.defs[l] == 1 && at.projection.as_slice() == [ProjectionElem::Deref] =>
+					{
+						Some(at.local)
+					}
+					_ => None,
 				};
-				if (raw_get || crate::lower::pointer::from_reference(tcx, def_id, gargs))
+				if crate::lower::pointer::from_reference(tcx, def_id, gargs)
 					&& let Some(why) = args[0].node.place().and_then(|p| {
-						pointees(p)
+						let origins = p
+							.as_local()
+							.and_then(reborrowed)
+							.and_then(|l| self.raw_origins(l, &mut Vec::new()));
+						origins
+							.unwrap_or_else(|| vec![tcx.mk_place_deref(p)])
 							.into_iter()
 							.find_map(|at| self.made_out_of_step(def_id, gargs, at))
 					}) {
@@ -708,6 +739,19 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				// A reference to an array is a slice of it, cloned over element by element.
 				if let ty::Array(elem, _) = ty.kind() {
 					let fns = library::clone_from_fns(self.b, *elem, span);
+					// Of an array of arrays, the arrays' arrays, as `rs.arraySliceBy` writes them back.
+					if elem.is_array() {
+						let name = self.b.fresh("arrays");
+						let source = Expr::rs("arraySliceAsSlice", vec![source]);
+						let e = Expr::rs(
+							"sliceCloneFromSlice",
+							[vec![Expr::ident(name.clone()), source], fns].concat(),
+						);
+						let copy = self.b.t.elem_copy(ty, span);
+						let by = crate::lower::array_slice::By { name, value: to, copy };
+						let e = crate::lower::array_slice::wrap(e, ts::Type::Builtin("void"), Vec::new(), vec![by]);
+						return done(e, true);
+					}
 					return done(Expr::rs("sliceCloneFromSlice", [vec![to, source], fns].concat()), true);
 				}
 				done(library::clone_from(self.b, to, source, ty, span), true)
@@ -1052,6 +1096,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					return done(target, true);
 				};
 				let none = target.clone().binary("===", self.b.t.none(inner));
+				// Of an array, the arrays of it alone, which a write lands in, or of none.
+				if inner.is_array() {
+					let of = crate::lower::array_fn(inner, "From");
+					let runs = |items: Vec<Expr>| Expr::rs("arraySliceFrom", vec![Expr::Array(items), of.clone()]);
+					let e = Expr::Cond(Box::new(none), Box::new(runs(Vec::new())), Box::new(runs(vec![target])));
+					return done(e, true);
+				}
 				let some = if self.b.t.needs_place(inner) {
 					Expr::rs("sliceOfPlace", vec![self.make_place(payload, target, span, out)])
 				} else if self.b.t.write_in(inner).is_some() {
@@ -1182,6 +1233,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let mut values = vec![s, start, end, dest];
 				let f = match elem.kind() {
 					_ if crate::lower::byte(elem) => "byteSliceCopyWithin",
+					ty::Array(..) => {
+						values.extend(self.b.t.copy_fn(elem, span));
+						"arraySliceCopyWithin"
+					}
 					_ => {
 						values.extend(self.b.t.copy_fn(elem, span));
 						"sliceCopyWithin"
@@ -1438,23 +1493,25 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		Some(borrowed)
 	}
 
-	/// Pushes to `origins` the places the raw pointer `local` may have been made of, by
-	/// `&raw` or a reference, through copies and casts, and returns whether those are all
-	/// of them, which they are not if it is a parameter, is written through, or any
+	/// The places the raw pointer `local` may have been made of: by `&raw` or a reference of
+	/// one, through copies and casts, or by `MaybeUninit::as_ptr` or `as_mut_ptr` of one,
+	/// which points at its value. `None` if it is a parameter, is written through, or any
 	/// assignment of it is something else.
 	fn raw_origins(
 		&self,
 		local: rustc_middle::mir::Local,
 		seen: &mut Vec<rustc_middle::mir::Local>,
-		origins: &mut Vec<Place<'tcx>>,
-	) -> bool {
-		use rustc_middle::mir::{Rvalue, StatementKind};
+	) -> Option<Vec<Place<'tcx>>> {
+		use rustc_middle::mir::{Rvalue, StatementKind, TerminatorKind};
+		let tcx = self.tcx;
 		if seen.contains(&local) {
-			return true;
+			return Some(Vec::new());
 		}
 		seen.push(local);
-		let mut known = !(1..=self.mir.arg_count).contains(&local.as_usize()) && !self.mutated[local];
-		let mut found = 0;
+		if (1..=self.mir.arg_count).contains(&local.as_usize()) || self.mutated[local] {
+			return None;
+		}
+		let (mut found, mut origins) = (0, Vec::new());
 		for (bb, data) in self.mir.basic_blocks.iter_enumerated() {
 			for (i, stmt) in data.statements.iter().enumerate() {
 				let StatementKind::Assign(assign) = &stmt.kind else {
@@ -1468,20 +1525,81 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					continue;
 				}
 				found += 1;
-				known &= match rvalue {
+				match rvalue {
 					Rvalue::RawPtr(_, made) | Rvalue::Ref(_, _, made) => {
-						origins.push(*made);
-						true
+						origins.extend(self.place_origins(*made, seen)?)
 					}
 					Rvalue::Use(Operand::Copy(from) | Operand::Move(from), _)
-					| Rvalue::Cast(_, Operand::Copy(from) | Operand::Move(from), _) => from
-						.as_local()
-						.is_some_and(|from| self.raw_origins(from, seen, origins)),
-					_ => false,
-				};
+					| Rvalue::Cast(_, Operand::Copy(from) | Operand::Move(from), _) => {
+						origins.extend(self.raw_origins(from.as_local()?, seen)?)
+					}
+					_ => return None,
+				}
 			}
+			let TerminatorKind::Call {
+				func,
+				args,
+				destination,
+				..
+			} = &data.terminator().kind
+			else {
+				continue;
+			};
+			if destination.as_local() != Some(local) {
+				continue;
+			}
+			found += 1;
+			let ty::FnDef(def_id, _) = *func.ty(&self.mir.local_decls, tcx).kind() else {
+				return None;
+			};
+			let as_ptr = library::is_std(tcx, def_id)
+				&& library::key(tcx, def_id)
+					.is_some_and(|(o, n)| o == "MaybeUninit" && matches!(n.as_str(), "as_ptr" | "as_mut_ptr"));
+			let r = args
+				.first()?
+				.node
+				.place()?
+				.as_local()
+				.filter(|&r| as_ptr && self.defs[r] == 1)?;
+			let Some(Rvalue::Ref(_, _, made)) = self.def_rvalue(r) else {
+				return None;
+			};
+			origins.extend(self.place_origins(*made, seen)?);
 		}
-		known && found == self.defs[local]
+		(found == self.defs[local]).then_some(origins)
+	}
+
+	/// The places `made`, which a pointer is made of, may be: itself, or where it derefs a
+	/// raw pointer first, each place that one may have been made of, projected the same way.
+	/// `None` if it derefs a raw pointer of unknown origin, or one anywhere else.
+	fn place_origins(&self, made: Place<'tcx>, seen: &mut Vec<rustc_middle::mir::Local>) -> Option<Vec<Place<'tcx>>> {
+		let tcx = self.tcx;
+		let raw = |i: usize| {
+			made.projection[i] == ProjectionElem::Deref
+				&& Place::ty_from(made.local, &made.projection[..i], &self.mir.local_decls, tcx)
+					.ty
+					.is_raw_ptr()
+		};
+		match (0..made.projection.len()).find(|&i| raw(i)) {
+			None => return Some(vec![made]),
+			Some(0) => {}
+			Some(_) => return None,
+		}
+		let rest = &made.projection[1..];
+		let mut places = Vec::new();
+		for at in self.raw_origins(made.local, seen)? {
+			places.extend(self.place_origins(at.project_deeper(rest, tcx), seen)?);
+		}
+		Some(places)
+	}
+
+	/// The slice `place`, an array a reference points at, is, whose copy `read`
+	/// [`Self::borrowed_place`] made of it.
+	fn borrowed_slice(&mut self, read: Expr, place: Place<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
+		match copied_slice(&read) {
+			Some(slice) => slice,
+			None => self.place_expr(place, span, out),
+		}
 	}
 
 	/// `slice::from_mut`, `array::from_mut`, or `from_mut` of `owner`, `Cell` or
@@ -1516,6 +1634,30 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			_ => Expr::rs("sliceIn", vec![object]),
 		};
 		let cell = owner != "raw" && owner != "array";
+		// A `&mut [T; N]` is the slice it views: a slice of it is the array slice of that one, and a
+		// cell of an array of arrays reads a copy of the arrays it views and writes into them.
+		if let ty::Array(elem, len) = ty.kind()
+			&& (!cell || elem.is_array())
+		{
+			if owner == "UnsafeCell" {
+				return Some(self.err(
+					span,
+					format!(
+						"`UnsafeCell::from_mut` of `{ty}`, an array of arrays, which a cell of it reads a copy of, so a write through its pointer would land in the copy"
+					),
+				));
+			}
+			let slice = self.operand(op, span, out);
+			if cell {
+				let copy = self.b.t.elem_copy(ty, span);
+				return Some(Expr::rs(
+					"cellOfArraySlice",
+					[vec![slice], copy.into_iter().collect()].concat(),
+				));
+			}
+			let n = len.try_to_target_usize(tcx).unwrap_or(0);
+			return Some(Expr::rs("arraySliceOne", vec![slice, Expr::lit(n.to_string())]));
+		}
 		if !cell && crate::lower::byte(ty) {
 			return Some(self.err(
 				span,
@@ -1773,7 +1915,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let read = Expr::As(Box::new(target.clone()), self.b.t.ty(payload_ty, span));
 		// A reference to an array is a slice of it.
 		if payload_ty.is_array() {
-			return Some(Some((self.b.t.array_rs(payload_ty, "From").call(vec![read]), true)));
+			return Some(Some((
+				crate::lower::array_slice(self.b.t.uninit_inner(payload_ty), read),
+				true,
+			)));
 		}
 		if let Some(local) = dest.as_local()
 			&& self.defs[local] == 1
@@ -1859,16 +2004,28 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		// the array a slice of other values than bytes holds.
 		let array = place.1.filter(|&p| self.in_array(p) && !self.in_bytes(p));
 		if place.1.is_some_and(|p| self.in_object(p)) || array.is_some() {
-			let object = match array {
-				Some(p) => {
-					let slice = self.place_expr(p, span, out);
-					Expr::rs("sliceView", vec![slice])
+			let old = match array {
+				// An array slice, each array copied out and written where the slice holds it.
+				Some(p) if crate::lower::array_slice::of_arrays(self.b.t.uninit_inner(ty)) => {
+					let slice = self.borrowed_slice(place.0, p, span, out);
+					let copy = self.b.t.elem_copy(ty, span);
+					Expr::rs(
+						"arraySliceReplace",
+						[vec![slice, value], copy.into_iter().collect()].concat(),
+					)
 				}
-				None => place.0,
+				Some(p) => {
+					let slice = self.borrowed_slice(place.0, p, span, out);
+					let mut made = vec![Expr::rs("sliceView", vec![slice]), value];
+					made.extend(self.b.t.copy_depth(ty));
+					Expr::rs("replaceIn", made)
+				}
+				None => {
+					let mut made = vec![place.0, value];
+					made.extend(self.b.t.copy_depth(ty));
+					Expr::rs("replaceIn", made)
+				}
 			};
-			let mut made = vec![object, value];
-			made.extend(self.b.t.copy_depth(ty));
-			let old = Expr::rs("replaceIn", made);
 			let Some(base) = base else {
 				out.push(StmtKind::Expr(old).at(None));
 				return Expr::undefined();
@@ -1925,6 +2082,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		{
 			return None;
 		}
+		// An array of a slice of arrays, which is the slice of its elements, in no slot.
+		if self.in_array(target) {
+			return None;
+		}
 		let mut read = read;
 		while let Expr::Located(_, inner) = read {
 			read = inner;
@@ -1938,6 +2099,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// Set what a `&mut` borrows to `value`.
 	fn set_borrowed(&mut self, (read, place): &Borrowed<'tcx>, value: Expr, span: Span, out: &mut Vec<Stmt>) {
 		match place {
+			// Into the slice `read` copies, which `borrowed_place` named.
+			Some(place)
+				if self.in_array(*place)
+					&& let Some(slice) = copied_slice(read) =>
+			{
+				let stmt = self.store_in_slice(*place, slice, value, span);
+				out.push(stmt);
+			}
 			Some(place) => out.extend(self.store(*place, value, span)),
 			None => self.assign_to(read.clone(), value, None, out),
 		}
@@ -2021,13 +2190,20 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let checked = self.path(checked, "at", out);
 				let place = match container.kind() {
 					ty::Adt(..) if bytes => base.member("data").index(checked),
+					// An array of a slice of arrays is the slice of its elements already.
+					ty::Slice(_) | ty::Array(..) if elem_ty.is_array() => {
+						return Some(Some((Expr::rs("arraySliceAt", vec![base, checked]), true)));
+					}
 					// An array comes through a reference, which is a slice of it.
 					_ if container.is_slice() || container.is_array() => super::place::slice_at(base, checked),
 					_ => base.index(checked),
 				};
 				// A reference to an array is a slice of it.
 				if elem_ty.is_array() {
-					return Some(Some((self.b.t.array_rs(elem_ty, "From").call(vec![place]), true)));
+					return Some(Some((
+						crate::lower::array_slice(self.b.t.uninit_inner(elem_ty), place),
+						true,
+					)));
 				}
 				// The reference reads and writes the element where it is.
 				if let Some(local) = dest.as_local()
@@ -2084,6 +2260,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let range = match (bytes, get) {
 					(true, false) => "byteSliceRange",
 					(true, true) => "byteSliceGetRange",
+					_ if elem_ty.is_array() && !get => "arraySliceRange",
+					_ if elem_ty.is_array() => "arraySliceGetRange",
 					(false, false) => "sliceRange",
 					(false, true) => "sliceGetRange",
 				};
@@ -2301,5 +2479,15 @@ fn locate(e: &mut Expr, arguments: &mut Vec<(Expr, ts::Loc)>) {
 		Expr::Array(es) => es.iter_mut().for_each(|e| locate(e, arguments)),
 		Expr::Object(props) => props.iter_mut().for_each(|(_, e)| locate(e, arguments)),
 		_ => {}
+	}
+}
+
+/// The slice `read`, a copy of an array `borrowed_place` made, reads, if it is one.
+fn copied_slice(read: &Expr) -> Option<Expr> {
+	match read {
+		Expr::Call(f, args) if matches!(&**f, Expr::Rs(n) if matches!(n.as_str(), "byteSliceToArray" | "sliceToArray" | "arraySliceToArray")) => {
+			args.first().cloned()
+		}
+		_ => None,
 	}
 }

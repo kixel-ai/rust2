@@ -152,9 +152,28 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		if super::byte(elem) {
 			return Expr::rs("byteSliceToArray", vec![s]);
 		}
+		// An array slice of arrays, as a slice holds them, but not of a wrapper's, which is an element.
+		if elem.is_array() {
+			let copy = self.array_copy_fn(elem, span);
+			return Expr::rs("arraySliceToArray", vec![s, copy]);
+		}
 		let mut values = vec![s];
 		values.extend(self.changes(elem).then(|| self.shim(elem, span)).flatten());
 		Expr::rs("sliceToArray", values)
+	}
+
+	/// What copies an element of the arrays of `ty`, an array or slice of arrays, as arrays
+	/// copied out and written back read it: a `Copy` value's copy where it is an object, and
+	/// `rs.objectCopy` of an object a write lands in, which a write of the arrays back changes.
+	pub fn elem_copy(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
+		let mut elem = self.uninit_inner(ty);
+		while let ty::Array(inner, _) | ty::Slice(inner) = elem.kind() {
+			elem = *inner;
+		}
+		match self.changes(elem) {
+			true => self.shim(elem, span),
+			false => self.write_in(elem).map(|_| Expr::Rs("objectCopy".into())),
+		}
 	}
 
 	/// The function [`Self::array_copy`] calls on a slice of a `ty`.
@@ -666,10 +685,11 @@ fn replaces<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, this: Ty<'tcx>) -> Option<Ty
 
 /// The value std's `def_id`, a method of a cell of it, writes whole in place of the one the
 /// cell holds: as a write through the pointer `as_ptr` or `get` gives, into the object or
-/// array it is.
+/// array it is. A `Cell`'s arrays of arrays are put in its place instead.
 fn cell_writes<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> Option<Ty<'tcx>> {
 	let (owner, name) = super::library::key(tcx, def_id)?;
 	let writes = match owner.as_str() {
+		"Cell" if super::array_slice::of_arrays(args.type_at(0)) => false,
 		"Cell" => matches!(name.as_str(), "replace" | "set" | "swap" | "take" | "update"),
 		"UnsafeCell" => name == "replace",
 		_ => false,

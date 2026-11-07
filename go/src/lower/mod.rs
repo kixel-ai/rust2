@@ -7,6 +7,7 @@
 mod body;
 mod consts;
 mod fold;
+mod hand;
 mod library;
 mod names;
 mod split;
@@ -20,6 +21,8 @@ use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{CrateNum, DefId, LOCAL_CRATE};
 use rustc_middle::ty::{Instance, Ty, TyCtxt, TyKind, TypingEnv, Unnormalized};
 use rustc_span::Span;
+
+use hand::Hand;
 
 /// The runtime's files, copied into the package beside the translation.
 const RUNTIME: &[(&str, &str)] = &[
@@ -186,6 +189,8 @@ pub struct Translator<'tcx> {
 	splits: HashMap<Ty<'tcx>, Option<std::rc::Rc<split::Split<'tcx>>>>,
 	/// The types whose parts are being found.
 	splitting: Vec<Ty<'tcx>>,
+	/// The Go function walking each type to hand its storage each way.
+	hand_fns: HashMap<(Ty<'tcx>, hand::Hand), String>,
 	/// Each refusal reported, so a construct met again at the same place is reported once.
 	reported: HashSet<(Span, String)>,
 	failed: bool,
@@ -225,6 +230,7 @@ impl<'tcx> Translator<'tcx> {
 			cyclic: HashSet::new(),
 			splits: HashMap::new(),
 			splitting: Vec::new(),
+			hand_fns: HashMap::new(),
 			reported: HashSet::new(),
 			failed: false,
 		}
@@ -412,19 +418,22 @@ impl<'tcx> Translator<'tcx> {
 		let inputs: Vec<Ty<'tcx>> = sig.inputs().iter().map(|t| normal(*t)).collect();
 		let output = normal(sig.output());
 		let splits = inputs.iter().chain([&output]).any(|t| self.split(*t, span).is_some());
-		if !splits {
+		let hands =
+			inputs.iter().any(|t| self.hands(*t, Hand::In) || self.hands_back(*t)) || self.hands(output, Hand::Out);
+		self.refuse_unhandable(&inputs, output, span);
+		if !splits && !hands {
 			self.funcs.insert(instance, name);
 			self.queue.push_back((instance, span));
 			return;
 		}
-		// Its callers' Go holds its enums whole.
+		// Its callers' Go holds its enums whole and its storage handed over.
 		let inner = self.func(instance, span);
 		let text = self.wrapper(&name, path, &inner, &inputs, output, span);
 		self.out.entry(def_id.krate).or_default().funcs.push((name, text));
 	}
 
 	/// The root `name` of the function at `path`, calling `inner`, the function as
-	/// translated code calls it, with its enums whole.
+	/// translated code calls it, with its enums whole and its storage handed over.
 	fn wrapper(
 		&mut self,
 		name: &str,
@@ -436,9 +445,17 @@ impl<'tcx> Translator<'tcx> {
 	) -> String {
 		let mut params = Vec::new();
 		let mut args = Vec::new();
+		let mut enter = String::new();
+		let mut back = Vec::new();
 		for (i, input) in inputs.iter().enumerate() {
 			let param = format!("_{}", i + 1);
 			params.push(format!("{param} {}", self.ty(*input, span)));
+			if self.hands(*input, Hand::In) {
+				enter.push_str(&format!("\t{}(&{param})\n", self.hand(*input, Hand::In, span)));
+			}
+			if self.hands_back(*input) {
+				back.push(format!("{}(&{param})", self.hand(*input, Hand::Out, span)));
+			}
 			match self.split(*input, span) {
 				Some(split) => args.extend(split.parts.iter().map(|p| match p.big {
 					true => format!("&{param}{}", p.path),
@@ -451,6 +468,14 @@ impl<'tcx> Translator<'tcx> {
 			true => String::new(),
 			false => format!(" {}", self.ty(output, span)),
 		};
+		if !back.is_empty() {
+			// Even when a panic unwinds out, what Go keeps is handed back.
+			enter.push_str(&format!("\tdefer func() {{ {} }}()\n", back.join("; ")));
+		}
+		let out = match self.hands(output, Hand::Out) {
+			true => format!("\t{}(&_0)\n", self.hand(output, Hand::Out, span)),
+			false => String::new(),
+		};
 		let body = match self.split(output, span) {
 			Some(split) => {
 				let mut lhs = Vec::new();
@@ -461,16 +486,17 @@ impl<'tcx> Translator<'tcx> {
 					}
 				}
 				format!(
-					"\tvar _0{ret}\n\t{} = {inner}({})\n\treturn _0\n",
+					"\tvar _0{ret}\n\t{} = {inner}({})\n{out}\treturn _0\n",
 					lhs.join(", "),
 					args.join(", ")
 				)
 			}
 			None if ret.is_empty() => format!("\t{inner}({})\n", args.join(", ")),
-			None => format!("\treturn {inner}({})\n", args.join(", ")),
+			None if out.is_empty() => format!("\treturn {inner}({})\n", args.join(", ")),
+			None => format!("\t_0 := {inner}({})\n{out}\treturn _0\n", args.join(", ")),
 		};
 		format!(
-			"// {name} is `{path}`.\nfunc {name}({}){ret} {{\n{body}}}\n",
+			"// {name} is `{path}`.\nfunc {name}({}){ret} {{\n{enter}{body}}}\n",
 			params.join(", ")
 		)
 	}
@@ -510,7 +536,10 @@ impl<'tcx> Translator<'tcx> {
 		if let Some(name) = self.funcs.get(&instance) {
 			return name.clone();
 		}
-		let base = names::func_base(self.tcx, instance);
+		// Unexported, so Go callers reach the translation only through its roots, which
+		// hand storage over.
+		let mut base = names::ident(&names::func_base(self.tcx, instance));
+		base[..1].make_ascii_lowercase();
 		let name = self.fresh(&base);
 		self.funcs.insert(instance, name.clone());
 		self.queue.push_back((instance, span));

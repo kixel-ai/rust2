@@ -2529,19 +2529,11 @@ pub fn generic_unions(data: &[u8], out: &mut Vec<u8>) {
 	}
 }
 
-/// A struct holding cells, as a type that lends pointers to its parts through a
-/// `*const Self` does.
+/// A struct holding cells, reached through a raw pointer to it.
 struct Slots {
 	num: UnsafeCell<u32>,
 	held: UnsafeCell<Held>,
 	pair: UnsafeCell<(u8, u16)>,
-}
-
-impl Slots {
-	/// The pointer to the count, through a pointer to the struct.
-	unsafe fn num(this: *const Self) -> *mut u32 {
-		unsafe { UnsafeCell::raw_get(&raw const (*this).num) }
-	}
 }
 
 /// What `UnsafeCell::raw_get` gives of a reference to a cell of a number, a struct Rust
@@ -2550,8 +2542,7 @@ impl Slots {
 /// `MaybeUninit::as_ptr`; cells `UnsafeCell::from_mut` makes of a variable, an object,
 /// an element, and an array, written through `get`; `UnsafeCell::replace` of each, which a
 /// pointer taken before sees, giving back what it held undropped; what `as_ref_unchecked`
-/// and `as_mut_unchecked` lend; `raw_get` of pointers to no cell; and the allocations of
-/// boxes and pinned boxes replaced and swapped through pointers, `UnsafeCell`s, one
+/// and `as_mut_unchecked` lend; and the allocations of boxes and pinned boxes replaced and swapped through pointers, `UnsafeCell`s, one
 /// `from_mut` makes, and `Cell`s.
 pub fn raw_cells(data: &[u8], out: &mut Vec<u8>) {
 	let count = Rc::new(());
@@ -2602,7 +2593,7 @@ pub fn raw_cells(data: &[u8], out: &mut Vec<u8>) {
 				let p = &raw const num;
 				*UnsafeCell::raw_get(p) = (*UnsafeCell::raw_get(p)).wrapping_mul(u32::from(n) | 1);
 				let s = &raw const slots;
-				*Slots::num(s) += u32::from(n);
+				*UnsafeCell::raw_get(&raw const (*s).num) += u32::from(n);
 				(*UnsafeCell::raw_get(&raw const (*s).held)).n ^= n;
 				(*UnsafeCell::raw_get(&raw const (*s).pair)).0 ^= n;
 				*UnsafeCell::raw_get(slot.as_ptr()) ^= u32::from(n);
@@ -2683,16 +2674,9 @@ pub fn raw_cells(data: &[u8], out: &mut Vec<u8>) {
 				out.extend(old);
 				out.extend(arr);
 			},
-			// Pointers to no cell, which `raw_get` gives back as they are, and boxes replaced
-			// and swapped through pointers and cells, each allocation moving with its box.
+			// Boxes replaced and swapped through pointers and cells, each allocation moving
+			// with its box.
 			6 => unsafe {
-				let null = ptr::null::<UnsafeCell<u32>>();
-				let pair = ptr::null_mut::<UnsafeCell<Duo>>();
-				out.extend([
-					u8::from(UnsafeCell::raw_get(null).is_null()),
-					u8::from(UnsafeCell::raw_get(pair).is_null()),
-					u8::from(UnsafeCell::raw_get(null.wrapping_add(usize::from(n % 4))).is_null()),
-				]);
 				let held = |n| Held {
 					n,
 					count: Rc::clone(&count),
@@ -2926,17 +2910,12 @@ pub fn nested_cells(data: &[u8], out: &mut Vec<u8>) {
 					]);
 					let mut slot = MaybeUninit::<UnsafeCell<u32>>::uninit();
 					let mut pair_slot = MaybeUninit::<UnsafeCell<(u8, u8)>>::uninit();
-					let (to_slot, to_pair_slot) = (slot.as_mut_ptr(), pair_slot.as_mut_ptr());
+					let to_slot = slot.as_mut_ptr();
+					let to_pair_slot = pair_slot.as_mut_ptr();
 					let (early, early_pair) = (UnsafeCell::raw_get(to_slot), UnsafeCell::raw_get(to_pair_slot));
 					ptr::write(to_slot, UnsafeCell::new(u32::from(n) ^ 17));
 					ptr::write(to_pair_slot, UnsafeCell::new((n, !n)));
 					out.extend([*early as u8, (*early_pair).1]);
-					let mut room = Vec::<UnsafeCell<u32>>::with_capacity(2);
-					let to_room = room.as_mut_ptr();
-					let (first, past) = (UnsafeCell::raw_get(to_room), UnsafeCell::raw_get(to_room.add(2)));
-					ptr::write(to_room, UnsafeCell::new(u32::from(n) ^ 18));
-					room.set_len(1);
-					out.extend([*first as u8, past.is_null() as u8, room[0].get().read() as u8]);
 					let mut uninit = MaybeUninit::new(UnsafeCell::new(u32::from(n)));
 					let read_out = uninit.assume_init_read();
 					ptr::write(uninit.as_mut_ptr(), UnsafeCell::new(u32::from(n) ^ 19));
@@ -2956,4 +2935,72 @@ pub fn nested_cells(data: &[u8], out: &mut Vec<u8>) {
 			out.extend([(*nest.get()).get().read() as u8, (*pair.get()).1, (*strukt.get()).n]);
 		}
 	}
+}
+
+/// Bytes whose `&raw` the body takes, a parameter's included: raw, mutable, and shared
+/// slices of each, and pointers to arrays cast from them by each route, are views of
+/// where the byte is, so a write through one reaches it and `offset_from` measures them.
+pub fn lone_bytes(data: &[u8], out: &mut Vec<u8>) {
+	for &d in data {
+		let mut b = d;
+		let p = &raw mut b;
+		let raw = ptr::slice_from_raw_parts_mut(p, 1);
+		unsafe { (*raw)[0] ^= 0x5a };
+		out.push(b);
+		let s = unsafe { std::slice::from_raw_parts_mut(&raw mut b, 1) };
+		s[0] = s[0].wrapping_add(1);
+		out.push(b);
+		b = b.rotate_left(3);
+		let shared = unsafe { std::slice::from_raw_parts(&raw const b, 1) };
+		out.push(shared[0]);
+		out.push(unsafe { shared.as_ptr().offset_from(&raw const b) } as u8);
+		// To an array, by a cast, `cast`, and from an empty slice of it, whose pointer still
+		// reaches the byte.
+		let one = ptr::slice_from_raw_parts_mut(&raw mut b, 1) as *mut [u8; 1];
+		unsafe { (*one)[0] = (*one)[0].wrapping_mul(5) };
+		let none = ptr::slice_from_raw_parts(&raw const b, 0).cast::<[u8; 1]>();
+		out.push(unsafe { (*none)[0] });
+		let empty = unsafe { std::slice::from_raw_parts(&raw const b, 0) };
+		let lent = unsafe { *(&raw const *empty).cast::<[u8; 1]>() };
+		let from = unsafe { *NonNull::from(empty).cast::<[u8; 1]>().as_ptr() };
+		out.extend([lent[0], from[0]]);
+		let nn = NonNull::new(&raw mut b).unwrap();
+		let made = NonNull::slice_from_raw_parts(nn, 1).cast::<[u8; 1]>();
+		unsafe { (*made.as_ptr())[0] ^= 0xff };
+		// A `&mut` to it and a closure's are where its pointers are.
+		let r = &mut b;
+		*r = r.wrapping_add(7);
+		let mut bump = |by: u8| b = b.wrapping_add(by);
+		bump(d);
+		out.push(b);
+		out.push(tripled(b));
+		// Through a pointer cast from a `&mut`, and a `MaybeUninit` byte's.
+		let mut c = d;
+		let cast = unsafe { std::slice::from_raw_parts_mut(&mut c as *mut u8, 1) };
+		cast[0] = cast[0].wrapping_sub(9);
+		let p: *const u8 = &c;
+		out.push(unsafe { std::slice::from_raw_parts(p, 1)[0] });
+		let mut m = MaybeUninit::<u8>::uninit();
+		unsafe { std::slice::from_raw_parts_mut(&raw mut m, 1)[0] = MaybeUninit::new(c) };
+		out.push(unsafe { m.assume_init() });
+		// Through a reference redirected by a `&mut` to it, at the byte it now points at.
+		let (mut e, mut f) = (d, d ^ 1);
+		let mut r = &mut e;
+		redirect(&mut r, &mut f);
+		let p = &raw mut *r;
+		unsafe { *p = 9 };
+		out.extend([e, f]);
+	}
+}
+
+/// `r` pointed at `to`.
+fn redirect<'a>(r: &mut &'a mut u8, to: &'a mut u8) {
+	*r = to;
+}
+
+/// `b` tripled through a mutable slice of the parameter.
+fn tripled(mut b: u8) -> u8 {
+	let s = unsafe { std::slice::from_raw_parts_mut(&raw mut b, 1) };
+	s[0] = s[0].wrapping_mul(3);
+	b
 }

@@ -680,7 +680,7 @@ export function packets(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 	let _32!: rs.u8;
 	let cc!: rs.u8;
 	const packets: rs.ByteVec = rs.byteVecOf(0, rs.usizeMul(rs.u64Low(rs.u64Min(takeU64(data)[0], 4096)), 188));
-	const iter: rs.Iter<[rs.usize, rs.ByteSlice]> = rs.iterEnumerate(rs.iterLend(rs.iterSlice(rs.sliceItems(rs.byteSliceAsChunksMut(rs.byteVecSlice(packets), 188)[0])), rs.byteSliceFrom));
+	const iter: rs.Iter<[rs.usize, rs.ByteSlice]> = rs.iterEnumerate(rs.arraySliceIter(rs.sliceAsChunks(rs.byteVecSlice(packets), 188)[0]));
 	while (true) {
 		const _21: [rs.usize, rs.ByteSlice] | rs.Done = iter.next();
 		if (_21 === rs.DONE) {
@@ -699,7 +699,7 @@ export function packets(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 	}
 	const counters: Uint8Array = rs.bytes(3);
 	let sum: rs.u64 = 0;
-	const iter2: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.sliceItems(rs.byteSliceAsChunksMut(rs.byteVecSlice(packets), 188)[0])), rs.byteSliceFrom);
+	const iter2: rs.Iter<rs.ByteSlice> = rs.arraySliceIter(rs.sliceAsChunks(rs.byteVecSlice(packets), 188)[0]);
 	while (true) {
 		const _48: rs.ByteSlice | rs.Done = iter2.next();
 		if (_48 === rs.DONE) {

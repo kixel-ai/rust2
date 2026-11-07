@@ -3,10 +3,7 @@
 import * as rs from "./rs.ts";
 import type * as Held from "./pointers.Held.ts";
 
-/**
- * A struct holding cells, as a type that lends pointers to its parts through a
- * `*const Self` does.
- */
+/** A struct holding cells, reached through a raw pointer to it. */
 export class Slots {
 	num: rs.Cell<rs.u32>;
 	held: rs.Cell<Held.Held>;
@@ -21,11 +18,6 @@ export class Slots {
 	[Symbol.dispose](): void {
 		this.held[Symbol.dispose]();
 	}
-}
-
-/** The pointer to the count, through a pointer to the struct. */
-export function num(this_: Slots): rs.Place<rs.u32> {
-	return rs.rawUnsize(rs.place(() => this_.num, (value) => this_.num = value), (p: rs.Place<rs.Cell<rs.u32>>) => rs.place(() => p.v.v, (value2) => p.v.v = value2));
 }
 
 //# sourceMappingURL=pointers.Slots.ts.map

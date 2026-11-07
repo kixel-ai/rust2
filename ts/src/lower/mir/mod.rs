@@ -308,6 +308,10 @@ enum Slot<'tcx> {
 	Unit,
 	/// A JS variable.
 	Var(String),
+	/// A byte whose `&raw` the body takes: element 0 of a `Uint8Array` of its own in this
+	/// variable, so a raw or mutable slice of it, and an array cast from one, is a view of
+	/// its buffer, as of any other byte in an array of bytes.
+	Byte(String),
 	/// A reference assigned once, read as the place it borrows, which is set once its
 	/// assignment is lowered.
 	Alias(Option<Expr>),
@@ -367,6 +371,11 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	mutated: IndexVec<Local, bool>,
 	/// The names of borrowed locals.
 	shared: FxHashSet<String>,
+	/// Byte locals whose `&raw` the body takes, which [`Slot::Byte`] holds, as
+	/// [`Self::find_raw_bytes`] finds them.
+	raw_bytes: FxHashSet<Local>,
+	/// The name each parameter held as a [`Slot::Byte`] arrives by.
+	byte_params: FxHashMap<Local, String>,
 	/// The names of locals whose own value nothing changes: a tuple, array, or enum or
 	/// struct of their own, never changed in place nor borrowed, so a call can't change
 	/// what their fields hold.
@@ -505,6 +514,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			borrowed: IndexVec::from_elem_n(false, n),
 			mutated: IndexVec::from_elem_n(false, n),
 			shared: FxHashSet::default(),
+			raw_bytes: FxHashSet::default(),
+			byte_params: FxHashMap::default(),
 			frozen_names: FxHashSet::default(),
 			checked: FxHashSet::default(),
 			pending: Vec::new(),
@@ -716,6 +727,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			self.operand_use(len);
 			self.operand_use(index);
 		}
+		self.find_raw_bytes();
 		self.drop_unread();
 		self.find_next_results();
 		self.find_stepped();
@@ -731,6 +743,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Slot::Unit
 			} else if self.scalars.contains_key(&local) {
 				Slot::Var(String::new())
+			} else if self.raw_bytes.contains(&local) && local != mir::RETURN_PLACE {
+				Slot::Byte(String::new())
 			} else if let Some(value) = self.unassigned(local, ty) {
 				Slot::Alias(Some(value))
 			} else if self.alias(local) && !self.reads_scalar_object(local) {
@@ -766,6 +780,20 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 		}
 		for local in mir.local_decls.indices() {
+			if let Slot::Byte(_) = self.slots[local] {
+				let base = match named.get(&local) {
+					Some(name) => super::camel(name.as_str()),
+					None => format!("_{}", local.as_u32()),
+				};
+				// A parameter keeps its name in the signature, and its buffer takes another.
+				if self.is_arg(local) {
+					let param = self.b.fresh(&base);
+					self.byte_params.insert(local, param);
+				}
+				let name = self.b.fresh(&base);
+				self.shared.insert(name.clone());
+				self.slots[local] = Slot::Byte(name);
+			}
 			if let Slot::Var(_) = self.slots[local] {
 				let base = match named.get(&local) {
 					Some(name) => super::camel(name.as_str()),
@@ -799,6 +827,42 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 		}
 		self.share_stepped();
+	}
+
+	/// The byte locals whose `&raw` the body takes, of the local or of a reference to it
+	/// made here, as `&mut b as *mut u8` is.
+	fn find_raw_bytes(&mut self) {
+		for data in self.mir.basic_blocks.iter() {
+			for stmt in &data.statements {
+				let StatementKind::Assign(assign) = &stmt.kind else {
+					continue;
+				};
+				let Rvalue::RawPtr(mir::RawPtrKind::Const | mir::RawPtrKind::Mut, place) = &assign.1 else {
+					continue;
+				};
+				if let Some(local) = self.raw_byte(*place) {
+					self.raw_bytes.insert(local);
+				}
+			}
+		}
+	}
+
+	/// The byte local `place`, the place of a `&raw`, is: the local, or what a reference
+	/// to it made here, which nothing redirects through a `&mut` to it, points at.
+	fn raw_byte(&self, place: Place<'tcx>) -> Option<Local> {
+		let local = match place.projection.as_slice() {
+			[] => place.local,
+			[mir::ProjectionElem::Deref]
+				if self.defs[place.local] == 1 && !self.is_arg(place.local) && !self.mutated[place.local] =>
+			{
+				match self.def_rvalue(place.local)? {
+					Rvalue::Ref(_, _, p) if p.projection.is_empty() => p.local,
+					_ => return None,
+				}
+			}
+			_ => return None,
+		};
+		crate::lower::byte(self.mir.local_decls[local].ty).then_some(local)
 	}
 
 	/// Uncount the reads of what computes a local nothing reads without doing anything
@@ -1670,6 +1734,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			};
 			let name = match &self.slots[local] {
 				Slot::Var(name) => name.clone(),
+				Slot::Byte(_) => self.byte_params[&local].clone(),
 				_ => self.b.fresh("_"),
 			};
 			if self.parted.contains(&local) {
@@ -1693,6 +1758,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			entry.push(StmtKind::decl(self.defs[local] > 0, name, Some(ty), Some(slice)).at(None));
 		}
 		for local in self.mir.args_iter() {
+			if let Slot::Byte(name) = &self.slots[local] {
+				let param = Expr::ident(&self.byte_params[&local]);
+				let buffer = Expr::Member(Box::new(Expr::ident("Uint8Array")), crate::ts::Key::Name("of".into()));
+				entry.push(StmtKind::decl(false, name.clone(), None, Some(buffer.call(vec![param]))).at(None));
+			}
 			let ty = self.mir.local_decls[local].ty;
 			if self.mutated[local]
 				&& let Slot::Var(name) = &self.slots[local]
@@ -1746,6 +1816,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		self.labels = labels;
 		let mut out = Vec::new();
 		for local in self.mir.local_decls.indices() {
+			if let Slot::Byte(name) = &self.slots[local]
+				&& !self.is_arg(local)
+			{
+				let buffer = Expr::New(Box::new(Expr::ident("Uint8Array")), vec![Expr::lit("1")]);
+				out.push(StmtKind::decl(false, name.clone(), None, Some(buffer)).at(None));
+				continue;
+			}
 			// Parameters are declared by the signature.
 			if self.is_arg(local) || !self.assigned[local] {
 				continue;
@@ -2492,6 +2569,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				{
 					self.var_parts.insert(local, parts);
 				}
+			}
+			Slot::Byte(name) => {
+				let stmt = StmtKind::Expr(Expr::ident(name).index(Expr::lit("0")).assign(value)).at(loc);
+				self.emit(vec![stmt], false, out);
 			}
 			Slot::Unit => {
 				if effect {
