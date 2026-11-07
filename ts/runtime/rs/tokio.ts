@@ -135,8 +135,8 @@ class Notified implements Disposable {
 	}
 }
 
-/** The most permits tokio's semaphore holds: `usize::MAX >> 3`, of wasm32's `usize`. */
-const MAX_PERMITS = 2 ** 29 - 1;
+/** The most permits tokio's semaphore holds: `usize::MAX >> 3`, of wasm32's `usize`, 2^29 - 1, a literal a bundler drops unread. */
+const MAX_PERMITS = 536870911;
 
 /** The panic of a semaphore asked for more than `MAX_PERMITS`. */
 function checkPermits(n: number, at?: Location): void {
@@ -337,8 +337,8 @@ class Queue<T> {
 }
 
 /** What a pop of an empty channel finds: no value yet, or the mark the last sender left. */
-const EMPTY: unique symbol = Symbol("EMPTY");
-const CLOSED: unique symbol = Symbol("CLOSED");
+const EMPTY: unique symbol = /* @__PURE__ */ Symbol("EMPTY");
+const CLOSED: unique symbol = /* @__PURE__ */ Symbol("CLOSED");
 
 /** tokio's `Chan`: what an mpsc channel's handles share, which drops as the last of them does. */
 class Chan<T> {
@@ -1403,7 +1403,7 @@ export function watchRefDebug<T>(r: WatchRef<T>, f: Formatter, debug: Debug<T>):
 // oneshot
 
 /** No value: none sent, or the receiver took it. */
-const NO_VALUE: unique symbol = Symbol("NO_VALUE");
+const NO_VALUE: unique symbol = /* @__PURE__ */ Symbol("NO_VALUE");
 
 /** What a oneshot channel's two handles share. */
 class Inner<T> {

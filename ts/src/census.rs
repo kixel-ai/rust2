@@ -202,6 +202,7 @@ const VERBATIM: &[&str] = &[
 	"rs.OuterPending",
 	"rs.Pending",
 	"self",
+	"send_timeout",
 	"skip",
 	"str",
 	"str::as_ptr",
