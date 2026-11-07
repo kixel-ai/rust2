@@ -4,7 +4,7 @@ import * as rs from "./rs.ts";
 import * as buf_Counted from "./buf.Counted.ts";
 import * as Pieces from "./buf.Pieces.ts";
 import * as Provided from "./buf.Provided.ts";
-import { chunksVectored$bytes_Buf_bytes_Bytes, chunksVectored$bytes_Buf_bytes_BytesMut, chunksVectored$bytes_Buf_ref_slice_u8, tryGetU8$bytes_Buf_bytes_Bytes, tryGetU8$bytes_Buf_bytes_BytesMut, tryGetU8$bytes_Buf_ref_slice_u8 } from "./bytes/buf/buf_impl.ts";
+import { chunksVectored$bytes_Buf_bytes_Bytes as buf_impl_chunksVectored$bytes_Buf_bytes_Bytes, chunksVectored$bytes_Buf_bytes_BytesMut as buf_impl_chunksVectored$bytes_Buf_bytes_BytesMut, chunksVectored$bytes_Buf_ref_slice_u8 as buf_impl_chunksVectored$bytes_Buf_ref_slice_u8, tryGetU8$bytes_Buf_bytes_Bytes, tryGetU8$bytes_Buf_bytes_BytesMut, tryGetU8$bytes_Buf_ref_slice_u8 } from "./bytes/buf/buf_impl.ts";
 import type * as Buf from "./bytes/buf/buf_impl.Buf.ts";
 import * as Chain from "./bytes/buf/chain.Chain.ts";
 import * as Take from "./bytes/buf/take.Take.ts";
@@ -868,7 +868,7 @@ export class of$bytes_Bytes {
 	}
 
 	chunksVectored$Buf(a: rs.Slice<rs.ByteSlice>): rs.usize {
-		return chunksVectored$bytes_Buf_bytes_Bytes(this.v, a);
+		return buf_impl_chunksVectored$bytes_Buf_bytes_Bytes(this.v, a);
 	}
 
 	copyToBytes$Buf(a: rs.usize): rs.ByteSlice {
@@ -1010,7 +1010,7 @@ export class of$bytes_BytesMut {
 	}
 
 	chunksVectored$Buf(a: rs.Slice<rs.ByteSlice>): rs.usize {
-		return chunksVectored$bytes_Buf_bytes_BytesMut(this.v, a);
+		return buf_impl_chunksVectored$bytes_Buf_bytes_BytesMut(this.v, a);
 	}
 
 	copyToBytes$Buf(a: rs.usize): rs.ByteSlice {
@@ -1730,7 +1730,7 @@ export class of$ref_slice_u8 {
 	}
 
 	chunksVectored$Buf(a: rs.Slice<rs.ByteSlice>): rs.usize {
-		return chunksVectored$bytes_Buf_ref_slice_u8(this.v, a);
+		return buf_impl_chunksVectored$bytes_Buf_ref_slice_u8(this.v, a);
 	}
 
 	copyToBytes$Buf(a: rs.usize): rs.ByteSlice {
@@ -1872,7 +1872,7 @@ export class ofPlace$bytes_Bytes {
 	}
 
 	chunksVectored$Buf(a: rs.Slice<rs.ByteSlice>): rs.usize {
-		return chunksVectored$bytes_Buf_bytes_Bytes(this.v.v, a);
+		return buf_impl_chunksVectored$bytes_Buf_bytes_Bytes(this.v.v, a);
 	}
 
 	copyToBytes$Buf(a: rs.usize): rs.ByteSlice {
@@ -2010,7 +2010,7 @@ export class ofPlace$ref_slice_u8 {
 	}
 
 	chunksVectored$Buf(a: rs.Slice<rs.ByteSlice>): rs.usize {
-		return chunksVectored$bytes_Buf_ref_slice_u8(this.v.v, a);
+		return buf_impl_chunksVectored$bytes_Buf_ref_slice_u8(this.v.v, a);
 	}
 
 	copyToBytes$Buf(a: rs.usize): rs.ByteSlice {

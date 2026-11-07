@@ -5,7 +5,7 @@ import { out$u8 } from "../../lib.ts";
 import * as Pieces from "../../buf.Pieces.ts";
 import * as Provided from "../../buf.Provided.ts";
 import { panicAdvance, panicDoesNotFit } from "../../bytes.ts";
-import { signExtend, chunksVectored$bytes_Buf_bytes_Bytes, chunksVectored$bytes_Buf_ref_slice_u8, take$bytes_Buf_mut_bytes_Bytes as buf_impl_take$bytes_Buf_mut_bytes_Bytes, take$bytes_Buf_mut_bytes_BytesMut as buf_impl_take$bytes_Buf_mut_bytes_BytesMut, take$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_take$bytes_Buf_mut_mut_ref_slice_u8, take$bytes_Buf_mut_ref_slice_u8 as buf_impl_take$bytes_Buf_mut_ref_slice_u8, advance$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf, advance$bytes_Buf_mut_bytes_Bytes, advance$bytes_Buf_mut_ref_slice_u8, chunk$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf, chunk$bytes_Buf_mut_bytes_Bytes, chunk$bytes_Buf_mut_ref_slice_u8, chunksVectored$bytes_Buf_mut_ref_slice_u8, copyToBytes$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf, copyToBytes$bytes_Buf_mut_bytes_Bytes, copyToBytes$bytes_Buf_mut_ref_slice_u8, hasRemaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf, hasRemaining$bytes_Buf_mut_bytes_Bytes, hasRemaining$bytes_Buf_mut_ref_slice_u8, remaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf, remaining$bytes_Buf_mut_bytes_Bytes, remaining$bytes_Buf_mut_ref_slice_u8, advance$bytes_Buf_boxed_Box_dyn_bytes_Buf, chunk$bytes_Buf_boxed_Box_dyn_bytes_Buf, chunksVectored$bytes_Buf_boxed_Box_dyn_bytes_Buf, copyToBytes$bytes_Buf_boxed_Box_dyn_bytes_Buf, hasRemaining$bytes_Buf_boxed_Box_dyn_bytes_Buf, remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf } from "../../bytes/buf/buf_impl.ts";
+import { signExtend, chunksVectored$bytes_Buf_bytes_Bytes as buf_impl_chunksVectored$bytes_Buf_bytes_Bytes, chunksVectored$bytes_Buf_ref_slice_u8 as buf_impl_chunksVectored$bytes_Buf_ref_slice_u8, take$bytes_Buf_mut_bytes_Bytes as buf_impl_take$bytes_Buf_mut_bytes_Bytes, take$bytes_Buf_mut_bytes_BytesMut as buf_impl_take$bytes_Buf_mut_bytes_BytesMut, take$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_take$bytes_Buf_mut_mut_ref_slice_u8, take$bytes_Buf_mut_ref_slice_u8 as buf_impl_take$bytes_Buf_mut_ref_slice_u8, advance$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf as buf_impl_advance$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf, advance$bytes_Buf_mut_bytes_Bytes as buf_impl_advance$bytes_Buf_mut_bytes_Bytes, advance$bytes_Buf_mut_ref_slice_u8 as buf_impl_advance$bytes_Buf_mut_ref_slice_u8, chunk$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf as buf_impl_chunk$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf, chunk$bytes_Buf_mut_bytes_Bytes as buf_impl_chunk$bytes_Buf_mut_bytes_Bytes, chunk$bytes_Buf_mut_ref_slice_u8 as buf_impl_chunk$bytes_Buf_mut_ref_slice_u8, chunksVectored$bytes_Buf_mut_ref_slice_u8 as buf_impl_chunksVectored$bytes_Buf_mut_ref_slice_u8, copyToBytes$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf, copyToBytes$bytes_Buf_mut_bytes_Bytes, copyToBytes$bytes_Buf_mut_ref_slice_u8, hasRemaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf, hasRemaining$bytes_Buf_mut_bytes_Bytes, hasRemaining$bytes_Buf_mut_ref_slice_u8, remaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf as buf_impl_remaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf, remaining$bytes_Buf_mut_bytes_Bytes as buf_impl_remaining$bytes_Buf_mut_bytes_Bytes, remaining$bytes_Buf_mut_ref_slice_u8 as buf_impl_remaining$bytes_Buf_mut_ref_slice_u8, advance$bytes_Buf_boxed_Box_dyn_bytes_Buf as buf_impl_advance$bytes_Buf_boxed_Box_dyn_bytes_Buf, chunk$bytes_Buf_boxed_Box_dyn_bytes_Buf as buf_impl_chunk$bytes_Buf_boxed_Box_dyn_bytes_Buf, chunksVectored$bytes_Buf_boxed_Box_dyn_bytes_Buf as buf_impl_chunksVectored$bytes_Buf_boxed_Box_dyn_bytes_Buf, copyToBytes$bytes_Buf_boxed_Box_dyn_bytes_Buf, hasRemaining$bytes_Buf_boxed_Box_dyn_bytes_Buf, remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf as buf_impl_remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf } from "../../bytes/buf/buf_impl.ts";
 import type * as Buf from "../../bytes/buf/buf_impl.Buf.ts";
 import { new_$mut_bytes_buf_Chain_buf_Provided_ref_slice_u8 as take_new_$mut_bytes_buf_Chain_buf_Provided_ref_slice_u8 } from "../../bytes/buf/take.ts";
 import * as Take from "../../bytes/buf/take.Take.ts";
@@ -5048,7 +5048,7 @@ export function new$ref_slice_u8_bytes_BytesMut(a: rs.ByteSlice, b: rs.BytesMut)
  * is documented to change the `Buf`'s current position.
  */
 export function remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf_bytes_Bytes(self: Chain<Buf.Buf, rs.ByteSlice>): rs.usize {
-	return rs.usizeSaturatingAdd(remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf(self.a), self.b.length);
+	return rs.usizeSaturatingAdd(buf_impl_remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf(self.a), self.b.length);
 }
 
 /**
@@ -5172,7 +5172,7 @@ export function remaining$bytes_Buf_buf_Provided_bytes_Bytes(self: Chain<Provide
  * is documented to change the `Buf`'s current position.
  */
 export function remaining$bytes_Buf_buf_Provided_mut_ref_slice_u8(self: Chain<Provided.Provided, rs.Place<rs.ByteSlice>>): rs.usize {
-	return rs.usizeSaturatingAdd(Provided.remaining$bytes_Buf(self.a), remaining$bytes_Buf_mut_ref_slice_u8(self.b));
+	return rs.usizeSaturatingAdd(Provided.remaining$bytes_Buf(self.a), buf_impl_remaining$bytes_Buf_mut_ref_slice_u8(self.b));
 }
 
 /**
@@ -5488,7 +5488,7 @@ export function chunk$bytes_Buf_boxed_Box_dyn_bytes_Buf_bytes_Bytes(self: Chain<
 	if (!hasRemaining$bytes_Buf_boxed_Box_dyn_bytes_Buf(self.a)) {
 		return self.b;
 	}
-	return chunk$bytes_Buf_boxed_Box_dyn_bytes_Buf(self.a);
+	return buf_impl_chunk$bytes_Buf_boxed_Box_dyn_bytes_Buf(self.a);
 }
 
 /**
@@ -5634,7 +5634,7 @@ export function chunk$bytes_Buf_buf_Provided_bytes_Bytes(self: Chain<Provided.Pr
  */
 export function chunk$bytes_Buf_buf_Provided_mut_ref_slice_u8(self: Chain<Provided.Provided, rs.Place<rs.ByteSlice>>): rs.ByteSlice {
 	if (!Provided.hasRemaining$bytes_Buf(self.a)) {
-		return chunk$bytes_Buf_mut_ref_slice_u8(self.b);
+		return buf_impl_chunk$bytes_Buf_mut_ref_slice_u8(self.b);
 	}
 	return Provided.chunk$bytes_Buf(self.a);
 }
@@ -6005,14 +6005,14 @@ export function chunk$bytes_Buf_ref_slice_u8_bytes_BytesMut(self: Chain<rs.ByteS
  * A call with `cnt == 0` should never panic and be a no-op.
  */
 export function advance$bytes_Buf_boxed_Box_dyn_bytes_Buf_bytes_Bytes(self: Chain<Buf.Buf, rs.ByteSlice>, cnt: rs.usize): void {
-	const aRem: rs.usize = remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf(self.a);
+	const aRem: rs.usize = buf_impl_remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf(self.a);
 	b0: {
 		if (aRem !== 0) {
 			if (!(aRem >= cnt)) {
-				advance$bytes_Buf_boxed_Box_dyn_bytes_Buf(rs.place(() => self.a, (value2) => self.a = value2), aRem);
+				buf_impl_advance$bytes_Buf_boxed_Box_dyn_bytes_Buf(rs.place(() => self.a, (value2) => self.a = value2), aRem);
 				cnt = rs.usizeSub(cnt, aRem);
 			} else {
-				advance$bytes_Buf_boxed_Box_dyn_bytes_Buf(rs.place(() => self.a, (value) => self.a = value), cnt);
+				buf_impl_advance$bytes_Buf_boxed_Box_dyn_bytes_Buf(rs.place(() => self.a, (value) => self.a = value), cnt);
 				break b0;
 			}
 		}
@@ -6208,7 +6208,7 @@ export function advance$bytes_Buf_buf_Provided_mut_ref_slice_u8(self: Chain<Prov
 				break b0;
 			}
 		}
-		advance$bytes_Buf_mut_ref_slice_u8(rs.place(() => self.b, (value) => self.b = value), cnt);
+		buf_impl_advance$bytes_Buf_mut_ref_slice_u8(rs.place(() => self.b, (value) => self.b = value), cnt);
 	}
 }
 
@@ -6674,9 +6674,9 @@ export function advance$bytes_Buf_ref_slice_u8_bytes_BytesMut(self: Chain<rs.Byt
  * [`writev`]: http://man7.org/linux/man-pages/man2/readv.2.html
  */
 export function chunksVectored$bytes_Buf_boxed_Box_dyn_bytes_Buf_bytes_Bytes(self: Chain<Buf.Buf, rs.ByteSlice>, dst: rs.Slice<rs.ByteSlice>): rs.usize {
-	const n: rs.usize = chunksVectored$bytes_Buf_boxed_Box_dyn_bytes_Buf(self.a, dst);
+	const n: rs.usize = buf_impl_chunksVectored$bytes_Buf_boxed_Box_dyn_bytes_Buf(self.a, dst);
 	const _7: rs.Slice<rs.ByteSlice> = rs.sliceRange(dst, n);
-	return rs.usizeAdd(n, chunksVectored$bytes_Buf_bytes_Bytes(self.b, _7));
+	return rs.usizeAdd(n, buf_impl_chunksVectored$bytes_Buf_bytes_Bytes(self.b, _7));
 }
 
 /**
@@ -6711,7 +6711,7 @@ export function chunksVectored$bytes_Buf_boxed_Box_dyn_bytes_Buf_bytes_Bytes(sel
 export function chunksVectored$bytes_Buf_buf_Pieces_bytes_Bytes(self: Chain<Pieces.Pieces, rs.ByteSlice>, dst: rs.Slice<rs.ByteSlice>): rs.usize {
 	const n: rs.usize = Pieces.chunksVectored$bytes_Buf(self.a, dst);
 	const _7: rs.Slice<rs.ByteSlice> = rs.sliceRange(dst, n);
-	return rs.usizeAdd(n, chunksVectored$bytes_Buf_bytes_Bytes(self.b, _7));
+	return rs.usizeAdd(n, buf_impl_chunksVectored$bytes_Buf_bytes_Bytes(self.b, _7));
 }
 
 /**
@@ -6746,7 +6746,7 @@ export function chunksVectored$bytes_Buf_buf_Pieces_bytes_Bytes(self: Chain<Piec
 export function chunksVectored$bytes_Buf_buf_Provided_mut_ref_slice_u8(self: Chain<Provided.Provided, rs.Place<rs.ByteSlice>>, dst: rs.Slice<rs.ByteSlice>): rs.usize {
 	const n: rs.usize = Provided.chunksVectored$bytes_Buf(self.a, dst);
 	const _7: rs.Slice<rs.ByteSlice> = rs.sliceRange(dst, n);
-	return rs.usizeAdd(n, chunksVectored$bytes_Buf_mut_ref_slice_u8(self.b, _7));
+	return rs.usizeAdd(n, buf_impl_chunksVectored$bytes_Buf_mut_ref_slice_u8(self.b, _7));
 }
 
 /**
@@ -6781,7 +6781,7 @@ export function chunksVectored$bytes_Buf_buf_Provided_mut_ref_slice_u8(self: Cha
 export function chunksVectored$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes_ref_slice_u8(self: Chain<Chain<Buf.Buf, rs.ByteSlice>, rs.ByteSlice>, dst: rs.Slice<rs.ByteSlice>): rs.usize {
 	const n: rs.usize = chunksVectored$bytes_Buf_boxed_Box_dyn_bytes_Buf_bytes_Bytes(self.a, dst);
 	const _7: rs.Slice<rs.ByteSlice> = rs.sliceRange(dst, n);
-	return rs.usizeAdd(n, chunksVectored$bytes_Buf_ref_slice_u8(self.b, _7));
+	return rs.usizeAdd(n, buf_impl_chunksVectored$bytes_Buf_ref_slice_u8(self.b, _7));
 }
 
 /**
@@ -6816,7 +6816,7 @@ export function chunksVectored$bytes_Buf_bytes_buf_Chain_boxed_Box_dyn_bytes_Buf
 export function chunksVectored$bytes_Buf_bytes_buf_Chain_buf_Pieces_bytes_Bytes_ref_slice_u8(self: Chain<Chain<Pieces.Pieces, rs.ByteSlice>, rs.ByteSlice>, dst: rs.Slice<rs.ByteSlice>): rs.usize {
 	const n: rs.usize = chunksVectored$bytes_Buf_buf_Pieces_bytes_Bytes(self.a, dst);
 	const _7: rs.Slice<rs.ByteSlice> = rs.sliceRange(dst, n);
-	return rs.usizeAdd(n, chunksVectored$bytes_Buf_ref_slice_u8(self.b, _7));
+	return rs.usizeAdd(n, buf_impl_chunksVectored$bytes_Buf_ref_slice_u8(self.b, _7));
 }
 
 /**
@@ -6842,7 +6842,7 @@ export function chunksVectored$bytes_Buf_bytes_buf_Chain_buf_Pieces_bytes_Bytes_
  */
 export function copyToBytes$bytes_Buf_boxed_Box_dyn_bytes_Buf_bytes_Bytes(self: Chain<Buf.Buf, rs.ByteSlice>, len: rs.usize): rs.ByteSlice {
 	let _0!: rs.ByteSlice;
-	const aRem: rs.usize = remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf(self.a);
+	const aRem: rs.usize = buf_impl_remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf(self.a);
 	if (!(aRem >= len)) {
 		if (!(aRem === 0)) {
 			if (!(rs.usizeSub(len, aRem) <= self.b.length)) {
@@ -6850,7 +6850,7 @@ export function copyToBytes$bytes_Buf_boxed_Box_dyn_bytes_Buf_bytes_Bytes(self: 
 				return _0;
 			}
 			const ret: rs.BytesMut = rs.bytesMutWithCapacity(len);
-			rs.bytesMutPutBuf(ret, { v: rs.place(() => self.a, (value3) => self.a = value3) }, (p: rs.Place<rs.Place<Buf.Buf>>) => hasRemaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf(p.v), (p: rs.Place<rs.Place<Buf.Buf>>) => remaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf(p.v), (p: rs.Place<rs.Place<Buf.Buf>>) => chunk$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf(p.v), advance$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf as (a0: rs.Place<rs.Place<Buf.Buf>>, a1: rs.usize) => undefined, copyToBytes$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf);
+			rs.bytesMutPutBuf(ret, { v: rs.place(() => self.a, (value3) => self.a = value3) }, (p: rs.Place<rs.Place<Buf.Buf>>) => hasRemaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf(p.v), (p: rs.Place<rs.Place<Buf.Buf>>) => buf_impl_remaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf(p.v), (p: rs.Place<rs.Place<Buf.Buf>>) => buf_impl_chunk$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf(p.v), buf_impl_advance$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf as (a0: rs.Place<rs.Place<Buf.Buf>>, a1: rs.usize) => undefined, copyToBytes$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf);
 			const _24: rs.usize = rs.usizeSub(len, aRem);
 			const _22: Take.Take<rs.Place<rs.ByteSlice>> = buf_impl_take$bytes_Buf_mut_bytes_Bytes(rs.place(() => self.b, (value4) => self.b = value4), _24);
 			rs.bytesMutPutBuf(ret, _22, Take.hasRemaining$bytes_Buf_mut_bytes_Bytes, Take.remaining$bytes_Buf_mut_bytes_Bytes, Take.chunk$bytes_Buf_mut_bytes_Bytes, Take.advance$bytes_Buf_mut_bytes_Bytes as (a0: Take.Take<rs.Place<rs.ByteSlice>>, a1: rs.usize) => undefined, Take.copyToBytes$bytes_Buf_mut_bytes_Bytes);
@@ -7012,7 +7012,7 @@ export function copyToBytes$bytes_Buf_buf_Provided_mut_ref_slice_u8(self: Chain<
 	const aRem: rs.usize = Provided.remaining$bytes_Buf(self.a);
 	if (!(aRem >= len)) {
 		if (!(aRem === 0)) {
-			if (!(rs.usizeSub(len, aRem) <= remaining$bytes_Buf_mut_ref_slice_u8(self.b))) {
+			if (!(rs.usizeSub(len, aRem) <= buf_impl_remaining$bytes_Buf_mut_ref_slice_u8(self.b))) {
 				rs.panicFmt(["`len` greater than remaining"]);
 				return _0;
 			}
@@ -7101,7 +7101,7 @@ export function copyToBytes$bytes_Buf_bytes_Bytes_bytes_buf_Chain_buf_Provided_r
 				return _0;
 			}
 			const ret: rs.BytesMut = rs.bytesMutWithCapacity(len);
-			rs.bytesMutPutBuf(ret, { v: rs.place(() => self.a, (value2) => self.a = value2) }, (p: rs.Place<rs.Place<rs.ByteSlice>>) => hasRemaining$bytes_Buf_mut_bytes_Bytes(p.v), (p: rs.Place<rs.Place<rs.ByteSlice>>) => remaining$bytes_Buf_mut_bytes_Bytes(p.v), (p: rs.Place<rs.Place<rs.ByteSlice>>) => chunk$bytes_Buf_mut_bytes_Bytes(p.v), advance$bytes_Buf_mut_bytes_Bytes as (a0: rs.Place<rs.Place<rs.ByteSlice>>, a1: rs.usize) => undefined, copyToBytes$bytes_Buf_mut_bytes_Bytes);
+			rs.bytesMutPutBuf(ret, { v: rs.place(() => self.a, (value2) => self.a = value2) }, (p: rs.Place<rs.Place<rs.ByteSlice>>) => hasRemaining$bytes_Buf_mut_bytes_Bytes(p.v), (p: rs.Place<rs.Place<rs.ByteSlice>>) => buf_impl_remaining$bytes_Buf_mut_bytes_Bytes(p.v), (p: rs.Place<rs.Place<rs.ByteSlice>>) => buf_impl_chunk$bytes_Buf_mut_bytes_Bytes(p.v), buf_impl_advance$bytes_Buf_mut_bytes_Bytes as (a0: rs.Place<rs.Place<rs.ByteSlice>>, a1: rs.usize) => undefined, copyToBytes$bytes_Buf_mut_bytes_Bytes);
 			const _22: Take.Take<Chain<Provided.Provided, rs.ByteSlice>> = take$bytes_Buf_buf_Provided_ref_slice_u8_mut(self.b, rs.usizeSub(len, aRem));
 			rs.bytesMutPutBuf(ret, _22, Take.hasRemaining$bytes_Buf_mut_bytes_buf_Chain_buf_Provided_ref_slice_u8, Take.remaining$bytes_Buf_mut_bytes_buf_Chain_buf_Provided_ref_slice_u8, Take.chunk$bytes_Buf_mut_bytes_buf_Chain_buf_Provided_ref_slice_u8, Take.advance$bytes_Buf_mut_bytes_buf_Chain_buf_Provided_ref_slice_u8 as (a0: Take.Take<Chain<Provided.Provided, rs.ByteSlice>>, a1: rs.usize) => undefined, Take.copyToBytes$bytes_Buf_mut_bytes_buf_Chain_buf_Provided_ref_slice_u8);
 			return rs.bytesMutFreeze(ret);
@@ -7142,7 +7142,7 @@ export function copyToBytes$bytes_Buf_bytes_Bytes_ref_slice_u8(self: Chain<rs.By
 				return _0;
 			}
 			const ret: rs.BytesMut = rs.bytesMutWithCapacity(len);
-			rs.bytesMutPutBuf(ret, { v: rs.place(() => self.a, (value3) => self.a = value3) }, (p: rs.Place<rs.Place<rs.ByteSlice>>) => hasRemaining$bytes_Buf_mut_bytes_Bytes(p.v), (p: rs.Place<rs.Place<rs.ByteSlice>>) => remaining$bytes_Buf_mut_bytes_Bytes(p.v), (p: rs.Place<rs.Place<rs.ByteSlice>>) => chunk$bytes_Buf_mut_bytes_Bytes(p.v), advance$bytes_Buf_mut_bytes_Bytes as (a0: rs.Place<rs.Place<rs.ByteSlice>>, a1: rs.usize) => undefined, copyToBytes$bytes_Buf_mut_bytes_Bytes);
+			rs.bytesMutPutBuf(ret, { v: rs.place(() => self.a, (value3) => self.a = value3) }, (p: rs.Place<rs.Place<rs.ByteSlice>>) => hasRemaining$bytes_Buf_mut_bytes_Bytes(p.v), (p: rs.Place<rs.Place<rs.ByteSlice>>) => buf_impl_remaining$bytes_Buf_mut_bytes_Bytes(p.v), (p: rs.Place<rs.Place<rs.ByteSlice>>) => buf_impl_chunk$bytes_Buf_mut_bytes_Bytes(p.v), buf_impl_advance$bytes_Buf_mut_bytes_Bytes as (a0: rs.Place<rs.Place<rs.ByteSlice>>, a1: rs.usize) => undefined, copyToBytes$bytes_Buf_mut_bytes_Bytes);
 			const _24: rs.usize = rs.usizeSub(len, aRem);
 			const _22: Take.Take<rs.Place<rs.ByteSlice>> = buf_impl_take$bytes_Buf_mut_ref_slice_u8(rs.place(() => self.b, (value4) => self.b = value4), _24);
 			rs.bytesMutPutBuf(ret, _22, Take.hasRemaining$bytes_Buf_mut_ref_slice_u8, Take.remaining$bytes_Buf_mut_ref_slice_u8, Take.chunk$bytes_Buf_mut_ref_slice_u8, Take.advance$bytes_Buf_mut_ref_slice_u8 as (a0: Take.Take<rs.Place<rs.ByteSlice>>, a1: rs.usize) => undefined, Take.copyToBytes$bytes_Buf_mut_ref_slice_u8);
@@ -7350,7 +7350,7 @@ export function copyToBytes$bytes_Buf_ref_slice_u8_bytes_Bytes(self: Chain<rs.By
 				return _0;
 			}
 			const ret: rs.BytesMut = rs.bytesMutWithCapacity(len);
-			rs.bytesMutPutBuf(ret, { v: rs.place(() => self.a, (value3) => self.a = value3) }, (p: rs.Place<rs.Place<rs.ByteSlice>>) => hasRemaining$bytes_Buf_mut_ref_slice_u8(p.v), (p: rs.Place<rs.Place<rs.ByteSlice>>) => remaining$bytes_Buf_mut_ref_slice_u8(p.v), (p: rs.Place<rs.Place<rs.ByteSlice>>) => chunk$bytes_Buf_mut_ref_slice_u8(p.v), advance$bytes_Buf_mut_ref_slice_u8 as (a0: rs.Place<rs.Place<rs.ByteSlice>>, a1: rs.usize) => undefined, copyToBytes$bytes_Buf_mut_ref_slice_u8);
+			rs.bytesMutPutBuf(ret, { v: rs.place(() => self.a, (value3) => self.a = value3) }, (p: rs.Place<rs.Place<rs.ByteSlice>>) => hasRemaining$bytes_Buf_mut_ref_slice_u8(p.v), (p: rs.Place<rs.Place<rs.ByteSlice>>) => buf_impl_remaining$bytes_Buf_mut_ref_slice_u8(p.v), (p: rs.Place<rs.Place<rs.ByteSlice>>) => buf_impl_chunk$bytes_Buf_mut_ref_slice_u8(p.v), buf_impl_advance$bytes_Buf_mut_ref_slice_u8 as (a0: rs.Place<rs.Place<rs.ByteSlice>>, a1: rs.usize) => undefined, copyToBytes$bytes_Buf_mut_ref_slice_u8);
 			const _24: rs.usize = rs.usizeSub(len, aRem);
 			const _22: Take.Take<rs.Place<rs.ByteSlice>> = buf_impl_take$bytes_Buf_mut_bytes_Bytes(rs.place(() => self.b, (value4) => self.b = value4), _24);
 			rs.bytesMutPutBuf(ret, _22, Take.hasRemaining$bytes_Buf_mut_bytes_Bytes, Take.remaining$bytes_Buf_mut_bytes_Bytes, Take.chunk$bytes_Buf_mut_bytes_Bytes, Take.advance$bytes_Buf_mut_bytes_Bytes as (a0: Take.Take<rs.Place<rs.ByteSlice>>, a1: rs.usize) => undefined, Take.copyToBytes$bytes_Buf_mut_bytes_Bytes);
@@ -7392,7 +7392,7 @@ export function copyToBytes$bytes_Buf_ref_slice_u8_bytes_BytesMut(self: Chain<rs
 				return _0;
 			}
 			const ret: rs.BytesMut = rs.bytesMutWithCapacity(len);
-			rs.bytesMutPutBuf(ret, { v: rs.place(() => self.a, (value2) => self.a = value2) }, (p: rs.Place<rs.Place<rs.ByteSlice>>) => hasRemaining$bytes_Buf_mut_ref_slice_u8(p.v), (p: rs.Place<rs.Place<rs.ByteSlice>>) => remaining$bytes_Buf_mut_ref_slice_u8(p.v), (p: rs.Place<rs.Place<rs.ByteSlice>>) => chunk$bytes_Buf_mut_ref_slice_u8(p.v), advance$bytes_Buf_mut_ref_slice_u8 as (a0: rs.Place<rs.Place<rs.ByteSlice>>, a1: rs.usize) => undefined, copyToBytes$bytes_Buf_mut_ref_slice_u8);
+			rs.bytesMutPutBuf(ret, { v: rs.place(() => self.a, (value2) => self.a = value2) }, (p: rs.Place<rs.Place<rs.ByteSlice>>) => hasRemaining$bytes_Buf_mut_ref_slice_u8(p.v), (p: rs.Place<rs.Place<rs.ByteSlice>>) => buf_impl_remaining$bytes_Buf_mut_ref_slice_u8(p.v), (p: rs.Place<rs.Place<rs.ByteSlice>>) => buf_impl_chunk$bytes_Buf_mut_ref_slice_u8(p.v), buf_impl_advance$bytes_Buf_mut_ref_slice_u8 as (a0: rs.Place<rs.Place<rs.ByteSlice>>, a1: rs.usize) => undefined, copyToBytes$bytes_Buf_mut_ref_slice_u8);
 			const _22: Take.Take<rs.BytesMut> = buf_impl_take$bytes_Buf_mut_bytes_BytesMut(self.b, rs.usizeSub(len, aRem));
 			rs.bytesMutPutBuf(ret, _22, Take.hasRemaining$bytes_Buf_mut_bytes_BytesMut, Take.remaining$bytes_Buf_mut_bytes_BytesMut, Take.chunk$bytes_Buf_mut_bytes_BytesMut, Take.advance$bytes_Buf_mut_bytes_BytesMut as (a0: Take.Take<rs.BytesMut>, a1: rs.usize) => undefined, Take.copyToBytes$bytes_Buf_mut_bytes_BytesMut);
 			return rs.bytesMutFreeze(ret);

@@ -2,6 +2,7 @@
 //! differential test reaches their panics and what `split_to` and `freeze` share.
 
 use std::cell::Cell;
+use std::collections::VecDeque;
 use std::io::IoSlice;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -423,6 +424,33 @@ fn read_all<B: Buf + ?Sized>(buf: &mut B, ops: &[u8], out: &mut Vec<u8>) -> Vec<
 	}
 	let n = buf.remaining();
 	buf.copy_to_bytes(n).to_vec()
+}
+
+/// The reads of `reads` off a `VecDeque<u8>` whose ring wraps `cut` slots from its end,
+/// each after its `chunk`, the front slice until that is read, then the rest through a
+/// `&mut`. An `advance` past what remains panics.
+pub fn deques(data: &[u8], out: &mut Vec<u8>) {
+	let [cut, ops @ ..] = data else {
+		return;
+	};
+	let (ops, input) = ops.split_at(ops.len() / 2);
+	let mut deque = VecDeque::with_capacity(input.len());
+	for _ in 0..*cut as usize % (input.len() + 1) {
+		deque.push_back(0);
+		deque.pop_front();
+	}
+	deque.extend(input);
+	for &op in ops {
+		let chunk = deque.chunk();
+		out.push(chunk.len() as u8);
+		out.extend_from_slice(&chunk[..chunk.len().min(1)]);
+		match op.checked_sub(0xf0) {
+			Some(n) => deque.advance(n.into()),
+			None => out.extend_from_slice(&read(&mut deque, op.into()).to_be_bytes()),
+		}
+	}
+	let rest = read_all(&mut &mut deque, &[], out);
+	out.extend_from_slice(&rest);
 }
 
 /// A buffer of the crate's own over `Buf`, as moq's transports lend a stream's chunks.
@@ -1118,8 +1146,8 @@ fn chained<B: Buf + ?Sized>(at: [usize; 2], buf: &mut B, pick: &u8, ops: &[u8], 
 }
 
 /// `chunks_vectored` of each buffer into as many slots as its input picks: a `Bytes`, a
-/// `BytesMut`, a `&[u8]`, buffers in pieces, a `Take` and a `Chain` of them, and through a
-/// `&mut` and a `dyn Buf`. Then the slots it filled, read,
+/// `BytesMut`, a `&[u8]`, buffers in pieces, a `VecDeque` that wraps, a `Take` and a
+/// `Chain` of them, and through a `&mut` and a `dyn Buf`. Then the slots it filled, read,
 /// printed, and advanced, one and all together, which panics past what they hold.
 pub fn vectored(data: &[u8], out: &mut Vec<u8>) {
 	let [kind, cut, slots, skip, input @ ..] = data else {
@@ -1130,6 +1158,8 @@ pub fn vectored(data: &[u8], out: &mut Vec<u8>) {
 	let owned = BytesMut::from(input);
 	let pieces = Pieces::new(input, cut);
 	let provided = Provided(Pieces::new(input, cut));
+	let mut deque: VecDeque<u8> = input.iter().copied().collect();
+	deque.rotate_left(cut);
 	let take = Pieces::new(input, cut).take(usize::from(*skip) % (input.len() + 2));
 	let (a, b) = input.split_at(cut);
 	let chain = Pieces::new(a, a.len() / 2)
@@ -1140,7 +1170,7 @@ pub fn vectored(data: &[u8], out: &mut Vec<u8>) {
 	let boxed: Box<dyn Buf> = Box::new(Pieces::new(input, cut));
 	let mut dst = [IoSlice::new(&[]); 5];
 	let dst = &mut dst[..usize::from(*slots) % 6];
-	let n = match kind % 10 {
+	let n = match kind % 11 {
 		0 => bytes.chunks_vectored(dst),
 		1 => owned.chunks_vectored(dst),
 		2 => input.chunks_vectored(dst),
@@ -1150,6 +1180,7 @@ pub fn vectored(data: &[u8], out: &mut Vec<u8>) {
 		6 => take.chunks_vectored(dst),
 		7 => chain.chunks_vectored(dst),
 		8 => lent.chunks_vectored(dst),
+		9 => deque.chunks_vectored(dst),
 		_ => boxed.chunks_vectored(dst),
 	};
 	out.push(n as u8);
@@ -1162,7 +1193,7 @@ pub fn vectored(data: &[u8], out: &mut Vec<u8>) {
 	let skip = usize::from(*skip) % (total + 2);
 	if let Some(first) = dst.first_mut() {
 		let mut one = *first;
-		one.advance(skip.min(one.len() + usize::from(kind / 10 % 2)));
+		one.advance(skip.min(one.len() + usize::from(kind / 11 % 2)));
 		out.extend_from_slice(&one);
 	}
 	let mut left = &mut dst[..n];

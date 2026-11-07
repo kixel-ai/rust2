@@ -200,6 +200,10 @@ pub struct Translator<'a, 'tcx> {
 	/// holds, with that type where a function type or a type argument in it takes one,
 	/// which an instance's value is cast to.
 	instanced_fields: rustc_data_structures::fx::FxHashMap<DefId, Option<Type>>,
+	/// The fields of generic types whose definition types an `rs.OptionOf` or `rs.PollOf`,
+	/// by that type, which an instance's value is cast to so TypeScript infers the
+	/// instance's arguments from it rather than from the `None` or `Pending` it may be.
+	decided_fields: rustc_data_structures::fx::FxHashMap<DefId, Type>,
 	/// Source files by name, as indexes into `program.sources`.
 	sources: rustc_data_structures::fx::FxHashMap<String, Option<u32>>,
 	failed: bool,
@@ -499,6 +503,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			queue: VecDeque::new(),
 			adts: Default::default(),
 			instanced_fields: Default::default(),
+			decided_fields: Default::default(),
 			sources: Default::default(),
 			failed: false,
 			env: TypingEnv::fully_monomorphized(),
@@ -1901,7 +1906,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			return Type::Builtin("unknown");
 		}
 		let info = self.adt(adt, span);
-		if let Some(msg) = self.generic_erasure(adt, args) {
+		if let Some(msg) = self.generic_erasure(adt, args, span) {
 			self.err(span, msg);
 		}
 		let args = args.types().map(|t| self.ty(t, span)).collect();
@@ -1925,13 +1930,17 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			self.instanced_fields
 				.insert(field.did, ty.takes(&instanced).then(|| ty.clone()));
 		}
+		if ty.any(&|t| matches!(t, Type::Rs("OptionOf" | "PollOf", _))) {
+			self.decided_fields.insert(field.did, ty.clone());
+		}
 		ty
 	}
 
 	/// `value`, for `field` of an instance of `adt` with `args`, cast to the field's type in
 	/// the definition at those arguments where a function type or a type argument in it
-	/// takes a form only an instance decides: a function taking what the instance holds, or
-	/// a generic type over it, takes no other form.
+	/// takes a form only an instance decides, as a function taking what the instance holds,
+	/// or a generic type over it, takes no other form, or where it holds an `rs.OptionOf` or
+	/// `rs.PollOf`.
 	pub fn field_value(
 		&mut self,
 		value: ts::Expr,
@@ -1940,8 +1949,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		args: GenericArgsRef<'tcx>,
 		span: Span,
 	) -> ts::Expr {
-		let Some(Some(defined)) = self.instanced_fields.get(&field).cloned() else {
-			return value;
+		let defined = match self.instanced_fields.get(&field) {
+			Some(Some(defined)) => defined.clone(),
+			_ => match self.decided_fields.get(&field) {
+				Some(defined) => defined.clone(),
+				None => return value,
+			},
 		};
 		let params: Vec<(String, Type)> = (self.tcx.generics_of(adt).own_params.iter())
 			.filter(|param| matches!(param.kind, ty::GenericParamDefKind::Type { .. }))
@@ -1967,52 +1980,95 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Why an instance of the crate's generic `adt` with `args` can't hold its fields' values,
-	/// if it can't: an `Option` or a `Poll` over a type parameter that its definition types
-	/// `T | undefined` or `rs.Poll<T>`, whose `None` or `Pending` this instance's `T` makes
-	/// `rs.None` or `rs.OuterPending`.
-	fn generic_erasure(&self, adt: AdtDef<'tcx>, args: GenericArgsRef<'tcx>) -> Option<String> {
+	/// if it can't: an `Option` or a `Poll` over a type parameter whose `None` or `Pending`
+	/// this instance makes other than its definition types it, as an `rs.OptionOf<T>` or
+	/// `rs.PollOf<T>` decides by TypeScript's type of `T`, and otherwise by the definition's
+	/// own parameter, or which can't tell its values apart at all.
+	fn generic_erasure(&mut self, adt: AdtDef<'tcx>, args: GenericArgsRef<'tcx>, span: Span) -> Option<String> {
 		let tcx = self.tcx;
-		if !args.types().any(|t| {
-			let erased = self.erases_to(t);
-			erased.undefined || erased.pending
-		}) {
-			return None;
-		}
-		adt.all_fields().find_map(|field| {
+		let ty = Ty::new_adt(tcx, adt, args);
+		for field in adt.all_fields() {
 			let generic = tcx.type_of(field.did).instantiate_identity().skip_norm_wip();
-			generic.walk().filter_map(|arg| arg.as_type()).find_map(|part| {
+			for part in generic.walk().filter_map(|arg| arg.as_type()) {
 				let ty::Adt(wrapper, wrapper_args) = part.kind() else {
-					return None;
+					continue;
 				};
-				let std = library::Std::of(tcx, wrapper.did());
-				if !matches!(std, Some(library::Std::Option | library::Std::Poll)) {
-					return None;
-				}
+				let option = match library::Std::of(tcx, wrapper.did()) {
+					Some(library::Std::Option) => true,
+					Some(library::Std::Poll) => false,
+					_ => continue,
+				};
 				let inner = wrapper_args.type_at(0);
 				let erased = self.erases_to(inner);
-				let instance = ty::EarlyBinder::bind(tcx, inner).instantiate(tcx, args).skip_norm_wip();
-				let ty = Ty::new_adt(tcx, adt, args);
-				match std {
-					Some(library::Std::Option) if erased.param && !erased.undefined => {
-						self.erases_to(instance).undefined.then(|| {
-							format!(
-								"`{ty}` is not supported: its field `{}` is `Option<{inner}>`, typed `{inner} | undefined`, whose `None` would be `rs.None` as `Option<{instance}>`",
-								field.name
-							)
-						})
-					}
-					Some(library::Std::Poll) if erased.param && !erased.pending => {
-						self.erases_to(instance).pending.then(|| {
-							format!(
-								"`{ty}` is not supported: its field `{}` is `Poll<{inner}>`, typed `rs.Poll<{inner}>`, whose `Pending` would be `rs.OuterPending` as `Poll<{instance}>`",
-								field.name
-							)
-						})
-					}
-					_ => None,
+				if !erased.param {
+					continue;
 				}
-			})
-		})
+				let held = ty::EarlyBinder::bind(tcx, part).instantiate(tcx, args).skip_norm_wip();
+				if let Some(msg) = self.erasure_conflict(held) {
+					return Some(format!(
+						"`{ty}` is not supported: its field `{}` is `{held}`: {msg}",
+						field.name
+					));
+				}
+				// Over a parameter of the instance's own, which its instances decide.
+				if held.has_param() {
+					continue;
+				}
+				let instance = ty::EarlyBinder::bind(tcx, inner).instantiate(tcx, args).skip_norm_wip();
+				let at = self.erases_to(instance);
+				let defined = self.ty(inner, span);
+				let msg = match defined {
+					// What TypeScript's type of the parameter decides, which must be what the
+					// instance's erasure does.
+					Type::Param(_) if if option { !erased.undefined } else { !erased.pending } => {
+						let Some(param) = inner.walk().filter_map(|arg| arg.as_type()).find(|t| matches!(t.kind(), ty::Param(_))) else {
+							continue;
+						};
+						let arg = ty::EarlyBinder::bind(tcx, param).instantiate(tcx, args).skip_norm_wip();
+						let decided = self.ty(arg, span);
+						let (holds, alias) = match option {
+							true => (holds_undefined(&decided) == at.undefined, "OptionOf"),
+							false => (holds_pending(&decided) == at.pending, "PollOf"),
+						};
+						(!holds).then(|| {
+							format!(
+								"`{ty}` is not supported: its field `{}` is `{part}`, typed `rs.{alias}<{inner}>`, which decides by TypeScript's type of `{arg}` otherwise than `{held}` erases",
+								field.name
+							)
+						})
+					}
+					_ if option && !erased.undefined => at.undefined.then(|| {
+						format!(
+							"`{ty}` is not supported: its field `{}` is `Option<{inner}>`, typed `{inner} | undefined`, whose `None` would be `rs.None` as `Option<{instance}>`",
+							field.name
+						)
+					}),
+					_ if !option && !erased.pending => at.pending.then(|| {
+						format!(
+							"`{ty}` is not supported: its field `{}` is `Poll<{inner}>`, typed `rs.Poll<{inner}>`, whose `Pending` would be `rs.OuterPending` as `Poll<{instance}>`",
+							field.name
+						)
+					}),
+					// A `MaybeUninit<T>`, which can be `undefined` but for a byte.
+					_ if option => (!at.undefined).then(|| {
+						format!(
+							"`{ty}` is not supported: its field `{}` is `Option<{inner}>`, typed `{inner} | rs.None`, whose `None` would be `undefined` as `Option<{instance}>`",
+							field.name
+						)
+					}),
+					_ => (!at.pending).then(|| {
+						format!(
+							"`{ty}` is not supported: its field `{}` is `Poll<{inner}>`, typed `{inner} | rs.OuterPending`, whose `Pending` would be `rs.Pending` as `Poll<{instance}>`",
+							field.name
+						)
+					}),
+				};
+				if msg.is_some() {
+					return msg;
+				}
+			}
+		}
+		None
 	}
 
 	/// The type of an iterator's items, which every iterator has.
@@ -2027,13 +2083,19 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The TypeScript type of an `Option<inner>`: `T | undefined`, or `T | rs.None` where
-	/// `T` can already be `undefined`.
+	/// `T` can already be `undefined`, and in a generic type's definition, of a type
+	/// parameter, an `rs.OptionOf<T>`, which is either as each instance's `T` decides.
 	fn option_ty(&mut self, inner: Ty<'tcx>, span: Span) -> Type {
-		let none = match self.erases_to(inner).undefined {
+		let some = self.ty(inner, span);
+		let erased = self.erases_to(inner);
+		if matches!(some, Type::Param(_)) && !erased.undefined {
+			return Type::Rs("OptionOf", vec![some]);
+		}
+		let none = match erased.undefined {
 			true => Type::Rs("None", vec![]),
 			false => Type::Builtin("undefined"),
 		};
-		Type::Union(vec![self.ty(inner, span), none])
+		Type::Union(vec![some, none])
 	}
 
 	/// The TypeScript type of a future of `output`, an `rs.Future`, whose `poll` returns
@@ -2049,9 +2111,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The TypeScript type of a `Poll<inner>`: `rs.Poll<T>`, or `T | rs.OuterPending` where
-	/// `T` can already be `rs.Pending`.
+	/// `T` can already be `rs.Pending`, and in a generic type's definition, of a type
+	/// parameter, an `rs.PollOf<T>`, which is either as each instance's `T` decides.
 	fn poll_ty(&mut self, inner: Ty<'tcx>, span: Span) -> Type {
 		let ready = self.ty(inner, span);
+		if matches!(ready, Type::Param(_)) && !self.erases_to(inner).pending {
+			return Type::Rs("PollOf", vec![ready]);
+		}
 		match self.erases_to(inner).pending {
 			true => Type::Union(vec![ready, Type::Rs("OuterPending", vec![])]),
 			false => Type::Rs("Poll", vec![ready]),
@@ -2313,6 +2379,27 @@ pub fn array_ref(ty: Ty<'_>) -> Option<Ty<'_>> {
 /// definition types as every form it may be.
 pub fn instanced(ty: &Type) -> bool {
 	matches!(ty, Type::Rs("Ptr" | "ArrayOf" | "SliceOf" | "VecOf" | "CowOf", _))
+}
+
+/// Whether TypeScript's `undefined extends t` holds of `t`, a type no instance decides, as
+/// `rs.OptionOf` asks.
+pub fn holds_undefined(t: &Type) -> bool {
+	match t {
+		Type::Builtin("undefined") => true,
+		Type::Union(tys) => tys.iter().any(holds_undefined),
+		Type::Rs("Poll", tys) => tys.iter().any(holds_undefined),
+		_ => false,
+	}
+}
+
+/// Whether TypeScript's `typeof rs.Pending extends t` holds of `t`, a type no instance
+/// decides, as `rs.PollOf` asks.
+pub fn holds_pending(t: &Type) -> bool {
+	match t {
+		Type::Rs("Poll", _) => true,
+		Type::Union(tys) => tys.iter().any(holds_pending),
+		_ => false,
+	}
 }
 
 /// `snake_case` to `camelCase`, keeping leading underscores.
