@@ -90,7 +90,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// object one object deep shares: each field of its JS object holding such a value and
 	/// the type held there, a cell's, a lock's, a range's ends, or a one-time cell's, which
 	/// holds nothing until set; and the types it holds where no copy reaches, a hash map's
-	/// hasher. A collection's items are on the heap, which Rust's read shares too. `None`
+	/// hasher. A collection's items, and what a `Weak` points at, are on the heap, which
+	/// Rust's read shares too. `None`
 	/// for any other library object, such as a `LazyCell` or a `Peekable`, whose inline
 	/// state only its runtime class knows, so a read that would copy one is refused.
 	fn inline_held(&self, ty: Ty<'tcx>) -> Option<(Vec<(&'static str, Ty<'tcx>)>, Vec<Ty<'tcx>>)> {
@@ -114,7 +115,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				| Std::BTreeMap
 				| Std::BTreeSet
 				| Std::HashTable
-				| Std::BytesMut,
+				| Std::BytesMut
+				| Std::Weak,
 			) => Vec::new(),
 			Some(Std::HashMap) => return Some((Vec::new(), vec![at(2)])),
 			Some(Std::HashSet) => return Some((Vec::new(), vec![at(1)])),

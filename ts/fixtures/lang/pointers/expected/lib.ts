@@ -200,6 +200,10 @@ export function copy$pointers_Twin(v: Twin.Twin): Twin.Twin {
 	return { _0: v._0, _1: v._1 };
 }
 
+export function copy$sync_Weak_u32(v: rs.Weak<rs.u32>): rs.Weak<rs.u32> {
+	return rs.objectCopy(v);
+}
+
 export function copy$tuple2_Vec_u8_u8(v: [rs.ByteVec, rs.u8]): [rs.ByteVec, rs.u8] {
 	return [copy$Vec_u8(v[0]), v[1]];
 }

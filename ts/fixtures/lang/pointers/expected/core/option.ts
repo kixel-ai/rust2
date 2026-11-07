@@ -76,6 +76,13 @@ export function map$1cfrse5(self: Loaded.Loaded | undefined, f: (a0: Loaded.Load
 	return f(self);
 }
 
+export function map$1ng7x7l(self: rs.Weak<rs.u32> | undefined, f: (a0: rs.Weak<rs.u32>) => rs.Weak<rs.u32>): rs.Weak<rs.u32> | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$070fw7m(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u32): rs.u32 | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -109,6 +116,13 @@ export function mapOr$18adzvj(self: rs.Cell<rs.u32> | undefined, default_: rs.u3
 		return default_;
 	}
 	return self.v;
+}
+
+export function mapOr$0emjeap(self: rs.Arc<rs.u32> | undefined, default_: rs.u8, f: (a0: rs.Arc<rs.u32>) => rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
 }
 
 export function mapOr$173j2gr(self: [rs.u8, rs.Arc<rs.u8>] | undefined, default_: rs.u8, f: (a0: [rs.u8, rs.Arc<rs.u8>]) => rs.u8): rs.u8 {

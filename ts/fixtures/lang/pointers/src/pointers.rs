@@ -2591,6 +2591,32 @@ pub fn behind_refs(data: &[u8], out: &mut Vec<u8>) {
 	out.extend(counted.iter().map(|c| c.id));
 	drop(counted);
 	out.push(dropped.get());
+	// A `Weak` holds only its pointer to what it shares, which a read out copies as is, with
+	// one written whole in place.
+	let arc = Arc::new(u32::from(bits));
+	let weaks: Vec<std::sync::Weak<u32>> = data
+		.iter()
+		.map(|&b| match b % 2 {
+			0 => Arc::downgrade(&arc),
+			_ => std::sync::Weak::new(),
+		})
+		.collect();
+	for w in drained(weaks.clone(), bits) {
+		out.push(w.upgrade().map_or(0xff, |n| *n as u8));
+	}
+	let mut weaks = weaks;
+	let mut i = 0u8;
+	retained(&mut weaks, |w| {
+		i += 1;
+		if i % 3 == 0 {
+			*w = Arc::downgrade(&arc);
+		}
+		i % 2 == 0
+	});
+	out.extend(weaks.iter().map(|w| w.upgrade().map_or(0xff, |n| *n as u8)));
+	out.push(Arc::weak_count(&arc) as u8);
+	drop(weaks);
+	out.push(Arc::weak_count(&arc) as u8);
 
 	// From a reference the body borrowed, where the element is.
 	let mut nums: Vec<u32> = data.iter().map(|&b| u32::from(b)).collect();
