@@ -33,4 +33,4 @@ Decided with the maintainer on 2026-10-23, when rust2 was planned from moq
 - [m1: consumers waiting](/quest/m1/README.md) - the exporter that replaces the UniFFI fork for moq
 - [m2: research](/quest/m2/README.md) - the TypeScript translator's spikes and features toward moq-net's model, and the fork's gated work
 - [m3: deferred](/quest/m3/README.md) - the pure-Rust profile and upstream's build-speed levers, measured by the benchmark
-- [m4: long-term research](/quest/m4/README.md) - ideas no consumer needs yet, such as a subset compiler
+- [m4: long-term research](/quest/m4/README.md) - ideas no consumer needs yet, such as a rustc and cargo fork

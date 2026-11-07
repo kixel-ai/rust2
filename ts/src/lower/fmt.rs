@@ -480,6 +480,11 @@ pub fn std_impl<'tcx>(
 			(Std::Box | Std::NonZero | Std::Wrapping | Std::Saturating, _) => {
 				b.fmt_call(tr, args.type_at(0), value, f, span)
 			}
+			// An `IoSlice` writes the bytes it lends.
+			(Std::IoSlice, Trait::Debug) => {
+				let bytes = Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, Ty::new_slice(tcx, tcx.types.u8));
+				b.fmt_call(tr, bytes, value, f, span)
+			}
 			// A `Cow` writes what it derefs to.
 			(Std::Cow, _) if let Some(borrowed) = library::cow_borrowed(tcx, ty) => {
 				b.fmt_call(tr, borrowed, library::cow_deref(value, borrowed), f, span)
@@ -663,6 +668,7 @@ pub fn std_impl<'tcx>(
 			(Std::Utf8Error, Trait::Display) => rs("utf8ErrorDisplay", vec![value, f]),
 			(Std::Utf8Chunk, Trait::Debug) => rs("utf8ChunkDebug", vec![value, f]),
 			(Std::Duration, Trait::Debug) => Expr::rs("durationDebug", vec![value, f]),
+			(Std::TypeId, Trait::Debug) => rs("typeIdDebug", vec![value, f]),
 			(Std::Layout, Trait::Debug) => rs("layoutDebug", vec![value, f]),
 			(Std::Location, Trait::Debug) => rs("locationDebug", vec![value, f]),
 			(Std::Location, Trait::Display) => rs("locationDisplay", vec![value, f]),

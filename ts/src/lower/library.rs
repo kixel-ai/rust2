@@ -190,6 +190,9 @@ pub enum Std {
 	BuildHasherDefault,
 	/// `rs.Duration`: its seconds and nanoseconds, never changed once made.
 	Duration,
+	/// `rs.TypeId`: rustc's 128-bit hash of the type, which std's `TypeId` holds at run time,
+	/// as 32 hex digits.
+	TypeId,
 	/// `rs.Layout`: its size and alignment, never changed once made.
 	Layout,
 	/// `rs.Location`: a panic's file, line, and column, never changed once made.
@@ -202,6 +205,8 @@ pub enum Std {
 	TryReserveError,
 	/// `bytes::Bytes`: an `rs.ByteSlice`, as `&[u8]` is.
 	Bytes,
+	/// `io::IoSlice`: the `rs.ByteSlice` of the `&[u8]` it wraps.
+	IoSlice,
 	/// `bytes::BytesMut`: `rs.BytesMut`, a window of storage it shares with what it splits off.
 	BytesMut,
 	/// `rand::rngs::ThreadRng`: `rs.ThreadRng`, which holds no state.
@@ -297,6 +302,7 @@ impl Std {
 			}
 		}
 		for (item, std) in [
+			(rustc_attr_ir::LangItem::TypeId, Self::TypeId),
 			(rustc_attr_ir::LangItem::UnsafeCell, Self::Cell),
 			(rustc_attr_ir::LangItem::Context, Self::Context),
 			(rustc_attr_ir::LangItem::ResumeTy, Self::Context),
@@ -346,6 +352,7 @@ impl Std {
 			["char", "TryFromCharError"] => Some(Self::TryFromCharError),
 			["char", "decode", "DecodeUtf16Error"] => Some(Self::DecodeUtf16Error),
 			["str", "lossy", "Utf8Chunk"] => Some(Self::Utf8Chunk),
+			["io", "io_slice", "IoSlice"] => Some(Self::IoSlice),
 			["fmt", "Formatter"] => Some(Self::Formatter),
 			["fmt", "Arguments"] => Some(Self::Arguments),
 			["fmt", "Error"] => Some(Self::FmtError),
@@ -2024,6 +2031,10 @@ fn mapping<'tcx>(
 			}
 		}
 
+		// An `IoSlice` is the bytes it lends, which `advance` moves its place past the front of.
+		("IoSlice", "new") => args.pop()?,
+		("IoSlice", "advance") => Expr::rs("ioSliceAdvance", args),
+		("IoSlice", "advance_slices") => Expr::rs("ioSliceAdvanceSlices", args),
 		// A `NonZero` is its integer.
 		("NonZero", "get") => args.pop()?,
 		("NonZero", "new") => Expr::rs("nonZero", args),
@@ -2719,12 +2730,25 @@ fn mapping<'tcx>(
 		// The room past a byte vector's length, a slice of its storage.
 		("Vec", "spare_capacity_mut") if byte(targ(gargs, 0)) => Expr::rs("byteVecSpare", args),
 		("Vec", "set_len") if byte(targ(gargs, 0)) => Expr::rs("byteVecSetLen", args),
-		// The room past its length, which no JS array holds.
-		("Vec", "spare_capacity_mut") => {
-			return Some(b.err(
-				span,
-				"`Vec::spare_capacity_mut` of other than bytes, whose room past its length no JS array holds, which is not supported yet",
-			));
+		// The room past any other's, which the runtime keeps apart from its items, given
+		// the size its capacity grows by and what a slot holds before a write.
+		("Vec", "spare_capacity_mut" | "set_len") => {
+			let elem = targ(gargs, 0);
+			let uninit = Ty::new_maybe_uninit(tcx, elem);
+			let value = b.t.uninit(uninit, span);
+			let each = Expr::Arrow(
+				Vec::new(),
+				b.t.ty(uninit, span),
+				vec![StmtKind::Return(Some(value)).at(None)],
+			);
+			let mut values = args;
+			values.push(super::iter::size_of(b, elem, span));
+			values.push(each);
+			let f = match name.as_str() {
+				"set_len" => "vecSetLen",
+				_ => "vecSpare",
+			};
+			Expr::rs(f, values)
 		}
 		// Its elements, which nothing drops.
 		("Vec", "leak") => {
@@ -2745,7 +2769,7 @@ fn mapping<'tcx>(
 					Some(Std::Vec) => vec_view(v, vargs.type_at(0)),
 					// A `String` is the place of its text, as a `&mut str` of it is.
 					Some(Std::String) if name == "deref" => v.member("v"),
-					Some(Std::String | Std::Box | Std::ManuallyDrop | Std::AssertUnwindSafe) => v,
+					Some(Std::String | Std::Box | Std::ManuallyDrop | Std::AssertUnwindSafe | Std::IoSlice) => v,
 					Some(Std::Cow) if let Some(borrowed) = cow_borrowed(tcx, ty) => cow_deref(v, borrowed),
 					// The greatest element of a heap, which `DerefMut` marks to sift once lent.
 					Some(Std::PeekMut) => {

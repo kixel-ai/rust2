@@ -16,6 +16,7 @@ use crate::ts::{self, FieldId, Function, Item, SymId};
 pub const RUNTIME: &[(&str, &str)] = &[
 	("rs.ts", include_str!("../runtime/rs.ts")),
 	("rs/alloc.ts", include_str!("../runtime/rs/alloc.ts")),
+	("rs/any.ts", include_str!("../runtime/rs/any.ts")),
 	("rs/ascii.ts", include_str!("../runtime/rs/ascii.ts")),
 	("rs/bytes.ts", include_str!("../runtime/rs/bytes.ts")),
 	("rs/char.ts", include_str!("../runtime/rs/char.ts")),

@@ -24,10 +24,12 @@ The rest are gaps. At `main` they include a panic its hook cannot locate
 ([#556](https://github.com/moq-dev/rust2/pull/556)), a pointer cast to `()` that is not an
 `Arc`'s or `Rc`'s (`rs.arcErase`, [#562](https://github.com/moq-dev/rust2/pull/562),
 [#565](https://github.com/moq-dev/rust2/pull/565)), `offset_from` of one Rust allocation
-JS keeps in two arrays, a pointer moved past the array JS keeps it in (`AtIndex.reach`, a
-`Vec`'s spare capacity, which [its own quest](/quest/m3/ts-unsafe/vec-spare-capacity.md)
-owns, or a pointer kept in a field), `Bytes::slice_ref` of other storage, `alloc`'s bytes read as
-values, ranges stepped without their type, and fmt widths written as a placeholder.
+JS keeps in two arrays, a pointer moved past the array JS keeps it in (`AtIndex.reach`, such
+as one kept in a field), `Bytes::slice_ref` of other storage, `alloc`'s bytes read as
+values, ranges stepped without their type, fmt widths written as a placeholder, and a raw
+slice of a byte in no array cast to `*const [u8; N]` by a route the body doesn't show,
+which [a byte local in a buffer of its own](/quest/m3/ts-unsafe/lone-byte-buffers.md) owns
+for locals.
 `git grep 'rust2-ts: ' ts/runtime` lists them; classify each before fixing. The pointer
 comparisons [#584](https://github.com/moq-dev/rust2/pull/584) refuses at translation, where
 JS may make two `rs.Place`s for one place, are out of scope: addresses were their route, and
