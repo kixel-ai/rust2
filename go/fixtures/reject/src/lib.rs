@@ -159,3 +159,32 @@ pub struct Fields {
 pub struct _1 {
 	pub count: u8,
 }
+
+/// A function pointer over byte storage, which Go code could fill with a function that
+/// keeps what it is handed past the call.
+pub fn handed(f: fn(&mut Vec<u8>)) -> usize {
+	let mut v = Vec::new();
+	f(&mut v);
+	v.len()
+}
+
+/// A function pointer beside byte storage, which Go code could fill with a closure that
+/// reads `v` while it holds storage of the translation's own.
+pub fn beside(v: &mut Vec<u8>, f: fn()) {
+	v.push(1);
+	f();
+	v.push(2);
+}
+
+/// A reference inside an argument beside byte storage, which the translation could move
+/// out of what handing back walks.
+pub fn popped(mut refs: Vec<&mut Vec<u8>>) {
+	if let Some(v) = refs.pop() {
+		v.push(1);
+	}
+}
+
+/// A raw pointer beside byte storage, which could see that handing in copied it.
+pub fn same(v: Vec<u8>, p: *const u8) -> bool {
+	std::ptr::eq(&v[0], p)
+}

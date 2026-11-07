@@ -53,6 +53,23 @@ std translates from its own MIR, down to bindings for what Go does itself: a `Ve
 growth, a slice's iterator, UTF-8 validation, and the formatting machinery, which
 `runtime/rt_fmt.go` ports from core so `{:?}` and `{:#?}` print as Rust's do.
 
+A `Vec<u8>`'s storage is the runtime's own while only the translation reaches it: it
+grows to twice its capacity without zeroing, through the runtime's `growslice`, and an
+outgrown buffer is recycled for the next grow. Own storage is told apart by its shape, a
+capacity that is a power of two of at least 8 and never filled. A root function, which
+Go calls, takes Go's storage it is passed off that shape, a byte less capacity or a copy
+when full, so it is never recycled, and clips own storage it hands back to Go, in its
+result or behind an argument's `&mut`, to its length, so Go never sees past it and it is
+never recycled either; Go's `append` to such a slice copies. It works on a copy of each
+container an argument owns, a `Box`'s pointee or a `Vec`'s elements, so Go code still
+holding one never sees what the translation moved or grew out of it: a `Box` Go passes
+by value is left as it was, as Rust's move would leave it unread. Only roots are
+exported. A root that reaches byte storage refuses a function pointer or trait object in
+its signature, since Go code could fill it with a function that keeps what it is handed
+or reads a place the translation is still writing; a raw pointer, which could see what
+handing in copied; and a reference anywhere in an argument but its outermost type,
+which the translation could move out of what handing back walks.
+
 A panic is a Go panic of `RustPanic` carrying native Rust's message. As with
 `panic = "abort"`, no cleanup runs on the way out, so a caller that recovers one must
 drop what the translation held.
@@ -63,7 +80,9 @@ drop what the translation held.
 `Drop` impl, a trait object of any trait but `Display` and `Debug`, a union, a type
 generic over a constant, such as an array's by-value iterator, a `pub` item that is
 generic, a `static mut`, a static with interior mutability, such as an atomic, or of another
-language, and a reference into part of a static.
+language, a reference into part of a static, and, in the signature of a root that
+reaches byte storage, a function pointer, trait object, raw pointer, or reference
+inside an argument.
 
 ## Tests
 
@@ -73,8 +92,9 @@ Rust on the same inputs, failing on any difference in output or panic message:
 integer width's arithmetic, overflow, division by zero, and shifts, `fixtures/order`
 calls, reads, and overflow checks a folded temporary could reorder or skip, and
 `fixtures/enums` enums held as their parts, whose pointers a callee could write through
-or see changed. `fixtures/items` also checks its exported constants and statics as
-`tests/exports` reads them from Go.
+or see changed, and `fixtures/hand` byte storage made, grown, and shrunk each way, which
+`tests/hand/hand_test.go` then holds onto from Go as Go code may. `fixtures/items` also
+checks its exported constants and statics as `tests/exports` reads them from Go.
 
 `just go bench` times the codec's workloads translated against the same crate exported by
 rust2-ffi and called through cgo: per-call varints and frame headers, and `stream/`, a

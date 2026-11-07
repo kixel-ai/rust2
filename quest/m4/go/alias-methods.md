@@ -29,3 +29,8 @@ with impls that apply to each, to neither, and under a bound, checked by differe
 and by exported names; reject loses its specialized-alias case.
 
 Public API: what a translation exports.
+
+## Waiting
+
+- Go consumers: one needs moq in pure Go, which [the epic](/quest/m4/go/README.md) is
+  parked until; check with the maintainer before starting.

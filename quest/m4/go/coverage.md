@@ -26,16 +26,20 @@ The spike refuses each of these with its span (`go/fixtures/reject/expected.txt`
 The translation targets the host, 64-bit `usize`; a 32-bit Go target needs its own
 translation.
 
-Decided with the maintainer on 2026-11-06: coverage waits on [speed](/quest/m4/go/speed.md),
-as the epic orders them, and splits into one quest per construct above only once speed
-reaches its bar. A failed speed result deletes `go/`, so planning the constructs earlier
-would be wasted. The last coverage child reruns `just go bench` against speed's bar, since
-constructs such as `Vec::capacity` change what the stream workload runs.
+Decided with the maintainer on 2026-11-06: coverage waits on speed, as the epic orders
+them, and splits into one quest per construct above only once speed reaches its bar. A
+failed speed result deletes `go/`, so planning the constructs earlier would be wasted.
+The last coverage child reruns `just go bench` against speed's bar, every `stream/`
+workload within 2x of cgo, since constructs such as `Vec::capacity` change what the
+stream workload runs. Speed reached the bar on 2026-11-07 in
+[moq-dev/rust2#643](https://github.com/moq-dev/rust2/pull/643), but the epic is parked
+until a consumer needs pure Go, so the split waits for that too.
 
 - ✅ Gate on speed, split later.
 - Split now, each child requiring speed.
 - Split now, ungated.
 
-## Required
+## Waiting
 
-- [Match cgo on the crate](/quest/m4/go/speed.md) - the translated crate within 2x of cgo on a group's stream end to end
+- Go consumers: one needs moq in pure Go, which [the epic](/quest/m4/go/README.md) is
+  parked until; check with the maintainer before starting.
