@@ -26,16 +26,18 @@ export function put(self: Header, out: rs.ByteVec): void {
 /** Adds `by` to its tag through a slice of one of it. */
 export function bump(self: Header, by: rs.u8): void {
 	let mirror!: rs.ByteMirror | undefined;
-	const _3: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut((mirror = rs.byteMirror(rs.place(() => self.tag, (value) => self.tag = value))).s);
+	const _4: rs.ByteSlice = (mirror = rs.byteMirror(rs.place(() => self.tag, (value) => self.tag = value))).s;
+	const iterS: Uint8Array = _4.data;
+	let iterI: number = _4.start;
+	const iterE: number = _4.start + _4.length;
 	rs.byteMirrorFlush(mirror);
-	const iter: rs.Iter<rs.Place<rs.u8>> = _3;
 	while (true) {
-		const _7: rs.Place<rs.u8> | rs.Done = iter.next();
+		const _7: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
 		rs.byteMirrorFlush(mirror);
 		if (_7 === rs.DONE) {
 			break;
 		}
-		_7.v = rs.u8WrappingAdd(_7.v, by);
+		iterS[_7] = rs.u8WrappingAdd(iterS[_7], by);
 		rs.byteMirrorFlush(mirror);
 	}
 }

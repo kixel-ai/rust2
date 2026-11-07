@@ -5028,13 +5028,12 @@ export function lentOne$u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_u8(writeFirst$u8(new rs.ByteSlice(v.data, rs.idx(v, 1), 1), make$conversions_Value_u8(data, 8)), out);
 	put$conversions_Value_u8(v.data[rs.idx(v, 1)], out);
 	rs.byteSliceFill(new rs.ByteSlice(c, 0, 1), b);
-	const iter: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(new rs.ByteSlice(a, 0, 1));
-	while (true) {
-		const _61: rs.Place<rs.u8> | rs.Done = iter.next();
-		if (_61 === rs.DONE) {
-			break;
-		}
-		_61.v = make$conversions_Value_u8(data, 9);
+	const _58: rs.ByteSlice = new rs.ByteSlice(a, 0, 1);
+	const iterS: Uint8Array = _58.data;
+	let iterI: number = _58.start;
+	const iterE: number = _58.start + _58.length;
+	while (iterI < iterE) {
+		iterS[iterI++] = make$conversions_Value_u8(data, 9);
 	}
 	put$conversions_Value_u8(c[0], out);
 	put$conversions_Value_u8(a[0], out);
@@ -8310,8 +8309,9 @@ export function detached(s: rs.ByteSlice): rs.Place<rs.u8> {
 /**
  * Slices of one byte where it is, each read and written, and the byte read where it is
  * after: in a field, a tuple's, an array's, an `Option`'s, a `MaybeUninit`'s, a variable,
- * through a parameter and a `&mut` to a `&mut`, kept in a closure, a `Vec`, a copy, and
- * a raw pointer and a reference whose lifetime unsafe code made up, swapped, and made again in a loop with the byte written between.
+ * through a parameter and a `&mut` to a `&mut`, kept in a closure, a `Vec`, a copy, a
+ * raw pointer, and a reference whose lifetime unsafe code made up, swapped, and made
+ * again in a loop with the byte written between.
  */
 export function bytePlaces(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _215!: rs.u8;
@@ -8414,22 +8414,23 @@ export function bytePlaces(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 	const v: rs.Vec<rs.ByteSlice> = rs.vecFrom([_145, (mirror11 = rs.byteMirror(rs.place(() => borrowed11[1], (value11) => borrowed11[1] = value11))).s]);
 	rs.byteMirrorFlush(mirror10);
 	rs.byteMirrorFlush(mirror11);
-	const _149: rs.Iter<rs.Place<rs.ByteSlice>> = rs.iterSliceMut(rs.sliceFrom(v.items));
+	const iterS: rs.ByteSlice[] = v.items;
+	let iterI: number = 0;
+	const iterE: number = v.items.length;
 	rs.byteMirrorFlush(mirror10);
 	rs.byteMirrorFlush(mirror11);
-	const iter: rs.Iter<rs.Place<rs.ByteSlice>> = _149;
 	while (true) {
-		const _152: rs.Place<rs.ByteSlice> | rs.Done = iter.next();
+		const _152: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
 		rs.byteMirrorFlush(mirror10);
 		rs.byteMirrorFlush(mirror11);
 		if (_152 === rs.DONE) {
 			break;
 		}
-		rs.idx(_152.v, 0);
-		const _325: rs.ByteSlice = _152.v;
+		rs.idx(iterS[_152], 0);
+		const _325: rs.ByteSlice = iterS[_152];
 		const _156: rs.u8 = rs.u8WrappingAdd(_325.data[_325.start], at(13));
-		rs.idx(_152.v, 0);
-		const _327: rs.ByteSlice = _152.v;
+		rs.idx(iterS[_152], 0);
+		const _327: rs.ByteSlice = iterS[_152];
 		_327.data[_327.start] = _156;
 		rs.byteMirrorFlush(mirror10);
 		rs.byteMirrorFlush(mirror11);
