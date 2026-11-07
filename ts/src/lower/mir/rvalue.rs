@@ -63,7 +63,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				match (pointee.is_array(), self.in_array(*place)) {
 					(true, false) => crate::lower::array_slice(self.b.t.uninit_inner(pointee), value),
 					(false, true) if self.in_bytes(*place) => Expr::rs("byteSliceView", vec![value]),
-					(false, true) => crate::lower::library::slice_items(value),
+					(false, true) => match self.b.t.uninit_inner(pointee).kind() {
+						ty::Array(elem, _) => crate::lower::library::items_of(value, *elem),
+						_ => crate::lower::library::slice_items(value),
+					},
 					_ => value,
 				}
 			}

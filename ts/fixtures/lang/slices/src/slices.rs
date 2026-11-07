@@ -1556,7 +1556,7 @@ pub fn array_identity(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 /// Slices of arrays std's collections and pointers hand out, each read and written after.
 pub fn array_sources(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let rows: Vec<[u8; 2]> = data.chunks_exact(2).map(|c| [c[0], c[1]]).collect();
-	match kind % 4 {
+	match kind % 5 {
 		// A deque's, shared, mutable, and made contiguous, of bytes and of words.
 		0 => {
 			let mut q: std::collections::VecDeque<[u8; 2]> = rows.iter().copied().collect();
@@ -1611,6 +1611,28 @@ pub fn array_sources(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			out.extend(heap.as_slice().iter().flatten());
 			let shared: std::rc::Rc<[[u8; 2]]> = rows.clone().into();
 			out.extend(shared.iter().rev().flatten());
+		}
+		// A reborrow of a `MaybeUninit` of an array of arrays through a raw pointer, and a
+		// borrowed `Cow`'s, matched.
+		3 => {
+			let row = |at: usize| rows.get(at).copied().unwrap_or([at as u8; 2]);
+			let grid = [row(0), row(1), row(2)];
+			let pairs = [
+				[grid[2][1], grid[0][0]],
+				[grid[1][0], grid[2][0]],
+				[grid[0][1], grid[1][1]],
+				grid[2],
+			];
+			let p = (&pairs as *const [[u8; 2]; 4]).cast::<std::mem::MaybeUninit<[[u8; 2]; 4]>>();
+			// SAFETY: `p` points at `pairs`, which is initialized and outlives the borrow.
+			let wrapped = unsafe { &*p };
+			// SAFETY: as above.
+			out.extend(unsafe { wrapped.assume_init_ref() }.iter().flatten());
+			let cow: std::borrow::Cow<'_, [[u8; 2]]> = std::borrow::Cow::Borrowed(&grid[1..]);
+			match cow {
+				std::borrow::Cow::Borrowed(rows) => out.extend([rows.len() as u8, rows[0][0], rows[rows.len() - 1][1]]),
+				std::borrow::Cow::Owned(rows) => out.push(rows.len() as u8),
+			}
 		}
 		// A leaked `Vec`'s, written through.
 		_ => {

@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { copy$Option_array2_u16, copy$Option_array2_u8, copy$array_array2_array2_u8, copy$array_array2_u16, copy$array_array2_u8, copy$array_u16, copy$array_u8, copy$mem_MaybeUninit_array_u8, copy$slices_Pair, drop$tuple2_Vec_slices_Noisy_Vec_u8 } from "./lib.ts";
-import { isSomeAnd$1ouf3e6, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$1n9qa5p as option_unwrapOrDefault$1n9qa5p, unwrapOrDefault$0h81s8g as option_unwrapOrDefault$0h81s8g, map$13tab2s as option_map$13tab2s, map$0duedp1 as option_map$0duedp1, map$0q6fk7x as option_map$0q6fk7x, map$1uud0v7 as option_map$1uud0v7, map$1j0y4j0 as option_map$1j0y4j0, map$0vk4zok as option_map$0vk4zok, map$1aqm6sp as option_map$1aqm6sp, map$04ry0e1 as option_map$04ry0e1, mapOr$135q041 as option_mapOr$135q041, or$0as8tia as option_or$0as8tia, zip$0wdt346, clone$1omlcob as option_clone$1omlcob } from "./core/option.ts";
+import { isSomeAnd$1ouf3e6, unwrapOr$1la41a6 as option_unwrapOr$1la41a6, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$1n9qa5p as option_unwrapOrDefault$1n9qa5p, unwrapOrDefault$0h81s8g as option_unwrapOrDefault$0h81s8g, map$13tab2s as option_map$13tab2s, map$0duedp1 as option_map$0duedp1, map$0q6fk7x as option_map$0q6fk7x, map$1uud0v7 as option_map$1uud0v7, map$1j0y4j0 as option_map$1j0y4j0, map$0vk4zok as option_map$0vk4zok, map$1aqm6sp as option_map$1aqm6sp, map$04ry0e1 as option_map$04ry0e1, mapOr$135q041 as option_mapOr$135q041, or$0as8tia as option_or$0as8tia, zip$0wdt346, clone$1omlcob as option_clone$1omlcob } from "./core/option.ts";
 import * as Counted from "./slices.Counted.ts";
 import * as Item from "./slices.Item.ts";
 import * as Noisy from "./slices.Noisy.ts";
@@ -3099,7 +3099,7 @@ export function arraySources(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): 
 		rs.idx(c, 1);
 		return Uint8Array.of(_3, c.data[c.start + 1]);
 	}), undefined, 2, true);
-	const _7: rs.u8 = rs.u8Rem(kind, 4);
+	const _7: rs.u8 = rs.u8Rem(kind, 5);
 	if (_7 === 0) {
 		const q: rs.VecDeque<Uint8Array> = rs.dequeFromVec(rs.iterToVec(rs.iterCopied(rs.arraySliceIter(rs.arraySliceFrom(rows.items, rs.byteSliceFrom)), rs.byteSliceToArray), undefined, 2, true), 2) as rs.VecDeque<Uint8Array>;
 		const _14: rs.ByteSlice | undefined = rs.arraySliceFirst(rs.arraySliceFrom(rows.items, rs.byteSliceFrom));
@@ -3151,12 +3151,32 @@ export function arraySources(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): 
 		const shared: rs.Arc<rs.ArraySlice<rs.ByteSlice>> = new rs.Arc(rs.arraySliceFrom(rs.vecFrom(rows.items.map(copy$array_u8)).items, rs.byteSliceFrom));
 		rs.iterExtendBytes(out, rs.iterFlatten(rs.iterRev(rs.arraySliceIter(shared.value)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), undefined, true);
 		shared[Symbol.dispose]();
+	} else if (_7 === 3) {
+		const row: (a0: rs.usize) => Uint8Array = (at: rs.usize): Uint8Array => {
+			return option_unwrapOr$1la41a6(copy$Option_array2_u8(rs.optionMap(rs.arraySliceGet(rs.arraySliceFrom(rows.items, rs.byteSliceFrom), at), rs.byteSliceView)), rs.bytes(2).fill(at & 0xff));
+		};
+		const grid: Uint8Array[] = [row(0), row(1), row(2)];
+		const wrapped: Uint8Array[] = rs.arraySliceItems(rs.arraySliceFrom([Uint8Array.of(grid[2][1], grid[0][0]), Uint8Array.of(grid[1][0], grid[2][0]), Uint8Array.of(grid[0][1], grid[1][1]), copy$array_u8(grid[2])], rs.byteSliceFrom));
+		rs.iterExtendBytes(out, rs.iterFlatten(rs.arraySliceIter(rs.arraySliceOf(rs.byteSliceFrom)(wrapped)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), undefined, true);
+		const cow: rs.Cow<Uint8Array, rs.ArraySlice<rs.ByteSlice>> = new rs.Borrowed(rs.arraySliceRange(rs.arraySliceFrom(grid, rs.byteSliceFrom), 1));
+		if (cow instanceof rs.Borrowed) {
+			const _217: rs.u8 = (cow as rs.Borrowed<rs.ArraySlice<rs.ByteSlice>>).slice.length & 0xff;
+			rs.idx((cow as rs.Borrowed<rs.ArraySlice<rs.ByteSlice>>).slice, 0);
+			const slice2 = rs.arraySliceAt((cow as rs.Borrowed<rs.ArraySlice<rs.ByteSlice>>).slice, 0);
+			const _219: rs.u8 = slice2.data[slice2.start];
+			const _226: rs.usize = rs.usizeSub((cow as rs.Borrowed<rs.ArraySlice<rs.ByteSlice>>).slice.length, 1);
+			rs.idx((cow as rs.Borrowed<rs.ArraySlice<rs.ByteSlice>>).slice, _226);
+			const slice4 = rs.arraySliceAt((cow as rs.Borrowed<rs.ArraySlice<rs.ByteSlice>>).slice, _226);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_217, _219, slice4.data[slice4.start + 1])), undefined, true);
+		} else {
+			rs.byteVecPush(out, (cow as rs.Vec<Uint8Array>).items.length & 0xff);
+		}
 	} else {
 		const leaked: rs.ArraySlice<rs.ByteSlice> = rs.arraySliceFrom(rs.vecFrom(rows.items.map(copy$array_u8)).items, rs.byteSliceFrom);
-		const _155: rs.ByteSlice | undefined = rs.arraySliceFirst(leaked);
-		if (_155 !== undefined) {
-			const _158: rs.u8 = rs.u8WrappingAdd(_155.data[_155.start], 1);
-			_155.data[_155.start] = _158;
+		const _240: rs.ByteSlice | undefined = rs.arraySliceFirst(leaked);
+		if (_240 !== undefined) {
+			const _243: rs.u8 = rs.u8WrappingAdd(_240.data[_240.start], 1);
+			_240.data[_240.start] = _243;
 		}
 		rs.iterExtendBytes(out, rs.iterFlatten(rs.arraySliceIter(leaked), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), undefined, true);
 	}

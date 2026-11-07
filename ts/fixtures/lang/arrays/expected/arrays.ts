@@ -2033,4 +2033,30 @@ export function putOptions$5(out: rs.ByteVec, options: rs.Slice<Uint8Array | und
 	}
 }
 
+/**
+ * An array pattern's rest of an owned array of arrays, borrowed mutably and written
+ * through, from the front and from the back.
+ */
+export function rests(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	const row: (a0: rs.usize) => Uint8Array = (at: rs.usize): Uint8Array => {
+		return Uint8Array.of(option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeMul(2, at)), at & 0xff), option_unwrapOr$1fr498u(rs.byteSliceGet(data, rs.usizeAdd(rs.usizeMul(2, at), 1)), kind));
+	};
+	const grid: Uint8Array[] = [copy$array_u8(row(0)), copy$array_u8(row(1)), copy$array_u8(row(2))];
+	const rest: rs.ArraySlice<rs.ByteSlice> = rs.arraySlicePart(rs.arraySliceFrom(grid, rs.byteSliceFrom), 1, 3);
+	const slice = rs.arraySliceAt(rest, 0);
+	const slice2 = rs.arraySliceAt(rest, 0);
+	slice2.data[slice2.start] = slice.data[slice.start] ^ 119;
+	const slice3 = rs.arraySliceAt(rest, 1);
+	const _22: rs.u8 = rs.u8WrappingAdd(slice3.data[slice3.start + 1], 3);
+	const slice4 = rs.arraySliceAt(rest, 1);
+	slice4.data[slice4.start + 1] = _22;
+	rs.iterExtendBytes(out, rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(grid, rs.byteSliceFrom)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), undefined, true);
+	const front: rs.ArraySlice<rs.ByteSlice> = rs.arraySlicePart(rs.arraySliceFrom(grid, rs.byteSliceFrom), 0, 2);
+	const slice5 = rs.arraySliceAt(front, 1);
+	const _34: rs.u8 = slice5.data[slice5.start];
+	const slice6 = rs.arraySliceAt(front, 0);
+	slice6.data[slice6.start + 1] = _34;
+	rs.iterExtendBytes(out, rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(grid, rs.byteSliceFrom)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), undefined, true);
+}
+
 //# sourceMappingURL=arrays.ts.map

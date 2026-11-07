@@ -22,6 +22,13 @@ export function isSomeAnd$1ouf3e6(self: [rs.ByteSlice, rs.ByteSlice] | undefined
 	return f(self);
 }
 
+export function unwrapOr$1la41a6(self: Uint8Array | undefined, default_: Uint8Array): Uint8Array {
+	if (self === undefined) {
+		return default_;
+	}
+	return self;
+}
+
 export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;

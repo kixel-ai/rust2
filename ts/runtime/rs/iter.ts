@@ -22,7 +22,7 @@
 // `owned` functions follow it, dispatching on the kind, so a bundle that never drops an
 // item carries none of it.
 
-import { ByteSlice, ByteVec, type ArrayRef, type ArraySlice, arraySliceItems, arraySliceAt, arraySliceEach, arraySlicePart, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, capReserve, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, sliceItems, slicePart, type Slice, type SliceLike, Vec, vecCapacity, vecExtendFromSlice, vecFrom, vecHold, vecMax, vecWithCapacity } from "../rs.ts";
+import { ByteSlice, ByteVec, type ArrayRef, type ArraySlice, arraySliceItems, arraySliceAt, arraySlicePart, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, capReserve, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, sliceItems, slicePart, type Slice, type SliceLike, Vec, vecCapacity, vecExtendFromSlice, vecFrom, vecHold, vecMax, vecWithCapacity } from "../rs.ts";
 import { AtIndex, BTreeIter, HashIter, type Ordering } from "./collections.ts";
 import { type Hasher, hash8 } from "./hash.ts";
 import { charStep, intToBig, type Limbs, type Step, usizeDebug, lt as wideLt } from "./int.ts";
@@ -477,27 +477,27 @@ export function sliceRsplitn<T>(s: Slice<T>, n: number, f: (item: T) => boolean)
 
 /** `slice::split` and `split_mut` of an array slice: the parts between the arrays `f` is true of, each lent where the slice holds it. */
 export function arraySliceSplit<S extends ArrayRef>(r: ArraySlice<S>, f: (run: S) => boolean): Iter<ArraySlice<S>> {
-	return new SplitIter(r, arraySliceEach(r), 0, arraySlicePart, f, false, false);
+	return new SplitIter(r, (i: number) => arraySliceAt(r, i), 0, arraySlicePart, f, false, false);
 }
 
 /** `slice::rsplit` and `rsplit_mut` of an array slice. */
 export function arraySliceRsplit<S extends ArrayRef>(r: ArraySlice<S>, f: (run: S) => boolean): Iter<ArraySlice<S>> {
-	return new SplitIter(r, arraySliceEach(r), 0, arraySlicePart, f, true, false);
+	return new SplitIter(r, (i: number) => arraySliceAt(r, i), 0, arraySlicePart, f, true, false);
 }
 
 /** `slice::split_inclusive` and `split_inclusive_mut` of an array slice. */
 export function arraySliceSplitInclusive<S extends ArrayRef>(r: ArraySlice<S>, f: (run: S) => boolean): Iter<ArraySlice<S>> {
-	return new SplitIter(r, arraySliceEach(r), 0, arraySlicePart, f, false, true);
+	return new SplitIter(r, (i: number) => arraySliceAt(r, i), 0, arraySlicePart, f, false, true);
 }
 
 /** `slice::splitn` and `splitn_mut` of an array slice. */
 export function arraySliceSplitn<S extends ArrayRef>(r: ArraySlice<S>, n: number, f: (run: S) => boolean): Iter<ArraySlice<S>> {
-	return new SplitIter(r, arraySliceEach(r), 0, arraySlicePart, f, false, false, n);
+	return new SplitIter(r, (i: number) => arraySliceAt(r, i), 0, arraySlicePart, f, false, false, n);
 }
 
 /** `slice::rsplitn` and `rsplitn_mut` of an array slice. */
 export function arraySliceRsplitn<S extends ArrayRef>(r: ArraySlice<S>, n: number, f: (run: S) => boolean): Iter<ArraySlice<S>> {
-	return new SplitIter(r, arraySliceEach(r), 0, arraySlicePart, f, true, false, n);
+	return new SplitIter(r, (i: number) => arraySliceAt(r, i), 0, arraySlicePart, f, true, false, n);
 }
 
 /** `slice::split` and `split_mut` of bytes, whose parts are views already. */
@@ -2264,7 +2264,8 @@ class PartsIter<S> extends Iter<S> {
  */
 class SplitIter<S, T> extends Iter<S> implements Disposable {
 	readonly #s: S;
-	readonly #items: ArrayLike<T>;
+	/** The items, from `#offset`, or what reads item `i`, as an array slice lends each array only once read. */
+	readonly #items: ArrayLike<T> | ((i: number) => T);
 	readonly #offset: number;
 	readonly #part: (s: S, start: number, end: number) => S;
 	readonly #f: (item: T) => boolean;
@@ -2280,7 +2281,7 @@ class SplitIter<S, T> extends Iter<S> implements Disposable {
 	#finished: boolean;
 	#dropped = false;
 
-	constructor(s: S, items: ArrayLike<T>, offset: number, part: (s: S, start: number, end: number) => S, f: (item: T) => boolean, rev: boolean, inclusive: boolean, count?: number) {
+	constructor(s: S, items: ArrayLike<T> | ((i: number) => T), offset: number, part: (s: S, start: number, end: number) => S, f: (item: T) => boolean, rev: boolean, inclusive: boolean, count?: number) {
 		super();
 		this.#s = s;
 		this.#items = items;
@@ -2293,6 +2294,12 @@ class SplitIter<S, T> extends Iter<S> implements Disposable {
 		this.#end = (s as { length: number }).length;
 		// An empty slice has no part to include a separator in.
 		this.#finished = inclusive && this.#end === 0;
+	}
+
+	/** Item `i` of what is split. */
+	#at(i: number): T {
+		const items = this.#items;
+		return typeof items === "function" ? items(i) : items[this.#offset + i];
 	}
 
 	override clone(h?: Clones): Iter<S> {
@@ -2355,7 +2362,7 @@ class SplitIter<S, T> extends Iter<S> implements Disposable {
 		if (this.#finished) return DONE;
 		const start = this.#start;
 		let i = start;
-		while (i < this.#end && !this.#f(this.#items[this.#offset + i])) i++;
+		while (i < this.#end && !this.#f(this.#at(i))) i++;
 		if (this.#inclusive) {
 			const end = Math.min(i + 1, this.#end);
 			if (end === this.#end) this.#finished = true;
@@ -2372,7 +2379,7 @@ class SplitIter<S, T> extends Iter<S> implements Disposable {
 		const end = this.#end;
 		// The last element ends an inclusive part whether it is a separator or not.
 		let i = this.#inclusive ? Math.max(end - 1, this.#start) : end;
-		while (i > this.#start && !this.#f(this.#items[this.#offset + i - 1])) i--;
+		while (i > this.#start && !this.#f(this.#at(i - 1))) i--;
 		if (this.#inclusive) {
 			if (i === this.#start) this.#finished = true;
 			this.#end = i;

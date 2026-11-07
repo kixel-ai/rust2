@@ -509,6 +509,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let base = self.place_expr(base.to_place(self.tcx), span, out);
 		let end = self.subslice_end(&base, ty, to, from_end);
 		let from = Expr::lit(from.to_string());
+		// Of arrays, the arrays of an array slice of them all.
+		if let ty::Array(elem, _) = ty.kind()
+			&& elem.is_array()
+		{
+			let all = crate::lower::slice_items_from(base, *elem);
+			return Some(Expr::rs("arraySlicePart", vec![all, from, end]));
+		}
 		let length = super::scalar::sub(end, from.clone());
 		Some(Expr::New(Box::new(Expr::Rs("Slice".into())), vec![base, from, length]))
 	}
@@ -681,15 +688,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Some(Std::Cow) if let Some(borrowed) = crate::lower::library::cow_borrowed(tcx, ty) => {
 					let bytes = crate::lower::library::cow_slice(tcx, ty).is_some_and(crate::lower::byte);
 					let owned = variant.is_some_and(|v| v.index() == 1);
-					// What an `rs.Borrowed` holds, and what it owns: an `rs.Slice` and an
-					// `rs.Vec`, or text and an `rs.String`.
+					// What an `rs.Borrowed` holds, and what it owns: an `rs.Slice`, or for
+					// arrays an `rs.ArraySlice`, and an `rs.Vec`, or text and an `rs.String`.
 					let (held, owns) = match borrowed.kind() {
 						ty::Slice(elem) => {
-							let elem = self.b.t.ty(*elem, span);
-							(
-								crate::ts::Type::Rs("Slice", vec![elem.clone()]),
-								crate::ts::Type::Rs("Vec", vec![elem]),
-							)
+							let held = match elem.is_array() {
+								true => self.b.t.slice_ty(*elem, span),
+								false => crate::ts::Type::Rs("Slice", vec![self.b.t.ty(*elem, span)]),
+							};
+							(held, crate::ts::Type::Rs("Vec", vec![self.b.t.ty(*elem, span)]))
 						}
 						_ => (
 							crate::ts::Type::Builtin("string"),
