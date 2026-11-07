@@ -66,13 +66,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					return self.writes.contains(&self.writes.into, false, self.tcx, ty)
 						|| self.addressed(ty)
 						|| !ty.is_freeze(self.tcx, self.typing_env())
-						|| {
-							let (fields, unknown) = self.inline_held(ty);
-							fields
-								.into_iter()
-								.map(|(_, t)| t)
-								.chain(unknown)
-								.any(|t| self.changes(t))
+						|| match self.inline_held(ty) {
+							Some((fields, unreachable)) => {
+								fields.into_iter().map(|(_, t)| t).chain(unreachable).any(|t| self.changes(t))
+							}
+							// Any type it is over may be held inline, which its copy refuses.
+							None => args.types().any(|t| self.changes(t)),
 						};
 				}
 				Some(_) => return false,
@@ -90,12 +89,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// What a library object `ty` holds inline rather than on the heap, which a copy of the
 	/// object one object deep shares: each field of its JS object holding such a value and
 	/// the type held there, a cell's, a lock's, a range's ends, or a one-time cell's, which
-	/// holds nothing until set; and the types it holds where no copy reaches, such as a
-	/// hash map's hasher or what a `LazyCell` keeps private. A collection's items are on
-	/// the heap, which Rust's read shares too.
-	fn inline_held(&self, ty: Ty<'tcx>) -> (Vec<(&'static str, Ty<'tcx>)>, Vec<Ty<'tcx>>) {
+	/// holds nothing until set; and the types it holds where no copy reaches, a hash map's
+	/// hasher. A collection's items are on the heap, which Rust's read shares too. `None`
+	/// for any other library object, such as a `LazyCell` or a `Peekable`, whose inline
+	/// state only its runtime class knows, so a read that would copy one is refused.
+	fn inline_held(&self, ty: Ty<'tcx>) -> Option<(Vec<(&'static str, Ty<'tcx>)>, Vec<Ty<'tcx>>)> {
 		let ty::Adt(adt, args) = ty.kind() else {
-			return (Vec::new(), Vec::new());
+			return None;
 		};
 		let at = |i: usize| args.type_at(i);
 		let fields = match Std::of(self.tcx, adt.did()) {
@@ -116,11 +116,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				| Std::HashTable
 				| Std::BytesMut,
 			) => Vec::new(),
-			Some(Std::HashMap) => return (Vec::new(), vec![at(2)]),
-			Some(Std::HashSet) => return (Vec::new(), vec![at(1)]),
-			_ => return (Vec::new(), args.types().collect()),
+			Some(Std::HashMap) => return Some((Vec::new(), vec![at(2)])),
+			Some(Std::HashSet) => return Some((Vec::new(), vec![at(1)])),
+			_ => return None,
 		};
-		(fields, Vec::new())
+		Some((fields, Vec::new()))
 	}
 
 	/// Whether the runs before compared pointers to a `ty`, or to a type it holds by value,
@@ -394,8 +394,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				// A library object, which [`Self::changes`] says a whole write lands in, and a
 				// copy of what it holds inline.
 				Some(std) => {
-					let (fields, unknown) = self.inline_held(ty);
-					if unknown.into_iter().any(|t| self.changes(t)) {
+					let Some((fields, unreachable)) = self.inline_held(ty) else {
+						self.err(
+							span,
+							format!(
+								"a read moving out a `{ty}`, a library object whose inline state only its runtime class knows, which JS can't copy apart"
+							),
+						);
+						return ret(v());
+					};
+					if unreachable.into_iter().any(|t| self.changes(t)) {
 						self.err(
 							span,
 							format!("a read moving out a `{ty}`, which holds inline a value JS can't copy apart"),

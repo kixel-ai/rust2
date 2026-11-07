@@ -31,6 +31,25 @@ pub fn infallible_cell(r: &Result<std::cell::Cell<u32>, std::convert::Infallible
 	unsafe { std::ptr::from_ref(r).cast_mut().write(Ok(std::cell::Cell::new(19))) }
 }
 
+/// A `LazyCell` moved out through a pointer before its initializer, which holds a cell,
+/// runs: the closure is state only `rs.LazyCell` knows, which a copy can't reach.
+pub fn lazy_moved(cell: std::cell::Cell<u32>) -> u32 {
+	let lazy = std::cell::LazyCell::new(move || cell.get());
+	let copy = unsafe { std::ptr::read(&lazy) };
+	std::mem::forget(lazy);
+	*copy
+}
+
+/// A `Peekable` moved out through a pointer with a cell peeked, which only its runtime
+/// class holds.
+pub fn peeked_moved(cells: Vec<std::cell::Cell<u32>>) -> u32 {
+	let mut iter = cells.into_iter().peekable();
+	iter.peek();
+	let mut copy = unsafe { std::ptr::read(&iter) };
+	std::mem::forget(iter);
+	copy.next().map_or(0, |cell| cell.get())
+}
+
 /// A pointer from a reference the body is given, which JS keeps in no array, moved past
 /// it.
 pub fn past_reference(r: &u32) -> u32 {
