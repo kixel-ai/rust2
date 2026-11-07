@@ -942,6 +942,33 @@ fn api_go() {
 	);
 }
 
+/// Under a `go.mod`, the generated packages import each other by its module, as the go
+/// command reads it from a block among comments, and the export writes no `go.mod` of its own.
+#[test]
+fn go_module() {
+	let module = scratch().join("go-module");
+	let _ = std::fs::remove_dir_all(&module);
+	std::fs::create_dir_all(&module).unwrap();
+	std::fs::write(
+		module.join("go.mod"),
+		"// module example.com/commented\nmodule ( // the app\n\t\"example.com/app\" // quoted\n)\n\ngo 1.24\n",
+	)
+	.unwrap();
+	let out = module.join("sub").join("out");
+	let output = export("api", &out, &[]);
+	assert!(
+		output.status.success(),
+		"exporting failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	assert!(
+		!out.join("go").join("go.mod").exists(),
+		"the export wrote a go.mod under one"
+	);
+	let api = std::fs::read_to_string(out.join("go").join("api").join("api.go")).unwrap();
+	assert!(api.contains("\"example.com/app/sub/out/go/rt\""), "{api}");
+}
+
 /// A copy of the directory `from` at `to`.
 fn copy_dir(from: &Path, to: &Path) {
 	std::fs::create_dir_all(to).unwrap();

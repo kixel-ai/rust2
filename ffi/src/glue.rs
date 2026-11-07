@@ -211,38 +211,44 @@ impl Crate<'_> {
 	}
 }
 
-/// The path a `go.mod` declares in its module directive: `module`, then the path, bare or
-/// quoted, on its line or alone on the next of a `module (` block, then any `//` comment.
-/// Another directive's block, which may hold a path named `module`, is skipped. A module
-/// path holds no quote, backslash, or `//`.
-fn module_path(text: &str) -> Option<&str> {
-	let mut lines = text
-		.lines()
-		.map(|line| line.split("//").next().unwrap_or_default().trim());
-	let mut block = false;
-	while let Some(line) = lines.next() {
-		if block {
-			block = line != ")";
-			continue;
-		}
-		let directive = line
-			.strip_prefix("module")
-			.filter(|rest| rest.is_empty() || rest.starts_with([' ', '\t', '(', '"', '`']));
-		let Some(rest) = directive else {
-			block = line.ends_with('(');
-			continue;
-		};
-		let rest = match rest.trim_start() {
-			"(" => lines.find(|line| !line.is_empty())?,
-			rest => rest,
-		};
-		let path = match rest.strip_prefix(['"', '`']) {
-			Some(quoted) => quoted.split(['"', '`']).next()?,
-			None => rest.split_whitespace().next()?,
-		};
-		return (path != ")").then_some(path);
+/// The path the module directive of the `go.mod` at `path` declares, as the go command reads it.
+fn module_path(path: &Path) -> Result<String, String> {
+	#[derive(serde::Deserialize)]
+	struct GoMod {
+		#[serde(rename = "Module")]
+		module: Option<Module>,
 	}
-	None
+	#[derive(serde::Deserialize)]
+	struct Module {
+		#[serde(rename = "Path")]
+		path: String,
+	}
+	let output = std::process::Command::new("go")
+		.args(["mod", "edit", "-json"])
+		.arg(path)
+		// Reading a go.mod that names a newer Go must not download that toolchain.
+		.env("GOTOOLCHAIN", "local")
+		.output()
+		.map_err(|err| match err.kind() {
+			std::io::ErrorKind::NotFound => format!(
+				"the go command is not on PATH: the export reads the module of {}, above --out, with `go mod edit -json`",
+				path.display()
+			),
+			_ => format!("running go mod edit -json {}: {err}", path.display()),
+		})?;
+	if !output.status.success() {
+		return Err(format!(
+			"go mod edit -json {} failed:\n{}",
+			path.display(),
+			String::from_utf8_lossy(&output.stderr).trim_end()
+		));
+	}
+	let go_mod: GoMod = serde_json::from_slice(&output.stdout)
+		.map_err(|err| format!("reading go mod edit -json {}: {err}", path.display()))?;
+	go_mod
+		.module
+		.map(|module| module.path)
+		.ok_or_else(|| format!("{} declares no module", path.display()))
 }
 
 /// The import path of `<out>/go`, from the `go.mod` of the module above it, or else the
@@ -252,10 +258,10 @@ fn go_module(out: &Path, prefix: &str) -> Result<(String, Option<String>), Strin
 	let out = std::fs::canonicalize(out).map_err(|err| format!("reading {}: {err}", out.display()))?;
 	for dir in out.ancestors() {
 		let path = dir.join("go.mod");
-		let Ok(text) = std::fs::read_to_string(&path) else {
+		if !path.is_file() {
 			continue;
-		};
-		let module = module_path(&text).ok_or_else(|| format!("{} declares no module", path.display()))?;
+		}
+		let module = module_path(&path)?;
 		let rest = out.join("go");
 		let rest = rest.strip_prefix(dir).expect("an ancestor holds it");
 		let rest: Vec<String> = rest
@@ -1253,39 +1259,5 @@ impl Gen<'_> {
 				false => call,
 			},
 		));
-	}
-}
-
-#[cfg(test)]
-mod tests {
-	use super::module_path;
-
-	#[test]
-	fn module_directive() {
-		for (text, path) in [
-			("module example.com/app\n\ngo 1.24\n", Some("example.com/app")),
-			("// the app\nmodule\texample.com/app\n", Some("example.com/app")),
-			("module example.com/app // the app", Some("example.com/app")),
-			("module \"example.com/app\" // quoted", Some("example.com/app")),
-			("module `example.com/app`", Some("example.com/app")),
-			("module (\n\texample.com/app\n)\n", Some("example.com/app")),
-			(
-				"module( // a block\n\n\t\"example.com/app\"\n)\n",
-				Some("example.com/app"),
-			),
-			("module (\n)\n", None),
-			(
-				"modules example.com/app\nmodule example.com/app",
-				Some("example.com/app"),
-			),
-			("// module example.com/app\ngo 1.24", None),
-			(
-				"replace (\n\tmodule => ./unused\n)\n\nmodule example.com/app\n",
-				Some("example.com/app"),
-			),
-			("require (\n\tmodule v1.0.0\n)\n", None),
-		] {
-			assert_eq!(module_path(text), path, "{text:?}");
-		}
 	}
 }

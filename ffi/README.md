@@ -420,9 +420,10 @@ while Rust's modules may, so a package per module could not hold moq. An instanc
 generic type, or a function naming one, belongs to the last of its own and its arguments'
 crates in Cargo's order, which can name them all: moq's
 `mux::catalog::Producer<hang::catalog::Extra>` is in `mux`. The packages' import path is
-the module of the `go.mod` above `--out`, with the path to `go/`, or else `<prefix>`, the
-module of the `go.mod` the export writes in `go/`, which a caller requires and replaces
-with that directory.
+the module of the `go.mod` above `--out`, as `go mod edit -json` reads it, so the go
+command must be on PATH, with the path to `go/`; or else `<prefix>`, the module of the
+`go.mod` the export writes in `go/`, which a caller requires and replaces with that
+directory.
 
 - **Names** are the C names without the prefix and the segments outside the item's crate,
   such as the facade's module re-exporting it, in Pascal case: `moq_track_Producer` is
