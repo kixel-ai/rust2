@@ -9,9 +9,9 @@
 //! A program that reaches `panic::set_hook` passes where each panic is, which its hook
 //! reads: each statement's own, the caller's location to each std function that takes it,
 //! and the call of the macro that defines one, as an integer's methods. A panic in std's
-//! own code is where the toolchain's source has it, and one in `bytes`' where the
-//! program's `bytes` has it, named as the session names that file, which `rs.setHook` is
-//! given.
+//! own code is where the toolchain's source has it, and one in `bytes`' or `tokio`'s where
+//! the program's copy of that crate has it, named as the session names that file, which
+//! `rs.setHook` is given.
 
 use std::sync::OnceLock;
 
@@ -327,6 +327,14 @@ const SITES: &[(&str, &str, &str, &str)] = &[
 		"",
 		"expect(\"multiplying duration by scalar",
 	),
+	// A macro's panic is at the macro's call, here the one that gives the general zip its
+	// `next_back`, which an `ExactSizeIterator` whose length lies reaches.
+	(
+		"zip_next_back",
+		"core/src/iter/adapters/zip.rs",
+		"// General Zip impl",
+		"zip_impl_general_defaults!",
+	),
 ];
 
 /// Where each std function that neither takes its caller's location nor is defined by a
@@ -469,11 +477,14 @@ const CALLEES: &[(&str, &str, &str, &str)] = &[
 	),
 ];
 
-/// Where `bytes`' code panics, for each of its panics the runtime makes, by the key it
+/// Where a crate's code panics, for each of its panics the runtime makes, by the key it
 /// passes in place of a location: a file under the crate's `src/`, the texts before it in
-/// turn, and the text the call that panics starts with. None of its public functions takes
-/// its caller's location, so each panic is where its source has it.
-const BYTES: &[(&str, &str, &[&str], &str)] = &[
+/// turn, and the text the call that panics starts with.
+type CrateSites = &'static [(&'static str, &'static str, &'static [&'static str], &'static str)];
+
+/// Where `bytes`' code panics. None of its public functions takes its caller's location, so
+/// each panic is where its source has it.
+const BYTES: CrateSites = &[
 	("bytes_advance", "lib.rs", &["fn panic_advance("], "panic!("),
 	("bytes_does_not_fit", "lib.rs", &["fn panic_does_not_fit("], "panic!("),
 	// `range` takes its caller's location, so its panics are at its call.
@@ -526,9 +537,18 @@ const BYTES: &[(&str, &str, &[&str], &str)] = &[
 	),
 ];
 
+/// Where tokio's code panics in what its mapping covers, none of which takes its caller's
+/// location.
+const TOKIO: CrateSites = &[(
+	"tokio_oneshot_poll",
+	"sync/oneshot.rs",
+	&["impl<T> Future for Receiver<T>", "fn poll("],
+	"panic!(",
+)];
+
 /// The `rs.Sites` of the toolchain's std, which `rs.setHook` takes: where each panic
-/// [`SITES`] names is, as the native build names it, and each [`BYTES`] names, in the
-/// program's `bytes`, if it has one.
+/// [`SITES`] names is, as the native build names it, and each [`BYTES`] and [`TOKIO`] name,
+/// in the program's `bytes` and `tokio`, if it has them.
 pub fn sites(t: &mut Translator<'_, '_>, span: Span) -> Expr {
 	let tcx = t.tcx;
 	let mut props = Vec::new();
@@ -543,30 +563,31 @@ pub fn sites(t: &mut Translator<'_, '_>, span: Span) -> Expr {
 			}
 		}
 	}
-	props.extend(bytes_sites(t, span));
+	props.extend(crate_sites(t, span, "bytes", BYTES));
+	props.extend(crate_sites(t, span, "tokio", TOKIO));
 	Expr::Object(props)
 }
 
-/// The sites [`BYTES`] names, in the program's `bytes`: none without one, and an error for
-/// versions whose sites differ, as the runtime's panics are one crate's.
-fn bytes_sites(t: &mut Translator<'_, '_>, span: Span) -> Vec<(Key, Expr)> {
+/// The sites `table` names, in the program's crate `name`: none without one, and an error
+/// for versions whose sites differ, as the runtime's panics are one crate's.
+fn crate_sites(t: &mut Translator<'_, '_>, span: Span, name: &str, table: CrateSites) -> Vec<(Key, Expr)> {
 	let tcx = t.tcx;
 	let mut tables: Vec<Vec<(Key, Expr)>> = Vec::new();
 	for &krate in tcx.crates(()) {
-		if tcx.crate_name(krate).as_str() != "bytes" {
+		if tcx.crate_name(krate).as_str() != name {
 			continue;
 		}
 		tcx.import_source_files(krate);
 		let mut props = Vec::new();
-		for &(key, file, after, needle) in BYTES {
-			match bytes_find(tcx, krate, file, after, needle) {
+		for &(key, file, after, needle) in table {
+			match crate_find(tcx, krate, file, after, needle) {
 				Some(at) => props.push((Key::Name(key.into()), at)),
 				None => {
 					let after = after.join(" then ");
 					t.err(
 						span,
 						format!(
-							"the bytes crate's source has no `{needle}` in `src/{file}` after `{after}`, where it panics"
+							"the {name} crate's source has no `{needle}` in `src/{file}` after `{after}`, where it panics"
 						),
 					);
 				}
@@ -579,7 +600,9 @@ fn bytes_sites(t: &mut Translator<'_, '_>, span: Span) -> Vec<(Key, Expr)> {
 	if tables.len() > 1 {
 		t.err(
 			span,
-			"a panic hook in a program of two versions of the bytes crate, whose panics are at different places",
+			format!(
+				"a panic hook in a program of two versions of the {name} crate, whose panics are at different places"
+			),
 		);
 	}
 	tables.pop().unwrap_or_default()
@@ -587,7 +610,7 @@ fn bytes_sites(t: &mut Translator<'_, '_>, span: Span) -> Vec<(Key, Expr)> {
 
 /// The `rs.Location` of the first `needle` after each of `after` in turn in `file`, under
 /// `krate`'s `src/`, named as the session names it.
-fn bytes_find(
+fn crate_find(
 	tcx: TyCtxt<'_>,
 	krate: rustc_span::def_id::CrateNum,
 	file: &str,

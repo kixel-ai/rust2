@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { type ArrayRef, ArraySlice, arraySliceOfSlice, Borrowed, ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, type Room, roomPast, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity, panicSizes } from "../rs.ts";
+import { type ArrayRef, ArraySlice, NO_MEMORY, nowhere, arraySliceOfSlice, Borrowed, ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, type Room, roomPast, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity, panicSizes } from "../rs.ts";
 import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
 import type { HashKey, Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
@@ -438,6 +438,7 @@ export class AtIndex<T> implements Place<T> {
 	/** The room past the array that holds `n` elements from here, which `reach` requires. */
 	private room(n: number): Room<T> {
 		const room = this.index >= 0 ? roomPast<T>(this.array, this.index + n) : undefined;
+		if (room === undefined && this.array === NO_MEMORY) nowhere();
 		if (room === undefined) throw new Error("rust2-ts: a read or write through a pointer past the array JS keeps it in");
 		return room;
 	}
