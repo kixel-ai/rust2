@@ -553,3 +553,29 @@ pub fn pointers_ordered(a: &u32, b: &u32) -> bool {
 	let (p, q) = (std::ptr::from_ref(a), std::ptr::from_ref(b));
 	std::cmp::max(p, q) == p
 }
+
+/// A mutable reborrow of a `MaybeUninit` of arrays of arrays through a raw pointer, whose
+/// arrays `as_chunks_mut` may have split from one slice with no JS array of their own.
+pub fn uninit_rows_mut(rows: &mut [[u8; 2]]) -> u8 {
+	let Some(first) = rows.first_chunk_mut::<2>() else {
+		return 0;
+	};
+	let p = std::ptr::from_mut(first).cast::<std::mem::MaybeUninit<[[u8; 2]; 2]>>();
+	let wrapped = unsafe { &mut *p };
+	let rows = unsafe { wrapped.assume_init_mut() };
+	rows[0][0] = 99;
+	rows[1][1]
+}
+
+/// A mutable reborrow of a `MaybeUninit` of an array through a raw pointer into part of a
+/// slice, which no JS array holds alone.
+pub fn uninit_part_mut(words: &mut [u32]) -> u32 {
+	if words.len() < 3 {
+		return 0;
+	}
+	let p = (&mut words[1..] as *mut [u32]).cast::<std::mem::MaybeUninit<[u32; 2]>>();
+	let wrapped = unsafe { &mut *p };
+	let pair = unsafe { wrapped.assume_init_mut() };
+	pair[0] = 99;
+	pair[1]
+}
