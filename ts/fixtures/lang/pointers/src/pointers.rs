@@ -2511,8 +2511,8 @@ fn cell_behind(r: &Option<Cell<u32>>, how: u8) -> u32 {
 	}
 }
 
-/// Raw pointers from references: smallvec's `Drain` and `retain`, over values JS copies, a
-/// library type, and an `Option`; pointers from a reference the body borrowed, which move
+/// Raw pointers from references: smallvec's `Drain` and `retain`, over a number, library
+/// types, and an `Option`; pointers from a reference the body borrowed, which move
 /// within the array it borrowed from; from references the body is given, to a number, to an
 /// `Option` of a cell, and to a `Vec`, read and written whole; and from references to an
 /// `Arc`'s value, measured against each other.

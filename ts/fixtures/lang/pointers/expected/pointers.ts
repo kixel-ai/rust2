@@ -3002,10 +3002,10 @@ export function drained$Option_u16(v: rs.Vec<rs.u16 | undefined>, bits: rs.u8): 
 }
 
 /** `v`'s elements, read out from both ends as `bits` picks, which nothing drops in `v`. */
-export function drained$String(v: rs.Vec<string>, bits: rs.u8): rs.Vec<string> {
-	let next!: string | undefined;
-	const iter: Drained.Drained<string> = { iter: rs.iterSlice(v.items) as rs.Iter<rs.Ptr<string>> };
-	const out: rs.Vec<string> = new rs.Vec();
+export function drained$String(v: rs.Vec<rs.String>, bits: rs.u8): rs.Vec<rs.String> {
+	let next!: rs.String | undefined;
+	const iter: Drained.Drained<rs.String> = { iter: rs.iterSlice(v.items) as rs.Iter<rs.Ptr<rs.String>> };
+	const out: rs.Vec<rs.String> = new rs.Vec();
 	let i: rs.i32 = 0;
 	while (true) {
 		if ((rs.u8Shr(bits, rs.i32Rem(i, 8)) & 1) === 0) {
@@ -3068,16 +3068,16 @@ export function drained$u32(v: rs.Vec<rs.u32>, bits: rs.u8): rs.Vec<rs.u32> {
  * What smallvec's `retain` is: each element lent as a `&mut`, which a pointer from it then
  * drops or moves to the front.
  */
-export function retained$String_pointers_behind_refs_closure6(v: rs.Vec<string>, keep: (a0: rs.Place<string>) => boolean): void {
+export function retained$String_pointers_behind_refs_closure6(v: rs.Vec<rs.String>, keep: (a0: rs.String) => boolean): void {
 	let _10!: rs.usize;
 	const len: rs.usize = v.items.length;
-	const p: rs.Place<string> = rs.arrayAsPtr(v.items);
+	const p: rs.Place<rs.String> = rs.arrayAsPtr(v.items);
 	let write: rs.usize = 0;
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = len;
 	while ((_10 = iterStart++) < iterEnd) {
-		const _15: rs.Place<string> = rs.ptrAdd(p, _10);
-		if (keep(_15)) {
+		const _15: rs.Place<rs.String> = rs.ptrAdd(p, _10);
+		if (keep(_15.v)) {
 			rs.ptrCopy(_15, rs.ptrAdd(p, write), 1);
 			write = rs.usizeAdd(write, 1);
 		}
@@ -3208,17 +3208,19 @@ export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(drained$u32(rs.vecFrom(nums.items.slice()), bits).items), (_23: rs.u32): rs.u8 => {
 		return _23 & 0xff;
 	}), undefined, true);
-	const words: rs.Vec<string> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b3: rs.u8): string => {
-		return rs.fmtToString((f: rs.Formatter) => rs.u8Display(b3, f));
+	const words: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b3: rs.u8): rs.String => {
+		return rs.fmtToString((f: rs.Formatter) => rs.u8Display(b3, f), 0);
 	}), undefined, 12, true);
-	for (const _25 of drained$String(rs.vecFrom(words.items.slice()), bits).items) {
-		rs.iterExtendBytes(out, rs.strBytes(_25), undefined, true);
+	for (const _25 of drained$String(rs.vecFrom(words.items.map((a0: rs.String): rs.String => {
+		return rs.stringClone(a0);
+	})), bits).items) {
+		rs.iterExtendBytes(out, rs.strBytes(_25.v), undefined, true);
 	}
-	const runs: rs.Vec<rs.ByteVec> = rs.iterToVec(rs.iterMap(rs.byteSliceChunks(data, 3), (a0: rs.ByteSlice): rs.ByteVec => {
-		return rs.byteSliceToByteVec(a0);
+	const runs: rs.Vec<rs.ByteVec> = rs.iterToVec(rs.iterMap(rs.byteSliceChunks(data, 3), (a02: rs.ByteSlice): rs.ByteVec => {
+		return rs.byteSliceToByteVec(a02);
 	}), undefined, 12, true);
-	for (const r of drained$Vec_u8(rs.vecFrom(runs.items.map((a02: rs.ByteVec): rs.ByteVec => {
-		return rs.byteVecFrom(rs.byteVecView(a02));
+	for (const r of drained$Vec_u8(rs.vecFrom(runs.items.map((a03: rs.ByteVec): rs.ByteVec => {
+		return rs.byteVecFrom(rs.byteVecView(a03));
 	})), bits).items) {
 		rs.byteVecPush(out, r.length & 0xff);
 		rs.iterExtendBytes(out, rs.byteVecIntoIter(r), undefined, true);
@@ -3227,8 +3229,8 @@ export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const b4: rs.u8 = _24;
 		return thenSome$1gvhopg(rs.u8Rem(b4, 3) !== 0, b4 as rs.u16);
 	}), undefined, 4, true), bits).items) {
-		rs.iterExtendBytes(out, rs.iterSlice(option_mapOr$0smr0aj(_56, Uint8Array.of(255, 255), (a03: rs.u16): Uint8Array => {
-			return rs.u16ToBeBytes(a03);
+		rs.iterExtendBytes(out, rs.iterSlice(option_mapOr$0smr0aj(_56, Uint8Array.of(255, 255), (a04: rs.u16): Uint8Array => {
+			return rs.u16ToBeBytes(a04);
 		})), undefined, true);
 	}
 	const nums2: rs.Vec<rs.u32> = nums;
@@ -3239,13 +3241,13 @@ export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(nums2.items), (_26: rs.u32): rs.u8 => {
 		return _26 & 0xff;
 	}), undefined, true);
-	const words2: rs.Vec<string> = words;
-	retained$String_pointers_behind_refs_closure6(words2, (w2: rs.Place<string>): boolean => {
-		w2.v = w2.v + "!";
-		return rs.usizeRem(rs.stringLen(w2.v), 2) === 0;
+	const words2: rs.Vec<rs.String> = words;
+	retained$String_pointers_behind_refs_closure6(words2, (w2: rs.String): boolean => {
+		rs.stringPush(w2, 33);
+		return rs.usizeRem(w2.len, 2) === 0;
 	});
-	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(words2.items), (w3: string): rs.Iter<rs.u8> => {
-		return rs.strBytes(w3);
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(words2.items), (w3: rs.String): rs.Iter<rs.u8> => {
+		return rs.strBytes(w3.v);
 	}, undefined, true), "next");
 	const runs2: rs.Vec<rs.ByteVec> = runs;
 	retained$Vec_u8_pointers_behind_refs_closure8(runs2, (r2: rs.ByteVec): boolean => {

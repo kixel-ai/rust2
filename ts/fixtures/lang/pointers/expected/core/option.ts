@@ -55,7 +55,7 @@ export function map$00buaky(self: rs.u16 | undefined | rs.None, f: (a0: rs.u16 |
 	return f(self);
 }
 
-export function map$18tou5q(self: string | undefined, f: (a0: string) => string): string | undefined {
+export function map$1lzqy5c(self: rs.String | undefined, f: (a0: rs.String) => rs.String): rs.String | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
