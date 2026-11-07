@@ -238,6 +238,8 @@ fixtures/reject/src/pointers.rs:variable_cloned_into+2:10: a raw pointer to `(u3
 fixtures/reject/src/pointers.rs:variable_reassigned+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:variable_replaced+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:variable_swapped+3:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
+fixtures/reject/src/pointers.rs:written_bytes+2:3: `write_bytes` of a pointer to `u32`, whose bytes JS keeps as a value
+fixtures/reject/src/pointers.rs:written_bytes+3:16: a write reaching past a value in no array, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/rebound.rs:bytes_compared_rebound+2:19: a reference to `[u8; 4]`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there
 fixtures/reject/src/rebound.rs:cell_rebound+2:18: a reference to `std::cell::UnsafeCell<u64>`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there
 fixtures/reject/src/rebound.rs:chosen_compared_rebound+3:17: a reference to `rebound::Chosen`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there

@@ -11,6 +11,13 @@ std the translators cover before a consumer calls them.
 Decided with the maintainer on 2026-10-27: rust2 aims to support all of std, so a
 generic std gap is planned here even when moq never calls it.
 
+Decided with the maintainer on 2026-11-07: ✅ little time goes to unsafe Rust. A
+translator may refuse unsafe code with its span, requiring safe Rust, and a common
+library's unsafe internals may be replaced by a runtime mapping over its public API, as
+`hashbrown`'s and tokio's channels are (rejected: planning each unsafe std gap that no
+consumer reaches, such as `MaybeUninit::zeroed`, `Rc::new_uninit`, and
+`ptr::write_bytes`).
+
 ## Required
 
 - [Retrial Cranelift on moq's tests](/quest/m3/cranelift-unwind.md) - waits on upstream: moq's tests pass under Cranelift, so its CI can weigh it again
@@ -23,5 +30,4 @@ generic std gap is planned here even when moq never calls it.
 - [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md) - no runtime `rust2-ts:` error where native Rust goes on: an exact slower path, or a refusal at translation
 - [rust2-ts with no ts.toml](/quest/m3/ts-configless.md) - a crate's whole `pub` API translates with no config and no bound items
 - [Browser APIs through wasm-bindgen](/quest/m3/ts-wasm-bindgen/README.md) - web-sys and js-sys imports become direct JS calls, so idiomatic crates such as web-rs's web-codecs translate as stock crates
-- [BufMut on a byte slice](/quest/m3/ts-bufmut-slices.md) - `bytes`' `BufMut` for `&mut [u8]` and `&mut [MaybeUninit<u8>]` translates
 - [Fields typed by an associated type](/quest/m3/ts-assoc-type-fields.md) - a generic struct's field of `<T as Trait>::Item` translates at each instance

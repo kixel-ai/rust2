@@ -934,6 +934,24 @@ pub fn call<'tcx>(
 				Expr::rs("ptrCopy", args)
 			}
 		}
+		("ptr" | "NonNull", "write_bytes") => {
+			let (p, val, n) = (arg(), arg(), arg());
+			if b.t.zero_sized(pointee()) {
+				out.push(StmtKind::Expr(n).at(None));
+				Expr::undefined()
+			} else if super::byte(pointee()) {
+				Expr::rs("ptrWriteBytes", vec![p, val, n])
+			} else {
+				// Only a byte is the byte it is set to: JS keeps any other element as a value.
+				b.err(
+					span,
+					format!(
+						"`write_bytes` of a pointer to `{}`, whose bytes JS keeps as a value",
+						pointee()
+					),
+				)
+			}
+		}
 		("raw", "from_raw_parts" | "from_raw_parts_mut")
 		| ("ptr", "slice_from_raw_parts" | "slice_from_raw_parts_mut")
 		| ("NonNull", "slice_from_raw_parts") => {
