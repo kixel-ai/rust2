@@ -17,7 +17,7 @@ use crate::{census, collect, glue};
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
 pub fn run(args: Vec<String>) -> ExitCode {
-	rust2_driver::rustc::run("rust2-ffi", args, |args| {
+	rust2_driver::rustc::run("rust2-ffi", args, |args, _| {
 		Ok(Export::for_args(args)?.map(|job| Box::new(job) as rust2_driver::rustc::Job))
 	})
 }
