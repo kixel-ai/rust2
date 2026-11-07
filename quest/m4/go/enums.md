@@ -38,7 +38,3 @@ with the other fixture tests.
 
 Public API: what a translation exports for an enum (breaking for Go code reading the
 lowercase `tag`, which only the package itself could).
-
-## Required
-
-- [rust2-go with no go.toml](/quest/m4/go/configless.md) - `pub` enums become roots there

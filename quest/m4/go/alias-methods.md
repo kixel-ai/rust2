@@ -29,7 +29,3 @@ with impls that apply to each, to neither, and under a bound, checked by differe
 and by exported names; reject loses its specialized-alias case.
 
 Public API: what a translation exports.
-
-## Required
-
-- [rust2-go with no go.toml](/quest/m4/go/configless.md) - the alias refusal this replaces lands there

@@ -36,7 +36,3 @@ Fixtures: `go/fixtures/items` gives an exported type `Display`, `Debug`, `Partia
 two `From` impls, called from Go and checked by differential.
 
 Public API: what a translation exports.
-
-## Required
-
-- [rust2-go with no go.toml](/quest/m4/go/configless.md) - the export names and inherent methods land there

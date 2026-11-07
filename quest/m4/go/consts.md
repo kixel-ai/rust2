@@ -35,7 +35,3 @@ Fixtures: `go/fixtures/items` gains a `pub const`, an associated constant, and a
 `pub const` case.
 
 Public API: what a translation exports.
-
-## Required
-
-- [rust2-go with no go.toml](/quest/m4/go/configless.md) - the refusal this replaces lands there

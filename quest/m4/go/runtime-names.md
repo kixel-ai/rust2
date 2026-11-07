@@ -37,7 +37,3 @@ named as another runtime export, and its Go callers use both.
 
 Public API: what a translation exports, and the runtime's package (breaking for Go code
 naming `Option` or `Result` from the translated package).
-
-## Required
-
-- [rust2-go with no go.toml](/quest/m4/go/configless.md) - the export names and their reservation land there
