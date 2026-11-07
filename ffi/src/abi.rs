@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use rustc_span::Span;
 
-use crate::ir::{Access, Api, Dyn, Function, Int, Receiver, Type};
+use crate::ir::{Access, Api, Dyn, Function, Home, Int, Receiver, Type};
 
 /// A C name claimed twice: the name, then what claimed it first and second.
 pub type Clash = (String, (String, Span), (String, Span));
@@ -262,6 +262,34 @@ impl<'a> Abi<'a> {
 
 	pub fn callback(&self, i: usize) -> String {
 		self.name(&self.api.callbacks[i].path)
+	}
+
+	/// Each exported type's name in Pascal case, by its C name, kept [`apart`] from those
+	/// beside it: `scope` gives the scope a type's [`Home`] puts it in, and how many leading
+	/// segments of its path its name there leaves out.
+	pub fn classes(&self, scope: impl Fn(&Home) -> (String, usize)) -> HashMap<String, String> {
+		let api = self.api;
+		let records = (0..api.records.len()).map(|i| (self.record(i), &api.records[i].shown, &api.records[i].home));
+		let enums = (0..api.enums.len()).map(|i| (self.enumeration(i), &api.enums[i].shown, &api.enums[i].home));
+		let objects = (0..api.objects.len()).map(|i| (self.object(i), &api.objects[i].shown, &api.objects[i].home));
+		let callbacks =
+			(0..api.callbacks.len()).map(|i| (self.callback(i), &api.callbacks[i].path, &api.callbacks[i].home));
+		let mut scopes: BTreeMap<String, Vec<(String, Vec<String>)>> = BTreeMap::new();
+		for (c, shown, home) in records.chain(enums).chain(objects).chain(callbacks) {
+			let (scope, outside) = scope(home);
+			// An instance's suffix, after its generic type's name, is one more segment.
+			let suffix = c[self.name(shown).len()..].strip_prefix('_').map(str::to_string);
+			let mut segments = self.segments(shown);
+			segments.drain(..outside);
+			segments.extend(suffix);
+			scopes.entry(scope).or_default().push((c, segments));
+		}
+		(scopes.into_values())
+			.flat_map(|types| {
+				let names = apart(types.iter().map(|(_, segments)| segments.as_slice()));
+				types.into_iter().map(|(c, _)| c).zip(names)
+			})
+			.collect()
 	}
 
 	/// The prefixed name of a runtime item: `buf` is `moq_buf`.
@@ -784,6 +812,32 @@ fn shortest(group: &[Vec<Vec<String>>]) -> Vec<String> {
 	}
 }
 
+/// Each name in Pascal case of items by their paths' segments: the segments joined, but
+/// where two would join alike, each of those keeps a `_` at every split after the leading
+/// segments they all share, so `tokio::ConnectError` and `tokio::connect::Error` are
+/// `TokioConnectError` and `TokioConnect_Error`. Two that still match, as segments apart
+/// only by case do, stay alike for the language's claim to refuse at both.
+pub fn apart<'s>(items: impl IntoIterator<Item = &'s [String]>) -> Vec<String> {
+	let items: Vec<&[String]> = items.into_iter().collect();
+	let joined: Vec<String> = items.iter().map(|segments| pascal(&segments.join("_"))).collect();
+	let mut groups: HashMap<&str, Vec<usize>> = HashMap::new();
+	for (i, name) in joined.iter().enumerate() {
+		groups.entry(name).or_default().push(i);
+	}
+	let mut names = joined.clone();
+	for group in groups.values().filter(|group| group.len() > 1) {
+		let first = items[group[0]];
+		let shared = (0..first.len())
+			.take_while(|&k| group.iter().all(|&i| items[i].get(k) == Some(&first[k])))
+			.count();
+		for &i in group {
+			let rest: Vec<String> = items[i][shared..].iter().map(|segment| pascal(segment)).collect();
+			names[i] = pascal(&items[i][..shared].join("_")) + &rest.join("_");
+		}
+	}
+	names
+}
+
 /// A name in Pascal case, word by word as [`snake`] splits it: `track_Producer` and
 /// `TrackProducer` are `TrackProducer`, and `BOXED` is `Boxed`.
 pub fn pascal(name: &str) -> String {
@@ -977,7 +1031,31 @@ pub fn dyn_wrap(form: Dyn, expr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::shortest;
+	use super::{apart, shortest};
+
+	/// Each item's [`apart`] name, by its path's segments.
+	fn names(items: &[&[&str]]) -> Vec<String> {
+		let items: Vec<Vec<String>> = (items.iter())
+			.map(|segments| segments.iter().map(|s| s.to_string()).collect())
+			.collect();
+		apart(items.iter().map(Vec::as_slice))
+	}
+
+	#[test]
+	fn splits_only_names_that_join_alike() {
+		// The split comes after the segments the clashing names share, so one whose rest is
+		// a single segment keeps its name.
+		assert_eq!(
+			names(&[&["tokio", "ConnectError"], &["tokio", "connect", "Error"], &["tokio", "Client"]]),
+			["TokioConnectError", "TokioConnect_Error", "TokioClient"]
+		);
+		assert_eq!(
+			names(&[&["a", "b_c", "D"], &["a", "b", "CD"], &["ABCD"]]),
+			["A_BC_D", "A_B_CD", "ABCD"]
+		);
+		// Segments apart only by case still match, for the claim to refuse.
+		assert_eq!(names(&[&["connect", "X"], &["Connect", "X"]]), ["Connect_X", "Connect_X"]);
+	}
 
 	/// Each instance's arguments, each by its path's segments, whose forms are their
 	/// suffixes, shortest first.

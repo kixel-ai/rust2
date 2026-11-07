@@ -15,7 +15,7 @@
 //! returned bytes are `Data` lending Rust's buffer, so neither is copied; nested in another
 //! value, bytes passed in are copied into the call's arena.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
@@ -41,6 +41,7 @@ fn module(prefix: &str) -> String {
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
 		abi,
+		classes: abi.classes(|_| (String::new(), 0)),
 		types: String::new(),
 		top: String::new(),
 		natives: String::new(),
@@ -165,6 +166,8 @@ struct Arg {
 
 struct Gen<'a> {
 	abi: &'a Abi<'a>,
+	/// Each exported type's name, by its C name.
+	classes: HashMap<String, String>,
 	/// The types, then the top-level functions and constants, then `Native`'s additions.
 	types: String,
 	top: String,
@@ -192,7 +195,7 @@ impl<'a> Gen<'a> {
 
 	/// The Swift name of the C type `c`.
 	fn class(&self, c: &str) -> String {
-		pascal(self.bare(c))
+		self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c)))
 	}
 
 	/// Claim the top-level Swift name `name`, a function's [`full`] one, for `what`.

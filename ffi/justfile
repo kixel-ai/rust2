@@ -273,8 +273,6 @@ standin checkout="":
 
     pub mod tokio {
         pub use ::moq_tokio::*;
-        // Apart from `ConnectError`, which languages that flatten modules name alike.
-        pub use ::moq_tokio::connect::Error as ConnectTargetError;
     }
     EOF
     # moq's lockfile pins what moq's own builds use.
