@@ -1132,7 +1132,12 @@ fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span) -> 
 	let value = match b.t.pointee(ty) {
 		// The value a pointer made here of a shared reference holds.
 		Pointee::Place => match p.unlocated() {
-			Expr::Object(members) if let [(Key::Name(v), value)] = members.as_slice() && v == "v" => value.clone(),
+			Expr::Object(members)
+				if let [(Key::Name(v), value)] = members.as_slice()
+					&& v == "v" =>
+			{
+				value.clone()
+			}
 			// It may be an `rs.placeIn`, whose object the next write through it changes.
 			_ if b.t.write_in(ty).is_some() => Expr::rs("ptrRead", vec![p]),
 			_ => p.member("v"),
