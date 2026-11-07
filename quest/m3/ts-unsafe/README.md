@@ -77,4 +77,3 @@ Public API: the translator's output.
 - [BinaryHeap from std's MIR](/quest/m3/ts-unsafe/binary-heap-mir.md) - std's `BinaryHeap` and `PeekMut` translate, replacing the runtime's port
 - [A slice's pointer cast to an array's](/quest/m3/ts-unsafe/array-casts.md) - `*(s as *const [u8] as *const [u8; N])` in a crate's own code, and `IoSlice`
 - [Unchecked integer operations](/quest/m3/ts-unsafe/unchecked-ops.md) - `unchecked_*` and `NonZero::new_unchecked` translate, aborting on a violated precondition
-- [UnsafeCell's raw accessors](/quest/m3/ts-unsafe/unsafecell.md) - `UnsafeCell::raw_get`, `from_mut`, and `replace` translate
