@@ -13,6 +13,7 @@ import { Cursor, Reader, type StreamVersion, Writer } from "moq/js/net/src/strea
 import * as Varint from "moq/js/net/src/varint.ts";
 
 import { format } from "./fmt.ts";
+import { frames } from "./frames.ts";
 import { iterate } from "./iter.ts";
 import { order } from "./order.ts";
 import { hashed } from "./hashed.ts";
@@ -77,6 +78,8 @@ export function run(input: Uint8Array): Uint8Array | Promise<Uint8Array> {
 			return format(data);
 		case 17:
 			return parts(selector, data);
+		case 18:
+			return frames(data);
 		default:
 			throw new Error(`unknown workload ${op}`);
 	}

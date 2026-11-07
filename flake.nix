@@ -297,10 +297,12 @@
               typescript
               bun
               esbuild
-              # rust2-ffi's tests compile its generated Kotlin and run it on the JVM, run its
-              # generated Python and Dart, and build its generated Go through cgo.
+              # rust2-ffi's tests compile its generated Kotlin and run it on the JVM, run and
+              # type-check its generated Python, run its Dart, and build its Go through cgo.
               kotlin
               python3
+              mypy
+              pyright
               # rust2-go's tests build and run its output against native Rust.
               go
               dart
