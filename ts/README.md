@@ -726,8 +726,9 @@ of them:
   `Vec<u8>`, and `put` of a `Buf` but a `BytesMut` or a slice into a `BytesMut`. `slice_ref` of
   bytes from other storage throws, since Rust may share what JS copied, as a `&'static
   str`'s bytes that `as_bytes` encodes anew. `Bytes::from_owner`
-  reads its owner's bytes once, as `bytes` does, and is refused for an owner that drops,
-  which would drop with the last clone of what it makes.
+  reads its owner's bytes once, as `bytes` does, and an owner that drops is kept in the
+  `rs.Shared` they count, which drops it with the last `Bytes` sharing them; one of an owner
+  is never unique, so taking it back copies.
 - `bytes::BytesMut` is an `rs.BytesMut`: a vector of its own, or a window of storage that
   the handles `split_to`, `split_off`, and `split` make and the `Bytes` that `freeze`
   makes share without overlapping, as `bytes`' do. Its constructors, `len`, `is_empty`,
@@ -760,8 +761,9 @@ of them:
   which grow it as their provided bodies do, 64 bytes at a time once it is full. `put` of
   the crate's own `Buf` through them into a `BytesMut` is refused, as `bytes` advances it
   by the room left in the capacity.
-  The rest of `bytes`, such as the other provided methods of the crate's own `Buf`,
-  translates from its MIR, refused where that is.
+  The rest of `bytes`, such as the other provided methods of the crate's own `Buf` and
+  its `Buf` of a `VecDeque<u8>`, whose `chunk` is the deque's front slice, translates
+  from its MIR, refused where that is.
 - `hashbrown`'s `HashMap` and `HashSet` are std's, which wrap them, and map as std's do,
   hashbrown's own methods included: `allocation_size` is a slot and a control byte for each
   entry the capacity holds, and its `Entry` is std's. Its `HashTable` keeps each item
@@ -1181,15 +1183,16 @@ so adding, removing, or reordering a case changes no other case's inputs.
   freezes, grows, and writes a `BytesMut` by ops its input picks, ending with every
   piece's bytes and capacity, after the other handles of its storage dropped or not, and
   reads and writes through `Buf` and `BufMut` generically, through a `&mut` and a `Box`
-  too, a buffer of its own included, ending with each vector's capacity. It copies bytes out of `Chain`s of each kind of buffer, nested and as
+  too, a buffer of its own and a `VecDeque<u8>` wrapped at each slot included, ending with
+  each vector's capacity. It copies bytes out of `Chain`s of each kind of buffer, nested and as
   `dyn Buf`s, at either end of each half and past the end. It changes hashbrown's maps and sets, keyed by JS primitives and by
   tuples, and `HashTable`s of tuples and of numbers, whose places it writes, under hashes
   that collide and that pass 2^53, checks their capacity by std's guarantees, and writes a
   `hashlink::LinkedHashMap` in its own order. It inserts, removes, looks up, overlaps, and
   gaps `rangemap`'s maps and sets, which search their B-trees by what each key lends by
   rangemap's own `Borrow`. `caller.ts` names the inputs that read a `BytesMut` past
-  where `bytes` shares a vector's storage, 128 MiB, and drop each pick of a storage's
-  handles before reserving.
+  where `bytes` shares a vector's storage, 128 MiB, drop each pick of a storage's
+  handles before reserving, and read a deque across where its ring wraps and past its end.
 - `bind` binds `buf::Blob`, a renamed dependency's type with `unsafe` inside, and a function and a type of its own that read through raw
   pointers, the type dropping an `Arc` where Rust drops it, to the TS in `bind/`. It keys
   hash and B-tree collections by `Blob` and by `key::Nibble`, a JS number equal to another
@@ -1231,13 +1234,14 @@ comes up `Short` and retries, iterator chains over bytes, a `BTreeMap` of 16, 25
 4096 keys, and timestamps converted between timescales as moq-net's `Timestamp::convert`
 does, whose products pass 2^53, then added by its `checked_add` and ordered by its `Ord`,
 whose cross products do too, integers sorted, searched for their greatest and least,
-and kept in a `BinaryHeap`, and TS packets numbered through `as_chunks_mut` as moq-mux
-numbers them, each also read by value, a copy of its bytes. Each runs four ways: natively, as wasm32 at the
+and kept in a `BinaryHeap`, TS packets numbered through `as_chunks_mut` as moq-mux
+numbers them, each also read by value, a copy of its bytes, and frames' `Bytes` split off a
+group's, cloned, sliced, and dropped, as moq-net's model hands them to its consumers. Each runs four ways: natively, as wasm32 at the
 size-optimized profile moq's WASM shipped with, hand-written (moq's `js/net` in `bench/moq.ts` and its `Timestamp`
 in `bench/timestamp.ts`, ES iterator helpers in `bench/iter.ts`, a sorted array in
 `bench/sorted.ts`, `bigint` in `bench/rescale.ts`, as moq's `js/hang` converts
-timescales, typed arrays and a heap of its own in `bench/order.ts`, and offsets into one
-`Uint8Array` in `bench/packets.ts`), and translated; every route's output must match
+timescales, typed arrays and a heap of its own in `bench/order.ts`, offsets into one
+`Uint8Array` in `bench/packets.ts`, and `subarray`s in `bench/frames.ts`), and translated; every route's output must match
 native Rust's first. The JS routes run minified, the same bundles whose size it reports,
 in Node, Bun, Chrome, and Firefox, with the WASM route's copies across the boundary timed
 apart from its compute, and an A/A copy of the
