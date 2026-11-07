@@ -135,3 +135,11 @@ pub struct Fields {
 pub struct _1 {
 	pub count: u8,
 }
+
+/// A function pointer over byte storage, which Go code could fill with a function that
+/// keeps what it is handed past the call.
+pub fn handed(f: fn(&mut Vec<u8>)) -> usize {
+	let mut v = Vec::new();
+	f(&mut v);
+	v.len()
+}

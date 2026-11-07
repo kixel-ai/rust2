@@ -45,6 +45,17 @@ std translates from its own MIR, down to bindings for what Go does itself: a `Ve
 growth, a slice's iterator, UTF-8 validation, and the formatting machinery, which
 `runtime/rt_fmt.go` ports from core so `{:?}` and `{:#?}` print as Rust's do.
 
+A `Vec<u8>`'s storage is the runtime's own while only the translation reaches it: it
+grows to twice its capacity without zeroing, through the runtime's `growslice`, and an
+outgrown buffer is recycled for the next grow. Own storage is told apart by its shape, a
+capacity that is a power of two of at least 8 and never filled. A root function, which
+Go calls, trims Go's storage it is passed off that shape, a byte less capacity, so it is
+never recycled, and clips own storage it hands back to Go, in its result or behind an
+argument's `&mut` or `Box`, to its length, so Go never sees past it and it is never
+recycled either; Go's `append` to such a slice copies. A function pointer over byte
+storage in a root's signature is refused, since Go code could fill it with a function
+that keeps what it is handed.
+
 A panic is a Go panic of `RustPanic` carrying native Rust's message. As with
 `panic = "abort"`, no cleanup runs on the way out, so a caller that recovers one must
 drop what the translation held.
@@ -54,7 +65,8 @@ drop what the translation held.
 `fixtures/reject/expected.txt` lists them with their spans: 128-bit integers, floats, a
 `Drop` impl, a trait object of any trait but `Display` and `Debug`, a union, a type
 generic over a constant, such as an array's by-value iterator, and a `pub` item that is
-generic, a constant, or a static.
+generic, a constant, or a static, or whose signature holds a function pointer over byte
+storage.
 
 ## Tests
 
@@ -64,7 +76,8 @@ Rust on the same inputs, failing on any difference in output or panic message:
 integer width's arithmetic, overflow, division by zero, and shifts, `fixtures/order`
 calls, reads, and overflow checks a folded temporary could reorder or skip, and
 `fixtures/enums` enums held as their parts, whose pointers a callee could write through
-or see changed.
+or see changed, and `fixtures/hand` byte storage made, grown, and shrunk each way, which
+`tests/hand/hand_test.go` then holds onto from Go as Go code may.
 
 `just go bench` times the codec's workloads translated against the same crate exported by
 rust2-ffi and called through cgo: per-call varints and frame headers, and `stream/`, a

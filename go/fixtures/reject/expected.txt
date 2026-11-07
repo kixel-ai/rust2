@@ -7,6 +7,7 @@ a `pub` field not named in ASCII with a leading lowercase letter, which Go canno
 a `pub` field not named in ASCII with a leading lowercase letter, which Go cannot export one to one, is not supported at fixtures/reject/src/lib.rs:128:2
 a `pub` field not named in ASCII with a leading lowercase letter, which Go cannot export one to one, is not supported at fixtures/reject/src/lib.rs:129:2
 a `pub` field not named in ASCII with a leading lowercase letter, which Go cannot export one to one, is not supported at fixtures/reject/src/lib.rs:130:2
+`for<'a> fn(&'a mut std::vec::Vec<u8>)`, a function pointer over byte storage in a root's signature, is not supported at fixtures/reject/src/lib.rs:141:1
 a type with `pub` methods reached only through a specialized alias is not supported at fixtures/reject/src/lib.rs:118:1
 `u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:14:1
 `u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:15:2
