@@ -113,7 +113,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				(cast, true)
 			}
 			ty::FnDef(def_id, gargs) => match self.intercept(def_id, gargs.skip_binder(), args, dest, span, &mut pre) {
-				Some(Some(done)) => done,
+				// Where std's function panics, as its library mapping is located: at its
+				// caller's call, not where the statement starts, which may be its receiver.
+				Some(Some((mut value, effect))) => {
+					if let Some((_, Some(at))) = &self.b.std_site {
+						crate::lower::caller::locate_expr(&mut value, at);
+						crate::lower::caller::locate(&mut pre, at);
+					}
+					(value, effect)
+				}
 				// Done: the destination is set.
 				Some(None) => {
 					self.emit(pre, false, out);
@@ -540,6 +548,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				"replace" => done(self.operand(&args[1].node, span, out), false),
 				_ => done(Expr::undefined(), false),
 			},
+			("Box", "new_zeroed") => done(self.zeroed(targ(0)?, span), false),
 			// Replacing what a `&mut` borrows.
 			// What `Default::default` makes before the swap.
 			("mem", "take") => {
