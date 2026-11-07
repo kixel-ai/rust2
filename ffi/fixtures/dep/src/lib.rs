@@ -37,3 +37,7 @@ impl Area {
 /// Another crate's item that is no export, which each export re-exporting it refuses or
 /// excludes on its own.
 pub use std::collections::HashSet;
+
+/// What no build compiles, which a config still names, as it does what one platform builds.
+#[cfg(any())]
+pub mod gone {}

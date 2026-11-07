@@ -109,6 +109,14 @@ impl Callbacks for Export {
 		for key in abi.unused_renames() {
 			let (field, key) = field(key);
 			let (krate, path) = key.split_once("::").expect("a rename starts with its crate");
+			let cnum = crates
+				.iter()
+				.find(|c| c.root == krate)
+				.expect("a rename starts with an export")
+				.krate;
+			if configured_out(tcx, cnum, path) {
+				continue;
+			}
 			tcx.dcx().err(format!(
 				"rust2-ffi: rename `{field}{path}` in {} names nothing exported",
 				self.table(&collected, krate)
@@ -129,13 +137,13 @@ impl Callbacks for Export {
 				written
 			}
 			Output::Dir(out) => {
-				for report in &collected.reports {
+				for (report, krate) in collected.reports.iter().zip(&crates) {
 					let table = self.table(&collected, &report.krate);
 					for refusal in &report.refusals {
 						refuse(tcx, refusal, &format!("exclude it in {table} to leave it out"));
 					}
 					for (path, count) in &report.excluded {
-						if *count == 0 {
+						if *count == 0 && !configured_out(tcx, krate.krate, field(path).1) {
 							tcx.dcx()
 								.err(format!("rust2-ffi: exclude `{path}` in {table} names nothing exported"));
 						}
@@ -309,6 +317,22 @@ pub fn write(path: &Path, text: &str) -> Result<(), String> {
 		std::fs::create_dir_all(dir).map_err(|err| format!("creating {}: {err}", dir.display()))?;
 	}
 	std::fs::write(path, text).map_err(|err| format!("writing {}: {err}", path.display()))
+}
+
+/// Whether `path`, from `krate`'s root, names an item a `cfg` leaves out of this build, by
+/// the path of the module declaring it: the config names it for the builds that have it.
+fn configured_out(tcx: TyCtxt<'_>, krate: CrateNum, path: &str) -> bool {
+	tcx.stripped_cfg_items(krate).iter().any(|item| {
+		let module = tcx.def_path(item.parent_scope).data;
+		let names = module.iter().filter_map(|d| d.data.get_opt_name());
+		let stripped = names
+			.chain([item.ident.name])
+			.map(|n| n.to_string())
+			.collect::<Vec<_>>()
+			.join("::");
+		path.strip_prefix(&stripped)
+			.is_some_and(|rest| rest.is_empty() || rest.starts_with("::") || rest.starts_with('<'))
+	})
 }
 
 /// A config path's `field@`, if it names a field by it, and the path after it.

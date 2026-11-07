@@ -94,5 +94,6 @@ fixtures/reject/src/lib.rs:92:1: rust2-ffi: cannot export fn `retext`: 'static b
 	fixtures/reject/src/lib.rs:92:15: note: `'a` is `'static`, as a handle outlives every call
 fixtures/reject/src/lib.rs:97:1: rust2-ffi: cannot export fn `first`: borrowed return that is not Clone `Opaque`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:9:1: rust2-ffi: cannot export fn `pair`: tuple of references `(&str, u8)`; exclude it in the config to leave it out
+no span: rust2-ffi: exclude `Gone` in the config's [crates.dep-fixture] names nothing exported
 no span: rust2-ffi: rename `Cell<u16>` in the config names nothing exported
 no span: rust2-ffi: rename `field@Limit::min` in the config names nothing exported

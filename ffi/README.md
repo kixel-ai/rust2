@@ -39,7 +39,8 @@ package = "moq-net"
 # The prefix of every C name, the package's name in snake case by default.
 prefix = "moq"
 # Paths from the crate root left out: a module, an item, or one method or field. Each
-# must name something exported. Nothing else leaves an item out. As in rustdoc, a path a
+# must name something exported, or what a `cfg` leaves out of this build by its declared
+# path, as `unix` is on Windows. Nothing else leaves an item out. As in rustdoc, a path a
 # method or constant shares with a field names the method, and `field@` the field.
 exclude = ["track::Producer::poll_closed"]
 
