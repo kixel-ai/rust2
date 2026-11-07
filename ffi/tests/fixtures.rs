@@ -969,6 +969,41 @@ fn go_module() {
 	assert!(api.contains("\"example.com/app/sub/out/go/rt\""), "{api}");
 }
 
+/// A crate named as the runtime, a Go keyword, or `main` is the Go package of that name and
+/// a trailing `_`, which Go vets.
+#[test]
+fn go_reserved_packages() {
+	for name in ["rt", "func", "main"] {
+		let package = package(&format!("go_reserved_{name}"));
+		let manifest = format!(
+			"[package]\nname = \"go_reserved_{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"{name}\"\n\n[workspace]\n"
+		);
+		std::fs::write(package.join("Cargo.toml"), manifest).unwrap();
+		let out = package.join("out");
+		let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+			.arg("--config")
+			.arg(package.join("ffi.toml"))
+			.arg("--out")
+			.arg(&out)
+			.env("CARGO_TARGET_DIR", package.join("build"))
+			.output()
+			.unwrap();
+		assert!(
+			output.status.success(),
+			"exporting lib `{name}` failed:\n{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+		let go = out.join("go");
+		assert!(go.join(format!("{name}_")).join(format!("{name}_.go")).exists());
+		run(Command::new("go")
+			.args(["vet", "./..."])
+			.current_dir(&go)
+			.env("CGO_ENABLED", "1")
+			.env("GOFLAGS", "-buildvcs=false")
+			.env("GOTOOLCHAIN", "local"));
+	}
+}
+
 /// A copy of the directory `from` at `to`.
 fn copy_dir(from: &Path, to: &Path) {
 	std::fs::create_dir_all(to).unwrap();
@@ -1301,7 +1336,7 @@ fn foreign_role_names() {
 
 /// An exclude may name what a `cfg` leaves out of this build, whether the facade's own
 /// module or another crate's that the facade re-exports through a glob, but not what no
-/// build has.
+/// build has, nor what a module only some of whose items the facade re-exports leaves out.
 #[test]
 fn configured_out() {
 	let package = package("configured_out");
@@ -1317,11 +1352,11 @@ fn configured_out() {
 			("Cargo.toml", &manifest),
 			(
 				"src/lib.rs",
-				"pub mod dep {\n\tpub use ::dep::*;\n}\n\n#[cfg(any())]\npub mod local {}\n",
+				"pub use ::dep::Size;\n\npub mod dep {\n\tpub use ::dep::*;\n}\n\n#[cfg(any())]\npub mod local {}\n",
 			),
 			(
 				"ffi.toml",
-				"exclude = [\"Gone\", \"dep::gone::Gone\", \"local::Gone\"]\n",
+				"exclude = [\"Gone\", \"dep::gone::Gone\", \"gone::Gone\", \"local::Gone\"]\n",
 			),
 		],
 	);
@@ -1337,7 +1372,10 @@ fn configured_out() {
 	let errors: Vec<&str> = stderr.lines().filter(|l| l.starts_with("error: rust2-ffi:")).collect();
 	assert_eq!(
 		errors,
-		["error: rust2-ffi: exclude `Gone` in the config names nothing exported"],
+		[
+			"error: rust2-ffi: exclude `Gone` in the config names nothing exported",
+			"error: rust2-ffi: exclude `gone::Gone` in the config names nothing exported",
+		],
 		"{stderr}"
 	);
 }

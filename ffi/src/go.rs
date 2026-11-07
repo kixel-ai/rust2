@@ -61,29 +61,22 @@ struct Packages {
 impl Packages {
 	const RT: &'static str = "";
 
-	fn new(abi: &Abi<'_>, module: &str) -> Result<Self, String> {
+	fn new(abi: &Abi<'_>, module: &str) -> Self {
 		let mut by_crate = BTreeMap::from([(Self::RT.to_string(), ("rt".to_string(), format!("{module}/rt")))]);
-		let mut errors = Vec::new();
 		let strip = format!("{}_", abi.prefix);
 		for krate in &abi.api.crates {
 			// A later crate of an earlier one's name takes its count after it.
 			let (base, count) = krate.split_once('#').unwrap_or((krate, ""));
-			let name = base.strip_prefix(&strip).unwrap_or(base).replace('_', "") + count;
-			if ["C", "main", "rt"].contains(&name.as_str()) || keyword(&name) {
-				errors.push(format!(
-					"crate `{krate}` is the Go package `{name}`, which Go or the export's runtime names: rename its lib"
-				));
-			} else if let Some((other, _)) = by_crate.iter().find(|(_, (n, _))| *n == name) {
-				errors.push(format!(
-					"crates `{other}` and `{krate}` are both the Go package `{name}`: rename one's lib"
-				));
+			let mut name = base.strip_prefix(&strip).unwrap_or(base).replace('_', "") + count;
+			// A name Go, cgo, or the runtime takes, or an earlier crate's, takes a trailing
+			// `_`, which no crate's name keeps.
+			while ["C", "main"].contains(&name.as_str()) || keyword(&name) || by_crate.values().any(|(n, _)| *n == name)
+			{
+				name.push('_');
 			}
 			by_crate.insert(krate.clone(), (name.clone(), format!("{module}/{name}")));
 		}
-		match errors.is_empty() {
-			true => Ok(Self { by_crate }),
-			false => Err(errors.join("\n")),
-		}
+		Self { by_crate }
 	}
 
 	fn name(&self, krate: &str) -> &str {
@@ -94,7 +87,7 @@ impl Packages {
 /// The Go for `abi`, whose header's contract is `contract`, as each file under `go/` by its
 /// path there, for the module path `module` of `go/`; or the names two items claim alike.
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> Result<Vec<(String, String)>, String> {
-	let set = Packages::new(abi, module)?;
+	let set = Packages::new(abi, module);
 	let thrown = thrown(abi);
 	let classes = classes(abi, &set);
 	let mut files = Vec::new();
@@ -114,7 +107,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 			p = abi.prefix
 		);
 		files.push((format!("{name}/{name}.go"), g.file(&doc)));
-		// No package name holds a `_`, so the helpers never take the API's file.
+		// No package name holds a `_` but at its end, so the helpers never take the API's file.
 		files.push((format!("{name}/ffi_cgo.go"), g.conversions()));
 	}
 	errors.append(&mut rt.errors);

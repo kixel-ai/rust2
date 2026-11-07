@@ -9,6 +9,7 @@ use rustc_driver::{Callbacks, Compilation};
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::def_id::{DefId, LOCAL_CRATE};
 use rustc_interface::interface::Compiler;
+use rustc_middle::middle::resolve::Reexport;
 use rustc_middle::ty::TyCtxt;
 use rustc_span::Span;
 
@@ -206,7 +207,7 @@ pub fn write(path: &Path, text: &str) -> Result<(), String> {
 
 /// Whether `path`, from the facade's root, names an item a `cfg` leaves out of this build:
 /// the config names it for the builds that have it. Its first segment no module has is
-/// stripped from that module or from one the module re-exports items of, as a glob does.
+/// stripped from that module or from one the module glob-re-exports.
 fn configured_out(tcx: TyCtxt<'_>, path: &str) -> bool {
 	let path = path.strip_prefix("field@").unwrap_or(path);
 	let mut module = LOCAL_CRATE.as_def_id();
@@ -226,9 +227,16 @@ fn configured_out(tcx: TyCtxt<'_>, path: &str) -> bool {
 				_ => return false,
 			}
 		}
+		// Each glob's source: the module of the next import the item came through, or else
+		// the item's own. A single re-export brings in no other name of its module.
 		let sources = (children.iter())
-			.filter_map(|child| child.res.opt_def_id())
-			.filter_map(|def_id| tcx.opt_parent(def_id))
+			.filter(|child| matches!(child.reexport_chain.first(), Some(Reexport::Glob(_))))
+			.filter_map(
+				|child| match child.reexport_chain.get(1).and_then(|reexport| reexport.id()) {
+					Some(import) => tcx.opt_parent(import),
+					None => child.res.opt_def_id().and_then(|def_id| tcx.opt_parent(def_id)),
+				},
+			)
 			.chain([module]);
 		let stripped = |source: DefId| {
 			(tcx.stripped_cfg_items(source.krate).iter())
