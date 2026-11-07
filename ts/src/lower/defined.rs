@@ -61,6 +61,11 @@ pub struct Defining<'tcx> {
 	/// The instances being typed in the type expression being typed, which a definition
 	/// starts afresh.
 	pub(super) instancing: Vec<Ty<'tcx>>,
+	/// The TypeScript type of each instance typed in that type expression, which one span
+	/// refuses alike wherever in it, so a deep one is typed once.
+	pub(super) instanced: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, Type>,
+	/// The instances whose drop glue is being classified, by what it drops through.
+	pub(super) glue_open: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
 }
 
 struct Typing {
@@ -236,22 +241,40 @@ impl<'tcx> Translator<'_, 'tcx> {
 	/// arguments would never end, which is refused.
 	pub(super) fn enter_instance(&mut self, instance: Ty<'tcx>, span: Span) -> bool {
 		let instancing = &self.defining_state.instancing;
-		if instancing.contains(&instance) || instancing.len() > self.tcx.recursion_limit().0 {
-			self.err(
-				span,
-				format!(
-					"`{instance}` is not supported yet: a projection of its parameters is a type that holds `{instance}` again, so its TypeScript type arguments would never end"
-				),
-			);
-			return false;
-		}
-		self.defining_state.instancing.push(instance);
-		true
+		let msg = match () {
+			_ if instancing.contains(&instance) => format!(
+				"`{instance}` is not supported yet: a projection of its parameters is a type whose arguments hold `{instance}` again, so its TypeScript type arguments would never end"
+			),
+			// Named by the outermost, which the source wrote.
+			_ if instancing.len() > self.tcx.recursion_limit().0 => format!(
+				"`{}` is not supported: its projections' values name ever deeper instances, so its TypeScript type arguments would never end",
+				instancing[0]
+			),
+			_ => {
+				self.defining_state.instancing.push(instance);
+				return true;
+			}
+		};
+		self.err(span, msg);
+		false
 	}
 
-	/// Finish typing the instance [`Self::enter_instance`] started.
-	pub(super) fn leave_instance(&mut self) {
-		self.defining_state.instancing.pop();
+	/// Finish typing the instance [`Self::enter_instance`] started, as `ty` if typed whole.
+	pub(super) fn leave_instance(&mut self, instance: Ty<'tcx>, ty: Option<&Type>) {
+		let state = &mut self.defining_state;
+		state.instancing.pop();
+		match (state.instancing.is_empty(), ty) {
+			(true, _) => state.instanced.clear(),
+			(false, Some(ty)) => {
+				state.instanced.insert(instance, ty.clone());
+			}
+			(false, None) => {}
+		}
+	}
+
+	/// The TypeScript type of `instance` if the type expression being typed typed it already.
+	pub(super) fn instanced(&self, instance: Ty<'tcx>) -> Option<Type> {
+		self.defining_state.instanced.get(&instance).cloned()
 	}
 
 	/// Complete the definition at `depth` in [`Defining::typing`] and every one typed with
@@ -339,7 +362,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 
 	/// Fill in the projection arguments of the instance `pending[i]` typed, from its
 	/// definition's projections so far, refusing an instance at other than type parameters
-	/// that grows a record, as a type that holds itself at other arguments would without end.
+	/// whose projections there name a new projection or another instance still being typed,
+	/// as a type that holds itself at other arguments would without end.
 	fn fill_pending(&mut self, i: usize) {
 		let p = &self.defining_state.pending[i];
 		let projections: Vec<Ty<'tcx>> = (self.defining_state.records[&p.adt].projections.iter())
@@ -351,7 +375,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 		let (adt, args, at, field, span) = (p.adt, p.args, p.at, p.field, p.span);
 		let env = at.map_or(self.typing_env(), |(_, env)| env);
 		let named = |state: &Defining<'tcx>| at.map_or(0, |(did, _)| state.records[&did].projections.len());
-		let before = named(&self.defining_state);
+		let before = (named(&self.defining_state), self.defining_state.pending.len());
 		let outer = std::mem::replace(&mut self.defining, at);
 		let outer_field = std::mem::replace(&mut self.defining_state.field, field);
 		let mut tys: Vec<Type> = projections
@@ -363,7 +387,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 			.collect();
 		self.defining = outer;
 		self.defining_state.field = outer_field;
-		let refused = named(&self.defining_state) != before && !args.types().all(|t| matches!(t.kind(), ty::Param(_)));
+		let after = (named(&self.defining_state), self.defining_state.pending.len());
+		let refused = after != before && !args.types().all(|t| matches!(t.kind(), ty::Param(_)));
 		if refused {
 			let instance = Ty::new_adt(self.tcx, self.tcx.adt_def(adt), args);
 			self.err(
@@ -373,6 +398,11 @@ impl<'tcx> Translator<'_, 'tcx> {
 				),
 			);
 			tys = vec![Type::Builtin("unknown"); projections.len()];
+			// Nor are the instances it named filled in, which would name more.
+			for named in &mut self.defining_state.pending[before.1..] {
+				named.filled = Some(Vec::new());
+				named.refused = true;
+			}
 		}
 		let p = &mut self.defining_state.pending[i];
 		p.filled = Some(tys);

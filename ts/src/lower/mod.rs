@@ -208,7 +208,7 @@ pub struct Translator<'a, 'tcx> {
 	/// instance's arguments from it rather than from the `None` or `Pending` it may be.
 	decided_fields: rustc_data_structures::fx::FxHashMap<DefId, Type>,
 	/// What typing each generic type's definition named, and the definitions being typed.
-	defining_state: defined::Defining<'tcx>,
+	pub(super) defining_state: defined::Defining<'tcx>,
 	/// Source files by name, as indexes into `program.sources`.
 	sources: rustc_data_structures::fx::FxHashMap<String, Option<u32>>,
 	failed: bool,
@@ -1101,9 +1101,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let field = self.defining_state.field.take();
 		// A named type, so an instance its fields hold again ends there.
 		let instancing = std::mem::take(&mut self.defining_state.instancing);
+		let instanced = std::mem::take(&mut self.defining_state.instanced);
 		let info = self.define(adt, span);
 		(self.held, self.glue, self.defining, self.defining_state.field) = (held, glue, defining, field);
-		self.defining_state.instancing = instancing;
+		(self.defining_state.instancing, self.defining_state.instanced) = (instancing, instanced);
 		info
 	}
 
@@ -1909,21 +1910,26 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			tys.push(later);
 			return Type::Sym(info.sym, tys);
 		}
+		let instance = Ty::new_adt(tcx, adt, args);
+		if let Some(ty) = self.instanced(instance) {
+			return ty;
+		}
 		// Its own arguments first: one that holds the instance again names a type that ends.
 		let mut tys: Vec<Type> = self
 			.own_args(adt.did(), args, span)
 			.into_iter()
 			.map(|(_, t)| t)
 			.collect();
-		if !self.enter_instance(Ty::new_adt(tcx, adt, args), span) {
+		if !self.enter_instance(instance, span) {
 			return Type::Builtin("unknown");
 		}
 		if let Some(msg) = self.generic_erasure(adt, args, span) {
 			self.err(span, msg);
 		}
 		tys.extend(self.projection_args(adt.did(), args, span).into_iter().map(|(_, t)| t));
-		self.leave_instance();
-		Type::Sym(info.sym, tys)
+		let ty = Type::Sym(info.sym, tys);
+		self.leave_instance(instance, Some(&ty));
+		ty
 	}
 
 	/// The TypeScript type arguments of an instance of the crate's generic `adt` with `args`,
@@ -1935,8 +1941,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		if !self.enter_instance(instance, span) {
 			return params;
 		}
-		params.extend(self.projection_args(adt, args, span));
-		self.leave_instance();
+		let projections = self.projection_args(adt, args, span);
+		self.leave_instance(instance, None);
+		params.extend(projections);
 		params
 	}
 

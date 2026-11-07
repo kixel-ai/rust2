@@ -202,7 +202,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				None | Some(Std::Peekable) if self.std_iter(ty) => self.closures_held(ty),
 				Some(_) => false,
 				None if self.shared_glue(*adt) => {
-					if !self.glue_held(*adt, args).into_iter().all(|t| self.disposable(t, glue)) {
+					if !self.glue_all(ty, *adt, args, |t, held| t.disposable(held, glue)) {
 						return false;
 					}
 					if let Some(span) = glue {
@@ -223,6 +223,26 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			| ty::Dynamic(..) => true,
 			_ => false,
 		}
+	}
+
+	/// Whether `f` holds of everything [`Self::glue_held`] has `ty`, an instance of `adt` with
+	/// `args`, drop through. It holds of an instance already being asked about, or past the
+	/// crate's recursion limit, which only a projection whose value holds the instance again
+	/// or ever deeper ones reaches, and which typing the instance refuses.
+	fn glue_all(
+		&mut self,
+		ty: Ty<'tcx>,
+		adt: AdtDef<'tcx>,
+		args: ty::GenericArgsRef<'tcx>,
+		f: impl Fn(&mut Self, Ty<'tcx>) -> bool,
+	) -> bool {
+		let open = &mut self.defining_state.glue_open;
+		if open.len() > self.tcx.recursion_limit().0 || !open.insert(ty) {
+			return true;
+		}
+		let all = self.glue_held(adt, args).into_iter().all(|held| f(self, held));
+		self.defining_state.glue_open.remove(&ty);
+		all
 	}
 
 	/// What a generic struct's glue drops through, at an instance with `args`: each type
@@ -413,7 +433,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Some(Std::Context) => false,
 				Some(_) => true,
 				// Its glue, if an instance that drops gave it one, drops its type parameters' fields.
-				None if adt.is_struct() => self.glue_held(*adt, args).into_iter().all(|t| self.inert(t)),
+				None if adt.is_struct() => self.glue_all(ty, *adt, args, |t, held| t.inert(held)),
 				None => true,
 			},
 			_ => true,

@@ -131,6 +131,69 @@ pub fn projected_self(deep: bool) -> bool {
 	held.next.is_some()
 }
 
+/// What a source lends next, which drops nothing itself.
+pub struct Lent<S: Source + 'static> {
+	pub next: Option<&'static S::Item>,
+}
+
+/// A source whose items lend it again.
+pub struct Lends;
+
+impl Source for Lends {
+	type Item = Lent<Lends>;
+}
+
+/// Dropping an `Rc` of `Lent<Lends>` asks whether its glue is inert, through its projection,
+/// which ends rather than overflow; it translates, as nothing names the instance's type.
+pub fn projected_inert(deep: bool) -> bool {
+	let lent = std::rc::Rc::new(Lent::<Lends> { next: None });
+	drop(lent);
+	deep
+}
+
+/// What a source lends next, beside what it owns, so it drops.
+pub struct Owning<S: Source + 'static> {
+	pub next: Option<&'static S::Item>,
+	pub owned: std::rc::Rc<()>,
+}
+
+/// A source whose items own it again.
+pub struct Owns;
+
+impl Source for Owns {
+	type Item = Owning<Owns>;
+}
+
+/// Dropping an `Rc` of `Owning<Owns>` asks whether its glue is shared, through its projection,
+/// which ends rather than overflow; it translates, as nothing names the instance's type.
+pub fn projected_disposable(deep: bool) -> bool {
+	let owning = std::rc::Rc::new(Owning::<Owns> {
+		next: None,
+		owned: std::rc::Rc::new(()),
+	});
+	drop(owning);
+	deep
+}
+
+/// A source wrapped once more.
+pub struct Wrapped<T>(pub T);
+
+impl<T: 'static> Source for Wrapped<T> {
+	type Item = Spread<Wrapped<Wrapped<T>>>;
+}
+
+/// A type that holds itself at a wrapped source, whose item is it at a source wrapped again.
+pub struct Spread<S: Source + 'static> {
+	pub item: Option<&'static S::Item>,
+	pub next: Option<&'static Spread<Wrapped<S>>>,
+}
+
+/// `Spread<S>` would name an instance at each wrapping.
+pub fn projected_spread(deep: bool) -> bool {
+	let spread: Spread<Wrapped<u8>> = Spread { item: None, next: None };
+	spread.next.is_none() && deep
+}
+
 /// Two types a source names, each holding the other.
 pub trait Duo {
 	type Ping;
