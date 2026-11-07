@@ -28,7 +28,7 @@ use crate::NOTE;
 /// parts, and whether the thread is panicking.
 fn record(info: &PanicHookInfo<'_>) {
 	let payload = info.payload();
-	let kind = if payload.is::<&'static str>() {
+	let kind = if payload.type_id() == std::any::TypeId::of::<&'static str>() {
 		"&str".to_string()
 	} else if payload.is::<String>() {
 		"String".to_string()

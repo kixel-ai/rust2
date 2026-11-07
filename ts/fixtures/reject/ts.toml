@@ -78,7 +78,6 @@ roots = [
     "keys::set_keys",
     "lopsided",
     "missing",
-    "objects::any_type_id",
     "objects::array_object",
     "objects::dyn_compared",
     "objects::dyn_size",

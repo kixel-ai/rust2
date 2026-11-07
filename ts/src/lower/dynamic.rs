@@ -11,8 +11,8 @@
 //! struct whose last field unsizes to one, such as a `RefCell<dyn Trait>`, is an
 //! `rs.tailDyn` view of the struct it was made from, whose last field is that field's
 //! object. A raw pointer unsizes as a `&mut` to what it points at does. A
-//! `dyn Any` has no methods, and a downcast, of it or of a `dyn Error`, checks for the
-//! class of the type it names. A `dyn Fn`,
+//! `dyn Any`'s one method is `type_id`, a constant of its class's type's `TypeId`, and a
+//! downcast, of it or of a `dyn Error`, checks for the class of the type it names. A `dyn Fn`,
 //! `dyn FnMut`, or `dyn FnOnce` is the function it was made of, which a call calls as it
 //! would the closure itself.
 
@@ -115,6 +115,15 @@ impl<'tcx> Translator<'_, 'tcx> {
 			inputs: args.tuple_fields().to_vec(),
 			output,
 		})
+	}
+
+	/// `ty`'s `TypeId`: rustc's hash of it, as 32 hex digits, or `undefined` in a census over
+	/// type parameters, where only an instance decides what `ty` is.
+	pub fn type_id(&self, ty: Ty<'tcx>) -> Expr {
+		match self.polymorphic() && ty.has_param() {
+			true => Expr::undefined(),
+			false => Expr::Str(format!("{:032x}", self.tcx.type_id_hash(ty).as_u128())),
+		}
 	}
 
 	/// The function trait that calls the closure, async closure, or `dyn Fn*` that `ty` is,
@@ -223,8 +232,7 @@ impl<'tcx> Translator<'_, 'tcx> {
 			alias: None,
 		});
 		let mut methods = Vec::new();
-		// `Any`'s object is its class, which a downcast checks for, so it needs no method.
-		let traits = tcx.supertrait_def_ids(principal).filter(|&tr| !is_any(tcx, tr));
+		let traits = tcx.supertrait_def_ids(principal);
 		for trait_ref in traits.flat_map(|tr| refs.iter().filter(move |r| r.def_id == tr)) {
 			let tr = trait_ref.def_id;
 			for &def_id in tcx.own_existential_vtable_entries(tr) {
@@ -266,7 +274,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 		self.program.items.push(Item::Union {
 			sym,
 			params: names,
-			// Any object, as a downcast checks for the class of the value's own type.
+			// Any object, as a downcast checks for the class of the value's own type, until it
+			// holds `type_id`.
 			ty: match is_any(tcx, principal) {
 				true => Type::Builtin("object"),
 				false => Type::Object(Vec::new()),
@@ -384,11 +393,13 @@ impl<'tcx> Translator<'_, 'tcx> {
 			.filter_map(|m| Some((m.name.clone(), m.ty.clone()?)))
 			.collect();
 		let classes = object.classes.clone();
+		// `dyn Any`'s, which is any object until it holds `type_id`.
 		if let Item::Union {
-			ty: Type::Object(held), ..
+			ty: ty @ (Type::Object(_) | Type::Builtin("object")),
+			..
 		} = &mut self.program.items[object.item]
 		{
-			*held = members;
+			*ty = Type::Object(members);
 		}
 		for (from, held, object) in classes {
 			self.class_method(principal, index, from, held, object, span);
@@ -878,14 +889,6 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		let principal = principal(object).expect("an object's trait");
 		let methods = &self.t.objects[&principal].methods;
 		let Some(index) = methods.iter().position(|m| m.def_id == def_id) else {
-			let tcx = self.t.tcx;
-			if tcx.trait_of_assoc(def_id).is_some_and(|tr| is_any(tcx, tr)) {
-				let msg = format!(
-					"`{}` of `{object}`, which is not supported yet",
-					tcx.def_path_str(def_id)
-				);
-				return self.err(span, msg);
-			}
 			return self.err(
 				span,
 				format!("`{}` is not a method of `{object}`", self.t.tcx.def_path_str(def_id)),
@@ -1198,6 +1201,10 @@ pub fn call<'tcx>(
 	out: &mut Vec<Stmt>,
 ) -> Result<Option<Expr>, Vec<Expr>> {
 	let tcx = b.t.tcx;
+	// `TypeId::of`, and `Any::type_id` of a type's own impl, which a trait object's class calls.
+	if let ("TypeId", "of") | ("Any", "type_id") = (owner, name) {
+		return Ok(Some(b.t.type_id(call.args.type_at(0))));
+	}
 	if !matches!(
 		(owner, name),
 		("dyn Any" | "dyn Error", "is" | "downcast_ref" | "downcast_mut")

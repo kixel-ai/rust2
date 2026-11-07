@@ -92,9 +92,6 @@ fixtures/reject/src/keys.rs:place_bounds+1:9: unsupported call to `std::ops::Ran
 fixtures/reject/src/keys.rs:places_sorted+1:15: unsupported call to `<std::slice::IterMut<'_, u8> as std::iter::Iterator>::is_sorted`
 fixtures/reject/src/keys.rs:set_keys+1:75: comparing `std::collections::BTreeSet<u8>` as a key, which is not supported yet
 fixtures/reject/src/keys.rs:set_keys+1:75: hashing `std::collections::BTreeSet<u8>` as a key, which is not supported yet
-fixtures/reject/src/objects.rs:any_type_id+1:2: unsupported call to `<std::any::TypeId as std::cmp::PartialEq>::eq`
-fixtures/reject/src/objects.rs:any_type_id+1:4: `std::any::Any::type_id` of `dyn std::any::Any`, which is not supported yet
-fixtures/reject/src/objects.rs:any_type_id+1:17: unsupported call to `std::any::TypeId::of::<u8>`
 fixtures/reject/src/objects.rs:array_object+1:2: a trait object of `[u16; 2]`, which is not supported yet
 fixtures/reject/src/objects.rs:dyn_compared+3:2: comparing pointers to `dyn objects::Reading`, each an object JS makes of its own as it unsizes
 fixtures/reject/src/objects.rs:dyn_size+1:2: unsupported call to `std::mem::size_of_val::<dyn std::fmt::Debug>`

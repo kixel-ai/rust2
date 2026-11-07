@@ -1851,6 +1851,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::Hasher => Type::Rs("Hasher", vec![]),
 				library::Std::RandomState => Type::Rs("RandomState", vec![]),
 				library::Std::Duration => Type::Rs("Duration", vec![]),
+				library::Std::TypeId => Type::Rs("TypeId", vec![]),
 				library::Std::Layout => Type::Rs("Layout", vec![]),
 				library::Std::Location => Type::Rs("Location", vec![]),
 				library::Std::PanicHookInfo => Type::Rs("PanicHookInfo", vec![]),
