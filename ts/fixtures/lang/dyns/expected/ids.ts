@@ -42,12 +42,12 @@ export function idOfVal$dyn_Any(_1: Any.Any): rs.TypeId {
 
 /** The `TypeId` of what `x` is, through a type parameter that may be a trait object. */
 export function idOfVal$dyn_ids_Marked(_1: Marked.Marked): rs.TypeId {
-	return "3bbda84d3ea87978c3191a064aa30838";
+	return "d356aeac368968f265dedab8a8d72ad8";
 }
 
 /** The `TypeId` of what `x` is, through a type parameter that may be a trait object. */
 export function idOfVal$ids_Mood(_1: Mood.Mood): rs.TypeId {
-	return "586c02dbd458954a051f9cd00d861391";
+	return "328e59b82c6cb0a6eb720af972265604";
 }
 
 /** The `TypeId` of what `x` is, through a type parameter that may be a trait object. */
@@ -116,8 +116,8 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 			mood = "Calm" as Mood.Mood;
 		}
 		const byte: Byte.Byte = { _0: b };
-		const ids: rs.TypeId[] = ["cfb1622e7734f8af272d8d182905dc25", "79f19461b401588885a89e43144b08f1", "47cf44edf6d848167c2724f9fe31a15d", "586c02dbd458954a051f9cd00d861391", "24c161f26c70c1f1b9f602dc5fe9f65c", "b7381ee5f3fdfc9d7fa709f37e151622", "05fc01408e45e7cddf9e041e3391eafc", "3801bd64778907c7633cf473fe556a70", "513ce68a38c017b0c2e73410455cb3b0", "f48384178e2341267f2bcf8f82c035ac", "37a732caafaf8e089d3a9d4c07b2ec78", "3bbda84d3ea87978c3191a064aa30838", "25ff997ce0b3a76fb5ce30b55accc57f"];
-		const found: rs.TypeId[] = [idOf$u8(), "cfb1622e7734f8af272d8d182905dc25", "cfb1622e7734f8af272d8d182905dc25", "47cf44edf6d848167c2724f9fe31a15d", "cfb1622e7734f8af272d8d182905dc25", "79f19461b401588885a89e43144b08f1", "47cf44edf6d848167c2724f9fe31a15d", idOfVal$str("str"), idOfVal$ids_Mood(mood), idOfVal$dyn_Any(new of$u8(a)), idOf$Option_u8()];
+		const ids: rs.TypeId[] = ["cfb1622e7734f8af272d8d182905dc25", "79f19461b401588885a89e43144b08f1", "8f5d7517f5a241dab4213252fd0d53e8", "328e59b82c6cb0a6eb720af972265604", "24c161f26c70c1f1b9f602dc5fe9f65c", "b7381ee5f3fdfc9d7fa709f37e151622", "05fc01408e45e7cddf9e041e3391eafc", "3801bd64778907c7633cf473fe556a70", "513ce68a38c017b0c2e73410455cb3b0", "f48384178e2341267f2bcf8f82c035ac", "37a732caafaf8e089d3a9d4c07b2ec78", "d356aeac368968f265dedab8a8d72ad8", "25ff997ce0b3a76fb5ce30b55accc57f"];
+		const found: rs.TypeId[] = [idOf$u8(), "cfb1622e7734f8af272d8d182905dc25", "cfb1622e7734f8af272d8d182905dc25", "8f5d7517f5a241dab4213252fd0d53e8", "cfb1622e7734f8af272d8d182905dc25", "79f19461b401588885a89e43144b08f1", "8f5d7517f5a241dab4213252fd0d53e8", idOfVal$str("str"), idOfVal$ids_Mood(mood), idOfVal$dyn_Any(new of$u8(a)), idOf$Option_u8()];
 		const iter: rs.Iter<rs.TypeId> = rs.iterSlice(found);
 		while (true) {
 			const _53: rs.TypeId | rs.Done = iter.next();
@@ -168,7 +168,7 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 				return i5 === _165.typeId$Any();
 			});
 			const _187: boolean = _165.typeId$Any() === any.typeId$Any();
-			const _193: boolean = idOfVal$dyn_ids_Marked(_165) === "3bbda84d3ea87978c3191a064aa30838";
+			const _193: boolean = idOfVal$dyn_ids_Marked(_165) === "d356aeac368968f265dedab8a8d72ad8";
 			const args43 = [(f: rs.Formatter) => rs.u8Display(_178, f), (f: rs.Formatter) => rs.fmtOption(_180, f, rs.usizeDebug), (f: rs.Formatter) => rs.fmtBool(_187, f), (f: rs.Formatter) => rs.fmtBool(_193, f)];
 			put(out, rs.fmtFormat([args43[0], " ", args43[1], " ", args43[2], " ", args43[3], " "]).v);
 		}
@@ -196,7 +196,7 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 		const _259: rs.Arc<Byte.Byte> = new rs.Arc(byte);
 		const shared: rs.Arc<Any.Any> = new rs.ArcDyn(_259, new of$ids_Byte(_259.value));
 		const boxed: Marked.Marked = new of$u8(a);
-		const _270: boolean = shared.value.typeId$Any() === "47cf44edf6d848167c2724f9fe31a15d";
+		const _270: boolean = shared.value.typeId$Any() === "8f5d7517f5a241dab4213252fd0d53e8";
 		const _278: boolean = "6864f1ad0ca168ae5e502d6898f6f9c3" === "6864f1ad0ca168ae5e502d6898f6f9c3";
 		const _285: boolean = boxed.typeId$Any() === "cfb1622e7734f8af272d8d182905dc25";
 		const args45 = [(f: rs.Formatter) => rs.fmtBool(_270, f), (f: rs.Formatter) => rs.fmtBool(_278, f), (f: rs.Formatter) => rs.fmtBool(_285, f)];
@@ -349,7 +349,7 @@ export function ids(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 		const _580: rs.usize = rs.hashLen(hashed);
 		const args57 = [(f: rs.Formatter) => rs.fmtBool(ordered, f), (f: rs.Formatter) => rs.usizeDisplay(_577, f), (f: rs.Formatter) => rs.usizeDisplay(_580, f)];
 		put(out, rs.fmtFormat([args57[0], " ", args57[1], " ", args57[2], " "]).v);
-		const _590: rs.Iter<[rs.TypeId, string]> = rs.iterSlice([["cfb1622e7734f8af272d8d182905dc25", "u8"] as [rs.TypeId, string], ["47cf44edf6d848167c2724f9fe31a15d", "byte"] as [rs.TypeId, string], ["586c02dbd458954a051f9cd00d861391", "mood"] as [rs.TypeId, string]]);
+		const _590: rs.Iter<[rs.TypeId, string]> = rs.iterSlice([["cfb1622e7734f8af272d8d182905dc25", "u8"] as [rs.TypeId, string], ["8f5d7517f5a241dab4213252fd0d53e8", "byte"] as [rs.TypeId, string], ["328e59b82c6cb0a6eb720af972265604", "mood"] as [rs.TypeId, string]]);
 		const names: rs.HashMap<rs.TypeId, string> = rs.hashExtend(rs.hashNew(rs.hashing(rs.typeIdHash, rs.same)) as rs.HashMap<rs.TypeId, string>, _590, undefined, undefined, undefined, 58720256);
 		for (const _603 of boxes.items) {
 			const part8 = rs.hashGet(names, _603.typeId$Any());
