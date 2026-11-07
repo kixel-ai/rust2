@@ -209,6 +209,7 @@ roots = [
     "values::generic_unit",
     "values::lists",
     "values::manual_impls",
+    "values::mixed_byte",
     "values::nested",
     "values::units_compared",
 ]

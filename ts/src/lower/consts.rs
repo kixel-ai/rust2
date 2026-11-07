@@ -205,7 +205,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 						let ts_ty = self.t.ty(ty, span);
 						Expr::As(Box::new(Expr::Str(def.name.to_string())), ts_ty)
 					}
-					AdtRepr::Slots { .. } => self.err(span, format!("a constant of type `{ty}`")),
+					AdtRepr::Slots(_) => self.err(span, format!("a constant of type `{ty}`")),
 					AdtRepr::Union => {
 						let mut props = vec![(Key::Name("tag".into()), Expr::Str(def.name.to_string()))];
 						for (i, (field, value)) in def.fields.iter().zip(values).enumerate() {

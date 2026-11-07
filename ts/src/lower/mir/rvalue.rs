@@ -900,7 +900,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let ts_ty = self.b.t.ty(ty, span);
 				Expr::As(Box::new(Expr::Str(def.name.to_string())), ts_ty)
 			}
-			AdtRepr::Slots { .. } => unreachable!("a union is made by its field"),
+			AdtRepr::Slots(_) => unreachable!("a union is made by its field"),
 			AdtRepr::Union => {
 				let mut props = vec![(Key::Name("tag".into()), Expr::Str(def.name.to_string()))];
 				for (i, value) in values.into_iter().enumerate() {

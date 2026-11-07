@@ -697,7 +697,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 								Translator::read_field(base, parts)
 							}
 						},
-						AdtRepr::Slots { .. } => {
+						AdtRepr::Slots(_) => {
 							return self.err(span, format!("a field of union `{ty}` read apart from its place"));
 						}
 						AdtRepr::Union | AdtRepr::Tags => {
@@ -1275,9 +1275,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						match info.repr {
 							AdtRepr::Tags => scrut.clone().binary("===", name),
 							AdtRepr::Union => scrut.clone().member("tag").binary("===", name),
-							AdtRepr::Struct { .. } | AdtRepr::Slots { .. } => {
-								self.err(span, format!("a switch on `{ty}`"))
-							}
+							AdtRepr::Struct { .. } | AdtRepr::Slots(_) => self.err(span, format!("a switch on `{ty}`")),
 						}
 					}
 					Some(Std::ControlFlow) => super::call::control_flow_test(self, scrut, ty, index, next),

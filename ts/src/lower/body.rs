@@ -319,7 +319,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 				let ts_ty = self.t.ty(ty, span);
 				Expr::As(Box::new(Expr::Str(adt.variant(variant).name.to_string())), ts_ty)
 			}
-			AdtRepr::Slots { .. } => self.err(span, format!("constructing union `{}`", tcx.def_path_str(adt_id))),
+			AdtRepr::Slots(_) => self.err(span, format!("constructing union `{}`", tcx.def_path_str(adt_id))),
 			AdtRepr::Union => {
 				let mut props = vec![(
 					Key::Name("tag".into()),

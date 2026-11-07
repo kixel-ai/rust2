@@ -349,9 +349,8 @@ pub enum AdtRepr {
 	/// An enum: an object per variant, tagged by its name.
 	Union,
 	/// A union: an object of slots, and each field's parts in them, as `unions` lays each
-	/// instance out. `typed` is whether its definition types its slots, as every instance
-	/// lays them out alike.
-	Slots { typed: bool },
+	/// instance out.
+	Slots(unions::Layout),
 }
 
 /// The JS fields of a struct's field.
@@ -1147,24 +1146,20 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			}
 			_ if adt.is_enum() && adt.variants().iter().all(|v| v.fields.is_empty()) => AdtRepr::Tags,
 			_ if adt.is_enum() => AdtRepr::Union,
-			// A union whose layout or overlap only an instance decides is laid out by each.
+			// A union whose layout only an instance decides is laid out by each.
 			_ => {
 				let env = TypingEnv::post_analysis(tcx, did);
 				let identity = ty::GenericArgs::identity_for_item(tcx, did);
 				match self.overlay(env, adt, identity, true) {
 					Ok((_, slots)) => {
 						overlay = Some(slots);
-						AdtRepr::Slots { typed: true }
+						AdtRepr::Slots(unions::Layout::Typed)
 					}
-					Err(_) if tcx.generics_of(did).requires_monomorphization(tcx) => AdtRepr::Slots { typed: false },
-					// Refused once: its only instance is laid out as refused.
+					Err(_) if self.open_layout(adt) => AdtRepr::Slots(unions::Layout::Open),
 					Err(msg) => {
 						self.err(span, msg);
-						let ty = tcx.erase_and_anonymize_regions(Ty::new_adt(tcx, adt, identity));
-						let fields = vec![Vec::new(); adt.non_enum_variant().fields.len()];
-						self.overlays.insert(ty, (fields, Vec::new()));
 						overlay = Some(Vec::new());
-						AdtRepr::Slots { typed: true }
+						AdtRepr::Slots(unions::Layout::Refused)
 					}
 				}
 			}
@@ -1277,7 +1272,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				},
 				doc: self.doc(did),
 			},
-			AdtRepr::Slots { .. } => Item::Union {
+			AdtRepr::Slots(_) => Item::Union {
 				sym,
 				params,
 				ty: match overlay.take() {
