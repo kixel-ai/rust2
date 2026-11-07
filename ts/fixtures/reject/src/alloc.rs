@@ -146,6 +146,14 @@ pub fn cell_of_arrays() -> u16 {
 	x.into_inner()[0][0] ^ v.into_inner()[0] as u16
 }
 
+/// `as_mut` and `NonNull::as_mut` of a pointer to an array a `MaybeUninit` holds, whose
+/// mutable reference is the array, which part of an array has none of its own.
+pub fn uninit_array_lent(p: *mut std::mem::MaybeUninit<[u32; 2]>) -> u32 {
+	let first = unsafe { p.as_mut() }.map_or(0, |m| unsafe { m.assume_init_mut()[0] });
+	let second = unsafe { std::ptr::NonNull::new(p).unwrap().as_mut().assume_init_mut()[1] };
+	first ^ second
+}
+
 /// A `get_mut` and an `as_mut_unchecked` of a cell of a pinned `Box`, whose old value
 /// `mem::replace` would give back as a copy.
 pub fn pinned_lent(c: &mut std::cell::UnsafeCell<Pin<Box<(u8, u8)>>>) -> u8 {

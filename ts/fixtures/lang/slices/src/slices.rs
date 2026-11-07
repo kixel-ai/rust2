@@ -1814,8 +1814,8 @@ fn put_words(words: &[u32], out: &mut Vec<u8>) {
 
 /// A `&mut [T; N]` to part of a slice, of numbers, of strings, and of arrays, written whole:
 /// by `mem::replace` and `mem::swap`, and through a `Cell` and an `UnsafeCell` of it, each
-/// way a cell reads, writes, and points at it; a cell of arrays pointed at before a write;
-/// and one std holds in an `Option` and a `Vec` and writes through.
+/// way a cell reads, writes, and points at it; a cell of arrays pointed at before a write,
+/// and of pinned boxes, whose replacement keeps their allocations; and one std holds in an `Option` and a `Vec` and writes through.
 pub fn array_parts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	use std::cell::{Cell, UnsafeCell};
 	let mut words: Vec<u32> = data.iter().map(|&b| u32::from(b)).collect();
@@ -1872,6 +1872,11 @@ pub fn array_parts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let p = held.as_ptr();
 			held.set([[3, n], [n, 4]]);
 			out.extend(unsafe { *p }.iter().flatten().map(|&w| w as u8));
+			let pinned = Box::pin((n as u8, 1));
+			let at: *const (u8, u8) = &*pinned;
+			let boxes = Cell::new([[pinned]]);
+			let [[old]] = boxes.replace([[Box::pin((2, n as u8))]]);
+			out.extend([u8::from(std::ptr::eq(at, &*old)), old.0]);
 		}
 		_ => {
 			let (a, b) = words[1..].split_first_chunk_mut::<2>().unwrap();

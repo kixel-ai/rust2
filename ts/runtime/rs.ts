@@ -915,15 +915,23 @@ export function sliceReplaceAll<T>(s: Slice<T>, items: ArrayLike<T>, depth = 0):
 }
 
 /**
- * `Box::from_raw` of a `*mut [T; N]`, `s`, the slice of its elements or of its arrays: the
- * array `Box::into_raw` made all of it of, since a box owns all of its allocation.
+ * `Box::from_raw` of a `*mut [T; N]`, `s`, the slice of its elements or of its arrays, which
+ * must point at all of an allocation, as a box owns all of its own: the array it is, or the
+ * arrays of one `as_chunks` split, each made an array of its own, which the box alone holds.
  */
 export function boxArrayFromRaw<T>(s: Slice<T>): T[];
 export function boxArrayFromRaw<S extends ArrayRef>(s: ArraySlice<S>): LentArray<S>[];
 export function boxArrayFromRaw(s: Slice<unknown> | ArraySlice<ArrayRef>): unknown[] {
-	const items = s instanceof Slice ? s.data : s instanceof ArraySlice ? s.items : undefined;
-	const all = items !== undefined && s.start === 0 && s.length === items.length;
-	return precondition(all ? (items as unknown[]) : undefined, "Box::from_raw requires a pointer Box::into_raw gave");
+	precondition(s instanceof Slice || s instanceof ArraySlice ? arrayRefAll(s) || undefined : undefined, "Box::from_raw requires a pointer Box::into_raw gave");
+	if (s instanceof Slice) return s.data;
+	return s.items !== undefined ? (s.items as unknown[]) : arraySliceCopy(s);
+}
+
+/** Whether `s`, a slice a pointer to an array is, spans all of the storage it is of. */
+function arrayRefAll(s: ArrayRef): boolean {
+	if (!(s instanceof ArraySlice)) return s.start === 0 && s.length === s.data.length;
+	if (s.items !== undefined) return s.start === 0 && s.length === s.items.length;
+	return arrayRefAll(arrayRefPart(s.flat as ArrayRef, s.start * s.n, s.length * s.n));
 }
 
 /**
@@ -1215,11 +1223,16 @@ function arrayRefSet(s: ArrayRef, value: unknown): void {
 /**
  * The array `s` as a `[T; N]` of its own: a copy of its elements, and of the arrays it holds at
  * any depth, but not of the objects its elements are, which a write of it moves, unless
- * `copy` copies them.
+ * `copy` copies them. `objectCopy`, of an object a write lands in, copies only where one does,
+ * in an array of one `sliceIn` or `sliceOfPlace` made, as a write elsewhere puts another
+ * object in the element's place and leaves the old one, such as a pinned `Box`, where it is.
  */
 function arrayRefCopy<S extends ArrayRef>(s: S, copy?: ElemCopy): LentArray<S> {
 	if (s instanceof ByteSlice) return byteSliceToArray(s) as LentArray<S>;
-	if (s instanceof Slice) return sliceToArray(s, copy as ((value: unknown) => unknown) | undefined) as LentArray<S>;
+	if (s instanceof Slice) {
+		const each = copy === objectCopy && !ONE.has(s.data) ? undefined : copy;
+		return sliceToArray(s, each as ((value: unknown) => unknown) | undefined) as LentArray<S>;
+	}
 	return arraySliceCopy(s as ArraySlice<ArrayRef>, copy) as LentArray<S>;
 }
 

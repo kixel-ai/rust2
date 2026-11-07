@@ -3,7 +3,7 @@
 import * as rs from "./rs.ts";
 import { copy$Option_pointers_Pair, copy$Option_tuple2_u16_u8, copy$array_array2_u32, copy$array_ptr_array4_u8, copy$array_tuple2_u8_u8, copy$array_u16, copy$array_u32, copy$array_u8, copy$mem_MaybeUninit_array_u32, copy$mem_MaybeUninit_array_u8, copy$mem_MaybeUninit_tuple2_u8_u8, copy$pointers_Aimed_Cell_u8, copy$pointers_Aimed_array2_u16, copy$pointers_Aimed_array4_u8, copy$pointers_Aimed_pointers_Housed_u8, copy$pointers_Aimed_pointers_Leaning, copy$pointers_Aimed_pointers_Paired, copy$pointers_Aimed_u8, copy$pointers_ByCall, copy$pointers_ByClosure, copy$pointers_ByObject, copy$pointers_Duo, copy$pointers_Either_u32, copy$pointers_Either_u8, copy$pointers_Halves, copy$pointers_Outer, copy$pointers_Pair, copy$pointers_Reentrant, copy$pointers_Spot, copy$pointers_Twin, copy$tuple2_array2_u32_u8, copy$tuple2_u16_u8, copy$tuple2_u32_u32, copy$tuple2_u8_u16, copy$tuple2_u8_u8, drop$pointers_List_String, drop$pointers_List_sync_Arc_u8, drop$tuple2_sync_Arc_pointers_Twin_Rc_pointers_Twin, drop$tuple3_sync_Arc_u32_Rc_pointers_Duo_sync_Arc_unit, drop$tuple4_sync_Arc_pointers_Twin_sync_Arc_pointers_Twin_Rc_pointers_Twin_Rc_pointers_Twin, of$pointers_Bin_pointers_ByObject } from "./lib.ts";
 import { then$0bgt67i, then$1a5xgoh, then$0jw3xip } from "./core/bool.ts";
-import { isSomeAnd$1s2u5lz, isSomeAnd$1nosv3e, isSomeAnd$07atiew, unwrapOr$0mkoact as option_unwrapOr$0mkoact, unwrapOr$179xo1w as option_unwrapOr$179xo1w, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1cfrse5 as option_map$1cfrse5, mapOr$078vnqn as option_mapOr$078vnqn, mapOr$00zno7m as option_mapOr$00zno7m, mapOr$1wlsr3s as option_mapOr$1wlsr3s, mapOr$173j2gr as option_mapOr$173j2gr, filter$0wvwd70 } from "./core/option.ts";
+import { isSomeAnd$1s2u5lz, isSomeAnd$1nosv3e, isSomeAnd$07atiew, unwrapOr$0mkoact as option_unwrapOr$0mkoact, unwrapOr$179xo1w as option_unwrapOr$179xo1w, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1cfrse5 as option_map$1cfrse5, mapOr$078vnqn as option_mapOr$078vnqn, mapOr$00zno7m as option_mapOr$00zno7m, mapOr$0m14xib as option_mapOr$0m14xib, mapOr$1wlsr3s as option_mapOr$1wlsr3s, mapOr$173j2gr as option_mapOr$173j2gr, filter$0wvwd70 } from "./core/option.ts";
 import type * as Aimed from "./pointers.Aimed.ts";
 import * as Bin from "./pointers.Bin.ts";
 import type * as ByCall from "./pointers.ByCall.ts";
@@ -4079,7 +4079,9 @@ export function tripled(b: rs.u8): rs.u8 {
 /**
  * A raw pointer to a `[T; N]` and to a `[[T; N]; M]` that is part of a slice, lent back as
  * a reference by `as_mut` and `NonNull::as_mut`, and the first written whole by
- * `ptr::replace` and `ptr::swap`; and a box of each taken back by `Box::from_raw`.
+ * `ptr::replace` and `ptr::swap`; a box of each taken back by `Box::from_raw`, and of arrays
+ * `as_chunks_mut` split from all of a box's array; and arrays a
+ * `MaybeUninit` holds, lent by `as_ref` and by a cell's `get_mut` and `as_mut_unchecked`.
  */
 export function arrayParts(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const n: rs.u32 = option_mapOr$1wlsr3s(rs.byteSliceFirst(data), 0, (_2: rs.u8): rs.u32 => {
@@ -4140,15 +4142,48 @@ export function arrayParts(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _100: rs.u32 = rs.u32Add(n, 5);
 	const slice7 = rs.arraySliceAt(nn2, 0);
 	slice7.data[slice7.start + 1] = _100;
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(rows.items, rs.sliceFrom)), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 2), (_212: rs.u32): rs.u8 => {
-		return _212 & 0xff;
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(rows.items, rs.sliceFrom)), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 2), (_213: rs.u32): rs.u8 => {
+		return _213 & 0xff;
 	}), undefined, true);
 	const raw2: rs.ArraySlice<rs.Slice<rs.u32>> = rs.arraySliceFrom([[n, 1], [2, n]], rs.sliceFrom);
 	const slice8 = rs.arraySliceAt(raw2, 1);
 	slice8.data[slice8.start + 1] = 8;
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(rs.boxArrayFromRaw(raw2), rs.sliceFrom)), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 2), (_213: rs.u32): rs.u8 => {
-		return _213 & 0xff;
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(rs.boxArrayFromRaw(raw2), rs.sliceFrom)), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 2), (_218: rs.u32): rs.u8 => {
+		return _218 & 0xff;
 	}), undefined, true);
+	const back3: rs.u32[][] = rs.boxArrayFromRaw(rs.optionUnwrap(rs.arraySliceGetRange(rs.sliceAsChunks(rs.sliceFrom([n, 1, 2, rs.u32Add(n, 3)]), 2)[0], 0, 2)));
+	back3[1][0] = 9;
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(back3, rs.sliceFrom)), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 2), (_219: rs.u32): rs.u8 => {
+		return _219 & 0xff;
+	}), undefined, true);
+	const p4: rs.Slice<rs.u32> = rs.sliceFrom([n, 1]);
+	const pointer5 = p4;
+	const _156: rs.u32[] | rs.None = pointer5 === rs.NULL ? rs.None : rs.sliceItems(pointer5);
+	if (_156 !== rs.None) {
+		const _162: rs.Slice<rs.u32> = rs.sliceFrom(_156);
+		rs.byteVecPush(out, _162.data[_162.start] & 0xff);
+	}
+	const pointer6 = p4;
+	const _171: rs.Slice<rs.u32> = rs.sliceFrom(rs.sliceItems(rs.optionUnwrap(pointer6 === rs.NULL ? undefined : pointer6)));
+	rs.byteVecPush(out, _171.data[_171.start + 1] & 0xff);
+	const pointer7 = rs.byteSliceFrom(Uint8Array.of(n & 0xff, 5));
+	rs.iterExtendBytes(out, rs.iterSlice(option_mapOr$0m14xib(pointer7 === rs.NULL ? rs.None : rs.byteSliceView(pointer7), rs.bytes(2), (m: Uint8Array): Uint8Array => {
+		return copy$mem_MaybeUninit_array_u8(m);
+	})), undefined, true);
+	const cell: rs.Cell<Uint8Array> = new rs.Cell(copy$mem_MaybeUninit_array_u8(Uint8Array.of(n & 0xff, 2)));
+	const _189: rs.ByteSlice = rs.byteSliceFrom(cell.v);
+	_189.data[_189.start + 1] = 9;
+	rs.iterExtendBytes(out, rs.iterSlice(cell.v), undefined, true);
+	const uc: rs.Cell<rs.u32[]> = new rs.Cell(copy$mem_MaybeUninit_array_u32([n, 3]));
+	const _201: rs.u32 = rs.u32Add(n, 8);
+	const _202: rs.Slice<rs.u32> = rs.sliceFrom(uc.v);
+	_202.data[_202.start] = _201;
+	const _207: rs.u32 = rs.u32Add(n, 9);
+	const _208: rs.Slice<rs.u32> = rs.sliceFrom(uc.v);
+	_208.data[_208.start + 1] = _207;
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap(uc.v, (w7: rs.u32): rs.u8 => {
+		return w7 & 0xff;
+	})), undefined, true);
 }
 
 //# sourceMappingURL=pointers.ts.map

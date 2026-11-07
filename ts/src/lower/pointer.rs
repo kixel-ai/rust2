@@ -580,6 +580,23 @@ pub fn call<'tcx>(
 		ty::Array(elem, _) => super::slice_items_from(e, *elem),
 		_ => super::library::slice_from(e),
 	};
+	// A reference to the array a pointer points at: the slice the pointer is, or for one a
+	// `MaybeUninit` or `ManuallyDrop` holds, whose reference is the array, as a reborrow of
+	// `*p` makes it: a view of bytes, a shared one the array where the slice is all of it, and
+	// a mutable one refused, as part of an array has no JS array of its own to write through.
+	let to_reference = |b: &mut Body<'_, '_, 'tcx>, p: Expr, shared: bool| {
+		let ty = pointee();
+		let inner = b.t.uninit_inner(ty);
+		match inner.kind() {
+			_ if inner == ty => p,
+			_ if super::byte_array(inner) => Expr::rs("byteSliceView", vec![p]),
+			ty::Array(elem, _) if shared => super::library::items_of(p, *elem),
+			_ => b.err(
+				span,
+				format!("a mutable reborrow of `{ty}` through a raw pointer, which may point into part of an array with no JS array of its own, which is not supported yet"),
+			),
+		}
+	};
 	// A raw pointer to a slice, from a reference to one, and the slice a read through it
 	// makes, shared if nothing writes through it.
 	let raw_of = |ty: Ty<'tcx>, s: Expr| match ty {
@@ -655,8 +672,10 @@ pub fn call<'tcx>(
 		("NonNull", "as_ref" | "as_mut") if kind(b, pointee()) == Some(Pointee::Slice) => {
 			deref(pointee(), arg(), name == "as_ref")
 		}
-		// A reference to an array is the slice a pointer to it is, which `lend` leaves as it is.
-		("NonNull", "as_mut") if array(b, pointee()) => arg(),
+		("NonNull", "as_mut") if array(b, pointee()) => {
+			let p = arg();
+			to_reference(b, p, false)
+		}
 		// A `&mut` to a `MaybeUninit` of a cell of a value JS copies is the place the cell is
 		// kept in, but one to the cell is the cell.
 		("MaybeUninit", "assume_init_mut")
@@ -732,6 +751,16 @@ pub fn call<'tcx>(
 			let shared = name == "as_ref" && kind(b, pointee()) == Some(super::pointer::Pointee::Place);
 			let (some, none) = match shared {
 				true => (p.clone().member("v"), b.t.none(pointee())),
+				// The `None` of an `Option` of the reference, which may be `rs.None` where the
+				// reference is the array a `MaybeUninit` holds.
+				false if array(b, pointee()) => {
+					let lent = b.t.sig(call.def_id, gargs).output();
+					let none = match lent.kind() {
+						ty::Adt(_, args) => b.t.none(args.type_at(0)),
+						_ => Expr::undefined(),
+					};
+					(to_reference(b, p.clone(), name == "as_ref"), none)
+				}
 				false => (p.clone(), Expr::undefined()),
 			};
 			Expr::Cond(
@@ -742,6 +771,10 @@ pub fn call<'tcx>(
 		}
 		("NonNull", "as_ref") | ("MaybeUninit", "assume_init_ref") => match kind(b, pointee()) {
 			Some(Pointee::Place) if owner == "NonNull" => arg().member("v"),
+			Some(Pointee::Array) if owner == "NonNull" => {
+				let p = arg();
+				to_reference(b, p, true)
+			}
 			_ => arg(),
 		},
 		// An `rs.Arc` is its allocation, which has one place of its value: the pointer to a
@@ -982,9 +1015,10 @@ pub fn call<'tcx>(
 		}
 		// What `get` points at, lent as `get_mut` lends it.
 		("UnsafeCell" | "Cell", "get_mut") | ("UnsafeCell", "as_mut_unchecked") if b.t.needs_place(pointee()) => arg(),
-		// The pointer `get` gives to an array is the reference to it, which `lend` leaves as it is.
+		// The pointer `get` gives to an array is the reference to it, which `lend` leaves as it
+		// is; one a `MaybeUninit` holds is the array, which the cell holds.
 		("UnsafeCell", "get_mut" | "as_ref_unchecked" | "as_mut_unchecked") | ("Cell", "get_mut")
-			if kind(b, pointee()) == Some(Pointee::Array) =>
+			if pointee().is_array() =>
 		{
 			let cell = arg();
 			cell_pointer(b, cell, pointee())

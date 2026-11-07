@@ -12,6 +12,7 @@ roots = [
     "alloc::cell_raw_unknown",
     "alloc::pinned_lent",
     "alloc::reinterpreted",
+    "alloc::uninit_array_lent",
     "alloc::uninit_cell_lent",
     "alloc::vec_pointer",
     "alloc::wrapped_cells",

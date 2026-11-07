@@ -3037,7 +3037,9 @@ fn tripled(mut b: u8) -> u8 {
 
 /// A raw pointer to a `[T; N]` and to a `[[T; N]; M]` that is part of a slice, lent back as
 /// a reference by `as_mut` and `NonNull::as_mut`, and the first written whole by
-/// `ptr::replace` and `ptr::swap`; and a box of each taken back by `Box::from_raw`.
+/// `ptr::replace` and `ptr::swap`; a box of each taken back by `Box::from_raw`, and of arrays
+/// `as_chunks_mut` split from all of a box's array; and arrays a
+/// `MaybeUninit` holds, lent by `as_ref` and by a cell's `get_mut` and `as_mut_unchecked`.
 pub fn array_parts(data: &[u8], out: &mut Vec<u8>) {
 	let n = data.first().map_or(0, |&b| u32::from(b));
 	let mut words: Vec<u32> = data.iter().map(|&b| u32::from(b)).collect();
@@ -3073,4 +3075,29 @@ pub fn array_parts(data: &[u8], out: &mut Vec<u8>) {
 	unsafe { (*raw)[1][1] = 8 };
 	let back = unsafe { Box::from_raw(raw) };
 	out.extend(back.iter().flatten().map(|&w| w as u8));
+	// Arrays `as_chunks_mut` split from all of a box's array, which has their layout.
+	let flat = Box::into_raw(Box::new([n, 1, 2, n + 3]));
+	let (runs, _) = unsafe { (*flat).as_chunks_mut::<2>() };
+	let whole: *mut [[u32; 2]; 2] = runs.first_chunk_mut().unwrap();
+	let mut back = unsafe { Box::from_raw(whole) };
+	back[1][0] = 9;
+	out.extend(back.iter().flatten().map(|&w| w as u8));
+	// Of arrays a `MaybeUninit` holds, whose reference is the array.
+	let mu = MaybeUninit::new([n, 1]);
+	let p: *const MaybeUninit<[u32; 2]> = &mu;
+	if let Some(m) = unsafe { p.as_ref() } {
+		out.push(unsafe { m.assume_init_ref()[0] } as u8);
+	}
+	let nn = NonNull::new(p.cast_mut()).unwrap();
+	out.push(unsafe { nn.as_ref().assume_init_ref()[1] } as u8);
+	let bytes = MaybeUninit::new([n as u8, 5]);
+	let p: *const MaybeUninit<[u8; 2]> = &bytes;
+	out.extend(unsafe { p.as_ref() }.map_or([0; 2], |m| unsafe { m.assume_init() }));
+	let mut cell = Cell::new(MaybeUninit::new([n as u8, 2]));
+	unsafe { cell.get_mut().assume_init_mut()[1] = 9 };
+	out.extend(unsafe { cell.into_inner().assume_init() });
+	let mut uc = UnsafeCell::new(MaybeUninit::new([n, 3]));
+	unsafe { uc.get_mut().assume_init_mut()[0] = n + 8 };
+	unsafe { uc.as_mut_unchecked().assume_init_mut()[1] = n + 9 };
+	out.extend(unsafe { uc.into_inner().assume_init() }.map(|w| w as u8));
 }
