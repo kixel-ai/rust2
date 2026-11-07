@@ -204,6 +204,7 @@ const VERBATIM: &[&str] = &[
 	"self",
 	"skip",
 	"undefined",
+	"write_bytes",
 	"write_str",
 	"zip",
 	"{:.2}",

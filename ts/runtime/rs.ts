@@ -458,6 +458,14 @@ export function ptrCopy<T>(src: Place<T>, dst: Place<T>, n: number, copy?: (valu
 	for (let i = 0; i < n; i++) elemSet(to.array, to.index + i, copy && values[i] !== undefined ? copy(values[i]) : values[i]);
 }
 
+/** `ptr::write_bytes` of a pointer to bytes: `n` of them from `dst` set to `val`. */
+export function ptrWriteBytes(dst: Place<number>, val: number, n: number): void {
+	if (n === 0) return;
+	const to = elemOf(dst);
+	to.reach(n);
+	for (let i = 0; i < n; i++) elemSet(to.array, to.index + i, val);
+}
+
 /** Element `i` of `array`, or of the room past it, which `AtIndex.reach` found. */
 function elemGet<T>(array: { [i: number]: T }, i: number): T {
 	return i < (array as ArrayLike<T>).length ? array[i] : (roomPast<T>(array, i + 1) as Room<T>).get(i);

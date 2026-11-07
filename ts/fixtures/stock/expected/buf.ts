@@ -12,7 +12,7 @@ import * as Spare from "./buf.Spare.ts";
 import * as Tagged from "./buf.Tagged.ts";
 import { chunksVectored$bytes_Buf_bytes_Bytes as buf_impl_chunksVectored$bytes_Buf_bytes_Bytes, chunksVectored$bytes_Buf_bytes_BytesMut as buf_impl_chunksVectored$bytes_Buf_bytes_BytesMut, chunksVectored$bytes_Buf_ref_slice_u8 as buf_impl_chunksVectored$bytes_Buf_ref_slice_u8, copyToSlice$bytes_Buf_collections_VecDeque_u8, getU8$bytes_Buf_collections_VecDeque_u8, getI8$bytes_Buf_collections_VecDeque_u8, getUint$bytes_Buf_collections_VecDeque_u8, getIntLe$bytes_Buf_collections_VecDeque_u8, getF32Le$bytes_Buf_collections_VecDeque_u8, getF64$bytes_Buf_collections_VecDeque_u8, tryGetU8$bytes_Buf_bytes_Bytes, tryGetU8$bytes_Buf_bytes_BytesMut, tryGetU8$bytes_Buf_collections_VecDeque_u8, tryGetU8$bytes_Buf_ref_slice_u8, take$bytes_Buf_bytes_Bytes as buf_impl_take$bytes_Buf_bytes_Bytes, take$bytes_Buf_ref_slice_u8 as buf_impl_take$bytes_Buf_ref_slice_u8, chain$bytes_Buf_boxed_Box_dyn_bytes_Buf_bytes_Bytes, chain$bytes_Buf_bytes_Bytes_bytes_buf_Chain_buf_Provided_ref_slice_u8, chain$bytes_Buf_bytes_Bytes_ref_slice_u8, chain$bytes_Buf_ref_slice_u8_bytes_Bytes, chain$bytes_Buf_ref_slice_u8_bytes_BytesMut, advance$bytes_Buf_mut_bytes_Bytes as buf_impl_advance$bytes_Buf_mut_bytes_Bytes, advance$bytes_Buf_mut_collections_VecDeque_u8 as buf_impl_advance$bytes_Buf_mut_collections_VecDeque_u8, advance$bytes_Buf_mut_dyn_bytes_Buf as buf_impl_advance$bytes_Buf_mut_dyn_bytes_Buf, advance$bytes_Buf_mut_ref_slice_u8 as buf_impl_advance$bytes_Buf_mut_ref_slice_u8, chunksVectored$bytes_Buf_mut_ref_slice_u8 as buf_impl_chunksVectored$bytes_Buf_mut_ref_slice_u8, copyToBytes$bytes_Buf_mut_bytes_Bytes, copyToBytes$bytes_Buf_mut_collections_VecDeque_u8, copyToBytes$bytes_Buf_mut_dyn_bytes_Buf, copyToBytes$bytes_Buf_mut_ref_slice_u8, copyToSlice$bytes_Buf_mut_bytes_Bytes, copyToSlice$bytes_Buf_mut_collections_VecDeque_u8, copyToSlice$bytes_Buf_mut_dyn_bytes_Buf, copyToSlice$bytes_Buf_mut_ref_slice_u8, getF32Le$bytes_Buf_mut_bytes_Bytes, getF32Le$bytes_Buf_mut_collections_VecDeque_u8, getF32Le$bytes_Buf_mut_dyn_bytes_Buf, getF32Le$bytes_Buf_mut_ref_slice_u8, getF64$bytes_Buf_mut_bytes_Bytes, getF64$bytes_Buf_mut_collections_VecDeque_u8, getF64$bytes_Buf_mut_dyn_bytes_Buf, getF64$bytes_Buf_mut_ref_slice_u8, getI128$bytes_Buf_mut_bytes_Bytes, getI128$bytes_Buf_mut_collections_VecDeque_u8, getI128$bytes_Buf_mut_dyn_bytes_Buf, getI128$bytes_Buf_mut_ref_slice_u8, getI16Le$bytes_Buf_mut_bytes_Bytes, getI16Le$bytes_Buf_mut_collections_VecDeque_u8, getI16Le$bytes_Buf_mut_dyn_bytes_Buf, getI16Le$bytes_Buf_mut_ref_slice_u8, getI32$bytes_Buf_mut_bytes_Bytes, getI32$bytes_Buf_mut_collections_VecDeque_u8, getI32$bytes_Buf_mut_dyn_bytes_Buf, getI32$bytes_Buf_mut_ref_slice_u8, getI64Le$bytes_Buf_mut_bytes_Bytes, getI64Le$bytes_Buf_mut_collections_VecDeque_u8, getI64Le$bytes_Buf_mut_dyn_bytes_Buf, getI64Le$bytes_Buf_mut_ref_slice_u8, getI8$bytes_Buf_mut_bytes_Bytes, getI8$bytes_Buf_mut_collections_VecDeque_u8, getI8$bytes_Buf_mut_dyn_bytes_Buf, getI8$bytes_Buf_mut_ref_slice_u8, getIntLe$bytes_Buf_mut_bytes_Bytes, getIntLe$bytes_Buf_mut_collections_VecDeque_u8, getIntLe$bytes_Buf_mut_dyn_bytes_Buf, getIntLe$bytes_Buf_mut_ref_slice_u8, getU128Le$bytes_Buf_mut_bytes_Bytes, getU128Le$bytes_Buf_mut_collections_VecDeque_u8, getU128Le$bytes_Buf_mut_dyn_bytes_Buf, getU128Le$bytes_Buf_mut_ref_slice_u8, getU16$bytes_Buf_mut_bytes_Bytes, getU16$bytes_Buf_mut_collections_VecDeque_u8, getU16$bytes_Buf_mut_dyn_bytes_Buf, getU16$bytes_Buf_mut_ref_slice_u8, getU32Le$bytes_Buf_mut_bytes_Bytes, getU32Le$bytes_Buf_mut_collections_VecDeque_u8, getU32Le$bytes_Buf_mut_dyn_bytes_Buf, getU32Le$bytes_Buf_mut_ref_slice_u8, getU64$bytes_Buf_mut_bytes_Bytes, getU64$bytes_Buf_mut_collections_VecDeque_u8, getU64$bytes_Buf_mut_dyn_bytes_Buf, getU64$bytes_Buf_mut_ref_slice_u8, getU8$bytes_Buf_mut_bytes_Bytes, getU8$bytes_Buf_mut_collections_VecDeque_u8, getU8$bytes_Buf_mut_dyn_bytes_Buf, getU8$bytes_Buf_mut_ref_slice_u8, getUint$bytes_Buf_mut_bytes_Bytes, getUint$bytes_Buf_mut_collections_VecDeque_u8, getUint$bytes_Buf_mut_dyn_bytes_Buf, getUint$bytes_Buf_mut_ref_slice_u8, hasRemaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf, hasRemaining$bytes_Buf_mut_bytes_Bytes, hasRemaining$bytes_Buf_mut_bytes_BytesMut, hasRemaining$bytes_Buf_mut_dyn_buf_Leased, hasRemaining$bytes_Buf_mut_dyn_bytes_Buf, hasRemaining$bytes_Buf_mut_mut_bytes_Bytes, hasRemaining$bytes_Buf_mut_mut_collections_VecDeque_u8, hasRemaining$bytes_Buf_mut_mut_dyn_bytes_Buf, hasRemaining$bytes_Buf_mut_mut_ref_slice_u8, hasRemaining$bytes_Buf_mut_ref_slice_u8, remaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf as buf_impl_remaining$bytes_Buf_mut_boxed_Box_dyn_bytes_Buf, remaining$bytes_Buf_mut_bytes_Bytes as buf_impl_remaining$bytes_Buf_mut_bytes_Bytes, remaining$bytes_Buf_mut_bytes_BytesMut as buf_impl_remaining$bytes_Buf_mut_bytes_BytesMut, remaining$bytes_Buf_mut_dyn_buf_Leased as buf_impl_remaining$bytes_Buf_mut_dyn_buf_Leased, remaining$bytes_Buf_mut_dyn_bytes_Buf as buf_impl_remaining$bytes_Buf_mut_dyn_bytes_Buf, remaining$bytes_Buf_mut_mut_bytes_Bytes as buf_impl_remaining$bytes_Buf_mut_mut_bytes_Bytes, remaining$bytes_Buf_mut_mut_collections_VecDeque_u8 as buf_impl_remaining$bytes_Buf_mut_mut_collections_VecDeque_u8, remaining$bytes_Buf_mut_mut_dyn_bytes_Buf as buf_impl_remaining$bytes_Buf_mut_mut_dyn_bytes_Buf, remaining$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_remaining$bytes_Buf_mut_mut_ref_slice_u8, remaining$bytes_Buf_mut_ref_slice_u8 as buf_impl_remaining$bytes_Buf_mut_ref_slice_u8, tryGetI64Le$bytes_Buf_mut_bytes_Bytes, tryGetI64Le$bytes_Buf_mut_collections_VecDeque_u8, tryGetI64Le$bytes_Buf_mut_dyn_bytes_Buf, tryGetI64Le$bytes_Buf_mut_ref_slice_u8, tryGetU128$bytes_Buf_mut_bytes_Bytes, tryGetU128$bytes_Buf_mut_collections_VecDeque_u8, tryGetU128$bytes_Buf_mut_dyn_bytes_Buf, tryGetU128$bytes_Buf_mut_ref_slice_u8, tryGetU16$bytes_Buf_mut_bytes_Bytes, tryGetU16$bytes_Buf_mut_collections_VecDeque_u8, tryGetU16$bytes_Buf_mut_dyn_bytes_Buf, tryGetU16$bytes_Buf_mut_ref_slice_u8, tryGetU8$bytes_Buf_mut_bytes_Bytes, tryGetU8$bytes_Buf_mut_collections_VecDeque_u8, tryGetU8$bytes_Buf_mut_dyn_bytes_Buf, tryGetU8$bytes_Buf_mut_ref_slice_u8, advance$bytes_Buf_boxed_Box_dyn_bytes_Buf as buf_impl_advance$bytes_Buf_boxed_Box_dyn_bytes_Buf, chunksVectored$bytes_Buf_boxed_Box_dyn_bytes_Buf as buf_impl_chunksVectored$bytes_Buf_boxed_Box_dyn_bytes_Buf, copyToBytes$bytes_Buf_boxed_Box_dyn_bytes_Buf, copyToSlice$bytes_Buf_boxed_Box_dyn_bytes_Buf, getF32Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, getF64$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI128$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI16Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI16Ne$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI32$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI64Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, getI8$bytes_Buf_boxed_Box_dyn_bytes_Buf, getIntLe$bytes_Buf_boxed_Box_dyn_bytes_Buf, getU128Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, getU16$bytes_Buf_boxed_Box_dyn_bytes_Buf, getU32Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, getU64$bytes_Buf_boxed_Box_dyn_bytes_Buf, getU8$bytes_Buf_boxed_Box_dyn_bytes_Buf, getUint$bytes_Buf_boxed_Box_dyn_bytes_Buf, remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf as buf_impl_remaining$bytes_Buf_boxed_Box_dyn_bytes_Buf, tryGetI64Le$bytes_Buf_boxed_Box_dyn_bytes_Buf, tryGetU128$bytes_Buf_boxed_Box_dyn_bytes_Buf, tryGetU16$bytes_Buf_boxed_Box_dyn_bytes_Buf, tryGetU8$bytes_Buf_boxed_Box_dyn_bytes_Buf } from "./bytes/buf/buf_impl.ts";
 import type * as Buf from "./bytes/buf/buf_impl.Buf.ts";
-import { advanceMut$bytes_BufMut_mut_Vec_u8, chunkMut$bytes_BufMut_mut_Vec_u8, putI16Le$bytes_BufMut_mut_Vec_u8, putI16Le$bytes_BufMut_mut_bytes_BytesMut, putI32Le$bytes_BufMut_mut_Vec_u8, putI32Le$bytes_BufMut_mut_bytes_BytesMut, putI64$bytes_BufMut_mut_Vec_u8, putI64$bytes_BufMut_mut_bytes_BytesMut, putI8$bytes_BufMut_mut_Vec_u8, putI8$bytes_BufMut_mut_bytes_BytesMut, putSlice$bytes_BufMut_mut_Vec_u8, putSlice$bytes_BufMut_mut_bytes_BytesMut, putU16$bytes_BufMut_mut_Vec_u8, putU16$bytes_BufMut_mut_bytes_BytesMut, putU32$bytes_BufMut_mut_Vec_u8, putU32$bytes_BufMut_mut_bytes_BytesMut, putU32Le$bytes_BufMut_mut_Vec_u8, putU64Le$bytes_BufMut_mut_Vec_u8, putU64Le$bytes_BufMut_mut_bytes_BytesMut, putU8$bytes_BufMut_mut_Vec_u8, putU8$bytes_BufMut_mut_bytes_BytesMut, remainingMut$bytes_BufMut_mut_Vec_u8, remainingMut$bytes_BufMut_mut_boxed_Box_Vec_u8, remainingMut$bytes_BufMut_mut_boxed_Box_bytes_BytesMut, remainingMut$bytes_BufMut_mut_boxed_Box_mut_bytes_BytesMut, remainingMut$bytes_BufMut_mut_bytes_BytesMut, remainingMut$bytes_BufMut_mut_mut_Vec_u8, remainingMut$bytes_BufMut_mut_mut_bytes_BytesMut, advanceMut$bytes_BufMut_boxed_Box_mut_bytes_BytesMut, chunkMut$bytes_BufMut_boxed_Box_mut_bytes_BytesMut, putI16Le$bytes_BufMut_boxed_Box_Vec_u8, putI16Le$bytes_BufMut_boxed_Box_bytes_BytesMut, putI32Le$bytes_BufMut_boxed_Box_Vec_u8, putI32Le$bytes_BufMut_boxed_Box_bytes_BytesMut, putI64$bytes_BufMut_boxed_Box_Vec_u8, putI64$bytes_BufMut_boxed_Box_bytes_BytesMut, putI8$bytes_BufMut_boxed_Box_Vec_u8, putI8$bytes_BufMut_boxed_Box_bytes_BytesMut, putSlice$bytes_BufMut_boxed_Box_Vec_u8, putSlice$bytes_BufMut_boxed_Box_bytes_BytesMut, putSlice$bytes_BufMut_boxed_Box_mut_bytes_BytesMut, putU16$bytes_BufMut_boxed_Box_Vec_u8, putU16$bytes_BufMut_boxed_Box_bytes_BytesMut, putU32$bytes_BufMut_boxed_Box_Vec_u8, putU32$bytes_BufMut_boxed_Box_bytes_BytesMut, putU32Le$bytes_BufMut_boxed_Box_mut_bytes_BytesMut, putU64Le$bytes_BufMut_boxed_Box_Vec_u8, putU64Le$bytes_BufMut_boxed_Box_bytes_BytesMut, putU8$bytes_BufMut_boxed_Box_Vec_u8, putU8$bytes_BufMut_boxed_Box_bytes_BytesMut } from "./bytes/buf/buf_mut.ts";
+import { hasRemainingMut$bytes_BufMut_mut_mut_mut_slice_mem_MaybeUninit_u8, hasRemainingMut$bytes_BufMut_mut_mut_mut_slice_u8, hasRemainingMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, hasRemainingMut$bytes_BufMut_mut_mut_slice_u8, put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_buf_Pieces as buf_mut_put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_buf_Pieces, put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_buf_Provided as buf_mut_put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_buf_Provided, put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_bytes_Bytes as buf_mut_put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_bytes_Bytes, put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_bytes_BytesMut as buf_mut_put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_bytes_BytesMut, put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_bytes_buf_Chain_bytes_Bytes_ref_slice_u8 as buf_mut_put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_bytes_buf_Chain_bytes_Bytes_ref_slice_u8, put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_ref_slice_u8 as buf_mut_put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_ref_slice_u8, put$bytes_BufMut_mut_mut_slice_u8_buf_Pieces as buf_mut_put$bytes_BufMut_mut_mut_slice_u8_buf_Pieces, put$bytes_BufMut_mut_mut_slice_u8_buf_Provided as buf_mut_put$bytes_BufMut_mut_mut_slice_u8_buf_Provided, put$bytes_BufMut_mut_mut_slice_u8_bytes_Bytes as buf_mut_put$bytes_BufMut_mut_mut_slice_u8_bytes_Bytes, put$bytes_BufMut_mut_mut_slice_u8_bytes_BytesMut as buf_mut_put$bytes_BufMut_mut_mut_slice_u8_bytes_BytesMut, put$bytes_BufMut_mut_mut_slice_u8_bytes_buf_Chain_bytes_Bytes_ref_slice_u8 as buf_mut_put$bytes_BufMut_mut_mut_slice_u8_bytes_buf_Chain_bytes_Bytes_ref_slice_u8, put$bytes_BufMut_mut_mut_slice_u8_ref_slice_u8 as buf_mut_put$bytes_BufMut_mut_mut_slice_u8_ref_slice_u8, put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_buf_Pieces as buf_mut_put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_buf_Pieces, put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_buf_Provided as buf_mut_put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_buf_Provided, put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_bytes_Bytes as buf_mut_put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_bytes_Bytes, put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_bytes_BytesMut as buf_mut_put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_bytes_BytesMut, put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_bytes_buf_Chain_bytes_Bytes_ref_slice_u8 as buf_mut_put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_bytes_buf_Chain_bytes_Bytes_ref_slice_u8, put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_ref_slice_u8 as buf_mut_put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_ref_slice_u8, put$bytes_BufMut_mut_slice_u8_buf_Pieces as buf_mut_put$bytes_BufMut_mut_slice_u8_buf_Pieces, put$bytes_BufMut_mut_slice_u8_buf_Provided as buf_mut_put$bytes_BufMut_mut_slice_u8_buf_Provided, put$bytes_BufMut_mut_slice_u8_bytes_Bytes as buf_mut_put$bytes_BufMut_mut_slice_u8_bytes_Bytes, put$bytes_BufMut_mut_slice_u8_bytes_BytesMut as buf_mut_put$bytes_BufMut_mut_slice_u8_bytes_BytesMut, put$bytes_BufMut_mut_slice_u8_bytes_buf_Chain_bytes_Bytes_ref_slice_u8 as buf_mut_put$bytes_BufMut_mut_slice_u8_bytes_buf_Chain_bytes_Bytes_ref_slice_u8, put$bytes_BufMut_mut_slice_u8_ref_slice_u8 as buf_mut_put$bytes_BufMut_mut_slice_u8_ref_slice_u8, putBytes$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putBytes$bytes_BufMut_mut_mut_slice_u8, putU8$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putU8$bytes_BufMut_mut_slice_u8, putI8$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putI8$bytes_BufMut_mut_slice_u8, putU16$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putU16$bytes_BufMut_mut_slice_u8, putI16Le$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putI16Le$bytes_BufMut_mut_slice_u8, putU32$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putU32$bytes_BufMut_mut_slice_u8, putU32Le$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putU32Le$bytes_BufMut_mut_slice_u8, putI32Le$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putI32Le$bytes_BufMut_mut_slice_u8, putU64Le$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putU64Le$bytes_BufMut_mut_slice_u8, putI64$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putI64$bytes_BufMut_mut_slice_u8, putU128Le$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putU128Le$bytes_BufMut_mut_mut_slice_u8, putU128Le$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putU128Le$bytes_BufMut_mut_slice_u8, putUint$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putUint$bytes_BufMut_mut_mut_slice_u8, putUint$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putUint$bytes_BufMut_mut_slice_u8, putUintLe$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putUintLe$bytes_BufMut_mut_mut_slice_u8, putUintLe$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putUintLe$bytes_BufMut_mut_slice_u8, putInt$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putInt$bytes_BufMut_mut_mut_slice_u8, putInt$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putInt$bytes_BufMut_mut_slice_u8, putIntLe$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putIntLe$bytes_BufMut_mut_mut_slice_u8, putIntLe$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putIntLe$bytes_BufMut_mut_slice_u8, putF32$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putF32$bytes_BufMut_mut_mut_slice_u8, putF32$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putF32$bytes_BufMut_mut_slice_u8, putF64$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putF64$bytes_BufMut_mut_mut_slice_u8, putF64$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putF64$bytes_BufMut_mut_slice_u8, advanceMut$bytes_BufMut_mut_Vec_u8, chunkMut$bytes_BufMut_mut_Vec_u8, putI16Le$bytes_BufMut_mut_Vec_u8, putI16Le$bytes_BufMut_mut_bytes_BytesMut, putI16Le$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putI16Le$bytes_BufMut_mut_mut_slice_u8, putI32Le$bytes_BufMut_mut_Vec_u8, putI32Le$bytes_BufMut_mut_bytes_BytesMut, putI32Le$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putI32Le$bytes_BufMut_mut_mut_slice_u8, putI64$bytes_BufMut_mut_Vec_u8, putI64$bytes_BufMut_mut_bytes_BytesMut, putI64$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putI64$bytes_BufMut_mut_mut_slice_u8, putI8$bytes_BufMut_mut_Vec_u8, putI8$bytes_BufMut_mut_bytes_BytesMut, putI8$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putI8$bytes_BufMut_mut_mut_slice_u8, putSlice$bytes_BufMut_mut_Vec_u8, putSlice$bytes_BufMut_mut_bytes_BytesMut, putSlice$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putSlice$bytes_BufMut_mut_mut_slice_u8, putU16$bytes_BufMut_mut_Vec_u8, putU16$bytes_BufMut_mut_bytes_BytesMut, putU16$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putU16$bytes_BufMut_mut_mut_slice_u8, putU32$bytes_BufMut_mut_Vec_u8, putU32$bytes_BufMut_mut_bytes_BytesMut, putU32$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putU32$bytes_BufMut_mut_mut_slice_u8, putU32Le$bytes_BufMut_mut_Vec_u8, putU64Le$bytes_BufMut_mut_Vec_u8, putU64Le$bytes_BufMut_mut_bytes_BytesMut, putU64Le$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putU64Le$bytes_BufMut_mut_mut_slice_u8, putU8$bytes_BufMut_mut_Vec_u8, putU8$bytes_BufMut_mut_bytes_BytesMut, putU8$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, putU8$bytes_BufMut_mut_mut_slice_u8, remainingMut$bytes_BufMut_mut_Vec_u8, remainingMut$bytes_BufMut_mut_boxed_Box_Vec_u8, remainingMut$bytes_BufMut_mut_boxed_Box_bytes_BytesMut, remainingMut$bytes_BufMut_mut_boxed_Box_mut_bytes_BytesMut, remainingMut$bytes_BufMut_mut_boxed_Box_mut_mut_slice_mem_MaybeUninit_u8, remainingMut$bytes_BufMut_mut_boxed_Box_mut_mut_slice_u8, remainingMut$bytes_BufMut_mut_bytes_BytesMut, remainingMut$bytes_BufMut_mut_mut_Vec_u8, remainingMut$bytes_BufMut_mut_mut_bytes_BytesMut, remainingMut$bytes_BufMut_mut_mut_mut_slice_mem_MaybeUninit_u8, remainingMut$bytes_BufMut_mut_mut_mut_slice_u8, remainingMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8, remainingMut$bytes_BufMut_mut_mut_slice_u8, advanceMut$bytes_BufMut_boxed_Box_mut_bytes_BytesMut, advanceMut$bytes_BufMut_boxed_Box_mut_mut_slice_mem_MaybeUninit_u8, advanceMut$bytes_BufMut_boxed_Box_mut_mut_slice_u8, chunkMut$bytes_BufMut_boxed_Box_mut_bytes_BytesMut, chunkMut$bytes_BufMut_boxed_Box_mut_mut_slice_mem_MaybeUninit_u8, chunkMut$bytes_BufMut_boxed_Box_mut_mut_slice_u8, putI16Le$bytes_BufMut_boxed_Box_Vec_u8, putI16Le$bytes_BufMut_boxed_Box_bytes_BytesMut, putI32Le$bytes_BufMut_boxed_Box_Vec_u8, putI32Le$bytes_BufMut_boxed_Box_bytes_BytesMut, putI64$bytes_BufMut_boxed_Box_Vec_u8, putI64$bytes_BufMut_boxed_Box_bytes_BytesMut, putI8$bytes_BufMut_boxed_Box_Vec_u8, putI8$bytes_BufMut_boxed_Box_bytes_BytesMut, putSlice$bytes_BufMut_boxed_Box_Vec_u8, putSlice$bytes_BufMut_boxed_Box_bytes_BytesMut, putSlice$bytes_BufMut_boxed_Box_mut_bytes_BytesMut, putSlice$bytes_BufMut_boxed_Box_mut_mut_slice_mem_MaybeUninit_u8, putSlice$bytes_BufMut_boxed_Box_mut_mut_slice_u8, putU16$bytes_BufMut_boxed_Box_Vec_u8, putU16$bytes_BufMut_boxed_Box_bytes_BytesMut, putU32$bytes_BufMut_boxed_Box_Vec_u8, putU32$bytes_BufMut_boxed_Box_bytes_BytesMut, putU32Le$bytes_BufMut_boxed_Box_mut_bytes_BytesMut, putU32Le$bytes_BufMut_boxed_Box_mut_mut_slice_mem_MaybeUninit_u8, putU32Le$bytes_BufMut_boxed_Box_mut_mut_slice_u8, putU64Le$bytes_BufMut_boxed_Box_Vec_u8, putU64Le$bytes_BufMut_boxed_Box_bytes_BytesMut, putU8$bytes_BufMut_boxed_Box_Vec_u8, putU8$bytes_BufMut_boxed_Box_bytes_BytesMut, chunkMut$bytes_BufMut_mut_slice_u8, advanceMut$bytes_BufMut_mut_slice_u8, putSlice$bytes_BufMut_mut_slice_u8, putBytes$bytes_BufMut_mut_slice_u8, chunkMut$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, advanceMut$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putSlice$bytes_BufMut_mut_slice_mem_MaybeUninit_u8, putBytes$bytes_BufMut_mut_slice_mem_MaybeUninit_u8 } from "./bytes/buf/buf_mut.ts";
 import * as Chain from "./bytes/buf/chain.Chain.ts";
 import * as Take from "./bytes/buf/take.Take.ts";
 import * as UninitSlice from "./bytes/buf/uninit_slice.UninitSlice.ts";
@@ -3200,6 +3200,94 @@ export function chunkAll$boxed_Box_mut_bytes_BytesMut(buf: rs.Place<rs.BytesMut>
  * the chunk, which panics too; or a provided write, which a writer of the crate's own
  * makes through its chunk.
  */
+export function chunkAll$boxed_Box_mut_mut_slice_mem_MaybeUninit_u8(buf: rs.Place<rs.Place<rs.ByteSlice>>, dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
+	let cnt!: rs.usize;
+	let dataData2: Uint8Array = dataData;
+	let dataStart2: number = dataStart;
+	let dataLen2: number = dataLen;
+	while (dataLen2 >= 2) {
+		const op: rs.u8 = dataData2[dataStart2];
+		const n: rs.u8 = dataData2[dataStart2 + 1];
+		const restData: Uint8Array = dataData2;
+		const restStart: number = dataStart2 + 2;
+		const restLen: number = dataLen2 - 2;
+		dataData2 = restData;
+		dataStart2 = restStart;
+		dataLen2 = restLen;
+		const op2: rs.u8 = op;
+		const n2: rs.u8 = n;
+		const _16: rs.u8 = rs.u8Rem(op2, 13);
+		if (_16 === 10) {
+			const _18: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(rs.bytes(70).fill(n2)), 0, rs.usizeRem(n2 as rs.usize, 71));
+			putSlice$bytes_BufMut_boxed_Box_mut_mut_slice_mem_MaybeUninit_u8(buf, _18);
+		} else if (_16 === 11) {
+			putU32Le$bytes_BufMut_boxed_Box_mut_mut_slice_mem_MaybeUninit_u8(buf, rs.u32Mul(n2 as rs.u32, 16843009));
+		} else {
+			const chunk: rs.ByteSlice = chunkMut$bytes_BufMut_boxed_Box_mut_mut_slice_mem_MaybeUninit_u8(buf);
+			const room: rs.usize = UninitSlice.len(chunk);
+			const written: rs.usize = chunkWrite(chunk, op2, n2, out);
+			if (!(rs.u8Rem(n2, 16) === 15)) {
+				cnt = written;
+			} else {
+				cnt = rs.usizeAdd(room, 1);
+			}
+			advanceMut$bytes_BufMut_boxed_Box_mut_mut_slice_mem_MaybeUninit_u8(buf, cnt);
+			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(room as rs.u32).reverse()));
+		}
+		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(remainingMut$bytes_BufMut_mut_boxed_Box_mut_mut_slice_mem_MaybeUninit_u8(buf) as rs.u32).reverse()));
+	}
+}
+
+/**
+ * A write through `buf`'s chunk by each pair of `data`'s bytes, of each range of it, and
+ * past it, which panics as `bytes` does, then `advance_mut` over what it wrote, or past
+ * the chunk, which panics too; or a provided write, which a writer of the crate's own
+ * makes through its chunk.
+ */
+export function chunkAll$boxed_Box_mut_mut_slice_u8(buf: rs.Place<rs.Place<rs.ByteSlice>>, dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
+	let cnt!: rs.usize;
+	let dataData2: Uint8Array = dataData;
+	let dataStart2: number = dataStart;
+	let dataLen2: number = dataLen;
+	while (dataLen2 >= 2) {
+		const op: rs.u8 = dataData2[dataStart2];
+		const n: rs.u8 = dataData2[dataStart2 + 1];
+		const restData: Uint8Array = dataData2;
+		const restStart: number = dataStart2 + 2;
+		const restLen: number = dataLen2 - 2;
+		dataData2 = restData;
+		dataStart2 = restStart;
+		dataLen2 = restLen;
+		const op2: rs.u8 = op;
+		const n2: rs.u8 = n;
+		const _16: rs.u8 = rs.u8Rem(op2, 13);
+		if (_16 === 10) {
+			const _18: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(rs.bytes(70).fill(n2)), 0, rs.usizeRem(n2 as rs.usize, 71));
+			putSlice$bytes_BufMut_boxed_Box_mut_mut_slice_u8(buf, _18);
+		} else if (_16 === 11) {
+			putU32Le$bytes_BufMut_boxed_Box_mut_mut_slice_u8(buf, rs.u32Mul(n2 as rs.u32, 16843009));
+		} else {
+			const chunk: rs.ByteSlice = chunkMut$bytes_BufMut_boxed_Box_mut_mut_slice_u8(buf);
+			const room: rs.usize = UninitSlice.len(chunk);
+			const written: rs.usize = chunkWrite(chunk, op2, n2, out);
+			if (!(rs.u8Rem(n2, 16) === 15)) {
+				cnt = written;
+			} else {
+				cnt = rs.usizeAdd(room, 1);
+			}
+			advanceMut$bytes_BufMut_boxed_Box_mut_mut_slice_u8(buf, cnt);
+			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(room as rs.u32).reverse()));
+		}
+		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(remainingMut$bytes_BufMut_mut_boxed_Box_mut_mut_slice_u8(buf) as rs.u32).reverse()));
+	}
+}
+
+/**
+ * A write through `buf`'s chunk by each pair of `data`'s bytes, of each range of it, and
+ * past it, which panics as `bytes` does, then `advance_mut` over what it wrote, or past
+ * the chunk, which panics too; or a provided write, which a writer of the crate's own
+ * makes through its chunk.
+ */
 export function chunkAll$buf_Fixed(buf: Fixed.Fixed, dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
 	let cnt!: rs.usize;
 	let dataData2: Uint8Array = dataData;
@@ -3370,6 +3458,94 @@ export function chunkAll$mut_Vec_u8(buf: rs.Place<rs.ByteVec>, dataData: Uint8Ar
 	}
 }
 
+/**
+ * A write through `buf`'s chunk by each pair of `data`'s bytes, of each range of it, and
+ * past it, which panics as `bytes` does, then `advance_mut` over what it wrote, or past
+ * the chunk, which panics too; or a provided write, which a writer of the crate's own
+ * makes through its chunk.
+ */
+export function chunkAll$mut_slice_mem_MaybeUninit_u8(buf: rs.Place<rs.ByteSlice>, dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
+	let cnt!: rs.usize;
+	let dataData2: Uint8Array = dataData;
+	let dataStart2: number = dataStart;
+	let dataLen2: number = dataLen;
+	while (dataLen2 >= 2) {
+		const op: rs.u8 = dataData2[dataStart2];
+		const n: rs.u8 = dataData2[dataStart2 + 1];
+		const restData: Uint8Array = dataData2;
+		const restStart: number = dataStart2 + 2;
+		const restLen: number = dataLen2 - 2;
+		dataData2 = restData;
+		dataStart2 = restStart;
+		dataLen2 = restLen;
+		const op2: rs.u8 = op;
+		const n2: rs.u8 = n;
+		const _16: rs.u8 = rs.u8Rem(op2, 13);
+		if (_16 === 10) {
+			const _18: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(rs.bytes(70).fill(n2)), 0, rs.usizeRem(n2 as rs.usize, 71));
+			putSlice$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, _18);
+		} else if (_16 === 11) {
+			putU32Le$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, rs.u32Mul(n2 as rs.u32, 16843009));
+		} else {
+			const chunk: rs.ByteSlice = chunkMut$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf);
+			const room: rs.usize = UninitSlice.len(chunk);
+			const written: rs.usize = chunkWrite(chunk, op2, n2, out);
+			if (!(rs.u8Rem(n2, 16) === 15)) {
+				cnt = written;
+			} else {
+				cnt = rs.usizeAdd(room, 1);
+			}
+			advanceMut$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, cnt);
+			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(room as rs.u32).reverse()));
+		}
+		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(remainingMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf) as rs.u32).reverse()));
+	}
+}
+
+/**
+ * A write through `buf`'s chunk by each pair of `data`'s bytes, of each range of it, and
+ * past it, which panics as `bytes` does, then `advance_mut` over what it wrote, or past
+ * the chunk, which panics too; or a provided write, which a writer of the crate's own
+ * makes through its chunk.
+ */
+export function chunkAll$mut_slice_u8(buf: rs.Place<rs.ByteSlice>, dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
+	let cnt!: rs.usize;
+	let dataData2: Uint8Array = dataData;
+	let dataStart2: number = dataStart;
+	let dataLen2: number = dataLen;
+	while (dataLen2 >= 2) {
+		const op: rs.u8 = dataData2[dataStart2];
+		const n: rs.u8 = dataData2[dataStart2 + 1];
+		const restData: Uint8Array = dataData2;
+		const restStart: number = dataStart2 + 2;
+		const restLen: number = dataLen2 - 2;
+		dataData2 = restData;
+		dataStart2 = restStart;
+		dataLen2 = restLen;
+		const op2: rs.u8 = op;
+		const n2: rs.u8 = n;
+		const _16: rs.u8 = rs.u8Rem(op2, 13);
+		if (_16 === 10) {
+			const _18: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(rs.bytes(70).fill(n2)), 0, rs.usizeRem(n2 as rs.usize, 71));
+			putSlice$bytes_BufMut_mut_slice_u8(buf, _18);
+		} else if (_16 === 11) {
+			putU32Le$bytes_BufMut_mut_slice_u8(buf, rs.u32Mul(n2 as rs.u32, 16843009));
+		} else {
+			const chunk: rs.ByteSlice = chunkMut$bytes_BufMut_mut_slice_u8(buf);
+			const room: rs.usize = UninitSlice.len(chunk);
+			const written: rs.usize = chunkWrite(chunk, op2, n2, out);
+			if (!(rs.u8Rem(n2, 16) === 15)) {
+				cnt = written;
+			} else {
+				cnt = rs.usizeAdd(room, 1);
+			}
+			advanceMut$bytes_BufMut_mut_slice_u8(buf, cnt);
+			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(room as rs.u32).reverse()));
+		}
+		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(remainingMut$bytes_BufMut_mut_mut_slice_u8(buf) as rs.u32).reverse()));
+	}
+}
+
 /** A write into `chunk` that `op` picks, of `n`'s bytes: how many from its front it wrote. */
 export function chunkWrite(chunk: rs.ByteSlice, op: rs.u8, n: rs.u8, out: rs.ByteVec): rs.usize {
 	const room: rs.usize = UninitSlice.len(chunk);
@@ -3391,7 +3567,7 @@ export function chunkWrite(chunk: rs.ByteSlice, op: rs.u8, n: rs.u8, out: rs.Byt
 			}
 		}
 		if (_20 === 1) {
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(chunk, { end: k }, { file: "fixtures/stock/src/buf.rs", line: 701, col: 19 }), rs.byteVecSlice(src));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(chunk, { end: k }, { file: "fixtures/stock/src/buf.rs", line: 702, col: 19 }), rs.byteVecSlice(src));
 			break b1;
 		}
 		if (_20 === 2) {
@@ -3403,46 +3579,46 @@ export function chunkWrite(chunk: rs.ByteSlice, op: rs.u8, n: rs.u8, out: rs.Byt
 			break b1;
 		}
 		if (_20 === 4) {
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(UninitSlice.indexMut$ops_IndexMut_ops_RangeFrom_usize(chunk, new rs.RangeFrom(half, rs.usizeStep), { file: "fixtures/stock/src/buf.rs", line: 709, col: 18 }), { end: rs.usizeSub(k, half) }, { file: "fixtures/stock/src/buf.rs", line: 709, col: 26 }), rs.byteSliceRange(rs.byteVecSlice(src), half));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_Range_usize(chunk, new rs.Range(0, half), { file: "fixtures/stock/src/buf.rs", line: 710, col: 18 }), rs.byteSliceRange(rs.byteVecSlice(src), 0, half));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(UninitSlice.indexMut$ops_IndexMut_ops_RangeFrom_usize(chunk, new rs.RangeFrom(half, rs.usizeStep), { file: "fixtures/stock/src/buf.rs", line: 710, col: 18 }), { end: rs.usizeSub(k, half) }, { file: "fixtures/stock/src/buf.rs", line: 710, col: 26 }), rs.byteSliceRange(rs.byteVecSlice(src), half));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_Range_usize(chunk, new rs.Range(0, half), { file: "fixtures/stock/src/buf.rs", line: 711, col: 18 }), rs.byteSliceRange(rs.byteVecSlice(src), 0, half));
 			break b1;
 		}
 		if (_20 === 5) {
 			if (k > 0) {
 				const _66: { end: rs.usize; inclusive: true } = { end: rs.usizeSub(k, 1), inclusive: true };
-				UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeToInclusive_usize(chunk, _66, { file: "fixtures/stock/src/buf.rs", line: 713, col: 18 }), rs.byteVecSlice(src));
+				UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeToInclusive_usize(chunk, _66, { file: "fixtures/stock/src/buf.rs", line: 714, col: 18 }), rs.byteVecSlice(src));
 				const _73: rs.RangeInclusive<rs.usize> = new rs.RangeInclusive(half, half, rs.usizeStep);
-				UninitSlice.writeByte(UninitSlice.indexMut$ops_IndexMut_ops_RangeInclusive_usize(chunk, _73, { file: "fixtures/stock/src/buf.rs", line: 714, col: 18 }), 0, ~n & 0xff);
+				UninitSlice.writeByte(UninitSlice.indexMut$ops_IndexMut_ops_RangeInclusive_usize(chunk, _73, { file: "fixtures/stock/src/buf.rs", line: 715, col: 18 }), 0, ~n & 0xff);
 				break b1;
 			}
 		} else {
 			if (_20 === 6) {
-				UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(UninitSlice.indexMut$ops_IndexMut_ops_RangeFull(chunk, undefined, { file: "fixtures/stock/src/buf.rs", line: 716, col: 19 }), { end: k }, { file: "fixtures/stock/src/buf.rs", line: 716, col: 23 }), rs.byteVecSlice(src));
+				UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(UninitSlice.indexMut$ops_IndexMut_ops_RangeFull(chunk, undefined, { file: "fixtures/stock/src/buf.rs", line: 717, col: 19 }), { end: k }, { file: "fixtures/stock/src/buf.rs", line: 717, col: 23 }), rs.byteVecSlice(src));
 				break b1;
 			}
 			if (_20 === 7) {
-				UninitSlice.writeByte(UninitSlice.indexMut$ops_IndexMut_ops_RangeFrom_usize(chunk, new rs.RangeFrom(k, rs.usizeStep), { file: "fixtures/stock/src/buf.rs", line: 719, col: 18 }), 0, n);
-				UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(chunk, { end: k }, { file: "fixtures/stock/src/buf.rs", line: 720, col: 18 }), rs.byteVecSlice(src));
+				UninitSlice.writeByte(UninitSlice.indexMut$ops_IndexMut_ops_RangeFrom_usize(chunk, new rs.RangeFrom(k, rs.usizeStep), { file: "fixtures/stock/src/buf.rs", line: 720, col: 18 }), 0, n);
+				UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(chunk, { end: k }, { file: "fixtures/stock/src/buf.rs", line: 721, col: 18 }), rs.byteVecSlice(src));
 				return rs.usizeAdd(k, 1);
 			}
 			if (_20 === 8) {
-				UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(chunk, { end: k }, { file: "fixtures/stock/src/buf.rs", line: 724, col: 19 }), rs.byteSliceFrom(rs.bytes(3).fill(n)));
+				UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(chunk, { end: k }, { file: "fixtures/stock/src/buf.rs", line: 725, col: 19 }), rs.byteSliceFrom(rs.bytes(3).fill(n)));
 				break b1;
 			}
 			if (_20 === 9) {
 				const _94: rs.u8 = rs.u8Rem(n, 3);
 				if (_94 === 0) {
 					const _100: { end: rs.usize } = { end: rs.usizeAdd(room, 1) };
-					rs.byteVecPush(out, UninitSlice.len(UninitSlice.index$ops_Index_ops_RangeTo_usize(chunk, _100, { file: "fixtures/stock/src/buf.rs", line: 727, col: 32 })) & 0xff);
+					rs.byteVecPush(out, UninitSlice.len(UninitSlice.index$ops_Index_ops_RangeTo_usize(chunk, _100, { file: "fixtures/stock/src/buf.rs", line: 728, col: 32 })) & 0xff);
 					break b1;
 				}
 				if (_94 === 1) {
 					const _104: rs.Range<rs.usize> = new rs.Range(rs.usizeAdd(k, 1), k);
-					UninitSlice.writeByte(UninitSlice.indexMut$ops_IndexMut_ops_Range_usize(chunk, _104, { file: "fixtures/stock/src/buf.rs", line: 728, col: 23 }), 0, n);
+					UninitSlice.writeByte(UninitSlice.indexMut$ops_IndexMut_ops_Range_usize(chunk, _104, { file: "fixtures/stock/src/buf.rs", line: 729, col: 23 }), 0, n);
 					break b1;
 				}
 				const _108: rs.RangeFrom<rs.usize> = new rs.RangeFrom(rs.usizeAdd(room, 1), rs.usizeStep);
-				UninitSlice.writeByte(UninitSlice.indexMut$ops_IndexMut_ops_RangeFrom_usize(chunk, _108, { file: "fixtures/stock/src/buf.rs", line: 729, col: 23 }), 0, n);
+				UninitSlice.writeByte(UninitSlice.indexMut$ops_IndexMut_ops_RangeFrom_usize(chunk, _108, { file: "fixtures/stock/src/buf.rs", line: 730, col: 23 }), 0, n);
 				break b1;
 			}
 		}
@@ -3450,6 +3626,64 @@ export function chunkWrite(chunk: rs.ByteSlice, op: rs.u8, n: rs.u8, out: rs.Byt
 		return 0;
 	}
 	return k;
+}
+
+/**
+ * Writes into an array through a `&mut [u8]` and a `&mut [MaybeUninit<u8>]` of the room
+ * its input picks, which write at the front and advance past what they wrote, or panic
+ * past the room, directly, through a `&mut`, and through a `Box`: the room left, then
+ * each array whole, so a write that missed it or landed off the front would show.
+ */
+export function slices(dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
+	let left!: rs.usize;
+	if (dataLen >= 2) {
+		const room: rs.usize = dataData[dataStart + 1] as rs.usize;
+		const bytes: Uint8Array = rs.bytes(255).fill(165);
+		const uninit: Uint8Array = rs.bytes(255).fill(90);
+		const _14: rs.u8 = rs.u8Rem(dataData[dataStart], 8);
+		if (_14 === 0) {
+			let s: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(bytes), 0, room);
+			writeAll$mut_slice_u8(rs.place(() => s, (value12) => s = value12), dataData, dataStart + 2, dataLen - 2);
+			left = s.length;
+		} else if (_14 === 1) {
+			let s2: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(bytes), 0, room);
+			chunkAll$mut_slice_u8(rs.place(() => s2, (value11) => s2 = value11), dataData, dataStart + 2, dataLen - 2, out);
+			left = s2.length;
+		} else if (_14 === 2) {
+			let s3: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(uninit), 0, room);
+			writeAll$mut_slice_mem_MaybeUninit_u8(rs.place(() => s3, (value10) => s3 = value10), dataData, dataStart + 2, dataLen - 2);
+			left = s3.length;
+		} else if (_14 === 3) {
+			let s4: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(uninit), 0, room);
+			chunkAll$mut_slice_mem_MaybeUninit_u8(rs.place(() => s4, (value9) => s4 = value9), dataData, dataStart + 2, dataLen - 2, out);
+			left = s4.length;
+		} else if (_14 === 4) {
+			let s5: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(bytes), 0, room);
+			let _49: rs.Place<rs.ByteSlice> = rs.place(() => s5, (value7) => s5 = value7);
+			writeAll$mut_mut_slice_u8(rs.place(() => _49, (value8) => _49 = value8), dataData, dataStart + 2, dataLen - 2);
+			left = s5.length;
+		} else if (_14 === 5) {
+			let s6: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(uninit), 0, room);
+			let _57: rs.Place<rs.ByteSlice> = rs.place(() => s6, (value5) => s6 = value5);
+			chunkAll$boxed_Box_mut_mut_slice_mem_MaybeUninit_u8(rs.place(() => _57, (value6) => _57 = value6), dataData, dataStart + 2, dataLen - 2, out);
+			left = s6.length;
+		} else if (_14 === 6) {
+			let s7: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(bytes), 0, room);
+			let _66: rs.Place<rs.ByteSlice> = rs.place(() => s7, (value3) => s7 = value3);
+			chunkAll$boxed_Box_mut_mut_slice_u8(rs.place(() => _66, (value4) => _66 = value4), dataData, dataStart + 2, dataLen - 2, out);
+			left = s7.length;
+		} else {
+			let s8: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(uninit), 0, room);
+			let _75: rs.Place<rs.ByteSlice> = rs.place(() => s8, (value) => s8 = value);
+			writeAll$mut_mut_slice_mem_MaybeUninit_u8(rs.place(() => _75, (value2) => _75 = value2), dataData, dataStart + 2, dataLen - 2);
+			left = s8.length;
+		}
+		rs.byteVecPush(out, left & 0xff);
+		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(bytes));
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteSliceFrom(uninit))), (b: rs.u8): rs.u8 => {
+			return b;
+		}), undefined, true);
+	}
 }
 
 /**
@@ -4127,6 +4361,338 @@ export function writeAll$mut_bytes_BytesMut(buf: rs.Place<rs.BytesMut>, dataData
 		}
 		const _97: rs.u8 = rs.u8Add(buf.v.length < 0x7fffffff ? 1 : 0, rs.usizeRem(remainingMut$bytes_BufMut_mut_mut_bytes_BytesMut(buf), 7) & 0xff);
 		putU8$bytes_BufMut_mut_bytes_BytesMut(buf, _97);
+	}
+}
+
+/** A write by each pair of `data`'s bytes, one past what a vector holds included. */
+export function writeAll$mut_mut_slice_mem_MaybeUninit_u8(buf: rs.Place<rs.Place<rs.ByteSlice>>, dataData: Uint8Array, dataStart: number, dataLen: number): void {
+	let dataData2: Uint8Array = dataData;
+	let dataStart2: number = dataStart;
+	let dataLen2: number = dataLen;
+	while (dataLen2 >= 2) {
+		const op: rs.u8 = dataData2[dataStart2];
+		const n: rs.u8 = dataData2[dataStart2 + 1];
+		const restData: Uint8Array = dataData2;
+		const restStart: number = dataStart2 + 2;
+		const restLen: number = dataLen2 - 2;
+		dataData2 = restData;
+		dataStart2 = restStart;
+		dataLen2 = restLen;
+		const op2: rs.u8 = op;
+		const n2: rs.u8 = n;
+		const v: rs.u64 = rs.u64Mul(n2 as rs.u64, { hi: 0x1010101, lo: 0x1010101 } as rs.u64);
+		const _18: rs.u8 = rs.u8Rem(op2, 23);
+		if (_18 === 0) {
+			putU8$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, n2);
+		} else if (_18 === 1) {
+			putI8$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, (n2 << 24) >> 24);
+		} else if (_18 === 2) {
+			putU16$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, rs.u64Low(v) & 0xffff);
+		} else if (_18 === 3) {
+			putI16Le$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, (rs.u64Low(v) << 16) >> 16);
+		} else if (_18 === 4) {
+			putU32$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, rs.u64Low(v));
+		} else if (_18 === 5) {
+			putI32Le$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, rs.u64Low(v) | 0);
+		} else if (_18 === 6) {
+			putU64Le$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, v);
+		} else if (_18 === 7) {
+			putI64$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, rs.i64Cast(v));
+		} else if (_18 === 8) {
+			putU128Le$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, rs.u128Shl(rs.u128Cast(v), 40));
+		} else if (_18 === 9) {
+			putUint$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, v, rs.usizeRem(n2 as rs.usize, 10));
+		} else if (_18 === 10) {
+			putIntLe$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, rs.i64Cast(v), rs.usizeRem(n2 as rs.usize, 10));
+		} else if (_18 === 11) {
+			putSlice$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, rs.byteSliceFrom(Uint8Array.of(op2, n2)));
+		} else if (_18 === 12) {
+			if (!(n2 === 255)) {
+				putBytes$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, n2, rs.usizeRem(n2 as rs.usize, 100));
+			} else {
+				putBytes$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, n2, 4294967295);
+			}
+		} else if (_18 === 13) {
+			const _44: rs.ByteSlice = rs.bytesStatic(rs.byteSliceFrom(Uint8Array.of(112, 117, 116)));
+			buf_mut_put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_bytes_Bytes(buf, _44);
+		} else if (_18 === 14) {
+			const _47: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(rs.bytes(70).fill(op2)), 0, rs.usizeRem(n2 as rs.usize, 71));
+			buf_mut_put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_ref_slice_u8(buf, _47);
+		} else if (_18 === 15) {
+			const _54: rs.BytesMut = rs.bytesMutFrom(rs.byteSliceRange(rs.byteSliceFrom(rs.bytes(3).fill(n2)), 0));
+			buf_mut_put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_bytes_BytesMut(buf, _54);
+		} else if (_18 === 16) {
+			const _58: rs.f32 = Math.fround(Math.fround(n2) / 3.0);
+			putF32$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, _58);
+		} else if (_18 === 17) {
+			putInt$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, rs.i64Cast(v), rs.usizeRem(n2 as rs.usize, 10));
+		} else if (_18 === 18) {
+			putUintLe$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, v, rs.usizeRem(n2 as rs.usize, 10));
+		} else if (_18 === 19) {
+			putF64$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, (n2 as rs.f64) / 3.0);
+		} else if (_18 === 20) {
+			const _70: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(op2, n2, op2));
+			const _69: Pieces.Pieces = Pieces.new(_70.data, _70.start, _70.length, rs.usizeRem(n2 as rs.usize, 4));
+			buf_mut_put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_buf_Pieces(buf, _69);
+		} else if (_18 === 21) {
+			const _78: rs.ByteSlice = rs.byteSliceFrom(rs.bytes(5).fill(n2));
+			const _76: Provided.Provided = { _0: Pieces.new(_78.data, _78.start, _78.length, rs.usizeRem(n2 as rs.usize, 6)) };
+			buf_mut_put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_buf_Provided(buf, _76);
+		} else {
+			const _84: Chain.Chain<rs.ByteSlice, rs.ByteSlice> = chain$bytes_Buf_bytes_Bytes_ref_slice_u8(rs.bytesCopyFromSlice(rs.byteSliceFrom(rs.bytes(2).fill(n2))), rs.byteSliceRange(rs.byteSliceFrom(Uint8Array.of(op2)), 0, rs.usizeRem(n2 as rs.usize, 2)));
+			buf_mut_put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_bytes_buf_Chain_bytes_Bytes_ref_slice_u8(buf, _84);
+		}
+		const _97: rs.u8 = rs.u8Add(hasRemainingMut$bytes_BufMut_mut_mut_mut_slice_mem_MaybeUninit_u8(buf) ? 1 : 0, rs.usizeRem(remainingMut$bytes_BufMut_mut_mut_mut_slice_mem_MaybeUninit_u8(buf), 7) & 0xff);
+		putU8$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf, _97);
+	}
+}
+
+/** A write by each pair of `data`'s bytes, one past what a vector holds included. */
+export function writeAll$mut_mut_slice_u8(buf: rs.Place<rs.Place<rs.ByteSlice>>, dataData: Uint8Array, dataStart: number, dataLen: number): void {
+	let dataData2: Uint8Array = dataData;
+	let dataStart2: number = dataStart;
+	let dataLen2: number = dataLen;
+	while (dataLen2 >= 2) {
+		const op: rs.u8 = dataData2[dataStart2];
+		const n: rs.u8 = dataData2[dataStart2 + 1];
+		const restData: Uint8Array = dataData2;
+		const restStart: number = dataStart2 + 2;
+		const restLen: number = dataLen2 - 2;
+		dataData2 = restData;
+		dataStart2 = restStart;
+		dataLen2 = restLen;
+		const op2: rs.u8 = op;
+		const n2: rs.u8 = n;
+		const v: rs.u64 = rs.u64Mul(n2 as rs.u64, { hi: 0x1010101, lo: 0x1010101 } as rs.u64);
+		const _18: rs.u8 = rs.u8Rem(op2, 23);
+		if (_18 === 0) {
+			putU8$bytes_BufMut_mut_mut_slice_u8(buf, n2);
+		} else if (_18 === 1) {
+			putI8$bytes_BufMut_mut_mut_slice_u8(buf, (n2 << 24) >> 24);
+		} else if (_18 === 2) {
+			putU16$bytes_BufMut_mut_mut_slice_u8(buf, rs.u64Low(v) & 0xffff);
+		} else if (_18 === 3) {
+			putI16Le$bytes_BufMut_mut_mut_slice_u8(buf, (rs.u64Low(v) << 16) >> 16);
+		} else if (_18 === 4) {
+			putU32$bytes_BufMut_mut_mut_slice_u8(buf, rs.u64Low(v));
+		} else if (_18 === 5) {
+			putI32Le$bytes_BufMut_mut_mut_slice_u8(buf, rs.u64Low(v) | 0);
+		} else if (_18 === 6) {
+			putU64Le$bytes_BufMut_mut_mut_slice_u8(buf, v);
+		} else if (_18 === 7) {
+			putI64$bytes_BufMut_mut_mut_slice_u8(buf, rs.i64Cast(v));
+		} else if (_18 === 8) {
+			putU128Le$bytes_BufMut_mut_mut_slice_u8(buf, rs.u128Shl(rs.u128Cast(v), 40));
+		} else if (_18 === 9) {
+			putUint$bytes_BufMut_mut_mut_slice_u8(buf, v, rs.usizeRem(n2 as rs.usize, 10));
+		} else if (_18 === 10) {
+			putIntLe$bytes_BufMut_mut_mut_slice_u8(buf, rs.i64Cast(v), rs.usizeRem(n2 as rs.usize, 10));
+		} else if (_18 === 11) {
+			putSlice$bytes_BufMut_mut_mut_slice_u8(buf, rs.byteSliceFrom(Uint8Array.of(op2, n2)));
+		} else if (_18 === 12) {
+			if (!(n2 === 255)) {
+				putBytes$bytes_BufMut_mut_mut_slice_u8(buf, n2, rs.usizeRem(n2 as rs.usize, 100));
+			} else {
+				putBytes$bytes_BufMut_mut_mut_slice_u8(buf, n2, 4294967295);
+			}
+		} else if (_18 === 13) {
+			const _44: rs.ByteSlice = rs.bytesStatic(rs.byteSliceFrom(Uint8Array.of(112, 117, 116)));
+			buf_mut_put$bytes_BufMut_mut_mut_slice_u8_bytes_Bytes(buf, _44);
+		} else if (_18 === 14) {
+			const _47: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(rs.bytes(70).fill(op2)), 0, rs.usizeRem(n2 as rs.usize, 71));
+			buf_mut_put$bytes_BufMut_mut_mut_slice_u8_ref_slice_u8(buf, _47);
+		} else if (_18 === 15) {
+			const _54: rs.BytesMut = rs.bytesMutFrom(rs.byteSliceRange(rs.byteSliceFrom(rs.bytes(3).fill(n2)), 0));
+			buf_mut_put$bytes_BufMut_mut_mut_slice_u8_bytes_BytesMut(buf, _54);
+		} else if (_18 === 16) {
+			const _58: rs.f32 = Math.fround(Math.fround(n2) / 3.0);
+			putF32$bytes_BufMut_mut_mut_slice_u8(buf, _58);
+		} else if (_18 === 17) {
+			putInt$bytes_BufMut_mut_mut_slice_u8(buf, rs.i64Cast(v), rs.usizeRem(n2 as rs.usize, 10));
+		} else if (_18 === 18) {
+			putUintLe$bytes_BufMut_mut_mut_slice_u8(buf, v, rs.usizeRem(n2 as rs.usize, 10));
+		} else if (_18 === 19) {
+			putF64$bytes_BufMut_mut_mut_slice_u8(buf, (n2 as rs.f64) / 3.0);
+		} else if (_18 === 20) {
+			const _70: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(op2, n2, op2));
+			const _69: Pieces.Pieces = Pieces.new(_70.data, _70.start, _70.length, rs.usizeRem(n2 as rs.usize, 4));
+			buf_mut_put$bytes_BufMut_mut_mut_slice_u8_buf_Pieces(buf, _69);
+		} else if (_18 === 21) {
+			const _78: rs.ByteSlice = rs.byteSliceFrom(rs.bytes(5).fill(n2));
+			const _76: Provided.Provided = { _0: Pieces.new(_78.data, _78.start, _78.length, rs.usizeRem(n2 as rs.usize, 6)) };
+			buf_mut_put$bytes_BufMut_mut_mut_slice_u8_buf_Provided(buf, _76);
+		} else {
+			const _84: Chain.Chain<rs.ByteSlice, rs.ByteSlice> = chain$bytes_Buf_bytes_Bytes_ref_slice_u8(rs.bytesCopyFromSlice(rs.byteSliceFrom(rs.bytes(2).fill(n2))), rs.byteSliceRange(rs.byteSliceFrom(Uint8Array.of(op2)), 0, rs.usizeRem(n2 as rs.usize, 2)));
+			buf_mut_put$bytes_BufMut_mut_mut_slice_u8_bytes_buf_Chain_bytes_Bytes_ref_slice_u8(buf, _84);
+		}
+		const _97: rs.u8 = rs.u8Add(hasRemainingMut$bytes_BufMut_mut_mut_mut_slice_u8(buf) ? 1 : 0, rs.usizeRem(remainingMut$bytes_BufMut_mut_mut_mut_slice_u8(buf), 7) & 0xff);
+		putU8$bytes_BufMut_mut_mut_slice_u8(buf, _97);
+	}
+}
+
+/** A write by each pair of `data`'s bytes, one past what a vector holds included. */
+export function writeAll$mut_slice_mem_MaybeUninit_u8(buf: rs.Place<rs.ByteSlice>, dataData: Uint8Array, dataStart: number, dataLen: number): void {
+	let dataData2: Uint8Array = dataData;
+	let dataStart2: number = dataStart;
+	let dataLen2: number = dataLen;
+	while (dataLen2 >= 2) {
+		const op: rs.u8 = dataData2[dataStart2];
+		const n: rs.u8 = dataData2[dataStart2 + 1];
+		const restData: Uint8Array = dataData2;
+		const restStart: number = dataStart2 + 2;
+		const restLen: number = dataLen2 - 2;
+		dataData2 = restData;
+		dataStart2 = restStart;
+		dataLen2 = restLen;
+		const op2: rs.u8 = op;
+		const n2: rs.u8 = n;
+		const v: rs.u64 = rs.u64Mul(n2 as rs.u64, { hi: 0x1010101, lo: 0x1010101 } as rs.u64);
+		const _18: rs.u8 = rs.u8Rem(op2, 23);
+		if (_18 === 0) {
+			putU8$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, n2);
+		} else if (_18 === 1) {
+			putI8$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, (n2 << 24) >> 24);
+		} else if (_18 === 2) {
+			putU16$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, rs.u64Low(v) & 0xffff);
+		} else if (_18 === 3) {
+			putI16Le$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, (rs.u64Low(v) << 16) >> 16);
+		} else if (_18 === 4) {
+			putU32$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, rs.u64Low(v));
+		} else if (_18 === 5) {
+			putI32Le$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, rs.u64Low(v) | 0);
+		} else if (_18 === 6) {
+			putU64Le$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, v);
+		} else if (_18 === 7) {
+			putI64$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, rs.i64Cast(v));
+		} else if (_18 === 8) {
+			putU128Le$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, rs.u128Shl(rs.u128Cast(v), 40));
+		} else if (_18 === 9) {
+			putUint$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, v, rs.usizeRem(n2 as rs.usize, 10));
+		} else if (_18 === 10) {
+			putIntLe$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, rs.i64Cast(v), rs.usizeRem(n2 as rs.usize, 10));
+		} else if (_18 === 11) {
+			putSlice$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, rs.byteSliceFrom(Uint8Array.of(op2, n2)));
+		} else if (_18 === 12) {
+			if (!(n2 === 255)) {
+				putBytes$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, n2, rs.usizeRem(n2 as rs.usize, 100));
+			} else {
+				putBytes$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, n2, 4294967295);
+			}
+		} else if (_18 === 13) {
+			const _44: rs.ByteSlice = rs.bytesStatic(rs.byteSliceFrom(Uint8Array.of(112, 117, 116)));
+			buf_mut_put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_bytes_Bytes(buf, _44);
+		} else if (_18 === 14) {
+			const _47: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(rs.bytes(70).fill(op2)), 0, rs.usizeRem(n2 as rs.usize, 71));
+			buf_mut_put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_ref_slice_u8(buf, _47);
+		} else if (_18 === 15) {
+			const _54: rs.BytesMut = rs.bytesMutFrom(rs.byteSliceRange(rs.byteSliceFrom(rs.bytes(3).fill(n2)), 0));
+			buf_mut_put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_bytes_BytesMut(buf, _54);
+		} else if (_18 === 16) {
+			const _58: rs.f32 = Math.fround(Math.fround(n2) / 3.0);
+			putF32$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, _58);
+		} else if (_18 === 17) {
+			putInt$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, rs.i64Cast(v), rs.usizeRem(n2 as rs.usize, 10));
+		} else if (_18 === 18) {
+			putUintLe$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, v, rs.usizeRem(n2 as rs.usize, 10));
+		} else if (_18 === 19) {
+			putF64$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, (n2 as rs.f64) / 3.0);
+		} else if (_18 === 20) {
+			const _70: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(op2, n2, op2));
+			const _69: Pieces.Pieces = Pieces.new(_70.data, _70.start, _70.length, rs.usizeRem(n2 as rs.usize, 4));
+			buf_mut_put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_buf_Pieces(buf, _69);
+		} else if (_18 === 21) {
+			const _78: rs.ByteSlice = rs.byteSliceFrom(rs.bytes(5).fill(n2));
+			const _76: Provided.Provided = { _0: Pieces.new(_78.data, _78.start, _78.length, rs.usizeRem(n2 as rs.usize, 6)) };
+			buf_mut_put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_buf_Provided(buf, _76);
+		} else {
+			const _84: Chain.Chain<rs.ByteSlice, rs.ByteSlice> = chain$bytes_Buf_bytes_Bytes_ref_slice_u8(rs.bytesCopyFromSlice(rs.byteSliceFrom(rs.bytes(2).fill(n2))), rs.byteSliceRange(rs.byteSliceFrom(Uint8Array.of(op2)), 0, rs.usizeRem(n2 as rs.usize, 2)));
+			buf_mut_put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_bytes_buf_Chain_bytes_Bytes_ref_slice_u8(buf, _84);
+		}
+		const _97: rs.u8 = rs.u8Add(hasRemainingMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf) ? 1 : 0, rs.usizeRem(remainingMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(buf), 7) & 0xff);
+		putU8$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(buf, _97);
+	}
+}
+
+/** A write by each pair of `data`'s bytes, one past what a vector holds included. */
+export function writeAll$mut_slice_u8(buf: rs.Place<rs.ByteSlice>, dataData: Uint8Array, dataStart: number, dataLen: number): void {
+	let dataData2: Uint8Array = dataData;
+	let dataStart2: number = dataStart;
+	let dataLen2: number = dataLen;
+	while (dataLen2 >= 2) {
+		const op: rs.u8 = dataData2[dataStart2];
+		const n: rs.u8 = dataData2[dataStart2 + 1];
+		const restData: Uint8Array = dataData2;
+		const restStart: number = dataStart2 + 2;
+		const restLen: number = dataLen2 - 2;
+		dataData2 = restData;
+		dataStart2 = restStart;
+		dataLen2 = restLen;
+		const op2: rs.u8 = op;
+		const n2: rs.u8 = n;
+		const v: rs.u64 = rs.u64Mul(n2 as rs.u64, { hi: 0x1010101, lo: 0x1010101 } as rs.u64);
+		const _18: rs.u8 = rs.u8Rem(op2, 23);
+		if (_18 === 0) {
+			putU8$bytes_BufMut_mut_slice_u8(buf, n2);
+		} else if (_18 === 1) {
+			putI8$bytes_BufMut_mut_slice_u8(buf, (n2 << 24) >> 24);
+		} else if (_18 === 2) {
+			putU16$bytes_BufMut_mut_slice_u8(buf, rs.u64Low(v) & 0xffff);
+		} else if (_18 === 3) {
+			putI16Le$bytes_BufMut_mut_slice_u8(buf, (rs.u64Low(v) << 16) >> 16);
+		} else if (_18 === 4) {
+			putU32$bytes_BufMut_mut_slice_u8(buf, rs.u64Low(v));
+		} else if (_18 === 5) {
+			putI32Le$bytes_BufMut_mut_slice_u8(buf, rs.u64Low(v) | 0);
+		} else if (_18 === 6) {
+			putU64Le$bytes_BufMut_mut_slice_u8(buf, v);
+		} else if (_18 === 7) {
+			putI64$bytes_BufMut_mut_slice_u8(buf, rs.i64Cast(v));
+		} else if (_18 === 8) {
+			putU128Le$bytes_BufMut_mut_slice_u8(buf, rs.u128Shl(rs.u128Cast(v), 40));
+		} else if (_18 === 9) {
+			putUint$bytes_BufMut_mut_slice_u8(buf, v, rs.usizeRem(n2 as rs.usize, 10));
+		} else if (_18 === 10) {
+			putIntLe$bytes_BufMut_mut_slice_u8(buf, rs.i64Cast(v), rs.usizeRem(n2 as rs.usize, 10));
+		} else if (_18 === 11) {
+			putSlice$bytes_BufMut_mut_slice_u8(buf, rs.byteSliceFrom(Uint8Array.of(op2, n2)));
+		} else if (_18 === 12) {
+			if (!(n2 === 255)) {
+				putBytes$bytes_BufMut_mut_slice_u8(buf, n2, rs.usizeRem(n2 as rs.usize, 100));
+			} else {
+				putBytes$bytes_BufMut_mut_slice_u8(buf, n2, 4294967295);
+			}
+		} else if (_18 === 13) {
+			const _44: rs.ByteSlice = rs.bytesStatic(rs.byteSliceFrom(Uint8Array.of(112, 117, 116)));
+			buf_mut_put$bytes_BufMut_mut_slice_u8_bytes_Bytes(buf, _44);
+		} else if (_18 === 14) {
+			const _47: rs.ByteSlice = rs.byteSliceRange(rs.byteSliceFrom(rs.bytes(70).fill(op2)), 0, rs.usizeRem(n2 as rs.usize, 71));
+			buf_mut_put$bytes_BufMut_mut_slice_u8_ref_slice_u8(buf, _47);
+		} else if (_18 === 15) {
+			const _54: rs.BytesMut = rs.bytesMutFrom(rs.byteSliceRange(rs.byteSliceFrom(rs.bytes(3).fill(n2)), 0));
+			buf_mut_put$bytes_BufMut_mut_slice_u8_bytes_BytesMut(buf, _54);
+		} else if (_18 === 16) {
+			const _58: rs.f32 = Math.fround(Math.fround(n2) / 3.0);
+			putF32$bytes_BufMut_mut_slice_u8(buf, _58);
+		} else if (_18 === 17) {
+			putInt$bytes_BufMut_mut_slice_u8(buf, rs.i64Cast(v), rs.usizeRem(n2 as rs.usize, 10));
+		} else if (_18 === 18) {
+			putUintLe$bytes_BufMut_mut_slice_u8(buf, v, rs.usizeRem(n2 as rs.usize, 10));
+		} else if (_18 === 19) {
+			putF64$bytes_BufMut_mut_slice_u8(buf, (n2 as rs.f64) / 3.0);
+		} else if (_18 === 20) {
+			const _70: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(op2, n2, op2));
+			const _69: Pieces.Pieces = Pieces.new(_70.data, _70.start, _70.length, rs.usizeRem(n2 as rs.usize, 4));
+			buf_mut_put$bytes_BufMut_mut_slice_u8_buf_Pieces(buf, _69);
+		} else if (_18 === 21) {
+			const _78: rs.ByteSlice = rs.byteSliceFrom(rs.bytes(5).fill(n2));
+			const _76: Provided.Provided = { _0: Pieces.new(_78.data, _78.start, _78.length, rs.usizeRem(n2 as rs.usize, 6)) };
+			buf_mut_put$bytes_BufMut_mut_slice_u8_buf_Provided(buf, _76);
+		} else {
+			const _84: Chain.Chain<rs.ByteSlice, rs.ByteSlice> = chain$bytes_Buf_bytes_Bytes_ref_slice_u8(rs.bytesCopyFromSlice(rs.byteSliceFrom(rs.bytes(2).fill(n2))), rs.byteSliceRange(rs.byteSliceFrom(Uint8Array.of(op2)), 0, rs.usizeRem(n2 as rs.usize, 2)));
+			buf_mut_put$bytes_BufMut_mut_slice_u8_bytes_buf_Chain_bytes_Bytes_ref_slice_u8(buf, _84);
+		}
+		const _97: rs.u8 = rs.u8Add(hasRemainingMut$bytes_BufMut_mut_mut_slice_u8(buf) ? 1 : 0, rs.usizeRem(remainingMut$bytes_BufMut_mut_mut_slice_u8(buf), 7) & 0xff);
+		putU8$bytes_BufMut_mut_slice_u8(buf, _97);
 	}
 }
 
