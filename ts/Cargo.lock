@@ -315,6 +315,10 @@ name = "lang-holds-fixture"
 version = "0.0.0"
 
 [[package]]
+name = "lang-inlines-fixture"
+version = "0.0.0"
+
+[[package]]
 name = "lang-ints-fixture"
 version = "0.0.0"
 

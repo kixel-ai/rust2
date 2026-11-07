@@ -393,6 +393,16 @@ pub fn call<'tcx>(
 			Expr::New(Box::new(Expr::Rs(once_class(b, cell).into())), args)
 		}
 		("atomic", "fence" | "compiler_fence") => Expr::rs("fence", args),
+		// Scheduler hints, which promise nothing observable. A spin loop waiting on another
+		// thread hangs on one thread natively too.
+		("hint", "spin_loop") => Expr::undefined(),
+		(_, "yield_now")
+			if library::std_path(tcx, call.def_id)
+				.first()
+				.is_some_and(|m| m == "thread") =>
+		{
+			Expr::undefined()
+		}
 		// A panic aborts, so a thread is panicking only while its hook runs.
 		(_, "panicking")
 			if library::std_path(tcx, call.def_id)
