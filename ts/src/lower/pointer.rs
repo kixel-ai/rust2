@@ -344,7 +344,10 @@ pub fn derives(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> Option<
 		| ("NonNull", "dangling" | "add" | "sub" | "offset" | "write")
 		| ("MaybeUninit", "new" | "uninit" | "assume_init")
 		| ("ManuallyDrop", "new" | "into_inner")
-		| ("UnsafeCell", "new" | "get" | "raw_get" | "get_mut" | "into_inner")
+		| (
+			"UnsafeCell",
+			"new" | "get" | "raw_get" | "get_mut" | "as_ref_unchecked" | "as_mut_unchecked" | "into_inner",
+		)
 		| ("Cell", "as_ptr" | "get_mut")
 		| ("Box", "new") => Some(Derives::Other),
 		("ptr", "read" | "read_unaligned" | "read_volatile")
@@ -380,12 +383,15 @@ pub fn allocates(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool 
 /// Which of std's `def_id`'s arguments are `&mut`s whose lowering may give what they
 /// borrow another value, rather than writing into it, where one is an alias of a borrowed
 /// place: the place is assigned again, as `mem::replace`, `clone_from`, and `clone_into`
-/// assign it, and a whole write of what `slice::from_mut`, `array::from_mut`, or
-/// `Cell::from_mut` makes does. `mem::replace`'s value is no such one.
+/// assign it, and a whole write of what `slice::from_mut`, `array::from_mut`,
+/// `Cell::from_mut`, or `UnsafeCell::from_mut` makes does. `mem::replace`'s value is no
+/// such one.
 pub fn rebinds(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> &'static [usize] {
 	match super::library::key(tcx, def_id) {
 		Some((owner, name)) => match (owner.as_str(), name.as_str()) {
-			("mem", "replace" | "take") | ("Clone", "clone_from") | ("raw" | "array" | "Cell", "from_mut") => &[0],
+			("mem", "replace" | "take")
+			| ("Clone", "clone_from")
+			| ("raw" | "array" | "Cell" | "UnsafeCell", "from_mut") => &[0],
 			("ToOwned", "clone_into") => &[1],
 			("mem", "swap") => &[0, 1],
 			_ => &[],
@@ -404,6 +410,7 @@ pub fn lends(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
 			("MaybeUninit", "as_mut_ptr" | "write" | "assume_init_mut" | "assume_init_drop")
 				| ("ManuallyDrop", "drop" | "take")
 				| ("UnsafeCell" | "Cell", "get_mut")
+				| ("UnsafeCell", "as_mut_unchecked")
 				| ("NonNull" | "ptr", "as_mut")
 				| ("Box", "leak")
 		)
@@ -431,8 +438,10 @@ pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args
 					| "cast_mut" | "eq" | "read" | "read_unaligned" | "read_volatile" | "drop_in_place"
 			) | ("Box", "into_raw" | "leak" | "from_raw")
 				| ("ManuallyDrop", "new" | "into_inner" | "drop" | "take")
-				| ("UnsafeCell", "new" | "get" | "get_mut" | "into_inner")
-				| ("Cell", "as_ptr" | "get_mut")
+				| (
+					"UnsafeCell",
+					"new" | "get" | "raw_get" | "get_mut" | "as_ref_unchecked" | "as_mut_unchecked" | "into_inner"
+				) | ("Cell", "as_ptr" | "get_mut")
 		) || owner == "Atomic" && super::library::is_std(tcx, def_id)
 	);
 	keeps || from_reference(tcx, def_id, args)
@@ -505,6 +514,13 @@ pub fn call<'tcx>(
 		true => Expr::rs("byteSliceFrom", vec![e]),
 		false => super::library::slice_from(e),
 	};
+	// The pointer an `rs.Cell` gives to what it holds: the cell, the place of a value JS
+	// copies, or else the object or array it holds.
+	let cell_pointer = |b: &Body<'_, '_, 'tcx>, cell: Expr| match b.t.pointee(pointee()) {
+		Pointee::Place => cell,
+		Pointee::Array => to_pointer(b, cell.member("v")),
+		_ => cell.member("v"),
+	};
 	let to_reference = |b: &Body<'_, '_, 'tcx>, e: Expr| match super::byte_array(b.t.uninit_inner(pointee())) {
 		true => Expr::rs("byteSliceView", vec![e]),
 		false => super::library::slice_view(e),
@@ -525,7 +541,7 @@ pub fn call<'tcx>(
 		("ptr", "null" | "null_mut") => Expr::Rs("NULL".into()),
 		// A pointer to `()` is an identity, which the `rs.Place` of a place or a reference
 		// is not. A box of one holds nothing, so its pointer is dangling.
-		("MaybeUninit", "as_ptr" | "as_mut_ptr") | ("UnsafeCell", "get") | ("Cell", "as_ptr")
+		("MaybeUninit", "as_ptr" | "as_mut_ptr") | ("UnsafeCell", "get" | "raw_get") | ("Cell", "as_ptr")
 			if b.t.identity_pointee(pointee()) =>
 		{
 			b.err(
@@ -743,13 +759,8 @@ pub fn call<'tcx>(
 		}
 		("ptr", "swap") if b.t.zero_sized(pointee()) => Expr::undefined(),
 		("ptr", "replace") => {
-			let p = b.spill(arg(), "pointer", out);
-			let value = arg();
-			let old = read(b, p.clone(), pointee(), span);
-			let old = b.spill(old, "old", out);
-			let write = write(b, p, value, pointee(), span);
-			out.push(StmtKind::Expr(write).at(None));
-			old
+			let (p, value) = (arg(), arg());
+			replace(b, p, value, pointee(), span, out)
 		}
 		("ptr", "swap") => {
 			let (x, y) = (b.spill(arg(), "x", out), b.spill(arg(), "y", out));
@@ -833,10 +844,39 @@ pub fn call<'tcx>(
 		// An `rs.Cell`, a `Cell`'s too, which is the place a pointer to a value JS copies is,
 		// and holds the object a pointer to any other is.
 		("UnsafeCell", "new") => Expr::New(Box::new(Expr::Rs("Cell".into())), vec![arg()]),
-		("UnsafeCell", "get") | ("Cell", "as_ptr") if kind(b, pointee()) == Some(Pointee::Place) => arg(),
-		("UnsafeCell", "get") | ("Cell", "as_ptr") if array(b, pointee()) => to_pointer(b, arg().member("v")),
-		("UnsafeCell" | "Cell", "get_mut") if b.t.needs_place(pointee()) => arg(),
-		("UnsafeCell", "get" | "get_mut" | "into_inner") | ("Cell", "as_ptr" | "get_mut") => arg().member("v"),
+		("UnsafeCell", "get") | ("Cell", "as_ptr") => {
+			let cell = arg();
+			cell_pointer(b, cell)
+		}
+		// `get` of the cell where the pointer points, an `rs.Place` of where it is kept.
+		("UnsafeCell", "raw_get") => {
+			let tcx = b.t.tcx;
+			let cell = tcx
+				.type_of(tcx.parent(call.def_id))
+				.instantiate(tcx, gargs)
+				.skip_norm_wip();
+			let cell = match b.t.pointee(cell) {
+				Pointee::Object => arg(),
+				_ => arg().member("v"),
+			};
+			cell_pointer(b, cell)
+		}
+		// `ptr::replace` of the pointer `get` gives.
+		("UnsafeCell", "replace") if b.t.zero_sized(pointee()) => {
+			let _ = arg();
+			arg()
+		}
+		("UnsafeCell", "replace") => {
+			let cell = arg();
+			let p = cell_pointer(b, cell);
+			let value = arg();
+			replace(b, p, value, pointee(), span, out)
+		}
+		// What `get` points at, lent as `get_mut` lends it.
+		("UnsafeCell" | "Cell", "get_mut") | ("UnsafeCell", "as_mut_unchecked") if b.t.needs_place(pointee()) => arg(),
+		("UnsafeCell", "get_mut" | "as_ref_unchecked" | "as_mut_unchecked" | "into_inner") | ("Cell", "get_mut") => {
+			arg().member("v")
+		}
 		// Pointers into an array: `rs.AtIndex`es, which a `Vec`'s and a slice's give.
 		("slice" | "Vec", "as_ptr" | "as_mut_ptr") => {
 			let elem = targ(gargs, 0);
@@ -1114,6 +1154,24 @@ fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span) -> 
 		Pointee::Slice => return b.err(span, format!("a read of `{ty}`, which has no size")),
 	};
 	b.t.snapshot(value, ty, span)
+}
+
+/// `ptr::replace` of `p`, a pointer to `ty`, with `value`: what it held, as a value of its
+/// own.
+fn replace<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	p: Expr,
+	value: Expr,
+	ty: Ty<'tcx>,
+	span: Span,
+	out: &mut Vec<Stmt>,
+) -> Expr {
+	let p = b.spill(p, "pointer", out);
+	let old = read(b, p.clone(), ty, span);
+	let old = b.spill(old, "old", out);
+	let write = write(b, p, value, ty, span);
+	out.push(StmtKind::Expr(write).at(None));
+	old
 }
 
 /// The write of `value`, a `ty`, where `p` points.
