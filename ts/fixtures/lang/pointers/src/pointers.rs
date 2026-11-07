@@ -11,7 +11,7 @@
 //! raw pointers of an `Arc` and an `Rc`, counted and taken back; and unions over a type
 //! parameter, each instance laid out at its own offsets.
 
-use std::cell::{Cell, UnsafeCell};
+use std::cell::{Cell, OnceCell, RefCell, UnsafeCell};
 use std::mem::{self, MaybeUninit};
 use std::ptr::{self, NonNull};
 use std::rc::Rc;
@@ -2724,6 +2724,19 @@ fn cell_moved(r: &Option<Cell<u32>>) -> Option<Cell<u32>> {
 	old
 }
 
+/// The `RefCell` and the `OnceCell` of a cell that shared references point at, moved out
+/// through pointers from them, whose cells, held inline, are then set.
+fn inline_moved(r: &RefCell<Cell<u32>>, o: &OnceCell<Cell<u32>>) -> (RefCell<Cell<u32>>, OnceCell<Cell<u32>>) {
+	let old = unsafe { (ptr::read(r), ptr::read(o)) };
+	let cell = old.0.borrow();
+	cell.set(cell.get() + 9);
+	drop(cell);
+	if let Some(cell) = old.1.get() {
+		cell.set(cell.get() + 9);
+	}
+	old
+}
+
 /// Values holding a library object, moved out through pointers made each way, at any
 /// depth, and then written in place: what was moved out keeps what it held.
 pub fn moved_out(data: &[u8], out: &mut Vec<u8>) {
@@ -2765,6 +2778,18 @@ pub fn moved_out(data: &[u8], out: &mut Vec<u8>) {
 		let old = cell_moved(&cell);
 		for c in [&cell, &old] {
 			out.push(c.as_ref().map_or(0, Cell::get) as u8);
+		}
+		let r = RefCell::new(Cell::new(u32::from(b)));
+		let o = OnceCell::new();
+		if b % 2 == 0 {
+			let _ = o.set(Cell::new(u32::from(b) + 1));
+		}
+		let (old_r, old_o) = inline_moved(&r, &o);
+		for r in [&r, &old_r] {
+			out.push(r.borrow().get() as u8);
+		}
+		for o in [&o, &old_o] {
+			out.push(o.get().map_or(0, Cell::get) as u8);
 		}
 	}
 }

@@ -65,7 +65,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Some(_) if self.write_in(ty).is_some() => {
 					return self.writes.contains(&self.writes.into, false, self.tcx, ty)
 						|| self.addressed(ty)
-						|| !ty.is_freeze(self.tcx, self.typing_env());
+						|| !ty.is_freeze(self.tcx, self.typing_env())
+						|| self.inline_held(ty).is_some_and(|(_, held)| self.changes(held));
 				}
 				Some(_) => return false,
 				None if self.own(adt.did()) && adt.all_fields().next().is_some() => {
@@ -77,6 +78,21 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		};
 		object && (self.writes.contains(&self.writes.into, false, self.tcx, ty) || self.addressed(ty))
 			|| parts.into_iter().any(|t| self.changes(t))
+	}
+
+	/// The field of a library object `ty` that holds its value inline rather than on the
+	/// heap, which a copy of the object one object deep shares, and the type held there: a
+	/// cell's or a lock's value, or a one-time cell's, which holds nothing until set.
+	fn inline_held(&self, ty: Ty<'tcx>) -> Option<(&'static str, Ty<'tcx>)> {
+		let ty::Adt(adt, args) = ty.kind() else {
+			return None;
+		};
+		match Std::of(self.tcx, adt.did())? {
+			Std::Cell => Some(("v", args.type_at(0))),
+			Std::RefCell | Std::Mutex => Some(("value", args.type_at(0))),
+			Std::OnceCell | Std::OnceLock => Some(("v", Ty::new_option(self.tcx, args.type_at(0)))),
+			_ => None,
+		}
 	}
 
 	/// Whether the runs before compared pointers to a `ty`, or to a type it holds by value,
@@ -328,8 +344,22 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						_ => self.copy_result(value, residual, span),
 					})
 				}
-				// A library object, which [`Self::changes`] says a whole write lands in.
-				Some(_) => ret(Expr::rs("objectCopy", vec![v()])),
+				// A library object, which [`Self::changes`] says a whole write lands in, and a
+				// copy of what it holds inline.
+				Some(_) => {
+					let copy = Expr::rs("objectCopy", vec![v()]);
+					let held = self.inline_held(ty).filter(|&(_, held)| self.changes(held));
+					let Some((field, held)) = held else {
+						return ret(copy);
+					};
+					let c = || Expr::ident("c");
+					let read = self.snapshot(c().member(field), held, span);
+					vec![
+						StmtKind::decl(false, "c", None, Some(copy)).at(None),
+						StmtKind::Expr(c().member(field).assign(read)).at(None),
+						StmtKind::Return(Some(c())).at(None),
+					]
+				}
 				_ => {
 					let info = self.adt(*adt, span);
 					match info.repr {

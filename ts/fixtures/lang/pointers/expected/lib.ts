@@ -73,6 +73,18 @@ export function copy$array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
 }
 
+export function copy$cell_OnceCell_Cell_u32(v: rs.OnceCell<rs.Cell<rs.u32>>): rs.OnceCell<rs.Cell<rs.u32>> {
+	const c = rs.objectCopy(v);
+	c.v = copy$Option_Cell_u32(c.v);
+	return c;
+}
+
+export function copy$cell_RefCell_Cell_u32(v: rs.RefCell<rs.Cell<rs.u32>>): rs.RefCell<rs.Cell<rs.u32>> {
+	const c = rs.objectCopy(v);
+	c.value = copy$Cell_u32(c.value);
+	return c;
+}
+
 export function copy$mem_MaybeUninit_Vec_u8(v: rs.ByteVec): rs.ByteVec {
 	if (v === undefined) {
 		return v;
