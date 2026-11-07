@@ -1644,3 +1644,126 @@ pub fn array_sources(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		}
 	}
 }
+
+/// Bumps the number it is given, which takes the item's place whole.
+fn bump(x: &mut u32) {
+	*x = x.wrapping_add(7);
+}
+
+/// Each item a `for` loop writes through `iter_mut`, of numbers, bytes, and `Option`s, in a
+/// slice's part, a `Vec`, and a struct's field, left early, read again after the loop, and
+/// passed on whole, which takes its place.
+pub fn item_writes(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	struct Held {
+		words: Vec<u16>,
+	}
+	let mut wide: Vec<u64> = data.iter().map(|&b| u64::from(b) << 50 | u64::from(b)).collect();
+	let mut bytes = data.to_vec();
+	let mut words: Vec<u32> = data.iter().map(|&b| u32::from(b) * 0x0101_0101).collect();
+	let mut options: Vec<Option<u16>> = data.iter().map(|&b| (b % 3 != 0).then_some(u16::from(b))).collect();
+	let cut = usize::from(data.first().copied().unwrap_or(0)) % (data.len() + 1);
+	match kind % 8 {
+		// A part of a slice, as the codec bench's prefix writes are.
+		0 => {
+			let part = &mut wide[..cut];
+			for x in part.iter_mut() {
+				*x = x.wrapping_add(1);
+			}
+			for x in &mut wide[cut..] {
+				*x ^= 0xff;
+			}
+		}
+		// Bytes, by `&mut Vec` and from a struct's field, with a read before the write.
+		1 => {
+			for b in &mut bytes {
+				let before = *b;
+				*b = before.rotate_left(3) ^ before;
+			}
+			let mut held = Held {
+				words: words.iter().map(|&w| w as u16).collect(),
+			};
+			for w in held.words.iter_mut() {
+				*w = w.wrapping_mul(3);
+			}
+			out.extend(held.words.iter().flat_map(|w| w.to_le_bytes()));
+		}
+		// Left at an item, by `break` and by `return`, which leaves the rest as it was.
+		2 => {
+			for w in words.iter_mut() {
+				if *w > 0x8000_0000 {
+					break;
+				}
+				*w += 1;
+			}
+			for b in bytes.iter_mut().rev() {
+				*b = b.wrapping_sub(1);
+			}
+			for b in bytes.iter_mut() {
+				if *b == 0 {
+					out.extend(&bytes);
+					return;
+				}
+				*b -= 1;
+			}
+		}
+		// `Option`s, tested and replaced, and taken, which borrows the item whole.
+		3 => {
+			for o in options.iter_mut() {
+				if let Some(v) = *o {
+					*o = v.checked_mul(300);
+				}
+			}
+			for o in options.iter_mut() {
+				if o.take().is_none() {
+					*o = Some(1);
+				}
+			}
+		}
+		// Passed on whole, and swapped, which take each item's place.
+		4 => {
+			for w in words.iter_mut() {
+				bump(w);
+			}
+			let mut carry = 0u32;
+			for w in words.iter_mut() {
+				std::mem::swap(w, &mut carry);
+			}
+			out.extend(carry.to_le_bytes());
+		}
+		// Stepped by hand, then the rest by a loop.
+		5 => {
+			let mut it = words.iter_mut();
+			if let Some(first) = it.next() {
+				*first = 0;
+			}
+			for w in it {
+				*w = w.wrapping_mul(5);
+			}
+		}
+		// Nested, each row's items.
+		6 => {
+			let mut rows: Vec<Vec<u8>> = data.chunks(3).map(<[u8]>::to_vec).collect();
+			for row in rows.iter_mut() {
+				for b in row.iter_mut() {
+					*b = b.wrapping_add(row_len(cut));
+				}
+			}
+			out.extend(rows.into_iter().flatten());
+		}
+		// Overflow panics where Rust's does, part way through.
+		_ => {
+			for b in bytes.iter_mut() {
+				*b += 100;
+			}
+		}
+	}
+	out.extend(wide.iter().flat_map(|x| x.to_le_bytes()));
+	out.extend(&bytes);
+	out.extend(words.iter().flat_map(|w| w.to_le_bytes()));
+	out.extend(options.iter().flat_map(|o| o.map_or([0xff, 0xff], u16::to_le_bytes)));
+}
+
+/// A step that depends on the input.
+fn row_len(cut: usize) -> u8 {
+	cut as u8 | 1
+}

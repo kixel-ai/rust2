@@ -115,6 +115,13 @@ export function mapOr$135q041(self: Noisy.Noisy | undefined, default_: rs.u8, f:
 	return f(self);
 }
 
+export function mapOr$17z0l8m(self: rs.u16 | undefined, default_: Uint8Array, _: (a0: rs.u16) => Uint8Array): Uint8Array {
+	if (self === undefined) {
+		return default_;
+	}
+	return rs.u16ToBeBytes(self).reverse();
+}
+
 export function or$0as8tia(self: rs.ByteSlice | undefined, optb: rs.ByteSlice | undefined): rs.ByteSlice | undefined {
 	if (self === undefined) {
 		return optb;

@@ -2,8 +2,10 @@
 
 import * as rs from "./rs.ts";
 import { copy$Option_array2_u16, copy$Option_array2_u8, copy$array_array2_array2_u8, copy$array_array2_u16, copy$array_array2_u8, copy$array_u16, copy$array_u8, copy$mem_MaybeUninit_array_u8, copy$slices_Pair, drop$tuple2_Vec_slices_Noisy_Vec_u8 } from "./lib.ts";
-import { isSomeAnd$1ouf3e6, unwrapOr$1la41a6 as option_unwrapOr$1la41a6, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$1n9qa5p as option_unwrapOrDefault$1n9qa5p, unwrapOrDefault$0h81s8g as option_unwrapOrDefault$0h81s8g, map$13tab2s as option_map$13tab2s, map$0duedp1 as option_map$0duedp1, map$0q6fk7x as option_map$0q6fk7x, map$1uud0v7 as option_map$1uud0v7, map$1j0y4j0 as option_map$1j0y4j0, map$0vk4zok as option_map$0vk4zok, map$1aqm6sp as option_map$1aqm6sp, map$04ry0e1 as option_map$04ry0e1, mapOr$135q041 as option_mapOr$135q041, or$0as8tia as option_or$0as8tia, zip$0wdt346, clone$1omlcob as option_clone$1omlcob } from "./core/option.ts";
+import { thenSome$1gvhopg } from "./core/bool.ts";
+import { isSomeAnd$1ouf3e6, unwrapOr$1la41a6 as option_unwrapOr$1la41a6, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$1n9qa5p as option_unwrapOrDefault$1n9qa5p, unwrapOrDefault$0h81s8g as option_unwrapOrDefault$0h81s8g, map$13tab2s as option_map$13tab2s, map$0duedp1 as option_map$0duedp1, map$0q6fk7x as option_map$0q6fk7x, map$1uud0v7 as option_map$1uud0v7, map$1j0y4j0 as option_map$1j0y4j0, map$0vk4zok as option_map$0vk4zok, map$1aqm6sp as option_map$1aqm6sp, map$04ry0e1 as option_map$04ry0e1, mapOr$135q041 as option_mapOr$135q041, mapOr$17z0l8m as option_mapOr$17z0l8m, or$0as8tia as option_or$0as8tia, zip$0wdt346, clone$1omlcob as option_clone$1omlcob } from "./core/option.ts";
 import * as Counted from "./slices.Counted.ts";
+import type * as Held$item_writes from "./slices.Held$item_writes.ts";
 import * as Item from "./slices.Item.ts";
 import * as Noisy from "./slices.Noisy.ts";
 import * as Pair from "./slices.Pair.ts";
@@ -3180,6 +3182,225 @@ export function arraySources(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): 
 		}
 		rs.iterExtendBytes(out, rs.iterFlatten(rs.arraySliceIter(leaked), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), undefined, true);
 	}
+}
+
+/** Bumps the number it is given, which takes the item's place whole. */
+export function bump(x: rs.Place<rs.u32>): void {
+	x.v = rs.u32WrappingAdd(x.v, 7);
+}
+
+/**
+ * Each item a `for` loop writes through `iter_mut`, of numbers, bytes, and `Option`s, in a
+ * slice's part, a `Vec`, and a struct's field, left early, read again after the loop, and
+ * passed on whole, which takes its place.
+ */
+export function itemWrites(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	const wide: rs.Vec<rs.u64> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u64 => {
+		const b: rs.u8 = _2;
+		return rs.u64Or(rs.u64Shl(b as rs.u64, 50), b as rs.u64);
+	}), undefined, 8, true);
+	const bytes: rs.ByteVec = rs.byteSliceToByteVec(data);
+	const words: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): rs.u32 => {
+		return rs.u32Mul(_25 as rs.u32, 16843009);
+	}), undefined, 4, true);
+	const options: rs.Vec<rs.u16 | undefined> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_26: rs.u8): rs.u16 | undefined => {
+		const b3: rs.u8 = _26;
+		return thenSome$1gvhopg(rs.u8Rem(b3, 3) !== 0, b3 as rs.u16);
+	}), undefined, 4, true);
+	const cut: rs.usize = rs.usizeRem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.usize, rs.usizeAdd(data.length, 1));
+	b0: {
+		b1: {
+			const _23: rs.u8 = rs.u8Rem(kind, 8);
+			if (_23 === 0) {
+				const iter: rs.Iter<rs.Place<rs.u64>> = rs.iterSliceMut(rs.sliceRange(rs.sliceFrom(wide.items), 0, cut));
+				while (true) {
+					const _31: rs.Place<rs.u64> | rs.Done = iter.next();
+					if (_31 === rs.DONE) {
+						break;
+					}
+					_31.v = rs.u64WrappingAdd(_31.v, 1);
+				}
+				const iter2: rs.Iter<rs.Place<rs.u64>> = rs.iterSliceMut(rs.sliceRange(rs.sliceFrom(wide.items), cut));
+				while (true) {
+					const _42: rs.Place<rs.u64> | rs.Done = iter2.next();
+					if (_42 === rs.DONE) {
+						break b1;
+					}
+					_42.v = rs.u64Xor(_42.v, 255);
+				}
+			}
+			if (_23 === 1) {
+				const iter3: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(rs.byteVecSlice(bytes));
+				while (true) {
+					const _49: rs.Place<rs.u8> | rs.Done = iter3.next();
+					if (_49 === rs.DONE) {
+						break;
+					}
+					const before: rs.u8 = _49.v;
+					_49.v = rs.intRotateLeft(before, 3, 8, false) ^ before;
+				}
+				const held: Held$item_writes.Held = { words: rs.iterToVec(rs.iterMap(rs.iterSlice(words.items), (_211: rs.u32): rs.u16 => {
+					return _211 & 0xffff;
+				}), undefined, 2, true) };
+				const iter4: rs.Iter<rs.Place<rs.u16>> = rs.iterSliceMut(rs.sliceFrom(held.words.items));
+				while (true) {
+					const _66: rs.Place<rs.u16> | rs.Done = iter4.next();
+					if (_66 === rs.DONE) {
+						break;
+					}
+					_66.v = rs.u16WrappingMul(_66.v, 3);
+				}
+				rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(held.words.items), (w2: rs.u16): Uint8Array => {
+					return rs.u16ToBeBytes(w2).reverse();
+				}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
+			} else {
+				if (_23 === 2) {
+					const iter5: rs.Iter<rs.Place<rs.u32>> = rs.iterSliceMut(rs.sliceFrom(words.items));
+					while (true) {
+						const _82: rs.Place<rs.u32> | rs.Done = iter5.next();
+						if (_82 === rs.DONE) {
+							break;
+						}
+						if (!(_82.v > 2147483648)) {
+							_82.v = rs.u32Add(_82.v, 1);
+						} else {
+							break;
+						}
+					}
+					const iter6: rs.Iter<rs.Place<rs.u8>> = rs.iterRev(rs.iterSliceMut(rs.byteVecSlice(bytes)));
+					while (true) {
+						const _95: rs.Place<rs.u8> | rs.Done = iter6.next();
+						if (_95 === rs.DONE) {
+							break;
+						}
+						_95.v = rs.u8WrappingSub(_95.v, 1);
+					}
+					const iter7: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(rs.byteVecSlice(bytes));
+					while (true) {
+						const _106: rs.Place<rs.u8> | rs.Done = iter7.next();
+						if (_106 === rs.DONE) {
+							break b1;
+						}
+						if (!(_106.v === 0)) {
+							_106.v = rs.u8Sub(_106.v, 1);
+						} else {
+							rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(bytes)), undefined, true);
+							break b0;
+						}
+					}
+				}
+				if (_23 === 3) {
+					const iter8: rs.Iter<rs.Place<rs.u16 | undefined>> = rs.iterSliceMut(rs.sliceFrom(options.items));
+					while (true) {
+						const _120: rs.Place<rs.u16 | undefined> | rs.Done = iter8.next();
+						if (_120 === rs.DONE) {
+							break;
+						}
+						if (_120.v !== undefined) {
+							_120.v = rs.u16CheckedMul(_120.v, 300);
+						}
+					}
+					const iter9: rs.Iter<rs.Place<rs.u16 | undefined>> = rs.iterSliceMut(rs.sliceFrom(options.items));
+					while (true) {
+						const _132: rs.Place<rs.u16 | undefined> | rs.Done = iter9.next();
+						if (_132 === rs.DONE) {
+							break b1;
+						}
+						const taken = _132.v;
+						_132.v = undefined;
+						if (taken === undefined) {
+							_132.v = 1;
+						}
+					}
+				}
+				if (_23 === 4) {
+					const iter10: rs.Iter<rs.Place<rs.u32>> = rs.iterSliceMut(rs.sliceFrom(words.items));
+					while (true) {
+						const _145: rs.Place<rs.u32> | rs.Done = iter10.next();
+						if (_145 === rs.DONE) {
+							break;
+						}
+						bump(_145);
+					}
+					let carry: rs.u32 = 0;
+					const iter11: rs.Iter<rs.Place<rs.u32>> = rs.iterSliceMut(rs.sliceFrom(words.items));
+					while (true) {
+						const _156: rs.Place<rs.u32> | rs.Done = iter11.next();
+						if (_156 === rs.DONE) {
+							break;
+						}
+						const swapped = _156.v;
+						_156.v = carry;
+						carry = swapped;
+					}
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(carry).reverse()), undefined, true);
+				} else {
+					if (_23 === 5) {
+						const it: rs.Iter<rs.Place<rs.u32>> = rs.iterSliceMut(rs.sliceFrom(words.items));
+						const _168: rs.Place<rs.u32> | rs.Done = it.next();
+						if (_168 !== rs.DONE) {
+							_168.v = 0;
+						}
+						const iter12: rs.Iter<rs.Place<rs.u32>> = it;
+						while (true) {
+							const _175: rs.Place<rs.u32> | rs.Done = iter12.next();
+							if (_175 === rs.DONE) {
+								break b1;
+							}
+							_175.v = rs.u32WrappingMul(_175.v, 5);
+						}
+					}
+					if (_23 === 6) {
+						const rows: rs.Vec<rs.ByteVec> = rs.iterToVec(rs.iterMap(rs.byteSliceChunks(data, 3), (a0: rs.ByteSlice): rs.ByteVec => {
+							return rs.byteSliceToByteVec(a0);
+						}), undefined, 12, true);
+						const iter13: rs.Iter<rs.ByteVec> = rs.iterSlice(rows.items);
+						l4: while (true) {
+							const _189: rs.ByteVec | rs.Done = iter13.next();
+							if (_189 === rs.DONE) {
+								break;
+							}
+							const iter14: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(rs.byteVecSlice(_189));
+							while (true) {
+								const _197: rs.Place<rs.u8> | rs.Done = iter14.next();
+								if (_197 === rs.DONE) {
+									continue l4;
+								}
+								_197.v = rs.u8WrappingAdd(_197.v, rowLen(cut));
+							}
+						}
+						rs.iterExtendBytes(out, rs.iterFlatten(rs.vecIntoIter(rows), (value: rs.ByteVec) => rs.byteVecIntoIter(value), true), "next");
+					} else {
+						const iter15: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(rs.byteVecSlice(bytes));
+						while (true) {
+							const _213: rs.Place<rs.u8> | rs.Done = iter15.next();
+							if (_213 === rs.DONE) {
+								break b1;
+							}
+							_213.v = rs.u8Add(_213.v, 100);
+						}
+					}
+				}
+			}
+		}
+		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(wide.items), (x: rs.u64): Uint8Array => {
+			return rs.u64ToBeBytes(x).reverse();
+		}, (value: Uint8Array) => rs.iterSlice(value), true, 8), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(bytes)), undefined, true);
+		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(words.items), (w3: rs.u32): Uint8Array => {
+			return rs.u32ToBeBytes(w3).reverse();
+		}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
+		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(options.items), (o: rs.u16 | undefined): Uint8Array => {
+			return option_mapOr$17z0l8m(o, Uint8Array.of(255, 255), (a02: rs.u16): Uint8Array => {
+				return rs.u16ToBeBytes(a02).reverse();
+			});
+		}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
+	}
+}
+
+/** A step that depends on the input. */
+export function rowLen(cut: rs.usize): rs.u8 {
+	return (cut & 0xff) | 1;
 }
 
 //# sourceMappingURL=slices.ts.map
