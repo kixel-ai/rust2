@@ -19,7 +19,6 @@ fixtures/reject/src/alloc.rs:vec_pointer+1:10: a raw pointer to `std::vec::Vec<u
 fixtures/reject/src/alloc.rs:zeroed+1:12: a cast from a pointer to `u8` to one to `u32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:zeroed+1:13: unsupported call to `std::alloc::alloc_zeroed`
 fixtures/reject/src/buffers.rs:blank_bytes+1:2: `Buf::copy_to_bytes` of `buffers::Blank`, a value JS copies, which is not supported
-fixtures/reject/src/buffers.rs:spare+1:4: `Vec::spare_capacity_mut` of other than bytes, whose room past its length no JS array holds, which is not supported yet
 fixtures/reject/src/clones.rs:greatest_slot+6:13: a raw pointer to `(u8, u8)` in `([clones::Greatest; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:stashed_slots+5:19: a raw pointer to `(u8, u8)` in `([u8; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:tagged_slots!+2:23: a raw pointer to `(u8, u8)` in `([clones::Cloned; 2], (u8, u8))`, which the crate may put another object in place of

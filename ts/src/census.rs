@@ -171,7 +171,6 @@ const VERBATIM: &[&str] = &[
 	"Some",
 	"UpperExp",
 	"Vec::into_flattened",
-	"Vec::spare_capacity_mut",
 	"Vec::splice",
 	"alloc",
 	"array::from_ref",
