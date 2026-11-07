@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, arrayAssign, type ByteSlice, type Run, Runs, runsArray, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, stringAsBytes, type Vec } from "../rs.ts";
+import { Abort, arrayAssign, type ByteSlice, type Run, type RunArray, type RunCopy, Runs, runsArray, runsCopy, runsSet, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, stringAsBytes, type Vec } from "../rs.ts";
 import type { Hasher } from "./hash.ts";
 import type { Location } from "./location.ts";
 
@@ -913,11 +913,11 @@ export function cellOfPlace<T>(p: Place<T>): Cell<T> {
 }
 
 /**
- * `Cell::from_mut` of a `&mut [[T; N]; M]`, which is the runs `r`: a read is `copy`'s of
- * them, and a write `set`s them.
+ * `Cell::from_mut` of a `&mut [[T; N]; M]`, which is the runs `r`: a read is a copy of
+ * them, each element copied by `copy`, and a write lands where `r` holds them.
  */
-export function cellOfRuns<S extends Run, A>(r: Runs<S>, copy: (r: Runs<S>) => A, set: (r: Runs<S>, value: A) => void): Cell<A> {
-	return cellOfPlace(place(() => copy(r), (value) => set(r, value)));
+export function cellOfRuns<S extends Run>(r: Runs<S>, copy?: RunCopy): Cell<RunArray<S>[]> {
+	return cellOfPlace(place(() => runsCopy(r, copy), (value) => runsSet(r, value)));
 }
 
 /**

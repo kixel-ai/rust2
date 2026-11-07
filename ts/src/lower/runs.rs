@@ -77,6 +77,7 @@ pub fn native<'tcx>(tcx: TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args: t
 				| "splitn_mut"
 				| "rsplitn"
 				| "rsplitn_mut"
+				| "to_vec"
 		)
 }
 
@@ -113,7 +114,12 @@ pub fn give<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>
 			ty::Mutability::Not => Expr::rs("runsItems", vec![value]),
 			ty::Mutability::Mut => {
 				let name = b.fresh("runs");
-				given.by.push((name.clone(), value));
+				let copy = b.t.run_copy(*inner, call.span);
+				given.by.push(By {
+					name: name.clone(),
+					value,
+					copy,
+				});
 				Expr::ident(name)
 			}
 		};
@@ -132,16 +138,26 @@ pub fn give<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>
 pub struct Given {
 	/// The arguments std's mapping takes.
 	pub args: Vec<Expr>,
-	/// Each `&mut [[T; N]]`'s name in `args`, and its value.
-	pub by: Vec<(String, Expr)>,
+	/// Each `&mut [[T; N]]` given by name.
+	pub by: Vec<By>,
+}
+
+/// A `&mut [[T; N]]` [`give`] names in a call's arguments.
+pub struct By {
+	/// Its name in the arguments.
+	pub name: String,
+	/// The runs.
+	pub value: Expr,
+	/// What copies an element of the runs out, as [`super::Translator::run_copy`] says.
+	pub copy: Option<Expr>,
 }
 
 /// `e`, the call std's mapping made of [`Given::args`], a `ty`, after `stmts`, with each
 /// name it binds the `rs.runsBy` copies of its runs.
-pub fn wrap(e: Expr, ty: Type, stmts: Vec<Stmt>, by: Vec<(String, Expr)>) -> Expr {
+pub fn wrap(e: Expr, ty: Type, stmts: Vec<Stmt>, by: Vec<By>) -> Expr {
 	let mut stmts = Some(stmts);
 	let mut e = e;
-	for (name, value) in by.into_iter().rev() {
+	for By { name, value, copy } in by.into_iter().rev() {
 		let param = Param { name, ty: None };
 		let f = match stmts.take().filter(|s| !s.is_empty()) {
 			Some(mut body) => {
@@ -150,7 +166,7 @@ pub fn wrap(e: Expr, ty: Type, stmts: Vec<Stmt>, by: Vec<(String, Expr)>) -> Exp
 			}
 			None => Expr::Lambda(vec![param], Box::new(e)),
 		};
-		e = Expr::rs("runsBy", vec![value, f]);
+		e = Expr::rs("runsBy", [vec![value, f], copy.into_iter().collect()].concat());
 	}
 	e
 }

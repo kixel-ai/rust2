@@ -13,6 +13,29 @@ export function isSomeAnd$1ouf3e6(self: [rs.ByteSlice, rs.ByteSlice] | undefined
 	return f(self);
 }
 
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return self;
+}
+
+export function unwrapOrDefault$1n9qa5p(self: rs.u16[] | undefined): rs.u16[] {
+	if (self === undefined) {
+		return Array.from({ length: 2 }, (): rs.u16 => {
+			return 0;
+		});
+	}
+	return self;
+}
+
+export function unwrapOrDefault$0h81s8g(self: Uint8Array | undefined): Uint8Array {
+	if (self === undefined) {
+		return rs.bytes(2);
+	}
+	return self;
+}
+
 export function map$1sh08h7(self: rs.u16[] | undefined, f: (a0: rs.u16[]) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;

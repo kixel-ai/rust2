@@ -621,6 +621,7 @@ pub fn cow_deref(cow: Expr, borrowed: Ty<'_>) -> Expr {
 	match borrowed.kind() {
 		ty::Str => Expr::rs("strCowStr", vec![cow]),
 		_ if cow_bytes(borrowed) => Expr::rs("byteCowSlice", vec![cow]),
+		ty::Slice(elem) if elem.is_array() => Expr::rs("cowRuns", vec![cow, super::array_fn(*elem, "From")]),
 		_ => Expr::rs("cowSlice", vec![cow]),
 	}
 }
@@ -1931,6 +1932,11 @@ fn mapping<'tcx>(
 		("Option", "as_ref" | "as_mut") => args.pop()?,
 		// The payload, if any, as a slice of one, as `slice::from_ref` makes it.
 		("Option", "as_slice") if byte(targ(gargs, 0)) => Expr::rs("byteOptionAsSlice", args),
+		// Of an array, the runs of the one it holds, if any.
+		("Option", "as_slice") if targ(gargs, 0).is_array() => {
+			args.push(super::array_fn(targ(gargs, 0), "From"));
+			Expr::rs("optionAsRuns", args)
+		}
 		("Option", "as_slice") => {
 			args.extend(b.t.none_arg(targ(gargs, 0)));
 			Expr::rs("optionAsSlice", args)
@@ -2316,6 +2322,12 @@ fn mapping<'tcx>(
 			Expr::rs("byteSliceEq", args)
 		}
 		("slice", "to_vec") => slice_to_vec(b, args.pop()?, targ(gargs, 0), span),
+		// A swap of runs copies each out, as a write of it back reads it.
+		("slice", "swap") if targ(gargs, 0).is_array() => {
+			let mut values = args;
+			values.push(b.t.run_copy(targ(gargs, 0), span).unwrap_or_else(Expr::undefined));
+			Expr::rs("runsSwap", values)
+		}
 		("slice", "last" | "swap") => rt2(args, slice_of_elem(targ(gargs, 0)), &super::camel(&name)),
 		("slice", "reverse") => match byte(targ(gargs, 0)) {
 			true => Expr::rs("byteSliceView", args).method("reverse", Vec::new()),
@@ -3511,6 +3523,8 @@ fn slices_join<'tcx>(
 		ty::Array(..) => Some(if bytes { "byteSliceFrom" } else { "sliceFrom" }),
 		ty::Ref(_, s, _) if s.is_slice() => None,
 		_ if b.t.std_of(item) == Some(Std::Vec) => Some(if bytes { "byteVecSlice" } else { "vecSlice" }),
+		// A `Cow` of arrays derefs to its runs, which this reads as no slice.
+		_ if cow_slice(b.t.tcx, item).is_some_and(|elem| elem.is_array()) => return None,
 		_ if cow_slice(b.t.tcx, item).is_some() => Some(if bytes { "byteCowSlice" } else { "cowSlice" }),
 		_ if box_slice(b.t.tcx, item).is_some() => None,
 		_ => return None,
@@ -3556,6 +3570,7 @@ pub(super) fn slice_to_vec<'tcx>(b: &mut Body<'_, '_, 'tcx>, slice: Expr, elem: 
 /// them if each element's clone is itself, or else each element cloned.
 fn items_clone<'tcx>(b: &mut Body<'_, '_, 'tcx>, slice: Expr, elem: Ty<'tcx>, span: Span) -> Expr {
 	match super::collections::clone_fn(b, elem, span) {
+		Expr::Lit(l) if l == "undefined" && elem.is_array() => Expr::rs("runsCopy", vec![slice]),
 		Expr::Lit(l) if l == "undefined" => Expr::rs("sliceToArray", vec![slice]),
 		clone => items_of(slice, elem).method("map", vec![clone]),
 	}
@@ -4184,7 +4199,7 @@ pub fn default_value<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span,
 				"byteSliceFrom",
 				vec![Expr::New(Box::new(Expr::ident("Uint8Array")), vec![Expr::lit("0")])],
 			),
-			ty::Slice(_) => Expr::rs("sliceFrom", vec![Expr::Array(Vec::new())]),
+			ty::Slice(elem) => super::slice_items_from(Expr::Array(Vec::new()), *elem),
 			ty::Str => Expr::Str(String::new()),
 			_ => return None,
 		},

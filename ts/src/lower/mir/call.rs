@@ -663,7 +663,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 							"sliceCloneFromSlice",
 							[vec![Expr::ident(name.clone()), source], fns].concat(),
 						);
-						let e = crate::lower::runs::wrap(e, ts::Type::Builtin("void"), Vec::new(), vec![(name, to)]);
+						let copy = self.b.t.run_copy(ty, span);
+						let by = crate::lower::runs::By { name, value: to, copy };
+						let e = crate::lower::runs::wrap(e, ts::Type::Builtin("void"), Vec::new(), vec![by]);
 						return done(e, true);
 					}
 					return done(Expr::rs("sliceCloneFromSlice", [vec![to, source], fns].concat()), true);
@@ -1441,9 +1443,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		{
 			let slice = self.operand(op, span, out);
 			if cell {
-				let copy = self.b.t.array_copy_fn(ty, span);
-				let set = crate::lower::array_fn(ty, "Set");
-				return Some(Expr::rs("cellOfRuns", vec![slice, copy, set]));
+				let copy = self.b.t.run_copy(ty, span);
+				return Some(Expr::rs(
+					"cellOfRuns",
+					[vec![slice], copy.into_iter().collect()].concat(),
+				));
 			}
 			let n = len.try_to_target_usize(tcx).unwrap_or(0);
 			return Some(Expr::rs("runsOne", vec![slice, Expr::lit(n.to_string())]));
@@ -1792,7 +1796,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				// Runs, each copied out and written where the slice holds it.
 				Some(p) if crate::lower::runs::of_arrays(self.b.t.uninit_inner(ty)) => {
 					let slice = self.borrowed_slice(place.0, p, span, out);
-					Expr::rs("runsReplace", vec![slice, value])
+					let copy = self.b.t.run_copy(ty, span);
+					Expr::rs("runsReplace", [vec![slice, value], copy.into_iter().collect()].concat())
 				}
 				Some(p) => {
 					let slice = self.borrowed_slice(place.0, p, span, out);

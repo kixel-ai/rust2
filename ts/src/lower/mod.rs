@@ -1712,6 +1712,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					match elem.kind() {
 						_ if self.open_elem(elem) => Type::Rs("CowOf", vec![self.ty(elem, span)]),
 						_ if byte(elem) => Type::Rs("ByteCow", vec![]),
+						// Of arrays, borrowing their runs.
+						ty::Array(..) => Type::Rs("Cow", vec![self.ty(elem, span), self.slice_ty(elem, span)]),
 						_ => Type::Rs("Cow", vec![self.ty(elem, span)]),
 					}
 				}

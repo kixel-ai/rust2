@@ -74,7 +74,7 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 							"byteSliceFrom",
 							vec![Expr::ident("Uint8Array").member("of").call(items)],
 						),
-						_ => Expr::rs("sliceFrom", vec![Expr::Array(items)]),
+						_ => super::slice_items_from(Expr::Array(items), *elem),
 					}
 				}
 				_ if inner.is_array() => super::array_slice(*inner, self.value(*inner, valtree, span)),

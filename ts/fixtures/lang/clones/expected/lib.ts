@@ -2,10 +2,18 @@
 
 import * as rs from "./rs.ts";
 import { iters, arrays, cloneFroms, repeats, sources } from "./clones.ts";
-import type * as Kept from "./clones.Kept.ts";
-import type * as Logged from "./clones.Logged.ts";
+import * as Kept from "./clones.Kept.ts";
+import * as Logged from "./clones.Logged.ts";
 import type * as Pair from "./clones.Pair.ts";
 import type * as Slot from "./clones.Slot.ts";
+
+export function copy$clones_Kept(v: Kept.Kept): Kept.Kept {
+	return new Kept.Kept(copy$clones_Logged(v._0));
+}
+
+export function copy$clones_Logged(v: Logged.Logged): Logged.Logged {
+	return new Logged.Logged(v.id, v.log);
+}
 
 export function drop$Vec_clones_Logged(value: rs.Vec<Logged.Logged>): void {
 	rs.dropVec(value);

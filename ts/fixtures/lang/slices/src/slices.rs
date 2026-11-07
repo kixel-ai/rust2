@@ -5,7 +5,9 @@
 //! that log when they drop; and a slice's parts by each kind of range and by fixed size,
 //! with what is written through a mutable one landing in the slice; a slice's edits in
 //! place, of values that log as they are cloned and drop; and a slice's runs as arrays,
-//! and a `Vec` cloned from a slice.
+//! and a `Vec` cloned from a slice; and slices of arrays in each form they take: constants,
+//! defaults, an `Option`'s, a `Cow`'s, a generic struct's, clones, and runs of references
+//! and of wrapped arrays.
 
 use std::cell::RefCell;
 
@@ -1301,4 +1303,120 @@ pub fn arrays_mut(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	out.push(tags(&items));
 	drop(items);
 	flush(out);
+}
+
+/// Arrays of two bytes a constant holds.
+const PAIRS: &[[u8; 2]] = &[[1, 2], [3, 4]];
+
+/// A generic struct's slice, instanced with arrays.
+struct View<'a, T> {
+	view: &'a [T],
+}
+
+impl<T: Copy> View<'_, T> {
+	/// Its last element, if any.
+	fn last(&self) -> Option<T> {
+		self.view.last().copied()
+	}
+}
+
+/// Puts each run's bytes.
+fn put_runs<const N: usize>(runs: &[[u8; N]], out: &mut Vec<u8>) {
+	out.push(runs.len() as u8);
+	for run in runs {
+		out.extend_from_slice(run);
+	}
+}
+
+/// Slices of arrays in each form they take, each read after.
+pub fn array_forms(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let byte = |at: usize| data.get(at).copied().unwrap_or(at as u8);
+	let pairs: Vec<[u8; 2]> = data.chunks_exact(2).map(|c| [c[0], c[1]]).collect();
+	match kind % 7 {
+		// A reference copied out of an array of one, or out of runs of them, still points at
+		// the cell it did.
+		0 => {
+			let cell = std::cell::Cell::new(byte(0));
+			let other = std::cell::Cell::new(byte(1));
+			let mut r = &cell;
+			let a = std::array::from_mut(&mut r);
+			let copy = *a;
+			let runs = std::array::from_mut(a);
+			let [[old]] = std::mem::replace(runs, [[&other]]);
+			cell.set(byte(2));
+			out.extend([copy[0].get(), old.get(), r.get()]);
+			let mut refs = [[&cell], [&other]];
+			refs.swap(0, 1);
+			other.set(byte(3));
+			out.extend([refs[0][0].get(), refs[1][0].get()]);
+		}
+		// Clones of slices of arrays, of values a clone copies and of others.
+		1 => {
+			let words: Vec<[String; 2]> = pairs.iter().map(|p| [p[0].to_string(), p[1].to_string()]).collect();
+			let cloned = words[words.len().min(1)..].to_vec();
+			out.push(cloned.len() as u8);
+			for [a, b] in &cloned {
+				out.extend(a.bytes().chain(b.bytes()));
+			}
+			let boxed: Box<[[u8; 2]]> = pairs.clone().into_boxed_slice();
+			let copy = boxed.clone();
+			put_runs(&copy, out);
+			put_runs(&boxed.into_vec(), out);
+		}
+		// A constant's, a default, and an `Option`'s.
+		2 => {
+			put_runs(PAIRS, out);
+			let empty: &[[u8; 2]] = Default::default();
+			put_runs(empty, out);
+			let some = pairs.first().copied();
+			put_runs(some.as_slice(), out);
+			put_runs(None::<[u8; 2]>.as_slice(), out);
+		}
+		// A generic struct's slice, of byte arrays and of others.
+		3 => {
+			let bytes = View { view: &pairs[..] };
+			out.extend(bytes.last().unwrap_or_default());
+			let words: Vec<[u16; 2]> = pairs.iter().map(|p| [p[0].into(), p[1].into()]).collect();
+			let words = View { view: &words[..] };
+			out.extend(words.last().unwrap_or_default().map(|w| w as u8));
+		}
+		// Arrays of wrapped arrays, which are elements of their own, copied through a borrow.
+		4 => {
+			let wrapped = [std::mem::MaybeUninit::new([byte(0), byte(1)])];
+			let r = &wrapped;
+			let copy = *r;
+			// SAFETY: the one element is initialized.
+			out.extend(unsafe { copy[0].assume_init() });
+			let kept = [std::mem::ManuallyDrop::new([byte(2), byte(3)])];
+			let r = &kept;
+			let copy = *r;
+			out.extend(*copy[0]);
+		}
+		// A `Cow`'s, borrowed and owned.
+		5 => {
+			let borrowed: std::borrow::Cow<[[u8; 2]]> = std::borrow::Cow::Borrowed(&pairs[..]);
+			put_runs(&borrowed, out);
+			let mut owned = borrowed.clone();
+			if let Some(first) = owned.to_mut().first_mut() {
+				first[0] ^= 0xff;
+			}
+			put_runs(&owned, out);
+			put_runs(&borrowed, out);
+			put_runs(&borrowed.into_owned(), out);
+			let from: std::borrow::Cow<[[u8; 2]]> = pairs.clone().into();
+			put_runs(&from, out);
+		}
+		// `mem::replace` and `Cell` of a run whose elements a write lands in.
+		_ => {
+			let mut item = vec![byte(0)];
+			let a = std::array::from_mut(&mut item);
+			let runs = std::slice::from_mut(a);
+			let [old] = std::mem::replace(&mut runs[0], [vec![byte(1), byte(2)]]);
+			out.extend(&old);
+			let [[old]] = std::cell::Cell::from_mut(std::array::from_mut(std::array::from_mut(&mut item)))
+				.replace([[vec![byte(3)]]]);
+			out.extend(&old);
+			out.extend(&item);
+		}
+	}
 }

@@ -358,9 +358,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				ProjectionElem::Deref => self.array_behind(place.local, read, ty),
 				ProjectionElem::Subslice { .. } => in_slice,
 				// A run of a slice of arrays is the slice of its elements.
-				ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. } => {
-					in_slice && self.b.t.uninit_inner(next.ty).is_array()
-				}
+				ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. } => in_slice && next.ty.is_array(),
 				_ => false,
 			};
 			pty = next;
@@ -372,9 +370,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// `rs.Runs`' run, lent as the slice of its elements, of arrays.
 	fn slice_elem(&self, base: Expr, i: Expr, ty: Ty<'tcx>) -> Expr {
 		match ty.kind() {
-			ty::Slice(elem) | ty::Array(elem, _) if self.b.t.uninit_inner(*elem).is_array() => {
-				Expr::rs("runsAt", vec![base, i])
-			}
+			ty::Slice(elem) | ty::Array(elem, _) if elem.is_array() => Expr::rs("runsAt", vec![base, i]),
 			_ => slice_at(base, i),
 		}
 	}
@@ -439,8 +435,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				ProjectionElem::Deref => self.array_behind(place.local, at, ty),
 				ProjectionElem::Subslice { .. } => in_array || ty.is_slice(),
 				ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. } => {
-					(in_array || ty.is_slice())
-						&& matches!(ty.kind(), ty::Slice(e) | ty::Array(e, _) if self.b.t.uninit_inner(*e).is_array())
+					(in_array || ty.is_slice()) && matches!(ty.kind(), ty::Slice(e) | ty::Array(e, _) if e.is_array())
 				}
 				_ => false,
 			};

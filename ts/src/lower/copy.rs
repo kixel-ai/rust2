@@ -152,13 +152,28 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		if super::byte(elem) {
 			return Expr::rs("byteSliceToArray", vec![s]);
 		}
-		if self.uninit_inner(elem).is_array() {
+		// Runs of arrays, as a slice holds them, but not of a wrapper's, which is an element.
+		if elem.is_array() {
 			let copy = self.array_copy_fn(elem, span);
 			return Expr::rs("runsToArray", vec![s, copy]);
 		}
 		let mut values = vec![s];
 		values.extend(self.changes(elem).then(|| self.shim(elem, span)).flatten());
 		Expr::rs("sliceToArray", values)
+	}
+
+	/// What copies an element of the runs of `ty`, an array or slice of arrays, as runs
+	/// copied out and written back read it: a `Copy` value's copy where it is an object, and
+	/// `rs.objectCopy` of an object a write lands in, which a write of the runs back changes.
+	pub fn run_copy(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
+		let mut elem = self.uninit_inner(ty);
+		while let ty::Array(inner, _) | ty::Slice(inner) = elem.kind() {
+			elem = *inner;
+		}
+		match self.changes(elem) {
+			true => self.shim(elem, span),
+			false => self.write_in(elem).map(|_| Expr::Rs("objectCopy".into())),
+		}
 	}
 
 	/// The function [`Self::array_copy`] calls on a slice of a `ty`.

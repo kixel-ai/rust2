@@ -443,7 +443,7 @@ export function asSlices(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _93: rs.usize = rs.usizeRem(i, 2);
 			rs.idx(all, _93);
 			rs.sliceCopyFromSlice(rs.runsAt(all, _93), rs.sliceFrom([op as rs.u32, ((op as rs.u32) << 20) >>> 0]));
-			rs.runsSwap(all, 0, 1);
+			rs.runsSwap(all, 0, 1, undefined);
 		} else if (_22 === 5) {
 			rs.sliceReverse(rs.sliceFrom([]));
 			rs.byteSliceFill(rs.byteSliceFrom(Uint8Array.of()), op);

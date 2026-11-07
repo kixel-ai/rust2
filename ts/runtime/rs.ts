@@ -217,21 +217,21 @@ export function ptrUnerase(p: Place<undefined>, type: string, align: number): un
 /**
  * A generic type's pointer or reference to a `T` that only an instance decides: the object,
  * the `Place` of a value JS copies, or the `Slice` of a `[T; N]`'s elements, a `ByteSlice`
- * of a `[u8; N]`'s.
+ * of a `[u8; N]`'s, and the `Runs` of a `[[T; N]; M]`'s.
  */
-export type Ptr<T> = T | Place<T> | ByteSlice | (T extends readonly (infer E)[] ? Slice<E> : never);
+export type Ptr<T> = T | Place<T> | ByteSlice | (T extends readonly (infer E)[] ? Slice<E> | Runs<Run> : never);
 
 /** A generic type's `[T; N]`: the array, or the `Uint8Array` of a `[u8; N]`. */
 export type ArrayOf<T> = T[] | Uint8Array;
 
-/** A generic type's `[T]`, as behind a reference: the `Slice`, or the `ByteSlice` of a `[u8]`. */
-export type SliceOf<T> = Slice<T> | ByteSlice;
+/** A generic type's `[T]`, as behind a reference: the `Slice`, the `ByteSlice` of a `[u8]`, or the `Runs` of a `[[T; N]]`. */
+export type SliceOf<T> = Slice<T> | ByteSlice | Runs<Run>;
 
 /** A generic type's `Vec<T>`: the `Vec`, or the `ByteVec` of a `Vec<u8>`. */
 export type VecOf<T> = Vec<T> | ByteVec;
 
-/** A generic type's `Cow<[T]>`: the `Cow`, or the `ByteCow` of a `Cow<[u8]>`. */
-export type CowOf<T> = Cow<T> | ByteCow;
+/** A generic type's `Cow<[T]>`: the `Cow`, the `ByteCow` of a `Cow<[u8]>`, or the `Cow` of a `Cow<[[T; N]]>`'s runs. */
+export type CowOf<T> = Cow<T> | ByteCow | Cow<T, Runs<Run>>;
 
 /**
  * The pointer to element `index` of `s`, a `[T; N]` or a `Vec`'s storage. A null or
@@ -735,12 +735,10 @@ export function sliceLength(s: Elements<unknown>): number {
 
 /**
  * A copy of the elements of `s`, as an array of its own, as `to_vec` of what JS copies makes
- * one, and `*r` of a `&[T; N]` with each element made a value of its own by `copy`, or, of
- * objects a write lands in, as a `sliceIn`'s, by `objectCopy`, as a later write would change them.
+ * one, and `*r` of a `&[T; N]` with each element made a value of its own by `copy`.
  */
 export function sliceToArray<T>(s: Slice<T>, copy?: (value: T) => T): T[] {
 	const items = s.data.slice(s.start, s.start + s.length);
-	copy ??= writesIn(s.data) ? (value) => (typeof value === "object" && value !== null ? objectCopy(value) : value) : undefined;
 	if (copy) for (let i = 0; i < items.length; i++) items[i] = copy(items[i]);
 	return items;
 }
@@ -817,6 +815,11 @@ export function optionAsSlice<T>(o: T | undefined): Slice<T>;
 export function optionAsSlice<T>(o: T | None, none: None): Slice<T>;
 export function optionAsSlice<T>(o: T, none?: None): Slice<T> {
 	return sliceFrom(o === none ? [] : [o]);
+}
+
+/** `optionAsSlice` of an array, which is never `undefined`: the runs of it alone, lent by `of`, or of none. */
+export function optionAsRuns<S extends Run>(o: RunArray<S> | undefined, of: (array: RunArray<S>) => S): Runs<S> {
+	return runsFrom<RunArray<S>, S>(o === undefined ? [] : [o], of);
 }
 
 /** `optionAsSlice` of a byte. */
@@ -1062,9 +1065,16 @@ export function runsSet<S extends Run>(r: Runs<S>, items: ArrayLike<RunArray<S>>
 	for (let i = 0; i < r.length; i++) runSet(runsAt(r, i), items[i]);
 }
 
-/** `mem::replace` of what a `&mut [[T; N]; M]`, `r`, points at: its runs as arrays of their own, then `items` written where `r` holds them. */
-export function runsReplace<S extends Run>(r: Runs<S>, items: ArrayLike<RunArray<S>>): RunArray<S>[] {
-	const old = runsToArray(r, runCopy);
+/**
+ * What a run's element is copied by, as a copy of the runs reads it: a `Copy` value JS
+ * holds as an object, and one a write lands in, as a `sliceIn`'s does, which a write of the
+ * runs back would change.
+ */
+export type RunCopy = (value: never) => unknown;
+
+/** `mem::replace` of what a `&mut [[T; N]; M]`, `r`, points at: its runs as arrays of their own, each element copied by `copy`, then `items` written where `r` holds them. */
+export function runsReplace<S extends Run>(r: Runs<S>, items: ArrayLike<RunArray<S>>, copy?: RunCopy): RunArray<S>[] {
+	const old = runsCopy(r, copy);
 	runsSet(r, items);
 	return old;
 }
@@ -1078,13 +1088,18 @@ function runSet(s: Run, value: unknown): void {
 
 /**
  * The run `s` as a `[T; N]` of its own: a copy of its elements, and of the runs it holds at
- * any depth, but not of the objects its elements are, which a write of it moves, unless a
- * write lands in them, as `sliceToArray` copies them.
+ * any depth, but not of the objects its elements are, which a write of it moves, unless
+ * `copy` copies them.
  */
-function runCopy<S extends Run>(s: S): RunArray<S> {
+function runCopy<S extends Run>(s: S, copy?: RunCopy): RunArray<S> {
 	if (s instanceof ByteSlice) return byteSliceToArray(s) as RunArray<S>;
-	if (s instanceof Slice) return sliceToArray(s) as RunArray<S>;
-	return runsToArray(s as Runs<Run>, runCopy) as RunArray<S>;
+	if (s instanceof Slice) return sliceToArray(s, copy as ((value: unknown) => unknown) | undefined) as RunArray<S>;
+	return runsCopy(s as Runs<Run>, copy) as RunArray<S>;
+}
+
+/** The runs of `r` as arrays of their own, as `runCopy` copies each. */
+export function runsCopy<S extends Run>(r: Runs<S>, copy?: RunCopy): RunArray<S>[] {
+	return runsToArray(r, (s) => runCopy(s, copy));
 }
 
 /**
@@ -1111,7 +1126,7 @@ function runSame(a: Run, b: Run): boolean {
  */
 export function runsArray<S extends Run>(r: Runs<S>): RunArray<S>[] {
 	if (r.items !== undefined && r.start === 0 && r.length === r.items.length) return r.items as RunArray<S>[];
-	return runsToArray(r, runCopy);
+	return runsCopy(r);
 }
 
 /** `last_chunk` of runs, shared or mutable: the last `n`, or `undefined` if fewer. */
@@ -1130,12 +1145,12 @@ export function runsItems<S extends Run>(r: Runs<S>): Slice<RunArray<S>> {
 }
 
 /**
- * `op` of the runs of `r` as a slice of arrays of their own, each a copy, which `op` may
+ * `op` of the runs of `r` as a slice of arrays of their own, each a copy, its elements by `copy`, which `op` may
  * reorder, overwrite, and copy, each then written back where `r` holds it, as Rust moves
  * their elements; written back even if `op` panics, which leaves what it moved so far.
  */
-export function runsBy<S extends Run, R>(r: Runs<S>, op: (s: Slice<RunArray<S>>) => R): R {
-	const items = runsToArray(r, runCopy);
+export function runsBy<S extends Run, R>(r: Runs<S>, op: (s: Slice<RunArray<S>>) => R, copy?: RunCopy): R {
+	const items = runsCopy(r, copy);
 	try {
 		return op(sliceFrom(items));
 	} finally {
@@ -1143,12 +1158,12 @@ export function runsBy<S extends Run, R>(r: Runs<S>, op: (s: Slice<RunArray<S>>)
 	}
 }
 
-/** `swap` of runs, panicking on either index past the end, `a` first, as std's indexing does. */
-export function runsSwap<S extends Run>(r: Runs<S>, a: number, b: number, at?: Location): void {
+/** `swap` of runs, each element copied out by `copy`, panicking on either index past the end, `a` first, as std's indexing does. */
+export function runsSwap<S extends Run>(r: Runs<S>, a: number, b: number, copy: RunCopy | undefined, at?: Location): void {
 	const x = runsAt(r, idx(r, a, at));
 	const y = runsAt(r, idx(r, b, at));
-	const kept = runCopy(x);
-	runSet(x, runCopy(y));
+	const kept = runCopy(x, copy);
+	runSet(x, runCopy(y, copy));
 	runSet(y, kept);
 }
 
@@ -2631,8 +2646,8 @@ export class Borrowed<S> {
 	}
 }
 
-/** `Cow<[T]>`: the `Vec` it owns, or the slice it borrows. */
-export type Cow<T> = Vec<T> | Borrowed<Slice<T>>;
+/** `Cow<[T]>`: the `Vec` it owns, or the slice it borrows, `S`: `Runs` of arrays. */
+export type Cow<T, S extends Slice<T> | Runs<Run> = Slice<T>> = Vec<T> | Borrowed<S>;
 /** `Cow<[u8]>`: the `Vec<u8>` it owns, or the bytes it borrows. */
 export type ByteCow = ByteVec | ByteSlice;
 /** `Cow<str>`: the `String` it owns, or the `str` it borrows. */
@@ -2643,6 +2658,11 @@ export function cowSlice<T>(c: Cow<T>): Slice<T> {
 	return c instanceof Borrowed ? c.slice : sliceFrom(c.items);
 }
 
+/** `Deref` of a `Cow<[[T; N]]>`: its runs, each of an owned one lent by `of`. */
+export function cowRuns<S extends Run>(c: Cow<RunArray<S>, Runs<S>>, of: (array: RunArray<S>) => S): Runs<S> {
+	return c instanceof Borrowed ? c.slice : runsFrom(c.items, of);
+}
+
 /** `Deref` of a `Cow<[u8]>`: its bytes. */
 export function byteCowSlice(c: ByteCow): ByteSlice {
 	return c instanceof ByteVec ? byteVecSlice(c) : c;
@@ -2651,9 +2671,11 @@ export function byteCowSlice(c: ByteCow): ByteSlice {
 /**
  * `Cow::into_owned` of a `Cow<[T]>`: its `Vec`, or a clone of what it borrows, each item by `clone` if given, with room for exactly them, as `to_vec` makes it.
  */
-export function cowIntoOwned<T>(c: Cow<T>, clone?: (item: T) => T): Vec<T> {
+export function cowIntoOwned<T, S extends Slice<T> | Runs<Run> = Slice<T>>(c: Cow<T, S>, clone?: (item: T) => T): Vec<T> {
 	if (!(c instanceof Borrowed)) return c;
-	return vecFrom(clone === undefined ? sliceToArray(c.slice) : sliceItems(c.slice).map(clone));
+	const s = c.slice;
+	if (s instanceof Runs) return vecFrom((clone === undefined ? runsCopy(s) : runsArray(s).map(clone as (item: unknown) => unknown)) as T[]);
+	return vecFrom(clone === undefined ? sliceToArray(s as Slice<T>) : sliceItems(s as Slice<T>).map(clone));
 }
 
 /** `Cow::into_owned` of a `Cow<[u8]>`. */
@@ -2665,7 +2687,7 @@ export function byteCowIntoOwned(c: ByteCow): ByteVec {
  * `Clone` of a `Cow<[T]>`: a borrow of the same slice, or a clone of its `Vec` with room
  * for exactly its items, as `to_vec` makes it.
  */
-export function cowClone<T>(c: Cow<T>, clone?: (item: T) => T): Cow<T> {
+export function cowClone<T, S extends Slice<T> | Runs<Run> = Slice<T>>(c: Cow<T, S>, clone?: (item: T) => T): Cow<T, S> {
 	if (c instanceof Borrowed) return new Borrowed(c.slice);
 	return vecFrom(clone === undefined ? c.items.slice() : c.items.map(clone));
 }
@@ -2679,7 +2701,7 @@ export function byteCowClone(c: ByteCow): ByteCow {
  * `clone_from` of a `Cow<[T]>`, of `size`-byte items: an owned one's `Vec`, of an owned
  * one's, as `vecCloneFrom` clones into it, and else `src`'s clone, made before `c` drops.
  */
-export function cowCloneFrom<T>(c: Cow<T>, src: Cow<T>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): Cow<T> {
+export function cowCloneFrom<T, S extends Slice<T> | Runs<Run> = Slice<T>>(c: Cow<T, S>, src: Cow<T, S>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): Cow<T, S> {
 	if (!(c instanceof Borrowed || src instanceof Borrowed)) return vecCloneFrom(c, src.items, size, clone, drop, over);
 	const item = cowClone(src, clone);
 	cowDrop(c, drop);
@@ -2687,7 +2709,7 @@ export function cowCloneFrom<T>(c: Cow<T>, src: Cow<T>, size: number, clone?: (v
 }
 
 /** `cowCloneFrom` as a `CloneFrom`. */
-export function cowCloneFromFn<T>(size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<Cow<T>> {
+export function cowCloneFromFn<T, S extends Slice<T> | Runs<Run> = Slice<T>>(size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<Cow<T, S>> {
 	return (old, src) => cowCloneFrom(old, src, size, clone, drop, over);
 }
 
@@ -2702,7 +2724,7 @@ export function byteCowCloneFromFn(): CloneFrom<ByteCow> {
 }
 
 /** Drop a `Cow<[T]>`: the items it owns, by `f` if given. */
-export function cowDrop<T>(c: Cow<T>, f?: (item: T) => void): void {
+export function cowDrop<T, S extends Slice<T> | Runs<Run> = Slice<T>>(c: Cow<T, S>, f?: (item: T) => void): void {
 	if (!(c instanceof Borrowed)) dropAll(c.items, f);
 }
 
