@@ -28,7 +28,6 @@ build's retired instructions by 16%.
 
 ## Required
 
-- [Bump the build benchmark's moq pin past poll-first](/quest/m4/bench-moq-pin.md) - the benchmark builds moq after poll-first, so its hub edit rebuilds the 10 crates main does
 - [Bench TPDE on moq](/quest/m4/tpde.md) - what TPDE cuts from moq's clean build and non-incremental edit; waits on `-Zllvm-tpde` reaching a nightly
 - [Waiting: a rustc and cargo fork](/quest/m4/fork.md) - the evidence ledger for carrying a fork; condition: enough measured reasons to pay for one
 - [moq in pure Go](/quest/m4/go/README.md) - rust2-go translating moq-net, with no cgo, fast enough to replace the cgo bindings for Go users
