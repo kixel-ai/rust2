@@ -206,7 +206,8 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		Some(match self.static_ty(def_id).kind() {
 			ty::Array(of, n)
 				if *of == elem
-					&& size > 0 && offset.bytes().is_multiple_of(size)
+					&& size > 0
+					&& offset.bytes().is_multiple_of(size)
 					&& n.try_to_target_usize(tcx)
 						.is_some_and(|n| offset.bytes() / size + len <= n) =>
 			{
