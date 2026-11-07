@@ -435,6 +435,8 @@ func script() {
 	check(polar != nil, "a point off the origin")
 	check(api.Span_(1, 4) == 3, "a function named as a type of its package")
 	fmt.Printf("polar %d %t area %d\n", polar.Distance, api.NewPolarPoint(0) == nil, api.Area(dep.Size{Width: 2, Height: 3}))
+	// Two types whose paths join alike, the second kept apart where its path splits.
+	fmt.Printf("wind %d\n", api.Wind(api.PolarTurn{Whole: 2}, api.Polar_Turn{Part: 3}))
 	// Instances that name each other, and one made only by an impl of it.
 	crossed := api.Cross(api.LeftRightU8{Value: api.RightU8{Value: 1}}, api.RightLeftU8{Value: api.LeftU8{Value: 2}})
 	fmt.Printf("cross %d outer %d\n", crossed, must(api.NewOuterInnerU8(4).Get()))
