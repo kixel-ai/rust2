@@ -194,7 +194,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let value = self.place_expr(place, span, out);
 					match pointee {
 						_ if crate::lower::pointer::slice_of_bytes(pointee) => Expr::rs("rawByteSliceOf", vec![value]),
-						_ if crate::lower::pointer::slice_of_arrays(pointee) => Expr::rs("rawArraySliceOf", vec![value]),
+						_ if crate::lower::pointer::slice_of_arrays(pointee) => {
+							Expr::rs("rawArraySliceOf", vec![value])
+						}
 						_ => Expr::rs("rawSliceOf", vec![value]),
 					}
 				}

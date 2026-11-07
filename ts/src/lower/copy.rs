@@ -29,6 +29,10 @@ use super::{AdtRepr, Translator, field_name, names};
 use crate::program::{SymKind, Symbol};
 use crate::ts::{self, Expr, Key, Param, Stmt, StmtKind};
 
+/// What a library object holds inline: each field of its JS object holding a value and
+/// the type held there, and the types it holds where no copy reaches.
+type Inline<'tcx> = (Vec<(&'static str, Ty<'tcx>)>, Vec<Ty<'tcx>>);
+
 impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether a `ty` is copied where Rust copies it: a `Copy` value that is, or holds by
 	/// value, a JS object the crate's code writes into in place or compares pointers to.
@@ -67,9 +71,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						|| self.addressed(ty)
 						|| !ty.is_freeze(self.tcx, self.typing_env())
 						|| match self.inline_held(ty) {
-							Some((fields, unreachable)) => {
-								fields.into_iter().map(|(_, t)| t).chain(unreachable).any(|t| self.changes(t))
-							}
+							Some((fields, unreachable)) => fields
+								.into_iter()
+								.map(|(_, t)| t)
+								.chain(unreachable)
+								.any(|t| self.changes(t)),
 							// Any type it is over may be held inline, which its copy refuses.
 							None => args.types().any(|t| self.changes(t)),
 						};
@@ -94,7 +100,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Rust's read shares too. `None`
 	/// for any other library object, such as a `LazyCell` or a `Peekable`, whose inline
 	/// state only its runtime class knows, so a read that would copy one is refused.
-	fn inline_held(&self, ty: Ty<'tcx>) -> Option<(Vec<(&'static str, Ty<'tcx>)>, Vec<Ty<'tcx>>)> {
+	fn inline_held(&self, ty: Ty<'tcx>) -> Option<Inline<'tcx>> {
 		let ty::Adt(adt, args) = ty.kind() else {
 			return None;
 		};
