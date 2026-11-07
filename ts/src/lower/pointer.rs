@@ -86,8 +86,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The runtime's function `name` of the slice a pointer or reference to `ty`, a
-	/// `[T; N]` through any `MaybeUninit`s, is: `byteSlice{name}` of bytes, and else
-	/// `slice{name}`.
+	/// `[T; N]` through any `MaybeUninit`s, is: `byteSlice{name}` of bytes, `arraySlice{name}`
+	/// of arrays, and else `slice{name}`.
 	pub fn array_rs(&self, ty: Ty<'tcx>, name: &str) -> Expr {
 		super::array_fn(self.uninit_inner(ty), name)
 	}
@@ -504,10 +504,10 @@ pub fn call<'tcx>(
 		ty::Array(elem, _) => super::slice_items_from(e, *elem),
 		_ => super::library::slice_from(e),
 	};
-	// The runs of an array of arrays have no JS array to write through.
+	// The arrays of an array of arrays have no JS array to write through.
 	let to_reference = |b: &mut Body<'_, '_, 'tcx>, e: Expr| match b.t.uninit_inner(pointee()) {
 		ty if super::byte_array(ty) => Expr::rs("byteSliceView", vec![e]),
-		ty if super::runs::of_arrays(ty) => b.err(
+		ty if super::array_slice::of_arrays(ty) => b.err(
 			span,
 			format!("a reference to `{ty}` from a raw pointer, which is not supported yet"),
 		),

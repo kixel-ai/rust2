@@ -168,7 +168,7 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		Runs.push$u8(runs, _38);
 	}
-	const _44: rs.ByteSlice | undefined = rs.runsFirst(rs.runsFrom((runs.pairs as rs.Vec<Uint8Array>).items, rs.byteSliceFrom));
+	const _44: rs.ByteSlice | undefined = rs.arraySliceFirst(rs.arraySliceFrom((runs.pairs as rs.Vec<Uint8Array>).items, rs.byteSliceFrom));
 	if (_44 !== undefined) {
 		fill$u8(_44, n);
 	}
@@ -214,7 +214,7 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		Runs.push$u16(runs2, _154);
 	}
-	const _160: rs.Slice<rs.u16> | undefined = rs.runsFirst(rs.runsFrom((runs2.pairs as rs.Vec<rs.u16[]>).items, rs.sliceFrom));
+	const _160: rs.Slice<rs.u16> | undefined = rs.arraySliceFirst(rs.arraySliceFrom((runs2.pairs as rs.Vec<rs.u16[]>).items, rs.sliceFrom));
 	if (_160 !== undefined) {
 		fill$u16(_160, n2);
 	}

@@ -2096,81 +2096,81 @@ export function arrays(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), undefined, 1, true);
 	const _13: rs.u8 = rs.u8Rem(kind, 4);
 	if (_13 === 0) {
-		const _17: [rs.Runs<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(data, 2);
-		rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_17[0]), (c3: rs.ByteSlice): rs.u8 => {
+		const _17: [rs.ArraySlice<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(data, 2);
+		rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_17[0]), (c3: rs.ByteSlice): rs.u8 => {
 			return digest(c3);
 		}), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_17[0].length & 0xff, digest(_17[1]))), undefined, true);
-		const _28: [rs.ByteSlice, rs.Runs<rs.ByteSlice>] = rs.sliceAsRchunks(data, 3);
-		rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_28[1]), (c4: rs.ByteSlice): rs.u8 => {
+		const _28: [rs.ByteSlice, rs.ArraySlice<rs.ByteSlice>] = rs.sliceAsRchunks(data, 3);
+		rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_28[1]), (c4: rs.ByteSlice): rs.u8 => {
 			return c4.data[c4.start] ^ c4.data[c4.start + 2];
 		}), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_28[1].length & 0xff, digest(_28[0]))), undefined, true);
-		const _39: [rs.Runs<rs.Slice<rs.u16>>, rs.Slice<rs.u16>] = rs.sliceAsChunks(rs.sliceFrom(words.items), 3);
-		rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_39[0]), (c5: rs.Slice<rs.u16>): rs.u8 => {
+		const _39: [rs.ArraySlice<rs.Slice<rs.u16>>, rs.Slice<rs.u16>] = rs.sliceAsChunks(rs.sliceFrom(words.items), 3);
+		rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_39[0]), (c5: rs.Slice<rs.u16>): rs.u8 => {
 			return digestWords(c5);
 		}), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_39[0].length & 0xff, digestWords(_39[1]))), undefined, true);
-		const _52: [rs.Slice<rs.u16>, rs.Runs<rs.Slice<rs.u16>>] = rs.sliceAsRchunks(rs.sliceFrom(words.items), 1);
-		rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_52[1]), (_211: rs.Slice<rs.u16>): rs.u8 => {
+		const _52: [rs.Slice<rs.u16>, rs.ArraySlice<rs.Slice<rs.u16>>] = rs.sliceAsRchunks(rs.sliceFrom(words.items), 1);
+		rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_52[1]), (_211: rs.Slice<rs.u16>): rs.u8 => {
 			return rs.u16Shr(_211.data[_211.start], 4) & 0xff;
 		}), undefined, true);
 		rs.byteVecPush(out, _52[0].length & 0xff);
-		const _63: [rs.Runs<rs.Slice<Noisy.Noisy>>, rs.Slice<Noisy.Noisy>] = rs.sliceAsChunks(rs.sliceFrom(items.items), 3);
-		rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_63[0]), (c6: rs.Slice<Noisy.Noisy>): rs.u8 => {
+		const _63: [rs.ArraySlice<rs.Slice<Noisy.Noisy>>, rs.Slice<Noisy.Noisy>] = rs.sliceAsChunks(rs.sliceFrom(items.items), 3);
+		rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_63[0]), (c6: rs.Slice<Noisy.Noisy>): rs.u8 => {
 			return _11(c6);
 		}), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_63[0].length & 0xff, _11(_63[1]))), undefined, true);
-		const _80: [rs.Slice<Noisy.Noisy>, rs.Runs<rs.Slice<Noisy.Noisy>>] = rs.sliceAsRchunks(rs.sliceFrom(items.items), 2);
-		rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_80[1]), (c7: rs.Slice<Noisy.Noisy>): rs.u8 => {
+		const _80: [rs.Slice<Noisy.Noisy>, rs.ArraySlice<rs.Slice<Noisy.Noisy>>] = rs.sliceAsRchunks(rs.sliceFrom(items.items), 2);
+		rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_80[1]), (c7: rs.Slice<Noisy.Noisy>): rs.u8 => {
 			return _11(c7);
 		}), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_80[1].length & 0xff, _11(_80[0]))), undefined, true);
 	} else if (_13 === 1) {
-		const _97: [rs.Runs<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(rs.byteSliceRange(data, 0, 0), 4);
+		const _97: [rs.ArraySlice<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(rs.byteSliceRange(data, 0, 0), 4);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_97[0].length & 0xff, _97[1].length & 0xff)), undefined, true);
-		const _108: [rs.Slice<Noisy.Noisy>, rs.Runs<rs.Slice<Noisy.Noisy>>] = rs.sliceAsRchunks(rs.sliceRange(rs.sliceFrom(items.items), 0, 0), 2);
+		const _108: [rs.Slice<Noisy.Noisy>, rs.ArraySlice<rs.Slice<Noisy.Noisy>>] = rs.sliceAsRchunks(rs.sliceRange(rs.sliceFrom(items.items), 0, 0), 2);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_108[1].length & 0xff, _108[0].length & 0xff)), undefined, true);
 		const start: rs.usize = rs.usizeDiv(data.length, 3);
-		const _123: [rs.Runs<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(rs.byteSliceRange(data, start), 3);
-		const iter: rs.Iter<rs.ByteSlice> = rs.runsIter(_123[0]);
+		const _123: [rs.ArraySlice<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(rs.byteSliceRange(data, start), 3);
+		const iter: rs.Iter<rs.ByteSlice> = rs.arraySliceIter(_123[0]);
 		while (true) {
 			const _128: rs.ByteSlice | rs.Done = iter.next();
 			if (_128 === rs.DONE) {
 				break;
 			}
-			const _134: [rs.Runs<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(_128, 2);
+			const _134: [rs.ArraySlice<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(_128, 2);
 			const _138: rs.u8 = _134[0].length & 0xff;
 			rs.idx(_134[0], 0);
-			const slice3 = rs.runsAt(_134[0], 0);
+			const slice3 = rs.arraySliceAt(_134[0], 0);
 			const _141: rs.u8 = slice3.data[slice3.start + 1];
 			rs.idx(_134[1], 0);
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_138, _141 ^ _134[1].data[_134[1].start])), undefined, true);
 		}
 		rs.byteVecPush(out, digest(_123[1]));
-		const _155: [rs.Slice<rs.u16>, rs.Runs<rs.Slice<rs.u16>>] = rs.sliceAsRchunks(rs.sliceRange(rs.sliceFrom(words.items), start), 2);
-		rs.iterExtendBytes(out, rs.iterOption(option_map$0duedp1(rs.runsLast(_155[1]), (c: rs.Slice<rs.u16>): rs.u8 => {
+		const _155: [rs.Slice<rs.u16>, rs.ArraySlice<rs.Slice<rs.u16>>] = rs.sliceAsRchunks(rs.sliceRange(rs.sliceFrom(words.items), start), 2);
+		rs.iterExtendBytes(out, rs.iterOption(option_map$0duedp1(rs.arraySliceLast(_155[1]), (c: rs.Slice<rs.u16>): rs.u8 => {
 			return digestWords(c);
 		})), undefined, true);
 		rs.byteVecPush(out, digestWords(_155[0]));
-		const _165: [rs.Runs<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(rs.byteVecSlice(bytes), 2);
-		const _169: [rs.ByteSlice, rs.Runs<rs.ByteSlice>] = rs.sliceAsRchunks(rs.byteSliceRange(rs.byteVecSlice(bytes), 1), 2);
-		rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([isSomeAnd$1ouf3e6(zip$0wdt346(rs.runsFirst(_165[0]), rs.byteSliceGetRange(rs.byteVecSlice(bytes), 0, 2)), (_27: [rs.ByteSlice, rs.ByteSlice]): boolean => {
+		const _165: [rs.ArraySlice<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(rs.byteVecSlice(bytes), 2);
+		const _169: [rs.ByteSlice, rs.ArraySlice<rs.ByteSlice>] = rs.sliceAsRchunks(rs.byteSliceRange(rs.byteVecSlice(bytes), 1), 2);
+		rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([isSomeAnd$1ouf3e6(zip$0wdt346(rs.arraySliceFirst(_165[0]), rs.byteSliceGetRange(rs.byteVecSlice(bytes), 0, 2)), (_27: [rs.ByteSlice, rs.ByteSlice]): boolean => {
 			return rs.byteSliceSame(_27[0], _27[1]);
-		}), isSomeAnd$1ouf3e6(zip$0wdt346(rs.runsFirst(_165[0]), rs.runsFirst(rs.sliceAsChunks(rs.byteVecSlice(bytes), 2)[0])), (_29: [rs.ByteSlice, rs.ByteSlice]): boolean => {
+		}), isSomeAnd$1ouf3e6(zip$0wdt346(rs.arraySliceFirst(_165[0]), rs.arraySliceFirst(rs.sliceAsChunks(rs.byteVecSlice(bytes), 2)[0])), (_29: [rs.ByteSlice, rs.ByteSlice]): boolean => {
 			return rs.byteSliceSame(_29[0], _29[1]);
-		}), isSomeAnd$1ouf3e6(zip$0wdt346(rs.runsLast(_169[1]), rs.runsLast(_165[0])), (_210: [rs.ByteSlice, rs.ByteSlice]): boolean => {
+		}), isSomeAnd$1ouf3e6(zip$0wdt346(rs.arraySliceLast(_169[1]), rs.arraySliceLast(_165[0])), (_210: [rs.ByteSlice, rs.ByteSlice]): boolean => {
 			return rs.byteSliceSame(_210[0], _210[1]);
 		})], (a0: boolean): rs.u8 => {
 			return a0 ? 1 : 0;
 		})), undefined, true);
-		const kept: Uint8Array | undefined = copy$Option_array2_u8(rs.optionMap(rs.runsFirst(_165[0]), rs.byteSliceView));
+		const kept: Uint8Array | undefined = copy$Option_array2_u8(rs.optionMap(rs.arraySliceFirst(_165[0]), rs.byteSliceView));
 		const _195: rs.Place<rs.u8> | undefined = rs.sliceFirstMut(rs.byteVecSlice(bytes));
 		if (_195 !== undefined) {
 			_195.v = _195.v ^ 255;
 		}
 		rs.iterExtendBytes(out, rs.iterFlatten(rs.iterOption(copy$Option_array2_u8(kept)), (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
-		const kept2: rs.u16[] | undefined = copy$Option_array2_u16(rs.optionMap(rs.runsFirst(rs.sliceAsChunks(rs.sliceFrom(words.items), 2)[0]), rs.sliceItems));
+		const kept2: rs.u16[] | undefined = copy$Option_array2_u16(rs.optionMap(rs.arraySliceFirst(rs.sliceAsChunks(rs.sliceFrom(words.items), 2)[0]), rs.sliceItems));
 		const _208: rs.Place<rs.u16> | undefined = rs.sliceFirstMut(rs.sliceFrom(words.items));
 		if (_208 !== undefined) {
 			_208.v = _208.v ^ 65535;
@@ -2247,8 +2247,8 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	}), undefined, 1, true);
 	const _12: rs.u8 = rs.u8Rem(kind, 5);
 	if (_12 === 0) {
-		const _16: [rs.Runs<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(rs.byteVecSlice(bytes), 3);
-		const iter: rs.Iter<[rs.usize, rs.ByteSlice]> = rs.iterEnumerate(rs.runsIter(_16[0]));
+		const _16: [rs.ArraySlice<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(rs.byteVecSlice(bytes), 3);
+		const iter: rs.Iter<[rs.usize, rs.ByteSlice]> = rs.iterEnumerate(rs.arraySliceIter(_16[0]));
 		while (true) {
 			const _23: [rs.usize, rs.ByteSlice] | rs.Done = iter.next();
 			if (_23 === rs.DONE) {
@@ -2258,7 +2258,7 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			const swapped: Uint8Array = Uint8Array.of(_23[1].data[_23[1].start + 2], _23[1].data[_23[1].start + 1]);
 			rs.byteSliceCopyFromSlice(rs.byteSliceRange(_23[1], 1), rs.byteSliceFrom(swapped));
 		}
-		const iter2: rs.Iter<[rs.ByteSlice, rs.u8]> = rs.iterZip(rs.iterRev(rs.runsIter(_16[0])), rs.iterSlice(rs.byteSliceView(data)), "len");
+		const iter2: rs.Iter<[rs.ByteSlice, rs.u8]> = rs.iterZip(rs.iterRev(rs.arraySliceIter(_16[0])), rs.iterSlice(rs.byteSliceView(data)), "len");
 		while (true) {
 			const _48: [rs.ByteSlice, rs.u8] | rs.Done = iter2.next();
 			if (_48 === rs.DONE) {
@@ -2267,7 +2267,7 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			const _53: rs.u8 = rs.u8WrappingAdd(_48[0].data[_48[0].start + 2], _48[1]);
 			_48[0].data[_48[0].start + 2] = _53;
 		}
-		const odd: rs.Peekable<rs.ByteSlice> = rs.iterPeekable(rs.iterFilter(rs.runsIter(_16[0]), (c33: rs.ByteSlice): boolean => {
+		const odd: rs.Peekable<rs.ByteSlice> = rs.iterPeekable(rs.iterFilter(rs.arraySliceIter(_16[0]), (c33: rs.ByteSlice): boolean => {
 			const _719: rs.ByteSlice = c33;
 			return (_719.data[_719.start] & 1) !== 0;
 		}));
@@ -2286,8 +2286,8 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			_71.data[_71.start] = ~_71.data[_71.start] & 0xff;
 		}
 		rs.byteSliceFill(_16[1], 1);
-		const _83: [rs.Slice<rs.u16>, rs.Runs<rs.Slice<rs.u16>>] = rs.sliceAsRchunks(rs.sliceFrom(words.items), 2);
-		const iter4: rs.Iter<[rs.usize, rs.Slice<rs.u16>]> = rs.iterEnumerate(rs.runsIter(_83[1]));
+		const _83: [rs.Slice<rs.u16>, rs.ArraySlice<rs.Slice<rs.u16>>] = rs.sliceAsRchunks(rs.sliceFrom(words.items), 2);
+		const iter4: rs.Iter<[rs.usize, rs.Slice<rs.u16>]> = rs.iterEnumerate(rs.arraySliceIter(_83[1]));
 		while (true) {
 			const _90: [rs.usize, rs.Slice<rs.u16>] | rs.Done = iter4.next();
 			if (_90 === rs.DONE) {
@@ -2299,7 +2299,7 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		}
 		rs.sliceFill(_83[0], 1, undefined);
 		const part7 = rs.usizeDiv(data.length, 3);
-		const iter5: rs.Iter<rs.ByteSlice> = rs.runsIter(rs.sliceAsChunks(rs.byteSliceRange(rs.byteVecSlice(bytes), part7), 2)[0]);
+		const iter5: rs.Iter<rs.ByteSlice> = rs.arraySliceIter(rs.sliceAsChunks(rs.byteSliceRange(rs.byteVecSlice(bytes), part7), 2)[0]);
 		while (true) {
 			const _110: rs.ByteSlice | rs.Done = iter5.next();
 			if (_110 === rs.DONE) {
@@ -2307,8 +2307,8 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			rs.byteSliceSwap(_110, 0, 1);
 		}
-		const kept: Uint8Array | undefined = copy$Option_array2_u8(rs.optionMap(rs.runsFirst(rs.sliceAsChunks(rs.byteVecSlice(bytes), 2)[0]), rs.byteSliceView));
-		const keptWords: rs.u16[] | undefined = copy$Option_array2_u16(rs.optionMap(rs.runsFirst(rs.sliceAsChunks(rs.sliceFrom(words.items), 2)[0]), rs.sliceItems));
+		const kept: Uint8Array | undefined = copy$Option_array2_u8(rs.optionMap(rs.arraySliceFirst(rs.sliceAsChunks(rs.byteVecSlice(bytes), 2)[0]), rs.byteSliceView));
+		const keptWords: rs.u16[] | undefined = copy$Option_array2_u16(rs.optionMap(rs.arraySliceFirst(rs.sliceAsChunks(rs.sliceFrom(words.items), 2)[0]), rs.sliceItems));
 		rs.byteSliceFill(rs.byteVecSlice(bytes), 9);
 		rs.sliceFill(rs.sliceFrom(words.items), 9, undefined);
 		rs.iterExtendBytes(out, rs.iterFlatten(rs.iterOption(copy$Option_array2_u8(kept)), (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
@@ -2316,366 +2316,366 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			return (w2 ^ (w2 >> 8)) & 0xff;
 		}), undefined, true);
 	} else if (_12 === 1) {
-		const _142: [rs.Runs<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(rs.byteVecSlice(bytes), 2);
+		const _142: [rs.ArraySlice<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(rs.byteVecSlice(bytes), 2);
 		if (_142[0].length >= 2) {
-			const _152: [Uint8Array, Uint8Array] = [rs.byteSliceToArray(rs.runsAt(_142[0], 0)), rs.byteSliceToArray(rs.runsAt(_142[0], _142[0].length - 1))];
+			const _152: [Uint8Array, Uint8Array] = [rs.byteSliceToArray(rs.arraySliceAt(_142[0], 0)), rs.byteSliceToArray(rs.arraySliceAt(_142[0], _142[0].length - 1))];
 			const first: Uint8Array = copy$array_u8(_152[0]);
 			const last: Uint8Array = copy$array_u8(_152[1]);
-			rs.runsSwap(_142[0], 0, rs.usizeSub(_142[0].length, 1), undefined);
-			rs.runsBy(_142[0], (runs48) => rs.sliceReverse(runs48));
+			rs.arraySliceSwap(_142[0], 0, rs.usizeSub(_142[0].length, 1), undefined);
+			rs.arraySliceBy(_142[0], (arrays48) => rs.sliceReverse(arrays48));
 			const n: rs.usize = _142[0].length;
-			rs.runsBy(rs.runsRange(_142[0], 1), (runs49) => rs.sliceReverse(runs49));
-			rs.runsBy(_142[0], (runs50) => rs.sliceRotateLeft(runs50, 1));
+			rs.arraySliceBy(rs.arraySliceRange(_142[0], 1), (arrays49) => rs.sliceReverse(arrays49));
+			rs.arraySliceBy(_142[0], (arrays50) => rs.sliceRotateLeft(arrays50, 1));
 			const _168: rs.usize = rs.usizeDiv(n, 2);
-			rs.runsBy(_142[0], (runs51) => rs.sliceRotateRight(runs51, _168));
+			rs.arraySliceBy(_142[0], (arrays51) => rs.sliceRotateRight(arrays51, _168));
 			const _171: rs.usize = rs.usizeSub(n, 1);
 			rs.idx(_142[0], _171);
-			const kept2: Uint8Array = rs.byteSliceToArray(rs.runsAt(_142[0], _171));
+			const kept2: Uint8Array = rs.byteSliceToArray(rs.arraySliceAt(_142[0], _171));
 			const _177: { end: rs.usize } = { end: rs.usizeSub(n, 1) };
-			rs.runsCopyWithin(_142[0], 0, _177.end, 1, copy$array_u8);
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(rs.runsFrom([copy$array_u8(first), copy$array_u8(last), copy$array_u8(kept2)], rs.byteSliceFrom)), (c28: rs.ByteSlice): rs.u8 => {
+			rs.arraySliceCopyWithin(_142[0], 0, _177.end, 1, copy$array_u8);
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom([copy$array_u8(first), copy$array_u8(last), copy$array_u8(kept2)], rs.byteSliceFrom)), (c28: rs.ByteSlice): rs.u8 => {
 				return digest(c28);
 			}), undefined, true);
-			rs.runsBy(_142[0], (runs52) => rs.sliceSort(runs52, rs.cmpLt(rs.cmpBytes), 2, true));
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_142[0]), (c29: rs.ByteSlice): rs.u8 => {
+			rs.arraySliceBy(_142[0], (arrays52) => rs.sliceSort(arrays52, rs.cmpLt(rs.cmpBytes), 2, true));
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_142[0]), (c29: rs.ByteSlice): rs.u8 => {
 				return digest(c29);
 			}), undefined, true);
 			const f12 = (c30: rs.ByteSlice): rs.u8 => {
 				return c30.data[c30.start + 1];
 			};
-			rs.runsBy(_142[0], (runs53) => rs.sliceSort(runs53, rs.keyLt((held12) => f12(rs.byteSliceFrom(held12)), rs.cmpLt(rs.cmpReverse(rs.cmp))), 2, true));
-			rs.runsBy(_142[0], (runs54) => rs.sliceSortUnstable(runs54, rs.cmpLt(rs.cmpBytes), 2, true, true));
+			rs.arraySliceBy(_142[0], (arrays53) => rs.sliceSort(arrays53, rs.keyLt((held12) => f12(rs.byteSliceFrom(held12)), rs.cmpLt(rs.cmpReverse(rs.cmp))), 2, true));
+			rs.arraySliceBy(_142[0], (arrays54) => rs.sliceSortUnstable(arrays54, rs.cmpLt(rs.cmpBytes), 2, true, true));
 			const f13 = (c31: rs.ByteSlice): rs.u8 => {
 				return c31.data[c31.start];
 			};
-			rs.runsBy(_142[0], (runs55) => rs.sliceSortByCachedKey(runs55, (held13) => f13(rs.byteSliceFrom(held13)), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmp), rs.cmp])), 8, true, true));
-			const _196: [rs.Runs<rs.ByteSlice>, rs.Runs<rs.ByteSlice>] = rs.runsSplitAt(_142[0], 1);
+			rs.arraySliceBy(_142[0], (arrays55) => rs.sliceSortByCachedKey(arrays55, (held13) => f13(rs.byteSliceFrom(held13)), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmp), rs.cmp])), 8, true, true));
+			const _196: [rs.ArraySlice<rs.ByteSlice>, rs.ArraySlice<rs.ByteSlice>] = rs.arraySliceSplitAt(_142[0], 1);
 			rs.idx(_196[0], 0);
 			const _204: rs.usize = rs.usizeSub(n, 2);
 			rs.idx(_196[1], _204);
-			const slice79 = rs.runsAt(_196[0], 0);
-			const slice80 = rs.runsAt(_196[1], _204);
+			const slice79 = rs.arraySliceAt(_196[0], 0);
+			const slice80 = rs.arraySliceAt(_196[1], _204);
 			const swapped8 = rs.byteSliceToArray(slice79);
 			slice79.data.set(rs.byteSliceToArray(slice80), slice79.start);
 			slice80.data.set(swapped8, slice80.start);
 			rs.idx(_142[0], 0);
-			const slice81 = rs.runsAt(_142[0], 0);
+			const slice81 = rs.arraySliceAt(_142[0], 0);
 			const old13 = rs.byteSliceToArray(slice81);
 			slice81.data.set(Uint8Array.of(7, 8), slice81.start);
 			const old: Uint8Array = old13;
 			const _216: rs.usize = rs.usizeSub(n, 1);
 			rs.idx(_142[0], _216);
-			const slice82 = rs.runsAt(_142[0], _216);
+			const slice82 = rs.arraySliceAt(_142[0], _216);
 			slice82.data.set(copy$array_u8(old), slice82.start);
 			rs.idx(_142[0], 1);
-			const kept3: Uint8Array = rs.byteSliceToArray(rs.runsAt(_142[0], 1));
+			const kept3: Uint8Array = rs.byteSliceToArray(rs.arraySliceAt(_142[0], 1));
 			rs.idx(_142[0], 0);
-			const _226: Uint8Array = rs.byteSliceToArray(rs.runsAt(_142[0], 0));
+			const _226: Uint8Array = rs.byteSliceToArray(rs.arraySliceAt(_142[0], 0));
 			rs.idx(_142[0], 1);
-			const slice83 = rs.runsAt(_142[0], 1);
+			const slice83 = rs.arraySliceAt(_142[0], 1);
 			slice83.data.set(_226, slice83.start);
 			rs.idx(_142[0], 0);
-			const slice84 = rs.runsAt(_142[0], 0);
+			const slice84 = rs.arraySliceAt(_142[0], 0);
 			slice84.data.set(copy$array_u8(kept3), slice84.start);
-			const _239: rs.ByteSlice | undefined = rs.runsLast(_142[0]);
+			const _239: rs.ByteSlice | undefined = rs.arraySliceLast(_142[0]);
 			if (_239 !== undefined) {
 				_239.data.set(Uint8Array.of(9, 10), _239.start);
 			}
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_142[0]), (c32: rs.ByteSlice): rs.u8 => {
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_142[0]), (c32: rs.ByteSlice): rs.u8 => {
 				return digest(c32);
 			}), undefined, true);
-			const _247: rs.Runs<rs.ByteSlice> = rs.runsRange(_142[0], rs.usizeDiv(n, 2));
+			const _247: rs.ArraySlice<rs.ByteSlice> = rs.arraySliceRange(_142[0], rs.usizeDiv(n, 2));
 			const _251: Uint8Array = Uint8Array.of(9, 10);
-			rs.runsBy(_247, (runs56) => rs.sliceFill(runs56, _251, copy$array_u8));
+			rs.arraySliceBy(_247, (arrays56) => rs.sliceFill(arrays56, _251, copy$array_u8));
 		}
 	} else if (_12 === 2) {
-		const _253: [rs.Slice<rs.u16>, rs.Runs<rs.Slice<rs.u16>>] = rs.sliceAsRchunks(rs.sliceFrom(words.items), 2);
+		const _253: [rs.Slice<rs.u16>, rs.ArraySlice<rs.Slice<rs.u16>>] = rs.sliceAsRchunks(rs.sliceFrom(words.items), 2);
 		if (_253[1].length >= 2) {
-			const _263: [rs.u16[], rs.u16[]] = [rs.sliceToArray(rs.runsAt(_253[1], 0)), rs.sliceToArray(rs.runsAt(_253[1], _253[1].length - 1))];
+			const _263: [rs.u16[], rs.u16[]] = [rs.sliceToArray(rs.arraySliceAt(_253[1], 0)), rs.sliceToArray(rs.arraySliceAt(_253[1], _253[1].length - 1))];
 			const first2: rs.u16[] = copy$array_u16(_263[0]);
 			const last2: rs.u16[] = copy$array_u16(_263[1]);
-			rs.runsSwap(_253[1], 0, rs.usizeSub(_253[1].length, 1), undefined);
-			rs.runsBy(_253[1], (runs3) => rs.sliceReverse(runs3));
+			rs.arraySliceSwap(_253[1], 0, rs.usizeSub(_253[1].length, 1), undefined);
+			rs.arraySliceBy(_253[1], (arrays3) => rs.sliceReverse(arrays3));
 			const n2: rs.usize = _253[1].length;
-			rs.runsBy(rs.runsRange(_253[1], 1), (runs4) => rs.sliceReverse(runs4));
-			rs.runsBy(_253[1], (runs5) => rs.sliceRotateLeft(runs5, 1));
+			rs.arraySliceBy(rs.arraySliceRange(_253[1], 1), (arrays4) => rs.sliceReverse(arrays4));
+			rs.arraySliceBy(_253[1], (arrays5) => rs.sliceRotateLeft(arrays5, 1));
 			const _279: rs.usize = rs.usizeDiv(n2, 2);
-			rs.runsBy(_253[1], (runs6) => rs.sliceRotateRight(runs6, _279));
+			rs.arraySliceBy(_253[1], (arrays6) => rs.sliceRotateRight(arrays6, _279));
 			const _282: rs.usize = rs.usizeSub(n2, 1);
 			rs.idx(_253[1], _282);
-			const kept4: rs.u16[] = rs.sliceToArray(rs.runsAt(_253[1], _282));
+			const kept4: rs.u16[] = rs.sliceToArray(rs.arraySliceAt(_253[1], _282));
 			const _288: { end: rs.usize } = { end: rs.usizeSub(n2, 1) };
-			rs.runsCopyWithin(_253[1], 0, _288.end, 1, copy$array_u16);
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(rs.runsFrom([copy$array_u16(first2), copy$array_u16(last2), copy$array_u16(kept4)], rs.sliceFrom)), (c3: rs.Slice<rs.u16>): rs.u8 => {
+			rs.arraySliceCopyWithin(_253[1], 0, _288.end, 1, copy$array_u16);
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom([copy$array_u16(first2), copy$array_u16(last2), copy$array_u16(kept4)], rs.sliceFrom)), (c3: rs.Slice<rs.u16>): rs.u8 => {
 				return digestWords(c3);
 			}), undefined, true);
-			rs.runsBy(_253[1], (runs7) => rs.sliceSort(runs7, rs.cmpLt(rs.cmpSlice(rs.cmp)), 4, true));
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_253[1]), (c4: rs.Slice<rs.u16>): rs.u8 => {
+			rs.arraySliceBy(_253[1], (arrays7) => rs.sliceSort(arrays7, rs.cmpLt(rs.cmpSlice(rs.cmp)), 4, true));
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_253[1]), (c4: rs.Slice<rs.u16>): rs.u8 => {
 				return digestWords(c4);
 			}), undefined, true);
 			const f2 = (c5: rs.Slice<rs.u16>): rs.u16 => {
 				return c5.data[c5.start + 1];
 			};
-			rs.runsBy(_253[1], (runs8) => rs.sliceSort(runs8, rs.keyLt((held2) => f2(rs.sliceFrom(held2)), rs.cmpLt(rs.cmpReverse(rs.cmp))), 4, true));
-			rs.runsBy(_253[1], (runs9) => rs.sliceSortUnstable(runs9, rs.cmpLt(rs.cmpSlice(rs.cmp)), 4, true, true));
+			rs.arraySliceBy(_253[1], (arrays8) => rs.sliceSort(arrays8, rs.keyLt((held2) => f2(rs.sliceFrom(held2)), rs.cmpLt(rs.cmpReverse(rs.cmp))), 4, true));
+			rs.arraySliceBy(_253[1], (arrays9) => rs.sliceSortUnstable(arrays9, rs.cmpLt(rs.cmpSlice(rs.cmp)), 4, true, true));
 			const f3 = (c6: rs.Slice<rs.u16>): rs.u16 => {
 				return c6.data[c6.start];
 			};
-			rs.runsBy(_253[1], (runs10) => rs.sliceSortByCachedKey(runs10, (held3) => f3(rs.sliceFrom(held3)), rs.cmpLt(rs.cmpTuple<[rs.u16, rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmp), rs.cmp])), 8, true, true));
-			const _307: [rs.Runs<rs.Slice<rs.u16>>, rs.Runs<rs.Slice<rs.u16>>] = rs.runsSplitAt(_253[1], 1);
+			rs.arraySliceBy(_253[1], (arrays10) => rs.sliceSortByCachedKey(arrays10, (held3) => f3(rs.sliceFrom(held3)), rs.cmpLt(rs.cmpTuple<[rs.u16, rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmp), rs.cmp])), 8, true, true));
+			const _307: [rs.ArraySlice<rs.Slice<rs.u16>>, rs.ArraySlice<rs.Slice<rs.u16>>] = rs.arraySliceSplitAt(_253[1], 1);
 			rs.idx(_307[0], 0);
 			const _315: rs.usize = rs.usizeSub(n2, 2);
 			rs.idx(_307[1], _315);
-			const slice10 = rs.runsAt(_307[0], 0);
-			const slice11 = rs.runsAt(_307[1], _315);
+			const slice10 = rs.arraySliceAt(_307[0], 0);
+			const slice11 = rs.arraySliceAt(_307[1], _315);
 			rs.sliceSet(slice11, rs.replaceIn(rs.sliceView(slice10), rs.sliceToArray(slice11)));
 			rs.idx(_253[1], 0);
-			const old2: rs.u16[] = rs.replaceIn(rs.sliceView(rs.runsAt(_253[1], 0)), [7, 8]);
+			const old2: rs.u16[] = rs.replaceIn(rs.sliceView(rs.arraySliceAt(_253[1], 0)), [7, 8]);
 			const _327: rs.usize = rs.usizeSub(n2, 1);
 			rs.idx(_253[1], _327);
-			rs.sliceSet(rs.runsAt(_253[1], _327), copy$array_u16(old2));
+			rs.sliceSet(rs.arraySliceAt(_253[1], _327), copy$array_u16(old2));
 			rs.idx(_253[1], 1);
-			const kept5: rs.u16[] = rs.sliceToArray(rs.runsAt(_253[1], 1));
+			const kept5: rs.u16[] = rs.sliceToArray(rs.arraySliceAt(_253[1], 1));
 			rs.idx(_253[1], 0);
-			const _337: rs.u16[] = rs.sliceToArray(rs.runsAt(_253[1], 0));
+			const _337: rs.u16[] = rs.sliceToArray(rs.arraySliceAt(_253[1], 0));
 			rs.idx(_253[1], 1);
-			rs.sliceSet(rs.runsAt(_253[1], 1), _337);
+			rs.sliceSet(rs.arraySliceAt(_253[1], 1), _337);
 			rs.idx(_253[1], 0);
-			rs.sliceSet(rs.runsAt(_253[1], 0), copy$array_u16(kept5));
-			const _350: rs.Slice<rs.u16> | undefined = rs.runsLast(_253[1]);
+			rs.sliceSet(rs.arraySliceAt(_253[1], 0), copy$array_u16(kept5));
+			const _350: rs.Slice<rs.u16> | undefined = rs.arraySliceLast(_253[1]);
 			if (_350 !== undefined) {
 				rs.sliceSet(_350, [9, 10]);
 			}
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_253[1]), (c7: rs.Slice<rs.u16>): rs.u8 => {
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_253[1]), (c7: rs.Slice<rs.u16>): rs.u8 => {
 				return digestWords(c7);
 			}), undefined, true);
-			const _358: rs.Runs<rs.Slice<rs.u16>> = rs.runsRange(_253[1], rs.usizeDiv(n2, 2));
+			const _358: rs.ArraySlice<rs.Slice<rs.u16>> = rs.arraySliceRange(_253[1], rs.usizeDiv(n2, 2));
 			const _362: rs.u16[] = [9, 10];
-			rs.runsBy(_358, (runs11) => rs.sliceFill(runs11, _362, copy$array_u16));
+			rs.arraySliceBy(_358, (arrays11) => rs.sliceFill(arrays11, _362, copy$array_u16));
 		}
-		const _364: [rs.ByteSlice, rs.Runs<rs.ByteSlice>] = rs.sliceAsRchunks(rs.byteVecSlice(bytes), 4);
+		const _364: [rs.ByteSlice, rs.ArraySlice<rs.ByteSlice>] = rs.sliceAsRchunks(rs.byteVecSlice(bytes), 4);
 		if (_364[1].length >= 2) {
-			const _374: [Uint8Array, Uint8Array] = [rs.byteSliceToArray(rs.runsAt(_364[1], 0)), rs.byteSliceToArray(rs.runsAt(_364[1], _364[1].length - 1))];
+			const _374: [Uint8Array, Uint8Array] = [rs.byteSliceToArray(rs.arraySliceAt(_364[1], 0)), rs.byteSliceToArray(rs.arraySliceAt(_364[1], _364[1].length - 1))];
 			const first3: Uint8Array = copy$array_u8(_374[0]);
 			const last3: Uint8Array = copy$array_u8(_374[1]);
-			rs.runsSwap(_364[1], 0, rs.usizeSub(_364[1].length, 1), undefined);
-			rs.runsBy(_364[1], (runs12) => rs.sliceReverse(runs12));
+			rs.arraySliceSwap(_364[1], 0, rs.usizeSub(_364[1].length, 1), undefined);
+			rs.arraySliceBy(_364[1], (arrays12) => rs.sliceReverse(arrays12));
 			const n3: rs.usize = _364[1].length;
-			rs.runsBy(rs.runsRange(_364[1], 1), (runs13) => rs.sliceReverse(runs13));
-			rs.runsBy(_364[1], (runs14) => rs.sliceRotateLeft(runs14, 1));
+			rs.arraySliceBy(rs.arraySliceRange(_364[1], 1), (arrays13) => rs.sliceReverse(arrays13));
+			rs.arraySliceBy(_364[1], (arrays14) => rs.sliceRotateLeft(arrays14, 1));
 			const _390: rs.usize = rs.usizeDiv(n3, 2);
-			rs.runsBy(_364[1], (runs15) => rs.sliceRotateRight(runs15, _390));
+			rs.arraySliceBy(_364[1], (arrays15) => rs.sliceRotateRight(arrays15, _390));
 			const _393: rs.usize = rs.usizeSub(n3, 1);
 			rs.idx(_364[1], _393);
-			const kept6: Uint8Array = rs.byteSliceToArray(rs.runsAt(_364[1], _393));
+			const kept6: Uint8Array = rs.byteSliceToArray(rs.arraySliceAt(_364[1], _393));
 			const _399: { end: rs.usize } = { end: rs.usizeSub(n3, 1) };
-			rs.runsCopyWithin(_364[1], 0, _399.end, 1, copy$array_u8);
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(rs.runsFrom([copy$array_u8(first3), copy$array_u8(last3), copy$array_u8(kept6)], rs.byteSliceFrom)), (c8: rs.ByteSlice): rs.u8 => {
+			rs.arraySliceCopyWithin(_364[1], 0, _399.end, 1, copy$array_u8);
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom([copy$array_u8(first3), copy$array_u8(last3), copy$array_u8(kept6)], rs.byteSliceFrom)), (c8: rs.ByteSlice): rs.u8 => {
 				return digest(c8);
 			}), undefined, true);
-			rs.runsBy(_364[1], (runs16) => rs.sliceSort(runs16, rs.cmpLt(rs.cmpBytes), 4, true));
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_364[1]), (c9: rs.ByteSlice): rs.u8 => {
+			rs.arraySliceBy(_364[1], (arrays16) => rs.sliceSort(arrays16, rs.cmpLt(rs.cmpBytes), 4, true));
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_364[1]), (c9: rs.ByteSlice): rs.u8 => {
 				return digest(c9);
 			}), undefined, true);
 			const f4 = (c10: rs.ByteSlice): rs.u8 => {
 				return c10.data[c10.start + 1];
 			};
-			rs.runsBy(_364[1], (runs17) => rs.sliceSort(runs17, rs.keyLt((held4) => f4(rs.byteSliceFrom(held4)), rs.cmpLt(rs.cmpReverse(rs.cmp))), 4, true));
-			rs.runsBy(_364[1], (runs18) => rs.sliceSortUnstable(runs18, rs.cmpLt(rs.cmpBytes), 4, true, true));
+			rs.arraySliceBy(_364[1], (arrays17) => rs.sliceSort(arrays17, rs.keyLt((held4) => f4(rs.byteSliceFrom(held4)), rs.cmpLt(rs.cmpReverse(rs.cmp))), 4, true));
+			rs.arraySliceBy(_364[1], (arrays18) => rs.sliceSortUnstable(arrays18, rs.cmpLt(rs.cmpBytes), 4, true, true));
 			const f5 = (c11: rs.ByteSlice): rs.u8 => {
 				return c11.data[c11.start];
 			};
-			rs.runsBy(_364[1], (runs19) => rs.sliceSortByCachedKey(runs19, (held5) => f5(rs.byteSliceFrom(held5)), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmp), rs.cmp])), 8, true, true));
-			const _418: [rs.Runs<rs.ByteSlice>, rs.Runs<rs.ByteSlice>] = rs.runsSplitAt(_364[1], 1);
+			rs.arraySliceBy(_364[1], (arrays19) => rs.sliceSortByCachedKey(arrays19, (held5) => f5(rs.byteSliceFrom(held5)), rs.cmpLt(rs.cmpTuple<[rs.u8, rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmp), rs.cmp])), 8, true, true));
+			const _418: [rs.ArraySlice<rs.ByteSlice>, rs.ArraySlice<rs.ByteSlice>] = rs.arraySliceSplitAt(_364[1], 1);
 			rs.idx(_418[0], 0);
 			const _426: rs.usize = rs.usizeSub(n3, 2);
 			rs.idx(_418[1], _426);
-			const slice19 = rs.runsAt(_418[0], 0);
-			const slice20 = rs.runsAt(_418[1], _426);
+			const slice19 = rs.arraySliceAt(_418[0], 0);
+			const slice20 = rs.arraySliceAt(_418[1], _426);
 			const swapped4 = rs.byteSliceToArray(slice19);
 			slice19.data.set(rs.byteSliceToArray(slice20), slice19.start);
 			slice20.data.set(swapped4, slice20.start);
 			rs.idx(_364[1], 0);
-			const slice21 = rs.runsAt(_364[1], 0);
+			const slice21 = rs.arraySliceAt(_364[1], 0);
 			const old9 = rs.byteSliceToArray(slice21);
 			slice21.data.set(Uint8Array.of(1, 2, 3, 4), slice21.start);
 			const old3: Uint8Array = old9;
 			const _438: rs.usize = rs.usizeSub(n3, 1);
 			rs.idx(_364[1], _438);
-			const slice22 = rs.runsAt(_364[1], _438);
+			const slice22 = rs.arraySliceAt(_364[1], _438);
 			slice22.data.set(copy$array_u8(old3), slice22.start);
 			rs.idx(_364[1], 1);
-			const kept7: Uint8Array = rs.byteSliceToArray(rs.runsAt(_364[1], 1));
+			const kept7: Uint8Array = rs.byteSliceToArray(rs.arraySliceAt(_364[1], 1));
 			rs.idx(_364[1], 0);
-			const _448: Uint8Array = rs.byteSliceToArray(rs.runsAt(_364[1], 0));
+			const _448: Uint8Array = rs.byteSliceToArray(rs.arraySliceAt(_364[1], 0));
 			rs.idx(_364[1], 1);
-			const slice23 = rs.runsAt(_364[1], 1);
+			const slice23 = rs.arraySliceAt(_364[1], 1);
 			slice23.data.set(_448, slice23.start);
 			rs.idx(_364[1], 0);
-			const slice24 = rs.runsAt(_364[1], 0);
+			const slice24 = rs.arraySliceAt(_364[1], 0);
 			slice24.data.set(copy$array_u8(kept7), slice24.start);
-			const _461: rs.ByteSlice | undefined = rs.runsLast(_364[1]);
+			const _461: rs.ByteSlice | undefined = rs.arraySliceLast(_364[1]);
 			if (_461 !== undefined) {
 				_461.data.set(rs.bytes(4).fill(5), _461.start);
 			}
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_364[1]), (c12: rs.ByteSlice): rs.u8 => {
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_364[1]), (c12: rs.ByteSlice): rs.u8 => {
 				return digest(c12);
 			}), undefined, true);
-			const _469: rs.Runs<rs.ByteSlice> = rs.runsRange(_364[1], rs.usizeDiv(n3, 2));
+			const _469: rs.ArraySlice<rs.ByteSlice> = rs.arraySliceRange(_364[1], rs.usizeDiv(n3, 2));
 			const _473: Uint8Array = rs.bytes(4).fill(5);
-			rs.runsBy(_469, (runs20) => rs.sliceFill(runs20, _473, copy$array_u8));
+			rs.arraySliceBy(_469, (arrays20) => rs.sliceFill(arrays20, _473, copy$array_u8));
 		}
-		const _479: [rs.Runs<rs.Runs<rs.ByteSlice>>, rs.Runs<rs.ByteSlice>] = rs.sliceAsChunks(rs.sliceAsChunks(rs.byteVecSlice(bytes), 2)[0], 2);
+		const _479: [rs.ArraySlice<rs.ArraySlice<rs.ByteSlice>>, rs.ArraySlice<rs.ByteSlice>] = rs.sliceAsChunks(rs.sliceAsChunks(rs.byteVecSlice(bytes), 2)[0], 2);
 		if (_479[0].length >= 2) {
-			const _487: [Uint8Array[], Uint8Array[]] = [rs.runsToArray(rs.runsAt(_479[0], 0), rs.byteSliceToArray), rs.runsToArray(rs.runsAt(_479[0], _479[0].length - 1), rs.byteSliceToArray)];
+			const _487: [Uint8Array[], Uint8Array[]] = [rs.arraySliceToArray(rs.arraySliceAt(_479[0], 0), rs.byteSliceToArray), rs.arraySliceToArray(rs.arraySliceAt(_479[0], _479[0].length - 1), rs.byteSliceToArray)];
 			const first4: Uint8Array[] = copy$array_array2_u8(_487[0]);
 			const last4: Uint8Array[] = copy$array_array2_u8(_487[1]);
-			rs.runsSwap(_479[0], 0, rs.usizeSub(_479[0].length, 1), undefined);
-			rs.runsBy(_479[0], (runs21) => rs.sliceReverse(runs21));
+			rs.arraySliceSwap(_479[0], 0, rs.usizeSub(_479[0].length, 1), undefined);
+			rs.arraySliceBy(_479[0], (arrays21) => rs.sliceReverse(arrays21));
 			const n4: rs.usize = _479[0].length;
-			rs.runsBy(rs.runsRange(_479[0], 1), (runs22) => rs.sliceReverse(runs22));
-			rs.runsBy(_479[0], (runs23) => rs.sliceRotateLeft(runs23, 1));
+			rs.arraySliceBy(rs.arraySliceRange(_479[0], 1), (arrays22) => rs.sliceReverse(arrays22));
+			rs.arraySliceBy(_479[0], (arrays23) => rs.sliceRotateLeft(arrays23, 1));
 			const _503: rs.usize = rs.usizeDiv(n4, 2);
-			rs.runsBy(_479[0], (runs24) => rs.sliceRotateRight(runs24, _503));
+			rs.arraySliceBy(_479[0], (arrays24) => rs.sliceRotateRight(arrays24, _503));
 			const _506: rs.usize = rs.usizeSub(n4, 1);
 			rs.idx(_479[0], _506);
-			const kept8: Uint8Array[] = rs.runsToArray(rs.runsAt(_479[0], _506), rs.byteSliceToArray);
+			const kept8: Uint8Array[] = rs.arraySliceToArray(rs.arraySliceAt(_479[0], _506), rs.byteSliceToArray);
 			const _512: { end: rs.usize } = { end: rs.usizeSub(n4, 1) };
-			rs.runsCopyWithin(_479[0], 0, _512.end, 1, copy$array_array2_u8);
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(rs.runsFrom([copy$array_array2_u8(first4), copy$array_array2_u8(last4), copy$array_array2_u8(kept8)], rs.runsOf(rs.byteSliceFrom))), (c13: rs.Runs<rs.ByteSlice>): rs.u8 => {
-				const slice28 = rs.runsAt(c13, 0);
+			rs.arraySliceCopyWithin(_479[0], 0, _512.end, 1, copy$array_array2_u8);
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom([copy$array_array2_u8(first4), copy$array_array2_u8(last4), copy$array_array2_u8(kept8)], rs.arraySliceOf(rs.byteSliceFrom))), (c13: rs.ArraySlice<rs.ByteSlice>): rs.u8 => {
+				const slice28 = rs.arraySliceAt(c13, 0);
 				const _342: rs.u8 = slice28.data[slice28.start];
-				const slice29 = rs.runsAt(c13, 1);
+				const slice29 = rs.arraySliceAt(c13, 1);
 				return _342 ^ slice29.data[slice29.start + 1];
 			}), undefined, true);
-			rs.runsBy(_479[0], (runs25) => rs.sliceSort(runs25, rs.cmpLt(rs.cmpSlice(rs.cmpBytes)), 4, true));
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_479[0]), (c14: rs.Runs<rs.ByteSlice>): rs.u8 => {
-				const slice30 = rs.runsAt(c14, 0);
+			rs.arraySliceBy(_479[0], (arrays25) => rs.sliceSort(arrays25, rs.cmpLt(rs.cmpSlice(rs.cmpBytes)), 4, true));
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_479[0]), (c14: rs.ArraySlice<rs.ByteSlice>): rs.u8 => {
+				const slice30 = rs.arraySliceAt(c14, 0);
 				const _346: rs.u8 = slice30.data[slice30.start];
-				const slice31 = rs.runsAt(c14, 1);
+				const slice31 = rs.arraySliceAt(c14, 1);
 				return _346 ^ slice31.data[slice31.start + 1];
 			}), undefined, true);
-			const f6 = (c15: rs.Runs<rs.ByteSlice>): Uint8Array => {
-				return rs.byteSliceToArray(rs.runsAt(c15, 1));
+			const f6 = (c15: rs.ArraySlice<rs.ByteSlice>): Uint8Array => {
+				return rs.byteSliceToArray(rs.arraySliceAt(c15, 1));
 			};
-			rs.runsBy(_479[0], (runs26) => rs.sliceSort(runs26, rs.keyLt((held6) => f6(rs.runsOf(rs.byteSliceFrom)(held6)), rs.cmpLt(rs.cmpReverse(rs.cmpBytes))), 4, true));
-			rs.runsBy(_479[0], (runs27) => rs.sliceSortUnstable(runs27, rs.cmpLt(rs.cmpSlice(rs.cmpBytes)), 4, true, true));
-			const f7 = (c16: rs.Runs<rs.ByteSlice>): Uint8Array => {
-				return rs.byteSliceToArray(rs.runsAt(c16, 0));
+			rs.arraySliceBy(_479[0], (arrays26) => rs.sliceSort(arrays26, rs.keyLt((held6) => f6(rs.arraySliceOf(rs.byteSliceFrom)(held6)), rs.cmpLt(rs.cmpReverse(rs.cmpBytes))), 4, true));
+			rs.arraySliceBy(_479[0], (arrays27) => rs.sliceSortUnstable(arrays27, rs.cmpLt(rs.cmpSlice(rs.cmpBytes)), 4, true, true));
+			const f7 = (c16: rs.ArraySlice<rs.ByteSlice>): Uint8Array => {
+				return rs.byteSliceToArray(rs.arraySliceAt(c16, 0));
 			};
-			rs.runsBy(_479[0], (runs28) => rs.sliceSortByCachedKey(runs28, (held7) => f7(rs.runsOf(rs.byteSliceFrom)(held7)), rs.cmpLt(rs.cmpTuple<[Uint8Array, rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmpBytes), rs.cmp])), 8, true, true));
-			const _531: [rs.Runs<rs.Runs<rs.ByteSlice>>, rs.Runs<rs.Runs<rs.ByteSlice>>] = rs.runsSplitAt(_479[0], 1);
+			rs.arraySliceBy(_479[0], (arrays28) => rs.sliceSortByCachedKey(arrays28, (held7) => f7(rs.arraySliceOf(rs.byteSliceFrom)(held7)), rs.cmpLt(rs.cmpTuple<[Uint8Array, rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmpBytes), rs.cmp])), 8, true, true));
+			const _531: [rs.ArraySlice<rs.ArraySlice<rs.ByteSlice>>, rs.ArraySlice<rs.ArraySlice<rs.ByteSlice>>] = rs.arraySliceSplitAt(_479[0], 1);
 			rs.idx(_531[0], 0);
 			const _539: rs.usize = rs.usizeSub(n4, 2);
 			rs.idx(_531[1], _539);
-			const slice32 = rs.runsAt(_531[0], 0);
-			const slice33 = rs.runsAt(_531[1], _539);
-			rs.runsSet(slice33, rs.runsReplace(slice32, rs.runsToArray(slice33, rs.byteSliceToArray)));
+			const slice32 = rs.arraySliceAt(_531[0], 0);
+			const slice33 = rs.arraySliceAt(_531[1], _539);
+			rs.arraySliceSet(slice33, rs.arraySliceReplace(slice32, rs.arraySliceToArray(slice33, rs.byteSliceToArray)));
 			rs.idx(_479[0], 0);
 			const _550: Uint8Array[] = [Uint8Array.of(1, 2), Uint8Array.of(3, 4)];
-			const old4: Uint8Array[] = rs.runsReplace(rs.runsAt(_479[0], 0), _550);
+			const old4: Uint8Array[] = rs.arraySliceReplace(rs.arraySliceAt(_479[0], 0), _550);
 			const _553: rs.usize = rs.usizeSub(n4, 1);
 			rs.idx(_479[0], _553);
-			rs.runsSet(rs.runsAt(_479[0], _553), copy$array_array2_u8(old4));
+			rs.arraySliceSet(rs.arraySliceAt(_479[0], _553), copy$array_array2_u8(old4));
 			rs.idx(_479[0], 1);
-			const kept9: Uint8Array[] = rs.runsToArray(rs.runsAt(_479[0], 1), rs.byteSliceToArray);
+			const kept9: Uint8Array[] = rs.arraySliceToArray(rs.arraySliceAt(_479[0], 1), rs.byteSliceToArray);
 			rs.idx(_479[0], 0);
-			const _563: Uint8Array[] = rs.runsToArray(rs.runsAt(_479[0], 0), rs.byteSliceToArray);
+			const _563: Uint8Array[] = rs.arraySliceToArray(rs.arraySliceAt(_479[0], 0), rs.byteSliceToArray);
 			rs.idx(_479[0], 1);
-			rs.runsSet(rs.runsAt(_479[0], 1), _563);
+			rs.arraySliceSet(rs.arraySliceAt(_479[0], 1), _563);
 			rs.idx(_479[0], 0);
-			rs.runsSet(rs.runsAt(_479[0], 0), copy$array_array2_u8(kept9));
-			const _576: rs.Runs<rs.ByteSlice> | undefined = rs.runsLast(_479[0]);
+			rs.arraySliceSet(rs.arraySliceAt(_479[0], 0), copy$array_array2_u8(kept9));
+			const _576: rs.ArraySlice<rs.ByteSlice> | undefined = rs.arraySliceLast(_479[0]);
 			if (_576 !== undefined) {
-				rs.runsSet(_576, [Uint8Array.of(5, 6), Uint8Array.of(7, 8)]);
+				rs.arraySliceSet(_576, [Uint8Array.of(5, 6), Uint8Array.of(7, 8)]);
 			}
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_479[0]), (c17: rs.Runs<rs.ByteSlice>): rs.u8 => {
-				const slice38 = rs.runsAt(c17, 0);
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_479[0]), (c17: rs.ArraySlice<rs.ByteSlice>): rs.u8 => {
+				const slice38 = rs.arraySliceAt(c17, 0);
 				const _353: rs.u8 = slice38.data[slice38.start];
-				const slice39 = rs.runsAt(c17, 1);
+				const slice39 = rs.arraySliceAt(c17, 1);
 				return _353 ^ slice39.data[slice39.start + 1];
 			}), undefined, true);
-			const _586: rs.Runs<rs.Runs<rs.ByteSlice>> = rs.runsRange(_479[0], rs.usizeDiv(n4, 2));
+			const _586: rs.ArraySlice<rs.ArraySlice<rs.ByteSlice>> = rs.arraySliceRange(_479[0], rs.usizeDiv(n4, 2));
 			const _590: Uint8Array[] = [Uint8Array.of(5, 6), Uint8Array.of(7, 8)];
-			rs.runsBy(_586, (runs29) => rs.sliceFill(runs29, _590, copy$array_array2_u8));
+			rs.arraySliceBy(_586, (arrays29) => rs.sliceFill(arrays29, _590, copy$array_array2_u8));
 		}
-		const _600: [rs.Runs<rs.Runs<rs.Runs<rs.ByteSlice>>>, rs.Runs<rs.Runs<rs.ByteSlice>>] = rs.sliceAsChunks(rs.sliceAsChunks(rs.sliceAsChunks(rs.byteVecSlice(bytes), 2)[0], 2)[0], 2);
+		const _600: [rs.ArraySlice<rs.ArraySlice<rs.ArraySlice<rs.ByteSlice>>>, rs.ArraySlice<rs.ArraySlice<rs.ByteSlice>>] = rs.sliceAsChunks(rs.sliceAsChunks(rs.sliceAsChunks(rs.byteVecSlice(bytes), 2)[0], 2)[0], 2);
 		const one: Uint8Array[][] = [[Uint8Array.of(1, 2), Uint8Array.of(3, 4)], [Uint8Array.of(5, 6), Uint8Array.of(7, 8)]];
 		if (_600[0].length >= 2) {
-			const _615: [Uint8Array[][], Uint8Array[][]] = [rs.runsToArray(rs.runsAt(_600[0], 0), (s) => rs.runsToArray(s, rs.byteSliceToArray)), rs.runsToArray(rs.runsAt(_600[0], _600[0].length - 1), (s) => rs.runsToArray(s, rs.byteSliceToArray))];
+			const _615: [Uint8Array[][], Uint8Array[][]] = [rs.arraySliceToArray(rs.arraySliceAt(_600[0], 0), (s) => rs.arraySliceToArray(s, rs.byteSliceToArray)), rs.arraySliceToArray(rs.arraySliceAt(_600[0], _600[0].length - 1), (s) => rs.arraySliceToArray(s, rs.byteSliceToArray))];
 			const first5: Uint8Array[][] = copy$array_array2_array2_u8(_615[0]);
 			const last5: Uint8Array[][] = copy$array_array2_array2_u8(_615[1]);
-			rs.runsSwap(_600[0], 0, rs.usizeSub(_600[0].length, 1), undefined);
-			rs.runsBy(_600[0], (runs30) => rs.sliceReverse(runs30));
+			rs.arraySliceSwap(_600[0], 0, rs.usizeSub(_600[0].length, 1), undefined);
+			rs.arraySliceBy(_600[0], (arrays30) => rs.sliceReverse(arrays30));
 			const n5: rs.usize = _600[0].length;
-			rs.runsBy(rs.runsRange(_600[0], 1), (runs31) => rs.sliceReverse(runs31));
-			rs.runsBy(_600[0], (runs32) => rs.sliceRotateLeft(runs32, 1));
+			rs.arraySliceBy(rs.arraySliceRange(_600[0], 1), (arrays31) => rs.sliceReverse(arrays31));
+			rs.arraySliceBy(_600[0], (arrays32) => rs.sliceRotateLeft(arrays32, 1));
 			const _631: rs.usize = rs.usizeDiv(n5, 2);
-			rs.runsBy(_600[0], (runs33) => rs.sliceRotateRight(runs33, _631));
+			rs.arraySliceBy(_600[0], (arrays33) => rs.sliceRotateRight(arrays33, _631));
 			const _634: rs.usize = rs.usizeSub(n5, 1);
 			rs.idx(_600[0], _634);
-			const kept10: Uint8Array[][] = rs.runsToArray(rs.runsAt(_600[0], _634), (s) => rs.runsToArray(s, rs.byteSliceToArray));
+			const kept10: Uint8Array[][] = rs.arraySliceToArray(rs.arraySliceAt(_600[0], _634), (s) => rs.arraySliceToArray(s, rs.byteSliceToArray));
 			const _640: { end: rs.usize } = { end: rs.usizeSub(n5, 1) };
-			rs.runsCopyWithin(_600[0], 0, _640.end, 1, copy$array_array2_array2_u8);
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(rs.runsFrom([copy$array_array2_array2_u8(first5), copy$array_array2_array2_u8(last5), copy$array_array2_array2_u8(kept10)], rs.runsOf(rs.runsOf(rs.byteSliceFrom)))), (c18: rs.Runs<rs.Runs<rs.ByteSlice>>): rs.u8 => {
-				const slice44 = rs.runsAt(rs.runsAt(c18, 0), 0);
+			rs.arraySliceCopyWithin(_600[0], 0, _640.end, 1, copy$array_array2_array2_u8);
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom([copy$array_array2_array2_u8(first5), copy$array_array2_array2_u8(last5), copy$array_array2_array2_u8(kept10)], rs.arraySliceOf(rs.arraySliceOf(rs.byteSliceFrom)))), (c18: rs.ArraySlice<rs.ArraySlice<rs.ByteSlice>>): rs.u8 => {
+				const slice44 = rs.arraySliceAt(rs.arraySliceAt(c18, 0), 0);
 				const _356: rs.u8 = slice44.data[slice44.start];
-				const slice46 = rs.runsAt(rs.runsAt(c18, 1), 1);
+				const slice46 = rs.arraySliceAt(rs.arraySliceAt(c18, 1), 1);
 				return _356 ^ slice46.data[slice46.start + 1];
 			}), undefined, true);
-			rs.runsBy(_600[0], (runs34) => rs.sliceSort(runs34, rs.cmpLt(rs.cmpSlice(rs.cmpSlice(rs.cmpBytes))), 8, true));
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_600[0]), (c19: rs.Runs<rs.Runs<rs.ByteSlice>>): rs.u8 => {
-				const slice48 = rs.runsAt(rs.runsAt(c19, 0), 0);
+			rs.arraySliceBy(_600[0], (arrays34) => rs.sliceSort(arrays34, rs.cmpLt(rs.cmpSlice(rs.cmpSlice(rs.cmpBytes))), 8, true));
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_600[0]), (c19: rs.ArraySlice<rs.ArraySlice<rs.ByteSlice>>): rs.u8 => {
+				const slice48 = rs.arraySliceAt(rs.arraySliceAt(c19, 0), 0);
 				const _357: rs.u8 = slice48.data[slice48.start];
-				const slice50 = rs.runsAt(rs.runsAt(c19, 1), 1);
+				const slice50 = rs.arraySliceAt(rs.arraySliceAt(c19, 1), 1);
 				return _357 ^ slice50.data[slice50.start + 1];
 			}), undefined, true);
-			const f8 = (c20: rs.Runs<rs.Runs<rs.ByteSlice>>): Uint8Array[] => {
-				return rs.runsToArray(rs.runsAt(c20, 1), rs.byteSliceToArray);
+			const f8 = (c20: rs.ArraySlice<rs.ArraySlice<rs.ByteSlice>>): Uint8Array[] => {
+				return rs.arraySliceToArray(rs.arraySliceAt(c20, 1), rs.byteSliceToArray);
 			};
-			rs.runsBy(_600[0], (runs35) => rs.sliceSort(runs35, rs.keyLt((held8) => f8(rs.runsOf(rs.runsOf(rs.byteSliceFrom))(held8)), rs.cmpLt(rs.cmpReverse(rs.cmpSlice(rs.cmpBytes)))), 8, true));
-			rs.runsBy(_600[0], (runs36) => rs.sliceSortUnstable(runs36, rs.cmpLt(rs.cmpSlice(rs.cmpSlice(rs.cmpBytes))), 8, true, true));
-			const f9 = (c21: rs.Runs<rs.Runs<rs.ByteSlice>>): Uint8Array[] => {
-				return rs.runsToArray(rs.runsAt(c21, 0), rs.byteSliceToArray);
+			rs.arraySliceBy(_600[0], (arrays35) => rs.sliceSort(arrays35, rs.keyLt((held8) => f8(rs.arraySliceOf(rs.arraySliceOf(rs.byteSliceFrom))(held8)), rs.cmpLt(rs.cmpReverse(rs.cmpSlice(rs.cmpBytes)))), 8, true));
+			rs.arraySliceBy(_600[0], (arrays36) => rs.sliceSortUnstable(arrays36, rs.cmpLt(rs.cmpSlice(rs.cmpSlice(rs.cmpBytes))), 8, true, true));
+			const f9 = (c21: rs.ArraySlice<rs.ArraySlice<rs.ByteSlice>>): Uint8Array[] => {
+				return rs.arraySliceToArray(rs.arraySliceAt(c21, 0), rs.byteSliceToArray);
 			};
-			rs.runsBy(_600[0], (runs37) => rs.sliceSortByCachedKey(runs37, (held9) => f9(rs.runsOf(rs.runsOf(rs.byteSliceFrom))(held9)), rs.cmpLt(rs.cmpTuple<[Uint8Array[], rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmpSlice(rs.cmpBytes)), rs.cmp])), 8, true, true));
-			const _659: [rs.Runs<rs.Runs<rs.Runs<rs.ByteSlice>>>, rs.Runs<rs.Runs<rs.Runs<rs.ByteSlice>>>] = rs.runsSplitAt(_600[0], 1);
+			rs.arraySliceBy(_600[0], (arrays37) => rs.sliceSortByCachedKey(arrays37, (held9) => f9(rs.arraySliceOf(rs.arraySliceOf(rs.byteSliceFrom))(held9)), rs.cmpLt(rs.cmpTuple<[Uint8Array[], rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmpSlice(rs.cmpBytes)), rs.cmp])), 8, true, true));
+			const _659: [rs.ArraySlice<rs.ArraySlice<rs.ArraySlice<rs.ByteSlice>>>, rs.ArraySlice<rs.ArraySlice<rs.ArraySlice<rs.ByteSlice>>>] = rs.arraySliceSplitAt(_600[0], 1);
 			rs.idx(_659[0], 0);
 			const _667: rs.usize = rs.usizeSub(n5, 2);
 			rs.idx(_659[1], _667);
-			const slice51 = rs.runsAt(_659[0], 0);
-			const slice52 = rs.runsAt(_659[1], _667);
-			rs.runsSet(slice52, rs.runsReplace(slice51, rs.runsToArray(slice52, (s) => rs.runsToArray(s, rs.byteSliceToArray))));
+			const slice51 = rs.arraySliceAt(_659[0], 0);
+			const slice52 = rs.arraySliceAt(_659[1], _667);
+			rs.arraySliceSet(slice52, rs.arraySliceReplace(slice51, rs.arraySliceToArray(slice52, (s) => rs.arraySliceToArray(s, rs.byteSliceToArray))));
 			rs.idx(_600[0], 0);
-			const old5: Uint8Array[][] = rs.runsReplace(rs.runsAt(_600[0], 0), copy$array_array2_array2_u8(one));
+			const old5: Uint8Array[][] = rs.arraySliceReplace(rs.arraySliceAt(_600[0], 0), copy$array_array2_array2_u8(one));
 			const _678: rs.usize = rs.usizeSub(n5, 1);
 			rs.idx(_600[0], _678);
-			rs.runsSet(rs.runsAt(_600[0], _678), copy$array_array2_array2_u8(old5));
+			rs.arraySliceSet(rs.arraySliceAt(_600[0], _678), copy$array_array2_array2_u8(old5));
 			rs.idx(_600[0], 1);
-			const kept11: Uint8Array[][] = rs.runsToArray(rs.runsAt(_600[0], 1), (s) => rs.runsToArray(s, rs.byteSliceToArray));
+			const kept11: Uint8Array[][] = rs.arraySliceToArray(rs.arraySliceAt(_600[0], 1), (s) => rs.arraySliceToArray(s, rs.byteSliceToArray));
 			rs.idx(_600[0], 0);
-			const _688: Uint8Array[][] = rs.runsToArray(rs.runsAt(_600[0], 0), (s) => rs.runsToArray(s, rs.byteSliceToArray));
+			const _688: Uint8Array[][] = rs.arraySliceToArray(rs.arraySliceAt(_600[0], 0), (s) => rs.arraySliceToArray(s, rs.byteSliceToArray));
 			rs.idx(_600[0], 1);
-			rs.runsSet(rs.runsAt(_600[0], 1), _688);
+			rs.arraySliceSet(rs.arraySliceAt(_600[0], 1), _688);
 			rs.idx(_600[0], 0);
-			rs.runsSet(rs.runsAt(_600[0], 0), copy$array_array2_array2_u8(kept11));
-			const _701: rs.Runs<rs.Runs<rs.ByteSlice>> | undefined = rs.runsLast(_600[0]);
+			rs.arraySliceSet(rs.arraySliceAt(_600[0], 0), copy$array_array2_array2_u8(kept11));
+			const _701: rs.ArraySlice<rs.ArraySlice<rs.ByteSlice>> | undefined = rs.arraySliceLast(_600[0]);
 			if (_701 !== undefined) {
 				const _705: Uint8Array = rs.bytes(2).fill(9);
 				const item = copy$array_array2_u8(Array.from({ length: 2 }, (): Uint8Array => {
 					return copy$array_u8(_705);
 				}));
-				rs.runsSet(_701, Array.from({ length: 2 }, (): Uint8Array[] => {
+				rs.arraySliceSet(_701, Array.from({ length: 2 }, (): Uint8Array[] => {
 					return copy$array_array2_u8(item);
 				}));
 			}
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_600[0]), (c22: rs.Runs<rs.Runs<rs.ByteSlice>>): rs.u8 => {
-				const slice58 = rs.runsAt(rs.runsAt(c22, 0), 0);
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_600[0]), (c22: rs.ArraySlice<rs.ArraySlice<rs.ByteSlice>>): rs.u8 => {
+				const slice58 = rs.arraySliceAt(rs.arraySliceAt(c22, 0), 0);
 				const _367: rs.u8 = slice58.data[slice58.start];
-				const slice60 = rs.runsAt(rs.runsAt(c22, 1), 1);
+				const slice60 = rs.arraySliceAt(rs.arraySliceAt(c22, 1), 1);
 				return _367 ^ slice60.data[slice60.start + 1];
 			}), undefined, true);
-			const _711: rs.Runs<rs.Runs<rs.Runs<rs.ByteSlice>>> = rs.runsRange(_600[0], rs.usizeDiv(n5, 2));
+			const _711: rs.ArraySlice<rs.ArraySlice<rs.ArraySlice<rs.ByteSlice>>> = rs.arraySliceRange(_600[0], rs.usizeDiv(n5, 2));
 			const _717: Uint8Array = rs.bytes(2).fill(9);
 			const item2 = copy$array_array2_u8(Array.from({ length: 2 }, (): Uint8Array => {
 				return copy$array_u8(_717);
@@ -2683,13 +2683,13 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			const _715: Uint8Array[][] = Array.from({ length: 2 }, (): Uint8Array[] => {
 				return copy$array_array2_u8(item2);
 			});
-			rs.runsBy(_711, (runs38) => rs.sliceFill(runs38, _715, copy$array_array2_array2_u8));
+			rs.arraySliceBy(_711, (arrays38) => rs.sliceFill(arrays38, _715, copy$array_array2_array2_u8));
 		}
 		const backing: rs.Vec<rs.u16> = rs.vecFrom(words.items.slice());
 		const refs: rs.Vec<rs.Slice<rs.u16>> = rs.iterToVec(rs.sliceChunks(rs.sliceFrom(backing.items), 1), undefined, 8, true);
-		const _729: [rs.Runs<rs.Runs<rs.Slice<rs.Slice<rs.u16>>>>, rs.Runs<rs.Slice<rs.Slice<rs.u16>>>] = rs.sliceAsChunks(rs.sliceAsChunks(rs.sliceFrom(refs.items), 2)[0], 2);
+		const _729: [rs.ArraySlice<rs.ArraySlice<rs.Slice<rs.Slice<rs.u16>>>>, rs.ArraySlice<rs.Slice<rs.Slice<rs.u16>>>] = rs.sliceAsChunks(rs.sliceAsChunks(rs.sliceFrom(refs.items), 2)[0], 2);
 		if (_729[0].length >= 2) {
-			rs.runsSwap(_729[0], 0, 1, undefined);
+			rs.arraySliceSwap(_729[0], 0, 1, undefined);
 		}
 		const iter6: rs.Iter<[rs.usize, rs.Place<rs.Slice<rs.u16>>]> = rs.iterEnumerate(rs.iterSliceMut(rs.sliceFrom(refs.items)));
 		while (true) {
@@ -2707,114 +2707,114 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			const w: rs.u16 = _24;
 			return (w ^ (w >> 8)) & 0xff;
 		}), undefined, true);
-		const _760: [rs.Runs<rs.Runs<rs.Slice<rs.u16>>>, rs.Runs<rs.Slice<rs.u16>>] = rs.sliceAsChunks(rs.sliceAsChunks(rs.sliceFrom(words.items), 2)[0], 2);
+		const _760: [rs.ArraySlice<rs.ArraySlice<rs.Slice<rs.u16>>>, rs.ArraySlice<rs.Slice<rs.u16>>] = rs.sliceAsChunks(rs.sliceAsChunks(rs.sliceFrom(words.items), 2)[0], 2);
 		if (_760[0].length >= 2) {
-			const _768: [rs.u16[][], rs.u16[][]] = [rs.runsToArray(rs.runsAt(_760[0], 0), rs.sliceToArray), rs.runsToArray(rs.runsAt(_760[0], _760[0].length - 1), rs.sliceToArray)];
+			const _768: [rs.u16[][], rs.u16[][]] = [rs.arraySliceToArray(rs.arraySliceAt(_760[0], 0), rs.sliceToArray), rs.arraySliceToArray(rs.arraySliceAt(_760[0], _760[0].length - 1), rs.sliceToArray)];
 			const first6: rs.u16[][] = copy$array_array2_u16(_768[0]);
 			const last6: rs.u16[][] = copy$array_array2_u16(_768[1]);
-			rs.runsSwap(_760[0], 0, rs.usizeSub(_760[0].length, 1), undefined);
-			rs.runsBy(_760[0], (runs39) => rs.sliceReverse(runs39));
+			rs.arraySliceSwap(_760[0], 0, rs.usizeSub(_760[0].length, 1), undefined);
+			rs.arraySliceBy(_760[0], (arrays39) => rs.sliceReverse(arrays39));
 			const n6: rs.usize = _760[0].length;
-			rs.runsBy(rs.runsRange(_760[0], 1), (runs40) => rs.sliceReverse(runs40));
-			rs.runsBy(_760[0], (runs41) => rs.sliceRotateLeft(runs41, 1));
+			rs.arraySliceBy(rs.arraySliceRange(_760[0], 1), (arrays40) => rs.sliceReverse(arrays40));
+			rs.arraySliceBy(_760[0], (arrays41) => rs.sliceRotateLeft(arrays41, 1));
 			const _784: rs.usize = rs.usizeDiv(n6, 2);
-			rs.runsBy(_760[0], (runs42) => rs.sliceRotateRight(runs42, _784));
+			rs.arraySliceBy(_760[0], (arrays42) => rs.sliceRotateRight(arrays42, _784));
 			const _787: rs.usize = rs.usizeSub(n6, 1);
 			rs.idx(_760[0], _787);
-			const kept12: rs.u16[][] = rs.runsToArray(rs.runsAt(_760[0], _787), rs.sliceToArray);
+			const kept12: rs.u16[][] = rs.arraySliceToArray(rs.arraySliceAt(_760[0], _787), rs.sliceToArray);
 			const _793: { end: rs.usize } = { end: rs.usizeSub(n6, 1) };
-			rs.runsCopyWithin(_760[0], 0, _793.end, 1, copy$array_array2_u16);
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(rs.runsFrom([copy$array_array2_u16(first6), copy$array_array2_u16(last6), copy$array_array2_u16(kept12)], rs.runsOf(rs.sliceFrom))), (c23: rs.Runs<rs.Slice<rs.u16>>): rs.u8 => {
-				const slice64 = rs.runsAt(c23, 0);
+			rs.arraySliceCopyWithin(_760[0], 0, _793.end, 1, copy$array_array2_u16);
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom([copy$array_array2_u16(first6), copy$array_array2_u16(last6), copy$array_array2_u16(kept12)], rs.arraySliceOf(rs.sliceFrom))), (c23: rs.ArraySlice<rs.Slice<rs.u16>>): rs.u8 => {
+				const slice64 = rs.arraySliceAt(c23, 0);
 				const _415: rs.u16 = slice64.data[slice64.start];
-				const slice65 = rs.runsAt(c23, 1);
+				const slice65 = rs.arraySliceAt(c23, 1);
 				return (_415 ^ slice65.data[slice65.start + 1]) & 0xff;
 			}), undefined, true);
-			rs.runsBy(_760[0], (runs43) => rs.sliceSort(runs43, rs.cmpLt(rs.cmpSlice(rs.cmpSlice(rs.cmp))), 8, true));
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_760[0]), (c24: rs.Runs<rs.Slice<rs.u16>>): rs.u8 => {
-				const slice66 = rs.runsAt(c24, 0);
+			rs.arraySliceBy(_760[0], (arrays43) => rs.sliceSort(arrays43, rs.cmpLt(rs.cmpSlice(rs.cmpSlice(rs.cmp))), 8, true));
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_760[0]), (c24: rs.ArraySlice<rs.Slice<rs.u16>>): rs.u8 => {
+				const slice66 = rs.arraySliceAt(c24, 0);
 				const _416: rs.u16 = slice66.data[slice66.start];
-				const slice67 = rs.runsAt(c24, 1);
+				const slice67 = rs.arraySliceAt(c24, 1);
 				return (_416 ^ slice67.data[slice67.start + 1]) & 0xff;
 			}), undefined, true);
-			const f10 = (c25: rs.Runs<rs.Slice<rs.u16>>): rs.u16[] => {
-				return rs.sliceToArray(rs.runsAt(c25, 1));
+			const f10 = (c25: rs.ArraySlice<rs.Slice<rs.u16>>): rs.u16[] => {
+				return rs.sliceToArray(rs.arraySliceAt(c25, 1));
 			};
-			rs.runsBy(_760[0], (runs44) => rs.sliceSort(runs44, rs.keyLt((held10) => f10(rs.runsOf(rs.sliceFrom)(held10)), rs.cmpLt(rs.cmpReverse(rs.cmpSlice(rs.cmp)))), 8, true));
-			rs.runsBy(_760[0], (runs45) => rs.sliceSortUnstable(runs45, rs.cmpLt(rs.cmpSlice(rs.cmpSlice(rs.cmp))), 8, true, true));
-			const f11 = (c26: rs.Runs<rs.Slice<rs.u16>>): rs.u16[] => {
-				return rs.sliceToArray(rs.runsAt(c26, 0));
+			rs.arraySliceBy(_760[0], (arrays44) => rs.sliceSort(arrays44, rs.keyLt((held10) => f10(rs.arraySliceOf(rs.sliceFrom)(held10)), rs.cmpLt(rs.cmpReverse(rs.cmpSlice(rs.cmp)))), 8, true));
+			rs.arraySliceBy(_760[0], (arrays45) => rs.sliceSortUnstable(arrays45, rs.cmpLt(rs.cmpSlice(rs.cmpSlice(rs.cmp))), 8, true, true));
+			const f11 = (c26: rs.ArraySlice<rs.Slice<rs.u16>>): rs.u16[] => {
+				return rs.sliceToArray(rs.arraySliceAt(c26, 0));
 			};
-			rs.runsBy(_760[0], (runs46) => rs.sliceSortByCachedKey(runs46, (held11) => f11(rs.runsOf(rs.sliceFrom)(held11)), rs.cmpLt(rs.cmpTuple<[rs.u16[], rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmpSlice(rs.cmp)), rs.cmp])), 8, true, true));
-			const _812: [rs.Runs<rs.Runs<rs.Slice<rs.u16>>>, rs.Runs<rs.Runs<rs.Slice<rs.u16>>>] = rs.runsSplitAt(_760[0], 1);
+			rs.arraySliceBy(_760[0], (arrays46) => rs.sliceSortByCachedKey(arrays46, (held11) => f11(rs.arraySliceOf(rs.sliceFrom)(held11)), rs.cmpLt(rs.cmpTuple<[rs.u16[], rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmpSlice(rs.cmp)), rs.cmp])), 8, true, true));
+			const _812: [rs.ArraySlice<rs.ArraySlice<rs.Slice<rs.u16>>>, rs.ArraySlice<rs.ArraySlice<rs.Slice<rs.u16>>>] = rs.arraySliceSplitAt(_760[0], 1);
 			rs.idx(_812[0], 0);
 			const _820: rs.usize = rs.usizeSub(n6, 2);
 			rs.idx(_812[1], _820);
-			const slice68 = rs.runsAt(_812[0], 0);
-			const slice69 = rs.runsAt(_812[1], _820);
-			rs.runsSet(slice69, rs.runsReplace(slice68, rs.runsToArray(slice69, rs.sliceToArray)));
+			const slice68 = rs.arraySliceAt(_812[0], 0);
+			const slice69 = rs.arraySliceAt(_812[1], _820);
+			rs.arraySliceSet(slice69, rs.arraySliceReplace(slice68, rs.arraySliceToArray(slice69, rs.sliceToArray)));
 			rs.idx(_760[0], 0);
 			const _831: rs.u16[][] = [[1, 2], [3, 4]];
-			const old6: rs.u16[][] = rs.runsReplace(rs.runsAt(_760[0], 0), _831);
+			const old6: rs.u16[][] = rs.arraySliceReplace(rs.arraySliceAt(_760[0], 0), _831);
 			const _834: rs.usize = rs.usizeSub(n6, 1);
 			rs.idx(_760[0], _834);
-			rs.runsSet(rs.runsAt(_760[0], _834), copy$array_array2_u16(old6));
+			rs.arraySliceSet(rs.arraySliceAt(_760[0], _834), copy$array_array2_u16(old6));
 			rs.idx(_760[0], 1);
-			const kept13: rs.u16[][] = rs.runsToArray(rs.runsAt(_760[0], 1), rs.sliceToArray);
+			const kept13: rs.u16[][] = rs.arraySliceToArray(rs.arraySliceAt(_760[0], 1), rs.sliceToArray);
 			rs.idx(_760[0], 0);
-			const _844: rs.u16[][] = rs.runsToArray(rs.runsAt(_760[0], 0), rs.sliceToArray);
+			const _844: rs.u16[][] = rs.arraySliceToArray(rs.arraySliceAt(_760[0], 0), rs.sliceToArray);
 			rs.idx(_760[0], 1);
-			rs.runsSet(rs.runsAt(_760[0], 1), _844);
+			rs.arraySliceSet(rs.arraySliceAt(_760[0], 1), _844);
 			rs.idx(_760[0], 0);
-			rs.runsSet(rs.runsAt(_760[0], 0), copy$array_array2_u16(kept13));
-			const _857: rs.Runs<rs.Slice<rs.u16>> | undefined = rs.runsLast(_760[0]);
+			rs.arraySliceSet(rs.arraySliceAt(_760[0], 0), copy$array_array2_u16(kept13));
+			const _857: rs.ArraySlice<rs.Slice<rs.u16>> | undefined = rs.arraySliceLast(_760[0]);
 			if (_857 !== undefined) {
-				rs.runsSet(_857, [[5, 6], [7, 8]]);
+				rs.arraySliceSet(_857, [[5, 6], [7, 8]]);
 			}
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_760[0]), (c27: rs.Runs<rs.Slice<rs.u16>>): rs.u8 => {
-				const slice74 = rs.runsAt(c27, 0);
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_760[0]), (c27: rs.ArraySlice<rs.Slice<rs.u16>>): rs.u8 => {
+				const slice74 = rs.arraySliceAt(c27, 0);
 				const _417: rs.u16 = slice74.data[slice74.start];
-				const slice75 = rs.runsAt(c27, 1);
+				const slice75 = rs.arraySliceAt(c27, 1);
 				return (_417 ^ slice75.data[slice75.start + 1]) & 0xff;
 			}), undefined, true);
-			const _867: rs.Runs<rs.Runs<rs.Slice<rs.u16>>> = rs.runsRange(_760[0], rs.usizeDiv(n6, 2));
+			const _867: rs.ArraySlice<rs.ArraySlice<rs.Slice<rs.u16>>> = rs.arraySliceRange(_760[0], rs.usizeDiv(n6, 2));
 			const _871: rs.u16[][] = [[5, 6], [7, 8]];
-			rs.runsBy(_867, (runs47) => rs.sliceFill(runs47, _871, copy$array_array2_u16));
+			rs.arraySliceBy(_867, (arrays47) => rs.sliceFill(arrays47, _871, copy$array_array2_u16));
 		}
 	} else if (_12 === 3) {
-		const _875: [rs.Runs<rs.Slice<Item.Item>>, rs.Slice<Item.Item>] = rs.sliceAsChunks(rs.sliceFrom(items.items), 2);
+		const _875: [rs.ArraySlice<rs.Slice<Item.Item>>, rs.Slice<Item.Item>] = rs.sliceAsChunks(rs.sliceFrom(items.items), 2);
 		if (_875[0].length >= 2) {
 			rs.idx(_875[0], 0);
-			const first7: Item.Item[] = rs.replaceIn(rs.sliceView(rs.runsAt(_875[0], 0)), [new Item.Item(65), new Item.Item(66)], 1);
+			const first7: Item.Item[] = rs.replaceIn(rs.sliceView(rs.arraySliceAt(_875[0], 0)), [new Item.Item(65), new Item.Item(66)], 1);
 			flush(out);
-			rs.runsSwap(_875[0], 0, 1, rs.objectCopy);
-			rs.runsBy(_875[0], (runs) => rs.sliceReverse(runs), rs.objectCopy);
+			rs.arraySliceSwap(_875[0], 0, 1, rs.objectCopy);
+			rs.arraySliceBy(_875[0], (arrays) => rs.sliceReverse(arrays), rs.objectCopy);
 			const f = (c: rs.Slice<Item.Item>): rs.u8 => {
 				return c.data[c.start + 1].tag;
 			};
-			rs.runsBy(_875[0], (runs2) => rs.sliceSort(runs2, rs.keyLt((held) => f(rs.sliceFrom(held)), rs.lt), 2, true), rs.objectCopy);
+			rs.arraySliceBy(_875[0], (arrays2) => rs.sliceSort(arrays2, rs.keyLt((held) => f(rs.sliceFrom(held)), rs.lt), 2, true), rs.objectCopy);
 			rs.idx(_875[0], 1);
-			rs.dropAll(rs.runsAt(_875[0], 1));
-			rs.sliceSet(rs.runsAt(_875[0], 1), first7);
+			rs.dropAll(rs.arraySliceAt(_875[0], 1));
+			rs.sliceSet(rs.arraySliceAt(_875[0], 1), first7);
 			flush(out);
 			rs.idx(_875[0], 0);
-			const slice4 = rs.runsAt(_875[0], 0);
+			const slice4 = rs.arraySliceAt(_875[0], 0);
 			slice4.data[slice4.start + 1][Symbol.dispose]();
-			const slice5 = rs.runsAt(_875[0], 0);
+			const slice5 = rs.arraySliceAt(_875[0], 0);
 			slice5.data[slice5.start + 1] = new Item.Item(67);
 			flush(out);
-			const _909: [rs.Runs<rs.Slice<Item.Item>>, rs.Runs<rs.Slice<Item.Item>>] = rs.runsSplitAt(_875[0], 1);
+			const _909: [rs.ArraySlice<rs.Slice<Item.Item>>, rs.ArraySlice<rs.Slice<Item.Item>>] = rs.arraySliceSplitAt(_875[0], 1);
 			rs.idx(_909[0], 0);
 			rs.idx(_909[1], 0);
-			const slice6 = rs.runsAt(_909[0], 0);
-			const slice7 = rs.runsAt(_909[1], 0);
+			const slice6 = rs.arraySliceAt(_909[0], 0);
+			const slice7 = rs.arraySliceAt(_909[1], 0);
 			rs.sliceSet(slice7, rs.replaceIn(rs.sliceView(slice6), rs.sliceToArray(slice7), 1));
-			rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(_875[0]), (c2: rs.Slice<Item.Item>): rs.u8 => {
+			rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(_875[0]), (c2: rs.Slice<Item.Item>): rs.u8 => {
 				return _11(c2);
 			}), undefined, true);
 		}
 	} else {
-		const _929: [rs.Runs<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(rs.byteSliceRange(rs.byteVecSlice(bytes), 0, 0), 4);
+		const _929: [rs.ArraySlice<rs.ByteSlice>, rs.ByteSlice] = rs.sliceAsChunks(rs.byteSliceRange(rs.byteVecSlice(bytes), 0, 0), 4);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_929[0].length & 0xff, _929[1].length & 0xff)), undefined, true);
 		rs.byteVecPush(out, runsMut$0(rs.byteVecSlice(bytes)));
 	}
@@ -2831,9 +2831,9 @@ export function arraysMut(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 }
 
 /** Puts each run's bytes. */
-export function putRuns$2(runs: rs.Runs<rs.ByteSlice>, out: rs.ByteVec): void {
+export function putRuns$2(runs: rs.ArraySlice<rs.ByteSlice>, out: rs.ByteVec): void {
 	rs.byteVecPush(out, runs.length & 0xff);
-	const iter: rs.Iter<rs.ByteSlice> = rs.runsIter(runs);
+	const iter: rs.Iter<rs.ByteSlice> = rs.arraySliceIter(runs);
 	while (true) {
 		const _8: rs.ByteSlice | rs.Done = iter.next();
 		if (_8 === rs.DONE) {
@@ -2862,26 +2862,26 @@ export function arrayForms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		let r: rs.Cell<rs.u8> = cell;
 		a = rs.sliceOfPlace(rs.place(() => r, (value3) => r = value3));
 		const copy: rs.Cell<rs.u8>[] = rs.sliceToArray(a);
-		const runs: rs.Runs<rs.Slice<rs.Cell<rs.u8>>> = rs.runsOne(a, 1);
+		const runs: rs.ArraySlice<rs.Slice<rs.Cell<rs.u8>>> = rs.arraySliceOne(a, 1);
 		const _25: rs.Cell<rs.u8>[][] = [[other]];
-		const _24: rs.Cell<rs.u8>[][] = rs.runsReplace(runs, _25);
+		const _24: rs.Cell<rs.u8>[][] = rs.arraySliceReplace(runs, _25);
 		const _30: rs.u8 = byte(2);
 		rs.cellSet(cell, _30);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(copy[0].v, _24[0][0].v, r.v)), undefined, true);
 		const refs: rs.Cell<rs.u8>[][] = [[cell], [other]];
-		rs.runsSwap(rs.runsFrom(refs, rs.sliceFrom), 0, 1, undefined);
+		rs.arraySliceSwap(rs.arraySliceFrom(refs, rs.sliceFrom), 0, 1, undefined);
 		const _51: rs.u8 = byte(3);
 		rs.cellSet(other, _51);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(refs[0][0].v, refs[1][0].v)), undefined, true);
 	} else if (_8 === 1) {
-		const words: rs.Vec<string[]> = rs.iterToVec(rs.iterMap(rs.runsIter(rs.runsFrom(pairs.items, rs.byteSliceFrom)), (p4: rs.ByteSlice): string[] => {
+		const words: rs.Vec<string[]> = rs.iterToVec(rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), (p4: rs.ByteSlice): string[] => {
 			const arg = p4.data[p4.start];
 			const _310: string = rs.fmtToString((f: rs.Formatter) => rs.u8Display(arg, f));
 			const arg2 = p4.data[p4.start + 1];
 			return [_310, rs.fmtToString((f: rs.Formatter) => rs.u8Display(arg2, f))];
 		}), undefined, 24, true);
 		const part = rs.min(words.items.length, 1);
-		const cloned: rs.Vec<string[]> = rs.vecFrom(rs.runsArray(rs.runsRange(rs.runsFrom(words.items, rs.sliceFrom), part)).map((a: string[]) => a.slice()));
+		const cloned: rs.Vec<string[]> = rs.vecFrom(rs.arraySliceItems(rs.arraySliceRange(rs.arraySliceFrom(words.items, rs.sliceFrom), part)).map((a: string[]) => a.slice()));
 		rs.byteVecPush(out, cloned.items.length & 0xff);
 		const iter: rs.Iter<rs.Slice<string>> = rs.iterLend(rs.iterSlice(cloned.items), rs.sliceFrom);
 		while (true) {
@@ -2891,17 +2891,17 @@ export function arrayForms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 			}
 			rs.iterExtendBytes(out, rs.iterChain(rs.strBytes(_85.data[_85.start]), rs.strBytes(_85.data[_85.start + 1])), undefined, true);
 		}
-		const boxed: rs.Runs<rs.ByteSlice> = rs.runsFrom(rs.vecFrom(pairs.items.map(copy$array_u8)).items, rs.byteSliceFrom);
-		putRuns$2(rs.runsFrom(rs.runsArray(boxed).map(copy$array_u8), rs.byteSliceFrom), out);
-		putRuns$2(rs.runsFrom(rs.vecFrom(rs.runsArray(boxed)).items, rs.byteSliceFrom), out);
+		const boxed: rs.ArraySlice<rs.ByteSlice> = rs.arraySliceFrom(rs.vecFrom(pairs.items.map(copy$array_u8)).items, rs.byteSliceFrom);
+		putRuns$2(rs.arraySliceFrom(rs.arraySliceItems(boxed).map(copy$array_u8), rs.byteSliceFrom), out);
+		putRuns$2(rs.arraySliceFrom(rs.vecFrom(rs.arraySliceItems(boxed)).items, rs.byteSliceFrom), out);
 	} else if (_8 === 2) {
-		putRuns$2(rs.runsFrom([Uint8Array.of(1, 2), Uint8Array.of(3, 4)], rs.byteSliceFrom), out);
-		putRuns$2(rs.runsFrom([], rs.byteSliceFrom), out);
-		putRuns$2(rs.optionAsRuns(copy$Option_array2_u8(rs.optionMap(rs.runsFirst(rs.runsFrom(pairs.items, rs.byteSliceFrom)), rs.byteSliceView)), rs.byteSliceFrom), out);
-		putRuns$2(rs.optionAsRuns(undefined, rs.byteSliceFrom), out);
+		putRuns$2(rs.arraySliceFrom([Uint8Array.of(1, 2), Uint8Array.of(3, 4)], rs.byteSliceFrom), out);
+		putRuns$2(rs.arraySliceFrom([], rs.byteSliceFrom), out);
+		putRuns$2(rs.optionAsArraySlice(copy$Option_array2_u8(rs.optionMap(rs.arraySliceFirst(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), rs.byteSliceView)), rs.byteSliceFrom), out);
+		putRuns$2(rs.optionAsArraySlice(undefined, rs.byteSliceFrom), out);
 	} else if (_8 === 3) {
-		rs.iterExtendBytes(out, rs.iterSlice(option_unwrapOrDefault$0h81s8g(View.last$array2_u8({ view: rs.runsFrom(pairs.items, rs.byteSliceFrom) }))), undefined, true);
-		rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap(option_unwrapOrDefault$1n9qa5p(View.last$array2_u16({ view: rs.runsFrom(rs.iterToVec(rs.iterMap(rs.runsIter(rs.runsFrom(pairs.items, rs.byteSliceFrom)), (p3: rs.ByteSlice): rs.u16[] => {
+		rs.iterExtendBytes(out, rs.iterSlice(option_unwrapOrDefault$0h81s8g(View.last$array2_u8({ view: rs.arraySliceFrom(pairs.items, rs.byteSliceFrom) }))), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap(option_unwrapOrDefault$1n9qa5p(View.last$array2_u16({ view: rs.arraySliceFrom(rs.iterToVec(rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), (p3: rs.ByteSlice): rs.u16[] => {
 			return [p3.data[p3.start] as rs.u16, p3.data[p3.start + 1] as rs.u16];
 		}), undefined, 4, true).items, rs.sliceFrom) })), (w: rs.u16): rs.u8 => {
 			return w & 0xff;
@@ -2910,39 +2910,39 @@ export function arrayForms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		rs.iterExtendBytes(out, rs.iterSlice(copy$mem_MaybeUninit_array_u8(rs.sliceToArray(rs.sliceFrom([Uint8Array.of(byte(0), byte(1))]), copy$mem_MaybeUninit_array_u8)[0])), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceToArray(rs.byteSliceFrom(rs.sliceToArray(rs.sliceFrom([Uint8Array.of(byte(2), byte(3))]), copy$array_u8)[0]))), undefined, true);
 	} else if (_8 === 5) {
-		const borrowed: rs.Cow<Uint8Array, rs.Runs<rs.ByteSlice>> = new rs.Borrowed(rs.runsFrom(pairs.items, rs.byteSliceFrom));
-		putRuns$2(rs.cowRuns(borrowed, rs.byteSliceFrom), out);
-		let owned: rs.Cow<Uint8Array, rs.Runs<rs.ByteSlice>> = rs.cowClone(borrowed, copy$array_u8);
+		const borrowed: rs.Cow<Uint8Array, rs.ArraySlice<rs.ByteSlice>> = new rs.Borrowed(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom));
+		putRuns$2(rs.cowArraySlice(borrowed, rs.byteSliceFrom), out);
+		let owned: rs.Cow<Uint8Array, rs.ArraySlice<rs.ByteSlice>> = rs.cowClone(borrowed, copy$array_u8);
 		const owned2 = rs.cowIntoOwned(owned, copy$array_u8);
 		owned = owned2;
-		const _183: rs.ByteSlice | undefined = rs.runsFirst(rs.runsFrom(owned2.items, rs.byteSliceFrom));
+		const _183: rs.ByteSlice | undefined = rs.arraySliceFirst(rs.arraySliceFrom(owned2.items, rs.byteSliceFrom));
 		if (_183 !== undefined) {
 			_183.data[_183.start] = _183.data[_183.start] ^ 255;
 		}
-		putRuns$2(rs.cowRuns(owned, rs.byteSliceFrom), out);
-		putRuns$2(rs.cowRuns(borrowed, rs.byteSliceFrom), out);
-		putRuns$2(rs.runsFrom(rs.cowIntoOwned(borrowed, copy$array_u8).items, rs.byteSliceFrom), out);
-		putRuns$2(rs.cowRuns(rs.vecFrom(pairs.items.map(copy$array_u8)), rs.byteSliceFrom), out);
+		putRuns$2(rs.cowArraySlice(owned, rs.byteSliceFrom), out);
+		putRuns$2(rs.cowArraySlice(borrowed, rs.byteSliceFrom), out);
+		putRuns$2(rs.arraySliceFrom(rs.cowIntoOwned(borrowed, copy$array_u8).items, rs.byteSliceFrom), out);
+		putRuns$2(rs.cowArraySlice(rs.vecFrom(pairs.items.map(copy$array_u8)), rs.byteSliceFrom), out);
 	} else if (_8 === 6) {
-		const some2: Uint8Array | undefined = copy$Option_array2_u8(copy$Option_array2_u8(rs.optionMap(rs.runsFirst(rs.runsFrom(pairs.items, rs.byteSliceFrom)), rs.byteSliceView)));
-		const _211: rs.ByteSlice | undefined = rs.runsFirst(some2 === undefined ? rs.runsFrom([], rs.byteSliceFrom) : rs.runsFrom([some2], rs.byteSliceFrom));
+		const some2: Uint8Array | undefined = copy$Option_array2_u8(copy$Option_array2_u8(rs.optionMap(rs.arraySliceFirst(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), rs.byteSliceView)));
+		const _211: rs.ByteSlice | undefined = rs.arraySliceFirst(some2 === undefined ? rs.arraySliceFrom([], rs.byteSliceFrom) : rs.arraySliceFrom([some2], rs.byteSliceFrom));
 		if (_211 !== undefined) {
 			_211.data[_211.start + 1] = _211.data[_211.start + 1] ^ 90;
 		}
-		putRuns$2(rs.optionAsRuns(some2, rs.byteSliceFrom), out);
+		putRuns$2(rs.optionAsArraySlice(some2, rs.byteSliceFrom), out);
 		const _227 = undefined as Uint8Array | undefined;
-		rs.byteVecPush(out, (_227 === undefined ? rs.runsFrom([], rs.byteSliceFrom) : rs.runsFrom([_227], rs.byteSliceFrom)).length & 0xff);
-		putRuns$2(rs.cowRuns(new rs.Borrowed(rs.runsFrom(pairs.items, rs.byteSliceFrom)), rs.byteSliceFrom), out);
-		const wrapped2: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterMap(rs.runsIter(rs.runsFrom(pairs.items, rs.byteSliceFrom)), (_2: rs.ByteSlice): Uint8Array => {
+		rs.byteVecPush(out, (_227 === undefined ? rs.arraySliceFrom([], rs.byteSliceFrom) : rs.arraySliceFrom([_227], rs.byteSliceFrom)).length & 0xff);
+		putRuns$2(rs.cowArraySlice(new rs.Borrowed(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), rs.byteSliceFrom), out);
+		const wrapped2: rs.Vec<Uint8Array> = rs.iterToVec(rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom)), (_2: rs.ByteSlice): Uint8Array => {
 			return copy$array_u8(rs.byteSliceToArray(_2));
 		}), undefined, 2, true);
-		putRuns$2(rs.runsOfSlice(rs.sliceFrom(wrapped2.items), rs.byteSliceFrom), out);
-		const _242: rs.ByteSlice | undefined = rs.runsLast(rs.runsOfSlice(rs.sliceFrom(wrapped2.items), rs.byteSliceFrom));
+		putRuns$2(rs.arraySliceOfSlice(rs.sliceFrom(wrapped2.items), rs.byteSliceFrom), out);
+		const _242: rs.ByteSlice | undefined = rs.arraySliceLast(rs.arraySliceOfSlice(rs.sliceFrom(wrapped2.items), rs.byteSliceFrom));
 		if (_242 !== undefined) {
 			const _248: rs.u8 = rs.u8WrappingAdd(_242.data[_242.start], 1);
 			_242.data[_242.start] = _248;
 		}
-		putRuns$2(rs.runsOfSlice(rs.sliceFrom(wrapped2.items), rs.byteSliceFrom), out);
+		putRuns$2(rs.arraySliceOfSlice(rs.sliceFrom(wrapped2.items), rs.byteSliceFrom), out);
 		const boxed2: rs.Slice<Uint8Array> = rs.sliceNewUninit(pairs.items.length, 2, (): Uint8Array => {
 			return (new Uint8Array(2) as unknown) as Uint8Array;
 		});
@@ -2956,26 +2956,26 @@ export function arrayForms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 			rs.ptrWrite(uninit, copy$array_u8(rs.byteSliceToArray(_267[1])));
 			rs.byteSliceFrom(uninit);
 		}
-		putRuns$2(rs.runsOfSlice(boxed2, rs.byteSliceFrom), out);
+		putRuns$2(rs.arraySliceOfSlice(boxed2, rs.byteSliceFrom), out);
 		const half: rs.usize = rs.usizeDiv(pairs.items.length, 2);
-		putRuns$2(rs.runsFrom(rs.slicesJoin(rs.sliceFrom([rs.runsRange(rs.runsFrom(pairs.items, rs.byteSliceFrom), 0, half), rs.runsRange(rs.runsFrom(pairs.items, rs.byteSliceFrom), half)]), 2, undefined, rs.runsItems, copy$array_u8).items, rs.byteSliceFrom), out);
-		putRuns$2(rs.runsFrom(rs.slicesJoin(rs.sliceFrom([new rs.Borrowed(rs.runsRange(rs.runsFrom(pairs.items, rs.byteSliceFrom), 0, half)), rs.vecFrom(rs.runsArray(rs.runsRange(rs.runsFrom(pairs.items, rs.byteSliceFrom), half)).map(copy$array_u8))]), 2, undefined, (c) => rs.runsItems(rs.cowRuns(c, rs.byteSliceFrom)), copy$array_u8).items, rs.byteSliceFrom), out);
-		putRuns$2(rs.runsFrom(rs.slicesJoin(rs.sliceFrom([rs.runsRange(rs.runsFrom(pairs.items, rs.byteSliceFrom), 0, half), rs.runsRange(rs.runsFrom(pairs.items, rs.byteSliceFrom), half)]), 2, rs.runsItems(rs.runsOne(rs.byteSliceFrom(Uint8Array.of(238, 255)), 2)), rs.runsItems, copy$array_u8).items, rs.byteSliceFrom), out);
-		putRuns$2(rs.runsFrom(rs.slicesJoin(rs.sliceFrom([rs.runsRange(rs.runsFrom(pairs.items, rs.byteSliceFrom), 0, half), rs.runsRange(rs.runsFrom(pairs.items, rs.byteSliceFrom), half)]), 2, rs.runsItems(rs.runsFrom([Uint8Array.of(221, 204), Uint8Array.of(187, 170)], rs.byteSliceFrom)), rs.runsItems, copy$array_u8).items, rs.byteSliceFrom), out);
+		putRuns$2(rs.arraySliceFrom(rs.slicesJoin(rs.sliceFrom([rs.arraySliceRange(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom), 0, half), rs.arraySliceRange(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom), half)]), 2, undefined, rs.arraySliceAsSlice, copy$array_u8).items, rs.byteSliceFrom), out);
+		putRuns$2(rs.arraySliceFrom(rs.slicesJoin(rs.sliceFrom([new rs.Borrowed(rs.arraySliceRange(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom), 0, half)), rs.vecFrom(rs.arraySliceItems(rs.arraySliceRange(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom), half)).map(copy$array_u8))]), 2, undefined, (c) => rs.arraySliceAsSlice(rs.cowArraySlice(c, rs.byteSliceFrom)), copy$array_u8).items, rs.byteSliceFrom), out);
+		putRuns$2(rs.arraySliceFrom(rs.slicesJoin(rs.sliceFrom([rs.arraySliceRange(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom), 0, half), rs.arraySliceRange(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom), half)]), 2, rs.arraySliceAsSlice(rs.arraySliceOne(rs.byteSliceFrom(Uint8Array.of(238, 255)), 2)), rs.arraySliceAsSlice, copy$array_u8).items, rs.byteSliceFrom), out);
+		putRuns$2(rs.arraySliceFrom(rs.slicesJoin(rs.sliceFrom([rs.arraySliceRange(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom), 0, half), rs.arraySliceRange(rs.arraySliceFrom(pairs.items, rs.byteSliceFrom), half)]), 2, rs.arraySliceAsSlice(rs.arraySliceFrom([Uint8Array.of(221, 204), Uint8Array.of(187, 170)], rs.byteSliceFrom)), rs.arraySliceAsSlice, copy$array_u8).items, rs.byteSliceFrom), out);
 	} else {
 		let item: rs.ByteVec = rs.byteVecFrom(Uint8Array.of(byte(0)));
-		const runs2: rs.Runs<rs.Slice<rs.ByteVec>> = rs.runsOne(rs.sliceOfPlace(rs.place(() => item, (value) => item = value)), 1);
+		const runs2: rs.ArraySlice<rs.Slice<rs.ByteVec>> = rs.arraySliceOne(rs.sliceOfPlace(rs.place(() => item, (value) => item = value)), 1);
 		rs.idx(runs2, 0);
 		const _354: rs.ByteVec[] = [rs.byteVecFrom(Uint8Array.of(byte(1), byte(2)))];
-		rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(rs.replaceIn(rs.sliceView(rs.runsAt(runs2, 0)), _354, 1)[0])), undefined, true);
-		rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(rs.cellReplace(rs.cellOfRuns(rs.runsOne(rs.sliceOfPlace(rs.place(() => item, (value2) => item = value2)), 1), rs.objectCopy), [[rs.byteVecFrom(Uint8Array.of(byte(3)))]])[0][0])), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(rs.replaceIn(rs.sliceView(rs.arraySliceAt(runs2, 0)), _354, 1)[0])), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(rs.cellReplace(rs.cellOfArraySlice(rs.arraySliceOne(rs.sliceOfPlace(rs.place(() => item, (value2) => item = value2)), 1), rs.objectCopy), [[rs.byteVecFrom(Uint8Array.of(byte(3)))]])[0][0])), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(item)), undefined, true);
 	}
 }
 
 /** Whether a callback std lends each row of `rows` gets that row itself, by `ptr::eq`. */
-export function lentRows$2(rows: rs.Runs<rs.ByteSlice>, out: rs.ByteVec): void {
-	const iter: rs.Iter<rs.ByteSlice> = rs.runsIter(rows);
+export function lentRows$2(rows: rs.ArraySlice<rs.ByteSlice>, out: rs.ByteVec): void {
+	const iter: rs.Iter<rs.ByteSlice> = rs.arraySliceIter(rows);
 	while (true) {
 		const _5: rs.ByteSlice | rs.Done = iter.next();
 		if (_5 === rs.DONE) {
@@ -2987,19 +2987,19 @@ export function lentRows$2(rows: rs.Runs<rs.ByteSlice>, out: rs.ByteVec): void {
 			lent = lent || _32;
 			return rs.cmpBytes(row, _5);
 		};
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(rs.sliceBinarySearchBy(rs.runsItems(rows), (held) => _11(rs.byteSliceFrom(held))).ok ? 1 : 0, lent ? 1 : 0)), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(rs.sliceBinarySearchBy(rs.arraySliceAsSlice(rows), (held) => _11(rs.byteSliceFrom(held))).ok ? 1 : 0, lent ? 1 : 0)), undefined, true);
 	}
 }
 
 /** The same as [`lent_rows`], for rows of words and of arrays. */
-export function lentWords(rows: rs.Runs<rs.Slice<rs.u16>>, nested: rs.Runs<rs.Runs<rs.ByteSlice>>, out: rs.ByteVec): void {
-	const iter: rs.Iter<rs.Slice<rs.u16>> = rs.runsIter(rows);
+export function lentWords(rows: rs.ArraySlice<rs.Slice<rs.u16>>, nested: rs.ArraySlice<rs.ArraySlice<rs.ByteSlice>>, out: rs.ByteVec): void {
+	const iter: rs.Iter<rs.Slice<rs.u16>> = rs.arraySliceIter(rows);
 	while (true) {
 		const _6: rs.Slice<rs.u16> | rs.Done = iter.next();
 		if (_6 === rs.DONE) {
 			break;
 		}
-		rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.runsIter(rows), (row: rs.Slice<rs.u16>): boolean => {
+		rs.byteVecPush(out, rs.iterCount(rs.iterFilter(rs.arraySliceIter(rows), (row: rs.Slice<rs.u16>): boolean => {
 			return rs.sliceSame(row, _6);
 		})) & 0xff);
 		const _19: (a0: rs.Slice<rs.u16>) => boolean = (row2: rs.Slice<rs.u16>): boolean => {
@@ -3008,29 +3008,29 @@ export function lentWords(rows: rs.Runs<rs.Slice<rs.u16>>, nested: rs.Runs<rs.Ru
 			}
 			return false;
 		};
-		rs.byteVecPush(out, rs.slicePartitionPoint(rs.runsItems(rows), (held) => _19(rs.sliceFrom(held))) & 0xff);
+		rs.byteVecPush(out, rs.slicePartitionPoint(rs.arraySliceAsSlice(rows), (held) => _19(rs.sliceFrom(held))) & 0xff);
 		let lent: boolean = false;
 		const _22: (a0: rs.Slice<rs.u16>) => rs.Ordering = (row3: rs.Slice<rs.u16>): rs.Ordering => {
 			const _33: boolean = rs.sliceSame(row3, _6);
 			lent = lent || _33;
 			return rs.cmpSlice(rs.cmp)(row3, _6);
 		};
-		rs.sliceBinarySearchBy(rs.runsItems(rows), (held2) => _22(rs.sliceFrom(held2)));
+		rs.sliceBinarySearchBy(rs.arraySliceAsSlice(rows), (held2) => _22(rs.sliceFrom(held2)));
 		rs.byteVecPush(out, lent ? 1 : 0);
 	}
-	const iter2: rs.Iter<rs.Runs<rs.ByteSlice>> = rs.runsIter(nested);
+	const iter2: rs.Iter<rs.ArraySlice<rs.ByteSlice>> = rs.arraySliceIter(nested);
 	while (true) {
-		const _29: rs.Runs<rs.ByteSlice> | rs.Done = iter2.next();
+		const _29: rs.ArraySlice<rs.ByteSlice> | rs.Done = iter2.next();
 		if (_29 === rs.DONE) {
 			break;
 		}
 		let lent2: boolean = false;
-		const _35: (a0: rs.Runs<rs.ByteSlice>) => rs.Ordering = (row4: rs.Runs<rs.ByteSlice>): rs.Ordering => {
-			const _36: boolean = rs.runsSame(row4, _29);
+		const _35: (a0: rs.ArraySlice<rs.ByteSlice>) => rs.Ordering = (row4: rs.ArraySlice<rs.ByteSlice>): rs.Ordering => {
+			const _36: boolean = rs.arraySliceSame(row4, _29);
 			lent2 = lent2 || _36;
 			return rs.cmpSlice(rs.cmpBytes)(row4, _29);
 		};
-		rs.sliceBinarySearchBy(rs.runsItems(nested), (held3) => _35(rs.runsOf(rs.byteSliceFrom)(held3)));
+		rs.sliceBinarySearchBy(rs.arraySliceAsSlice(nested), (held3) => _35(rs.arraySliceOf(rs.byteSliceFrom)(held3)));
 		rs.byteVecPush(out, lent2 ? 1 : 0);
 	}
 }
@@ -3046,29 +3046,29 @@ export function arrayIdentity(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec):
 		rs.idx(c, 1);
 		return Uint8Array.of(_3, c.data[c.start + 1]);
 	}), undefined, 2, true);
-	rs.runsBy(rs.runsFrom(rows.items, rs.byteSliceFrom), (runs) => rs.sliceSort(runs, rs.cmpLt(rs.cmpBytes), 2, true));
+	rs.arraySliceBy(rs.arraySliceFrom(rows.items, rs.byteSliceFrom), (arrays) => rs.sliceSort(arrays, rs.cmpLt(rs.cmpBytes), 2, true));
 	rs.vecDedupBy(rows, rs.eqBytes);
 	if (rs.u8Rem(kind, 2) === 0) {
-		lentRows$2(rs.runsFrom(rows.items, rs.byteSliceFrom), out);
+		lentRows$2(rs.arraySliceFrom(rows.items, rs.byteSliceFrom), out);
 		const part3 = rs.usizeDiv(rows.items.length, 2);
-		lentRows$2(rs.runsRange(rs.runsFrom(rows.items, rs.byteSliceFrom), part3), out);
-		const words: rs.Vec<rs.u16[]> = rs.iterToVec(rs.iterMap(rs.runsIter(rs.runsFrom(rows.items, rs.byteSliceFrom)), (r2: rs.ByteSlice): rs.u16[] => {
+		lentRows$2(rs.arraySliceRange(rs.arraySliceFrom(rows.items, rs.byteSliceFrom), part3), out);
+		const words: rs.Vec<rs.u16[]> = rs.iterToVec(rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom(rows.items, rs.byteSliceFrom)), (r2: rs.ByteSlice): rs.u16[] => {
 			return [r2.data[r2.start] as rs.u16, r2.data[r2.start + 1] as rs.u16];
 		}), undefined, 4, true);
-		const nested: rs.Vec<Uint8Array[]> = rs.iterToVec(rs.iterMap(rs.runsWindows(rs.runsFrom(rows.items, rs.byteSliceFrom), 2), (w: rs.Runs<rs.ByteSlice>): Uint8Array[] => {
+		const nested: rs.Vec<Uint8Array[]> = rs.iterToVec(rs.iterMap(rs.arraySliceWindows(rs.arraySliceFrom(rows.items, rs.byteSliceFrom), 2), (w: rs.ArraySlice<rs.ByteSlice>): Uint8Array[] => {
 			rs.idx(w, 0);
-			const _310: Uint8Array = rs.byteSliceToArray(rs.runsAt(w, 0));
+			const _310: Uint8Array = rs.byteSliceToArray(rs.arraySliceAt(w, 0));
 			rs.idx(w, 1);
-			return [_310, rs.byteSliceToArray(rs.runsAt(w, 1))];
+			return [_310, rs.byteSliceToArray(rs.arraySliceAt(w, 1))];
 		}), undefined, 4, true);
 		const part4 = rs.min(words.items.length, 1);
-		const _36: rs.Runs<rs.Slice<rs.u16>> = rs.runsRange(rs.runsFrom(words.items, rs.sliceFrom), part4);
+		const _36: rs.ArraySlice<rs.Slice<rs.u16>> = rs.arraySliceRange(rs.arraySliceFrom(words.items, rs.sliceFrom), part4);
 		const part5 = rs.usizeDiv(nested.items.length, 2);
-		lentWords(_36, rs.runsRange(rs.runsFrom(nested.items, rs.runsOf(rs.byteSliceFrom)), part5), out);
+		lentWords(_36, rs.arraySliceRange(rs.arraySliceFrom(nested.items, rs.arraySliceOf(rs.byteSliceFrom)), part5), out);
 	} else {
 		const away: rs.Cell<Probe.Probe | undefined> = new rs.Cell(undefined as Probe.Probe | undefined);
 		const probes: (a0: rs.usize) => rs.Vec<Probe.Probe[]> = (at: rs.usize): rs.Vec<Probe.Probe[]> => {
-			return rs.iterToVec(rs.iterMap(rs.runsIter(rs.runsRange(rs.runsFrom(rows.items, rs.byteSliceFrom), at)), (r: rs.ByteSlice): Probe.Probe[] => {
+			return rs.iterToVec(rs.iterMap(rs.arraySliceIter(rs.arraySliceRange(rs.arraySliceFrom(rows.items, rs.byteSliceFrom), at)), (r: rs.ByteSlice): Probe.Probe[] => {
 				return [{ tag: r.data[r.start] & 254, home: away }];
 			}), undefined, 8, true);
 		};
@@ -3079,10 +3079,10 @@ export function arrayIdentity(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec):
 		const home: rs.Cell<Probe.Probe | undefined> = new rs.Cell(undefined as Probe.Probe | undefined);
 		const sep: Probe.Probe[] = [{ tag: 238, home }];
 		rs.cellSet(home, sep[0]);
-		const _82: rs.Runs<rs.Slice<Probe.Probe>> = rs.runsFrom(a.items, rs.sliceFrom);
-		const _84: rs.Runs<rs.Slice<Probe.Probe>> = rs.runsFrom(b.items, rs.sliceFrom);
+		const _82: rs.ArraySlice<rs.Slice<Probe.Probe>> = rs.arraySliceFrom(a.items, rs.sliceFrom);
+		const _84: rs.ArraySlice<rs.Slice<Probe.Probe>> = rs.arraySliceFrom(b.items, rs.sliceFrom);
 		const part2 = rs.min(1, a.items.length);
-		rs.iterExtendBytes(out, rs.iterMap(rs.runsIter(rs.runsFrom(rs.slicesJoin(rs.sliceFrom([_82, _84, rs.runsRange(rs.runsFrom(a.items, rs.sliceFrom), 0, part2)]), 8, rs.runsItems(rs.runsOne(rs.sliceFrom(sep), 1)), rs.runsItems, (a: Probe.Probe[]) => a.map(Probe.clone$Clone)).items, rs.sliceFrom)), (_2: rs.Slice<Probe.Probe>): rs.u8 => {
+		rs.iterExtendBytes(out, rs.iterMap(rs.arraySliceIter(rs.arraySliceFrom(rs.slicesJoin(rs.sliceFrom([_82, _84, rs.arraySliceRange(rs.arraySliceFrom(a.items, rs.sliceFrom), 0, part2)]), 8, rs.arraySliceAsSlice(rs.arraySliceOne(rs.sliceFrom(sep), 1)), rs.arraySliceAsSlice, (a: Probe.Probe[]) => a.map(Probe.clone$Clone)).items, rs.sliceFrom)), (_2: rs.Slice<Probe.Probe>): rs.u8 => {
 			return _2.data[_2.start].tag;
 		}), undefined, true);
 		flush(out);

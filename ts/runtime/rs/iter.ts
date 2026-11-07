@@ -22,7 +22,7 @@
 // `owned` functions follow it, dispatching on the kind, so a bundle that never drops an
 // item carries none of it.
 
-import { ByteSlice, ByteVec, type Run, type Runs, runsArray, runsAt, runsEach, runsPart, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, capReserve, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, sliceItems, slicePart, type Slice, type SliceLike, Vec, vecCapacity, vecExtendFromSlice, vecFrom, vecHold, vecMax, vecWithCapacity } from "../rs.ts";
+import { ByteSlice, ByteVec, type ArrayRef, type ArraySlice, arraySliceItems, arraySliceAt, arraySliceEach, arraySlicePart, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, capReserve, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, sliceItems, slicePart, type Slice, type SliceLike, Vec, vecCapacity, vecExtendFromSlice, vecFrom, vecHold, vecMax, vecWithCapacity } from "../rs.ts";
 import { AtIndex, BTreeIter, HashIter, type Ordering } from "./collections.ts";
 import { type Hasher, hash8 } from "./hash.ts";
 import { charStep, intToBig, type Limbs, type Step, usizeDebug, lt as wideLt } from "./int.ts";
@@ -475,29 +475,29 @@ export function sliceRsplitn<T>(s: Slice<T>, n: number, f: (item: T) => boolean)
 	return new SplitIter(s, s.data, s.start, slicePart, f, true, false, n);
 }
 
-/** `slice::split` and `split_mut` of runs: the parts between the runs `f` is true of, each lent where the slice holds it. */
-export function runsSplit<S extends Run>(r: Runs<S>, f: (run: S) => boolean): Iter<Runs<S>> {
-	return new SplitIter(r, runsEach(r), 0, runsPart, f, false, false);
+/** `slice::split` and `split_mut` of an array slice: the parts between the arrays `f` is true of, each lent where the slice holds it. */
+export function arraySliceSplit<S extends ArrayRef>(r: ArraySlice<S>, f: (run: S) => boolean): Iter<ArraySlice<S>> {
+	return new SplitIter(r, arraySliceEach(r), 0, arraySlicePart, f, false, false);
 }
 
-/** `slice::rsplit` and `rsplit_mut` of runs. */
-export function runsRsplit<S extends Run>(r: Runs<S>, f: (run: S) => boolean): Iter<Runs<S>> {
-	return new SplitIter(r, runsEach(r), 0, runsPart, f, true, false);
+/** `slice::rsplit` and `rsplit_mut` of an array slice. */
+export function arraySliceRsplit<S extends ArrayRef>(r: ArraySlice<S>, f: (run: S) => boolean): Iter<ArraySlice<S>> {
+	return new SplitIter(r, arraySliceEach(r), 0, arraySlicePart, f, true, false);
 }
 
-/** `slice::split_inclusive` and `split_inclusive_mut` of runs. */
-export function runsSplitInclusive<S extends Run>(r: Runs<S>, f: (run: S) => boolean): Iter<Runs<S>> {
-	return new SplitIter(r, runsEach(r), 0, runsPart, f, false, true);
+/** `slice::split_inclusive` and `split_inclusive_mut` of an array slice. */
+export function arraySliceSplitInclusive<S extends ArrayRef>(r: ArraySlice<S>, f: (run: S) => boolean): Iter<ArraySlice<S>> {
+	return new SplitIter(r, arraySliceEach(r), 0, arraySlicePart, f, false, true);
 }
 
-/** `slice::splitn` and `splitn_mut` of runs. */
-export function runsSplitn<S extends Run>(r: Runs<S>, n: number, f: (run: S) => boolean): Iter<Runs<S>> {
-	return new SplitIter(r, runsEach(r), 0, runsPart, f, false, false, n);
+/** `slice::splitn` and `splitn_mut` of an array slice. */
+export function arraySliceSplitn<S extends ArrayRef>(r: ArraySlice<S>, n: number, f: (run: S) => boolean): Iter<ArraySlice<S>> {
+	return new SplitIter(r, arraySliceEach(r), 0, arraySlicePart, f, false, false, n);
 }
 
-/** `slice::rsplitn` and `rsplitn_mut` of runs. */
-export function runsRsplitn<S extends Run>(r: Runs<S>, n: number, f: (run: S) => boolean): Iter<Runs<S>> {
-	return new SplitIter(r, runsEach(r), 0, runsPart, f, true, false, n);
+/** `slice::rsplitn` and `rsplitn_mut` of an array slice. */
+export function arraySliceRsplitn<S extends ArrayRef>(r: ArraySlice<S>, n: number, f: (run: S) => boolean): Iter<ArraySlice<S>> {
+	return new SplitIter(r, arraySliceEach(r), 0, arraySlicePart, f, true, false, n);
 }
 
 /** `slice::split` and `split_mut` of bytes, whose parts are views already. */
@@ -541,35 +541,35 @@ function byteSlicePart(s: ByteSlice, start: number, end: number): ByteSlice {
 	return new ByteSlice(s.data, s.start + start, end - start);
 }
 
-/** `slice::iter` and `iter_mut` of runs: each run, lent where the slice holds it. */
-export function runsIter<S extends Run>(r: Runs<S>): Iter<S> {
-	return new RunsIter(r);
+/** `slice::iter` and `iter_mut` of an array slice: each array, lent where the slice holds it. */
+export function arraySliceIter<S extends ArrayRef>(r: ArraySlice<S>): Iter<S> {
+	return new ArraySliceIter(r);
 }
 
-/** `slice::windows` of runs. */
-export function runsWindows<S extends Run>(r: Runs<S>, size: number, at?: Location): Iter<Runs<S>> {
+/** `slice::windows` of an array slice. */
+export function arraySliceWindows<S extends ArrayRef>(r: ArraySlice<S>, size: number, at?: Location): Iter<ArraySlice<S>> {
 	if (size === 0) panic("window size must be non-zero", at, true);
-	return new PartsIter(r, r.length, size, 1, Math.max(r.length - size + 1, 0), false, runsPart);
+	return new PartsIter(r, r.length, size, 1, Math.max(r.length - size + 1, 0), false, arraySlicePart);
 }
 
-/** `slice::chunks` and `chunks_mut` of runs. */
-export function runsChunks<S extends Run>(r: Runs<S>, size: number, at?: Location): Iter<Runs<S>> {
-	return chunks(r, r.length, size, false, false, runsPart, at);
+/** `slice::chunks` and `chunks_mut` of an array slice. */
+export function arraySliceChunks<S extends ArrayRef>(r: ArraySlice<S>, size: number, at?: Location): Iter<ArraySlice<S>> {
+	return chunks(r, r.length, size, false, false, arraySlicePart, at);
 }
 
-/** `slice::chunks_exact` and `chunks_exact_mut` of runs. */
-export function runsChunksExact<S extends Run>(r: Runs<S>, size: number, at?: Location): Iter<Runs<S>> {
-	return chunks(r, r.length, size, true, false, runsPart, at);
+/** `slice::chunks_exact` and `chunks_exact_mut` of an array slice. */
+export function arraySliceChunksExact<S extends ArrayRef>(r: ArraySlice<S>, size: number, at?: Location): Iter<ArraySlice<S>> {
+	return chunks(r, r.length, size, true, false, arraySlicePart, at);
 }
 
-/** `slice::rchunks` and `rchunks_mut` of runs. */
-export function runsRchunks<S extends Run>(r: Runs<S>, size: number, at?: Location): Iter<Runs<S>> {
-	return chunks(r, r.length, size, false, true, runsPart, at);
+/** `slice::rchunks` and `rchunks_mut` of an array slice. */
+export function arraySliceRchunks<S extends ArrayRef>(r: ArraySlice<S>, size: number, at?: Location): Iter<ArraySlice<S>> {
+	return chunks(r, r.length, size, false, true, arraySlicePart, at);
 }
 
-/** `slice::rchunks_exact` and `rchunks_exact_mut` of runs. */
-export function runsRchunksExact<S extends Run>(r: Runs<S>, size: number, at?: Location): Iter<Runs<S>> {
-	return chunks(r, r.length, size, true, true, runsPart, at);
+/** `slice::rchunks_exact` and `rchunks_exact_mut` of an array slice. */
+export function arraySliceRchunksExact<S extends ArrayRef>(r: ArraySlice<S>, size: number, at?: Location): Iter<ArraySlice<S>> {
+	return chunks(r, r.length, size, true, true, arraySlicePart, at);
 }
 
 /** `Option::iter`, and with what drops its item, `option::IntoIter`. */
@@ -2048,24 +2048,24 @@ class SliceIter<T> extends Iter<T> implements Disposable {
 	}
 }
 
-/** The runs of a slice of arrays, from both ends, each lent where the slice holds it. */
-class RunsIter<S extends Run> extends Iter<S> {
-	private readonly r: Runs<S>;
+/** The arrays of a slice of arrays, from both ends, each lent where the slice holds it. */
+class ArraySliceIter<S extends ArrayRef> extends Iter<S> {
+	private readonly r: ArraySlice<S>;
 	front = 0;
 	back: number;
 
-	constructor(r: Runs<S>) {
+	constructor(r: ArraySlice<S>) {
 		super();
 		this.r = r;
 		this.back = r.length;
 	}
 
 	next(): S | Done {
-		return this.front < this.back ? runsAt(this.r, this.front++) : DONE;
+		return this.front < this.back ? arraySliceAt(this.r, this.front++) : DONE;
 	}
 
 	override nextBack(): S | Done {
-		return this.front < this.back ? runsAt(this.r, --this.back) : DONE;
+		return this.front < this.back ? arraySliceAt(this.r, --this.back) : DONE;
 	}
 
 	override len(): number {
@@ -2077,11 +2077,11 @@ class RunsIter<S extends Run> extends Iter<S> {
 	}
 
 	override remaining(): Iterable<unknown> {
-		return runsArray(runsPart(this.r, this.front, this.back));
+		return arraySliceItems(arraySlicePart(this.r, this.front, this.back));
 	}
 
 	override clone(): Iter<S> {
-		const it = new RunsIter(this.r);
+		const it = new ArraySliceIter(this.r);
 		it.front = this.front;
 		it.back = this.back;
 		return it;

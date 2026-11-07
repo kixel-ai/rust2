@@ -217,21 +217,21 @@ export function ptrUnerase(p: Place<undefined>, type: string, align: number): un
 /**
  * A generic type's pointer or reference to a `T` that only an instance decides: the object,
  * the `Place` of a value JS copies, or the `Slice` of a `[T; N]`'s elements, a `ByteSlice`
- * of a `[u8; N]`'s, and the `Runs` of a `[[T; N]; M]`'s.
+ * of a `[u8; N]`'s, and the `ArraySlice` of a `[[T; N]; M]`'s.
  */
-export type Ptr<T> = T | Place<T> | ByteSlice | (T extends readonly (infer E)[] ? Slice<E> | Runs<Run> : never);
+export type Ptr<T> = T | Place<T> | ByteSlice | (T extends readonly (infer E)[] ? Slice<E> | ArraySlice<ArrayRef> : never);
 
 /** A generic type's `[T; N]`: the array, or the `Uint8Array` of a `[u8; N]`. */
 export type ArrayOf<T> = T[] | Uint8Array;
 
-/** A generic type's `[T]`, as behind a reference: the `Slice`, the `ByteSlice` of a `[u8]`, or the `Runs` of a `[[T; N]]`. */
-export type SliceOf<T> = Slice<T> | ByteSlice | Runs<Run>;
+/** A generic type's `[T]`, as behind a reference: the `Slice`, the `ByteSlice` of a `[u8]`, or the `ArraySlice` of a `[[T; N]]`. */
+export type SliceOf<T> = Slice<T> | ByteSlice | ArraySlice<ArrayRef>;
 
 /** A generic type's `Vec<T>`: the `Vec`, or the `ByteVec` of a `Vec<u8>`. */
 export type VecOf<T> = Vec<T> | ByteVec;
 
-/** A generic type's `Cow<[T]>`: the `Cow`, the `ByteCow` of a `Cow<[u8]>`, or the `Cow` of a `Cow<[[T; N]]>`'s runs. */
-export type CowOf<T> = Cow<T> | ByteCow | Cow<T, Runs<Run>>;
+/** A generic type's `Cow<[T]>`: the `Cow`, the `ByteCow` of a `Cow<[u8]>`, or the `Cow` of a `Cow<[[T; N]]>`'s arrays. */
+export type CowOf<T> = Cow<T> | ByteCow | Cow<T, ArraySlice<ArrayRef>>;
 
 /**
  * The pointer to element `index` of `s`, a `[T; N]` or a `Vec`'s storage. A null or
@@ -719,11 +719,11 @@ export function sliceItems<T>(s: Slice<T>): T[] {
 }
 
 /** Elements in a row, as a slice reads them: the JS array of a `[T; N]`, a `Slice`, or a `Vec`. */
-export type Elements<T> = ArrayLike<T> | Slice<T> | Vec<T> | Runs<Run>;
+export type Elements<T> = ArrayLike<T> | Slice<T> | Vec<T> | ArraySlice<ArrayRef>;
 
-/** The array `s`'s elements are in: a slice's storage, a `Vec`'s items, the arrays of runs as `runsArray` reads them, or the array itself. */
+/** The array `s`'s elements are in: a slice's storage, a `Vec`'s items, an array slice's arrays as `arraySliceItems` reads them, or the array itself. */
 export function sliceData<T>(s: Elements<T>): ArrayLike<T> {
-	return s instanceof Slice ? s.data : s instanceof Vec ? s.items : s instanceof Runs ? (runsArray(s) as unknown as ArrayLike<T>) : s;
+	return s instanceof Slice ? s.data : s instanceof Vec ? s.items : s instanceof ArraySlice ? (arraySliceItems(s) as unknown as ArrayLike<T>) : s;
 }
 
 /** Where `s`'s elements start in `sliceData(s)`. */
@@ -820,9 +820,9 @@ export function optionAsSlice<T>(o: T, none?: None): Slice<T> {
 	return sliceFrom(o === none ? [] : [o]);
 }
 
-/** `optionAsSlice` of an array, which is never `undefined`: the runs of it alone, lent by `of`, or of none. */
-export function optionAsRuns<S extends Run>(o: RunArray<S> | undefined, of: (array: RunArray<S>) => S): Runs<S> {
-	return runsFrom<RunArray<S>, S>(o === undefined ? [] : [o], of);
+/** `optionAsSlice` of an array, which is never `undefined`: the arrays of it alone, lent by `of`, or of none. */
+export function optionAsArraySlice<S extends ArrayRef>(o: LentArray<S> | undefined, of: (array: LentArray<S>) => S): ArraySlice<S> {
+	return arraySliceFrom<LentArray<S>, S>(o === undefined ? [] : [o], of);
 }
 
 /** `optionAsSlice` of a byte. */
@@ -965,22 +965,22 @@ export function sliceReverse<T>(s: Slice<T>): void {
 	byValue(s, (items) => items.reverse());
 }
 
-// Slices of arrays: `Runs`.
+// Slices of arrays: `ArraySlice`.
 
-/** What a `&[T; N]` is, as a slice of arrays lends each of its runs: a slice of its elements, of its bytes, or of its own runs. */
-export type Run = Slice<unknown> | ByteSlice | Runs<Run>;
+/** What a `&[T; N]` is, as a slice of arrays lends each of its arrays: a slice of its elements, of its bytes, or of its own arrays. */
+export type ArrayRef = Slice<unknown> | ByteSlice | ArraySlice<ArrayRef>;
 
-/** The `[T; N]` a run `S` lends: its elements' array, its bytes, or its runs' arrays. */
-export type RunArray<S> = S extends ByteSlice ? Uint8Array : S extends Slice<infer T> ? T[] : S extends Runs<infer R> ? RunArray<R>[] : never;
+/** The `[T; N]` a `&[T; N]`, `S`, lends: its elements' array, its bytes, or its own arrays. */
+export type LentArray<S> = S extends ByteSlice ? Uint8Array : S extends Slice<infer T> ? T[] : S extends ArraySlice<infer R> ? LentArray<R>[] : never;
 
 /**
- * A `&[[T; N]]`, `&mut [[T; N]]`, or `Box<[[T; N]]>`: `length` runs from `start`, each lent
- * as `S`, the slice a `&[T; N]` is, so a run is read and written where the slice holds it.
- * The runs are each a `[T; N]`'s own array, `items[i]`, as a `Vec<[T; N]>` or a
+ * A `&[[T; N]]`, `&mut [[T; N]]`, or `Box<[[T; N]]>`: `length` arrays from `start`, each lent
+ * as `S`, the slice a `&[T; N]` is, so an array is read and written where the slice holds it.
+ * The arrays are each a `[T; N]`'s own array, `items[i]`, as a `Vec<[T; N]>` or a
  * `[[T; N]; M]` holds them, which `of` lends, or else `n` elements each of `flat`, as
  * `as_chunks` splits a slice.
  */
-export class Runs<S extends Run> {
+export class ArraySlice<S extends ArrayRef> {
 	readonly items: readonly unknown[] | undefined;
 	readonly of: ((array: never) => S) | undefined;
 	readonly flat: S | undefined;
@@ -999,224 +999,224 @@ export class Runs<S extends Run> {
 }
 
 /**
- * All of `items`, the arrays of a `[[T; N]; M]` or a `Vec<[T; N]>`, as runs, each lent by
- * `of`. Runs of none take their type from where they go, as `[]` says nothing of it.
+ * All of `items`, the arrays of a `[[T; N]; M]` or a `Vec<[T; N]>`, as arrays, each lent by
+ * `of`. An array slice of none takes its type from where they go, as `[]` says nothing of it.
  */
-export function runsFrom<S extends Run>(items: readonly [], of: (array: NoInfer<RunArray<S>>) => S): Runs<S>;
-export function runsFrom<A, S extends Run>(items: readonly A[], of: (array: A) => S): Runs<S>;
-export function runsFrom<A, S extends Run>(items: readonly A[], of: (array: A) => S): Runs<S> {
-	return new Runs<S>(items, of, undefined, 0, 0, items.length);
+export function arraySliceFrom<S extends ArrayRef>(items: readonly [], of: (array: NoInfer<LentArray<S>>) => S): ArraySlice<S>;
+export function arraySliceFrom<A, S extends ArrayRef>(items: readonly A[], of: (array: A) => S): ArraySlice<S>;
+export function arraySliceFrom<A, S extends ArrayRef>(items: readonly A[], of: (array: A) => S): ArraySlice<S> {
+	return new ArraySlice<S>(items, of, undefined, 0, 0, items.length);
 }
 
-/** The runs of `s`, a slice of arrays, each lent by `of` where `s` holds it, as `assume_init_ref` of a slice of `MaybeUninit`s of them has it. */
-export function runsOfSlice<A, S extends Run>(s: Slice<A>, of: (array: A) => S): Runs<S> {
-	return new Runs<S>(s.data, of, undefined, 0, s.start, s.length);
+/** The arrays of `s`, a slice of arrays, each lent by `of` where `s` holds it, as `assume_init_ref` of a slice of `MaybeUninit`s of them has it. */
+export function arraySliceOfSlice<A, S extends ArrayRef>(s: Slice<A>, of: (array: A) => S): ArraySlice<S> {
+	return new ArraySlice<S>(s.data, of, undefined, 0, s.start, s.length);
 }
 
-/** `runsFrom` of `of`, as a function of the arrays, as a `[[T; N]; M]` is lent: one function for each `of`. */
-export function runsOf<A, S extends Run>(of: (array: A) => S): (items: readonly A[]) => Runs<S> {
-	let f = LENT.get(of) as ((items: readonly A[]) => Runs<S>) | undefined;
-	if (f === undefined) LENT.set(of, (f = (items: readonly A[]) => runsFrom(items, of)));
+/** `arraySliceFrom` of `of`, as a function of the arrays, as a `[[T; N]; M]` is lent: one function for each `of`. */
+export function arraySliceOf<A, S extends ArrayRef>(of: (array: A) => S): (items: readonly A[]) => ArraySlice<S> {
+	let f = LENT.get(of) as ((items: readonly A[]) => ArraySlice<S>) | undefined;
+	if (f === undefined) LENT.set(of, (f = (items: readonly A[]) => arraySliceFrom(items, of)));
 	return f;
 }
 
-/** `runsOf`'s functions, by the `of` each lends with. */
+/** `arraySliceOf`'s functions, by the `of` each lends with. */
 const LENT = /* @__PURE__ */ new Map<unknown, unknown>();
 
 /** Run `i` of `r`, in bounds, lent where `r` holds it. */
-export function runsAt<S extends Run>(r: Runs<S>, i: number): S {
+export function arraySliceAt<S extends ArrayRef>(r: ArraySlice<S>, i: number): S {
 	const k = r.start + i;
 	if (r.items !== undefined) return (r.of as (array: unknown) => S)(r.items[k]);
-	return runPart(r.flat as S, k * r.n, r.n);
+	return arrayRefPart(r.flat as S, k * r.n, r.n);
 }
 
 /** `length` elements of `s` from `start`: a slice of the same storage, of the same class. */
-function runPart<S extends Run>(s: S, start: number, length: number): S {
+function arrayRefPart<S extends ArrayRef>(s: S, start: number, length: number): S {
 	if (s instanceof ByteSlice) return new ByteSlice(s.data, s.start + start, length) as S;
 	if (s instanceof Slice) return new Slice(s.data, s.start + start, length) as S;
-	const r = s as Runs<Run>;
-	return new Runs(r.items, r.of, r.flat, r.n, r.start + start, length) as S;
+	const r = s as ArraySlice<ArrayRef>;
+	return new ArraySlice(r.items, r.of, r.flat, r.n, r.start + start, length) as S;
 }
 
-/** Runs `start` to `end` of `r`, in bounds already. */
-export function runsPart<S extends Run>(r: Runs<S>, start: number, end: number = r.length): Runs<S> {
-	return runPart(r, start, end - start);
+/** Arrays `start` to `end` of `r`, in bounds already. */
+export function arraySlicePart<S extends ArrayRef>(r: ArraySlice<S>, start: number, end: number = r.length): ArraySlice<S> {
+	return arrayRefPart(r, start, end - start);
 }
 
 /** `&r[start..end]` and `&mut r[start..end]`, with `end` defaulting to the length. */
-export function runsRange<S extends Run>(r: Runs<S>, start: number, end: number = r.length, at?: Location): Runs<S> {
+export function arraySliceRange<S extends ArrayRef>(r: ArraySlice<S>, start: number, end: number = r.length, at?: Location): ArraySlice<S> {
 	rangeCheck(r.length, start, end, at);
-	return runPart(r, start, end - start);
+	return arrayRefPart(r, start, end - start);
 }
 
-/** Each run of `r`, lent where `r` holds it, as `each_ref` and `each_mut` of a `[[T; N]; M]` lend them. */
-export function runsEach<S extends Run>(r: Runs<S>): S[] {
+/** Each array of `r`, lent where `r` holds it, as `each_ref` and `each_mut` of a `[[T; N]; M]` lend them. */
+export function arraySliceEach<S extends ArrayRef>(r: ArraySlice<S>): S[] {
 	const out = new Array<S>(r.length);
-	for (let i = 0; i < r.length; i++) out[i] = runsAt(r, i);
+	for (let i = 0; i < r.length; i++) out[i] = arraySliceAt(r, i);
 	return out;
 }
 
-/** `slice::from_mut` or `array::from_mut` of a `&mut [T; n]`, which is `s`: the runs of it alone. */
-export function runsOne<S extends Run>(s: S, n: number): Runs<S> {
-	return new Runs<S>(undefined, undefined, s, n, 0, 1);
+/** `slice::from_mut` or `array::from_mut` of a `&mut [T; n]`, which is `s`: the arrays of it alone. */
+export function arraySliceOne<S extends ArrayRef>(s: S, n: number): ArraySlice<S> {
+	return new ArraySlice<S>(undefined, undefined, s, n, 0, 1);
 }
 
-/** `*r` of a `&[[T; N]; M]`: each run copied by `copy`, an array of its own. */
-export function runsToArray<S extends Run, A>(r: Runs<S>, copy: (run: S) => A): A[] {
+/** `*r` of a `&[[T; N]; M]`: each array copied by `copy`, an array of its own. */
+export function arraySliceToArray<S extends ArrayRef, A>(r: ArraySlice<S>, copy: (run: S) => A): A[] {
 	const out = new Array<A>(r.length);
-	for (let i = 0; i < r.length; i++) out[i] = copy(runsAt(r, i));
+	for (let i = 0; i < r.length; i++) out[i] = copy(arraySliceAt(r, i));
 	return out;
 }
 
-/** `*r = items` of a `&mut [[T; N]; M]`: each run written where `r` holds it. */
-export function runsSet<S extends Run>(r: Runs<S>, items: ArrayLike<RunArray<S>>): void {
-	for (let i = 0; i < r.length; i++) runSet(runsAt(r, i), items[i]);
+/** `*r = items` of a `&mut [[T; N]; M]`: each array written where `r` holds it. */
+export function arraySliceSet<S extends ArrayRef>(r: ArraySlice<S>, items: ArrayLike<LentArray<S>>): void {
+	for (let i = 0; i < r.length; i++) arrayRefSet(arraySliceAt(r, i), items[i]);
 }
 
 /**
- * What a run's element is copied by, as a copy of the runs reads it: a `Copy` value JS
+ * What an array's element is copied by, as a copy of the arrays reads it: a `Copy` value JS
  * holds as an object, and one a write lands in, as a `sliceIn`'s does, which a write of the
- * runs back would change.
+ * arrays back would change.
  */
-export type RunCopy = (value: never) => unknown;
+export type ElemCopy = (value: never) => unknown;
 
-/** `mem::replace` of what a `&mut [[T; N]; M]`, `r`, points at: its runs as arrays of their own, each element copied by `copy`, then `items` written where `r` holds them. */
-export function runsReplace<S extends Run>(r: Runs<S>, items: ArrayLike<RunArray<S>>, copy?: RunCopy): RunArray<S>[] {
-	const old = runsCopy(r, copy);
-	runsSet(r, items);
+/** `mem::replace` of what a `&mut [[T; N]; M]`, `r`, points at: its arrays as arrays of their own, each element copied by `copy`, then `items` written where `r` holds them. */
+export function arraySliceReplace<S extends ArrayRef>(r: ArraySlice<S>, items: ArrayLike<LentArray<S>>, copy?: ElemCopy): LentArray<S>[] {
+	const old = arraySliceCopy(r, copy);
+	arraySliceSet(r, items);
 	return old;
 }
 
-/** A whole write of `value`, a `[T; N]`, into the run `s`: its elements moved into where `s` holds them. */
-function runSet(s: Run, value: unknown): void {
+/** A whole write of `value`, a `[T; N]`, into the array `s`: its elements moved into where `s` holds them. */
+function arrayRefSet(s: ArrayRef, value: unknown): void {
 	if (s instanceof ByteSlice) s.data.set(value as Uint8Array, s.start);
 	else if (s instanceof Slice) sliceSet(s, value as unknown[]);
-	else runsSet(s, value as ArrayLike<never>);
+	else arraySliceSet(s, value as ArrayLike<never>);
 }
 
 /**
- * The run `s` as a `[T; N]` of its own: a copy of its elements, and of the runs it holds at
+ * The array `s` as a `[T; N]` of its own: a copy of its elements, and of the arrays it holds at
  * any depth, but not of the objects its elements are, which a write of it moves, unless
  * `copy` copies them.
  */
-function runCopy<S extends Run>(s: S, copy?: RunCopy): RunArray<S> {
-	if (s instanceof ByteSlice) return byteSliceToArray(s) as RunArray<S>;
-	if (s instanceof Slice) return sliceToArray(s, copy as ((value: unknown) => unknown) | undefined) as RunArray<S>;
-	return runsCopy(s as Runs<Run>, copy) as RunArray<S>;
+function arrayRefCopy<S extends ArrayRef>(s: S, copy?: ElemCopy): LentArray<S> {
+	if (s instanceof ByteSlice) return byteSliceToArray(s) as LentArray<S>;
+	if (s instanceof Slice) return sliceToArray(s, copy as ((value: unknown) => unknown) | undefined) as LentArray<S>;
+	return arraySliceCopy(s as ArraySlice<ArrayRef>, copy) as LentArray<S>;
 }
 
-/** The runs of `r` as arrays of their own, as `runCopy` copies each. */
-export function runsCopy<S extends Run>(r: Runs<S>, copy?: RunCopy): RunArray<S>[] {
-	return runsToArray(r, (s) => runCopy(s, copy));
+/** The arrays of `r` as arrays of their own, as `arrayRefCopy` copies each. */
+export function arraySliceCopy<S extends ArrayRef>(r: ArraySlice<S>, copy?: ElemCopy): LentArray<S>[] {
+	return arraySliceToArray(r, (s) => arrayRefCopy(s, copy));
 }
 
 /**
- * Whether pointers to `[[T; N]; M]`s, `a` and `b`, point at the same place: the same run of
+ * Whether pointers to `[[T; N]; M]`s, `a` and `b`, point at the same place: the same array of
  * the same arrays, or of the same storage, or both null.
  */
-export function runsSame(a: Runs<Run>, b: Runs<Run>): boolean {
-	if (!(a instanceof Runs && b instanceof Runs)) return a === b;
+export function arraySliceSame(a: ArraySlice<ArrayRef>, b: ArraySlice<ArrayRef>): boolean {
+	if (!(a instanceof ArraySlice && b instanceof ArraySlice)) return a === b;
 	if (a.items !== undefined || b.items !== undefined) return a.items === b.items && a.start === b.start;
-	return runSame(runPart(a.flat!, a.start * a.n, 0), runPart(b.flat!, b.start * b.n, 0));
+	return arrayRefSame(arrayRefPart(a.flat!, a.start * a.n, 0), arrayRefPart(b.flat!, b.start * b.n, 0));
 }
 
 /** Whether `a` and `b`, slices a pointer to a `[T; N]` is, point at the same place. */
-function runSame(a: Run, b: Run): boolean {
+function arrayRefSame(a: ArrayRef, b: ArrayRef): boolean {
 	if (a instanceof ByteSlice) return b instanceof ByteSlice && byteSliceSame(a, b);
 	if (a instanceof Slice) return b instanceof Slice && sliceSame(a, b);
-	return b instanceof Runs && runsSame(a, b);
+	return b instanceof ArraySlice && arraySliceSame(a, b);
 }
 
 /**
- * The runs of `r` as a JS array of arrays, for what only reads them: the arrays themselves
- * where each run is one, so a callback's `ptr::eq` sees the run it was lent, or else copies
- * of the runs `as_chunks` split from one flat slice, which have no array of their own.
+ * The arrays of `r` as a JS array of arrays, for what only reads them: the arrays themselves
+ * where each array is one, so a callback's `ptr::eq` sees the array it was lent, or else copies
+ * of the arrays `as_chunks` split from one flat slice, which have no array of their own.
  */
-export function runsArray<S extends Run>(r: Runs<S>): RunArray<S>[] {
-	if (r.items === undefined) return runsCopy(r);
-	if (r.start === 0 && r.length === r.items.length) return r.items as RunArray<S>[];
-	return r.items.slice(r.start, r.start + r.length) as RunArray<S>[];
+export function arraySliceItems<S extends ArrayRef>(r: ArraySlice<S>): LentArray<S>[] {
+	if (r.items === undefined) return arraySliceCopy(r);
+	if (r.start === 0 && r.length === r.items.length) return r.items as LentArray<S>[];
+	return r.items.slice(r.start, r.start + r.length) as LentArray<S>[];
 }
 
-/** `last_chunk` of runs, shared or mutable: the last `n`, or `undefined` if fewer. */
-export function runsLastChunk<S extends Run>(r: Runs<S>, n: number): Runs<S> | undefined {
-	return n > r.length ? undefined : runPart(r, r.length - n, n);
+/** `last_chunk` of an array slice, shared or mutable: the last `n`, or `undefined` if fewer. */
+export function arraySliceLastChunk<S extends ArrayRef>(r: ArraySlice<S>, n: number): ArraySlice<S> | undefined {
+	return n > r.length ? undefined : arrayRefPart(r, r.length - n, n);
 }
 
-/** `split_last_chunk` of runs, shared or mutable: the rest and the last `n`, or `undefined` if fewer. */
-export function runsSplitLastChunk<S extends Run>(r: Runs<S>, n: number): [Runs<S>, Runs<S>] | undefined {
-	return n > r.length ? undefined : [runPart(r, 0, r.length - n), runPart(r, r.length - n, n)];
+/** `split_last_chunk` of an array slice, shared or mutable: the rest and the last `n`, or `undefined` if fewer. */
+export function arraySliceSplitLastChunk<S extends ArrayRef>(r: ArraySlice<S>, n: number): [ArraySlice<S>, ArraySlice<S>] | undefined {
+	return n > r.length ? undefined : [arrayRefPart(r, 0, r.length - n), arrayRefPart(r, r.length - n, n)];
 }
 
-/** The runs of `r` as a slice of arrays, as `runsArray` reads them: a slice of the arrays where each run is one. */
-export function runsItems<S extends Run>(r: Runs<S>): Slice<RunArray<S>> {
-	if (r.items !== undefined) return new Slice(r.items as RunArray<S>[], r.start, r.length);
-	return sliceFrom(runsCopy(r));
+/** The arrays of `r` as a slice of arrays, as `arraySliceItems` reads them: a slice of the arrays where each array is one. */
+export function arraySliceAsSlice<S extends ArrayRef>(r: ArraySlice<S>): Slice<LentArray<S>> {
+	if (r.items !== undefined) return new Slice(r.items as LentArray<S>[], r.start, r.length);
+	return sliceFrom(arraySliceCopy(r));
 }
 
 /**
- * `op` of the runs of `r` as a slice of arrays of their own, each a copy, its elements by `copy`, which `op` may
+ * `op` of the arrays of `r` as a slice of arrays of their own, each a copy, its elements by `copy`, which `op` may
  * reorder, overwrite, and copy, each then written back where `r` holds it, as Rust moves
  * their elements; written back even if `op` panics, which leaves what it moved so far.
  */
-export function runsBy<S extends Run, R>(r: Runs<S>, op: (s: Slice<RunArray<S>>) => R, copy?: RunCopy): R {
-	const items = runsCopy(r, copy);
+export function arraySliceBy<S extends ArrayRef, R>(r: ArraySlice<S>, op: (s: Slice<LentArray<S>>) => R, copy?: ElemCopy): R {
+	const items = arraySliceCopy(r, copy);
 	try {
 		return op(sliceFrom(items));
 	} finally {
-		runsSet(r, items);
+		arraySliceSet(r, items);
 	}
 }
 
-/** `swap` of runs, each element copied out by `copy`, panicking on either index past the end, `a` first, as std's indexing does. */
-export function runsSwap<S extends Run>(r: Runs<S>, a: number, b: number, copy: RunCopy | undefined, at?: Location): void {
-	const x = runsAt(r, idx(r, a, at));
-	const y = runsAt(r, idx(r, b, at));
-	const kept = runCopy(x, copy);
-	runSet(x, runCopy(y, copy));
-	runSet(y, kept);
+/** `swap` of an array slice, each element copied out by `copy`, panicking on either index past the end, `a` first, as std's indexing does. */
+export function arraySliceSwap<S extends ArrayRef>(r: ArraySlice<S>, a: number, b: number, copy: ElemCopy | undefined, at?: Location): void {
+	const x = arraySliceAt(r, idx(r, a, at));
+	const y = arraySliceAt(r, idx(r, b, at));
+	const kept = arrayRefCopy(x, copy);
+	arrayRefSet(x, arrayRefCopy(y, copy));
+	arrayRefSet(y, kept);
 }
 
-/** `first` and `first_mut` of runs: the first run, or `undefined` if empty. */
-export function runsFirst<S extends Run>(r: Runs<S>): S | undefined {
-	return r.length === 0 ? undefined : runsAt(r, 0);
+/** `first` and `first_mut` of an array slice: the first array, or `undefined` if empty. */
+export function arraySliceFirst<S extends ArrayRef>(r: ArraySlice<S>): S | undefined {
+	return r.length === 0 ? undefined : arraySliceAt(r, 0);
 }
 
-/** `last` and `last_mut` of runs: the last run, or `undefined` if empty. */
-export function runsLast<S extends Run>(r: Runs<S>): S | undefined {
-	return r.length === 0 ? undefined : runsAt(r, r.length - 1);
+/** `last` and `last_mut` of an array slice: the last array, or `undefined` if empty. */
+export function arraySliceLast<S extends ArrayRef>(r: ArraySlice<S>): S | undefined {
+	return r.length === 0 ? undefined : arraySliceAt(r, r.length - 1);
 }
 
-/** `get` and `get_mut` of runs: the run at `index`, or `undefined` past the end. */
-export function runsGet<S extends Run>(r: Runs<S>, index: number): S | undefined {
-	return index < r.length ? runsAt(r, index) : undefined;
+/** `get` and `get_mut` of an array slice: the array at `index`, or `undefined` past the end. */
+export function arraySliceGet<S extends ArrayRef>(r: ArraySlice<S>, index: number): S | undefined {
+	return index < r.length ? arraySliceAt(r, index) : undefined;
 }
 
-/** `get` of `start..end` of runs, shared or mutable: the part, or `undefined` unless it is within them. */
-export function runsGetRange<S extends Run>(r: Runs<S>, start: number, end: number = r.length): Runs<S> | undefined {
-	return start <= end && end <= r.length ? runPart(r, start, end - start) : undefined;
+/** `get` of `start..end` of an array slice, shared or mutable: the part, or `undefined` unless it is within them. */
+export function arraySliceGetRange<S extends ArrayRef>(r: ArraySlice<S>, start: number, end: number = r.length): ArraySlice<S> | undefined {
+	return start <= end && end <= r.length ? arrayRefPart(r, start, end - start) : undefined;
 }
 
-/** `split_first` and `split_first_mut` of runs: the first and the rest, or `undefined` if empty. */
-export function runsSplitFirst<S extends Run>(r: Runs<S>): [S, Runs<S>] | undefined {
-	return r.length === 0 ? undefined : [runsAt(r, 0), runPart(r, 1, r.length - 1)];
+/** `split_first` and `split_first_mut` of an array slice: the first and the rest, or `undefined` if empty. */
+export function arraySliceSplitFirst<S extends ArrayRef>(r: ArraySlice<S>): [S, ArraySlice<S>] | undefined {
+	return r.length === 0 ? undefined : [arraySliceAt(r, 0), arrayRefPart(r, 1, r.length - 1)];
 }
 
-/** `split_last` and `split_last_mut` of runs: the last and the rest, or `undefined` if empty. */
-export function runsSplitLast<S extends Run>(r: Runs<S>): [S, Runs<S>] | undefined {
+/** `split_last` and `split_last_mut` of an array slice: the last and the rest, or `undefined` if empty. */
+export function arraySliceSplitLast<S extends ArrayRef>(r: ArraySlice<S>): [S, ArraySlice<S>] | undefined {
 	const n = r.length - 1;
-	return n < 0 ? undefined : [runsAt(r, n), runPart(r, 0, n)];
+	return n < 0 ? undefined : [arraySliceAt(r, n), arrayRefPart(r, 0, n)];
 }
 
-/** `split_at` and `split_at_mut` of runs, panicking past the length. */
-export function runsSplitAt<S extends Run>(r: Runs<S>, n: number, at?: Location): [Runs<S>, Runs<S>] {
+/** `split_at` and `split_at_mut` of an array slice, panicking past the length. */
+export function arraySliceSplitAt<S extends ArrayRef>(r: ArraySlice<S>, n: number, at?: Location): [ArraySlice<S>, ArraySlice<S>] {
 	if (n > r.length) panic("mid > len", at);
-	return [runPart(r, 0, n), runPart(r, n, r.length - n)];
+	return [arrayRefPart(r, 0, n), arrayRefPart(r, n, r.length - n)];
 }
 
-/** `split_at_checked` and `split_at_mut_checked` of runs: the halves, or `undefined` past the length. */
-export function runsSplitAtChecked<S extends Run>(r: Runs<S>, n: number): [Runs<S>, Runs<S>] | undefined {
-	return n > r.length ? undefined : [runPart(r, 0, n), runPart(r, n, r.length - n)];
+/** `split_at_checked` and `split_at_mut_checked` of an array slice: the halves, or `undefined` past the length. */
+export function arraySliceSplitAtChecked<S extends ArrayRef>(r: ArraySlice<S>, n: number): [ArraySlice<S>, ArraySlice<S>] | undefined {
+	return n > r.length ? undefined : [arrayRefPart(r, 0, n), arrayRefPart(r, n, r.length - n)];
 }
 
 /** `get` of `start..end`, shared or mutable: the part, or `undefined` unless it is within the slice. */
@@ -1235,19 +1235,19 @@ export function sliceSplitLastChunk<T>(s: Slice<T>, n: number): [Slice<T>, Slice
 }
 
 /**
- * `as_chunks` and `as_chunks_mut` of a slice of any element: each run of `n` elements from
+ * `as_chunks` and `as_chunks_mut` of a slice of any element: each array of `n` elements from
  * the front, lent where `s` holds it, and the rest, panicking at a size of 0.
  */
-export function sliceAsChunks<S extends Run>(s: S, n: number, at?: Location): [Runs<S>, S] {
+export function sliceAsChunks<S extends ArrayRef>(s: S, n: number, at?: Location): [ArraySlice<S>, S] {
 	const count = chunkCount(s.length, n, at);
-	return [new Runs<S>(undefined, undefined, s, n, 0, count), runPart(s, count * n, s.length - count * n)];
+	return [new ArraySlice<S>(undefined, undefined, s, n, 0, count), arrayRefPart(s, count * n, s.length - count * n)];
 }
 
-/** `as_rchunks` and `as_rchunks_mut` of a slice of any element: the rest, and each run of `n` elements up to the back, as `sliceAsChunks` lends them. */
-export function sliceAsRchunks<S extends Run>(s: S, n: number, at?: Location): [S, Runs<S>] {
+/** `as_rchunks` and `as_rchunks_mut` of a slice of any element: the rest, and each array of `n` elements up to the back, as `sliceAsChunks` lends them. */
+export function sliceAsRchunks<S extends ArrayRef>(s: S, n: number, at?: Location): [S, ArraySlice<S>] {
 	const count = chunkCount(s.length, n, at);
 	const rest = s.length - count * n;
-	return [runPart(s, 0, rest), new Runs<S>(undefined, undefined, runPart(s, rest, count * n), n, 0, count)];
+	return [arrayRefPart(s, 0, rest), new ArraySlice<S>(undefined, undefined, arrayRefPart(s, rest, count * n), n, 0, count)];
 }
 
 /** How many runs of `n` elements fit in `length`, panicking at a size of 0, as `as_chunks` does. */
@@ -1498,11 +1498,11 @@ export function sliceCopyWithin<T>(s: Slice<T>, start: number, end: number, dest
 	for (let i = 0; i < items.length; i++) d[s.start + dest + i] = copy === undefined ? items[i] : copy(items[i]);
 }
 
-/** `copy_within` of runs: `r[start..end]` copied to index `dest`, each run read, and copied by `copy` if given, before any is written, panicking out of bounds. */
-export function runsCopyWithin<S extends Run>(r: Runs<S>, start: number, end: number, dest: number, copy?: (value: RunArray<S>) => RunArray<S>, at?: Location): void {
+/** `copy_within` of an array slice: `r[start..end]` copied to index `dest`, each array read, and copied by `copy` if given, before any is written, panicking out of bounds. */
+export function arraySliceCopyWithin<S extends ArrayRef>(r: ArraySlice<S>, start: number, end: number, dest: number, copy?: (value: LentArray<S>) => LentArray<S>, at?: Location): void {
 	copyWithinCheck(r.length, start, end, dest, at);
-	const items = Array.from({ length: end - start }, (_, i) => runCopy(runsAt(r, start + i)));
-	for (let i = 0; i < items.length; i++) runSet(runsAt(r, dest + i), copy === undefined ? items[i] : copy(items[i]));
+	const items = Array.from({ length: end - start }, (_, i) => arrayRefCopy(arraySliceAt(r, start + i)));
+	for (let i = 0; i < items.length; i++) arrayRefSet(arraySliceAt(r, dest + i), copy === undefined ? items[i] : copy(items[i]));
 }
 
 /** `copy_within`'s checks of `start..end` and `dest` in `length` elements. */
@@ -1570,19 +1570,19 @@ export function boxSliceCloneFrom<T>(dst: Slice<T>, src: Slice<T>, clone?: (valu
 }
 
 /**
- * `Clone::clone_from` of a `Box<[[T; N]]>`, the runs `dst`: itself, by `clone_from_slice`,
- * where the lengths match, or else the runs `of` makes of a clone of `src`'s arrays, as
+ * `Clone::clone_from` of a `Box<[[T; N]]>`, the arrays `dst`: itself, by `clone_from_slice`,
+ * where the lengths match, or else the arrays `of` makes of a clone of `src`'s arrays, as
  * `boxSliceCloneFrom` makes it.
  */
-export function runsBoxCloneFrom<S extends Run>(dst: Runs<S>, src: Runs<S>, of: (array: RunArray<S>) => S, clone?: (value: RunArray<S>) => RunArray<S>, drop?: (item: RunArray<S>) => void, over?: CloneFrom<RunArray<S>>, at?: Location): Runs<S> {
-	if (dst.length !== src.length) return runsFrom(boxSliceCloneFrom(runsItems(dst), runsItems(src), clone, drop, over, at).data, of);
-	runsBy(dst, (d) => sliceCloneFromSlice(d, runsItems(src), clone, drop, over, at));
+export function arraySliceBoxCloneFrom<S extends ArrayRef>(dst: ArraySlice<S>, src: ArraySlice<S>, of: (array: LentArray<S>) => S, clone?: (value: LentArray<S>) => LentArray<S>, drop?: (item: LentArray<S>) => void, over?: CloneFrom<LentArray<S>>, at?: Location): ArraySlice<S> {
+	if (dst.length !== src.length) return arraySliceFrom(boxSliceCloneFrom(arraySliceAsSlice(dst), arraySliceAsSlice(src), clone, drop, over, at).data, of);
+	arraySliceBy(dst, (d) => sliceCloneFromSlice(d, arraySliceAsSlice(src), clone, drop, over, at));
 	return dst;
 }
 
-/** `runsBoxCloneFrom` as a `CloneFrom`. */
-export function runsBoxCloneFromFn<S extends Run>(of: (array: RunArray<S>) => S, clone?: (value: RunArray<S>) => RunArray<S>, drop?: (item: RunArray<S>) => void, over?: CloneFrom<RunArray<S>>, at?: Location): CloneFrom<Runs<S>> {
-	return (old, src) => runsBoxCloneFrom(old, src, of, clone, drop, over, at);
+/** `arraySliceBoxCloneFrom` as a `CloneFrom`. */
+export function arraySliceBoxCloneFromFn<S extends ArrayRef>(of: (array: LentArray<S>) => S, clone?: (value: LentArray<S>) => LentArray<S>, drop?: (item: LentArray<S>) => void, over?: CloneFrom<LentArray<S>>, at?: Location): CloneFrom<ArraySlice<S>> {
+	return (old, src) => arraySliceBoxCloneFrom(old, src, of, clone, drop, over, at);
 }
 
 /** `boxSliceCloneFrom` as a `CloneFrom`. */
@@ -2656,8 +2656,8 @@ export class Borrowed<S> {
 	}
 }
 
-/** `Cow<[T]>`: the `Vec` it owns, or the slice it borrows, `S`: `Runs` of arrays. */
-export type Cow<T, S extends Slice<T> | Runs<Run> = Slice<T>> = Vec<T> | Borrowed<S>;
+/** `Cow<[T]>`: the `Vec` it owns, or the slice it borrows, `S`: `ArraySlice` of arrays. */
+export type Cow<T, S extends Slice<T> | ArraySlice<ArrayRef> = Slice<T>> = Vec<T> | Borrowed<S>;
 /** `Cow<[u8]>`: the `Vec<u8>` it owns, or the bytes it borrows. */
 export type ByteCow = ByteVec | ByteSlice;
 /** `Cow<str>`: the `String` it owns, or the `str` it borrows. */
@@ -2668,9 +2668,9 @@ export function cowSlice<T>(c: Cow<T>): Slice<T> {
 	return c instanceof Borrowed ? c.slice : sliceFrom(c.items);
 }
 
-/** `Deref` of a `Cow<[[T; N]]>`: its runs, each of an owned one lent by `of`. */
-export function cowRuns<S extends Run>(c: Cow<RunArray<S>, Runs<S>>, of: (array: RunArray<S>) => S): Runs<S> {
-	return c instanceof Borrowed ? c.slice : runsFrom(c.items, of);
+/** `Deref` of a `Cow<[[T; N]]>`: its arrays, each of an owned one lent by `of`. */
+export function cowArraySlice<S extends ArrayRef>(c: Cow<LentArray<S>, ArraySlice<S>>, of: (array: LentArray<S>) => S): ArraySlice<S> {
+	return c instanceof Borrowed ? c.slice : arraySliceFrom(c.items, of);
 }
 
 /** `Deref` of a `Cow<[u8]>`: its bytes. */
@@ -2681,10 +2681,10 @@ export function byteCowSlice(c: ByteCow): ByteSlice {
 /**
  * `Cow::into_owned` of a `Cow<[T]>`: its `Vec`, or a clone of what it borrows, each item by `clone` if given, with room for exactly them, as `to_vec` makes it.
  */
-export function cowIntoOwned<T, S extends Slice<T> | Runs<Run> = Slice<T>>(c: Cow<T, S>, clone?: (item: T) => T): Vec<T> {
+export function cowIntoOwned<T, S extends Slice<T> | ArraySlice<ArrayRef> = Slice<T>>(c: Cow<T, S>, clone?: (item: T) => T): Vec<T> {
 	if (!(c instanceof Borrowed)) return c;
 	const s = c.slice;
-	if (s instanceof Runs) return vecFrom((clone === undefined ? runsCopy(s) : runsArray(s).map(clone as (item: unknown) => unknown)) as T[]);
+	if (s instanceof ArraySlice) return vecFrom((clone === undefined ? arraySliceCopy(s) : arraySliceItems(s).map(clone as (item: unknown) => unknown)) as T[]);
 	return vecFrom(clone === undefined ? sliceToArray(s as Slice<T>) : sliceItems(s as Slice<T>).map(clone));
 }
 
@@ -2697,7 +2697,7 @@ export function byteCowIntoOwned(c: ByteCow): ByteVec {
  * `Clone` of a `Cow<[T]>`: a borrow of the same slice, or a clone of its `Vec` with room
  * for exactly its items, as `to_vec` makes it.
  */
-export function cowClone<T, S extends Slice<T> | Runs<Run> = Slice<T>>(c: Cow<T, S>, clone?: (item: T) => T): Cow<T, S> {
+export function cowClone<T, S extends Slice<T> | ArraySlice<ArrayRef> = Slice<T>>(c: Cow<T, S>, clone?: (item: T) => T): Cow<T, S> {
 	if (c instanceof Borrowed) return new Borrowed(c.slice);
 	return vecFrom(clone === undefined ? c.items.slice() : c.items.map(clone));
 }
@@ -2711,7 +2711,7 @@ export function byteCowClone(c: ByteCow): ByteCow {
  * `clone_from` of a `Cow<[T]>`, of `size`-byte items: an owned one's `Vec`, of an owned
  * one's, as `vecCloneFrom` clones into it, and else `src`'s clone, made before `c` drops.
  */
-export function cowCloneFrom<T, S extends Slice<T> | Runs<Run> = Slice<T>>(c: Cow<T, S>, src: Cow<T, S>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): Cow<T, S> {
+export function cowCloneFrom<T, S extends Slice<T> | ArraySlice<ArrayRef> = Slice<T>>(c: Cow<T, S>, src: Cow<T, S>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): Cow<T, S> {
 	if (!(c instanceof Borrowed || src instanceof Borrowed)) return vecCloneFrom(c, src.items, size, clone, drop, over);
 	const item = cowClone(src, clone);
 	cowDrop(c, drop);
@@ -2719,7 +2719,7 @@ export function cowCloneFrom<T, S extends Slice<T> | Runs<Run> = Slice<T>>(c: Co
 }
 
 /** `cowCloneFrom` as a `CloneFrom`. */
-export function cowCloneFromFn<T, S extends Slice<T> | Runs<Run> = Slice<T>>(size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<Cow<T, S>> {
+export function cowCloneFromFn<T, S extends Slice<T> | ArraySlice<ArrayRef> = Slice<T>>(size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<Cow<T, S>> {
 	return (old, src) => cowCloneFrom(old, src, size, clone, drop, over);
 }
 
@@ -2734,7 +2734,7 @@ export function byteCowCloneFromFn(): CloneFrom<ByteCow> {
 }
 
 /** Drop a `Cow<[T]>`: the items it owns, by `f` if given. */
-export function cowDrop<T, S extends Slice<T> | Runs<Run> = Slice<T>>(c: Cow<T, S>, f?: (item: T) => void): void {
+export function cowDrop<T, S extends Slice<T> | ArraySlice<ArrayRef> = Slice<T>>(c: Cow<T, S>, f?: (item: T) => void): void {
 	if (!(c instanceof Borrowed)) dropAll(c.items, f);
 }
 

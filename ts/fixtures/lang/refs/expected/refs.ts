@@ -715,7 +715,7 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const grid: rs.u32[][] = Array.from({ length: 3 }, (): rs.u32[] => {
 		return copy$array_u32(item);
 	});
-	const iter6: rs.Iter<[rs.Slice<rs.u32>, rs.u8]> = rs.iterZip(rs.runsIter(rs.runsFrom(grid, rs.sliceFrom)), rs.iterSlice(rs.byteSliceView(data)), [false, false]);
+	const iter6: rs.Iter<[rs.Slice<rs.u32>, rs.u8]> = rs.iterZip(rs.arraySliceIter(rs.arraySliceFrom(grid, rs.sliceFrom)), rs.iterSlice(rs.byteSliceView(data)), [false, false]);
 	l18: while (true) {
 		const _133: [rs.Slice<rs.u32>, rs.u8] | rs.Done = iter6.next();
 		if (_133 === rs.DONE) {
@@ -738,7 +738,7 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 	for (const _168 of pairs.items) {
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(_168[0], option_unwrapOr$1fr498u(_168[1], 238))));
 	}
-	const iter10: rs.Iter<rs.u32> = rs.iterFlatten(rs.runsIter(rs.runsFrom(grid, rs.sliceFrom)), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 2);
+	const iter10: rs.Iter<rs.u32> = rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(grid, rs.sliceFrom)), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 2);
 	while (true) {
 		const _186: rs.u32 | rs.Done = iter10.next();
 		if (_186 === rs.DONE) {

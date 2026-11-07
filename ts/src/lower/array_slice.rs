@@ -1,10 +1,11 @@
-//! Slices of arrays, which are `rs.Runs`: a `&[[T; N]]` lends each run as the slice a
-//! `&[T; N]` is, where the slice holds it, whether its runs are each an array's own, as a
+//! Slices of arrays, which are `rs.ArraySlice`: a `&[[T; N]]` lends each array as the slice a
+//! `&[T; N]` is, where the slice holds it, whether its arrays are each an array's own, as a
 //! `Vec<[T; N]>` holds them, or parts of one slice, as `as_chunks` splits it. The runtime's
-//! `runs` functions map std's methods that lend runs or parts. Any other method of a slice
-//! of arrays reads it as an `rs.Slice` of JS arrays: shared, of its arrays or copies of its
-//! runs, which a shared borrow can't tell from them, and mutable, of copies that
-//! `rs.runsBy` writes back once it returns, as Rust moves their elements.
+//! `arraySlice` functions map std's methods that lend arrays or parts. Any other method of a
+//! slice of arrays reads it as an `rs.Slice` of JS arrays: shared, of its arrays themselves, or
+//! of copies of those `as_chunks` split from one slice, which have no array of their own; and
+//! mutable, of copies that `rs.arraySliceBy` writes back once it returns, as Rust moves their
+//! elements.
 
 use rustc_middle::ty::{self, Ty, TyCtxt};
 
@@ -12,13 +13,13 @@ use super::body::Body;
 use super::library::{self, Call};
 use crate::ts::{Expr, Param, Stmt, StmtKind, Type};
 
-/// Whether `ty` is a slice or array of arrays, which behind a reference is an `rs.Runs`.
+/// Whether `ty` is a slice or array of arrays, which behind a reference is an `rs.ArraySlice`.
 pub fn of_arrays(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Slice(elem) | ty::Array(elem, _) if elem.is_array())
 }
 
 /// Whether std's `def_id` of `args` is a method of a slice of arrays the runtime's own
-/// functions map, which take and lend the runs where the slice holds them.
+/// functions map, which take and lend the arrays where the slice holds them.
 pub fn native<'tcx>(tcx: TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args: ty::GenericArgsRef<'tcx>) -> bool {
 	let Some((owner, name)) = library::key(tcx, def_id) else {
 		return false;
@@ -82,13 +83,13 @@ pub fn native<'tcx>(tcx: TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args: t
 }
 
 /// `args` as std's mapping of `call` reads them, unless [`native`] maps it: each
-/// `&[[T; N]]` it reads as a slice given as `rs.runsItems`' copies, and each `&mut` one by
-/// name, which [`wrap`] binds to `rs.runsBy`'s copies. A function that returns a borrow,
+/// `&[[T; N]]` it reads as a slice given as `rs.arraySliceAsSlice`' copies, and each `&mut` one by
+/// name, which [`wrap`] binds to `rs.arraySliceBy`'s copies. A function that returns a borrow,
 /// which may be of the copies, is refused.
 pub fn give<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>) -> Result<Given, Expr> {
 	let tcx = b.t.tcx;
 	let mut given = Given { args, by: Vec::new() };
-	// Only std's own functions and methods; a trait's mapping reads runs as their type says.
+	// Only std's own functions and methods; a trait's mapping reads arrays as their type says.
 	if native(tcx, call.def_id, call.args) || tcx.trait_of_assoc(call.def_id).is_some() {
 		return Ok(given);
 	}
@@ -111,10 +112,10 @@ pub fn give<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>
 		any = true;
 		let value = std::mem::replace(&mut given.args[i], Expr::undefined());
 		given.args[i] = match mutability {
-			ty::Mutability::Not => Expr::rs("runsItems", vec![value]),
+			ty::Mutability::Not => Expr::rs("arraySliceAsSlice", vec![value]),
 			ty::Mutability::Mut => {
-				let name = b.fresh("runs");
-				let copy = b.t.run_copy(*inner, call.span);
+				let name = b.fresh("arrays");
+				let copy = b.t.elem_copy(*inner, call.span);
 				given.by.push(By {
 					name: name.clone(),
 					value,
@@ -146,14 +147,14 @@ pub struct Given {
 pub struct By {
 	/// Its name in the arguments.
 	pub name: String,
-	/// The runs.
+	/// The arrays.
 	pub value: Expr,
-	/// What copies an element of the runs out, as [`super::Translator::run_copy`] says.
+	/// What copies an element of the arrays out, as [`super::Translator::elem_copy`] says.
 	pub copy: Option<Expr>,
 }
 
 /// `e`, the call std's mapping made of [`Given::args`], a `ty`, after `stmts`, with each
-/// name it binds the `rs.runsBy` copies of its runs.
+/// name it binds the `rs.arraySliceBy` copies of its arrays.
 pub fn wrap(e: Expr, ty: Type, stmts: Vec<Stmt>, by: Vec<By>) -> Expr {
 	let mut stmts = Some(stmts);
 	let mut e = e;
@@ -166,7 +167,7 @@ pub fn wrap(e: Expr, ty: Type, stmts: Vec<Stmt>, by: Vec<By>) -> Expr {
 			}
 			None => Expr::Lambda(vec![param], Box::new(e)),
 		};
-		e = Expr::rs("runsBy", [vec![value, f], copy.into_iter().collect()].concat());
+		e = Expr::rs("arraySliceBy", [vec![value, f], copy.into_iter().collect()].concat());
 	}
 	e
 }

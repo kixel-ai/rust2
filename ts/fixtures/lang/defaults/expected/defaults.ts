@@ -60,10 +60,10 @@ export function defaults(data: rs.ByteSlice, out: rs.ByteVec): void {
 			});
 			const bytes: Uint8Array = madeBytes(op);
 			const _33: rs.Slice<Made.Made> = rs.sliceFrom(made);
-			[_33, rs.runsFrom(grid, rs.sliceFrom), rs.byteSliceFrom(bytes)] as [rs.Slice<Made.Made>, rs.Runs<rs.Slice<rs.u64>>, rs.ByteSlice];
+			[_33, rs.arraySliceFrom(grid, rs.sliceFrom), rs.byteSliceFrom(bytes)] as [rs.Slice<Made.Made>, rs.ArraySlice<rs.Slice<rs.u64>>, rs.ByteSlice];
 			const _37: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.sliceItems(_33), f, (value: Made.Made, f: rs.Formatter) => Made.fmt$fmt_Debug(value, f));
-			const arg3 = rs.runsFrom(grid, rs.sliceFrom);
-			const _38: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.runsArray(arg3), f, (value: rs.u64[], f: rs.Formatter) => rs.fmtList(value, f, rs.u64Debug));
+			const arg3 = rs.arraySliceFrom(grid, rs.sliceFrom);
+			const _38: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.arraySliceItems(arg3), f, (value: rs.u64[], f: rs.Formatter) => rs.fmtList(value, f, rs.u64Debug));
 			const arg4 = rs.byteSliceFrom(bytes);
 			const args26 = [_37, _38, (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(arg4), f, rs.u8Debug)];
 			s = rs.fmtFormat([args26[0], " ", args26[1], " ", args26[2]]);

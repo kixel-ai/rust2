@@ -104,10 +104,10 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `Option<T>` | `T \| undefined`; `T \| rs.None` where `T` can already be `undefined`, as `()` and `Option` can, so `Option<()>` and `Option<Option<u64>>` keep `None` apart from each `Some`; a generic type's `Option<T>` is an `rs.OptionOf<T>`, either as each instance's `T` decides, as a generic `Poll<T>` is an `rs.PollOf<T>` |
 | `Result<T, E>` | `rs.Result<T, E>`: `{ ok: true, value }` or `{ ok: false, error }`; `rs.OK` or `rs.ERR` where the payload is `undefined`, as in `Ok(())` |
 | `ControlFlow<B, C>` | `rs.Result<C, B>`, `Ok` to continue; what `?` branches on is the value it was applied to, but for a `Poll`'s `Pending` and `Ready(None)`, which continue as `Ok` of themselves |
-| tuple, `[T; N]`, `&[T; N]` | an array, and `rs.Slice<T>` of all of it for `&[T; N]`, `rs.Runs` for an array of arrays; for bytes, `u8` or `MaybeUninit<u8>`, `Uint8Array` for `[u8; N]`, and `rs.ByteSlice` for `&[u8; N]` |
-| `&[T]`, `&mut [T]`, `Box<[T]>` | `rs.Slice<T>`, a range of an array; `rs.ByteSlice` for bytes; `rs.Runs` of the slice each array is for a slice of arrays |
+| tuple, `[T; N]`, `&[T; N]` | an array, and `rs.Slice<T>` of all of it for `&[T; N]`, `rs.ArraySlice` for an array of arrays; for bytes, `u8` or `MaybeUninit<u8>`, `Uint8Array` for `[u8; N]`, and `rs.ByteSlice` for `&[u8; N]` |
+| `&[T]`, `&mut [T]`, `Box<[T]>` | `rs.Slice<T>`, a range of an array; `rs.ByteSlice` for bytes; `rs.ArraySlice` of the slice each array is for a slice of arrays |
 | `Vec<T>` | `rs.Vec<T>`: its items, the array `items`, and the capacity std's holds; `rs.vecFrom(items)` makes one of an array with room for exactly them. `rs.ByteVec` of bytes |
-| `Cow<[T]>`, `Cow<str>` | `rs.Cow<T>`: the `Vec` it owns, or an `rs.Borrowed` holding the slice it borrows, `rs.Cow<T, rs.Runs<S>>` holding the runs of a slice of arrays; `rs.ByteCow` for bytes, an `rs.ByteVec` or an `rs.ByteSlice`; `rs.StrCow` for text, the string it owns or an `rs.Borrowed` holding the one it borrows, which `rs.strCowStr` reads |
+| `Cow<[T]>`, `Cow<str>` | `rs.Cow<T>`: the `Vec` it owns, or an `rs.Borrowed` holding the slice it borrows, `rs.Cow<T, rs.ArraySlice<S>>` holding the arrays of a slice of arrays; `rs.ByteCow` for bytes, an `rs.ByteVec` or an `rs.ByteSlice`; `rs.StrCow` for text, the string it owns or an `rs.Borrowed` holding the one it borrows, which `rs.strCowStr` reads |
 | `&T`, `&mut T`, `Box<T>`, `Reverse<T>`, `NonZero<T>`, `AssertUnwindSafe<T>` | the value; a `&mut` to a value JS copies, such as a number, an `Option`, a `String`, or a reference, or to an `Arc`, a `Waker`, or a `LocalKey`, whose copies share what it points at, is an `rs.Place<T>`, which for what a box holds is the place holding the box |
 | `*const T`, `*mut T`, `NonNull<T>` | what a `&mut T` is: the object, an `rs.Slice` of a `[T; N]`'s elements or an `rs.ByteSlice` of a `[u8; N]`'s bytes, which compares by the array or buffer and offset they are at, refused for an array of one, which `array::from_ref`, `from_mut` of a variable, and `Option::as_slice` make of their own, or an `rs.Place<T>` to a value JS copies and to a library type such as a `Vec` or an `Arc`, which into an array, slice, or `Vec` is the `rs.AtIndex` of its element, which `add`, `sub`, `offset`, their wrapping forms, `offset_from`, `ptr::copy`, and `slice::from_raw_parts` move, measure, copy between, and view; one to a value in no array is element 0 of an array of one, as in Rust; JS keeps that array, and a shared subslice, which JS copies, apart from what holds it in Rust, so a pointer, slice, or copy the body shows reaching past either, a raw or mutable slice of a byte in no array, and `offset_from` between pointers the body shows JS keeps in different arrays are refused, and through a pointer from elsewhere, such as a field, any of these, or a read or write past the array JS keeps it in, fails at run time; a pointer into an array of values JS keeps as objects is refused, as is comparing pointers to other values JS copies, each a place JS makes of its own; `rs.NULL` for null and `rs.DANGLING` for dangling. A `*const ()` is an identity, such as a waker's data, and `rs.DANGLING_UNIT` when dangling; one to a place of `()` or from a reference to one is refused. A pointer to a value JS keeps as an object cast to one, by `as` or `cast`, is the same object, which `rs.ptrErase` notes the type of, so a cast back to a pointer to another type fails at run time, and null and dangling stay so, dangling at the alignment of the type it was cast from; one to a value JS copies is the same place where an `Arc`'s or `Rc`'s `into_raw` or `as_ptr` gave it, its value's one place, which `rs.arcErase` checks where the body doesn't show it, and refused where the body shows a borrow's, a new place each borrow, as is casting one to a view of bytes, a new one each borrow, or one of no fixed size. A write of a whole object copies into it one object deep, as an assignment through a `&mut` does, the state an `rs` class such as `rs.LazyCell` keeps private included, so a pointer to a part kept as an object, such as a field of a tuple or struct type, is refused wherever the crate may put another object there while a pointer into that memory may still be read, which a write into a fresh allocation, or a variable before any pointer into it is taken, can't, whether by index or through std's iterators over its slots; a read copies what the crate writes into in place |
 | `MaybeUninit<T>` | `T`: `undefined` until written, `0` for a byte, or an object whose parts kept as objects are there, holding `undefined`, as each of `Box::new_uninit_slice`'s is; a slice's `write_clone_of_slice` clones into its slots without dropping what they held |
@@ -171,18 +171,19 @@ JS array, and a `&[T; N]` or `&mut [T; N]` is an `rs.Slice` of its elements wher
 are, as a `&[u8; N]` is an `rs.ByteSlice`, so `first_chunk_mut`, `split_first_chunk_mut`,
 a subslice pattern, and `array::from_mut` lend part of the same array, and a whole write
 through one writes each element in place. A slice of arrays, a `&[[T; N]]`,
-`&mut [[T; N]]`, `&[[T; N]; M]`, or `Box<[[T; N]]>`, is an `rs.Runs` of the slice each
-array is, `rs.Runs<rs.Slice<T>>`, `rs.Runs<rs.ByteSlice>` for bytes, and `rs.Runs` of
-`rs.Runs` for arrays of arrays: its element `i` is the slice of run `i`, read and written
-where the runs are, whether each is a JS array of its own, as a `Vec<[T; N]>` or a
+`&mut [[T; N]]`, `&[[T; N]; M]`, or `Box<[[T; N]]>`, is an `rs.ArraySlice` of the slice each
+array is, `rs.ArraySlice<rs.Slice<T>>`, `rs.ArraySlice<rs.ByteSlice>` for bytes, and
+`rs.ArraySlice` of `rs.ArraySlice` for arrays of arrays: its element `i` is the slice of array `i`, read and written
+where the arrays are, whether each is a JS array of its own, as a `Vec<[T; N]>` or a
 `[[T; N]; M]` holds them, or a part of one slice, as `as_chunks_mut` and `as_rchunks_mut`
-split it. A caller passes one as `rs.runsFrom(arrays, rs.sliceFrom)`, `rs.byteSliceFrom`
-for bytes and `rs.runsOf(rs.sliceFrom)` for arrays of arrays, and reads one as
-`rs.runsArray(runs)`, the arrays themselves where the runs are all of them. std's methods
-that lend runs or parts of the slice, such as `iter_mut`, `split_at_mut`, `chunks_mut`,
-and `swap`, take them where they are; any other, such as `sort` or `rotate_left`, reads
-copies of the runs, which a `&mut` one writes back once it returns, as Rust moves their
-elements.
+split it. A caller passes one as `rs.arraySliceFrom(arrays, rs.sliceFrom)`, `rs.byteSliceFrom`
+for bytes and `rs.arraySliceOf(rs.sliceFrom)` for arrays of arrays, and reads one as
+`rs.arraySliceItems(slice)`: the arrays themselves, or copies of the ones a split of one
+slice holds, which have no array of their own. std's methods that lend arrays or parts of
+the slice, such as `iter_mut`, `split_at_mut`, `chunks_mut`, and `swap`, take them where
+they are; any other reads them as `rs.arraySliceItems` does, or for a `&mut` one, such as
+`sort` or `rotate_left`, reads copies of the arrays, which it writes back once it returns,
+as Rust moves their elements.
 
 `usize` is 32 bits, as on wasm32, so it is exact in a `number`. Arithmetic is checked as
 a debug build checks it, so translated code panics where native code would: it never

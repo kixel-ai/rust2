@@ -830,9 +830,9 @@ fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr,
 		ty.ref_mutability() == Some(ty::Mutability::Mut) && b.t.needs_place(elem)
 	};
 	match ty.peel_refs().kind() {
-		// Each run, where a slice of arrays holds it.
+		// Each array, where a slice of arrays holds it.
 		ty::Slice(elem) | ty::Array(elem, _) if ty.is_ref() && elem.is_array() => {
-			Some(Expr::rs("runsIter", vec![value]))
+			Some(Expr::rs("arraySliceIter", vec![value]))
 		}
 		ty::Slice(elem) | ty::Array(elem, _) if places(b, *elem) => {
 			Some(Expr::rs("iterSliceMut", vec![library::slice_of(value, ty)]))
@@ -1040,7 +1040,7 @@ pub fn call<'tcx>(
 		("slice", "iter_mut") if b.t.needs_place(targ(0)?) => {
 			return Some(Expr::rs("iterSliceMut", args));
 		}
-		("slice", "iter" | "iter_mut") if targ(0)?.is_array() => return Some(Expr::rs("runsIter", args)),
+		("slice", "iter" | "iter_mut") if targ(0)?.is_array() => return Some(Expr::rs("arraySliceIter", args)),
 		("slice", "iter" | "iter_mut") => {
 			let s = args.pop()?;
 			let s = library::elements(s, Ty::new_slice(tcx, targ(0)?));

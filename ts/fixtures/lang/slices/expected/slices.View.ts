@@ -10,12 +10,12 @@ export interface View<T> {
 
 /** Its last element, if any. */
 export function last$array2_u16(self: View<rs.u16[]>): rs.u16[] | undefined {
-	return copy$Option_array2_u16(rs.optionMap(rs.runsLast(self.view as rs.Runs<rs.Slice<rs.u16>>), rs.sliceItems));
+	return copy$Option_array2_u16(rs.optionMap(rs.arraySliceLast(self.view as rs.ArraySlice<rs.Slice<rs.u16>>), rs.sliceItems));
 }
 
 /** Its last element, if any. */
 export function last$array2_u8(self: View<Uint8Array>): Uint8Array | undefined {
-	return copy$Option_array2_u8(rs.optionMap(rs.runsLast(self.view as rs.Runs<rs.ByteSlice>), rs.byteSliceView));
+	return copy$Option_array2_u8(rs.optionMap(rs.arraySliceLast(self.view as rs.ArraySlice<rs.ByteSlice>), rs.byteSliceView));
 }
 
 //# sourceMappingURL=slices.View.ts.map

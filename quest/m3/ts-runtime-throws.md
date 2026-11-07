@@ -45,6 +45,14 @@ consumer in moq-net is form_urlencoded 1.2.2's `src/lib.rs:417`,
 JS string, so `as_bytes` makes fresh bytes and today's refusal is exact; comparing by array
 and offset would answer `false` where Rust answers `true`. Look for an exact slower path.
 
+✅ Decided with the maintainer on 2026-11-07 in
+[moq-dev/rust2#608](https://github.com/moq-dev/rust2/pull/608): `ptr::eq` of an array that
+`as_chunks` split from one flat slice, as std lends it to a callback, moved here. Such an
+array has no JS array of its own, so `rs.arraySliceItems` gives std a copy of it, and
+`ptr::eq` with the array lent elsewhere answers `false` where Rust answers `true`. Arrays
+that are each a JS array of their own keep their identity. Look for an exact slower path
+with the `*const [T]` comparisons above.
+
 Public API: the translator's output, and which crates translate.
 
 ## Related

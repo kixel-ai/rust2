@@ -283,7 +283,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					// A range of parts, which the pattern that took it checked the length for.
 					if elem_ty.is_array() {
 						let end = base.clone().member("length").binary("-", Expr::lit(to.to_string()));
-						e = Expr::rs("runsPart", vec![base, Expr::lit(from.to_string()), end]);
+						e = Expr::rs("arraySlicePart", vec![base, Expr::lit(from.to_string()), end]);
 					} else if let Some([data, start, length]) = made_slice(&base) {
 						let len = super::scalar::sub(length.clone(), Expr::lit((from + to).to_string()));
 						let start = super::scalar::add(start.clone(), Expr::lit(from.to_string()));
@@ -315,7 +315,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					let base = self.slice_path(e, out);
 					e = match made_slice(&base) {
 						_ if elem.is_array() => Expr::rs(
-							"runsPart",
+							"arraySlicePart",
 							vec![base, Expr::lit(from.to_string()), Expr::lit(end.to_string())],
 						),
 						// In bounds of the array's.
@@ -357,7 +357,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			in_slice = match elem {
 				ProjectionElem::Deref => self.array_behind(place.local, read, ty),
 				ProjectionElem::Subslice { .. } => in_slice,
-				// A run of a slice of arrays is the slice of its elements.
+				// An array of a slice of arrays is the slice of its elements.
 				ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. } => in_slice && next.ty.is_array(),
 				_ => false,
 			};
@@ -367,10 +367,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	}
 
 	/// Element `i` of `base`, the slice a place of `ty`, a `[T]` or a `[T; N]`, is: an
-	/// `rs.Runs`' run, lent as the slice of its elements, of arrays.
+	/// An `rs.ArraySlice`'s array, lent as the slice of its elements, of arrays.
 	fn slice_elem(&self, base: Expr, i: Expr, ty: Ty<'tcx>) -> Expr {
 		match ty.kind() {
-			ty::Slice(elem) | ty::Array(elem, _) if elem.is_array() => Expr::rs("runsAt", vec![base, i]),
+			ty::Slice(elem) | ty::Array(elem, _) if elem.is_array() => Expr::rs("arraySliceAt", vec![base, i]),
 			_ => slice_at(base, i),
 		}
 	}

@@ -1950,7 +1950,7 @@ export function hints(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				return Uint8Array.of(_245);
 			}), (value: Uint8Array) => rs.iterSlice(value), true, 1, true), steps, out);
 		} else {
-			walk$iter_Flatten_slice_Iter_array2_u8(rs.iterFlatten(rs.runsIter(rs.runsFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_244: rs.u8): Uint8Array => {
+			walk$iter_Flatten_slice_Iter_array2_u8(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(bytes)), (_244: rs.u8): Uint8Array => {
 				const b5: rs.u8 = _244;
 				return Uint8Array.of(b5, b5);
 			}), undefined, 2, true).items, rs.byteSliceFrom)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), steps, out);

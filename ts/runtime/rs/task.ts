@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, arrayAssign, type ByteSlice, type Run, type RunArray, type RunCopy, Runs, runsArray, runsCopy, runsSet, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, stringAsBytes, type Vec } from "../rs.ts";
+import { Abort, arrayAssign, type ByteSlice, type ArrayRef, type LentArray, type ElemCopy, ArraySlice, arraySliceItems, arraySliceCopy, arraySliceSet, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, stringAsBytes, type Vec } from "../rs.ts";
 import type { Hasher } from "./hash.ts";
 import type { Location } from "./location.ts";
 
@@ -16,9 +16,9 @@ export function drop(value: unknown): void {
 }
 
 /** Drop every element of `values`, an array or a boxed slice, from `from` on, in order, by `f` if it has no `[Symbol.dispose]`. */
-export function dropAll<T>(values: ArrayLike<T> | Slice<T> | Runs<Run> | undefined, f: (value: T) => void = drop, from = 0): void {
+export function dropAll<T>(values: ArrayLike<T> | Slice<T> | ArraySlice<ArrayRef> | undefined, f: (value: T) => void = drop, from = 0): void {
 	if (values instanceof Slice) dropRange(values.data, f, values.start + from, values.start + values.length);
-	else if (values instanceof Runs) dropRange(runsArray(values) as unknown as ArrayLike<T>, f, from, values.length);
+	else if (values instanceof ArraySlice) dropRange(arraySliceItems(values) as unknown as ArrayLike<T>, f, from, values.length);
 	else if (values !== undefined) dropRange(values, f, from, values.length);
 }
 
@@ -913,11 +913,11 @@ export function cellOfPlace<T>(p: Place<T>): Cell<T> {
 }
 
 /**
- * `Cell::from_mut` of a `&mut [[T; N]; M]`, which is the runs `r`: a read is a copy of
+ * `Cell::from_mut` of a `&mut [[T; N]; M]`, which is the arrays `r`: a read is a copy of
  * them, each element copied by `copy`, and a write lands where `r` holds them.
  */
-export function cellOfRuns<S extends Run>(r: Runs<S>, copy?: RunCopy): Cell<RunArray<S>[]> {
-	return cellOfPlace(place(() => runsCopy(r, copy), (value) => runsSet(r, value)));
+export function cellOfArraySlice<S extends ArrayRef>(r: ArraySlice<S>, copy?: ElemCopy): Cell<LentArray<S>[]> {
+	return cellOfPlace(place(() => arraySliceCopy(r, copy), (value) => arraySliceSet(r, value)));
 }
 
 /**

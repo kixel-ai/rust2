@@ -655,17 +655,17 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				// A reference to an array is a slice of it, cloned over element by element.
 				if let ty::Array(elem, _) = ty.kind() {
 					let fns = library::clone_from_fns(self.b, *elem, span);
-					// Of an array of arrays, the runs' arrays, as `rs.runsBy` writes them back.
+					// Of an array of arrays, the arrays' arrays, as `rs.arraySliceBy` writes them back.
 					if elem.is_array() {
-						let name = self.b.fresh("runs");
-						let source = Expr::rs("runsItems", vec![source]);
+						let name = self.b.fresh("arrays");
+						let source = Expr::rs("arraySliceAsSlice", vec![source]);
 						let e = Expr::rs(
 							"sliceCloneFromSlice",
 							[vec![Expr::ident(name.clone()), source], fns].concat(),
 						);
-						let copy = self.b.t.run_copy(ty, span);
-						let by = crate::lower::runs::By { name, value: to, copy };
-						let e = crate::lower::runs::wrap(e, ts::Type::Builtin("void"), Vec::new(), vec![by]);
+						let copy = self.b.t.elem_copy(ty, span);
+						let by = crate::lower::array_slice::By { name, value: to, copy };
+						let e = crate::lower::array_slice::wrap(e, ts::Type::Builtin("void"), Vec::new(), vec![by]);
 						return done(e, true);
 					}
 					return done(Expr::rs("sliceCloneFromSlice", [vec![to, source], fns].concat()), true);
@@ -1014,10 +1014,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					return done(target, true);
 				};
 				let none = target.clone().binary("===", self.b.t.none(inner));
-				// Of an array, the runs of it alone, which a write lands in, or of none.
+				// Of an array, the arrays of it alone, which a write lands in, or of none.
 				if inner.is_array() {
 					let of = crate::lower::array_fn(inner, "From");
-					let runs = |items: Vec<Expr>| Expr::rs("runsFrom", vec![Expr::Array(items), of.clone()]);
+					let runs = |items: Vec<Expr>| Expr::rs("arraySliceFrom", vec![Expr::Array(items), of.clone()]);
 					let e = Expr::Cond(Box::new(none), Box::new(runs(Vec::new())), Box::new(runs(vec![target])));
 					return done(e, true);
 				}
@@ -1153,7 +1153,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					_ if crate::lower::byte(elem) => "byteSliceCopyWithin",
 					ty::Array(..) => {
 						values.extend(self.b.t.copy_fn(elem, span));
-						"runsCopyWithin"
+						"arraySliceCopyWithin"
 					}
 					_ => {
 						values.extend(self.b.t.copy_fn(elem, span));
@@ -1443,21 +1443,21 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			false => ("sliceOfPlace", "sliceIn"),
 		};
 		let of = |made: Expr| Expr::rs(of_place, vec![made]);
-		// A `&mut [T; N]` is the slice it views: a slice of it is the runs of that one, and a
-		// cell of an array of arrays reads a copy of the runs it views and writes into them.
+		// A `&mut [T; N]` is the slice it views: a slice of it is the array slice of that one, and a
+		// cell of an array of arrays reads a copy of the arrays it views and writes into them.
 		if let ty::Array(elem, len) = ty.kind()
 			&& (!cell || elem.is_array())
 		{
 			let slice = self.operand(op, span, out);
 			if cell {
-				let copy = self.b.t.run_copy(ty, span);
+				let copy = self.b.t.elem_copy(ty, span);
 				return Some(Expr::rs(
-					"cellOfRuns",
+					"cellOfArraySlice",
 					[vec![slice], copy.into_iter().collect()].concat(),
 				));
 			}
 			let n = len.try_to_target_usize(tcx).unwrap_or(0);
-			return Some(Expr::rs("runsOne", vec![slice, Expr::lit(n.to_string())]));
+			return Some(Expr::rs("arraySliceOne", vec![slice, Expr::lit(n.to_string())]));
 		}
 		if !cell && crate::lower::byte(ty) {
 			return Some(self.err(
@@ -1800,11 +1800,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let array = place.1.filter(|&p| self.in_array(p) && !self.in_bytes(p));
 		if place.1.is_some_and(|p| self.in_object(p)) || array.is_some() {
 			let old = match array {
-				// Runs, each copied out and written where the slice holds it.
-				Some(p) if crate::lower::runs::of_arrays(self.b.t.uninit_inner(ty)) => {
+				// An array slice, each array copied out and written where the slice holds it.
+				Some(p) if crate::lower::array_slice::of_arrays(self.b.t.uninit_inner(ty)) => {
 					let slice = self.borrowed_slice(place.0, p, span, out);
-					let copy = self.b.t.run_copy(ty, span);
-					Expr::rs("runsReplace", [vec![slice, value], copy.into_iter().collect()].concat())
+					let copy = self.b.t.elem_copy(ty, span);
+					Expr::rs(
+						"arraySliceReplace",
+						[vec![slice, value], copy.into_iter().collect()].concat(),
+					)
 				}
 				Some(p) => {
 					let slice = self.borrowed_slice(place.0, p, span, out);
@@ -1874,7 +1877,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		{
 			return None;
 		}
-		// A run of a slice of arrays, which is the slice of its elements, in no slot.
+		// An array of a slice of arrays, which is the slice of its elements, in no slot.
 		if self.in_array(target) {
 			return None;
 		}
@@ -1991,9 +1994,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let checked = self.path(checked, "at", out);
 				let place = match container.kind() {
 					ty::Adt(..) if bytes => base.member("data").index(checked),
-					// A run of a slice of arrays is the slice of its elements already.
+					// An array of a slice of arrays is the slice of its elements already.
 					ty::Slice(_) | ty::Array(..) if elem_ty.is_array() => {
-						return Some(Some((Expr::rs("runsAt", vec![base, checked]), true)));
+						return Some(Some((Expr::rs("arraySliceAt", vec![base, checked]), true)));
 					}
 					// An array comes through a reference, which is a slice of it.
 					_ if container.is_slice() || container.is_array() => super::place::slice_at(base, checked),
@@ -2061,8 +2064,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let range = match (bytes, get) {
 					(true, false) => "byteSliceRange",
 					(true, true) => "byteSliceGetRange",
-					_ if elem_ty.is_array() && !get => "runsRange",
-					_ if elem_ty.is_array() => "runsGetRange",
+					_ if elem_ty.is_array() && !get => "arraySliceRange",
+					_ if elem_ty.is_array() => "arraySliceGetRange",
 					(false, false) => "sliceRange",
 					(false, true) => "sliceGetRange",
 				};
@@ -2286,7 +2289,7 @@ fn locate(e: &mut Expr, arguments: &mut Vec<(Expr, ts::Loc)>) {
 /// The slice `read`, a copy of an array `borrowed_place` made, reads, if it is one.
 fn copied_slice(read: &Expr) -> Option<Expr> {
 	match read {
-		Expr::Call(f, args) if matches!(&**f, Expr::Rs(n) if matches!(n.as_str(), "byteSliceToArray" | "sliceToArray" | "runsToArray")) => {
+		Expr::Call(f, args) if matches!(&**f, Expr::Rs(n) if matches!(n.as_str(), "byteSliceToArray" | "sliceToArray" | "arraySliceToArray")) => {
 			args.first().cloned()
 		}
 		_ => None,
