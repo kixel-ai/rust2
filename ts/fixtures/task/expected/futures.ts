@@ -106,7 +106,7 @@ export class helpersFuture {
 						const _422: boolean = isReady$1wybfmi(polled);
 						const _45: boolean = isPending$0mrvg1b(polled);
 						const args3 = [(f: rs.Formatter) => rs.fmtBool(_392, f), (f: rs.Formatter) => rs.fmtBool(_422, f), (f: rs.Formatter) => rs.fmtBool(_45, f)];
-						Guard.note(captured4, rs.fmtFormat(["pending ", args3[0], " ready ", args3[1], " pending ", args3[2]]));
+						Guard.note(captured4, rs.fmtFormat(["pending ", args3[0], " ready ", args3[1], " pending ", args3[2]]).v);
 						if (polled !== rs.Pending) {
 							if (polled !== undefined) {
 								if (rs.u64Rem(polled, 2) === 0) {
@@ -272,7 +272,7 @@ export class wakersFuture {
 						put$unit(rs.DANGLING_UNIT, undefined);
 						put$unit(rs.DANGLING_UNIT, undefined);
 						const arg = rs.sliceFrom(this.#checks);
-						const _88: string = rs.fmtFormat(["wakers ", (f: rs.Formatter) => rs.fmtList(rs.sliceItems(arg), f, rs.fmtBool)]);
+						const _88: string = rs.fmtFormat(["wakers ", (f: rs.Formatter) => rs.fmtList(rs.sliceItems(arg), f, rs.fmtBool)]).v;
 						Guard.note(this.#guard, _88);
 						lib_drop$tuple4_task_Waker_task_Waker_task_Waker_task_Waker([this.#a, this.#b, this.#other, this.#plain] as [rs.Waker, rs.Waker, rs.Waker, rs.Waker]);
 						this.#last = undefined as [rs.Place<undefined>, rs.WakerVTable] | undefined;
@@ -305,7 +305,7 @@ export class wakersFuture {
 							const _183: boolean = rs.willWake(lent, waker);
 							const _222: boolean = polling(waker);
 							const args6 = [(f: rs.Formatter) => rs.fmtBool(same, f), (f: rs.Formatter) => rs.fmtBool(_153, f), (f: rs.Formatter) => rs.fmtBool(_183, f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtBool(inner[0], f), (f: rs.Formatter) => rs.fmtBool(inner[1], f)], f), (f: rs.Formatter) => rs.fmtBool(_222, f)];
-							const _85: string = rs.fmtFormat(["same ", args6[0], " clone ", args6[1], " lent ", args6[2], " inner ", args6[3], " after ", args6[4]]);
+							const _85: string = rs.fmtFormat(["same ", args6[0], " clone ", args6[1], " lent ", args6[2], " inner ", args6[3], " after ", args6[4]]).v;
 							Guard.note(this.#guard, _85);
 							const _04: rs.Poll<rs.u64 | undefined> = this.#next.poll(cx);
 							clone[Symbol.dispose]();
@@ -519,7 +519,7 @@ export class boxedFuture {
 												rs.drop(this.#awaitee);
 												this.#first = option_unwrapOr$15hbiwd(result, 0);
 												const arg = this.#first;
-												const _17: string = rs.fmtFormat(["first ", (f: rs.Formatter) => rs.u64Display(arg, f)]);
+												const _17: string = rs.fmtFormat(["first ", (f: rs.Formatter) => rs.u64Display(arg, f)]).v;
 												Guard.note(this.#guard, _17);
 												const _28: [rs.u32, Log.Log] = [Guard.id(this.#guard), Log.clone$Clone(Guard.log(this.#guard))];
 												this.#id = _28[0];
@@ -578,7 +578,7 @@ export class boxedFuture {
 							if (_81 !== rs.Pending) {
 								this.#saved = rs.u64Add(this.#saved, _81);
 								const arg2 = this.#saved;
-								const _92: string = rs.fmtFormat(["lent ", (f: rs.Formatter) => rs.u64Display(arg2, f)]);
+								const _92: string = rs.fmtFormat(["lent ", (f: rs.Formatter) => rs.u64Display(arg2, f)]).v;
 								Guard.note(this.#guard, _92);
 								this.#saved$5 = false;
 								this.#lend[Symbol.dispose]();
@@ -638,7 +638,7 @@ export class boxedFuture {
 				this.#old[Symbol.dispose]();
 				this.#moved = rs.u64Add(this.#moved, result8);
 				const arg3 = this.#moved;
-				const _183: string = rs.fmtFormat(["moved ", (f: rs.Formatter) => rs.u64Display(arg3, f)]);
+				const _183: string = rs.fmtFormat(["moved ", (f: rs.Formatter) => rs.u64Display(arg3, f)]).v;
 				Guard.note(this.#guard, _183);
 				const _197: [Guard.Guard, Guard.Guard, Guard.Guard] = [Guard.new(rs.u32Add(this.#id, 500), Log.clone$Clone(this.#log)), Guard.new(rs.u32Add(this.#id, 600), Log.clone$Clone(this.#log)), Guard.new(rs.u32Add(this.#id, 700), Log.clone$Clone(this.#log))];
 				const block: Guard.Guard = _197[0];
@@ -704,7 +704,7 @@ export class boxedFuture {
 		if (_248 !== rs.Pending) {
 			const total: rs.u64 = _248;
 			this.#awaitee$6[Symbol.dispose]();
-			const _258: string = rs.fmtFormat(["boxed ", (f: rs.Formatter) => rs.u64Display(total, f)]);
+			const _258: string = rs.fmtFormat(["boxed ", (f: rs.Formatter) => rs.u64Display(total, f)]).v;
 			Guard.note(this.#guard, _258);
 			this.#pinned[Symbol.dispose]();
 			this.#saved$2 = false;
@@ -755,7 +755,7 @@ export class boxedFuture$closure2 {
 			const result: rs.u64 | undefined = _7;
 			rs.drop(this.#awaitee);
 			const value: rs.u64 = option_unwrapOr$15hbiwd(result, 0);
-			const _17: string = rs.fmtFormat(["block ", (f: rs.Formatter) => rs.u64Display(value, f)]);
+			const _17: string = rs.fmtFormat(["block ", (f: rs.Formatter) => rs.u64Display(value, f)]).v;
 			Guard.note(this.#block, _17);
 			const _30: rs.u64 = rs.u64Add(value, 1);
 			this.#rx[Symbol.dispose]();

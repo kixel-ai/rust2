@@ -5,8 +5,8 @@
 export interface Workload {
 	/** What is coded, such as `varint/quic/2B` or `frames/video/lite-07`, iterated, or converted. */
 	name: string;
-	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "number" | "format" | "write" | "split" | "handoff";
-	/** Varints, frame headers, messages, items, keys, timestamps, integers, packets, lines, steps, frames, or handoffs per call, which each time is divided by. */
+	op: "encode" | "decode" | "iterate" | "map" | "convert" | "add" | "compare" | "order" | "push" | "number" | "format" | "write" | "split" | "join" | "handoff";
+	/** Varints, frame headers, messages, items, keys, timestamps, integers, packets, lines, steps, frames, strings, or handoffs per call, which each time is divided by. */
 	items: number;
 	input: Uint8Array;
 }
@@ -132,6 +132,15 @@ export function workloads(encode: (input: Uint8Array) => Uint8Array): Workload[]
 	// `bench.rs`'s op 18: frames' `Bytes` split off a group's, cloned, sliced, and dropped,
 	// as moq-net's model hands them to its consumers. Their size costs the handles nothing.
 	out.push({ name: "bytes/frames", op: "split", items: count, input: Uint8Array.of(18, 0, ...[BigInt(count), 64n].flatMap(u64)) });
+
+	// `bench.rs`'s ops 19 to 22 over a broadcast path, ASCII or not: coded as moq-net codes
+	// one, joined to a track and stripped, and a `HashMap`'s keys.
+	const strings = 256;
+	["ascii", "utf8"].forEach((name, selector) => {
+		pair(`str/${name}`, strings, 19, selector, [BigInt(strings)]);
+		out.push({ name: `str/join/${name}`, op: "join", items: strings, input: Uint8Array.of(21, selector, ...u64(BigInt(strings))) });
+		out.push({ name: `str/keyed/${name}`, op: "map", items: strings, input: Uint8Array.of(22, selector, ...u64(BigInt(strings))) });
+	});
 	return out;
 }
 

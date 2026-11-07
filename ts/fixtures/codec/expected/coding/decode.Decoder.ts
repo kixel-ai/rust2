@@ -241,13 +241,13 @@ export function bytes(self: Decoder): DecodeError.DecodeError | undefined {
 }
 
 /** Read a varint length, then that many bytes of UTF-8. */
-export function string(self: Decoder): rs.Result<string, DecodeError.DecodeError> {
+export function string(self: Decoder): rs.Result<rs.String, DecodeError.DecodeError> {
 	const err: DecodeError.DecodeError | undefined = bytes(self);
 	const part: Uint8Array = out$ref_slice_u8.pData;
 	const part2: number = out$ref_slice_u8.pStart;
 	const part3: number = out$ref_slice_u8.pLen;
 	if (err === undefined) {
-		const _2: rs.Result<string, rs.FromUtf8Error> = rs.stringFromUtf8(rs.byteSliceToByteVec(new rs.ByteSlice(part, part2, part3)));
+		const _2: rs.Result<rs.String, rs.FromUtf8Error> = rs.stringFromUtf8(rs.byteSliceToByteVec(new rs.ByteSlice(part, part2, part3)));
 		if (_2.ok) {
 			return rs.Ok(_2.value);
 		}

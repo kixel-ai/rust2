@@ -19,6 +19,7 @@ import { order } from "./order.ts";
 import { hashed } from "./hashed.ts";
 import { packets } from "./packets.ts";
 import { parts } from "./parts.ts";
+import { decodeStrings, encodeStrings, join, keyed } from "./strings.ts";
 import { push } from "./push.ts";
 import { rescale } from "./rescale.ts";
 import { ordered } from "./sorted.ts";
@@ -80,6 +81,14 @@ export function run(input: Uint8Array): Uint8Array | Promise<Uint8Array> {
 			return parts(selector, data);
 		case 18:
 			return frames(data);
+		case 19:
+			return encodeStrings(selector, data, Lite.DRAFT_06);
+		case 20:
+			return decodeStrings(data, Lite.DRAFT_06);
+		case 21:
+			return join(selector, data);
+		case 22:
+			return keyed(selector, data);
 		default:
 			throw new Error(`unknown workload ${op}`);
 	}

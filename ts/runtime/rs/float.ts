@@ -313,7 +313,7 @@ function mulAddExact(a: number, b: number, c: number): number {
 /** `clamp`, which panics with both bounds' `Debug` unless `min <= max`. */
 function clamp(x: number, min: number, max: number, debug: (x: number, f: Formatter) => FmtResult, key: string): number {
 	if (!(min <= max)) {
-		const text = (v: number) => fmtToString((f) => debug(v, f));
+		const text = (v: number) => fmtToString((f) => debug(v, f)).v;
 		panic(`min > max, or either was NaN. min = ${text(min)}, max = ${text(max)}`, key, true);
 	}
 	return x < min ? min : x > max ? max : x;

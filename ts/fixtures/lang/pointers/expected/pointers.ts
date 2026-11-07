@@ -50,13 +50,13 @@ import * as Wrapped from "./pointers.Wrapped.ts";
 import type * as Written from "./pointers.Written.ts";
 
 /** Put `node` in the list just before `at`. */
-export function attachBefore$String(node: Node.Node<string>, at: Node.Node<string>): void {
-	const _3: Links.Links<string> = { next: at, prev: at.link.at4 };
-	const _8: Node.Node<string> = node;
+export function attachBefore$String(node: Node.Node<rs.String>, at: Node.Node<rs.String>): void {
+	const _3: Links.Links<rs.String> = { next: at, prev: at.link.at4 };
+	const _8: Node.Node<rs.String> = node;
 	_8.link.at0 = _3.next;
 	_8.link.at4 = _3.prev;
 	at.link.at4 = node;
-	(node.link.at4.link.at0 as Node.Node<string>) = node;
+	(node.link.at4.link.at0 as Node.Node<rs.String>) = node;
 }
 
 /** Put `node` in the list just before `at`. */
@@ -69,9 +69,9 @@ export function attachBefore$sync_Arc_u8(node: Node.Node<rs.Arc<rs.u8>>, at: Nod
 	(node.link.at4.link.at0 as Node.Node<rs.Arc<rs.u8>>) = node;
 }
 
-export function detach$String(node: Node.Node<string>): void {
-	(node.link.at4.link.at0 as Node.Node<string>) = node.link.at0 as Node.Node<string>;
-	(node.link.at0 as Node.Node<string>).link.at4 = node.link.at4;
+export function detach$String(node: Node.Node<rs.String>): void {
+	(node.link.at4.link.at0 as Node.Node<rs.String>) = node.link.at0 as Node.Node<rs.String>;
+	(node.link.at0 as Node.Node<rs.String>).link.at4 = node.link.at4;
 }
 
 export function detach$sync_Arc_u8(node: Node.Node<rs.Arc<rs.u8>>): void {
@@ -84,7 +84,7 @@ export function detach$sync_Arc_u8(node: Node.Node<rs.Arc<rs.u8>>): void {
  * finds and then the list in order.
  */
 export function lists(dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
-	const list: List.List<string> = List.new$String();
+	const list: List.List<rs.String> = List.new$String();
 	let dataData2: Uint8Array = dataData;
 	let dataStart2: number = dataStart;
 	let dataLen2: number = dataLen;
@@ -106,25 +106,26 @@ export function lists(dataData: Uint8Array, dataStart: number, dataLen: number, 
 			if (!(_26 < 3)) {
 				rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _26);
 			}
-			List.pushBack$String(list, key2, ["", "v", "vv"][_26]);
+			const _21: rs.String = rs.stringFrom(["", "v", "vv"][_26]);
+			List.pushBack$String(list, key2, _21);
 		} else if (_18 === 1) {
-			const _30: [rs.u8, string] | undefined = List.remove$String(list, key2);
+			const _30: [rs.u8, rs.String] | undefined = List.remove$String(list, key2);
 			if (_30 === undefined) {
 				rs.byteVecPush(out, 255);
 			} else {
 				const k: rs.u8 = _30[0];
-				const v: string = _30[1];
+				const v: rs.String = _30[1];
 				rs.byteVecPush(out, k);
-				rs.byteVecExtendFromSlice(out, rs.stringAsBytes(v));
+				rs.byteVecExtendFromSlice(out, rs.stringAsBytes(v.v));
 			}
 		} else if (_18 === 2) {
 			rs.byteVecPush(out, List.toFront$String(list, key2) ? 1 : 0);
 		} else {
-			const _42: rs.Place<string> | undefined = List.getMut$String(list, key2);
+			const _42: rs.String | undefined = List.getMut$String(list, key2);
 			if (_42 === undefined) {
 				rs.byteVecPush(out, 254);
 			} else {
-				_42.v = _42.v + "w";
+				rs.stringPush(_42, 119);
 			}
 		}
 	}
@@ -418,7 +419,7 @@ export function cells(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const count: rs.Arc<undefined> = new rs.Arc(undefined);
 	let num: rs.Cell<rs.u32> = new rs.Cell(4294967295 - 1);
 	const pair: rs.Cell<Duo.Duo> = new rs.Cell({ _0: 0, _1: 255 });
-	let text: rs.Cell<string> = new rs.Cell("");
+	let text: rs.Cell<rs.String> = new rs.Cell(rs.stringNew());
 	const held: Wrapped.Wrapped<Held.Held> = Wrapped.new$pointers_Held(new Held.Held(0, rs.arcClone(count)));
 	for (const op of rs.byteSliceView(data)) {
 		const n: rs.u8 = rs.u8Div(op, 8);
@@ -444,11 +445,9 @@ export function cells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_67._1 = _67._1 ^ 128;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(before2._0, before2._1, between._0, between._1, pair.v._0, pair.v._1)), undefined, true);
 		} else if (_23 === 3) {
-			const _83: rs.Place<string> = text;
-			_83.v = _83.v + String.fromCodePoint(rs.u8Add(97, rs.u8Rem(n, 26)) as rs.char);
-			const _91: rs.Place<string> = text;
-			_91.v = _91.v + "!";
-			rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(text.v))), undefined, true);
+			rs.stringPush(text.v, rs.u8Add(97, rs.u8Rem(n, 26)) as rs.char);
+			rs.stringPush(text.v, 33);
+			rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(text.v.v))), undefined, true);
 		} else if (_23 === 4) {
 			const _99: rs.Arc<undefined> = rs.arcClone(count);
 			const fresh: Held.Held = new Held.Held(n, _99);
@@ -486,10 +485,10 @@ export function cells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const old3 = num;
 			num = _126;
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(old3.v).reverse()), undefined, true);
-			const _133: rs.Cell<string> = new rs.Cell(rs.fmtToString((f: rs.Formatter) => rs.u8Display(n, f)));
+			const _133: rs.Cell<rs.String> = new rs.Cell(rs.fmtToString((f: rs.Formatter) => rs.u8Display(n, f), 0));
 			const old4 = text;
 			text = _133;
-			rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(old4.v))), undefined, true);
+			rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(old4.v.v))), undefined, true);
 			const _140: Duo.Duo = { _0: n, _1: ~n & 0xff };
 			Object.assign(pair.v, _140);
 		} else {
@@ -508,7 +507,7 @@ export function cells(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(num.v).reverse()), undefined, true);
 	const _169: Duo.Duo = pair.v;
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_169._0, _169._1)), undefined, true);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(text.v))), undefined, true);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(text.v.v))), undefined, true);
 	held[Symbol.dispose]();
 	rs.byteVecPush(out, count.strong & 0xff);
 	count[Symbol.dispose]();
@@ -2454,7 +2453,7 @@ export function distinct(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _60: [[rs.u16, rs.u8], [rs.u16, rs.u8]] = [[0, 1], [0, 1]];
 			const origin: [rs.u16, rs.u8] = _60[0];
 			const other: [rs.u16, rs.u8] = _60[1];
-			const _64: string = "a";
+			const _64: rs.String = rs.stringFrom("a");
 			const named: Named.Named = { spot: copy$pointers_Spot(spot), name: _64 };
 			const renamed: Named.Named = Named.clone$Clone(named);
 			const _69: rs.u8 = x.value === y.value ? 1 : 0;
@@ -2492,7 +2491,7 @@ export function distinct(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const arc7 = unwrapped;
 			const _280: [rs.u16, rs.u8] = rs.arcRaw(arc7, arc7.value, "Arc");
 			const arc8 = y;
-			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_238, _244, _250, _256, _262, _270, _280 === rs.arcRaw(arc8, arc8.value, "Arc") ? 1 : 0, rewrapped.value === p.value ? 1 : 0, rewrapped.value.at === p.value.at ? 1 : 0, p.strong & 0xff, swapped[1] ^ unwrapped.value[1] ^ rewrapped.value.tag ^ (rs.stringLen(_64) & 0xff))), undefined, true);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_238, _244, _250, _256, _262, _270, _280 === rs.arcRaw(arc8, arc8.value, "Arc") ? 1 : 0, rewrapped.value === p.value ? 1 : 0, rewrapped.value.at === p.value.at ? 1 : 0, p.strong & 0xff, swapped[1] ^ unwrapped.value[1] ^ rewrapped.value.tag ^ (_64.len & 0xff))), undefined, true);
 			const item = copy$tuple2_u16_u8(pair);
 			const repeated: rs.Vec<[rs.u16, rs.u8]> = rs.vecFrom(Array.from({ length: 2 }, (): [rs.u16, rs.u8] => {
 				return copy$tuple2_u16_u8(item);
@@ -2896,19 +2895,19 @@ export function arrays(data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** Pointers to arrays in a `Vec`, compared where they point. */
 export function runs(n: rs.u8): Uint8Array {
-	const v: rs.Vec<string[]> = rs.vecFrom([rs.arrayMap(Uint8Array.of(n, n ^ 1), (b: rs.u8): string => {
+	const v: rs.Vec<rs.String[]> = rs.vecFrom([rs.arrayMap(Uint8Array.of(n, n ^ 1), (b: rs.u8): rs.String => {
 		const _44: rs.char = b as rs.char;
-		return rs.fmtToString((f: rs.Formatter) => rs.fmtCharDisplay(_44, f));
-	}), ["", "x"]]);
-	const first: rs.Slice<string> = rs.sliceFrom(v.items[rs.idx(v.items, 0)]);
-	const last: rs.Slice<string> = rs.optionUnwrap(rs.optionMap(rs.sliceLast(rs.sliceFrom(v.items)), rs.sliceFrom));
-	const _20: rs.Slice<string> = rs.sliceFrom(v.items[rs.idx(v.items, 1)]);
-	_20.data[_20.start] = _20.data[_20.start] + "y";
+		return rs.fmtToString((f: rs.Formatter) => rs.fmtCharDisplay(_44, f), 0);
+	}), [rs.stringNew(), rs.stringFrom("x")]]);
+	const first: rs.Slice<rs.String> = rs.sliceFrom(v.items[rs.idx(v.items, 0)]);
+	const last: rs.Slice<rs.String> = rs.optionUnwrap(rs.optionMap(rs.sliceLast(rs.sliceFrom(v.items)), rs.sliceFrom));
+	const _20: rs.Slice<rs.String> = rs.sliceFrom(v.items[rs.idx(v.items, 1)]);
+	rs.stringPush(_20.data[_20.start], 121);
 	const _24: rs.u8 = rs.sliceSame(first, rs.sliceFrom(v.items[rs.idx(v.items, 0)])) ? 1 : 0;
 	const _29: rs.u8 = rs.sliceSame(first, last) ? 1 : 0;
 	const _31: rs.u8 = rs.sliceSame(last, rs.sliceFrom(v.items[rs.idx(v.items, 1)])) ? 1 : 0;
-	const _39: rs.Slice<string> = rs.sliceFrom(v.items[rs.idx(v.items, 1)]);
-	return Uint8Array.of(_24, _29, _31, rs.stringLen(_39.data[_39.start]) & 0xff);
+	const _39: rs.Slice<rs.String> = rs.sliceFrom(v.items[rs.idx(v.items, 1)]);
+	return Uint8Array.of(_24, _29, _31, _39.data[_39.start].len & 0xff);
 }
 
 /**
