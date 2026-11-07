@@ -72,6 +72,56 @@ export function chunk$bytes_Buf_collections_VecDeque_u8(self: rs.VecDeque<rs.u8>
 }
 
 /**
+ * Fills `dst` with potentially multiple slices starting at `self`'s
+ * current position.
+ *
+ * If the `Buf` is backed by disjoint slices of bytes, `chunk_vectored` enables
+ * fetching more than one slice at once. `dst` is a slice of `IoSlice`
+ * references, enabling the slice to be directly used with [`writev`]
+ * without any further conversion. The sum of the lengths of all the
+ * buffers written to `dst` will be less than or equal to `Buf::remaining()`.
+ *
+ * The entries in `dst` will be overwritten, but the data **contained** by
+ * the slices **will not** be modified. The return value is the number of
+ * slices written to `dst`. If `Buf::remaining()` is non-zero, then this
+ * writes at least one non-empty slice to `dst`.
+ *
+ * This is a lower level function. Most operations are done with other
+ * functions.
+ *
+ * # Implementer notes
+ *
+ * This function should never panic. Once the end of the buffer is reached,
+ * i.e., `Buf::remaining` returns 0, calls to `chunk_vectored` must return 0
+ * without mutating `dst`.
+ *
+ * Implementations should also take care to properly handle being called
+ * with `dst` being a zero length slice.
+ *
+ * [`writev`]: http://man7.org/linux/man-pages/man2/readv.2.html
+ */
+export function chunksVectored$bytes_Buf_collections_VecDeque_u8(self: rs.VecDeque<rs.u8>, dst: rs.Slice<rs.ByteSlice>): rs.usize {
+	if (!(self.n === 0)) {
+		if (!(dst.length === 0)) {
+			const _8: [rs.ByteSlice, rs.ByteSlice] = rs.dequeByteSlices(self);
+			const _9: rs.ByteSlice = _8[0];
+			rs.idx(dst, 0);
+			dst.data[dst.start] = _9;
+			if (!(_8[1].length === 0)) {
+				if (!(dst.length === 1)) {
+					const _18: rs.ByteSlice = _8[1];
+					rs.idx(dst, 1);
+					dst.data[dst.start + 1] = _18;
+					return 2;
+				}
+			}
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/**
  * Advance the internal cursor of the Buf
  *
  * The next call to `chunk()` will return a slice starting `cnt` bytes

@@ -2411,6 +2411,76 @@ struct Holder {
 	arr: [u32; 2],
 }
 
+/// Pointers to slices cast to ones to arrays of their elements, of bytes and of numbers:
+/// read whole, borrowed, and written through, at every offset; compared with the arrays
+/// std's safe casts give; cast past where the slice ends and read only where its elements
+/// are; and cast from null, dangling, and empty ones, which point at nothing.
+pub fn array_casts(data: &[u8], out: &mut Vec<u8>) {
+	let mut bytes = data.to_vec();
+	for at in 0..bytes.len() {
+		let rest = &bytes[at..];
+		// Cast first, then read only where the slice reaches, as Rust allows.
+		let pair = rest as *const [u8] as *const [u8; 2];
+		if rest.len() >= 2 {
+			out.extend(unsafe { *pair });
+			let borrowed = unsafe { &*pair };
+			out.push(u8::from(ptr::eq(borrowed, rest.first_chunk::<2>().unwrap())));
+			out.push(u8::from(ptr::eq(pair, rest.first_chunk::<2>().unwrap())));
+		}
+		let lent = NonNull::from(&bytes[at..]).cast::<[u8; 1]>();
+		out.push(unsafe { lent.as_ref() }[0]);
+	}
+	if bytes.len() >= 3 {
+		let tail = bytes.len() - 3;
+		let quad = unsafe { &mut *(&mut bytes[tail..] as *mut [u8] as *mut [u8; 3]) };
+		quad[0] ^= quad[2];
+		quad.reverse();
+		let whole = unsafe { &mut *(&raw mut bytes[..]).cast::<[u8; 3]>() };
+		whole[1] = whole[1].wrapping_add(1);
+	}
+	out.extend(&bytes);
+	let words: Vec<u32> = data.iter().map(|&b| u32::from(b) * 65_793).collect();
+	let mut copy = words.clone();
+	for at in 0..words.len().saturating_sub(1) {
+		let three = &words[at..] as *const [u32] as *const [u32; 3];
+		if words.len() - at >= 3 {
+			let read = unsafe { *three };
+			out.extend(read.iter().flat_map(|w| w.to_le_bytes()));
+			out.push(u8::from(ptr::eq(three, words[at..].first_chunk::<3>().unwrap())));
+		}
+		let first = unsafe { &mut *(&mut copy[at..] as *mut [u32] as *mut [u32; 2]) };
+		first.swap(0, 1);
+		first[0] ^= 0x0101;
+	}
+	out.extend(copy.iter().flat_map(|w| w.to_le_bytes()));
+	let mut pairs: Vec<[u8; 2]> = data.iter().map(|&b| [b, !b]).collect();
+	if pairs.len() >= 3 {
+		let two = unsafe { &mut *(&mut pairs[1..] as *mut [[u8; 2]] as *mut [[u8; 2]; 2]) };
+		two[0][1] ^= two[1][0];
+		two.swap(0, 1);
+		let read = unsafe { *(&pairs[..] as *const [[u8; 2]] as *const [[u8; 2]; 3]) };
+		out.extend(read.iter().flatten());
+	}
+	out.extend(pairs.iter().flatten());
+	let empty: &[u8] = &bytes[bytes.len()..];
+	let none = empty as *const [u8] as *const [u8; 0];
+	out.push(unsafe { *none }.len() as u8);
+	// Values in no array, an empty slice of a byte and a whole one of a number.
+	let byte = data.first().copied().unwrap_or(7);
+	let lone = ptr::slice_from_raw_parts(&raw const byte, 0).cast::<[u8; 0]>();
+	out.push(u8::from(lone.is_null()));
+	out.push(unsafe { &*(lone as *const [u8]) }.len() as u8);
+	let word = u32::from(byte) * 3;
+	let one = ptr::slice_from_raw_parts(&raw const word, 1) as *const [u32; 1];
+	out.extend(unsafe { *one }[0].to_le_bytes());
+	let null = ptr::slice_from_raw_parts(ptr::null::<u8>(), 4) as *const [u8; 4];
+	let dangling = NonNull::<[u32]>::slice_from_raw_parts(NonNull::dangling(), 0).cast::<[u32; 2]>();
+	out.extend([
+		u8::from(null.is_null()),
+		u8::from(ptr::eq(dangling.as_ptr(), NonNull::dangling().as_ptr())),
+	]);
+}
+
 /// A value beside a byte, which each instance of [`Either`] lays out at its own offsets.
 #[derive(Clone, Copy)]
 struct Tagged<T> {
