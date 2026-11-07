@@ -1039,9 +1039,10 @@ they need.
   in and gives items up to it, so a pointer reads them back past the length, as std's
   `Drain` and `retain` do. A slot never written holds what an unwritten `MaybeUninit` is,
   which a copy keeps. A step other than `set_len` that shortens it, such as `pop` or
-  `truncate`, leaves the room as it was, so a pointer reading past the length where that
-  step gave an item up reads what a pointer last wrote there, or an unwritten slot, rather
-  than the item Rust leaves there. Their `try_reserve` and `try_reserve_exact`, and a
+  `truncate`, leaves the room as it was: std's `Vec` makes no promise to keep what it
+  removes, so the slot it gave up is uninitialized, and `set_len` requires every slot it
+  takes in to be initialized, which makes lengthening over that slot undefined in Rust
+  (decided with the maintainer on 2026-11-07). Their `try_reserve` and `try_reserve_exact`, and a
   `String`'s, give `Ok` where `reserve` makes room and `TryReserveError`'s
   `CapacityOverflow` where it panics, and `AllocError`, of the layout std's asks for, only
   where JS fails to allocate a byte `Vec`'s or `VecDeque`'s `Uint8Array` (decided with the
