@@ -6,7 +6,7 @@
 // 32-bit limbs. Arithmetic is checked as a debug build checks it: overflow panics, it
 // never wraps silently. Every panic's message is the one native Rust panics with.
 
-import { Err, type Formatter, type FmtResult, fmtPadFormatted, fmtPadIntegral, Ok, panic, type Result } from "../rs.ts";
+import { Err, type Formatter, type FmtResult, fmtOwned, fmtPadFormatted, fmtPadIntegral, Ok, panic, panicFmt, type Result } from "../rs.ts";
 import type { Location } from "./location.ts";
 
 declare const brand: unique symbol;
@@ -177,7 +177,7 @@ export function min(a: number, b: number): number {
 
 /** `Ord::clamp` of integers in numbers: `a` within `[min, max]`, panicking unless `min <= max`. */
 export function clamp(a: number, min: number, max: number, at?: Location): number {
-	if (min > max) panic(`min > max. min = ${min}, max = ${max}`, at, true);
+	if (min > max) panicFmt(["min > max. min = ", fmtOwned(min, display), ", max = ", fmtOwned(max, display)], at);
 	return a < min ? min : a > max ? max : a;
 }
 
@@ -1042,14 +1042,9 @@ function multiple(a: Wide, b: Wide, bits: number, at?: Location): boolean {
 	return b === 0 ? a === 0 : rem(a, b, bits, false, at) === 0;
 }
 
-/** A wide value's decimal text, as its `Debug` writes it. */
-function decimal(v: Wide): string {
-	return typeof v === "number" ? String(v) : String(exact(v));
-}
-
 /** `Ord::clamp` of wide values: `a` within `[min, max]`, panicking unless `min <= max`. */
 function clampWide(a: Wide, min: Wide, max: Wide, at?: Location): Wide {
-	if (lt(max, min)) panic(`min > max. min = ${decimal(min)}, max = ${decimal(max)}`, at, true);
+	if (lt(max, min)) panicFmt(["min > max. min = ", fmtOwned(min, wideDisplay), ", max = ", fmtOwned(max, wideDisplay)], at);
 	return lt(a, min) ? min : lt(max, a) ? max : a;
 }
 
@@ -2234,16 +2229,18 @@ export const intOverflowingShr = <T extends Int>(a: T, n: number, bits: number, 
 export const intUnboundedShl = <T extends Int>(a: T, n: number, bits: number, signed: boolean): T => (n < bits ? (wrappingOf(intToBig(a) << BigInt(n), bits, signed) as T) : (0 as T));
 /** `unbounded_shr`: `a >> n`, past the width all sign bits: 0, or -1 for a negative `a`. */
 export const intUnboundedShr = <T extends Int>(a: T, n: number, bits: number, signed: boolean): T => intFromBig(intToBig(a) >> BigInt(Math.min(n, bits)), bits, signed) as T;
-/** `funnel_shl` of an unsigned type: the high half of `a:b` shifted left by `n`, panicking unless `n` is below the width. */
-export const intFunnelShl = <T extends Int>(a: T, b: T, n: number, bits: number, signed: boolean, at?: Location): T => {
-	if (n >= bits) panic("attempt to funnel shift left with overflow", at);
-	return wrappingOf((((intToBig(a) << BigInt(bits)) | intToBig(b)) << BigInt(n)) >> BigInt(bits), bits, signed) as T;
-};
-/** `funnel_shr` of an unsigned type: the low half of `a:b` shifted right by `n`, panicking unless `n` is below the width. */
-export const intFunnelShr = <T extends Int>(a: T, b: T, n: number, bits: number, signed: boolean, at?: Location): T => {
-	if (n >= bits) panic("attempt to funnel shift right with overflow", at);
-	return wrappingOf(((intToBig(a) << BigInt(bits)) | intToBig(b)) >> BigInt(n), bits, signed) as T;
-};
+/** `funnel_shl` of an unsigned type, as `unchecked_funnel_shl` checks it: the high half of `a:b` shifted left by `n`, or `undefined` unless `n` is below the width. */
+export const intCheckedFunnelShl = <T extends Int>(a: T, b: T, n: number, bits: number, signed: boolean): T | undefined =>
+	n < bits ? (wrappingOf((((intToBig(a) << BigInt(bits)) | intToBig(b)) << BigInt(n)) >> BigInt(bits), bits, signed) as T) : undefined;
+/** `funnel_shr` of an unsigned type, as `unchecked_funnel_shr` checks it: the low half of `a:b` shifted right by `n`, or `undefined` unless `n` is below the width. */
+export const intCheckedFunnelShr = <T extends Int>(a: T, b: T, n: number, bits: number, signed: boolean): T | undefined =>
+	n < bits ? (wrappingOf(((intToBig(a) << BigInt(bits)) | intToBig(b)) >> BigInt(n), bits, signed) as T) : undefined;
+/** `funnel_shl` of an unsigned type, panicking unless `n` is below the width. */
+export const intFunnelShl = <T extends Int>(a: T, b: T, n: number, bits: number, signed: boolean, at?: Location): T =>
+	intCheckedFunnelShl(a, b, n, bits, signed) ?? panic("attempt to funnel shift left with overflow", at);
+/** `funnel_shr` of an unsigned type, panicking unless `n` is below the width. */
+export const intFunnelShr = <T extends Int>(a: T, b: T, n: number, bits: number, signed: boolean, at?: Location): T =>
+	intCheckedFunnelShr(a, b, n, bits, signed) ?? panic("attempt to funnel shift right with overflow", at);
 /** `rotate_left`: `a`'s bits rotated left by `n`, modulo the width. */
 export const intRotateLeft = <T extends Int>(a: T, n: number, bits: number, signed: boolean): T => {
 	const v = bitsOf(a, bits);

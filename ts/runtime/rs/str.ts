@@ -26,6 +26,7 @@ import {
 	fmtDebugStructFields,
 	fmtDebugTupleFields,
 	fmtList,
+	fmtOwned,
 	fmtPad,
 	fmtStr,
 	OK,
@@ -33,6 +34,7 @@ import {
 	type Place,
 	panic,
 	panicFmt,
+	panicSizes,
 	type Result,
 	type StrCow,
 	utf8Check,
@@ -184,16 +186,17 @@ export function strSplitAtMutChecked(p: Place<string>, mid: number): [Place<stri
  */
 function sliceFailed(s: string, start: number, end: number, at?: Location): never {
 	const len = stringLen(s);
-	if (start > len) panic(`start byte index ${start} is out of bounds for string of length ${len}`, at, true);
-	if (end > len) panic(`end byte index ${end} is out of bounds for string of length ${len}`, at, true);
-	if (start > end) panic(`byte range starts at ${start} but ends at ${end}`, at, true);
+	const outOfBounds = (): never => panicSizes(["end byte index ", end, " is out of bounds for string of length ", len], at);
+	if (start > len) panicSizes(["start byte index ", start, " is out of bounds for string of length ", len], at);
+	if (end > len) outOfBounds();
+	if (start > end) panicSizes(["byte range starts at ", start, " but ends at ", end], at);
 	// Neither inside a char: an inclusive end at the length, which is past the last byte.
 	const [which, pos] =
 		unitAt(s, 0, 0, start) < 0
 			? ["start", start]
 			: unitAt(s, 0, 0, end) < 0
 				? ["end", end]
-				: panic(`end byte index ${end} is out of bounds for string of length ${len}`, at, true);
+				: outOfBounds();
 	// The char `at` is inside, and where its bytes start.
 	let floor = 0;
 	let c = 0;
@@ -202,11 +205,8 @@ function sliceFailed(s: string, start: number, end: number, at?: Location): neve
 		if (floor + charLen(c) > pos) break;
 		floor += charLen(c);
 	}
-	panicFmt([
-		`${which} byte index ${pos} is not a char boundary; it is inside `,
-		(f) => fmtCharDebug(c as char, f),
-		` (bytes ${floor}..${floor + charLen(c)} of string)`,
-	], at);
+	const size = (n: number): Fmt => fmtOwned(n as usize, usizeDebug);
+	panicFmt([`${which} byte index `, size(pos), " is not a char boundary; it is inside ", fmtOwned(c as char, fmtCharDebug), " (bytes ", size(floor), "..", size(floor + charLen(c)), " of string)"], at);
 }
 
 /** `str::chars`. */

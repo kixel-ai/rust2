@@ -136,7 +136,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 		} else if (_39 === 11) {
 			rs.iterExtend(v, rs.iterMap(new rs.Range(0, rs.u8Rem(arg, 24)), make), undefined, 1280, true);
 		} else if (_39 === 12) {
-			rs.vecExtendFromSlice(v, rs.sliceFrom(rs.vecFromElem(copy$array_u64(make(arg)), rs.u8Rem(arg, 24) as rs.usize, copy$array_u64).items), 1280, copy$array_u64);
+			rs.vecExtendFromSlice(v, rs.arraySliceAsSlice(rs.arraySliceFrom(rs.vecFromElem(copy$array_u64(make(arg)), rs.u8Rem(arg, 24) as rs.usize, copy$array_u64).items, rs.sliceFrom)), 1280, copy$array_u64);
 		} else if (_39 === 13) {
 			rs.vecTruncate(v, 0);
 		} else if (_39 === 14) {
@@ -151,7 +151,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 		} else if (_39 === 16) {
 			v = rs.vecFrom(v.items.map(copy$array_u64));
 		} else if (_39 === 17) {
-			v = rs.vecFrom(v.items);
+			v = rs.vecFrom(rs.arraySliceItems(rs.arraySliceFrom(v.items, rs.sliceFrom)));
 		} else if (_39 === 18) {
 			const keep2: () => boolean = alternate();
 			v = rs.iterToVec(rs.iterFilter(rs.vecIntoIter(v), rs.lending((_27: rs.Slice<rs.u64>): boolean => {
@@ -208,7 +208,7 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 		} else if (_39 === 26) {
 			v = rs.slicesJoin(rs.sliceFrom([rs.vecFrom(v.items.map(copy$array_u64)), v]), 1280, undefined, rs.vecSlice, copy$array_u64);
 		} else if (_39 === 27) {
-			v = rs.iterToVec(rs.iterSlice(v.items), "next", 1280, true, 1280);
+			v = rs.iterToVec(rs.iterSlice(rs.arraySliceItems(rs.arraySliceFrom(v.items, rs.sliceFrom))), "next", 1280, true, 1280);
 		} else if (_39 === 28) {
 			const own: rs.Vec<rs.u64[]> = rs.vecWithCapacity(rs.u8Rem(arg, 8) as rs.usize, 1280);
 			const _225: rs.u64[] = copy$array_u64(make(arg));
@@ -291,16 +291,16 @@ export function vecSteps$array160_u64(dataData: Uint8Array, dataStart: number, d
 			}, (f) => (held) => f(rs.sliceFrom(held)))), rs.u8Rem(arg, 5) as rs.usize));
 		} else if (_39 === 37) {
 			const pairs: rs.Vec<rs.u64[][]> = rs.vecWithCapacity(rs.u8Rem(arg, 6) as rs.usize, 2560);
-			const iter4: rs.Iter<rs.Slice<rs.u64[]>> = rs.sliceChunksExact(rs.sliceFrom(v.items), 2);
+			const iter4: rs.Iter<rs.ArraySlice<rs.Slice<rs.u64>>> = rs.arraySliceChunksExact(rs.arraySliceFrom(v.items, rs.sliceFrom), 2);
 			while (true) {
-				const _392: rs.Slice<rs.u64[]> | rs.Done = iter4.next();
+				const _392: rs.ArraySlice<rs.Slice<rs.u64>> | rs.Done = iter4.next();
 				if (_392 === rs.DONE) {
 					break;
 				}
 				rs.idx(_392, 0);
-				const _399: rs.u64[] = copy$array_u64(_392.data[_392.start].slice());
+				const _399: rs.u64[] = copy$array_u64(rs.sliceToArray(rs.arraySliceAt(_392, 0)));
 				rs.idx(_392, 1);
-				const _398: rs.u64[][] = [_399, copy$array_u64(_392.data[_392.start + 1].slice())];
+				const _398: rs.u64[][] = [_399, copy$array_u64(rs.sliceToArray(rs.arraySliceAt(_392, 1)))];
 				pairs.items.push(_398);
 			}
 			const flat: rs.Vec<rs.u64[]> = rs.vecIntoFlattened(pairs, 2, 1280);

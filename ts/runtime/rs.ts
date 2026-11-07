@@ -60,6 +60,26 @@ export function panic(message: string, at?: Location | string, owned?: boolean |
 	throw new Panic(message);
 }
 
+/**
+ * `value`, what an unsafe function gives where its precondition `check` held, or, where it is
+ * `undefined`, the abort std's check of `check` makes in a debug build, since Rust defines
+ * nothing past it: a panic that can't unwind, at `at` or at the key of std's site.
+ */
+export function precondition<T>(value: T | undefined, check: string, at?: Location | string): T {
+	if (value === undefined) {
+		panic(`unsafe precondition(s) violated: ${check}\n\nThis indicates a bug in the program. This Undefined Behavior check is optional, and cannot be relied on for safety.`, at);
+	}
+	return value;
+}
+
+/**
+ * Panic at `at` with `message`: literal pieces, and the `usize`s between them, which a
+ * hook reads as the `String` std's `panic!` writes each piece and number into.
+ */
+export function panicSizes(message: readonly (string | number)[], at?: Location | string): never {
+	panicFmt(message.map((part) => (typeof part === "string" ? part : fmtOwned(part as usize, usizeDisplay))), at);
+}
+
 /** `resume_unwind`, which aborts as `panic=abort`'s runtime does, running no panic hook. */
 export function resumeUnwind(): never {
 	throw new Abort("resume_unwind");
@@ -80,8 +100,8 @@ export function unreachable(_value: unknown): never {
 
 /** `assert_eq!` or `assert_ne!` failing: `op` is `==` or `!=`. */
 export function assertFailed(op: string, left: Fmt, right: Fmt, args?: Arguments, at?: Location | string): never {
-	const failed: Arguments = args === undefined ? [" failed"] : [" failed: ", (f) => fmtWriteFmt(f, args)];
-	panicFmt(["assertion `left ", op, " right`", ...failed, "\n  left: ", left, "\n right: ", right], at);
+	const failed: Arguments = args === undefined ? [" right` failed\n  left: "] : [" right` failed: ", (f) => fmtWriteFmt(f, args), "\n  left: "];
+	panicFmt(["assertion `left ", op, ...failed, left, "\n right: ", right], at);
 }
 
 // Places
@@ -219,9 +239,9 @@ export function ptrUnerase(p: Place<undefined>, type: string, align: number): un
 /**
  * A generic type's pointer or reference to a `T` that only an instance decides: the object,
  * the `Place` of a value JS copies, or the `Slice` of a `[T; N]`'s elements, a `ByteSlice`
- * of a `[u8; N]`'s.
+ * of a `[u8; N]`'s, and the `ArraySlice` of a `[[T; N]; M]`'s.
  */
-export type Ptr<T> = T | Place<T> | ByteSlice | (T extends readonly (infer E)[] ? Slice<E> : never);
+export type Ptr<T> = T | Place<T> | ByteSlice | (T extends readonly (infer E)[] ? Slice<E> | ArraySlice<ArrayRef> : never);
 
 /** A generic union whose layout only an instance decides: its slots, each read cast to its part's type. */
 export type Slots = { [slot: string]: unknown };
@@ -229,14 +249,14 @@ export type Slots = { [slot: string]: unknown };
 /** A generic type's `[T; N]`: the array, or the `Uint8Array` of a `[u8; N]`. */
 export type ArrayOf<T> = T[] | Uint8Array;
 
-/** A generic type's `[T]`, as behind a reference: the `Slice`, or the `ByteSlice` of a `[u8]`. */
-export type SliceOf<T> = Slice<T> | ByteSlice;
+/** A generic type's `[T]`, as behind a reference: the `Slice`, the `ByteSlice` of a `[u8]`, or the `ArraySlice` of a `[[T; N]]`. */
+export type SliceOf<T> = Slice<T> | ByteSlice | ArraySlice<ArrayRef>;
 
 /** A generic type's `Vec<T>`: the `Vec`, or the `ByteVec` of a `Vec<u8>`. */
 export type VecOf<T> = Vec<T> | ByteVec;
 
-/** A generic type's `Cow<[T]>`: the `Cow`, or the `ByteCow` of a `Cow<[u8]>`. */
-export type CowOf<T> = Cow<T> | ByteCow;
+/** A generic type's `Cow<[T]>`: the `Cow`, the `ByteCow` of a `Cow<[u8]>`, or the `Cow` of a `Cow<[[T; N]]>`'s arrays. */
+export type CowOf<T> = Cow<T> | ByteCow | Cow<T, ArraySlice<ArrayRef>>;
 
 /**
  * The pointer to element `index` of `s`, a `[T; N]` or a `Vec`'s storage. A null or
@@ -450,6 +470,14 @@ export function ptrCopy<T>(src: Place<T>, dst: Place<T>, n: number, copy?: (valu
 	for (let i = 0; i < n; i++) elemSet(to.array, to.index + i, copy && values[i] !== undefined ? copy(values[i]) : values[i]);
 }
 
+/** `ptr::write_bytes` of a pointer to bytes: `n` of them from `dst` set to `val`. */
+export function ptrWriteBytes(dst: Place<number>, val: number, n: number): void {
+	if (n === 0) return;
+	const to = elemOf(dst);
+	to.reach(n);
+	for (let i = 0; i < n; i++) elemSet(to.array, to.index + i, val);
+}
+
 /** Element `i` of `array`, or of the room past it, which `AtIndex.reach` found. */
 function elemGet<T>(array: { [i: number]: T }, i: number): T {
 	return i < (array as ArrayLike<T>).length ? array[i] : (roomPast<T>(array, i + 1) as Room<T>).get(i);
@@ -551,6 +579,42 @@ export function rawSliceOf<T>(s: Slice<T>): RawSlice<T> {
 	return new RawSlice(sliceAsPtr(s), s.length);
 }
 
+/**
+ * A raw pointer to a slice of arrays, `*const [[T; N]]` or `*mut [[T; N]]`: the array slice
+ * it points at, which a read through it gives back where it is, and never null.
+ */
+export class RawArraySlice<S extends ArrayRef> {
+	readonly slice: ArraySlice<S>;
+
+	constructor(slice: ArraySlice<S>) {
+		this.slice = slice;
+	}
+
+	/** Where it points, which is never `NULL`. */
+	get ptr(): ArraySlice<S> {
+		return this.slice;
+	}
+
+	get length(): number {
+		return this.slice.length;
+	}
+
+	/** The array slice it points at, read through it. */
+	deref(): ArraySlice<S> {
+		return this.slice;
+	}
+
+	/** `p as *const [[T; N]; n]`: its first `n` arrays, read through only where Rust reads, as `RawSlice`'s `array` casts. */
+	array(n: number): ArraySlice<S> {
+		return arraySlicePart(this.slice, 0, n);
+	}
+}
+
+/** The raw pointer to `r`, a slice of arrays. */
+export function rawArraySliceOf<S extends ArrayRef>(r: ArraySlice<S>): RawArraySlice<S> {
+	return new RawArraySlice(r);
+}
+
 /** The raw pointer to the bytes of `s`. */
 export function rawByteSliceOf(s: ByteSlice): RawSlice<number> {
 	return new RawSlice(byteSliceAsPtr(s), s.length);
@@ -600,14 +664,11 @@ export function replaceIn<T extends object>(p: T, value: T, depth = 0): T {
 /**
  * A copy of the object `p`, one object deep: its fields, its bytes, or its items for a JS
  * array. Its items, and theirs to `depth` levels of arrays, are objects
- * a write may land in, as a `sliceIn`'s, which a view of one copies too, as are runs a
- * view of runs holds.
+ * a write may land in, as a `sliceIn`'s, which a view of one copies too.
  */
 export function objectCopy<T extends object>(p: T, depth = 0): T {
 	if (ArrayBuffer.isView(p)) return (p as unknown as Uint8Array).slice() as T;
 	if (Array.isArray(p)) {
-		const view = (p as { [VIEW]?: View<unknown> })[VIEW];
-		if (isRuns(p) || (view !== undefined && isRuns(view.s))) return Array.from(p, copyRun) as T;
 		const old: unknown[] = p.slice();
 		if (depth > 0 && writesIn(p)) for (let i = 0; i < old.length; i++) old[i] = objectCopy(old[i] as object, depth - 1);
 		return old as T;
@@ -677,8 +738,8 @@ export const OK: Result<undefined, never> = /* @__PURE__ */ Object.freeze({ ok: 
 export const ERR: Result<never, undefined> = /* @__PURE__ */ Object.freeze({ ok: false, error: undefined });
 
 /** Panic with `message` and `value`'s `Debug`. */
-function unwrapFailed<T>(message: string, value: T, debug: Debug<T>, at?: Location): never {
-	panicFmt([message, ": ", (f) => debug(value, f)], at);
+function unwrapFailed<T>(message: string, value: T, debug: Debug<T>, at?: Location | string): never {
+	panicFmt([message, ": ", fmtOwned(value, debug)], at);
 }
 
 // A function that may drop an operand std's would, rather than return it, takes what
@@ -774,11 +835,11 @@ export function sliceItems<T>(s: Slice<T>): T[] {
 }
 
 /** Elements in a row, as a slice reads them: the JS array of a `[T; N]`, a `Slice`, or a `Vec`. */
-export type Elements<T> = ArrayLike<T> | Slice<T> | Vec<T>;
+export type Elements<T> = ArrayLike<T> | Slice<T> | Vec<T> | ArraySlice<ArrayRef>;
 
-/** The array `s`'s elements are in: a slice's storage, a `Vec`'s items, or the array itself. */
+/** The array `s`'s elements are in: a slice's storage, a `Vec`'s items, an array slice's arrays as `arraySliceItems` reads them, or the array itself. */
 export function sliceData<T>(s: Elements<T>): ArrayLike<T> {
-	return s instanceof Slice ? s.data : s instanceof Vec ? s.items : s;
+	return s instanceof Slice ? s.data : s instanceof Vec ? s.items : s instanceof ArraySlice ? (arraySliceItems(s) as unknown as ArrayLike<T>) : s;
 }
 
 /** Where `s`'s elements start in `sliceData(s)`. */
@@ -808,7 +869,7 @@ export function sliceSet<T>(s: Slice<T>, items: ArrayLike<T>): void {
 
 /**
  * Whether pointers to a `[T; N]`, slices of its elements, point at the same place: the same
- * element of the same array, through any view of runs `as_chunks_mut` lends, or both null.
+ * element of the same array, through any `arrayView` of part of it, or both null.
  */
 export function sliceSame<T>(a: Slice<T>, b: Slice<T>): boolean {
 	if (!(a instanceof Slice && b instanceof Slice)) return a === b;
@@ -819,7 +880,7 @@ export function sliceSame<T>(a: Slice<T>, b: Slice<T>): boolean {
 
 /** A bounds-checked index into a slice. */
 export function idx(slice: { readonly length: number }, index: number, at?: Location): number {
-	if (index >= slice.length) panic(`index out of bounds: the len is ${slice.length} but the index is ${index}`, at, true);
+	if (index >= slice.length) panicSizes(["index out of bounds: the len is ", slice.length, " but the index is ", index], at);
 	return index;
 }
 
@@ -830,9 +891,9 @@ export function at<T>(slice: ArrayLike<T>, index: number, at?: Location): T {
 
 /** Panic unless `start..end` is in a slice of `length`, as std's range checks do. */
 export function rangeCheck(length: number, start: number, end: number, at?: Location): void {
-	if (start > length) panic(`range start index ${start} out of range for slice of length ${length}`, at, true);
-	if (end > length) panic(`range end index ${end} out of range for slice of length ${length}`, at, true);
-	if (start > end) panic(`slice index starts at ${start} but ends at ${end}`, at, true);
+	if (start > length) panicSizes(["range start index ", start, " out of range for slice of length ", length], at);
+	if (end > length) panicSizes(["range end index ", end, " out of range for slice of length ", length], at);
+	if (start > end) panicSizes(["slice index starts at ", start, " but ends at ", end], at);
 }
 
 /** `&s[start..end]` and `&mut s[start..end]`, with `end` defaulting to the length. */
@@ -848,10 +909,10 @@ export function slicePart<T>(s: Slice<T>, start: number, end: number = s.length)
 
 /**
  * Elements `start` to `end` of `s` as a JS array whose every element is `s`'s, read and
- * written where it is, as a JS array has no views of its own: a `[T; N]` that a slice of
- * them lends where `as_chunks_mut` makes one of a flat slice. Its own array, holes of the
- * same length, answers for the rest, such as `length` and the methods. A view of a view
- * reads the array beneath both.
+ * written where it is, as a JS array has no views of its own: the `[T; N]` a `&mut` to part
+ * of an array lends where what takes it writes a JS array. Its own array, holes of the same
+ * length, answers for the rest, such as `length` and the methods. A view of a view reads
+ * the array beneath both.
  */
 function arrayView<T>(s: T[], start: number, end: number): T[] {
 	const outer = (s as { [VIEW]?: View<T> })[VIEW];
@@ -873,6 +934,11 @@ export function optionAsSlice<T>(o: T | undefined): Slice<T>;
 export function optionAsSlice<T>(o: T | None, none: None): Slice<T>;
 export function optionAsSlice<T>(o: T, none?: None): Slice<T> {
 	return sliceFrom(o === none ? [] : [o]);
+}
+
+/** `optionAsSlice` of an array, which is never `undefined`: the arrays of it alone, lent by `of`, or of none. */
+export function optionAsArraySlice<S extends ArrayRef>(o: LentArray<S> | undefined, of: (array: LentArray<S>) => S): ArraySlice<S> {
+	return arraySliceFrom<LentArray<S>, S>(o === undefined ? [] : [o], of);
 }
 
 /** `optionAsSlice` of a byte. */
@@ -963,12 +1029,6 @@ class View<T> implements ProxyHandler<T[]> {
 		this.s[i] = value;
 	}
 
-	/** Holds a copy of what it views from now on, as a read of the array it views copied it. */
-	detach(): void {
-		this.s = Array.from({ length: this.length }, (_, i) => this.item(this.start + i));
-		this.start = 0;
-	}
-
 	/** Where in `s` the element `key` names is, or -1 if it names none. */
 	at(key: string | symbol): number {
 		if (typeof key !== "string") return -1;
@@ -1005,123 +1065,13 @@ class View<T> implements ProxyHandler<T[]> {
 }
 
 /**
- * `as_chunks_mut`'s slice of arrays: element `i` the view of run `i` of `n` elements of `flat`
- * from `offset`, made the first time it is read and kept in `views`. A whole write of a run
- * copies into it, and the view a read took of it first detaches to a copy of what it held,
- * as Rust's read copied the array.
- */
-class Runs<T> extends View<T[]> {
-	flat: T[];
-	offset: number;
-	readonly n: number;
-
-	constructor(flat: T[], at: number, n: number, views: T[][], start: number, length: number) {
-		super(views, start, length);
-		this.flat = flat;
-		this.offset = at;
-		this.n = n;
-	}
-
-	override part(start: number, length: number): Runs<T> {
-		return new Runs(this.flat, this.offset, this.n, this.s as T[][], this.start + start, length);
-	}
-
-	override item(i: number): T[] {
-		const from = this.offset + i * this.n;
-		return ((this.s as (T[] | undefined)[])[i] ??= arrayView(this.flat, from, from + this.n));
-	}
-
-	override put(i: number, value: T[]): void {
-		const views = this.s as (T[] | undefined)[];
-		const held = views[i];
-		if (held !== undefined) {
-			(held as { [VIEW]?: View<T> })[VIEW]!.detach();
-			views[i] = undefined;
-		}
-		const from = this.offset + i * this.n;
-		for (let k = 0; k < this.n; k++) this.flat[from + k] = value[k];
-	}
-
-	override detach(): void {
-		const from = this.offset + this.start * this.n;
-		const runs = isRuns(this.flat);
-		this.flat = Array.from({ length: this.length * this.n }, (_, k) => (runs ? copyRun(this.flat[from + k]) : this.flat[from + k]));
-		this.offset = -this.start * this.n;
-		this.s = [];
-	}
-}
-
-/** Whether `s` is runs, or a view of them, whose elements are views of their runs. */
-function isRuns(s: object): boolean {
-	const view = (s as { [VIEW]?: unknown })[VIEW];
-	return view instanceof Runs || view instanceof ByteRuns;
-}
-
-/**
- * `x`, a run read out of runs, as a value of its own, since a write through the runs
- * would change it: a copy of its elements, and of each run it holds as runs at any depth,
- * but not of what its elements point at.
- */
-function copyRun<T>(x: T): T {
-	if (x instanceof Uint8Array) return x.slice() as T;
-	const run = x as unknown as unknown[];
-	return (isRuns(run) ? Array.from(run, copyRun) : Array.from(run)) as T;
-}
-
-/**
- * `as_chunks_mut` of bytes' slice of arrays: element `i` a `Uint8Array` view of run `i` of
- * `n` bytes of `data` from `offset`, made the first time it is read and kept in `views`, and a
- * whole write of a run copied into it. A `Uint8Array` can't detach as `Runs`' views do, so
- * a read of one by value copies it, as `byValue` has the runtime's own reads do.
- */
-class ByteRuns extends View<Uint8Array> {
-	data: Uint8Array;
-	offset: number;
-	readonly n: number;
-
-	constructor(data: Uint8Array, at: number, n: number, views: Uint8Array[], start: number, length: number) {
-		super(views, start, length);
-		this.data = data;
-		this.offset = at;
-		this.n = n;
-	}
-
-	override part(start: number, length: number): ByteRuns {
-		return new ByteRuns(this.data, this.offset, this.n, this.s as Uint8Array[], this.start + start, length);
-	}
-
-	override item(i: number): Uint8Array {
-		const from = this.offset + i * this.n;
-		return ((this.s as (Uint8Array | undefined)[])[i] ??= this.data.subarray(from, from + this.n));
-	}
-
-	override put(i: number, value: Uint8Array): void {
-		this.data.set(value, this.offset + i * this.n);
-	}
-
-	override detach(): void {
-		const from = this.offset + this.start * this.n;
-		this.data = this.data.slice(from, from + this.length * this.n);
-		this.offset = -this.start * this.n;
-		this.s = [];
-	}
-
-}
-
-/**
  * `op` of the elements of `s`, which it reads before writes that may overwrite them, as a
  * JS array: the storage itself where `s` is all of it, or else a copy, written back after.
- * A run `s` holds as `ByteRuns`' view is copied too, as a write through `s` would change
- * it under `op`.
  */
 export function byValue<T>(s: SliceLike<T>, op: (items: T[]) => void): void {
-	const runs = byteRuns(s.data);
-	if (!runs && s.start === 0 && s.length === s.data.length) return op(s.data as T[]);
+	if (s.start === 0 && s.length === s.data.length) return op(s.data as T[]);
 	const items = new Array<T>(s.length);
-	for (let i = 0; i < s.length; i++) {
-		const x = s.data[s.start + i];
-		items[i] = runs ? ((x as Uint8Array).slice() as T) : x;
-	}
+	for (let i = 0; i < s.length; i++) items[i] = s.data[s.start + i];
 	op(items);
 	for (let i = 0; i < items.length; i++) s.data[s.start + i] = items[i];
 }
@@ -1131,14 +1081,258 @@ export function sliceReverse<T>(s: Slice<T>): void {
 	byValue(s, (items) => items.reverse());
 }
 
-/** `x`, an element of `data` read before a write that may overwrite it: a copy if `data` holds `ByteRuns`' views. */
-function held<T>(data: T[], x: T): T {
-	return byteRuns(data) ? ((x as Uint8Array).slice() as T) : x;
+// Slices of arrays: `ArraySlice`.
+
+/** What a `&[T; N]` is, as a slice of arrays lends each of its arrays: a slice of its elements, of its bytes, or of its own arrays. */
+export type ArrayRef = Slice<unknown> | ByteSlice | ArraySlice<ArrayRef>;
+
+/** The `[T; N]` a `&[T; N]`, `S`, lends: its elements' array, its bytes, or its own arrays. */
+export type LentArray<S> = S extends ByteSlice ? Uint8Array : S extends Slice<infer T> ? T[] : S extends ArraySlice<infer R> ? LentArray<R>[] : never;
+
+/**
+ * A `&[[T; N]]`, `&mut [[T; N]]`, or `Box<[[T; N]]>`: `length` arrays from `start`, each lent
+ * as `S`, the slice a `&[T; N]` is, so an array is read and written where the slice holds it.
+ * The arrays are each a `[T; N]`'s own array, `items[i]`, as a `Vec<[T; N]>` or a
+ * `[[T; N]; M]` holds them, which `of` lends, or else `n` elements each of `flat`, as
+ * `as_chunks` splits a slice.
+ */
+export class ArraySlice<S extends ArrayRef> {
+	readonly items: readonly unknown[] | undefined;
+	readonly of: ((array: never) => S) | undefined;
+	readonly flat: S | undefined;
+	readonly n: number;
+	readonly start: number;
+	readonly length: number;
+
+	constructor(items: readonly unknown[] | undefined, of: ((array: never) => S) | undefined, flat: S | undefined, n: number, start: number, length: number) {
+		this.items = items;
+		this.of = of;
+		this.flat = flat;
+		this.n = n;
+		this.start = start;
+		this.length = length;
+	}
 }
 
-/** Whether `s` holds `ByteRuns`' views. */
-function byteRuns(s: object): boolean {
-	return (s as { [VIEW]?: unknown })[VIEW] instanceof ByteRuns;
+/**
+ * All of `items`, the arrays of a `[[T; N]; M]` or a `Vec<[T; N]>`, as arrays, each lent by
+ * `of`. An array slice of none takes its type from where they go, as `[]` says nothing of it.
+ */
+export function arraySliceFrom<S extends ArrayRef>(items: readonly [], of: (array: NoInfer<LentArray<S>>) => S): ArraySlice<S>;
+export function arraySliceFrom<A, S extends ArrayRef>(items: readonly A[], of: (array: A) => S): ArraySlice<S>;
+export function arraySliceFrom<A, S extends ArrayRef>(items: readonly A[], of: (array: A) => S): ArraySlice<S> {
+	return new ArraySlice<S>(items, of, undefined, 0, 0, items.length);
+}
+
+/** The arrays of `s`, a slice of arrays, each lent by `of` where `s` holds it, as `assume_init_ref` of a slice of `MaybeUninit`s of them has it. */
+export function arraySliceOfSlice<A, S extends ArrayRef>(s: Slice<A>, of: (array: A) => S): ArraySlice<S> {
+	return new ArraySlice<S>(s.data, of, undefined, 0, s.start, s.length);
+}
+
+/** `arraySliceFrom` of `of`, as a function of the arrays, as a `[[T; N]; M]` is lent: one function for each `of`. */
+export function arraySliceOf<A, S extends ArrayRef>(of: (array: A) => S): (items: readonly A[]) => ArraySlice<S> {
+	let f = LENT.get(of) as ((items: readonly A[]) => ArraySlice<S>) | undefined;
+	if (f === undefined) LENT.set(of, (f = (items: readonly A[]) => arraySliceFrom(items, of)));
+	return f;
+}
+
+/** `arraySliceOf`'s functions, by the `of` each lends with. */
+const LENT = /* @__PURE__ */ new Map<unknown, unknown>();
+
+/** Run `i` of `r`, in bounds, lent where `r` holds it. */
+export function arraySliceAt<S extends ArrayRef>(r: ArraySlice<S>, i: number): S {
+	const k = r.start + i;
+	if (r.items !== undefined) return (r.of as (array: unknown) => S)(r.items[k]);
+	return arrayRefPart(r.flat as S, k * r.n, r.n);
+}
+
+/** `length` elements of `s` from `start`: a slice of the same storage, of the same class. */
+function arrayRefPart<S extends ArrayRef>(s: S, start: number, length: number): S {
+	if (s instanceof ByteSlice) return new ByteSlice(s.data, s.start + start, length) as S;
+	if (s instanceof Slice) return new Slice(s.data, s.start + start, length) as S;
+	const r = s as ArraySlice<ArrayRef>;
+	return new ArraySlice(r.items, r.of, r.flat, r.n, r.start + start, length) as S;
+}
+
+/** Arrays `start` to `end` of `r`, in bounds already. */
+export function arraySlicePart<S extends ArrayRef>(r: ArraySlice<S>, start: number, end: number = r.length): ArraySlice<S> {
+	return arrayRefPart(r, start, end - start);
+}
+
+/** `&r[start..end]` and `&mut r[start..end]`, with `end` defaulting to the length. */
+export function arraySliceRange<S extends ArrayRef>(r: ArraySlice<S>, start: number, end: number = r.length, at?: Location): ArraySlice<S> {
+	rangeCheck(r.length, start, end, at);
+	return arrayRefPart(r, start, end - start);
+}
+
+/** Each array of `r`, lent where `r` holds it, as `each_ref` and `each_mut` of a `[[T; N]; M]` lend them. */
+export function arraySliceEach<S extends ArrayRef>(r: ArraySlice<S>): S[] {
+	const out = new Array<S>(r.length);
+	for (let i = 0; i < r.length; i++) out[i] = arraySliceAt(r, i);
+	return out;
+}
+
+/** `slice::from_mut` or `array::from_mut` of a `&mut [T; n]`, which is `s`: the arrays of it alone. */
+export function arraySliceOne<S extends ArrayRef>(s: S, n: number): ArraySlice<S> {
+	return new ArraySlice<S>(undefined, undefined, s, n, 0, 1);
+}
+
+/** `*r` of a `&[[T; N]; M]`: each array copied by `copy`, an array of its own. */
+export function arraySliceToArray<S extends ArrayRef, A>(r: ArraySlice<S>, copy: (run: S) => A): A[] {
+	const out = new Array<A>(r.length);
+	for (let i = 0; i < r.length; i++) out[i] = copy(arraySliceAt(r, i));
+	return out;
+}
+
+/** `*r = items` of a `&mut [[T; N]; M]`: each array written where `r` holds it. */
+export function arraySliceSet<S extends ArrayRef>(r: ArraySlice<S>, items: ArrayLike<LentArray<S>>): void {
+	for (let i = 0; i < r.length; i++) arrayRefSet(arraySliceAt(r, i), items[i]);
+}
+
+/**
+ * What an array's element is copied by, as a copy of the arrays reads it: a `Copy` value JS
+ * holds as an object, and one a write lands in, as a `sliceIn`'s does, which a write of the
+ * arrays back would change.
+ */
+export type ElemCopy = (value: never) => unknown;
+
+/** `mem::replace` of what a `&mut [[T; N]; M]`, `r`, points at: its arrays as arrays of their own, each element copied by `copy`, then `items` written where `r` holds them. */
+export function arraySliceReplace<S extends ArrayRef>(r: ArraySlice<S>, items: ArrayLike<LentArray<S>>, copy?: ElemCopy): LentArray<S>[] {
+	const old = arraySliceCopy(r, copy);
+	arraySliceSet(r, items);
+	return old;
+}
+
+/** A whole write of `value`, a `[T; N]`, into the array `s`: its elements moved into where `s` holds them. */
+function arrayRefSet(s: ArrayRef, value: unknown): void {
+	if (s instanceof ByteSlice) s.data.set(value as Uint8Array, s.start);
+	else if (s instanceof Slice) sliceSet(s, value as unknown[]);
+	else arraySliceSet(s, value as ArrayLike<never>);
+}
+
+/**
+ * The array `s` as a `[T; N]` of its own: a copy of its elements, and of the arrays it holds at
+ * any depth, but not of the objects its elements are, which a write of it moves, unless
+ * `copy` copies them.
+ */
+function arrayRefCopy<S extends ArrayRef>(s: S, copy?: ElemCopy): LentArray<S> {
+	if (s instanceof ByteSlice) return byteSliceToArray(s) as LentArray<S>;
+	if (s instanceof Slice) return sliceToArray(s, copy as ((value: unknown) => unknown) | undefined) as LentArray<S>;
+	return arraySliceCopy(s as ArraySlice<ArrayRef>, copy) as LentArray<S>;
+}
+
+/** The arrays of `r` as arrays of their own, as `arrayRefCopy` copies each. */
+export function arraySliceCopy<S extends ArrayRef>(r: ArraySlice<S>, copy?: ElemCopy): LentArray<S>[] {
+	return arraySliceToArray(r, (s) => arrayRefCopy(s, copy));
+}
+
+/**
+ * Whether pointers to `[[T; N]; M]`s, `a` and `b`, point at the same place: the same array of
+ * the same arrays, or of the same storage, or both null.
+ */
+export function arraySliceSame(a: ArraySlice<ArrayRef>, b: ArraySlice<ArrayRef>): boolean {
+	if (!(a instanceof ArraySlice && b instanceof ArraySlice)) return a === b;
+	if (a.items !== undefined || b.items !== undefined) return a.items === b.items && a.start === b.start;
+	return arrayRefSame(arrayRefPart(a.flat!, a.start * a.n, 0), arrayRefPart(b.flat!, b.start * b.n, 0));
+}
+
+/** Whether `a` and `b`, slices a pointer to a `[T; N]` is, point at the same place. */
+function arrayRefSame(a: ArrayRef, b: ArrayRef): boolean {
+	if (a instanceof ByteSlice) return b instanceof ByteSlice && byteSliceSame(a, b);
+	if (a instanceof Slice) return b instanceof Slice && sliceSame(a, b);
+	return b instanceof ArraySlice && arraySliceSame(a, b);
+}
+
+/**
+ * The arrays of `r` as a JS array of arrays, for what only reads them: the arrays themselves
+ * where each array is one, so a callback's `ptr::eq` sees the array it was lent, or else copies
+ * of the arrays `as_chunks` split from one flat slice, which have no array of their own.
+ */
+export function arraySliceItems<S extends ArrayRef>(r: ArraySlice<S>): LentArray<S>[] {
+	if (r.items === undefined) return arraySliceCopy(r);
+	if (r.start === 0 && r.length === r.items.length) return r.items as LentArray<S>[];
+	return r.items.slice(r.start, r.start + r.length) as LentArray<S>[];
+}
+
+/** `last_chunk` of an array slice, shared or mutable: the last `n`, or `undefined` if fewer. */
+export function arraySliceLastChunk<S extends ArrayRef>(r: ArraySlice<S>, n: number): ArraySlice<S> | undefined {
+	return n > r.length ? undefined : arrayRefPart(r, r.length - n, n);
+}
+
+/** `split_last_chunk` of an array slice, shared or mutable: the rest and the last `n`, or `undefined` if fewer. */
+export function arraySliceSplitLastChunk<S extends ArrayRef>(r: ArraySlice<S>, n: number): [ArraySlice<S>, ArraySlice<S>] | undefined {
+	return n > r.length ? undefined : [arrayRefPart(r, 0, r.length - n), arrayRefPart(r, r.length - n, n)];
+}
+
+/** The arrays of `r` as a slice of arrays, as `arraySliceItems` reads them: a slice of the arrays where each array is one. */
+export function arraySliceAsSlice<S extends ArrayRef>(r: ArraySlice<S>): Slice<LentArray<S>> {
+	if (r.items !== undefined) return new Slice(r.items as LentArray<S>[], r.start, r.length);
+	return sliceFrom(arraySliceCopy(r));
+}
+
+/**
+ * `op` of the arrays of `r` as a slice of arrays of their own, each a copy, its elements by `copy`, which `op` may
+ * reorder, overwrite, and copy, each then written back where `r` holds it, as Rust moves
+ * their elements; written back even if `op` panics, which leaves what it moved so far.
+ */
+export function arraySliceBy<S extends ArrayRef, R>(r: ArraySlice<S>, op: (s: Slice<LentArray<S>>) => R, copy?: ElemCopy): R {
+	const items = arraySliceCopy(r, copy);
+	try {
+		return op(sliceFrom(items));
+	} finally {
+		arraySliceSet(r, items);
+	}
+}
+
+/** `swap` of an array slice, each element copied out by `copy`, panicking on either index past the end, `a` first, as std's indexing does. */
+export function arraySliceSwap<S extends ArrayRef>(r: ArraySlice<S>, a: number, b: number, copy: ElemCopy | undefined, at?: Location): void {
+	const x = arraySliceAt(r, idx(r, a, at));
+	const y = arraySliceAt(r, idx(r, b, at));
+	const kept = arrayRefCopy(x, copy);
+	arrayRefSet(x, arrayRefCopy(y, copy));
+	arrayRefSet(y, kept);
+}
+
+/** `first` and `first_mut` of an array slice: the first array, or `undefined` if empty. */
+export function arraySliceFirst<S extends ArrayRef>(r: ArraySlice<S>): S | undefined {
+	return r.length === 0 ? undefined : arraySliceAt(r, 0);
+}
+
+/** `last` and `last_mut` of an array slice: the last array, or `undefined` if empty. */
+export function arraySliceLast<S extends ArrayRef>(r: ArraySlice<S>): S | undefined {
+	return r.length === 0 ? undefined : arraySliceAt(r, r.length - 1);
+}
+
+/** `get` and `get_mut` of an array slice: the array at `index`, or `undefined` past the end. */
+export function arraySliceGet<S extends ArrayRef>(r: ArraySlice<S>, index: number): S | undefined {
+	return index < r.length ? arraySliceAt(r, index) : undefined;
+}
+
+/** `get` of `start..end` of an array slice, shared or mutable: the part, or `undefined` unless it is within them. */
+export function arraySliceGetRange<S extends ArrayRef>(r: ArraySlice<S>, start: number, end: number = r.length): ArraySlice<S> | undefined {
+	return start <= end && end <= r.length ? arrayRefPart(r, start, end - start) : undefined;
+}
+
+/** `split_first` and `split_first_mut` of an array slice: the first and the rest, or `undefined` if empty. */
+export function arraySliceSplitFirst<S extends ArrayRef>(r: ArraySlice<S>): [S, ArraySlice<S>] | undefined {
+	return r.length === 0 ? undefined : [arraySliceAt(r, 0), arrayRefPart(r, 1, r.length - 1)];
+}
+
+/** `split_last` and `split_last_mut` of an array slice: the last and the rest, or `undefined` if empty. */
+export function arraySliceSplitLast<S extends ArrayRef>(r: ArraySlice<S>): [S, ArraySlice<S>] | undefined {
+	const n = r.length - 1;
+	return n < 0 ? undefined : [arraySliceAt(r, n), arrayRefPart(r, 0, n)];
+}
+
+/** `split_at` and `split_at_mut` of an array slice, panicking past the length. */
+export function arraySliceSplitAt<S extends ArrayRef>(r: ArraySlice<S>, n: number, at?: Location): [ArraySlice<S>, ArraySlice<S>] {
+	if (n > r.length) panic("mid > len", at);
+	return [arrayRefPart(r, 0, n), arrayRefPart(r, n, r.length - n)];
+}
+
+/** `split_at_checked` and `split_at_mut_checked` of an array slice: the halves, or `undefined` past the length. */
+export function arraySliceSplitAtChecked<S extends ArrayRef>(r: ArraySlice<S>, n: number): [ArraySlice<S>, ArraySlice<S>] | undefined {
+	return n > r.length ? undefined : [arrayRefPart(r, 0, n), arrayRefPart(r, n, r.length - n)];
 }
 
 /** `get` of `start..end`, shared or mutable: the part, or `undefined` unless it is within the slice. */
@@ -1156,46 +1350,20 @@ export function sliceSplitLastChunk<T>(s: Slice<T>, n: number): [Slice<T>, Slice
 	return n > s.length ? undefined : [slicePart(s, 0, s.length - n), slicePart(s, s.length - n)];
 }
 
-/** `as_chunks`: copies of each run of `n` elements from the front, and the rest, panicking at a size of 0. */
-export function sliceAsChunks<T>(s: Slice<T>, n: number, at?: Location): [Slice<T[]>, Slice<T>] {
-	const count = chunkCount(s.length, n, at);
-	return [sliceFrom(runs(count, n, (start, end) => runCopy(s.data, s.start + start, s.start + end))), slicePart(s, count * n)];
-}
-
-/** `as_rchunks`: the rest, and copies of each run of `n` elements up to the back, panicking at a size of 0. */
-export function sliceAsRchunks<T>(s: Slice<T>, n: number, at?: Location): [Slice<T>, Slice<T[]>] {
-	const count = chunkCount(s.length, n, at);
-	const rest = s.start + s.length - count * n;
-	return [slicePart(s, 0, s.length - count * n), sliceFrom(runs(count, n, (start, end) => runCopy(s.data, rest + start, rest + end)))];
-}
-
 /**
- * Elements `start` to `end` of `data`, a run a shared slice lends, as a copy, which
- * nothing writes through: one that answers to its `View` of `data`, so pointers to it
- * point where the run is.
+ * `as_chunks` and `as_chunks_mut` of a slice of any element: each array of `n` elements from
+ * the front, lent where `s` holds it, and the rest, panicking at a size of 0.
  */
-function runCopy<T>(data: T[], start: number, end: number): T[] {
-	const outer = (data as { [VIEW]?: View<T> })[VIEW];
-	const view = outer ? outer.part(start, end - start) : new View(data, start, end - start);
-	return Object.defineProperty(data.slice(start, end), VIEW, { value: view });
-}
-
-/** `as_chunks_mut`: each run of `n` elements from the front as an array, written where the slice holds it, and the rest, panicking at a size of 0. */
-export function sliceAsChunksMut<T>(s: Slice<T>, n: number, at?: Location): [Slice<T[]>, Slice<T>] {
+export function sliceAsChunks<S extends ArrayRef>(s: S, n: number, at?: Location): [ArraySlice<S>, S] {
 	const count = chunkCount(s.length, n, at);
-	return [runsOf(s.data, s.start, n, count), slicePart(s, count * n)];
+	return [new ArraySlice<S>(undefined, undefined, s, n, 0, count), arrayRefPart(s, count * n, s.length - count * n)];
 }
 
-/** `as_rchunks_mut`: the rest, and each run of `n` elements up to the back as an array, written where the slice holds it, panicking at a size of 0. */
-export function sliceAsRchunksMut<T>(s: Slice<T>, n: number, at?: Location): [Slice<T>, Slice<T[]>] {
+/** `as_rchunks` and `as_rchunks_mut` of a slice of any element: the rest, and each array of `n` elements up to the back, as `sliceAsChunks` lends them. */
+export function sliceAsRchunks<S extends ArrayRef>(s: S, n: number, at?: Location): [S, ArraySlice<S>] {
 	const count = chunkCount(s.length, n, at);
 	const rest = s.length - count * n;
-	return [slicePart(s, 0, rest), runsOf(s.data, s.start + rest, n, count)];
-}
-
-/** `count` runs of `n` elements of `s` from `at`, as `Runs` lends them. */
-function runsOf<T>(s: T[], at: number, n: number, count: number): Slice<T[]> {
-	return sliceFrom(new Proxy(new Array<T[]>(count), new Runs(s, at, n, [], 0, count)));
+	return [arrayRefPart(s, 0, rest), new ArraySlice<S>(undefined, undefined, arrayRefPart(s, rest, count * n), n, 0, count)];
 }
 
 /** How many runs of `n` elements fit in `length`, panicking at a size of 0, as `as_chunks` does. */
@@ -1204,12 +1372,6 @@ function chunkCount(length: number, n: number, at?: Location): number {
 	return Math.floor(length / n);
 }
 
-/** `count` runs of `n` elements, each made from its bounds. */
-function runs<R>(count: number, n: number, run: (start: number, end: number) => R): R[] {
-	const out = new Array<R>(count);
-	for (let i = 0; i < count; i++) out[i] = run(i * n, i * n + n);
-	return out;
-}
 
 /** `split_first`: the first element and the rest, or `undefined` if empty. */
 export function sliceSplitFirst<T>(s: Slice<T>): [T, Slice<T>] | undefined {
@@ -1365,7 +1527,7 @@ export function slicePartitionPoint<T>(s: SliceLike<T>, pred: (item: T) => boole
 /** `swap`, panicking on either index past the end, `a` first, as std's indexing does. */
 export function sliceSwap<T>(s: Slice<T>, a: number, b: number, at?: Location): void {
 	const d = s.data;
-	const x = held(d, d[s.start + idx(s, a, at)]);
+	const x = d[s.start + idx(s, a, at)];
 	d[s.start + a] = d[s.start + idx(s, b, at)];
 	d[s.start + b] = x;
 }
@@ -1448,14 +1610,21 @@ export function sliceCopyWithin<T>(s: Slice<T>, start: number, end: number, dest
 	copyWithinCheck(s.length, start, end, dest, at);
 	// Each read, and copied, before any write, which may land in what one views.
 	const d = s.data;
-	const items = Array.from({ length: end - start }, (_, i) => held(d, d[s.start + start + i]));
+	const items = Array.from({ length: end - start }, (_, i) => d[s.start + start + i]);
 	for (let i = 0; i < items.length; i++) d[s.start + dest + i] = copy === undefined ? items[i] : copy(items[i]);
+}
+
+/** `copy_within` of an array slice: `r[start..end]` copied to index `dest`, each array read, and copied by `copy` if given, before any is written, panicking out of bounds. */
+export function arraySliceCopyWithin<S extends ArrayRef>(r: ArraySlice<S>, start: number, end: number, dest: number, copy?: (value: LentArray<S>) => LentArray<S>, at?: Location): void {
+	copyWithinCheck(r.length, start, end, dest, at);
+	const items = Array.from({ length: end - start }, (_, i) => arrayRefCopy(arraySliceAt(r, start + i)));
+	for (let i = 0; i < items.length; i++) arrayRefSet(arraySliceAt(r, dest + i), copy === undefined ? items[i] : copy(items[i]));
 }
 
 /** `copy_within`'s checks of `start..end` and `dest` in `length` elements. */
 function copyWithinCheck(length: number, start: number, end: number, dest: number, at?: Location): void {
 	// `slice::range` checks the end first, then `range` reports the rest.
-	if (end > length) panic(`range end index ${end} out of range for slice of length ${length}`, at, true);
+	if (end > length) panicSizes(["range end index ", end, " out of range for slice of length ", length], at);
 	rangeCheck(length, start, end, at);
 	if (dest > length - (end - start)) panic("dest is out of bounds", at);
 }
@@ -1493,7 +1662,7 @@ export function sliceWriteCloneOfSlice<T>(dst: Slice<T>, src: Slice<T>, clone: (
 }
 
 function writeCloneLengthFail(dst: number, src: number, at?: Location): never {
-	panic(`assertion \`left == right\` failed: destination and source slices have different lengths\n  left: ${dst}\n right: ${src}`, at, true);
+	assertFailed("==", fmtOwned(dst as usize, usizeDebug), fmtOwned(src as usize, usizeDebug), ["destination and source slices have different lengths"], at);
 }
 
 /** `Box::new_uninit_slice` of `size`-byte elements: `n` of what `uninit` makes, panicking past what a `Vec` of them may hold. */
@@ -1514,6 +1683,22 @@ export function boxSliceCloneFrom<T>(dst: Slice<T>, src: Slice<T>, clone?: (valu
 	if (clone !== undefined) for (let i = 0; i < items.length; i++) items[i] = clone(items[i]);
 	if (drop !== undefined) for (let i = dst.start; i < dst.start + dst.length; i++) drop(dst.data[i]);
 	return sliceFrom(items);
+}
+
+/**
+ * `Clone::clone_from` of a `Box<[[T; N]]>`, the arrays `dst`: itself, by `clone_from_slice`,
+ * where the lengths match, or else the arrays `of` makes of a clone of `src`'s arrays, as
+ * `boxSliceCloneFrom` makes it.
+ */
+export function arraySliceBoxCloneFrom<S extends ArrayRef>(dst: ArraySlice<S>, src: ArraySlice<S>, of: (array: LentArray<S>) => S, clone?: (value: LentArray<S>) => LentArray<S>, drop?: (item: LentArray<S>) => void, over?: CloneFrom<LentArray<S>>, at?: Location): ArraySlice<S> {
+	if (dst.length !== src.length) return arraySliceFrom(boxSliceCloneFrom(arraySliceAsSlice(dst), arraySliceAsSlice(src), clone, drop, over, at).data, of);
+	arraySliceBy(dst, (d) => sliceCloneFromSlice(d, arraySliceAsSlice(src), clone, drop, over, at));
+	return dst;
+}
+
+/** `arraySliceBoxCloneFrom` as a `CloneFrom`. */
+export function arraySliceBoxCloneFromFn<S extends ArrayRef>(of: (array: LentArray<S>) => S, clone?: (value: LentArray<S>) => LentArray<S>, drop?: (item: LentArray<S>) => void, over?: CloneFrom<LentArray<S>>, at?: Location): CloneFrom<ArraySlice<S>> {
+	return (old, src) => arraySliceBoxCloneFrom(old, src, of, clone, drop, over, at);
 }
 
 /** `boxSliceCloneFrom` as a `CloneFrom`. */
@@ -1589,7 +1774,7 @@ export function byteBoxSliceCloneFrom(dst: ByteSlice, src: ByteSlice, at?: Locat
 }
 
 function copyLengthFail(dst: number, src: number, at?: Location): never {
-	panic(`copy_from_slice: source slice length (${src}) does not match destination slice length (${dst})`, at, true);
+	panicSizes(["copy_from_slice: source slice length (", src, ") does not match destination slice length (", dst, ")"], at);
 }
 
 /**
@@ -1685,7 +1870,7 @@ export function arrayAssign<T>(p: T[], value: T[]): void {
 
 /** `Vec::insert`: `item` at `i`, with those from `i` on moved up. */
 export function vecInsert<T>(v: Vec<T>, i: number, item: T, at?: Location): void {
-	if (i > v.items.length) panic(`insertion index (is ${i}) should be <= len (is ${v.items.length})`, at, true);
+	if (i > v.items.length) panicSizes(["insertion index (is ", i, ") should be <= len (is ", v.items.length, ")"], at);
 	v.items.splice(i, 0, item);
 }
 
@@ -1742,7 +1927,7 @@ export function vecPopIfMut<T>(
 
 /** `Vec::remove`: the element at `i`, with those after it moved down. */
 export function vecRemove<T>(v: Vec<T>, i: number, at?: Location): T {
-	if (i >= v.items.length) panic(`removal index (is ${i}) should be < len (is ${v.items.length})`, at, true);
+	if (i >= v.items.length) panicSizes(["removal index (is ", i, ") should be < len (is ", v.items.length, ")"], at);
 	vecKeep(v);
 	return v.items.splice(i, 1)[0];
 }
@@ -1758,7 +1943,7 @@ export function vecTruncate<T>(v: Vec<T>, len: number, drop?: (item: T) => void)
 /** `Vec::swap_remove`: the element at `i`, with the last moved into its place. */
 export function vecSwapRemove<T>(v: Vec<T>, i: number): T {
 	const d = v.items;
-	if (i >= d.length) panic(`swap_remove index (is ${i}) should be < len (is ${d.length})`, "swap_remove", true);
+	if (i >= d.length) panicSizes(["swap_remove index (is ", i, ") should be < len (is ", d.length, ")"], "swap_remove");
 	vecKeep(v);
 	const item = d[i];
 	d[i] = d[d.length - 1];
@@ -1831,7 +2016,7 @@ export function vecResizeWith<T>(v: Vec<T>, len: number, f: () => T, size: numbe
 
 /** `Vec::split_off`: those from `mid` on, moved to a new vector with room for exactly them. */
 export function vecSplitOff<T>(v: Vec<T>, mid: number, at?: Location): Vec<T> {
-	if (mid > v.items.length) panic(`\`at\` split index (is ${mid}) should be <= len (is ${v.items.length})`, at, true);
+	if (mid > v.items.length) panicSizes(["`at` split index (is ", mid, ") should be <= len (is ", v.items.length, ")"], at);
 	vecKeep(v);
 	return vecFrom(v.items.splice(mid));
 }
@@ -1998,38 +2183,6 @@ export function byteSliceSplitAt(s: ByteSlice, n: number, at?: Location): [ByteS
 export function byteSliceSplitAtChecked(s: ByteSlice, n: number): [ByteSlice, ByteSlice] | undefined {
 	if (n > s.length) return undefined;
 	return [new ByteSlice(s.data, s.start, n), new ByteSlice(s.data, s.start + n, s.length - n)];
-}
-
-/** `as_chunks` of bytes: views of each run of `n` from the front, and the rest, panicking at a size of 0. */
-export function byteSliceAsChunks(s: ByteSlice, n: number, at?: Location): [Slice<Uint8Array>, ByteSlice] {
-	const count = chunkCount(s.length, n, at);
-	const from = s.start;
-	return [sliceFrom(runs(count, n, (start, end) => s.data.subarray(from + start, from + end))), new ByteSlice(s.data, from + count * n, s.length - count * n)];
-}
-
-/** `as_rchunks` of bytes: the rest, and views of each run of `n` up to the back, panicking at a size of 0. */
-export function byteSliceAsRchunks(s: ByteSlice, n: number, at?: Location): [ByteSlice, Slice<Uint8Array>] {
-	const count = chunkCount(s.length, n, at);
-	const from = s.start + s.length - count * n;
-	return [new ByteSlice(s.data, s.start, s.length - count * n), sliceFrom(runs(count, n, (start, end) => s.data.subarray(from + start, from + end)))];
-}
-
-/** `as_chunks_mut` of bytes: each run of `n` from the front as an array, written where the slice holds it, and the rest, panicking at a size of 0. */
-export function byteSliceAsChunksMut(s: ByteSlice, n: number, at?: Location): [Slice<Uint8Array>, ByteSlice] {
-	const count = chunkCount(s.length, n, at);
-	return [byteRunsOf(s.data, s.start, n, count), new ByteSlice(s.data, s.start + count * n, s.length - count * n)];
-}
-
-/** `as_rchunks_mut` of bytes: the rest, and each run of `n` up to the back as an array, written where the slice holds it, panicking at a size of 0. */
-export function byteSliceAsRchunksMut(s: ByteSlice, n: number, at?: Location): [ByteSlice, Slice<Uint8Array>] {
-	const count = chunkCount(s.length, n, at);
-	const rest = s.length - count * n;
-	return [new ByteSlice(s.data, s.start, rest), byteRunsOf(s.data, s.start + rest, n, count)];
-}
-
-/** `count` runs of `n` bytes of `data` from `at`, as `ByteRuns` lends them. */
-function byteRunsOf(data: Uint8Array, at: number, n: number, count: number): Slice<Uint8Array> {
-	return sliceFrom(new Proxy(new Array<Uint8Array>(count), new ByteRuns(data, at, n, [], 0, count)));
 }
 
 /** `first`: the first byte, or `undefined` if empty. */
@@ -2293,13 +2446,9 @@ export function byteVecSpare(v: ByteVec): ByteSlice {
 	return new ByteSlice(v.data, v.length, v.data.length - v.length);
 }
 
-/**
- * `Vec::set_len`, which panics past the capacity, as std's check of its precondition does:
- * one that can't unwind, so it runs the hook, then aborts, as every panic here does.
- */
+/** `Vec::set_len`, which aborts past the capacity, as std's check of its precondition does. */
 export function byteVecSetLen(v: ByteVec, length: number): void {
-	if (length > v.data.length) panic(SET_LEN, "vec_set_len");
-	v.length = length;
+	v.length = precondition(length <= v.data.length ? length : undefined, SET_LEN, "vec_set_len");
 }
 
 /** `Vec::clear`. */
@@ -2309,7 +2458,7 @@ export function byteVecClear(v: ByteVec): void {
 
 /** `Vec::insert`: `byte` at `i`, with those from `i` on moved up. */
 export function byteVecInsert(v: ByteVec, i: number, byte: number, at?: Location): void {
-	if (i > v.length) panic(`insertion index (is ${i}) should be <= len (is ${v.length})`, at, true);
+	if (i > v.length) panicSizes(["insertion index (is ", i, ") should be <= len (is ", v.length, ")"], at);
 	reserve(v, 1);
 	v.data.copyWithin(i + 1, i, v.length);
 	v.data[i] = byte;
@@ -2318,7 +2467,7 @@ export function byteVecInsert(v: ByteVec, i: number, byte: number, at?: Location
 
 /** `Vec::remove`: the byte at `i`, with those after it moved down. */
 export function byteVecRemove(v: ByteVec, i: number, at?: Location): number {
-	if (i >= v.length) panic(`removal index (is ${i}) should be < len (is ${v.length})`, at, true);
+	if (i >= v.length) panicSizes(["removal index (is ", i, ") should be < len (is ", v.length, ")"], at);
 	const byte = v.data[i];
 	v.data.copyWithin(i, i + 1, v.length);
 	v.length--;
@@ -2327,7 +2476,7 @@ export function byteVecRemove(v: ByteVec, i: number, at?: Location): number {
 
 /** `Vec::swap_remove`: the byte at `i`, with the last moved into its place. */
 export function byteVecSwapRemove(v: ByteVec, i: number): number {
-	if (i >= v.length) panic(`swap_remove index (is ${i}) should be < len (is ${v.length})`, "swap_remove", true);
+	if (i >= v.length) panicSizes(["swap_remove index (is ", i, ") should be < len (is ", v.length, ")"], "swap_remove");
 	const byte = v.data[i];
 	v.data[i] = v.data[--v.length];
 	return byte;
@@ -2611,16 +2760,16 @@ export function vecSpare<T>(v: Vec<T>, size: number, uninit: () => T): Slice<T> 
 }
 
 /** What std's check of `set_len`'s precondition says. */
-const SET_LEN = "unsafe precondition(s) violated: Vec::set_len requires that new_len <= capacity()\n\nThis indicates a bug in the program. This Undefined Behavior check is optional, and cannot be relied on for safety.";
+const SET_LEN = "Vec::set_len requires that new_len <= capacity()";
 
 /**
  * `Vec::set_len` of `size`-byte elements: what it gives up kept in its room, and what it
  * takes in from there, a slot never written holding what `uninit` makes. Past the
- * capacity it panics, as `byteVecSetLen` does.
+ * capacity it aborts, as `byteVecSetLen` does.
  */
 export function vecSetLen<T>(v: Vec<T>, length: number, size: number, uninit: () => T): void {
 	const cap = vecCapacity(v, size);
-	if (length > cap) panic(SET_LEN, "vec_set_len");
+	if (length > cap) precondition(undefined, SET_LEN, "vec_set_len");
 	vecHold(v, cap);
 	const items = v.items;
 	if (length === items.length) return;
@@ -2742,7 +2891,7 @@ export function byteVecResizeWith(v: ByteVec, len: number, f: () => number): voi
 
 /** `Vec::split_off` of bytes. */
 export function byteVecSplitOff(v: ByteVec, mid: number, at?: Location): ByteVec {
-	if (mid > v.length) panic(`\`at\` split index (is ${mid}) should be <= len (is ${v.length})`, at, true);
+	if (mid > v.length) panicSizes(["`at` split index (is ", mid, ") should be <= len (is ", v.length, ")"], at);
 	const other = new ByteVec(v.length - mid);
 	copyBytes(other.data, 0, v.data, mid, v.length - mid);
 	other.length = v.length - mid;
@@ -2772,8 +2921,8 @@ export class Borrowed<S> {
 	}
 }
 
-/** `Cow<[T]>`: the `Vec` it owns, or the slice it borrows. */
-export type Cow<T> = Vec<T> | Borrowed<Slice<T>>;
+/** `Cow<[T]>`: the `Vec` it owns, or the slice it borrows, `S`: `ArraySlice` of arrays. */
+export type Cow<T, S extends Slice<T> | ArraySlice<ArrayRef> = Slice<T>> = Vec<T> | Borrowed<S>;
 /** `Cow<[u8]>`: the `Vec<u8>` it owns, or the bytes it borrows. */
 export type ByteCow = ByteVec | ByteSlice;
 /** `Cow<str>`: the `String` it owns, or the `str` it borrows. */
@@ -2784,6 +2933,11 @@ export function cowSlice<T>(c: Cow<T>): Slice<T> {
 	return c instanceof Borrowed ? c.slice : sliceFrom(c.items);
 }
 
+/** `Deref` of a `Cow<[[T; N]]>`: its arrays, each of an owned one lent by `of`. */
+export function cowArraySlice<S extends ArrayRef>(c: Cow<LentArray<S>, ArraySlice<S>>, of: (array: LentArray<S>) => S): ArraySlice<S> {
+	return c instanceof Borrowed ? c.slice : arraySliceFrom(c.items, of);
+}
+
 /** `Deref` of a `Cow<[u8]>`: its bytes. */
 export function byteCowSlice(c: ByteCow): ByteSlice {
 	return c instanceof ByteVec ? byteVecSlice(c) : c;
@@ -2792,9 +2946,11 @@ export function byteCowSlice(c: ByteCow): ByteSlice {
 /**
  * `Cow::into_owned` of a `Cow<[T]>`: its `Vec`, or a clone of what it borrows, each item by `clone` if given, with room for exactly them, as `to_vec` makes it.
  */
-export function cowIntoOwned<T>(c: Cow<T>, clone?: (item: T) => T): Vec<T> {
+export function cowIntoOwned<T, S extends Slice<T> | ArraySlice<ArrayRef> = Slice<T>>(c: Cow<T, S>, clone?: (item: T) => T): Vec<T> {
 	if (!(c instanceof Borrowed)) return c;
-	return vecFrom(clone === undefined ? sliceToArray(c.slice) : sliceItems(c.slice).map(clone));
+	const s = c.slice;
+	if (s instanceof ArraySlice) return vecFrom((clone === undefined ? arraySliceCopy(s) : arraySliceItems(s).map(clone as (item: unknown) => unknown)) as T[]);
+	return vecFrom(clone === undefined ? sliceToArray(s as Slice<T>) : sliceItems(s as Slice<T>).map(clone));
 }
 
 /** `Cow::into_owned` of a `Cow<[u8]>`. */
@@ -2806,7 +2962,7 @@ export function byteCowIntoOwned(c: ByteCow): ByteVec {
  * `Clone` of a `Cow<[T]>`: a borrow of the same slice, or a clone of its `Vec` with room
  * for exactly its items, as `to_vec` makes it.
  */
-export function cowClone<T>(c: Cow<T>, clone?: (item: T) => T): Cow<T> {
+export function cowClone<T, S extends Slice<T> | ArraySlice<ArrayRef> = Slice<T>>(c: Cow<T, S>, clone?: (item: T) => T): Cow<T, S> {
 	if (c instanceof Borrowed) return new Borrowed(c.slice);
 	return vecFrom(clone === undefined ? c.items.slice() : c.items.map(clone));
 }
@@ -2820,7 +2976,7 @@ export function byteCowClone(c: ByteCow): ByteCow {
  * `clone_from` of a `Cow<[T]>`, of `size`-byte items: an owned one's `Vec`, of an owned
  * one's, as `vecCloneFrom` clones into it, and else `src`'s clone, made before `c` drops.
  */
-export function cowCloneFrom<T>(c: Cow<T>, src: Cow<T>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): Cow<T> {
+export function cowCloneFrom<T, S extends Slice<T> | ArraySlice<ArrayRef> = Slice<T>>(c: Cow<T, S>, src: Cow<T, S>, size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): Cow<T, S> {
 	if (!(c instanceof Borrowed || src instanceof Borrowed)) return vecCloneFrom(c, src.items, size, clone, drop, over);
 	const item = cowClone(src, clone);
 	cowDrop(c, drop);
@@ -2828,7 +2984,7 @@ export function cowCloneFrom<T>(c: Cow<T>, src: Cow<T>, size: number, clone?: (v
 }
 
 /** `cowCloneFrom` as a `CloneFrom`. */
-export function cowCloneFromFn<T>(size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<Cow<T>> {
+export function cowCloneFromFn<T, S extends Slice<T> | ArraySlice<ArrayRef> = Slice<T>>(size: number, clone?: (value: T) => T, drop?: (item: T) => void, over?: CloneFrom<T>): CloneFrom<Cow<T, S>> {
 	return (old, src) => cowCloneFrom(old, src, size, clone, drop, over);
 }
 
@@ -2843,7 +2999,7 @@ export function byteCowCloneFromFn(): CloneFrom<ByteCow> {
 }
 
 /** Drop a `Cow<[T]>`: the items it owns, by `f` if given. */
-export function cowDrop<T>(c: Cow<T>, f?: (item: T) => void): void {
+export function cowDrop<T, S extends Slice<T> | ArraySlice<ArrayRef> = Slice<T>>(c: Cow<T, S>, f?: (item: T) => void): void {
 	if (!(c instanceof Borrowed)) dropAll(c.items, f);
 }
 
@@ -3531,9 +3687,8 @@ function closePretty(f: Formatter, close: string): FmtResult {
  */
 export function fmtFormat(args: Arguments): RsString {
 	const s = stringWithCapacity(estimate(args) as usize);
-	if (!write(new StringWriter(s), args).ok) {
-		panic("a formatting trait implementation returned an error when the underlying stream did not: Error", "format", true);
-	}
+	const r = write(new StringWriter(s), args);
+	if (!r.ok) unwrapFailed("a formatting trait implementation returned an error when the underlying stream did not", r.error, fmtErrorDebug, "format");
 	return s;
 }
 
@@ -3563,7 +3718,8 @@ function estimate(args: Arguments): number {
  */
 export function fmtToString(value: Fmt, size?: number): RsString {
 	const s = stringNew();
-	if (!value({ out: new StringWriter(s), spec: {} }).ok) panic("a Display implementation returned an error unexpectedly: Error", "to_string", true);
+	const r = value({ out: new StringWriter(s), spec: {} });
+	if (!r.ok) unwrapFailed("a Display implementation returned an error unexpectedly", r.error, fmtErrorDebug, "to_string");
 	if (size !== undefined) s.cap = (size === 0 ? s.len : size + (s.v.startsWith("-") ? 1 : 0)) as usize;
 	return s;
 }

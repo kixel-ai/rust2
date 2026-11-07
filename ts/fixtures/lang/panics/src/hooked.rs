@@ -24,14 +24,14 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 use crate::NOTE;
 
-/// Write what `info` says: its `Display`, its payload's type and text, and its location's
-/// parts, and whether the thread is panicking.
+/// Write what `info` says: its `Display`, its payload's type and text, a `String` payload's
+/// capacity, its location's parts, and whether the thread is panicking.
 fn record(info: &PanicHookInfo<'_>) {
 	let payload = info.payload();
 	let kind = if payload.type_id() == std::any::TypeId::of::<&'static str>() {
 		"&str".to_string()
-	} else if payload.is::<String>() {
-		"String".to_string()
+	} else if let Some(s) = payload.downcast_ref::<String>() {
+		format!("String {}", s.capacity())
 	} else if let Some(n) = payload.downcast_ref::<u32>() {
 		format!("u32 {n}")
 	} else if let Some(n) = payload.downcast_ref::<u8>() {
@@ -74,17 +74,6 @@ fn hook() {
 	}));
 }
 
-/// Have the hook also write a `String` payload's capacity, which `panic!` formats into one
-/// from empty and `panic_any` keeps.
-fn sized() {
-	let prev = panic::take_hook();
-	panic::set_hook(Box::new(move |info| {
-		let capacity = info.payload().downcast_ref::<String>().map(String::capacity);
-		NOTE.with_borrow_mut(|note| note.push_str(&format!("capacity {capacity:?}\n")));
-		prev(info);
-	}));
-}
-
 #[track_caller]
 fn tracked(n: u8) -> u8 {
 	panic!("tracked {n}")
@@ -95,12 +84,9 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let n = data.first().copied().unwrap_or(0);
 	hook();
 	let v = vec![n, n];
-	match kind % 32 {
+	match kind % 35 {
 		0 => panic!("literal"),
-		1 => {
-			sized();
-			panic!("formatted {n}")
-		}
+		1 => panic!("formatted {n}"),
 		2 => out.push(v[usize::from(n) + 2]),
 		3 => out.push(n.max(200) + n.max(100)),
 		4 => out.push(Some(n).filter(|_| false).unwrap()),
@@ -119,10 +105,7 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		13 => v.clone().rotate_left(usize::from(n) + 3),
 		14 => out.push(HashMap::<u8, u8>::new()[&n]),
 		15 => panic::panic_any(u32::from(n)),
-		16 => {
-			sized();
-			panic::panic_any(format!("any {n}"))
-		}
+		16 => panic::panic_any(format!("any {n}")),
 		17 => assert_eq!(n, n.wrapping_add(1), "differ"),
 		18 => out.push(tracked(n)),
 		19 => out.push(VecDeque::from(v.clone())[usize::from(n) + 2]),
@@ -138,6 +121,10 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		29 => todo!(),
 		30 => assert_ne!(n, n),
 		31 => unimplemented!("not {n}"),
+		// SAFETY: none, past `u8::MAX`: std's check of its precondition aborts.
+		32 => out.push(unsafe { n.max(200).unchecked_add(n.max(100)) }),
+		// SAFETY: none, of zero: std's check of its precondition aborts.
+		33 => out.push(unsafe { std::num::NonZero::new_unchecked(n.wrapping_mul(0)) }.get()),
 		_ => {
 			let len = HashMap::<u8, u8>::with_capacity(usize::MAX).len();
 			out.push(len as u8);
@@ -200,7 +187,7 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let deque = VecDeque::from(v.clone());
 	let map = BTreeMap::from([(u16::from(n), n)]);
 	let set = BTreeSet::from([u16::from(n)]);
-	match kind % 75 {
+	match kind % 86 {
 		0 => out.push(Vec::<u8>::with_capacity(usize::MAX - at).len() as u8),
 		1 => v.clone().rotate_right(at + 3),
 		2 => out.push(n.clamp(n.max(1), n.max(1) - 1)),
@@ -346,7 +333,28 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			std::io::IoSlice::advance_slices(&mut left, at % 2 + 3);
 			out.push(left.len() as u8);
 		}
+		74 => v.clone().insert(at + 3, n),
+		75 => out.extend(v.clone().split_off(at + 3)),
+		76 => out.push(vec![u16::from(n)].remove(at + 1) as u8),
+		77 => out.push(vec![u16::from(n)].swap_remove(at + 1) as u8),
+		78 => vec![u16::from(n)].insert(at + 2, 0),
+		79 => out.extend(vec![u16::from(n)].split_off(at + 2).iter().map(|&w| w as u8)),
+		80 => v.clone().copy_within(at + 1..at + 3, 0),
+		81 => out.push(u64::from(n).clamp(u64::from(n) + 1, u64::from(n)) as u8),
+		82 => out.push((-i32::from(n)).clamp(0, -1) as u8),
+		83 => out.extend_from_slice(format!("{Failing}").as_bytes()),
+		84 => out.extend_from_slice(Failing.to_string().as_bytes()),
 		_ => out.push(Lying(n).len() as u8),
+	}
+}
+
+/// A `Display` that fails though the writer did not, which `format!` and `to_string`
+/// panic on.
+struct Failing;
+
+impl fmt::Display for Failing {
+	fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
+		Err(fmt::Error)
 	}
 }
 
