@@ -7,10 +7,10 @@ import * as Text from "./inlines.Text.ts";
 
 /** At most `N` values, held inline, which logs its capacity and length as it drops. */
 export class Stack<T> {
-	items: Array<T | undefined>;
+	items: rs.OptionOf<T>[];
 	len: rs.usize;
 
-	constructor(items: Array<T | undefined>, len: rs.usize) {
+	constructor(items: rs.OptionOf<T>[], len: rs.usize) {
 		this.items = items;
 		this.len = len;
 	}
@@ -19,37 +19,37 @@ export class Stack<T> {
 export function new$String_0(): Stack<string> {
 	return new Stack(rs.arrayFromFn(0, (_2: rs.usize): string | undefined => {
 		return undefined;
-	}), 0);
+	}) as rs.OptionOf<string>[], 0);
 }
 
 export function new$String_2(): Stack<string> {
 	return new Stack(rs.arrayFromFn(2, (_2: rs.usize): string | undefined => {
 		return undefined;
-	}), 0);
+	}) as rs.OptionOf<string>[], 0);
 }
 
 export function new$inlines_Stack_u8_1_2(): Stack<Stack<rs.u8>> {
 	return new Stack(rs.arrayFromFn(2, (_2: rs.usize): Stack<rs.u8> | undefined => {
 		return undefined;
-	}), 0);
+	}) as rs.OptionOf<Stack<rs.u8>>[], 0);
 }
 
 export function new$inlines_Text_2_4(): Stack<Text.Text> {
 	return new Stack(copy$array_Option_inlines_Text_2(rs.arrayFromFn(4, (_2: rs.usize): Text.Text | undefined => {
 		return undefined;
-	})), 0);
+	})) as rs.OptionOf<Text.Text>[], 0);
 }
 
 export function new$u8_1(): Stack<rs.u8> {
 	return new Stack(copy$array_Option_u8(rs.arrayFromFn(1, (_2: rs.usize): rs.u8 | undefined => {
 		return undefined;
-	})), 0);
+	})) as rs.OptionOf<rs.u8>[], 0);
 }
 
 export function new$u8_3(): Stack<rs.u8> {
 	return new Stack(copy$array_Option_u8(rs.arrayFromFn(3, (_2: rs.usize): rs.u8 | undefined => {
 		return undefined;
-	})), 0);
+	})) as rs.OptionOf<rs.u8>[], 0);
 }
 
 /** `t`, or it back once full. */
