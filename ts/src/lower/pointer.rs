@@ -883,7 +883,8 @@ pub fn call<'tcx>(
 				("slice", true) => Expr::rs("byteSliceAsPtr", vec![s]),
 				("Vec", true) => Expr::rs("byteVecAsPtr", vec![s]),
 				("slice", false) => Expr::rs("sliceAsPtr", vec![s]),
-				_ => Expr::rs("arrayAsPtr", vec![s.member("items")]),
+				// A `Vec`'s reaches its room, up to the capacity its size grows.
+				_ => Expr::rs("vecAsPtr", vec![s, super::iter::size_of(b, elem, span)]),
 			}
 		}
 		("ptr" | "NonNull", "add" | "sub" | "offset" | "wrapping_add" | "wrapping_sub" | "wrapping_offset") => {

@@ -86,6 +86,49 @@ pub fn bits(n: u32) -> u32 {
 	unsafe { b.int }
 }
 
+/// A union over a type parameter whose fields overlap in values JS keeps apart in every
+/// instance.
+pub union Mixed<T: Copy> {
+	pub pair: (u32, std::marker::PhantomData<T>),
+	pub float: f32,
+}
+
+/// One whose fields that its definition lays out overlap in values JS keeps apart, beside
+/// one only an instance lays out.
+pub union Beside<T: Copy> {
+	pub int: u32,
+	pub float: f32,
+	pub value: T,
+}
+
+pub fn beside<T: Copy>(b: &Beside<T>) -> u32 {
+	unsafe { b.int }
+}
+
+pub fn mixed<T: Copy>(m: &Mixed<T>) -> u32 {
+	unsafe { m.pair.0 }
+}
+
+/// An instance of it, refused only where it is defined.
+pub fn mixed_byte(m: &Mixed<u8>) -> u32 {
+	mixed(m)
+}
+
+/// A union over a type parameter that only an instance lays out, which a census lowering
+/// over the parameter refuses nothing in.
+pub union Paired<T: Copy> {
+	pub pair: (T, u8),
+	pub value: T,
+}
+
+pub fn tag_flipped<T: Copy>(p: &mut Paired<T>) {
+	flip(unsafe { &mut p.pair.1 });
+}
+
+fn flip(tag: &mut u8) {
+	*tag ^= 0x80;
+}
+
 /// Pointers to places of no bytes, which Rust may put anywhere, `()`'s refused as made.
 pub fn units_compared() -> bool {
 	let (a, b, c, d) = ((), (), Bare, Bare);

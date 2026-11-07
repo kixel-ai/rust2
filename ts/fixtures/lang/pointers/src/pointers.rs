@@ -7,8 +7,9 @@
 //! nodes that an `AtomicPtr` and memory hold pointers to; pointers to arrays, compared
 //! where they point; a
 //! pointer into a cell that other functions write whole through a `&mut` to it;
-//! pointers a generic type holds to its parameter, at each form a pointer takes; and the
-//! raw pointers of an `Arc` and an `Rc`, counted and taken back.
+//! pointers a generic type holds to its parameter, at each form a pointer takes; the
+//! raw pointers of an `Arc` and an `Rc`, counted and taken back; and unions over a type
+//! parameter, each instance laid out at its own offsets.
 
 use std::cell::{Cell, UnsafeCell};
 use std::mem::{self, MaybeUninit};
@@ -2408,6 +2409,54 @@ fn lent(n: u8) -> Vec<u8> {
 /// What holds an array in a field.
 struct Holder {
 	arr: [u32; 2],
+}
+
+/// A value beside a byte, which each instance of [`Either`] lays out at its own offsets.
+#[derive(Clone, Copy)]
+struct Tagged<T> {
+	value: T,
+	tag: u8,
+}
+
+/// A union over a type parameter, whose fields overlap where each instance puts them.
+#[derive(Clone, Copy)]
+union Either<T: Copy> {
+	pair: (T, u8),
+	tagged: Tagged<T>,
+	value: T,
+}
+
+/// Each instance of a union over a type parameter: written as one field, in part through
+/// another and through a reference into it, and whole as a third, read as each, and copied
+/// before it changes.
+fn either<T: Copy>(v: T, w: T, tag: u8) -> [(T, u8); 3] {
+	let mut e = Either { pair: (v, tag) };
+	let copy = e;
+	unsafe {
+		e.tagged.tag = tag.wrapping_add(1);
+		let seen = e.pair;
+		e.value = w;
+		flip(&mut e.tagged.tag);
+		[seen, (e.tagged.value, e.pair.1), copy.pair]
+	}
+}
+
+fn flip(tag: &mut u8) {
+	*tag ^= 0x80;
+}
+
+/// Unions over a type parameter, at a byte's instance and a `u32`'s.
+pub fn generic_unions(data: &[u8], out: &mut Vec<u8>) {
+	for (i, &byte) in data.iter().enumerate() {
+		let wide = u32::from(byte) << 16 | i as u32;
+		for (v, tag) in either(wide, !wide, byte) {
+			out.extend_from_slice(&v.to_le_bytes());
+			out.push(tag);
+		}
+		for (v, tag) in either(byte, byte.wrapping_mul(3), i as u8) {
+			out.extend([v, tag]);
+		}
+	}
 }
 
 /// A struct holding cells, as a type that lends pointers to its parts through a

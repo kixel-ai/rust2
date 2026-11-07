@@ -320,8 +320,14 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		),
 		k @ 53..=56 => joined(k - 53, n, out),
 		k @ 57..=67 => out.push(compared(k - 57, n)),
-		68 => {
+		68 if n % 2 == 0 => {
 			let mut v = Vec::<u8>::with_capacity(at % 4);
+			// SAFETY: none, past the capacity: std's check of its precondition aborts.
+			unsafe { v.set_len(v.capacity() + 1) };
+			out.push(v.len() as u8);
+		}
+		68 => {
+			let mut v = Vec::<u32>::with_capacity(at % 4);
 			// SAFETY: none, past the capacity: std's check of its precondition aborts.
 			unsafe { v.set_len(v.capacity() + 1) };
 			out.push(v.len() as u8);
