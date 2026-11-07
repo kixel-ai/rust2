@@ -201,7 +201,9 @@ export function allocated(data: rs.ByteSlice, out: rs.ByteVec): void {
 /**
  * `Vec`s given up by `ManuallyDrop` and adopted again by `from_raw_parts`, with and
  * without room past their length, some of it written through the pointer, one from the
- * pointer to its spare capacity while empty, and the empty `Vec` of a dangling pointer.
+ * pointer to its spare capacity while empty, one grown by `realloc` and adopted again,
+ * `Vec`s of a `Box`'s value and of bytes from `alloc`, and the empty `Vec` of a dangling
+ * pointer.
  */
 export function readopted(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const shared: rs.Arc<rs.u8> = new rs.Arc(7);
@@ -256,6 +258,32 @@ export function readopted(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(spare2.items), (x2: rs.u32): Uint8Array => {
 		return rs.u32ToBeBytes(x2).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
+	const p5: rs.Place<rs.u32> = slots$u32(2, false, false);
+	p5.v = rs.u32Add(10, n as rs.u32);
+	rs.ptrAdd(p5, 1).v = 20;
+	const kept: rs.Vec<rs.u32> = rs.vecFromRawParts(p5, 1, 2, 4);
+	const old: rs.Layout = rs.resultUnwrap(rs.layoutArray(rs.vecCapacity(kept, 4), 4, 4), rs.fmtLayoutErrorDebug);
+	const grown: rs.Vec<rs.u32> = rs.vecFromRawParts(rs.allocAs(rs.realloc(rs.allocBytes(rs.vecAsPtr(kept, 4), 4, "u32"), rs.usizeAdd(old.size, 4)), 4, "u32"), 2, 3, 4);
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(grown.items.length & 0xff, rs.vecCapacity(grown, 4) & 0xff)), undefined, true);
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(grown.items), (x3: rs.u32): Uint8Array => {
+		return rs.u32ToBeBytes(x3).reverse();
+	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
+	const boxed: rs.Vec<rs.u32> = rs.vecFromRawParts({ v: rs.u32Mul(n as rs.u32, 7) }, rs.usizeRem(n, 2), 1, 4);
+	rs.vecSetLen(boxed, 1, 4, (): rs.u32 => {
+		return (undefined as unknown) as rs.u32;
+	});
+	boxed.items.push(3);
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(boxed.items.length & 0xff, rs.vecCapacity(boxed, 4) & 0xff)), undefined, true);
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(boxed.items), (x4: rs.u32): Uint8Array => {
+		return rs.u32ToBeBytes(x4).reverse();
+	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
+	const byte: rs.ByteVec = rs.byteVecFromRawParts({ v: n & 0xff }, 1, 1);
+	rs.byteVecPush(byte, 4);
+	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(byte));
+	const fresh: rs.ByteVec = rs.byteVecFromRawParts(rs.alloc(rs.resultUnwrap(rs.layoutArray(rs.usizeAdd(extra, 1), 1, 1), rs.fmtLayoutErrorDebug)), 0, rs.usizeAdd(extra, 1));
+	rs.byteVecExtendFromSlice(fresh, data);
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(fresh.length & 0xff, fresh.data.length & 0xff)), undefined, true);
+	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(fresh));
 	const none: rs.Vec<rs.u32> = rs.vecFromRawParts(rs.DANGLING, 0, 0, 4);
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(none.items.length & 0xff, rs.vecCapacity(none, 4) & 0xff)), undefined, true);
 	none.items.push(n as rs.u32);

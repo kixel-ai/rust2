@@ -13,7 +13,7 @@ import type { Iter, Range, RangeInclusive } from "./rs/iter.ts";
 import type { Location } from "./rs/location.ts";
 import { drop as dispose, dropAll, partPlace, type Pending } from "./rs/task.ts";
 
-import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./rs/alloc.ts";
+import { allocError, Block, CAPACITY_OVERFLOW, type TryReserveError } from "./rs/alloc.ts";
 import { AtIndex } from "./rs/collections.ts";
 import { escapeDebug } from "./rs/char.ts";
 import { byteSliceUtf8Chunks, String as RsString, strFromUtf8Unchecked, stringClone, stringCloneFrom, stringFrom, stringLen, stringNew, stringOf, stringPush, stringPushStr, stringWithCapacity } from "./rs/str.ts";
@@ -2640,11 +2640,17 @@ function relength<T>(v: Vec<T>, room: Room<T>, length: number): void {
 /** What std's check of `from_raw_parts`'s precondition says. */
 const FROM_RAW_PARTS = "unsafe precondition(s) violated: Vec::from_raw_parts_in requires that length <= capacity\n\nThis indicates a bug in the program. This Undefined Behavior check is optional, and cannot be relied on for safety.";
 
-/** The array the pointer `p`, which `Vec::from_raw_parts` takes, starts: memory from `alloc` or a `Vec`'s, or `undefined` if dangling. */
+/**
+ * The storage the pointer `p`, which `Vec::from_raw_parts` takes, starts: the array it
+ * points at the start of, memory from `alloc` or a `Vec`'s, or an array of the one value
+ * in no array it points at, as a `Box`'s is; or `undefined` where it holds nothing, dangling
+ * or memory from `alloc` no cast typed.
+ */
 function rawPartsOf(p: Place<unknown>): object | undefined {
-	if (p === DANGLING) return undefined;
-	if (!(p instanceof AtIndex) || p.index !== 0) {
-		throw new Error("rust2-ts: `Vec::from_raw_parts` of a pointer that isn't to the start of memory from `alloc` or a `Vec`'s");
+	if (p === DANGLING || p instanceof Block) return undefined;
+	if (!(p instanceof AtIndex)) return [p.v];
+	if (p.index !== 0) {
+		throw new Error("rust2-ts: `Vec::from_raw_parts` of a pointer past the start of the memory it points into");
 	}
 	return p.array;
 }
@@ -2664,16 +2670,18 @@ export function vecFromRawParts<T>(p: Place<T>, length: number, cap: number, siz
 	return v;
 }
 
-/** `Vec::from_raw_parts` of bytes: the `Vec` of the storage `p` starts, which is exactly `cap` bytes, holding its first `length`. */
+/** `Vec::from_raw_parts` of bytes: the `Vec` of the storage `p` starts, exactly `cap` bytes, or a copy of the byte in no array it points at, holding its first `length`. */
 export function byteVecFromRawParts(p: Place<number>, length: number, cap: number): ByteVec {
 	if (length > cap) panic(FROM_RAW_PARTS, "vec_from_raw_parts");
 	const data = rawPartsOf(p);
-	const v = new ByteVec(data === undefined ? cap : 0);
-	if (data !== undefined) {
-		if (!(data instanceof Uint8Array) || data.length !== cap) {
+	const v = new ByteVec(data instanceof Uint8Array ? 0 : cap);
+	if (data instanceof Uint8Array) {
+		if (data.length !== cap) {
 			throw new Error(`rust2-ts: \`Vec::from_raw_parts\` of bytes with a capacity of ${cap}, which isn't the storage's`);
 		}
 		v.data = data;
+	} else if (data !== undefined) {
+		v.data.set(data as number[]);
 	}
 	v.length = length;
 	return v;

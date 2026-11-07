@@ -5,7 +5,7 @@
 // write of its bytes fails. `realloc` keeps the values in a new array, and `dealloc` lets
 // the array go; a pointer into it after either reads what Rust leaves undefined.
 
-import { Abort, Err, type Fmt, type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, fmtWriteFmt, Ok, type Place, type Result } from "../rs.ts";
+import { Abort, Err, type Fmt, type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, fmtWriteFmt, Ok, type Place, type Result, roomPast } from "../rs.ts";
 import { AtIndex } from "./collections.ts";
 import { type u32, u32Debug, type usize, usizeDebug } from "./int.ts";
 
@@ -207,6 +207,9 @@ export function realloc(p: Place<number>, size: usize): Block {
 		const n = Math.floor(size / block.elem);
 		next.array = array.slice(0, n);
 		next.array.length = n;
+		// What a `Vec` holding the memory keeps past its length is the memory's too.
+		const room = roomPast(array, array.length);
+		if (room) for (const [i, value] of room.slots) if (i >= array.length && i < n) next.array[i] = value;
 		next.elem = block.elem;
 		next.type = block.type;
 		BLOCKS.set(next.array, next);

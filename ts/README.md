@@ -1063,7 +1063,9 @@ they need.
   (decided with the maintainer on 2026-11-07). `Vec::from_raw_parts` of a pointer to the
   start of memory from `alloc` or of a `Vec`'s, given up by `ManuallyDrop`, is the `Vec`
   of that same storage, holding its first `length` items and, but for bytes, the rest in
-  its room, with the capacity it is given, so it drops and reads back what std's does; a
+  its room, which `realloc` of the memory keeps, with the capacity it is given, so it drops
+  and reads back what std's does. One of a `Box`'s value holds that value, and one of
+  bytes from `alloc` new storage of the capacity; a
   length past the capacity panics as std's check does, which can't unwind, and one of
   values JS keeps as objects or of no bytes is refused. Their `try_reserve` and `try_reserve_exact`, and a
   `String`'s, give `Ok` where `reserve` makes room and `TryReserveError`'s

@@ -85,7 +85,9 @@ pub fn allocated(data: &[u8], out: &mut Vec<u8>) {
 
 /// `Vec`s given up by `ManuallyDrop` and adopted again by `from_raw_parts`, with and
 /// without room past their length, some of it written through the pointer, one from the
-/// pointer to its spare capacity while empty, and the empty `Vec` of a dangling pointer.
+/// pointer to its spare capacity while empty, one grown by `realloc` and adopted again,
+/// `Vec`s of a `Box`'s value and of bytes from `alloc`, and the empty `Vec` of a dangling
+/// pointer.
 pub fn readopted(data: &[u8], out: &mut Vec<u8>) {
 	let shared = Arc::new(7u8);
 	let n = data.len();
@@ -130,6 +132,29 @@ pub fn readopted(data: &[u8], out: &mut Vec<u8>) {
 	let spare = unsafe { Vec::from_raw_parts(p, n / 2 + 1, cap) };
 	out.extend([spare.len() as u8, spare.capacity() as u8]);
 	out.extend(spare.iter().flat_map(|x| x.to_le_bytes()));
+
+	let p = slots::<u32>(2, false, false);
+	unsafe { (p.write(10 + n as u32), p.add(1).write(20)) };
+	let mut kept = ManuallyDrop::new(unsafe { Vec::from_raw_parts(p, 1, 2) });
+	let old = Layout::array::<u32>(kept.capacity()).unwrap();
+	let q = unsafe { alloc::realloc(kept.as_mut_ptr() as *mut u8, old, old.size() + 4) };
+	let grown = unsafe { Vec::from_raw_parts(q.cast::<u32>(), 2, 3) };
+	out.extend([grown.len() as u8, grown.capacity() as u8]);
+	out.extend(grown.iter().flat_map(|x| x.to_le_bytes()));
+
+	let mut boxed = unsafe { Vec::from_raw_parts(Box::into_raw(Box::new(n as u32 * 7)), n % 2, 1) };
+	unsafe { boxed.set_len(1) };
+	boxed.push(3);
+	out.extend([boxed.len() as u8, boxed.capacity() as u8]);
+	out.extend(boxed.iter().flat_map(|x| x.to_le_bytes()));
+	let mut byte = unsafe { Vec::from_raw_parts(Box::into_raw(Box::new(n as u8)), 1, 1) };
+	byte.push(4);
+	out.extend_from_slice(&byte);
+	let raw = unsafe { alloc::alloc(Layout::array::<u8>(extra + 1).unwrap()) };
+	let mut fresh = unsafe { Vec::from_raw_parts(raw, 0, extra + 1) };
+	fresh.extend_from_slice(data);
+	out.extend([fresh.len() as u8, fresh.capacity() as u8]);
+	out.extend_from_slice(&fresh);
 
 	let mut none = unsafe { Vec::<u32>::from_raw_parts(NonNull::dangling().as_ptr(), 0, 0) };
 	out.extend([none.len() as u8, none.capacity() as u8]);
