@@ -27,8 +27,11 @@ The rest are gaps. At `main` they include a panic its hook cannot locate
 JS keeps in two arrays, a pointer moved past the array JS keeps it in (`AtIndex.reach`, such
 as one kept in a field), `Bytes::slice_ref` of other storage, `alloc`'s bytes read as
 values, ranges stepped without their type, fmt widths written as a placeholder, and a raw
-or mutable slice of a byte JS keeps in no array, such as a field's, and casts of one to
-`*const [u8; N]`.
+or mutable slice of a byte in a field (a struct's, a tuple's, a closure's capture, or one an
+async body keeps across an `.await`), or a cast of one to `*const [u8; N]`: a field's byte
+has no buffer of its own, unlike a `u8` local whose `&raw` the body takes, so the fix is a
+`Uint8Array(1)` for each `u8` field whose address is taken. A `u8` local whose address only
+a call takes, as `ptr::from_mut(&mut b)` does, has none either.
 `git grep 'rust2-ts: ' ts/runtime` lists them; classify each before fixing. The pointer
 comparisons [#584](https://github.com/moq-dev/rust2/pull/584) refuses at translation, where
 JS may make two `rs.Place`s for one place, are out of scope: addresses were their route, and

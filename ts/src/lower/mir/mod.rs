@@ -736,7 +736,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Slot::Unit
 			} else if self.scalars.contains_key(&local) {
 				Slot::Var(String::new())
-			} else if self.raw_bytes.contains(&local) && local != mir::RETURN_PLACE && !self.stepped.contains(&local) {
+			} else if self.raw_bytes.contains(&local) && local != mir::RETURN_PLACE {
 				Slot::Byte(String::new())
 			} else if let Some(value) = self.unassigned(local, ty) {
 				Slot::Alias(Some(value))
