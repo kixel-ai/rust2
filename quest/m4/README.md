@@ -22,8 +22,9 @@ Closed on 2026-11-06: a compiler for a stricter Rust subset
 ([moq-dev/rust2#615](https://github.com/moq-dev/rust2/pull/615)). 61% of the
 LLVM IR moq's own crates emit is std's and dependencies' generics instantiated
 at moq's types, closures included, so it would have to compile std too. Levers
-that need no new frontend reach its best case: ra-jit already rebuilds moq-net
-body edits in under half a second, and Cranelift cuts a clean build by 16%.
+that need no new frontend reach its best case: ra-jit already applies the
+moq-net body edits it serves in under half a second, and Cranelift cuts a clean
+build's retired instructions by 16%.
 
 ## Required
 
