@@ -466,7 +466,7 @@ impl<'a> Header<'a> {
 			let payloads: Vec<String> = e
 				.variants
 				.iter()
-				.map(|v| self.global(&self.name(&format!("{name}_{}", abi::snake(&v.name)))))
+				.map(|v| self.global(&self.name(&abi::payload(&name, &v.name))))
 				.collect();
 			for payload in &payloads {
 				self.line(format!("struct {payload};"));
@@ -586,7 +586,7 @@ impl<'a> Header<'a> {
 		for member in members {
 			if !seen.insert(member) {
 				self.errors.push(format!(
-					"two members of `{rust}` are both `{}::{class}::{member}` in C++: rename one in the config",
+					"two members of `{rust}` are both `{}::{class}::{member}` in C++: rename one in the source or exclude it in the config",
 					self.ns
 				));
 			}
@@ -857,7 +857,7 @@ impl<'a> Header<'a> {
 					}
 				}
 				for variant in &e.variants {
-					let payload = self.name(&format!("{c}_{}", abi::snake(&variant.name)));
+					let payload = self.name(&abi::payload(&c, &variant.name));
 					let fields: Vec<String> = variant
 						.fields
 						.iter()
@@ -973,7 +973,7 @@ impl<'a> Header<'a> {
 			let mut lift = Vec::new();
 			for (n, variant) in e.variants.iter().enumerate() {
 				let tag = format!("{upper}_{}", abi::snake(&variant.name).to_uppercase());
-				let payload = self.name(&format!("{c}_{}", abi::snake(&variant.name)));
+				let payload = self.name(&abi::payload(&c, &variant.name));
 				let member = abi::escape(&abi::snake(&variant.name));
 				let mut set = vec![format!("c.tag = {tag};")];
 				let mut fields = Vec::new();
