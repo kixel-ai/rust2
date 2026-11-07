@@ -118,6 +118,9 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 		if let Some(sym) = self.t.bound_fn(instance, span) {
 			return Expr::Sym(sym).call(args.into_iter().map(Expr::typed).collect());
 		}
+		if let Some(glue) = super::bindgen::glue(self.t, instance) {
+			return super::bindgen::call(self, instance, glue, args, span, out);
+		}
 		if let ty::InstanceKind::Virtual(method, _) = instance.def
 			&& self.t.dispatches(instance)
 		{
