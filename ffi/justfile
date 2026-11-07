@@ -96,8 +96,11 @@ moq checkout="": (moq-cpp checkout)
     rm -rf target/moq-kt
     kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/moq.kt -d target/moq-kt
     kotlin -Djava.library.path="$out/target/release" -cp "target/moq-kt:$KOTLINX_COROUTINES" MoqKt
-    # The Python, through the CPython extension the python feature builds.
+    # The Python, through the CPython extension the python feature builds, and its types
+    # through mypy and pyright, as `api_py_types` checks the api fixture's.
     PYTHONPATH="$out/python" python3 -P -X dev -W error moq/moq.py
+    mypy --strict --python-version 3.11 --cache-dir target/mypy "$out/python/moq.py"
+    pyright -p tests/pyright.json "$out/python/moq.py"
     if [ "{{ os() }}-{{ arch() }}" = linux-aarch64 ]; then
         echo "skipping moq/moq.swift: nixpkgs builds no Swift for aarch64-linux (quest/m2/uniffi-swift-arm.md)" >&2
     else

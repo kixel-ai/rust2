@@ -21,7 +21,7 @@ export class Over<T> {
 }
 
 export function run$String(self: Over<string>): string | undefined {
-	const _3: string | undefined = self.source.take$Source();
+	const _3: string | undefined = self.source.take$Source() as string | undefined;
 	if (_3 !== undefined) {
 		const next: string = _3;
 		const other: string = self.scale.scale$Scaled(next);
