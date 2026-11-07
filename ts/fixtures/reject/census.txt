@@ -193,6 +193,8 @@ fixtures/reject/src/pointers.rs:erased_empty+2:20: a pointer to `((), ())` cast 
 fixtures/reject/src/pointers.rs:erased_place+2:2: a pointer to `u32` cast to one to `()`, whose JS value is a place of its own each borrow
 fixtures/reject/src/pointers.rs:erased_place+2:22: a pointer to `u32` cast to one to `()`, whose JS value is a place of its own each borrow
 fixtures/reject/src/pointers.rs:erased_start+2:2: a pointer to `pointers::Outer` cast to one to `()`, whose address its `pointers::Inner` at its start shares, which JS keeps as an object of its own
+fixtures/reject/src/pointers.rs:lone_byte_arrays+2:13: a raw or mutable slice of a byte in no array of bytes
+fixtures/reject/src/pointers.rs:lone_byte_arrays+3:17: a raw or mutable slice of a byte in no array of bytes
 fixtures/reject/src/pointers.rs:lone_byte_slices+1:12: a raw or mutable slice of a byte in no array of bytes
 fixtures/reject/src/pointers.rs:lone_byte_slices+2:19: a raw or mutable slice of a byte in no array of bytes
 fixtures/reject/src/pointers.rs:made_part_replaced+5:10: a raw pointer to `(u32, u32)` in `pointers::Gap`, which the crate may put another object in place of

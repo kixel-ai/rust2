@@ -73,6 +73,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let (owner, name) = library::key(self.tcx, def_id)?;
 		let arg = |i: usize| args.get(i).map(|a| &a.node);
 		let pointee = gargs.types().next()?;
+		if matches!((owner.as_str(), name.as_str()), ("ptr" | "NonNull", "cast"))
+			&& let Some(why) = self.lone_byte_array(arg(0)?, pointee, gargs.types().nth(1)?)
+		{
+			return Some(why);
+		}
 		if self.b.t.zero_sized(pointee) || self.b.t.pointee(pointee) != Pointee::Place {
 			return None;
 		}
@@ -426,6 +431,45 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let erases = t.identity_pointee(to) && !t.identity_pointee(from) && t.pointee(from) == Pointee::Place;
 		(erases && crate::lower::pointer::unerasable(self.b, from).is_none() && self.arc_pointer(op) == Some(false))
 			.then(|| crate::lower::pointer::erased_place(t.uninit_inner(from)))
+	}
+
+	/// Why the cast of the raw slice `op` of bytes, a pointer to `from`, to one to `to`, an
+	/// array of some of them, would fail at run time where Rust's is defined: the body shows
+	/// the slice starts at a byte in no array, which no `Uint8Array` can share.
+	pub(super) fn lone_byte_array(&self, op: &Operand<'tcx>, from: ty::Ty<'tcx>, to: ty::Ty<'tcx>) -> Option<String> {
+		let t = &self.b.t;
+		let (ty::Slice(from), ty::Array(to, n)) = (t.uninit_inner(from).kind(), t.uninit_inner(to).kind()) else {
+			return None;
+		};
+		if !crate::lower::byte(*from) || !crate::lower::byte(*to) || n.try_to_target_usize(self.tcx) == Some(0) {
+			return None;
+		}
+		matches!(self.raw_start(op)?.array, Array::Lone(_))
+			.then(|| "a raw or mutable slice of a byte in no array of bytes".into())
+	}
+
+	/// Where the raw slice `op` starts, if the body shows it.
+	fn raw_start(&self, op: &Operand<'tcx>) -> Option<Origin<'tcx>> {
+		let local = self.traced(op)?;
+		if self.def_at[local].is_some() {
+			return match self.def_rvalue(local)? {
+				Rvalue::Use(op, _)
+				| Rvalue::Cast(
+					mir::CastKind::PtrToPtr
+					| mir::CastKind::PointerCoercion(ty::adjustment::PointerCoercion::MutToConstPointer, _),
+					op,
+					_,
+				) if self.same_pointee(op, local) => self.raw_start(op),
+				_ => None,
+			};
+		}
+		let (def_id, _, args) = self.def_call(local)?;
+		let (owner, name) = library::key(self.tcx, def_id)?;
+		match (owner.as_str(), name.as_str()) {
+			("ptr" | "NonNull", "slice_from_raw_parts" | "slice_from_raw_parts_mut") => self.origin(&args[0].node),
+			("NonNull", "as_ptr" | "new_unchecked") => self.raw_start(&args[0].node),
+			_ => None,
+		}
 	}
 
 	/// The local `op` reads whole, if the body assigns it once.

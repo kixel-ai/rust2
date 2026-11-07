@@ -146,6 +146,7 @@ roots = [
     "pointers::erased_empty",
     "pointers::erased_place",
     "pointers::erased_start",
+    "pointers::lone_byte_arrays",
     "pointers::lone_byte_slices",
     "pointers::made_part_replaced",
     "pointers::nonnull_reassigned",
