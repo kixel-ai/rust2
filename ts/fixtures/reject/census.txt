@@ -285,6 +285,9 @@ fixtures/reject/src/values.rs:manual_impls+2:25: unsupported call to `<std::mem:
 fixtures/reject/src/values.rs:manual_impls+2:34: a constant of type `std::mem::ManuallyDrop<u32>`
 fixtures/reject/src/values.rs:nested+0:15: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rs.None`
 fixtures/reject/src/values.rs:nested+1:2: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rs.None`
+fixtures/reject/src/values.rs:projected_nested+1:6: `values::Projected<()>` is not supported: its field `value` is `std::option::Option<std::option::Option<()>>`: `Option<std::option::Option<()>>` is not supported: its `None` and `Some` would both be `rs.None`
+fixtures/reject/src/values.rs:projected_nested+1:52: `Option<std::option::Option<()>>` is not supported: its `None` and `Some` would both be `rs.None`
+fixtures/reject/src/values.rs:projected_uninit+1:2: `values::Projected<u32>` is not supported: its field `value` is `std::option::Option<<S as values::Holds>::Held>`, typed `rs.OptionOf<<S as values::Holds>::Held>`, which decides by TypeScript's type of `std::mem::MaybeUninit<u32>` otherwise than `std::option::Option<std::mem::MaybeUninit<u32>>` erases
 fixtures/reject/src/values.rs:units_compared+2:15: a raw pointer to a place of `()`, which has no address of its own
 fixtures/reject/src/values.rs:units_compared+2:29: a raw pointer to a place of `()`, which has no address of its own
 fixtures/reject/src/values.rs:units_compared+2:70: comparing pointers to `places::Bare`, which has no bytes and so no address of its own

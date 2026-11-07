@@ -70,6 +70,41 @@ pub fn generic_uninit_byte_open(b: u8) -> bool {
 	.is_some()
 }
 
+/// What a type holds, named by an associated type.
+pub trait Holds {
+	type Held;
+}
+
+impl Holds for u32 {
+	type Held = std::mem::MaybeUninit<u32>;
+}
+
+impl Holds for () {
+	type Held = Option<()>;
+}
+
+/// A generic type's `Option` of a projection is an `rs.OptionOf` of it too, which each
+/// instance resolves as [`Maybe`]'s.
+pub struct Projected<S: Holds> {
+	pub value: Option<S::Held>,
+}
+
+/// Its `MaybeUninit<u32>`, whose `None` `rs.OptionOf` would make `undefined`.
+pub fn projected_uninit(value: u32) -> bool {
+	Projected::<u32> {
+		value: Some(std::mem::MaybeUninit::new(value)),
+	}
+	.value
+	.is_some()
+}
+
+/// Its `Option<()>`, whose `None` and `Some(None)` would both be `rs.None`.
+pub fn projected_nested(unit: bool) -> bool {
+	let projected: Projected<()> = Projected { value: None };
+	drop(projected);
+	unit
+}
+
 /// Parsing an address is not translated yet.
 pub fn addr_parsed(s: &str) -> Result<std::net::Ipv4Addr, std::net::AddrParseError> {
 	s.parse()

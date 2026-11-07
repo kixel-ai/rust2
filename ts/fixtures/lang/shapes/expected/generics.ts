@@ -3,13 +3,19 @@
 import * as rs from "./rs.ts";
 import { copy$array_generics_Either_u8_shapes_Point, copy$generics_Fixed_u16, copy$generics_Fixed_u8, copy$generics_Wrap_shapes_Point, copy$generics_Wrap_u8, copy$shapes_Gauge, drop$generics_Run_generics_Ticked } from "./lib.ts";
 import { thenSome$1ctlqen, thenSome$19pue01, thenSome$0quywni, thenSome$1n1oy1h, then$01xsbgy, then$0y7on52 } from "./core/bool.ts";
-import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$0w7995p as option_unwrapOrDefault$0w7995p, unwrapOrDefault$03apme8 as option_unwrapOrDefault$03apme8, map$0ggarad as option_map$0ggarad } from "./core/option.ts";
+import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$0w7995p as option_unwrapOrDefault$0w7995p, unwrapOrDefault$03apme8 as option_unwrapOrDefault$03apme8, map$0ggarad as option_map$0ggarad, map$132wgz4 as option_map$132wgz4, map$0ydco3f as option_map$0ydco3f, map$057a36e as option_map$057a36e } from "./core/option.ts";
 import { eq$1qrb1lw as poll_eq$1qrb1lw, isPending$07fnw8g, isPending$1imonrp, isPending$189w6zf, isPending$1yqrsts } from "./core/task/poll.ts";
 import type * as Pair from "./fmt.Pair.ts";
+import * as Ahead from "./generics.Ahead.ts";
+import * as Batch from "./generics.Batch.ts";
+import * as Deep from "./generics.Deep.ts";
+import * as Drained from "./generics.Drained.ts";
 import * as Either from "./generics.Either.ts";
 import * as Fixed from "./generics.Fixed.ts";
+import type * as Flags from "./generics.Flags.ts";
 import type * as Lends from "./generics.Lends.ts";
 import * as Parked from "./generics.Parked.ts";
+import * as Pile from "./generics.Pile.ts";
 import * as Run from "./generics.Run.ts";
 import * as Runs from "./generics.Runs.ts";
 import * as Tagged from "./generics.Tagged.ts";
@@ -393,6 +399,199 @@ export function units(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const sent8: rs.u8 | undefined = _318[2];
 	const args12 = [(f: rs.Formatter) => rs.fmtOption(was8, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtPoll(ready4, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(sent8, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtBool(again4, f)];
 	put(out, rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " ", args12[3]]).v);
+}
+
+/**
+ * Generic types whose fields are typed by an associated type of their parameters, at
+ * arrays of bytes, of `u16`s, of `()`, whose `None` is `rs.None`, and of `Option<u8>`s,
+ * and at a store that is no array.
+ */
+export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const items: rs.ByteVec = rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b2: rs.u8): rs.u8 => {
+		return b2;
+	}), undefined, true);
+	const drain: Drained.Drained<Uint8Array, rs.u8> = Drained.new$array4_u8(((b3: rs.u8): rs.u8 => {
+		return b3;
+	})(90), rs.byteVecSlice(items));
+	let count: rs.usize = 0;
+	while (Drained.next$array4_u8(drain) !== undefined) {
+		count = rs.usizeAdd(count, 1);
+	}
+	const _21: rs.u8 = ((b4: rs.u8): rs.u8 => {
+		return b4;
+	})(1);
+	const part = rs.usizeDiv(items.length, 2);
+	const batch: Batch.Batch<Uint8Array, rs.u8> = { drain: Drained.new$array4_u8(_21, rs.byteSliceRange(rs.byteVecSlice(items), part)), taken: 0 };
+	const half: rs.u8 | undefined = Batch.take$array4_u8(batch);
+	const _46: rs.usize = count;
+	const arg = drain.last;
+	const _49: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg, f, rs.u8Debug);
+	const arg2 = drain.first;
+	const _50: rs.Fmt = (f: rs.Formatter) => rs.u8Debug(arg2, f);
+	const _51: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(_46, f);
+	const _52: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(4, f);
+	const _53: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(half, f, rs.u8Debug);
+	const arg3 = batch.drain.last;
+	const _54: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg3, f, rs.u8Debug);
+	const arg4 = batch.taken;
+	const args19 = [_49, _50, _51, _52, _53, _54, (f: rs.Formatter) => rs.u8Display(arg4, f)];
+	put(out, rs.fmtFormat([args19[0], " ", args19[1], " ", args19[2], " ", args19[3], " ", args19[4], " ", args19[5], " ", args19[6]]).v);
+	const items2: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b5: rs.u8): rs.u16 => {
+		return rs.u16Mul(b5 as rs.u16, 257);
+	}), undefined, 2, true);
+	const drain2: Drained.Drained<rs.u16[], rs.u16> = Drained.new$array2_u16(((b6: rs.u8): rs.u16 => {
+		return rs.u16Mul(b6 as rs.u16, 257);
+	})(90), rs.sliceFrom(items2.items));
+	let count2: rs.usize = 0;
+	while (Drained.next$array2_u16(drain2) !== undefined) {
+		count2 = rs.usizeAdd(count2, 1);
+	}
+	const _76: rs.u16 = ((b7: rs.u8): rs.u16 => {
+		return rs.u16Mul(b7 as rs.u16, 257);
+	})(1);
+	const part2 = rs.usizeDiv(items2.items.length, 2);
+	const batch2: Batch.Batch<rs.u16[], rs.u16> = { drain: Drained.new$array2_u16(_76, rs.sliceRange(rs.sliceFrom(items2.items), part2)), taken: 0 };
+	const half2: rs.u16 | undefined = Batch.take$array2_u16(batch2);
+	const _101: rs.usize = count2;
+	const arg5 = drain2.last;
+	const _104: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg5, f, rs.u16Debug);
+	const arg6 = drain2.first;
+	const _105: rs.Fmt = (f: rs.Formatter) => rs.u16Debug(arg6, f);
+	const _106: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(_101, f);
+	const _107: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(2, f);
+	const _108: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(half2, f, rs.u16Debug);
+	const arg7 = batch2.drain.last;
+	const _109: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg7, f, rs.u16Debug);
+	const arg8 = batch2.taken;
+	const args20 = [_104, _105, _106, _107, _108, _109, (f: rs.Formatter) => rs.u8Display(arg8, f)];
+	put(out, rs.fmtFormat([args20[0], " ", args20[1], " ", args20[2], " ", args20[3], " ", args20[4], " ", args20[5], " ", args20[6]]).v);
+	const items3: rs.Vec<undefined> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): undefined => {}), undefined, 0, true);
+	((_26: rs.u8): undefined => {})(90);
+	const drain3: Drained.Drained<undefined[], undefined> = Drained.new$array3_unit(undefined, rs.sliceFrom(items3.items));
+	let count3: rs.usize = 0;
+	while (Drained.next$array3_unit(drain3) !== rs.None) {
+		count3 = rs.usizeAdd(count3, 1);
+	}
+	((_210: rs.u8): undefined => {})(1);
+	const part3 = rs.usizeDiv(items3.items.length, 2);
+	const batch3: Batch.Batch<undefined[], undefined> = { drain: Drained.new$array3_unit(undefined, rs.sliceRange(rs.sliceFrom(items3.items), part3)), taken: 0 };
+	const half3: undefined | rs.None = Batch.take$array3_unit(batch3);
+	const _156: rs.usize = count3;
+	const arg9 = drain3.last;
+	const _159: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg9, f, rs.fmtUnit, rs.None);
+	const _160: rs.Fmt = (f: rs.Formatter) => rs.fmtUnit(undefined, f);
+	const _161: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(_156, f);
+	const _162: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(3, f);
+	const _163: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(half3, f, rs.fmtUnit, rs.None);
+	const arg10 = batch3.drain.last;
+	const _164: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg10, f, rs.fmtUnit, rs.None);
+	const arg11 = batch3.taken;
+	const args21 = [_159, _160, _161, _162, _163, _164, (f: rs.Formatter) => rs.u8Display(arg11, f)];
+	put(out, rs.fmtFormat([args21[0], " ", args21[1], " ", args21[2], " ", args21[3], " ", args21[4], " ", args21[5], " ", args21[6]]).v);
+	const items4: rs.Vec<rs.u8 | undefined> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b8: rs.u8): rs.u8 | undefined => {
+		return thenSome$0quywni(rs.u8Rem(b8, 3) !== 0, b8);
+	}), undefined, 2, true);
+	const drain4: Drained.Drained<Array<rs.u8 | undefined>, rs.u8 | undefined> = Drained.new$array1_Option_u8(((b9: rs.u8): rs.u8 | undefined => {
+		return thenSome$0quywni(rs.u8Rem(b9, 3) !== 0, b9);
+	})(90), rs.sliceFrom(items4.items));
+	let count4: rs.usize = 0;
+	while (Drained.next$array1_Option_u8(drain4) !== rs.None) {
+		count4 = rs.usizeAdd(count4, 1);
+	}
+	const _186: rs.u8 | undefined = ((b10: rs.u8): rs.u8 | undefined => {
+		return thenSome$0quywni(rs.u8Rem(b10, 3) !== 0, b10);
+	})(1);
+	const part4 = rs.usizeDiv(items4.items.length, 2);
+	const batch4: Batch.Batch<Array<rs.u8 | undefined>, rs.u8 | undefined> = { drain: Drained.new$array1_Option_u8(_186, rs.sliceRange(rs.sliceFrom(items4.items), part4)), taken: 0 };
+	const half4: rs.u8 | undefined | rs.None = Batch.take$array1_Option_u8(batch4);
+	const _211: rs.usize = count4;
+	const arg12 = drain4.last;
+	const _214: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg12, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None);
+	const arg13 = drain4.first;
+	const _215: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg13, f, rs.u8Debug);
+	const _216: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(_211, f);
+	const _217: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(1, f);
+	const _218: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(half4, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None);
+	const arg14 = batch4.drain.last;
+	const _219: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg14, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None);
+	const arg15 = batch4.taken;
+	const args22 = [_214, _215, _216, _217, _218, _219, (f: rs.Formatter) => rs.u8Display(arg15, f)];
+	put(out, rs.fmtFormat([args22[0], " ", args22[1], " ", args22[2], " ", args22[3], " ", args22[4], " ", args22[5], " ", args22[6]]).v);
+	const items5: rs.Vec<boolean> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b11: rs.u8): boolean => {
+		return (b11 & 1) !== 0;
+	}), undefined, 1, true);
+	const drain5: Drained.Drained<Flags.Flags, boolean> = Drained.new$generics_Flags(((b12: rs.u8): boolean => {
+		return (b12 & 1) !== 0;
+	})(90), rs.sliceFrom(items5.items));
+	let count5: rs.usize = 0;
+	while (Drained.next$generics_Flags(drain5) !== undefined) {
+		count5 = rs.usizeAdd(count5, 1);
+	}
+	const _241: boolean = ((b13: rs.u8): boolean => {
+		return (b13 & 1) !== 0;
+	})(1);
+	const part5 = rs.usizeDiv(items5.items.length, 2);
+	const batch5: Batch.Batch<Flags.Flags, boolean> = { drain: Drained.new$generics_Flags(_241, rs.sliceRange(rs.sliceFrom(items5.items), part5)), taken: 0 };
+	const half5: boolean | undefined = Batch.take$generics_Flags(batch5);
+	const _266: rs.usize = count5;
+	const arg16 = drain5.last;
+	const _269: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg16, f, rs.fmtBool);
+	const arg17 = drain5.first;
+	const _270: rs.Fmt = (f: rs.Formatter) => rs.fmtBool(arg17, f);
+	const _271: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(_266, f);
+	const _272: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(8, f);
+	const _273: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(half5, f, rs.fmtBool);
+	const arg18 = batch5.drain.last;
+	const _274: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg18, f, rs.fmtBool);
+	const arg19 = batch5.taken;
+	const args23 = [_269, _270, _271, _272, _273, _274, (f: rs.Formatter) => rs.u8Display(arg19, f)];
+	put(out, rs.fmtFormat([args23[0], " ", args23[1], " ", args23[2], " ", args23[3], " ", args23[4], " ", args23[5], " ", args23[6]]).v);
+	const ahead: Ahead.Ahead<Flags.Flags, rs.Iter<rs.u8>, rs.u8, boolean> = { iter: rs.iterPeekable(rs.iterSlice(rs.byteSliceView(data))), seen: new rs.Vec(), stored: option_map$132wgz4(rs.byteSliceFirst(data), (b14: rs.u8): boolean => {
+		return (b14 & 2) !== 0;
+	}) as rs.OptionOf<boolean> };
+	const repeats: rs.usize = Ahead.repeats$generics_Flags_slice_Iter_u8(ahead);
+	const part6 = ahead.seen as rs.Vec<rs.u8>;
+	const _297: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(repeats, f);
+	const _298: rs.Fmt = (f: rs.Formatter) => rs.fmtList(part6.items, f, rs.u8Debug);
+	const arg20 = ahead.stored;
+	const args24 = [_297, _298, (f: rs.Formatter) => rs.fmtOption(arg20, f, rs.fmtBool)];
+	put(out, rs.fmtFormat([args24[0], " ", args24[1], " ", args24[2]]).v);
+	const ahead2: Ahead.Ahead<rs.u16[], rs.Iter<rs.u8>, rs.u8, rs.u16> = { iter: rs.iterPeekable(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b15: rs.u8): rs.u8 => {
+		return rs.u8Rem(b15, 4);
+	})), seen: new rs.ByteVec(), stored: option_map$0ydco3f(rs.byteSliceLast(data), (_212: rs.u8): rs.u16 => {
+		return _212 as rs.u16;
+	}) as rs.OptionOf<rs.u16> };
+	const repeats2: rs.usize = Ahead.repeats$array1_u16_iter_Map_slice_Iter_u8_generics_projections_closure1(ahead2);
+	const part7 = ahead2.seen as rs.ByteVec;
+	const _322: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(repeats2, f);
+	const _323: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(part7), f, rs.u8Debug);
+	const arg21 = ahead2.stored;
+	const args25 = [_322, _323, (f: rs.Formatter) => rs.fmtOption(arg21, f, rs.u16Debug)];
+	put(out, rs.fmtFormat([args25[0], " ", args25[1], " ", args25[2]]).v);
+	let pile: Pile.Pile<Uint8Array, rs.u8> = { tag: "Empty" };
+	let flags: Pile.Pile<Flags.Flags, boolean> = { tag: "Empty" };
+	for (const b of rs.byteSliceView(data)) {
+		pile = Pile.push$array2_u8(pile, b);
+		flags = Pile.push$generics_Flags(flags, b > 127);
+	}
+	const _342: [rs.ByteVec, rs.Vec<boolean>] = [new rs.ByteVec(), new rs.Vec()];
+	const bytes: rs.ByteVec = _342[0];
+	const bits: rs.Vec<boolean> = _342[1];
+	Pile.items$array2_u8(pile, bytes);
+	Pile.items$generics_Flags(flags, bits);
+	const args26 = [(f: rs.Formatter) => rs.fmtList(rs.byteVecView(bytes), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(bits.items, f, rs.fmtBool)];
+	put(out, rs.fmtFormat([args26[0], " ", args26[1]]).v);
+	const deep: Deep.Deep<Uint8Array[], rs.u8> = Deep.new$array3_array2_u8(rs.byteSliceFirst(data));
+	const units: Deep.Deep<undefined[][], undefined> = Deep.new$array4_array2_unit(option_map$057a36e(rs.byteSliceGet(data, 1), (_213: rs.u8): undefined => {}));
+	const arg22 = deep.inner;
+	const _383: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg22, f, rs.u8Debug);
+	const arg23 = deep.len;
+	const _384: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(arg23, f);
+	const arg24 = units.inner;
+	const _385: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(arg24, f, rs.fmtUnit, rs.None);
+	const arg25 = units.len;
+	const args27 = [_383, _384, _385, (f: rs.Formatter) => rs.usizeDisplay(arg25, f)];
+	put(out, rs.fmtFormat([args27[0], " ", args27[1], " ", args27[2], " ", args27[3]]).v);
 }
 
 //# sourceMappingURL=generics.ts.map

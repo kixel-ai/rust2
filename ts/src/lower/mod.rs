@@ -206,15 +206,18 @@ pub struct Translator<'a, 'tcx> {
 	/// by that type, which an instance's value is cast to so TypeScript infers the
 	/// instance's arguments from it rather than from the `None` or `Pending` it may be.
 	decided_fields: rustc_data_structures::fx::FxHashMap<DefId, Type>,
+	/// The projections from each generic type's own parameters that its fields name, by
+	/// [`Self::projections`].
+	projections: rustc_data_structures::fx::FxHashMap<DefId, Vec<(Ty<'tcx>, String)>>,
 	/// Source files by name, as indexes into `program.sources`.
 	sources: rustc_data_structures::fx::FxHashMap<String, Option<u32>>,
 	failed: bool,
 	/// Where trait bounds come from: none outside a census, which lowers some functions
 	/// over their own type parameters.
 	env: TypingEnv<'tcx>,
-	/// Where the bounds of a generic type's parameters come from while its fields lower, by
-	/// which an iterator's item type over them normalizes.
-	defining: Option<TypingEnv<'tcx>>,
+	/// The generic type whose fields lower, and where the bounds of its parameters come
+	/// from, by which an iterator's item type over them normalizes.
+	defining: Option<(DefId, TypingEnv<'tcx>)>,
 	/// Whether this is a census, which lowers some functions over their type parameters and
 	/// writes nothing.
 	census: bool,
@@ -502,6 +505,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			overlays: Default::default(),
 			instanced_fields: Default::default(),
 			decided_fields: Default::default(),
+			projections: Default::default(),
 			sources: Default::default(),
 			failed: false,
 			env: TypingEnv::fully_monomorphized(),
@@ -1101,6 +1105,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	fn define(&mut self, adt: AdtDef<'tcx>, span: Span) -> Adt {
 		let tcx = self.tcx;
 		let did = adt.did();
+		// Before any field is typed, which names them.
+		let projections = self.projections(did);
 		let mut overlay = None;
 		let repr = match () {
 			_ if adt.is_struct() => {
@@ -1171,7 +1177,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 		self.adts.insert(did, info.clone());
 
-		let params: Vec<String> = tcx
+		let mut params: Vec<String> = tcx
 			.generics_of(did)
 			.own_params
 			.iter()
@@ -1181,6 +1187,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				ty::GenericParamDefKind::Lifetime | ty::GenericParamDefKind::Const { .. } => None,
 			})
 			.collect();
+		params.extend(projections.into_iter().map(|(_, name)| name));
 		let item = match &info.repr {
 			AdtRepr::Struct { ctor, fields } => {
 				let variant = adt.non_enum_variant();
@@ -1526,6 +1533,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				false => Type::Rs("Slice", vec![self.ty(*elem, span)]),
 			},
 			ty::Param(param) => Type::Param(param.name.to_string()),
+			// A projection a generic type's fields name, which each instance decides.
+			ty::Alias(..)
+				if let Some((adt, _)) = self.defining
+					&& let Some((_, name)) = self
+						.projections
+						.get(&adt)
+						.and_then(|p| p.iter().find(|(p, _)| *p == ty)) =>
+			{
+				Type::Param(name.clone())
+			}
 			ty::FnDef(def_id, args) => {
 				let sig = self.sig(*def_id, args.skip_binder());
 				self.fn_ty(sig.inputs(), sig.output(), span)
@@ -1887,8 +1904,111 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		if let Some(msg) = self.generic_erasure(adt, args, span) {
 			self.err(span, msg);
 		}
-		let args = args.types().map(|t| self.ty(t, span)).collect();
+		let args = self
+			.instance_params(adt.did(), args, span)
+			.into_iter()
+			.map(|(_, t)| t)
+			.collect();
 		Type::Sym(info.sym, args)
+	}
+
+	/// The TypeScript type arguments of an instance of the crate's generic `adt` with `args`,
+	/// by the name of the parameter each is: one per type parameter, then one per projection
+	/// its fields name, which is what the projection normalizes to at `args`.
+	fn instance_params(&mut self, adt: DefId, args: GenericArgsRef<'tcx>, span: Span) -> Vec<(String, Type)> {
+		let tcx = self.tcx;
+		let mut params: Vec<(String, Type)> = (tcx.generics_of(adt).own_params.iter())
+			.filter(|param| matches!(param.kind, ty::GenericParamDefKind::Type { .. }))
+			.map(|param| {
+				(
+					param.name.to_string(),
+					self.ty(args.type_at(param.index as usize), span),
+				)
+			})
+			.collect();
+		let env = self.defining.map_or(self.typing_env(), |(_, env)| env);
+		for (projection, name) in self.projections(adt) {
+			let at = copy::instantiate(tcx, env, projection, args);
+			params.push((name, self.ty(at, span)));
+		}
+		params
+	}
+
+	/// The projections from the crate's generic `adt`'s own type parameters that its fields'
+	/// types name, such as smallvec's `<A as Array>::Item`, each a TypeScript type parameter
+	/// of its own, by its name: the associated type's, numbered past any it would shadow.
+	/// They include those of the crate's generic types its fields hold, at its arguments, and
+	/// the item type of an iterator from another crate, which `rs.Iter` types.
+	fn projections(&mut self, adt: DefId) -> Vec<(Ty<'tcx>, String)> {
+		if let Some(named) = self.projections.get(&adt) {
+			return named.clone();
+		}
+		let tcx = self.tcx;
+		// A type that holds itself holds no projection it doesn't name otherwise.
+		self.projections.insert(adt, Vec::new());
+		let identity = ty::GenericArgs::identity_for_item(tcx, adt);
+		let env = TypingEnv::post_analysis(tcx, adt);
+		let outer = self.defining.replace((adt, env));
+		let mut found = Vec::new();
+		for field in tcx.adt_def(adt).all_fields() {
+			self.find_projections(copy::field_ty(tcx, env, field.did, identity), env, &mut found);
+		}
+		self.defining = outer;
+		let mut names: Vec<String> = (tcx.generics_of(adt).own_params.iter())
+			.filter(|param| matches!(param.kind, ty::GenericParamDefKind::Type { .. }))
+			.map(|param| param.name.to_string())
+			.collect();
+		let mut named = Vec::with_capacity(found.len());
+		for projection in found {
+			let ty::Alias(_, alias) = projection.kind() else {
+				unreachable!("a projection")
+			};
+			let item = alias.kind.try_to_projection().expect("a projection");
+			let base = tcx.item_name(item).to_string();
+			let name = (1..)
+				.map(|n| match n {
+					1 => base.clone(),
+					n => format!("{base}{n}"),
+				})
+				.find(|name| !names.contains(name))
+				.unwrap();
+			names.push(name.clone());
+			named.push((projection, name));
+		}
+		self.projections.insert(adt, named.clone());
+		named
+	}
+
+	/// Add to `found` each projection over type parameters that typing `ty` in `env` names.
+	fn find_projections(&mut self, ty: Ty<'tcx>, env: TypingEnv<'tcx>, found: &mut Vec<Ty<'tcx>>) {
+		let tcx = self.tcx;
+		let mut walker = ty.walk();
+		while let Some(arg) = walker.next() {
+			let Some(t) = arg.as_type() else { continue };
+			match t.kind() {
+				ty::Alias(_, alias) if alias.kind.try_to_projection().is_some() && t.has_param() => {
+					if !found.contains(&t) {
+						found.push(t);
+					}
+					walker.skip_current_subtree();
+				}
+				ty::Adt(adt, args)
+					if self.crates.translates(adt.did())
+						&& library::Std::of(tcx, adt.did()).is_none()
+						&& self.bound_drops(adt.did()).is_none() =>
+				{
+					for (projection, _) in self.projections(adt.did()) {
+						self.find_projections(copy::instantiate(tcx, env, projection, args), env, found);
+					}
+				}
+				ty::Adt(adt, _) if !self.crates.translates(adt.did()) => {
+					if let Some(item) = self.iter_item(t) {
+						self.find_projections(item, env, found);
+					}
+				}
+				_ => {}
+			}
+		}
 	}
 
 	/// The TypeScript type of `field` in the definition of `adt`, over its own parameters,
@@ -1901,7 +2021,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let identity = ty::GenericArgs::identity_for_item(tcx, adt);
 		let env = TypingEnv::post_analysis(tcx, adt);
 		let ty = copy::field_ty(tcx, env, field.did, identity);
-		let outer = self.defining.replace(env);
+		let outer = self.defining.replace((adt, env));
 		let ty = self.ty(ty, span);
 		self.defining = outer;
 		if ty.any(&instanced) {
@@ -1934,15 +2054,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				None => return value,
 			},
 		};
-		let params: Vec<(String, Type)> = (self.tcx.generics_of(adt).own_params.iter())
-			.filter(|param| matches!(param.kind, ty::GenericParamDefKind::Type { .. }))
-			.map(|param| {
-				(
-					param.name.to_string(),
-					self.ty(args.type_at(param.index as usize), span),
-				)
-			})
-			.collect();
+		let params = self.instance_params(adt, args, span);
 		let at = defined.subst(&|name| params.iter().find(|(p, _)| p == name).map(|(_, t)| t.clone()));
 		ts::Expr::As(Box::new(value), at)
 	}
@@ -1965,8 +2077,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	fn generic_erasure(&mut self, adt: AdtDef<'tcx>, args: GenericArgsRef<'tcx>, span: Span) -> Option<String> {
 		let tcx = self.tcx;
 		let ty = Ty::new_adt(tcx, adt, args);
+		let identity = ty::GenericArgs::identity_for_item(tcx, adt.did());
+		let defining = (adt.did(), TypingEnv::post_analysis(tcx, adt.did()));
+		let env = self.defining.map_or(self.typing_env(), |(_, env)| env);
 		for field in adt.all_fields() {
-			let generic = tcx.type_of(field.did).instantiate_identity().skip_norm_wip();
+			let generic = copy::field_ty(tcx, defining.1, field.did, identity);
 			for part in generic.walk().filter_map(|arg| arg.as_type()) {
 				let ty::Adt(wrapper, wrapper_args) = part.kind() else {
 					continue;
@@ -1981,7 +2096,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				if !erased.param {
 					continue;
 				}
-				let held = ty::EarlyBinder::bind(tcx, part).instantiate(tcx, args).skip_norm_wip();
+				let held = copy::instantiate(tcx, env, part, args);
 				if let Some(msg) = self.erasure_conflict(held) {
 					return Some(format!(
 						"`{ty}` is not supported: its field `{}` is `{held}`: {msg}",
@@ -1992,17 +2107,20 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				if held.has_param() {
 					continue;
 				}
-				let instance = ty::EarlyBinder::bind(tcx, inner).instantiate(tcx, args).skip_norm_wip();
+				let instance = copy::instantiate(tcx, env, inner, args);
 				let at = self.erases_to(instance);
+				let outer = self.defining.replace(defining);
 				let defined = self.ty(inner, span);
+				self.defining = outer;
 				let msg = match defined {
 					// What TypeScript's type of the parameter decides, which must be what the
 					// instance's erasure does.
 					Type::Param(_) if if option { !erased.undefined } else { !erased.pending } => {
-						let Some(param) = inner.walk().filter_map(|arg| arg.as_type()).find(|t| matches!(t.kind(), ty::Param(_))) else {
+						// The parameter, or the projection from one, that it types.
+						let Some(param) = inner.walk().filter_map(|arg| arg.as_type()).find(|t| matches!(t.kind(), ty::Param(_) | ty::Alias(..))) else {
 							continue;
 						};
-						let arg = ty::EarlyBinder::bind(tcx, param).instantiate(tcx, args).skip_norm_wip();
+						let arg = copy::instantiate(tcx, env, param, args);
 						let decided = self.ty(arg, span);
 						let (holds, alias) = match option {
 							true => (holds_undefined(&decided) == at.undefined, "OptionOf"),
@@ -2139,6 +2257,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				..Erased::default()
 			},
 			ty::Param(_) => Erased {
+				param: true,
+				..Erased::default()
+			},
+			ty::Alias(..) if ty.has_param() => Erased {
 				param: true,
 				..Erased::default()
 			},

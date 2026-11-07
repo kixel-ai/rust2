@@ -207,6 +207,8 @@ roots = [
     "values::manual_impls",
     "values::mixed_byte",
     "values::nested",
+    "values::projected_nested",
+    "values::projected_uninit",
     "values::units_compared",
 ]
 printable = ["config::Meters"]
