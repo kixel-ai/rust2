@@ -2764,6 +2764,26 @@ fn inline_moved(r: &RefCell<Cell<u32>>, o: &OnceCell<Cell<u32>>) -> (RefCell<Cel
 	old
 }
 
+/// A `Vec` and a `VecDeque` moved out through pointers, after which the originals shrink
+/// without touching the storage they share, as `set_len` and `pop_front` do, and are
+/// forgotten: the copies keep what they held.
+fn shrunk_moved(v: Vec<u32>, mut q: std::collections::VecDeque<u32>) -> (Vec<u32>, std::collections::VecDeque<u32>, Option<u32>) {
+	let mut v = mem::ManuallyDrop::new(v);
+	let old_v = unsafe { ptr::read(&*v) };
+	unsafe { v.set_len(0) };
+	let old_q = unsafe { ptr::read(&q) };
+	let popped = q.pop_front();
+	mem::forget(q);
+	(old_v, old_q, popped)
+}
+
+/// A `HashMap` written whole through a pointer from the `&mut` given, which holds what the
+/// new one does, its capacity included.
+#[inline(never)]
+fn map_rewritten(r: &mut std::collections::HashMap<u32, u32>) {
+	unsafe { ptr::write(ptr::from_mut(r), std::collections::HashMap::new()) }
+}
+
 /// A range of cells and a cell `Cell::from_mut` made of a variable's place, moved out
 /// through pointers from shared references to them, whose cells are then set.
 fn ends_moved(r: &ops::Range<Cell<u32>>, c: &Cell<u32>) -> (ops::Range<Cell<u32>>, Cell<u32>) {
@@ -2836,6 +2856,17 @@ pub fn moved_out(data: &[u8], out: &mut Vec<u8>) {
 		}
 		out.extend([old_c.get() as u8, x as u8]);
 	}
+	let nums: Vec<u32> = data.iter().map(|&b| u32::from(b)).collect();
+	let (old_v, old_q, popped) = shrunk_moved(nums.clone(), nums.iter().copied().collect());
+	out.push(old_v.len() as u8);
+	out.extend(old_v.iter().map(|&n| n as u8));
+	out.push(popped.map_or(0xff, |n| n as u8));
+	out.push(old_q.len() as u8);
+	out.extend(old_q.iter().map(|&n| n as u8));
+	let mut map = std::collections::HashMap::<u32, u32>::with_capacity(data.len() * 8);
+	map.extend(nums.iter().map(|&n| (n, n)));
+	map_rewritten(&mut map);
+	out.extend([map.len() as u8, map.capacity() as u8]);
 }
 
 /// Pointers to slices cast to ones to arrays of their elements, of bytes and of numbers:

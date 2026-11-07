@@ -40,6 +40,12 @@ pub fn lazy_moved(cell: std::cell::Cell<u32>) -> u32 {
 	*copy
 }
 
+/// A pointer from a reference the body is given moved by an offset the body doesn't fix,
+/// which may reach past the value JS keeps in no array.
+pub fn offset_reference(r: &u32, n: usize) -> u32 {
+	unsafe { *std::ptr::from_ref(r).add(n) }
+}
+
 /// A `Peekable` moved out through a pointer with a cell peeked, which only its runtime
 /// class holds.
 pub fn peeked_moved(cells: Vec<std::cell::Cell<u32>>) -> u32 {

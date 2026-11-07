@@ -45,6 +45,12 @@ export function copy$String(v: rs.String): rs.String {
 	return rs.objectCopy(v);
 }
 
+export function copy$Vec_u32(v: rs.Vec<rs.u32>): rs.Vec<rs.u32> {
+	const c = rs.objectCopy(v);
+	c.items = c.items.slice();
+	return c;
+}
+
 export function copy$Vec_u8(v: rs.ByteVec): rs.ByteVec {
 	return rs.objectCopy(v);
 }
@@ -82,6 +88,12 @@ export function copy$cell_OnceCell_Cell_u32(v: rs.OnceCell<rs.Cell<rs.u32>>): rs
 export function copy$cell_RefCell_Cell_u32(v: rs.RefCell<rs.Cell<rs.u32>>): rs.RefCell<rs.Cell<rs.u32>> {
 	const c = rs.objectCopy(v);
 	c.value = copy$Cell_u32(c.value);
+	return c;
+}
+
+export function copy$collections_VecDeque_u32(v: rs.VecDeque<rs.u32>): rs.VecDeque<rs.u32> {
+	const c = rs.objectCopy(v);
+	c.b = c.b.slice();
 	return c;
 }
 

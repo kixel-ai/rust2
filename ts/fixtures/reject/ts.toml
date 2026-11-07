@@ -6,6 +6,7 @@ roots = [
     "alloc::bytes_as_values",
     "alloc::infallible_cell",
     "alloc::lazy_moved",
+    "alloc::offset_reference",
     "alloc::past_reference",
     "alloc::peeked_moved",
     "alloc::reinterpreted",

@@ -63,7 +63,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// Why the call of std's `def_id` would fail at run time where Rust's is defined, if the
 	/// body proves it would: `offset_from` between pointers JS keeps in different arrays, a
 	/// raw or mutable slice of a byte in no array of bytes, or a pointer, slice, or copy
-	/// reaching out of an array of one or a copied byte.
+	/// reaching out of an array of one or a copied byte, or moved by an offset the body
+	/// doesn't fix from an array of one.
 	pub(super) fn stray(
 		&self,
 		def_id: rustc_hir::def_id::DefId,
@@ -93,7 +94,15 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			return Some(super::alloc::BYTES.into());
 		}
 		let out = |o: Origin<'tcx>, n: Option<i128>, what: &str| {
-			let index = o.index?;
+			// An offset the body doesn't fix may move a pointer out of an array of one.
+			let Some(index) = o.index else {
+				return matches!(o.array, Array::Lone(_)).then(|| {
+					format!(
+						"{what} moved by an offset the body doesn't fix from {}, which JS keeps apart from what holds it in Rust",
+						o.array.what()
+					)
+				});
+			};
 			let past = o.array.len().is_some_and(|len| index + n.unwrap_or(0) > len);
 			(index < 0 || past).then(|| {
 				format!(

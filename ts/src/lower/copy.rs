@@ -29,9 +29,18 @@ use super::{AdtRepr, Translator, field_name, names};
 use crate::program::{SymKind, Symbol};
 use crate::ts::{self, Expr, Key, Param, Stmt, StmtKind};
 
-/// What a library object holds inline: each field of its JS object holding a value and
-/// the type held there, and the types it holds where no copy reaches.
-type Inline<'tcx> = (Vec<(&'static str, Ty<'tcx>)>, Vec<Ty<'tcx>>);
+/// What a library object holds inline, which its copy one object deep would share.
+#[derive(Default)]
+struct Inline<'tcx> {
+	/// Each field of its JS object holding a value inline, and the type held there.
+	fields: Vec<(&'static str, Ty<'tcx>)>,
+	/// Each field holding the JS array of its storage, whose length or slots the runtime
+	/// changes where Rust changes only the object's own length, as a `Vec`'s `set_len` and
+	/// a `VecDeque`'s `pop_front` do: copied, sharing its items.
+	storage: Vec<&'static str>,
+	/// The types it holds where no copy reaches, a hash map's hasher.
+	unreachable: Vec<Ty<'tcx>>,
+}
 
 impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether a `ty` is copied where Rust copies it: a `Copy` value that is, or holds by
@@ -71,10 +80,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						|| self.addressed(ty)
 						|| !ty.is_freeze(self.tcx, self.typing_env())
 						|| match self.inline_held(ty) {
-							Some((fields, unreachable)) => fields
+							Some(inline) => inline
+								.fields
 								.into_iter()
 								.map(|(_, t)| t)
-								.chain(unreachable)
+								.chain(inline.unreachable)
 								.any(|t| self.changes(t)),
 							// Any type it is over may be held inline, which its copy refuses.
 							None => args.types().any(|t| self.changes(t)),
@@ -95,16 +105,21 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// What a library object `ty` holds inline rather than on the heap, which a copy of the
 	/// object one object deep shares: each field of its JS object holding such a value and
 	/// the type held there, a cell's, a lock's, a range's ends, or a one-time cell's, which
-	/// holds nothing until set; and the types it holds where no copy reaches, a hash map's
-	/// hasher. A collection's items, and what a `Weak` points at, are on the heap, which
-	/// Rust's read shares too. `None`
-	/// for any other library object, such as a `LazyCell` or a `Peekable`, whose inline
-	/// state only its runtime class knows, so a read that would copy one is refused.
+	/// holds nothing until set; the JS arrays holding a collection's storage whose length
+	/// is its own; and the types it holds where no copy reaches, a hash map's hasher. A
+	/// collection's items, and what a `Weak` points at, are on the heap, which Rust's read
+	/// shares too. `None` for any other library object, such as a `LazyCell` or a
+	/// `Peekable`, whose inline state only its runtime class knows, so a read that would
+	/// copy one is refused.
 	fn inline_held(&self, ty: Ty<'tcx>) -> Option<Inline<'tcx>> {
 		let ty::Adt(adt, args) = ty.kind() else {
 			return None;
 		};
 		let at = |i: usize| args.type_at(i);
+		let storage = |field: &'static str| Inline {
+			storage: vec![field],
+			..Inline::default()
+		};
 		let fields = match Std::of(self.tcx, adt.did()) {
 			Some(Std::Cell) => vec![("v", at(0))],
 			Some(Std::RefCell | Std::Mutex) => vec![("value", at(0))],
@@ -112,10 +127,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			Some(Std::Range) => vec![("start", at(0)), ("end", at(0))],
 			Some(Std::RangeInclusive) => vec![("lo", at(0)), ("hi", at(0))],
 			Some(Std::RangeFrom) => vec![("start", at(0))],
+			// A `Vec<u8>`'s length is apart from its bytes.
+			Some(Std::Vec | Std::BinaryHeap) if !super::byte(at(0)) => return Some(storage("items")),
+			Some(Std::VecDeque) => return Some(storage("b")),
 			Some(
 				Std::Vec
 				| Std::String
-				| Std::VecDeque
 				| Std::LinkedList
 				| Std::BinaryHeap
 				| Std::BTreeMap
@@ -124,11 +141,14 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				| Std::BytesMut
 				| Std::Weak,
 			) => Vec::new(),
-			Some(Std::HashMap) => return Some((Vec::new(), vec![at(2)])),
-			Some(Std::HashSet) => return Some((Vec::new(), vec![at(1)])),
+			Some(Std::HashMap) => return Some(Inline { unreachable: vec![at(2)], ..Inline::default() }),
+			Some(Std::HashSet) => return Some(Inline { unreachable: vec![at(1)], ..Inline::default() }),
 			_ => return None,
 		};
-		Some((fields, Vec::new()))
+		Some(Inline {
+			fields,
+			..Inline::default()
+		})
 	}
 
 	/// Whether the runs before compared pointers to a `ty`, or to a type it holds by value,
@@ -402,7 +422,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				// A library object, which [`Self::changes`] says a whole write lands in, and a
 				// copy of what it holds inline.
 				Some(std) => {
-					let Some((fields, unreachable)) = self.inline_held(ty) else {
+					let Some(inline) = self.inline_held(ty) else {
 						self.err(
 							span,
 							format!(
@@ -411,7 +431,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						);
 						return ret(v());
 					};
-					if unreachable.into_iter().any(|t| self.changes(t)) {
+					if inline.unreachable.into_iter().any(|t| self.changes(t)) {
 						self.err(
 							span,
 							format!("a read moving out a `{ty}`, which holds inline a value JS can't copy apart"),
@@ -422,13 +442,17 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						let held = self.snapshot(v().member("v"), args.type_at(0), span);
 						return ret(Expr::New(Box::new(Expr::Rs("Cell".into())), vec![held]));
 					}
-					let fields: Vec<_> = fields.into_iter().filter(|&(_, t)| self.changes(t)).collect();
+					let fields: Vec<_> = inline.fields.into_iter().filter(|&(_, t)| self.changes(t)).collect();
 					let copy = Expr::rs("objectCopy", vec![v()]);
-					if fields.is_empty() {
+					if fields.is_empty() && inline.storage.is_empty() {
 						return ret(copy);
 					}
 					let c = || Expr::ident("c");
 					let mut body = vec![StmtKind::decl(false, "c", None, Some(copy)).at(None)];
+					for field in inline.storage {
+						let items = c().member(field).member("slice").call(Vec::new());
+						body.push(StmtKind::Expr(c().member(field).assign(items)).at(None));
+					}
 					for (field, t) in fields {
 						let read = self.snapshot(c().member(field), t, span);
 						body.push(StmtKind::Expr(c().member(field).assign(read)).at(None));
