@@ -54,6 +54,13 @@ version = "0.0.0"
 [[package]]
 name = "items"
 version = "0.0.0"
+dependencies = [
+ "items-dep",
+]
+
+[[package]]
+name = "items-dep"
+version = "0.0.0"
 
 [[package]]
 name = "itoa"
@@ -124,7 +131,6 @@ dependencies = [
  "items",
  "order",
  "rust2-driver",
- "serde",
  "toml",
  "vecs",
 ]
