@@ -211,6 +211,9 @@ pub enum Std {
 	BytesMut,
 	/// `rand::rngs::ThreadRng`: `rs.ThreadRng`, which holds no state.
 	ThreadRng,
+	/// A handle of one of tokio's sync channels, or what one lends: a class of
+	/// `rs/tokio.ts`'s, which [`super::tokio::Handle`] names.
+	Sync,
 }
 
 impl Std {

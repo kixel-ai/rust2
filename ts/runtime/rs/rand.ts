@@ -32,6 +32,18 @@ function below(span: bigint): bigint {
 	}
 }
 
+/** A draw of `randBelow`, reused so a draw makes no array. */
+const WORD = /* @__PURE__ */ new Uint32Array(1);
+
+/** A uniform `u32` below `n`, which is positive: a word redrawn past the last whole multiple of `n` below 2^32. */
+export function randBelow(n: number): number {
+	const limit = 2 ** 32 - (2 ** 32 % n);
+	for (;;) {
+		crypto.getRandomValues(WORD);
+		if (WORD[0] < limit) return WORD[0] % n;
+	}
+}
+
 /** `random::<T>()` of an integer type of `bits`, signed or not: each value equally likely. */
 export function randInt(bits: number, signed: boolean): number | Limbs {
 	const v = randomBits(bits);

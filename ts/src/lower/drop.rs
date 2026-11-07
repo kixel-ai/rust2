@@ -43,7 +43,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::RefMut
 					| Std::PeekMut
 					| Std::Bytes
-					| Std::BytesMut,
+					| Std::BytesMut
+					| Std::Sync,
 				) => true,
 				Some(
 					Std::Option
@@ -179,7 +180,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Adt(adt, _) if self.bound_drops(adt.did()).is_some() => true,
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did()) {
 				// Each drops by what it was given, or a `Weak` or a `BytesMut` by its own count.
-				Some(Std::Waker | Std::PollFn | Std::Ready | Std::Weak | Std::BytesMut) => true,
+				Some(Std::Waker | Std::PollFn | Std::Ready | Std::Weak | Std::BytesMut | Std::Sync) => true,
 				Some(
 					Std::Arc
 					| Std::Mutex
@@ -248,7 +249,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				| Std::Cell
 				| Std::OnceCell
 				| Std::OnceLock
-				| Std::BytesMut,
+				| Std::BytesMut
+				| Std::Sync,
 			) => true,
 			Some(_) => false,
 			// An `rs.Iter` has one only if it was given what drops.
