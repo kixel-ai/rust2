@@ -180,7 +180,7 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let deque = VecDeque::from(v.clone());
 	let map = BTreeMap::from([(u16::from(n), n)]);
 	let set = BTreeSet::from([u16::from(n)]);
-	match kind % 70 {
+	match kind % 73 {
 		0 => out.push(Vec::<u8>::with_capacity(usize::MAX - at).len() as u8),
 		1 => v.clone().rotate_right(at + 3),
 		2 => out.push(n.clamp(n.max(1), n.max(1) - 1)),
@@ -306,6 +306,9 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			unsafe { v.set_len(v.capacity() + 1) };
 			out.push(v.len() as u8);
 		}
+		69 => _ = [std::mem::MaybeUninit::uninit(); 2].write_copy_of_slice(&v[..at % 2]),
+		70 => _ = [const { std::mem::MaybeUninit::uninit() }; 2].write_clone_of_slice(&[String::new()][..at % 2]),
+		71 => out.push(Box::<[u16]>::new_uninit_slice(usize::MAX - at).len() as u8),
 		_ => out.push(Lying(n).len() as u8),
 	}
 }
