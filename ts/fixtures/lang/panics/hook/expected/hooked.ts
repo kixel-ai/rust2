@@ -20,7 +20,7 @@ import { withBorrow$097wfl1 } from "./std/thread/local.ts";
 export function record(info: rs.PanicHookInfo): void {
 	let kind!: rs.String;
 	const payload: Any.Any = rs.hookPayload(info, of$ref_str, of$String);
-	if (!(payload.typeId$Any() === "24c161f26c70c1f1b9f602dc5fe9f65c")) {
+	if (!(payload.typeId$Any() === "<TypeId 1>")) {
 		if (!(payload instanceof of$String)) {
 			const _12: rs.u32 | undefined = payload instanceof of$u32 ? payload.v : payload instanceof ofPlace$u32 ? payload.v.v : undefined;
 			if (_12 !== undefined) {
