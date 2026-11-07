@@ -173,8 +173,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// What a `ty` that [keeps cells](Self::keeps_cells) holds: a cell's value, or each
-	/// field of a tuple or struct, and whether it keeps cells too.
+	/// field of a tuple or struct, and whether it keeps cells too. A `MaybeUninit` or a
+	/// `ManuallyDrop` holds what JS keeps it as.
 	pub fn kept_cells(&self, ty: Ty<'tcx>) -> Option<KeptCells<'tcx>> {
+		let ty = self.uninit_inner(ty);
 		let fields: Vec<Ty<'tcx>> = match ty.kind() {
 			ty::Adt(adt, args) if Std::of(self.tcx, adt.did()) == Some(Std::Cell) => {
 				return Some(KeptCells::Cell(args.type_at(0)));

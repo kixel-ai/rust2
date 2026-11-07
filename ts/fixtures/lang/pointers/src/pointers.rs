@@ -2844,8 +2844,9 @@ struct Celled {
 	n: u8,
 }
 
-/// Whole writes of values holding cells into a cell, a tuple, and a struct, each read back
-/// through a pointer saved into an inner cell before: `UnsafeCell::replace`, `ptr::replace`,
+/// Whole writes of values holding cells into a cell, a tuple, a struct, a `MaybeUninit`, and
+/// a `ManuallyDrop`, each read back through a pointer saved into an inner cell before:
+/// `UnsafeCell::replace`, `ptr::replace`,
 /// `ptr::write`, `ptr::swap`, `Cell`'s writes, and assignments through a raw pointer; a
 /// value `ptr::read` copies out before one, and before a write into a part holding no
 /// cell; `ptr::write`s into memory not written yet; and pointers `UnsafeCell::raw_get`
@@ -2861,8 +2862,12 @@ pub fn nested_cells(data: &[u8], out: &mut Vec<u8>) {
 	let obj = UnsafeCell::new(UnsafeCell::new((7u8, 8u8)));
 	let cell = Cell::new((UnsafeCell::new(9u32), 10u8));
 	let wrapped = Cell::new(UnsafeCell::new(11u32));
+	let uninit = UnsafeCell::new(MaybeUninit::new(UnsafeCell::new(12u32)));
+	let manual = UnsafeCell::new(mem::ManuallyDrop::new(UnsafeCell::new(13u32)));
 	unsafe {
 		let to_wrapped = (*wrapped.as_ptr()).get();
+		let to_uninit = (*uninit.get()).assume_init_ref().get();
+		let to_manual = (*manual.get()).get();
 		let to_nest = (*nest.get()).get();
 		let to_deep = (*(*deep.get()).get()).get();
 		let to_pair = (*pair.get()).0.get();
@@ -2886,6 +2891,10 @@ pub fn nested_cells(data: &[u8], out: &mut Vec<u8>) {
 					out.extend([old.c.into_inner() as u8, old.n]);
 					let old = obj.replace(UnsafeCell::new((n, n ^ 1)));
 					out.push(old.into_inner().1);
+					let old = uninit.replace(MaybeUninit::new(UnsafeCell::new(u32::from(n) ^ 20)));
+					out.push(old.assume_init().into_inner() as u8);
+					let old = manual.replace(mem::ManuallyDrop::new(UnsafeCell::new(u32::from(n) ^ 21)));
+					out.push(mem::ManuallyDrop::into_inner(old).into_inner() as u8);
 				}
 				1 => {
 					let old = ptr::replace(nest.get(), UnsafeCell::new(u32::from(n) ^ 1));
@@ -2962,6 +2971,7 @@ pub fn nested_cells(data: &[u8], out: &mut Vec<u8>) {
 			}
 			out.extend([*to_nest as u8, *to_deep as u8, *to_pair as u8, *to_strukt as u8]);
 			out.extend([(*to_obj).0, (*to_obj).1, *to_cell as u8, *to_wrapped as u8]);
+			out.extend([*to_uninit as u8, *to_manual as u8]);
 			out.extend([(*nest.get()).get().read() as u8, (*pair.get()).1, (*strukt.get()).n]);
 		}
 	}
