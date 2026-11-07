@@ -206,6 +206,7 @@ roots = [
     "values::generic_uninit_byte_open",
     "values::lists",
     "values::manual_impls",
+    "values::mixed_byte",
     "values::nested",
     "values::units_compared",
 ]

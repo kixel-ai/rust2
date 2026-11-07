@@ -20,7 +20,9 @@ is `{ array, index }`. Byte reinterpretation, pointer-to-integer casts, and raw 
 are refused with a span. [#201](https://github.com/moq-dev/rust2/pull/201) landed `Box`
 to raw and back, `NonNull`, `MaybeUninit`, raw reads and writes, `get_unchecked`, and
 unions whose overlapping fields share a type, which took hashlink from 375 refusals to
-none of its own `unsafe`.
+none of its own `unsafe`. A union over a type parameter lays out each instance since
+[#620](https://github.com/moq-dev/rust2/pull/620); smallvec's `SmallVecData` overlaps a
+`MaybeUninit<[T; N]>` with a pointer and a length, byte reinterpretation, so it stays refused.
 
 - An `unsafe` operation outside the modeled set is refused with its span.
 - Undefined behavior in Rust need not be reproduced, but a translated program never
@@ -72,7 +74,6 @@ Public API: the translator's output.
 
 - [A raw pointer behind a reference](/quest/m3/ts-unsafe/raw-behind-ref.md) - `&raw const *r` of a value JS copies points where the reference came from
 - [Vec::from_raw_parts of a typed allocation](/quest/m3/ts-unsafe/vec-from-raw-parts.md) - a `Vec` adopts an `alloc`ed array of `T`s, with its length, capacity, and drops
-- [Unions over a type parameter](/quest/m3/ts-unsafe/generic-unions.md) - each instance of a generic union is laid out with its own offsets
 - [Vec::drain from std's MIR](/quest/m3/ts-unsafe/vec-drain-mir.md) - std's `Drain` translates, replacing the runtime's port
 - [BinaryHeap from std's MIR](/quest/m3/ts-unsafe/binary-heap-mir.md) - std's `BinaryHeap` and `PeekMut` translate, replacing the runtime's port
 - [Unchecked integer operations](/quest/m3/ts-unsafe/unchecked-ops.md) - `unchecked_*` and `NonZero::new_unchecked` translate, aborting on a violated precondition

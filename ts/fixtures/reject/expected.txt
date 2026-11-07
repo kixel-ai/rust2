@@ -285,6 +285,7 @@ fixtures/reject/src/values.rs:lists+1:4: `std::collections::LinkedList::<T, A>::
 fixtures/reject/src/values.rs:manual_impls+2:11: unsupported call to `<std::mem::ManuallyDrop<u32> as std::fmt::Debug>::fmt`
 fixtures/reject/src/values.rs:manual_impls+2:25: unsupported call to `<std::mem::ManuallyDrop<u32> as std::cmp::PartialEq>::eq`
 fixtures/reject/src/values.rs:manual_impls+2:34: a constant of type `std::mem::ManuallyDrop<u32>`
+fixtures/reject/src/values.rs:mixed_byte+0:19: union `values::Mixed`, whose fields overlap in `u32` and `f32`, which JS keeps apart
 fixtures/reject/src/values.rs:nested+0:15: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rs.None`
 fixtures/reject/src/values.rs:nested+1:2: `Option<std::option::Option<std::option::Option<u8>>>` is not supported: its `None` and `Some` would both be `rs.None`
 fixtures/reject/src/values.rs:units_compared+2:15: a raw pointer to a place of `()`, which has no address of its own

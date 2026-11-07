@@ -265,8 +265,10 @@ fixtures/reject/src/strs.rs:cow_made+2:53: constructing `std::borrow::Cow<'_, st
 fixtures/reject/src/strs.rs:str_bytes_mut+1:13: unsupported call to `core::str::<impl str>::as_bytes_mut`
 fixtures/reject/src/strs.rs:str_bytes_mut+2:13: `core::str::<impl str>::get_unchecked_mut` with a mutable reference to a value JS copies, which its mapping would copy
 fixtures/reject/src/strs.rs:str_from_bytes_mut+1:20: `std::str::from_utf8_mut` with a mutable reference to a value JS copies, which its mapping would copy
+fixtures/reject/src/values.rs:Beside+0:1: union `values::Beside`, whose fields overlap in `u32` and `f32`, which JS keeps apart
 fixtures/reject/src/values.rs:Bits+0:1: union `values::Bits`, whose fields overlap in `u32` and `f64`, which JS keeps apart
 fixtures/reject/src/values.rs:HoldsByte+1:2: `values::ByteAnd<u8, U>` is not supported: its field `value` is `Option<std::mem::MaybeUninit<T>>`, typed `std::mem::MaybeUninit<T> | rs.None`, whose `None` would be `undefined` as `Option<std::mem::MaybeUninit<u8>>`
+fixtures/reject/src/values.rs:Mixed+0:1: union `values::Mixed`, whose fields overlap in `u32` and `f32`, which JS keeps apart
 fixtures/reject/src/values.rs:addr_parsed+0:32: unsupported type `std::net::AddrParseError` from another crate
 fixtures/reject/src/values.rs:addr_parsed+0:32: unsupported type `std::net::Ipv4Addr` from another crate
 fixtures/reject/src/values.rs:addr_parsed+1:4: unsupported call to `core::str::<impl str>::parse::<std::net::Ipv4Addr>`
