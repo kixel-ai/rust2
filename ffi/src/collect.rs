@@ -297,7 +297,12 @@ impl<'tcx> Collector<'tcx> {
 		// An associated item, whose path goes through its type's, is at home with it.
 		let item = match self.outside.contains_key(&def_id) {
 			true => def_id,
-			false => match tcx.type_of(tcx.parent(def_id)).instantiate_identity().skip_norm_wip().kind() {
+			false => match tcx
+				.type_of(tcx.parent(def_id))
+				.instantiate_identity()
+				.skip_norm_wip()
+				.kind()
+			{
 				ty::Adt(adt, _) => adt.did(),
 				other => unreachable!("an associated item of {other:?}"),
 			},
@@ -318,7 +323,12 @@ impl<'tcx> Collector<'tcx> {
 			.map(|&k| tcx.crate_name(k).to_string())
 			.collect();
 		order.push(tcx.crate_name(LOCAL_CRATE).to_string());
-		let rank = |krate: &str| order.iter().position(|k| k == krate).expect("each crate is in the order");
+		let rank = |krate: &str| {
+			order
+				.iter()
+				.position(|k| k == krate)
+				.expect("each crate is in the order")
+		};
 		let api = &mut self.api;
 		// An argument's home may move in turn, so this repeats until none does.
 		loop {
@@ -390,7 +400,10 @@ impl<'tcx> Collector<'tcx> {
 					}
 					match last == owner.krate {
 						true => owner.clone(),
-						false => Home { krate: last, outside: 1 },
+						false => Home {
+							krate: last,
+							outside: 1,
+						},
 					}
 				})
 				.collect()
@@ -398,7 +411,11 @@ impl<'tcx> Collector<'tcx> {
 		let records: Vec<Vec<Home>> = api.records.iter().map(|r| method_homes(&r.home, &r.methods)).collect();
 		let enums: Vec<Vec<Home>> = api.enums.iter().map(|e| method_homes(&e.home, &e.methods)).collect();
 		let objects: Vec<Vec<Home>> = api.objects.iter().map(|o| method_homes(&o.home, &o.methods)).collect();
-		let callbacks: Vec<Vec<Home>> = api.callbacks.iter().map(|c| method_homes(&c.home, &c.methods)).collect();
+		let callbacks: Vec<Vec<Home>> = api
+			.callbacks
+			.iter()
+			.map(|c| method_homes(&c.home, &c.methods))
+			.collect();
 		let set = |methods: &mut [Function], homes: Vec<Home>| {
 			for (method, home) in methods.iter_mut().zip(homes) {
 				method.home = home;

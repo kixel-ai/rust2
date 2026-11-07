@@ -184,12 +184,18 @@ fn classes(abi: &Abi<'_>, set: &Packages) -> BTreeMap<String, BTreeSet<String>> 
 	let api = abi.api;
 	let mut classes: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
 	let types = (0..api.records.len()).map(|i| (abi.record(i), &api.records[i].shown, &api.records[i].home));
-	let types = types.chain((0..api.enums.len()).map(|i| (abi.enumeration(i), &api.enums[i].shown, &api.enums[i].home)));
-	let types = types.chain((0..api.objects.len()).map(|i| (abi.object(i), &api.objects[i].shown, &api.objects[i].home)));
-	let types = types.chain((0..api.callbacks.len()).map(|i| (abi.callback(i), &api.callbacks[i].path, &api.callbacks[i].home)));
+	let types =
+		types.chain((0..api.enums.len()).map(|i| (abi.enumeration(i), &api.enums[i].shown, &api.enums[i].home)));
+	let types =
+		types.chain((0..api.objects.len()).map(|i| (abi.object(i), &api.objects[i].shown, &api.objects[i].home)));
+	let types = types
+		.chain((0..api.callbacks.len()).map(|i| (abi.callback(i), &api.callbacks[i].path, &api.callbacks[i].home)));
 	for (c, shown, home) in types {
 		let _ = set;
-		classes.entry(home.krate.clone()).or_default().insert(short(&abi.prefix, &c, shown, home));
+		classes
+			.entry(home.krate.clone())
+			.or_default()
+			.insert(short(&abi.prefix, &c, shown, home));
 	}
 	classes
 }
@@ -467,7 +473,12 @@ impl<'a> Gen<'a> {
 			),
 			Type::Callback(i, _) => (
 				&api.callbacks[*i].home.krate,
-				short(prefix, &abi.callback(*i), &api.callbacks[*i].path, &api.callbacks[*i].home),
+				short(
+					prefix,
+					&abi.callback(*i),
+					&api.callbacks[*i].path,
+					&api.callbacks[*i].home,
+				),
 			),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => (Packages::RT, self.class(&abi.range(ty))),
 			other => unreachable!("{other:?} is no exported type"),
@@ -975,7 +986,12 @@ impl<'a> Gen<'a> {
 		let api = abi.api;
 		let records = (0..api.records.len()).map(|i| {
 			let c = abi.record(i);
-			(Type::Record(i), Ty::Struct(c), &api.records[i].home, &api.records[i].methods)
+			(
+				Type::Record(i),
+				Ty::Struct(c),
+				&api.records[i].home,
+				&api.records[i].methods,
+			)
 		});
 		let enums = (0..api.enums.len()).map(|i| {
 			let c = abi.enumeration(i);
@@ -1000,7 +1016,10 @@ impl<'a> Gen<'a> {
 			for function in methods.iter().filter(|f| f.home.krate == pkg) {
 				let mut method = self.function(function, Some(&owner), Some(&ty));
 				if let Some(receiver) = method.receiver.take() {
-					let go = receiver.strip_prefix("self ").expect("a receiver is `self`").to_string();
+					let go = receiver
+						.strip_prefix("self ")
+						.expect("a receiver is `self`")
+						.to_string();
 					method.params.insert(0, ("self".to_string(), go));
 					method.name = format!("{}{}", self.named(&ty).1, method.name);
 				}
@@ -1016,7 +1035,11 @@ impl<'a> Gen<'a> {
 		for name in TAKEN {
 			self.names.insert(name.to_string(), "the runtime".to_string());
 		}
-		if abi.ranges.values().any(|ty| matches!(ty, Type::Bound(_) | Type::Bounds(_))) {
+		if abi
+			.ranges
+			.values()
+			.any(|ty| matches!(ty, Type::Bound(_) | Type::Bounds(_)))
+		{
 			self.bound();
 		}
 		for (c, ty) in &abi.ranges.clone() {
@@ -1733,7 +1756,12 @@ impl<'a> Gen<'a> {
 		if let Some(name) = self.closures.get(&go) {
 			return name.clone();
 		}
-		let name = format!("{}Go_{}_closure{}", self.abi.prefix, self.set.name(self.pkg), self.closures.len());
+		let name = format!(
+			"{}Go_{}_closure{}",
+			self.abi.prefix,
+			self.set.name(self.pkg),
+			self.closures.len()
+		);
 		self.closures.insert(go.clone(), name.clone());
 		let ps: Vec<String> = (0..lent.len()).map(|k| format!("p{k}")).collect();
 		let mut body = format!("\tf_ := lent_(data).({go})\n");

@@ -227,7 +227,10 @@ fn go_module(out: &Path, prefix: &str) -> Result<(String, Option<String>), Strin
 			.ok_or_else(|| format!("{} declares no module", path.display()))?;
 		let rest = out.join("go");
 		let rest = rest.strip_prefix(dir).expect("an ancestor holds it");
-		let rest: Vec<String> = rest.components().map(|c| c.as_os_str().to_string_lossy().into_owned()).collect();
+		let rest: Vec<String> = rest
+			.components()
+			.map(|c| c.as_os_str().to_string_lossy().into_owned())
+			.collect();
 		return Ok((format!("{module}/{}", rest.join("/")), None));
 	}
 	Ok((prefix.to_string(), Some(format!("module {prefix}\n\ngo 1.24\n"))))
