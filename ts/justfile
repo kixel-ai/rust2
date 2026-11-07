@@ -12,8 +12,9 @@ export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { env
 model := "fixtures/model/Cargo.toml"
 
 # The moq revision `moq` and `census` translate and `just ffi` exports by default: the one
-# the model fixture builds.
-moq_rev := `taplo get -f fixtures/model/Cargo.toml dependencies.moq-net.rev`
+# the model fixture builds. Read without taplo, which the nightly's runners outside Nix lack.
+moq_rev_match := replace_regex(read(model), '(?s).*\nmoq-net = \{[^\n]*\brev = "([0-9a-f]{40})".*', '$1')
+moq_rev := if moq_rev_match =~ '^[0-9a-f]{40}$' { moq_rev_match } else { error("no moq-net rev in " + model) }
 
 default:
     @just --list
