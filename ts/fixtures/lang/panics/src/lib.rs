@@ -28,6 +28,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("located::called", located::called),
 		("located::read", located::read),
 		("located::panicked", located::panicked),
+		("edition2018::panicked", edition2018::panicked),
 	];
 	#[cfg(feature = "hook")]
 	let cases = (cases.into_iter())
@@ -36,6 +37,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 			("hooked::aborted", hooked::aborted),
 			("hooked::sited", hooked::sited),
 			("hooked::stock", hooked::stock),
+			("hooked::edition2018_panicked", hooked::edition2018_panicked),
 		])
 		.collect();
 	cases

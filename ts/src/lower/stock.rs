@@ -91,7 +91,7 @@ pub fn is_opaque_crate(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
 /// `BytesMut`, and their functions and impls, and the crate's impls of std's byte slices
 /// and vectors. The mapping of a function stands in for it or refuses it. The impls that
 /// forward through a reference or a `Box`, and the crate's other types and functions,
-/// translate.
+/// translate, as does its impl for a `VecDeque<u8>`.
 pub fn mapped(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	if tcx.crate_name(did.krate).as_str() != "bytes" {
 		return false;
@@ -266,10 +266,11 @@ impl Buffer {
 
 /// Whether `ty`, the `Self` of a function of `bytes`, has a representation of its own or
 /// is std's, so a mapping stands in for its impls: not a type parameter, through which an
-/// impl forwards, nor the crate's own buffer or another crate's, which translate.
+/// impl forwards, nor the crate's own buffer or another crate's, nor a `VecDeque<u8>`,
+/// whose impl reads the slices the runtime's deque has, which translate.
 fn mapped_self<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	match ty.kind() {
-		ty::Adt(adt, _) => library::Std::of(tcx, adt.did()).is_some() && !ty.has_param(),
+		ty::Adt(adt, _) => library::Std::of(tcx, adt.did()).is_some_and(|std| std != Std::VecDeque) && !ty.has_param(),
 		ty::Ref(_, inner, _) => matches!(inner.kind(), ty::Slice(e) if is_u8(*e)),
 		_ => false,
 	}
@@ -471,26 +472,32 @@ fn bytes_own<'tcx>(
 		"split_off" => Expr::rs("bytesSplitOff", vec![args.next()?, args.next()?]),
 		"truncate" => Expr::rs("bytesTruncate", vec![args.next()?, args.next()?]),
 		"clear" => Expr::rs("bytesTruncate", vec![args.next()?, Expr::lit("0")]),
-		// The owner is read once, as `bytes` reads it, and would drop with the last `Bytes`
-		// that shares it, which `rs.Shared` keeps no owner to drop.
+		// The owner is read once, as `bytes` reads it, and one that drops is kept in the
+		// storage, which drops it with the last `Bytes` that shares it.
 		"from_owner" => {
 			let owner = targ(call.args, 0);
-			if b.t.drops(owner) {
-				let msg = format!(
-					"`Bytes::from_owner` of `{owner}`, which would drop with the last clone of what it makes, which is not supported"
-				);
-				return Some(b.err(call.span, msg));
-			}
+			let drop = match b.t.drops(owner) {
+				true => Some(b.t.drop_fn(owner, call.span)?),
+				false => None,
+			};
+			let value = args.next()?;
+			let value = match drop {
+				Some(_) => b.spill(value, "owner", out),
+				None => value,
+			};
 			let as_ref = trait_fn(tcx, rustc_span::sym::AsRef)?;
 			let slice = Ty::new_slice(tcx, tcx.types.u8);
 			let bytes = b.call_def(
 				as_ref,
 				tcx.mk_args(&[owner.into(), slice.into()]),
-				vec![args.next()?],
+				vec![value.clone()],
 				call.span,
 				out,
 			);
-			Expr::rs("bytesStatic", vec![bytes])
+			match drop {
+				Some(drop) => Expr::rs("bytesFromOwner", vec![value, bytes, drop]),
+				None => Expr::rs("bytesStatic", vec![bytes]),
+			}
 		}
 		_ => return None,
 	})
