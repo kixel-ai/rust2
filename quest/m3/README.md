@@ -11,12 +11,25 @@ std the translators cover before a consumer calls them.
 Decided with the maintainer on 2026-10-27: rust2 aims to support all of std, so a
 generic std gap is planned here even when moq never calls it.
 
-Decided with the maintainer on 2026-11-07: ✅ little time goes to unsafe Rust. A
-translator may refuse unsafe code with its span, requiring safe Rust, and a common
-library's unsafe internals may be replaced by a runtime mapping over its public API, as
-`hashbrown`'s and tokio's channels are (rejected: planning each unsafe std gap that no
-consumer reaches, such as `MaybeUninit::zeroed`, `Rc::new_uninit`, and
-`ptr::write_bytes`).
+Decided with the maintainer on 2026-11-07, the unsafe policy, to stop one-off fixes for
+ever rarer `unsafe`:
+
+1. ✅ Safe Rust is the contract, and where translation effort goes.
+2. ✅ `unsafe` inside std and common crates is wrapped at their safe API, as std,
+   `hashbrown`, `bytes`, and [tokio's channels](/quest/m3/ts-wasm-bindgen/tokio-sync.md)
+   are, rather than translated.
+3. ✅ Other `unsafe` translates only where it fits the translator's existing pointer forms
+   (a place, an array element, a byte in a buffer). A construct needing a new pointer form
+   or pointer metadata is refused with its span, unless a consumer needs it and no library
+   wrapper covers it.
+4. ✅ An `unsafe`-heavy crate a consumer needs is compiled to WASM behind its public API
+   rather than fixed construct by construct. Not planned until a consumer needs it.
+
+Rejected: an unsafe std gap with no consumer becoming its own quest, as
+`MaybeUninit::zeroed`, `Rc::new_uninit`, and `ptr::write_bytes` would have
+([#647](https://github.com/moq-dev/rust2/pull/647)), or as `Vec::from_raw_parts`'s adopted
+storage did ([#635](https://github.com/moq-dev/rust2/pull/635)); and a second, byte-backed
+memory model for values whose address is reinterpreted, without a consumer.
 
 ## Required
 
