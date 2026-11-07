@@ -212,26 +212,35 @@ impl Crate<'_> {
 }
 
 /// The path a `go.mod` declares in its module directive: `module`, then the path, bare or
-/// quoted, on its line or alone on the next of a `module (` block, then any `//` comment. A
-/// module path holds no quote, backslash, or `//`.
+/// quoted, on its line or alone on the next of a `module (` block, then any `//` comment.
+/// Another directive's block, which may hold a path named `module`, is skipped. A module
+/// path holds no quote, backslash, or `//`.
 fn module_path(text: &str) -> Option<&str> {
 	let mut lines = text
 		.lines()
 		.map(|line| line.split("//").next().unwrap_or_default().trim());
+	let mut block = false;
 	while let Some(line) = lines.next() {
-		let Some(rest) = line.strip_prefix("module") else {
+		if block {
+			block = line != ")";
+			continue;
+		}
+		let directive = line
+			.strip_prefix("module")
+			.filter(|rest| rest.is_empty() || rest.starts_with([' ', '\t', '(', '"', '`']));
+		let Some(rest) = directive else {
+			block = line.ends_with('(');
 			continue;
 		};
 		let rest = match rest.trim_start() {
 			"(" => lines.find(|line| !line.is_empty())?,
-			path if path.len() < rest.len() || path.starts_with(['"', '`']) => path,
-			_ => continue,
+			rest => rest,
 		};
 		let path = match rest.strip_prefix(['"', '`']) {
 			Some(quoted) => quoted.split(['"', '`']).next()?,
 			None => rest.split_whitespace().next()?,
 		};
-		return (!path.is_empty() && path != ")").then_some(path);
+		return (path != ")").then_some(path);
 	}
 	None
 }
@@ -1270,6 +1279,11 @@ mod tests {
 				Some("example.com/app"),
 			),
 			("// module example.com/app\ngo 1.24", None),
+			(
+				"replace (\n\tmodule => ./unused\n)\n\nmodule example.com/app\n",
+				Some("example.com/app"),
+			),
+			("require (\n\tmodule v1.0.0\n)\n", None),
 		] {
 			assert_eq!(module_path(text), path, "{text:?}");
 		}
