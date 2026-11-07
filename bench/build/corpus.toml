@@ -67,8 +67,8 @@ pure = true
 
 # Each variant is one build configuration. `base` names the variant it is
 # compared against; a variant without one is a base. `rustflags` replaces any
-# host rustflags the corpus configures (none do today). `subcommand` goes between
-# cargo and `build` or `check`. `corpora` and `scenarios` limit a variant to those
+# host rustflags the corpus configures (none do today). `config` holds cargo
+# `--config` values, and `subcommand` goes between cargo and `build` or `check`. `corpora` and `scenarios` limit a variant to those
 # they list, which its base must run too. A variant without `scenarios` runs
 # `check`, `build`, `edit-leaf`, and `edit-hub`; only the levers worth their cost
 # list the body edits and the test scenarios.
@@ -106,11 +106,14 @@ base = "nightly"
 toolchain = "nightly"
 rustflags = "-Z unstable-options --jobs-frontend=8"
 
+# rind, moq's crypto, builds with LLVM: its naked_asm! takes sym operands, which
+# Cranelift cannot compile yet (rust-lang/rustc_codegen_cranelift#1620). A profile
+# picks the backend, since cargo passes RUSTFLAGS after a package's own flags.
 [[variant]]
 name = "cranelift"
 base = "nightly"
 toolchain = "nightly"
-rustflags = "-Z codegen-backend=cranelift"
+config = ["unstable.codegen-backend=true", 'profile.dev.codegen-backend="cranelift"', 'profile.dev.package.rind.codegen-backend="llvm"']
 scenarios = ["check", "build", "edit-leaf", "edit-hub", "test-build", "test-run", "test-edit"]
 
 [[variant]]

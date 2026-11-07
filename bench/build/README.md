@@ -49,7 +49,7 @@ Over 21 CI runs since the sync, the controls' change had an RMS of 1.3% on `edit
 
 ## Variants
 
-A variant is a toolchain plus rustflags.
+A variant is a toolchain plus rustflags and cargo config.
 Each is compared against its `base`, run in the same job: the levers on stable against `baseline`, the nightly ones against `nightly`.
 The `control` variants repeat their base, so their change is the run's noise floor: an A/A control.
 Timed runs interleave the variants and rotate which goes first each round, so drift over a long job spreads across all of them.
@@ -63,11 +63,10 @@ Its CPU time adds the daemon's, its peak RSS adds what the daemon holds, and its
 The leaf and hub markers are functions nothing calls: rustc recompiles their crate and every crate that depends on it, while ra-jit, when it builds the edit itself, compiles nothing, so its times there are a lower bound.
 The body edits are functions the program runs, which ra-jit compiles.
 
-ra-jit bugs seen on moq at the pinned rev, not reported upstream:
+ra-jit bugs seen on moq, not reported upstream:
 
-- `cargo ra-jit check` with no build loaded reads every crate of the workspace, takes minutes and GBs, and fails on errors rustc does not report (`unresolved macro moq_clock::test` in moq-net's integration tests).
-- Async body edits in moq-net go to cargo (every `edit-async` run): "`new` is not compiled by ra-jit and rustc's copy is from before the edit: an instance of it does not compile". The daemon then loads the workspace again: on CI such an edit took 55.7 s and 222 CPU-s, against plain cargo's 9.1 s and 12.3 CPU-s ([run](https://github.com/moq-dev/rust2/actions/runs/40285528419)).
-- A fallback logs `Duplicate definition of identifier ... <cc::Build>::cargo_metadata` while compiling aws-lc-sys's build script.
+- Async body edits in moq-net go to cargo (every `edit-async` run): "`parsed_values_given` is not compiled by ra-jit and rustc's copy is from before the edit: an instance of it does not compile", a generic of usage-argv's. The daemon then loads the workspace again: on CI such an edit took 50.6 s and 196 CPU-s, against plain cargo's 10.5 s and 14.5 CPU-s ([run](https://github.com/moq-dev/rust2/actions/runs/42351623273)).
+- At the previous pin (`f36c848`), `cargo ra-jit check` with no build loaded read every crate of the workspace, took minutes and GBs, and failed on errors rustc does not report (`unresolved macro moq_clock::test` in moq-net's integration tests).
 - On a library-only build such as regex, `cargo ra-jit build` returns after `cargo clean` without building anything.
 
 The report shows wall time (trimmed mean, and mean ± standard deviation), CPU time and its change against the base, retired instructions, and peak RSS, all from hyperfine.
@@ -133,6 +132,7 @@ Recommended on 2026-10-25: moq's CI keeps building its tests with LLVM, since 42
 - 19 abort on an x86 SIMD intrinsic it does not implement, `llvm.x86.sse2.pmulhu.w` ([rustc_codegen_cranelift#171](https://github.com/rust-lang/rustc_codegen_cranelift/issues/171)). moq's CI runs on aarch64, whose intrinsics this x86 benchmark does not try.
 
 The `cranelift` variant's `build` numbers are for that abort build too.
+Since moq moved its crypto onto rind, the variant builds rind with LLVM: its `naked_asm!` takes `sym` operands, which Cranelift cannot compile yet ([rustc_codegen_cranelift#1620](https://github.com/rust-lang/rustc_codegen_cranelift/pull/1620)).
 
 Even passing, it would save little where CI spends its time.
 CPU seconds from the [PR run](https://github.com/moq-dev/rust2/actions/runs/40235946635) (4 CPUs; an A/A control on that run stayed within 3%):
