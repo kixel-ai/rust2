@@ -2,7 +2,8 @@
 
 import * as rs from "./rs.ts";
 import type * as Any from "./core/any.Any.ts";
-import { via$located_Tracked_u8, at$located_Tracked_u8, called as located_called, read, panicked } from "./located.ts";
+import { panicked as edition2018_panicked } from "./edition2018.ts";
+import { via$located_Tracked_u8, at$located_Tracked_u8, called as located_called, read, panicked as located_panicked } from "./located.ts";
 import * as Inherits from "./located.Inherits.ts";
 import * as Own from "./located.Own.ts";
 import { wrapped, called as panics_called, awaited, raised } from "./panics.ts";
@@ -83,7 +84,7 @@ export class of$u8 {
  * their count, so a case added at the end moves no other.
  */
 export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]> {
-	return rs.vecFrom([["panics::wrapped", wrapped as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::called", panics_called as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::awaited", awaited as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::raised", raised as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::called", located_called as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::read", read as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::panicked", panicked as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
+	return rs.vecFrom([["panics::wrapped", wrapped as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::called", panics_called as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::awaited", awaited as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::raised", raised as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::called", located_called as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::read", read as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::panicked", located_panicked as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["edition2018::panicked", edition2018_panicked as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }
 
 export const NOTE: rs.LocalKey<rs.RefCell<string>> = /* @__PURE__ */ new rs.LocalKey(NOTE$init, false);

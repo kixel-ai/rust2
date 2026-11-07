@@ -1038,7 +1038,7 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		| ("Vec", "insert")
 		| ("RangeInclusive", "new")
 		| ("panic", "panic_any" | "resume_unwind")
-		| ("rt", "begin_panic")
+		| ("panicking", "begin_panic")
 		// The hook it keeps, and the one it replaces, which `rs.setHook` drops.
 		| ("panicking", "set_hook")
 		// Each element moves into the closure.
@@ -2940,7 +2940,7 @@ fn mapping<'tcx>(
 		("panicking", "panic") => Expr::rs("panic", [args, hook_at(b)].concat()),
 		// The harness writes a payload of text, and `Box<dyn Any>` for any other. A hook reads
 		// the payload itself: a `String`, a `&str`, or the `dyn Any` object of any other.
-		("panic", "panic_any") | ("rt", "begin_panic") => {
+		("panic", "panic_any") | ("panicking", "begin_panic") => {
 			let payload = targ(gargs, 0);
 			let owned = b.t.std_of(payload) == Some(Std::String);
 			match (
