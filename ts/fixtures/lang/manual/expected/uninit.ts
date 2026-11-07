@@ -391,8 +391,8 @@ export function boxedZeroed(data: rs.ByteSlice, out: rs.ByteVec): void {
 		});
 	}) as unknown) as rs.u16[][];
 	const _250: rs.u16 = rs.u16Add(first as rs.u16, 1);
-	const _251: rs.Slice<rs.u16[]> = rs.sliceFrom(grid);
-	_251.data[_251.start + 1][0] = _250;
+	const slice = rs.arraySliceAt(rs.arraySliceFrom(grid, rs.sliceFrom), 1);
+	slice.data[slice.start] = _250;
 	const iter2: rs.Iter<rs.u16[]> = rs.iterSlice(copy$array_array2_u16(grid));
 	while (true) {
 		const _261: rs.u16[] | rs.Done = iter2.next();
