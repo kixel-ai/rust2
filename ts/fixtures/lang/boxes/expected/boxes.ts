@@ -361,14 +361,14 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const fromArray3: rs.Slice<[rs.u8, rs.u16]> = rs.sliceFrom(copy$array_tuple2_u8_u16(array3));
 		rs.idx(fromArray3, 0);
 		fromArray3.data[fromArray3.start][0] = 9;
-		const quads: rs.Slice<Uint8Array> = rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.byteSliceChunksExact(data2, 2), (c: rs.ByteSlice): Uint8Array => {
+		const quads: rs.ArraySlice<rs.ByteSlice> = rs.arraySliceFrom(rs.iterToVec(rs.iterMap(rs.byteSliceChunksExact(data2, 2), (c: rs.ByteSlice): Uint8Array => {
 			rs.idx(c, 0);
 			const _3: rs.u8 = c.data[c.start];
 			rs.idx(c, 1);
 			return Uint8Array.of(_3, c.data[c.start + 1]);
-		}), undefined, 2, true).items);
-		const quadsV: rs.Vec<Uint8Array> = rs.vecFrom(rs.sliceItems(quads).map(copy$array_u8));
-		const _554: rs.ByteSlice | undefined = rs.optionMap(rs.sliceFirst(rs.sliceFrom(quadsV.items)), rs.byteSliceFrom);
+		}), undefined, 2, true).items, rs.byteSliceFrom);
+		const quadsV: rs.Vec<Uint8Array> = rs.vecFrom(rs.arraySliceItems(rs.arraySliceFrom(rs.arraySliceItems(quads).map(copy$array_u8), rs.byteSliceFrom)));
+		const _554: rs.ByteSlice | undefined = rs.arraySliceFirst(rs.arraySliceFrom(quadsV.items, rs.byteSliceFrom));
 		if (_554 !== undefined) {
 			_554.data[_554.start] = 119;
 		}
@@ -381,7 +381,7 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, _576[0]);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(_576[1]).reverse()), undefined, true);
 		}
-		const iter5: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.iterLend(rs.iterSlice(rs.sliceItems(quads)), rs.byteSliceFrom), rs.iterLend(rs.iterSlice(quadsV.items), rs.byteSliceFrom));
+		const iter5: rs.Iter<rs.ByteSlice> = rs.iterChain(rs.arraySliceIter(quads), rs.arraySliceIter(rs.arraySliceFrom(quadsV.items, rs.byteSliceFrom)));
 		while (true) {
 			const _594: rs.ByteSlice | rs.Done = iter5.next();
 			if (_594 === rs.DONE) {

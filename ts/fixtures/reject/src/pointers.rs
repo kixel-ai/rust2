@@ -445,6 +445,16 @@ pub fn reached_out(h: Halves, lanes: [u32; 4]) -> u32 {
 	}
 }
 
+/// `write_bytes` through a pointer to what JS keeps as a value rather than its bytes, and
+/// through one to a byte in no array, past it.
+pub fn written_bytes(mut lanes: [u32; 2], mut b: u8) -> u32 {
+	unsafe {
+		std::ptr::write_bytes(lanes.as_mut_ptr(), 0, 2);
+		(&raw mut b).write_bytes(0xff, 2);
+	}
+	lanes[0] + u32::from(b)
+}
+
 /// A slice of one `u8`'s place, which no `rs.ByteSlice` views.
 pub fn byte_slice_of_place(b: &mut u8) {
 	std::slice::from_mut(b)[0] = 1;
@@ -552,4 +562,30 @@ pub fn arc_from_borrow(n: &u32) -> u32 {
 pub fn pointers_ordered(a: &u32, b: &u32) -> bool {
 	let (p, q) = (std::ptr::from_ref(a), std::ptr::from_ref(b));
 	std::cmp::max(p, q) == p
+}
+
+/// A mutable reborrow of a `MaybeUninit` of arrays of arrays through a raw pointer, whose
+/// arrays `as_chunks_mut` may have split from one slice with no JS array of their own.
+pub fn uninit_rows_mut(rows: &mut [[u8; 2]]) -> u8 {
+	let Some(first) = rows.first_chunk_mut::<2>() else {
+		return 0;
+	};
+	let p = std::ptr::from_mut(first).cast::<std::mem::MaybeUninit<[[u8; 2]; 2]>>();
+	let wrapped = unsafe { &mut *p };
+	let rows = unsafe { wrapped.assume_init_mut() };
+	rows[0][0] = 99;
+	rows[1][1]
+}
+
+/// A mutable reborrow of a `MaybeUninit` of an array through a raw pointer into part of a
+/// slice, which no JS array holds alone.
+pub fn uninit_part_mut(words: &mut [u32]) -> u32 {
+	if words.len() < 3 {
+		return 0;
+	}
+	let p = (&mut words[1..] as *mut [u32]).cast::<std::mem::MaybeUninit<[u32; 2]>>();
+	let wrapped = unsafe { &mut *p };
+	let pair = unsafe { wrapped.assume_init_mut() };
+	pair[0] = 99;
+	pair[1]
 }
