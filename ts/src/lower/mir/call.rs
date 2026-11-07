@@ -383,7 +383,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			args: gargs,
 			span,
 		};
-		if crate::lower::collections::place_call(self.b, &call) || crate::lower::pointer::lends(tcx, def_id) {
+		if crate::lower::collections::place_call(self.b, &call)
+			|| crate::lower::pointer::lends(tcx, def_id)
+			|| crate::lower::tokio::lends(tcx, def_id)
+		{
 			return None;
 		}
 		let t = &*self.b.t;

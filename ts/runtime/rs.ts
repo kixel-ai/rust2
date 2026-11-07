@@ -34,6 +34,7 @@ export * from "./rs/sort.ts";
 export * from "./rs/str.ts";
 export * from "./rs/task.ts";
 export * from "./rs/time.ts";
+export * from "./rs/tokio.ts";
 
 /** A Rust panic. */
 export class Panic extends Error {

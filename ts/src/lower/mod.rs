@@ -28,6 +28,7 @@ pub mod pointer;
 mod stock;
 mod task;
 mod time;
+mod tokio;
 pub mod unions;
 
 use std::collections::VecDeque;
@@ -1365,7 +1366,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| library::Std::TableEntry
 					| library::Std::Hasher
 					| library::Std::BytesMut
-					| library::Std::ThreadRng,
+					| library::Std::ThreadRng
+					| library::Std::Sync,
 				) => Some(ObjectKind::Class),
 				// What it holds, which its JS value is.
 				Some(library::Std::AssertUnwindSafe) => self.object_kind(args.type_at(0)),
@@ -1852,6 +1854,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::Bytes | library::Std::IoSlice => Type::Rs("ByteSlice", vec![]),
 				library::Std::BytesMut => Type::Rs("BytesMut", vec![]),
 				library::Std::ThreadRng => Type::Rs("ThreadRng", vec![]),
+				// A handle over the type of the values its channel holds.
+				library::Std::Sync => {
+					let handle = tokio::Handle::of(tcx, adt.did()).expect("a tokio handle");
+					Type::Rs(handle.class(), vec![self.ty(tokio::held(args), span)])
+				}
 				library::Std::ControlFlow => {
 					if let Some(msg) = self.erasure_conflict(Ty::new_adt(tcx, adt, args)) {
 						self.err(span, msg);
