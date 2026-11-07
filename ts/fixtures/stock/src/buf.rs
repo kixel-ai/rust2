@@ -2,6 +2,7 @@
 //! differential test reaches their panics and what `split_to` and `freeze` share.
 
 use std::cell::Cell;
+use std::io::IoSlice;
 use std::rc::Rc;
 
 use bytes::buf::UninitSlice;
@@ -978,6 +979,60 @@ fn chained<B: Buf + ?Sized>(at: [usize; 2], buf: &mut B, pick: &u8, ops: &[u8], 
 	};
 	out.extend_from_slice(&buf.copy_to_bytes(len));
 	read_all(buf, ops, out)
+}
+
+/// `chunks_vectored` of each buffer into as many slots as its input picks: a `Bytes`, a
+/// `BytesMut`, a `&[u8]`, buffers in pieces, a `Take` and a `Chain` of them, and through a
+/// `&mut` and a `dyn Buf`. Then the slots it filled, read,
+/// printed, and advanced, one and all together, which panics past what they hold.
+pub fn vectored(data: &[u8], out: &mut Vec<u8>) {
+	let [kind, cut, slots, skip, input @ ..] = data else {
+		return;
+	};
+	let cut = *cut as usize % (input.len() + 1);
+	let bytes = Bytes::copy_from_slice(input);
+	let owned = BytesMut::from(input);
+	let pieces = Pieces::new(input, cut);
+	let provided = Provided(Pieces::new(input, cut));
+	let take = Pieces::new(input, cut).take(usize::from(*skip) % (input.len() + 2));
+	let (a, b) = input.split_at(cut);
+	let chain = Pieces::new(a, a.len() / 2).chain(Bytes::copy_from_slice(b)).chain(&b[..]);
+	let mut slice = input;
+	let lent = &mut slice;
+	let boxed: Box<dyn Buf> = Box::new(Pieces::new(input, cut));
+	let mut dst = [IoSlice::new(&[]); 5];
+	let dst = &mut dst[..usize::from(*slots) % 6];
+	let n = match kind % 10 {
+		0 => bytes.chunks_vectored(dst),
+		1 => owned.chunks_vectored(dst),
+		2 => input.chunks_vectored(dst),
+		3 => pieces.chunks_vectored(dst),
+		4 => provided.chunks_vectored(dst),
+		5 => (&chain as &dyn Buf).chunks_vectored(dst),
+		6 => take.chunks_vectored(dst),
+		7 => chain.chunks_vectored(dst),
+		8 => lent.chunks_vectored(dst),
+		_ => boxed.chunks_vectored(dst),
+	};
+	out.push(n as u8);
+	for chunk in &dst[..n] {
+		out.push(chunk.len() as u8);
+		out.extend_from_slice(chunk);
+	}
+	out.extend_from_slice(format!("{:?}", &dst[..n]).as_bytes());
+	let total: usize = dst[..n].iter().map(|chunk| chunk.len()).sum();
+	let skip = usize::from(*skip) % (total + 2);
+	if let Some(first) = dst.first_mut() {
+		let mut one = *first;
+		one.advance(skip.min(one.len() + usize::from(kind / 10 % 2)));
+		out.extend_from_slice(&one);
+	}
+	let mut left = &mut dst[..n];
+	IoSlice::advance_slices(&mut left, skip);
+	out.push(left.len() as u8);
+	for chunk in left.iter() {
+		out.extend_from_slice(chunk);
+	}
 }
 
 /// The bytes of a case's input, taken from the front.

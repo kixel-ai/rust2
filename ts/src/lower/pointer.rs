@@ -443,7 +443,8 @@ pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args
 /// into, an `Arc`'s that `make_mut` replaces, a `String`'s that a drain edits as it drops,
 /// a `Result`'s whose payload JS copies, which `iter_mut` lends as a place that writes the
 /// whole `Result`, an iterator's that `by_ref` returns, what `borrow_mut` lends, the crate's
-/// own iterator's that its `next` reads through, and a well-known crate's, such as a
+/// own iterator's that its `next` reads through, an `IoSlice`'s and a `&mut` to a slice of
+/// them, which `advance` and `advance_slices` move, and a well-known crate's, such as a
 /// `Bytes` that `Buf::advance` moves past its front.
 fn takes_place<'tcx>(
 	t: &Translator<'_, 'tcx>,
@@ -452,7 +453,7 @@ fn takes_place<'tcx>(
 ) -> bool {
 	matches!(
 		super::library::key(t.tcx, def_id),
-		Some((owner, name)) if matches!(owner.as_str(), "MaybeUninit" | "ManuallyDrop")
+		Some((owner, name)) if matches!(owner.as_str(), "MaybeUninit" | "ManuallyDrop" | "IoSlice")
 			|| matches!(owner.as_str(), "Arc" | "Rc") && name == "make_mut"
 			|| (owner.as_str(), name.as_str()) == ("String", "drain")
 			|| (owner.as_str(), name.as_str()) == ("Iterator", "by_ref")

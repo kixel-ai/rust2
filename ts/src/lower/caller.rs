@@ -427,6 +427,18 @@ const CALLEES: &[(&str, &str, &str, &str)] = &[
 		"panic!(",
 	),
 	(
+		"io::io_slice::advance",
+		"core/src/io/io_slice/repr_generic.rs",
+		"pub(crate) fn advance(&mut self, n: usize)",
+		"[n..]",
+	),
+	(
+		"io::io_slice::advance_slices",
+		"core/src/io/io_slice.rs",
+		"pub fn advance_slices(bufs: &mut &mut [IoSlice<'a>], n: usize)",
+		"assert!(",
+	),
+	(
 		"mem::maybe_uninit::write_copy_of_slice",
 		"core/src/mem/maybe_uninit.rs",
 		"pub const fn write_copy_of_slice(",

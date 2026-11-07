@@ -180,7 +180,7 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let deque = VecDeque::from(v.clone());
 	let map = BTreeMap::from([(u16::from(n), n)]);
 	let set = BTreeSet::from([u16::from(n)]);
-	match kind % 73 {
+	match kind % 75 {
 		0 => out.push(Vec::<u8>::with_capacity(usize::MAX - at).len() as u8),
 		1 => v.clone().rotate_right(at + 3),
 		2 => out.push(n.clamp(n.max(1), n.max(1) - 1)),
@@ -309,6 +309,17 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		69 => _ = [std::mem::MaybeUninit::uninit(); 2].write_copy_of_slice(&v[..at % 2]),
 		70 => _ = [const { std::mem::MaybeUninit::uninit() }; 2].write_clone_of_slice(&[String::new()][..at % 2]),
 		71 => out.push(Box::<[u16]>::new_uninit_slice(usize::MAX - at).len() as u8),
+		72 => {
+			let mut lent = std::io::IoSlice::new(&v);
+			lent.advance(at % 2 + 3);
+			out.extend_from_slice(&lent);
+		}
+		73 => {
+			let mut lent = [std::io::IoSlice::new(&v)];
+			let mut left = &mut lent[..];
+			std::io::IoSlice::advance_slices(&mut left, at % 2 + 3);
+			out.push(left.len() as u8);
+		}
 		_ => out.push(Lying(n).len() as u8),
 	}
 }

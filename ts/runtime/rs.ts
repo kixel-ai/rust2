@@ -1885,6 +1885,26 @@ export function byteSliceRange(s: ByteSlice, start: number, end: number = s.leng
 	return new ByteSlice(s.data, s.start + start, end - start);
 }
 
+/** `IoSlice::advance` of the one at `p`: its bytes past the first `n`, which panics past its end. */
+export function ioSliceAdvance(p: Place<ByteSlice>, n: number, at?: Location): void {
+	p.v = byteSliceRange(p.v, n, undefined, at);
+}
+
+/**
+ * `IoSlice::advance_slices` of the slice of them at `bufs`: past the first `n` bytes they
+ * lend, dropping those it passes whole, which panics past their end.
+ */
+export function ioSliceAdvanceSlices(bufs: Place<Slice<ByteSlice>>, n: number, at?: Location): void {
+	const s = bufs.v;
+	let [remove, left] = [0, n];
+	while (remove < s.length && left >= s.data[s.start + remove].length) left -= s.data[s.start + remove++].length;
+	const rest = new Slice(s.data, s.start + remove, s.length - remove);
+	bufs.v = rest;
+	if (rest.length === 0) {
+		if (left !== 0) panic("advancing io slices beyond their length", at);
+	} else rest.data[rest.start] = byteSliceRange(rest.data[rest.start], left);
+}
+
 /** `get` of `start..end`: the part, or `undefined` unless it is within the slice. */
 export function byteSliceGetRange(s: ByteSlice, start: number, end: number = s.length): ByteSlice | undefined {
 	return start <= end && end <= s.length ? new ByteSlice(s.data, s.start + start, end - start) : undefined;

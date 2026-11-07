@@ -1859,7 +1859,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::PanicHookInfo => Type::Rs("PanicHookInfo", vec![]),
 				library::Std::LayoutError => Type::Rs("LayoutError", vec![]),
 				library::Std::TryReserveError => Type::Rs("TryReserveError", vec![]),
-				library::Std::Bytes => Type::Rs("ByteSlice", vec![]),
+				library::Std::Bytes | library::Std::IoSlice => Type::Rs("ByteSlice", vec![]),
 				library::Std::BytesMut => Type::Rs("BytesMut", vec![]),
 				library::Std::ThreadRng => Type::Rs("ThreadRng", vec![]),
 				library::Std::ControlFlow => {

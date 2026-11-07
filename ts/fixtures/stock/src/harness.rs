@@ -37,6 +37,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("buf::vec_spares", crate::buf::vec_spares),
 		("buf::chunks", crate::buf::chunks),
 		("ranges", crate::ranges::ranges),
+		("buf::vectored", crate::buf::vectored),
 	]
 }
 
