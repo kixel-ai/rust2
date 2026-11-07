@@ -568,8 +568,9 @@ pub fn sites(t: &mut Translator<'_, '_>, span: Span) -> Expr {
 	Expr::Object(props)
 }
 
-/// The sites `table` names, in the program's crate `name`: none without one, and an error
-/// for versions whose sites differ, as the runtime's panics are one crate's.
+/// The sites `table` names, in the program's crate `name`: none without one, nor in a file
+/// its features leave out, whose panics nothing reaches, and an error for versions whose
+/// sites differ, as the runtime's panics are one crate's.
 fn crate_sites(t: &mut Translator<'_, '_>, span: Span, name: &str, table: CrateSites) -> Vec<(Key, Expr)> {
 	let tcx = t.tcx;
 	let mut tables: Vec<Vec<(Key, Expr)>> = Vec::new();
@@ -581,8 +582,9 @@ fn crate_sites(t: &mut Translator<'_, '_>, span: Span, name: &str, table: CrateS
 		let mut props = Vec::new();
 		for &(key, file, after, needle) in table {
 			match crate_find(tcx, krate, file, after, needle) {
-				Some(at) => props.push((Key::Name(key.into()), at)),
-				None => {
+				None => {}
+				Some(Some(at)) => props.push((Key::Name(key.into()), at)),
+				Some(None) => {
 					let after = after.join(" then ");
 					t.err(
 						span,
@@ -609,28 +611,32 @@ fn crate_sites(t: &mut Translator<'_, '_>, span: Span, name: &str, table: CrateS
 }
 
 /// The `rs.Location` of the first `needle` after each of `after` in turn in `file`, under
-/// `krate`'s `src/`, named as the session names it.
+/// `krate`'s `src/`, named as the session names it, if it is there: `None` where the build
+/// compiled no such file.
 fn crate_find(
 	tcx: TyCtxt<'_>,
 	krate: rustc_span::def_id::CrateNum,
 	file: &str,
 	after: &[&str],
 	needle: &str,
-) -> Option<Expr> {
+) -> Option<Option<Expr>> {
 	let map = tcx.sess.source_map();
 	let suffix = format!("/src/{file}");
 	let source = (map.files().iter())
 		.find(|f| f.cnum == krate && self::file(tcx, f).ends_with(&suffix))
 		.cloned()?;
-	if !map.ensure_source_file_source_present(&source) {
-		return None;
-	}
-	let text = match &source.src {
-		Some(src) => src.to_string(),
-		None => source.external_src.read().get_source()?.to_string(),
+	let found = || {
+		if !map.ensure_source_file_source_present(&source) {
+			return None;
+		}
+		let text = match &source.src {
+			Some(src) => src.to_string(),
+			None => source.external_src.read().get_source()?.to_string(),
+		};
+		let (line, col) = position(&text, after, needle)?;
+		Some(object(self::file(tcx, &source), line, col))
 	};
-	let (line, col) = position(&text, after, needle)?;
-	Some(object(self::file(tcx, &source), line, col))
+	Some(found())
 }
 
 /// Where std's `def_id` panics, if [`CALLEES`] names it.
