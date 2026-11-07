@@ -19,7 +19,7 @@ only 7% of moq-net edits
 [The fork](/quest/m4/fork.md) collects the reasons to change rustc and cargo instead.
 
 Closed on 2026-11-06: a compiler for a stricter Rust subset
-([moq-dev/rust2#615](https://github.com/moq-dev/rust2/pull/615)). 69% of the
+([moq-dev/rust2#615](https://github.com/moq-dev/rust2/pull/615)). 61% of the
 LLVM IR moq's own crates emit is std's and dependencies' generics instantiated
 at moq's types, closures included, so it would have to compile std too. Levers
 that need no new frontend reach its best case: ra-jit already rebuilds moq-net
