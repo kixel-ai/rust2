@@ -1,10 +1,12 @@
+a `pub` item whose Go name `1` is not ASCII with a leading uppercase letter is not supported at fixtures/reject/src/lib.rs:135:1
 a generic `pub` function, which translates only as its callers instantiate it, is not supported at fixtures/reject/src/lib.rs:6:1
 a `pub` constant or static, which Go callers would read as a variable, is not supported at fixtures/reject/src/lib.rs:11:1
 `Callback`, an enum held as its parts that a function pointer in it takes or returns, is not supported at fixtures/reject/src/lib.rs:95:7
 `std::ptr::NonNull`, a raw pointer's wrapper is not supported at fixtures/reject/src/lib.rs:121:19
-a `pub` field not named with a leading ASCII lowercase letter, which Go cannot export one to one, is not supported at fixtures/reject/src/lib.rs:127:2
-a `pub` field not named with a leading ASCII lowercase letter, which Go cannot export one to one, is not supported at fixtures/reject/src/lib.rs:128:2
-a `pub` field not named with a leading ASCII lowercase letter, which Go cannot export one to one, is not supported at fixtures/reject/src/lib.rs:129:2
+a `pub` field not named in ASCII with a leading lowercase letter, which Go cannot export one to one, is not supported at fixtures/reject/src/lib.rs:127:2
+a `pub` field not named in ASCII with a leading lowercase letter, which Go cannot export one to one, is not supported at fixtures/reject/src/lib.rs:128:2
+a `pub` field not named in ASCII with a leading lowercase letter, which Go cannot export one to one, is not supported at fixtures/reject/src/lib.rs:129:2
+a `pub` field not named in ASCII with a leading lowercase letter, which Go cannot export one to one, is not supported at fixtures/reject/src/lib.rs:130:2
 a type with `pub` methods reached only through a specialized alias is not supported at fixtures/reject/src/lib.rs:118:1
 `u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:14:1
 `u128`, which Go has no integer for is not supported at fixtures/reject/src/lib.rs:15:2

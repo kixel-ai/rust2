@@ -399,9 +399,17 @@ impl<'tcx> Translator<'tcx> {
 		)
 	}
 
-	/// Claim a package-level name, refusing one already taken.
+	/// Claim an exported package-level name, refusing one Go would not export or already
+	/// taken.
 	fn claim(&mut self, name: &str, span: Span) {
-		if !self.taken.insert(name.to_string()) {
+		if !names::is_exported(name) {
+			self.err(
+				span,
+				format!(
+					"a `pub` item whose Go name `{name}` is not ASCII with a leading uppercase letter is not supported"
+				),
+			);
+		} else if !self.taken.insert(name.to_string()) {
 			self.err(span, format!("two items translate to the Go name `{name}`"));
 		}
 	}

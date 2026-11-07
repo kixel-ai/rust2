@@ -161,6 +161,12 @@ pub fn exported(path: &str) -> String {
 		.collect()
 }
 
+/// Whether Go exports `name` as written: an ASCII identifier with a leading uppercase
+/// letter, so no Unicode letter or mark Rust allows and Go does not can reach Go's output.
+pub fn is_exported(name: &str) -> bool {
+	name.starts_with(|c: char| c.is_ascii_uppercase()) && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 /// `name` as a Go identifier: anything but letters, digits, and `_` becomes `_`.
 pub fn ident(name: &str) -> String {
 	let mut out: String = name
@@ -180,8 +186,8 @@ pub fn ident(name: &str) -> String {
 /// A field's Go name: `F<i>` for a tuple's, else its Rust name escaped as [`escaped`],
 /// exported when the field is `pub` so Go callers in other packages reach it. Any other
 /// name Go would export, or that starts with `_`, takes a leading `_`, which keeps the
-/// mapping one to one; a `pub` one not starting with an ASCII lowercase letter is refused
-/// where its type is declared.
+/// mapping one to one; a `pub` one that is not ASCII with a leading lowercase letter is
+/// refused where its type is declared.
 pub fn field(field: &ty::FieldDef, index: usize) -> String {
 	let name = field.name.as_str();
 	if name.parse::<usize>().is_ok() || name.is_empty() {

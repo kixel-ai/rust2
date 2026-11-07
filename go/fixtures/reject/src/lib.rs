@@ -120,11 +120,18 @@ pub type Byte = value::Value<u8>;
 /// A raw pointer's wrapper, which no Go type stands for.
 pub use std::ptr::NonNull;
 
-/// Go exports a field only by an uppercase first letter, which `count` takes and Go
-/// would not export `É` by.
+/// Go exports a field only by an uppercase first letter, which `count` takes, and the
+/// translation exports only ASCII names.
 #[allow(non_snake_case, reason = "the names Go cannot export")]
 pub struct Fields {
 	pub _count: u8,
 	pub Count: u8,
 	pub é: u8,
+	pub café: u8,
+}
+
+/// Its Go name would be `1`, which is no identifier.
+#[allow(non_camel_case_types, reason = "the name Go cannot export")]
+pub struct _1 {
+	pub count: u8,
 }
