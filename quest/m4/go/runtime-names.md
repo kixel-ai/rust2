@@ -25,12 +25,10 @@ configless. Rejected: renaming the crate's item (`Result_`) on a clash, which tu
 common name ugly and needs a rule Go callers must learn; renaming the runtime's types to a
 prefix no export produces, which shows in every exported signature.
 
-[moq-dev/rust2#599](https://github.com/moq-dev/rust2/pull/599) moves rust2-ffi's Go
-exports toward a Go package per Rust module
-([its modules quest](https://github.com/moq-dev/rust2/blob/quest/m1/ffi-export/names/quest/m1/ffi-export/modules.md)).
-If rust2-go follows, every module's package imports the runtime, so the separate runtime
-package and the module path above are needed anyway; settle the import path so it serves
-both.
+[moq-dev/rust2#599](https://github.com/moq-dev/rust2/pull/599) gave rust2-ffi's Go
+exports a Go package per Rust crate, since Rust's modules may name each other in a cycle
+Go's imports forbid, and a runtime package `rt` they share, imported by the module path
+above. If rust2-go follows, settle the import path so it serves both.
 
 Fixtures: `go/fixtures/items` exports `pub type Result<T> = Result<T, Error>` and a type
 named as another runtime export, and its Go callers use both.

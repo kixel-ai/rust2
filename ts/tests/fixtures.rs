@@ -1257,3 +1257,23 @@ fn stock() {
 		320,
 	);
 }
+
+/// tokio's `sync` channels and `select!`, which translation maps without a binding or
+/// config, against tokio itself: each log shows the values, their order and drops, the
+/// errors, and when each waiting task was woken and became ready.
+#[test]
+fn tokio() {
+	let out = scratch().join("tokio").join("out");
+	let config = fixture("tokio").join("ts.toml");
+	let output = driver("tokio", &config, &["--out".as_ref(), out.as_ref()], "build");
+	assert!(
+		output.status.success(),
+		"translating tokio failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	snapshot("tokio", &out);
+	// A hand-written caller, which names the cases and the scripts random steps rarely reach.
+	std::fs::copy(fixture("tokio").join("caller.ts"), out.join("caller.ts")).unwrap();
+	typecheck(&out);
+	differential(&workspace(), "tokio-fixture", &[], &out, "caller.ts", 2000);
+}

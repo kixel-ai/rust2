@@ -19,7 +19,7 @@
 //! extension's own, which `_register` sets on its class or the module binds, so Python
 //! calls it with no frame of its own; the Python only declares it, for type checkers.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 use std::hash::Hasher;
 
@@ -90,6 +90,7 @@ const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume"];
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
 		abi,
+		classes: abi.classes(|_| (String::new(), 0)),
 		py: String::new(),
 		top: String::new(),
 		consts: Vec::new(),
@@ -308,6 +309,8 @@ impl Body {
 
 struct Gen<'a> {
 	abi: &'a Abi<'a>,
+	/// Each exported type's name, by its C name.
+	classes: HashMap<String, String>,
 	/// The classes, then the module-level functions.
 	py: String,
 	top: String,
@@ -341,7 +344,7 @@ impl<'a> Gen<'a> {
 
 	/// The Python class name of the C type `c`.
 	fn class(&self, c: &str) -> String {
-		pascal(self.bare(c))
+		self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c)))
 	}
 
 	/// Claim the module-level Python name `name` for `what`.

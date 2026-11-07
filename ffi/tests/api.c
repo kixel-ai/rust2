@@ -626,6 +626,7 @@ static int script(void) {
 	/* A function named as the type it returns, and one named as a type it does not. */
 	printf("polar %u %s area %llu\n", api_polar_point(2).value.distance, api_polar_point(0).some ? "false" : "true",
 	       (unsigned long long)api_area((api_Size){.width = 2, .height = 3}));
+	printf("wind %u\n", api_wind((api_PolarTurn){.whole = 2}, (api_polar_Turn){.part = 3}));
 	/* Instances that name each other, and one made only by an impl of it. */
 	api_Outer_Inner_u8 *outer = api_Outer_Inner_u8_new(4);
 	printf("cross %u outer %u\n",

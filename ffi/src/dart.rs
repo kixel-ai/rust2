@@ -22,7 +22,7 @@
 //! into Rust runs on a thread of its own while Rust holds an implementation or a lent
 //! closure, while the isolate's runs those calls.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Sig, Ty, pascal};
@@ -51,6 +51,7 @@ pub struct Output {
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
 		abi,
+		classes: abi.classes(|_| (String::new(), 0)),
 		structs: BTreeMap::new(),
 		natives: BTreeMap::new(),
 		helpers: BTreeMap::new(),
@@ -287,6 +288,8 @@ const OBJECT: &[&str] = &["hashCode", "noSuchMethod", "runtimeType", "toString"]
 
 struct Gen<'a> {
 	abi: &'a Abi<'a>,
+	/// Each exported type's name, by its C name.
+	classes: HashMap<String, String>,
 	/// Each C struct's `dart:ffi` class, by C name.
 	structs: BTreeMap<String, String>,
 	/// Each C function's `@Native` declaration, by C name.
@@ -325,7 +328,7 @@ impl<'a> Gen<'a> {
 
 	/// The Dart name of the C type `c`.
 	fn class(&self, c: &str) -> String {
-		type_name(&pascal(self.bare(c)))
+		type_name(&self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c))))
 	}
 
 	/// Refuse any C name in the glue's namespace, `<prefix>_dart_`.

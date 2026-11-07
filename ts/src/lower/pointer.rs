@@ -38,6 +38,14 @@ use super::library::{Call, Std, targ};
 use super::{AdtRepr, ObjectKind, Translator};
 use crate::ts::{Expr, Key, Stmt, StmtKind, Type};
 
+/// What a type that [keeps cells](Translator::keeps_cells) holds.
+pub enum KeptCells<'tcx> {
+	/// A cell's value.
+	Cell(Ty<'tcx>),
+	/// Each field's type, and whether it keeps cells.
+	Fields(Vec<(Ty<'tcx>, bool)>),
+}
+
 /// What a raw pointer to a type is in JS.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Pointee {
@@ -156,6 +164,54 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		ty
 	}
 
+	/// Whether a whole write of a `ty` through the pointer helpers below keeps each
+	/// `rs.Cell` it holds, writing into it in place, so a pointer `get` gave into one before
+	/// sees the write: a cell, or a tuple or a crate's struct a pointer is the object of, a
+	/// field of which keeps cells. Any other part is given the new value's, one object deep.
+	pub fn keeps_cells(&self, ty: Ty<'tcx>) -> bool {
+		self.kept_cells(ty).is_some()
+	}
+
+	/// What a `ty` that [keeps cells](Self::keeps_cells) holds: a cell's value, or each
+	/// field of a tuple or struct, and whether it keeps cells too.
+	pub fn kept_cells(&self, ty: Ty<'tcx>) -> Option<KeptCells<'tcx>> {
+		let (fields, cell) = self.kept_parts(ty)?;
+		if cell {
+			return Some(KeptCells::Cell(fields[0]));
+		}
+		let fields: Vec<_> = fields.into_iter().map(|f| (f, self.keeps_cells(f))).collect();
+		(self.pointee(ty) == Pointee::Object && fields.iter().any(|&(_, kept)| kept))
+			.then_some(KeptCells::Fields(fields))
+	}
+
+	/// What a write keeping cells reaches in `ty`, and whether `ty` is a cell: a cell's
+	/// value, or each field of a tuple or a crate's struct.
+	fn kept_parts(&self, ty: Ty<'tcx>) -> Option<(Vec<Ty<'tcx>>, bool)> {
+		match ty.kind() {
+			ty::Adt(adt, args) if Std::of(self.tcx, adt.did()) == Some(Std::Cell) => {
+				Some((vec![args.type_at(0)], true))
+			}
+			ty::Tuple(tys) => Some((tys.to_vec(), false)),
+			ty::Adt(adt, args) if adt.is_struct() && Std::of(self.tcx, adt.did()).is_none() && self.own(adt.did()) => {
+				Some((adt.all_fields().map(|f| self.field_ty(f.did, args)).collect(), false))
+			}
+			_ => None,
+		}
+	}
+
+	/// Whether a whole write of a `ty` would put other cells in place of those a
+	/// `MaybeUninit` or `ManuallyDrop` in it holds, which a write keeps nowhere, so a pointer
+	/// `get` gave into one would not see it: one of them holding a value that
+	/// [keeps cells](Self::keeps_cells), or a part such a write reaches holding one.
+	pub fn wraps_cells(&self, ty: Ty<'tcx>) -> bool {
+		let inner = self.uninit_inner(ty);
+		if inner != ty {
+			return self.keeps_cells(inner) || self.wraps_cells(inner);
+		}
+		self.kept_parts(ty)
+			.is_some_and(|(parts, _)| parts.into_iter().any(|part| self.wraps_cells(part)))
+	}
+
 	/// Whether only an instance decides what a pointer or reference to `ty` is, as in a
 	/// generic type's definition: `ty` a type parameter, an array of one, either through
 	/// `MaybeUninit`s, or a binding's generic type, which an instance decides is `Copy`.
@@ -242,13 +298,20 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 		let ty = self.uninit_inner(ty);
 		match (self.pointee(ty), ty.kind()) {
+			// A cell, so a pointer `raw_get` makes into it before a write sees the write,
+			// which lands in it.
+			(_, ty::Adt(adt, args)) if Std::of(self.tcx, adt.did()) == Some(Std::Cell) => Expr::New(
+				Box::new(Expr::Rs("Cell".into())),
+				vec![self.shell(args.type_at(0), span)],
+			),
 			(Pointee::Object, ty::Tuple(tys)) => Expr::Array(tys.iter().map(|t| self.shell(t, span)).collect()),
 			(Pointee::Array, ty::Array(elem, len)) => {
 				let len = Expr::lit(len.try_to_target_usize(self.tcx).unwrap_or(0).to_string());
+				let cell = matches!(elem.kind(), ty::Adt(adt, _) if Std::of(self.tcx, adt.did()) == Some(Std::Cell));
 				match (super::byte(*elem), self.pointee(*elem)) {
 					(true, _) => Expr::New(Box::new(Expr::ident("Uint8Array")), vec![len]),
-					(_, Pointee::Place) => Expr::New(Box::new(Expr::ident("Array")), vec![len]),
-					(_, Pointee::Object | Pointee::Array | Pointee::Slice) => {
+					(_, Pointee::Place) if !cell => Expr::New(Box::new(Expr::ident("Array")), vec![len]),
+					(_, Pointee::Place | Pointee::Object | Pointee::Array | Pointee::Slice) => {
 						let elem_ty = self.ty(*elem, span);
 						let each = Expr::Arrow(
 							Vec::new(),
@@ -346,7 +409,10 @@ pub fn derives(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> Option<
 		| ("NonNull", "dangling" | "add" | "sub" | "offset" | "write")
 		| ("MaybeUninit", "new" | "uninit" | "assume_init")
 		| ("ManuallyDrop", "new" | "into_inner")
-		| ("UnsafeCell", "new" | "get" | "raw_get" | "get_mut" | "into_inner")
+		| (
+			"UnsafeCell",
+			"new" | "get" | "raw_get" | "get_mut" | "as_ref_unchecked" | "as_mut_unchecked" | "into_inner",
+		)
 		| ("Cell", "as_ptr" | "get_mut")
 		| ("Box", "new") => Some(Derives::Other),
 		("ptr", "read" | "read_unaligned" | "read_volatile")
@@ -382,12 +448,15 @@ pub fn allocates(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool 
 /// Which of std's `def_id`'s arguments are `&mut`s whose lowering may give what they
 /// borrow another value, rather than writing into it, where one is an alias of a borrowed
 /// place: the place is assigned again, as `mem::replace`, `clone_from`, and `clone_into`
-/// assign it, and a whole write of what `slice::from_mut`, `array::from_mut`, or
-/// `Cell::from_mut` makes does. `mem::replace`'s value is no such one.
+/// assign it, and a whole write of what `slice::from_mut`, `array::from_mut`,
+/// `Cell::from_mut`, or `UnsafeCell::from_mut` makes does. `mem::replace`'s value is no
+/// such one.
 pub fn rebinds(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> &'static [usize] {
 	match super::library::key(tcx, def_id) {
 		Some((owner, name)) => match (owner.as_str(), name.as_str()) {
-			("mem", "replace" | "take") | ("Clone", "clone_from") | ("raw" | "array" | "Cell", "from_mut") => &[0],
+			("mem", "replace" | "take")
+			| ("Clone", "clone_from")
+			| ("raw" | "array" | "Cell" | "UnsafeCell", "from_mut") => &[0],
 			("ToOwned", "clone_into") => &[1],
 			("mem", "swap") => &[0, 1],
 			_ => &[],
@@ -406,6 +475,7 @@ pub fn lends(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
 			("MaybeUninit", "as_mut_ptr" | "write" | "assume_init_mut" | "assume_init_drop")
 				| ("ManuallyDrop", "drop" | "take")
 				| ("UnsafeCell" | "Cell", "get_mut")
+				| ("UnsafeCell", "as_mut_unchecked")
 				| ("NonNull" | "ptr", "as_mut")
 				| ("Box", "leak")
 		)
@@ -433,8 +503,10 @@ pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args
 					| "cast_mut" | "eq" | "read" | "read_unaligned" | "read_volatile" | "drop_in_place"
 			) | ("Box", "into_raw" | "leak" | "from_raw")
 				| ("ManuallyDrop", "new" | "into_inner" | "drop" | "take")
-				| ("UnsafeCell", "new" | "get" | "get_mut" | "into_inner")
-				| ("Cell", "as_ptr" | "get_mut")
+				| (
+					"UnsafeCell",
+					"new" | "get" | "raw_get" | "get_mut" | "as_ref_unchecked" | "as_mut_unchecked" | "into_inner"
+				) | ("Cell", "as_ptr" | "get_mut")
 		) || owner == "Atomic" && super::library::is_std(tcx, def_id)
 	);
 	keeps || from_reference(tcx, def_id, args)
@@ -534,7 +606,7 @@ pub fn call<'tcx>(
 		("ptr", "null" | "null_mut") => Expr::Rs("NULL".into()),
 		// A pointer to `()` is an identity, which the `rs.Place` of a place or a reference
 		// is not. A box of one holds nothing, so its pointer is dangling.
-		("MaybeUninit", "as_ptr" | "as_mut_ptr") | ("UnsafeCell", "get") | ("Cell", "as_ptr")
+		("MaybeUninit", "as_ptr" | "as_mut_ptr") | ("UnsafeCell", "get" | "raw_get") | ("Cell", "as_ptr")
 			if b.t.identity_pointee(pointee()) =>
 		{
 			b.err(
@@ -593,6 +665,24 @@ pub fn call<'tcx>(
 			deref(pointee(), arg(), name == "as_ref")
 		}
 		("NonNull", "as_mut") if array(b, pointee()) => to_reference(b, arg()),
+		// A `&mut` to a `MaybeUninit` of a cell of a value JS copies is the place the cell is
+		// kept in, but one to the cell is the cell.
+		("MaybeUninit", "assume_init_mut")
+			if b.t.needs_place(
+				b.t.tcx
+					.type_of(b.t.tcx.parent(call.def_id))
+					.instantiate(b.t.tcx, gargs)
+					.skip_norm_wip(),
+			) && !b.t.needs_place(pointee()) =>
+		{
+			let ty = pointee();
+			b.err(
+				span,
+				format!(
+					"`MaybeUninit::assume_init_mut` of `{ty}`, whose mutable reference is the object, but the uninitialized value's is the place it is kept in"
+				),
+			)
+		}
 		// The same pointer, as another type of the same pointee.
 		("ptr", "cast_const" | "cast_mut")
 		| ("NonNull", "as_ptr" | "new_unchecked" | "cast_const" | "cast_mut")
@@ -738,11 +828,11 @@ pub fn call<'tcx>(
 		},
 		("ptr", "read" | "read_unaligned" | "read_volatile") => {
 			let p = arg();
-			read(b, p, pointee(), span)
+			read(b, p, pointee(), span, out)
 		}
 		("ptr", "write" | "write_unaligned" | "write_volatile") => {
 			let (p, value) = (arg(), arg());
-			write(b, p, value, pointee(), span)
+			write(b, p, value, pointee(), span, out)
 		}
 		// A place of no bytes has nothing to read or write, and every value of its type is
 		// the one it holds.
@@ -752,22 +842,12 @@ pub fn call<'tcx>(
 		}
 		("ptr", "swap") if b.t.zero_sized(pointee()) => Expr::undefined(),
 		("ptr", "replace") => {
-			let p = b.spill(arg(), "pointer", out);
-			let value = arg();
-			let old = read(b, p.clone(), pointee(), span);
-			let old = b.spill(old, "old", out);
-			let write = write(b, p, value, pointee(), span);
-			out.push(StmtKind::Expr(write).at(None));
-			old
+			let (p, value) = (arg(), arg());
+			replace(b, p, value, pointee(), span, out)
 		}
 		("ptr", "swap") => {
-			let (x, y) = (b.spill(arg(), "x", out), b.spill(arg(), "y", out));
-			let old = read(b, x.clone(), pointee(), span);
-			let old = b.spill(old, "old", out);
-			let from_y = read(b, y.clone(), pointee(), span);
-			let into_x = write(b, x, from_y, pointee(), span);
-			out.push(StmtKind::Expr(into_x).at(None));
-			write(b, y, old, pointee(), span)
+			let (x, y) = (arg(), arg());
+			swap(b, x, y, pointee(), span, out)
 		}
 		("ptr", "drop_in_place") => {
 			let p = arg();
@@ -815,7 +895,7 @@ pub fn call<'tcx>(
 			let value = arg();
 			let write = match array(b, pointee()) {
 				true => Expr::rs("ptrWrite", vec![p.clone(), value]),
-				false => write(b, p.clone(), value, pointee(), span),
+				false => write(b, p.clone(), value, pointee(), span, out),
 			};
 			out.push(StmtKind::Expr(write).at(None));
 			p
@@ -831,7 +911,7 @@ pub fn call<'tcx>(
 					let p = b.spill(boxed, "uninit", out);
 					let write = match array(b, pointee()) {
 						true => Expr::rs("ptrWrite", vec![p.clone(), value]),
-						false => write(b, p.clone(), value, pointee(), span),
+						false => write(b, p.clone(), value, pointee(), span, out),
 					};
 					out.push(StmtKind::Expr(write).at(None));
 					p
@@ -839,6 +919,7 @@ pub fn call<'tcx>(
 			}
 		}
 		// A shared reference to a value JS copies is the value.
+		("MaybeUninit", "assume_init_read") if b.t.keeps_cells(pointee()) => copy_kept(b, arg(), pointee(), span, out),
 		("MaybeUninit", "assume_init_read") => b.t.snapshot(arg(), pointee(), span),
 		("MaybeUninit", "assume_init_drop") | ("ManuallyDrop", "drop") => {
 			let p = arg();
@@ -855,15 +936,61 @@ pub fn call<'tcx>(
 				Some(Pointee::Place) => p.member("v"),
 				_ => p,
 			};
-			b.t.snapshot(value, pointee(), span)
+			match b.t.keeps_cells(pointee()) {
+				true => copy_kept(b, value, pointee(), span, out),
+				false => b.t.snapshot(value, pointee(), span),
+			}
 		}
 		// An `rs.Cell`, a `Cell`'s too, which is the place a pointer to a value JS copies is,
 		// and holds the object a pointer to any other is.
 		("UnsafeCell", "new") => Expr::New(Box::new(Expr::Rs("Cell".into())), vec![arg()]),
-		("UnsafeCell", "get") | ("Cell", "as_ptr") if kind(b, pointee()) == Some(Pointee::Place) => arg(),
-		("UnsafeCell", "get") | ("Cell", "as_ptr") if array(b, pointee()) => to_pointer(b, arg().member("v")),
-		("UnsafeCell" | "Cell", "get_mut") if b.t.needs_place(pointee()) => arg(),
-		("UnsafeCell", "get" | "get_mut" | "into_inner") | ("Cell", "as_ptr" | "get_mut") => arg().member("v"),
+		("UnsafeCell", "get") | ("Cell", "as_ptr") => {
+			let cell = arg();
+			cell_pointer(b, cell, pointee())
+		}
+		// `get` of the cell the pointer points at: the cell itself where a pointer to one is
+		// the object, or else the cell in the `rs.Place` of where it is kept. Only a pointer
+		// made of a known place gets here, so the cell is there.
+		("UnsafeCell", "raw_get") => {
+			let tcx = b.t.tcx;
+			let cell = tcx
+				.type_of(tcx.parent(call.def_id))
+				.instantiate(tcx, gargs)
+				.skip_norm_wip();
+			let p = arg();
+			let cell = match b.t.pointee(cell) {
+				Pointee::Object => p,
+				_ => p.member("v"),
+			};
+			cell_pointer(b, cell, pointee())
+		}
+		// `ptr::replace` of the pointer `get` gives.
+		("UnsafeCell", "replace") if b.t.zero_sized(pointee()) => {
+			let _ = arg();
+			arg()
+		}
+		("UnsafeCell", "replace") => {
+			let cell = arg();
+			let p = cell_pointer(b, cell, pointee());
+			let value = arg();
+			replace(b, p, value, pointee(), span, out)
+		}
+		// A whole write through the `&mut` lands in the allocation, which a value read out
+		// before could keep only as a copy, another allocation.
+		("UnsafeCell" | "Cell", "get_mut") | ("UnsafeCell", "as_mut_unchecked") if b.t.boxed_object(pointee()) => {
+			let ty = pointee();
+			b.err(
+				span,
+				format!(
+					"`{owner}::{name}` of `{ty}`, an object a whole write through the reference changes in place, so a value read out before would be a copy at another address"
+				),
+			)
+		}
+		// What `get` points at, lent as `get_mut` lends it.
+		("UnsafeCell" | "Cell", "get_mut") | ("UnsafeCell", "as_mut_unchecked") if b.t.needs_place(pointee()) => arg(),
+		("UnsafeCell", "get_mut" | "as_ref_unchecked" | "as_mut_unchecked" | "into_inner") | ("Cell", "get_mut") => {
+			arg().member("v")
+		}
 		// Into the UTF-8 of a `str`, which JS keeps as text: an encoding no write may reach.
 		("str", "as_ptr") => Expr::rs("strAsPtr", vec![arg()]),
 		// Pointers into an array: `rs.AtIndex`es, which a `Vec`'s and a slice's give.
@@ -1168,8 +1295,30 @@ pub fn raw_pointee<'tcx>(tcx: ty::TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>
 	}
 }
 
+/// The pointer an `rs.Cell` holding a `ty` gives to it, as `UnsafeCell::get` and
+/// `Cell::as_ptr` do: the cell, the place of a value JS copies, or else the object, array,
+/// or slice it holds.
+pub(super) fn cell_pointer<'tcx>(b: &Body<'_, '_, 'tcx>, cell: Expr, ty: Ty<'tcx>) -> Expr {
+	let pointee = b.t.pointee(ty);
+	if pointee == Pointee::Place {
+		return cell;
+	}
+	let held = cell.member("v");
+	match (pointee, b.t.uninit_inner(ty).kind()) {
+		(Pointee::Array, ty::Array(elem, _)) => super::slice_items_from(held, *elem),
+		(Pointee::Slice, _) if slice_of_bytes(ty) => Expr::rs("rawByteSliceOf", vec![held]),
+		(Pointee::Slice, _) if slice_of_arrays(ty) => Expr::rs("rawArraySliceOf", vec![held]),
+		(Pointee::Slice, _) => Expr::rs("rawSliceOf", vec![held]),
+		_ => held,
+	}
+}
+
 /// The value `p`, a pointer to `ty`, points at, as a value of its own.
-fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+pub(super) fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
+	if b.t.keeps_cells(ty) {
+		let at = pointed(b, p, ty);
+		return copy_kept(b, at, ty, span, out);
+	}
 	let value = match b.t.pointee(ty) {
 		Pointee::Place => p.member("v"),
 		Pointee::Object => p,
@@ -1182,9 +1331,83 @@ fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span) -> 
 	b.t.snapshot(value, ty, span)
 }
 
+/// `ptr::replace` of `p`, a pointer to `ty`, with `value`: what it held, as a value of its
+/// own.
+pub(super) fn replace<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	p: Expr,
+	value: Expr,
+	ty: Ty<'tcx>,
+	span: Span,
+	out: &mut Vec<Stmt>,
+) -> Expr {
+	let p = b.spill(p, "pointer", out);
+	let old = copied_out(b, p.clone(), ty, span, out);
+	let old = b.spill(old, "old", out);
+	let write = write(b, p, value, ty, span, out);
+	out.push(StmtKind::Expr(write).at(None));
+	old
+}
+
+/// What `p`, a pointer to `ty`, points at, as a value of its own that a whole write there
+/// after leaves as it was. The write lands in the object or array a pointer is, so one is
+/// copied one object deep, an array's elements to the depth `objectCopy` copies them. One
+/// a pointer is the place of is read as it is, keeping a `Box`'s allocation, as its write
+/// puts another in the place.
+fn copied_out<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
+	match b.t.pointee(ty) {
+		_ if b.t.zero_sized(ty) || b.t.keeps_cells(ty) => read(b, p, ty, span, out),
+		Pointee::Object => Expr::rs("objectCopy", vec![p]),
+		Pointee::Array
+			if !super::byte_array(b.t.uninit_inner(ty)) && !super::array_slice::of_arrays(b.t.uninit_inner(ty)) =>
+		{
+			let depth = b.t.copy_depth(b.t.uninit_inner(ty));
+			let view = super::library::slice_view(p);
+			Expr::rs("objectCopy", std::iter::once(view).chain(depth).collect())
+		}
+		_ => read(b, p, ty, span, out),
+	}
+}
+
+/// `ptr::swap` of `x` and `y`, pointers to `ty`.
+pub(super) fn swap<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	x: Expr,
+	y: Expr,
+	ty: Ty<'tcx>,
+	span: Span,
+	out: &mut Vec<Stmt>,
+) -> Expr {
+	let (x, y) = (b.spill(x, "x", out), b.spill(y, "y", out));
+	let old = copied_out(b, x.clone(), ty, span, out);
+	let old = b.spill(old, "old", out);
+	let from_y = copied_out(b, y.clone(), ty, span, out);
+	let into_x = write(b, x, from_y, ty, span, out);
+	out.push(StmtKind::Expr(into_x).at(None));
+	write(b, y, old, ty, span, out)
+}
+
 /// The write of `value`, a `ty`, where `p` points.
-fn write<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, value: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+pub(super) fn write<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	p: Expr,
+	value: Expr,
+	ty: Ty<'tcx>,
+	span: Span,
+	out: &mut Vec<Stmt>,
+) -> Expr {
 	if b.t.zero_sized(ty) {
+		return Expr::undefined();
+	}
+	if b.t.wraps_cells(ty) {
+		return wrapped_write(b, ty, span);
+	}
+	if b.t.keeps_cells(ty) {
+		let at = match b.t.pointee(ty) {
+			Pointee::Object => p,
+			_ => b.spill(p, "pointer", out).member("v"),
+		};
+		write_kept_at(b, at, value, ty, span, out);
 		return Expr::undefined();
 	}
 	match b.t.pointee(ty) {
@@ -1192,6 +1415,149 @@ fn write<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, value: Expr, ty: Ty<'tcx>, s
 		Pointee::Object => Expr::rs("ptrWrite", vec![p, value]),
 		Pointee::Array => b.t.array_rs(ty, "Set").call(vec![p, value]),
 		Pointee::Slice => b.err(span, format!("a write of `{ty}`, which has no size")),
+	}
+}
+
+/// The refusal of a whole write of a `ty` that [wraps cells](Translator::wraps_cells).
+pub(super) fn wrapped_write<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr {
+	b.err(
+		span,
+		format!(
+			"a whole write of `{ty}`, which would put another cell in place of one a `MaybeUninit` or `ManuallyDrop` holds"
+		),
+	)
+}
+
+/// The JS value of the `ty` that `p` points at: a cell's `rs.Cell`, which a pointer to
+/// it is the place of, or the object a pointer to it is.
+fn pointed<'tcx>(b: &Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>) -> Expr {
+	match b.t.pointee(ty) {
+		Pointee::Place => p.member("v"),
+		_ => p,
+	}
+}
+
+/// The write of `value`, a `ty` that keeps cells, where `at` names its JS value: into the
+/// cells there in place, or whole where memory not written yet, as `ptr::write` may fill,
+/// holds no cell to keep. `at` is read more than once.
+pub(super) fn write_kept_at<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	at: Expr,
+	value: Expr,
+	ty: Ty<'tcx>,
+	span: Span,
+	out: &mut Vec<Stmt>,
+) {
+	if b.t.pointee(ty) == Pointee::Object {
+		return write_kept(b, at, value, ty, span, out);
+	}
+	let value = b.spill(value, "value", out);
+	let mut kept = Vec::new();
+	write_kept(b, at.clone(), value.clone(), ty, span, &mut kept);
+	let whole = StmtKind::Expr(at.clone().assign(value)).at(None);
+	let cond = at.binary("===", Expr::undefined());
+	out.push(
+		StmtKind::If {
+			cond,
+			then: vec![whole],
+			els: kept,
+		}
+		.at(None),
+	);
+}
+
+/// The write of `value` into `at`, the JS value of a `ty` that keeps cells, in place: a
+/// cell's value written into the cell, as a write through its `get` would be, and a
+/// tuple's or struct's other fields given `value`'s, as is a cell field of one not
+/// written yet.
+fn write_kept<'tcx>(b: &mut Body<'_, '_, 'tcx>, at: Expr, value: Expr, ty: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) {
+	match b.t.kept_cells(ty) {
+		Some(KeptCells::Cell(held)) if b.t.keeps_cells(held) => {
+			write_kept(b, at.member("v"), value.member("v"), held, span, out)
+		}
+		Some(KeptCells::Cell(held)) => {
+			let p = cell_pointer(b, at, held);
+			let write = write(b, p, value.member("v"), held, span, out);
+			out.push(StmtKind::Expr(write).at(None));
+		}
+		Some(KeptCells::Fields(fields)) => {
+			let (at, value) = (b.spill(at, "object", out), b.spill(value, "value", out));
+			let kept: Vec<_> = (fields.iter().enumerate())
+				.filter(|(_, (_, kept))| *kept)
+				.map(|(i, &(field, _))| {
+					let part = object_field(b, at.clone(), ty, i, span);
+					(i, field, b.spill(part, "cell", out))
+				})
+				.collect();
+			out.push(StmtKind::Expr(Expr::rs("ptrWrite", vec![at.clone(), value.clone()])).at(None));
+			for (i, field, cell) in kept {
+				let part = object_field(b, at.clone(), ty, i, span);
+				let mut then = vec![StmtKind::Expr(part.assign(cell.clone())).at(None)];
+				let from = object_field(b, value.clone(), ty, i, span);
+				write_kept(b, cell.clone(), from, field, span, &mut then);
+				let cond = cell.binary("!==", Expr::undefined());
+				out.push(
+					StmtKind::If {
+						cond,
+						then,
+						els: Vec::new(),
+					}
+					.at(None),
+				);
+			}
+		}
+		None => unreachable!("`{ty}` keeps no cells"),
+	}
+}
+
+/// A copy of `at`, the JS value of a `ty` that keeps cells, with a cell of its own for
+/// each it keeps, so a write into those in place leaves the copy be, and each other part
+/// copied as a read copies it.
+fn copy_kept<'tcx>(b: &mut Body<'_, '_, 'tcx>, at: Expr, ty: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
+	match b.t.kept_cells(ty) {
+		Some(KeptCells::Cell(held)) => {
+			let value = match (b.t.keeps_cells(held), b.t.pointee(held)) {
+				(true, _) => copy_kept(b, at.member("v"), held, span, out),
+				(false, Pointee::Object) if let Some(copy) = b.t.snapshot_fn(held, span) => {
+					copy.call(vec![at.member("v")])
+				}
+				(false, _) => {
+					let p = cell_pointer(b, at, held);
+					copied_out(b, p, held, span, out)
+				}
+			};
+			Expr::New(Box::new(Expr::Rs("Cell".into())), vec![value])
+		}
+		Some(KeptCells::Fields(fields)) => {
+			let at = b.spill(at, "object", out);
+			let copy = b.spill(Expr::rs("objectCopy", vec![at.clone()]), "copy", out);
+			for (i, &(field, kept)) in fields.iter().enumerate() {
+				let from = object_field(b, at.clone(), ty, i, span);
+				let value = match kept {
+					true => copy_kept(b, from, field, span, out),
+					false => match b.t.snapshot_fn(field, span) {
+						Some(copy) => copy.call(vec![from]),
+						None => continue,
+					},
+				};
+				let part = object_field(b, copy.clone(), ty, i, span);
+				out.push(StmtKind::Expr(part.assign(value)).at(None));
+			}
+			copy
+		}
+		None => unreachable!("`{ty}` keeps no cells"),
+	}
+}
+
+/// Field `i` of `object`, the JS object of a tuple or a crate's struct `ty`.
+fn object_field<'tcx>(b: &mut Body<'_, '_, 'tcx>, object: Expr, ty: Ty<'tcx>, i: usize, span: Span) -> Expr {
+	match ty.kind() {
+		ty::Tuple(_) => object.index(Expr::lit(i.to_string())),
+		ty::Adt(adt, _) => match b.t.adt(*adt, span).repr {
+			AdtRepr::Struct { fields, .. } => Translator::read_field(object, fields[i]),
+			_ => unreachable!("`{ty}` is a struct"),
+		},
+		_ => unreachable!("`{ty}` is a tuple or a struct"),
 	}
 }
 

@@ -1433,6 +1433,24 @@ pub mod polar {
 	pub fn point(distance: u32) -> Option<Point> {
 		(distance > 0).then_some(Point { turns: 0, distance })
 	}
+
+	/// A part of a turn, in 256ths.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Turn {
+		pub part: u8,
+	}
+}
+
+/// A count of whole turns, whose name joins in Pascal case as `polar::Turn`'s does: a
+/// language that joins them keeps where the other's path splits.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PolarTurn {
+	pub whole: u8,
+}
+
+/// `whole` and `part` turns together, in 256ths: two types whose paths join alike.
+pub fn wind(whole: PolarTurn, part: polar::Turn) -> u32 {
+	u32::from(whole.whole) * 256 + u32::from(part.part)
 }
 
 /// The area of `size`: a function named as a type it does not return.
