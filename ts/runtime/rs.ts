@@ -1129,12 +1129,13 @@ function runSame(a: Run, b: Run): boolean {
 
 /**
  * The runs of `r` as a JS array of arrays, for what only reads them: the arrays themselves
- * where `r` is all of them, or else copies, which nothing can tell from them while the
- * borrow lives.
+ * where each run is one, so a callback's `ptr::eq` sees the run it was lent, or else copies
+ * of the runs `as_chunks` split from one flat slice, which have no array of their own.
  */
 export function runsArray<S extends Run>(r: Runs<S>): RunArray<S>[] {
-	if (r.items !== undefined && r.start === 0 && r.length === r.items.length) return r.items as RunArray<S>[];
-	return runsCopy(r);
+	if (r.items === undefined) return runsCopy(r);
+	if (r.start === 0 && r.length === r.items.length) return r.items as RunArray<S>[];
+	return r.items.slice(r.start, r.start + r.length) as RunArray<S>[];
 }
 
 /** `last_chunk` of runs, shared or mutable: the last `n`, or `undefined` if fewer. */
@@ -1147,9 +1148,10 @@ export function runsSplitLastChunk<S extends Run>(r: Runs<S>, n: number): [Runs<
 	return n > r.length ? undefined : [runPart(r, 0, r.length - n), runPart(r, r.length - n, n)];
 }
 
-/** The runs of `r` as a slice of arrays, as `runsArray` reads them. */
+/** The runs of `r` as a slice of arrays, as `runsArray` reads them: a slice of the arrays where each run is one. */
 export function runsItems<S extends Run>(r: Runs<S>): Slice<RunArray<S>> {
-	return sliceFrom(runsArray(r));
+	if (r.items !== undefined) return new Slice(r.items as RunArray<S>[], r.start, r.length);
+	return sliceFrom(runsCopy(r));
 }
 
 /**

@@ -25,5 +25,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("slices::arrays", slices::arrays),
 		("slices::arrays_mut", slices::arrays_mut),
 		("slices::array_forms", slices::array_forms),
+		("slices::array_identity", slices::array_identity),
 	]
 }

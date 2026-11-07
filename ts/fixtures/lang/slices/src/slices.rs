@@ -1461,3 +1461,94 @@ pub fn array_forms(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		}
 	}
 }
+
+/// What counts its own clones, in itself, so a clone of a copy of it counts none.
+struct Probe {
+	tag: u8,
+	clones: std::cell::Cell<u8>,
+}
+
+impl Clone for Probe {
+	fn clone(&self) -> Self {
+		self.clones.set(self.clones.get() + 1);
+		Probe {
+			tag: self.tag,
+			clones: std::cell::Cell::new(0),
+		}
+	}
+}
+
+/// Whether a callback std lends each row of `rows` gets that row itself, by `ptr::eq`.
+fn lent_rows<const N: usize>(rows: &[[u8; N]], out: &mut Vec<u8>) {
+	for target in rows {
+		let mut lent = false;
+		let found = rows.binary_search_by(|row| {
+			lent |= std::ptr::eq(row, target);
+			row.cmp(target)
+		});
+		out.extend([found.is_ok() as u8, lent as u8]);
+	}
+}
+
+/// The same as [`lent_rows`], for rows of words and of arrays.
+fn lent_words(rows: &[[u16; 2]], nested: &[[[u8; 2]; 2]], out: &mut Vec<u8>) {
+	for target in rows {
+		out.push(rows.iter().filter(|row| std::ptr::eq(*row, target)).count() as u8);
+		out.push(rows.partition_point(|row| !std::ptr::eq(row, target) && row < target) as u8);
+		let mut lent = false;
+		let _ = rows.binary_search_by(|row| {
+			lent |= std::ptr::eq(row, target);
+			row.cmp(target)
+		});
+		out.push(lent as u8);
+	}
+	for target in nested {
+		let mut lent = false;
+		let _ = nested.binary_search_by(|row| {
+			lent |= std::ptr::eq(row, target);
+			row.cmp(target)
+		});
+		out.push(lent as u8);
+	}
+}
+
+/// Rows of slices of arrays as std reads them: lent to a callback as themselves, and a
+/// `join`'s separator cloned where it is.
+pub fn array_identity(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let mut rows: Vec<[u8; 2]> = data.chunks_exact(2).map(|c| [c[0], c[1]]).collect();
+	rows.sort();
+	rows.dedup();
+	match kind % 2 {
+		// A callback's `ptr::eq` on a row std lends, of all the rows and of part of them.
+		0 => {
+			lent_rows(&rows, out);
+			lent_rows(&rows[rows.len() / 2..], out);
+			let words: Vec<[u16; 2]> = rows.iter().map(|r| [r[0].into(), r[1].into()]).collect();
+			let nested: Vec<[[u8; 2]; 2]> = rows.windows(2).map(|w| [w[0], w[1]]).collect();
+			lent_words(&words[words.len().min(1)..], &nested[nested.len() / 2..], out);
+		}
+		// `join`'s separator, an array, cloned by each element's `Clone` in place.
+		_ => {
+			let probes = |at: usize| -> Vec<[Probe; 1]> {
+				rows[at..]
+					.iter()
+					.map(|r| {
+						[Probe {
+							tag: r[0],
+							clones: std::cell::Cell::new(0),
+						}]
+					})
+					.collect()
+			};
+			let (a, b) = (probes(0), probes(rows.len() / 2));
+			let sep = [Probe {
+				tag: 0xee,
+				clones: std::cell::Cell::new(0),
+			}];
+			let joined = [&a[..], &b[..], &a[..1.min(a.len())]].join(&sep);
+			out.push(sep[0].clones.get());
+			out.extend(joined.iter().map(|[p]| p.tag));
+			out.extend(a.iter().map(|[p]| p.clones.get()));
+		}
+	}
+}

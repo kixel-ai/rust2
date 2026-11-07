@@ -3525,9 +3525,12 @@ fn slices_join<'tcx>(
 			"byteSliceFrom",
 			vec![Expr::ident("Uint8Array").member("of").call(vec![sep])],
 		),
-		// An array separator is lent as its slice, whose array the join reads.
-		(true, false) if elem.is_array() => {
-			Expr::rs("sliceFrom", vec![Expr::Array(vec![b.t.array_copy(sep, elem, span)])])
+		// An array separator is the runs of it alone, whose elements the join clones as
+		// they are, so each `Clone` reads the separator's own.
+		(true, false) if let ty::Array(_, len) = elem.kind() => {
+			let n = len.try_to_target_usize(b.t.tcx).unwrap_or(0);
+			let one = Expr::rs("runsOne", vec![sep, Expr::lit(n.to_string())]);
+			Expr::rs("runsItems", vec![one])
 		}
 		(true, false) => Expr::rs("sliceFrom", vec![Expr::Array(vec![sep])]),
 		// Runs, as the slice of their arrays.
