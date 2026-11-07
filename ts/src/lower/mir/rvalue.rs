@@ -471,7 +471,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				if let (Some(a), Some(b)) = (from.builtin_deref(true), to.builtin_deref(true))
 					&& from.is_raw_ptr() =>
 			{
-				if let Some(why) = self.erased_borrow(op, a, b) {
+				if let Some(why) = self.erased_borrow(op, a, b).or_else(|| self.lone_byte_array(op, a, b)) {
 					return self.err(span, why);
 				}
 				if let Some(cast) = self.alloc_cast(op, a, b, span, out) {
@@ -698,10 +698,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			},
 			AggregateKind::Adt(def_id, variant, args, _, active) => {
 				if let Some(active) = active {
-					let ty::Adt(adt, _) = ty.kind() else {
-						unreachable!("a union")
-					};
-					let parts = self.b.t.union_field(*adt, active.as_usize(), span);
+					let parts = self
+						.b
+						.t
+						.union_field(self.tcx.adt_def(*def_id), args, active.as_usize(), span);
 					let field_ty = ops[FieldIdx::ZERO].ty(&self.mir.local_decls, self.tcx);
 					let value = values.pop().expect("a union's field");
 					let value = match parts.len() {

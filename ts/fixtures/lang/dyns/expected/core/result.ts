@@ -48,6 +48,13 @@ export function ok$1lmsnde(self: rs.Result<[rs.usize, rs.u8], rs.Arc<Any.Any>>):
 	return _0;
 }
 
+export function ok$03r6cuf(self: rs.Result<rs.u128, rs.ParseIntError>): rs.u128 | undefined {
+	if (self.ok) {
+		return self.value;
+	}
+	return undefined;
+}
+
 export function ok$1wwd922(self: rs.Result<rs.u16, Any.Any>): rs.u16 | undefined {
 	let _0!: rs.u16 | undefined;
 	if (self.ok) {

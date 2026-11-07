@@ -17,7 +17,3 @@ to std rather than a blocker: the port must track std by hand. The B-tree port o
 bench's drain-heavy workloads against the port.
 
 Public API: the translator's output.
-
-## Required
-
-- [A Vec's spare capacity](/quest/m3/ts-unsafe/vec-spare-capacity.md) - std's `Drain` calls `set_len`

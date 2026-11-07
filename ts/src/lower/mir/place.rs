@@ -203,11 +203,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			in_slice = in_slice || ty.is_slice();
 			match elem {
 				ProjectionElem::Field(field, field_ty)
-					if let ty::Adt(adt, _) = ty.kind()
+					if let ty::Adt(adt, args) = ty.kind()
 						&& adt.is_union() =>
 				{
-					let (parts, n, part_ty) =
-						self.union_part(*adt, field.as_usize(), field_ty, &place.projection[read + 1..], span);
+					let rest = &place.projection[read + 1..];
+					let (parts, n, part_ty) = self.union_part(*adt, args, field.as_usize(), field_ty, rest, span);
 					consumed = n;
 					e = self.b.t.of_slots(e, part_ty, &parts, span);
 				}
@@ -362,12 +362,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	pub(super) fn union_part(
 		&mut self,
 		adt: ty::AdtDef<'tcx>,
+		args: ty::GenericArgsRef<'tcx>,
 		field: usize,
 		field_ty: Ty<'tcx>,
 		rest: &[ProjectionElem<Local, Ty<'tcx>>],
 		span: Span,
 	) -> (Vec<crate::lower::unions::Part>, usize, Ty<'tcx>) {
-		let mut parts = self.b.t.union_field(adt, field, span);
+		let mut parts = self.b.t.union_field(adt, args, field, span);
 		let (mut n, mut ty) = (0, field_ty);
 		while !crate::lower::unions::whole(&parts)
 			&& let Some(ProjectionElem::Field(inner, inner_ty)) = rest.get(n)
@@ -390,14 +391,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			let ProjectionElem::Field(field, field_ty) = elem else {
 				continue;
 			};
-			let ty::Adt(adt, _) = base.ty(&self.mir.local_decls, tcx).ty.kind() else {
+			let ty::Adt(adt, args) = base.ty(&self.mir.local_decls, tcx).ty.kind() else {
 				continue;
 			};
 			if !adt.is_union() {
 				continue;
 			}
 			let rest = &place.projection[i + 1..];
-			let (parts, n, _) = self.union_part(*adt, field.as_usize(), field_ty, rest, span);
+			let (parts, n, _) = self.union_part(*adt, args, field.as_usize(), field_ty, rest, span);
 			let whole = crate::lower::unions::whole(&parts);
 			return (n == rest.len() && !whole).then(|| (base.to_place(tcx), parts));
 		}
@@ -1580,6 +1581,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		if let Some(value) = self.cell_value(val, ty, span) {
 			return value;
 		}
+		if self.b.t.std_of(ty) == Some(Std::TypeId) {
+			return match self.type_id_const(val, ty) {
+				Some(of) => self.b.t.type_id(of),
+				None => self.err(span, format!("a constant of type `{ty}` that names no type")),
+			};
+		}
 		// An aggregate, field by field.
 		if let ty::Adt(..) | ty::Tuple(_) | ty::Array(..) = ty.kind()
 			&& !matches!(ty.kind(), ty::Tuple(tys) if tys.is_empty())
@@ -1663,6 +1670,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					);
 				};
 				let unnamed = format!("a constant of type `{ty}`, a pointer into memory translation can't name");
+				// A `&TypeId`, or a reference to one, which translation holds as the `TypeId`.
+				if self.b.t.std_of(ty.peel_refs()) == Some(Std::TypeId) {
+					let val = ConstValue::Indirect {
+						alloc_id: prov.alloc_id(),
+						offset,
+					};
+					return self.const_value(val, *inner, span);
+				}
 				// A `Location`, as `Location::caller` gives a constant.
 				if self.b.t.std_of(*inner) == Some(Std::Location) {
 					return match self.location_const(alloc, offset, *inner) {
@@ -1700,6 +1715,22 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Some(val) => self.const_value(val, ty, span),
 				None => self.err(span, format!("a constant of type `{ty}` held in memory")),
 			},
+		}
+	}
+
+	/// The type the constant `TypeId` `val` is of, which the allocation its first word points
+	/// into names, as const evaluation writes it.
+	fn type_id_const(&self, val: ConstValue, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+		let tcx = self.tcx;
+		let id = tcx.try_destructure_mir_constant_for_user_output(val, ty)?;
+		let &(words, words_ty) = id.fields.first()?;
+		let words = tcx.try_destructure_mir_constant_for_user_output(words, words_ty)?;
+		let &(ConstValue::Scalar(Scalar::Ptr(ptr, _)), _) = words.fields.first()? else {
+			return None;
+		};
+		match tcx.global_alloc(ptr.provenance.alloc_id()) {
+			GlobalAlloc::TypeId { ty } => Some(ty),
+			_ => None,
 		}
 	}
 

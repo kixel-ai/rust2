@@ -30,4 +30,11 @@ export function mapOr$13kt6x8(self: [rs.u8, rs.u8] | undefined, default_: Uint8A
 	return f(self);
 }
 
+export function mapOr$17z0l8m(self: rs.u16 | undefined, default_: Uint8Array, _: (a0: rs.u16) => Uint8Array): Uint8Array {
+	if (self === undefined) {
+		return default_;
+	}
+	return rs.u16ToBeBytes(self).reverse();
+}
+
 //# sourceMappingURL=option.ts.map

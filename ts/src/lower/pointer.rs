@@ -443,7 +443,8 @@ pub fn keeps<'tcx>(tcx: ty::TyCtxt<'tcx>, def_id: rustc_hir::def_id::DefId, args
 /// into, an `Arc`'s that `make_mut` replaces, a `String`'s that a drain edits as it drops,
 /// a `Result`'s whose payload JS copies, which `iter_mut` lends as a place that writes the
 /// whole `Result`, an iterator's that `by_ref` returns, what `borrow_mut` lends, the crate's
-/// own iterator's that its `next` reads through, and a well-known crate's, such as a
+/// own iterator's that its `next` reads through, an `IoSlice`'s and a `&mut` to a slice of
+/// them, which `advance` and `advance_slices` move, and a well-known crate's, such as a
 /// `Bytes` that `Buf::advance` moves past its front.
 fn takes_place<'tcx>(
 	t: &Translator<'_, 'tcx>,
@@ -452,7 +453,7 @@ fn takes_place<'tcx>(
 ) -> bool {
 	matches!(
 		super::library::key(t.tcx, def_id),
-		Some((owner, name)) if matches!(owner.as_str(), "MaybeUninit" | "ManuallyDrop")
+		Some((owner, name)) if matches!(owner.as_str(), "MaybeUninit" | "ManuallyDrop" | "IoSlice")
 			|| matches!(owner.as_str(), "Arc" | "Rc") && name == "make_mut"
 			|| (owner.as_str(), name.as_str()) == ("String", "drain")
 			|| (owner.as_str(), name.as_str()) == ("Iterator", "by_ref")
@@ -848,7 +849,8 @@ pub fn call<'tcx>(
 				("slice", true) => Expr::rs("byteSliceAsPtr", vec![s]),
 				("Vec", true) => Expr::rs("byteVecAsPtr", vec![s]),
 				("slice", false) => Expr::rs("sliceAsPtr", vec![s]),
-				_ => Expr::rs("arrayAsPtr", vec![s.member("items")]),
+				// A `Vec`'s reaches its room, up to the capacity its size grows.
+				_ => Expr::rs("vecAsPtr", vec![s, super::iter::size_of(b, elem, span)]),
 			}
 		}
 		("ptr" | "NonNull", "add" | "sub" | "offset" | "wrapping_add" | "wrapping_sub" | "wrapping_offset") => {
@@ -1035,8 +1037,9 @@ fn unmodeled<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, what: &str) -> Option<S
 }
 
 /// The pointer `p` to `from`, as one to `to`: the same pointer, as one to what a
-/// `MaybeUninit` holds or the other way, erased to or back from a `*const ()`, or the
-/// pointer to the first element of the array or slice it points at.
+/// `MaybeUninit` holds or the other way, erased to or back from a `*const ()`, the pointer
+/// to the first element of the array or slice it points at, or one to a slice as one to an
+/// array of its elements.
 pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, from: Ty<'tcx>, to: Ty<'tcx>, span: Span) -> Expr {
 	let (inner, into) = (b.t.uninit_inner(from), b.t.uninit_inner(to));
 	// Bytes are bytes, initialized or not, so a slice of either is the same `rs.ByteSlice`.
@@ -1065,6 +1068,23 @@ pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, from: Ty<'tcx>, to: Ty<'t
 	if b.t.identity_pointee(inner) {
 		let restored = Expr::rs("ptrUnerase", vec![p, key(into), align(into)]);
 		return Expr::As(Box::new(restored), b.t.pointer_ty(into, span));
+	}
+	// A pointer to a slice as one to an array of its elements, which reinterprets nothing:
+	// `N` elements from its first, read through only where Rust reads.
+	if let (ty::Slice(from_elem), ty::Array(elem, n)) = (inner.kind(), into.kind())
+		&& (from_elem == elem || super::byte(*from_elem) && super::byte(*elem))
+	{
+		let Some(n) = n.try_to_target_usize(tcx) else {
+			return b.err(
+				span,
+				format!("a cast from a pointer to `{from}` to one to `{to}`, of no fixed length"),
+			);
+		};
+		let array = match byte_slice(inner) {
+			true => "byteArray",
+			false => "array",
+		};
+		return p.member(array).call(vec![Expr::lit(n.to_string())]);
 	}
 	let elem = match inner.kind() {
 		ty::Array(elem, _) | ty::Slice(elem) if b.t.uninit_inner(*elem) == into => Some(*elem),
