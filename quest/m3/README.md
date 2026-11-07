@@ -11,6 +11,13 @@ std the translators cover before a consumer calls them.
 Decided with the maintainer on 2026-10-27: rust2 aims to support all of std, so a
 generic std gap is planned here even when moq never calls it.
 
+Decided with the maintainer on 2026-11-07: ✅ little time goes to unsafe Rust. A
+translator may refuse unsafe code with its span, requiring safe Rust, and a common
+library's unsafe internals may be replaced by a runtime mapping over its public API, as
+`hashbrown`'s and tokio's channels are (rejected: planning each unsafe std gap that no
+consumer reaches, such as `MaybeUninit::zeroed`, `Rc::new_uninit`, and
+`ptr::write_bytes`).
+
 ## Required
 
 - [Retrial Cranelift on moq's tests](/quest/m3/cranelift-unwind.md) - waits on upstream: moq's tests pass under Cranelift, so its CI can weigh it again

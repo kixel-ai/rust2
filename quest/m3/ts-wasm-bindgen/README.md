@@ -49,12 +49,15 @@ Decided with the maintainer on 2026-11-06:
   `link_section` static, not from the `extern` blocks' source. The
   [spike](https://github.com/moq-dev/rust2/pull/638) has the measurements:
   `macro_rules!`-made imports, which source reading misses, are on the encoder's path.
-- Open: web-codecs' `VideoEncoder` also hands its frames and errors through tokio's
-  `sync::mpsc` and `sync::watch`. Translation refuses those today, in their intrusive
-  lists and raw pointers into `UnsafeCell`s, about 50 refusals in the spike's census. So
-  web-codecs translating end to end needs them too, beyond the quests below.
+- ✅ web-codecs' encoders and decoders also hand their frames and errors through tokio's
+  `sync::mpsc` and `sync::watch`, which translation refuses today (about 50 refusals in
+  the spike's census), so
+  [tokio's sync channels are mapped into the runtime](/quest/m3/ts-wasm-bindgen/tokio-sync.md)
+  (rejected: translating tokio's source, whose intrusive lists and raw pointers into
+  `UnsafeCell`s are unsafe code a JS caller has no use for).
 
 ## Required
 
 - [Translate wasm-bindgen imports](/quest/m3/ts-wasm-bindgen/imports.md) - web-sys and js-sys imports read from the encoded program, with `JsValue` and imported types as JS values, proven on synchronous calls
 - [wasm-bindgen closures and promises](/quest/m3/ts-wasm-bindgen/closures.md) - `Closure` and js-sys's futures mapped, proven on web-sys's `VideoEncoder` in headless Chromium
+- [tokio's sync channels mapped into the runtime](/quest/m3/ts-wasm-bindgen/tokio-sync.md) - `mpsc`, `watch`, `oneshot`, and `select!`'s support, which web-codecs passes frames and errors through
