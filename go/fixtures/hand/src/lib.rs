@@ -119,6 +119,11 @@ pub fn view(v: &mut Vec<u8>, n: u8) -> &[u8] {
 	v
 }
 
+/// An iterator over `xs`.
+pub fn iter(xs: &[u8]) -> std::slice::Iter<'_, u8> {
+	xs.iter()
+}
+
 /// Push `n` bytes of `n` onto `v`, then pop and outgrow them, leaving the slot vacated.
 pub fn vacate(v: &mut Vec<Vec<u8>>, n: u8) -> usize {
 	v.push(fill(n));

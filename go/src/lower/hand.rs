@@ -34,6 +34,14 @@ fn is_u8(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Uint(ty::UintTy::U8))
 }
 
+/// Whether a walk this way goes behind a pointer, which is `mutable` if the translation
+/// may write through it: handing in, only where the translation may grow or replace what
+/// Go passed; handing out, behind any, since Go code gets what the result reaches once
+/// the call is done, shared or not.
+fn reaches(mutable: bool, hand: Hand) -> bool {
+	mutable || hand == Hand::Out
+}
+
 impl<'tcx> Translator<'tcx> {
 	/// Whether a walk handing a value of `ty` this way has anything to do.
 	pub fn hands(&self, ty: Ty<'tcx>, hand: Hand) -> bool {
@@ -52,7 +60,8 @@ impl<'tcx> Translator<'tcx> {
 			ty::Adt(adt, args) => match library::mapped(tcx, adt.did()) {
 				Some(Mapped::Vec) => is_u8(args.type_at(0)) || self.hands_in(args.type_at(0), hand, seen),
 				Some(Mapped::Box) => self.hands_behind(args.type_at(0), true, hand, seen),
-				Some(Mapped::SliceIter) => hand == Hand::Out && is_u8(args.type_at(0)),
+				// Its first argument is the slice's lifetime.
+				Some(Mapped::SliceIter) => hand == Hand::Out && args.types().next().is_some_and(is_u8),
 				Some(Mapped::Transparent) => self.hands_in(args.type_at(0), hand, seen),
 				Some(Mapped::Option | Mapped::Result) | None => adt
 					.all_fields()
@@ -75,11 +84,12 @@ impl<'tcx> Translator<'tcx> {
 
 	/// `hands` of a pointer to `inner`, through which the translation may write if `mutable`.
 	fn hands_behind(&self, inner: Ty<'tcx>, mutable: bool, hand: Hand, seen: &mut Vec<(Ty<'tcx>, Hand)>) -> bool {
+		let reach = reaches(mutable, hand);
 		match *inner.kind() {
 			ty::Str => hand == Hand::Out,
-			ty::Slice(elem) => (hand == Hand::Out && is_u8(elem)) || (mutable && self.hands_in(elem, hand, seen)),
+			ty::Slice(elem) => (hand == Hand::Out && is_u8(elem)) || (reach && self.hands_in(elem, hand, seen)),
 			ty::Dynamic(..) => false,
-			_ => mutable && self.hands_in(inner, hand, seen),
+			_ => reach && self.hands_in(inner, hand, seen),
 		}
 	}
 
@@ -204,7 +214,7 @@ impl<'tcx> Translator<'tcx> {
 				if hand == Hand::Out && is_u8(elem) {
 					body.push(format!("clip({p})"));
 				}
-				if mutable && self.hands(elem, hand) {
+				if reaches(mutable, hand) && self.hands(elem, hand) {
 					if copy {
 						body.push(format!("*{p} = append((*{p})[:0:0], *{p}...)"));
 					}
