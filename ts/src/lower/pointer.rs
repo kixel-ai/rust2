@@ -337,7 +337,7 @@ pub fn derives(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> Option<
 		("ptr", "cast" | "cast_const" | "cast_mut" | "as_ref" | "as_mut")
 		| ("NonNull", "new" | "new_unchecked" | "as_ptr" | "as_ref" | "as_mut" | "cast" | "cast_const" | "cast_mut")
 		| ("MaybeUninit", "as_ptr" | "as_mut_ptr" | "assume_init_ref" | "assume_init_mut" | "write")
-		| ("Box", "into_raw" | "leak" | "from_raw") => Some(Derives::Same),
+		| ("Box", "into_raw" | "leak" | "from_raw" | "write") => Some(Derives::Same),
 		(
 			"ptr",
 			"null" | "null_mut" | "dangling" | "dangling_mut" | "is_null" | "eq" | "add" | "sub" | "offset"
@@ -362,7 +362,7 @@ pub fn derives(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> Option<
 pub fn stores(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
 	matches!(
 		super::library::key(tcx, def_id),
-		Some((owner, name)) if matches!(owner.as_str(), "ptr" | "NonNull" | "MaybeUninit")
+		Some((owner, name)) if matches!(owner.as_str(), "ptr" | "NonNull" | "MaybeUninit" | "Box")
 			&& matches!(name.as_str(), "write" | "write_unaligned" | "write_volatile")
 	)
 }
@@ -819,6 +819,24 @@ pub fn call<'tcx>(
 			};
 			out.push(StmtKind::Expr(write).at(None));
 			p
+		}
+		// The box, written into as `MaybeUninit::write` writes, so a pointer into it from
+		// before still points into what it holds; one of a value JS copies is that value.
+		("Box", "write") => {
+			let boxed = arg();
+			let value = arg();
+			match kind(b, pointee()) {
+				Some(Pointee::Place) => value,
+				_ => {
+					let p = b.spill(boxed, "uninit", out);
+					let write = match array(b, pointee()) {
+						true => Expr::rs("ptrWrite", vec![p.clone(), value]),
+						false => write(b, p.clone(), value, pointee(), span),
+					};
+					out.push(StmtKind::Expr(write).at(None));
+					p
+				}
+			}
 		}
 		// A shared reference to a value JS copies is the value.
 		("MaybeUninit", "assume_init_read") => b.t.snapshot(arg(), pointee(), span),

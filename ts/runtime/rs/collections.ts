@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { type ArrayRef, ArraySlice, arraySliceOfSlice, Borrowed, ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, type Room, roomPast, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity } from "../rs.ts";
+import { type ArrayRef, ArraySlice, arraySliceOfSlice, Borrowed, ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, type Room, roomPast, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity, panicSizes } from "../rs.ts";
 import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
 import type { HashKey, Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
@@ -4147,7 +4147,7 @@ function inclusive<K>(r: Bounds<K>): r is RangeInclusive<K> {
 /** std's `slice_index_fail`, which names the end where neither bound is out of order. */
 function sliceIndexFail(start: number, end: number, n: number, at?: Location): never {
 	rangeCheck(n, start, end, at);
-	return panic(`range end index ${end} out of range for slice of length ${n}`, at, true);
+	return panicSizes(["range end index ", end, " out of range for slice of length ", n], at);
 }
 
 // `Vec::drain`, which leaves the vector only what comes before the range until the drain

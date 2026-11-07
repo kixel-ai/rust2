@@ -60,6 +60,14 @@ export function panic(message: string, at?: Location | string, owned?: boolean |
 	throw new Panic(message);
 }
 
+/**
+ * Panic at `at` with `message`: literal pieces, and the `usize`s between them, which a
+ * hook reads as the `String` std's `panic!` writes each piece and number into.
+ */
+export function panicSizes(message: readonly (string | number)[], at?: Location | string): never {
+	panicFmt(message.map((part) => (typeof part === "string" ? part : fmtOwned(part as usize, usizeDisplay))), at);
+}
+
 /** `resume_unwind`, which aborts as `panic=abort`'s runtime does, running no panic hook. */
 export function resumeUnwind(): never {
 	throw new Abort("resume_unwind");
@@ -80,8 +88,8 @@ export function unreachable(_value: unknown): never {
 
 /** `assert_eq!` or `assert_ne!` failing: `op` is `==` or `!=`. */
 export function assertFailed(op: string, left: Fmt, right: Fmt, args?: Arguments, at?: Location | string): never {
-	const failed: Arguments = args === undefined ? [" failed"] : [" failed: ", (f) => fmtWriteFmt(f, args)];
-	panicFmt(["assertion `left ", op, " right`", ...failed, "\n  left: ", left, "\n right: ", right], at);
+	const failed: Arguments = args === undefined ? [" right` failed\n  left: "] : [" right` failed: ", (f) => fmtWriteFmt(f, args), "\n  left: "];
+	panicFmt(["assertion `left ", op, ...failed, left, "\n right: ", right], at);
 }
 
 // Places
@@ -710,8 +718,8 @@ export const OK: Result<undefined, never> = /* @__PURE__ */ Object.freeze({ ok: 
 export const ERR: Result<never, undefined> = /* @__PURE__ */ Object.freeze({ ok: false, error: undefined });
 
 /** Panic with `message` and `value`'s `Debug`. */
-function unwrapFailed<T>(message: string, value: T, debug: Debug<T>, at?: Location): never {
-	panicFmt([message, ": ", (f) => debug(value, f)], at);
+function unwrapFailed<T>(message: string, value: T, debug: Debug<T>, at?: Location | string): never {
+	panicFmt([message, ": ", fmtOwned(value, debug)], at);
 }
 
 // A function that may drop an operand std's would, rather than return it, takes what
@@ -852,7 +860,7 @@ export function sliceSame<T>(a: Slice<T>, b: Slice<T>): boolean {
 
 /** A bounds-checked index into a slice. */
 export function idx(slice: { readonly length: number }, index: number, at?: Location): number {
-	if (index >= slice.length) panic(`index out of bounds: the len is ${slice.length} but the index is ${index}`, at, true);
+	if (index >= slice.length) panicSizes(["index out of bounds: the len is ", slice.length, " but the index is ", index], at);
 	return index;
 }
 
@@ -863,9 +871,9 @@ export function at<T>(slice: ArrayLike<T>, index: number, at?: Location): T {
 
 /** Panic unless `start..end` is in a slice of `length`, as std's range checks do. */
 export function rangeCheck(length: number, start: number, end: number, at?: Location): void {
-	if (start > length) panic(`range start index ${start} out of range for slice of length ${length}`, at, true);
-	if (end > length) panic(`range end index ${end} out of range for slice of length ${length}`, at, true);
-	if (start > end) panic(`slice index starts at ${start} but ends at ${end}`, at, true);
+	if (start > length) panicSizes(["range start index ", start, " out of range for slice of length ", length], at);
+	if (end > length) panicSizes(["range end index ", end, " out of range for slice of length ", length], at);
+	if (start > end) panicSizes(["slice index starts at ", start, " but ends at ", end], at);
 }
 
 /** `&s[start..end]` and `&mut s[start..end]`, with `end` defaulting to the length. */
@@ -1596,7 +1604,7 @@ export function arraySliceCopyWithin<S extends ArrayRef>(r: ArraySlice<S>, start
 /** `copy_within`'s checks of `start..end` and `dest` in `length` elements. */
 function copyWithinCheck(length: number, start: number, end: number, dest: number, at?: Location): void {
 	// `slice::range` checks the end first, then `range` reports the rest.
-	if (end > length) panic(`range end index ${end} out of range for slice of length ${length}`, at, true);
+	if (end > length) panicSizes(["range end index ", end, " out of range for slice of length ", length], at);
 	rangeCheck(length, start, end, at);
 	if (dest > length - (end - start)) panic("dest is out of bounds", at);
 }
@@ -1634,7 +1642,7 @@ export function sliceWriteCloneOfSlice<T>(dst: Slice<T>, src: Slice<T>, clone: (
 }
 
 function writeCloneLengthFail(dst: number, src: number, at?: Location): never {
-	panic(`assertion \`left == right\` failed: destination and source slices have different lengths\n  left: ${dst}\n right: ${src}`, at, true);
+	assertFailed("==", fmtOwned(dst as usize, usizeDebug), fmtOwned(src as usize, usizeDebug), ["destination and source slices have different lengths"], at);
 }
 
 /** `Box::new_uninit_slice` of `size`-byte elements: `n` of what `uninit` makes, panicking past what a `Vec` of them may hold. */
@@ -1746,7 +1754,7 @@ export function byteBoxSliceCloneFrom(dst: ByteSlice, src: ByteSlice, at?: Locat
 }
 
 function copyLengthFail(dst: number, src: number, at?: Location): never {
-	panic(`copy_from_slice: source slice length (${src}) does not match destination slice length (${dst})`, at, true);
+	panicSizes(["copy_from_slice: source slice length (", src, ") does not match destination slice length (", dst, ")"], at);
 }
 
 /**
@@ -1842,7 +1850,7 @@ export function arrayAssign<T>(p: T[], value: T[]): void {
 
 /** `Vec::insert`: `item` at `i`, with those from `i` on moved up. */
 export function vecInsert<T>(v: Vec<T>, i: number, item: T, at?: Location): void {
-	if (i > v.items.length) panic(`insertion index (is ${i}) should be <= len (is ${v.items.length})`, at, true);
+	if (i > v.items.length) panicSizes(["insertion index (is ", i, ") should be <= len (is ", v.items.length, ")"], at);
 	v.items.splice(i, 0, item);
 }
 
@@ -1899,7 +1907,7 @@ export function vecPopIfMut<T>(
 
 /** `Vec::remove`: the element at `i`, with those after it moved down. */
 export function vecRemove<T>(v: Vec<T>, i: number, at?: Location): T {
-	if (i >= v.items.length) panic(`removal index (is ${i}) should be < len (is ${v.items.length})`, at, true);
+	if (i >= v.items.length) panicSizes(["removal index (is ", i, ") should be < len (is ", v.items.length, ")"], at);
 	vecKeep(v);
 	return v.items.splice(i, 1)[0];
 }
@@ -1915,7 +1923,7 @@ export function vecTruncate<T>(v: Vec<T>, len: number, drop?: (item: T) => void)
 /** `Vec::swap_remove`: the element at `i`, with the last moved into its place. */
 export function vecSwapRemove<T>(v: Vec<T>, i: number): T {
 	const d = v.items;
-	if (i >= d.length) panic(`swap_remove index (is ${i}) should be < len (is ${d.length})`, "swap_remove", true);
+	if (i >= d.length) panicSizes(["swap_remove index (is ", i, ") should be < len (is ", d.length, ")"], "swap_remove");
 	vecKeep(v);
 	const item = d[i];
 	d[i] = d[d.length - 1];
@@ -1988,7 +1996,7 @@ export function vecResizeWith<T>(v: Vec<T>, len: number, f: () => T, size: numbe
 
 /** `Vec::split_off`: those from `mid` on, moved to a new vector with room for exactly them. */
 export function vecSplitOff<T>(v: Vec<T>, mid: number, at?: Location): Vec<T> {
-	if (mid > v.items.length) panic(`\`at\` split index (is ${mid}) should be <= len (is ${v.items.length})`, at, true);
+	if (mid > v.items.length) panicSizes(["`at` split index (is ", mid, ") should be <= len (is ", v.items.length, ")"], at);
 	vecKeep(v);
 	return vecFrom(v.items.splice(mid));
 }
@@ -2434,7 +2442,7 @@ export function byteVecClear(v: ByteVec): void {
 
 /** `Vec::insert`: `byte` at `i`, with those from `i` on moved up. */
 export function byteVecInsert(v: ByteVec, i: number, byte: number, at?: Location): void {
-	if (i > v.length) panic(`insertion index (is ${i}) should be <= len (is ${v.length})`, at, true);
+	if (i > v.length) panicSizes(["insertion index (is ", i, ") should be <= len (is ", v.length, ")"], at);
 	reserve(v, 1);
 	v.data.copyWithin(i + 1, i, v.length);
 	v.data[i] = byte;
@@ -2443,7 +2451,7 @@ export function byteVecInsert(v: ByteVec, i: number, byte: number, at?: Location
 
 /** `Vec::remove`: the byte at `i`, with those after it moved down. */
 export function byteVecRemove(v: ByteVec, i: number, at?: Location): number {
-	if (i >= v.length) panic(`removal index (is ${i}) should be < len (is ${v.length})`, at, true);
+	if (i >= v.length) panicSizes(["removal index (is ", i, ") should be < len (is ", v.length, ")"], at);
 	const byte = v.data[i];
 	v.data.copyWithin(i, i + 1, v.length);
 	v.length--;
@@ -2452,7 +2460,7 @@ export function byteVecRemove(v: ByteVec, i: number, at?: Location): number {
 
 /** `Vec::swap_remove`: the byte at `i`, with the last moved into its place. */
 export function byteVecSwapRemove(v: ByteVec, i: number): number {
-	if (i >= v.length) panic(`swap_remove index (is ${i}) should be < len (is ${v.length})`, "swap_remove", true);
+	if (i >= v.length) panicSizes(["swap_remove index (is ", i, ") should be < len (is ", v.length, ")"], "swap_remove");
 	const byte = v.data[i];
 	v.data[i] = v.data[--v.length];
 	return byte;
@@ -2867,7 +2875,7 @@ export function byteVecResizeWith(v: ByteVec, len: number, f: () => number): voi
 
 /** `Vec::split_off` of bytes. */
 export function byteVecSplitOff(v: ByteVec, mid: number, at?: Location): ByteVec {
-	if (mid > v.length) panic(`\`at\` split index (is ${mid}) should be <= len (is ${v.length})`, at, true);
+	if (mid > v.length) panicSizes(["`at` split index (is ", mid, ") should be <= len (is ", v.length, ")"], at);
 	const other = new ByteVec(v.length - mid);
 	copyBytes(other.data, 0, v.data, mid, v.length - mid);
 	other.length = v.length - mid;
@@ -3663,9 +3671,8 @@ function closePretty(f: Formatter, close: string): FmtResult {
  */
 export function fmtFormat(args: Arguments): RsString {
 	const s = stringWithCapacity(estimate(args) as usize);
-	if (!write(new StringWriter(s), args).ok) {
-		panic("a formatting trait implementation returned an error when the underlying stream did not: Error", "format", true);
-	}
+	const r = write(new StringWriter(s), args);
+	if (!r.ok) unwrapFailed("a formatting trait implementation returned an error when the underlying stream did not", r.error, fmtErrorDebug, "format");
 	return s;
 }
 
@@ -3695,7 +3702,8 @@ function estimate(args: Arguments): number {
  */
 export function fmtToString(value: Fmt, size?: number): RsString {
 	const s = stringNew();
-	if (!value({ out: new StringWriter(s), spec: {} }).ok) panic("a Display implementation returned an error unexpectedly: Error", "to_string", true);
+	const r = value({ out: new StringWriter(s), spec: {} });
+	if (!r.ok) unwrapFailed("a Display implementation returned an error unexpectedly", r.error, fmtErrorDebug, "to_string");
 	if (size !== undefined) s.cap = (size === 0 ? s.len : size + (s.v.startsWith("-") ? 1 : 0)) as usize;
 	return s;
 }
