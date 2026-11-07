@@ -27,3 +27,4 @@ Public API: the command line, and what a translation exports.
 ## Required
 
 - [moq-net's model in TypeScript](/quest/m2/ts-model/README.md) - the model translates with no refusals
+- [Browser APIs through wasm-bindgen](/quest/m2/ts-wasm-bindgen/README.md) - moq's clock binds become a translation of its wasm32 path
