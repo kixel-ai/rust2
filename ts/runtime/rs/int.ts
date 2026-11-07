@@ -2234,16 +2234,18 @@ export const intOverflowingShr = <T extends Int>(a: T, n: number, bits: number, 
 export const intUnboundedShl = <T extends Int>(a: T, n: number, bits: number, signed: boolean): T => (n < bits ? (wrappingOf(intToBig(a) << BigInt(n), bits, signed) as T) : (0 as T));
 /** `unbounded_shr`: `a >> n`, past the width all sign bits: 0, or -1 for a negative `a`. */
 export const intUnboundedShr = <T extends Int>(a: T, n: number, bits: number, signed: boolean): T => intFromBig(intToBig(a) >> BigInt(Math.min(n, bits)), bits, signed) as T;
-/** `funnel_shl` of an unsigned type: the high half of `a:b` shifted left by `n`, panicking unless `n` is below the width. */
-export const intFunnelShl = <T extends Int>(a: T, b: T, n: number, bits: number, signed: boolean, at?: Location): T => {
-	if (n >= bits) panic("attempt to funnel shift left with overflow", at);
-	return wrappingOf((((intToBig(a) << BigInt(bits)) | intToBig(b)) << BigInt(n)) >> BigInt(bits), bits, signed) as T;
-};
-/** `funnel_shr` of an unsigned type: the low half of `a:b` shifted right by `n`, panicking unless `n` is below the width. */
-export const intFunnelShr = <T extends Int>(a: T, b: T, n: number, bits: number, signed: boolean, at?: Location): T => {
-	if (n >= bits) panic("attempt to funnel shift right with overflow", at);
-	return wrappingOf(((intToBig(a) << BigInt(bits)) | intToBig(b)) >> BigInt(n), bits, signed) as T;
-};
+/** `funnel_shl` of an unsigned type, as `unchecked_funnel_shl` checks it: the high half of `a:b` shifted left by `n`, or `undefined` unless `n` is below the width. */
+export const intCheckedFunnelShl = <T extends Int>(a: T, b: T, n: number, bits: number, signed: boolean): T | undefined =>
+	n < bits ? (wrappingOf((((intToBig(a) << BigInt(bits)) | intToBig(b)) << BigInt(n)) >> BigInt(bits), bits, signed) as T) : undefined;
+/** `funnel_shr` of an unsigned type, as `unchecked_funnel_shr` checks it: the low half of `a:b` shifted right by `n`, or `undefined` unless `n` is below the width. */
+export const intCheckedFunnelShr = <T extends Int>(a: T, b: T, n: number, bits: number, signed: boolean): T | undefined =>
+	n < bits ? (wrappingOf(((intToBig(a) << BigInt(bits)) | intToBig(b)) >> BigInt(n), bits, signed) as T) : undefined;
+/** `funnel_shl` of an unsigned type, panicking unless `n` is below the width. */
+export const intFunnelShl = <T extends Int>(a: T, b: T, n: number, bits: number, signed: boolean, at?: Location): T =>
+	intCheckedFunnelShl(a, b, n, bits, signed) ?? panic("attempt to funnel shift left with overflow", at);
+/** `funnel_shr` of an unsigned type, panicking unless `n` is below the width. */
+export const intFunnelShr = <T extends Int>(a: T, b: T, n: number, bits: number, signed: boolean, at?: Location): T =>
+	intCheckedFunnelShr(a, b, n, bits, signed) ?? panic("attempt to funnel shift right with overflow", at);
 /** `rotate_left`: `a`'s bits rotated left by `n`, modulo the width. */
 export const intRotateLeft = <T extends Int>(a: T, n: number, bits: number, signed: boolean): T => {
 	const v = bitsOf(a, bits);

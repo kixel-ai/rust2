@@ -58,6 +58,18 @@ export function panic(message: string, at?: Location | string, owned?: boolean):
 	throw new Panic(message);
 }
 
+/**
+ * `value`, what an unsafe function gives where its precondition `check` held, or, where it is
+ * `undefined`, the abort std's check of `check` makes in a debug build, since Rust defines
+ * nothing past it: a panic that can't unwind, at `at` or at the key of std's site.
+ */
+export function precondition<T>(value: T | undefined, check: string, at?: Location | string): T {
+	if (value === undefined) {
+		panic(`unsafe precondition(s) violated: ${check}\n\nThis indicates a bug in the program. This Undefined Behavior check is optional, and cannot be relied on for safety.`, at);
+	}
+	return value;
+}
+
 /** `resume_unwind`, which aborts as `panic=abort`'s runtime does, running no panic hook. */
 export function resumeUnwind(): never {
 	throw new Abort("resume_unwind");
@@ -2218,18 +2230,9 @@ export function byteVecSpare(v: ByteVec): ByteSlice {
 	return new ByteSlice(v.data, v.length, v.data.length - v.length);
 }
 
-/**
- * `Vec::set_len`, which panics past the capacity, as std's check of its precondition does:
- * one that can't unwind, so it runs the hook, then aborts, as every panic here does.
- */
+/** `Vec::set_len`, which aborts past the capacity, as std's check of its precondition does. */
 export function byteVecSetLen(v: ByteVec, length: number): void {
-	if (length > v.data.length) {
-		panic(
-			"unsafe precondition(s) violated: Vec::set_len requires that new_len <= capacity()\n\nThis indicates a bug in the program. This Undefined Behavior check is optional, and cannot be relied on for safety.",
-			"vec_set_len",
-		);
-	}
-	v.length = length;
+	v.length = precondition(length <= v.data.length ? length : undefined, "Vec::set_len requires that new_len <= capacity()", "vec_set_len");
 }
 
 /** `Vec::clear`. */

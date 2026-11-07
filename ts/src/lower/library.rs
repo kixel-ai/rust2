@@ -2017,6 +2017,12 @@ fn mapping<'tcx>(
 		// A `NonZero` is its integer.
 		("NonZero", "get") => args.pop()?,
 		("NonZero", "new") => Expr::rs("nonZero", args),
+		("NonZero", "new_unchecked") => {
+			let check = Expr::Str("NonZero::new_unchecked requires the argument to be non-zero".into());
+			Expr::rs("precondition", vec![Expr::rs("nonZero", args), check])
+		}
+		// Its integer's, but that std's code, not the caller, is where it aborts.
+		("NonZero", _) if name.starts_with("unchecked_") => return None,
 		// Its integer's, of each width's own impl, which has no type argument to read the
 		// integer from, but for the bits it always has.
 		("NonZero", _) => {
@@ -3913,6 +3919,22 @@ fn int_method<'tcx>(
 		"strict_rem" => "rem",
 		"strict_shl" => "shl",
 		"strict_shr" => "shr",
+		// Its checked form, which aborts where it gives `None` as std's check of the
+		// precondition does in a debug build, since Rust defines nothing past it.
+		_ if let Some(op) = name.strip_prefix("unchecked_") => {
+			let checked = match op {
+				"add" | "sub" | "mul" | "neg" | "shl" | "shr" => {
+					int_method(b, call, int, &format!("checked_{op}"), args)?
+				}
+				"funnel_shl" | "funnel_shr" if !int.signed => {
+					args.extend([Expr::lit(int.bits.to_string()), Expr::lit("false")]);
+					Expr::rs(super::camel(&format!("int_checked_{op}")), args)
+				}
+				_ => return None,
+			};
+			let check = Expr::Str(format!("{}::{name} cannot overflow", int.rs()));
+			return Some(Expr::rs("precondition", vec![checked, check]));
+		}
 		// wasm32 is little-endian.
 		"to_le" | "from_le" => return args.pop(),
 		"max_value" => return Some(int.lit(int.max() as i128)),
