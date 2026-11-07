@@ -5,19 +5,23 @@ semantics of the Rust source. It is a spike, measuring whether Go users are bett
 a translation than by the C ABI [rust2-ffi](../ffi/README.md) exports, on moq's codec.
 
 ```bash
-rust2-go --config go.toml --out dir [--manifest-path Cargo.toml] [-- cargo args]
+rust2-go --out dir [--manifest-path Cargo.toml] [-- cargo args]
 ```
 
-```toml
-# go.toml: the Go package's name, and the functions it exports by their paths from the
-# crate root, `harness::run` as `HarnessRun`.
-package = "codec"
-roots = ["harness::run"]
-```
+It translates the library of the package whose `Cargo.toml` is in the current directory,
+or wherever `--manifest-path` says, to a Go package named after the crate. There is no
+config: the crate's `pub` API is what Go callers reach, each item by the shortest path the
+crate exports it at, in camel case, through its re-exports and the modules of other crates
+it re-exports. A function is exported, `harness::run` as `HarnessRun`, a type is declared
+with its `pub` inherent methods, `Counter::new` as `CounterNew`, and a type alias is a Go
+alias, `type Byte = Value[uint8]`. An alias that is the only path to a type and passes it
+just its own parameters names the type instead. A trait comes along as its impls are called.
+A generic function or method, a constant or static, and a type with `pub` methods that only
+a specialized alias reaches are refused.
 
 It runs `cargo check` on the host with itself as `RUSTC_WRAPPER`, through the front end
 it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver), building std from
-source so every std function has MIR. From each root it translates every function
+source so every std function has MIR. From the `pub` API it translates every function
 instance reached, monomorphized, and every type they name, into one `.go` file per crate
 and the runtime in `runtime/`, then runs `gofmt`. What it can't translate is a compile
 error at its span, and nothing is written.
@@ -29,7 +33,7 @@ error at its span, and nothing is written.
 | a function instance | a function, its MIR blocks structured into loops and `if`s as rust2-ts structures them, a `goto` leaving a block where JS would `break` it, its locals as variables but a temporary assigned and read once, which folds into its reader |
 | `u8`..`u64`, `i8`..`i64`, `usize`, `isize` | `uint8`..`uint64`, `int8`..`int64`, `uint`, `int` (64-bit hosts) |
 | an overflow check, a bounds check | native Rust's panic message, as a `RustPanic` |
-| a struct, a tuple | a struct, generic where Rust's is; `tuple2[A, B]` and so on |
+| a struct, a tuple | a struct, generic where Rust's is, its `pub` fields exported (`count` as `Count`) and a tuple's as `F0` and so on; `tuple2[A, B]` and so on |
 | an enum | a struct of its tag and a field per variant with fields; one of over four words, which Go would keep in memory, as its tag and each variant's fields, a variable, parameter, and result each, a field of over four words behind a pointer: an argument's the callee only reads, a result's the caller passes for the callee to write |
 | `&T`, `Box<T>` | `*T` |
 | `&[T]`, `&str`, `Vec<T>` | `[]T`, `[]uint8`, `[]T` |
@@ -48,8 +52,9 @@ drop what the translation held.
 ## Refused
 
 `fixtures/reject/expected.txt` lists them with their spans: 128-bit integers, floats, a
-`Drop` impl, a trait object of any trait but `Display` and `Debug`, a union, and a type
-generic over a constant, such as an array's by-value iterator.
+`Drop` impl, a trait object of any trait but `Display` and `Debug`, a union, a type
+generic over a constant, such as an array's by-value iterator, and a `pub` item that is
+generic, a constant, or a static.
 
 ## Tests
 

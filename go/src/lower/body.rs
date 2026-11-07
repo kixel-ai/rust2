@@ -831,7 +831,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 					ty::Adt(adt, _) => {
 						let variant = pty.variant_index.unwrap_or(rustc_abi::FIRST_VARIANT);
 						let def = adt.variant(variant);
-						let name = names::field(def.fields[field].name.as_str(), field.as_usize());
+						let name = names::field(&def.fields[field], field.as_usize());
 						expr = match adt.is_enum() {
 							true => format!("{expr}.{}.{name}", variant_field(def.name.as_str())),
 							false => format!("{expr}.{name}"),
@@ -1046,7 +1046,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 			.iter()
 			.enumerate()
 			.zip(values)
-			.map(|((i, f), v)| format!("{}: {v}", names::field(f.name.as_str(), i)))
+			.map(|((i, f), v)| format!("{}: {v}", names::field(f, i)))
 			.collect();
 		if !adt.is_enum() {
 			return format!("{go}{{{}}}", fields.join(", "));
@@ -1062,7 +1062,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				.tcx
 				.normalize_erasing_regions(self.t.env(), ty::Unnormalized::new_wip(fty));
 			let fgo = self.ty(fty, span);
-			types.push(format!("{} {fgo}", names::field(f.name.as_str(), i)));
+			types.push(format!("{} {fgo}", names::field(f, i)));
 		}
 		format!(
 			"{go}{{tag: {discr}, {}: struct{{ {} }}{{{}}}}}",

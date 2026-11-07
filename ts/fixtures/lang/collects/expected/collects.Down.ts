@@ -5,9 +5,9 @@ import * as rs from "./rs.ts";
 /** The crate's own iterator, which logs each read and its drop. */
 export class Down {
 	n: rs.u8;
-	log: rs.RefCell<rs.Vec<string>>;
+	log: rs.RefCell<rs.Vec<rs.String>>;
 
-	constructor(n: rs.u8, log: rs.RefCell<rs.Vec<string>>) {
+	constructor(n: rs.u8, log: rs.RefCell<rs.Vec<rs.String>>) {
 		this.n = n;
 		this.log = log;
 	}
@@ -18,9 +18,9 @@ export class Down {
 }
 
 export function next$iter_Iterator(self: Down): rs.u8 | rs.Done {
-	const _5: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(self.log);
+	const _5: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(self.log);
 	const arg = self.n;
-	const _6: string = rs.fmtFormat(["next ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
+	const _6: rs.String = rs.fmtFormat(["next ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
 	_5.value.items.push(_6);
 	rs.refMutRelease(_5);
 	const _15: rs.u8 | undefined = rs.u8CheckedSub(self.n, 1);
@@ -32,9 +32,9 @@ export function next$iter_Iterator(self: Down): rs.u8 | rs.Done {
 }
 
 export function drop$ops_Drop(self: Down): void {
-	const _5: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(self.log);
+	const _5: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(self.log);
 	const arg = self.n;
-	const _6: string = rs.fmtFormat(["down dropped at ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
+	const _6: rs.String = rs.fmtFormat(["down dropped at ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
 	_5.value.items.push(_6);
 	rs.refMutRelease(_5);
 }

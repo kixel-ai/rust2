@@ -68,11 +68,11 @@ export function drop$Option_inlines_Stack_u8_1(_1: Stack.Stack<rs.u8> | undefine
 	}
 }
 
-export function drop$inlines_Stack_String_0(_1: Stack.Stack<string>): void {
+export function drop$inlines_Stack_String_0(_1: Stack.Stack<rs.String>): void {
 	Stack.drop$ops_Drop_String_0(_1);
 }
 
-export function drop$inlines_Stack_String_2(_1: Stack.Stack<string>): void {
+export function drop$inlines_Stack_String_2(_1: Stack.Stack<rs.String>): void {
 	Stack.drop$ops_Drop_String_2(_1);
 }
 

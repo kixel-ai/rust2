@@ -19,18 +19,24 @@ pub fn wrapped(args: &[String]) -> bool {
 pub type Job = Box<dyn Callbacks + Send>;
 
 /// Run as rustc, with `args` as cargo passed them. `job` picks the callbacks from
-/// rustc's own arguments, which it may add to, or `None` to compile the crate as rustc
-/// would; its error ends the run before rustc starts, prefixed with `tool`.
+/// rustc's own arguments, with their argfiles read, and may add arguments to the second
+/// list, or returns `None` to compile the crate as rustc would; its error ends the run
+/// before rustc starts, prefixed with `tool`.
 pub fn run(
 	tool: &str,
 	mut args: Vec<String>,
-	job: impl FnOnce(&mut Vec<String>) -> Result<Option<Job>, String>,
+	job: impl FnOnce(&[String], &mut Vec<String>) -> Result<Option<Job>, String>,
 ) -> ExitCode {
 	args.remove(1);
 	let early_dcx = EarlyDiagCtxt::new(ErrorOutputType::default());
+	// The job reads `@path` argfiles' arguments as rustc does: cargo passes them in one once
+	// they overflow a command line, as many `-L`s do on Windows. rustc still gets cargo's
+	// own, since it reads an argfile once, and an argument inside one starting with `@` is
+	// no other file.
+	let expanded = [&args[..1], &rustc_driver::args::arg_expand_all(&early_dcx, &args[1..])].concat();
 	rustc_driver::init_rustc_env_logger(&early_dcx);
 	rustc_driver::install_ice_hook(BUG_REPORT_URL, |_| ());
-	let job = match job(&mut args) {
+	let job = match job(&expanded, &mut args) {
 		Ok(job) => job,
 		Err(err) => early_dcx.early_fatal(format!("{tool}: {err}")),
 	};
