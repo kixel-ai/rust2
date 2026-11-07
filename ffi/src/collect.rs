@@ -27,8 +27,8 @@ use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _
 
 use crate::config;
 use crate::ir::{
-	Access, Api, Callback, Constant, Dyn, Enum, Family, Field, Function, Int, Literal, Mutability, Object, Param, Path,
-	Receiver, Record, Traits, Type, Variant,
+	Access, Api, Callback, Constant, Dyn, Enum, Family, Field, Function, Home, Int, Literal, Mutability, Object, Param,
+	Path, Receiver, Record, Traits, Type, Variant,
 };
 
 /// Why something is refused: a construct, ranked by the census, and what it names.
@@ -148,6 +148,9 @@ struct Collector<'tcx> {
 	tcx: TyCtxt<'tcx>,
 	/// Each `pub` item and its shortest path, in the order the walk met them.
 	items: Vec<(DefId, Path)>,
+	/// How many leading segments of each item's path lie outside its crate, as
+	/// [`Home::outside`] counts them.
+	outside: rustc_data_structures::fx::FxHashMap<DefId, usize>,
 	decls: rustc_data_structures::fx::FxHashMap<Key<'tcx>, Decl>,
 	/// The instances generic types export at, each type's by how reports name them.
 	instances: Vec<Site<'tcx>>,
@@ -217,6 +220,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 		let mut c = Collector {
 			tcx,
 			items: Vec::new(),
+			outside: Default::default(),
 			decls: Default::default(),
 			crates: vec![LOCAL_CRATE],
 			report: Report {
@@ -247,6 +251,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 				callbacks: Vec::new(),
 				functions: Vec::new(),
 				constants: Vec::new(),
+				crates: Vec::new(),
 			},
 		};
 		c.walk();
@@ -260,6 +265,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 		c.declare();
 		c.define();
 		c.prune();
+		c.rehome();
 		unshare(&mut c.api);
 		c
 	};
@@ -283,6 +289,83 @@ impl<'tcx> Collector<'tcx> {
 	/// What collection found, and `path` without the facade's root.
 	fn report(&mut self, path: &[String]) -> (&mut Report, String) {
 		(&mut self.report, path[1..].join("::"))
+	}
+
+	/// Where the item `def_id` the walk reached belongs, before any instance moves on.
+	fn home(&self, def_id: DefId) -> Home {
+		Home {
+			krate: self.tcx.crate_name(def_id.krate).to_string(),
+			outside: self.outside[&def_id],
+		}
+	}
+
+	/// Move each instance, and each function naming one, to the last crate among its own
+	/// and those its arguments belong to, then list the crates in that order. An instance
+	/// that leaves its crate shows its whole path there.
+	fn rehome(&mut self) {
+		let tcx = self.tcx;
+		let mut order: Vec<String> = (tcx.postorder_cnums(()).iter())
+			.filter(|&&k| k != LOCAL_CRATE)
+			.map(|&k| tcx.crate_name(k).to_string())
+			.collect();
+		order.push(tcx.crate_name(LOCAL_CRATE).to_string());
+		let rank = |krate: &str| order.iter().position(|k| k == krate).expect("each crate is in the order");
+		let api = &mut self.api;
+		// An argument's home may move in turn, so this repeats until none does.
+		loop {
+			let later = |home: &Home, types: &mut dyn Iterator<Item = &Type>| -> Option<String> {
+				let mut last = home.krate.clone();
+				for ty in types {
+					crate::ir::each(ty, &mut |named| {
+						let krate = match named {
+							Type::Record(i) => &api.records[*i].home.krate,
+							Type::Enum(i) => &api.enums[*i].home.krate,
+							Type::Object(i) => &api.objects[*i].home.krate,
+							Type::Callback(i, _) => &api.callbacks[*i].home.krate,
+							_ => return,
+						};
+						if rank(krate) > rank(&last) {
+							last = krate.clone();
+						}
+					});
+				}
+				(last != home.krate).then_some(last)
+			};
+			let mut moves = Vec::new();
+			for (i, r) in api.records.iter().enumerate() {
+				moves.extend(later(&r.home, &mut r.args.iter()).map(|k| (0, i, k)));
+			}
+			for (i, e) in api.enums.iter().enumerate() {
+				moves.extend(later(&e.home, &mut e.args.iter()).map(|k| (1, i, k)));
+			}
+			for (i, o) in api.objects.iter().enumerate() {
+				moves.extend(later(&o.home, &mut o.args.iter()).map(|k| (2, i, k)));
+			}
+			for (i, f) in api.functions.iter().enumerate() {
+				let mut types = (f.params.iter().map(|p| &p.ty)).chain([&f.ok]).chain(&f.err);
+				moves.extend(later(&f.home, &mut types).map(|k| (3, i, k)));
+			}
+			if moves.is_empty() {
+				break;
+			}
+			for (kind, i, krate) in moves {
+				let home = match kind {
+					0 => &mut api.records[i].home,
+					1 => &mut api.enums[i].home,
+					2 => &mut api.objects[i].home,
+					_ => &mut api.functions[i].home,
+				};
+				*home = Home { krate, outside: 1 };
+			}
+		}
+		let homes = (api.records.iter().map(|r| &r.home.krate))
+			.chain(api.enums.iter().map(|e| &e.home.krate))
+			.chain(api.objects.iter().map(|o| &o.home.krate))
+			.chain(api.callbacks.iter().map(|c| &c.home.krate))
+			.chain(api.functions.iter().map(|f| &f.home.krate))
+			.chain(api.constants.iter().map(|c| &c.home.krate));
+		let homes: std::collections::BTreeSet<&String> = homes.collect();
+		api.crates = order.iter().filter(|k| homes.contains(k)).cloned().collect();
 	}
 
 	/// Whether the walk reached an item of `krate`.
@@ -710,8 +793,10 @@ impl<'tcx> Collector<'tcx> {
 	fn walk(&mut self) {
 		let tcx = self.tcx;
 		let mut seen = rustc_data_structures::fx::FxHashSet::default();
-		let mut queue = VecDeque::from([(LOCAL_CRATE.as_def_id(), vec![self.report.root.clone()])]);
-		while let Some((module, path)) = queue.pop_front() {
+		// Each module with its path, and the module each segment of it names.
+		let root = LOCAL_CRATE.as_def_id();
+		let mut queue = VecDeque::from([(root, vec![self.report.root.clone()], vec![root])]);
+		while let Some((module, path, modules)) = queue.pop_front() {
 			let children = match module.as_local() {
 				Some(local) => tcx.module_children_local(local),
 				None => tcx.module_children(module),
@@ -732,6 +817,8 @@ impl<'tcx> Collector<'tcx> {
 				}
 				let mut path = path.clone();
 				path.push(child.ident.to_string());
+				let mut modules = modules.clone();
+				modules.push(def_id);
 				if self.exclude(&path) {
 					self.left_out.insert(def_id, "excluded type");
 					continue;
@@ -755,7 +842,7 @@ impl<'tcx> Collector<'tcx> {
 					continue;
 				}
 				match kind {
-					DefKind::Mod => queue.push_back((def_id, path)),
+					DefKind::Mod => queue.push_back((def_id, path, modules)),
 					DefKind::TyAlias => {
 						let (report, rest) = self.report(&path);
 						report.aliases.push(rest);
@@ -771,6 +858,12 @@ impl<'tcx> Collector<'tcx> {
 						if !self.crates.contains(&def_id.krate) {
 							self.crates.push(def_id.krate);
 						}
+						// Its crate's own segments end the path, after any naming the
+						// facade's modules or another crate's.
+						let own = (modules.iter().rev())
+							.take_while(|m| m.krate == def_id.krate && !m.is_crate_root())
+							.count();
+						self.outside.insert(def_id, path.len() - own);
 						self.items.push((def_id, path))
 					}
 					_ => self.refuse(&path, "item", span, vec![why("item kind", format!("{kind:?}"))]),
@@ -826,6 +919,7 @@ impl<'tcx> Collector<'tcx> {
 		for (def_id, path) in self.items.clone() {
 			let span = tcx.def_span(def_id);
 			let docs = docs(tcx, def_id);
+			let home = self.home(def_id);
 			for site in self.sites(def_id, &path) {
 				let Some(decl) = self.decls.get_mut(&site.key) else {
 					continue;
@@ -837,6 +931,7 @@ impl<'tcx> Collector<'tcx> {
 						*i = api.records.len();
 						api.records.push(Record {
 							path,
+							home: home.clone(),
 							shown,
 							args: Vec::new(),
 							span,
@@ -851,6 +946,7 @@ impl<'tcx> Collector<'tcx> {
 						*i = api.enums.len();
 						api.enums.push(Enum {
 							path,
+							home: home.clone(),
 							shown,
 							args: Vec::new(),
 							span,
@@ -869,6 +965,7 @@ impl<'tcx> Collector<'tcx> {
 						let lifetimes = tcx.generics_of(def_id).own_counts().lifetimes;
 						api.objects.push(Object {
 							path,
+							home: home.clone(),
 							shown,
 							args: Vec::new(),
 							span,
@@ -886,6 +983,7 @@ impl<'tcx> Collector<'tcx> {
 						*i = api.callbacks.len();
 						api.callbacks.push(Callback {
 							path,
+							home: home.clone(),
 							span,
 							docs,
 							methods: Vec::new(),
@@ -944,6 +1042,7 @@ impl<'tcx> Collector<'tcx> {
 			collect: false,
 			access: Access::Parse,
 			instance: None,
+			home: Home::default(),
 		};
 		let (docs, methods, traits) = match krate.as_str() {
 			"url" => (
@@ -976,6 +1075,7 @@ impl<'tcx> Collector<'tcx> {
 						collect: false,
 						access: Access::Text,
 						instance: None,
+						home: Home::default(),
 					},
 				],
 				Traits::default(),
@@ -983,6 +1083,10 @@ impl<'tcx> Collector<'tcx> {
 		};
 		Object {
 			path: path(""),
+			home: Home {
+				krate: krate.to_string(),
+				outside: 1,
+			},
 			shown: shown(""),
 			args: Vec::new(),
 			span,
@@ -1254,14 +1358,18 @@ impl<'tcx> Collector<'tcx> {
 					DefKind::Fn => {
 						for (function, shown, _) in self.functions(def_id, &path, &path, None, None) {
 							match function {
-								Ok(function) => self.api.functions.push(function),
+								Ok(function) => self.api.functions.push(Function {
+									home: self.home(def_id),
+									..function
+								}),
 								Err(why) => self.refuse(&shown, "fn", span, why),
 							}
 						}
 					}
 					DefKind::Const => {
 						if let Some(getter) = self.constant_item(def_id, path, None) {
-							self.api.functions.push(getter);
+							let home = self.home(def_id);
+							self.api.functions.push(Function { home, ..getter });
 						}
 					}
 					_ => {}
@@ -1472,6 +1580,7 @@ impl<'tcx> Collector<'tcx> {
 						collect: false,
 						access: Access::Field { shared, set },
 						instance: None,
+						home: Home::default(),
 					};
 					accessors.push(accessor(Receiver::Ref, Vec::new(), get, false));
 					let value = Param {
@@ -1880,6 +1989,7 @@ impl<'tcx> Collector<'tcx> {
 				collect,
 				access: Access::Call,
 				instance,
+				home: Home::default(),
 			}),
 			_ => Err(errs),
 		}
@@ -3007,8 +3117,10 @@ impl<'tcx> Collector<'tcx> {
 			None => {
 				let why = match self.constant(def_id) {
 					Ok(value) => {
+						let home = self.home(def_id);
 						self.api.constants.push(Constant {
 							path,
+							home,
 							span,
 							docs: docs(tcx, def_id),
 							value,
@@ -3039,6 +3151,7 @@ impl<'tcx> Collector<'tcx> {
 				collect: false,
 				access: Access::Const,
 				instance: None,
+				home: Home::default(),
 			}),
 			Err(why) => {
 				self.refuse(&path, "const", span, vec![why]);

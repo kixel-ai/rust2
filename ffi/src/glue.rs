@@ -153,7 +153,8 @@ impl Crate<'_> {
 		let kotlin = crate::kotlin::generate(self.abi, &self.packages(), contract)?;
 		let python = crate::python::generate(self.abi, &self.packages(), contract)?;
 		let swift = crate::swift::generate(self.abi, &self.packages(), contract)?;
-		let go = crate::go::generate(self.abi, &self.packages(), contract)?;
+		let (module, go_mod) = go_module(out, &self.abi.prefix)?;
+		let go = crate::go::generate(self.abi, &self.packages(), contract, &module)?;
 		let dart = crate::dart::generate(self.abi, &self.packages(), contract)?;
 		let mut generator = Gen {
 			abi: self.abi,
@@ -195,8 +196,41 @@ impl Crate<'_> {
 			&swift_dir.join(format!("{}_atomics.h", self.abi.prefix)),
 			&swift.atomics,
 		)?;
-		crate::driver::write(&out.join("go").join(format!("{}.go", self.abi.prefix)), &go)
+		// What an earlier export wrote may name packages this one has not.
+		let go_dir = out.join("go");
+		if go_dir.exists() {
+			std::fs::remove_dir_all(&go_dir).map_err(|err| format!("removing {}: {err}", go_dir.display()))?;
+		}
+		if let Some(go_mod) = go_mod {
+			crate::driver::write(&go_dir.join("go.mod"), &go_mod)?;
+		}
+		for (path, text) in go {
+			crate::driver::write(&go_dir.join(path), &text)?;
+		}
+		Ok(())
 	}
+}
+
+/// The import path of `<out>/go`, from the `go.mod` of the module above it, or else the
+/// module `prefix`, with the `go.mod` declaring it there.
+fn go_module(out: &Path, prefix: &str) -> Result<(String, Option<String>), String> {
+	std::fs::create_dir_all(out).map_err(|err| format!("creating {}: {err}", out.display()))?;
+	let out = std::fs::canonicalize(out).map_err(|err| format!("reading {}: {err}", out.display()))?;
+	for dir in out.ancestors() {
+		let path = dir.join("go.mod");
+		let Ok(text) = std::fs::read_to_string(&path) else {
+			continue;
+		};
+		let module = (text.lines())
+			.find_map(|line| line.trim().strip_prefix("module "))
+			.map(|module| module.trim().trim_matches('"'))
+			.ok_or_else(|| format!("{} declares no module", path.display()))?;
+		let rest = out.join("go");
+		let rest = rest.strip_prefix(dir).expect("an ancestor holds it");
+		let rest: Vec<String> = rest.components().map(|c| c.as_os_str().to_string_lossy().into_owned()).collect();
+		return Ok((format!("{module}/{}", rest.join("/")), None));
+	}
+	Ok((prefix.to_string(), Some(format!("module {prefix}\n\ngo 1.24\n"))))
 }
 
 struct Gen<'a> {

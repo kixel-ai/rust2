@@ -14,6 +14,8 @@ pub struct Api {
 	pub callbacks: Vec<Callback>,
 	pub functions: Vec<Function>,
 	pub constants: Vec<Constant>,
+	/// The crates items belong to, each after every crate it depends on.
+	pub crates: Vec<String>,
 }
 
 impl Api {
@@ -52,9 +54,23 @@ impl Api {
 /// the path from that crate's root, such as `["moq_net", "track", "Producer", "append_group"]`.
 pub type Path = Vec<String>;
 
+/// The crate an item belongs to, and how much of its path lies outside that crate.
+#[derive(Clone, Default, PartialEq, Eq, Debug)]
+pub struct Home {
+	/// The crate's name: the one defining the item, or for an instance, the last of its
+	/// own and its arguments' crates in [`Api::crates`], so a crate's items name only
+	/// types of crates before it.
+	pub krate: String,
+	/// How many leading segments of its `shown` path, the facade's root among them, name
+	/// no module of that crate: the facade's own modules, and a crate root re-exported as
+	/// a module.
+	pub outside: usize,
+}
+
 /// A struct whose fields are all `pub`: a value, copied across.
 pub struct Record {
 	pub path: Path,
+	pub home: Home,
 	/// Its path with its instance's arguments, which the config names it by, such as
 	/// `moq_mux::catalog::Producer<moq_mux::catalog::hang::Extra>`.
 	pub shown: Path,
@@ -80,6 +96,7 @@ pub struct Field {
 /// enumeration.
 pub struct Enum {
 	pub path: Path,
+	pub home: Home,
 	pub shown: Path,
 	pub args: Vec<Type>,
 	pub span: Span,
@@ -110,6 +127,7 @@ impl Enum {
 /// an `Arc`, whose receivers borrow it as Rust's do, checked at run time.
 pub struct Object {
 	pub path: Path,
+	pub home: Home,
 	pub shown: Path,
 	pub args: Vec<Type>,
 	pub span: Span,
@@ -135,6 +153,7 @@ pub struct Object {
 /// A `pub` trait: implemented by the foreign side, through a table of functions.
 pub struct Callback {
 	pub path: Path,
+	pub home: Home,
 	pub span: Span,
 	pub docs: String,
 	/// Its required methods, each taking `&self` or `&mut self`.
@@ -179,6 +198,9 @@ pub struct Function {
 	pub access: Access,
 	/// The instance it is, if a type parameter exports at several.
 	pub instance: Option<Instance>,
+	/// Where a function of no type belongs; a method belongs with its type, and leaves it
+	/// empty.
+	pub home: Home,
 }
 
 /// An instance of a generic function or method, at one of the types a type parameter
@@ -235,6 +257,7 @@ pub struct Param {
 /// A `pub const`.
 pub struct Constant {
 	pub path: Path,
+	pub home: Home,
 	pub span: Span,
 	pub docs: String,
 	pub value: Literal,
@@ -353,6 +376,26 @@ impl Int {
 			Int::I64 => "i64",
 			Int::Isize => "isize",
 		}
+	}
+}
+
+/// Call `f` on `ty` and on every type within it.
+pub fn each(ty: &Type, f: &mut dyn FnMut(&Type)) {
+	f(ty);
+	match ty {
+		Type::List(inner) | Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => each(inner, f),
+		Type::Closure(params, ret) => {
+			for param in params {
+				each(param, f);
+			}
+			each(ret, f);
+		}
+		Type::Tuple(elements) => {
+			for element in elements {
+				each(element, f);
+			}
+		}
+		_ => {}
 	}
 }
 

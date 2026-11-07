@@ -110,6 +110,7 @@ moq checkout="": (moq-cpp checkout)
     # The Go, through cgo, linking the library and what it needs besides.
     {{ quote(just_executable()) }} go-module moq-go moq/moq.go
     export CGO_LDFLAGS="$PWD/$out/target/release/libmoq.a ${native[*]}" GOFLAGS=-buildvcs=false
+    (cd target/moq-go/export && go vet ./...)
     (cd target/moq-go && go vet ./... && go run .)
     # The Dart, through the shared library the dart feature builds.
     {{ quote(just_executable()) }} dart-program moq-dart moq/moq.dart
@@ -161,7 +162,7 @@ swift-target macos:
     #!/usr/bin/env bash
     if [ "{{ os() }}" = macos ]; then echo "-target $(uname -m)-apple-macos{{ macos }}"; fi
 
-# Lay out target/<dir> as a Go module whose main package is <main>, beside the export's moq package, linking the library through cgo.
+# Lay out target/<dir> as a Go module whose main package is <main>, requiring the export's module of a package per crate in export/, beside the header it includes, linking the library through cgo.
 [private]
 go-module dir main:
     #!/usr/bin/env bash
@@ -169,11 +170,11 @@ go-module dir main:
     out=target/export/moq
     dir=target/{{ dir }}
     rm -rf "$dir"
-    mkdir -p "$dir/moq" "$dir/include"
-    cp "$out/go/moq.go" "$dir/moq/"
+    mkdir -p "$dir/include"
+    cp -r "$out/go" "$dir/export"
     cp "$out/include/moq.h" "$dir/include/"
     cp {{ main }} "$dir/main.go"
-    printf 'module moqtest\n\ngo 1.24\n' > "$dir/go.mod"
+    printf 'module moqtest\n\ngo 1.24\n\nrequire moq v0.0.0\n\nreplace moq => ./export\n' > "$dir/go.mod"
 
 # Lay out target/<dir> as a Dart program whose main is <main>, importing the export's Dart as package:moq/moq.dart, whose native asset is the shared library, as a package's build hook would bundle it, which `dart compile` has no flag for; analyze it, and compile it into target/<dir>/main.dill.
 [private]

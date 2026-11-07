@@ -264,6 +264,12 @@ pub struct Span {
 	pub named: Option<(String, Shape)>,
 }
 
+/// How far a span from `start` to `end` reaches: a function named as a type of its crate
+/// that does not return it.
+pub fn span(start: u32, end: u32) -> u32 {
+	end - start
+}
+
 /// The span's two halves, each a tuple inside the tuple returned.
 pub fn halves(span: &Span) -> ((u32, u32), (u32, u32)) {
 	let (start, end) = span.bounds;

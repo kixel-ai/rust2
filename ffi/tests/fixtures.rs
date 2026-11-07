@@ -867,21 +867,25 @@ fn swiftc(module: &Path, macos: u8) -> Command {
 #[test]
 fn api_go() {
 	let api = api();
-	// A module of the generated package beside the header, as the export lays them out,
-	// and the test.
+	// The export's Go, the module of a package per crate that it declares, beside the header
+	// as the export lays them out, and the test's module, which requires it.
 	let module = scratch().join("api").join("go");
 	let _ = std::fs::remove_dir_all(&module);
-	let package = module.join("api");
-	std::fs::create_dir_all(&package).unwrap();
+	let export = module.join("export");
+	copy_dir(&api.out.join("go"), &export);
 	std::fs::create_dir_all(module.join("include")).unwrap();
-	std::fs::copy(api.out.join("go").join("api.go"), package.join("api.go")).unwrap();
 	std::fs::copy(
 		api.out.join("include").join("api.h"),
 		module.join("include").join("api.h"),
 	)
 	.unwrap();
 	std::fs::copy(manifest_dir().join("tests").join("api.go"), module.join("main.go")).unwrap();
-	std::fs::write(module.join("go.mod"), "module apitest\n\ngo 1.24\n").unwrap();
+	std::fs::write(
+		module.join("go.mod"),
+		"module apitest\n\ngo 1.24\n\nrequire api v0.0.0\n\nreplace api => ./export\n",
+	)
+	.unwrap();
+	run(&mut go(&export, api, &["vet", "./..."]));
 	let exe = module.join(format!("api-test{EXE_SUFFIX}"));
 	run(&mut go(&module, api, &["vet", "./..."]));
 	run(go(&module, api, &["build", "-o"]).arg(&exe));
@@ -911,9 +915,10 @@ fn api_go() {
 		assert!(stderr.contains(message), "Go {case} printed {stderr}");
 	}
 
-	// The same package, with another contract than the library's in place of its own,
-	// refuses it when it loads.
-	let generated = std::fs::read_to_string(package.join("api.go")).unwrap();
+	// The same packages, with another contract than the library's in place of their own,
+	// refuse it when they load.
+	let runtime = export.join("rt").join("rt.go");
+	let generated = std::fs::read_to_string(&runtime).unwrap();
 	let at = generated
 		.find("api_contract() != 0x")
 		.expect("the Go checks its contract")
@@ -921,10 +926,10 @@ fn api_go() {
 	let mut mismatched = generated.clone();
 	let digit = if &generated[at..at + 1] == "0" { "1" } else { "0" };
 	mismatched.replace_range(at..at + 1, digit);
-	std::fs::write(package.join("api.go"), mismatched).unwrap();
+	std::fs::write(&runtime, mismatched).unwrap();
 	std::fs::write(
 		module.join("main.go"),
-		"package main\n\nimport \"apitest/api\"\n\nfunc main() {\n\tapi.Dropped()\n}\n",
+		"package main\n\nimport \"api/api\"\n\nfunc main() {\n\tapi.Dropped()\n}\n",
 	)
 	.unwrap();
 	run(go(&module, api, &["build", "-o"]).arg(&exe));
@@ -932,9 +937,24 @@ fn api_go() {
 	assert!(!output.status.success(), "a mismatched contract did not fail");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
-		stderr.contains("api.go and the library are from different builds"),
+		stderr.contains("the Go of api and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
+}
+
+/// A copy of the directory `from` at `to`.
+fn copy_dir(from: &Path, to: &Path) {
+	std::fs::create_dir_all(to).unwrap();
+	for entry in std::fs::read_dir(from).unwrap() {
+		let entry = entry.unwrap();
+		let path = entry.path();
+		match entry.file_type().unwrap().is_dir() {
+			true => copy_dir(&path, &to.join(entry.file_name())),
+			false => {
+				std::fs::copy(&path, to.join(entry.file_name())).unwrap();
+			}
+		}
+	}
 }
 
 /// The go command in `module`, linking cgo against the api fixture's static library.
