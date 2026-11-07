@@ -13,6 +13,7 @@ mod caller;
 mod collections;
 mod consts;
 mod copy;
+mod defined;
 mod drop;
 mod dynamic;
 mod float;
@@ -206,9 +207,8 @@ pub struct Translator<'a, 'tcx> {
 	/// by that type, which an instance's value is cast to so TypeScript infers the
 	/// instance's arguments from it rather than from the `None` or `Pending` it may be.
 	decided_fields: rustc_data_structures::fx::FxHashMap<DefId, Type>,
-	/// The projections from each generic type's own parameters that its fields name, by
-	/// [`Self::projections`].
-	projections: rustc_data_structures::fx::FxHashMap<DefId, Vec<(Ty<'tcx>, String)>>,
+	/// What typing each generic type's definition named, and the definitions being typed.
+	defining_state: defined::Defining<'tcx>,
 	/// Source files by name, as indexes into `program.sources`.
 	sources: rustc_data_structures::fx::FxHashMap<String, Option<u32>>,
 	failed: bool,
@@ -505,7 +505,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			overlays: Default::default(),
 			instanced_fields: Default::default(),
 			decided_fields: Default::default(),
-			projections: Default::default(),
+			defining_state: Default::default(),
 			sources: Default::default(),
 			failed: false,
 			env: TypingEnv::fully_monomorphized(),
@@ -1097,16 +1097,17 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		// Its fields' types are refused where they are written, whatever reached it.
 		let held = std::mem::replace(&mut self.held, false);
 		let glue = std::mem::replace(&mut self.glue, false);
+		let defining = self.defining.take();
+		let field = self.defining_state.field.take();
 		let info = self.define(adt, span);
-		(self.held, self.glue) = (held, glue);
+		(self.held, self.glue, self.defining, self.defining_state.field) = (held, glue, defining, field);
 		info
 	}
 
 	fn define(&mut self, adt: AdtDef<'tcx>, span: Span) -> Adt {
 		let tcx = self.tcx;
 		let did = adt.did();
-		// Before any field is typed, which names them.
-		let projections = self.projections(did);
+		self.start_definition(did);
 		let mut overlay = None;
 		let repr = match () {
 			_ if adt.is_struct() => {
@@ -1177,7 +1178,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 		self.adts.insert(did, info.clone());
 
-		let mut params: Vec<String> = tcx
+		// Its own, then one per projection typing its fields names, once they all are.
+		let params: Vec<String> = tcx
 			.generics_of(did)
 			.own_params
 			.iter()
@@ -1187,7 +1189,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				ty::GenericParamDefKind::Lifetime | ty::GenericParamDefKind::Const { .. } => None,
 			})
 			.collect();
-		params.extend(projections.into_iter().map(|(_, name)| name));
+		let mut typed = Vec::new();
 		let item = match &info.repr {
 			AdtRepr::Struct { ctor, fields } => {
 				let variant = adt.non_enum_variant();
@@ -1196,12 +1198,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					let span = tcx.def_span(field.did);
 					let doc = self.doc(field.did);
 					match held {
-						StructField::Whole(id) => defined.push(ts::Field {
-							id,
-							ty: self.defined_field_ty(field, did, span),
-							doc,
-							init: ts::FieldInit::Ctor,
-						}),
+						StructField::Whole(id) => {
+							let ty = self.defined_field_ty(field, did, span);
+							typed.push((field.did, ty.clone()));
+							defined.push(ts::Field {
+								id,
+								ty,
+								doc,
+								init: ts::FieldInit::Ctor,
+							});
+						}
 						StructField::Slice(ids) => {
 							let tys = [
 								Type::Builtin("Uint8Array"),
@@ -1263,6 +1269,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						for (i, field) in v.fields.iter().enumerate() {
 							let span = tcx.def_span(field.did);
 							let ty = self.defined_field_ty(field, did, span);
+							typed.push((field.did, ty.clone()));
 							fields.push((field_name(field.name.as_str(), i), ty));
 						}
 						Type::Object(fields)
@@ -1276,8 +1283,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				}
 			}
 		};
-		self.program.items.push(unnamed_params(item));
-		self.drop_glue(adt, &info, span);
+		self.program.items.push(item);
+		self.finish_definition(did, self.program.items.len() - 1, typed, span);
 		info
 	}
 
@@ -1534,15 +1541,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			},
 			ty::Param(param) => Type::Param(param.name.to_string()),
 			// A projection a generic type's fields name, which each instance decides.
-			ty::Alias(..)
-				if let Some((adt, _)) = self.defining
-					&& let Some((_, name)) = self
-						.projections
-						.get(&adt)
-						.and_then(|p| p.iter().find(|(p, _)| *p == ty)) =>
-			{
-				Type::Param(name.clone())
-			}
+			ty::Alias(..) if let Some(param) = self.projection_param(ty) => param,
 			ty::FnDef(def_id, args) => {
 				let sig = self.sig(*def_id, args.skip_binder());
 				self.fn_ty(sig.inputs(), sig.output(), span)
@@ -1687,7 +1686,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					if let Some(msg) = self.erasure_conflict(Ty::new_adt(tcx, adt, args)) {
 						self.err(span, msg);
 					}
-					self.option_ty(args.type_at(0), span)
+					self.option_ty(Ty::new_adt(tcx, adt, args), args.type_at(0), span)
 				}
 				library::Std::Result => Type::Rs(
 					"Result",
@@ -1791,7 +1790,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					if let Some(msg) = self.erasure_conflict(Ty::new_adt(tcx, adt, args)) {
 						self.err(span, msg);
 					}
-					self.poll_ty(args.type_at(0), span)
+					self.poll_ty(Ty::new_adt(tcx, adt, args), args.type_at(0), span)
 				}
 				library::Std::Pin => self.ty(args.type_at(0), span),
 				library::Std::PollFn | library::Std::Pending => {
@@ -1874,7 +1873,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 							};
 							Type::Rs("Result", vec![self.ty(value, span), self.ty(residual.type_at(1), span)])
 						}
-						library::Flow::Option => self.option_ty(value, span),
+						library::Flow::Option => self.option_ty(Ty::new_adt(tcx, adt, args), value, span),
 						library::Flow::Other => Type::Rs("Result", vec![self.ty(value, span), self.ty(residual, span)]),
 					}
 				}
@@ -1901,6 +1900,15 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			return Type::Builtin("unknown");
 		}
 		let info = self.adt(adt, span);
+		// Of a definition still being typed, whose instances are checked once it is complete.
+		if let Some(later) = self.later_projections(adt.did(), args, span) {
+			let mut tys: Vec<Type> = args.types().map(|t| self.ty(t, span)).collect();
+			tys.push(later);
+			return Type::Sym(info.sym, tys);
+		}
+		if !self.enter_instance(Ty::new_adt(tcx, adt, args), span) {
+			return Type::Builtin("unknown");
+		}
 		if let Some(msg) = self.generic_erasure(adt, args, span) {
 			self.err(span, msg);
 		}
@@ -1909,12 +1917,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			.into_iter()
 			.map(|(_, t)| t)
 			.collect();
+		self.leave_instance();
 		Type::Sym(info.sym, args)
 	}
 
 	/// The TypeScript type arguments of an instance of the crate's generic `adt` with `args`,
 	/// by the name of the parameter each is: one per type parameter, then one per projection
-	/// its fields name, which is what the projection normalizes to at `args`.
+	/// typing its fields named, which is what the projection normalizes to at `args`.
 	fn instance_params(&mut self, adt: DefId, args: GenericArgsRef<'tcx>, span: Span) -> Vec<(String, Type)> {
 		let tcx = self.tcx;
 		let mut params: Vec<(String, Type)> = (tcx.generics_of(adt).own_params.iter())
@@ -1926,101 +1935,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				)
 			})
 			.collect();
+		let (projections, names): (Vec<Ty<'tcx>>, Vec<String>) = self.defined(adt).projections.iter().cloned().unzip();
 		let env = self.defining.map_or(self.typing_env(), |(_, env)| env);
-		for (projection, name) in self.projections(adt) {
+		for (projection, name) in projections.into_iter().zip(names) {
 			let at = copy::instantiate(tcx, env, projection, args);
 			params.push((name, self.ty(at, span)));
 		}
 		params
 	}
 
-	/// The projections from the crate's generic `adt`'s own type parameters that its fields'
-	/// types name, such as smallvec's `<A as Array>::Item`, each a TypeScript type parameter
-	/// of its own, by its name: the associated type's, numbered past any it would shadow.
-	/// They include those of the crate's generic types its fields hold, at its arguments, and
-	/// the item type of an iterator from another crate, which `rs.Iter` types, but none that
-	/// only what types nothing holds, such as a `PhantomData`.
-	fn projections(&mut self, adt: DefId) -> Vec<(Ty<'tcx>, String)> {
-		if let Some(named) = self.projections.get(&adt) {
-			return named.clone();
-		}
-		let tcx = self.tcx;
-		// A type that holds itself holds no projection it doesn't name otherwise.
-		self.projections.insert(adt, Vec::new());
-		let identity = ty::GenericArgs::identity_for_item(tcx, adt);
-		let env = TypingEnv::post_analysis(tcx, adt);
-		let outer = self.defining.replace((adt, env));
-		let mut found = Vec::new();
-		for field in tcx.adt_def(adt).all_fields() {
-			self.find_projections(copy::field_ty(tcx, env, field.did, identity), env, &mut found);
-		}
-		self.defining = outer;
-		let mut names: Vec<String> = (tcx.generics_of(adt).own_params.iter())
-			.filter(|param| matches!(param.kind, ty::GenericParamDefKind::Type { .. }))
-			.map(|param| param.name.to_string())
-			.collect();
-		let mut named = Vec::with_capacity(found.len());
-		for projection in found {
-			let ty::Alias(_, alias) = projection.kind() else {
-				unreachable!("a projection")
-			};
-			let item = alias.kind.try_to_projection().expect("a projection");
-			let base = tcx.item_name(item).to_string();
-			let name = (1..)
-				.map(|n| match n {
-					1 => base.clone(),
-					n => format!("{base}{n}"),
-				})
-				.find(|name| !names.contains(name))
-				.unwrap();
-			names.push(name.clone());
-			named.push((projection, name));
-		}
-		self.projections.insert(adt, named.clone());
-		named
-	}
-
-	/// Add to `found` each projection over type parameters that typing `ty` in `env` names.
-	fn find_projections(&mut self, ty: Ty<'tcx>, env: TypingEnv<'tcx>, found: &mut Vec<Ty<'tcx>>) {
-		let tcx = self.tcx;
-		let mut walker = ty.walk();
-		while let Some(arg) = walker.next() {
-			let Some(t) = arg.as_type() else { continue };
-			match t.kind() {
-				ty::Alias(_, alias) if alias.kind.try_to_projection().is_some() && t.has_param() => {
-					if !found.contains(&t) {
-						found.push(t);
-					}
-					walker.skip_current_subtree();
-				}
-				ty::Adt(adt, args)
-					if self.crates.translates(adt.did())
-						&& library::Std::of(tcx, adt.did()).is_none()
-						&& self.bound_drops(adt.did()).is_none() =>
-				{
-					for (projection, _) in self.projections(adt.did()) {
-						self.find_projections(copy::instantiate(tcx, env, projection, args), env, found);
-					}
-				}
-				// `undefined`, whatever it holds.
-				ty::Adt(..) if library::nothing(tcx, t) => walker.skip_current_subtree(),
-				// An `rs.Iter` of its items, whatever it iterates.
-				ty::Adt(adt, _)
-					if !self.crates.translates(adt.did())
-						&& matches!(library::Std::of(tcx, adt.did()), None | Some(library::Std::Peekable))
-						&& let Some(item) = self.iter_item(t) =>
-				{
-					self.find_projections(item, env, found);
-					walker.skip_current_subtree();
-				}
-				_ => {}
-			}
-		}
-	}
-
-	/// The TypeScript type of `field` in the definition of `adt`, over its own parameters,
-	/// noting a field that holds a form only an instance decides for
-	/// [`Self::held_field`].
+	/// The TypeScript type of `field` in the definition of `adt`, over its own parameters.
 	fn defined_field_ty(&mut self, field: &ty::FieldDef, adt: DefId, span: Span) -> Type {
 		let tcx = self.tcx;
 		// A projection it names, such as `<S as BuildHasher>::Hasher` of a known `S`, is the
@@ -2029,16 +1953,23 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let env = TypingEnv::post_analysis(tcx, adt);
 		let ty = copy::field_ty(tcx, env, field.did, identity);
 		let outer = self.defining.replace((adt, env));
+		let outer_field = self.defining_state.field.replace(field.did);
 		let ty = self.ty(ty, span);
 		self.defining = outer;
+		self.defining_state.field = outer_field;
+		ty
+	}
+
+	/// Note `field`'s type `ty` in its type's definition for [`Self::field_value`] and
+	/// [`Self::held_field`], once its definition is complete.
+	fn note_field(&mut self, field: DefId, ty: &Type) {
 		if ty.any(&instanced) {
 			self.instanced_fields
-				.insert(field.did, ty.takes(&instanced).then(|| ty.clone()));
+				.insert(field, ty.takes(&instanced).then(|| ty.clone()));
 		}
 		if ty.any(&|t| matches!(t, Type::Rs("OptionOf" | "PollOf", _))) {
-			self.decided_fields.insert(field.did, ty.clone());
+			self.decided_fields.insert(field, ty.clone());
 		}
-		ty
 	}
 
 	/// `value`, for `field` of an instance of `adt` with `args`, cast to the field's type in
@@ -2084,108 +2015,77 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	fn generic_erasure(&mut self, adt: AdtDef<'tcx>, args: GenericArgsRef<'tcx>, span: Span) -> Option<String> {
 		let tcx = self.tcx;
 		let ty = Ty::new_adt(tcx, adt, args);
-		let identity = ty::GenericArgs::identity_for_item(tcx, adt.did());
-		let defining = (adt.did(), TypingEnv::post_analysis(tcx, adt.did()));
 		let env = self.defining.map_or(self.typing_env(), |(_, env)| env);
-		let projections: Vec<Ty<'tcx>> = self.projections(adt.did()).into_iter().map(|(p, _)| p).collect();
-		// Whether `t` names a projection its definition types nothing of, as a `PhantomData`'s.
-		let untyped = |t: Ty<'tcx>| {
-			let mut walker = t.walk();
-			while let Some(arg) = walker.next() {
-				let Some(t) = arg.as_type() else { continue };
-				if let ty::Alias(..) = t.kind()
-					&& t.has_param()
-				{
-					if !projections.contains(&t) {
-						return true;
-					}
-					walker.skip_current_subtree();
-				}
+		// Each its definition typed, which leaves out what types nothing, such as a `PhantomData`.
+		let decided = self.defined(adt.did()).decided.clone();
+		for defined::Decided {
+			field,
+			part,
+			inner,
+			defined,
+			option,
+		} in decided
+		{
+			let erased = self.erases_to(inner);
+			let field = tcx.item_name(field);
+			let held = copy::instantiate(tcx, env, part, args);
+			if let Some(msg) = self.erasure_conflict(held) {
+				return Some(format!(
+					"`{ty}` is not supported: its field `{field}` is `{held}`: {msg}"
+				));
 			}
-			false
-		};
-		for field in adt.all_fields() {
-			let generic = copy::field_ty(tcx, defining.1, field.did, identity);
-			for part in generic.walk().filter_map(|arg| arg.as_type()) {
-				let ty::Adt(wrapper, wrapper_args) = part.kind() else {
-					continue;
-				};
-				let option = match library::Std::of(tcx, wrapper.did()) {
-					Some(library::Std::Option) => true,
-					Some(library::Std::Poll) => false,
-					_ => continue,
-				};
-				let inner = wrapper_args.type_at(0);
-				let erased = self.erases_to(inner);
-				if !erased.param || untyped(inner) {
-					continue;
-				}
-				let held = copy::instantiate(tcx, env, part, args);
-				if let Some(msg) = self.erasure_conflict(held) {
-					return Some(format!(
-						"`{ty}` is not supported: its field `{}` is `{held}`: {msg}",
-						field.name
-					));
-				}
-				// Over a parameter of the instance's own, which its instances decide.
-				if held.has_param() {
-					continue;
-				}
-				let instance = copy::instantiate(tcx, env, inner, args);
-				let at = self.erases_to(instance);
-				let outer = self.defining.replace(defining);
-				let defined = self.ty(inner, span);
-				self.defining = outer;
-				let msg = match defined {
-					// What TypeScript's type of the parameter decides, which must be what the
-					// instance's erasure does.
-					Type::Param(_) if if option { !erased.undefined } else { !erased.pending } => {
-						// The parameter, or the projection from one, that it types.
-						let Some(param) = inner.walk().filter_map(|arg| arg.as_type()).find(|t| matches!(t.kind(), ty::Param(_) | ty::Alias(..))) else {
-							continue;
-						};
-						let arg = copy::instantiate(tcx, env, param, args);
-						let decided = self.ty(arg, span);
-						let (holds, alias) = match option {
-							true => (holds_undefined(&decided) == at.undefined, "OptionOf"),
-							false => (holds_pending(&decided) == at.pending, "PollOf"),
-						};
-						(!holds).then(|| {
-							format!(
-								"`{ty}` is not supported: its field `{}` is `{part}`, typed `rs.{alias}<{inner}>`, which decides by TypeScript's type of `{arg}` otherwise than `{held}` erases",
-								field.name
-							)
-						})
-					}
-					_ if option && !erased.undefined => at.undefined.then(|| {
+			// Over a parameter of the instance's own, which its instances decide.
+			if held.has_param() {
+				continue;
+			}
+			let instance = copy::instantiate(tcx, env, inner, args);
+			let at = self.erases_to(instance);
+			let msg = match defined {
+				// What TypeScript's type of the parameter decides, which must be what the
+				// instance's erasure does.
+				Type::Param(_) if if option { !erased.undefined } else { !erased.pending } => {
+					// The parameter, or the projection from one, that it types.
+					let Some(param) = (inner.walk().filter_map(|arg| arg.as_type()))
+						.find(|t| matches!(t.kind(), ty::Param(_) | ty::Alias(..)))
+					else {
+						continue;
+					};
+					let arg = copy::instantiate(tcx, env, param, args);
+					let decided = self.ty(arg, span);
+					let (holds, alias) = match option {
+						true => (holds_undefined(&decided) == at.undefined, "OptionOf"),
+						false => (holds_pending(&decided) == at.pending, "PollOf"),
+					};
+					(!holds).then(|| {
 						format!(
-							"`{ty}` is not supported: its field `{}` is `Option<{inner}>`, typed `{inner} | undefined`, whose `None` would be `rs.None` as `Option<{instance}>`",
-							field.name
+							"`{ty}` is not supported: its field `{field}` is `{part}`, typed `rs.{alias}<{inner}>`, which decides by TypeScript's type of `{arg}` otherwise than `{held}` erases"
 						)
-					}),
-					_ if !option && !erased.pending => at.pending.then(|| {
-						format!(
-							"`{ty}` is not supported: its field `{}` is `Poll<{inner}>`, typed `rs.Poll<{inner}>`, whose `Pending` would be `rs.OuterPending` as `Poll<{instance}>`",
-							field.name
-						)
-					}),
-					// A `MaybeUninit<T>`, which can be `undefined` but for a byte.
-					_ if option => (!at.undefined).then(|| {
-						format!(
-							"`{ty}` is not supported: its field `{}` is `Option<{inner}>`, typed `{inner} | rs.None`, whose `None` would be `undefined` as `Option<{instance}>`",
-							field.name
-						)
-					}),
-					_ => (!at.pending).then(|| {
-						format!(
-							"`{ty}` is not supported: its field `{}` is `Poll<{inner}>`, typed `{inner} | rs.OuterPending`, whose `Pending` would be `rs.Pending` as `Poll<{instance}>`",
-							field.name
-						)
-					}),
-				};
-				if msg.is_some() {
-					return msg;
+					})
 				}
+				_ if option && !erased.undefined => at.undefined.then(|| {
+					format!(
+						"`{ty}` is not supported: its field `{field}` is `Option<{inner}>`, typed `{inner} | undefined`, whose `None` would be `rs.None` as `Option<{instance}>`"
+					)
+				}),
+				_ if !option && !erased.pending => at.pending.then(|| {
+					format!(
+						"`{ty}` is not supported: its field `{field}` is `Poll<{inner}>`, typed `rs.Poll<{inner}>`, whose `Pending` would be `rs.OuterPending` as `Poll<{instance}>`"
+					)
+				}),
+				// A `MaybeUninit<T>`, which can be `undefined` but for a byte.
+				_ if option => (!at.undefined).then(|| {
+					format!(
+						"`{ty}` is not supported: its field `{field}` is `Option<{inner}>`, typed `{inner} | rs.None`, whose `None` would be `undefined` as `Option<{instance}>`"
+					)
+				}),
+				_ => (!at.pending).then(|| {
+					format!(
+						"`{ty}` is not supported: its field `{field}` is `Poll<{inner}>`, typed `{inner} | rs.OuterPending`, whose `Pending` would be `rs.Pending` as `Poll<{instance}>`"
+					)
+				}),
+			};
+			if msg.is_some() {
+				return msg;
 			}
 		}
 		None
@@ -2205,8 +2105,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// The TypeScript type of an `Option<inner>`: `T | undefined`, or `T | rs.None` where
 	/// `T` can already be `undefined`, and in a generic type's definition, of a type
 	/// parameter, an `rs.OptionOf<T>`, which is either as each instance's `T` decides.
-	fn option_ty(&mut self, inner: Ty<'tcx>, span: Span) -> Type {
+	/// `part` is the `Option`, or the `ControlFlow` that is one.
+	fn option_ty(&mut self, part: Ty<'tcx>, inner: Ty<'tcx>, span: Span) -> Type {
 		let some = self.ty(inner, span);
+		self.note_decided(part, inner, &some, true);
 		let erased = self.erases_to(inner);
 		if matches!(some, Type::Param(_)) && !erased.undefined {
 			return Type::Rs("OptionOf", vec![some]);
@@ -2233,8 +2135,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// The TypeScript type of a `Poll<inner>`: `rs.Poll<T>`, or `T | rs.OuterPending` where
 	/// `T` can already be `rs.Pending`, and in a generic type's definition, of a type
 	/// parameter, an `rs.PollOf<T>`, which is either as each instance's `T` decides.
-	fn poll_ty(&mut self, inner: Ty<'tcx>, span: Span) -> Type {
+	fn poll_ty(&mut self, part: Ty<'tcx>, inner: Ty<'tcx>, span: Span) -> Type {
 		let ready = self.ty(inner, span);
+		self.note_decided(part, inner, &ready, false);
 		if matches!(ready, Type::Param(_)) && !self.erases_to(inner).pending {
 			return Type::Rs("PollOf", vec![ready]);
 		}
@@ -2550,18 +2453,17 @@ pub fn camel(name: &str) -> String {
 
 /// `item` with each type parameter its type never names marked unused, as TS wants of
 /// one only a `PhantomData` held.
-fn unnamed_params(mut item: Item) -> Item {
-	let (params, types): (&mut Vec<String>, Vec<&Type>) = match &mut item {
+fn unnamed_params(item: &mut Item) {
+	let (params, types): (&mut Vec<String>, Vec<&Type>) = match item {
 		Item::Struct { params, fields, .. } => (params, fields.iter().map(|f| &f.ty).collect()),
 		Item::Union { params, ty, .. } => (params, vec![&*ty]),
-		_ => return item,
+		_ => return,
 	};
 	for param in params.iter_mut() {
 		if !types.iter().any(|t| t.names(param)) {
 			*param = format!("_{param}");
 		}
 	}
-	item
 }
 
 /// A field's property name: `camelCase`, or `_0` for a tuple field.

@@ -207,7 +207,10 @@ roots = [
     "values::manual_impls",
     "values::mixed_byte",
     "values::nested",
+    "values::projected_chain",
     "values::projected_nested",
+    "values::projected_rally",
+    "values::projected_self",
     "values::projected_uninit",
     "values::units_compared",
 ]

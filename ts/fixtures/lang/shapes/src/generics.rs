@@ -767,3 +767,140 @@ pub fn projections(data: &[u8], out: &mut Vec<u8>) {
 	log.borrow_mut().extend([marked.count, bytes.count]);
 	out.extend(log.borrow().iter());
 }
+
+/// One branch of a [`Tree`], whose projection only the tree's other type names, typed with
+/// it, so each learns its projections from the other.
+struct Branch<S: Store> {
+	item: S::Item,
+	below: Option<Box<Tree<S>>>,
+}
+
+/// Branches that each may hold a tree again.
+struct Tree<S: Store> {
+	branches: Vec<Branch<S>>,
+}
+
+impl<S: Store> Tree<S>
+where
+	S::Item: Copy,
+{
+	fn items(&self, out: &mut Vec<S::Item>) {
+		for branch in &self.branches {
+			out.push(branch.item);
+			if let Some(below) = &branch.below {
+				below.items(out);
+			}
+		}
+	}
+}
+
+/// Two types typed with each other, each naming a projection the other doesn't, so each
+/// takes both, in the order it named them.
+enum Even<S: Store, I: Iterator> {
+	End,
+	Next(S::Item, Box<Odd<S, I>>),
+}
+
+struct Odd<S: Store, I: Iterator> {
+	seen: Option<I::Item>,
+	next: Even<S, I>,
+}
+
+impl<S: Store, I: Iterator> Even<S, I>
+where
+	S::Item: Copy + std::fmt::Debug,
+	I::Item: Copy + std::fmt::Debug,
+{
+	fn walk(&self, out: &mut String) {
+		if let Even::Next(item, odd) = self {
+			out.push_str(&format!("{item:?} {:?} ", odd.seen));
+			odd.next.walk(out);
+		}
+	}
+}
+
+/// A type that holds itself with its parameters swapped, so its projections at the inner
+/// instance are its own in the other order.
+struct Swap<A: Store, B: Store> {
+	item: A::Item,
+	next: Option<Box<Swap<B, A>>>,
+}
+
+impl<A: Store, B: Store> Swap<A, B>
+where
+	A::Item: std::fmt::Debug,
+	B::Item: std::fmt::Debug,
+{
+	fn show(&self, out: &mut String) {
+		out.push_str(&format!("{:?} ", self.item));
+		if let Some(next) = &self.next {
+			next.show(out);
+		}
+	}
+}
+
+/// A projection beside an `Option` of it only a `PhantomData` holds, which types nothing, so
+/// no instance is refused for what that `Option` would erase to.
+struct Ghost<S: Store> {
+	item: S::Item,
+	marker: std::marker::PhantomData<Option<S::Item>>,
+}
+
+/// Types typed with themselves, or with each other, that name projections.
+pub fn projected_cycles(data: &[u8], out: &mut Vec<u8>) {
+	let tree = data
+		.chunks(2)
+		.fold(Tree::<[u8; 1]> { branches: Vec::new() }, |below, chunk| Tree {
+			branches: chunk
+				.iter()
+				.map(|&item| Branch { item, below: None })
+				.chain([Branch {
+					item: 0xff,
+					below: Some(Box::new(below)),
+				}])
+				.collect(),
+		});
+	let mut items = Vec::new();
+	tree.items(&mut items);
+	put(out, &format!("{items:?}"));
+
+	let mut seen = data.iter().map(|b| b % 5);
+	let mut even = Even::<Flags, std::vec::IntoIter<u8>>::End;
+	for &b in data.iter().rev() {
+		even = Even::Next(
+			b & 1 != 0,
+			Box::new(Odd {
+				seen: seen.next(),
+				next: even,
+			}),
+		);
+	}
+	let mut walked = String::new();
+	even.walk(&mut walked);
+	put(out, &walked);
+
+	let mut swap = None::<Box<Swap<[u16; 1], Flags>>>;
+	for (i, &b) in data.iter().enumerate().rev() {
+		let inner = Swap::<Flags, [u16; 1]> {
+			item: b > 0x40,
+			next: swap.take(),
+		};
+		if i % 2 == 0 {
+			swap = Some(Box::new(Swap {
+				item: u16::from(b) << 4,
+				next: Some(Box::new(inner)),
+			}));
+		}
+	}
+	let mut shown = String::new();
+	if let Some(swap) = &swap {
+		swap.show(&mut shown);
+	}
+	put(out, &shown);
+
+	let ghost = Ghost::<[Option<()>; 2]> {
+		item: data.first().map(|_| ()),
+		marker: std::marker::PhantomData,
+	};
+	put(out, &format!("{:?}", ghost.item));
+}

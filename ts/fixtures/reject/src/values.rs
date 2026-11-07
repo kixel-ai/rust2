@@ -105,6 +105,87 @@ pub fn projected_nested(unit: bool) -> bool {
 	unit
 }
 
+/// What a source yields, named by an associated type.
+pub trait Source {
+	type Item;
+}
+
+/// What a source holds next.
+pub struct Held<S: Source> {
+	pub next: Option<Box<S::Item>>,
+}
+
+/// A source whose items hold it again.
+pub struct Looped;
+
+impl Source for Looped {
+	type Item = Held<Looped>;
+}
+
+/// `Held<Looped>`'s projection argument is `Held<Looped>` itself, which TypeScript can name
+/// only through a type alias of its own.
+pub fn projected_self(deep: bool) -> bool {
+	let held: Held<Looped> = Held {
+		next: deep.then(|| Box::new(Held { next: None })),
+	};
+	held.next.is_some()
+}
+
+/// Two types a source names, each holding the other.
+pub trait Duo {
+	type Ping;
+	type Pong;
+}
+
+/// What holds a [`Duo`]'s pong.
+pub struct Ping<D: Duo> {
+	pub pong: Option<Box<D::Pong>>,
+}
+
+/// What holds a [`Duo`]'s ping.
+pub struct Pong<D: Duo> {
+	pub ping: Option<Box<D::Ping>>,
+}
+
+/// A duo of its own ping and pong.
+pub struct Rally;
+
+impl Duo for Rally {
+	type Ping = Ping<Rally>;
+	type Pong = Pong<Rally>;
+}
+
+/// `Ping<Rally>`'s projection argument is `Pong<Rally>`, whose own is `Ping<Rally>` again.
+pub fn projected_rally(deep: bool) -> bool {
+	let ping: Ping<Rally> = Ping {
+		pong: deep.then(|| Box::new(Pong { ping: None })),
+	};
+	ping.pong.is_some()
+}
+
+/// A chain of types, each naming the next.
+pub trait Chain {
+	type Item;
+	type Next: Chain;
+}
+
+/// A type that holds itself at its parameter's next, whose projections at each are new.
+pub struct Nested<C: Chain> {
+	pub item: C::Item,
+	pub next: Option<Box<Nested<C::Next>>>,
+}
+
+impl Chain for u8 {
+	type Item = u8;
+	type Next = u8;
+}
+
+/// `Nested<C>` would need a projection argument for every link of the chain.
+pub fn projected_chain(item: u8) -> u8 {
+	let nested: Nested<u8> = Nested { item, next: None };
+	nested.item
+}
+
 /// Parsing an address is not translated yet.
 pub fn addr_parsed(s: &str) -> Result<std::net::Ipv4Addr, std::net::AddrParseError> {
 	s.parse()

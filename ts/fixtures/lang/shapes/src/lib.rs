@@ -57,5 +57,8 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("fmt::searches", |_, data, out| fmt::searches(data, out)),
 		("generics::units", |_, data, out| generics::units(data, out)),
 		("generics::projections", |_, data, out| generics::projections(data, out)),
+		("generics::projected_cycles", |_, data, out| {
+			generics::projected_cycles(data, out)
+		}),
 	]
 }

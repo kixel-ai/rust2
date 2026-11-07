@@ -8,23 +8,29 @@ import { eq$1qrb1lw as poll_eq$1qrb1lw, isPending$07fnw8g, isPending$1imonrp, is
 import type * as Pair from "./fmt.Pair.ts";
 import * as Ahead from "./generics.Ahead.ts";
 import * as Batch from "./generics.Batch.ts";
+import * as Branch from "./generics.Branch.ts";
 import * as Deep from "./generics.Deep.ts";
 import * as Drained from "./generics.Drained.ts";
 import * as Either from "./generics.Either.ts";
+import * as Even from "./generics.Even.ts";
 import * as Fixed from "./generics.Fixed.ts";
 import type * as Flags from "./generics.Flags.ts";
+import * as Ghost from "./generics.Ghost.ts";
 import * as Kept from "./generics.Kept.ts";
 import type * as Lends from "./generics.Lends.ts";
 import type * as Lent from "./generics.Lent.ts";
 import type * as Marked from "./generics.Marked.ts";
+import * as Odd from "./generics.Odd.ts";
 import * as Parked from "./generics.Parked.ts";
 import type * as Paths from "./generics.Paths.ts";
 import * as Pile from "./generics.Pile.ts";
 import * as Run from "./generics.Run.ts";
 import * as Runs from "./generics.Runs.ts";
+import * as Swap from "./generics.Swap.ts";
 import * as Tagged from "./generics.Tagged.ts";
 import * as Ticked from "./generics.Ticked.ts";
 import type * as Ticks from "./generics.Ticks.ts";
+import * as Tree from "./generics.Tree.ts";
 import * as Wrap from "./generics.Wrap.ts";
 import { put } from "./harness.ts";
 import * as shapes_Gauge from "./shapes.Gauge.ts";
@@ -648,6 +654,59 @@ export function projections(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_517.value))), undefined, true);
 	rs.refRelease(_517);
 	log[Symbol.dispose]();
+}
+
+/** Types typed with themselves, or with each other, that name projections. */
+export function projectedCycles(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const tree: Tree.Tree<Uint8Array, rs.u8> = rs.iterFold(rs.byteSliceChunks(data, 2), new Tree.Tree(new rs.Vec()), (below: Tree.Tree<Uint8Array, rs.u8>, chunk: rs.ByteSlice): Tree.Tree<Uint8Array, rs.u8> => {
+		return new Tree.Tree(rs.iterToVec(rs.iterChain(rs.iterMap(rs.iterSlice(rs.byteSliceView(chunk)), (_2: rs.u8): Branch.Branch<Uint8Array, rs.u8> => {
+			return new Branch.Branch(_2, undefined);
+		}), rs.iterSlice([new Branch.Branch(255, below)])), undefined, 8, true));
+	});
+	const items: rs.ByteVec = new rs.ByteVec();
+	Tree.items$array1_u8(tree, items);
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.byteVecView(items), f, rs.u8Debug)]).v);
+	const seen: rs.Iter<rs.u8> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b3: rs.u8): rs.u8 => {
+		return rs.u8Rem(b3, 5);
+	});
+	let even: Even.Even<Flags.Flags, rs.Iter<rs.u8>, boolean, rs.u8> = { tag: "End" };
+	const iter: rs.Iter<rs.u8> = rs.iterRev(rs.iterSlice(rs.byteSliceView(data)));
+	while (true) {
+		const _30: rs.u8 | rs.Done = iter.next();
+		if (_30 === rs.DONE) {
+			break;
+		}
+		even = { tag: "Next", _0: (_30 & 1) !== 0, _1: new Odd.Odd(rs.iterToOption(seen.next()) as rs.OptionOf<rs.u8>, even) } as Even.Even<Flags.Flags, rs.Iter<rs.u8>, boolean, rs.u8>;
+	}
+	const walked: rs.String = rs.stringNew();
+	Even.walk$generics_Flags_vec_IntoIter_u8(even, walked);
+	put(out, walked.v);
+	let swap: Swap.Swap<rs.u16[], Flags.Flags, rs.u16, boolean> | undefined = undefined;
+	const iter2: rs.Iter<[rs.usize, rs.u8]> = rs.iterRev(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))));
+	while (true) {
+		const _55: [rs.usize, rs.u8] | rs.Done = iter2.next();
+		if (_55 === rs.DONE) {
+			break;
+		}
+		const i: rs.usize = _55[0];
+		const b2: rs.u8 = _55[1];
+		const _61: boolean = b2 > 64;
+		const _63: rs.Place<Swap.Swap<rs.u16[], Flags.Flags, rs.u16, boolean> | undefined> = rs.place(() => swap, (value) => swap = value);
+		const taken = _63.v;
+		_63.v = undefined;
+		const inner: Swap.Swap<Flags.Flags, rs.u16[], boolean, rs.u16> = new Swap.Swap(_61, taken);
+		if (rs.usizeRem(i, 2) === 0) {
+			swap = new Swap.Swap(((b2 as rs.u16) << 4) & 0xffff, inner);
+		}
+	}
+	const shown: rs.String = rs.stringNew();
+	const _78: Swap.Swap<rs.u16[], Flags.Flags, rs.u16, boolean> | undefined = swap;
+	if (_78 !== undefined) {
+		Swap.show$array1_u16_generics_Flags(_78, shown);
+	}
+	put(out, shown.v);
+	const arg = new Ghost.Ghost(option_map$057a36e(rs.byteSliceFirst(data), (_23: rs.u8): undefined => {}), undefined).item;
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtOption(arg, f, rs.fmtUnit, rs.None)]).v);
 }
 
 //# sourceMappingURL=generics.ts.map

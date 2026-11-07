@@ -228,11 +228,17 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// What a generic struct's glue drops through, at an instance with `args`: each type
 	/// argument, and what each projection from them its fields name is there.
 	fn glue_held(&mut self, adt: AdtDef<'tcx>, args: ty::GenericArgsRef<'tcx>) -> Vec<Ty<'tcx>> {
-		let env = self.typing_env_pub();
-		let projections = self.projections(adt.did()).into_iter().map(|(p, _)| p);
-		(args.types())
-			.chain(projections.map(|p| super::copy::instantiate(self.tcx, env, p, args)))
-			.collect()
+		let mut held: Vec<Ty<'tcx>> = args.types().collect();
+		if self.crates.translates(adt.did()) {
+			let env = self.typing_env_pub();
+			let projections: Vec<Ty<'tcx>> = self.defined(adt.did()).projections.iter().map(|(p, _)| *p).collect();
+			held.extend(
+				projections
+					.into_iter()
+					.map(|p| super::copy::instantiate(self.tcx, env, p, args)),
+			);
+		}
+		held
 	}
 
 	/// Whether every JS value of `ty`, a type that drops and is [`Self::disposable`], is an
