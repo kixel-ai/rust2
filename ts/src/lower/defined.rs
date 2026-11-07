@@ -420,7 +420,11 @@ impl<'tcx> Translator<'_, 'tcx> {
 			}
 			// The definition completing them all, which finished typing last.
 			let root = state.members.last().expect("the definition completing");
-			let instance = Ty::new_adt(tcx, tcx.adt_def(root.adt), ty::GenericArgs::identity_for_item(tcx, root.adt));
+			let instance = Ty::new_adt(
+				tcx,
+				tcx.adt_def(root.adt),
+				ty::GenericArgs::identity_for_item(tcx, root.adt),
+			);
 			let span = tcx.def_span(root.adt);
 			self.err(
 				span,
