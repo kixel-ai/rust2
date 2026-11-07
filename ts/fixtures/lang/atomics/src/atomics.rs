@@ -1,7 +1,8 @@
 //! Atomics, which one thread never races: each width's loads, stores, and
 //! read-modify-writes, which wrap where arithmetic would panic, and std's panics on an
 //! ordering an operation can't take, through a `&`, an `Arc`, a field, and a `&mut`. An
-//! update whose callback stores to the atomic it updates retries, as std's loop does.
+//! update whose callback stores to the atomic it updates retries, as std's loop does, and a
+//! spin-wait's hints do nothing.
 
 use std::sync::Arc;
 use std::sync::atomic::Ordering::{self, AcqRel, Acquire, Relaxed, Release, SeqCst};
@@ -9,6 +10,7 @@ use std::sync::atomic::{
 	self, AtomicBool, AtomicI8, AtomicI16, AtomicI32, AtomicI64, AtomicIsize, AtomicU8, AtomicU16, AtomicU32,
 	AtomicU64, AtomicUsize,
 };
+use std::{hint, thread};
 
 const ORDERS: [Ordering; 5] = [Relaxed, Release, Acquire, AcqRel, SeqCst];
 /// What a load, and a compare-exchange that fails, can take.
@@ -191,6 +193,20 @@ fn shared(data: &[u8], out: &mut Vec<u8>) {
 	out.extend_from_slice(&sent(&peer, order(data.len() as u8, &LOADS)).to_be_bytes());
 	out.extend_from_slice(&peer.peers.load(SeqCst).to_be_bytes());
 	out.push(Arc::strong_count(&stats) as u8);
+}
+
+/// A spin-wait, as moq-net's frame has on a write another thread runs, between each of
+/// `data`'s steps: neither hint promises anything observable, so the wait ends on what its
+/// own loop changes.
+pub fn spins(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let left = AtomicUsize::new(data.len());
+	while left.load(SeqCst) > 0 {
+		match data[left.load(Relaxed) - 1] ^ kind {
+			b if b & 1 == 0 => thread::yield_now(),
+			_ => hint::spin_loop(),
+		}
+		out.push(left.fetch_sub(1, SeqCst) as u8);
+	}
 }
 
 pub fn atomics(kind: u8, data: &[u8], out: &mut Vec<u8>) {

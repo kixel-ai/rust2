@@ -65,10 +65,7 @@ kept separate since each lands alone; rejected: one quest for `ArrayString`.
 - [Bytes from an owner that drops](/quest/m2/ts-model/bytes-owner.md) - `Bytes::from_owner` of a frame's segment
 - [Addresses as identity](/quest/m2/ts-model/addresses.md) - `Arc::as_ptr(a) as usize` as a key, which needs a decision
 - [Option fields at a unit instance](/quest/m2/ts-model/unit-option-fields.md) - `Idle<()>`'s `Option<T>` field tells `Some(())` from `None`
-- [Const generic types](/quest/m2/ts-model/const-generics.md) - `ArrayString<CAP>` and other types with const parameters
 - [panic! in a 2015 or 2018 crate](/quest/m2/ts-model/begin-panic.md) - the `begin_panic` mapping keyed by its defining module
 - [A string's bytes through its pointer](/quest/m2/ts-model/str-as-ptr.md) - `str::as_ptr` reads the string's UTF-8
-- [Scheduler hints](/quest/m2/ts-model/scheduler-hints.md) - `thread::yield_now` and `hint::spin_loop` translate to nothing
-- [Slices not yet written](/quest/m2/ts-model/uninit-slices.md) - `Box::new_uninit_slice` of a frame's segment
 
 Public API: the translator's output for moq-net's model.

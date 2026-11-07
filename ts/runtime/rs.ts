@@ -1428,6 +1428,26 @@ export function arrayCloneFrom<T>(old: T[], src: T[], clone: ((value: T) => T) |
 	return old;
 }
 
+/** `write_clone_of_slice`: each element of `src` cloned into its slot by `clone`, or the element itself if `undefined`, dropping nothing there, panicking first if the lengths differ. */
+export function sliceWriteCloneOfSlice<T>(dst: Slice<T>, src: Slice<T>, clone: ((value: T) => T) | undefined, at?: Location): Slice<T> {
+	if (dst.length !== src.length) writeCloneLengthFail(dst.length, src.length, at);
+	for (let i = 0; i < src.length; i++) {
+		const x = src.data[src.start + i];
+		dst.data[dst.start + i] = clone === undefined ? x : clone(x);
+	}
+	return dst;
+}
+
+function writeCloneLengthFail(dst: number, src: number, at?: Location): never {
+	panic(`assertion \`left == right\` failed: destination and source slices have different lengths\n  left: ${dst}\n right: ${src}`, at, true);
+}
+
+/** `Box::new_uninit_slice` of `size`-byte elements: `n` of what `uninit` makes, panicking past what a `Vec` of them may hold. */
+export function sliceNewUninit<T>(n: number, size: number, uninit: () => T): Slice<T> {
+	if (n > vecMax(size)) panic("capacity overflow", "capacity");
+	return sliceFrom(Array.from({ length: n }, uninit));
+}
+
 /** `arrayCloneFrom`, as a `CloneFrom`. */
 export function arrayCloneFromFn<T>(clone: ((value: T) => T) | undefined, drop?: (item: T) => void, over?: CloneFrom<T>, at?: Location): CloneFrom<T[]> {
 	return (old, src) => arrayCloneFrom(old, src, clone, drop, over, at);
@@ -1980,6 +2000,19 @@ export function copyBytes(dst: Uint8Array, at: number, src: Uint8Array, start: n
 export function byteSliceCopyFromSlice(dst: ByteSlice, src: ByteSlice, at?: Location): void {
 	if (dst.length !== src.length) copyLengthFail(dst.length, src.length, at);
 	copyBytes(dst.data, dst.start, src.data, src.start, src.length);
+}
+
+/** `write_clone_of_slice` of bytes, which copies them, panicking first if the lengths differ. */
+export function byteSliceWriteCloneOfSlice(dst: ByteSlice, src: ByteSlice, at?: Location): ByteSlice {
+	if (dst.length !== src.length) writeCloneLengthFail(dst.length, src.length, at);
+	copyBytes(dst.data, dst.start, src.data, src.start, src.length);
+	return dst;
+}
+
+/** `Box::new_uninit_slice` of bytes: `n` of 0, panicking past what a `Vec` of them may hold. */
+export function byteSliceNewUninit(n: number): ByteSlice {
+	if (n > ISIZE_MAX) panic("capacity overflow", "capacity");
+	return byteSliceFrom(bytes(n));
 }
 
 /** `copy_within`: `s[start..end]` copied to index `dest`, panicking out of bounds. */

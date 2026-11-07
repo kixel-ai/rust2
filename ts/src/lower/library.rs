@@ -2289,6 +2289,16 @@ fn mapping<'tcx>(
 			out.push(StmtKind::Expr(copy).at(None));
 			dst
 		}
+		// Each slot a clone, over nothing it drops, as a `MaybeUninit` holds nothing that does.
+		("slice", "write_clone_of_slice") => {
+			let elem = targ(gargs, 0);
+			if byte(elem) {
+				return Some(rt2(args, "byteSlice", "writeCloneOfSlice"));
+			}
+			let mut values = args;
+			values.push(super::collections::clone_fn(b, elem, span));
+			Expr::rs("sliceWriteCloneOfSlice", values)
+		}
 		("slice", "assume_init_ref" | "assume_init_mut") => args.pop()?,
 		("slice", "clone_from_slice") => {
 			let mut values = args;
@@ -2425,6 +2435,34 @@ fn mapping<'tcx>(
 			Expr::rs("vecFrom", vec![items])
 		}
 		("Box", "new") => args.pop()?,
+		// `len` values not yet written, which panics past what a `Vec` of them may hold.
+		("Box", "new_uninit_slice") => {
+			let elem = targ(gargs, 0);
+			let len = args.pop()?;
+			if byte(elem) {
+				return Some(Expr::rs("byteSliceNewUninit", vec![len]));
+			}
+			let uninit = Ty::new_maybe_uninit(tcx, elem);
+			let value = b.t.uninit(uninit, span);
+			let each = Expr::Arrow(
+				Vec::new(),
+				b.t.ty(uninit, span),
+				vec![StmtKind::Return(Some(value)).at(None)],
+			);
+			let size = super::iter::size_of(b, elem, span);
+			Expr::rs("sliceNewUninit", vec![len, size, each])
+		}
+		// The slice, which JS holds as what its `MaybeUninit`s hold.
+		("Box", "assume_init")
+			if tcx
+				.type_of(tcx.parent(call.def_id))
+				.instantiate_identity()
+				.skip_norm_wip()
+				.boxed_ty()
+				.is_some_and(|t| t.is_slice()) =>
+		{
+			args.pop()?
+		}
 		// `vec![x; n]`: `n - 1` clones of `x`, then `x` itself, which the caller gives as its
 		// own, as it does whatever std keeps, or `x` dropped where `n` is 0.
 		("vec", "from_elem") => {
