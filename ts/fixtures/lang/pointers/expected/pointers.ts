@@ -1440,6 +1440,7 @@ export function swapCell(c: rs.Cell<rs.u8>, n: rs.u8): void {
 export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _17!: Paired.Paired | undefined;
 	let _22!: To.To<Paired.Paired>;
+	const num = new Uint8Array(1);
 	let _43!: rs.Place<rs.u8> | undefined;
 	let _48!: To.To<rs.u8>;
 	let signed!: Leaning.Leaning;
@@ -1522,8 +1523,8 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 		swappedIn$pointers_Paired(pair, n, out);
 		lend$pointers_Paired(pair, n, out);
 		rs.byteVecPush(out, Paired.get$pointers_Aim(pair));
-		let num: rs.u8 = n;
-		const at2: rs.Place<rs.u8> = rs.place(() => num, (value) => num = value);
+		num[0] = n;
+		const at2: rs.Place<rs.u8> = rs.arrayAsPtr(num);
 		const pointer2 = at2;
 		const held2: rs.Place<rs.u8> = rs.optionUnwrap(pointer2 === rs.NULL ? undefined : pointer2);
 		const _42: rs.Place<rs.u8> = at2;
@@ -1539,15 +1540,15 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_48 = { tag: "At", _0: at2 } as To.To<rs.u8>;
 		}
 		through$u8({ inner: { at: at2, seen: _42, held: held2, maybe: _43, tagged: _47, to: _48, read: readThrough$u8 as (a0: rs.Ptr<rs.u8>) => rs.u8 } }, n, out);
-		swappedIn$u8(rs.place(() => num, (value2) => num = value2), n, out);
-		lend$u8(rs.place(() => num, (value3) => num = value3), n, out);
-		rs.byteVecPush(out, get$pointers_Aim_u8(num));
+		swappedIn$u8(rs.arrayAsPtr(num), n, out);
+		lend$u8(rs.arrayAsPtr(num), n, out);
+		rs.byteVecPush(out, get$pointers_Aim_u8(num[0]));
 		if (!(rs.u8Rem(n, 2) === 0)) {
 			signed = { tag: "Neg", _0: n } as Leaning.Leaning;
 		} else {
 			signed = { tag: "Pos", _0: n } as Leaning.Leaning;
 		}
-		const at3: rs.Place<Leaning.Leaning> = rs.place(() => signed, (value4) => signed = value4);
+		const at3: rs.Place<Leaning.Leaning> = rs.place(() => signed, (value) => signed = value);
 		const pointer3 = at3;
 		const held3: rs.Place<Leaning.Leaning> = rs.optionUnwrap(pointer3 === rs.NULL ? undefined : pointer3);
 		const _71: rs.Place<Leaning.Leaning> = at3;
@@ -1563,8 +1564,8 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_77 = { tag: "At", _0: at3 } as To.To<Leaning.Leaning>;
 		}
 		through$pointers_Leaning({ inner: { at: at3, seen: _71, held: held3, maybe: _72, tagged: _76, to: _77, read: readThrough$pointers_Leaning as (a0: rs.Ptr<Leaning.Leaning>) => rs.u8 } }, n, out);
-		swappedIn$pointers_Leaning(rs.place(() => signed, (value5) => signed = value5), n, out);
-		lend$pointers_Leaning(rs.place(() => signed, (value6) => signed = value6), n, out);
+		swappedIn$pointers_Leaning(rs.place(() => signed, (value2) => signed = value2), n, out);
+		lend$pointers_Leaning(rs.place(() => signed, (value3) => signed = value3), n, out);
 		rs.byteVecPush(out, Leaning.get$pointers_Aim(signed));
 		const bytes: Uint8Array = rs.bytes(4).fill(n);
 		const at4: rs.ByteSlice = rs.byteSliceFrom(bytes);
@@ -1588,7 +1589,7 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _116: rs.ByteSlice = rs.byteSliceFrom(bytes);
 		rs.byteVecPush(out, get$pointers_Aim_array4_u8(_116.data, _116.start, _116.length));
 		let cell: rs.Cell<rs.u8> = new rs.Cell(n);
-		const at5: rs.Place<rs.Cell<rs.u8>> = rs.place(() => cell, (value7) => cell = value7);
+		const at5: rs.Place<rs.Cell<rs.u8>> = rs.place(() => cell, (value4) => cell = value4);
 		const pointer5 = at5;
 		const held5: rs.Place<rs.Cell<rs.u8>> = rs.optionUnwrap(pointer5 === rs.NULL ? undefined : pointer5);
 		const _123: rs.Place<rs.Cell<rs.u8>> = at5;
@@ -1604,7 +1605,7 @@ export function aimed(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_129 = { tag: "At", _0: at5 } as To.To<rs.Cell<rs.u8>>;
 		}
 		through$Cell_u8({ inner: { at: at5, seen: _123, held: held5, maybe: _124, tagged: _128, to: _129, read: readThrough$Cell_u8 as (a0: rs.Ptr<rs.Cell<rs.u8>>) => rs.u8 } }, n, out);
-		swappedIn$Cell_u8(rs.place(() => cell, (value8) => cell = value8), n, out);
+		swappedIn$Cell_u8(rs.place(() => cell, (value5) => cell = value5), n, out);
 		lend$Cell_u8(cell, n, out);
 		rs.byteVecPush(out, cell.v);
 		const _144: rs.u16 = ((n as rs.u16) << 4) & 0xffff;
@@ -2989,6 +2990,7 @@ export function lent(n: rs.u8): rs.ByteVec {
 export function arrayCasts(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _9!: rs.usize;
 	let _91!: rs.usize;
+	const byte = new Uint8Array(1);
 	const bytes: rs.ByteVec = rs.byteSliceToByteVec(data);
 	const _6: rs.usize = bytes.length;
 	let iterStart: rs.usize = 0;
@@ -3052,12 +3054,13 @@ export function arrayCasts(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part2 = bytes.length;
 	rs.rawByteSliceOf(rs.byteSliceRange(rs.byteVecSlice(bytes), part2));
 	rs.byteVecPush(out, rs.byteSliceFrom(Uint8Array.of()).length & 0xff);
-	let byte: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 7);
-	const lone: rs.ByteSlice = new rs.RawSlice(rs.place(() => byte, (value) => byte = value), 0).byteArray(0);
+	const _187: rs.u8 | undefined = rs.byteSliceFirst(data);
+	byte[0] = option_unwrapOr$1fr498u(_187, 7);
+	const lone: rs.ByteSlice = new rs.RawSlice(rs.arrayAsPtr(byte), 0).byteArray(0);
 	rs.byteVecPush(out, lone === rs.NULL ? 1 : 0);
 	rs.byteVecPush(out, new rs.RawSlice(rs.byteSliceAsPtr(lone), 0).derefBytes(false).length & 0xff);
-	let word: rs.u32 = rs.u32Mul(byte as rs.u32, 3);
-	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.sliceToArray(new rs.RawSlice(rs.place(() => word, (value2) => word = value2), 1).array(1))[0]).reverse()), undefined, true);
+	let word: rs.u32 = rs.u32Mul(byte[0] as rs.u32, 3);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(rs.sliceToArray(new rs.RawSlice(rs.place(() => word, (value) => word = value), 1).array(1))[0]).reverse()), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(new rs.RawSlice(rs.NULL, 4).byteArray(4) === rs.NULL ? 1 : 0, rs.sliceSame(new rs.RawSlice(rs.DANGLING, 0).array(2), rs.DANGLING) ? 1 : 0)), undefined, true);
 }
 
@@ -3130,6 +3133,84 @@ export function genericUnions(data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_37[0], _37[1])), undefined, true);
 		}
 	}
+}
+
+/**
+ * Bytes whose `&raw` the body takes, a parameter's included: raw, mutable, and shared
+ * slices of each, and pointers to arrays cast from them by each route, are views of
+ * where the byte is, so a write through one reaches it and `offset_from` measures them.
+ */
+export function loneBytes(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const b = new Uint8Array(1);
+	const c = new Uint8Array(1);
+	const m = new Uint8Array(1);
+	for (const d of rs.byteSliceView(data)) {
+		b[0] = d;
+		const raw: rs.RawSlice<rs.u8> = new rs.RawSlice(rs.arrayAsPtr(b), 1);
+		rs.idx(raw, 0);
+		const slice = raw.derefBytes(false);
+		const slice2 = raw.derefBytes(false);
+		slice2.data[slice2.start] = slice.data[slice.start] ^ 90;
+		rs.byteVecPush(out, b[0]);
+		const s: rs.ByteSlice = rs.ptrByteSlice(rs.arrayAsPtr(b), 1, false);
+		rs.idx(s, 0);
+		const _19: rs.u8 = rs.u8WrappingAdd(s.data[s.start], 1);
+		rs.idx(s, 0);
+		s.data[s.start] = _19;
+		rs.byteVecPush(out, b[0]);
+		const _31: rs.u8 = rs.intRotateLeft(b[0], 3, 8, false);
+		b[0] = _31;
+		const shared: rs.ByteSlice = rs.ptrByteSlice(rs.arrayAsPtr(b), 1, true);
+		rs.idx(shared, 0);
+		rs.byteVecPush(out, shared.data[shared.start]);
+		rs.byteVecPush(out, rs.ptrOffsetFrom(rs.byteSliceAsPtr(shared), rs.arrayAsPtr(b)) & 0xff);
+		const one: rs.ByteSlice = new rs.RawSlice(rs.arrayAsPtr(b), 1).byteArray(1);
+		const _48: rs.u8 = rs.u8WrappingMul(one.data[one.start], 5);
+		one.data[one.start] = _48;
+		const none: rs.ByteSlice = new rs.RawSlice(rs.arrayAsPtr(b), 0).byteArray(1);
+		rs.byteVecPush(out, none.data[none.start]);
+		const empty: rs.ByteSlice = rs.ptrByteSlice(rs.arrayAsPtr(b), 0, true);
+		const lent: Uint8Array = rs.byteSliceToArray(rs.rawByteSliceOf(empty).byteArray(1));
+		const from: Uint8Array = rs.byteSliceToArray(rs.rawByteSliceOf(empty).byteArray(1));
+		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(lent[0], from[0])), undefined, true);
+		const pointer = rs.arrayAsPtr(b);
+		const _83: rs.ByteSlice = new rs.RawSlice(rs.optionUnwrap(pointer === rs.NULL ? undefined : pointer), 1).byteArray(1);
+		_83.data[_83.start] = _83.data[_83.start] ^ 255;
+		const r: rs.Place<rs.u8> = rs.arrayAsPtr(b);
+		r.v = rs.u8WrappingAdd(r.v, 7);
+		const _90: rs.Place<rs.u8> = rs.arrayAsPtr(b);
+		((by: rs.u8): undefined => {
+			_90.v = rs.u8WrappingAdd(_90.v, by);
+		})(d);
+		rs.byteVecPush(out, b[0]);
+		rs.byteVecPush(out, tripled(b[0]));
+		c[0] = d;
+		const cast: rs.ByteSlice = rs.ptrByteSlice(rs.arrayAsPtr(c), 1, false);
+		rs.idx(cast, 0);
+		const _103: rs.u8 = rs.u8WrappingSub(cast.data[cast.start], 9);
+		rs.idx(cast, 0);
+		cast.data[cast.start] = _103;
+		const _117: rs.ByteSlice = rs.ptrByteSlice(rs.arrayAsPtr(c), 1, true);
+		rs.idx(_117, 0);
+		rs.byteVecPush(out, _117.data[_117.start]);
+		m[0] = (0 as unknown) as rs.u8;
+		const _122: rs.u8 = c[0];
+		const _124: rs.ByteSlice = rs.ptrByteSlice(rs.arrayAsPtr(m), 1, false);
+		rs.idx(_124, 0);
+		_124.data[_124.start] = _122;
+		rs.byteVecPush(out, m[0]);
+	}
+}
+
+/** `b` tripled through a mutable slice of the parameter. */
+export function tripled(b: rs.u8): rs.u8 {
+	const b2 = Uint8Array.of(b);
+	const s: rs.ByteSlice = rs.ptrByteSlice(rs.arrayAsPtr(b2), 1, false);
+	rs.idx(s, 0);
+	const _4: rs.u8 = rs.u8WrappingMul(s.data[s.start], 3);
+	rs.idx(s, 0);
+	s.data[s.start] = _4;
+	return b2[0];
 }
 
 //# sourceMappingURL=pointers.ts.map

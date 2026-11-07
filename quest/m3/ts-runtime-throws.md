@@ -27,9 +27,8 @@ The rest are gaps. At `main` they include a panic its hook cannot locate
 JS keeps in two arrays, a pointer moved past the array JS keeps it in (`AtIndex.reach`, such
 as one kept in a field), `Bytes::slice_ref` of other storage, `alloc`'s bytes read as
 values, ranges stepped without their type, fmt widths written as a placeholder, and a raw
-slice of a byte in no array cast to `*const [u8; N]` by a route the body doesn't show,
-which [a byte local in a buffer of its own](/quest/m3/ts-unsafe/lone-byte-buffers.md) owns
-for locals.
+or mutable slice of a byte JS keeps in no array, such as a field's, and casts of one to
+`*const [u8; N]`.
 `git grep 'rust2-ts: ' ts/runtime` lists them; classify each before fixing. The pointer
 comparisons [#584](https://github.com/moq-dev/rust2/pull/584) refuses at translation, where
 JS may make two `rs.Place`s for one place, are out of scope: addresses were their route, and

@@ -408,27 +408,6 @@ pub fn pointers_apart(n: u32, h: Halves, r: Rows, byte: u8) -> isize {
 	}
 }
 
-/// A raw and a mutable slice of a byte in no array, which no `Uint8Array` can share.
-pub fn lone_byte_slices(mut b: u8) -> u8 {
-	let raw = std::ptr::slice_from_raw_parts_mut(&raw mut b, 1);
-	let s = unsafe { std::slice::from_raw_parts_mut(&raw mut b, 1) };
-	s[0] = 1;
-	unsafe { (*raw)[0] }
-}
-
-/// None of a byte in no array, cast to a pointer to bytes from it, which no `Uint8Array`
-/// can share, though Rust reads nothing at the cast.
-pub fn lone_byte_arrays(b: u8) -> bool {
-	let none = std::ptr::slice_from_raw_parts(&raw const b, 0);
-	let pair = none as *const [u8; 2];
-	let one = none.cast::<[u8; 1]>();
-	let empty = unsafe { std::slice::from_raw_parts(&raw const b, 0) };
-	let lent = empty as *const [u8] as *const [u8; 1];
-	let from = std::ptr::from_ref(empty).cast::<[u8; 1]>();
-	let made = std::ptr::NonNull::from(empty).cast::<[u8; 1]>();
-	pair.is_null() || one.is_null() || lent.is_null() || from.is_null() || made.as_ptr().is_null()
-}
-
 /// Pointers, slices, and copies the body shows reach out of an array of one or a copied
 /// subslice, where Rust's reach the rest of what holds them.
 pub fn reached_out(h: Halves, lanes: [u32; 4]) -> u32 {
