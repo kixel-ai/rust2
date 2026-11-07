@@ -25,3 +25,4 @@ generic std gap is planned here even when moq never calls it.
 - [rust2-ts with no ts.toml](/quest/m3/ts-configless.md) - a crate's whole `pub` API translates with no config and no bound items
 - [Buf on a deque of bytes](/quest/m3/ts-vecdeque-buf.md) - `bytes`' `Buf` for a deque of bytes translates
 - [std's panic messages hold std's capacity](/quest/m3/ts-panic-payload-capacity.md) - a hook reads native's `String` capacity from std's own formatted panics
+- [Browser APIs through wasm-bindgen](/quest/m3/ts-wasm-bindgen/README.md) - web-sys and js-sys imports become direct JS calls, so idiomatic crates such as web-rs's web-codecs translate as stock crates

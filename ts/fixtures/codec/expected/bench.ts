@@ -57,12 +57,14 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 			} else if (op === 17) {
 				parts(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else if (op === 18) {
-				encoded(encodeStrings(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out), out);
+				frames(new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else if (op === 19) {
-				decoded(decodeStrings(new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out), out);
+				encoded(encodeStrings(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out), out);
 			} else if (op === 20) {
-				join(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
+				decoded(decodeStrings(new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out), out);
 			} else if (op === 21) {
+				join(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
+			} else if (op === 22) {
 				keyed(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else {
 				decoded(decodeGroup(new rs.ByteSlice(input.data, input.start + 2, input.length - 2), liteVersion(selector), out), out);
@@ -811,6 +813,40 @@ export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	}
 	harness_putU64(out, v.items[rs.idx(v.items, 0)]);
 	harness_putU64(out, sum);
+}
+
+/**
+ * `count` frames of `size` bytes split off the front of a group's `Bytes`, as moq-net's
+ * model hands a frame's bytes to its consumers: each cloned for a second consumer, which
+ * reads past its first byte, then dropped, leaving the group the one handle of its storage
+ * again. The sum of what each frame read, then how many times the group was unique.
+ */
+export function frames(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const _5: [rs.u64, rs.ByteSlice] = takeU64(data);
+	const count: rs.u64 = _5[0];
+	const size: rs.u64 = takeU64(_5[1])[0];
+	const count2: rs.usize = rs.u64Low(rs.u64Min(count, 65536));
+	const size2: rs.usize = rs.u64Low(rs.u64Clamp(size, 1, 1024));
+	let group: rs.ByteSlice = rs.bytesFromVec(rs.byteVecOf(90, rs.usizeMul(count2, size2)));
+	let sum: rs.u64 = 0;
+	let unique: rs.u64 = 0;
+	let iterStart: rs.usize = 0;
+	const iterEnd: rs.usize = count2;
+	while (iterStart++ < iterEnd) {
+		const frame: rs.ByteSlice = rs.bytesSplitTo(rs.place(() => group, (value) => group = value), size2);
+		const copy: rs.ByteSlice = rs.bytesClone(frame);
+		const rest: rs.ByteSlice = rs.bytesSlice(copy, 1);
+		const _40: rs.ByteSlice = frame;
+		rs.idx(_40, 0);
+		sum = rs.u64Add(sum, rs.u64Add(_40.data[_40.start] as rs.u64, rest.length as rs.u64));
+		rs.bytesDrop(rest);
+		rs.bytesDrop(copy);
+		rs.bytesDrop(frame);
+		unique = rs.u64Add(unique, rs.bytesIsUnique(group) ? 1 : 0);
+	}
+	harness_putU64(out, sum);
+	harness_putU64(out, unique);
+	rs.bytesDrop(group);
 }
 
 /**

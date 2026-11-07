@@ -3,7 +3,7 @@
 # `_` but `Waker`, so no exported name clashes with them.
 
 
-class _Future(_n.Future):
+class _Future(_n.Future, _typing.Generic[_T]):
 	"""A Rust future its first poll left pending: awaiting it polls it on the running
 	event loop until it finishes. Cancelling the awaiting task frees it, which cancels it in
 	Rust and loses nothing, as does dropping it unawaited. Like a coroutine, it is awaited
@@ -11,7 +11,7 @@ class _Future(_n.Future):
 
 	__slots__ = ()
 
-	def __await__(self):
+	def __await__(self) -> _typing.Generator[_typing.Any, None, _T]:
 		loop = _get_running_loop()
 		w = _wakeup(loop)
 		token = self.claim()
@@ -19,7 +19,7 @@ class _Future(_n.Future):
 			while True:
 				r = self.poll(w.queue)
 				if r is not _PENDING:
-					return r
+					return _typing.cast(_T, r)
 				parked = w.parked[token] = loop.create_future()
 				yield from parked
 		finally:
@@ -34,12 +34,12 @@ class _Wakeup:
 
 	__slots__ = ("queue", "parked", "wakers", "pump", "__weakref__")
 
-	def __init__(self, loop):
+	def __init__(self, loop: _asyncio.AbstractEventLoop) -> None:
 		self.queue = _n.Queue(loop)
 		# The future each parked poll waits on, and each `Waker`'s callback, by token.
-		self.parked = {}
-		self.wakers = {}
-		self.pump = None
+		self.parked: dict[int, _asyncio.Future[None]] = {}
+		self.wakers: dict[int, _typing.Callable[[], object]] = {}
+		self.pump: _asyncio.Task[None] | None = None
 		fd = self.queue.fileno()
 		try:
 			loop.add_reader(fd, self.dispatch, True)
@@ -49,14 +49,14 @@ class _Wakeup:
 			sock.setblocking(False)
 			self.pump = loop.create_task(self._pump(loop, sock))
 
-	async def _pump(self, loop, sock):
+	async def _pump(self, loop: _asyncio.AbstractEventLoop, sock: _socket.socket) -> None:
 		with sock:
 			while True:
 				await loop.sock_recv(sock, 64)
 				self.dispatch(True)
 
-	def dispatch(self, read):
-		loop = None
+	def dispatch(self, read: bool) -> None:
+		loop: _asyncio.AbstractEventLoop | None = None
 		for token in self.queue.take(read):
 			if token < 0:
 				self.wakers.pop(-token, None)
@@ -71,10 +71,10 @@ class _Wakeup:
 				loop.call_soon(wake)
 
 
-_wakeups = _weakref.WeakKeyDictionary()
+_wakeups: _weakref.WeakKeyDictionary[_asyncio.AbstractEventLoop, _Wakeup] = _weakref.WeakKeyDictionary()
 
 
-def _resume():
+def _resume() -> _n.Queue | None:
 	"""Called once a call on the running loop's thread returns having woken some of its
 	futures or wakers: schedule their dispatch as the loop's next callback, never inside
 	the call, and return the queue it takes from."""
@@ -86,7 +86,7 @@ def _resume():
 	return w.queue
 
 
-def _wakeup(loop):
+def _wakeup(loop: _asyncio.AbstractEventLoop) -> _Wakeup:
 	w = _wakeups.get(loop)
 	if w is None:
 		w = _wakeups[loop] = _Wakeup(loop)
@@ -100,7 +100,7 @@ class Waker:
 
 	__slots__ = ("_node",)
 
-	def __init__(self, wake, loop=None):
+	def __init__(self, wake: _typing.Callable[[], object], loop: _asyncio.AbstractEventLoop | None = None) -> None:
 		w = _wakeup(_get_running_loop() if loop is None else loop)
 		self._node = _n.Node(w.queue)
 		w.wakers[self._node.token()] = wake
@@ -111,8 +111,8 @@ class _Const:
 
 	__slots__ = ("get",)
 
-	def __init__(self, get):
+	def __init__(self, get: _typing.Callable[[], object]) -> None:
 		self.get = get
 
-	def __get__(self, obj, cls=None):
+	def __get__(self, obj: object, cls: object = None) -> object:
 		return self.get()

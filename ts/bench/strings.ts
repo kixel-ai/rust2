@@ -1,4 +1,4 @@
-// The `str/` workloads' hand-written route: `bench.rs`'s ops 18 to 21, as moq's TypeScript
+// The `str/` workloads' hand-written route: `bench.rs`'s ops 19 to 22, as moq's TypeScript
 // codes a path through its Writer and Cursor, joins it with a template literal, and keys a
 // `Map` by it.
 
@@ -8,7 +8,7 @@ const NAMES = ["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"];
 const TRACKS = ["video", "audio", "catalog.json", "字幕"];
 const encoder = new TextEncoder();
 
-/** Op 18: the `selector`th name, as many times as `data`'s count, each size-prefixed. */
+/** Op 19: the `selector`th name, as many times as `data`'s count, each size-prefixed. */
 export function encodeStrings(selector: number, data: Uint8Array, version: StreamVersion): Promise<Uint8Array> {
 	const count = Number(u64(data, 0));
 	const name = NAMES[selector % NAMES.length] as string;
@@ -17,7 +17,7 @@ export function encodeStrings(selector: number, data: Uint8Array, version: Strea
 	});
 }
 
-/** Op 19: every string on the wire. */
+/** Op 20: every string on the wire. */
 export function decodeStrings(wire: Uint8Array, version: StreamVersion): Uint8Array {
 	const cursor = new Cursor(wire, version);
 	let count = 0;
@@ -34,7 +34,7 @@ export function decodeStrings(wire: Uint8Array, version: StreamVersion): Uint8Ar
 	return u64s(count, total - count, size);
 }
 
-/** Op 20: each path joined and stripped of its name. */
+/** Op 21: each path joined and stripped of its name. */
 export function join(selector: number, data: Uint8Array): Uint8Array {
 	const count = Math.min(Number(u64(data, 0)), 1 << 16);
 	const name = NAMES[selector % NAMES.length] as string;
@@ -53,7 +53,7 @@ export function join(selector: number, data: Uint8Array): Uint8Array {
 	return u64s(total, stripped);
 }
 
-/** Op 21: each path a key of a `Map`, looked up four times. */
+/** Op 22: each path a key of a `Map`, looked up four times. */
 export function keyed(selector: number, data: Uint8Array): Uint8Array {
 	const count = Math.min(Number(u64(data, 0)), 1 << 16);
 	const name = NAMES[selector % NAMES.length] as string;

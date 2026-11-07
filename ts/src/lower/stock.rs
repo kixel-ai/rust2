@@ -460,26 +460,32 @@ fn bytes_own<'tcx>(
 		"split_off" => Expr::rs("bytesSplitOff", vec![args.next()?, args.next()?]),
 		"truncate" => Expr::rs("bytesTruncate", vec![args.next()?, args.next()?]),
 		"clear" => Expr::rs("bytesTruncate", vec![args.next()?, Expr::lit("0")]),
-		// The owner is read once, as `bytes` reads it, and would drop with the last `Bytes`
-		// that shares it, which `rs.Shared` keeps no owner to drop.
+		// The owner is read once, as `bytes` reads it, and one that drops is kept in the
+		// storage, which drops it with the last `Bytes` that shares it.
 		"from_owner" => {
 			let owner = targ(call.args, 0);
-			if b.t.drops(owner) {
-				let msg = format!(
-					"`Bytes::from_owner` of `{owner}`, which would drop with the last clone of what it makes, which is not supported"
-				);
-				return Some(b.err(call.span, msg));
-			}
+			let drop = match b.t.drops(owner) {
+				true => Some(b.t.drop_fn(owner, call.span)?),
+				false => None,
+			};
+			let value = args.next()?;
+			let value = match drop {
+				Some(_) => b.spill(value, "owner", out),
+				None => value,
+			};
 			let as_ref = trait_fn(tcx, rustc_span::sym::AsRef)?;
 			let slice = Ty::new_slice(tcx, tcx.types.u8);
 			let bytes = b.call_def(
 				as_ref,
 				tcx.mk_args(&[owner.into(), slice.into()]),
-				vec![args.next()?],
+				vec![value.clone()],
 				call.span,
 				out,
 			);
-			Expr::rs("bytesStatic", vec![bytes])
+			match drop {
+				Some(drop) => Expr::rs("bytesFromOwner", vec![value, bytes, drop]),
+				None => Expr::rs("bytesStatic", vec![bytes]),
+			}
 		}
 		_ => return None,
 	})
