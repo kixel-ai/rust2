@@ -67,6 +67,5 @@ kept separate since each lands alone; rejected: one quest for `ArrayString`.
 - [Option fields at a unit instance](/quest/m2/ts-model/unit-option-fields.md) - `Idle<()>`'s `Option<T>` field tells `Some(())` from `None`
 - [panic! in a 2015 or 2018 crate](/quest/m2/ts-model/begin-panic.md) - the `begin_panic` mapping keyed by its defining module
 - [A string's bytes through its pointer](/quest/m2/ts-model/str-as-ptr.md) - `str::as_ptr` reads the string's UTF-8
-- [Scheduler hints](/quest/m2/ts-model/scheduler-hints.md) - `thread::yield_now` and `hint::spin_loop` translate to nothing
 
 Public API: the translator's output for moq-net's model.
