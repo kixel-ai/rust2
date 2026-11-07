@@ -194,6 +194,8 @@ fixtures/reject/src/pointers.rs:byte_pointer_parts+3:44: a raw pointer to `[u8; 
 fixtures/reject/src/pointers.rs:byte_pointer_rebound+2:26: a raw pointer to `[u8; 4]` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:byte_pointer_rebound+2:26: a reference to `[u8; 4]`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there
 fixtures/reject/src/pointers.rs:byte_pointer_rebound+3:10: a raw pointer to `[u8; 4]` in a variable assigned again while it may point there
+fixtures/reject/src/pointers.rs:byte_result_stored+1:21: a slice of one byte's place, which JS copies, kept where no variable of the function holds it, such as in memory a parameter points at or in what the function returns, so the copy is never written back
+fixtures/reject/src/pointers.rs:byte_results_kept+3:24: a slice of one byte's place, which JS copies, that may still be used once the call makes another, which the variable written back from holds instead
 fixtures/reject/src/pointers.rs:byte_slice_returned+1:2: a slice of one byte's place, which JS copies, kept where no variable of the function holds it, such as in memory a parameter points at or in what the function returns, so the copy is never written back
 fixtures/reject/src/pointers.rs:byte_slice_stored+1:11: a slice of one byte's place, which JS copies, kept where no variable of the function holds it, such as in memory a parameter points at or in what the function returns, so the copy is never written back
 fixtures/reject/src/pointers.rs:byte_slices_kept+3:13: a slice of one byte's place, which JS copies, that may still be used once the call makes another, which the variable written back from holds instead

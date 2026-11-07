@@ -475,6 +475,28 @@ pub fn byte_slices_kept(ts: &mut [Tagged]) {
 	}
 }
 
+/// Whether the byte `s` holds is zero, as a name that borrows none of it.
+fn zero_name(s: &mut [u8]) -> &'static str {
+	if s[0] == 0 { "zero" } else { "other" }
+}
+
+/// What a call given a slice of one byte in a field returns, kept where a parameter
+/// points: it could hold the slice whatever its lifetime says, and no variable of the
+/// function holds it.
+pub fn byte_result_stored(t: &mut Tagged, out: &mut Vec<&'static str>) {
+	out.push(zero_name(std::slice::from_mut(&mut t.tag)));
+}
+
+/// What calls given slices of one byte in each of the fields return, kept together:
+/// each could hold its slice whatever its lifetime says.
+pub fn byte_results_kept(ts: &mut [Tagged]) -> usize {
+	let mut names = Vec::new();
+	for t in ts.iter_mut() {
+		names.push(zero_name(std::slice::from_mut(&mut t.tag)));
+	}
+	names.len()
+}
+
 /// A pointer to a variable's object, which `clone_from` of the whole variable replaces.
 pub fn variable_cloned_from(n: u32) -> u32 {
 	let mut pair = (n, n);

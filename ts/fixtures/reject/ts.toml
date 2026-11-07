@@ -133,6 +133,8 @@ roots = [
     "pointers::byte_pointer_ops",
     "pointers::byte_pointer_parts",
     "pointers::byte_pointer_rebound",
+    "pointers::byte_result_stored",
+    "pointers::byte_results_kept",
     "pointers::byte_slice_returned",
     "pointers::byte_slice_stored",
     "pointers::byte_slices_kept",

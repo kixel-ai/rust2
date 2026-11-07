@@ -832,10 +832,22 @@ fn stash_non_null(s: &mut [u8], into: &mut Option<std::ptr::NonNull<u8>>) {
 	*into = std::ptr::NonNull::new(s.as_mut_ptr());
 }
 
+/// The first byte of `s`, with a lifetime its signature makes up, which names none of
+/// the slice's regions.
+///
+/// # Safety
+///
+/// The byte must be used only while `s` could be.
+unsafe fn detached(s: &mut [u8]) -> &'static mut u8 {
+	// SAFETY: the caller uses the byte only while `s` could be.
+	unsafe { &mut *s.as_mut_ptr() }
+}
+
 /// Slices of one byte where it is, each read and written, and the byte read where it is
 /// after: in a field, a tuple's, an array's, an `Option`'s, a `MaybeUninit`'s, a variable,
-/// through a parameter and a `&mut` to a `&mut`, kept in a closure, a `Vec`, a copy, and
-/// a raw pointer, swapped, and made again in a loop with the byte written between.
+/// through a parameter and a `&mut` to a `&mut`, kept in a closure, a `Vec`, a copy, a
+/// raw pointer, and a reference whose lifetime unsafe code made up, swapped, and made
+/// again in a loop with the byte written between.
 pub fn byte_places(_kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let at = |i: usize| data.get(i).copied().unwrap_or(i as u8);
 	let mut h = Header {
@@ -933,5 +945,9 @@ pub fn byte_places(_kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		// SAFETY: as above, for `h.pair.1`.
 		unsafe { *p.as_ptr() = (*p.as_ptr()).wrapping_mul(at(25)) };
 	}
+	// Written through a reference returned with a lifetime the callee made up.
+	// SAFETY: `b` is used only before `h.tag` is read below.
+	let b = unsafe { detached(std::slice::from_mut(&mut h.tag)) };
+	*b = b.wrapping_add(at(26));
 	h.put(out);
 }

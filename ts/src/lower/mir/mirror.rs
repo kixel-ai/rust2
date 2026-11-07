@@ -250,8 +250,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// The locals that may hold the slice the call assigning `made` makes, or what is made of
 	/// it; `None` if one may be kept where liveness can't follow it: in memory no local of
 	/// this body owns, a closure or coroutine's state, or what the function returns. A call
-	/// given one keeps it only where borrow checking lets it, as [`Self::call_keeps`] reads
-	/// that from its signature.
+	/// given one may put it in any result that could take a pointer, whatever its regions,
+	/// since unsafe code may make one up; in an argument's memory only where borrow checking
+	/// lets it, as [`Self::call_keeps`] reads that from its signature.
 	fn slice_holders(&self, made: mir::Place<'tcx>) -> Option<DenseBitSet<Local>> {
 		let mir = self.mir;
 		let tcx = self.tcx;
@@ -259,8 +260,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let trace = Trace::new(self.b.t, mir, self.b.t.typing_env_pub(), &memo);
 		let mut held = DenseBitSet::new_empty(mir.local_decls.len());
 		// Whether `place`, given one, is a newly found holder's: by a value read out of a
-		// holder or what a call returns, or with `taken`, by a call's write through one of
-		// its arguments, which safe code can make only into a value that could take it.
+		// holder, or with `taken`, by what a call returns or writes through one of its
+		// arguments, which it can make only into a value that could take it.
 		let keep = |held: &mut DenseBitSet<Local>, place: mir::Place<'tcx>, taken: bool| -> Option<bool> {
 			let ty = place.ty(&mir.local_decls, tcx).ty;
 			if !(match taken {
@@ -318,12 +319,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						if given.is_empty() && !func.place().is_some_and(|p| held.contains(p.local)) {
 							continue;
 						}
-						let (result, receivers) =
-							self.call_keeps(func, args.len(), &given, |ty| trace.hides_raw_pointer(ty));
-						if result {
-							grew |= keep(&mut held, *destination, false)?;
-						}
-						for j in receivers {
+						grew |= keep(&mut held, *destination, true)?;
+						for j in self.call_keeps(func, args.len(), &given, |ty| trace.hides_raw_pointer(ty)) {
 							// What the argument points at may be given one, if this body owns
 							// it; memory reached through more pointers can't be followed.
 							let ty = args[j].node.ty(&mir.local_decls, tcx);
@@ -386,24 +383,25 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		false
 	}
 
-	/// Whether a call of `func`, given what may hold a slice in each argument at `given`, may
-	/// put it in its result, and the arguments whose memory it may put it in, as its
-	/// signature lets borrow checking allow. A region the function's own signature binds,
-	/// a late-bound one, is apart from every other: the slice reaches only a result or an
-	/// argument whose type names one of the regions of an argument holding it. A region
-	/// or a type the caller picks may be shared with any other, so then any argument may
-	/// take it, and the result may hold it. A raw pointer made from the slice names no
-	/// region at all, so a result `hides` says could hold one may hold it too, and an
-	/// argument pointing at memory that could may take it.
+	/// The arguments whose memory a call of `func`, given what may hold a slice in each
+	/// argument at `given`, may put it in, as its signature lets borrow checking allow. A
+	/// region the function's own signature binds, a late-bound one, is apart from every
+	/// other: the slice reaches only an argument whose type names one of the regions of an
+	/// argument holding it. A region or a type the caller picks may be shared with any
+	/// other, so then any argument may take it. A raw pointer made from the slice names no
+	/// region at all, so an argument pointing at memory `hides` says could hold one may
+	/// take it too. This trusts the callee's unsafe code not to make up a lifetime that
+	/// lets it keep the slice in an argument's memory, as it is trusted not to keep a raw
+	/// pointer to it where no argument points, such as in a thread-local.
 	fn call_keeps(
 		&self,
 		func: &Operand<'tcx>,
 		n: usize,
 		given: &[usize],
 		hides: impl Fn(Ty<'tcx>) -> bool,
-	) -> (bool, Vec<usize>) {
+	) -> Vec<usize> {
 		let tcx = self.tcx;
-		let everything = (true, (0..n).filter(|j| !given.contains(j)).collect());
+		let everything = (0..n).filter(|j| !given.contains(j)).collect();
 		let ty::FnDef(def_id, _) = *func.ty(&self.mir.local_decls, tcx).kind() else {
 			return everything;
 		};
@@ -433,7 +431,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					if matches!(r.kind(), ty::ReBound(ty::BoundVarIndexKind::Bound(ty::INNERMOST), br) if regions.contains(&br.var)))
 			})
 		};
-		let receivers = (0..n)
+		(0..n)
 			.filter(|j| {
 				!given.contains(j)
 					&& sig
@@ -441,8 +439,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						.get(*j)
 						.is_none_or(|&t| names(t) || t.builtin_deref(true).is_some_and(&hides))
 			})
-			.collect();
-		(names(sig.output()) || hides(sig.output()), receivers)
+			.collect()
 	}
 
 	/// The slice of the byte at `p`, an `rs.Place`, that the call ending the block being
