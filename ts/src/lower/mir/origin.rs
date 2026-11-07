@@ -128,17 +128,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			// An access through a pointer, which the body shows one element at.
 			(
 				"ptr" | "NonNull",
-				"read"
-				| "read_unaligned"
-				| "read_volatile"
-				| "write"
-				| "write_unaligned"
-				| "write_volatile"
-				| "replace"
-				| "swap"
-				| "as_ref"
-				| "as_mut"
-				| "drop_in_place",
+				"read" | "read_unaligned" | "read_volatile" | "write" | "write_unaligned" | "write_volatile"
+				| "replace" | "swap" | "as_ref" | "as_mut" | "drop_in_place",
 			) => [arg(0), arg(1)]
 				.into_iter()
 				.flatten()
