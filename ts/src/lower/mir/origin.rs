@@ -22,6 +22,8 @@ use crate::ts::{Expr, Stmt};
 enum Array<'tcx> {
 	/// An array of one, around the place a `&raw` here took, which each `&raw` makes anew.
 	Lone(Location),
+	/// The `Uint8Array` of one a byte variable, whose `&raw` the body takes, is kept in.
+	Byte(Local),
 	/// A shared slice JS copies, of a byte in no array, made by the call ending this block,
 	/// with its length if the body fixes it.
 	Copy(BasicBlock, Option<i128>),
@@ -33,7 +35,7 @@ impl<'tcx> Array<'tcx> {
 	/// How many elements the array holds, if the body shows it.
 	fn len(self) -> Option<i128> {
 		match self {
-			Array::Lone(_) => Some(1),
+			Array::Lone(_) | Array::Byte(_) => Some(1),
 			Array::Copy(_, len) => len,
 			Array::Owned(_) => None,
 		}
@@ -42,7 +44,7 @@ impl<'tcx> Array<'tcx> {
 	/// What the array is, as a refusal names it.
 	fn what(self) -> &'static str {
 		match self {
-			Array::Lone(_) => "a value in no array",
+			Array::Lone(_) | Array::Byte(_) => "a value in no array",
 			Array::Copy(..) => "a shared slice JS copies",
 			Array::Owned(_) => "an array of this body's own",
 		}
@@ -59,7 +61,7 @@ struct Origin<'tcx> {
 impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// Why the call of std's `def_id` would fail at run time where Rust's is defined, if the
 	/// body proves it would: `offset_from` between pointers JS keeps in different arrays, or
-	/// a pointer, slice, or copy reaching out of an array of one or a copied byte.
+	/// a pointer, slice, copy, or write reaching out of an array of one or a copied byte.
 	pub(super) fn stray(
 		&self,
 		def_id: rustc_hir::def_id::DefId,
@@ -189,13 +191,12 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					op,
 					_,
 				) if self.same_pointee(op, local) => self.origin(op),
-				// A byte in a buffer of its own.
 				Rvalue::RawPtr(mir::RawPtrKind::Const | mir::RawPtrKind::Mut, place)
 					if let Some(local) = self.raw_byte(*place)
 						&& matches!(self.slots[local], Slot::Byte(_)) =>
 				{
 					Some(Origin {
-						array: Array::Owned(mir::Place::from(local)),
+						array: Array::Byte(local),
 						index: Some(0),
 					})
 				}
