@@ -113,7 +113,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				(cast, true)
 			}
 			ty::FnDef(def_id, gargs) => match self.intercept(def_id, gargs.skip_binder(), args, dest, span, &mut pre) {
-				Some(Some(done)) => done,
+				// Where std's function panics, as its library mapping is located: at its
+				// caller's call, not where the statement starts, which may be its receiver.
+				Some(Some((mut value, effect))) => {
+					if let Some((_, Some(at))) = &self.b.std_site {
+						crate::lower::caller::locate_expr(&mut value, at);
+						crate::lower::caller::locate(&mut pre, at);
+					}
+					(value, effect)
+				}
 				// Done: the destination is set.
 				Some(None) => {
 					self.emit(pre, false, out);

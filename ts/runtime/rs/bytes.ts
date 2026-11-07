@@ -23,6 +23,7 @@ import {
 	fmtWriteStr,
 	type Place,
 	panic,
+	panicSizes,
 	type RangeInclusive,
 	type Result,
 	Err,
@@ -156,8 +157,8 @@ export function bytesTryIntoMut(b: Bytes): Result<BytesMut, Bytes> {
 
 /** `Bytes::slice` of `begin..end`, `end` defaulting to the length, panicking as `bytes` does. */
 export function bytesSlice(b: Bytes, begin: usize, end: usize = b.length as usize): Bytes {
-	if (begin > end) panic(`range start must not be greater than end: ${begin} <= ${end}`, "bytes_slice", true);
-	if (end > b.length) panic(`range end out of bounds: ${end} <= ${b.length}`, "bytes_slice", true);
+	if (begin > end) panicSizes(["range start must not be greater than end: ", begin, " <= ", end], "bytes_slice");
+	if (end > b.length) panicSizes(["range end out of bounds: ", end, " <= ", b.length], "bytes_slice");
 	if (begin === end) return new ByteSlice(b.data, b.start + begin, 0);
 	return part(b, b.start + begin, end - begin);
 }
@@ -212,7 +213,7 @@ export function bytesSplitTo(p: Place<Bytes>, pos: usize): Bytes {
 		return b;
 	}
 	if (pos === 0) return new ByteSlice(b.data, b.start, 0);
-	if (pos > b.length) panic(`split_to out of bounds: ${pos} <= ${b.length}`, "bytes_split_to", true);
+	if (pos > b.length) panicSizes(["split_to out of bounds: ", pos, " <= ", b.length], "bytes_split_to");
 	const head = part(b, b.start, pos);
 	p.v = moved(b, b.start + pos, b.length - pos);
 	return head;
@@ -226,7 +227,7 @@ export function bytesSplitOff(p: Place<Bytes>, pos: usize): Bytes {
 		p.v = new ByteSlice(b.data, b.start, 0);
 		return b;
 	}
-	if (pos > b.length) panic(`split_off out of bounds: ${pos} <= ${b.length}`, "bytes_split_off", true);
+	if (pos > b.length) panicSizes(["split_off out of bounds: ", pos, " <= ", b.length], "bytes_split_off");
 	const tail = part(b, b.start + pos, b.length - pos);
 	p.v = moved(b, b.start, pos);
 	return tail;
@@ -269,17 +270,17 @@ export function bytesSliceRef(b: Bytes, subset: ByteSlice): Bytes {
 
 /** `bytes`' panic for reading or advancing past what remains. */
 function panicAdvance(requested: number, available: number): never {
-	panic(`advance out of bounds: the len is ${available} but advancing by ${requested}`, "bytes_advance", true);
+	panicSizes(["advance out of bounds: the len is ", available, " but advancing by ", requested], "bytes_advance");
 }
 
 /** The `Buf` of `Bytes` or `BytesMut` advancing past what remains, which asserts at the key of its site. */
 function panicRemaining(cnt: number, remaining: number, site: string): never {
-	panic(`cannot advance past \`remaining\`: ${cnt} <= ${remaining}`, site, true);
+	panicSizes(["cannot advance past `remaining`: ", cnt, " <= ", remaining], site);
 }
 
 /** `nbytes` read into an integer of `size` bytes, which holds at most that many. */
 function checkFits(size: number, nbytes: number): void {
-	if (nbytes > size) panic(`size too large: the integer type can fit ${size} bytes, but nbytes is ${nbytes}`, "bytes_does_not_fit", true);
+	if (nbytes > size) panicSizes(["size too large: the integer type can fit ", size, " bytes, but nbytes is ", nbytes], "bytes_does_not_fit");
 }
 
 /** `n` bytes from the front of `s`, the other way around if `le`. */
@@ -764,7 +765,7 @@ export function bytesMutPutBytes(b: BytesMut, be: Uint8Array, le: boolean): void
 
 /** `BufMut::put_uint` or `put_int`: the low `nbytes` of the big-endian bytes, which `bytes` checks against `size` the other way around. */
 export function bytesMutPutInt(b: BytesMut, be: Uint8Array, nbytes: usize, le: boolean): void {
-	if (nbytes > be.length) panic(`size too large: the integer type can fit ${nbytes} bytes, but nbytes is ${be.length}`, "bytes_does_not_fit", true);
+	if (nbytes > be.length) panicSizes(["size too large: the integer type can fit ", nbytes, " bytes, but nbytes is ", be.length], "bytes_does_not_fit");
 	bytesMutPutBytes(b, be.subarray(be.length - nbytes), le);
 }
 
@@ -871,7 +872,7 @@ export function bytesMutResize(b: BytesMut, len: usize, value: number): void {
 
 /** `BytesMut::split_to`: the first `at` bytes, sharing the storage, leaving the rest. */
 export function bytesMutSplitTo(b: BytesMut, pos: usize): BytesMut {
-	if (pos > b.length) panic(`split_to out of bounds: ${pos} <= ${b.length}`, "bytes_mut_split_to", true);
+	if (pos > b.length) panicSizes(["split_to out of bounds: ", pos, " <= ", b.length], "bytes_mut_split_to");
 	const head = new BytesMut(b.data, b.start, pos, pos, share(b), 0);
 	advanceUnchecked(b, pos);
 	return head;
@@ -879,7 +880,7 @@ export function bytesMutSplitTo(b: BytesMut, pos: usize): BytesMut {
 
 /** `BytesMut::split_off`: what it holds and has room for from `at` on, sharing the storage, leaving the rest. */
 export function bytesMutSplitOff(b: BytesMut, pos: usize): BytesMut {
-	if (pos > b.cap) panic(`split_off out of bounds: ${pos} <= ${b.cap}`, "bytes_mut_split_off", true);
+	if (pos > b.cap) panicSizes(["split_off out of bounds: ", pos, " <= ", b.cap], "bytes_mut_split_off");
 	const tail = new BytesMut(b.data, b.start, b.length, b.cap, share(b), 0);
 	advanceUnchecked(tail, pos);
 	b.cap = pos;
@@ -985,7 +986,7 @@ export function byteVecPutBytes(v: ByteVec, be: Uint8Array, le: boolean): void {
 
 /** `BufMut::put_uint` or `put_int` to a `Vec<u8>`, as `bytesMutPutInt`. */
 export function byteVecPutInt(v: ByteVec, be: Uint8Array, nbytes: usize, le: boolean): void {
-	if (nbytes > be.length) panic(`size too large: the integer type can fit ${nbytes} bytes, but nbytes is ${be.length}`, "bytes_does_not_fit", true);
+	if (nbytes > be.length) panicSizes(["size too large: the integer type can fit ", nbytes, " bytes, but nbytes is ", be.length], "bytes_does_not_fit");
 	byteVecPutBytes(v, be.subarray(be.length - nbytes), le);
 }
 
