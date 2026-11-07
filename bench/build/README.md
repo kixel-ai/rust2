@@ -18,8 +18,7 @@ The run also ignores the caller's `CARGO*`, `RUSTC*`, `RUSTDOC*`, `RUSTUP*`, and
 
 ## Corpus
 
-- **moq** builds `moq-relay`, which pulls in moq-net, the QUIC stack, and C code through aws-lc-sys.
-- **moq-pure-crypto** builds the same `moq-relay` with its crypto on graviola and RustCrypto, so it compiles no C: the run fails if any crate in its build gains a `links` key or pulls in cc or cmake, while pure-Rust build scripts stay allowed.
+- **moq** builds `moq-relay`, which pulls in moq-net and the QUIC stack. Its crypto is on rind, which is pure Rust, so it compiles no C: the run fails if any crate in its build gains a `links` key or pulls in cc or cmake, while pure-Rust build scripts stay allowed.
 - **regex** and **wasmparser** are pure Rust: the run fails if any crate in their build gains a build script or a `links` key.
 
 Each corpus pins a git revision (and a lockfile when the project commits none).
@@ -32,7 +31,7 @@ Bump a pin in its own change, since numbers on either side of it do not compare.
 - `edit-leaf`: rebuild after a body edit in a crate nothing else in the build depends on.
 - `edit-hub`: the same edit in a crate most of the build depends on (moq-net in moq).
 - `edit-sync`: rebuild after an edit to the body of a sync function the build calls, in a module of the hub (moq: `goaway::Producer::send`, which moq-relay calls to drain a session).
-- `edit-async`: the same in an `async fn` (moq: `Session::closed`, which moq-relay awaits).
+- `edit-async`: the same in an `async fn` (moq: `Session::closed`, which moq-relay awaits, a wrapper over the sync `poll_closed`).
 - `test-build`: a clean build of the corpus's tests with `cargo nextest run --no-run`, as CI builds them with a cold cache.
 - `test-run`: run those tests, already built.
 - `test-edit`: rebuild the tests after the hub edit, as CI does when its compilation cache serves every dependency.
@@ -58,7 +57,7 @@ To measure a new build-speed change, add a variant whose base is the configurati
 
 The `ra-jit` variant builds with `cargo ra-jit` ([ra-jit](https://github.com/indexable-inc/ra-jit), pinned in `flake.nix` and compiled from source on a run that selects it), a daemon that compiles only the functions an edit changed and splices them into the program cargo linked, or hands the build back to cargo.
 ra-jit works with one rustc only, so its base, `ra-jit-baseline`, is plain cargo on that toolchain.
-Both run on the moq corpora only, since ra-jit needs a program to load, and skip `check`, which `cargo ra-jit` fails on moq.
+Both run on the moq corpus only, since ra-jit needs a program to load, and skip `check`, which `cargo ra-jit` fails on moq.
 The daemon keeps working after a build returns, so each ra-jit run waits for it to go idle before and after, and none of its work overlaps another run.
 Its CPU time adds the daemon's, its peak RSS adds what the daemon holds, and its instructions read `n/a`; the report also says how many of its runs the daemon built, and why cargo built the rest.
 The leaf and hub markers are functions nothing calls: rustc recompiles their crate and every crate that depends on it, while ra-jit, when it builds the edit itself, compiles nothing, so its times there are a lower bound.
