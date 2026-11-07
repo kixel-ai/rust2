@@ -2170,7 +2170,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			};
 			return (library::Flow::of(tcx, at) != library::Flow::of(tcx, typed)).then(|| {
 				format!(
-					"`{ty}` is not supported: its field `{field}` is `{part}`, typed as an `rs.Result` breaking with `{inner}`, which `{held}` is not, as `?` makes its break"
+					"`{ty}` is not supported: its field `{field}` is `{part}`, typed as a result that breaks with `{inner}`, which `{held}` is not, as it breaks with what `?` makes"
 				)
 			});
 		}
