@@ -316,6 +316,10 @@ fn items() {
 		"type Level = uint8",
 		"type Pair[T any] = tuple2[T, T]",
 		"func Unwrap(",
+		"\tSum uint8",
+		"\tTally   uint8",
+		"\t_Tally  uint8",
+		"\t__Tally uint8",
 	] {
 		assert!(text.contains(exported), "items.go lacks `{exported}`");
 	}

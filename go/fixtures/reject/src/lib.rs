@@ -116,3 +116,6 @@ mod value {
 /// Go callers would reach `new` only through the alias, which takes knowing which impls
 /// apply to `Value<u8>`.
 pub type Byte = value::Value<u8>;
+
+/// A raw pointer's wrapper, which no Go type stands for.
+pub use std::ptr::NonNull;

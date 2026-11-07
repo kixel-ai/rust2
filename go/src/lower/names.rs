@@ -6,6 +6,7 @@ use std::collections::{HashSet, VecDeque};
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::def_id::{CRATE_DEF_ID, DefId, LOCAL_CRATE};
 use rustc_middle::ty::{self, GenericArgKind, Instance, InstanceKind, ShimKind, Ty, TyCtxt};
+use rustc_span::Span;
 
 /// Go's keywords and predeclared identifiers, which a package-level name must not shadow.
 pub const PREDECLARED: &[&str] = &[
@@ -84,8 +85,9 @@ pub const PREDECLARED: &[&str] = &[
 /// through its modules, re-exports, and those of the crates it re-exports modules of, by
 /// its shortest such path, the first in definition order of those as short. A module is
 /// walked rather than listed, and an alias of a type with the alias's own parameters
-/// stands for the type where no other path reaches it.
-pub fn public(tcx: TyCtxt<'_>) -> Vec<(String, DefId)> {
+/// stands for the type where no other path reaches it. Each comes with the span of the
+/// name that exports it.
+pub fn public(tcx: TyCtxt<'_>) -> Vec<(String, DefId, Span)> {
 	let root = CRATE_DEF_ID.to_def_id();
 	let mut items = Vec::new();
 	let mut aliased = Vec::new();
@@ -103,27 +105,27 @@ pub fn public(tcx: TyCtxt<'_>) -> Vec<(String, DefId)> {
 			if !child.vis.is_public() || matches!(kind, DefKind::Ctor(..)) || !seen.insert(def_id) {
 				continue;
 			}
-			let name = child.ident.name;
+			let (name, span) = (child.ident.name, child.ident.span);
 			let path = match prefix.is_empty() {
 				true => name.to_string(),
 				false => format!("{prefix}::{name}"),
 			};
 			match kind {
 				DefKind::Mod => modules.push_back((path, def_id)),
-				DefKind::TyAlias => aliased.push((path, def_id)),
-				_ => items.push((path, def_id)),
+				DefKind::TyAlias => aliased.push((path, def_id, span)),
+				_ => items.push((path, def_id, span)),
 			}
 		}
 	}
-	for (path, alias) in aliased {
+	for (path, alias, span) in aliased {
 		let identity = ty::GenericArgs::identity_for_item(tcx, alias);
 		match *tcx.type_of(alias).instantiate_identity().skip_norm_wip().kind() {
 			ty::Adt(adt, args)
 				if args == identity && super::library::mapped(tcx, adt.did()).is_none() && seen.insert(adt.did()) =>
 			{
-				items.push((path, adt.did()))
+				items.push((path, adt.did(), span))
 			}
-			_ => items.push((path, alias)),
+			_ => items.push((path, alias, span)),
 		}
 	}
 	items
@@ -175,12 +177,24 @@ pub fn ident(name: &str) -> String {
 	out
 }
 
-/// A field's Go name: its Rust name, or `F<i>` for a tuple's, escaped as [`escaped`].
-pub fn field(name: &str, index: usize) -> String {
+/// A field's Go name: `F<i>` for a tuple's, else its Rust name escaped as [`escaped`],
+/// exported when the field is `pub` so Go callers in other packages reach it. A name Go
+/// would otherwise export or that starts with `_` takes a leading `_`, which keeps the
+/// mapping one to one.
+pub fn field(field: &ty::FieldDef, index: usize) -> String {
+	let name = field.name.as_str();
 	if name.parse::<usize>().is_ok() || name.is_empty() {
 		return format!("F{index}");
 	}
-	escaped(name)
+	let name = escaped(name);
+	let mut chars = name.chars();
+	match chars.next() {
+		Some(first) if first.is_ascii_lowercase() && field.vis.is_public() => {
+			first.to_ascii_uppercase().to_string() + chars.as_str()
+		}
+		Some(first) if first.is_uppercase() || first == '_' => format!("_{name}"),
+		_ => name,
+	}
 }
 
 /// A field's or variant's name kept off Go's keywords and the enum's `tag`, by a trailing

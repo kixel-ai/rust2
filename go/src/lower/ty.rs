@@ -205,7 +205,7 @@ impl<'tcx> Translator<'tcx> {
 		} else if adt.is_struct() {
 			for (i, field) in adt.non_enum_variant().fields.iter().enumerate() {
 				let fty = self.field_ty(field.did, identity, tcx.def_span(field.did));
-				fields.push_str(&format!("\t{} {fty}\n", names::field(field.name.as_str(), i)));
+				fields.push_str(&format!("\t{} {fty}\n", names::field(field, i)));
 			}
 		} else {
 			let tag = self.go_ty(adt.repr().discr_type().to_ty(tcx), span, false);
@@ -217,7 +217,7 @@ impl<'tcx> Translator<'tcx> {
 				let mut inner = Vec::new();
 				for (i, field) in variant.fields.iter().enumerate() {
 					let fty = self.field_ty(field.did, identity, tcx.def_span(field.did));
-					inner.push(format!("{} {fty}", names::field(field.name.as_str(), i)));
+					inner.push(format!("{} {fty}", names::field(field, i)));
 				}
 				fields.push_str(&format!(
 					"\t{} struct{{ {} }}\n",

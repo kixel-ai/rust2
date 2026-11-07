@@ -86,12 +86,16 @@ pub fn unwrap(b: Byte) -> Pair<Level> {
 /// Another crate's module, whose `pub` items Go callers reach as this crate's.
 pub use items_dep::shapes;
 
-/// Fields Go would name alike if escaping were not one to one.
+/// Fields Go would name alike if escaping were not one to one, a `pub` one exported.
+#[allow(non_snake_case, reason = "the names Go escapes")]
 struct Fields {
 	r#type: u8,
 	type_: u8,
 	tag: u8,
 	tag_: u8,
+	pub tally: u8,
+	Tally: u8,
+	_Tally: u8,
 }
 
 /// Variants Go would hold in one field if escaping were not one to one.
@@ -123,6 +127,9 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 				type_: at(1),
 				tag: at(2),
 				tag_: at(3),
+				tally: at(6),
+				Tally: at(7),
+				_Tally: at(8),
 			};
 			let kind = match at(4) % 3 {
 				0 => Kind::tag(at(5)),
@@ -134,7 +141,7 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 				Kind::tag_(v) => (1, v),
 				Kind::r#type(v) => (2, v),
 			};
-			vec![f.r#type, f.type_, f.tag, f.tag_, k, v]
+			vec![f.r#type, f.type_, f.tag, f.tag_, f.tally, f.Tally, f._Tally, k, v]
 		}
 		1 => vec![std::ptr::eq(byte(), byte()) as u8, std::ptr::eq(bytes(), bytes()) as u8],
 		_ => {

@@ -70,11 +70,11 @@ pub fn translate(tcx: TyCtxt<'_>) -> Option<Vec<(String, String)>> {
 	let mut t = Translator::new(tcx);
 	let public = names::public(tcx);
 	// Before any root's signature declares one by its own name.
-	for (path, def_id) in &public {
+	for (path, def_id, _) in &public {
 		t.name_type(path, *def_id);
 	}
-	for (path, def_id) in public {
-		t.root(&path, def_id);
+	for (path, def_id, export) in public {
+		t.root(&path, def_id, export);
 	}
 	while let Some((instance, span)) = t.queue.pop_front() {
 		let text = body::function(&mut t, instance, span);
@@ -233,18 +233,26 @@ impl<'tcx> Translator<'tcx> {
 	/// An item of the `pub` API, by the path the crate exports it at, exported to Go
 	/// callers: a function, a type with its `pub` inherent methods, or an alias as Go's.
 	/// A trait comes along as its impls are called, and a module's items are their own.
-	fn root(&mut self, path: &str, def_id: DefId) {
+	/// `export` is the span of the name that exports it.
+	fn root(&mut self, path: &str, def_id: DefId, export: Span) {
 		let tcx = self.tcx;
 		let span = tcx.def_span(def_id);
 		match tcx.def_kind(def_id) {
 			DefKind::Fn => self.root_fn(path, def_id),
-			// A type std's are mapped to is Go's, not the crate's.
-			DefKind::Struct | DefKind::Enum | DefKind::Union if library::mapped(tcx, def_id).is_none() => {
-				self.adt_decl(tcx.adt_def(def_id), span);
-				for &imp in tcx.inherent_impls(def_id) {
-					self.root_impl(path, imp);
+			DefKind::Struct | DefKind::Enum | DefKind::Union => match library::mapped(tcx, def_id) {
+				None => {
+					self.adt_decl(tcx.adt_def(def_id), span);
+					for &imp in tcx.inherent_impls(def_id) {
+						self.root_impl(path, imp);
+					}
 				}
-			}
+				Some(library::Mapped::Refused(why)) => self.err(
+					export,
+					format!("`{}`, {why} is not supported", tcx.def_path_str(def_id)),
+				),
+				// A type std's are mapped to is Go's, not the crate's.
+				Some(_) => {}
+			},
 			DefKind::TyAlias => {
 				let name = self.type_names[&def_id].clone();
 				self.alias_decl(&name, def_id);
