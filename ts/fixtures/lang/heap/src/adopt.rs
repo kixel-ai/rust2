@@ -84,8 +84,8 @@ pub fn allocated(data: &[u8], out: &mut Vec<u8>) {
 }
 
 /// `Vec`s given up by `ManuallyDrop` and adopted again by `from_raw_parts`, with and
-/// without room past their length, some of it written through the pointer, and the empty
-/// `Vec` of a dangling pointer.
+/// without room past their length, some of it written through the pointer, one from the
+/// pointer to its spare capacity while empty, and the empty `Vec` of a dangling pointer.
 pub fn readopted(data: &[u8], out: &mut Vec<u8>) {
 	let shared = Arc::new(7u8);
 	let n = data.len();
@@ -122,6 +122,14 @@ pub fn readopted(data: &[u8], out: &mut Vec<u8>) {
 	bytes.push(1);
 	out.extend([bytes.len() as u8, bytes.capacity() as u8]);
 	out.extend_from_slice(&bytes);
+
+	let mut spare = ManuallyDrop::new(Vec::<u32>::with_capacity(n + 1));
+	let cap = spare.capacity();
+	let p = spare.spare_capacity_mut().as_mut_ptr().cast::<u32>();
+	(0..cap).for_each(|i| unsafe { p.add(i).write(i as u32 * 3) });
+	let spare = unsafe { Vec::from_raw_parts(p, n / 2 + 1, cap) };
+	out.extend([spare.len() as u8, spare.capacity() as u8]);
+	out.extend(spare.iter().flat_map(|x| x.to_le_bytes()));
 
 	let mut none = unsafe { Vec::<u32>::from_raw_parts(NonNull::dangling().as_ptr(), 0, 0) };
 	out.extend([none.len() as u8, none.capacity() as u8]);

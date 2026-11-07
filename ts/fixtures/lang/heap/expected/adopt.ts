@@ -200,8 +200,8 @@ export function allocated(data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /**
  * `Vec`s given up by `ManuallyDrop` and adopted again by `from_raw_parts`, with and
- * without room past their length, some of it written through the pointer, and the empty
- * `Vec` of a dangling pointer.
+ * without room past their length, some of it written through the pointer, one from the
+ * pointer to its spare capacity while empty, and the empty `Vec` of a dangling pointer.
  */
 export function readopted(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const shared: rs.Arc<rs.u8> = new rs.Arc(7);
@@ -243,6 +243,19 @@ export function readopted(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(bytes2, 1);
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(bytes2.length & 0xff, bytes2.data.length & 0xff)), undefined, true);
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(bytes2));
+	const spare: rs.Vec<rs.u32> = rs.vecWithCapacity(rs.usizeAdd(n, 1), 4);
+	const cap3: rs.usize = rs.vecCapacity(spare, 4);
+	const p4: rs.Place<rs.u32> = rs.sliceAsPtr(rs.vecSpare(spare, 4, (): rs.u32 => {
+		return (undefined as unknown) as rs.u32;
+	}));
+	rs.iterForEach(new rs.Range(0, cap3), (i2: rs.usize): undefined => {
+		rs.ptrAdd(p4, i2).v = rs.u32Mul(i2 as rs.u32, 3);
+	});
+	const spare2: rs.Vec<rs.u32> = rs.vecFromRawParts(p4, rs.usizeAdd(rs.usizeDiv(n, 2), 1), cap3, 4);
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(spare2.items.length & 0xff, rs.vecCapacity(spare2, 4) & 0xff)), undefined, true);
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(spare2.items), (x2: rs.u32): Uint8Array => {
+		return rs.u32ToBeBytes(x2).reverse();
+	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
 	const none: rs.Vec<rs.u32> = rs.vecFromRawParts(rs.DANGLING, 0, 0, 4);
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(none.items.length & 0xff, rs.vecCapacity(none, 4) & 0xff)), undefined, true);
 	none.items.push(n as rs.u32);
