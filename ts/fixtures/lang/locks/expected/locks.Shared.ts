@@ -23,7 +23,7 @@ export function new$Option_u8(value: rs.u8 | undefined): Shared<rs.u8 | undefine
 	return new Shared(new rs.Arc(new rs.Mutex(value)));
 }
 
-export function new$String(value: string): Shared<string> {
+export function new$String(value: rs.String): Shared<rs.String> {
 	return new Shared(new rs.Arc(new rs.Mutex(value)));
 }
 
@@ -39,7 +39,7 @@ export function lock$Option_u8(self: Shared<rs.u8 | undefined>): Held.Held<rs.u8
 	return new Held.Held(rs.mutexLock(self._0.value));
 }
 
-export function lock$String(self: Shared<string>): Held.Held<string> {
+export function lock$String(self: Shared<rs.String>): Held.Held<rs.String> {
 	return new Held.Held(rs.mutexLock(self._0.value));
 }
 

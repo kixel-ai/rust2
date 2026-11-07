@@ -134,7 +134,7 @@ impl<'tcx> Translator<'tcx> {
 			let label = variant_field(variant.name.as_str());
 			for (f, field) in variant.fields.iter_enumerated() {
 				let fty = self.field_of(field, args);
-				let name = names::field(field.name.as_str(), f.as_usize());
+				let name = names::field(field, f.as_usize());
 				parts.push(Part {
 					name: format!("v{}_{}", v.as_usize(), f.as_usize()),
 					path: format!(".{label}.{name}"),

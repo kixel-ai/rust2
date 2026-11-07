@@ -33,7 +33,7 @@ export function put(out: rs.ByteVec, n: rs.usize): void {
 export function map(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const own: rs.HashMap<rs.u16, rs.u32> = rs.hashNew() as rs.HashMap<rs.u16, rs.u32>;
 	const pairs: rs.HashMap<[rs.u8, rs.u8], rs.u32> = rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same]))) as rs.HashMap<[rs.u8, rs.u8], rs.u32>;
-	const set: rs.HashSet<string> = rs.hashWithCapacity(rs.usizeDiv(data.length, 4), 117440512) as rs.HashSet<string>;
+	const set: rs.HashSet<rs.String> = rs.hashWithCapacity(rs.usizeDiv(data.length, 4), 117440512, rs.HASH_TEXT) as rs.HashSet<rs.String>;
 	const iter: rs.Iter<rs.ByteSlice> = rs.byteSliceChunks(data, 2);
 	while (true) {
 		const _12: rs.ByteSlice | rs.Done = iter.next();
@@ -82,13 +82,13 @@ export function map(data: rs.ByteSlice, out: rs.ByteVec): void {
 				return k5[0] !== rs.u8Rem(arg, 4);
 			});
 		} else if (_35 === 6) {
-			const _88: string = rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(key, f)]);
+			const _88: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(key, f)]);
 			rs.byteVecPush(out, rs.hashAdd(set, _88) ? 1 : 0);
 			const part = rs.u16Add(key, 1);
-			const _102: string = rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(part, f)]);
+			const _102: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(part, f)]);
 			rs.byteVecPush(out, rs.hashContains(set, _102) ? 1 : 0);
 		} else if (_35 === 7) {
-			const _117: string = rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(key, f)]);
+			const _117: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(key, f)]);
 			rs.byteVecPush(out, rs.hashDelete(set, _117) ? 1 : 0);
 		} else if (_35 === 8) {
 			put(out, option_mapOr$0o00yzv(rs.hashRemoveEntry(own, key), 256, (_26: [rs.u16, rs.u32]): rs.usize => {
@@ -122,9 +122,9 @@ export function map(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a, b)));
 		put(out, v2 as rs.usize);
 	}
-	const set2: rs.Vec<string> = rs.iterToVec(rs.hashKeys(set), "next", 12);
+	const set2: rs.Vec<rs.String> = rs.iterToVec(rs.hashKeys(set), "next", 12);
 	rs.sliceSort(rs.sliceFrom(set2.items), rs.cmpLt(rs.cmpStr), 12, true);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.strsJoin(set2.items, ",")));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.strsJoin(set2.items, ",").v));
 }
 
 /**

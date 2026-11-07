@@ -5,9 +5,9 @@ import * as rs from "./rs.ts";
 /** Logs its byte as it drops. */
 export class Item {
 	v: rs.u8;
-	log: rs.RefCell<rs.Vec<string>>;
+	log: rs.RefCell<rs.Vec<rs.String>>;
 
-	constructor(v: rs.u8, log: rs.RefCell<rs.Vec<string>>) {
+	constructor(v: rs.u8, log: rs.RefCell<rs.Vec<rs.String>>) {
 		this.v = v;
 		this.log = log;
 	}
@@ -18,9 +18,9 @@ export class Item {
 }
 
 export function drop$ops_Drop(self: Item): void {
-	const _5: rs.RefCell<rs.Vec<string>> = rs.refCellBorrowMut(self.log);
+	const _5: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(self.log);
 	const arg = self.v;
-	const _6: string = rs.fmtFormat(["drop ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
+	const _6: rs.String = rs.fmtFormat(["drop ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
 	_5.value.items.push(_6);
 	rs.refMutRelease(_5);
 }

@@ -23,9 +23,9 @@ export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u
 	return self;
 }
 
-export function unwrapOrDefault$165pyh5(self: string | undefined): string {
+export function unwrapOrDefault$1exlfpa(self: rs.String | undefined): rs.String {
 	if (self === undefined) {
-		return "";
+		return rs.stringNew();
 	}
 	return self;
 }
@@ -65,7 +65,7 @@ export function mapOr$1rg5gkk(self: rs.u8 | undefined | rs.None, default_: rs.u8
 	return f(self);
 }
 
-export function mapOr$1nyk1yj(self: string | undefined, default_: rs.u8, f: (a0: string) => rs.u8): rs.u8 {
+export function mapOr$1fzqoua(self: rs.String | undefined, default_: rs.u8, f: (a0: rs.String) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}

@@ -53,7 +53,7 @@ export function map$16w3l9s(self: Nibble.Nibble | undefined, f: (a0: Nibble.Nibb
 	return f(self);
 }
 
-export function map$1y26nmr(self: rs.u8 | undefined, f: (a0: rs.u8) => string): string | undefined {
+export function map$0n6ziv9(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.String): rs.String | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -200,11 +200,11 @@ export function mapOr$1h9hu6n(self: [rs.u8, rs.u8] | undefined, default_: rs.u8,
 	return f(self);
 }
 
-export function clone$14nprly(self: string | undefined): string | undefined {
+export function clone$0dg4ec5(self: rs.String | undefined): rs.String | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
-	return self;
+	return rs.stringClone(self);
 }
 
 export function flatten$0ux6gqw(self: rs.u8 | undefined | rs.None): rs.u8 | undefined {

@@ -1,0 +1,10 @@
+[package]
+name = "items-dep"
+description = "A dependency whose module the items fixture re-exports"
+version = "0.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lints]
+workspace = true

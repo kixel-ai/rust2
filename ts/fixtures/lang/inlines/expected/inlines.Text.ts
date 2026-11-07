@@ -80,7 +80,7 @@ export function tryPushStr$0(self: Text, s: string): rs.Result<undefined, Full.F
 		self.len = end;
 		return rs.OK;
 	}
-	return rs.Err({ _0: s });
+	return rs.Err({ _0: rs.stringFrom(s) });
 }
 
 export function tryPushStr$16(self: Text, s: string): rs.Result<undefined, Full.Full> {
@@ -90,7 +90,7 @@ export function tryPushStr$16(self: Text, s: string): rs.Result<undefined, Full.
 		self.len = end;
 		return rs.OK;
 	}
-	return rs.Err({ _0: s });
+	return rs.Err({ _0: rs.stringFrom(s) });
 }
 
 export function tryPushStr$2(self: Text, s: string): rs.Result<undefined, Full.Full> {
@@ -100,7 +100,7 @@ export function tryPushStr$2(self: Text, s: string): rs.Result<undefined, Full.F
 		self.len = end;
 		return rs.OK;
 	}
-	return rs.Err({ _0: s });
+	return rs.Err({ _0: rs.stringFrom(s) });
 }
 
 export function tryPushStr$3(self: Text, s: string): rs.Result<undefined, Full.Full> {
@@ -110,7 +110,7 @@ export function tryPushStr$3(self: Text, s: string): rs.Result<undefined, Full.F
 		self.len = end;
 		return rs.OK;
 	}
-	return rs.Err({ _0: s });
+	return rs.Err({ _0: rs.stringFrom(s) });
 }
 
 export function tryPushStr$4(self: Text, s: string): rs.Result<undefined, Full.Full> {
@@ -120,7 +120,7 @@ export function tryPushStr$4(self: Text, s: string): rs.Result<undefined, Full.F
 		self.len = end;
 		return rs.OK;
 	}
-	return rs.Err({ _0: s });
+	return rs.Err({ _0: rs.stringFrom(s) });
 }
 
 export function tryPushStr$5(self: Text, s: string): rs.Result<undefined, Full.Full> {
@@ -130,7 +130,7 @@ export function tryPushStr$5(self: Text, s: string): rs.Result<undefined, Full.F
 		self.len = end;
 		return rs.OK;
 	}
-	return rs.Err({ _0: s });
+	return rs.Err({ _0: rs.stringFrom(s) });
 }
 
 /** At most `CAP` bytes of `s`, cut at a char boundary. */

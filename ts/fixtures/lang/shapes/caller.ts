@@ -23,7 +23,7 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 		"|",
 		rs.fmtSpec({ alternate: true }, debug),
 	]);
-	return rs.byteVecFrom(new TextEncoder().encode(text));
+	return rs.byteVecFrom(new TextEncoder().encode(text.v));
 }
 
 /** `shapes::loops` with each first byte that one of its cases of `!` takes, with one more byte and without. */

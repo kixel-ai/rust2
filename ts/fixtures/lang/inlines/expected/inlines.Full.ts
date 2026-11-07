@@ -4,13 +4,13 @@ import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug_3(self: Full, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const _3: string = "Full";
-	const _4: rs.Fmt = (f: rs.Formatter) => rs.fmtStr(self._0, f);
+	const _4: rs.Fmt = (f: rs.Formatter) => rs.fmtStr(self._0.v, f);
 	return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _3), _4));
 }
 
 /** What didn't fit in a [`Text`], and the capacity it didn't fit in. */
 export interface Full {
-	_0: string;
+	_0: rs.String;
 }
 
 //# sourceMappingURL=inlines.Full.ts.map
