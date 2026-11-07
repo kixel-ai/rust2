@@ -1046,7 +1046,11 @@ mod tests {
 		// The split comes after the segments the clashing names share, so one whose rest is
 		// a single segment keeps its name.
 		assert_eq!(
-			names(&[&["tokio", "ConnectError"], &["tokio", "connect", "Error"], &["tokio", "Client"]]),
+			names(&[
+				&["tokio", "ConnectError"],
+				&["tokio", "connect", "Error"],
+				&["tokio", "Client"]
+			]),
 			["TokioConnectError", "TokioConnect_Error", "TokioClient"]
 		);
 		assert_eq!(
@@ -1054,7 +1058,10 @@ mod tests {
 			["A_BC_D", "A_B_CD", "ABCD"]
 		);
 		// Segments apart only by case still match, for the claim to refuse.
-		assert_eq!(names(&[&["connect", "X"], &["Connect", "X"]]), ["Connect_X", "Connect_X"]);
+		assert_eq!(
+			names(&[&["connect", "X"], &["Connect", "X"]]),
+			["Connect_X", "Connect_X"]
+		);
 	}
 
 	/// Each instance's arguments, each by its path's segments, whose forms are their
