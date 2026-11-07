@@ -15,7 +15,7 @@ exporter stays moq's Go route until a translation matches it.
 Decided with the maintainer on 2026-11-01, settling
 [#410](https://github.com/moq-dev/rust2/pull/410):
 
-- **Continue as research,** [speed](/quest/m4/go/speed.md) first, then
+- **Continue as research,** speed first, then
   [coverage](/quest/m4/go/coverage.md). If speed cannot bring the translated crate
   within 2x of cgo on a realistic whole-crate workload (a group's stream end to end,
   decided on 2026-11-02 in [#428](https://github.com/moq-dev/rust2/pull/428)), delete
@@ -25,6 +25,12 @@ Decided with the maintainer on 2026-11-01, settling
   of a Go use. About a quarter of `ts/src` would serve Go, nearly all of it inside files
   whose lowering returns TypeScript's AST.
 
+Decided with the maintainer on 2026-11-07, settling
+[moq-dev/rust2#643](https://github.com/moq-dev/rust2/pull/643): speed met the bar. With
+the translation owning a `Vec<u8>`'s storage and clipping it at escape, every `stream/`
+workload of `just go bench` runs within 2x of cgo, the worst at 2.07x CPU time, which
+counts as noise.
+
 The spike ([moq-dev/rust2#410](https://github.com/moq-dev/rust2/pull/410)) translated
 moq's codec held to rust2-ts's bar: 35,273 codec cases and 124,193 integer cases match
 native Rust, panics included. It runs 2 to 113 times slower than cgo on batched loops,
@@ -33,7 +39,6 @@ adds 324 KB to a Go binary where cgo adds 1.15 MB and a libc dependency.
 
 ## Required
 
-- [Match cgo on the crate](/quest/m4/go/speed.md) - the translated crate within 2x of cgo on a group's stream end to end
 - [moq-net beyond the codec](/quest/m4/go/coverage.md) - `Drop`, floats, 128-bit integers, trait objects, and collections, so moq-net translates whole
 - [pub constants and statics](/quest/m4/go/consts.md) - exported as Go declarations instead of refused, so a crate with any translates
 - [Exported names off the runtime's](/quest/m4/go/runtime-names.md) - a crate's own `Result` or `Formatter` exports beside the runtime's
