@@ -2767,7 +2767,10 @@ fn inline_moved(r: &RefCell<Cell<u32>>, o: &OnceCell<Cell<u32>>) -> (RefCell<Cel
 /// A `Vec` and a `VecDeque` moved out through pointers, after which the originals shrink
 /// without touching the storage they share, as `set_len` and `pop_front` do, and are
 /// forgotten: the copies keep what they held.
-fn shrunk_moved(v: Vec<u32>, mut q: std::collections::VecDeque<u32>) -> (Vec<u32>, std::collections::VecDeque<u32>, Option<u32>) {
+fn shrunk_moved(
+	v: Vec<u32>,
+	mut q: std::collections::VecDeque<u32>,
+) -> (Vec<u32>, std::collections::VecDeque<u32>, Option<u32>) {
 	let mut v = mem::ManuallyDrop::new(v);
 	let old_v = unsafe { ptr::read(&*v) };
 	unsafe { v.set_len(0) };

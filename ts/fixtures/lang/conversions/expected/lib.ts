@@ -10,7 +10,9 @@ export function copy$String(v: rs.String): rs.String {
 }
 
 export function copy$Vec_u32(v: rs.Vec<rs.u32>): rs.Vec<rs.u32> {
-	return rs.objectCopy(v);
+	const c = rs.objectCopy(v);
+	c.items = c.items.slice();
+	return c;
 }
 
 export function copy$Vec_u8(v: rs.ByteVec): rs.ByteVec {

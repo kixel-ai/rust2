@@ -141,8 +141,18 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				| Std::BytesMut
 				| Std::Weak,
 			) => Vec::new(),
-			Some(Std::HashMap) => return Some(Inline { unreachable: vec![at(2)], ..Inline::default() }),
-			Some(Std::HashSet) => return Some(Inline { unreachable: vec![at(1)], ..Inline::default() }),
+			Some(Std::HashMap) => {
+				return Some(Inline {
+					unreachable: vec![at(2)],
+					..Inline::default()
+				});
+			}
+			Some(Std::HashSet) => {
+				return Some(Inline {
+					unreachable: vec![at(1)],
+					..Inline::default()
+				});
+			}
 			_ => return None,
 		};
 		Some(Inline {
