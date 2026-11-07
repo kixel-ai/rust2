@@ -119,7 +119,7 @@ export function called(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _75: rs.Location = h(first);
 		const _78: rs.usize = rs.u8Rem(first, 2, { file: "fixtures/lang/panics/src/located.rs", line: 170, col: 61 }) as rs.usize;
 		if (!(_78 < 2)) {
-			rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _78, { file: "fixtures/lang/panics/src/located.rs", line: 170, col: 46 }, true);
+			rs.panicSizes(["index out of bounds: the len is ", 2, " but the index is ", _78], { file: "fixtures/lang/panics/src/located.rs", line: 170, col: 46 });
 		}
 		lines(out, rs.sliceFrom([_73, _74, _75, fs[_78](), own2({})]));
 	} else if (_7 === 4) {
@@ -204,7 +204,7 @@ export function panicked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		}) as (a0: boolean) => undefined;
 		const _18: rs.usize = rs.u8Rem(first, 2, { file: "fixtures/lang/panics/src/located.rs", line: 261, col: 28 }) as rs.usize;
 		if (!(_18 < 2)) {
-			rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _18, { file: "fixtures/lang/panics/src/located.rs", line: 261, col: 13 }, true);
+			rs.panicSizes(["index out of bounds: the len is ", 2, " but the index is ", _18], { file: "fixtures/lang/panics/src/located.rs", line: 261, col: 13 });
 		}
 		[_15, f][_18](rs.u8Rem(first, 3, { file: "fixtures/lang/panics/src/located.rs", line: 261, col: 40 }) !== 1);
 	}
