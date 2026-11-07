@@ -47,7 +47,7 @@ export function text(data: rs.ByteSlice): rs.String {
 		}
 		const _13: rs.usize = rs.u8Rem(_5, 16, { file: "fixtures/lang/panics/src/../../harness.rs", line: 62, col: 25 }) as rs.usize;
 		if (!(_13 < 16)) {
-			rs.panic("index out of bounds: the len is " + 16 + " but the index is " + _13, { file: "fixtures/lang/panics/src/../../harness.rs", line: 62, col: 16 }, true);
+			rs.panicSizes(["index out of bounds: the len is ", 16, " but the index is ", _13], { file: "fixtures/lang/panics/src/../../harness.rs", line: 62, col: 16 });
 		}
 		rs.stringPush(s, [47, 92, 97, 48, 57, 127, 128, 233, 2047, 2048, 55295, 57344, 65535, 65536, 128512, 1114111][_13]);
 	}

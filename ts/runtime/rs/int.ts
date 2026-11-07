@@ -6,7 +6,7 @@
 // 32-bit limbs. Arithmetic is checked as a debug build checks it: overflow panics, it
 // never wraps silently. Every panic's message is the one native Rust panics with.
 
-import { Err, type Formatter, type FmtResult, fmtPadFormatted, fmtPadIntegral, Ok, panic, type Result } from "../rs.ts";
+import { Err, type Formatter, type FmtResult, fmtOwned, fmtPadFormatted, fmtPadIntegral, Ok, panic, panicFmt, type Result } from "../rs.ts";
 import type { Location } from "./location.ts";
 
 declare const brand: unique symbol;
@@ -177,7 +177,7 @@ export function min(a: number, b: number): number {
 
 /** `Ord::clamp` of integers in numbers: `a` within `[min, max]`, panicking unless `min <= max`. */
 export function clamp(a: number, min: number, max: number, at?: Location): number {
-	if (min > max) panic(`min > max. min = ${min}, max = ${max}`, at, true);
+	if (min > max) panicFmt(["min > max. min = ", fmtOwned(min, display), ", max = ", fmtOwned(max, display)], at);
 	return a < min ? min : a > max ? max : a;
 }
 
@@ -1042,14 +1042,9 @@ function multiple(a: Wide, b: Wide, bits: number, at?: Location): boolean {
 	return b === 0 ? a === 0 : rem(a, b, bits, false, at) === 0;
 }
 
-/** A wide value's decimal text, as its `Debug` writes it. */
-function decimal(v: Wide): string {
-	return typeof v === "number" ? String(v) : String(exact(v));
-}
-
 /** `Ord::clamp` of wide values: `a` within `[min, max]`, panicking unless `min <= max`. */
 function clampWide(a: Wide, min: Wide, max: Wide, at?: Location): Wide {
-	if (lt(max, min)) panic(`min > max. min = ${decimal(min)}, max = ${decimal(max)}`, at, true);
+	if (lt(max, min)) panicFmt(["min > max. min = ", fmtOwned(min, wideDisplay), ", max = ", fmtOwned(max, wideDisplay)], at);
 	return lt(a, min) ? min : lt(max, a) ? max : a;
 }
 

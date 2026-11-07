@@ -7,8 +7,32 @@ pub fn generic<T>(t: T) -> T {
 	t
 }
 
-/// Go callers would read it as a variable, which no translation declares yet.
-pub const LIMIT: u8 = 4;
+/// Read and written only in `unsafe`, which Go has no counterpart for.
+pub static mut COUNT: u8 = 0;
+
+/// Go callers would share it unsynchronized.
+pub static READY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+unsafe extern "C" {
+	/// Another language's, which has no Go value.
+	pub safe static ENVIRON: u8;
+}
+
+pub struct Wrap<T>(pub T);
+
+impl<T> Wrap<T> {
+	/// Its value differs by `T`, which only its uses instantiate.
+	pub const SIZE: usize = size_of::<T>();
+}
+
+static HALVES: (u8, u8) = (1, 2);
+
+/// A reference into part of a static, which its Go variable has no place for apart.
+const SECOND: &u8 = &HALVES.1;
+
+pub fn second() -> u8 {
+	*SECOND
+}
 
 /// Go has no 128-bit integer.
 pub fn wide(a: u64, b: u64) -> u128 {

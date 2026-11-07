@@ -2475,17 +2475,10 @@ fn mapping<'tcx>(
 			let size = super::iter::size_of(b, elem, span);
 			Expr::rs("sliceNewUninit", vec![len, size, each])
 		}
-		// The slice, which JS holds as what its `MaybeUninit`s hold.
-		("Box", "assume_init")
-			if tcx
-				.type_of(tcx.parent(call.def_id))
-				.instantiate_identity()
-				.skip_norm_wip()
-				.boxed_ty()
-				.is_some_and(|t| t.is_slice()) =>
-		{
-			args.pop()?
-		}
+		// One value not yet written, as `MaybeUninit::uninit` makes it.
+		("Box", "new_uninit") => b.t.uninit(Ty::new_maybe_uninit(tcx, targ(gargs, 0)), span),
+		// What the box holds, which JS holds as what its `MaybeUninit` holds.
+		("Box", "assume_init") => args.pop()?,
 		// `vec![x; n]`: `n - 1` clones of `x`, then `x` itself, which the caller gives as its
 		// own, as it does whatever std keeps, or `x` dropped where `n` is 0.
 		("vec", "from_elem") => {
