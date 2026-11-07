@@ -250,13 +250,15 @@ pub fn call_with<'tcx>(
 			expr(fx.err(span, "`Vec::capacity`, which Go's growth would make differ from Rust's"))
 		}
 		"<alloc::vec::Vec>::is_empty" => expr(format!("len(*{}) == 0", a[0])),
+		"<alloc::vec::Vec>::truncate" if bytes() => stmt(format!("bytesTruncate({}, {})", a[0], a[1])),
 		"<alloc::vec::Vec>::truncate" => {
 			fx_drop_check(fx, targ(0), span);
 			stmt(format!("vecTruncate({}, {})", a[0], a[1]))
 		}
+		"<alloc::vec::Vec>::clear" if bytes() => stmt(format!("*{0} = (*{0})[:0]", a[0])),
 		"<alloc::vec::Vec>::clear" => {
 			fx_drop_check(fx, targ(0), span);
-			stmt(format!("*{0} = (*{0})[:0]", a[0]))
+			stmt(format!("vecTruncate({}, 0)", a[0]))
 		}
 		"<alloc::vec::Vec>::extend_from_slice" if bytes() => stmt(format!("bytesExtend({}, {})", a[0], a[1])),
 		"<alloc::vec::Vec>::extend_from_slice" => {

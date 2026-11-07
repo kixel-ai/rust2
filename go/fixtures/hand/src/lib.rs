@@ -96,6 +96,14 @@ pub fn view(v: &mut Vec<u8>, n: u8) -> &[u8] {
 	v
 }
 
+/// Push `n` bytes of `n` onto `v`, then pop and outgrow them, leaving the slot vacated.
+pub fn vacate(v: &mut Vec<Vec<u8>>, n: u8) -> usize {
+	v.push(fill(n));
+	let mut last = v.pop().unwrap_or_default();
+	append(&mut last, 200);
+	last.len()
+}
+
 /// Switch `e` to the other side, its bytes with `n` bytes of `n` appended.
 pub fn flip(e: &mut Either, n: u8) {
 	*e = match std::mem::replace(e, Either::Neither) {

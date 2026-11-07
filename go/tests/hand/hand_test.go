@@ -115,6 +115,17 @@ func TestHandedKept(t *testing.T) {
 	kept(t, "a variant switched away from", keep)
 }
 
+// A slot the translation vacates past a length shows nothing it held.
+func TestVacatedZeroed(t *testing.T) {
+	v := make([][]uint8, 0, 4)
+	if n := fixture.Vacate(&v, 100); n != 300 {
+		t.Fatalf("Vacate: %d bytes", n)
+	}
+	if s := v[:cap(v)][0]; s != nil {
+		t.Errorf("a vacated slot holds %d bytes", len(s))
+	}
+}
+
 // A panic unwinding out of the translation still hands back what Go keeps.
 func TestPanicHandsBack(t *testing.T) {
 	var v []uint8

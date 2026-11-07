@@ -280,6 +280,7 @@ func vecPop[T any](v *[]T) Option[T] {
 		return Option[T]{}
 	}
 	x := (*v)[n-1]
+	zero(&(*v)[n-1])
 	*v = (*v)[:n-1]
 	return Option[T]{tag: 1, Some: struct{ F0 T }{x}}
 }
@@ -446,7 +447,17 @@ type rawSlice struct {
 //go:linkname growslice runtime.growslice
 func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et unsafe.Pointer) rawSlice
 
+// vecTruncate is `Vec::truncate`, which zeroes the slots it vacates, as `slices.Delete`
+// does, so Go code reading past the length sees nothing moved out of them.
 func vecTruncate[T any](v *[]T, n uint) {
+	if n < uint(len(*v)) {
+		clear((*v)[n:])
+		*v = (*v)[:n]
+	}
+}
+
+// bytesTruncate is `Vec::<u8>::truncate`, which has nothing to zero.
+func bytesTruncate(v *[]uint8, n uint) {
 	if n < uint(len(*v)) {
 		*v = (*v)[:n]
 	}

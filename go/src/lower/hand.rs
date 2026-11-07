@@ -131,11 +131,6 @@ impl<'tcx> Translator<'tcx> {
 						});
 					} else {
 						let f = self.hand(elem, hand.behind(), span);
-						if hand != Hand::In {
-							// A slot past the length holds what was moved out of it, which
-							// Go code could still reach.
-							body.push("clear((*p)[len(*p):cap(*p)])".into());
-						}
 						body.push(format!("for i := range *p {{ {f}(&(*p)[i]) }}"));
 					}
 				}
