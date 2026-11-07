@@ -104,6 +104,9 @@ fn capped(id: TypeId, cap: usize) -> (fmt::Result, Capped) {
 /// A `TypeId` the compiler evaluates.
 const U8: TypeId = TypeId::of::<u8>();
 
+/// A reference to one, which the compiler places in memory.
+const U8_REF: &TypeId = &TypeId::of::<u8>();
+
 /// `T`'s `TypeId`, through a type parameter.
 fn id_of<T: ?Sized + 'static>() -> TypeId {
 	TypeId::of::<T>()
@@ -161,6 +164,7 @@ pub fn ids(data: &[u8], out: &mut Vec<u8>) {
 	let found = [
 		id_of::<u8>(),
 		U8,
+		*U8_REF,
 		const { TypeId::of::<Byte>() },
 		a.type_id(),
 		n.type_id(),
@@ -173,6 +177,7 @@ pub fn ids(data: &[u8], out: &mut Vec<u8>) {
 	for id in found {
 		put(out, &format!("{:?} ", ids.iter().position(|i| *i == id)));
 	}
+	put(out, &format!("{:?} ", ids.iter().position(|i| i == U8_REF)));
 
 	// A trait object's is its value's, borrowed, changed in place, which JS copies for a
 	// number and an enum, boxed, shared, and upcast, but a box's and an `Rc`'s own are theirs.

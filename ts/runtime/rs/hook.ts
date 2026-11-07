@@ -97,8 +97,9 @@ export function panicAny(payload: object, at?: Location): never {
  * `PanicHookInfo::payload`: what `panic_any` was given, or else the text, as a `str` or a
  * `String` object, whose classes translation makes.
  */
-export function hookPayload(info: PanicHookInfo, str: new (text: string) => object, string: new (text: string) => object): object {
-	return info.payload ?? new (info.owned ? string : str)(info.text ?? "");
+export function hookPayload<T extends object>(info: PanicHookInfo, str: new (text: string) => T, string: new (text: string) => T): T {
+	// `panic_any` made its payload an object of the same `dyn Any` the classes are.
+	return (info.payload as T | undefined) ?? new (info.owned ? string : str)(info.text ?? "");
 }
 
 /** `PanicHookInfo`'s `Display`: where it panicked, then any text, as the default hook's first lines. */

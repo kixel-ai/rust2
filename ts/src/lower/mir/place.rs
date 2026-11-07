@@ -1666,6 +1666,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					);
 				};
 				let unnamed = format!("a constant of type `{ty}`, a pointer into memory translation can't name");
+				// A `&TypeId`, or a reference to one, which translation holds as the `TypeId`.
+				if self.b.t.std_of(ty.peel_refs()) == Some(Std::TypeId) {
+					let val = ConstValue::Indirect {
+						alloc_id: prov.alloc_id(),
+						offset,
+					};
+					return self.const_value(val, *inner, span);
+				}
 				// A `Location`, as `Location::caller` gives a constant.
 				if self.b.t.std_of(*inner) == Some(Std::Location) {
 					return match self.location_const(alloc, offset, *inner) {
