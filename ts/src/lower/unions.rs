@@ -66,9 +66,43 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		args: GenericArgsRef<'tcx>,
 		typed: bool,
 	) -> Result<Overlay<'tcx>, String> {
+		self.overlay_of(env, adt, args, typed, &[])
+	}
+
+	/// How union `adt`'s definition lays out its slots, and their types where it types
+	/// them: refused if the fields whose layout it knows overlap in values JS keeps apart.
+	pub fn defined_overlay(&self, adt: AdtDef<'tcx>) -> Result<(Layout, Vec<(String, Ty<'tcx>)>), String> {
+		let tcx = self.tcx;
+		let env = TypingEnv::post_analysis(tcx, adt.did());
+		let identity = ty::GenericArgs::identity_for_item(tcx, adt.did());
+		let open: Vec<bool> = (adt.non_enum_variant().fields.iter())
+			.map(|field| {
+				let ty = self.field_ty(field.did, identity);
+				matches!(tcx.layout_of(env.as_query_input(ty)), Err(LayoutError::TooGeneric(_)))
+			})
+			.collect();
+		let (_, slots) = self.overlay_of(env, adt, identity, true, &open)?;
+		Ok(match open.contains(&true) {
+			true => (Layout::Open, Vec::new()),
+			false => (Layout::Typed, slots),
+		})
+	}
+
+	/// [`Self::overlay`], without the fields `open` marks.
+	fn overlay_of(
+		&self,
+		env: TypingEnv<'tcx>,
+		adt: AdtDef<'tcx>,
+		args: GenericArgsRef<'tcx>,
+		typed: bool,
+		open: &[bool],
+	) -> Result<Overlay<'tcx>, String> {
 		let tcx = self.tcx;
 		let mut leaves = Vec::new();
 		for (i, field) in adt.non_enum_variant().fields.iter().enumerate() {
+			if open.get(i) == Some(&true) {
+				continue;
+			}
 			let ty = self.field_ty(field.did, args);
 			self.leaves(env, ty, i, Vec::new(), 0, &mut leaves)?;
 		}
@@ -106,17 +140,6 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 		slots.sort_by_key(|(o, ..)| *o);
 		Ok((fields, slots.into_iter().map(|(o, _, ty)| (slot_name(o), ty)).collect()))
-	}
-
-	/// Whether a field of union `adt` has a layout only an instance decides.
-	pub fn open_layout(&self, adt: AdtDef<'tcx>) -> bool {
-		let tcx = self.tcx;
-		let env = TypingEnv::post_analysis(tcx, adt.did());
-		let identity = ty::GenericArgs::identity_for_item(tcx, adt.did());
-		adt.non_enum_variant().fields.iter().any(|field| {
-			let ty = self.field_ty(field.did, identity);
-			matches!(tcx.layout_of(env.as_query_input(ty)), Err(LayoutError::TooGeneric(_)))
-		})
 	}
 
 	/// Push the parts of a `ty` at `offset` in field `field`, by the `path` to it.

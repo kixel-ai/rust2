@@ -44,6 +44,18 @@ pub union Mixed<T: Copy> {
 	pub float: f32,
 }
 
+/// One whose fields that its definition lays out overlap in values JS keeps apart, beside
+/// one only an instance lays out.
+pub union Beside<T: Copy> {
+	pub int: u32,
+	pub float: f32,
+	pub value: T,
+}
+
+pub fn beside<T: Copy>(b: &Beside<T>) -> u32 {
+	unsafe { b.int }
+}
+
 pub fn mixed<T: Copy>(m: &Mixed<T>) -> u32 {
 	unsafe { m.pair.0 }
 }

@@ -1147,22 +1147,17 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			_ if adt.is_enum() && adt.variants().iter().all(|v| v.fields.is_empty()) => AdtRepr::Tags,
 			_ if adt.is_enum() => AdtRepr::Union,
 			// A union whose layout only an instance decides is laid out by each.
-			_ => {
-				let env = TypingEnv::post_analysis(tcx, did);
-				let identity = ty::GenericArgs::identity_for_item(tcx, did);
-				match self.overlay(env, adt, identity, true) {
-					Ok((_, slots)) => {
-						overlay = Some(slots);
-						AdtRepr::Slots(unions::Layout::Typed)
-					}
-					Err(_) if self.open_layout(adt) => AdtRepr::Slots(unions::Layout::Open),
-					Err(msg) => {
-						self.err(span, msg);
-						overlay = Some(Vec::new());
-						AdtRepr::Slots(unions::Layout::Refused)
-					}
+			_ => match self.defined_overlay(adt) {
+				Ok((layout, slots)) => {
+					overlay = (layout == unions::Layout::Typed).then_some(slots);
+					AdtRepr::Slots(layout)
 				}
-			}
+				Err(msg) => {
+					self.err(span, msg);
+					overlay = Some(Vec::new());
+					AdtRepr::Slots(unions::Layout::Refused)
+				}
+			},
 		};
 		let kind = match repr {
 			AdtRepr::Struct { .. } => SymKind::Struct,
