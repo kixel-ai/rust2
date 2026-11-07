@@ -101,7 +101,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `struct` | a plain object, typed by an interface; a class if it may drop |
 | `enum` without data | a union of strings: `"Lite01" \| "Lite02"`, or `never` without variants |
 | `enum` | a union of objects tagged by variant |
-| `Option<T>` | `T \| undefined`; `T \| rs.None` where `T` can already be `undefined`, as `()` and `Option` can, so `Option<()>` and `Option<Option<u64>>` keep `None` apart from each `Some` |
+| `Option<T>` | `T \| undefined`; `T \| rs.None` where `T` can already be `undefined`, as `()` and `Option` can, so `Option<()>` and `Option<Option<u64>>` keep `None` apart from each `Some`; a generic type's `Option<T>` is an `rs.OptionOf<T>`, either as each instance's `T` decides, as a generic `Poll<T>` is an `rs.PollOf<T>` |
 | `Result<T, E>` | `rs.Result<T, E>`: `{ ok: true, value }` or `{ ok: false, error }`; `rs.OK` or `rs.ERR` where the payload is `undefined`, as in `Ok(())` |
 | `ControlFlow<B, C>` | `rs.Result<C, B>`, `Ok` to continue; what `?` branches on is the value it was applied to, but for a `Poll`'s `Pending` and `Ready(None)`, which continue as `Ok` of themselves |
 | tuple, `[T; N]`, `&[T; N]` | an array, and `rs.Slice<T>` of all of it for `&[T; N]`; for bytes, `u8` or `MaybeUninit<u8>`, `Uint8Array` for `[u8; N]`, and `rs.ByteSlice` for `&[u8; N]` |
@@ -467,7 +467,11 @@ in a generic type to what only an instance decides the form of, such as `*mut T`
 which each read of an instance's field casts to what it holds. So is a run of a
 parameter, whose `u8` instance holds bytes: `[T; N]` is an `rs.ArrayOf<T>`, a `T[]` or a
 `Uint8Array`, and `[T]`, `Vec<T>`, and `Cow<[T]>` an `rs.SliceOf<T>`, an `rs.VecOf<T>`,
-and an `rs.CowOf<T>`. A type's module exports the
+and an `rs.CowOf<T>`. An `Option<T>` or a `Poll<T>` of a parameter is an
+`rs.OptionOf<T>` or an `rs.PollOf<T>`, a conditional type TypeScript resolves at each
+instance to what that instance's own `Option` or `Poll` is, `T | undefined` or
+`T | rs.None`, so a read needs no cast, and a value made into a field is cast to it, which
+TypeScript infers the instance's arguments from. A type's module exports the
 type by its own name, which a caller writes `Decoder.Decoder`, and a function whose name
 and exports it as its own: `function new_` is `Decoder.new`. A module imports a function
 or value by its name, and a type's module whole by the type's, `import * as Decoder`,
@@ -601,9 +605,10 @@ caller can implement. A generic trait's type is generic over the trait's type pa
 then the associated types its objects bind that no supertrait binds already, so
 `dyn Source<Item = u8>` is a `Source.Source<rs.u8>`, and is typed as the trait declares
 it, as a generic struct is: a call casts what it returns to the form its object's
-arguments decide, such as the `rs.u8` of an `rs.Ptr<T>`. One whose method takes or returns
-another form at its arguments, such as the `rs.None` of an `Option<Self::Item>` whose
-`Item` is an `Option` too, is refused. A coercion wraps the value in a class of its type's from `lib.ts`,
+arguments decide, such as the `rs.u8` of an `rs.Ptr<T>`. An `Option<Self::Item>` is an
+`rs.OptionOf<Item>`, so an `Item` that can be `undefined` returns `rs.None`. One whose
+method takes or returns another form at its arguments, such as the `rs.None` of an
+`Option<Self::Item>` whose `Item` is a `MaybeUninit<u32>`, typed `number`, is refused. A coercion wraps the value in a class of its type's from `lib.ts`,
 named for the type as a suffix spells it, `new of$dyns_Square(sq)`, which every trait's
 object of the type shares, whose methods call that type's impls; one from a `&mut` to a
 value JS copies holds its `rs.Place`, as `ofPlace$dyns_Square`, so `&mut self` writes
@@ -1087,13 +1092,14 @@ fields overlap in different types ([unsafe](/quest/m3/ts-unsafe/README.md)), and
 behind `&`, `&mut`, `Box`, `Arc`, `Rc`, `Weak`, or `Pin` ([trait objects](/quest/m3/ts-dyn.md)), fail translation. Until they translate, an item that needs one, such as a `Box<dyn Error>` made `From` a string, binds to
 hand-written TS ([bindings](#bindings)).
 
-These fail translation: `f16` and `f128`, a `Poll` of a `Poll` of a `Poll`, a future whose output can be pending, an instance of a generic type whose field is a `Poll` of a type parameter that can be pending, a closure that owns a value
+These fail translation: `f16` and `f128`, a `Poll` of a `Poll` of a `Poll`, a future whose output can be pending, a closure that owns a value
 that drops given to a std function that keeps it other than in an iterator or a
 `poll_fn`, or whose mapping doesn't drop it where std's does, a `Cow` of other than `str` or a slice, a std
 function without a mapping of its own that makes or reads an `Option` whose `None` is
 `rs.None`, an `Option` of an `Option` of `()` or another
 `Option`, an instance of a generic type whose field is an `Option` of a type parameter
-that can be `undefined`, a `String`'s `capacity`, looking up a key by
+that can be `undefined` though TypeScript's type of it can't, as a `MaybeUninit<u32>`
+can, or an `Option` or a `Poll` of another form of it whose instance can be `undefined` or pending, a `String`'s `capacity`, looking up a key by
 another type it borrows as through the crate's own `Borrow`, a `&mut` to a value JS
 copies that std makes, other than a map's, or hands a closure, as `iter_mut` and
 `and_modify` do, one into a `Result`'s payload passed on or kept, the adaptors

@@ -3,6 +3,6 @@
 import * as rs from "./rs.ts";
 
 /** A trait with an associated type. */
-export type Source<Item> = { take$Source: () => Item | undefined; left$Source: () => rs.usize };
+export type Source<Item> = { take$Source: () => rs.OptionOf<Item>; left$Source: () => rs.usize };
 
 //# sourceMappingURL=dyns.Source.ts.map
