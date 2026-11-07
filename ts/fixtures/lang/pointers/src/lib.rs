@@ -53,5 +53,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("pointers::generic_unions", |_, data, out| {
 			pointers::generic_unions(data, out)
 		}),
+		("pointers::lone_bytes", |_, data, out| pointers::lone_bytes(data, out)),
 	]
 }

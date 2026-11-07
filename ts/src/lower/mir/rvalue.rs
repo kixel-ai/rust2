@@ -130,6 +130,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					// `&raw mut *p` is `p`. A pointer to `()` is an identity, which only another
 					// pointer is: not the `rs.Place` of a place or of a `&mut`, each borrow's own.
 					Pointee::Place => match place.projection.as_slice() {
+						// A byte in a buffer of its own: element 0 of it.
+						_ if let Some(local) = self.raw_byte(*place)
+							&& let Slot::Byte(name) = &self.slots[local] =>
+						{
+							Expr::rs("arrayAsPtr", vec![Expr::ident(name)])
+						}
 						[rest @ .., mir::ProjectionElem::Deref]
 							if !self.box_pointer(place.local) && {
 								let base = Place::ty_from(place.local, rest, &self.mir.local_decls, tcx).ty;
@@ -485,7 +491,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				if let (Some(a), Some(b)) = (from.builtin_deref(true), to.builtin_deref(true))
 					&& from.is_raw_ptr() =>
 			{
-				if let Some(why) = self.erased_borrow(op, a, b).or_else(|| self.lone_byte_array(op, a, b)) {
+				if let Some(why) = self.erased_borrow(op, a, b) {
 					return self.err(span, why);
 				}
 				if let Some(cast) = self.alloc_cast(op, a, b, span, out) {
