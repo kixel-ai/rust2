@@ -2204,7 +2204,7 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		dropped(out);
 		locked[Symbol.dispose]();
 		dropped(out);
-		let slot: rs.Cell<rs.u32> = (undefined as unknown) as rs.Cell<rs.u32>;
+		let slot: rs.Cell<rs.u32> = (new rs.Cell(undefined) as unknown) as rs.Cell<rs.u32>;
 		const thin: rs.Place<rs.Cell<rs.u32>> = rs.place(() => slot, (value22) => slot = value22);
 		const wide: rs.Place<rs.Cell<Shape.Shape>> = rs.rawUnsizePlace(thin, (p12) => rs.tailDyn(p12, { v: (value23: rs.Cell<rs.u32>) => new ofPlace$u32(value23) }));
 		const null_: boolean = wide === rs.NULL;

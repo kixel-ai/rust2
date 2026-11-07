@@ -16,7 +16,7 @@ export interface Segment {
 function new_(): Segment {
 	let _6!: rs.usize;
 	const slots: Lent.Lent<[rs.u8, rs.u8]>[] = Array.from({ length: 4 }, (): Lent.Lent<[rs.u8, rs.u8]> => {
-		return (new Lent.Lent((undefined as unknown) as rs.Cell<[rs.u8, rs.u8]>) as unknown) as Lent.Lent<[rs.u8, rs.u8]>;
+		return (new Lent.Lent((new rs.Cell([undefined, undefined]) as unknown) as rs.Cell<[rs.u8, rs.u8]>) as unknown) as Lent.Lent<[rs.u8, rs.u8]>;
 	});
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = 4;
@@ -42,7 +42,7 @@ function new_(): Segment {
 /** As [`Self::new`], with kio's loop written with an iterator. */
 export function iterated(): Segment {
 	const slots: Lent.Lent<[rs.u8, rs.u8]>[] = Array.from({ length: 4 }, (): Lent.Lent<[rs.u8, rs.u8]> => {
-		return (new Lent.Lent((undefined as unknown) as rs.Cell<[rs.u8, rs.u8]>) as unknown) as Lent.Lent<[rs.u8, rs.u8]>;
+		return (new Lent.Lent((new rs.Cell([undefined, undefined]) as unknown) as rs.Cell<[rs.u8, rs.u8]>) as unknown) as Lent.Lent<[rs.u8, rs.u8]>;
 	});
 	const iter: rs.Iter<Lent.Lent<[rs.u8, rs.u8]>> = rs.iterSlice(slots);
 	while (true) {

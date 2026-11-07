@@ -274,13 +274,20 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		}
 		let ty = self.uninit_inner(ty);
 		match (self.pointee(ty), ty.kind()) {
+			// A cell, so a pointer `raw_get` makes into it before a write sees the write,
+			// which lands in it.
+			(_, ty::Adt(adt, args)) if Std::of(self.tcx, adt.did()) == Some(Std::Cell) => Expr::New(
+				Box::new(Expr::Rs("Cell".into())),
+				vec![self.shell(args.type_at(0), span)],
+			),
 			(Pointee::Object, ty::Tuple(tys)) => Expr::Array(tys.iter().map(|t| self.shell(t, span)).collect()),
 			(Pointee::Array, ty::Array(elem, len)) => {
 				let len = Expr::lit(len.try_to_target_usize(self.tcx).unwrap_or(0).to_string());
+				let cell = matches!(elem.kind(), ty::Adt(adt, _) if Std::of(self.tcx, adt.did()) == Some(Std::Cell));
 				match (super::byte(*elem), self.pointee(*elem)) {
 					(true, _) => Expr::New(Box::new(Expr::ident("Uint8Array")), vec![len]),
-					(_, Pointee::Place) => Expr::New(Box::new(Expr::ident("Array")), vec![len]),
-					(_, Pointee::Object | Pointee::Array | Pointee::Slice) => {
+					(_, Pointee::Place) if !cell => Expr::New(Box::new(Expr::ident("Array")), vec![len]),
+					(_, Pointee::Place | Pointee::Object | Pointee::Array | Pointee::Slice) => {
 						let elem_ty = self.ty(*elem, span);
 						let each = Expr::Arrow(
 							Vec::new(),
@@ -1439,13 +1446,17 @@ fn write_kept<'tcx>(b: &mut Body<'_, '_, 'tcx>, at: Expr, value: Expr, ty: Ty<'t
 }
 
 /// A copy of `at`, the JS value of a `ty` that keeps cells, with a cell of its own for
-/// each it keeps, so a write into those in place leaves the copy be.
+/// each it keeps, so a write into those in place leaves the copy be, and each other part
+/// copied as a read copies it.
 fn copy_kept<'tcx>(b: &mut Body<'_, '_, 'tcx>, at: Expr, ty: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 	match b.t.kept_cells(ty) {
 		Some(KeptCells::Cell(held)) => {
-			let value = match b.t.keeps_cells(held) {
-				true => copy_kept(b, at.member("v"), held, span, out),
-				false => {
+			let value = match (b.t.keeps_cells(held), b.t.pointee(held)) {
+				(true, _) => copy_kept(b, at.member("v"), held, span, out),
+				(false, Pointee::Object) if let Some(copy) = b.t.snapshot_fn(held, span) => {
+					copy.call(vec![at.member("v")])
+				}
+				(false, _) => {
 					let p = cell_pointer(b, at, held);
 					copied_out(b, p, held, span, out)
 				}
@@ -1456,12 +1467,16 @@ fn copy_kept<'tcx>(b: &mut Body<'_, '_, 'tcx>, at: Expr, ty: Ty<'tcx>, span: Spa
 			let at = b.spill(at, "object", out);
 			let copy = b.spill(Expr::rs("objectCopy", vec![at.clone()]), "copy", out);
 			for (i, &(field, kept)) in fields.iter().enumerate() {
-				if kept {
-					let from = object_field(b, at.clone(), ty, i, span);
-					let cell = copy_kept(b, from, field, span, out);
-					let part = object_field(b, copy.clone(), ty, i, span);
-					out.push(StmtKind::Expr(part.assign(cell)).at(None));
-				}
+				let from = object_field(b, at.clone(), ty, i, span);
+				let value = match kept {
+					true => copy_kept(b, from, field, span, out),
+					false => match b.t.snapshot_fn(field, span) {
+						Some(copy) => copy.call(vec![from]),
+						None => continue,
+					},
+				};
+				let part = object_field(b, copy.clone(), ty, i, span);
+				out.push(StmtKind::Expr(part.assign(value)).at(None));
 			}
 			copy
 		}

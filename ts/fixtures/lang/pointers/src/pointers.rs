@@ -2833,7 +2833,9 @@ struct Celled {
 /// Whole writes of values holding cells into a cell, a tuple, and a struct, each read back
 /// through a pointer saved into an inner cell before: `UnsafeCell::replace`, `ptr::replace`,
 /// `ptr::write`, `ptr::swap`, `Cell`'s writes, and assignments through a raw pointer; a
-/// value `ptr::read` copies out before one; and `ptr::write`s into memory not written yet.
+/// value `ptr::read` copies out before one, and before a write into a part holding no
+/// cell; `ptr::write`s into memory not written yet; and pointers `UnsafeCell::raw_get`
+/// makes into such memory before the write.
 pub fn nested_cells(data: &[u8], out: &mut Vec<u8>) {
 	let nest = UnsafeCell::new(UnsafeCell::new(1u32));
 	let deep = UnsafeCell::new(UnsafeCell::new(UnsafeCell::new(2u32)));
@@ -2922,6 +2924,17 @@ pub fn nested_cells(data: &[u8], out: &mut Vec<u8>) {
 						*fresh.assume_init_ref().get() as u8,
 						*parts.assume_init_ref().0.get() as u8,
 					]);
+					let mut slot = MaybeUninit::<UnsafeCell<u32>>::uninit();
+					let mut pair_slot = MaybeUninit::<UnsafeCell<(u8, u8)>>::uninit();
+					let (to_slot, to_pair_slot) = (slot.as_mut_ptr(), pair_slot.as_mut_ptr());
+					let (early, early_pair) = (UnsafeCell::raw_get(to_slot), UnsafeCell::raw_get(to_pair_slot));
+					ptr::write(to_slot, UnsafeCell::new(u32::from(n) ^ 17));
+					ptr::write(to_pair_slot, UnsafeCell::new((n, !n)));
+					out.extend([*early as u8, (*early_pair).1]);
+					let src = UnsafeCell::new((UnsafeCell::new(u32::from(n)), (2u32, 3u32)));
+					let copy = ptr::read(src.get());
+					(*src.get()).1.0 = 9;
+					out.extend([copy.1.0 as u8, (*src.get()).1.0 as u8]);
 				}
 				_ => {
 					*nest.get() = UnsafeCell::new(u32::from(n) ^ 13);
