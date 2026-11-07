@@ -206,6 +206,7 @@ const VERBATIM: &[&str] = &[
 	"str",
 	"str::as_ptr",
 	"undefined",
+	"write_bytes",
 	"write_str",
 	"zip",
 	"{:.2}",

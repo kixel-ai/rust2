@@ -457,6 +457,16 @@ pub fn reached_out(h: Halves, lanes: [u32; 4]) -> u32 {
 	}
 }
 
+/// `write_bytes` through a pointer to what JS keeps as a value rather than its bytes, and
+/// through one to a byte in no array, past it.
+pub fn written_bytes(mut lanes: [u32; 2], mut b: u8) -> u32 {
+	unsafe {
+		std::ptr::write_bytes(lanes.as_mut_ptr(), 0, 2);
+		(&raw mut b).write_bytes(0xff, 2);
+	}
+	lanes[0] + u32::from(b)
+}
+
 /// A slice of one `u8`'s place, which no `rs.ByteSlice` views.
 pub fn byte_slice_of_place(b: &mut u8) {
 	std::slice::from_mut(b)[0] = 1;
