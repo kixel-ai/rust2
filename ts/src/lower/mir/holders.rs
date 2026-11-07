@@ -708,6 +708,12 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 				ty::Array(elem, _) | ty::Slice(elem) | ty::Pat(elem, _) => stack.push(*elem),
 				ty::Tuple(tys) => stack.extend(tys.iter()),
 				ty::Closure(_, args) => stack.extend(args.as_closure().upvar_tys()),
+				// A raw pointer of std's points as one does.
+				ty::Adt(adt, args) if raw_carrier(tcx, adt.did()) => {
+					if args.types().any(|t| self.takes_pointer(t)) {
+						return true;
+					}
+				}
 				ty::Adt(adt, args) if crate::lower::library::is_std(tcx, adt.did()) => stack.extend(args.types()),
 				ty::Adt(adt, args) => {
 					stack.extend(adt.all_fields().map(|field| field_ty(tcx, self.env, field.did, args)))
@@ -720,8 +726,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 
 	/// Whether a value of `ty` could hold a raw pointer, which names no region of the
 	/// reference it was made from: in a field, behind a reference, in a std type's type
-	/// argument or one of std's own that holds a pointer its safe API gives back, in a type
-	/// parameter's value, or in a trait object's.
+	/// argument or a [`raw_carrier`], in a type parameter's value, or in a trait object's.
 	pub fn hides_raw_pointer(&self, ty: Ty<'tcx>) -> bool {
 		let tcx = self.t.tcx;
 		let mut seen = FxHashSet::default();
@@ -743,16 +748,8 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 				ty::Ref(_, inner, _) | ty::Array(inner, _) | ty::Slice(inner) | ty::Pat(inner, _) => stack.push(*inner),
 				ty::Tuple(tys) => stack.extend(tys.iter()),
 				ty::Closure(_, args) => stack.extend(args.as_closure().upvar_tys()),
-				ty::Adt(adt, args) if crate::lower::library::is_std(tcx, adt.did()) => {
-					let path = crate::lower::library::std_path(tcx, adt.did());
-					if matches!(
-						path.last().map(String::as_str),
-						Some("NonNull" | "AtomicPtr" | "RawWaker")
-					) {
-						return true;
-					}
-					stack.extend(args.types());
-				}
+				ty::Adt(adt, _) if raw_carrier(tcx, adt.did()) => return true,
+				ty::Adt(adt, args) if crate::lower::library::is_std(tcx, adt.did()) => stack.extend(args.types()),
 				ty::Adt(adt, args) => {
 					stack.extend(adt.all_fields().map(|field| field_ty(tcx, self.env, field.did, args)))
 				}
@@ -789,7 +786,7 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 				ty::Array(elem, _) | ty::Slice(elem) | ty::Pat(elem, _) => stack.push(*elem),
 				ty::Tuple(tys) => stack.extend(tys.iter()),
 				ty::Adt(adt, args) if std_args && crate::lower::library::is_std(self.t.tcx, adt.did()) => {
-					if args.regions().next().is_some() {
+					if args.regions().next().is_some() || raw_carrier(self.t.tcx, adt.did()) {
 						return true;
 					}
 					stack.extend(args.types());
@@ -1782,4 +1779,18 @@ impl<'tcx> Visitor<'tcx> for Reads<'_> {
 	fn visit_local(&mut self, local: Local, _: PlaceContext, _: Location) {
 		self.found |= self.holders.contains(local);
 	}
+}
+
+/// Whether `did` is one of std's types that hold a raw pointer safe code puts in and gets
+/// back, unlike std's others, whose pointers are private.
+fn raw_carrier(tcx: ty::TyCtxt<'_>, did: DefId) -> bool {
+	matches!(
+		crate::lower::library::std_path(tcx, did).as_slice(),
+		[.., m, name] if matches!(
+			(m.as_str(), name.as_str()),
+			("non_null", "NonNull")
+				| ("atomic", "AtomicPtr")
+				| ("wake", "RawWaker" | "Waker" | "LocalWaker" | "Context")
+		)
+	)
 }

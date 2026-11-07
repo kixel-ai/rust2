@@ -8152,6 +8152,12 @@ export function stash(s: rs.ByteSlice, into: rs.Place<rs.Place<rs.u8> | undefine
 	into.v = rs.byteSliceAsPtr(s);
 }
 
+/** Puts a pointer to the first byte of `s` where `into` points, as std's `NonNull`. */
+export function stashNonNull(s: rs.ByteSlice, into: rs.Place<rs.Place<rs.u8> | undefined>): void {
+	const pointer = rs.byteSliceAsPtr(s);
+	into.v = pointer === rs.NULL ? undefined : pointer;
+}
+
 /**
  * Slices of one byte where it is, each read and written, and the byte read where it is
  * after: in a field, a tuple's, an array's, an `Option`'s, a `MaybeUninit`'s, a variable,
@@ -8168,6 +8174,7 @@ export function bytePlaces(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 	let mirror14!: rs.ByteMirror | undefined;
 	let mirror15!: rs.ByteMirror | undefined;
 	let mirror16!: rs.ByteMirror | undefined;
+	let mirror17!: rs.ByteMirror | undefined;
 	let mirror2!: rs.ByteMirror | undefined;
 	let mirror3!: rs.ByteMirror | undefined;
 	let mirror4!: rs.ByteMirror | undefined;
@@ -8269,11 +8276,11 @@ export function bytePlaces(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 			break;
 		}
 		rs.idx(_152.v, 0);
-		const _303: rs.ByteSlice = _152.v;
-		const _156: rs.u8 = rs.u8WrappingAdd(_303.data[_303.start], at(13));
+		const _317: rs.ByteSlice = _152.v;
+		const _156: rs.u8 = rs.u8WrappingAdd(_317.data[_317.start], at(13));
 		rs.idx(_152.v, 0);
-		const _305: rs.ByteSlice = _152.v;
-		_305.data[_305.start] = _156;
+		const _319: rs.ByteSlice = _152.v;
+		_319.data[_319.start] = _156;
 		rs.byteMirrorFlush(mirror10);
 		rs.byteMirrorFlush(mirror11);
 	}
@@ -8287,9 +8294,9 @@ export function bytePlaces(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 	rs.byteMirrorFlush(mirror10);
 	rs.byteMirrorFlush(mirror11);
 	rs.idx(v.items[at2], 0);
-	const _307: rs.ByteSlice = v.items[at2];
-	const _308: rs.ByteSlice = v.items[at2];
-	_307.data[_307.start] = _308.data[_308.start] ^ 1;
+	const _321: rs.ByteSlice = v.items[at2];
+	const _322: rs.ByteSlice = v.items[at2];
+	_321.data[_321.start] = _322.data[_322.start] ^ 1;
 	rs.byteMirrorFlush(mirror10);
 	rs.byteMirrorFlush(mirror11);
 	rs.byteMirrorFlush(mirror10);
@@ -8365,6 +8372,20 @@ export function bytePlaces(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 		const _297: rs.u8 = at(24);
 		p2.v = p2.v ^ _297;
 		rs.byteMirrorFlush(mirror16);
+	}
+	let into2 = undefined as rs.Place<rs.u8> | undefined;
+	const borrowed18 = h.pair;
+	stashNonNull((mirror17 = rs.byteMirror(rs.place(() => borrowed18[1], (value24) => borrowed18[1] = value24))).s, rs.place(() => into2, (value25) => into2 = value25));
+	rs.byteMirrorFlush(mirror17);
+	if (into2 !== undefined) {
+		const p3: rs.Place<rs.u8> = into2;
+		const _309: rs.Place<rs.u8> = p3;
+		rs.byteMirrorFlush(mirror17);
+		const _307: rs.u8 = rs.u8WrappingMul(_309.v, at(25));
+		const _313: rs.Place<rs.u8> = p3;
+		rs.byteMirrorFlush(mirror17);
+		_313.v = _307;
+		rs.byteMirrorFlush(mirror17);
 	}
 	Header.put(h, out);
 	rs.byteMirrorFlush(mirror12);

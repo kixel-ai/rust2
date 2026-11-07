@@ -827,6 +827,11 @@ fn stash(s: &mut [u8], into: &mut Option<*mut u8>) {
 	*into = Some(s.as_mut_ptr());
 }
 
+/// Puts a pointer to the first byte of `s` where `into` points, as std's `NonNull`.
+fn stash_non_null(s: &mut [u8], into: &mut Option<std::ptr::NonNull<u8>>) {
+	*into = std::ptr::NonNull::new(s.as_mut_ptr());
+}
+
 /// Slices of one byte where it is, each read and written, and the byte read where it is
 /// after: in a field, a tuple's, an array's, an `Option`'s, a `MaybeUninit`'s, a variable,
 /// through a parameter and a `&mut` to a `&mut`, kept in a closure, a `Vec`, a copy, and
@@ -921,6 +926,12 @@ pub fn byte_places(_kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	if let Some(p) = into {
 		// SAFETY: as above, for `h.pair.0`.
 		unsafe { *p ^= at(24) };
+	}
+	let mut into = None;
+	stash_non_null(std::slice::from_mut(&mut h.pair.1), &mut into);
+	if let Some(p) = into {
+		// SAFETY: as above, for `h.pair.1`.
+		unsafe { *p.as_ptr() = (*p.as_ptr()).wrapping_mul(at(25)) };
 	}
 	h.put(out);
 }
