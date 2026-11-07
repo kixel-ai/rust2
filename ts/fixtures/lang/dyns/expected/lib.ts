@@ -583,7 +583,7 @@ export class of$dyns_Noisy {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "629ea3d0db74a6a4121c4b5c2ea86c5d";
+		return "16a5b7dad13abb2368cccd1d4411ed29";
 	}
 }
 
@@ -659,7 +659,7 @@ export class of$dyns_Square {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "4d27e589f80a9b722ffd015b418dab46";
+		return "2bc6a9a6ddabf1ab5bf7f2ef98b9915f";
 	}
 }
 
@@ -751,7 +751,7 @@ export class of$dyns_Tri {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "db6a2678079cd6de1063f521a32772c0";
+		return "1efc30ab591c39470b121f4a2de91e05";
 	}
 }
 
@@ -859,7 +859,7 @@ export class of$ids_Byte {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "eb8e0be2af5c781063b1d1468b15a0f1";
+		return "47cf44edf6d848167c2724f9fe31a15d";
 	}
 }
 
@@ -871,7 +871,7 @@ export class of$ids_Mood {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "180954c559d9dbe8afcd63c1da176c31";
+		return "586c02dbd458954a051f9cd00d861391";
 	}
 }
 
@@ -1341,7 +1341,7 @@ export class ofPlace$dyns_Tri {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "db6a2678079cd6de1063f521a32772c0";
+		return "1efc30ab591c39470b121f4a2de91e05";
 	}
 }
 
@@ -1353,7 +1353,7 @@ export class ofPlace$ids_Mood {
 	}
 
 	typeId$Any(): rs.TypeId {
-		return "180954c559d9dbe8afcd63c1da176c31";
+		return "586c02dbd458954a051f9cd00d861391";
 	}
 }
 
