@@ -26,13 +26,6 @@ export function clone$0wpatp7(self: rs.u16 | undefined | rs.None): rs.u16 | unde
 	return self;
 }
 
-export function clone$14nprly(self: string | undefined): string | undefined {
-	if (self === undefined) {
-		return undefined;
-	}
-	return self;
-}
-
 export function clone$13oewp0(self: Uint8Array | undefined): Uint8Array | undefined {
 	if (self === undefined) {
 		return undefined;

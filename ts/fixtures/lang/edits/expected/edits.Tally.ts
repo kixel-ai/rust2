@@ -5,11 +5,11 @@ import * as rs from "./rs.ts";
 /** What `mem::take` leaves its own `Default` in place of. */
 export interface Tally {
 	n: rs.u8;
-	names: rs.Vec<string>;
+	names: rs.Vec<rs.String>;
 }
 
 export function default$Default(): Tally {
-	return { n: 7, names: rs.vecFrom(["fresh"]) };
+	return { n: 7, names: rs.vecFrom([rs.stringFrom("fresh")]) };
 }
 
 //# sourceMappingURL=edits.Tally.ts.map

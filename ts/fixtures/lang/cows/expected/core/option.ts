@@ -31,11 +31,11 @@ export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u
 	return self;
 }
 
-export function map$167hjon(self: rs.StrCow | undefined, _: (a0: rs.StrCow) => string): string | undefined {
+export function map$0bka7d0(self: rs.StrCow | undefined, _: (a0: rs.StrCow) => rs.String): rs.String | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
-	return rs.strCowStr(self);
+	return rs.strCowIntoOwned(self);
 }
 
 export function map$1g811lq(self: string | undefined, _: (a0: string) => rs.StrCow): rs.StrCow | undefined {
@@ -45,7 +45,7 @@ export function map$1g811lq(self: string | undefined, _: (a0: string) => rs.StrC
 	return new rs.Borrowed(self);
 }
 
-export function mapOr$1nyk1yj(self: string | undefined, default_: rs.u8, f: (a0: string) => rs.u8): rs.u8 {
+export function mapOr$1fzqoua(self: rs.String | undefined, default_: rs.u8, f: (a0: rs.String) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}

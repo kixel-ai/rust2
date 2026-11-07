@@ -19,7 +19,7 @@ export function deref$ops_Deref_Option_u8(self: Held<rs.u8 | undefined>): rs.u8 
 	return self._0.value;
 }
 
-export function deref$ops_Deref_String(self: Held<string>): string {
+export function deref$ops_Deref_String(self: Held<rs.String>): rs.String {
 	return self._0.value;
 }
 
@@ -35,8 +35,8 @@ export function derefMut$ops_DerefMut_Option_u8(self: Held<rs.u8 | undefined>): 
 	return rs.place(() => self._0.value, (value) => self._0.value = value);
 }
 
-export function derefMut$ops_DerefMut_String(self: Held<string>): rs.Place<string> {
-	return rs.place(() => self._0.value, (value) => self._0.value = value);
+export function derefMut$ops_DerefMut_String(self: Held<rs.String>): rs.String {
+	return self._0.value;
 }
 
 export function derefMut$ops_DerefMut_Vec_u8(self: Held<rs.ByteVec>): rs.ByteVec {

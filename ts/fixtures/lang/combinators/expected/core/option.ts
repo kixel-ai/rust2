@@ -23,7 +23,7 @@ export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u
 	return self;
 }
 
-export function unwrapOrElse$1badkpb(self: string | undefined, f: () => string): string {
+export function unwrapOrElse$1va5cjo(self: rs.String | undefined, f: () => rs.String): rs.String {
 	if (self === undefined) {
 		return f();
 	}
@@ -37,9 +37,9 @@ export function unwrapOrElse$0wd124z(self: rs.u8 | undefined, f: () => rs.u8): r
 	return self;
 }
 
-export function unwrapOrDefault$165pyh5(self: string | undefined): string {
+export function unwrapOrDefault$1exlfpa(self: rs.String | undefined): rs.String {
 	if (self === undefined) {
-		return "";
+		return rs.stringNew();
 	}
 	return self;
 }
@@ -58,7 +58,7 @@ export function unwrapOrDefault$03apme8(self: rs.u8 | undefined): rs.u8 {
 	return self;
 }
 
-export function map$1y26nmr(self: rs.u8 | undefined, f: (a0: rs.u8) => string): string | undefined {
+export function map$0n6ziv9(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.String): rs.String | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -142,7 +142,7 @@ export function okOr$1j8owgb(self: rs.u8 | undefined, err: rs.u8): rs.Result<rs.
 	return rs.Ok(self);
 }
 
-export function okOrElse$1usib9z(self: rs.ByteVec | undefined, err: () => string): rs.Result<rs.ByteVec, string> {
+export function okOrElse$1xtou7y(self: rs.ByteVec | undefined, err: () => rs.String): rs.Result<rs.ByteVec, rs.String> {
 	if (self === undefined) {
 		return rs.Err(err());
 	}
@@ -170,9 +170,9 @@ export function andThen$195hx6l(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8
 	return f(self);
 }
 
-export function filter$1855tjj(self: string | undefined, predicate: (a0: string) => boolean): string | undefined {
+export function filter$0hpv4s6(self: rs.String | undefined, predicate: (a0: rs.String) => boolean): rs.String | undefined {
 	if (self !== undefined) {
-		const x: string = self;
+		const x: rs.String = self;
 		if (predicate(x)) {
 			return x;
 		}
@@ -197,7 +197,7 @@ export function or$0ar58vy(self: rs.u8 | undefined, optb: rs.u8 | undefined): rs
 	return self;
 }
 
-export function orElse$05gzawv(self: string | undefined, f: () => string | undefined): string | undefined {
+export function orElse$12s7nhv(self: rs.String | undefined, f: () => rs.String | undefined): rs.String | undefined {
 	if (self === undefined) {
 		return f();
 	}
@@ -242,11 +242,11 @@ export function zip$0p00b0o(self: rs.u8 | undefined, other: rs.u8 | undefined): 
 	return _0;
 }
 
-export function clone$14nprly(self: string | undefined): string | undefined {
+export function clone$0dg4ec5(self: rs.String | undefined): rs.String | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
-	return self;
+	return rs.stringClone(self);
 }
 
 //# sourceMappingURL=option.ts.map

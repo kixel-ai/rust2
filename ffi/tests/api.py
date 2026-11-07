@@ -9,7 +9,6 @@ import asyncio
 import datetime
 import gc
 import os
-import select
 import sys
 import threading
 
@@ -605,7 +604,7 @@ async def on_loop():
 		return task
 
 	def signaled():
-		return bool(select.select([wakeup.queue.fileno()], [], [], 0)[0])
+		return wakeup.queue.signaled()
 
 	async def settle():
 		for _ in range(4):

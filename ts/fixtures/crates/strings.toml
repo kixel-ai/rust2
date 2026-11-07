@@ -1,4 +1,0 @@
-# A `Bytes` of a `String`'s bytes that the dependency makes, and the package's read of its
-# capacity: `strings.txt` holds the error.
-package = "crates-fixture"
-roots = ["unique"]

@@ -81,6 +81,14 @@ export function drop$Option_tuple2_u16_maps_Logged(_1: [rs.u16, Logged.Logged] |
 	}
 }
 
+export function drop$Result_bytes_BytesMut_bytes_Bytes(_1: rs.Result<rs.BytesMut, rs.ByteSlice>): void {
+	if (_1.ok) {
+		_1.value[Symbol.dispose]();
+	} else {
+		rs.bytesDrop(_1.error);
+	}
+}
+
 export function drop$bytes_buf_Chain_boxed_Box_dyn_bytes_Buf_bytes_Bytes(_1: Chain.Chain<Buf.Buf, rs.ByteSlice>): void {
 	rs.drop(_1.a);
 	rs.bytesDrop(_1.b);

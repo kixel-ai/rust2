@@ -3,14 +3,14 @@
 import * as rs from "./rs.ts";
 
 export function clone$Clone(self: Named): Named {
-	return { id: self.id, name: self.name };
+	return { id: self.id, name: rs.stringClone(self.name) };
 }
 
 export function eq$cmp_PartialEq(self: Named, other: Named): boolean {
 	if (!(self.id === other.id)) {
 		return false;
 	}
-	return self.name === other.name;
+	return rs.eqStr(self.name, other.name);
 }
 
 export function partialCmp$cmp_PartialOrd(self: Named, other: Named): rs.Ordering | undefined {
@@ -26,7 +26,7 @@ export function partialCmp$cmp_PartialOrd(self: Named, other: Named): rs.Orderin
 /** An element that is not `Copy`, cloned and compared field by field. */
 export interface Named {
 	id: rs.u16;
-	name: string;
+	name: rs.String;
 }
 
 //# sourceMappingURL=edits.Named.ts.map
