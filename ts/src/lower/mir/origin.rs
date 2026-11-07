@@ -125,12 +125,13 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				let o = self.lone_origin(arg(0)?)?;
 				out(self.moved(o, name.as_str(), arg(1)?), None, "a pointer")
 			}
-			// An access through a pointer, which the body shows one element at.
+			// An access through a pointer, which the body shows one element at: both of a
+			// swap's, and else the first argument, as the second is the value written.
 			(
 				"ptr" | "NonNull",
 				"read" | "read_unaligned" | "read_volatile" | "write" | "write_unaligned" | "write_volatile"
 				| "replace" | "swap" | "as_ref" | "as_mut" | "drop_in_place",
-			) => [arg(0), arg(1)]
+			) => [Some(arg(0)?), arg(1).filter(|_| name == "swap")]
 				.into_iter()
 				.flatten()
 				.find_map(|p| self.access(self.lone_origin(p)?)),
@@ -184,7 +185,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let [ProjectionElem::Deref, ..] = place.projection.as_slice() else {
 			return None;
 		};
-		if !self.mir.local_decls[place.local].ty.is_raw_ptr() {
+		// Every pointer to a value of no bytes is where it was, as `stray` leaves it.
+		let ty::RawPtr(pointee, _) = *self.mir.local_decls[place.local].ty.kind() else {
+			return None;
+		};
+		if self.b.t.zero_sized(pointee) || self.b.t.pointee(pointee) != Pointee::Place {
 			return None;
 		}
 		self.access(self.lone_origin(&Operand::Copy(mir::Place::from(place.local)))?)

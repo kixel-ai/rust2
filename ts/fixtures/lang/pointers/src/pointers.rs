@@ -2656,6 +2656,26 @@ pub fn behind_refs(data: &[u8], out: &mut Vec<u8>) {
 	};
 	let second: NonNull<u32> = (&halves).into();
 	out.push(unsafe { *second.as_ptr() } as u8);
+	// A pointer one past a variable, stored whole through a pointer to a pointer, and one
+	// moved off a value of no bytes and borrowed: valid, as neither reads past its value.
+	let lone = u32::from(bits);
+	let at = &raw const lone;
+	let mut end = ptr::null::<u32>();
+	unsafe { ptr::write(&raw mut end, at.add(1)) };
+	out.push(unsafe { end.offset_from(at) } as u8);
+	let none = Nothing;
+	let past = unsafe { (&raw const none).add(1) };
+	out.push(nothing_tag(unsafe { &*past }, bits));
+}
+
+/// A value of no bytes, whose every pointer is where it was.
+struct Nothing;
+
+/// `bits`, given beside a `Nothing` borrowed through a pointer moved off one.
+#[inline(never)]
+fn nothing_tag(nothing: &Nothing, bits: u8) -> u8 {
+	let Nothing = nothing;
+	bits ^ 0x3c
 }
 
 /// Two numbers, the second of which a pointer from a reference to them points at.

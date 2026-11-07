@@ -29,6 +29,7 @@ import type * as Loaded from "./pointers.Loaded.ts";
 import type * as Log from "./pointers.Log.ts";
 import * as Named from "./pointers.Named.ts";
 import type * as Node from "./pointers.Node.ts";
+import type * as Nothing from "./pointers.Nothing.ts";
 import type * as Outer from "./pointers.Outer.ts";
 import type * as Pair from "./pointers.Pair.ts";
 import * as Paired from "./pointers.Paired.ts";
@@ -3429,8 +3430,20 @@ export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, q.v & 0xff);
 	rs.byteVecPush(out, rs.ptrOffsetFrom(rs.arcRaw(arc2, rs.arcPlace(arc2), "Arc"), p) & 0xff);
 	rs.byteVecPush(out, from$convert_From_ref_pointers_Halves32_ptr_NonNull_u32({ first: bits as rs.u32, second: ((bits as rs.u32) ^ 85) >>> 0 }).v & 0xff);
+	let lone: rs.u32 = bits as rs.u32;
+	const at: rs.Place<rs.u32> = rs.place(() => lone, (value) => lone = value);
+	let end: rs.Place<rs.u32> = rs.NULL;
+	end = rs.ptrAdd(at, 1);
+	rs.byteVecPush(out, rs.ptrOffsetFrom(end, at) & 0xff);
+	const _282: Nothing.Nothing = {};
+	rs.byteVecPush(out, nothingTag(_282, bits));
 	arc2[Symbol.dispose]();
 	arc[Symbol.dispose]();
+}
+
+/** `bits`, given beside a `Nothing` borrowed through a pointer moved off one. */
+export function nothingTag(_nothing: Nothing.Nothing, bits: rs.u8): rs.u8 {
+	return bits ^ 60;
 }
 
 export function from$convert_From_ref_pointers_Halves32_ptr_NonNull_u32(halves: Halves32.Halves32): rs.Place<rs.u32> {
