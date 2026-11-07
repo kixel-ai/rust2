@@ -19,7 +19,7 @@ pub fn run(args: Vec<String>) -> ExitCode {
 	if let Some(rustc) = args.get(1) {
 		let _ = RUSTC.set(rustc.clone());
 	}
-	rust2_driver::rustc::run("rust2-ts", args, |args| {
+	rust2_driver::rustc::run("rust2-ts", args, |args, added| {
 		let sysroot = cli::sysroot()?;
 		// Cargo's query of the compiler, whose answer it hashes into every unit's fingerprint
 		// and `-C metadata`: the sysroot is part of what compiles them, so a target
@@ -33,7 +33,7 @@ pub fn run(args: Vec<String>) -> ExitCode {
 		if args.windows(2).any(|w| w[0] == "--target" && w[1] == cli::TARGET)
 			&& let Some(sysroot) = sysroot
 		{
-			args.extend(["--sysroot".into(), sysroot]);
+			added.extend(["--sysroot".into(), sysroot]);
 		}
 		Ok(Translate::for_args(args)?.map(|job| Box::new(job) as rust2_driver::rustc::Job))
 	})
