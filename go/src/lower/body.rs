@@ -34,30 +34,9 @@ type Exit = cfg::Exit<Cond>;
 
 /// Translate one function instance, or `None` after reporting what it refuses.
 pub fn function<'tcx>(t: &mut Translator<'tcx>, instance: Instance<'tcx>, reached: Span) -> Option<String> {
-	let tcx = t.tcx;
 	let mir = instance_mir(t, instance, reached)?;
 	let name = t.funcs[&instance].clone();
-	let mut temps = Temps::new(&mir);
-	let split = split_locals(t, &mir, &temps);
-	temps.foldable.retain(|l| !split.contains_key(l));
-	let mut fx = Fx {
-		t,
-		tcx,
-		mir: &mir,
-		reached,
-		local: instance.def_id().is_local(),
-		used: HashSet::new(),
-		mentioned: HashSet::new(),
-		sites: Vec::new(),
-		temps,
-		held: Held::default(),
-		split,
-		part_used: HashSet::new(),
-		scratch: Vec::new(),
-		fold_ok: true,
-		carry: false,
-		ok: true,
-	};
+	let mut fx = Fx::new(t, &mir, reached, instance.def_id().is_local());
 	let text = fx.function(&name, instance);
 	fx.ok.then_some(text)
 }
@@ -190,6 +169,32 @@ pub struct GoPlace<'tcx> {
 }
 
 impl<'a, 'tcx> Fx<'a, 'tcx> {
+	/// Lowering in `mir`, reached from `reached`, of the translated crate if `local`. An
+	/// item outside any body, such as a constant's value, is lowered in an empty one.
+	pub fn new(t: &'a mut Translator<'tcx>, mir: &'a mir::Body<'tcx>, reached: Span, local: bool) -> Self {
+		let mut temps = Temps::new(mir);
+		let split = split_locals(t, mir, &temps);
+		temps.foldable.retain(|l| !split.contains_key(l));
+		Self {
+			tcx: t.tcx,
+			t,
+			mir,
+			reached,
+			local,
+			used: HashSet::new(),
+			mentioned: HashSet::new(),
+			sites: Vec::new(),
+			temps,
+			held: Held::default(),
+			split,
+			part_used: HashSet::new(),
+			scratch: Vec::new(),
+			fold_ok: true,
+			carry: false,
+			ok: true,
+		}
+	}
+
 	/// Report a construct translation refuses, here and where it was reached from.
 	pub fn err(&mut self, span: Span, msg: impl Into<String>) -> String {
 		let msg = format!("{} is not supported", msg.into());
