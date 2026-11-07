@@ -15,7 +15,8 @@ fixtures/reject/src/alloc.rs:bytes_as_values+4:15: a cast from a pointer to `u8`
 fixtures/reject/src/alloc.rs:bytes_as_values+5:16: a cast from a pointer to `u8` to one to `pointers::Halves`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:bytes_as_values+7:15: a cast from a pointer to `u32` to one to `u8`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:cell_of_arrays+1:10: `UnsafeCell::from_mut` of `[[u16; 2]; 2]`, an array of arrays, which a cell of it reads a copy of, so a write through its pointer would land in the copy
-fixtures/reject/src/alloc.rs:cell_of_arrays+7:4: `Cell::swap` of `[[u16; 2]; 2]`, an array of arrays, which a cell of it may read a copy of
+fixtures/reject/src/alloc.rs:cell_of_arrays+7:4: `Cell::swap` of `[[u16; 2]; 2]`, an array, whose cells may partially overlap, which Rust panics on
+fixtures/reject/src/alloc.rs:cell_of_arrays+9:4: `Cell::swap` of `[u32; 2]`, an array, whose cells may partially overlap, which Rust panics on
 fixtures/reject/src/alloc.rs:cell_of_objects+1:10: `UnsafeCell::from_mut` of `std::vec::Vec<u8>`, an object a whole write through it changes in place, so a value read out before would change too or be a copy at another address
 fixtures/reject/src/alloc.rs:cell_of_objects+2:10: `UnsafeCell::from_mut` of `std::string::String`, an object a whole write through it changes in place, so a value read out before would change too or be a copy at another address
 fixtures/reject/src/alloc.rs:cell_of_objects+3:10: `UnsafeCell::from_mut` of `std::pin::Pin<std::boxed::Box<(u8, u8)>>`, an object a whole write through it changes in place, so a value read out before would change too or be a copy at another address

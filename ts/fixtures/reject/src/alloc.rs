@@ -113,8 +113,8 @@ pub fn uninit_cell_lent(n: u32) -> u32 {
 	unsafe { *slot.assume_init_mut().get_mut() + 1 }
 }
 
-/// An `UnsafeCell::from_mut` and a `Cell::swap` of arrays of arrays, which a cell may read
-/// a copy of.
+/// An `UnsafeCell::from_mut` of arrays of arrays, which a cell may read a copy of, and
+/// `Cell::swap`s of arrays, whose cells may partially overlap.
 pub fn cell_of_arrays(a: &mut [[u16; 2]; 2]) -> u16 {
 	let c = std::cell::UnsafeCell::from_mut(a);
 	let first = unsafe { (*c.get())[0][0] };
@@ -123,7 +123,9 @@ pub fn cell_of_arrays(a: &mut [[u16; 2]; 2]) -> u16 {
 		std::cell::Cell::new([[3u16, 4]; 2]),
 	);
 	x.swap(&y);
-	first ^ x.into_inner()[0][0]
+	let (v, w) = (std::cell::Cell::new([5u32, 6]), std::cell::Cell::new([7u32, 8]));
+	v.swap(&w);
+	first ^ x.into_inner()[0][0] ^ v.into_inner()[0] as u16
 }
 
 /// A `get_mut` and an `as_mut_unchecked` of a cell of a pinned `Box`, whose old value

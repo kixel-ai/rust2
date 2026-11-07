@@ -1504,6 +1504,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	) -> Option<Vec<Place<'tcx>>> {
 		use rustc_middle::mir::{Rvalue, StatementKind, TerminatorKind};
 		let tcx = self.tcx;
+		// A cycle, whose places the path to it already has.
 		if seen.contains(&local) {
 			return Some(Vec::new());
 		}
@@ -1566,6 +1567,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			};
 			origins.extend(self.place_origins(*made, seen)?);
 		}
+		// Off the path, as another branch may reach it again.
+		seen.pop();
 		(found == self.defs[local]).then_some(origins)
 	}
 

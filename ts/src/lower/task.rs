@@ -624,8 +624,12 @@ fn cell<'tcx>(
 		}
 		"replace" | "take" if in_place => {
 			let [cell, value] = two(args);
+			// Made before the value it replaces is read, as `Default` may write the cell.
 			let value = match name {
-				"take" => default(b, out),
+				"take" => {
+					let value = default(b, out);
+					b.spill(value, "value", out)
+				}
 				_ => value,
 			};
 			let p = pointer::cell_pointer(b, cell, ty);
@@ -637,9 +641,10 @@ fn cell<'tcx>(
 			let new = f.call(vec![pointer::read(b, p.clone(), ty, span, out)]);
 			pointer::write(b, p, new, ty, span, out)
 		}
-		"swap" if arrays => b.err(
+		// Rust panics on cells that partially overlap, which only arrays' can.
+		"swap" if b.t.pointee(ty) == Pointee::Array => b.err(
 			span,
-			format!("`Cell::swap` of `{ty}`, an array of arrays, which a cell of it may read a copy of"),
+			format!("`Cell::swap` of `{ty}`, an array, whose cells may partially overlap, which Rust panics on"),
 		),
 		"swap" => {
 			let [x, y] = two(args);

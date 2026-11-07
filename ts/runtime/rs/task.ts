@@ -931,10 +931,10 @@ export function cellIn<T extends object>(p: T): Cell<T> {
 
 /**
  * `PartialEq`, `PartialOrd`, or `Ord` of `Cell`s or places, or `PartialEq` of `OnceCell`s
- * or `OnceLock`s, by `f` of what each holds.
+ * or `OnceLock`s, by `f` of what each holds, or of its `copy`, as a `Cell`'s `get` gives.
  */
-export function cellBy<T, R>(f: (a: T, b: T) => R): (a: { v: T }, b: { v: T }) => R {
-	return (a, b) => f(a.v, b.v);
+export function cellBy<T, R>(f: (a: T, b: T) => R, copy?: (v: T) => T): (a: { v: T }, b: { v: T }) => R {
+	return copy ? (a, b) => f(copy(a.v), copy(b.v)) : (a, b) => f(a.v, b.v);
 }
 
 /** `Cell::replace`: the value it held, `v` in its place. */

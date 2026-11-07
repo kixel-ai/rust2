@@ -2542,8 +2542,8 @@ struct Slots {
 /// `MaybeUninit::as_ptr`; cells `UnsafeCell::from_mut` makes of a variable, an object,
 /// an element, and an array, written through `get`; `UnsafeCell::replace` of each, which a
 /// pointer taken before sees, giving back what it held undropped; what `as_ref_unchecked`
-/// and `as_mut_unchecked` lend; and the allocations of boxes and pinned boxes replaced and swapped through pointers, `UnsafeCell`s, one
-/// `from_mut` makes, and `Cell`s.
+/// and `as_mut_unchecked` lend; and the allocations of boxes and pinned boxes replaced and
+/// swapped through pointers, `UnsafeCell`s, one `from_mut` makes, and `Cell`s.
 pub fn raw_cells(data: &[u8], out: &mut Vec<u8>) {
 	let count = Rc::new(());
 	let num = UnsafeCell::new(7u32);
@@ -2721,10 +2721,34 @@ pub fn raw_cells(data: &[u8], out: &mut Vec<u8>) {
 	out.extend(elems.iter().flat_map(|e| e.to_le_bytes()));
 }
 
+thread_local! {
+	/// The cell `Reentrant`'s `default` and `eq` write.
+	static REENTERED: Cell<Reentrant> = const { Cell::new(Reentrant(1, 1)) };
+}
+
+/// A struct Rust copies whose `default` and `eq` write the cell holding it.
+#[derive(Clone, Copy)]
+struct Reentrant(u8, u8);
+
+impl Default for Reentrant {
+	fn default() -> Self {
+		REENTERED.with(|c| c.set(Reentrant(7, 7)));
+		Reentrant(0, 0)
+	}
+}
+
+impl PartialEq for Reentrant {
+	fn eq(&self, other: &Self) -> bool {
+		REENTERED.with(|c| c.set(Reentrant(9, 9)));
+		self.0 == other.0
+	}
+}
+
 /// What `Cell`s of a tuple, a struct Rust copies, one that owns a count, and arrays of bytes
 /// and of numbers, and cells `Cell::from_mut` makes of a tuple and an array, hold after
-/// `replace`, `set`, `swap`, `take`, and `update`, each read back through a pointer
-/// `as_ptr` gave before, and what each gives back and drops.
+/// `replace`, `set`, `swap` (but of the arrays), `take`, and `update`, each read back
+/// through a pointer `as_ptr` gave before, and what each gives back and drops; and `take`
+/// and `==` of a cell its value's `default` and `eq` write.
 pub fn cell_writes(data: &[u8], out: &mut Vec<u8>) {
 	let count = Rc::new(());
 	let held = |n: u8| Held {
@@ -2764,8 +2788,6 @@ pub fn cell_writes(data: &[u8], out: &mut Vec<u8>) {
 				let other = Cell::new(held(n ^ 5));
 				owner.swap(&other);
 				out.push(other.into_inner().n);
-				bytes.swap(&bytes);
-				wide.swap(&Cell::new([u16::from(n), 9]));
 			}
 			3 => {
 				out.push(pair.take().0);
@@ -2778,6 +2800,14 @@ pub fn cell_writes(data: &[u8], out: &mut Vec<u8>) {
 				bytes.update(|[a, b]| [b, a.wrapping_mul(n)]);
 				wide.update(|[a, b]| [b.rotate_left(u32::from(n)), a]);
 			}
+			6 => REENTERED.with(|c| {
+				c.set(Reentrant(n, 1));
+				let taken = c.take();
+				out.extend([taken.0, c.get().0]);
+				c.set(Reentrant(n, 1));
+				let same = *c == Cell::new(Reentrant(n, 2));
+				out.extend([u8::from(same), c.get().0]);
+			}),
 			5 => unsafe {
 				let c = Cell::from_mut(&mut lent);
 				let p = c.as_ptr();

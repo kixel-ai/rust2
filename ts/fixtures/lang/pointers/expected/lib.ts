@@ -17,6 +17,7 @@ import * as List from "./pointers.List.ts";
 import type * as Outer from "./pointers.Outer.ts";
 import type * as Pair from "./pointers.Pair.ts";
 import type * as Paired from "./pointers.Paired.ts";
+import type * as Reentrant from "./pointers.Reentrant.ts";
 import type * as Spot from "./pointers.Spot.ts";
 import type * as Twin from "./pointers.Twin.ts";
 
@@ -139,6 +140,10 @@ export function copy$pointers_Outer(v: Outer.Outer): Outer.Outer {
 
 export function copy$pointers_Pair(v: Pair.Pair): Pair.Pair {
 	return { a: v.a, b: v.b };
+}
+
+export function copy$pointers_Reentrant(v: Reentrant.Reentrant): Reentrant.Reentrant {
+	return { _0: v._0, _1: v._1 };
 }
 
 export function copy$pointers_Spot(v: Spot.Spot): Spot.Spot {

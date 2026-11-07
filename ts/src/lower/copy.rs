@@ -685,10 +685,13 @@ fn replaces<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, this: Ty<'tcx>) -> Option<Ty
 
 /// The value std's `def_id`, a method of a cell of it, writes whole in place of the one the
 /// cell holds: as a write through the pointer `as_ptr` or `get` gives, into the object or
-/// array it is. A `Cell`'s arrays of arrays are put in its place instead.
+/// array it is. A `Cell`'s arrays of arrays are put in its place instead, and its `swap`
+/// of an array is refused.
 fn cell_writes<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> Option<Ty<'tcx>> {
 	let (owner, name) = super::library::key(tcx, def_id)?;
 	let writes = match owner.as_str() {
+		// Refused of an array.
+		"Cell" if name == "swap" && args.type_at(0).is_array() => false,
 		"Cell" if super::array_slice::of_arrays(args.type_at(0)) => false,
 		"Cell" => matches!(name.as_str(), "replace" | "set" | "swap" | "take" | "update"),
 		"UnsafeCell" => name == "replace",
