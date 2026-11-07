@@ -1,6 +1,6 @@
 [package]
 name = "dep-fixture"
-description = "Another export, whose types the api fixture names across crates"
+description = "Another crate, whose types the api fixture re-exports and names"
 version = "0.0.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
@@ -12,8 +12,7 @@ name = "dep"
 crate-type = ["rlib"]
 
 [features]
-# Doubles each area's size: the tests enable it on this crate directly, which the export
-# must build as the check did.
+# Doubles each area's size: the api fixture's own feature enables it.
 doubled = []
 
 [lints]
