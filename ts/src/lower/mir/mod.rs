@@ -3140,10 +3140,17 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		match msg {
 			AssertKind::ResumedAfterReturn(kind) if async_fn(kind) => Some(Expr::rs("asyncFnResumed", Vec::new())),
 			AssertKind::ResumedAfterPanic(kind) if async_fn(kind) => Some(Expr::rs("asyncFnResumedPanic", Vec::new())),
-			// A hook reads a bounds check's message as the `String` std formats.
+			// A hook reads a bounds check's message as the `String` std writes piece by piece.
 			AssertKind::BoundsCheck { .. } if let Some(at) = self.panic_at() => {
-				let message = self.assert_message(msg, operands, span)?;
-				Some(Expr::rs("panic", vec![message, at, Expr::lit("true")]))
+				let [len, index] = <[Expr; 2]>::try_from(operands).ok()?;
+				let text = |s: &str| Expr::Str(s.to_string());
+				let message = vec![
+					text("index out of bounds: the len is "),
+					len,
+					text(" but the index is "),
+					index,
+				];
+				Some(Expr::rs("panicSizes", vec![Expr::Array(message), at]))
 			}
 			_ => {
 				let message = self.assert_message(msg, operands, span)?;
