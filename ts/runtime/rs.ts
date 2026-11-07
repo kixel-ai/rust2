@@ -510,6 +510,32 @@ export class RawSlice<T> {
 		return ptrSlice(this.ptr, this.length);
 	}
 
+	/**
+	 * `p as *const [T; N]`: the pointer to the `n` elements from its first, which nothing
+	 * checks until a read through it, as in Rust. Null and dangling point at nothing.
+	 */
+	array(n: number): Slice<T> {
+		if (ptrNowhere(this.ptr)) return this.ptr as never;
+		const at = elemOf(this.ptr);
+		return new Slice(at.array as T[], at.index, n);
+	}
+
+	/**
+	 * `p as *const [u8; N]`, as `array` casts it, of bytes in an array of bytes. Not over
+	 * `RawSlice<number>`, as a null one's element type is unknown.
+	 */
+	byteArray(n: number): ByteSlice {
+		if (ptrNowhere(this.ptr)) return this.ptr as never;
+		const at = elemOf(this.ptr);
+		if (!(at.array instanceof Uint8Array)) {
+			// None of a byte in no array keeps where it points, as `ptrByteSlice`'s does.
+			if (n === 0) return ptrByteSlice(this.ptr as Place<number>, 0, false);
+			// A byte in no array, which no `Uint8Array` can share.
+			throw new Error("rust2-ts: a raw or mutable slice of a byte in no array of bytes");
+		}
+		return new ByteSlice(at.array, at.index, n);
+	}
+
 	/** The bytes it points at, read through it, `shared` as `ptrByteSlice` takes it. */
 	derefBytes(this: RawSlice<number>, shared: boolean): ByteSlice {
 		if (this.#made !== undefined) return this.#made;
@@ -1890,6 +1916,26 @@ export function byteSliceView(s: ByteSlice): Uint8Array {
 export function byteSliceRange(s: ByteSlice, start: number, end: number = s.length, at?: Location): ByteSlice {
 	rangeCheck(s.length, start, end, at);
 	return new ByteSlice(s.data, s.start + start, end - start);
+}
+
+/** `IoSlice::advance` of the one at `p`: its bytes past the first `n`, which panics past its end. */
+export function ioSliceAdvance(p: Place<ByteSlice>, n: number, at?: Location): void {
+	p.v = byteSliceRange(p.v, n, undefined, at);
+}
+
+/**
+ * `IoSlice::advance_slices` of the slice of them at `bufs`: past the first `n` bytes they
+ * lend, dropping those it passes whole, which panics past their end.
+ */
+export function ioSliceAdvanceSlices(bufs: Place<Slice<ByteSlice>>, n: number, at?: Location): void {
+	const s = bufs.v;
+	let [remove, left] = [0, n];
+	while (remove < s.length && left >= s.data[s.start + remove].length) left -= s.data[s.start + remove++].length;
+	const rest = new Slice(s.data, s.start + remove, s.length - remove);
+	bufs.v = rest;
+	if (rest.length === 0) {
+		if (left !== 0) panic("advancing io slices beyond their length", at);
+	} else rest.data[rest.start] = byteSliceRange(rest.data[rest.start], left);
 }
 
 /** `get` of `start..end`: the part, or `undefined` unless it is within the slice. */

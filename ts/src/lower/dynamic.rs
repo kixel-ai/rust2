@@ -241,10 +241,6 @@ impl<'tcx> Translator<'_, 'tcx> {
 				if is_error(tcx, tr) && tcx.item_name(def_id).as_str() != "source" {
 					continue;
 				}
-				// `Buf::chunks_vectored`, whose `IoSlice` has no JS value.
-				if is_buf(tcx, tr) && tcx.item_name(def_id).as_str() == "chunks_vectored" {
-					continue;
-				}
 				let name = format!("{}${}", super::camel(tcx.item_name(def_id).as_str()), tcx.item_name(tr));
 				if methods.iter().any(|m: &Method<'_>| m.name == name) {
 					self.err(span, format!("`{ty}`, whose traits have two methods named `{name}`"));
@@ -701,14 +697,6 @@ pub fn is_error(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
 /// Whether `ty` is a `dyn Error`.
 pub fn is_error_object(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
 	principal(ty).is_some_and(|p| is_error(tcx, p))
-}
-
-/// Whether `def_id` is `bytes`' `Buf`, whose provided methods translate from its MIR for
-/// a buffer the mapping doesn't name.
-fn is_buf(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
-	super::stock::is_stock(tcx, def_id)
-		&& tcx.crate_name(def_id.krate).as_str() == "bytes"
-		&& tcx.item_name(def_id).as_str() == "Buf"
 }
 
 /// Whether `ty` is a `dyn Any`.

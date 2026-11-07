@@ -6,6 +6,10 @@ import type * as Provided from "../../buf.Provided.ts";
 import type * as Chain from "../../bytes/buf/chain.Chain.ts";
 import * as Take from "../../bytes/buf/take.Take.ts";
 
+export function new_$buf_Pieces(inner: Pieces.Pieces, limit: rs.usize): Take.Take<Pieces.Pieces> {
+	return new Take.Take(inner, limit);
+}
+
 export function new_$bytes_Bytes(inner: rs.ByteSlice, limit: rs.usize): Take.Take<rs.ByteSlice> {
 	return new Take.Take(inner, limit);
 }
