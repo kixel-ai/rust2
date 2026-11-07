@@ -8,6 +8,7 @@ import { parse$1yfzdza, parse$1d17hvd, parse$0wntisu, parse$18h4mna, parse$1gh8p
 import { fromStr$1dw9076 as traits_fromStr$1dw9076 } from "./core/str/traits.ts";
 import { put, text } from "./harness.ts";
 import * as Counted from "./strs.Counted.ts";
+import * as Fixed from "./strs.Fixed.ts";
 import * as Named from "./strs.Named.ts";
 
 /** Whether the `i`th step reads from the back: by the byte's high bit. */
@@ -1963,6 +1964,82 @@ export function utf16(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), undefined, 1, true);
 	const args12 = [(f: rs.Formatter) => rs.fmtList(each.items, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), (f: rs.Formatter) => rs.fmtList(ok.items, f, rs.fmtBool)];
 	put(out, rs.fmtFormat([args12[0], "|", args12[1]]).v);
+}
+
+/**
+ * A `str`'s UTF-8 read through `as_ptr`, of the text and of a substring from the char
+ * boundary the kind picks, whose bytes start past the text's: copied by
+ * `ptr::copy_nonoverlapping` and `ptr::copy`, viewed by `slice::from_raw_parts`, read a
+ * byte at a time between pointers `offset_from` measures, and pushed into a buffer of
+ * `MaybeUninit` bytes as arrayvec's `ArrayString::try_push_str` pushes.
+ */
+export function pointers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	const s: rs.String = text(data);
+	const starts: rs.Vec<rs.usize> = rs.iterToVec(rs.iterChain(rs.iterMap(rs.strCharIndices(s.v), (_2: [rs.usize, rs.char]): rs.usize => {
+		return _2[0];
+	}), rs.iterSlice([s.len])), "next", 4);
+	const sub: string = rs.strSlice(s.v, starts.items[rs.idx(starts.items, rs.usizeRem(rs.u8Div(kind, 4) as rs.usize, starts.items.length))]);
+	b0: {
+		const _27: rs.u8 = rs.u8Rem(kind, 4);
+		if (_27 === 0) {
+			const whole: rs.ByteVec = rs.byteVecWithCapacity(s.len);
+			rs.ptrCopy(rs.strAsPtr(s.v), rs.byteVecAsPtr(whole), s.len);
+			rs.byteVecSetLen(whole, s.len);
+			rs.byteVecExtendFromSlice(out, rs.byteVecSlice(whole));
+			const framed: rs.ByteVec = rs.byteVecOf(170, rs.usizeAdd(rs.stringLen(sub), 2));
+			rs.ptrCopy(rs.strAsPtr(sub), rs.ptrAdd(rs.byteVecAsPtr(framed), 1), rs.stringLen(sub));
+			rs.byteVecExtendFromSlice(out, rs.byteVecSlice(framed));
+		} else if (_27 === 1) {
+			const p: rs.Place<rs.u8> = rs.strAsPtr(sub);
+			const iter: rs.RangeInclusive<rs.usize> = new rs.RangeInclusive(0, rs.stringLen(sub), rs.usizeStep);
+			while (true) {
+				const _65: rs.usize | rs.Done = iter.next();
+				if (_65 === rs.DONE) {
+					break;
+				}
+				const i: rs.usize = _65;
+				const tail: rs.ByteSlice = rs.ptrByteSlice(rs.ptrAdd(p, i), rs.usizeSub(rs.stringLen(sub), i), true);
+				rs.byteVecPush(out, tail.length & 0xff);
+				rs.byteVecExtendFromSlice(out, option_unwrapOr$0yvilko(rs.byteSliceGetRange(tail, 0, 2), tail));
+			}
+			put(out, rs.strFromUtf8Unchecked(rs.ptrByteSlice(p, rs.stringLen(sub), true)));
+		} else {
+			if (_27 === 2) {
+				const p2: rs.Place<rs.u8> = rs.strAsPtr(s.v);
+				const end: rs.Place<rs.u8> = rs.ptrAdd(p2, s.len);
+				let q: rs.Place<rs.u8> = p2;
+				while (rs.ptrOffsetFrom(end, q) > 0) {
+					rs.byteVecPush(out, q.v);
+					q = rs.ptrAdd(q, 1);
+				}
+				rs.byteVecPush(out, rs.ptrOffsetFrom(q, p2) & 0xff);
+				const pointer = end;
+				let back: rs.Place<rs.u8> = rs.optionUnwrap(pointer === rs.NULL ? undefined : pointer);
+				while (true) {
+					if (!(rs.ptrOffsetFrom(back, p2) > 0)) {
+						break b0;
+					}
+					back = rs.ptrAdd(back, -1);
+					rs.byteVecPush(out, back.v);
+				}
+			}
+			const fixed: Fixed.Fixed = Fixed.new();
+			const iter2: rs.Iter<string> = rs.iterChain(rs.strSplit(s.v, "/"), rs.iterSlice([sub]));
+			while (true) {
+				const _126: string | rs.Done = iter2.next();
+				if (_126 === rs.DONE) {
+					break;
+				}
+				const _130: rs.Result<undefined, string> = Fixed.tryPushStr(fixed, _126);
+				if (_130.ok) {
+					rs.byteVecPush(out, fixed.len & 0xff);
+				} else {
+					put(out, _130.error);
+				}
+			}
+			put(out, Fixed.asStr(fixed));
+		}
+	}
 }
 
 //# sourceMappingURL=strs.ts.map

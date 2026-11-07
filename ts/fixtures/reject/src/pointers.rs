@@ -408,6 +408,18 @@ pub fn pointers_apart(n: u32, h: Halves, r: Rows, byte: u8) -> isize {
 	}
 }
 
+/// `offset_from` between pointers into a `str`'s bytes, which JS encodes anew at each
+/// `as_ptr`: a substring's against its text's, and two of one text.
+pub fn text_apart(s: &str) -> isize {
+	unsafe { s[1..].as_ptr().offset_from(s.as_ptr()) + s.as_ptr().offset_from(s.as_ptr()) }
+}
+
+/// A pointer into a substring's bytes moved back before them, into its text's, which JS
+/// encodes apart, and read.
+pub fn text_before(s: &str) -> u8 {
+	unsafe { *s[1..].as_ptr().sub(1) }
+}
+
 /// Pointers, slices, and copies the body shows reach out of an array of one or a copied
 /// subslice, where Rust's reach the rest of what holds them.
 pub fn reached_out(h: Halves, lanes: [u32; 4]) -> u32 {
