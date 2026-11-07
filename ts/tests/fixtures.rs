@@ -114,7 +114,10 @@ fn sources(dir: &Path) -> Vec<(PathBuf, String)> {
 /// Compare the output with the fixture's `expected/` directory.
 fn snapshot(name: &str, out: &Path) {
 	let expected = fixture(name).join("expected");
-	let got = sources(out);
+	let got: Vec<_> = sources(out)
+		.into_iter()
+		.map(|(rel, text)| (rel, mask_type_ids(&text)))
+		.collect();
 	if std::env::var_os("UPDATE_EXPECT").is_some() {
 		let _ = std::fs::remove_dir_all(&expected);
 		for (rel, text) in &got {
@@ -139,6 +142,34 @@ fn snapshot(name: &str, out: &Path) {
 			diff(want, got)
 		);
 	}
+}
+
+/// `text` with each `TypeId`, a string literal of 32 hex digits, named by its first
+/// appearance: cargo hashes the host's profile into a crate's `-C metadata`, and so into
+/// the hash of every type it defines, which leaves only which ids are equal alike on
+/// every host.
+fn mask_type_ids(text: &str) -> String {
+	let mut seen: Vec<&str> = Vec::new();
+	let mut out = String::with_capacity(text.len());
+	let mut rest = text;
+	while let Some(at) = rest.find('"') {
+		out.push_str(&rest[..=at]);
+		rest = &rest[at + 1..];
+		let hash = rest
+			.get(..32)
+			.filter(|hash| hash.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')))
+			.filter(|_| rest[32..].starts_with('"'));
+		if let Some(hash) = hash {
+			let n = seen.iter().position(|seen| *seen == hash).unwrap_or_else(|| {
+				seen.push(hash);
+				seen.len() - 1
+			});
+			out.push_str(&format!("<TypeId {}>\"", n + 1));
+			rest = &rest[33..];
+		}
+	}
+	out.push_str(rest);
+	out
 }
 
 /// The first lines where two texts differ.
