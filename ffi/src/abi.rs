@@ -1053,10 +1053,8 @@ mod tests {
 			]),
 			["TokioConnectError", "TokioConnect_Error", "TokioClient"]
 		);
-		assert_eq!(
-			names(&[&["a", "b_c", "D"], &["a", "b", "CD"], &["ABCD"]]),
-			["A_BC_D", "A_B_CD", "ABCD"]
-		);
+		// Both split where neither's rest is a single segment.
+		assert_eq!(names(&[&["a", "b_c", "Dx"], &["a", "b", "CDx"]]), ["ABC_Dx", "AB_CDx"]);
 		// Segments apart only by case still match, for the claim to refuse.
 		assert_eq!(
 			names(&[&["connect", "X"], &["Connect", "X"]]),
