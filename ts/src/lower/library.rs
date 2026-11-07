@@ -1083,14 +1083,18 @@ fn releases(owner: &str, name: &str) -> bool {
 		(
 			"Iterator",
 			"for_each"
-				| "fold" | "try_fold"
+				| "fold"
+				| "try_fold"
 				| "try_for_each"
 				| "partition"
-				| "reduce" | "max_by"
-				| "min_by" | "max_by_key"
+				| "reduce"
+				| "max_by"
+				| "min_by"
+				| "max_by_key"
 				| "min_by_key"
 				| "is_sorted_by_key"
-				| "eq_by" | "cmp_by"
+				| "eq_by"
+				| "cmp_by"
 				| "partial_cmp_by"
 		) | ("DoubleEndedIterator", "rfold" | "try_rfold")
 			| ("Entry", "or_insert_with" | "or_insert_with_key" | "and_modify")
@@ -1104,7 +1108,8 @@ pub fn maps_guard(owner: &str, name: &str) -> bool {
 		(owner, name),
 		(
 			"Ref"
-				| "RefMut" | "MutexGuard"
+				| "RefMut"
+				| "MutexGuard"
 				| "MappedMutexGuard"
 				| "RwLockReadGuard"
 				| "RwLockWriteGuard"
@@ -1136,7 +1141,8 @@ fn takes_none(owner: &str, name: &str) -> bool {
 				| (
 					"OnceCell" | "OnceLock",
 					"get" | "get_mut" | "set" | "get_or_init" | "get_or_try_init" | "take" | "into_inner"
-				) | ("Arc" | "Rc", "into_inner")
+				)
+				| ("Arc" | "Rc", "into_inner")
 				| ("DoubleEndedIterator", "next_back" | "nth_back" | "rfind" | "try_rfold")
 				| ("dyn Any" | "dyn Error", "downcast_ref" | "downcast_mut")
 				| ("ptr", "as_ref" | "as_mut")
@@ -1157,22 +1163,29 @@ pub(super) fn none_last(owner: &str, name: &str) -> bool {
 			| (
 				"VecDeque",
 				"pop_front"
-					| "pop_back" | "front"
-					| "back" | "front_mut"
-					| "back_mut" | "get"
-					| "get_mut" | "remove"
+					| "pop_back"
+					| "front"
+					| "back"
+					| "front_mut"
+					| "back_mut"
+					| "get"
+					| "get_mut"
+					| "remove"
 					| "swap_remove_front"
 					| "swap_remove_back"
-			) | (
-			"LinkedList",
-			"pop_front" | "pop_back" | "front" | "back" | "front_mut" | "back_mut"
-		) | ("BinaryHeap", "pop" | "peek")
+			)
+			| (
+				"LinkedList",
+				"pop_front" | "pop_back" | "front" | "back" | "front_mut" | "back_mut"
+			)
+			| ("BinaryHeap", "pop" | "peek")
 			| ("HashSet", "get" | "take" | "replace")
 			| ("HashTable", "find")
 			| (
 				"BTreeSet",
 				"first" | "last" | "pop_first" | "pop_last" | "get" | "take" | "replace"
-			) | ("HashMap" | "BTreeMap", "get" | "get_mut" | "insert" | "remove")
+			)
+			| ("HashMap" | "BTreeMap", "get" | "get_mut" | "insert" | "remove")
 	)
 }
 

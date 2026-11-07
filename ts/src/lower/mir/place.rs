@@ -221,7 +221,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					}
 					// A raw pointer to a slice is where it starts, read through as the slice.
 					if let ty::RawPtr(pointee, _) = ty.kind()
-						&& !glue && !boxed && self.b.t.pointee(*pointee) == crate::lower::pointer::Pointee::Slice
+						&& !glue
+						&& !boxed
+						&& self.b.t.pointee(*pointee) == crate::lower::pointer::Pointee::Slice
 					{
 						e = match crate::lower::pointer::slice_of_bytes(*pointee) {
 							true => e.member("derefBytes").call(vec![Expr::lit("false")]),
@@ -881,7 +883,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			&& !matches!(ty.kind(), ty::RawPtr(..))
 			&& self.b.t.object_kind(pointee).is_none();
 		let ok = !self.alias_of_place(place.local)
-			&& !lent && !self.in_array(place)
+			&& !lent
+			&& !self.in_array(place)
 			&& self.b.t.place_pointee(ty).is_none()
 			&& !(place.local.as_u32() == 1 && matches!(self.env, Env::Closure(_)));
 		ok.then_some(pointee)
@@ -2172,9 +2175,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				ProjectionElem::Field(field, _)
 					if matches!(base.kind(), ty::Tuple(_) | ty::Adt(..))
 						&& !base.is_union()
-						&& !base.is_enum() && elems[..i]
-						.last()
-						.is_none_or(|e| !matches!(e, ProjectionElem::Downcast(..))) =>
+						&& !base.is_enum()
+						&& elems[..i]
+							.last()
+							.is_none_or(|e| !matches!(e, ProjectionElem::Downcast(..))) =>
 				{
 					Some(Some(field))
 				}

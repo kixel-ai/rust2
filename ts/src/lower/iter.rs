@@ -1964,24 +1964,31 @@ pub(super) fn holds_closure(tcx: ty::TyCtxt<'_>, did: DefId) -> bool {
 				"str",
 				"iter",
 				"Split"
-					| "RSplit" | "SplitTerminator"
+					| "RSplit"
+					| "SplitTerminator"
 					| "RSplitTerminator"
-					| "SplitN" | "RSplitN"
+					| "SplitN"
+					| "RSplitN"
 					| "SplitInclusive"
-					| "Matches" | "RMatches"
+					| "Matches"
+					| "RMatches"
 					| "MatchIndices"
 					| "RMatchIndices"
-			] | [
-			"slice",
-			"iter",
-			"Split"
-				| "SplitMut" | "RSplit"
-				| "RSplitMut"
-				| "SplitInclusive"
-				| "SplitInclusiveMut"
-				| "SplitN" | "SplitNMut"
-				| "RSplitN" | "RSplitNMut"
-		]
+			]
+			| [
+				"slice",
+				"iter",
+				"Split"
+					| "SplitMut"
+					| "RSplit"
+					| "RSplitMut"
+					| "SplitInclusive"
+					| "SplitInclusiveMut"
+					| "SplitN"
+					| "SplitNMut"
+					| "RSplitN"
+					| "RSplitNMut"
+			]
 	)
 }
 

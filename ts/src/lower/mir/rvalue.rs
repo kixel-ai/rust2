@@ -1195,10 +1195,14 @@ pub fn effect<'tcx>(rvalue: &Rvalue<'tcx>, fx: &Fx<'_, '_, '_, 'tcx>) -> bool {
 				&& !matches!(
 					op,
 					BinOp::Eq
-						| BinOp::Ne | BinOp::Lt
-						| BinOp::Le | BinOp::Gt
-						| BinOp::Ge | BinOp::BitAnd
-						| BinOp::BitOr | BinOp::BitXor
+						| BinOp::Ne
+						| BinOp::Lt
+						| BinOp::Le
+						| BinOp::Gt
+						| BinOp::Ge
+						| BinOp::BitAnd
+						| BinOp::BitOr
+						| BinOp::BitXor
 				)
 		}
 		Rvalue::UnaryOp(UnOp::Neg, _) => true,

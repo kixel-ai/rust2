@@ -1814,7 +1814,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						Expr::Ident(name)
 							if let Some(i) = self.pending.iter().position(|p| p.name == name)
 								&& let p = &self.pending[i]
-								&& !p.effect && !p.copy && let Expr::Call(f, items) = &p.value
+								&& !p.effect
+								&& !p.copy
+								&& let Expr::Call(f, items) = &p.value
 								&& matches!(&**f, Expr::Rs(n) if n == "Err")
 								&& items.len() == 1 =>
 						{
