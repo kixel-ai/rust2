@@ -996,7 +996,9 @@ pub fn vectored(data: &[u8], out: &mut Vec<u8>) {
 	let provided = Provided(Pieces::new(input, cut));
 	let take = Pieces::new(input, cut).take(usize::from(*skip) % (input.len() + 2));
 	let (a, b) = input.split_at(cut);
-	let chain = Pieces::new(a, a.len() / 2).chain(Bytes::copy_from_slice(b)).chain(&b[..]);
+	let chain = Pieces::new(a, a.len() / 2)
+		.chain(Bytes::copy_from_slice(b))
+		.chain(&b[..]);
 	let mut slice = input;
 	let lent = &mut slice;
 	let boxed: Box<dyn Buf> = Box::new(Pieces::new(input, cut));

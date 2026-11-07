@@ -1074,7 +1074,10 @@ pub fn cast<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, from: Ty<'tcx>, to: Ty<'t
 		&& (from_elem == elem || super::byte(*from_elem) && super::byte(*elem))
 	{
 		let Some(n) = n.try_to_target_usize(tcx) else {
-			return b.err(span, format!("a cast from a pointer to `{from}` to one to `{to}`, of no fixed length"));
+			return b.err(
+				span,
+				format!("a cast from a pointer to `{from}` to one to `{to}`, of no fixed length"),
+			);
 		};
 		let array = match byte_slice(inner) {
 			true => "byteArray",

@@ -2452,6 +2452,15 @@ pub fn array_casts(data: &[u8], out: &mut Vec<u8>) {
 		first[0] ^= 0x0101;
 	}
 	out.extend(copy.iter().flat_map(|w| w.to_le_bytes()));
+	let mut pairs: Vec<[u8; 2]> = data.iter().map(|&b| [b, !b]).collect();
+	if pairs.len() >= 3 {
+		let two = unsafe { &mut *(&mut pairs[1..] as *mut [[u8; 2]] as *mut [[u8; 2]; 2]) };
+		two[0][1] ^= two[1][0];
+		two.swap(0, 1);
+		let read = unsafe { *(&pairs[..] as *const [[u8; 2]] as *const [[u8; 2]; 3]) };
+		out.extend(read.iter().flatten());
+	}
+	out.extend(pairs.iter().flatten());
 	let empty: &[u8] = &bytes[bytes.len()..];
 	let none = empty as *const [u8] as *const [u8; 0];
 	out.push(unsafe { *none }.len() as u8);
