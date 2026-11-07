@@ -14,10 +14,10 @@ config: the crate's `pub` API is what Go callers reach, each item by the shortes
 crate exports it at, in camel case, through its re-exports and the modules of other crates
 it re-exports. A function is exported, `harness::run` as `HarnessRun`, a type is declared
 with its `pub` inherent methods, `Counter::new` as `CounterNew`, and a type alias is a Go
-alias, `type Byte = Value[uint8]`, with the methods of `impl Value<u8>` as `ByteNew` when
-no other path reaches the type. An alias that is the only path to a type and passes it
-just its own parameters names the type instead. A trait comes along as its impls are called. A generic
-function or method, and a constant or static, are refused.
+alias, `type Byte = Value[uint8]`. An alias that is the only path to a type and passes it
+just its own parameters names the type instead. A trait comes along as its impls are called.
+A generic function or method, a constant or static, and a type with `pub` methods that only
+a specialized alias reaches are refused.
 
 It runs `cargo check` on the host with itself as `RUSTC_WRAPPER`, through the front end
 it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver), building std from

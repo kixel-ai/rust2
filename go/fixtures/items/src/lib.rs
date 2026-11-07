@@ -63,20 +63,6 @@ pub type Meter = gauge::Gauge;
 
 mod value {
 	pub struct Value<T>(pub T);
-
-	impl Value<u8> {
-		/// `ByteNew`, since only the alias reaches it.
-		pub fn new(v: u8) -> Self {
-			Self(v)
-		}
-	}
-
-	impl Value<u16> {
-		/// No alias reaches it.
-		pub fn wide(v: u16) -> Self {
-			Self(v)
-		}
-	}
 }
 
 /// A Go alias of a specialized type: `type Byte = Value_2[uint8]`, since the alias below
@@ -156,7 +142,7 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 			let b = Count::new(at(1));
 			let bumped = a.bump();
 			let meter = Meter::new(at(2));
-			let (x, y) = unwrap(Byte::new(at(5)));
+			let (x, y) = unwrap(value::Value(at(5)));
 			vec![
 				bumped,
 				tallies::sum(&a, &b).sum,

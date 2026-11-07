@@ -102,3 +102,17 @@ pub fn called(c: Callback) -> u8 {
 		Callback::Data(d) => d[0],
 	}
 }
+
+mod value {
+	pub struct Value<T>(pub T);
+
+	impl Value<u8> {
+		pub fn new(v: u8) -> Self {
+			Self(v)
+		}
+	}
+}
+
+/// Go callers would reach `new` only through the alias, which takes knowing which impls
+/// apply to `Value<u8>`.
+pub type Byte = value::Value<u8>;

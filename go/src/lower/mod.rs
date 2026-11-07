@@ -248,21 +248,21 @@ impl<'tcx> Translator<'tcx> {
 			DefKind::TyAlias => {
 				let name = self.type_names[&def_id].clone();
 				self.alias_decl(&name, def_id);
-				// A type no other path reaches brings the methods Rust callers reach on the
-				// alias: a generic impl's, which are refused, and those of an impl of it.
+				// The `pub` items of a type no other path reaches would be Go callers' only
+				// through this alias, which rooting needs the impls that apply to it for.
 				let ty = tcx.type_of(def_id).instantiate_identity().skip_norm_wip();
-				let erased = |t: Ty<'tcx>| tcx.erase_and_anonymize_regions(t);
 				if let TyKind::Adt(adt, _) = ty.kind()
 					&& library::mapped(tcx, adt.did()).is_none()
 					&& !self.type_names.contains_key(&adt.did())
-				{
-					for &imp in tcx.inherent_impls(adt.did()) {
-						let generic = tcx.generics_of(imp).requires_monomorphization(tcx);
-						let of = tcx.type_of(imp).instantiate_identity().skip_norm_wip();
-						if generic || erased(of) == erased(ty) {
-							self.root_impl(path, imp);
-						}
-					}
+					&& tcx.inherent_impls(adt.did()).iter().any(|&imp| {
+						tcx.associated_items(imp)
+							.in_definition_order()
+							.any(|item| tcx.visibility(item.def_id).is_public())
+					}) {
+					self.err(
+						span,
+						"a type with `pub` methods reached only through a specialized alias is not supported",
+					);
 				}
 			}
 			DefKind::Const | DefKind::Static { .. } => self.root_const(span),
