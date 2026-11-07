@@ -8,9 +8,10 @@ use rustc_abi::{BackendRepr, FieldIdx, Size, VariantIdx};
 use rustc_data_structures::fx::FxHashSet;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{DefId, DefIndex};
-use rustc_middle::mir::interpret::{AllocId, ConstAllocation, GlobalAlloc, GlobalId, Scalar, alloc_range};
+use rustc_middle::mir::interpret::{AllocId, Allocation, ConstAllocation, GlobalAlloc, GlobalId, Scalar, alloc_range};
 use rustc_middle::mir::visit::{MutatingUseContext, PlaceContext, Visitor};
 use rustc_middle::mir::{self, ConstValue, Local, Operand, Place, PlaceTy, ProjectionElem};
+use rustc_middle::ty::layout::ValidityRequirement;
 use rustc_middle::ty::{self, Instance, Ty, TyCtxt, TypeVisitableExt};
 use rustc_span::Span;
 
@@ -250,7 +251,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					e = match in_slice {
 						true => {
 							let base = self.slice_path(e, out);
-							slice_at(base, i)
+							self.slice_elem(base, i, ty)
 						}
 						false => e.index(i),
 					};
@@ -269,7 +270,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						true => super::scalar::sub(slice_member(base.clone(), "length"), Expr::lit(offset.to_string())),
 					};
 					e = match in_slice {
-						true => slice_at(base, i),
+						true => self.slice_elem(base, i, ty),
 						false => base.index(i),
 					};
 				}
@@ -281,7 +282,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				} if let ty::Slice(elem_ty) = ty.kind() => {
 					let base = self.slice_path(e, out);
 					// A range of parts, which the pattern that took it checked the length for.
-					if let Some([data, start, length]) = made_slice(&base) {
+					if elem_ty.is_array() {
+						let end = base.clone().member("length").binary("-", Expr::lit(to.to_string()));
+						e = Expr::rs("arraySlicePart", vec![base, Expr::lit(from.to_string()), end]);
+					} else if let Some([data, start, length]) = made_slice(&base) {
 						let len = super::scalar::sub(length.clone(), Expr::lit((from + to).to_string()));
 						let start = super::scalar::add(start.clone(), Expr::lit(from.to_string()));
 						e = Expr::New(
@@ -311,6 +315,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					};
 					let base = self.slice_path(e, out);
 					e = match made_slice(&base) {
+						_ if elem.is_array() => Expr::rs(
+							"arraySlicePart",
+							vec![base, Expr::lit(from.to_string()), Expr::lit(end.to_string())],
+						),
 						// In bounds of the array's.
 						Some([data, start, _]) => Expr::New(
 							Box::new(Expr::Rs(slice_class(elem).into())),
@@ -346,14 +354,26 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				| ProjectionElem::UnwrapUnsafeBinder(_)
 				| ProjectionElem::PhantomDeref => {}
 			}
+			let next = pty.projection_ty(tcx, elem);
 			in_slice = match elem {
 				ProjectionElem::Deref => self.array_behind(place.local, read, ty),
 				ProjectionElem::Subslice { .. } => in_slice,
+				// An array of a slice of arrays is the slice of its elements.
+				ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. } => in_slice && next.ty.is_array(),
 				_ => false,
 			};
-			pty = pty.projection_ty(tcx, elem);
+			pty = next;
 		}
 		e
+	}
+
+	/// Element `i` of `base`, the slice a place of `ty`, a `[T]` or a `[T; N]`, is: an
+	/// An `rs.ArraySlice`'s array, lent as the slice of its elements, of arrays.
+	fn slice_elem(&self, base: Expr, i: Expr, ty: Ty<'tcx>) -> Expr {
+		match ty.kind() {
+			ty::Slice(elem) | ty::Array(elem, _) if elem.is_array() => Expr::rs("arraySliceAt", vec![base, i]),
+			_ => slice_at(base, i),
+		}
 	}
 
 	/// The parts of field `field` of union `adt` that `rest`, the projections after it,
@@ -416,6 +436,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			in_array = match elem {
 				ProjectionElem::Deref => self.array_behind(place.local, at, ty),
 				ProjectionElem::Subslice { .. } => in_array || ty.is_slice(),
+				ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. } => {
+					(in_array || ty.is_slice()) && matches!(ty.kind(), ty::Slice(e) | ty::Array(e, _) if e.is_array())
+				}
 				_ => false,
 			};
 		}
@@ -487,6 +510,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let base = self.place_expr(base.to_place(self.tcx), span, out);
 		let end = self.subslice_end(&base, ty, to, from_end);
 		let from = Expr::lit(from.to_string());
+		// Of arrays, the arrays of an array slice of them all.
+		if let ty::Array(elem, _) = ty.kind()
+			&& elem.is_array()
+		{
+			let all = crate::lower::slice_items_from(base, *elem);
+			return Some(Expr::rs("arraySlicePart", vec![all, from, end]));
+		}
 		let length = super::scalar::sub(end, from.clone());
 		Some(Expr::New(Box::new(Expr::Rs("Slice".into())), vec![base, from, length]))
 	}
@@ -659,15 +689,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Some(Std::Cow) if let Some(borrowed) = crate::lower::library::cow_borrowed(tcx, ty) => {
 					let bytes = crate::lower::library::cow_slice(tcx, ty).is_some_and(crate::lower::byte);
 					let owned = variant.is_some_and(|v| v.index() == 1);
-					// What an `rs.Borrowed` holds, and what it owns: an `rs.Slice` and an
-					// `rs.Vec`, or text and an `rs.String`.
+					// What an `rs.Borrowed` holds, and what it owns: an `rs.Slice`, or for
+					// arrays an `rs.ArraySlice`, and an `rs.Vec`, or text and an `rs.String`.
 					let (held, owns) = match borrowed.kind() {
 						ty::Slice(elem) => {
-							let elem = self.b.t.ty(*elem, span);
-							(
-								crate::ts::Type::Rs("Slice", vec![elem.clone()]),
-								crate::ts::Type::Rs("Vec", vec![elem]),
-							)
+							let held = match elem.is_array() {
+								true => self.b.t.slice_ty(*elem, span),
+								false => crate::ts::Type::Rs("Slice", vec![self.b.t.ty(*elem, span)]),
+							};
+							(held, crate::ts::Type::Rs("Vec", vec![self.b.t.ty(*elem, span)]))
 						}
 						_ => (
 							crate::ts::Type::Builtin("string"),
@@ -773,6 +803,23 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		!self.mutated[place.local] && place.projection.iter().all(|e| !matches!(e, ProjectionElem::Deref))
 	}
 
+	/// The statement that copies `value` into `target`, the slice an array `place` a
+	/// reference points at is, named as [`Self::slice_path`] names it.
+	pub(super) fn store_in_slice(&mut self, place: Place<'tcx>, target: Expr, value: Expr, span: Span) -> Stmt {
+		let e = match self.in_bytes(place) {
+			true => target
+				.clone()
+				.member("data")
+				.member("set")
+				.call(vec![value, target.member("start")]),
+			false => {
+				let ty = self.b.t.uninit_inner(place.ty(&self.mir.local_decls, self.tcx).ty);
+				crate::lower::array_fn(ty, "Set").call(vec![target, value])
+			}
+		};
+		StmtKind::Expr(e).at(self.b.t.loc(span))
+	}
+
 	/// The statements that assign `value` to `place`, which has projections.
 	pub(super) fn store(&mut self, place: Place<'tcx>, value: Expr, span: Span) -> Vec<Stmt> {
 		let (place, value) = self.rebuilt(place, value, span);
@@ -803,15 +850,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		if self.in_array(place) {
 			let target = self.place_expr(place, span, &mut out);
 			let target = self.slice_path(target, &mut out);
-			let e = match self.in_bytes(place) {
-				true => target
-					.clone()
-					.member("data")
-					.member("set")
-					.call(vec![value, target.member("start")]),
-				false => Expr::rs("sliceSet", vec![target, value]),
-			};
-			out.push(StmtKind::Expr(e).at(self.b.t.loc(span)));
+			out.push(self.store_in_slice(place, target, value, span));
 			return out;
 		}
 		// `*r = v` replaces the object `r` points at in place, which other references and
@@ -1574,6 +1613,115 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
+	/// A `MaybeUninit<ty>` of zero bytes, as `Box::new_zeroed` makes it: each part that zero
+	/// bytes are a value of holds that value, and the rest, such as a reference, holds
+	/// nothing yet, as [`Translator::uninit`] makes it, for a write to give it one before a
+	/// read. It is cast as that is, so `tsc` narrows it to no variant a write may change.
+	pub(super) fn zeroed(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
+		let value = self.zero(ty, span);
+		let ts_ty = self.b.t.ty(Ty::new_maybe_uninit(self.tcx, ty), span);
+		Expr::As(
+			Box::new(Expr::As(Box::new(value), crate::ts::Type::Builtin("unknown"))),
+			ts_ty,
+		)
+	}
+
+	/// What [`Self::zeroed`] holds, untyped.
+	fn zero(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
+		let tcx = self.tcx;
+		let ty = self.b.t.uninit_inner(ty);
+		match ty.kind() {
+			ty::Array(elem, len) => {
+				let len = Expr::lit(len.try_to_target_usize(tcx).unwrap_or(0).to_string());
+				if crate::lower::byte(*elem) {
+					return Expr::New(Box::new(Expr::ident("Uint8Array")), vec![len]);
+				}
+				let elem_ty = self.b.t.ty(*elem, span);
+				let each = self.zero(*elem, span);
+				let each = Expr::Arrow(Vec::new(), elem_ty, vec![StmtKind::Return(Some(each)).at(None)]);
+				let length = Expr::Object(vec![(crate::ts::Key::Name("length".into()), len)]);
+				Expr::ident("Array").member("from").call(vec![length, each])
+			}
+			ty::Tuple(tys) if !tys.is_empty() => {
+				let values = tys.iter().map(|t| self.zero(t, span)).collect();
+				let ts_ty = self.b.t.ty(ty, span);
+				Expr::As(Box::new(Expr::Array(values)), ts_ty)
+			}
+			// A cell holds its value as a part of it, which a pointer from `as_ptr` reaches; zero
+			// bytes are one unborrowed, unlocked, and unpoisoned.
+			ty::Adt(adt, args)
+				if let Some(class) = match Std::of(tcx, adt.did()) {
+					Some(Std::Cell) => Some("Cell"),
+					Some(Std::RefCell) => Some("RefCell"),
+					Some(Std::Mutex) => Some("Mutex"),
+					_ => None,
+				} =>
+			{
+				let inner = self.zero(args.type_at(0), span);
+				Expr::New(Box::new(Expr::Rs(class.into())), vec![inner])
+			}
+			// The crate's struct, or one of std's JS keeps as the value it wraps.
+			ty::Adt(adt, args)
+				if adt.is_struct()
+					&& (self.b.t.own(adt.did())
+						|| matches!(
+							Std::of(tcx, adt.did()),
+							Some(Std::Reverse | Std::AssertUnwindSafe | Std::Wrapping | Std::Saturating)
+						))
+					&& adt.all_fields().next().is_some() =>
+			{
+				let values = (adt.non_enum_variant().fields.iter())
+					.map(|f| {
+						let t = self.b.t.field_ty(f.did, args);
+						self.zero(t, span)
+					})
+					.collect();
+				self.adt(adt.did(), rustc_abi::FIRST_VARIANT, args, values, ty, span)
+			}
+			_ => {
+				let env = self.b.t.typing_env_pub();
+				let valid = tcx.check_validity_requirement((ValidityRequirement::Zero, env.as_query_input(ty)));
+				let Ok(layout) = tcx.layout_of(env.as_query_input(ty)) else {
+					return self.err(span, format!("zero bytes of `{ty}`, whose layout is unknown"));
+				};
+				if !matches!(valid, Ok(true)) {
+					return self.b.t.uninit(ty, span);
+				}
+				let memory = Allocation::from_bytes(
+					vec![0; layout.size.bytes_usize()],
+					layout.align.abi,
+					rustc_ast::Mutability::Not,
+					(),
+				);
+				let val = ConstValue::Indirect {
+					alloc_id: tcx.reserve_and_set_memory_alloc(tcx.mk_const_alloc(memory)),
+					offset: Size::ZERO,
+				};
+				// An enum is the variant its tag or niche of zero picks, whose fields rustc's
+				// check of the tag alone doesn't check, so each is zeroed as a part.
+				let ty::Adt(adt, args) = ty.kind() else {
+					return self.const_value(val, ty, span);
+				};
+				if !adt.is_enum() {
+					return self.const_value(val, ty, span);
+				}
+				let Some(variant) = tcx
+					.try_destructure_mir_constant_for_user_output(val, ty)
+					.and_then(|d| d.variant)
+				else {
+					return self.err(span, format!("zero bytes of `{ty}`, which are none of its variants"));
+				};
+				let values = (adt.variant(variant).fields.iter())
+					.map(|f| {
+						let t = self.b.t.field_ty(f.did, args);
+						self.zero(t, span)
+					})
+					.collect();
+				self.adt(adt.did(), variant, args, values, ty, span)
+			}
+		}
+	}
+
 	/// The value of a constant `val` of type `ty`: a fresh one at each use, as Rust copies a
 	/// constant there.
 	pub(super) fn const_value(&mut self, val: ConstValue, ty: Ty<'tcx>, span: Span) -> Expr {
@@ -1615,6 +1763,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				),
 				_ => unreachable!(),
 			};
+		}
+		if let ty::Pat(base, _) = ty.kind() {
+			return self.const_value(val, *base, span);
 		}
 		match val {
 			ConstValue::ZeroSized => match *ty.kind() {

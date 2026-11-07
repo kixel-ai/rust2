@@ -16,4 +16,4 @@ iterator can yield the index instead.
 
 ## Related
 
-- [rs.Slice](/quest/m3/ts-slice-object.md) - the slice these loops index
+- [Parts of arrays without arrayView](/quest/m3/ts-slice-object.md) - the slices these loops index

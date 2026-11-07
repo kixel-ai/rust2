@@ -54,7 +54,7 @@ pub enum Pointee {
 	/// reference to one is, which compares by where its elements are.
 	Array,
 	/// An `rs.RawSlice` of a `[T]`: the pointer to its first element and its length, which
-	/// a read through it makes the slice of.
+	/// a read through it makes the slice of; of a `[[T; N]]`, an `rs.RawArraySlice`.
 	Slice,
 }
 
@@ -91,8 +91,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The runtime's function `name` of the slice a pointer or reference to `ty`, a
-	/// `[T; N]` through any `MaybeUninit`s, is: `byteSlice{name}` of bytes, and else
-	/// `slice{name}`.
+	/// `[T; N]` through any `MaybeUninit`s, is: `byteSlice{name}` of bytes, `arraySlice{name}`
+	/// of arrays, and else `slice{name}`.
 	pub fn array_rs(&self, ty: Ty<'tcx>, name: &str) -> Expr {
 		super::array_fn(self.uninit_inner(ty), name)
 	}
@@ -185,11 +185,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			Pointee::Place => Type::Rs("Place", vec![self.ty(pointee, span)]),
 			Pointee::Object => self.ty(pointee, span),
 			Pointee::Array => match self.uninit_inner(pointee).kind() {
-				ty::Array(elem, _) if super::byte(*elem) => Type::Rs("ByteSlice", Vec::new()),
-				ty::Array(elem, _) => Type::Rs("Slice", vec![self.ty(*elem, span)]),
+				ty::Array(elem, _) => self.slice_ty(*elem, span),
 				_ => unreachable!("an array's pointee"),
 			},
 			Pointee::Slice => match self.uninit_inner(pointee).kind() {
+				ty::Slice(elem) if let ty::Array(inner, _) = elem.kind() => {
+					Type::Rs("RawArraySlice", vec![self.slice_ty(*inner, span)])
+				}
 				ty::Slice(elem) => Type::Rs("RawSlice", vec![self.ty(*elem, span)]),
 				_ => unreachable!("a slice's pointee"),
 			},
@@ -342,7 +344,7 @@ pub fn derives(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> Option<
 		("ptr", "cast" | "cast_const" | "cast_mut" | "as_ref" | "as_mut")
 		| ("NonNull", "new" | "new_unchecked" | "as_ptr" | "as_ref" | "as_mut" | "cast" | "cast_const" | "cast_mut")
 		| ("MaybeUninit", "as_ptr" | "as_mut_ptr" | "assume_init_ref" | "assume_init_mut" | "write")
-		| ("Box", "into_raw" | "leak" | "from_raw") => Some(Derives::Same),
+		| ("Box", "into_raw" | "leak" | "from_raw" | "write") => Some(Derives::Same),
 		(
 			"ptr",
 			"null" | "null_mut" | "dangling" | "dangling_mut" | "is_null" | "eq" | "add" | "sub" | "offset"
@@ -367,7 +369,7 @@ pub fn derives(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> Option<
 pub fn stores(tcx: ty::TyCtxt<'_>, def_id: rustc_hir::def_id::DefId) -> bool {
 	matches!(
 		super::library::key(tcx, def_id),
-		Some((owner, name)) if matches!(owner.as_str(), "ptr" | "NonNull" | "MaybeUninit")
+		Some((owner, name)) if matches!(owner.as_str(), "ptr" | "NonNull" | "MaybeUninit" | "Box")
 			&& matches!(name.as_str(), "write" | "write_unaligned" | "write_volatile")
 	)
 }
@@ -509,19 +511,25 @@ pub fn call<'tcx>(
 	// A mapping holds a `[T; N]`, and hands out a reference to one, as the JS array, which a
 	// pointer to it is an `rs.Slice` of, or an `rs.ByteSlice` of bytes.
 	let array = |b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>| b.t.pointee(ty) == Pointee::Array;
-	let to_pointer = |b: &Body<'_, '_, 'tcx>, e: Expr| match super::byte_array(b.t.uninit_inner(pointee())) {
-		true => Expr::rs("byteSliceFrom", vec![e]),
-		false => super::library::slice_from(e),
+	let to_pointer = |b: &Body<'_, '_, 'tcx>, e: Expr| match b.t.uninit_inner(pointee()).kind() {
+		ty::Array(elem, _) => super::slice_items_from(e, *elem),
+		_ => super::library::slice_from(e),
 	};
-	let to_reference = |b: &Body<'_, '_, 'tcx>, e: Expr| match super::byte_array(b.t.uninit_inner(pointee())) {
-		true => Expr::rs("byteSliceView", vec![e]),
-		false => super::library::slice_view(e),
+	// The arrays of an array of arrays have no JS array to write through.
+	let to_reference = |b: &mut Body<'_, '_, 'tcx>, e: Expr| match b.t.uninit_inner(pointee()) {
+		ty if super::byte_array(ty) => Expr::rs("byteSliceView", vec![e]),
+		ty if super::array_slice::of_arrays(ty) => b.err(
+			span,
+			format!("a reference to `{ty}` from a raw pointer, which is not supported yet"),
+		),
+		_ => super::library::slice_view(e),
 	};
 	// A raw pointer to a slice, from a reference to one, and the slice a read through it
 	// makes, shared if nothing writes through it.
-	let raw_of = |ty: Ty<'tcx>, s: Expr| match slice_of_bytes(ty) {
-		true => Expr::rs("rawByteSliceOf", vec![s]),
-		false => Expr::rs("rawSliceOf", vec![s]),
+	let raw_of = |ty: Ty<'tcx>, s: Expr| match ty {
+		_ if slice_of_bytes(ty) => Expr::rs("rawByteSliceOf", vec![s]),
+		_ if slice_of_arrays(ty) => Expr::rs("rawArraySliceOf", vec![s]),
+		_ => Expr::rs("rawSliceOf", vec![s]),
 	};
 	let deref = |ty: Ty<'tcx>, p: Expr, shared: bool| match slice_of_bytes(ty) {
 		true => p.member("derefBytes").call(vec![Expr::lit(shared.to_string())]),
@@ -819,6 +827,24 @@ pub fn call<'tcx>(
 			out.push(StmtKind::Expr(write).at(None));
 			p
 		}
+		// The box, written into as `MaybeUninit::write` writes, so a pointer into it from
+		// before still points into what it holds; one of a value JS copies is that value.
+		("Box", "write") => {
+			let boxed = arg();
+			let value = arg();
+			match kind(b, pointee()) {
+				Some(Pointee::Place) => value,
+				_ => {
+					let p = b.spill(boxed, "uninit", out);
+					let write = match array(b, pointee()) {
+						true => Expr::rs("ptrWrite", vec![p.clone(), value]),
+						false => write(b, p.clone(), value, pointee(), span),
+					};
+					out.push(StmtKind::Expr(write).at(None));
+					p
+				}
+			}
+		}
 		// A shared reference to a value JS copies is the value.
 		("MaybeUninit", "assume_init_read") => b.t.snapshot(arg(), pointee(), span),
 		("MaybeUninit", "assume_init_drop") | ("ManuallyDrop", "drop") => {
@@ -921,6 +947,24 @@ pub fn call<'tcx>(
 				let mut args = vec![src, dst, n];
 				args.extend(b.t.snapshot_fn(pointee(), span));
 				Expr::rs("ptrCopy", args)
+			}
+		}
+		("ptr" | "NonNull", "write_bytes") => {
+			let (p, val, n) = (arg(), arg(), arg());
+			if b.t.zero_sized(pointee()) {
+				out.push(StmtKind::Expr(n).at(None));
+				Expr::undefined()
+			} else if super::byte(pointee()) {
+				Expr::rs("ptrWriteBytes", vec![p, val, n])
+			} else {
+				// Only a byte is the byte it is set to: JS keeps any other element as a value.
+				b.err(
+					span,
+					format!(
+						"`write_bytes` of a pointer to `{}`, whose bytes JS keeps as a value",
+						pointee()
+					),
+				)
 			}
 		}
 		("raw", "from_raw_parts" | "from_raw_parts_mut")
@@ -1174,6 +1218,12 @@ pub fn slice_of_bytes(ty: Ty<'_>) -> bool {
 		ty::Adt(adt, _) => ty::tls::with(|tcx| super::stock::is_uninit_slice(tcx, adt.did())),
 		_ => false,
 	}
+}
+
+/// Whether `ty`, a raw pointer's pointee, is a slice of arrays, which an
+/// `rs.RawArraySlice` points at.
+pub fn slice_of_arrays(ty: Ty<'_>) -> bool {
+	matches!(ty.kind(), ty::Slice(elem) if elem.is_array())
 }
 
 /// Whether pointers `x` and `y` to `ty` point at the same place: the same object or
