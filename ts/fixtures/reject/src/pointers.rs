@@ -425,7 +425,8 @@ pub fn lone_byte_arrays(b: u8) -> bool {
 	let empty = unsafe { std::slice::from_raw_parts(&raw const b, 0) };
 	let lent = empty as *const [u8] as *const [u8; 1];
 	let from = std::ptr::from_ref(empty).cast::<[u8; 1]>();
-	pair.is_null() || one.is_null() || lent.is_null() || from.is_null()
+	let made = std::ptr::NonNull::from(empty).cast::<[u8; 1]>();
+	pair.is_null() || one.is_null() || lent.is_null() || from.is_null() || made.as_ptr().is_null()
 }
 
 /// Pointers, slices, and copies the body shows reach out of an array of one or a copied

@@ -196,6 +196,7 @@ fixtures/reject/src/pointers.rs:lone_byte_arrays+2:13: a raw or mutable slice of
 fixtures/reject/src/pointers.rs:lone_byte_arrays+3:17: a raw or mutable slice of a byte in no array of bytes
 fixtures/reject/src/pointers.rs:lone_byte_arrays+5:13: a raw or mutable slice of a byte in no array of bytes
 fixtures/reject/src/pointers.rs:lone_byte_arrays+6:39: a raw or mutable slice of a byte in no array of bytes
+fixtures/reject/src/pointers.rs:lone_byte_arrays+7:44: a raw or mutable slice of a byte in no array of bytes
 fixtures/reject/src/pointers.rs:lone_byte_slices+1:12: a raw or mutable slice of a byte in no array of bytes
 fixtures/reject/src/pointers.rs:lone_byte_slices+2:19: a raw or mutable slice of a byte in no array of bytes
 fixtures/reject/src/pointers.rs:made_part_replaced+5:10: a raw pointer to `(u32, u32)` in `pointers::Gap`, which the crate may put another object in place of

@@ -14,7 +14,7 @@ use rustc_span::Spanned;
 
 use super::Fx;
 use crate::lower::library::{self, Std};
-use crate::lower::pointer::Pointee;
+use crate::lower::pointer::{self, Pointee};
 use crate::ts::{Expr, Stmt};
 
 /// The array JS keeps what a pointer points at in.
@@ -429,8 +429,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	pub(super) fn erased_borrow(&self, op: &Operand<'tcx>, from: ty::Ty<'tcx>, to: ty::Ty<'tcx>) -> Option<String> {
 		let t = &self.b.t;
 		let erases = t.identity_pointee(to) && !t.identity_pointee(from) && t.pointee(from) == Pointee::Place;
-		(erases && crate::lower::pointer::unerasable(self.b, from).is_none() && self.arc_pointer(op) == Some(false))
-			.then(|| crate::lower::pointer::erased_place(t.uninit_inner(from)))
+		(erases && pointer::unerasable(self.b, from).is_none() && self.arc_pointer(op) == Some(false))
+			.then(|| pointer::erased_place(t.uninit_inner(from)))
 	}
 
 	/// Why the cast of the raw slice `op` of bytes, a pointer to `from`, to one to `to`, an
@@ -448,7 +448,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			.then(|| "a raw or mutable slice of a byte in no array of bytes".into())
 	}
 
-	/// Where the raw slice `op` starts, if the body shows it.
+	/// Where the raw slice, `NonNull` of one, or slice `op` starts, if the body shows it.
 	fn raw_start(&self, op: &Operand<'tcx>) -> Option<Origin<'tcx>> {
 		let local = self.traced(op)?;
 		if self.def_at[local].is_some() {
@@ -462,18 +462,22 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				) if self.same_pointee(op, local) => self.raw_start(op),
 				// `&raw const *s`, of the slice `s`.
 				Rvalue::RawPtr(_, place) if place.projection.as_slice() == [ProjectionElem::Deref] => {
-					self.start(&Operand::Copy(mir::Place::from(place.local)))
+					self.raw_start(&Operand::Copy(mir::Place::from(place.local)))
 				}
-				_ => None,
+				_ => self.start(op),
 			};
 		}
-		let (def_id, _, args) = self.def_call(local)?;
+		let (def_id, gargs, args) = self.def_call(local)?;
+		// A pointer or reference to where its first argument points, as a whole.
+		if pointer::from_reference(self.tcx, def_id, gargs)
+			|| pointer::derives(self.tcx, def_id) == Some(pointer::Derives::Same)
+		{
+			return self.raw_start(&args.first()?.node);
+		}
 		let (owner, name) = library::key(self.tcx, def_id)?;
 		match (owner.as_str(), name.as_str()) {
 			("ptr" | "NonNull", "slice_from_raw_parts" | "slice_from_raw_parts_mut") => self.origin(&args[0].node),
-			("ptr", "from_ref" | "from_mut") => self.start(&args[0].node),
-			("NonNull", "as_ptr" | "new_unchecked") => self.raw_start(&args[0].node),
-			_ => None,
+			_ => self.start(op),
 		}
 	}
 
