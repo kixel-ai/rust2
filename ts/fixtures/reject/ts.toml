@@ -4,6 +4,7 @@ roots = [
     "alloc::alloc_retyped",
     "alloc::allocated",
     "alloc::bytes_as_values",
+    "alloc::cell_of_objects",
     "alloc::cell_pointer_kept",
     "alloc::cell_pointer_reassigned",
     "alloc::reinterpreted",

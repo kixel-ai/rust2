@@ -1,5 +1,7 @@
 //! Memory from `alloc` and raw pointers read as other types' bytes or as addresses.
 
+use std::pin::Pin;
+
 use crate::pointers::Halves;
 
 /// A pointer read as another type's bytes.
@@ -28,6 +30,20 @@ pub fn allocated() -> u8 {
 pub fn vec_pointer(v: &mut Vec<u8>) -> usize {
 	let p = &raw const *v;
 	unsafe { (*p).len() }
+}
+
+/// `UnsafeCell`s of objects a pointer is the place of, which a whole write through `get`
+/// lands in, so a value `replace` reads out before would change too or be a copy, and a
+/// `Cell` of a pinned `Box`, whose copy is another allocation.
+pub fn cell_of_objects(v: &mut Vec<u8>, s: &mut String, p: &mut Pin<Box<(u8, u8)>>, q: &mut Pin<Box<(u8, u8)>>) -> u8 {
+	let v = std::cell::UnsafeCell::from_mut(v);
+	let s = std::cell::UnsafeCell::from_mut(s);
+	let p = std::cell::UnsafeCell::from_mut(p);
+	let q = std::cell::Cell::from_mut(q);
+	let first = unsafe {
+		v.replace(Vec::new()).len() as u8 ^ s.replace(String::new()).len() as u8 ^ p.replace(Box::pin((3, 4))).0
+	};
+	first ^ q.replace(Box::pin((5, 6))).0
 }
 
 /// A pointer to a cell behind a reference, made before a call that `UnsafeCell::raw_get`

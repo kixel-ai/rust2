@@ -2480,8 +2480,9 @@ impl Slots {
 /// `MaybeUninit::as_ptr`; cells `UnsafeCell::from_mut` makes of a variable, an object,
 /// an element, and an array, written through `get`; `UnsafeCell::replace` of each, which a
 /// pointer taken before sees, giving back what it held undropped; what `as_ref_unchecked`
-/// and `as_mut_unchecked` lend; `raw_get` of pointers to no cell; and cells of a `Vec` and
-/// a `String` a `&mut` borrows, replaced and swapped through `get`.
+/// and `as_mut_unchecked` lend; `raw_get` of pointers to no cell; and the allocations of
+/// boxes and pinned boxes replaced and swapped through pointers, `UnsafeCell`s, one
+/// `from_mut` makes, and `Cell`s.
 pub fn raw_cells(data: &[u8], out: &mut Vec<u8>) {
 	let count = Rc::new(());
 	let num = UnsafeCell::new(7u32);
@@ -2612,9 +2613,8 @@ pub fn raw_cells(data: &[u8], out: &mut Vec<u8>) {
 				out.extend(old);
 				out.extend(arr);
 			},
-			// Pointers to no cell, which `raw_get` gives back as they are, and cells of what
-			// a `&mut` borrows that is an object JS writes whole values into, replaced and
-			// swapped while the value given back is kept.
+			// Pointers to no cell, which `raw_get` gives back as they are, and boxes replaced
+			// and swapped through pointers and cells, each allocation moving with its box.
 			6 => unsafe {
 				let null = ptr::null::<UnsafeCell<u32>>();
 				let pair = ptr::null_mut::<UnsafeCell<Duo>>();
@@ -2623,19 +2623,38 @@ pub fn raw_cells(data: &[u8], out: &mut Vec<u8>) {
 					u8::from(UnsafeCell::raw_get(pair).is_null()),
 					u8::from(UnsafeCell::raw_get(null.wrapping_add(usize::from(n % 4))).is_null()),
 				]);
-				let mut list = vec![n, 1];
-				let mut other = vec![2];
-				let mut text = String::from("ab");
-				let c = UnsafeCell::from_mut(&mut list);
-				let old = c.replace(vec![n ^ 1, 3, 4]);
-				ptr::swap(c.get(), UnsafeCell::from_mut(&mut other).get());
-				let swapped = ptr::replace(c.get(), vec![5]);
-				let was = UnsafeCell::from_mut(&mut text).replace(n.to_string());
-				out.extend(old);
-				out.extend(swapped);
-				out.extend(other);
-				out.extend(list);
-				out.extend(was.bytes().chain(text.bytes()));
+				let held = |n| Held {
+					n,
+					count: Rc::clone(&count),
+				};
+				let mut a = Box::new(held(n));
+				let at_a: *const Held = &*a;
+				let old = ptr::replace(&mut a, Box::new(held(!n)));
+				let mut other = Box::new(held(n ^ 1));
+				let (at_new, at_other): (*const Held, *const Held) = (&*a, &*other);
+				ptr::swap(&mut a, &mut other);
+				out.extend([u8::from(ptr::eq(at_a, &*old)), u8::from(ptr::eq(at_new, &*other))]);
+				out.extend([u8::from(ptr::eq(at_other, &*a)), old.n, a.n, other.n]);
+				let pinned = UnsafeCell::new(Box::pin((n, 1u16)));
+				let at_pinned: *const (u8, u16) = &**pinned.get();
+				let was = pinned.replace(Box::pin((n ^ 2, 2)));
+				let (x, y) = (Cell::new(Box::pin((n, 3u16))), Cell::new(Box::pin((!n, 4u16))));
+				let at_x: *const (u8, u16) = &**x.as_ptr();
+				x.swap(&y);
+				out.extend([u8::from(ptr::eq(at_x, &**y.as_ptr())), x.into_inner().0]);
+				out.extend([u8::from(ptr::eq(at_pinned, &*was)), was.0, pinned.into_inner().0]);
+				let cell = UnsafeCell::new(Box::new(held(n ^ 3)));
+				let at_cell: *const Held = &**cell.get();
+				let was = cell.replace(Box::new(held(n ^ 4)));
+				let mut boxed = Box::new(held(n ^ 7));
+				let at_boxed: *const Held = &*boxed;
+				let lent = UnsafeCell::from_mut(&mut boxed).replace(Box::new(held(n)));
+				out.extend([u8::from(ptr::eq(at_boxed, &*lent)), lent.n, boxed.n]);
+				let (x, y) = (Cell::new(Box::new(held(n ^ 5))), Cell::new(Box::new(held(n ^ 6))));
+				let at_x: *const Held = &**x.as_ptr();
+				x.swap(&y);
+				out.extend([u8::from(ptr::eq(at_cell, &*was)), was.n, (*cell.get()).n]);
+				out.extend([u8::from(ptr::eq(at_x, &**y.as_ptr())), Rc::strong_count(&count) as u8]);
 			},
 			_ => out.push(n),
 		}

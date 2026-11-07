@@ -18,7 +18,7 @@ const unsafeCells = [
 /**
  * `pointers::raw_cells` scripts: each operation, then each replace before and after writes
  * through pointers to where the cells are kept, through cells of what a `&mut` borrows, and
- * of pointers to no cell beside cells of a `Vec` and a `String`.
+ * of pointers to no cell beside boxes replaced and swapped.
  */
 const rawCells = [
 	[0, 8, 9, 2, 3, 4, 5, 6, 7],

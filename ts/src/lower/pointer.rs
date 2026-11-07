@@ -1189,9 +1189,10 @@ pub(super) fn replace<'tcx>(
 }
 
 /// What `p`, a pointer to `ty`, points at, as a value of its own that a whole write there
-/// after leaves as it was. The write may land in the object there rather than replace it,
-/// as in one a `from_mut` cell holds, so an object, or an array to the depth `objectCopy`
-/// copies its elements, is copied one object deep.
+/// after leaves as it was. The write lands in the object or array a pointer is, so one is
+/// copied one object deep, an array's elements to the depth `objectCopy` copies them. One
+/// a pointer is the place of is read as it is, keeping a `Box`'s allocation, as its write
+/// puts another in the place.
 fn copied_out<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
 	match b.t.pointee(ty) {
 		_ if b.t.zero_sized(ty) => read(b, p, ty, span),
@@ -1201,7 +1202,6 @@ fn copied_out<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Spa
 			let view = super::library::slice_view(p);
 			Expr::rs("objectCopy", std::iter::once(view).chain(depth).collect())
 		}
-		Pointee::Place if b.t.write_in(ty).is_some() => Expr::rs("objectCopy", vec![p.member("v")]),
 		_ => read(b, p, ty, span),
 	}
 }
