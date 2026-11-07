@@ -32,7 +32,7 @@ function methods(): Uint8Array[] {
 		const be = (v: bigint) => Array.from({ length: bits / 8 }, (_, i) => Number((v >> BigInt(bits - 8 - 8 * i)) & 0xffn));
 		const u32 = (n: number) => [n >>> 24, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff];
 		let i = 0;
-		for (let kind = 0; kind < 49; kind++) {
+		for (let kind = 0; kind < 51; kind++) {
 			for (const a of edges) {
 				if (exponents.has(kind)) {
 					for (const n of shifts) cases.push(Uint8Array.of(...o, kind, ...be(a), ...be(others[i++ % others.length]), ...u32(n)));

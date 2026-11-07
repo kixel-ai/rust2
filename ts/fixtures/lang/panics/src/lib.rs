@@ -1,6 +1,8 @@
 //! A part of the language the driver translates, exercised against native Rust: what
 //! each of its modules says.
 
+#![cfg_attr(feature = "hook", feature(nonzero_ops))]
+
 #[path = "../../harness.rs"]
 pub mod harness;
 #[cfg(feature = "hook")]
