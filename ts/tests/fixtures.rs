@@ -42,12 +42,17 @@ fn driver(name: &str, config: &Path, args: &[&std::ffi::OsStr], build: &str) -> 
 
 /// The command [`driver`] runs.
 fn driver_command(name: &str, config: &Path, args: &[&std::ffi::OsStr], build: &str) -> Command {
+	driver_at(&fixture(name).join("Cargo.toml"), config, args, build)
+}
+
+/// The command that runs the driver on the package of `manifest`.
+fn driver_at(manifest: &Path, config: &Path, args: &[&std::ffi::OsStr], build: &str) -> Command {
 	let mut command = Command::new(env!("CARGO_BIN_EXE_rust2-ts"));
 	command
 		.arg("--config")
 		.arg(config)
 		.arg("--manifest-path")
-		.arg(fixture(name).join("Cargo.toml"))
+		.arg(manifest)
 		.args(args)
 		.env("CARGO_TARGET_DIR", scratch().join(build))
 		.env("RUSTFLAGS", remap());
@@ -211,6 +216,12 @@ fn typecheck(out: &Path) {
 /// translated side through `entry`, a module in `out`. `build` are the native build's
 /// arguments, such as `--features`, in the workspace whose manifest is `workspace`.
 fn differential(workspace: &Path, package: &str, build: &[&str], out: &Path, entry: &str, cases: u32) {
+	let wasm = native(workspace, package, build);
+	compare(&wasm, out, entry, cases, None);
+}
+
+/// Build the harness natively, as wasm32, returning its module.
+fn native(workspace: &Path, package: &str, build: &[&str]) -> PathBuf {
 	let target_dir = scratch().join("wasm");
 	let status = cargo()
 		.args([
@@ -233,26 +244,34 @@ fn differential(workspace: &Path, package: &str, build: &[&str], out: &Path, ent
 		.status()
 		.expect("running cargo");
 	assert!(status.success(), "building {package} for {TARGET} failed");
-	let wasm = target_dir
+	target_dir
 		.join(TARGET)
 		.join(PROFILE)
-		.join(format!("{}.wasm", package.replace('-', "_")));
+		.join(format!("{}.wasm", package.replace('-', "_")))
+}
+
+/// Run the native module `wasm` and the translation in `out`, through its module `entry`,
+/// on the same inputs: `wasm` with wasm-bindgen's JS `glue`, the `_bg.js` its CLI made, if
+/// it imports any.
+fn compare(wasm: &Path, out: &Path, entry: &str, cases: u32, glue: Option<&Path>) {
 	std::fs::write(out.join("package.json"), "{ \"type\": \"module\" }\n").unwrap();
 	// One thread: the cases run one at a time, and V8's background compilers and
 	// collectors would spend more CPU than they save.
 	let output = Command::new("node")
 		.arg("--single-threaded")
 		.arg(manifest_dir().join("tests").join("differential.ts"))
-		.arg(&wasm)
+		.arg(wasm)
 		.arg(out.join(entry))
 		.arg(cases.to_string())
+		.args(glue)
 		.output()
 		.expect("running node, which the dev shell provides");
 	let stdout = String::from_utf8_lossy(&output.stdout);
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		output.status.success(),
-		"{package} differs from native Rust:\n{stdout}{stderr}"
+		"{} differs from native Rust:\n{stdout}{stderr}",
+		wasm.display()
 	);
 	println!("{stdout}");
 }
@@ -666,6 +685,87 @@ export const run = (input: rs.ByteSlice) => script(rs.byteSliceView(input));
 	typecheck(out);
 	// Each step as often in random scripts as its share of 20,000 that mixed every step.
 	differential(&workspace(), "task-fixture", &[], out, "caller.ts", 800);
+}
+
+/// js-sys's and web-sys's imports, and the fixture's own of each kind, as direct JS calls.
+/// The native side runs through wasm-bindgen's CLI, whose JS glue must match the
+/// fixture's locked wasm-bindgen exactly; the translated side, once per schema translation
+/// reads, against that one native run: the locked version's, then the next one's, from
+/// the fixture's other lockfile. What translation refuses fails at its span.
+#[test]
+fn bindgen() {
+	let wasm = native(&fixture("bindgen").join("Cargo.toml"), "bindgen-fixture", &[]);
+	let glue = scratch().join("bindgen").join("glue");
+	let status = Command::new("wasm-bindgen")
+		.args(["--target", "bundler", "--out-dir"])
+		.arg(&glue)
+		.arg(&wasm)
+		.status()
+		.expect("running wasm-bindgen, which the dev shell provides");
+	assert!(status.success(), "wasm-bindgen failed on {}", wasm.display());
+	let (glued, js) = (glue.join("bindgen_fixture_bg.wasm"), glue.join("bindgen_fixture_bg.js"));
+	// Each case as many times as `model`'s, of about as many steps.
+	let cases = 300;
+
+	let out = translated("bindgen");
+	snapshot("bindgen", &out);
+	std::fs::copy(fixture("bindgen").join("caller.ts"), out.join("caller.ts")).unwrap();
+	typecheck(&out);
+	compare(&glued, &out, "caller.ts", cases, Some(&js));
+
+	// The next schema: a copy of the fixture with its other lockfile, beside the shared
+	// `wasm.rs` its `lib.rs` reaches.
+	let next = scratch().join("bindgen").join("next");
+	let _ = std::fs::remove_dir_all(&next);
+	for file in [
+		"Cargo.toml",
+		"ts.toml",
+		"src/lib.rs",
+		"src/harness.rs",
+		"src/imports.rs",
+	] {
+		let to = next.join(file);
+		std::fs::create_dir_all(to.parent().unwrap()).unwrap();
+		std::fs::copy(fixture("bindgen").join(file), to).unwrap();
+	}
+	std::fs::copy(
+		fixture("bindgen").join("wasm-bindgen-0.2.130.lock"),
+		next.join("Cargo.lock"),
+	)
+	.unwrap();
+	std::fs::copy(
+		manifest_dir().join("fixtures").join("wasm.rs"),
+		scratch().join("bindgen").join("wasm.rs"),
+	)
+	.unwrap();
+	let out = scratch().join("bindgen").join("next-out");
+	let output = driver_at(
+		&next.join("Cargo.toml"),
+		&next.join("ts.toml"),
+		&["--out".as_ref(), out.as_ref()],
+		"build",
+	)
+	.output()
+	.expect("running rust2-ts");
+	assert!(
+		output.status.success(),
+		"translating bindgen at the next schema failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	std::fs::copy(fixture("bindgen").join("caller.ts"), out.join("caller.ts")).unwrap();
+	typecheck(&out);
+	compare(&glued, &out, "caller.ts", cases, Some(&js));
+
+	let out = scratch().join("bindgen").join("refused");
+	let args: [&std::ffi::OsStr; 5] = [
+		"--out".as_ref(),
+		out.as_ref(),
+		"--".as_ref(),
+		"--features".as_ref(),
+		"refused".as_ref(),
+	];
+	let output = driver("bindgen", &fixture("bindgen").join("refused.toml"), &args, "build");
+	rejected(&out, &output, &fixture("bindgen").join("refused.txt"));
 }
 
 /// Each construct outside the subset fails with its span, and nothing is written.

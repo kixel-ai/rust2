@@ -211,6 +211,8 @@ pub enum Std {
 	BytesMut,
 	/// `rand::rngs::ThreadRng`: `rs.ThreadRng`, which holds no state.
 	ThreadRng,
+	/// wasm-bindgen's `JsValue`, or a type an import declares: the JS value itself.
+	Js,
 }
 
 impl Std {
@@ -249,6 +251,12 @@ impl Std {
 
 	pub fn of(tcx: TyCtxt<'_>, did: DefId) -> Option<Self> {
 		if !is_std(tcx, did) {
+			if super::bindgen::represents(tcx, did) {
+				return Some(Self::Js);
+			}
+			if super::bindgen::is_lazy(tcx, did) {
+				return Some(Self::LazyCell);
+			}
 			return super::stock::of(tcx, did);
 		}
 		use rustc_span::sym;

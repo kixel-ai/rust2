@@ -718,6 +718,26 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					}
 				}
 				Some(Std::ControlFlow) => super::call::control_flow_field(self, base, ty, variant),
+				// An imported type's `obj` is the JS value itself, and its marker nothing.
+				Some(Std::Js) => {
+					let ty::Adt(_, args) = ty.kind() else { unreachable!() };
+					let def = &adt.non_enum_variant().fields[field];
+					match def.name.as_str() {
+						"obj" => base,
+						_ if def
+							.ty(tcx, args)
+							.skip_norm_wip()
+							.ty_adt_def()
+							.is_some_and(|f| f.is_phantom_data()) =>
+						{
+							Expr::undefined()
+						}
+						name => self.err(
+							span,
+							format!("`{ty}`'s `{name}`, a slot of wasm-bindgen's heap, which only WASM has"),
+						),
+					}
+				}
 				_ if transparent(self.b.t, ty) || crate::lower::library::wrapped(tcx, ty).is_some() => base,
 				None if self.b.t.own(adt.did()) => {
 					let info = self.b.t.adt(*adt, span);

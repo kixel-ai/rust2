@@ -26,6 +26,7 @@ pub const RUNTIME: &[(&str, &str)] = &[
 	("rs/hook.ts", include_str!("../runtime/rs/hook.ts")),
 	("rs/int.ts", include_str!("../runtime/rs/int.ts")),
 	("rs/iter.ts", include_str!("../runtime/rs/iter.ts")),
+	("rs/js.ts", include_str!("../runtime/rs/js.ts")),
 	("rs/location.ts", include_str!("../runtime/rs/location.ts")),
 	("rs/rand.ts", include_str!("../runtime/rs/rand.ts")),
 	("rs/sort.ts", include_str!("../runtime/rs/sort.ts")),

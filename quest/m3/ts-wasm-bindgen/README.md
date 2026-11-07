@@ -58,6 +58,5 @@ Decided with the maintainer on 2026-11-06:
 
 ## Required
 
-- [Translate wasm-bindgen imports](/quest/m3/ts-wasm-bindgen/imports.md) - web-sys and js-sys imports read from the encoded program, with `JsValue` and imported types as JS values, proven on synchronous calls
 - [wasm-bindgen closures and promises](/quest/m3/ts-wasm-bindgen/closures.md) - `Closure` and js-sys's futures mapped, proven on web-sys's `VideoEncoder` in headless Chromium
 - [tokio's sync channels mapped into the runtime](/quest/m3/ts-wasm-bindgen/tokio-sync.md) - `mpsc`, `watch`, `oneshot`, and `select!`'s support, which web-codecs passes frames and errors through

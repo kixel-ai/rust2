@@ -3278,6 +3278,16 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
+	/// Whether `bb` starts a loop: a block it dominates jumps back to it.
+	fn loop_header(&self, bb: BasicBlock) -> bool {
+		let blocks = &self.mir.basic_blocks;
+		let dominators = blocks.dominators();
+		dominators.is_reachable(bb)
+			&& blocks.predecessors()[bb]
+				.iter()
+				.any(|&p| dominators.is_reachable(p) && dominators.dominates(bb, p))
+	}
+
 	/// Emit every pending temporary, in order.
 	fn flush_pending(&mut self, out: &mut Vec<Stmt>) {
 		for p in std::mem::take(&mut self.pending) {
@@ -3290,14 +3300,34 @@ impl cfg::Lower<Stmt> for Fx<'_, '_, '_, '_> {
 	fn node(&mut self, node: usize, out: &mut Vec<Stmt>) -> Exit {
 		let exit = self.block(BasicBlock::from_usize(node), out);
 		let forward = |to: usize| self.forward(BasicBlock::from_usize(to)).as_usize();
-		match exit {
+		let exit = match exit {
 			Exit::Goto(to) => Exit::Goto(forward(to)),
 			Exit::Branch(arms, default) => Exit::Branch(
 				arms.into_iter().map(|(cond, to)| (cond, forward(to))).collect(),
 				forward(default),
 			),
 			Exit::End => Exit::End,
+		};
+		// A loop runs its body anew each time: what is held back to fold into its one read
+		// runs where it was made, before the loop, if running it again would differ.
+		let targets: Vec<usize> = match &exit {
+			Exit::Goto(to) => vec![*to],
+			Exit::Branch(arms, default) => arms.iter().map(|(_, to)| *to).chain([*default]).collect(),
+			Exit::End => Vec::new(),
+		};
+		if targets
+			.into_iter()
+			.any(|to| self.loop_header(BasicBlock::from_usize(to)))
+		{
+			let (held, kept): (Vec<_>, Vec<_>) = std::mem::take(&mut self.pending)
+				.into_iter()
+				.partition(|p| p.effect || p.memory);
+			self.pending = kept;
+			for p in held {
+				self.flush_one(p, out);
+			}
 		}
+		exit
 	}
 
 	fn flush(&mut self, out: &mut Vec<Stmt>) {
