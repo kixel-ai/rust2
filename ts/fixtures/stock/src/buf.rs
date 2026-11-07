@@ -2,6 +2,7 @@
 //! differential test reaches their panics and what `split_to` and `freeze` share.
 
 use std::cell::Cell;
+use std::collections::VecDeque;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
@@ -422,6 +423,33 @@ fn read_all<B: Buf + ?Sized>(buf: &mut B, ops: &[u8], out: &mut Vec<u8>) -> Vec<
 	}
 	let n = buf.remaining();
 	buf.copy_to_bytes(n).to_vec()
+}
+
+/// The reads of `reads` off a `VecDeque<u8>` whose ring wraps `cut` slots from its end,
+/// each after its `chunk`, the front slice until that is read, then the rest through a
+/// `&mut`. An `advance` past what remains panics.
+pub fn deques(data: &[u8], out: &mut Vec<u8>) {
+	let [cut, ops @ ..] = data else {
+		return;
+	};
+	let (ops, input) = ops.split_at(ops.len() / 2);
+	let mut deque = VecDeque::with_capacity(input.len());
+	for _ in 0..*cut as usize % (input.len() + 1) {
+		deque.push_back(0);
+		deque.pop_front();
+	}
+	deque.extend(input);
+	for &op in ops {
+		let chunk = deque.chunk();
+		out.push(chunk.len() as u8);
+		out.extend_from_slice(&chunk[..chunk.len().min(1)]);
+		match op.checked_sub(0xf0) {
+			Some(n) => deque.advance(n.into()),
+			None => out.extend_from_slice(&read(&mut deque, op.into()).to_be_bytes()),
+		}
+	}
+	let rest = read_all(&mut &mut deque, &[], out);
+	out.extend_from_slice(&rest);
 }
 
 /// A buffer of the crate's own over `Buf`, as moq's transports lend a stream's chunks.
