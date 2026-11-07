@@ -49,7 +49,7 @@ export function hash$Hash_hashes_Switch(self: Packet, state: rs.Place<Switch.Swi
 export interface Packet {
 	id: rs.u64;
 	flags: rs.u8;
-	name: string;
+	name: rs.String;
 	tags: rs.Vec<rs.u16>;
 	next: rs.i32 | undefined;
 }

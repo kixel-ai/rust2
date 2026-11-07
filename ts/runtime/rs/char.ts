@@ -7,7 +7,7 @@
 import { type ByteSlice, type Debug, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugStructFields, fmtDebugTuple, fmtOption, fmtPad, fmtUnit, fmtWriteFmt, OK, Ok, type Place, panic, type Result, Slice } from "../rs.ts";
 import { type char, type u8, type u16, u16Debug, u16LowerHex, type u32, type usize } from "./int.ts";
 import { type Clones, DONE, type Done, Iter, iterFlatMap, iterHeld, type SizeHint } from "./iter.ts";
-import { strChars } from "./str.ts";
+import { type String as RsString, strChars, stringCased } from "./str.ts";
 import { drop as dispose } from "./task.ts";
 import { ALPHABETIC, CASE_IGNORABLE, LOWERCASE, NUMERIC, TITLECASE, TO_LOWERCASE, TO_LOWERCASE_MULTI, TO_UPPERCASE, TO_UPPERCASE_MULTI, UNPRINTABLE, UPPERCASE } from "./unicode.ts";
 import type { Location } from "./location.ts";
@@ -151,7 +151,7 @@ const toLowercase = /* @__PURE__ */ new CaseMap(TO_LOWERCASE, TO_LOWERCASE_MULTI
 const toUppercase = /* @__PURE__ */ new CaseMap(TO_UPPERCASE, TO_UPPERCASE_MULTI);
 
 /** `str::to_lowercase`: each char's, but a capital sigma's at the end of a word, which is final. */
-export function strToLowercase(s: string): string {
+export function strToLowercase(s: string): RsString {
 	let out = "";
 	for (let i = 0; i < s.length; ) {
 		const c = s.codePointAt(i) as char;
@@ -160,7 +160,7 @@ export function strToLowercase(s: string): string {
 		else out += String.fromCodePoint(...toLowercase.map(c));
 		i = end;
 	}
-	return out;
+	return stringCased(s, out);
 }
 
 /**
@@ -188,14 +188,14 @@ function isLowSurrogate(u: number): boolean {
 }
 
 /** `str::to_uppercase`: each char's. */
-export function strToUppercase(s: string): string {
+export function strToUppercase(s: string): RsString {
 	let out = "";
 	for (let i = 0; i < s.length; ) {
 		const c = s.codePointAt(i) as char;
 		out += String.fromCodePoint(...toUppercase.map(c));
 		i += c > 0xffff ? 2 : 1;
 	}
-	return out;
+	return stringCased(s, out);
 }
 
 /** The chars a case map or an escape still has, from either end, exactly sized. */
