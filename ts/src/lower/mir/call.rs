@@ -540,6 +540,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				"replace" => done(self.operand(&args[1].node, span, out), false),
 				_ => done(Expr::undefined(), false),
 			},
+			("Box", "new_zeroed") => done(self.zeroed(targ(0)?, span), false),
 			// Replacing what a `&mut` borrows.
 			// What `Default::default` makes before the swap.
 			("mem", "take") => {

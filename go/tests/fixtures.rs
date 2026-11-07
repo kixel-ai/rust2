@@ -317,10 +317,12 @@ fn hand() {
 }
 
 /// Fields and variants whose escaped names could meet, constant memory, which each use
-/// shares, and the `pub` API, exported by the paths the crate exports it at.
+/// shares, constants and statics, and the `pub` API, exported by the paths the crate
+/// exports it at.
 #[test]
 fn items() {
-	differential("items", items::run, "Run", cases(3, 4, 1_000));
+	differential("items", items::run, "Run", cases(4, 4, 1_000));
+	exports();
 	let text = std::fs::read_to_string(scratch().join("items/out/items.go")).unwrap();
 	for exported in [
 		"type Count struct",
@@ -353,6 +355,53 @@ fn items() {
 			"items has `{unexported}`"
 		);
 	}
+}
+
+/// The items fixture's constants and statics as `tests/exports` reads them from Go: each
+/// constant a Go `const` or a fresh value at each call, and each static one variable,
+/// which translated code reads what Go writes to.
+fn exports() {
+	let out = scratch().join("items/out");
+	let main = out.join("exports");
+	std::fs::create_dir_all(&main).unwrap();
+	std::fs::copy(manifest_dir().join("tests/exports/main.go"), main.join("main.go")).unwrap();
+	let output = Command::new("go")
+		.args(["run", "-buildvcs=false", "./exports"])
+		.current_dir(&out)
+		.output()
+		.expect("running go");
+	assert!(
+		output.status.success(),
+		"tests/exports failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	use items::{Count, shapes};
+	let hex = |s: &str| s.bytes().map(|b| format!("{b:02x}")).collect::<String>();
+	let table: Vec<String> = items::TABLE.iter().map(u16::to_string).collect();
+	let mut start = Count::START;
+	start.bump();
+	let want = format!(
+		"{} {} {} {} {} {}\n{} {}\n99 {} {} {}\n{} [{}] {} {} {}\n{} 9 9\nq{}\n",
+		items::MAX_LEN,
+		Count::MAX,
+		items::FLOOR,
+		items::ENABLED,
+		items::LETTER,
+		shapes::SIDES,
+		hex(items::GREETING),
+		items::TEXT,
+		items::ORIGIN.sum,
+		start.count,
+		Count::START.count,
+		items::HITS.count,
+		table.join(" "),
+		items::NAME,
+		std::str::from_utf8(&items::BYTES).unwrap(),
+		shapes::UNIT,
+		items::HITS.count,
+		std::str::from_utf8(&items::TAIL[1..]).unwrap(),
+	);
+	assert_eq!(String::from_utf8_lossy(&output.stdout), want);
 }
 
 /// Enums Go holds as their parts, behind pointers where a part is over four words.

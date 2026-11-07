@@ -161,6 +161,21 @@ pub fn exported(path: &str) -> String {
 		.collect()
 }
 
+/// A constant's or static's exported Go name: its path as [`exported`] names it, but each
+/// upper-case word of its own name capitalized as Go names constants, `limits::MAX_LEN`
+/// as `LimitsMaxLen`.
+pub fn exported_value(path: &str) -> String {
+	let (owner, name) = path.rsplit_once("::").map_or(("", path), |(o, n)| (o, n));
+	let words: Vec<String> = name
+		.split('_')
+		.map(|word| match word.chars().any(|c| c.is_lowercase()) {
+			true => word.to_string(),
+			false => word.to_lowercase(),
+		})
+		.collect();
+	format!("{}{}", exported(owner), exported(&words.join("_")))
+}
+
 /// Whether Go exports `name` as written: an ASCII identifier with a leading uppercase
 /// letter, so no Unicode letter or mark Rust allows and Go does not can reach Go's output.
 pub fn is_exported(name: &str) -> bool {
@@ -211,6 +226,16 @@ pub fn escaped(name: &str) -> String {
 		true => format!("{name}_"),
 		false => name.to_string(),
 	}
+}
+
+/// The base of a static's Go name, unexported: its path, with its crate when not the
+/// translated one.
+pub fn static_base(tcx: TyCtxt<'_>, def_id: DefId) -> String {
+	let mut base = String::from("static");
+	if def_id.krate != LOCAL_CRATE {
+		base = format!("{base}_{}", tcx.crate_name(def_id.krate));
+	}
+	format!("{base}_{}", item_base(tcx, def_id))
 }
 
 /// The base of a function instance's Go name: its owner and name, its crate when not the
