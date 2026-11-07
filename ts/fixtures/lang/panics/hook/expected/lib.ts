@@ -171,7 +171,7 @@ export function NOTE$init(): rs.RefCell<rs.String> {
 export function note(): rs.String {
 	return rs.localKeyWithBorrowMut(NOTE, (a0: rs.String): rs.String => {
 		return rs.replaceIn(a0, rs.stringNew());
-	}, { file: "fixtures/lang/panics/src/lib.rs", line: 53, col: 5 });
+	}, { file: "fixtures/lang/panics/src/lib.rs", line: 55, col: 5 });
 }
 
 //# sourceMappingURL=lib.ts.map
