@@ -64,8 +64,11 @@ pub struct Defining<'tcx> {
 	/// The TypeScript type of each instance typed in that type expression, which one span
 	/// refuses alike wherever in it, so a deep one is typed once.
 	pub(super) instanced: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, Type>,
+	/// Whether that type expression nested past the crate's recursion limit, which is
+	/// refused, so nothing else in it is typed.
+	pub(super) too_deep: bool,
 	/// The instances whose drop glue is being classified, by what it drops through.
-	pub(super) glue_open: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
+	pub(super) glue_open: Vec<Ty<'tcx>>,
 }
 
 struct Typing {
@@ -241,15 +244,21 @@ impl<'tcx> Translator<'_, 'tcx> {
 	/// arguments would never end, which is refused.
 	pub(super) fn enter_instance(&mut self, instance: Ty<'tcx>, span: Span) -> bool {
 		let instancing = &self.defining_state.instancing;
+		if self.defining_state.too_deep {
+			return false;
+		}
 		let msg = match () {
 			_ if instancing.contains(&instance) => format!(
 				"`{instance}` is not supported yet: a projection of its parameters is a type whose arguments hold `{instance}` again, so its TypeScript type arguments would never end"
 			),
 			// Named by the outermost, which the source wrote.
-			_ if instancing.len() > self.tcx.recursion_limit().0 => format!(
-				"`{}` is not supported: its projections' values name ever deeper instances, so its TypeScript type arguments would never end",
-				instancing[0]
-			),
+			_ if instancing.len() > self.tcx.recursion_limit().0 => {
+				self.defining_state.too_deep = true;
+				format!(
+					"`{}` is not supported: its projections' values nest instances past the crate's recursion limit",
+					instancing[0]
+				)
+			}
 			_ => {
 				self.defining_state.instancing.push(instance);
 				return true;
@@ -264,7 +273,10 @@ impl<'tcx> Translator<'_, 'tcx> {
 		let state = &mut self.defining_state;
 		state.instancing.pop();
 		match (state.instancing.is_empty(), ty) {
-			(true, _) => state.instanced.clear(),
+			(true, _) => {
+				state.instanced.clear();
+				state.too_deep = false;
+			}
 			(false, Some(ty)) => {
 				state.instanced.insert(instance, ty.clone());
 			}

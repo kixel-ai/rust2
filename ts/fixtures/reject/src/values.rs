@@ -194,6 +194,59 @@ pub fn projected_spread(deep: bool) -> bool {
 	spread.next.is_none() && deep
 }
 
+/// What a duo's ping and pong both are at a wrapped duo: the same type at one wrapped again.
+pub struct Fork<D: Duo + 'static> {
+	pub ping: Option<&'static D::Ping>,
+	pub pong: Option<&'static D::Pong>,
+}
+
+impl<T: 'static> Duo for Wrapped<T> {
+	type Ping = Fork<Wrapped<Wrapped<T>>>;
+	type Pong = Fork<Wrapped<Wrapped<T>>>;
+}
+
+/// `Fork<Wrapped<u8>>` names ever deeper instances twice over at each level.
+pub fn projected_fork(deep: bool) -> Option<&'static Fork<Wrapped<u8>>> {
+	deep.then_some(None).flatten()
+}
+
+/// The end of a [`Links`], which drops.
+pub struct Loud;
+
+impl Drop for Loud {
+	fn drop(&mut self) {}
+}
+
+/// The source past the last link.
+pub struct Zero;
+
+impl Source for Zero {
+	type Item = &'static Loud;
+}
+
+/// One link more than its source.
+pub struct Succ<T>(pub T);
+
+impl<T: Source + 'static> Source for Succ<T> {
+	type Item = &'static Links<T>;
+}
+
+/// A link lending the next, down to a [`Loud`].
+pub struct Links<S: Source + 'static> {
+	pub item: S::Item,
+}
+
+/// Ten links more.
+type Ten<T> = Succ<Succ<Succ<Succ<Succ<Succ<Succ<Succ<Succ<Succ<T>>>>>>>>>>;
+
+/// A chain of 140 links, which ends, but past the recursion limit.
+pub type Deep = Ten<Ten<Ten<Ten<Ten<Ten<Ten<Ten<Ten<Ten<Ten<Ten<Ten<Ten<Zero>>>>>>>>>>>>>>;
+
+/// Dropping a shared chain drops none of what it lends.
+pub fn projected_deep(chain: std::rc::Rc<Links<Deep>>) {
+	drop(chain);
+}
+
 /// Two types a source names, each holding the other.
 pub trait Duo {
 	type Ping;

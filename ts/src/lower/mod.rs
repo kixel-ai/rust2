@@ -1102,9 +1102,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		// A named type, so an instance its fields hold again ends there.
 		let instancing = std::mem::take(&mut self.defining_state.instancing);
 		let instanced = std::mem::take(&mut self.defining_state.instanced);
+		let too_deep = std::mem::take(&mut self.defining_state.too_deep);
 		let info = self.define(adt, span);
 		(self.held, self.glue, self.defining, self.defining_state.field) = (held, glue, defining, field);
 		(self.defining_state.instancing, self.defining_state.instanced) = (instancing, instanced);
+		self.defining_state.too_deep = too_deep;
 		info
 	}
 
@@ -1927,6 +1929,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			self.err(span, msg);
 		}
 		tys.extend(self.projection_args(adt.did(), args, span).into_iter().map(|(_, t)| t));
+		// Past the recursion limit, refused already: what it typed is not kept, as each
+		// projection may double it.
+		if self.defining_state.too_deep {
+			self.leave_instance(instance, None);
+			return Type::Builtin("unknown");
+		}
 		let ty = Type::Sym(info.sym, tys);
 		self.leave_instance(instance, Some(&ty));
 		ty

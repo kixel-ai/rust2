@@ -226,9 +226,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Whether `f` holds of everything [`Self::glue_held`] has `ty`, an instance of `adt` with
-	/// `args`, drop through. It holds of an instance already being asked about, or past the
-	/// crate's recursion limit, which only a projection whose value holds the instance again
-	/// or ever deeper ones reaches, and which typing the instance refuses.
+	/// `args`, drop through. It holds of an instance already being asked about, which only a
+	/// projection whose value holds the instance again reaches, and which typing the
+	/// instance refuses. What nests past the crate's recursion limit is refused.
 	fn glue_all(
 		&mut self,
 		ty: Ty<'tcx>,
@@ -236,12 +236,27 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		args: ty::GenericArgsRef<'tcx>,
 		f: impl Fn(&mut Self, Ty<'tcx>) -> bool,
 	) -> bool {
-		let open = &mut self.defining_state.glue_open;
-		if open.len() > self.tcx.recursion_limit().0 || !open.insert(ty) {
+		if self.defining_state.glue_open.len() > self.tcx.recursion_limit().0 {
+			// At the definition of the outermost, which it names.
+			let outer = self.defining_state.glue_open[0];
+			let span = match outer.kind() {
+				ty::Adt(outer, _) => self.tcx.def_span(outer.did()),
+				_ => self.tcx.def_span(adt.did()),
+			};
+			self.err(
+				span,
+				format!(
+					"dropping `{outer}` is not supported: what its glue drops through, by its projections, nests past the crate's recursion limit"
+				),
+			);
+			return false;
+		}
+		if self.defining_state.glue_open.contains(&ty) {
 			return true;
 		}
+		self.defining_state.glue_open.push(ty);
 		let all = self.glue_held(adt, args).into_iter().all(|held| f(self, held));
-		self.defining_state.glue_open.remove(&ty);
+		self.defining_state.glue_open.pop();
 		all
 	}
 
