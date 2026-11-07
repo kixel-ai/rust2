@@ -2103,3 +2103,73 @@ pub fn generics(data: &[u8], out: &mut Vec<u8>) {
 	}
 	put(out, &format!("{runs:?} {}", over.source.left()));
 }
+
+/// Items that can already be `undefined`, whose `None` is `rs.None`: a countdown's
+/// remainders, `None` where it skips one, and its ticks.
+struct Skips(u8);
+
+impl Source for Skips {
+	type Item = Option<u8>;
+	fn take(&mut self) -> Option<Option<u8>> {
+		self.0 = self.0.checked_sub(1)?;
+		Some((self.0 % 3 != 0).then_some(self.0))
+	}
+	fn left(&self) -> usize {
+		usize::from(self.0)
+	}
+}
+
+struct Beats(u8);
+
+impl Source for Beats {
+	type Item = ();
+	fn take(&mut self) -> Option<()> {
+		self.0 = self.0.checked_sub(1)?;
+		Some(())
+	}
+	fn left(&self) -> usize {
+		usize::from(self.0)
+	}
+}
+
+/// A generic trait returning an `Option` of its parameter, which an object's type has as
+/// an `rs.OptionOf`, at a parameter that can be `undefined`.
+trait Peek<T> {
+	fn peek(&self) -> Option<T>;
+}
+
+impl Peek<()> for u8 {
+	fn peek(&self) -> Option<()> {
+		(*self % 2 == 0).then_some(())
+	}
+}
+
+impl Peek<Option<u8>> for u16 {
+	fn peek(&self) -> Option<Option<u8>> {
+		match *self % 3 {
+			0 => None,
+			1 => Some(None),
+			_ => Some(Some(*self as u8)),
+		}
+	}
+}
+
+/// Objects whose methods return an `Option` of what can already be `undefined`: of an
+/// associated type and of a generic trait's parameter.
+pub fn options(data: &[u8], out: &mut Vec<u8>) {
+	let [a, b, ..] = data else {
+		return;
+	};
+	let mut skips: Box<dyn Source<Item = Option<u8>>> = Box::new(Skips(*a % 8));
+	let first = skips.take();
+	put(out, &format!("{first:?} {} {} ", skips.left(), taken(&mut *skips)));
+	let mut beats = Beats(*b % 5);
+	let ticked: &mut dyn Source<Item = ()> = &mut beats;
+	put(out, &format!("{:?} {} ", ticked.take(), taken(ticked)));
+	for x in data {
+		let unit: &dyn Peek<()> = x;
+		let wide = u16::from(*x);
+		let nested: &dyn Peek<Option<u8>> = &wide;
+		put(out, &format!("{:?} {:?} ", unit.peek(), nested.peek()));
+	}
+}

@@ -2,12 +2,14 @@
 
 import * as rs from "./rs.ts";
 import { copy$array_generics_Either_u8_shapes_Point, copy$generics_Fixed_u16, copy$generics_Fixed_u8, copy$generics_Wrap_shapes_Point, copy$generics_Wrap_u8, copy$shapes_Gauge, drop$generics_Run_generics_Ticked } from "./lib.ts";
-import { then$01xsbgy, then$0y7on52 } from "./core/bool.ts";
+import { thenSome$1ctlqen, thenSome$19pue01, thenSome$0quywni, thenSome$1n1oy1h, then$01xsbgy, then$0y7on52 } from "./core/bool.ts";
 import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$0w7995p as option_unwrapOrDefault$0w7995p, unwrapOrDefault$03apme8 as option_unwrapOrDefault$03apme8, map$0ggarad as option_map$0ggarad } from "./core/option.ts";
+import { eq$1qrb1lw as poll_eq$1qrb1lw, isPending$07fnw8g, isPending$1imonrp, isPending$189w6zf, isPending$1yqrsts } from "./core/task/poll.ts";
 import type * as Pair from "./fmt.Pair.ts";
 import * as Either from "./generics.Either.ts";
 import * as Fixed from "./generics.Fixed.ts";
 import type * as Lends from "./generics.Lends.ts";
+import * as Parked from "./generics.Parked.ts";
 import * as Run from "./generics.Run.ts";
 import * as Runs from "./generics.Runs.ts";
 import * as Tagged from "./generics.Tagged.ts";
@@ -273,6 +275,124 @@ export function runs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.byteVecSlice(_315.value))), undefined, true);
 	rs.refRelease(_315);
 	log[Symbol.dispose]();
+}
+
+/**
+ * [`Parked`] at `()`, `Option<u8>`, `Poll<u8>`, and `u8`, whose `None` and `Pending` are
+ * each a value JS keeps apart from what the instance holds.
+ */
+export function units(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const parked: Parked.Parked<undefined> = Parked.new$unit();
+	for (const b of rs.byteSliceView(data)) {
+		const _12: rs.usize = rs.usizeRem(b >> 4 as rs.usize, rs.sliceFrom([undefined]).length);
+		if (!(_12 < 1)) {
+			rs.panic("index out of bounds: the len is " + 1 + " but the index is " + _12);
+		}
+		const _22: rs.u8 = rs.u8Rem(b, 4);
+		if (_22 === 0) {
+			rs.byteVecPush(out, Parked.park$unit(parked, undefined) ? 1 : 0);
+		} else if (_22 === 1) {
+			rs.byteVecPush(out, isPending$1yqrsts(Parked.ready$unit(parked, undefined)) ? 1 : 0);
+		} else if (_22 === 2) {
+			const _37: undefined | rs.None = thenSome$1n1oy1h((b & 4) !== 0, undefined);
+			rs.byteVecPush(out, Parked.send$unit(parked, _37) !== rs.None ? 1 : 0);
+		} else {
+			const _42: [undefined | rs.None, undefined | rs.None] = Parked.disarm$unit(parked);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_42[0] !== rs.None ? 1 : 0, _42[1] !== rs.None ? 1 : 0)), undefined, true);
+		}
+	}
+	const again: boolean = parked.parked === undefined;
+	const _61: [undefined | rs.None, rs.Poll<undefined>, undefined | rs.None] = [parked.parked, parked.ready, Parked.send$unit(parked, rs.None)];
+	const was2: undefined | rs.None = _61[0];
+	const ready: rs.Poll<undefined> = _61[1];
+	const sent2: undefined | rs.None = _61[2];
+	const args9 = [(f: rs.Formatter) => rs.fmtOption(was2, f, rs.fmtUnit, rs.None), (f: rs.Formatter) => rs.fmtPoll(ready, f, rs.fmtUnit), (f: rs.Formatter) => rs.fmtOption(sent2, f, rs.fmtUnit, rs.None), (f: rs.Formatter) => rs.fmtBool(again, f)];
+	put(out, rs.fmtFormat([args9[0], " ", args9[1], " ", args9[2], " ", args9[3]]).v);
+	const items: Array<rs.u8 | undefined> = [undefined, 1, 2];
+	const parked2: Parked.Parked<rs.u8 | undefined> = Parked.new$Option_u8();
+	for (const b2 of rs.byteSliceView(data)) {
+		const _98: rs.usize = rs.usizeRem(b2 >> 4 as rs.usize, rs.sliceFrom(items).length);
+		if (!(_98 < 3)) {
+			rs.panic("index out of bounds: the len is " + 3 + " but the index is " + _98);
+		}
+		const item: rs.u8 | undefined = items[_98];
+		const _108: rs.u8 = rs.u8Rem(b2, 4);
+		if (_108 === 0) {
+			rs.byteVecPush(out, Parked.park$Option_u8(parked2, item) ? 1 : 0);
+		} else if (_108 === 1) {
+			rs.byteVecPush(out, isPending$07fnw8g(Parked.ready$Option_u8(parked2, item)) ? 1 : 0);
+		} else if (_108 === 2) {
+			const _123: rs.u8 | undefined | rs.None = thenSome$1ctlqen((b2 & 4) !== 0, item);
+			rs.byteVecPush(out, Parked.send$Option_u8(parked2, _123) !== rs.None ? 1 : 0);
+		} else {
+			const _128: [rs.u8 | undefined | rs.None, rs.u8 | undefined | rs.None] = Parked.disarm$Option_u8(parked2);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_128[0] !== rs.None ? 1 : 0, _128[1] !== rs.None ? 1 : 0)), undefined, true);
+		}
+	}
+	const again2: boolean = parked2.parked === items[0] as rs.u8 | undefined | rs.None;
+	const _148: [rs.u8 | undefined | rs.None, rs.Poll<rs.u8 | undefined>, rs.u8 | undefined | rs.None] = [parked2.parked, parked2.ready, Parked.send$Option_u8(parked2, rs.None)];
+	const was4: rs.u8 | undefined | rs.None = _148[0];
+	const ready2: rs.Poll<rs.u8 | undefined> = _148[1];
+	const sent4: rs.u8 | undefined | rs.None = _148[2];
+	const args10 = [(f: rs.Formatter) => rs.fmtOption(was4, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None), (f: rs.Formatter) => rs.fmtPoll(ready2, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug)), (f: rs.Formatter) => rs.fmtOption(sent4, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None), (f: rs.Formatter) => rs.fmtBool(again2, f)];
+	put(out, rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2], " ", args10[3]]).v);
+	const items2: rs.Poll<rs.u8>[] = [rs.Pending, 1];
+	const parked3: Parked.Parked<rs.Poll<rs.u8>> = Parked.new$task_Poll_u8();
+	for (const b3 of rs.byteSliceView(data)) {
+		const _184: rs.usize = rs.usizeRem(b3 >> 4 as rs.usize, rs.sliceFrom(items2).length);
+		if (!(_184 < 2)) {
+			rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _184);
+		}
+		const item2: rs.Poll<rs.u8> = items2[_184];
+		const _194: rs.u8 = rs.u8Rem(b3, 4);
+		if (_194 === 0) {
+			rs.byteVecPush(out, Parked.park$task_Poll_u8(parked3, item2) ? 1 : 0);
+		} else if (_194 === 1) {
+			rs.byteVecPush(out, isPending$1imonrp(Parked.ready$task_Poll_u8(parked3, item2)) ? 1 : 0);
+		} else if (_194 === 2) {
+			const _209: rs.Poll<rs.u8> | undefined = thenSome$19pue01((b3 & 4) !== 0, item2);
+			rs.byteVecPush(out, Parked.send$task_Poll_u8(parked3, _209) !== undefined ? 1 : 0);
+		} else {
+			const _214: [rs.Poll<rs.u8> | undefined, rs.Poll<rs.u8> | undefined] = Parked.disarm$task_Poll_u8(parked3);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_214[0] !== undefined ? 1 : 0, _214[1] !== undefined ? 1 : 0)), undefined, true);
+		}
+	}
+	const _227 = items2[0] as rs.Poll<rs.u8> | undefined;
+	const again3: boolean = rs.eqOption(poll_eq$1qrb1lw)(parked3.parked, _227);
+	const _234: [rs.Poll<rs.u8> | undefined, rs.Poll<rs.u8> | rs.OuterPending, rs.Poll<rs.u8> | undefined] = [parked3.parked, parked3.ready, Parked.send$task_Poll_u8(parked3, undefined)];
+	const was6: rs.Poll<rs.u8> | undefined = _234[0];
+	const ready3: rs.Poll<rs.u8> | rs.OuterPending = _234[1];
+	const sent6: rs.Poll<rs.u8> | undefined = _234[2];
+	const args11 = [(f: rs.Formatter) => rs.fmtOption(was6, f, (value: rs.Poll<rs.u8>, f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug)), (f: rs.Formatter) => rs.fmtPoll(ready3, f, (value: rs.Poll<rs.u8>, f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug), rs.OuterPending), (f: rs.Formatter) => rs.fmtOption(sent6, f, (value: rs.Poll<rs.u8>, f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug)), (f: rs.Formatter) => rs.fmtBool(again3, f)];
+	put(out, rs.fmtFormat([args11[0], " ", args11[1], " ", args11[2], " ", args11[3]]).v);
+	const items3: Uint8Array = Uint8Array.of(3, 4);
+	const parked4: Parked.Parked<rs.u8> = Parked.new$u8();
+	for (const b4 of rs.byteSliceView(data)) {
+		const _268: rs.usize = rs.usizeRem(b4 >> 4 as rs.usize, rs.byteSliceFrom(items3).length);
+		if (!(_268 < 2)) {
+			rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _268);
+		}
+		const item3: rs.u8 = items3[_268];
+		const _278: rs.u8 = rs.u8Rem(b4, 4);
+		if (_278 === 0) {
+			rs.byteVecPush(out, Parked.park$u8(parked4, item3) ? 1 : 0);
+		} else if (_278 === 1) {
+			rs.byteVecPush(out, isPending$189w6zf(Parked.ready$u8(parked4, item3)) ? 1 : 0);
+		} else if (_278 === 2) {
+			const _293: rs.u8 | undefined = thenSome$0quywni((b4 & 4) !== 0, item3);
+			rs.byteVecPush(out, Parked.send$u8(parked4, _293) !== undefined ? 1 : 0);
+		} else {
+			const _298: [rs.u8 | undefined, rs.u8 | undefined] = Parked.disarm$u8(parked4);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_298[0] !== undefined ? 1 : 0, _298[1] !== undefined ? 1 : 0)), undefined, true);
+		}
+	}
+	const again4: boolean = parked4.parked === items3[0];
+	const _318: [rs.u8 | undefined, rs.Poll<rs.u8>, rs.u8 | undefined] = [parked4.parked, parked4.ready, Parked.send$u8(parked4, undefined)];
+	const was8: rs.u8 | undefined = _318[0];
+	const ready4: rs.Poll<rs.u8> = _318[1];
+	const sent8: rs.u8 | undefined = _318[2];
+	const args12 = [(f: rs.Formatter) => rs.fmtOption(was8, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtPoll(ready4, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(sent8, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtBool(again4, f)];
+	put(out, rs.fmtFormat([args12[0], " ", args12[1], " ", args12[2], " ", args12[3]]).v);
 }
 
 //# sourceMappingURL=generics.ts.map

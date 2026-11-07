@@ -11,14 +11,63 @@ pub fn nested(x: Option<Option<Option<u8>>>) -> bool {
 	x.is_some()
 }
 
-/// A generic type's `Option<T>` is `T | undefined`, which can't hold `rs.None`, the `None`
-/// of an `Option<()>`.
+/// A generic type's `Option<T>` is an `rs.OptionOf<T>`, which decides its `None` by
+/// whether TypeScript's type of `T` can be `undefined`, as a `MaybeUninit<u32>`'s `number`
+/// can't, though its value can, so an `Option<MaybeUninit<u32>>`'s `None` is `rs.None`.
 pub struct Maybe<T> {
 	pub value: Option<T>,
 }
 
-pub fn generic_unit(value: Option<()>) -> bool {
-	Maybe { value }.value.is_some()
+pub fn generic_uninit(value: u32) -> bool {
+	Maybe {
+		value: Some(std::mem::MaybeUninit::new(value)),
+	}
+	.value
+	.is_some()
+}
+
+/// A generic type's `Option<T>` of an `Option<()>`, whose `None` and `Some(None)` would
+/// both be `rs.None`.
+pub fn generic_nested(unit: bool) -> bool {
+	let maybe: Maybe<Option<()>> = Maybe { value: None };
+	drop(maybe);
+	unit
+}
+
+/// A generic type's `Option<MaybeUninit<T>>` is `T | rs.None`, as a `MaybeUninit` can be
+/// `undefined`, but for a byte, whose `None` is `undefined`.
+pub struct MaybeByte<T> {
+	pub value: Option<std::mem::MaybeUninit<T>>,
+}
+
+pub fn generic_uninit_byte(b: u8) -> bool {
+	MaybeByte {
+		value: Some(std::mem::MaybeUninit::new(b)),
+	}
+	.value
+	.is_some()
+}
+
+/// The same in a generic type's field, whose other parameter is still open.
+pub struct ByteAnd<T, U> {
+	pub value: Option<std::mem::MaybeUninit<T>>,
+	pub other: U,
+}
+
+pub struct HoldsByte<U> {
+	pub held: ByteAnd<u8, U>,
+}
+
+pub fn generic_uninit_byte_open(b: u8) -> bool {
+	HoldsByte {
+		held: ByteAnd {
+			value: Some(std::mem::MaybeUninit::new(b)),
+			other: 1u32,
+		},
+	}
+	.held
+	.value
+	.is_some()
 }
 
 /// Parsing an address is not translated yet.

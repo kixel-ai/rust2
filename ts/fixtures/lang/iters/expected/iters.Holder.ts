@@ -12,9 +12,9 @@ export class Holder<T, _I> {
 	tree: rs.Iter<[rs.u8, rs.Ptr<T>]>;
 	owned: rs.Iter<T>;
 	peeked: rs.Peekable<rs.u8>;
-	last: T | undefined;
+	last: rs.OptionOf<T>;
 
-	constructor(slice: rs.Iter<rs.Ptr<T>>, tree: rs.Iter<[rs.u8, rs.Ptr<T>]>, owned: rs.Iter<T>, peeked: rs.Peekable<rs.u8>, last: T | undefined) {
+	constructor(slice: rs.Iter<rs.Ptr<T>>, tree: rs.Iter<[rs.u8, rs.Ptr<T>]>, owned: rs.Iter<T>, peeked: rs.Peekable<rs.u8>, last: rs.OptionOf<T>) {
 		this.slice = slice;
 		this.tree = tree;
 		this.owned = owned;
