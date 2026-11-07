@@ -84,7 +84,7 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let n = data.first().copied().unwrap_or(0);
 	hook();
 	let v = vec![n, n];
-	match kind % 32 {
+	match kind % 35 {
 		0 => panic!("literal"),
 		1 => panic!("formatted {n}"),
 		2 => out.push(v[usize::from(n) + 2]),
@@ -121,6 +121,10 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		29 => todo!(),
 		30 => assert_ne!(n, n),
 		31 => unimplemented!("not {n}"),
+		// SAFETY: none, past `u8::MAX`: std's check of its precondition aborts.
+		32 => out.push(unsafe { n.max(200).unchecked_add(n.max(100)) }),
+		// SAFETY: none, of zero: std's check of its precondition aborts.
+		33 => out.push(unsafe { std::num::NonZero::new_unchecked(n.wrapping_mul(0)) }.get()),
 		_ => {
 			let len = HashMap::<u8, u8>::with_capacity(usize::MAX).len();
 			out.push(len as u8);

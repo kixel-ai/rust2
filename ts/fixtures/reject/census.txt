@@ -229,8 +229,10 @@ fixtures/reject/src/pointers.rs:reached_out+8:27: a pointer reaching past a valu
 fixtures/reject/src/pointers.rs:text_apart+1:27: `offset_from` between pointers of two `str::as_ptr` calls, each into an encoding of the text of its own, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:text_apart+1:64: `offset_from` between pointers of two `str::as_ptr` calls, each into an encoding of the text of its own, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:text_before+1:28: a pointer reaching past a `str`'s bytes, which JS keeps apart from what holds it in Rust
+fixtures/reject/src/pointers.rs:uninit_part_mut+5:25: a mutable reborrow of `std::mem::MaybeUninit<[u32; 2]>` through a raw pointer, which may point into part of an array with no JS array of its own, which is not supported yet
 fixtures/reject/src/pointers.rs:uninit_part_replaced+5:19: a raw pointer to `std::mem::MaybeUninit<(u32, u32)>` in `pointers::Gap`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:uninit_part_replaced+6:19: a raw pointer to `std::mem::MaybeUninit<(u32, u32)>` in `pointers::Gap`, which the crate may put another object in place of
+fixtures/reject/src/pointers.rs:uninit_rows_mut+5:25: a mutable reborrow of `std::mem::MaybeUninit<[[u8; 2]; 2]>` through a raw pointer, which may point into part of an array with no JS array of its own, which is not supported yet
 fixtures/reject/src/pointers.rs:unit_elements+1:13: `offset_from` of pointers to `()`, which has no bytes
 fixtures/reject/src/pointers.rs:unit_elements+1:39: a slice of `()`, which has no bytes, from a pointer
 fixtures/reject/src/pointers.rs:variable_celled+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there

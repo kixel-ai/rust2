@@ -74,8 +74,6 @@ Public API: the translator's output.
 
 - [A raw pointer behind a reference](/quest/m3/ts-unsafe/raw-behind-ref.md) - `&raw const *r` of a value JS copies points where the reference came from
 - [Vec::from_raw_parts of a typed allocation](/quest/m3/ts-unsafe/vec-from-raw-parts.md) - a `Vec` adopts an `alloc`ed array of `T`s, with its length, capacity, and drops
-- [BinaryHeap from std's MIR](/quest/m3/ts-unsafe/binary-heap-mir.md) - std's `BinaryHeap` and `PeekMut` translate, replacing the runtime's port
-- [Unchecked integer operations](/quest/m3/ts-unsafe/unchecked-ops.md) - `unchecked_*` and `NonZero::new_unchecked` translate, aborting on a violated precondition
 - [NonZero's unchecked arithmetic](/quest/m3/ts-unsafe/nonzero-unchecked-ops.md) - `NonZero::unchecked_add` and `unchecked_mul` translate, aborting at std's site
 - [UnsafeCell's raw accessors](/quest/m3/ts-unsafe/unsafecell.md) - `UnsafeCell::raw_get`, `from_mut`, and `replace` translate
 - [A byte local whose address is taken, in a buffer of its own](/quest/m3/ts-unsafe/lone-byte-buffers.md) - raw and mutable slices of a `u8` local, and casts of them to byte arrays, translate instead of being refused

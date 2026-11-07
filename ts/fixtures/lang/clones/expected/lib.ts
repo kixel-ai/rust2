@@ -2,10 +2,18 @@
 
 import * as rs from "./rs.ts";
 import { iters, arrays, cloneFroms, repeats, sources } from "./clones.ts";
-import type * as Kept from "./clones.Kept.ts";
-import type * as Logged from "./clones.Logged.ts";
+import * as Kept from "./clones.Kept.ts";
+import * as Logged from "./clones.Logged.ts";
 import type * as Pair from "./clones.Pair.ts";
 import type * as Slot from "./clones.Slot.ts";
+
+export function copy$clones_Kept(v: Kept.Kept): Kept.Kept {
+	return new Kept.Kept(copy$clones_Logged(v._0));
+}
+
+export function copy$clones_Logged(v: Logged.Logged): Logged.Logged {
+	return new Logged.Logged(v.id, v.log);
+}
 
 export function drop$Vec_clones_Logged(value: rs.Vec<Logged.Logged>): void {
 	rs.dropVec(value);
@@ -108,7 +116,7 @@ export function drop$tuple3_array3_clones_Logged_array3_clones_Logged_array3_clo
 	rs.dropAll(_1[2]);
 }
 
-export function drop$tuple4_boxed_Box_slice_clones_Logged_boxed_Box_slice_clones_Logged_boxed_Box_slice_array1_clones_Logged_boxed_Box_slice_array1_clones_Logged(_1: [rs.Slice<Logged.Logged>, rs.Slice<Logged.Logged>, rs.Slice<Logged.Logged[]>, rs.Slice<Logged.Logged[]>]): void {
+export function drop$tuple4_boxed_Box_slice_clones_Logged_boxed_Box_slice_clones_Logged_boxed_Box_slice_array1_clones_Logged_boxed_Box_slice_array1_clones_Logged(_1: [rs.Slice<Logged.Logged>, rs.Slice<Logged.Logged>, rs.ArraySlice<rs.Slice<Logged.Logged>>, rs.ArraySlice<rs.Slice<Logged.Logged>>]): void {
 	rs.dropAll(_1[0]);
 	rs.dropAll(_1[1]);
 	rs.dropAll(_1[2], drop$array1_clones_Logged);

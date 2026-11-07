@@ -15,7 +15,7 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { Borrowed, ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, panicSizes, type Place, type RangeBound, rangeCheck, type Result, type Room, roomPast, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity } from "../rs.ts";
+import { type ArrayRef, ArraySlice, arraySliceOfSlice, Borrowed, ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, type Room, roomPast, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity, panicSizes } from "../rs.ts";
 import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
 import type { HashKey, Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
@@ -355,6 +355,10 @@ function seqItems<T>(s: Seq<T>): [number, (i: number) => T] {
 	if (s instanceof Slice) return [s.length, (i) => s.data[s.start + i]];
 	if (s instanceof ByteVec) return [s.length, (i) => s.data[i] as T];
 	if (s instanceof Vec) return [s.items.length, (i) => s.items[i] as T];
+	if (s instanceof ArraySlice) {
+		const items = sliceData(s) as ArrayLike<T>;
+		return [items.length, (i) => items[i]];
+	}
 	if (!("length" in s)) return [s.n, (i) => s.b[phys(s, i)] as T];
 	return [s.length, (i) => s[i] as T];
 }
@@ -3722,6 +3726,11 @@ export function dequeMakeContiguous<T>(q: VecDeque<T>): Slice<T> {
 	return new Slice(q.b as T[], q.h, q.n);
 }
 
+/** `make_contiguous` of arrays: the deque's own arrays, each lent by `of`. */
+export function dequeArrayMakeContiguous<A, S extends ArrayRef>(q: VecDeque<A>, of: (array: A) => S): ArraySlice<S> {
+	return arraySliceOfSlice(dequeMakeContiguous(q), of);
+}
+
 /** `make_contiguous` of bytes, viewing the deque's. */
 export function dequeByteMakeContiguous(q: VecDeque<number>): ByteSlice {
 	const h = contiguous(q);
@@ -3907,6 +3916,12 @@ export function fmtDequeIter<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>
 export function dequeAsSlices<T>(q: VecDeque<T>): [Slice<T>, Slice<T>] {
 	const n = firstEnd(q, 0, q.n);
 	return [new Slice(q.b as T[], phys(q, 0), n), new Slice(q.b as T[], 0, q.n - n)];
+}
+
+/** `as_slices` and `as_mut_slices` of arrays: the deque's own arrays, each lent by `of`. */
+export function dequeArraySlices<A, S extends ArrayRef>(q: VecDeque<A>, of: (array: A) => S): [ArraySlice<S>, ArraySlice<S>] {
+	const [a, b] = dequeAsSlices(q);
+	return [arraySliceOfSlice(a, of), arraySliceOfSlice(b, of)];
 }
 
 /** `as_slices` and `as_mut_slices` of bytes, which view the deque's. */
