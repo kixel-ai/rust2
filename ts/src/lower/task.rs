@@ -605,6 +605,7 @@ fn cell<'tcx>(
 		b.call_def(f, tcx.mk_args(&[ty.into()]), Vec::new(), span, out)
 	};
 	let e = match name {
+		"set" | "replace" | "take" | "update" | "swap" if b.t.wraps_cells(ty) => pointer::wrapped_write(b, ty, span),
 		"new" => Expr::New(Box::new(Expr::Rs("Cell".into())), args),
 		"get" => b.t.copied(first(args).member("v"), ty, span),
 		"into_inner" => first(args).member("v"),

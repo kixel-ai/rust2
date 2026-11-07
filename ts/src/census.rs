@@ -159,6 +159,8 @@ const VERBATIM: &[&str] = &[
 	"Location",
 	"LowerExp",
 	"MAY_HAVE_SIDE_EFFECT",
+	"ManuallyDrop",
+	"MaybeUninit",
 	"MaybeUninit::assume_init_mut",
 	"None",
 	"Octal",

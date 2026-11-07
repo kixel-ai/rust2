@@ -857,16 +857,22 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return out;
 		}
 		// A whole write through a raw pointer keeps the cells a value keeps, as `ptr::write`
-		// does.
+		// does, and is refused where it would not.
 		if let [ProjectionElem::Deref] = place.projection.as_slice()
 			&& matches!(self.mir.local_decls[place.local].ty.kind(), ty::RawPtr(..))
 			&& let pointee = place.ty(&self.mir.local_decls, self.tcx).ty
-			&& self.b.t.keeps_cells(pointee)
 		{
-			let at = self.place_expr(place, span, &mut out);
-			let at = self.path(at, "kept", &mut out);
-			crate::lower::pointer::write_kept_at(self.b, at, value, pointee, span, &mut out);
-			return out;
+			if self.b.t.wraps_cells(pointee) {
+				let err = crate::lower::pointer::wrapped_write(self.b, pointee, span);
+				out.push(StmtKind::Expr(err).at(self.b.t.loc(span)));
+				return out;
+			}
+			if self.b.t.keeps_cells(pointee) {
+				let at = self.place_expr(place, span, &mut out);
+				let at = self.path(at, "kept", &mut out);
+				crate::lower::pointer::write_kept_at(self.b, at, value, pointee, span, &mut out);
+				return out;
+			}
 		}
 		// `*r = v` replaces the object `r` points at in place, which other references and
 		// captures share. An alias of a borrowed place assigns the place, and an `rs.Place`

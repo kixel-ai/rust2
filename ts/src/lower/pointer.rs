@@ -173,23 +173,43 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// What a `ty` that [keeps cells](Self::keeps_cells) holds: a cell's value, or each
-	/// field of a tuple or struct, and whether it keeps cells too. A `MaybeUninit` or a
-	/// `ManuallyDrop` holds what JS keeps it as.
+	/// field of a tuple or struct, and whether it keeps cells too.
 	pub fn kept_cells(&self, ty: Ty<'tcx>) -> Option<KeptCells<'tcx>> {
-		let ty = self.uninit_inner(ty);
-		let fields: Vec<Ty<'tcx>> = match ty.kind() {
-			ty::Adt(adt, args) if Std::of(self.tcx, adt.did()) == Some(Std::Cell) => {
-				return Some(KeptCells::Cell(args.type_at(0)));
-			}
-			ty::Tuple(tys) => tys.to_vec(),
-			ty::Adt(adt, args) if adt.is_struct() && Std::of(self.tcx, adt.did()).is_none() && self.own(adt.did()) => {
-				adt.all_fields().map(|f| self.field_ty(f.did, args)).collect()
-			}
-			_ => return None,
-		};
+		let (fields, cell) = self.kept_parts(ty)?;
+		if cell {
+			return Some(KeptCells::Cell(fields[0]));
+		}
 		let fields: Vec<_> = fields.into_iter().map(|f| (f, self.keeps_cells(f))).collect();
 		(self.pointee(ty) == Pointee::Object && fields.iter().any(|&(_, kept)| kept))
 			.then_some(KeptCells::Fields(fields))
+	}
+
+	/// What a write keeping cells reaches in `ty`, and whether `ty` is a cell: a cell's
+	/// value, or each field of a tuple or a crate's struct.
+	fn kept_parts(&self, ty: Ty<'tcx>) -> Option<(Vec<Ty<'tcx>>, bool)> {
+		match ty.kind() {
+			ty::Adt(adt, args) if Std::of(self.tcx, adt.did()) == Some(Std::Cell) => {
+				Some((vec![args.type_at(0)], true))
+			}
+			ty::Tuple(tys) => Some((tys.to_vec(), false)),
+			ty::Adt(adt, args) if adt.is_struct() && Std::of(self.tcx, adt.did()).is_none() && self.own(adt.did()) => {
+				Some((adt.all_fields().map(|f| self.field_ty(f.did, args)).collect(), false))
+			}
+			_ => None,
+		}
+	}
+
+	/// Whether a whole write of a `ty` would put other cells in place of those a
+	/// `MaybeUninit` or `ManuallyDrop` in it holds, which a write keeps nowhere, so a pointer
+	/// `get` gave into one would not see it: one of them holding a value that
+	/// [keeps cells](Self::keeps_cells), or a part such a write reaches holding one.
+	pub fn wraps_cells(&self, ty: Ty<'tcx>) -> bool {
+		let inner = self.uninit_inner(ty);
+		if inner != ty {
+			return self.keeps_cells(inner) || self.wraps_cells(inner);
+		}
+		self.kept_parts(ty)
+			.is_some_and(|(parts, _)| parts.into_iter().any(|part| self.wraps_cells(part)))
 	}
 
 	/// Whether only an instance decides what a pointer or reference to `ty` is, as in a
@@ -1379,6 +1399,9 @@ pub(super) fn write<'tcx>(
 	if b.t.zero_sized(ty) {
 		return Expr::undefined();
 	}
+	if b.t.wraps_cells(ty) {
+		return wrapped_write(b, ty, span);
+	}
 	if b.t.keeps_cells(ty) {
 		let at = match b.t.pointee(ty) {
 			Pointee::Object => p,
@@ -1393,6 +1416,16 @@ pub(super) fn write<'tcx>(
 		Pointee::Array => b.t.array_rs(ty, "Set").call(vec![p, value]),
 		Pointee::Slice => b.err(span, format!("a write of `{ty}`, which has no size")),
 	}
+}
+
+/// The refusal of a whole write of a `ty` that [wraps cells](Translator::wraps_cells).
+pub(super) fn wrapped_write<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr {
+	b.err(
+		span,
+		format!(
+			"a whole write of `{ty}`, which would put another cell in place of one a `MaybeUninit` or `ManuallyDrop` holds"
+		),
+	)
 }
 
 /// The JS value of the `ty` that `p` points at: a cell's `rs.Cell`, which a pointer to

@@ -113,6 +113,27 @@ pub fn uninit_cell_lent(n: u32) -> u32 {
 	unsafe { *slot.assume_init_mut().get_mut() + 1 }
 }
 
+/// Whole writes of values holding a cell in a `MaybeUninit` or `ManuallyDrop`, which would
+/// put another cell in place of one a pointer `get` gave points into: `UnsafeCell::replace`
+/// of a wrapped tuple and of a wrapped cell, `ptr::write` of a tuple holding one,
+/// `Cell::set`, and an assignment through a raw pointer.
+pub fn wrapped_cells(n: u32) -> u32 {
+	use std::cell::{Cell, UnsafeCell};
+	use std::mem::{ManuallyDrop, MaybeUninit};
+	let tuple = UnsafeCell::new(MaybeUninit::new((UnsafeCell::new(n), n)));
+	let manual = UnsafeCell::new(ManuallyDrop::new(UnsafeCell::new(n)));
+	let mut pair = (MaybeUninit::new(UnsafeCell::new(n)), n);
+	let cell = Cell::new(ManuallyDrop::new(UnsafeCell::new(n)));
+	unsafe {
+		let old = tuple.replace(MaybeUninit::new((UnsafeCell::new(1), 1)));
+		let older = manual.replace(ManuallyDrop::new(UnsafeCell::new(2)));
+		std::ptr::write(&raw mut pair, (MaybeUninit::new(UnsafeCell::new(3)), 3));
+		cell.set(ManuallyDrop::new(UnsafeCell::new(4)));
+		*manual.get() = ManuallyDrop::new(UnsafeCell::new(5));
+		old.assume_init().1 ^ ManuallyDrop::into_inner(older).into_inner() ^ pair.1
+	}
+}
+
 /// An `UnsafeCell::from_mut` of arrays of arrays, which a cell may read a copy of, and
 /// `Cell::swap`s of arrays, whose cells may partially overlap.
 pub fn cell_of_arrays(a: &mut [[u16; 2]; 2]) -> u16 {

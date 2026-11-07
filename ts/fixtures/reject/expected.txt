@@ -39,6 +39,11 @@ fixtures/reject/src/alloc.rs:pinned_lent+2:43: `UnsafeCell::as_mut_unchecked` of
 fixtures/reject/src/alloc.rs:reinterpreted+1:27: a cast from a pointer to `u32` to one to `u8`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:uninit_cell_lent+2:17: `MaybeUninit::assume_init_mut` of `std::cell::UnsafeCell<u32>`, whose mutable reference is the object, but the uninitialized value's is the place it is kept in
 fixtures/reject/src/alloc.rs:vec_pointer+1:10: a raw pointer to `std::vec::Vec<u8>` behind a reference, which is the object and not where it is kept
+fixtures/reject/src/alloc.rs:wrapped_cells+8:19: a whole write of `std::mem::MaybeUninit<(std::cell::UnsafeCell<u32>, u32)>`, which would put another cell in place of one a `MaybeUninit` or `ManuallyDrop` holds
+fixtures/reject/src/alloc.rs:wrapped_cells+9:22: a whole write of `std::mem::ManuallyDrop<std::cell::UnsafeCell<u32>>`, which would put another cell in place of one a `MaybeUninit` or `ManuallyDrop` holds
+fixtures/reject/src/alloc.rs:wrapped_cells+10:3: a whole write of `(std::mem::MaybeUninit<std::cell::UnsafeCell<u32>>, u32)`, which would put another cell in place of one a `MaybeUninit` or `ManuallyDrop` holds
+fixtures/reject/src/alloc.rs:wrapped_cells+11:8: a whole write of `std::mem::ManuallyDrop<std::cell::UnsafeCell<u32>>`, which would put another cell in place of one a `MaybeUninit` or `ManuallyDrop` holds
+fixtures/reject/src/alloc.rs:wrapped_cells+12:3: a whole write of `std::mem::ManuallyDrop<std::cell::UnsafeCell<u32>>`, which would put another cell in place of one a `MaybeUninit` or `ManuallyDrop` holds
 fixtures/reject/src/alloc.rs:zeroed+1:12: a cast from a pointer to `u8` to one to `u32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:zeroed+1:13: unsupported call to `std::alloc::alloc_zeroed`
 fixtures/reject/src/buffers.rs:blank_bytes+1:2: `Buf::copy_to_bytes` of `buffers::Blank`, a value JS copies, which is not supported

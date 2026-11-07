@@ -3647,9 +3647,8 @@ export function cellWrites(data: rs.ByteSlice, out: rs.ByteVec): void {
 }
 
 /**
- * Whole writes of values holding cells into a cell, a tuple, a struct, a `MaybeUninit`, and
- * a `ManuallyDrop`, each read back through a pointer saved into an inner cell before:
- * `UnsafeCell::replace`, `ptr::replace`,
+ * Whole writes of values holding cells into a cell, a tuple, and a struct, each read back
+ * through a pointer saved into an inner cell before: `UnsafeCell::replace`, `ptr::replace`,
  * `ptr::write`, `ptr::swap`, `Cell`'s writes, and assignments through a raw pointer; a
  * value `ptr::read` copies out before one, and before a write into a part holding no
  * cell; `ptr::write`s into memory not written yet; and pointers `UnsafeCell::raw_get`
@@ -3663,11 +3662,7 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const obj: rs.Cell<rs.Cell<[rs.u8, rs.u8]>> = new rs.Cell(new rs.Cell([7, 8] as [rs.u8, rs.u8]));
 	const cell: rs.Cell<[rs.Cell<rs.u32>, rs.u8]> = new rs.Cell([new rs.Cell(9), 10] as [rs.Cell<rs.u32>, rs.u8]);
 	const wrapped: rs.Cell<rs.Cell<rs.u32>> = new rs.Cell(new rs.Cell(11));
-	const uninit: rs.Cell<rs.Cell<rs.u32>> = new rs.Cell(new rs.Cell(12));
-	const manual: rs.Cell<rs.Cell<rs.u32>> = new rs.Cell(new rs.Cell(13));
 	const toWrapped: rs.Place<rs.u32> = wrapped.v;
-	const toUninit: rs.Place<rs.u32> = uninit.v;
-	const toManual: rs.Place<rs.u32> = manual.v;
 	const toNest: rs.Place<rs.u32> = nest.v;
 	const toDeep: rs.Place<rs.u32> = deep.v.v;
 	const toPair: rs.Place<rs.u32> = pair.v[0];
@@ -3676,40 +3671,40 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const toCell: rs.Place<rs.u32> = cell.v[0];
 	for (const op of rs.byteSliceView(data)) {
 		const n: rs.u8 = rs.u8Div(op, 8);
-		const _76: rs.u8 = rs.u8Rem(op, 8);
-		if (_76 === 0) {
-			const _80: rs.Cell<rs.u32> = new rs.Cell(n as rs.u32);
+		const _60: rs.u8 = rs.u8Rem(op, 8);
+		if (_60 === 0) {
+			const _64: rs.Cell<rs.u32> = new rs.Cell(n as rs.u32);
 			const pointer16 = nest;
-			const old18 = new rs.Cell(pointer16.v.v);
+			const old16 = new rs.Cell(pointer16.v.v);
 			const pointer17 = pointer16;
-			const value25 = _80;
+			const value25 = _64;
 			if (pointer17.v === undefined) {
 				pointer17.v = value25;
 			} else {
 				pointer17.v.v = value25.v;
 			}
 			undefined;
-			rs.byteVecPush(out, old18.v & 0xff);
-			const _87: rs.Cell<rs.Cell<rs.u32>> = new rs.Cell(new rs.Cell(rs.u32Add(n as rs.u32, 1)));
+			rs.byteVecPush(out, old16.v & 0xff);
+			const _71: rs.Cell<rs.Cell<rs.u32>> = new rs.Cell(new rs.Cell(rs.u32Add(n as rs.u32, 1)));
 			const pointer18 = deep;
-			const old19 = new rs.Cell(new rs.Cell(pointer18.v.v.v));
+			const old17 = new rs.Cell(new rs.Cell(pointer18.v.v.v));
 			const pointer19 = pointer18;
-			const value26 = _87;
+			const value26 = _71;
 			if (pointer19.v === undefined) {
 				pointer19.v = value26;
 			} else {
 				pointer19.v.v.v = value26.v.v;
 			}
 			undefined;
-			rs.byteVecPush(out, old19.v.v & 0xff);
-			const _98: [rs.Cell<rs.u32>, rs.u8] = [new rs.Cell(rs.u32Add(n as rs.u32, 2)), n];
+			rs.byteVecPush(out, old17.v.v & 0xff);
+			const _82: [rs.Cell<rs.u32>, rs.u8] = [new rs.Cell(rs.u32Add(n as rs.u32, 2)), n];
 			const pointer20 = pair.v;
 			const object13 = pointer20;
 			const copy7 = rs.objectCopy(object13);
 			copy7[0] = new rs.Cell(object13[0].v);
-			const old20 = copy7;
+			const old18 = copy7;
 			const object14 = pointer20;
-			const value27 = _98;
+			const value27 = _82;
 			const cell9 = object14[0];
 			rs.ptrWrite(object14, value27);
 			if (cell9 !== undefined) {
@@ -3717,16 +3712,16 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 				cell9.v = value27[0].v;
 			}
 			undefined;
-			const old3: [rs.Cell<rs.u32>, rs.u8] = old20;
+			const old3: [rs.Cell<rs.u32>, rs.u8] = old18;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(old3[0].v & 0xff, old3[1])), undefined, true);
-			const _111: Celled.Celled = { c: new rs.Cell(rs.u32Add(n as rs.u32, 3)), n };
+			const _95: Celled.Celled = { c: new rs.Cell(rs.u32Add(n as rs.u32, 3)), n };
 			const pointer21 = strukt.v;
 			const object15 = pointer21;
 			const copy8 = rs.objectCopy(object15);
 			copy8.c = new rs.Cell(object15.c.v);
-			const old21 = copy8;
+			const old19 = copy8;
 			const object16 = pointer21;
-			const value28 = _111;
+			const value28 = _95;
 			const cell10 = object16.c;
 			rs.ptrWrite(object16, value28);
 			if (cell10 !== undefined) {
@@ -3734,67 +3729,43 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 				cell10.v = value28.c.v;
 			}
 			undefined;
-			const old4: Celled.Celled = old21;
+			const old4: Celled.Celled = old19;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(old4.c.v & 0xff, old4.n)), undefined, true);
-			const _124: rs.Cell<[rs.u8, rs.u8]> = new rs.Cell([n, n ^ 1] as [rs.u8, rs.u8]);
+			const _108: rs.Cell<[rs.u8, rs.u8]> = new rs.Cell([n, n ^ 1] as [rs.u8, rs.u8]);
 			const pointer22 = obj;
-			const old22 = new rs.Cell(copy$tuple2_u8_u8(pointer22.v.v));
+			const old20 = new rs.Cell(copy$tuple2_u8_u8(pointer22.v.v));
 			const pointer23 = pointer22;
-			const value29 = _124;
+			const value29 = _108;
 			if (pointer23.v === undefined) {
 				pointer23.v = value29;
 			} else {
 				rs.ptrWrite(pointer23.v.v, value29.v);
 			}
 			undefined;
-			rs.byteVecPush(out, old22.v[1]);
-			const _132: rs.Cell<rs.u32> = new rs.Cell(((n as rs.u32) ^ 20) >>> 0);
-			const pointer24 = uninit;
-			const old23 = new rs.Cell(pointer24.v.v);
-			const pointer25 = pointer24;
-			const value30 = _132;
-			if (pointer25.v === undefined) {
-				pointer25.v = value30;
-			} else {
-				pointer25.v.v = value30.v;
-			}
-			undefined;
-			rs.byteVecPush(out, old23.v & 0xff);
-			const _142: rs.Cell<rs.u32> = new rs.Cell(((n as rs.u32) ^ 21) >>> 0);
-			const pointer26 = manual;
-			const old24 = new rs.Cell(pointer26.v.v);
-			const pointer27 = pointer26;
-			const value31 = _142;
-			if (pointer27.v === undefined) {
-				pointer27.v = value31;
-			} else {
-				pointer27.v.v = value31.v;
-			}
-			undefined;
-			rs.byteVecPush(out, old24.v & 0xff);
-		} else if (_76 === 1) {
-			const _151: rs.Place<rs.Cell<rs.u32>> = nest;
-			const _153: rs.Cell<rs.u32> = new rs.Cell(((n as rs.u32) ^ 1) >>> 0);
-			const pointer13 = _151;
-			const old16 = new rs.Cell(pointer13.v.v);
+			rs.byteVecPush(out, old20.v[1]);
+		} else if (_60 === 1) {
+			const _115: rs.Place<rs.Cell<rs.u32>> = nest;
+			const _117: rs.Cell<rs.u32> = new rs.Cell(((n as rs.u32) ^ 1) >>> 0);
+			const pointer13 = _115;
+			const old14 = new rs.Cell(pointer13.v.v);
 			const pointer14 = pointer13;
-			const value23 = _153;
+			const value23 = _117;
 			if (pointer14.v === undefined) {
 				pointer14.v = value23;
 			} else {
 				pointer14.v.v = value23.v;
 			}
 			undefined;
-			rs.byteVecPush(out, old16.v & 0xff);
-			const _160: [rs.Cell<rs.u32>, rs.u8] = pair.v;
-			const _162: [rs.Cell<rs.u32>, rs.u8] = [new rs.Cell(((n as rs.u32) ^ 2) >>> 0), n];
-			const pointer15 = _160;
+			rs.byteVecPush(out, old14.v & 0xff);
+			const _124: [rs.Cell<rs.u32>, rs.u8] = pair.v;
+			const _126: [rs.Cell<rs.u32>, rs.u8] = [new rs.Cell(((n as rs.u32) ^ 2) >>> 0), n];
+			const pointer15 = _124;
 			const object11 = pointer15;
 			const copy6 = rs.objectCopy(object11);
 			copy6[0] = new rs.Cell(object11[0].v);
-			const old17 = copy6;
+			const old15 = copy6;
 			const object12 = pointer15;
-			const value24 = _162;
+			const value24 = _126;
 			const cell8 = object12[0];
 			rs.ptrWrite(object12, value24);
 			if (cell8 !== undefined) {
@@ -3802,8 +3773,8 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 				cell8.v = value24[0].v;
 			}
 			undefined;
-			rs.byteVecPush(out, old17[0].v & 0xff);
-		} else if (_76 === 2) {
+			rs.byteVecPush(out, old15[0].v & 0xff);
+		} else if (_60 === 2) {
 			const pointer12 = nest;
 			const value21 = new rs.Cell(((n as rs.u32) ^ 3) >>> 0);
 			if (pointer12.v === undefined) {
@@ -3821,11 +3792,11 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 				cell7.v = value22.c.v;
 			}
 			undefined;
-		} else if (_76 === 3) {
+		} else if (_60 === 3) {
 			const other: rs.Cell<rs.Cell<rs.u32>> = new rs.Cell(new rs.Cell(((n as rs.u32) ^ 5) >>> 0));
 			const x = nest;
 			const y = other;
-			const old14 = new rs.Cell(x.v.v);
+			const old12 = new rs.Cell(x.v.v);
 			const pointer10 = x;
 			const value17 = new rs.Cell(y.v.v);
 			if (pointer10.v === undefined) {
@@ -3835,7 +3806,7 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			undefined;
 			const pointer11 = y;
-			const value18 = old14;
+			const value18 = old12;
 			if (pointer11.v === undefined) {
 				pointer11.v = value18;
 			} else {
@@ -3849,7 +3820,7 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const object6 = x2;
 			const copy4 = rs.objectCopy(object6);
 			copy4.c = new rs.Cell(object6.c.v);
-			const old15 = copy4;
+			const old13 = copy4;
 			const object7 = y2;
 			const copy5 = rs.objectCopy(object7);
 			copy5.c = new rs.Cell(object7.c.v);
@@ -3863,7 +3834,7 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			undefined;
 			const object9 = y2;
-			const value20 = old15;
+			const value20 = old13;
 			const cell6 = object9.c;
 			rs.ptrWrite(object9, value20);
 			if (cell6 !== undefined) {
@@ -3872,15 +3843,15 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			undefined;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(other2.c.v & 0xff, other2.n)), undefined, true);
-		} else if (_76 === 4) {
-			const _214: [rs.Cell<rs.u32>, rs.u8] = [new rs.Cell(((n as rs.u32) ^ 6) >>> 0), n];
+		} else if (_60 === 4) {
+			const _178: [rs.Cell<rs.u32>, rs.u8] = [new rs.Cell(((n as rs.u32) ^ 6) >>> 0), n];
 			const pointer9 = cell.v;
 			const object3 = pointer9;
 			const copy3 = rs.objectCopy(object3);
 			copy3[0] = new rs.Cell(object3[0].v);
-			const old13 = copy3;
+			const old11 = copy3;
 			const object4 = pointer9;
-			const value15 = _214;
+			const value15 = _178;
 			const cell3 = object4[0];
 			rs.ptrWrite(object4, value15);
 			if (cell3 !== undefined) {
@@ -3888,10 +3859,10 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 				cell3.v = value15[0].v;
 			}
 			undefined;
-			rs.byteVecPush(out, old13[0].v & 0xff);
-			const _224: [rs.Cell<rs.u32>, rs.u8] = [new rs.Cell(((n as rs.u32) ^ 7) >>> 0), n];
+			rs.byteVecPush(out, old11[0].v & 0xff);
+			const _188: [rs.Cell<rs.u32>, rs.u8] = [new rs.Cell(((n as rs.u32) ^ 7) >>> 0), n];
 			const object5 = cell.v;
-			const value16 = _224;
+			const value16 = _188;
 			const cell4 = object5[0];
 			rs.ptrWrite(object5, value16);
 			if (cell4 !== undefined) {
@@ -3899,7 +3870,7 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 				cell4.v = value16[0].v;
 			}
 			undefined;
-		} else if (_76 === 5) {
+		} else if (_60 === 5) {
 			toNest.v = rs.u32Mul(n as rs.u32, 3);
 			toPair.v = rs.u32Mul(n as rs.u32, 5);
 			const kept: rs.Cell<rs.u32> = new rs.Cell(nest.v.v);
@@ -3912,22 +3883,22 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			undefined;
 			rs.byteVecPush(out, kept.v & 0xff);
-		} else if (_76 === 6) {
-			const _248: rs.Cell<rs.u32> = new rs.Cell(((n as rs.u32) ^ 8) >>> 0);
+		} else if (_60 === 6) {
+			const _212: rs.Cell<rs.u32> = new rs.Cell(((n as rs.u32) ^ 8) >>> 0);
 			const pointer = wrapped;
-			const old12 = new rs.Cell(pointer.v.v);
+			const old10 = new rs.Cell(pointer.v.v);
 			const pointer2 = pointer;
-			const value3 = _248;
+			const value3 = _212;
 			if (pointer2.v === undefined) {
 				pointer2.v = value3;
 			} else {
 				pointer2.v.v = value3.v;
 			}
 			undefined;
-			rs.byteVecPush(out, old12.v & 0xff);
-			const _256: rs.Cell<rs.u32> = new rs.Cell(((n as rs.u32) ^ 9) >>> 0);
+			rs.byteVecPush(out, old10.v & 0xff);
+			const _220: rs.Cell<rs.u32> = new rs.Cell(((n as rs.u32) ^ 9) >>> 0);
 			const pointer3 = wrapped;
-			const value4 = _256;
+			const value4 = _220;
 			if (pointer3.v === undefined) {
 				pointer3.v = value4;
 			} else {
@@ -3958,9 +3929,9 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			let pairSlot: rs.Cell<[rs.u8, rs.u8]> = (new rs.Cell([undefined, undefined]) as unknown) as rs.Cell<[rs.u8, rs.u8]>;
 			const toSlot: rs.Place<rs.Cell<rs.u32>> = rs.place(() => slot, (value8) => slot = value8);
 			const toPairSlot: rs.Place<rs.Cell<[rs.u8, rs.u8]>> = rs.place(() => pairSlot, (value9) => pairSlot = value9);
-			const _295: [rs.Place<rs.u32>, [rs.u8, rs.u8]] = [toSlot.v, toPairSlot.v.v];
-			const early: rs.Place<rs.u32> = _295[0];
-			const earlyPair: [rs.u8, rs.u8] = _295[1];
+			const _259: [rs.Place<rs.u32>, [rs.u8, rs.u8]] = [toSlot.v, toPairSlot.v.v];
+			const early: rs.Place<rs.u32> = _259[0];
+			const earlyPair: [rs.u8, rs.u8] = _259[1];
 			const pointer5 = toSlot;
 			const value10 = new rs.Cell(((n as rs.u32) ^ 17) >>> 0);
 			if (pointer5.v === undefined) {
@@ -3978,9 +3949,9 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			undefined;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(early.v & 0xff, earlyPair[1])), undefined, true);
-			let uninit2: rs.Cell<rs.u32> = new rs.Cell(n as rs.u32);
-			const readOut: rs.Cell<rs.u32> = new rs.Cell(uninit2.v);
-			const pointer7 = rs.place(() => uninit2, (value12) => uninit2 = value12);
+			let uninit: rs.Cell<rs.u32> = new rs.Cell(n as rs.u32);
+			const readOut: rs.Cell<rs.u32> = new rs.Cell(uninit.v);
+			const pointer7 = rs.place(() => uninit, (value12) => uninit = value12);
 			const value13 = new rs.Cell(((n as rs.u32) ^ 19) >>> 0);
 			if (pointer7.v === undefined) {
 				pointer7.v = value13;
@@ -3988,7 +3959,7 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 				pointer7.v.v = value13.v;
 			}
 			undefined;
-			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(readOut.v & 0xff, uninit2.v & 0xff)), undefined, true);
+			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(readOut.v & 0xff, uninit.v & 0xff)), undefined, true);
 			const src: rs.Cell<[rs.Cell<rs.u32>, [rs.u32, rs.u32]]> = new rs.Cell([new rs.Cell(n as rs.u32), [2, 3] as [rs.u32, rs.u32]] as [rs.Cell<rs.u32>, [rs.u32, rs.u32]]);
 			const object2 = src.v;
 			const copy2 = rs.objectCopy(object2);
@@ -3998,26 +3969,25 @@ export function nestedCells(data: rs.ByteSlice, out: rs.ByteVec): void {
 			src.v[1][0] = 9;
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(copy[1][0] & 0xff, src.v[1][0] & 0xff)), undefined, true);
 		} else {
-			const _352: rs.Cell<rs.u32> = new rs.Cell(((n as rs.u32) ^ 13) >>> 0);
-			const _355: rs.Place<rs.Cell<rs.u32>> = nest;
-			const value = _352;
-			if (_355.v === undefined) {
-				_355.v = value;
+			const _316: rs.Cell<rs.u32> = new rs.Cell(((n as rs.u32) ^ 13) >>> 0);
+			const _319: rs.Place<rs.Cell<rs.u32>> = nest;
+			const value = _316;
+			if (_319.v === undefined) {
+				_319.v = value;
 			} else {
-				_355.v.v = value.v;
+				_319.v.v = value.v;
 			}
-			const _357: rs.Cell<rs.Cell<rs.u32>> = new rs.Cell(new rs.Cell(((n as rs.u32) ^ 14) >>> 0));
-			const _361: rs.Place<rs.Cell<rs.Cell<rs.u32>>> = deep;
-			const value2 = _357;
-			if (_361.v === undefined) {
-				_361.v = value2;
+			const _321: rs.Cell<rs.Cell<rs.u32>> = new rs.Cell(new rs.Cell(((n as rs.u32) ^ 14) >>> 0));
+			const _325: rs.Place<rs.Cell<rs.Cell<rs.u32>>> = deep;
+			const value2 = _321;
+			if (_325.v === undefined) {
+				_325.v = value2;
 			} else {
-				_361.v.v.v = value2.v.v;
+				_325.v.v.v = value2.v.v;
 			}
 		}
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(toNest.v & 0xff, toDeep.v & 0xff, toPair.v & 0xff, toStrukt.v & 0xff)), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(toObj[0], toObj[1], toCell.v & 0xff, toWrapped.v & 0xff)), undefined, true);
-		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(toUninit.v & 0xff, toManual.v & 0xff)), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(nest.v.v & 0xff, pair.v[1], strukt.v.n)), undefined, true);
 	}
 }
