@@ -11656,7 +11656,7 @@ export function held$String_iters_held_fields_closure2(data: rs.ByteSlice, make:
 	const _17: [rs.u8, rs.u8] = [option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), option_unwrapOr$1fr498u(rs.byteSliceLast(data), 0)];
 	const lo: rs.u8 = _17[0];
 	const hi: rs.u8 = _17[1];
-	const held: Holder.Holder<string, rs.Iter<rs.u8>> = new Holder.Holder(rs.iterSlice(items.items) as rs.Iter<rs.Ptr<string>>, rs.btreeRange(tree, new rs.RangeInclusive(rs.min(lo, hi), rs.max(lo, hi), rs.u8Step)) as rs.Iter<[rs.u8, rs.Ptr<string>]>, rs.vecIntoIter(rs.vecFrom(items.items.slice())), rs.iterPeekable(rs.iterSlice(rs.byteSliceView(data))), undefined);
+	const held: Holder.Holder<string, rs.Iter<rs.u8>> = new Holder.Holder(rs.iterSlice(items.items) as rs.Iter<rs.Ptr<string>>, rs.btreeRange(tree, new rs.RangeInclusive(rs.min(lo, hi), rs.max(lo, hi), rs.u8Step)) as rs.Iter<[rs.u8, rs.Ptr<string>]>, rs.vecIntoIter(rs.vecFrom(items.items.slice())), rs.iterPeekable(rs.iterSlice(rs.byteSliceView(data))), undefined as rs.OptionOf<string>);
 	for (const _41 of rs.byteSliceView(data)) {
 		Holder.step$String_slice_Iter_u8(held, _41, code, out);
 	}
@@ -11676,7 +11676,7 @@ export function held$u16_iters_held_fields_closure0(data: rs.ByteSlice, make: (a
 	const _17: [rs.u8, rs.u8] = [option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), option_unwrapOr$1fr498u(rs.byteSliceLast(data), 0)];
 	const lo: rs.u8 = _17[0];
 	const hi: rs.u8 = _17[1];
-	const held: Holder.Holder<rs.u16, rs.Iter<rs.u8>> = new Holder.Holder(rs.iterSlice(items.items) as rs.Iter<rs.Ptr<rs.u16>>, rs.btreeRange(tree, new rs.RangeInclusive(rs.min(lo, hi), rs.max(lo, hi), rs.u8Step)) as rs.Iter<[rs.u8, rs.Ptr<rs.u16>]>, rs.vecIntoIter(rs.vecFrom(items.items.slice())), rs.iterPeekable(rs.iterSlice(rs.byteSliceView(data))), undefined);
+	const held: Holder.Holder<rs.u16, rs.Iter<rs.u8>> = new Holder.Holder(rs.iterSlice(items.items) as rs.Iter<rs.Ptr<rs.u16>>, rs.btreeRange(tree, new rs.RangeInclusive(rs.min(lo, hi), rs.max(lo, hi), rs.u8Step)) as rs.Iter<[rs.u8, rs.Ptr<rs.u16>]>, rs.vecIntoIter(rs.vecFrom(items.items.slice())), rs.iterPeekable(rs.iterSlice(rs.byteSliceView(data))), undefined as rs.OptionOf<rs.u16>);
 	for (const _41 of rs.byteSliceView(data)) {
 		Holder.step$u16_slice_Iter_u8(held, _41, code, out);
 	}

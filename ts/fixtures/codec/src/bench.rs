@@ -6,12 +6,15 @@
 //! keeps a `BTreeMap`, as moq-net's model keeps its state, op 9 converts timestamps
 //! between timescales, ops 10 and 11 add and order them as moq-net's `Timestamp` does,
 //! op 12 orders integers by std's own `Ord`, op 13 pushes onto vectors, op 14 keeps a
-//! `HashMap`, op 15 numbers TS packets as moq-mux does, op 16 formats log lines, and op 17
-//! writes through the mutable parts of a slice of integers.
+//! `HashMap`, op 15 numbers TS packets as moq-mux does, op 16 formats log lines, op 17
+//! writes through the mutable parts of a slice of integers, and op 18 splits frames' `Bytes`
+//! off a group's.
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, VecDeque};
 use std::fmt::Write;
+
+use bytes::Bytes;
 
 use crate::coding::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder, Form, varint};
 use crate::harness::{decode_error, encode_error, form, lite_version, put_u64, put_usize, take_u64};
@@ -45,6 +48,7 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 		15 => packets(selector, data, &mut out),
 		16 => format(data, &mut out),
 		17 => parts(selector, data, &mut out),
+		18 => frames(data, &mut out),
 		_ => decoded(decode_group(data, lite_version(selector), &mut out), &mut out),
 	}
 	out
@@ -421,6 +425,31 @@ fn parts(selector: u8, data: &[u8], out: &mut Vec<u8>) {
 	}
 	put_u64(out, v[0]);
 	put_u64(out, sum);
+}
+
+/// `count` frames of `size` bytes split off the front of a group's `Bytes`, as moq-net's
+/// model hands a frame's bytes to its consumers: each cloned for a second consumer, which
+/// reads past its first byte, then dropped, leaving the group the one handle of its storage
+/// again. The sum of what each frame read, then how many times the group was unique.
+fn frames(data: &[u8], out: &mut Vec<u8>) {
+	let (count, data) = take_u64(data);
+	let (size, _) = take_u64(data);
+	let count = count.min(1 << 16) as usize;
+	let size = size.clamp(1, 1 << 10) as usize;
+	let mut group = Bytes::from(vec![0x5a; count * size]);
+	let mut sum = 0u64;
+	let mut unique = 0u64;
+	for _ in 0..count {
+		{
+			let frame = group.split_to(size);
+			let copy = frame.clone();
+			let rest = copy.slice(1..);
+			sum += u64::from(frame[0]) + rest.len() as u64;
+		}
+		unique += u64::from(group.is_unique());
+	}
+	put_u64(out, sum);
+	put_u64(out, unique);
 }
 
 /// One iterator chain over every byte, picked by `chain`, with closures that cost little

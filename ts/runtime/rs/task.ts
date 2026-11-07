@@ -1381,6 +1381,9 @@ export const OuterPending: unique symbol = /* @__PURE__ */ Symbol("OuterPending"
 /** The type of `OuterPending`. */
 export type OuterPending = typeof OuterPending;
 
+/** A generic type's `Poll<T>`, whose `Pending` each instance decides: `Poll<T>`, or `T | OuterPending` where `T` can already be `Pending`. */
+export type PollOf<T> = T | (typeof Pending extends T ? OuterPending : typeof Pending);
+
 /** `Debug` of a `Poll`, through its value's, whose `Pending` is `pending`. */
 export function fmtPoll<T>(p: T | typeof Pending | OuterPending, f: Formatter, debug: Debug<T>, pending: typeof Pending | OuterPending = Pending): FmtResult {
 	if (p === pending) return f.out.writeStr("Pending");
