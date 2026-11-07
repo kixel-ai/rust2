@@ -187,17 +187,17 @@ export function state$u32(v: rs.Vec<rs.u32>, out: rs.ByteVec): void {
 /**
  * A vector of values JS copies, written past its length through pointers, by element, by
  * `ptr::copy_nonoverlapping`, and through a slice made of them, and taken in by
- * `set_len`; an insert that moves the tail into the room, as std's does; a removal of a
+ * `set_len`, of the `Vec` itself or of the one it moved to; an insert that moves the tail into the room, as std's does; a removal of a
  * run that shortens it by `set_len` first and reads the run past its length, as std's
  * `Drain` does; a filter that shortens it to nothing and writes back what it keeps, as
  * std's `retain` does; grown, cut, and refilled.
  */
 export function pointers$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _43!: rs.usize;
-	let _140!: rs.usize;
-	let _169!: rs.usize;
+	let _143!: rs.usize;
+	let _172!: rs.usize;
 	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
-	const v: rs.Vec<rs.u16 | undefined> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 4);
+	let v: rs.Vec<rs.u16 | undefined> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 4);
 	while (!(ops._0Len === 0)) {
 		const _13: [rs.u8, rs.u8] = [Ops.byte(ops), Ops.byte(ops)];
 		const op: rs.u8 = _13[0];
@@ -215,9 +215,11 @@ export function pointers$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 					const i: rs.usize = _43;
 					rs.ptrAdd(end, i).v = of$spare_Item_Option_u16(rs.u8WrappingAdd(n, i & 0xff));
 				}
-				rs.vecSetLen(v, rs.usizeAdd(len, k), 4, (): rs.u16 | undefined => {
+				const moved: rs.Vec<rs.u16 | undefined> = rs.replaceIn(v, new rs.Vec());
+				rs.vecSetLen(moved, rs.usizeAdd(len, k), 4, (): rs.u16 | undefined => {
 					return (undefined as unknown) as rs.u16 | undefined;
 				});
+				v = moved;
 				break b2;
 			}
 			if (_35 === 1) {
@@ -232,11 +234,11 @@ export function pointers$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (_35 === 2) {
 				const iter2: rs.Iter<[rs.usize, rs.Place<rs.u16 | undefined>]> = rs.iterRev(rs.iterEnumerate(rs.iterSliceMut(rs.ptrSlice(rs.ptrAdd(rs.vecAsPtr(v, 4), len), k))));
 				while (true) {
-					const _83: [rs.usize, rs.Place<rs.u16 | undefined>] | rs.Done = iter2.next();
-					if (_83 === rs.DONE) {
+					const _86: [rs.usize, rs.Place<rs.u16 | undefined>] | rs.Done = iter2.next();
+					if (_86 === rs.DONE) {
 						break;
 					}
-					_83[1].v = of$spare_Item_Option_u16(rs.u8WrappingSub(n, _83[0] & 0xff));
+					_86[1].v = of$spare_Item_Option_u16(rs.u8WrappingSub(n, _86[0] & 0xff));
 				}
 				rs.vecSetLen(v, rs.usizeAdd(len, k), 4, (): rs.u16 | undefined => {
 					return (undefined as unknown) as rs.u16 | undefined;
@@ -264,8 +266,8 @@ export function pointers$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 					const p2: rs.Place<rs.u16 | undefined> = rs.vecAsPtr(v, 4);
 					let iterStart2: rs.usize = at2;
 					const iterEnd2: rs.usize = end2;
-					while ((_140 = iterStart2++) < iterEnd2) {
-						put$spare_Item_Option_u16(rs.ptrAdd(p2, _140).v, out);
+					while ((_143 = iterStart2++) < iterEnd2) {
+						put$spare_Item_Option_u16(rs.ptrAdd(p2, _143).v, out);
 					}
 					rs.ptrCopy(rs.ptrAdd(p2, end2), rs.ptrAdd(p2, at2), rs.usizeSub(len, end2));
 					rs.vecSetLen(v, rs.usizeSub(len, rs.usizeSub(end2, at2)), 4, (): rs.u16 | undefined => {
@@ -282,8 +284,8 @@ export function pointers$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 					let kept: rs.usize = 0;
 					let iterStart3: rs.usize = 0;
 					const iterEnd3: rs.usize = len;
-					while ((_169 = iterStart3++) < iterEnd3) {
-						const i4: rs.usize = _169;
+					while ((_172 = iterStart3++) < iterEnd3) {
+						const i4: rs.usize = _172;
 						const x: rs.u16 | undefined = rs.ptrAdd(p3, i4).v;
 						if (rs.usizeRem(rs.usizeAdd(i4, n as rs.usize), 3) !== 0) {
 							rs.ptrAdd(p3, kept).v = x;
@@ -309,17 +311,17 @@ export function pointers$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 /**
  * A vector of values JS copies, written past its length through pointers, by element, by
  * `ptr::copy_nonoverlapping`, and through a slice made of them, and taken in by
- * `set_len`; an insert that moves the tail into the room, as std's does; a removal of a
+ * `set_len`, of the `Vec` itself or of the one it moved to; an insert that moves the tail into the room, as std's does; a removal of a
  * run that shortens it by `set_len` first and reads the run past its length, as std's
  * `Drain` does; a filter that shortens it to nothing and writes back what it keeps, as
  * std's `retain` does; grown, cut, and refilled.
  */
 export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _43!: rs.usize;
-	let _140!: rs.usize;
-	let _169!: rs.usize;
+	let _143!: rs.usize;
+	let _172!: rs.usize;
 	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
-	const v: rs.Vec<string> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 12);
+	let v: rs.Vec<string> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 12);
 	while (!(ops._0Len === 0)) {
 		const _13: [rs.u8, rs.u8] = [Ops.byte(ops), Ops.byte(ops)];
 		const op: rs.u8 = _13[0];
@@ -337,9 +339,11 @@ export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 					const i: rs.usize = _43;
 					rs.ptrAdd(end, i).v = of$spare_Item_String(rs.u8WrappingAdd(n, i & 0xff));
 				}
-				rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): string => {
+				const moved: rs.Vec<string> = rs.replaceIn(v, new rs.Vec());
+				rs.vecSetLen(moved, rs.usizeAdd(len, k), 12, (): string => {
 					return (undefined as unknown) as string;
 				});
+				v = moved;
 				break b2;
 			}
 			if (_35 === 1) {
@@ -354,11 +358,11 @@ export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (_35 === 2) {
 				const iter2: rs.Iter<[rs.usize, rs.Place<string>]> = rs.iterRev(rs.iterEnumerate(rs.iterSliceMut(rs.ptrSlice(rs.ptrAdd(rs.vecAsPtr(v, 12), len), k))));
 				while (true) {
-					const _83: [rs.usize, rs.Place<string>] | rs.Done = iter2.next();
-					if (_83 === rs.DONE) {
+					const _86: [rs.usize, rs.Place<string>] | rs.Done = iter2.next();
+					if (_86 === rs.DONE) {
 						break;
 					}
-					_83[1].v = of$spare_Item_String(rs.u8WrappingSub(n, _83[0] & 0xff));
+					_86[1].v = of$spare_Item_String(rs.u8WrappingSub(n, _86[0] & 0xff));
 				}
 				rs.vecSetLen(v, rs.usizeAdd(len, k), 12, (): string => {
 					return (undefined as unknown) as string;
@@ -386,8 +390,8 @@ export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 					const p2: rs.Place<string> = rs.vecAsPtr(v, 12);
 					let iterStart2: rs.usize = at2;
 					const iterEnd2: rs.usize = end2;
-					while ((_140 = iterStart2++) < iterEnd2) {
-						put$spare_Item_String(rs.ptrAdd(p2, _140).v, out);
+					while ((_143 = iterStart2++) < iterEnd2) {
+						put$spare_Item_String(rs.ptrAdd(p2, _143).v, out);
 					}
 					rs.ptrCopy(rs.ptrAdd(p2, end2), rs.ptrAdd(p2, at2), rs.usizeSub(len, end2));
 					rs.vecSetLen(v, rs.usizeSub(len, rs.usizeSub(end2, at2)), 12, (): string => {
@@ -404,8 +408,8 @@ export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 					let kept: rs.usize = 0;
 					let iterStart3: rs.usize = 0;
 					const iterEnd3: rs.usize = len;
-					while ((_169 = iterStart3++) < iterEnd3) {
-						const i4: rs.usize = _169;
+					while ((_172 = iterStart3++) < iterEnd3) {
+						const i4: rs.usize = _172;
 						const x: string = rs.ptrAdd(p3, i4).v;
 						if (rs.usizeRem(rs.usizeAdd(i4, n as rs.usize), 3) !== 0) {
 							rs.ptrAdd(p3, kept).v = x;
@@ -431,17 +435,17 @@ export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 /**
  * A vector of values JS copies, written past its length through pointers, by element, by
  * `ptr::copy_nonoverlapping`, and through a slice made of them, and taken in by
- * `set_len`; an insert that moves the tail into the room, as std's does; a removal of a
+ * `set_len`, of the `Vec` itself or of the one it moved to; an insert that moves the tail into the room, as std's does; a removal of a
  * run that shortens it by `set_len` first and reads the run past its length, as std's
  * `Drain` does; a filter that shortens it to nothing and writes back what it keeps, as
  * std's `retain` does; grown, cut, and refilled.
  */
 export function pointers$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _43!: rs.usize;
-	let _140!: rs.usize;
-	let _169!: rs.usize;
+	let _143!: rs.usize;
+	let _172!: rs.usize;
 	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
-	const v: rs.Vec<rs.u32> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 4);
+	let v: rs.Vec<rs.u32> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 4);
 	while (!(ops._0Len === 0)) {
 		const _13: [rs.u8, rs.u8] = [Ops.byte(ops), Ops.byte(ops)];
 		const op: rs.u8 = _13[0];
@@ -459,9 +463,11 @@ export function pointers$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 					const i: rs.usize = _43;
 					rs.ptrAdd(end, i).v = of$spare_Item_u32(rs.u8WrappingAdd(n, i & 0xff));
 				}
-				rs.vecSetLen(v, rs.usizeAdd(len, k), 4, (): rs.u32 => {
+				const moved: rs.Vec<rs.u32> = rs.replaceIn(v, new rs.Vec());
+				rs.vecSetLen(moved, rs.usizeAdd(len, k), 4, (): rs.u32 => {
 					return (undefined as unknown) as rs.u32;
 				});
+				v = moved;
 				break b2;
 			}
 			if (_35 === 1) {
@@ -476,11 +482,11 @@ export function pointers$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (_35 === 2) {
 				const iter2: rs.Iter<[rs.usize, rs.Place<rs.u32>]> = rs.iterRev(rs.iterEnumerate(rs.iterSliceMut(rs.ptrSlice(rs.ptrAdd(rs.vecAsPtr(v, 4), len), k))));
 				while (true) {
-					const _83: [rs.usize, rs.Place<rs.u32>] | rs.Done = iter2.next();
-					if (_83 === rs.DONE) {
+					const _86: [rs.usize, rs.Place<rs.u32>] | rs.Done = iter2.next();
+					if (_86 === rs.DONE) {
 						break;
 					}
-					_83[1].v = of$spare_Item_u32(rs.u8WrappingSub(n, _83[0] & 0xff));
+					_86[1].v = of$spare_Item_u32(rs.u8WrappingSub(n, _86[0] & 0xff));
 				}
 				rs.vecSetLen(v, rs.usizeAdd(len, k), 4, (): rs.u32 => {
 					return (undefined as unknown) as rs.u32;
@@ -508,8 +514,8 @@ export function pointers$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 					const p2: rs.Place<rs.u32> = rs.vecAsPtr(v, 4);
 					let iterStart2: rs.usize = at2;
 					const iterEnd2: rs.usize = end2;
-					while ((_140 = iterStart2++) < iterEnd2) {
-						put$spare_Item_u32(rs.ptrAdd(p2, _140).v, out);
+					while ((_143 = iterStart2++) < iterEnd2) {
+						put$spare_Item_u32(rs.ptrAdd(p2, _143).v, out);
 					}
 					rs.ptrCopy(rs.ptrAdd(p2, end2), rs.ptrAdd(p2, at2), rs.usizeSub(len, end2));
 					rs.vecSetLen(v, rs.usizeSub(len, rs.usizeSub(end2, at2)), 4, (): rs.u32 => {
@@ -526,8 +532,8 @@ export function pointers$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 					let kept: rs.usize = 0;
 					let iterStart3: rs.usize = 0;
 					const iterEnd3: rs.usize = len;
-					while ((_169 = iterStart3++) < iterEnd3) {
-						const i4: rs.usize = _169;
+					while ((_172 = iterStart3++) < iterEnd3) {
+						const i4: rs.usize = _172;
 						const x: rs.u32 = rs.ptrAdd(p3, i4).v;
 						if (rs.usizeRem(rs.usizeAdd(i4, n as rs.usize), 3) !== 0) {
 							rs.ptrAdd(p3, kept).v = x;
@@ -554,11 +560,12 @@ export function pointers$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
  * A vector of any items written through the slots `spare_capacity_mut` lends: by
  * `write`, by assigning one whole, by `write_clone_of_slice` and through the slice it
  * gives back, and by `fill_with`, then taken in by `set_len`; one written and read back before
- * any `set_len`, and written over by a second call; grown and cut.
+ * any `set_len`, and written over by a second call, then taken in by the `Vec` it was
+ * swapped into; grown and cut.
  */
 export function slots$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
-	const v: rs.Vec<rs.u16 | undefined> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 4);
+	let v: rs.Vec<rs.u16 | undefined> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 4);
 	while (!(ops._0Len === 0)) {
 		const _13: [rs.u8, rs.u8] = [Ops.byte(ops), Ops.byte(ops)];
 		const op: rs.u8 = _13[0];
@@ -619,9 +626,12 @@ export function slots$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}));
 			if (_105 !== undefined) {
 				_105.v = of$spare_Item_Option_u16(n);
-				rs.vecSetLen(v, rs.usizeAdd(len, 1), 4, (): rs.u16 | undefined => {
+				let swapped: rs.Vec<rs.u16 | undefined> = new rs.Vec();
+				swapped = rs.replaceIn(v, swapped);
+				rs.vecSetLen(swapped, rs.usizeAdd(len, 1), 4, (): rs.u16 | undefined => {
 					return (undefined as unknown) as rs.u16 | undefined;
 				});
+				v = swapped;
 			}
 		} else if (!(rs.u8Rem(n, 2) === 0)) {
 			rs.vecTruncate(v, rs.usizeRem(n as rs.usize, rs.usizeAdd(len, 1)));
@@ -636,11 +646,12 @@ export function slots$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
  * A vector of any items written through the slots `spare_capacity_mut` lends: by
  * `write`, by assigning one whole, by `write_clone_of_slice` and through the slice it
  * gives back, and by `fill_with`, then taken in by `set_len`; one written and read back before
- * any `set_len`, and written over by a second call; grown and cut.
+ * any `set_len`, and written over by a second call, then taken in by the `Vec` it was
+ * swapped into; grown and cut.
  */
 export function slots$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
-	const v: rs.Vec<string> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 12);
+	let v: rs.Vec<string> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 12);
 	while (!(ops._0Len === 0)) {
 		const _13: [rs.u8, rs.u8] = [Ops.byte(ops), Ops.byte(ops)];
 		const op: rs.u8 = _13[0];
@@ -701,9 +712,12 @@ export function slots$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}));
 			if (_105 !== undefined) {
 				_105.v = of$spare_Item_String(n);
-				rs.vecSetLen(v, rs.usizeAdd(len, 1), 12, (): string => {
+				let swapped: rs.Vec<string> = new rs.Vec();
+				swapped = rs.replaceIn(v, swapped);
+				rs.vecSetLen(swapped, rs.usizeAdd(len, 1), 12, (): string => {
 					return (undefined as unknown) as string;
 				});
+				v = swapped;
 			}
 		} else if (!(rs.u8Rem(n, 2) === 0)) {
 			rs.vecTruncate(v, rs.usizeRem(n as rs.usize, rs.usizeAdd(len, 1)));
@@ -718,11 +732,12 @@ export function slots$String(data: rs.ByteSlice, out: rs.ByteVec): void {
  * A vector of any items written through the slots `spare_capacity_mut` lends: by
  * `write`, by assigning one whole, by `write_clone_of_slice` and through the slice it
  * gives back, and by `fill_with`, then taken in by `set_len`; one written and read back before
- * any `set_len`, and written over by a second call; grown and cut.
+ * any `set_len`, and written over by a second call, then taken in by the `Vec` it was
+ * swapped into; grown and cut.
  */
 export function slots$spare_Noted(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
-	const v: rs.Vec<Noted.Noted> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 1);
+	let v: rs.Vec<Noted.Noted> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 1);
 	while (!(ops._0Len === 0)) {
 		const _13: [rs.u8, rs.u8] = [Ops.byte(ops), Ops.byte(ops)];
 		const op: rs.u8 = _13[0];
@@ -785,9 +800,14 @@ export function slots$spare_Noted(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}), rs.None);
 			if (_105 !== rs.None) {
 				rs.ptrWrite(_105, Noted.of$spare_Item(n));
-				rs.vecSetLen(v, rs.usizeAdd(len, 1), 1, (): Noted.Noted => {
+				let swapped: rs.Vec<Noted.Noted> = new rs.Vec();
+				swapped = rs.replaceIn(v, swapped);
+				rs.vecSetLen(swapped, rs.usizeAdd(len, 1), 1, (): Noted.Noted => {
 					return (new Noted.Noted((undefined as unknown) as rs.u8) as unknown) as Noted.Noted;
 				});
+				const _120: rs.Vec<Noted.Noted> = swapped;
+				rs.dropVec(v);
+				v = _120;
 			}
 		} else if (!(rs.u8Rem(n, 2) === 0)) {
 			rs.vecTruncate(v, rs.usizeRem(n as rs.usize, rs.usizeAdd(len, 1)), rs.drop);
@@ -803,11 +823,12 @@ export function slots$spare_Noted(data: rs.ByteSlice, out: rs.ByteVec): void {
  * A vector of any items written through the slots `spare_capacity_mut` lends: by
  * `write`, by assigning one whole, by `write_clone_of_slice` and through the slice it
  * gives back, and by `fill_with`, then taken in by `set_len`; one written and read back before
- * any `set_len`, and written over by a second call; grown and cut.
+ * any `set_len`, and written over by a second call, then taken in by the `Vec` it was
+ * swapped into; grown and cut.
  */
 export function slots$spare_Pair(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
-	const v: rs.Vec<Pair.Pair> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 16);
+	let v: rs.Vec<Pair.Pair> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 16);
 	while (!(ops._0Len === 0)) {
 		const _13: [rs.u8, rs.u8] = [Ops.byte(ops), Ops.byte(ops)];
 		const op: rs.u8 = _13[0];
@@ -868,9 +889,12 @@ export function slots$spare_Pair(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}), rs.None);
 			if (_105 !== rs.None) {
 				rs.ptrWrite(_105, Pair.of$spare_Item(n));
-				rs.vecSetLen(v, rs.usizeAdd(len, 1), 16, (): Pair.Pair => {
+				let swapped: rs.Vec<Pair.Pair> = new rs.Vec();
+				swapped = rs.replaceIn(v, swapped);
+				rs.vecSetLen(swapped, rs.usizeAdd(len, 1), 16, (): Pair.Pair => {
 					return ({ a: undefined, b: undefined } as unknown) as Pair.Pair;
 				});
+				v = swapped;
 			}
 		} else if (!(rs.u8Rem(n, 2) === 0)) {
 			rs.vecTruncate(v, rs.usizeRem(n as rs.usize, rs.usizeAdd(len, 1)));
@@ -885,11 +909,12 @@ export function slots$spare_Pair(data: rs.ByteSlice, out: rs.ByteVec): void {
  * A vector of any items written through the slots `spare_capacity_mut` lends: by
  * `write`, by assigning one whole, by `write_clone_of_slice` and through the slice it
  * gives back, and by `fill_with`, then taken in by `set_len`; one written and read back before
- * any `set_len`, and written over by a second call; grown and cut.
+ * any `set_len`, and written over by a second call, then taken in by the `Vec` it was
+ * swapped into; grown and cut.
  */
 export function slots$tuple2_u8_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
-	const v: rs.Vec<[rs.u8, rs.u32]> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 8);
+	let v: rs.Vec<[rs.u8, rs.u32]> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 8);
 	while (!(ops._0Len === 0)) {
 		const _13: [rs.u8, rs.u8] = [Ops.byte(ops), Ops.byte(ops)];
 		const op: rs.u8 = _13[0];
@@ -950,9 +975,12 @@ export function slots$tuple2_u8_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}), rs.None);
 			if (_105 !== rs.None) {
 				rs.ptrWrite(_105, copy$tuple2_u8_u32(of$spare_Item_tuple2_u8_u32(n)));
-				rs.vecSetLen(v, rs.usizeAdd(len, 1), 8, (): [rs.u8, rs.u32] => {
+				let swapped: rs.Vec<[rs.u8, rs.u32]> = new rs.Vec();
+				swapped = rs.replaceIn(v, swapped);
+				rs.vecSetLen(swapped, rs.usizeAdd(len, 1), 8, (): [rs.u8, rs.u32] => {
 					return ([undefined, undefined] as unknown) as [rs.u8, rs.u32];
 				});
+				v = swapped;
 			}
 		} else if (!(rs.u8Rem(n, 2) === 0)) {
 			rs.vecTruncate(v, rs.usizeRem(n as rs.usize, rs.usizeAdd(len, 1)));
@@ -967,11 +995,12 @@ export function slots$tuple2_u8_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
  * A vector of any items written through the slots `spare_capacity_mut` lends: by
  * `write`, by assigning one whole, by `write_clone_of_slice` and through the slice it
  * gives back, and by `fill_with`, then taken in by `set_len`; one written and read back before
- * any `set_len`, and written over by a second call; grown and cut.
+ * any `set_len`, and written over by a second call, then taken in by the `Vec` it was
+ * swapped into; grown and cut.
  */
 export function slots$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const ops: Ops.Ops = { _0Data: data.data, _0Start: data.start, _0Len: data.length };
-	const v: rs.Vec<rs.u32> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 4);
+	let v: rs.Vec<rs.u32> = rs.vecWithCapacity(rs.u8Rem(Ops.byte(ops), 12) as rs.usize, 4);
 	while (!(ops._0Len === 0)) {
 		const _13: [rs.u8, rs.u8] = [Ops.byte(ops), Ops.byte(ops)];
 		const op: rs.u8 = _13[0];
@@ -1032,9 +1061,12 @@ export function slots$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}));
 			if (_105 !== undefined) {
 				_105.v = of$spare_Item_u32(n);
-				rs.vecSetLen(v, rs.usizeAdd(len, 1), 4, (): rs.u32 => {
+				let swapped: rs.Vec<rs.u32> = new rs.Vec();
+				swapped = rs.replaceIn(v, swapped);
+				rs.vecSetLen(swapped, rs.usizeAdd(len, 1), 4, (): rs.u32 => {
 					return (undefined as unknown) as rs.u32;
 				});
+				v = swapped;
 			}
 		} else if (!(rs.u8Rem(n, 2) === 0)) {
 			rs.vecTruncate(v, rs.usizeRem(n as rs.usize, rs.usizeAdd(len, 1)));

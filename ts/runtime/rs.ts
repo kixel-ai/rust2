@@ -2445,9 +2445,14 @@ export function vecShrinkTo<T>(v: Vec<T>, min: number, size: number): void {
 // `spare_capacity_mut` lends, put there, and what `set_len` gave up, by index, until
 // `set_len` takes it in.
 
-/** The room past a `Vec`'s length, up to its capacity: what each slot there holds. */
+/**
+ * The room past a `Vec`'s length, up to its capacity: what each slot there holds. It is
+ * the allocation's, so it follows the items to whichever `rs.Vec` holds them now, as a
+ * move such as `mem::take` hands them to another.
+ */
 export class Room<T> {
-	readonly v: Vec<T>;
+	/** The `Vec` that last held the items, which gives the capacity. */
+	v: Vec<T>;
 	readonly size: number;
 	readonly slots = new Map<number, T>();
 	/** What a slot holds before any write: a `MaybeUninit` that holds nothing yet. */
@@ -2484,20 +2489,22 @@ const ROOMS = /* @__PURE__ */ new WeakMap<object, Room<unknown>>();
 /** `v`'s room, of `size`-byte elements. */
 function roomOf<T>(v: Vec<T>, size: number): Room<T> {
 	let room = ROOMS.get(v.items) as Room<T> | undefined;
-	if (room === undefined || room.v !== v) {
+	if (room === undefined) {
 		room = new Room(v, size);
 		ROOMS.set(v.items, room);
 	}
+	room.v = v;
 	return room;
 }
 
 /**
  * The room past `array` that holds its elements up to `end`, if `array` is the items of a
- * `Vec` a pointer was taken from, whose capacity reaches `end`.
+ * `Vec` a pointer was taken from: within its capacity while that `Vec` holds them, and
+ * else unchecked, as the `Vec` they moved to is unknown here.
  */
 export function roomPast<T>(array: object, end: number): Room<T> | undefined {
 	const room = ROOMS.get(array) as Room<T> | undefined;
-	if (room === undefined || room.v.items !== array || end > vecCapacity(room.v, room.size)) return undefined;
+	if (room === undefined || (room.v.items === array && end > vecCapacity(room.v, room.size))) return undefined;
 	return room;
 }
 

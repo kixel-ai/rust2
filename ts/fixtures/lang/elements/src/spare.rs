@@ -128,7 +128,7 @@ fn state<T: Item>(v: &mut Vec<T>, out: &mut Vec<u8>) {
 
 /// A vector of values JS copies, written past its length through pointers, by element, by
 /// `ptr::copy_nonoverlapping`, and through a slice made of them, and taken in by
-/// `set_len`; an insert that moves the tail into the room, as std's does; a removal of a
+/// `set_len`, of the `Vec` itself or of the one it moved to; an insert that moves the tail into the room, as std's does; a removal of a
 /// run that shortens it by `set_len` first and reads the run past its length, as std's
 /// `Drain` does; a filter that shortens it to nothing and writes back what it keeps, as
 /// std's `retain` does; grown, cut, and refilled.
@@ -145,7 +145,10 @@ fn pointers<T: Item>(data: &[u8], out: &mut Vec<u8>) {
 				for i in 0..k {
 					end.add(i).write(T::of(n.wrapping_add(i as u8)));
 				}
-				v.set_len(len + k);
+				// Moved to another binding and back, which keeps its storage.
+				let mut moved = std::mem::take(&mut v);
+				moved.set_len(len + k);
+				v = moved;
 			},
 			1 => unsafe {
 				let src: Vec<T> = (0..k).map(|i| T::of(n ^ i as u8)).collect();
@@ -206,7 +209,8 @@ fn pointers<T: Item>(data: &[u8], out: &mut Vec<u8>) {
 /// A vector of any items written through the slots `spare_capacity_mut` lends: by
 /// `write`, by assigning one whole, by `write_clone_of_slice` and through the slice it
 /// gives back, and by `fill_with`, then taken in by `set_len`; one written and read back before
-/// any `set_len`, and written over by a second call; grown and cut.
+/// any `set_len`, and written over by a second call, then taken in by the `Vec` it was
+/// swapped into; grown and cut.
 fn slots<T: Item>(data: &[u8], out: &mut Vec<u8>) {
 	let mut ops = Ops(data);
 	let mut v: Vec<T> = Vec::with_capacity(usize::from(ops.byte() % 12));
@@ -245,7 +249,11 @@ fn slots<T: Item>(data: &[u8], out: &mut Vec<u8>) {
 				}
 				if let Some(slot) = v.spare_capacity_mut().first_mut() {
 					slot.write(T::of(n));
-					unsafe { v.set_len(len + 1) };
+					// Swapped out and back, which keeps its storage.
+					let mut swapped = Vec::new();
+					std::mem::swap(&mut v, &mut swapped);
+					unsafe { swapped.set_len(len + 1) };
+					v = swapped;
 				}
 			}
 			_ if n % 2 == 0 => v.reserve(usize::from(n % 16)),
