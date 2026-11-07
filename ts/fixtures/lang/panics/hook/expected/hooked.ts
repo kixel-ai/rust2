@@ -21,7 +21,7 @@ import { withBorrow$097wfl1 } from "./std/thread/local.ts";
 export function record(info: rs.PanicHookInfo): void {
 	let kind!: rs.String;
 	const payload: Any.Any = rs.hookPayload(info, of$ref_str, of$String);
-	if (!(payload.typeId$Any() === "24c161f26c70c1f1b9f602dc5fe9f65c")) {
+	if (!(payload.typeId$Any() === "<TypeId 1>")) {
 		const _10: rs.String | undefined = payload instanceof of$String ? payload.v : undefined;
 		if (_10 !== undefined) {
 			kind = rs.fmtFormat(["String ", (f: rs.Formatter) => rs.usizeDisplay(_10.cap, f)]);
