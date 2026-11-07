@@ -14,7 +14,9 @@ headless Chromium proves it against the same fixture's wasm-bindgen build.
 - `Closure<T>` and `ScopedClosure` are a JS function over the closure it was made of, from
   `Closure::wrap` of a `Box<dyn FnMut>` or `Closure::new` of any closure, since
   `dyn FnMut` already translates as the closure itself. It throws as wasm-bindgen's does
-  once the `Closure` drops, and when called again while running. `forget` and
+  once the `Closure` drops and, for a `dyn FnMut` one (`WasmClosure::IS_MUT`), when
+  called again while running; a `dyn Fn` one stays reentrant, as the CLI's `makeClosure`
+  keeps it. `forget` and
   `into_js_value` keep it alive. Its args from JS convert as an import's result does. The
   census shows its glue refused today: `(usize, usize)` fat-pointer transmutes and fn
   pointer casts in `convert/closures.rs`.

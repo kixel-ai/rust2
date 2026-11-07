@@ -31,11 +31,12 @@ what follows.
 - The decoding is positional and changes with `SCHEMA_VERSION`. That changed 8 times in
   the 12 months to 0.2.130, each time adding or removing fields or variants. Decode with
   one field list, wasm-bindgen-shared's `shared_api!`, with each field and variant gated
-  by the schemas that carry it. Support every schema from 0.2.128 on, moq's pin today.
-  Refuse a program of another schema at its crate, naming the supported range.
+  by the schemas that carry it. Support each schema from moq's pin (0.2.129, schema
+  `0.2.128`) through the newest when this lands, `0.2.130` at the spike. Refuse a program
+  of any other schema, older or newer, at its crate, naming the supported ones.
   wasm-bindgen-shared can be depended on, but only at one version, since cargo unifies
   0.2.x. cli-support's decoder is private, so vendor its 181 lines (MIT or Apache-2.0)
-  with their source and revision. A new schema adds its gates.
+  with their source and revision. A new schema is supported once its gates are added.
 - JS-represented types: `JsValue`, each `ImportKind::Type`, and their `ErasableGeneric`
   instances, such as js-sys's `Promise<T>`, are the JS value. The generated glue between
   them is then the identity: the `obj` field, `transmute_copy`, and the
@@ -68,7 +69,10 @@ what follows.
   nixpkgs has, with the fixture's lockfile pinned to 0.2.129. Its host is Bun, as
   `tests/differential.ts` runs today. It covers each import kind, `catch`, the boundary
   conversions' edge values (an `f64` past `u32`, `NaN`, lone surrogates), `JsCast`
-  failures, and refusals of each other module kind.
+  failures, and refusals of each other module kind. The translated side runs once per
+  supported schema, each from its own lockfile, against that one native run, since the
+  harness's output does not depend on wasm-bindgen's version; that tests every schema's
+  gates without a CLI per schema. A unit test refuses a program of an unsupported schema.
 
 Docs: [well-known crates](/ts/README.md#well-known-crates) gains wasm-bindgen's mapping
 and the supported schemas.
