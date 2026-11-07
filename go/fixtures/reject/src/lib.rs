@@ -1,11 +1,14 @@
-//! Constructs outside the subset: each root fails translation with a span, and no
+//! Constructs outside the subset: each `pub` item fails translation with a span, and no
 //! output is written.
 
-#![allow(dead_code, reason = "each item is a translation root, not called from Rust")]
+#![allow(dead_code, reason = "each `pub` item is a translation root, not called from Rust")]
 
 pub fn generic<T>(t: T) -> T {
 	t
 }
+
+/// Go callers would read it as a variable, which no translation declares yet.
+pub const LIMIT: u8 = 4;
 
 /// Go has no 128-bit integer.
 pub fn wide(a: u64, b: u64) -> u128 {
@@ -98,4 +101,37 @@ pub fn called(c: Callback) -> u8 {
 		Callback::Call(f) => f(Callback::Data([0; 8])),
 		Callback::Data(d) => d[0],
 	}
+}
+
+mod value {
+	pub struct Value<T>(pub T);
+
+	impl Value<u8> {
+		pub fn new(v: u8) -> Self {
+			Self(v)
+		}
+	}
+}
+
+/// Go callers would reach `new` only through the alias, which takes knowing which impls
+/// apply to `Value<u8>`.
+pub type Byte = value::Value<u8>;
+
+/// A raw pointer's wrapper, which no Go type stands for.
+pub use std::ptr::NonNull;
+
+/// Go exports a field only by an uppercase first letter, which `count` takes, and the
+/// translation exports only ASCII names.
+#[allow(non_snake_case, reason = "the names Go cannot export")]
+pub struct Fields {
+	pub _count: u8,
+	pub Count: u8,
+	pub é: u8,
+	pub café: u8,
+}
+
+/// Its Go name would be `1`, which is no identifier.
+#[allow(non_camel_case_types, reason = "the name Go cannot export")]
+pub struct _1 {
+	pub count: u8,
 }
