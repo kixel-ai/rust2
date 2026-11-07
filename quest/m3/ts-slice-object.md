@@ -23,8 +23,8 @@ go. Proven by differential tests against native Rust.
    - (b) Bytes only: `as_chunks_mut` makes eager `subarray` views, keeping the `Proxy`
      path for other elements.
    - (c) Keep the `Proxy` views and drop the item.
-2. `slice::from_mut` of a `&mut u8`: kept, deferred to
-   [a quest of its own](/quest/m3/ts-byte-slice-place.md).
+2. `slice::from_mut` of a `&mut u8`: kept, deferred to a quest of its own, since done
+   ([moq-dev/rust2#660](https://github.com/moq-dev/rust2/pull/660)).
 3. Comparing `*const [T]` of values JS copies: moved to
    [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md).
 
