@@ -105,8 +105,9 @@ func BenchmarkCodec(b *testing.B) {
 
 // rusage is what the process has used: CPU time in nanoseconds, every thread's, the
 // collector's workers included, so it counts what a run costs where wall time would count
-// how many of the host's cores were free; and page faults, each a page the kernel mapped
-// and zeroed for memory the allocator took fresh.
+// how many of the host's cores were free; and minor page faults, every fault the kernel
+// served without I/O, copy-on-write included, so an overall diagnostic rather than a count
+// of fresh pages.
 type rusage struct{ cpu, faults int64 }
 
 func usage() rusage {
