@@ -49,13 +49,11 @@ export function copied(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return h & 0xff;
 		}))), undefined, true);
 	}
-	const iter2: rs.Iter<rs.Place<rs.Result<rs.u8, rs.u8>>> = rs.iterSliceMut(rs.sliceFrom(results.items));
-	l3: while (true) {
-		const _34: rs.Place<rs.Result<rs.u8, rs.u8>> | rs.Done = iter2.next();
-		if (_34 === rs.DONE) {
-			break;
-		}
-		const iter3: rs.Iter<rs.Place<rs.u8>> = rs.iterOption(rs.resultAsMut(_34));
+	const iterS2: rs.Result<rs.u8, rs.u8>[] = results.items;
+	let iterI2: number = 0;
+	const iterE: number = results.items.length;
+	l3: while (iterI2 < iterE) {
+		const iter3: rs.Iter<rs.Place<rs.u8>> = rs.iterOption(rs.resultAsMut(rs.arrayAsPtr(iterS2, iterI2++)));
 		while (true) {
 			const _41: rs.Place<rs.u8> | rs.Done = iter3.next();
 			if (_41 === rs.DONE) {
@@ -64,13 +62,11 @@ export function copied(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_41.v = rs.u8WrappingAdd(_41.v, 1);
 		}
 	}
-	const iter4: rs.Iter<rs.Place<rs.Result<rs.u8, rs.u8>>> = rs.iterSliceMut(rs.sliceFrom(results.items));
-	l6: while (true) {
-		const _50: rs.Place<rs.Result<rs.u8, rs.u8>> | rs.Done = iter4.next();
-		if (_50 === rs.DONE) {
-			break;
-		}
-		const iter5: rs.Iter<rs.Place<rs.u8>> = rs.iterOption(rs.resultAsMut(_50));
+	const iterS3: rs.Result<rs.u8, rs.u8>[] = results.items;
+	let iterI3: number = 0;
+	const iterE2: number = results.items.length;
+	l6: while (iterI3 < iterE2) {
+		const iter5: rs.Iter<rs.Place<rs.u8>> = rs.iterOption(rs.resultAsMut(rs.arrayAsPtr(iterS3, iterI3++)));
 		while (true) {
 			const _56: rs.Place<rs.u8> | rs.Done = iter5.next();
 			if (_56 === rs.DONE) {
@@ -179,13 +175,11 @@ export function owned(data: rs.ByteSlice, out: rs.ByteVec): void {
 			return l3.id;
 		}), undefined, true);
 	}
-	const iter4: rs.Iter<rs.Place<rs.Result<Logged.Logged, Logged.Logged>>> = rs.iterSliceMut(rs.sliceFrom(results.items));
-	l7: while (true) {
-		const _59: rs.Place<rs.Result<Logged.Logged, Logged.Logged>> | rs.Done = iter4.next();
-		if (_59 === rs.DONE) {
-			break;
-		}
-		const iter5: rs.Iter<Logged.Logged> = rs.iterResult(_59.v);
+	const iterS3: rs.Result<Logged.Logged, Logged.Logged>[] = results.items;
+	let iterI3: number = 0;
+	const iterE: number = results.items.length;
+	l7: while (iterI3 < iterE) {
+		const iter5: rs.Iter<Logged.Logged> = rs.iterResult(iterS3[iterI3++]);
 		while (true) {
 			const _65: Logged.Logged | rs.Done = iter5.next();
 			if (_65 === rs.DONE) {
@@ -239,13 +233,11 @@ export function units(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return result_map$1gelxzx((err !== undefined ? rs.Err(err as rs.u8) : rs.Ok(part as rs.u8)) as rs.Result<rs.u8, rs.u8>, (_24: rs.u8): undefined => {});
 	}), undefined, 2, true);
 	rs.byteVecPush(out, rs.iterCount(rs.iterFlatten(rs.iterSlice(results.items), (value: rs.Result<undefined, rs.u8>) => rs.iterResult(value), true, undefined, true)) & 0xff);
-	const iter: rs.Iter<rs.Place<rs.Result<undefined, rs.u8>>> = rs.iterSliceMut(rs.sliceFrom(results.items));
-	while (true) {
-		const _16: rs.Place<rs.Result<undefined, rs.u8>> | rs.Done = iter.next();
-		if (_16 === rs.DONE) {
-			break;
-		}
-		const it: rs.Iter<rs.Place<undefined>> = rs.iterOption(rs.resultAsMut(_16));
+	const iterS: rs.Result<undefined, rs.u8>[] = results.items;
+	let iterI: number = 0;
+	const iterE: number = results.items.length;
+	while (iterI < iterE) {
+		const it: rs.Iter<rs.Place<undefined>> = rs.iterOption(rs.resultAsMut(rs.arrayAsPtr(iterS, iterI++)));
 		rs.byteVecPush(out, rs.iterToOption(it.next()) !== undefined ? 1 : 0);
 		rs.byteVecPush(out, rs.iterToOption(it.next()) !== undefined ? 1 : 0);
 	}
@@ -356,13 +348,11 @@ export function arrays$0(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_44.v = _44.v ^ 17;
 		}
 	}
-	const iter4: rs.Iter<rs.Place<rs.Result<Uint8Array, rs.u8>>> = rs.iterSliceMut(rs.sliceFrom(results.items));
-	l7: while (true) {
-		const _51: rs.Place<rs.Result<Uint8Array, rs.u8>> | rs.Done = iter4.next();
-		if (_51 === rs.DONE) {
-			break;
-		}
-		const iter5: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterResult(_51.v), rs.byteSliceFrom);
+	const iterS: rs.Result<Uint8Array, rs.u8>[] = results.items;
+	let iterI: number = 0;
+	const iterE: number = results.items.length;
+	l7: while (iterI < iterE) {
+		const iter5: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterResult(iterS[iterI++]), rs.byteSliceFrom);
 		while (true) {
 			const _58: rs.ByteSlice | rs.Done = iter5.next();
 			if (_58 === rs.DONE) {
@@ -464,13 +454,11 @@ export function arrays$1(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_44.v = _44.v ^ 17;
 		}
 	}
-	const iter4: rs.Iter<rs.Place<rs.Result<Uint8Array, rs.u8>>> = rs.iterSliceMut(rs.sliceFrom(results.items));
-	l7: while (true) {
-		const _51: rs.Place<rs.Result<Uint8Array, rs.u8>> | rs.Done = iter4.next();
-		if (_51 === rs.DONE) {
-			break;
-		}
-		const iter5: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterResult(_51.v), rs.byteSliceFrom);
+	const iterS: rs.Result<Uint8Array, rs.u8>[] = results.items;
+	let iterI: number = 0;
+	const iterE: number = results.items.length;
+	l7: while (iterI < iterE) {
+		const iter5: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterResult(iterS[iterI++]), rs.byteSliceFrom);
 		while (true) {
 			const _58: rs.ByteSlice | rs.Done = iter5.next();
 			if (_58 === rs.DONE) {
@@ -572,13 +560,11 @@ export function arrays$5(data: rs.ByteSlice, out: rs.ByteVec): void {
 			_44.v = _44.v ^ 17;
 		}
 	}
-	const iter4: rs.Iter<rs.Place<rs.Result<Uint8Array, rs.u8>>> = rs.iterSliceMut(rs.sliceFrom(results.items));
-	l7: while (true) {
-		const _51: rs.Place<rs.Result<Uint8Array, rs.u8>> | rs.Done = iter4.next();
-		if (_51 === rs.DONE) {
-			break;
-		}
-		const iter5: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterResult(_51.v), rs.byteSliceFrom);
+	const iterS: rs.Result<Uint8Array, rs.u8>[] = results.items;
+	let iterI: number = 0;
+	const iterE: number = results.items.length;
+	l7: while (iterI < iterE) {
+		const iter5: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterResult(iterS[iterI++]), rs.byteSliceFrom);
 		while (true) {
 			const _58: rs.ByteSlice | rs.Done = iter5.next();
 			if (_58 === rs.DONE) {
@@ -680,32 +666,33 @@ export function optionSlices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): 
 				}), option_map$0ydco3f(some(2), (b4: rs.u8): rs.u16 => {
 					return rs.u16Mul(b4 as rs.u16, 257);
 				})];
-				const iter2: rs.Iter<rs.Place<rs.u16 | undefined>> = rs.iterSliceMut(rs.sliceFrom(wides));
-				while (true) {
-					const _60: rs.Place<rs.u16 | undefined> | rs.Done = iter2.next();
-					if (_60 === rs.DONE) {
-						break;
+				const iterS2: Array<rs.u16 | undefined> = wides;
+				let iterI2: number = 0;
+				const iterE: number = wides.length;
+				while (iterI2 < iterE) {
+					const _60: number = iterI2++;
+					const borrowed = iterS2;
+					const _65: rs.Slice<rs.u16> = iterS2[_60] === undefined ? rs.sliceFrom([]) : rs.sliceOfPlace(rs.place(() => borrowed[_60] as rs.u16, (value4) => borrowed[_60] = value4));
+					const iterS3: rs.u16[] = _65.data;
+					let iterI3: number = _65.start;
+					const iterE2: number = _65.start + _65.length;
+					while (iterI3 < iterE2) {
+						const _67: number = iterI3++;
+						iterS3[_67] = iterS3[_67] ^ 3855;
 					}
-					const iter3: rs.Iter<rs.Place<rs.u16>> = rs.iterSliceMut(_60.v === undefined ? rs.sliceFrom([]) : rs.sliceOfPlace(rs.place(() => _60.v as rs.u16, (value4) => _60.v = value4)));
-					while (true) {
-						const _67: rs.Place<rs.u16> | rs.Done = iter3.next();
-						if (_67 === rs.DONE) {
-							break;
-						}
-						_67.v = _67.v ^ 3855;
-					}
-					const _71: rs.Slice<rs.u16> = _60.v === undefined ? rs.sliceFrom([]) : rs.sliceOfPlace(rs.place(() => _60.v as rs.u16, (value5) => _60.v = value5));
+					const borrowed2 = iterS2;
+					const _71: rs.Slice<rs.u16> = iterS2[_60] === undefined ? rs.sliceFrom([]) : rs.sliceOfPlace(rs.place(() => borrowed2[_60] as rs.u16, (value5) => borrowed2[_60] = value5));
 					if (_71.length === 1) {
 						const _76: rs.u16 = rs.intRotateLeft(_71.data[_71.start], 3, 16, false);
 						_71.data[_71.start] = _76;
 					}
-					rs.byteVecPush(out, rs.optionAsSlice(_60.v).length & 0xff);
+					rs.byteVecPush(out, rs.optionAsSlice(iterS2[_60]).length & 0xff);
 				}
 				swapHalves(rs.place(() => wides[1], (value6) => wides[1] = value6));
-				const iterS2: Array<rs.u16 | undefined> = wides;
-				let iterI2: number = 0;
+				const iterS4: Array<rs.u16 | undefined> = wides;
+				let iterI4: number = 0;
 				while (true) {
-					const _90: rs.u16 | undefined | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
+					const _90: rs.u16 | undefined | rs.Done = iterI4 < iterS4.length ? iterS4[iterI4++] : rs.DONE;
 					if (_90 === rs.DONE) {
 						break b0;
 					}
@@ -742,13 +729,13 @@ export function optionSlices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): 
 
 /** Swaps the bytes of `o`'s payload, if any, through the slice of it. */
 export function swapHalves(o: rs.Place<rs.u16 | undefined>): void {
-	const iter: rs.Iter<rs.Place<rs.u16>> = rs.iterSliceMut(o.v === undefined ? rs.sliceFrom([]) : rs.sliceOfPlace(rs.place(() => o.v as rs.u16, (value) => o.v = value)));
-	while (true) {
-		const _5: rs.Place<rs.u16> | rs.Done = iter.next();
-		if (_5 === rs.DONE) {
-			break;
-		}
-		_5.v = rs.intSwapBytes(_5.v, 16, false);
+	const _3: rs.Slice<rs.u16> = o.v === undefined ? rs.sliceFrom([]) : rs.sliceOfPlace(rs.place(() => o.v as rs.u16, (value) => o.v = value));
+	const iterS: rs.u16[] = _3.data;
+	let iterI: number = _3.start;
+	const iterE: number = _3.start + _3.length;
+	while (iterI < iterE) {
+		const _5: number = iterI++;
+		iterS[_5] = rs.intSwapBytes(iterS[_5], 16, false);
 	}
 }
 

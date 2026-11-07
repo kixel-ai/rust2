@@ -140,7 +140,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			_ => (self.err(span, format!("a call through `{fn_ty}`")), true),
 		};
 		let value = match dest.as_local() {
-			Some(local) if self.stepped.contains(&local) => self.stepped_make(value, span),
+			Some(local) if self.stepped.contains(&local) => self.stepped_make(value, span, &mut pre),
 			_ => value,
 		};
 		let value = self.locate_arguments(value);

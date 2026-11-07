@@ -45,7 +45,6 @@ memory model for values whose address is reinterpreted, without a consumer.
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
 - [Parts of arrays without arrayView](/quest/m3/ts-slice-object.md) - a `&mut [T; N]` to part of an array is taken where it is, with no `Proxy`
-- [Writes through iter_mut without a Place per item](/quest/m3/ts-iter-mut-places.md) - a loop over `iter_mut()` of copy values writes the slice's array by index
 - [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md) - no runtime `rust2-ts:` error where native Rust goes on: an exact slower path, or a refusal at translation
 - [rust2-ts with no ts.toml](/quest/m3/ts-configless.md) - a crate's whole `pub` API translates with no config and no bound items
 - [A slice of one byte's place](/quest/m3/ts-byte-slice-place.md) - `slice::from_mut` of a `&mut u8` writes the byte where the caller holds it

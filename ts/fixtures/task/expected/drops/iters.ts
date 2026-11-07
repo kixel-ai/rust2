@@ -21,12 +21,8 @@ export function looped(log: Log.Log, id: rs.u32): void {
 	v.items.push(_20);
 	const iterS: Guard.Guard[] = v.items;
 	let iterI: number = 0;
-	while (true) {
-		const _24: Guard.Guard | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
-		if (_24 === rs.DONE) {
-			break;
-		}
-		const g: Guard.Guard = _24;
+	while (iterI < iterS.length) {
+		const g: Guard.Guard = iterS[iterI++];
 		if (!(Guard.id(g) === rs.u32Add(id, 2))) {
 			g[Symbol.dispose]();
 		} else {

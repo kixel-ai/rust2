@@ -908,13 +908,7 @@ export function iteratedRuns(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const runs: Run.Run[] = Array.from({ length: 3 }, (): Run.Run => {
 		return ({ span: [undefined, undefined], n: undefined } as unknown) as Run.Run;
 	});
-	const iter: rs.Iter<Run.Run> = rs.iterSlice(runs);
-	while (true) {
-		const _10: Run.Run | rs.Done = iter.next();
-		if (_10 === rs.DONE) {
-			break;
-		}
-		const uninit = _10;
+	for (const uninit of runs) {
 		rs.ptrWrite(uninit, { span: [byte(0), ~byte(0) & 0xff] as [rs.u8, rs.u8], n: 0 });
 		uninit;
 	}
@@ -938,10 +932,10 @@ export function iteratedRuns(data: rs.ByteSlice, out: rs.ByteVec): void {
 			break;
 		}
 		const at: rs.u8 = _46[1];
-		const iterS: Run.Run[] = rs.sliceItems(_46[0]);
-		let iterI: number = 0;
+		const iterS2: Run.Run[] = rs.sliceItems(_46[0]);
+		let iterI2: number = 0;
 		while (true) {
-			const _53: Run.Run | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
+			const _53: Run.Run | rs.Done = iterI2 < iterS2.length ? iterS2[iterI2++] : rs.DONE;
 			if (_53 === rs.DONE) {
 				continue l5;
 			}
