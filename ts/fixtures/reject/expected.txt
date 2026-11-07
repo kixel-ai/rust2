@@ -10,8 +10,8 @@ fixtures/reject/src/alloc.rs:alloc_retyped+8:21: memory from `alloc` cast to poi
 fixtures/reject/src/alloc.rs:alloc_retyped+10:17: memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:allocated+4:3: a byte of memory from `alloc`, which JS keeps as the values a cast of its pointer types it as
 fixtures/reject/src/alloc.rs:allocated+5:11: a byte of memory from `alloc`, which JS keeps as the values a cast of its pointer types it as
-fixtures/reject/src/alloc.rs:beside_reference+2:14: a pointer reaching past a value in no array, which JS keeps apart from what holds it in Rust
-fixtures/reject/src/alloc.rs:beside_reference+2:35: a pointer reaching past a value in no array, which JS keeps apart from what holds it in Rust
+fixtures/reject/src/alloc.rs:beside_reference+2:11: a read or write reaching past a value in no array, which JS keeps apart from what holds it in Rust
+fixtures/reject/src/alloc.rs:beside_reference+2:32: a read or write reaching past a value in no array, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/alloc.rs:beside_reference+2:44: a slice of a length the body doesn't fix, from a value in no array, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/alloc.rs:bytes_as_values+3:3: a byte of memory from `alloc`, which JS keeps as the values a cast of its pointer types it as
 fixtures/reject/src/alloc.rs:bytes_as_values+4:15: a cast from a pointer to `u8` to one to `u32`, which reads the bytes of one type as another

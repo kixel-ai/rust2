@@ -9,7 +9,7 @@ export function copy$Option_tuple2_u8_u8(v: [rs.u8, rs.u8] | undefined): [rs.u8,
 	return v === undefined ? v : copy$tuple2_u8_u8(v);
 }
 
-export function copy$String(v: rs.String): rs.String {
+export function copy$Vec_u8(v: rs.ByteVec): rs.ByteVec {
 	return rs.objectCopy(v);
 }
 

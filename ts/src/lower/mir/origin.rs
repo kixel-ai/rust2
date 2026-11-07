@@ -65,9 +65,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// Why the call of std's `def_id` would fail at run time where Rust's is defined, if the
 	/// body proves it would: `offset_from` between pointers JS keeps in different arrays, or
 	/// a pointer, slice, copy, or write reaching out of an array of one or a copied byte.
-	/// From an array of one, every offset, count, and length must be one the body fixes and
-	/// that stays within it, a pointer still at its element: past it, Rust may reach the
-	/// neighbour the reference was borrowed beside, which no body here shows.
+	/// From an array of one, every offset, count, length, and access, wrapping or not, must
+	/// be one the body fixes and proves stays within it: past it, Rust may reach the
+	/// neighbour the reference was borrowed beside, which JS keeps apart.
 	pub(super) fn stray(
 		&self,
 		def_id: rustc_hir::def_id::DefId,
@@ -91,33 +91,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		{
 			return Some(super::alloc::BYTES.into());
 		}
-		// An offset or a count the body doesn't fix may reach out of an array of one.
-		let unfixed = |o: Origin<'tcx>, what: &str| {
-			matches!(o.array, Array::Lone(_)).then(|| {
-				format!(
-					"{what} the body doesn't fix, from {}, which JS keeps apart from what holds it in Rust",
-					o.array.what()
-				)
-			})
-		};
-		let out = |o: Origin<'tcx>, n: Option<i128>, what: &str| {
-			let Some(index) = o.index else {
-				return unfixed(o, &format!("{what} moved by an offset"));
-			};
-			// A pointer from an array of one stays at its element: one past it is Rust's
-			// too, but a read through it, which reaches the neighbour, is where no check is.
-			let n = match o.array {
-				Array::Lone(_) => n.or(Some(1)),
-				_ => n,
-			};
-			let past = o.array.len().is_some_and(|len| index + n.unwrap_or(0) > len);
-			(index < 0 || past).then(|| {
-				format!(
-					"{what} reaching past {}, which JS keeps apart from what holds it in Rust",
-					o.array.what()
-				)
-			})
-		};
+		let (unfixed, out) = (Self::unfixed, Self::out);
 		match (owner.as_str(), name.as_str()) {
 			("ptr" | "NonNull", "cast") => self.erased_borrow(arg(0)?, pointee, gargs.types().nth(1)?),
 			("Arc" | "Rc", "from_raw" | "increment_strong_count" | "decrement_strong_count")
@@ -148,10 +122,27 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 			// A wrapping offset may leave any other array while nothing reads through it.
 			("ptr" | "NonNull", "wrapping_add" | "wrapping_sub" | "wrapping_offset") => {
-				let o = self.origin(arg(0)?)?;
-				let lone = matches!(o.array, Array::Lone(_));
-				lone.then(|| out(self.moved(o, name.as_str(), arg(1)?), None, "a pointer"))?
+				let o = self.lone_origin(arg(0)?)?;
+				out(self.moved(o, name.as_str(), arg(1)?), None, "a pointer")
 			}
+			// An access through a pointer, which the body shows one element at.
+			(
+				"ptr" | "NonNull",
+				"read"
+				| "read_unaligned"
+				| "read_volatile"
+				| "write"
+				| "write_unaligned"
+				| "write_volatile"
+				| "replace"
+				| "swap"
+				| "as_ref"
+				| "as_mut"
+				| "drop_in_place",
+			) => [arg(0), arg(1)]
+				.into_iter()
+				.flatten()
+				.find_map(|p| self.access(self.lone_origin(p)?)),
 			("raw", "from_raw_parts" | "from_raw_parts_mut")
 			| ("ptr", "slice_from_raw_parts" | "slice_from_raw_parts_mut")
 			| ("NonNull", "slice_from_raw_parts") => {
@@ -194,6 +185,56 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 			_ => None,
 		}
+	}
+
+	/// Why a read or write through the raw pointer `place` derefs would fail at run time, if
+	/// the body shows that pointer off the element of an array of one.
+	pub(super) fn beside(&self, place: mir::Place<'tcx>) -> Option<String> {
+		let [ProjectionElem::Deref, ..] = place.projection.as_slice() else {
+			return None;
+		};
+		if !self.mir.local_decls[place.local].ty.is_raw_ptr() {
+			return None;
+		}
+		self.access(self.lone_origin(&Operand::Copy(mir::Place::from(place.local)))?)
+	}
+
+	/// Why an access of the one element a pointer at `o` reads or writes reaches out of its
+	/// array, if the body fixes where it is: one past it, as a pointer further out, or at
+	/// an offset the body doesn't fix, is refused where it is made.
+	fn access(&self, o: Origin<'tcx>) -> Option<String> {
+		let len = o.array.len()?;
+		(o.index? == len).then(|| Self::out(o, Some(1), "a read or write"))?
+	}
+
+	/// Where the pointer `op` points, if the body shows it in an array of one.
+	fn lone_origin(&self, op: &Operand<'tcx>) -> Option<Origin<'tcx>> {
+		self.origin(op).filter(|o| matches!(o.array, Array::Lone(_)))
+	}
+
+	/// Why an offset or a count the body doesn't fix, from `o`, may reach out of it: only
+	/// from an array of one.
+	fn unfixed(o: Origin<'tcx>, what: &str) -> Option<String> {
+		matches!(o.array, Array::Lone(_)).then(|| {
+			format!(
+				"{what} the body doesn't fix, from {}, which JS keeps apart from what holds it in Rust",
+				o.array.what()
+			)
+		})
+	}
+
+	/// Why `what`, at `o` and reaching `n` elements past it if a count, leaves `o`'s array.
+	fn out(o: Origin<'tcx>, n: Option<i128>, what: &str) -> Option<String> {
+		let Some(index) = o.index else {
+			return Self::unfixed(o, &format!("{what} moved by an offset"));
+		};
+		let past = o.array.len().is_some_and(|len| index + n.unwrap_or(0) > len);
+		(index < 0 || past).then(|| {
+			format!(
+				"{what} reaching past {}, which JS keeps apart from what holds it in Rust",
+				o.array.what()
+			)
+		})
 	}
 
 	/// Whether JS keeps `a` and `b` in different arrays. Arrays of different variables are;
@@ -264,6 +305,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 			("ptr" | "NonNull", "add" | "sub" | "offset") => {
 				Some(self.moved(self.origin(&args[0].node)?, name.as_str(), &args[1].node))
+			}
+			// Only an array of one's, which every wrapping offset must stay within.
+			("ptr" | "NonNull", "wrapping_add" | "wrapping_sub" | "wrapping_offset") => {
+				Some(self.moved(self.lone_origin(&args[0].node)?, name.as_str(), &args[1].node))
 			}
 			("NonNull", "as_ptr" | "new_unchecked") => self.origin(&args[0].node),
 			("slice" | "Vec", "as_ptr" | "as_mut_ptr") => self.start(&args[0].node),

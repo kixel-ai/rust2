@@ -3,8 +3,8 @@
 //! through the slots `spare_capacity_mut` lends, then taken in by `set_len`; shortened by
 //! `set_len` and read back past its length, as std's `Drain` and `retain` read theirs, then
 //! lengthened over what it gave up; and slots never written, copied as they are. Of numbers,
-//! `String`s, `Option`s, values that count their drops, and values JS keeps as objects, by
-//! a generic function too.
+//! bytes, `String`s, `Option`s, values that count their drops, and values JS keeps as
+//! objects, by a generic function too.
 
 use std::mem::MaybeUninit;
 use std::ptr;
@@ -34,6 +34,18 @@ impl Item for String {
 
 	fn put(&self, out: &mut Vec<u8>) {
 		out.extend_from_slice(self.as_bytes());
+		out.push(0xff);
+	}
+}
+
+/// Bytes, whose length JS keeps apart from them, as Rust does, so a pointer moves one exactly.
+impl Item for Vec<u8> {
+	fn of(n: u8) -> Self {
+		vec![n; usize::from(n % 3)]
+	}
+
+	fn put(&self, out: &mut Vec<u8>) {
+		out.extend_from_slice(self);
 		out.push(0xff);
 	}
 }
@@ -301,7 +313,8 @@ pub fn spares(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	DROPS.store(0, Ordering::Relaxed);
 	match kind % 10 {
 		0 => pointers::<u32>(data, out),
-		1 => pointers::<String>(data, out),
+		// A `String`'s JS object keeps its length with its text, so a pointer can't move one.
+		1 => pointers::<Vec<u8>>(data, out),
 		2 => pointers::<Option<u16>>(data, out),
 		3 => slots::<u32>(data, out),
 		4 => slots::<String>(data, out),
