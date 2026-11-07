@@ -1152,20 +1152,6 @@ fn lookalike() {
 		.env("RUSTFLAGS", "-D warnings"));
 }
 
-/// Run the export of the package in `dir` into `dir/out`.
-fn export_dir(dir: &Path) -> Output {
-	Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-		.arg("--config")
-		.arg(dir.join("ffi.toml"))
-		.arg("--out")
-		.arg(dir.join("out"))
-		.arg("--")
-		.arg("--offline")
-		.env("CARGO_TARGET_DIR", dir.join("build"))
-		.output()
-		.unwrap()
-}
-
 /// A facade whose lib takes a standard library crate's name exports its own items, which
 /// are not the standard library's.
 #[test]
@@ -1176,7 +1162,15 @@ fn standard_names() {
 			"[package]\nname = \"standard_{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"{name}\"\n\n[workspace]\n"
 		);
 		std::fs::write(package.join("Cargo.toml"), manifest).unwrap();
-		let output = export_dir(&package);
+		let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+			.arg("--config")
+			.arg(package.join("ffi.toml"))
+			.arg("--out")
+			.arg(package.join("out"))
+			.args(["--", "--offline"])
+			.env("CARGO_TARGET_DIR", package.join("build"))
+			.output()
+			.unwrap();
 		assert!(
 			output.status.success(),
 			"exporting lib `{name}` failed:\n{}",
@@ -1185,8 +1179,8 @@ fn standard_names() {
 	}
 }
 
-/// A facade whose lib takes the name of a foreign type's crate fails, since its items and
-/// that type would both be paths of one crate name.
+/// A facade whose lib takes the name of a foreign type's crate maps that crate's type
+/// through a dependency of its own, apart from the glue's dependency on the facade.
 #[test]
 fn foreign_lib_name() {
 	let package = package("foreign_lib_name");
@@ -1194,15 +1188,9 @@ fn foreign_lib_name() {
 		&package,
 		&[
 			(
-				"dep/Cargo.toml",
-				"[package]\nname = \"foreign-lib-name-url\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"url\"\n",
-			),
-			("dep/src/lib.rs", "pub struct Url;\n"),
-			(
 				"Cargo.toml",
 				"[package]\nname = \"foreign_lib_name\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"url\"\n\n\
-				[dependencies]\nurl_dep = { package = \"foreign-lib-name-url\", path = \"dep\" }\n\n\
-				[workspace]\nexclude = [\"dep\"]\n",
+				[dependencies]\nurl_dep = { package = \"url\", version = \"2\" }\n\n[workspace]\n",
 			),
 			(
 				"src/lib.rs",
@@ -1210,13 +1198,7 @@ fn foreign_lib_name() {
 			),
 		],
 	);
-	let output = export_dir(&package);
-	let stderr = String::from_utf8_lossy(&output.stderr);
-	assert!(!output.status.success(), "the export succeeded");
-	assert!(
-		stderr.contains("the facade's lib name `url` is also the crate of `url::Url`"),
-		"{stderr}"
-	);
+	export_and_build(&package, &[]);
 }
 
 /// Writes each `(path, text)` into `dir`.

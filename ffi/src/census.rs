@@ -12,14 +12,12 @@ use crate::ir::{Access, Api, Function};
 
 /// The census of the facade as Markdown; `at` locates a span.
 pub fn render(api: &Api, collected: &Report, clashes: &[Clash], at: &dyn Fn(Span) -> String) -> String {
-	// Not a foreign type's.
-	let ours = |path: &[String]| path[0] == collected.root;
-	let records: Vec<_> = api.records.iter().filter(|r| ours(&r.path)).collect();
-	let enums: Vec<_> = api.enums.iter().filter(|e| ours(&e.path)).collect();
-	let objects: Vec<_> = api.objects.iter().filter(|o| ours(&o.path)).collect();
-	let functions = api.functions.iter().filter(|f| ours(&f.path)).count();
-	let callbacks = api.callbacks.iter().filter(|c| ours(&c.path)).count();
-	let constants = api.constants.iter().filter(|c| ours(&c.path)).count();
+	let records = &api.records;
+	let enums = &api.enums;
+	let objects: Vec<_> = api.objects.iter().filter(|o| !o.foreign).collect();
+	let functions = api.functions.len();
+	let callbacks = api.callbacks.len();
+	let constants = api.constants.len();
 	let refused = |kinds: &[&str]| collected.refusals.iter().filter(|r| kinds.contains(&r.kind)).count();
 	// A field counts once, by its getter, though it exports a setter too.
 	let items = |methods: &[Function]| {

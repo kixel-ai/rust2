@@ -269,23 +269,6 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 		let c = pass(&orphans);
 		let more = c.orphans();
 		if more.is_empty() {
-			// The IR spells a foreign type by its crate's name, which the facade's items
-			// take as their root too, so the glue could not tell its dependencies apart.
-			for &(ty, _) in &c.foreign {
-				let krate = tcx.crate_name(ty.krate);
-				if krate.as_str() == facade.root {
-					tcx.dcx()
-						.struct_span_err(
-							tcx.def_span(LOCAL_CRATE.as_def_id()),
-							format!(
-								"rust2-ffi: the facade's lib name `{krate}` is also the crate of `{}`, which it exports as a foreign object; rename the facade's lib",
-								tcx.def_path_str(ty)
-							),
-						)
-						.with_span_note(tcx.def_span(ty), format!("`{}` is here", tcx.def_path_str(ty)))
-						.emit();
-				}
-			}
 			return Collected {
 				api: c.api,
 				report: c.report,
@@ -895,6 +878,7 @@ impl<'tcx> Collector<'tcx> {
 							lifetimes,
 							methods: Vec::new(),
 							traits: Traits::default(),
+							foreign: false,
 						});
 					}
 					Decl::Callback(i) => {
@@ -1000,6 +984,7 @@ impl<'tcx> Collector<'tcx> {
 			lifetimes: 0,
 			methods,
 			traits,
+			foreign: true,
 		}
 	}
 

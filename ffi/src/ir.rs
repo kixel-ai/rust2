@@ -127,6 +127,9 @@ pub struct Object {
 	pub lifetimes: usize,
 	pub methods: Vec<Function>,
 	pub traits: Traits,
+	/// Whether it is a foreign type, such as `url::Url`, that the facade maps rather than
+	/// exports: its path is the type's in its own crate, not in the facade.
+	pub foreign: bool,
 }
 
 /// A `pub` trait: implemented by the foreign side, through a table of functions.
