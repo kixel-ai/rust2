@@ -5,7 +5,7 @@
 //! `UnsafeCell::get` gives; slots of fresh memory written whole before any pointer
 //! into them is taken, by index or through std's iterators over them; pointers into
 //! nodes that an `AtomicPtr` and memory hold pointers to; pointers to arrays, compared
-//! where they point; a
+//! where they point, and to parts of slices as arrays, written through; a
 //! pointer into a cell that other functions write whole through a `&mut` to it;
 //! pointers a generic type holds to its parameter, at each form a pointer takes; the
 //! raw pointers of an `Arc` and an `Rc`, counted and taken back; and unions over a type
@@ -3033,4 +3033,44 @@ fn tripled(mut b: u8) -> u8 {
 	let s = unsafe { std::slice::from_raw_parts_mut(&raw mut b, 1) };
 	s[0] = s[0].wrapping_mul(3);
 	b
+}
+
+/// A raw pointer to a `[T; N]` and to a `[[T; N]; M]` that is part of a slice, lent back as
+/// a reference by `as_mut` and `NonNull::as_mut`, and the first written whole by
+/// `ptr::replace` and `ptr::swap`; and a box of each taken back by `Box::from_raw`.
+pub fn array_parts(data: &[u8], out: &mut Vec<u8>) {
+	let n = data.first().map_or(0, |&b| u32::from(b));
+	let mut words: Vec<u32> = data.iter().map(|&b| u32::from(b)).collect();
+	words.resize(words.len().max(6), 9);
+	let a: &mut [u32; 2] = words[1..].first_chunk_mut().unwrap();
+	let p: *mut [u32; 2] = a;
+	if let Some(a) = unsafe { p.as_mut() } {
+		a[0] = n;
+	}
+	let old = unsafe { ptr::replace(p, [n + 1, n + 2]) };
+	out.extend(old.iter().map(|&w| w as u8));
+	let q: *mut [u32; 2] = words[3..].first_chunk_mut().unwrap();
+	let p: *mut [u32; 2] = words[1..].first_chunk_mut().unwrap();
+	unsafe { ptr::swap(p, q) };
+	let mut nn = NonNull::from(words[2..].first_chunk_mut::<2>().unwrap());
+	unsafe { nn.as_mut()[1] = n + 3 };
+	let boxed = Box::new([n, n + 1, n + 2]);
+	let raw = Box::into_raw(boxed);
+	unsafe { (*raw)[1] = 7 };
+	let back = unsafe { Box::from_raw(raw) };
+	out.extend(back.iter().map(|&w| w as u8));
+	out.extend(words.iter().map(|&w| w as u8));
+	// Of arrays of arrays.
+	let mut rows: Vec<[u32; 2]> = words.chunks(2).map(|c| [c[0], c[c.len() - 1]]).collect();
+	let p: *mut [[u32; 2]; 2] = rows[1..].first_chunk_mut().unwrap();
+	if let Some(r) = unsafe { p.as_mut() } {
+		r[1][0] = n + 4;
+	}
+	let mut nn = NonNull::new(p).unwrap();
+	unsafe { nn.as_mut()[0][1] = n + 5 };
+	out.extend(rows.iter().flatten().map(|&w| w as u8));
+	let raw = Box::into_raw(Box::new([[n, 1], [2, n]]));
+	unsafe { (*raw)[1][1] = 8 };
+	let back = unsafe { Box::from_raw(raw) };
+	out.extend(back.iter().flatten().map(|&w| w as u8));
 }

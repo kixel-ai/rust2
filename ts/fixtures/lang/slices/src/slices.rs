@@ -7,7 +7,8 @@
 //! place, of values that log as they are cloned and drop; and a slice's runs as arrays,
 //! and a `Vec` cloned from a slice; and slices of arrays in each form they take: constants,
 //! defaults, an `Option`'s, a `Cow`'s, a generic struct's, clones, and runs of references
-//! and of wrapped arrays.
+//! and of wrapped arrays; and a mutable reference to part of a slice as an array, written
+//! whole.
 
 use std::cell::RefCell;
 
@@ -1804,4 +1805,92 @@ pub fn item_writes(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 /// A step that depends on the input.
 fn row_len(cut: usize) -> u8 {
 	cut as u8 | 1
+}
+
+/// Puts each word's low byte.
+fn put_words(words: &[u32], out: &mut Vec<u8>) {
+	out.extend(words.iter().map(|&w| w as u8));
+}
+
+/// A `&mut [T; N]` to part of a slice, of numbers, of strings, and of arrays, written whole:
+/// by `mem::replace` and `mem::swap`, and through a `Cell` and an `UnsafeCell` of it, each
+/// way a cell reads, writes, and points at it; a cell of arrays pointed at before a write;
+/// and one std holds in an `Option` and a `Vec` and writes through.
+pub fn array_parts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	use std::cell::{Cell, UnsafeCell};
+	let mut words: Vec<u32> = data.iter().map(|&b| u32::from(b)).collect();
+	words.resize(words.len().max(6), 9);
+	let mut names: Vec<String> = data.iter().map(|b| b.to_string()).collect();
+	names.resize(names.len().max(6), String::from("z"));
+	let mut rows: Vec<[u32; 2]> = words.chunks(2).map(|c| [c[0], c[c.len() - 1]]).collect();
+	let n = u32::from(kind);
+	match kind % 4 {
+		0 => {
+			let (head, rest) = words.split_at_mut(1);
+			let a: &mut [u32; 2] = rest.first_chunk_mut().unwrap();
+			let old = std::mem::replace(a, [n, n + 1]);
+			put_words(&old, out);
+			let (x, y) = rest[2..].split_first_chunk_mut::<2>().unwrap();
+			let y: &mut [u32; 2] = y.first_chunk_mut().unwrap();
+			std::mem::swap(x, y);
+			head[0] = n;
+			let s: &mut [String; 2] = names[1..].first_chunk_mut().unwrap();
+			let old = std::mem::replace(s, [String::from("a"), String::from("b")]);
+			out.extend(old.iter().map(String::len).map(|l| l as u8));
+		}
+		1 => {
+			let a: &mut [u32; 2] = words[1..].first_chunk_mut().unwrap();
+			let cell = Cell::from_mut(a);
+			let old = cell.replace([n, n + 2]);
+			put_words(&old, out);
+			put_words(&cell.get(), out);
+			cell.set([n + 3, n + 4]);
+			let p = cell.as_ptr();
+			unsafe { (*p)[1] = n + 5 };
+			cell.update(|[x, y]| [y, x]);
+			put_words(&cell.take(), out);
+			let s: &mut [String; 2] = names[2..].first_chunk_mut().unwrap();
+			let old = Cell::from_mut(s).replace([String::from("abc"), String::new()]);
+			out.extend(old.iter().map(String::len).map(|l| l as u8));
+			let a: &mut [u32; 2] = words[2..].first_chunk_mut().unwrap();
+			let cell = UnsafeCell::from_mut(a);
+			unsafe { (*cell.get())[0] = n + 6 };
+			cell.get_mut()[1] = n + 7;
+		}
+		2 => {
+			let r: &mut [[u32; 2]; 2] = rows[1..].first_chunk_mut().unwrap();
+			let cell = Cell::from_mut(r);
+			let p = cell.as_ptr();
+			unsafe { (*p)[0][1] = n + 6 };
+			let old = cell.replace([[n, n + 7], [n + 8, n]]);
+			out.extend(old.iter().flatten().map(|&w| w as u8));
+			let r: &mut [[u32; 2]; 2] = rows[..2].first_chunk_mut().unwrap();
+			let cell = UnsafeCell::from_mut(r);
+			unsafe { (*cell.get())[1][0] = n + 9 };
+			cell.get_mut()[0][0] = n + 10;
+			let held = Cell::new([[n, 1], [2, n]]);
+			let p = held.as_ptr();
+			held.set([[3, n], [n, 4]]);
+			out.extend(unsafe { *p }.iter().flatten().map(|&w| w as u8));
+		}
+		_ => {
+			let (a, b) = words[1..].split_first_chunk_mut::<2>().unwrap();
+			b[0] = n;
+			let mut kept = Some(a);
+			if let Some(a) = kept.as_mut() {
+				a[0] = n + 1;
+			}
+			kept.map(|a| a[1] = n + 2);
+			let mut v: Vec<&mut [u32; 2]> = Vec::new();
+			let (d, rest) = words.split_at_mut(2);
+			v.push(rest.first_chunk_mut().unwrap());
+			v.push(d.first_chunk_mut().unwrap());
+			for a in v {
+				a.swap(0, 1);
+			}
+		}
+	}
+	put_words(&words, out);
+	out.extend(names.iter().map(String::len).map(|l| l as u8));
+	out.extend(rows.iter().flatten().map(|&w| w as u8));
 }

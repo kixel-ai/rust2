@@ -77,6 +77,10 @@ pub fn plan<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgsRef<
 				| ("ToOwned", "clone_into")
 				| ("raw" | "array" | "Cell" | "UnsafeCell" | "ptr", "from_mut")
 				| ("Option", "get_or_insert" | "get_or_insert_with" | "get_or_insert_default" | "insert") => true,
+				// A reference to an array a pointer or a cell points at, which is the slice the pointer is.
+				("ptr" | "NonNull", "as_ref" | "as_mut")
+				| ("UnsafeCell", "get_mut" | "as_ref_unchecked" | "as_mut_unchecked")
+				| ("Cell", "get_mut") => true,
 				// `Clone::clone`, which takes the slice, and an array as a slice, which it is.
 				("ToOwned", "to_owned") => true,
 				// An array as a slice, which it is, and what a reference lends, which it is too.
@@ -335,10 +339,10 @@ pub fn lend<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, v
 /// `value`, a `ty` translated code gives std's mapping as an input whose type in std's
 /// generic code is `generic`, as the mapping reads it: each `&[T; N]` where it takes a
 /// `&T`, which it reads, copies, and writes through as the array: the `rs.byteSliceView`
-/// of an `rs.ByteSlice`, or the `rs.sliceView` of an `rs.Slice` lent mutably, which share
-/// the elements for as long as the reference lives, so whatever the mapping keeps of it
-/// reads and writes where the reference does, or else the `rs.sliceItems`, which reads
-/// them faster than a view where the slice is part of an array.
+/// of an `rs.ByteSlice`, which shares the bytes for as long as the reference lives, so
+/// whatever the mapping keeps of it reads and writes where the reference does, or else the
+/// `rs.sliceItems` of a shared one, which nothing writes through. A mutable one of other
+/// elements, which no JS array shares, is refused.
 pub fn give<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Expr {
 	cross(b, generic, ty, value, Way::Given, span)
 }
@@ -395,7 +399,6 @@ fn cross<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, valu
 		// The slice of the elements a slice was read as is that slice.
 		Expr::Rs(f) if f == "sliceFrom" => super::library::slice_from(value),
 		Expr::Rs(f) if f == "sliceItems" => super::library::slice_items(value),
-		Expr::Rs(f) if f == "sliceView" => super::library::slice_view(value),
 		f => f.call(vec![value]),
 	}
 }
@@ -405,24 +408,27 @@ fn cross_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, w
 	if let ty::Ref(_, inner, mutability) = ty.kind()
 		&& let ty::Array(elem, _) = inner.kind()
 	{
+		// Only bytes have a JS array that is part of another, a `Uint8Array` view, so a mapping
+		// can't write through any other part of an array as an array.
+		if way == Way::Given && *mutability == ty::Mutability::Mut && !super::byte(*elem) {
+			return b.err(
+				span,
+				format!("giving std a `{ty}` to write through as an array, which is not supported yet"),
+			);
+		}
 		// An array slice, each array lent as its own `From` lends it, and given as copies, which a `&` reads.
 		if elem.is_array() {
-			return match (way, mutability) {
-				(Way::Lent, _) => super::array_fn(*inner, "From"),
-				(Way::Given, ty::Mutability::Not) => Expr::Rs("arraySliceItems".into()),
-				(Way::Given, ty::Mutability::Mut) => b.err(
-					span,
-					format!("giving std a `{ty}` to write through as an array, which is not supported yet"),
-				),
+			return match way {
+				Way::Lent => super::array_fn(*inner, "From"),
+				Way::Given => Expr::Rs("arraySliceItems".into()),
 			};
 		}
 		return Expr::Rs(
-			match (way, super::byte(*elem), mutability) {
-				(Way::Lent, true, _) => "byteSliceFrom",
-				(Way::Given, true, _) => "byteSliceView",
-				(Way::Lent, false, _) => "sliceFrom",
-				(Way::Given, false, ty::Mutability::Mut) => "sliceView",
-				(Way::Given, false, ty::Mutability::Not) => "sliceItems",
+			match (way, super::byte(*elem)) {
+				(Way::Lent, true) => "byteSliceFrom",
+				(Way::Given, true) => "byteSliceView",
+				(Way::Lent, false) => "sliceFrom",
+				(Way::Given, false) => "sliceItems",
 			}
 			.into(),
 		);

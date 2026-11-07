@@ -134,11 +134,8 @@ pub fn wrapped_cells(n: u32) -> u32 {
 	}
 }
 
-/// An `UnsafeCell::from_mut` of arrays of arrays, which a cell may read a copy of, and
 /// `Cell::swap`s of arrays, whose cells may partially overlap.
-pub fn cell_of_arrays(a: &mut [[u16; 2]; 2]) -> u16 {
-	let c = std::cell::UnsafeCell::from_mut(a);
-	let first = unsafe { (*c.get())[0][0] };
+pub fn cell_of_arrays() -> u16 {
 	let (x, y) = (
 		std::cell::Cell::new([[1u16, 2]; 2]),
 		std::cell::Cell::new([[3u16, 4]; 2]),
@@ -146,7 +143,7 @@ pub fn cell_of_arrays(a: &mut [[u16; 2]; 2]) -> u16 {
 	x.swap(&y);
 	let (v, w) = (std::cell::Cell::new([5u32, 6]), std::cell::Cell::new([7u32, 8]));
 	v.swap(&w);
-	first ^ x.into_inner()[0][0] ^ v.into_inner()[0] as u16
+	x.into_inner()[0][0] ^ v.into_inner()[0] as u16
 }
 
 /// A `get_mut` and an `as_mut_unchecked` of a cell of a pinned `Box`, whose old value

@@ -142,8 +142,7 @@ export function swapIn(v: rs.Vec<rs.Arc<rs.u8>>, with_: rs.Arc<rs.u8>): rs.Vec<r
 export function replaceCaptured(a: rs.Slice<rs.u16>, to: rs.u16): rs.u16[] {
 	const captured = to;
 	return ((): rs.u16[] => {
-		const _2: rs.u16[] = [captured, rs.u16WrappingAdd(captured, 1)];
-		return rs.replaceIn(rs.sliceView(a), _2);
+		return rs.sliceReplaceAll(a, [captured, rs.u16WrappingAdd(captured, 1)]);
 	})();
 }
 

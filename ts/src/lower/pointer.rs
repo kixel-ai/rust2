@@ -580,15 +580,6 @@ pub fn call<'tcx>(
 		ty::Array(elem, _) => super::slice_items_from(e, *elem),
 		_ => super::library::slice_from(e),
 	};
-	// The arrays of an array of arrays have no JS array to write through.
-	let to_reference = |b: &mut Body<'_, '_, 'tcx>, e: Expr| match b.t.uninit_inner(pointee()) {
-		ty if super::byte_array(ty) => Expr::rs("byteSliceView", vec![e]),
-		ty if super::array_slice::of_arrays(ty) => b.err(
-			span,
-			format!("a reference to `{ty}` from a raw pointer, which is not supported yet"),
-		),
-		_ => super::library::slice_view(e),
-	};
 	// A raw pointer to a slice, from a reference to one, and the slice a read through it
 	// makes, shared if nothing writes through it.
 	let raw_of = |ty: Ty<'tcx>, s: Expr| match ty {
@@ -664,7 +655,8 @@ pub fn call<'tcx>(
 		("NonNull", "as_ref" | "as_mut") if kind(b, pointee()) == Some(Pointee::Slice) => {
 			deref(pointee(), arg(), name == "as_ref")
 		}
-		("NonNull", "as_mut") if array(b, pointee()) => to_reference(b, arg()),
+		// A reference to an array is the slice a pointer to it is, which `lend` leaves as it is.
+		("NonNull", "as_mut") if array(b, pointee()) => arg(),
 		// A `&mut` to a `MaybeUninit` of a cell of a value JS copies is the place the cell is
 		// kept in, but one to the cell is the cell.
 		("MaybeUninit", "assume_init_mut")
@@ -740,7 +732,6 @@ pub fn call<'tcx>(
 			let shared = name == "as_ref" && kind(b, pointee()) == Some(super::pointer::Pointee::Place);
 			let (some, none) = match shared {
 				true => (p.clone().member("v"), b.t.none(pointee())),
-				false if array(b, pointee()) => (to_reference(b, p.clone()), Expr::undefined()),
 				false => (p.clone(), Expr::undefined()),
 			};
 			Expr::Cond(
@@ -751,7 +742,6 @@ pub fn call<'tcx>(
 		}
 		("NonNull", "as_ref") | ("MaybeUninit", "assume_init_ref") => match kind(b, pointee()) {
 			Some(Pointee::Place) if owner == "NonNull" => arg().member("v"),
-			Some(Pointee::Array) if owner == "NonNull" => to_reference(b, arg()),
 			_ => arg(),
 		},
 		// An `rs.Arc` is its allocation, which has one place of its value: the pointer to a
@@ -823,7 +813,11 @@ pub fn call<'tcx>(
 		("Box", "from_raw") => match kind(b, pointee()) {
 			Some(Pointee::Slice) => deref(pointee(), arg(), false),
 			Some(Pointee::Place) => arg().member("v"),
-			Some(Pointee::Array) => to_reference(b, arg()),
+			// A box of an array is the array, all of which `into_raw` pointed at.
+			Some(Pointee::Array) => match b.t.uninit_inner(pointee()) {
+				ty if super::byte_array(ty) => Expr::rs("byteSliceView", vec![arg()]),
+				_ => Expr::rs("boxArrayFromRaw", vec![arg()]),
+			},
 			_ => arg(),
 		},
 		("ptr", "read" | "read_unaligned" | "read_volatile") => {
@@ -988,6 +982,13 @@ pub fn call<'tcx>(
 		}
 		// What `get` points at, lent as `get_mut` lends it.
 		("UnsafeCell" | "Cell", "get_mut") | ("UnsafeCell", "as_mut_unchecked") if b.t.needs_place(pointee()) => arg(),
+		// The pointer `get` gives to an array is the reference to it, which `lend` leaves as it is.
+		("UnsafeCell", "get_mut" | "as_ref_unchecked" | "as_mut_unchecked") | ("Cell", "get_mut")
+			if kind(b, pointee()) == Some(Pointee::Array) =>
+		{
+			let cell = arg();
+			cell_pointer(b, cell, pointee())
+		}
 		("UnsafeCell", "get_mut" | "as_ref_unchecked" | "as_mut_unchecked" | "into_inner") | ("Cell", "get_mut") => {
 			arg().member("v")
 		}
@@ -1303,8 +1304,13 @@ pub(super) fn cell_pointer<'tcx>(b: &Body<'_, '_, 'tcx>, cell: Expr, ty: Ty<'tcx
 	if pointee == Pointee::Place {
 		return cell;
 	}
+	let inner = b.t.uninit_inner(ty);
+	if pointee == Pointee::Array && !super::byte_array(inner) {
+		// The slice `Cell::from_mut` made the cell of, or else of all of the array it holds.
+		return Expr::rs("cellArray", vec![cell, super::array_fn(inner, "From")]);
+	}
 	let held = cell.member("v");
-	match (pointee, b.t.uninit_inner(ty).kind()) {
+	match (pointee, inner.kind()) {
 		(Pointee::Array, ty::Array(elem, _)) => super::slice_items_from(held, *elem),
 		(Pointee::Slice, _) if slice_of_bytes(ty) => Expr::rs("rawByteSliceOf", vec![held]),
 		(Pointee::Slice, _) if slice_of_arrays(ty) => Expr::rs("rawArraySliceOf", vec![held]),
@@ -1351,19 +1357,21 @@ pub(super) fn replace<'tcx>(
 
 /// What `p`, a pointer to `ty`, points at, as a value of its own that a whole write there
 /// after leaves as it was. The write lands in the object or array a pointer is, so one is
-/// copied one object deep, an array's elements to the depth `objectCopy` copies them. One
+/// copied one object deep, an array's elements to the depth `objectCopy` copies them, and an
+/// array of arrays' as [`super::Translator::elem_copy`] says. One
 /// a pointer is the place of is read as it is, keeping a `Box`'s allocation, as its write
 /// puts another in the place.
 fn copied_out<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 	match b.t.pointee(ty) {
 		_ if b.t.zero_sized(ty) || b.t.keeps_cells(ty) => read(b, p, ty, span, out),
 		Pointee::Object => Expr::rs("objectCopy", vec![p]),
-		Pointee::Array
-			if !super::byte_array(b.t.uninit_inner(ty)) && !super::array_slice::of_arrays(b.t.uninit_inner(ty)) =>
-		{
+		Pointee::Array if super::array_slice::of_arrays(b.t.uninit_inner(ty)) => {
+			let copy = b.t.elem_copy(b.t.uninit_inner(ty), span);
+			Expr::rs("arraySliceCopy", std::iter::once(p).chain(copy).collect())
+		}
+		Pointee::Array if !super::byte_array(b.t.uninit_inner(ty)) => {
 			let depth = b.t.copy_depth(b.t.uninit_inner(ty));
-			let view = super::library::slice_view(p);
-			Expr::rs("objectCopy", std::iter::once(view).chain(depth).collect())
+			Expr::rs("sliceCopy", std::iter::once(p).chain(depth).collect())
 		}
 		_ => read(b, p, ty, span, out),
 	}

@@ -45,7 +45,6 @@ memory model for values whose address is reinterpreted, without a consumer.
 - [Unsafe code the translator can model](/quest/m3/ts-unsafe/README.md) - a dependency using only `unsafe` the translator can model translates from source
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
-- [Parts of arrays without arrayView](/quest/m3/ts-slice-object.md) - a `&mut [T; N]` to part of an array is taken where it is, with no `Proxy`
 - [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md) - no runtime `rust2-ts:` error where native Rust goes on: an exact slower path, or a refusal at translation
 - [rust2-ts with no ts.toml](/quest/m3/ts-configless.md) - a crate's whole `pub` API translates with no config and no bound items
 - [Browser APIs through wasm-bindgen](/quest/m3/ts-wasm-bindgen/README.md) - web-sys and js-sys imports become direct JS calls, so idiomatic crates such as web-rs's web-codecs translate as stock crates
