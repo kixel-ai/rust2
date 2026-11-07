@@ -164,6 +164,9 @@ struct Collector<'tcx> {
 	/// implementation or a lent closure, with the type each takes.
 	impls: std::cell::RefCell<Vec<(Ty<'tcx>, Type)>>,
 	bytes: Option<DefId>,
+	/// The standard library's crates, `core`, `alloc`, and `std`, known by what each
+	/// defines, since the facade or another crate may share their names.
+	sysroot: Vec<CrateNum>,
 	/// Each type in [`FOREIGN`] that some crate builds with and no export is, and the
 	/// object it exports as.
 	foreign: Vec<(DefId, usize)>,
@@ -185,6 +188,15 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			.and_then(|child| child.res.opt_def_id())
 	};
 	let bytes = root("bytes", "Bytes");
+	let sysroot: Vec<CrateNum> = [
+		tcx.lang_items().sized_trait(),
+		tcx.lang_items().owned_box(),
+		tcx.get_diagnostic_item(rustc_span::Symbol::intern("HashMap")),
+	]
+	.into_iter()
+	.flatten()
+	.map(|def_id| def_id.krate)
+	.collect();
 	let foreign: Vec<DefId> = (FOREIGN.iter())
 		.filter_map(|&(krate, name)| root(krate, name))
 		.collect();
@@ -222,6 +234,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			left_out: Default::default(),
 			impls: Default::default(),
 			bytes,
+			sysroot: sysroot.clone(),
 			foreign: Vec::new(),
 			bound,
 			range_bounds,
@@ -256,6 +269,23 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 		let c = pass(&orphans);
 		let more = c.orphans();
 		if more.is_empty() {
+			// The IR spells a foreign type by its crate's name, which the facade's items
+			// take as their root too, so the glue could not tell its dependencies apart.
+			for &(ty, _) in &c.foreign {
+				let krate = tcx.crate_name(ty.krate);
+				if krate.as_str() == facade.root {
+					tcx.dcx()
+						.struct_span_err(
+							tcx.def_span(LOCAL_CRATE.as_def_id()),
+							format!(
+								"rust2-ffi: the facade's lib name `{krate}` is also the crate of `{}`, which it exports as a foreign object; rename the facade's lib",
+								tcx.def_path_str(ty)
+							),
+						)
+						.with_span_note(tcx.def_span(ty), format!("`{}` is here", tcx.def_path_str(ty)))
+						.emit();
+				}
+			}
 			return Collected {
 				api: c.api,
 				report: c.report,
@@ -734,8 +764,8 @@ impl<'tcx> Collector<'tcx> {
 					.and_then(|reexport| reexport.id())
 					.map_or_else(|| tcx.def_span(def_id), |id| tcx.def_span(id));
 				// Its types map by role, not as items of the facade's.
-				let krate = tcx.crate_name(def_id.krate);
-				if matches!(krate.as_str(), "std" | "core" | "alloc") {
+				if self.sysroot.contains(&def_id.krate) {
+					let krate = tcx.crate_name(def_id.krate);
 					let why = why("re-export of the standard library's item", krate.to_string());
 					self.refuse(&path, "use", span, vec![why]);
 					continue;
@@ -2925,7 +2955,7 @@ impl<'tcx> Collector<'tcx> {
 					]) {
 					// std's own `Clone`, written by hand, clones each element.
 					args.types().all(|arg| self.shares(arg, env, seen))
-				} else if ["core", "alloc", "std"].contains(&tcx.crate_name(did.krate).as_str())
+				} else if self.sysroot.contains(&did.krate)
 					&& tcx.type_is_copy_modulo_regions(env, ty)
 				{
 					// std's `Clone` of a `Copy` type, such as `NonZero`'s, copies it, as std's own

@@ -16,7 +16,8 @@ modules, and exports it by fixed rules, or refuses it with a compile error at it
 So a facade such as moq-ffi exports several crates into one library by re-exporting what
 it ships, and a type no path from its root reaches is refused. The prefix of every C name
 is the library's crate name, Cargo's `[lib] name`, which defaults to the package's name in
-snake case. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
+snake case. A facade named `url` or `serde_json` that maps that crate's type, rather than
+re-exporting it, fails the export, since the two would share one crate name. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
 beside it, and the header in `include/<prefix>.h`; `cargo build` on that crate makes a
 static and a shared library. That crate enables the facade's features as the check did;
 a feature named in a dependency, `--features <dependency>/<feature>`, is an error, since
