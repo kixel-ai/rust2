@@ -709,7 +709,9 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 				ty::Tuple(tys) => stack.extend(tys.iter()),
 				ty::Closure(_, args) => stack.extend(args.as_closure().upvar_tys()),
 				ty::Adt(adt, args) if crate::lower::library::is_std(tcx, adt.did()) => stack.extend(args.types()),
-				ty::Adt(adt, args) => stack.extend(adt.all_fields().map(|field| field_ty(tcx, self.env, field.did, args))),
+				ty::Adt(adt, args) => {
+					stack.extend(adt.all_fields().map(|field| field_ty(tcx, self.env, field.did, args)))
+				}
 				_ => return true,
 			}
 		}

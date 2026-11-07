@@ -1039,7 +1039,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					Expr::Cond(
 						Box::new(none),
 						Box::new(match bytes {
-							true => Expr::rs("byteSliceFrom", vec![Expr::New(Box::new(Expr::ident("Uint8Array")), vec![Expr::lit("0")])]),
+							true => Expr::rs(
+								"byteSliceFrom",
+								vec![Expr::New(Box::new(Expr::ident("Uint8Array")), vec![Expr::lit("0")])],
+							),
 							false => Expr::rs("sliceFrom", vec![Expr::Array(vec![])]),
 						}),
 						Box::new(some),
@@ -1452,7 +1455,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let bytes = !cell && crate::lower::byte(ty);
 		if bytes && self.mirrors.views.contains(&self.at.block) {
 			let view = self.byte_view(place.local);
-			return Some(view.unwrap_or_else(|| self.err(span, "a view of a byte whose array translation lost")));
+			return Some(
+				view.unwrap_or_else(|| self.err(span, "a slice of one byte in an array translation can't name")),
+			);
 		}
 		let of = |fx: &mut Self, made: Expr| match bytes {
 			true => fx.byte_slice_of(made, span),

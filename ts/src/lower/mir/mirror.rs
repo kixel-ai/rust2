@@ -3,9 +3,9 @@
 //! `slice::from_mut`, `array::from_mut`, and `Option::as_mut_slice` of one view the bytes it
 //! is in, or for a byte in no array of bytes, such as a field's, copy it into a buffer of
 //! its own, its mirror, an `rs.ByteMirror`. Rust reaches the byte only through the slice
-//! while the slice may still be used, so the mirror is written back after each statement or
-//! call that reads a local that may hold the slice, or what is made of it, whenever its byte
-//! changed since the last write-back. Once nothing uses the slice, the mirror no longer
+//! while the slice may still be used, so the mirror is written back after each write
+//! through a local that may hold the slice, or what is made of it, and each call or drop
+//! given one, whenever its byte changed since the last write-back. Once nothing uses the slice, the mirror no longer
 //! changes, so a later write-back writes nothing. A slice that may be kept where no local of
 //! the body holds it, such as in memory a parameter points at, a coroutine's state, or what
 //! the function returns, is refused, as is one an earlier run of the call made that may still
@@ -13,14 +13,14 @@
 
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_index::bit_set::DenseBitSet;
-use rustc_middle::mir::{self, BasicBlock, Local, Location, Operand, TerminatorKind};
 use rustc_middle::mir::visit::Visitor;
+use rustc_middle::mir::{self, BasicBlock, Local, Location, Operand, TerminatorKind};
 use rustc_middle::ty::{self, Ty};
 use rustc_mir_dataflow::Analysis;
 use rustc_mir_dataflow::impls::MaybeLiveLocals;
 
-use super::{Fx, Slot};
 use super::holders::Trace;
+use super::{Fx, Slot};
 use crate::lower::library;
 use crate::ts::{Expr, Stmt, StmtKind};
 
@@ -145,7 +145,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				mirrors.made.insert(bb, Made::Unwritten);
 				continue;
 			}
-			let name = self.b.fresh("one");
+			let name = self.b.fresh("mirror");
 			for at in after {
 				mirrors.after.entry(at).or_default().push(name.clone());
 			}
@@ -182,7 +182,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				// By `index_mut` of an element.
 				return self.mir.basic_blocks.iter().any(|data| {
 					let TerminatorKind::Call {
-						func, args, destination, ..
+						func,
+						args,
+						destination,
+						..
 					} = &data.terminator().kind
 					else {
 						return false;
@@ -193,7 +196,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					destination.as_local() == Some(local)
 						&& library::key(tcx, def_id).is_some_and(|(o, n)| o == "IndexMut" && n == "index_mut")
 						&& gargs.skip_binder().types().next().is_some_and(bytes)
-						&& args.get(1).is_some_and(|i| i.node.ty(&self.mir.local_decls, tcx).is_usize())
+						&& args
+							.get(1)
+							.is_some_and(|i| i.node.ty(&self.mir.local_decls, tcx).is_usize())
 				});
 			};
 			// A reference lowers to an alias of its place only where its slot is one; what
@@ -232,7 +237,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let Expr::Index(bytes, at) = target.unlocated() else {
 			return None;
 		};
-		let slice = Expr::New(Box::new(Expr::Rs("ByteSlice".into())), vec![(**bytes).clone(), (**at).clone(), Expr::lit("1")]);
+		let slice = Expr::New(
+			Box::new(Expr::Rs("ByteSlice".into())),
+			vec![(**bytes).clone(), (**at).clone(), Expr::lit("1")],
+		);
 		Some(slice)
 	}
 
@@ -277,13 +285,17 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 								continue;
 							}
 							if let mir::Rvalue::Aggregate(kind, _) = rvalue
-								&& matches!(**kind, mir::AggregateKind::Coroutine(..) | mir::AggregateKind::CoroutineClosure(..))
-							{
+								&& matches!(
+									**kind,
+									mir::AggregateKind::Coroutine(..) | mir::AggregateKind::CoroutineClosure(..)
+								) {
 								return None;
 							}
 							grew |= keep(&mut held, *to, false)?;
 						}
-						mir::StatementKind::Intrinsic(_) if reads(&held, |v| v.visit_statement(stmt, Location::START)) => {
+						mir::StatementKind::Intrinsic(_)
+							if reads(&held, |v| v.visit_statement(stmt, Location::START)) =>
+						{
 							return None;
 						}
 						_ => {}
@@ -320,7 +332,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							}
 						}
 					}
-					TerminatorKind::Yield { .. } | TerminatorKind::TailCall { .. } | TerminatorKind::InlineAsm { .. }
+					TerminatorKind::Yield { .. }
+					| TerminatorKind::TailCall { .. }
+					| TerminatorKind::InlineAsm { .. }
 						if reads(&held, |v| v.visit_terminator(term, Location::START)) =>
 					{
 						return None;
@@ -429,9 +443,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	fn mirror_flush(&mut self, names: Vec<String>, out: &mut Vec<Stmt>) {
 		let stmts = names
 			.into_iter()
-			.map(|name| {
-				StmtKind::Expr(Expr::rs("byteMirrorFlush", vec![Expr::ident(&name)])).at(None)
-			})
+			.map(|name| StmtKind::Expr(Expr::rs("byteMirrorFlush", vec![Expr::ident(&name)])).at(None))
 			.collect::<Vec<_>>();
 		if !stmts.is_empty() {
 			self.emit(stmts, false, out);
@@ -452,7 +464,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 }
 
 /// Whether what `visit` visits uses one of `held`, but to assign all of it.
-fn reads<'tcx>(held: &DenseBitSet<Local>, visit: impl FnOnce(&mut Reads<'_>)) -> bool {
+fn reads(held: &DenseBitSet<Local>, visit: impl FnOnce(&mut Reads<'_>)) -> bool {
 	let mut reads = Reads { held, found: false };
 	visit(&mut reads);
 	reads.found
