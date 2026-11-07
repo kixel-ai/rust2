@@ -120,6 +120,60 @@ pub fn projected_outside(outside: &Outside<()>) -> u8 {
 	}
 }
 
+/// An `Option` of a type parameter.
+pub struct Slot<T> {
+	pub value: Option<T>,
+}
+
+/// A [`Slot`] of a `MaybeUninit` of its own parameter, checked as that slot's instance is.
+pub struct Uninit<S> {
+	pub slot: Slot<std::mem::MaybeUninit<S>>,
+}
+
+/// `Uninit<u32>` holds `Slot<MaybeUninit<u32>>`, whose `rs.OptionOf` would make `None`
+/// `undefined`.
+pub fn projected_uninit_slot(uninit: &Uninit<u32>) -> bool {
+	uninit.slot.value.is_some()
+}
+
+/// What a flow breaks with, named by an associated type.
+pub trait Breaks {
+	type Break;
+}
+
+impl Breaks for u8 {
+	type Break = Option<std::convert::Infallible>;
+}
+
+/// A `ControlFlow` breaking with a projection, typed as an `rs.Result` of it.
+pub struct Flowing<S: Breaks> {
+	pub flow: std::ops::ControlFlow<S::Break, u8>,
+}
+
+/// `Flowing<u8>` breaks with an `Option<Infallible>`, a `ControlFlow` typed as an `Option`.
+pub fn projected_flow(flowing: &Flowing<u8>) -> bool {
+	flowing.flow.is_continue()
+}
+
+/// What a future outputs, named by an associated type.
+pub trait Outputs {
+	type Output;
+}
+
+impl Outputs for u8 {
+	type Output = std::task::Poll<u8>;
+}
+
+/// A future of a projection.
+pub struct Awaiting<S: Outputs> {
+	pub future: std::pin::Pin<Box<dyn std::future::Future<Output = S::Output>>>,
+}
+
+/// `Awaiting<u8>`'s future outputs a `Poll`, which can be the future's own `rs.Pending`.
+pub fn projected_future(awaiting: Awaiting<u8>) -> Awaiting<u8> {
+	awaiting
+}
+
 /// What a source yields, named by an associated type.
 pub trait Source {
 	type Item;

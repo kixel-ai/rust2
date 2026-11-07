@@ -23,31 +23,71 @@ pub struct Defined<'tcx> {
 	/// Each projection from its type parameters its fields' types name, by the name of the
 	/// TypeScript type parameter it is, after its own.
 	pub projections: Vec<(Ty<'tcx>, String)>,
-	/// Each `Option`, `Poll`, or `ControlFlow` its fields' types type over a type parameter,
-	/// including those of each instance in [`Self::held`] at its arguments.
-	pub decided: Vec<Decided<'tcx>>,
+	/// Each part its fields' types type that its instances decide, and those of each
+	/// instance in [`Self::held`], at that instance's arguments.
+	pub checks: Vec<Check<'tcx>>,
+	/// What each of those checks: its type, what it decides, and its part and what that
+	/// holds, at its arguments.
+	checked: rustc_data_structures::fx::FxHashSet<(DefId, Decides, Ty<'tcx>, Ty<'tcx>, Ty<'tcx>)>,
 	/// Each instance of the crate's generic types over its type parameters its fields' types
-	/// type, and the field whose type does.
-	held: Vec<(DefId, Ty<'tcx>)>,
+	/// type.
+	held: Vec<Ty<'tcx>>,
 	/// While it is typed, the shallowest definition still being typed that it was typed
 	/// with, by its depth in [`Defining::typing`]; `None` once it is complete.
 	open: Option<usize>,
 }
 
-/// An `Option` or a `Poll` over a type parameter, or a projection from one, that a generic
-/// type's definition typed.
+/// A part of a generic type's definition, over a type parameter or a projection from one,
+/// whose representation its instances decide.
 #[derive(Clone)]
 pub struct Decided<'tcx> {
 	/// The field whose type holds it.
 	pub field: DefId,
 	/// It, over the definition's own parameters.
 	pub part: Ty<'tcx>,
-	/// What it holds, or for a `ControlFlow`, continues with.
+	/// What an `Option` or a `Poll` holds, an `Option`-like `ControlFlow` continues with, any
+	/// other `ControlFlow` breaks with, or a future outputs.
 	pub inner: Ty<'tcx>,
 	/// TypeScript's type of `inner` in the definition.
 	pub defined: Type,
-	/// An `Option`, rather than a `Poll`.
-	pub option: bool,
+	/// What its instances decide of it.
+	pub decides: Decides,
+}
+
+/// What an instance decides of a [`Decided`] part.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Decides {
+	/// An `Option`'s `None`, or that of a `ControlFlow` typed as one.
+	Option,
+	/// A `Poll`'s `Pending`.
+	Poll,
+	/// Whether a `ControlFlow` typed as an `rs.Result` of its break stays one, which an
+	/// `Option<!>` or `Result<!, _>` break makes otherwise.
+	Flow,
+	/// Whether a future's output can be `rs.Pending`, as the future's own `Pending` is.
+	Future,
+}
+
+/// A [`Decided`] part of the definition of the crate's generic `adt`, at `args` over the
+/// parameters of the definition that checks it: its own at its own parameters, or an
+/// instance's it holds.
+#[derive(Clone)]
+pub struct Check<'tcx> {
+	pub adt: DefId,
+	pub decided: Decided<'tcx>,
+	pub args: GenericArgsRef<'tcx>,
+}
+
+/// `args`, over a definition's parameters, at that definition's instance `at`.
+pub fn instantiate_args<'tcx>(
+	tcx: ty::TyCtxt<'tcx>,
+	env: TypingEnv<'tcx>,
+	args: GenericArgsRef<'tcx>,
+	at: GenericArgsRef<'tcx>,
+) -> GenericArgsRef<'tcx> {
+	let bound = ty::EarlyBinder::bind(tcx, args);
+	tcx.try_instantiate_and_normalize_erasing_regions(at, env, bound)
+		.unwrap_or_else(|_| bound.instantiate(tcx, at).skip_norm_wip())
 }
 
 /// The state of typing definitions.
@@ -206,44 +246,69 @@ impl<'tcx> Translator<'_, 'tcx> {
 		Some(Type::Param(name))
 	}
 
-	/// Note that the definition being typed typed `part`, an `Option`, `Poll`, or
-	/// `ControlFlow` of `inner`, typing `inner` as `defined`, for the check of its instances.
-	pub(super) fn note_decided(&mut self, part: Ty<'tcx>, inner: Ty<'tcx>, defined: &Type, option: bool) {
+	/// Note that the definition being typed typed `part`, of `inner`, typed `defined`, for
+	/// the check of its instances, if they decide it.
+	pub(super) fn note_decided(&mut self, part: Ty<'tcx>, inner: Ty<'tcx>, defined: &Type, decides: Decides) {
 		let (Some((adt, _)), Some(field)) = (self.defining, self.defining_state.field) else {
 			return;
 		};
-		if !self.erases_to(inner).param {
+		let depends = match decides {
+			Decides::Flow => inner.has_param(),
+			_ => self.erases_to(inner).param,
+		};
+		if !depends {
 			return;
 		}
+		let identity = ty::GenericArgs::identity_for_item(self.tcx, adt);
+		self.add_check(
+			adt,
+			Check {
+				adt,
+				decided: Decided {
+					field,
+					part,
+					inner,
+					defined: defined.clone(),
+					decides,
+				},
+				args: identity,
+			},
+		);
+	}
+
+	/// Add `check` to the record of the open definition of `adt` unless one checks the same.
+	fn add_check(&mut self, adt: DefId, check: Check<'tcx>) {
+		let tcx = self.tcx;
+		let env = TypingEnv::post_analysis(tcx, adt);
+		let d = &check.decided;
+		let part = super::copy::instantiate(tcx, env, d.part, check.args);
+		let inner = super::copy::instantiate(tcx, env, d.inner, check.args);
+		let key = (check.adt, d.decides, d.part, part, inner);
 		let Some(record) = self.defining_state.records.get_mut(&adt) else {
 			return;
 		};
-		if record.open.is_some() && !record.decided.iter().any(|d| d.part == part) {
-			record.decided.push(Decided {
-				field,
-				part,
-				inner,
-				defined: defined.clone(),
-				option,
-			});
+		if record.open.is_some() && record.checked.insert(key) {
+			record.checks.push(check);
 			self.defining_state.recorded += 1;
 		}
 	}
 
 	/// Note that the definition being typed typed `instance`, an instance of the crate's
-	/// generic type, so it checks the parts that instance's definition decided too.
+	/// generic type, so it checks the parts that instance's definition decided too. One in a
+	/// projection argument is not: an instance of the definition types it at its own
+	/// arguments, which checks it there.
 	pub(super) fn note_held(&mut self, instance: Ty<'tcx>) {
-		let (Some((adt, _)), Some(field)) = (self.defining, self.defining_state.field) else {
+		let (Some((adt, _)), Some(_)) = (self.defining, self.defining_state.field) else {
 			return;
 		};
-		if !instance.has_param() {
+		if !instance.has_param() || self.defining_state.projecting > 0 {
 			return;
 		}
 		let Some(record) = self.defining_state.records.get_mut(&adt) else {
 			return;
 		};
-		if record.open.is_some() && !record.held.contains(&(field, instance)) {
-			record.held.push((field, instance));
+		if record.open.is_some() && !record.held.contains(&instance) {
+			record.held.push(instance);
 		}
 	}
 
@@ -446,6 +511,11 @@ impl<'tcx> Translator<'_, 'tcx> {
 			for p in &mut state.pending[pending..] {
 				p.filled = Some(vec![Type::Builtin("unknown"); state.records[&p.adt].projections.len()]);
 			}
+			// Refused, so nothing of its instances is checked: the checks it took in, of ever
+			// deeper instances, would each type one deeper again.
+			for member in &state.members[members..] {
+				state.records.get_mut(&member.adt).expect("a record").checks.clear();
+			}
 			// The definition completing them all, which finished typing last.
 			let root = state.members.last().expect("the definition completing");
 			let instance = Ty::new_adt(
@@ -530,38 +600,26 @@ impl<'tcx> Translator<'_, 'tcx> {
 		true
 	}
 
-	/// Take into each definition from `members` on in [`Defining::members`] the parts each
-	/// instance it holds decided, at that instance's arguments, so an instance of the
-	/// definition checks them: `Outer<S>` holding `Inner<S>` checks `Inner`'s
-	/// `Option<S::Item>` at `Outer`'s instances.
+	/// Take into each definition from `members` on in [`Defining::members`] the checks of
+	/// each instance it holds, at that instance's arguments, so an instance of the
+	/// definition checks them as the instance it holds there would be: `Outer<S>` holding
+	/// `Inner<S>` checks `Inner`'s `Option<S::Item>` at `Outer`'s instances.
 	fn take_held(&mut self, members: usize) {
 		let tcx = self.tcx;
 		let adts: Vec<DefId> = self.defining_state.members[members..].iter().map(|m| m.adt).collect();
 		for adt in adts {
 			let env = TypingEnv::post_analysis(tcx, adt);
 			let held = self.defining_state.records[&adt].held.clone();
-			for (field, instance) in held {
+			for instance in held {
 				let ty::Adt(def, args) = *instance.kind() else {
 					unreachable!("an instance of a generic type")
 				};
 				let Some(record) = self.defining_state.records.get(&def.did()) else {
 					continue;
 				};
-				for d in record.decided.clone() {
-					let part = super::copy::instantiate(tcx, env, d.part, args);
-					if self.defining_state.records[&adt].decided.iter().any(|d| d.part == part) {
-						continue;
-					}
-					let inner = super::copy::instantiate(tcx, env, d.inner, args);
-					if !self.erases_to(inner).param {
-						continue;
-					}
-					let outer = self.defining.replace((adt, env));
-					let outer_field = self.defining_state.field.replace(field);
-					let defined = self.ty(inner, tcx.def_span(field));
-					self.note_decided(part, inner, &defined, d.option);
-					self.defining = outer;
-					self.defining_state.field = outer_field;
+				for check in record.checks.clone() {
+					let args = instantiate_args(tcx, env, check.args, args);
+					self.add_check(adt, Check { args, ..check });
 				}
 			}
 		}

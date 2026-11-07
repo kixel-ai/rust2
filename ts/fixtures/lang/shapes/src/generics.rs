@@ -1022,6 +1022,17 @@ impl Source for Seed {
 	type Item = Copse<Tail>;
 }
 
+/// An `Option` of a type parameter.
+struct Slot<T> {
+	value: Option<T>,
+}
+
+/// A [`Slot`] of a `MaybeUninit` of its own parameter, which at a byte is `0` rather than
+/// `undefined`, as that slot's instance is.
+struct Uninit<S> {
+	slot: Slot<std::mem::MaybeUninit<S>>,
+}
+
 /// A layered source's item, and the item of the layer peeled off it.
 trait Layered {
 	type Item;
@@ -1279,6 +1290,13 @@ pub fn projected_selves(data: &[u8], out: &mut Vec<u8>) {
 	};
 	let held = node.next.as_ref().map(|n| n.item.item);
 	put(out, &format!("{ids:?} {} {held:?}", node.item));
+
+	let uninit = Uninit::<u8> {
+		slot: Slot {
+			value: data.first().map(|&b| std::mem::MaybeUninit::new(b)),
+		},
+	};
+	put(out, &format!("{}", uninit.slot.value.is_some()));
 
 	let twig: &'static Twig<Sprout> = &Twig {
 		next: None,

@@ -189,6 +189,13 @@ export function map$0xpm57l(self: rs.u8 | undefined, f: (a0: rs.u8) => Ticked.Ti
 	return f(self);
 }
 
+export function map$1yjmt5m(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8): rs.u8 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$0ydco3f(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u16): rs.u16 | undefined {
 	if (self === undefined) {
 		return undefined;

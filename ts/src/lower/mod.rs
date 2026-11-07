@@ -1927,7 +1927,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 							Type::Rs("Result", vec![self.ty(value, span), self.ty(residual.type_at(1), span)])
 						}
 						library::Flow::Option => self.option_ty(Ty::new_adt(tcx, adt, args), value, span),
-						library::Flow::Other => Type::Rs("Result", vec![self.ty(value, span), self.ty(residual, span)]),
+						library::Flow::Other => {
+							let broken = self.ty(residual, span);
+							self.note_decided(Ty::new_adt(tcx, adt, args), residual, &broken, defined::Decides::Flow);
+							Type::Rs("Result", vec![self.ty(value, span), broken])
+						}
 					}
 				}
 			};
@@ -2112,89 +2116,114 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Why an instance of the crate's generic `adt` with `args` can't hold its fields' values,
-	/// if it can't: an `Option` or a `Poll` over a type parameter whose `None` or `Pending`
-	/// this instance makes other than its definition types it, as an `rs.OptionOf<T>` or
-	/// `rs.PollOf<T>` decides by TypeScript's type of `T`, and otherwise by the definition's
-	/// own parameter, or which can't tell its values apart at all.
+	/// if it can't: a part its definition, or that of an instance it holds, types that this
+	/// instance represents otherwise (see [`defined::Decides`]), or that can't tell its values
+	/// apart at all.
 	fn generic_erasure(&mut self, adt: AdtDef<'tcx>, args: GenericArgsRef<'tcx>, span: Span) -> Option<String> {
+		let tcx = self.tcx;
+		let env = self.defining.map_or(self.typing_env(), |(_, env)| env);
+		// Each its definition typed, which leaves out what types nothing, such as a `PhantomData`.
+		let checks = self.defined(adt.did()).checks.clone();
+		checks.into_iter().find_map(|check| {
+			let args = defined::instantiate_args(tcx, env, check.args, args);
+			self.decided_conflict(tcx.adt_def(check.adt), args, &check.decided, span)
+		})
+	}
+
+	/// Why the instance of the crate's generic `adt` with `args` represents `decided`, a part
+	/// its definition typed, otherwise than its definition does, if it does.
+	fn decided_conflict(
+		&mut self,
+		adt: AdtDef<'tcx>,
+		args: GenericArgsRef<'tcx>,
+		decided: &defined::Decided<'tcx>,
+		span: Span,
+	) -> Option<String> {
 		let tcx = self.tcx;
 		let ty = Ty::new_adt(tcx, adt, args);
 		let env = self.defining.map_or(self.typing_env(), |(_, env)| env);
-		// Each its definition typed, which leaves out what types nothing, such as a `PhantomData`.
-		let decided = self.defined(adt.did()).decided.clone();
-		for defined::Decided {
+		let defined::Decided {
 			field,
 			part,
 			inner,
-			defined,
-			option,
-		} in decided
-		{
-			let erased = self.erases_to(inner);
-			let field = tcx.item_name(field);
-			let held = copy::instantiate(tcx, env, part, args);
-			if let Some(msg) = self.erasure_conflict(held) {
-				return Some(format!(
-					"`{ty}` is not supported: its field `{field}` is `{held}`: {msg}"
-				));
-			}
-			// Over a parameter of the instance's own, which its instances decide.
-			if held.has_param() {
-				continue;
-			}
-			let instance = copy::instantiate(tcx, env, inner, args);
-			let at = self.erases_to(instance);
-			let msg = match defined {
-				// What TypeScript's type of the parameter decides, which must be what the
-				// instance's erasure does.
-				Type::Param(_) if if option { !erased.undefined } else { !erased.pending } => {
-					// The parameter, or the projection from one, that it types.
-					let Some(param) = (inner.walk().filter_map(|arg| arg.as_type()))
-						.find(|t| matches!(t.kind(), ty::Param(_) | ty::Alias(..)))
-					else {
-						continue;
-					};
-					let arg = copy::instantiate(tcx, env, param, args);
-					self.defining_state.projecting += 1;
-					let decided = self.ty(arg, span);
-					self.defining_state.projecting -= 1;
-					let (holds, alias) = match option {
-						true => (holds_undefined(&decided) == at.undefined, "OptionOf"),
-						false => (holds_pending(&decided) == at.pending, "PollOf"),
-					};
-					(!holds).then(|| {
-						format!(
-							"`{ty}` is not supported: its field `{field}` is `{part}`, typed `rs.{alias}<{inner}>`, which decides by TypeScript's type of `{arg}` otherwise than `{held}` erases"
-						)
-					})
-				}
-				_ if option && !erased.undefined => at.undefined.then(|| {
-					format!(
-						"`{ty}` is not supported: its field `{field}` is `Option<{inner}>`, typed `{inner} | undefined`, whose `None` would be `rs.None` as `Option<{instance}>`"
-					)
-				}),
-				_ if !option && !erased.pending => at.pending.then(|| {
-					format!(
-						"`{ty}` is not supported: its field `{field}` is `Poll<{inner}>`, typed `rs.Poll<{inner}>`, whose `Pending` would be `rs.OuterPending` as `Poll<{instance}>`"
-					)
-				}),
-				// A `MaybeUninit<T>`, which can be `undefined` but for a byte.
-				_ if option => (!at.undefined).then(|| {
-					format!(
-						"`{ty}` is not supported: its field `{field}` is `Option<{inner}>`, typed `{inner} | rs.None`, whose `None` would be `undefined` as `Option<{instance}>`"
-					)
-				}),
-				_ => (!at.pending).then(|| {
-					format!(
-						"`{ty}` is not supported: its field `{field}` is `Poll<{inner}>`, typed `{inner} | rs.OuterPending`, whose `Pending` would be `rs.Pending` as `Poll<{instance}>`"
-					)
-				}),
-			};
-			if msg.is_some() {
-				return msg;
-			}
+			ref defined,
+			decides,
+		} = *decided;
+		let field = tcx.item_name(field);
+		let held = copy::instantiate(tcx, env, part, args);
+		let instance = copy::instantiate(tcx, env, inner, args);
+		if decides == defined::Decides::Future {
+			return self.erases_to(instance).pending.then(|| {
+				format!(
+					"`{ty}` is not supported: its field `{field}` holds a future of `{instance}`, which can be `rs.Pending`, as the future's own `Pending` is"
+				)
+			});
 		}
-		None
+		if let Some(msg) = self.erasure_conflict(held) {
+			return Some(format!(
+				"`{ty}` is not supported: its field `{field}` is `{held}`: {msg}"
+			));
+		}
+		if decides == defined::Decides::Flow {
+			let (ty::Adt(_, at), ty::Adt(_, typed)) = (held.kind(), part.kind()) else {
+				return None;
+			};
+			return (library::Flow::of(tcx, at) != library::Flow::of(tcx, typed)).then(|| {
+				format!(
+					"`{ty}` is not supported: its field `{field}` is `{part}`, typed as an `rs.Result` breaking with `{inner}`, which `{held}` is not, as `?` makes its break"
+				)
+			});
+		}
+		// Over a parameter of the instance's own, which its instances decide.
+		if held.has_param() {
+			return None;
+		}
+		let option = decides == defined::Decides::Option;
+		let erased = self.erases_to(inner);
+		let at = self.erases_to(instance);
+		match defined {
+			// What TypeScript's type of the parameter decides, which must be what the
+			// instance's erasure does.
+			Type::Param(_) if if option { !erased.undefined } else { !erased.pending } => {
+				// The parameter, or the projection from one, that it types.
+				let param = (inner.walk().filter_map(|arg| arg.as_type()))
+					.find(|t| matches!(t.kind(), ty::Param(_) | ty::Alias(..)))?;
+				let arg = copy::instantiate(tcx, env, param, args);
+				self.defining_state.projecting += 1;
+				let decided = self.ty(arg, span);
+				self.defining_state.projecting -= 1;
+				let (holds, alias) = match option {
+					true => (holds_undefined(&decided) == at.undefined, "OptionOf"),
+					false => (holds_pending(&decided) == at.pending, "PollOf"),
+				};
+				(!holds).then(|| {
+					format!(
+						"`{ty}` is not supported: its field `{field}` is `{part}`, typed `rs.{alias}<{inner}>`, which decides by TypeScript's type of `{arg}` otherwise than `{held}` erases"
+					)
+				})
+			}
+			_ if option && !erased.undefined => at.undefined.then(|| {
+				format!(
+					"`{ty}` is not supported: its field `{field}` is `Option<{inner}>`, typed `{inner} | undefined`, whose `None` would be `rs.None` as `Option<{instance}>`"
+				)
+			}),
+			_ if !option && !erased.pending => at.pending.then(|| {
+				format!(
+					"`{ty}` is not supported: its field `{field}` is `Poll<{inner}>`, typed `rs.Poll<{inner}>`, whose `Pending` would be `rs.OuterPending` as `Poll<{instance}>`"
+				)
+			}),
+			// A `MaybeUninit<T>`, which can be `undefined` but for a byte.
+			_ if option => (!at.undefined).then(|| {
+				format!(
+					"`{ty}` is not supported: its field `{field}` is `Option<{inner}>`, typed `{inner} | rs.None`, whose `None` would be `undefined` as `Option<{instance}>`"
+				)
+			}),
+			_ => (!at.pending).then(|| {
+				format!(
+					"`{ty}` is not supported: its field `{field}` is `Poll<{inner}>`, typed `{inner} | rs.OuterPending`, whose `Pending` would be `rs.Pending` as `Poll<{instance}>`"
+				)
+			}),
+		}
 	}
 
 	/// The type of an iterator's items, which every iterator has.
@@ -2214,7 +2243,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// `part` is the `Option`, or the `ControlFlow` that is one.
 	fn option_ty(&mut self, part: Ty<'tcx>, inner: Ty<'tcx>, span: Span) -> Type {
 		let some = self.ty(inner, span);
-		self.note_decided(part, inner, &some, true);
+		self.note_decided(part, inner, &some, defined::Decides::Option);
 		let erased = self.erases_to(inner);
 		if matches!(some, Type::Param(_)) && !erased.undefined {
 			return Type::Rs("OptionOf", vec![some]);
@@ -2235,7 +2264,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				format!("a future of `{output}`, which can be `rs.Pending`, as the future's own `Pending` is"),
 			);
 		}
-		Type::Rs("Future", vec![self.ty(output, span)])
+		let ty = self.ty(output, span);
+		self.note_decided(output, output, &ty, defined::Decides::Future);
+		Type::Rs("Future", vec![ty])
 	}
 
 	/// The TypeScript type of a `Poll<inner>`: `rs.Poll<T>`, or `T | rs.OuterPending` where
@@ -2243,7 +2274,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// parameter, an `rs.PollOf<T>`, which is either as each instance's `T` decides.
 	fn poll_ty(&mut self, part: Ty<'tcx>, inner: Ty<'tcx>, span: Span) -> Type {
 		let ready = self.ty(inner, span);
-		self.note_decided(part, inner, &ready, false);
+		self.note_decided(part, inner, &ready, defined::Decides::Poll);
 		if matches!(ready, Type::Param(_)) && !self.erases_to(inner).pending {
 			return Type::Rs("PollOf", vec![ready]);
 		}
