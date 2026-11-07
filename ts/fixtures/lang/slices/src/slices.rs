@@ -1332,7 +1332,7 @@ fn put_runs<const N: usize>(runs: &[[u8; N]], out: &mut Vec<u8>) {
 pub fn array_forms(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let byte = |at: usize| data.get(at).copied().unwrap_or(at as u8);
 	let pairs: Vec<[u8; 2]> = data.chunks_exact(2).map(|c| [c[0], c[1]]).collect();
-	match kind % 7 {
+	match kind % 8 {
 		// A reference copied out of an array of one, or out of runs of them, still points at
 		// the cell it did.
 		0 => {
@@ -1405,6 +1405,47 @@ pub fn array_forms(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			put_runs(&borrowed.into_owned(), out);
 			let from: std::borrow::Cow<[[u8; 2]]> = pairs.clone().into();
 			put_runs(&from, out);
+		}
+		// An `Option`'s array written through its slice, a borrowed `Vec`'s `Cow`, initialized
+		// `MaybeUninit`s of arrays, shared, mutable, and boxed, and slices of arrays joined.
+		6 => {
+			let mut some = pairs.first().copied();
+			if let Some(run) = some.as_mut_slice().first_mut() {
+				run[1] ^= 0x5a;
+			}
+			put_runs(some.as_slice(), out);
+			out.push(None::<[u8; 2]>.as_mut_slice().len() as u8);
+			let cow: std::borrow::Cow<'_, [[u8; 2]]> = std::borrow::Cow::from(&pairs);
+			put_runs(&cow, out);
+			let mut wrapped: Vec<std::mem::MaybeUninit<[u8; 2]>> =
+				pairs.iter().map(|&p| std::mem::MaybeUninit::new(p)).collect();
+			// SAFETY: every element is initialized.
+			put_runs(unsafe { wrapped.assume_init_ref() }, out);
+			// SAFETY: every element is initialized.
+			if let Some(run) = unsafe { wrapped.assume_init_mut() }.last_mut() {
+				run[0] = run[0].wrapping_add(1);
+			}
+			// SAFETY: every element is initialized.
+			put_runs(unsafe { wrapped.assume_init_ref() }, out);
+			let mut boxed = Box::<[[u8; 2]]>::new_uninit_slice(pairs.len());
+			for (slot, &p) in boxed.iter_mut().zip(&pairs) {
+				slot.write(p);
+			}
+			// SAFETY: every element is written.
+			put_runs(&unsafe { boxed.assume_init() }, out);
+			let half = pairs.len() / 2;
+			let joined = [&pairs[..half], &pairs[half..]].concat();
+			put_runs(&joined, out);
+			let cows = [
+				std::borrow::Cow::Borrowed(&pairs[..half]),
+				std::borrow::Cow::Owned(pairs[half..].to_vec()),
+			];
+			put_runs(&cows.concat(), out);
+			put_runs(&[&pairs[..half], &pairs[half..]].join(&[0xee_u8, 0xff]), out);
+			put_runs(
+				&[&pairs[..half], &pairs[half..]].join(&[[0xdd_u8, 0xcc], [0xbb, 0xaa]][..]),
+				out,
+			);
 		}
 		// `mem::replace` and `Cell` of a run whose elements a write lands in.
 		_ => {

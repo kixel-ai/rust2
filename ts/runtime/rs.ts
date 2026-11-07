@@ -1008,6 +1008,11 @@ export function runsFrom<A, S extends Run>(items: readonly A[], of: (array: A) =
 	return new Runs<S>(items, of, undefined, 0, 0, items.length);
 }
 
+/** The runs of `s`, a slice of arrays, each lent by `of` where `s` holds it, as `assume_init_ref` of a slice of `MaybeUninit`s of them has it. */
+export function runsOfSlice<A, S extends Run>(s: Slice<A>, of: (array: A) => S): Runs<S> {
+	return new Runs<S>(s.data, of, undefined, 0, s.start, s.length);
+}
+
 /** `runsFrom` of `of`, as a function of the arrays, as a `[[T; N]; M]` is lent: one function for each `of`. */
 export function runsOf<A, S extends Run>(of: (array: A) => S): (items: readonly A[]) => Runs<S> {
 	let f = LENT.get(of) as ((items: readonly A[]) => Runs<S>) | undefined;

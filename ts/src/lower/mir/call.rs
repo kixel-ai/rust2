@@ -1014,6 +1014,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					return done(target, true);
 				};
 				let none = target.clone().binary("===", self.b.t.none(inner));
+				// Of an array, the runs of it alone, which a write lands in, or of none.
+				if inner.is_array() {
+					let of = crate::lower::array_fn(inner, "From");
+					let runs = |items: Vec<Expr>| Expr::rs("runsFrom", vec![Expr::Array(items), of.clone()]);
+					let e = Expr::Cond(Box::new(none), Box::new(runs(Vec::new())), Box::new(runs(vec![target])));
+					return done(e, true);
+				}
 				let some = if self.b.t.needs_place(inner) {
 					Expr::rs("sliceOfPlace", vec![self.make_place(payload, target, span, out)])
 				} else if self.b.t.write_in(inner).is_some() {
