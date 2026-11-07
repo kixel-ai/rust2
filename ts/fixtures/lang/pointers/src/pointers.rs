@@ -13,6 +13,7 @@
 
 use std::cell::{Cell, OnceCell, RefCell, UnsafeCell};
 use std::mem::{self, MaybeUninit};
+use std::ops;
 use std::ptr::{self, NonNull};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -2737,6 +2738,16 @@ fn inline_moved(r: &RefCell<Cell<u32>>, o: &OnceCell<Cell<u32>>) -> (RefCell<Cel
 	old
 }
 
+/// A range of cells and a cell `Cell::from_mut` made of a variable's place, moved out
+/// through pointers from shared references to them, whose cells are then set.
+fn ends_moved(r: &ops::Range<Cell<u32>>, c: &Cell<u32>) -> (ops::Range<Cell<u32>>, Cell<u32>) {
+	let old = unsafe { (ptr::read(r), ptr::read(c)) };
+	old.0.start.set(old.0.start.get() + 9);
+	old.0.end.set(old.0.end.get() + 9);
+	old.1.set(old.1.get() + 9);
+	old
+}
+
 /// Values holding a library object, moved out through pointers made each way, at any
 /// depth, and then written in place: what was moved out keeps what it held.
 pub fn moved_out(data: &[u8], out: &mut Vec<u8>) {
@@ -2791,6 +2802,13 @@ pub fn moved_out(data: &[u8], out: &mut Vec<u8>) {
 		for o in [&o, &old_o] {
 			out.push(o.get().map_or(0, Cell::get) as u8);
 		}
+		let r = Cell::new(u32::from(b))..Cell::new(u32::from(b) + 1);
+		let mut x = u32::from(b) + 2;
+		let (old_r, old_c) = ends_moved(&r, Cell::from_mut(&mut x));
+		for r in [&r, &old_r] {
+			out.extend([r.start.get() as u8, r.end.get() as u8]);
+		}
+		out.extend([old_c.get() as u8, x as u8]);
 	}
 }
 

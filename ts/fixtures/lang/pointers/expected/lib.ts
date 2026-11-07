@@ -22,7 +22,7 @@ import type * as TaggedVec from "./pointers.TaggedVec.ts";
 import type * as Twin from "./pointers.Twin.ts";
 
 export function copy$Cell_u32(v: rs.Cell<rs.u32>): rs.Cell<rs.u32> {
-	return rs.objectCopy(v);
+	return new rs.Cell(v.v);
 }
 
 export function copy$Option_Cell_u32(v: rs.Cell<rs.u32> | undefined): rs.Cell<rs.u32> | undefined {
@@ -111,6 +111,13 @@ export function copy$mem_MaybeUninit_tuple2_u8_u8(v: [rs.u8, rs.u8]): [rs.u8, rs
 		return v;
 	}
 	return [v[0], v[1]];
+}
+
+export function copy$ops_Range_Cell_u32(v: rs.Range<rs.Cell<rs.u32>>): rs.Range<rs.Cell<rs.u32>> {
+	const c = rs.objectCopy(v);
+	c.start = copy$Cell_u32(c.start);
+	c.end = copy$Cell_u32(c.end);
+	return c;
 }
 
 export function copy$pointers_Aimed_Cell_u8(v: Aimed.Aimed<rs.Cell<rs.u8>>): Aimed.Aimed<rs.Cell<rs.u8>> {
