@@ -1026,15 +1026,16 @@ they need.
   `spare_capacity_mut` is an `rs.ByteSlice` of the buffer past its length, which `set_len`
   takes in, panicking past the capacity as std's check does, which can't unwind. Any other
   `Vec`'s items are a JS array as long as it is, which a write past its end would lengthen,
-  so the runtime keeps what Rust holds past its length apart, in an `rs.Room` by index: a
-  write through a pointer from `as_ptr` or `as_mut_ptr` moved past the length, up to the
-  capacity, by `ptr::copy`, or through a slice of the pointers, or through a slot of
-  `spare_capacity_mut`, a view of the items and the room, lands there, and `set_len` takes
-  slots in and gives items up to it, as std's `Drain` and `retain` read theirs past the
-  length. A slot never written holds what an unwritten `MaybeUninit` is, which a copy keeps.
-  A Vec step other than `set_len` that shortens it, such as `pop` or `truncate`, leaves
-  the room as it was, so a pointer read past the length of what that step gave up reads
-  what a pointer last wrote there, or nothing, where Rust reads the item the step moved out. Their `try_reserve` and `try_reserve_exact`, and a
+  so the runtime keeps what Rust holds past its length apart, in an `rs.Room` by index. A
+  write past the length, up to the capacity, through a pointer from `as_ptr` or
+  `as_mut_ptr`, by `ptr::copy`, through a slice of the pointers, or through a slot of
+  `spare_capacity_mut`, a view of the items and the room, lands there; `set_len` takes slots
+  in and gives items up to it, so a pointer reads them back past the length, as std's
+  `Drain` and `retain` do. A slot never written holds what an unwritten `MaybeUninit` is,
+  which a copy keeps. A step other than `set_len` that shortens it, such as `pop` or
+  `truncate`, leaves the room as it was, so a pointer reading past the length where that
+  step gave an item up reads what a pointer last wrote there, or an unwritten slot, rather
+  than the item Rust leaves there. Their `try_reserve` and `try_reserve_exact`, and a
   `String`'s, give `Ok` where `reserve` makes room and `TryReserveError`'s
   `CapacityOverflow` where it panics, and `AllocError`, of the layout std's asks for, only
   where JS fails to allocate a byte `Vec`'s or `VecDeque`'s `Uint8Array` (decided with the
