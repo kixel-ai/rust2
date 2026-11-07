@@ -21,4 +21,4 @@ just ci      # Both, as the merge queue runs them; run before every push
 just fix     # Auto-fix formatting
 ```
 
-Quests: before any work, run `quest context` and follow it.
+Quests: before any work, run `quest context` and follow it, unless this session already holds its rules.

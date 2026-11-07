@@ -183,7 +183,6 @@ fixtures/reject/src/pointers.rs:arc_from_borrow+1:12: `Arc::from_raw` of a point
 fixtures/reject/src/pointers.rs:arc_raw_slice+1:2: an `Arc`'s raw pointer to `[u32]`, which JS makes anew each time
 fixtures/reject/src/pointers.rs:array_of_one+1:2: comparing pointers to `[u32; 1]`, an array of one JS may make of its own for a value, as `array::from_ref` does
 fixtures/reject/src/pointers.rs:assigned_through+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
-fixtures/reject/src/pointers.rs:byte_option_slice+1:4: a slice of one byte's place, which a byte slice can view only in an array of bytes
 fixtures/reject/src/pointers.rs:byte_pointer_ops+5:3: a copy between pointers to `[u8; 4]`, which JS keeps as an object that knows no array it is in
 fixtures/reject/src/pointers.rs:byte_pointer_ops+6:3: a copy between pointers to `[u8; 4]`, which JS keeps as an object that knows no array it is in
 fixtures/reject/src/pointers.rs:byte_pointer_ops+7:14: comparing `*mut [u8; 4]`
@@ -197,7 +196,11 @@ fixtures/reject/src/pointers.rs:byte_pointer_parts+3:44: a raw pointer to `[u8; 
 fixtures/reject/src/pointers.rs:byte_pointer_rebound+2:26: a raw pointer to `[u8; 4]` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:byte_pointer_rebound+2:26: a reference to `[u8; 4]`, through which a raw pointer may be made, in a variable assigned again while that pointer may point there
 fixtures/reject/src/pointers.rs:byte_pointer_rebound+3:10: a raw pointer to `[u8; 4]` in a variable assigned again while it may point there
-fixtures/reject/src/pointers.rs:byte_slice_of_place+1:2: a slice of one byte's place, which a byte slice can view only in an array of bytes
+fixtures/reject/src/pointers.rs:byte_result_stored+1:21: a slice of one byte's place, which JS copies, kept where no variable of the function holds it, such as in memory a parameter points at or in what the function returns, so the copy is never written back
+fixtures/reject/src/pointers.rs:byte_results_kept+3:24: a slice of one byte's place, which JS copies, that may still be used once the call makes another, which the variable written back from holds instead
+fixtures/reject/src/pointers.rs:byte_slice_returned+1:2: a slice of one byte's place, which JS copies, kept where no variable of the function holds it, such as in memory a parameter points at or in what the function returns, so the copy is never written back
+fixtures/reject/src/pointers.rs:byte_slice_stored+1:11: a slice of one byte's place, which JS copies, kept where no variable of the function holds it, such as in memory a parameter points at or in what the function returns, so the copy is never written back
+fixtures/reject/src/pointers.rs:byte_slices_kept+3:13: a slice of one byte's place, which JS copies, that may still be used once the call makes another, which the variable written back from holds instead
 fixtures/reject/src/pointers.rs:cast_reassigned+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there
 fixtures/reject/src/pointers.rs:cell_field_replaced+4:21: a raw pointer to `std::cell::UnsafeCell<u32>` in `pointers::Hits`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:cell_reassigned+2:15: a raw pointer to `std::cell::UnsafeCell<u32>` in a variable assigned again while it may point there

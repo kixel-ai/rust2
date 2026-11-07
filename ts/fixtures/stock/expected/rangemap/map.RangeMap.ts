@@ -242,10 +242,9 @@ export function insert$u64_u64(self: RangeMap<rs.u64, rs.u64>, range: rs.Range<r
 			const _32: [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64] = [RangeStartWrapper.clone$Clone_u64(candidate[0]), candidate[1]];
 			adjustTouchingRangesForInsert$u64_u64(self, _32[0], _32[1], newStartWrapper.endWrapper.range, newValue);
 		}
+		const newRangeEndAsStart: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(new rs.Range(newStartWrapper.endWrapper.range.end, newStartWrapper.endWrapper.range.end, rs.u64Step));
 		while (true) {
-			const newRangeEndAsStart: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(new rs.Range(newStartWrapper.endWrapper.range.end, newStartWrapper.endWrapper.range.end, rs.u64Step));
-			const _48: [rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>, rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>] = [{ tag: "Included", _0: newStartWrapper } as rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>, { tag: "Included", _0: newRangeEndAsStart } as rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>];
-			const _44: [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64] | rs.Done = rs.btreeRange(self.btm, _48, RangeStartWrapper.eq$cmp_PartialEq_u64, rs.cmpGt(RangeStartWrapper.partialCmp$cmp_PartialOrd_u64)).next();
+			const _44: [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64] | rs.Done = rs.btreeRange(self.btm, [{ tag: "Included", _0: newStartWrapper } as rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>, { tag: "Included", _0: newRangeEndAsStart } as rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>] as [rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>, rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>], RangeStartWrapper.eq$cmp_PartialEq_u64, rs.cmpGt(RangeStartWrapper.partialCmp$cmp_PartialOrd_u64)).next();
 			if (_44 !== rs.DONE) {
 				if (rs.u64Eq(_44[0].endWrapper.range.start, newStartWrapper.endWrapper.range.end)) {
 					if (rs.u64Ne(_44[1], newValue)) {
@@ -295,10 +294,9 @@ export function insert$u64_unit(self: RangeMap<rs.u64, undefined>, range: rs.Ran
 			candidate[1];
 			adjustTouchingRangesForInsert$u64_unit(self, _33, undefined, newStartWrapper.endWrapper.range, undefined);
 		}
+		const newRangeEndAsStart: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(new rs.Range(newStartWrapper.endWrapper.range.end, newStartWrapper.endWrapper.range.end, rs.u64Step));
 		while (true) {
-			const newRangeEndAsStart: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(new rs.Range(newStartWrapper.endWrapper.range.end, newStartWrapper.endWrapper.range.end, rs.u64Step));
-			const _48: [rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>, rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>] = [{ tag: "Included", _0: newStartWrapper } as rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>, { tag: "Included", _0: newRangeEndAsStart } as rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>];
-			const _44: [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined] | rs.Done = rs.btreeRange(self.btm, _48, RangeStartWrapper.eq$cmp_PartialEq_u64, rs.cmpGt(RangeStartWrapper.partialCmp$cmp_PartialOrd_u64)).next();
+			const _44: [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined] | rs.Done = rs.btreeRange(self.btm, [{ tag: "Included", _0: newStartWrapper } as rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>, { tag: "Included", _0: newRangeEndAsStart } as rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>] as [rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>, rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>], RangeStartWrapper.eq$cmp_PartialEq_u64, rs.cmpGt(RangeStartWrapper.partialCmp$cmp_PartialOrd_u64)).next();
 			if (_44 !== rs.DONE) {
 				if (rs.u64Eq(_44[0].endWrapper.range.start, newStartWrapper.endWrapper.range.end)) {
 					if (false) {
@@ -342,10 +340,9 @@ export function remove$u64_u64(self: RangeMap<rs.u64, rs.u64>, range: rs.Range<r
 		if (_10 !== undefined) {
 			adjustOverlappingRangesForRemove$u64_u64(self, _10[0], _10[1], range2);
 		}
+		const newRangeEndAsStart: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(new rs.Range(range2.end, range2.end, rs.u64Step));
 		while (true) {
-			const newRangeEndAsStart: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(new rs.Range(range2.end, range2.end, rs.u64Step));
-			const _37: [rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>, rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>] = [{ tag: "Excluded", _0: startWrapper } as rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>, { tag: "Excluded", _0: newRangeEndAsStart } as rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>];
-			const _32: [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64] | undefined = option_map$02ffuo4(rs.iterToOption(rs.btreeRange(self.btm, _37, RangeStartWrapper.eq$cmp_PartialEq_u64, rs.cmpGt(RangeStartWrapper.partialCmp$cmp_PartialOrd_u64)).next()), (_23: [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64]): [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64] => {
+			const _32: [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64] | undefined = option_map$02ffuo4(rs.iterToOption(rs.btreeRange(self.btm, [{ tag: "Excluded", _0: startWrapper } as rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>, { tag: "Excluded", _0: newRangeEndAsStart } as rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>] as [rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>, rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>], RangeStartWrapper.eq$cmp_PartialEq_u64, rs.cmpGt(RangeStartWrapper.partialCmp$cmp_PartialOrd_u64)).next()), (_23: [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64]): [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64] => {
 				return [RangeStartWrapper.clone$Clone_u64(_23[0]), _23[1]] as [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64];
 			});
 			if (_32 !== undefined) {
@@ -385,10 +382,9 @@ export function remove$u64_unit(self: RangeMap<rs.u64, undefined>, range: rs.Ran
 		if (_10 !== undefined) {
 			adjustOverlappingRangesForRemove$u64_unit(self, _10[0], undefined, range2);
 		}
+		const newRangeEndAsStart: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(new rs.Range(range2.end, range2.end, rs.u64Step));
 		while (true) {
-			const newRangeEndAsStart: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.new$u64(new rs.Range(range2.end, range2.end, rs.u64Step));
-			const _37: [rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>, rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>] = [{ tag: "Excluded", _0: startWrapper } as rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>, { tag: "Excluded", _0: newRangeEndAsStart } as rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>];
-			const _32: [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined] | undefined = option_map$105h877(rs.iterToOption(rs.btreeRange(self.btm, _37, RangeStartWrapper.eq$cmp_PartialEq_u64, rs.cmpGt(RangeStartWrapper.partialCmp$cmp_PartialOrd_u64)).next()), (_23: [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined]): [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined] => {
+			const _32: [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined] | undefined = option_map$105h877(rs.iterToOption(rs.btreeRange(self.btm, [{ tag: "Excluded", _0: startWrapper } as rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>, { tag: "Excluded", _0: newRangeEndAsStart } as rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>] as [rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>, rs.RangeBound<RangeStartWrapper.RangeStartWrapper<rs.u64>>], RangeStartWrapper.eq$cmp_PartialEq_u64, rs.cmpGt(RangeStartWrapper.partialCmp$cmp_PartialOrd_u64)).next()), (_23: [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined]): [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined] => {
 				const _52: RangeStartWrapper.RangeStartWrapper<rs.u64> = RangeStartWrapper.clone$Clone_u64(_23[0]);
 				_23[1];
 				return [_52, undefined] as [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined];

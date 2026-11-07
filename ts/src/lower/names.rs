@@ -145,7 +145,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 				let named = match tcx.def_kind(parent) {
 					DefKind::Impl { .. } => {
 						let ty = tcx.type_of(parent).instantiate_identity().skip_norm_wip().peel_refs();
-						!matches!(ty.kind(), ty::Adt(adt, _) if self.own(adt.did()))
+						// A JS value's, which has no class, are its Rust module's.
+						!matches!(ty.kind(), ty::Adt(adt, _) if self.own(adt.did()) && !super::bindgen::represents(tcx, adt.did()))
 					}
 					_ => tcx.defaultness(def_id).has_value(),
 				};

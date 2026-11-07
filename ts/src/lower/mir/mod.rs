@@ -18,6 +18,7 @@ pub mod glue;
 pub(super) mod holders;
 mod inline;
 mod memory;
+mod mirror;
 mod origin;
 mod place;
 mod rvalue;
@@ -493,6 +494,8 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	returning: FxHashSet<mir::Location>,
 	/// The tests and payload reads TypeScript may have narrowed stale.
 	narrowing: decided::Narrowing<'tcx>,
+	/// The slices of one byte's place the body makes, as [`Self::find_mirrors`] finds them.
+	mirrors: mirror::Mirrors,
 	/// The statement or terminator being lowered.
 	at: mir::Location,
 }
@@ -579,6 +582,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			slotted_calls: FxHashMap::default(),
 			returning: FxHashSet::default(),
 			narrowing,
+			mirrors: mirror::Mirrors::default(),
 			at: mir::START_BLOCK.start_location(),
 		};
 		fx.analyze();
@@ -844,6 +848,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 		}
 		self.share_stepped();
+		self.find_mirrors();
 	}
 
 	/// The byte locals whose `&raw` the body takes, of the local or of a reference to it
@@ -861,7 +866,34 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					self.raw_bytes.insert(local);
 				}
 			}
+			// A slice of one of a `&mut` to it, which then views its buffer.
+			if let TerminatorKind::Call { func, args, .. } = &data.terminator().kind
+				&& self.byte_slice_call(func)
+				&& let Some(arg) = args[0].node.place()
+				&& let Some(local) = self.lent_byte(arg)
+			{
+				self.raw_bytes.insert(local);
+			}
 		}
+	}
+
+	/// The byte local the reference `r` points at, if it was made here, once, as a `&mut`
+	/// to it or a reborrow of one, that nothing redirects.
+	fn lent_byte(&self, r: Place<'tcx>) -> Option<Local> {
+		let mut r = r.as_local()?;
+		for _ in 0..self.mir.local_decls.len() {
+			if self.defs[r] != 1 || self.is_arg(r) || self.mutated[r] {
+				return None;
+			}
+			match self.def_rvalue(r)? {
+				Rvalue::Ref(_, _, p) if p.projection.is_empty() => {
+					return crate::lower::byte(self.mir.local_decls[p.local].ty).then_some(p.local);
+				}
+				Rvalue::Ref(_, _, p) if p.projection.as_slice() == [mir::ProjectionElem::Deref] => r = p.local,
+				_ => return None,
+			}
+		}
+		None
 	}
 
 	/// The byte local `place`, the place of a `&raw`, is: the local, or what a reference
@@ -1857,6 +1889,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				out.push(StmtKind::Declare { name, ty }.at(None));
 			}
 		}
+		for name in self.mirror_names() {
+			let ty = Type::Union(vec![Type::Rs("ByteMirror", Vec::new()), Type::Builtin("undefined")]);
+			out.push(StmtKind::Declare { name, ty }.at(None));
+		}
 		self.scalar_decls(&mut out);
 		let mut flags: Vec<String> = self.range_flags.values().cloned().collect();
 		flags.sort();
@@ -2608,19 +2644,24 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn block(&mut self, bb: BasicBlock, out: &mut Vec<Stmt>) -> Exit {
 		let mir = self.mir;
 		let data = &mir.basic_blocks[bb];
+		self.mirror_entry(bb, out);
 		for (i, stmt) in data.statements.iter().enumerate() {
+			let at = mir::Location {
+				block: bb,
+				statement_index: i,
+			};
 			if !self.in_ignored(stmt.source_info.span) && !self.noops.contains(&(bb, i)) {
-				self.at = mir::Location {
-					block: bb,
-					statement_index: i,
-				};
+				self.at = at;
 				let start = out.len();
 				self.statement(stmt, out);
 				self.locate(&mut out[start..]);
+				self.mirror_after(at, out);
 				if self.returning.contains(&self.at) {
 					self.flush(out);
 					return Exit::End;
 				}
+			} else {
+				self.mirror_after(at, out);
 			}
 		}
 		if let Some(&to) = self.redirect.get(&bb) {
@@ -3367,6 +3408,16 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
+	/// Whether `bb` starts a loop: a block it dominates jumps back to it.
+	fn loop_header(&self, bb: BasicBlock) -> bool {
+		let blocks = &self.mir.basic_blocks;
+		let dominators = blocks.dominators();
+		dominators.is_reachable(bb)
+			&& blocks.predecessors()[bb]
+				.iter()
+				.any(|&p| dominators.is_reachable(p) && dominators.dominates(bb, p))
+	}
+
 	/// Emit every pending temporary, in order.
 	fn flush_pending(&mut self, out: &mut Vec<Stmt>) {
 		for p in std::mem::take(&mut self.pending) {
@@ -3379,14 +3430,34 @@ impl cfg::Lower<Stmt> for Fx<'_, '_, '_, '_> {
 	fn node(&mut self, node: usize, out: &mut Vec<Stmt>) -> Exit {
 		let exit = self.block(BasicBlock::from_usize(node), out);
 		let forward = |to: usize| self.forward(BasicBlock::from_usize(to)).as_usize();
-		match exit {
+		let exit = match exit {
 			Exit::Goto(to) => Exit::Goto(forward(to)),
 			Exit::Branch(arms, default) => Exit::Branch(
 				arms.into_iter().map(|(cond, to)| (cond, forward(to))).collect(),
 				forward(default),
 			),
 			Exit::End => Exit::End,
+		};
+		// A loop runs its body anew each time: what is held back to fold into its one read
+		// runs where it was made, before the loop, if running it again would differ.
+		let targets: Vec<usize> = match &exit {
+			Exit::Goto(to) => vec![*to],
+			Exit::Branch(arms, default) => arms.iter().map(|(_, to)| *to).chain([*default]).collect(),
+			Exit::End => Vec::new(),
+		};
+		if targets
+			.into_iter()
+			.any(|to| self.loop_header(BasicBlock::from_usize(to)))
+		{
+			let (held, kept): (Vec<_>, Vec<_>) = std::mem::take(&mut self.pending)
+				.into_iter()
+				.partition(|p| p.effect || p.memory);
+			self.pending = kept;
+			for p in held {
+				self.flush_one(p, out);
+			}
 		}
+		exit
 	}
 
 	fn flush(&mut self, out: &mut Vec<Stmt>) {
