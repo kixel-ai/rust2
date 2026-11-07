@@ -41,7 +41,7 @@ macro_rules! methods {
 				}
 				None => out.push(0),
 			};
-			match kind % 49 {
+			match kind % 51 {
 				0 => {
 					put_opt(out, a.checked_add(b));
 					put_opt(out, a.checked_sub(b));
@@ -192,7 +192,14 @@ macro_rules! methods {
 				46 => put(out, unsafe { a.unchecked_shr(k) }),
 				47 => methods!(@$sign unchecked, a, b, k, out, put),
 				// SAFETY: none of zero: std's check of its precondition aborts.
-				_ => put(out, unsafe { NonZero::new_unchecked(a) }.get()),
+				48 => put(out, unsafe { NonZero::new_unchecked(a) }.get()),
+				49 => {
+					if let (Some(x), Some(y)) = (NonZero::new(a), NonZero::new(b)) {
+						// SAFETY: none where it overflows: std's check of its precondition aborts.
+						put(out, unsafe { x.unchecked_mul(y) }.get());
+					}
+				}
+				_ => methods!(@$sign nonzero_unchecked, a, b, out, put),
 			}
 		}
 	};
@@ -348,6 +355,15 @@ macro_rules! methods {
 		$put($out, $x.div_ceil($y).get());
 		$out.extend_from_slice(&$x.cast_signed().get().to_be_bytes());
 	}};
+	(@signed nonzero_unchecked, $a:ident, $b:ident, $out:ident, $put:ident) => {
+		$out.push(0)
+	};
+	(@unsigned nonzero_unchecked, $a:ident, $b:ident, $out:ident, $put:ident) => {
+		if let Some(x) = NonZero::new($a) {
+			// SAFETY: none where it overflows: std's check of its precondition aborts.
+			$put($out, unsafe { x.unchecked_add($b) }.get());
+		}
+	};
 	(@signed nonzero_panics, $a:ident, $out:ident, $put:ident) => {
 		if let Some(x) = NonZero::new($a) {
 			$put($out, x.abs().get());
