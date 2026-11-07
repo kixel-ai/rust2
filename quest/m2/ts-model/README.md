@@ -33,8 +33,8 @@ Decided with the maintainer on 2026-10-27, from a census of the model's 22 publi
   the translator is specific to moq: dependencies follow general rules, and moq's own
   changes (to its `unsafe` and its address keys, dropping or binding `hashlink`, `slab`, and
   `smallvec`) are one research-tier quest in moq's tree.
-- A dependency containing `unsafe` is bound by the consumer until
-  [unsafe code the translator can model](/quest/m3/ts-unsafe/README.md) translates it: decided
+- A dependency containing `unsafe` is bound by the consumer unless it uses only the
+  `unsafe` [m3's unsafe policy](/quest/m3/README.md) translates: decided
   with the maintainer on 2026-10-27, a stock crate translates with no annotations or config.
   Only true platform boundaries (clocks and DEFLATE) stay bound.
 - Each child measures this target by the census of `ts/moq/model.toml`, rooted at those
@@ -48,7 +48,7 @@ pin; each case it adds as a type translates. Every other root reaches the rest o
 model, all of it moq's, for its research quest: kio's `log.rs` reads bytes as its segments
 and retires them through crossbeam-epoch, whose tagged pointers and inline closures (36
 refusals) translation refuses for good, and smallvec's union over a type parameter, its
-`Array::Item`, and raw parts (5) wait on [unsafe](/quest/m3/ts-unsafe/README.md), so moq rewrites or drops
+`Array::Item`, and raw parts (5) stay refused under [m3's unsafe policy](/quest/m3/README.md), so moq rewrites or drops
 them, as it does the `unsafe` slice of `model/frame.rs`'s `Filled`.
 
 Decided with the maintainer on 2026-11-04, from a census at the bumped pin
@@ -71,6 +71,6 @@ or pointers whose comparison disagreed with Rust after an address was reused:
   addresses (`model/cache.rs`, `model/frame.rs`).
 - ✅ moq gives its `unsafe` no `cfg(rust2_ts)` twins; it decides per item, when its quest
   starts, whether to rewrite one in safe Rust for both builds or wait for this translator.
-  Rejected: twins until [unsafe](/quest/m3/ts-unsafe/README.md) translates them.
+  Rejected: twins until rust2-ts translates them, which [m3's unsafe policy](/quest/m3/README.md) mostly refuses.
 
 Public API: the translator's output for moq-net's model.

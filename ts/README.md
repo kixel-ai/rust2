@@ -1145,7 +1145,7 @@ they need.
 ## Not yet
 
 Byte reinterpretation, pointer addresses, pointer arithmetic on a value JS keeps as an object (other than wrapping arithmetic on a null or dangling pointer), memory from `alloc` other than an array of values JS copies, and unions whose
-fields overlap in different types ([unsafe](/quest/m3/ts-unsafe/README.md)), and trait objects of a trait
+fields overlap in different types ([m3's unsafe policy](/quest/m3/README.md)), and trait objects of a trait
 with a const parameter, of an array, or behind a pointer other than `&`, `&mut`, `Box`, `Arc`, `Rc`,
 `Weak`, or `Pin`, fail translation. Until they translate, an item that needs one, such as a `Box<dyn Error>` made `From` a string, binds to
 hand-written TS ([bindings](#bindings)).

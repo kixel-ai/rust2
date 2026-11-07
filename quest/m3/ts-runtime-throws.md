@@ -64,7 +64,3 @@ that are each a JS array of their own keep their identity. Look for an exact slo
 with the `*const [T]` comparisons above.
 
 Public API: the translator's output, and which crates translate.
-
-## Related
-
-- [Unsafe code the translator can model](/quest/m3/ts-unsafe/README.md) - the raw-pointer model several of these throws guard; its 2026-11-01 run-time failures now follow this quest's rule
