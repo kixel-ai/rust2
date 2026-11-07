@@ -698,7 +698,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			},
 			AggregateKind::Adt(def_id, variant, args, _, active) => {
 				if let Some(active) = active {
-					let parts = self.b.t.union_field(self.tcx.adt_def(*def_id), args, active.as_usize(), span);
+					let parts = self
+						.b
+						.t
+						.union_field(self.tcx.adt_def(*def_id), args, active.as_usize(), span);
 					let field_ty = ops[FieldIdx::ZERO].ty(&self.mir.local_decls, self.tcx);
 					let value = values.pop().expect("a union's field");
 					let value = match parts.len() {

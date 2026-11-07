@@ -1275,7 +1275,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						match info.repr {
 							AdtRepr::Tags => scrut.clone().binary("===", name),
 							AdtRepr::Union => scrut.clone().member("tag").binary("===", name),
-							AdtRepr::Struct { .. } | AdtRepr::Slots { .. } => self.err(span, format!("a switch on `{ty}`")),
+							AdtRepr::Struct { .. } | AdtRepr::Slots { .. } => {
+								self.err(span, format!("a switch on `{ty}`"))
+							}
 						}
 					}
 					Some(Std::ControlFlow) => super::call::control_flow_test(self, scrut, ty, index, next),

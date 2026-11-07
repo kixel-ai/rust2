@@ -288,7 +288,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The parts of field `field` of union `adt` with `args`.
-	pub fn union_field(&mut self, adt: AdtDef<'tcx>, args: GenericArgsRef<'tcx>, field: usize, span: Span) -> Vec<Part> {
+	pub fn union_field(
+		&mut self,
+		adt: AdtDef<'tcx>,
+		args: GenericArgsRef<'tcx>,
+		field: usize,
+		span: Span,
+	) -> Vec<Part> {
 		self.laid_out(adt, args, span).0.swap_remove(field)
 	}
 }
