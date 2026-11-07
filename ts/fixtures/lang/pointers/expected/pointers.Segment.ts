@@ -27,7 +27,14 @@ function new_(): Segment {
 		}
 		const _15: Lent.Lent<[rs.u8, rs.u8]>[] = slots;
 		const _13: Lent.Lent<[rs.u8, rs.u8]> = Lent.new$mem_MaybeUninit_tuple2_u8_u8(([undefined, undefined] as unknown) as [rs.u8, rs.u8]);
-		rs.ptrWrite(_15[at], _13);
+		const object = _15[at];
+		const value = _13;
+		const cell = object._0;
+		rs.ptrWrite(object, value);
+		if (cell !== undefined) {
+			object._0 = cell;
+			rs.ptrWrite(cell.v, value._0.v);
+		}
 	}
 	return { filled: 0, slots };
 }
@@ -44,7 +51,15 @@ export function iterated(): Segment {
 			break;
 		}
 		const uninit = _8;
-		rs.ptrWrite(uninit, Lent.new$mem_MaybeUninit_tuple2_u8_u8(([undefined, undefined] as unknown) as [rs.u8, rs.u8]));
+		const object = uninit;
+		const value = Lent.new$mem_MaybeUninit_tuple2_u8_u8(([undefined, undefined] as unknown) as [rs.u8, rs.u8]);
+		const cell = object._0;
+		rs.ptrWrite(object, value);
+		if (cell !== undefined) {
+			object._0 = cell;
+			rs.ptrWrite(cell.v, value._0.v);
+		}
+		undefined;
 		uninit;
 	}
 	return { filled: 0, slots };

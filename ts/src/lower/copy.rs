@@ -521,6 +521,7 @@ impl<'tcx> Writes<'tcx> {
 			}
 			BodyWrites {
 				tcx,
+				t,
 				body,
 				def_id,
 				writes: &mut writes,
@@ -673,6 +674,18 @@ fn cell_writes<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, args: ty::GenericArgsRef<
 		"UnsafeCell" => name == "replace",
 		_ => false,
 	};
+	(writes && super::library::is_std(tcx, def_id)).then(|| args.type_at(0))
+}
+
+/// The type std's `def_id` writes whole through a raw pointer to one, by the runtime's
+/// write of a pointer's value: `ptr::write`, `replace`, or `swap`.
+fn pointer_writes<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> Option<Ty<'tcx>> {
+	let (owner, name) = super::library::key(tcx, def_id)?;
+	let writes = owner == "ptr"
+		&& matches!(
+			name.as_str(),
+			"write" | "write_unaligned" | "write_volatile" | "replace" | "swap"
+		);
 	(writes && super::library::is_std(tcx, def_id)).then(|| args.type_at(0))
 }
 
@@ -922,6 +935,7 @@ impl<'tcx> Visitor<'tcx> for UsesOf<'_> {
 /// The writes of one body.
 struct BodyWrites<'w, 'm, 'a, 'tcx> {
 	tcx: TyCtxt<'tcx>,
+	t: &'m Translator<'a, 'tcx>,
 	body: &'m mir::Body<'tcx>,
 	def_id: DefId,
 	writes: &'w mut Writes<'tcx>,
@@ -949,6 +963,30 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 		}
 		for ty in self.parts(ty) {
 			self.writes.replaced.insert(self.tcx, self.def_id, ty);
+		}
+	}
+
+	/// A whole `ty` written into in place by the runtime's write of a cell's value, which
+	/// keeps each cell it [keeps](Translator::keeps_cells), writing into it in place too,
+	/// and replaces the rest as [`Self::replace`] does.
+	fn replace_kept(&mut self, ty: Ty<'tcx>) {
+		use super::pointer::KeptCells;
+		self.insert(ty);
+		match self.t.kept_cells(ty) {
+			Some(KeptCells::Cell(held)) => self.replace_kept(held),
+			Some(KeptCells::Fields(fields)) => {
+				for (i, (field, kept)) in fields.into_iter().enumerate() {
+					match kept {
+						true => self.replace_kept(field),
+						false => {
+							let holders = self.writes.holders.entry(Some(FieldIdx::from_usize(i))).or_default();
+							holders.insert(self.tcx, self.def_id, ty);
+							self.replace(field);
+						}
+					}
+				}
+			}
+			None => self.replace(ty),
 		}
 	}
 
@@ -1215,11 +1253,15 @@ impl<'tcx> Visitor<'tcx> for BodyWrites<'_, '_, '_, 'tcx> {
 				self.replace(value);
 			}
 			if let Some(held) = cell_writes(self.tcx, def_id, args.skip_binder()) {
-				self.insert(held);
-				self.replace(held);
+				self.replace_kept(held);
+			}
+			// A pointer's whole write keeps the cells a value keeps, as a cell's does.
+			let kept = pointer_writes(self.tcx, def_id, args.skip_binder()).filter(|&ty| self.t.keeps_cells(ty));
+			if let Some(ty) = kept {
+				self.replace_kept(ty);
 			}
 			// Those that point a pointer elsewhere or read through it replace nothing.
-			let replace = !super::pointer::keeps(self.tcx, def_id, args.skip_binder());
+			let replace = kept.is_none() && !super::pointer::keeps(self.tcx, def_id, args.skip_binder());
 			// A call's argument may point into memory nothing else points into yet.
 			let body = self.body;
 			let call = match &body[location.block].terminator().kind {

@@ -593,8 +593,10 @@ fn cell<'tcx>(
 	let tcx = b.t.tcx;
 	let span = call.span;
 	let ty = call.args.type_at(0);
-	// A pointer `as_ptr` gave to an object or an array is it, so a write lands in it.
-	let in_place = matches!(b.t.pointee(ty), Pointee::Object | Pointee::Array) && !b.t.zero_sized(ty);
+	// A pointer `as_ptr` gave to an object or an array is it, so a write lands in it, as it
+	// does in each cell a value keeps.
+	let in_place =
+		(matches!(b.t.pointee(ty), Pointee::Object | Pointee::Array) || b.t.keeps_cells(ty)) && !b.t.zero_sized(ty);
 	let default = |b: &mut Body<'_, '_, 'tcx>, out: &mut Vec<Stmt>| {
 		let f = super::collections::trait_fn(tcx, "Default", "default");
 		b.call_def(f, tcx.mk_args(&[ty.into()]), Vec::new(), span, out)
@@ -614,7 +616,7 @@ fn cell<'tcx>(
 					let old = pointer::replace(b, p, value, ty, span, out);
 					b.t.drop_value(old, ty, span).unwrap_or_else(Expr::undefined)
 				}
-				false => pointer::write(b, p, value, ty, span),
+				false => pointer::write(b, p, value, ty, span, out),
 			}
 		}
 		"replace" | "take" if in_place => {
@@ -629,8 +631,8 @@ fn cell<'tcx>(
 		"update" if in_place => {
 			let [cell, f] = two(args);
 			let p = b.spill(pointer::cell_pointer(b, cell, ty), "pointer", out);
-			let new = f.call(vec![pointer::read(b, p.clone(), ty, span)]);
-			pointer::write(b, p, new, ty, span)
+			let new = f.call(vec![pointer::read(b, p.clone(), ty, span, out)]);
+			pointer::write(b, p, new, ty, span, out)
 		}
 		"swap" => {
 			let [x, y] = two(args);

@@ -38,6 +38,14 @@ use super::library::{Call, Std, targ};
 use super::{AdtRepr, ObjectKind, Translator};
 use crate::ts::{Expr, Key, Stmt, StmtKind, Type};
 
+/// What a type that [keeps cells](Translator::keeps_cells) holds.
+pub enum KeptCells<'tcx> {
+	/// A cell's value.
+	Cell(Ty<'tcx>),
+	/// Each field's type, and whether it keeps cells.
+	Fields(Vec<(Ty<'tcx>, bool)>),
+}
+
 /// What a raw pointer to a type is in JS.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Pointee {
@@ -154,6 +162,32 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty = args.type_at(0);
 		}
 		ty
+	}
+
+	/// Whether a whole write of a `ty` through the pointer helpers below keeps each
+	/// `rs.Cell` it holds, writing into it in place, so a pointer `get` gave into one before
+	/// sees the write: a cell, or a tuple or a crate's struct a pointer is the object of, a
+	/// field of which keeps cells. Any other part is given the new value's, one object deep.
+	pub fn keeps_cells(&self, ty: Ty<'tcx>) -> bool {
+		self.kept_cells(ty).is_some()
+	}
+
+	/// What a `ty` that [keeps cells](Self::keeps_cells) holds: a cell's value, or each
+	/// field of a tuple or struct, and whether it keeps cells too.
+	pub fn kept_cells(&self, ty: Ty<'tcx>) -> Option<KeptCells<'tcx>> {
+		let fields: Vec<Ty<'tcx>> = match ty.kind() {
+			ty::Adt(adt, args) if Std::of(self.tcx, adt.did()) == Some(Std::Cell) => {
+				return Some(KeptCells::Cell(args.type_at(0)));
+			}
+			ty::Tuple(tys) => tys.to_vec(),
+			ty::Adt(adt, args) if adt.is_struct() && Std::of(self.tcx, adt.did()).is_none() && self.own(adt.did()) => {
+				adt.all_fields().map(|f| self.field_ty(f.did, args)).collect()
+			}
+			_ => return None,
+		};
+		let fields: Vec<_> = fields.into_iter().map(|f| (f, self.keeps_cells(f))).collect();
+		(self.pointee(ty) == Pointee::Object && fields.iter().any(|&(_, kept)| kept))
+			.then_some(KeptCells::Fields(fields))
 	}
 
 	/// Whether only an instance decides what a pointer or reference to `ty` is, as in a
@@ -739,11 +773,11 @@ pub fn call<'tcx>(
 		},
 		("ptr", "read" | "read_unaligned" | "read_volatile") => {
 			let p = arg();
-			read(b, p, pointee(), span)
+			read(b, p, pointee(), span, out)
 		}
 		("ptr", "write" | "write_unaligned" | "write_volatile") => {
 			let (p, value) = (arg(), arg());
-			write(b, p, value, pointee(), span)
+			write(b, p, value, pointee(), span, out)
 		}
 		// A place of no bytes has nothing to read or write, and every value of its type is
 		// the one it holds.
@@ -806,7 +840,7 @@ pub fn call<'tcx>(
 			let value = arg();
 			let write = match array(b, pointee()) {
 				true => Expr::rs("ptrWrite", vec![p.clone(), value]),
-				false => write(b, p.clone(), value, pointee(), span),
+				false => write(b, p.clone(), value, pointee(), span, out),
 			};
 			out.push(StmtKind::Expr(write).at(None));
 			p
@@ -1187,7 +1221,11 @@ pub(super) fn cell_pointer<'tcx>(b: &Body<'_, '_, 'tcx>, cell: Expr, ty: Ty<'tcx
 }
 
 /// The value `p`, a pointer to `ty`, points at, as a value of its own.
-pub(super) fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+pub(super) fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
+	if b.t.keeps_cells(ty) {
+		let at = pointed(b, p, ty);
+		return copy_kept(b, at, ty, span, out);
+	}
 	let value = match b.t.pointee(ty) {
 		Pointee::Place => p.member("v"),
 		Pointee::Object => p,
@@ -1211,9 +1249,9 @@ pub(super) fn replace<'tcx>(
 	out: &mut Vec<Stmt>,
 ) -> Expr {
 	let p = b.spill(p, "pointer", out);
-	let old = copied_out(b, p.clone(), ty, span);
+	let old = copied_out(b, p.clone(), ty, span, out);
 	let old = b.spill(old, "old", out);
-	let write = write(b, p, value, ty, span);
+	let write = write(b, p, value, ty, span, out);
 	out.push(StmtKind::Expr(write).at(None));
 	old
 }
@@ -1223,16 +1261,16 @@ pub(super) fn replace<'tcx>(
 /// copied one object deep, an array's elements to the depth `objectCopy` copies them. One
 /// a pointer is the place of is read as it is, keeping a `Box`'s allocation, as its write
 /// puts another in the place.
-fn copied_out<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+fn copied_out<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 	match b.t.pointee(ty) {
-		_ if b.t.zero_sized(ty) => read(b, p, ty, span),
+		_ if b.t.zero_sized(ty) || b.t.keeps_cells(ty) => read(b, p, ty, span, out),
 		Pointee::Object => Expr::rs("objectCopy", vec![p]),
 		Pointee::Array if !super::byte_array(b.t.uninit_inner(ty)) => {
 			let depth = b.t.copy_depth(b.t.uninit_inner(ty));
 			let view = super::library::slice_view(p);
 			Expr::rs("objectCopy", std::iter::once(view).chain(depth).collect())
 		}
-		_ => read(b, p, ty, span),
+		_ => read(b, p, ty, span, out),
 	}
 }
 
@@ -1246,17 +1284,45 @@ pub(super) fn swap<'tcx>(
 	out: &mut Vec<Stmt>,
 ) -> Expr {
 	let (x, y) = (b.spill(x, "x", out), b.spill(y, "y", out));
-	let old = copied_out(b, x.clone(), ty, span);
+	let old = copied_out(b, x.clone(), ty, span, out);
 	let old = b.spill(old, "old", out);
-	let from_y = copied_out(b, y.clone(), ty, span);
-	let into_x = write(b, x, from_y, ty, span);
+	let from_y = copied_out(b, y.clone(), ty, span, out);
+	let into_x = write(b, x, from_y, ty, span, out);
 	out.push(StmtKind::Expr(into_x).at(None));
-	write(b, y, old, ty, span)
+	write(b, y, old, ty, span, out)
 }
 
 /// The write of `value`, a `ty`, where `p` points.
-pub(super) fn write<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, value: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+pub(super) fn write<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	p: Expr,
+	value: Expr,
+	ty: Ty<'tcx>,
+	span: Span,
+	out: &mut Vec<Stmt>,
+) -> Expr {
 	if b.t.zero_sized(ty) {
+		return Expr::undefined();
+	}
+	if b.t.keeps_cells(ty) {
+		if b.t.pointee(ty) == Pointee::Object {
+			write_kept(b, p, value, ty, span, out);
+			return Expr::undefined();
+		}
+		// Memory not written yet, as `ptr::write` may fill, holds no cell to keep.
+		let (p, value) = (b.spill(p, "pointer", out), b.spill(value, "value", out));
+		let mut kept = Vec::new();
+		write_kept(b, p.clone().member("v"), value.clone(), ty, span, &mut kept);
+		let whole = p.clone().member("v").assign(value);
+		let cond = p.member("v").binary("===", Expr::undefined());
+		out.push(
+			StmtKind::If {
+				cond,
+				then: vec![StmtKind::Expr(whole).at(None)],
+				els: kept,
+			}
+			.at(None),
+		);
 		return Expr::undefined();
 	}
 	match b.t.pointee(ty) {
@@ -1264,6 +1330,102 @@ pub(super) fn write<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, value: Expr, ty: 
 		Pointee::Object => Expr::rs("ptrWrite", vec![p, value]),
 		Pointee::Array => b.t.array_rs(ty, "Set").call(vec![p, value]),
 		Pointee::Slice => b.err(span, format!("a write of `{ty}`, which has no size")),
+	}
+}
+
+/// The JS value of the `ty` that `p` points at: a cell's `rs.Cell`, which a pointer to
+/// it is the place of, or the object a pointer to it is.
+fn pointed<'tcx>(b: &Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>) -> Expr {
+	match b.t.pointee(ty) {
+		Pointee::Place => p.member("v"),
+		_ => p,
+	}
+}
+
+/// The write of `value` into `at`, the JS value of a `ty` that keeps cells, in place: a
+/// cell's value written into the cell, as a write through its `get` would be, and a
+/// tuple's or struct's other fields given `value`'s, as is a cell field of one not
+/// written yet.
+fn write_kept<'tcx>(b: &mut Body<'_, '_, 'tcx>, at: Expr, value: Expr, ty: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) {
+	match b.t.kept_cells(ty) {
+		Some(KeptCells::Cell(held)) if b.t.keeps_cells(held) => {
+			write_kept(b, at.member("v"), value.member("v"), held, span, out)
+		}
+		Some(KeptCells::Cell(held)) => {
+			let p = cell_pointer(b, at, held);
+			let write = write(b, p, value.member("v"), held, span, out);
+			out.push(StmtKind::Expr(write).at(None));
+		}
+		Some(KeptCells::Fields(fields)) => {
+			let (at, value) = (b.spill(at, "object", out), b.spill(value, "value", out));
+			let kept: Vec<_> = (fields.iter().enumerate())
+				.filter(|(_, (_, kept))| *kept)
+				.map(|(i, &(field, _))| {
+					let part = object_field(b, at.clone(), ty, i, span);
+					(i, field, b.spill(part, "cell", out))
+				})
+				.collect();
+			out.push(StmtKind::Expr(Expr::rs("ptrWrite", vec![at.clone(), value.clone()])).at(None));
+			for (i, field, cell) in kept {
+				let part = object_field(b, at.clone(), ty, i, span);
+				let mut then = vec![StmtKind::Expr(part.assign(cell.clone())).at(None)];
+				let from = object_field(b, value.clone(), ty, i, span);
+				write_kept(b, cell.clone(), from, field, span, &mut then);
+				let cond = cell.binary("!==", Expr::undefined());
+				out.push(
+					StmtKind::If {
+						cond,
+						then,
+						els: Vec::new(),
+					}
+					.at(None),
+				);
+			}
+		}
+		None => unreachable!("`{ty}` keeps no cells"),
+	}
+}
+
+/// A copy of `at`, the JS value of a `ty` that keeps cells, with a cell of its own for
+/// each it keeps, so a write into those in place leaves the copy be.
+fn copy_kept<'tcx>(b: &mut Body<'_, '_, 'tcx>, at: Expr, ty: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
+	match b.t.kept_cells(ty) {
+		Some(KeptCells::Cell(held)) => {
+			let value = match b.t.keeps_cells(held) {
+				true => copy_kept(b, at.member("v"), held, span, out),
+				false => {
+					let p = cell_pointer(b, at, held);
+					copied_out(b, p, held, span, out)
+				}
+			};
+			Expr::New(Box::new(Expr::Rs("Cell".into())), vec![value])
+		}
+		Some(KeptCells::Fields(fields)) => {
+			let at = b.spill(at, "object", out);
+			let copy = b.spill(Expr::rs("objectCopy", vec![at.clone()]), "copy", out);
+			for (i, &(field, kept)) in fields.iter().enumerate() {
+				if kept {
+					let from = object_field(b, at.clone(), ty, i, span);
+					let cell = copy_kept(b, from, field, span, out);
+					let part = object_field(b, copy.clone(), ty, i, span);
+					out.push(StmtKind::Expr(part.assign(cell)).at(None));
+				}
+			}
+			copy
+		}
+		None => unreachable!("`{ty}` keeps no cells"),
+	}
+}
+
+/// Field `i` of `object`, the JS object of a tuple or a crate's struct `ty`.
+fn object_field<'tcx>(b: &mut Body<'_, '_, 'tcx>, object: Expr, ty: Ty<'tcx>, i: usize, span: Span) -> Expr {
+	match ty.kind() {
+		ty::Tuple(_) => object.index(Expr::lit(i.to_string())),
+		ty::Adt(adt, _) => match b.t.adt(*adt, span).repr {
+			AdtRepr::Struct { fields, .. } => Translator::read_field(object, fields[i]),
+			_ => unreachable!("`{ty}` is a struct"),
+		},
+		_ => unreachable!("`{ty}` is a tuple or a struct"),
 	}
 }
 

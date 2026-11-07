@@ -2823,3 +2823,111 @@ pub fn cell_writes(data: &[u8], out: &mut Vec<u8>) {
 	out.extend([pair.get().0, duo.get().1, owner.into_inner().n, bytes.get()[1]]);
 	out.push(Rc::strong_count(&count) as u8);
 }
+
+/// A struct holding a cell beside a number.
+struct Celled {
+	c: UnsafeCell<u32>,
+	n: u8,
+}
+
+/// Whole writes of values holding cells into a cell, a tuple, and a struct, each read back
+/// through a pointer saved into an inner cell before: `UnsafeCell::replace`, `ptr::replace`,
+/// `ptr::write`, `ptr::swap`, and `Cell`'s writes; a value `ptr::read` copies out before
+/// one; and `ptr::write`s into memory not written yet.
+pub fn nested_cells(data: &[u8], out: &mut Vec<u8>) {
+	let nest = UnsafeCell::new(UnsafeCell::new(1u32));
+	let deep = UnsafeCell::new(UnsafeCell::new(UnsafeCell::new(2u32)));
+	let pair = UnsafeCell::new((UnsafeCell::new(3u32), 4u8));
+	let strukt = UnsafeCell::new(Celled {
+		c: UnsafeCell::new(5),
+		n: 6,
+	});
+	let obj = UnsafeCell::new(UnsafeCell::new((7u8, 8u8)));
+	let cell = Cell::new((UnsafeCell::new(9u32), 10u8));
+	let wrapped = Cell::new(UnsafeCell::new(11u32));
+	unsafe {
+		let to_wrapped = (*wrapped.as_ptr()).get();
+		let to_nest = (*nest.get()).get();
+		let to_deep = (*(*deep.get()).get()).get();
+		let to_pair = (*pair.get()).0.get();
+		let to_strukt = (*strukt.get()).c.get();
+		let to_obj = (*obj.get()).get();
+		let to_cell = (*cell.as_ptr()).0.get();
+		for &op in data {
+			let n = op / 8;
+			match op % 8 {
+				0 => {
+					let old = nest.replace(UnsafeCell::new(u32::from(n)));
+					out.push(old.into_inner() as u8);
+					let old = deep.replace(UnsafeCell::new(UnsafeCell::new(u32::from(n) + 1)));
+					out.push(old.into_inner().into_inner() as u8);
+					let old = pair.replace((UnsafeCell::new(u32::from(n) + 2), n));
+					out.extend([old.0.into_inner() as u8, old.1]);
+					let old = strukt.replace(Celled {
+						c: UnsafeCell::new(u32::from(n) + 3),
+						n,
+					});
+					out.extend([old.c.into_inner() as u8, old.n]);
+					let old = obj.replace(UnsafeCell::new((n, n ^ 1)));
+					out.push(old.into_inner().1);
+				}
+				1 => {
+					let old = ptr::replace(nest.get(), UnsafeCell::new(u32::from(n) ^ 1));
+					out.push(old.into_inner() as u8);
+					let old = ptr::replace(pair.get(), (UnsafeCell::new(u32::from(n) ^ 2), n));
+					out.push(old.0.into_inner() as u8);
+				}
+				2 => {
+					ptr::write(nest.get(), UnsafeCell::new(u32::from(n) ^ 3));
+					ptr::write(
+						strukt.get(),
+						Celled {
+							c: UnsafeCell::new(u32::from(n) ^ 4),
+							n,
+						},
+					);
+				}
+				3 => {
+					let other = UnsafeCell::new(UnsafeCell::new(u32::from(n) ^ 5));
+					ptr::swap(nest.get(), other.get());
+					out.push(other.into_inner().into_inner() as u8);
+					let mut other = Celled {
+						c: UnsafeCell::new(u32::from(n) ^ 12),
+						n: !n,
+					};
+					ptr::swap(strukt.get(), &raw mut other);
+					out.extend([other.c.into_inner() as u8, other.n]);
+				}
+				4 => {
+					let old = cell.replace((UnsafeCell::new(u32::from(n) ^ 6), n));
+					out.push(old.0.into_inner() as u8);
+					cell.set((UnsafeCell::new(u32::from(n) ^ 7), n));
+				}
+				5 => {
+					*to_nest = u32::from(n) * 3;
+					*to_pair = u32::from(n) * 5;
+					let kept = ptr::read(nest.get());
+					ptr::write(nest.get(), UnsafeCell::new(u32::from(n) + 7));
+					out.push(kept.into_inner() as u8);
+				}
+				6 => {
+					let old = wrapped.replace(UnsafeCell::new(u32::from(n) ^ 8));
+					out.push(old.into_inner() as u8);
+					wrapped.set(UnsafeCell::new(u32::from(n) ^ 9));
+					let mut fresh = MaybeUninit::<UnsafeCell<u32>>::uninit();
+					ptr::write(fresh.as_mut_ptr(), UnsafeCell::new(u32::from(n) ^ 10));
+					let mut parts = MaybeUninit::<(UnsafeCell<u32>, u8)>::uninit();
+					ptr::write(parts.as_mut_ptr(), (UnsafeCell::new(u32::from(n) ^ 11), n));
+					out.extend([
+						*fresh.assume_init_ref().get() as u8,
+						*parts.assume_init_ref().0.get() as u8,
+					]);
+				}
+				_ => out.push(n),
+			}
+			out.extend([*to_nest as u8, *to_deep as u8, *to_pair as u8, *to_strukt as u8]);
+			out.extend([(*to_obj).0, (*to_obj).1, *to_cell as u8, *to_wrapped as u8]);
+			out.extend([(*nest.get()).get().read() as u8, (*pair.get()).1, (*strukt.get()).n]);
+		}
+	}
+}

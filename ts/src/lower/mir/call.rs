@@ -340,8 +340,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					return err;
 				}
 				// The cell `get`'s reference or `raw_get`'s pointer points at is judged as each
-				// place a pointer it is made through may have been made of, where every
-				// assignment of that pointer is known.
+				// place a pointer it is made through may have been made of, and as what it
+				// points at where not every assignment of that pointer is known.
 				let raw_get = library::key(tcx, def_id).is_some_and(|(o, n)| o == "UnsafeCell" && n == "raw_get");
 				let pointees = |p: Place<'tcx>| {
 					let local = p.as_local();
@@ -355,9 +355,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						_ => None,
 					};
 					let pointer = if raw_get { local } else { local.and_then(reborrowed) };
-					pointer
-						.and_then(|l| self.raw_origins(l, &mut Vec::new()))
-						.unwrap_or_else(|| vec![tcx.mk_place_deref(p)])
+					let mut origins = Vec::new();
+					if !pointer.is_some_and(|l| self.raw_origins(l, &mut Vec::new(), &mut origins)) {
+						origins.push(tcx.mk_place_deref(p));
+					}
+					origins
 				};
 				if (raw_get || crate::lower::pointer::from_reference(tcx, def_id, gargs))
 					&& let Some(why) = args[0].node.place().and_then(|p| {
@@ -1427,22 +1429,23 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		Some(borrowed)
 	}
 
-	/// The places the raw pointer `local` may have been made of, by `&raw` or a reference,
-	/// through copies and casts, or `None` if any assignment of it is something else.
+	/// Pushes to `origins` the places the raw pointer `local` may have been made of, by
+	/// `&raw` or a reference, through copies and casts, and returns whether those are all
+	/// of them, which they are not if it is a parameter, is written through, or any
+	/// assignment of it is something else.
 	fn raw_origins(
 		&self,
 		local: rustc_middle::mir::Local,
 		seen: &mut Vec<rustc_middle::mir::Local>,
-	) -> Option<Vec<Place<'tcx>>> {
+		origins: &mut Vec<Place<'tcx>>,
+	) -> bool {
 		use rustc_middle::mir::{Rvalue, StatementKind};
 		if seen.contains(&local) {
-			return Some(Vec::new());
+			return true;
 		}
 		seen.push(local);
-		if (1..=self.mir.arg_count).contains(&local.as_usize()) || self.mutated[local] {
-			return None;
-		}
-		let (mut found, mut origins) = (0, Vec::new());
+		let mut known = !(1..=self.mir.arg_count).contains(&local.as_usize()) && !self.mutated[local];
+		let mut found = 0;
 		for (bb, data) in self.mir.basic_blocks.iter_enumerated() {
 			for (i, stmt) in data.statements.iter().enumerate() {
 				let StatementKind::Assign(assign) = &stmt.kind else {
@@ -1456,17 +1459,20 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					continue;
 				}
 				found += 1;
-				match rvalue {
-					Rvalue::RawPtr(_, made) | Rvalue::Ref(_, _, made) => origins.push(*made),
-					Rvalue::Use(Operand::Copy(from) | Operand::Move(from), _)
-					| Rvalue::Cast(_, Operand::Copy(from) | Operand::Move(from), _) => {
-						origins.extend(self.raw_origins(from.as_local()?, seen)?)
+				known &= match rvalue {
+					Rvalue::RawPtr(_, made) | Rvalue::Ref(_, _, made) => {
+						origins.push(*made);
+						true
 					}
-					_ => return None,
-				}
+					Rvalue::Use(Operand::Copy(from) | Operand::Move(from), _)
+					| Rvalue::Cast(_, Operand::Copy(from) | Operand::Move(from), _) => from
+						.as_local()
+						.is_some_and(|from| self.raw_origins(from, seen, origins)),
+					_ => false,
+				};
 			}
 		}
-		(found == self.defs[local]).then_some(origins)
+		known && found == self.defs[local]
 	}
 
 	/// `slice::from_mut`, `array::from_mut`, or `from_mut` of `owner`, `Cell` or

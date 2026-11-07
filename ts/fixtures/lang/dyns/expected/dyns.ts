@@ -2208,7 +2208,13 @@ export function rests(dataData: Uint8Array, dataStart: number, dataLen: number, 
 		const thin: rs.Place<rs.Cell<rs.u32>> = rs.place(() => slot, (value22) => slot = value22);
 		const wide: rs.Place<rs.Cell<Shape.Shape>> = rs.rawUnsizePlace(thin, (p12) => rs.tailDyn(p12, { v: (value23: rs.Cell<rs.u32>) => new ofPlace$u32(value23) }));
 		const null_: boolean = wide === rs.NULL;
-		thin.v = new rs.Cell(a as rs.u32);
+		const pointer = thin;
+		const value24 = new rs.Cell(a as rs.u32);
+		if (pointer.v === undefined) {
+			pointer.v = value24;
+		} else {
+			pointer.v.v = value24.v;
+		}
 		wide.v.v.grow$Shape(b);
 		const area5: rs.u32 = wide.v.v.area$Shape();
 		const _677: rs.u32 = slot.v;

@@ -66,10 +66,10 @@ pub fn cell_pointer_reassigned(n: u32) -> u32 {
 	unsafe { *p }
 }
 
-/// Pointers `UnsafeCell::raw_get` makes of a raw pointer to a cell, and of one to either
-/// of two, and `get` through the first, read after the variable holding the cell is given
-/// another.
-pub fn cell_raw_reassigned(n: u32) -> u32 {
+/// Pointers `UnsafeCell::raw_get` makes of a raw pointer to a cell, of one to either of
+/// two, and of one to it or else null or a parameter, and `get` through the first, read
+/// after the variable holding the cell is given another.
+pub fn cell_raw_reassigned(n: u32, given: *const std::cell::UnsafeCell<u32>) -> u32 {
 	let mut c = std::cell::UnsafeCell::new(n);
 	let d = std::cell::UnsafeCell::new(n ^ 2);
 	let to = &raw const c;
@@ -77,9 +77,13 @@ pub fn cell_raw_reassigned(n: u32) -> u32 {
 	let either = if n > 3 { &raw const c } else { &raw const d };
 	let q = unsafe { std::cell::UnsafeCell::raw_get(either) };
 	let r = unsafe { (*to).get() };
+	let or_null = if n > 5 { &raw const c } else { std::ptr::null() };
+	let s = unsafe { std::cell::UnsafeCell::raw_get(or_null) };
+	let or_given = if n > 7 { &raw const c } else { given };
+	let t = unsafe { std::cell::UnsafeCell::raw_get(or_given) };
 	c = std::cell::UnsafeCell::new(n ^ 1);
 	let _ = (&c, &d);
-	unsafe { *p ^ *q ^ *r }
+	unsafe { *p ^ *q ^ *r ^ *s ^ *t }
 }
 
 /// A `get_mut` and an `as_mut_unchecked` of a cell of a pinned `Box`, whose old value

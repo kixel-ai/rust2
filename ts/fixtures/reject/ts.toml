@@ -55,8 +55,6 @@ roots = [
     "kept::kept_object",
     "kept::kept_read",
     "kept::kept_replaced",
-    "kept::kept_swapped",
-    "kept::kept_written",
     "kept::key_replaced",
     "kept::key_set",
     "kept::key_taken",
