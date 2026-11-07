@@ -718,6 +718,50 @@ impl<'x, 'a, 'tcx> Trace<'x, 'a, 'tcx> {
 		false
 	}
 
+	/// Whether a value of `ty` could hold a raw pointer, which names no region of the
+	/// reference it was made from: in a field, behind a reference, in a std type's type
+	/// argument or one of std's own that holds a pointer its safe API gives back, in a type
+	/// parameter's value, or in a trait object's.
+	pub fn hides_raw_pointer(&self, ty: Ty<'tcx>) -> bool {
+		let tcx = self.t.tcx;
+		let mut seen = FxHashSet::default();
+		let mut stack = vec![ty];
+		while let Some(ty) = stack.pop() {
+			if !seen.insert(ty) {
+				continue;
+			}
+			match ty.kind() {
+				ty::Bool
+				| ty::Char
+				| ty::Int(_)
+				| ty::Uint(_)
+				| ty::Float(_)
+				| ty::Str
+				| ty::Never
+				| ty::FnDef(..)
+				| ty::FnPtr(..) => {}
+				ty::Ref(_, inner, _) | ty::Array(inner, _) | ty::Slice(inner) | ty::Pat(inner, _) => stack.push(*inner),
+				ty::Tuple(tys) => stack.extend(tys.iter()),
+				ty::Closure(_, args) => stack.extend(args.as_closure().upvar_tys()),
+				ty::Adt(adt, args) if crate::lower::library::is_std(tcx, adt.did()) => {
+					let path = crate::lower::library::std_path(tcx, adt.did());
+					if matches!(
+						path.last().map(String::as_str),
+						Some("NonNull" | "AtomicPtr" | "RawWaker")
+					) {
+						return true;
+					}
+					stack.extend(args.types());
+				}
+				ty::Adt(adt, args) => {
+					stack.extend(adt.all_fields().map(|field| field_ty(tcx, self.env, field.did, args)))
+				}
+				_ => return true,
+			}
+		}
+		false
+	}
+
 	/// Whether a value of `ty` could hold a pointer or a reference, in any field of any
 	/// type, and with `params`, in a type parameter's value.
 	fn holds_pointer(&self, ty: Ty<'tcx>, params: bool) -> bool {

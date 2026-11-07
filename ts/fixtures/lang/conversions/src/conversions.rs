@@ -817,10 +817,20 @@ fn read_add(b: &mut u8, by: u8, out: &mut Vec<u8>) {
 	s[0] = s[0].wrapping_add(by);
 }
 
+/// A raw pointer to the first byte of `s`, which names none of its regions.
+fn first(s: &mut [u8]) -> *mut u8 {
+	s.as_mut_ptr()
+}
+
+/// Puts a raw pointer to the first byte of `s` where `into` points.
+fn stash(s: &mut [u8], into: &mut Option<*mut u8>) {
+	*into = Some(s.as_mut_ptr());
+}
+
 /// Slices of one byte where it is, each read and written, and the byte read where it is
 /// after: in a field, a tuple's, an array's, an `Option`'s, a `MaybeUninit`'s, a variable,
-/// through a parameter and a `&mut` to a `&mut`, kept in a closure, a `Vec`, and a copy,
-/// swapped, and made again in a loop with the byte written between.
+/// through a parameter and a `&mut` to a `&mut`, kept in a closure, a `Vec`, a copy, and
+/// a raw pointer, swapped, and made again in a loop with the byte written between.
 pub fn byte_places(_kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let at = |i: usize| data.get(i).copied().unwrap_or(i as u8);
 	let mut h = Header {
@@ -900,5 +910,17 @@ pub fn byte_places(_kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	read_add(*&mut r, at(21), out);
 	fill_one(r, at(22));
 	out.push(b);
+	h.put(out);
+	// Written through a raw pointer made of one, returned and stashed.
+	let p = first(std::slice::from_mut(&mut h.tag));
+	// SAFETY: `p` points at `h.tag`, which nothing else uses until it is read below.
+	unsafe { *p = p.read().wrapping_add(at(23)) };
+	out.push(h.tag);
+	let mut into = None;
+	stash(std::slice::from_mut(&mut h.pair.0), &mut into);
+	if let Some(p) = into {
+		// SAFETY: as above, for `h.pair.0`.
+		unsafe { *p ^= at(24) };
+	}
 	h.put(out);
 }

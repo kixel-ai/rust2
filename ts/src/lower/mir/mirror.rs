@@ -106,16 +106,19 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				continue;
 			};
 			// What may still hold the slice an earlier run of the call made, which the one
-			// variable can't keep apart from this run's.
-			let live = live.get_or_insert_with(|| {
-				MaybeLiveLocals
-					.iterate_to_fixpoint(self.tcx, mir, None)
-					.into_results_cursor(mir)
-			});
-			live.seek_after_primary_effect(site);
-			if held.iter().any(|h| live.get().contains(h)) {
-				mirrors.made.insert(bb, Made::Refused(AGAIN));
-				continue;
+			// variable can't keep apart from this run's. Only a call in a loop runs again
+			// with this body's variables.
+			if self.in_loop(bb) {
+				let live = live.get_or_insert_with(|| {
+					MaybeLiveLocals
+						.iterate_to_fixpoint(self.tcx, mir, None)
+						.into_results_cursor(mir)
+				});
+				live.seek_after_primary_effect(site);
+				if held.iter().any(|h| live.get().contains(h)) {
+					mirrors.made.insert(bb, Made::Refused(AGAIN));
+					continue;
+				}
 			}
 			let (mut after, mut entry) = (Vec::new(), Vec::new());
 			for (block, data) in mir.basic_blocks.iter_enumerated() {
@@ -315,7 +318,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						if given.is_empty() && !func.place().is_some_and(|p| held.contains(p.local)) {
 							continue;
 						}
-						let (result, receivers) = self.call_keeps(func, args.len(), &given);
+						let (result, receivers) =
+							self.call_keeps(func, args.len(), &given, |ty| trace.hides_raw_pointer(ty));
 						if result {
 							grew |= keep(&mut held, *destination, false)?;
 						}
@@ -366,14 +370,38 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		None
 	}
 
+	/// Whether block `bb` may run again after it runs, past cleanup blocks, which abort.
+	fn in_loop(&self, bb: BasicBlock) -> bool {
+		let blocks = &self.mir.basic_blocks;
+		let mut seen = DenseBitSet::new_empty(blocks.len());
+		let mut stack: Vec<_> = blocks[bb].terminator().successors().collect();
+		while let Some(block) = stack.pop() {
+			if block == bb {
+				return true;
+			}
+			if !blocks[block].is_cleanup && seen.insert(block) {
+				stack.extend(blocks[block].terminator().successors());
+			}
+		}
+		false
+	}
+
 	/// Whether a call of `func`, given what may hold a slice in each argument at `given`, may
 	/// put it in its result, and the arguments whose memory it may put it in, as its
 	/// signature lets borrow checking allow. A region the function's own signature binds,
 	/// a late-bound one, is apart from every other: the slice reaches only a result or an
 	/// argument whose type names one of the regions of an argument holding it. A region
 	/// or a type the caller picks may be shared with any other, so then any argument may
-	/// take it, and the result may hold it.
-	fn call_keeps(&self, func: &Operand<'tcx>, n: usize, given: &[usize]) -> (bool, Vec<usize>) {
+	/// take it, and the result may hold it. A raw pointer made from the slice names no
+	/// region at all, so a result `hides` says could hold one may hold it too, and an
+	/// argument pointing at memory that could may take it.
+	fn call_keeps(
+		&self,
+		func: &Operand<'tcx>,
+		n: usize,
+		given: &[usize],
+		hides: impl Fn(Ty<'tcx>) -> bool,
+	) -> (bool, Vec<usize>) {
 		let tcx = self.tcx;
 		let everything = (true, (0..n).filter(|j| !given.contains(j)).collect());
 		let ty::FnDef(def_id, _) = *func.ty(&self.mir.local_decls, tcx).kind() else {
@@ -406,9 +434,15 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			})
 		};
 		let receivers = (0..n)
-			.filter(|j| !given.contains(j) && sig.inputs().get(*j).is_none_or(|&t| names(t)))
+			.filter(|j| {
+				!given.contains(j)
+					&& sig
+						.inputs()
+						.get(*j)
+						.is_none_or(|&t| names(t) || t.builtin_deref(true).is_some_and(&hides))
+			})
 			.collect();
-		(names(sig.output()), receivers)
+		(names(sig.output()) || hides(sig.output()), receivers)
 	}
 
 	/// The slice of the byte at `p`, an `rs.Place`, that the call ending the block being
