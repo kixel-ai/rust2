@@ -221,6 +221,9 @@ export function ptrUnerase(p: Place<undefined>, type: string, align: number): un
  */
 export type Ptr<T> = T | Place<T> | ByteSlice | (T extends readonly (infer E)[] ? Slice<E> : never);
 
+/** A generic union whose layout only an instance decides: its slots, each read cast to its part's type. */
+export type Slots = { [slot: string]: unknown };
+
 /** A generic type's `[T; N]`: the array, or the `Uint8Array` of a `[u8; N]`. */
 export type ArrayOf<T> = T[] | Uint8Array;
 

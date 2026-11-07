@@ -698,10 +698,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			},
 			AggregateKind::Adt(def_id, variant, args, _, active) => {
 				if let Some(active) = active {
-					let ty::Adt(adt, _) = ty.kind() else {
-						unreachable!("a union")
-					};
-					let parts = self.b.t.union_field(*adt, active.as_usize(), span);
+					let parts = self.b.t.union_field(self.tcx.adt_def(*def_id), args, active.as_usize(), span);
 					let field_ty = ops[FieldIdx::ZERO].ty(&self.mir.local_decls, self.tcx);
 					let value = values.pop().expect("a union's field");
 					let value = match parts.len() {
@@ -900,7 +897,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let ts_ty = self.b.t.ty(ty, span);
 				Expr::As(Box::new(Expr::Str(def.name.to_string())), ts_ty)
 			}
-			AdtRepr::Slots(_) => unreachable!("a union is made by its field"),
+			AdtRepr::Slots { .. } => unreachable!("a union is made by its field"),
 			AdtRepr::Union => {
 				let mut props = vec![(Key::Name("tag".into()), Expr::Str(def.name.to_string()))];
 				for (i, value) in values.into_iter().enumerate() {

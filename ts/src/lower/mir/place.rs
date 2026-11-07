@@ -203,11 +203,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			in_slice = in_slice || ty.is_slice();
 			match elem {
 				ProjectionElem::Field(field, field_ty)
-					if let ty::Adt(adt, _) = ty.kind()
+					if let ty::Adt(adt, args) = ty.kind()
 						&& adt.is_union() =>
 				{
-					let (parts, n, part_ty) =
-						self.union_part(*adt, field.as_usize(), field_ty, &place.projection[read + 1..], span);
+					let rest = &place.projection[read + 1..];
+					let (parts, n, part_ty) = self.union_part(*adt, args, field.as_usize(), field_ty, rest, span);
 					consumed = n;
 					e = self.b.t.of_slots(e, part_ty, &parts, span);
 				}
@@ -362,12 +362,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	pub(super) fn union_part(
 		&mut self,
 		adt: ty::AdtDef<'tcx>,
+		args: ty::GenericArgsRef<'tcx>,
 		field: usize,
 		field_ty: Ty<'tcx>,
 		rest: &[ProjectionElem<Local, Ty<'tcx>>],
 		span: Span,
 	) -> (Vec<crate::lower::unions::Part>, usize, Ty<'tcx>) {
-		let mut parts = self.b.t.union_field(adt, field, span);
+		let mut parts = self.b.t.union_field(adt, args, field, span);
 		let (mut n, mut ty) = (0, field_ty);
 		while !crate::lower::unions::whole(&parts)
 			&& let Some(ProjectionElem::Field(inner, inner_ty)) = rest.get(n)
@@ -390,14 +391,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			let ProjectionElem::Field(field, field_ty) = elem else {
 				continue;
 			};
-			let ty::Adt(adt, _) = base.ty(&self.mir.local_decls, tcx).ty.kind() else {
+			let ty::Adt(adt, args) = base.ty(&self.mir.local_decls, tcx).ty.kind() else {
 				continue;
 			};
 			if !adt.is_union() {
 				continue;
 			}
 			let rest = &place.projection[i + 1..];
-			let (parts, n, _) = self.union_part(*adt, field.as_usize(), field_ty, rest, span);
+			let (parts, n, _) = self.union_part(*adt, args, field.as_usize(), field_ty, rest, span);
 			let whole = crate::lower::unions::whole(&parts);
 			return (n == rest.len() && !whole).then(|| (base.to_place(tcx), parts));
 		}
@@ -696,7 +697,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 								Translator::read_field(base, parts)
 							}
 						},
-						AdtRepr::Slots(_) => {
+						AdtRepr::Slots { .. } => {
 							return self.err(span, format!("a field of union `{ty}` read apart from its place"));
 						}
 						AdtRepr::Union | AdtRepr::Tags => {
@@ -1274,7 +1275,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						match info.repr {
 							AdtRepr::Tags => scrut.clone().binary("===", name),
 							AdtRepr::Union => scrut.clone().member("tag").binary("===", name),
-							AdtRepr::Struct { .. } | AdtRepr::Slots(_) => self.err(span, format!("a switch on `{ty}`")),
+							AdtRepr::Struct { .. } | AdtRepr::Slots { .. } => self.err(span, format!("a switch on `{ty}`")),
 						}
 					}
 					Some(Std::ControlFlow) => super::call::control_flow_test(self, scrut, ty, index, next),

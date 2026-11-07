@@ -276,7 +276,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 							.collect();
 						self.construct(info.sym, &ctor, &fields, values)
 					}
-					AdtRepr::Slots(_) => Expr::Object(Vec::new()),
+					AdtRepr::Slots { .. } => Expr::Object(Vec::new()),
 					_ => unreachable!("only a struct or union is an object a pointer points at"),
 				}
 			}

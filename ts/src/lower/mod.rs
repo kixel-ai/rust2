@@ -195,6 +195,8 @@ pub struct Translator<'a, 'tcx> {
 	instances: rustc_data_structures::fx::FxHashMap<Instance<'tcx>, SymId>,
 	queue: VecDeque<(Instance<'tcx>, SymId)>,
 	adts: rustc_data_structures::fx::FxHashMap<DefId, Adt>,
+	/// Each union instance's slots, by its type.
+	overlays: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, unions::Overlay<'tcx>>,
 	/// The fields of generic types whose definition types a form only an instance decides,
 	/// such as an `rs.Ptr` or an `rs.VecOf`, which an instance's read casts to what it
 	/// holds, with that type where a function type or a type argument in it takes one,
@@ -346,8 +348,10 @@ pub enum AdtRepr {
 	Tags,
 	/// An enum: an object per variant, tagged by its name.
 	Union,
-	/// A union: an object of slots, and each field's parts in them, as `unions` has it.
-	Slots(unions::Fields),
+	/// A union: an object of slots, and each field's parts in them, as `unions` lays each
+	/// instance out. `typed` is whether its definition types its slots, as every instance
+	/// lays them out alike.
+	Slots { typed: bool },
 }
 
 /// The JS fields of a struct's field.
@@ -498,6 +502,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			instances: Default::default(),
 			queue: VecDeque::new(),
 			adts: Default::default(),
+			overlays: Default::default(),
 			instanced_fields: Default::default(),
 			sources: Default::default(),
 			failed: false,
@@ -1126,7 +1131,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	fn define(&mut self, adt: AdtDef<'tcx>, span: Span) -> Adt {
 		let tcx = self.tcx;
 		let did = adt.did();
-		let mut overlay = Vec::new();
+		let mut overlay = None;
 		let repr = match () {
 			_ if adt.is_struct() => {
 				let variant = adt.non_enum_variant();
@@ -1142,16 +1147,27 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			}
 			_ if adt.is_enum() && adt.variants().iter().all(|v| v.fields.is_empty()) => AdtRepr::Tags,
 			_ if adt.is_enum() => AdtRepr::Union,
-			_ => match self.overlay(adt, span) {
-				Ok((fields, slots)) => {
-					overlay = slots;
-					AdtRepr::Slots(fields)
+			// A union whose layout or overlap only an instance decides is laid out by each.
+			_ => {
+				let env = TypingEnv::post_analysis(tcx, did);
+				let identity = ty::GenericArgs::identity_for_item(tcx, did);
+				match self.overlay(env, adt, identity, true) {
+					Ok((_, slots)) => {
+						overlay = Some(slots);
+						AdtRepr::Slots { typed: true }
+					}
+					Err(_) if tcx.generics_of(did).requires_monomorphization(tcx) => AdtRepr::Slots { typed: false },
+					// Refused once: its only instance is laid out as refused.
+					Err(msg) => {
+						self.err(span, msg);
+						let ty = tcx.erase_and_anonymize_regions(Ty::new_adt(tcx, adt, identity));
+						let fields = vec![Vec::new(); adt.non_enum_variant().fields.len()];
+						self.overlays.insert(ty, (fields, Vec::new()));
+						overlay = Some(Vec::new());
+						AdtRepr::Slots { typed: true }
+					}
 				}
-				Err(msg) => {
-					self.err(span, msg);
-					AdtRepr::Slots(vec![Vec::new(); adt.non_enum_variant().fields.len()])
-				}
-			},
+			}
 		};
 		let kind = match repr {
 			AdtRepr::Struct { .. } => SymKind::Struct,
@@ -1261,10 +1277,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				},
 				doc: self.doc(did),
 			},
-			AdtRepr::Slots(_) => Item::Union {
+			AdtRepr::Slots { .. } => Item::Union {
 				sym,
 				params,
-				ty: self.overlay_ty(overlay, span),
+				ty: match overlay.take() {
+					Some(slots) => self.overlay_ty(slots, span),
+					None => Type::Rs("Slots", Vec::new()),
+				},
 				doc: self.doc(did),
 			},
 			AdtRepr::Union => {
