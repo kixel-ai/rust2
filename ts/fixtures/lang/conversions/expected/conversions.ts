@@ -2,11 +2,13 @@
 
 import * as rs from "./rs.ts";
 import { copy$array_Option_u16, copy$array_array0_u8, copy$array_array1_u8, copy$array_array2_u32, copy$array_array3_u8, copy$array_array40_u8, copy$array_u32, copy$array_u64, copy$array_u8, copy$conversions_Logged, copy$conversions_Named, drop$tuple2_conversions_Logged_u8 } from "./lib.ts";
+import * as Cursor from "./conversions.Cursor.ts";
+import * as Header from "./conversions.Header.ts";
 import * as Held from "./conversions.Held.ts";
 import * as Kept from "./conversions.Kept.ts";
 import * as Logged from "./conversions.Logged.ts";
 import * as Named from "./conversions.Named.ts";
-import { thenSome$1gvhopg } from "./core/bool.ts";
+import { thenSome$1gvhopg, then$1ldvmdq } from "./core/bool.ts";
 import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, mapOr$14runhi as option_mapOr$14runhi, clone$0wpatp7 as option_clone$0wpatp7, clone$13oewp0 as option_clone$13oewp0, clone$0xr8mw0 as option_clone$0xr8mw0, clone$17fv6u9 as option_clone$17fv6u9, clone$0fp7wpk as option_clone$0fp7wpk, clone$1lfse5o as option_clone$1lfse5o, clone$08wmfj8 as option_clone$08wmfj8, clone$1aebjgp as option_clone$1aebjgp } from "./core/option.ts";
 
 /** The byte at `at`, past `data`'s end its index. */
@@ -8121,6 +8123,216 @@ export function readStr$ref_mut_String(s: rs.String, out: rs.ByteVec): void {
 export function readStr$ref_str(s: string, out: rs.ByteVec): void {
 	rs.byteVecPush(out, rs.stringLen(s) & 0xff);
 	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(s));
+}
+
+/** Writes `value` through a slice of one of whatever byte `b` points at. */
+export function fillOne(b: rs.Place<rs.u8>, value: rs.u8): void {
+	let one!: rs.ByteMirror | undefined;
+	rs.byteSliceFill((one = rs.byteMirror(b)).s, value);
+	rs.byteMirrorFlush(one);
+}
+
+/** Pushes the byte a slice of one of `b` reads, then adds `by` through it. */
+export function readAdd(b: rs.Place<rs.u8>, by: rs.u8, out: rs.ByteVec): void {
+	let one!: rs.ByteMirror | undefined;
+	const s: rs.ByteSlice = (one = rs.byteMirror(b)).s;
+	rs.byteVecPush(out, s.data[s.start]);
+	const _9: rs.u8 = rs.u8WrappingAdd(s.data[s.start], by);
+	s.data[s.start] = _9;
+	rs.byteMirrorFlush(one);
+}
+
+/**
+ * Slices of one byte where it is, each read and written, and the byte read where it is
+ * after: in a field, a tuple's, an array's, an `Option`'s, a `MaybeUninit`'s, a variable,
+ * through a parameter and a `&mut` to a `&mut`, kept in a closure, a `Vec`, and a copy,
+ * swapped, and made again in a loop with the byte written between.
+ */
+export function bytePlaces(_kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	let _207!: rs.u8;
+	let one!: rs.ByteMirror | undefined;
+	let one10!: rs.ByteMirror | undefined;
+	let one11!: rs.ByteMirror | undefined;
+	let one12!: rs.ByteMirror | undefined;
+	let one13!: rs.ByteMirror | undefined;
+	let one14!: rs.ByteMirror | undefined;
+	let one2!: rs.ByteMirror | undefined;
+	let one3!: rs.ByteMirror | undefined;
+	let one4!: rs.ByteMirror | undefined;
+	let one5!: rs.ByteMirror | undefined;
+	let one6!: rs.ByteMirror | undefined;
+	let one7!: rs.ByteMirror | undefined;
+	let one8!: rs.ByteMirror | undefined;
+	let one9!: rs.ByteMirror | undefined;
+	const at: (a0: rs.usize) => rs.u8 = (i2: rs.usize): rs.u8 => {
+		return option_unwrapOr$1fr498u(rs.byteSliceGet(data, i2), i2 & 0xff);
+	};
+	const h: Header.Header = { tag: at(0), pair: [at(1), at(2)] as [rs.u8, rs.u8], bytes: Uint8Array.of(at(3), at(4)), payload: then$1ldvmdq(rs.u8Rem(at(5), 3) !== 0, (): rs.u8 => {
+		return at(6);
+	}), uninit: (0 as unknown) as rs.u8 };
+	const cursor: Cursor.Cursor = { dataData: data.data, dataStart: data.start, dataLen: data.length };
+	const borrowed = h;
+	const _38: rs.ByteSlice = (one = rs.byteMirror(rs.place(() => borrowed.tag, (value) => borrowed.tag = value))).s;
+	const _36: boolean = Cursor.readExact(cursor, _38);
+	rs.byteMirrorFlush(one);
+	rs.byteVecPush(out, _36 ? 1 : 0);
+	const borrowed2 = h.pair;
+	const _44: rs.ByteSlice = (one2 = rs.byteMirror(rs.place(() => borrowed2[1], (value2) => borrowed2[1] = value2))).s;
+	const _42: boolean = Cursor.readExact(cursor, _44);
+	rs.byteMirrorFlush(one2);
+	rs.byteVecPush(out, _42 ? 1 : 0);
+	rs.byteVecPush(out, Cursor.readExact(cursor, new rs.ByteSlice(h.bytes, 1, 1)) ? 1 : 0);
+	Header.put(h, out);
+	const borrowed3 = h;
+	const s: rs.ByteSlice = h.payload === undefined ? rs.byteSliceFrom(new Uint8Array(0)) : (one3 = rs.byteMirror(rs.place(() => borrowed3.payload as rs.u8, (value3) => borrowed3.payload = value3))).s;
+	rs.byteVecPush(out, s.length & 0xff);
+	rs.byteSliceFill(s, at(7));
+	rs.byteMirrorFlush(one3);
+	const _69: rs.u8 = at(8);
+	Header.bump(h, _69);
+	Header.put(h, out);
+	const borrowed4 = h;
+	const s2: rs.ByteSlice = (one4 = rs.byteMirror(rs.place(() => borrowed4.tag, (value4) => borrowed4.tag = value4))).s;
+	rs.idx(s2, 0);
+	s2.data[s2.start] = s2.data[s2.start] ^ 85;
+	rs.byteMirrorFlush(one4);
+	const t: rs.ByteSlice = rs.byteSliceRange(s2, 0);
+	rs.byteMirrorFlush(one4);
+	rs.idx(t, 0);
+	const _81: rs.u8 = rs.intRotateLeft(t.data[t.start], 1, 8, false);
+	rs.idx(t, 0);
+	t.data[t.start] = _81;
+	rs.byteMirrorFlush(one4);
+	const _91: rs.u8 = at(9);
+	const borrowed5 = h.pair;
+	const _94: rs.ByteSlice = (one5 = rs.byteMirror(rs.place(() => borrowed5[0], (value5) => borrowed5[0] = value5))).s;
+	_94.data.set(Uint8Array.of(_91), _94.start);
+	rs.byteMirrorFlush(one5);
+	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(h.tag, h.pair[0])), undefined, true);
+	const borrowed6 = h.pair;
+	const _102: rs.ByteSlice = (one6 = rs.byteMirror(rs.place(() => borrowed6[0], (value6) => borrowed6[0] = value6))).s;
+	rs.idx(_102, 0);
+	const borrowed7 = h.pair;
+	const _109: rs.ByteSlice = (one7 = rs.byteMirror(rs.place(() => borrowed7[1], (value7) => borrowed7[1] = value7))).s;
+	rs.idx(_109, 0);
+	const swapped = _102.data[_102.start];
+	_102.data[_102.start] = _109.data[_109.start];
+	_109.data[_109.start] = swapped;
+	rs.byteMirrorFlush(one6);
+	rs.byteMirrorFlush(one7);
+	const borrowed8 = h;
+	rs.byteSliceCopyFromSlice((one8 = rs.byteMirror(rs.place(() => borrowed8.tag, (value8) => borrowed8.tag = value8))).s, rs.byteSliceFrom(Uint8Array.of(at(10))));
+	rs.byteMirrorFlush(one8);
+	Header.put(h, out);
+	const borrowed9 = h;
+	const s3: rs.ByteSlice = (one9 = rs.byteMirror(rs.place(() => borrowed9.tag, (value9) => borrowed9.tag = value9))).s;
+	const set: (a0: rs.u8) => undefined = (v2: rs.u8): undefined => {
+		rs.idx(s3, 0);
+		const _33: rs.u8 = rs.u8WrappingMul(s3.data[s3.start], 3);
+		rs.idx(s3, 0);
+		s3.data[s3.start] = _33 ^ v2;
+	};
+	const part = at(11);
+	set(part);
+	rs.byteMirrorFlush(one9);
+	const part2 = at(12);
+	set(part2);
+	rs.byteMirrorFlush(one9);
+	rs.byteVecPush(out, h.tag);
+	const borrowed10 = h.pair;
+	const _145: rs.ByteSlice = (one10 = rs.byteMirror(rs.place(() => borrowed10[0], (value10) => borrowed10[0] = value10))).s;
+	const borrowed11 = h.pair;
+	const v: rs.Vec<rs.ByteSlice> = rs.vecFrom([_145, (one11 = rs.byteMirror(rs.place(() => borrowed11[1], (value11) => borrowed11[1] = value11))).s]);
+	rs.byteMirrorFlush(one10);
+	rs.byteMirrorFlush(one11);
+	const _149: rs.Iter<rs.Place<rs.ByteSlice>> = rs.iterSliceMut(rs.sliceFrom(v.items));
+	rs.byteMirrorFlush(one10);
+	rs.byteMirrorFlush(one11);
+	const iter: rs.Iter<rs.Place<rs.ByteSlice>> = _149;
+	while (true) {
+		const _152: rs.Place<rs.ByteSlice> | rs.Done = iter.next();
+		rs.byteMirrorFlush(one10);
+		rs.byteMirrorFlush(one11);
+		if (_152 === rs.DONE) {
+			break;
+		}
+		rs.idx(_152.v, 0);
+		const _273: rs.ByteSlice = _152.v;
+		const _156: rs.u8 = rs.u8WrappingAdd(_273.data[_273.start], at(13));
+		rs.idx(_152.v, 0);
+		const _275: rs.ByteSlice = _152.v;
+		_275.data[_275.start] = _156;
+		rs.byteMirrorFlush(one10);
+		rs.byteMirrorFlush(one11);
+	}
+	const _170: rs.Slice<rs.ByteSlice> = rs.sliceFrom(v.items);
+	rs.byteMirrorFlush(one10);
+	rs.byteMirrorFlush(one11);
+	rs.sliceSwap(_170, 0, 1);
+	rs.byteMirrorFlush(one10);
+	rs.byteMirrorFlush(one11);
+	const at2 = rs.idx(v.items, 0);
+	rs.byteMirrorFlush(one10);
+	rs.byteMirrorFlush(one11);
+	rs.idx(v.items[at2], 0);
+	const _277: rs.ByteSlice = v.items[at2];
+	const _278: rs.ByteSlice = v.items[at2];
+	_277.data[_277.start] = _278.data[_278.start] ^ 1;
+	rs.byteMirrorFlush(one10);
+	rs.byteMirrorFlush(one11);
+	rs.byteMirrorFlush(one10);
+	rs.byteMirrorFlush(one11);
+	Header.put(h, out);
+	const borrowed12 = h;
+	const s4: rs.ByteSlice = (one12 = rs.byteMirror(rs.place(() => borrowed12.tag, (value12) => borrowed12.tag = value12))).s;
+	rs.idx(s4, 0);
+	const _184: rs.u8 = rs.u8WrappingAdd(s4.data[s4.start], 1);
+	rs.idx(s4, 0);
+	s4.data[s4.start] = _184;
+	rs.byteMirrorFlush(one12);
+	const copy: rs.ByteVec = rs.byteSliceToByteVec(s4);
+	rs.byteMirrorFlush(one12);
+	const _196: rs.u8 = at(14);
+	h.tag = _196;
+	const _200: rs.ByteSlice = rs.byteVecSlice(copy);
+	rs.byteMirrorFlush(one12);
+	rs.byteVecExtendFromSlice(out, _200);
+	rs.byteMirrorFlush(one12);
+	rs.byteVecPush(out, h.tag);
+	let iterStart: rs.u8 = 0;
+	const iterEnd: rs.u8 = 3;
+	while ((_207 = iterStart++) < iterEnd) {
+		const i: rs.u8 = _207;
+		const borrowed13 = h;
+		const _213: rs.ByteSlice = (one13 = rs.byteMirror(rs.place(() => borrowed13.tag, (value13) => borrowed13.tag = value13))).s;
+		Cursor.readExact(cursor, _213);
+		rs.byteMirrorFlush(one13);
+		const _215: rs.u8 = rs.u8WrappingAdd(h.tag, i);
+		h.tag = _215;
+		rs.byteVecPush(out, h.tag);
+	}
+	const _219: rs.u8 = at(15);
+	const borrowed14 = h;
+	const _223: rs.ByteSlice = (one14 = rs.byteMirror(rs.place(() => borrowed14.uninit, (value14) => borrowed14.uninit = value14))).s;
+	rs.idx(_223, 0);
+	_223.data[_223.start] = _219;
+	rs.byteMirrorFlush(one14);
+	rs.byteVecPush(out, h.uninit);
+	const _234: rs.u8 = at(16);
+	fillOne(rs.place(() => h.tag, (value15) => h.tag = value15), _234);
+	const _239: rs.u8 = at(17);
+	readAdd(rs.place(() => h.pair[0], (value16) => h.pair[0] = value16), _239, out);
+	const _246: rs.u8 = at(18);
+	readAdd(rs.place(() => h.bytes[0], (value17) => h.bytes[0] = value17), _246, out);
+	let b: rs.u8 = at(19);
+	const _254: rs.u8 = at(20);
+	readAdd(rs.place(() => b, (value18) => b = value18), _254, out);
+	const r: rs.Place<rs.u8> = rs.place(() => h.pair[1], (value19) => h.pair[1] = value19);
+	readAdd(r, at(21), out);
+	fillOne(r, at(22));
+	rs.byteVecPush(out, b);
+	Header.put(h, out);
+	rs.byteMirrorFlush(one12);
 }
 
 //# sourceMappingURL=conversions.ts.map

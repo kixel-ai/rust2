@@ -27,9 +27,8 @@ use crate::ts::{Expr, Stmt, StmtKind};
 /// The slices of one byte's place a body makes, and where each mirror is written back.
 #[derive(Default)]
 pub(super) struct Mirrors {
-	/// By the block whose call makes one: the variable holding its mirror, or `None` where
-	/// it is refused.
-	pub made: FxHashMap<BasicBlock, Option<String>>,
+	/// By the block whose call makes one: how it is held.
+	made: FxHashMap<BasicBlock, Made>,
 	/// The blocks whose call makes one of a byte the body shows is in an array of bytes,
 	/// whose slice is a view of it.
 	pub views: FxHashSet<BasicBlock>,
@@ -38,6 +37,17 @@ pub(super) struct Mirrors {
 	/// The mirrors to write back as each block starts, after a call or drop that may have
 	/// written them, by that block or one that only goes on to it.
 	entry: FxHashMap<BasicBlock, Vec<String>>,
+}
+
+/// How a slice of one byte's place a call makes is held.
+enum Made {
+	/// Refused, as it may be used where no variable of the function holds it, or after the
+	/// call makes another.
+	Refused,
+	/// Nothing writes through it, so its mirror, if any, needs no variable to be written back.
+	Unwritten,
+	/// In this variable, which its mirror, if any, is written back from.
+	Var(String),
 }
 
 impl<'tcx> Fx<'_, '_, '_, 'tcx> {
@@ -96,10 +106,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				!held.iter().any(|h| live.get().contains(h))
 			});
 			let Some(held) = held else {
-				mirrors.made.insert(bb, None);
+				mirrors.made.insert(bb, Made::Refused);
 				continue;
 			};
-			let name = self.b.fresh("one");
+			let (mut after, mut entry) = (Vec::new(), Vec::new());
 			for (block, data) in mir.basic_blocks.iter_enumerated() {
 				if data.is_cleanup {
 					continue;
@@ -110,8 +120,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						&& held.contains(assign.0.local)
 						&& assign.0.is_indirect()
 					{
-						let at = Location { block, statement_index };
-						mirrors.after.entry(at).or_default().push(name.clone());
+						after.push(Location { block, statement_index });
 					}
 				}
 				// A call or drop given what may hold it, which may write through it.
@@ -122,16 +131,23 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				{
 					continue;
 				}
-				for to in term.successors() {
-					if !mir.basic_blocks[to].is_cleanup {
-						let due = mirrors.entry.entry(to).or_default();
-						if !due.contains(&name) {
-							due.push(name.clone());
-						}
-					}
+				entry.extend(term.successors().filter(|&to| !mir.basic_blocks[to].is_cleanup));
+			}
+			if after.is_empty() && entry.is_empty() {
+				mirrors.made.insert(bb, Made::Unwritten);
+				continue;
+			}
+			let name = self.b.fresh("one");
+			for at in after {
+				mirrors.after.entry(at).or_default().push(name.clone());
+			}
+			for to in entry {
+				let due = mirrors.entry.entry(to).or_default();
+				if !due.contains(&name) {
+					due.push(name.clone());
 				}
 			}
-			mirrors.made.insert(bb, Some(name));
+			mirrors.made.insert(bb, Made::Var(name));
 		}
 		self.mirrors = mirrors;
 	}
@@ -377,7 +393,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// lowered makes, as its mirror's variable holds it.
 	pub(super) fn byte_slice_of(&mut self, p: Expr, span: rustc_span::Span) -> Expr {
 		match self.mirrors.made.get(&self.at.block) {
-			Some(Some(name)) => Expr::ident(name).assign(Expr::rs("byteMirror", vec![p])).member("s"),
+			Some(Made::Var(name)) => Expr::ident(name).assign(Expr::rs("byteMirror", vec![p])).member("s"),
+			Some(Made::Unwritten) => Expr::rs("byteMirror", vec![p]).member("s"),
 			_ => self.err(
 				span,
 				"a slice of one byte's place that may be used where no variable of the function holds it, or after the call makes another",
@@ -417,7 +434,12 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 
 	/// The variables of the body's mirrors.
 	pub(super) fn mirror_names(&self) -> Vec<String> {
-		let mut names: Vec<String> = self.mirrors.made.values().flatten().cloned().collect();
+		let mut names: Vec<String> = (self.mirrors.made.values())
+			.filter_map(|made| match made {
+				Made::Var(name) => Some(name.clone()),
+				_ => None,
+			})
+			.collect();
 		names.sort();
 		names
 	}

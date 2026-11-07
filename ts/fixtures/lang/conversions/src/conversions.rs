@@ -761,3 +761,141 @@ fn read_str<S: AsRef<str>>(s: S, out: &mut Vec<u8>) {
 	out.push(s.as_ref().len() as u8);
 	out.extend_from_slice(s.as_ref().as_bytes());
 }
+
+/// Reads bytes off the front of a slice, as a decoder does.
+struct Cursor<'a> {
+	data: &'a [u8],
+}
+
+impl Cursor<'_> {
+	/// Fills `buf` from the front, or leaves it as it is if too few are left.
+	fn read_exact(&mut self, buf: &mut [u8]) -> bool {
+		if self.data.len() < buf.len() {
+			return false;
+		}
+		let (head, rest) = self.data.split_at(buf.len());
+		buf.copy_from_slice(head);
+		self.data = rest;
+		true
+	}
+}
+
+/// Bytes in each place a `&mut u8` reaches: fields, a tuple's, an array's, an `Option`'s,
+/// and a `MaybeUninit`'s.
+struct Header {
+	tag: u8,
+	pair: (u8, u8),
+	bytes: [u8; 2],
+	payload: Option<u8>,
+	uninit: std::mem::MaybeUninit<u8>,
+}
+
+impl Header {
+	/// Each byte, the `MaybeUninit`'s once written.
+	fn put(&self, out: &mut Vec<u8>) {
+		out.extend([self.tag, self.pair.0, self.pair.1, self.bytes[0], self.bytes[1]]);
+		out.push(self.payload.map_or(0xee, |p| p ^ 0x80));
+	}
+
+	/// Adds `by` to its tag through a slice of one of it.
+	fn bump(&mut self, by: u8) {
+		for x in std::slice::from_mut(&mut self.tag) {
+			*x = x.wrapping_add(by);
+		}
+	}
+}
+
+/// Writes `value` through a slice of one of whatever byte `b` points at.
+fn fill_one(b: &mut u8, value: u8) {
+	std::slice::from_mut(b).fill(value);
+}
+
+/// Pushes the byte a slice of one of `b` reads, then adds `by` through it.
+fn read_add(b: &mut u8, by: u8, out: &mut Vec<u8>) {
+	let s = std::array::from_mut(b);
+	out.push(s[0]);
+	s[0] = s[0].wrapping_add(by);
+}
+
+/// Slices of one byte where it is, each read and written, and the byte read where it is
+/// after: in a field, a tuple's, an array's, an `Option`'s, a `MaybeUninit`'s, a variable,
+/// through a parameter and a `&mut` to a `&mut`, kept in a closure, a `Vec`, and a copy,
+/// swapped, and made again in a loop with the byte written between.
+pub fn byte_places(_kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let at = |i: usize| data.get(i).copied().unwrap_or(i as u8);
+	let mut h = Header {
+		tag: at(0),
+		pair: (at(1), at(2)),
+		bytes: [at(3), at(4)],
+		payload: (at(5) % 3 != 0).then(|| at(6)),
+		uninit: std::mem::MaybeUninit::uninit(),
+	};
+	let mut cursor = Cursor { data };
+	out.push(u8::from(cursor.read_exact(std::slice::from_mut(&mut h.tag))));
+	out.push(u8::from(cursor.read_exact(std::slice::from_mut(&mut h.pair.1))));
+	out.push(u8::from(cursor.read_exact(std::array::from_mut(&mut h.bytes[1]))));
+	h.put(out);
+	// An `Option`'s, of none or of the one it holds.
+	let s = h.payload.as_mut_slice();
+	out.push(s.len() as u8);
+	s.fill(at(7));
+	h.bump(at(8));
+	h.put(out);
+	// Kept while it is written through, by itself and by what is made of it.
+	let s = std::slice::from_mut(&mut h.tag);
+	s[0] ^= 0x55;
+	let t = &mut s[..];
+	t[0] = t[0].rotate_left(1);
+	*std::array::from_mut(&mut h.pair.0) = [at(9)];
+	out.extend([h.tag, h.pair.0]);
+	// Two at once, swapped, and copied into.
+	std::mem::swap(
+		&mut std::slice::from_mut(&mut h.pair.0)[0],
+		&mut std::slice::from_mut(&mut h.pair.1)[0],
+	);
+	std::slice::from_mut(&mut h.tag).copy_from_slice(&[at(10)]);
+	h.put(out);
+	// Through a closure, then a `Vec` of two.
+	let s = std::slice::from_mut(&mut h.tag);
+	let mut set = |v: u8| s[0] = s[0].wrapping_mul(3) ^ v;
+	set(at(11));
+	set(at(12));
+	out.push(h.tag);
+	let mut v: Vec<&mut [u8]> = vec![std::slice::from_mut(&mut h.pair.0), std::slice::from_mut(&mut h.pair.1)];
+	for s in &mut v {
+		s[0] = s[0].wrapping_add(at(13));
+	}
+	v.swap(0, 1);
+	v[0][0] ^= 1;
+	drop(v);
+	h.put(out);
+	// A copy made of it, read after the byte is written where it is.
+	let s = std::slice::from_mut(&mut h.tag);
+	s[0] = s[0].wrapping_add(1);
+	let copy = s.to_vec();
+	h.tag = at(14);
+	out.extend_from_slice(&copy);
+	out.push(h.tag);
+	// Made again each round, the byte written between.
+	for i in 0..3 {
+		cursor.read_exact(std::slice::from_mut(&mut h.tag));
+		h.tag = h.tag.wrapping_add(i);
+		out.push(h.tag);
+	}
+	// A `MaybeUninit`'s, written through one.
+	std::slice::from_mut(&mut h.uninit)[0] = std::mem::MaybeUninit::new(at(15));
+	// SAFETY: written just above.
+	out.push(unsafe { h.uninit.assume_init() });
+	// Through a parameter: a field's, a tuple's, an array's, a variable's, and through a
+	// `&mut` to a `&mut`.
+	fill_one(&mut h.tag, at(16));
+	read_add(&mut h.pair.0, at(17), out);
+	read_add(&mut h.bytes[0], at(18), out);
+	let mut b = at(19);
+	read_add(&mut b, at(20), out);
+	let mut r = &mut h.pair.1;
+	read_add(*&mut r, at(21), out);
+	fill_one(r, at(22));
+	out.push(b);
+	h.put(out);
+}
