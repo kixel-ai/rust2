@@ -4,6 +4,7 @@ roots = [
     "alloc::alloc_retyped",
     "alloc::allocated",
     "alloc::bytes_as_values",
+    "alloc::infallible_cell",
     "alloc::past_reference",
     "alloc::reinterpreted",
     "alloc::zeroed",

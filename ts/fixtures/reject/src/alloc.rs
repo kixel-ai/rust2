@@ -24,6 +24,13 @@ pub fn allocated() -> u8 {
 	}
 }
 
+/// A whole value written through a pointer from a shared reference to a `Result` of a cell
+/// whose only inhabited variant leaves it no tag, all of it in an `UnsafeCell`, which JS
+/// can't write into in place.
+pub fn infallible_cell(r: &Result<std::cell::Cell<u32>, std::convert::Infallible>) {
+	unsafe { std::ptr::from_ref(r).cast_mut().write(Ok(std::cell::Cell::new(19))) }
+}
+
 /// A pointer from a reference the body is given, which JS keeps in no array, moved past
 /// it.
 pub fn past_reference(r: &u32) -> u32 {

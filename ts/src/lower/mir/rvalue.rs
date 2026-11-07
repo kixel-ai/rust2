@@ -294,10 +294,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			ty::Ref(_, _, rustc_ast::Mutability::Not)
 		);
 		// Through a shared reference, a whole write is undefined unless every byte of the
-		// value is in an `UnsafeCell`, as no enum's tag is.
-		let tagged = matches!(ty.kind(), ty::Adt(adt, _) if adt.is_enum() && adt.variants().len() > 1);
+		// value is in an `UnsafeCell`, as no tag or niche of a layout's variants is.
+		let env = self.b.t.typing_env_pub();
+		let tagged = tcx
+			.layout_of(env.as_query_input(ty))
+			.is_ok_and(|layout| matches!(layout.variants, rustc_abi::Variants::Multiple { .. }));
 		let value = self.place_expr(pointee, span, out);
-		if shared && (tagged || ty.is_freeze(tcx, self.b.t.typing_env_pub())) {
+		if shared && (tagged || ty.is_freeze(tcx, env)) {
 			return Expr::Object(vec![(Key::Name("v".into()), value)]);
 		}
 		let target = self.b.spill(value, "target", out);
