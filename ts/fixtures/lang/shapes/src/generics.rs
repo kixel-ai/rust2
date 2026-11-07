@@ -1,8 +1,9 @@
 //! Methods on generic structs and enums, each instance its own method.
 
 use std::borrow::Cow;
-use std::cell::RefCell;
+use std::cell::{RefCell, UnsafeCell};
 use std::rc::Rc;
+use std::task::Poll;
 
 use crate::fmt::Pair;
 use crate::harness::put;
@@ -383,4 +384,80 @@ pub fn runs(data: &[u8], out: &mut Vec<u8>) {
 	drop(run);
 	drop(ticks);
 	out.extend(log.borrow().iter());
+}
+
+/// A read's parked state, as moq-net's `Idle` and tokio's `oneshot::Inner` hold theirs: an
+/// `Option` and a `Poll` of its parameter, directly and in a cell, whose `None` and
+/// `Pending` each instance decides. Of `()` and `Option<u8>` the `None` is `rs.None`, and
+/// of `Poll<u8>` the `Pending` is `rs.OuterPending`.
+struct Parked<T> {
+	parked: Option<T>,
+	ready: Poll<T>,
+	value: UnsafeCell<Option<T>>,
+}
+
+impl<T: Copy + PartialEq> Parked<T> {
+	fn new() -> Self {
+		Self {
+			parked: None,
+			ready: Poll::Pending,
+			value: UnsafeCell::new(None),
+		}
+	}
+
+	/// Parks `read`, returning whether it parked just so already.
+	fn park(&mut self, read: T) -> bool {
+		let again = self.parked == Some(read);
+		self.parked = Some(read);
+		again
+	}
+
+	/// Readies `value`, returning what was ready before.
+	fn ready(&mut self, value: T) -> Poll<T> {
+		std::mem::replace(&mut self.ready, Poll::Ready(value))
+	}
+
+	/// Sends `value` through the cell, returning what was there, as a oneshot's sender does.
+	fn send(&self, value: Option<T>) -> Option<T> {
+		// SAFETY: nothing else borrows the cell.
+		unsafe { std::mem::replace(&mut *self.value.get(), value) }
+	}
+
+	/// Unparks it and takes what the cell holds, leaving `Pending`.
+	fn disarm(&mut self) -> (Option<T>, Option<T>) {
+		self.ready = Poll::Pending;
+		(self.parked.take(), self.value.get_mut().take())
+	}
+}
+
+/// [`Parked`] of `$items`, each parked, readied, and sent by the bits of a byte.
+macro_rules! parked_at {
+	($data:expr, $out:expr, $items:expr) => {{
+		let items = $items;
+		let mut parked = Parked::new();
+		for &b in $data {
+			let item = items[usize::from(b >> 4) % items.len()];
+			match b % 4 {
+				0 => $out.push(u8::from(parked.park(item))),
+				1 => $out.push(u8::from(parked.ready(item).is_pending())),
+				2 => $out.push(u8::from(parked.send((b & 4 != 0).then_some(item)).is_some())),
+				_ => {
+					let (was, sent) = parked.disarm();
+					$out.extend([u8::from(was.is_some()), u8::from(sent.is_some())]);
+				}
+			}
+		}
+		let again = parked.parked == Some(items[0]);
+		let (was, ready, sent) = (parked.parked, parked.ready, parked.send(None));
+		put($out, &format!("{was:?} {ready:?} {sent:?} {again}"));
+	}};
+}
+
+/// [`Parked`] at `()`, `Option<u8>`, `Poll<u8>`, and `u8`, whose `None` and `Pending` are
+/// each a value JS keeps apart from what the instance holds.
+pub fn units(data: &[u8], out: &mut Vec<u8>) {
+	parked_at!(data, out, [()]);
+	parked_at!(data, out, [None, Some(1u8), Some(2)]);
+	parked_at!(data, out, [Poll::Pending, Poll::Ready(1u8)]);
+	parked_at!(data, out, [3u8, 4]);
 }

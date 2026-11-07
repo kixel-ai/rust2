@@ -55,5 +55,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("fmt::calls", |_, data, out| fmt::calls(data, out)),
 		("fmt::cells", |_, data, out| fmt::cells(data, out)),
 		("fmt::searches", |_, data, out| fmt::searches(data, out)),
+		("generics::units", |_, data, out| generics::units(data, out)),
 	]
 }

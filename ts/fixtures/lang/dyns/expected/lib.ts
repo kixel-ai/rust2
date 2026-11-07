@@ -3,7 +3,8 @@
 import * as rs from "./rs.ts";
 import type * as Any from "./core/any.Any.ts";
 import type * as Hasher from "./core/hash.Hasher.ts";
-import { sides$dyns_Shape_u32, intoArea$dyns_Shape_u32, larger$dyns_Shape_u32, tally$dyns_Shape_u32, area$dyns_Shape_u32, grow$dyns_Shape_u32, dyns, shared, asAny$dyns_Erased_u32, asAnyMut$dyns_Erased_u32, key$dyns_Keyed_u32, anys, fns, iters, pointers, boxes, tails, rests, apply$dyns_Scaled_u16_u16, scale$dyns_Scaled_u16_u16, bump$dyns_Scaled_u16_u16, pick$dyns_Scaled_u16_u16, take$dyns_Source_u8 as dyns_take$dyns_Source_u8, left$dyns_Source_u8, generics } from "./dyns.ts";
+import { sides$dyns_Shape_u32, intoArea$dyns_Shape_u32, larger$dyns_Shape_u32, tally$dyns_Shape_u32, area$dyns_Shape_u32, grow$dyns_Shape_u32, dyns, shared, asAny$dyns_Erased_u32, asAnyMut$dyns_Erased_u32, key$dyns_Keyed_u32, anys, fns, iters, pointers, boxes, tails, rests, apply$dyns_Scaled_u16_u16, scale$dyns_Scaled_u16_u16, bump$dyns_Scaled_u16_u16, pick$dyns_Scaled_u16_u16, take$dyns_Source_u8 as dyns_take$dyns_Source_u8, left$dyns_Source_u8, generics, peek$dyns_Peek_unit_u8, peek$dyns_Peek_Option_u8_u16, options } from "./dyns.ts";
+import * as Beats from "./dyns.Beats.ts";
 import * as By from "./dyns.By.ts";
 import * as Drained from "./dyns.Drained.ts";
 import * as Guarded from "./dyns.Guarded.ts";
@@ -16,6 +17,7 @@ import * as Many from "./dyns.Many.ts";
 import type * as Nest from "./dyns.Nest.ts";
 import * as Noisy from "./dyns.Noisy.ts";
 import type * as Shape from "./dyns.Shape.ts";
+import * as Skips from "./dyns.Skips.ts";
 import * as Square from "./dyns.Square.ts";
 import * as Steps from "./dyns.Steps.ts";
 import type * as Tagged from "./dyns.Tagged.ts";
@@ -332,6 +334,22 @@ export class of$Option_u8 {
 	}
 }
 
+export class of$dyns_Beats {
+	v: Beats.Beats;
+
+	constructor(v: Beats.Beats) {
+		this.v = v;
+	}
+
+	left$Source(): rs.usize {
+		return Beats.left$dyns_Source(this.v);
+	}
+
+	take$Source(): rs.OptionOf<undefined> {
+		return Beats.take$dyns_Source(this.v) as rs.OptionOf<undefined>;
+	}
+}
+
 export class of$dyns_By {
 	v: By.By;
 
@@ -371,8 +389,8 @@ export class of$dyns_Drained {
 		return Drained.left$dyns_Source(this.v);
 	}
 
-	take$Source(): Noisy.Noisy | undefined {
-		return Drained.take$dyns_Source(this.v);
+	take$Source(): rs.OptionOf<Noisy.Noisy> {
+		return Drained.take$dyns_Source(this.v) as rs.OptionOf<Noisy.Noisy>;
 	}
 }
 
@@ -533,6 +551,22 @@ export class of$dyns_Noisy {
 
 	tally$Shape(a: rs.Place<rs.u32>): void {
 		return Noisy.tally$dyns_Shape(this.v, a);
+	}
+}
+
+export class of$dyns_Skips {
+	v: Skips.Skips;
+
+	constructor(v: Skips.Skips) {
+		this.v = v;
+	}
+
+	left$Source(): rs.usize {
+		return Skips.left$dyns_Source(this.v);
+	}
+
+	take$Source(): rs.OptionOf<rs.u8 | undefined> {
+		return Skips.take$dyns_Source(this.v) as rs.OptionOf<rs.u8 | undefined>;
 	}
 }
 
@@ -1037,6 +1071,10 @@ export class of$u16 {
 		return bump$dyns_Scaled_u16_u16(this.v, a as rs.Place<rs.u16>);
 	}
 
+	peek$Peek(): rs.OptionOf<rs.u8 | undefined> {
+		return peek$dyns_Peek_Option_u8_u16(this.v) as rs.OptionOf<rs.u8 | undefined>;
+	}
+
 	pick$Scaled(a: rs.Ptr<rs.u16>, a2: rs.Ptr<rs.u16>): rs.Ptr<rs.u16> {
 		return pick$dyns_Scaled_u16_u16(this.v, a as rs.u16, a2 as rs.u16) as rs.Ptr<rs.u16>;
 	}
@@ -1105,8 +1143,12 @@ export class of$u8 {
 		return left$dyns_Source_u8(this.v);
 	}
 
-	take$Source(): string | undefined {
-		return dyns_take$dyns_Source_u8(this);
+	peek$Peek(): rs.OptionOf<undefined> {
+		return peek$dyns_Peek_unit_u8(this.v) as rs.OptionOf<undefined>;
+	}
+
+	take$Source(): rs.OptionOf<string> {
+		return dyns_take$dyns_Source_u8(this) as rs.OptionOf<string>;
 	}
 }
 
@@ -1305,8 +1347,8 @@ export class ofPlace$u8 {
 		return left$dyns_Source_u8(this.v.v);
 	}
 
-	take$Source(): string | undefined {
-		return dyns_take$dyns_Source_u8(this.v);
+	take$Source(): rs.OptionOf<string> {
+		return dyns_take$dyns_Source_u8(this.v) as rs.OptionOf<string>;
 	}
 }
 
@@ -1345,6 +1387,8 @@ export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.By
 		generics(data10, out10);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["stds::stds", (_220: rs.u8, data11: rs.ByteSlice, out11: rs.ByteVec): undefined => {
 		stds(data11, out11);
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["dyns::options", (_221: rs.u8, data12: rs.ByteSlice, out12: rs.ByteVec): undefined => {
+		options(data12, out12);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }
 

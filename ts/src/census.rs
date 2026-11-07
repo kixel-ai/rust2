@@ -145,7 +145,6 @@ const VERBATIM: &[&str] = &[
 	"Binary",
 	"Buf::copy_to_bytes",
 	"BufMut::put",
-	"Bytes::from_owner",
 	"BytesMut",
 	"Copy",
 	"Debug",

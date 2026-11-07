@@ -318,7 +318,8 @@ Each function, method, and property but an `async def` is the extension's own, b
 the module or set on its class as it loads, so a call enters it with no Python frame
 between; the Python declares them under `typing.TYPE_CHECKING`, for type checkers. They
 take arguments by position or keyword, raise as a `def` would, and carry their
-docstrings and signatures.
+docstrings and signatures. The module passes mypy and pyright, both strict, so a typed
+caller imports it with no ignores.
 
 - **Names** are in the module: types in PascalCase without the prefix, members in
   snake_case without their type's name (`moq.TrackProducer.append_group`). A keyword, a
@@ -335,18 +336,20 @@ docstrings and signatures.
   `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
   `default()`. Constants are module or class attributes, made anew on each read unless a
   literal.
-- **Bytes** passed in are any buffer: `bytes` is read in place, and others, which Python
-  may change while Rust reads, are copied. Bytes Rust returns, or a record holds, are a
-  read-only `memoryview` lending Rust's buffer until it and its views are released. Those
-  Rust lends a closure or trait method are copied into `bytes`. Strings are `str`,
-  `Option<T>` `T | None`, a tuple a `tuple`, `Duration` `datetime.timedelta`, truncated to
-  the microsecond, with `timedelta.max` for any longer and for `Duration::MAX`, a `Range` a
-  `range`, and an `Err` a raised `<E>Exception` holding it in `error`, whose `str` is its
-  `Display`.
+- **Bytes** passed in are any buffer, `bytes | bytearray | memoryview`: `bytes` is read in
+  place, and others, which Python may change while Rust reads, are copied. Bytes Rust
+  returns, or a record holds, are a read-only `memoryview` lending Rust's buffer until it
+  and its views are released. Those Rust lends a closure or trait method are copied into
+  `bytes`. Strings are `str`, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
+  `datetime.timedelta`, truncated to the microsecond, with `timedelta.max` for any longer
+  and for `Duration::MAX`, a `Range` a `range`, and an `Err` a raised `<E>Exception`
+  holding it in `error`, whose `str` is its `Display`.
 - A **path** is a `str`, or any path passed in, which crosses as `os.fsencode` encodes it, so
   one that is not UTF-8 keeps its bytes. A `SocketAddr` is the `socket` module's tuple,
   `(host, port)` or `(host, port, flowinfo, scope_id)`, of that family for `V4` or `V6`.
-  A `Vec<T>` or `&[T]` is a `list`, and passing a `Vec` by value closes each object in it.
+  A `Vec<T>` or `&[T]` Rust returns is a `list`, and passed in is any iterable other than a `str`,
+  annotated `Iterable`, or `Sequence` in a record, which keeps it. Passing a `Vec` by value closes
+  each object in it.
   An integer out of its Rust type's range raises `OverflowError`.
 - **Traits** are abstract classes an implementation subclasses; once Rust drops one, its
   `close()` is called if it has one.
@@ -570,9 +573,9 @@ names and signatures, so [`src/c.rs`](src/c.rs), [`src/cpp.rs`](src/cpp.rs),
 agree; the runtime the glue includes is [`runtime/rt.rs`](runtime/rt.rs), the one the C++
 header includes [`runtime/rt.hpp`](runtime/rt.hpp), the ones Kotlin and its JNI glue
 include [`runtime/rt.kt`](runtime/rt.kt) and [`runtime/jni.rs`](runtime/jni.rs), the ones
-Python and its extension include [`runtime/rt.py`](runtime/rt.py) and
-[`runtime/python.rs`](runtime/python.rs), the one the Swift includes
-[`runtime/rt.swift`](runtime/rt.swift), the one the Go includes
+Python and its extension include [`runtime/rt.py`](runtime/rt.py),
+[`runtime/native.py`](runtime/native.py), and [`runtime/python.rs`](runtime/python.rs),
+the one the Swift includes [`runtime/rt.swift`](runtime/rt.swift), the one the Go includes
 [`runtime/rt.go`](runtime/rt.go), and the ones the Dart and its glue include
 [`runtime/rt.dart`](runtime/rt.dart) and [`runtime/dart.rs`](runtime/dart.rs).
 
@@ -615,6 +618,8 @@ x86_64 emulator at API 24, the oldest moq's Android library supports, and at API
 warnings as errors, checks its futures the same way, what frees an object or bytes nobody
 closed, and the values Python's types bound, and breaks each runtime check, which must raise or
 abort with its message; the Python with another contract must refuse the library.
+`api_py_types` checks the Python with mypy and pyright, both strict, at CPython 3.11, as
+`just ffi moq` checks moq's.
 `tests/api.swift` runs the script through the Swift, built as a module in Swift 6's
 language mode and type-checked in Swift 5's, checks its futures the same way and that
 releasing frees, and breaks each runtime check, which must trap or abort with its message.
