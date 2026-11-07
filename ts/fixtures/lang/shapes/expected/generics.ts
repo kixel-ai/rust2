@@ -97,12 +97,7 @@ export function advance(track: Track.Track): void {
  * type of.
  */
 export function reset$shapes_Gauge(xs: rs.Slice<shapes_Gauge.Gauge>): void {
-	const iter: rs.Iter<shapes_Gauge.Gauge> = rs.iterSlice(rs.sliceItems(xs));
-	while (true) {
-		const _5: shapes_Gauge.Gauge | rs.Done = iter.next();
-		if (_5 === rs.DONE) {
-			break;
-		}
+	for (const _5 of rs.sliceItems(xs)) {
 		Object.assign(_5, copy$shapes_Gauge(shapes_Gauge.default$Default()));
 	}
 }
@@ -123,25 +118,29 @@ export function swapped$u8(fixed: Fixed.Fixed<rs.u8>): Fixed.Fixed<rs.u8> {
 
 /** Writes `item` over each element of `run`, through a `&mut` to a field. */
 export function fill$u16(run: rs.Slice<rs.u16>, item: rs.u16): void {
-	const iter: rs.Iter<rs.Place<rs.u16>> = rs.iterSliceMut(run);
+	const iterS: rs.u16[] = run.data;
+	let iterI: number = run.start;
+	const iterE: number = run.start + run.length;
 	while (true) {
-		const _5: rs.Place<rs.u16> | rs.Done = iter.next();
+		const _5: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
 		if (_5 === rs.DONE) {
 			break;
 		}
-		_5.v = item;
+		iterS[_5] = item;
 	}
 }
 
 /** Writes `item` over each element of `run`, through a `&mut` to a field. */
 export function fill$u8(run: rs.ByteSlice, item: rs.u8): void {
-	const iter: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(run);
+	const iterS: Uint8Array = run.data;
+	let iterI: number = run.start;
+	const iterE: number = run.start + run.length;
 	while (true) {
-		const _5: rs.Place<rs.u8> | rs.Done = iter.next();
+		const _5: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
 		if (_5 === rs.DONE) {
 			break;
 		}
-		_5.v = item;
+		iterS[_5] = item;
 	}
 }
 

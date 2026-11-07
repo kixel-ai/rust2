@@ -83,13 +83,16 @@ export function scramble(b: rs.Place<rs.ByteSlice>): void {
 	if (_4 !== undefined) {
 		_4.v = _4.v ^ 255;
 	}
-	const iter: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(b.v);
+	const _36: rs.ByteSlice = b.v;
+	const iterS: Uint8Array = _36.data;
+	let iterI: number = _36.start;
+	const iterE: number = _36.start + _36.length;
 	while (true) {
-		const _12: rs.Place<rs.u8> | rs.Done = iter.next();
+		const _12: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
 		if (_12 === rs.DONE) {
 			break;
 		}
-		_12.v = rs.u8WrappingAdd(_12.v, 1);
+		iterS[_12] = rs.u8WrappingAdd(iterS[_12], 1);
 	}
 	rs.iterForEach(rs.byteSliceChunksExact(b.v, 2), (c: rs.ByteSlice): undefined => {
 		rs.byteSliceSwap(c, 0, 1);
@@ -228,13 +231,15 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}), undefined, 2, true);
 		const fromRef2: rs.Slice<rs.u16> = rs.sliceFrom(wide.items.slice());
 		rs.sliceReverse(fromRef2);
-		const iter2: rs.Iter<rs.Place<rs.u16>> = rs.iterSliceMut(fromRef2);
+		const iterS: rs.u16[] = fromRef2.data;
+		let iterI: number = fromRef2.start;
+		const iterE: number = fromRef2.start + fromRef2.length;
 		while (true) {
-			const _282: rs.Place<rs.u16> | rs.Done = iter2.next();
+			const _282: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
 			if (_282 === rs.DONE) {
 				break;
 			}
-			_282.v = _282.v ^ 3855;
+			iterS[_282] = iterS[_282] ^ 3855;
 		}
 		wides(fromRef2, out);
 		wides(rs.sliceFrom(wide.items), out);
@@ -345,12 +350,7 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			return [b2, ((b2 as rs.u16) << 4) & 0xffff] as [rs.u8, rs.u16];
 		}), undefined, 4, true);
 		const boxed3: rs.Slice<[rs.u8, rs.u16]> = rs.sliceFrom(pairs.items.map(copy$tuple2_u8_u16));
-		const iter3: rs.Iter<[rs.u8, rs.u16]> = rs.iterSlice(rs.sliceItems(boxed3));
-		while (true) {
-			const _533: [rs.u8, rs.u16] | rs.Done = iter3.next();
-			if (_533 === rs.DONE) {
-				break;
-			}
+		for (const _533 of rs.sliceItems(boxed3)) {
 			_533[0] = _533[0] ^ 255;
 		}
 		const _537: [rs.u8, rs.u16] | undefined = rs.sliceFirst(boxed3);
@@ -580,21 +580,24 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			reach(held, by);
 		} else if (_58 === 19) {
 			const at2 = rs.idx(v.items, rs.usizeRem(by as rs.usize, v.items.length));
-			const borrowed = v.items;
-			const borrowed2 = at2;
-			bump(rs.place(() => borrowed[borrowed2], (value14) => borrowed[borrowed2] = value14), by);
+			const borrowed2 = v.items;
+			const borrowed3 = at2;
+			bump(rs.place(() => borrowed2[borrowed3], (value14) => borrowed2[borrowed3] = value14), by);
 			const _120: rs.Place<rs.u32> | undefined = rs.sliceLastMut(rs.sliceFrom(v.items));
 			if (_120 !== undefined) {
 				_120.v = (_120.v ^ 16) >>> 0;
 			}
 		} else if (_58 === 20) {
-			const iter2: rs.Iter<rs.Place<rs.u32>> = rs.iterSliceMut(rs.sliceFrom(v.items));
+			const iterS: rs.u32[] = v.items;
+			let iterI: number = 0;
+			const iterE: number = v.items.length;
 			while (true) {
-				const _130: rs.Place<rs.u32> | rs.Done = iter2.next();
+				const _130: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
 				if (_130 === rs.DONE) {
 					break;
 				}
-				bump(rs.place(() => _130.v, (value13) => _130.v = value13), by);
+				const borrowed = iterS;
+				bump(rs.place(() => borrowed[_130], (value13) => borrowed[_130] = value13), by);
 			}
 			v.items.push(by as rs.u32);
 		} else if (_58 === 21) {
@@ -733,13 +736,16 @@ export function sum$boxed_Box_slice_u8(x: rs.ByteSlice): rs.u8 {
 
 /** Writes through what `x` lends by its `AsMut`. */
 export function flip$boxed_Box_slice_u8(x: rs.Place<rs.ByteSlice>): void {
-	const iter: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(x.v);
+	const _3: rs.ByteSlice = x.v;
+	const iterS: Uint8Array = _3.data;
+	let iterI: number = _3.start;
+	const iterE: number = _3.start + _3.length;
 	while (true) {
-		const _5: rs.Place<rs.u8> | rs.Done = iter.next();
+		const _5: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
 		if (_5 === rs.DONE) {
 			break;
 		}
-		_5.v = _5.v ^ 15;
+		iterS[_5] = iterS[_5] ^ 15;
 	}
 }
 

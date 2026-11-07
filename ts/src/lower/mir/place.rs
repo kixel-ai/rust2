@@ -793,8 +793,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let Expr::Ident(name) = e else {
 			return false;
 		};
-		// A byte's buffer is the same one throughout.
+		// A byte's buffer is the same one throughout, as is the array an item lent by index
+		// is held in.
 		self.byte_named(name)
+			|| self.item_arrays.contains(name)
 			|| self.local_named(name).is_some_and(|local| {
 				let assigned = self.defs[local] + u32::from(self.is_arg(local));
 				assigned <= 1 && !self.mutated[local]
@@ -1005,6 +1007,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	pub(super) fn alias_of_place(&self, local: Local) -> bool {
 		matches!(self.slots[local], Slot::Alias(_))
 			&& match self.def_rvalue(local) {
+				// An item a slice's `iter_mut` lends by index: the element it indexes.
+				_ if self.lent_items.contains_key(&local) => true,
 				// A reborrow of what an alias of a borrowed place points at borrows that place.
 				// A box's pointer is the box, so what it points at is the place holding the box.
 				Some(mir::Rvalue::Ref(_, _, p)) => match p.projection.as_slice() {
@@ -1202,6 +1206,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	pub(super) fn place_of(&mut self, target: Expr, payload: Option<crate::ts::Type>) -> Expr {
 		if let Some(p) = self.byte_place(&target) {
 			return p;
+		}
+		// An item a slice's `iter_mut` lends by index, the element's place, as `rs.iterSliceMut`
+		// lends it.
+		if let Expr::Index(array, index) = target.unlocated()
+			&& let Expr::Ident(name) = array.unlocated()
+			&& self.item_arrays.contains(name)
+		{
+			return Expr::rs("arrayAsPtr", vec![(**array).clone(), (**index).clone()]);
 		}
 		let value = self.b.fresh("value");
 		let param = crate::ts::Param {

@@ -34,13 +34,15 @@ export interface Run {
 export function bump(self: Run): void {
 	const owned = rs.cowIntoOwned(self.words);
 	self.words = owned;
-	const iter: rs.Iter<rs.Place<rs.u16>> = rs.iterSliceMut(rs.sliceFrom(owned.items));
+	const iterS: rs.u16[] = owned.items;
+	let iterI: number = 0;
+	const iterE: number = owned.items.length;
 	while (true) {
-		const _8: rs.Place<rs.u16> | rs.Done = iter.next();
+		const _8: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
 		if (_8 === rs.DONE) {
 			break;
 		}
-		_8.v = rs.u16WrappingAdd(_8.v, 1);
+		iterS[_8] = rs.u16WrappingAdd(iterS[_8], 1);
 	}
 }
 

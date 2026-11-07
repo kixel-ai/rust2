@@ -4230,13 +4230,16 @@ export function lentOne$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_Option_u16(writeFirst$Option_u16(rs.sliceOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3)), make$conversions_Value_Option_u16(data, 8)), out);
 	put$conversions_Value_Option_u16(v.items[rs.idx(v.items, 1)], out);
 	rs.sliceFill(rs.sliceOfPlace(rs.place(() => c, (value4) => c = value4)), b, undefined);
-	const iter: rs.Iter<rs.Place<rs.u16 | undefined>> = rs.iterSliceMut(rs.sliceOfPlace(rs.place(() => a, (value5) => a = value5)));
+	const _58: rs.Slice<rs.u16 | undefined> = rs.sliceOfPlace(rs.place(() => a, (value5) => a = value5));
+	const iterS: Array<rs.u16 | undefined> = _58.data;
+	let iterI: number = _58.start;
+	const iterE: number = _58.start + _58.length;
 	while (true) {
-		const _61: rs.Place<rs.u16 | undefined> | rs.Done = iter.next();
+		const _61: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
 		if (_61 === rs.DONE) {
 			break;
 		}
-		_61.v = make$conversions_Value_Option_u16(data, 9);
+		iterS[_61] = make$conversions_Value_Option_u16(data, 9);
 	}
 	put$conversions_Value_Option_u16(c, out);
 	put$conversions_Value_Option_u16(a, out);
@@ -4642,13 +4645,16 @@ export function lentOne$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_u32(writeFirst$u32(rs.sliceOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3)), make$conversions_Value_u32(data, 8)), out);
 	put$conversions_Value_u32(v.items[rs.idx(v.items, 1)], out);
 	rs.sliceFill(rs.sliceOfPlace(rs.place(() => c, (value4) => c = value4)), b, undefined);
-	const iter: rs.Iter<rs.Place<rs.u32>> = rs.iterSliceMut(rs.sliceOfPlace(rs.place(() => a, (value5) => a = value5)));
+	const _58: rs.Slice<rs.u32> = rs.sliceOfPlace(rs.place(() => a, (value5) => a = value5));
+	const iterS: rs.u32[] = _58.data;
+	let iterI: number = _58.start;
+	const iterE: number = _58.start + _58.length;
 	while (true) {
-		const _61: rs.Place<rs.u32> | rs.Done = iter.next();
+		const _61: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
 		if (_61 === rs.DONE) {
 			break;
 		}
-		_61.v = make$conversions_Value_u32(data, 9);
+		iterS[_61] = make$conversions_Value_u32(data, 9);
 	}
 	put$conversions_Value_u32(c, out);
 	put$conversions_Value_u32(a, out);
@@ -4682,13 +4688,16 @@ export function lentOne$u64(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_u64(writeFirst$u64(rs.sliceOfPlace(rs.place(() => borrowed2[borrowed3], (value3) => borrowed2[borrowed3] = value3)), make$conversions_Value_u64(data, 8)), out);
 	put$conversions_Value_u64(v.items[rs.idx(v.items, 1)], out);
 	rs.sliceFill(rs.sliceOfPlace(rs.place(() => c, (value4) => c = value4)), b, undefined);
-	const iter: rs.Iter<rs.Place<rs.u64>> = rs.iterSliceMut(rs.sliceOfPlace(rs.place(() => a, (value5) => a = value5)));
+	const _58: rs.Slice<rs.u64> = rs.sliceOfPlace(rs.place(() => a, (value5) => a = value5));
+	const iterS: rs.u64[] = _58.data;
+	let iterI: number = _58.start;
+	const iterE: number = _58.start + _58.length;
 	while (true) {
-		const _61: rs.Place<rs.u64> | rs.Done = iter.next();
+		const _61: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
 		if (_61 === rs.DONE) {
 			break;
 		}
-		_61.v = make$conversions_Value_u64(data, 9);
+		iterS[_61] = make$conversions_Value_u64(data, 9);
 	}
 	put$conversions_Value_u64(c, out);
 	put$conversions_Value_u64(a, out);

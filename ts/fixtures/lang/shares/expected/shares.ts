@@ -117,13 +117,15 @@ export function arcCounts$slice_u8(arc: rs.Arc<rs.ByteSlice>, out: rs.ByteVec): 
 /** Writes through a `&mut` to bytes another function was handed. */
 export function scramble(b: rs.ByteSlice): void {
 	rs.byteSliceView(b).reverse();
-	const iter: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(b);
+	const iterS: Uint8Array = b.data;
+	let iterI: number = b.start;
+	const iterE: number = b.start + b.length;
 	while (true) {
-		const _6: rs.Place<rs.u8> | rs.Done = iter.next();
+		const _6: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
 		if (_6 === rs.DONE) {
 			break;
 		}
-		_6.v = rs.u8WrappingAdd(_6.v, 1);
+		iterS[_6] = rs.u8WrappingAdd(iterS[_6], 1);
 	}
 	const _12: rs.Place<rs.u8> | undefined = rs.sliceFirstMut(b);
 	if (_12 !== undefined) {
@@ -421,12 +423,7 @@ export function copies(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const fromVec: rs.Arc<rs.Slice<[rs.u8, rs.u16]>> = new rs.Arc(rs.sliceFrom(rs.vecFrom(source.items.map(copy$tuple2_u8_u16)).items));
 	const p: [rs.u8, rs.u16] = [option_unwrapOr$1fr498u(rs.byteSliceFirst(data2), 5), 6];
 	const twins: rs.Arc<rs.Slice<[rs.u8, rs.u16]>> = new rs.Arc(rs.sliceFrom([copy$tuple2_u8_u16(p), copy$tuple2_u8_u16(p)]));
-	const iter: rs.Iter<[rs.u8, rs.u16]> = rs.iterSlice(source.items);
-	while (true) {
-		const _35: [rs.u8, rs.u16] | rs.Done = iter.next();
-		if (_35 === rs.DONE) {
-			break;
-		}
+	for (const _35 of source.items) {
 		_35[0] = _35[0] ^ 255;
 	}
 	const _39: rs.Slice<[rs.u8, rs.u16]> = rs.optionExpect(rs.arcGetMut(twins), "alone");

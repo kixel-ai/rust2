@@ -59,12 +59,7 @@ export function state$Option_u16(v: rs.Vec<rs.u16 | undefined>, out: rs.ByteVec)
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_13 as rs.u32).reverse()));
 	}
 	rs.byteVecPush(out, rs.atomicLoad(DROPS, 0));
-	const iter2: rs.Iter<rs.u16 | undefined> = rs.iterSlice(v.items);
-	while (true) {
-		const _31: rs.u16 | undefined | rs.Done = iter2.next();
-		if (_31 === rs.DONE) {
-			break;
-		}
+	for (const _31 of v.items) {
 		put$spare_Item_Option_u16(_31, out);
 	}
 }
@@ -82,12 +77,7 @@ export function state$String(v: rs.Vec<rs.String>, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_13 as rs.u32).reverse()));
 	}
 	rs.byteVecPush(out, rs.atomicLoad(DROPS, 0));
-	const iter2: rs.Iter<rs.String> = rs.iterSlice(v.items);
-	while (true) {
-		const _31: rs.String | rs.Done = iter2.next();
-		if (_31 === rs.DONE) {
-			break;
-		}
+	for (const _31 of v.items) {
 		put$spare_Item_String(_31, out);
 	}
 }
@@ -105,12 +95,7 @@ export function state$spare_Noted(v: rs.Vec<Noted.Noted>, out: rs.ByteVec): void
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_13 as rs.u32).reverse()));
 	}
 	rs.byteVecPush(out, rs.atomicLoad(DROPS, 0));
-	const iter2: rs.Iter<Noted.Noted> = rs.iterSlice(v.items);
-	while (true) {
-		const _31: Noted.Noted | rs.Done = iter2.next();
-		if (_31 === rs.DONE) {
-			break;
-		}
+	for (const _31 of v.items) {
 		Noted.put$spare_Item(_31, out);
 	}
 }
@@ -128,12 +113,7 @@ export function state$spare_Pair(v: rs.Vec<Pair.Pair>, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_13 as rs.u32).reverse()));
 	}
 	rs.byteVecPush(out, rs.atomicLoad(DROPS, 0));
-	const iter2: rs.Iter<Pair.Pair> = rs.iterSlice(v.items);
-	while (true) {
-		const _31: Pair.Pair | rs.Done = iter2.next();
-		if (_31 === rs.DONE) {
-			break;
-		}
+	for (const _31 of v.items) {
 		Pair.put$spare_Item(_31, out);
 	}
 }
@@ -151,12 +131,7 @@ export function state$tuple2_u8_u32(v: rs.Vec<[rs.u8, rs.u32]>, out: rs.ByteVec)
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_13 as rs.u32).reverse()));
 	}
 	rs.byteVecPush(out, rs.atomicLoad(DROPS, 0));
-	const iter2: rs.Iter<[rs.u8, rs.u32]> = rs.iterSlice(v.items);
-	while (true) {
-		const _31: [rs.u8, rs.u32] | rs.Done = iter2.next();
-		if (_31 === rs.DONE) {
-			break;
-		}
+	for (const _31 of v.items) {
 		put$spare_Item_tuple2_u8_u32(_31, out);
 	}
 }
@@ -174,12 +149,7 @@ export function state$u32(v: rs.Vec<rs.u32>, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_13 as rs.u32).reverse()));
 	}
 	rs.byteVecPush(out, rs.atomicLoad(DROPS, 0));
-	const iter2: rs.Iter<rs.u32> = rs.iterSlice(v.items);
-	while (true) {
-		const _31: rs.u32 | rs.Done = iter2.next();
-		if (_31 === rs.DONE) {
-			break;
-		}
+	for (const _31 of v.items) {
 		put$spare_Item_u32(_31, out);
 	}
 }

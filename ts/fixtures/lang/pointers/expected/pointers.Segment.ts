@@ -37,13 +37,7 @@ export function iterated(): Segment {
 	const slots: Lent.Lent<[rs.u8, rs.u8]>[] = Array.from({ length: 4 }, (): Lent.Lent<[rs.u8, rs.u8]> => {
 		return (new Lent.Lent((undefined as unknown) as rs.Cell<[rs.u8, rs.u8]>) as unknown) as Lent.Lent<[rs.u8, rs.u8]>;
 	});
-	const iter: rs.Iter<Lent.Lent<[rs.u8, rs.u8]>> = rs.iterSlice(slots);
-	while (true) {
-		const _8: Lent.Lent<[rs.u8, rs.u8]> | rs.Done = iter.next();
-		if (_8 === rs.DONE) {
-			break;
-		}
-		const uninit = _8;
+	for (const uninit of slots) {
 		rs.ptrWrite(uninit, Lent.new$mem_MaybeUninit_tuple2_u8_u8(([undefined, undefined] as unknown) as [rs.u8, rs.u8]));
 		uninit;
 	}

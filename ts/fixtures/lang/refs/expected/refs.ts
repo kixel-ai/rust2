@@ -657,13 +657,15 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		_54.v = rs.u32Add(_54.v, 3);
 	}
-	const iter2: rs.Iter<rs.Place<rs.u32>> = rs.iterSliceMut(rs.sliceFrom(v.items));
+	const iterS: rs.u32[] = v.items;
+	let iterI: number = 0;
+	const iterE: number = v.items.length;
 	while (true) {
-		const _62: rs.Place<rs.u32> | rs.Done = iter2.next();
+		const _62: number | rs.Done = iterI < iterE ? iterI++ : rs.DONE;
 		if (_62 === rs.DONE) {
 			break;
 		}
-		bump(_62, 1);
+		bump(rs.arrayAsPtr(iterS, _62), 1);
 	}
 	const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteVecSlice(bytes)));
 	while (true) {

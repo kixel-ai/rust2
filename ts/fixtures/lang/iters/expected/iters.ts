@@ -1465,53 +1465,54 @@ export function optionItems(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.byteVecPush(out, _67 ? 1 : 0);
 	}
-	const iter5: rs.Iter<rs.Place<rs.u32 | undefined>> = rs.iterSliceMut(rs.sliceFrom(words.items));
+	const iterS5: Array<rs.u32 | undefined> = words.items;
+	let iterI5: number = 0;
+	const iterE: number = words.items.length;
 	while (true) {
-		const _72: rs.Place<rs.u32 | undefined> | rs.Done = iter5.next();
+		const _72: number | rs.Done = iterI5 < iterE ? iterI5++ : rs.DONE;
 		if (_72 === rs.DONE) {
 			break;
 		}
-		if (_72.v === undefined) {
-			_72.v = 165;
+		if (iterS5[_72] === undefined) {
+			iterS5[_72] = 165;
 		} else {
-			_72.v = rs.u32Add(_72.v, 1);
+			iterS5[_72] = rs.u32Add(iterS5[_72], 1);
 		}
 	}
-	const iter6: rs.Iter<rs.Place<undefined | rs.None>> = rs.iterSliceMut(rs.sliceFrom(units.items));
+	const iterS6: Array<undefined | rs.None> = units.items;
+	let iterI6: number = 0;
+	const iterE2: number = units.items.length;
 	while (true) {
-		const _83: rs.Place<undefined | rs.None> | rs.Done = iter6.next();
+		const _83: number | rs.Done = iterI6 < iterE2 ? iterI6++ : rs.DONE;
 		if (_83 === rs.DONE) {
 			break;
 		}
-		if (_83.v === rs.None) {
+		if (iterS6[_83] === rs.None) {
 			_87 = undefined;
 		} else {
 			_87 = rs.None;
 		}
-		_83.v = _87;
+		iterS6[_83] = _87;
 	}
-	const iter7: rs.Iter<rs.Place<rs.u8 | undefined | rs.None>> = rs.iterSliceMut(rs.sliceFrom(nested.items));
+	const iterS7: Array<rs.u8 | undefined | rs.None> = nested.items;
+	let iterI7: number = 0;
+	const iterE3: number = nested.items.length;
 	while (true) {
-		const _94: rs.Place<rs.u8 | undefined | rs.None> | rs.Done = iter7.next();
+		const _94: number | rs.Done = iterI7 < iterE3 ? iterI7++ : rs.DONE;
 		if (_94 === rs.DONE) {
 			break;
 		}
-		if (_94.v !== rs.None) {
-			if (_94.v !== undefined) {
-				_94.v = rs.u8WrappingAdd(_94.v, 1);
+		if (iterS7[_94] !== rs.None) {
+			if (iterS7[_94] !== undefined) {
+				iterS7[_94] = rs.u8WrappingAdd(iterS7[_94], 1);
 				continue;
 			}
 		}
-		if (_94.v !== rs.None) {
-			_94.v = 166;
+		if (iterS7[_94] !== rs.None) {
+			iterS7[_94] = 166;
 		}
 	}
-	const iter8: rs.Iter<rs.u32 | undefined> = rs.iterSlice(words.items);
-	while (true) {
-		const _111: rs.u32 | undefined | rs.Done = iter8.next();
-		if (_111 === rs.DONE) {
-			break;
-		}
+	for (const _111 of words.items) {
 		rs.byteVecPush(out, option_mapOr$07pvkk0(_111, 167, (a5: rs.u32): rs.u8 => {
 			return a5 & 0xff;
 		}));
@@ -1590,9 +1591,10 @@ export function optionItems(data: rs.ByteSlice, out: rs.ByteVec): void {
 /** How many items are `Some`, of a slice of options of any `T`. */
 export function present$Option_u8(items: rs.Slice<rs.u8 | undefined | rs.None>): rs.u8 {
 	let n: rs.u8 = 0;
-	const iter: rs.Iter<rs.u8 | undefined | rs.None> = rs.iterSlice(rs.sliceItems(items));
+	const iterS: Array<rs.u8 | undefined | rs.None> = rs.sliceItems(items);
+	let iterI: number = 0;
 	while (true) {
-		const _6: rs.u8 | undefined | rs.None | rs.Done = iter.next();
+		const _6: rs.u8 | undefined | rs.None | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
 		if (_6 === rs.DONE) {
 			return n;
 		}
@@ -1605,9 +1607,10 @@ export function present$Option_u8(items: rs.Slice<rs.u8 | undefined | rs.None>):
 /** How many items are `Some`, of a slice of options of any `T`. */
 export function present$ref_dyn_iters_Badge(items: rs.Slice<Badge.Badge | undefined>): rs.u8 {
 	let n: rs.u8 = 0;
-	const iter: rs.Iter<Badge.Badge | undefined> = rs.iterSlice(rs.sliceItems(items));
+	const iterS: Array<Badge.Badge | undefined> = rs.sliceItems(items);
+	let iterI: number = 0;
 	while (true) {
-		const _6: Badge.Badge | undefined | rs.Done = iter.next();
+		const _6: Badge.Badge | undefined | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
 		if (_6 === rs.DONE) {
 			return n;
 		}
@@ -1620,9 +1623,10 @@ export function present$ref_dyn_iters_Badge(items: rs.Slice<Badge.Badge | undefi
 /** How many items are `Some`, of a slice of options of any `T`. */
 export function present$unit(items: rs.Slice<undefined | rs.None>): rs.u8 {
 	let n: rs.u8 = 0;
-	const iter: rs.Iter<undefined | rs.None> = rs.iterSlice(rs.sliceItems(items));
+	const iterS: Array<undefined | rs.None> = rs.sliceItems(items);
+	let iterI: number = 0;
 	while (true) {
-		const _6: undefined | rs.None | rs.Done = iter.next();
+		const _6: undefined | rs.None | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
 		if (_6 === rs.DONE) {
 			return n;
 		}
@@ -1750,12 +1754,7 @@ export function values(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return { bytes: rs.byteSliceToByteVec(rs.byteSliceFrom(Uint8Array.of(b3, ~b3 & 0xff))) };
 	}), undefined, 12, true);
 	const cloned: rs.Vec<Tag.Tag> = rs.iterToVec(rs.iterMap(rs.iterSlice(tags.items), Tag.clone$Clone), undefined, 12, true);
-	const iter3: rs.Iter<Tag.Tag> = rs.iterSlice(cloned.items);
-	while (true) {
-		const _59: Tag.Tag | rs.Done = iter3.next();
-		if (_59 === rs.DONE) {
-			break;
-		}
+	for (const _59 of cloned.items) {
 		rs.byteVecPush(_59.bytes, 119);
 	}
 	const iter4: rs.Iter<Tag.Tag> = rs.iterChain(rs.iterSlice(tags.items), rs.iterSlice(cloned.items));

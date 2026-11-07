@@ -432,10 +432,18 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	/// References a call returns to what its `&mut` argument borrows, as `Cow::to_mut`'s:
 	/// the place each reads and writes, which a store through one rebuilds as a `Ref`'s.
 	reborrows: FxHashMap<Local, Place<'tcx>>,
-	/// The two variables each holds its fields in, by `step`.
-	stepped_vars: FxHashMap<Local, [String; 2]>,
+	/// The variables each holds its fields in, by `step`.
+	stepped_vars: FxHashMap<Local, Vec<String>>,
 	/// Those moved into another, which shares its variables.
 	stepped_into: FxHashMap<Local, Local>,
+	/// The items those lending places lend by index, each a reference read as the element
+	/// of the array it indexes, by the iterator that lends it.
+	lent_items: FxHashMap<Local, Local>,
+	/// The `next` results holding those indexes, or `rs.DONE`.
+	lent_nexts: FxHashSet<Local>,
+	/// The names of the arrays those items index where a place is made of one, which
+	/// `rs.arrayAsPtr` makes as `rs.iterSliceMut` would have.
+	item_arrays: FxHashSet<String>,
 	/// Statements that change nothing: a swap through a temporary nothing else names, as
 	/// an async body moves its context at each `await`.
 	noops: FxHashSet<(BasicBlock, usize)>,
@@ -541,6 +549,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			reborrows: FxHashMap::default(),
 			stepped_vars: FxHashMap::default(),
 			stepped_into: FxHashMap::default(),
+			lent_items: FxHashMap::default(),
+			lent_nexts: FxHashSet::default(),
+			item_arrays: FxHashSet::default(),
 			noops: FxHashSet::default(),
 			idx_of: FxHashMap::default(),
 			halves: FxHashMap::default(),
@@ -761,6 +772,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				self.b.t.check_erased(held, self.local_span(local));
 			}
 		}
+		debug_assert!(
+			self.lent_items.keys().all(|&l| matches!(self.slots[l], Slot::Alias(_))),
+			"an item lent by index is an alias, as `lent_items` checked"
+		);
 		self.find_tested();
 		// Names: what debug info calls a local, else its number.
 		let mut named: FxHashMap<Local, rustc_span::Symbol> = FxHashMap::default();
@@ -1896,6 +1911,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// A local's declared type: the value's, for a checked pair.
 	fn decl_ty(&mut self, local: Local) -> Type {
 		let ty = self.mir.local_decls[local].ty;
+		if self.lent_nexts.contains(&local) {
+			return Type::Union(vec![Type::Builtin("number"), Type::Rs("Done", Vec::new())]);
+		}
 		if self.next_results.contains(&local) {
 			let item = self.b.t.held_ty(next_item(self.tcx, ty), self.local_span(local));
 			if self.range_nexts.contains(&local) {
@@ -2625,6 +2643,26 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				return;
 			}
 			match self.slots[local] {
+				Slot::Alias(_) if let Some(&iter) = self.lent_items.get(&local) => {
+					let Rvalue::Use(Operand::Copy(p) | Operand::Move(p), _) = rvalue else {
+						unreachable!("checked by lent_items")
+					};
+					let index = self.place_expr(*p, span, out);
+					let array = Expr::ident(&self.stepped_vars[&iter][0]);
+					// Made a place of, the array is held as it is now, as the borrow fixes it,
+					// since the variable steps another slice's once the iterator is made again.
+					let array = match self.read_whole(local) {
+						true => {
+							let name = self.b.fresh("items");
+							self.emit(vec![StmtKind::decl(false, name.clone(), None, Some(array)).at(None)], false, out);
+							self.item_arrays.insert(name.clone());
+							Expr::ident(name)
+						}
+						false => array,
+					};
+					self.slots[local] = Slot::Alias(Some(array.index(index)));
+					return;
+				}
 				Slot::Alias(_) => {
 					let target = match rvalue {
 						Rvalue::Ref(_, kind, p) => match self.array_subslice(*kind, *p, span, out) {
@@ -2719,7 +2757,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		let value = self.rvalue(rvalue, place, span, &mut pre);
 		let value = match (value, place.as_local()) {
-			(Some(value), Some(local)) if self.stepped.contains(&local) => Some(self.stepped_make(value, span)),
+			(Some(value), Some(local)) if self.stepped.contains(&local) => {
+				Some(self.stepped_make(value, span, &mut pre))
+			}
 			(value, _) => value,
 		};
 		self.into_frozen = false;

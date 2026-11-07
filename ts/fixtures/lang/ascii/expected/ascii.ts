@@ -398,13 +398,7 @@ export function parts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		put(out, array[1].v);
 		put(out, array[0].v);
 	} else if (_32 === 3) {
-		const iter: rs.Iter<rs.String> = rs.iterSlice(v.items);
-		while (true) {
-			const _93: rs.String | rs.Done = iter.next();
-			if (_93 === rs.DONE) {
-				break;
-			}
-			const _98: rs.Place<string> = _93;
+		for (const _98 of v.items) {
 			_98.v = rs.strToAsciiUppercase(_98.v);
 		}
 		const _100: rs.Place<string> = rs.strPart(v.items[rs.idx(v.items, 0)], 0);
