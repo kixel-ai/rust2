@@ -981,7 +981,22 @@ impl Printer<'_> {
 			}
 			Expr::New(f, args) => {
 				self.write("new ");
-				self.base(f);
+				// A call in the callee would take `new`'s arguments as its own.
+				fn calls(e: &Expr) -> bool {
+					match e.unlocated() {
+						Expr::Call(..) => true,
+						Expr::Member(base, _) | Expr::Index(base, _) => calls(base),
+						_ => false,
+					}
+				}
+				match calls(f) {
+					true => {
+						self.write("(");
+						self.expr(f, 0);
+						self.write(")");
+					}
+					false => self.base(f),
+				}
 				self.write("(");
 				self.list(args);
 				self.write(")");

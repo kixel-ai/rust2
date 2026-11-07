@@ -11,7 +11,7 @@
     # The quest CLI, which also serves the quest guide and skills the stubs in
     # .claude/skills call. Bump the rev to upgrade them.
     quest = {
-      url = "github:moq-dev/quest/1c3cf6a719c8ac8e98181475e27e25d25a5ebbc2";
+      url = "github:moq-dev/quest/6a18b8a815c2d15d37d7433a619f961ec5a07165";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
     };
@@ -297,6 +297,9 @@
               typescript
               bun
               esbuild
+              # Its wasm-bindgen fixture's native side runs through the CLI's JS glue, whose
+              # version must match the fixture's locked wasm-bindgen exactly.
+              wasm-bindgen-cli_0_2_129
               # rust2-ffi's tests compile its generated Kotlin and run it on the JVM, run and
               # type-check its generated Python, run its Dart, and build its Go through cgo.
               kotlin
