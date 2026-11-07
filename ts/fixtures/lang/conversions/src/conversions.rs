@@ -843,11 +843,23 @@ unsafe fn detached(s: &mut [u8]) -> &'static mut u8 {
 	unsafe { &mut *s.as_mut_ptr() }
 }
 
+/// Adds `by` to the byte `s` holds, then gives it back, as an error if it is odd.
+fn add_checked(s: &mut [u8], by: u8) -> Result<u8, u8> {
+	s[0] = s[0].wrapping_add(by);
+	if s[0] % 2 == 0 { Ok(s[0]) } else { Err(s[0]) }
+}
+
+/// [`add_checked`] of a slice of one of `b`, whose result it returns as is.
+fn add_through(b: &mut u8, by: u8) -> Result<u8, u8> {
+	add_checked(std::slice::from_mut(b), by)
+}
+
 /// Slices of one byte where it is, each read and written, and the byte read where it is
 /// after: in a field, a tuple's, an array's, an `Option`'s, a `MaybeUninit`'s, a variable,
 /// through a parameter and a `&mut` to a `&mut`, kept in a closure, a `Vec`, a copy, a
-/// raw pointer, and a reference whose lifetime unsafe code made up, swapped, and made
-/// again in a loop with the byte written between.
+/// raw pointer, and a reference whose lifetime unsafe code made up, swapped, made again
+/// in a loop with the byte written between, and in a function returning what a call given
+/// one returns.
 pub fn byte_places(_kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let at = |i: usize| data.get(i).copied().unwrap_or(i as u8);
 	let mut h = Header {
@@ -949,5 +961,16 @@ pub fn byte_places(_kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	// SAFETY: `b` is used only before `h.tag` is read below.
 	let b = unsafe { detached(std::slice::from_mut(&mut h.tag)) };
 	*b = b.wrapping_add(at(26));
+	h.put(out);
+	// Through a function that returns what a call given one returns, as `Ok` and as `Err`:
+	// the second adds one, so one of the two is odd.
+	let first = add_through(&mut h.tag, at(27));
+	let second = add_through(&mut h.tag, 1);
+	for r in [first, second] {
+		out.extend(match r {
+			Ok(v) => [0, v],
+			Err(v) => [1, v],
+		});
+	}
 	h.put(out);
 }

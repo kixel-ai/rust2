@@ -53,6 +53,8 @@ export function drop$tuple2_conversions_Logged_u8(_1: [Logged.Logged, rs.u8]): v
 	_1[0][Symbol.dispose]();
 }
 
+export const out$u8: { err: unknown } = { err: undefined };
+
 /**
  * Each case's name and what it runs. The first two bytes, big-endian, pick one modulo
  * their count, so a case added at the end moves no other.

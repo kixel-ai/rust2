@@ -160,6 +160,17 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 			mirrors.made.insert(bb, Made::Var(name));
 		}
+		// A call that returns its result as is returns before its target block starts, so
+		// one with a mirror due there returns through that block instead.
+		self.returning
+			.retain(|at| match &mir.basic_blocks[at.block].terminator().kind {
+				TerminatorKind::Call { target: Some(to), .. }
+					if at.statement_index == mir[at.block].statements.len() =>
+				{
+					!mirrors.entry.contains_key(to)
+				}
+				_ => true,
+			});
 		self.mirrors = mirrors;
 	}
 
