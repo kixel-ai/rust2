@@ -17,7 +17,7 @@
 //! into a `byte[]` field by field as its C struct holds it, so each call is one crossing.
 //! An object never closed, and Rust's bytes, are freed once the GC collects them.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 use std::hash::Hasher;
 
@@ -43,6 +43,7 @@ pub struct Output {
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
 		abi,
+		classes: abi.classes(|_| (String::new(), 0)),
 		types: String::new(),
 		top: String::new(),
 		natives: String::new(),
@@ -276,6 +277,8 @@ struct Arg {
 
 struct Gen<'a> {
 	abi: &'a Abi<'a>,
+	/// Each exported type's name, by its C name.
+	classes: HashMap<String, String>,
 	/// Types, then top-level functions and codecs, then the native methods.
 	types: String,
 	top: String,
@@ -307,7 +310,7 @@ impl<'a> Gen<'a> {
 
 	/// The Kotlin name of the C type `c`.
 	fn class(&self, c: &str) -> String {
-		pascal(self.bare(c))
+		self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c)))
 	}
 
 	/// Claim the top-level Kotlin name `name` for `what`.
