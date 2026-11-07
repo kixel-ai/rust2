@@ -58,9 +58,6 @@ pub struct Defining<'tcx> {
 	pending: Vec<Pending<'tcx>>,
 	/// How many projections every record holds, which grows while instances are filled.
 	recorded: usize,
-	/// The [`Pending::depth`] and [`Pending::root`] of the instance whose projection
-	/// arguments are being filled.
-	filling: Option<(usize, usize)>,
 	/// The field of the definition being typed whose type is.
 	pub field: Option<DefId>,
 	/// The instances being typed in the type expression being typed, which a definition
@@ -116,12 +113,6 @@ struct Pending<'tcx> {
 	span: Span,
 	/// Its projection arguments as last filled in.
 	filled: Option<Vec<Type>>,
-	/// Whether it was refused, and so is filled for good.
-	refused: bool,
-	/// How many instances' projection arguments named it in turn, from one a definition's
-	/// fields typed, and that one, by its index in [`Defining::pending`].
-	depth: usize,
-	root: usize,
 }
 
 impl<'tcx> Translator<'_, 'tcx> {
@@ -257,9 +248,6 @@ impl<'tcx> Translator<'_, 'tcx> {
 			field: state.field,
 			span,
 			filled: None,
-			refused: false,
-			depth: state.filling.map_or(0, |(depth, _)| depth + 1),
-			root: state.filling.map_or(state.pending.len(), |(_, root)| root),
 		});
 		Some(Type::Later(state.pending.len() - 1))
 	}
@@ -399,21 +387,47 @@ impl<'tcx> Translator<'_, 'tcx> {
 	/// Complete the definition at `depth` in [`Defining::typing`] and every one typed with
 	/// it: fill in the projection arguments of the instances they typed until no record
 	/// grows, then close their records and settle what reads them.
+	///
+	/// Each round fills in what the round before named, so a finite layout settles in as
+	/// many rounds as its chain of instances and projections is long. A type that holds
+	/// itself at ever other arguments never settles, so, as rustc bounds its own recursion,
+	/// more rounds than the crate's recursion limit are refused at the definition.
 	fn complete(&mut self, depth: usize) {
 		let tcx = self.tcx;
 		let (members, pending, items) = {
 			let typing = &self.defining_state.typing[depth];
 			(typing.members, typing.pending, typing.items)
 		};
-		loop {
+		let mut rounds = 0;
+		let settled = loop {
 			let recorded = self.defining_state.recorded;
 			let count = self.defining_state.pending.len();
 			for i in pending..count {
 				self.fill_pending(i);
 			}
 			if self.defining_state.recorded == recorded && self.defining_state.pending.len() == count {
-				break;
+				break true;
 			}
+			rounds += 1;
+			if rounds > tcx.recursion_limit().0 {
+				break false;
+			}
+		};
+		if !settled {
+			let state = &mut self.defining_state;
+			for p in &mut state.pending[pending..] {
+				p.filled = Some(vec![Type::Builtin("unknown"); state.records[&p.adt].projections.len()]);
+			}
+			// The definition completing them all, which finished typing last.
+			let root = state.members.last().expect("the definition completing");
+			let instance = Ty::new_adt(tcx, tcx.adt_def(root.adt), ty::GenericArgs::identity_for_item(tcx, root.adt));
+			let span = tcx.def_span(root.adt);
+			self.err(
+				span,
+				format!(
+					"`{instance}` is not supported: it holds itself at ever other arguments, whose projections name new instances or projections past the crate's recursion limit"
+				),
+			);
 		}
 		let done: Vec<Member> = self.defining_state.members.drain(members..).collect();
 		for member in &done {
@@ -481,43 +495,21 @@ impl<'tcx> Translator<'_, 'tcx> {
 
 	/// Fill in the projection arguments of the instance `pending[i]` typed, from its
 	/// definition's projections so far. Filling them in may name more projections or
-	/// instances, which are filled in turn until none is new; a type that holds itself at
-	/// ever other arguments would name them without end, ever deeper, so an instance named
-	/// through more instances than the crate's recursion limit is refused, as is one whose
-	/// filling names a projection of projections nested deeper than that.
+	/// instances, which the next round of [`Self::complete`] fills in turn.
 	fn fill_pending(&mut self, i: usize) {
 		let p = &self.defining_state.pending[i];
 		let projections: Vec<Ty<'tcx>> = (self.defining_state.records[&p.adt].projections.iter())
 			.map(|(p, _)| *p)
 			.collect();
-		if p.refused || p.filled.as_ref().is_some_and(|f| f.len() == projections.len()) {
+		if p.filled.as_ref().is_some_and(|f| f.len() == projections.len()) {
 			return;
 		}
-		let (adt, args, at, field, span, depth, root) = (p.adt, p.args, p.at, p.field, p.span, p.depth, p.root);
-		let limit = self.tcx.recursion_limit().0;
-		if depth > limit {
-			// Named by the one its definition's field typed, which the source wrote.
-			let root = &self.defining_state.pending[root];
-			let instance = Ty::new_adt(self.tcx, self.tcx.adt_def(root.adt), root.args);
-			self.err(
-				root.span,
-				format!(
-					"`{instance}` is not supported: its projections' values nest instances past the crate's recursion limit"
-				),
-			);
-			let p = &mut self.defining_state.pending[i];
-			p.filled = Some(vec![Type::Builtin("unknown"); projections.len()]);
-			p.refused = true;
-			return;
-		}
+		let (args, at, field, span) = (p.args, p.at, p.field, p.span);
 		let env = at.map_or(self.typing_env(), |(_, env)| env);
-		let named = |state: &Defining<'tcx>| at.map_or(0, |(did, _)| state.records[&did].projections.len());
-		let before = (named(&self.defining_state), self.defining_state.pending.len());
 		let outer = std::mem::replace(&mut self.defining, at);
 		let outer_field = std::mem::replace(&mut self.defining_state.field, field);
 		self.defining_state.projecting += 1;
-		let filling = self.defining_state.filling.replace((depth, root));
-		let mut tys: Vec<Type> = projections
+		let tys: Vec<Type> = projections
 			.iter()
 			.map(|&p| {
 				let at = super::copy::instantiate(self.tcx, env, p, args);
@@ -525,37 +517,9 @@ impl<'tcx> Translator<'_, 'tcx> {
 			})
 			.collect();
 		self.defining_state.projecting -= 1;
-		self.defining_state.filling = filling;
 		self.defining = outer;
 		self.defining_state.field = outer_field;
-		let refused = at.is_some_and(|(did, _)| {
-			let nested = |p: Ty<'tcx>| {
-				(p.walk())
-					.filter(|arg| matches!(arg.as_type().map(|t| *t.kind()), Some(ty::Alias(..))))
-					.count()
-			};
-			(self.defining_state.records[&did].projections[before.0..])
-				.iter()
-				.any(|&(p, _)| nested(p) > limit)
-		});
-		if refused {
-			let instance = Ty::new_adt(self.tcx, self.tcx.adt_def(adt), args);
-			self.err(
-				span,
-				format!(
-					"`{instance}` is not supported: a type that holds itself at other arguments than its own parameters, through a projection of them, which would name new projections without end"
-				),
-			);
-			tys = vec![Type::Builtin("unknown"); projections.len()];
-			// Nor are the instances it named filled in, which would name more.
-			for named in &mut self.defining_state.pending[before.1..] {
-				named.filled = Some(Vec::new());
-				named.refused = true;
-			}
-		}
-		let p = &mut self.defining_state.pending[i];
-		p.filled = Some(tys);
-		p.refused = refused;
+		self.defining_state.pending[i].filled = Some(tys);
 	}
 }
 

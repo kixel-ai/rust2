@@ -12,6 +12,8 @@ import type * as Layer from "../generics.Layer.ts";
 import type * as Looped from "../generics.Looped.ts";
 import type * as Node from "../generics.Node.ts";
 import type * as Peel from "../generics.Peel.ts";
+import type * as Remade from "../generics.Remade.ts";
+import type * as Sibling from "../generics.Sibling.ts";
 import type * as Ticked from "../generics.Ticked.ts";
 import type * as Top from "../generics.Top.ts";
 import { from$convert_From_shapes_Dir_u8 } from "../shapes.ts";
@@ -119,6 +121,13 @@ export function map$1ub01y7(self: Ticked.Ticked | undefined, f: (a0: Ticked.Tick
 }
 
 export function map$1a3j889(self: Layer.Layer<Peel.Peel<Top.Top>, boolean, rs.u8> | undefined, f: (a0: Layer.Layer<Peel.Peel<Top.Top>, boolean, rs.u8>) => [boolean, boolean]): [boolean, boolean] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$0e9v36n(self: Sibling.Sibling<Remade.Remade<rs.u8>, rs.u8, rs.u8> | undefined, f: (a0: Sibling.Sibling<Remade.Remade<rs.u8>, rs.u8, rs.u8>) => [rs.u8, boolean]): [rs.u8, boolean] | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

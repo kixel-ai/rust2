@@ -295,6 +295,39 @@ pub fn projected_chain(item: u8) -> u8 {
 	nested.item
 }
 
+/// A source's item, and what it makes of any type.
+pub trait Gathers {
+	type Item;
+	type Many<T>;
+}
+
+impl Gathers for u8 {
+	type Item = u8;
+	type Many<T> = T;
+}
+
+/// A source gathered once more, whose item and what it makes are what its source makes,
+/// gathered once more.
+pub struct Gather<S>(pub S);
+
+impl<S: Gathers> Gathers for Gather<S> {
+	type Item = S::Many<S>;
+	type Many<T> = S::Many<Gather<T>>;
+}
+
+/// A type that holds itself at a gathered source, whose item is a projection at a type
+/// argument gathered once more at each, one projection deep.
+pub struct Grown<S: Gathers + 'static> {
+	pub item: S::Item,
+	pub next: Option<&'static Grown<Gather<S>>>,
+}
+
+/// `Grown<S>`'s definition would name a new projection at each gathering.
+pub fn projected_grown(item: u8) -> u8 {
+	let grown: Grown<u8> = Grown { item, next: None };
+	grown.item
+}
+
 /// Parsing an address is not translated yet.
 pub fn addr_parsed(s: &str) -> Result<std::net::Ipv4Addr, std::net::AddrParseError> {
 	s.parse()

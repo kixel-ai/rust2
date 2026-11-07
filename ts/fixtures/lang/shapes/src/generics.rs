@@ -1070,6 +1070,47 @@ broad!(
 	a126, A127 a127, A128 a128, A129 a129
 );
 
+/// A source's item, and what it makes of any type.
+trait Makes {
+	type Item;
+	type Made<T>;
+}
+
+impl Makes for u8 {
+	type Item = u16;
+	type Made<T> = u8;
+}
+
+/// A source made once more, whose item is what its source makes of what it makes of 130
+/// types: more projections than the crate's recursion limit, side by side, but only two deep.
+struct Remade<S>(S);
+
+macro_rules! siblings {
+	($($n:literal),* $(,)?) => {
+		impl<S: Makes> Makes for Remade<S> {
+			type Item = S::Made<($(S::Made<[(); $n]>,)*)>;
+			type Made<T> = u8;
+		}
+	};
+}
+
+siblings!(
+	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+	24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45,
+	46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67,
+	68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89,
+	90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108,
+	109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125,
+	126, 127, 128, 129
+);
+
+/// A source's item, lending the same at a source made once more, whose item is a projection
+/// of 130 sibling projections, which settles at its second.
+struct Sibling<S: Makes + 'static> {
+	item: S::Item,
+	next: Option<&'static Sibling<Remade<S>>>,
+}
+
 /// Two types a source names, each holding the other.
 trait Duo {
 	type Ping;
@@ -1227,6 +1268,12 @@ pub fn projected_selves(data: &[u8], out: &mut Vec<u8>) {
 
 	let wide = Wide::new(data.len() as u8);
 	put(out, &format!("{} {} {}", wide.a0, wide.a129, wide.next.is_none()));
+	let made: &'static Sibling<Remade<u8>> = &Sibling { item: 7, next: None };
+	let sibling = Sibling::<u8> {
+		item: u16::from(data.last().copied().unwrap_or(0)) << 3,
+		next: (data.len() % 3 == 0).then_some(made),
+	};
+	put(out, &format!("{} {:?}", sibling.item, sibling.next.map(|s| (s.item, s.next.is_none()))));
 
 	let mut ping = Ping::<Rally> { id: 0xee, pong: None };
 	for (i, &b) in data.iter().enumerate() {
