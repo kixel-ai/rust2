@@ -12,6 +12,19 @@ Object.assign(globalThis, {
 	},
 });
 
+// A namespace a getter makes anew each time it is read, whose function says whether it was
+// called on the namespace it was read from: by its arguments' count, or -1 where not.
+Object.defineProperty(globalThis, "rustFresh", {
+	get() {
+		const fresh = {
+			of(...args: unknown[]) {
+				return this === fresh ? args.length : -1;
+			},
+		};
+		return fresh;
+	},
+});
+
 export { run };
 
 /** Each case's name and the byte that picks it, its place in `cases`. */

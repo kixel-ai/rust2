@@ -639,6 +639,13 @@ fn edges(input: &mut Input, out: &mut String) {
 		Ok(array) => writeln!(out, "spread {}", array.length()).unwrap(),
 		Err(e) => error_class(out, "spread threw", &e),
 	}
+	let counts = [input.u32(), input.u32()];
+	let fresh = imports::fresh_of(&counts[..usize::from(input.u8() % 3)]);
+	writeln!(out, "fresh of {fresh}").unwrap();
+	// The `None` an `Option<u8>` takes `0xFFFFFF` for, beside an input's value.
+	let sentinel = imports::u8_option(&JsValue::from(0x00ff_ffff));
+	let small = imports::u8_option(&JsValue::from_f64(input.f64()));
+	writeln!(out, "u8 option {sentinel:?} {small:?}").unwrap();
 	let v = input.value();
 	match imports::char_caught(&v) {
 		Ok(c) => writeln!(out, "char {c:?}").unwrap(),
@@ -663,12 +670,16 @@ fn edges(input: &mut Input, out: &mut String) {
 		show(out, "owned", &owned.obj);
 	}
 	writeln!(out, "drops {}", DROPS.load(Ordering::Relaxed) - before).unwrap();
-	// Last, as each may throw past the case: a `catch` import whose `u32` the ABI coerces,
+	// Last, as each may throw past the case: `catch` imports whose numbers the ABI coerces,
 	// and a plain one.
 	let v = input.value();
 	match imports::u32_caught(&v) {
 		Ok(n) => writeln!(out, "u32 {n}").unwrap(),
 		Err(e) => error_class(out, "u32 threw", &e),
+	}
+	match imports::i16_option_caught(&input.value()) {
+		Ok(n) => writeln!(out, "i16 option {n:?}").unwrap(),
+		Err(e) => error_class(out, "i16 option threw", &e),
 	}
 	writeln!(out, "u32 of {}", imports::u32_of(&input.value())).unwrap();
 }

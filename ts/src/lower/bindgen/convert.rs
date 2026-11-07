@@ -198,6 +198,14 @@ pub fn from_js<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span
 					ty::Bool => Expr::Unary("!!", Box::new(Expr::ident(some.clone()))),
 					_ => from_js(b, inner, Expr::ident(some.clone()), span)?,
 				};
+				// An optional small integer crosses the ABI's `i32` as it is, its `0xFFFFFF` `None`.
+				let (value, is_none) = match small(inner) {
+					true => (
+						Expr::rs("jsToOptionSmall", vec![value]),
+						Expr::ident(some.clone()).binary("===", Expr::undefined()),
+					),
+					false => (value, Expr::rs("jsIsNone", vec![Expr::ident(some.clone())])),
+				};
 				let ret = b.t.ty(ty, span);
 				Expr::Call(
 					Box::new(Expr::Arrow(
@@ -207,12 +215,8 @@ pub fn from_js<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span
 						}],
 						ret,
 						vec![
-							StmtKind::Return(Some(Expr::Cond(
-								Box::new(Expr::rs("jsIsNone", vec![Expr::ident(some)])),
-								Box::new(none),
-								Box::new(converted),
-							)))
-							.at(None),
+							StmtKind::Return(Some(Expr::Cond(Box::new(is_none), Box::new(none), Box::new(converted))))
+								.at(None),
 						],
 					)),
 					vec![value],
@@ -253,8 +257,18 @@ pub fn converted_in_glue<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 			matches!(ty.kind(), ty::Int(ty::IntTy::I128) | ty::Uint(ty::UintTy::U128))
 		}
 		ty::Tuple(tys) => !tys.is_empty(),
+		ty::Adt(_, args) if b.t.std_of(ty) == Some(Std::Option) => !small(args.type_at(0)),
 		_ => b.t.std_of(ty) != Some(Std::Js),
 	}
+}
+
+/// Whether `ty` is an integer the ABI's `i32` carries as an `Option`'s payload: the JS glue
+/// passes its value as is, and its `0xFFFFFF` is `None`.
+fn small(ty: Ty<'_>) -> bool {
+	matches!(
+		ty.kind(),
+		ty::Int(ty::IntTy::I8 | ty::IntTy::I16) | ty::Uint(ty::UintTy::U8 | ty::UintTy::U16)
+	)
 }
 
 /// `(v) => <v converted to JS>`, for each item of a slice or vector of `elem`.

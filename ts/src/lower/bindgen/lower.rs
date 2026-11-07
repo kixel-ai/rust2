@@ -12,7 +12,7 @@ use super::convert::{self, global};
 use super::{Glue, Import, Kind, MethodKind, Module, Op, PLACEHOLDER};
 use crate::lower::body::Body;
 use crate::lower::library::Std;
-use crate::ts::{Expr, Param, Stmt, StmtKind, Type};
+use crate::ts::{Expr, Key, Param, Stmt, StmtKind, Type};
 
 /// A call of `instance`, which is wasm-bindgen's `glue`, given `args`.
 pub fn call<'tcx>(
@@ -297,8 +297,8 @@ fn shape<'tcx>(
 fn apply(target: Expr, name: Option<&str>, values: Vec<Expr>, variadic: bool) -> Expr {
 	let target = js_any(target);
 	let callee = match name {
-		Some(name) => path(target.clone(), name),
-		None => target.clone(),
+		Some(name) => path(target, name),
+		None => target,
 	};
 	if !variadic {
 		return callee.call(values);
@@ -306,16 +306,15 @@ fn apply(target: Expr, name: Option<&str>, values: Vec<Expr>, variadic: bool) ->
 	let Ok((last, rest)) = split_last(values) else {
 		return callee.call(Vec::new());
 	};
-	// `Reflect.apply` calls it as a spread call does, on the object it is a method of: a
-	// namespace's function on its namespace, and a global function on nothing.
-	let this = match (name, &callee) {
-		(Some(_), _) => target,
-		(None, Expr::Member(base, _) | Expr::Index(base, _)) => (**base).clone(),
-		(None, _) => Expr::undefined(),
-	};
-	global("Reflect")
-		.member("apply")
-		.call(vec![callee, this, spread(rest, last)])
+	// As a spread call: what it is a method of read once, the function read from it, and
+	// then the arguments spread, a namespace's function called on its namespace.
+	match callee {
+		Expr::Member(base, Key::Name(key)) => {
+			Expr::rs("jsSpreadMethod", vec![*base, Expr::Str(key), Expr::Array(rest), last])
+		}
+		Expr::Index(base, key) => Expr::rs("jsSpreadMethod", vec![*base, *key, Expr::Array(rest), last]),
+		callee => Expr::rs("jsSpreadCall", vec![callee, Expr::undefined(), Expr::Array(rest), last]),
+	}
 }
 
 fn split_last(mut values: Vec<Expr>) -> Result<(Expr, Vec<Expr>), String> {

@@ -179,6 +179,9 @@ extern "C" {
 	pub fn bytes_of(bytes: &[u8]) -> Vec<u8>;
 	#[wasm_bindgen(catch, variadic, js_namespace = Array, js_name = of)]
 	pub fn array_of_caught(values: &Array) -> Result<Array, JsValue>;
+	// A namespace a getter makes anew each time it is read, read once a call.
+	#[wasm_bindgen(variadic, js_namespace = rustFresh, js_name = of)]
+	pub fn fresh_of(values: &[u32]) -> u32;
 
 	// What converting a `catch` import's result throws: caught where the JS glue converts,
 	// as for a `char`, and thrown where the WebAssembly ABI coerces, as for a `u32`.
@@ -188,6 +191,11 @@ extern "C" {
 	pub fn u32_caught(v: &JsValue) -> Result<u32, JsValue>;
 	#[wasm_bindgen(js_name = rustIdentity)]
 	pub fn u32_of(v: &JsValue) -> u32;
+	// An optional small integer, which crosses the ABI's `i32` as it is, as a `u32` does.
+	#[wasm_bindgen(js_name = rustIdentity)]
+	pub fn u8_option(v: &JsValue) -> Option<u8>;
+	#[wasm_bindgen(catch, js_name = rustIdentity)]
+	pub fn i16_option_caught(v: &JsValue) -> Result<Option<i16>, JsValue>;
 
 	// An optional `bool`, which the JS glue reads by its truthiness.
 	#[wasm_bindgen(js_namespace = Math, js_name = abs)]

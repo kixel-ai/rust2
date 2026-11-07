@@ -144,6 +144,13 @@ export function jsToString(v: unknown): RsString {
 	return stringFrom(wellFormed(v));
 }
 
+/** An `Option` of a `u8`, `i8`, `u16`, or `i16`: its `u32` through the ABI's `i32`, or `undefined` for `None`, which `undefined`, `null`, and `0xFFFFFF` are. */
+export function jsToOptionSmall(v: unknown): u32 | undefined {
+	if (jsIsNone(v)) return undefined;
+	const n = jsToU32(v);
+	return n === 0xffffff ? undefined : n;
+}
+
 /** A `Vec<u8>` or `Box<[u8]>`: a copy of an array-like's bytes, each wrapped as `Uint8Array.set` wraps it. */
 export function jsToByteVec(v: unknown): ByteVec {
 	const items = v as ArrayLike<number>;
@@ -193,6 +200,18 @@ export function jsCatch<T>(call: () => unknown, from: (v: unknown) => T, glue: b
 // biome-ignore lint/suspicious/noExplicitAny: arguments of any type, after those before them.
 export function jsSpread(v: unknown): any[] {
 	return [...(v as Iterable<unknown>)];
+}
+
+/** A variadic import's call of `f` on `self`: `rest`, then `last` spread by its iterator. */
+// biome-ignore lint/suspicious/noExplicitAny: an import's result has whatever shape JS gives it.
+export function jsSpreadCall(f: unknown, self: unknown, rest: unknown[], last: unknown): any {
+	return Reflect.apply(f as (...args: unknown[]) => unknown, self, [...rest, ...(last as Iterable<unknown>)]);
+}
+
+/** `base[key](...rest, ...last)`, as a spread call reads it: `base` once, its function, then the arguments spread. */
+// biome-ignore lint/suspicious/noExplicitAny: an import's result has whatever shape JS gives it.
+export function jsSpreadMethod(base: unknown, key: PropertyKey, rest: unknown[], last: unknown): any {
+	return jsSpreadCall(jsAny(base)[key], base, rest, last);
 }
 
 /** `instanceof` the class `class_` names, false where naming it or the check throws, as where the JS glue finds no such class. */
