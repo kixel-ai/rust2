@@ -74,9 +74,7 @@ Public API: the translator's output.
 
 - [A raw pointer behind a reference](/quest/m3/ts-unsafe/raw-behind-ref.md) - `&raw const *r` of a value JS copies points where the reference came from
 - [Vec::from_raw_parts of a typed allocation](/quest/m3/ts-unsafe/vec-from-raw-parts.md) - a `Vec` adopts an `alloc`ed array of `T`s, with its length, capacity, and drops
-- [Vec::drain from std's MIR](/quest/m3/ts-unsafe/vec-drain-mir.md) - std's `Drain` translates, replacing the runtime's port
 - [BinaryHeap from std's MIR](/quest/m3/ts-unsafe/binary-heap-mir.md) - std's `BinaryHeap` and `PeekMut` translate, replacing the runtime's port
 - [Unchecked integer operations](/quest/m3/ts-unsafe/unchecked-ops.md) - `unchecked_*` and `NonZero::new_unchecked` translate, aborting on a violated precondition
 - [NonZero's unchecked arithmetic](/quest/m3/ts-unsafe/nonzero-unchecked-ops.md) - `NonZero::unchecked_add` and `unchecked_mul` translate, aborting at std's site
-- [A Box of one uninitialized value](/quest/m3/ts-unsafe/box-new-uninit.md) - `Box::new_uninit` and `new_zeroed` for one value translate, through `write` and `assume_init`
 - [A byte local whose address is taken, in a buffer of its own](/quest/m3/ts-unsafe/lone-byte-buffers.md) - raw and mutable slices of a `u8` local, and casts of them to byte arrays, translate instead of being refused

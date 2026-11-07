@@ -2,7 +2,15 @@
 
 import * as rs from "./rs.ts";
 import { arcs, needsDrops } from "./manual.ts";
-import { uninits, boxedUninits } from "./uninit.ts";
+import { uninits, boxedUninits, boxedOne, boxedZeroed } from "./uninit.ts";
+
+export function copy$array_array2_u16(v: rs.u16[][]): rs.u16[][] {
+	return v.map(copy$array_u16);
+}
+
+export function copy$array_u16(v: rs.u16[]): rs.u16[] {
+	return v.slice();
+}
 
 export function copy$array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
@@ -36,6 +44,10 @@ export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.By
 		uninits(data3, out3);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["uninit::boxed_uninits", (_25: rs.u8, data4: rs.ByteSlice, out4: rs.ByteVec): undefined => {
 		boxedUninits(data4, out4);
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["uninit::boxed_one", (_26: rs.u8, data5: rs.ByteSlice, out5: rs.ByteVec): undefined => {
+		boxedOne(data5, out5);
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["uninit::boxed_zeroed", (_27: rs.u8, data6: rs.ByteSlice, out6: rs.ByteVec): undefined => {
+		boxedZeroed(data6, out6);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }
 

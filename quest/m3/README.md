@@ -22,7 +22,5 @@ generic std gap is planned here even when moq never calls it.
 - [Writes through iter_mut without a Place per item](/quest/m3/ts-iter-mut-places.md) - a loop over `iter_mut()` of copy values writes the slice's array by index
 - [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md) - no runtime `rust2-ts:` error where native Rust goes on: an exact slower path, or a refusal at translation
 - [rust2-ts with no ts.toml](/quest/m3/ts-configless.md) - a crate's whole `pub` API translates with no config and no bound items
-- [std's panic messages hold std's capacity](/quest/m3/ts-panic-payload-capacity.md) - a hook reads native's `String` capacity from std's own formatted panics
 - [Browser APIs through wasm-bindgen](/quest/m3/ts-wasm-bindgen/README.md) - web-sys and js-sys imports become direct JS calls, so idiomatic crates such as web-rs's web-codecs translate as stock crates
-- [BufMut on a byte slice](/quest/m3/ts-bufmut-slices.md) - `bytes`' `BufMut` for `&mut [u8]` and `&mut [MaybeUninit<u8>]` translates
 - [Fields typed by an associated type](/quest/m3/ts-assoc-type-fields.md) - a generic struct's field of `<T as Trait>::Item` translates at each instance

@@ -848,6 +848,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					crate::lower::task::raw_waker(data, vtable)
 				}
 				(Std::LayoutError, _) => Expr::Rs("LAYOUT_ERROR".into()),
+				(Std::Duration, _) => {
+					let [secs, nanos] = <[Expr; 2]>::try_from(values).expect("a duration's two fields");
+					crate::lower::time::object(secs, nanos)
+				}
 				(Std::ParseIntError, _) => Expr::Object(vec![(Key::Name("kind".into()), values.pop().unwrap())]),
 				(Std::ErrorKind, _) => Expr::As(Box::new(Expr::Str(def.name.to_string())), self.b.t.ty(ty, span)),
 				(Std::Ordering, _) => crate::lower::collections::ordering_variant(variant),

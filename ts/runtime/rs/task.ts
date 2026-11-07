@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, arrayAssign, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, stringAsBytes, type Vec } from "../rs.ts";
+import { Abort, arrayAssign, assertFailed, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtOwned, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, stringAsBytes, type Vec } from "../rs.ts";
 import type { Hasher } from "./hash.ts";
 import type { Location } from "./location.ts";
 
@@ -514,7 +514,7 @@ const WOULD_BLOCK: Result<never, TryLockError<never>> = /* @__PURE__ */ Err({ ta
 
 /** `Mutex::lock`: its guard, which is the mutex. Locking it again while held panics, as wasm32's does. */
 export function mutexLock<T>(mutex: Mutex<T>): Mutex<T> {
-	if (mutex.locked) panic("assertion `left == right` failed: cannot recursively acquire mutex\n  left: true\n right: false", "mutex_lock", true);
+	if (mutex.locked) assertFailed("==", fmtOwned(true, fmtBool), fmtOwned(false, fmtBool), ["cannot recursively acquire mutex"], "mutex_lock");
 	mutex.locked = true;
 	return mutex;
 }

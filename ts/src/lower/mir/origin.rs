@@ -152,6 +152,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					.into_iter()
 					.find_map(|p| out(self.origin(p)?, n, "a copy"))
 			}
+			("ptr" | "NonNull", "write_bytes") => out(self.origin(arg(0)?)?, self.const_int(arg(2)?), "a write"),
 			_ => None,
 		}
 	}
