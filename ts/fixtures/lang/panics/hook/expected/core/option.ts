@@ -16,13 +16,6 @@ export function map$18ftgyp(self: rs.char | undefined, _: (a0: rs.char) => rs.u3
 	return self as rs.u32;
 }
 
-export function map$0ded99z(self: rs.String | undefined, _: (a0: rs.String) => rs.usize): rs.usize | undefined {
-	if (self === undefined) {
-		return undefined;
-	}
-	return self.cap;
-}
-
 export function map$04ry0e1(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;
