@@ -48,6 +48,28 @@ pub fn generic_uninit_byte(b: u8) -> bool {
 	.is_some()
 }
 
+/// The same in a generic type's field, whose other parameter is still open.
+pub struct ByteAnd<T, U> {
+	pub value: Option<std::mem::MaybeUninit<T>>,
+	pub other: U,
+}
+
+pub struct HoldsByte<U> {
+	pub held: ByteAnd<u8, U>,
+}
+
+pub fn generic_uninit_byte_open(b: u8) -> bool {
+	HoldsByte {
+		held: ByteAnd {
+			value: Some(std::mem::MaybeUninit::new(b)),
+			other: 1u32,
+		},
+	}
+	.held
+	.value
+	.is_some()
+}
+
 /// Parsing an address is not translated yet.
 pub fn addr_parsed(s: &str) -> Result<std::net::Ipv4Addr, std::net::AddrParseError> {
 	s.parse()

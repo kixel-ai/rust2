@@ -1986,9 +1986,6 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// own parameter, or which can't tell its values apart at all.
 	fn generic_erasure(&mut self, adt: AdtDef<'tcx>, args: GenericArgsRef<'tcx>, span: Span) -> Option<String> {
 		let tcx = self.tcx;
-		if args.has_param() {
-			return None;
-		}
 		let ty = Ty::new_adt(tcx, adt, args);
 		for field in adt.all_fields() {
 			let generic = tcx.type_of(field.did).instantiate_identity().skip_norm_wip();
@@ -2012,6 +2009,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						"`{ty}` is not supported: its field `{}` is `{held}`: {msg}",
 						field.name
 					));
+				}
+				// Over a parameter of the instance's own, which its instances decide.
+				if held.has_param() {
+					continue;
 				}
 				let instance = ty::EarlyBinder::bind(tcx, inner).instantiate(tcx, args).skip_norm_wip();
 				let at = self.erases_to(instance);
