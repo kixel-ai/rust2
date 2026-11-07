@@ -856,6 +856,24 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			out.push(self.store_in_slice(place, target, value, span));
 			return out;
 		}
+		// A whole write through a raw pointer keeps the cells a value keeps, as `ptr::write`
+		// does, and is refused where it would not.
+		if let [ProjectionElem::Deref] = place.projection.as_slice()
+			&& matches!(self.mir.local_decls[place.local].ty.kind(), ty::RawPtr(..))
+			&& let pointee = place.ty(&self.mir.local_decls, self.tcx).ty
+		{
+			if self.b.t.wraps_cells(pointee) {
+				let err = crate::lower::pointer::wrapped_write(self.b, pointee, span);
+				out.push(StmtKind::Expr(err).at(self.b.t.loc(span)));
+				return out;
+			}
+			if self.b.t.keeps_cells(pointee) {
+				let at = self.place_expr(place, span, &mut out);
+				let at = self.path(at, "kept", &mut out);
+				crate::lower::pointer::write_kept_at(self.b, at, value, pointee, span, &mut out);
+				return out;
+			}
+		}
 		// `*r = v` replaces the object `r` points at in place, which other references and
 		// captures share. An alias of a borrowed place assigns the place, and an `rs.Place`
 		// its `v`.
@@ -2431,25 +2449,26 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	}
 
 	/// Whether a raw pointer to a `ty` is, or is a slice of, the object JS keeps it in, or
-	/// with `cells`, is or holds an `rs.Cell`. Only an instance decides what a parameter is.
+	/// with `cells`, is or holds an `rs.Cell`, through any `MaybeUninit`s, which JS keeps as
+	/// what they hold. Only an instance decides what a parameter is.
 	fn pointed_object(&self, ty: Ty<'tcx>, cells: bool) -> bool {
 		let t = &self.b.t;
 		!(t.polymorphic() && ty.has_param())
-			&& (t.pointee(ty) != crate::lower::pointer::Pointee::Place || cells && t.std_of(ty) == Some(Std::Cell))
+			&& (t.pointee(ty) != crate::lower::pointer::Pointee::Place
+				|| cells && t.std_of(t.uninit_inner(ty)) == Some(Std::Cell))
 	}
 
-	/// Why the pointer std's `def_id` makes of what `reference` points at would not keep
-	/// pointing where Rust's does, if it would not, judged as [`Self::out_of_step`] judges a
-	/// raw pointer: `UnsafeCell::get`'s, holding a `T`, is the `rs.Cell` itself or the
-	/// object it holds.
+	/// Why the pointer std's `def_id` makes of `pointee`, what a reference points at, would
+	/// not keep pointing where Rust's does, if it would not, judged as [`Self::out_of_step`]
+	/// judges a raw pointer: `UnsafeCell::get`'s, holding a `T`, is the `rs.Cell` itself or
+	/// the object it holds.
 	pub(super) fn made_out_of_step(
 		&self,
 		def_id: rustc_hir::def_id::DefId,
 		gargs: ty::GenericArgsRef<'tcx>,
-		reference: &Operand<'tcx>,
+		pointee: Place<'tcx>,
 	) -> Option<String> {
 		let tcx = self.tcx;
-		let pointee = tcx.mk_place_deref(reference.place()?);
 		let owner = library::key(tcx, def_id).map(|(owner, _)| owner);
 		let cell = matches!(owner.as_deref(), Some("UnsafeCell" | "Cell"));
 		let held = gargs.type_at(0);

@@ -2,7 +2,7 @@
 //! none of them: `bytes`' `Bytes`, which is the `rs.ByteSlice` a `&[u8]` is, and
 //! `BytesMut`, which is `rs.BytesMut`, `hashbrown`'s tables, which std's `HashMap` and
 //! `HashSet` are, and `rand`'s thread-local generator, which draws from the platform's
-//! cryptographic source. The rest of `bytes`, such as most of `Buf`'s
+//! cryptographic source, and tokio's sync channels, which [`super::tokio`] maps. The rest of `bytes`, such as most of `Buf`'s
 //! provided methods of the crate's own buffers, translates from its MIR. `tracing`'s
 //! events are left out where they are written, by [`super::Translator::ignored_site`].
 
@@ -19,6 +19,9 @@ use crate::ts::{Expr, Stmt, StmtKind};
 pub fn of(tcx: TyCtxt<'_>, did: DefId) -> Option<Std> {
 	if !is_stock(tcx, did) {
 		return None;
+	}
+	if super::tokio::Handle::of(tcx, did).is_some() {
+		return Some(Std::Sync);
 	}
 	match (tcx.crate_name(did.krate).as_str(), tcx.opt_item_name(did)?.as_str()) {
 		("bytes", "Bytes") => Some(Std::Bytes),
@@ -78,7 +81,7 @@ pub fn is_stock(tcx: TyCtxt<'_>, did: DefId) -> bool {
 /// Whether `krate`, a dependency, is one of these crates, whose functions map, or translate
 /// only where [`maps`] says they don't.
 pub fn is_stock_crate(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
-	matches!(tcx.crate_name(krate).as_str(), "bytes" | "hashbrown" | "rand")
+	matches!(tcx.crate_name(krate).as_str(), "bytes" | "hashbrown" | "rand" | "tokio")
 }
 
 /// Whether `krate` is one of these crates of which nothing translates: `rand`, whose
@@ -93,6 +96,9 @@ pub fn is_opaque_crate(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
 /// forward through a reference or a `Box`, and the crate's other types and functions,
 /// translate, as do its impls for a `VecDeque<u8>` and a `&mut [u8]`.
 pub fn mapped(tcx: TyCtxt<'_>, did: DefId) -> bool {
+	if tcx.crate_name(did.krate).as_str() == "tokio" {
+		return super::tokio::mapped(tcx, did);
+	}
 	if tcx.crate_name(did.krate).as_str() != "bytes" {
 		return false;
 	}
@@ -296,8 +302,12 @@ pub fn call<'tcx>(
 	if is_stock(tcx, call.def_id) {
 		return Ok(match tcx.crate_name(call.def_id.krate).as_str() {
 			"bytes" => bytes(b, call, &owner, &name, args, out),
+			"tokio" => super::tokio::call(b, call, args, out),
 			_ => rand(b, call, &owner, &name, args, out),
 		});
+	}
+	if self_std == Some(Std::Sync) {
+		return super::tokio::trait_call(b, call, &owner, &name, args, out);
 	}
 	let mut args = args.into_iter();
 	let mut arg = || args.next().expect("an argument");

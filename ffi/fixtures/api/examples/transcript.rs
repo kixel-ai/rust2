@@ -361,6 +361,10 @@ fn main() {
 		api::polar::point(0).is_none(),
 		api::area(Size { width: 2, height: 3 })
 	);
+	println!(
+		"wind {}",
+		api::wind(api::PolarTurn { whole: 2 }, api::polar::Turn { part: 3 })
+	);
 	let left = api::Left {
 		value: api::Right { value: 1u8 },
 	};
