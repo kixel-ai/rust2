@@ -61,6 +61,18 @@ export function panic(message: string, at?: Location | string, owned?: boolean |
 }
 
 /**
+ * `value`, what an unsafe function gives where its precondition `check` held, or, where it is
+ * `undefined`, the abort std's check of `check` makes in a debug build, since Rust defines
+ * nothing past it: a panic that can't unwind, at `at` or at the key of std's site.
+ */
+export function precondition<T>(value: T | undefined, check: string, at?: Location | string): T {
+	if (value === undefined) {
+		panic(`unsafe precondition(s) violated: ${check}\n\nThis indicates a bug in the program. This Undefined Behavior check is optional, and cannot be relied on for safety.`, at);
+	}
+	return value;
+}
+
+/**
  * Panic at `at` with `message`: literal pieces, and the `usize`s between them, which a
  * hook reads as the `String` std's `panic!` writes each piece and number into.
  */
@@ -2434,13 +2446,9 @@ export function byteVecSpare(v: ByteVec): ByteSlice {
 	return new ByteSlice(v.data, v.length, v.data.length - v.length);
 }
 
-/**
- * `Vec::set_len`, which panics past the capacity, as std's check of its precondition does:
- * one that can't unwind, so it runs the hook, then aborts, as every panic here does.
- */
+/** `Vec::set_len`, which aborts past the capacity, as std's check of its precondition does. */
 export function byteVecSetLen(v: ByteVec, length: number): void {
-	if (length > v.data.length) panic(SET_LEN, "vec_set_len");
-	v.length = length;
+	v.length = precondition(length <= v.data.length ? length : undefined, SET_LEN, "vec_set_len");
 }
 
 /** `Vec::clear`. */
@@ -2752,16 +2760,16 @@ export function vecSpare<T>(v: Vec<T>, size: number, uninit: () => T): Slice<T> 
 }
 
 /** What std's check of `set_len`'s precondition says. */
-const SET_LEN = "unsafe precondition(s) violated: Vec::set_len requires that new_len <= capacity()\n\nThis indicates a bug in the program. This Undefined Behavior check is optional, and cannot be relied on for safety.";
+const SET_LEN = "Vec::set_len requires that new_len <= capacity()";
 
 /**
  * `Vec::set_len` of `size`-byte elements: what it gives up kept in its room, and what it
  * takes in from there, a slot never written holding what `uninit` makes. Past the
- * capacity it panics, as `byteVecSetLen` does.
+ * capacity it aborts, as `byteVecSetLen` does.
  */
 export function vecSetLen<T>(v: Vec<T>, length: number, size: number, uninit: () => T): void {
 	const cap = vecCapacity(v, size);
-	if (length > cap) panic(SET_LEN, "vec_set_len");
+	if (length > cap) precondition(undefined, SET_LEN, "vec_set_len");
 	vecHold(v, cap);
 	const items = v.items;
 	if (length === items.length) return;
