@@ -140,16 +140,20 @@ export function boxedUninits(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u16ToBeBytes(_60).reverse()));
 	}
-	const src: rs.Vec<string> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b: rs.u8): string => {
+	const src: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b: rs.u8): rs.String => {
 		return rs.fmtFormat([(f: rs.Formatter) => rs.u8LowerHex(b, f)]);
 	}), undefined, 12, true);
-	const strings: rs.Slice<string> = rs.sliceNewUninit(src.items.length, 12, (): string => {
-		return (undefined as unknown) as string;
+	const strings: rs.Slice<rs.String> = rs.sliceNewUninit(src.items.length, 12, (): rs.String => {
+		return (undefined as unknown) as rs.String;
 	});
-	rs.sliceSort(rs.sliceWriteCloneOfSlice(strings, rs.sliceFrom(src.items), undefined), rs.cmpLt(rs.cmpStr), 12, true);
-	rs.sliceReverse(rs.sliceRange(rs.sliceWriteCloneOfSlice(strings, rs.sliceFrom(src.items), undefined), 0));
-	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(strings)), (s: string): rs.Iter<rs.u8> => {
-		return rs.strBytes(s);
+	rs.sliceSort(rs.sliceWriteCloneOfSlice(strings, rs.sliceFrom(src.items), (a0: rs.String): rs.String => {
+		return rs.stringClone(a0);
+	}), rs.cmpLt(rs.cmpStr), 12, true);
+	rs.sliceReverse(rs.sliceRange(rs.sliceWriteCloneOfSlice(strings, rs.sliceFrom(src.items), (a02: rs.String): rs.String => {
+		return rs.stringClone(a02);
+	}), 0));
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(strings)), (s: rs.String): rs.Iter<rs.u8> => {
+		return rs.strBytes(s.v);
 	}, undefined, true), "next");
 	const counts: rs.Cell<[rs.u8, rs.u8]> = new rs.Cell([0, 0] as [rs.u8, rs.u8]);
 	const src2: rs.Vec<Counted.Counted> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): Counted.Counted => {

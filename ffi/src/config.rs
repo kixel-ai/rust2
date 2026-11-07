@@ -16,8 +16,9 @@ pub struct Config {
 	pub prefix: Option<String>,
 	/// Paths from the crate root left out of the export: a module, an item, or one
 	/// method or field (`track::Producer::poll_closed`). Each must name something
-	/// exported. As in rustdoc, a path a method or constant shares with a field names the
-	/// method, and `field@` before it names the field.
+	/// exported, or what a `cfg` leaves out of this build by its declared path. As in
+	/// rustdoc, a path a method or constant shares with a field names the method, and
+	/// `field@` before it names the field.
 	#[serde(default)]
 	pub exclude: Vec<String>,
 	/// C names, without the prefix, for paths from the crate root whose names the rule

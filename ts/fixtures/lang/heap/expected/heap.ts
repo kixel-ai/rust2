@@ -166,22 +166,22 @@ export function layouts(data: rs.ByteSlice, out: rs.ByteVec): void {
 			align = rs.usizeShl(1, rs.u8Rem(b, 32));
 		}
 		const made: rs.Result<rs.Layout, rs.LayoutError> = rs.layoutFromSizeAlign(size, align);
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(made, f, rs.fmtLayoutDebug, rs.fmtLayoutErrorDebug)])), undefined, true);
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(made, f, rs.fmtLayoutDebug, rs.fmtLayoutErrorDebug)]).v), undefined, true);
 		if (!made.ok) {
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtToString((f: rs.Formatter) => rs.fmtLayoutErrorDisplay(rs.LAYOUT_ERROR, f))), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtToString((f: rs.Formatter) => rs.fmtLayoutErrorDisplay(rs.LAYOUT_ERROR, f)).v), undefined, true);
 		}
 		const part3 = rs.layoutArray(rs.usizeShr(size, rs.u8Rem(b, 8)), 8, 8);
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(part3, f, rs.fmtLayoutDebug, rs.fmtLayoutErrorDebug)])), undefined, true);
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(part3, f, rs.fmtLayoutDebug, rs.fmtLayoutErrorDebug)]).v), undefined, true);
 		const unit: rs.Layout = rs.resultUnwrap(rs.layoutArray(size, 0, 1), rs.fmtLayoutErrorDebug);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(unit.size & 0xff, unit.align & 0xff)), undefined, true);
 	}
 	const _92: Fault.Fault = { tag: "Alloc", layout: { size: 16, align: 8 } };
 	const _94: rs.Layout = { size: 4, align: 4 };
 	const args11 = [(f: rs.Formatter) => Fault.fmt$fmt_Debug(_92, f), (f: rs.Formatter) => rs.fmtLayoutDebug(_94, f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args11[0], " ", args11[1]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args11[0], " ", args11[1]]).v), undefined, true);
 	rs.byteVecPush(out, 8 & 0xff);
 	const arg = { tag: "Overflow" } as Fault.Fault;
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => Fault.fmt$fmt_Debug(arg, f)])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => Fault.fmt$fmt_Debug(arg, f)]).v), undefined, true);
 }
 
 //# sourceMappingURL=heap.ts.map

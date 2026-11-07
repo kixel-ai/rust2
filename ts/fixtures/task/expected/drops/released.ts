@@ -35,7 +35,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			_262 = true;
 			_252 = true;
 			const part27 = Guard.id(captured26);
-			const _627: string = rs.fmtFormat(["reduce ", (f: rs.Formatter) => rs.u32Display(part27, f)]);
+			const _627: string = rs.fmtFormat(["reduce ", (f: rs.Formatter) => rs.u32Display(part27, f)]).v;
 			Guard.note(y4, _627);
 			if (!(Guard.id(x4) < Guard.id(y4))) {
 				_262 = false;
@@ -215,7 +215,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const captured15 = a4;
 		const part16 = rs.iterIsSortedBy(rs.iterMap(_235, rs.closure((g6: Guard.Guard): rs.u32 => {
 			const part15 = Guard.id(captured15);
-			const _517: string = rs.fmtFormat(["key ", (f: rs.Formatter) => rs.u32Display(part15, f)]);
+			const _517: string = rs.fmtFormat(["key ", (f: rs.Formatter) => rs.u32Display(part15, f)]).v;
 			Guard.note(g6, _517);
 			const _013: rs.u32 = Guard.id(g6);
 			g6[Symbol.dispose]();
@@ -305,7 +305,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const captured13 = e;
 		rs.entryAndModify(_404, rs.closure((g4: Guard.Guard): undefined => {
 			const part12 = Guard.id(captured13);
-			Guard.note(g4, rs.fmtFormat(["modified ", (f: rs.Formatter) => rs.u32Display(part12, f)]));
+			Guard.note(g4, rs.fmtFormat(["modified ", (f: rs.Formatter) => rs.u32Display(part12, f)]).v);
 			captured13[Symbol.dispose]();
 		}, (): void => {
 			captured13[Symbol.dispose]();
@@ -314,7 +314,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const captured14 = f;
 		const part14 = Guard.id(rs.entryOrInsert(rs.entryAndModify(_409, rs.closure((g5: Guard.Guard): undefined => {
 			const part13 = Guard.id(captured14);
-			Guard.note(g5, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(part13, f)]));
+			Guard.note(g5, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(part13, f)]).v);
 			captured14[Symbol.dispose]();
 		}, (): void => {
 			captured14[Symbol.dispose]();
@@ -376,7 +376,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const captured7 = e2;
 		rs.entryAndModify(_538, rs.closure((g2: Guard.Guard): undefined => {
 			const part5 = Guard.id(captured7);
-			Guard.note(g2, rs.fmtFormat(["modified ", (f: rs.Formatter) => rs.u32Display(part5, f)]));
+			Guard.note(g2, rs.fmtFormat(["modified ", (f: rs.Formatter) => rs.u32Display(part5, f)]).v);
 			captured7[Symbol.dispose]();
 		}, (): void => {
 			captured7[Symbol.dispose]();
@@ -385,7 +385,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const captured8 = f2;
 		const part7 = Guard.id(rs.entryOrInsert(rs.entryAndModify(_543, rs.closure((g3: Guard.Guard): undefined => {
 			const part6 = Guard.id(captured8);
-			Guard.note(g3, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(part6, f)]));
+			Guard.note(g3, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(part6, f)]).v);
 			captured8[Symbol.dispose]();
 		}, (): void => {
 			captured8[Symbol.dispose]();

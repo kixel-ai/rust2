@@ -7,7 +7,7 @@ import * as rs from "./rs.ts";
  * would pass `cap`.
  */
 export interface Capped {
-	log: rs.Vec<string>;
+	log: rs.Vec<rs.String>;
 	len: rs.usize;
 	calls: rs.usize;
 	cap: rs.usize;
@@ -18,7 +18,8 @@ export function writeStr$fmt_Write(self: Capped, s: string): rs.Result<undefined
 	if (!(rs.usizeAdd(self.len, rs.stringLen(s)) > self.cap)) {
 		const _10: rs.usize = rs.stringLen(s);
 		self.len = rs.usizeAdd(self.len, _10);
-		self.log.items.push(s);
+		const _14: rs.String = rs.stringFrom(s);
+		self.log.items.push(_14);
 		return rs.OK;
 	}
 	return rs.Err(new rs.FmtError());

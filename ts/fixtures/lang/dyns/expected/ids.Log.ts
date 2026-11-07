@@ -8,21 +8,21 @@ export function default$Default(): Log {
 
 /** Logs each call it is given, and how many bytes `write` is. */
 export interface Log {
-	_0: rs.Vec<string>;
+	_0: rs.Vec<rs.String>;
 }
 
 export function write$hash_Hasher(self: Log, _bytesData: Uint8Array, _bytesStart: number, bytesLen: number): void {
-	const _5: string = rs.fmtFormat(["write ", (f: rs.Formatter) => rs.usizeDisplay(bytesLen, f)]);
+	const _5: rs.String = rs.fmtFormat(["write ", (f: rs.Formatter) => rs.usizeDisplay(bytesLen, f)]);
 	self._0.items.push(_5);
 }
 
 export function writeU8$hash_Hasher(self: Log, x: rs.u8): void {
-	const _5: string = rs.fmtFormat(["u8 ", (f: rs.Formatter) => rs.u8Display(x, f)]);
+	const _5: rs.String = rs.fmtFormat(["u8 ", (f: rs.Formatter) => rs.u8Display(x, f)]);
 	self._0.items.push(_5);
 }
 
 export function writeU64$hash_Hasher(self: Log, x: rs.u64): void {
-	const _5: string = rs.fmtFormat(["u64 ", (f: rs.Formatter) => rs.u64LowerHex(x, f)]);
+	const _5: rs.String = rs.fmtFormat(["u64 ", (f: rs.Formatter) => rs.u64LowerHex(x, f)]);
 	self._0.items.push(_5);
 }
 

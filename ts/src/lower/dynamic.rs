@@ -526,6 +526,14 @@ impl<'tcx> Translator<'_, 'tcx> {
 			return;
 		};
 		let mut b = Body::new(self);
+		// What a `&mut` receiver points at, where std's mapping takes that, as a call's
+		// operands pass it.
+		let receiver = match b.t.mapped(method.def_id, args)
+			&& super::pointer::pointees(b.t, method.def_id, args).first() == Some(&true)
+		{
+			true => b.t.pointee_value(sig.inputs()[0], receiver),
+			false => receiver,
+		};
 		let mut params = Vec::new();
 		let mut values = Vec::new();
 		for (i, input) in sig.inputs()[1..].iter().enumerate() {

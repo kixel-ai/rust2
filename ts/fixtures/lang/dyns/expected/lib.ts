@@ -341,6 +341,28 @@ export class of$Option_u8 {
 	}
 }
 
+export class of$String {
+	v: rs.String;
+
+	constructor(v: rs.String) {
+		this.v = v;
+	}
+
+	writeChar$Write(a: rs.char): rs.Result<undefined, rs.FmtError> {
+		rs.stringPush(this.v, a);
+		return rs.OK;
+	}
+
+	writeFmt$Write(a: rs.Arguments): rs.Result<undefined, rs.FmtError> {
+		return rs.fmtWriteString(this.v, a);
+	}
+
+	writeStr$Write(a: string): rs.Result<undefined, rs.FmtError> {
+		rs.stringPushStr(this.v, a);
+		return rs.OK;
+	}
+}
+
 export class of$dyns_Beats {
 	v: Beats.Beats;
 
@@ -616,7 +638,7 @@ export class of$dyns_Square {
 		return Square.key$dyns_Keyed(this.v);
 	}
 
-	label$Named(): string {
+	label$Named(): rs.String {
 		return Square.label$dyns_Named(this.v);
 	}
 
@@ -672,8 +694,8 @@ export class of$dyns_Tri {
 		this.v = v;
 	}
 
-	apply$Scaled(a: (a0: rs.Ptr<string>) => string, a2: string): string {
-		return Tri.apply$dyns_Scaled_String(this.v, a as (a0: string) => string, a2);
+	apply$Scaled(a: (a0: rs.Ptr<rs.String>) => rs.String, a2: rs.String): rs.String {
+		return Tri.apply$dyns_Scaled_String(this.v, a as (a0: rs.String) => rs.String, a2);
 	}
 
 	area$Shape(): rs.u32 {
@@ -688,8 +710,8 @@ export class of$dyns_Tri {
 		return Tri.asAnyMut$dyns_Erased(this);
 	}
 
-	bump$Scaled(a: rs.Ptr<string>): void {
-		return Tri.bump$dyns_Scaled_String(this.v, a as rs.Place<string>);
+	bump$Scaled(a: rs.Ptr<rs.String>): void {
+		return Tri.bump$dyns_Scaled_String(this.v, a as rs.String);
 	}
 
 	fmt$Debug(a: rs.Formatter): rs.Result<undefined, rs.FmtError> {
@@ -704,7 +726,7 @@ export class of$dyns_Tri {
 		return Tri.intoArea$dyns_Shape(this.v);
 	}
 
-	label$Named(): string {
+	label$Named(): rs.String {
 		return Tri.label$dyns_Named(this.v);
 	}
 
@@ -712,11 +734,11 @@ export class of$dyns_Tri {
 		return Tri.larger$dyns_Shape(this.v, a);
 	}
 
-	pick$Scaled(a: rs.Ptr<string>, a2: rs.Ptr<string>): rs.Ptr<string> {
-		return Tri.pick$dyns_Scaled_String(this.v, a as string, a2 as string) as rs.Ptr<string>;
+	pick$Scaled(a: rs.Ptr<rs.String>, a2: rs.Ptr<rs.String>): rs.Ptr<rs.String> {
+		return Tri.pick$dyns_Scaled_String(this.v, a as rs.String, a2 as rs.String) as rs.Ptr<rs.String>;
 	}
 
-	scale$Scaled(a: string): string {
+	scale$Scaled(a: rs.String): rs.String {
 		return Tri.scale$dyns_Scaled_String(this.v, a);
 	}
 
@@ -1210,8 +1232,8 @@ export class of$u8 {
 		return tag$ids_Marked_u8(this.v);
 	}
 
-	take$Source(): rs.OptionOf<string> {
-		return dyns_take$dyns_Source_u8(this) as rs.OptionOf<string>;
+	take$Source(): rs.OptionOf<rs.String> {
+		return dyns_take$dyns_Source_u8(this) as rs.OptionOf<rs.String>;
 	}
 
 	typeId$Any(): rs.TypeId {
@@ -1240,30 +1262,6 @@ export class ofPlace$Option_u8 {
 
 	typeId$Any(): rs.TypeId {
 		return "3801bd64778907c7633cf473fe556a70";
-	}
-}
-
-export class ofPlace$String {
-	v: rs.Place<string>;
-
-	constructor(v: rs.Place<string>) {
-		this.v = v;
-	}
-
-	writeChar$Write(a: rs.char): rs.Result<undefined, rs.FmtError> {
-		this.v.v = this.v.v + String.fromCodePoint(a);
-		return rs.OK;
-	}
-
-	writeFmt$Write(a: rs.Arguments): rs.Result<undefined, rs.FmtError> {
-		const written = rs.fmtWriteString(this.v.v, a);
-		this.v.v = written.s;
-		return written.result;
-	}
-
-	writeStr$Write(a: string): rs.Result<undefined, rs.FmtError> {
-		this.v.v = this.v.v + a;
-		return rs.OK;
 	}
 }
 
@@ -1326,7 +1324,7 @@ export class ofPlace$dyns_Tri {
 		return Tri.intoArea$dyns_Shape(this.v.v);
 	}
 
-	label$Named(): string {
+	label$Named(): rs.String {
 		return Tri.label$dyns_Named(this.v.v);
 	}
 
@@ -1360,25 +1358,23 @@ export class ofPlace$ids_Mood {
 }
 
 export class ofPlace$mut_String {
-	v: rs.Place<rs.Place<string>>;
+	v: rs.Place<rs.String>;
 
-	constructor(v: rs.Place<rs.Place<string>>) {
+	constructor(v: rs.Place<rs.String>) {
 		this.v = v;
 	}
 
 	writeChar$Write(a: rs.char): rs.Result<undefined, rs.FmtError> {
-		this.v.v.v = this.v.v.v + String.fromCodePoint(a);
+		rs.stringPush(this.v.v, a);
 		return rs.OK;
 	}
 
 	writeFmt$Write(a: rs.Arguments): rs.Result<undefined, rs.FmtError> {
-		const written = rs.fmtWriteString(this.v.v.v, a);
-		this.v.v.v = written.s;
-		return written.result;
+		return rs.fmtWriteString(this.v.v, a);
 	}
 
 	writeStr$Write(a: string): rs.Result<undefined, rs.FmtError> {
-		this.v.v.v = this.v.v.v + a;
+		rs.stringPushStr(this.v.v, a);
 		return rs.OK;
 	}
 }
@@ -1442,8 +1438,8 @@ export class ofPlace$u8 {
 		return left$dyns_Source_u8(this.v.v);
 	}
 
-	take$Source(): rs.OptionOf<string> {
-		return dyns_take$dyns_Source_u8(this.v) as rs.OptionOf<string>;
+	take$Source(): rs.OptionOf<rs.String> {
+		return dyns_take$dyns_Source_u8(this.v) as rs.OptionOf<rs.String>;
 	}
 
 	typeId$Any(): rs.TypeId {

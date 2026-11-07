@@ -104,7 +104,7 @@ export function map$1aeqf1p(self: [Tagged.Tagged, Tagged.Tagged] | undefined, f:
 	return f(self);
 }
 
-export function map$1tqulv0(self: rs.u128 | undefined, f: (a0: rs.u128) => string): string | undefined {
+export function map$0v3tpx3(self: rs.u128 | undefined, f: (a0: rs.u128) => rs.String): rs.String | undefined {
 	if (self === undefined) {
 		return undefined;
 	}

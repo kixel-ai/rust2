@@ -221,7 +221,7 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.byteSliceFirst(a), 170));
 		const _261: rs.ByteSlice = rs.byteSliceFrom(new Uint8Array(0));
 		const args9 = [(f: rs.Formatter) => rs.fmtList(rs.byteSliceView(a), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(b), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_261), f, rs.u8Debug)];
-		put(out, rs.fmtFormat([args9[0], "|", args9[1], "|", args9[2]]));
+		put(out, rs.fmtFormat([args9[0], "|", args9[1], "|", args9[2]]).v);
 	} else if (_15 === 2) {
 		const wide: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data2)), (_24: rs.u8): rs.u16 => {
 			return rs.u16Mul(_24 as rs.u16, 257);
@@ -261,7 +261,7 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.eqSlice(rs.same)(collected2, cloned2) ? 1 : 0);
 		rs.byteVecPush(out, rs.cmpSlice(rs.cmp)(collected2, cloned2) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hash$boxed_Box_slice_u16(collected2), hash$slice_u16(collected2)) ? 1 : 0);
-		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(collected2), f, rs.u16Debug)]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(rs.sliceItems(collected2), f, rs.u16Debug)]).v);
 		const v3: rs.Vec<rs.u16> = rs.vecFrom(rs.sliceItems(fromVec2));
 		v3.items.push(5);
 		wides(rs.sliceFrom(v3.items), out);
@@ -409,11 +409,12 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(_634[1]).reverse()), undefined, true);
 		}
 	} else {
-		const s: string = text(data2);
-		const fromRef4: string = s;
-		const fromString: string = s;
-		const into2: string = s;
-		const collected4: string = rs.stringExtendChars("", rs.iterRev(rs.strChars(s)));
+		const s: rs.String = text(data2);
+		const fromRef4: string = s.v;
+		const fromString: string = rs.stringClone(s).v;
+		const into2: string = rs.stringClone(s).v;
+		const _655: rs.Iter<rs.char> = rs.iterRev(rs.strChars(s.v));
+		const collected4: string = rs.stringExtendChars(rs.stringNew(), _655).v;
 		const empty4: string = "";
 		put(out, fromRef4);
 		put(out, fromString);
@@ -422,13 +423,13 @@ export function boxes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		put(out, empty4);
 		rs.byteVecPush(out, fromRef4 === into2 ? 1 : 0);
 		rs.byteVecPush(out, rs.cmpStr(collected4, fromRef4) & 0xff);
-		rs.byteVecPush(out, rs.u64Eq(hash$boxed_Box_str(fromRef4), hash$str(s)) ? 1 : 0);
+		rs.byteVecPush(out, rs.u64Eq(hash$boxed_Box_str(fromRef4), hash$str(s.v)) ? 1 : 0);
 		const args7 = [(f: rs.Formatter) => rs.fmtPad(f, fromRef4), (f: rs.Formatter) => rs.fmtStr(collected4, f)];
-		put(out, rs.fmtFormat([args7[0], "|", args7[1]]));
-		let back2: string = into2;
-		back2 = back2 + "!";
-		put(out, back2);
-		put(out, collected4);
+		put(out, rs.fmtFormat([args7[0], "|", args7[1]]).v);
+		const back2: rs.String = rs.stringFrom(into2);
+		rs.stringPush(back2, 33);
+		put(out, back2.v);
+		put(out, rs.stringFrom(collected4).v);
 	}
 }
 
@@ -483,7 +484,7 @@ export function reach(b: Owner.Owner, by: rs.u8): void {
 	} else if (_3 === 2) {
 		bump(rs.place(() => b.nested, (value) => b.nested = value), by);
 	} else {
-		b.s = b.s + String.fromCodePoint(rs.u8Add(97, rs.u8Rem(by, 26)) as rs.char);
+		rs.stringPush(b.s, rs.u8Add(97, rs.u8Rem(by, 26)) as rs.char);
 	}
 }
 
@@ -496,15 +497,15 @@ export function reach(b: Owner.Owner, by: rs.u8): void {
 export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	let n: rs.u32 = 7;
 	const pair: Uint8Array = Uint8Array.of(1, 2);
-	let s: string = "b";
+	const s: rs.String = rs.stringFrom("b");
 	let t: string = "aBc/D";
 	let nested: rs.u32 = 3;
 	let maybe: rs.u32 | undefined = undefined as rs.u32 | undefined;
-	const held: Owner.Owner = { n: 5, s: "", nested: 9 };
+	const held: Owner.Owner = { n: 5, s: rs.stringNew(), nested: 9 };
 	const v: rs.Vec<rs.u32> = rs.vecFrom([1, 2]);
 	let o: rs.u32 | undefined = 4;
 	let res: rs.Result<rs.u32, rs.u8> = rs.Ok(2);
-	let said: rs.Result<string, rs.u8> = rs.Ok("r");
+	let said: rs.Result<rs.String, rs.u8> = rs.Ok(rs.stringFrom("r"));
 	const words: rs.Slice<rs.u32> = rs.sliceFrom([6, 8]);
 	const someWords: rs.Slice<rs.u32> | undefined = rs.sliceFrom([3, 5]);
 	let named: string | undefined = "xY/z";
@@ -547,11 +548,11 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			r2.data[r2.start + _76] = r2.data[r2.start + _76] ^ by;
 		} else if (_58 === 8) {
-			s = s + String.fromCodePoint(rs.u8Add(97, rs.u8Rem(by, 26)) as rs.char);
+			rs.stringPush(s, rs.u8Add(97, rs.u8Rem(by, 26)) as rs.char);
 		} else if (_58 === 9) {
-			s = s + "!?";
+			rs.stringPushStr(s, "!?");
 		} else if (_58 === 10) {
-			s = rs.stringInsertStr(s, 0, "<");
+			rs.stringInsertStr(s, 0, "<");
 		} else if (_58 === 11) {
 			shout(rs.place(() => t, (value20) => t = value20), by);
 		} else if (_58 === 12) {
@@ -561,7 +562,7 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const _94: rs.Place<string> = rs.place(() => t, (value17) => t = value17);
 			_94.v = rs.strToAsciiLowercase(_94.v);
 		} else if (_58 === 14) {
-			t = rs.strSlice(s, 0);
+			t = rs.strSlice(s.v, 0);
 		} else if (_58 === 15) {
 			bump(rs.place(() => nested, (value16) => nested = value16), by);
 		} else if (_58 === 16) {
@@ -614,9 +615,9 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			if (res.ok) {
 				res = { ok: true, value: rs.u32WrappingMul(res.value, by as rs.u32) };
 			}
-			const _165: rs.Place<rs.Result<string, rs.u8>> = rs.place(() => said, (value12) => said = value12);
+			const _165: rs.Place<rs.Result<rs.String, rs.u8>> = rs.place(() => said, (value12) => said = value12);
 			if (_165.v.ok) {
-				_165.v = { ok: true, value: _165.v.value + String.fromCodePoint(rs.u8Add(97, rs.u8Rem(by, 26)) as rs.char) };
+				rs.stringPush(_165.v.value, rs.u8Add(97, rs.u8Rem(by, 26)) as rs.char);
 			}
 			if (rs.usizeRem(i, 5) === 4) {
 				said = rs.Err(by);
@@ -679,21 +680,21 @@ export function places(_1: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(n).reverse()), undefined, true);
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(pair));
-		put(out, s);
+		put(out, s.v);
 		put(out, t);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(nested).reverse()), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(maybe, 238)).reverse()), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(held.n).reverse()), undefined, true);
-		put(out, held.s);
+		put(out, held.s.v);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(held.nested).reverse()), undefined, true);
 		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(v.items), (b: rs.u32): Uint8Array => {
 			return rs.u32ToBeBytes(b).reverse();
 		}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(option_unwrapOr$1b5hww3(option_asDeref$13yyv6y(o), 238)).reverse()), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(result_unwrapOr$1n4fvf5(copied$1m63478(result_asDeref$1qd1pp0(res)), 238)).reverse()), undefined, true);
-		const _298: rs.Result<string, rs.u8> = said;
+		const _298: rs.Result<rs.String, rs.u8> = said;
 		if (_298.ok) {
-			put(out, _298.value);
+			put(out, _298.value.v);
 		} else {
 			rs.byteVecPush(out, _298.error);
 		}
@@ -853,25 +854,27 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteVecPush(out, _113[0]);
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(_113[1]).reverse()), undefined, true);
 		}
-		let s: rs.Slice<string> = rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data2, 0, half))), (_222: rs.u8): string => {
+		let s: rs.Slice<rs.String> = rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data2, 0, half))), (_222: rs.u8): rs.String => {
 			return text(rs.byteSliceFrom(Uint8Array.of(_222)));
 		}), undefined, 12, true).items);
-		const t: rs.Slice<string> = rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data2, half, rs.usizeMul(half, 2)))), (_223: rs.u8): string => {
+		const t: rs.Slice<rs.String> = rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data2, half, rs.usizeMul(half, 2)))), (_223: rs.u8): rs.String => {
 			const x11: rs.u8 = _223;
 			return text(rs.byteSliceFrom(Uint8Array.of(x11, x11)));
 		}), undefined, 12, true).items);
-		s = rs.boxSliceCloneFrom(s, t);
-		const _138: rs.Place<string> | undefined = rs.sliceFirstMut(s);
+		s = rs.boxSliceCloneFrom(s, t, (a0: rs.String): rs.String => {
+			return rs.stringClone(a0);
+		}, undefined, rs.stringCloneFromFn());
+		const _138: rs.String | undefined = rs.sliceFirst(s);
 		if (_138 !== undefined) {
-			_138.v = _138.v + "!";
+			rs.stringPush(_138, 33);
 		}
-		const iter2: rs.Iter<string> = rs.iterChain(rs.iterSlice(rs.sliceItems(s)), rs.iterSlice(rs.sliceItems(t)));
+		const iter2: rs.Iter<rs.String> = rs.iterChain(rs.iterSlice(rs.sliceItems(s)), rs.iterSlice(rs.sliceItems(t)));
 		while (true) {
-			const _150: string | rs.Done = iter2.next();
+			const _150: rs.String | rs.Done = iter2.next();
 			if (_150 === rs.DONE) {
 				break;
 			}
-			put(out, _150);
+			put(out, _150.v);
 		}
 		let l: rs.Slice<Logged.Logged> = rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(rs.byteSliceRange(data2, 0, half))), (_224: rs.u8): Logged.Logged => {
 			return logged(_224 & 126);
@@ -909,7 +912,7 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.dropAll(m);
 		flush(log.value, out);
 		let t2: string = "ab";
-		t2 = text(data2);
+		t2 = text(data2).v;
 		put(out, t2);
 	} else if (_23 === 1) {
 		let a2: rs.ByteSlice = rs.byteSliceFrom(rs.byteSliceToArray(data2));
@@ -941,9 +944,9 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const v3: rs.ByteVec = rs.byteSliceToByteVec(data2);
 		rs.byteVecPush(v3, 102);
 		bytes(rs.byteVecSlice(v3), out);
-		let s2: string = text(data2);
-		s2 = s2 + "#";
-		put(out, s2);
+		const s2: rs.String = text(data2);
+		rs.stringPush(s2, 35);
+		put(out, s2.v);
 		const w2: rs.Slice<rs.u16> = rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data2)), (_28: rs.u8): rs.u16 => {
 			return rs.u16Add(_28 as rs.u16, 1);
 		}), undefined, 2, true).items);
@@ -1016,7 +1019,7 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		drop$Result_boxed_Box_array1_boxes_Logged_boxed_Box_slice_boxes_Logged(r2);
 		flush(log.value, out);
 	} else {
-		const s3: string = text(data2);
+		const s3: string = text(data2).v;
 		const a6: rs.ByteSlice = rs.stringAsBytes(s3);
 		rs.byteSliceView(a6).reverse();
 		bytes(a6, out);
