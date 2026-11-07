@@ -96,9 +96,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						}
 						_ => {
 							let value = self.place_expr(*place, span, out);
-							match crate::lower::pointer::slice_of_bytes(pointee) {
-								true => Expr::rs("rawByteSliceOf", vec![value]),
-								false => Expr::rs("rawSliceOf", vec![value]),
+							match pointee {
+								_ if crate::lower::pointer::slice_of_bytes(pointee) => {
+									Expr::rs("rawByteSliceOf", vec![value])
+								}
+								_ if crate::lower::pointer::slice_of_arrays(pointee) => {
+									Expr::rs("rawArraySliceOf", vec![value])
+								}
+								_ => Expr::rs("rawSliceOf", vec![value]),
 							}
 						}
 					},

@@ -1850,6 +1850,10 @@ fn deque<'tcx>(
 		(_, "rotate_left") => Expr::rs("dequeRotate", values),
 		(_, "rotate_right") => Expr::rs("dequeRotate", flagged(values, true, false)),
 		(_, "make_contiguous") if super::byte(item) => Expr::rs("dequeByteMakeContiguous", values),
+		(_, "make_contiguous") if item.is_array() => {
+			values.push(super::array_fn(item, "From"));
+			Expr::rs("dequeArrayMakeContiguous", values)
+		}
 		(_, "make_contiguous") => Expr::rs("dequeMakeContiguous", values),
 		(_, "binary_search") => {
 			values.push(cmp_fn(b, item, false, span));
@@ -1884,8 +1888,12 @@ fn deque<'tcx>(
 			ranged.after(Expr::rs(f, values))
 		}
 		// Each a copy of its part of the buffer, or with `_mut`, a view that writes into it;
-		// bytes are views either way.
+		// bytes and arrays are views either way.
 		(_, "as_slices" | "as_mut_slices") if super::byte(item) => Expr::rs("dequeByteSlices", values),
+		(_, "as_slices" | "as_mut_slices") if item.is_array() => {
+			values.push(super::array_fn(item, "From"));
+			Expr::rs("dequeArraySlices", values)
+		}
 		(_, "as_slices" | "as_mut_slices") => Expr::rs("dequeAsSlices", values),
 		(_, "drain") => {
 			let ranged = bounds(b, call, values.pop()?);
@@ -2086,6 +2094,7 @@ fn heap<'tcx>(
 					.call(vec![values.pop()?.member("items")]),
 			],
 		),
+		(_, "as_slice") if item.is_array() => super::slice_items_from(values.pop()?.member("items"), item),
 		(_, "as_slice") => values.pop()?.member("items"),
 		(_, "clear") => Expr::rs("heapClear", values),
 		(_, "drain") => {

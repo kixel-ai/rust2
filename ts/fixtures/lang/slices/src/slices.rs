@@ -1552,3 +1552,73 @@ pub fn array_identity(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		}
 	}
 }
+
+/// Slices of arrays std's collections and pointers hand out, each read and written after.
+pub fn array_sources(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let rows: Vec<[u8; 2]> = data.chunks_exact(2).map(|c| [c[0], c[1]]).collect();
+	match kind % 4 {
+		// A deque's, shared, mutable, and made contiguous, of bytes and of words.
+		0 => {
+			let mut q: std::collections::VecDeque<[u8; 2]> = rows.iter().copied().collect();
+			if let Some(&first) = rows.first() {
+				q.push_front(first);
+				q.rotate_left(q.len() / 2);
+			}
+			let (a, b) = q.as_slices();
+			out.extend([a.len() as u8, b.len() as u8]);
+			out.extend(a.first().into_iter().chain(b.last()).flatten());
+			let (a, b) = q.as_mut_slices();
+			if let Some(row) = a.last_mut().or(b.first_mut()) {
+				row[0] ^= 0x33;
+			}
+			out.extend(q.make_contiguous().iter().flatten());
+			if let Some(row) = q.make_contiguous().first_mut() {
+				row[1] ^= 0x44;
+			}
+			out.extend(q.iter().flatten());
+			let mut words: std::collections::VecDeque<[u16; 2]> =
+				rows.iter().map(|r| [r[0].into(), r[1].into()]).collect();
+			words.rotate_right(words.len() / 3);
+			let (a, b) = words.as_slices();
+			out.extend(a.iter().chain(b).flatten().map(|&w| w as u8));
+			out.extend(words.make_contiguous().iter().flatten().map(|&w| w as u8));
+		}
+		// A box's, through a raw pointer and back, and written through it.
+		1 => {
+			let boxed: Box<[[u8; 2]]> = rows.clone().into_boxed_slice();
+			let raw = Box::into_raw(boxed);
+			// SAFETY: `raw` is the box's, which nothing else holds.
+			let shared = unsafe { &*raw };
+			out.push(shared.len() as u8);
+			// SAFETY: `raw` is the box's, which nothing else holds.
+			if let Some(row) = unsafe { (*raw).first_mut() } {
+				row[0] ^= 0x55;
+			}
+			// SAFETY: `raw` came from `Box::into_raw`.
+			let back = unsafe { Box::from_raw(raw) };
+			out.extend(back.iter().flatten());
+			let mut owned = rows.clone();
+			let p: *mut [[u8; 2]] = &mut owned[..];
+			// SAFETY: `p` points at `owned`, which nothing else borrows.
+			if let Some(row) = unsafe { (*p).last_mut() } {
+				row[1] ^= 0x66;
+			}
+			out.extend(owned.iter().flatten());
+		}
+		// A heap's and a shared box's.
+		2 => {
+			let heap: std::collections::BinaryHeap<[u8; 2]> = rows.iter().copied().collect();
+			out.extend(heap.as_slice().iter().flatten());
+			let shared: std::rc::Rc<[[u8; 2]]> = rows.clone().into();
+			out.extend(shared.iter().rev().flatten());
+		}
+		// A leaked `Vec`'s, written through.
+		_ => {
+			let leaked: &mut [[u8; 2]] = rows.clone().leak();
+			if let Some(row) = leaked.first_mut() {
+				row[0] = row[0].wrapping_add(1);
+			}
+			out.extend(leaked.iter().flatten());
+		}
+	}
+}

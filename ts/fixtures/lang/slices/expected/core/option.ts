@@ -108,6 +108,13 @@ export function mapOr$135q041(self: Noisy.Noisy | undefined, default_: rs.u8, f:
 	return f(self);
 }
 
+export function or$0as8tia(self: rs.ByteSlice | undefined, optb: rs.ByteSlice | undefined): rs.ByteSlice | undefined {
+	if (self === undefined) {
+		return optb;
+	}
+	return self;
+}
+
 export function zip$0wdt346(self: rs.ByteSlice | undefined, other: rs.ByteSlice | undefined): [rs.ByteSlice, rs.ByteSlice] | undefined {
 	let _0!: [rs.ByteSlice, rs.ByteSlice] | undefined;
 	b0: {

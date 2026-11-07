@@ -500,6 +500,37 @@ export function rawSliceOf<T>(s: Slice<T>): RawSlice<T> {
 	return new RawSlice(sliceAsPtr(s), s.length);
 }
 
+/**
+ * A raw pointer to a slice of arrays, `*const [[T; N]]` or `*mut [[T; N]]`: the array slice
+ * it points at, which a read through it gives back where it is, and never null.
+ */
+export class RawArraySlice<S extends ArrayRef> {
+	readonly slice: ArraySlice<S>;
+
+	constructor(slice: ArraySlice<S>) {
+		this.slice = slice;
+	}
+
+	/** Where it points, which is never `NULL`. */
+	get ptr(): ArraySlice<S> {
+		return this.slice;
+	}
+
+	get length(): number {
+		return this.slice.length;
+	}
+
+	/** The array slice it points at, read through it. */
+	deref(): ArraySlice<S> {
+		return this.slice;
+	}
+}
+
+/** The raw pointer to `r`, a slice of arrays. */
+export function rawArraySliceOf<S extends ArrayRef>(r: ArraySlice<S>): RawArraySlice<S> {
+	return new RawArraySlice(r);
+}
+
 /** The raw pointer to the bytes of `s`. */
 export function rawByteSliceOf(s: ByteSlice): RawSlice<number> {
 	return new RawSlice(byteSliceAsPtr(s), s.length);

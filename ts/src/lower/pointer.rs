@@ -49,7 +49,7 @@ pub enum Pointee {
 	/// reference to one is, which compares by where its elements are.
 	Array,
 	/// An `rs.RawSlice` of a `[T]`: the pointer to its first element and its length, which
-	/// a read through it makes the slice of.
+	/// a read through it makes the slice of; of a `[[T; N]]`, an `rs.RawArraySlice`.
 	Slice,
 }
 
@@ -184,6 +184,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				_ => unreachable!("an array's pointee"),
 			},
 			Pointee::Slice => match self.uninit_inner(pointee).kind() {
+				ty::Slice(elem) if let ty::Array(inner, _) = elem.kind() => {
+					Type::Rs("RawArraySlice", vec![self.slice_ty(*inner, span)])
+				}
 				ty::Slice(elem) => Type::Rs("RawSlice", vec![self.ty(*elem, span)]),
 				_ => unreachable!("a slice's pointee"),
 			},
@@ -515,9 +518,10 @@ pub fn call<'tcx>(
 	};
 	// A raw pointer to a slice, from a reference to one, and the slice a read through it
 	// makes, shared if nothing writes through it.
-	let raw_of = |ty: Ty<'tcx>, s: Expr| match slice_of_bytes(ty) {
-		true => Expr::rs("rawByteSliceOf", vec![s]),
-		false => Expr::rs("rawSliceOf", vec![s]),
+	let raw_of = |ty: Ty<'tcx>, s: Expr| match ty {
+		_ if slice_of_bytes(ty) => Expr::rs("rawByteSliceOf", vec![s]),
+		_ if slice_of_arrays(ty) => Expr::rs("rawArraySliceOf", vec![s]),
+		_ => Expr::rs("rawSliceOf", vec![s]),
 	};
 	let deref = |ty: Ty<'tcx>, p: Expr, shared: bool| match slice_of_bytes(ty) {
 		true => p.member("derefBytes").call(vec![Expr::lit(shared.to_string())]),
@@ -1142,6 +1146,12 @@ pub fn slice_of_bytes(ty: Ty<'_>) -> bool {
 		ty::Adt(adt, _) => ty::tls::with(|tcx| super::stock::is_uninit_slice(tcx, adt.did())),
 		_ => false,
 	}
+}
+
+/// Whether `ty`, a raw pointer's pointee, is a slice of arrays, which an
+/// `rs.RawArraySlice` points at.
+pub fn slice_of_arrays(ty: Ty<'_>) -> bool {
+	matches!(ty.kind(), ty::Slice(elem) if elem.is_array())
 }
 
 /// Whether pointers `x` and `y` to `ty` point at the same place: the same object or
