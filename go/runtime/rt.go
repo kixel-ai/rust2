@@ -326,7 +326,7 @@ func vecGrow[T any](v *[]T, n int) {
 // once outgrown, until Go code outside the translation can reach it. Own storage is told
 // apart by its shape: a capacity that is a power of two of at least 8, never filled, since
 // own growth always leaves a byte spare. A root function hands Go storage in through
-// bytesEnter, which trims a Go slice of that shape by a byte, and own storage out through
+// bytesEnter, which takes a Go slice of that capacity off it, and own storage out through
 // bytesEscape, which clips it to its length, so storage Go can reach never has the shape
 // and is never recycled. Empty storage, such as `Vec::new`'s, grows into own storage.
 
@@ -415,12 +415,22 @@ func bytesGrow(v *[]uint8, n int) {
 	*v = s
 }
 
-// bytesEnter takes Go's storage into a root function, trimmed off the shape of own
-// storage so it is never recycled.
+// bytesEnter takes Go's storage into a root function off the shape of own storage, so it
+// is never recycled: trimmed by a byte, or copied when full, since shortening it would
+// give it the shape.
 func bytesEnter(v *[]uint8) {
-	if bytesOwn(*v) {
-		*v = (*v)[: len(*v) : cap(*v)-1]
+	s := *v
+	c := cap(s)
+	if c < 8 || c&(c-1) != 0 {
+		return
 	}
+	if len(s) < c {
+		*v = s[: len(s) : c-1]
+		return
+	}
+	next := make([]uint8, len(s), len(s)+1)
+	copy(next, s)
+	*v = next
 }
 
 // bytesEscape hands own storage out of a root function to Go, clipped to its length,

@@ -49,12 +49,16 @@ A `Vec<u8>`'s storage is the runtime's own while only the translation reaches it
 grows to twice its capacity without zeroing, through the runtime's `growslice`, and an
 outgrown buffer is recycled for the next grow. Own storage is told apart by its shape, a
 capacity that is a power of two of at least 8 and never filled. A root function, which
-Go calls, trims Go's storage it is passed off that shape, a byte less capacity, so it is
-never recycled, and clips own storage it hands back to Go, in its result or behind an
-argument's `&mut` or `Box`, to its length, so Go never sees past it and it is never
-recycled either; Go's `append` to such a slice copies. A function pointer over byte
-storage in a root's signature is refused, since Go code could fill it with a function
-that keeps what it is handed.
+Go calls, takes Go's storage it is passed off that shape, a byte less capacity or a copy
+when full, so it is never recycled, and clips own storage it hands back to Go, in its
+result or behind an argument's `&mut`, to its length, so Go never sees past it and it is
+never recycled either; Go's `append` to such a slice copies. It works on a copy of each
+container an argument owns, a `Box`'s pointee or a `Vec`'s elements, so Go code still
+holding one never sees what the translation moved or grew out of it: a `Box` Go passes
+by value is left as it was, as Rust's move would leave it unread. Only roots are
+exported. A function pointer or trait object in the signature of a root that reaches
+byte storage is refused, since Go code could fill it with a function that keeps what it
+is handed or reads a place the translation is still writing.
 
 A panic is a Go panic of `RustPanic` carrying native Rust's message. As with
 `panic = "abort"`, no cleanup runs on the way out, so a caller that recovers one must
@@ -65,8 +69,8 @@ drop what the translation held.
 `fixtures/reject/expected.txt` lists them with their spans: 128-bit integers, floats, a
 `Drop` impl, a trait object of any trait but `Display` and `Debug`, a union, a type
 generic over a constant, such as an array's by-value iterator, and a `pub` item that is
-generic, a constant, or a static, or whose signature holds a function pointer over byte
-storage.
+generic, a constant, or a static, or whose signature holds a function pointer or trait
+object beside byte storage.
 
 ## Tests
 

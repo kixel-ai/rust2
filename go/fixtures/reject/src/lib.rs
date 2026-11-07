@@ -143,3 +143,11 @@ pub fn handed(f: fn(&mut Vec<u8>)) -> usize {
 	f(&mut v);
 	v.len()
 }
+
+/// A function pointer beside byte storage, which Go code could fill with a closure that
+/// reads `v` while it holds storage of the translation's own.
+pub fn beside(v: &mut Vec<u8>, f: fn()) {
+	v.push(1);
+	f();
+	v.push(2);
+}

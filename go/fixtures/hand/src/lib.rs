@@ -68,10 +68,32 @@ pub fn grow(mut v: Vec<u8>, n: u8) -> Vec<u8> {
 	v
 }
 
-/// Append `n` bytes of `n` to what `b` holds.
-#[expect(clippy::boxed_local, reason = "a Box that Go code passes as its own pointer")]
-pub fn boxed(mut b: Box<Open>, n: u8) {
+/// `b` with `n` bytes of `n` appended to what it holds.
+pub fn boxed(mut b: Box<Open>, n: u8) -> Box<Open> {
 	append(&mut b.data, n);
+	b
+}
+
+/// Append `n` bytes of `n` to what `b` holds.
+pub fn reboxed(b: &mut Box<Open>, n: u8) {
+	append(&mut b.data, n);
+}
+
+/// Clear `v`, then append `n` bytes of `n`.
+pub fn refill(v: &mut Vec<u8>, n: u8) {
+	v.clear();
+	append(v, n);
+}
+
+/// Replace `v`'s first buffer with `n` bytes of `n`, outgrow `v`, then that buffer: its
+/// length.
+pub fn regrow(v: &mut Vec<Vec<u8>>, n: u8) -> usize {
+	v[0] = fill(n);
+	for _ in 0..64 {
+		v.push(Vec::new());
+	}
+	append(&mut v[0], 200);
+	v[0].len()
 }
 
 /// `n` buffers, the `i`th of `i` bytes.

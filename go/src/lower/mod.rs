@@ -346,9 +346,8 @@ impl<'tcx> Translator<'tcx> {
 			.iter()
 			.any(|t| self.hands(*t, Hand::In) || self.hands(*t, Hand::Back))
 			|| self.hands(output, Hand::Out);
-		for t in inputs.iter().chain([&output]) {
-			self.refuse_callback(*t, span);
-		}
+		let sig: Vec<Ty<'tcx>> = inputs.iter().copied().chain([output]).collect();
+		self.refuse_callback(&sig, span);
 		if !splits && !hands {
 			self.funcs.insert(instance, name);
 			self.queue.push_back((instance, span));
@@ -464,7 +463,10 @@ impl<'tcx> Translator<'tcx> {
 		if let Some(name) = self.funcs.get(&instance) {
 			return name.clone();
 		}
-		let base = names::func_base(self.tcx, instance);
+		// Unexported, so Go callers reach the translation only through its roots, which
+		// hand storage over.
+		let mut base = names::ident(&names::func_base(self.tcx, instance));
+		base[..1].make_ascii_lowercase();
 		let name = self.fresh(&base);
 		self.funcs.insert(instance, name.clone());
 		self.queue.push_back((instance, span));

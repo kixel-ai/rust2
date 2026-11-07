@@ -95,12 +95,11 @@ func TestHandedKept(t *testing.T) {
 	fixture.Append(&r, 200)
 	kept(t, "a result passed back", keep)
 
-	o := &fixture.Open{}
-	fixture.Boxed(o, 100)
-	clipped(t, "a boxed field", o.Data)
-	keep = o.Data
-	fixture.Boxed(o, 200)
-	clean(t, "a boxed field grown again", o.Data)
+	b := fixture.Boxed(&fixture.Open{}, 100)
+	clipped(t, "a boxed field", b.Data)
+	keep = b.Data
+	fixture.Reboxed(&b, 200)
+	clean(t, "a boxed field grown again", b.Data)
 	kept(t, "a boxed field", keep)
 
 	var e fixture.Either
@@ -113,6 +112,45 @@ func TestHandedKept(t *testing.T) {
 		t.Errorf("Right still holds %d bytes after switching to Left", len(e.Right.F1))
 	}
 	kept(t, "a variant switched away from", keep)
+}
+
+// Go's full storage of the capacity of the translation's own, shortened and grown, is
+// not recycled, whether Go made it or was handed it.
+func TestFullKept(t *testing.T) {
+	s := bytes.Repeat([]uint8{0xaa}, 64)
+	keep := s
+	fixture.Refill(&s, 200)
+	kept(t, "Go's full slice", keep)
+	r := fixture.Fill(8)
+	keep = r
+	fixture.Refill(&r, 200)
+	kept(t, "a full result passed back", keep)
+}
+
+// What Go passes, the translation works on a copy of wherever it could leave storage of
+// its own behind: Go's Box and an array it outgrows keep what Go put there.
+func TestContainersCopied(t *testing.T) {
+	g := make([]uint8, 3, 16)
+	o := &fixture.Open{Data: g}
+	b := fixture.Boxed(o, 100)
+	if b == o || unsafe.SliceData(o.Data) != unsafe.SliceData(g) || len(o.Data) != 3 {
+		t.Errorf("Boxed wrote into the Box Go passed")
+	}
+	old := b
+	fixture.Reboxed(&b, 100)
+	if b == old || len(old.Data) != 103 {
+		t.Errorf("Reboxed wrote into the Box Go passed behind a pointer")
+	}
+
+	v := make([][]uint8, 1)
+	alias := v
+	if n := fixture.Regrow(&v, 100); n != 300 {
+		t.Fatalf("Regrow: %d bytes", n)
+	}
+	if alias[0] != nil {
+		t.Errorf("an array the translation outgrew holds %d bytes Go did not put there", len(alias[0]))
+	}
+	clipped(t, "Regrow's argument", v[0])
 }
 
 // A slot the translation vacates past a length shows nothing it held.

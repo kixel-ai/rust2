@@ -1,10 +1,12 @@
 //! Handing a `Vec<u8>`'s storage between Go code and the translation. The runtime grows
 //! storage it owns without zeroing it and recycles it once outgrown, telling it apart by
 //! its shape (`bytesOwn` in `runtime/rt.go`). Go code reaches storage only through a root
-//! function, so the root hands Go's storage in trimmed off that shape, and its own out
-//! clipped to its length: in, through each argument it is passed by value or through
-//! `&mut` or `Box`; out, through its result and whatever its arguments reach behind a
-//! `&mut` or `Box`, which Go code keeps.
+//! function, so the root hands Go's storage in off that shape, and its own out clipped to
+//! its length. In, it also copies each container an argument owns, a `Box`'s pointee or a
+//! `Vec`'s elements, by value or behind `&mut`, so the translation never writes storage of
+//! its own where Go code may still hold the container, which a move, a grow, or a
+//! replaced `Box` would leave behind. Out, it clips its result and what its arguments
+//! reach behind `&mut`, the places Go code keeps.
 
 use rustc_hir::def_id::LOCAL_CRATE;
 use rustc_middle::ty::util::IntTypeExt;
@@ -19,21 +21,22 @@ use super::{Translator, names};
 /// Which way a walk hands storage, and so what it does with each buffer it reaches.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Hand {
-	/// Into a root: each `Vec<u8>` of Go's is trimmed off the shape of own storage.
+	/// Into a root: each `Vec<u8>` of Go's is taken off the shape of own storage, and each
+	/// container holding one is copied.
 	In,
 	/// Out of a root, in its result: each `Vec<u8>` of own storage, and each byte slice,
 	/// is clipped to its length.
 	Out,
-	/// Out of a root, in an argument: as `Out`, but only behind a pointer, where Go's
-	/// memory is, since the argument's own slots are the root's copies.
+	/// Out of a root, in an argument: as `Out`, but only behind a reference, where Go's
+	/// places are, since what the argument owns is the root's copy.
 	Back,
 }
 
 impl Hand {
-	/// The way of what lies behind a pointer, or in a slice's elements.
-	fn behind(self) -> Self {
+	/// The way of what lies behind a pointer, which `owns` it if a `Box`.
+	fn behind(self, owns: bool) -> Self {
 		match self {
-			Hand::Back => Hand::Out,
+			Hand::Back if !owns => Hand::Out,
 			hand => hand,
 		}
 	}
@@ -61,9 +64,9 @@ impl<'tcx> Translator<'tcx> {
 			ty::Adt(adt, args) => match library::mapped(tcx, adt.did()) {
 				Some(Mapped::Vec) => match is_u8(args.type_at(0)) {
 					true => hand != Hand::Back,
-					false => self.hands_in(args.type_at(0), hand.behind(), seen),
+					false => self.hands_in(args.type_at(0), hand, seen),
 				},
-				Some(Mapped::Box) => self.hands_behind(args.type_at(0), true, hand, seen),
+				Some(Mapped::Box) => self.hands_behind(args.type_at(0), true, true, hand, seen),
 				Some(Mapped::SliceIter) => hand == Hand::Out && is_u8(args.type_at(0)),
 				Some(Mapped::Transparent) => self.hands_in(args.type_at(0), hand, seen),
 				Some(Mapped::Option | Mapped::Result) | None => adt
@@ -71,7 +74,7 @@ impl<'tcx> Translator<'tcx> {
 					.any(|field| self.hands_in(self.mono_field_ty(field, args), hand, seen)),
 				Some(Mapped::Runtime(_) | Mapped::Refused(_)) => false,
 			},
-			ty::Ref(_, inner, m) | ty::RawPtr(inner, m) => self.hands_behind(inner, m.is_mut(), hand, seen),
+			ty::Ref(_, inner, m) | ty::RawPtr(inner, m) => self.hands_behind(inner, m.is_mut(), false, hand, seen),
 			ty::Tuple(tys) => tys.iter().any(|t| self.hands_in(t, hand, seen)),
 			ty::Array(elem, _) => self.hands_in(elem, hand, seen),
 			ty::Closure(_, args) => args
@@ -85,15 +88,23 @@ impl<'tcx> Translator<'tcx> {
 		found
 	}
 
-	/// `hands` of a pointer to `inner`, through which the translation may write if `mutable`.
-	fn hands_behind(&self, inner: Ty<'tcx>, mutable: bool, hand: Hand, seen: &mut Vec<(Ty<'tcx>, Hand)>) -> bool {
+	/// `hands` of a pointer to `inner`, through which the translation may write if `mutable`,
+	/// and which `owns` it if a `Box`.
+	fn hands_behind(
+		&self,
+		inner: Ty<'tcx>,
+		mutable: bool,
+		owns: bool,
+		hand: Hand,
+		seen: &mut Vec<(Ty<'tcx>, Hand)>,
+	) -> bool {
+		// The pointer is where `hand` is; what it points to is behind it.
+		let next = hand.behind(owns);
 		match *inner.kind() {
 			ty::Str => hand == Hand::Out,
-			ty::Slice(elem) => {
-				(hand == Hand::Out && is_u8(elem)) || (mutable && self.hands_in(elem, hand.behind(), seen))
-			}
+			ty::Slice(elem) => (hand == Hand::Out && is_u8(elem)) || (mutable && self.hands_in(elem, next, seen)),
 			ty::Dynamic(..) => false,
-			_ => mutable && self.hands_in(inner, hand.behind(), seen),
+			_ => mutable && self.hands_in(inner, next, seen),
 		}
 	}
 
@@ -130,11 +141,14 @@ impl<'tcx> Translator<'tcx> {
 							_ => "bytesEscape(p)".into(),
 						});
 					} else {
-						let f = self.hand(elem, hand.behind(), span);
+						if hand == Hand::In {
+							body.push("*p = append((*p)[:0:0], *p...)".into());
+						}
+						let f = self.hand(elem, hand, span);
 						body.push(format!("for i := range *p {{ {f}(&(*p)[i]) }}"));
 					}
 				}
-				Some(Mapped::Box) => self.hand_behind(args.type_at(0), true, hand, "p", &mut body, span),
+				Some(Mapped::Box) => self.hand_behind(args.type_at(0), true, true, hand, "p", &mut body, span),
 				Some(Mapped::SliceIter) => body.push("clip(&p.s)".into()),
 				Some(Mapped::Transparent) => {
 					let f = self.hand(args.type_at(0), hand, span);
@@ -143,7 +157,7 @@ impl<'tcx> Translator<'tcx> {
 				_ => self.hand_adt(adt, args, hand, &mut body, span),
 			},
 			ty::Ref(_, inner, m) | ty::RawPtr(inner, m) => {
-				self.hand_behind(inner, m.is_mut(), hand, "p", &mut body, span)
+				self.hand_behind(inner, m.is_mut(), false, hand, "p", &mut body, span)
 			}
 			ty::Tuple(tys) => {
 				for (i, t) in tys.iter().enumerate() {
@@ -185,22 +199,40 @@ impl<'tcx> Translator<'tcx> {
 	}
 
 	/// The walk of a pointer to `inner`, at `p`, a pointer to the pointer, or to the
-	/// slice of an unsized `inner`.
-	fn hand_behind(&mut self, inner: Ty<'tcx>, mutable: bool, hand: Hand, p: &str, body: &mut Vec<String>, span: Span) {
+	/// slice of an unsized `inner`, which a `Box` `owns` and so copies in.
+	#[expect(clippy::too_many_arguments, reason = "the walk's position, as hands_behind takes it")]
+	fn hand_behind(
+		&mut self,
+		inner: Ty<'tcx>,
+		mutable: bool,
+		owns: bool,
+		hand: Hand,
+		p: &str,
+		body: &mut Vec<String>,
+		span: Span,
+	) {
+		let copy = owns && hand == Hand::In;
+		let next = hand.behind(owns);
 		match *inner.kind() {
 			ty::Str => body.push(format!("clip({p})")),
 			ty::Slice(elem) => {
 				if hand == Hand::Out && is_u8(elem) {
 					body.push(format!("clip({p})"));
 				}
-				if mutable && self.hands(elem, hand.behind()) {
-					let f = self.hand(elem, hand.behind(), span);
+				if mutable && self.hands(elem, next) {
+					if copy {
+						body.push(format!("*{p} = append((*{p})[:0:0], *{p}...)"));
+					}
+					let f = self.hand(elem, next, span);
 					body.push(format!("for i := range *{p} {{ {f}(&(*{p})[i]) }}"));
 				}
 			}
 			_ => {
-				let f = self.hand(inner, hand.behind(), span);
-				body.push(format!("if *{p} != nil {{ {f}(*{p}) }}"));
+				let f = self.hand(inner, next, span);
+				match copy {
+					true => body.push(format!("if *{p} != nil {{ c := **{p}; *{p} = &c; {f}(&c) }}")),
+					false => body.push(format!("if *{p} != nil {{ {f}(*{p}) }}")),
+				}
 			}
 		}
 	}
@@ -246,7 +278,7 @@ impl<'tcx> Translator<'tcx> {
 			};
 			let tag = format!("{}({value})", self.ty(discr_ty, span));
 			let mut text = format!("if p.tag == {tag} {{ {} }}", walks.join("; "));
-			if hand != Hand::In {
+			if hand == Hand::Out {
 				text.push_str(&format!(
 					" else {{ zero(&p.{}) }}",
 					variant_field(variant.name.as_str())
@@ -258,21 +290,21 @@ impl<'tcx> Translator<'tcx> {
 }
 
 impl<'tcx> Translator<'tcx> {
-	/// Refuse a function pointer a root's signature reaches whose own signature reaches
+	/// Refuse a function pointer or trait object in the signature of a root that reaches
 	/// byte storage: Go code could pass a function of its own, which the translation would
-	/// hand its own storage to, or take Go's from, past the root's walks.
-	pub fn refuse_callback(&mut self, ty: Ty<'tcx>, span: Span) {
-		let mut seen = Vec::new();
-		let found = self.find_part(ty, &mut seen, &|t, this| {
-			matches!(t.kind(), ty::FnPtr(..))
-				&& this
-					.find_part(t, &mut Vec::new(), &|t, this| bytes(this.tcx, t))
-					.is_some()
-		});
-		if let Some(f) = found {
+	/// hand its storage to, or run while a place Go holds keeps storage of its own.
+	pub fn refuse_callback(&mut self, sig: &[Ty<'tcx>], span: Span) {
+		let find = |pick: &dyn Fn(Ty<'tcx>, &Self) -> bool| {
+			let mut seen = Vec::new();
+			sig.iter().find_map(|t| self.find_part(*t, &mut seen, pick))
+		};
+		if find(&|t, this| bytes(this.tcx, t)).is_none() {
+			return;
+		}
+		if let Some(f) = find(&|t, _| matches!(t.kind(), ty::FnPtr(..) | ty::Dynamic(..))) {
 			self.err(
 				span,
-				format!("`{f}`, a function pointer over byte storage in a root's signature, is not supported"),
+				format!("`{f}`, a callback in the signature of a root that reaches byte storage, is not supported"),
 			);
 		}
 	}
