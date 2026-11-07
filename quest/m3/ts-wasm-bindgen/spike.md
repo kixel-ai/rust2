@@ -26,7 +26,7 @@ It also answers, for the imports quest:
 
 - How a mapped `JsValue`, `JsCast`, and `Closure` meet the generic code around them, such
   as `Closure::new` of a closure, which web-codecs' output and error callbacks need, given
-  that [trait objects](/quest/m3/ts-dyn.md) other than `TypeId` already translate.
+  that trait objects, `TypeId` included, already translate.
 - How the differential test's native side runs a wasm-bindgen build: the wasm-bindgen CLI
   in the dev shell at the fixture's pinned version, and a host with WebCodecs, which Bun
   lacks, so likely a headless browser.
