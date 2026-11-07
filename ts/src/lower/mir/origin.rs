@@ -242,10 +242,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 			("NonNull", "as_ptr" | "new_unchecked") => self.origin(&args[0].node),
 			("slice" | "Vec", "as_ptr" | "as_mut_ptr") => self.start(&args[0].node),
-			// At no index the body shows: a substring's starts past its text's, which `sub` may move back to.
+			// The start of its own text's encoding, though a substring's bytes start past its
+			// text's in Rust, so a move back before it is refused, as one off a copy is.
 			("str", "as_ptr") => Some(Origin {
 				array: Array::Text(self.def_block(local)?),
-				index: None,
+				index: Some(0),
 			}),
 			_ => None,
 		}

@@ -414,6 +414,12 @@ pub fn text_apart(s: &str) -> isize {
 	unsafe { s[1..].as_ptr().offset_from(s.as_ptr()) + s.as_ptr().offset_from(s.as_ptr()) }
 }
 
+/// A pointer into a substring's bytes moved back before them, into its text's, which JS
+/// encodes apart, and read.
+pub fn text_before(s: &str) -> u8 {
+	unsafe { *s[1..].as_ptr().sub(1) }
+}
+
 /// A raw and a mutable slice of a byte in no array, which no `Uint8Array` can share.
 pub fn lone_byte_slices(mut b: u8) -> u8 {
 	let raw = std::ptr::slice_from_raw_parts_mut(&raw mut b, 1);
