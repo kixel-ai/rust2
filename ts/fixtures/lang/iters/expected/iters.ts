@@ -3,7 +3,7 @@
 import * as rs from "./rs.ts";
 import { drop$iters_Ticks, of$u8 } from "./lib.ts";
 import { thenSome$1ctlqen, thenSome$1gvhopg, thenSome$0quywni, thenSome$1n1oy1h } from "./core/bool.ts";
-import { unwrapOr$04rqm9m as option_unwrapOr$04rqm9m, unwrapOr$00tqxtm as option_unwrapOr$00tqxtm, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOr$1g3ltyz as option_unwrapOr$1g3ltyz, unwrapOr$15hbiwd as option_unwrapOr$15hbiwd, unwrapOrDefault$165pyh5 as option_unwrapOrDefault$165pyh5, unwrapOrDefault$0w012ed as option_unwrapOrDefault$0w012ed, map$1uo1d4o as option_map$1uo1d4o, map$1bpbukm as option_map$1bpbukm, map$0vu84i0 as option_map$0vu84i0, map$1806e7m as option_map$1806e7m, map$1yjmt5m as option_map$1yjmt5m, map$057a36e as option_map$057a36e, map$14ju55r as option_map$14ju55r, mapOr$1nyk1yj as option_mapOr$1nyk1yj, mapOr$127irwp as option_mapOr$127irwp, mapOr$0g5x999 as option_mapOr$0g5x999, mapOr$1i4rvy8 as option_mapOr$1i4rvy8, mapOr$0yzb10z as option_mapOr$0yzb10z, mapOr$041x3r2 as option_mapOr$041x3r2, mapOr$14runhi as option_mapOr$14runhi, mapOr$0dfpyun as option_mapOr$0dfpyun, mapOr$0p9po8x as option_mapOr$0p9po8x, mapOr$02sqh24 as option_mapOr$02sqh24, mapOr$0vxw5sq as option_mapOr$0vxw5sq, mapOr$1d4bp7c as option_mapOr$1d4bp7c, mapOr$0llggqq as option_mapOr$0llggqq, mapOr$1ifh11y as option_mapOr$1ifh11y, mapOr$1r07vli as option_mapOr$1r07vli, mapOr$0olig48 as option_mapOr$0olig48, mapOr$1h9hu6n as option_mapOr$1h9hu6n, mapOr$0i0fno7 as option_mapOr$0i0fno7, mapOr$17ts8jj as option_mapOr$17ts8jj, mapOr$07pvkk0 as option_mapOr$07pvkk0, mapOr$188iunt as option_mapOr$188iunt, asDeref$0w8at8i as option_asDeref$0w8at8i, asDeref$0pg0e8a as option_asDeref$0pg0e8a, filter$0hq86nl } from "./core/option.ts";
+import { unwrapOr$04rqm9m as option_unwrapOr$04rqm9m, unwrapOr$00tqxtm as option_unwrapOr$00tqxtm, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOr$1g3ltyz as option_unwrapOr$1g3ltyz, unwrapOr$15hbiwd as option_unwrapOr$15hbiwd, unwrapOrDefault$165pyh5 as option_unwrapOrDefault$165pyh5, unwrapOrDefault$0w012ed as option_unwrapOrDefault$0w012ed, map$1uo1d4o as option_map$1uo1d4o, map$1bpbukm as option_map$1bpbukm, map$0vu84i0 as option_map$0vu84i0, map$1806e7m as option_map$1806e7m, map$1yjmt5m as option_map$1yjmt5m, map$057a36e as option_map$057a36e, map$14ju55r as option_map$14ju55r, mapOr$1nyk1yj as option_mapOr$1nyk1yj, mapOr$127irwp as option_mapOr$127irwp, mapOr$0g5x999 as option_mapOr$0g5x999, mapOr$1i4rvy8 as option_mapOr$1i4rvy8, mapOr$0yzb10z as option_mapOr$0yzb10z, mapOr$041x3r2 as option_mapOr$041x3r2, mapOr$14runhi as option_mapOr$14runhi, mapOr$0dfpyun as option_mapOr$0dfpyun, mapOr$0p9po8x as option_mapOr$0p9po8x, mapOr$02sqh24 as option_mapOr$02sqh24, mapOr$0g9tml1 as option_mapOr$0g9tml1, mapOr$0vxw5sq as option_mapOr$0vxw5sq, mapOr$164lw4w as option_mapOr$164lw4w, mapOr$1d4bp7c as option_mapOr$1d4bp7c, mapOr$0llggqq as option_mapOr$0llggqq, mapOr$1ifh11y as option_mapOr$1ifh11y, mapOr$1r07vli as option_mapOr$1r07vli, mapOr$0olig48 as option_mapOr$0olig48, mapOr$1h9hu6n as option_mapOr$1h9hu6n, mapOr$0i0fno7 as option_mapOr$0i0fno7, mapOr$17ts8jj as option_mapOr$17ts8jj, mapOr$07pvkk0 as option_mapOr$07pvkk0, mapOr$188iunt as option_mapOr$188iunt, asDeref$0w8at8i as option_asDeref$0w8at8i, asDeref$0pg0e8a as option_asDeref$0pg0e8a, filter$0hq86nl } from "./core/option.ts";
 import { unwrapOr$0a3q6xs as result_unwrapOr$0a3q6xs } from "./core/result.ts";
 import type * as Badge from "./iters.Badge.ts";
 import * as Bag from "./iters.Bag.ts";
@@ -14,6 +14,7 @@ import * as Evens from "./iters.Evens.ts";
 import * as Gaps from "./iters.Gaps.ts";
 import * as Halving from "./iters.Halving.ts";
 import * as Held from "./iters.Held.ts";
+import * as Holder from "./iters.Holder.ts";
 import * as Logged from "./iters.Logged.ts";
 import * as Noted from "./iters.Noted.ts";
 import * as Phase from "./iters.Phase.ts";
@@ -11640,6 +11641,70 @@ export function byValue(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 	const _258: rs.RefCell<rs.ByteVec> = rs.refCellBorrow(log);
 	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_258.value));
 	rs.refRelease(_258);
+}
+
+/** `Holder` over items `make` makes of the input, stepped by its bytes. */
+export function held$String_iters_held_fields_closure2(data: rs.ByteSlice, make: (a0: rs.u8) => string, code: (a0: string) => rs.u32, out: rs.ByteVec): void {
+	const items: rs.Vec<string> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): string => {
+		return make(_2);
+	}), undefined, 12, true);
+	const _11: rs.Iter<[rs.u8, string]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_24: rs.u8): [rs.u8, string] => {
+		const b2: rs.u8 = _24;
+		return [b2, make(b2)] as [rs.u8, string];
+	});
+	const tree: rs.BTreeMap<rs.u8, string> = rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, string>, _11, true, undefined, undefined, undefined, 16, true);
+	const _17: [rs.u8, rs.u8] = [option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), option_unwrapOr$1fr498u(rs.byteSliceLast(data), 0)];
+	const lo: rs.u8 = _17[0];
+	const hi: rs.u8 = _17[1];
+	const held: Holder.Holder<string, rs.Iter<rs.u8>> = new Holder.Holder(rs.iterSlice(items.items) as rs.Iter<rs.Ptr<string>>, rs.btreeRange(tree, new rs.RangeInclusive(rs.min(lo, hi), rs.max(lo, hi), rs.u8Step)) as rs.Iter<[rs.u8, rs.Ptr<string>]>, rs.vecIntoIter(rs.vecFrom(items.items.slice())), rs.iterPeekable(rs.iterSlice(rs.byteSliceView(data))), undefined);
+	for (const _41 of rs.byteSliceView(data)) {
+		Holder.step$String_slice_Iter_u8(held, _41, code, out);
+	}
+	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(option_mapOr$0g9tml1(held.last, 4294967295, code)).reverse()), undefined, true);
+}
+
+/** `Holder` over items `make` makes of the input, stepped by its bytes. */
+export function held$u16_iters_held_fields_closure0(data: rs.ByteSlice, make: (a0: rs.u8) => rs.u16, code: (a0: rs.u16) => rs.u32, out: rs.ByteVec): void {
+	const items: rs.Vec<rs.u16> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u16 => {
+		return make(_2);
+	}), undefined, 2, true);
+	const _11: rs.Iter<[rs.u8, rs.u16]> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_24: rs.u8): [rs.u8, rs.u16] => {
+		const b2: rs.u8 = _24;
+		return [b2, make(b2)] as [rs.u8, rs.u16];
+	});
+	const tree: rs.BTreeMap<rs.u8, rs.u16> = rs.btreeExtend(rs.btreeNew(rs.cmp) as rs.BTreeMap<rs.u8, rs.u16>, _11, true, undefined, undefined, undefined, 4, true);
+	const _17: [rs.u8, rs.u8] = [option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), option_unwrapOr$1fr498u(rs.byteSliceLast(data), 0)];
+	const lo: rs.u8 = _17[0];
+	const hi: rs.u8 = _17[1];
+	const held: Holder.Holder<rs.u16, rs.Iter<rs.u8>> = new Holder.Holder(rs.iterSlice(items.items) as rs.Iter<rs.Ptr<rs.u16>>, rs.btreeRange(tree, new rs.RangeInclusive(rs.min(lo, hi), rs.max(lo, hi), rs.u8Step)) as rs.Iter<[rs.u8, rs.Ptr<rs.u16>]>, rs.vecIntoIter(rs.vecFrom(items.items.slice())), rs.iterPeekable(rs.iterSlice(rs.byteSliceView(data))), undefined);
+	for (const _41 of rs.byteSliceView(data)) {
+		Holder.step$u16_slice_Iter_u8(held, _41, code, out);
+	}
+	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(option_mapOr$164lw4w(held.last, 4294967295, code)).reverse()), undefined, true);
+}
+
+/**
+ * std's iterators held in fields of the crate's own generic struct, of numbers, which JS
+ * copies, and of strings, which it shares.
+ */
+export function heldFields(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	if (rs.u8Rem(kind, 2) === 0) {
+		held$u16_iters_held_fields_closure0(data, (b2: rs.u8): rs.u16 => {
+			return rs.u16Mul(b2 as rs.u16, 300);
+		}, (v: rs.u16): rs.u32 => {
+			return v as rs.u32;
+		}, out);
+	} else {
+		held$String_iters_held_fields_closure2(data, (b: rs.u8): string => {
+			return rs.stringExtend("", rs.iterMap(new rs.Range(0, rs.u8Rem(b, 5)), (_2: rs.u8): string => {
+				return "ab";
+			}));
+		}, (s: string): rs.u32 => {
+			return rs.u32Add(rs.u32Mul(rs.stringLen(s) as rs.u32, 1000), rs.iterSum(rs.iterMap(rs.strBytes(s), (a0: rs.u8): rs.u32 => {
+				return a0 as rs.u32;
+			}), rs.u32Add, 0));
+		}, out);
+	}
 }
 
 //# sourceMappingURL=iters.ts.map

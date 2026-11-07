@@ -694,11 +694,13 @@ impl Type {
 		self.any(&|t| matches!(t, Type::Param(name) if name == param))
 	}
 
-	/// Whether a function type in it takes a parameter holding a type `f` picks.
+	/// Whether a type `f` picks is where TypeScript takes no other: in a function type's
+	/// parameter, or in a type argument of a generic type.
 	pub fn takes(&self, f: &impl Fn(&Type) -> bool) -> bool {
 		match self {
 			Type::Func(params, ret) => params.iter().any(|t| t.any(f)) || ret.takes(f),
 			Type::Param(_) | Type::Builtin(_) | Type::StrLit(_) => false,
+			Type::Rs(_, tys) | Type::Sym(_, tys) if !f(self) => tys.iter().any(|t| t.any(f)),
 			Type::Rs(_, tys) | Type::Sym(_, tys) | Type::Union(tys) | Type::Tuple(tys) => {
 				tys.iter().any(|t| t.takes(f))
 			}

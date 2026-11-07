@@ -24,7 +24,9 @@ The rest are gaps. At `main` they include a panic its hook cannot locate
 ([#556](https://github.com/moq-dev/rust2/pull/556)), a pointer cast to `()` that is not an
 `Arc`'s or `Rc`'s (`rs.arcErase`, [#562](https://github.com/moq-dev/rust2/pull/562),
 [#565](https://github.com/moq-dev/rust2/pull/565)), `offset_from` of one Rust allocation
-JS keeps in two arrays, `Bytes::slice_ref` of other storage, `alloc`'s bytes read as
+JS keeps in two arrays, a pointer moved past the array JS keeps it in (`AtIndex.reach`, a
+`Vec`'s spare capacity, which [its own quest](/quest/m3/ts-unsafe/vec-spare-capacity.md)
+owns, or a pointer kept in a field), `Bytes::slice_ref` of other storage, `alloc`'s bytes read as
 values, ranges stepped without their type, and fmt widths written as a placeholder.
 `git grep 'rust2-ts: ' ts/runtime` lists them; classify each before fixing. The pointer
 comparisons [#584](https://github.com/moq-dev/rust2/pull/584) refuses at translation are
@@ -46,4 +48,4 @@ Public API: the translator's output, and which crates translate.
 
 ## Related
 
-- [Unsafe code the translator can model](/quest/m3/ts-unsafe.md) - the raw-pointer model several of these throws guard
+- [Unsafe code the translator can model](/quest/m3/ts-unsafe/README.md) - the raw-pointer model several of these throws guard; its 2026-11-01 run-time failures now follow this quest's rule
