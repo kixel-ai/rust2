@@ -1673,8 +1673,17 @@ pub fn item_writes(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				*x ^= 0xff;
 			}
 		}
-		// Bytes, by `&mut Vec` and from a struct's field, with a read before the write.
+		// Bytes, by `&mut Vec` and from a struct's field, with a read before the write, and
+		// a local array's items.
 		1 => {
+			let mut array = [cut as u32; 4];
+			for (x, &b) in array.iter_mut().zip(data) {
+				*x += u32::from(b);
+			}
+			for x in &mut array {
+				*x = x.rotate_left(5);
+			}
+			out.extend(array.iter().flat_map(|x| x.to_le_bytes()));
 			for b in &mut bytes {
 				let before = *b;
 				*b = before.rotate_left(3) ^ before;
@@ -1740,7 +1749,8 @@ pub fn item_writes(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 				*w = w.wrapping_mul(5);
 			}
 		}
-		// Nested, each row's items.
+		// Nested, each row's items, and places kept past the loops that lent them: of
+		// items, and of `Some`'s payloads.
 		6 => {
 			let mut rows: Vec<Vec<u8>> = data.chunks(3).map(<[u8]>::to_vec).collect();
 			for row in rows.iter_mut() {
@@ -1748,7 +1758,31 @@ pub fn item_writes(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 					*b = b.wrapping_add(row_len(cut));
 				}
 			}
+			let mut kept: Vec<&mut u8> = Vec::new();
+			for row in rows.iter_mut() {
+				for b in row.iter_mut() {
+					if *b % 2 == 0 {
+						kept.push(b);
+					}
+				}
+			}
+			for b in kept {
+				*b ^= 0x80;
+			}
 			out.extend(rows.into_iter().flatten());
+			let mut grid: Vec<Vec<Option<u16>>> = options.chunks(2).map(<[Option<u16>]>::to_vec).collect();
+			let mut payloads: Vec<&mut u16> = Vec::new();
+			for row in grid.iter_mut() {
+				for o in row.iter_mut() {
+					if let Some(v) = o {
+						payloads.push(v);
+					}
+				}
+			}
+			for v in payloads {
+				*v = v.wrapping_add(1000);
+			}
+			out.extend(grid.into_iter().flatten().flat_map(|o| o.map_or([0xee, 0xee], u16::to_le_bytes)));
 		}
 		// Overflow panics where Rust's does, part way through.
 		_ => {
