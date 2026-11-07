@@ -466,6 +466,7 @@ mod lang {
 		heap,
 		hints,
 		holds,
+		inlines,
 		ints,
 		iters,
 		joins,

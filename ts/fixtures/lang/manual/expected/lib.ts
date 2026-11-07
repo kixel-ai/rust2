@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { arcs, needsDrops } from "./manual.ts";
-import { uninits } from "./uninit.ts";
+import { uninits, boxedUninits } from "./uninit.ts";
 
 export function copy$array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
@@ -30,6 +30,8 @@ export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.By
 		needsDrops(data2, out2);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["uninit::uninits", (_24: rs.u8, data3: rs.ByteSlice, out3: rs.ByteVec): undefined => {
 		uninits(data3, out3);
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["uninit::boxed_uninits", (_25: rs.u8, data4: rs.ByteSlice, out4: rs.ByteVec): undefined => {
+		boxedUninits(data4, out4);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }
 

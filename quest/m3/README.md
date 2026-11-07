@@ -15,7 +15,7 @@ generic std gap is planned here even when moq never calls it.
 
 - [Retrial Cranelift on moq's tests](/quest/m3/cranelift-unwind.md) - waits on upstream: moq's tests pass under Cranelift, so its CI can weigh it again
 - [Relink without rebuilding](/quest/m3/relink.md) - measure upstream's skip of dependency-only rebuilds on moq's edits once it reaches nightly
-- [Unsafe code the translator can model](/quest/m3/ts-unsafe.md) - a dependency using only `unsafe` the translator can model translates from source
+- [Unsafe code the translator can model](/quest/m3/ts-unsafe/README.md) - a dependency using only `unsafe` the translator can model translates from source
 - [Trait objects' TypeId](/quest/m3/ts-dyn.md) - `Any::type_id` and `TypeId` translate with Rust's equality, order, and hash, so a consumer neither rewrites nor binds them
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
@@ -25,4 +25,3 @@ generic std gap is planned here even when moq never calls it.
 - [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md) - no runtime `rust2-ts:` error where native Rust goes on: an exact slower path, or a refusal at translation
 - [rust2-ts with no ts.toml](/quest/m3/ts-configless.md) - a crate's whole `pub` API translates with no config and no bound items
 - [std's panic messages hold std's capacity](/quest/m3/ts-panic-payload-capacity.md) - a hook reads native's `String` capacity from std's own formatted panics
-- [A B-tree drops as std's does](/quest/m3/ts-btree-drop-order.md) - keys and values drop node by node, in std's order

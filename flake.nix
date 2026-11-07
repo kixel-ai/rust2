@@ -11,7 +11,7 @@
     # The quest CLI, which also serves the quest guide and skills the stubs in
     # .claude/skills call. Bump the rev to upgrade them.
     quest = {
-      url = "github:moq-dev/quest/dc8008bc9e846a206403b1b738ede19fdd797f5e";
+      url = "github:moq-dev/quest/a3789c7bd7197089d40bb540517b1323f4d40fab";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
     };
@@ -297,10 +297,12 @@
               typescript
               bun
               esbuild
-              # rust2-ffi's tests compile its generated Kotlin and run it on the JVM, run its
-              # generated Python and Dart, and build its generated Go through cgo.
+              # rust2-ffi's tests compile its generated Kotlin and run it on the JVM, run and
+              # type-check its generated Python, run its Dart, and build its Go through cgo.
               kotlin
               python3
+              mypy
+              pyright
               # rust2-go's tests build and run its output against native Rust.
               go
               dart
