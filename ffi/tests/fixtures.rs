@@ -1204,7 +1204,10 @@ fn foreign_lib_name() {
 				[dependencies]\nurl_dep = { package = \"foreign-lib-name-url\", path = \"dep\" }\n\n\
 				[workspace]\nexclude = [\"dep\"]\n",
 			),
-			("src/lib.rs", "pub fn echo(url: url_dep::Url) -> url_dep::Url {\n\turl\n}\n"),
+			(
+				"src/lib.rs",
+				"pub fn echo(url: url_dep::Url) -> url_dep::Url {\n\turl\n}\n",
+			),
 		],
 	);
 	let output = export_dir(&package);

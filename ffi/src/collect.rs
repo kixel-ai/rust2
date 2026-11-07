@@ -2955,9 +2955,7 @@ impl<'tcx> Collector<'tcx> {
 					]) {
 					// std's own `Clone`, written by hand, clones each element.
 					args.types().all(|arg| self.shares(arg, env, seen))
-				} else if self.sysroot.contains(&did.krate)
-					&& tcx.type_is_copy_modulo_regions(env, ty)
-				{
+				} else if self.sysroot.contains(&did.krate) && tcx.type_is_copy_modulo_regions(env, ty) {
 					// std's `Clone` of a `Copy` type, such as `NonZero`'s, copies it, as std's own
 					// specializations of `Clone` for `Copy` types assume.
 					true
