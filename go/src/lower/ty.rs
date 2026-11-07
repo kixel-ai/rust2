@@ -150,7 +150,10 @@ impl<'tcx> Translator<'tcx> {
 	/// from its neighbors.
 	fn check_field(&mut self, field: &ty::FieldDef) {
 		let name = field.name.as_str();
-		if field.vis.is_public() && name.parse::<usize>().is_err() && !name.starts_with(|c: char| c.is_ascii_lowercase()) {
+		if field.vis.is_public()
+			&& name.parse::<usize>().is_err()
+			&& !name.starts_with(|c: char| c.is_ascii_lowercase())
+		{
 			self.err(
 				self.tcx.def_span(field.did),
 				"a `pub` field not named with a leading ASCII lowercase letter, which Go cannot export one to one, is not supported",
