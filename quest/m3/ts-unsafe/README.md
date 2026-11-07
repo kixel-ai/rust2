@@ -66,7 +66,7 @@ construct still open at `b3df54b6c`, all in m3:
   [#568](https://github.com/moq-dev/rust2/pull/568). `bytes`' `Buf::get_u16` and wider
   map to the runtime since [#447](https://github.com/moq-dev/rust2/pull/447).
 
-Census at the moq pin on 2026-11-07: model 45, kio 72, moq-net 347 refusals.
+Census at the moq pin on 2026-11-07: model 46, kio 72, moq-net 348 refusals.
 
 Public API: the translator's output.
 
