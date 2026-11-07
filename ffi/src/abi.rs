@@ -138,10 +138,6 @@ impl<'a> Abi<'a> {
 	/// The segments of the C name of the item at `shown` after the prefix: each of its
 	/// path's after the root, without an instance's arguments.
 	fn segments(&self, shown: &[String]) -> Vec<String> {
-		// A foreign type, which no facade path names, is named by its role.
-		if shown == ["serde_json", "Value"] {
-			return vec!["Json".to_string()];
-		}
 		(shown[1..].iter())
 			.map(|segment| segment.split('<').next().unwrap_or(segment).to_string())
 			.collect()

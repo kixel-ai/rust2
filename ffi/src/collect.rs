@@ -41,9 +41,10 @@ pub struct Why {
 }
 
 /// Types of crates that are no export, by crate and name, each exported as an object made
-/// by parsing its text, where some crate builds with it: `url::Url`, and
-/// `serde_json::Value`, which a `Serialize` or `Deserialize` parameter takes.
-const FOREIGN: [(&str, &str); 2] = [("url", "Url"), ("serde_json", "Value")];
+/// by parsing its text, where some crate builds with it, and named at the facade's root by
+/// its role: `url::Url` as `Url`, and `serde_json::Value`, which a `Serialize` or
+/// `Deserialize` parameter takes, as `Json`.
+const FOREIGN: [(&str, &str, &str); 2] = [("url", "Url", "Url"), ("serde_json", "Value", "Json")];
 
 /// The construct of an instance inference missed: a bug in the exporter, not the crate.
 pub const NOT_INFERRED: &str = "instance not inferred";
@@ -198,7 +199,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 	.map(|def_id| def_id.krate)
 	.collect();
 	let foreign: Vec<DefId> = (FOREIGN.iter())
-		.filter_map(|&(krate, name)| root(krate, name))
+		.filter_map(|&(krate, name, _)| root(krate, name))
 		.collect();
 	let range_bounds = tcx.get_diagnostic_item(rustc_span::Symbol::intern("RangeBounds"));
 	// `RangeBounds::start_bound` returns a `Bound`, which has no diagnostic item of its own.
@@ -910,16 +911,25 @@ impl<'tcx> Collector<'tcx> {
 		let span = tcx.def_span(def_id);
 		let ty = Type::Object(index);
 		let krate = tcx.crate_name(def_id.krate);
-		let path = |rest: &str| -> Path {
-			[krate.as_str(), tcx.item_name(def_id).as_str(), rest]
+		let name = tcx.item_name(def_id);
+		let role = (FOREIGN.iter())
+			.find(|&&(k, n, _)| k == krate.as_str() && n == name.as_str())
+			.map(|&(_, _, role)| role)
+			.expect("a foreign type is in FOREIGN");
+		let segments = |first: &str, second: &str, rest: &str| -> Path {
+			[first, second, rest]
 				.iter()
 				.filter(|s| !s.is_empty())
 				.map(|s| s.to_string())
 				.collect()
 		};
+		// Its path is its own crate's, which the glue names it by; it shows at the facade's
+		// root, which names it in every language.
+		let path = |rest: &str| segments(krate.as_str(), name.as_str(), rest);
+		let shown = |rest: &str| segments(&self.report.root, role, rest);
 		let parse = |docs: &str| Function {
 			path: path("parse"),
-			shown: path("parse"),
+			shown: shown("parse"),
 			span,
 			docs: docs.to_string(),
 			receiver: None,
@@ -954,7 +964,7 @@ impl<'tcx> Collector<'tcx> {
 					parse("Parse a JSON document, failing with why it is not one."),
 					Function {
 						path: path("to_text"),
-						shown: path("to_text"),
+						shown: shown("to_text"),
 						span,
 						docs: "The document as JSON text.".to_string(),
 						receiver: Some(Receiver::Ref),
@@ -973,7 +983,7 @@ impl<'tcx> Collector<'tcx> {
 		};
 		Object {
 			path: path(""),
-			shown: path(""),
+			shown: shown(""),
 			args: Vec::new(),
 			span,
 			docs: docs.to_string(),
@@ -2610,7 +2620,14 @@ impl<'tcx> Collector<'tcx> {
 		if !matches!(ty.kind(), ty::Adt(..)) || !implements(iterator, ty) {
 			return None;
 		}
-		let std = |krate| matches!(tcx.crate_name(krate), sym::core | sym::alloc);
+		// core and alloc, known by what each defines.
+		let lang = tcx.lang_items();
+		let std = |krate| {
+			[lang.sized_trait(), lang.owned_box()]
+				.into_iter()
+				.flatten()
+				.any(|d| d.krate == krate)
+		};
 		let drained = |did: DefId| {
 			let path = tcx.def_path_str(did);
 			std(did.krate) && path.split_once("::").is_some_and(|(_, path)| DRAINED.contains(&path))
@@ -2676,7 +2693,7 @@ impl<'tcx> Collector<'tcx> {
 		}
 		// Besides items, the listed iterators call into only their allocator and `Split`'s
 		// pattern, whose impls must be core's or alloc's too, on a type or a borrow of one.
-		let krate = *tcx.crates(()).iter().find(|&&k| tcx.crate_name(k) == sym::core)?;
+		let krate = tcx.lang_items().sized_trait()?.krate;
 		let callee = |path: &str, method: &str| {
 			let tr = (tcx.traits(krate).iter().copied())
 				.find(|&tr| tcx.def_path_str(tr).split_once("::").is_some_and(|(_, p)| p == path))?;
@@ -3149,7 +3166,7 @@ impl<'tcx> Collector<'tcx> {
 					Type::Duration
 				} else if tcx.is_diagnostic_item(rustc_span::Symbol::intern("PathBuf"), did) {
 					Type::PathBuf
-				} else if let Some(family) = (tcx.crate_name(did.krate) == sym::core)
+				} else if let Some(family) = (tcx.lang_items().sized_trait().map(|d| d.krate) == Some(did.krate))
 					.then(|| match tcx.item_name(did).as_str() {
 						"SocketAddr" => Some(Family::Any),
 						"SocketAddrV4" => Some(Family::V4),

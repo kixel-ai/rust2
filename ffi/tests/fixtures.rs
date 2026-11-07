@@ -1153,7 +1153,7 @@ fn lookalike() {
 }
 
 /// A facade whose lib takes a standard library crate's name exports its own items, which
-/// are not the standard library's.
+/// are not the standard library's, such as a `SocketAddrV4` record.
 #[test]
 fn standard_names() {
 	for name in ["core", "alloc", "std"] {
@@ -1162,6 +1162,8 @@ fn standard_names() {
 			"[package]\nname = \"standard_{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"{name}\"\n\n[workspace]\n"
 		);
 		std::fs::write(package.join("Cargo.toml"), manifest).unwrap();
+		let lib = "pub struct SocketAddrV4 {\n\tpub port: u16,\n}\n\npub fn port(addr: SocketAddrV4) -> u16 {\n\taddr.port\n}\n";
+		std::fs::write(package.join("src/lib.rs"), lib).unwrap();
 		let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 			.arg("--config")
 			.arg(package.join("ffi.toml"))
@@ -1175,6 +1177,11 @@ fn standard_names() {
 			output.status.success(),
 			"exporting lib `{name}` failed:\n{}",
 			String::from_utf8_lossy(&output.stderr)
+		);
+		let header = std::fs::read_to_string(package.join("out/include").join(format!("{name}.h"))).unwrap();
+		assert!(
+			header.contains(&format!("{name}_SocketAddrV4 addr")),
+			"lib `{name}`'s own SocketAddrV4 is no record:\n{header}"
 		);
 	}
 }
@@ -1195,6 +1202,28 @@ fn foreign_lib_name() {
 			(
 				"src/lib.rs",
 				"pub fn echo(url: url_dep::Url) -> url_dep::Url {\n\turl\n}\n",
+			),
+		],
+	);
+	export_and_build(&package, &[]);
+}
+
+/// A facade's own types keep their names, even where a foreign type's path and role name
+/// would spell them: `serde_json::Value` is `Value`, apart from `Json`.
+#[test]
+fn foreign_role_names() {
+	let package = package("foreign_role_names");
+	write_all(
+		&package,
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"foreign_role_names\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+				[lib]\nname = \"serde_json\"\n\n[workspace]\n",
+			),
+			(
+				"src/lib.rs",
+				"pub struct Value {\n\tpub n: u32,\n}\n\npub struct Json {\n\tpub n: u32,\n}\n",
 			),
 		],
 	);
