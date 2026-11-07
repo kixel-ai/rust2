@@ -3490,9 +3490,10 @@ export function putWords(words: rs.Slice<rs.u32>, out: rs.ByteVec): void {
 }
 
 /**
- * A `&mut [T; N]` to part of a slice, of numbers and of strings, written whole: by
- * `mem::replace` and `mem::swap`, through a `Cell` and an `UnsafeCell` of it, by std given
- * it to write through, and through a raw pointer to it.
+ * A `&mut [T; N]` to part of a slice, of numbers, of strings, and of arrays, written whole:
+ * by `mem::replace` and `mem::swap`, and through a `Cell` and an `UnsafeCell` of it, each
+ * way a cell reads, writes, and points at it; a cell of arrays pointed at before a write;
+ * and one std holds in an `Option` and a `Vec` and writes through.
  */
 export function arrayParts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const words: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u32 => {
@@ -3507,111 +3508,129 @@ export function arrayParts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	rs.vecResize(names, _17, _20, 12, (a0: rs.String): rs.String => {
 		return rs.stringClone(a0);
 	});
+	const rows: rs.Vec<rs.u32[]> = rs.iterToVec(rs.iterMap(rs.sliceChunks(rs.sliceFrom(words.items), 2), (c: rs.Slice<rs.u32>): rs.u32[] => {
+		rs.idx(c, 0);
+		const _3: rs.u32 = c.data[c.start];
+		const _8: rs.usize = rs.usizeSub(c.length, 1);
+		rs.idx(c, _8);
+		return [_3, c.data[c.start + _8]];
+	}), undefined, 8, true);
 	const n: rs.u32 = kind as rs.u32;
-	const _22: rs.u8 = rs.u8Rem(kind, 4);
-	if (_22 === 0) {
-		const _26: [rs.Slice<rs.u32>, rs.Slice<rs.u32>] = rs.sliceSplitAt(rs.sliceFrom(words.items), 1);
-		putWords(rs.sliceFrom(rs.sliceReplaceAll(rs.optionUnwrap(rs.sliceGetRange(_26[1], 0, 2)), [n, rs.u32Add(n, 1)])), out);
-		const _40: [rs.Slice<rs.u32>, rs.Slice<rs.u32>] = rs.optionUnwrap(rs.sliceSplitAtChecked(rs.sliceRange(_26[1], 2), 2));
-		const y: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(_40[1], 0, 2));
-		rs.sliceSet(y, rs.sliceReplaceAll(_40[0], rs.sliceToArray(y)));
-		rs.idx(_26[0], 0);
-		_26[0].data[_26[0].start] = n;
+	const _27: rs.u8 = rs.u8Rem(kind, 4);
+	if (_27 === 0) {
+		const _31: [rs.Slice<rs.u32>, rs.Slice<rs.u32>] = rs.sliceSplitAt(rs.sliceFrom(words.items), 1);
+		putWords(rs.sliceFrom(rs.sliceReplaceAll(rs.optionUnwrap(rs.sliceGetRange(_31[1], 0, 2)), [n, rs.u32Add(n, 1)])), out);
+		const _45: [rs.Slice<rs.u32>, rs.Slice<rs.u32>] = rs.optionUnwrap(rs.sliceSplitAtChecked(rs.sliceRange(_31[1], 2), 2));
+		const y: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(_45[1], 0, 2));
+		rs.sliceSet(y, rs.sliceReplaceAll(_45[0], rs.sliceToArray(y)));
+		rs.idx(_31[0], 0);
+		_31[0].data[_31[0].start] = n;
 		const s: rs.Slice<rs.String> = rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(names.items), 1), 0, 2));
-		const _57: rs.String[] = [rs.stringFrom("a"), rs.stringFrom("b")];
-		rs.iterExtendBytes(out, rs.iterMap(rs.iterMap(rs.iterSlice(rs.sliceReplaceAll(s, _57, 1)), (a02: rs.String): rs.usize => {
+		const _62: rs.String[] = [rs.stringFrom("a"), rs.stringFrom("b")];
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterMap(rs.iterSlice(rs.sliceReplaceAll(s, _62, 1)), (a03: rs.String): rs.usize => {
+			return a03.len;
+		}), (l2: rs.usize): rs.u8 => {
+			return l2 & 0xff;
+		}), undefined, true);
+	} else if (_27 === 1) {
+		const cell: rs.Cell<rs.u32[]> = rs.cellOfSlice(rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(words.items), 1), 0, 2)));
+		const _78: rs.u32[] = [n, rs.u32Add(n, 2)];
+		const pointer2 = rs.cellArray(cell, rs.sliceFrom);
+		const old7 = rs.sliceCopy(pointer2);
+		rs.sliceSet(pointer2, _78);
+		putWords(rs.sliceFrom(old7), out);
+		putWords(rs.sliceFrom(copy$array_u32(cell.v)), out);
+		const _89: rs.u32[] = [rs.u32Add(n, 3), rs.u32Add(n, 4)];
+		rs.sliceSet(rs.cellArray(cell, rs.sliceFrom), _89);
+		const p: rs.Slice<rs.u32> = rs.cellArray(cell, rs.sliceFrom);
+		p.data[p.start + 1] = rs.u32Add(n, 5);
+		const pointer3 = rs.cellArray(cell, rs.sliceFrom);
+		rs.sliceSet(pointer3, ((_29: rs.u32[]): rs.u32[] => {
+			return [_29[1], _29[0]];
+		})(rs.sliceToArray(pointer3)));
+		const value2 = Array.from({ length: 2 }, (): rs.u32 => {
+			return 0;
+		});
+		const pointer4 = rs.cellArray(cell, rs.sliceFrom);
+		const old8 = rs.sliceCopy(pointer4);
+		rs.sliceSet(pointer4, value2);
+		putWords(rs.sliceFrom(old8), out);
+		const _109: rs.Cell<rs.String[]> = rs.cellOfSlice(rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(names.items), 2), 0, 2)));
+		const _110: rs.String[] = [rs.stringFrom("abc"), rs.stringNew()];
+		const pointer5 = rs.cellArray(_109, rs.sliceFrom);
+		const old9 = rs.sliceCopy(pointer5, 1);
+		rs.sliceSet(pointer5, _110);
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterMap(rs.iterSlice(old9), (a02: rs.String): rs.usize => {
 			return a02.len;
 		}), (l: rs.usize): rs.u8 => {
 			return l & 0xff;
 		}), undefined, true);
-	} else if (_22 === 1) {
-		const cell: rs.Cell<rs.u32[]> = rs.cellOfSlice(rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(words.items), 1), 0, 2)));
-		const _73: rs.u32[] = [n, rs.u32Add(n, 2)];
-		const pointer = rs.cellArray(cell, rs.sliceFrom);
-		const old5 = rs.sliceCopy(pointer);
-		rs.sliceSet(pointer, _73);
-		putWords(rs.sliceFrom(old5), out);
-		putWords(rs.sliceFrom(copy$array_u32(cell.v)), out);
-		const _84: rs.u32[] = [rs.u32Add(n, 3), rs.u32Add(n, 4)];
-		rs.sliceSet(rs.cellArray(cell, rs.sliceFrom), _84);
-		const p: rs.Slice<rs.u32> = rs.cellArray(cell, rs.sliceFrom);
-		p.data[p.start + 1] = rs.u32Add(n, 5);
-		const pointer2 = rs.cellArray(cell, rs.sliceFrom);
-		rs.sliceSet(pointer2, ((_24: rs.u32[]): rs.u32[] => {
-			return [_24[1], _24[0]];
-		})(rs.sliceToArray(pointer2)));
-		const value2 = Array.from({ length: 2 }, (): rs.u32 => {
-			return 0;
-		});
-		const pointer3 = rs.cellArray(cell, rs.sliceFrom);
-		const old6 = rs.sliceCopy(pointer3);
-		rs.sliceSet(pointer3, value2);
-		putWords(rs.sliceFrom(old6), out);
-		const rows: rs.Vec<rs.u32[]> = rs.iterToVec(rs.iterMap(rs.sliceChunks(rs.sliceFrom(words.items), 2), (c: rs.Slice<rs.u32>): rs.u32[] => {
-			rs.idx(c, 0);
-			const _35: rs.u32 = c.data[c.start];
-			const _8: rs.usize = rs.usizeSub(c.length, 1);
-			rs.idx(c, _8);
-			return [_35, c.data[c.start + _8]];
-		}), undefined, 8, true);
-		const cell2: rs.Cell<rs.u32[][]> = rs.cellOfArraySlice(rs.optionUnwrap(rs.arraySliceGetRange(rs.arraySliceRange(rs.arraySliceFrom(rows.items, rs.sliceFrom), 1), 0, 2)));
-		const p2: rs.ArraySlice<rs.Slice<rs.u32>> = rs.cellArray(cell2, rs.arraySliceOf(rs.sliceFrom));
-		const _110: rs.u32 = rs.u32Add(n, 6);
-		const slice5 = rs.arraySliceAt(p2, 0);
-		slice5.data[slice5.start + 1] = _110;
-		const _116: rs.u32[][] = [[n, rs.u32Add(n, 7)], [rs.u32Add(n, 8), n]];
-		const pointer4 = rs.cellArray(cell2, rs.arraySliceOf(rs.sliceFrom));
-		const old7 = rs.arraySliceCopy(pointer4);
-		rs.arraySliceSet(pointer4, _116);
-		rs.iterExtendBytes(out, rs.iterMap(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(old7, rs.sliceFrom)), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 2), (_25: rs.u32): rs.u8 => {
+		const cell2: rs.Cell<rs.u32[]> = rs.cellOfSlice(rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(words.items), 2), 0, 2)));
+		const _125: rs.u32 = rs.u32Add(n, 6);
+		const _126: rs.Slice<rs.u32> = rs.cellArray(cell2, rs.sliceFrom);
+		_126.data[_126.start] = _125;
+		const _130: rs.u32 = rs.u32Add(n, 7);
+		const _131: rs.Slice<rs.u32> = rs.cellArray(cell2, rs.sliceFrom);
+		_131.data[_131.start + 1] = _130;
+	} else if (_27 === 2) {
+		const cell3: rs.Cell<rs.u32[][]> = rs.cellOfArraySlice(rs.optionUnwrap(rs.arraySliceGetRange(rs.arraySliceRange(rs.arraySliceFrom(rows.items, rs.sliceFrom), 1), 0, 2)));
+		const p2: rs.ArraySlice<rs.Slice<rs.u32>> = rs.cellArray(cell3, rs.arraySliceOf(rs.sliceFrom));
+		const _141: rs.u32 = rs.u32Add(n, 6);
+		const slice3 = rs.arraySliceAt(p2, 0);
+		slice3.data[slice3.start + 1] = _141;
+		const _147: rs.u32[][] = [[n, rs.u32Add(n, 7)], [rs.u32Add(n, 8), n]];
+		const pointer = rs.cellArray(cell3, rs.arraySliceOf(rs.sliceFrom));
+		const old6 = rs.arraySliceCopy(pointer);
+		rs.arraySliceSet(pointer, _147);
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(old6, rs.sliceFrom)), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 2), (_25: rs.u32): rs.u8 => {
 			return _25 & 0xff;
 		}), undefined, true);
-		const cell3: rs.Cell<rs.u32[][]> = rs.cellOfArraySlice(rs.optionUnwrap(rs.arraySliceGetRange(rs.arraySliceRange(rs.arraySliceFrom(rows.items, rs.sliceFrom), 0, 2), 0, 2)));
-		const _135: rs.u32 = rs.u32Add(n, 9);
-		const slice7 = rs.arraySliceAt(rs.cellArray(cell3, rs.arraySliceOf(rs.sliceFrom)), 1);
-		slice7.data[slice7.start] = _135;
-		const _142: rs.u32 = rs.u32Add(n, 10);
-		const slice8 = rs.arraySliceAt(rs.cellArray(cell3, rs.arraySliceOf(rs.sliceFrom)), 0);
-		slice8.data[slice8.start] = _142;
-		rs.iterExtendBytes(out, rs.iterMap(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(rows.items, rs.sliceFrom)), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 2), (_28: rs.u32): rs.u8 => {
-			return _28 & 0xff;
+		const cell4: rs.Cell<rs.u32[][]> = rs.cellOfArraySlice(rs.optionUnwrap(rs.arraySliceGetRange(rs.arraySliceRange(rs.arraySliceFrom(rows.items, rs.sliceFrom), 0, 2), 0, 2)));
+		const _166: rs.u32 = rs.u32Add(n, 9);
+		const slice5 = rs.arraySliceAt(rs.cellArray(cell4, rs.arraySliceOf(rs.sliceFrom)), 1);
+		slice5.data[slice5.start] = _166;
+		const _173: rs.u32 = rs.u32Add(n, 10);
+		const slice6 = rs.arraySliceAt(rs.cellArray(cell4, rs.arraySliceOf(rs.sliceFrom)), 0);
+		slice6.data[slice6.start] = _173;
+		const held: rs.Cell<rs.u32[][]> = new rs.Cell([[n, 1], [2, n]]);
+		const p3: rs.ArraySlice<rs.Slice<rs.u32>> = rs.cellArray(held, rs.arraySliceOf(rs.sliceFrom));
+		const _187: rs.u32[][] = [[3, n], [n, 4]];
+		rs.arraySliceSet(rs.cellArray(held, rs.arraySliceOf(rs.sliceFrom)), _187);
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(rs.arraySliceToArray(p3, rs.sliceToArray), rs.sliceFrom)), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 2), (_26: rs.u32): rs.u8 => {
+			return _26 & 0xff;
 		}), undefined, true);
-	} else if (_22 === 2) {
-		const cell4: rs.Cell<rs.u32[]> = rs.cellOfSlice(rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(words.items), 2), 0, 2)));
-		const _160: rs.Slice<rs.u32> = rs.cellArray(cell4, rs.sliceFrom);
-		_160.data[_160.start] = n;
-		const _164: rs.u32 = rs.u32Add(n, 1);
-		const _165: rs.Slice<rs.u32> = rs.cellArray(cell4, rs.sliceFrom);
-		_165.data[_165.start + 1] = _164;
 	} else {
-		const _170: [rs.Slice<rs.u32>, rs.Slice<rs.u32>] = rs.optionUnwrap(rs.sliceSplitAtChecked(rs.sliceRange(rs.sliceFrom(words.items), 1), 2));
-		rs.idx(_170[1], 0);
-		_170[1].data[_170[1].start] = n;
-		let kept: rs.Slice<rs.u32> | undefined = _170[0];
-		const _180: rs.Place<rs.Slice<rs.u32>> | undefined = kept === undefined ? undefined : rs.place(() => kept as rs.Slice<rs.u32>, (value) => kept = value);
-		if (_180 !== undefined) {
-			const _184: rs.u32 = rs.u32Add(n, 1);
-			const _223: rs.Slice<rs.u32> = _180.v;
-			_223.data[_223.start] = _184;
+		const _199: [rs.Slice<rs.u32>, rs.Slice<rs.u32>] = rs.optionUnwrap(rs.sliceSplitAtChecked(rs.sliceRange(rs.sliceFrom(words.items), 1), 2));
+		rs.idx(_199[1], 0);
+		_199[1].data[_199[1].start] = n;
+		let kept: rs.Slice<rs.u32> | undefined = _199[0];
+		const _209: rs.Place<rs.Slice<rs.u32>> | undefined = kept === undefined ? undefined : rs.place(() => kept as rs.Slice<rs.u32>, (value) => kept = value);
+		if (_209 !== undefined) {
+			const _213: rs.u32 = rs.u32Add(n, 1);
+			const _258: rs.Slice<rs.u32> = _209.v;
+			_258.data[_258.start] = _213;
 		}
 		option_map$0cigbgc(kept, (a4: rs.Slice<rs.u32>): undefined => {
 			a4.data[a4.start + 1] = rs.u32Add(n, 2);
 		});
 		const v: rs.Vec<rs.Slice<rs.u32>> = new rs.Vec();
-		const _194: [rs.Slice<rs.u32>, rs.Slice<rs.u32>] = rs.sliceSplitAt(rs.sliceFrom(words.items), 2);
-		const _199: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(_194[1], 0, 2));
-		v.items.push(_199);
-		const _203: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(_194[0], 0, 2));
-		v.items.push(_203);
-		for (const _208 of v.items) {
-			rs.sliceSwap(_208, 0, 1);
+		const _223: [rs.Slice<rs.u32>, rs.Slice<rs.u32>] = rs.sliceSplitAt(rs.sliceFrom(words.items), 2);
+		const _228: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(_223[1], 0, 2));
+		v.items.push(_228);
+		const _232: rs.Slice<rs.u32> = rs.optionUnwrap(rs.sliceGetRange(_223[0], 0, 2));
+		v.items.push(_232);
+		for (const _237 of v.items) {
+			rs.sliceSwap(_237, 0, 1);
 		}
 	}
 	putWords(rs.sliceFrom(words.items), out);
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterMap(rs.iterSlice(names.items), (a03: rs.String): rs.usize => {
-		return a03.len;
-	}), (l2: rs.usize): rs.u8 => {
-		return l2 & 0xff;
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterMap(rs.iterSlice(names.items), (a04: rs.String): rs.usize => {
+		return a04.len;
+	}), (l3: rs.usize): rs.u8 => {
+		return l3 & 0xff;
+	}), undefined, true);
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(rows.items, rs.sliceFrom)), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 2), (_210: rs.u32): rs.u8 => {
+		return _210 & 0xff;
 	}), undefined, true);
 }
 

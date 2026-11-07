@@ -4077,9 +4077,9 @@ export function tripled(b: rs.u8): rs.u8 {
 }
 
 /**
- * A raw pointer to a `[T; N]` that is part of a slice: lent back as a reference by
- * `as_mut`, `NonNull::as_mut`, and `Box::from_raw`, and written whole by `ptr::replace`
- * and `ptr::swap`.
+ * A raw pointer to a `[T; N]` and to a `[[T; N]; M]` that is part of a slice, lent back as
+ * a reference by `as_mut` and `NonNull::as_mut`, and the first written whole by
+ * `ptr::replace` and `ptr::swap`; and a box of each taken back by `Box::from_raw`.
  */
 export function arrayParts(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const n: rs.u32 = option_mapOr$1wlsr3s(rs.byteSliceFirst(data), 0, (_2: rs.u8): rs.u32 => {
