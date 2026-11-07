@@ -9,10 +9,10 @@ export interface Node<V> {
 	link: Link.Link<V>;
 }
 
-export function new$String(): Node<rs.String> {
-	const _1: [rs.u8, rs.String] = ([undefined, undefined] as unknown) as [rs.u8, rs.String];
-	const _3: Links.Links<rs.String> = { next: rs.DANGLING, prev: rs.DANGLING };
-	return { entry: _1, link: ({ at0: _3.next, at4: _3.prev } as unknown) as Link.Link<rs.String> };
+export function new$Vec_u8(): Node<rs.ByteVec> {
+	const _1: [rs.u8, rs.ByteVec] = ([undefined, undefined] as unknown) as [rs.u8, rs.ByteVec];
+	const _3: Links.Links<rs.ByteVec> = { next: rs.DANGLING, prev: rs.DANGLING };
+	return { entry: _1, link: ({ at0: _3.next, at4: _3.prev } as unknown) as Link.Link<rs.ByteVec> };
 }
 
 export function new$sync_Arc_u8(): Node<rs.Arc<rs.u8>> {

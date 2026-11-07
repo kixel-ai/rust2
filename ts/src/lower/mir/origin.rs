@@ -64,8 +64,10 @@ struct Origin<'tcx> {
 impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// Why the call of std's `def_id` would fail at run time where Rust's is defined, if the
 	/// body proves it would: `offset_from` between pointers JS keeps in different arrays, or
-	/// a pointer, slice, copy, or write reaching out of an array of one or a copied byte, or
-	/// moved by an offset or a count the body doesn't fix from an array of one.
+	/// a pointer, slice, copy, or write reaching out of an array of one or a copied byte.
+	/// From an array of one, every offset, count, and length must be one the body fixes and
+	/// that stays within it, a pointer still at its element: past it, Rust may reach the
+	/// neighbour the reference was borrowed beside, which no body here shows.
 	pub(super) fn stray(
 		&self,
 		def_id: rustc_hir::def_id::DefId,
@@ -101,6 +103,12 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let out = |o: Origin<'tcx>, n: Option<i128>, what: &str| {
 			let Some(index) = o.index else {
 				return unfixed(o, &format!("{what} moved by an offset"));
+			};
+			// A pointer from an array of one stays at its element: one past it is Rust's
+			// too, but a read through it, which reaches the neighbour, is where no check is.
+			let n = match o.array {
+				Array::Lone(_) => n.or(Some(1)),
+				_ => n,
 			};
 			let past = o.array.len().is_some_and(|len| index + n.unwrap_or(0) > len);
 			(index < 0 || past).then(|| {
@@ -138,23 +146,25 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				let o = self.moved(self.origin(arg(0)?)?, name.as_str(), arg(1)?);
 				out(o, None, "a pointer")
 			}
-			// A wrapping offset may leave the array while nothing reads through it.
+			// A wrapping offset may leave any other array while nothing reads through it.
 			("ptr" | "NonNull", "wrapping_add" | "wrapping_sub" | "wrapping_offset") => {
 				let o = self.origin(arg(0)?)?;
-				match self.const_int(arg(1)?) {
-					Some(_) => None,
-					None => unfixed(o, "a pointer moved by an offset"),
-				}
+				let lone = matches!(o.array, Array::Lone(_));
+				lone.then(|| out(self.moved(o, name.as_str(), arg(1)?), None, "a pointer"))?
 			}
 			("raw", "from_raw_parts" | "from_raw_parts_mut")
 			| ("ptr", "slice_from_raw_parts" | "slice_from_raw_parts_mut")
 			| ("NonNull", "slice_from_raw_parts") => {
 				let o = self.origin(arg(0)?)?;
-				// A raw pointer to a slice reads nothing until a read through it.
-				if owner != "raw" {
+				// A raw pointer to a slice of any other array reads nothing until a read
+				// through it.
+				if owner != "raw" && !matches!(o.array, Array::Lone(_)) {
 					return None;
 				}
-				out(o, Some(self.const_int(arg(1)?)?), "a slice")
+				match self.const_int(arg(1)?) {
+					Some(n) => out(o, Some(n), "a slice"),
+					None => unfixed(o, "a slice of a length"),
+				}
 			}
 			(
 				"ptr",
@@ -347,10 +357,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		})
 	}
 
-	/// `o` moved by the offset `op` as `add`, `sub`, or `offset` moves it.
+	/// `o` moved by the offset `op` as `add`, `sub`, or `offset`, or a wrapping one, moves it.
 	fn moved(&self, o: Origin<'tcx>, name: &str, op: &Operand<'tcx>) -> Origin<'tcx> {
 		let n = self.const_int(op).map(|n| match name {
-			"sub" => -n,
+			"sub" | "wrapping_sub" => -n,
 			_ => n,
 		});
 		Origin {

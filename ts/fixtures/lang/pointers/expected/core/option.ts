@@ -55,13 +55,6 @@ export function map$00buaky(self: rs.u16 | undefined | rs.None, f: (a0: rs.u16 |
 	return f(self);
 }
 
-export function map$1lzqy5c(self: rs.String | undefined, f: (a0: rs.String) => rs.String): rs.String | undefined {
-	if (self === undefined) {
-		return undefined;
-	}
-	return f(self);
-}
-
 export function map$1h9tk16(self: rs.ByteVec | undefined, f: (a0: rs.ByteVec) => rs.ByteVec): rs.ByteVec | undefined {
 	if (self === undefined) {
 		return undefined;
@@ -137,13 +130,6 @@ export function mapOr$0smr0aj(self: rs.u16 | undefined, default_: Uint8Array, _:
 		return default_;
 	}
 	return rs.u16ToBeBytes(self);
-}
-
-export function mapOr$07pvkk0(self: rs.u32 | undefined, default_: rs.u8, f: (a0: rs.u32) => rs.u8): rs.u8 {
-	if (self === undefined) {
-		return default_;
-	}
-	return f(self);
 }
 
 export function filter$0wvwd70(self: rs.u32 | undefined, predicate: (a0: rs.u32) => boolean): rs.u32 | undefined {

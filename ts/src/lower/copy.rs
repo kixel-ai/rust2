@@ -4,7 +4,7 @@
 //! JS shares an object where Rust copies its value, so a `Copy` value that is a JS object
 //! the crate's code writes into in place, or compares pointers to, is copied where Rust
 //! copies it, as is each such object a read through a pointer moves out, a library
-//! object such as a `Vec` included, one object deep. A function made for its type copies
+//! object such as a `RefCell` included, one object deep. A function made for its type copies
 //! what it holds by value and shares what it holds by reference, as Rust does. A value of
 //! a type nothing writes into or compares pointers to never changes once made, so sharing
 //! it is a copy no one can tell apart.
@@ -34,12 +34,9 @@ use crate::ts::{self, Expr, Key, Param, Stmt, StmtKind};
 struct Inline<'tcx> {
 	/// Each field of its JS object holding a value inline, and the type held there.
 	fields: Vec<(&'static str, Ty<'tcx>)>,
-	/// Each field holding the JS array of its storage, whose length or slots the runtime
-	/// changes where Rust changes only the object's own length, as a `Vec`'s `set_len` and
-	/// a `VecDeque`'s `pop_front` do: copied, sharing its items.
-	storage: Vec<&'static str>,
-	/// The types it holds where no copy reaches, a hash map's hasher.
-	unreachable: Vec<Ty<'tcx>>,
+	/// The types it holds inline that its copy shares, a hash map's hasher, which a move
+	/// out of it through a pointer counts as it counts the collection.
+	shared: Vec<Ty<'tcx>>,
 }
 
 impl<'a, 'tcx> Translator<'a, 'tcx> {
@@ -84,7 +81,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 								.fields
 								.into_iter()
 								.map(|(_, t)| t)
-								.chain(inline.unreachable)
+								.chain(inline.shared)
 								.any(|t| self.changes(t)),
 							// Any type it is over may be held inline, which its copy refuses.
 							None => args.types().any(|t| self.changes(t)),
@@ -105,21 +102,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// What a library object `ty` holds inline rather than on the heap, which a copy of the
 	/// object one object deep shares: each field of its JS object holding such a value and
 	/// the type held there, a cell's, a lock's, a range's ends, or a one-time cell's, which
-	/// holds nothing until set; the JS arrays holding a collection's storage whose length
-	/// is its own; and the types it holds where no copy reaches, a hash map's hasher. A
-	/// collection's items, and what a `Weak` points at, are on the heap, which Rust's read
-	/// shares too. `None` for any other library object, such as a `LazyCell` or a
-	/// `Peekable`, whose inline state only its runtime class knows, so a read that would
+	/// holds nothing until set; and the types it holds where no copy reaches, a hash map's
+	/// hasher. A collection's items, and what a `Weak` points at, are on the heap, which
+	/// Rust's read shares too. `None` for any other library object, such as a `LazyCell` or
+	/// a `Peekable`, whose inline state only its runtime class knows, so a read that would
 	/// copy one is refused.
 	fn inline_held(&self, ty: Ty<'tcx>) -> Option<Inline<'tcx>> {
 		let ty::Adt(adt, args) = ty.kind() else {
 			return None;
 		};
 		let at = |i: usize| args.type_at(i);
-		let storage = |field: &'static str| Inline {
-			storage: vec![field],
-			..Inline::default()
-		};
 		let fields = match Std::of(self.tcx, adt.did()) {
 			Some(Std::Cell) => vec![("v", at(0))],
 			Some(Std::RefCell | Std::Mutex) => vec![("value", at(0))],
@@ -127,11 +119,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			Some(Std::Range) => vec![("start", at(0)), ("end", at(0))],
 			Some(Std::RangeInclusive) => vec![("lo", at(0)), ("hi", at(0))],
 			Some(Std::RangeFrom) => vec![("start", at(0))],
-			// A `Vec<u8>`'s length is apart from its bytes.
-			Some(Std::Vec | Std::BinaryHeap) if !super::byte(at(0)) => return Some(storage("items")),
-			Some(Std::VecDeque) => return Some(storage("b")),
 			Some(
 				Std::Vec
+				| Std::VecDeque
 				| Std::String
 				| Std::LinkedList
 				| Std::BinaryHeap
@@ -143,13 +133,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			) => Vec::new(),
 			Some(Std::HashMap) => {
 				return Some(Inline {
-					unreachable: vec![at(2)],
+					shared: vec![at(2)],
 					..Inline::default()
 				});
 			}
 			Some(Std::HashSet) => {
 				return Some(Inline {
-					unreachable: vec![at(1)],
+					shared: vec![at(1)],
 					..Inline::default()
 				});
 			}
@@ -158,6 +148,36 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		Some(Inline {
 			fields,
 			..Inline::default()
+		})
+	}
+
+	/// The collection held by value in a `ty` that a move of one out of where it is kept, as
+	/// `ptr::read` makes, would copy, if any: a `Vec` of other than bytes, a `VecDeque`, a
+	/// `String`, a map, a set, or a list, whose JS object keeps its length with its storage,
+	/// so no copy splits from the original as Rust's read does, sharing the storage while
+	/// each keeps a length of its own. A safe move leaves nothing pointing into the
+	/// original, which a copy one object deep is exact for.
+	pub fn unsplit(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+		by_value(self.tcx, self.typing_env(), ty).find(|&part| {
+			let ty::Adt(adt, args) = part.kind() else {
+				return false;
+			};
+			let joined = match Std::of(self.tcx, adt.did()) {
+				Some(Std::Vec) => !super::byte(args.type_at(0)),
+				Some(
+					Std::VecDeque
+					| Std::BinaryHeap
+					| Std::String
+					| Std::LinkedList
+					| Std::BTreeMap
+					| Std::BTreeSet
+					| Std::HashMap
+					| Std::HashSet
+					| Std::HashTable,
+				) => true,
+				_ => false,
+			};
+			joined && self.changes(part)
 		})
 	}
 
@@ -441,12 +461,6 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						);
 						return ret(v());
 					};
-					if inline.unreachable.into_iter().any(|t| self.changes(t)) {
-						self.err(
-							span,
-							format!("a read moving out a `{ty}`, which holds inline a value JS can't copy apart"),
-						);
-					}
 					// A cell of its own, as `Cell::from_mut`'s place reads and writes another's.
 					if std == Std::Cell {
 						let held = self.snapshot(v().member("v"), args.type_at(0), span);
@@ -454,15 +468,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					}
 					let fields: Vec<_> = inline.fields.into_iter().filter(|&(_, t)| self.changes(t)).collect();
 					let copy = Expr::rs("objectCopy", vec![v()]);
-					if fields.is_empty() && inline.storage.is_empty() {
+					if fields.is_empty() {
 						return ret(copy);
 					}
 					let c = || Expr::ident("c");
 					let mut body = vec![StmtKind::decl(false, "c", None, Some(copy)).at(None)];
-					for field in inline.storage {
-						let items = c().member(field).member("slice").call(Vec::new());
-						body.push(StmtKind::Expr(c().member(field).assign(items)).at(None));
-					}
 					for (field, t) in fields {
 						let read = self.snapshot(c().member(field), t, span);
 						body.push(StmtKind::Expr(c().member(field).assign(read)).at(None));

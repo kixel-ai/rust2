@@ -41,16 +41,6 @@ export function copy$Option_tuple2_u16_u8(v: [rs.u16, rs.u8] | undefined): [rs.u
 	return v === undefined ? v : copy$tuple2_u16_u8(v);
 }
 
-export function copy$String(v: rs.String): rs.String {
-	return rs.objectCopy(v);
-}
-
-export function copy$Vec_u32(v: rs.Vec<rs.u32>): rs.Vec<rs.u32> {
-	const c = rs.objectCopy(v);
-	c.items = c.items.slice();
-	return c;
-}
-
 export function copy$Vec_u8(v: rs.ByteVec): rs.ByteVec {
 	return rs.objectCopy(v);
 }
@@ -88,12 +78,6 @@ export function copy$cell_OnceCell_Cell_u32(v: rs.OnceCell<rs.Cell<rs.u32>>): rs
 export function copy$cell_RefCell_Cell_u32(v: rs.RefCell<rs.Cell<rs.u32>>): rs.RefCell<rs.Cell<rs.u32>> {
 	const c = rs.objectCopy(v);
 	c.value = copy$Cell_u32(c.value);
-	return c;
-}
-
-export function copy$collections_VecDeque_u32(v: rs.VecDeque<rs.u32>): rs.VecDeque<rs.u32> {
-	const c = rs.objectCopy(v);
-	c.b = c.b.slice();
 	return c;
 }
 
@@ -260,8 +244,8 @@ export function copy$tuple2_u32_u32(v: [rs.u32, rs.u32]): [rs.u32, rs.u32] {
 	return [v[0], v[1]];
 }
 
-export function copy$tuple2_u8_String(v: [rs.u8, rs.String]): [rs.u8, rs.String] {
-	return [v[0], copy$String(v[1])];
+export function copy$tuple2_u8_Vec_u8(v: [rs.u8, rs.ByteVec]): [rs.u8, rs.ByteVec] {
+	return [v[0], copy$Vec_u8(v[1])];
 }
 
 export function copy$tuple2_u8_sync_Arc_u8(v: [rs.u8, rs.Arc<rs.u8>]): [rs.u8, rs.Arc<rs.u8>] {
@@ -272,8 +256,8 @@ export function copy$tuple2_u8_u8(v: [rs.u8, rs.u8]): [rs.u8, rs.u8] {
 	return [v[0], v[1]];
 }
 
-export function drop$pointers_List_String(_1: List.List<rs.String>): void {
-	List.drop$ops_Drop_String(_1);
+export function drop$pointers_List_Vec_u8(_1: List.List<rs.ByteVec>): void {
+	List.drop$ops_Drop_Vec_u8(_1);
 }
 
 export function drop$pointers_List_sync_Arc_u8(_1: List.List<rs.Arc<rs.u8>>): void {

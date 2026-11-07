@@ -63,6 +63,39 @@ pub fn peeked_moved(cells: Vec<std::cell::Cell<u32>>) -> u32 {
 	copy.next().map_or(0, |cell| cell.get())
 }
 
+/// Collections whose JS object keeps its length with its storage, moved out through
+/// pointers while the original lives on: by `ptr::read`, `ptr::copy` within a `Vec` as
+/// smallvec's `retain` moves its elements, `MaybeUninit::assume_init_read` of a tuple
+/// holding one, and `ManuallyDrop::take`. Rust's copy shares the storage and keeps a
+/// length of its own, which no JS copy does.
+pub fn collection_moved(v: Vec<u32>, mut q: std::collections::VecDeque<u32>, s: String) -> usize {
+	let mut v = std::mem::ManuallyDrop::new(v);
+	let old_v = unsafe { std::ptr::read(&*v) };
+	unsafe { v.set_len(0) };
+	let old_q = unsafe { std::ptr::read(&q) };
+	q.pop_front();
+	std::mem::forget(q);
+	let mut words = vec![s.clone(), s.clone()];
+	words[1].push('!');
+	unsafe {
+		std::ptr::copy(words.as_ptr().add(1), words.as_mut_ptr(), 1);
+		words.set_len(1);
+	}
+	let pair = std::mem::MaybeUninit::new((s, 0u8));
+	let old_s = unsafe { pair.assume_init_read() };
+	let mut taken = std::mem::ManuallyDrop::new(vec![1u32]);
+	let old_t = unsafe { std::mem::ManuallyDrop::take(&mut taken) };
+	old_v.len() + old_q.len() + words[0].len() + old_s.0.len() + old_t.len()
+}
+
+/// A pointer from a reference the body is given, which JS keeps in no array, read through
+/// past it by a constant wrapping offset and one past it, and viewed as a slice of a
+/// length the body doesn't fix: each reaches the neighbour Tree Borrows allows it to.
+pub fn beside_reference(r: &u32, n: usize) -> u32 {
+	let p = std::ptr::from_ref(r);
+	unsafe { *p.wrapping_add(1) + *p.add(1) + std::slice::from_raw_parts(p, n).iter().sum::<u32>() }
+}
+
 /// A pointer from a reference the body is given, which JS keeps in no array, moved past
 /// it.
 pub fn past_reference(r: &u32) -> u32 {

@@ -153,7 +153,7 @@ impl<V> List<V> {
 	}
 }
 
-impl List<String> {
+impl List<Vec<u8>> {
 	fn each(&self, out: &mut Vec<u8>) {
 		let Some(guard) = self.guard else {
 			return;
@@ -162,7 +162,7 @@ impl List<String> {
 		while at != guard {
 			let (key, value) = unsafe { at.as_ref().entry.assume_init_ref() };
 			out.push(*key);
-			out.extend_from_slice(value.as_bytes());
+			out.extend_from_slice(value);
 			at = unsafe { at.as_ref().link.value.next };
 		}
 	}
@@ -227,23 +227,23 @@ impl<V> Drop for List<V> {
 /// Steps on a list of the operation and key each pair of bytes picks, putting what each
 /// finds and then the list in order.
 pub fn lists(data: &[u8], out: &mut Vec<u8>) {
-	let mut list = List::<String>::new();
+	let mut list = List::<Vec<u8>>::new();
 	let mut data = data;
 	while let [op, key, rest @ ..] = data {
 		data = rest;
 		let (op, key) = (*op, *key % 8);
 		match op % 4 {
-			0 => list.push_back(key, String::from(["", "v", "vv"][usize::from(op % 3)])),
+			0 => list.push_back(key, [&b""[..], b"v", b"vv"][usize::from(op % 3)].to_vec()),
 			1 => match list.remove(key) {
 				Some((k, v)) => {
 					out.push(k);
-					out.extend_from_slice(v.as_bytes());
+					out.extend_from_slice(&v);
 				}
 				None => out.push(0xff),
 			},
 			2 => out.push(list.to_front(key) as u8),
 			_ => match list.get_mut(key) {
-				Some(value) => value.push('w'),
+				Some(value) => value.push(b'w'),
 				None => out.push(0xfe),
 			},
 		}
@@ -2548,10 +2548,6 @@ pub fn behind_refs(data: &[u8], out: &mut Vec<u8>) {
 	let bits = data.first().copied().unwrap_or(0);
 	let nums: Vec<u32> = data.iter().map(|&b| u32::from(b) * 3).collect();
 	out.extend(drained(nums.clone(), bits).iter().map(|&n| n as u8));
-	let words: Vec<String> = data.iter().map(|b| b.to_string()).collect();
-	for w in drained(words.clone(), bits) {
-		out.extend(w.bytes());
-	}
 	let runs: Vec<Vec<u8>> = data.chunks(3).map(<[u8]>::to_vec).collect();
 	for r in drained(runs.clone(), bits) {
 		out.push(r.len() as u8);
@@ -2568,12 +2564,6 @@ pub fn behind_refs(data: &[u8], out: &mut Vec<u8>) {
 		*n % 2 == 0
 	});
 	out.extend(nums.iter().map(|&n| n as u8));
-	let mut words = words;
-	retained(&mut words, |w| {
-		w.push('!');
-		w.len() % 2 == 0
-	});
-	out.extend(words.iter().flat_map(|w| w.bytes()));
 	let mut runs = runs;
 	retained(&mut runs, |r| {
 		r.push(7);
@@ -2764,22 +2754,6 @@ fn inline_moved(r: &RefCell<Cell<u32>>, o: &OnceCell<Cell<u32>>) -> (RefCell<Cel
 	old
 }
 
-/// A `Vec` and a `VecDeque` moved out through pointers, after which the originals shrink
-/// without touching the storage they share, as `set_len` and `pop_front` do, and are
-/// forgotten: the copies keep what they held.
-fn shrunk_moved(
-	v: Vec<u32>,
-	mut q: std::collections::VecDeque<u32>,
-) -> (Vec<u32>, std::collections::VecDeque<u32>, Option<u32>) {
-	let mut v = mem::ManuallyDrop::new(v);
-	let old_v = unsafe { ptr::read(&*v) };
-	unsafe { v.set_len(0) };
-	let old_q = unsafe { ptr::read(&q) };
-	let popped = q.pop_front();
-	mem::forget(q);
-	(old_v, old_q, popped)
-}
-
 /// A cell written whole through a pointer from the shared reference given, which may be
 /// the cell `Cell::from_mut` makes of another place.
 #[inline(never)]
@@ -2866,15 +2840,8 @@ pub fn moved_out(data: &[u8], out: &mut Vec<u8>) {
 		}
 		out.extend([old_c.get() as u8, x as u8]);
 	}
-	let nums: Vec<u32> = data.iter().map(|&b| u32::from(b)).collect();
-	let (old_v, old_q, popped) = shrunk_moved(nums.clone(), nums.iter().copied().collect());
-	out.push(old_v.len() as u8);
-	out.extend(old_v.iter().map(|&n| n as u8));
-	out.push(popped.map_or(0xff, |n| n as u8));
-	out.push(old_q.len() as u8);
-	out.extend(old_q.iter().map(|&n| n as u8));
 	let mut map = std::collections::HashMap::<u32, u32>::with_capacity(data.len() * 8);
-	map.extend(nums.iter().map(|&n| (n, n)));
+	map.extend(data.iter().map(|&b| (u32::from(b), u32::from(b))));
 	map_rewritten(&mut map);
 	out.extend([map.len() as u8, map.capacity() as u8]);
 	for &b in data {

@@ -846,7 +846,10 @@ pub fn call<'tcx>(
 			}
 		}
 		// A shared reference to a value JS copies is the value.
-		("MaybeUninit", "assume_init_read") => b.t.snapshot(arg(), pointee(), span),
+		("MaybeUninit", "assume_init_read") => match unsplit(b, pointee(), span) {
+			Some(refused) => refused,
+			None => b.t.snapshot(arg(), pointee(), span),
+		},
 		("MaybeUninit", "assume_init_drop") | ("ManuallyDrop", "drop") => {
 			let p = arg();
 			let value = match kind(b, pointee()) {
@@ -858,6 +861,9 @@ pub fn call<'tcx>(
 		// What it holds, which it leaves for nothing to read or drop again.
 		("ManuallyDrop", "take") => {
 			let p = arg();
+			if let Some(refused) = unsplit(b, pointee(), span) {
+				return Ok(Some(refused));
+			}
 			let value = match kind(b, pointee()) {
 				Some(Pointee::Place) => p.member("v"),
 				_ => p,
@@ -945,6 +951,8 @@ pub fn call<'tcx>(
 				Expr::undefined()
 			} else if let Some(why) = unmodeled(b, pointee(), "a copy between pointers to") {
 				b.err(span, why)
+			} else if let Some(refused) = unsplit(b, pointee(), span) {
+				refused
 			} else {
 				let mut args = vec![src, dst, n];
 				args.extend(b.t.snapshot_fn(pointee(), span));
@@ -1175,8 +1183,27 @@ pub fn raw_pointee<'tcx>(tcx: ty::TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>
 	}
 }
 
+/// The refusal of a move of a `ty` out of where it is kept, as `ptr::read` makes, that
+/// would copy a collection whose JS storage can't split from the original as Rust's does.
+fn unsplit<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
+	let held = b.t.unsplit(ty)?;
+	let what = match held == ty {
+		true => String::new(),
+		false => format!(", which holds a `{held}`"),
+	};
+	Some(b.err(
+		span,
+		format!(
+			"a read moving out a `{ty}`{what}, a collection whose JS object keeps its length with its storage, which no copy splits from the original as Rust's read does"
+		),
+	))
+}
+
 /// The value `p`, a pointer to `ty`, points at, as a value of its own.
 fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+	if let Some(refused) = unsplit(b, ty, span) {
+		return refused;
+	}
 	let value = match b.t.pointee(ty) {
 		// The value a pointer made here of a shared reference holds.
 		Pointee::Place => match p.unlocated() {
