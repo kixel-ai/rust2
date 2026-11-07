@@ -372,6 +372,8 @@ Future<void> script() async {
   // A function named as the type it returns, and one named as a type it does not.
   print('polar ${api.polarPoint(2)!.distance} ${api.polarPoint(0) == null} '
       'area ${api.area(const api.Size(width: 2, height: 3))}');
+  // Two types whose paths join alike, the second kept apart where its path splits.
+  print('wind ${api.wind(const api.PolarTurn(whole: 2), const api.Polar_Turn(part: 3))}');
   // Instances that name each other, and one made only by an impl of it.
   final cross = api.cross(
     const api.LeftRightU8(value: api.RightU8(value: 1)),
