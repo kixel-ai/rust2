@@ -52,7 +52,7 @@ pub fn append(v: &mut Vec<u8>, n: u8) {
 /// Append `n` bytes of `n`, then panic if `n` is odd.
 pub fn append_or_panic(v: &mut Vec<u8>, n: u8) {
 	append(v, n);
-	assert!(n % 2 == 0, "odd");
+	assert!(n.is_multiple_of(2), "odd");
 }
 
 /// `n` bytes of `n`, with the room of `n` more.
@@ -69,6 +69,7 @@ pub fn grow(mut v: Vec<u8>, n: u8) -> Vec<u8> {
 }
 
 /// Append `n` bytes of `n` to what `b` holds.
+#[expect(clippy::boxed_local, reason = "a Box that Go code passes as its own pointer")]
 pub fn boxed(mut b: Box<Open>, n: u8) {
 	append(&mut b.data, n);
 }

@@ -83,8 +83,29 @@ Decided with the maintainer on 2026-11-07, settling
 - ✅ **The bar is unchanged:** every `stream/` workload within 2x of cgo, measured with
   the ownership bookkeeping in place, else the epic's drop rule.
 
-Open: how a grow tells storage the translation owns from storage Go code has seen. That
-bookkeeping eats into the 1.6 to 1.9x margin above, so measure it on the streams.
+The runtime tells own storage by its shape, so a grow costs no lookup: a `Vec<u8>`'s
+capacity a power of two of at least 8 and never filled, since own growth always leaves a
+byte spare. A root function trims Go's storage of that shape by a byte on the way in and
+clips its own on the way out, through its result and its arguments' `&mut` and `Box`;
+`fixtures/hand` holds onto both from Go. Ratios to cgo, CPU time then wall time, medians
+of ten runs alternating the variants, on a host at load 11 to 30 of 32 cores:
+
+| Workload | main | Clip at escape | Copy at escape |
+| --- | --- | --- | --- |
+| `stream/video/lite-06/encode` | 2.8x, 3.0x | 1.9x, 2.0x | 1.2x, 1.5x |
+| `stream/video/lite-06/decode` | 2.6x, 2.7x | 1.5x, 1.7x | 1.3x, 1.8x |
+| `stream/audio/lite-06/encode` | 3.1x, 3.0x | 2.0x, 2.0x | 1.4x, 1.7x |
+| `stream/audio/lite-06/decode` | 2.8x, 2.8x | 1.4x, 1.7x | 1.5x, 1.9x |
+| `stream/video/lite-07/encode` | 2.7x, 2.9x | 1.4x, 1.5x | 1.1x, 1.4x |
+| `stream/video/lite-07/decode` | 2.6x, 2.9x | 1.4x, 1.5x | 1.2x, 1.4x |
+| `stream/audio/lite-07/encode` | 3.5x, 3.4x | 2.1x, 2.0x | 1.3x, 1.6x |
+| `stream/audio/lite-07/decode` | 2.9x, 2.9x | 1.4x, 1.7x | 1.6x, 2.0x |
+
+Clipping, as decided, leaves audio encoding just past 2x: the result Go keeps is own
+storage, up to twice its length, which each run allocates anew, so the collector runs
+about twice as often as cgo's, whose result is exact. Copying own storage out at escape
+into an exact Go buffer, and recycling it, costs a copy as `C.GoBytes` does and brings
+every stream within 2x; it changes the 2026-11-07 decision, so it waits on the maintainer.
 
 A video group is 60 frames, 577 KB; an audio group is 50 frames of 160 bytes. Measure
 each change on these, comparing `cpu-ns/item` and `faults/op` as well as wall time on a
@@ -94,3 +115,14 @@ loaded host, since CPU time counts the collector's workers. The per-call diagnos
 
 Public API: none beyond clipped capacity: a slice the translation returns has no spare
 capacity, so a Go caller's `append` to it copies.
+
+## Waiting
+
+- Maintainer: how own storage escapes to Go code, now that clipping, as decided on
+  2026-11-07, leaves `stream/audio/lite-07/encode` at 2.07x CPU and 2.03x wall time,
+  and `stream/video/lite-06/encode` at 2.01x wall time.
+  Options: copy it out at escape into an exact Go buffer and recycle it, measured 1.1 to
+  1.6x CPU and 1.4 to 2.0x wall time on every stream (recommended: Go code then never
+  holds own storage, and the copy is the one cgo's result makes); keep clipping and take
+  the miss as noise; or drop the translator, as the epic's rule would. Check that this
+  Plan records the choice.
