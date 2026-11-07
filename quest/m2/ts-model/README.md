@@ -76,7 +76,6 @@ or pointers whose comparison disagreed with Rust after an address was reused:
 
 ## Required
 
-- [Option fields at a unit instance](/quest/m2/ts-model/unit-option-fields.md) - `Idle<()>`'s `Option<T>` field tells `Some(())` from `None`
 - [A string's bytes through its pointer](/quest/m2/ts-model/str-as-ptr.md) - `str::as_ptr` reads the string's UTF-8
 
 Public API: the translator's output for moq-net's model.

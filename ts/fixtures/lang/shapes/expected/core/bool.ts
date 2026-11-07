@@ -4,6 +4,13 @@ import * as rs from "../rs.ts";
 import type * as Pair from "../fmt.Pair.ts";
 import type * as Void from "../shapes.Void.ts";
 
+export function thenSome$1ctlqen(self: boolean, t: rs.u8 | undefined): rs.u8 | undefined | rs.None {
+	if (!self) {
+		return rs.None;
+	}
+	return t;
+}
+
 export function thenSome$1uv8pdy(self: boolean, t: rs.Result<rs.u16, Void.Void>): rs.Result<rs.u16, Void.Void> | undefined {
 	if (!self) {
 		return undefined;
@@ -25,11 +32,25 @@ export function thenSome$05ku0zn(self: boolean, t: rs.i32): rs.i32 | undefined {
 	return t;
 }
 
+export function thenSome$19pue01(self: boolean, t: rs.Poll<rs.u8>): rs.Poll<rs.u8> | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return t;
+}
+
 export function thenSome$0quywni(self: boolean, t: rs.u8): rs.u8 | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
+}
+
+export function thenSome$1n1oy1h(self: boolean, _: undefined): undefined | rs.None {
+	if (!self) {
+		return rs.None;
+	}
+	return undefined;
 }
 
 export function then$01xsbgy(self: boolean, _: () => rs.Vec<rs.u16>): rs.Vec<rs.u16> | undefined {
