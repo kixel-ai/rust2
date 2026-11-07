@@ -151,3 +151,24 @@ const flagAt = rs.arcRaw(flag, rs.arcPlace(flag), "Arc");
 assert.equal(rs.arcErase(rs.ptrAdd(rs.ptrAdd(flagAt, 1), -1), "bool", 1), flagAt);
 assert.equal(rs.arcErase(rs.NULL, "bool", 1), rs.NULL);
 assert.throws(() => rs.arcErase({ v: false }, "bool", 1), /only an `Arc`'s or `Rc`'s raw pointer keeps the place of/);
+
+// A `str`'s UTF-8 through `as_ptr`, which JS encodes anew from its text: read through,
+// moved by arithmetic, and viewed, but a write, a copy into it, or a mutable slice of it,
+// which Rust forbids, would change nothing the text reads.
+const text = rs.strAsPtr("aé");
+assert.equal(rs.ptrAdd(text, 2).v, 0xa9);
+assert.deepEqual(Array.from(rs.byteSliceView(rs.ptrByteSlice(text, 3, true))), [0x61, 0xc3, 0xa9]);
+assert.equal(rs.ptrOffsetFrom(rs.ptrWrappingAdd(text, 2, 1, 1), text), 2);
+unsure(() => {
+	rs.ptrAdd(text, 1).v = 0;
+});
+unsure(() => {
+	rs.ptrWrappingAdd(text, 1, 1, 1).v = 0;
+});
+unsure(() => rs.ptrCopy(rs.byteSliceAsPtr(rs.byteSliceFrom(Uint8Array.of(1))), rs.ptrAdd(text, 1), 1));
+unsure(() => rs.ptrByteSlice(text, 1, false));
+unsure(() => new rs.RawSlice(text, 3).derefBytes(false));
+// None of it is nothing written, and two calls' pointers are two encodings.
+rs.ptrCopy(rs.byteSliceAsPtr(rs.byteSliceFrom(Uint8Array.of(1))), text, 0);
+assert.equal(rs.ptrByteSlice(text, 0, false).length, 0);
+unsure(() => rs.ptrOffsetFrom(rs.strAsPtr("aé"), text));

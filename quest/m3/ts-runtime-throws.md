@@ -26,10 +26,16 @@ The rest are gaps. At `main` they include a panic its hook cannot locate
 [#565](https://github.com/moq-dev/rust2/pull/565)), `offset_from` of one Rust allocation
 JS keeps in two arrays, a pointer moved past the array JS keeps it in (`AtIndex.reach`, such
 as one kept in a field), `Bytes::slice_ref` of other storage, `alloc`'s bytes read as
-values, ranges stepped without their type, fmt widths written as a placeholder, and a raw
+values, ranges stepped without their type, fmt widths written as a placeholder, a read
+through a substring's `str::as_ptr` outside its own bytes but inside its text's
+(`s[..1].as_ptr().add(1)`, `s[1..].as_ptr().wrapping_sub(1)`), and a raw
 slice of a byte in no array cast to `*const [u8; N]` by a route the body doesn't show,
 which [a byte local in a buffer of its own](/quest/m3/ts-unsafe/lone-byte-buffers.md) owns
 for locals.
+The substring reads are UB under Stacked Borrows and allowed under Tree Borrows, so they
+throw until Rust settles its memory model (decided 2026-11-07 in
+[#634](https://github.com/moq-dev/rust2/pull/634)); if Rust rules them defined, a
+substring's pointer carries its text's encoding and offset.
 `git grep 'rust2-ts: ' ts/runtime` lists them; classify each before fixing. The pointer
 comparisons [#584](https://github.com/moq-dev/rust2/pull/584) refuses at translation, where
 JS may make two `rs.Place`s for one place, are out of scope: addresses were their route, and
