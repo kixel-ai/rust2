@@ -1609,7 +1609,29 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				let ts_ty = self.b.t.ty(ty, span);
 				Expr::As(Box::new(Expr::Array(values)), ts_ty)
 			}
-			ty::Adt(adt, args) if adt.is_struct() && self.b.t.own(adt.did()) && adt.all_fields().next().is_some() => {
+			// A cell holds its value as a part of it, which a pointer from `as_ptr` reaches; zero
+			// bytes are one unborrowed, unlocked, and unpoisoned.
+			ty::Adt(adt, args)
+				if let Some(class) = match Std::of(tcx, adt.did()) {
+					Some(Std::Cell) => Some("Cell"),
+					Some(Std::RefCell) => Some("RefCell"),
+					Some(Std::Mutex) => Some("Mutex"),
+					_ => None,
+				} =>
+			{
+				let inner = self.zero(args.type_at(0), span);
+				Expr::New(Box::new(Expr::Rs(class.into())), vec![inner])
+			}
+			// The crate's struct, or one of std's JS keeps as the value it wraps.
+			ty::Adt(adt, args)
+				if adt.is_struct()
+					&& (self.b.t.own(adt.did())
+						|| matches!(
+							Std::of(tcx, adt.did()),
+							Some(Std::Reverse | Std::AssertUnwindSafe | Std::Wrapping | Std::Saturating)
+						))
+					&& adt.all_fields().next().is_some() =>
+			{
 				let values = (adt.non_enum_variant().fields.iter())
 					.map(|f| {
 						let t = self.b.t.field_ty(f.did, args);

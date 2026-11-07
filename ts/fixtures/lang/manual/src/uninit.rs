@@ -185,6 +185,24 @@ pub fn boxed_one(data: &[u8], out: &mut Vec<u8>) {
 	out.push(pair.tag);
 	out.extend_from_slice(pair.name.as_bytes());
 
+	// `Box::write` writes into the box, where a pointer taken before it still points.
+	let mut slot = Box::<Pair>::new_uninit();
+	let p = slot.as_mut_ptr();
+	let kept = Box::write(
+		slot,
+		Pair {
+			tag: first,
+			name: String::from("kept"),
+		},
+	);
+	out.push(u8::from(std::ptr::eq(p, &*kept)));
+	out.extend_from_slice(kept.name.as_bytes());
+	let mut slots = Box::<[u16; 3]>::new_uninit();
+	let p = slots.as_mut_ptr();
+	let kept = Box::write(slots, [1, 2, u16::from(first)]);
+	out.push(u8::from(std::ptr::eq(p, &*kept)));
+	out.extend_from_slice(&kept[2].to_le_bytes());
+
 	let mut words = Box::<[u16; 3]>::new_uninit();
 	words.write([u16::from(first), 2, 3])[1] ^= 0xff;
 	for w in *unsafe { words.assume_init() } {
@@ -312,6 +330,25 @@ pub fn boxed_zeroed(data: &[u8], out: &mut Vec<u8>) {
 			.as_micros()
 			.to_le_bytes(),
 	);
+
+	let shared = unsafe { Box::<std::cell::RefCell<u16>>::new_zeroed().assume_init() };
+	*shared.borrow_mut() += u16::from(first);
+	out.extend_from_slice(&shared.borrow().to_le_bytes());
+	let locked = unsafe { Box::<std::sync::Mutex<u8>>::new_zeroed().assume_init() };
+	*locked.lock().unwrap() ^= first;
+	out.push(*locked.lock().unwrap());
+
+	// Std's wrappers of a reference, which zero bytes are no value of, written in part.
+	let mut wrapped = Box::<std::num::Wrapping<(u32, &u8)>>::new_zeroed();
+	unsafe { (&raw mut (*wrapped.as_mut_ptr()).0.1).write(&first) };
+	let std::num::Wrapping((n, lent)) = *unsafe { wrapped.assume_init() };
+	out.extend_from_slice(&n.to_le_bytes());
+	out.push(*lent);
+	let mut cell = Box::<std::cell::UnsafeCell<(u32, &u8)>>::new_zeroed();
+	unsafe { (&raw mut (*(*cell.as_mut_ptr()).get()).1).write(&first) };
+	let (n, lent) = unsafe { cell.assume_init() }.into_inner();
+	out.extend_from_slice(&n.to_le_bytes());
+	out.push(*lent);
 
 	// One whose variant of zero bytes holds a reference, which a whole write replaces.
 	for value in [Held::Lent(&first, 7), Held::Count(u32::from(first) + 1)] {
