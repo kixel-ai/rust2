@@ -9,6 +9,7 @@
 
 use std::any::{Any, TypeId};
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::fmt::{self, Write};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
@@ -65,6 +66,34 @@ impl Hasher for Log {
 	fn finish(&self) -> u64 {
 		0
 	}
+}
+
+/// Takes at most `cap` bytes, logging each `write_str` it takes, and fails the call that
+/// would pass `cap`.
+struct Capped {
+	log: Vec<String>,
+	len: usize,
+	calls: usize,
+	cap: usize,
+}
+
+impl Write for Capped {
+	fn write_str(&mut self, s: &str) -> fmt::Result {
+		self.calls += 1;
+		if self.len + s.len() > self.cap {
+			return Err(fmt::Error);
+		}
+		self.len += s.len();
+		self.log.push(s.to_string());
+		Ok(())
+	}
+}
+
+/// `id`'s `Debug`, written into a `Capped` of `cap` bytes.
+fn capped(id: TypeId, cap: usize) -> (fmt::Result, Capped) {
+	let mut w = Capped { log: Vec::new(), len: 0, calls: 0, cap };
+	let result = write!(w, "{id:?}");
+	(result, w)
 }
 
 /// A `TypeId` the compiler evaluates.
@@ -214,6 +243,26 @@ pub fn ids(data: &[u8], out: &mut Vec<u8>) {
 	);
 	let (x, y) = (ids[usize::from(a) % ids.len()], ids[usize::from(b) % ids.len()]);
 	put(out, &format!("{} ", ids.iter().all(|&id| hash_of(id).is_some())));
+	// `Debug` writes as std's `write!` does: `TypeId(`, `0x`, a `write_char` of each leading
+	// zero, the digits, and `)`, stopping at the first write the writer fails.
+	let (result, w) = capped(x, usize::from(a % 10));
+	put(out, &format!("{result:?} {} {:?} ", w.calls, w.log));
+	let debug = format!("{x:?}");
+	let zeros = debug[9..].bytes().take_while(|&b| b == b'0').count().min(31);
+	let (result, w) = capped(x, usize::MAX);
+	let (digits, n) = (&w.log[2..w.log.len() - 1], w.log.len());
+	put(
+		out,
+		&format!(
+			"{result:?} {:?} {:?} {} {} ",
+			&w.log[..2],
+			w.log.last(),
+			n == 4 + zeros && digits[..zeros].iter().all(|d| d == "0"),
+			digits.concat() == debug[9..41],
+		),
+	);
+	let (result, w) = capped(x, debug.len() - 1);
+	put(out, &format!("{result:?} {} ", w.log.concat() + ")" == debug));
 	let mut log = Log::default();
 	x.hash(&mut log);
 	let high = hash_of(x).map(|h| format!("u64 {:x}", h >> 64));

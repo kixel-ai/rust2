@@ -1,6 +1,6 @@
 // `core::any::TypeId`, for rust2-ts output. `rs.ts` re-exports all of it.
 
-import { type FmtResult, type Formatter, fmtWriteStr } from "../rs.ts";
+import { type FmtResult, type Formatter, fmtPadIntegral, fmtSpec, fmtWriteFmt, type Spec } from "../rs.ts";
 import { cmpStr, type Ordering } from "./collections.ts";
 import { type Hasher, hash64 } from "./hash.ts";
 import { u64FromHalves } from "./int.ts";
@@ -28,7 +28,14 @@ export function typeIdHash(id: TypeId, s: Hasher): void {
 	hash64(u64FromHalves(parseInt(id.slice(0, 8), 16), parseInt(id.slice(8, 16), 16)), s);
 }
 
-/** `Debug`, as std's: `TypeId(0x…)` of the hash's 32 digits, which no width pads. */
+/**
+ * `Debug`, as std's `write!(f, "TypeId({:#034x})", ..)`: `TypeId(`, `0x`, a zero for each
+ * leading zero digit, the rest, and `)`, each its own write.
+ */
 export function fmtTypeIdDebug(id: TypeId, f: Formatter): FmtResult {
-	return fmtWriteStr(f, `TypeId(0x${id})`);
+	const digits = id.replace(/^0+(?=.)/, "");
+	return fmtWriteFmt(f, ["TypeId(", fmtSpec(HASH, (g) => fmtPadIntegral(g, true, "0x", digits)), ")"]);
 }
+
+/** `{:#034x}`. */
+const HASH: Spec = { alternate: true, zero: true, width: 34 };
