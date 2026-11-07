@@ -87,7 +87,7 @@ fun round(): String {
 	start = System.nanoTime()
 	last!!.use { read ->
 		repeat(GROUPS * FRAMES) {
-			closed += read.payload[0]
+			closed += read.payloadGet[0]
 		}
 	}
 	val payload = perFrame(start)
@@ -97,7 +97,7 @@ fun round(): String {
 	start = System.nanoTime()
 	large!!.use { read ->
 		repeat(GROUPS * FRAMES) {
-			closed += read.payload.toByteArray()[0]
+			closed += read.payloadGet.toByteArray()[0]
 		}
 	}
 	val lentPayload = perFrame(start)

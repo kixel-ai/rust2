@@ -9,7 +9,7 @@ item it cannot export fails the export with a span.
 ## Plan
 
 Decided with the maintainer on 2026-11-04: configless, and an unsupported public item
-fails the export rather than being excluded. ✅ Split: [the naming rule](/quest/m1/ffi-export/names.md)
+fails the export rather than being excluded. ✅ Split: the naming rule
 first, then this. Rejected: one quest that waits for the census to reach zero.
 
 Today `ffi/moq/ffi.toml` excludes about 300 refused items across moq-net, moq-pattern,
@@ -19,7 +19,3 @@ moq-ffi's hand-written wrapper still covers. This quest's own remaining work, de
 `ffi.toml` and the config reader, stays in that epic's README.
 
 Public API: the exporter's command line and the C API of every item that exports.
-
-## Required
-
-- [C names and crates with no config](/quest/m1/ffi-export/names.md) - the collision-free naming rule and a facade crate, leaving only `exclude` in `ffi.toml`

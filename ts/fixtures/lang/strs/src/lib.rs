@@ -26,5 +26,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("strs::gets", strs::gets),
 		("strs::unicode", strs::unicode),
 		("strs::utf16", strs::utf16),
+		("strs::pointers", strs::pointers),
 	]
 }
