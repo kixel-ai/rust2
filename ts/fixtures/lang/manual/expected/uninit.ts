@@ -440,7 +440,7 @@ export function boxedZeroed(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), [0, 0], "Zero", "Zero", rs.NULL, undefined) as unknown) as Zeroed.Zeroed;
 	const p: Zeroed.Zeroed = seen;
 	p.seen = counts;
-	rs.arrayAsPtr(p.many, 299).v = first as rs.u32;
+	p.many[299] = first as rs.u32;
 	const seen2: Zeroed.Zeroed = seen;
 	rs.byteVecPush(out, seen2.many[299] & 0xff);
 	seen2[Symbol.dispose]();

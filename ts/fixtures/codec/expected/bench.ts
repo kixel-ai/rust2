@@ -798,13 +798,12 @@ export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 			}
 			const part2 = rs.usizeAdd(rs.usizeRem(rs.u64Low(_96), size2), 1);
 			const part: rs.Slice<rs.u64> = rs.sliceRange(rs.sliceFrom(v.items), 0, part2);
-			const iter3: rs.Iter<rs.Place<rs.u64>> = rs.iterSliceMut(part);
-			while (true) {
-				const _111: rs.Place<rs.u64> | rs.Done = iter3.next();
-				if (_111 === rs.DONE) {
-					break;
-				}
-				_111.v = rs.u64WrappingAdd(_111.v, 1);
+			const iterS: rs.u64[] = part.data;
+			let iterI: number = part.start;
+			const iterE: number = part.start + part.length;
+			while (iterI < iterE) {
+				const _111: number = iterI++;
+				iterS[_111] = rs.u64WrappingAdd(iterS[_111], 1);
 			}
 			const _120: rs.usize = rs.usizeSub(part.length, 1);
 			rs.idx(part, _120);

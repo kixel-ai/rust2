@@ -1835,12 +1835,7 @@ export function extracts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		if (_639 !== undefined) {
 			_639.v = _639.v ^ 65535;
 		}
-		const iter11: rs.Iter<rs.u16> = rs.iterSlice(rs.sliceItems(leaked2));
-		while (true) {
-			const _646: rs.u16 | rs.Done = iter11.next();
-			if (_646 === rs.DONE) {
-				break;
-			}
+		for (const _646 of rs.sliceItems(leaked2)) {
 			rs.iterExtendBytes(out, rs.iterSlice(rs.u16ToBeBytes(_646)), undefined, true);
 		}
 		const leaked3: rs.ByteSlice = rs.byteVecSlice(flat4);
