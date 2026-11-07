@@ -7,6 +7,7 @@
 
 mod alloc;
 mod bind;
+mod bindgen;
 pub use bind::check_module;
 pub mod array_slice;
 mod body;
@@ -298,6 +299,8 @@ pub struct Translator<'a, 'tcx> {
 	pub hashers: rustc_data_structures::fx::FxHashMap<Ty<'tcx>, SymId>,
 	/// The field of each struct's byte slice field held as its parts that holds its bytes.
 	pub slices: rustc_data_structures::fx::FxHashSet<FieldId>,
+	/// The wasm-bindgen programs of the crates that translate, read on first use.
+	programs: std::cell::OnceCell<bindgen::Programs>,
 }
 
 /// The crates that translate as one program: the package, and every crate it depends on
@@ -547,6 +550,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			slots: Default::default(),
 			hashers: Default::default(),
 			slices: Default::default(),
+			programs: Default::default(),
 		})
 	}
 
@@ -942,7 +946,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let ty::Adt(adt, _) = self_ty.kind() else {
 			return None;
 		};
-		if !self.crates.translates(adt.did()) {
+		// A JS value has no class: its methods are functions of it.
+		if !self.crates.translates(adt.did()) || bindgen::represents(self.tcx, adt.did()) {
 			return None;
 		}
 		let span = self.tcx.def_span(instance.def_id());
@@ -1059,6 +1064,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		match instance.def {
 			InstanceKind::Item(did) => {
 				self.bound_module(instance).is_none()
+					&& bindgen::glue(self, instance).is_none()
 					&& ((self.crates.translates(did) && !stock::maps(self.tcx, instance))
 						|| library::from_mir(self, env, instance))
 			}
@@ -1074,6 +1080,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				!self.lowers(self.typing_env(), instance)
 					&& !self.dispatches(instance)
 					&& self.bound_module(instance).is_none()
+					&& bindgen::glue(self, instance).is_none()
 			}
 			_ => true,
 		}
@@ -1085,6 +1092,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			Ok(Some(instance)) => self.bound_module(instance).is_some(),
 			_ => false,
 		}
+	}
+
+	/// The wasm-bindgen programs of the crates that translate.
+	pub fn programs(&self) -> &bindgen::Programs {
+		self.programs
+			.get_or_init(|| bindgen::Programs::read(self.tcx, self.crates.crates.iter().copied()))
 	}
 
 	/// A translated struct or enum, translating its definition the first time.
@@ -1885,6 +1898,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::Bytes | library::Std::IoSlice => Type::Rs("ByteSlice", vec![]),
 				library::Std::BytesMut => Type::Rs("BytesMut", vec![]),
 				library::Std::ThreadRng => Type::Rs("ThreadRng", vec![]),
+				library::Std::Js => Type::Rs("JsValue", vec![]),
 				// A handle over the type of the values its channel holds.
 				library::Std::Sync => {
 					let handle = tokio::Handle::of(tcx, adt.did()).expect("a tokio handle");
@@ -2209,6 +2223,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				},
 				Some(library::Std::Option) => self.erases_to(args.type_at(0)).option(),
 				Some(library::Std::Poll) => self.erases_to(args.type_at(0)).poll(),
+				// Any JS value, `undefined` included.
+				Some(library::Std::Js) => Erased {
+					undefined: true,
+					..Erased::default()
+				},
 				Some(library::Std::ControlFlow) if library::Flow::of(self.tcx, args) == library::Flow::Option => {
 					self.erases_to(args.type_at(1)).option()
 				}
@@ -2229,6 +2248,16 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		};
 		if !self.lowers(self.typing_env(), instance) {
 			self.err(span, format!("`{}` is from another crate", tcx.def_path_str(def_id)));
+			return;
+		}
+		if self.programs().is_export(def_id) {
+			let path = tcx.def_path_str(def_id);
+			self.err(
+				span,
+				format!(
+					"`{path}`, a `#[wasm_bindgen]` export, which translation refuses: it exports the crate's `pub` API itself"
+				),
+			);
 			return;
 		}
 		let std = !self.crates.translates(def_id);
