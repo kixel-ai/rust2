@@ -397,7 +397,7 @@ export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 					let iterStart2: rs.usize = at2;
 					const iterEnd2: rs.usize = end2;
 					while ((_155 = iterStart2++) < iterEnd2) {
-						put$spare_Item_String(rs.ptrAdd(p2, _155).v, out);
+						put$spare_Item_String(rs.ptrRead(rs.ptrAdd(p2, _155)), out);
 					}
 					rs.ptrCopy(rs.ptrAdd(p2, end2), rs.ptrAdd(p2, at2), rs.usizeSub(len, end2));
 					rs.vecSetLen(v, rs.usizeSub(len, rs.usizeSub(end2, at2)), 12, (): rs.String => {
@@ -416,7 +416,7 @@ export function pointers$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 					const iterEnd3: rs.usize = len;
 					while ((_184 = iterStart3++) < iterEnd3) {
 						const i4: rs.usize = _184;
-						const x: rs.String = rs.ptrAdd(p3, i4).v;
+						const x: rs.String = rs.ptrRead(rs.ptrAdd(p3, i4));
 						if (rs.usizeRem(rs.usizeAdd(i4, n as rs.usize), 3) !== 0) {
 							rs.ptrAdd(p3, kept).v = x;
 							kept = rs.usizeAdd(kept, 1);
