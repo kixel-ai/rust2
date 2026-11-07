@@ -306,7 +306,14 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			("ptr" | "NonNull", "wrapping_add" | "wrapping_sub" | "wrapping_offset") => {
 				Some(self.moved(self.lone_origin(&args[0].node)?, name.as_str(), &args[1].node))
 			}
-			("NonNull", "as_ptr" | "new_unchecked") => self.origin(&args[0].node),
+			("NonNull", "as_ptr" | "new_unchecked") | ("ptr" | "NonNull", "cast_const" | "cast_mut") => {
+				self.origin(&args[0].node)
+			}
+			("ptr" | "NonNull", "cast")
+				if self.b.t.uninit_inner(gargs.type_at(0)) == self.b.t.uninit_inner(gargs.type_at(1)) =>
+			{
+				self.origin(&args[0].node)
+			}
 			("slice" | "Vec", "as_ptr" | "as_mut_ptr") => self.start(&args[0].node),
 			// The start of its own text's encoding, though a substring's bytes start past its
 			// text's in Rust, so a move back before it is refused, as one off a copy is.
@@ -601,9 +608,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		(self.defs[local] == 1 && !self.is_arg(local)).then_some(local)
 	}
 
-	/// Whether `op` is a pointer to what `local` points at.
+	/// Whether `op` is a pointer to what `local` points at, which JS keeps the same pointer,
+	/// as `pointer::cast` does one to what a `MaybeUninit` or `ManuallyDrop` holds.
 	fn same_pointee(&self, op: &Operand<'tcx>, local: Local) -> bool {
-		let pointee = |ty: ty::Ty<'tcx>| ty.builtin_deref(true);
+		let pointee = |ty: ty::Ty<'tcx>| ty.builtin_deref(true).map(|t| self.b.t.uninit_inner(t));
 		let from = op.ty(&self.mir.local_decls, self.tcx);
 		pointee(from).is_some() && pointee(from) == pointee(self.mir.local_decls[local].ty)
 	}

@@ -382,7 +382,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The body of the function copying `v`, a `ty`, or a `MaybeUninit` of one if `uninit`:
-	/// then any of its parts kept as objects may hold nothing yet.
+	/// then any of its parts kept as objects may hold nothing yet, as a cell in an
+	/// uninitialized shell holds nothing.
 	fn copy_parts(&mut self, ty: Ty<'tcx>, uninit: bool, span: Span) -> Vec<Stmt> {
 		let v = || Expr::ident("v");
 		let ret = |e: Expr| vec![StmtKind::Return(Some(e.typed())).at(None)];
@@ -464,7 +465,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					};
 					// A cell of its own, as `Cell::from_mut`'s place reads and writes another's.
 					if std == Std::Cell {
-						let held = self.snapshot(v().member("v"), args.type_at(0), span);
+						let held = self.snapshot(v().member("v"), part(args.type_at(0)), span);
 						return ret(Expr::New(Box::new(Expr::Rs("Cell".into())), vec![held]));
 					}
 					let fields: Vec<_> = inline.fields.into_iter().filter(|&(_, t)| self.changes(t)).collect();
@@ -475,7 +476,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					let c = || Expr::ident("c");
 					let mut body = vec![StmtKind::decl(false, "c", None, Some(copy)).at(None)];
 					for (field, t) in fields {
-						let read = self.snapshot(c().member(field), t, span);
+						let read = self.snapshot(c().member(field), part(t), span);
 						body.push(StmtKind::Expr(c().member(field).assign(read)).at(None));
 					}
 					body.push(StmtKind::Return(Some(c())).at(None));

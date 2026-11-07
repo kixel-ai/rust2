@@ -2340,6 +2340,7 @@ export function converted$Option_u16(data: rs.ByteSlice, out: rs.ByteVec): void 
 	put$conversions_Value_Option_u16(b, out);
 	c = make$conversions_Value_Option_u16(data, 16);
 	put$conversions_Value_Option_u16(c, out);
+	({ v: byte(data, 17) }.v = 2);
 }
 
 /** Each conversion of a `T`, its copies put after a write to what they copied. */
@@ -2430,6 +2431,7 @@ export function converted$String(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_String(b, out);
 	c = make$conversions_Value_String(data, 16);
 	put$conversions_Value_String(c, out);
+	({ v: byte(data, 17) }.v = 2);
 }
 
 /** Each conversion of a `T`, its copies put after a write to what they copied. */
@@ -2518,6 +2520,7 @@ export function converted$Vec_u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_Vec_u32(b, out);
 	c = make$conversions_Value_Vec_u32(data, 16);
 	put$conversions_Value_Vec_u32(c, out);
+	({ v: byte(data, 17) }.v = 2);
 }
 
 /** Each conversion of a `T`, its copies put after a write to what they copied. */
@@ -2606,6 +2609,7 @@ export function converted$Vec_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_Vec_u8(b, out);
 	c = make$conversions_Value_Vec_u8(data, 16);
 	put$conversions_Value_Vec_u8(c, out);
+	({ v: byte(data, 17) }.v = 2);
 }
 
 /** Each conversion of a `T`, its copies put after a write to what they copied. */
@@ -2716,6 +2720,7 @@ export function converted$array0_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteSliceFrom(c);
 	copy$array_u8(make$conversions_Value_array0_u8(data, 16));
 	put$conversions_Value_array0_u8(rs.byteSliceFrom(c), out);
+	({ v: byte(data, 17) }.v = 2);
 }
 
 /** Each conversion of a `T`, its copies put after a write to what they copied. */
@@ -2834,6 +2839,7 @@ export function converted$array1_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _211: Uint8Array = copy$array_u8(make$conversions_Value_array1_u8(data, 16));
 	q.data.set(_211, q.start);
 	put$conversions_Value_array1_u8(rs.byteSliceFrom(c), out);
+	({ v: byte(data, 17) }.v = 2);
 }
 
 /** Each conversion of a `T`, its copies put after a write to what they copied. */
@@ -2944,6 +2950,7 @@ export function converted$array2_u32(data: rs.ByteSlice, out: rs.ByteVec): void 
 	put$conversions_Value_array2_u32(rs.sliceFrom(b), out);
 	rs.sliceSet(rs.sliceFrom(c), copy$array_u32(make$conversions_Value_array2_u32(data, 16)));
 	put$conversions_Value_array2_u32(rs.sliceFrom(c), out);
+	({ v: byte(data, 17) }.v = 2);
 }
 
 /** Each conversion of a `T`, its copies put after a write to what they copied. */
@@ -3062,6 +3069,7 @@ export function converted$array3_u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _211: Uint8Array = copy$array_u8(make$conversions_Value_array3_u8(data, 16));
 	q.data.set(_211, q.start);
 	put$conversions_Value_array3_u8(rs.byteSliceFrom(c), out);
+	({ v: byte(data, 17) }.v = 2);
 }
 
 /** Each conversion of a `T`, its copies put after a write to what they copied. */
@@ -3180,6 +3188,7 @@ export function converted$array40_u8(data: rs.ByteSlice, out: rs.ByteVec): void 
 	const _211: Uint8Array = copy$array_u8(make$conversions_Value_array40_u8(data, 16));
 	q.data.set(_211, q.start);
 	put$conversions_Value_array40_u8(rs.byteSliceFrom(c), out);
+	({ v: byte(data, 17) }.v = 2);
 }
 
 /** Each conversion of a `T`, its copies put after a write to what they copied. */
@@ -3302,6 +3311,7 @@ export function converted$conversions_Logged(data: rs.ByteSlice, out: rs.ByteVec
 	q[Symbol.dispose]();
 	rs.ptrWrite(q, _211);
 	Logged.put$conversions_Value(c, out);
+	({ v: byte(data, 17) }.v = 2);
 	rs.dropVec(none);
 	rs.dropVec(list);
 	rs.dropAll(array);
@@ -3408,6 +3418,7 @@ export function converted$conversions_Named(data: rs.ByteSlice, out: rs.ByteVec)
 	Named.put$conversions_Value(b, out);
 	rs.ptrWrite(c, Named.make$conversions_Value(data, 16));
 	Named.put$conversions_Value(c, out);
+	({ v: byte(data, 17) }.v = 2);
 }
 
 /** Each conversion of a `T`, its copies put after a write to what they copied. */
@@ -3495,6 +3506,7 @@ export function converted$u32(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_u32(b, out);
 	c = make$conversions_Value_u32(data, 16);
 	put$conversions_Value_u32(c, out);
+	({ v: byte(data, 17) }.v = 2);
 }
 
 /** Each conversion of a `T`, its copies put after a write to what they copied. */
@@ -3582,6 +3594,7 @@ export function converted$u64(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_u64(b, out);
 	c = make$conversions_Value_u64(data, 16);
 	put$conversions_Value_u64(c, out);
+	({ v: byte(data, 17) }.v = 2);
 }
 
 /** Each conversion of a `T`, its copies put after a write to what they copied. */
@@ -3667,6 +3680,7 @@ export function converted$u8(data: rs.ByteSlice, out: rs.ByteVec): void {
 	put$conversions_Value_u8(b, out);
 	c = make$conversions_Value_u8(data, 16);
 	put$conversions_Value_u8(c, out);
+	({ v: byte(data, 17) }.v = 2);
 }
 
 /**

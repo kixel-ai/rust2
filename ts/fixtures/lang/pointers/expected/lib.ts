@@ -10,6 +10,7 @@ import type * as ByObject from "./pointers.ByObject.ts";
 import type * as Duo from "./pointers.Duo.ts";
 import type * as Either from "./pointers.Either.ts";
 import type * as Halves from "./pointers.Halves.ts";
+import type * as HeldCell from "./pointers.HeldCell.ts";
 import type * as Housed from "./pointers.Housed.ts";
 import type * as Inner from "./pointers.Inner.ts";
 import type * as Leaning from "./pointers.Leaning.ts";
@@ -101,6 +102,27 @@ export function copy$mem_MaybeUninit_array_u8(v: Uint8Array): Uint8Array {
 		return v;
 	}
 	return v.slice();
+}
+
+export function copy$mem_MaybeUninit_cell_RefCell_u32(v: rs.RefCell<rs.u32>): rs.RefCell<rs.u32> {
+	if (v === undefined) {
+		return v;
+	}
+	return rs.objectCopy(v);
+}
+
+export function copy$mem_MaybeUninit_cell_UnsafeCell_cell_RefCell_u32(v: rs.Cell<rs.RefCell<rs.u32>>): rs.Cell<rs.RefCell<rs.u32>> {
+	if (v === undefined) {
+		return v;
+	}
+	return new rs.Cell(copy$mem_MaybeUninit_cell_RefCell_u32(v.v));
+}
+
+export function copy$mem_MaybeUninit_pointers_HeldCell(v: HeldCell.HeldCell): HeldCell.HeldCell {
+	if (v === undefined) {
+		return v;
+	}
+	return { c: copy$mem_MaybeUninit_cell_UnsafeCell_cell_RefCell_u32(v.c) };
 }
 
 export function copy$mem_MaybeUninit_tuple2_u8_u8(v: [rs.u8, rs.u8]): [rs.u8, rs.u8] {

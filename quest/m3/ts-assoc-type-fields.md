@@ -10,7 +10,7 @@ tests against native Rust.
 ## Plan
 
 Suggested on [#600](https://github.com/moq-dev/rust2/pull/600) (rangemap): it is 1 of
-smallvec's 10 model refusals at the moq pin. The rest are `unsafe` that
+smallvec's 5 model refusals at the moq pin. The rest are `unsafe` that
 [m3's unsafe policy](/quest/m3/README.md) refuses, and moq drops or binds smallvec, so
 this is a language gap rather than a consumer's.
 

@@ -98,6 +98,15 @@ pub fn beside_reference(r: &u32, n: usize) -> u32 {
 	unsafe { *p.wrapping_add(1) + *p.add(1) + std::slice::from_raw_parts(p, n).iter().sum::<u32>() }
 }
 
+/// `beside_reference`'s read one past, through a pointer cast to one JS keeps the same:
+/// to a `MaybeUninit`, by `cast_mut`, and by `cast` to a `ManuallyDrop`.
+pub fn recast_reference(r: &u32) -> u32 {
+	let p = (&raw const *r) as *const std::mem::MaybeUninit<u32>;
+	let q = std::ptr::from_ref(r).cast_mut();
+	let m = std::ptr::from_ref(r).cast::<std::mem::ManuallyDrop<u32>>();
+	unsafe { (*p.add(1)).assume_init() + q.add(1).read() + *m.wrapping_add(1).read() }
+}
+
 /// A pointer from a reference the body is given, which JS keeps in no array, moved past
 /// it.
 pub fn past_reference(r: &u32) -> u32 {

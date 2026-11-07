@@ -2715,7 +2715,7 @@ fn moved_vec(v: &mut Vec<u8>, with: Vec<u8>, how: u8) -> Vec<u8> {
 		1 => unsafe { ptr::read(ptr::from_mut(v).cast::<MaybeUninit<Vec<u8>>>()).assume_init() },
 		2 => mem::ManuallyDrop::into_inner(unsafe { ptr::read(ptr::from_mut(v).cast::<mem::ManuallyDrop<Vec<u8>>>()) }),
 		_ => {
-			let mut other = MaybeUninit::new(vec![how]);
+			let mut other = MaybeUninit::new(Vec::new());
 			unsafe { ptr::swap(ptr::from_mut(v).cast::<MaybeUninit<Vec<u8>>>(), &mut other) };
 			unsafe { other.assume_init() }
 		}
@@ -2745,8 +2745,11 @@ fn moved_nested(
 		_ => unsafe {
 			let mut slot = MaybeUninit::uninit();
 			ptr::copy_nonoverlapping(ptr::from_mut(o), slot.as_mut_ptr(), 1);
-			let old_t = ptr::replace(ptr::from_mut(t), (vec![how], how));
-			let mut old_s = TaggedVec { v: vec![how], tag: how };
+			let old_t = ptr::replace(ptr::from_mut(t), (Vec::new(), how));
+			let mut old_s = TaggedVec {
+				v: Vec::new(),
+				tag: how,
+			};
 			ptr::swap(ptr::from_mut(s), &mut old_s);
 			(slot.assume_init(), old_t, old_s)
 		},
@@ -2789,11 +2792,27 @@ fn cell_rewritten(r: &Cell<u32>, n: u32) {
 	unsafe { ptr::from_ref(r).cast_mut().write(Cell::new(n)) }
 }
 
-/// A `HashMap` written whole through a pointer from the `&mut` given, which holds what the
-/// new one does, its capacity included.
+/// A `HashMap` dropped in place and written whole through a pointer from the `&mut` given,
+/// which holds what the new one does, its capacity included.
 #[inline(never)]
 fn map_rewritten(r: &mut std::collections::HashMap<u32, u32>) {
-	unsafe { ptr::write(ptr::from_mut(r), std::collections::HashMap::new()) }
+	let p = ptr::from_mut(r);
+	unsafe {
+		ptr::drop_in_place(p);
+		ptr::write(p, std::collections::HashMap::new());
+	}
+}
+
+/// A cell of a `RefCell`, which an uninitialized shell holds nothing in.
+struct HeldCell {
+	c: UnsafeCell<RefCell<u32>>,
+}
+
+/// What the uninitialized `HeldCell` a shared reference points at holds, moved out through
+/// a pointer from it.
+#[inline(never)]
+fn uninit_moved(r: &MaybeUninit<HeldCell>) -> MaybeUninit<HeldCell> {
+	unsafe { ptr::read(r) }
 }
 
 /// A range of cells and a cell `Cell::from_mut` made of a variable's place, moved out
@@ -2878,6 +2897,16 @@ pub fn moved_out(data: &[u8], out: &mut Vec<u8>) {
 		let cell = Cell::new(u32::from(b));
 		cell_rewritten(&cell, u32::from(b) + 2);
 		out.extend([x as u8, cell.get() as u8]);
+	}
+	let mut held = Box::<HeldCell>::new_uninit();
+	let mut old = uninit_moved(&held);
+	for (i, h) in [&mut *held, &mut old].into_iter().enumerate() {
+		h.write(HeldCell {
+			c: UnsafeCell::new(RefCell::new(u32::from(data.first().copied().unwrap_or(0)) + i as u32)),
+		});
+	}
+	for h in [&mut *held, &mut old] {
+		out.push(*unsafe { h.assume_init_mut() }.c.get_mut().get_mut() as u8);
 	}
 }
 

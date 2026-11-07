@@ -43,6 +43,9 @@ fixtures/reject/src/alloc.rs:past_reference+1:30: a pointer reaching past a valu
 fixtures/reject/src/alloc.rs:peeked_moved+3:26: a read moving out a `std::iter::Peekable<std::vec::IntoIter<std::cell::Cell<u32>>>`, a library object whose inline state only its runtime class knows, which JS can't copy apart
 fixtures/reject/src/alloc.rs:pinned_lent+1:32: `UnsafeCell::get_mut` of `std::pin::Pin<std::boxed::Box<(u8, u8)>>`, an object a whole write through the reference changes in place, so a value read out before would be a copy at another address
 fixtures/reject/src/alloc.rs:pinned_lent+2:43: `UnsafeCell::as_mut_unchecked` of `std::pin::Pin<std::boxed::Box<(u8, u8)>>`, an object a whole write through the reference changes in place, so a value read out before would be a copy at another address
+fixtures/reject/src/alloc.rs:recast_reference+4:11: a read or write reaching past a value in no array, which JS keeps apart from what holds it in Rust
+fixtures/reject/src/alloc.rs:recast_reference+4:48: a read or write reaching past a value in no array, which JS keeps apart from what holds it in Rust
+fixtures/reject/src/alloc.rs:recast_reference+4:76: a read or write reaching past a value in no array, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/alloc.rs:reinterpreted+1:27: a cast from a pointer to `u32` to one to `u8`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:unfixed_reference+3:35: a pointer moved by an offset the body doesn't fix, from a value in no array, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/alloc.rs:unfixed_reference+4:35: a pointer moved by an offset the body doesn't fix, from a value in no array, which JS keeps apart from what holds it in Rust
