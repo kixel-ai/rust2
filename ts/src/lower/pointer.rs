@@ -136,8 +136,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// What tells whether two pointers to `ty` point at the same place where `===` can't:
-	/// the slices' of an array.
+	/// the slices' of an array, and the addresses of a type whose address the runs before
+	/// read, which a pointer to a freed allocation shares with the one that reuses it.
 	pub fn same_fn(&self, ty: Ty<'tcx>) -> Option<Expr> {
+		if self.addressed.contains(&super::copy::storage(self.tcx, ty)) {
+			return Some(Expr::rs("sameAddr", super::address::layout(self, ty).into()));
+		}
 		(self.pointee(ty) == Pointee::Array).then(|| self.array_rs(ty, "Same"))
 	}
 

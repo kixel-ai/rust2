@@ -2311,6 +2311,7 @@ pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
 	let mut weaks: Vec<(Weak<Keyed>, usize)> = Vec::new();
 	let mut ordered: BTreeSet<*const Keyed> = BTreeSet::new();
 	let mut hashed: HashSet<*const Keyed> = HashSet::new();
+	let mut freed: Vec<*const Keyed> = Vec::new();
 	let dangling = Weak::<Keyed>::new().as_ptr();
 	out.extend([dangling as u8, dangling as i16 as u8]);
 	out.extend(
@@ -2339,6 +2340,18 @@ pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
 					.borrow_mut()
 					.insert((keyed.id % 4, p.expose_provenance()), keyed.id);
 				out.push(u8::from(ordered.insert(p) && hashed.insert(p)));
+				// A pointer to a freed allocation equals one to an allocation reusing its
+				// address, and hashes and orders as it.
+				for &f in &freed {
+					let reused = f as usize == address;
+					let keys = HashSet::from([f]);
+					out.push(u8::from(
+						(f == p) == reused
+							&& ptr::eq(f, p) == reused
+							&& keys.contains(&p) == reused
+							&& f.cmp(&p).is_eq() == reused,
+					));
+				}
 				weaks.push((Arc::downgrade(&keyed), address));
 				live.push(keyed);
 				// Two made and freed together, read only after: apart from each other and
@@ -2369,6 +2382,7 @@ pub fn addresses(data: &[u8], out: &mut Vec<u8>) {
 				if byte & 4 != 0 {
 					weaks.retain(|(_, at)| *at != address);
 					held.remove(&address);
+					freed.push(p);
 				}
 			}
 			// A `Weak` keeps its address once its value drops, as it keeps the allocation.

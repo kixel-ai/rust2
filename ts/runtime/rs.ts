@@ -341,6 +341,11 @@ export function addr(p: object, size: number, align: number): number {
 	return ADDRESSED.get(p) ?? addrNew(p, size, align);
 }
 
+/** `==` of raw pointers to values of `size` bytes aligned to `align`, which compares their addresses. */
+export function sameAddr(size: number, align: number): (a: object, b: object) => boolean {
+	return (a, b) => addr(a, size, align) === addr(b, size, align);
+}
+
 /**
  * Give `value`, a new `Arc`'s or `Rc`'s of `size` bytes aligned to `align`, its address,
  * as an allocator places the allocation: after its two counts, at a multiple of `align`,

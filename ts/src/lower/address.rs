@@ -50,12 +50,12 @@ pub fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Resul
 		let stored = super::copy::storage(b.t.tcx, ty);
 		b.t.addressing.insert(stored);
 	}
-	Ok(layout(b, ty))
+	Ok(layout(b.t, ty))
 }
 
 /// The size and alignment of a `ty`, as `rs.addr` takes them.
-fn layout<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> [Expr; 2] {
-	let (tcx, env) = (b.t.tcx, b.t.typing_env_pub());
+pub(super) fn layout<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> [Expr; 2] {
+	let (tcx, env) = (t.tcx, t.typing_env_pub());
 	let layout = tcx.layout_of(env.as_query_input(ty)).ok();
 	let size = layout.map_or(0, |l| l.size.bytes());
 	let align = layout.map_or(1, |l| l.align.abi.bytes());
@@ -68,7 +68,7 @@ fn layout<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> [Expr; 2] {
 /// once its allocation is freed.
 pub fn numbered<'tcx>(b: &Body<'_, '_, 'tcx>, arc: Expr, value: Ty<'tcx>) -> Expr {
 	match b.t.addressed.contains(&super::copy::storage(b.t.tcx, value)) {
-		true => Expr::rs("arcAt", [arc].into_iter().chain(layout(b, value)).collect()),
+		true => Expr::rs("arcAt", [arc].into_iter().chain(layout(b.t, value)).collect()),
 		false => arc,
 	}
 }
