@@ -19,13 +19,13 @@ export function next$iter_Iterator_Option_u16(self: Drained<rs.u16 | undefined>)
 
 export function next$iter_Iterator_String(self: Drained<rs.String>): rs.String | rs.Done {
 	return rs.iterFromOption(option_map$1lzqy5c(rs.iterToOption((self.iter as rs.Iter<rs.String>).next()), (r: rs.String): rs.String => {
-		return { v: r }.v;
+		return r;
 	}));
 }
 
 export function next$iter_Iterator_Vec_u8(self: Drained<rs.ByteVec>): rs.ByteVec | rs.Done {
 	return rs.iterFromOption(option_map$1h9tk16(rs.iterToOption((self.iter as rs.Iter<rs.ByteVec>).next()), (r: rs.ByteVec): rs.ByteVec => {
-		return { v: r }.v;
+		return r;
 	}));
 }
 
@@ -43,13 +43,13 @@ export function nextBack$iter_DoubleEndedIterator_Option_u16(self: Drained<rs.u1
 
 export function nextBack$iter_DoubleEndedIterator_String(self: Drained<rs.String>): rs.String | undefined {
 	return option_map$1lzqy5c(rs.iterToOption((self.iter as rs.Iter<rs.String>).nextBack()), (r: rs.String): rs.String => {
-		return { v: r }.v;
+		return r;
 	});
 }
 
 export function nextBack$iter_DoubleEndedIterator_Vec_u8(self: Drained<rs.ByteVec>): rs.ByteVec | undefined {
 	return option_map$1h9tk16(rs.iterToOption((self.iter as rs.Iter<rs.ByteVec>).nextBack()), (r: rs.ByteVec): rs.ByteVec => {
-		return { v: r }.v;
+		return r;
 	});
 }
 

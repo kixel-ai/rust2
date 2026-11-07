@@ -3685,6 +3685,16 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 			{
 				*e = value.clone();
 			}
+			// A read through a pointer made here of a shared reference is the value it holds.
+			if let Expr::Call(f, args) = &*e
+				&& let (Expr::Rs(read), [p]) = (&**f, args.as_slice())
+				&& read == "ptrRead"
+				&& let Expr::Object(members) = step::peel(p)
+				&& let [(ts::Key::Name(v), value)] = members.as_slice()
+				&& v == "v"
+			{
+				*e = value.clone();
+			}
 			// The elements of a slice of all of an array are the array, and a copy of them its copy.
 			if let Expr::Call(f, args) = &*e
 				&& let (Expr::Rs(read), [slice]) = (&**f, args.as_slice())

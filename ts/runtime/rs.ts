@@ -141,6 +141,43 @@ export function place<T>(get: () => T, set: (value: T) => void): Place<T> {
 	return new Accessed(get, set);
 }
 
+/**
+ * A place that is the object `target`, which a write of a whole value lands in, as
+ * `replaceIn` writes: a raw pointer from a `&mut` to an object, which others may hold.
+ */
+class WrittenIn<T extends object> implements Place<T> {
+	readonly target: T;
+	/** The levels of arrays whose items a copy of `target` copies too, as `objectCopy`'s. */
+	readonly depth: number;
+
+	constructor(target: T, depth: number) {
+		this.target = target;
+		this.depth = depth;
+	}
+
+	get v(): T {
+		return this.target;
+	}
+
+	set v(value: T) {
+		writeIn(this.target, value);
+	}
+}
+
+/** The raw pointer from a `&mut` to `target`, an object, as `WrittenIn` is. */
+export function placeIn<T extends object>(target: T, depth = 0): Place<T> {
+	return new WrittenIn(target, depth);
+}
+
+/**
+ * What a read through `p` moves out, as `ptr::read` does: what it holds, or a copy of the
+ * object a `placeIn` is, which a write through it would change.
+ */
+export function ptrRead<T>(p: Place<T>): T {
+	const home = ptrHome(p);
+	return home instanceof WrittenIn ? (objectCopy(home.target, home.depth) as T) : p.v;
+}
+
 // Raw pointers
 
 /** A null raw pointer, of any type: nothing reads through it. */
@@ -445,6 +482,9 @@ export function ptrCopy<T>(src: Place<T>, dst: Place<T>, n: number, copy?: (valu
 		return;
 	}
 	const values = Array.from({ length: n }, (_, i) => elemGet(from.array, from.index + i));
+	// What a `placeIn` holds changes with the next write through it.
+	const home = ptrHome(from);
+	if (home instanceof WrittenIn) values[0] = objectCopy(home.target, home.depth) as T;
 	// Memory nothing wrote yet is copied as it is, which no value's copy can read.
 	for (let i = 0; i < n; i++) elemSet(to.array, to.index + i, copy && values[i] !== undefined ? copy(values[i]) : values[i]);
 }
@@ -565,9 +605,14 @@ export function ptrWrite<T extends object>(p: T, value: T): void {
  */
 export function replaceIn<T extends object>(p: T, value: T, depth = 0): T {
 	const old = objectCopy(p, depth);
+	writeIn(p, value);
+	return old;
+}
+
+/** `value`'s fields, or its items for a JS array, moved into `p`. */
+function writeIn<T extends object>(p: T, value: T): void {
 	if (Array.isArray(p)) arrayAssign(p, value as unknown[]);
 	else ptrWrite(p, value);
-	return old;
 }
 
 /**

@@ -2487,6 +2487,29 @@ fn refilled(v: &mut Vec<u8>, with: Vec<u8>, how: u8) {
 	unsafe { (*p).push(how) };
 }
 
+/// What the `Vec` a pointer from a `&mut` the body is given points at held, moved out
+/// each way std moves one out as `with` is written whole in its place, and then swapped
+/// with `w` through pointers from `&mut`s to each.
+fn replaced(v: &mut Vec<u8>, w: &mut Vec<u8>, with: Vec<u8>, how: u8) -> Vec<u8> {
+	let p = ptr::from_mut(v);
+	let old = match how % 3 {
+		0 => unsafe { ptr::replace(p, with) },
+		1 => {
+			let old = unsafe { ptr::read(p) };
+			unsafe { ptr::write(p, with) };
+			old
+		}
+		_ => {
+			let mut slot = MaybeUninit::<Vec<u8>>::uninit();
+			unsafe { ptr::copy_nonoverlapping(p, slot.as_mut_ptr(), 1) };
+			unsafe { ptr::write(p, with) };
+			unsafe { slot.assume_init() }
+		}
+	};
+	unsafe { ptr::swap(ptr::from_mut(v), ptr::from_mut(w)) };
+	old
+}
+
 /// The value a pointer from a shared reference the body is given points at, made each way
 /// std makes one.
 fn behind(r: &u32, how: u8) -> u32 {
@@ -2513,10 +2536,10 @@ fn cell_behind(r: &Option<Cell<u32>>, how: u8) -> u32 {
 }
 
 /// Raw pointers from references: smallvec's `Drain` and `retain`, over a number, library
-/// types, and an `Option`; pointers from a reference the body borrowed, which move
-/// within the array it borrowed from; from references the body is given, to a number, to an
-/// `Option` of a cell, and to a `Vec`, read and written whole; and from references to an
-/// `Arc`'s value, measured against each other.
+/// types, and an `Option`; pointers from a reference the body borrowed, which move within
+/// the array it borrowed from; from references the body is given, to a number, to an
+/// `Option` of a cell, and to a `Vec`, read, written, moved out of, and swapped whole; and
+/// from references to an `Arc`'s value, measured against each other.
 pub fn behind_refs(data: &[u8], out: &mut Vec<u8>) {
 	let bits = data.first().copied().unwrap_or(0);
 	let nums: Vec<u32> = data.iter().map(|&b| u32::from(b) * 3).collect();
@@ -2574,6 +2597,14 @@ pub fn behind_refs(data: &[u8], out: &mut Vec<u8>) {
 	out.push(vec_len(&v) as u8);
 	refilled(&mut v, data.iter().rev().copied().collect(), bits);
 	out.extend(&v);
+	for how in 0..3 {
+		let mut w: Vec<u8> = data.iter().map(|b| b ^ how).collect();
+		let old = replaced(&mut v, &mut w, vec![bits; usize::from(how) + 1], how);
+		out.extend(&old);
+		out.extend(&v);
+		out.extend(&w);
+		out.push(0xff);
+	}
 	for (i, &b) in data.iter().enumerate() {
 		out.push(behind(&u32::from(b), i as u8) as u8);
 		let cell = (b % 3 != 0).then(|| Cell::new(u32::from(b)));

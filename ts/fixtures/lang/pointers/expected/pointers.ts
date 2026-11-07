@@ -3141,20 +3141,48 @@ export function refilled(v: rs.ByteVec, with_: rs.ByteVec, how: rs.u8): void {
 	let p!: rs.Place<rs.ByteVec>;
 	const _5: rs.u8 = rs.u8Rem(how, 4);
 	if (_5 === 0) {
-		const target4 = v;
-		p = rs.place(() => target4, (value4) => Object.assign(target4, value4));
+		p = rs.placeIn(v);
 	} else if (_5 === 1) {
-		const target3 = v;
-		p = rs.place(() => target3, (value3) => Object.assign(target3, value3));
+		p = rs.placeIn(v);
 	} else if (_5 === 2) {
-		const target2 = v;
-		p = rs.place(() => target2, (value2) => Object.assign(target2, value2));
+		p = rs.placeIn(v);
 	} else {
-		const target = v;
-		p = rs.place(() => target, (value) => Object.assign(target, value));
+		p = rs.placeIn(v);
 	}
 	p.v = with_;
 	rs.byteVecPush(p.v, how);
+}
+
+/**
+ * What the `Vec` a pointer from a `&mut` the body is given points at held, moved out
+ * each way std moves one out as `with` is written whole in its place, and then swapped
+ * with `w` through pointers from `&mut`s to each.
+ */
+export function replaced(v: rs.ByteVec, w: rs.ByteVec, with_: rs.ByteVec, how: rs.u8): rs.ByteVec {
+	let old!: rs.ByteVec;
+	const p: rs.Place<rs.ByteVec> = rs.placeIn(v);
+	const _7: rs.u8 = rs.u8Rem(how, 3);
+	if (_7 === 0) {
+		const pointer = p;
+		const old3 = rs.ptrRead(pointer);
+		pointer.v = with_;
+		old = old3;
+	} else if (_7 === 1) {
+		const old2: rs.ByteVec = rs.ptrRead(p);
+		p.v = with_;
+		old = old2;
+	} else {
+		let slot: rs.ByteVec = (undefined as unknown) as rs.ByteVec;
+		rs.ptrCopy(p, rs.place(() => slot, (value) => slot = value), 1);
+		p.v = with_;
+		old = slot;
+	}
+	const x = rs.placeIn(v);
+	const y = rs.placeIn(w);
+	const old4 = rs.ptrRead(x);
+	x.v = rs.ptrRead(y);
+	y.v = old4;
+	return old;
 }
 
 /**
@@ -3195,13 +3223,14 @@ export function cellBehind(r: rs.Cell<rs.u32> | undefined, how: rs.u8): rs.u32 {
 
 /**
  * Raw pointers from references: smallvec's `Drain` and `retain`, over a number, library
- * types, and an `Option`; pointers from a reference the body borrowed, which move
- * within the array it borrowed from; from references the body is given, to a number, to an
- * `Option` of a cell, and to a `Vec`, read and written whole; and from references to an
- * `Arc`'s value, measured against each other.
+ * types, and an `Option`; pointers from a reference the body borrowed, which move within
+ * the array it borrowed from; from references the body is given, to a number, to an
+ * `Option` of a cell, and to a `Vec`, read, written, moved out of, and swapped whole; and
+ * from references to an `Arc`'s value, measured against each other.
  */
 export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let _112!: rs.usize;
+	let _152!: rs.u8;
 	const bits: rs.u8 = option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0);
 	const nums: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u32 => {
 		return rs.u32Mul(_2 as rs.u32, 3);
@@ -3243,12 +3272,12 @@ export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return _26 & 0xff;
 	}), undefined, true);
 	const words2: rs.Vec<rs.String> = words;
-	retained$String_pointers_behind_refs_closure6(words2, (w2: rs.String): boolean => {
-		rs.stringPush(w2, 33);
-		return rs.usizeRem(w2.len, 2) === 0;
+	retained$String_pointers_behind_refs_closure6(words2, (w3: rs.String): boolean => {
+		rs.stringPush(w3, 33);
+		return rs.usizeRem(w3.len, 2) === 0;
 	});
-	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(words2.items), (w3: rs.String): rs.Iter<rs.u8> => {
-		return rs.strBytes(w3.v);
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(words2.items), (w4: rs.String): rs.Iter<rs.u8> => {
+		return rs.strBytes(w4.v);
 	}, undefined, true), "next");
 	const runs2: rs.Vec<rs.ByteVec> = runs;
 	retained$Vec_u8_pointers_behind_refs_closure8(runs2, (r2: rs.ByteVec): boolean => {
@@ -3277,14 +3306,27 @@ export function behindRefs(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _143: rs.ByteVec = rs.iterToByteVec(rs.iterRev(rs.iterSlice(rs.byteSliceView(data))), undefined, true);
 	refilled(v, _143, bits);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(v)), undefined, true);
-	const iter5: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
+	let iterStart2: rs.u8 = 0;
+	const iterEnd2: rs.u8 = 3;
+	while ((_152 = iterStart2++) < iterEnd2) {
+		const how: rs.u8 = _152;
+		const w2: rs.ByteVec = rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b6: rs.u8): rs.u8 => {
+			return b6 ^ how;
+		}), undefined, true);
+		const _164: rs.ByteVec = rs.byteVecOf(bits, rs.usizeAdd(how as rs.usize, 1));
+		rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(replaced(v, w2, _164, how))), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(v)), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(w2)), undefined, true);
+		rs.byteVecPush(out, 255);
+	}
+	const iter6: rs.Iter<[rs.usize, rs.u8]> = rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data)));
 	while (true) {
-		const _153: [rs.usize, rs.u8] | rs.Done = iter5.next();
-		if (_153 === rs.DONE) {
+		const _179: [rs.usize, rs.u8] | rs.Done = iter6.next();
+		if (_179 === rs.DONE) {
 			break;
 		}
-		const i2: rs.usize = _153[0];
-		const b: rs.u8 = _153[1];
+		const i2: rs.usize = _179[0];
+		const b: rs.u8 = _179[1];
 		rs.byteVecPush(out, behind(b as rs.u32, i2 & 0xff) & 0xff);
 		rs.byteVecPush(out, cellBehind(then$01qpu7s(rs.u8Rem(b, 3) !== 0, (): rs.Cell<rs.u32> => {
 			return new rs.Cell(b as rs.u32);

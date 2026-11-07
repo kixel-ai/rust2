@@ -280,8 +280,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// `rs.Place`, where `r` is no `rs.Place` itself but the value: the place the body shows
 	/// `r` borrowed, as [`Self::borrowed_pointer`] finds it. Otherwise it is a place of its
 	/// own, as `ptr::from_ref` makes: of the value, where `r` is shared and nothing may write
-	/// a whole value through the pointer, and else writing a whole value into the object `r`
-	/// is in place, as `*r = v` does.
+	/// a whole value through the pointer, and else an `rs.placeIn` writing a whole value into
+	/// the object `r` is in place, as `*r = v` does, which a read moving out copies.
 	pub(super) fn behind_reference(&mut self, r: Place<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let tcx = self.tcx;
 		if let Some(p) = self.borrowed_pointer(r, span, out) {
@@ -303,23 +303,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		if shared && (tagged || ty.is_freeze(tcx, env)) {
 			return Expr::Object(vec![(Key::Name("v".into()), value)]);
 		}
-		let target = self.b.spill(value, "target", out);
-		let written = self.b.fresh("value");
-		let Some(write) = self.write_into(target.clone(), Expr::ident(&written), ty) else {
+		if self.b.t.write_in(ty).is_none() {
 			return self.err(
 				span,
 				format!("a raw pointer to `{ty}` behind a reference, which JS can't write a whole value into in place"),
 			);
-		};
-		let get = Expr::Lambda(Vec::new(), Box::new(target));
-		let set = Expr::Lambda(
-			vec![Param {
-				name: written,
-				ty: None,
-			}],
-			Box::new(write),
-		);
-		Expr::rs("place", vec![get, set])
+		}
+		let mut made = vec![value];
+		made.extend(self.copy_depth(ty));
+		Expr::rs("placeIn", made)
 	}
 
 	/// The raw pointer to the place the body shows the reference `r` borrowed, if it does:

@@ -1834,7 +1834,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// How many levels of arrays of objects a write may land in `ty` nests, whose items a
 	/// copy of a view of one copies too, unlike references, which move as they are: the
 	/// runtime's `depth`, if any.
-	fn copy_depth(&self, ty: Ty<'tcx>) -> Option<Expr> {
+	pub(super) fn copy_depth(&self, ty: Ty<'tcx>) -> Option<Expr> {
 		let mut depth = 0;
 		let mut at = ty;
 		while let ty::Array(elem, _) = at.kind()
