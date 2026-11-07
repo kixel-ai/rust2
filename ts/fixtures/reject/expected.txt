@@ -42,6 +42,8 @@ fixtures/reject/src/alloc.rs:collection_moved+10:3: a read moving out a `std::st
 fixtures/reject/src/alloc.rs:collection_moved+14:28: a read moving out a `(std::string::String, u8)`, which holds a `std::string::String`, a collection whose JS object keeps its length with its storage, which no copy splits from the original as Rust's read does
 fixtures/reject/src/alloc.rs:collection_moved+16:23: a read moving out a `std::vec::Vec<u32>`, a collection whose JS object keeps its length with its storage, which no copy splits from the original as Rust's read does
 fixtures/reject/src/alloc.rs:infallible_cell+1:11: a raw pointer to `std::result::Result<std::cell::Cell<u32>, !>` behind a reference, which JS can't write a whole value into in place
+fixtures/reject/src/alloc.rs:joined_reference+6:13: `offset_from` between a pointer into a value in no array and one into a value in no array, which JS keeps in different arrays
+fixtures/reject/src/alloc.rs:joined_reference+6:66: a read or write reaching past a value in no array, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/alloc.rs:lazy_moved+2:22: a read moving out a `std::cell::LazyCell<u32, {closure@fixtures/reject/src/alloc.rs:lazy_moved+1:38: +1:45}>`, a library object whose inline state only its runtime class knows, which JS can't copy apart
 fixtures/reject/src/alloc.rs:past_reference+1:30: a pointer reaching past a value in no array, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/alloc.rs:peeked_moved+3:26: a read moving out a `std::iter::Peekable<std::vec::IntoIter<std::cell::Cell<u32>>>`, a library object whose inline state only its runtime class knows, which JS can't copy apart

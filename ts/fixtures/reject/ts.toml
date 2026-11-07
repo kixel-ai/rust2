@@ -13,6 +13,7 @@ roots = [
     "alloc::cell_raw_unknown",
     "alloc::collection_moved",
     "alloc::infallible_cell",
+    "alloc::joined_reference",
     "alloc::lazy_moved",
     "alloc::past_reference",
     "alloc::peeked_moved",

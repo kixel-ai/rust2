@@ -265,34 +265,74 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 
 	/// Where the pointer `op` points, if the body shows it.
 	fn origin(&self, op: &Operand<'tcx>) -> Option<Origin<'tcx>> {
-		let local = self.traced(op)?;
-		if let Some((bb, i)) = self.def_at[local] {
-			let rvalue = self.def_rvalue(local)?;
-			return match rvalue {
-				Rvalue::Use(op, _)
-				| Rvalue::Cast(
-					mir::CastKind::PtrToPtr
-					| mir::CastKind::PointerCoercion(ty::adjustment::PointerCoercion::MutToConstPointer, _),
-					op,
-					_,
-				) if self.same_pointee(op, local) => self.origin(op),
-				Rvalue::RawPtr(mir::RawPtrKind::Const | mir::RawPtrKind::Mut, place) => self.raw_origin(
-					*place,
-					Location {
-						block: bb,
-						statement_index: i,
-					},
-				),
-				_ => None,
-			};
+		let Some(local) = self.traced(op) else {
+			return self.joined_origin(op);
+		};
+		match self.def_at[local] {
+			Some((block, statement_index)) => {
+				self.assigned_origin(local, self.def_rvalue(local)?, Location { block, statement_index })
+			}
+			None => self.called_origin(self.def_block(local)?),
 		}
-		let (def_id, gargs, args) = self.def_call(local)?;
+	}
+
+	/// Where the pointer a body assigns more than once points, as far as a refusal needs:
+	/// in an array of one, if any assignment the body shows is to one, since JS keeps each
+	/// apart from every other array, at the index all of those give, if they agree.
+	fn joined_origin(&self, op: &Operand<'tcx>) -> Option<Origin<'tcx>> {
+		let local = op.place()?.as_local()?;
+		// A pointer moved in a loop is assigned from itself, which this follows no further.
+		if self.is_arg(local) || self.defs[local] < 2 || self.joining.replace(true) {
+			return None;
+		}
+		let mut lone = Vec::new();
+		for (block, data) in self.mir.basic_blocks.iter_enumerated() {
+			for (statement_index, stmt) in data.statements.iter().enumerate() {
+				if let mir::StatementKind::Assign(assign) = &stmt.kind
+					&& assign.0.as_local() == Some(local)
+				{
+					let at = Location { block, statement_index };
+					lone.extend(self.assigned_origin(local, &assign.1, at));
+				}
+			}
+			if let TerminatorKind::Call { destination, .. } = &data.terminator().kind
+				&& destination.as_local() == Some(local)
+			{
+				lone.extend(self.called_origin(block));
+			}
+		}
+		self.joining.set(false);
+		lone.retain(|o| matches!(o.array, Array::Lone(_)));
+		let first = *lone.first()?;
+		Some(Origin {
+			index: first.index.filter(|&i| lone.iter().all(|o| o.index == Some(i))),
+			..first
+		})
+	}
+
+	/// Where the pointer `rvalue`, assigned to `local` at `at`, points, if the body shows it.
+	fn assigned_origin(&self, local: Local, rvalue: &Rvalue<'tcx>, at: Location) -> Option<Origin<'tcx>> {
+		match rvalue {
+			Rvalue::Use(op, _)
+			| Rvalue::Cast(
+				mir::CastKind::PtrToPtr
+				| mir::CastKind::PointerCoercion(ty::adjustment::PointerCoercion::MutToConstPointer, _),
+				op,
+				_,
+			) if self.same_pointee(op, local) => self.origin(op),
+			Rvalue::RawPtr(mir::RawPtrKind::Const | mir::RawPtrKind::Mut, place) => self.raw_origin(*place, at),
+			_ => None,
+		}
+	}
+
+	/// Where the pointer the call of std's ending `block` gives points, if the body shows it.
+	fn called_origin(&self, block: BasicBlock) -> Option<Origin<'tcx>> {
+		let (def_id, gargs, args) = self.call_at(block)?;
 		let (owner, name) = library::key(self.tcx, def_id)?;
 		match (owner.as_str(), name.as_str()) {
 			("ptr", "from_ref" | "from_mut") | ("From", "from") | ("Into", "into")
 				if crate::lower::pointer::from_reference(self.tcx, def_id, gargs) =>
 			{
-				let block = self.def_block(local)?;
 				let at = Location {
 					block,
 					statement_index: self.mir.basic_blocks[block].statements.len(),
@@ -318,7 +358,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			// The start of its own text's encoding, though a substring's bytes start past its
 			// text's in Rust, so a move back before it is refused, as one off a copy is.
 			("str", "as_ptr") => Some(Origin {
-				array: Array::Text(self.def_block(local)?),
+				array: Array::Text(block),
 				index: Some(0),
 			}),
 			_ => None,
@@ -626,7 +666,19 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		GenericArgsRef<'tcx>,
 		&[Spanned<Operand<'tcx>>],
 	)> {
-		let bb = self.def_block(local)?;
+		self.call_at(self.def_block(local)?)
+	}
+
+	/// The function, its generic arguments, and its arguments, of the call of std's that
+	/// ends `bb`.
+	fn call_at(
+		&self,
+		bb: BasicBlock,
+	) -> Option<(
+		rustc_hir::def_id::DefId,
+		GenericArgsRef<'tcx>,
+		&[Spanned<Operand<'tcx>>],
+	)> {
 		let TerminatorKind::Call { func, args, .. } = &self.mir.basic_blocks[bb].terminator().kind else {
 			return None;
 		};

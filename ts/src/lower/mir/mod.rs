@@ -360,6 +360,9 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	slots: IndexVec<Local, Slot<'tcx>>,
 	/// Where each local assigned once is assigned, by a statement.
 	def_at: IndexVec<Local, Option<(BasicBlock, usize)>>,
+	/// Whether `origin` is following the assignments of a pointer assigned more than once,
+	/// which it follows no deeper.
+	joining: std::cell::Cell<bool>,
 	/// How many times each local is read, and assigned whole.
 	uses: IndexVec<Local, u32>,
 	defs: IndexVec<Local, u32>,
@@ -522,6 +525,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			env,
 			slots: IndexVec::from_elem_n(Slot::Unit, n),
 			def_at: IndexVec::from_elem_n(None, n),
+			joining: std::cell::Cell::new(false),
 			uses: IndexVec::from_elem_n(0, n),
 			defs: IndexVec::from_elem_n(0, n),
 			borrowed: IndexVec::from_elem_n(false, n),
@@ -3943,7 +3947,8 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 			}
 			true
 		}
-		// A member assigned to folds only to another slot, as `{ v: x }.v` does to `x`.
+		// A member assigned to folds only to the place an `rs.place` made here reads, as a
+		// value made here, such as `{ v: x }`'s, holds a copy of its own.
 		Expr::Assign(l, r) => {
 			let Expr::Member(base, key) = &mut **l else {
 				return subst(l, name, value) || subst(r, name, value);
@@ -3951,10 +3956,10 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 			if !subst(base, name, value) {
 				return subst(r, name, value);
 			}
-			if let Some(folded) = folded_member(base, key)
-				&& matches!(folded.unlocated(), Expr::Ident(_) | Expr::Member(..) | Expr::Index(..))
+			if matches!(key, ts::Key::Name(key) if key == "v")
+				&& let Some(place) = step::peel(base).place_read()
 			{
-				**l = folded;
+				**l = place;
 			}
 			true
 		}

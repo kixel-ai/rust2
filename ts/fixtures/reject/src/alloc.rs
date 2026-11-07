@@ -107,6 +107,18 @@ pub fn recast_reference(r: &u32) -> u32 {
 	unsafe { (*p.add(1)).assume_init() + q.add(1).read() + *m.wrapping_add(1).read() }
 }
 
+/// Pointers from a reference the body is given on one path of a branch, which JS keeps in
+/// an array of one on that path: measured against another from it, which JS keeps in an
+/// array of its own, and read one past it.
+pub fn joined_reference(r: &u32, flag: bool) -> u32 {
+	let p = if flag { std::ptr::from_ref(r) } else { std::ptr::null() };
+	let q = if flag { r as *const u32 } else { std::ptr::null() };
+	if !flag {
+		return 0;
+	}
+	unsafe { p.offset_from(std::ptr::from_ref(r)) as u32 + q.add(1).read() }
+}
+
 /// A pointer from a reference the body is given, which JS keeps in no array, moved past
 /// it.
 pub fn past_reference(r: &u32) -> u32 {
