@@ -574,3 +574,23 @@ fn put_options<const N: usize>(out: &mut Vec<u8>, options: &[Option<[u8; N]>]) {
 		put_some(out, a);
 	}
 }
+
+/// An array pattern's rest of an owned array of arrays, borrowed mutably and written
+/// through, from the front and from the back.
+pub fn rests(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let row = |at: usize| {
+		[
+			data.get(2 * at).copied().unwrap_or(at as u8),
+			data.get(2 * at + 1).copied().unwrap_or(kind),
+		]
+	};
+	let mut grid = [row(0), row(1), row(2)];
+	let [_, ref mut rest @ ..] = grid;
+	rest[0][0] ^= 0x77;
+	let [.., last] = rest;
+	last[1] = last[1].wrapping_add(3);
+	out.extend(grid.iter().flatten());
+	let [ref mut front @ .., _] = grid;
+	front[0][1] = front[1][0];
+	out.extend(grid.iter().flatten());
+}

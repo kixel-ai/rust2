@@ -5,7 +5,7 @@
 // A hash collection hashes a key that is a JS object with a faster hasher of its own,
 // whose values nothing sees, as std keys a map's hasher at random.
 
-import { ByteSlice, type ByteVec, type Elements, type None, Slice, sliceData, sliceItems, sliceLength, sliceStart, Vec } from "../rs.ts";
+import { ByteSlice, type ByteVec, type Elements, type None, Slice, sliceData, sliceItems, sliceLength, sliceStart } from "../rs.ts";
 import {
 	type i8,
 	type i16,
@@ -711,7 +711,7 @@ export function hashSlice<T>(hash: (value: T, s: Hasher) => void): (items: Eleme
 export function hashInts(size: 1 | 2 | 4 | 8 | 16): (items: Elements<number | Limbs>, s: Hasher) => void {
 	return (items, s) => {
 		s.prefix(sliceLength(items));
-		s.ints(items instanceof Slice ? sliceItems(items) : items instanceof Vec ? items.items : items, size);
+		s.ints(items instanceof Slice ? sliceItems(items) : sliceData(items), size);
 	};
 }
 
