@@ -58,8 +58,9 @@ pub struct Defining<'tcx> {
 	recorded: usize,
 	/// The field of the definition being typed whose type is.
 	pub field: Option<DefId>,
-	/// The instances whose projection arguments are being typed.
-	instancing: Vec<Ty<'tcx>>,
+	/// The instances being typed in the type expression being typed, which a definition
+	/// starts afresh.
+	pub(super) instancing: Vec<Ty<'tcx>>,
 }
 
 struct Typing {
@@ -230,8 +231,9 @@ impl<'tcx> Translator<'_, 'tcx> {
 	}
 
 	/// Start typing `instance`, an instance of the crate's generic type, unless it is
-	/// typed already further out: a projection of its parameters is then a type that holds
-	/// it again, so its TypeScript type arguments would never end, which is refused.
+	/// typed already further out in the same type expression: a projection of its
+	/// parameters is then a type whose arguments hold it again, so its TypeScript type
+	/// arguments would never end, which is refused.
 	pub(super) fn enter_instance(&mut self, instance: Ty<'tcx>, span: Span) -> bool {
 		let instancing = &self.defining_state.instancing;
 		if instancing.contains(&instance) || instancing.len() > self.tcx.recursion_limit().0 {

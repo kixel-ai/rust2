@@ -1099,8 +1099,11 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let glue = std::mem::replace(&mut self.glue, false);
 		let defining = self.defining.take();
 		let field = self.defining_state.field.take();
+		// A named type, so an instance its fields hold again ends there.
+		let instancing = std::mem::take(&mut self.defining_state.instancing);
 		let info = self.define(adt, span);
 		(self.held, self.glue, self.defining, self.defining_state.field) = (held, glue, defining, field);
+		self.defining_state.instancing = instancing;
 		info
 	}
 
@@ -1906,27 +1909,40 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			tys.push(later);
 			return Type::Sym(info.sym, tys);
 		}
+		// Its own arguments first: one that holds the instance again names a type that ends.
+		let mut tys: Vec<Type> = self
+			.own_args(adt.did(), args, span)
+			.into_iter()
+			.map(|(_, t)| t)
+			.collect();
 		if !self.enter_instance(Ty::new_adt(tcx, adt, args), span) {
 			return Type::Builtin("unknown");
 		}
 		if let Some(msg) = self.generic_erasure(adt, args, span) {
 			self.err(span, msg);
 		}
-		let args = self
-			.instance_params(adt.did(), args, span)
-			.into_iter()
-			.map(|(_, t)| t)
-			.collect();
+		tys.extend(self.projection_args(adt.did(), args, span).into_iter().map(|(_, t)| t));
 		self.leave_instance();
-		Type::Sym(info.sym, args)
+		Type::Sym(info.sym, tys)
 	}
 
 	/// The TypeScript type arguments of an instance of the crate's generic `adt` with `args`,
 	/// by the name of the parameter each is: one per type parameter, then one per projection
 	/// typing its fields named, which is what the projection normalizes to at `args`.
 	fn instance_params(&mut self, adt: DefId, args: GenericArgsRef<'tcx>, span: Span) -> Vec<(String, Type)> {
-		let tcx = self.tcx;
-		let mut params: Vec<(String, Type)> = (tcx.generics_of(adt).own_params.iter())
+		let mut params = self.own_args(adt, args, span);
+		let instance = Ty::new_adt(self.tcx, self.tcx.adt_def(adt), args);
+		if !self.enter_instance(instance, span) {
+			return params;
+		}
+		params.extend(self.projection_args(adt, args, span));
+		self.leave_instance();
+		params
+	}
+
+	/// The TypeScript type of each type argument of an instance of `adt`, by its parameter.
+	fn own_args(&mut self, adt: DefId, args: GenericArgsRef<'tcx>, span: Span) -> Vec<(String, Type)> {
+		(self.tcx.generics_of(adt).own_params.iter())
 			.filter(|param| matches!(param.kind, ty::GenericParamDefKind::Type { .. }))
 			.map(|param| {
 				(
@@ -1934,14 +1950,18 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					self.ty(args.type_at(param.index as usize), span),
 				)
 			})
-			.collect();
+			.collect()
+	}
+
+	/// What each projection typing the crate's generic `adt`'s fields named normalizes to at
+	/// `args`, by its parameter.
+	fn projection_args(&mut self, adt: DefId, args: GenericArgsRef<'tcx>, span: Span) -> Vec<(String, Type)> {
 		let (projections, names): (Vec<Ty<'tcx>>, Vec<String>) = self.defined(adt).projections.iter().cloned().unzip();
 		let env = self.defining.map_or(self.typing_env(), |(_, env)| env);
-		for (projection, name) in projections.into_iter().zip(names) {
-			let at = copy::instantiate(tcx, env, projection, args);
-			params.push((name, self.ty(at, span)));
-		}
-		params
+		let tcx = self.tcx;
+		(projections.into_iter().zip(names))
+			.map(|(projection, name)| (name, self.ty(copy::instantiate(tcx, env, projection, args), span)))
+			.collect()
 	}
 
 	/// The TypeScript type of `field` in the definition of `adt`, over its own parameters.
