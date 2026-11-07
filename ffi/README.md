@@ -41,6 +41,9 @@ over the C ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the 
 # must name something exported, or what a `cfg` leaves out of this build, as moq-tokio's
 # `unix` is on Windows. Nothing else leaves an item out. As in rustdoc, a path a
 # method or constant shares with a field names the method, and `field@` the field.
+# A `cfg`-stripped item is found through a glob re-export only while its source module
+# keeps an exported item; under a glob of a module a `cfg` empties, the exclude fails as
+# naming nothing exported.
 exclude = ["track::Producer::poll_closed"]
 ```
 
@@ -423,10 +426,10 @@ while Rust's modules may, so a package per module could not hold moq. An instanc
 generic type, or a function naming one, belongs to the last of its own and its arguments'
 crates in Cargo's order, which can name them all: moq's
 `mux::catalog::Producer<hang::catalog::Extra>` is in `mux`. The packages' import path is
-the module of the `go.mod` above `--out`, as `go mod edit -json` reads it, so the go
-command must be on PATH, with the path to `go/`; or else `<prefix>`, the module of the
-`go.mod` the export writes in `go/`, which a caller requires and replaces with that
-directory.
+the module of the `go.mod` above `--out`, as `go mod edit -json` reads it, with the path to
+`go/`; or else `<prefix>`, the module of the `go.mod` the export writes in `go/`, which a
+caller requires and replaces with that directory. The export needs `go` on PATH whenever it
+reads a go.mod.
 
 - **Names** are the C names without the prefix and the segments outside the item's crate,
   such as the facade's module re-exporting it, in Pascal case: `moq_track_Producer` is
