@@ -76,5 +76,4 @@ Public API: the translator's output.
 
 ## Required
 
-- [NonZero's unchecked arithmetic](/quest/m3/ts-unsafe/nonzero-unchecked-ops.md) - `NonZero::unchecked_add` and `unchecked_mul` translate, aborting at std's site
 - [UnsafeCell's raw accessors](/quest/m3/ts-unsafe/unsafecell.md) - `UnsafeCell::raw_get`, `from_mut`, and `replace` translate

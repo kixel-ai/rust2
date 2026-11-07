@@ -233,8 +233,8 @@ Each integer's inherent methods are std's, and a `NonZero`'s, a `Wrapping`'s, an
 `Saturating`'s are its integer's, as std defines them: a `Wrapping`'s `pow` is
 `wrapping_pow`. `pow` and `abs` panic on overflow as a debug build's do. An `unchecked_`
 method and `NonZero::new_unchecked` are their checked form, `rs.precondition(rs.u32CheckedAdd(a, b), ...)`,
-which aborts where it gives `None` as a debug build's check of the precondition does; a
-`NonZero`'s own `unchecked_` methods are refused. Those the operators
+which aborts where it gives `None` as a debug build's check of the precondition does, a
+`NonZero`'s own at std's call of its integer's. Those the operators
 lack are one runtime function for every width, `rs.intCheckedPow(a, n, 64, false)`, given
 the width and sign, which computes on the value's `bigint`.
 
