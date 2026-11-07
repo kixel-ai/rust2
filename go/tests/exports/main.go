@@ -17,11 +17,12 @@ const (
 	letter   = fixture.Letter
 	greeting = fixture.Greeting
 	sides    = fixture.ShapesSides
+	text     = fixture.Text
 )
 
 func main() {
 	fmt.Println(maxLen, countMax, floor, enabled, string(letter), sides)
-	fmt.Printf("%x\n", greeting)
+	fmt.Printf("%x %s\n", greeting, text)
 	// Each call is a fresh value, which changing leaves the next call's alone.
 	origin := fixture.Origin()
 	origin.Sum = 99

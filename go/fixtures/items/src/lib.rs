@@ -114,10 +114,36 @@ pub static BYTES: [u8; 3] = *b"abc";
 pub static LETTERS: [u8; 4] = *b"wxyz";
 /// `Tail`, a slice of part of another static, which Go callers see a write to it through.
 pub static TAIL: &[u8] = LETTERS.split_at(1).1;
+/// `Text`, a Go string from a static's bytes.
+pub const TEXT: &str = match std::str::from_utf8(&LETTERS) {
+	Ok(text) => text,
+	Err(_) => panic!(),
+};
 /// A slice of all of a static, from a constant.
 const ALL: &[u8] = &LETTERS;
 /// A constant pointing at a static points at the static.
 const HITS_AT: &Count = &HITS;
+
+mod hidden {
+	pub struct Shape {
+		pub sides: u8,
+	}
+
+	pub struct Edge(pub u8);
+}
+
+/// Of a type no path exports, whose Go name the function after it takes.
+pub static TRIANGLE: hidden::Shape = hidden::Shape { sides: 3 };
+
+/// `Shape`, which the static's type above does not take.
+pub fn shape() -> u8 {
+	TRIANGLE.sides
+}
+
+/// `Edge`, which the static's type below does not take.
+pub const EDGE: u8 = 2;
+
+pub static EDGES: hidden::Edge = hidden::Edge(5);
 
 /// Two statics each pointing at the other, which Go initializes after declaring both.
 struct Link {
@@ -216,6 +242,10 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 				std::ptr::eq(&TAIL[0], &LETTERS[1]) as u8,
 				std::ptr::eq(&ALL[3], &TAIL[2]) as u8,
 				TAIL.len() as u8,
+				std::ptr::eq(&TEXT.as_bytes()[2], &LETTERS[2]) as u8,
+				shape(),
+				EDGE,
+				EDGES.0,
 				std::ptr::eq(RING_A.next.next, &RING_A) as u8,
 				ring.value,
 				MAX_LEN,
@@ -232,7 +262,7 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 				out.push((v >> 8) as u8);
 				out.push(v as u8);
 			}
-			for s in &[NAME, GREETING] {
+			for s in &[NAME, GREETING, TEXT] {
 				for &b in s.as_bytes() {
 					out.push(b);
 				}

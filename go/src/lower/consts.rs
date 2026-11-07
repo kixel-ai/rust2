@@ -131,10 +131,11 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				{
 					return slice;
 				}
-				match val.try_get_slice_bytes_for_diagnostics(tcx) {
-					Some(bytes) if matches!(ty.builtin_deref(true).map(|t| t.kind()), Some(ty::Str | ty::Slice(_))) => {
-						self.shared(alloc_id, (0, bytes.len() as u64, ty), bytes_lit(bytes), span)
-					}
+				match ty.builtin_deref(true).map(|t| t.kind()) {
+					Some(ty::Str | ty::Slice(_)) => match self.slice_bytes(val, ty, span) {
+						Some(bytes) => self.shared(alloc_id, (0, bytes.len() as u64, ty), bytes_lit(bytes), span),
+						None => "struct{}{}".into(),
+					},
 					_ => self.err(span, format!("a slice constant of type `{ty}`")),
 				}
 			}
@@ -257,7 +258,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				),
 			);
 		}
-		let name = match self.t.static_names.get(&def_id) {
+		let name = match self.t.value_names.get(&def_id) {
 			Some(name) => name.clone(),
 			None => self.t.fresh(&super::names::static_base(tcx, def_id)),
 		};
@@ -286,67 +287,101 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 	/// memory, as a promoted `&1` or `&"text"` holds it.
 	fn in_memory(&mut self, alloc_id: AllocId, offset: Size, ty: Ty<'tcx>, span: Span) -> String {
 		let tcx = self.tcx;
-		let Some(alloc) = self.memory(alloc_id, span) else {
-			return "struct{}{}".into();
-		};
-		let ptr = tcx.data_layout.pointer_size();
-		// A pointer is read with what it points to, and an integer without.
-		let read =
-			|at: Size, size: Size, pointer: bool| alloc.inner().read_scalar(&tcx, alloc_range(at, size), pointer).ok();
 		match ty.kind() {
 			ty::Ref(_, inner, _) if matches!(inner.kind(), ty::Str | ty::Slice(_)) => {
-				// A pointer to the bytes, then their length.
-				let (Some(Scalar::Ptr(to, _)), Some(Scalar::Int(len))) =
-					(read(offset, ptr, true), read(offset + ptr, ptr, false))
-				else {
-					return self.err(span, format!("a constant of type `{ty}` in memory"));
-				};
-				let (prov, start) = to.prov_and_relative_offset();
-				let len = len.to_target_usize(tcx);
-				if let Some(slice) = self.static_slice(prov.alloc_id(), start, len, *inner, span) {
-					return slice;
-				}
-				let Some(bytes) = self.memory(prov.alloc_id(), span) else {
+				let Some((to, start, len)) = self.fat_pointer(alloc_id, offset, ty, span) else {
 					return "struct{}{}".into();
 				};
+				if let Some(slice) = self.static_slice(to, start, len, *inner, span) {
+					return slice;
+				}
 				let at = (start.bytes(), len, ty);
-				match inner.kind() {
-					ty::Str => {
-						let start = start.bytes() as usize;
-						let value = bytes_lit(
-							bytes
-								.inner()
-								.inspect_with_uninit_and_ptr_outside_interpreter(start..start + len as usize),
-						);
-						self.shared(prov.alloc_id(), at, value, span)
-					}
+				let value = match inner.kind() {
+					ty::Str => match self.bytes(to, start, len, span) {
+						Some(bytes) => bytes_lit(bytes),
+						None => return "struct{}{}".into(),
+					},
 					// The elements as an array's, which the slice is of.
-					ty::Slice(elem) => {
-						let array = ty::Ty::new_array(tcx, *elem, len);
+					_ => {
+						let array = Ty::new_array(tcx, inner.sequence_element_type(tcx), len);
 						let value = self.const_value(
 							ConstValue::Indirect {
-								alloc_id: prov.alloc_id(),
+								alloc_id: to,
 								offset: start,
 							},
 							array,
 							span,
 						);
-						format!("{}[:]", self.shared(prov.alloc_id(), at, value, span))
+						return format!("{}[:]", self.shared(to, at, value, span));
 					}
-					_ => self.err(span, format!("a constant of type `{ty}` in memory")),
-				}
+				};
+				self.shared(to, at, value, span)
 			}
 			ty::Bool | ty::Char | ty::Int(_) | ty::Uint(_) | ty::Ref(..) => {
 				let Ok(layout) = tcx.layout_of(self.t_env().as_query_input(ty)) else {
 					return self.err(span, format!("a constant of type `{ty}` without a layout"));
 				};
-				match read(offset, layout.size, ty.is_ref()) {
+				match self.read(alloc_id, offset, layout.size, ty.is_ref(), span) {
 					Some(scalar) => self.const_value(ConstValue::Scalar(scalar), ty, span),
 					None => self.err(span, format!("a constant of type `{ty}` in memory")),
 				}
 			}
 			_ => self.err(span, format!("a constant of type `{ty}` in memory")),
 		}
+	}
+
+	/// The scalar of `size` at `at` in `alloc`: a pointer, read with what it points to, or
+	/// an integer, without.
+	fn read(&mut self, alloc: AllocId, at: Size, size: Size, pointer: bool, span: Span) -> Option<Scalar> {
+		let memory = self.memory(alloc, span)?;
+		memory
+			.inner()
+			.read_scalar(&self.tcx, alloc_range(at, size), pointer)
+			.ok()
+	}
+
+	/// What the reference `ty` to a `str` or slice at `offset` in `alloc` points to: an
+	/// allocation, the offset in it, and the length.
+	fn fat_pointer(&mut self, alloc: AllocId, offset: Size, ty: Ty<'tcx>, span: Span) -> Option<(AllocId, Size, u64)> {
+		let ptr = self.tcx.data_layout.pointer_size();
+		match (
+			self.read(alloc, offset, ptr, true, span),
+			self.read(alloc, offset + ptr, ptr, false, span),
+		) {
+			(Some(Scalar::Ptr(to, _)), Some(Scalar::Int(len))) => {
+				let (prov, start) = to.prov_and_relative_offset();
+				Some((prov.alloc_id(), start, len.to_target_usize(self.tcx)))
+			}
+			_ => {
+				self.err(span, format!("a constant of type `{ty}` in memory"));
+				None
+			}
+		}
+	}
+
+	/// The `len` bytes at `start` in `alloc`.
+	fn bytes(&mut self, alloc: AllocId, start: Size, len: u64, span: Span) -> Option<&'tcx [u8]> {
+		let memory = self.memory(alloc, span)?;
+		let start = start.bytes() as usize;
+		Some(
+			memory
+				.inner()
+				.inspect_with_uninit_and_ptr_outside_interpreter(start..start + len as usize),
+		)
+	}
+
+	/// The bytes a `&str` or `&[u8]` constant `val` of type `ty` points to, in constant
+	/// memory or a static's.
+	pub fn slice_bytes(&mut self, val: ConstValue, ty: Ty<'tcx>, span: Span) -> Option<&'tcx [u8]> {
+		let (alloc, start, len) = match val {
+			ConstValue::Slice { alloc_id, meta } => (alloc_id, Size::ZERO, meta),
+			ConstValue::Indirect { alloc_id, offset } => self.fat_pointer(alloc_id, offset, ty, span)?,
+			_ => {
+				self.err(span, format!("a constant of type `{ty}` outside memory"));
+				return None;
+			}
+		};
+		self.bytes(alloc, start, len, span)
 	}
 }
 

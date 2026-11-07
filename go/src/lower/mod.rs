@@ -173,10 +173,11 @@ pub struct Translator<'tcx> {
 	/// The package-level variable holding each constant allocation, and the offset,
 	/// length, and type it holds it at.
 	allocs: HashMap<rustc_middle::mir::interpret::AllocId, ((u64, u64, Ty<'tcx>), String)>,
-	/// The Go variable of each static reached, and the name of each `pub` one, which its
-	/// declaration takes.
+	/// The Go variable of each static reached.
 	statics: HashMap<DefId, String>,
-	static_names: HashMap<DefId, String>,
+	/// The Go name of each function, constant, and static of the `pub` API, which its
+	/// declaration takes.
+	value_names: HashMap<DefId, String>,
 	/// The statics whose values are being lowered, and those of them a value reached
 	/// again, which Go would refuse as an initialization cycle.
 	initializing: Vec<DefId>,
@@ -219,7 +220,7 @@ impl<'tcx> Translator<'tcx> {
 			out: BTreeMap::new(),
 			allocs: HashMap::new(),
 			statics: HashMap::new(),
-			static_names: HashMap::new(),
+			value_names: HashMap::new(),
 			initializing: Vec::new(),
 			cyclic: HashSet::new(),
 			splits: HashMap::new(),
@@ -307,25 +308,36 @@ impl<'tcx> Translator<'tcx> {
 		}
 	}
 
-	/// Name a type, alias, or static of the `pub` API by its path in camel case, as its
-	/// declaration takes, since another item's may reach it first.
+	/// Name an item of the `pub` API, and a type's `pub` inherent items, by its path in
+	/// camel case, as its declaration takes: all before any is lowered, since lowering one
+	/// can declare a type another's name would then meet.
 	fn name_item(&mut self, path: &str, def_id: DefId) {
 		let tcx = self.tcx;
 		let span = tcx.def_span(def_id);
-		match tcx.def_kind(def_id) {
-			DefKind::Struct | DefKind::Enum | DefKind::Union if library::mapped(tcx, def_id).is_some() => {}
+		let name = match tcx.def_kind(def_id) {
+			DefKind::Struct | DefKind::Enum | DefKind::Union if library::mapped(tcx, def_id).is_some() => return,
 			DefKind::Struct | DefKind::Enum | DefKind::Union | DefKind::TyAlias => {
 				let name = names::exported(path);
 				self.claim(&name, span);
 				self.type_names.insert(def_id, name);
+				if tcx.def_kind(def_id) == DefKind::TyAlias {
+					return;
+				}
+				for &imp in tcx.inherent_impls(def_id) {
+					for item in tcx.associated_items(imp).in_definition_order() {
+						if tcx.visibility(item.def_id).is_public() {
+							self.name_item(&format!("{path}::{}", item.name()), item.def_id);
+						}
+					}
+				}
+				return;
 			}
-			DefKind::Static { .. } => {
-				let name = names::exported_value(path);
-				self.claim(&name, span);
-				self.static_names.insert(def_id, name);
-			}
-			_ => {}
-		}
+			DefKind::Fn | DefKind::AssocFn => names::exported(path),
+			DefKind::Const | DefKind::AssocConst | DefKind::Static { .. } => names::exported_value(path),
+			_ => return,
+		};
+		self.claim(&name, span);
+		self.value_names.insert(def_id, name);
 	}
 
 	/// A `pub` constant, evaluated once as rustc does: a Go `const` where Go has a constant
@@ -342,8 +354,7 @@ impl<'tcx> Translator<'tcx> {
 			);
 			return;
 		}
-		let name = names::exported_value(path);
-		self.claim(&name, span);
+		let name = self.value_names[&def_id].clone();
 		let ty = tcx.normalize_erasing_regions(
 			self.env(),
 			Unnormalized::new_wip(tcx.type_of(def_id).instantiate_identity().skip_norm_wip()),
@@ -356,15 +367,12 @@ impl<'tcx> Translator<'tcx> {
 		let mut fx = body::Fx::new(self, &body, export, def_id.is_local());
 		let doc = format!("// {name} is `{path}`.\n");
 		match ty.kind() {
-			TyKind::Ref(_, inner, _) if inner.is_str() => match val.try_get_slice_bytes_for_diagnostics(tcx) {
-				Some(bytes) => {
+			TyKind::Ref(_, inner, _) if inner.is_str() => {
+				if let Some(bytes) = fx.slice_bytes(val, ty, span) {
 					let text = format!("{doc}const {name} = {}\n", consts::go_string(bytes));
 					self.declare(def_id.krate, &name, text);
 				}
-				None => {
-					fx.err(span, "a `&str` constant whose bytes can't be read");
-				}
-			},
+			}
 			TyKind::Int(_) | TyKind::Uint(_) | TyKind::Bool | TyKind::Char => {
 				let text = format!("{doc}const {name} = {}\n", fx.const_value(val, ty, span));
 				self.declare(def_id.krate, &name, text);
@@ -398,8 +406,7 @@ impl<'tcx> Translator<'tcx> {
 		}
 		let instance = Instance::mono(tcx, def_id);
 		let span = tcx.def_span(def_id);
-		let name = names::exported(path);
-		self.claim(&name, span);
+		let name = self.value_names[&def_id].clone();
 		let sig = tcx.instantiate_bound_regions_with_erased(tcx.fn_sig(def_id).skip_binder());
 		let normal = |t: Ty<'tcx>| tcx.normalize_erasing_regions(self.env(), Unnormalized::new_wip(t));
 		let inputs: Vec<Ty<'tcx>> = sig.inputs().iter().map(|t| normal(*t)).collect();

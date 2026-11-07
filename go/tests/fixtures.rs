@@ -362,7 +362,7 @@ fn exports() {
 	let mut start = Count::START;
 	start.bump();
 	let want = format!(
-		"{} {} {} {} {} {}\n{}\n99 {} {} {}\n{} [{}] {} {} {}\n{} 9 9\nq{}\n",
+		"{} {} {} {} {} {}\n{} {}\n99 {} {} {}\n{} [{}] {} {} {}\n{} 9 9\nq{}\n",
 		items::MAX_LEN,
 		Count::MAX,
 		items::FLOOR,
@@ -370,6 +370,7 @@ fn exports() {
 		items::LETTER,
 		shapes::SIDES,
 		hex(items::GREETING),
+		items::TEXT,
 		items::ORIGIN.sum,
 		start.count,
 		Count::START.count,
