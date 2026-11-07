@@ -137,19 +137,20 @@ export function value(self: Input): rs.JsValue {
 		return wasm_bindgen_from$convert_From_i64_wasm_bindgen_JsValue(rs.i64Cast(u64(self)));
 	}
 	if (_2 === 7) {
-		return rs.global.Array.from(rs.byteSliceView(slice(self))) as rs.JsValue;
+		const _12: rs.ByteSlice = slice(self);
+		return rs.jsGlobal("Array").from(rs.byteSliceView(_12)) as rs.JsValue;
 	}
 	if (_2 === 8) {
 		return js_sys_from$convert_From_ref_slice_u8_js_sys_Uint8Array(slice(self));
 	}
 	if (_2 === 9) {
-		return new rs.global.Object() as rs.JsValue;
+		return new (rs.jsGlobal("Object"))() as rs.JsValue;
 	}
 	if (_2 === 10) {
 		return wasm_bindgen_from$convert_From_u32_wasm_bindgen_JsValue(rs.u32Rem(u32(self), 1000));
 	}
 	const _20: rs.Slice<rs.u16> = rs.sliceFrom(units(self).items);
-	return rs.global.Reflect.apply(rs.global.String.fromCharCode, rs.global.String, Array.from(rs.jsAny(rs.jsTyped(rs.global.Uint16Array, _20, false)))) as rs.JsValue;
+	return rs.global.Reflect.apply(rs.jsGlobal("String").fromCharCode, rs.jsGlobal("String"), rs.jsSpread(rs.jsTyped(rs.global.Uint16Array, _20, false))) as rs.JsValue;
 }
 
 /** UTF-16 code units, lone surrogates among them. */

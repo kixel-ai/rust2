@@ -141,6 +141,19 @@ export function dynRef$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_Uint8Arra
  * then this method may cause runtime exceptions in both Rust and JS, this
  * should be used with caution.
  */
+export function uncheckedInto$wasm_bindgen_JsCast_js_sys_Object_js_sys_Array(self: rs.JsValue): rs.JsValue {
+	return self;
+}
+
+/**
+ * Performs a zero-cost unchecked cast into the specified type.
+ *
+ * This method will convert the `self` value to the type `T`, where both
+ * `self` and `T` are simple wrappers around `JsValue`. This method **does
+ * not check whether `self` is an instance of `T`**. If used incorrectly
+ * then this method may cause runtime exceptions in both Rust and JS, this
+ * should be used with caution.
+ */
 export function uncheckedInto$wasm_bindgen_JsCast_js_sys_Object_web_sys_TextDecoderOptions(self: rs.JsValue): rs.JsValue {
 	return self;
 }
@@ -251,7 +264,7 @@ export function uncheckedRef$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_Uin
  * instead.
  */
 export function isInstanceOf$wasm_bindgen_JsCast_wasm_bindgen_JsValue_imports_Missing(self: rs.JsValue): boolean {
-	return rs.jsToBool(rs.jsInstanceof(wasm_bindgen_asRef$convert_AsRef_wasm_bindgen_JsValue_wasm_bindgen_JsValue(self), () => rs.global.RustNoSuchClass));
+	return rs.jsToBool(rs.jsInstanceof(wasm_bindgen_asRef$convert_AsRef_wasm_bindgen_JsValue_wasm_bindgen_JsValue(self), () => rs.jsGlobal("RustNoSuchClass")));
 }
 
 /**
@@ -266,7 +279,7 @@ export function isInstanceOf$wasm_bindgen_JsCast_wasm_bindgen_JsValue_imports_Mi
  * instead.
  */
 export function isInstanceOf$wasm_bindgen_JsCast_wasm_bindgen_JsValue_imports_Table(self: rs.JsValue): boolean {
-	return rs.jsToBool(rs.jsInstanceof(wasm_bindgen_asRef$convert_AsRef_wasm_bindgen_JsValue_wasm_bindgen_JsValue(self), () => rs.global.Map));
+	return rs.jsToBool(rs.jsInstanceof(wasm_bindgen_asRef$convert_AsRef_wasm_bindgen_JsValue_wasm_bindgen_JsValue(self), () => rs.jsGlobal("Map")));
 }
 
 /**
@@ -296,7 +309,7 @@ export function isInstanceOf$wasm_bindgen_JsCast_wasm_bindgen_JsValue_imports_Ve
  * instead.
  */
 export function isInstanceOf$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_TypeError(self: rs.JsValue): boolean {
-	return rs.jsToBool(rs.jsInstanceof(wasm_bindgen_asRef$convert_AsRef_wasm_bindgen_JsValue_wasm_bindgen_JsValue(self), () => rs.global.TypeError));
+	return rs.jsToBool(rs.jsInstanceof(wasm_bindgen_asRef$convert_AsRef_wasm_bindgen_JsValue_wasm_bindgen_JsValue(self), () => rs.jsGlobal("TypeError")));
 }
 
 /**
@@ -311,7 +324,7 @@ export function isInstanceOf$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_Typ
  * detail of `has_type` and you likely won't need to call this.
  */
 export function isTypeOf$wasm_bindgen_JsCast_js_sys_Error(val: rs.JsValue): boolean {
-	return rs.jsToBool(rs.jsInstanceof(val, () => rs.global.Error));
+	return rs.jsToBool(rs.jsInstanceof(val, () => rs.jsGlobal("Error")));
 }
 
 /**
@@ -326,7 +339,7 @@ export function isTypeOf$wasm_bindgen_JsCast_js_sys_Error(val: rs.JsValue): bool
  * detail of `has_type` and you likely won't need to call this.
  */
 export function isTypeOf$wasm_bindgen_JsCast_js_sys_Uint8Array(val: rs.JsValue): boolean {
-	return rs.jsToBool(rs.jsInstanceof(val, () => rs.global.Uint8Array));
+	return rs.jsToBool(rs.jsInstanceof(val, () => rs.jsGlobal("Uint8Array")));
 }
 
 //# sourceMappingURL=cast.ts.map

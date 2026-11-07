@@ -170,3 +170,32 @@ extern "C" {
 	#[wasm_bindgen(thread_local_v2, static_string)]
 	pub static GREETING: JsString = "hé\u{1f600}";
 }
+
+#[wasm_bindgen]
+extern "C" {
+	// A namespace's variadic function, called on its namespace, and one spreading what has
+	// no iterator.
+	#[wasm_bindgen(variadic, js_namespace = Uint8Array, js_name = of)]
+	pub fn bytes_of(bytes: &[u8]) -> Vec<u8>;
+	#[wasm_bindgen(catch, variadic, js_namespace = Array, js_name = of)]
+	pub fn array_of_caught(values: &Array) -> Result<Array, JsValue>;
+
+	// What converting a `catch` import's result throws: caught where the JS glue converts,
+	// as for a `char`, and thrown where the WebAssembly ABI coerces, as for a `u32`.
+	#[wasm_bindgen(catch, js_name = String)]
+	pub fn char_caught(v: &JsValue) -> Result<char, JsValue>;
+	#[wasm_bindgen(catch, js_name = rustIdentity)]
+	pub fn u32_caught(v: &JsValue) -> Result<u32, JsValue>;
+	#[wasm_bindgen(js_name = rustIdentity)]
+	pub fn u32_of(v: &JsValue) -> u32;
+
+	// An optional `bool`, which the JS glue reads by its truthiness.
+	#[wasm_bindgen(js_namespace = Math, js_name = abs)]
+	pub fn abs_flag(x: Option<f64>) -> Option<bool>;
+
+	// Globals no JS defines: each throws a `ReferenceError`, as naming it does.
+	#[wasm_bindgen(catch, js_name = rustNoSuchFunction)]
+	pub fn missing_function() -> Result<(), JsValue>;
+	#[wasm_bindgen(catch, constructor, js_class = RustNoSuchClass)]
+	pub fn new() -> Result<Missing, JsValue>;
+}

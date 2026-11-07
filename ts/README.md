@@ -838,21 +838,24 @@ of them:
   Its call is the JS the CLI would write: a function, a method by its class's prototype or
   structurally, a getter, a setter, an indexing getter, setter, or deleter, a constructor,
   a static method, a symbol-named method, and a variadic call spreading its last argument,
-  each reached through `globalThis` by its namespace, and by its vendor prefix when the
-  unprefixed name is not defined, which is resolved at each call where the CLI resolves it
-  once. Its arguments and results convert as the CLI's do: numbers as the WebAssembly ABI
+  each reached through `globalThis` by its namespace, throwing a `ReferenceError` where no
+  global has its name, and by its vendor prefix when the unprefixed name is not defined,
+  which is resolved at each call where the CLI resolves it once. Its arguments and results convert as the CLI's do: numbers as the WebAssembly ABI
   coerces them, 64- and 128-bit integers as BigInts, `char`s, strings, slices and vectors
   of numbers as typed arrays, of `JsValue`s and of strings as arrays, `Option`s by
-  `undefined`, and string enums by their strings. A `catch` import is a `Result` of what
-  JS threw, and an import that throws otherwise throws through the translation, as it
-  unwinds the WASM. A `thread_local_v2` static is an `rs.LazyCell` read once, an optional
+  `undefined`, an optional `bool` by its truthiness, and string enums by their strings. A
+  `catch` import is a `Result` of what JS threw, converting its result included where the
+  CLI's glue converts it, but not where the WebAssembly ABI coerces a number, and an
+  import that throws otherwise throws through the translation, as it unwinds the WASM. A `thread_local_v2` static is an `rs.LazyCell` read once, an optional
   one `None` where it is `undefined`, and a `static_string` its literal. `instanceof`,
   `JsCast::has_type` and `dyn_into`, the intrinsics `js-sys` reads, such as `typeof`,
   equality, operators, and `debug_string`, and `throw_str` and `throw_val` are JS's own.
   Refused, each at its span: imports of custom JS, by `module`, `raw_module`, or
   `inline_js`, a `suspending` import, an `experimental_generic_mono` one, which the CLI
-  makes JS of per instance, a `Closure`, the intrinsics only WASM has, such as `memory()`,
-  and a `#[wasm_bindgen]` export, as a translation exports the crate's `pub` API itself.
+  makes JS of per instance, a `Closure`, a mutable slice within an `Option`, 0.2.130's
+  `Nullable`, which no CLI in the dev shell makes glue of to compare against, the
+  intrinsics only WASM has, such as `memory()`, and a `#[wasm_bindgen]` export, as a
+  translation exports the crate's `pub` API itself.
 
 ## Bindings
 

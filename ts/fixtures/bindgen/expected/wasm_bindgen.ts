@@ -90,7 +90,7 @@ export function asString$wasm_bindgen_JsValue(self: rs.JsValue): rs.String | und
  */
 export function asBool$wasm_bindgen_JsValue(self: rs.JsValue): boolean | undefined {
 	return ((got: unknown): boolean | undefined => {
-		return rs.jsIsNone(got) ? undefined : rs.jsToBool(got);
+		return rs.jsIsNone(got) ? undefined : !!got;
 	})(((v: unknown) => typeof v === "boolean" ? v : undefined)(self));
 }
 
@@ -347,6 +347,10 @@ export function asRef$convert_AsRef_wasm_bindgen_JsValue_wasm_bindgen_JsValue(se
 	return self;
 }
 
+export function from$convert_From_i32_wasm_bindgen_JsValue(n: rs.i32): rs.JsValue {
+	return fromF64$wasm_bindgen_JsValue(n as rs.f64);
+}
+
 export function from$convert_From_u32_wasm_bindgen_JsValue(n: rs.u32): rs.JsValue {
 	return fromF64$wasm_bindgen_JsValue(n as rs.f64);
 }
@@ -374,6 +378,10 @@ export function from$convert_From_u128_wasm_bindgen_JsValue(arg: rs.u128): rs.Js
 export function fmt$fmt_Debug_wasm_bindgen_JsValue(self: rs.JsValue, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const part = asDebugString$wasm_bindgen_JsValue(self);
 	return rs.fmtWriteFmt(f, ["JsValue(", (f: rs.Formatter) => rs.fmtPad(f, part.v), ")"]);
+}
+
+export function default_$Default_wasm_bindgen_JsValue(): rs.JsValue {
+	return undefined;
 }
 
 /**

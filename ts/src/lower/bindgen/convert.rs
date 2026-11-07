@@ -92,6 +92,10 @@ pub fn to_js<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: 
 		ty::Ref(_, inner, _) => match inner.kind() {
 			ty::Str => value,
 			ty::Slice(elem) if super::super::byte(*elem) => Expr::rs("byteSliceView", vec![value]),
+			// What JS writes into one is written back only where it is the argument itself.
+			ty::Slice(_) if matches!(ty.kind(), ty::Ref(_, _, ty::Mutability::Mut)) => {
+				return Err(refuse(ty, "argument"));
+			}
 			ty::Slice(elem) if let Some((class, big)) = typed(*elem) => {
 				Expr::rs("jsTyped", vec![global(class), value, Expr::lit(big.to_string())])
 			}
@@ -149,25 +153,6 @@ pub fn to_js<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: 
 				let names = enum_names(b, adt.did());
 				Expr::rs("jsEnum", vec![names, values, value])
 			}
-			None if nullable(b, adt.did()) => {
-				let inner = args.type_at(0);
-				let some = b.fresh("value");
-				let converted = to_js(b, inner, Expr::ident(some.clone()).member("_0"), span)?;
-				Expr::Call(
-					Box::new(Expr::Lambda(
-						vec![Param {
-							name: some.clone(),
-							ty: Some(b.t.ty(ty, span)),
-						}],
-						Box::new(Expr::Cond(
-							Box::new(Expr::ident(some).member("tag").binary("===", Expr::Str("Null".into()))),
-							Box::new(Expr::lit("null")),
-							Box::new(converted),
-						)),
-					)),
-					vec![value],
-				)
-			}
 			_ => return Err(refuse(ty, "argument")),
 		},
 		_ => return Err(refuse(ty, "argument")),
@@ -208,7 +193,11 @@ pub fn from_js<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span
 				let inner = args.type_at(0);
 				let some = b.fresh("got");
 				let none = b.t.none(inner);
-				let converted = from_js(b, inner, Expr::ident(some.clone()), span)?;
+				// The JS glue reads an optional `bool` by its truthiness, not through the ABI's `i32`.
+				let converted = match inner.kind() {
+					ty::Bool => Expr::Unary("!!", Box::new(Expr::ident(some.clone()))),
+					_ => from_js(b, inner, Expr::ident(some.clone()), span)?,
+				};
 				let ret = b.t.ty(ty, span);
 				Expr::Call(
 					Box::new(Expr::Arrow(
@@ -249,42 +238,23 @@ pub fn from_js<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span
 				let ts = b.t.ty(ty, span);
 				Expr::As(Box::new(Expr::rs("jsToEnum", vec![names, values, value])), ts)
 			}
-			None if nullable(b, adt.did()) => {
-				let inner = args.type_at(0);
-				let got = b.fresh("got");
-				let converted = from_js(b, inner, Expr::ident(got.clone()), span)?;
-				let ret = b.t.ty(ty, span);
-				let tagged = |tag: &str, value: Option<Expr>| {
-					let mut props = vec![(crate::ts::Key::Name("tag".into()), Expr::Str(tag.into()))];
-					props.extend(value.map(|v| (crate::ts::Key::Name("_0".into()), v)));
-					Expr::Object(props)
-				};
-				Expr::Call(
-					Box::new(Expr::Arrow(
-						vec![Param {
-							name: got.clone(),
-							ty: Some(Type::Builtin("unknown")),
-						}],
-						ret.clone(),
-						vec![
-							StmtKind::Return(Some(Expr::As(
-								Box::new(Expr::Cond(
-									Box::new(Expr::ident(got).binary("===", Expr::lit("null"))),
-									Box::new(tagged("Null", None)),
-									Box::new(tagged("Value", Some(converted))),
-								)),
-								ret,
-							)))
-							.at(None),
-						],
-					)),
-					vec![value],
-				)
-			}
 			_ => return Err(refuse(ty, "result")),
 		},
 		_ => return Err(refuse(ty, "result")),
 	})
+}
+
+/// Whether the JS glue converts an import's result of `ty`, so that a `catch` import catches
+/// what converting it throws, rather than the WebAssembly ABI, after the glue has returned.
+pub fn converted_in_glue<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
+	match ty.kind() {
+		// A 128-bit integer, which the glue splits into halves, and no other number.
+		ty::Bool | ty::Float(_) | ty::Int(_) | ty::Uint(_) => {
+			matches!(ty.kind(), ty::Int(ty::IntTy::I128) | ty::Uint(ty::UintTy::U128))
+		}
+		ty::Tuple(tys) => !tys.is_empty(),
+		_ => b.t.std_of(ty) != Some(Std::Js),
+	}
 }
 
 /// `(v) => <v converted to JS>`, for each item of a slice or vector of `elem`.
@@ -338,12 +308,6 @@ fn slice_of<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr) -> Expr {
 /// Whether `ty` is JS-represented, seen through references.
 pub fn represented<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 	b.t.std_of(ty.peel_refs()) == Some(Std::Js)
-}
-
-/// Whether `did` is wasm-bindgen's `Nullable`, `null` or a value at the boundary.
-fn nullable(b: &Body<'_, '_, '_>, did: rustc_hir::def_id::DefId) -> bool {
-	let tcx = b.t.tcx;
-	tcx.crate_name(did.krate).as_str() == "wasm_bindgen" && tcx.item_name(did).as_str() == "Nullable"
 }
 
 /// The names translation holds a string enum's variants by, in order.

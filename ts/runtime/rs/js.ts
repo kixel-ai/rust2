@@ -70,38 +70,39 @@ export function jsIsNone(v: unknown): boolean {
 }
 
 // From JS, as an import's result: each integer through the WebAssembly ABI's `i32`, which
-// is `ToInt32`, then read as the Rust type, as wasm-bindgen's `from_abi` reads it.
+// is `ToInt32`, then read as the Rust type, as wasm-bindgen's `from_abi` reads it. `+` is
+// its `ToNumber`, which throws on a BigInt as the ABI does, where `|` would mix them.
 
 export function jsToU8(v: unknown): u8 {
-	return (v as number) & 0xff;
+	return +(v as number) & 0xff;
 }
 
 export function jsToI8(v: unknown): i8 {
-	return ((v as number) << 24) >> 24;
+	return (+(v as number) << 24) >> 24;
 }
 
 export function jsToU16(v: unknown): u16 {
-	return (v as number) & 0xffff;
+	return +(v as number) & 0xffff;
 }
 
 export function jsToI16(v: unknown): i16 {
-	return ((v as number) << 16) >> 16;
+	return (+(v as number) << 16) >> 16;
 }
 
 export function jsToU32(v: unknown): u32 {
-	return (v as number) >>> 0;
+	return +(v as number) >>> 0;
 }
 
 export function jsToI32(v: unknown): i32 {
-	return (v as number) | 0;
+	return +(v as number) | 0;
 }
 
 export function jsToUsize(v: unknown): usize {
-	return (v as number) >>> 0;
+	return +(v as number) >>> 0;
 }
 
 export function jsToIsize(v: unknown): isize {
-	return (v as number) | 0;
+	return +(v as number) | 0;
 }
 
 /** `f64`, through the ABI's `ToNumber`, which throws on a BigInt or a Symbol. */
@@ -110,11 +111,11 @@ export function jsToF64(v: unknown): number {
 }
 
 export function jsToF32(v: unknown): f32 {
-	return Math.fround(v as number);
+	return Math.fround(+(v as number));
 }
 
 export function jsToBool(v: unknown): boolean {
-	return ((v as number) | 0) !== 0;
+	return (+(v as number) | 0) !== 0;
 }
 
 /** A 64- or 128-bit integer: `BigInt.asIntN` and `asUintN` take a BigInt only, as the ABI's `ToBigInt64` does. */
@@ -176,15 +177,22 @@ export function jsToEnum<T extends string>(names: readonly T[], values: readonly
 	return names[i < 0 ? names.length - 1 : i];
 }
 
-/** A `catch` import's call: `Ok` of its result, converted, or `Err` of what it threw. */
-export function jsCatch<T>(call: () => unknown, from: (v: unknown) => T): Result<T, unknown> {
+/** A `catch` import's call: `Ok` of its result, converted, or `Err` of what it threw. What converting throws is caught where the JS glue converts it (`glue`), and thrown where the WebAssembly ABI coerces it, after the glue returns. */
+export function jsCatch<T>(call: () => unknown, from: (v: unknown) => T, glue: boolean): Result<T, unknown> {
 	let v: unknown;
 	try {
 		v = call();
+		if (glue) return Ok(from(v));
 	} catch (e) {
 		return Err(e);
 	}
 	return Ok(from(v));
+}
+
+/** A variadic import's last argument, spread as a spread reads it: by its iterator, throwing where it has none. */
+// biome-ignore lint/suspicious/noExplicitAny: arguments of any type, after those before them.
+export function jsSpread(v: unknown): any[] {
+	return [...(v as Iterable<unknown>)];
 }
 
 /** `instanceof` the class `class_` names, false where naming it or the check throws, as where the JS glue finds no such class. */
@@ -207,6 +215,13 @@ export function jsOptionalPath(root: unknown, ...props: string[]): unknown {
 	if (v === undefined) return null;
 	for (const prop of props) v = jsAny(v)?.[prop];
 	return v;
+}
+
+/** A global the JS glue names as an identifier: a `ReferenceError` where none is defined, as reading an undeclared identifier throws. */
+// biome-ignore lint/suspicious/noExplicitAny: a global, of whatever shape JS gives it.
+export function jsGlobal(name: string): any {
+	if (!(name in global)) throw new ReferenceError(`${name} is not defined`);
+	return global[name];
 }
 
 /** A global by name, or the first of its vendor-prefixed names that is defined. */

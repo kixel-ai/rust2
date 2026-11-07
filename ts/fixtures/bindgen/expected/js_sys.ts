@@ -17,7 +17,7 @@ import { isString$wasm_bindgen_JsValue, asString$wasm_bindgen_JsValue, from$conv
  */
 export function isTypeOf$__wasm_bindgen_JsCast_js_sys_Array(val: rs.JsValue): boolean {
 	return ((a0: rs.JsValue): boolean => {
-		return rs.jsToBool(rs.global.Array.isArray(a0));
+		return rs.jsToBool(rs.jsGlobal("Array").isArray(a0));
 	})(val);
 }
 
@@ -109,12 +109,12 @@ export function copyTo$js_sys_Uint8Array(self: rs.JsValue, dst: rs.ByteSlice): v
 	if (!(_5 === _8)) {
 		rs.assertFailed("==", (f: rs.Formatter) => rs.usizeDebug(_5, f), (f: rs.Formatter) => rs.usizeDebug(_8, f), undefined as rs.Arguments | undefined);
 	} else {
-		rs.global.Uint8Array.prototype.set.call(rs.byteSliceView(dst), self);
+		rs.jsGlobal("Uint8Array").prototype.set.call(rs.byteSliceView(dst), self);
 	}
 }
 
 export function from$convert_From_ref_slice_u8_js_sys_Uint8Array(slice: rs.ByteSlice): rs.JsValue {
-	return new rs.global.Uint8Array(rs.byteSliceView(slice)) as rs.JsValue;
+	return new (rs.jsGlobal("Uint8Array"))(rs.byteSliceView(slice)) as rs.JsValue;
 }
 
 //# sourceMappingURL=js_sys.ts.map

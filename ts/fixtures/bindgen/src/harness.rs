@@ -4,6 +4,7 @@
 //! result as a line of text, so the two sides agree only if each step does.
 
 use std::fmt::Write;
+use std::sync::atomic::{AtomicU32, Ordering};
 
 use js_sys::{
 	Array, BigInt64Array, Float64Array, Function, Int16Array, JSON, JsString, Math, Object, Reflect, Uint8Array,
@@ -35,6 +36,7 @@ pub fn cases() -> Vec<(&'static str, Case)> {
 		("console", logs),
 		("caught", caught),
 		("throws", throws),
+		("edges", edges),
 	]
 }
 
@@ -55,12 +57,14 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 fn define() {
 	let global = imports::GLOBAL.with(Object::clone);
 	let typeof_ = Function::new_with_args("v", "return typeof v");
+	let identity = Function::new_with_args("v", "return v");
 	let check = Function::new_with_args(
 		"v",
 		"if (typeof v !== 'number') throw new TypeError('not a number: ' + String(v))",
 	);
 	Reflect::set(&global, &"rustTypeof".into(), &typeof_).unwrap();
 	Reflect::set(&global, &"rustCheck".into(), &check).unwrap();
+	Reflect::set(&global, &"rustIdentity".into(), &identity).unwrap();
 }
 
 /// The rest of a case's input.
@@ -591,4 +595,80 @@ fn throws(input: &mut Input, out: &mut String) {
 	let bits = i32::from(input.u8()) - 128;
 	let v = imports::as_int_n_signed(bits, 1);
 	writeln!(out, "as_int_n {v}").unwrap();
+}
+
+/// A struct of the crate's own over a JS value, laid out as an imported type is, which
+/// stays a struct: its `Drop` runs.
+#[repr(transparent)]
+struct Owned {
+	obj: JsValue,
+}
+
+/// How many `Owned`s have dropped.
+static DROPS: AtomicU32 = AtomicU32::new(0);
+
+impl Drop for Owned {
+	fn drop(&mut self) {
+		DROPS.fetch_add(1, Ordering::Relaxed);
+	}
+}
+
+/// Whether `e` is an `Error` of the class `class` names, as each side's engine words its
+/// message.
+fn error_class(out: &mut String, what: &str, e: &JsValue) {
+	let name = Reflect::get(e, &"name".into()).unwrap_or_default();
+	show(out, what, &name);
+}
+
+/// Each conversion's edge: namespaces' variadic calls, `catch` around the glue's
+/// conversions and not the ABI's, optional `bool`s, globals no JS defines, and a struct of
+/// the crate's own over a JS value.
+fn edges(input: &mut Input, out: &mut String) {
+	writeln!(out, "bytes of {:?}", imports::bytes_of(input.slice())).unwrap();
+	let spread: Array = match input.flag() {
+		true => imports::bytes_array(input.slice()),
+		false => {
+			// An array-like without an iterator.
+			let like = Object::new();
+			Reflect::set(&like, &"length".into(), &JsValue::from(1)).unwrap();
+			Reflect::set(&like, &"0".into(), &input.value()).unwrap();
+			like.unchecked_into()
+		}
+	};
+	match imports::array_of_caught(&spread) {
+		Ok(array) => writeln!(out, "spread {}", array.length()).unwrap(),
+		Err(e) => error_class(out, "spread threw", &e),
+	}
+	let v = input.value();
+	match imports::char_caught(&v) {
+		Ok(c) => writeln!(out, "char {c:?}").unwrap(),
+		Err(e) => error_class(out, "char threw", &e),
+	}
+	let x = match input.flag() {
+		true => Some(input.f64()),
+		false => None,
+	};
+	writeln!(out, "abs flag {:?}", imports::abs_flag(x)).unwrap();
+	match imports::missing_function() {
+		Ok(()) => writeln!(out, "missing function called").unwrap(),
+		Err(e) => error_class(out, "missing function threw", &e),
+	}
+	match imports::Missing::new() {
+		Ok(_) => writeln!(out, "missing class made").unwrap(),
+		Err(e) => error_class(out, "missing class threw", &e),
+	}
+	let before = DROPS.load(Ordering::Relaxed);
+	{
+		let owned = Owned { obj: input.value() };
+		show(out, "owned", &owned.obj);
+	}
+	writeln!(out, "drops {}", DROPS.load(Ordering::Relaxed) - before).unwrap();
+	// Last, as each may throw past the case: a `catch` import whose `u32` the ABI coerces,
+	// and a plain one.
+	let v = input.value();
+	match imports::u32_caught(&v) {
+		Ok(n) => writeln!(out, "u32 {n}").unwrap(),
+		Err(e) => error_class(out, "u32 threw", &e),
+	}
+	writeln!(out, "u32 of {}", imports::u32_of(&input.value())).unwrap();
 }

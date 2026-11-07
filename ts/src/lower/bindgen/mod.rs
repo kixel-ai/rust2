@@ -20,6 +20,7 @@ use rustc_data_structures::fx::FxHashMap;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{CrateNum, DefId, DefIndex, LOCAL_CRATE};
 use rustc_middle::ty::{self, Instance, InstanceKind, Ty, TyCtxt};
+use rustc_span::hygiene::{ExpnKind, MacroKind};
 
 use super::Translator;
 
@@ -47,7 +48,9 @@ pub fn is_lazy(tcx: TyCtxt<'_>, did: DefId) -> bool {
 /// Whether `did` is a type whose value is a JS value: wasm-bindgen's `JsValue`, or a type
 /// an import declares, which the macro makes a `#[repr(transparent)]` struct whose `obj`
 /// is the JS-represented type it extends, beside the `PhantomData` of its type
-/// parameters, such as js-sys's `Promise<T>`, whose instances are then one JS value.
+/// parameters, such as js-sys's `Promise<T>`, whose instances are then one JS value. Its
+/// `obj` must be the macro's own, so that a struct a crate writes the same way keeps its
+/// fields and its `Drop`.
 pub fn represents(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	if !matches!(tcx.def_kind(did), DefKind::Struct) {
 		return false;
@@ -63,12 +66,21 @@ pub fn represents(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	for field in &adt.non_enum_variant().fields {
 		let ty = tcx.type_of(field.did).instantiate_identity().skip_norm_wip();
 		match ty.kind() {
-			ty::Adt(inner, _) if field.name.as_str() == "obj" => obj = Some(inner.did()),
+			ty::Adt(inner, _) if field.name.as_str() == "obj" && from_macro(tcx, field.did) => obj = Some(inner.did()),
 			ty::Adt(inner, _) if inner.is_phantom_data() => {}
 			_ => return false,
 		}
 	}
 	obj.is_some_and(|inner| represents(tcx, inner))
+}
+
+/// Whether `#[wasm_bindgen]`, the attribute, wrote `did`, by whatever path it is named.
+fn from_macro(tcx: TyCtxt<'_>, did: DefId) -> bool {
+	let expn = tcx.def_span(did).ctxt().outer_expn_data();
+	matches!(expn.kind, ExpnKind::Macro(MacroKind::Attr, _))
+		&& expn
+			.macro_def_id
+			.is_some_and(|m| tcx.crate_name(m.krate).as_str() == "wasm_bindgen_macro")
 }
 
 /// What of wasm-bindgen a call reaches in place of its MIR.

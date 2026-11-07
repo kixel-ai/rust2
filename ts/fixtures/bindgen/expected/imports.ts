@@ -16,7 +16,7 @@ export const PI: rs.LazyCell<JsThreadLocal.JsThreadLocal<rs.f64>> = /* @__PURE__
 });
 
 export const _VAL$GLOBAL: rs.LazyCell<rs.JsValue> = /* @__PURE__ */ new rs.LazyCell((): rs.JsValue => {
-	return rs.global.globalThis as rs.JsValue;
+	return rs.jsGlobal("globalThis") as rs.JsValue;
 });
 
 export const _VAL$MISSING: rs.LazyCell<rs.JsValue | rs.None> = /* @__PURE__ */ new rs.LazyCell((): rs.JsValue | rs.None => {
@@ -26,7 +26,7 @@ export const _VAL$MISSING: rs.LazyCell<rs.JsValue | rs.None> = /* @__PURE__ */ n
 });
 
 export const _VAL$PI: rs.LazyCell<rs.f64> = /* @__PURE__ */ new rs.LazyCell((): rs.f64 => {
-	return rs.jsToF64(rs.global.Math.PI);
+	return rs.jsToF64(rs.jsGlobal("Math").PI);
 });
 
 export const GREETING: rs.LazyCell<JsThreadLocal.JsThreadLocal<rs.JsValue>> = /* @__PURE__ */ new rs.LazyCell((): JsThreadLocal.JsThreadLocal<rs.JsValue> => {

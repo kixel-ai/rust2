@@ -137,7 +137,8 @@ fn lower<'tcx>(
 				return Err(format!("`catch` into `{err}`, which is not a JS value"));
 			}
 			let from = convert::from_lambda(b, ret, span)?;
-			let caught = Expr::rs("jsCatch", vec![Expr::Lambda(Vec::new(), Box::new(call)), from]);
+			let glue = Expr::lit(convert::converted_in_glue(b, ret).to_string());
+			let caught = Expr::rs("jsCatch", vec![Expr::Lambda(Vec::new(), Box::new(call)), from, glue]);
 			let ts = b.t.ty(output, span);
 			Expr::As(Box::new(caught), ts)
 		}
@@ -305,10 +306,12 @@ fn apply(target: Expr, name: Option<&str>, values: Vec<Expr>, variadic: bool) ->
 	let Ok((last, rest)) = split_last(values) else {
 		return callee.call(Vec::new());
 	};
-	// `Reflect.apply` calls it as a spread call does, on the object it is a method of.
-	let this = match name {
-		Some(_) => target,
-		None => Expr::undefined(),
+	// `Reflect.apply` calls it as a spread call does, on the object it is a method of: a
+	// namespace's function on its namespace, and a global function on nothing.
+	let this = match (name, &callee) {
+		(Some(_), _) => target,
+		(None, Expr::Member(base, _) | Expr::Index(base, _)) => (**base).clone(),
+		(None, _) => Expr::undefined(),
 	};
 	global("Reflect")
 		.member("apply")
@@ -321,9 +324,9 @@ fn split_last(mut values: Vec<Expr>) -> Result<(Expr, Vec<Expr>), String> {
 }
 
 /// `[...rest, ...last]`, the arguments of a variadic call: `last` by its iterator, as a
-/// spread reads an array or a typed array.
+/// spread reads it, which throws where it has none.
 fn spread(rest: Vec<Expr>, last: Expr) -> Expr {
-	let last = Expr::ident("Array").member("from").call(vec![js_any(last)]);
+	let last = Expr::rs("jsSpread", vec![last]);
 	match rest.is_empty() {
 		true => last,
 		false => Expr::Array(rest).member("concat").call(vec![last]),
@@ -337,7 +340,9 @@ fn js_any(value: Expr) -> Expr {
 		match e {
 			Expr::Rs(name) => name == "global",
 			Expr::Member(base, _) | Expr::Index(base, _) => typed_any(base),
-			Expr::Call(f, _) => matches!(&**f, Expr::Rs(name) if name == "jsAny" || name == "jsVendored"),
+			Expr::Call(f, _) => {
+				matches!(&**f, Expr::Rs(name) if ["jsAny", "jsGlobal", "jsVendored"].contains(&name.as_str()))
+			}
 			_ => false,
 		}
 	}
@@ -391,8 +396,9 @@ impl Path {
 				],
 			),
 			Path::Global(parts) => {
+				// A global the JS glue names as an identifier, which throws where none is defined.
 				let (first, rest) = parts.split_first().expect("a global's name");
-				path(global(first), &rest.join("."))
+				path(Expr::rs("jsGlobal", vec![Expr::Str(first.clone())]), &rest.join("."))
 			}
 		}
 	}
