@@ -16,8 +16,14 @@ it re-exports. A function is exported, `harness::run` as `HarnessRun`, a type is
 with its `pub` inherent methods, `Counter::new` as `CounterNew`, and a type alias is a Go
 alias, `type Byte = Value[uint8]`. An alias that is the only path to a type and passes it
 just its own parameters names the type instead. A trait comes along as its impls are called.
-A generic function or method, a constant or static, and a type with `pub` methods that only
-a specialized alias reaches are refused.
+A constant or static, associated ones included, is named with each upper-case word of its
+own name capitalized, `MAX_LEN` as `MaxLen` and `Counter::MAX` as `CounterMax`. A
+constant of an integer, `bool`, `char`, or `&str` is a Go `const`, a `&str` as a Go string,
+and any other a function returning a fresh value at each call, as each use of Rust's is.
+A static is one Go variable that translated code and Go callers share. Go has no read-only
+variable, so Go callers must not write to a static, nor through what a constant or static
+points to. A generic function, method, or associated constant, and a type with `pub`
+methods that only a specialized alias reaches are refused.
 
 It runs `cargo check` on the host with itself as `RUSTC_WRAPPER`, through the front end
 it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver), building std from
@@ -37,6 +43,8 @@ error at its span, and nothing is written.
 | an enum | a struct of its tag and a field per variant with fields; one of over four words, which Go would keep in memory, as its tag and each variant's fields, a variable, parameter, and result each, a field of over four words behind a pointer: an argument's the callee only reads, a result's the caller passes for the callee to write |
 | `&T`, `Box<T>` | `*T` |
 | `&[T]`, `&str`, `Vec<T>` | `[]T`, `[]uint8`, `[]T` |
+| a constant | its value at each use; a reference's target, one package-level variable |
+| a static | one package-level variable |
 | a closure | a struct of its captures |
 | `dyn Display`, `dyn Debug` | a `func(*Formatter) fmtResult` |
 | a `tracing` event | nothing, as with no subscriber |
@@ -53,8 +61,9 @@ drop what the translation held.
 
 `fixtures/reject/expected.txt` lists them with their spans: 128-bit integers, floats, a
 `Drop` impl, a trait object of any trait but `Display` and `Debug`, a union, a type
-generic over a constant, such as an array's by-value iterator, and a `pub` item that is
-generic, a constant, or a static.
+generic over a constant, such as an array's by-value iterator, a `pub` item that is
+generic, a `static mut`, a static with interior mutability, such as an atomic, or of another
+language, and a reference into part of a static.
 
 ## Tests
 
@@ -64,7 +73,8 @@ Rust on the same inputs, failing on any difference in output or panic message:
 integer width's arithmetic, overflow, division by zero, and shifts, `fixtures/order`
 calls, reads, and overflow checks a folded temporary could reorder or skip, and
 `fixtures/enums` enums held as their parts, whose pointers a callee could write through
-or see changed.
+or see changed. `fixtures/items` also checks its exported constants and statics as
+`tests/exports` reads them from Go.
 
 `just go bench` times the codec's workloads translated against the same crate exported by
 rust2-ffi and called through cgo: per-call varints and frame headers, and `stream/`, a
