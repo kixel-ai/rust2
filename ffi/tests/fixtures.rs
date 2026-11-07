@@ -995,13 +995,79 @@ fn go_reserved_packages() {
 		);
 		let go = out.join("go");
 		assert!(go.join(format!("{name}_")).join(format!("{name}_.go")).exists());
-		run(Command::new("go")
-			.args(["vet", "./..."])
-			.current_dir(&go)
-			.env("CGO_ENABLED", "1")
-			.env("GOFLAGS", "-buildvcs=false")
-			.env("GOTOOLCHAIN", "local"));
+		vet(&go);
 	}
+}
+
+/// A crate's package keeps the facade's prefix where stripping it leaves no identifier:
+/// beside lib `pkg`, lib `pkg_` is `pkg_`, after the facade's `pkg`, and lib `pkg_2d` is
+/// `pkg2d`, which Go vets.
+#[test]
+fn go_package_names() {
+	let package = package("go_package_names");
+	let dep = |lib: &str| {
+		(
+			format!(
+				"[package]\nname = \"go-package-names-{}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"{lib}\"\n",
+				lib.replace('_', "-")
+			),
+			"pub fn one() -> u32 {\n\t1\n}\n",
+		)
+	};
+	let (under, under_lib) = dep("pkg_");
+	let (digit, digit_lib) = dep("pkg_2d");
+	write_all(
+		&package,
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"go_package_names\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"pkg\"\n\n\
+				[dependencies]\npkg_ = { package = \"go-package-names-pkg-\", path = \"under\" }\n\
+				pkg_2d = { package = \"go-package-names-pkg-2d\", path = \"digit\" }\n\n\
+				[workspace]\nexclude = [\"under\", \"digit\"]\n",
+			),
+			(
+				"src/lib.rs",
+				"pub fn own() -> u32 {\n\t1\n}\n\npub mod under {\n\tpub use pkg_::one;\n}\n\npub mod digit {\n\tpub use pkg_2d::one;\n}\n",
+			),
+			("under/Cargo.toml", &under),
+			("under/src/lib.rs", under_lib),
+			("digit/Cargo.toml", &digit),
+			("digit/src/lib.rs", digit_lib),
+		],
+	);
+	let out = package.join("out");
+	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--out")
+		.arg(&out)
+		.env("CARGO_TARGET_DIR", package.join("build"))
+		.output()
+		.unwrap();
+	assert!(
+		output.status.success(),
+		"the export failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let go = out.join("go");
+	for name in ["pkg", "pkg_", "pkg2d"] {
+		assert!(
+			go.join(name).join(format!("{name}.go")).exists(),
+			"no Go package {name}"
+		);
+	}
+	vet(&go);
+}
+
+/// `go vet` over an export's `go/`, which the header beside it lets cgo check unlinked.
+fn vet(go: &Path) {
+	run(Command::new("go")
+		.args(["vet", "./..."])
+		.current_dir(go)
+		.env("CGO_ENABLED", "1")
+		.env("GOFLAGS", "-buildvcs=false")
+		.env("GOTOOLCHAIN", "local"));
 }
 
 /// A copy of the directory `from` at `to`.
@@ -1335,8 +1401,9 @@ fn foreign_role_names() {
 }
 
 /// An exclude may name what a `cfg` leaves out of this build, whether the facade's own
-/// module or another crate's that the facade re-exports through a glob, but not what no
-/// build has, nor what a module only some of whose items the facade re-exports leaves out.
+/// module or another crate's that the facade re-exports through a glob, or a chain of them,
+/// but not what no build has, nor what a module only some of whose items the facade
+/// re-exports leaves out.
 #[test]
 fn configured_out() {
 	let package = package("configured_out");
@@ -1352,11 +1419,13 @@ fn configured_out() {
 			("Cargo.toml", &manifest),
 			(
 				"src/lib.rs",
-				"pub use ::dep::Size;\n\npub mod dep {\n\tpub use ::dep::*;\n}\n\n#[cfg(any())]\npub mod local {}\n",
+				"pub use ::dep::Size;\n\npub mod dep {\n\tpub use ::dep::*;\n}\n\n#[cfg(any())]\npub mod local {}\n\n\
+				mod inner {\n\tpub fn kept() -> u32 {\n\t\t1\n\t}\n\n\t#[cfg(any())]\n\tpub mod gone {}\n}\n\n\
+				mod middle {\n\tpub use crate::inner::*;\n}\n\npub mod outer {\n\tpub use crate::middle::*;\n}\n",
 			),
 			(
 				"ffi.toml",
-				"exclude = [\"Gone\", \"dep::gone::Gone\", \"gone::Gone\", \"local::Gone\"]\n",
+				"exclude = [\"Gone\", \"dep::gone::Gone\", \"gone::Gone\", \"local::Gone\", \"outer::gone::Gone\"]\n",
 			),
 		],
 	);

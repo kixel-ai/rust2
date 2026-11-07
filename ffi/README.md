@@ -414,7 +414,8 @@ in either language mode.
 through cgo, for Go 1.24 or later, and the runtime they share, `go/rt`. Each includes
 `<prefix>.h` from the `include/` beside `go/`, as the export lays them out, and links the
 library through `CGO_LDFLAGS`. A crate's package is its name without the prefix and its
-`_`: moq-mux's is `mux`, and serde_json's `serdejson`. One that a Go keyword, `C`, `main`,
+`_`: moq-mux's is `mux`, and serde_json's `serdejson`, but keeps the prefix where its
+strip leaves no leading letter (`moq_2d` is `moq2d`). One that a Go keyword, `C`, `main`,
 the runtime, or an earlier crate's package takes gains a trailing `_`, as a crate `rt` is
 `rt_`. Cargo keeps crates from depending on each other in a cycle, so their packages
 never import each other in one, as Go requires,

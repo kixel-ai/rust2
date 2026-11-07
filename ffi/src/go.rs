@@ -67,7 +67,17 @@ impl Packages {
 		for krate in &abi.api.crates {
 			// A later crate of an earlier one's name takes its count after it.
 			let (base, count) = krate.split_once('#').unwrap_or((krate, ""));
-			let mut name = base.strip_prefix(&strip).unwrap_or(base).replace('_', "") + count;
+			// A package's name is an identifier: a crate the prefix's strip leaves no leading
+			// letter, such as `moq_2d` or a lib `moq_` beside `moq`, keeps the prefix, and a
+			// name whose first digit no letter precedes, such as `_2d`, follows `crate`.
+			let letter = |name: &String| name.starts_with(|c: char| c.is_alphabetic());
+			let mut name = Some(base.strip_prefix(&strip).unwrap_or(base).replace('_', ""))
+				.filter(letter)
+				.unwrap_or_else(|| base.replace('_', ""));
+			if !letter(&name) {
+				name.insert_str(0, "crate");
+			}
+			name += count;
 			// A name Go, cgo, or the runtime takes, or an earlier crate's, takes a trailing
 			// `_`, which no crate's name keeps.
 			while ["C", "main"].contains(&name.as_str()) || keyword(&name) || by_crate.values().any(|(n, _)| *n == name)

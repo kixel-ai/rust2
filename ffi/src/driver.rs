@@ -227,16 +227,21 @@ fn configured_out(tcx: TyCtxt<'_>, path: &str) -> bool {
 				_ => return false,
 			}
 		}
-		// Each glob's source: the module of the next import the item came through, or else
-		// the item's own. A single re-export brings in no other name of its module.
-		let sources = (children.iter())
-			.filter(|child| matches!(child.reexport_chain.first(), Some(Reexport::Glob(_))))
-			.filter_map(
-				|child| match child.reexport_chain.get(1).and_then(|reexport| reexport.id()) {
+		// Each source of a glob the item came through, while its imports are globs: the
+		// module of the next import, or else the item's own. A single re-export brings in no
+		// other name of its module.
+		let sources = children
+			.iter()
+			.flat_map(|child| {
+				let chain = &child.reexport_chain;
+				let globs = chain
+					.iter()
+					.take_while(|reexport| matches!(reexport, Reexport::Glob(_)));
+				(globs.enumerate()).filter_map(move |(i, _)| match chain.get(i + 1).and_then(|next| next.id()) {
 					Some(import) => tcx.opt_parent(import),
 					None => child.res.opt_def_id().and_then(|def_id| tcx.opt_parent(def_id)),
-				},
-			)
+				})
+			})
 			.chain([module]);
 		let stripped = |source: DefId| {
 			(tcx.stripped_cfg_items(source.krate).iter())
