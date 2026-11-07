@@ -676,6 +676,9 @@ export const None: unique symbol = /* @__PURE__ */ Symbol("None");
 /** The type of `None`. */
 export type None = typeof None;
 
+/** A generic type's `Option<T>`, whose `None` each instance decides: `T | undefined`, or `T | None` where `T` can already be `undefined`. */
+export type OptionOf<T> = T | (undefined extends T ? None : undefined);
+
 /** `f` of what `o` holds, or `None`: `Option::map` of a payload that is never `undefined`. */
 export function optionMap<T, U>(o: T | undefined, f: (value: T) => U): U | undefined {
 	return o === undefined ? undefined : f(o);

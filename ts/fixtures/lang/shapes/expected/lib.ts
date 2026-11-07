@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { ints, strings, derived, written, counts, rounding, panics, wrapped, collections, enums, iters, adaptors, writes, objects, sources, sets, calls, cells, searches } from "./fmt.ts";
-import { methods, runs } from "./generics.ts";
+import { methods, runs, units } from "./generics.ts";
 import type * as Either from "./generics.Either.ts";
 import * as Fixed from "./generics.Fixed.ts";
 import type * as Run from "./generics.Run.ts";
@@ -218,6 +218,8 @@ export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.By
 		cells(data26, out27);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["fmt::searches", (_237: rs.u8, data27: rs.ByteSlice, out28: rs.ByteVec): undefined => {
 		searches(data27, out28);
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["generics::units", (_238: rs.u8, data28: rs.ByteSlice, out29: rs.ByteVec): undefined => {
+		units(data28, out29);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }
 
