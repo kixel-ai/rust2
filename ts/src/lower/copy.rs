@@ -156,9 +156,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// JS copy splits from the original as Rust's read does, if anything, and why: a
 	/// collection held by value, a `Vec` of other than bytes, a `VecDeque`, a `String`, a
 	/// map, a set, or a list, whose JS object keeps its length with its storage, sharing the
-	/// storage while each keeps a length of its own; or a closure that writes its captures or
-	/// captures a value with interior mutability, or a coroutine, whose state is the JS
-	/// function's or generator's own. A safe move leaves nothing pointing into the original,
+	/// storage while each keeps a length of its own; or a closure whose captures its copy
+	/// would split, or a coroutine, whose state is the JS function's or generator's own. A safe move leaves nothing pointing into the original,
 	/// which a copy one object deep is exact for.
 	pub fn unsplit(&self, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, &'static str)> {
 		by_value(self.tcx, self.typing_env(), ty).find_map(|part| {
@@ -192,8 +191,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Whether `ty` is a closure whose copy Rust can tell apart from the original, as it
-	/// writes its captures or captures a value with interior mutability, at any depth, or a
-	/// coroutine.
+	/// writes its captures or captures, at any depth, a value with interior mutability or
+	/// one a copy copies, such as a `Vec` the crate writes into, which the closure may move
+	/// out, or a coroutine.
 	fn stateful(&self, ty: Ty<'tcx>) -> bool {
 		let (tcx, env) = (self.tcx, self.typing_env());
 		match ty.kind() {
@@ -201,7 +201,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Closure(..) | ty::CoroutineClosure(..) => {
 				super::mir::writes_captures(tcx, ty)
 					|| (super::captured(ty).unwrap_or_default().iter())
-						.any(|t| by_value(tcx, env, t).any(|part| !part.is_freeze(tcx, env) || self.stateful(part)))
+						.any(|t| {
+							by_value(tcx, env, t)
+								.any(|part| !part.is_freeze(tcx, env) || self.changes(part) || self.stateful(part))
+						})
 			}
 			_ => false,
 		}
