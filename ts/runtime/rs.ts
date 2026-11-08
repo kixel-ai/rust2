@@ -68,10 +68,22 @@ export function panic(message: string, at?: Location | string, owned?: boolean |
  * nothing past it: a panic that can't unwind, at `at` or at the key of std's site.
  */
 export function precondition<T>(value: T | undefined, check: string, at?: Location | string): T {
-	if (value === undefined) {
-		panic(`unsafe precondition(s) violated: ${check}\n\nThis indicates a bug in the program. This Undefined Behavior check is optional, and cannot be relied on for safety.`, at);
-	}
+	if (value === undefined) panic(violation(check), at);
 	return value;
+}
+
+/** The message of std's debug check that an unsafe function's precondition `check` held. */
+function violation(check: string): string {
+	return `unsafe precondition(s) violated: ${check}\n\nThis indicates a bug in the program. This Undefined Behavior check is optional, and cannot be relied on for safety.`;
+}
+
+/**
+ * Abort where the program broke `check`, which Rust leaves undefined, worded as std's
+ * debug checks of an unsafe function's preconditions are. Nothing native does there is
+ * defined, so no hook runs.
+ */
+export function violated(check: string): never {
+	throw new Abort(violation(check));
 }
 
 /**
@@ -299,7 +311,7 @@ class TextAt extends AtIndex<number> {
 	}
 
 	override set v(_: number) {
-		throw textWrite();
+		textWrite();
 	}
 
 	override at(index: number): TextAt {
@@ -307,9 +319,9 @@ class TextAt extends AtIndex<number> {
 	}
 }
 
-/** The failure of a write, or a mutable slice, through a `TextAt`. */
-function textWrite(): Error {
-	return new Error("rust2-ts: a write through a pointer into a `str`'s bytes, which Rust forbids");
+/** A write through a `TextAt`, which a shared reference made. */
+function textWrite(): never {
+	return violated("a write requires a pointer not made from a shared reference, as `str::as_ptr`'s is");
 }
 
 /** `str::as_ptr`: the read-only pointer to the first byte of its UTF-8. */
@@ -363,9 +375,13 @@ function addressAt(addr: number): Address {
 	return at;
 }
 
-function nowhere(): never {
-	throw new Error("rust2-ts: a read or write through a pointer to no memory");
+/** A read or write through a pointer to no memory. */
+export function nowhere(): never {
+	return violated("a read or write requires a pointer to memory, not null, dangling, or moved off either");
 }
+
+/** What null and dangling pointers point into: no elements, which any access through them is past. */
+export const NO_MEMORY: readonly never[] = /* @__PURE__ */ Object.freeze([]);
 
 /** The array of one element that a pointer to a value in no array points into, by its place. */
 const LONE = /* @__PURE__ */ new WeakMap<Place<unknown>, unknown[]>();
@@ -423,7 +439,7 @@ function elemOf<T>(p: Place<T>): AtIndex<T> {
 		const items = roomItems<T>(p.array);
 		return items ? new AtIndex(items, p.index) : p;
 	}
-	if (p === NULL || p === DANGLING) return new AtIndex([] as T[], 0);
+	if (p === NULL || p === DANGLING) return new AtIndex(NO_MEMORY as unknown as T[], 0);
 	let lone = LONE.get(p) as T[] | undefined;
 	if (!lone) {
 		lone = new Proxy(new Array<T>(1), new Lone(p));
@@ -487,7 +503,7 @@ export function ptrOffsetFrom<T>(p: Place<T>, origin: Place<T>): number {
 export function ptrCopy<T>(src: Place<T>, dst: Place<T>, n: number, copy?: (value: T) => T): void {
 	if (n === 0) return;
 	const [from, to] = [elemOf(src), elemOf(dst)];
-	if (to instanceof TextAt) throw textWrite();
+	if (to instanceof TextAt) textWrite();
 	from.reach(n);
 	to.reach(n);
 	if (ArrayBuffer.isView(from.array) && ArrayBuffer.isView(to.array)) {
@@ -663,7 +679,9 @@ export function ptrByteSlice(p: Place<number>, len: number, shared: boolean): By
 	}
 	const at = elemOf(p);
 	at.reach(len);
-	if (!shared && len !== 0 && at instanceof TextAt) throw textWrite();
+	// Stacked Borrows makes it undefined, though Tree Borrows allows it until a write, as
+	// with a substring's pointer moved back into its text, which throws until Rust settles.
+	if (!shared && len !== 0 && at instanceof TextAt) throw new Error("rust2-ts: a mutable slice of a `str`'s bytes through `str::as_ptr`");
 	if (at.array instanceof Uint8Array) return new ByteSlice(at.array, at.index, len);
 	// A byte in no array, which no `Uint8Array` can share.
 	if (!shared) throw new Error("rust2-ts: a raw or mutable slice of a byte in no array of bytes");

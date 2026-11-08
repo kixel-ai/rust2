@@ -6,7 +6,8 @@
 //!
 //! So is whether a pointer to a value JS copies is an `Arc`'s, the one place of its value,
 //! or a borrow's, a place of its own: only an `Arc`'s is an identity, which `from_raw`
-//! takes back to it and a cast to `*const ()` keeps.
+//! takes back to it and a cast to `*const ()` keeps. That cast is refused unless the body
+//! shows an `Arc`'s, or null or dangling, since a place from elsewhere has no one identity.
 
 use rustc_middle::mir::{self, BasicBlock, Local, Location, Operand, ProjectionElem, Rvalue, TerminatorKind};
 use rustc_middle::ty::{self, GenericArgsRef};
@@ -99,7 +100,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			})
 		};
 		match (owner.as_str(), name.as_str()) {
-			("ptr" | "NonNull", "cast") => self.erased_borrow(arg(0)?, pointee, gargs.types().nth(1)?),
+			("ptr" | "NonNull", "cast") => self.erased_place(arg(0)?, pointee, gargs.types().nth(1)?),
 			("Arc" | "Rc", "from_raw" | "increment_strong_count" | "decrement_strong_count")
 				if self.arc_pointer(arg(0)?) == Some(false) =>
 			{
@@ -433,6 +434,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			("ptr" | "NonNull", "cast_const" | "cast_mut") | ("NonNull", "as_ptr" | "new_unchecked") => {
 				self.arc_pointer(&args.first()?.node)
 			}
+			("ptr" | "NonNull", "cast") if self.same_pointee(&args.first()?.node, local) => {
+				self.arc_pointer(&args.first()?.node)
+			}
 			("UnsafeCell", "get" | "raw_get") | ("Cell", "as_ptr") | ("MaybeUninit", "as_ptr" | "as_mut_ptr") => {
 				Some(false)
 			}
@@ -441,13 +445,68 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	}
 
 	/// Why the cast of the raw pointer `op` to `from` to one to `to` can't be, if it erases
-	/// one to a value JS copies that the body shows is a borrow's place to a `*const ()`, and
-	/// the cast itself refuses no pointer to `from`.
-	pub(super) fn erased_borrow(&self, op: &Operand<'tcx>, from: ty::Ty<'tcx>, to: ty::Ty<'tcx>) -> Option<String> {
+	/// one to a value JS copies to a `*const ()`, and the cast itself refuses no pointer to
+	/// `from`: unless the body shows an `Arc`'s or `Rc`'s `into_raw` or `as_ptr` gave it, its
+	/// value's one place, or that it is null or dangling, it has no one identity.
+	pub(super) fn erased_place(&self, op: &Operand<'tcx>, from: ty::Ty<'tcx>, to: ty::Ty<'tcx>) -> Option<String> {
 		let t = &self.b.t;
 		let erases = t.identity_pointee(to) && !t.identity_pointee(from) && t.pointee(from) == Pointee::Place;
-		(erases && pointer::unerasable(self.b, from).is_none() && self.arc_pointer(op) == Some(false))
-			.then(|| pointer::erased_place(t.uninit_inner(from)))
+		if !erases || pointer::unerasable(self.b, from).is_some() || self.nowhere(op) {
+			return None;
+		}
+		let pointee = t.uninit_inner(from);
+		match self.arc_pointer(op) {
+			Some(true) => None,
+			Some(false) => Some(pointer::erased_place(pointee)),
+			None => Some(format!(
+				"a pointer to `{pointee}` cast to one to `()`, which only an `Arc`'s or `Rc`'s raw pointer keeps the place of, and the body doesn't show this one is"
+			)),
+		}
+	}
+
+	/// Whether the body shows the raw pointer `op` is null or dangling, at no memory.
+	fn nowhere(&self, op: &Operand<'tcx>) -> bool {
+		// A constant pointer of no allocation, an integer: null, or another, which a
+		// constant's lowering refuses.
+		if let Operand::Constant(c) = op {
+			return (c.const_)
+				.try_eval_scalar_int(self.tcx, self.b.t.typing_env_pub())
+				.is_some();
+		}
+		let Some(local) = self.traced(op) else {
+			return false;
+		};
+		if self.def_at[local].is_some() {
+			return match self.def_rvalue(local) {
+				Some(
+					Rvalue::Use(op, _)
+					| Rvalue::Cast(
+						mir::CastKind::PtrToPtr
+						| mir::CastKind::PointerCoercion(ty::adjustment::PointerCoercion::MutToConstPointer, _),
+						op,
+						_,
+					),
+				) => self.nowhere(op),
+				_ => false,
+			};
+		}
+		let Some((def_id, _, args)) = self.def_call(local) else {
+			return false;
+		};
+		match library::key(self.tcx, def_id) {
+			Some((owner, name)) => match (owner.as_str(), name.as_str()) {
+				(
+					"ptr",
+					"null" | "null_mut" | "dangling" | "dangling_mut" | "without_provenance" | "without_provenance_mut",
+				)
+				| ("NonNull", "dangling") => true,
+				("ptr" | "NonNull", "cast" | "cast_const" | "cast_mut") | ("NonNull", "as_ptr") => {
+					args.first().is_some_and(|a| self.nowhere(&a.node))
+				}
+				_ => false,
+			},
+			None => false,
+		}
 	}
 
 	/// The local `op` reads whole, if the body assigns it once.
@@ -456,9 +515,16 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		(self.defs[local] == 1 && !self.is_arg(local)).then_some(local)
 	}
 
-	/// Whether `op` is a pointer to what `local` points at.
+	/// Whether `op` is a pointer, raw or `NonNull`, to what `local` points at, through any
+	/// `MaybeUninit`s, which a cast between keeps the pointer of.
 	fn same_pointee(&self, op: &Operand<'tcx>, local: Local) -> bool {
-		let pointee = |ty: ty::Ty<'tcx>| ty.builtin_deref(true);
+		let pointee = |ty: ty::Ty<'tcx>| {
+			let pointee = match ty.kind() {
+				ty::Adt(adt, args) if Std::of(self.tcx, adt.did()) == Some(Std::NonNull) => Some(args.type_at(0)),
+				_ => ty.builtin_deref(true),
+			};
+			pointee.map(|t| self.b.t.uninit_inner(t))
+		};
 		let from = op.ty(&self.mir.local_decls, self.tcx);
 		pointee(from).is_some() && pointee(from) == pointee(self.mir.local_decls[local].ty)
 	}

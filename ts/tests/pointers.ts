@@ -1,7 +1,8 @@
 // A pointer the translation can't follow, such as one a struct's field holds, fails with
 // a rust2-ts error where JS keeps apart what Rust's reaches, which native Rust can't show:
 // there each is defined, as `repr(C)` fields are one allocation, and a `Vec`'s capacity
-// is past its length.
+// is past its length. One Rust leaves undefined, such as a read through a dangling
+// pointer, aborts as std's debug checks do.
 //
 // usage: node pointers.ts
 
@@ -10,6 +11,8 @@ import { strict as assert } from "node:assert";
 import * as rs from "../runtime/rs.ts";
 
 const unsure = (f: () => void) => assert.throws(f, (e: Error) => !(e instanceof rs.Panic) && e.message.startsWith("rust2-ts: "));
+// What Rust leaves undefined aborts, as std's debug checks of unsafe preconditions do.
+const undefinedBehavior = (f: () => void) => assert.throws(f, (e: Error) => e instanceof rs.Abort && e.message.startsWith("unsafe precondition(s) violated: "));
 
 // Two `&raw const x` of one variable, each its own `rs.Place`.
 let x = 5;
@@ -77,20 +80,21 @@ unsure(() => rs.allocBytes(words, 4, "f32"));
 unsure(() => rs.allocBytes(rs.ptrAdd(words, 1), 4, "u32"));
 // Grown, it keeps its values, as many as fit; freed or grown, a pointer to its values is
 // no block.
-unsure(() => rs.dealloc(words));
-unsure(() => rs.realloc(words, 16));
+undefinedBehavior(() => rs.dealloc(words));
+undefinedBehavior(() => rs.realloc(words, 16));
 const grown = rs.realloc(rs.allocBytes(words, 4, "u32"), 18);
 assert.deepEqual(Array.from(grown.array ?? []), [0xffffffff, undefined, undefined, undefined]);
 
 // A dangling pointer read through, written through, or copied from, which Rust leaves
 // undefined, rather than reading `undefined`.
 const dangling: rs.Place<number> = rs.DANGLING;
-unsure(() => rs.ptrAdd(dangling, 1).v);
-unsure(() => {
+undefinedBehavior(() => rs.ptrAdd(dangling, 1).v);
+undefinedBehavior(() => {
 	rs.ptrAdd(dangling, 1).v = 1;
 });
-unsure(() => rs.ptrCopy(dangling, rs.arrayAsPtr(vec), 1));
-unsure(() => rs.ptrSlice(dangling, 1));
+undefinedBehavior(() => rs.ptrCopy(dangling, rs.arrayAsPtr(vec), 1));
+undefinedBehavior(() => rs.ptrSlice(dangling, 1));
+undefinedBehavior(() => rs.ptrAdd(rs.NULL as rs.Place<number>, 1).v);
 assert.equal(vec[0], 7);
 
 // A raw slice pointer read through once its `Vec` has shrunk past it, which Rust keeps
@@ -129,17 +133,17 @@ assert.notEqual(two, rs.DANGLING_UNIT);
 const aligned = rs.ptrUnerase(two, "raw::Byte", 1) as object;
 assert.notEqual(aligned, rs.DANGLING);
 assert.equal(rs.ptrErase(aligned, "raw::Byte", 1), two);
-unsure(() => (aligned as rs.Place<number>).v);
+undefinedBehavior(() => (aligned as rs.Place<number>).v);
 
 // `Arc::from_raw` of a pointer no `Arc::into_raw` or `as_ptr` gave, such as a box's, of an
 // `Rc`'s, or of one whose value dropped, which Rust leaves undefined.
 const task = new rs.Arc({ id: 1 });
 const raw = rs.arcRaw(task, task.value, "Arc");
 assert.equal(rs.arcFromRaw(raw, "Arc"), task);
-unsure(() => rs.arcFromRaw({ id: 1 }, "Arc"));
-unsure(() => rs.arcFromRaw(raw, "Rc"));
+undefinedBehavior(() => rs.arcFromRaw({ id: 1 }, "Arc"));
+undefinedBehavior(() => rs.arcFromRaw(raw, "Rc"));
 task[Symbol.dispose]();
-assert.throws(() => rs.arcFromRaw(raw, "Arc"), /`Arc::from_raw` of a pointer to a value already dropped/);
+assert.throws(() => rs.arcFromRaw(raw, "Arc"), /Arc::from_raw requires a pointer to a value not yet dropped/);
 // Moved off its place by arithmetic and back, which is the same address.
 const counted = new rs.Arc(7);
 const at = rs.arcRaw(counted, rs.arcPlace(counted), "Rc");
@@ -153,19 +157,19 @@ assert.equal(rs.arcErase(rs.NULL, "bool", 1), rs.NULL);
 assert.throws(() => rs.arcErase({ v: false }, "bool", 1), /only an `Arc`'s or `Rc`'s raw pointer keeps the place of/);
 
 // A `str`'s UTF-8 through `as_ptr`, which JS encodes anew from its text: read through,
-// moved by arithmetic, and viewed, but a write, a copy into it, or a mutable slice of it,
-// which Rust forbids, would change nothing the text reads.
+// moved by arithmetic, and viewed, but a write or a copy into it, which Rust leaves
+// undefined, aborts, and a mutable slice of it, undefined under Stacked Borrows alone, fails.
 const text = rs.strAsPtr("aé");
 assert.equal(rs.ptrAdd(text, 2).v, 0xa9);
 assert.deepEqual(Array.from(rs.byteSliceView(rs.ptrByteSlice(text, 3, true))), [0x61, 0xc3, 0xa9]);
 assert.equal(rs.ptrOffsetFrom(rs.ptrWrappingAdd(text, 2, 1, 1), text), 2);
-unsure(() => {
+undefinedBehavior(() => {
 	rs.ptrAdd(text, 1).v = 0;
 });
-unsure(() => {
+undefinedBehavior(() => {
 	rs.ptrWrappingAdd(text, 1, 1, 1).v = 0;
 });
-unsure(() => rs.ptrCopy(rs.byteSliceAsPtr(rs.byteSliceFrom(Uint8Array.of(1))), rs.ptrAdd(text, 1), 1));
+undefinedBehavior(() => rs.ptrCopy(rs.byteSliceAsPtr(rs.byteSliceFrom(Uint8Array.of(1))), rs.ptrAdd(text, 1), 1));
 unsure(() => rs.ptrByteSlice(text, 1, false));
 unsure(() => new rs.RawSlice(text, 3).derefBytes(false));
 // None of it is nothing written, and two calls' pointers are two encodings.

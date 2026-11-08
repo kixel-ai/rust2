@@ -22,7 +22,7 @@
 // `owned` functions follow it, dispatching on the kind, so a bundle that never drops an
 // item carries none of it.
 
-import { ByteSlice, ByteVec, type ArrayRef, type ArraySlice, arraySliceItems, arraySliceAt, arraySlicePart, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, capReserve, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, sliceItems, slicePart, type Slice, type SliceLike, Vec, vecCapacity, vecExtendFromSlice, vecFrom, vecHold, vecMax, vecWithCapacity, assertFailed, fmtOwned } from "../rs.ts";
+import { ByteSlice, ByteVec, violated, type ArrayRef, type ArraySlice, arraySliceItems, arraySliceAt, arraySlicePart, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, capReserve, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, sliceItems, slicePart, type Slice, type SliceLike, Vec, vecCapacity, vecExtendFromSlice, vecFrom, vecHold, vecMax, vecWithCapacity, assertFailed, fmtOwned } from "../rs.ts";
 import { AtIndex, BTreeIter, HashIter, type Ordering } from "./collections.ts";
 import { type Hasher, hash8 } from "./hash.ts";
 import { charStep, intToBig, type Limbs, type Step, usizeDebug, lt as wideLt } from "./int.ts";
@@ -3417,7 +3417,7 @@ class ZipIter<A, B> extends Iter<[A, B]> implements Disposable {
 		const a = this.a.nextBack();
 		const b = this.b.nextBack();
 		if (a === DONE && b === DONE) return DONE;
-		if (a === DONE || b === DONE) panic("internal error: entered unreachable code");
+		if (a === DONE || b === DONE) panic("internal error: entered unreachable code", "zip_next_back");
 		return [a, b];
 	}
 
@@ -3466,7 +3466,8 @@ class ZipFold<A, B> extends Iter<[A, B]> {
 		this.left--;
 		const a = this.a.next();
 		const b = this.b.next();
-		if (a === DONE || b === DONE) panic("internal error: entered unreachable code");
+		// Only std's iterators are `TrustedLen`, which never run out early.
+		if (a === DONE || b === DONE) violated("hint::unreachable_unchecked must never be reached");
 		return [a, b];
 	}
 

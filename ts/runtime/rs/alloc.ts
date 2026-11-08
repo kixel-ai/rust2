@@ -5,7 +5,7 @@
 // write of its bytes fails. `realloc` keeps the values in a new array, and `dealloc` lets
 // the array go; a pointer into it after either reads what Rust leaves undefined.
 
-import { Abort, Err, type Fmt, type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, fmtWriteFmt, Ok, type Place, type Result } from "../rs.ts";
+import { Abort, Err, type Fmt, type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, fmtWriteFmt, Ok, type Place, type Result, violated } from "../rs.ts";
 import { AtIndex } from "./collections.ts";
 import { type u32, u32Debug, type usize, usizeDebug } from "./int.ts";
 
@@ -184,7 +184,7 @@ export function allocBytes(p: Place<unknown>, elem: number, type: string): Block
 
 /** The block the pointer `p` to bytes, which `dealloc` or `realloc` takes, is. */
 function blockOf(p: Place<number>): Block {
-	if (!(p instanceof Block)) throw new Error("rust2-ts: memory freed or grown that isn't from `alloc`");
+	if (!(p instanceof Block)) violated("dealloc and realloc require memory that alloc gave");
 	return p;
 }
 

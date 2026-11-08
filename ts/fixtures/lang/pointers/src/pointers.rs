@@ -2183,15 +2183,14 @@ fn flag_waker(flag: &Arc<AtomicBool>) -> Waker {
 	unsafe { Waker::from_raw(RawWaker::new(data, &FLAG)) }
 }
 
-/// `p`, a pointer this body doesn't show the source of, erased.
-fn erase_flag(p: *const AtomicBool) -> *const () {
-	p.cast()
-}
+/// A null pointer to a number, as a constant.
+const NULL_NUM: *const u32 = ptr::null();
 
 /// The raw pointers of `Arc`s and `Rc`s of values JS copies: a number's remade from a
 /// shared reference to its value, counted up and down, cloned, and taken back through it,
 /// and an `Arc<AtomicBool>`'s cast to `*const ()` and back, as a waker's data, which its
-/// vtable counts, wakes, and drops. Each compares as the pointer `as_ptr` gives.
+/// vtable counts, wakes, and drops. Each compares as the pointer `as_ptr` gives, and a
+/// null one, made here or a constant, as null, through casts to and from `MaybeUninit`.
 pub fn raw_places(data: &[u8], out: &mut Vec<u8>) {
 	let num = Arc::new(data.len() as u32);
 	let rc = Rc::new(9u16);
@@ -2236,8 +2235,12 @@ pub fn raw_places(data: &[u8], out: &mut Vec<u8>) {
 			[
 				num_at as *const () == Arc::as_ptr(&num).cast(),
 				rc_at.cast::<()>() == Rc::as_ptr(&rc) as *const (),
-				erase_flag(Arc::as_ptr(&flag)) == wakers[0].data(),
+				Arc::as_ptr(&flag).cast::<()>() == wakers[0].data(),
 				ptr::from_ref(&*flag).cast::<()>() == wakers[0].data(),
+				ptr::null::<u32>() as *const () == ptr::null(),
+				NULL_NUM.cast::<()>() == ptr::null(),
+				ptr::null::<MaybeUninit<u32>>().cast::<u32>().cast::<()>() == ptr::null(),
+				Arc::as_ptr(&num).cast::<MaybeUninit<u32>>().cast::<()>() == Arc::as_ptr(&num).cast(),
 			]
 			.map(u8::from),
 		);

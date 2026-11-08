@@ -1168,8 +1168,7 @@ pub fn call<'tcx>(
 /// Why a pointer to `ty` can't be erased to a `*const ()`, an identity that compares as
 /// itself, if it can't: one JS reaches through a slice's places, or a view of bytes, is a
 /// new one each borrow, and one to a value of no fixed size loses its size. Of a place,
-/// only an `Arc`'s is the value's one, which `rs.arcErase` checks where the body doesn't
-/// show it.
+/// only an `Arc`'s is the value's one, which the body must show.
 pub fn unerasable<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<String> {
 	if b.t.polymorphic() && ty.has_param() {
 		return None;

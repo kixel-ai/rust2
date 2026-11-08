@@ -156,6 +156,7 @@ roots = [
     "pointers::erased_empty",
     "pointers::erased_place",
     "pointers::erased_start",
+    "pointers::erased_unshown",
     "pointers::made_part_replaced",
     "pointers::nonnull_reassigned",
     "pointers::object_elements",

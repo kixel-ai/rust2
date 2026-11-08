@@ -1606,10 +1606,10 @@ export function oneshotTryRecv<T, E>(rx: OneshotReceiver<T>, empty: E, closed: E
 	return result;
 }
 
-/** A receiver's `Future::poll`: `Ok` of the value, or `error` once the sender dropped without one. */
-export function oneshotPoll<T, E>(rx: OneshotReceiver<T>, cx: Context, error: E): Poll<Result<T, E>> {
+/** A receiver's `Future::poll`: `Ok` of the value, or `error` once the sender dropped without one, and a panic at `at` once it gave either. */
+export function oneshotPoll<T, E>(rx: OneshotReceiver<T>, cx: Context, error: E, at?: Location): Poll<Result<T, E>> {
 	const inner = rx.inner;
-	if (inner === undefined) panic("called after complete");
+	if (inner === undefined) panic("called after complete", at);
 	const value = inner.pollRecv(cx);
 	if (value === Pending) return Pending;
 	oneshotFinish(rx);
