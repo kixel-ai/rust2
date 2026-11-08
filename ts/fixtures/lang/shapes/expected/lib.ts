@@ -5,6 +5,8 @@ import { ints, strings, derived, written, counts, rounding, panics, wrapped, col
 import { methods, runs, units, projections, projectedCycles, projectedSelves } from "./generics.ts";
 import type * as Either from "./generics.Either.ts";
 import * as Fixed from "./generics.Fixed.ts";
+import * as Getter from "./generics.Getter.ts";
+import type * as Holder from "./generics.Holder.ts";
 import type * as Pile from "./generics.Pile.ts";
 import type * as Run from "./generics.Run.ts";
 import type * as Ticked from "./generics.Ticked.ts";
@@ -155,6 +157,22 @@ export function drop$generics_Run_generics_Ticked(_1: Run.Run<Ticked.Ticked>): v
 		rs.dropVec(_1._0 as rs.Vec<Ticked.Ticked>);
 	} else if (_1.tag === "Fixed") {
 		rs.dropAll(_1.array as Ticked.Ticked[]);
+	}
+}
+
+export class of$generics_Getter {
+	v: Getter.Getter;
+
+	constructor(v: Getter.Getter) {
+		this.v = v;
+	}
+
+	get$Get(): rs.OptionOf<rs.u8> {
+		return Getter.get$generics_Get_u8(this.v) as rs.OptionOf<rs.u8>;
+	}
+
+	holder$Get(): Holder.Holder | undefined {
+		return Getter.holder$generics_Get_u8(this.v);
 	}
 }
 

@@ -746,13 +746,13 @@ impl Type {
 			}
 	}
 
-	/// It with each [`Type::Later`] replaced by the arguments `later` gives it, or `None`
-	/// if one reaches itself.
-	pub fn fill(&mut self, later: &impl Fn(usize) -> Vec<Type>) -> Option<()> {
+	/// It with each [`Type::Later`] replaced by the arguments `later` gives it, if it gives
+	/// any, or `None` if one reaches itself.
+	pub fn fill(&mut self, later: &impl Fn(usize) -> Option<Vec<Type>>) -> Option<()> {
 		self.fill_from(later, &mut Vec::new())
 	}
 
-	fn fill_from(&mut self, later: &impl Fn(usize) -> Vec<Type>, open: &mut Vec<usize>) -> Option<()> {
+	fn fill_from(&mut self, later: &impl Fn(usize) -> Option<Vec<Type>>, open: &mut Vec<usize>) -> Option<()> {
 		match self {
 			Type::Param(_) | Type::Builtin(_) | Type::StrLit(_) => Some(()),
 			Type::Later(_) => unreachable!("projection arguments outside a generic type's arguments"),
@@ -767,11 +767,15 @@ impl Type {
 						filled.push(t);
 						continue;
 					};
+					let Some(args) = later(id) else {
+						filled.push(t);
+						continue;
+					};
 					if open.contains(&id) {
 						return None;
 					}
 					open.push(id);
-					for mut t in later(id) {
+					for mut t in args {
 						t.fill_from(later, open)?;
 						filled.push(t);
 					}

@@ -4,6 +4,7 @@ import * as rs from "../rs.ts";
 import type * as Pair from "../fmt.Pair.ts";
 import type * as Copse from "../generics.Copse.ts";
 import type * as Grove from "../generics.Grove.ts";
+import type * as Holder from "../generics.Holder.ts";
 import type * as Layer from "../generics.Layer.ts";
 import type * as Peel from "../generics.Peel.ts";
 import type * as Remade from "../generics.Remade.ts";
@@ -112,6 +113,13 @@ export function then$0y7on52(self: boolean, _: () => rs.ByteVec): rs.ByteVec | u
 		return undefined;
 	}
 	return new rs.ByteVec();
+}
+
+export function then$1tgze8k(self: boolean, f: () => Holder.Holder): Holder.Holder | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return f();
 }
 
 export function then$1qflv5x(self: boolean, f: () => Ticked.Ticked): Ticked.Ticked | undefined {

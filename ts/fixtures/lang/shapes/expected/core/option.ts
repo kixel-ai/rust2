@@ -10,6 +10,7 @@ import type * as Depth from "../generics.Depth.ts";
 import type * as Forked from "../generics.Forked.ts";
 import type * as Grove from "../generics.Grove.ts";
 import type * as Head from "../generics.Head.ts";
+import type * as Holder from "../generics.Holder.ts";
 import type * as Layer from "../generics.Layer.ts";
 import type * as Looped from "../generics.Looped.ts";
 import type * as Node from "../generics.Node.ts";
@@ -82,6 +83,13 @@ export function map$0983ug4(self: Defaulted.Defaulted<Back.Back, Defaulted.Defau
 		return undefined;
 	}
 	return self;
+}
+
+export function map$14wqhyc(self: Holder.Holder | undefined, f: (a0: Holder.Holder) => [rs.u8, rs.u8 | undefined]): [rs.u8, rs.u8 | undefined] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
 }
 
 export function map$04m4r6n(self: Counted.Counted<Counted.Counted$0> | undefined, f: (a0: Counted.Counted<Counted.Counted$0>) => rs.u8): rs.u8 | undefined {

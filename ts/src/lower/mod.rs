@@ -1113,17 +1113,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		// Its fields' types are refused where they are written, whatever reached it.
 		let held = std::mem::replace(&mut self.held, false);
 		let glue = std::mem::replace(&mut self.glue, false);
-		let defining = self.defining.take();
-		let field = self.defining_state.field.take();
 		// A named type, so an instance its fields hold again ends there.
-		let instancing = std::mem::take(&mut self.defining_state.instancing);
-		let instanced = std::mem::take(&mut self.defining_state.instanced);
-		let too_deep = std::mem::take(&mut self.defining_state.too_deep);
-		let projecting = std::mem::take(&mut self.defining_state.projecting);
-		let info = self.define(adt, span);
-		(self.held, self.glue, self.defining, self.defining_state.field) = (held, glue, defining, field);
-		(self.defining_state.instancing, self.defining_state.instanced) = (instancing, instanced);
-		(self.defining_state.too_deep, self.defining_state.projecting) = (too_deep, projecting);
+		let info = self.outside_definition(|t| t.define(adt, span));
+		(self.held, self.glue) = (held, glue);
 		info
 	}
 

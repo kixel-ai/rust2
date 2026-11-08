@@ -137,7 +137,6 @@ struct Typing {
 	adt: DefId,
 	members: usize,
 	pending: usize,
-	items: usize,
 }
 
 /// A definition typed, and the type of each of its fields there, which may hold
@@ -170,6 +169,24 @@ impl<'tcx> Translator<'_, 'tcx> {
 		&self.defining_state.records[&adt]
 	}
 
+	/// Run `f` outside the definition being typed and the type expression in it, as for
+	/// another definition, or a trait object's, whose types are over its own parameters.
+	pub(super) fn outside_definition<R>(&mut self, f: impl FnOnce(&mut Self) -> R) -> R {
+		let defining = self.defining.take();
+		let state = &mut self.defining_state;
+		let field = state.field.take();
+		let instancing = std::mem::take(&mut state.instancing);
+		let instanced = std::mem::take(&mut state.instanced);
+		let too_deep = std::mem::take(&mut state.too_deep);
+		let projecting = std::mem::take(&mut state.projecting);
+		let r = f(self);
+		self.defining = defining;
+		let state = &mut self.defining_state;
+		(state.field, state.instancing, state.instanced) = (field, instancing, instanced);
+		(state.too_deep, state.projecting) = (too_deep, projecting);
+		r
+	}
+
 	/// Start typing the definition of `adt`.
 	pub(super) fn start_definition(&mut self, adt: DefId) {
 		let state = &mut self.defining_state;
@@ -184,7 +201,6 @@ impl<'tcx> Translator<'_, 'tcx> {
 			adt,
 			members: state.members.len(),
 			pending: state.pending.len(),
-			items: self.program.items.len(),
 		});
 	}
 
@@ -486,9 +502,9 @@ impl<'tcx> Translator<'_, 'tcx> {
 	/// more rounds than the crate's recursion limit are refused at the definition.
 	fn complete(&mut self, depth: usize) -> bool {
 		let tcx = self.tcx;
-		let (members, pending, items) = {
+		let (members, pending) = {
 			let typing = &self.defining_state.typing[depth];
-			(typing.members, typing.pending, typing.items)
+			(typing.members, typing.pending)
 		};
 		let mut rounds = 0;
 		let settled = loop {
@@ -544,17 +560,23 @@ impl<'tcx> Translator<'_, 'tcx> {
 		let filled: Vec<Vec<Type>> = (self.defining_state.pending[pending..].iter())
 			.map(|p| p.filled.clone().unwrap_or_default())
 			.collect();
-		let later = |id: usize| filled[id.checked_sub(pending).expect("an instance this cycle typed")].clone();
+		// One of a cycle further out, still being typed, is left for it.
+		let later = |id: usize| id.checked_sub(pending).map(|i| filled[i].clone());
 		let mut endless = false;
-		for item in &mut self.program.items[items..] {
-			let tys: Vec<&mut Type> = match item {
-				Item::Struct { fields, .. } => fields.iter_mut().map(|f| &mut f.ty).collect(),
-				Item::Union { ty, .. } => vec![ty],
-				_ => continue,
-			};
-			for ty in tys {
-				endless |= ty.fill(&later).is_none();
+		// Wherever a type typed while they were open is kept: an item, such as an alias or a
+		// trait object's type, made then or before, and the methods objects hold.
+		if !filled.is_empty() {
+			for item in &mut self.program.items {
+				let tys: Vec<&mut Type> = match item {
+					Item::Struct { fields, .. } => fields.iter_mut().map(|f| &mut f.ty).collect(),
+					Item::Union { ty, .. } | Item::Value { ty, .. } => vec![ty],
+					Item::Function(_) => continue,
+				};
+				for ty in tys {
+					endless |= ty.fill(&later).is_none();
+				}
 			}
+			endless |= self.fill_objects(&later);
 		}
 		let mut members_done = Vec::with_capacity(done.len());
 		for mut member in done {

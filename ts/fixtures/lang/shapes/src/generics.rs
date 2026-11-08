@@ -1033,6 +1033,42 @@ struct Uninit<S> {
 	slot: Slot<std::mem::MaybeUninit<S>>,
 }
 
+/// A getter of its parameter, and of the type holding it, which its object's type names
+/// while that type's definition is still being typed.
+trait Get<T> {
+	fn get(&self) -> Option<T>;
+	fn holder(&self) -> Option<Holder>;
+}
+
+/// A type holding a getter whose methods return it.
+struct Holder {
+	id: u8,
+	get: Box<dyn Get<u8>>,
+}
+
+impl Holder {
+	/// A holder of a getter of `b`, whose type is typed before its getter's object is.
+	fn new(id: u8, b: u8) -> Self {
+		Self {
+			id,
+			get: Box::new(Getter(b)),
+		}
+	}
+}
+
+/// A getter of a byte, holding half of it again past `0x80`.
+struct Getter(u8);
+
+impl Get<u8> for Getter {
+	fn get(&self) -> Option<u8> {
+		(self.0 % 3 != 0).then_some(self.0)
+	}
+
+	fn holder(&self) -> Option<Holder> {
+		(self.0 > 0x80).then(|| Holder::new(self.0 / 2, self.0 / 2))
+	}
+}
+
 /// A layered source's item, and the item of the layer peeled off it.
 trait Layered {
 	type Item;
@@ -1297,6 +1333,10 @@ pub fn projected_selves(data: &[u8], out: &mut Vec<u8>) {
 		},
 	};
 	put(out, &format!("{}", uninit.slot.value.is_some()));
+
+	let holder = Holder::new(data.len() as u8, data.first().copied().unwrap_or(0));
+	let held = holder.get.holder().map(|h| (h.id, h.get.get()));
+	put(out, &format!("{} {:?} {held:?}", holder.id, holder.get.get()));
 
 	let twig: &'static Twig<Sprout> = &Twig {
 		next: None,
