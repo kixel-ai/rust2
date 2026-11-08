@@ -264,7 +264,7 @@ fn defined<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, def_args: &[GenericArg<'tcx>]
 }
 
 /// The type and const arguments of `args`, as a suffix spells them.
-fn args<'tcx>(tcx: TyCtxt<'tcx>, args: &[GenericArg<'tcx>]) -> impl Iterator<Item = String> {
+pub(super) fn args<'tcx>(tcx: TyCtxt<'tcx>, args: &[GenericArg<'tcx>]) -> impl Iterator<Item = String> {
 	args.iter().filter_map(move |arg| match arg.kind() {
 		ty::GenericArgKind::Type(t) => Some(ty(tcx, t)),
 		ty::GenericArgKind::Const(c) => Some(konst(c)),
