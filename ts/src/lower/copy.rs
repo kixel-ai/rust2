@@ -163,7 +163,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	pub fn unsplit(&self, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, &'static str)> {
 		by_value(self.tcx, self.typing_env(), ty).find_map(|part| {
 			if self.stateful(part) {
-				return Some((part, "a closure or coroutine whose state JS keeps in the function itself"));
+				return Some((
+					part,
+					"a closure or coroutine whose state JS keeps in the function itself",
+				));
 			}
 			let ty::Adt(adt, args) = part.kind() else {
 				return None;
