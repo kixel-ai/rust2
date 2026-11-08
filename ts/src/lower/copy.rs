@@ -163,7 +163,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// which a copy one object deep is exact for.
 	pub fn unsplit(&self, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, &'static str)> {
 		if let Some(opaque) = self.opaque(ty) {
-			return Some((opaque, "a library object whose inline state only its runtime class knows"));
+			return Some((
+				opaque,
+				"a library object whose inline state only its runtime class knows",
+			));
 		}
 		by_value(self.tcx, self.typing_env(), ty).find_map(|part| {
 			if self.stateful(part) {
