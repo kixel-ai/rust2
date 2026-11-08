@@ -200,11 +200,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Coroutine(..) => true,
 			ty::Closure(..) | ty::CoroutineClosure(..) => {
 				super::mir::writes_captures(tcx, ty)
-					|| (super::captured(ty).unwrap_or_default().iter())
-						.any(|t| {
-							by_value(tcx, env, t)
-								.any(|part| !part.is_freeze(tcx, env) || self.changes(part) || self.stateful(part))
-						})
+					|| (super::captured(ty).unwrap_or_default().iter()).any(|t| {
+						by_value(tcx, env, t)
+							.any(|part| !part.is_freeze(tcx, env) || self.changes(part) || self.stateful(part))
+					})
 			}
 			_ => false,
 		}
