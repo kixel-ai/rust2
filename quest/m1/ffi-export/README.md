@@ -62,4 +62,4 @@ names and defaults, and fails the export on a public item it cannot export.
 ## Required
 
 - [Sessions on sans-IO QUIC](/quest/m1/ffi-export/session-quic.md) - bindings move UDP datagrams and drive the session's poll themselves, over moq's runtime-free QUIC driver once it lands
-- [Every public item exports](/quest/m1/ffi-export/refusals.md) - the census is empty and `ffi.toml` is deleted, so the exporter reads no config
+- [Every public item exports](/quest/m1/ffi-export/refusals/README.md) - the census lists no refusals and `ffi.toml` is deleted, so the exporter reads no config
