@@ -160,7 +160,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 			return None;
 		};
 		if !self.objects.contains_key(&principal) {
-			self.define_object(principal, ty, span)?;
+			// Over the trait's own parameters, whatever definition is typing it.
+			self.outside_definition(|t| t.define_object(principal, ty, span))?;
 		}
 		let args = self.object_args(principal, ty, span);
 		let sym = self.objects[&principal].sym;
@@ -352,6 +353,11 @@ impl<'tcx> Translator<'_, 'tcx> {
 	/// The object of `principal` holding its method `index` from now on: in its type, and in
 	/// each class its objects wrap a value in.
 	fn hold(&mut self, principal: DefId, index: usize, span: Span) {
+		self.outside_definition(|t| t.hold_method(principal, index, span));
+	}
+
+	/// [`Self::hold`], outside any definition being typed.
+	fn hold_method(&mut self, principal: DefId, index: usize, span: Span) {
 		let tcx = self.tcx;
 		let object = &self.objects[&principal];
 		let method = &object.methods[index];
@@ -400,6 +406,18 @@ impl<'tcx> Translator<'_, 'tcx> {
 		for (from, held, object) in classes {
 			self.class_method(principal, index, from, held, object, span);
 		}
+	}
+
+	/// Fill in the [`Type::Later`]s of the methods objects hold, as [`Type::fill`] does,
+	/// returning whether one reaches itself.
+	pub(super) fn fill_objects(&mut self, later: &impl Fn(usize) -> Option<Vec<Type>>) -> bool {
+		let mut endless = false;
+		for object in self.objects.values_mut() {
+			for ty in object.methods.iter_mut().filter_map(|m| m.ty.as_mut()) {
+				endless |= ty.fill(later).is_none();
+			}
+		}
+		endless
 	}
 
 	/// Whether an upcast from the trait object `from` to `to`, a made object, is cast to

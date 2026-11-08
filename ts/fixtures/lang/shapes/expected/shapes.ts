@@ -23,7 +23,7 @@ import type * as Parts from "./shapes.Parts.ts";
 import * as Point from "./shapes.Point.ts";
 import * as Shape from "./shapes.Shape.ts";
 import type * as Signed from "./shapes.Signed.ts";
-import type * as Slot from "./shapes.Slot.ts";
+import type * as shapes_Slot from "./shapes.Slot.ts";
 import * as Track from "./shapes.Track.ts";
 import * as Void from "./shapes.Void.ts";
 import type * as shapes_Wide from "./shapes.Wide.ts";
@@ -1435,7 +1435,7 @@ export function payloads(_dataData: Uint8Array, _dataStart: number, dataLen: num
 	}
 	const part2: rs.u8 | undefined = parity(rs.u8WrappingAdd(n, 1));
 	const err2: rs.u8 | undefined = part2 === undefined ? out$u8.err as rs.u8 : undefined;
-	const slot: Slot.Slot = { res: (err2 !== undefined ? rs.Err(err2 as rs.u8) : rs.Ok(part2 as rs.u8)) as rs.Result<rs.u8, rs.u8> };
+	const slot: shapes_Slot.Slot = { res: (err2 !== undefined ? rs.Err(err2 as rs.u8) : rs.Ok(part2 as rs.u8)) as rs.Result<rs.u8, rs.u8> };
 	if (!slot.res.ok) {
 		const _33: rs.u8 = rs.u8WrappingSub(slot.res.error, 4);
 		slot.res = { ok: false, error: _33 };
