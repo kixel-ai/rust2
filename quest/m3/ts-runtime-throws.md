@@ -20,14 +20,19 @@ only because translation can't see where a pointer came from:
 - ✅ Refuse at translation, with a span, where the body doesn't show the pointer fits:
   `rs.arcErase` (done in #661) and `alloc`'s bytes.
 - ✅ Keep as loud run-time checks: `ptrUnerase`, `offset_from` across arrays,
-  `AtIndex.reach`, raw slices of a field's byte, and `Bytes::slice_ref` of copied bytes,
-  safe code with no exact answer while a `&str` stays a JS string. AGENTS.md allows the
-  unsafe ones under m3's [unsafe policy](/quest/m3/README.md).
+  `AtIndex.reach`, and raw slices of a field's byte, which AGENTS.md allows under m3's
+  [unsafe policy](/quest/m3/README.md).
   Two pointers made from one reference, one through a branch or loop, may each be in
   an array of one of its own; keep the loud check rather than trace joins (decided
   2026-11-07 in [#621](https://github.com/moq-dev/rust2/pull/621)).
 - Rejected: refusing all of them at translation, which refuses pointer arithmetic on any
   pointer parameter; keeping all as run-time checks.
+
+Decided with the maintainer on 2026-11-07, in the quest audit: ✅ `Bytes::slice_ref` of
+bytes from other storage is refused at translation, since it is safe code and AGENTS.md
+allows a run-time check only for an `unsafe` pointer. Rejected: keeping its run-time
+check, as #661 had, and widening AGENTS.md's exception to safe code with no exact answer
+while a `&str` stays a JS string.
 
 What remains:
 
@@ -45,6 +50,11 @@ What remains:
   offset it came from, compared through that, is exact; it builds on the `rs.ArraySlice`
   [#662](https://github.com/moq-dev/rust2/pull/662) left, where `rs.arraySliceItems` still
   copies.
+- `Bytes::slice_ref` of bytes from other storage throws in `bytesSliceRef`
+  (`ts/runtime/rs/bytes.ts`), since Rust may share what JS copied, such as a
+  `&'static str`'s bytes that `as_bytes` encodes anew. Refuse the call whose `subset` the
+  body doesn't show borrowed from that same `Bytes`, through `Deref`, `as_ref`, or a slice
+  of one; the throw is then a translator guard, and `ts/README.md` says so.
 - `bytes`' panics in a hook program: `BYTES` in [`caller.rs`](/ts/src/lower/caller.rs)
   finds each by searching the source of the program's `bytes` for text, so a
   `--remap-path-prefix` of a directory inside `bytes` fails translation of a hook program.
@@ -55,3 +65,7 @@ What remains:
   follow-ups).
 
 Public API: the translator's output, and which crates translate.
+
+## Related
+
+- [Array references from slices and cells](/quest/m3/ts-array-ref-conversions.md) - also changes how an array taken from a flat slice is represented, on the same `rs.ArraySlice`
