@@ -587,14 +587,17 @@ pub fn call<'tcx>(
 		ty::Array(elem, _) => super::slice_items_from(e, *elem),
 		_ => super::library::slice_from(e),
 	};
-	// The arrays of an array of arrays have no JS array to write through.
-	let to_reference = |b: &mut Body<'_, '_, 'tcx>, e: Expr| match b.t.uninit_inner(pointee()) {
-		ty if super::byte_array(ty) => Expr::rs("byteSliceView", vec![e]),
-		ty if super::array_slice::of_arrays(ty) => b.err(
-			span,
-			format!("a reference to `{ty}` from a raw pointer, which is not supported yet"),
-		),
-		_ => super::library::slice_view(e),
+	// A reference to the array a pointer points at: the slice the pointer is, or for one a
+	// `MaybeUninit` or `ManuallyDrop` holds, whose reference is the array, as a reborrow of
+	// `*p` makes it: a view of bytes, and else refused.
+	let to_reference = |b: &mut Body<'_, '_, 'tcx>, p: Expr| {
+		let ty = pointee();
+		let inner = b.t.uninit_inner(ty);
+		match inner {
+			_ if inner == ty => p,
+			_ if super::byte_array(inner) => Expr::rs("byteSliceView", vec![p]),
+			_ => b.err(span, uninit_reborrow(ty)),
+		}
 	};
 	// A raw pointer to a slice, from a reference to one, and the slice a read through it
 	// makes, shared if nothing writes through it.
@@ -671,7 +674,10 @@ pub fn call<'tcx>(
 		("NonNull", "as_ref" | "as_mut") if kind(b, pointee()) == Some(Pointee::Slice) => {
 			deref(pointee(), arg(), name == "as_ref")
 		}
-		("NonNull", "as_mut") if array(b, pointee()) => to_reference(b, arg()),
+		("NonNull", "as_mut") if array(b, pointee()) => {
+			let p = arg();
+			to_reference(b, p)
+		}
 		// A `&mut` to a `MaybeUninit` of a cell of a value JS copies is the place the cell is
 		// kept in, but one to the cell is the cell.
 		("MaybeUninit", "assume_init_mut")
@@ -747,7 +753,16 @@ pub fn call<'tcx>(
 			let shared = name == "as_ref" && kind(b, pointee()) == Some(super::pointer::Pointee::Place);
 			let (some, none) = match shared {
 				true => (p.clone().member("v"), b.t.none(pointee())),
-				false if array(b, pointee()) => (to_reference(b, p.clone()), Expr::undefined()),
+				// The `None` of an `Option` of the reference, which may be `rs.None` where the
+				// reference is the array a `MaybeUninit` holds.
+				false if array(b, pointee()) => {
+					let lent = b.t.sig(call.def_id, gargs).output();
+					let none = match lent.kind() {
+						ty::Adt(_, args) => b.t.none(args.type_at(0)),
+						_ => Expr::undefined(),
+					};
+					(to_reference(b, p.clone()), none)
+				}
 				false => (p.clone(), Expr::undefined()),
 			};
 			Expr::Cond(
@@ -758,7 +773,10 @@ pub fn call<'tcx>(
 		}
 		("NonNull", "as_ref") | ("MaybeUninit", "assume_init_ref") => match kind(b, pointee()) {
 			Some(Pointee::Place) if owner == "NonNull" => arg().member("v"),
-			Some(Pointee::Array) if owner == "NonNull" => to_reference(b, arg()),
+			Some(Pointee::Array) if owner == "NonNull" => {
+				let p = arg();
+				to_reference(b, p)
+			}
 			_ => arg(),
 		},
 		// An `rs.Arc` is its allocation, which has one place of its value: the pointer to a
@@ -830,7 +848,29 @@ pub fn call<'tcx>(
 		("Box", "from_raw") => match kind(b, pointee()) {
 			Some(Pointee::Slice) => deref(pointee(), arg(), false),
 			Some(Pointee::Place) => arg().member("v"),
-			Some(Pointee::Array) => to_reference(b, arg()),
+			// A box of an array is the array, all of which `into_raw` pointed at. One of no
+			// bytes owns no allocation, so any pointer of any length makes one: a new array, as
+			// a dangling pointer's is. Arrays `as_chunks` split from one flat array have no
+			// array of their own to box.
+			Some(Pointee::Array) => match b.t.uninit_inner(pointee()) {
+				ty if super::byte_array(ty) => Expr::rs("byteSliceView", vec![arg()]),
+				ty if b.t.zero_sized(ty) => match ty.kind() {
+					ty::Array(elem, len) if b.t.empty(*elem) || len.try_to_target_usize(b.t.tcx) == Some(0) => {
+						b.t.uninit(pointee(), span)
+					}
+					_ => b.err(
+						span,
+						format!("`Box::from_raw` of `{ty}`, a value of no bytes made of more than structs and tuples"),
+					),
+				},
+				ty if super::array_slice::of_arrays(ty) => b.err(
+					span,
+					format!(
+						"`Box::from_raw` of `{ty}`, which may be arrays `as_chunks` split from one flat array, which is not supported yet"
+					),
+				),
+				_ => Expr::rs("boxArrayFromRaw", vec![arg()]),
+			},
 			_ => arg(),
 		},
 		// Refused here rather than in `read`, `replace`, and `swap`, which the safe `Cell`
@@ -1007,6 +1047,14 @@ pub fn call<'tcx>(
 		}
 		// What `get` points at, lent as `get_mut` lends it.
 		("UnsafeCell" | "Cell", "get_mut") | ("UnsafeCell", "as_mut_unchecked") if b.t.needs_place(pointee()) => arg(),
+		// The pointer `get` gives to an array is the reference to it, which `lend` leaves as it
+		// is; one a `MaybeUninit` holds is the array, which the cell holds.
+		("UnsafeCell", "get_mut" | "as_ref_unchecked" | "as_mut_unchecked") | ("Cell", "get_mut")
+			if pointee().is_array() =>
+		{
+			let cell = arg();
+			cell_pointer(b, cell, pointee())
+		}
 		("UnsafeCell", "get_mut" | "as_ref_unchecked" | "as_mut_unchecked" | "into_inner") | ("Cell", "get_mut") => {
 			arg().member("v")
 		}
@@ -1324,8 +1372,13 @@ pub(super) fn cell_pointer<'tcx>(b: &Body<'_, '_, 'tcx>, cell: Expr, ty: Ty<'tcx
 	if pointee == Pointee::Place {
 		return cell;
 	}
+	let inner = b.t.uninit_inner(ty);
+	if pointee == Pointee::Array && !super::byte_array(inner) {
+		// The slice `Cell::from_mut` made the cell of, or else of all of the array it holds.
+		return Expr::rs("cellArray", vec![cell, super::array_fn(inner, "From")]);
+	}
 	let held = cell.member("v");
-	match (pointee, b.t.uninit_inner(ty).kind()) {
+	match (pointee, inner.kind()) {
 		(Pointee::Array, ty::Array(elem, _)) => super::slice_items_from(held, *elem),
 		(Pointee::Slice, _) if slice_of_bytes(ty) => Expr::rs("rawByteSliceOf", vec![held]),
 		(Pointee::Slice, _) if slice_of_arrays(ty) => Expr::rs("rawArraySliceOf", vec![held]),
@@ -1395,19 +1448,21 @@ pub(super) fn replace<'tcx>(
 
 /// What `p`, a pointer to `ty`, points at, as a value of its own that a whole write there
 /// after leaves as it was. The write lands in the object or array a pointer is, so one is
-/// copied one object deep, an array's elements to the depth `objectCopy` copies them. One
+/// copied one object deep, an array's elements to the depth `objectCopy` copies them, and an
+/// array of arrays' as [`super::Translator::elem_copy`] says. One
 /// a pointer is the place of is read as it is, keeping a `Box`'s allocation, as its write
 /// puts another in the place.
 fn copied_out<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 	match b.t.pointee(ty) {
 		_ if b.t.zero_sized(ty) || b.t.keeps_cells(ty) => read(b, p, ty, span, out),
 		Pointee::Object => Expr::rs("objectCopy", vec![p]),
-		Pointee::Array
-			if !super::byte_array(b.t.uninit_inner(ty)) && !super::array_slice::of_arrays(b.t.uninit_inner(ty)) =>
-		{
+		Pointee::Array if super::array_slice::of_arrays(b.t.uninit_inner(ty)) => {
+			let copy = b.t.elem_copy(b.t.uninit_inner(ty), span);
+			Expr::rs("arraySliceCopy", std::iter::once(p).chain(copy).collect())
+		}
+		Pointee::Array if !super::byte_array(b.t.uninit_inner(ty)) => {
 			let depth = b.t.copy_depth(b.t.uninit_inner(ty));
-			let view = super::library::slice_view(p);
-			Expr::rs("objectCopy", std::iter::once(view).chain(depth).collect())
+			Expr::rs("sliceCopy", std::iter::once(p).chain(depth).collect())
 		}
 		_ => read(b, p, ty, span, out),
 	}
@@ -1603,6 +1658,15 @@ fn object_field<'tcx>(b: &mut Body<'_, '_, 'tcx>, object: Expr, ty: Ty<'tcx>, i:
 		},
 		_ => unreachable!("`{ty}` is a tuple or a struct"),
 	}
+}
+
+/// Why a reborrow through a raw pointer of `ty`, an array a `MaybeUninit` or `ManuallyDrop`
+/// holds of other than bytes, is refused: its reference is the array, which part of an array
+/// has none of its own, so a shared one would be a copy at another address.
+pub fn uninit_reborrow(ty: Ty<'_>) -> String {
+	format!(
+		"a reborrow of `{ty}` through a raw pointer, which may point into part of an array with no JS array of its own to lend, which is not supported yet"
+	)
 }
 
 /// Whether `ty` is `[u8]`, one of `MaybeUninit<u8>`, or an `UninitSlice`, whose slices are

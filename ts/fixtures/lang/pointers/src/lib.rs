@@ -61,6 +61,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		}),
 		("pointers::lone_bytes", |_, data, out| pointers::lone_bytes(data, out)),
 		("pointers::moved_out", |_, data, out| pointers::moved_out(data, out)),
+		("pointers::array_parts", |_, data, out| pointers::array_parts(data, out)),
 	]
 }
 

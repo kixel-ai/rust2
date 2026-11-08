@@ -248,11 +248,8 @@ pub fn wrapped_cells(n: u32) -> u32 {
 	}
 }
 
-/// An `UnsafeCell::from_mut` of arrays of arrays, which a cell may read a copy of, and
 /// `Cell::swap`s of arrays, whose cells may partially overlap.
-pub fn cell_of_arrays(a: &mut [[u16; 2]; 2]) -> u16 {
-	let c = std::cell::UnsafeCell::from_mut(a);
-	let first = unsafe { (*c.get())[0][0] };
+pub fn cell_of_arrays() -> u16 {
 	let (x, y) = (
 		std::cell::Cell::new([[1u16, 2]; 2]),
 		std::cell::Cell::new([[3u16, 4]; 2]),
@@ -260,7 +257,39 @@ pub fn cell_of_arrays(a: &mut [[u16; 2]; 2]) -> u16 {
 	x.swap(&y);
 	let (v, w) = (std::cell::Cell::new([5u32, 6]), std::cell::Cell::new([7u32, 8]));
 	v.swap(&w);
-	first ^ x.into_inner()[0][0] ^ v.into_inner()[0] as u16
+	x.into_inner()[0][0] ^ v.into_inner()[0] as u16
+}
+
+/// Reborrows through a pointer to an array a `MaybeUninit` holds, by `as_mut`, `as_ref`,
+/// and `&*p`, shared and mutable, whose reference is the array, which part of an array has
+/// none of its own.
+pub fn uninit_array_lent(p: *mut std::mem::MaybeUninit<[u32; 2]>) -> u32 {
+	let first = unsafe { p.as_mut() }.map_or(0, |m| unsafe { m.assume_init_mut()[0] });
+	let second = unsafe { std::ptr::NonNull::new(p).unwrap().as_mut().assume_init_mut()[1] };
+	let third = unsafe { p.as_ref() }.map_or(0, |m| unsafe { m.assume_init_ref()[0] });
+	let fourth = unsafe { std::ptr::NonNull::new(p).unwrap().as_ref().assume_init_ref()[1] };
+	let fifth = unsafe { (&*p).assume_init_ref()[0] };
+	let sixth = unsafe { (&mut *p).assume_init_mut()[1] };
+	first ^ second ^ third ^ fourth ^ fifth ^ sixth
+}
+
+/// `Box::from_raw` of arrays `as_chunks_mut` split from one flat array, which a box of
+/// arrays of their own can't share, and of an array of no bytes whose elements are more than
+/// structs and tuples, which the translator can't make anew.
+pub fn arrays_boxed() -> u32 {
+	let flat = Box::into_raw(Box::new([1u32, 2, 3, 4]));
+	let (runs, _) = unsafe { (*flat).as_chunks_mut::<2>() };
+	let whole: *mut [[u32; 2]; 2] = runs.first_chunk_mut().unwrap();
+	let back = unsafe { Box::from_raw(whole) };
+	let marks = Box::into_raw(Box::new([Only::One; 2]));
+	let marks = unsafe { Box::from_raw(marks) };
+	back[0][0] + marks.len() as u32
+}
+
+/// An enum of one variant, a value of no bytes.
+#[derive(Clone, Copy)]
+enum Only {
+	One,
 }
 
 /// A `get_mut` and an `as_mut_unchecked` of a cell of a pinned `Box`, whose old value

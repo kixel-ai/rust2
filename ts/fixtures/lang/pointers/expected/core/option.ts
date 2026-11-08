@@ -111,6 +111,20 @@ export function mapOr$18adzvj(self: rs.Cell<rs.u32> | undefined, default_: rs.u3
 	return self.v;
 }
 
+export function mapOr$0m14xib(self: Uint8Array | rs.None, default_: Uint8Array, f: (a0: Uint8Array) => Uint8Array): Uint8Array {
+	if (self === rs.None) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$1wlsr3s(self: rs.u8 | undefined, default_: rs.u32, f: (a0: rs.u8) => rs.u32): rs.u32 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function mapOr$0emjeap(self: rs.Arc<rs.u32> | undefined, default_: rs.u8, f: (a0: rs.Arc<rs.u32>) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;

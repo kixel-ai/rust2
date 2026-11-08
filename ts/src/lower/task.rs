@@ -594,12 +594,9 @@ fn cell<'tcx>(
 	let span = call.span;
 	let ty = call.args.type_at(0);
 	// A pointer `as_ptr` gave to an object or an array is it, so a write lands in it, as it
-	// does in each cell a value keeps. A cell of arrays of arrays may be `Cell::from_mut`'s,
-	// which reads a copy of them, so it is written whole.
-	let arrays = super::array_slice::of_arrays(b.t.uninit_inner(ty));
-	let in_place = (matches!(b.t.pointee(ty), Pointee::Object | Pointee::Array) || b.t.keeps_cells(ty))
-		&& !b.t.zero_sized(ty)
-		&& !arrays;
+	// does in each cell a value keeps.
+	let in_place =
+		(matches!(b.t.pointee(ty), Pointee::Object | Pointee::Array) || b.t.keeps_cells(ty)) && !b.t.zero_sized(ty);
 	let default = |b: &mut Body<'_, '_, 'tcx>, out: &mut Vec<Stmt>| {
 		let f = super::collections::trait_fn(tcx, "Default", "default");
 		b.call_def(f, tcx.mk_args(&[ty.into()]), Vec::new(), span, out)
