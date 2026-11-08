@@ -3853,6 +3853,36 @@ fn located(value: Expr, loc: Option<ts::Loc>) -> Expr {
 	}
 }
 
+/// What the member `key` of `base`, which a substitution made, reads, if `base` shows it.
+fn folded_member(base: &Expr, key: &ts::Key) -> Option<Expr> {
+	// The payload of a `Result` made here is what it was made of, which `tsc` reads where it
+	// can't narrow the `Result`, cast to its variant or not, and so is what an `rs.Place`
+	// made here holds.
+	let made = match step::peel(base) {
+		Expr::As(made, _) => step::peel(made),
+		base => base,
+	};
+	match (made, key) {
+		(Expr::Call(f, args), ts::Key::Name(key))
+			if let Expr::Rs(ctor) = step::peel(f)
+				&& matches!((ctor.as_str(), key.as_str()), ("Ok", "value") | ("Err", "error"))
+				&& let [payload] = args.as_slice() =>
+		{
+			Some(payload.clone())
+		}
+		// A pointer made here of a shared reference holds its value.
+		(Expr::Object(members), ts::Key::Name(key))
+			if key == "v"
+				&& let [(ts::Key::Name(v), value)] = members.as_slice()
+				&& v == "v" =>
+		{
+			Some(value.clone())
+		}
+		(_, ts::Key::Name(key)) if key == "v" => step::peel(base).place_read(),
+		_ => None,
+	}
+}
+
 /// Replace the one read of `name` in `stmt` with `value`; whether it was there.
 fn subst_stmt(stmt: &mut Stmt, name: &str, value: &Expr) -> bool {
 	match &mut stmt.kind {
@@ -3876,25 +3906,7 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 			if !subst(base, name, value) {
 				return false;
 			}
-			// The payload of a `Result` made here is what it was made of, which `tsc` reads
-			// where it can't narrow the `Result`, cast to its variant or not, and so is what an
-			// `rs.Place` made here holds.
-			let made = match step::peel(base) {
-				Expr::As(made, _) => step::peel(made),
-				base => base,
-			};
-			let folded = match (made, &*key) {
-				(Expr::Call(f, args), ts::Key::Name(key))
-					if let Expr::Rs(ctor) = step::peel(f)
-						&& matches!((ctor.as_str(), key.as_str()), ("Ok", "value") | ("Err", "error"))
-						&& let [payload] = args.as_slice() =>
-				{
-					Some(payload.clone())
-				}
-				(_, ts::Key::Name(key)) if key == "v" => step::peel(base).place_read(),
-				_ => None,
-			};
-			if let Some(folded) = folded {
+			if let Some(folded) = folded_member(base, key) {
 				*e = folded;
 			}
 			true
@@ -3970,7 +3982,22 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 			}
 			true
 		}
-		Expr::Assign(l, r) => subst(l, name, value) || subst(r, name, value),
+		// A member assigned to folds only to the place an `rs.place` made here reads, as a
+		// value made here, such as `{ v: x }`'s, holds a copy of its own.
+		Expr::Assign(l, r) => {
+			let Expr::Member(base, key) = &mut **l else {
+				return subst(l, name, value) || subst(r, name, value);
+			};
+			if !subst(base, name, value) {
+				return subst(r, name, value);
+			}
+			if matches!(key, ts::Key::Name(key) if key == "v")
+				&& let Some(place) = step::peel(base).place_read()
+			{
+				**l = place;
+			}
+			true
+		}
 		Expr::Cond(c, a, b) => subst(c, name, value) || subst(a, name, value) || subst(b, name, value),
 		Expr::Arrow(..) | Expr::Lambda(..) => false,
 	}

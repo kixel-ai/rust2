@@ -1,10 +1,13 @@
-//! Copies of `Copy` aggregates, by their type.
+//! Copies of `Copy` aggregates, and of values a read through a pointer moves out, by
+//! their type.
 //!
 //! JS shares an object where Rust copies its value, so a `Copy` value that is a JS object
 //! the crate's code writes into in place, or compares pointers to, is copied where Rust
-//! copies it. A function made for its type copies what it holds by value and shares what
-//! it holds by reference, as Rust does. A value of a type nothing writes into or compares
-//! pointers to never changes once made, so sharing it is a copy no one can tell apart.
+//! copies it, as is each such object a read through a pointer moves out, a library
+//! object such as a `RefCell` included, one object deep. A function made for its type copies
+//! what it holds by value and shares what it holds by reference, as Rust does. A value of
+//! a type nothing writes into or compares pointers to never changes once made, so sharing
+//! it is a copy no one can tell apart.
 
 use std::cell::RefCell;
 
@@ -25,6 +28,16 @@ use super::mir::holders::{Filled, Holds, Trace};
 use super::{AdtRepr, Translator, field_name, names};
 use crate::program::{SymKind, Symbol};
 use crate::ts::{self, Expr, Key, Param, Stmt, StmtKind};
+
+/// What a library object holds inline, which its copy one object deep would share.
+#[derive(Default)]
+struct Inline<'tcx> {
+	/// Each field of its JS object holding a value inline, and the type held there.
+	fields: Vec<(&'static str, Ty<'tcx>)>,
+	/// The types it holds inline that its copy shares, a hash map's hasher, which a move
+	/// out of it through a pointer counts as it counts the collection.
+	shared: Vec<Ty<'tcx>>,
+}
 
 impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether a `ty` is copied where Rust copies it: a `Copy` value that is, or holds by
@@ -55,7 +68,26 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Some(Std::Bound) => (true, args.types().collect()),
 				// Records of functions and pointers, which JS shares.
 				Some(Std::WakerVTable | Std::RawWaker) => (true, Vec::new()),
-				Some(Std::MaybeUninit | Std::ManuallyDrop) => return self.changes(args.type_at(0)),
+				// What it holds, which a `Pin` is in JS too.
+				Some(Std::MaybeUninit | Std::ManuallyDrop | Std::Pin) => return self.changes(args.type_at(0)),
+				// A library object a whole write lands in in place, which a copy copies one
+				// object deep; through a shared reference too, where it has interior
+				// mutability, which no write the crate shows records.
+				Some(_) if self.write_in(ty).is_some() => {
+					return self.writes.contains(&self.writes.into, false, self.tcx, ty)
+						|| self.addressed(ty)
+						|| !ty.is_freeze(self.tcx, self.typing_env())
+						|| match self.inline_held(ty) {
+							Some(inline) => inline
+								.fields
+								.into_iter()
+								.map(|(_, t)| t)
+								.chain(inline.shared)
+								.any(|t| self.changes(t)),
+							// Any type it is over may be held inline, which its copy refuses.
+							None => args.types().any(|t| self.changes(t)),
+						};
+				}
 				Some(_) => return false,
 				None if self.own(adt.did()) && adt.all_fields().next().is_some() => {
 					(true, adt.all_fields().map(|f| self.field_ty(f.did, args)).collect())
@@ -66,6 +98,159 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		};
 		object && (self.writes.contains(&self.writes.into, false, self.tcx, ty) || self.addressed(ty))
 			|| parts.into_iter().any(|t| self.changes(t))
+	}
+
+	/// What a library object `ty` holds inline rather than on the heap, which a copy of the
+	/// object one object deep shares: each field of its JS object holding such a value and
+	/// the type held there, a cell's, a lock's, a range's ends, or a one-time cell's, which
+	/// holds nothing until set; and the types it holds where no copy reaches, a hash map's
+	/// hasher. A collection's items, and what a `Weak` points at, are on the heap, which
+	/// Rust's read shares too. `None` for any other library object, such as a `LazyCell` or
+	/// a `Peekable`, whose inline state only its runtime class knows, so a read that would
+	/// copy one is refused.
+	fn inline_held(&self, ty: Ty<'tcx>) -> Option<Inline<'tcx>> {
+		let ty::Adt(adt, args) = ty.kind() else {
+			return None;
+		};
+		let at = |i: usize| args.type_at(i);
+		let fields = match Std::of(self.tcx, adt.did()) {
+			Some(Std::Cell) => vec![("v", at(0))],
+			Some(Std::RefCell | Std::Mutex) => vec![("value", at(0))],
+			Some(Std::OnceCell | Std::OnceLock) => vec![("v", Ty::new_option(self.tcx, at(0)))],
+			Some(Std::Range) => vec![("start", at(0)), ("end", at(0))],
+			Some(Std::RangeInclusive) => vec![("lo", at(0)), ("hi", at(0))],
+			Some(Std::RangeFrom) => vec![("start", at(0))],
+			Some(
+				Std::Vec
+				| Std::VecDeque
+				| Std::String
+				| Std::LinkedList
+				| Std::BinaryHeap
+				| Std::BTreeMap
+				| Std::BTreeSet
+				| Std::HashTable
+				| Std::BytesMut
+				| Std::Weak,
+			) => Vec::new(),
+			Some(Std::HashMap) => {
+				return Some(Inline {
+					shared: vec![at(2)],
+					..Inline::default()
+				});
+			}
+			Some(Std::HashSet) => {
+				return Some(Inline {
+					shared: vec![at(1)],
+					..Inline::default()
+				});
+			}
+			_ => return None,
+		};
+		Some(Inline {
+			fields,
+			..Inline::default()
+		})
+	}
+
+	/// What a move of a `ty` out of where it is kept, as `ptr::read` makes, would copy that no
+	/// JS copy splits from the original as Rust's read does, if anything, and why: a
+	/// collection held by value, a `Vec` of other than bytes, a `VecDeque`, a `String`, a
+	/// map, a set, or a list, whose JS object keeps its length with its storage, sharing the
+	/// storage while each keeps a length of its own; a closure whose captures its copy
+	/// would split, or a coroutine, whose state is the JS function's or generator's own; or
+	/// a library object whose inline state only its runtime class knows, which the copy
+	/// copies one object deep. A safe move leaves nothing pointing into the original,
+	/// which a copy one object deep is exact for.
+	pub fn unsplit(&self, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, &'static str)> {
+		if let Some(opaque) = self.opaque(ty) {
+			return Some((
+				opaque,
+				"a library object whose inline state only its runtime class knows",
+			));
+		}
+		by_value(self.tcx, self.typing_env(), ty).find_map(|part| {
+			if self.stateful(part) {
+				return Some((
+					part,
+					"a closure or coroutine whose state JS keeps in the function itself",
+				));
+			}
+			let ty::Adt(adt, args) = part.kind() else {
+				return None;
+			};
+			let joined = match Std::of(self.tcx, adt.did()) {
+				Some(Std::Vec) => !super::byte(args.type_at(0)),
+				Some(
+					Std::VecDeque
+					| Std::BinaryHeap
+					| Std::String
+					| Std::LinkedList
+					| Std::BTreeMap
+					| Std::BTreeSet
+					| Std::HashMap
+					| Std::HashSet
+					| Std::HashTable,
+				) => true,
+				_ => false,
+			};
+			(joined && self.changes(part))
+				.then_some((part, "a collection whose JS object keeps its length with its storage"))
+		})
+	}
+
+	/// The library object a copy of `ty` reaches whose inline state only its runtime class
+	/// knows, such as a `LazyCell` or a `Peekable`, if any, as [`Self::copy_parts`] walks it:
+	/// copied one object deep, which an unsafe move can tell apart.
+	fn opaque(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+		if !self.changes(ty) {
+			return None;
+		}
+		match ty.kind() {
+			ty::Tuple(tys) => tys.iter().find_map(|t| self.opaque(t)),
+			ty::Array(elem, _) | ty::Slice(elem) => self.opaque(*elem),
+			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did()) {
+				Some(Std::WakerVTable | Std::RawWaker) => None,
+				Some(
+					Std::MaybeUninit
+					| Std::ManuallyDrop
+					| Std::Pin
+					| Std::Option
+					| Std::Poll
+					| Std::Result
+					| Std::ControlFlow
+					| Std::Reverse
+					| Std::AssertUnwindSafe
+					| Std::Wrapping
+					| Std::Saturating
+					| Std::Bound,
+				) => args.types().find_map(|t| self.opaque(t)),
+				Some(_) => match self.inline_held(ty) {
+					Some(inline) => inline.fields.into_iter().find_map(|(_, t)| self.opaque(t)),
+					None => Some(ty),
+				},
+				None => adt.all_fields().find_map(|f| self.opaque(self.field_ty(f.did, args))),
+			},
+			_ => None,
+		}
+	}
+
+	/// Whether `ty` is a closure whose copy Rust can tell apart from the original, as it
+	/// writes its captures or captures, at any depth, a value with interior mutability or
+	/// one a copy copies, such as a `Vec` the crate writes into, which the closure may move
+	/// out, or a coroutine.
+	fn stateful(&self, ty: Ty<'tcx>) -> bool {
+		let (tcx, env) = (self.tcx, self.typing_env());
+		match ty.kind() {
+			ty::Coroutine(..) => true,
+			ty::Closure(..) | ty::CoroutineClosure(..) => {
+				super::mir::writes_captures(tcx, ty)
+					|| (super::captured(ty).unwrap_or_default().iter()).any(|t| {
+						by_value(tcx, env, t)
+							.any(|part| !part.is_freeze(tcx, env) || self.changes(part) || self.stateful(part))
+					})
+			}
+			_ => false,
+		}
 	}
 
 	/// Whether the runs before compared pointers to a `ty`, or to a type it holds by value,
@@ -213,7 +398,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let tcx = self.tcx;
 		let (ty, any_length) = match ty.kind() {
 			// The copy of what it holds.
-			ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::ManuallyDrop) => {
+			ty::Adt(adt, args) if matches!(Std::of(tcx, adt.did()), Some(Std::ManuallyDrop | Std::Pin)) => {
 				return self.shim(args.type_at(0), span);
 			}
 			ty::Array(elem, _) => (Ty::new_array(tcx, *elem, 0), true),
@@ -268,7 +453,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The body of the function copying `v`, a `ty`, or a `MaybeUninit` of one if `uninit`:
-	/// then any of its parts kept as objects may hold nothing yet.
+	/// then any of its parts kept as objects may hold nothing yet, as a cell in an
+	/// uninitialized shell holds nothing.
 	fn copy_parts(&mut self, ty: Ty<'tcx>, uninit: bool, span: Span) -> Vec<Stmt> {
 		let v = || Expr::ident("v");
 		let ret = |e: Expr| vec![StmtKind::Return(Some(e.typed())).at(None)];
@@ -303,12 +489,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					body.extend(self.copy_parts(args.type_at(0), true, span));
 					body
 				}
-				Some(Std::ManuallyDrop) => self.copy_parts(args.type_at(0), uninit, span),
+				// What it holds, as [`Self::shim`] copies it.
+				Some(Std::ManuallyDrop | Std::Pin) => self.copy_parts(args.type_at(0), uninit, span),
 				Some(Std::Option) => ret(self.copy_unless(self.none(args.type_at(0)), args.type_at(0), span)),
 				Some(Std::Poll) => ret(self.copy_unless(self.pending(args.type_at(0)), args.type_at(0), span)),
 				Some(Std::Result) => ret(self.copy_result(args.type_at(0), args.type_at(1), span)),
 				Some(Std::Reverse | Std::AssertUnwindSafe | Std::Wrapping | Std::Saturating) => {
-					ret(self.snapshot(v(), args.type_at(0), span))
+					ret(self.snapshot(v(), part(args.type_at(0)), span))
 				}
 				Some(Std::Bound) => {
 					let ts_ty = self.ty(ty, span);
@@ -335,6 +522,33 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						(Flow::Option, _) => self.copy_unless(self.none(value), value, span),
 						_ => self.copy_result(value, residual, span),
 					})
+				}
+				// A library object, which [`Self::changes`] says a whole write lands in, and a
+				// copy of what it holds inline.
+				Some(std) => {
+					// One object deep, which a safe move is exact for; an unsafe one is refused
+					// ([`Self::unsplit`]).
+					let Some(inline) = self.inline_held(ty) else {
+						return ret(Expr::rs("objectCopy", vec![v()]));
+					};
+					// A cell of its own, as `Cell::from_mut`'s place reads and writes another's.
+					if std == Std::Cell {
+						let held = self.snapshot(v().member("v"), part(args.type_at(0)), span);
+						return ret(Expr::New(Box::new(Expr::Rs("Cell".into())), vec![held]));
+					}
+					let fields: Vec<_> = inline.fields.into_iter().filter(|&(_, t)| self.changes(t)).collect();
+					let copy = Expr::rs("objectCopy", vec![v()]);
+					if fields.is_empty() {
+						return ret(copy);
+					}
+					let c = || Expr::ident("c");
+					let mut body = vec![StmtKind::decl(false, "c", None, Some(copy)).at(None)];
+					for (field, t) in fields {
+						let read = self.snapshot(c().member(field), part(t), span);
+						body.push(StmtKind::Expr(c().member(field).assign(read)).at(None));
+					}
+					body.push(StmtKind::Return(Some(c())).at(None));
+					body
 				}
 				_ => {
 					let info = self.adt(*adt, span);

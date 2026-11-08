@@ -467,6 +467,11 @@ fn converted<T: Value>(data: &[u8], out: &mut Vec<u8>) {
 	let q = std::ptr::from_mut(&mut c);
 	unsafe { *q = T::make(data, 16) };
 	c.put(out);
+	// A box's pointer written through once, the only use of it, leaking the box, which
+	// holds a copy of what it was made of.
+	let kept = byte(data, 17);
+	unsafe { *Box::into_raw(Box::new(kept)) = 2 };
+	out.push(kept);
 }
 
 /// Boxes, which clone what they hold by its own `clone_from`: a box, one in a box, in an

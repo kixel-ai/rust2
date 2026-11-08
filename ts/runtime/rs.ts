@@ -176,6 +176,14 @@ export function place<T>(get: () => T, set: (value: T) => void): Place<T> {
 	return new Accessed(get, set);
 }
 
+/**
+ * The raw pointer from a `&mut` to `target`, an object others may hold, which a write of a
+ * whole value lands in, as `replaceIn` writes.
+ */
+export function placeIn<T extends object>(target: T): Place<T> {
+	return place(() => target, (value) => writeIn(target, value));
+}
+
 // Raw pointers
 
 /** A null raw pointer, of any type: nothing reads through it. */
@@ -690,12 +698,19 @@ export function ptrByteSlice(p: Place<number>, len: number, shared: boolean): By
 
 /**
  * `ptr::write` of `value` through a pointer to an object: `value` copied into it, one
- * object deep, or moved by `$move`, so every pointer to it sees the write.
+ * object deep, or moved by `$move`, so every pointer to it sees the write. A field `value`
+ * leaves out, such as a `HashMap`'s capacity it never set, goes from `p` too, unless `p`
+ * is of another class, such as the place `Cell::from_mut` makes, whose setters take it.
  */
 export function ptrWrite<T extends object>(p: T, value: T): void {
 	if (ArrayBuffer.isView(p)) (p as unknown as Uint8Array).set(value as unknown as Uint8Array);
 	else if (moved(value)) value.$move(p as T & Moved);
-	else Object.assign(p, value);
+	else {
+		if (!Array.isArray(p) && Object.getPrototypeOf(p) === Object.getPrototypeOf(value)) {
+			for (const key of Object.keys(p)) if (!Object.hasOwn(value, key)) delete (p as Record<string, unknown>)[key];
+		}
+		Object.assign(p, value);
+	}
 }
 
 /**
@@ -705,9 +720,14 @@ export function ptrWrite<T extends object>(p: T, value: T): void {
  */
 export function replaceIn<T extends object>(p: T, value: T, depth = 0): T {
 	const old = objectCopy(p, depth);
+	writeIn(p, value);
+	return old;
+}
+
+/** `value`'s fields, or its items for a JS array, moved into `p`. */
+function writeIn<T extends object>(p: T, value: T): void {
 	if (Array.isArray(p)) arrayAssign(p, value as unknown[]);
 	else ptrWrite(p, value);
-	return old;
 }
 
 /**

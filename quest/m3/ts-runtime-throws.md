@@ -23,6 +23,9 @@ only because translation can't see where a pointer came from:
   `AtIndex.reach`, raw slices of a field's byte, and `Bytes::slice_ref` of copied bytes,
   safe code with no exact answer while a `&str` stays a JS string. AGENTS.md allows the
   unsafe ones under m3's [unsafe policy](/quest/m3/README.md).
+  Two pointers made from one reference, one through a branch or loop, may each be in
+  an array of one of its own; keep the loud check rather than trace joins (decided
+  2026-11-07 in [#621](https://github.com/moq-dev/rust2/pull/621)).
 - Rejected: refusing all of them at translation, which refuses pointer arithmetic on any
   pointer parameter; keeping all as run-time checks.
 
@@ -52,7 +55,3 @@ What remains:
   follow-ups).
 
 Public API: the translator's output, and which crates translate.
-
-## Related
-
-- [Unsafe code the translator can model](/quest/m3/ts-unsafe/README.md) - the raw-pointer model several of these throws guard; its 2026-11-01 run-time failures now follow this quest's rule

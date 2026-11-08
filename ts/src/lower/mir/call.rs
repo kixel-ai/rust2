@@ -593,12 +593,23 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let done = |e: Expr, effect: bool| Some(Some((e, effect)));
 		match (owner.as_str(), name.as_str()) {
 			// A pointer from a reference to an `Arc`'s value, which is that value's one place.
-			("ptr", "from_ref") | ("From", "from")
-				if (owner == "ptr"
-					|| crate::lower::pointer::raw_pointee(tcx, dest.ty(&self.mir.local_decls, tcx).ty).is_some())
+			("ptr", "from_ref") | ("From", "from") | ("Into", "into")
+				if crate::lower::pointer::from_reference(tcx, def_id, gargs)
 					&& let Some(p) = self.arc_raw(&args[0].node, span, out) =>
 			{
 				done(p, false)
+			}
+			// A pointer from a reference to a value JS keeps in a place, as `&raw const *r` makes.
+			("ptr", "from_ref" | "from_mut") | ("From", "from") | ("Into", "into")
+				if crate::lower::pointer::from_reference(tcx, def_id, gargs)
+					&& let Some(r) = args[0].node.place()
+					&& crate::lower::pointer::raw_pointee(tcx, dest.ty(&self.mir.local_decls, tcx).ty)
+						.is_some_and(|pointee| self.behind_place(r, pointee)) =>
+			{
+				if let Some(why) = self.made_out_of_step(def_id, gargs, tcx.mk_place_deref(r)) {
+					return done(self.err(span, why), false);
+				}
+				done(self.behind_reference(r, span, out), false)
 			}
 			// `get` of the cell a reference points at, which the pointer it was made into
 			// would only be where that cell is kept.
