@@ -297,6 +297,9 @@
               typescript
               bun
               esbuild
+              # Its wasm-bindgen fixture's native side runs through the CLI's JS glue, whose
+              # version must match the fixture's locked wasm-bindgen exactly.
+              wasm-bindgen-cli_0_2_129
               # rust2-ffi's tests compile its generated Kotlin and run it on the JVM, run and
               # type-check its generated Python, run its Dart, and build its Go through cgo.
               kotlin

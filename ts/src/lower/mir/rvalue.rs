@@ -948,6 +948,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					crate::lower::library::cow_made(borrowed, variant, values.pop().unwrap())
 				}
 				(Std::Result, i) => Expr::result(i == 0, values.pop().unwrap()),
+				// An imported type is its `obj`, the JS value itself.
+				(Std::Js, _) => match def.fields.iter().position(|f| f.name.as_str() == "obj") {
+					Some(obj) => values.swap_remove(obj),
+					None => self.err(
+						span,
+						format!("a `{ty}` made of a slot of wasm-bindgen's heap, which only WASM has"),
+					),
+				},
 				(Std::FmtError, _) => Expr::New(Box::new(Expr::Rs("FmtError".into())), Vec::new()),
 				(
 					std @ (Std::ParseBoolError

@@ -28,6 +28,7 @@ export * from "./rs/hash.ts";
 export * from "./rs/hook.ts";
 export * from "./rs/int.ts";
 export * from "./rs/iter.ts";
+export * from "./rs/js.ts";
 export * from "./rs/location.ts";
 export * from "./rs/rand.ts";
 export * from "./rs/sort.ts";

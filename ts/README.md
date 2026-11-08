@@ -836,6 +836,34 @@ of them:
   written. Translated code installs no subscriber, and without one an event evaluates none
   of its fields and does nothing, so leaving it out is exact. Installing one, as
   `tracing::subscriber::set_global_default` does, is refused as any unmapped call is.
+- `wasm-bindgen`'s imports, `js-sys`'s and `web-sys`'s included, are calls of JS itself.
+  A `JsValue`, and each type an `extern "C"` block declares, is the JS value it holds,
+  `rs.JsValue`, which is TS's `unknown`; cloning one, dropping one, its `From`, `AsRef`,
+  and `Deref` into the type it extends, and `JsCast`'s unchecked casts are the value
+  itself. An import is read from the statics `#[wasm_bindgen]` leaves in the crate, the
+  ones the CLI reads, by schema 0.2.128 (wasm-bindgen 0.2.129, which js-sys 0.3.106 pins)
+  or 0.2.130 (0.2.130, which js-sys 0.3.107 pins); a crate of another schema is refused.
+  Its call is the JS the CLI would write: a function, a method by its class's prototype or
+  structurally, a getter, a setter, an indexing getter, setter, or deleter, a constructor,
+  a static method, a symbol-named method, and a variadic call spreading its last argument,
+  each reached through `globalThis` by its namespace, throwing a `ReferenceError` where no
+  global has its name, and by its vendor prefix when the unprefixed name is not defined,
+  which is resolved at each call where the CLI resolves it once. Its arguments and results convert as the CLI's do: numbers as the WebAssembly ABI
+  coerces them, 64- and 128-bit integers as BigInts, `char`s, strings, slices and vectors
+  of numbers as typed arrays, of `JsValue`s and of strings as arrays, `Option`s by
+  `undefined`, an optional `bool` by its truthiness, and string enums by their strings. A
+  `catch` import is a `Result` of what JS threw, converting its result included where the
+  CLI's glue converts it, but not where the WebAssembly ABI coerces a number, and an
+  import that throws otherwise throws through the translation, as it unwinds the WASM. A `thread_local_v2` static is an `rs.LazyCell` read once, an optional
+  one `None` where it is `undefined`, and a `static_string` its literal. `instanceof`,
+  `JsCast::has_type` and `dyn_into`, the intrinsics `js-sys` reads, such as `typeof`,
+  equality, operators, and `debug_string`, and `throw_str` and `throw_val` are JS's own.
+  Refused, each at its span: imports of custom JS, by `module`, `raw_module`, or
+  `inline_js`, a `suspending` import, an `experimental_generic_mono` one, which the CLI
+  makes JS of per instance, a `Closure`, a mutable slice within an `Option`, 0.2.130's
+  `Nullable`, which no CLI in the dev shell makes glue of to compare against, the
+  intrinsics only WASM has, such as `memory()`, and a `#[wasm_bindgen]` export, as a
+  translation exports the crate's `pub` API itself.
 
 ## Bindings
 
@@ -1286,6 +1314,15 @@ so adding, removing, or reordering a case changes no other case's inputs.
   `refused.toml` drops the binding, its `rev` feature makes the dependency's iterator run
   from either end, and its `shared` feature adds a module of the dependency's name, with
   the errors in `refused.txt`, `rev.txt`, and `shared.txt`.
+- `bindgen` imports JS through `wasm-bindgen`, `js-sys`, and `web-sys`, a workspace of
+  its own whose lockfile pins wasm-bindgen 0.2.129. Its harness calls imports of each kind
+  and shape, its own and js-sys's and web-sys's, against JS's globals and what `caller.ts`
+  defines, catches and throws, casts, and reads statics. Its native side runs through the
+  glue the `wasm-bindgen` CLI makes for it, which the dev shell provides at 0.2.129, a
+  fresh instance of the glue per instance of the WASM. A JS error neither side catches is
+  compared by its message. It is translated again under `wasm-bindgen-0.2.130.lock`, the
+  next schema, and compared against the same native run. `refused.toml`, with its
+  `refused` feature, holds what translation refuses, with the errors in `refused.txt`.
 - `reject` holds constructs outside the subset, a module per kind of construct. Its
   expected errors are `expected.txt` and its census's spans `census.txt`, each line keyed
   by the item it points into and sorted, so cases added to different items don't conflict.

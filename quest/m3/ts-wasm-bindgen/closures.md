@@ -34,7 +34,3 @@ headless Chromium proves it against the same fixture's wasm-bindgen build.
 
 Public API: the translator's output for a crate calling wasm-bindgen closures and
 futures.
-
-## Required
-
-- [Translate wasm-bindgen imports](/quest/m3/ts-wasm-bindgen/imports.md) - the shapes, the JS-represented types, and the boundary conversions this builds on
