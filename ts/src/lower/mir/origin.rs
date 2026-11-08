@@ -102,34 +102,29 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				))
 			}
 			("ptr" | "NonNull", "offset_from" | "offset_from_unsigned") => {
-				let b = self.possible(arg(1)?);
-				let apart = |a: Origin<'tcx>, b: Origin<'tcx>| {
-					match (a.array, b.array) {
-					(Array::Text(_), Array::Text(_)) => (a.array != b.array).then(|| {
+				let (a, b) = (self.origin(arg(0)?)?, self.origin(arg(1)?)?);
+				if let (Array::Text(_), Array::Text(_)) = (a.array, b.array) {
+					return (a.array != b.array).then(|| {
 						"`offset_from` between pointers of two `str::as_ptr` calls, each into an encoding of the text of its own, which JS keeps in different arrays".into()
-					}),
-					_ => self.apart(a.array, b.array).then(|| {
-						format!(
-							"`offset_from` between a pointer into {} and one into {}, which JS keeps in different arrays",
-							a.array.what(),
-							b.array.what()
-						)
-					}),
+					});
 				}
-				};
-				self.possible(arg(0)?)
-					.into_iter()
-					.find_map(|a| b.iter().find_map(|&b| apart(a, b)))
+				self.apart(a.array, b.array).then(|| {
+					format!(
+						"`offset_from` between a pointer into {} and one into {}, which JS keeps in different arrays",
+						a.array.what(),
+						b.array.what()
+					)
+				})
 			}
-			("ptr" | "NonNull", "add" | "sub" | "offset") => self
-				.possible(arg(0)?)
-				.into_iter()
-				.find_map(|o| out(self.moved(o, name.as_str(), arg(1)?), None, "a pointer")),
+			("ptr" | "NonNull", "add" | "sub" | "offset") => {
+				let o = self.moved(self.origin(arg(0)?)?, name.as_str(), arg(1)?);
+				out(o, None, "a pointer")
+			}
 			// A wrapping offset may leave any other array while nothing reads through it.
-			("ptr" | "NonNull", "wrapping_add" | "wrapping_sub" | "wrapping_offset") => self
-				.lone_origins(arg(0)?)
-				.into_iter()
-				.find_map(|o| out(self.moved(o, name.as_str(), arg(1)?), None, "a pointer")),
+			("ptr" | "NonNull", "wrapping_add" | "wrapping_sub" | "wrapping_offset") => {
+				let o = self.lone_origin(arg(0)?)?;
+				out(self.moved(o, name.as_str(), arg(1)?), None, "a pointer")
+			}
 			// An access through a pointer, which the body shows one element at: both of a
 			// swap's, and else the first argument, as the second is the value written.
 			(
@@ -139,21 +134,20 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			) => [Some(arg(0)?), arg(1).filter(|_| name == "swap")]
 				.into_iter()
 				.flatten()
-				.flat_map(|p| self.lone_origins(p))
-				.find_map(|o| self.access(o)),
+				.find_map(|p| self.access(self.lone_origin(p)?)),
 			("raw", "from_raw_parts" | "from_raw_parts_mut")
 			| ("ptr", "slice_from_raw_parts" | "slice_from_raw_parts_mut")
 			| ("NonNull", "slice_from_raw_parts") => {
-				let len = self.const_int(arg(1)?);
+				let o = self.origin(arg(0)?)?;
 				// A raw pointer to a slice of any other array reads nothing until a read
 				// through it.
-				self.possible(arg(0)?)
-					.into_iter()
-					.filter(|o| owner == "raw" || matches!(o.array, Array::Lone(_)))
-					.find_map(|o| match len {
-						Some(n) => out(o, Some(n), "a slice"),
-						None => unfixed(o, "a slice of a length"),
-					})
+				if owner != "raw" && !matches!(o.array, Array::Lone(_)) {
+					return None;
+				}
+				match self.const_int(arg(1)?) {
+					Some(n) => out(o, Some(n), "a slice"),
+					None => unfixed(o, "a slice of a length"),
+				}
 			}
 			(
 				"ptr",
@@ -166,20 +160,20 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			)
 			| ("NonNull", "copy_to" | "copy_to_nonoverlapping" | "copy_from" | "copy_from_nonoverlapping") => {
 				let n = self.const_int(arg(2)?);
-				[arg(0)?, arg(1)?]
-					.into_iter()
-					.flat_map(|p| self.possible(p))
-					.find_map(|o| match n {
+				[arg(0)?, arg(1)?].into_iter().find_map(|p| {
+					let o = self.origin(p)?;
+					match n {
 						Some(_) => out(o, n, "a copy"),
 						None => unfixed(o, "a copy of a count"),
-					})
+					}
+				})
 			}
 			("ptr" | "NonNull", "write_bytes") => {
-				let n = self.const_int(arg(2)?);
-				self.possible(arg(0)?).into_iter().find_map(|o| match n {
+				let o = self.origin(arg(0)?)?;
+				match self.const_int(arg(2)?) {
 					Some(n) => out(o, Some(n), "a write"),
 					None => unfixed(o, "a write of a count"),
-				})
+				}
 			}
 			_ => None,
 		}
@@ -198,8 +192,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		if self.b.t.zero_sized(pointee) || self.b.t.pointee(pointee) != Pointee::Place {
 			return None;
 		}
-		let pointer = Operand::Copy(mir::Place::from(place.local));
-		self.lone_origins(&pointer).into_iter().find_map(|o| self.access(o))
+		self.access(self.lone_origin(&Operand::Copy(mir::Place::from(place.local)))?)
 	}
 
 	/// Why an access of the one element a pointer at `o` reads or writes reaches out of its
@@ -210,11 +203,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		(o.index? == len).then(|| Self::out(o, Some(1), "a read or write"))?
 	}
 
-	/// Each array of one the pointer `op` may point into, as [`Self::possible`] finds them.
-	fn lone_origins(&self, op: &Operand<'tcx>) -> Vec<Origin<'tcx>> {
-		let mut lone = self.possible(op);
-		lone.retain(|o| matches!(o.array, Array::Lone(_)));
-		lone
+	/// Where the pointer `op` points, if the body shows it in an array of one.
+	fn lone_origin(&self, op: &Operand<'tcx>) -> Option<Origin<'tcx>> {
+		self.origin(op).filter(|o| matches!(o.array, Array::Lone(_)))
 	}
 
 	/// Why an offset or a count the body doesn't fix, from `o`, may reach out of it: only
@@ -272,159 +263,74 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				})
 	}
 
-	/// Where the pointer `op` points, if the body shows it: one place, through pointers each
-	/// assigned once.
+	/// Where the pointer `op` points, if the body shows it.
 	fn origin(&self, op: &Operand<'tcx>) -> Option<Origin<'tcx>> {
-		match self.paths(op, &mut Vec::new()).as_slice() {
-			&[(o, false)] => Some(o),
-			_ => None,
+		let local = self.traced(op)?;
+		if let Some((bb, i)) = self.def_at[local] {
+			let rvalue = self.def_rvalue(local)?;
+			return match rvalue {
+				Rvalue::Use(op, _)
+				| Rvalue::Cast(
+					mir::CastKind::PtrToPtr
+					| mir::CastKind::PointerCoercion(ty::adjustment::PointerCoercion::MutToConstPointer, _),
+					op,
+					_,
+				) if self.same_pointee(op, local) => self.origin(op),
+				Rvalue::RawPtr(mir::RawPtrKind::Const | mir::RawPtrKind::Mut, place) => self.raw_origin(
+					*place,
+					Location {
+						block: bb,
+						statement_index: i,
+					},
+				),
+				_ => None,
+			};
 		}
-	}
-
-	/// Where the pointer `op` may point, as a refusal needs it: the one place
-	/// [`Self::origin`] finds, or each array of one an assignment the body shows may make
-	/// it point into, through pointers assigned more than once, as on one path of a branch.
-	/// JS keeps each such array apart from every other on that path, but another place
-	/// such an assignment may make is left to the runtime, as Rust may never reach it.
-	fn possible(&self, op: &Operand<'tcx>) -> Vec<Origin<'tcx>> {
-		let paths = self.paths(op, &mut Vec::new());
-		let kept = paths
-			.into_iter()
-			.filter(|&(o, joined)| !joined || matches!(o.array, Array::Lone(_)));
-		kept.map(|(o, _)| o).collect()
-	}
-
-	/// Each place the body shows the pointer `op` may point at, and whether a pointer
-	/// assigned more than once on the way there makes it one of several. `seen` holds the
-	/// pointers on the way, whose cycle another assignment already reaches past.
-	fn paths(&self, op: &Operand<'tcx>, seen: &mut Vec<Local>) -> Vec<(Origin<'tcx>, bool)> {
-		let Some(local) = op.place().and_then(|p| p.as_local()) else {
-			return Vec::new();
-		};
-		if self.is_arg(local) || seen.contains(&local) {
-			return Vec::new();
-		}
-		seen.push(local);
-		let paths = match self.defs[local] {
-			1 => match self.def_at[local] {
-				Some((block, statement_index)) => self.def_rvalue(local).and_then(|rvalue| {
-					let at = Location { block, statement_index };
-					self.assigned_paths(local, rvalue, at, seen)
-				}),
-				None => self.def_block(local).and_then(|block| self.called_paths(block, seen)),
-			},
-			_ => Some(self.joined_paths(local, seen)),
-		};
-		seen.pop();
-		paths.unwrap_or_default()
-	}
-
-	/// Each place the pointer `local`, assigned more than once, may point at, by any of its
-	/// assignments.
-	fn joined_paths(&self, local: Local, seen: &mut Vec<Local>) -> Vec<(Origin<'tcx>, bool)> {
-		let mut paths = Vec::new();
-		for (block, data) in self.mir.basic_blocks.iter_enumerated() {
-			for (statement_index, stmt) in data.statements.iter().enumerate() {
-				if let mir::StatementKind::Assign(assign) = &stmt.kind
-					&& assign.0.as_local() == Some(local)
-					&& !self.noops.contains(&(block, statement_index))
-					&& !self.in_ignored(stmt.source_info.span)
-				{
-					let at = Location { block, statement_index };
-					paths.extend(self.assigned_paths(local, &assign.1, at, seen).unwrap_or_default());
-				}
-			}
-			if let TerminatorKind::Call { destination, .. } = &data.terminator().kind
-				&& destination.as_local() == Some(local)
-			{
-				paths.extend(self.called_paths(block, seen).unwrap_or_default());
-			}
-		}
-		paths.into_iter().map(|(o, _)| (o, true)).collect()
-	}
-
-	/// Where the pointer `rvalue`, assigned to `local` at `at`, may point.
-	fn assigned_paths(
-		&self,
-		local: Local,
-		rvalue: &Rvalue<'tcx>,
-		at: Location,
-		seen: &mut Vec<Local>,
-	) -> Option<Vec<(Origin<'tcx>, bool)>> {
-		match rvalue {
-			Rvalue::Use(op, _)
-			| Rvalue::Cast(
-				mir::CastKind::PtrToPtr
-				| mir::CastKind::PointerCoercion(ty::adjustment::PointerCoercion::MutToConstPointer, _),
-				op,
-				_,
-			) if self.same_pointee(op, local) => Some(self.paths(op, seen)),
-			Rvalue::RawPtr(mir::RawPtrKind::Const | mir::RawPtrKind::Mut, place) => self.raw_paths(*place, at, seen),
-			_ => None,
-		}
-	}
-
-	/// Where the pointer the call of std's ending `block` gives may point.
-	fn called_paths(&self, block: BasicBlock, seen: &mut Vec<Local>) -> Option<Vec<(Origin<'tcx>, bool)>> {
-		let (def_id, gargs, args) = self.call_at(block)?;
+		let (def_id, gargs, args) = self.def_call(local)?;
 		let (owner, name) = library::key(self.tcx, def_id)?;
-		let moved = |paths: Vec<(Origin<'tcx>, bool)>| {
-			let moved = paths
-				.into_iter()
-				.map(|(o, joined)| (self.moved(o, name.as_str(), &args[1].node), joined));
-			Some(moved.collect())
-		};
 		match (owner.as_str(), name.as_str()) {
 			("ptr", "from_ref" | "from_mut") | ("From", "from") | ("Into", "into")
 				if crate::lower::pointer::from_reference(self.tcx, def_id, gargs) =>
 			{
+				let block = self.def_block(local)?;
 				let at = Location {
 					block,
 					statement_index: self.mir.basic_blocks[block].statements.len(),
 				};
-				self.reference_paths(args[0].node.place()?, at, seen)
+				self.reference_origin(args[0].node.place()?, at)
 			}
-			("ptr" | "NonNull", "add" | "sub" | "offset") => moved(self.paths(&args[0].node, seen)),
+			("ptr" | "NonNull", "add" | "sub" | "offset") => {
+				Some(self.moved(self.origin(&args[0].node)?, name.as_str(), &args[1].node))
+			}
 			// Only an array of one's, which every wrapping offset must stay within.
 			("ptr" | "NonNull", "wrapping_add" | "wrapping_sub" | "wrapping_offset") => {
-				let mut lone = self.paths(&args[0].node, seen);
-				lone.retain(|(o, _)| matches!(o.array, Array::Lone(_)));
-				moved(lone)
+				Some(self.moved(self.lone_origin(&args[0].node)?, name.as_str(), &args[1].node))
 			}
 			("NonNull", "as_ptr" | "new_unchecked") | ("ptr" | "NonNull", "cast_const" | "cast_mut") => {
-				Some(self.paths(&args[0].node, seen))
+				self.origin(&args[0].node)
 			}
 			("ptr" | "NonNull", "cast")
 				if self.b.t.uninit_inner(gargs.type_at(0)) == self.b.t.uninit_inner(gargs.type_at(1)) =>
 			{
-				Some(self.paths(&args[0].node, seen))
+				self.origin(&args[0].node)
 			}
-			("slice" | "Vec", "as_ptr" | "as_mut_ptr") => Some(vec![(self.start(&args[0].node)?, false)]),
+			("slice" | "Vec", "as_ptr" | "as_mut_ptr") => self.start(&args[0].node),
 			// The start of its own text's encoding, though a substring's bytes start past its
 			// text's in Rust, so a move back before it is refused, as one off a copy is.
-			("str", "as_ptr") => Some(vec![(
-				Origin {
-					array: Array::Text(block),
-					index: Some(0),
-				},
-				false,
-			)]),
+			("str", "as_ptr") => Some(Origin {
+				array: Array::Text(self.def_block(local)?),
+				index: Some(0),
+			}),
 			_ => None,
 		}
 	}
 
-	/// Where a raw pointer to `place`, made at `at`, may point.
-	fn raw_paths(
-		&self,
-		place: mir::Place<'tcx>,
-		at: Location,
-		seen: &mut Vec<Local>,
-	) -> Option<Vec<(Origin<'tcx>, bool)>> {
-		let one = |o: Origin<'tcx>| Some(vec![(o, false)]);
+	/// Where a raw pointer to `place`, made at `at`, points, if the body shows it.
+	fn raw_origin(&self, place: mir::Place<'tcx>, at: Location) -> Option<Origin<'tcx>> {
 		if let Some(local) = self.raw_byte(place)
 			&& matches!(self.slots[local], Slot::Byte(_))
 		{
-			return one(Origin {
+			return Some(Origin {
 				array: Array::Byte(local),
 				index: Some(0),
 			});
@@ -432,48 +338,36 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		match place.projection.as_slice() {
 			// `&raw mut *p` is `p`.
 			[ProjectionElem::Deref] if self.mir.local_decls[place.local].ty.is_raw_ptr() => {
-				Some(self.paths(&Operand::Copy(mir::Place::from(place.local)), seen))
+				self.origin(&Operand::Copy(mir::Place::from(place.local)))
 			}
-			[rest @ .., ProjectionElem::Deref] => self.reference_paths(
+			[rest @ .., ProjectionElem::Deref] => self.reference_origin(
 				mir::Place {
 					local: place.local,
 					projection: self.tcx.mk_place_elems(rest),
 				},
 				at,
-				seen,
 			),
 			[
 				array @ ..,
 				ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. },
-			] => (!place.projection.contains(&ProjectionElem::Deref)).then(|| {
-				vec![(
-					Origin {
-						array: Array::Owned(mir::Place {
-							local: place.local,
-							projection: self.tcx.mk_place_elems(array),
-						}),
-						index: None,
-					},
-					false,
-				)]
+			] => (!place.projection.contains(&ProjectionElem::Deref)).then(|| Origin {
+				array: Array::Owned(mir::Place {
+					local: place.local,
+					projection: self.tcx.mk_place_elems(array),
+				}),
+				index: None,
 			}),
-			_ => one(Origin {
+			_ => Some(Origin {
 				array: Array::Lone(at),
 				index: Some(0),
 			}),
 		}
 	}
 
-	/// Where a raw pointer to what the reference `r` points at, made at `at`, may point, as
+	/// Where a raw pointer to what the reference `r` points at, made at `at`, points, as
 	/// [`Self::behind_reference`] makes it: where the body shows `r` borrowed, and else at
 	/// a place of its own, or, where `r` is an `rs.Place`, where that points.
-	fn reference_paths(
-		&self,
-		r: mir::Place<'tcx>,
-		at: Location,
-		seen: &mut Vec<Local>,
-	) -> Option<Vec<(Origin<'tcx>, bool)>> {
-		let one = |o: Origin<'tcx>| Some(vec![(o, false)]);
+	fn reference_origin(&self, r: mir::Place<'tcx>, at: Location) -> Option<Origin<'tcx>> {
 		let ty = r.ty(&self.mir.local_decls, self.tcx).ty;
 		// A reference to an `Arc`'s value points at that value's one place.
 		if !ty.is_ref() || self.arc_of(&Operand::Copy(r)).is_some() {
@@ -482,7 +376,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let pointee = self.tcx.mk_place_deref(r);
 		let borrowed = self.through_aliases(pointee);
 		if borrowed != pointee {
-			return self.raw_paths(borrowed, at, seen);
+			return self.raw_origin(borrowed, at);
 		}
 		if self.indexed(r).is_some() {
 			let (def_id, _, args) = self.def_call(r.as_local()?)?;
@@ -494,18 +388,18 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				return None;
 			}
 			let o = self.start(&args[0].node)?;
-			return one(Origin {
+			return Some(Origin {
 				index: o.index.zip(self.const_int(&args[1].node)).map(|(i, n)| i + n),
 				..o
 			});
 		}
 		if let Some(p) = self.reborrowed_pointer(r) {
-			return Some(self.paths(&Operand::Copy(p), seen));
+			return self.origin(&Operand::Copy(p));
 		}
 		if self.b.t.place_pointee(ty).is_some() {
 			return None;
 		}
-		one(Origin {
+		Some(Origin {
 			array: Array::Lone(at),
 			index: Some(0),
 		})
@@ -732,19 +626,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		GenericArgsRef<'tcx>,
 		&[Spanned<Operand<'tcx>>],
 	)> {
-		self.call_at(self.def_block(local)?)
-	}
-
-	/// The function, its generic arguments, and its arguments, of the call of std's that
-	/// ends `bb`.
-	fn call_at(
-		&self,
-		bb: BasicBlock,
-	) -> Option<(
-		rustc_hir::def_id::DefId,
-		GenericArgsRef<'tcx>,
-		&[Spanned<Operand<'tcx>>],
-	)> {
+		let bb = self.def_block(local)?;
 		let TerminatorKind::Call { func, args, .. } = &self.mir.basic_blocks[bb].terminator().kind else {
 			return None;
 		};
