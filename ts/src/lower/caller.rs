@@ -9,13 +9,15 @@
 //! A program that reaches `panic::set_hook` passes where each panic is, which its hook
 //! reads: each statement's own, the caller's location to each std function that takes it,
 //! and the call of the macro that defines one, as an integer's methods. A panic in std's
-//! own code is where the toolchain's source has it, and one in `bytes`' or `tokio`'s where
-//! the program's copy of that crate has it, named as the session names that file, which
-//! `rs.setHook` is given.
+//! own code is where the toolchain's source has it, and one in `bytes`' where the
+//! program's `bytes` has it, named as the session names that file, which `rs.setHook` is
+//! given. One in tokio's is where its compiled code has it, passed at the call.
 
 use std::sync::OnceLock;
 
+use rustc_attr_ir::LangItem;
 use rustc_hir::def_id::DefId;
+use rustc_middle::mir::TerminatorKind;
 use rustc_middle::ty::{Instance, InstanceKind, TyCtxt};
 use rustc_span::{RemapPathScopeComponents, SourceFile, Span};
 
@@ -477,14 +479,11 @@ const CALLEES: &[(&str, &str, &str, &str)] = &[
 	),
 ];
 
-/// Where a crate's code panics, for each of its panics the runtime makes, by the key it
+/// Where `bytes`' code panics, for each of its panics the runtime makes, by the key it
 /// passes in place of a location: a file under the crate's `src/`, the texts before it in
-/// turn, and the text the call that panics starts with.
-type CrateSites = &'static [(&'static str, &'static str, &'static [&'static str], &'static str)];
-
-/// Where `bytes`' code panics. None of its public functions takes its caller's location, so
-/// each panic is where its source has it.
-const BYTES: CrateSites = &[
+/// turn, and the text the call that panics starts with. None of its public functions takes
+/// its caller's location, so each panic is where its source has it.
+const BYTES: &[(&str, &str, &[&str], &str)] = &[
 	("bytes_advance", "lib.rs", &["fn panic_advance("], "panic!("),
 	("bytes_does_not_fit", "lib.rs", &["fn panic_does_not_fit("], "panic!("),
 	// `range` takes its caller's location, so its panics are at its call.
@@ -537,18 +536,9 @@ const BYTES: CrateSites = &[
 	),
 ];
 
-/// Where tokio's code panics in what its mapping covers, none of which takes its caller's
-/// location.
-const TOKIO: CrateSites = &[(
-	"tokio_oneshot_poll",
-	"sync/oneshot.rs",
-	&["impl<T> Future for Receiver<T>", "fn poll("],
-	"panic!(",
-)];
-
 /// The `rs.Sites` of the toolchain's std, which `rs.setHook` takes: where each panic
-/// [`SITES`] names is, as the native build names it, and each [`BYTES`] and [`TOKIO`] name,
-/// in the program's `bytes` and `tokio`, if it has them.
+/// [`SITES`] names is, as the native build names it, and each [`BYTES`] names, in the
+/// program's `bytes`, if it has one.
 pub fn sites(t: &mut Translator<'_, '_>, span: Span) -> Expr {
 	let tcx = t.tcx;
 	let mut props = Vec::new();
@@ -563,33 +553,30 @@ pub fn sites(t: &mut Translator<'_, '_>, span: Span) -> Expr {
 			}
 		}
 	}
-	props.extend(crate_sites(t, span, "bytes", BYTES));
-	props.extend(crate_sites(t, span, "tokio", TOKIO));
+	props.extend(bytes_sites(t, span));
 	Expr::Object(props)
 }
 
-/// The sites `table` names, in the program's crate `name`: none without one, nor in a file
-/// its features leave out, whose panics nothing reaches, and an error for versions whose
-/// sites differ, as the runtime's panics are one crate's.
-fn crate_sites(t: &mut Translator<'_, '_>, span: Span, name: &str, table: CrateSites) -> Vec<(Key, Expr)> {
+/// The sites [`BYTES`] names, in the program's `bytes`: none without one, and an error for
+/// versions whose sites differ, as the runtime's panics are one crate's.
+fn bytes_sites(t: &mut Translator<'_, '_>, span: Span) -> Vec<(Key, Expr)> {
 	let tcx = t.tcx;
 	let mut tables: Vec<Vec<(Key, Expr)>> = Vec::new();
 	for &krate in tcx.crates(()) {
-		if tcx.crate_name(krate).as_str() != name {
+		if tcx.crate_name(krate).as_str() != "bytes" {
 			continue;
 		}
 		tcx.import_source_files(krate);
 		let mut props = Vec::new();
-		for &(key, file, after, needle) in table {
-			match crate_find(tcx, krate, file, after, needle) {
-				None => {}
-				Some(Some(at)) => props.push((Key::Name(key.into()), at)),
-				Some(None) => {
+		for &(key, file, after, needle) in BYTES {
+			match bytes_find(tcx, krate, file, after, needle) {
+				Some(at) => props.push((Key::Name(key.into()), at)),
+				None => {
 					let after = after.join(" then ");
 					t.err(
 						span,
 						format!(
-							"the {name} crate's source has no `{needle}` in `src/{file}` after `{after}`, where it panics"
+							"the bytes crate's source has no `{needle}` in `src/{file}` after `{after}`, where it panics"
 						),
 					);
 				}
@@ -602,48 +589,62 @@ fn crate_sites(t: &mut Translator<'_, '_>, span: Span, name: &str, table: CrateS
 	if tables.len() > 1 {
 		t.err(
 			span,
-			format!(
-				"a panic hook in a program of two versions of the {name} crate, whose panics are at different places"
-			),
+			"a panic hook in a program of two versions of the bytes crate, whose panics are at different places",
 		);
 	}
 	tables.pop().unwrap_or_default()
 }
 
 /// The `rs.Location` of the first `needle` after each of `after` in turn in `file`, under
-/// `krate`'s `src/`, named as the session names it, if it is there: `None` where the build
-/// compiled no such file. A file is known by the end of its path, its own `src/` or not, as
-/// `--remap-path-prefix` rewrites only what comes before it.
-fn crate_find(
+/// `krate`'s `src/`, named as the session names it.
+fn bytes_find(
 	tcx: TyCtxt<'_>,
 	krate: rustc_span::def_id::CrateNum,
 	file: &str,
 	after: &[&str],
 	needle: &str,
-) -> Option<Option<Expr>> {
+) -> Option<Expr> {
 	let map = tcx.sess.source_map();
-	let suffix = format!("/{file}");
+	let suffix = format!("/src/{file}");
 	let source = (map.files().iter())
-		.filter(|f| f.cnum == krate)
-		.filter(|f| {
-			let name = self::file(tcx, f);
-			name == file || name.ends_with(&suffix)
-		})
-		// The shortest is the crate's own, rather than one at the same path below another.
-		.min_by_key(|f| self::file(tcx, f).len())
+		.find(|f| f.cnum == krate && self::file(tcx, f).ends_with(&suffix))
 		.cloned()?;
-	let found = || {
-		if !map.ensure_source_file_source_present(&source) {
-			return None;
-		}
-		let text = match &source.src {
-			Some(src) => src.to_string(),
-			None => source.external_src.read().get_source()?.to_string(),
-		};
-		let (line, col) = position(&text, after, needle)?;
-		Some(object(self::file(tcx, &source), line, col))
+	if !map.ensure_source_file_source_present(&source) {
+		return None;
+	}
+	let text = match &source.src {
+		Some(src) => src.to_string(),
+		None => source.external_src.read().get_source()?.to_string(),
 	};
-	Some(found())
+	let (line, col) = position(&text, after, needle)?;
+	Some(object(self::file(tcx, &source), line, col))
+}
+
+/// Where `def_id`, a dependency's function that takes no caller's location, makes its one
+/// `panic!`: the call in the MIR its crate compiled, outside what that inlined, whose file is
+/// named as the native build names it under any `--remap-path-prefix`. `None` without that
+/// MIR, or with other than one such call.
+pub fn own_panic(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Expr> {
+	if !tcx.is_mir_available(def_id) {
+		return None;
+	}
+	let mir = tcx.optimized_mir(def_id);
+	let mut spans = mir.basic_blocks.iter().filter_map(|block| {
+		let terminator = block.terminator();
+		let TerminatorKind::Call { func, .. } = &terminator.kind else {
+			return None;
+		};
+		let (callee, _) = func.const_fn_def()?;
+		let panics = [LangItem::PanicFmt, LangItem::Panic, LangItem::PanicDisplay]
+			.into_iter()
+			.any(|item| tcx.is_lang_item(callee, item));
+		let own = (terminator.source_info.scope)
+			.inlined_instance(&mir.source_scopes)
+			.is_none();
+		(panics && own).then_some(terminator.source_info.span)
+	});
+	let span = spans.next()?;
+	spans.next().is_none().then(|| location(tcx, span))
 }
 
 /// Where std's `def_id` panics, if [`CALLEES`] names it.

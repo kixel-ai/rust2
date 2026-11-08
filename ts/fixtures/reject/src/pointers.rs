@@ -568,6 +568,12 @@ pub fn erased_borrows(n: &u32, c: &std::cell::UnsafeCell<u32>, a: &std::sync::Ar
 	std::ptr::from_ref(n) as *const () == arc && c.get().cast_const().cast() == arc
 }
 
+/// A pointer to a value JS copies from elsewhere, cast to one to `()`, which only an `Arc`'s
+/// raw pointer would keep the one place of.
+pub fn erased_unshown(p: *const u32) -> *const () {
+	p.cast()
+}
+
 /// A pointer to a box, cast to one to `()`, which JS keeps as what it holds.
 pub fn erased_box(b: Box<(u8, u8)>) -> bool {
 	let p = &raw const b;

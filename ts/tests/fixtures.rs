@@ -59,8 +59,10 @@ fn driver_at(manifest: &Path, config: &Path, args: &[&std::ffi::OsStr], build: &
 	command
 }
 
-/// The flag that names cargo's home `/cargo` in both builds, so the files of the registry's
-/// crates, which a hook's locations name, are named alike on any host.
+/// The flags that name cargo's home `/cargo` in both builds, so the files of the registry's
+/// crates, which a hook's locations name, are named alike on any host, and tokio's `sync`
+/// module `tokio/channels`, a remap of a directory within a crate, which the location of
+/// tokio's panic must follow as native does.
 fn remap() -> String {
 	let home = match std::env::var_os("CARGO_HOME") {
 		Some(home) => PathBuf::from(home),
@@ -68,7 +70,20 @@ fn remap() -> String {
 			.expect("a home directory, which holds cargo's")
 			.join(".cargo"),
 	};
-	format!("--remap-path-prefix={}=/cargo", home.display())
+	let lock = std::fs::read_to_string(manifest_dir().join("Cargo.lock")).unwrap();
+	let (_, tokio) = lock
+		.split_once("name = \"tokio\"\nversion = \"")
+		.expect("tokio in the lockfile");
+	let tokio = format!("tokio-{}", &tokio[..tokio.find('"').unwrap()]);
+	// The later flag wins where both match.
+	let mut flags = format!("--remap-path-prefix={}=/cargo", home.display());
+	for index in std::fs::read_dir(home.join("registry/src")).into_iter().flatten() {
+		let sync = index.unwrap().path().join(&tokio).join("src/sync");
+		if sync.is_dir() {
+			flags += &format!(" --remap-path-prefix={}=tokio/channels", sync.display());
+		}
+	}
+	flags
 }
 
 /// Run the driver on a fixture, returning its output directory and what it printed.

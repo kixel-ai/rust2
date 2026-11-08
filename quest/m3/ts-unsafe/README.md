@@ -62,7 +62,9 @@ construct still open at `b3df54b6c`, all in m3:
   a byte pointer past its view fail loudly at run time are superseded by
   [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md) (2026-11-04, #597): where
   Rust defines the access it translates exactly or is refused with a span, and only a
-  throw guarding UB stays, as a precondition abort.
+  throw guarding UB stays, as a precondition abort, or a loud check of a pointer from
+  elsewhere whose origin translation can't see (2026-11-07,
+  [#661](https://github.com/moq-dev/rust2/pull/661)).
 - Done and dropped: a byte pointer past its own `Uint8Array` view. Byte pointers index the
   whole buffer since [#400](https://github.com/moq-dev/rust2/pull/400) and
   [#576](https://github.com/moq-dev/rust2/pull/576), and a byte `Vec` keeps its

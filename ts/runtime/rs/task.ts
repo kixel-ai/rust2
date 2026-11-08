@@ -349,8 +349,9 @@ export function arcFromRaw<T>(p: object, of: "Arc" | "Rc"): Arc<T> {
 /**
  * `p as *const ()`, as `ptrErase` casts it, of a pointer to a value JS copies: the place
  * of an `Arc`'s or `Rc`'s value that `into_raw` or `as_ptr` gave, or arithmetic moved back
- * to, which is its one place as its address is, or one at no memory. Any other place is a
- * borrow's own, which no other pointer to the value would compare as, so it fails.
+ * to, which is its one place as its address is, or one at no memory. Translation casts
+ * only one the body shows is either, so any other place, a borrow's own, which no other
+ * pointer to the value would compare as, fails as its bug.
  */
 export function arcErase(p: object, type: string, align: number): Place<undefined> {
 	const home = ptrHome(p);
