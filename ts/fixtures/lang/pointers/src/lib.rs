@@ -49,6 +49,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("pointers::raw_arcs", |_, data, out| pointers::raw_arcs(data, out)),
 		("pointers::raw_places", |_, data, out| pointers::raw_places(data, out)),
 		("pointers::arrays", |_, data, out| pointers::arrays(data, out)),
+		("pointers::behind_refs", |_, data, out| pointers::behind_refs(data, out)),
 		("pointers::array_casts", |_, data, out| pointers::array_casts(data, out)),
 		("pointers::generic_unions", |_, data, out| {
 			pointers::generic_unions(data, out)
@@ -59,6 +60,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 			pointers::nested_cells(data, out)
 		}),
 		("pointers::lone_bytes", |_, data, out| pointers::lone_bytes(data, out)),
+		("pointers::moved_out", |_, data, out| pointers::moved_out(data, out)),
 		("pointers::array_parts", |_, data, out| pointers::array_parts(data, out)),
 	]
 }

@@ -5,6 +5,18 @@ import { conversions, bytePlaces } from "./conversions.ts";
 import * as Logged from "./conversions.Logged.ts";
 import type * as Named from "./conversions.Named.ts";
 
+export function copy$String(v: rs.String): rs.String {
+	return rs.objectCopy(v);
+}
+
+export function copy$Vec_u32(v: rs.Vec<rs.u32>): rs.Vec<rs.u32> {
+	return rs.objectCopy(v);
+}
+
+export function copy$Vec_u8(v: rs.ByteVec): rs.ByteVec {
+	return rs.objectCopy(v);
+}
+
 export function copy$array_Option_u16(v: Array<rs.u16 | undefined>): Array<rs.u16 | undefined> {
 	return v.slice();
 }
@@ -46,7 +58,7 @@ export function copy$conversions_Logged(v: Logged.Logged): Logged.Logged {
 }
 
 export function copy$conversions_Named(v: Named.Named): Named.Named {
-	return { id: v.id, name: v.name };
+	return { id: v.id, name: copy$String(v.name) };
 }
 
 export function drop$tuple2_conversions_Logged_u8(_1: [Logged.Logged, rs.u8]): void {

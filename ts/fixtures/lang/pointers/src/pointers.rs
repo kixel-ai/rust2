@@ -11,8 +11,9 @@
 //! raw pointers of an `Arc` and an `Rc`, counted and taken back; and unions over a type
 //! parameter, each instance laid out at its own offsets.
 
-use std::cell::{Cell, UnsafeCell};
+use std::cell::{Cell, OnceCell, RefCell, UnsafeCell};
 use std::mem::{self, MaybeUninit};
+use std::ops;
 use std::ptr::{self, NonNull};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -152,7 +153,7 @@ impl<V> List<V> {
 	}
 }
 
-impl List<String> {
+impl List<Vec<u8>> {
 	fn each(&self, out: &mut Vec<u8>) {
 		let Some(guard) = self.guard else {
 			return;
@@ -161,7 +162,7 @@ impl List<String> {
 		while at != guard {
 			let (key, value) = unsafe { at.as_ref().entry.assume_init_ref() };
 			out.push(*key);
-			out.extend_from_slice(value.as_bytes());
+			out.extend_from_slice(value);
 			at = unsafe { at.as_ref().link.value.next };
 		}
 	}
@@ -226,23 +227,23 @@ impl<V> Drop for List<V> {
 /// Steps on a list of the operation and key each pair of bytes picks, putting what each
 /// finds and then the list in order.
 pub fn lists(data: &[u8], out: &mut Vec<u8>) {
-	let mut list = List::<String>::new();
+	let mut list = List::<Vec<u8>>::new();
 	let mut data = data;
 	while let [op, key, rest @ ..] = data {
 		data = rest;
 		let (op, key) = (*op, *key % 8);
 		match op % 4 {
-			0 => list.push_back(key, String::from(["", "v", "vv"][usize::from(op % 3)])),
+			0 => list.push_back(key, [&b""[..], b"v", b"vv"][usize::from(op % 3)].to_vec()),
 			1 => match list.remove(key) {
 				Some((k, v)) => {
 					out.push(k);
-					out.extend_from_slice(v.as_bytes());
+					out.extend_from_slice(&v);
 				}
 				None => out.push(0xff),
 			},
 			2 => out.push(list.to_front(key) as u8),
 			_ => match list.get_mut(key) {
-				Some(value) => value.push('w'),
+				Some(value) => value.push(b'w'),
 				None => out.push(0xfe),
 			},
 		}
@@ -2414,6 +2415,504 @@ struct Holder {
 	arr: [u32; 2],
 }
 
+/// What smallvec's `Drain` is: the elements of a slice nothing will drop again, each read
+/// out through the reference its iterator lends.
+struct Drained<'a, T> {
+	iter: std::slice::Iter<'a, T>,
+}
+
+impl<T> Iterator for Drained<'_, T> {
+	type Item = T;
+
+	fn next(&mut self) -> Option<T> {
+		self.iter.next().map(|r| unsafe { ptr::read(r) })
+	}
+}
+
+impl<T> DoubleEndedIterator for Drained<'_, T> {
+	fn next_back(&mut self) -> Option<T> {
+		self.iter.next_back().map(|r| unsafe { ptr::read(r) })
+	}
+}
+
+/// `v`'s elements, read out from both ends as `bits` picks, which nothing drops in `v`.
+fn drained<T>(v: Vec<T>, bits: u8) -> Vec<T> {
+	let v = mem::ManuallyDrop::new(v);
+	let mut iter = Drained { iter: v.iter() };
+	let mut out = Vec::new();
+	let mut i = 0;
+	loop {
+		let next = match bits >> (i % 8) & 1 {
+			0 => iter.next(),
+			_ => iter.next_back(),
+		};
+		let Some(next) = next else { break };
+		out.push(next);
+		i += 1;
+	}
+	// Its elements moved out, its room is freed without dropping them again.
+	let mut v = mem::ManuallyDrop::into_inner(v);
+	unsafe { v.set_len(0) };
+	out
+}
+
+/// What smallvec's `retain` is: each element lent as a `&mut`, which a pointer from it then
+/// drops or moves to the front.
+fn retained<T>(v: &mut Vec<T>, mut keep: impl FnMut(&mut T) -> bool) {
+	let len = v.len();
+	let p = v.as_mut_ptr();
+	let mut write = 0;
+	for read in 0..len {
+		let cur = unsafe { &mut *p.add(read) };
+		if !keep(cur) {
+			unsafe { ptr::drop_in_place(cur) };
+		} else {
+			unsafe { ptr::copy(cur, p.add(write), 1) };
+			write += 1;
+		}
+	}
+	// What is past the length, dropped or moved, which nothing drops again.
+	unsafe { v.set_len(write) };
+}
+
+/// The length of the `Vec` a pointer from a reference the body is given points at.
+fn vec_len(v: &Vec<u8>) -> usize {
+	let p = &raw const *v;
+	unsafe { (*p).len() }
+}
+
+/// `with` written whole through a pointer from a `&mut` the body is given, made each way
+/// std makes one, which its caller's `Vec` holds after.
+fn refilled(v: &mut Vec<u8>, with: Vec<u8>, how: u8) {
+	let p = match how % 4 {
+		0 => v as *mut Vec<u8>,
+		1 => ptr::from_mut(v),
+		2 => NonNull::from(v).as_ptr(),
+		_ => Into::<NonNull<Vec<u8>>>::into(v).as_ptr(),
+	};
+	unsafe { *p = with };
+	unsafe { (*p).push(how) };
+}
+
+/// What the `Vec` a pointer from a `&mut` the body is given points at held, moved out
+/// each way std moves one out as `with` is written whole in its place, and then swapped
+/// with `w` through pointers from `&mut`s to each.
+fn replaced(v: &mut Vec<u8>, w: &mut Vec<u8>, with: Vec<u8>, how: u8) -> Vec<u8> {
+	let p = ptr::from_mut(v);
+	let old = match how % 3 {
+		0 => unsafe { ptr::replace(p, with) },
+		1 => {
+			let old = unsafe { ptr::read(p) };
+			unsafe { ptr::write(p, with) };
+			old
+		}
+		_ => {
+			let mut slot = MaybeUninit::<Vec<u8>>::uninit();
+			unsafe { ptr::copy_nonoverlapping(p, slot.as_mut_ptr(), 1) };
+			unsafe { ptr::write(p, with) };
+			unsafe { slot.assume_init() }
+		}
+	};
+	unsafe { ptr::swap(ptr::from_mut(v), ptr::from_mut(w)) };
+	old
+}
+
+/// The value a pointer from a shared reference the body is given points at, made each way
+/// std makes one.
+fn behind(r: &u32, how: u8) -> u32 {
+	let p = match how % 3 {
+		0 => r as *const u32,
+		1 => ptr::from_ref(r),
+		_ => NonNull::from(r).as_ptr(),
+	};
+	unsafe { ptr::read(p) }
+}
+
+/// Whether the `Option` a pointer from a shared reference the body is given points at
+/// holds a cell, and the number in it, read through the pointer made each way std makes
+/// one.
+fn cell_behind(r: &Option<Cell<u32>>, how: u8) -> u32 {
+	let p = match how % 2 {
+		0 => &raw const *r,
+		_ => ptr::from_ref(r),
+	};
+	match unsafe { &*p } {
+		Some(cell) => cell.get() + 1,
+		None => 0,
+	}
+}
+
+/// Raw pointers from references: smallvec's `Drain` and `retain`, over a number, library
+/// types, and an `Option`; pointers from a reference the body borrowed, which move within
+/// the array it borrowed from; from references the body is given, to a number, to an
+/// `Option` of a cell, and to a `Vec`, read, written, moved out of, and swapped whole; and
+/// from references to an `Arc`'s value, measured against each other.
+pub fn behind_refs(data: &[u8], out: &mut Vec<u8>) {
+	let bits = data.first().copied().unwrap_or(0);
+	let nums: Vec<u32> = data.iter().map(|&b| u32::from(b) * 3).collect();
+	out.extend(drained(nums.clone(), bits).iter().map(|&n| n as u8));
+	let runs: Vec<Vec<u8>> = data.chunks(3).map(<[u8]>::to_vec).collect();
+	for r in drained(runs.clone(), bits) {
+		out.push(r.len() as u8);
+		out.extend(r);
+	}
+	let opts: Vec<Option<u16>> = data.iter().map(|&b| (b % 3 != 0).then_some(u16::from(b))).collect();
+	for o in drained(opts, bits) {
+		out.extend(o.map_or([0xff, 0xff], u16::to_be_bytes));
+	}
+
+	let mut nums = nums;
+	retained(&mut nums, |n| {
+		*n += 1;
+		*n % 2 == 0
+	});
+	out.extend(nums.iter().map(|&n| n as u8));
+	let mut runs = runs;
+	retained(&mut runs, |r| {
+		r.push(7);
+		r[0] % 2 == 0
+	});
+	out.extend(runs.iter().flatten());
+	// Each element it drops, dropped once.
+	let dropped = Cell::new(0);
+	let mut counted: Vec<Rc<Counted>> = data
+		.iter()
+		.map(|&id| Rc::new(Counted { id, dropped: &dropped }))
+		.collect();
+	retained(&mut counted, |c| c.id % 2 == 0);
+	out.push(dropped.get());
+	out.extend(counted.iter().map(|c| c.id));
+	drop(counted);
+	out.push(dropped.get());
+	// A `Weak` holds only its pointer to what it shares, which a read out copies as is, with
+	// one written whole in place.
+	let arc = Arc::new(u32::from(bits));
+	let weaks: Vec<std::sync::Weak<u32>> = data
+		.iter()
+		.map(|&b| match b % 2 {
+			0 => Arc::downgrade(&arc),
+			_ => std::sync::Weak::new(),
+		})
+		.collect();
+	for w in drained(weaks.clone(), bits) {
+		out.push(w.upgrade().map_or(0xff, |n| *n as u8));
+	}
+	let mut weaks = weaks;
+	let mut i = 0u8;
+	retained(&mut weaks, |w| {
+		i += 1;
+		if i % 3 == 0 {
+			*w = Arc::downgrade(&arc);
+		}
+		i % 2 == 0
+	});
+	out.extend(weaks.iter().map(|w| w.upgrade().map_or(0xff, |n| *n as u8)));
+	out.push(Arc::weak_count(&arc) as u8);
+	drop(weaks);
+	out.push(Arc::weak_count(&arc) as u8);
+
+	// From a reference the body borrowed, where the element is.
+	let mut nums: Vec<u32> = data.iter().map(|&b| u32::from(b)).collect();
+	if let [_, _, ..] = nums[..] {
+		let first = &nums[0] as *const u32;
+		let last = &nums[nums.len() - 1] as *const u32;
+		out.push(unsafe { last.offset_from(first) } as u8);
+		for i in 0..nums.len() {
+			out.push(unsafe { *first.add(i) } as u8);
+		}
+		let second = ptr::from_ref(&nums[1]);
+		out.push(unsafe { *second.sub(1) } as u8);
+		let m = &mut nums[1] as *mut u32;
+		unsafe { *m.sub(1) = 9 };
+		out.push(nums[0] as u8);
+	}
+
+	let mut v = data.to_vec();
+	out.push(vec_len(&v) as u8);
+	refilled(&mut v, data.iter().rev().copied().collect(), bits);
+	out.extend(&v);
+	for how in 0..3 {
+		let mut w: Vec<u8> = data.iter().map(|b| b ^ how).collect();
+		let old = replaced(&mut v, &mut w, vec![bits; usize::from(how) + 1], how);
+		out.extend(&old);
+		out.extend(&v);
+		out.extend(&w);
+		out.push(0xff);
+	}
+	for (i, &b) in data.iter().enumerate() {
+		out.push(behind(&u32::from(b), i as u8) as u8);
+		let cell = (b % 3 != 0).then(|| Cell::new(u32::from(b)));
+		out.push(cell_behind(&cell, b) as u8);
+	}
+	// Pointers from references to an `Arc`'s value, which is its one place.
+	let arc = Arc::new(u32::from(bits));
+	let p = ptr::from_ref(&*arc);
+	let q = ptr::from_ref(&*arc);
+	out.push(unsafe { p.offset_from(q) } as u8);
+	out.push(unsafe { *q } as u8);
+	let n: NonNull<u32> = (&*arc).into();
+	out.push(unsafe { n.as_ptr().offset_from(p) } as u8);
+	// A conversion of the crate's own, which runs as written.
+	let halves = Halves32 {
+		first: u32::from(bits),
+		second: u32::from(bits) ^ 0x55,
+	};
+	let second: NonNull<u32> = (&halves).into();
+	out.push(unsafe { *second.as_ptr() } as u8);
+	// A pointer to a cell from a shared reference to it, read and written in place by
+	// `UnsafeCell::raw_get` after a call between.
+	let cell = UnsafeCell::new(u32::from(bits));
+	let shared = &cell;
+	let at_cell: *const UnsafeCell<u32> = shared;
+	let len = vec_len(&v);
+	unsafe { *UnsafeCell::raw_get(at_cell) += len as u32 };
+	out.push(unsafe { *cell.get() } as u8);
+	// A pointer one past a variable, stored whole through a pointer to a pointer, and one
+	// moved off a value of no bytes and borrowed: valid, as neither reads past its value.
+	let lone = u32::from(bits);
+	let at = &raw const lone;
+	let mut end = ptr::null::<u32>();
+	unsafe { ptr::write(&raw mut end, at.add(1)) };
+	out.push(unsafe { end.offset_from(at) } as u8);
+	let none = Nothing;
+	let past = unsafe { (&raw const none).add(1) };
+	out.push(nothing_tag(unsafe { &*past }, bits));
+}
+
+/// A value of no bytes, whose every pointer is where it was.
+struct Nothing;
+
+/// `bits`, given beside a `Nothing` borrowed through a pointer moved off one.
+#[inline(never)]
+fn nothing_tag(nothing: &Nothing, bits: u8) -> u8 {
+	let Nothing = nothing;
+	bits ^ 0x3c
+}
+
+/// Two numbers, the second of which a pointer from a reference to them points at.
+struct Halves32 {
+	first: u32,
+	second: u32,
+}
+
+impl From<&Halves32> for NonNull<u32> {
+	fn from(halves: &Halves32) -> Self {
+		let _ = halves.first;
+		NonNull::from(&halves.second)
+	}
+}
+
+/// `with` written whole into the `Vec` `r` is, in place, dropping nothing, as a body that
+/// can't see where it is kept writes it.
+#[inline(never)]
+fn refill_in(r: &mut Vec<u8>, with: Vec<u8>) {
+	unsafe { ptr::write(r, with) };
+}
+
+/// What the `Vec` `v` held, moved out through a pointer made each way `how` picks: from a
+/// shared reborrow, cast to one to a `MaybeUninit` or a `ManuallyDrop` of it, or swapped
+/// through such a cast with another; then `with` is written whole into `v` in place.
+fn moved_vec(v: &mut Vec<u8>, with: Vec<u8>, how: u8) -> Vec<u8> {
+	let old = match how % 4 {
+		0 => unsafe { ptr::read(&*v as *const Vec<u8>) },
+		1 => unsafe { ptr::read(ptr::from_mut(v).cast::<MaybeUninit<Vec<u8>>>()).assume_init() },
+		2 => mem::ManuallyDrop::into_inner(unsafe { ptr::read(ptr::from_mut(v).cast::<mem::ManuallyDrop<Vec<u8>>>()) }),
+		_ => {
+			let mut other = MaybeUninit::new(Vec::new());
+			unsafe { ptr::swap(ptr::from_mut(v).cast::<MaybeUninit<Vec<u8>>>(), &mut other) };
+			unsafe { other.assume_init() }
+		}
+	};
+	refill_in(v, with);
+	old
+}
+
+/// A `Vec` with a tag, which a pointer to one moves out whole.
+struct TaggedVec {
+	v: Vec<u8>,
+	tag: u8,
+}
+
+/// What an `Option`, a tuple, and a struct each holding a `Vec` held, moved out through
+/// pointers from `&mut`s to them: read, or copied, replaced, and swapped, as `how` picks;
+/// then `with` is written whole into each `Vec` they hold, in place.
+fn moved_nested(
+	o: &mut Option<Vec<u8>>,
+	t: &mut (Vec<u8>, u8),
+	s: &mut TaggedVec,
+	with: &[u8],
+	how: u8,
+) -> (Option<Vec<u8>>, (Vec<u8>, u8), TaggedVec) {
+	let old = match how % 2 {
+		0 => unsafe { (ptr::read(o), ptr::read(t), ptr::read(s)) },
+		_ => unsafe {
+			let mut slot = MaybeUninit::uninit();
+			ptr::copy_nonoverlapping(ptr::from_mut(o), slot.as_mut_ptr(), 1);
+			let old_t = ptr::replace(ptr::from_mut(t), (Vec::new(), how));
+			let mut old_s = TaggedVec {
+				v: Vec::new(),
+				tag: how,
+			};
+			ptr::swap(ptr::from_mut(s), &mut old_s);
+			(slot.assume_init(), old_t, old_s)
+		},
+	};
+	if let Some(v) = o {
+		refill_in(v, with.to_vec());
+	}
+	refill_in(&mut t.0, with.to_vec());
+	refill_in(&mut s.v, with.to_vec());
+	old
+}
+
+/// The `Option` of a cell a shared reference points at, moved out through a pointer from
+/// it, whose cell is then set.
+fn cell_moved(r: &Option<Cell<u32>>) -> Option<Cell<u32>> {
+	let old = unsafe { ptr::read(r) };
+	if let Some(cell) = &old {
+		cell.set(cell.get() + 5);
+	}
+	old
+}
+
+/// The `RefCell` and the `OnceCell` of a cell that shared references point at, moved out
+/// through pointers from them, whose cells, held inline, are then set.
+fn inline_moved(r: &RefCell<Cell<u32>>, o: &OnceCell<Cell<u32>>) -> (RefCell<Cell<u32>>, OnceCell<Cell<u32>>) {
+	let old = unsafe { (ptr::read(r), ptr::read(o)) };
+	let cell = old.0.borrow();
+	cell.set(cell.get() + 9);
+	drop(cell);
+	if let Some(cell) = old.1.get() {
+		cell.set(cell.get() + 9);
+	}
+	old
+}
+
+/// A cell written whole through a pointer from the shared reference given, which may be
+/// the cell `Cell::from_mut` makes of another place.
+#[inline(never)]
+fn cell_rewritten(r: &Cell<u32>, n: u32) {
+	unsafe { ptr::from_ref(r).cast_mut().write(Cell::new(n)) }
+}
+
+/// A `HashMap` dropped in place and written whole through a pointer from the `&mut` given,
+/// which holds what the new one does, its capacity included.
+#[inline(never)]
+fn map_rewritten(r: &mut std::collections::HashMap<u32, u32>) {
+	let p = ptr::from_mut(r);
+	unsafe {
+		ptr::drop_in_place(p);
+		ptr::write(p, std::collections::HashMap::new());
+	}
+}
+
+/// A cell of a `RefCell`, which an uninitialized shell holds nothing in.
+struct HeldCell {
+	c: UnsafeCell<RefCell<u32>>,
+}
+
+/// What the uninitialized `HeldCell` a shared reference points at holds, moved out through
+/// a pointer from it.
+#[inline(never)]
+fn uninit_moved(r: &MaybeUninit<HeldCell>) -> MaybeUninit<HeldCell> {
+	unsafe { ptr::read(r) }
+}
+
+/// A range of cells and a cell `Cell::from_mut` made of a variable's place, moved out
+/// through pointers from shared references to them, whose cells are then set.
+fn ends_moved(r: &ops::Range<Cell<u32>>, c: &Cell<u32>) -> (ops::Range<Cell<u32>>, Cell<u32>) {
+	let old = unsafe { (ptr::read(r), ptr::read(c)) };
+	old.0.start.set(old.0.start.get() + 9);
+	old.0.end.set(old.0.end.get() + 9);
+	old.1.set(old.1.get() + 9);
+	old
+}
+
+/// Values holding a library object, moved out through pointers made each way, at any
+/// depth, and then written in place: what was moved out keeps what it held.
+pub fn moved_out(data: &[u8], out: &mut Vec<u8>) {
+	let with = |n: u8| -> Vec<u8> { data.iter().map(|b| b.wrapping_add(n)).collect() };
+	for how in 0..4 {
+		let mut v = data.to_vec();
+		let old = moved_vec(&mut v, with(how + 1), how);
+		out.extend(&old);
+		out.push(0xfe);
+		out.extend(&v);
+		out.push(0xff);
+	}
+	for how in 0..2 {
+		let mut o = data.first().map(|_| data.to_vec());
+		let mut t = (data.to_vec(), how);
+		let mut s = TaggedVec {
+			v: data.to_vec(),
+			tag: how,
+		};
+		let (old_o, old_t, old_s) = moved_nested(&mut o, &mut t, &mut s, &with(9), how);
+		for v in [
+			old_o.as_ref(),
+			Some(&old_t.0),
+			Some(&old_s.v),
+			o.as_ref(),
+			Some(&t.0),
+			Some(&s.v),
+		]
+		.into_iter()
+		.flatten()
+		{
+			out.extend(v);
+			out.push(0xfe);
+		}
+		out.extend([old_t.1, old_s.tag, t.1, s.tag]);
+	}
+	for &b in data {
+		let cell = (b % 3 != 0).then(|| Cell::new(u32::from(b)));
+		let old = cell_moved(&cell);
+		for c in [&cell, &old] {
+			out.push(c.as_ref().map_or(0, Cell::get) as u8);
+		}
+		let r = RefCell::new(Cell::new(u32::from(b)));
+		let o = OnceCell::new();
+		if b % 2 == 0 {
+			let _ = o.set(Cell::new(u32::from(b) + 1));
+		}
+		let (old_r, old_o) = inline_moved(&r, &o);
+		for r in [&r, &old_r] {
+			out.push(r.borrow().get() as u8);
+		}
+		for o in [&o, &old_o] {
+			out.push(o.get().map_or(0, Cell::get) as u8);
+		}
+		let r = Cell::new(u32::from(b))..Cell::new(u32::from(b) + 1);
+		let mut x = u32::from(b) + 2;
+		let (old_r, old_c) = ends_moved(&r, Cell::from_mut(&mut x));
+		for r in [&r, &old_r] {
+			out.extend([r.start.get() as u8, r.end.get() as u8]);
+		}
+		out.extend([old_c.get() as u8, x as u8]);
+	}
+	let mut map = std::collections::HashMap::<u32, u32>::with_capacity(data.len() * 8);
+	map.extend(data.iter().map(|&b| (u32::from(b), u32::from(b))));
+	map_rewritten(&mut map);
+	out.extend([map.len() as u8, map.capacity() as u8]);
+	for &b in data {
+		let mut x = u32::from(b);
+		cell_rewritten(Cell::from_mut(&mut x), u32::from(b) + 1);
+		let cell = Cell::new(u32::from(b));
+		cell_rewritten(&cell, u32::from(b) + 2);
+		out.extend([x as u8, cell.get() as u8]);
+	}
+	let mut held = Box::<HeldCell>::new_uninit();
+	let mut old = uninit_moved(&held);
+	for (i, h) in [&mut *held, &mut old].into_iter().enumerate() {
+		h.write(HeldCell {
+			c: UnsafeCell::new(RefCell::new(u32::from(data.first().copied().unwrap_or(0)) + i as u32)),
+		});
+	}
+	for h in [&mut *held, &mut old] {
+		out.push(*unsafe { h.assume_init_mut() }.c.get_mut().get_mut() as u8);
+	}
+}
+
 /// Pointers to slices cast to ones to arrays of their elements, of bytes and of numbers:
 /// read whole, borrowed, and written through, at every offset; compared with the arrays
 /// std's safe casts give; cast past where the slice ends and read only where its elements
@@ -3093,4 +3592,9 @@ pub fn array_parts(data: &[u8], out: &mut Vec<u8>) {
 	unsafe { uc.get_mut().assume_init_mut()[0] = n + 8 };
 	unsafe { uc.as_mut_unchecked().assume_init_mut()[1] = n + 9 };
 	out.extend(unsafe { uc.into_inner().assume_init() }.map(|w| w as u8));
+	// Lazy cells in arrays a `Cell` replaces, moved out safely and forced.
+	let (seven, eight): (fn() -> u32, fn() -> u32) = (|| 7, || 8);
+	let mut lazies = [[std::cell::LazyCell::new(seven)]];
+	let old = Cell::from_mut(&mut lazies).replace([[std::cell::LazyCell::new(eight)]]);
+	out.extend([*old[0][0] as u8, *lazies[0][0] as u8, n as u8]);
 }

@@ -13,6 +13,14 @@ export function copy$Option_array2_u8(v: Uint8Array | undefined): Uint8Array | u
 	return v === undefined ? v : copy$array_u8(v);
 }
 
+export function copy$String(v: rs.String): rs.String {
+	return rs.objectCopy(v);
+}
+
+export function copy$Vec_u8(v: rs.ByteVec): rs.ByteVec {
+	return rs.objectCopy(v);
+}
+
 export function copy$array_array2_array2_u8(v: Uint8Array[][]): Uint8Array[][] {
 	return v.map(copy$array_array2_u8);
 }

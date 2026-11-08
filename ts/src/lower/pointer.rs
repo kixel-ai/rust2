@@ -12,6 +12,11 @@
 //! pointer arithmetic moves within the array. A pointer to an element JS keeps as an
 //! object is that object, which knows no array it is in, so arithmetic on one is refused.
 //!
+//! A reference to a value JS copies is the value, not where it is kept, so a pointer made
+//! from one is the place the body shows the reference borrowed, and else a place of its
+//! own: of a shared reference's value, which nothing may write while the pointer lives,
+//! or writing a whole value into the object a `&mut` is in place.
+//!
 //! A pointer to `()`, as std erases one, is an identity that compares as itself: null,
 //! `rs.DANGLING_UNIT`, or a waker's data. One to a place of `()` or from a reference to
 //! one is refused, as an `rs.Place` of it would be an identity of its own each borrow.
@@ -352,7 +357,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 /// Whether std's `def_id` with `args` makes a raw pointer to what its first argument, a
 /// reference, points at: `UnsafeCell::get`, `MaybeUninit::as_ptr` and `as_mut_ptr`,
-/// `ptr::from_ref` and `from_mut`, and `NonNull::from` and `into`.
+/// `ptr::from_ref` and `from_mut`, and `NonNull::from` and `into` of a reference to its
+/// pointee, which only std's impl converts, as any other would overlap it.
 pub fn from_reference<'tcx>(
 	tcx: ty::TyCtxt<'tcx>,
 	def_id: rustc_hir::def_id::DefId,
@@ -371,7 +377,8 @@ pub fn from_reference<'tcx>(
 				"From" => (args.type_at(0), args.type_at(1)),
 				_ => (args.type_at(1), args.type_at(0)),
 			};
-			matches!(to.kind(), ty::Adt(adt, _) if Std::of(tcx, adt.did()) == Some(Std::NonNull)) && from.is_ref()
+			matches!(to.kind(), ty::Adt(adt, to) if Std::of(tcx, adt.did()) == Some(Std::NonNull)
+				&& from.ref_mutability().is_some() && from.builtin_deref(true) == Some(to.type_at(0)))
 		}
 		_ => false,
 	}
@@ -866,6 +873,14 @@ pub fn call<'tcx>(
 			},
 			_ => arg(),
 		},
+		// Refused here rather than in `read`, `replace`, and `swap`, which the safe `Cell`
+		// methods share, as only an unsafe move leaves a pointer into the original.
+		("ptr", "read" | "read_unaligned" | "read_volatile" | "replace" | "swap")
+			if !b.t.zero_sized(pointee())
+				&& let Some(refused) = unsplit(b, pointee(), span) =>
+		{
+			refused
+		}
 		("ptr", "read" | "read_unaligned" | "read_volatile") => {
 			let p = arg();
 			read(b, p, pointee(), span, out)
@@ -959,6 +974,7 @@ pub fn call<'tcx>(
 			}
 		}
 		// A shared reference to a value JS copies is the value.
+		("MaybeUninit", "assume_init_read") if let Some(refused) = unsplit(b, pointee(), span) => refused,
 		("MaybeUninit", "assume_init_read") if b.t.keeps_cells(pointee()) => copy_kept(b, arg(), pointee(), span, out),
 		("MaybeUninit", "assume_init_read") => b.t.snapshot(arg(), pointee(), span),
 		("MaybeUninit", "assume_init_drop") | ("ManuallyDrop", "drop") => {
@@ -972,6 +988,9 @@ pub fn call<'tcx>(
 		// What it holds, which it leaves for nothing to read or drop again.
 		("ManuallyDrop", "take") => {
 			let p = arg();
+			if let Some(refused) = unsplit(b, pointee(), span) {
+				return Ok(Some(refused));
+			}
 			let value = match kind(b, pointee()) {
 				Some(Pointee::Place) => p.member("v"),
 				_ => p,
@@ -1113,6 +1132,8 @@ pub fn call<'tcx>(
 				Expr::undefined()
 			} else if let Some(why) = unmodeled(b, pointee(), "a copy between pointers to") {
 				b.err(span, why)
+			} else if let Some(refused) = unsplit(b, pointee(), span) {
+				refused
 			} else {
 				let mut args = vec![src, dst, n];
 				args.extend(b.t.snapshot_fn(pointee(), span));
@@ -1365,6 +1386,20 @@ pub(super) fn cell_pointer<'tcx>(b: &Body<'_, '_, 'tcx>, cell: Expr, ty: Ty<'tcx
 	}
 }
 
+/// The refusal of a move of a `ty` out of where it is kept, as `ptr::read` makes, that
+/// would copy what JS can't split from the original as Rust's does.
+fn unsplit<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
+	let (held, why) = b.t.unsplit(ty)?;
+	let what = match held == ty {
+		true => String::new(),
+		false => format!(", which holds a `{held}`"),
+	};
+	Some(b.err(
+		span,
+		format!("a read moving out a `{ty}`{what}, {why}, which no copy splits from the original as Rust's read does"),
+	))
+}
+
 /// The value `p`, a pointer to `ty`, points at, as a value of its own.
 pub(super) fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 	if b.t.keeps_cells(ty) {
@@ -1372,7 +1407,16 @@ pub(super) fn read<'tcx>(b: &mut Body<'_, '_, 'tcx>, p: Expr, ty: Ty<'tcx>, span
 		return copy_kept(b, at, ty, span, out);
 	}
 	let value = match b.t.pointee(ty) {
-		Pointee::Place => p.member("v"),
+		// The value a pointer made here of a shared reference holds.
+		Pointee::Place => match p.unlocated() {
+			Expr::Object(members)
+				if let [(Key::Name(v), value)] = members.as_slice()
+					&& v == "v" =>
+			{
+				value.clone()
+			}
+			_ => p.member("v"),
+		},
 		Pointee::Object => p,
 		Pointee::Array => {
 			let ty = b.t.uninit_inner(ty);

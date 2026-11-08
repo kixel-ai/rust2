@@ -296,7 +296,7 @@ export function keys(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_12 === 1) {
 			const old = key.v;
 			key.v = RIGHT;
-			rs.byteVecPush(out, get$09fnt4b({ v: old }.v));
+			rs.byteVecPush(out, get$09fnt4b(old));
 		} else if (_12 === 2) {
 			const other: rs.Place<rs.LocalKey<rs.Cell<rs.u8>>> = { v: RIGHT };
 			const swapped = key.v;

@@ -64,7 +64,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// The JS expression of `place`, read without a copy.
 	pub fn place_expr(&mut self, place: Place<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let tcx = self.tcx;
-		if let Some(why) = self.alloc_bytes(place) {
+		if let Some(why) = self.alloc_bytes(place).map(String::from).or_else(|| self.beside(place)) {
 			return self.err(span, why);
 		}
 		// A local held as its parts reads them, as far as they go.
@@ -847,7 +847,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	pub(super) fn store(&mut self, place: Place<'tcx>, value: Expr, span: Span) -> Vec<Stmt> {
 		let (place, value) = self.rebuilt(place, value, span);
 		let mut out = Vec::new();
-		if let Some(why) = self.alloc_bytes(place) {
+		if let Some(why) = self.alloc_bytes(place).map(String::from).or_else(|| self.beside(place)) {
 			out.push(StmtKind::Expr(self.err(span, why)).at(None));
 			return out;
 		}
