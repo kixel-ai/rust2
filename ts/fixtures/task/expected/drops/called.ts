@@ -447,7 +447,7 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			Log.note(log, rs.fmtFormat(["pair ", args76[0], " ", args76[1]]));
 			return copy$array_u32(p);
 		};
-		const pointer = rs.sliceFrom(pair.v);
+		const pointer = rs.cellArray(pair, rs.sliceFrom);
 		rs.sliceSet(pointer, _510(rs.sliceToArray(pointer)));
 		const part4 = rs.sliceFrom(copy$array_u32(pair.v));
 		Log.note(log, rs.fmtFormat(["paired ", (f: rs.Formatter) => rs.fmtList(rs.sliceItems(part4), f, rs.u32Debug)]));

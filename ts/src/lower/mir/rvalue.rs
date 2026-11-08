@@ -56,23 +56,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					}
 				}
 				let value = self.place_expr(*place, span, out);
-				// A borrow of an array is a slice of all of it, sharing its elements. A shared one
-				// of a `MaybeUninit` of one through a raw pointer is the array of the pointer's
-				// elements: a view of bytes, and else the array where the slice is all of it.
+				// A borrow of an array is a slice of all of it, sharing its elements. One of a
+				// `MaybeUninit` of one through a raw pointer is the array: a view of bytes, and
+				// else refused, as the pointer may point into part of an array, which has no JS
+				// array of its own, so a copy would lose writes and differ in address.
 				let pointee = place.ty(&self.mir.local_decls, tcx).ty;
 				match (pointee.is_array(), self.in_array(*place)) {
 					(true, false) => crate::lower::array_slice(self.b.t.uninit_inner(pointee), value),
 					(false, true) if self.in_bytes(*place) => Expr::rs("byteSliceView", vec![value]),
-					(false, true) => match self.b.t.uninit_inner(pointee).kind() {
-						// Part of an array, or arrays `as_chunks_mut` splits from one slice, has
-						// no JS array of its own, so a write through a copy of it would be lost.
-						ty::Array(..) if matches!(kind, mir::BorrowKind::Mut { .. }) => self.err(
-							span,
-							format!("a mutable reborrow of `{pointee}` through a raw pointer, which may point into part of an array with no JS array of its own, which is not supported yet"),
-						),
-						ty::Array(elem, _) => crate::lower::library::items_of(value, *elem),
-						_ => crate::lower::library::slice_items(value),
-					},
+					(false, true) => self.err(span, crate::lower::pointer::uninit_reborrow(pointee)),
 					_ => value,
 				}
 			}

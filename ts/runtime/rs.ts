@@ -279,11 +279,10 @@ export type CowOf<T> = Cow<T> | ByteCow | Cow<T, ArraySlice<ArrayRef>>;
 export function arrayAsPtr<T>(s: { [i: number]: T }, index = 0): Place<T> {
 	if (s === NULL) return NULL;
 	if (s === DANGLING) return DANGLING;
-	const view = (s as { [VIEW]?: View<T> })[VIEW];
-	const [array, at] = view ? [view.s, view.start + index] : [s, index];
+	const array = roomItems<T>(s) ?? s;
 	// Null's is `null`, which `??` would pass over.
 	const from = EMPTY.get(array) as Place<T> | undefined;
-	return from !== undefined ? from : new AtIndex(array, at);
+	return from !== undefined ? from : new AtIndex(array, index);
 }
 
 /** The pointer to element `index` of `s`, or `s` if it is null or dangling, as `arrayAsPtr`'s. */
@@ -436,9 +435,9 @@ class Lone<T> implements ProxyHandler<T[]> {
  */
 function elemOf<T>(p: Place<T>): AtIndex<T> {
 	if (p instanceof AtIndex) {
-		// A pointer into a mutable part of an array points into the array.
-		const view = (p.array as { [VIEW]?: View<T> })[VIEW];
-		return view ? new AtIndex(view.s, view.start + p.index) : p;
+		// A pointer into a `Vec`'s storage and its room points into its items.
+		const items = roomItems<T>(p.array);
+		return items ? new AtIndex(items, p.index) : p;
 	}
 	if (p === NULL || p === DANGLING) return new AtIndex(NO_MEMORY as unknown as T[], 0);
 	let lone = LONE.get(p) as T[] | undefined;
@@ -713,14 +712,14 @@ export function replaceIn<T extends object>(p: T, value: T, depth = 0): T {
 
 /**
  * A copy of the object `p`, one object deep: its fields, its bytes, or its items for a JS
- * array. Its items, and theirs to `depth` levels of arrays, are objects
- * a write may land in, as a `sliceIn`'s, which a view of one copies too.
+ * array. Its items, and theirs to `depth` levels of arrays, are copied where a write may land
+ * in them, as in a `sliceIn`'s.
  */
 export function objectCopy<T extends object>(p: T, depth = 0): T {
 	if (ArrayBuffer.isView(p)) return (p as unknown as Uint8Array).slice() as T;
 	if (Array.isArray(p)) {
 		const old: unknown[] = p.slice();
-		if (depth > 0 && writesIn(p)) for (let i = 0; i < old.length; i++) old[i] = objectCopy(old[i] as object, depth - 1);
+		if (depth > 0 && ONE.has(p)) for (let i = 0; i < old.length; i++) old[i] = objectCopy(old[i] as object, depth - 1);
 		return old as T;
 	}
 	if (moved(p)) return p.$move();
@@ -918,14 +917,38 @@ export function sliceSet<T>(s: Slice<T>, items: ArrayLike<T>): void {
 }
 
 /**
+ * What a `&mut [T; N]`, `s`, points at, as an array of its own: its elements, and theirs to
+ * `depth` levels of arrays, copied where a write may land in them, as `objectCopy` copies.
+ */
+export function sliceCopy<T>(s: Slice<T>, depth = 0): T[] {
+	const old = s.data.slice(s.start, s.start + s.length);
+	if (depth > 0 && ONE.has(s.data)) for (let i = 0; i < old.length; i++) old[i] = objectCopy(old[i] as object, depth - 1) as T;
+	return old;
+}
+
+/** `mem::replace` of what a `&mut [T; N]`, `s`, points at: a copy of it, as `sliceCopy` makes, then `items` written where `s` holds them. */
+export function sliceReplaceAll<T>(s: Slice<T>, items: ArrayLike<T>, depth = 0): T[] {
+	const old = sliceCopy(s, depth);
+	sliceSet(s, items);
+	return old;
+}
+
+/**
+ * `Box::from_raw` of a `*mut [T; N]`, `s`: the array `Box::into_raw` pointed at all of, as a
+ * box owns all of its allocation.
+ */
+export function boxArrayFromRaw<T>(s: Slice<T>): T[] {
+	const all = s instanceof Slice && s.start === 0 && s.length === s.data.length;
+	return precondition(all ? s.data : undefined, "Box::from_raw requires a pointer Box::into_raw gave");
+}
+
+/**
  * Whether pointers to a `[T; N]`, slices of its elements, point at the same place: the same
- * element of the same array, through any `arrayView` of part of it, or both null.
+ * element of the same array, through a `Vec`'s view of its storage and room, or both null.
  */
 export function sliceSame<T>(a: Slice<T>, b: Slice<T>): boolean {
 	if (!(a instanceof Slice && b instanceof Slice)) return a === b;
-	const [x, y] = [(a.data as { [VIEW]?: View<T> })[VIEW], (b.data as { [VIEW]?: View<T> })[VIEW]];
-	const [xs, ys] = [x ? x.s : a.data, y ? y.s : b.data];
-	return xs === ys && (x ? x.start : 0) + a.start === (y ? y.start : 0) + b.start;
+	return (roomItems(a.data) ?? a.data) === (roomItems(b.data) ?? b.data) && a.start === b.start;
 }
 
 /** A bounds-checked index into a slice. */
@@ -955,28 +978,6 @@ export function sliceRange<T>(s: Slice<T>, start: number, end: number = s.length
 /** Elements `start` to `end` of `s`, in bounds already. */
 export function slicePart<T>(s: Slice<T>, start: number, end: number = s.length): Slice<T> {
 	return new Slice(s.data, s.start + start, end - start);
-}
-
-/**
- * Elements `start` to `end` of `s` as a JS array whose every element is `s`'s, read and
- * written where it is, as a JS array has no views of its own: the `[T; N]` a `&mut` to part
- * of an array lends where what takes it writes a JS array. Its own array, holes of the same
- * length, answers for the rest, such as `length` and the methods. A view of a view reads
- * the array beneath both.
- */
-function arrayView<T>(s: T[], start: number, end: number): T[] {
-	const outer = (s as { [VIEW]?: View<T> })[VIEW];
-	const view = outer ? outer.part(start, end - start) : new View(s, start, end - start);
-	return new Proxy(new Array<T>(end - start), view);
-}
-
-/**
- * The `[T; N]` a `&mut [T; N]`, `s`, points at, as a JS array read and written where the
- * slice holds it, as a `ByteSlice`'s `Uint8Array` view is: the array itself where the slice
- * is all of it, and else a view of its part.
- */
-export function sliceView<T>(s: Slice<T>): T[] {
-	return s.start === 0 && s.length === s.data.length ? s.data : arrayView(s.data, s.start, s.start + s.length);
 }
 
 /** `Option::as_slice` of `o`, whose `None` is `none`: its payload, if any, as `slice::from_ref` makes a slice of one. */
@@ -1059,21 +1060,13 @@ export function byteMirrorFlush(m: ByteMirror | undefined): void {
 }
 
 /**
- * Whether a whole write of an element of `s`, an array a slice holds, may land in the object
- * there, as one of `sliceIn`'s does, or of a place in one, which only `sliceOfPlace`'s can be.
- */
-function writesIn(s: object): boolean {
-	const view = (s as { [VIEW]?: View<unknown> })[VIEW];
-	return ONE.has(view !== undefined ? view.s : s);
-}
-
-/**
  * `mem::replace` of element `i` of `s`, the array a slice of objects holds them in: what
  * it held, as an object of its own, copied to `depth` as `objectCopy` copies, where the
  * write lands in it.
  */
 export function sliceReplace<T extends object>(s: T[], i: number, value: T, depth = 0): T {
-	if (writesIn(s)) return replaceIn(s[i], value, depth);
+	// A whole write of an element of an array of one `sliceIn` or `sliceOfPlace` made lands in the object there.
+	if (ONE.has(s)) return replaceIn(s[i], value, depth);
 	const old = s[i];
 	s[i] = value;
 	return old;
@@ -1085,73 +1078,8 @@ export function sliceReplace<T extends object>(s: T[], i: number, value: T, dept
  * as `sliceReplace` copies, as the other's slot would otherwise take that object itself.
  */
 export function sliceSwapAcross<T extends object>(a: T[], i: number, b: T[], j: number, depth = 0): void {
-	if (writesIn(b)) [a, i, b, j] = [b, j, a, i];
+	if (ONE.has(b)) [a, i, b, j] = [b, j, a, i];
 	b[j] = sliceReplace(a, i, b[j], depth);
-}
-
-/** What an `arrayView` answers to its own `View` by. */
-const VIEW = /* @__PURE__ */ Symbol("view");
-
-/** An `arrayView`'s traps: of `length` elements of `s` from `start`. */
-class View<T> implements ProxyHandler<T[]> {
-	s: { [index: number]: T };
-	start: number;
-	readonly length: number;
-
-	constructor(s: { [index: number]: T }, start: number, length: number) {
-		this.s = s;
-		this.start = start;
-		this.length = length;
-	}
-
-	/** The traps of a view of `length` of these elements from `start`. */
-	part(start: number, length: number): View<T> {
-		return new View(this.s, this.start + start, length);
-	}
-
-	/** Element `i` of `s`. */
-	item(i: number): T {
-		return this.s[i];
-	}
-
-	/** A write of element `i` of `s`. */
-	put(i: number, value: T): void {
-		this.s[i] = value;
-	}
-
-	/** Where in `s` the element `key` names is, or -1 if it names none. */
-	at(key: string | symbol): number {
-		if (typeof key !== "string") return -1;
-		const i = Number(key);
-		return Number.isInteger(i) && i >= 0 && i < this.length && String(i) === key ? this.start + i : -1;
-	}
-
-	get(target: T[], key: string | symbol): unknown {
-		if (key === VIEW) return this;
-		const i = this.at(key);
-		return i < 0 ? Reflect.get(target, key) : this.item(i);
-	}
-
-	set(target: T[], key: string | symbol, value: T): boolean {
-		const i = this.at(key);
-		if (i < 0) return Reflect.set(target, key, value);
-		this.put(i, value);
-		return true;
-	}
-
-	has(target: T[], key: string | symbol): boolean {
-		return this.at(key) >= 0 || Reflect.has(target, key);
-	}
-
-	ownKeys(target: T[]): (string | symbol)[] {
-		return [...Array.from({ length: this.length }, (_, i) => String(i)), ...Reflect.ownKeys(target)];
-	}
-
-	getOwnPropertyDescriptor(target: T[], key: string | symbol): PropertyDescriptor | undefined {
-		const i = this.at(key);
-		if (i < 0) return Reflect.getOwnPropertyDescriptor(target, key);
-		return { value: this.item(i), writable: true, enumerable: true, configurable: true };
-	}
 }
 
 /**
@@ -1303,11 +1231,16 @@ function arrayRefSet(s: ArrayRef, value: unknown): void {
 /**
  * The array `s` as a `[T; N]` of its own: a copy of its elements, and of the arrays it holds at
  * any depth, but not of the objects its elements are, which a write of it moves, unless
- * `copy` copies them.
+ * `copy` copies them. `objectCopy`, of an object a write lands in, copies only where one does,
+ * in an array of one `sliceIn` or `sliceOfPlace` made, as a write elsewhere puts another
+ * object in the element's place and leaves the old one, such as a pinned `Box`, where it is.
  */
 function arrayRefCopy<S extends ArrayRef>(s: S, copy?: ElemCopy): LentArray<S> {
 	if (s instanceof ByteSlice) return byteSliceToArray(s) as LentArray<S>;
-	if (s instanceof Slice) return sliceToArray(s, copy as ((value: unknown) => unknown) | undefined) as LentArray<S>;
+	if (s instanceof Slice) {
+		const each = copy === objectCopy && !ONE.has(s.data) ? undefined : copy;
+		return sliceToArray(s, each as ((value: unknown) => unknown) | undefined) as LentArray<S>;
+	}
 	return arraySliceCopy(s as ArraySlice<ArrayRef>, copy) as LentArray<S>;
 }
 
@@ -2804,32 +2737,70 @@ export function roomPast<T>(array: object, end: number): Room<T> | undefined {
 	return room;
 }
 
-/** The traps of a view of a `Vec`'s storage, its items and then its room, from `start`. */
-class RoomView<T> extends View<T> {
+/** What a `Vec`'s view of its storage and room answers to its own traps by. */
+const VIEW = /* @__PURE__ */ Symbol("view");
+
+/** The items of the `Vec` whose storage and room `s` is a view of, if it is one. */
+function roomItems<T>(s: object): { [index: number]: T } | undefined {
+	return (s as { [VIEW]?: RoomView<T> })[VIEW]?.s;
+}
+
+/** The traps of a view of the first `length` elements of a `Vec`'s storage: its items, `s`, and then its room. */
+class RoomView<T> implements ProxyHandler<T[]> {
 	readonly room: Room<T>;
+	readonly s: T[];
+	readonly length: number;
 
-	constructor(room: Room<T>, items: T[], start: number, length: number) {
-		super(items, start, length);
+	constructor(room: Room<T>, s: T[], length: number) {
 		this.room = room;
+		this.s = s;
+		this.length = length;
 	}
 
-	override part(start: number, length: number): RoomView<T> {
-		return new RoomView(this.room, this.s as T[], this.start + start, length);
+	/** Element `i`, of the items or the room. */
+	item(i: number): T {
+		return i < this.s.length ? this.s[i] : this.room.get(i);
 	}
 
-	override item(i: number): T {
-		return i < (this.s as T[]).length ? this.s[i] : this.room.get(i);
+	/** Where the element `key` names is, or -1 if it names none. */
+	at(key: string | symbol): number {
+		if (typeof key !== "string") return -1;
+		const i = Number(key);
+		return Number.isInteger(i) && i >= 0 && i < this.length && String(i) === key ? i : -1;
 	}
 
-	override put(i: number, value: T): void {
-		if (i < (this.s as T[]).length) this.s[i] = value;
+	get(target: T[], key: string | symbol): unknown {
+		if (key === VIEW) return this;
+		const i = this.at(key);
+		return i < 0 ? Reflect.get(target, key) : this.item(i);
+	}
+
+	set(target: T[], key: string | symbol, value: T): boolean {
+		const i = this.at(key);
+		if (i < 0) return Reflect.set(target, key, value);
+		if (i < this.s.length) this.s[i] = value;
 		else this.room.set(i, value);
+		return true;
+	}
+
+	has(target: T[], key: string | symbol): boolean {
+		return this.at(key) >= 0 || Reflect.has(target, key);
+	}
+
+	ownKeys(target: T[]): (string | symbol)[] {
+		return [...Array.from({ length: this.length }, (_, i) => String(i)), ...Reflect.ownKeys(target)];
+	}
+
+	getOwnPropertyDescriptor(target: T[], key: string | symbol): PropertyDescriptor | undefined {
+		const i = this.at(key);
+		if (i < 0) return Reflect.getOwnPropertyDescriptor(target, key);
+		return { value: this.item(i), writable: true, enumerable: true, configurable: true };
 	}
 }
 
 /** The first `end` elements of the allocation `room` is past, its items and then itself, as a JS array read and written where they are. */
 function roomView<T>(room: Room<T>, end: number): T[] {
-	return new Proxy(new Array<T>(end), new RoomView(room, room.items, 0, end));
+	return new Proxy(new Array<T>(end), new RoomView(room, room.items, end));
 }
 
 /** `Vec::as_ptr` and `as_mut_ptr` of `size`-byte elements: the pointer to its first, which reaches its room. */

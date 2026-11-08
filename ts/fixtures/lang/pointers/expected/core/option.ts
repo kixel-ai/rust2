@@ -69,6 +69,20 @@ export function mapOr$00zno7m(self: Spot.Spot | undefined, default_: Spot.Spot, 
 	return f(copy$pointers_Spot(self));
 }
 
+export function mapOr$0m14xib(self: Uint8Array | rs.None, default_: Uint8Array, f: (a0: Uint8Array) => Uint8Array): Uint8Array {
+	if (self === rs.None) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$1wlsr3s(self: rs.u8 | undefined, default_: rs.u32, f: (a0: rs.u8) => rs.u32): rs.u32 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function mapOr$173j2gr(self: [rs.u8, rs.Arc<rs.u8>] | undefined, default_: rs.u8, f: (a0: [rs.u8, rs.Arc<rs.u8>]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;

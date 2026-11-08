@@ -6,13 +6,14 @@ fixtures/reject/src/alloc.rs:alloc_retyped+8:21: memory from `alloc` cast to poi
 fixtures/reject/src/alloc.rs:alloc_retyped+10:17: memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:allocated+4:3: a byte of memory from `alloc`, which JS keeps as the values a cast of its pointer types it as
 fixtures/reject/src/alloc.rs:allocated+5:11: a byte of memory from `alloc`, which JS keeps as the values a cast of its pointer types it as
+fixtures/reject/src/alloc.rs:arrays_boxed+4:22: `Box::from_raw` of `[[u32; 2]; 2]`, which may be arrays `as_chunks` split from one flat array, which is not supported yet
+fixtures/reject/src/alloc.rs:arrays_boxed+6:23: `Box::from_raw` of `[alloc::Only; 2]`, a value of no bytes made of more than structs and tuples
 fixtures/reject/src/alloc.rs:bytes_as_values+3:3: a byte of memory from `alloc`, which JS keeps as the values a cast of its pointer types it as
 fixtures/reject/src/alloc.rs:bytes_as_values+4:15: a cast from a pointer to `u8` to one to `u32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:bytes_as_values+5:16: a cast from a pointer to `u8` to one to `pointers::Halves`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:bytes_as_values+7:15: a cast from a pointer to `u32` to one to `u8`, which reads the bytes of one type as another
-fixtures/reject/src/alloc.rs:cell_of_arrays+1:10: `UnsafeCell::from_mut` of `[[u16; 2]; 2]`, an array of arrays, which a cell of it reads a copy of, so a write through its pointer would land in the copy
-fixtures/reject/src/alloc.rs:cell_of_arrays+7:4: `Cell::swap` of `[[u16; 2]; 2]`, an array, whose cells may partially overlap, which Rust panics on
-fixtures/reject/src/alloc.rs:cell_of_arrays+9:4: `Cell::swap` of `[u32; 2]`, an array, whose cells may partially overlap, which Rust panics on
+fixtures/reject/src/alloc.rs:cell_of_arrays+5:4: `Cell::swap` of `[[u16; 2]; 2]`, an array, whose cells may partially overlap, which Rust panics on
+fixtures/reject/src/alloc.rs:cell_of_arrays+7:4: `Cell::swap` of `[u32; 2]`, an array, whose cells may partially overlap, which Rust panics on
 fixtures/reject/src/alloc.rs:cell_of_objects+1:10: `UnsafeCell::from_mut` of `std::vec::Vec<u8>`, an object a whole write through it changes in place, so a value read out before would change too or be a copy at another address
 fixtures/reject/src/alloc.rs:cell_of_objects+2:10: `UnsafeCell::from_mut` of `std::string::String`, an object a whole write through it changes in place, so a value read out before would change too or be a copy at another address
 fixtures/reject/src/alloc.rs:cell_of_objects+3:10: `UnsafeCell::from_mut` of `std::pin::Pin<std::boxed::Box<(u8, u8)>>`, an object a whole write through it changes in place, so a value read out before would change too or be a copy at another address
@@ -33,6 +34,12 @@ fixtures/reject/src/alloc.rs:cell_raw_unknown+9:13: `UnsafeCell::raw_get` of a p
 fixtures/reject/src/alloc.rs:pinned_lent+1:32: `UnsafeCell::get_mut` of `std::pin::Pin<std::boxed::Box<(u8, u8)>>`, an object a whole write through the reference changes in place, so a value read out before would be a copy at another address
 fixtures/reject/src/alloc.rs:pinned_lent+2:43: `UnsafeCell::as_mut_unchecked` of `std::pin::Pin<std::boxed::Box<(u8, u8)>>`, an object a whole write through the reference changes in place, so a value read out before would be a copy at another address
 fixtures/reject/src/alloc.rs:reinterpreted+1:27: a cast from a pointer to `u32` to one to `u8`, which reads the bytes of one type as another
+fixtures/reject/src/alloc.rs:uninit_array_lent+1:25: a reborrow of `std::mem::MaybeUninit<[u32; 2]>` through a raw pointer, which may point into part of an array with no JS array of its own to lend, which is not supported yet
+fixtures/reject/src/alloc.rs:uninit_array_lent+2:59: a reborrow of `std::mem::MaybeUninit<[u32; 2]>` through a raw pointer, which may point into part of an array with no JS array of its own to lend, which is not supported yet
+fixtures/reject/src/alloc.rs:uninit_array_lent+3:25: a reborrow of `std::mem::MaybeUninit<[u32; 2]>` through a raw pointer, which may point into part of an array with no JS array of its own to lend, which is not supported yet
+fixtures/reject/src/alloc.rs:uninit_array_lent+4:59: a reborrow of `std::mem::MaybeUninit<[u32; 2]>` through a raw pointer, which may point into part of an array with no JS array of its own to lend, which is not supported yet
+fixtures/reject/src/alloc.rs:uninit_array_lent+5:23: a reborrow of `std::mem::MaybeUninit<[u32; 2]>` through a raw pointer, which may point into part of an array with no JS array of its own to lend, which is not supported yet
+fixtures/reject/src/alloc.rs:uninit_array_lent+6:23: a reborrow of `std::mem::MaybeUninit<[u32; 2]>` through a raw pointer, which may point into part of an array with no JS array of its own to lend, which is not supported yet
 fixtures/reject/src/alloc.rs:uninit_cell_lent+2:17: `MaybeUninit::assume_init_mut` of `std::cell::UnsafeCell<u32>`, whose mutable reference is the object, but the uninitialized value's is the place it is kept in
 fixtures/reject/src/alloc.rs:vec_pointer+1:10: a raw pointer to `std::vec::Vec<u8>` behind a reference, which is the object and not where it is kept
 fixtures/reject/src/alloc.rs:wrapped_cells+8:19: a whole write of `std::mem::MaybeUninit<(std::cell::UnsafeCell<u32>, u32)>`, which would put another cell in place of one a `MaybeUninit` or `ManuallyDrop` holds
@@ -251,10 +258,10 @@ fixtures/reject/src/pointers.rs:reached_out+8:27: a pointer reaching past a valu
 fixtures/reject/src/pointers.rs:text_apart+1:27: `offset_from` between pointers of two `str::as_ptr` calls, each into an encoding of the text of its own, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:text_apart+1:64: `offset_from` between pointers of two `str::as_ptr` calls, each into an encoding of the text of its own, which JS keeps in different arrays
 fixtures/reject/src/pointers.rs:text_before+1:28: a pointer reaching past a `str`'s bytes, which JS keeps apart from what holds it in Rust
-fixtures/reject/src/pointers.rs:uninit_part_mut+5:25: a mutable reborrow of `std::mem::MaybeUninit<[u32; 2]>` through a raw pointer, which may point into part of an array with no JS array of its own, which is not supported yet
+fixtures/reject/src/pointers.rs:uninit_part_mut+5:25: a reborrow of `std::mem::MaybeUninit<[u32; 2]>` through a raw pointer, which may point into part of an array with no JS array of its own to lend, which is not supported yet
 fixtures/reject/src/pointers.rs:uninit_part_replaced+5:19: a raw pointer to `std::mem::MaybeUninit<(u32, u32)>` in `pointers::Gap`, which the crate may put another object in place of
 fixtures/reject/src/pointers.rs:uninit_part_replaced+6:19: a raw pointer to `std::mem::MaybeUninit<(u32, u32)>` in `pointers::Gap`, which the crate may put another object in place of
-fixtures/reject/src/pointers.rs:uninit_rows_mut+5:25: a mutable reborrow of `std::mem::MaybeUninit<[[u8; 2]; 2]>` through a raw pointer, which may point into part of an array with no JS array of its own, which is not supported yet
+fixtures/reject/src/pointers.rs:uninit_rows_mut+5:25: a reborrow of `std::mem::MaybeUninit<[[u8; 2]; 2]>` through a raw pointer, which may point into part of an array with no JS array of its own to lend, which is not supported yet
 fixtures/reject/src/pointers.rs:unit_elements+1:13: `offset_from` of pointers to `()`, which has no bytes
 fixtures/reject/src/pointers.rs:unit_elements+1:39: a slice of `()`, which has no bytes, from a pointer
 fixtures/reject/src/pointers.rs:variable_celled+2:10: a raw pointer to `(u32, u32)` in a variable assigned again while it may point there

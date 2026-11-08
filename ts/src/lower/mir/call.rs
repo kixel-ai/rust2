@@ -1659,14 +1659,6 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		if let ty::Array(elem, len) = ty.kind()
 			&& (!cell || elem.is_array())
 		{
-			if owner == "UnsafeCell" {
-				return Some(self.err(
-					span,
-					format!(
-						"`UnsafeCell::from_mut` of `{ty}`, an array of arrays, which a cell of it reads a copy of, so a write through its pointer would land in the copy"
-					),
-				));
-			}
 			let slice = self.operand(op, span, out);
 			if cell {
 				let copy = self.b.t.elem_copy(ty, span);
@@ -1690,9 +1682,23 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				),
 			));
 		}
+		// The bytes a `&mut [u8; N]` views, or a cell of the slice a `&mut` to another array is,
+		// where its writes land.
 		if self.in_array(deref) {
+			let inner = self.b.t.uninit_inner(ty);
+			if crate::lower::byte_array(inner) {
+				let slice = self.place_expr(deref, span, out);
+				return Some(of_object(Expr::rs("byteSliceView", vec![slice])));
+			}
+			if !cell || crate::lower::array_slice::of_arrays(inner) {
+				let path = if owner == "raw" { "slice" } else { owner };
+				return Some(self.err(
+					span,
+					format!("`{path}::from_mut` of `{ty}`, an array a `MaybeUninit` holds, which is not supported yet"),
+				));
+			}
 			let slice = self.place_expr(deref, span, out);
-			return Some(of_object(self.b.t.array_rs(ty, "View").call(vec![slice])));
+			return Some(Expr::rs("cellOfSlice", vec![slice]));
 		}
 		// A cell of an object is of it wherever it is, as its place may be one a write lands
 		// in, such as an element of a slice of one.
@@ -2031,9 +2037,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				Some(p) => {
 					let slice = self.borrowed_slice(place.0, p, span, out);
-					let mut made = vec![Expr::rs("sliceView", vec![slice]), value];
+					let mut made = vec![slice, value];
 					made.extend(self.b.t.copy_depth(ty));
-					Expr::rs("replaceIn", made)
+					Expr::rs("sliceReplaceAll", made)
 				}
 				None => {
 					let mut made = vec![place.0, value];

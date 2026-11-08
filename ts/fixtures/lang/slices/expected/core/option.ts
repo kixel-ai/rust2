@@ -59,6 +59,14 @@ export function map$13tab2s(self: rs.u16[] | undefined, f: (a0: rs.u16[]) => rs.
 	return f(copy$array_u16(self));
 }
 
+export function map$0cigbgc(self: rs.Slice<rs.u32> | undefined, f: (a0: rs.Slice<rs.u32>) => undefined): undefined | rs.None {
+	if (self === undefined) {
+		return rs.None;
+	}
+	f(self);
+	return undefined;
+}
+
 export function map$0duedp1(self: rs.Slice<rs.u16> | undefined, f: (a0: rs.Slice<rs.u16>) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;

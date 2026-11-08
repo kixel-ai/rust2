@@ -39,12 +39,20 @@ What remains:
 - `ptr::eq` of an array `as_chunks` split from one flat slice, which std's callback gets a
   copy of, answers `false` where Rust answers `true`, silently (moved here 2026-11-07 in
   [#608](https://github.com/moq-dev/rust2/pull/608)). A copy that remembers the slice and
-  offset it came from, compared through that, is exact; it touches the code
-  [rs.Slice](/quest/m3/ts-slice-object.md) reworks, so it follows that quest.
+  offset it came from, compared through that, is exact; it builds on the `rs.ArraySlice`
+  [#662](https://github.com/moq-dev/rust2/pull/662) left, where `rs.arraySliceItems` still
+  copies.
+- `bytes`' panics in a hook program: `BYTES` in [`caller.rs`](/ts/src/lower/caller.rs)
+  finds each by searching the source of the program's `bytes` for text, so a
+  `--remap-path-prefix` of a directory inside `bytes` fails translation of a hook program.
+  Take each panic's location from `bytes`' compiled code for the function that panics, as
+  [`tokio.rs`](/ts/src/lower/tokio.rs) does for tokio's oneshot `poll`, so rustc names the
+  file as native does under any remap, and delete the source search (decided with the
+  maintainer on 2026-11-07, from [#661](https://github.com/moq-dev/rust2/pull/661)'s
+  follow-ups).
 
 Public API: the translator's output, and which crates translate.
 
 ## Related
 
 - [Unsafe code the translator can model](/quest/m3/ts-unsafe/README.md) - the raw-pointer model several of these throws guard; its 2026-11-01 run-time failures now follow this quest's rule
-- [rs.Slice](/quest/m3/ts-slice-object.md) - reworks the arrays `as_chunks` lends, which the `ptr::eq` gap follows

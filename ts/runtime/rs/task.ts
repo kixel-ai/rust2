@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, arrayAssign, type ByteSlice, type ArrayRef, type LentArray, type ElemCopy, ArraySlice, arraySliceItems, arraySliceCopy, arraySliceSet, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, violated, stringAsBytes, type Vec, assertFailed, fmtOwned } from "../rs.ts";
+import { Abort, arrayAssign, type ByteSlice, type ArrayRef, type LentArray, type ElemCopy, ArraySlice, arraySliceItems, arraySliceCopy, arraySliceSet, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, sliceSet, violated, sliceToArray, stringAsBytes, type Vec, assertFailed, fmtOwned } from "../rs.ts";
 import type { Hasher } from "./hash.ts";
 import type { Location } from "./location.ts";
 
@@ -914,11 +914,48 @@ export function cellOfPlace<T>(p: Place<T>): Cell<T> {
 }
 
 /**
+ * A cell `Cell::from_mut` or `UnsafeCell::from_mut` makes of a `&mut [T; N]`, the slice `s`:
+ * a read is a copy of the array, a write lands where `s` holds it, and a pointer to it is `s`.
+ */
+class ArrayCell<S, A> implements Place<A> {
+	readonly s: S;
+	readonly #read: () => A;
+	readonly #write: (value: A) => void;
+
+	constructor(s: S, read: () => A, write: (value: A) => void) {
+		this.s = s;
+		this.#read = read;
+		this.#write = write;
+	}
+
+	get v(): A {
+		return this.#read();
+	}
+
+	set v(value: A) {
+		this.#write(value);
+	}
+}
+
+/** `Cell::from_mut` or `UnsafeCell::from_mut` of a `&mut [T; N]`, which is `s`. */
+export function cellOfSlice<T>(s: Slice<T>): Cell<T[]> {
+	return cellOfPlace(new ArrayCell(s, () => sliceToArray(s), (value: T[]) => sliceSet(s, value)));
+}
+
+/**
  * `Cell::from_mut` of a `&mut [[T; N]; M]`, which is the arrays `r`: a read is a copy of
  * them, each element copied by `copy`, and a write lands where `r` holds them.
  */
 export function cellOfArraySlice<S extends ArrayRef>(r: ArraySlice<S>, copy?: ElemCopy): Cell<LentArray<S>[]> {
-	return cellOfPlace(place(() => arraySliceCopy(r, copy), (value) => arraySliceSet(r, value)));
+	return cellOfPlace(new ArrayCell(r, () => arraySliceCopy(r, copy), (value: LentArray<S>[]) => arraySliceSet(r, value)));
+}
+
+/**
+ * The pointer to the array a cell of one, `c`, holds, the slice of it `from` makes: the slice
+ * `Cell::from_mut` made it of, or else the slice of all of the array.
+ */
+export function cellArray<A, S>(c: Cell<A>, from: (array: A) => S): S {
+	return c instanceof ArrayCell ? (c.s as S) : from(c.v);
 }
 
 /**
