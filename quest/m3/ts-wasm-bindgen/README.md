@@ -50,7 +50,7 @@ Decided with the maintainer on 2026-11-06:
   [spike](https://github.com/moq-dev/rust2/pull/638) has the measurements:
   `macro_rules!`-made imports, which source reading misses, are on the encoder's path.
 - ✅ web-codecs' encoders and decoders also hand their frames and errors through tokio's
-  `sync::mpsc` and `sync::watch`, which translation refuses today (about 50 refusals in
+  `sync::mpsc` and `sync::watch`, which translation refused then (about 50 refusals in
   the spike's census), so
   [tokio's sync channels are mapped into the runtime](/ts/src/lower/tokio.rs)
   (rejected: translating tokio's source, whose intrusive lists and raw pointers into

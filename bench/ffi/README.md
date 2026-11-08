@@ -110,7 +110,7 @@ Native libraries are `release` (fat LTO, `strip = "debuginfo"`, as moq-ffi ships
 | slice, Swift: UniFFI / BoltFFI | 3 / 2 | 101 / 51 KiB | 14 / 8 KiB |
 | moq-ffi, UniFFI: Python / Kotlin / Swift | 1 / 1 / 3 | 653 / 914 / 684 KiB | 66 / 73 / 72 KiB |
 
-Browser builds use opt-level z after wasm-bindgen and no wasm-opt, as moq-wasm ships; the stripped columns drop the `name` section.
+Browser builds use opt-level z after wasm-bindgen and no wasm-opt, as moq-wasm shipped before moq removed it; the stripped columns drop the `name` section.
 
 | browser module | .wasm as built | .wasm stripped | stripped, gzip | JS glue | JS glue, gzip |
 |---|---|---|---|---|---|

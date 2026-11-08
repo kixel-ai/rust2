@@ -4,8 +4,7 @@
 
 Whether rust2 should carry its own rustc and cargo fork, installed as a rustup
 toolchain so moq needs no code changes. This quest is the evidence ledger.
-Condition: the reasons to fork add up to enough to pay for maintaining one,
-which is the maintainer's call. Later reports append their data points here.
+Later reports append their data points here.
 
 ## Plan
 
@@ -48,3 +47,9 @@ Each names what the fork changes, the measured gain on moq, and its source.
     ([moq-dev/rust2#62](https://github.com/moq-dev/rust2/pull/62)).
 
 Public API: none until the fork has a consumer.
+
+## Waiting
+
+- Maintainer: decide that the reasons to fork below add up to enough to pay for
+  maintaining one. An agent can only gather the evidence; the cost of carrying a fork is
+  the maintainer's to weigh.
