@@ -3038,7 +3038,8 @@ fn tripled(mut b: u8) -> u8 {
 /// A raw pointer to a `[T; N]` and to a `[[T; N]; M]` that is part of a slice, lent back as
 /// a reference by `as_mut` and `NonNull::as_mut`, and the first written whole by
 /// `ptr::replace` and `ptr::swap` and taken back as a box by `Box::from_raw`; and arrays a
-/// `MaybeUninit` holds, lent by `as_ref` and by a cell's `get_mut` and `as_mut_unchecked`.
+/// `MaybeUninit` holds, lent by `as_ref` of bytes and by a cell's `get_mut` and
+/// `as_mut_unchecked`.
 pub fn array_parts(data: &[u8], out: &mut Vec<u8>) {
 	let n = data.first().map_or(0, |&b| u32::from(b));
 	let mut words: Vec<u32> = data.iter().map(|&b| u32::from(b)).collect();
@@ -3071,13 +3072,6 @@ pub fn array_parts(data: &[u8], out: &mut Vec<u8>) {
 	unsafe { nn.as_mut()[0][1] = n + 5 };
 	out.extend(rows.iter().flatten().map(|&w| w as u8));
 	// Of arrays a `MaybeUninit` holds, whose reference is the array.
-	let mu = MaybeUninit::new([n, 1]);
-	let p: *const MaybeUninit<[u32; 2]> = &mu;
-	if let Some(m) = unsafe { p.as_ref() } {
-		out.push(unsafe { m.assume_init_ref()[0] } as u8);
-	}
-	let nn = NonNull::new(p.cast_mut()).unwrap();
-	out.push(unsafe { nn.as_ref().assume_init_ref()[1] } as u8);
 	let bytes = MaybeUninit::new([n as u8, 5]);
 	let p: *const MaybeUninit<[u8; 2]> = &bytes;
 	out.extend(unsafe { p.as_ref() }.map_or([0; 2], |m| unsafe { m.assume_init() }));

@@ -1613,22 +1613,10 @@ pub fn array_sources(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let shared: std::rc::Rc<[[u8; 2]]> = rows.clone().into();
 			out.extend(shared.iter().rev().flatten());
 		}
-		// A reborrow of a `MaybeUninit` of an array of arrays through a raw pointer, and a
-		// borrowed `Cow`'s, matched.
+		// A borrowed `Cow`'s, matched.
 		3 => {
 			let row = |at: usize| rows.get(at).copied().unwrap_or([at as u8; 2]);
 			let grid = [row(0), row(1), row(2)];
-			let pairs = [
-				[grid[2][1], grid[0][0]],
-				[grid[1][0], grid[2][0]],
-				[grid[0][1], grid[1][1]],
-				grid[2],
-			];
-			let p = (&pairs as *const [[u8; 2]; 4]).cast::<std::mem::MaybeUninit<[[u8; 2]; 4]>>();
-			// SAFETY: `p` points at `pairs`, which is initialized and outlives the borrow.
-			let wrapped = unsafe { &*p };
-			// SAFETY: as above.
-			out.extend(unsafe { wrapped.assume_init_ref() }.iter().flatten());
 			let cow: std::borrow::Cow<'_, [[u8; 2]]> = std::borrow::Cow::Borrowed(&grid[1..]);
 			match cow {
 				std::borrow::Cow::Borrowed(rows) => out.extend([rows.len() as u8, rows[0][0], rows[rows.len() - 1][1]]),

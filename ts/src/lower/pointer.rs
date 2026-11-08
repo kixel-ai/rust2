@@ -122,12 +122,6 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				"comparing pointers to `{ty}`, each an object JS makes of its own as it unsizes"
 			));
 		}
-		let inner = self.uninit_inner(ty);
-		if self.pointee(ty) == Pointee::Array && inner != ty && !super::byte_array(inner) {
-			return Some(format!(
-				"comparing pointers to `{ty}`, an array a `MaybeUninit` or `ManuallyDrop` holds, whose shared reference through a raw pointer to part of an array is a copy"
-			));
-		}
 		match self.pointee(ty) {
 			// `from_ref`, `from_mut` of a variable, and `Option::as_slice` make an array of
 			// one of their own for a value, so only longer arrays are always where Rust's are.
@@ -588,19 +582,14 @@ pub fn call<'tcx>(
 	};
 	// A reference to the array a pointer points at: the slice the pointer is, or for one a
 	// `MaybeUninit` or `ManuallyDrop` holds, whose reference is the array, as a reborrow of
-	// `*p` makes it: a view of bytes, a shared one the array where the slice is all of it, and
-	// a mutable one refused, as part of an array has no JS array of its own to write through.
-	let to_reference = |b: &mut Body<'_, '_, 'tcx>, p: Expr, shared: bool| {
+	// `*p` makes it: a view of bytes, and else refused.
+	let to_reference = |b: &mut Body<'_, '_, 'tcx>, p: Expr| {
 		let ty = pointee();
 		let inner = b.t.uninit_inner(ty);
-		match inner.kind() {
+		match inner {
 			_ if inner == ty => p,
 			_ if super::byte_array(inner) => Expr::rs("byteSliceView", vec![p]),
-			ty::Array(elem, _) if shared => super::library::items_of(p, *elem),
-			_ => b.err(
-				span,
-				format!("a mutable reborrow of `{ty}` through a raw pointer, which may point into part of an array with no JS array of its own, which is not supported yet"),
-			),
+			_ => b.err(span, uninit_reborrow(ty)),
 		}
 	};
 	// A raw pointer to a slice, from a reference to one, and the slice a read through it
@@ -680,7 +669,7 @@ pub fn call<'tcx>(
 		}
 		("NonNull", "as_mut") if array(b, pointee()) => {
 			let p = arg();
-			to_reference(b, p, false)
+			to_reference(b, p)
 		}
 		// A `&mut` to a `MaybeUninit` of a cell of a value JS copies is the place the cell is
 		// kept in, but one to the cell is the cell.
@@ -765,7 +754,7 @@ pub fn call<'tcx>(
 						ty::Adt(_, args) => b.t.none(args.type_at(0)),
 						_ => Expr::undefined(),
 					};
-					(to_reference(b, p.clone(), name == "as_ref"), none)
+					(to_reference(b, p.clone()), none)
 				}
 				false => (p.clone(), Expr::undefined()),
 			};
@@ -779,7 +768,7 @@ pub fn call<'tcx>(
 			Some(Pointee::Place) if owner == "NonNull" => arg().member("v"),
 			Some(Pointee::Array) if owner == "NonNull" => {
 				let p = arg();
-				to_reference(b, p, true)
+				to_reference(b, p)
 			}
 			_ => arg(),
 		},
@@ -1614,6 +1603,15 @@ fn object_field<'tcx>(b: &mut Body<'_, '_, 'tcx>, object: Expr, ty: Ty<'tcx>, i:
 		},
 		_ => unreachable!("`{ty}` is a tuple or a struct"),
 	}
+}
+
+/// Why a reborrow through a raw pointer of `ty`, an array a `MaybeUninit` or `ManuallyDrop`
+/// holds of other than bytes, is refused: its reference is the array, which part of an array
+/// has none of its own, so a shared one would be a copy at another address.
+pub fn uninit_reborrow(ty: Ty<'_>) -> String {
+	format!(
+		"a reborrow of `{ty}` through a raw pointer, which may point into part of an array with no JS array of its own to lend, which is not supported yet"
+	)
 }
 
 /// Whether `ty` is `[u8]`, one of `MaybeUninit<u8>`, or an `UninitSlice`, whose slices are

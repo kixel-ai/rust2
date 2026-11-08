@@ -146,24 +146,27 @@ pub fn cell_of_arrays() -> u16 {
 	x.into_inner()[0][0] ^ v.into_inner()[0] as u16
 }
 
-/// `as_mut` and `NonNull::as_mut` of a pointer to an array a `MaybeUninit` holds, whose
-/// mutable reference is the array, which part of an array has none of its own.
+/// Reborrows through a pointer to an array a `MaybeUninit` holds, by `as_mut`, `as_ref`,
+/// and `&*p`, shared and mutable, whose reference is the array, which part of an array has
+/// none of its own.
 pub fn uninit_array_lent(p: *mut std::mem::MaybeUninit<[u32; 2]>) -> u32 {
 	let first = unsafe { p.as_mut() }.map_or(0, |m| unsafe { m.assume_init_mut()[0] });
 	let second = unsafe { std::ptr::NonNull::new(p).unwrap().as_mut().assume_init_mut()[1] };
-	first ^ second
+	let third = unsafe { p.as_ref() }.map_or(0, |m| unsafe { m.assume_init_ref()[0] });
+	let fourth = unsafe { std::ptr::NonNull::new(p).unwrap().as_ref().assume_init_ref()[1] };
+	let fifth = unsafe { (&*p).assume_init_ref()[0] };
+	let sixth = unsafe { (&mut *p).assume_init_mut()[1] };
+	first ^ second ^ third ^ fourth ^ fifth ^ sixth
 }
 
-/// Pointers to an array a `MaybeUninit` holds compared, one a shared reference through a
-/// raw pointer may make a copy of; and `Box::from_raw` of arrays `as_chunks_mut` split from
-/// one flat array, which a box of arrays of their own can't share.
-pub fn uninit_array_compared(p: *const std::mem::MaybeUninit<[u32; 2]>) -> bool {
-	let r = unsafe { p.as_ref() }.unwrap();
+/// `Box::from_raw` of arrays `as_chunks_mut` split from one flat array, which a box of
+/// arrays of their own can't share.
+pub fn flat_arrays_boxed() -> u32 {
 	let flat = Box::into_raw(Box::new([1u32, 2, 3, 4]));
 	let (runs, _) = unsafe { (*flat).as_chunks_mut::<2>() };
 	let whole: *mut [[u32; 2]; 2] = runs.first_chunk_mut().unwrap();
 	let back = unsafe { Box::from_raw(whole) };
-	std::ptr::eq(p, r) && back[0][0] == 1
+	back[0][0]
 }
 
 /// A `get_mut` and an `as_mut_unchecked` of a cell of a pinned `Box`, whose old value

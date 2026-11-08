@@ -4080,7 +4080,8 @@ export function tripled(b: rs.u8): rs.u8 {
  * A raw pointer to a `[T; N]` and to a `[[T; N]; M]` that is part of a slice, lent back as
  * a reference by `as_mut` and `NonNull::as_mut`, and the first written whole by
  * `ptr::replace` and `ptr::swap` and taken back as a box by `Box::from_raw`; and arrays a
- * `MaybeUninit` holds, lent by `as_ref` and by a cell's `get_mut` and `as_mut_unchecked`.
+ * `MaybeUninit` holds, lent by `as_ref` of bytes and by a cell's `get_mut` and
+ * `as_mut_unchecked`.
  */
 export function arrayParts(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const n: rs.u32 = option_mapOr$1wlsr3s(rs.byteSliceFirst(data), 0, (_2: rs.u8): rs.u32 => {
@@ -4144,31 +4145,21 @@ export function arrayParts(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(rows.items, rs.sliceFrom)), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 2), (_212: rs.u32): rs.u8 => {
 		return _212 & 0xff;
 	}), undefined, true);
-	const p4: rs.Slice<rs.u32> = rs.sliceFrom([n, 1]);
-	const pointer5 = p4;
-	const _117: rs.u32[] | rs.None = pointer5 === rs.NULL ? rs.None : rs.sliceItems(pointer5);
-	if (_117 !== rs.None) {
-		const _123: rs.Slice<rs.u32> = rs.sliceFrom(_117);
-		rs.byteVecPush(out, _123.data[_123.start] & 0xff);
-	}
-	const pointer6 = p4;
-	const _132: rs.Slice<rs.u32> = rs.sliceFrom(rs.sliceItems(rs.optionUnwrap(pointer6 === rs.NULL ? undefined : pointer6)));
-	rs.byteVecPush(out, _132.data[_132.start + 1] & 0xff);
-	const pointer7 = rs.byteSliceFrom(Uint8Array.of(n & 0xff, 5));
-	rs.iterExtendBytes(out, rs.iterSlice(option_mapOr$0m14xib(pointer7 === rs.NULL ? rs.None : rs.byteSliceView(pointer7), rs.bytes(2), (m: Uint8Array): Uint8Array => {
+	const pointer5 = rs.byteSliceFrom(Uint8Array.of(n & 0xff, 5));
+	rs.iterExtendBytes(out, rs.iterSlice(option_mapOr$0m14xib(pointer5 === rs.NULL ? rs.None : rs.byteSliceView(pointer5), rs.bytes(2), (m: Uint8Array): Uint8Array => {
 		return copy$mem_MaybeUninit_array_u8(m);
 	})), undefined, true);
 	const cell: rs.Cell<Uint8Array> = new rs.Cell(copy$mem_MaybeUninit_array_u8(Uint8Array.of(n & 0xff, 2)));
-	const _150: rs.ByteSlice = rs.byteSliceFrom(cell.v);
-	_150.data[_150.start + 1] = 9;
+	const _126: rs.ByteSlice = rs.byteSliceFrom(cell.v);
+	_126.data[_126.start + 1] = 9;
 	rs.iterExtendBytes(out, rs.iterSlice(cell.v), undefined, true);
 	const uc: rs.Cell<rs.u32[]> = new rs.Cell(copy$mem_MaybeUninit_array_u32([n, 3]));
-	const _162: rs.u32 = rs.u32Add(n, 8);
-	const _163: rs.Slice<rs.u32> = rs.sliceFrom(uc.v);
-	_163.data[_163.start] = _162;
-	const _168: rs.u32 = rs.u32Add(n, 9);
-	const _169: rs.Slice<rs.u32> = rs.sliceFrom(uc.v);
-	_169.data[_169.start + 1] = _168;
+	const _138: rs.u32 = rs.u32Add(n, 8);
+	const _139: rs.Slice<rs.u32> = rs.sliceFrom(uc.v);
+	_139.data[_139.start] = _138;
+	const _144: rs.u32 = rs.u32Add(n, 9);
+	const _145: rs.Slice<rs.u32> = rs.sliceFrom(uc.v);
+	_145.data[_145.start + 1] = _144;
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap(uc.v, (w5: rs.u32): rs.u8 => {
 		return w5 & 0xff;
 	})), undefined, true);
