@@ -19,16 +19,19 @@ which the [model epic](/quest/m2/ts-model/README.md) had planned.
 - Add smallvec to the stock crates in `ts/src/lower/stock.rs`, storing a `SmallVec` as
   an `rs.Vec` plus its own state where smallvec's observable behaviour differs from
   `Vec`'s, so every method answers as smallvec does at the pinned version:
-  - `spilled` and `capacity` follow smallvec's allocation, not the length:
-    `with_capacity(8)` of a `[u8; 4]` is spilled at capacity 8 while `new()` is not, a
-    `truncate` keeps a spilled allocation, and only `shrink_to_fit` or `into_inner` moves
-    back inline. `inline_size` is the array's length.
+  - `spilled`, `capacity`, and `inline_size` follow smallvec's own code for each
+    method, not the length: `with_capacity(8)` of a `[u8; 4]` is spilled at capacity 8
+    while `new()` is not, a `truncate` keeps a spilled allocation, `grow` and `try_grow`
+    to the inline size move it back, `into_inner` of a spilled one is its `Err`, and
+    `inline_size` of zero-sized elements is `usize::MAX`. Port each transition from
+    smallvec's source at the pin rather than from this list.
   - Drop order follows smallvec's code, not `Vec`'s mapping: its `truncate`, and `clear`
     through it, drop the removed elements from the end, where the runtime's `vecTruncate`
     drops them forwards.
   - The fixture's differential covers reservation, growth past the inline size,
-    truncation, shrinking, and a destructor log for `truncate`, `clear`, `drain`, and the
-    `SmallVec`'s own drop.
+    truncation, `shrink_to_fit`, `grow` and `try_grow` back inline, `into_inner` of an
+    inline and a spilled one, zero-sized elements, and a destructor log for `truncate`,
+    `clear`, `drain`, and the `SmallVec`'s own drop.
 - Methods with no `Vec` twin (`grow`, `try_grow`, `into_inner`, `from_buf_and_len`) map
   where they are safe; `from_raw_parts` and the other `unsafe` methods are refused with a
   span.
