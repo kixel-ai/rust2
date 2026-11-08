@@ -3,8 +3,8 @@
 ## Goal
 
 [rust2-ffi](/ffi/README.md) exports every `pub` item of the moq facade it is given, so
-`just ffi census` is empty at the moq pin and `ffi.toml` is deleted: the exporter reads no
-config, and an item it cannot export fails the export with a span.
+`just ffi census` lists no refusals at the moq pin and `ffi.toml` is deleted: the exporter
+reads no config, and an item it cannot export fails the export with a span.
 
 What stays here once every child has merged:
 
@@ -26,9 +26,9 @@ Decided with the maintainer on 2026-11-07, from
 
 - ✅ A whole-crate re-export (`pub use rustls;`) is refused with one span at its `pub use`,
   and moq drops its re-exports. A whole-crate re-export makes that crate's whole API part
-  of moq's, so any bump of it breaks moq's semver; moq wraps the few third-party types its
-  signatures need instead. Rejected: skipping them silently, as rustdoc does; exporting
-  their whole APIs.
+  of moq's, so any breaking release of it breaks moq's semver; moq wraps the few
+  third-party types its signatures need instead. Rejected: skipping them silently, as
+  rustdoc does; exporting their whole APIs.
 - ✅ No exemption: the rule covers every crate, moq's own included (`pub use moq_net;`,
   `moq_congestion as congestion`), so moq drops those too, per
   [moq-dev/moq#8233](https://github.com/moq-dev/moq/pull/8233). Rejected: exempting the
@@ -38,9 +38,9 @@ Decided with the maintainer on 2026-11-07, from
   binding calls; the sans-IO driver bindings use instead is
   [session-quic](/quest/m1/ffi-export/session-quic.md). Children leave the moq-tokio items
   outside that session side alone, since narrowing the stand-in drops them.
-- ✅ What C can never hold, an object no export returns or a generic type no export
-  instantiates, is left out of the bindings and kept listed in the census. Rejected:
-  refusing them, which would make moq add constructors it has no use for.
+- ✅ What C can never hold, an object no export returns or lends to a closure, or a generic
+  type no export instantiates, is left out of the bindings and kept listed in the census.
+  Rejected: refusing them, which would make moq add constructors it has no use for.
 - ✅ This epic, with the children below ranked by what moq-ffi's hand-written wrapper still
   covers.
 
@@ -60,6 +60,6 @@ Public API: the exporter's command line and the C API of every item that exports
 - [Poll and Context export](/quest/m1/ffi-export/refusals/poll.md) - a `poll_*` with no async twin takes a waker, as futures' polls do
 - [Borrow shapes export](/quest/m1/ffi-export/refusals/borrows.md) - `Option<&T>`, `&mut` buffers, `&Bytes`, `Arc<T>`, `'static` borrows, and borrowed returns that are not `Clone`
 - [Small shapes export](/quest/m1/ffi-export/refusals/small-shapes.md) - `u128`, arrays, const generics, unit and `Result` off a return, `!`, empty enums, and what is not `Send`
-- [What C can never hold is left out and listed](/quest/m1/ffi-export/refusals/unholdable.md) - objects no export returns and generics no export instantiates leave the bindings but stay in the census
+- [What C can never hold is left out and listed](/quest/m1/ffi-export/refusals/unholdable.md) - objects no export returns or lends to a closure, and generics no export instantiates leave the bindings but stay in the census
 - [moq drops its whole-crate re-exports](/quest/m1/ffi-export/refusals/moq-reexports.md) - the moq pin moves past the change, and the census has no re-export refusal left
 - [moq's types are reachable from their crate root](/quest/m1/ffi-export/refusals/moq-unreachable.md) - the moq pin moves past moq-mux's `Guard` and moq-quic's `Side` fixes

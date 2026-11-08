@@ -14,8 +14,8 @@ re-export in the facade's crates instead of about 790 for the items behind them:
 Decided with the maintainer on 2026-11-07, from
 [moq-dev/rust2#655](https://github.com/moq-dev/rust2/pull/655): ✅ refuse each with one span
 at its `pub use`, and moq drops them, since a whole-crate re-export makes that crate's
-whole API part of moq's and any bump of it breaks moq's semver. Rejected: skipping them
-silently, as rustdoc does; exporting their whole APIs.
+whole API part of moq's and any breaking release of it breaks moq's semver. Rejected:
+skipping them silently, as rustdoc does; exporting their whole APIs.
 
 The rule goes by form, with no list and no exception for moq's own crates: hang's and
 moq-tokio's `pub use moq_net;` refuse too, although the census folds them into the root's

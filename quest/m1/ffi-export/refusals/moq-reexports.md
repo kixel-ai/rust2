@@ -17,8 +17,9 @@ moq-tokio's `moq_congestion as congestion`, `web_transport_proto as proto` in mo
 moq-uring, and the rest, such as `axum`, `url`, `object_store`, moq-video's platform crates,
 `jni`, and `tikv_jemallocator`. moq-quic-unused-surface names the moq-quic items it needs
 instead of adding `pub use moq_quic;`. Each whole-crate re-export makes that crate's whole
-API part of moq's, so any bump of it breaks moq's semver; moq wraps the few third-party
-types its signatures need instead. Rejected: only the ten; only third-party crates.
+API part of moq's, so any breaking release of it breaks moq's semver; moq wraps the few
+third-party types its signatures need instead. Rejected: only the ten; only third-party
+crates.
 
 Then bump the pin, as `ts/justfile`'s `moq_rev` sets it, and report the census before and
 after.
