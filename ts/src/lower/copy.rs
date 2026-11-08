@@ -156,10 +156,15 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// JS copy splits from the original as Rust's read does, if anything, and why: a
 	/// collection held by value, a `Vec` of other than bytes, a `VecDeque`, a `String`, a
 	/// map, a set, or a list, whose JS object keeps its length with its storage, sharing the
-	/// storage while each keeps a length of its own; or a closure whose captures its copy
-	/// would split, or a coroutine, whose state is the JS function's or generator's own. A safe move leaves nothing pointing into the original,
+	/// storage while each keeps a length of its own; a closure whose captures its copy
+	/// would split, or a coroutine, whose state is the JS function's or generator's own; or
+	/// a library object whose inline state only its runtime class knows, which the copy
+	/// copies one object deep. A safe move leaves nothing pointing into the original,
 	/// which a copy one object deep is exact for.
 	pub fn unsplit(&self, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, &'static str)> {
+		if let Some(opaque) = self.opaque(ty) {
+			return Some((opaque, "a library object whose inline state only its runtime class knows"));
+		}
 		by_value(self.tcx, self.typing_env(), ty).find_map(|part| {
 			if self.stateful(part) {
 				return Some((
@@ -188,6 +193,42 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			(joined && self.changes(part))
 				.then_some((part, "a collection whose JS object keeps its length with its storage"))
 		})
+	}
+
+	/// The library object a copy of `ty` reaches whose inline state only its runtime class
+	/// knows, such as a `LazyCell` or a `Peekable`, if any, as [`Self::copy_parts`] walks it:
+	/// copied one object deep, which an unsafe move can tell apart.
+	fn opaque(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+		if !self.changes(ty) {
+			return None;
+		}
+		match ty.kind() {
+			ty::Tuple(tys) => tys.iter().find_map(|t| self.opaque(t)),
+			ty::Array(elem, _) | ty::Slice(elem) => self.opaque(*elem),
+			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did()) {
+				Some(Std::WakerVTable | Std::RawWaker) => None,
+				Some(
+					Std::MaybeUninit
+					| Std::ManuallyDrop
+					| Std::Pin
+					| Std::Option
+					| Std::Poll
+					| Std::Result
+					| Std::ControlFlow
+					| Std::Reverse
+					| Std::AssertUnwindSafe
+					| Std::Wrapping
+					| Std::Saturating
+					| Std::Bound,
+				) => args.types().find_map(|t| self.opaque(t)),
+				Some(_) => match self.inline_held(ty) {
+					Some(inline) => inline.fields.into_iter().find_map(|(_, t)| self.opaque(t)),
+					None => Some(ty),
+				},
+				None => adt.all_fields().find_map(|f| self.opaque(self.field_ty(f.did, args))),
+			},
+			_ => None,
+		}
 	}
 
 	/// Whether `ty` is a closure whose copy Rust can tell apart from the original, as it
@@ -482,14 +523,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				// A library object, which [`Self::changes`] says a whole write lands in, and a
 				// copy of what it holds inline.
 				Some(std) => {
+					// One object deep, which a safe move is exact for; an unsafe one is refused
+					// ([`Self::unsplit`]).
 					let Some(inline) = self.inline_held(ty) else {
-						self.err(
-							span,
-							format!(
-								"a read moving out a `{ty}`, a library object whose inline state only its runtime class knows, which JS can't copy apart"
-							),
-						);
-						return ret(v());
+						return ret(Expr::rs("objectCopy", vec![v()]));
 					};
 					// A cell of its own, as `Cell::from_mut`'s place reads and writes another's.
 					if std == Std::Cell {

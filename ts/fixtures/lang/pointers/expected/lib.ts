@@ -71,6 +71,10 @@ export function copy$array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
 }
 
+export function copy$cell_LazyCell_u32(v: rs.LazyCell<rs.u32>): rs.LazyCell<rs.u32> {
+	return rs.objectCopy(v);
+}
+
 export function copy$cell_OnceCell_Cell_u32(v: rs.OnceCell<rs.Cell<rs.u32>>): rs.OnceCell<rs.Cell<rs.u32>> {
 	const c = rs.objectCopy(v);
 	c.v = copy$Option_Cell_u32(c.v);

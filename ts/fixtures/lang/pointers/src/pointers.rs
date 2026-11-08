@@ -3589,4 +3589,9 @@ pub fn array_parts(data: &[u8], out: &mut Vec<u8>) {
 	unsafe { uc.get_mut().assume_init_mut()[0] = n + 8 };
 	unsafe { uc.as_mut_unchecked().assume_init_mut()[1] = n + 9 };
 	out.extend(unsafe { uc.into_inner().assume_init() }.map(|w| w as u8));
+	// Lazy cells in arrays a `Cell` replaces, moved out safely and forced.
+	let (seven, eight): (fn() -> u32, fn() -> u32) = (|| 7, || 8);
+	let mut lazies = [[std::cell::LazyCell::new(seven)]];
+	let old = Cell::from_mut(&mut lazies).replace([[std::cell::LazyCell::new(eight)]]);
+	out.extend([*old[0][0] as u8, *lazies[0][0] as u8, n as u8]);
 }
