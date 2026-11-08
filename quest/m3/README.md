@@ -51,3 +51,4 @@ memory model for values whose address is reinterpreted, without a consumer.
 - [`if let` of a temporary whose rest drops](/quest/m3/ts-if-let-drop.md) - `if let Some(E::A(x)) = temp()` with a destructor in the rest of `temp` emits TypeScript that type-checks
 - [`u64` wrapping arithmetic in V8](/quest/m3/ts-u64-wrapping.md) - `rs.u64WrappingAdd` and its kin cost near a plain `+` while the value is a safe integer
 - [Array references from slices and cells](/quest/m3/ts-array-ref-conversions.md) - `try_into` of a slice into an array reference, `Cell::as_array_of_cells`, and `identity` of a `&mut [T; N]` lend the array where it is
+- [A Pin of a crate's own Deref type](/quest/m3/ts-pin-own-deref.md) - `Pin<P>` over a crate's own `Deref` derefs through its impl and type-checks
