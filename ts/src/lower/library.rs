@@ -4272,12 +4272,6 @@ pub fn items_of(s: Expr, elem: Ty<'_>) -> Expr {
 	}
 }
 
-/// The array of `s`, an `rs.Slice`, as `rs.sliceView` writes through it: all of an array is
-/// the array.
-pub fn slice_view(s: Expr) -> Expr {
-	array_of(s, "sliceView")
-}
-
 /// `rs.{read}` of `s`, an `rs.Slice`: the array of an `rs.sliceFrom`.
 fn array_of(s: Expr, read: &str) -> Expr {
 	match s {
@@ -4293,12 +4287,10 @@ fn array_of(s: Expr, read: &str) -> Expr {
 }
 
 /// All of `items`, a JS array, as an `rs.Slice`, as `rs.sliceFrom` makes one: the elements
-/// `rs.sliceItems` or `rs.sliceView` read of a slice are that slice.
+/// `rs.sliceItems` reads of a slice are that slice.
 pub fn slice_from(items: Expr) -> Expr {
 	match items {
-		Expr::Call(f, mut args)
-			if matches!(&*f, Expr::Rs(n) if n == "sliceItems" || n == "sliceView") && args.len() == 1 =>
-		{
+		Expr::Call(f, mut args) if matches!(&*f, Expr::Rs(n) if n == "sliceItems") && args.len() == 1 => {
 			args.pop().unwrap()
 		}
 		items => Expr::rs("sliceFrom", vec![items]),
