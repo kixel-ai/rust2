@@ -3,11 +3,7 @@
 ## Goal
 
 The nightly `uniffi-fixtures` job runs on `ubuntu-24.04-arm` again, and
-`nix develop .#uniffi` evaluates on aarch64-linux. Check: the latest
-`nixpkgs-unstable` carries Swift 6.4.0
-([NixOS/nixpkgs#574002](https://github.com/NixOS/nixpkgs/pull/574002), merged to
-`staging`), and `nix build --dry-run .#devShells.aarch64-linux.uniffi` succeeds
-after a bump.
+`nix develop .#uniffi` evaluates on aarch64-linux.
 
 ## Plan
 
@@ -17,6 +13,16 @@ aarch64-linux in the pinned nixpkgs, where its gold link fails, so the job moved
 x86_64. Then bump the `nixpkgs` input in its own change, move the job back, and
 drop the workflow comment. The default shell then has Swift on aarch64-linux too, so
 drop rust2-ffi's skips there as well: `api_swift`'s `ignore`, and the Swift's in
-`just ffi moq` and `just ffi bench`. Never allow the broken package.
+`just ffi moq` and `just ffi bench`, and the default dev shell's "not on aarch64-linux"
+comment in `flake.nix` that [#653](https://github.com/moq-dev/rust2/pull/653) added. Keep
+that shell's `swiftc.meta.broken` guard, which covers any later broken Swift. Never allow
+the broken package.
 
 Public API: none.
+
+## Waiting
+
+- NixOS/nixpkgs: the latest `nixpkgs-unstable` carries Swift 6.4.0
+  ([NixOS/nixpkgs#574002](https://github.com/NixOS/nixpkgs/pull/574002), merged to
+  `staging` on 2026-10-22, not in `nixpkgs-unstable` on 2026-11-07). Check that
+  `nix build --dry-run .#devShells.aarch64-linux.uniffi` succeeds after a bump.

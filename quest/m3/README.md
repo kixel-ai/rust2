@@ -11,20 +11,13 @@ std the translators cover before a consumer calls them.
 Decided with the maintainer on 2026-10-27: rust2 aims to support all of std, so a
 generic std gap is planned here even when moq never calls it.
 
-Decided with the maintainer on 2026-11-07: ✅ little time goes to unsafe Rust. A
-translator may refuse unsafe code with its span, requiring safe Rust, and a common
-library's unsafe internals may be replaced by a runtime mapping over its public API, as
-`hashbrown`'s and tokio's channels are (rejected: planning each unsafe std gap that no
-consumer reaches, such as `MaybeUninit::zeroed`, `Rc::new_uninit`, and
-`ptr::write_bytes`).
-
 Decided with the maintainer on 2026-11-07, the unsafe policy, to stop one-off fixes for
 ever rarer `unsafe`:
 
 1. ✅ Safe Rust is the contract, and where translation effort goes.
 2. ✅ `unsafe` inside std and common crates is wrapped at their safe API, as std,
    `hashbrown`, `bytes`, and [tokio's channels](/ts/src/lower/tokio.rs)
-   are, rather than translated.
+   are, and [smallvec](/quest/m2/ts-model/smallvec.md) will be, rather than translated.
 3. ✅ Other `unsafe` translates only where it fits the translator's existing pointer forms
    (a place, an array element, a byte in a buffer). A construct needing a new pointer form
    or pointer metadata is refused with its span, unless a consumer needs it and no library
@@ -42,12 +35,12 @@ memory model for values whose address is reinterpreted, without a consumer.
 
 - [Retrial Cranelift on moq's tests](/quest/m3/cranelift-unwind.md) - waits on upstream: moq's tests pass under Cranelift, so its CI can weigh it again
 - [Relink without rebuilding](/quest/m3/relink.md) - measure upstream's skip of dependency-only rebuilds on moq's edits once it reaches nightly
+- [`if let` of a temporary whose rest drops](/quest/m3/ts-if-let-drop.md) - `if let Some(E::A(x)) = temp()` with a destructor in the rest of `temp` emits TypeScript that type-checks
+- [A Pin of a crate's own Deref type](/quest/m3/ts-pin-own-deref.md) - `Pin<P>` over a crate's own `Deref` derefs through its impl and type-checks
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
 - [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md) - no runtime `rust2-ts:` error where native Rust goes on: exact, or refused at translation
 - [rust2-ts with no ts.toml](/quest/m3/ts-configless.md) - a crate's whole `pub` API translates with no config and no bound items
 - [Browser APIs through wasm-bindgen](/quest/m3/ts-wasm-bindgen/README.md) - web-sys and js-sys imports become direct JS calls, so idiomatic crates such as web-rs's web-codecs translate as stock crates
-- [`if let` of a temporary whose rest drops](/quest/m3/ts-if-let-drop.md) - `if let Some(E::A(x)) = temp()` with a destructor in the rest of `temp` emits TypeScript that type-checks
 - [`u64` wrapping arithmetic in V8](/quest/m3/ts-u64-wrapping.md) - `rs.u64WrappingAdd` and its kin cost near a plain `+` while the value is a safe integer
 - [Array references from slices and cells](/quest/m3/ts-array-ref-conversions.md) - `try_into` of a slice into an array reference, `Cell::as_array_of_cells`, and `identity` of a `&mut [T; N]` lend the array where it is
-- [A Pin of a crate's own Deref type](/quest/m3/ts-pin-own-deref.md) - `Pin<P>` over a crate's own `Deref` derefs through its impl and type-checks

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Waits on upstream. 58 of moq's 6379 tests fail under the Cranelift backend
+58 of moq's 6379 tests fail under the Cranelift backend
 that ships with nightly, so moq's CI cannot build its tests with it:
 
 - It builds every panic as an abort, so the 27 tests that catch one fail.
@@ -18,7 +18,12 @@ operands
 so a Cranelift build of moq picks LLVM for rind by profile, as the benchmark
 does.
 
-Check the issues, or the [build benchmark](/bench/build/README.md)'s moq
-report after a nightly pin bump: once `test-run` cranelift fails no tests,
-decide again from the test scenarios whether moq's CI builds its tests with
+Once `test-run` cranelift fails no tests, decide again from the test scenarios whether moq's CI builds its tests with
 Cranelift, and delete this quest.
+
+## Waiting
+
+- rust-lang/rustc_codegen_cranelift: [#1567](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1567)
+  and [#171](https://github.com/rust-lang/rustc_codegen_cranelift/issues/171) are fixed in
+  the Cranelift backend nightly ships. Check the issues, or the
+  [build benchmark](/bench/build/README.md)'s moq report after a nightly pin bump.

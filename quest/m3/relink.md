@@ -4,10 +4,7 @@
 
 Upstream's relinking without rebuilding reaches the pinned nightly, and the
 [build-speed benchmark](/bench/build/README.md) measures it as a nightly
-variant on moq's edits. Check with `rustc -Z help` (a public API hash, as in
-[rust-lang/rust#156940](https://github.com/rust-lang/rust/pull/156940)) and
-`cargo -Z help` (an early cutoff, as in
-[rust-lang/cargo#17439](https://github.com/rust-lang/cargo/issues/17439)).
+variant on moq's edits.
 
 ## Plan
 
@@ -18,10 +15,10 @@ moq-net changed, 0.6 s of it the final link that would remain. Cranelift and
 the parallel frontend move the edit within noise; the backend is 6% of its
 rustc time.
 
-Status on 2026-10-24: neither flag is on nightly 2026-10-21. rust#156940 is a
-draft that its author is splitting into smaller PRs, tracked in
-[rust-lang/rust#158844](https://github.com/rust-lang/rust/issues/158844).
-Cargo's early cutoff is a design discussion.
+Status on 2026-11-07: neither flag is on the pinned nightly 2026-10-22. rust#156940 is
+a draft that its author is splitting into smaller PRs, tracked in
+[rust-lang/rust#158844](https://github.com/rust-lang/rust/issues/158844), whose steps
+are all open. Cargo's early cutoff is a design discussion.
 
 The early cutoff spike (2026-10-24) replayed moq-net's real edits through
 rust#156940 and decided against carrying it: its public hash stayed unchanged
@@ -57,3 +54,10 @@ root, whose module span is the whole file, so it always changes the hash.
 `edit-async` is the case the replay says it misses.
 
 Public API: a benchmark variant.
+
+## Waiting
+
+- rust-lang/rust: a public API hash, as in [rust-lang/rust#156940](https://github.com/rust-lang/rust/pull/156940),
+  reaches nightly. Check `rustc -Z help` on a nightly from `rust-bin.nightly` in `flake.nix`.
+- rust-lang/cargo: an early cutoff, as in [rust-lang/cargo#17439](https://github.com/rust-lang/cargo/issues/17439),
+  reaches nightly. Check `cargo -Z help`.

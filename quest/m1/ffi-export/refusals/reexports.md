@@ -20,8 +20,13 @@ skipping them silently, as rustdoc does; exporting their whole APIs.
 The rule goes by form, with no list and no exception for moq's own crates: hang's and
 moq-tokio's `pub use moq_net;` refuse too, although the census folds them into the root's
 moq-net today. A facade's own named re-exports from a crate, such as the stand-in's
-`pub use kio::{Park, Waiter, ...};`, are not whole-crate and export as now.
-[moq-reexports](/quest/m1/ffi-export/refusals/moq-reexports.md) waits on moq to drop them.
+`pub use kio::{Park, Waiter, ...};`, are not whole-crate and export as now. So does a glob
+of a crate's root, such as the stand-in's `pub use moq_net::*;`: it re-exports that crate's
+items, not the crate as a module (decided with the maintainer on 2026-11-07, in the quest
+audit: "we probably need to support re-exports", while moq re-exports only the items it
+needs, not all of `rustls`). [moq-pin](/quest/m1/ffi-export/refusals/moq-pin.md) waits on
+moq to drop the whole-crate ones.
 
 Document the rule in `ffi/README.md` beside the other refusals, and test it on a fixture
-that re-exports a crate whole and by rename.
+that re-exports a crate whole, by rename, and by a glob of its root, the last exporting its
+items.

@@ -49,7 +49,7 @@ Decided with the maintainer on 2026-11-01: the Swift, Python, Go, and Dart gener
 independent and unranked, and each generates the crate's own API in its language's idiom, as
 Kotlin does. Only Python skips the C ABI, since a CPython extension calls about 40 times faster
 than `ctypes`; the others call C natively. moq's packages switch to them in moq's own
-[quest](https://github.com/moq-dev/moq/blob/main/quest/m2/uniffi-fork.md).
+[quest](https://github.com/moq-dev/moq/blob/main/quest/m3/ffi-exporter.md).
 
 Decided with the maintainer on 2026-11-02
 ([moq-dev/rust2#460](https://github.com/moq-dev/rust2/pull/460)): the RSS glibc's per-thread
@@ -61,5 +61,5 @@ names and defaults, and fails the export on a public item it cannot export.
 
 ## Required
 
-- [Sessions on sans-IO QUIC](/quest/m1/ffi-export/session-quic.md) - bindings move UDP datagrams and drive the session's poll themselves, over moq's runtime-free QUIC driver once it lands
 - [Every public item exports](/quest/m1/ffi-export/refusals/README.md) - the census lists no refusals and `ffi.toml` is deleted, so the exporter reads no config
+- [Sessions on sans-IO QUIC](/quest/m1/ffi-export/session-quic.md) - bindings move UDP datagrams and drive the session's poll themselves, over moq's runtime-free QUIC driver once it lands

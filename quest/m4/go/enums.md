@@ -4,9 +4,10 @@
 
 Go callers in another package build, match, and pass a `pub enum` that
 [rust2-go](/go/README.md) exports: an exported tag, a constant per variant, and a
-constructor per variant, with the enum passed whole across every root. An external Go test
-package imports the translated `go/fixtures/items` package and constructs and calls its
-exports, so what another package can reach is pinned, not only spelled.
+constructor per variant, with the enum passed whole across every root. The external Go test
+package `go/tests/exports`, which [#645](https://github.com/moq-dev/rust2/pull/645) added,
+constructs and calls the enum's exports too, so what another package can reach is pinned,
+not only spelled.
 
 ## Plan
 
@@ -29,12 +30,12 @@ variant with fields, which code outside the package can neither build nor match
   needs no conversion at a root and keeps enums as values; record any difference a Go
   user moving off the cgo bindings would meet in `go/README.md`.
 
-The external test package is the review's suggestion on #614
-([its OpenAI review](https://github.com/moq-dev/rust2/pull/614#pullrequestreview-5809902393)):
-it imports the translated items package, constructs `Count`, `Meter`, the aliases, and a
-`pub enum`, and calls `ShapesArea` and the other roots, so `go vet` and `go test` fail
-when an export is unreachable from another package. It runs in `go/tests/fixtures.rs`
-with the other fixture tests.
+The external test package was the review's suggestion on #614
+([its OpenAI review](https://github.com/moq-dev/rust2/pull/614#pullrequestreview-5809902393)),
+and #645 landed it as `go/tests/exports/main.go`, run by `exports()` in
+`go/tests/fixtures.rs`. Extend it to construct a `pub enum` and call `ShapesArea` and the
+other roots that take or return one, so `go vet` and `go test` fail when an export is
+unreachable from another package.
 
 Public API: what a translation exports for an enum (breaking for Go code reading the
 lowercase `tag`, which only the package itself could).

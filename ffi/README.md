@@ -1,8 +1,8 @@
 # rust2-ffi
 
 A rustc driver that exports a crate's `pub` API as a C ABI and a C header, with no
-attributes in the Rust source. It replaces [the UniFFI fork](../uniffi/README.md) for moq,
-starting from C, which every other language's generator will build on.
+attributes in the Rust source. It replaces [the UniFFI fork](../uniffi/README.md) for moq.
+Every language's generator but Python's builds on the C ABI.
 
 ```bash
 rust2-ffi --config ffi.toml (--out dir | --census dir) [--manifest-path Cargo.toml] [-- cargo args]
