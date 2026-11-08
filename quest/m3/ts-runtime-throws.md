@@ -24,9 +24,12 @@ The rest are gaps. At `main` they include a panic its hook cannot locate
 ([#556](https://github.com/moq-dev/rust2/pull/556)), a pointer cast to `()` that is not an
 `Arc`'s or `Rc`'s (`rs.arcErase`, [#562](https://github.com/moq-dev/rust2/pull/562),
 [#565](https://github.com/moq-dev/rust2/pull/565)), `offset_from` of one Rust allocation
-JS keeps in two arrays, a pointer moved past the array JS keeps it in (`AtIndex.reach`, such
-as one kept in a field), `Bytes::slice_ref` of other storage, `alloc`'s bytes read as
-values, ranges stepped without their type, fmt widths written as a placeholder, a read
+JS keeps in two arrays (such as two pointers made from one reference, one of them through
+a branch or loop, which JS keeps each in an array of one of its own; decided 2026-11-07 in
+[#621](https://github.com/moq-dev/rust2/pull/621) to throw rather than trace joins), a
+pointer moved past the array JS keeps it in (`AtIndex.reach`, such as one kept in a field),
+`Bytes::slice_ref` of other storage, `alloc`'s bytes read as values, ranges stepped
+without their type, fmt widths written as a placeholder, a read
 through a substring's `str::as_ptr` outside its own bytes but inside its text's
 (`s[..1].as_ptr().add(1)`, `s[1..].as_ptr().wrapping_sub(1)`), and a raw or mutable slice
 of a byte in a field (a struct's, a tuple's, a closure's capture, or one an async body keeps
