@@ -211,6 +211,11 @@ pub enum Std {
 	BytesMut,
 	/// `rand::rngs::ThreadRng`: `rs.ThreadRng`, which holds no state.
 	ThreadRng,
+	/// wasm-bindgen's `JsValue`, or a type an import declares: the JS value itself.
+	Js,
+	/// A handle of one of tokio's sync channels, or what one lends: a class of
+	/// `rs/tokio.ts`'s, which [`super::tokio::Handle`] names.
+	Sync,
 }
 
 impl Std {
@@ -249,6 +254,12 @@ impl Std {
 
 	pub fn of(tcx: TyCtxt<'_>, did: DefId) -> Option<Self> {
 		if !is_std(tcx, did) {
+			if super::bindgen::represents(tcx, did) {
+				return Some(Self::Js);
+			}
+			if super::bindgen::is_lazy(tcx, did) {
+				return Some(Self::LazyCell);
+			}
 			return super::stock::of(tcx, did);
 		}
 		use rustc_span::sym;
@@ -2059,10 +2070,9 @@ fn mapping<'tcx>(
 			let check = Expr::Str("NonZero::new_unchecked requires the argument to be non-zero".into());
 			Expr::rs("precondition", vec![Expr::rs("nonZero", args), check])
 		}
-		// Its integer's, but that std's code, not the caller, is where it aborts.
-		("NonZero", _) if name.starts_with("unchecked_") => return None,
 		// Its integer's, of each width's own impl, which has no type argument to read the
-		// integer from, but for the bits it always has.
+		// integer from, but for the bits it always has. An `unchecked_` one aborts in std's
+		// code, which its call's site says.
 		("NonZero", _) => {
 			let int = Int::of(unwrapped(tcx, impl_self(tcx, call.def_id)?))?;
 			match name.as_str() {

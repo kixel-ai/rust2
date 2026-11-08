@@ -24,8 +24,8 @@ headless Chromium proves it against the same fixture's wasm-bindgen build.
   `spawn_local` queues a microtask, as js-sys's `queue.rs` does. Mapping these stands in
   for js-sys's JSPI bridge, which `spawn_local` checks first: with no export translated,
   no JSPI context exists. `jspi_block_on_promise` is refused, as no JS blocks on a promise.
-- The fixture keeps web-codecs' calls but not its tokio channels, which translation
-  refuses today (see the epic). It hands frames out through `Rc<RefCell<VecDeque>>`.
+- The fixture keeps web-codecs' calls but not its tokio channels, which the `tokio`
+  fixture covers. It hands frames out through `Rc<RefCell<VecDeque>>`.
 - Chromium decodes and encodes VP8 headless: Chrome 155 there gave a key chunk with a
   `decoderConfig` and two deltas from three 64x64 frames. Only the bench shell carries
   Chromium today, apart for its size. Run this test where it does: in the merge gate if
@@ -34,7 +34,3 @@ headless Chromium proves it against the same fixture's wasm-bindgen build.
 
 Public API: the translator's output for a crate calling wasm-bindgen closures and
 futures.
-
-## Required
-
-- [Translate wasm-bindgen imports](/quest/m3/ts-wasm-bindgen/imports.md) - the shapes, the JS-represented types, and the boundary conversions this builds on

@@ -53,6 +53,17 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("pointers::generic_unions", |_, data, out| {
 			pointers::generic_unions(data, out)
 		}),
+		("pointers::raw_cells", |_, data, out| pointers::raw_cells(data, out)),
+		("pointers::cell_writes", |_, data, out| pointers::cell_writes(data, out)),
+		("pointers::nested_cells", |_, data, out| {
+			pointers::nested_cells(data, out)
+		}),
 		("pointers::lone_bytes", |_, data, out| pointers::lone_bytes(data, out)),
 	]
+}
+
+/// `UnsafeCell::get` and `raw_get` of a cell of a slice, which only a caller can give, as
+/// translated code can't unsize a cell.
+pub fn cell_slice(c: &std::cell::UnsafeCell<[u16]>, at: usize) -> u16 {
+	unsafe { (*std::cell::UnsafeCell::raw_get(c))[at] ^ (*c.get())[0] }
 }

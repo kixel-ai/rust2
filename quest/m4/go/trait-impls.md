@@ -26,11 +26,12 @@ only as callers reach them, under internal names.
   trait, and the method, with a generic trait's arguments in the name, since a type can
   implement `From` many times (`From<u8>` and `From<u16>`). Claim each as roots are
   claimed, so a clash fails at both spans.
-- [moq-dev/rust2#599](https://github.com/moq-dev/rust2/pull/599) moves rust2-ffi's Go
-  exports toward a Go package per Rust module
-  ([its modules quest](https://github.com/moq-dev/rust2/blob/quest/m1/ffi-export/names/quest/m1/ffi-export/modules.md)),
-  and named its function-type clash rule so it still holds there. Pick a rule that holds
-  if rust2-go follows, so a type's trait methods need not be renamed again.
+- [moq-dev/rust2#599](https://github.com/moq-dev/rust2/pull/599) gave rust2-ffi's Go
+  exports a Go package per Rust crate, with a function named as a type `New` and that
+  name or a trailing `_`, and [moq-dev/rust2#658](https://github.com/moq-dev/rust2/pull/658)
+  keeps two types whose names would match apart with a `_` where their paths split. Pick
+  a rule that holds if rust2-go follows, so a type's trait methods need not be renamed
+  again.
 
 Fixtures: `go/fixtures/items` gives an exported type `Display`, `Debug`, `PartialEq`, and
 two `From` impls, called from Go and checked by differential.

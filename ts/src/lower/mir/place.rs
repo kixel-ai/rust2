@@ -718,6 +718,26 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					}
 				}
 				Some(Std::ControlFlow) => super::call::control_flow_field(self, base, ty, variant),
+				// An imported type's `obj` is the JS value itself, and its marker nothing.
+				Some(Std::Js) => {
+					let ty::Adt(_, args) = ty.kind() else { unreachable!() };
+					let def = &adt.non_enum_variant().fields[field];
+					match def.name.as_str() {
+						"obj" => base,
+						_ if def
+							.ty(tcx, args)
+							.skip_norm_wip()
+							.ty_adt_def()
+							.is_some_and(|f| f.is_phantom_data()) =>
+						{
+							Expr::undefined()
+						}
+						name => self.err(
+							span,
+							format!("`{ty}`'s `{name}`, a slot of wasm-bindgen's heap, which only WASM has"),
+						),
+					}
+				}
 				_ if transparent(self.b.t, ty) || crate::lower::library::wrapped(tcx, ty).is_some() => base,
 				None if self.b.t.own(adt.did()) => {
 					let info = self.b.t.adt(*adt, span);
@@ -855,6 +875,24 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			let target = self.slice_path(target, &mut out);
 			out.push(self.store_in_slice(place, target, value, span));
 			return out;
+		}
+		// A whole write through a raw pointer keeps the cells a value keeps, as `ptr::write`
+		// does, and is refused where it would not.
+		if let [ProjectionElem::Deref] = place.projection.as_slice()
+			&& matches!(self.mir.local_decls[place.local].ty.kind(), ty::RawPtr(..))
+			&& let pointee = place.ty(&self.mir.local_decls, self.tcx).ty
+		{
+			if self.b.t.wraps_cells(pointee) {
+				let err = crate::lower::pointer::wrapped_write(self.b, pointee, span);
+				out.push(StmtKind::Expr(err).at(self.b.t.loc(span)));
+				return out;
+			}
+			if self.b.t.keeps_cells(pointee) {
+				let at = self.place_expr(place, span, &mut out);
+				let at = self.path(at, "kept", &mut out);
+				crate::lower::pointer::write_kept_at(self.b, at, value, pointee, span, &mut out);
+				return out;
+			}
 		}
 		// `*r = v` replaces the object `r` points at in place, which other references and
 		// captures share. An alias of a borrowed place assigns the place, and an `rs.Place`
@@ -1005,6 +1043,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	pub(super) fn alias_of_place(&self, local: Local) -> bool {
 		matches!(self.slots[local], Slot::Alias(_))
 			&& match self.def_rvalue(local) {
+				// An item a slice's `iter_mut` lends by index: the element it indexes.
+				_ if self.lent_items.contains_key(&local) => true,
 				// A reborrow of what an alias of a borrowed place points at borrows that place.
 				// A box's pointer is the box, so what it points at is the place holding the box.
 				Some(mir::Rvalue::Ref(_, _, p)) => match p.projection.as_slice() {
@@ -1192,6 +1232,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return e;
 		}
 		let name = self.b.fresh("borrowed");
+		// A copy of the array items lent by index are in is one too.
+		if matches!(&e, Expr::Ident(array) if self.item_arrays.contains(array)) {
+			self.item_arrays.insert(name.clone());
+		}
 		let stmt = StmtKind::decl(false, name.clone(), None, Some(e)).at(None);
 		self.emit(vec![stmt], false, out);
 		Expr::ident(name)
@@ -1202,6 +1246,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	pub(super) fn place_of(&mut self, target: Expr, payload: Option<crate::ts::Type>) -> Expr {
 		if let Some(p) = self.byte_place(&target) {
 			return p;
+		}
+		// An item a slice's `iter_mut` lends by index, the element's place, as `rs.iterSliceMut`
+		// lends it. A payload's is of the payload's type, which an `rs.place` reads it as.
+		if payload.is_none()
+			&& let Expr::Index(array, index) = target.unlocated()
+			&& let Expr::Ident(name) = array.unlocated()
+			&& self.item_arrays.contains(name)
+		{
+			return Expr::rs("arrayAsPtr", vec![(**array).clone(), (**index).clone()]);
 		}
 		let value = self.b.fresh("value");
 		let param = crate::ts::Param {
@@ -2431,25 +2484,26 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	}
 
 	/// Whether a raw pointer to a `ty` is, or is a slice of, the object JS keeps it in, or
-	/// with `cells`, is or holds an `rs.Cell`. Only an instance decides what a parameter is.
+	/// with `cells`, is or holds an `rs.Cell`, through any `MaybeUninit`s, which JS keeps as
+	/// what they hold. Only an instance decides what a parameter is.
 	fn pointed_object(&self, ty: Ty<'tcx>, cells: bool) -> bool {
 		let t = &self.b.t;
 		!(t.polymorphic() && ty.has_param())
-			&& (t.pointee(ty) != crate::lower::pointer::Pointee::Place || cells && t.std_of(ty) == Some(Std::Cell))
+			&& (t.pointee(ty) != crate::lower::pointer::Pointee::Place
+				|| cells && t.std_of(t.uninit_inner(ty)) == Some(Std::Cell))
 	}
 
-	/// Why the pointer std's `def_id` makes of what `reference` points at would not keep
-	/// pointing where Rust's does, if it would not, judged as [`Self::out_of_step`] judges a
-	/// raw pointer: `UnsafeCell::get`'s, holding a `T`, is the `rs.Cell` itself or the
-	/// object it holds.
+	/// Why the pointer std's `def_id` makes of `pointee`, what a reference points at, would
+	/// not keep pointing where Rust's does, if it would not, judged as [`Self::out_of_step`]
+	/// judges a raw pointer: `UnsafeCell::get`'s, holding a `T`, is the `rs.Cell` itself or
+	/// the object it holds.
 	pub(super) fn made_out_of_step(
 		&self,
 		def_id: rustc_hir::def_id::DefId,
 		gargs: ty::GenericArgsRef<'tcx>,
-		reference: &Operand<'tcx>,
+		pointee: Place<'tcx>,
 	) -> Option<String> {
 		let tcx = self.tcx;
-		let pointee = tcx.mk_place_deref(reference.place()?);
 		let owner = library::key(tcx, def_id).map(|(owner, _)| owner);
 		let cell = matches!(owner.as_deref(), Some("UnsafeCell" | "Cell"));
 		let held = gargs.type_at(0);

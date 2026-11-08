@@ -49,14 +49,13 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 		const boxed: rs.Vec<Tally.Tally> = rs.vecFrom([new of$crates_dep_Guard(guard), new of$harness_Item(item), new of$u32(n)]);
 		rs.sliceSwap(rs.sliceFrom(boxed.items), 0, 2);
 		rs.vecTruncate(boxed, 2, rs.drop);
-		const iter: rs.Iter<rs.Place<Tally.Tally>> = rs.iterSliceMut(rs.sliceFrom(boxed.items));
-		while (true) {
-			const _113: rs.Place<Tally.Tally> | rs.Done = iter.next();
-			if (_113 === rs.DONE) {
-				break;
-			}
-			_113.v.add$Tally(input.data[input.start + 2]);
-			const _122: rs.u8 = _113.v.count$Tally() & 0xff;
+		const iterS: Tally.Tally[] = boxed.items;
+		let iterI: number = 0;
+		const iterE: number = boxed.items.length;
+		while (iterI < iterE) {
+			const _113: number = iterI++;
+			iterS[_113].add$Tally(input.data[input.start + 2]);
+			const _122: rs.u8 = iterS[_113].count$Tally() & 0xff;
 			rs.byteVecPush(out, _122);
 		}
 		rs.dropVec(boxed);

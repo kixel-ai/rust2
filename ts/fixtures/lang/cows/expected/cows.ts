@@ -935,12 +935,7 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		_155.v = rs.cowCloneFrom(_155.v, _157, 12, (a02: rs.ByteVec): rs.ByteVec => {
 			return rs.byteVecFrom(rs.byteVecView(a02));
 		}, undefined, rs.byteVecCloneFromFn());
-		const iter: rs.Iter<rs.ByteVec> = rs.iterSlice(rs.sliceItems(rs.cowSlice(c4)));
-		while (true) {
-			const _167: rs.ByteVec | rs.Done = iter.next();
-			if (_167 === rs.DONE) {
-				break;
-			}
+		for (const _167 of rs.sliceItems(rs.cowSlice(c4))) {
 			rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(_167.length & 0xff, _167.data.length & 0xff)), undefined, true);
 		}
 	} else {

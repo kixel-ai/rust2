@@ -446,14 +446,55 @@ pub fn written_bytes(mut lanes: [u32; 2], mut b: u8) -> u32 {
 	lanes[0] + u32::from(b)
 }
 
-/// A slice of one `u8`'s place, which no `rs.ByteSlice` views.
-pub fn byte_slice_of_place(b: &mut u8) {
-	std::slice::from_mut(b)[0] = 1;
+/// A byte in a field, which no array of bytes holds.
+pub struct Tagged {
+	pub tag: u8,
 }
 
-/// A slice of an `Option`'s byte, which no `rs.ByteSlice` views either.
-pub fn byte_option_slice(o: &mut Option<u8>) {
-	o.as_mut_slice().fill(1);
+/// A slice of one byte in a field, returned: its copy would be written back after no
+/// statement of the function.
+pub fn byte_slice_returned(t: &mut Tagged) -> &mut [u8] {
+	std::slice::from_mut(&mut t.tag)
+}
+
+/// A slice of one byte in a field, kept where a parameter points: no variable of the
+/// function holds it.
+pub fn byte_slice_stored<'a>(t: &'a mut Tagged, out: &mut Vec<&'a mut [u8]>) {
+	out.push(std::slice::from_mut(&mut t.tag));
+}
+
+/// Slices of one byte in each of the fields, kept together: the one variable holding
+/// the copy the call makes can't keep them apart.
+pub fn byte_slices_kept(ts: &mut [Tagged]) {
+	let mut kept = Vec::new();
+	for t in ts.iter_mut() {
+		kept.push(std::slice::from_mut(&mut t.tag));
+	}
+	for s in kept {
+		s[0] = 1;
+	}
+}
+
+/// Whether the byte `s` holds is zero, as a name that borrows none of it.
+fn zero_name(s: &mut [u8]) -> &'static str {
+	if s[0] == 0 { "zero" } else { "other" }
+}
+
+/// What a call given a slice of one byte in a field returns, kept where a parameter
+/// points: it could hold the slice whatever its lifetime says, and no variable of the
+/// function holds it.
+pub fn byte_result_stored(t: &mut Tagged, out: &mut Vec<&'static str>) {
+	out.push(zero_name(std::slice::from_mut(&mut t.tag)));
+}
+
+/// What calls given slices of one byte in each of the fields return, kept together:
+/// each could hold its slice whatever its lifetime says.
+pub fn byte_results_kept(ts: &mut [Tagged]) -> usize {
+	let mut names = Vec::new();
+	for t in ts.iter_mut() {
+		names.push(zero_name(std::slice::from_mut(&mut t.tag)));
+	}
+	names.len()
 }
 
 /// A pointer to a variable's object, which `clone_from` of the whole variable replaces.

@@ -18,6 +18,7 @@ pub mod glue;
 pub(super) mod holders;
 mod inline;
 mod memory;
+mod mirror;
 mod origin;
 mod place;
 mod rvalue;
@@ -432,10 +433,20 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	/// References a call returns to what its `&mut` argument borrows, as `Cow::to_mut`'s:
 	/// the place each reads and writes, which a store through one rebuilds as a `Ref`'s.
 	reborrows: FxHashMap<Local, Place<'tcx>>,
-	/// The two variables each holds its fields in, by `step`.
-	stepped_vars: FxHashMap<Local, [String; 2]>,
+	/// The variables each holds its fields in, by `step`.
+	stepped_vars: FxHashMap<Local, Vec<String>>,
 	/// Those moved into another, which shares its variables.
 	stepped_into: FxHashMap<Local, Local>,
+	/// The items those lending places lend by index, each a reference read as the element
+	/// of the array it indexes, by the iterator that lends it.
+	lent_items: FxHashMap<Local, Local>,
+	/// The `next` results holding those indexes, or `rs.DONE`.
+	lent_nexts: FxHashSet<Local>,
+	/// The names of the arrays those items index, and of copies held of them, each the
+	/// same while an item is: the iterator is made again only once no item it lent is
+	/// left. An item's place is `rs.arrayAsPtr` of its element, as `rs.iterSliceMut` would
+	/// have made it.
+	item_arrays: FxHashSet<String>,
 	/// Statements that change nothing: a swap through a temporary nothing else names, as
 	/// an async body moves its context at each `await`.
 	noops: FxHashSet<(BasicBlock, usize)>,
@@ -443,8 +454,13 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	idx_of: FxHashMap<Local, Place<'tcx>>,
 	/// The halves a `|` joins into a `u64`, by the local of the shift that is its left side.
 	halves: FxHashMap<Local, (&'m Operand<'tcx>, &'m Operand<'tcx>)>,
-	/// Temporaries of those joins, whose assignments go unlowered.
+	/// Temporaries of those joins, and the pointers of `raw_cells`, whose assignments go
+	/// unlowered.
 	joined: FxHashSet<Local>,
+	/// Pointers made of a reference to an `UnsafeCell` that only `UnsafeCell::raw_get`
+	/// reads, right after, by the place the reference points at, which it reads in their
+	/// place: the cell itself, where a raw pointer to it would be where it is kept.
+	raw_cells: FxHashMap<Local, Place<'tcx>>,
 	/// The paths a switch lowered so far tests the variant of, with the enum it tests,
 	/// which `tsc` narrows in its arms. An `Option`'s `Some` is the path itself, so it
 	/// may be tested as both.
@@ -478,6 +494,8 @@ pub struct Fx<'m, 'b, 'a, 'tcx> {
 	returning: FxHashSet<mir::Location>,
 	/// The tests and payload reads TypeScript may have narrowed stale.
 	narrowing: decided::Narrowing<'tcx>,
+	/// The slices of one byte's place the body makes, as [`Self::find_mirrors`] finds them.
+	mirrors: mirror::Mirrors,
 	/// The statement or terminator being lowered.
 	at: mir::Location,
 }
@@ -541,10 +559,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			reborrows: FxHashMap::default(),
 			stepped_vars: FxHashMap::default(),
 			stepped_into: FxHashMap::default(),
+			lent_items: FxHashMap::default(),
+			lent_nexts: FxHashSet::default(),
+			item_arrays: FxHashSet::default(),
 			noops: FxHashSet::default(),
 			idx_of: FxHashMap::default(),
 			halves: FxHashMap::default(),
 			joined: FxHashSet::default(),
+			raw_cells: FxHashMap::default(),
 			switched: FxHashSet::default(),
 			tested: IndexVec::from_elem_n(false, n),
 			widened: FxHashSet::default(),
@@ -560,6 +582,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			slotted_calls: FxHashMap::default(),
 			returning: FxHashSet::default(),
 			narrowing,
+			mirrors: mirror::Mirrors::default(),
 			at: mir::START_BLOCK.start_location(),
 		};
 		fx.analyze();
@@ -727,6 +750,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		self.find_stepped();
 		self.unborrow_passed();
 		self.find_halves();
+		self.find_raw_cells();
 		self.find_slotted_calls();
 		self.find_scalars();
 		self.find_returning();
@@ -761,6 +785,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				self.b.t.check_erased(held, self.local_span(local));
 			}
 		}
+		debug_assert!(
+			self.lent_items.keys().all(|&l| matches!(self.slots[l], Slot::Alias(_))),
+			"an item lent by index is an alias, as find_stepped checked"
+		);
 		self.find_tested();
 		// Names: what debug info calls a local, else its number.
 		let mut named: FxHashMap<Local, rustc_span::Symbol> = FxHashMap::default();
@@ -820,6 +848,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 		}
 		self.share_stepped();
+		self.find_mirrors();
 	}
 
 	/// The byte locals whose `&raw` the body takes, of the local or of a reference to it
@@ -837,7 +866,34 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					self.raw_bytes.insert(local);
 				}
 			}
+			// A slice of one of a `&mut` to it, which then views its buffer.
+			if let TerminatorKind::Call { func, args, .. } = &data.terminator().kind
+				&& self.byte_slice_call(func)
+				&& let Some(arg) = args[0].node.place()
+				&& let Some(local) = self.lent_byte(arg)
+			{
+				self.raw_bytes.insert(local);
+			}
 		}
+	}
+
+	/// The byte local the reference `r` points at, if it was made here, once, as a `&mut`
+	/// to it or a reborrow of one, that nothing redirects.
+	fn lent_byte(&self, r: Place<'tcx>) -> Option<Local> {
+		let mut r = r.as_local()?;
+		for _ in 0..self.mir.local_decls.len() {
+			if self.defs[r] != 1 || self.is_arg(r) || self.mutated[r] {
+				return None;
+			}
+			match self.def_rvalue(r)? {
+				Rvalue::Ref(_, _, p) if p.projection.is_empty() => {
+					return crate::lower::byte(self.mir.local_decls[p.local].ty).then_some(p.local);
+				}
+				Rvalue::Ref(_, _, p) if p.projection.as_slice() == [mir::ProjectionElem::Deref] => r = p.local,
+				_ => return None,
+			}
+		}
+		None
 	}
 
 	/// The byte local `place`, the place of a `&raw`, is: the local, or what a reference
@@ -1477,6 +1533,57 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
+	/// Find the pointers [`Self::raw_cells`] holds: `&raw const *r` of a reference `r`,
+	/// read once, as the argument of the `UnsafeCell::raw_get` its own block ends in, with
+	/// nothing but storage markers between.
+	fn find_raw_cells(&mut self) {
+		let mir: &'m mir::Body<'tcx> = self.mir;
+		let tcx = self.tcx;
+		for (bb, data) in mir.basic_blocks.iter_enumerated() {
+			let TerminatorKind::Call { func, args, .. } = &data.terminator().kind else {
+				continue;
+			};
+			let ty::FnDef(def_id, _) = *func.ty(&mir.local_decls, tcx).kind() else {
+				continue;
+			};
+			if !crate::lower::library::is_std(tcx, def_id)
+				|| crate::lower::library::key(tcx, def_id)
+					.is_none_or(|(owner, name)| (owner.as_str(), name.as_str()) != ("UnsafeCell", "raw_get"))
+			{
+				continue;
+			}
+			let Some(Operand::Copy(p) | Operand::Move(p)) = args.first().map(|a| &a.node) else {
+				continue;
+			};
+			let Some(local) = p.as_local().filter(|&l| self.defs[l] == 1 && self.uses[l] == 1) else {
+				continue;
+			};
+			let Some((_, i)) = self.def_at[local].filter(|&(at, _)| at == bb) else {
+				continue;
+			};
+			let Some(Rvalue::RawPtr(mir::RawPtrKind::Const | mir::RawPtrKind::Mut, cell)) = self.def_rvalue(local)
+			else {
+				continue;
+			};
+			let behind_ref = match cell.projection.as_slice() {
+				[rest @ .., mir::ProjectionElem::Deref] => {
+					Place::ty_from(cell.local, rest, &mir.local_decls, tcx).ty.is_ref()
+				}
+				_ => false,
+			};
+			let next = data.statements[i + 1..].iter().all(|s| {
+				matches!(
+					s.kind,
+					StatementKind::StorageLive(_) | StatementKind::StorageDead(_) | StatementKind::Nop
+				)
+			});
+			if behind_ref && next {
+				self.raw_cells.insert(local, *cell);
+				self.joined.insert(local);
+			}
+		}
+	}
+
 	/// Mark the locals whose variant a switch or a library call's test tests, that a
 	/// closure or async block captures and could test, or that std takes, whose runtime
 	/// function infers its type parameters from them, and what references to them borrow.
@@ -1782,6 +1889,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				out.push(StmtKind::Declare { name, ty }.at(None));
 			}
 		}
+		for name in self.mirror_names() {
+			let ty = Type::Union(vec![Type::Rs("ByteMirror", Vec::new()), Type::Builtin("undefined")]);
+			out.push(StmtKind::Declare { name, ty }.at(None));
+		}
 		self.scalar_decls(&mut out);
 		let mut flags: Vec<String> = self.range_flags.values().cloned().collect();
 		flags.sort();
@@ -1896,6 +2007,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// A local's declared type: the value's, for a checked pair.
 	fn decl_ty(&mut self, local: Local) -> Type {
 		let ty = self.mir.local_decls[local].ty;
+		if self.lent_nexts.contains(&local) {
+			return Type::Union(vec![Type::Builtin("number"), Type::Rs("Done", Vec::new())]);
+		}
 		if self.next_results.contains(&local) {
 			let item = self.b.t.held_ty(next_item(self.tcx, ty), self.local_span(local));
 			if self.range_nexts.contains(&local) {
@@ -2530,19 +2644,24 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	fn block(&mut self, bb: BasicBlock, out: &mut Vec<Stmt>) -> Exit {
 		let mir = self.mir;
 		let data = &mir.basic_blocks[bb];
+		self.mirror_entry(bb, out);
 		for (i, stmt) in data.statements.iter().enumerate() {
+			let at = mir::Location {
+				block: bb,
+				statement_index: i,
+			};
 			if !self.in_ignored(stmt.source_info.span) && !self.noops.contains(&(bb, i)) {
-				self.at = mir::Location {
-					block: bb,
-					statement_index: i,
-				};
+				self.at = at;
 				let start = out.len();
 				self.statement(stmt, out);
 				self.locate(&mut out[start..]);
+				self.mirror_after(at, out);
 				if self.returning.contains(&self.at) {
 					self.flush(out);
 					return Exit::End;
 				}
+			} else {
+				self.mirror_after(at, out);
 			}
 		}
 		if let Some(&to) = self.redirect.get(&bb) {
@@ -2625,6 +2744,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				return;
 			}
 			match self.slots[local] {
+				Slot::Alias(_) if let Some(&iter) = self.lent_items.get(&local) => {
+					let Rvalue::Use(Operand::Copy(p) | Operand::Move(p), _) = rvalue else {
+						unreachable!("checked by lent_items")
+					};
+					let index = self.place_expr(*p, span, out);
+					let array = Expr::ident(&self.stepped_vars[&iter][0]);
+					self.slots[local] = Slot::Alias(Some(array.index(index)));
+					return;
+				}
 				Slot::Alias(_) => {
 					let target = match rvalue {
 						Rvalue::Ref(_, kind, p) => match self.array_subslice(*kind, *p, span, out) {
@@ -2719,7 +2847,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		let value = self.rvalue(rvalue, place, span, &mut pre);
 		let value = match (value, place.as_local()) {
-			(Some(value), Some(local)) if self.stepped.contains(&local) => Some(self.stepped_make(value, span)),
+			(Some(value), Some(local)) if self.stepped.contains(&local) => {
+				Some(self.stepped_make(value, span, &mut pre))
+			}
 			(value, _) => value,
 		};
 		self.into_frozen = false;
@@ -3278,6 +3408,16 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
+	/// Whether `bb` starts a loop: a block it dominates jumps back to it.
+	fn loop_header(&self, bb: BasicBlock) -> bool {
+		let blocks = &self.mir.basic_blocks;
+		let dominators = blocks.dominators();
+		dominators.is_reachable(bb)
+			&& blocks.predecessors()[bb]
+				.iter()
+				.any(|&p| dominators.is_reachable(p) && dominators.dominates(bb, p))
+	}
+
 	/// Emit every pending temporary, in order.
 	fn flush_pending(&mut self, out: &mut Vec<Stmt>) {
 		for p in std::mem::take(&mut self.pending) {
@@ -3290,14 +3430,34 @@ impl cfg::Lower<Stmt> for Fx<'_, '_, '_, '_> {
 	fn node(&mut self, node: usize, out: &mut Vec<Stmt>) -> Exit {
 		let exit = self.block(BasicBlock::from_usize(node), out);
 		let forward = |to: usize| self.forward(BasicBlock::from_usize(to)).as_usize();
-		match exit {
+		let exit = match exit {
 			Exit::Goto(to) => Exit::Goto(forward(to)),
 			Exit::Branch(arms, default) => Exit::Branch(
 				arms.into_iter().map(|(cond, to)| (cond, forward(to))).collect(),
 				forward(default),
 			),
 			Exit::End => Exit::End,
+		};
+		// A loop runs its body anew each time: what is held back to fold into its one read
+		// runs where it was made, before the loop, if running it again would differ.
+		let targets: Vec<usize> = match &exit {
+			Exit::Goto(to) => vec![*to],
+			Exit::Branch(arms, default) => arms.iter().map(|(_, to)| *to).chain([*default]).collect(),
+			Exit::End => Vec::new(),
+		};
+		if targets
+			.into_iter()
+			.any(|to| self.loop_header(BasicBlock::from_usize(to)))
+		{
+			let (held, kept): (Vec<_>, Vec<_>) = std::mem::take(&mut self.pending)
+				.into_iter()
+				.partition(|p| p.effect || p.memory);
+			self.pending = kept;
+			for p in held {
+				self.flush_one(p, out);
+			}
 		}
+		exit
 	}
 
 	fn flush(&mut self, out: &mut Vec<Stmt>) {
@@ -3722,7 +3882,7 @@ fn subst(e: &mut Expr, name: &str, value: &Expr) -> bool {
 				{
 					Some(payload.clone())
 				}
-				(_, ts::Key::Name(key)) if key == "v" => step::peel(base).place_read().cloned(),
+				(_, ts::Key::Name(key)) if key == "v" => step::peel(base).place_read(),
 				_ => None,
 			};
 			if let Some(folded) = folded {

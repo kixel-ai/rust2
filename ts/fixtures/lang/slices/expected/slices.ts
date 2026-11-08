@@ -2,8 +2,10 @@
 
 import * as rs from "./rs.ts";
 import { copy$Option_array2_u16, copy$Option_array2_u8, copy$array_array2_array2_u8, copy$array_array2_u16, copy$array_array2_u8, copy$array_u16, copy$array_u8, copy$mem_MaybeUninit_array_u8, copy$slices_Pair, drop$tuple2_Vec_slices_Noisy_Vec_u8 } from "./lib.ts";
-import { isSomeAnd$1ouf3e6, unwrapOr$1la41a6 as option_unwrapOr$1la41a6, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$1n9qa5p as option_unwrapOrDefault$1n9qa5p, unwrapOrDefault$0h81s8g as option_unwrapOrDefault$0h81s8g, map$13tab2s as option_map$13tab2s, map$0duedp1 as option_map$0duedp1, map$0q6fk7x as option_map$0q6fk7x, map$1uud0v7 as option_map$1uud0v7, map$1j0y4j0 as option_map$1j0y4j0, map$0vk4zok as option_map$0vk4zok, map$1aqm6sp as option_map$1aqm6sp, map$04ry0e1 as option_map$04ry0e1, mapOr$135q041 as option_mapOr$135q041, or$0as8tia as option_or$0as8tia, zip$0wdt346, clone$1omlcob as option_clone$1omlcob } from "./core/option.ts";
+import { thenSome$1gvhopg } from "./core/bool.ts";
+import { isSomeAnd$1ouf3e6, unwrapOr$1la41a6 as option_unwrapOr$1la41a6, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$1n9qa5p as option_unwrapOrDefault$1n9qa5p, unwrapOrDefault$0h81s8g as option_unwrapOrDefault$0h81s8g, map$13tab2s as option_map$13tab2s, map$0duedp1 as option_map$0duedp1, map$0q6fk7x as option_map$0q6fk7x, map$1uud0v7 as option_map$1uud0v7, map$1j0y4j0 as option_map$1j0y4j0, map$0vk4zok as option_map$0vk4zok, map$1aqm6sp as option_map$1aqm6sp, map$04ry0e1 as option_map$04ry0e1, mapOr$135q041 as option_mapOr$135q041, mapOr$17z0l8m as option_mapOr$17z0l8m, or$0as8tia as option_or$0as8tia, zip$0wdt346, clone$1omlcob as option_clone$1omlcob } from "./core/option.ts";
 import * as Counted from "./slices.Counted.ts";
+import type * as Held$item_writes from "./slices.Held$item_writes.ts";
 import * as Item from "./slices.Item.ts";
 import * as Noisy from "./slices.Noisy.ts";
 import * as Pair from "./slices.Pair.ts";
@@ -136,13 +138,12 @@ export function scribble(i: rs.usize, chunk: rs.ByteSlice): void {
 	if (rs.usizeRem(i, 2) === 1) {
 		rs.byteSliceView(chunk).reverse();
 	}
-	const iter: rs.Iter<rs.Place<rs.u8>> = rs.iterSliceMut(chunk);
-	while (true) {
-		const _26: rs.Place<rs.u8> | rs.Done = iter.next();
-		if (_26 === rs.DONE) {
-			break;
-		}
-		_26.v = _26.v ^ 90;
+	const iterS: Uint8Array = chunk.data;
+	let iterI: number = chunk.start;
+	const iterE: number = chunk.start + chunk.length;
+	while (iterI < iterE) {
+		const _26: number = iterI++;
+		iterS[_26] = iterS[_26] ^ 90;
 	}
 }
 
@@ -571,13 +572,13 @@ export function chunked(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 			rs.byteSliceView(rs.partsRemainder(it15)).reverse();
 			const it16: rs.Iter<rs.Slice<rs.u16>> = rs.sliceChunksExact(rs.sliceFrom(words.items), size);
 			rs.iterToOption(it16.nextBack());
-			const iter13: rs.Iter<rs.Place<rs.u16>> = rs.iterSliceMut(rs.partsRemainder(it16));
-			while (true) {
-				const _888: rs.Place<rs.u16> | rs.Done = iter13.next();
-				if (_888 === rs.DONE) {
-					break;
-				}
-				_888.v = rs.u16WrappingAdd(_888.v, 1);
+			const _885: rs.Slice<rs.u16> = rs.partsRemainder(it16);
+			const iterS: rs.u16[] = _885.data;
+			let iterI: number = _885.start;
+			const iterE: number = _885.start + _885.length;
+			while (iterI < iterE) {
+				const _888: number = iterI++;
+				iterS[_888] = rs.u16WrappingAdd(iterS[_888], 1);
 			}
 			const _894: Pair.Pair | undefined = rs.sliceFirst(rs.partsRemainder(rs.sliceChunksExact(rs.sliceFrom(pairs.items), size)));
 			if (_894 !== undefined) {
@@ -920,12 +921,7 @@ export function pokePairs(i: rs.usize, s: rs.Slice<Pair.Pair>): void {
 	if (s.length > 1) {
 		rs.sliceSwap(s, 0, rs.usizeDiv(s.length, 2));
 	}
-	const iter: rs.Iter<Pair.Pair> = rs.iterSlice(rs.sliceItems(s));
-	while (true) {
-		const _31: Pair.Pair | rs.Done = iter.next();
-		if (_31 === rs.DONE) {
-			break;
-		}
+	for (const _31 of rs.sliceItems(s)) {
 		_31.b = rs.u16WrappingAdd(_31.b, 1);
 	}
 }
@@ -3180,6 +3176,305 @@ export function arraySources(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): 
 		}
 		rs.iterExtendBytes(out, rs.iterFlatten(rs.arraySliceIter(leaked), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), undefined, true);
 	}
+}
+
+/** Bumps the number it is given, which takes the item's place whole. */
+export function bump(x: rs.Place<rs.u32>): void {
+	x.v = rs.u32WrappingAdd(x.v, 7);
+}
+
+/**
+ * Each item a `for` loop writes through `iter_mut`, of numbers, bytes, and `Option`s, in a
+ * slice's part, a `Vec`, and a struct's field, left early, read again after the loop, and
+ * passed on whole, which takes its place.
+ */
+export function itemWrites(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	const wide: rs.Vec<rs.u64> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u64 => {
+		const b2: rs.u8 = _2;
+		return rs.u64Or(rs.u64Shl(b2 as rs.u64, 50), b2 as rs.u64);
+	}), undefined, 8, true);
+	const bytes: rs.ByteVec = rs.byteSliceToByteVec(data);
+	const words: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_25: rs.u8): rs.u32 => {
+		return rs.u32Mul(_25 as rs.u32, 16843009);
+	}), undefined, 4, true);
+	const options: rs.Vec<rs.u16 | undefined> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_26: rs.u8): rs.u16 | undefined => {
+		const b4: rs.u8 = _26;
+		return thenSome$1gvhopg(rs.u8Rem(b4, 3) !== 0, b4 as rs.u16);
+	}), undefined, 4, true);
+	const cut: rs.usize = rs.usizeRem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.usize, rs.usizeAdd(data.length, 1));
+	b0: {
+		b1: {
+			const _23: rs.u8 = rs.u8Rem(kind, 8);
+			if (_23 === 0) {
+				const part: rs.Slice<rs.u64> = rs.sliceRange(rs.sliceFrom(wide.items), 0, cut);
+				const iterS: rs.u64[] = part.data;
+				let iterI: number = part.start;
+				const iterE: number = part.start + part.length;
+				while (iterI < iterE) {
+					const _31: number = iterI++;
+					iterS[_31] = rs.u64WrappingAdd(iterS[_31], 1);
+				}
+				const _38: rs.Slice<rs.u64> = rs.sliceRange(rs.sliceFrom(wide.items), cut);
+				const iterS2: rs.u64[] = _38.data;
+				let iterI2: number = _38.start;
+				const iterE2: number = _38.start + _38.length;
+				while (true) {
+					const _42: number | rs.Done = iterI2 < iterE2 ? iterI2++ : rs.DONE;
+					if (_42 === rs.DONE) {
+						break b1;
+					}
+					iterS2[_42] = rs.u64Xor(iterS2[_42], 255);
+				}
+			}
+			if (_23 === 1) {
+				const _47: rs.u32 = cut as rs.u32;
+				const array: rs.u32[] = Array.from({ length: 4 }, (): rs.u32 => {
+					return _47;
+				});
+				const iter3: rs.Iter<[rs.Place<rs.u32>, rs.u8]> = rs.iterZip(rs.iterSliceMut(rs.sliceFrom(array)), rs.iterSlice(rs.byteSliceView(data)), [false, false]);
+				while (true) {
+					const _54: [rs.Place<rs.u32>, rs.u8] | rs.Done = iter3.next();
+					if (_54 === rs.DONE) {
+						break;
+					}
+					_54[0].v = rs.u32Add(_54[0].v, _54[1] as rs.u32);
+				}
+				const iterS3: rs.u32[] = array;
+				let iterI3: number = 0;
+				const iterE3: number = array.length;
+				while (iterI3 < iterE3) {
+					const _64: number = iterI3++;
+					iterS3[_64] = rs.intRotateLeft(iterS3[_64], 5, 32, false);
+				}
+				rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(array), (x: rs.u32): Uint8Array => {
+					return rs.u32ToBeBytes(x).reverse();
+				}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
+				const iterS4: Uint8Array = bytes.data;
+				let iterI4: number = 0;
+				const iterE4: number = bytes.length;
+				while (iterI4 < iterE4) {
+					const _78: number = iterI4++;
+					const before: rs.u8 = iterS4[_78];
+					iterS4[_78] = rs.intRotateLeft(before, 3, 8, false) ^ before;
+				}
+				const held: Held$item_writes.Held = { words: rs.iterToVec(rs.iterMap(rs.iterSlice(words.items), (_210: rs.u32): rs.u16 => {
+					return _210 & 0xffff;
+				}), undefined, 2, true) };
+				const iterS5: rs.u16[] = held.words.items;
+				let iterI5: number = 0;
+				const iterE5: number = held.words.items.length;
+				while (iterI5 < iterE5) {
+					const _95: number = iterI5++;
+					iterS5[_95] = rs.u16WrappingMul(iterS5[_95], 3);
+				}
+				rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(held.words.items), (w2: rs.u16): Uint8Array => {
+					return rs.u16ToBeBytes(w2).reverse();
+				}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
+			} else {
+				if (_23 === 2) {
+					const iterS6: rs.u32[] = words.items;
+					let iterI6: number = 0;
+					const iterE6: number = words.items.length;
+					while (iterI6 < iterE6) {
+						const _111: number = iterI6++;
+						if (!(iterS6[_111] > 2147483648)) {
+							iterS6[_111] = rs.u32Add(iterS6[_111], 1);
+						} else {
+							break;
+						}
+					}
+					const iter8: rs.Iter<rs.Place<rs.u8>> = rs.iterRev(rs.iterSliceMut(rs.byteVecSlice(bytes)));
+					while (true) {
+						const _124: rs.Place<rs.u8> | rs.Done = iter8.next();
+						if (_124 === rs.DONE) {
+							break;
+						}
+						_124.v = rs.u8WrappingSub(_124.v, 1);
+					}
+					const iterS7: Uint8Array = bytes.data;
+					let iterI7: number = 0;
+					const iterE7: number = bytes.length;
+					while (true) {
+						const _135: number | rs.Done = iterI7 < iterE7 ? iterI7++ : rs.DONE;
+						if (_135 === rs.DONE) {
+							break b1;
+						}
+						if (!(iterS7[_135] === 0)) {
+							iterS7[_135] = rs.u8Sub(iterS7[_135], 1);
+						} else {
+							rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(bytes)), undefined, true);
+							break b0;
+						}
+					}
+				}
+				if (_23 === 3) {
+					const iterS8: Array<rs.u16 | undefined> = options.items;
+					let iterI8: number = 0;
+					const iterE8: number = options.items.length;
+					while (iterI8 < iterE8) {
+						const _149: number = iterI8++;
+						if (iterS8[_149] !== undefined) {
+							iterS8[_149] = rs.u16CheckedMul(iterS8[_149], 300);
+						}
+					}
+					const iterS9: Array<rs.u16 | undefined> = options.items;
+					let iterI9: number = 0;
+					const iterE9: number = options.items.length;
+					while (true) {
+						const _161: number | rs.Done = iterI9 < iterE9 ? iterI9++ : rs.DONE;
+						if (_161 === rs.DONE) {
+							break b1;
+						}
+						const taken = iterS9[_161];
+						iterS9[_161] = undefined;
+						if (taken === undefined) {
+							iterS9[_161] = 1;
+						}
+					}
+				}
+				if (_23 === 4) {
+					const iterS10: rs.u32[] = words.items;
+					let iterI10: number = 0;
+					const iterE10: number = words.items.length;
+					while (iterI10 < iterE10) {
+						bump(rs.arrayAsPtr(iterS10, iterI10++));
+					}
+					let carry: rs.u32 = 0;
+					const iterS11: rs.u32[] = words.items;
+					let iterI11: number = 0;
+					const iterE11: number = words.items.length;
+					while (iterI11 < iterE11) {
+						const _185: number = iterI11++;
+						const swapped = iterS11[_185];
+						iterS11[_185] = carry;
+						carry = swapped;
+					}
+					rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(carry).reverse()), undefined, true);
+				} else {
+					if (_23 === 5) {
+						const itS: rs.u32[] = words.items;
+						let itI: number = 0;
+						const itE: number = words.items.length;
+						const _197: number | rs.Done = itI < itE ? itI++ : rs.DONE;
+						if (_197 !== rs.DONE) {
+							itS[_197] = 0;
+						}
+						const iterS12: rs.u32[] = itS;
+						let iterI12: number = itI;
+						const iterE12: number = itE;
+						while (true) {
+							const _204: number | rs.Done = iterI12 < iterE12 ? iterI12++ : rs.DONE;
+							if (_204 === rs.DONE) {
+								break b1;
+							}
+							iterS12[_204] = rs.u32WrappingMul(iterS12[_204], 5);
+						}
+					}
+					if (_23 === 6) {
+						const rows: rs.Vec<rs.ByteVec> = rs.iterToVec(rs.iterMap(rs.byteSliceChunks(data, 3), (a0: rs.ByteSlice): rs.ByteVec => {
+							return rs.byteSliceToByteVec(a0);
+						}), undefined, 12, true);
+						l4: for (const _218 of rows.items) {
+							const iterS14: Uint8Array = _218.data;
+							let iterI14: number = 0;
+							const iterE13: number = _218.length;
+							while (true) {
+								const _226: number | rs.Done = iterI14 < iterE13 ? iterI14++ : rs.DONE;
+								if (_226 === rs.DONE) {
+									continue l4;
+								}
+								iterS14[_226] = rs.u8WrappingAdd(iterS14[_226], rowLen(cut));
+							}
+						}
+						const kept: rs.Vec<rs.Place<rs.u8>> = new rs.Vec();
+						l7: for (const _239 of rows.items) {
+							const iterS16: Uint8Array = _239.data;
+							let iterI16: number = 0;
+							const iterE14: number = _239.length;
+							while (true) {
+								const _247: number | rs.Done = iterI16 < iterE14 ? iterI16++ : rs.DONE;
+								if (_247 === rs.DONE) {
+									continue l7;
+								}
+								if (rs.u8Rem(iterS16[_247], 2) === 0) {
+									kept.items.push(rs.arrayAsPtr(iterS16, _247));
+								}
+							}
+						}
+						const iter19: rs.Iter<rs.Place<rs.u8>> = rs.vecIntoIter(kept);
+						while (true) {
+							const _260: rs.Place<rs.u8> | rs.Done = iter19.next();
+							if (_260 === rs.DONE) {
+								break;
+							}
+							_260.v = _260.v ^ 128;
+						}
+						rs.iterExtendBytes(out, rs.iterFlatten(rs.vecIntoIter(rows), (value: rs.ByteVec) => rs.byteVecIntoIter(value), true), "next");
+						const grid: rs.Vec<rs.Vec<rs.u16 | undefined>> = rs.iterToVec(rs.iterMap(rs.sliceChunks(rs.sliceFrom(options.items), 2), (a02: rs.Slice<rs.u16 | undefined>): rs.Vec<rs.u16 | undefined> => {
+							return rs.vecFrom(rs.sliceToArray(a02));
+						}), undefined, 12, true);
+						const payloads: rs.Vec<rs.Place<rs.u16>> = new rs.Vec();
+						l12: for (const _279 of grid.items) {
+							const iterS18: Array<rs.u16 | undefined> = _279.items;
+							let iterI18: number = 0;
+							const iterE15: number = _279.items.length;
+							while (true) {
+								const _287: number | rs.Done = iterI18 < iterE15 ? iterI18++ : rs.DONE;
+								if (_287 === rs.DONE) {
+									continue l12;
+								}
+								if (iterS18[_287] !== undefined) {
+									const borrowed = iterS18;
+									payloads.items.push(rs.place(() => borrowed[_287] as rs.u16, (value) => borrowed[_287] = value));
+								}
+							}
+						}
+						const iter22: rs.Iter<rs.Place<rs.u16>> = rs.vecIntoIter(payloads);
+						while (true) {
+							const _298: rs.Place<rs.u16> | rs.Done = iter22.next();
+							if (_298 === rs.DONE) {
+								break;
+							}
+							_298.v = rs.u16WrappingAdd(_298.v, 1000);
+						}
+						rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterFlatten(rs.vecIntoIter(grid), (value: rs.Vec<rs.u16 | undefined>) => rs.vecIntoIter(value), true), (o: rs.u16 | undefined): Uint8Array => {
+							return option_mapOr$17z0l8m(o, Uint8Array.of(238, 238), (a03: rs.u16): Uint8Array => {
+								return rs.u16ToBeBytes(a03).reverse();
+							});
+						}, (value: Uint8Array) => rs.iterSlice(value), true, 2), "next");
+					} else {
+						const iterS19: Uint8Array = bytes.data;
+						let iterI19: number = 0;
+						const iterE16: number = bytes.length;
+						while (true) {
+							const _314: number | rs.Done = iterI19 < iterE16 ? iterI19++ : rs.DONE;
+							if (_314 === rs.DONE) {
+								break b1;
+							}
+							iterS19[_314] = rs.u8Add(iterS19[_314], 100);
+						}
+					}
+				}
+			}
+		}
+		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(wide.items), (x2: rs.u64): Uint8Array => {
+			return rs.u64ToBeBytes(x2).reverse();
+		}, (value: Uint8Array) => rs.iterSlice(value), true, 8), undefined, true);
+		rs.iterExtendBytes(out, rs.iterSlice(rs.byteVecView(bytes)), undefined, true);
+		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(words.items), (w3: rs.u32): Uint8Array => {
+			return rs.u32ToBeBytes(w3).reverse();
+		}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
+		rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(options.items), (o2: rs.u16 | undefined): Uint8Array => {
+			return option_mapOr$17z0l8m(o2, Uint8Array.of(255, 255), (a04: rs.u16): Uint8Array => {
+				return rs.u16ToBeBytes(a04).reverse();
+			});
+		}, (value: Uint8Array) => rs.iterSlice(value), true, 2), undefined, true);
+	}
+}
+
+/** A step that depends on the input. */
+export function rowLen(cut: rs.usize): rs.u8 {
+	return (cut & 0xff) | 1;
 }
 
 //# sourceMappingURL=slices.ts.map

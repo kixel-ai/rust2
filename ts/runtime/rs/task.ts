@@ -921,21 +921,20 @@ export function cellOfArraySlice<S extends ArrayRef>(r: ArraySlice<S>, copy?: El
 }
 
 /**
- * `Cell::from_mut` of the object or the bytes a `&mut` is: a read is a copy, as a `Cell`
- * only moves or copies its value out, and a write lands in place, a JS array's taking
- * the new one's length. A read copies as `objectCopy` copies to `depth`.
+ * `Cell::from_mut` of an object a `&mut` is, which a pointer to is a place of: a read is
+ * a copy, as a `Cell` only moves or copies its value out, and a write lands in place.
  */
-export function cellIn<T extends object>(p: T, depth = 0): Cell<T> {
+export function cellIn<T extends object>(p: T): Cell<T> {
 	const write = partPlace(p);
-	return cellOfPlace(place(() => objectCopy(p, depth), (value) => (write.v = value)));
+	return cellOfPlace(place(() => objectCopy(p), (value) => (write.v = value)));
 }
 
 /**
  * `PartialEq`, `PartialOrd`, or `Ord` of `Cell`s or places, or `PartialEq` of `OnceCell`s
- * or `OnceLock`s, by `f` of what each holds.
+ * or `OnceLock`s, by `f` of what each holds, or of its `copy`, as a `Cell`'s `get` gives.
  */
-export function cellBy<T, R>(f: (a: T, b: T) => R): (a: { v: T }, b: { v: T }) => R {
-	return (a, b) => f(a.v, b.v);
+export function cellBy<T, R>(f: (a: T, b: T) => R, copy?: (v: T) => T): (a: { v: T }, b: { v: T }) => R {
+	return copy ? (a, b) => f(copy(a.v), copy(b.v)) : (a, b) => f(a.v, b.v);
 }
 
 /** `Cell::replace`: the value it held, `v` in its place. */
