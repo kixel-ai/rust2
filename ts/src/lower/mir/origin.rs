@@ -434,6 +434,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			("ptr" | "NonNull", "cast_const" | "cast_mut") | ("NonNull", "as_ptr" | "new_unchecked") => {
 				self.arc_pointer(&args.first()?.node)
 			}
+			("ptr" | "NonNull", "cast") if self.same_pointee(&args.first()?.node, local) => {
+				self.arc_pointer(&args.first()?.node)
+			}
 			("UnsafeCell", "get" | "raw_get") | ("Cell", "as_ptr") | ("MaybeUninit", "as_ptr" | "as_mut_ptr") => {
 				Some(false)
 			}
@@ -497,7 +500,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					"null" | "null_mut" | "dangling" | "dangling_mut" | "without_provenance" | "without_provenance_mut",
 				)
 				| ("NonNull", "dangling") => true,
-				("ptr" | "NonNull", "cast_const" | "cast_mut") | ("NonNull", "as_ptr") => {
+				("ptr" | "NonNull", "cast" | "cast_const" | "cast_mut") | ("NonNull", "as_ptr") => {
 					args.first().is_some_and(|a| self.nowhere(&a.node))
 				}
 				_ => false,
@@ -512,9 +515,16 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		(self.defs[local] == 1 && !self.is_arg(local)).then_some(local)
 	}
 
-	/// Whether `op` is a pointer to what `local` points at.
+	/// Whether `op` is a pointer, raw or `NonNull`, to what `local` points at, through any
+	/// `MaybeUninit`s, which a cast between keeps the pointer of.
 	fn same_pointee(&self, op: &Operand<'tcx>, local: Local) -> bool {
-		let pointee = |ty: ty::Ty<'tcx>| ty.builtin_deref(true);
+		let pointee = |ty: ty::Ty<'tcx>| {
+			let pointee = match ty.kind() {
+				ty::Adt(adt, args) if Std::of(self.tcx, adt.did()) == Some(Std::NonNull) => Some(args.type_at(0)),
+				_ => ty.builtin_deref(true),
+			};
+			pointee.map(|t| self.b.t.uninit_inner(t))
+		};
 		let from = op.ty(&self.mir.local_decls, self.tcx);
 		pointee(from).is_some() && pointee(from) == pointee(self.mir.local_decls[local].ty)
 	}
