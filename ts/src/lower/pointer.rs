@@ -842,15 +842,20 @@ pub fn call<'tcx>(
 			Some(Pointee::Slice) => deref(pointee(), arg(), false),
 			Some(Pointee::Place) => arg().member("v"),
 			// A box of an array is the array, all of which `into_raw` pointed at. One of no
-			// bytes owns no allocation, so any pointer makes one, of the elements it points at.
-			// Arrays `as_chunks` split from one flat array have no array of their own to box.
+			// bytes owns no allocation, so any pointer of any length makes one: a new array, as
+			// a dangling pointer's is. Arrays `as_chunks` split from one flat array have no
+			// array of their own to box.
 			Some(Pointee::Array) => match b.t.uninit_inner(pointee()) {
 				ty if super::byte_array(ty) => Expr::rs("byteSliceView", vec![arg()]),
-				ty if b.t.zero_sized(ty)
-					&& let ty::Array(elem, _) = ty.kind() =>
-				{
-					super::library::items_of(arg(), *elem)
-				}
+				ty if b.t.zero_sized(ty) => match ty.kind() {
+					ty::Array(elem, len) if b.t.empty(*elem) || len.try_to_target_usize(b.t.tcx) == Some(0) => {
+						b.t.uninit(pointee(), span)
+					}
+					_ => b.err(
+						span,
+						format!("`Box::from_raw` of `{ty}`, a value of no bytes made of more than structs and tuples"),
+					),
+				},
 				ty if super::array_slice::of_arrays(ty) => b.err(
 					span,
 					format!(

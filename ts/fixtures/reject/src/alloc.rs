@@ -160,13 +160,22 @@ pub fn uninit_array_lent(p: *mut std::mem::MaybeUninit<[u32; 2]>) -> u32 {
 }
 
 /// `Box::from_raw` of arrays `as_chunks_mut` split from one flat array, which a box of
-/// arrays of their own can't share.
-pub fn flat_arrays_boxed() -> u32 {
+/// arrays of their own can't share, and of an array of no bytes whose elements are more than
+/// structs and tuples, which the translator can't make anew.
+pub fn arrays_boxed() -> u32 {
 	let flat = Box::into_raw(Box::new([1u32, 2, 3, 4]));
 	let (runs, _) = unsafe { (*flat).as_chunks_mut::<2>() };
 	let whole: *mut [[u32; 2]; 2] = runs.first_chunk_mut().unwrap();
 	let back = unsafe { Box::from_raw(whole) };
-	back[0][0]
+	let marks = Box::into_raw(Box::new([Only::One; 2]));
+	let marks = unsafe { Box::from_raw(marks) };
+	back[0][0] + marks.len() as u32
+}
+
+/// An enum of one variant, a value of no bytes.
+#[derive(Clone, Copy)]
+enum Only {
+	One,
 }
 
 /// A `get_mut` and an `as_mut_unchecked` of a cell of a pinned `Box`, whose old value

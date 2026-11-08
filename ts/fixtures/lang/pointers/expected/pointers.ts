@@ -4119,9 +4119,17 @@ export function arrayParts(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.boxArrayFromRaw(raw)), (_210: rs.u32): rs.u8 => {
 		return _210 & 0xff;
 	}), undefined, true);
-	const units2: undefined[] = rs.sliceItems(rs.rawSliceOf(rs.sliceFrom([undefined, undefined, undefined])).array(2));
-	const none2: rs.u32[] = rs.sliceItems(rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(rs.sliceFrom(words.items), 2), 0, 0)));
-	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(rs.sliceFrom(units2).length & 0xff, rs.sliceFrom(none2).length & 0xff)), undefined, true);
+	const raw2: rs.RawSlice<undefined> = rs.rawSliceOf(rs.sliceFrom([undefined, undefined, undefined]));
+	const fewer: undefined[] = (new Array(2) as unknown) as undefined[];
+	const more: undefined[] = (new Array(5) as unknown) as undefined[];
+	const slice5 = rs.sliceFrom(words.items);
+	raw2.array(2);
+	raw2.array(5);
+	rs.optionUnwrap(rs.sliceGetRange(rs.sliceRange(slice5, 2), 0, 0));
+	const none2: rs.u32[] = (new Array(0) as unknown) as rs.u32[];
+	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([rs.sliceFrom(fewer).length, rs.iterCount(rs.iterSlice(more)), rs.sliceFrom(none2).length], (n2: rs.usize): rs.u8 => {
+		return n2 & 0xff;
+	})), undefined, true);
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(words.items), (_211: rs.u32): rs.u8 => {
 		return _211 & 0xff;
 	}), undefined, true);
@@ -4134,17 +4142,17 @@ export function arrayParts(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}), undefined, 8, true);
 	const p3: rs.ArraySlice<rs.Slice<rs.u32>> = rs.optionUnwrap(rs.arraySliceGetRange(rs.arraySliceRange(rs.arraySliceFrom(rows.items, rs.sliceFrom), 1), 0, 2));
 	const pointer3 = p3;
-	const _112: rs.ArraySlice<rs.Slice<rs.u32>> | undefined = pointer3 === rs.NULL ? undefined : pointer3;
-	if (_112 !== undefined) {
-		const _115: rs.u32 = rs.u32Add(n, 4);
-		const slice7 = rs.arraySliceAt(_112, 1);
-		slice7.data[slice7.start] = _115;
+	const _117: rs.ArraySlice<rs.Slice<rs.u32>> | undefined = pointer3 === rs.NULL ? undefined : pointer3;
+	if (_117 !== undefined) {
+		const _120: rs.u32 = rs.u32Add(n, 4);
+		const slice7 = rs.arraySliceAt(_117, 1);
+		slice7.data[slice7.start] = _120;
 	}
 	const pointer4 = p3;
 	const nn2: rs.ArraySlice<rs.Slice<rs.u32>> = rs.optionUnwrap(pointer4 === rs.NULL ? undefined : pointer4);
-	const _122: rs.u32 = rs.u32Add(n, 5);
+	const _127: rs.u32 = rs.u32Add(n, 5);
 	const slice8 = rs.arraySliceAt(nn2, 0);
-	slice8.data[slice8.start + 1] = _122;
+	slice8.data[slice8.start + 1] = _127;
 	rs.iterExtendBytes(out, rs.iterMap(rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(rows.items, rs.sliceFrom)), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 2), (_212: rs.u32): rs.u8 => {
 		return _212 & 0xff;
 	}), undefined, true);
@@ -4153,16 +4161,16 @@ export function arrayParts(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return copy$mem_MaybeUninit_array_u8(m);
 	})), undefined, true);
 	const cell: rs.Cell<Uint8Array> = new rs.Cell(copy$mem_MaybeUninit_array_u8(Uint8Array.of(n & 0xff, 2)));
-	const _148: rs.ByteSlice = rs.byteSliceFrom(cell.v);
-	_148.data[_148.start + 1] = 9;
+	const _153: rs.ByteSlice = rs.byteSliceFrom(cell.v);
+	_153.data[_153.start + 1] = 9;
 	rs.iterExtendBytes(out, rs.iterSlice(cell.v), undefined, true);
 	const uc: rs.Cell<rs.u32[]> = new rs.Cell(copy$mem_MaybeUninit_array_u32([n, 3]));
-	const _160: rs.u32 = rs.u32Add(n, 8);
-	const _161: rs.Slice<rs.u32> = rs.sliceFrom(uc.v);
-	_161.data[_161.start] = _160;
-	const _166: rs.u32 = rs.u32Add(n, 9);
-	const _167: rs.Slice<rs.u32> = rs.sliceFrom(uc.v);
-	_167.data[_167.start + 1] = _166;
+	const _165: rs.u32 = rs.u32Add(n, 8);
+	const _166: rs.Slice<rs.u32> = rs.sliceFrom(uc.v);
+	_166.data[_166.start] = _165;
+	const _171: rs.u32 = rs.u32Add(n, 9);
+	const _172: rs.Slice<rs.u32> = rs.sliceFrom(uc.v);
+	_172.data[_172.start + 1] = _171;
 	rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap(uc.v, (w5: rs.u32): rs.u8 => {
 		return w5 & 0xff;
 	})), undefined, true);

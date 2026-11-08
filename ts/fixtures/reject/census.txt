@@ -6,6 +6,8 @@ fixtures/reject/src/alloc.rs:alloc_retyped+8:21: memory from `alloc` cast to poi
 fixtures/reject/src/alloc.rs:alloc_retyped+10:17: memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:allocated+4:3: a byte of memory from `alloc`, which JS keeps as the values a cast of its pointer types it as
 fixtures/reject/src/alloc.rs:allocated+5:11: a byte of memory from `alloc`, which JS keeps as the values a cast of its pointer types it as
+fixtures/reject/src/alloc.rs:arrays_boxed+4:22: `Box::from_raw` of `[[u32; 2]; 2]`, which may be arrays `as_chunks` split from one flat array, which is not supported yet
+fixtures/reject/src/alloc.rs:arrays_boxed+6:23: `Box::from_raw` of `[alloc::Only; 2]`, a value of no bytes made of more than structs and tuples
 fixtures/reject/src/alloc.rs:bytes_as_values+3:3: a byte of memory from `alloc`, which JS keeps as the values a cast of its pointer types it as
 fixtures/reject/src/alloc.rs:bytes_as_values+4:15: a cast from a pointer to `u8` to one to `u32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:bytes_as_values+5:16: a cast from a pointer to `u8` to one to `pointers::Halves`, which reads the bytes of one type as another
@@ -29,7 +31,6 @@ fixtures/reject/src/alloc.rs:cell_raw_unknown+5:15: `UnsafeCell::raw_get` of a p
 fixtures/reject/src/alloc.rs:cell_raw_unknown+6:3: `UnsafeCell::raw_get` of a pointer not made of a place of `std::cell::UnsafeCell<u32>`, such as a parameter, a vector's or a slice's, or one moved by arithmetic, which may point where no cell is
 fixtures/reject/src/alloc.rs:cell_raw_unknown+8:15: `UnsafeCell::raw_get` of a pointer not made of a place of `std::cell::UnsafeCell<u32>`, such as a parameter, a vector's or a slice's, or one moved by arithmetic, which may point where no cell is
 fixtures/reject/src/alloc.rs:cell_raw_unknown+9:13: `UnsafeCell::raw_get` of a pointer not made of a place of `std::cell::UnsafeCell<u32>`, such as a parameter, a vector's or a slice's, or one moved by arithmetic, which may point where no cell is
-fixtures/reject/src/alloc.rs:flat_arrays_boxed+4:22: `Box::from_raw` of `[[u32; 2]; 2]`, which may be arrays `as_chunks` split from one flat array, which is not supported yet
 fixtures/reject/src/alloc.rs:pinned_lent+1:32: `UnsafeCell::get_mut` of `std::pin::Pin<std::boxed::Box<(u8, u8)>>`, an object a whole write through the reference changes in place, so a value read out before would be a copy at another address
 fixtures/reject/src/alloc.rs:pinned_lent+2:43: `UnsafeCell::as_mut_unchecked` of `std::pin::Pin<std::boxed::Box<(u8, u8)>>`, an object a whole write through the reference changes in place, so a value read out before would be a copy at another address
 fixtures/reject/src/alloc.rs:reinterpreted+1:27: a cast from a pointer to `u32` to one to `u8`, which reads the bytes of one type as another

@@ -3063,10 +3063,12 @@ pub fn array_parts(data: &[u8], out: &mut Vec<u8>) {
 	out.extend(back.iter().map(|&w| w as u8));
 	// Of arrays of no bytes, whose box owns no allocation, so any pointer to one makes one.
 	let units: Box<[()]> = Box::new([(); 3]);
-	let units = unsafe { Box::from_raw(Box::into_raw(units) as *mut [(); 2]) };
+	let raw = Box::into_raw(units);
+	let fewer = unsafe { Box::from_raw(raw as *mut [(); 2]) };
+	let more = unsafe { Box::from_raw(raw as *mut [(); 5]) };
 	let none: *mut [u32; 0] = words[2..].first_chunk_mut().unwrap();
 	let none = unsafe { Box::from_raw(none) };
-	out.extend([units.len() as u8, none.len() as u8]);
+	out.extend([fewer.len(), more.iter().count(), none.len()].map(|n| n as u8));
 	out.extend(words.iter().map(|&w| w as u8));
 	// Of arrays of arrays.
 	let mut rows: Vec<[u32; 2]> = words.chunks(2).map(|c| [c[0], c[c.len() - 1]]).collect();
