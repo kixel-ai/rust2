@@ -439,7 +439,7 @@ pub fn trait_call<'tcx>(
 					Some(at) => at,
 					None => b.err(
 						span,
-						"tokio's `poll` of a oneshot `Receiver`, in a program with a panic hook, whose compiled code shows no one `panic!`",
+						"tokio's poll of a oneshot receiver, in a program with a panic hook, whose compiled code shows no one panic",
 					),
 				});
 			}
