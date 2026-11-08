@@ -195,7 +195,7 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let deque = VecDeque::from(v.clone());
 	let map = BTreeMap::from([(u16::from(n), n)]);
 	let set = BTreeSet::from([u16::from(n)]);
-	match kind % 86 {
+	match kind % 87 {
 		0 => out.push(Vec::<u8>::with_capacity(usize::MAX - at).len() as u8),
 		1 => v.clone().rotate_right(at + 3),
 		2 => out.push(n.clamp(n.max(1), n.max(1) - 1)),
@@ -352,7 +352,8 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		82 => out.push((-i32::from(n)).clamp(0, -1) as u8),
 		83 => out.extend_from_slice(format!("{Failing}").as_bytes()),
 		84 => out.extend_from_slice(Failing.to_string().as_bytes()),
-		_ => out.push(Lying(n).len() as u8),
+		85 => out.push(Lying(n).len() as u8),
+		_ => out.extend(Short(n % 4).zip(0..n % 4 + 1).rev().map(|(a, b)| a ^ b)),
 	}
 }
 
@@ -422,6 +423,32 @@ impl Iterator for Lying {
 }
 
 impl ExactSizeIterator for Lying {}
+
+/// An iterator of one item fewer than the length it says, which a zip from the back finds
+/// short.
+struct Short(u8);
+
+impl Iterator for Short {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		self.next_back()
+	}
+
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		let len = usize::from(self.0) + 1;
+		(len, Some(len))
+	}
+}
+
+impl DoubleEndedIterator for Short {
+	fn next_back(&mut self) -> Option<u8> {
+		self.0 = self.0.checked_sub(1)?;
+		Some(self.0)
+	}
+}
+
+impl ExactSizeIterator for Short {}
 
 /// One panic of `bytes`' own code, by `kind`, with a hook set: each where the native build
 /// names it, in the source of the `bytes` it builds.
@@ -518,4 +545,19 @@ pub fn edition2018_panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		hook();
 	}
 	edition2018::panicked(kind, data, out);
+}
+
+/// A panic of tokio's own code in what translation maps, with a hook set: a oneshot
+/// receiver polled again once it gave its value.
+pub fn tokio_stock(_kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let n = data.first().copied().unwrap_or(0);
+	hook();
+	let (tx, mut rx) = tokio::sync::oneshot::channel();
+	tx.send(n).unwrap();
+	let mut cx = Context::from_waker(Waker::noop());
+	for _ in 0..2 {
+		if let Poll::Ready(Ok(n)) = Pin::new(&mut rx).poll(&mut cx) {
+			out.push(n);
+		}
+	}
 }

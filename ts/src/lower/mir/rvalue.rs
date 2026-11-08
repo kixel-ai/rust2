@@ -594,7 +594,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				if let (Some(a), Some(b)) = (from.builtin_deref(true), to.builtin_deref(true))
 					&& from.is_raw_ptr() =>
 			{
-				if let Some(why) = self.erased_borrow(op, a, b) {
+				if let Some(why) = self.erased_place(op, a, b) {
 					return self.err(span, why);
 				}
 				if let Some(cast) = self.alloc_cast(op, a, b, span, out) {

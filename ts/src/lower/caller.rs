@@ -11,11 +11,13 @@
 //! and the call of the macro that defines one, as an integer's methods. A panic in std's
 //! own code is where the toolchain's source has it, and one in `bytes`' where the
 //! program's `bytes` has it, named as the session names that file, which `rs.setHook` is
-//! given.
+//! given. One in tokio's is where its compiled code has it, passed at the call.
 
 use std::sync::OnceLock;
 
+use rustc_attr_ir::LangItem;
 use rustc_hir::def_id::DefId;
+use rustc_middle::mir::TerminatorKind;
 use rustc_middle::ty::{Instance, InstanceKind, TyCtxt};
 use rustc_span::{RemapPathScopeComponents, SourceFile, Span};
 
@@ -327,6 +329,14 @@ const SITES: &[(&str, &str, &str, &str)] = &[
 		"",
 		"expect(\"multiplying duration by scalar",
 	),
+	// A macro's panic is at the macro's call, here the one that gives the general zip its
+	// `next_back`, which an `ExactSizeIterator` whose length lies reaches.
+	(
+		"zip_next_back",
+		"core/src/iter/adapters/zip.rs",
+		"// General Zip impl",
+		"zip_impl_general_defaults!",
+	),
 ];
 
 /// Where each std function that neither takes its caller's location nor is defined by a
@@ -608,6 +618,33 @@ fn bytes_find(
 	};
 	let (line, col) = position(&text, after, needle)?;
 	Some(object(self::file(tcx, &source), line, col))
+}
+
+/// Where `def_id`, a dependency's function that takes no caller's location, makes its one
+/// `panic!`: the call in the MIR its crate compiled, outside what that inlined, whose file is
+/// named as the native build names it under any `--remap-path-prefix`. `None` without that
+/// MIR, or with other than one such call.
+pub fn own_panic(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Expr> {
+	if !tcx.is_mir_available(def_id) {
+		return None;
+	}
+	let mir = tcx.optimized_mir(def_id);
+	let mut spans = mir.basic_blocks.iter().filter_map(|block| {
+		let terminator = block.terminator();
+		let TerminatorKind::Call { func, .. } = &terminator.kind else {
+			return None;
+		};
+		let (callee, _) = func.const_fn_def()?;
+		let panics = [LangItem::PanicFmt, LangItem::Panic, LangItem::PanicDisplay]
+			.into_iter()
+			.any(|item| tcx.is_lang_item(callee, item));
+		let own = (terminator.source_info.scope)
+			.inlined_instance(&mir.source_scopes)
+			.is_none();
+		(panics && own).then_some(terminator.source_info.span)
+	});
+	let span = spans.next()?;
+	spans.next().is_none().then(|| location(tcx, span))
 }
 
 /// Where std's `def_id` panics, if [`CALLEES`] names it.

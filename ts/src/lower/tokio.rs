@@ -428,7 +428,22 @@ pub fn trait_call<'tcx>(
 			let (rx, cx) = (arg(), arg());
 			let output = b.t.future_output(self_ty.peel_refs(), span);
 			let error = made(b, err_of(output), None, vec![Expr::undefined()], span, out);
-			Expr::rs("oneshotPoll", vec![rx, cx, error])
+			let mut args = vec![rx, cx, error];
+			// Where tokio's `poll` panics once it completed, which a hook reads.
+			if b.t.hooked {
+				let own = ty::Instance::try_resolve(tcx, b.t.typing_env_pub(), call.def_id, call.args)
+					.ok()
+					.flatten()
+					.and_then(|poll| super::caller::own_panic(tcx, poll.def_id()));
+				args.push(match own {
+					Some(at) => at,
+					None => b.err(
+						span,
+						"tokio's poll of a oneshot receiver, in a program with a panic hook, whose compiled code shows no one panic",
+					),
+				});
+			}
+			Expr::rs("oneshotPoll", args)
 		}
 		// The rest as std maps them: `Debug` by `fmt`, and `IntoFuture` as itself.
 		_ => return Err(args.collect()),

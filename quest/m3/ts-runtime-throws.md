@@ -1,69 +1,57 @@
-# [L] Throw only where Rust panics
+# [M] Throw only where Rust panics
 
 ## Goal
 
 Code [rust2-ts](/ts/README.md) generates fails at run time only where the Rust source
 does: no `rust2-ts:` error the runtime throws where native Rust would go on. Each such
-construct translates exactly, through a slower path if it must, or is refused at
-translation with a span. Proven by differential tests against native Rust for every
-construct that now translates.
+construct translates exactly, or is refused at translation with a span. Proven by
+differential tests against native Rust for every construct that now translates.
 
 ## Plan
 
 Decided with the maintainer on 2026-11-04: "we should not panic when Rust would not
-panic", and runtime throws that copy Rust's behaviour are fine.
+panic", and runtime throws that copy Rust's behaviour are fine. A throw that guards Rust
+UB stays, as an abort worded like std's `unsafe precondition(s) violated` check.
 
-- ✅ A slower exact path, no flag: where one exists it is the translation, with the fast
-  path kept where the translator can prove it applies; refuse at translation only where
-  none exists. Rejected: refusing with no fallback; an inline opt-in.
-- ✅ A throw that guards Rust UB (a read through a null or dangling pointer, `from_raw` of
-  a value already dropped, freeing memory `alloc` did not give) stays, as an abort worded
-  like std's `unsafe precondition(s) violated` check, since Rust defines nothing there.
+Decided with the maintainer on 2026-11-07, in
+[moq-dev/rust2#661](https://github.com/moq-dev/rust2/pull/661), for the throws that fire
+only because translation can't see where a pointer came from:
 
-The rest are gaps. At `main` they include a panic its hook cannot locate
-([#556](https://github.com/moq-dev/rust2/pull/556)), a pointer cast to `()` that is not an
-`Arc`'s or `Rc`'s (`rs.arcErase`, [#562](https://github.com/moq-dev/rust2/pull/562),
-[#565](https://github.com/moq-dev/rust2/pull/565)), `offset_from` of one Rust allocation
-JS keeps in two arrays (such as two pointers made from one reference, one of them through
-a branch or loop, which JS keeps each in an array of one of its own; decided 2026-11-07 in
-[#621](https://github.com/moq-dev/rust2/pull/621) to throw rather than trace joins), a
-pointer moved past the array JS keeps it in (`AtIndex.reach`, such as one kept in a field),
-`Bytes::slice_ref` of other storage, `alloc`'s bytes read as values, ranges stepped
-without their type, fmt widths written as a placeholder, a read
-through a substring's `str::as_ptr` outside its own bytes but inside its text's
-(`s[..1].as_ptr().add(1)`, `s[1..].as_ptr().wrapping_sub(1)`), and a raw or mutable slice
-of a byte in a field (a struct's, a tuple's, a closure's capture, or one an async body keeps
-across an `.await`), or a cast of one to `*const [u8; N]`: a field's byte has no buffer of
-its own, unlike a `u8` local whose `&raw` the body takes, so the fix is a `Uint8Array(1)`
-for each `u8` field whose address is taken. A `u8` local whose address only a call takes,
-as `ptr::from_mut(&mut b)` does, has none either.
-The substring reads are UB under Stacked Borrows and allowed under Tree Borrows, so they
-throw until Rust settles its memory model (decided 2026-11-07 in
-[#634](https://github.com/moq-dev/rust2/pull/634)); if Rust rules them defined, a
-substring's pointer carries its text's encoding and offset.
-`git grep 'rust2-ts: ' ts/runtime` lists them; classify each before fixing. The pointer
-comparisons [#584](https://github.com/moq-dev/rust2/pull/584) refuses at translation, where
-JS may make two `rs.Place`s for one place, are out of scope: addresses were their route, and
-addresses stay refused (decided 2026-11-07 in [the model epic](/quest/m2/ts-model/README.md)).
+- ✅ Refuse at translation, with a span, where the body doesn't show the pointer fits:
+  `rs.arcErase` (done in #661) and `alloc`'s bytes.
+- ✅ Keep as loud run-time checks: `ptrUnerase`, `offset_from` across arrays,
+  `AtIndex.reach`, raw slices of a field's byte, and `Bytes::slice_ref` of copied bytes,
+  safe code with no exact answer while a `&str` stays a JS string. AGENTS.md allows the
+  unsafe ones under m3's [unsafe policy](/quest/m3/README.md).
+  Two pointers made from one reference, one through a branch or loop, may each be in
+  an array of one of its own; keep the loud check rather than trace joins (decided
+  2026-11-07 in [#621](https://github.com/moq-dev/rust2/pull/621)).
+- Rejected: refusing all of them at translation, which refuses pointer arithmetic on any
+  pointer parameter; keeping all as run-time checks.
 
-✅ Decided with the maintainer on 2026-11-06 in
-[moq-dev/rust2#608](https://github.com/moq-dev/rust2/pull/608): comparing `*const [T]` of
-values JS copies moved here from rs.Slice's quest. The options
-were to wait on rs.String ([moq-dev/rust2#574](https://github.com/moq-dev/rust2/pull/574)) and run only if `&str` shares
-its bytes, or to move it here with the other comparisons left refused (picked). Its only
-consumer in moq-net is form_urlencoded 1.2.2's `src/lib.rs:417`,
-`debug_assert!(ptr::eq(s.as_bytes(), vec))`, of the `&str` that
-`String::from_utf8_lossy(&vec)` borrowed. Under
-[moq-dev/rust2#574](https://github.com/moq-dev/rust2/pull/574)'s decision a `&str` stays a
-JS string, so `as_bytes` makes fresh bytes and today's refusal is exact; comparing by array
-and offset would answer `false` where Rust answers `true`. Look for an exact slower path.
+What remains:
 
-✅ Decided with the maintainer on 2026-11-07 in
-[moq-dev/rust2#608](https://github.com/moq-dev/rust2/pull/608): `ptr::eq` of an array that
-`as_chunks` split from one flat slice, as std lends it to a callback, moved here. Such an
-array has no JS array of its own, so `rs.arraySliceItems` gives std a copy of it, and
-`ptr::eq` with the array lent elsewhere answers `false` where Rust answers `true`. Arrays
-that are each a JS array of their own keep their identity. Look for an exact slower path
-with the `*const [T]` comparisons above.
+- `alloc`'s bytes: a byte of memory from `alloc` read or written, or the memory cast to a
+  type other than the one it holds, throws in `rs/alloc.ts` when the byte pointer reached
+  there from elsewhere. Refuse at the `alloc` or `realloc` call whose byte pointer the
+  body doesn't show going only to a typed cast, `dealloc`, `realloc`, or the
+  `NonNull`/`Option` steps [`alloc_root`](/ts/src/lower/mir/alloc.rs) already follows, so
+  no untyped pointer leaves the body; and a `realloc` of memory the body cast from one type
+  whose result it casts to another. This needs a use analysis of that pointer, which the
+  translator doesn't have yet. The throws in `rs/alloc.ts` are then translator guards.
+- `ptr::eq` of an array `as_chunks` split from one flat slice, which std's callback gets a
+  copy of, answers `false` where Rust answers `true`, silently (moved here 2026-11-07 in
+  [#608](https://github.com/moq-dev/rust2/pull/608)). A copy that remembers the slice and
+  offset it came from, compared through that, is exact; it builds on the `rs.ArraySlice`
+  [#662](https://github.com/moq-dev/rust2/pull/662) left, where `rs.arraySliceItems` still
+  copies.
+- `bytes`' panics in a hook program: `BYTES` in [`caller.rs`](/ts/src/lower/caller.rs)
+  finds each by searching the source of the program's `bytes` for text, so a
+  `--remap-path-prefix` of a directory inside `bytes` fails translation of a hook program.
+  Take each panic's location from `bytes`' compiled code for the function that panics, as
+  [`tokio.rs`](/ts/src/lower/tokio.rs) does for tokio's oneshot `poll`, so rustc names the
+  file as native does under any remap, and delete the source search (decided with the
+  maintainer on 2026-11-07, from [#661](https://github.com/moq-dev/rust2/pull/661)'s
+  follow-ups).
 
 Public API: the translator's output, and which crates translate.

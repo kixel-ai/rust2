@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, arrayAssign, type ByteSlice, type ArrayRef, type LentArray, type ElemCopy, ArraySlice, arraySliceItems, arraySliceCopy, arraySliceSet, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, sliceSet, sliceToArray, stringAsBytes, type Vec, assertFailed, fmtOwned } from "../rs.ts";
+import { Abort, arrayAssign, type ByteSlice, type ArrayRef, type LentArray, type ElemCopy, ArraySlice, arraySliceItems, arraySliceCopy, arraySliceSet, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, sliceSet, violated, sliceToArray, stringAsBytes, type Vec, assertFailed, fmtOwned } from "../rs.ts";
 import type { Hasher } from "./hash.ts";
 import type { Location } from "./location.ts";
 
@@ -336,21 +336,22 @@ export function arcRaw<P extends object>(arc: Arc<unknown>, p: P, of: "Arc" | "R
 /**
  * `Arc::from_raw`, of an `Arc` or an `Rc` as `of` says: the one `p` points into, which
  * `into_raw` or `as_ptr` gave, or arithmetic moved back to, and a count of which it takes,
- * as std's does. Any other pointer, or one to a value already dropped, fails, as JS keeps
- * no count beside it.
+ * as std's does. Any other pointer, or one to a value already dropped, which Rust leaves
+ * undefined, aborts.
  */
 export function arcFromRaw<T>(p: object, of: "Arc" | "Rc"): Arc<T> {
 	const arc = (of === "Arc" ? RAW_ARCS : RAW_RCS).get(ptrHome(p));
-	if (arc === undefined) throw new Error(`rust2-ts: \`${of}::from_raw\` of a pointer no \`${of}::into_raw\` or \`as_ptr\` gave`);
-	if (arc.strong === 0) throw new Error(`rust2-ts: \`${of}::from_raw\` of a pointer to a value already dropped`);
+	if (arc === undefined) violated(`${of}::from_raw requires a pointer that ${of}::into_raw or ${of}::as_ptr gave`);
+	if (arc.strong === 0) violated(`${of}::from_raw requires a pointer to a value not yet dropped`);
 	return arc as Arc<T>;
 }
 
 /**
  * `p as *const ()`, as `ptrErase` casts it, of a pointer to a value JS copies: the place
  * of an `Arc`'s or `Rc`'s value that `into_raw` or `as_ptr` gave, or arithmetic moved back
- * to, which is its one place as its address is, or one at no memory. Any other place is a
- * borrow's own, which no other pointer to the value would compare as, so it fails.
+ * to, which is its one place as its address is, or one at no memory. Translation casts
+ * only one the body shows is either, so any other place, a borrow's own, which no other
+ * pointer to the value would compare as, fails as its bug.
  */
 export function arcErase(p: object, type: string, align: number): Place<undefined> {
 	const home = ptrHome(p);
