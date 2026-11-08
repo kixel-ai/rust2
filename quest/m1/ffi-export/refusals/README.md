@@ -29,6 +29,10 @@ Decided with the maintainer on 2026-11-07, from
   of moq's, so any bump of it breaks moq's semver; moq wraps the few third-party types its
   signatures need instead. Rejected: skipping them silently, as rustdoc does; exporting
   their whole APIs.
+- ✅ No exemption: the rule covers every crate, moq's own included (`pub use moq_net;`,
+  `moq_congestion as congestion`), so moq drops those too, per
+  [moq-dev/moq#8233](https://github.com/moq-dev/moq/pull/8233). Rejected: exempting the
+  crates the facade already exports, or moq's own; either needs a list, which is config.
 - ✅ The stand-in re-exports only the session side moq-ffi ships from moq-tokio. Rejected:
   all of moq-tokio, whose tokio QUIC driver, CLI helpers, worker groups, and listeners no
   binding calls; the sans-IO driver bindings use instead is
