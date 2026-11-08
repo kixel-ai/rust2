@@ -493,7 +493,16 @@ function is suffixed instead by a hash of its text, with what it calls by name, 
 translation reaches. Types are translated once, generically over their type parameters
 but not their const ones, which type nothing in TS: arrayvec's `ArrayString<4>` and
 `ArrayString<16>` are one `ArrayString`, and each instance's functions read its own
-`CAP`. So a function of a generic type is one instance's, declaring the instance it
+`CAP`. A projection its fields name, such as smallvec's `<A as Array>::Item`, directly,
+through a generic type of the crate's they hold, or as a std iterator's item, is a type
+parameter of its own after them, named for its associated type and numbered past any it
+would shadow, which each instance gives what the projection is there:
+`Drain<[u8; 4]>` is a `Drain<Uint8Array, rs.u8>`. An instance a projection argument
+holds is named by an exported alias of its own, `type Held$Src = Held<Src, Held$Src>`, so
+one that holds itself again ends, and the output grows with the instances rather than
+the paths through them; an enum's alias spells out its union at the instance, as
+TypeScript refuses an alias naming itself through a generic one. Types typed with each
+other, as a tree and its branches are, each take the projections either names. So a function of a generic type is one instance's, declaring the instance it
 takes as `self`:
 `fmt$fmt_Debug_fmt_Pair(self: Wrap<Pair.Pair>, f: rs.Formatter)`. A reference or pointer
 in a generic type to what only an instance decides the form of, such as `*mut T` or
@@ -1193,9 +1202,12 @@ that drops given to a std function that keeps it other than in an iterator or a
 `poll_fn`, or whose mapping doesn't drop it where std's does, a `Cow` of other than `str` or a slice, a std
 function without a mapping of its own that makes or reads an `Option` whose `None` is
 `rs.None`, an `Option` of an `Option` of `()` or another
-`Option`, an instance of a generic type whose field is an `Option` of a type parameter
-that can be `undefined` though TypeScript's type of it can't, as a `MaybeUninit<u32>`
-can, or an `Option` or a `Poll` of another form of it whose instance can be `undefined` or pending, a `String`'s `capacity`, looking up a key by
+`Option`, an instance of a generic type whose field is an `Option` of a type parameter,
+or of a projection from one, that can be `undefined` though TypeScript's type of it can't, as a `MaybeUninit<u32>`
+can, or an `Option` or a `Poll` of another form of it whose instance can be `undefined` or pending, a `ControlFlow` breaking with one that an instance
+makes an `Option<!>` or `Result<!, _>`, or a future of one whose instance can be pending, each also through a generic type it holds, an instance of a generic type
+over type parameters whose projection is a type holding that instance again, in a generic type's definition (`Held<Wrap<T>>` where `Wrap<T>::Item` is a `Held<Wrap<T>>`), a generic type that
+holds itself at other arguments than its own parameters whose instances name new instances or projections for more rounds than the crate's recursion limit, a `String`'s `capacity`, looking up a key by
 another type it borrows as through the crate's own `Borrow`, a `&mut` to a value JS
 copies that std makes, other than a map's, or hands a closure, as `iter_mut` and
 `and_modify` do, one into a `Result`'s payload passed on or kept, the adaptors
