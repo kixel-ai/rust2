@@ -16,10 +16,19 @@ runtime under rule 2 of m3's [unsafe policy](/quest/m3/README.md), which wraps a
 crate's `unsafe` at its safe API. Rejected: moq dropping smallvec from the model's path,
 which the [model epic](/quest/m2/ts-model/README.md) had planned.
 
-- Add smallvec to the stock crates in `ts/src/lower/stock.rs`, with `SmallVec` as std's
-  `Vec`. Its inline capacity is a layout detail no JS caller sees: `inline_size` and
-  `spilled` answer as Rust does from the length and the array type, and `capacity` as
-  Rust's, so a differential that prints them still matches.
+- Add smallvec to the stock crates in `ts/src/lower/stock.rs`, storing a `SmallVec` as
+  an `rs.Vec` plus its own state where smallvec's observable behaviour differs from
+  `Vec`'s, so every method answers as smallvec does at the pinned version:
+  - `spilled` and `capacity` follow smallvec's allocation, not the length:
+    `with_capacity(8)` of a `[u8; 4]` is spilled at capacity 8 while `new()` is not, a
+    `truncate` keeps a spilled allocation, and only `shrink_to_fit` or `into_inner` moves
+    back inline. `inline_size` is the array's length.
+  - Drop order follows smallvec's code, not `Vec`'s mapping: its `truncate`, and `clear`
+    through it, drop the removed elements from the end, where the runtime's `vecTruncate`
+    drops them forwards.
+  - The fixture's differential covers reservation, growth past the inline size,
+    truncation, shrinking, and a destructor log for `truncate`, `clear`, `drain`, and the
+    `SmallVec`'s own drop.
 - Methods with no `Vec` twin (`grow`, `try_grow`, `into_inner`, `from_buf_and_len`) map
   where they are safe; `from_raw_parts` and the other `unsafe` methods are refused with a
   span.
