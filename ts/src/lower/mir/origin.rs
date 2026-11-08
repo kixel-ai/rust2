@@ -463,6 +463,13 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 
 	/// Whether the body shows the raw pointer `op` is null or dangling, at no memory.
 	fn nowhere(&self, op: &Operand<'tcx>) -> bool {
+		// A constant pointer of no allocation, an integer: null, or another, which a
+		// constant's lowering refuses.
+		if let Operand::Constant(c) = op {
+			return (c.const_)
+				.try_eval_scalar_int(self.tcx, self.b.t.typing_env_pub())
+				.is_some();
+		}
 		let Some(local) = self.traced(op) else {
 			return false;
 		};

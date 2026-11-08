@@ -64,6 +64,19 @@ fn driver_at(manifest: &Path, config: &Path, args: &[&std::ffi::OsStr], build: &
 /// module `tokio/channels`, a remap of a directory within a crate, which the location of
 /// tokio's panic must follow as native does.
 fn remap() -> String {
+	static FLAGS: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+	FLAGS.get_or_init(remap_flags).clone()
+}
+
+/// The flags [`remap`] gives, once the lockfile's crates are unpacked, so they don't
+/// depend on what a build before unpacked.
+fn remap_flags() -> String {
+	let status = cargo()
+		.args(["fetch", "--locked", "--manifest-path"])
+		.arg(workspace())
+		.status()
+		.expect("running cargo");
+	assert!(status.success(), "fetching the fixtures' crates failed");
 	let home = match std::env::var_os("CARGO_HOME") {
 		Some(home) => PathBuf::from(home),
 		None => std::env::home_dir()

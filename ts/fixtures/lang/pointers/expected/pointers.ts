@@ -2747,7 +2747,7 @@ export function flagWaker(flag: rs.Arc<rs.Atomic<boolean>>): rs.Waker {
  * shared reference to its value, counted up and down, cloned, and taken back through it,
  * and an `Arc<AtomicBool>`'s cast to `*const ()` and back, as a waker's data, which its
  * vtable counts, wakes, and drops. Each compares as the pointer `as_ptr` gives, and a
- * null one as null.
+ * null one, made here or a constant, as null.
  */
 export function rawPlaces(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const num: rs.Arc<rs.u32> = new rs.Arc(data.length as rs.u32);
@@ -2815,7 +2815,7 @@ export function rawPlaces(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const arc2 = rc;
 		const _116: boolean = _117 === rs.arcErase(rs.arcRaw(arc2, rs.arcPlace(arc2), "Rc"), "u16", 2);
 		const arc3 = flag;
-		rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_111, _116, rs.arcErase(rs.arcRaw(arc3, rs.arcPlace(arc3), "Arc"), "std::sync::atomic::Atomic<bool>", 1) === wakers.items[rs.idx(wakers.items, 0)].data as rs.Place<undefined>, rs.arcErase(rs.arcRaw(flag, rs.arcPlace(flag), "Arc"), "std::sync::atomic::Atomic<bool>", 1) === wakers.items[rs.idx(wakers.items, 0)].data as rs.Place<undefined>, rs.arcErase(rs.NULL, "u32", 4) === rs.NULL], (a0: boolean): rs.u8 => {
+		rs.iterExtendBytes(out, rs.iterSlice(rs.bytesMap([_111, _116, rs.arcErase(rs.arcRaw(arc3, rs.arcPlace(arc3), "Arc"), "std::sync::atomic::Atomic<bool>", 1) === wakers.items[rs.idx(wakers.items, 0)].data as rs.Place<undefined>, rs.arcErase(rs.arcRaw(flag, rs.arcPlace(flag), "Arc"), "std::sync::atomic::Atomic<bool>", 1) === wakers.items[rs.idx(wakers.items, 0)].data as rs.Place<undefined>, rs.arcErase(rs.NULL, "u32", 4) === rs.NULL, rs.arcErase(rs.NULL, "u32", 4) === rs.NULL], (a0: boolean): rs.u8 => {
 			return a0 ? 1 : 0;
 		})), undefined, true);
 	}
@@ -2829,9 +2829,9 @@ export function rawPlaces(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.arcFromRaw(rs.arcRaw(rc, rs.arcPlace(rc), "Rc"), "Rc")[Symbol.dispose]();
 	}
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(num.strong & 0xff, rc.strong & 0xff, rc.value & 0xff)), undefined, true);
-	const _173: [Shelf.Shelf, Shelf.Shelf] = [new Shelf.Shelf(new rs.Arc(1)), new Shelf.Shelf(new rs.Arc(2))];
-	const first: Shelf.Shelf = _173[0];
-	const second: Shelf.Shelf = _173[1];
+	const _176: [Shelf.Shelf, Shelf.Shelf] = [new Shelf.Shelf(new rs.Arc(1)), new Shelf.Shelf(new rs.Arc(2))];
+	const first: Shelf.Shelf = _176[0];
+	const second: Shelf.Shelf = _176[1];
 	let shelf: Shelf.Shelf = first;
 	const value: rs.u32 = shelf._0.value;
 	if (isSomeAnd$1s2u5lz(rs.byteSliceFirst(data), (b: rs.u8): boolean => {
