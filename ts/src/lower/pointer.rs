@@ -1335,18 +1335,16 @@ pub(super) fn cell_pointer<'tcx>(b: &Body<'_, '_, 'tcx>, cell: Expr, ty: Ty<'tcx
 }
 
 /// The refusal of a move of a `ty` out of where it is kept, as `ptr::read` makes, that
-/// would copy a collection whose JS storage can't split from the original as Rust's does.
+/// would copy what JS can't split from the original as Rust's does.
 fn unsplit<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
-	let held = b.t.unsplit(ty)?;
+	let (held, why) = b.t.unsplit(ty)?;
 	let what = match held == ty {
 		true => String::new(),
 		false => format!(", which holds a `{held}`"),
 	};
 	Some(b.err(
 		span,
-		format!(
-			"a read moving out a `{ty}`{what}, a collection whose JS object keeps its length with its storage, which no copy splits from the original as Rust's read does"
-		),
+		format!("a read moving out a `{ty}`{what}, {why}, which no copy splits from the original as Rust's read does"),
 	))
 }
 

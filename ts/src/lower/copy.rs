@@ -152,16 +152,21 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		})
 	}
 
-	/// The collection held by value in a `ty` that a move of one out of where it is kept, as
-	/// `ptr::read` makes, would copy, if any: a `Vec` of other than bytes, a `VecDeque`, a
-	/// `String`, a map, a set, or a list, whose JS object keeps its length with its storage,
-	/// so no copy splits from the original as Rust's read does, sharing the storage while
-	/// each keeps a length of its own. A safe move leaves nothing pointing into the
-	/// original, which a copy one object deep is exact for.
-	pub fn unsplit(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
-		by_value(self.tcx, self.typing_env(), ty).find(|&part| {
+	/// What a move of a `ty` out of where it is kept, as `ptr::read` makes, would copy that no
+	/// JS copy splits from the original as Rust's read does, if anything, and why: a
+	/// collection held by value, a `Vec` of other than bytes, a `VecDeque`, a `String`, a
+	/// map, a set, or a list, whose JS object keeps its length with its storage, sharing the
+	/// storage while each keeps a length of its own; or a closure that writes its captures or
+	/// captures a value with interior mutability, or a coroutine, whose state is the JS
+	/// function's or generator's own. A safe move leaves nothing pointing into the original,
+	/// which a copy one object deep is exact for.
+	pub fn unsplit(&self, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, &'static str)> {
+		by_value(self.tcx, self.typing_env(), ty).find_map(|part| {
+			if self.stateful(part) {
+				return Some((part, "a closure or coroutine whose state JS keeps in the function itself"));
+			}
 			let ty::Adt(adt, args) = part.kind() else {
-				return false;
+				return None;
 			};
 			let joined = match Std::of(self.tcx, adt.did()) {
 				Some(Std::Vec) => !super::byte(args.type_at(0)),
@@ -178,8 +183,25 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				) => true,
 				_ => false,
 			};
-			joined && self.changes(part)
+			(joined && self.changes(part))
+				.then_some((part, "a collection whose JS object keeps its length with its storage"))
 		})
+	}
+
+	/// Whether `ty` is a closure whose copy Rust can tell apart from the original, as it
+	/// writes its captures or captures a value with interior mutability, at any depth, or a
+	/// coroutine.
+	fn stateful(&self, ty: Ty<'tcx>) -> bool {
+		let (tcx, env) = (self.tcx, self.typing_env());
+		match ty.kind() {
+			ty::Coroutine(..) => true,
+			ty::Closure(..) | ty::CoroutineClosure(..) => {
+				super::mir::writes_captures(tcx, ty)
+					|| (super::captured(ty).unwrap_or_default().iter())
+						.any(|t| by_value(tcx, env, t).any(|part| !part.is_freeze(tcx, env) || self.stateful(part)))
+			}
+			_ => false,
+		}
 	}
 
 	/// Whether the runs before compared pointers to a `ty`, or to a type it holds by value,

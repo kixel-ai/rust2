@@ -90,6 +90,27 @@ pub fn collection_moved(v: Vec<u32>, mut q: std::collections::VecDeque<u32>, s: 
 	old_v.len() + old_q.len() + words[0].len() + old_s.0.len() + old_t.len()
 }
 
+/// Closures read out through a pointer from a shared reference and both called: one that
+/// counts in its own capture, and one capturing a cell it sets. Rust's copy keeps state of
+/// its own, which JS keeps in the one function.
+pub fn closure_moved(n: u32) -> u32 {
+	fn read<F>(r: &F) -> F {
+		unsafe { std::ptr::read(r) }
+	}
+	let mut m = n;
+	let mut count = move || {
+		m += 1;
+		m
+	};
+	let mut old = read(&count);
+	let cell = std::cell::Cell::new(n);
+	let set = move || cell.set(cell.get() + 1);
+	let old_set = read(&set);
+	set();
+	old_set();
+	count() + old()
+}
+
 /// A pointer from a reference the body is given, which JS keeps in no array, read through
 /// past it by a constant wrapping offset and one past it, and viewed as a slice of a
 /// length the body doesn't fix: each reaches the neighbour Tree Borrows allows it to.

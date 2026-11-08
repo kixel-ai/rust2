@@ -11,6 +11,7 @@ roots = [
     "alloc::cell_pointer_reassigned",
     "alloc::cell_raw_reassigned",
     "alloc::cell_raw_unknown",
+    "alloc::closure_moved",
     "alloc::collection_moved",
     "alloc::infallible_cell",
     "alloc::lazy_moved",
