@@ -52,7 +52,10 @@ exclude = ["track::Producer::poll_closed"]
 Every `pub` item reachable from the facade's root, by its shortest path, is exported or
 refused. `#[doc(hidden)]` items are no part of the API and are left out; type aliases
 export nothing of their own. A re-export of the standard library's item is refused, since
-its types map by role; a type no path reaches is refused.
+its types map by role. A `pub use` of a whole crate, as in `pub use rustls;` or
+`pub use web_transport_proto as proto;`, is refused once at that `pub use`, since it puts
+every release of that crate in the facade's API; a glob of its root, `pub use dep::*;`,
+re-exports its items instead, which export. A type no path reaches is refused.
 
 | Rust | C |
 | --- | --- |

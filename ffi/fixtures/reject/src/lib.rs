@@ -673,3 +673,12 @@ pub fn halves() -> impl Iterator<Item = &'static str> {
 pub fn mixed(a: Option<((u8, u16), u32)>, b: Option<((u8, u16, u32),)>) -> bool {
 	a.is_some() && b.is_some()
 }
+
+/// Another crate whole, whose every release would change this one's API.
+pub use dep;
+
+/// The same crate whole, by another name.
+pub use ::dep as renamed;
+
+/// A crate whole, which the config excludes, so nothing refuses it.
+pub use ::dep as Shed;
