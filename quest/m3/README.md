@@ -42,5 +42,4 @@ memory model for values whose address is reinterpreted, without a consumer.
 - [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md) - no runtime `rust2-ts:` error where native Rust goes on: exact, or refused at translation
 - [rust2-ts with no ts.toml](/quest/m3/ts-configless.md) - a crate's whole `pub` API translates with no config and no bound items
 - [Browser APIs through wasm-bindgen](/quest/m3/ts-wasm-bindgen/README.md) - web-sys and js-sys imports become direct JS calls, so idiomatic crates such as web-rs's web-codecs translate as stock crates
-- [`u64` wrapping arithmetic in V8](/quest/m3/ts-u64-wrapping.md) - `rs.u64WrappingAdd` and its kin cost near a plain `+` while the value is a safe integer
 - [Array references from slices and cells](/quest/m3/ts-array-ref-conversions.md) - `try_into` of a slice into an array reference, `Cell::as_array_of_cells`, and `identity` of a `&mut [T; N]` lend the array where it is
