@@ -257,7 +257,9 @@ standin checkout="":
     } > "$dir/Cargo.toml"
     # What moq-ffi ships, re-exported: moq-net and moq-pattern at the root, beside the
     # waiter a driver's poll registers and the clock it polls at, and each other crate in a
-    # module of its own, since several name an item alike, such as `Error`.
+    # module of its own, since several name an item alike, such as `Error`. moq-tokio's
+    # session side only: its QUIC driver, CLI, worker groups, and listeners stay out. Its
+    # three `Config`s are renamed, since Go names a facade module's items by their own name.
     cat > "$dir/src/lib.rs" <<'EOF'
     pub use kio::{Park, Waiter, WaiterList, clock, coop, log};
     pub use moq_net::*;
@@ -272,7 +274,23 @@ standin checkout="":
     }
 
     pub mod tokio {
-        pub use ::moq_tokio::*;
+        pub use ::moq_tokio::{Client, Connection, ConnectError, Error, Log, Server, Transport, panic, tls};
+
+        pub mod connect {
+            pub use ::moq_tokio::connect::Config as ConnectConfig;
+        }
+
+        pub mod listen {
+            pub use ::moq_tokio::listen::Config as ListenConfig;
+        }
+
+        pub mod quic {
+            pub use ::moq_tokio::quic::Config as QuicConfig;
+        }
+
+        pub mod server {
+            pub use ::moq_tokio::server::Request;
+        }
     }
     EOF
     # moq's lockfile pins what moq's own builds use.
