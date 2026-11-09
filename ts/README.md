@@ -214,9 +214,8 @@ with its payload if that is text, or `Box<dyn Any>` as std's hook writes any oth
 A program that reaches `set_hook` has each panic carry the `Location` native code gives
 it, std's own at the `/rustc/<commit>/library/...` path its build names, read from the
 toolchain's source, and runs its hook with a `PanicHookInfo` before throwing; a panic in
-the hook throws `rs.Abort`, as std aborts. A panic of `bytes`' own code is where the
-program's `bytes` has it, and one of tokio's where its compiled code has it, named as the
-session names that file: by the host's cargo registry, unless the build remaps it, as
+the hook throws `rs.Abort`, as std aborts. A panic of `bytes`' or tokio's own code is
+where its compiled code has it, named as the session names that file: by the host's cargo registry, unless the build remaps it, as
 `--remap-path-prefix` does natively. The default
 hook writes nothing, as wasm32 has no stderr. A program without one passes no locations,
 and a bundler drops the hook's runtime, `rs/hook.ts`, from it; what stays is the location

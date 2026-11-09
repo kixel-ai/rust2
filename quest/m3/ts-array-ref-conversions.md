@@ -18,7 +18,3 @@ and lends parts of arrays where they are: its tests use `first_chunk_mut` in pla
 Decided with the maintainer on 2026-11-07: ✅ plan it, in m3 (from #662's follow-ups).
 
 Public API: the translator's output.
-
-## Related
-
-- [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md) - its exact `ptr::eq` for `as_chunks` copies changes how an array taken from a flat slice is represented, on the same `rs.ArraySlice`
