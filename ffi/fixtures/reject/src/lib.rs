@@ -2,9 +2,6 @@
 #![feature(allocator_api, pattern)]
 use std::collections::HashMap;
 
-/// A generic type.
-pub struct Wrap<T>(pub T);
-
 /// A tuple of references taken: C lends nothing inside a value.
 pub fn pair(pair: (&str, u8)) -> u8 {
 	pair.1
@@ -124,15 +121,6 @@ impl<'a> Text<'a> {
 /// itself.
 pub fn either(text: Option<&str>) -> usize {
 	text.map_or(0, str::len)
-}
-
-/// An object no export returns but its own method, so C never holds one.
-pub struct Lease(u8);
-
-impl Lease {
-	pub fn split(&mut self) -> Lease {
-		Lease(self.0)
-	}
 }
 
 /// A record, a type of the facade's own.
