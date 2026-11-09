@@ -940,8 +940,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					crate::lower::library::cow_made(borrowed, variant, values.pop().unwrap())
 				}
 				(Std::Result, i) => Expr::result(i == 0, values.pop().unwrap()),
-				// An imported type is its `obj`, the JS value itself.
-				(Std::Js, _) => match def.fields.iter().position(|f| f.name.as_str() == "obj") {
+				// An imported type is its `obj`, and a `JsError` its `value`: the JS value itself.
+				(Std::Js, _) => match (def.fields.iter())
+					.position(|f| crate::lower::bindgen::js_field(tcx, def_id) == Some(f.name.as_str()))
+				{
 					Some(obj) => values.swap_remove(obj),
 					None => self.err(
 						span,
@@ -1152,8 +1154,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				false => value,
 				true => {
 					let name = self.b.fresh("captured");
-					// Typed, so a reassigned literal keeps its integer's type.
-					let ts_ty = constant.then(|| self.b.t.held_ty(ty, span));
+					// Typed, so a reassigned literal keeps its integer's type, and a
+					// reassigned `Option` stays one, though `Some`'s value alone says less.
+					let option = matches!(ty.kind(), ty::Adt(adt, _) if Std::of(tcx, adt.did()) == Some(Std::Option));
+					let ts_ty = (constant || (rebinds && option)).then(|| self.b.t.held_ty(ty, span));
 					let stmt = StmtKind::decl(rebinds, name.clone(), ts_ty, Some(value)).at(None);
 					self.emit(vec![stmt], false, out);
 					Expr::ident(name)

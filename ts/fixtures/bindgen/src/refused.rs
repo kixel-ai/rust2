@@ -1,8 +1,8 @@
 //! What translation refuses of wasm-bindgen, each at its span: imports of custom JS by
-//! each kind of module, one that suspends on a promise, one generic per monomorphization,
-//! a closure, an optional mutable slice, the intrinsics only WASM has, and an export.
+//! each kind of module, two that suspend on a promise, one generic per monomorphization,
+//! an optional mutable slice, the intrinsics only WASM has, and an export.
 
-// `suspending` warns that it is experimental.
+// `suspending` and `jspi_block_on_promise` warn that they are experimental.
 #![expect(deprecated, reason = "a refusal of each kind of import, experimental ones too")]
 
 use wasm_bindgen::JsValue;
@@ -33,9 +33,6 @@ extern "C" {
 
 	#[wasm_bindgen(js_name = rustFill)]
 	fn fill(v: Option<&mut [u16]>);
-
-	#[wasm_bindgen(js_name = setTimeout)]
-	fn set_timeout(f: &Closure<dyn FnMut()>, ms: u32);
 }
 
 /// An export, which JS calls into WASM by.
@@ -47,10 +44,10 @@ pub fn exported(x: u32) -> u32 {
 pub fn run() -> u32 {
 	let mut units = [0u16; 2];
 	fill(Some(&mut units));
-	let closure = Closure::new(|| {});
-	set_timeout(&closure, 0);
 	let memory = wasm_bindgen::memory();
 	let suspended = suspended(&memory);
+	let blocked = js_sys::futures::jspi_block_on_promise(&js_sys::Promise::resolve(&suspended));
 	let generic = generic(&suspended);
-	custom() + raw() + inline() + exported(u32::from(generic.is_null())) + u32::from(units[0])
+	let blocked = u32::from(blocked.is_ok());
+	custom() + raw() + inline() + exported(u32::from(generic.is_null())) + u32::from(units[0]) + blocked
 }
