@@ -12,10 +12,12 @@ use super::super::body::Body;
 use super::super::library::Std;
 use crate::ts::{Expr, Param, Stmt, StmtKind, Type};
 
-/// A converted argument, with what writes back what JS wrote into its copy after the call.
+/// A converted argument, with what writes back what JS wrote into its copy after the call,
+/// and the JS function of a closure the call borrows, which it ends as it returns or throws.
 pub struct Arg {
 	pub value: Expr,
 	pub after: Vec<Stmt>,
+	pub borrowed: Option<Expr>,
 }
 
 /// The typed array JS views a slice of `elem` as, and whether its items are BigInts.
@@ -67,11 +69,95 @@ pub fn arg<'tcx>(
 		return Ok(Arg {
 			value: Expr::ident(copy),
 			after,
+			borrowed: None,
+		});
+	}
+	// A closure the call borrows, whose JS function throws once the call ends, as the glue
+	// makes it.
+	if let ty::Ref(_, inner, _) = ty.kind()
+		&& let ty::Dynamic(..) = inner.kind()
+	{
+		let made = closure(b, *inner, value, false, span)?;
+		let function = b.fresh("closure");
+		out.push(StmtKind::decl(false, function.clone(), None, Some(made)).at(None));
+		return Ok(Arg {
+			value: Expr::ident(function.clone()),
+			after: Vec::new(),
+			borrowed: Some(Expr::ident(function)),
 		});
 	}
 	Ok(Arg {
 		value: to_js(b, ty, value, span)?,
 		after: Vec::new(),
+		borrowed: None,
+	})
+}
+
+/// The JS function over `f`, a closure of `ty`, a `dyn Fn` or `dyn FnMut`, as wasm-bindgen's
+/// glue makes it: one a `Closure` owns, which drops `f` once the `Closure` drops and no call
+/// of it runs, if `owned`, or else one that borrows `f`. Its arguments from JS convert as an
+/// import's result does, and its result as an import's argument does, an `Err` thrown.
+pub fn closure<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, f: Expr, owned: bool, span: Span) -> Result<Expr, String> {
+	let tcx = b.t.tcx;
+	let refuse = || format!("a closure of `{ty}`, which wasm-bindgen calls in a way translation does not");
+	let ty::Dynamic(preds, ..) = ty.kind() else {
+		return Err(refuse());
+	};
+	let principal = tcx.instantiate_bound_regions_with_erased(preds.principal().ok_or_else(refuse)?);
+	let is_mut = match tcx.fn_trait_kind_from_def_id(principal.def_id) {
+		Some(ty::ClosureKind::Fn) => false,
+		Some(ty::ClosureKind::FnMut) => true,
+		_ => return Err(refuse()),
+	};
+	let ty::Tuple(inputs) = principal.args.type_at(0).kind() else {
+		return Err(refuse());
+	};
+	let output = preds
+		.projection_bounds()
+		.next()
+		.and_then(|p| tcx.instantiate_bound_regions_with_erased(p).term.as_type())
+		.ok_or_else(refuse)?;
+	let (callee, args) = (b.fresh("f"), b.fresh("args"));
+	let mut values = Vec::with_capacity(inputs.len());
+	for (i, input) in inputs.iter().enumerate() {
+		let value = Expr::ident(args.clone()).index(Expr::lit(i.to_string()));
+		values.push(match input.kind() {
+			// What `RefFromWasmAbi` lends of a JS value: the value.
+			ty::Ref(_, inner, _) if represented(b, *inner) => Expr::As(Box::new(value), b.t.ty(input, span)),
+			ty::Ref(..) => return Err(refuse()),
+			_ => from_js(b, input, value, span)?,
+		});
+	}
+	let called = Expr::ident(callee.clone()).call(values);
+	let returned = match b.t.std_of(output) {
+		// `ReturnWasmAbi` of a `Result`: its `Ok`, or its `Err`, a JS value, thrown.
+		Some(Std::Result) => {
+			let ty::Adt(_, result) = output.kind() else { unreachable!("a `Result`") };
+			if !represented(b, result.type_at(1)) {
+				return Err(refuse());
+			}
+			to_js(b, result.type_at(0), Expr::rs("jsReturn", vec![called]), span)?
+		}
+		_ => to_js(b, output, called, span)?,
+	};
+	let params = vec![
+		Param {
+			name: callee,
+			ty: Some(b.t.ty(ty, span)),
+		},
+		Param {
+			name: args,
+			ty: Some(Type::Array(Box::new(Type::Builtin("unknown")))),
+		},
+	];
+	let invoke = Expr::Lambda(params, Box::new(returned));
+	let mut made = vec![f, Expr::lit(is_mut.to_string()), invoke];
+	Ok(match owned {
+		true => {
+			made.extend(b.t.drop_fn(Ty::new_box(tcx, ty), span));
+			Expr::rs("jsClosure", made)
+		}
+		false => Expr::rs("jsClosureRef", made),
 	})
 }
 
@@ -103,7 +189,7 @@ pub fn to_js<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: 
 				let to = to_lambda(b, *elem, span)?;
 				Expr::rs("jsArray", vec![value, to])
 			}
-			_ if represented(b, *inner) => value,
+			_ if represented(b, *inner) || b.t.std_of(*inner) == Some(Std::JsClosure) => value,
 			// A reference to a string enum or a number, which the glue passes as the value.
 			_ if matches!(ty.kind(), ty::Ref(_, _, ty::Mutability::Not)) && b.t.is_copy(*inner) => {
 				to_js(b, *inner, value, span)?
@@ -111,7 +197,8 @@ pub fn to_js<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: 
 			_ => return Err(refuse(ty, "argument")),
 		},
 		ty::Adt(adt, args) => match b.t.std_of(ty) {
-			Some(Std::Js) => value,
+			// A `Closure` given away, whose JS function then never ends, as `forget` keeps it.
+			Some(Std::Js | Std::JsClosure) => value,
 			Some(Std::String) => Expr::rs("jsString", vec![value]),
 			Some(Std::Option) => {
 				let inner = args.type_at(0);

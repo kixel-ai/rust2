@@ -211,8 +211,11 @@ pub enum Std {
 	BytesMut,
 	/// `rand::rngs::ThreadRng`: `rs.ThreadRng`, which holds no state.
 	ThreadRng,
-	/// wasm-bindgen's `JsValue`, or a type an import declares: the JS value itself.
+	/// wasm-bindgen's `JsValue`, `JsError`, or a type an import declares: the JS value itself.
 	Js,
+	/// wasm-bindgen's `ScopedClosure`, which `Closure` is: `rs.JsClosure`, the JS function
+	/// over the closure it was made of, which throws once it drops.
+	JsClosure,
 	/// A handle of one of tokio's sync channels, or what one lends: a class of
 	/// `rs/tokio.ts`'s, which [`super::tokio::Handle`] names.
 	Sync,
@@ -256,6 +259,9 @@ impl Std {
 		if !is_std(tcx, did) {
 			if super::bindgen::represents(tcx, did) {
 				return Some(Self::Js);
+			}
+			if super::bindgen::is_closure(tcx, did) {
+				return Some(Self::JsClosure);
 			}
 			if super::bindgen::is_lazy(tcx, did) {
 				return Some(Self::LazyCell);

@@ -870,9 +870,24 @@ of them:
   one `None` where it is `undefined`, and a `static_string` its literal. `instanceof`,
   `JsCast::has_type` and `dyn_into`, the intrinsics `js-sys` reads, such as `typeof`,
   equality, operators, and `debug_string`, and `throw_str` and `throw_val` are JS's own.
+  A `JsError` is the JS error it holds.
+  A `Closure` is an `rs.JsClosure`, the JS function the CLI's glue makes of it: one call
+  of the closure per call, its arguments converted as an import's result is and its result
+  as an import's argument, an `Err` thrown. Calling it once it is dropped throws
+  wasm-bindgen's error, as does calling an `FnMut` one from within its own call, while an
+  `Fn` one stays reentrant. A call that runs as the `Closure` drops finishes, and the
+  closure drops after it, as the CLI counts its calls. `forget` and `into_js_value` keep
+  it alive, and a forgotten one drops once JS collects its function, as the CLI's
+  `FinalizationRegistry` drops it. A `&dyn Fn` or `&dyn FnMut` an import takes is a JS
+  function over the closure for that call only, which throws once the import returns.
+  `JsFuture` and `future_to_promise` translate from js-sys's MIR, and `spawn_local`, as
+  wasm-bindgen-futures reexports it, is `rs.jsSpawnLocal`, js-sys's microtask queue: each
+  run polls only the tasks queued before it began, and a task woken as it runs runs on
+  the next microtask.
   Refused, each at its span: imports of custom JS, by `module`, `raw_module`, or
-  `inline_js`, a `suspending` import, an `experimental_generic_mono` one, which the CLI
-  makes JS of per instance, a `Closure`, a mutable slice within an `Option`, 0.2.130's
+  `inline_js`, a `suspending` import, and `jspi_block_on_promise`, which suspends the WASM
+  stack as no JS call can, an `experimental_generic_mono` import, which the CLI
+  makes JS of per instance, a mutable slice within an `Option`, 0.2.130's
   `Nullable`, which no CLI in the dev shell makes glue of to compare against, the
   intrinsics only WASM has, such as `memory()`, and a `#[wasm_bindgen]` export, as a
   translation exports the crate's `pub` API itself.
@@ -1343,6 +1358,14 @@ so adding, removing, or reordering a case changes no other case's inputs.
   compared by its message. It is translated again under `wasm-bindgen-0.2.130.lock`, the
   next schema, and compared against the same native run. `refused.toml`, with its
   `refused` feature, holds what translation refuses, with the errors in `refused.txt`.
+- `encoder` drives WebCodecs' `VideoEncoder` through web-sys with the calls of
+  web-codecs' encoder, a workspace of its own like `bindgen`'s, built with
+  `--cfg=web_sys_unstable_apis`. Its harness makes, calls, drops, and forgets closures of
+  each kind, awaits promises and spawns tasks, and encodes three VP8 frames through the
+  encoder's output and error callbacks and `isConfigSupported`'s promise. Its native side,
+  through the CLI's glue for the web, and its translation run in one headless Chromium
+  page that `tests/browser.ts` serves, which compares their reports. Only the bench shell
+  carries Chromium, so it runs nightly, ignored otherwise.
 - `reject` holds constructs outside the subset, a module per kind of construct. Its
   expected errors are `expected.txt` and its census's spans `census.txt`, each line keyed
   by the item it points into and sorted, so cases added to different items don't conflict.

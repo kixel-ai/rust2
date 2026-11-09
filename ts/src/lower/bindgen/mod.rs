@@ -55,7 +55,9 @@ pub fn represents(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	if !matches!(tcx.def_kind(did), DefKind::Struct) {
 		return false;
 	}
-	if tcx.crate_name(did.krate).as_str() == "wasm_bindgen" && tcx.item_name(did).as_str() == "JsValue" {
+	if tcx.crate_name(did.krate).as_str() == "wasm_bindgen"
+		&& matches!(tcx.item_name(did).as_str(), "JsValue" | "JsError")
+	{
 		return true;
 	}
 	let adt = tcx.adt_def(did);
@@ -72,6 +74,24 @@ pub fn represents(tcx: TyCtxt<'_>, did: DefId) -> bool {
 		}
 	}
 	obj.is_some_and(|inner| represents(tcx, inner))
+}
+
+/// The field of `did`, a JS-represented struct, that holds its JS value: an import's
+/// `obj`, or `JsError`'s `value`. `JsValue` has none: its `idx` is a slot of wasm-bindgen's
+/// heap.
+pub fn js_field(tcx: TyCtxt<'_>, did: DefId) -> Option<&'static str> {
+	match tcx.item_name(did).as_str() {
+		"JsValue" if tcx.crate_name(did.krate).as_str() == "wasm_bindgen" => None,
+		"JsError" if tcx.crate_name(did.krate).as_str() == "wasm_bindgen" => Some("value"),
+		_ => Some("obj"),
+	}
+}
+
+/// Whether `did` is wasm-bindgen's `ScopedClosure`, which `Closure` is.
+pub fn is_closure(tcx: TyCtxt<'_>, did: DefId) -> bool {
+	tcx.crate_name(did.krate).as_str() == "wasm_bindgen"
+		&& matches!(tcx.def_kind(did), DefKind::Struct)
+		&& tcx.item_name(did).as_str() == "ScopedClosure"
 }
 
 /// Whether `#[wasm_bindgen]`, the attribute, wrote `did`, by whatever path it is named.
@@ -100,6 +120,15 @@ pub enum Glue<'tcx> {
 	Throw { error: bool },
 	/// `wbg_cast::<From, To>`, which converts as an import's argument and result do.
 	Cast { from: Ty<'tcx>, to: Ty<'tcx> },
+	/// `ScopedClosure`'s constructor of the closure it is given, a `dyn` closure `ty`: the
+	/// JS function over it, which the `Closure` owns, or which borrows it.
+	Closure { ty: Ty<'tcx>, owned: bool },
+	/// `ScopedClosure`'s `Drop`, which ends its JS function.
+	Dispose,
+	/// js-sys's `spawn_local`, which queues its future on js-sys's microtask queue.
+	SpawnLocal,
+	/// What translation refuses, and why.
+	Refused(&'static str),
 }
 
 /// What of wasm-bindgen `instance` is, if a call of it maps rather than lowers from MIR.
@@ -132,7 +161,33 @@ pub fn glue<'tcx>(t: &Translator<'_, 'tcx>, instance: Instance<'tcx>) -> Option<
 				to: instance.args.type_at(1),
 			});
 		}
+		// What js-sys's JSPI bridge would take: with no export translated, no JSPI context
+		// exists, so a task is the queue's.
+		("js_sys", "spawn_local") if in_futures(tcx, did) => return Some(Glue::SpawnLocal),
+		("js_sys", "jspi_block_on_promise") if in_futures(tcx, did) => {
+			return Some(Glue::Refused(
+				"`jspi_block_on_promise`, which suspends the WASM stack on a promise, as no JS call can",
+			));
+		}
 		_ => {}
+	}
+	if let Some(imp) = tcx.inherent_impl_of_assoc(did)
+		&& let ty::Adt(adt, _) = tcx.type_of(imp).instantiate_identity().skip_norm_wip().kind()
+		&& is_closure(tcx, adt.did())
+	{
+		// The closure type of the `ScopedClosure` it makes.
+		let made = || match t.sig(did, instance.args).output().kind() {
+			ty::Adt(_, args) => args.types().next().expect("a closure type"),
+			_ => unreachable!("a `ScopedClosure`"),
+		};
+		match name.as_str() {
+			"wrap_maybe_aborting" => return Some(Glue::Closure { ty: made(), owned: true }),
+			"wrap_borrow" | "wrap_borrow_mut" => return Some(Glue::Closure { ty: made(), owned: false }),
+			// Its JS function, which `into_js_value` keeps alive, never dropping it.
+			"as_js_value" | "into_js_value" => return Some(Glue::Identity),
+			"forget" => return Some(Glue::Nothing),
+			_ => {}
+		}
 	}
 	// A trait's method, as the trait declares it or an impl gives it, and the type it is of.
 	let of_trait = match tcx.trait_of_assoc(did) {
@@ -154,6 +209,17 @@ pub fn glue<'tcx>(t: &Translator<'_, 'tcx>, instance: Instance<'tcx>) -> Option<
 		&& lazy(tcx.type_of(imp).instantiate_identity().skip_norm_wip())
 	{
 		return Some(Glue::Force);
+	}
+	if let Some((trait_id, self_ty)) = of_trait
+		&& let ty::Adt(adt, _) = self_ty.peel_refs().kind()
+		&& is_closure(tcx, adt.did())
+		&& crate::lower::of_std(tcx, trait_id.krate)
+	{
+		match (tcx.item_name(trait_id).as_str(), name.as_str()) {
+			("AsRef", "as_ref") => return Some(Glue::Identity),
+			("Drop", "drop") => return Some(Glue::Dispose),
+			_ => {}
+		}
 	}
 	// What the macro implements between the types an import declares and `JsValue`, which
 	// are one JS value: `From`, `AsRef`, `Deref`, and the like, of one JS value to another.
@@ -189,6 +255,12 @@ pub fn glue<'tcx>(t: &Translator<'_, 'tcx>, instance: Instance<'tcx>) -> Option<
 		}
 	}
 	t.programs().wrapper(did).cloned().map(Glue::Import)
+}
+
+/// Whether `did`, of js-sys, is in its `futures` module.
+fn in_futures(tcx: TyCtxt<'_>, did: DefId) -> bool {
+	tcx.opt_item_name(tcx.parent(did))
+		.is_some_and(|module| module.as_str() == "futures")
 }
 
 /// Whether `ty` is wasm-bindgen's `JsValue`.

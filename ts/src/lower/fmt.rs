@@ -678,6 +678,7 @@ pub fn std_impl<'tcx>(
 			(Std::TryReserveError, Trait::Debug) => rs("tryReserveErrorDebug", vec![value, f]),
 			(Std::TryReserveError, Trait::Display) => rs("tryReserveErrorDisplay", vec![value, f]),
 			(Std::Sync, Trait::Debug) => return super::tokio::debug(b, ty, value, f, span),
+			(Std::JsClosure, Trait::Debug) => f.member("out").member("writeStr").call(vec![Expr::Str("Closure { ... }".into())]),
 			(Std::Bytes, Trait::Debug) => Expr::rs("bytesDebug", vec![value, f]),
 			(Std::BytesMut, Trait::Debug) => Expr::rs("bytesDebug", vec![Expr::rs("bytesMutView", vec![value]), f]),
 			_ => return None,
