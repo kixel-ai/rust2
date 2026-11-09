@@ -954,6 +954,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					| Std::BorrowError
 					| Std::BorrowMutError
 					| Std::CharTryFromError
+					| Std::TryFromSliceError
 					| Std::TryFromCharError),
 					_,
 				) => Expr::New(Box::new(Expr::Rs(format!("{std:?}"))), Vec::new()),
