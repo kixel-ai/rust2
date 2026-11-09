@@ -135,7 +135,7 @@ pub fn call<'tcx>(
 			let from = super::collections::trait_fn(tcx, "From", "from");
 			let call = Call {
 				def_id: from,
-				args: tcx.mk_args(&[to.into(), self_ty.expect("a `Self`").into()]),
+				args: tcx.mk_args(&[to.into(), self_ty.expect("a Self").into()]),
 				span,
 			};
 			return Ok(trait_call(b, &call, "From", "from", to, args, out));
@@ -157,7 +157,7 @@ pub fn call<'tcx>(
 		Ok((elem, _)) => elem,
 		Err(e) => return Ok(Some(e)),
 	};
-	let (_, Some(inline)) = array(tcx, self_ty).expect("a `SmallVec`") else {
+	let (_, Some(inline)) = array(tcx, self_ty).expect("a SmallVec") else {
 		unreachable!("a known array");
 	};
 	Ok(inherent(b, call, name, elem, inline, args, out))
@@ -174,7 +174,7 @@ fn known<'tcx>(
 	name: &str,
 	span: Span,
 ) -> Result<(Ty<'tcx>, u64), Expr> {
-	let (elem, inline) = array(b.t.tcx, ty).expect("a `SmallVec`");
+	let (elem, inline) = array(b.t.tcx, ty).expect("a SmallVec");
 	let why = match inline {
 		None => Some("whose array's length is not known"),
 		Some(_) => unsupported(elem),
