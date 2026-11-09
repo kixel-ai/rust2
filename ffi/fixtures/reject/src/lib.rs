@@ -690,4 +690,4 @@ pub fn mixed(a: Option<((u8, u16), u32)>, b: Option<((u8, u16, u32),)>) -> bool 
 pub use dep;
 
 /// The same crate whole, by another name.
-pub use dep as renamed;
+pub use ::dep as renamed;
