@@ -129,9 +129,9 @@ export function ops(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 					rs.drop(d);
 				} else if (_59 === 15) {
 					const _135: rs.u8 = next;
-					rs.iterExtend(v, rs.iterMap(new rs.Range(0, rs.u8Rem(arg, 6)), (i3: rs.u8): Noted.Noted => {
+					rs.smallVecExtend(v, rs.iterMap(new rs.Range(0, rs.u8Rem(arg, 6)), (i3: rs.u8): Noted.Noted => {
 						return new Noted.Noted(rs.u8Add(_135, i3), log);
-					}), "next");
+					}), 4, 8, "next");
 				} else if (_59 === 16) {
 					const c: rs.Vec<Noted.Noted> = rs.smallVecCloned(v.items, Noted.clone$Clone);
 					show(out, c, log);
@@ -157,7 +157,7 @@ export function ops(dataData: Uint8Array, dataStart: number, dataLen: number, ou
 					const _170: rs.Iter<Noted.Noted> = rs.iterMap(new rs.Range(0, rs.u8Rem(arg, 4)), (i2: rs.u8): Noted.Noted => {
 						return new Noted.Noted(rs.u8Add(_175, i2), log);
 					});
-					const other: rs.Vec<Noted.Noted> = rs.iterExtend(new rs.Vec(), _170, "next");
+					const other: rs.Vec<Noted.Noted> = rs.smallVecExtend(new rs.Vec(), _170, 2, 8, "next");
 					rs.smallVecAppend(v, other, 4, 8);
 					put(out, other.items.length);
 					put(out, rs.smallVecCapacity(other, 2));
@@ -234,7 +234,7 @@ export function copies(dataData: Uint8Array, dataStart: number, dataLen: number,
 		const n: rs.usize = items.items.length;
 		const _13: rs.u8 = rs.u8Rem(first, 6);
 		if (_13 === 0) {
-			v = rs.smallVecFromSlice(rs.sliceFrom(items.items), 3);
+			v = rs.smallVecFromSlice(rs.sliceFrom(items.items), 3, undefined);
 		} else if (_13 === 1) {
 			v = new rs.Vec([1, 2, 3]);
 		} else if (_13 === 2) {
@@ -243,7 +243,7 @@ export function copies(dataData: Uint8Array, dataStart: number, dataLen: number,
 			v = rs.smallVecFromElem(7, n, 3, undefined, undefined);
 		} else if (_13 === 4) {
 			const _21: rs.Iter<rs.u16> = rs.iterSlice(items.items);
-			v = rs.iterExtend(new rs.Vec(), _21, "next");
+			v = rs.smallVecExtend(new rs.Vec(), _21, 3, 2, "next");
 		} else {
 			v = rs.smallVecCloned(items.items.slice(), undefined);
 		}
@@ -256,12 +256,12 @@ export function copies(dataData: Uint8Array, dataStart: number, dataLen: number,
 			const part2 = rs.usizeDiv(n, 2);
 			const _44: rs.Slice<rs.u16> = rs.sliceRange(rs.sliceFrom(items.items), 0, part2);
 			const small = _43;
-			rs.smallVecInsertFromSlice(small, small.items.length, _44, 3, 2);
+			rs.smallVecInsertFromSlice(small, small.items.length, _44, 3, 2, undefined);
 		} else if (_38 === 1) {
 			const _49: rs.Vec<rs.u16> = v;
 			const _50: rs.usize = rs.usizeDiv(v.items.length, 2);
 			const part = rs.usizeDiv(n, 2);
-			rs.smallVecInsertFromSlice(_49, _50, rs.sliceRange(rs.sliceFrom(items.items), part), 3, 2);
+			rs.smallVecInsertFromSlice(_49, _50, rs.sliceRange(rs.sliceFrom(items.items), part), 3, 2, undefined);
 		} else if (_38 === 2) {
 			rs.smallVecShrinkToFit(v, 3, 2);
 		} else {
@@ -271,7 +271,7 @@ export function copies(dataData: Uint8Array, dataStart: number, dataLen: number,
 		put(out, rs.smallVecCapacity(v, 3));
 		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtList(v.items, f, rs.u16Debug)]).v), undefined, true);
 		const _83: rs.Vec<rs.u16> = v;
-		const _85: rs.Vec<rs.u16> = rs.smallVecFromSlice(rs.sliceFrom(items.items), 3);
+		const _85: rs.Vec<rs.u16> = rs.smallVecFromSlice(rs.sliceFrom(items.items), 3, undefined);
 		rs.byteVecPush(out, rs.eqSlice(rs.same)(_83, _85) ? 1 : 0);
 		put(out, rs.iterSum(rs.iterMap(rs.iterSlice(v.items), (_24: rs.u16): rs.usize => {
 			return _24 as rs.usize;

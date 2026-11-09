@@ -307,7 +307,10 @@ fn inherent<'tcx>(
 				[args, vec![Expr::lit(inline.to_string())], at].concat(),
 			)
 		}
-		"from_slice" => rs("smallVecFromSlice", [args, vec![n]].concat()),
+		"from_slice" => {
+			let copy = b.t.copy_fn(elem, span).unwrap_or_else(Expr::undefined);
+			rs("smallVecFromSlice", [args, vec![n, copy]].concat())
+		}
 		"from_elem" => {
 			let clone = super::collections::clone_fn(b, elem, span);
 			let drop = b.t.dropper(elem, span);
@@ -361,7 +364,8 @@ fn inherent<'tcx>(
 				let len = v.clone().member("items").member("length");
 				args.splice(0..0, [v, len]);
 			}
-			rs("smallVecInsertFromSlice", [args, vec![n, size], at].concat())
+			let copy = b.t.copy_fn(elem, span).unwrap_or_else(Expr::undefined);
+			rs("smallVecInsertFromSlice", [args, vec![n, size, copy], at].concat())
 		}
 		"append" => rs("smallVecAppend", [args, vec![n, size]].concat()),
 		"resize" => {
@@ -466,14 +470,14 @@ fn trait_call<'tcx>(
 			let coll = fold(tcx, self_ty);
 			let (items, iter) = super::collections::extend_source(b, coll, &folded, owner, args.pop()?)?;
 			let take = super::iter::iter_take(b, iter, false, span);
-			Some(Expr::rs("iterExtend", vec![args.pop()?, items, take]))
+			Some(Expr::rs("smallVecExtend", vec![args.pop()?, items, n, size, take]))
 		}
 		("FromIterator", "from_iter") => {
 			// `FromIterator<A>::from_iter::<T>`.
 			let source = library::targ(call.args, 2);
 			let iter = super::iter::iter_of(b.t, source)?;
 			let items = super::iter::into_iter(b, source, args.pop()?, span)?;
-			Some(extended(b, items, iter, span))
+			Some(extended(b, items, iter, n, size, span))
 		}
 		("From", "from") => {
 			let from = library::targ(call.args, 1);
@@ -514,9 +518,9 @@ fn inline_size(inline: u64, zero: bool) -> Expr {
 
 /// A new `SmallVec` of `items`, an `rs.Iter` of type `iter`, which it reserves for by their
 /// lower bound and reads by `next`, as smallvec's `FromIterator` does.
-fn extended<'tcx>(b: &mut Body<'_, '_, 'tcx>, items: Expr, iter: Ty<'tcx>, span: Span) -> Expr {
+fn extended<'tcx>(b: &mut Body<'_, '_, 'tcx>, items: Expr, iter: Ty<'tcx>, n: Expr, size: Expr, span: Span) -> Expr {
 	let take = super::iter::iter_take(b, iter, false, span);
-	Expr::rs("iterExtend", vec![super::library::vec_new(false), items, take])
+	Expr::rs("smallVecExtend", vec![super::library::vec_new(false), items, n, size, take])
 }
 
 /// `collect` into `ty`, if it is a `SmallVec`, of `items`, an `rs.Iter` of type `iter`.
@@ -529,7 +533,12 @@ pub fn collect<'tcx>(
 ) -> Option<Expr> {
 	array(b.t.tcx, ty)?;
 	Some(match known(b, ty, "Iterator", "collect", span) {
-		Ok(_) => extended(b, items, iter, span),
+		Ok((elem, inline)) => {
+			let size = super::iter::size_of(b, elem, span);
+			let zero = super::iter::layout(b, elem, span).is_ok_and(|(size, _)| size == 0);
+			let n = inline_size(inline, zero);
+			extended(b, items, iter, n, size, span)
+		}
 		Err(e) => e,
 	})
 }

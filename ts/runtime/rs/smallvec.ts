@@ -9,7 +9,7 @@
 
 import { panic, type Slice, Vec, vecCapacity, vecFrom, vecHold, vecKeep, vecMax } from "../rs.ts";
 import { type Bounds, bounds, vecDrain } from "./collections.ts";
-import type { Iter } from "./iter.ts";
+import { type Iter, iterExtend, type Take } from "./iter.ts";
 import type { Location } from "./location.ts";
 
 /** wasm32's `usize::MAX`. */
@@ -122,9 +122,10 @@ export function smallVecFromBufAndLen<T>(buf: T[], len: number, inline: number, 
 	return new Vec(buf);
 }
 
-/** `SmallVec::from_slice` of `Copy` items: inline where they fit, or else in a `Vec` of exactly them. */
-export function smallVecFromSlice<T>(s: Slice<T>, n: number): Vec<T> {
-	const v = vecFrom(s.data.slice(s.start, s.start + s.length));
+/** `SmallVec::from_slice` of `Copy` items, each copied by `copy` where JS would share it: inline where they fit, or else in a `Vec` of exactly them. */
+export function smallVecFromSlice<T>(s: Slice<T>, n: number, copy?: (value: T) => T): Vec<T> {
+	const items = s.data.slice(s.start, s.start + s.length);
+	const v = vecFrom(copy === undefined ? items : items.map(copy));
 	hold(v, v.items.length, n);
 	return v;
 }
@@ -208,10 +209,25 @@ export function smallVecDrain<T>(v: Vec<T>, r: Bounds<number>, drop?: (item: T) 
 }
 
 /** `SmallVec::extend_from_slice` of `Copy` items, and `insert_from_slice` at `i`: room for them, then them. */
-export function smallVecInsertFromSlice<T>(v: Vec<T>, i: number, s: Slice<T>, n: number, size: number, at?: Location): void {
+export function smallVecInsertFromSlice<T>(v: Vec<T>, i: number, s: Slice<T>, n: number, size: number, copy: ((value: T) => T) | undefined, at?: Location): void {
 	smallVecReserve(v, s.length, n, size, false);
-	if (i > v.items.length) panic("assertion failed: index <= len", at);
-	v.items.splice(i, 0, ...s.data.slice(s.start, s.start + s.length));
+	const d = v.items;
+	if (i > d.length) panic("assertion failed: index <= len", at);
+	// Moved up by a loop rather than a spread, which an engine caps the arguments of.
+	const k = s.length;
+	const len = d.length;
+	d.length = len + k;
+	for (let j = len - 1; j >= i; j--) d[j + k] = d[j];
+	for (let j = 0; j < k; j++) {
+		const x = s.data[s.start + j];
+		d[i + j] = copy === undefined ? x : copy(x);
+	}
+}
+
+/** `Extend::extend`, and `collect` into a new one: room for the lower bound of `items`' hint, as smallvec reserves it, then each item by `next`. */
+export function smallVecExtend<T>(v: Vec<T>, items: Iter<T>, n: number, size: number, take: Take): Vec<T> {
+	smallVecReserve(v, items.sizeHint()[0], n, size, false);
+	return iterExtend(v, items, take);
 }
 
 /** `SmallVec::append`: `other`'s items moved onto the end of `v`, as its `extend` of their drain. */
