@@ -375,7 +375,7 @@ fn inherent<'tcx>(
 			if b.t.drops(f) {
 				return Some(b.err(
 					span,
-					format!("passing `{f}`, which drops, to `SmallVec::resize_with`, which is not supported yet"),
+					format!("passing `{f}`, which drops, to `SmallVec::{name}`, which is not supported yet"),
 				));
 			}
 			let drop = b.t.dropper(elem, span);
