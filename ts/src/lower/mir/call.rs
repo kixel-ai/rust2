@@ -107,6 +107,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			ty::FnDef(def_id, gargs) if let Some(why) = self.stray(def_id, gargs.skip_binder(), args) => {
 				(self.err(span, why), true)
 			}
+			ty::FnDef(def_id, _) if let Some(why) = self.alloc_leak(def_id, args, dest) => (self.err(span, why), true),
 			ty::FnDef(def_id, gargs)
 				if let Some(cast) = self.alloc_cast_call(def_id, gargs.skip_binder(), args, span, &mut pre) =>
 			{

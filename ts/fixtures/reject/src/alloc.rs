@@ -339,3 +339,31 @@ pub fn alloc_retyped() -> i32 {
 pub fn zeroed() -> u32 {
 	unsafe { *(std::alloc::alloc_zeroed(std::alloc::Layout::new::<u32>()) as *mut u32) }
 }
+
+/// Memory from `alloc` whose byte pointer leaves the body untyped: returned, kept in a
+/// field, or given to a function of the crate's own, which JS can't read as bytes.
+pub fn alloc_leaked(n: u8) -> *mut u8 {
+	let layout = std::alloc::Layout::new::<u32>();
+	unsafe {
+		let held = Held {
+			bytes: std::alloc::alloc(layout),
+		};
+		fill(std::alloc::alloc(layout), n);
+		std::alloc::dealloc(held.bytes, layout);
+		std::alloc::alloc(layout)
+	}
+}
+
+pub struct Held {
+	bytes: *mut u8,
+}
+
+unsafe fn fill(p: *mut u8, n: u8) {
+	unsafe { *p = n };
+}
+
+/// `realloc` of memory a pointer to `u32`s points at, whose result is read as `i32`s.
+pub fn realloc_retyped(words: *mut u32) -> i32 {
+	let layout = std::alloc::Layout::new::<u32>();
+	unsafe { std::alloc::realloc(words as *mut u8, layout, 8).cast::<i32>().read() }
+}
