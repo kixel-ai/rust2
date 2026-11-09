@@ -180,6 +180,15 @@ pub fn render(api: &Api, collected: &Report, clashes: &[Clash], at: &dyn Fn(Span
 			let _ = writeln!(out, "- `{path}`");
 		}
 	}
+	if !collected.unheld.is_empty() {
+		let _ = writeln!(out, "\n## What C can never hold, left out\n");
+		for (path, why) in &collected.unheld {
+			let _ = match why.detail.is_empty() {
+				true => writeln!(out, "- `{path}`: {}", why.construct),
+				false => writeln!(out, "- `{path}`: {} `{}`", why.construct, why.detail),
+			};
+		}
+	}
 	if !collected.aliases.is_empty() {
 		let _ = writeln!(out, "\n## Type aliases, which export nothing of their own\n");
 		for path in &collected.aliases {
