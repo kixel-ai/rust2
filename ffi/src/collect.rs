@@ -2327,7 +2327,12 @@ impl<'tcx> Collector<'tcx> {
 					if !matches!(tcx.def_kind(def_id), DefKind::Fn | DefKind::AssocFn) {
 						return false;
 					}
-					let output = tcx.fn_sig(def_id).instantiate_identity().skip_norm_wip().skip_binder().output();
+					let output = tcx
+						.fn_sig(def_id)
+						.instantiate_identity()
+						.skip_norm_wip()
+						.skip_binder()
+						.output();
 					matches!(region.kind(), ty::ReEarlyParam(_))
 						&& !output.walk().any(|arg| arg.as_region() == Some(region))
 						&& !(self.implied(def_id, base).iter())
