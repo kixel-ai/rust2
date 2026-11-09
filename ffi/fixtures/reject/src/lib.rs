@@ -513,6 +513,16 @@ pub fn drain(source: Box<dyn Source>) -> usize {
 	source.items().count()
 }
 
+/// The sum of items borrowed forever, which a slice C lends for the call cannot be.
+pub fn summed_forever<I: IntoIterator<Item = &'static u32>>(items: I) -> u32 {
+	items.into_iter().sum()
+}
+
+/// The first of items whose borrow it returns, which outlives what C lends.
+pub fn first_of<'a, I: IntoIterator<Item = &'a String>>(items: I) -> Option<&'a String> {
+	items.into_iter().next()
+}
+
 /// One byte forever.
 pub fn ones() -> std::iter::Repeat<u8> {
 	std::iter::repeat(1)
