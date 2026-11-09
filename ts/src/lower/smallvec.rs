@@ -520,7 +520,10 @@ fn inline_size(inline: u64, zero: bool) -> Expr {
 /// lower bound and reads by `next`, as smallvec's `FromIterator` does.
 fn extended<'tcx>(b: &mut Body<'_, '_, 'tcx>, items: Expr, iter: Ty<'tcx>, n: Expr, size: Expr, span: Span) -> Expr {
 	let take = super::iter::iter_take(b, iter, false, span);
-	Expr::rs("smallVecExtend", vec![super::library::vec_new(false), items, n, size, take])
+	Expr::rs(
+		"smallVecExtend",
+		vec![super::library::vec_new(false), items, n, size, take],
+	)
 }
 
 /// `collect` into `ty`, if it is a `SmallVec`, of `items`, an `rs.Iter` of type `iter`.
