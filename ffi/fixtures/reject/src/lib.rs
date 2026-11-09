@@ -523,6 +523,13 @@ pub fn first_of<'a, I: IntoIterator<Item = &'a String>>(items: I) -> Option<&'a 
 	items.into_iter().next()
 }
 
+/// Items `text` could keep, as `retext` keeps its borrow.
+pub fn retext_last<'a, I: IntoIterator<Item = &'a String>>(text: &mut Text<'a>, items: I) {
+	if let Some(item) = items.into_iter().last() {
+		text.0 = item;
+	}
+}
+
 /// One byte forever.
 pub fn ones() -> std::iter::Repeat<u8> {
 	std::iter::repeat(1)

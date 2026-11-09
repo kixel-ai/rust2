@@ -2321,23 +2321,20 @@ impl<'tcx> Collector<'tcx> {
 				candidates.extend(self.bounds(target()).map(|ty| (ty, None)));
 			} else if tcx.is_diagnostic_item(sym::IntoIterator, tr) {
 				// Items borrowed for the call iterate a slice C lends: borrowed for a lifetime of
-				// the function's own that nothing returned names and that outlives no other, as
-				// `'static` or `'a: 'b` would ask more than the call of C's slice.
+				// the function's own that no other parameter, return, or lifetime bound names,
+				// since any of them, as `'static`, a returned borrow, `'a: 'b`, or a handle's
+				// `Text<'a>` would, may ask more than the call of C's slice.
 				let lent = |region: ty::Region<'tcx>| {
 					if !matches!(tcx.def_kind(def_id), DefKind::Fn | DefKind::AssocFn) {
 						return false;
 					}
-					let output = tcx
-						.fn_sig(def_id)
-						.instantiate_identity()
-						.skip_norm_wip()
-						.skip_binder()
-						.output();
+					let sig = tcx.fn_sig(def_id).instantiate_identity().skip_norm_wip().skip_binder();
+					let named = |ty: Ty<'tcx>| ty.walk().any(|arg| arg.as_region() == Some(region));
 					matches!(region.kind(), ty::ReEarlyParam(_))
-						&& !output.walk().any(|arg| arg.as_region() == Some(region))
+						&& !sig.inputs_and_output.iter().any(named)
 						&& !(self.implied(def_id, base).iter())
 							.filter_map(|clause| clause.as_region_outlives_clause())
-							.any(|pred| pred.skip_binder().0 == region)
+							.any(|pred| pred.skip_binder().0 == region || pred.skip_binder().1 == region)
 				};
 				let items = self.items(&identity.clauses, param).and_then(|item| match item.kind() {
 					ty::Ref(region, elem, ty::Mutability::Not) if !outlives && lent(*region) => {
