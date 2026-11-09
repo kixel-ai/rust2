@@ -181,8 +181,18 @@ pub fn glue<'tcx>(t: &Translator<'_, 'tcx>, instance: Instance<'tcx>) -> Option<
 			_ => unreachable!("a `ScopedClosure`"),
 		};
 		match name.as_str() {
-			"wrap_maybe_aborting" => return Some(Glue::Closure { ty: made(), owned: true }),
-			"wrap_borrow" | "wrap_borrow_mut" => return Some(Glue::Closure { ty: made(), owned: false }),
+			"wrap_maybe_aborting" => {
+				return Some(Glue::Closure {
+					ty: made(),
+					owned: true,
+				});
+			}
+			"wrap_borrow" | "wrap_borrow_mut" => {
+				return Some(Glue::Closure {
+					ty: made(),
+					owned: false,
+				});
+			}
 			// Its JS function, which `into_js_value` keeps alive, never dropping it.
 			"as_js_value" | "into_js_value" => return Some(Glue::Identity),
 			"forget" => return Some(Glue::Nothing),

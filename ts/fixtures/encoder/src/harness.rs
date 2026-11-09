@@ -90,7 +90,12 @@ fn closures(out: &mut String) {
 		}
 	});
 	*again.borrow_mut() = Some(function(&reentrant));
-	writeln!(out, "fn mut {}", called(function(&reentrant).call1(&JsValue::NULL, &1.into()))).unwrap();
+	writeln!(
+		out,
+		"fn mut {}",
+		called(function(&reentrant).call1(&JsValue::NULL, &1.into()))
+	)
+	.unwrap();
 	let inner = again.clone();
 	let shared = Closure::<dyn Fn(u32) -> JsValue>::new(move |x: u32| -> JsValue {
 		match x {
@@ -144,8 +149,14 @@ fn closures(out: &mut String) {
 		x / 2.0
 	})
 	.unchecked_into();
-	note(&log, format!("once_into_js {}", called(f.call1(&JsValue::NULL, &5.into()))));
-	note(&log, format!("once_into_js {}", called(f.call1(&JsValue::NULL, &5.into()))));
+	note(
+		&log,
+		format!("once_into_js {}", called(f.call1(&JsValue::NULL, &5.into()))),
+	);
+	note(
+		&log,
+		format!("once_into_js {}", called(f.call1(&JsValue::NULL, &5.into()))),
+	);
 
 	// A closure's `Err` is thrown, and its `Ok` returned.
 	let fallible = Closure::<dyn Fn(i32) -> Result<i32, JsValue>>::new(|x: i32| match x {
@@ -279,6 +290,11 @@ async fn failure(out: &mut String) {
 	let (mut encoder, mut encoded) = config.init().unwrap();
 	writeln!(out, "failed {}", shown(&encoded.frame().await)).unwrap();
 	let frame = frame(0);
-	writeln!(out, "encode after {}", shown(&encoder.encode(&frame, VideoEncodeOptions::default()))).unwrap();
+	writeln!(
+		out,
+		"encode after {}",
+		shown(&encoder.encode(&frame, VideoEncodeOptions::default()))
+	)
+	.unwrap();
 	frame.close();
 }

@@ -202,14 +202,13 @@ impl VideoEncoder {
 			let frame: web_sys::EncodedVideoChunk = frame.unchecked_into();
 			let frame = EncodedFrame::from(frame);
 
-			if let Ok(metadata) = meta.dyn_into::<js_sys::Object>() {
-				if let Ok(config) = js_sys::Reflect::get(&metadata, &"decoderConfig".into()) {
-					if !config.is_falsy() {
-						let config: web_sys::VideoDecoderConfig = config.unchecked_into();
-						let config = VideoDecoderConfig::from(config);
-						on_config.borrow_mut().replace(config);
-					}
-				}
+			if let Ok(metadata) = meta.dyn_into::<js_sys::Object>()
+				&& let Ok(config) = js_sys::Reflect::get(&metadata, &"decoderConfig".into())
+				&& !config.is_falsy()
+			{
+				let config: web_sys::VideoDecoderConfig = config.unchecked_into();
+				let config = VideoDecoderConfig::from(config);
+				on_config.borrow_mut().replace(config);
 			}
 
 			if frame.keyframe {

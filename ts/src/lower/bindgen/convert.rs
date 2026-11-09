@@ -97,7 +97,13 @@ pub fn arg<'tcx>(
 /// glue makes it: one a `Closure` owns, which drops `f` once the `Closure` drops and no call
 /// of it runs, if `owned`, or else one that borrows `f`. Its arguments from JS convert as an
 /// import's result does, and its result as an import's argument does, an `Err` thrown.
-pub fn closure<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, f: Expr, owned: bool, span: Span) -> Result<Expr, String> {
+pub fn closure<'tcx>(
+	b: &mut Body<'_, '_, 'tcx>,
+	ty: Ty<'tcx>,
+	f: Expr,
+	owned: bool,
+	span: Span,
+) -> Result<Expr, String> {
 	let tcx = b.t.tcx;
 	let refuse = || format!("a closure of `{ty}`, which wasm-bindgen calls in a way translation does not");
 	let ty::Dynamic(preds, ..) = ty.kind() else {
@@ -132,7 +138,9 @@ pub fn closure<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, f: Expr, owned: b
 	let returned = match b.t.std_of(output) {
 		// `ReturnWasmAbi` of a `Result`: its `Ok`, or its `Err`, a JS value, thrown.
 		Some(Std::Result) => {
-			let ty::Adt(_, result) = output.kind() else { unreachable!("a `Result`") };
+			let ty::Adt(_, result) = output.kind() else {
+				unreachable!("a `Result`")
+			};
 			if !represented(b, result.type_at(1)) {
 				return Err(refuse());
 			}
