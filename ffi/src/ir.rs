@@ -185,7 +185,7 @@ pub struct Function {
 	pub params: Vec<Param>,
 	/// What it returns, or for a future, what the future does.
 	pub ok: Type,
-	/// The error of a `Result` it returns.
+	/// The error of a `Result` it returns: `String` for another crate's error, as its message.
 	pub err: Option<Type>,
 	/// Whether it returns a future: an `async fn`, or a value that implements `Future`.
 	pub future: bool,
@@ -295,9 +295,10 @@ pub enum Type {
 	PathBuf,
 	/// `std::net::SocketAddr`, or `SocketAddrV4` or `SocketAddrV6` for one family.
 	SocketAddr(Family),
-	/// `Vec<T>` of any `T` but `u8`, which is [`Type::Vec`], and behind a reference, `[T]`
-	/// too: C passes and returns either as an array.
-	List(Box<Type>),
+	/// A collection of `T`, which C passes and returns as an array of its items: `Vec<T>` of
+	/// any `T` but `u8`, which is [`Type::Vec`], and behind a reference, `[T]` too; a set;
+	/// or a map, whose `T` is the tuple of a key and its value.
+	List(Collection, Box<Type>),
 	/// `std::task::Waker`, only as a parameter taken by value.
 	Waker,
 	Option(Box<Type>),
@@ -320,6 +321,19 @@ pub enum Type {
 	Bounds(Int),
 	/// A tuple of one element or more.
 	Tuple(Vec<Type>),
+}
+
+/// The Rust collection a [`Type::List`] is, which Rust builds from its items in order.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Collection {
+	/// `Vec<T>`, or behind a reference, `[T]`.
+	Vec,
+	/// `std::collections::BTreeSet<T>`
+	BTreeSet,
+	/// `std::collections::BTreeMap<K, V>`
+	BTreeMap,
+	/// `serde_json::Map`, of `String` keys and `serde_json::Value`s.
+	JsonMap,
 }
 
 /// The addresses a socket address type holds.
@@ -384,7 +398,7 @@ impl Int {
 pub fn each(ty: &Type, f: &mut dyn FnMut(&Type)) {
 	f(ty);
 	match ty {
-		Type::List(inner) | Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => each(inner, f),
+		Type::List(_, inner) | Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => each(inner, f),
 		Type::Closure(params, ret) => {
 			for param in params {
 				each(param, f);

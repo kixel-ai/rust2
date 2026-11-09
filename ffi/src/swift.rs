@@ -238,7 +238,7 @@ impl<'a> Gen<'a> {
 			Type::Slice | Type::Vec | Type::Bytes => "Data".to_string(),
 			Type::Duration => "Swift.Duration".to_string(),
 			Type::SocketAddr(_) => "SocketAddr".to_string(),
-			Type::List(inner) => format!("[{}]", self.sw(inner)),
+			Type::List(_, inner) => format!("[{}]", self.sw(inner)),
 			Type::Waker => "@escaping @Sendable () -> Void".to_string(),
 			Type::Option(inner) => format!("{}?", self.sw(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.sw(inner),
@@ -298,7 +298,7 @@ impl<'a> Gen<'a> {
 		let api = self.abi.api;
 		match ty {
 			ty if Abi::is_buf(ty) => true,
-			Type::List(_) | Type::Object(_) => true,
+			Type::List(..) | Type::Object(_) => true,
 			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => self.arena(inner),
 			Type::Tuple(elements) => elements.iter().any(|e| self.arena(e)),
 			Type::Record(i) => api.records[*i].fields.iter().any(|f| self.arena(&f.ty)),
@@ -331,7 +331,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(_) => format!("Native.socketAddr({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{e}._lower()"),
 			Type::Waker => format!("Native.waker({e})"),
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let x = self.fresh("x");
 				let item = self.lower(inner, &x);
 				format!(
@@ -342,7 +342,7 @@ impl<'a> Gen<'a> {
 			Type::Option(inner) => match inner.base() {
 				Type::Object(_) => format!("a_.hold({e}?.handle)"),
 				_ if Abi::is_buf(inner) => format!("a_.buf({e})"),
-				Type::List(elem) => {
+				Type::List(_, elem) => {
 					let v = self.fresh("v");
 					let some = self.lower(inner, &v);
 					format!("({e}.map {{ {v} in {some} }} ?? {}())", abi.list(elem))
@@ -387,7 +387,7 @@ impl<'a> Gen<'a> {
 			Type::Duration => format!("Native.duration({e})"),
 			Type::SocketAddr(_) => format!("Native.socketAddr({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{}._lift({e})", self.sw(ty)),
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let (v, c) = (self.fresh("v"), self.fresh("c"));
 				let item = self.lift(inner, &c);
 				format!(
@@ -401,7 +401,7 @@ impl<'a> Gen<'a> {
 				Type::Str | Type::String => format!("Native.string(option: {e})"),
 				Type::Path | Type::PathBuf => format!("Native.path(option: {e})"),
 				Type::Slice | Type::Vec | Type::Bytes => format!("Native.data(option: {e})"),
-				Type::List(_) => format!(
+				Type::List(..) => format!(
 					"({e}.ptr == nil ? nil : {} as {}?)",
 					self.lift(inner, e),
 					self.sw(inner)
@@ -923,7 +923,7 @@ impl<'a> Gen<'a> {
 					.collect();
 				closes.join("; ")
 			}
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let v = self.fresh("v");
 				let close = self.close(inner, &v);
 				format!("for {v} in {e} {{ {close} }}")
@@ -1314,7 +1314,7 @@ fn thrown_value(thrown: &Thrown, lifted: &str) -> String {
 fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
 	match ty {
 		Type::Object(i) => !abi.api.objects[*i].copy,
-		Type::Option(inner) | Type::Box(inner) | Type::List(inner) => moved(abi, inner),
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
 		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
 		_ => false,
 	}
@@ -1326,7 +1326,7 @@ fn strip_refs(ty: &Type) -> Type {
 		Type::Ref(_, inner) => strip_refs(inner),
 		Type::Option(inner) => Type::Option(Box::new(strip_refs(inner))),
 		Type::Box(inner) => Type::Box(Box::new(strip_refs(inner))),
-		Type::List(inner) => Type::List(Box::new(strip_refs(inner))),
+		Type::List(c, inner) => Type::List(*c, Box::new(strip_refs(inner))),
 		Type::Tuple(elements) => Type::Tuple(elements.iter().map(strip_refs).collect()),
 		ty => ty.clone(),
 	}

@@ -410,7 +410,7 @@ impl<'a> Gen<'a> {
 				Family::V6 => V6.to_string(),
 				Family::Any => format!("{V4} | {V6}"),
 			},
-			Type::List(inner) => format!("list[{}]", self.py_ty(inner)),
+			Type::List(_, inner) => format!("list[{}]", self.py_ty(inner)),
 			Type::Waker => "Waker".to_string(),
 			Type::Option(inner) => format!("{} | None", self.py_ty(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.py_ty(inner),
@@ -453,7 +453,7 @@ impl<'a> Gen<'a> {
 			Type::Path | Type::PathBuf => "str".to_string(),
 			// Python's own IPv6 address may leave out its flowinfo and scope_id.
 			Type::SocketAddr(Family::V6) => format!("{V4} | {V6}"),
-			Type::List(inner) => format!("{list}[{}]", self.py_in(inner, list)),
+			Type::List(_, inner) => format!("{list}[{}]", self.py_in(inner, list)),
 			Type::Option(inner) => format!("{} | None", self.py_in(inner, list)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.py_in(inner, list),
 			Type::Tuple(elements) => {
@@ -480,7 +480,7 @@ impl<'a> Gen<'a> {
 			Type::Path | Type::PathBuf => format!("rt::path_in({o}, s)"),
 			Type::Duration => format!("rt::duration_in({o})"),
 			Type::SocketAddr(family) => format!("rt::addr_in({o}, {})", family_of(*family)),
-			Type::List(_) => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
+			Type::List(..) => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => {
 					let m = match abi.api.objects[*i].copy || matches!(**inner, Type::Ref(..)) {
@@ -493,7 +493,7 @@ impl<'a> Gen<'a> {
 					let some = self.lift(inner, o, m);
 					format!("(if rt::is_none({o}) {{ Ok(crate::rt::Buf::NONE) }} else {{ {some} }})")
 				}
-				Type::List(_) => {
+				Type::List(..) => {
 					let some = self.lift(inner, o, m);
 					format!("(if rt::is_none({o}) {{ Ok(crate::rt::List::NONE) }} else {{ {some} }})")
 				}
@@ -544,14 +544,14 @@ impl<'a> Gen<'a> {
 			Type::Path | Type::PathBuf => format!("rt::path_out({v})"),
 			Type::Duration => format!("rt::duration_out({v})"),
 			Type::SocketAddr(_) => format!("rt::addr_out({v})"),
-			Type::List(_) => format!("w_{}({v})", self.c_struct(ty)),
+			Type::List(..) => format!("w_{}({v})", self.c_struct(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => format!(
 					"rt::object_opt({v}, {}, crate::{}_free)",
 					self.t(&abi.object(*i)),
 					abi.object(*i)
 				),
-				base if Abi::is_buf(base) || matches!(base, Type::List(_)) => {
+				base if Abi::is_buf(base) || matches!(base, Type::List(..)) => {
 					let some = self.lower(inner, "v");
 					format!("{{ let v = {v}; if v.is_none() {{ rt::none() }} else {{ {some} }} }}")
 				}

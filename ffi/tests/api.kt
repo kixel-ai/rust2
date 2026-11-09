@@ -100,6 +100,20 @@ fun script() {
 		println("ranked ${ranked.joinToString(", ") { (name, counter) -> "$name ${counter.name()} ${counter.get()}" }}")
 		ranked.forEach { it.second.close() }
 	}
+	// A map crosses as its pairs and a set as its items, which Rust collects in order, each
+	// key once, the last kept.
+	val atlas = Atlas(listOf(Pair("b", Point(1, 1)), Pair("ab", Point(2, 3)), Pair("b", Point(4, 4))), listOf(3u, 1u, 3u))
+		.with("c", Point(5, 6))
+	val atlasPoints = atlas.points.joinToString(", ") { (name, p) -> "$name ${p.x} ${p.y}" }
+	println("atlas $atlasPoints; ids ${atlas.ids.joinToString(" ")}")
+	// Another crate's error crosses as its message.
+	for (text in listOf("80", "x")) {
+		try {
+			println("port ${port(text)}")
+		} catch (e: StringException) {
+			println("port err ${e.error}")
+		}
+	}
 	val span = Span(Pair(2u, 10u), Pair("s", Shape.SQUARE))
 	val (lowerHalf, upperHalf) = halves(span)
 	println("halves ${lowerHalf.first} ${lowerHalf.second} ${upperHalf.first} ${upperHalf.second} ${span.debug()}")
@@ -372,6 +386,10 @@ fun script() {
 	println("json ${encode(doc)}")
 	println("timed text ${timedText(doc)}")
 	tagged(doc, "t").use { tagged -> println("tagged ${tagged.toText()}") }
+	// A JSON object's entries cross as pairs of a key and its document, each moved in.
+	val jsonEntries = entries(listOf(Pair("b", Json.parse("[1]")), Pair("a", Json.parse("2"))), "t")
+	println("entries ${jsonEntries.joinToString(", ") { (key, value) -> "$key ${value.toText()}" }}")
+	jsonEntries.forEach { it.second.close() }
 	try {
 		Json.parse("{\"a\":").close()
 	} catch (e: StringException) {
