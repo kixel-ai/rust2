@@ -87,6 +87,10 @@ export function from$convert_From_f64_wasm_bindgen_JsValue(n: rs.f64): rs.JsValu
 	return fromF64$wasm_bindgen_JsValue(n);
 }
 
+export function from$convert_From_u64_wasm_bindgen_JsValue(arg: rs.u64): rs.JsValue {
+	return rs.jsBigInt(arg) as rs.JsValue;
+}
+
 export function fmt$fmt_Debug_wasm_bindgen_JsValue(self: rs.JsValue, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const part = asDebugString$wasm_bindgen_JsValue(self);
 	return rs.fmtWriteFmt(f, ["JsValue(", (f: rs.Formatter) => rs.fmtPad(f, part.v), ")"]);

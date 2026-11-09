@@ -874,7 +874,8 @@ of them:
   A `Closure` is an `rs.JsClosure`, the JS function the CLI's glue makes of it: one call
   of the closure per call, its arguments converted as an import's result is and its result
   as an import's argument, an `Err` thrown. Calling it once it is dropped throws
-  wasm-bindgen's error, as does calling an `FnMut` one from within its own call, while an
+  wasm-bindgen's error once its arguments are converted, as WASM's ABI coerces them before
+  the closure's code checks, as does calling an `FnMut` one from within its own call, while an
   `Fn` one stays reentrant. A call that runs as the `Closure` drops finishes, and the
   closure drops after it, as the CLI counts its calls. `forget` and `into_js_value` keep
   it alive, and a forgotten one drops once JS collects its function, as the CLI's

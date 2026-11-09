@@ -6,7 +6,9 @@
 
 use std::cell::RefCell;
 use std::fmt::Write;
+use std::pin::Pin;
 use std::rc::Rc;
+use std::task::{Context, Poll};
 
 use js_sys::{Array, Function, Promise};
 use wasm_bindgen::closure::ScopedClosure;
@@ -55,6 +57,13 @@ fn note(log: &RefCell<Vec<String>>, line: String) {
 	log.borrow_mut().push(line);
 }
 
+/// An object whose `valueOf` counts its calls in its `n`.
+fn counted() -> JsValue {
+	Function::new_no_args("return { n: 0, valueOf() { this.n += 1; return 7; } };")
+		.call0(&JsValue::NULL)
+		.unwrap()
+}
+
 /// A value whose drop is logged, so the log shows when a closure holding it drops.
 struct Noisy(Rc<RefCell<Vec<String>>>, &'static str);
 
@@ -79,6 +88,15 @@ fn closures(out: &mut String) {
 	writeln!(out, "counter {}", called(f.call1(&JsValue::NULL, &"x".into()))).unwrap();
 	drop(counter);
 	writeln!(out, "dropped {}", called(f.call1(&JsValue::NULL, &3.into()))).unwrap();
+	// A call converts its arguments before it finds the closure dropped, as WASM's ABI
+	// coerces them before the closure's code runs: a `BigInt` can't be a `u32`, and an
+	// object's `valueOf` runs.
+	let bigint = called(f.call1(&JsValue::NULL, &JsValue::from(1u64)));
+	writeln!(out, "dropped bigint {bigint}").unwrap();
+	let counted = counted();
+	writeln!(out, "dropped object {}", called(f.call1(&JsValue::NULL, &counted))).unwrap();
+	let n = js_sys::Reflect::get(&counted, &"n".into());
+	writeln!(out, "dropped coerced {}", called(n)).unwrap();
 
 	// An `FnMut` called again while it runs throws, and a `Fn` runs again.
 	let again = Rc::new(RefCell::new(None::<Function>));
@@ -178,6 +196,8 @@ fn closures(out: &mut String) {
 		f
 	};
 	writeln!(out, "borrowed {}", called(f.call1(&JsValue::NULL, &6.into()))).unwrap();
+	let bigint = called(f.call1(&JsValue::NULL, &JsValue::from(1u64)));
+	writeln!(out, "borrowed bigint {bigint}").unwrap();
 	writeln!(out, "sum {sum}").unwrap();
 
 	// A closure an import borrows only for the call, whose arguments convert from JS.
@@ -218,12 +238,38 @@ async fn futures(out: &mut String) {
 			note(&log, format!("{name}3"));
 		});
 	}
+	spawn_local(Countdown(log.clone(), 2));
 	log.borrow_mut().push("m1".into());
 	for _ in 0..3 {
 		let _ = JsFuture::from(Promise::resolve(&JsValue::NULL)).await;
 		log.borrow_mut().push("m".into());
 	}
 	writeln!(out, "tasks {}", log.borrow().join(" ")).unwrap();
+}
+
+/// A crate's own future, which wakes itself until its count runs out, logging each poll
+/// and its drop.
+struct Countdown(Rc<RefCell<Vec<String>>>, u32);
+
+impl Future for Countdown {
+	type Output = ();
+
+	fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<()> {
+		let left = self.1;
+		self.0.borrow_mut().push(format!("c{left}"));
+		if left == 0 {
+			return Poll::Ready(());
+		}
+		self.1 -= 1;
+		cx.waker().wake_by_ref();
+		Poll::Pending
+	}
+}
+
+impl Drop for Countdown {
+	fn drop(&mut self) {
+		self.0.borrow_mut().push("c dropped".into());
+	}
 }
 
 /// What each step of an encode gave, or why it failed.

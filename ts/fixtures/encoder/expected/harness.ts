@@ -11,11 +11,12 @@ import * as VideoEncodeOptions from "./encoder.VideoEncodeOptions.ts";
 import * as VideoEncoded from "./encoder.VideoEncoded.ts";
 import * as encoder_VideoEncoder from "./encoder.VideoEncoder.ts";
 import * as encoder_VideoEncoderConfig from "./encoder.VideoEncoderConfig.ts";
+import * as Countdown from "./harness.Countdown.ts";
 import * as Noisy from "./harness.Noisy.ts";
 import { from$convert_From_js_sys_JsString_String as js_sys_from$convert_From_js_sys_JsString_String } from "./js_sys.ts";
 import { intoFuture$future_IntoFuture_js_sys_Promise, futureToPromise$harness_futures_closure0_closure0, futureToPromise$harness_futures_closure0_closure1, futureToPromise$harness_run_closure0 } from "./js_sys/futures.ts";
 import * as JsFuture from "./js_sys/futures.JsFuture.ts";
-import { from$convert_From_ref_str_wasm_bindgen_JsValue as wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue, from$convert_From_String_wasm_bindgen_JsValue as wasm_bindgen_from$convert_From_String_wasm_bindgen_JsValue, from$convert_From_i32_wasm_bindgen_JsValue as wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue, from$convert_From_u32_wasm_bindgen_JsValue as wasm_bindgen_from$convert_From_u32_wasm_bindgen_JsValue, from$convert_From_f64_wasm_bindgen_JsValue as wasm_bindgen_from$convert_From_f64_wasm_bindgen_JsValue, fmt$fmt_Debug_wasm_bindgen_JsValue as wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue } from "./wasm_bindgen.ts";
+import { from$convert_From_ref_str_wasm_bindgen_JsValue as wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue, from$convert_From_String_wasm_bindgen_JsValue as wasm_bindgen_from$convert_From_String_wasm_bindgen_JsValue, from$convert_From_i32_wasm_bindgen_JsValue as wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue, from$convert_From_u32_wasm_bindgen_JsValue as wasm_bindgen_from$convert_From_u32_wasm_bindgen_JsValue, from$convert_From_f64_wasm_bindgen_JsValue as wasm_bindgen_from$convert_From_f64_wasm_bindgen_JsValue, from$convert_From_u64_wasm_bindgen_JsValue as wasm_bindgen_from$convert_From_u64_wasm_bindgen_JsValue, fmt$fmt_Debug_wasm_bindgen_JsValue as wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue } from "./wasm_bindgen.ts";
 import { dynRef$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_Error, uncheckedInto$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_Function } from "./wasm_bindgen/cast.ts";
 import { new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_FnMut_tuple1_u32_wasm_bindgen_JsValue_harness_closures_closure1 as closure_new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_FnMut_tuple1_u32_wasm_bindgen_JsValue_harness_closures_closure1, new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_FnMut_unit_String_harness_closures_closure3 as closure_new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_FnMut_unit_String_harness_closures_closure3, new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_Fn_tuple1_i32_Result_i32_wasm_bindgen_JsValue_harness_closures_closure8 as closure_new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_Fn_tuple1_i32_Result_i32_wasm_bindgen_JsValue_harness_closures_closure8, new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_Fn_tuple1_u32_wasm_bindgen_JsValue_harness_closures_closure2 as closure_new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_Fn_tuple1_u32_wasm_bindgen_JsValue_harness_closures_closure2, new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_Fn_unit_u32_harness_closures_closure4 as closure_new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_Fn_unit_u32_harness_closures_closure4, new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_Fn_unit_u32_harness_closures_closure5 as closure_new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_Fn_unit_u32_harness_closures_closure5, wrap$wasm_bindgen_prelude_ScopedClosure_dyn_ops_FnMut_tuple1_u32_u32_dyn_ops_FnMut_tuple1_u32_u32 as closure_wrap$wasm_bindgen_prelude_ScopedClosure_dyn_ops_FnMut_tuple1_u32_u32_dyn_ops_FnMut_tuple1_u32_u32, borrowMut$wasm_bindgen_prelude_ScopedClosure_dyn_ops_FnMut_tuple1_u32_unit_harness_closures_closure9, once$wasm_bindgen_prelude_ScopedClosure_dyn_ops_FnMut_tuple1_String_String_harness_closures_closure6_String_String, onceIntoJs$wasm_bindgen_prelude_ScopedClosure_dyn_ops_FnMut_tuple1_f64_f64_harness_closures_closure7_f64_f64 } from "./wasm_bindgen/closure.ts";
 import { new_$web_sys_VideoFrameBufferInit as gen_VideoFrameBufferInit_new_$web_sys_VideoFrameBufferInit } from "./web_sys/features/gen_VideoFrameBufferInit.ts";
@@ -157,6 +158,13 @@ export function note(log: rs.RefCell<rs.Vec<rs.String>>, line: rs.String): void 
 	rs.refMutRelease(_6);
 }
 
+/** An object whose `valueOf` counts its calls in its `n`. */
+export function counted(): rs.JsValue {
+	const _3: rs.JsValue = new (rs.jsGlobal("Function"))("return { n: 0, valueOf() { this.n += 1; return 7; } };") as rs.JsValue;
+	const _6: rs.JsValue = null;
+	return rs.resultUnwrap(rs.jsCatch(() => rs.jsAny(_3).call(_6), (item: unknown) => item as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>, (value: rs.JsValue, f: rs.Formatter) => wasm_bindgen_fmt$fmt_Debug_wasm_bindgen_JsValue(value, f));
+}
+
 export function closures(out: rs.String): void {
 	const log: rs.Arc<rs.RefCell<rs.Vec<rs.String>>> = new rs.Arc(new rs.RefCell(new rs.Vec()));
 	let captured: rs.u32 = 0;
@@ -182,6 +190,17 @@ export function closures(out: rs.String): void {
 	const _72: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(3);
 	const part4 = called(rs.jsCatch(() => rs.jsAny(f).call(_70, _72), (item4: unknown) => item4 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
 	rs.resultUnwrap(rs.fmtWriteString(out, ["dropped ", (f: rs.Formatter) => rs.fmtPad(f, part4.v), "\n"]), rs.fmtErrorDebug);
+	const _81: rs.JsValue = null;
+	const _83: rs.JsValue = wasm_bindgen_from$convert_From_u64_wasm_bindgen_JsValue(1);
+	const part5 = called(rs.jsCatch(() => rs.jsAny(f).call(_81, _83), (item5: unknown) => item5 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["dropped bigint ", (f: rs.Formatter) => rs.fmtPad(f, part5.v), "\n"]), rs.fmtErrorDebug);
+	const counted_: rs.JsValue = counted();
+	const _103: rs.JsValue = null;
+	const part6 = called(rs.jsCatch(() => rs.jsAny(f).call(_103, counted_), (item6: unknown) => item6 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["dropped object ", (f: rs.Formatter) => rs.fmtPad(f, part6.v), "\n"]), rs.fmtErrorDebug);
+	const _112: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("n");
+	const part7 = called(rs.jsCatch(() => rs.jsGlobal("Reflect").get(counted_, _112), (item7: unknown) => item7 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["dropped coerced ", (f: rs.Formatter) => rs.fmtPad(f, part7.v), "\n"]), rs.fmtErrorDebug);
 	const again: rs.Arc<rs.RefCell<rs.JsValue | rs.None>> = new rs.Arc(new rs.RefCell(rs.None as rs.JsValue | rs.None));
 	const captured2 = rs.arcClone(again);
 	const reentrant: rs.JsClosure = closure_new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_FnMut_tuple1_u32_wasm_bindgen_JsValue_harness_closures_closure1(rs.closure((x2: rs.u32): rs.JsValue => {
@@ -191,22 +210,22 @@ export function closures(out: rs.String): void {
 		const _10: rs.RefCell<rs.JsValue | rs.None> = rs.refCellBorrow(captured2.value);
 		const _65: rs.JsValue = rs.optionUnwrap(_10.value, rs.None);
 		const _142: rs.JsValue = null;
-		const _166: rs.JsValue = wasm_bindgen_from$convert_From_u32_wasm_bindgen_JsValue(rs.u32Sub(x2, 1));
-		const _02: rs.JsValue = wasm_bindgen_from$convert_From_String_wasm_bindgen_JsValue(called(rs.jsCatch(() => rs.jsAny(_65).call(_142, _166), (item5: unknown) => item5 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>));
+		const _163: rs.JsValue = wasm_bindgen_from$convert_From_u32_wasm_bindgen_JsValue(rs.u32Sub(x2, 1));
+		const _02: rs.JsValue = wasm_bindgen_from$convert_From_String_wasm_bindgen_JsValue(called(rs.jsCatch(() => rs.jsAny(_65).call(_142, _163), (item8: unknown) => item8 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>));
 		rs.refRelease(_10);
 		return _02;
 	}, (): void => {
 		captured2[Symbol.dispose]();
 	}));
-	const _84: rs.JsValue | rs.None = function_$dyn_ops_FnMut_tuple1_u32_wasm_bindgen_JsValue(reentrant);
-	const _89: rs.RefCell<rs.JsValue | rs.None> = rs.refCellBorrowMut(again.value);
-	_89.value = _84;
-	rs.refMutRelease(_89);
-	const _100: rs.JsValue = function_$dyn_ops_FnMut_tuple1_u32_wasm_bindgen_JsValue(reentrant);
-	const _103: rs.JsValue = null;
-	const _105: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(1);
-	const part5 = called(rs.jsCatch(() => rs.jsAny(_100).call(_103, _105), (item6: unknown) => item6 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["fn mut ", (f: rs.Formatter) => rs.fmtPad(f, part5.v), "\n"]), rs.fmtErrorDebug);
+	const _131: rs.JsValue | rs.None = function_$dyn_ops_FnMut_tuple1_u32_wasm_bindgen_JsValue(reentrant);
+	const _136: rs.RefCell<rs.JsValue | rs.None> = rs.refCellBorrowMut(again.value);
+	_136.value = _131;
+	rs.refMutRelease(_136);
+	const _147: rs.JsValue = function_$dyn_ops_FnMut_tuple1_u32_wasm_bindgen_JsValue(reentrant);
+	const _150: rs.JsValue = null;
+	const _152: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(1);
+	const part8 = called(rs.jsCatch(() => rs.jsAny(_147).call(_150, _152), (item9: unknown) => item9 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["fn mut ", (f: rs.Formatter) => rs.fmtPad(f, part8.v), "\n"]), rs.fmtErrorDebug);
 	const captured3 = rs.arcClone(again);
 	const shared: rs.JsClosure = closure_new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_Fn_tuple1_u32_wasm_bindgen_JsValue_harness_closures_closure2(rs.closure((x3: rs.u32): rs.JsValue => {
 		if (x3 === 0) {
@@ -214,79 +233,79 @@ export function closures(out: rs.String): void {
 		}
 		const _102: rs.RefCell<rs.JsValue | rs.None> = rs.refCellBorrow(captured3.value);
 		const _68: rs.JsValue = rs.optionUnwrap(_102.value, rs.None);
-		const _145: rs.JsValue = null;
-		const _169: rs.JsValue = wasm_bindgen_from$convert_From_u32_wasm_bindgen_JsValue(rs.u32Sub(x3, 1));
-		const _03: rs.JsValue = wasm_bindgen_from$convert_From_String_wasm_bindgen_JsValue(called(rs.jsCatch(() => rs.jsAny(_68).call(_145, _169), (item7: unknown) => item7 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>));
+		const _143: rs.JsValue = null;
+		const _165: rs.JsValue = wasm_bindgen_from$convert_From_u32_wasm_bindgen_JsValue(rs.u32Sub(x3, 1));
+		const _03: rs.JsValue = wasm_bindgen_from$convert_From_String_wasm_bindgen_JsValue(called(rs.jsCatch(() => rs.jsAny(_68).call(_143, _165), (item10: unknown) => item10 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>));
 		rs.refRelease(_102);
 		return _03;
 	}, (): void => {
 		captured3[Symbol.dispose]();
 	}));
-	const _114: rs.JsValue | rs.None = function_$dyn_ops_Fn_tuple1_u32_wasm_bindgen_JsValue(shared);
-	const _119: rs.RefCell<rs.JsValue | rs.None> = rs.refCellBorrowMut(again.value);
-	_119.value = _114;
-	rs.refMutRelease(_119);
-	const _130: rs.JsValue = function_$dyn_ops_Fn_tuple1_u32_wasm_bindgen_JsValue(shared);
-	const _133: rs.JsValue = null;
-	const _135: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(2);
-	const part6 = called(rs.jsCatch(() => rs.jsAny(_130).call(_133, _135), (item8: unknown) => item8 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["fn ", (f: rs.Formatter) => rs.fmtPad(f, part6.v), "\n"]), rs.fmtErrorDebug);
-	const _143: rs.RefCell<rs.JsValue | rs.None> = rs.refCellBorrowMut(again.value);
-	_143.value = rs.None;
-	rs.refMutRelease(_143);
+	const _161: rs.JsValue | rs.None = function_$dyn_ops_Fn_tuple1_u32_wasm_bindgen_JsValue(shared);
+	const _166: rs.RefCell<rs.JsValue | rs.None> = rs.refCellBorrowMut(again.value);
+	_166.value = _161;
+	rs.refMutRelease(_166);
+	const _177: rs.JsValue = function_$dyn_ops_Fn_tuple1_u32_wasm_bindgen_JsValue(shared);
+	const _180: rs.JsValue = null;
+	const _182: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(2);
+	const part9 = called(rs.jsCatch(() => rs.jsAny(_177).call(_180, _182), (item11: unknown) => item11 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["fn ", (f: rs.Formatter) => rs.fmtPad(f, part9.v), "\n"]), rs.fmtErrorDebug);
+	const _190: rs.RefCell<rs.JsValue | rs.None> = rs.refCellBorrowMut(again.value);
+	_190.value = rs.None;
+	rs.refMutRelease(_190);
 	lib_drop$tuple2_wasm_bindgen_prelude_ScopedClosure_dyn_ops_FnMut_tuple1_u32_wasm_bindgen_JsValue_wasm_bindgen_prelude_ScopedClosure_dyn_ops_Fn_tuple1_u32_wasm_bindgen_JsValue([reentrant, shared] as [rs.JsClosure, rs.JsClosure]);
 	const held: rs.Arc<rs.RefCell<rs.JsClosure | undefined>> = new rs.Arc(new rs.RefCell(undefined as rs.JsClosure | undefined));
-	const _154: [rs.Arc<rs.RefCell<rs.JsClosure | undefined>>, Noisy.Noisy, rs.Arc<rs.RefCell<rs.Vec<rs.String>>>] = [rs.arcClone(held), new Noisy.Noisy(rs.arcClone(log), "self"), rs.arcClone(log)];
-	const inner3: rs.Arc<rs.RefCell<rs.JsClosure | undefined>> = _154[0];
-	const noisy: Noisy.Noisy = _154[1];
-	const logged: rs.Arc<rs.RefCell<rs.Vec<rs.String>>> = _154[2];
+	const _201: [rs.Arc<rs.RefCell<rs.JsClosure | undefined>>, Noisy.Noisy, rs.Arc<rs.RefCell<rs.Vec<rs.String>>>] = [rs.arcClone(held), new Noisy.Noisy(rs.arcClone(log), "self"), rs.arcClone(log)];
+	const inner3: rs.Arc<rs.RefCell<rs.JsClosure | undefined>> = _201[0];
+	const noisy: Noisy.Noisy = _201[1];
+	const logged: rs.Arc<rs.RefCell<rs.Vec<rs.String>>> = _201[2];
 	const captured4 = noisy;
 	const captured5 = inner3;
 	const captured6 = logged;
-	const _162: rs.JsClosure | undefined = closure_new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_FnMut_unit_String_harness_closures_closure3(rs.closure((): rs.String => {
+	const _209: rs.JsClosure | undefined = closure_new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_FnMut_unit_String_harness_closures_closure3(rs.closure((): rs.String => {
 		const _69: rs.RefCell<rs.JsClosure | undefined> = rs.refCellBorrowMut(captured5.value);
 		const taken = _69.value;
 		_69.value = undefined;
 		rs.drop(taken);
 		rs.refMutRelease(_69);
-		const _122: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(captured6.value);
-		const _152: rs.String = rs.stringFrom("taken");
-		_122.value.items.push(_152);
-		rs.refMutRelease(_122);
+		const _124: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(captured6.value);
+		const _153: rs.String = rs.stringFrom("taken");
+		_124.value.items.push(_153);
+		rs.refMutRelease(_124);
 		return rs.stringFrom("returned");
 	}, (): void => {
 		captured4[Symbol.dispose]();
 		captured5[Symbol.dispose]();
 		captured6[Symbol.dispose]();
 	}));
-	const _167: rs.RefCell<rs.JsClosure | undefined> = rs.refCellBorrowMut(held.value);
-	rs.drop(_167.value);
-	_167.value = _162;
-	rs.refMutRelease(_167);
-	const _175: rs.RefCell<rs.JsClosure | undefined> = rs.refCellBorrow(held.value);
-	const f2: rs.JsValue = function_$dyn_ops_FnMut_unit_String(rs.optionUnwrap(_175.value));
-	rs.refRelease(_175);
-	const _185: rs.JsValue = null;
-	note(log.value, called(rs.jsCatch(() => rs.jsAny(f2).call(_185), (item9: unknown) => item9 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>));
-	const _193: rs.JsValue = null;
-	note(log.value, called(rs.jsCatch(() => rs.jsAny(f2).call(_193), (item10: unknown) => item10 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>));
+	const _214: rs.RefCell<rs.JsClosure | undefined> = rs.refCellBorrowMut(held.value);
+	rs.drop(_214.value);
+	_214.value = _209;
+	rs.refMutRelease(_214);
+	const _222: rs.RefCell<rs.JsClosure | undefined> = rs.refCellBorrow(held.value);
+	const f2: rs.JsValue = function_$dyn_ops_FnMut_unit_String(rs.optionUnwrap(_222.value));
+	rs.refRelease(_222);
+	const _232: rs.JsValue = null;
+	note(log.value, called(rs.jsCatch(() => rs.jsAny(f2).call(_232), (item12: unknown) => item12 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>));
+	const _240: rs.JsValue = null;
+	note(log.value, called(rs.jsCatch(() => rs.jsAny(f2).call(_240), (item13: unknown) => item13 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>));
 	const noisy2: Noisy.Noisy = new Noisy.Noisy(rs.arcClone(log), "forgotten");
 	const f3: rs.JsValue = function_$dyn_ops_Fn_unit_u32(closure_new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_Fn_unit_u32_harness_closures_closure4((): rs.u32 => {
 		return rs.stringLen(noisy2._1) as rs.u32;
 	}));
 	undefined;
-	const _214: rs.JsValue = null;
-	const _203: rs.RefCell<rs.Vec<rs.String>> = log.value;
-	const part7 = called(rs.jsCatch(() => rs.jsAny(f3).call(_214), (item11: unknown) => item11 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
-	note(_203, rs.fmtFormat(["forgotten ", (f: rs.Formatter) => rs.fmtPad(f, part7.v)]));
+	const _261: rs.JsValue = null;
+	const _250: rs.RefCell<rs.Vec<rs.String>> = log.value;
+	const part10 = called(rs.jsCatch(() => rs.jsAny(f3).call(_261), (item14: unknown) => item14 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
+	note(_250, rs.fmtFormat(["forgotten ", (f: rs.Formatter) => rs.fmtPad(f, part10.v)]));
 	const noisy3: Noisy.Noisy = new Noisy.Noisy(rs.arcClone(log), "leaked");
 	const f4: rs.JsValue = uncheckedInto$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_Function(closure_new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_Fn_unit_u32_harness_closures_closure5((): rs.u32 => {
 		return rs.stringLen(noisy3._1) as rs.u32;
 	}));
-	const _238: rs.JsValue = null;
-	const _227: rs.RefCell<rs.Vec<rs.String>> = log.value;
-	const part8 = called(rs.jsCatch(() => rs.jsAny(f4).call(_238), (item12: unknown) => item12 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
-	note(_227, rs.fmtFormat(["leaked ", (f: rs.Formatter) => rs.fmtPad(f, part8.v)]));
+	const _285: rs.JsValue = null;
+	const _274: rs.RefCell<rs.Vec<rs.String>> = log.value;
+	const part11 = called(rs.jsCatch(() => rs.jsAny(f4).call(_285), (item15: unknown) => item15 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
+	note(_274, rs.fmtFormat(["leaked ", (f: rs.Formatter) => rs.fmtPad(f, part11.v)]));
 	const captured7 = new Noisy.Noisy(rs.arcClone(log), "once");
 	const once: rs.JsClosure = once$wasm_bindgen_prelude_ScopedClosure_dyn_ops_FnMut_tuple1_String_String_harness_closures_closure6_String_String(rs.closure((s: rs.String): rs.String => {
 		return rs.fmtFormat([(f: rs.Formatter) => rs.fmtPad(f, s.v), "!"]);
@@ -294,16 +313,16 @@ export function closures(out: rs.String): void {
 		captured7[Symbol.dispose]();
 	}));
 	const f5: rs.JsValue = function_$dyn_ops_FnMut_tuple1_String_String(once);
-	const _262: rs.JsValue = null;
-	const _264: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("a");
-	const _251: rs.RefCell<rs.Vec<rs.String>> = log.value;
-	const part9 = called(rs.jsCatch(() => rs.jsAny(f5).call(_262, _264), (item13: unknown) => item13 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
-	note(_251, rs.fmtFormat(["once ", (f: rs.Formatter) => rs.fmtPad(f, part9.v)]));
-	const _282: rs.JsValue = null;
-	const _284: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("b");
-	const _271: rs.RefCell<rs.Vec<rs.String>> = log.value;
-	const part10 = called(rs.jsCatch(() => rs.jsAny(f5).call(_282, _284), (item14: unknown) => item14 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
-	note(_271, rs.fmtFormat(["once ", (f: rs.Formatter) => rs.fmtPad(f, part10.v)]));
+	const _309: rs.JsValue = null;
+	const _311: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("a");
+	const _298: rs.RefCell<rs.Vec<rs.String>> = log.value;
+	const part12 = called(rs.jsCatch(() => rs.jsAny(f5).call(_309, _311), (item16: unknown) => item16 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
+	note(_298, rs.fmtFormat(["once ", (f: rs.Formatter) => rs.fmtPad(f, part12.v)]));
+	const _329: rs.JsValue = null;
+	const _331: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("b");
+	const _318: rs.RefCell<rs.Vec<rs.String>> = log.value;
+	const part13 = called(rs.jsCatch(() => rs.jsAny(f5).call(_329, _331), (item17: unknown) => item17 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
+	note(_318, rs.fmtFormat(["once ", (f: rs.Formatter) => rs.fmtPad(f, part13.v)]));
 	once[Symbol.dispose]();
 	const captured8 = new Noisy.Noisy(rs.arcClone(log), "once_into_js");
 	const f6: rs.JsValue = uncheckedInto$wasm_bindgen_JsCast_wasm_bindgen_JsValue_js_sys_Function(onceIntoJs$wasm_bindgen_prelude_ScopedClosure_dyn_ops_FnMut_tuple1_f64_f64_harness_closures_closure7_f64_f64(rs.closure((x4: rs.f64): rs.f64 => {
@@ -311,16 +330,16 @@ export function closures(out: rs.String): void {
 	}, (): void => {
 		captured8[Symbol.dispose]();
 	})));
-	const _309: rs.JsValue = null;
-	const _311: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(5);
-	const _298: rs.RefCell<rs.Vec<rs.String>> = log.value;
-	const part11 = called(rs.jsCatch(() => rs.jsAny(f6).call(_309, _311), (item15: unknown) => item15 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
-	note(_298, rs.fmtFormat(["once_into_js ", (f: rs.Formatter) => rs.fmtPad(f, part11.v)]));
-	const _328: rs.JsValue = null;
-	const _330: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(5);
-	const _317: rs.RefCell<rs.Vec<rs.String>> = log.value;
-	const part12 = called(rs.jsCatch(() => rs.jsAny(f6).call(_328, _330), (item16: unknown) => item16 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
-	note(_317, rs.fmtFormat(["once_into_js ", (f: rs.Formatter) => rs.fmtPad(f, part12.v)]));
+	const _356: rs.JsValue = null;
+	const _358: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(5);
+	const _345: rs.RefCell<rs.Vec<rs.String>> = log.value;
+	const part14 = called(rs.jsCatch(() => rs.jsAny(f6).call(_356, _358), (item18: unknown) => item18 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
+	note(_345, rs.fmtFormat(["once_into_js ", (f: rs.Formatter) => rs.fmtPad(f, part14.v)]));
+	const _375: rs.JsValue = null;
+	const _377: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(5);
+	const _364: rs.RefCell<rs.Vec<rs.String>> = log.value;
+	const part15 = called(rs.jsCatch(() => rs.jsAny(f6).call(_375, _377), (item19: unknown) => item19 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
+	note(_364, rs.fmtFormat(["once_into_js ", (f: rs.Formatter) => rs.fmtPad(f, part15.v)]));
 	const fallible: rs.JsClosure = closure_new_$wasm_bindgen_prelude_ScopedClosure_dyn_ops_Fn_tuple1_i32_Result_i32_wasm_bindgen_JsValue_harness_closures_closure8((x5: rs.i32): rs.Result<rs.i32, rs.JsValue> => {
 		if (x5 === 0) {
 			return rs.Err(new (rs.jsGlobal("Error"))("zero") as rs.JsValue);
@@ -328,52 +347,56 @@ export function closures(out: rs.String): void {
 		return rs.Ok(rs.i32Div(100, x5));
 	});
 	const f7: rs.JsValue = function_$dyn_ops_Fn_tuple1_i32_Result_i32_wasm_bindgen_JsValue(fallible);
-	const _347: rs.JsValue = null;
-	const _349: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(4);
-	const part13 = called(rs.jsCatch(() => rs.jsAny(f7).call(_347, _349), (item17: unknown) => item17 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["fallible ", (f: rs.Formatter) => rs.fmtPad(f, part13.v), "\n"]), rs.fmtErrorDebug);
-	const _363: rs.JsValue = null;
-	const _365: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(0);
-	const part14 = called(rs.jsCatch(() => rs.jsAny(f7).call(_363, _365), (item18: unknown) => item18 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["fallible ", (f: rs.Formatter) => rs.fmtPad(f, part14.v), "\n"]), rs.fmtErrorDebug);
+	const _394: rs.JsValue = null;
+	const _396: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(4);
+	const part16 = called(rs.jsCatch(() => rs.jsAny(f7).call(_394, _396), (item20: unknown) => item20 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["fallible ", (f: rs.Formatter) => rs.fmtPad(f, part16.v), "\n"]), rs.fmtErrorDebug);
+	const _410: rs.JsValue = null;
+	const _412: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(0);
+	const part17 = called(rs.jsCatch(() => rs.jsAny(f7).call(_410, _412), (item21: unknown) => item21 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["fallible ", (f: rs.Formatter) => rs.fmtPad(f, part17.v), "\n"]), rs.fmtErrorDebug);
 	fallible[Symbol.dispose]();
 	let sum: rs.u32 = 0;
 	const scoped: rs.JsClosure = borrowMut$wasm_bindgen_prelude_ScopedClosure_dyn_ops_FnMut_tuple1_u32_unit_harness_closures_closure9((x6: rs.u32): undefined => {
 		sum = rs.u32Add(sum, x6);
 	});
 	const f9: rs.JsValue = function_$dyn_ops_FnMut_tuple1_u32_unit(scoped);
-	const _388: rs.JsValue = null;
-	const _390: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(5);
-	const part15 = called(rs.jsCatch(() => rs.jsAny(f9).call(_388, _390), (item19: unknown) => item19 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["borrowed ", (f: rs.Formatter) => rs.fmtPad(f, part15.v), "\n"]), rs.fmtErrorDebug);
+	const _435: rs.JsValue = null;
+	const _437: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(5);
+	const part18 = called(rs.jsCatch(() => rs.jsAny(f9).call(_435, _437), (item22: unknown) => item22 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["borrowed ", (f: rs.Formatter) => rs.fmtPad(f, part18.v), "\n"]), rs.fmtErrorDebug);
 	const f8: rs.JsValue = f9;
 	scoped[Symbol.dispose]();
-	const _404: rs.JsValue = null;
-	const _406: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(6);
-	const part16 = called(rs.jsCatch(() => rs.jsAny(f8).call(_404, _406), (item20: unknown) => item20 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
-	rs.resultUnwrap(rs.fmtWriteString(out, ["borrowed ", (f: rs.Formatter) => rs.fmtPad(f, part16.v), "\n"]), rs.fmtErrorDebug);
+	const _451: rs.JsValue = null;
+	const _453: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(6);
+	const part19 = called(rs.jsCatch(() => rs.jsAny(f8).call(_451, _453), (item23: unknown) => item23 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["borrowed ", (f: rs.Formatter) => rs.fmtPad(f, part19.v), "\n"]), rs.fmtErrorDebug);
+	const _462: rs.JsValue = null;
+	const _464: rs.JsValue = wasm_bindgen_from$convert_From_u64_wasm_bindgen_JsValue(1);
+	const part20 = called(rs.jsCatch(() => rs.jsAny(f8).call(_462, _464), (item24: unknown) => item24 as rs.JsValue, false) as rs.Result<rs.JsValue, rs.JsValue>);
+	rs.resultUnwrap(rs.fmtWriteString(out, ["borrowed bigint ", (f: rs.Formatter) => rs.fmtPad(f, part20.v), "\n"]), rs.fmtErrorDebug);
 	rs.resultUnwrap(rs.fmtWriteString(out, ["sum ", (f: rs.Formatter) => rs.u32Display(sum, f), "\n"]), rs.fmtErrorDebug);
-	const _422: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(1);
-	const _424: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("two");
-	const _427: rs.JsValue = wasm_bindgen_from$convert_From_f64_wasm_bindgen_JsValue(3.5);
-	const items: rs.JsValue = rs.jsGlobal("Array").of(_422, _424, _427) as rs.JsValue;
+	const _485: rs.JsValue = wasm_bindgen_from$convert_From_i32_wasm_bindgen_JsValue(1);
+	const _487: rs.JsValue = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("two");
+	const _490: rs.JsValue = wasm_bindgen_from$convert_From_f64_wasm_bindgen_JsValue(3.5);
+	const items: rs.JsValue = rs.jsGlobal("Array").of(_485, _487, _490) as rs.JsValue;
 	const seen: rs.Vec<rs.String> = new rs.Vec();
 	const closure = rs.jsClosureRef((v: rs.JsValue, i: rs.u32, all: rs.JsValue): undefined => {
-		const _1011: rs.String = text(v);
-		const _134: rs.u32 = rs.jsToU32(rs.jsAny(all).length);
-		const args61 = [(f: rs.Formatter) => rs.u32Display(i, f), (f: rs.Formatter) => rs.fmtPad(f, _1011.v), (f: rs.Formatter) => rs.u32Display(_134, f)];
-		const _511: rs.String = rs.fmtFormat([args61[0], ":", args61[1], "/", args61[2]]);
-		seen.items.push(_511);
-	}, true, (f10: (a0: rs.JsValue, a1: rs.u32, a2: rs.JsValue) => undefined, args62: unknown[]) => f10(args62[0] as rs.JsValue, rs.jsToU32(args62[1]), args62[2] as rs.JsValue));
+		const _1010: rs.String = text(v);
+		const _135: rs.u32 = rs.jsToU32(rs.jsAny(all).length);
+		const args73 = [(f: rs.Formatter) => rs.u32Display(i, f), (f: rs.Formatter) => rs.fmtPad(f, _1010.v), (f: rs.Formatter) => rs.u32Display(_135, f)];
+		const _518: rs.String = rs.fmtFormat([args73[0], ":", args73[1], "/", args73[2]]);
+		seen.items.push(_518);
+	}, true, (f10: (a0: rs.JsValue, a1: rs.u32, a2: rs.JsValue) => undefined, args74: unknown[]) => f10(args74[0] as rs.JsValue, rs.jsToU32(args74[1]), args74[2] as rs.JsValue));
 	rs.jsLending([closure], () => rs.jsAny(items).forEach(closure));
 	undefined;
-	const part17 = rs.strsJoin(seen.items, " ");
-	rs.resultUnwrap(rs.fmtWriteString(out, ["for_each ", (f: rs.Formatter) => rs.fmtPad(f, part17.v), "\n"]), rs.fmtErrorDebug);
-	const _453: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrow(log.value);
-	for (const _457 of _453.value.items) {
-		rs.resultUnwrap(rs.fmtWriteString(out, ["log ", (f: rs.Formatter) => rs.fmtPad(f, _457.v), "\n"]), rs.fmtErrorDebug);
+	const part21 = rs.strsJoin(seen.items, " ");
+	rs.resultUnwrap(rs.fmtWriteString(out, ["for_each ", (f: rs.Formatter) => rs.fmtPad(f, part21.v), "\n"]), rs.fmtErrorDebug);
+	const _516: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrow(log.value);
+	for (const _520 of _516.value.items) {
+		rs.resultUnwrap(rs.fmtWriteString(out, ["log ", (f: rs.Formatter) => rs.fmtPad(f, _520.v), "\n"]), rs.fmtErrorDebug);
 	}
-	rs.refRelease(_453);
+	rs.refRelease(_516);
 	noisy3[Symbol.dispose]();
 	noisy2[Symbol.dispose]();
 	held[Symbol.dispose]();
@@ -447,7 +470,7 @@ export class futuresFuture {
 							bb0 = 71;
 							continue;
 						}
-						bb0 = 108;
+						bb0 = 110;
 						continue;
 					}
 				case 5:
@@ -455,9 +478,9 @@ export class futuresFuture {
 					if (_7 !== rs.Pending) {
 						const resolved: rs.Result<rs.JsValue, rs.JsValue> = _7;
 						lib_drop$wasm_bindgen_futures_JsFuture(this.#awaitee);
-						const _187: rs.String = this.#out;
+						const _191: rs.String = this.#out;
 						const part = called(resolved);
-						rs.resultUnwrap(rs.fmtWriteString(_187, ["resolved ", (f: rs.Formatter) => rs.fmtPad(f, part.v), "\n"]), rs.fmtErrorDebug);
+						rs.resultUnwrap(rs.fmtWriteString(_191, ["resolved ", (f: rs.Formatter) => rs.fmtPad(f, part.v), "\n"]), rs.fmtErrorDebug);
 						this.#saved = new (rs.jsGlobal("Error"))("no") as rs.JsValue;
 						this.#awaitee = JsFuture.from$convert_From_js_sys_Promise_wasm_bindgen_JsValue(rs.jsGlobal("Promise").reject(this.#saved) as rs.JsValue);
 						bb0 = 24;
@@ -470,9 +493,9 @@ export class futuresFuture {
 					if (_31 !== rs.Pending) {
 						const rejected: rs.Result<rs.JsValue, rs.JsValue> = _31;
 						lib_drop$wasm_bindgen_futures_JsFuture(this.#awaitee);
-						const _188: rs.String = this.#out;
+						const _192: rs.String = this.#out;
 						const part2 = called(rejected);
-						rs.resultUnwrap(rs.fmtWriteString(_188, ["rejected ", (f: rs.Formatter) => rs.fmtPad(f, part2.v), "\n"]), rs.fmtErrorDebug);
+						rs.resultUnwrap(rs.fmtWriteString(_192, ["rejected ", (f: rs.Formatter) => rs.fmtPad(f, part2.v), "\n"]), rs.fmtErrorDebug);
 						this.#saved = wasm_bindgen_from$convert_From_ref_str_wasm_bindgen_JsValue("into");
 						this.#awaitee = intoFuture$future_IntoFuture_js_sys_Promise(rs.jsGlobal("Promise").resolve(this.#saved) as rs.JsValue);
 						bb0 = 40;
@@ -485,9 +508,9 @@ export class futuresFuture {
 					if (_52 !== rs.Pending) {
 						const awaited: rs.Result<rs.JsValue, rs.JsValue> = _52;
 						lib_drop$wasm_bindgen_futures_JsFuture(this.#awaitee);
-						const _189: rs.String = this.#out;
+						const _193: rs.String = this.#out;
 						const part3 = called(awaited);
-						rs.resultUnwrap(rs.fmtWriteString(_189, ["awaited ", (f: rs.Formatter) => rs.fmtPad(f, part3.v), "\n"]), rs.fmtErrorDebug);
+						rs.resultUnwrap(rs.fmtWriteString(_193, ["awaited ", (f: rs.Formatter) => rs.fmtPad(f, part3.v), "\n"]), rs.fmtErrorDebug);
 						this.#awaitee = JsFuture.from$convert_From_js_sys_Promise_wasm_bindgen_JsValue(futureToPromise$harness_futures_closure0_closure0(new futuresFuture$closure0()));
 						bb0 = 56;
 						continue;
@@ -499,9 +522,9 @@ export class futuresFuture {
 					if (_74 !== rs.Pending) {
 						const ok: rs.Result<rs.JsValue, rs.JsValue> = _74;
 						lib_drop$wasm_bindgen_futures_JsFuture(this.#awaitee);
-						const _190: rs.String = this.#out;
+						const _194: rs.String = this.#out;
 						const part4 = called(ok);
-						rs.resultUnwrap(rs.fmtWriteString(_190, ["future ok ", (f: rs.Formatter) => rs.fmtPad(f, part4.v), "\n"]), rs.fmtErrorDebug);
+						rs.resultUnwrap(rs.fmtWriteString(_194, ["future ok ", (f: rs.Formatter) => rs.fmtPad(f, part4.v), "\n"]), rs.fmtErrorDebug);
 						this.#awaitee = JsFuture.from$convert_From_js_sys_Promise_wasm_bindgen_JsValue(futureToPromise$harness_futures_closure0_closure1(new futuresFuture$closure1()));
 						bb0 = 71;
 						continue;
@@ -513,9 +536,9 @@ export class futuresFuture {
 					if (_96 !== rs.Pending) {
 						const err: rs.Result<rs.JsValue, rs.JsValue> = _96;
 						lib_drop$wasm_bindgen_futures_JsFuture(this.#awaitee);
-						const _191: rs.String = this.#out;
+						const _195: rs.String = this.#out;
 						const part5 = called(err);
-						rs.resultUnwrap(rs.fmtWriteString(_191, ["future err ", (f: rs.Formatter) => rs.fmtPad(f, part5.v), "\n"]), rs.fmtErrorDebug);
+						rs.resultUnwrap(rs.fmtWriteString(_195, ["future err ", (f: rs.Formatter) => rs.fmtPad(f, part5.v), "\n"]), rs.fmtErrorDebug);
 						this.#log = new rs.Arc(new rs.RefCell(new rs.Vec()));
 						iter = rs.iterSlice(["a", "b"]);
 						bb0 = 87;
@@ -526,44 +549,45 @@ export class futuresFuture {
 				case 87:
 					const _120: string | rs.Done = iter.next();
 					if (_120 === rs.DONE) {
-						const _131: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(this.#log.value);
-						const _134: rs.String = rs.stringFrom("m1");
-						_131.value.items.push(_134);
-						rs.refMutRelease(_131);
+						rs.jsSpawnLocal(new rs.DynFuture(new Countdown.Countdown(rs.arcClone(this.#log), 2), Countdown.poll$Future, rs.drop));
+						const _135: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(this.#log.value);
+						const _138: rs.String = rs.stringFrom("m1");
+						_135.value.items.push(_138);
+						rs.refMutRelease(_135);
 						this.#iter = new rs.Range(0, 3);
-						bb0 = 101;
+						bb0 = 103;
 						continue;
 					}
 					rs.jsSpawnLocal(new futuresFuture$closure2(rs.arcClone(this.#log), _120));
 					bb0 = 87;
 					continue;
-				case 101:
-					const _138Some: boolean = this.#iter.start < this.#iter.end;
-					if (_138Some) {
+				case 103:
+					const _142Some: boolean = this.#iter.start < this.#iter.end;
+					if (_142Some) {
 						this.#iter.start++;
 					}
-					if (!_138Some) {
-						const _192: rs.String = this.#out;
-						const _171: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrow(this.#log.value);
-						const part6 = rs.strsJoin(_171.value.items, " ");
-						rs.resultUnwrap(rs.fmtWriteString(_192, ["tasks ", (f: rs.Formatter) => rs.fmtPad(f, part6.v), "\n"]), rs.fmtErrorDebug);
-						rs.refRelease(_171);
+					if (!_142Some) {
+						const _196: rs.String = this.#out;
+						const _175: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrow(this.#log.value);
+						const part6 = rs.strsJoin(_175.value.items, " ");
+						rs.resultUnwrap(rs.fmtWriteString(_196, ["tasks ", (f: rs.Formatter) => rs.fmtPad(f, part6.v), "\n"]), rs.fmtErrorDebug);
+						rs.refRelease(_175);
 						this.#log[Symbol.dispose]();
 						this.#state = 1;
 						return undefined;
 					}
 					this.#saved = null;
 					this.#awaitee = JsFuture.from$convert_From_js_sys_Promise_wasm_bindgen_JsValue(rs.jsGlobal("Promise").resolve(this.#saved) as rs.JsValue);
-					bb0 = 108;
+					bb0 = 110;
 					continue;
-				case 108:
+				case 110:
 					if (JsFuture.poll$Future_wasm_bindgen_JsValue(this.#awaitee, _2) !== rs.Pending) {
 						lib_drop$wasm_bindgen_futures_JsFuture(this.#awaitee);
-						const _157: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(this.#log.value);
-						const _160: rs.String = rs.stringFrom("m");
-						_157.value.items.push(_160);
-						rs.refMutRelease(_157);
-						bb0 = 101;
+						const _161: rs.RefCell<rs.Vec<rs.String>> = rs.refCellBorrowMut(this.#log.value);
+						const _164: rs.String = rs.stringFrom("m");
+						_161.value.items.push(_164);
+						rs.refMutRelease(_161);
+						bb0 = 103;
 						continue;
 					}
 					this.#state = 8;

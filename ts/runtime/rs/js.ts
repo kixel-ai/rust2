@@ -340,6 +340,17 @@ export type JsClosure = ((...args: any[]) => unknown) & Disposable & { _wbg_cb_u
 /** How JS calls a closure `f`: its arguments from JS, and its result to JS. */
 type Invoke<F> = (f: F, args: unknown[]) => unknown;
 
+/**
+ * `f`, called only if `live`, else throwing wasm-bindgen's error: as the closure's code
+ * in WASM checks, after WASM's ABI coerced the arguments the invoke converts.
+ */
+function closureChecked<F>(f: F, live: boolean): F {
+	if (live) return f;
+	return (() => {
+		throw new Error(CLOSURE_ENDED);
+	}) as F;
+}
+
 /** What an owned closure's JS function keeps: whether it is callable, its count of the `Closure` and the calls running, and its drop. */
 interface Owned<F> {
 	f: F;
@@ -371,8 +382,7 @@ export function jsClosure<F>(f: F, mut: boolean, invoke: Invoke<F>, drop?: (f: F
 		const live = state.live;
 		if (mut) state.live = false;
 		try {
-			if (!live) throw new Error(CLOSURE_ENDED);
-			return invoke(state.f, args);
+			return invoke(closureChecked(state.f, live), args);
 		} finally {
 			if (mut) state.live = live;
 			real._wbg_cb_unref();
@@ -399,8 +409,7 @@ export function jsClosureRef<F>(f: F, mut: boolean, invoke: Invoke<F>): JsClosur
 		const live = state.live;
 		if (mut) state.live = false;
 		try {
-			if (!live) throw new Error(CLOSURE_ENDED);
-			return invoke(f, args);
+			return invoke(closureChecked(f, live), args);
 		} finally {
 			if (mut) state.live = live;
 		}

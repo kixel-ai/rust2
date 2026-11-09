@@ -44,7 +44,12 @@ pub fn call<'tcx>(
 		Glue::Import(Ok(import)) => lower(b, instance, &import, args, span, out),
 		Glue::Closure { ty, owned } => convert::closure(b, ty, args.swap_remove(0), owned, span),
 		Glue::Dispose => Ok(Expr::rs("drop", vec![args.swap_remove(0)])),
-		Glue::SpawnLocal => Ok(Expr::rs("jsSpawnLocal", vec![args.swap_remove(0)])),
+		// The task owns its future, which drops once ready, as a crate's own `Future` impl
+		// is an `rs.DynFuture` over its `poll`.
+		Glue::SpawnLocal => {
+			let future = b.future_object(instance.args.type_at(0), args.swap_remove(0), false, true, span);
+			Ok(Expr::rs("jsSpawnLocal", vec![future]))
+		}
 		Glue::Refused(why) => Err(why.into()),
 	};
 	match lowered {
