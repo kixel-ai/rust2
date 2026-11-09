@@ -43,6 +43,10 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("buf::vectored", crate::buf::vectored),
 		("fixed::strings", crate::fixed::strings),
 		("buf::slices", crate::buf::slices),
+		("small::ops", crate::small::ops),
+		("small::copies", crate::small::copies),
+		("small::zero", crate::small::zero),
+		("small::waiters", crate::small::waiters),
 	]
 }
 

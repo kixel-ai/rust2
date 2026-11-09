@@ -16,8 +16,8 @@ ever rarer `unsafe`:
 
 1. ✅ Safe Rust is the contract, and where translation effort goes.
 2. ✅ `unsafe` inside std and common crates is wrapped at their safe API, as std,
-   `hashbrown`, `bytes`, and [tokio's channels](/ts/src/lower/tokio.rs)
-   are, and [smallvec](/quest/m2/ts-model/smallvec.md) will be, rather than translated.
+   `hashbrown`, `bytes`, [tokio's channels](/ts/src/lower/tokio.rs), and
+   [smallvec](/ts/src/lower/smallvec.rs) are, rather than translated.
 3. ✅ Other `unsafe` translates only where it fits the translator's existing pointer forms
    (a place, an array element, a byte in a buffer). A construct needing a new pointer form
    or pointer metadata is refused with its span, unless a consumer needs it and no library
