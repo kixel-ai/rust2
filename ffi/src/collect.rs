@@ -4,7 +4,8 @@
 //! crates too, is exported by fixed rules, or refused with its span. A type it does not
 //! reach is refused. Nothing is opted in by attribute and nothing is skipped silently: the
 //! config's `exclude` is the only way to leave an item out, and `#[doc(hidden)]` items,
-//! which are no part of the documented API, are listed in the census. A generic type
+//! which are no part of the documented API, and traits C cannot implement, which C never
+//! passes, are listed in the census. A generic type
 //! exports at the instances it infers, before any type is mapped: its defaults, each
 //! instance an inherent impl is of, its exports' implementations of the traits bounding it,
 //! and each instance a signature names at any choice its bounds allow; and only there.
@@ -90,6 +91,8 @@ pub struct Report {
 	pub refusals: Vec<Refusal>,
 	/// Records and enums exported as objects, since a field does not map: the first.
 	pub opaque: Vec<(String, Why)>,
+	/// Traits no foreign implementation can implement, left out: the first reason.
+	pub traits: Vec<(String, Why)>,
 	/// `poll_x` methods that do not map, left out since `x` exports as a future.
 	pub twins: Vec<String>,
 	/// `#[doc(hidden)]` items, by path.
@@ -254,6 +257,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 				root: facade.root.clone(),
 				refusals: Vec::new(),
 				opaque: Vec::new(),
+				traits: Vec::new(),
 				twins: Vec::new(),
 				hidden: Vec::new(),
 				excluded: facade.exclude.iter().map(|path| (path.clone(), 0)).collect(),
@@ -706,7 +710,8 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// The first type argument an instance is named by that cannot map as [`Self::arg`]
-	/// requires, which is `()`, a primitive, `String`, a foreign object, or an export's type.
+	/// requires, which is `()`, a primitive, `String`, `Bytes`, `Duration`, a foreign object,
+	/// or an export's type.
 	fn unarguable(&self, site: &Site<'tcx>) -> Option<Ty<'tcx>> {
 		let tcx = self.tcx;
 		site.args.types().take(site.explicit).find(|&ty| match ty.kind() {
@@ -715,6 +720,8 @@ impl<'tcx> Collector<'tcx> {
 			ty::Int(_) | ty::Uint(_) => int(ty).is_none(),
 			ty::Adt(adt, _) => {
 				tcx.lang_items().string() != Some(adt.did())
+					&& self.bytes != Some(adt.did())
+					&& !tcx.is_diagnostic_item(rustc_span::Symbol::intern("Duration"), adt.did())
 					&& !self.exported(adt.did().krate)
 					&& !self.foreign.iter().any(|&(ty, _)| ty == adt.did())
 			}
@@ -777,19 +784,33 @@ impl<'tcx> Collector<'tcx> {
 
 	/// The types the exports implement a trait bounding `param` of `def_id` for, one of
 	/// the exports': each impl's in an export, whose type takes no type parameters and is
-	/// `()`, a primitive, `String`, or an exported type.
+	/// `()`, a primitive, `String`, or an exported type. A blanket impl, such as
+	/// `impl<S: Session> Boxable for S`, stands for the types implementing what it bounds
+	/// its type by, which the caller checks the bounds of.
 	fn implementors(&self, def_id: DefId, param: Ty<'tcx>) -> Vec<Ty<'tcx>> {
 		let tcx = self.tcx;
+		let bounding = |def_id: DefId, param: Ty<'tcx>| {
+			(tcx.clauses_of(def_id).instantiate_identity(tcx).clauses.iter())
+				.filter_map(|clause| clause.skip_norm_wip().as_trait_clause())
+				.filter(move |bound| bound.self_ty().skip_binder() == param && self.exported(bound.def_id().krate))
+				.map(|bound| bound.def_id())
+				.collect::<Vec<_>>()
+		};
+		let mut traits = bounding(def_id, param);
 		let mut found = Vec::new();
-		for clause in tcx.clauses_of(def_id).instantiate_identity(tcx).clauses {
-			let Some(bound) = clause.skip_norm_wip().as_trait_clause() else {
-				continue;
-			};
-			if bound.self_ty().skip_binder() != param || !self.exported(bound.def_id().krate) {
-				continue;
-			}
-			for imp in tcx.all_impls(bound.def_id()) {
+		let mut i = 0;
+		while let Some(&tr) = traits.get(i) {
+			i += 1;
+			for imp in tcx.all_impls(tr) {
 				let ty = tcx.type_of(imp).instantiate_identity().skip_norm_wip();
+				if let ty::Param(_) = ty.kind() {
+					for tr in bounding(imp, ty) {
+						if !traits.contains(&tr) {
+							traits.push(tr);
+						}
+					}
+					continue;
+				}
 				let inner = ty.peel_refs();
 				let named = inner.is_primitive()
 					|| inner.is_unit()
@@ -1258,6 +1279,8 @@ impl<'tcx> Collector<'tcx> {
 			| Type::F64
 			| Type::Char
 			| Type::String
+			| Type::Bytes
+			| Type::Duration
 			| Type::Record(_)
 			| Type::Enum(_)
 			| Type::Object(_) => Ok(arg),
@@ -1475,10 +1498,16 @@ impl<'tcx> Collector<'tcx> {
 			}
 			for site in self.sites(def_id, &path) {
 				let decl = self.decls.get(&site.key).cloned();
+				// A trait exports only as what C implements: one it cannot implement is no
+				// part of C's API, while a signature that takes one from C is refused.
+				if let (Some(Decl::Refused(why)), DefKind::Trait) = (&decl, kind) {
+					let (report, rest) = self.report(&site.shown);
+					report.traits.push((rest, why.clone()));
+					continue;
+				}
 				if let Some(Decl::Refused(why)) = decl {
 					let kind = match kind {
 						_ if site.key.args.is_some() => "instance",
-						DefKind::Trait => "trait",
 						DefKind::Enum => "enum",
 						DefKind::Union => "union",
 						_ => "struct",
@@ -2115,26 +2144,47 @@ impl<'tcx> Collector<'tcx> {
 		}
 		let base = args.clone();
 		let mut kept = Vec::new();
-		let mut several = Vec::new();
+		// Each choice of the parameters so far, with the types that name it.
+		let mut choices = vec![(args, Vec::new())];
 		for (i, arg) in identity.iter().enumerate() {
-			match arg.kind() {
-				_ if i < count => {}
-				GenericArgKind::Lifetime(_) => {}
+			let param = match arg.kind() {
+				_ if i < count => continue,
+				GenericArgKind::Lifetime(_) => continue,
 				// The first refusal ends it, before any later parameter's candidates are mapped.
 				GenericArgKind::Const(_) => return Err(vec![why("const generic", "")]),
-				GenericArgKind::Type(param) if self.lent(def_id, param) => kept.push(param),
-				// Its bounds see each earlier parameter chosen, as `impl Into<Timed<&'a T>>` names `T`.
-				GenericArgKind::Type(param) => match self.choose(def_id, param, &args) {
+				GenericArgKind::Type(param) if self.lent(def_id, param) => {
+					kept.push(param);
+					continue;
+				}
+				GenericArgKind::Type(param) => param,
+			};
+			let mut next = Vec::new();
+			let mut refused = None;
+			for (args, named) in choices {
+				// Its bounds see each earlier parameter as this choice has it, as
+				// `impl Into<Timed<&'a T>>` names `T`, and `impl Into<Option<R>>` the `R` chosen.
+				let each = match self.choose(def_id, param, &args) {
 					// Typing takes a later type only where an earlier one's export is refused.
 					Ok(ranked) if self.inferring => {
 						let last = ranked.iter().position(|&ty| !self.names_export(ty));
-						several.push((i, ranked[..last.map_or(ranked.len(), |last| last + 1)].to_vec()));
+						ranked[..last.map_or(ranked.len(), |last| last + 1)].to_vec()
 					}
-					Ok(ranked) => args[i] = ranked[0].into(),
+					Ok(ranked) => {
+						let mut args = args;
+						args[i] = ranked[0].into();
+						next.push((args, named));
+						continue;
+					}
 					Err(Why {
 						construct: "callback bound",
 						..
-					}) if self.taken(def_id, param).is_some() => kept.push(param),
+					}) if self.taken(def_id, param).is_some() => {
+						if !kept.contains(&param) {
+							kept.push(param);
+						}
+						next.push((args, named));
+						continue;
+					}
 					// A conversion refused for its chains takes no other type in its place.
 					Err(
 						why @ Why {
@@ -2149,24 +2199,23 @@ impl<'tcx> Collector<'tcx> {
 							each.push(param);
 						}
 						if each.is_empty() {
-							return Err(vec![why]);
+							refused.get_or_insert(why);
 						}
-						several.push((i, each));
+						each
 					}
-				},
+				};
+				for ty in each {
+					let mut args = args.clone();
+					args[i] = ty.into();
+					next.push((args, [&named[..], &[ty]].concat()));
+				}
 			}
-		}
-		let mut choices = vec![(args, Vec::new())];
-		for (i, each) in several {
-			choices = (choices.into_iter())
-				.flat_map(|(args, named): (Vec<ty::GenericArg<'tcx>>, Vec<Ty<'tcx>>)| {
-					each.iter().map(move |&ty| {
-						let mut args = args.clone();
-						args[i] = ty.into();
-						(args, [&named[..], &[ty]].concat())
-					})
-				})
-				.collect();
+			// A choice no type of this parameter meets is dropped; with none left, the first
+			// refusal ends it.
+			if let (true, Some(why)) = (next.is_empty(), refused) {
+				return Err(vec![why]);
+			}
+			choices = next;
 		}
 		let choices: Vec<_> = (choices.into_iter())
 			.map(|(args, named)| (tcx.mk_args(&args), named))
@@ -2218,7 +2267,8 @@ impl<'tcx> Collector<'tcx> {
 	/// The types a type parameter may be exported as, best first, which typing takes the
 	/// first of: `X` for each `Into<X>` or `AsRef<X>` its bounds imply, or `&X` and then
 	/// `String` or `Vec<T>` where `X` is `str` or `[T]`, `Vec<X>` for
-	/// `impl IntoIterator<Item = X>`, `serde_json::Value` for a serde bound, then `String`,
+	/// `impl IntoIterator<Item = X>`, or `&[Y]` where `X` is `&Y`, `&[u8]` for
+	/// `impl io::Read`, `serde_json::Value` for a serde bound, then `String`,
 	/// `Bytes`, and `Vec<u8>`, each that meets its bounds and maps.
 	fn choose(&self, def_id: DefId, param: Ty<'tcx>, base: &[ty::GenericArg<'tcx>]) -> Result<Vec<Ty<'tcx>>, Why> {
 		let tcx = self.tcx;
@@ -2270,8 +2320,18 @@ impl<'tcx> Collector<'tcx> {
 			} else if Some(tr) == self.range_bounds {
 				candidates.extend(self.bounds(target()).map(|ty| (ty, None)));
 			} else if tcx.is_diagnostic_item(sym::IntoIterator, tr) {
-				let items = self.items(&identity.clauses, param).and_then(|item| self.vec_of(item));
+				// Items borrowed for the call iterate a slice C lends.
+				let items = self.items(&identity.clauses, param).and_then(|item| match item.kind() {
+					ty::Ref(_, elem, ty::Mutability::Not) if !outlives => {
+						Some(Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, Ty::new_slice(tcx, *elem)))
+					}
+					_ => self.vec_of(item),
+				});
 				candidates.extend(items.map(|ty| (ty, None)));
+			} else if tcx.is_diagnostic_item(rustc_span::Symbol::intern("IoRead"), tr) && !outlives {
+				// What it reads, which C lends for the call.
+				let bytes = Ty::new_slice(tcx, tcx.types.u8);
+				candidates.push((Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, bytes), None));
 			} else if serde(tcx, tr) {
 				candidates.extend(self.json().map(|ty| (ty, None)));
 			}
@@ -3496,10 +3556,21 @@ impl<'tcx> Collector<'tcx> {
 	/// A trait object of one of the crate's traits, as a foreign implementation.
 	/// A foreign implementation crosses only into Rust, as a parameter.
 	fn dynamic(&self, principal: Option<DefId>, form: Dyn, ty: Ty<'tcx>, pos: Pos) -> Result<Type, Why> {
-		match principal.and_then(|tr| self.trait_decl(tr)) {
-			Some(Decl::Callback(i)) if pos == Pos::Param => Ok(Type::Callback(*i, form)),
-			_ => Err(why("trait object", ty.to_string())),
+		let mut refusal = why("trait object", ty.to_string());
+		match principal.map(|tr| (tr, self.trait_decl(tr))) {
+			Some((_, Some(Decl::Callback(i)))) if pos == Pos::Param => return Ok(Type::Callback(*i, form)),
+			// Left out of the export, so the reason it is shows where a signature needs it.
+			Some((tr, Some(Decl::Refused(left)))) => {
+				let reason = match left.detail.is_empty() {
+					true => left.construct.to_string(),
+					false => format!("{} `{}`", left.construct, left.detail),
+				};
+				let note = format!("C cannot implement `{}`: {reason}", self.tcx.def_path_str(tr));
+				refusal.note = Some((self.tcx.def_span(tr), note));
+			}
+			_ => {}
 		}
+		Err(refusal)
 	}
 }
 

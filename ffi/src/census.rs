@@ -51,16 +51,17 @@ pub fn render(api: &Api, collected: &Report, clashes: &[Clash], at: &dyn Fn(Span
 		methods,
 		refused(&["method", "field"]),
 	);
-	row("Traits", callbacks, refused(&["trait"]));
+	row("Traits", callbacks, 0);
 	row("Constants", constants, refused(&["const"]));
 	row("Other items", 0, refused(&["use", "macro", "static", "item"]));
 	let _ = writeln!(
 		out,
-		"\nExported types: {} records, {} enums, {} objects. A refused type's methods are not counted, nor are the {} `poll_*` methods left out for their async twins.",
+		"\nExported types: {} records, {} enums, {} objects. A refused type's methods are not counted, nor are the {} `poll_*` methods left out for their async twins, or the {} traits left out since C cannot implement them.",
 		records.len(),
 		enums.len(),
 		objects.len(),
-		collected.twins.len()
+		collected.twins.len(),
+		collected.traits.len()
 	);
 
 	// Each item counts once per construct, however many times it hits it.
@@ -157,6 +158,15 @@ pub fn render(api: &Api, collected: &Report, clashes: &[Clash], at: &dyn Fn(Span
 		let _ = writeln!(out, "\n## Values exported as objects, since a field does not map\n");
 		for (path, why) in &collected.opaque {
 			let _ = writeln!(out, "- `{path}`: {} `{}`", why.construct, why.detail);
+		}
+	}
+	if !collected.traits.is_empty() {
+		let _ = writeln!(out, "\n## Traits left out, since C cannot implement them\n");
+		for (path, why) in &collected.traits {
+			let _ = match why.detail.is_empty() {
+				true => writeln!(out, "- `{path}`: {}", why.construct),
+				false => writeln!(out, "- `{path}`: {} `{}`", why.construct, why.detail),
+			};
 		}
 	}
 	if !collected.twins.is_empty() {

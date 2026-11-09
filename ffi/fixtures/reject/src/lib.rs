@@ -503,9 +503,14 @@ pub async fn eventually() -> std::vec::IntoIter<u8> {
 	Vec::new().into_iter()
 }
 
-/// A callback returning an iterator, which C would have to make.
+/// A callback returning an iterator, which C would have to make, so C cannot implement it.
 pub trait Source: Send + Sync {
 	fn items(&self) -> std::vec::IntoIter<u8>;
+}
+
+/// How many items `source` has: a trait object C cannot make.
+pub fn drain(source: Box<dyn Source>) -> usize {
+	source.items().count()
 }
 
 /// One byte forever.
