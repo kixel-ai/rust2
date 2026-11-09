@@ -106,7 +106,9 @@ returned as a clone, so it must be `Clone`, and a handle in it is a new handle t
 clone. A handle outlives every call, so every lifetime an object takes is `'static`, as is
 every lifetime that must outlive one; any other lifetime is the call's. A signature may
 not lend C's borrow for one that is `'static`, nor return an object that borrows. A
-parameter is a reference only at its top, not inside an `Option` or `Box`, and an object
+parameter is a reference only at its top or as `Some` of an `Option`, lent as the reference
+alone is, so `Option<&T>` is a null or borrowed handle, a null or viewed buffer, or an
+option of a value, and not inside a `Box` or any other type. An object
 no export C can call returns is refused, since C could never hold one. Everything else is
 refused, and the census counts why.
 

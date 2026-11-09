@@ -433,6 +433,17 @@ fn main() {
 	println!("words {} {words:?}", words.len());
 	println!("sentence {} {}", api::sentence(Some(words)), api::sentence(None));
 	println!("sentence {}|", api::sentence(Some(Vec::new())));
+	println!("either {} {}", api::either(Some("abc")), api::either(None));
+	let prefixed = |prefix: Option<&[u8]>| String::from_utf8(api::prefixed(b"cd", prefix)).unwrap();
+	println!("prefixed {} {}", prefixed(Some(b"ab")), prefixed(None));
+	println!(
+		"coordinates {} {}",
+		api::coordinates(Some(&Point { x: 2, y: 3 })),
+		api::coordinates(None)
+	);
+	let (two, mut three) = (Counter::new("two", 2), Counter::new("three", 3));
+	println!("plus {} {}", two.plus(Some(&three)), two.plus(None));
+	println!("add_to {} {} {}", two.add_to(Some(&mut three)), two.add_to(None), three.get());
 	println!("chunks {:?}", api::chunks(b"abcde", 2));
 	let mut counters = api::counters(vec!["x".to_string(), "y".to_string()]);
 	let names: Vec<String> = counters.iter().map(|c| format!("{} {}", c.name(), c.get())).collect();

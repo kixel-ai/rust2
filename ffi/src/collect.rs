@@ -2021,8 +2021,15 @@ impl<'tcx> Collector<'tcx> {
 				.map_or_else(|| format!("arg{i}"), |ident| ident.to_string());
 			match self.ty(ty, Pos::Param) {
 				// C's value is lifted into an owned Rust one, lent only as the parameter
-				// itself. A callback's parameters are lent the other way, to C.
-				Ok(lifted) if !callback && lends_inside(&lifted) => {
+				// itself, or as `Some` of it. A callback's parameters are lent the other way,
+				// to C.
+				Ok(lifted)
+					if !callback
+						&& lends_inside(match &lifted {
+							Type::Option(inner) if matches!(**inner, Type::Ref(..)) => inner,
+							lifted => lifted,
+						}) =>
+				{
 					errs.push(why("reference inside a parameter", ty.to_string()));
 				}
 				Ok(ty) => params.push(Param { name, ty }),
@@ -3402,7 +3409,13 @@ impl<'tcx> Collector<'tcx> {
 				} else if Some(did) == self.bound {
 					Type::Bound(int(args.type_at(0)).ok_or_else(|| why("Bound", args.type_at(0).to_string()))?)
 				} else if tcx.is_diagnostic_item(sym::Option, did) {
-					let inner = self.ty(args.type_at(0), pos.inner())?;
+					// A parameter's optional borrow is lent as the parameter itself is: a null
+					// handle or buffer for `None`.
+					let inner_pos = match (pos, args.type_at(0).kind()) {
+						(Pos::Param, ty::Ref(..)) => Pos::Param,
+						_ => pos.inner(),
+					};
+					let inner = self.ty(args.type_at(0), inner_pos)?;
 					// C has one `None` per option, so it cannot hold one inside another, even
 					// through a `Box`.
 					if matches!(inner.base(), Type::Option(_)) {

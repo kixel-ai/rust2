@@ -758,6 +758,23 @@ static int script(void) {
 	/* An empty array that is not None: its pointer is not null. */
 	api_buf no_words[1];
 	print("sentence ", api_sentence((api_vec_string){.ptr = no_words, .len = 0}), "|\n");
+	/* An optional borrow: a null buffer or handle is None. */
+	printf("either %zu %zu\n", api_either(str("abc")), api_either((api_buf){0}));
+	print("prefixed ", api_prefixed(str("cd"), str("ab")), " ");
+	print("", api_prefixed(str("cd"), (api_buf){0}), "\n");
+	api_Point corner = {.x = 2, .y = 3};
+	printf("coordinates %d %d\n", api_coordinates((api_option_Point){.some = true, .value = corner}),
+		api_coordinates((api_option_Point){0}));
+	api_Counter *two = api_Counter_new(str("two"), 2);
+	api_Counter *three = api_Counter_new(str("three"), 3);
+	printf("plus %llu %llu\n", (unsigned long long)api_Counter_plus(two, three),
+		(unsigned long long)api_Counter_plus(two, NULL));
+	bool added = api_Counter_add_to(two, three);
+	bool added_none = api_Counter_add_to(two, NULL);
+	printf("add_to %s %s %llu\n", added ? "true" : "false", added_none ? "true" : "false",
+		(unsigned long long)api_Counter_get(three));
+	api_Counter_free(two);
+	api_Counter_free(three);
 
 	api_vec_bytes chunks = api_chunks(str("abcde"), 2);
 	printf("chunks [");

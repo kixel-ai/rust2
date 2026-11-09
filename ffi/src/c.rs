@@ -389,7 +389,10 @@ impl Header<'_> {
 		let receiver = function.receiver.map(|r| r == Receiver::Owned);
 		let by_value = receiver
 			.into_iter()
-			.chain(function.params.iter().map(|p| !matches!(p.ty, Type::Ref(..))));
+			.chain((function.params.iter()).map(|p| match &p.ty {
+				Type::Option(inner) => !matches!(**inner, Type::Ref(..)),
+				ty => !matches!(ty, Type::Ref(..)),
+			}));
 		let moved: Vec<String> = export
 			.call
 			.params

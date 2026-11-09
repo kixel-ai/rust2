@@ -483,6 +483,15 @@ func script() {
 	print("words \(words.count) \(words)")
 	print("sentence \(sentence(words)) \(sentence(nil))")
 	print("sentence \(sentence([]))|")
+	print("either \(either("abc")) \(either(nil))")
+	print("prefixed \(String(decoding: prefixed(Data("cd".utf8), Data("ab".utf8)), as: UTF8.self)) \(String(decoding: prefixed(Data("cd".utf8), nil), as: UTF8.self))")
+	print("coordinates \(coordinates(Point(x: 2, y: 3))) \(coordinates(nil))")
+	do {
+		let two = Counter.new("two", 2)
+		let three = Counter.new("three", 3)
+		print("plus \(two.plus(three)) \(two.plus(nil))")
+		print("add_to \(two.addTo(three)) \(two.addTo(nil)) \(three.get())")
+	}
 	print("chunks \(chunks(Data("abcde".utf8), 2).map { Array($0) })")
 	let counters = counters(["x", "y"])
 	print("counters \(counters.map { "\($0.name()) \($0.get())" }.joined(separator: ", "))")

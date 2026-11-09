@@ -620,6 +620,20 @@ int script() {
 	print("sentence ", api::sentence(std::vector<api::view>(words.begin(), words.end())), " ");
 	print("", api::sentence(std::nullopt), "\n");
 	print("sentence ", api::sentence(std::vector<api::view>()), "|\n");
+	std::printf("either %zu %zu\n", api::either("abc"), api::either(std::nullopt));
+	print("prefixed ", api::prefixed("cd", api::view("ab")), " ");
+	print("", api::prefixed("cd", std::nullopt), "\n");
+	std::printf("coordinates %d %d\n", api::coordinates(api::Point{2, 3}), api::coordinates(std::nullopt));
+	{
+		auto two = api::Counter::new_("two", 2);
+		auto three = api::Counter::new_("three", 3);
+		std::printf("plus %llu %llu\n", static_cast<unsigned long long>(two.plus(&three)),
+			static_cast<unsigned long long>(two.plus(nullptr)));
+		bool added = two.add_to(&three);
+		bool added_none = two.add_to(nullptr);
+		std::printf("add_to %s %s %llu\n", added ? "true" : "false", added_none ? "true" : "false",
+			static_cast<unsigned long long>(three.get()));
+	}
 
 	std::printf("chunks [");
 	auto chunks = api::chunks("abcde", 2);

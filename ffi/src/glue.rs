@@ -1032,31 +1032,12 @@ impl Gen<'_> {
 		match ty {
 			Type::Ref(m, inner) => match (&**inner, m, future) {
 				(Type::Object(i), _, _) => {
-					let sync = self.abi.api.objects[*i].sync;
-					// A future may be polled on any thread, so it holds a value that is not
-					// `Sync` exclusively.
-					let exclusive = *m == Mutability::Mut || (future && !sync);
-					let borrow = match (exclusive, future) {
-						(false, false) => self.shared(*i),
-						(true, false) => "borrow_mut",
-						(false, true) => "borrow_arc",
-						(true, true) => "borrow_mut_arc",
-					};
-					let binding = match exclusive {
-						true => "let mut",
-						false => "let",
-					};
+					let (binding, borrow) = self.borrow(*i, *m, c, future);
 					let pass = match m {
 						Mutability::Mut => format!("&mut *{local}"),
 						Mutability::Not => format!("&*{local}"),
 					};
-					(
-						format!(
-							"{binding} {local} = unsafe {{ rt::Object::<{}>::{borrow}({c}, w) }};",
-							self.object_path(*i)
-						),
-						pass,
-					)
+					(format!("{binding} {local} = {borrow};"), pass)
 				}
 				(Type::Str, Mutability::Not, false) => {
 					(format!("let {local} = unsafe {{ {c}.str(w) }};"), local.to_string())
@@ -1075,8 +1056,62 @@ impl Gen<'_> {
 					(format!("{binding} {local} = {};", self.lift(inner, c)), pass)
 				}
 			},
+			// `Some` of a borrow, lent as the borrow alone is: a null handle or buffer is `None`.
+			Type::Option(opt) if let Type::Ref(m, inner) = &**opt => match (&**inner, future) {
+				(Type::Object(i), _) => {
+					let (binding, borrow) = self.borrow(*i, *m, c, future);
+					let pass = match m {
+						Mutability::Mut => format!("{local}.as_deref_mut()"),
+						Mutability::Not => format!("{local}.as_deref()"),
+					};
+					(
+						format!("{binding} {local} = if {c}.is_null() {{ None }} else {{ Some({borrow}) }};"),
+						pass,
+					)
+				}
+				(Type::Str | Type::Slice | Type::Path, false) => {
+					let view = match &**inner {
+						Type::Str => "str",
+						Type::Slice => "bytes",
+						_ => "path",
+					};
+					(
+						format!("let {local} = if {c}.is_none() {{ None }} else {{ Some(unsafe {{ {c}.{view}(w) }}) }};"),
+						local.to_string(),
+					)
+				}
+				// A future owns its arguments, so it lends a buffer's owned form.
+				(Type::Str | Type::Slice | Type::Path, true) => (
+					format!("let {local} = {};", self.lift(ty, c)),
+					format!("{local}.as_deref()"),
+				),
+				_ => (
+					format!("let {local} = {};", self.lift(ty, c)),
+					format!("{local}.as_ref()"),
+				),
+			},
 			_ => (format!("let {local} = {};", self.lift(ty, c)), local.to_string()),
 		}
+	}
+
+	/// The binding and expression borrowing object `i`'s handle `c` as `m` does. A future
+	/// may be polled on any thread, so it holds a value that is not `Sync` exclusively.
+	fn borrow(&self, i: usize, m: Mutability, c: &str, future: bool) -> (&'static str, String) {
+		let exclusive = m == Mutability::Mut || (future && !self.abi.api.objects[i].sync);
+		let borrow = match (exclusive, future) {
+			(false, false) => self.shared(i),
+			(true, false) => "borrow_mut",
+			(false, true) => "borrow_arc",
+			(true, true) => "borrow_mut_arc",
+		};
+		let binding = match exclusive {
+			true => "let mut",
+			false => "let",
+		};
+		(
+			binding,
+			format!("unsafe {{ rt::Object::<{}>::{borrow}({c}, w) }}", self.object_path(i)),
+		)
 	}
 
 	/// The out pointers a call's value is written through: one per element of a tuple.

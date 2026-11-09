@@ -352,6 +352,16 @@ fun script() {
 	println("words ${words.size} ${words.joinToString(", ", "[", "]") { "\"$it\"" }}")
 	println("sentence ${sentence(words)} ${sentence(null)}")
 	println("sentence ${sentence(emptyList())}|")
+	println("either ${either("abc")} ${either(null)}")
+	val cd = "cd".encodeToByteArray()
+	println("prefixed ${prefixed(cd, "ab".encodeToByteArray()).toByteArray().decodeToString()} ${prefixed(cd, null).toByteArray().decodeToString()}")
+	println("coordinates ${coordinates(Point(2, 3))} ${coordinates(null)}")
+	Counter.new("two", 2u).use { two ->
+		Counter.new("three", 3u).use { three ->
+			println("plus ${two.plus(three)} ${two.plus(null)}")
+			println("add_to ${two.addTo(three)} ${two.addTo(null)} ${three.get()}")
+		}
+	}
 	println("chunks ${chunks("abcde".encodeToByteArray(), 2uL).map { it.toByteArray().toList() }}")
 	val counters = counters(listOf("x", "y"))
 	println("counters ${counters.joinToString(", ") { "${it.name()} ${it.get()}" }}")

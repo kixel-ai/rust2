@@ -120,10 +120,10 @@ impl<'a> Text<'a> {
 	}
 }
 
-/// An optional borrow: C's value is lifted into an owned one, lent only as the parameter
-/// itself.
-pub fn either(text: Option<&str>) -> usize {
-	text.map_or(0, str::len)
+/// A boxed borrow: C's value is lifted into an owned one, lent only as the parameter
+/// itself or `Some` of it.
+pub fn boxed(text: Box<&str>) -> usize {
+	text.len()
 }
 
 /// An object no export returns but its own method, so C never holds one.
@@ -684,4 +684,16 @@ pub fn halves() -> impl Iterator<Item = &'static str> {
 /// `reject_tuple_tuple_u8_u16_u32`.
 pub fn mixed(a: Option<((u8, u16), u32)>, b: Option<((u8, u16, u32),)>) -> bool {
 	a.is_some() && b.is_some()
+}
+
+/// An optional handle lent inside a `Box`, as [`peek`] lends one.
+pub fn peek_some(value: Option<&Box<Opaque>>) -> u8 {
+	value.map_or(0, |value| value.0)
+}
+
+/// An optional value lent mutably.
+pub fn bump_some(value: Option<&mut u32>) {
+	if let Some(value) = value {
+		*value += 1;
+	}
 }

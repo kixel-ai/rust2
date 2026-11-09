@@ -430,6 +430,16 @@ Future<void> script() async {
   print('words ${words.length} ${quoted(words)}');
   print('sentence ${api.sentence(words)} ${api.sentence(null)}');
   print('sentence ${api.sentence([])}|');
+  print('either ${api.either('abc')} ${api.either(null)}');
+  print('prefixed ${utf8.decode(api.prefixed(utf8.encode('cd'), utf8.encode('ab')))} '
+      '${utf8.decode(api.prefixed(utf8.encode('cd'), null))}');
+  print('coordinates ${api.coordinates(const api.Point(x: 2, y: 3))} ${api.coordinates(null)}');
+  final two = api.Counter('two', 2);
+  final three = api.Counter('three', 3);
+  print('plus ${two.plus(three)} ${two.plus(null)}');
+  print('add_to ${two.addTo(three)} ${two.addTo(null)} ${three.get()}');
+  two.close();
+  three.close();
   print('chunks ${api.chunks(utf8.encode('abcde'), 2)}');
   final counters = api.counters(['x', 'y']);
   print('counters ${counters.map((c) => '${c.name()} ${c.get()}').join(', ')}');

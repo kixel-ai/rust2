@@ -147,6 +147,22 @@ impl Counter {
 		std::ptr::from_ref(self) as usize == EDITING.load(std::sync::atomic::Ordering::Relaxed)
 	}
 
+	/// This count plus `other`'s, if any: an optional handle, lent shared.
+	pub fn plus(&self, other: Option<&Counter>) -> u64 {
+		self.value + other.map_or(0, |other| other.value)
+	}
+
+	/// [`Self::plus`], once [`yielded`] finishes: a future borrowing both handles meanwhile.
+	pub async fn plus_later(&self, other: Option<&Counter>) -> u64 {
+		yielded(0).await;
+		self.plus(other)
+	}
+
+	/// Adds this count to `other`, if any: an optional handle, lent exclusively.
+	pub fn add_to(&self, other: Option<&mut Counter>) -> bool {
+		other.map(|other| other.value += self.value).is_some()
+	}
+
 	/// Consumes the counter.
 	pub fn into_label(self, at: Option<Point>) -> Label {
 		Label {
@@ -1594,6 +1610,27 @@ pub fn words(text: &str) -> Vec<String> {
 /// `words` joined by spaces, or `none` for none.
 pub fn sentence(words: Option<Vec<String>>) -> String {
 	words.map_or_else(|| "none".to_string(), |words| words.join(" "))
+}
+
+/// `text`'s length, or 0 for none: an optional borrow, lent as the borrow alone is.
+pub fn either(text: Option<&str>) -> usize {
+	text.map_or(0, str::len)
+}
+
+/// [`either`], once [`yielded`] finishes: a future owning what it lends.
+pub async fn either_later(text: Option<&str>) -> usize {
+	yielded(0).await;
+	either(text)
+}
+
+/// `payload` after `prefix`, if any.
+pub fn prefixed(payload: &[u8], prefix: Option<&[u8]>) -> Vec<u8> {
+	[prefix.unwrap_or_default(), payload].concat()
+}
+
+/// `point`'s coordinates summed, or 0 for none: an optional value, lent shared.
+pub fn coordinates(point: Option<&Point>) -> i32 {
+	point.map_or(0, |point| point.x + point.y)
 }
 
 /// `bytes` in chunks of up to `size`, which is not 0.

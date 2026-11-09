@@ -506,6 +506,14 @@ func script() {
 	fmt.Printf("words %d %s\n", len(words), list(words, quoted))
 	fmt.Printf("sentence %s %s\n", api.Sentence(&words), api.Sentence(nil))
 	fmt.Printf("sentence %s|\n", api.Sentence(&[]string{}))
+	abc := "abc"
+	fmt.Printf("either %d %d\n", api.Either(&abc), api.Either(nil))
+	ab := []byte("ab")
+	fmt.Printf("prefixed %s %s\n", api.Prefixed([]byte("cd"), &ab).Copy(), api.Prefixed([]byte("cd"), nil).Copy())
+	fmt.Printf("coordinates %d %d\n", api.Coordinates(&api.Point{X: 2, Y: 3}), api.Coordinates(nil))
+	two, three := api.NewCounter("two", 2), api.NewCounter("three", 3)
+	fmt.Printf("plus %d %d\n", must(two.Plus(three)), must(two.Plus(nil)))
+	fmt.Printf("add_to %t %t %d\n", must(two.AddTo(three)), must(two.AddTo(nil)), must(three.Get()))
 	fmt.Printf("chunks %s\n", list(api.Chunks([]byte("abcde"), 2), func(b rt.Bytes) string { return list(b.Copy(), number) }))
 	counters := api.Counters([]string{"x", "y"})
 	fmt.Printf("counters %s\n", strings.Trim(list(counters, func(c *api.Counter) string {
