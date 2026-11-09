@@ -151,6 +151,7 @@ fun script() {
 	println("unnamed [${unnamed().asStr()}]")
 
 	println("total ${total(RangeU64(2u, 5u))}")
+	println("reach ${reach(2u, 5u)}")
 	val wide = widen(RangeU64(2u, 5u), 1u)
 	println("widen ${wide.start} ${wide.end}")
 	val counts = listOf(

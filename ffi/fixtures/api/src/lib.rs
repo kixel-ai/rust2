@@ -388,6 +388,11 @@ pub fn total(range: Range<u64>) -> u64 {
 	range.sum()
 }
 
+/// How far `start` reaches to `end`, past a `()` C does not pass.
+pub fn reach(start: u32, _: (), end: u32) -> u32 {
+	end - start
+}
+
 /// A range, widened by `by` at each end.
 pub fn widen(range: Range<u64>, by: u64) -> Range<u64> {
 	range.start.saturating_sub(by)..range.end + by

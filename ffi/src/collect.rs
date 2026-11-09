@@ -1132,6 +1132,7 @@ impl<'tcx> Collector<'tcx> {
 				name: "input".to_string(),
 				ty: Type::Ref(Mutability::Not, Box::new(Type::Str)),
 			}],
+			units: Vec::new(),
 			ok: ty.clone(),
 			err: Some(Type::String),
 			future: false,
@@ -1165,6 +1166,7 @@ impl<'tcx> Collector<'tcx> {
 						docs: "The document as JSON text.".to_string(),
 						receiver: Some(Receiver::Ref),
 						params: Vec::new(),
+						units: Vec::new(),
 						ok: Type::String,
 						err: None,
 						future: false,
@@ -1230,9 +1232,8 @@ impl<'tcx> Collector<'tcx> {
 					false => self.object(site),
 				}
 			}
-			DefKind::Enum if tcx.adt_def(def_id).variants().is_empty() => {
-				Decl::Refused(why("enum without variants", ""))
-			}
+			// No value is one, so it is a handle C never holds, which no C enum is.
+			DefKind::Enum if tcx.adt_def(def_id).variants().is_empty() => self.object(site),
 			DefKind::Enum => Decl::Enum(0),
 			_ => Decl::Callback(0),
 		}
@@ -1670,6 +1671,7 @@ impl<'tcx> Collector<'tcx> {
 						docs: docs(tcx, field.did),
 						receiver: Some(receiver),
 						params,
+						units: Vec::new(),
 						ok,
 						err: None,
 						future: false,
@@ -2013,7 +2015,14 @@ impl<'tcx> Collector<'tcx> {
 		};
 		let callback = tcx.def_kind(tcx.parent(def_id)) == DefKind::Trait;
 		let mut params = Vec::new();
+		let mut units = Vec::new();
 		for (i, ty) in inputs {
+			// C passes nothing for `()`, the one value of its type. A callback's stays
+			// refused: the glue's implementation of its trait names every parameter.
+			if ty.is_unit() && !callback {
+				units.push(params.len() + units.len());
+				continue;
+			}
 			let name = names
 				.get(i)
 				.copied()
@@ -2079,6 +2088,7 @@ impl<'tcx> Collector<'tcx> {
 				docs: docs(tcx, def_id),
 				receiver,
 				params,
+				units,
 				ok,
 				err,
 				future,
@@ -3241,6 +3251,7 @@ impl<'tcx> Collector<'tcx> {
 				docs: docs(tcx, def_id),
 				receiver: None,
 				params: Vec::new(),
+				units: Vec::new(),
 				ok,
 				err: None,
 				future: false,

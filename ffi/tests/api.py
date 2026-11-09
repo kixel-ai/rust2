@@ -219,6 +219,7 @@ def script():
 	print(f"unnamed [{api.unnamed().as_str()}]")
 
 	print(f"total {api.total(range(2, 5))}")
+	print(f"reach {api.reach(2, 5)}")
 	wide = api.widen(range(2, 5), 1)
 	print(f"widen {wide.start} {wide.stop}")
 	inc, exc, unb = api.Bound.INCLUDED, api.Bound.EXCLUDED, api.Bound.UNBOUNDED

@@ -1178,6 +1178,10 @@ impl Gen<'_> {
 			stmts.push(stmt);
 			args.push(arg);
 		}
+		let first = args.len() - function.params.len();
+		for unit in &function.units {
+			args.insert(first + unit, "()".to_string());
+		}
 		let mut callee = match &owner {
 			Some((_, owner_type)) => format!("<{}>::{}", self.rust(owner_type), function.name()),
 			None => self.path(&function.path),

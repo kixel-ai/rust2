@@ -183,6 +183,8 @@ pub struct Function {
 	pub docs: String,
 	pub receiver: Option<Receiver>,
 	pub params: Vec<Param>,
+	/// Where among Rust's parameters each `()` one sits, which C does not pass.
+	pub units: Vec<usize>,
 	/// What it returns, or for a future, what the future does.
 	pub ok: Type,
 	/// The error of a `Result` it returns.

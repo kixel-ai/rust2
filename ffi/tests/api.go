@@ -277,6 +277,7 @@ func script() {
 	fmt.Printf("unnamed [%s]\n", must(api.Unnamed().AsStr()))
 
 	fmt.Printf("total %d\n", api.Total(rt.RangeU64{Start: 2, End: 5}))
+	fmt.Printf("reach %d\n", api.Reach(2, 5))
 	wide := api.Widen(rt.RangeU64{Start: 2, End: 5}, 1)
 	fmt.Printf("widen %d %d\n", wide.Start, wide.End)
 	included := func(n uint64) rt.BoundU64 { return rt.BoundU64{Kind: rt.BoundIncluded, Value: n} }

@@ -57,7 +57,7 @@ its types map by role; a type no path reaches is refused.
 | Rust | C |
 | --- | --- |
 | a struct whose fields are all `pub`, not `#[non_exhaustive]`, which map, with no `Drop` of its own | a record: a struct, copied across |
-| an enum whose fields map, with no `Drop` of its own | a C enum without fields, or a struct of a tag and a union |
+| an enum with variants whose fields map, with no `Drop` of its own | a C enum without fields, or a struct of a tag and a union |
 | any other type, if `Send` | an object: an opaque handle to an `Arc`, freed with `_free` |
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
@@ -65,6 +65,7 @@ its types map by role; a type no path reaches is refused.
 | a `pub` trait | a callback interface: a table of C functions and their data |
 | a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce`, which no lifetime bound or return lets outlive the call | a C function and its `void *` data, which Rust calls only during the call; any other closure is refused |
 | `fn` and inherent `pub` methods | functions named through their type |
+| a `()` parameter of a function, not of a callback's method | nothing: C passes no argument for it |
 | `Result<T, E>` | `bool f(..., T *out, E *err)` |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
 | a tuple inside another type, or as a field or parameter | `<prefix>_tuple_<A>_<B>`: a struct of fields `_0`, `_1`, and so on; of references only returned |

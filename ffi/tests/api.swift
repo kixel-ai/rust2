@@ -263,6 +263,7 @@ func script() {
 	print("unnamed [\(unnamed().asStr())]")
 
 	print("total \(total(RangeU64(start: 2, end: 5)))")
+	print("reach \(reach(2, 5))")
 	let wide = widen(RangeU64(start: 2, end: 5), 1)
 	print("widen \(wide.start) \(wide.end)")
 	let counts = [

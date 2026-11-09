@@ -324,6 +324,7 @@ int script() {
 	}
 
 	std::printf("total %llu\n", ull(api::total({2, 5})));
+	std::printf("reach %u\n", unsigned(api::reach(2, 5)));
 	api::range_u64 wide = api::widen({2, 5}, 1);
 	std::printf("widen %llu %llu\n", ull(wide.start), ull(wide.end));
 	api::bounds_u64 ranges[] = {

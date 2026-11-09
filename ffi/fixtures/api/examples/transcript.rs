@@ -176,6 +176,7 @@ fn main() {
 	println!("unnamed [{}]", api::unnamed().as_str());
 
 	println!("total {}", api::total(2..5));
+	println!("reach {}", api::reach(2, (), 5));
 	let wide = api::widen(2..5, 1);
 	println!("widen {} {}", wide.start, wide.end);
 	println!(

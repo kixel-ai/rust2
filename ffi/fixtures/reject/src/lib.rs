@@ -685,3 +685,6 @@ pub fn halves() -> impl Iterator<Item = &'static str> {
 pub fn mixed(a: Option<((u8, u16), u32)>, b: Option<((u8, u16, u32),)>) -> bool {
 	a.is_some() && b.is_some()
 }
+
+/// No value is one, so C never holds a handle to it.
+pub enum Void {}

@@ -396,6 +396,7 @@ static int script(void) {
 	api_Name_free(unnamed);
 
 	printf("total %llu\n", (unsigned long long)api_total((api_range_u64){.start = 2, .end = 5}));
+	printf("reach %u\n", (unsigned)api_reach(2, 5));
 	api_range_u64 wide = api_widen((api_range_u64){.start = 2, .end = 5}, 1);
 	printf("widen %llu %llu\n", (unsigned long long)wide.start, (unsigned long long)wide.end);
 	api_bounds_u64 ranges[] = {

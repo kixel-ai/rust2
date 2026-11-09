@@ -222,6 +222,7 @@ Future<void> script() async {
   print('unnamed [${api.unnamed().asStr()}]');
 
   print('total ${api.total(const api.RangeU64(2, 5))}');
+  print('reach ${api.reach(2, 5)}');
   final wide = api.widen(const api.RangeU64(2, 5), 1);
   print('widen ${wide.start} ${wide.end}');
   final counts = [
