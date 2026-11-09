@@ -1076,7 +1076,9 @@ impl Gen<'_> {
 						_ => "path",
 					};
 					(
-						format!("let {local} = if {c}.is_none() {{ None }} else {{ Some(unsafe {{ {c}.{view}(w) }}) }};"),
+						format!(
+							"let {local} = if {c}.is_none() {{ None }} else {{ Some(unsafe {{ {c}.{view}(w) }}) }};"
+						),
 						local.to_string(),
 					)
 				}

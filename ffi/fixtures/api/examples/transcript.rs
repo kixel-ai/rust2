@@ -443,7 +443,12 @@ fn main() {
 	);
 	let (two, mut three) = (Counter::new("two", 2), Counter::new("three", 3));
 	println!("plus {} {}", two.plus(Some(&three)), two.plus(None));
-	println!("add_to {} {} {}", two.add_to(Some(&mut three)), two.add_to(None), three.get());
+	println!(
+		"add_to {} {} {}",
+		two.add_to(Some(&mut three)),
+		two.add_to(None),
+		three.get()
+	);
 	println!("chunks {:?}", api::chunks(b"abcde", 2));
 	let mut counters = api::counters(vec!["x".to_string(), "y".to_string()]);
 	let names: Vec<String> = counters.iter().map(|c| format!("{} {}", c.name(), c.get())).collect();
