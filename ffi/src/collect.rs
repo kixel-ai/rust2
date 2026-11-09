@@ -916,6 +916,9 @@ impl<'tcx> Collector<'tcx> {
 				// A glob of its root re-exports its items instead, which export. The span is
 				// the `pub use` naming the crate, past any glob of the module holding it.
 				if kind == DefKind::Mod && def_id.is_crate_root() && !def_id.is_local() {
+					if self.exclude(&path) {
+						continue;
+					}
 					let span = child.reexport_chain.last().and_then(|reexport| reexport.id());
 					let span = span.map_or_else(|| tcx.def_span(def_id), |id| tcx.def_span(id));
 					let krate = tcx.crate_name(def_id.krate).to_string();

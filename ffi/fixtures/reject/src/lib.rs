@@ -691,3 +691,6 @@ pub use dep;
 
 /// The same crate whole, by another name.
 pub use ::dep as renamed;
+
+/// A crate whole, which the config excludes, so nothing refuses it.
+pub use ::dep as Shed;
