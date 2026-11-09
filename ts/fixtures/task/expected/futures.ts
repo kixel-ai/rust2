@@ -89,7 +89,7 @@ export class helpersFuture {
 					this.#pinned$2 = new recvFuture$kio_Consumer(this.#rx);
 					const next: rs.Future<rs.u64 | undefined> = this.#pinned$2;
 					let captured2 = never;
-					let captured3 = undefined as rs.Waker | undefined;
+					let captured3: rs.Waker | undefined = undefined as rs.Waker | undefined;
 					const captured4 = owned;
 					let captured5 = next;
 					const captured6 = this.#total;
