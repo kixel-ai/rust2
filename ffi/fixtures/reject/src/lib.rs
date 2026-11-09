@@ -601,6 +601,12 @@ pub fn values() -> std::collections::btree_map::IntoValues<u8, u8> {
 	std::collections::BTreeMap::new().into_values()
 }
 
+/// How many floats a set holds, which Rust could not build from C's floats, as they are
+/// not `Ord`.
+pub fn floats(set: std::collections::BTreeSet<f64>) -> usize {
+	set.len()
+}
+
 /// As many zeros as the caller asks, held nowhere until made.
 pub fn zeros(n: usize) -> std::iter::RepeatN<u8> {
 	std::iter::repeat_n(0, n)

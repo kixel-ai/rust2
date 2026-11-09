@@ -3405,8 +3405,25 @@ impl<'tcx> Collector<'tcx> {
 							self.ty(args.type_at(1), pos.inner())?,
 						]),
 					};
-					if borrows(&inner) && !matches!(pos, Pos::Return | Pos::Returned) {
-						return Err(why("collection of references", ty.to_string()));
+					if !matches!(pos, Pos::Return | Pos::Returned) {
+						if borrows(&inner) {
+							return Err(why("collection of references", ty.to_string()));
+						}
+						// Rust builds what C passes from its items, which a set of floats,
+						// say, cannot be built from.
+						let item = match c {
+							Collection::BTreeSet => args.type_at(0),
+							_ => Ty::new_tup(tcx, &[args.type_at(0), args.type_at(1)]),
+						};
+						let builds = tcx.get_diagnostic_item(sym::FromIterator).is_some_and(|tr| {
+							let (infcx, env) = tcx.infer_ctxt().build_with_typing_env(TypingEnv::fully_monomorphized());
+							infcx
+								.type_implements_trait(tr, [ty, item], env)
+								.must_apply_modulo_regions()
+						});
+						if !builds {
+							return Err(why("collection not built from its items", ty.to_string()));
+						}
 					}
 					Type::List(c, Box::new(inner))
 				} else if Some(did) == self.bytes {
