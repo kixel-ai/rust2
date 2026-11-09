@@ -110,7 +110,7 @@ export function writeByte(self: rs.ByteSlice, index: rs.usize, byte: rs.u8): voi
 	if (!(index < len(self))) {
 		rs.panic("assertion failed: index < self.len()");
 	} else {
-		asMutPtr(indexMut$ops_IndexMut_ops_RangeFrom_usize(self, new rs.RangeFrom(index, rs.usizeStep), { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/uninit_slice.rs", line: 110, col: 22 })).v = byte;
+		asMutPtr(indexMut$ops_IndexMut_ops_RangeFrom_usize(self, new rs.RangeFrom(index, rs.usizeStep), { file: "bytes/source/buf/uninit_slice.rs", line: 110, col: 22 })).v = byte;
 	}
 }
 

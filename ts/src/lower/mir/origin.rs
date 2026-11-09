@@ -492,15 +492,23 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			return None;
 		}
 		let owner = self.tcx.item_name(adt.did()).to_string();
-		let arc = &args.first()?.node;
-		let place = match self.traced(arc) {
+		Some((self.referent(&args.first()?.node)?, owner))
+	}
+
+	/// The place the shared reference `r` borrows, if the body shows it and that it holds the
+	/// same value while the borrow lives: one a borrow here took, or what a reference it is
+	/// given or assigns once points at.
+	fn referent(&self, r: &Operand<'tcx>) -> Option<mir::Place<'tcx>> {
+		let place = match self.traced(r) {
+			Some(r) if self.def_at[r].is_none() => return Some(self.tcx.mk_place_deref(mir::Place::from(r))),
 			Some(r) => match self.def_rvalue(r)? {
+				Rvalue::Use(op, _) => return self.referent(op),
 				Rvalue::Ref(_, _, place) => *place,
 				_ => return None,
 			},
 			// A reference the function is given and never assigns.
 			None => {
-				let r = arc.place()?.as_local()?;
+				let r = r.place()?.as_local()?;
 				if !self.is_arg(r) || self.defs[r] != 0 {
 					return None;
 				}
@@ -528,7 +536,49 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				}
 				_ => false,
 			});
-		stays.then_some((place, owner))
+		stays.then_some(place)
+	}
+
+	/// Whether the shared slice `subset` is of the bytes of the `Bytes` the shared reference
+	/// `bytes` is to, as the body shows: through its `Deref` or `as_ref`, or a slice of one.
+	/// Only then does JS keep both in one buffer where Rust does.
+	pub(super) fn bytes_of(&self, subset: &Operand<'tcx>, bytes: &Operand<'tcx>) -> bool {
+		let Some(local) = self.traced(subset) else {
+			return false;
+		};
+		if self.def_at[local].is_some() {
+			return match self.def_rvalue(local) {
+				Some(Rvalue::Use(op, _)) => self.bytes_of(op, bytes),
+				// `&*s`, of the shared slice `s`.
+				Some(Rvalue::Ref(_, mir::BorrowKind::Shared, place))
+					if let [ProjectionElem::Deref] = place.projection.as_slice() =>
+				{
+					self.bytes_of(&Operand::Copy(mir::Place::from(place.local)), bytes)
+				}
+				_ => false,
+			};
+		}
+		let Some((def_id, gargs, args)) = self.def_call(local) else {
+			return false;
+		};
+		let Some(of) = args.first().map(|a| &a.node) else {
+			return false;
+		};
+		let Some(self_ty) = gargs.types().next() else {
+			return false;
+		};
+		match library::key(self.tcx, def_id) {
+			Some((owner, name)) => match (owner.as_str(), name.as_str()) {
+				("Index", "index") if self_ty.is_slice() => self.bytes_of(of, bytes),
+				("Deref", "deref") | ("AsRef", "as_ref")
+					if matches!(self_ty.kind(), ty::Adt(adt, _) if Std::of(self.tcx, adt.did()) == Some(Std::Bytes)) =>
+				{
+					self.referent(of).is_some_and(|place| self.referent(bytes) == Some(place))
+				}
+				_ => false,
+			},
+			None => false,
+		}
 	}
 
 	/// `Arc::as_ptr` of the `Arc` or `Rc` whose value of a type JS copies the shared

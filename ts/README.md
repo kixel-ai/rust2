@@ -765,8 +765,9 @@ of them:
   `rs/bytes.ts`, panicking as `bytes` does, and so do `split_to`, `split_off`,
   `truncate`, `clear`, and `slice_ref`, whose panic names no addresses. A `Bytes` of a
   `String` takes storage of its capacity, as `bytes` does. `slice_ref` of
-  bytes from other storage throws, since Rust may share what JS copied, as a `&'static
-  str`'s bytes that `as_bytes` encodes anew. `Bytes::from_owner`
+  bytes the body doesn't show borrowed from that `Bytes`, through `Deref`, `as_ref`, or a
+  slice of one, is refused, since Rust may share what JS copied, as a `&'static str`'s
+  bytes that `as_bytes` encodes anew. `Bytes::from_owner`
   reads its owner's bytes once, as `bytes` does, and an owner that drops is kept in the
   `rs.Shared` they count, which drops it with the last `Bytes` sharing them; one of an owner
   is never unique, so taking it back copies.

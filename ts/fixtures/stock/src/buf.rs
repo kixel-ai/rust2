@@ -972,7 +972,8 @@ pub fn edits(data: &[u8], out: &mut Vec<u8>) {
 			Bytes::new()
 		}
 		4 => {
-			let sub = &bytes[a.min(rest.len())..];
+			let all: &[u8] = bytes.as_ref();
+			let sub = &all[a.min(rest.len())..];
 			bytes.slice_ref(sub)
 		}
 		5 => {
@@ -1105,8 +1106,8 @@ pub fn owners(data: &[u8], out: &mut Vec<u8>) {
 				vec![]
 			}
 			13 => {
-				let sub = &handles[i][at..];
-				let part = handles[i].slice_ref(sub);
+				let handle = &handles[i];
+				let part = handle.slice_ref(&handle[at..]);
 				handles.push(part);
 				vec![]
 			}

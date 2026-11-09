@@ -29,6 +29,7 @@ roots = [
     "alloc::zeroed",
     "bound_ranges",
     "buffers::blank_bytes",
+    "buffers::sliced_elsewhere",
     "clones::cloned_slots",
     "clones::dropped_slots",
     "clones::ranked_slots",
