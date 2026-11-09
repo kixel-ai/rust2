@@ -58,7 +58,7 @@ Public API: the exporter's command line and the C API of every item that exports
 - [Whole-crate re-exports are refused with one span](/quest/m1/ffi-export/refusals/reexports.md) - the exporter stops at a `pub use` of a crate root, turning about 790 refusals into one per re-export
 - [Generic parameters and traits export](/quest/m1/ffi-export/refusals/generics.md) - `Client::connect`'s `Boxable`, futures and readers as parameters, trait objects, associated types, and callbacks
 - [Standard and common types export by role](/quest/m1/ffi-export/refusals/std-types.md) - maps, sets, errors, `NonZero`, addresses, instants, sockets, levels, JSON maps, and iterator adapters
-- [Poll and Context export](/quest/m1/ffi-export/refusals/poll.md) - a `poll_*` with no async twin takes a waker, as futures' polls do
+- [Returned wakers and contexts export](/quest/m1/ffi-export/refusals/poll.md) - kio's `Waiter::waker` and `Waiter::context`, once a function returning `Poll` exports as a future
 - [Borrow shapes export](/quest/m1/ffi-export/refusals/borrows.md) - `Option<&T>`, `&mut` buffers, `&Bytes`, `Arc<T>`, `'static` borrows, and borrowed returns that are not `Clone`
 - [Small shapes export](/quest/m1/ffi-export/refusals/small-shapes.md) - `u128`, arrays, const generics, unit and `Result` off a return, `!`, empty enums, and what is not `Send`
 - [What C can never hold is left out and listed](/quest/m1/ffi-export/refusals/unholdable.md) - objects no export returns or lends to a closure, and generics no export instantiates leave the bindings but stay in the census

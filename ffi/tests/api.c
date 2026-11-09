@@ -546,6 +546,35 @@ static int script(void) {
 	api_Channel_notify(channel, waker);
 	api_Channel_send(channel, str("rung"));
 	printf("woken %d\n", wakes);
+	/* A poll with no async twin is a future: it takes what the last send left. */
+	api_Channel_poll_take_future *take = api_Channel_poll_take(channel);
+	if (api_Channel_poll_take_poll(take, waker, &payload) == API_POLL_READY) {
+		print("take ", payload, "\n");
+	}
+	api_Channel_poll_take_future_free(take);
+	api_Channel_send(channel, str("measured"));
+	api_Channel_poll_measure_future *measure = api_Channel_poll_measure(channel, 2);
+	if (api_Channel_poll_measure_poll(measure, waker, &len, &err) == API_POLL_READY) {
+		printf("measure %zu\n", len);
+	}
+	api_Channel_poll_measure_future_free(measure);
+	/* A context is made of the waker, which Rust keeps until the send wakes it. */
+	api_Channel_listen(channel, waker);
+	api_Channel_send(channel, str("heard"));
+	printf("woken %d\n", wakes);
+	api_Channel_clear(channel);
+	/* The waiter a pending poll registers lives until the next poll, so the send wakes it. */
+	take = api_Channel_poll_take(channel);
+	if (api_Channel_poll_take_poll(take, waker, &payload) != API_POLL_PENDING) {
+		return 1;
+	}
+	int woken = wakes;
+	api_Channel_send(channel, str("later"));
+	if (wakes != woken + 1 || api_Channel_poll_take_poll(take, waker, &payload) != API_POLL_READY) {
+		return 1;
+	}
+	api_buf_free(payload);
+	api_Channel_poll_take_future_free(take);
 	api_Channel_free(channel);
 
 	/* A value that holds itself is an object. */
@@ -948,7 +977,7 @@ static int script(void) {
 	api_Token_free(twice);
 
 	/* Each future dropped its waker once it finished, and Rust the one it was given. */
-	return drops == 5 ? 0 : 1;
+	return drops == 9 ? 0 : 1;
 }
 
 /* Each breaks a contract, which must abort with a message naming the function. */

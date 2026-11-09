@@ -10,7 +10,7 @@ use std::path::Path;
 
 use crate::abi::{self, Abi, Ty};
 use crate::config::Package;
-use crate::ir::{Access, Family, Function, Mutability, Receiver, Traits, Type};
+use crate::ir::{Access, Family, Function, Mutability, Receiver, Task, TaskKind, Traits, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
 
@@ -1174,9 +1174,45 @@ impl Gen<'_> {
 				let (_, data) = c_params.next().expect("a lent function's data");
 				params.push(format!("p{n}_data: {}", rs(data)));
 			}
-			let (stmt, arg) = self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future);
+			let (stmt, arg) = match &function.task {
+				// A context made of C's waker, lent for the call.
+				Some(Task {
+					at,
+					kind: TaskKind::Context(m),
+				}) if *at == n && !function.future => {
+					let (binding, pass) = match m {
+						Mutability::Mut => ("let mut", format!("&mut a{n}")),
+						Mutability::Not => ("let", format!("&a{n}")),
+					};
+					(
+						format!(
+							"let a{n}_waker = p{n}.lift();\n\t{binding} a{n} = ::std::task::Context::from_waker(&a{n}_waker);"
+						),
+						pass,
+					)
+				}
+				_ => self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future),
+			};
 			stmts.push(stmt);
 			args.push(arg);
+		}
+		// A future made of a `Poll` calls the function at each poll, passing the poll's
+		// context, or a value made from its waker and kept until the next poll, so what that
+		// poll registers stays registered.
+		let mut made = String::new();
+		if let Some(task) = function.task.as_ref().filter(|_| function.future) {
+			let pass = match &task.kind {
+				TaskKind::Context(Mutability::Mut) => "&mut *t_cx".to_string(),
+				TaskKind::Context(Mutability::Not) => "&*t_cx".to_string(),
+				TaskKind::Made { object, make } => {
+					made = format!(
+						"let t_made = t_held.insert(<{}>::{make}(::std::task::Context::waker(t_cx).clone()));\n\t\t\t",
+						self.object_path(*object)
+					);
+					"&*t_made".to_string()
+				}
+			};
+			args.insert(usize::from(receiver_ty.is_some()) + task.at, pass);
 		}
 		let mut callee = match &owner {
 			Some((_, owner_type)) => format!("<{}>::{}", self.rust(owner_type), function.name()),
@@ -1204,9 +1240,21 @@ impl Gen<'_> {
 		if let Some((_, poll, free)) = &export.future {
 			// A function that is not `async` runs when called, and what it returns
 			// borrows nothing, so it is called now; an `async fn` runs when polled.
-			let (now, later) = match function.eager {
-				true => (format!("\n\tlet future = {call};"), "future".to_string()),
-				false => (String::new(), call),
+			let (now, later) = match (function.eager, &function.task) {
+				(true, _) => (format!("\n\tlet future = {call};"), "future".to_string()),
+				(false, None) => (String::new(), call),
+				(false, Some(task)) => {
+					let held = match task.kind {
+						TaskKind::Made { .. } => "let mut t_held = None;\n\t\t",
+						TaskKind::Context(_) => "",
+					};
+					(
+						String::new(),
+						format!(
+							"{{\n\t\t{held}::std::future::poll_fn(move |t_cx: &mut ::std::task::Context<'_>| {{\n\t\t\t{made}{call}\n\t\t}})\n\t\t}}"
+						),
+					)
+				}
 			};
 			let bind: String = Self::outs(function)
 				.iter()

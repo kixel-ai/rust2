@@ -11,6 +11,7 @@
 
 use std::collections::VecDeque;
 
+use rustc_attr_ir::LangItem;
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::def_id::{CrateNum, DefId, LOCAL_CRATE};
 use rustc_infer::infer::TyCtxtInferExt;
@@ -28,7 +29,7 @@ use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _
 use crate::config;
 use crate::ir::{
 	Access, Api, Callback, Constant, Dyn, Enum, Family, Field, Function, Home, Int, Literal, Mutability, Object, Param,
-	Path, Receiver, Record, Traits, Type, Variant,
+	Path, Receiver, Record, Task, TaskKind, Traits, Type, Variant,
 };
 
 /// Why something is refused: a construct, ranked by the census, and what it names.
@@ -1136,6 +1137,7 @@ impl<'tcx> Collector<'tcx> {
 			err: Some(Type::String),
 			future: false,
 			eager: false,
+			task: None,
 			collect: false,
 			access: Access::Parse,
 			instance: None,
@@ -1169,6 +1171,7 @@ impl<'tcx> Collector<'tcx> {
 						err: None,
 						future: false,
 						eager: false,
+						task: None,
 						collect: false,
 						access: Access::Text,
 						instance: None,
@@ -1674,6 +1677,7 @@ impl<'tcx> Collector<'tcx> {
 						err: None,
 						future: false,
 						eager: false,
+						task: None,
 						collect: false,
 						access: Access::Field { shared, set },
 						instance: None,
@@ -1726,12 +1730,25 @@ impl<'tcx> Collector<'tcx> {
 			}
 		}
 		// `poll_x` is left out when `x` exports as a future: the future is its poll.
+		// One made of a `Poll` is no twin's.
+		let futures: Vec<String> = (methods.iter())
+			.filter(|m| m.future && m.task.is_none())
+			.map(|m| m.name().to_string())
+			.collect();
+		let twin = |name: &str| {
+			name.strip_prefix("poll_")
+				.is_some_and(|x| futures.iter().any(|f| f == x))
+		};
+		let (twins, kept): (Vec<Function>, Vec<Function>) =
+			(methods.into_iter()).partition(|m| m.future && m.task.is_some() && m.instance.is_none() && twin(m.name()));
+		methods = kept;
+		for function in twins {
+			let (report, rest) = self.report(&function.shown);
+			report.twins.push(rest);
+		}
 		for (method, span, why, instance) in refused {
 			let name = method.last().expect("a method has a name");
-			let twin = !instance
-				&& name
-					.strip_prefix("poll_")
-					.is_some_and(|x| methods.iter().any(|m| m.future && m.name() == x));
+			let twin = !instance && twin(name);
 			match twin {
 				true => {
 					let (report, rest) = self.report(&method);
@@ -2012,6 +2029,22 @@ impl<'tcx> Collector<'tcx> {
 			}
 		};
 		let callback = tcx.def_kind(tcx.parent(def_id)) == DefKind::Trait;
+		let mut output = normalize(sig.output());
+		// A returned `Poll` is a future's: each time C polls the future, it calls the function
+		// with the poll's context, so the future owns every other argument and passes it again.
+		let polled = match output.kind() {
+			ty::Adt(adt, args) if !callback && tcx.is_lang_item(adt.did(), LangItem::Poll) => Some(args.type_at(0)),
+			_ => None,
+		};
+		let again = |ty: Ty<'tcx>| ty.is_ref() || tcx.type_is_copy_modulo_regions(env, ty);
+		if polled.is_some()
+			&& receiver == Some(Receiver::Owned)
+			&& let Some(self_ty) = self_ty
+			&& !again(normalize(self_ty))
+		{
+			errs.push(why("poll taking self by value", self_ty.to_string()));
+		}
+		let mut tasks = Vec::new();
 		let mut params = Vec::new();
 		for (i, ty) in inputs {
 			let name = names
@@ -2019,6 +2052,21 @@ impl<'tcx> Collector<'tcx> {
 				.copied()
 				.flatten()
 				.map_or_else(|| format!("arg{i}"), |ident| ident.to_string());
+			if !callback && let Some(kind) = self.task(ty, polled.is_some()) {
+				// C passes a waker for a context the future does not supply.
+				if polled.is_none() {
+					params.push(Param { name, ty: Type::Waker });
+				}
+				tasks.push(Task {
+					at: i - usize::from(has_self),
+					kind,
+				});
+				continue;
+			}
+			if polled.is_some() && !again(ty) {
+				errs.push(why("poll's parameter taken by value that is not Copy", ty.to_string()));
+				continue;
+			}
 			match self.ty(ty, Pos::Param) {
 				// C's value is lifted into an owned Rust one, lent only as the parameter
 				// itself. A callback's parameters are lent the other way, to C.
@@ -2029,10 +2077,23 @@ impl<'tcx> Collector<'tcx> {
 				Err(why) => errs.push(why),
 			}
 		}
-		let mut output = normalize(sig.output());
+		let task = tasks.pop();
+		if !tasks.is_empty() {
+			errs.push(why("several task parameters", ""));
+		}
 		let mut future = false;
-		let eager = !tcx.asyncness(def_id).is_async();
-		if let Some(inner) = self.future_output(output, env) {
+		let mut eager = !tcx.asyncness(def_id).is_async();
+		if let Some(inner) = polled {
+			if task.is_none() {
+				errs.push(why("Poll with no Context or waiter parameter", output.to_string()));
+			}
+			if borrows {
+				errs.push(why("borrowed Poll", inner.to_string()));
+			}
+			output = normalize(inner);
+			future = true;
+			eager = false;
+		} else if let Some(inner) = self.future_output(output, env) {
 			if !self.is_send(output, env) {
 				errs.push(why("future not Send", ""));
 			}
@@ -2083,6 +2144,7 @@ impl<'tcx> Collector<'tcx> {
 				err,
 				future,
 				eager: future && eager,
+				task,
 				collect,
 				access: Access::Call,
 				instance,
@@ -3187,6 +3249,49 @@ impl<'tcx> Collector<'tcx> {
 		}
 	}
 
+	/// What a parameter of type `ty` polls its task through, if it does: a `&Context` or
+	/// `&mut Context`, or where the function returns a `Poll`, a reference to an object
+	/// exactly one associated function makes from a `Waker` alone, such as kio's `Waiter`.
+	fn task(&self, ty: Ty<'tcx>, polled: bool) -> Option<TaskKind> {
+		let tcx = self.tcx;
+		let ty::Ref(_, inner, m) = *ty.kind() else {
+			return None;
+		};
+		let ty::Adt(adt, _) = *inner.kind() else {
+			return None;
+		};
+		if tcx.is_lang_item(adt.did(), LangItem::Context) {
+			return Some(TaskKind::Context(match m {
+				ty::Mutability::Not => Mutability::Not,
+				ty::Mutability::Mut => Mutability::Mut,
+			}));
+		}
+		if !polled || m == ty::Mutability::Mut {
+			return None;
+		}
+		let Ok(Type::Object(object)) = self.ty(inner, Pos::Behind) else {
+			return None;
+		};
+		let waker = |ty: Ty<'tcx>| matches!(ty.kind(), ty::Adt(w, _) if tcx.is_diagnostic_item(rustc_span::Symbol::intern("Waker"), w.did()));
+		let makes: Vec<String> = (tcx.inherent_impls(adt.did()).iter())
+			.flat_map(|&imp| tcx.associated_items(imp).in_definition_order())
+			.filter(|item| {
+				matches!(item.kind, ty::AssocKind::Fn { has_self: false, .. })
+					&& tcx.visibility(item.def_id).is_public()
+			})
+			.filter(|item| {
+				let sig = tcx.fn_sig(item.def_id).skip_binder().skip_binder();
+				matches!(sig.inputs(), [input] if waker(*input))
+					&& matches!(sig.output().kind(), ty::Adt(out, _) if out.did() == adt.did())
+			})
+			.map(|item| item.name().to_string())
+			.collect();
+		match <[String; 1]>::try_from(makes) {
+			Ok([make]) => Some(TaskKind::Made { object, make }),
+			Err(_) => None,
+		}
+	}
+
 	fn is_send(&self, ty: Ty<'tcx>, env: TypingEnv<'tcx>) -> bool {
 		let tcx = self.tcx;
 		let Some(send) = tcx.get_diagnostic_item(sym::Send) else {
@@ -3245,6 +3350,7 @@ impl<'tcx> Collector<'tcx> {
 				err: None,
 				future: false,
 				eager: false,
+				task: None,
 				collect: false,
 				access: Access::Const,
 				instance: None,

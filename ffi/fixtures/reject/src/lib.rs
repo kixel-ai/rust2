@@ -685,3 +685,38 @@ pub fn halves() -> impl Iterator<Item = &'static str> {
 pub fn mixed(a: Option<((u8, u16), u32)>, b: Option<((u8, u16, u32),)>) -> bool {
 	a.is_some() && b.is_some()
 }
+
+/// A `Poll` with nothing to register a wake through: its future would pend forever.
+pub fn settled() -> std::task::Poll<u8> {
+	std::task::Poll::Ready(1)
+}
+
+/// A poll taking an owned value, which the future cannot pass again at its next poll.
+pub fn poll_named(cx: &mut std::task::Context<'_>, name: String) -> std::task::Poll<usize> {
+	cx.waker().wake_by_ref();
+	std::task::Poll::Ready(name.len())
+}
+
+/// A poll whose value borrows what the future owns.
+pub fn poll_first<'a>(items: &'a [u8], cx: &mut std::task::Context<'_>) -> std::task::Poll<&'a u8> {
+	cx.waker().wake_by_ref();
+	items.first().map_or(std::task::Poll::Pending, std::task::Poll::Ready)
+}
+
+/// A poll lent a closure, which C lends only for the call, and the future outlives.
+pub fn poll_until(cx: &mut std::task::Context<'_>, done: impl Fn(u8) -> bool) -> std::task::Poll<()> {
+	match done(1) {
+		true => std::task::Poll::Ready(()),
+		false => {
+			cx.waker().wake_by_ref();
+			std::task::Poll::Pending
+		}
+	}
+}
+
+/// A poll through two contexts, which one future's poll cannot both be.
+pub fn poll_both(a: &mut std::task::Context<'_>, b: &std::task::Context<'_>) -> std::task::Poll<()> {
+	a.waker().wake_by_ref();
+	b.waker().wake_by_ref();
+	std::task::Poll::Ready(())
+}

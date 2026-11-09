@@ -252,6 +252,16 @@ fun script() {
 	channel.notify(waker)
 	channel.send("rung".encodeToByteArray())
 	println("woken $wakes")
+	runBlocking {
+		// A poll with no async twin is a future.
+		println("take ${channel.pollTake().text()}")
+		channel.send("measured".encodeToByteArray())
+		println("measure ${channel.pollMeasure(2u)}")
+	}
+	// A context is made of the waker, which Rust keeps until the send wakes it.
+	channel.listen(waker)
+	channel.send("heard".encodeToByteArray())
+	println("woken $wakes")
 
 	val list = Node.new(1u, null)
 	list.push(2u)

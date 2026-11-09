@@ -377,6 +377,16 @@ func script() {
 	channel.notify { wakes.value += 1 }
 	channel.send(Data("rung".utf8))
 	print("woken \(wakes.value)")
+	block {
+		// A poll with no async twin is a future.
+		print("take \(text(try await channel.pollTake()))")
+		channel.send(Data("measured".utf8))
+		print("measure \(try await channel.pollMeasure(2))")
+	}
+	// A context is made of the waker, which Rust keeps until the send wakes it.
+	channel.listen { wakes.value += 1 }
+	channel.send(Data("heard".utf8))
+	print("woken \(wakes.value)")
 
 	let list = Node.new(1, nil)
 	list.push(2)

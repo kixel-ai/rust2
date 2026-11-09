@@ -3,8 +3,8 @@
 use std::borrow::Cow;
 use std::fmt;
 use std::ops::{Bound, Range, RangeBounds};
-use std::sync::{Arc, Mutex};
-use std::task::{Poll, Waker};
+use std::sync::{Arc, Mutex, Weak};
+use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 
 use bytes::Bytes;
@@ -437,7 +437,17 @@ impl Window {
 /// A one-slot channel: its receive is a future that waits for a send.
 #[derive(Clone, Default)]
 pub struct Channel {
-	state: Arc<Mutex<(Option<Bytes>, Option<Waker>)>>,
+	state: Arc<Mutex<(Option<Bytes>, Option<Waker>, Option<Weak<Waker>>)>>,
+}
+
+/// What a poll registers, made from a task's waker: it wakes the task only while it lives,
+/// as kio's `Waiter` does, so a future polling with one must keep it between polls.
+pub struct Waiter(Arc<Waker>);
+
+impl Waiter {
+	pub fn new(waker: Waker) -> Self {
+		Self(Arc::new(waker))
+	}
 }
 
 impl Channel {
@@ -456,6 +466,9 @@ impl Channel {
 		state.0 = Some(payload);
 		if let Some(waker) = state.1.take() {
 			waker.wake();
+		}
+		if let Some(waiter) = state.2.take().and_then(|waiter| waiter.upgrade()) {
+			waiter.wake_by_ref();
 		}
 	}
 
@@ -506,6 +519,39 @@ impl Channel {
 				Poll::Pending
 			}
 		}
+	}
+
+	/// The next payload, waiting for it through `waiter`: a poll with no async twin, which
+	/// exports as a future.
+	pub fn poll_take(&self, waiter: &Waiter) -> Poll<Bytes> {
+		let mut state = self.state.lock().unwrap();
+		match state.0.take() {
+			Some(payload) => Poll::Ready(payload),
+			None => {
+				state.2 = Some(Arc::downgrade(&waiter.0));
+				Poll::Pending
+			}
+		}
+	}
+
+	/// The next payload's length past `extra`, failing once it is empty: a poll through a
+	/// context, of `&mut self`, which passes `extra` again at each poll.
+	pub fn poll_measure(&mut self, cx: &mut Context<'_>, extra: usize) -> Poll<Result<usize, Error>> {
+		let mut state = self.state.lock().unwrap();
+		match state.0.take() {
+			Some(payload) if payload.is_empty() => Poll::Ready(Err(Error::Underflow { by: 1 })),
+			Some(payload) => Poll::Ready(Ok(payload.len() + extra)),
+			None => {
+				state.1 = Some(cx.waker().clone());
+				Poll::Pending
+			}
+		}
+	}
+
+	/// Wakes the context's task on the next send, as `notify` wakes its waker: C passes the
+	/// waker the context is made of.
+	pub fn listen(&self, cx: &Context<'_>) {
+		self.state.lock().unwrap().1 = Some(cx.waker().clone());
 	}
 
 	/// The next payload and its length: a future's tuple is written through its poll's

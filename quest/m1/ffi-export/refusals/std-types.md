@@ -3,8 +3,8 @@
 ## Goal
 
 The census at the moq pin refuses no item of moq's own for naming a standard or common
-foreign type: 77 items at moq `ffcb7cd9`, less the 23 `Poll` and `Context` ones
-[poll](/quest/m1/ffi-export/refusals/poll.md) owns. Each exports by its role, as
+foreign type: 77 items at moq `ffcb7cd9`, less the 23 `Poll` and `Context` ones, which
+export as futures and wakers. Each exports by its role, as
 `Duration` and `String` already do: `BTreeMap` (20) and `BTreeSet`, `anyhow::Error` (12)
 and `io::Error` (5), `NonZero` (5), `IpAddr`, `Instant`, `UdpSocket`, `tracing::Level`,
 `serde_json::Map`, and iterator adapters such as `Audio::enabled`'s `Filter`.
