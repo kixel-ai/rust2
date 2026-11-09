@@ -56,7 +56,7 @@ Public API: the exporter's command line and the C API of every item that exports
 
 - [The stand-in exports only moq-tokio's session side](/quest/m1/ffi-export/refusals/narrow-standin.md) - `just ffi standin` names the session items moq-ffi ships in place of `pub use ::moq_tokio::*;`
 - [Whole-crate re-exports are refused with one span](/quest/m1/ffi-export/refusals/reexports.md) - the exporter stops at a `pub use` of a crate root, turning about 790 refusals into one per re-export
-- [Generic parameters and traits export](/quest/m1/ffi-export/refusals/generics.md) - `Client::connect`'s `Boxable`, futures and readers as parameters, trait objects, associated types, and callbacks
+- [Futures and kept closures as parameters export](/quest/m1/ffi-export/refusals/generics.md) - `clock::timeout`'s future, `clock::drive`'s kept closure, and `mp4::repair`'s seekable reader cross from C
 - [Standard and common types export by role](/quest/m1/ffi-export/refusals/std-types.md) - maps, sets, errors, `NonZero`, addresses, instants, sockets, levels, JSON maps, and iterator adapters
 - [Poll and Context export](/quest/m1/ffi-export/refusals/poll.md) - a `poll_*` with no async twin takes a waker, as futures' polls do
 - [Borrow shapes export](/quest/m1/ffi-export/refusals/borrows.md) - `Option<&T>`, `&mut` buffers, `&Bytes`, `Arc<T>`, `'static` borrows, and borrowed returns that are not `Clone`
