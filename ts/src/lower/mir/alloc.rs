@@ -25,7 +25,10 @@ fn step(owner: &str, name: &str) -> bool {
 		(owner, name),
 		("NonNull", "new" | "new_unchecked" | "as_ptr")
 			| ("ptr" | "NonNull", "cast" | "cast_const" | "cast_mut")
-			| ("Option", "ok_or" | "ok_or_else" | "unwrap" | "expect" | "unwrap_unchecked")
+			| (
+				"Option",
+				"ok_or" | "ok_or_else" | "unwrap" | "expect" | "unwrap_unchecked"
+			)
 			| ("Result", "unwrap" | "expect" | "unwrap_unchecked")
 			| ("Try", "branch")
 	)
@@ -240,7 +243,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		};
 		// Whether `op` reads what `local` holds, or a payload of it, but not through it.
 		let reads = |op: &Operand<'tcx>, local: Local| {
-			op.place().is_some_and(|p| p.local == local && !p.projection.contains(&ProjectionElem::Deref))
+			op.place()
+				.is_some_and(|p| p.local == local && !p.projection.contains(&ProjectionElem::Deref))
 		};
 		let mut types = Vec::new();
 		let mut seen = vec![root];

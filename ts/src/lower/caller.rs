@@ -541,7 +541,10 @@ fn bytes_sites(t: &mut Translator<'_, '_>, span: Span) -> Vec<(Key, Expr)> {
 				index: rustc_hir::def_id::DefIndex::from_usize(index),
 			};
 			if matches!(tcx.def_kind(def_id), DefKind::Fn | DefKind::AssocFn) {
-				fns.insert(rustc_middle::ty::print::with_no_trimmed_paths!(tcx.def_path_str(def_id)), def_id);
+				fns.insert(
+					rustc_middle::ty::print::with_no_trimmed_paths!(tcx.def_path_str(def_id)),
+					def_id,
+				);
 			}
 		}
 		let mut props = Vec::new();
@@ -591,7 +594,10 @@ fn panics(tcx: TyCtxt<'_>, def_id: DefId, tracked: bool) -> Vec<Span> {
 				.any(|item| tcx.is_lang_item(callee, item))
 				|| (tracked
 					&& callee.krate == def_id.krate
-					&& tcx.codegen_fn_attrs(callee).flags.contains(CodegenFnAttrFlags::TRACK_CALLER));
+					&& tcx
+						.codegen_fn_attrs(callee)
+						.flags
+						.contains(CodegenFnAttrFlags::TRACK_CALLER));
 			let own = (terminator.source_info.scope)
 				.inlined_instance(&mir.source_scopes)
 				.is_none();

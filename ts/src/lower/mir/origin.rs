@@ -558,11 +558,13 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let Some((def_id, gargs)) = func.const_fn_def() else {
 			return place;
 		};
-		let bytes = |ty: ty::Ty<'tcx>| matches!(ty.kind(), ty::Adt(adt, _) if Std::of(self.tcx, adt.did()) == Some(Std::Bytes));
 		let shares = match library::key(self.tcx, def_id) {
 			Some((owner, name)) => match (owner.as_str(), name.as_str()) {
 				("Bytes", "slice") => library::inherent_std(self.tcx, def_id) == Some(Std::Bytes),
-				("Clone", "clone") => gargs.types().next().is_some_and(bytes),
+				("Clone", "clone") => gargs
+					.types()
+					.next()
+					.is_some_and(|ty| self.b.t.std_of(ty) == Some(Std::Bytes)),
 				_ => false,
 			},
 			None => false,
@@ -605,9 +607,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		match library::key(self.tcx, def_id) {
 			Some((owner, name)) => match (owner.as_str(), name.as_str()) {
 				("Index", "index") if self_ty.is_slice() => self.bytes_of(of, bytes),
-				("Deref", "deref") | ("AsRef", "as_ref")
-					if matches!(self_ty.kind(), ty::Adt(adt, _) if Std::of(self.tcx, adt.did()) == Some(Std::Bytes)) =>
-				{
+				("Deref", "deref") | ("AsRef", "as_ref") if self.b.t.std_of(self_ty) == Some(Std::Bytes) => {
 					let storage = |r| self.referent(r).map(|place| self.storage(place));
 					storage(of).is_some_and(|place| storage(bytes) == Some(place))
 				}
