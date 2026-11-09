@@ -77,6 +77,8 @@ fixtures/reject/src/lib.rs:661:1: rust2-ffi: cannot export fn `lent`: foreign ty
 fixtures/reject/src/lib.rs:679:1: rust2-ffi: cannot export fn `halves`: foreign type `std::str::Split`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:68:2: rust2-ffi: fn `reject::audio::encoder_finish` and fn `reject::audio_encoder::finish` are both `reject_audio_encoder_finish` in C
 	fixtures/reject/src/lib.rs:63:2: note: fn `reject::audio_encoder::finish` is here
+fixtures/reject/src/lib.rs:690:9: rust2-ffi: cannot export use `dep`: re-export of a whole crate `dep`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:693:9: rust2-ffi: cannot export use `renamed`: re-export of a whole crate `dep`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:6:1: rust2-ffi: cannot export struct `Wrap`: generic type; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:72:1: rust2-ffi: cannot export fn `letters`: Range `char`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:81:2: rust2-ffi: cannot export method `Text::new`: 'static borrow `&'a str`; exclude it in the config to leave it out
