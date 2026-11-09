@@ -4719,11 +4719,13 @@ export function edits(dataData: Uint8Array, dataStart: number, dataLen: number, 
 			part = rs.bytesNew();
 		} else if (_17 === 4) {
 			const sub: rs.ByteSlice = rs.byteSliceRange(bytes, rs.min(a, dataLen - 2));
-			part = rs.bytesSliceRef(bytes, sub);
+			const _32: rs.ByteSlice = rs.bytesClone(bytes);
+			part = rs.bytesSliceRef(_32, sub);
+			rs.bytesDrop(_32);
 		} else if (_17 === 5) {
 			rs.bytesAdvance(rs.place(() => bytes, (value3) => bytes = value3), a);
-			const _35: rs.usize = rs.usizeDiv(a, 2);
-			part = rs.bytesSplitTo(rs.place(() => bytes, (value4) => bytes = value4), _35);
+			const _37: rs.usize = rs.usizeDiv(a, 2);
+			part = rs.bytesSplitTo(rs.place(() => bytes, (value4) => bytes = value4), _37);
 		} else if (_17 === 6) {
 			let clone: rs.ByteSlice = rs.bytesClone(bytes);
 			rs.bytesTruncate(rs.place(() => clone, (value2) => clone = value2), a);
@@ -4733,15 +4735,15 @@ export function edits(dataData: Uint8Array, dataStart: number, dataLen: number, 
 			rs.bytesTruncate(rs.place(() => bytes, (value) => bytes = value), a);
 			part = clone2;
 		} else {
-			const _46: rs.Place<rs.ByteSlice> = { v: rs.bytesClone(bytes) };
-			rs.bytesDrop(rs.bytesStatic(_46.v));
-			rs.bytesDrop(rs.bytesStatic(rs.byteSliceRange(_46.v, 0)));
-			part = rs.bytesStatic(_46.v);
+			const _48: rs.Place<rs.ByteSlice> = { v: rs.bytesClone(bytes) };
+			rs.bytesDrop(rs.bytesStatic(_48.v));
+			rs.bytesDrop(rs.bytesStatic(rs.byteSliceRange(_48.v, 0)));
+			part = rs.bytesStatic(_48.v);
 		}
-		const _65: boolean = rs.bytesIsUnique(part);
-		const _68: boolean = rs.bytesIsUnique(bytes);
-		const _70: rs.ByteSlice = part;
-		const args3 = [(f: rs.Formatter) => rs.bytesDebug(_70, f), (f: rs.Formatter) => rs.bytesDebug(bytes, f), (f: rs.Formatter) => rs.fmtBool(_65, f), (f: rs.Formatter) => rs.fmtBool(_68, f)];
+		const _67: boolean = rs.bytesIsUnique(part);
+		const _70: boolean = rs.bytesIsUnique(bytes);
+		const _72: rs.ByteSlice = part;
+		const args3 = [(f: rs.Formatter) => rs.bytesDebug(_72, f), (f: rs.Formatter) => rs.bytesDebug(bytes, f), (f: rs.Formatter) => rs.fmtBool(_67, f), (f: rs.Formatter) => rs.fmtBool(_70, f)];
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3]]).v));
 		rs.bytesDrop(part);
 		rs.bytesDrop(bytes);
@@ -4795,22 +4797,22 @@ export function owners(dataData: Uint8Array, dataStart: number, dataLen: number,
 				handles.items.push(part);
 				noted = new rs.ByteVec();
 			} else if (_74 === 2) {
-				const at11 = rs.idx(handles.items, i);
-				const part2: rs.ByteSlice = rs.bytesSplitTo(rs.place(() => handles.items[at11], (value6) => handles.items[at11] = value6), at);
+				const at12 = rs.idx(handles.items, i);
+				const part2: rs.ByteSlice = rs.bytesSplitTo(rs.place(() => handles.items[at12], (value6) => handles.items[at12] = value6), at);
 				handles.items.push(part2);
 				noted = new rs.ByteVec();
 			} else if (_74 === 3) {
-				const at10 = rs.idx(handles.items, i);
-				const part3: rs.ByteSlice = rs.bytesSplitOff(rs.place(() => handles.items[at10], (value5) => handles.items[at10] = value5), at);
+				const at11 = rs.idx(handles.items, i);
+				const part3: rs.ByteSlice = rs.bytesSplitOff(rs.place(() => handles.items[at11], (value5) => handles.items[at11] = value5), at);
 				handles.items.push(part3);
 				noted = new rs.ByteVec();
 			} else if (_74 === 4) {
-				const at9 = rs.idx(handles.items, i);
-				rs.bytesTruncate(rs.place(() => handles.items[at9], (value4) => handles.items[at9] = value4), at);
+				const at10 = rs.idx(handles.items, i);
+				rs.bytesTruncate(rs.place(() => handles.items[at10], (value4) => handles.items[at10] = value4), at);
 				noted = new rs.ByteVec();
 			} else if (_74 === 5) {
-				const at8 = rs.idx(handles.items, i);
-				rs.bytesTruncate(rs.place(() => handles.items[at8], (value3) => handles.items[at8] = value3), 0);
+				const at9 = rs.idx(handles.items, i);
+				rs.bytesTruncate(rs.place(() => handles.items[at9], (value3) => handles.items[at9] = value3), 0);
 				noted = new rs.ByteVec();
 			} else if (_74 === 6) {
 				noted = rs.byteVecFrom(Uint8Array.of(rs.bytesIsUnique(handles.items[rs.idx(handles.items, i)]) ? 1 : 0));
@@ -4834,20 +4836,17 @@ export function owners(dataData: Uint8Array, dataStart: number, dataLen: number,
 				rs.bytesDrop(rs.vecRemove(handles, i));
 				noted = new rs.ByteVec();
 			} else if (_74 === 11) {
-				const at6 = rs.idx(handles.items, i);
-				rs.bytesAdvance(rs.place(() => handles.items[at6], (value2) => handles.items[at6] = value2), at);
+				const at7 = rs.idx(handles.items, i);
+				rs.bytesAdvance(rs.place(() => handles.items[at7], (value2) => handles.items[at7] = value2), at);
 				noted = new rs.ByteVec();
 			} else if (_74 === 12) {
-				const at5 = rs.idx(handles.items, i);
-				const part4: rs.ByteSlice = rs.bytesSplitTo(rs.place(() => handles.items[at5], (value) => handles.items[at5] = value), at);
+				const at6 = rs.idx(handles.items, i);
+				const part4: rs.ByteSlice = rs.bytesSplitTo(rs.place(() => handles.items[at6], (value) => handles.items[at6] = value), at);
 				handles.items.push(part4);
 				noted = new rs.ByteVec();
 			} else if (_74 === 13) {
-				const at4 = rs.idx(handles.items, i);
-				const _143: rs.ByteSlice = rs.bytesClone(handles.items[at4]);
-				const _144: rs.ByteSlice = rs.byteSliceRange(handles.items[at4], at);
-				const part5: rs.ByteSlice = rs.bytesSliceRef(_143, _144);
-				rs.bytesDrop(_143);
+				const sub: rs.ByteSlice = rs.byteSliceRange(handles.items[rs.idx(handles.items, i)], at);
+				const part5: rs.ByteSlice = rs.bytesSliceRef(handles.items[rs.idx(handles.items, i)], sub);
 				handles.items.push(part5);
 				noted = new rs.ByteVec();
 			} else if (_74 === 14) {

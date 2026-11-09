@@ -503,6 +503,10 @@ const BYTES: &[(&str, &str, usize)] = &[
 	("bytes_mut_buf_advance", "<bytes::BytesMut as bytes::Buf>::advance", 0),
 ];
 
+/// The [`BYTES`] sites of a `debug_assert!`, which a build without debug assertions leaves
+/// out, as Rust leaves a call past it undefined.
+const BYTES_DEBUG: &[&str] = &["bytes_mut_set_len"];
+
 /// The `rs.Sites` of the toolchain's std, which `rs.setHook` takes: where each panic
 /// [`SITES`] names is, as the native build names it, and each [`BYTES`] names, in the
 /// program's `bytes`, if it has one.
@@ -549,10 +553,11 @@ fn bytes_sites(t: &mut Translator<'_, '_>, span: Span) -> Vec<(Key, Expr)> {
 		}
 		let mut props = Vec::new();
 		for &(key, path, nth) in BYTES {
-			let found = fns.get(path).and_then(|&f| panics(tcx, f, true).into_iter().nth(nth));
+			let found = fns.get(path).map(|&f| panics(tcx, f, true).into_iter().nth(nth));
 			match found {
-				Some(at) => props.push((Key::Name(key.into()), location(tcx, at))),
-				None => {
+				Some(Some(at)) => props.push((Key::Name(key.into()), location(tcx, at))),
+				Some(None) if BYTES_DEBUG.contains(&key) => {}
+				_ => {
 					t.err(
 						span,
 						format!("the bytes crate's compiled code has no panic {nth} in `{path}`, counting from 0"),

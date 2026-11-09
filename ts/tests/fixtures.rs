@@ -515,6 +515,30 @@ mod lang {
 		super::lang("panics", Some("hook"));
 	}
 
+	/// A program with a hook translates when its crates are built without debug assertions,
+	/// which leave out the panic of `bytes`' `debug_assert!`.
+	#[test]
+	fn panics_without_debug_assertions() {
+		let name = "lang/panics";
+		let out = super::scratch().join(name).join("nodebug");
+		let args: [&std::ffi::OsStr; 5] = [
+			"--out".as_ref(),
+			out.as_ref(),
+			"--".as_ref(),
+			"--features".as_ref(),
+			"hook".as_ref(),
+		];
+		let output = super::driver_command(name, &super::fixture(name).join("ts.toml"), &args, "nodebug-build")
+			.env("CARGO_PROFILE_DEV_DEBUG_ASSERTIONS", "false")
+			.output()
+			.expect("running rust2-ts");
+		assert!(
+			output.status.success(),
+			"translating {name} without debug assertions failed:\n{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+	}
+
 	lang!(
 		args,
 		arrays,

@@ -539,6 +539,45 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		stays.then_some(place)
 	}
 
+	/// The place the shared reference `r` borrows, as [`Self::referent`] has it, or the
+	/// element `v[i]` it is where it is `&v[i]` of a `Vec` or slice by an index the body
+	/// assigns once, which the borrow keeps where it is: two such borrows lend one element.
+	fn lent(&self, r: &Operand<'tcx>) -> Option<mir::Place<'tcx>> {
+		let indexed = self.traced(r).filter(|&l| self.def_at[l].is_none()).and_then(|l| {
+			let (def_id, gargs, args) = self.def_call(l)?;
+			let by_usize = gargs
+				.types()
+				.nth(1)
+				.is_some_and(|ty| matches!(ty.kind(), ty::Uint(ty::UintTy::Usize)));
+			if !by_usize || library::key(self.tcx, def_id)? != ("Index".into(), "index".into()) {
+				return None;
+			}
+			let elem = match &args.get(1)?.node {
+				Operand::Constant(_) => {
+					let offset = u64::try_from(self.const_int(&args[1].node)?).ok()?;
+					ProjectionElem::ConstantIndex {
+						offset,
+						min_length: offset + 1,
+						from_end: false,
+					}
+				}
+				op => {
+					let i = op.place()?.as_local()?;
+					let fixed = match self.is_arg(i) {
+						true => self.defs[i] == 0,
+						false => self.defs[i] == 1,
+					};
+					if !fixed || self.mutated[i] {
+						return None;
+					}
+					ProjectionElem::Index(i)
+				}
+			};
+			Some(self.lent(&args.first()?.node)?.project_deeper(&[elem], self.tcx))
+		});
+		indexed.or_else(|| self.referent(r))
+	}
+
 	/// The place of the `Bytes` whose storage the `Bytes` at `place` shares, as the body
 	/// shows: through `slice` or `clone` of one, into a variable assigned once and never
 	/// changed in place, which keeps that storage.
@@ -608,7 +647,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			Some((owner, name)) => match (owner.as_str(), name.as_str()) {
 				("Index", "index") if self_ty.is_slice() => self.bytes_of(of, bytes),
 				("Deref", "deref") | ("AsRef", "as_ref") if self.b.t.std_of(self_ty) == Some(Std::Bytes) => {
-					let storage = |r| self.referent(r).map(|place| self.storage(place));
+					let storage = |r| self.lent(r).map(|place| self.storage(place));
 					storage(of).is_some_and(|place| storage(bytes) == Some(place))
 				}
 				_ => false,
