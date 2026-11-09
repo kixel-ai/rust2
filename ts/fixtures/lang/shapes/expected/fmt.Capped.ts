@@ -4,21 +4,21 @@ import * as rs from "./rs.ts";
 
 /** A writer of the crate's own that fails a `write_str` past `cap` bytes, and counts each. */
 export interface Capped {
-	text: string;
+	text: rs.String;
 	calls: rs.u8;
 	cap: rs.usize;
 }
 
 export function writeStr$fmt_Write(self: Capped, s: string): rs.Result<undefined, rs.FmtError> {
 	self.calls = rs.u8Add(self.calls, 1);
-	if (!(rs.usizeAdd(rs.stringLen(self.text), rs.stringLen(s)) > self.cap)) {
+	if (!(rs.usizeAdd(self.text.len, rs.stringLen(s)) > self.cap)) {
 		const iter: rs.Iter<rs.char> = rs.strChars(s);
 		while (true) {
 			const _14: rs.char | rs.Done = iter.next();
 			if (_14 === rs.DONE) {
 				break;
 			}
-			self.text = self.text + String.fromCodePoint(_14);
+			rs.stringPush(self.text, _14);
 		}
 		return rs.OK;
 	}

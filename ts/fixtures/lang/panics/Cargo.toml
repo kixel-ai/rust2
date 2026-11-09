@@ -12,11 +12,13 @@ crate-type = ["lib", "cdylib"]
 
 [features]
 # Adds the cases that set a panic hook, which has the translation give every panic its
-# location: the other shape of its output. `bytes`' panics are among them.
-hook = ["dep:bytes"]
+# location: the other shape of its output. `bytes`' and tokio's panics are among them.
+hook = ["dep:bytes", "dep:tokio"]
 
 [dependencies]
 bytes = { version = "1.12.1", optional = true }
+edition2018 = { path = "edition2018" }
+tokio = { version = "1.54.1", default-features = false, features = ["sync"], optional = true }
 
 [lints]
 workspace = true

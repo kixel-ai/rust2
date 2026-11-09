@@ -69,7 +69,7 @@ export function places(a: rs.u8, b: rs.u8, data: rs.ByteSlice, out: rs.ByteVec):
 		set(rs.place(() => grid[_30][_32], (value) => grid[_30][_32] = value), k);
 		set(rs.place(() => rows[_35].cells[_39], (value2) => rows[_35].cells[_39] = value2), k ^ 1);
 	}
-	rs.iterExtendBytes(out, rs.iterFlatten(rs.iterLend(rs.iterSlice(grid), rs.byteSliceFrom), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 4), undefined, true);
+	rs.iterExtendBytes(out, rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(grid, rs.byteSliceFrom)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 4), undefined, true);
 	for (const _61 of rows) {
 		rs.iterExtendBytes(out, rs.iterSlice(_61.cells), undefined, true);
 	}

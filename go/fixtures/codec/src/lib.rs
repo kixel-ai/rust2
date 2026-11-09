@@ -1,6 +1,7 @@
 //! moq-net's sync codec, as rust2-ts's codec fixture vendors it, translated to Go: its
 //! sources are that fixture's, and only `bench` is this crate's own, the workloads of
-//! that fixture's benchmark that code moq's wire format and a group's whole stream.
+//! that fixture's benchmark that code moq's wire format and a group's whole stream. Its
+//! `pub` API is the two entry points, `harness::run` and `bench::run`.
 
 #![allow(dead_code, reason = "a vendored subset of moq-net, which uses the rest")]
 #![allow(
@@ -32,9 +33,9 @@ mod lite {
 #[path = "../../../../ts/fixtures/codec/src/version.rs"]
 mod version;
 
-pub use version::*;
+pub(crate) use version::*;
 
-pub mod stats {
+pub(crate) mod stats {
 	/// The control message classes moq-net's metrics count, trimmed to what the codec names.
 	#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 	#[non_exhaustive]
@@ -49,7 +50,7 @@ pub mod stats {
 /// moq-net's session error, trimmed to a few variants: the codec only carries it.
 #[derive(thiserror::Error, Debug, Clone)]
 #[non_exhaustive]
-pub enum SessionError {
+pub(crate) enum SessionError {
 	#[error("protocol violation")]
 	ProtocolViolation,
 	#[error("app code={0}")]
@@ -58,7 +59,7 @@ pub enum SessionError {
 
 /// moq-net's track timescale, stubbed for `lite::Version::wire_timescale`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Timescale(u64);
+pub(crate) struct Timescale(u64);
 
 impl Timescale {
 	/// One unit per millisecond.

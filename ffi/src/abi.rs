@@ -1,10 +1,12 @@
 //! The C ABI the IR becomes: every C name, and every function's C signature, decided
 //! once so the header and the Rust side agree.
 //!
-//! Names follow one rule: the prefix, then the item's path from its crate's root, each
-//! segment in snake case, joined by `_`; a method's path goes through its type's. Joining
-//! loses where segments split (`audio_encoder::finish` and `audio::encoder_finish` are both
-//! `moq_audio_encoder_finish`), and every export shares the prefix, so every name is
+//! Names follow one rule: the prefix, then the item's path from the facade's root, each
+//! segment in Rust's case, joined by `_`; a method's path goes through its type's, and a
+//! field's getter and setter add `_get` and `_set` to it. Case keeps a type apart from a
+//! function or module of its name, and Rust's verb-first names keep a method apart from a
+//! field's accessors. Joining still loses where segments split (`audio_encoder::finish`
+//! and `audio::encoder_finish` are both `moq_audio_encoder_finish`), so every name is
 //! registered, and a second item claiming one is a compile error at both spans rather
 //! than a silent clash.
 
@@ -12,8 +14,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use rustc_span::Span;
 
-use crate::config;
-use crate::ir::{Access, Api, Dyn, Function, Int, Receiver, Type};
+use crate::ir::{Access, Api, Dyn, Function, Home, Int, Receiver, Type};
 
 /// A C name claimed twice: the name, then what claimed it first and second.
 pub type Clash = (String, (String, Span), (String, Span));
@@ -92,11 +93,6 @@ type Suffixes = HashMap<Vec<Type>, String>;
 pub struct Abi<'a> {
 	pub api: &'a Api,
 	pub prefix: String,
-	/// C names for Rust paths, each starting with its crate's name, in place of the
-	/// rule's: an item's, and its methods' through it, or an instance's alone.
-	rename: &'a BTreeMap<String, String>,
-	/// The renamed paths some name went through.
-	renamed: std::cell::RefCell<std::collections::BTreeSet<String>>,
 	/// Each generic item's instances, by whether it is a function and its C name, with
 	/// the suffix that names each by its arguments.
 	suffixes: std::cell::RefCell<HashMap<(bool, String), Suffixes>>,
@@ -115,12 +111,10 @@ pub struct Abi<'a> {
 }
 
 impl<'a> Abi<'a> {
-	pub fn new(api: &'a Api, prefix: &str, rename: &'a BTreeMap<String, String>) -> Self {
+	pub fn new(api: &'a Api, prefix: &str) -> Self {
 		let mut abi = Self {
 			api,
 			prefix: prefix.to_string(),
-			rename,
-			renamed: Default::default(),
 			suffixes: Default::default(),
 			options: BTreeMap::new(),
 			ranges: BTreeMap::new(),
@@ -133,63 +127,19 @@ impl<'a> Abi<'a> {
 		abi
 	}
 
-	/// The C name for a Rust path, which starts with its crate's name.
+	/// The C name for a Rust path, which starts with the facade's root.
 	pub fn name(&self, path: &[String]) -> String {
-		self.named(path).0
+		std::iter::once(self.prefix.clone())
+			.chain(self.segments(path))
+			.collect::<Vec<_>>()
+			.join("_")
 	}
 
-	/// The C name for the item at `shown`, its path with its instances' arguments, and
-	/// whether a rename named the instance it is alone, which no suffix then names.
-	fn named(&self, shown: &[String]) -> (String, bool) {
-		let (segments, alone) = self.segments(shown);
-		let name = std::iter::once(self.prefix.clone()).chain(segments).collect::<Vec<_>>();
-		(name.join("_"), alone)
-	}
-
-	/// The segments of the C name of the item at `shown` after the prefix: the longest
-	/// renamed part, as `exclude` matches it, as one, then each segment past it in snake
-	/// case; and whether the rename named the instance it is alone.
-	fn segments(&self, shown: &[String]) -> (Vec<String>, bool) {
-		let mut segments = Vec::new();
-		let mut rest = &shown[1..];
-		let mut alone = false;
-		for (len, key) in config::keys(shown).take_while(|&(len, _)| len >= 2) {
-			if let Some(renamed) = self.rename.get(&key) {
-				alone = len == shown.len() && key.ends_with('>');
-				self.renamed.borrow_mut().insert(key);
-				segments.push(renamed.clone());
-				rest = &shown[len..];
-				break;
-			}
-			// No config names a foreign type, which is named by its role instead.
-			if key == "serde_json::Value" {
-				segments.push("json".to_string());
-				rest = &shown[len..];
-				break;
-			}
-		}
-		segments.extend(
-			rest.iter()
-				.map(|segment| snake(segment.split('<').next().unwrap_or(segment))),
-		);
-		(segments, alone)
-	}
-
-	/// The key, with `prefix` before it, of the rename naming the item at `shown` itself
-	/// rather than a module or type it is in.
-	fn renames(&self, shown: &[String], prefix: &str) -> Option<String> {
-		(config::keys(shown).take_while(|&(len, _)| len == shown.len()))
-			.map(|(_, key)| format!("{prefix}{key}"))
-			.find(|key| self.rename.contains_key(key))
-	}
-
-	/// The config's renames that name nothing exported.
-	pub fn unused_renames(&self) -> Vec<&str> {
-		let renamed = self.renamed.borrow();
-		self.rename
-			.keys()
-			.filter(|key| !renamed.contains(*key))
-			.map(String::as_str)
+	/// The segments of the C name of the item at `shown` after the prefix: each of its
+	/// path's after the root, without an instance's arguments.
+	fn segments(&self, shown: &[String]) -> Vec<String> {
+		(shown[1..].iter())
+			.map(|segment| segment.split('<').next().unwrap_or(segment).to_string())
 			.collect()
 	}
 
@@ -217,11 +167,7 @@ impl<'a> Abi<'a> {
 	/// the type's every instance, whichever kind each is.
 	fn type_instance(&self, path: &[String], shown: &[String], args: &[Type]) -> String {
 		let api = self.api;
-		let (name, alone) = self.named(shown);
-		if alone {
-			return name;
-		}
-		self.instance(false, name, args, || {
+		self.instance(false, self.name(shown), args, || {
 			let records = api.records.iter().map(|r| (&r.path, &r.args));
 			let enums = api.enums.iter().map(|e| (&e.path, &e.args));
 			let objects = api.objects.iter().map(|o| (&o.path, &o.args));
@@ -265,10 +211,7 @@ impl<'a> Abi<'a> {
 			Type::Ref(_, inner) | Type::Box(inner) => return self.arg_forms(inner),
 			ty => return vec![self.key(ty)],
 		};
-		let (segments, alone) = self.segments(shown);
-		if alone {
-			return segments;
-		}
+		let segments = self.segments(shown);
 		let nested: Vec<Vec<String>> = args.iter().map(|arg| self.arg_forms(arg)).collect();
 		let steps = nested.iter().map(Vec::len).max().unwrap_or(1);
 		let form = |len: usize, step: usize| {
@@ -283,47 +226,23 @@ impl<'a> Abi<'a> {
 		forms
 	}
 
-	/// A function's C name: a method's through its type's, unless renamed itself, then
-	/// each argument of the instance it is. A field is renamed by `field@` and its path,
-	/// or by its path unless a method or constant takes it, and its setter is named as it
-	/// is, with `set_` after its type's name.
+	/// A function's C name: a method's through its type's, then each argument of the
+	/// instance it is. A field's getter adds `_get`, and its setter `_set`.
 	fn function_name(&self, function: &Function, owner: Option<&Ty>) -> String {
-		let owner_name = match owner {
+		let owner = match owner {
 			Some(Ty::Struct(owner) | Ty::Enum(owner) | Ty::Handle { name: owner, .. }) => Some(owner.as_str()),
 			_ => None,
 		};
-		let Access::Field { shared, set } = function.access else {
-			return self.method_name(function, owner_name, false);
+		let name = match owner {
+			Some(owner) => format!("{owner}_{}", function.name()),
+			None => self.name(&function.shown),
 		};
-		let name = match self.renames(&function.shown, "field@") {
-			Some(key) => {
-				let renamed = format!("{}_{}", self.prefix, self.rename[&key]);
-				self.renamed.borrow_mut().insert(key);
-				renamed
-			}
-			None => self.method_name(function, owner_name, shared),
-		};
-		if !set {
-			return name;
+		match function.access {
+			Access::Field { set: false, .. } => return format!("{name}_get"),
+			Access::Field { set: true, .. } => return format!("{name}_set"),
+			_ => {}
 		}
-		// A rename need not start with the type's name, but always with the prefix.
-		let at = owner_name
-			.filter(|owner| name.starts_with(&format!("{owner}_")))
-			.unwrap_or(&self.prefix);
-		format!("{at}_set_{}", &name[at.len() + 1..])
-	}
-
-	/// A function's C name through its type's, unless renamed by its path and no method
-	/// or constant `shared` its name, then each argument of the instance it is, unless
-	/// renamed alone.
-	fn method_name(&self, function: &Function, owner: Option<&str>, shared: bool) -> String {
-		let (name, alone) = match owner {
-			Some(owner) if shared || self.renames(&function.shown, "").is_none() => {
-				(format!("{owner}_{}", snake(function.name())), false)
-			}
-			_ => self.named(&function.shown),
-		};
-		let Some(instance) = function.instance.as_ref().filter(|_| !alone) else {
+		let Some(instance) = function.instance.as_ref() else {
 			return name;
 		};
 		self.instance(true, name, &instance.named, || {
@@ -343,6 +262,34 @@ impl<'a> Abi<'a> {
 
 	pub fn callback(&self, i: usize) -> String {
 		self.name(&self.api.callbacks[i].path)
+	}
+
+	/// Each exported type's name in Pascal case, by its C name, kept [`apart`] from those
+	/// beside it: `scope` gives the scope a type's [`Home`] puts it in, and how many leading
+	/// segments of its path its name there leaves out.
+	pub fn classes(&self, scope: impl Fn(&Home) -> (String, usize)) -> HashMap<String, String> {
+		let api = self.api;
+		let records = (0..api.records.len()).map(|i| (self.record(i), &api.records[i].shown, &api.records[i].home));
+		let enums = (0..api.enums.len()).map(|i| (self.enumeration(i), &api.enums[i].shown, &api.enums[i].home));
+		let objects = (0..api.objects.len()).map(|i| (self.object(i), &api.objects[i].shown, &api.objects[i].home));
+		let callbacks =
+			(0..api.callbacks.len()).map(|i| (self.callback(i), &api.callbacks[i].path, &api.callbacks[i].home));
+		let mut scopes: BTreeMap<String, Vec<(String, Vec<String>)>> = BTreeMap::new();
+		for (c, shown, home) in records.chain(enums).chain(objects).chain(callbacks) {
+			let (scope, outside) = scope(home);
+			// An instance's suffix, after its generic type's name, is one more segment.
+			let suffix = c[self.name(shown).len()..].strip_prefix('_').map(str::to_string);
+			let mut segments = self.segments(shown);
+			segments.drain(..outside);
+			segments.extend(suffix);
+			scopes.entry(scope).or_default().push((c, segments));
+		}
+		(scopes.into_values())
+			.flat_map(|types| {
+				let names = apart(types.iter().map(|(_, segments)| segments.as_slice()));
+				types.into_iter().map(|(c, _)| c).zip(names)
+			})
+			.collect()
 	}
 
 	/// The prefixed name of a runtime item: `buf` is `moq_buf`.
@@ -658,7 +605,7 @@ impl<'a> Abi<'a> {
 				self.claim(format!("{name}_tag"), what.clone(), e.span);
 				// Each variant's payload, which C++ names even when it has no fields.
 				for variant in &e.variants {
-					self.claim(format!("{name}_{}", snake(&variant.name)), what.clone(), e.span);
+					self.claim(payload(&name, &variant.name), what.clone(), e.span);
 				}
 			}
 			self.claim_traits(&name, &what, e.span, e.traits, !plain);
@@ -865,6 +812,54 @@ fn shortest(group: &[Vec<Vec<String>>]) -> Vec<String> {
 	}
 }
 
+/// Each name in Pascal case of items by their paths' segments: the segments joined, but
+/// where two would join alike, each of those keeps a `_` at every split after the leading
+/// segments they all share, so `tokio::ConnectError` and `tokio::connect::Error` are
+/// `TokioConnectError` and `TokioConnect_Error`. Two that still match, as segments apart
+/// only by case do, stay alike for the language's claim to refuse at both.
+pub fn apart<'s>(items: impl IntoIterator<Item = &'s [String]>) -> Vec<String> {
+	let items: Vec<&[String]> = items.into_iter().collect();
+	let joined: Vec<String> = items.iter().map(|segments| pascal(&segments.join("_"))).collect();
+	let mut groups: HashMap<&str, Vec<usize>> = HashMap::new();
+	for (i, name) in joined.iter().enumerate() {
+		groups.entry(name).or_default().push(i);
+	}
+	let mut names = joined.clone();
+	for group in groups.values().filter(|group| group.len() > 1) {
+		let first = items[group[0]];
+		let shared = (0..first.len())
+			.take_while(|&k| group.iter().all(|&i| items[i].get(k) == Some(&first[k])))
+			.count();
+		for &i in group {
+			let rest: Vec<String> = items[i][shared..].iter().map(|segment| pascal(segment)).collect();
+			names[i] = pascal(&items[i][..shared].join("_")) + &rest.join("_");
+		}
+	}
+	names
+}
+
+/// A name in Pascal case, word by word as [`snake`] splits it: `track_Producer` and
+/// `TrackProducer` are `TrackProducer`, and `BOXED` is `Boxed`.
+pub fn pascal(name: &str) -> String {
+	snake(name)
+		.split('_')
+		.filter(|s| !s.is_empty())
+		.map(|s| {
+			let mut chars = s.chars();
+			match chars.next() {
+				Some(first) => first.to_uppercase().chain(chars).collect(),
+				None => String::new(),
+			}
+		})
+		.collect()
+}
+
+/// The C name of the struct of an enum's variant's fields: its own in Rust's case, after
+/// the enum's.
+pub fn payload(name: &str, variant: &str) -> String {
+	format!("{name}_{variant}")
+}
+
 /// A Rust identifier in snake case: `TrackProducer` is `track_producer`, and a name
 /// already in snake case stays as it is.
 pub fn snake(name: &str) -> String {
@@ -1036,7 +1031,36 @@ pub fn dyn_wrap(form: Dyn, expr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::shortest;
+	use super::{apart, shortest};
+
+	/// Each item's [`apart`] name, by its path's segments.
+	fn names(items: &[&[&str]]) -> Vec<String> {
+		let items: Vec<Vec<String>> = (items.iter())
+			.map(|segments| segments.iter().map(|s| s.to_string()).collect())
+			.collect();
+		apart(items.iter().map(Vec::as_slice))
+	}
+
+	#[test]
+	fn splits_only_names_that_join_alike() {
+		// The split comes after the segments the clashing names share, so one whose rest is
+		// a single segment keeps its name.
+		assert_eq!(
+			names(&[
+				&["tokio", "ConnectError"],
+				&["tokio", "connect", "Error"],
+				&["tokio", "Client"]
+			]),
+			["TokioConnectError", "TokioConnect_Error", "TokioClient"]
+		);
+		// Both split where neither's rest is a single segment.
+		assert_eq!(names(&[&["a", "b_c", "Dx"], &["a", "b", "CDx"]]), ["ABC_Dx", "AB_CDx"]);
+		// Segments apart only by case still match, for the claim to refuse.
+		assert_eq!(
+			names(&[&["connect", "X"], &["Connect", "X"]]),
+			["Connect_X", "Connect_X"]
+		);
+	}
 
 	/// Each instance's arguments, each by its path's segments, whose forms are their
 	/// suffixes, shortest first.

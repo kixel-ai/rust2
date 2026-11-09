@@ -3,7 +3,7 @@
 import * as rs from "./rs.ts";
 
 export function eq$cmp_PartialEq(self: Index, other: Index): boolean {
-	if (!rs.hashEq(rs.same)(self.names, other.names)) {
+	if (!rs.hashEq(rs.eqStr)(self.names, other.names)) {
 		return false;
 	}
 	return rs.hashEq()(self.seen, other.seen);
@@ -11,7 +11,7 @@ export function eq$cmp_PartialEq(self: Index, other: Index): boolean {
 
 /** A type whose derived `PartialEq` compares the maps it holds. */
 export interface Index {
-	names: rs.HashMap<rs.u8, string>;
+	names: rs.HashMap<rs.u8, rs.String>;
 	seen: rs.HashSet<[rs.u8, boolean]>;
 }
 

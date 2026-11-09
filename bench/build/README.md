@@ -18,8 +18,7 @@ The run also ignores the caller's `CARGO*`, `RUSTC*`, `RUSTDOC*`, `RUSTUP*`, and
 
 ## Corpus
 
-- **moq** builds `moq-relay`, which pulls in moq-net, the QUIC stack, and C code through aws-lc-sys.
-- **moq-pure-crypto** builds the same `moq-relay` with its crypto on graviola and RustCrypto, so it compiles no C: the run fails if any crate in its build gains a `links` key or pulls in cc or cmake, while pure-Rust build scripts stay allowed.
+- **moq** builds `moq-relay`, which pulls in moq-net and the QUIC stack. Its crypto is on rind, which is pure Rust, so it compiles no C: the run fails if any crate in its build gains a `links` key or pulls in cc or cmake, while pure-Rust build scripts stay allowed.
 - **regex** and **wasmparser** are pure Rust: the run fails if any crate in their build gains a build script or a `links` key.
 
 Each corpus pins a git revision (and a lockfile when the project commits none).
@@ -32,7 +31,7 @@ Bump a pin in its own change, since numbers on either side of it do not compare.
 - `edit-leaf`: rebuild after a body edit in a crate nothing else in the build depends on.
 - `edit-hub`: the same edit in a crate most of the build depends on (moq-net in moq).
 - `edit-sync`: rebuild after an edit to the body of a sync function the build calls, in a module of the hub (moq: `goaway::Producer::send`, which moq-relay calls to drain a session).
-- `edit-async`: the same in an `async fn` (moq: `Session::closed`, which moq-relay awaits).
+- `edit-async`: the same in an `async fn` (moq: `Session::closed`, which moq-relay awaits, a wrapper over the sync `poll_closed`).
 - `test-build`: a clean build of the corpus's tests with `cargo nextest run --no-run`, as CI builds them with a cold cache.
 - `test-run`: run those tests, already built.
 - `test-edit`: rebuild the tests after the hub edit, as CI does when its compilation cache serves every dependency.
@@ -50,7 +49,7 @@ Over 21 CI runs since the sync, the controls' change had an RMS of 1.3% on `edit
 
 ## Variants
 
-A variant is a toolchain plus rustflags.
+A variant is a toolchain plus rustflags and cargo config.
 Each is compared against its `base`, run in the same job: the levers on stable against `baseline`, the nightly ones against `nightly`.
 The `control` variants repeat their base, so their change is the run's noise floor: an A/A control.
 Timed runs interleave the variants and rotate which goes first each round, so drift over a long job spreads across all of them.
@@ -58,17 +57,16 @@ To measure a new build-speed change, add a variant whose base is the configurati
 
 The `ra-jit` variant builds with `cargo ra-jit` ([ra-jit](https://github.com/indexable-inc/ra-jit), pinned in `flake.nix` and compiled from source on a run that selects it), a daemon that compiles only the functions an edit changed and splices them into the program cargo linked, or hands the build back to cargo.
 ra-jit works with one rustc only, so its base, `ra-jit-baseline`, is plain cargo on that toolchain.
-Both run on the moq corpora only, since ra-jit needs a program to load, and skip `check`, which `cargo ra-jit` fails on moq.
+Both run on the moq corpus only, since ra-jit needs a program to load, and skip `check`, which `cargo ra-jit` fails on moq.
 The daemon keeps working after a build returns, so each ra-jit run waits for it to go idle before and after, and none of its work overlaps another run.
 Its CPU time adds the daemon's, its peak RSS adds what the daemon holds, and its instructions read `n/a`; the report also says how many of its runs the daemon built, and why cargo built the rest.
 The leaf and hub markers are functions nothing calls: rustc recompiles their crate and every crate that depends on it, while ra-jit, when it builds the edit itself, compiles nothing, so its times there are a lower bound.
 The body edits are functions the program runs, which ra-jit compiles.
 
-ra-jit bugs seen on moq at the pinned rev, not reported upstream:
+ra-jit bugs seen on moq, not reported upstream:
 
-- `cargo ra-jit check` with no build loaded reads every crate of the workspace, takes minutes and GBs, and fails on errors rustc does not report (`unresolved macro moq_clock::test` in moq-net's integration tests).
-- Async body edits in moq-net go to cargo (every `edit-async` run): "`new` is not compiled by ra-jit and rustc's copy is from before the edit: an instance of it does not compile". The daemon then loads the workspace again: on CI such an edit took 55.7 s and 222 CPU-s, against plain cargo's 9.1 s and 12.3 CPU-s ([run](https://github.com/moq-dev/rust2/actions/runs/40285528419)).
-- A fallback logs `Duplicate definition of identifier ... <cc::Build>::cargo_metadata` while compiling aws-lc-sys's build script.
+- Async body edits in moq-net go to cargo (every `edit-async` run): "`parsed_values_given` is not compiled by ra-jit and rustc's copy is from before the edit: an instance of it does not compile", a generic of usage-argv's. The daemon then loads the workspace again: on CI such an edit took 50.6 s and 196 CPU-s, against plain cargo's 10.5 s and 14.5 CPU-s ([run](https://github.com/moq-dev/rust2/actions/runs/42351623273)).
+- At the previous pin (`f36c848`), `cargo ra-jit check` with no build loaded read every crate of the workspace, took minutes and GBs, and failed on errors rustc does not report (`unresolved macro moq_clock::test` in moq-net's integration tests).
 - On a library-only build such as regex, `cargo ra-jit build` returns after `cargo clean` without building anything.
 
 The report shows wall time (trimmed mean, and mean ± standard deviation), CPU time and its change against the base, retired instructions, and peak RSS, all from hyperfine.
@@ -129,11 +127,13 @@ Measured on 2026-10-25 and 2026-10-26 on a busy 32-CPU host, in billions of inst
 ## Cranelift for moq's CI
 
 Recommended on 2026-10-25: moq's CI keeps building its tests with LLVM, since 42 of its 5418 tests fail under Cranelift.
+At the pin [#646](https://github.com/moq-dev/rust2/pull/646) moved to on 2026-11-07, 58 of 6379 fail: 27 that catch a panic and 31 on the intrinsic ([cranelift-unwind](/quest/m3/cranelift-unwind.md)). The numbers below are the 2026-10-25 run's.
 
 - 23 catch a panic, which the Cranelift backend that ships with nightly cannot unwind: it builds every panic as an abort (unwinding is a flag on cg_clif's own build, off by default: [rustc_codegen_cranelift#1567](https://github.com/rust-lang/rustc_codegen_cranelift/issues/1567)).
 - 19 abort on an x86 SIMD intrinsic it does not implement, `llvm.x86.sse2.pmulhu.w` ([rustc_codegen_cranelift#171](https://github.com/rust-lang/rustc_codegen_cranelift/issues/171)). moq's CI runs on aarch64, whose intrinsics this x86 benchmark does not try.
 
 The `cranelift` variant's `build` numbers are for that abort build too.
+Since moq moved its crypto onto rind, the variant builds rind with LLVM: its `naked_asm!` takes `sym` operands, which Cranelift cannot compile yet ([rustc_codegen_cranelift#1620](https://github.com/rust-lang/rustc_codegen_cranelift/pull/1620)).
 
 Even passing, it would save little where CI spends its time.
 CPU seconds from the [PR run](https://github.com/moq-dev/rust2/actions/runs/40235946635) (4 CPUs; an A/A control on that run stayed within 3%):

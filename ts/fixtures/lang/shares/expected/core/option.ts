@@ -10,7 +10,14 @@ export function isSomeAnd$136asov(self: rs.Arc<rs.ByteSlice> | undefined, f: (a0
 	return f(self);
 }
 
-export function isSomeAnd$0jg0wcy(self: [rs.Weak<rs.u16[]>, rs.Weak<rs.ByteSlice>] | undefined, f: (a0: [rs.Weak<rs.u16[]>, rs.Weak<rs.ByteSlice>]) => boolean): boolean {
+export function isSomeAnd$0mo9vap(self: rs.Arc<Logged.Logged[]> | undefined, f: (a0: rs.Arc<Logged.Logged[]>) => boolean): boolean {
+	if (self === undefined) {
+		return false;
+	}
+	return f(self);
+}
+
+export function isSomeAnd$15uicdu(self: [rs.Weak<rs.Slice<rs.u16>>, rs.Weak<rs.ByteSlice>] | undefined, f: (a0: [rs.Weak<rs.Slice<rs.u16>>, rs.Weak<rs.ByteSlice>]) => boolean): boolean {
 	if (self === undefined) {
 		return false;
 	}
@@ -25,6 +32,13 @@ export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u
 }
 
 export function mapOr$14runhi(self: rs.Ordering | undefined, default_: rs.u8, f: (a0: rs.Ordering) => rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$0k95fy0(self: rs.Arc<rs.Slice<Logged.Logged>> | undefined, default_: rs.u8, f: (a0: rs.Arc<rs.Slice<Logged.Logged>>) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}

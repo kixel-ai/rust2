@@ -28,8 +28,7 @@ function new_(id: rs.u32, log: Log.Log): Key {
 
 export function drop$ops_Drop(self: Key): void {
 	const arg = self.id;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(arg, f)];
-	const _4: string = rs.fmtFormat(["k", args2[0], " drop"]);
+	const _4: rs.String = rs.fmtFormat(["k", (f: rs.Formatter) => rs.u32Display(arg, f), " drop"]);
 	Log.note(self.log, _4);
 	self.id = 4294967295;
 }
@@ -49,8 +48,7 @@ export function cmp$cmp_Ord(self: Key, other: Key): rs.Ordering {
 export function hash$Hash_hash_DefaultHasher(self: Key, state: rs.Hasher): void {
 	if (self.counted) {
 		const arg = self.id;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(arg, f)];
-		const _6: string = rs.fmtFormat(["k", args2[0], " hashed"]);
+		const _6: rs.String = rs.fmtFormat(["k", (f: rs.Formatter) => rs.u32Display(arg, f), " hashed"]);
 		Log.note(self.log, _6);
 	}
 	rs.hash32(self.id, state);
@@ -58,8 +56,7 @@ export function hash$Hash_hash_DefaultHasher(self: Key, state: rs.Hasher): void 
 
 export function clone$Clone(self: Key): Key {
 	const arg = self.id;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(arg, f)];
-	const _4: string = rs.fmtFormat(["k", args2[0], " cloned"]);
+	const _4: rs.String = rs.fmtFormat(["k", (f: rs.Formatter) => rs.u32Display(arg, f), " cloned"]);
 	Log.note(self.log, _4);
 	return new Key(self.id, Log.clone$Clone(self.log), self.counted);
 }

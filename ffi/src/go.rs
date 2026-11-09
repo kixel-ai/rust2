@@ -1,111 +1,231 @@
-//! Go over the C ABI through cgo: `go/<prefix>.go`, the package `<prefix>`, which includes
-//! the C header from `include/` beside it, or from its own directory.
+//! Go over the C ABI through cgo: a package per crate whose items the facade exports,
+//! `go/<package>/`, and the runtime they share, `go/rt/`, each including the C header from
+//! `include/` beside `go/`. A crate's package is its name without the prefix and its `_`
+//! (moq-mux's is `mux`), so callers write `mux.CodecOpusConfig_`. Cargo keeps crates from
+//! depending on each other in a cycle, so their packages import none in one either, as Go
+//! requires; Rust's modules may, and so cannot each be a package. An instance of a generic
+//! type, or a function naming one, belongs to the last of its own and its arguments'
+//! crates, which can name them all. The import path of `go/` is the module of the `go.mod`
+//! above it, or else the module `<prefix>` of the `go.mod` the export writes there.
 //!
-//! Each name is its C name without the prefix, in Pascal case: `moq_track_producer` is
-//! `TrackProducer`, and its method `moq_track_producer_append_group` is
-//! `TrackProducer.AppendGroup`. A function of a type that takes no receiver is a function of
-//! the package, named through its type (`CounterSeeded`), but `new`, which is `NewCounter`.
-//! An object is a pointer to a struct owning its handle, freed by `Close` or else once the
-//! GC collects it, and a call that meets it closed returns an error matching `ErrClosed`,
-//! so every call that takes one, at any depth, returns an `error`; a record a struct; a plain enum an integer type and its constants; an
-//! enum with data an interface each variant's struct implements; a trait an interface; a
-//! closure a function; a future a call taking a `context.Context` that blocks until the
-//! future is ready; a `Result` an `error`. The runtime they share,
-//! [`runtime/rt.go`](../runtime/rt.go), holds the handles, the arena a call lowers nested
-//! values into, and the wait of a future.
+//! Each name is its C name without the prefix and the segments outside its crate, in
+//! Pascal case, kept [`apart`](abi::apart) from another type's of the package that would
+//! match: `moq_track_producer` is `TrackProducer`, and its method
+//! `moq_track_producer_append_group` is `TrackProducer.AppendGroup`. A function of a type
+//! that takes no receiver is a function of the package, named through its type
+//! (`CounterSeeded`), but `new`, which is `NewCounter`. An object is a pointer to a struct
+//! owning its handle, freed by `Close` or else once the GC collects it, and a call that
+//! meets it closed returns an error matching `rt.ErrClosed`, so every call that takes one,
+//! at any depth, returns an `error`; a record a struct; a plain enum an integer type and its
+//! constants; an enum with data an interface each variant's struct implements; a trait an
+//! interface; a closure a function; a future a call taking a `context.Context` that blocks
+//! until the future is ready; a `Result` an `error`. The runtime they share,
+//! [`runtime/rt.go`](../runtime/rt.go), holds the handles and the bytes Rust returns, and
+//! each package's copy of [`runtime/ffi_cgo.go`](../runtime/ffi_cgo.go) the arena a call lowers
+//! nested values into, and the wait of a future: cgo gives each package C types of its
+//! own, so packages reach each other only through Go's.
 //!
 //! A call passes bytes and text as views of Go's own memory, pinned where C reads them
 //! through other memory, so neither is copied in. Bytes Rust returns, or a record holds,
-//! are a `Bytes`, which from 2 KiB reads Rust's buffer in place and frees it only once the
-//! GC finds it unreachable, so no Go code reads freed memory, and below copies it, which
-//! costs less than the GC's cleanup. An object instead frees at `Close`, since what it
-//! holds, such as a session, must end promptly. Text Rust returns is copied once into a
+//! are an `rt.Bytes`, which from 2 KiB reads Rust's buffer in place and frees it only once
+//! the GC finds it unreachable, so no Go code reads freed memory, and below copies it,
+//! which costs less than the GC's cleanup. An object instead frees at `Close`, since what
+//! it holds, such as a session, must end promptly. Text Rust returns is copied once into a
 //! `string`, and Rust's freed at once.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
-use crate::abi::{self, Abi, Ty};
-use crate::ir::{Access, Family, Function, Int, Literal, Param, Receiver, Type};
+use crate::abi::{self, Abi, Ty, pascal};
+use crate::ir::{Access, Family, Function, Home, Int, Literal, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.go");
+const CONVERSIONS: &str = include_str!("../runtime/ffi_cgo.go");
 
-/// The Go for `abi`, whose header's contract is `contract`, or the names two items claim
-/// alike.
-pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<String, String> {
-	let mut g = Gen {
-		abi,
-		types: String::new(),
-		top: String::new(),
-		helpers: BTreeMap::new(),
-		exports: String::new(),
-		decls: Vec::new(),
-		closures: BTreeMap::new(),
-		tuples: BTreeSet::new(),
-		names: BTreeMap::new(),
-		errors: Vec::new(),
-		thrown: BTreeMap::new(),
-	};
-	g.write();
-	if !g.errors.is_empty() {
-		return Err(g.errors.join("\n"));
+/// The standard library's packages the generated items name.
+const STD: &[(&str, &str)] = &[
+	("context", "context"),
+	("cgo", "runtime/cgo"),
+	("netip", "net/netip"),
+	("runtime", "runtime"),
+	("time", "time"),
+	("unsafe", "unsafe"),
+];
+
+/// The Go package of each crate the export's items belong to, and of the runtime, which
+/// [`Packages::RT`] keys.
+struct Packages {
+	/// By crate: its Go name, and its import path.
+	by_crate: BTreeMap<String, (String, String)>,
+}
+
+impl Packages {
+	const RT: &'static str = "";
+
+	fn new(abi: &Abi<'_>, module: &str) -> Self {
+		let mut by_crate = BTreeMap::from([(Self::RT.to_string(), ("rt".to_string(), format!("{module}/rt")))]);
+		let strip = format!("{}_", abi.prefix);
+		for krate in &abi.api.crates {
+			// A later crate of an earlier one's name takes its count after it.
+			let (base, count) = krate.split_once('#').unwrap_or((krate, ""));
+			// A package's name is an identifier: a crate the prefix's strip leaves no leading
+			// letter, such as `moq_2d` or a lib `moq_` beside `moq`, keeps the prefix, and a
+			// name whose first digit no letter precedes, such as `_2d`, follows `crate`.
+			let letter = |name: &String| name.starts_with(|c: char| c.is_alphabetic());
+			let mut name = Some(base.strip_prefix(&strip).unwrap_or(base).replace('_', ""))
+				.filter(letter)
+				.unwrap_or_else(|| base.replace('_', ""));
+			if !letter(&name) {
+				name.insert_str(0, "crate");
+			}
+			name += count;
+			// A name Go, cgo, or the runtime takes, or an earlier crate's, takes a trailing
+			// `_`, which no crate's name keeps.
+			while ["C", "main"].contains(&name.as_str()) || keyword(&name) || by_crate.values().any(|(n, _)| *n == name)
+			{
+				name.push('_');
+			}
+			by_crate.insert(krate.clone(), (name.clone(), format!("{module}/{name}")));
+		}
+		Self { by_crate }
 	}
-	let p = &abi.prefix;
-	let upper = p.to_uppercase();
-	let go = format!("{p}Go");
-	let mut out = format!(
-		"// Code generated by rust2-ffi: Go over the C ABI of the pub API of {packages}. DO NOT EDIT.\n\n\
-		// Package {p} is the pub API of {packages}, over its C ABI through cgo. Link the library\n\
-		// built with {p}.h, through CGO_LDFLAGS.\n\
-		package {p}\n\n\
-		/*\n#cgo CFLAGS: -I${{SRCDIR}}/../include\n#include <stdlib.h>\n#include \"{p}.h\"\n\n\
-		extern void {go}_call(void *data);\nextern void {go}_release(void *data);\n\n\
-		static void {go}_bufs_free({p}_buf *bufs, size_t n) {{\n\tfor (size_t i = 0; i < n; i++) {{\n\t\t{p}_buf_free(bufs[i]);\n\t}}\n}}\n"
-	);
-	for decl in &g.decls {
-		out.push_str(decl);
-		out.push('\n');
+
+	fn name(&self, krate: &str) -> &str {
+		&self.by_crate[krate].0
 	}
-	let _ = write!(
-		out,
-		"*/\nimport \"C\"\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"io\"\n\t\"math\"\n\t\"net\"\n\t\"net/netip\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"strconv\"\n\t\"sync\"\n\t\"sync/atomic\"\n\t\"time\"\n\t\"unsafe\"\n)\n\n\
-		// The runtime's names for the export's C types and functions.\n\
-		type (\n\tcBuf      = C.{p}_buf\n\tcWaker    = C.{p}_waker\n\tcDuration = C.{p}_duration\n\tcAddr     = C.{p}_socket_addr\n)\n\n\
-		var (\n\tgoCall    = (*[0]byte)(C.{go}_call)\n\tgoRelease = (*[0]byte)(C.{go}_release)\n)\n\n\
-		func cBufFree(buf cBuf) {{\n\tC.{p}_buf_free(buf)\n}}\n\n\
-		// cBufsFree frees bufs, which are not empty, in one call.\n\
-		func cBufsFree(bufs []cBuf) {{\n\tC.{go}_bufs_free(&bufs[0], C.size_t(len(bufs)))\n}}\n\n\
-		// A Go file and a library from different builds must not mix: checked when the package\n\
-		// loads, before any other call.\n\
-		func init() {{\n\tif C.{p}_contract() != 0x{contract:016x} || C.{upper}_CONTRACT != 0x{contract:016x} {{\n\t\tpanic(\"{p}.go and the library are from different builds\")\n\t}}\n}}\n\n\
-		//export {go}_call\nfunc {go}_call(data unsafe.Pointer) {{\n\tgiven_(data).(func())()\n}}\n\n\
-		//export {go}_release\nfunc {go}_release(data unsafe.Pointer) {{\n\trelease_(data)\n}}\n\n"
-	);
-	out.push_str(RUNTIME);
-	out.push('\n');
-	for n in &g.tuples {
-		let params: Vec<String> = (0..*n).map(|k| format!("T{k}")).collect();
-		let fields: String = (0..*n).map(|k| format!("\tV{k} T{k}\n")).collect();
+}
+
+/// The Go for `abi`, whose header's contract is `contract`, as each file under `go/` by its
+/// path there, for the module path `module` of `go/`; or the names two items claim alike.
+pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> Result<Vec<(String, String)>, String> {
+	let set = Packages::new(abi, module);
+	let thrown = thrown(abi);
+	let types = abi.classes(|home| (home.krate.clone(), home.outside - 1));
+	let classes = classes(abi, &types);
+	let mut files = Vec::new();
+	let mut errors = Vec::new();
+	let mut tuples = BTreeSet::new();
+	let mut rt = Gen::new(abi, &set, Packages::RT, &thrown, &types, &classes);
+	rt.write_rt();
+	for krate in &abi.api.crates {
+		let mut g = Gen::new(abi, &set, krate, &thrown, &types, &classes);
+		g.write();
+		errors.append(&mut g.errors);
+		tuples.extend(g.tuples.iter().copied());
+		let name = set.name(krate);
+		let doc = format!(
+			"// Package {name} is the pub API of the crate {krate} in {packages}, over its C ABI\n\
+			// through cgo. Link the library built with {p}.h, through CGO_LDFLAGS.\n",
+			p = abi.prefix
+		);
+		files.push((format!("{name}/{name}.go"), g.file(&doc)));
+		// No package name holds a `_` but at its end, so the helpers never take the API's file.
+		files.push((format!("{name}/ffi_cgo.go"), g.conversions()));
+	}
+	errors.append(&mut rt.errors);
+	if !errors.is_empty() {
+		return Err(errors.join("\n"));
+	}
+	for n in tuples {
+		let params: Vec<String> = (0..n).map(|k| format!("T{k}")).collect();
+		let fields: String = (0..n).map(|k| format!("\tV{k} T{k}\n")).collect();
 		let _ = write!(
-			out,
+			rt.types,
 			"// Tuple{n} is a Rust tuple of {n} elements.\ntype Tuple{n}[{} any] struct {{\n{fields}}}\n\n",
 			params.join(", ")
 		);
 	}
-	out.push_str(&g.types);
-	out.push_str(&g.top);
-	for helper in g.helpers.values() {
-		out.push_str(helper);
-	}
-	out.push_str(&g.exports);
-	while out.ends_with("\n\n") {
-		out.pop();
-	}
-	Ok(out)
+	files.push(("rt/rt.go".to_string(), rt.runtime(packages, contract)));
+	files.push(("rt/types.go".to_string(), rt.file("")));
+	Ok(files)
 }
 
-/// The names the runtime declares in the package, besides its `Tuple<N>` generics, which an
-/// exported item would clash with.
+/// Each error type that is no exported type, named by its key as its C structs are, so two
+/// types never share one, with its type and the crate it belongs to: the last of those
+/// its types do, or the runtime for none.
+fn thrown(abi: &Abi<'_>) -> BTreeMap<String, (String, Type)> {
+	let api = abi.api;
+	let all = (api.records.iter().flat_map(|r| &r.methods))
+		.chain(api.enums.iter().flat_map(|e| &e.methods))
+		.chain(api.objects.iter().flat_map(|o| &o.methods))
+		.chain(&api.functions);
+	let mut thrown = BTreeMap::new();
+	for function in all {
+		let Some(err) = function.err.as_ref().map(strip_refs) else {
+			continue;
+		};
+		if matches!(err.base(), Type::Record(_) | Type::Enum(_) | Type::Object(_)) {
+			continue;
+		}
+		let name = format!("{}Error", pascal(&abi.key(&err)));
+		let home = last(abi, &err);
+		thrown.entry(name).or_insert((home, err));
+	}
+	thrown
+}
+
+/// The last crate, in dependency order, any type within `ty` belongs to, or the runtime's
+/// key for none.
+fn last(abi: &Abi<'_>, ty: &Type) -> String {
+	let api = abi.api;
+	let rank = |k: &str| api.crates.iter().position(|c| c == k);
+	let mut last = Packages::RT.to_string();
+	crate::ir::each(ty, &mut |ty| {
+		let krate = match ty {
+			Type::Record(i) => &api.records[*i].home.krate,
+			Type::Enum(i) => &api.enums[*i].home.krate,
+			Type::Object(i) => &api.objects[*i].home.krate,
+			Type::Callback(i, _) => &api.callbacks[*i].home.krate,
+			_ => return,
+		};
+		if rank(krate) > rank(&last) {
+			last = krate.clone();
+		}
+	});
+	last
+}
+
+/// Each exported type's Go name, of those by C name in `types`, by package.
+fn classes(abi: &Abi<'_>, types: &HashMap<String, String>) -> BTreeMap<String, BTreeSet<String>> {
+	let api = abi.api;
+	let mut classes: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+	let names = (0..api.records.len()).map(|i| (abi.record(i), &api.records[i].home));
+	let names = names.chain((0..api.enums.len()).map(|i| (abi.enumeration(i), &api.enums[i].home)));
+	let names = names.chain((0..api.objects.len()).map(|i| (abi.object(i), &api.objects[i].home)));
+	let names = names.chain((0..api.callbacks.len()).map(|i| (abi.callback(i), &api.callbacks[i].home)));
+	for (c, home) in names {
+		classes.entry(home.krate.clone()).or_default().insert(types[&c].clone());
+	}
+	classes
+}
+
+/// The C name `c` of an item shown as `shown`, belonging to `home`, without the prefix and
+/// the segments outside its crate.
+fn rest<'c>(prefix: &str, c: &'c str, shown: &[String], home: &Home) -> &'c str {
+	let bare = &c[prefix.len() + 1..];
+	let outside = shown[1..home.outside].join("_");
+	match outside.is_empty() {
+		true => bare,
+		false => (bare.strip_prefix(&outside))
+			.and_then(|rest| rest.strip_prefix('_'))
+			.unwrap_or_else(|| panic!("`{c}` starts with `{outside}`")),
+	}
+}
+
+/// The name the generated code imports the generated package `name` by, which no local,
+/// predeclared name, or other import takes: no parameter's name holds a `_` but at its
+/// end, and no other local starts `p_`.
+fn alias(name: &str) -> String {
+	format!("p_{name}")
+}
+
+/// Whether Go reads `name` as a keyword.
+fn keyword(name: &str) -> bool {
+	KEYWORDS.contains(&name)
+}
+
+/// The names the runtime's package declares, besides its `Tuple<N>` generics, which a type
+/// of its own would clash with.
 const TAKEN: &[&str] = &[
 	"Bound",
 	"BoundUnbounded",
@@ -114,7 +234,24 @@ const TAKEN: &[&str] = &[
 	"Bytes",
 	"NewBytes",
 	"ErrClosed",
+	"Handle_",
+	"NewHandle_",
+	"LiftBytes_",
+	"BytesBuf_",
+	"GoCall_",
+	"GoRelease_",
 ];
+
+/// Whether the Go code `code` names the package `name`.
+fn uses(code: &str, name: &str) -> bool {
+	let needle = format!("{name}.");
+	code.match_indices(&needle).any(|(at, _)| {
+		!code[..at]
+			.chars()
+			.next_back()
+			.is_some_and(|c| c.is_alphanumeric() || c == '_' || c == '.')
+	})
+}
 
 /// A Go function: its doc comment, receiver, name, parameters, results, and body.
 struct Method {
@@ -153,6 +290,9 @@ impl Method {
 
 struct Gen<'a> {
 	abi: &'a Abi<'a>,
+	set: &'a Packages,
+	/// The crate whose package this is, or [`Packages::RT`].
+	pkg: &'a str,
 	/// The types, then the package's functions and constants, then the helpers by name,
 	/// then the functions Go exports to C.
 	types: String,
@@ -163,24 +303,198 @@ struct Gen<'a> {
 	decls: Vec<String>,
 	/// Each closure type's trampoline, by its Go type.
 	closures: BTreeMap<String, String>,
-	/// The arity of each tuple type the API names.
+	/// The arity of each tuple type the package names.
 	tuples: BTreeSet<usize>,
 	/// Each package-level Go name, with what claimed it.
 	names: BTreeMap<String, String>,
+	/// Each exported type's Go name, by its C name.
+	type_names: &'a HashMap<String, String>,
+	/// Each exported type's Go name, by package.
+	classes: &'a BTreeMap<String, BTreeSet<String>>,
+	/// The other packages the package's items name, by crate.
+	imports: BTreeSet<String>,
 	errors: Vec<String>,
-	/// The struct each error type that is no exported type returns as, by name.
-	thrown: BTreeMap<String, Type>,
+	/// The struct each error type that is no exported type returns as, by name, with the
+	/// crate it belongs to.
+	thrown: &'a BTreeMap<String, (String, Type)>,
 }
 
 impl<'a> Gen<'a> {
+	fn new(
+		abi: &'a Abi<'a>,
+		set: &'a Packages,
+		pkg: &'a str,
+		thrown: &'a BTreeMap<String, (String, Type)>,
+		type_names: &'a HashMap<String, String>,
+		classes: &'a BTreeMap<String, BTreeSet<String>>,
+	) -> Self {
+		Self {
+			abi,
+			set,
+			pkg,
+			types: String::new(),
+			top: String::new(),
+			helpers: BTreeMap::new(),
+			exports: String::new(),
+			decls: Vec::new(),
+			closures: BTreeMap::new(),
+			tuples: BTreeSet::new(),
+			names: BTreeMap::new(),
+			type_names,
+			classes,
+			imports: BTreeSet::new(),
+			errors: Vec::new(),
+			thrown,
+		}
+	}
+
+	/// The package's file of its items, opening with `doc`.
+	fn file(&self, doc: &str) -> String {
+		let name = self.set.name(self.pkg);
+		let mut body = String::new();
+		body.push_str(&self.types);
+		body.push_str(&self.top);
+		for helper in self.helpers.values() {
+			body.push_str(helper);
+		}
+		body.push_str(&self.exports);
+		let mut out = format!("// Code generated by rust2-ffi. DO NOT EDIT.\n\n{doc}package {name}\n\n");
+		// The runtime's types need no C.
+		if self.pkg != Packages::RT {
+			let p = &self.abi.prefix;
+			let _ = write!(
+				out,
+				"/*\n#cgo CFLAGS: -I${{SRCDIR}}/../../include\n#include <stdlib.h>\n#include \"{p}.h\"\n\n"
+			);
+			for decl in &self.decls {
+				out.push_str(decl);
+				out.push('\n');
+			}
+			out.push_str("*/\nimport \"C\"\n\n");
+		}
+		let code: String = (body.lines())
+			.filter(|line| !line.trim_start().starts_with("//"))
+			.collect::<Vec<_>>()
+			.join("\n");
+		let mut imports: Vec<String> = (STD.iter())
+			.filter(|(name, _)| uses(&code, name))
+			.map(|(_, path)| format!("\t\"{path}\""))
+			.collect();
+		imports.sort();
+		let mut ours: Vec<String> = (self.imports.iter())
+			.map(|krate| {
+				let (name, path) = &self.set.by_crate[krate];
+				format!("\t{} \"{path}\"", alias(name))
+			})
+			.collect();
+		ours.sort();
+		if !imports.is_empty() && !ours.is_empty() {
+			imports.push(String::new());
+		}
+		imports.extend(ours);
+		if !imports.is_empty() {
+			let _ = write!(out, "import (\n{}\n)\n\n", imports.join("\n"));
+		}
+		out.push_str(&body);
+		while out.ends_with("\n\n") {
+			out.pop();
+		}
+		out
+	}
+
+	/// The package's copy of what converts the export's C types, which cgo makes its own.
+	fn conversions(&self) -> String {
+		let name = self.set.name(self.pkg);
+		let rt = &self.set.by_crate[Packages::RT].1;
+		let p = &self.abi.prefix;
+		let mut out = format!(
+			"// Code generated by rust2-ffi. DO NOT EDIT.\n\n\
+			package {name}\n\n\
+			/*\n#cgo CFLAGS: -I${{SRCDIR}}/../../include\n#include <stdlib.h>\n#include \"{p}.h\"\n*/\nimport \"C\"\n\n\
+			import (\n\t\"context\"\n\t\"math\"\n\t\"net\"\n\t\"net/netip\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"strconv\"\n\t\"time\"\n\t\"unsafe\"\n\n\t\"{rt}\"\n)\n\n\
+			// The runtime's names for the export's C types and functions.\n\
+			type (\n\tcBuf      = C.{p}_buf\n\tcWaker    = C.{p}_waker\n\tcDuration = C.{p}_duration\n\tcAddr     = C.{p}_socket_addr\n)\n\n\
+			var (\n\tgoCall    = (*[0]byte)(rt.GoCall_())\n\tgoRelease = (*[0]byte)(rt.GoRelease_())\n)\n\n\
+			func cBufFree(buf cBuf) {{\n\tC.{p}_buf_free(buf)\n}}\n\n"
+		);
+		out.push_str(CONVERSIONS);
+		out
+	}
+
+	/// The runtime's package, which checks the library's contract once it loads.
+	fn runtime(&self, packages: &str, contract: u64) -> String {
+		let p = &self.abi.prefix;
+		let upper = p.to_uppercase();
+		let go = format!("{p}Go");
+		let mut out = format!(
+			"// Code generated by rust2-ffi. DO NOT EDIT.\n\n\
+			// Package rt is what the Go packages of the pub API of {packages} share: the bytes\n\
+			// Rust returns, the error a closed object returns, and the types of no crate's.\n\
+			package rt\n\n\
+			/*\n#cgo CFLAGS: -I${{SRCDIR}}/../../include\n#include <stdlib.h>\n#include \"{p}.h\"\n\n\
+			extern void {go}_call(void *data);\nextern void {go}_release(void *data);\n\n\
+			static void {go}_bufs_free({p}_buf *bufs, size_t n) {{\n\tfor (size_t i = 0; i < n; i++) {{\n\t\t{p}_buf_free(bufs[i]);\n\t}}\n}}\n\
+			*/\nimport \"C\"\n\n\
+			import (\n\t\"errors\"\n\t\"io\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"sync\"\n\t\"sync/atomic\"\n\t\"unsafe\"\n)\n\n\
+			type cBuf = C.{p}_buf\n\n\
+			var (\n\tgoCall    = (*[0]byte)(C.{go}_call)\n\tgoRelease = (*[0]byte)(C.{go}_release)\n)\n\n\
+			func cBufFree(buf cBuf) {{\n\tC.{p}_buf_free(buf)\n}}\n\n\
+			// cBufsFree frees bufs, which are not empty, in one call.\n\
+			func cBufsFree(bufs []cBuf) {{\n\tC.{go}_bufs_free(&bufs[0], C.size_t(len(bufs)))\n}}\n\n\
+			// Go packages and a library from different builds must not mix: checked when the\n\
+			// runtime loads, before any other call.\n\
+			func init() {{\n\tif C.{p}_contract() != 0x{contract:016x} || C.{upper}_CONTRACT != 0x{contract:016x} {{\n\t\tpanic(\"the Go of {p} and the library are from different builds\")\n\t}}\n}}\n\n\
+			//export {go}_call\nfunc {go}_call(data unsafe.Pointer) {{\n\tgiven_(data).(func())()\n}}\n\n\
+			//export {go}_release\nfunc {go}_release(data unsafe.Pointer) {{\n\trelease_(data)\n}}\n\n"
+		);
+		out.push_str(RUNTIME);
+		out
+	}
+
+	/// The Go name of `name`, an item of `krate`'s package, from this package: imported, or
+	/// its own.
+	fn qualify(&mut self, krate: &str, name: &str) -> String {
+		if krate == self.pkg {
+			return name.to_string();
+		}
+		self.imports.insert(krate.to_string());
+		format!("{}.{name}", alias(self.set.name(krate)))
+	}
+
+	/// The crate an exported type belongs to, and its Go name there.
+	fn named(&self, ty: &Type) -> (&'a str, String) {
+		let abi = self.abi;
+		let api = abi.api;
+		let (krate, c) = match ty {
+			Type::Record(i) => (&api.records[*i].home.krate, abi.record(*i)),
+			Type::Enum(i) => (&api.enums[*i].home.krate, abi.enumeration(*i)),
+			Type::Object(i) => (&api.objects[*i].home.krate, abi.object(*i)),
+			Type::Callback(i, _) => (&api.callbacks[*i].home.krate, abi.callback(*i)),
+			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => return (Packages::RT, self.class(&abi.range(ty))),
+			other => unreachable!("{other:?} is no exported type"),
+		};
+		(krate, self.type_names[&c].clone())
+	}
+
+	/// The Go name of an exported type from this package.
+	fn qualified(&mut self, ty: &Type) -> String {
+		let (krate, name) = self.named(ty);
+		self.qualify(krate, &name)
+	}
+
 	/// A C name without the prefix.
 	fn bare<'n>(&self, c: &'n str) -> &'n str {
 		&c[self.abi.prefix.len() + 1..]
 	}
 
-	/// The Go name of the C type `c`.
+	/// The Go name of the runtime's C type `c`, such as a range's.
 	fn class(&self, c: &str) -> String {
 		pascal(self.bare(c))
+	}
+
+	/// The Go names of parameters, each [`local`], [`abi::distinct`].
+	fn locals(&self, params: &[Param]) -> Vec<String> {
+		abi::distinct(params.iter().map(|p| local(&p.name)))
 	}
 
 	/// Claim the package-level Go name `name` for `what`.
@@ -188,13 +502,13 @@ impl<'a> Gen<'a> {
 		let tuple = name
 			.strip_prefix("Tuple")
 			.is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
-		if tuple || TAKEN.contains(&name) {
+		if self.pkg == Packages::RT && (tuple || TAKEN.contains(&name)) {
 			self.errors.push(format!(
-				"{what} is `{name}` in Go, which its runtime names: rename it in the config"
+				"{what} is `{name}` in Go, which its runtime names: rename it in the source or exclude it in the config"
 			));
 		} else if let Some(first) = self.names.insert(name.to_string(), what.clone()) {
 			self.errors.push(format!(
-				"{first} and {what} are both `{name}` in Go: rename one in the config"
+				"{first} and {what} are both `{name}` in Go: rename one in the source or exclude it in the config"
 			));
 		}
 	}
@@ -205,7 +519,7 @@ impl<'a> Gen<'a> {
 		for member in members {
 			if !seen.insert(member) {
 				self.errors.push(format!(
-					"two members of `{rust}` are both `{member}` in Go: rename one in the config"
+					"two members of `{rust}` are both `{member}` in Go: rename one in the source or exclude it in the config"
 				));
 			}
 		}
@@ -213,7 +527,6 @@ impl<'a> Gen<'a> {
 
 	/// The Go type of `ty`, as a value, a parameter, or a result.
 	fn go(&mut self, ty: &Type) -> String {
-		let abi = self.abi;
 		match ty {
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool => "bool".to_string(),
@@ -222,7 +535,7 @@ impl<'a> Gen<'a> {
 			Type::F64 => "float64".to_string(),
 			Type::Char => "rune".to_string(),
 			Type::Str | Type::String | Type::Path | Type::PathBuf => "string".to_string(),
-			Type::Slice | Type::Vec | Type::Bytes => "Bytes".to_string(),
+			Type::Slice | Type::Vec | Type::Bytes => self.qualify(Packages::RT, "Bytes"),
 			Type::Duration => "time.Duration".to_string(),
 			Type::SocketAddr(_) => "netip.AddrPort".to_string(),
 			Type::List(inner) => format!("[]{}", self.go(inner)),
@@ -233,10 +546,8 @@ impl<'a> Gen<'a> {
 				_ => format!("*{}", self.go(inner)),
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.go(inner),
-			Type::Record(i) => self.class(&abi.record(*i)),
-			Type::Enum(i) => self.class(&abi.enumeration(*i)),
-			Type::Object(i) => format!("*{}", self.class(&abi.object(*i))),
-			Type::Callback(i, _) => self.class(&abi.callback(*i)),
+			Type::Record(_) | Type::Enum(_) | Type::Callback(..) => self.qualified(ty),
+			Type::Object(_) => format!("*{}", self.qualified(ty)),
 			Type::Closure(params, ret) => {
 				let params: Vec<String> = params.iter().map(|p| self.go_param(p)).collect();
 				match **ret {
@@ -244,14 +555,15 @@ impl<'a> Gen<'a> {
 					_ => format!("func({}) {}", params.join(", "), self.go(ret)),
 				}
 			}
-			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => self.class(&abi.range(ty)),
+			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => self.qualified(ty),
 			Type::Tuple(elements) => match &elements[..] {
 				// Go has no tuple of one: it is its element, which loses nothing.
 				[element] => self.go(element),
 				elements => {
 					self.tuples.insert(elements.len());
 					let elements: Vec<String> = elements.iter().map(|e| self.go(e)).collect();
-					format!("Tuple{}[{}]", elements.len(), elements.join(", "))
+					let tuple = self.qualify(Packages::RT, &format!("Tuple{}", elements.len()));
+					format!("{tuple}[{}]", elements.join(", "))
 				}
 			},
 		}
@@ -274,7 +586,7 @@ impl<'a> Gen<'a> {
 			Type::Bool => "false".to_string(),
 			Type::Int(_) | Type::F32 | Type::F64 | Type::Char | Type::Duration => "0".to_string(),
 			Type::Str | Type::String | Type::Path | Type::PathBuf => "\"\"".to_string(),
-			Type::Slice | Type::Vec | Type::Bytes => "Bytes{}".to_string(),
+			Type::Slice | Type::Vec | Type::Bytes => format!("{}{{}}", self.qualify(Packages::RT, "Bytes")),
 			Type::Enum(i) if self.abi.api.enums[*i].plain() => "0".to_string(),
 			Type::Box(inner) | Type::Ref(_, inner) => self.zero(inner),
 			Type::Tuple(elements) if elements.len() == 1 => self.zero(&elements[0]),
@@ -383,6 +695,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(Family::V6) => format!("lowerAddrV6_({e})"),
 			Type::Waker => format!("waker_({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
+				self.convert(ty);
 				format!("lower_{}({e})", abi.range(ty))
 			}
 			Type::List(inner) => {
@@ -391,7 +704,10 @@ impl<'a> Gen<'a> {
 				format!("lower_{c}(a_, {e})")
 			}
 			Type::Option(inner) => match inner.base() {
-				Type::Object(i) => format!("(*C.{})(a_.holdOption({e}))", abi.object(*i)),
+				object @ Type::Object(i) => {
+					self.convert(object);
+					format!("holdOption_{}(a_, {e})", abi.object(*i))
+				}
 				Type::Str | Type::String | Type::Path | Type::PathBuf => format!("a_.bufStringOption({e})"),
 				Type::Slice | Type::Vec | Type::Bytes => format!("a_.bufViewOption({e})"),
 				Type::List(elem) => {
@@ -426,14 +742,24 @@ impl<'a> Gen<'a> {
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.lower(inner, e),
 			Type::Record(_) | Type::Enum(_) => {
+				self.convert(ty);
 				let c = match abi.ty(ty) {
 					Ty::Struct(c) | Ty::Enum(c) => c,
 					other => unreachable!("a value is a struct or enum, not {other:?}"),
 				};
 				format!("lower_{c}({}{e})", self.arena_arg(ty))
 			}
-			Type::Object(i) => format!("(*C.{})(a_.hold({e}))", abi.object(*i)),
-			Type::Callback(i, _) => format!("lower_{}({e})", abi.callback(*i)),
+			Type::Object(i) => {
+				let e = match e.starts_with('*') {
+					true => format!("({e})"),
+					false => e.to_string(),
+				};
+				format!("(*C.{})(a_.hold({e}.Handle_, {e}))", abi.object(*i))
+			}
+			Type::Callback(i, _) => {
+				self.convert(ty);
+				format!("lower_{}({e})", abi.callback(*i))
+			}
 			Type::Tuple(elements) => match &elements[..] {
 				[element] => {
 					let c = abi.tuple(elements);
@@ -492,14 +818,20 @@ impl<'a> Gen<'a> {
 			Type::Char => format!("rune({e})"),
 			Type::Duration => format!("liftDuration_({e})"),
 			Type::SocketAddr(_) => format!("liftAddr_({e})"),
-			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("lift_{}({e})", abi.range(ty)),
+			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
+				self.convert(ty);
+				format!("lift_{}({e})", abi.range(ty))
+			}
 			Type::List(inner) => {
 				let c = abi.list(inner);
 				self.lift_list(&c, inner);
 				format!("lift_{c}({e})")
 			}
 			Type::Option(inner) => match inner.base() {
-				Type::Object(i) => format!("own_{}({e})", abi.object(*i)),
+				object @ Type::Object(i) => {
+					self.convert(object);
+					format!("own_{}({e})", abi.object(*i))
+				}
 				Type::Str | Type::String | Type::Path | Type::PathBuf => format!("liftStringOption_({e})"),
 				Type::Slice | Type::Vec | Type::Bytes => format!("liftBytesOption_({e})"),
 				Type::List(elem) => {
@@ -529,13 +861,17 @@ impl<'a> Gen<'a> {
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.lift(inner, e),
 			Type::Record(_) | Type::Enum(_) => {
+				self.convert(ty);
 				let c = match abi.ty(ty) {
 					Ty::Struct(c) | Ty::Enum(c) => c,
 					other => unreachable!("a value is a struct or enum, not {other:?}"),
 				};
 				format!("lift_{c}({e})")
 			}
-			Type::Object(i) => format!("own_{}({e})", abi.object(*i)),
+			Type::Object(i) => {
+				self.convert(ty);
+				format!("own_{}({e})", abi.object(*i))
+			}
 			Type::Tuple(elements) => match &elements[..] {
 				[element] => self.lift(element, &format!("{e}._0")),
 				elements => {
@@ -585,14 +921,18 @@ impl<'a> Gen<'a> {
 		}
 	}
 
+	/// The package's items: those of its crate.
 	fn write(&mut self) {
 		let abi = self.abi;
 		let api = abi.api;
-		for (c, ty) in &abi.ranges.clone() {
-			self.range(c, ty);
-		}
+		let pkg = self.pkg;
+		let mine = |home: &Home| home.krate == pkg;
 		for constant in &api.constants {
-			let name = self.bare(&abi.name(&constant.path)).to_uppercase();
+			if !mine(&constant.home) {
+				continue;
+			}
+			let c = abi.name(&constant.path);
+			let name = rest(&abi.prefix, &c, &constant.path, &constant.home).to_uppercase();
 			self.claim(&name, format!("const `{}`", constant.path.join("::")));
 			let (ty, value) = match constant.value {
 				Literal::Bool(b) => ("bool", b.to_string()),
@@ -600,24 +940,104 @@ impl<'a> Gen<'a> {
 			};
 			let _ = write!(self.top, "{}const {name} {ty} = {value}\n\n", docs(&constant.docs, ""));
 		}
-		for i in 0..api.records.len() {
+		for i in (0..api.records.len()).filter(|&i| mine(&api.records[i].home)) {
 			self.record(i);
 		}
-		for i in 0..api.enums.len() {
+		for i in (0..api.enums.len()).filter(|&i| mine(&api.enums[i].home)) {
 			self.enumeration(i);
 		}
-		for i in 0..api.objects.len() {
+		for i in (0..api.objects.len()).filter(|&i| mine(&api.objects[i].home)) {
 			self.object(i);
 		}
-		for i in 0..api.callbacks.len() {
+		for i in (0..api.callbacks.len()).filter(|&i| mine(&api.callbacks[i].home)) {
 			self.callback(i);
 		}
-		for function in &api.functions {
+		for function in api.functions.iter().filter(|f| mine(&f.home)) {
 			let method = self.function(function, None, None);
 			self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
 			self.top.push_str(&method.write());
 		}
-		for (name, ty) in &self.thrown.clone() {
+		self.moved();
+		self.errors_of();
+	}
+
+	/// Each method of another package's type whose instance names a type of this one's,
+	/// which Go keeps from that package, as Go keeps a type's methods in its own: a function
+	/// of this one, named through its type and taking its receiver first.
+	fn moved(&mut self) {
+		let abi = self.abi;
+		let api = abi.api;
+		let records = (0..api.records.len()).map(|i| {
+			let c = abi.record(i);
+			(
+				Type::Record(i),
+				Ty::Struct(c),
+				&api.records[i].home,
+				&api.records[i].methods,
+			)
+		});
+		let enums = (0..api.enums.len()).map(|i| {
+			let c = abi.enumeration(i);
+			let owner = match api.enums[i].plain() {
+				true => Ty::Enum(c),
+				false => Ty::Struct(c),
+			};
+			(Type::Enum(i), owner, &api.enums[i].home, &api.enums[i].methods)
+		});
+		let objects = (0..api.objects.len()).map(|i| {
+			let owner = Ty::Handle {
+				name: abi.object(i),
+				constant: false,
+			};
+			(Type::Object(i), owner, &api.objects[i].home, &api.objects[i].methods)
+		});
+		let pkg = self.pkg;
+		for (ty, owner, home, methods) in records.chain(enums).chain(objects) {
+			if home.krate == pkg {
+				continue;
+			}
+			for function in methods.iter().filter(|f| f.home.krate == pkg) {
+				let mut method = self.function(function, Some(&owner), Some(&ty));
+				if let Some(receiver) = method.receiver.take() {
+					let go = receiver
+						.strip_prefix("self ")
+						.expect("a receiver is `self`")
+						.to_string();
+					method.params.insert(0, ("self".to_string(), go));
+					method.name = format!("{}{}", self.named(&ty).1, method.name);
+				}
+				self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
+				self.top.push_str(&method.write());
+			}
+		}
+	}
+
+	/// The runtime's types: each range's and bound's, and each error's of no crate's.
+	fn write_rt(&mut self) {
+		let abi = self.abi;
+		for name in TAKEN {
+			self.names.insert(name.to_string(), "the runtime".to_string());
+		}
+		if abi
+			.ranges
+			.values()
+			.any(|ty| matches!(ty, Type::Bound(_) | Type::Bounds(_)))
+		{
+			self.bound();
+		}
+		for (c, ty) in &abi.ranges.clone() {
+			self.range(c, ty);
+		}
+		self.errors_of();
+	}
+
+	/// The struct of each error of no exported type the package's crate returns.
+	fn errors_of(&mut self) {
+		for (name, (home, ty)) in self.thrown.iter() {
+			if home != self.pkg {
+				continue;
+			}
+			self.claim(name, format!("the error type `{}`", self.describe(ty)));
 			let go = self.go(ty);
 			let message = match ty {
 				Type::String => "e.Value".to_string(),
@@ -654,41 +1074,27 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// A struct for a range or pair of bounds, or one of a kind and a value for a bound, and
-	/// its conversions.
+	/// A struct for a range or pair of bounds, or one of a kind and a value for a bound.
 	fn range(&mut self, c: &str, ty: &Type) {
 		let name = self.class(c);
 		self.claim(&name, format!("`{c}`"));
 		let code = match ty {
 			Type::Range(int) => {
 				let go = go_int(*int);
-				let cint = c_int(*int);
 				format!(
-					"// {name} is Rust's Range: from Start, up to but not including End.\ntype {name} struct {{\n\tStart {go}\n\tEnd   {go}\n}}\n\n\
-					func lift_{c}(c C.{c}) {name} {{\n\treturn {name}{{Start: {go}(c.start), End: {go}(c.end)}}\n}}\n\n\
-					func lower_{c}(v {name}) C.{c} {{\n\treturn C.{c}{{start: C.{cint}(v.Start), end: C.{cint}(v.End)}}\n}}\n\n"
+					"// {name} is Rust's Range: from Start, up to but not including End.\ntype {name} struct {{\n\tStart {go}\n\tEnd   {go}\n}}\n\n"
 				)
 			}
 			Type::Bound(int) => {
-				if !self.names.contains_key("Bound") {
-					self.bound();
-				}
 				let go = go_int(*int);
-				let cint = c_int(*int);
-				let kind = self.abi.rt("bound");
 				format!(
-					"// {name} is Rust's Bound: what a range's start or end bound does with Value.\ntype {name} struct {{\n\tKind  Bound\n\tValue {go}\n}}\n\n\
-					func lift_{c}(c C.{c}) {name} {{\n\treturn {name}{{Kind: Bound(c.kind), Value: {go}(c.value)}}\n}}\n\n\
-					func lower_{c}(v {name}) C.{c} {{\n\treturn C.{c}{{kind: C.{kind}(v.Kind), value: C.{cint}(v.Value)}}\n}}\n\n"
+					"// {name} is Rust's Bound: what a range's start or end bound does with Value.\ntype {name} struct {{\n\tKind  Bound\n\tValue {go}\n}}\n\n"
 				)
 			}
 			Type::Bounds(int) => {
-				let bound_c = self.abi.range(&Type::Bound(*int));
-				let bound = self.class(&bound_c);
+				let bound = self.class(&self.abi.range(&Type::Bound(*int)));
 				format!(
-					"// {name} is a range's start and end bounds, as Rust's RangeBounds gives them.\ntype {name} struct {{\n\tStart {bound}\n\tEnd   {bound}\n}}\n\n\
-					func lift_{c}(c C.{c}) {name} {{\n\treturn {name}{{Start: lift_{bound_c}(c.start), End: lift_{bound_c}(c.end)}}\n}}\n\n\
-					func lower_{c}(v {name}) C.{c} {{\n\treturn C.{c}{{start: lower_{bound_c}(v.Start), end: lower_{bound_c}(v.End)}}\n}}\n\n"
+					"// {name} is a range's start and end bounds, as Rust's RangeBounds gives them.\ntype {name} struct {{\n\tStart {bound}\n\tEnd   {bound}\n}}\n\n"
 				)
 			}
 			other => unreachable!("{other:?} is no range"),
@@ -696,12 +1102,67 @@ impl<'a> Gen<'a> {
 		self.types.push_str(&code);
 	}
 
+	/// The conversions of a range, bound, or pair of bounds, whose C struct is `c`.
+	fn range_conv(&mut self, c: &str, ty: &Type) -> String {
+		let name = self.qualified(ty);
+		match ty {
+			Type::Range(int) => {
+				let go = go_int(*int);
+				let cint = c_int(*int);
+				format!(
+					"func lift_{c}(c C.{c}) {name} {{\n\treturn {name}{{Start: {go}(c.start), End: {go}(c.end)}}\n}}\n\n\
+					func lower_{c}(v {name}) C.{c} {{\n\treturn C.{c}{{start: C.{cint}(v.Start), end: C.{cint}(v.End)}}\n}}\n\n"
+				)
+			}
+			Type::Bound(int) => {
+				let go = go_int(*int);
+				let cint = c_int(*int);
+				let kind = self.abi.rt("bound");
+				let bound = self.qualify(Packages::RT, "Bound");
+				format!(
+					"func lift_{c}(c C.{c}) {name} {{\n\treturn {name}{{Kind: {bound}(c.kind), Value: {go}(c.value)}}\n}}\n\n\
+					func lower_{c}(v {name}) C.{c} {{\n\treturn C.{c}{{kind: C.{kind}(v.Kind), value: C.{cint}(v.Value)}}\n}}\n\n"
+				)
+			}
+			Type::Bounds(int) => {
+				let bound = Type::Bound(*int);
+				self.convert(&bound);
+				let bound_c = self.abi.range(&bound);
+				format!(
+					"func lift_{c}(c C.{c}) {name} {{\n\treturn {name}{{Start: lift_{bound_c}(c.start), End: lift_{bound_c}(c.end)}}\n}}\n\n\
+					func lower_{c}(v {name}) C.{c} {{\n\treturn C.{c}{{start: lower_{bound_c}(v.Start), end: lower_{bound_c}(v.End)}}\n}}\n\n"
+				)
+			}
+			other => unreachable!("{other:?} is no range"),
+		}
+	}
+
 	/// The kind of a bound, which the runtime's names claim.
 	fn bound(&mut self) {
-		self.names.insert("Bound".to_string(), "the runtime".to_string());
 		self.types.push_str(
 			"// Bound is what a range's start or end bound does: nothing, include its value, or\n// exclude it.\ntype Bound int32\n\nconst (\n\tBoundUnbounded Bound = 0\n\tBoundIncluded  Bound = 1\n\tBoundExcluded  Bound = 2\n)\n\n",
 		);
+	}
+
+	/// Add the conversions of the exported type `ty` to the package, once: its lift and
+	/// lower, an object's own and lend, a callback's lower.
+	fn convert(&mut self, ty: &Type) {
+		let abi = self.abi;
+		let (key, ty) = match ty {
+			Type::Record(i) => (abi.record(*i), ty.clone()),
+			Type::Enum(i) => (abi.enumeration(*i), ty.clone()),
+			Type::Object(i) => (abi.object(*i), ty.clone()),
+			Type::Callback(i, _) => (abi.callback(*i), Type::Callback(*i, crate::ir::Dyn::Impl)),
+			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => (abi.range(ty), ty.clone()),
+			other => unreachable!("{other:?} converts as it is"),
+		};
+		self.helper(&format!("convert_{key}"), |g| match &ty {
+			Type::Record(i) => g.record_conv(*i),
+			Type::Enum(i) => g.enum_conv(*i),
+			Type::Object(i) => g.object_conv(*i),
+			Type::Callback(i, _) => g.callback_conv(*i),
+			ty => g.range_conv(&key, ty),
+		});
 	}
 
 	/// The methods a type's std traits export: `Display` is `String`, `Debug` `GoString`,
@@ -711,6 +1172,10 @@ impl<'a> Gen<'a> {
 		let name = self.go(ty);
 		let object = matches!(ty, Type::Object(_));
 		let arena = self.arena(ty);
+		// A value's conversion lowers its receiver, and an object's lifts a clone.
+		if !object || t.clone || t.default {
+			self.convert(ty);
+		}
 		// A value holding an object fails once that object is closed, as an object does.
 		let closable = object || self.holds(ty);
 		// The receiver, a held handle or the value lowered, and the return of `failed`, an
@@ -718,8 +1183,8 @@ impl<'a> Gen<'a> {
 		let open = |failed: &dyn Fn(&str) -> String| match (object, arena) {
 			(true, _) => (
 				format!(
-					"h_ := self.h.hold()\nif h_ == nil {{\n\treturn {}\n}}\ndefer unhold_(self)\n",
-					failed("self.h.closed()")
+					"h_ := self.Handle_.Hold()\nif h_ == nil {{\n\treturn {}\n}}\ndefer unhold_(self.Handle_, self)\n",
+					failed("self.Handle_.Closed()")
 				),
 				format!("(*C.{c})(h_)"),
 			),
@@ -790,8 +1255,8 @@ impl<'a> Gen<'a> {
 			};
 			let body = match (object, arena) {
 				(true, _) => format!(
-					"{open}o_ := other.h.hold()\nif o_ == nil {{\n\treturn {}\n}}\ndefer unhold_(other)\nreturn bool(C.{c}_eq({this}, (*C.{c})(o_))){ok}",
-					failed("other.h.closed()")
+					"{open}o_ := other.Handle_.Hold()\nif o_ == nil {{\n\treturn {}\n}}\ndefer unhold_(other.Handle_, other)\nreturn bool(C.{c}_eq({this}, (*C.{c})(o_))){ok}",
+					failed("other.Handle_.Closed()")
 				),
 				(false, true) if closable => format!(
 					"{open}c_other_ := lower_{c}(a_, other)\nif a_.err != nil {{\n\treturn {}\n}}\nreturn bool(C.{c}_eq({this}, &c_other_)){ok}",
@@ -834,10 +1299,10 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		let record = &abi.api.records[i];
 		let c = abi.record(i);
-		let name = self.class(&c);
+		let ty = Type::Record(i);
+		let name = self.named(&ty).1;
 		let rust = abi.api.rust(&record.path, &record.args);
 		self.claim(&name, format!("struct `{rust}`"));
-		let ty = Type::Record(i);
 		let fields: Vec<(String, String)> = (record.fields.iter())
 			.map(|f| (field_name(&f.name), self.go(&f.ty)))
 			.collect();
@@ -853,26 +1318,33 @@ impl<'a> Gen<'a> {
 		);
 		members.extend(self.methods_of(&ty, &c, &rust, record.traits, &record.methods, &Ty::Struct(c.clone())));
 		self.distinct(&rust, &members);
-		// Its conversions.
-		let lifted: Vec<String> = (record.fields.iter().zip(&fields))
-			.map(|(f, (name, _))| {
+	}
+
+	/// A record's lift and lower.
+	fn record_conv(&mut self, i: usize) -> String {
+		let abi = self.abi;
+		let record = &abi.api.records[i];
+		let c = abi.record(i);
+		let ty = Type::Record(i);
+		let name = self.qualified(&ty);
+		let lifted: Vec<String> = (record.fields.iter())
+			.map(|f| {
 				let value = self.lift(&f.ty, &format!("c.{}", cgo_field(&abi::escape(&f.name))));
-				format!("{name}: {value}")
+				format!("{}: {value}", field_name(&f.name))
 			})
 			.collect();
-		let lowered: Vec<String> = (record.fields.iter().zip(&fields))
-			.map(|(f, (name, _))| {
-				let value = self.lower(&f.ty, &format!("v.{name}"));
+		let lowered: Vec<String> = (record.fields.iter())
+			.map(|f| {
+				let value = self.lower(&f.ty, &format!("v.{}", field_name(&f.name)));
 				format!("{}: {value}", cgo_field(&abi::escape(&f.name)))
 			})
 			.collect();
 		let param = self.arena_param(&ty);
-		let _ = write!(
-			self.types,
+		format!(
 			"func lift_{c}(c C.{c}) {name} {{\n\treturn {name}{{{}}}\n}}\n\nfunc lower_{c}({param}v {name}) C.{c} {{\n\treturn C.{c}{{{}}}\n}}\n\n",
 			lifted.join(", "),
 			lowered.join(", ")
-		);
+		)
 	}
 
 	/// The methods and functions of a record, plain enum, or object, written after its type,
@@ -915,7 +1387,8 @@ impl<'a> Gen<'a> {
 			self.claim(&default.name, format!("`{rust}`'s Default"));
 			statics.push(default);
 		}
-		for function in functions {
+		let pkg = self.pkg;
+		for function in functions.iter().filter(|f| f.home.krate == pkg) {
 			let method = self.function(function, Some(owner), Some(ty));
 			match method.receiver {
 				Some(_) => methods.push(method),
@@ -957,22 +1430,22 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		let e = &abi.api.enums[i];
 		let c = abi.enumeration(i);
-		let name = self.class(&c);
+		let ty = Type::Enum(i);
+		let name = self.named(&ty).1;
 		let rust = abi.api.rust(&e.path, &e.args);
 		self.claim(&name, format!("enum `{rust}`"));
-		let ty = Type::Enum(i);
 		let text = format!("{name} is `{rust}`.\n\n{}", e.docs);
 		if e.plain() {
 			let consts: String = (e.variants.iter())
 				.map(|v| {
-					let variant = format!("{name}{}", pascal(&abi::snake(&v.name)));
+					let variant = format!("{name}{}", pascal(&v.name));
 					self.claim(&variant, format!("variant `{rust}::{}`", v.name));
 					format!("\t{variant} {name} = {}\n", v.discriminant)
 				})
 				.collect();
 			let _ = write!(
 				self.types,
-				"{}type {name} int32\n\nconst (\n{consts})\n\nfunc lift_{c}(c C.{c}) {name} {{\n\treturn {name}(c)\n}}\n\nfunc lower_{c}(v {name}) C.{c} {{\n\treturn C.{c}(v)\n}}\n\n",
+				"{}type {name} int32\n\nconst (\n{consts})\n\n",
 				docs(text.trim(), "")
 			);
 			let members = self.methods_of(&ty, &c, &rust, e.traits, &e.methods, &Ty::Enum(c.clone()));
@@ -1003,10 +1476,8 @@ impl<'a> Gen<'a> {
 			"{}type {name} interface {{\n{interface}}}\n\n{shared}",
 			docs(text.trim(), "")
 		);
-		let mut variants = Vec::new();
 		for variant in &e.variants {
-			let snake = abi::snake(&variant.name);
-			let vname = format!("{name}{}", pascal(&snake));
+			let vname = format!("{name}{}", pascal(&variant.name));
 			self.claim(&vname, format!("variant `{rust}::{}`", variant.name));
 			let fields: Vec<(String, String)> = (variant.fields.iter())
 				.map(|f| (field_name(&f.name), self.go(&f.ty)))
@@ -1037,30 +1508,43 @@ impl<'a> Gen<'a> {
 				};
 				self.types.push_str(&forward.write());
 			}
-			variants.push((variant, snake, vname, fields));
 		}
 		for function in statics {
 			self.types.push_str(&function.write());
 		}
-		// Its conversions.
+	}
+
+	/// An enum's lift and lower.
+	fn enum_conv(&mut self, i: usize) -> String {
+		let abi = self.abi;
+		let e = &abi.api.enums[i];
+		let c = abi.enumeration(i);
+		let ty = Type::Enum(i);
+		let name = self.qualified(&ty);
+		if e.plain() {
+			return format!(
+				"func lift_{c}(c C.{c}) {name} {{\n\treturn {name}(c)\n}}\n\nfunc lower_{c}(v {name}) C.{c} {{\n\treturn C.{c}(v)\n}}\n\n"
+			);
+		}
 		let mut lifts = Vec::new();
 		let mut lowers = Vec::new();
-		for (n, (variant, snake, vname, fields)) in variants.iter().enumerate() {
-			let payload = format!("{c}_{snake}");
+		for (n, variant) in e.variants.iter().enumerate() {
+			let vname = format!("{name}{}", pascal(&variant.name));
+			let payload = abi::payload(&c, &variant.name);
 			if variant.fields.is_empty() {
 				lifts.push(format!("\tcase {n}:\n\t\treturn {vname}{{}}\n"));
 				lowers.push(format!("\tcase {vname}:\n\t\tc.tag = {n}\n"));
 				continue;
 			}
-			let lifted: Vec<String> = (variant.fields.iter().zip(fields))
-				.map(|(f, (fname, _))| {
+			let lifted: Vec<String> = (variant.fields.iter())
+				.map(|f| {
 					let value = self.lift(&f.ty, &format!("p.{}", cgo_field(&abi::escape(&f.name))));
-					format!("{fname}: {value}")
+					format!("{}: {value}", field_name(&f.name))
 				})
 				.collect();
-			let lowered: Vec<String> = (variant.fields.iter().zip(fields))
-				.map(|(f, (fname, _))| {
-					let value = self.lower(&f.ty, &format!("v.{fname}"));
+			let lowered: Vec<String> = (variant.fields.iter())
+				.map(|f| {
+					let value = self.lower(&f.ty, &format!("v.{}", field_name(&f.name)));
 					format!("{}: {value}", cgo_field(&abi::escape(&f.name)))
 				})
 				.collect();
@@ -1074,42 +1558,36 @@ impl<'a> Gen<'a> {
 			));
 		}
 		let param = self.arena_param(&ty);
-		let _ = write!(
-			self.types,
+		format!(
 			"func lift_{c}(c C.{c}) {name} {{\n\tswitch c.tag {{\n{}\t}}\n\tpanic(\"{c}: an invalid tag\")\n}}\n\n\
 			func lower_{c}({param}v {name}) C.{c} {{\n\tvar c C.{c}\n\tswitch v := v.(type) {{\n{}\tdefault:\n\t\tpanic(\"a nil {name}\")\n\t}}\n\treturn c\n}}\n\n",
 			lifts.join(""),
 			lowers.join("")
-		);
+		)
 	}
 
 	fn object(&mut self, i: usize) {
 		let abi = self.abi;
 		let object = &abi.api.objects[i];
 		let c = abi.object(i);
-		let name = self.class(&c);
+		let ty = Type::Object(i);
+		let name = self.named(&ty).1;
 		let rust = abi.api.rust(&object.path, &object.args);
 		self.claim(&name, format!("type `{rust}`"));
-		let ty = Type::Object(i);
+		let handle = self.qualify(Packages::RT, "Handle_");
 		let text = format!(
 			"{name} is `{rust}`, a handle Close frees, or else the GC once it collects it.\n\n{}",
 			object.docs
 		);
 		let _ = write!(
 			self.types,
-			"{}type {name} struct {{\n\th *handle\n}}\n\n\
-			func free_{c}(p unsafe.Pointer) {{\n\tC.{c}_free((*C.{c})(p))\n}}\n\n\
-			// own_{c} owns a handle Rust returned, or is nil for none.\n\
-			func own_{c}(raw *C.{c}) *{name} {{\n\tif raw == nil {{\n\t\treturn nil\n\t}}\n\tv := &{name}{{h: newHandle(unsafe.Pointer(raw), free_{c}, \"{name}\")}}\n\tv.h.cleanup = runtime.AddCleanup(v, (*handle).close, v.h)\n\treturn v\n}}\n\n\
-			// lend_{c} is a handle Rust lends for a call, which it frees itself.\n\
-			func lend_{c}(raw *C.{c}) *{name} {{\n\treturn &{name}{{h: newHandle(unsafe.Pointer(raw), nil, \"{name}\")}}\n}}\n\n\
-			func (self *{name}) handle_() *handle {{\n\tif self == nil {{\n\t\treturn nil\n\t}}\n\treturn self.h\n}}\n\n\
+			"{}type {name} struct {{\n\t// Handle_ is the handle it owns, for the generated packages: use none of it.\n\tHandle_ *{handle}\n}}\n\n\
 			// Close frees the handle once no call holds it, rather than once the GC collects it: a\n\
 			// call after it panics.\n\
-			func (self *{name}) Close() {{\n\tself.h.close()\n}}\n\n",
+			func (self *{name}) Close() {{\n\tself.Handle_.Close()\n}}\n\n",
 			docs(text.trim(), "")
 		);
-		let mut members = vec!["Close".to_string()];
+		let mut members = vec!["Close".to_string(), "Handle_".to_string()];
 		let owner = Ty::Handle {
 			name: c.clone(),
 			constant: false,
@@ -1118,21 +1596,43 @@ impl<'a> Gen<'a> {
 		self.distinct(&rust, &members);
 	}
 
+	/// An object's free, own, lend, and hold of one that may be nil.
+	fn object_conv(&mut self, i: usize) -> String {
+		let c = self.abi.object(i);
+		let ty = Type::Object(i);
+		let (_, local) = self.named(&ty);
+		let name = self.qualified(&ty);
+		let handle = self.qualify(Packages::RT, "Handle_");
+		let new = self.qualify(Packages::RT, "NewHandle_");
+		format!(
+			"func free_{c}(p unsafe.Pointer) {{\n\tC.{c}_free((*C.{c})(p))\n}}\n\n\
+			// own_{c} owns a handle Rust returned, or is nil for none.\n\
+			func own_{c}(raw *C.{c}) *{name} {{\n\tif raw == nil {{\n\t\treturn nil\n\t}}\n\tv := &{name}{{Handle_: {new}(unsafe.Pointer(raw), free_{c}, \"{local}\")}}\n\tv.Handle_.Cleanup = runtime.AddCleanup(v, (*{handle}).Close, v.Handle_)\n\treturn v\n}}\n\n\
+			// lend_{c} is a handle Rust lends for a call, which it frees itself.\n\
+			func lend_{c}(raw *C.{c}) *{name} {{\n\treturn &{name}{{Handle_: {new}(unsafe.Pointer(raw), nil, \"{local}\")}}\n}}\n\n\
+			// holdOption_{c} is v's handle, held until the call returns, or nil for none.\n\
+			func holdOption_{c}(a_ *arena_, v *{name}) *C.{c} {{\n\tif v == nil {{\n\t\treturn nil\n\t}}\n\treturn (*C.{c})(a_.hold(v.Handle_, v))\n}}\n\n"
+		)
+	}
+
 	fn callback(&mut self, i: usize) {
 		let abi = self.abi;
 		let callback = &abi.api.callbacks[i];
 		let c = abi.callback(i);
-		let name = self.class(&c);
+		let ty = Type::Callback(i, crate::ir::Dyn::Impl);
+		let name = self.named(&ty).1;
 		let rust = callback.path.join("::");
 		self.claim(&name, format!("trait `{rust}`"));
+		let vtable = format!("{name}Vtable_");
+		self.claim(&vtable, format!("trait `{rust}`'s table"));
 		let p = &abi.prefix;
 		let mut body = Vec::new();
 		let mut members = Vec::new();
 		let mut table = vec!["\tv.free = goRelease\n".to_string()];
 		for method in &callback.methods {
-			let member = pascal(&abi::snake(method.name()));
+			let member = pascal(method.name());
 			members.push(member.clone());
-			let names = locals(&method.params);
+			let names = self.locals(&method.params);
 			let params: Vec<String> = (method.params.iter().zip(&names))
 				.map(|(p, name)| format!("{name} {}", self.go_param(&p.ty)))
 				.collect();
@@ -1171,11 +1671,24 @@ impl<'a> Gen<'a> {
 			self.types,
 			"{}type {name} interface {{\n{}\n}}\n\n\
 			var vtable_{c} = func() *C.{c}_vtable {{\n\tv := (*C.{c}_vtable)(C.malloc(C.size_t(unsafe.Sizeof(C.{c}_vtable{{}}))))\n{}\treturn v\n}}()\n\n\
-			func lower_{c}(v {name}) C.{c} {{\n\tif v == nil {{\n\t\tpanic(\"a nil {name}\")\n\t}}\n\treturn C.{c}{{vtable: vtable_{c}, data: give_(v)}}\n}}\n\n",
+			// {vtable} is the table of {name}'s methods Rust calls, for the generated packages.\n\
+			func {vtable}() unsafe.Pointer {{\n\treturn unsafe.Pointer(vtable_{c})\n}}\n\n",
 			docs(text.trim(), ""),
 			body.join("\n"),
 			table.join("")
 		);
+	}
+
+	/// A callback's lower: a Go implementation, kept for Rust until it drops it.
+	fn callback_conv(&mut self, i: usize) -> String {
+		let c = self.abi.callback(i);
+		let ty = Type::Callback(i, crate::ir::Dyn::Impl);
+		let (krate, local) = self.named(&ty);
+		let name = self.qualify(krate, &local);
+		let vtable = self.qualify(krate, &format!("{local}Vtable_"));
+		format!(
+			"func lower_{c}(v {name}) C.{c} {{\n\tif v == nil {{\n\t\tpanic(\"a nil {local}\")\n\t}}\n\treturn C.{c}{{vtable: (*C.{c}_vtable)({vtable}()), data: give_(v)}}\n}}\n\n"
+		)
 	}
 
 	/// The C value of a scalar `e` of type `ty` a callback returns, needing no arena.
@@ -1226,7 +1739,12 @@ impl<'a> Gen<'a> {
 		if let Some(name) = self.closures.get(&go) {
 			return name.clone();
 		}
-		let name = format!("{}Go_closure{}", self.abi.prefix, self.closures.len());
+		let name = format!(
+			"{}Go_{}_closure{}",
+			self.abi.prefix,
+			self.set.name(self.pkg),
+			self.closures.len()
+		);
 		self.closures.insert(go.clone(), name.clone());
 		let ps: Vec<String> = (0..lent.len()).map(|k| format!("p{k}")).collect();
 		let mut body = format!("\tf_ := lent_(data).({go})\n");
@@ -1235,9 +1753,10 @@ impl<'a> Gen<'a> {
 			match ty {
 				Type::Ref(_, object) if matches!(**object, Type::Object(_)) => {
 					let Type::Object(i) = **object else { unreachable!() };
+					self.convert(object);
 					let l = format!("l{k}_");
 					let _ = writeln!(body, "\t{l} := lend_{}({p})", self.abi.object(i));
-					let _ = writeln!(body, "\tdefer {l}.h.end()");
+					let _ = writeln!(body, "\tdefer {l}.Handle_.End()");
 					args.push(l);
 				}
 				ty => args.push(self.lift_lent(ty, p)),
@@ -1296,7 +1815,6 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		let export = abi.export(function, owner);
 		let c_name = export.call.name.clone();
-		let bare = self.bare(&c_name).to_string();
 		let owner_c = match owner {
 			Some(Ty::Struct(n) | Ty::Enum(n) | Ty::Handle { name: n, .. }) => Some(n.clone()),
 			_ => None,
@@ -1306,7 +1824,7 @@ impl<'a> Gen<'a> {
 			None => None,
 		};
 		let receiver = function.receiver.filter(|_| owner.is_some());
-		let type_name = owner_c.as_ref().map(|o| self.class(o));
+		let type_name = owner_ty.map(|ty| self.named(ty).1);
 		let member = match (own, receiver, &type_name) {
 			(Some(own), Some(_), _) => pascal(own),
 			(Some("new"), None, Some(t)) => format!("New{t}"),
@@ -1314,14 +1832,34 @@ impl<'a> Gen<'a> {
 				Access::Const => format!("{t}{}", own.to_uppercase()),
 				_ => format!("{t}{}", pascal(own)),
 			},
-			_ => match function.access {
-				Access::Const => bare.to_uppercase(),
-				_ => pascal(&bare),
-			},
+			_ => {
+				let rest = rest(&abi.prefix, &c_name, &function.shown, &function.home);
+				match function.access {
+					Access::Const => rest.to_uppercase(),
+					_ => pascal(rest),
+				}
+			}
 		};
+		let classes = self.classes.get(self.pkg);
 		let member = match (receiver.is_some(), member.as_str()) {
 			// What every object or value of the type already has.
 			(true, "Close" | "Error") => format!("{member}_"),
+			// A type's name, which Go's case cannot keep apart from a function's as C's does:
+			// one that returns that type makes it, as `new` does, and any other is escaped.
+			(false, name) if classes.is_some_and(|classes| classes.contains(name)) => {
+				let made = match &function.ok {
+					Type::Option(inner) => &**inner,
+					ok => ok,
+				};
+				let made = match made {
+					Type::Record(_) | Type::Enum(_) | Type::Object(_) => Some(self.named(made)),
+					_ => None,
+				};
+				match made {
+					Some((krate, made)) if krate == self.pkg && made == name => format!("New{member}"),
+					_ => format!("{member}_"),
+				}
+			}
 			_ => member,
 		};
 
@@ -1365,8 +1903,8 @@ impl<'a> Gen<'a> {
 			match c {
 				Ty::Handle { name, .. } => {
 					prelude.push(format!(
-						"h_ := self.h.hold()\nif h_ == nil {{\n\t{}\n}}\ndefer unhold_(self)",
-						fail("self.h.closed()")
+						"h_ := self.Handle_.Hold()\nif h_ == nil {{\n\t{}\n}}\ndefer unhold_(self.Handle_, self)",
+						fail("self.Handle_.Closed()")
 					));
 					args.push(format!("(*C.{name})(h_)"));
 					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
@@ -1379,6 +1917,7 @@ impl<'a> Gen<'a> {
 						Ty::Struct(c) | Ty::Enum(c) => c,
 						other => unreachable!("a value is a struct or enum, not {other:?}"),
 					};
+					self.convert(&ty);
 					arena |= self.arena(&ty);
 					let a = match self.arena(&ty) {
 						true => "a_, ",
@@ -1394,7 +1933,7 @@ impl<'a> Gen<'a> {
 		if function.future {
 			params.push(("ctx".to_string(), "context.Context".to_string()));
 		}
-		let names = locals(&function.params);
+		let names = self.locals(&function.params);
 		for (k, (param, name)) in function.params.iter().zip(&names).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
 			if let Type::Closure(..) = param.ty {
@@ -1413,7 +1952,10 @@ impl<'a> Gen<'a> {
 					args.push(format!("(*[0]byte)(C.{trampoline})"));
 					args.push(format!("unsafe.Pointer(&{k_})"));
 				}
-				(Type::Callback(i, _), _) => args.push(format!("lower_{}({name})", abi.callback(*i))),
+				(ty @ Type::Callback(i, _), _) => {
+					self.convert(ty);
+					args.push(format!("lower_{}({name})", abi.callback(*i)))
+				}
 				(Type::Waker, _) => args.push(format!("waker_({name})")),
 				(ty, Ty::Buf) => {
 					let call = match ty.buffer() {
@@ -1429,13 +1971,13 @@ impl<'a> Gen<'a> {
 				}
 				(ty, Ty::Handle { name: c, .. }) => {
 					let h = format!("h{k}_");
-					let failed = fail(&format!("{name}.h.closed()"));
+					let failed = fail(&format!("{name}.Handle_.Closed()"));
 					match ty.base() {
 						Type::Option(_) => prelude.push(format!(
-							"var {h} unsafe.Pointer\nif {name} != nil {{\n\tif {h} = {name}.h.hold(); {h} == nil {{\n\t\t{failed}\n\t}}\n\tdefer unhold_({name})\n}}"
+							"var {h} unsafe.Pointer\nif {name} != nil {{\n\tif {h} = {name}.Handle_.Hold(); {h} == nil {{\n\t\t{failed}\n\t}}\n\tdefer unhold_({name}.Handle_, {name})\n}}"
 						)),
 						_ => prelude.push(format!(
-							"{h} := {name}.h.hold()\nif {h} == nil {{\n\t{failed}\n}}\ndefer unhold_({name})"
+							"{h} := {name}.Handle_.Hold()\nif {h} == nil {{\n\t{failed}\n}}\ndefer unhold_({name}.Handle_, {name})"
 						)),
 					}
 					args.push(format!("(*C.{c})({h})"));
@@ -1599,16 +2141,9 @@ impl<'a> Gen<'a> {
 		match err.base() {
 			Type::Record(_) | Type::Enum(_) | Type::Object(_) => lifted,
 			_ => {
-				// Named by its key, as its C structs are, so two types never share one.
-				let key = self.abi.key(err);
-				let name = format!("{}Error", pascal(&key));
-				match self.thrown.get(&name) {
-					Some(seen) if self.abi.key(seen) == key => {}
-					_ => {
-						self.claim(&name, format!("the error type `{}`", self.describe(err)));
-						self.thrown.insert(name.clone(), err.clone());
-					}
-				}
+				let name = format!("{}Error", pascal(&self.abi.key(err)));
+				let home = &self.thrown[&name].0;
+				let name = self.qualify(home, &name);
 				format!("{name}{{Value: {lifted}}}")
 			}
 		}
@@ -1684,20 +2219,6 @@ fn c_int(int: Int) -> &'static str {
 		Int::I64 => "int64_t",
 		Int::Isize => "ptrdiff_t",
 	}
-}
-
-/// A snake-case name in Pascal case: `size_pair` is `SizePair`.
-fn pascal(name: &str) -> String {
-	name.split('_')
-		.filter(|s| !s.is_empty())
-		.map(|s| {
-			let mut chars = s.chars();
-			match chars.next() {
-				Some(first) => first.to_uppercase().chain(chars).collect(),
-				None => String::new(),
-			}
-		})
-		.collect()
 }
 
 /// A field's Go name: in Pascal case, and `V0`, `V1`, ... for a positional one.
@@ -1807,40 +2328,37 @@ fn local(name: &str) -> String {
 	}
 }
 
-/// The Go names of parameters, each [`local`], [`abi::distinct`].
-fn locals(params: &[Param]) -> Vec<String> {
-	abi::distinct(params.iter().map(|p| local(&p.name)))
-}
+/// Go's keywords.
+const KEYWORDS: &[&str] = &[
+	"break",
+	"case",
+	"chan",
+	"const",
+	"continue",
+	"default",
+	"defer",
+	"else",
+	"fallthrough",
+	"for",
+	"func",
+	"go",
+	"goto",
+	"if",
+	"import",
+	"interface",
+	"map",
+	"package",
+	"range",
+	"return",
+	"select",
+	"struct",
+	"switch",
+	"type",
+	"var",
+];
 
 /// A C field as cgo names it: one Go reads as a keyword takes a leading `_`.
 fn cgo_field(name: &str) -> String {
-	const KEYWORDS: &[&str] = &[
-		"break",
-		"case",
-		"chan",
-		"const",
-		"continue",
-		"default",
-		"defer",
-		"else",
-		"fallthrough",
-		"for",
-		"func",
-		"go",
-		"goto",
-		"if",
-		"import",
-		"interface",
-		"map",
-		"package",
-		"range",
-		"return",
-		"select",
-		"struct",
-		"switch",
-		"type",
-		"var",
-	];
 	match KEYWORDS.contains(&name) {
 		true => format!("_{name}"),
 		false => name.to_string(),

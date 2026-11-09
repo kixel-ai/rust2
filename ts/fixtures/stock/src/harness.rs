@@ -35,6 +35,14 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("maps::default_hasher", crate::maps::default_hasher),
 		("buf::reclaims", crate::buf::reclaims),
 		("buf::vec_spares", crate::buf::vec_spares),
+		("buf::chunks", crate::buf::chunks),
+		("buf::owners", crate::buf::owners),
+		("buf::strings", crate::buf::strings),
+		("ranges", crate::ranges::ranges),
+		("buf::deques", crate::buf::deques),
+		("buf::vectored", crate::buf::vectored),
+		("fixed::strings", crate::fixed::strings),
+		("buf::slices", crate::buf::slices),
 	]
 }
 

@@ -11,7 +11,7 @@
     # The quest CLI, which also serves the quest guide and skills the stubs in
     # .claude/skills call. Bump the rev to upgrade them.
     quest = {
-      url = "github:moq-dev/quest/dc8008bc9e846a206403b1b738ede19fdd797f5e";
+      url = "github:moq-dev/quest/6a18b8a815c2d15d37d7433a619f961ec5a07165";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
     };
@@ -26,7 +26,7 @@
     # The compiler cache the benchmark's Nix comparison measures, at the release
     # moq's CI runs. Bumping it is a corpus change, like ra-jit's.
     mbx = {
-      url = "github:jdx/mr-boxington/v1.27.0";
+      url = "github:jdx/mr-boxington/v1.29.0";
       inputs.nixpkgs.follows = "nixpkgs";
     };
   };
@@ -297,16 +297,22 @@
               typescript
               bun
               esbuild
-              # rust2-ffi's tests compile its generated Kotlin and run it on the JVM, run its
-              # generated Python and Dart, and build its generated Go through cgo.
+              # Its wasm-bindgen fixture's native side runs through the CLI's JS glue, whose
+              # version must match the fixture's locked wasm-bindgen exactly.
+              wasm-bindgen-cli_0_2_129
+              # rust2-ffi's tests compile its generated Kotlin and run it on the JVM, run and
+              # type-check its generated Python, run its Dart, and build its Go through cgo.
               kotlin
               python3
+              mypy
+              pyright
               # rust2-go's tests build and run its output against native Rust.
               go
               dart
             ];
             # ... and its generated Swift, where nixpkgs builds Swift: not on aarch64-linux.
-            nativeBuildInputs = pkgs.lib.optional (!pkgs.swift.meta.broken) pkgs.swift;
+            # The `swift` wrapper doesn't copy its compiler's `broken`, so ask the compiler.
+            nativeBuildInputs = pkgs.lib.optional (!pkgs.swift.swiftc.meta.broken) pkgs.swift;
             RUST2_TS_TOOLCHAIN = tsToolchain;
             RUST2_TS_SYSROOT = rust2-ts-std;
             KOTLINX_COROUTINES = "${kotlinx-coroutines}";

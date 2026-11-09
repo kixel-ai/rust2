@@ -9,7 +9,7 @@ export function clone$Clone(self: Run): Run {
 export function fmt$fmt_Debug(self: Run, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	const _3: string = "Run";
 	const _4: string = "words";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.cowSlice(self.words), f, rs.u16Debug);
+	const _5: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.sliceItems(rs.cowSlice(self.words)), f, rs.u16Debug);
 	return rs.debugStructFinish(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5));
 }
 
@@ -34,13 +34,12 @@ export interface Run {
 export function bump(self: Run): void {
 	const owned = rs.cowIntoOwned(self.words);
 	self.words = owned;
-	const iter: rs.Iter<rs.Place<rs.u16>> = rs.iterSliceMut(owned.items);
-	while (true) {
-		const _8: rs.Place<rs.u16> | rs.Done = iter.next();
-		if (_8 === rs.DONE) {
-			break;
-		}
-		_8.v = rs.u16WrappingAdd(_8.v, 1);
+	const iterS: rs.u16[] = owned.items;
+	let iterI: number = 0;
+	const iterE: number = owned.items.length;
+	while (iterI < iterE) {
+		const _8: number = iterI++;
+		iterS[_8] = rs.u16WrappingAdd(iterS[_8], 1);
 	}
 }
 

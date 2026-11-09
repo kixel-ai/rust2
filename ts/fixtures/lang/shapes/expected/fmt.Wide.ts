@@ -3,9 +3,9 @@
 import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug(self: Wide, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const names: string[] = ["a", "b", "c", "d", "e", "f"];
-	const values: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Debug(self.a, f), (f: rs.Formatter) => rs.u16Debug(self.b, f), (f: rs.Formatter) => rs.u32Debug(self.c, f), (f: rs.Formatter) => rs.u64Debug(self.d, f), (f: rs.Formatter) => rs.i8Debug(self.e, f), (f: rs.Formatter) => rs.fmtBool(self.f, f)];
-	return rs.fmtDebugStructFields(f, "Wide", names, values);
+	const names: rs.Slice<string> = rs.sliceFrom(["a", "b", "c", "d", "e", "f"]);
+	const values: rs.Slice<rs.Fmt> = rs.sliceFrom([(f: rs.Formatter) => rs.u8Debug(self.a, f), (f: rs.Formatter) => rs.u16Debug(self.b, f), (f: rs.Formatter) => rs.u32Debug(self.c, f), (f: rs.Formatter) => rs.u64Debug(self.d, f), (f: rs.Formatter) => rs.i8Debug(self.e, f), (f: rs.Formatter) => rs.fmtBool(self.f, f)]);
+	return rs.fmtDebugStructFields(f, "Wide", rs.sliceItems(names), rs.sliceItems(values));
 }
 
 /** Past five fields, derived `Debug` takes the fields as slices. */

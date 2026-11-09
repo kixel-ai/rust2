@@ -42,19 +42,17 @@ export function fmt$fmt_Display(self: Fault, f: rs.Formatter): rs.Result<undefin
 	}
 	if (self.tag === "Code") {
 		const arg4 = self._0;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u16LowerHex(arg4, f)];
-		return rs.fmtWriteFmt(f, ["code=", rs.fmtSpec({ alternate: true, zero: true, width: 6 }, args2[0])]);
+		return rs.fmtWriteFmt(f, ["code=", rs.fmtSpec({ alternate: true, zero: true, width: 6 }, (f: rs.Formatter) => rs.u16LowerHex(arg4, f))]);
 	}
 	if (self.tag === "TooLarge") {
 		const arg2 = self.size;
 		const _20: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(arg2, f);
 		const arg3 = self.max;
-		const args4: rs.Fmt[] = [_20, (f: rs.Formatter) => rs.usizeDisplay(arg3, f)];
-		return rs.fmtWriteFmt(f, [args4[0], " bytes exceeds the ", args4[1], " byte limit"]);
+		const args8 = [_20, (f: rs.Formatter) => rs.usizeDisplay(arg3, f)];
+		return rs.fmtWriteFmt(f, [args8[0], " bytes exceeds the ", args8[1], " byte limit"]);
 	}
 	const arg = self._0;
-	const args6: rs.Fmt[] = [(f: rs.Formatter) => Pair.fmt$fmt_Debug(arg, f)];
-	return rs.fmtWriteFmt(f, ["at ", args6[0]]);
+	return rs.fmtWriteFmt(f, ["at ", (f: rs.Formatter) => Pair.fmt$fmt_Debug(arg, f)]);
 }
 
 /** The fault `data` picks. */

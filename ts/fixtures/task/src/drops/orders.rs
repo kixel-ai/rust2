@@ -122,14 +122,12 @@ pub(super) fn orders(log: &Log, id: u32, arg: u8) {
 			log.note(format!("map {}", map_ids(&map)));
 		}
 		3 => {
-			// Each emptied by `into_iter`, in std's order: dropped whole, a tree of more than one
-			// node drops in the runtime's order, not std's node by node.
 			let set: BTreeSet<Ranked> = keys(&long).into_iter().collect();
 			log.note(format!("set {}", set_ids(&set)));
-			set.into_iter().for_each(drop);
+			drop(set);
 			let map: BTreeMap<Ranked, Guard> = entries(&long).into_iter().collect();
 			log.note(format!("map {}", map_ids(&map)));
-			map.into_iter().for_each(drop);
+			drop(map);
 		}
 		4 => {
 			// Keys that drop nothing, by a `Cell` of what has its own `Ord`, of values that do.

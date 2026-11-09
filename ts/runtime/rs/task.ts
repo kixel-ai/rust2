@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, arrayAssign, type ByteSlice, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, stringAsBytes, type Vec } from "../rs.ts";
+import { Abort, arrayAssign, type ByteSlice, type ArrayRef, type LentArray, type ElemCopy, ArraySlice, arraySliceItems, arraySliceCopy, arraySliceSet, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, sliceSet, violated, sliceToArray, stringAsBytes, type Vec, assertFailed, fmtOwned } from "../rs.ts";
 import type { Hasher } from "./hash.ts";
 import type { Location } from "./location.ts";
 
@@ -15,9 +15,11 @@ export function drop(value: unknown): void {
 	(value as Partial<Disposable> | null | undefined)?.[Symbol.dispose]?.();
 }
 
-/** Drop every element of `values` from `from` on, in order, by `f` if it has no `[Symbol.dispose]`. */
-export function dropAll<T>(values: ArrayLike<T> | undefined, f: (value: T) => void = drop, from = 0): void {
-	if (values !== undefined) dropRange(values, f, from, values.length);
+/** Drop every element of `values`, an array or a boxed slice, from `from` on, in order, by `f` if it has no `[Symbol.dispose]`. */
+export function dropAll<T>(values: ArrayLike<T> | Slice<T> | ArraySlice<ArrayRef> | undefined, f: (value: T) => void = drop, from = 0): void {
+	if (values instanceof Slice) dropRange(values.data, f, values.start + from, values.start + values.length);
+	else if (values instanceof ArraySlice) dropRange(arraySliceItems(values) as unknown as ArrayLike<T>, f, from, values.length);
+	else if (values !== undefined) dropRange(values, f, from, values.length);
 }
 
 /** Drop every item of `v` in order, as `dropAll` does. */
@@ -334,21 +336,22 @@ export function arcRaw<P extends object>(arc: Arc<unknown>, p: P, of: "Arc" | "R
 /**
  * `Arc::from_raw`, of an `Arc` or an `Rc` as `of` says: the one `p` points into, which
  * `into_raw` or `as_ptr` gave, or arithmetic moved back to, and a count of which it takes,
- * as std's does. Any other pointer, or one to a value already dropped, fails, as JS keeps
- * no count beside it.
+ * as std's does. Any other pointer, or one to a value already dropped, which Rust leaves
+ * undefined, aborts.
  */
 export function arcFromRaw<T>(p: object, of: "Arc" | "Rc"): Arc<T> {
 	const arc = (of === "Arc" ? RAW_ARCS : RAW_RCS).get(ptrHome(p));
-	if (arc === undefined) throw new Error(`rust2-ts: \`${of}::from_raw\` of a pointer no \`${of}::into_raw\` or \`as_ptr\` gave`);
-	if (arc.strong === 0) throw new Error(`rust2-ts: \`${of}::from_raw\` of a pointer to a value already dropped`);
+	if (arc === undefined) violated(`${of}::from_raw requires a pointer that ${of}::into_raw or ${of}::as_ptr gave`);
+	if (arc.strong === 0) violated(`${of}::from_raw requires a pointer to a value not yet dropped`);
 	return arc as Arc<T>;
 }
 
 /**
  * `p as *const ()`, as `ptrErase` casts it, of a pointer to a value JS copies: the place
  * of an `Arc`'s or `Rc`'s value that `into_raw` or `as_ptr` gave, or arithmetic moved back
- * to, which is its one place as its address is, or one at no memory. Any other place is a
- * borrow's own, which no other pointer to the value would compare as, so it fails.
+ * to, which is its one place as its address is, or one at no memory. Translation casts
+ * only one the body shows is either, so any other place, a borrow's own, which no other
+ * pointer to the value would compare as, fails as its bug.
  */
 export function arcErase(p: object, type: string, align: number): Place<undefined> {
 	const home = ptrHome(p);
@@ -513,7 +516,7 @@ const WOULD_BLOCK: Result<never, TryLockError<never>> = /* @__PURE__ */ Err({ ta
 
 /** `Mutex::lock`: its guard, which is the mutex. Locking it again while held panics, as wasm32's does. */
 export function mutexLock<T>(mutex: Mutex<T>): Mutex<T> {
-	if (mutex.locked) panic("assertion `left == right` failed: cannot recursively acquire mutex\n  left: true\n right: false", "mutex_lock", true);
+	if (mutex.locked) assertFailed("==", fmtOwned(true, fmtBool), fmtOwned(false, fmtBool), ["cannot recursively acquire mutex"], "mutex_lock");
 	mutex.locked = true;
 	return mutex;
 }
@@ -911,21 +914,65 @@ export function cellOfPlace<T>(p: Place<T>): Cell<T> {
 }
 
 /**
- * `Cell::from_mut` of the object or the bytes a `&mut` is: a read is a copy, as a `Cell`
- * only moves or copies its value out, and a write lands in place, a JS array's taking
- * the new one's length. A read copies as `objectCopy` copies to `depth`.
+ * A cell `Cell::from_mut` or `UnsafeCell::from_mut` makes of a `&mut [T; N]`, the slice `s`:
+ * a read is a copy of the array, a write lands where `s` holds it, and a pointer to it is `s`.
  */
-export function cellIn<T extends object>(p: T, depth = 0): Cell<T> {
+class ArrayCell<S, A> implements Place<A> {
+	readonly s: S;
+	readonly #read: () => A;
+	readonly #write: (value: A) => void;
+
+	constructor(s: S, read: () => A, write: (value: A) => void) {
+		this.s = s;
+		this.#read = read;
+		this.#write = write;
+	}
+
+	get v(): A {
+		return this.#read();
+	}
+
+	set v(value: A) {
+		this.#write(value);
+	}
+}
+
+/** `Cell::from_mut` or `UnsafeCell::from_mut` of a `&mut [T; N]`, which is `s`. */
+export function cellOfSlice<T>(s: Slice<T>): Cell<T[]> {
+	return cellOfPlace(new ArrayCell(s, () => sliceToArray(s), (value: T[]) => sliceSet(s, value)));
+}
+
+/**
+ * `Cell::from_mut` of a `&mut [[T; N]; M]`, which is the arrays `r`: a read is a copy of
+ * them, each element copied by `copy`, and a write lands where `r` holds them.
+ */
+export function cellOfArraySlice<S extends ArrayRef>(r: ArraySlice<S>, copy?: ElemCopy): Cell<LentArray<S>[]> {
+	return cellOfPlace(new ArrayCell(r, () => arraySliceCopy(r, copy), (value: LentArray<S>[]) => arraySliceSet(r, value)));
+}
+
+/**
+ * The pointer to the array a cell of one, `c`, holds, the slice of it `from` makes: the slice
+ * `Cell::from_mut` made it of, or else the slice of all of the array.
+ */
+export function cellArray<A, S>(c: Cell<A>, from: (array: A) => S): S {
+	return c instanceof ArrayCell ? (c.s as S) : from(c.v);
+}
+
+/**
+ * `Cell::from_mut` of an object a `&mut` is, which a pointer to is a place of: a read is
+ * a copy, as a `Cell` only moves or copies its value out, and a write lands in place.
+ */
+export function cellIn<T extends object>(p: T): Cell<T> {
 	const write = partPlace(p);
-	return cellOfPlace(place(() => objectCopy(p, depth), (value) => (write.v = value)));
+	return cellOfPlace(place(() => objectCopy(p), (value) => (write.v = value)));
 }
 
 /**
  * `PartialEq`, `PartialOrd`, or `Ord` of `Cell`s or places, or `PartialEq` of `OnceCell`s
- * or `OnceLock`s, by `f` of what each holds.
+ * or `OnceLock`s, by `f` of what each holds, or of its `copy`, as a `Cell`'s `get` gives.
  */
-export function cellBy<T, R>(f: (a: T, b: T) => R): (a: { v: T }, b: { v: T }) => R {
-	return (a, b) => f(a.v, b.v);
+export function cellBy<T, R>(f: (a: T, b: T) => R, copy?: (v: T) => T): (a: { v: T }, b: { v: T }) => R {
+	return copy ? (a, b) => f(copy(a.v), copy(b.v)) : (a, b) => f(a.v, b.v);
 }
 
 /** `Cell::replace`: the value it held, `v` in its place. */
@@ -1370,6 +1417,9 @@ export const OuterPending: unique symbol = /* @__PURE__ */ Symbol("OuterPending"
 
 /** The type of `OuterPending`. */
 export type OuterPending = typeof OuterPending;
+
+/** A generic type's `Poll<T>`, whose `Pending` each instance decides: `Poll<T>`, or `T | OuterPending` where `T` can already be `Pending`. */
+export type PollOf<T> = T | (typeof Pending extends T ? OuterPending : typeof Pending);
 
 /** `Debug` of a `Poll`, through its value's, whose `Pending` is `pending`. */
 export function fmtPoll<T>(p: T | typeof Pending | OuterPending, f: Formatter, debug: Debug<T>, pending: typeof Pending | OuterPending = Pending): FmtResult {

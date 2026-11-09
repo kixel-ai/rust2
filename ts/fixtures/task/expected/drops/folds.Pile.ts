@@ -34,8 +34,7 @@ export function sizeHint$iter_Iterator(self: Pile): [rs.usize, rs.usize | undefi
 }
 
 export function nth$iter_Iterator(self: Pile, n: rs.usize): Guard.Guard | undefined {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(n, f)];
-	const _5: string = rs.fmtFormat(["pile nth ", args2[0]]);
+	const _5: rs.String = rs.fmtFormat(["pile nth ", (f: rs.Formatter) => rs.usizeDisplay(n, f)]);
 	Log.note(self.log, _5);
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = n;
@@ -51,22 +50,23 @@ export function nth$iter_Iterator(self: Pile, n: rs.usize): Guard.Guard | undefi
 }
 
 export function fold$iter_Iterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32(self: Pile, init: rs.u32 | undefined, f: (a0: rs.u32 | undefined, a1: Guard.Guard) => rs.u32 | undefined): rs.u32 | undefined {
-	Log.note(self.log, "pile fold");
+	const _6: rs.String = rs.stringFrom("pile fold");
+	Log.note(self.log, _6);
 	let acc: rs.u32 | undefined = init;
 	while (self.held.items.length > 1) {
 		const part = rs.optionUnwrap(rs.vecPop(self.held));
 		acc = f(acc, part);
 	}
 	rs.drop(f);
-	Log.note(self.log, "pile folded");
+	const _23: rs.String = rs.stringFrom("pile folded");
+	Log.note(self.log, _23);
 	self[Symbol.dispose]();
 	return acc;
 }
 
 export function count$iter_Iterator(self: Pile): rs.usize {
 	const part = self.held.items.length;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part, f)];
-	const _4: string = rs.fmtFormat(["pile count ", args2[0]]);
+	const _4: rs.String = rs.fmtFormat(["pile count ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]);
 	Log.note(self.log, _4);
 	const _0: rs.usize = self.held.items.length;
 	self[Symbol.dispose]();
@@ -74,7 +74,8 @@ export function count$iter_Iterator(self: Pile): rs.usize {
 }
 
 export function last$iter_Iterator(self: Pile): Guard.Guard | undefined {
-	Log.note(self.log, "pile last");
+	const _4: rs.String = rs.stringFrom("pile last");
+	Log.note(self.log, _4);
 	const _0: Guard.Guard | undefined = then$1xpp3sz(!(self.held.items.length === 0), (): Guard.Guard => {
 		return rs.vecRemove(self.held, 0);
 	});
@@ -89,8 +90,7 @@ export function nextBack$iter_DoubleEndedIterator(self: Pile): Guard.Guard | und
 }
 
 export function nthBack$iter_DoubleEndedIterator(self: Pile, n: rs.usize): Guard.Guard | undefined {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(n, f)];
-	const _5: string = rs.fmtFormat(["pile nth_back ", args2[0]]);
+	const _5: rs.String = rs.fmtFormat(["pile nth_back ", (f: rs.Formatter) => rs.usizeDisplay(n, f)]);
 	Log.note(self.log, _5);
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = n;
@@ -106,14 +106,16 @@ export function nthBack$iter_DoubleEndedIterator(self: Pile, n: rs.usize): Guard
 }
 
 export function rfold$iter_DoubleEndedIterator_Option_u32_boxed_Box_dyn_ops_FnMut_tuple2_Option_u32_model_Guard_Option_u32(self: Pile, init: rs.u32 | undefined, f: (a0: rs.u32 | undefined, a1: Guard.Guard) => rs.u32 | undefined): rs.u32 | undefined {
-	Log.note(self.log, "pile rfold");
+	const _6: rs.String = rs.stringFrom("pile rfold");
+	Log.note(self.log, _6);
 	let acc: rs.u32 | undefined = init;
 	while (self.held.items.length > 1) {
 		const part = rs.vecRemove(self.held, 0);
 		acc = f(acc, part);
 	}
 	rs.drop(f);
-	Log.note(self.log, "pile rfolded");
+	const _22: rs.String = rs.stringFrom("pile rfolded");
+	Log.note(self.log, _22);
 	self[Symbol.dispose]();
 	return acc;
 }

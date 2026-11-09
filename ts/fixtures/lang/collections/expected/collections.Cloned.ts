@@ -8,11 +8,11 @@ import * as rs from "./rs.ts";
  */
 export interface Cloned {
 	depth: rs.u8;
-	name: string;
+	name: rs.String;
 }
 
 export function clone$Clone(self: Cloned): Cloned {
-	return { depth: rs.u8Add(self.depth, 1), name: self.name };
+	return { depth: rs.u8Add(self.depth, 1), name: rs.stringClone(self.name) };
 }
 
 //# sourceMappingURL=collections.Cloned.ts.map

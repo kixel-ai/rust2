@@ -11,11 +11,13 @@
 //! and the call of the macro that defines one, as an integer's methods. A panic in std's
 //! own code is where the toolchain's source has it, and one in `bytes`' where the
 //! program's `bytes` has it, named as the session names that file, which `rs.setHook` is
-//! given.
+//! given. One in tokio's is where its compiled code has it, passed at the call.
 
 use std::sync::OnceLock;
 
+use rustc_attr_ir::LangItem;
 use rustc_hir::def_id::DefId;
+use rustc_middle::mir::TerminatorKind;
 use rustc_middle::ty::{Instance, InstanceKind, TyCtxt};
 use rustc_span::{RemapPathScopeComponents, SourceFile, Span};
 
@@ -25,10 +27,14 @@ use super::library::{self, Std};
 use crate::ts::{Expr, Key, Param, Stmt, StmtKind, Type};
 
 /// The `rs.Location` rustc gives a call at `span`: where the outermost macro call it came
-/// from is, in the file as the native build names it, by line and column from 1.
+/// from is, in the file as the native build names it, by line and column from 1. The column
+/// counts a tab as 4, which rustc reads from the file's source, so a dependency's file,
+/// imported without it, is loaded first.
 pub fn location(tcx: TyCtxt<'_>, span: Span) -> Expr {
 	let topmost = span.ctxt().outer_expn().expansion_cause().unwrap_or(span);
-	let pos = tcx.sess.source_map().lookup_char_pos(topmost.lo());
+	let map = tcx.sess.source_map();
+	map.ensure_source_file_source_present(&map.lookup_source_file(topmost.lo()));
+	let pos = map.lookup_char_pos(topmost.lo());
 	object(file(tcx, &pos.file), pos.line, pos.col_display + 1)
 }
 
@@ -323,6 +329,14 @@ const SITES: &[(&str, &str, &str, &str)] = &[
 		"",
 		"expect(\"multiplying duration by scalar",
 	),
+	// A macro's panic is at the macro's call, here the one that gives the general zip its
+	// `next_back`, which an `ExactSizeIterator` whose length lies reaches.
+	(
+		"zip_next_back",
+		"core/src/iter/adapters/zip.rs",
+		"// General Zip impl",
+		"zip_impl_general_defaults!",
+	),
 ];
 
 /// Where each std function that neither takes its caller's location nor is defined by a
@@ -425,6 +439,30 @@ const CALLEES: &[(&str, &str, &str, &str)] = &[
 		"core/src/time.rs",
 		"pub fn from_secs_f32(secs: f32)",
 		"panic!(",
+	),
+	(
+		"io::io_slice::advance",
+		"core/src/io/io_slice/repr_generic.rs",
+		"pub(crate) fn advance(&mut self, n: usize)",
+		"[n..]",
+	),
+	(
+		"io::io_slice::advance_slices",
+		"core/src/io/io_slice.rs",
+		"pub fn advance_slices(bufs: &mut &mut [IoSlice<'a>], n: usize)",
+		"assert!(",
+	),
+	(
+		"mem::maybe_uninit::write_copy_of_slice",
+		"core/src/mem/maybe_uninit.rs",
+		"pub const fn write_copy_of_slice(",
+		"copy_from_slice(",
+	),
+	(
+		"mem::maybe_uninit::write_clone_of_slice",
+		"core/src/mem/maybe_uninit.rs",
+		"pub fn write_clone_of_slice(",
+		"assert_eq!(",
 	),
 	("cell::take", "core/src/cell.rs", "pub fn take(&self) -> T", "replace("),
 	(
@@ -580,6 +618,33 @@ fn bytes_find(
 	};
 	let (line, col) = position(&text, after, needle)?;
 	Some(object(self::file(tcx, &source), line, col))
+}
+
+/// Where `def_id`, a dependency's function that takes no caller's location, makes its one
+/// `panic!`: the call in the MIR its crate compiled, outside what that inlined, whose file is
+/// named as the native build names it under any `--remap-path-prefix`. `None` without that
+/// MIR, or with other than one such call.
+pub fn own_panic(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Expr> {
+	if !tcx.is_mir_available(def_id) {
+		return None;
+	}
+	let mir = tcx.optimized_mir(def_id);
+	let mut spans = mir.basic_blocks.iter().filter_map(|block| {
+		let terminator = block.terminator();
+		let TerminatorKind::Call { func, .. } = &terminator.kind else {
+			return None;
+		};
+		let (callee, _) = func.const_fn_def()?;
+		let panics = [LangItem::PanicFmt, LangItem::Panic, LangItem::PanicDisplay]
+			.into_iter()
+			.any(|item| tcx.is_lang_item(callee, item));
+		let own = (terminator.source_info.scope)
+			.inlined_instance(&mir.source_scopes)
+			.is_none();
+		(panics && own).then_some(terminator.source_info.span)
+	});
+	let span = spans.next()?;
+	spans.next().is_none().then(|| location(tcx, span))
 }
 
 /// Where std's `def_id` panics, if [`CALLEES`] names it.

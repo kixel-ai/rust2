@@ -16,7 +16,7 @@ export interface Segment {
 function new_(): Segment {
 	let _6!: rs.usize;
 	const slots: Lent.Lent<[rs.u8, rs.u8]>[] = Array.from({ length: 4 }, (): Lent.Lent<[rs.u8, rs.u8]> => {
-		return (new Lent.Lent((undefined as unknown) as rs.Cell<[rs.u8, rs.u8]>) as unknown) as Lent.Lent<[rs.u8, rs.u8]>;
+		return (new Lent.Lent((new rs.Cell([undefined, undefined]) as unknown) as rs.Cell<[rs.u8, rs.u8]>) as unknown) as Lent.Lent<[rs.u8, rs.u8]>;
 	});
 	let iterStart: rs.usize = 0;
 	const iterEnd: rs.usize = 4;
@@ -27,7 +27,14 @@ function new_(): Segment {
 		}
 		const _15: Lent.Lent<[rs.u8, rs.u8]>[] = slots;
 		const _13: Lent.Lent<[rs.u8, rs.u8]> = Lent.new$mem_MaybeUninit_tuple2_u8_u8(([undefined, undefined] as unknown) as [rs.u8, rs.u8]);
-		rs.ptrWrite(_15[at], _13);
+		const object = _15[at];
+		const value = _13;
+		const cell = object._0;
+		rs.ptrWrite(object, value);
+		if (cell !== undefined) {
+			object._0 = cell;
+			rs.ptrWrite(cell.v, value._0.v);
+		}
 	}
 	return { filled: 0, slots };
 }
@@ -35,16 +42,18 @@ function new_(): Segment {
 /** As [`Self::new`], with kio's loop written with an iterator. */
 export function iterated(): Segment {
 	const slots: Lent.Lent<[rs.u8, rs.u8]>[] = Array.from({ length: 4 }, (): Lent.Lent<[rs.u8, rs.u8]> => {
-		return (new Lent.Lent((undefined as unknown) as rs.Cell<[rs.u8, rs.u8]>) as unknown) as Lent.Lent<[rs.u8, rs.u8]>;
+		return (new Lent.Lent((new rs.Cell([undefined, undefined]) as unknown) as rs.Cell<[rs.u8, rs.u8]>) as unknown) as Lent.Lent<[rs.u8, rs.u8]>;
 	});
-	const iter: rs.Iter<Lent.Lent<[rs.u8, rs.u8]>> = rs.iterSlice(slots);
-	while (true) {
-		const _8: Lent.Lent<[rs.u8, rs.u8]> | rs.Done = iter.next();
-		if (_8 === rs.DONE) {
-			break;
+	for (const uninit of slots) {
+		const object = uninit;
+		const value = Lent.new$mem_MaybeUninit_tuple2_u8_u8(([undefined, undefined] as unknown) as [rs.u8, rs.u8]);
+		const cell = object._0;
+		rs.ptrWrite(object, value);
+		if (cell !== undefined) {
+			object._0 = cell;
+			rs.ptrWrite(cell.v, value._0.v);
 		}
-		const uninit = _8;
-		rs.ptrWrite(uninit, Lent.new$mem_MaybeUninit_tuple2_u8_u8(([undefined, undefined] as unknown) as [rs.u8, rs.u8]));
+		undefined;
 		uninit;
 	}
 	return { filled: 0, slots };

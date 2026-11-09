@@ -48,6 +48,13 @@ export function ok$1lmsnde(self: rs.Result<[rs.usize, rs.u8], rs.Arc<Any.Any>>):
 	return _0;
 }
 
+export function ok$03r6cuf(self: rs.Result<rs.u128, rs.ParseIntError>): rs.u128 | undefined {
+	if (self.ok) {
+		return self.value;
+	}
+	return undefined;
+}
+
 export function ok$1wwd922(self: rs.Result<rs.u16, Any.Any>): rs.u16 | undefined {
 	let _0!: rs.u16 | undefined;
 	if (self.ok) {
@@ -88,6 +95,13 @@ export function map$0f0ko1g(self: rs.Result<rs.Arc<[rs.u8, rs.u8]>, rs.Arc<Any.A
 		return rs.Ok(op(self.value));
 	}
 	return self as rs.Result<[rs.usize, rs.u8], rs.Arc<Any.Any>>;
+}
+
+export function and$0302lm8(self: rs.Result<undefined, rs.FmtError>, res: rs.Result<undefined, rs.FmtError>): rs.Result<undefined, rs.FmtError> {
+	if (self.ok) {
+		return res;
+	}
+	return self;
 }
 
 export function unwrapOr$0k78oya(self: rs.Result<rs.u8, rs.BorrowError>, default_: rs.u8): rs.u8 {

@@ -22,5 +22,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("capacity::collects", capacity::collects),
 		("capacity::maps", capacity::maps),
 		("capacity::clone_froms", capacity::clone_froms),
+		("capacity::strings", capacity::strings),
 	]
 }

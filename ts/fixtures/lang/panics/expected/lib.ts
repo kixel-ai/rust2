@@ -2,7 +2,8 @@
 
 import * as rs from "./rs.ts";
 import type * as Any from "./core/any.Any.ts";
-import { via$located_Tracked_u8, at$located_Tracked_u8, called as located_called, read, panicked } from "./located.ts";
+import { panicked as edition2018_panicked } from "./edition2018.ts";
+import { via$located_Tracked_u8, at$located_Tracked_u8, called as located_called, read, panicked as located_panicked } from "./located.ts";
 import * as Inherits from "./located.Inherits.ts";
 import * as Own from "./located.Own.ts";
 import { wrapped, called as panics_called, awaited, raised } from "./panics.ts";
@@ -19,9 +20,9 @@ export function drop$Result_u8_boxed_Box_dyn_Any_marker_Send(_1: rs.Result<rs.u8
 }
 
 export class of$String {
-	v: string;
+	v: rs.String;
 
-	constructor(v: string) {
+	constructor(v: rs.String) {
 		this.v = v;
 	}
 }
@@ -83,21 +84,19 @@ export class of$u8 {
  * their count, so a case added at the end moves no other.
  */
 export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]> {
-	return rs.vecFrom([["panics::wrapped", wrapped as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::called", panics_called as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::awaited", awaited as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::raised", raised as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::called", located_called as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::read", read as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::panicked", panicked as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
+	return rs.vecFrom([["panics::wrapped", wrapped as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::called", panics_called as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::awaited", awaited as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["panics::raised", raised as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::called", located_called as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::read", read as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["located::panicked", located_panicked as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["edition2018::panicked", edition2018_panicked as (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }
 
-export const NOTE: rs.LocalKey<rs.RefCell<string>> = /* @__PURE__ */ new rs.LocalKey(NOTE$init, false);
+export const NOTE: rs.LocalKey<rs.RefCell<rs.String>> = /* @__PURE__ */ new rs.LocalKey(NOTE$init, false);
 
-export function NOTE$init(): rs.RefCell<string> {
-	return new rs.RefCell("");
+export function NOTE$init(): rs.RefCell<rs.String> {
+	return new rs.RefCell(rs.stringNew());
 }
 
 /** Take what the hooks wrote since the last call. */
-export function note(): string {
-	return rs.localKeyWithBorrowMutPlace(NOTE, (a0: rs.Place<string>): string => {
-		const taken = a0.v;
-		a0.v = "";
-		return taken;
+export function note(): rs.String {
+	return rs.localKeyWithBorrowMut(NOTE, (a0: rs.String): rs.String => {
+		return rs.replaceIn(a0, rs.stringNew());
 	});
 }
 

@@ -77,9 +77,9 @@ void print_strings(const std::vector<api::buf> &strings) {
 int wakes = 0;
 
 // The Log callback: keeps even levels.
-class print_log final : public api::log {
+class print_log final : public api::Log {
 public:
-	bool log_(std::uint8_t level, api::view line) const override {
+	bool log(std::uint8_t level, api::view line) const override {
 		std::printf("log %u %.*s\n", level, static_cast<int>(line.size()), reinterpret_cast<const char *>(line.data()));
 		return level % 2 == 0;
 	}
@@ -141,51 +141,51 @@ struct queue {
 };
 
 int script() {
-	std::printf("limit %llu\n", ull(api::limit));
+	std::printf("limit %llu\n", ull(api::LIMIT));
 
-	api::point start{1, 2};
-	api::point p = start.offset(2, 3);
+	api::Point start{1, 2};
+	api::Point p = start.offset(2, 3);
 	std::printf("offset %d %d\n", p.x, p.y);
 	print("debug ", p.debug(), "\n");
-	std::printf("eq %s\n", yes(p == api::point{3, 5}));
-	api::point d = api::point::default_();
+	std::printf("eq %s\n", yes(p == api::Point{3, 5}));
+	api::Point d = api::Point::default_();
 	std::printf("default %d %d\n", d.x, d.y);
 
-	api::counter c = api::counter::new_("c", 5);
+	api::Counter c = api::Counter::new_("c", 5);
 	std::printf("get %llu\n", ull(c.get()));
 	print("name ", c.name(), "\n");
 	if (auto v = c.add(10)) {
 		std::printf("add ok %llu\n", ull(*v));
 	}
 	if (auto v = c.add(2000); !v) {
-		print("add err ", api::error_to_string(v.error()), " ");
-		print("", api::error_debug(v.error()), "\n");
+		print("add err ", api::Error_to_string(v.error()), " ");
+		print("", api::Error_debug(v.error()), "\n");
 	}
 	if (auto v = c.sub(20); !v) {
-		std::printf("sub err underflow by %llu ", ull(std::get<api::error_underflow>(v.error()).by));
-		print("", api::error_debug(v.error()), "\n");
+		std::printf("sub err underflow by %llu ", ull(std::get<api::Error_Underflow>(v.error()).by));
+		print("", api::Error_debug(v.error()), "\n");
 	}
 	c.rename("d");
 	print("name ", c.name(), "\n");
 	std::printf("is d %s\n", yes(c.is("d")));
 	{
-		api::counter copy = c.clone();
+		api::Counter copy = c.clone();
 		(void)copy.add(1);
 		std::printf("clone %llu original %llu\n", ull(copy.get()), ull(c.get()));
 	}
 	print("debug ", c.debug(), "\n");
-	api::label label = std::move(c).into_label(p);
+	api::Label label = std::move(c).into_label(p);
 	print("label ", label.debug(), "\n");
 	// An empty buffer C++ made is not none.
-	std::printf("note %s %s\n", yes(api::has_text(api::note{api::buf()})), yes(api::has_text(api::note{})));
+	std::printf("note %s %s\n", yes(api::has_text(api::Note{api::buf()})), yes(api::has_text(api::Note{})));
 
 	// A tuple returns through one out pointer per element.
-	auto [below, above] = api::counter::new_("s", 7).split(5);
+	auto [below, above] = api::Counter::new_("s", 7).split(5);
 	print("split ", below.name(), " ");
 	std::printf("%llu ", ull(below.get()));
 	print("", above.name(), " ");
 	std::printf("%llu\n", ull(above.get()));
-	auto [only] = api::only(api::counter::new_("o", 3));
+	auto [only] = api::only(api::Counter::new_("o", 3));
 	print("only ", only.name(), " ");
 	std::printf("%llu\n", ull(only.get()));
 	auto [w8, w16, w32, w64] = api::widths(98305);
@@ -194,7 +194,7 @@ int script() {
 		if (auto r = api::divide(7, divisor)) {
 			std::printf("divide %llu %llu\n", ull(std::get<0>(*r)), ull(std::get<1>(*r)));
 		} else {
-			print("divide err ", api::error_to_string(r.error()), "\n");
+			print("divide err ", api::Error_to_string(r.error()), "\n");
 		}
 	}
 	// A tuple inside another type is a std::tuple.
@@ -214,20 +214,20 @@ int script() {
 		}
 	}
 	std::printf("rows");
-	auto stat_rows = api::rows({api::point{1, 2}, api::point{3, 3}});
+	auto stat_rows = api::rows({api::Point{1, 2}, api::Point{3, 3}});
 	for (std::size_t i = 0; i < stat_rows.size(); i++) {
 		auto &[name, shape, at] = stat_rows[i];
 		print(i == 0 ? " " : ", ", name, " ");
-		print("", api::shape_debug(shape), " ");
+		print("", api::Shape_debug(shape), " ");
 		std::printf("%d %d", at.x, at.y);
 	}
 	std::printf("\n");
 	{
 		// Each handle in a tuple moves in, as one taken by value does.
-		std::vector<std::tuple<api::view, api::counter>> tallies;
-		tallies.emplace_back("low", api::counter::new_("l", 1));
-		tallies.emplace_back("high", api::counter::new_("h", 9));
-		auto board = api::board::new_(std::move(tallies));
+		std::vector<std::tuple<api::view, api::Counter>> tallies;
+		tallies.emplace_back("low", api::Counter::new_("l", 1));
+		tallies.emplace_back("high", api::Counter::new_("h", 9));
+		auto board = api::Board::new_(std::move(tallies));
 		std::printf("ranked");
 		auto ranked = board.ranked();
 		for (std::size_t i = 0; i < ranked.size(); i++) {
@@ -238,7 +238,7 @@ int script() {
 		}
 		std::printf("\n");
 	}
-	api::span span{{2, 10}, std::make_tuple(api::buf("s"), api::shape::square)};
+	api::Span span{{2, 10}, std::make_tuple(api::buf("s"), api::Shape::square)};
 	auto [lower_half, upper_half] = api::halves(span);
 	std::printf("halves %u %u %u %u ", std::get<0>(lower_half), std::get<1>(lower_half), std::get<0>(upper_half),
 				std::get<1>(upper_half));
@@ -279,37 +279,37 @@ int script() {
 	print("named Some((\"", std::get<0>(*api::named("x")), "\",))\n");
 
 	// Each lent counter is a new handle to a clone.
-	api::registry registry = api::registry::new_(api::counter::new_("first", 1));
+	api::Registry registry = api::Registry::new_(api::Counter::new_("first", 1));
 	std::printf("last %s\n", yes(registry.last().has_value()));
-	registry.push(api::counter::new_("last", 2));
+	registry.push(api::Counter::new_("last", 2));
 	{
-		api::counter first = registry.first();
+		api::Counter first = registry.first_get();
 		(void)first.add(10);
-		std::printf("first %llu lent %llu\n", ull(registry.first().get()), ull(first.get()));
-		api::counter last = *registry.last();
+		std::printf("first %llu lent %llu\n", ull(registry.first_get().get()), ull(first.get()));
+		api::Counter last = *registry.last();
 		(void)last.add(10);
 		std::printf("last %llu lent %llu\n", ull(registry.last()->get()), ull(last.get()));
 	}
 	// A closure lent for the call edits the first counter through its class.
 	std::uint64_t by = 5;
-	bool edited = registry.edit([&](api::counter &counter) {
+	bool edited = registry.edit([&](api::Counter &counter) {
 		(void)counter.add(by);
 		return counter.edited() && counter.get() == 6;
 	});
-	std::printf("edit %s %llu\n", yes(edited), ull(registry.first().get()));
+	std::printf("edit %s %llu\n", yes(edited), ull(registry.first_get().get()));
 	// A setter moves an object in, as assignment does.
-	registry.set_first(api::counter::new_("second", 3));
-	std::printf("set first %llu ", ull(registry.first().get()));
-	print("", registry.first().name(), "\n");
-	std::printf("walk %llu\n", ull(api::walk(3, [](const api::cursor &cursor) { return cursor.at() * 2; })));
+	registry.first_set(api::Counter::new_("second", 3));
+	std::printf("set first %llu ", ull(registry.first_get().get()));
+	print("", registry.first_get().name(), "\n");
+	std::printf("walk %llu\n", ull(api::walk(3, [](const api::Cursor &cursor) { return cursor.at() * 2; })));
 	std::printf("each %u\n", api::each(2, [](std::uint32_t at) { std::printf("visit %u\n", at); }));
 	std::printf("offset %u\n", api::offset([] { return 7u; }, 3));
 	std::printf("shift %u\n", api::shift([] { return 7u; }, 4));
 
 	// A type generic only over lifetimes is a handle to its 'static form.
 	{
-		api::name name = api::name::owned("a");
-		api::name joined = name.join(api::name::owned("b"));
+		api::Name name = api::Name::owned("a");
+		api::Name joined = name.join(api::Name::owned("b"));
 		print("joined ", joined.as_str(), " ");
 		print("", joined.debug(), " ");
 		std::printf("%s\n", yes(joined == name));
@@ -318,7 +318,7 @@ int script() {
 		// The name took a copy: the caller's buffer is its own again.
 		text[0] = 'x';
 		print("renamed ", joined.as_str(), "\n");
-		api::name longest = api::longer(std::move(joined), api::name::owned("dd"));
+		api::Name longest = api::longer(std::move(joined), api::Name::owned("dd"));
 		print("longer ", longest.as_str(), "\n");
 		print("unnamed [", api::unnamed().as_str(), "]\n");
 	}
@@ -358,51 +358,51 @@ int script() {
 			std::printf("\n");
 		}
 	}
-	api::window window{{2, 8}, api::end(5)};
+	api::Window window{{2, 8}, api::end(5)};
 	std::printf("window %s %s ", yes(window.contains(4)), yes(window.contains(6)));
 	print("", window.debug(), "\n");
 
-	print("", api::greet("x", api::shape::square), "\n");
+	print("", api::greet("x", api::Shape::square), "\n");
 	std::printf("len %zu\n", api::len("abc"));
 	const std::uint8_t binary[] = {0xff, 0x00, 'a'};
 	print("hex ", api::hex(api::view(binary, sizeof binary)), "\n");
 	print("timed hex ", api::timed_hex(api::view(binary, sizeof binary)), "\n");
 	print("sample hex ", api::sample_hex(api::view(binary, sizeof binary)), "\n");
 	print("queued hex ", api::queued_hex(api::view(binary, sizeof binary)), "\n");
-	print("tick ", api::tick_name(api::label{api::buf("tick"), std::nullopt, std::nullopt}), "\n");
-	print("rooted ", api::rooted_name(api::label{api::buf("rooted"), std::nullopt, std::nullopt}), "\n");
+	print("tick ", api::tick_name(api::Label{api::buf("tick"), std::nullopt, std::nullopt}), "\n");
+	print("rooted ", api::rooted_name(api::Label{api::buf("rooted"), std::nullopt, std::nullopt}), "\n");
 	print("stored ", api::stored_text("stored"), "\n");
-	print("layer ", api::layer_name(api::label{api::buf("layer"), std::nullopt, std::nullopt}), "\n");
-	api::event events[] = {api::event_moved{p}, api::event_named{api::buf("n")}, api::event_done{}};
+	print("layer ", api::layer_name(api::Label{api::buf("layer"), std::nullopt, std::nullopt}), "\n");
+	api::Event events[] = {api::Event_Moved{p}, api::Event_Named{api::buf("n")}, api::Event_Done{}};
 	for (const auto &event : events) {
 		print("", api::describe(event), "\n");
 	}
 
 	// A `Copy` handle passed by value is copied, so it stays usable.
 	{
-		api::stamp stamp = api::stamp::from_millis(2500);
+		api::Stamp stamp = api::Stamp::from_millis(2500);
 		std::printf("secs %llu\n", ull(stamp.secs()));
-		std::printf("later %s\n", yes(api::stamp::from_millis(3000).later(stamp)));
+		std::printf("later %s\n", yes(api::Stamp::from_millis(3000).later(stamp)));
 		std::printf("secs %llu\n", ull(stamp.secs()));
-		api::message message = api::message::new_(&stamp, "body");
-		print("payload ", message.payload(), "\n");
-		print("stamp ", message.stamp()->debug(), "\n");
+		api::Message message = api::Message::new_(&stamp, "body");
+		print("payload ", message.payload_get(), "\n");
+		print("stamp ", message.stamp_get()->debug(), "\n");
 		std::printf("sent %s\n", yes(message.sent()));
 		// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
-		api::stamp reset = api::stamp::from_millis(4000);
-		message.set_stamp(&reset);
-		message.set_payload("edited");
-		print("payload ", message.payload(), "\n");
-		print("stamp ", message.stamp()->debug(), "\n");
+		api::Stamp reset = api::Stamp::from_millis(4000);
+		message.stamp_set(&reset);
+		message.payload_set("edited");
+		print("payload ", message.payload_get(), "\n");
+		print("stamp ", message.stamp_get()->debug(), "\n");
 		std::printf("secs %llu\n", ull(reset.secs()));
-		message.set_stamp(nullptr);
-		std::printf("stamp %s\n", yes(message.stamp().has_value()));
+		message.stamp_set(nullptr);
+		std::printf("stamp %s\n", yes(message.stamp_get().has_value()));
 	}
 
 	std::uint8_t levels[] = {1, 2, 3, 4};
 	std::printf("kept %u\n", api::emit(std::make_unique<print_log>(), api::view(levels, sizeof levels)));
 	{
-		api::logger logger = api::logger::new_(std::make_unique<print_log>());
+		api::Logger logger = api::Logger::new_(std::make_unique<print_log>());
 		std::printf("write %s\n", yes(logger.write("hi")));
 	}
 	std::printf("dropped\n");
@@ -414,10 +414,10 @@ int script() {
 	}));
 
 	{
-		api::channel channel = api::channel::new_();
+		api::Channel channel = api::Channel::new_();
 		api::waker waker([]() { wakes++; });
 		{
-			api::channel_recv_future recv = channel.recv();
+			api::Channel_recv_future recv = channel.recv();
 			std::printf("recv pending %s\n", yes(!recv.poll(waker).has_value()));
 			channel.send("hi");
 			std::printf("woken %d\n", wakes);
@@ -427,12 +427,12 @@ int script() {
 		}
 		channel.send("");
 		{
-			api::channel_recv_nonempty_future nonempty = channel.recv_nonempty();
+			api::Channel_recv_nonempty_future nonempty = channel.recv_nonempty();
 			if (auto r = nonempty.poll(waker)) {
 				if (*r) {
 					std::printf("nonempty %zu\n", r->value().size());
 				} else {
-					print("nonempty err ", api::error_to_string(r->error()), "\n");
+					print("nonempty err ", api::Error_to_string(r->error()), "\n");
 				}
 			} else {
 				std::printf("nonempty pending\n");
@@ -442,14 +442,14 @@ int script() {
 		// The send happens at the call: the future is dropped unpolled.
 		channel.send_later("eager");
 		{
-			api::channel_recv_future recv = channel.recv();
+			api::Channel_recv_future recv = channel.recv();
 			if (auto payload = recv.poll(waker)) {
 				print("recv ", *payload, "\n");
 			}
 		}
 		channel.send("sized");
 		{
-			api::channel_recv_sized_future sized = channel.recv_sized();
+			api::Channel_recv_sized_future sized = channel.recv_sized();
 			if (auto r = sized.poll(waker)) {
 				print("sized ", std::get<0>(*r), " ");
 				std::printf("%zu\n", std::get<1>(*r));
@@ -463,99 +463,103 @@ int script() {
 
 	// A value that holds itself is an object.
 	{
-		api::node list = api::node::new_(1, std::nullopt);
+		api::Node list = api::Node::new_(1, std::nullopt);
 		list.push(2);
 		std::printf("node %llu\n", ull(list.sum()));
 	}
 
 	{
-		api::tally tally = api::tally::new_();
+		api::Tally tally = api::Tally::new_();
 		tally.bump();
 		std::uint32_t count = tally.bump();
 		std::printf("tally %u %s\n", count, yes(tally == tally));
 		std::printf("both %u\n", api::bump_both(tally, tally));
-		std::printf("peek %u\n", api::peek(tally, [](const api::tally &lent) { return lent.bump(); }));
+		std::printf("peek %u\n", api::peek(tally, [](const api::Tally &lent) { return lent.bump(); }));
 	}
 
 	// Another export's types, which this export's function takes and returns.
 	{
-		api::area area = api::grow(api::area::new_({2, 3}), 1);
-		api::size size = area.size();
+		api::Area area = api::grow(api::Area::new_({2, 3}), 1);
+		api::Size size = area.size();
 		std::printf("area %u %u %llu\n", size.width, size.height, ull(area.pixels()));
 	}
 
 	// Generic types, each at the instances it infers, named by their arguments.
-	api::pair_u32 pair{2, 5};
-	api::pair_u32 swapped = pair.swap();
+	api::Pair_u32 pair{2, 5};
+	api::Pair_u32 swapped = pair.swap();
 	std::printf("pair %u %u sum %u ", swapped.left, swapped.right, pair.sum());
 	print("", pair.debug(), " ");
 	std::printf("%s\n", yes(pair == swapped));
-	std::printf("even %s %s\n", yes(pair.even()), yes(api::pair_u32{7, 7}.even()));
+	std::printf("even %s %s\n", yes(pair.even()), yes(api::Pair_u32{7, 7}.even()));
 	// An instance renamed alone, beside another of `Pair` that keeps its name.
-	api::size_tag sizes = api::tag({1, 2}, 3);
-	api::pair_u8_size flipped = sizes.swap();
+	api::Pair_Size_u8 sizes = api::tag({1, 2}, 3);
+	api::Pair_u8_Size flipped = sizes.swap();
 	std::printf("sized %u %u ", flipped.left, flipped.right.width);
 	print("", flipped.debug(), "\n");
-	api::pair_u8_size beside = api::pair_u32{258, 9}.beside_size(sizes.left);
+	api::Pair_u8_Size beside = api::Pair_u32{258, 9}.beside_Size(sizes.left);
 	std::printf("beside %u ", beside.left);
 	print("", beside.debug(), "\n");
 	{
 		// At its default, named as the type itself.
-		api::stack stack = api::stack::new_();
+		api::Stack stack = api::Stack::new_();
 		const char *names[] = {"a", "b"};
 		for (int i = 0; i < 2; i++) {
-			stack.push(api::counter::new_(names[i], static_cast<std::uint64_t>(i) + 1));
+			stack.push(api::Counter::new_(names[i], static_cast<std::uint64_t>(i) + 1));
 		}
-		std::optional<api::counter> top = stack.pop();
+		std::optional<api::Counter> top = stack.pop();
 		std::printf("stack %zu Some(%llu)", stack.depth(), ull(top->get()));
 		std::printf(" %s", yes(stack.pop().has_value()));
 		std::printf(" %s\n", yes(!stack.pop().has_value()));
 		// Generic functions and methods, at each implementation of the trait bounding them,
 		// by reference, which leaves C++ its handle. Two arguments sharing a last segment
 		// name their instances apart by the module of one.
-		api::counter from_point = api::counter::seeded_point("p", {-3, 4});
-		api::counter from_size = api::counter::from_size("s", {5, 6});
-		api::counter from_counter = api::counter::seeded_counter("c", from_point);
-		api::counter from_polar = api::counter::seeded_polar_point("q", {1, 2});
-		std::printf("seeded %llu %llu %llu %llu past %llu seeds %llu\n", ull(from_point.get()), ull(from_size.get()),
-		            ull(from_counter.get()), ull(from_polar.get()), ull(stack.depth_past_point({1, 2})),
-		            ull(api::seeds_point_size({2, 3})));
+		api::Counter from_point = api::Counter::seeded_Point("p", {-3, 4});
+		api::Counter seeded_Size = api::Counter::seeded_Size("s", {5, 6});
+		api::Counter from_counter = api::Counter::seeded_Counter("c", from_point);
+		api::Counter from_polar = api::Counter::seeded_polar_Point("q", {1, 2});
+		std::printf("seeded %llu %llu %llu %llu past %llu seeds %llu\n", ull(from_point.get()), ull(seeded_Size.get()),
+		            ull(from_counter.get()), ull(from_polar.get()), ull(stack.depth_past_Point({1, 2})),
+		            ull(api::seeds_Point_Size({2, 3})));
 	}
 
 	// A trait implemented for `Point` and `&Point` apart: one instance.
-	std::printf("weigh %u\n", api::weigh_point({-1, 2}));
+	std::printf("weigh %u\n", api::weigh_Point({-1, 2}));
+	// A function named as the type it returns, and one named as a type it does not.
+	std::printf("polar %u %s area %llu\n", api::polar_point(2).value().distance, yes(!api::polar_point(0)),
+	            ull(api::area({2, 3})));
+	std::printf("wind %u\n", api::wind(api::PolarTurn{2}, api::polar_Turn{3}));
 	// Instances that name each other, and one made only by an impl of it.
-	std::printf("cross %u outer %u\n", api::cross(api::left_right_u8{api::right_u8{1}}, api::right_left_u8{api::left_u8{2}}),
-	            api::outer_inner_u8::new_(4).get());
+	std::printf("cross %u outer %u\n", api::cross(api::Left_Right_u8{api::Right_u8{1}}, api::Right_Left_u8{api::Left_u8{2}}),
+	            api::Outer_Inner_u8::new_(4).get());
 	// A bound that outlives the call takes a value, and an instance only a constant names.
-	std::printf("kept %llu boxed %u\n", ull(api::kept_point({1, -2})), api::boxed().value);
-	std::printf("keep %d\n", api::keep_point({1, -2}));
+	std::printf("kept %llu boxed %u\n", ull(api::kept_Point({1, -2})), api::BOXED().value);
+	std::printf("keep %d\n", api::keep_Point({1, -2}));
 	// Inferred instances taking a lent closure and a foreign implementation, and one only
 	// its impl of a trait names.
-	api::pair_u32 sides{2, 5};
+	api::Pair_u32 sides{2, 5};
 	std::printf("apply %u\n", api::apply_u32(sides, [](std::uint32_t side) { return side * 3; }));
 	std::printf("report %u\n", api::report_u32(sides, std::make_unique<print_log>()));
-	std::printf("wrapped %llu\n", ull(api::kept_wrap_u32({4})));
+	std::printf("wrapped %llu\n", ull(api::kept_Wrap_u32({4})));
 	std::printf("keeps %u\n", api::keeps(std::make_unique<print_log>()).value);
 
 	// Its Drop runs when C++ destroys the handle, not before.
 	{
-		api::token token = api::token::new_(7);
-		std::printf("token %u dropped %u\n", token.id(), api::dropped());
+		api::Token token = api::Token::new_(7);
+		std::printf("token %u dropped %u\n", token.id_get(), api::dropped());
 	}
 	std::printf("dropped %u\n", api::dropped());
 
 	// A field and the method of its name, each its own member.
-	api::retry retry = api::retry::new_(5u);
-	std::optional<std::uint32_t> limit = retry.limit_setting();
+	api::Retry retry = api::Retry::new_(5u);
+	std::optional<std::uint32_t> limit = retry.limit_get();
 	std::printf("retry %d %u %u %u\n", limit.has_value(), limit.value_or(0), retry.limit(), retry.delay());
 	// The renamed field's setter, named as its getter.
-	retry.set_limit_setting(std::nullopt);
+	retry.limit_set(std::nullopt);
 	std::printf("retry %u\n", retry.limit());
-	std::printf("slot %u\n", api::slot_u8::new_(200).value());
+	std::printf("slot %u\n", api::Slot_u8::new_(200).value());
 
 	// Foreign types: a URL parsed from text, socket addresses, OS paths, and `Vec`s.
-	api::url base = api::url::parse("https://example.com/a/b").value();
+	api::Url base = api::Url::parse("https://example.com/a/b").value();
 	print("url ", base.to_string(), " host ");
 	if (auto host = api::host(base)) {
 		print("Some(\"", *host, "\")\n");
@@ -568,7 +572,7 @@ int script() {
 	} else {
 		print("resolve err ", resolved.error(), "\n");
 	}
-	if (auto parsed = api::url::parse("no scheme")) {
+	if (auto parsed = api::Url::parse("no scheme")) {
 		print("parse ", parsed->to_string(), "\n");
 	} else {
 		print("parse err ", parsed.error(), "\n");
@@ -588,7 +592,7 @@ int script() {
 	std::vector<api::buf> names;
 	names.emplace_back(api::view("a"));
 	names.emplace_back(api::view("b"));
-	api::peer peer = api::peer{v6, names}.next("c");
+	api::Peer peer = api::Peer{v6, names}.next("c");
 	std::printf("peer Peer { addr: [::%u%%%u]:%u, names: ", peer.addr.ip[15], peer.addr.scope_id, peer.addr.port);
 	print_strings(peer.names);
 	std::printf(" } ");
@@ -635,13 +639,13 @@ int script() {
 		std::printf("%llu", static_cast<unsigned long long>(counters[i].get()));
 	}
 	std::printf("\n");
-	std::vector<api::counter> some, boxed;
+	std::vector<api::Counter> some, boxed;
 	some.push_back(std::move(counters[0]));
 	boxed.push_back(std::move(counters[1]));
 	auto worth = api::worth(std::move(some), std::move(boxed));
 	std::printf("worth %llu %llu\n", ull(worth), ull(api::worth(std::nullopt, {})));
 	std::optional<std::uint64_t> counts[] = {
-		api::held_count(std::tuple{api::counter::new_("h", 4)}),
+		api::held_count(std::tuple{api::Counter::new_("h", 4)}),
 		api::held_count(std::nullopt),
 	};
 	std::printf("held");
@@ -664,31 +668,31 @@ int script() {
 	std::printf("summed %d %d %d %d\n", summed.x, summed.y, none_summed.x, none_summed.y);
 	std::printf("longest %zu %zu\n", api::longest({"a", "abc"}), api::longest({}));
 
-	api::json doc = api::json::parse(R"({"b": [1, 2.5, null], "a": "\u00e9"})").value();
+	api::Json doc = api::Json::parse(R"({"b": [1, 2.5, null], "a": "\u00e9"})").value();
 	print("json ", api::encode(doc), "\n");
 	print("timed text ", api::timed_text(doc), "\n");
-	api::json tagged = api::tagged(std::move(doc), "t");
+	api::Json tagged = api::tagged(std::move(doc), "t");
 	print("tagged ", tagged.to_text(), "\n");
-	if (auto parsed = api::json::parse("{\"a\":")) {
+	if (auto parsed = api::Json::parse("{\"a\":")) {
 		print("json parse ", parsed->to_text(), "\n");
 	} else {
 		print("json parse err ", parsed.error(), "\n");
 	}
 
-	api::site site = api::site::new_(base);
-	print("site ", site.home().to_string(), " ");
-	print("", site.home().to_string(), "\n");
+	api::Site site = api::Site::new_(base);
+	print("site ", site.home_get().to_string(), " ");
+	print("", site.home_get().to_string(), "\n");
 
 	// Slices, passed in and returned as clones, and the socket address of each family.
-	auto shapes = api::shape_all();
+	auto shapes = api::Shape_ALL();
 	std::printf("shapes [");
 	for (std::size_t i = 0; i < shapes.size(); i++) {
-		print(i == 0 ? "" : ", ", api::shape_debug(shapes[i]), "");
+		print(i == 0 ? "" : ", ", api::Shape_debug(shapes[i]), "");
 	}
 	std::printf("] greetings ");
-	print_strings(api::greetings());
+	print_strings(api::GREETINGS());
 	std::printf("\n");
-	api::trail trail = api::trail::new_({api::point{1, 2}, api::point{3, 4}}, {"a", "b"});
+	api::Trail trail = api::Trail::new_({api::Point{1, 2}, api::Point{3, 4}}, {"a", "b"});
 	auto points = trail.points();
 	std::printf("trail [");
 	for (std::size_t i = 0; i < points.size(); i++) {
@@ -746,11 +750,11 @@ int script() {
 				next6.scope_id);
 
 	// A returned `Vec<&Token>` holds clones, which the vector drops.
-	api::token twice = api::token::new_(9);
+	api::Token twice = api::Token::new_(9);
 	std::uint32_t before = api::dropped();
 	{
 		auto tokens = twice.twice();
-		if (tokens.size() != 2 || tokens[1].id() != 9) {
+		if (tokens.size() != 2 || tokens[1].id_get() != 9) {
 			return 1;
 		}
 	}
@@ -770,7 +774,7 @@ int check(bool ok, const char *what) {
 }
 
 int futures() {
-	api::channel channel = api::channel::new_();
+	api::Channel channel = api::Channel::new_();
 
 	// Blocking: the send lands from another thread while it waits.
 	{
@@ -909,7 +913,7 @@ int futures() {
 			std::coroutine_handle<promise_type> handle;
 		};
 		std::string got;
-		auto read = [&](api::channel &ch) -> detached {
+		auto read = [&](api::Channel &ch) -> detached {
 			api::buf payload = co_await ch.recv().via(q.executor());
 			got = payload.str();
 			std::uint32_t value = co_await api::yielded(3).via(q.executor());
@@ -943,8 +947,8 @@ int lifetimes() {
 	// one shows in the other, as it does between clones of an `Arc`.
 	{
 		std::uint32_t before = api::dropped();
-		api::gauge a = api::gauge::new_(1);
-		api::gauge b = a;
+		api::Gauge a = api::Gauge::new_(1);
+		api::Gauge b = a;
 		b.set(2);
 		check(a.level() == 2, "copies of a shared type see each other's writes");
 		// Moving out of one copy moves out a clone, as Rust moves out of a clone, and
@@ -952,7 +956,7 @@ int lifetimes() {
 		check(std::move(b).into_level() == 2, "a shared copy moves out its value");
 		check(a.level() == 2 && api::dropped() == before, "moving out of a shared copy leaves the others");
 		{
-			api::gauge c = a;
+			api::Gauge c = a;
 			(void)c;
 		}
 		check(api::dropped() == before, "a released copy frees nothing while another holds it");
@@ -965,9 +969,9 @@ int lifetimes() {
 	// while a future borrows another.
 	{
 		std::uint32_t before = api::dropped();
-		api::gauge a = api::gauge::new_(4);
-		std::optional<api::gauge> made(a);
-		api::gauge_later_future later = made->later();
+		api::Gauge a = api::Gauge::new_(4);
+		std::optional<api::Gauge> made(a);
+		api::Gauge_later_future later = made->later();
 		api::waker waker([]() {});
 		check(!later.poll(waker), "a future pends");
 		made.reset();
@@ -979,8 +983,8 @@ int lifetimes() {
 	// keep apart: copying is `clone()`, which crosses into Rust, and a write through one
 	// clone never shows in the other.
 	{
-		api::latch a = api::latch::default_();
-		api::latch b = a.clone();
+		api::Latch a = api::Latch::default_();
+		api::Latch b = a.clone();
 		check(b.set(1) && !a.get(), "a clone's write stays its own");
 		check(a.set(2) && a.get() == 2u && b.get() == 1u, "each clone holds its own value");
 	}
@@ -989,7 +993,7 @@ int lifetimes() {
 	// the handle, and the last copy frees it, once, on whichever thread drops it.
 	{
 		std::uint32_t before = api::dropped();
-		std::optional<api::gauge> mine(api::gauge::new_(7));
+		std::optional<api::Gauge> mine(api::Gauge::new_(7));
 		std::mutex mutex;
 		std::condition_variable cv;
 		bool started = false;
@@ -1029,9 +1033,9 @@ int lifetimes() {
 
 	// A copy of a lent object lasts only its call, as the lent object does.
 	{
-		api::gauge gauge = api::gauge::new_(3);
-		check(api::watch(gauge, [](const api::gauge &lent) {
-			api::gauge copy = lent;
+		api::Gauge gauge = api::Gauge::new_(3);
+		check(api::watch(gauge, [](const api::Gauge &lent) {
+			api::Gauge copy = lent;
 			return copy.level();
 		}) == 3, "a copy of a lent object reads it during the call");
 	}
@@ -1041,8 +1045,8 @@ int lifetimes() {
 	{
 		api::buf payload;
 		{
-			api::message message = api::message::new_(nullptr, "kept");
-			payload = message.payload();
+			api::Message message = api::Message::new_(nullptr, "kept");
+			payload = message.payload_get();
 		}
 		check(payload.str() == "kept", "bytes outlive the object they came from");
 		std::uint32_t before = api::dropped();
@@ -1066,49 +1070,49 @@ int lifetimes() {
 // Each breaks a contract, which must abort with a message naming the function.
 int broken(const char *which) {
 	if (std::strcmp(which, "moved") == 0) {
-		api::counter c = api::counter::new_("c", 0);
-		api::label label = std::move(c).into_label(std::nullopt);
+		api::Counter c = api::Counter::new_("c", 0);
+		api::Label label = std::move(c).into_label(std::nullopt);
 		c.get();
 	} else if (std::strcmp(which, "moved from") == 0) {
-		api::counter c = api::counter::new_("c", 0);
-		api::counter d = std::move(c);
+		api::Counter c = api::Counter::new_("c", 0);
+		api::Counter d = std::move(c);
 		c.get();
 	} else if (std::strcmp(which, "shared moved from") == 0) {
-		api::gauge g = api::gauge::new_(0);
-		api::gauge h = std::move(g);
+		api::Gauge g = api::Gauge::new_(0);
+		api::Gauge h = std::move(g);
 		std::move(g).into_level();
 	} else if (std::strcmp(which, "shared moved out") == 0) {
-		api::gauge g = api::gauge::new_(0);
+		api::Gauge g = api::Gauge::new_(0);
 		std::move(g).into_level();
 		std::move(g).into_level();
 	} else if (std::strcmp(which, "lent copied") == 0) {
-		static std::optional<api::gauge> kept;
-		api::watch(api::gauge::new_(0), [](const api::gauge &lent) {
+		static std::optional<api::Gauge> kept;
+		api::watch(api::Gauge::new_(0), [](const api::Gauge &lent) {
 			kept.emplace(lent);
 			return lent.level();
 		});
 	} else if (std::strcmp(which, "value") == 0) {
-		api::counter c = api::counter::new_("c", 0);
+		api::Counter c = api::Counter::new_("c", 0);
 		c.sub(1).value();
 	} else if (std::strcmp(which, "finished") == 0) {
-		api::channel channel = api::channel::new_();
+		api::Channel channel = api::Channel::new_();
 		channel.send("x");
-		api::channel_recv_future recv = channel.recv();
+		api::Channel_recv_future recv = channel.recv();
 		api::waker waker([]() {});
 		recv.poll(waker);
 		recv.poll(waker);
 	} else if (std::strcmp(which, "null view") == 0) {
 		api::len(api::view(nullptr, 1));
 	} else if (std::strcmp(which, "lent moved") == 0) {
-		api::registry registry = api::registry::new_(api::counter::new_("c", 0));
-		registry.edit([](api::counter &counter) {
-			api::label label = std::move(counter).into_label(std::nullopt);
+		api::Registry registry = api::Registry::new_(api::Counter::new_("c", 0));
+		registry.edit([](api::Counter &counter) {
+			api::Label label = std::move(counter).into_label(std::nullopt);
 			return false;
 		});
 	} else if (std::strcmp(which, "lent kept") == 0) {
-		static std::optional<api::counter> kept;
-		api::registry registry = api::registry::new_(api::counter::new_("c", 0));
-		registry.edit([](api::counter &counter) {
+		static std::optional<api::Counter> kept;
+		api::Registry registry = api::Registry::new_(api::Counter::new_("c", 0));
+		registry.edit([](api::Counter &counter) {
 			kept.emplace(std::move(counter));
 			return false;
 		});

@@ -3,6 +3,6 @@
 import * as rs from "./rs.ts";
 
 export type Named =
-	| { label$Named: () => string; fmt$Debug: (a0: rs.Formatter) => rs.Result<undefined, rs.FmtError>; area$Shape: () => rs.u32; grow$Shape: (a0: rs.u8) => void; sides$Shape: () => rs.u8; intoArea$Shape: () => rs.u32; larger$Shape: (a0: rs.u32) => rs.u32; tally$Shape: (a0: rs.Place<rs.u32>) => void };
+	| { label$Named: () => rs.String; fmt$Debug: (a0: rs.Formatter) => rs.Result<undefined, rs.FmtError>; area$Shape: () => rs.u32; grow$Shape: (a0: rs.u8) => void; sides$Shape: () => rs.u8; intoArea$Shape: () => rs.u32; larger$Shape: (a0: rs.u32) => rs.u32; tally$Shape: (a0: rs.Place<rs.u32>) => void };
 
 //# sourceMappingURL=dyns.Named.ts.map

@@ -5,6 +5,8 @@
 
 use std::collections::HashSet;
 
+use rust2_driver::cfg;
+
 /// A translated item: a function, struct, or type alias.
 pub type SymId = usize;
 
@@ -82,11 +84,15 @@ impl Expr {
 		Self::Member(Box::new(self), Key::Name(name.into()))
 	}
 
-	/// What `self` reads, if it is an `rs.Place` made here: `rs.place(() => read, set)`.
-	pub fn place_read(&self) -> Option<&Expr> {
+	/// What `self` reads, if it is an `rs.Place` made here: `rs.place(() => read, set)`, or
+	/// `rs.arrayAsPtr(array, index)`, which a borrow of an element in bounds makes.
+	pub fn place_read(&self) -> Option<Expr> {
 		let Self::Call(f, args) = self else { return None };
 		match (&**f, args.as_slice()) {
-			(Self::Rs(name), [Self::Lambda(params, read), _]) if name == "place" && params.is_empty() => Some(read),
+			(Self::Rs(name), [Self::Lambda(params, read), _]) if name == "place" && params.is_empty() => {
+				Some((**read).clone())
+			}
+			(Self::Rs(name), [array, index]) if name == "arrayAsPtr" => Some(array.clone().index(index.clone())),
 			_ => None,
 		}
 	}
@@ -309,18 +315,134 @@ impl StmtKind {
 	}
 }
 
-impl Stmt {
-	/// Whether control never reaches the statement after this one.
-	pub fn diverges(&self) -> bool {
-		match &self.kind {
-			StmtKind::Return(_) | StmtKind::Break(_) | StmtKind::Continue(_) => true,
-			StmtKind::If { then, els, .. } => diverges(then) && diverges(els),
-			StmtKind::Block { label: None, body } => diverges(body),
+impl cfg::Syntax for Stmt {
+	type Cond = Expr;
+
+	fn block(label: String, body: Vec<Self>) -> Self {
+		StmtKind::Block {
+			label: Some(label),
+			body,
+		}
+		.at(None)
+	}
+
+	fn forever(label: String, body: Vec<Self>) -> Self {
+		StmtKind::While {
+			label: Some(label),
+			cond: Expr::lit("true"),
+			body,
+		}
+		.at(None)
+	}
+
+	fn branch(cond: Expr, then: Vec<Self>, els: Vec<Self>) -> Self {
+		StmtKind::If { cond, then, els }.at(None)
+	}
+
+	fn jump(jump: cfg::Jump, label: String) -> Self {
+		match jump {
+			cfg::Jump::Break => StmtKind::Break(Some(label)),
+			cfg::Jump::Continue => StmtKind::Continue(Some(label)),
+		}
+		.at(None)
+	}
+
+	fn dispatch(state: &str, label: &str, cases: Vec<(usize, Vec<Self>)>, out: &mut Vec<Self>) {
+		let cases = cases
+			.into_iter()
+			.map(|(node, body)| (Expr::lit(node.to_string()), body))
+			.collect();
+		out.push(StmtKind::decl(true, state, Some(Type::Builtin("number")), Some(Expr::lit("0"))).at(None));
+		out.push(
 			StmtKind::While {
+				label: Some(label.to_string()),
+				cond: Expr::lit("true"),
+				body: vec![
+					StmtKind::Switch {
+						label: None,
+						disc: Expr::ident(state),
+						cases,
+						default: Vec::new(),
+					}
+					.at(None),
+				],
+			}
+			.at(None),
+		);
+	}
+
+	fn set(state: &str, node: usize) -> Self {
+		StmtKind::Expr(Expr::ident(state).assign(Expr::lit(node.to_string()))).at(None)
+	}
+
+	fn view(&self) -> cfg::View<'_, Self> {
+		match &self.kind {
+			StmtKind::Block { label, body } => cfg::Form::Block { label, body },
+			StmtKind::While { label, cond, body } => cfg::Form::Loop {
 				label,
-				cond: Expr::Lit(cond),
+				cond: Some(cond),
 				body,
-			} => cond == "true" && !breaks_out(body, label.as_deref(), false),
+			},
+			StmtKind::ForOf { label, body, .. } => cfg::Form::Loop {
+				label,
+				cond: None,
+				body,
+			},
+			StmtKind::If { cond, then, els } => cfg::Form::If { cond, then, els },
+			StmtKind::Switch { cases, default, .. } => {
+				cfg::Form::Switch(cases.iter().map(|(_, body)| body).chain([default]).collect())
+			}
+			StmtKind::Break(label) => cfg::Form::Break(label),
+			StmtKind::Continue(label) => cfg::Form::Continue(label),
+			StmtKind::Return(value) => cfg::Form::Return(value.is_some()),
+			_ => cfg::Form::Other,
+		}
+	}
+
+	fn view_mut(&mut self) -> cfg::ViewMut<'_, Self> {
+		match &mut self.kind {
+			StmtKind::Block { label, body } => cfg::Form::Block { label, body },
+			StmtKind::While { label, cond, body } => cfg::Form::Loop {
+				label,
+				cond: Some(cond),
+				body,
+			},
+			StmtKind::ForOf { label, body, .. } => cfg::Form::Loop {
+				label,
+				cond: None,
+				body,
+			},
+			StmtKind::If { cond, then, els } => cfg::Form::If { cond, then, els },
+			StmtKind::Switch { cases, default, .. } => {
+				cfg::Form::Switch(cases.iter_mut().map(|(_, body)| body).chain([default]).collect())
+			}
+			StmtKind::Break(label) => cfg::Form::Break(label),
+			StmtKind::Continue(label) => cfg::Form::Continue(label),
+			StmtKind::Return(value) => cfg::Form::Return(value.is_some()),
+			_ => cfg::Form::Other,
+		}
+	}
+}
+
+impl cfg::Cond for Expr {
+	fn negate(&mut self) {
+		*self = std::mem::replace(self, Expr::undefined()).not();
+	}
+
+	fn is_true(&self) -> bool {
+		matches!(self, Expr::Lit(l) if l == "true")
+	}
+
+	fn pure(&self) -> bool {
+		match self {
+			Expr::Ident(_) | Expr::This | Expr::Sym(_) | Expr::Rs(_) | Expr::Lit(_) | Expr::Str(_) => true,
+			Expr::Member(base, _)
+			| Expr::Unary(_, base)
+			| Expr::Located(_, base)
+			| Expr::As(base, _)
+			| Expr::Instantiate(base, _) => base.pure(),
+			Expr::Binary(l, _, r) => l.pure() && r.pure(),
+			Expr::Cond(c, a, b) => c.pure() && a.pure() && b.pure(),
 			_ => false,
 		}
 	}
@@ -551,29 +673,6 @@ impl Expr {
 	}
 }
 
-/// Whether a `break` in `stmts` targets the loop that holds them, labeled `label`.
-/// Inside a `nested` loop, only a labeled `break` can. A `break` to any other label
-/// skips the loop's next statement too.
-fn breaks_out(stmts: &[Stmt], label: Option<&str>, nested: bool) -> bool {
-	stmts.iter().any(|stmt| match &stmt.kind {
-		StmtKind::Break(None) => !nested,
-		StmtKind::Break(Some(target)) => Some(target.as_str()) == label,
-		StmtKind::If { then, els, .. } => breaks_out(then, label, nested) || breaks_out(els, label, nested),
-		StmtKind::Block { body, .. } => breaks_out(body, label, nested),
-		// An unlabeled `break` in a case leaves the switch.
-		StmtKind::Switch { cases, default, .. } => {
-			cases.iter().any(|(_, body)| breaks_out(body, label, true)) || breaks_out(default, label, true)
-		}
-		StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } => breaks_out(body, label, true),
-		_ => false,
-	})
-}
-
-/// Whether control never falls off the end of `stmts`.
-pub fn diverges(stmts: &[Stmt]) -> bool {
-	stmts.last().is_some_and(Stmt::diverges)
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Type {
 	/// A built-in type: `number`, `bigint`, `boolean`, `string`, `void`, `never`,
@@ -591,6 +690,9 @@ pub enum Type {
 	StrLit(String),
 	/// An object type; a `Some` key is a class field.
 	Object(Vec<(String, Type)>),
+	/// In a generic type's arguments, the projection arguments of an instance of a type
+	/// whose definition is still being typed, which [`Type::fill`] splices in once it is.
+	Later(usize),
 }
 
 impl Type {
@@ -599,11 +701,13 @@ impl Type {
 		self.any(&|t| matches!(t, Type::Param(name) if name == param))
 	}
 
-	/// Whether a function type in it takes a parameter holding a type `f` picks.
+	/// Whether a type `f` picks is where TypeScript takes no other: in a function type's
+	/// parameter, or in a type argument of a generic type.
 	pub fn takes(&self, f: &impl Fn(&Type) -> bool) -> bool {
 		match self {
 			Type::Func(params, ret) => params.iter().any(|t| t.any(f)) || ret.takes(f),
-			Type::Param(_) | Type::Builtin(_) | Type::StrLit(_) => false,
+			Type::Param(_) | Type::Builtin(_) | Type::StrLit(_) | Type::Later(_) => false,
+			Type::Rs(_, tys) | Type::Sym(_, tys) if !f(self) => tys.iter().any(|t| t.any(f)),
 			Type::Rs(_, tys) | Type::Sym(_, tys) | Type::Union(tys) | Type::Tuple(tys) => {
 				tys.iter().any(|t| t.takes(f))
 			}
@@ -617,7 +721,7 @@ impl Type {
 		let all = |tys: &[Type]| tys.iter().map(|t| t.subst(f)).collect();
 		match self {
 			Type::Param(name) => f(name).unwrap_or_else(|| self.clone()),
-			Type::Builtin(_) | Type::StrLit(_) => self.clone(),
+			Type::Builtin(_) | Type::StrLit(_) | Type::Later(_) => self.clone(),
 			Type::Rs(name, tys) => Type::Rs(name, all(tys)),
 			Type::Sym(sym, tys) => Type::Sym(*sym, all(tys)),
 			Type::Union(tys) => Type::Union(all(tys)),
@@ -632,7 +736,7 @@ impl Type {
 	pub fn any(&self, f: &impl Fn(&Type) -> bool) -> bool {
 		f(self)
 			|| match self {
-				Type::Param(_) | Type::Builtin(_) | Type::StrLit(_) => false,
+				Type::Param(_) | Type::Builtin(_) | Type::StrLit(_) | Type::Later(_) => false,
 				Type::Rs(_, tys) | Type::Sym(_, tys) | Type::Union(tys) | Type::Tuple(tys) => {
 					tys.iter().any(|t| t.any(f))
 				}
@@ -640,6 +744,53 @@ impl Type {
 				Type::Func(tys, ret) => ret.any(f) || tys.iter().any(|t| t.any(f)),
 				Type::Object(fields) => fields.iter().any(|(_, t)| t.any(f)),
 			}
+	}
+
+	/// It with each [`Type::Later`] replaced by the arguments `later` gives it, if it gives
+	/// any, or `None` if one reaches itself.
+	pub fn fill(&mut self, later: &impl Fn(usize) -> Option<Vec<Type>>) -> Option<()> {
+		self.fill_from(later, &mut Vec::new())
+	}
+
+	fn fill_from(&mut self, later: &impl Fn(usize) -> Option<Vec<Type>>, open: &mut Vec<usize>) -> Option<()> {
+		match self {
+			Type::Param(_) | Type::Builtin(_) | Type::StrLit(_) => Some(()),
+			Type::Later(_) => unreachable!("projection arguments outside a generic type's arguments"),
+			Type::Rs(_, tys) | Type::Union(tys) | Type::Tuple(tys) => {
+				tys.iter_mut().try_for_each(|t| t.fill_from(later, open))
+			}
+			Type::Sym(_, tys) => {
+				let mut filled = Vec::with_capacity(tys.len());
+				for mut t in std::mem::take(tys) {
+					let Type::Later(id) = t else {
+						t.fill_from(later, open)?;
+						filled.push(t);
+						continue;
+					};
+					let Some(args) = later(id) else {
+						filled.push(t);
+						continue;
+					};
+					if open.contains(&id) {
+						return None;
+					}
+					open.push(id);
+					for mut t in args {
+						t.fill_from(later, open)?;
+						filled.push(t);
+					}
+					open.pop();
+				}
+				*tys = filled;
+				Some(())
+			}
+			Type::Array(t) => t.fill_from(later, open),
+			Type::Func(tys, ret) => {
+				tys.iter_mut().try_for_each(|t| t.fill_from(later, open))?;
+				ret.fill_from(later, open)
+			}
+			Type::Object(fields) => fields.iter_mut().try_for_each(|(_, t)| t.fill_from(later, open)),
+		}
 	}
 }
 

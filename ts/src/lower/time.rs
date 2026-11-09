@@ -104,7 +104,8 @@ pub fn constant<'tcx>(fields: &[(Ty<'tcx>, ValTree<'tcx>)]) -> Option<Expr> {
 	Some(object(U64.lit(i128::from(secs)), Expr::lit(nanos.to_string())))
 }
 
-fn object(secs: Expr, nanos: Expr) -> Expr {
+/// A `Duration` of `secs` whole seconds and `nanos` nanoseconds.
+pub fn object(secs: Expr, nanos: Expr) -> Expr {
 	Expr::Object(vec![
 		(Key::Name("secs".into()), secs),
 		(Key::Name("nanos".into()), nanos),

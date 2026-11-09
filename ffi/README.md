@@ -1,25 +1,27 @@
 # rust2-ffi
 
 A rustc driver that exports a crate's `pub` API as a C ABI and a C header, with no
-attributes in the Rust source. It replaces [the UniFFI fork](../uniffi/README.md) for moq,
-starting from C, which every other language's generator will build on.
+attributes in the Rust source. It replaces [the UniFFI fork](../uniffi/README.md) for moq.
+Every language's generator but Python's builds on the C ABI.
 
 ```bash
 rust2-ffi --config ffi.toml (--out dir | --census dir) [--manifest-path Cargo.toml] [-- cargo args]
 ```
 
 It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, on the host, through
-the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). Once
-rustc has checked the configured library, it walks every `pub` item reachable from the
-crate root and exports it by fixed rules, or refuses it with a compile error at its span.
-It walks each other package the config lists the same way, from the metadata of the
-crate the library uses through its dependency on that package, so one library holds them
-all and an export names another's types across crates. `--out` writes a crate of `extern "C"` functions over the
-libraries, its runtime beside it, and the header in `include/<prefix>.h`; `cargo build`
-on that crate makes a static and a shared library. That crate enables each export's
-features as the check did, including `--features <export>/<feature>`; such a feature on a
-dependency that is no export is an error. It resolves them as the check did, wherever it
-is built: its manifest carries, as a `[patch]`, each patch or `[replace]` cargo applied
+the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). The
+package is the facade: once rustc has checked its library, it walks every `pub` item
+reachable from the crate root, following `pub use` re-exports of other crates' items and
+modules, and exports it by fixed rules, or refuses it with a compile error at its span.
+So a facade such as moq-ffi exports several crates into one library by re-exporting what
+it ships, and a type no path from its root reaches is refused. The prefix of every C name
+is the library's crate name, Cargo's `[lib] name`, which defaults to the package's name in
+snake case. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
+beside it, and the header in `include/<prefix>.h`; `cargo build` on that crate makes a
+static and a shared library. That crate enables the facade's features as the check did;
+a feature named in a dependency, `--features <dependency>/<feature>`, is an error, since
+the facade enables what its dependencies build with. It resolves them as the check did,
+wherever it is built: its manifest carries, as a `[patch]`, each patch or `[replace]` cargo applied
 to what the library builds with on any platform, read off cargo's resolution, wherever
 it was declared (the manifest, cargo's config, `--config`, or the environment), keyed by
 its source's URL.
@@ -29,36 +31,28 @@ Beside the C header, `include/<prefix>.hpp` holds the same API in C++,
 `--features kotlin`, and `kotlin/<prefix>.pro` the R8 and ProGuard rules keeping what
 those functions look up by name. `python/<prefix>.py` holds it in Python, over a CPython
 extension the crate builds with `--features python`, `swift/<prefix>.swift` holds it in
-Swift, over the C header as a clang module, `go/<prefix>.go` holds it in Go, over the C
-ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI through
+Swift, over the C header as a clang module, `go/` holds it in Go, a package per crate
+over the C ABI through cgo, and `dart/<prefix>.dart` holds it in Dart, over the C ABI through
 `dart:ffi` and what the crate builds with `--features dart`.
 
 ```toml
 # ffi.toml, beside the package's Cargo.toml unless --manifest-path says otherwise.
-package = "moq-net"
-# The prefix of every C name, the package's name in snake case by default.
-prefix = "moq"
-# Paths from the crate root left out: a module, an item, or one method or field. Each
-# must name something exported. Nothing else leaves an item out. As in rustdoc, a path a
+# Paths from the facade's root left out: a module, an item, or one method or field. Each
+# must name something exported, or what a `cfg` leaves out of this build, as moq-tokio's
+# `unix` is on Windows. Nothing else leaves an item out. As in rustdoc, a path a
 # method or constant shares with a field names the method, and `field@` the field.
+# A `cfg`-stripped item is found through a glob re-export only while its source module
+# keeps an exported item; under a glob of a module a `cfg` empties, the exclude fails as
+# naming nothing exported.
 exclude = ["track::Producer::poll_closed"]
-
-# C names, without the prefix, for paths whose names the naming rule makes clash.
-[rename]
-"session::Stats" = "session_stats_snapshot"
-
-# Another package exported into the same library, which the package builds with: its
-# own `exclude` and `rename`, by paths from its crate root.
-[crates.moq-pattern]
-exclude = ["Pattern::new"]
 ```
 
 ## Rules
 
-Every `pub` item reachable from an exported crate's root, by its shortest path, is
-exported or refused. `#[doc(hidden)]` items are no part of the API and are left out; type
-aliases export nothing of their own. A re-export of another export's item names that
-export's, and adds nothing; another crate's type is refused.
+Every `pub` item reachable from the facade's root, by its shortest path, is exported or
+refused. `#[doc(hidden)]` items are no part of the API and are left out; type aliases
+export nothing of their own. A re-export of the standard library's item is refused, since
+its types map by role; a type no path reaches is refused.
 
 | Rust | C |
 | --- | --- |
@@ -81,8 +75,8 @@ export's, and adds nothing; another crate's type is refused.
 | `&Path`, `PathBuf` | `<prefix>_buf` of the path's bytes as the OS holds them on Unix, which need not be UTF-8, else UTF-8 |
 | `Duration` | `<prefix>_duration` |
 | `SocketAddr`, `SocketAddrV4`, `SocketAddrV6` | `<prefix>_socket_addr`: its IP's bytes, port, and whether it is IPv6; one of the other family passed to `V4` or `V6` aborts |
-| `url::Url` | an object `<prefix>_url`, made by `<prefix>_url_parse`, which fails with the parse error's message, and printed by `_to_string` |
-| `serde_json::Value` | an object `<prefix>_json`, made by `<prefix>_json_parse` from JSON text, which fails with serde_json's message, and read back by `_to_text`; its contents are the caller's JSON library's to read |
+| `url::Url` | an object `<prefix>_Url`, made by `<prefix>_Url_parse`, which fails with the parse error's message, and printed by `_to_string` |
+| `serde_json::Value` | an object `<prefix>_Json`, made by `<prefix>_Json_parse` from JSON text, which fails with serde_json's message, and read back by `_to_text`; its contents are the caller's JSON library's to read |
 | `Vec<T>` and `&[T]` of any other `T` | `<prefix>_vec_<T>`: an array of `T`'s C values, viewed passed in and owned returned, a slice as a clone; of references only returned |
 | a returned iterator, such as `slice::Iter` or an `impl Iterator`, that no other rule maps, outside a future, made of core's and alloc's iterators over a slice, string, `Option`, `Result`, or collection, through `rev`, `chain`, `flatten`, `fuse`, `enumerate`, `peekable`, `copied`, or `cloned`, with no closure, function, or trait object inside | what `collect::<Vec<_>>()` makes of it: every item, taken at the call |
 | `Waker`, taken by value | `<prefix>_waker`, as a future's poll takes it |
@@ -158,43 +152,44 @@ refused, and the census counts why.
   built with the header. A binding checks the two match before any other call, so a header
   and a library from different builds refuse to mix.
 - **Panics** abort, as an `extern "C"` function's do.
-- **Names** are the prefix, then the item's path from its crate's root, each segment in
-  snake case, joined by `_`: `track::Producer::append_group` is
-  `moq_track_producer_append_group`, and moq-pattern's `Patterns` is `moq_patterns`.
-  Joining loses where segments split, and every export shares the prefix, so every C
-  name is registered, and two items claiming one is a compile error at both spans, fixed
-  by a `rename`: moq-net's `session::Stats` and `Session::stats` are both
-  `moq_session_stats`. So are a field and the method of its name, as moq-tokio's
-  `Backoff::initial`; `field@Backoff::initial` names the field. A field's setter is
-  named as its getter, with `set_` after its type's name: `moq_connect_config_set_tls`,
-  and `moq_backoff_set_initial_setting` once renamed.
+- **Names** are the prefix, then the item's path from the facade's root, each segment in
+  Rust's case, joined by `_`: `track::Producer::append_group` is
+  `moq_track_Producer_append_group`, and moq-net's `session::Stats` and `Session::stats`
+  are `moq_session_Stats` and `moq_Session_stats`. Items of other crates are named by
+  where the facade re-exports them, so two of one name need two paths. A field's getter
+  and setter add `_get` and `_set` to its path, as SWIG's do, so they stay apart from a
+  method of the field's name and from a `set_` method, which Rust names verb first:
+  moq-tokio's `Backoff::initial` field, which moq's facade re-exports in `tokio`, is
+  `moq_tokio_Backoff_initial_get` and `moq_tokio_Backoff_initial_set` beside the method
+  `moq_tokio_Backoff_initial`. An enum variant's
+  payload is `<enum>_<Variant>`, and its tag and a constant are the name in upper case.
+  Joining still loses where segments split, and the runtime shares the prefix, so every C
+  name is registered, and two items claiming one, which only names Rust's conventions
+  leave apart can, is a compile error at both spans: `audio_encoder::finish` and
+  `audio::encoder_finish` are both `moq_audio_encoder_finish`.
 
   An instance is named by its generic item's name, then each argument but those at their
   defaults after the last that is not, so the instance at its defaults is named as the
-  item. Each argument takes the last segment of its C name, such as `extra` for moq-mux's
-  `catalog::hang::Extra`, so `catalog::Producer<catalog::hang::Extra>` is
-  `moq_catalog_producer_extra`. Where two instances of one item would still share a name,
+  item. Each argument takes the last segment of its C name, such as `Extra` for
+  `mux::catalog::hang::Extra`, so `mux::catalog::Producer<mux::catalog::hang::Extra>` is
+  `moq_mux_catalog_Producer_Extra`. Where two instances of one item would still share a name,
   each argument that tells them apart takes one more segment at a time, until they
-  differ: the api fixture's `Counter::seeded` is `api_counter_seeded_point` at its
-  `Point`, and `api_counter_seeded_polar_point` at `polar::Point`. The names depend on
+  differ: the api fixture's `Counter::seeded` is `api_Counter_seeded_Point` at its
+  `Point`, and `api_Counter_seeded_polar_Point` at `polar::Point`. The names depend on
   every instance the item exports at, so one an upstream change adds can lengthen another's
   name. A type instance's methods are named through it, and a function instance appends
   its arguments' names, a reference's by what it borrows. An `exclude` of a type or method
   by the generic type's path leaves it out of every instance, and by the instance's path
-  (`"catalog::Producer<moq_mux::catalog::hang::Extra>::stats"`) out of that one. A
-  `rename` matches paths as `exclude` does: by the generic item's path it renames each of
-  its instances, and by an instance's path (`"catalog::Producer<moq_mux::catalog::hang::Extra>"`)
-  that one alone, whose arguments then add nothing to its name, while the others keep
-  theirs. The longer path wins, and at one length, the instance's.
+  (`"mux::catalog::Producer<moq::mux::catalog::hang::Extra>::stats"`) out of that one.
 
 ## C++
 
 `<prefix>.hpp` is header-only C++ over the C header, for C++17, 20, and 23, with
 exceptions and RTTI on or off: it throws nothing and reads no type information.
 
-- **Names** are the C names without the prefix, in a namespace of it: `moq_track_producer`
-  is `moq::track_producer`, and its method `moq_track_producer_append_group` is
-  `moq::track_producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
+- **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
+  is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
+  `moq::track_Producer::append_group`. A keyword takes a trailing `_` (`counter::new_`),
   as does a member named as its class or one of its fields, and a parameter named as a
   member or as anything in the namespace, which it would hide.
 - **Objects** are classes owning their handle through a `std::unique_ptr` whose deleter
@@ -260,15 +255,20 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
 `ByteArray` as its C struct holds it.
 
 - **Names** are in a package of the prefix: types in PascalCase without it, members in
-  camelCase without their type's name (`moq.TrackProducer.appendGroup`). A keyword is
+  camelCase without their type's name (`moq.TrackProducer.appendGroup`). Pascal case
+  loses where segments split, so two types whose names would match each keep a `_` at
+  every split after the leading segments they share: moq's `tokio::ConnectError` and
+  `tokio::connect::Error` are `TokioConnectError` and `TokioConnect_Error`. Two whose
+  segments differ only by case still match, and fail the export. A keyword is
   quoted in backticks, and a member named as one Kotlin gives its type takes a trailing
   `_`. A constructor such as `new` stays a companion function: `Counter.new(1)`.
 - **Objects** are classes owning their handle, `AutoCloseable`, which `close()` frees once
   no call holds it; a call after it throws. One never closed is closed once the GC
   collects it, on a daemon thread a phantom reference queue feeds. A `self` method, or passing the object by
   value, closes it once the call returns. `Clone` is `clone()`, and `PartialEq` is `equals`.
-  A field is a `val`, and its setter a function, `setFirst(value)`, since setting an object
-  moves it in and closes its handle, which an assignment would hide.
+  A field is a `val`, `firstGet`, and its setter a function, `firstSet(value)`, named as
+  the C ones, since setting an object moves it in and closes its handle, which an
+  assignment would hide.
 - **Records** are data classes, compared by their fields, and **enums** an `enum class`,
   or for one with data a sealed class of a data class per variant. `Display` is
   `toString()`, `Debug` `debug()`, and `Default` a companion's `default()`.
@@ -318,35 +318,39 @@ Each function, method, and property but an `async def` is the extension's own, b
 the module or set on its class as it loads, so a call enters it with no Python frame
 between; the Python declares them under `typing.TYPE_CHECKING`, for type checkers. They
 take arguments by position or keyword, raise as a `def` would, and carry their
-docstrings and signatures.
+docstrings and signatures. The module passes mypy and pyright, both strict, so a typed
+caller imports it with no ignores.
 
 - **Names** are in the module: types in PascalCase without the prefix, members in
-  snake_case without their type's name (`moq.TrackProducer.append_group`). A keyword, a
+  snake_case without their type's name (`moq.TrackProducer.append_group`), and two types
+  whose names would match kept apart as Kotlin's are (`TokioConnect_Error`). A keyword, a
   member Python gives every such class, or a method named as a field takes a trailing `_`.
   Constructors such as `new` stay static methods: `Counter.new(1)`.
 - **Objects** are classes owning their handle, freed once their last reference goes,
   which a call holds until it returns, so there is no `close()`. A `self` method, or
   passing the object by value, moves its value out and closes it once the call returns,
   after which a call raises `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable. A field is a
-  property, and its setter a method, `set_first(value)`, since setting an object moves it
-  in and closes it, which an assignment would hide.
+  property, `first_get`, and its setter a method, `first_set(value)`, named as the C ones,
+  since setting an object moves it in and closes it, which an assignment would hide.
 - **Records** are slotted dataclasses, compared by their fields, and **enums** an `Enum`
   of upper-case members, or for one with data a class of a dataclass per variant,
   `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
   `default()`. Constants are module or class attributes, made anew on each read unless a
   literal.
-- **Bytes** passed in are any buffer: `bytes` is read in place, and others, which Python
-  may change while Rust reads, are copied. Bytes Rust returns, or a record holds, are a
-  read-only `memoryview` lending Rust's buffer until it and its views are released. Those
-  Rust lends a closure or trait method are copied into `bytes`. Strings are `str`,
-  `Option<T>` `T | None`, a tuple a `tuple`, `Duration` `datetime.timedelta`, truncated to
-  the microsecond, with `timedelta.max` for any longer and for `Duration::MAX`, a `Range` a
-  `range`, and an `Err` a raised `<E>Exception` holding it in `error`, whose `str` is its
-  `Display`.
+- **Bytes** passed in are any buffer, `bytes | bytearray | memoryview`: `bytes` is read in
+  place, and others, which Python may change while Rust reads, are copied. Bytes Rust
+  returns, or a record holds, are a read-only `memoryview` lending Rust's buffer until it
+  and its views are released. Those Rust lends a closure or trait method are copied into
+  `bytes`. Strings are `str`, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
+  `datetime.timedelta`, truncated to the microsecond, with `timedelta.max` for any longer
+  and for `Duration::MAX`, a `Range` a `range`, and an `Err` a raised `<E>Exception`
+  holding it in `error`, whose `str` is its `Display`.
 - A **path** is a `str`, or any path passed in, which crosses as `os.fsencode` encodes it, so
   one that is not UTF-8 keeps its bytes. A `SocketAddr` is the `socket` module's tuple,
   `(host, port)` or `(host, port, flowinfo, scope_id)`, of that family for `V4` or `V6`.
-  A `Vec<T>` or `&[T]` is a `list`, and passing a `Vec` by value closes each object in it.
+  A `Vec<T>` or `&[T]` Rust returns is a `list`, and passed in is any iterable other than a `str`,
+  annotated `Iterable`, or `Sequence` in a record, which keeps it. Passing a `Vec` by value closes
+  each object in it.
   An integer out of its Rust type's range raises `OverflowError`.
 - **Traits** are abstract classes an implementation subclasses; once Rust drops one, its
   `close()` is called if it has one.
@@ -384,9 +388,9 @@ in either language mode.
   holds off until it returns, so there is no `close()`. A `self` method, or passing the
   object by value, moves its value out and closes it once the call returns, after which a
   call traps. `Clone` is `clone()`, and `PartialEq`
-  is `==`. A field is a computed property, and its setter a function, `setFirst(value)`,
-  since setting an object moves it in and closes its handle, which an assignment would
-  hide. An object is `Sendable`, since Rust checks each borrow at run time.
+  is `==`. A field is a computed property, `firstGet`, and its setter a function,
+  `firstSet(value)`, named as the C ones, since setting an object moves it in and closes
+  its handle, which an assignment would hide. An object is `Sendable`, since Rust checks each borrow at run time.
 - **Records** are structs and **enums** Swift enums, with a variant's data as associated
   values, all `Sendable`. `PartialEq` is `==`, through Rust's; `Display` is `description`,
   `Debug` `debugDescription`, and `Default` a static `default()`.
@@ -414,36 +418,61 @@ in either language mode.
   library from different builds trap.
 ## Go
 
-`<prefix>.go` is the Go package `<prefix>` over the C header through cgo, for Go 1.24 or
-later. It includes `<prefix>.h` from `../include`, as the export lays them out, or from its
-own directory, and links the library through `CGO_LDFLAGS`.
+`go/` holds a Go package per crate whose items the facade exports, over the C header
+through cgo, for Go 1.24 or later, and the runtime they share, `go/rt`. Each includes
+`<prefix>.h` from the `include/` beside `go/`, as the export lays them out, and links the
+library through `CGO_LDFLAGS`. A crate's package is its name without the prefix and its
+`_`: moq-mux's is `mux`, and serde_json's `serdejson`, but keeps the prefix where its
+strip leaves no leading letter (`moq_2d` is `moq2d`). One that a Go keyword, `C`, `main`,
+the runtime, or an earlier crate's package takes gains a trailing `_`, as a crate `rt` is
+`rt_`. Cargo keeps crates from depending on each other in a cycle, so their packages
+never import each other in one, as Go requires,
+while Rust's modules may, so a package per module could not hold moq. An instance of a
+generic type, or a function naming one, belongs to the last of its own and its arguments'
+crates in Cargo's order, which can name them all: moq's
+`mux::catalog::Producer<hang::catalog::Extra>` is in `mux`. The packages' import path is
+the module of the `go.mod` above `--out`, as `go mod edit -json` reads it, with the path to
+`go/`; or else `<prefix>`, the module of the `go.mod` the export writes in `go/`, which a
+caller requires and replaces with that directory. The export needs `go` on PATH whenever it
+reads a go.mod.
 
-- **Names** are the C names without the prefix, in Pascal case: `moq_track_producer` is
-  `TrackProducer`, and its method `moq_track_producer_append_group` is
-  `TrackProducer.AppendGroup`. A function of a type that takes no receiver is a function of
+- **Names** are the C names without the prefix and the segments outside the item's crate,
+  such as the facade's module re-exporting it, in Pascal case: `moq_track_Producer` is
+  `net.TrackProducer`, its method `moq_track_Producer_append_group` is
+  `TrackProducer.AppendGroup`, and `moq_mux_codec_opus_Config` is `mux.CodecOpusConfig`. Two
+  types of a package whose names would match are kept apart as Kotlin's are, after the
+  segments outside the crate: moq-tokio's `ConnectError` and `connect::Error` are
+  `tokio.ConnectError` and `tokio.Connect_Error`. An
+  instance in another crate's package keeps its whole path. A function of a type that takes no receiver is a function of
   the package named through its type (`CounterSeededPoint`), but `new`, which is
   `NewCounter`. A constant keeps its upper case (`LIMIT`), and one that is not a `bool` or
-  integer is a function of that name (`GREETINGS()`). A method named `Close` or `Error`
-  takes a trailing `_`, and a parameter named as a Go keyword, a predeclared name, or a
-  package the code uses takes one too.
+  integer is a function of that name (`GREETINGS()`). A function of the package named as a
+  type, which Go's case cannot keep apart as C's does, is `New` and that name when it
+  returns that type, or an `Option` of it (moq's `clock::interval` is
+  `kio.NewClockInterval`), and otherwise takes a trailing `_` (`mux::codec::opus::config`
+  is `mux.CodecOpusConfig_`).
+  A method named `Close` or `Error`, and a parameter named as a Go keyword, a predeclared
+  name, or a package the code uses, take a trailing `_` too.
 - **Objects** are pointers to structs owning their handle. `Close()` frees it once no call
   holds it, and a second `Close()` does nothing; one never closed is closed once the GC
   collects it, through `runtime.AddCleanup`. A call that meets a closed object, as its
-  receiver or anywhere in its arguments, returns an error matching `ErrClosed`, even when
+  receiver or anywhere in its arguments, returns an error matching `rt.ErrClosed`, even when
   `Close` races it on another goroutine, so every such call returns an `error`; `String()`
   and `GoString()`, which return none, return its text. A `self` method, or passing the object by value, closes
-  it once the call returns. `Clone` is `Clone()`, and a `pub` field a getter, `First()`,
-  and a setter, `SetFirst(v)`.
+  it once the call returns. `Clone` is `Clone()`, and a `pub` field a getter, `FirstGet()`,
+  and a setter, `FirstSet(v)`.
 - **Records** are structs, and **plain enums** an `int32` type with a constant per
   variant (`ShapeSquare`). An enum with data is an interface each variant's struct
   implements (`EventMoved{V0: p}`), sealed so only the package's do; its methods are the
   interface's. Positional fields are `V0`, `V1`, and so on. `Display` is `String()`,
   `Debug` `GoString()`, `PartialEq` `Equal(other)`, all through Rust's, and `Default` a
-  function of the package, `PointDefault()`.
+  function of the package, `PointDefault()`. An object's exported `Handle_` field, and a
+  trait's `<Trait>Vtable_` function, are how one generated package reaches another's,
+  since cgo gives each its own C types: callers use neither.
 - **Bytes** a call takes are a `[]byte`, and text a `string`, each read in place: Go's
   memory, pinned where C reads it through other memory. Bytes Rust passes a callback are
   copied into a `[]byte`. Bytes anywhere else, such as those Rust returns or a record
-  holds, are a `Bytes`, made from Go's with `NewBytes`. One of 512 B or more from Rust
+  holds, are an `rt.Bytes`, made from Go's with `rt.NewBytes`. One of 512 B or more from Rust
   reads its buffer in place through `Len`, `At`, `Slice`, `CopyTo`, `Read`, and
   `WriteTo`, and frees it once the GC finds no `Bytes` reaching it, so no Go code holds a
   slice of freed memory; a smaller one is copied, which costs less than lending it. Up to
@@ -458,7 +487,7 @@ own directory, and links the library through `CGO_LDFLAGS`.
   the exported crate, holds it near what is lent. `Copy()` copies it out. Text Rust returns is copied once into a `string`, and Rust's
   freed at the call. A path is a `string`
   of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object its
-  pointer, nil for `None`. A tuple is `Tuple2[A, B]` and so on, but a tuple of one is its
+  pointer, nil for `None`. A tuple is `rt.Tuple2[A, B]` and so on, but a tuple of one is its
   element, and one returned whole is the function's results. `Duration` is
   `time.Duration`: a negative one passed in, or one Rust returns past its 292 years,
   panics. A socket address is a `netip.AddrPort`, whose zone names an IPv6 scope by its
@@ -466,7 +495,9 @@ own directory, and links the library through `CGO_LDFLAGS`.
   `netip` does not keep, panics. A `Vec<T>` or `&[T]` is a `[]T`.
 - **Errors**: a `Result` returns an `error` last. An exported error type is returned as
   itself, implementing `error` with its `Display`, else its `Debug`, and any other in a struct
-  `<T>Error{Value}`, such as `StringError`.
+  `<T>Error{Value}`, such as `rt.StringError`, in the package of the last crate a type
+  in it belongs to, or `rt` for none. Ranges and bounds are `rt` types too
+  (`rt.RangeU64`).
 - **Traits** are interfaces. Once Rust drops an implementation, it is closed if it is an
   `io.Closer`.
 - **Closures** lent for a call are funcs, which Rust calls only during the call, from any
@@ -479,8 +510,8 @@ own directory, and links the library through `CGO_LDFLAGS`.
   which cancels it in Rust and loses nothing: the next call takes what it would have.
   Each call is its own future, so it has one poller, and its context bounds only it.
 - A **waker** is a `func()`, which Rust may call from any thread.
-- **The contract** is checked when the package loads, before any other call: a Go file and
-  a library from different builds panic.
+- **The contract** is checked when `rt` loads, before any other call: Go packages and a
+  library from different builds panic.
 
 ## Dart
 
@@ -490,13 +521,15 @@ the shared library the crate builds with `--features dart` as the package's nati
 the library's own URI, mapped to the library by a build hook or by `--native-assets`.
 
 - **Names** are the C names without the prefix: a type in Pascal case and a member in
-  camel case, so `moq_track_producer` is `TrackProducer`, and its method
-  `moq_track_producer_append_group` is `TrackProducer.appendGroup`. A function of a type
+  camel case, so `moq_track_Producer` is `TrackProducer`, and its method
+  `moq_track_Producer_append_group` is `TrackProducer.appendGroup`, and a constant in
+  upper case (`LIMIT`). A function of a type
   that returns it is a constructor, which may share its name with a field: an object's
   `new` is its unnamed one (`Counter('c', 1)`), and any other a named one
-  (`Position.group`). A type's other functions are static members. A reserved word takes
+  (`Position.group`). A type's other functions are static members. Two types whose
+  names would match are kept apart as Kotlin's are (`TokioConnect_Error`). A reserved word takes
   a trailing `_` (`Point.default_()`). An item whose Dart name clashes with another's, or
-  with a name the runtime declares, fails the export: give it a `rename`.
+  with a name the runtime declares, fails the export: rename one in the source or exclude it.
 - **Objects** are final classes owning their handle. `close()` frees it once no call
   holds it, and a second does nothing; one never closed is freed once the garbage
   collector finds it unreachable, through a finalizable handle of Dart's C API. Any call that meets a
@@ -570,16 +603,16 @@ names and signatures, so [`src/c.rs`](src/c.rs), [`src/cpp.rs`](src/cpp.rs),
 agree; the runtime the glue includes is [`runtime/rt.rs`](runtime/rt.rs), the one the C++
 header includes [`runtime/rt.hpp`](runtime/rt.hpp), the ones Kotlin and its JNI glue
 include [`runtime/rt.kt`](runtime/rt.kt) and [`runtime/jni.rs`](runtime/jni.rs), the ones
-Python and its extension include [`runtime/rt.py`](runtime/rt.py) and
-[`runtime/python.rs`](runtime/python.rs), the one the Swift includes
-[`runtime/rt.swift`](runtime/rt.swift), the one the Go includes
-[`runtime/rt.go`](runtime/rt.go), and the ones the Dart and its glue include
+Python and its extension include [`runtime/rt.py`](runtime/rt.py),
+[`runtime/native.py`](runtime/native.py), and [`runtime/python.rs`](runtime/python.rs),
+the one the Swift includes [`runtime/rt.swift`](runtime/rt.swift), the ones the Go's
+runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
+[`runtime/ffi_cgo.go`](runtime/ffi_cgo.go), and the ones the Dart and its glue include
 [`runtime/rt.dart`](runtime/rt.dart) and [`runtime/dart.rs`](runtime/dart.rs).
 
 ## Census
 
-`--census dir` exports nothing. It writes `<package>.md` for each exported package,
-which counts what exports and ranks every refusal by construct and by the type it names,
+`--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
 lists each refused item at its span, and ends with the `exclude` list that exports the
 rest. It ignores the config's `exclude`. It still fails on an `instance not inferred`
 refusal, which is a bug in the exporter's inference rather than in the crate.
@@ -596,7 +629,7 @@ nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R
 nix develop .#bench --command just ffi bench  # frame writes and reads, through the export from C, C++, Kotlin, Python, Swift, Go, and Dart, and moq's rs/moq-c
 ```
 
-The `api` fixture covers each rule once, and names the `dep` fixture's types, which
+The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
 export into the same library. `tests/api.c` runs the same script as the
 fixture's `examples/transcript.rs`, and the two transcripts must match line for line;
 then it breaks each runtime check, which must abort with its message. `tests/api.cpp`
@@ -615,6 +648,8 @@ x86_64 emulator at API 24, the oldest moq's Android library supports, and at API
 warnings as errors, checks its futures the same way, what frees an object or bytes nobody
 closed, and the values Python's types bound, and breaks each runtime check, which must raise or
 abort with its message; the Python with another contract must refuse the library.
+`api_py_types` checks the Python with mypy and pyright, both strict, at CPython 3.11, as
+`just ffi moq` checks moq's.
 `tests/api.swift` runs the script through the Swift, built as a module in Swift 6's
 language mode and type-checked in Swift 5's, checks its futures the same way and that
 releasing frees, and breaks each runtime check, which must trap or abort with its message.
@@ -625,9 +660,9 @@ way, plus a context done before the call, a deadline, and a handle closed during
 checks that bytes cross both ways, that a `Bytes` keeps Rust's buffer while only a sub-view
 or a reader reaches it and that the GC frees it once none does, that the GC frees an object
 never closed, and that each kind of call meeting a closed object, including one racing
-`Close`, returns `ErrClosed`, and breaks
-each runtime check, which must panic with its message; a Go file from another build must
-fail its contract check. The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
+`Close`, returns `rt.ErrClosed`, and breaks
+each runtime check, which must panic with its message; a runtime package from another
+build must fail its contract check. The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. `moq/moq.c` publishes and subscribes to a moq-net
 track in one process, polling each read, scopes an origin to moq-pattern's patterns and

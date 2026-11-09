@@ -5,14 +5,14 @@ import * as Fnv from "./hashes.Fnv.ts";
 import * as Tally from "./hashes.Tally.ts";
 
 export function clone$Clone(self: Key): Key {
-	return { _0: self._0, _1: self._1 };
+	return { _0: self._0, _1: rs.stringClone(self._1) };
 }
 
 export function eq$cmp_PartialEq(self: Key, other: Key): boolean {
 	if (!(self._0 === other._0)) {
 		return false;
 	}
-	return self._1 === other._1;
+	return rs.eqStr(self._1, other._1);
 }
 
 export function hash$Hash_hash_DefaultHasher(self: Key, state: rs.Hasher): void {
@@ -45,7 +45,7 @@ export function cmp$cmp_Ord(self: Key, other: Key): rs.Ordering {
 /** A key that is a JS object. */
 export interface Key {
 	_0: rs.u16;
-	_1: string;
+	_1: rs.String;
 }
 
 //# sourceMappingURL=hashes.Key.ts.map

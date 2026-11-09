@@ -30,8 +30,7 @@ export type Failure =
 export function fmt$fmt_Display(self: Failure, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	if (self.tag === "Short") {
 		const arg = self._0;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(arg, f)];
-		return rs.fmtWriteFmt(f, ["short by ", args2[0]]);
+		return rs.fmtWriteFmt(f, ["short by ", (f: rs.Formatter) => rs.u8Display(arg, f)]);
 	}
 	if (self.tag === "Wrapped") {
 		return rs.fmtWriteStr(f, "wrapped");

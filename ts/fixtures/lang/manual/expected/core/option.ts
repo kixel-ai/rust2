@@ -2,6 +2,13 @@
 
 import * as rs from "../rs.ts";
 
+export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return self;
+}
+
 export function map$1yjmt5m(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u8): rs.u8 | undefined {
 	if (self === undefined) {
 		return undefined;

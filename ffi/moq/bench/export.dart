@@ -14,7 +14,7 @@ double perFrame(Stopwatch watch) => watch.elapsedTicks * 1e9 / watch.frequency /
 
 Future<String> round() async {
   final broadcast = moq.BroadcastInfo().produce();
-  final micro = moq.Timescale.micro;
+  final micro = moq.Timescale.MICRO;
   final track = broadcast.createTrack('bench', moq.TrackInfo.default_().withTimescale(micro));
   micro.close();
 
@@ -112,7 +112,7 @@ Future<String> round() async {
   double payload(moq.FrameFrame frame) {
     final watch = Stopwatch()..start();
     for (var i = 0; i < groups * frames; i++) {
-      closed += frame.payload[0];
+      closed += frame.payloadGet[0];
     }
     return perFrame(watch);
   }

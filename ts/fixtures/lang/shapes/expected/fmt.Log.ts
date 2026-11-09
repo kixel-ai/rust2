@@ -7,28 +7,28 @@ import * as rs from "./rs.ts";
  * a `write_char` by `c` before its text, and fails each call past its `budget` with `!`.
  */
 export interface Log {
-	text: string;
+	text: rs.String;
 	budget: rs.usize;
 }
 
 function new_(budget: rs.usize): Log {
-	return { text: "", budget };
+	return { text: rs.stringNew(), budget };
 }
 
 export function open(self: Log, kind: rs.char): rs.Result<undefined, rs.FmtError> {
 	if (!(self.budget === 0)) {
 		self.budget = rs.usizeSub(self.budget, 1);
-		self.text = self.text + String.fromCodePoint(kind);
+		rs.stringPush(self.text, kind);
 		return rs.OK;
 	}
-	self.text = self.text + "!";
+	rs.stringPush(self.text, 33);
 	return rs.Err(new rs.FmtError());
 }
 
 export function writeStr$fmt_Write(self: Log, s: string): rs.Result<undefined, rs.FmtError> {
 	if (open(self, 115).ok) {
-		self.text = self.text + s;
-		self.text = self.text + "\u0001";
+		rs.stringPushStr(self.text, s);
+		rs.stringPush(self.text, 1);
 		return rs.OK;
 	}
 	return rs.Err(new rs.FmtError());
@@ -36,8 +36,8 @@ export function writeStr$fmt_Write(self: Log, s: string): rs.Result<undefined, r
 
 export function writeChar$fmt_Write(self: Log, c: rs.char): rs.Result<undefined, rs.FmtError> {
 	if (open(self, 99).ok) {
-		self.text = self.text + String.fromCodePoint(c);
-		self.text = self.text + "\u0001";
+		rs.stringPush(self.text, c);
+		rs.stringPush(self.text, 1);
 		return rs.OK;
 	}
 	return rs.Err(new rs.FmtError());

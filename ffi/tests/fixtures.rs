@@ -75,8 +75,9 @@ fn api() -> &'static Api {
 	static API: OnceLock<Api> = OnceLock::new();
 	API.get_or_init(|| {
 		let out = scratch().join("api").join("out");
-		// A feature enabled on another export directly, which the C library must build with.
-		let features = ["--features", "dep-fixture/doubled"];
+		// A feature of the facade's that enables one in a crate it re-exports, which the C
+		// library must build with.
+		let features = ["--features", "doubled"];
 		let output = export("api", &out, &features);
 		assert!(
 			output.status.success(),
@@ -158,24 +159,24 @@ fn api_c() {
 
 	// Each broken contract aborts, naming the function and what broke.
 	for (case, message) in [
-		("moved", "api_counter_get: a handle's value was moved out"),
-		("borrowed", "api_channel_clear: a handle is already borrowed"),
+		("moved", "api_Counter_get: a handle's value was moved out"),
+		("borrowed", "api_Channel_clear: a handle is already borrowed"),
 		("utf8", "api_greet: a string is not UTF-8"),
 		(
 			"finished",
-			"api_channel_recv_poll: a future is polled after it finished",
+			"api_Channel_recv_poll: a future is polled after it finished",
 		),
 		("enum", "api_greet: an enum value is invalid"),
 		("bound", "api_count: a bound's kind is invalid"),
 		("socket", "api_ports: an IPv4 socket address has IPv6 bytes or fields"),
 		("family", "api_nexts: an IPv6 socket address where IPv4 is taken"),
 		("array", "api_vec_u16_free: an array is not as Rust returned it"),
-		("lent", "api_registry_edit: a lent handle was freed"),
+		("lent", "api_Registry_edit: a lent handle was freed"),
 		(
 			"lent moved",
-			"api_counter_into_label: a lent handle's value cannot move out",
+			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
-		("null", "api_registry_edit: a function is null"),
+		("null", "api_Registry_edit: a function is null"),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
 		assert!(!output.status.success(), "{case} did not abort");
@@ -207,22 +208,22 @@ fn api_cpp() {
 		run(Command::new(&exe).arg("futures"));
 		run(Command::new(&exe).arg("lifetimes"));
 		for (case, message) in [
-			("moved", "api_counter_get: a handle's value was moved out"),
-			("moved from", "api_counter_get: a handle is null"),
-			("shared moved from", "api_gauge_into_level: a handle is null"),
+			("moved", "api_Counter_get: a handle's value was moved out"),
+			("moved from", "api_Counter_get: a handle is null"),
+			("shared moved from", "api_Gauge_into_level: a handle is null"),
 			(
 				"shared moved out",
-				"api_gauge_into_level: a handle's value was moved out",
+				"api_Gauge_into_level: a handle's value was moved out",
 			),
 			("lent copied", "a lent object was copied past its call"),
 			("value", "value() of a result that holds an error"),
 			(
 				"finished",
-				"api_channel_recv_poll: a future is polled after it finished",
+				"api_Channel_recv_poll: a future is polled after it finished",
 			),
 			(
 				"lent moved",
-				"api_counter_into_label: a lent handle's value cannot move out",
+				"api_Counter_into_label: a lent handle's value cannot move out",
 			),
 			("lent kept", "a lent object was moved out of"),
 			("null view", "a view of null bytes has a length"),
@@ -482,9 +483,9 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		("lent kept", "Counter is closed"),
 		(
 			"lent moved",
-			"api_counter_into_label: a lent handle's value cannot move out",
+			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
-		("callback threw", "api_fixture::Log::log: a call into Kotlin threw"),
+		("callback threw", "api::Log::log: a call into Kotlin threw"),
 		("stray", "MalformedInputException"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 	] {
@@ -535,9 +536,9 @@ fn api_python() {
 		("lent held", "Counter: a call still holds it when its lend ends"),
 		(
 			"lent moved",
-			"api_counter_into_label: a lent handle's value cannot move out",
+			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
-		("callback threw", "api_fixture::Log::log: a call into Python raised"),
+		("callback threw", "api::Log::log: a call into Python raised"),
 		("family", "ValueError: an IPv6 address has no Rust SocketAddrV4"),
 	] {
 		let output = python(&dir, &[case]).output().unwrap();
@@ -570,6 +571,28 @@ fn api_python() {
 		stderr.contains("api.py and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
+}
+
+/// The api fixture's Python, and `tests/api_types.py` calling it as a typed caller does,
+/// pass mypy and pyright, both strict, at the oldest CPython its extension loads in. Apart
+/// from `api_python`, which the runners without the dev shell's checkers run alone.
+#[test]
+fn api_py_types() {
+	let dir = scratch().join("api").join("python-types");
+	let _ = std::fs::remove_dir_all(&dir);
+	std::fs::create_dir_all(&dir).unwrap();
+	let module = dir.join("api.py");
+	let caller = dir.join("api_types.py");
+	std::fs::copy(api().out.join("python").join("api.py"), &module).unwrap();
+	std::fs::copy(manifest_dir().join("tests").join("api_types.py"), &caller).unwrap();
+	run(Command::new("mypy")
+		.args(["--strict", "--python-version", "3.11", "--cache-dir"])
+		.arg(scratch().join("mypy"))
+		.args([&module, &caller]));
+	// Rooted in `dir`, so `import api` finds the module rather than `tests/api.py`.
+	let config = dir.join("pyrightconfig.json");
+	std::fs::copy(manifest_dir().join("tests").join("pyright.json"), &config).unwrap();
+	run(Command::new("pyright").arg("-p").arg(&config).args([&module, &caller]));
 }
 
 /// The contract a Kotlin file checks its library against.
@@ -633,7 +656,7 @@ fn api_swift() {
 		("lent kept", "Counter is closed"),
 		(
 			"lent moved",
-			"api_counter_into_label: a lent handle's value cannot move out",
+			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("family", "api_nexts: an IPv6 socket address where IPv4 is taken"),
 		("stray", "a path from Rust is not UTF-8"),
@@ -705,9 +728,9 @@ fn api_dart() {
 		("lent kept", "Bad state: Counter is closed"),
 		(
 			"lent moved",
-			"api_counter_into_label: a lent handle's value cannot move out",
+			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
-		("callback threw", "api_fixture::Log::log: a call into Dart threw"),
+		("callback threw", "api::Log::log: a call into Dart threw"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
@@ -844,21 +867,25 @@ fn swiftc(module: &Path, macos: u8) -> Command {
 #[test]
 fn api_go() {
 	let api = api();
-	// A module of the generated package beside the header, as the export lays them out,
-	// and the test.
+	// The export's Go, the module of a package per crate that it declares, beside the header
+	// as the export lays them out, and the test's module, which requires it.
 	let module = scratch().join("api").join("go");
 	let _ = std::fs::remove_dir_all(&module);
-	let package = module.join("api");
-	std::fs::create_dir_all(&package).unwrap();
+	let export = module.join("export");
+	copy_dir(&api.out.join("go"), &export);
 	std::fs::create_dir_all(module.join("include")).unwrap();
-	std::fs::copy(api.out.join("go").join("api.go"), package.join("api.go")).unwrap();
 	std::fs::copy(
 		api.out.join("include").join("api.h"),
 		module.join("include").join("api.h"),
 	)
 	.unwrap();
 	std::fs::copy(manifest_dir().join("tests").join("api.go"), module.join("main.go")).unwrap();
-	std::fs::write(module.join("go.mod"), "module apitest\n\ngo 1.24\n").unwrap();
+	std::fs::write(
+		module.join("go.mod"),
+		"module apitest\n\ngo 1.24\n\nrequire api v0.0.0\n\nreplace api => ./export\n",
+	)
+	.unwrap();
+	run(&mut go(&export, api, &["vet", "./..."]));
 	let exe = module.join(format!("api-test{EXE_SUFFIX}"));
 	run(&mut go(&module, api, &["vet", "./..."]));
 	run(go(&module, api, &["build", "-o"]).arg(&exe));
@@ -875,7 +902,7 @@ fn api_go() {
 	for (case, message) in [
 		(
 			"lent moved",
-			"api_counter_into_label: a lent handle's value cannot move out",
+			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("family", "an address that is not IPv4 has no Rust SocketAddrV4"),
 		("text", "api_greet: a string is not UTF-8"),
@@ -888,9 +915,10 @@ fn api_go() {
 		assert!(stderr.contains(message), "Go {case} printed {stderr}");
 	}
 
-	// The same package, with another contract than the library's in place of its own,
-	// refuses it when it loads.
-	let generated = std::fs::read_to_string(package.join("api.go")).unwrap();
+	// The same packages, with another contract than the library's in place of their own,
+	// refuse it when they load.
+	let runtime = export.join("rt").join("rt.go");
+	let generated = std::fs::read_to_string(&runtime).unwrap();
 	let at = generated
 		.find("api_contract() != 0x")
 		.expect("the Go checks its contract")
@@ -898,10 +926,10 @@ fn api_go() {
 	let mut mismatched = generated.clone();
 	let digit = if &generated[at..at + 1] == "0" { "1" } else { "0" };
 	mismatched.replace_range(at..at + 1, digit);
-	std::fs::write(package.join("api.go"), mismatched).unwrap();
+	std::fs::write(&runtime, mismatched).unwrap();
 	std::fs::write(
 		module.join("main.go"),
-		"package main\n\nimport \"apitest/api\"\n\nfunc main() {\n\tapi.Dropped()\n}\n",
+		"package main\n\nimport \"api/api\"\n\nfunc main() {\n\tapi.Dropped()\n}\n",
 	)
 	.unwrap();
 	run(go(&module, api, &["build", "-o"]).arg(&exe));
@@ -909,9 +937,152 @@ fn api_go() {
 	assert!(!output.status.success(), "a mismatched contract did not fail");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
-		stderr.contains("api.go and the library are from different builds"),
+		stderr.contains("the Go of api and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
+}
+
+/// Under a `go.mod`, the generated packages import each other by its module, as the go
+/// command reads it from a block among comments, and the export writes no `go.mod` of its own.
+#[test]
+fn go_module() {
+	let module = scratch().join("go-module");
+	let _ = std::fs::remove_dir_all(&module);
+	std::fs::create_dir_all(&module).unwrap();
+	std::fs::write(
+		module.join("go.mod"),
+		"// module example.com/commented\nmodule ( // the app\n\t\"example.com/app\" // quoted\n)\n\ngo 1.24\n",
+	)
+	.unwrap();
+	let out = module.join("sub").join("out");
+	let output = export("api", &out, &[]);
+	assert!(
+		output.status.success(),
+		"exporting failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	assert!(
+		!out.join("go").join("go.mod").exists(),
+		"the export wrote a go.mod under one"
+	);
+	let api = std::fs::read_to_string(out.join("go").join("api").join("api.go")).unwrap();
+	assert!(api.contains("\"example.com/app/sub/out/go/rt\""), "{api}");
+}
+
+/// A crate named as the runtime, a Go keyword, or `main` is the Go package of that name and
+/// a trailing `_`, which Go vets.
+#[test]
+fn go_reserved_packages() {
+	for name in ["rt", "func", "main"] {
+		let package = package(&format!("go_reserved_{name}"));
+		let manifest = format!(
+			"[package]\nname = \"go_reserved_{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"{name}\"\n\n[workspace]\n"
+		);
+		std::fs::write(package.join("Cargo.toml"), manifest).unwrap();
+		let out = package.join("out");
+		let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+			.arg("--config")
+			.arg(package.join("ffi.toml"))
+			.arg("--out")
+			.arg(&out)
+			.env("CARGO_TARGET_DIR", package.join("build"))
+			.output()
+			.unwrap();
+		assert!(
+			output.status.success(),
+			"exporting lib `{name}` failed:\n{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+		let go = out.join("go");
+		assert!(go.join(format!("{name}_")).join(format!("{name}_.go")).exists());
+		vet(&go);
+	}
+}
+
+/// A crate's package keeps the facade's prefix where stripping it leaves no identifier:
+/// beside lib `pkg`, lib `pkg_` is `pkg_`, after the facade's `pkg`, and lib `pkg_2d` is
+/// `pkg2d`, which Go vets.
+#[test]
+fn go_package_names() {
+	let package = package("go_package_names");
+	let dep = |lib: &str| {
+		(
+			format!(
+				"[package]\nname = \"go-package-names-{}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"{lib}\"\n",
+				lib.replace('_', "-")
+			),
+			"pub fn one() -> u32 {\n\t1\n}\n",
+		)
+	};
+	let (under, under_lib) = dep("pkg_");
+	let (digit, digit_lib) = dep("pkg_2d");
+	write_all(
+		&package,
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"go_package_names\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"pkg\"\n\n\
+				[dependencies]\npkg_ = { package = \"go-package-names-pkg-\", path = \"under\" }\n\
+				pkg_2d = { package = \"go-package-names-pkg-2d\", path = \"digit\" }\n\n\
+				[workspace]\nexclude = [\"under\", \"digit\"]\n",
+			),
+			(
+				"src/lib.rs",
+				"pub fn own() -> u32 {\n\t1\n}\n\npub mod under {\n\tpub use pkg_::one;\n}\n\npub mod digit {\n\tpub use pkg_2d::one;\n}\n",
+			),
+			("under/Cargo.toml", &under),
+			("under/src/lib.rs", under_lib),
+			("digit/Cargo.toml", &digit),
+			("digit/src/lib.rs", digit_lib),
+		],
+	);
+	let out = package.join("out");
+	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--out")
+		.arg(&out)
+		.env("CARGO_TARGET_DIR", package.join("build"))
+		.output()
+		.unwrap();
+	assert!(
+		output.status.success(),
+		"the export failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let go = out.join("go");
+	for name in ["pkg", "pkg_", "pkg2d"] {
+		assert!(
+			go.join(name).join(format!("{name}.go")).exists(),
+			"no Go package {name}"
+		);
+	}
+	vet(&go);
+}
+
+/// `go vet` over an export's `go/`, which the header beside it lets cgo check unlinked.
+fn vet(go: &Path) {
+	run(Command::new("go")
+		.args(["vet", "./..."])
+		.current_dir(go)
+		.env("CGO_ENABLED", "1")
+		.env("GOFLAGS", "-buildvcs=false")
+		.env("GOTOOLCHAIN", "local"));
+}
+
+/// A copy of the directory `from` at `to`.
+fn copy_dir(from: &Path, to: &Path) {
+	std::fs::create_dir_all(to).unwrap();
+	for entry in std::fs::read_dir(from).unwrap() {
+		let entry = entry.unwrap();
+		let path = entry.path();
+		match entry.file_type().unwrap().is_dir() {
+			true => copy_dir(&path, &to.join(entry.file_name())),
+			false => {
+				std::fs::copy(&path, to.join(entry.file_name())).unwrap();
+			}
+		}
+	}
 }
 
 /// The go command in `module`, linking cgo against the api fixture's static library.
@@ -952,8 +1123,7 @@ fn relative_target() {
 		"the census failed:\n{}",
 		String::from_utf8_lossy(&output.stderr)
 	);
-	// One census per export.
-	assert!(census.join("api-fixture.md").exists() && census.join("dep-fixture.md").exists());
+	assert!(census.join("api-fixture.md").exists());
 	assert!(dir.join("build").exists());
 }
 
@@ -1000,17 +1170,18 @@ fn reject() {
 	assert_eq!(errors.join("\n") + "\n", expected);
 }
 
-/// The C library builds a dependency with what the check enabled in it, so a feature
-/// enabled directly in one that is no export fails loud.
+/// The C library builds the facade's dependencies with what the facade enables in them,
+/// so a feature enabled directly in one fails loud.
 #[test]
-fn feature_of_non_export() {
+fn feature_of_dependency() {
 	let out = scratch().join("feature").join("out");
 	let output = export("api", &out, &["--features", "bytes/std"]);
 	assert!(!output.status.success(), "exporting with bytes/std succeeded");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
-		stderr
-			.contains("--features bytes/std: the export builds bytes with only the features api-fixture enables in it"),
+		stderr.contains(
+			"--features bytes/std: the export builds api-fixture's dependencies with only the features it enables in them"
+		),
 		"{stderr}"
 	);
 }
@@ -1022,8 +1193,30 @@ fn package(name: &str) -> PathBuf {
 	let manifest = format!("[package]\nname = \"{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[workspace]\n");
 	std::fs::write(package.join("Cargo.toml"), manifest).unwrap();
 	std::fs::write(package.join("src/lib.rs"), "pub fn one() -> u32 {\n\t1\n}\n").unwrap();
-	std::fs::write(package.join("ffi.toml"), format!("package = \"{name}\"\n")).unwrap();
+	std::fs::write(package.join("ffi.toml"), "").unwrap();
 	package
+}
+
+/// rustc's arguments in an argfile, as cargo passes them once they overflow a command line:
+/// on Windows, moq-ffi's many `-L`s do. One argument past every platform's limit forces it,
+/// and starts with `@`, which inside an argfile rustc reads as itself, not another file.
+#[test]
+fn argfile() {
+	let package = package("argfile");
+	let value = format!("@{}=/", "a".repeat(1 << 21));
+	write_all(
+		&package,
+		&[(
+			".cargo/config.toml",
+			&format!("build.rustflags = [\"--remap-path-prefix\", \"{value}\"]\n"),
+		)],
+	);
+	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
+	assert!(
+		output.status.success(),
+		"the census failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
 }
 
 /// A census of the package whose config is `config` with these cargo args, to run.
@@ -1069,155 +1262,8 @@ fn symlinked() {
 	);
 }
 
-/// Another export is found among what the check builds on the host, whatever target
-/// cargo's config names: a version only another platform depends on is no rival.
-#[test]
-fn other_platform() {
-	let package = package("platform");
-	for (dir, version) in [("unix", "1.0.0"), ("windows", "2.0.0")] {
-		let dep = package.join(dir);
-		std::fs::create_dir_all(dep.join("src")).unwrap();
-		let manifest = format!("[package]\nname = \"platform-dep\"\nversion = \"{version}\"\nedition = \"2024\"\n");
-		std::fs::write(dep.join("Cargo.toml"), manifest).unwrap();
-		std::fs::write(dep.join("src/lib.rs"), "pub struct Size {\n\tpub width: u32,\n}\n").unwrap();
-	}
-	let manifest = "[package]\nname = \"platform\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
-		[target.'cfg(unix)'.dependencies]\nunix = { package = \"platform-dep\", path = \"unix\" }\n\n\
-		[target.'cfg(windows)'.dependencies]\nwindows = { package = \"platform-dep\", path = \"windows\" }\n\n\
-		[workspace]\nexclude = [\"unix\", \"windows\"]\n";
-	std::fs::write(package.join("Cargo.toml"), manifest).unwrap();
-	std::fs::write(
-		package.join("src/lib.rs"),
-		"#[cfg(unix)]\nuse unix as dep;\n#[cfg(windows)]\nuse windows as dep;\n\npub fn width(size: dep::Size) -> u32 {\n\tsize.width\n}\n",
-	)
-	.unwrap();
-	std::fs::write(
-		package.join("ffi.toml"),
-		"package = \"platform\"\n\n[crates.platform-dep]\n",
-	)
-	.unwrap();
-	let output = census(&package.join("ffi.toml"), &[])
-		.env("CARGO_BUILD_TARGET", "x86_64-pc-windows-msvc")
-		.output()
-		.unwrap();
-	assert!(
-		output.status.success(),
-		"the census failed:\n{}",
-		String::from_utf8_lossy(&output.stderr)
-	);
-}
-
-/// Another export is found among what the library builds with: a version only a
-/// dev-dependency's features pull in is no rival.
-#[test]
-fn dev_features() {
-	let package = package("dev");
-	let write = |path: &str, text: &str| {
-		let path = package.join(path);
-		std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-		std::fs::write(path, text).unwrap();
-	};
-	for (dir, version) in [("exp1", "1.0.0"), ("exp2", "2.0.0")] {
-		write(
-			&format!("{dir}/Cargo.toml"),
-			&format!("[package]\nname = \"dev-exp\"\nversion = \"{version}\"\nedition = \"2024\"\n"),
-		);
-		write(
-			&format!("{dir}/src/lib.rs"),
-			"pub struct Size {\n\tpub width: u32,\n}\n",
-		);
-	}
-	write(
-		"route/Cargo.toml",
-		"[package]\nname = \"dev-route\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
-		[dependencies]\nexp2 = { package = \"dev-exp\", path = \"../exp2\", optional = true }\n\n\
-		[features]\nextra = [\"dep:exp2\"]\n",
-	);
-	write("route/src/lib.rs", "");
-	write(
-		"Cargo.toml",
-		"[package]\nname = \"dev\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
-		[dependencies]\nexp = { package = \"dev-exp\", path = \"exp1\" }\nroute = { package = \"dev-route\", path = \"route\" }\n\n\
-		[dev-dependencies]\nroute = { package = \"dev-route\", path = \"route\", features = [\"extra\"] }\n\n\
-		[workspace]\nexclude = [\"exp1\", \"exp2\", \"route\"]\n",
-	);
-	write(
-		"src/lib.rs",
-		"pub fn width(size: exp::Size) -> u32 {\n\tsize.width\n}\n",
-	);
-	write("ffi.toml", "package = \"dev\"\n\n[crates.dev-exp]\n");
-	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
-	assert!(
-		output.status.success(),
-		"the census failed:\n{}",
-		String::from_utf8_lossy(&output.stderr)
-	);
-}
-
-/// Another export is found in the checked package's own graph, read plainly: a root
-/// package that the workspace's default members leave out, under forced color, reaching
-/// an export twice.
-#[test]
-fn diamond() {
-	let package = package("diamond");
-	let write = |path: &str, text: &str| {
-		let path = package.join(path);
-		std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-		std::fs::write(path, text).unwrap();
-	};
-	// `left` and `right` both depend on the export `shared`, which depends on `leaf`.
-	for (name, deps) in [
-		("app", ""),
-		(
-			"left",
-			"shared = { package = \"diamond-shared\", path = \"../shared\" }\n",
-		),
-		(
-			"right",
-			"shared = { package = \"diamond-shared\", path = \"../shared\" }\n",
-		),
-		("shared", "leaf = { package = \"diamond-leaf\", path = \"../leaf\" }\n"),
-		("leaf", ""),
-	] {
-		write(
-			&format!("{name}/Cargo.toml"),
-			&format!(
-				"[package]\nname = \"diamond-{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[dependencies]\n{deps}"
-			),
-		);
-		write(
-			&format!("{name}/src/lib.rs"),
-			"pub struct Size {\n\tpub width: u32,\n}\n",
-		);
-	}
-	write(
-		"Cargo.toml",
-		"[package]\nname = \"diamond\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
-		[dependencies]\nleft = { package = \"diamond-left\", path = \"left\" }\n\
-		right = { package = \"diamond-right\", path = \"right\" }\n\
-		shared = { package = \"diamond-shared\", path = \"shared\" }\n\n\
-		[workspace]\nmembers = [\"app\", \"left\", \"right\", \"shared\", \"leaf\"]\ndefault-members = [\"app\"]\n",
-	);
-	write(
-		"src/lib.rs",
-		"pub fn width(size: shared::Size) -> u32 {\n\tsize.width\n}\n",
-	);
-	write("ffi.toml", "package = \"diamond\"\n\n[crates.diamond-shared]\n");
-	let output = census(&package.join("ffi.toml"), &[])
-		.env("CARGO_TERM_COLOR", "always")
-		.output()
-		.unwrap();
-	assert!(
-		output.status.success(),
-		"the census failed:\n{}",
-		String::from_utf8_lossy(&output.stderr)
-	);
-}
-
-/// Another export is bound by the configured package's dependency on it, not its crate
-/// name or source: a used dependency whose crate shares an unused export's name stands
-/// in for none, and two exports of one crate name export, by names the configured package
-/// calls them that are its own crate name and `bytes`, which the glue names too, with
+/// Two crates of one crate name export through the facade, which shares their name too,
+/// by names it calls them that the glue names too, `bytes` and its own crate name, with
 /// their sources remapped.
 #[test]
 fn lookalike() {
@@ -1249,27 +1295,8 @@ fn lookalike() {
 	);
 	write(
 		"src/lib.rs",
-		"pub fn width(size: bytes::Size) -> u32 {\n\tsize.width\n}\n",
-	);
-	write("ffi.toml", "package = \"lookalike\"\n\n[crates.lookalike-exp]\n");
-	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
-	assert!(!output.status.success(), "a lookalike stood in for the export");
-	let stderr = String::from_utf8_lossy(&output.stderr);
-	assert!(
-		stderr.contains(
-			"[crates.lookalike-exp] needs `lookalike` to use its dependency `shared`, and it uses 0 crates of it"
-		),
-		"{stderr}"
-	);
-
-	write(
-		"src/lib.rs",
-		"pub fn total(a: shared::Size, b: bytes::Size) -> u32 {\n\ta.width + b.width\n}\n",
-	);
-	write(
-		"ffi.toml",
-		"package = \"lookalike\"\n\n[crates.lookalike-exp]\n\n\
-		[crates.lookalike-exp.rename]\n\"Size\" = \"exp_size\"\n\n[crates.lookalike-other]\n",
+		"pub mod exp {\n\tpub use shared::Size;\n}\n\npub mod other {\n\tpub use bytes::Size;\n}\n\n\
+		pub fn total(a: shared::Size, b: bytes::Size) -> u32 {\n\ta.width + b.width\n}\n",
 	);
 	let out = package.join("out");
 	let remap = format!("--remap-path-prefix={}=/src", package.display());
@@ -1293,6 +1320,133 @@ fn lookalike() {
 		.arg("--target-dir")
 		.arg(package.join("glue"))
 		.env("RUSTFLAGS", "-D warnings"));
+}
+
+/// A facade whose lib takes a standard library crate's name exports its own items, which
+/// are not the standard library's, such as a `SocketAddrV4` record.
+#[test]
+fn standard_names() {
+	for name in ["core", "alloc", "std"] {
+		let package = package(&format!("standard_{name}"));
+		let manifest = format!(
+			"[package]\nname = \"standard_{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"{name}\"\n\n[workspace]\n"
+		);
+		std::fs::write(package.join("Cargo.toml"), manifest).unwrap();
+		let lib = "pub struct SocketAddrV4 {\n\tpub port: u16,\n}\n\npub fn port(addr: SocketAddrV4) -> u16 {\n\taddr.port\n}\n";
+		std::fs::write(package.join("src/lib.rs"), lib).unwrap();
+		let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+			.arg("--config")
+			.arg(package.join("ffi.toml"))
+			.arg("--out")
+			.arg(package.join("out"))
+			.args(["--", "--offline"])
+			.env("CARGO_TARGET_DIR", package.join("build"))
+			.output()
+			.unwrap();
+		assert!(
+			output.status.success(),
+			"exporting lib `{name}` failed:\n{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+		let header = std::fs::read_to_string(package.join("out/include").join(format!("{name}.h"))).unwrap();
+		assert!(
+			header.contains(&format!("{name}_SocketAddrV4 addr")),
+			"lib `{name}`'s own SocketAddrV4 is no record:\n{header}"
+		);
+	}
+}
+
+/// A facade whose lib takes the name of a foreign type's crate maps that crate's type
+/// through a dependency of its own, apart from the glue's dependency on the facade.
+#[test]
+fn foreign_lib_name() {
+	let package = package("foreign_lib_name");
+	write_all(
+		&package,
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"foreign_lib_name\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"url\"\n\n\
+				[dependencies]\nurl_dep = { package = \"url\", version = \"2\" }\n\n[workspace]\n",
+			),
+			(
+				"src/lib.rs",
+				"pub fn echo(url: url_dep::Url) -> url_dep::Url {\n\turl\n}\n",
+			),
+		],
+	);
+	export_and_build(&package, &[]);
+}
+
+/// A facade's own types keep their names, even where a foreign type's path and role name
+/// would spell them: `serde_json::Value` is `Value`, apart from `Json`.
+#[test]
+fn foreign_role_names() {
+	let package = package("foreign_role_names");
+	write_all(
+		&package,
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"foreign_role_names\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+				[lib]\nname = \"serde_json\"\n\n[workspace]\n",
+			),
+			(
+				"src/lib.rs",
+				"pub struct Value {\n\tpub n: u32,\n}\n\npub struct Json {\n\tpub n: u32,\n}\n",
+			),
+		],
+	);
+	export_and_build(&package, &[]);
+}
+
+/// An exclude may name what a `cfg` leaves out of this build, whether the facade's own
+/// module or another crate's that the facade re-exports through a glob, or a chain of them,
+/// but not what no build has, nor what a module only some of whose items the facade
+/// re-exports leaves out.
+#[test]
+fn configured_out() {
+	let package = package("configured_out");
+	let dep = manifest_dir().join("fixtures/dep");
+	let manifest = format!(
+		"[package]\nname = \"configured_out\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+		[dependencies]\ndep = {{ package = \"dep-fixture\", path = {:?} }}\n\n[workspace]\n",
+		dep.display().to_string()
+	);
+	write_all(
+		&package,
+		&[
+			("Cargo.toml", &manifest),
+			(
+				"src/lib.rs",
+				"pub use ::dep::Size;\n\npub mod dep {\n\tpub use ::dep::*;\n}\n\n#[cfg(any())]\npub mod local {}\n\n\
+				mod inner {\n\tpub fn kept() -> u32 {\n\t\t1\n\t}\n\n\t#[cfg(any())]\n\tpub mod gone {}\n}\n\n\
+				mod middle {\n\tpub use crate::inner::*;\n}\n\npub mod outer {\n\tpub use crate::middle::*;\n}\n",
+			),
+			(
+				"ffi.toml",
+				"exclude = [\"Gone\", \"dep::gone::Gone\", \"gone::Gone\", \"local::Gone\", \"outer::gone::Gone\"]\n",
+			),
+		],
+	);
+	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--out")
+		.arg(package.join("out"))
+		.env("CARGO_TARGET_DIR", package.join("build"))
+		.output()
+		.unwrap();
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	let errors: Vec<&str> = stderr.lines().filter(|l| l.starts_with("error: rust2-ffi:")).collect();
+	assert_eq!(
+		errors,
+		[
+			"error: rust2-ffi: exclude `Gone` in the config names nothing exported",
+			"error: rust2-ffi: exclude `gone::Gone` in the config names nothing exported",
+		],
+		"{stderr}"
+	);
 }
 
 /// Writes each `(path, text)` into `dir`.
@@ -1363,10 +1517,9 @@ fn plain() {
 		.env("RUSTFLAGS", "-D warnings"));
 }
 
-/// Another export patched in for a registry dependency is bound by its resolved package,
-/// though the dependency names no path, and the glue builds it patched in too, though
-/// the dependency goes by its library's crate name. So is a dependency of no platform's,
-/// which cargo resolves all the same.
+/// A dependency the facade re-exports from, patched in for a registry dependency, is
+/// patched into the glue's build too, though the dependency goes by its library's crate
+/// name. So is a dependency of no platform's, which cargo resolves all the same.
 #[test]
 fn patched() {
 	let package = package("patched");
@@ -1395,9 +1548,8 @@ fn patched() {
 			),
 			(
 				"src/lib.rs",
-				"pub fn width(size: rust2_ffi_patched_core::Size) -> u32 {\n\tsize.width\n}\n",
+				"pub use rust2_ffi_patched_core::Size;\n\npub fn width(size: Size) -> u32 {\n\tsize.width\n}\n",
 			),
-			("ffi.toml", "package = \"patched\"\n\n[crates.rust2-ffi-patched-dep]\n"),
 		],
 	);
 	export_and_build(&package, &["--offline"]);
@@ -1459,7 +1611,8 @@ fn git_patched() {
 	export_and_build(&package, &[]);
 }
 
-/// Another export the workspace `[replace]`s, by a spec naming no package, is carried as
+/// A dependency the facade re-exports from, which the workspace `[replace]`s by a spec
+/// naming no package, is carried as
 /// a `[patch]` of it, which resolves alike since a replacement keeps its version. A
 /// replacement from the source it replaces is an error, since no patch can carry it.
 #[test]
@@ -1498,23 +1651,15 @@ fn replaced() {
 				),
 				(
 					"src/lib.rs",
-					"pub fn width(size: rust2_ffi_replaced_dep::Size) -> u32 {\n\tsize.width\n}\n",
+					"pub use rust2_ffi_replaced_dep::Size;\n\npub fn width(size: Size) -> u32 {\n\tsize.width\n}\n",
 				),
-				(
-					"ffi.toml",
-					"package = \"replaced\"\n\n[crates.rust2-ffi-replaced-dep]\n",
-				),
+				("ffi.toml", ""),
 			],
 		);
 	};
 	files("{ path = \"dep\" }");
 	export_and_build(&package, &[]);
-	// Not an export, which is a path package, but what the package builds with.
 	files(&format!("{{ git = \"{url}\", branch = \"fixed\" }}"));
-	write_all(
-		&package,
-		&[("ffi.toml", "package = \"replaced\"\nexclude = [\"width\"]\n")],
-	);
 	let output = census(&package.join("ffi.toml"), &[]).output().unwrap();
 	assert!(!output.status.success(), "a replacement from its own source passed");
 	let stderr = String::from_utf8_lossy(&output.stderr);
@@ -1580,13 +1725,10 @@ fn config_patched() {
 	);
 	write(
 		"pkg/src/lib.rs",
-		"pub fn width(size: rust2_ffi_config_dep::Size, cli: rust2_ffi_config_cli::Margin) -> u32 {\n\
-		\tsize.width + cli.width\n}\n",
+		"pub use rust2_ffi_config_cli::Margin;\npub use rust2_ffi_config_dep::Size;\n\n\
+		pub fn width(size: Size, cli: Margin) -> u32 {\n\tsize.width + cli.width\n}\n",
 	);
-	write(
-		"pkg/ffi.toml",
-		"package = \"config-patched\"\n\n[crates.rust2-ffi-config-cli]\n\n[crates.rust2-ffi-config-dep]\n",
-	);
+	write("pkg/ffi.toml", "");
 	let out = root.join("out");
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 		.arg("--config")

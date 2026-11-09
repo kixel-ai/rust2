@@ -29,17 +29,15 @@ export function op(name: string): rs.u16 {
 				return _20.value;
 			}
 		}
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, name)];
-		rs.panicFmt(["case ", args4[0], " is past what two bytes pick"], { file: "fixtures/lang/panics/src/../../harness.rs", line: 28, col: 14 });
+		rs.panicFmt(["case ", (f: rs.Formatter) => rs.fmtPad(f, name), " is past what two bytes pick"], { file: "fixtures/lang/panics/src/../../harness.rs", line: 28, col: 14 });
 	} else {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, name)];
-		rs.panicFmt(["no case ", args2[0]], { file: "fixtures/lang/panics/src/../../harness.rs", line: 23, col: 9 });
+		rs.panicFmt(["no case ", (f: rs.Formatter) => rs.fmtPad(f, name)], { file: "fixtures/lang/panics/src/../../harness.rs", line: 23, col: 9 });
 	}
 }
 
 /** A char of the alphabet for each byte, by its low bits. */
-export function text(data: rs.ByteSlice): string {
-	let s: string = "";
+export function text(data: rs.ByteSlice): rs.String {
+	const s: rs.String = rs.stringNew();
 	const iterS: Uint8Array = rs.byteSliceView(data);
 	let iterI: number = 0;
 	while (true) {
@@ -49,9 +47,9 @@ export function text(data: rs.ByteSlice): string {
 		}
 		const _13: rs.usize = rs.u8Rem(_5, 16, { file: "fixtures/lang/panics/src/../../harness.rs", line: 62, col: 25 }) as rs.usize;
 		if (!(_13 < 16)) {
-			rs.panic("index out of bounds: the len is " + 16 + " but the index is " + _13, { file: "fixtures/lang/panics/src/../../harness.rs", line: 62, col: 16 }, true);
+			rs.panicSizes(["index out of bounds: the len is ", 16, " but the index is ", _13], { file: "fixtures/lang/panics/src/../../harness.rs", line: 62, col: 16 });
 		}
-		s = s + String.fromCodePoint([47, 92, 97, 48, 57, 127, 128, 233, 2047, 2048, 55295, 57344, 65535, 65536, 128512, 1114111][_13]);
+		rs.stringPush(s, [47, 92, 97, 48, 57, 127, 128, 233, 2047, 2048, 55295, 57344, 65535, 65536, 128512, 1114111][_13]);
 	}
 }
 

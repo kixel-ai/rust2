@@ -1,7 +1,9 @@
 //! Trait objects the translation doesn't make.
 
-pub fn dynamic(h: &mut dyn std::hash::Hasher) -> u64 {
-	h.finish()
+/// An object of std's trait of a std type whose impl no mapping makes.
+pub fn dynamic(v: &mut Vec<u8>) -> usize {
+	let w: &mut dyn std::io::Write = v;
+	w.write(&[1]).unwrap_or(0)
 }
 
 pub trait Reading {
@@ -18,9 +20,44 @@ pub trait Scaled<T> {
 	fn scale(&self, by: T) -> T;
 }
 
-/// A trait object of a generic trait.
-pub fn generic_object(s: &dyn Scaled<u8>) -> u8 {
-	s.scale(2)
+impl Scaled<u8> for u8 {
+	fn scale(&self, by: u8) -> u8 {
+		self.wrapping_mul(by)
+	}
+}
+
+impl Scaled<u16> for u8 {
+	fn scale(&self, by: u16) -> u16 {
+		u16::from(*self).wrapping_mul(by)
+	}
+}
+
+/// One type as objects of two arguments of one generic trait, which the class of the
+/// value's own type, shared by its objects, can't both have.
+pub fn scaled_twice(x: &u8) -> u16 {
+	let a: &dyn Scaled<u8> = x;
+	let b: &dyn Scaled<u16> = x;
+	u16::from(a.scale(2)).wrapping_add(b.scale(3))
+}
+
+pub trait Taken {
+	type Item;
+	fn take(&mut self) -> Option<Self::Item>;
+}
+
+impl Taken for u32 {
+	type Item = std::mem::MaybeUninit<u32>;
+	fn take(&mut self) -> Option<std::mem::MaybeUninit<u32>> {
+		Some(std::mem::MaybeUninit::new(*self))
+	}
+}
+
+/// An object whose method returns an `Option` of its associated type, which its type has
+/// as an `rs.OptionOf<Item>`, bound to a `MaybeUninit<u32>`, whose `None` is `rs.None`
+/// though TypeScript's type of it, a `number`, can't be `undefined`.
+pub fn uninit_item(x: &mut u32) -> bool {
+	let s: &mut dyn Taken<Item = std::mem::MaybeUninit<u32>> = x;
+	s.take().is_some()
 }
 
 pub trait First {
@@ -72,11 +109,6 @@ pub fn same_named(x: &u8) -> u8 {
 	a.name().wrapping_add(b.name())
 }
 
-/// A `TypeId`, which no value stands for yet.
-pub fn any_type_id(a: &dyn std::any::Any) -> bool {
-	a.type_id() == std::any::TypeId::of::<u8>()
-}
-
 pub trait Source {
 	type Item: Reading;
 	fn item(&self) -> &Self::Item;
@@ -107,4 +139,16 @@ pub fn dyn_compared(n: &mut u8) -> bool {
 	let p: *mut dyn Reading = n;
 	let q: *mut dyn Reading = n;
 	std::ptr::eq(p, q)
+}
+
+impl Reading for [u16; 2] {
+	fn read(&self) -> u8 {
+		self[0] as u8
+	}
+}
+
+/// An array as an object, whose class's methods would take the array a box holds and the
+/// slice of it a reference is.
+pub fn array_object(a: std::sync::Arc<[u16; 2]>) -> std::sync::Arc<dyn Reading> {
+	a
 }

@@ -22,10 +22,10 @@
 //! into Rust runs on a thread of its own while Rust holds an implementation or a lent
 //! closure, while the isolate's runs those calls.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
-use crate::abi::{self, Abi, Sig, Ty};
+use crate::abi::{self, Abi, Sig, Ty, pascal};
 use crate::glue::rs;
 use crate::ir::{Access, Family, Function, Int, Literal, Receiver, Type};
 use crate::kotlin::strip_refs;
@@ -51,6 +51,7 @@ pub struct Output {
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
 		abi,
+		classes: abi.classes(|_| (String::new(), 0)),
 		structs: BTreeMap::new(),
 		natives: BTreeMap::new(),
 		helpers: BTreeMap::new(),
@@ -287,6 +288,8 @@ const OBJECT: &[&str] = &["hashCode", "noSuchMethod", "runtimeType", "toString"]
 
 struct Gen<'a> {
 	abi: &'a Abi<'a>,
+	/// Each exported type's name, by its C name.
+	classes: HashMap<String, String>,
 	/// Each C struct's `dart:ffi` class, by C name.
 	structs: BTreeMap<String, String>,
 	/// Each C function's `@Native` declaration, by C name.
@@ -325,7 +328,7 @@ impl<'a> Gen<'a> {
 
 	/// The Dart name of the C type `c`.
 	fn class(&self, c: &str) -> String {
-		type_name(&pascal(self.bare(c)))
+		type_name(&self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c))))
 	}
 
 	/// Refuse any C name in the glue's namespace, `<prefix>_dart_`.
@@ -363,7 +366,7 @@ impl<'a> Gen<'a> {
 		for (name, what) in names {
 			if name.starts_with(&space) || name == abi.rt("dart") && what != "the runtime" {
 				self.errors.push(format!(
-					"{what} is `{name}` in C, which Dart's glue names: rename it in the config"
+					"{what} is `{name}` in C, which Dart's glue names: rename it in the source or exclude it in the config"
 				));
 			}
 		}
@@ -373,11 +376,11 @@ impl<'a> Gen<'a> {
 	fn claim(&mut self, name: &str, what: String) {
 		if TAKEN.contains(&name) {
 			self.errors.push(format!(
-				"{what} is `{name}` in Dart, which its runtime names: rename it in the config"
+				"{what} is `{name}` in Dart, which its runtime names: rename it in the source or exclude it in the config"
 			));
 		} else if let Some(first) = self.names.insert(name.to_string(), what.clone()) {
 			self.errors.push(format!(
-				"{first} and {what} are both `{name}` in Dart: rename one in the config"
+				"{first} and {what} are both `{name}` in Dart: rename one in the source or exclude it in the config"
 			));
 		}
 	}
@@ -402,7 +405,7 @@ impl<'a> Gen<'a> {
 		}
 		for name in clashes {
 			self.errors.push(format!(
-				"two members of `{rust}` are both `{name}` in Dart: rename one in the config"
+				"two members of `{rust}` are both `{name}` in Dart: rename one in the source or exclude it in the config"
 			));
 		}
 	}
@@ -551,7 +554,7 @@ impl<'a> Gen<'a> {
 			let union = format!("_{name}_u");
 			let mut members = Vec::new();
 			for variant in e.variants.iter().filter(|v| !v.fields.is_empty()) {
-				let payload = format!("{name}_{}", abi::snake(&variant.name));
+				let payload = abi::payload(&name, &variant.name);
 				let mut decls = Vec::new();
 				for field in &variant.fields {
 					let ty = abi.ty(&field.ty);
@@ -1076,7 +1079,7 @@ impl<'a> Gen<'a> {
 			self.range(c, ty);
 		}
 		for constant in &api.constants {
-			let name = member(&self.bare(&abi.name(&constant.path)).to_lowercase(), &[]);
+			let name = abi::snake(self.bare(&abi.name(&constant.path))).to_uppercase();
 			self.claim(&name, format!("const `{}`", constant.path.join("::")));
 			let value = match constant.value {
 				Literal::Bool(b) => b.to_string(),
@@ -1670,7 +1673,11 @@ impl<'a> Gen<'a> {
 			reserved.push("close");
 		}
 		let snake = own.unwrap_or(&bare);
-		let member = member(snake, &reserved);
+		// A constant in upper case, as Rust names it, apart from a method of its name.
+		let member = match function.access {
+			Access::Const => abi::snake(snake).to_uppercase(),
+			_ => member(snake, &reserved),
+		};
 
 		let receiver = function.receiver.filter(|_| owner.is_some());
 		let mut pre = Vec::new();
@@ -2021,20 +2028,6 @@ fn int_literal(v: i128) -> String {
 		true => format!("0x{:x}", v as u64),
 		false => v.to_string(),
 	}
-}
-
-/// A snake-case name in Pascal case: `size_pair` is `SizePair`.
-fn pascal(name: &str) -> String {
-	name.split('_')
-		.filter(|s| !s.is_empty())
-		.map(|s| {
-			let mut chars = s.chars();
-			match chars.next() {
-				Some(first) => first.to_uppercase().chain(chars).collect(),
-				None => String::new(),
-			}
-		})
-		.collect()
 }
 
 /// A snake-case name in camel case: `into_label` is `intoLabel`, and `0` is `$0`.

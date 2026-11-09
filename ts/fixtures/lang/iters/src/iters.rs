@@ -2146,3 +2146,69 @@ impl IntoIterator for Bag {
 		Phase::of(self.0).chain(Phase::of(self.1))
 	}
 }
+
+/// std's iterators held in the crate's own fields, over a parameter's items, as rangemap's
+/// iterators hold a B-tree's.
+struct Holder<'a, T, I: Iterator<Item = &'a u8>> {
+	slice: std::slice::Iter<'a, T>,
+	tree: std::collections::btree_map::Range<'a, u8, T>,
+	owned: std::vec::IntoIter<T>,
+	peeked: std::iter::Peekable<I>,
+	last: Option<T>,
+}
+
+impl<'a, T: Clone, I: Iterator<Item = &'a u8>> Holder<'a, T, I> {
+	/// One step of each by `op`, writing what it yields by `code`, and the item it last took.
+	fn step(&mut self, op: u8, code: fn(&T) -> u32, out: &mut Vec<u8>) {
+		let item = match op % 6 {
+			0 => self.slice.next().cloned(),
+			1 => self.slice.next_back().cloned(),
+			2 => self.tree.next().map(|(_, v)| v.clone()),
+			3 => self.tree.next_back().map(|(_, v)| v.clone()),
+			4 => self.owned.next(),
+			_ => {
+				let peeked = self.peeked.peek().map_or(0xff, |&&b| b);
+				out.push(peeked);
+				self.peeked.next_if(|&&b| b % 2 == 0).and_then(|_| self.last.clone())
+			}
+		};
+		out.extend(item.as_ref().map_or(u32::MAX, code).to_le_bytes());
+		if item.is_some() {
+			self.last = item;
+		}
+		out.push(self.slice.len() as u8);
+		out.push(self.owned.len() as u8);
+	}
+}
+
+/// `Holder` over items `make` makes of the input, stepped by its bytes.
+fn held<T: Clone>(data: &[u8], make: impl Fn(u8) -> T, code: fn(&T) -> u32, out: &mut Vec<u8>) {
+	let items: Vec<T> = data.iter().map(|&b| make(b)).collect();
+	let tree: std::collections::BTreeMap<u8, T> = data.iter().map(|&b| (b, make(b))).collect();
+	let (lo, hi) = (data.first().copied().unwrap_or(0), data.last().copied().unwrap_or(0));
+	let mut held = Holder {
+		slice: items.iter(),
+		tree: tree.range(lo.min(hi)..=lo.max(hi)),
+		owned: items.clone().into_iter(),
+		peeked: data.iter().peekable(),
+		last: None,
+	};
+	for &op in data {
+		held.step(op, code, out);
+	}
+	out.extend(held.last.as_ref().map_or(u32::MAX, code).to_le_bytes());
+}
+
+/// std's iterators held in fields of the crate's own generic struct, of numbers, which JS
+/// copies, and of strings, which it shares.
+pub fn held_fields(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	match kind % 2 {
+		0 => held(data, |b| u16::from(b) * 300, |v| u32::from(*v), out),
+		_ => held(
+			data,
+			|b| (0..b % 5).map(|_| "ab").collect::<String>(),
+			|s| s.len() as u32 * 1000 + s.bytes().map(u32::from).sum::<u32>(),
+			out,
+		),
+	}
+}

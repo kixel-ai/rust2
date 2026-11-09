@@ -74,10 +74,10 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 							"byteSliceFrom",
 							vec![Expr::ident("Uint8Array").member("of").call(items)],
 						),
-						_ => Expr::Array(items),
+						_ => super::slice_items_from(Expr::Array(items), *elem),
 					}
 				}
-				_ if super::byte_array(*inner) => Expr::rs("byteSliceFrom", vec![self.value(*inner, valtree, span)]),
+				_ if inner.is_array() => super::array_slice(*inner, self.value(*inner, valtree, span)),
 				_ => self.value(*inner, valtree, span),
 			},
 			ty::Array(elem, _) => {
@@ -103,6 +103,20 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 				[(field_ty, field)] => self.value(*field_ty, *field, span),
 				_ => self.err(span, format!("a constant of type `{ty}` without one field")),
 			},
+			// A reserved slot of wasm-bindgen's heap, by the index the `JsValue` within holds.
+			ty::Adt(adt, _) if Std::of(tcx, adt.did()) == Some(Std::Js) => {
+				let mut node = (ty, valtree);
+				while let [(inner_ty, inner), ..] = children(node.1)[..] {
+					node = (inner_ty, inner);
+				}
+				match leaf(node.1).and_then(|idx| super::bindgen::constant(idx.to_u32())) {
+					Some(value) => value,
+					None => self.err(
+						span,
+						format!("a constant `{ty}` of wasm-bindgen's heap, which only WASM has"),
+					),
+				}
+			}
 			ty::Adt(adt, args) => {
 				let fields = children(valtree);
 				// Its alignment is an enum, whose variant `i` is `1 << i`.

@@ -12,7 +12,7 @@ use rustc_span::Span;
 use super::body::Body;
 use super::library::{self, Std};
 use super::num::Int;
-use crate::ts::{Expr, Key, Param, Stmt, Type};
+use crate::ts::{Expr, Key, Param, Stmt, StmtKind, Type};
 
 /// A formatting trait.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -179,6 +179,108 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 	}
 }
 
+impl<'tcx> Body<'_, '_, 'tcx> {
+	/// `fmt::Write`'s `def_id`, `write_str`, `write_char`, or `write_fmt`, of `w`, a
+	/// `String`, a `Formatter`, or the crate's own writer, of `receiver`, the `&mut` to it,
+	/// and `arg`, a `fmt::Arguments` whose only piece is `literal` if it is one. A
+	/// provided method of the crate's impl writes through its `write_str`, and its
+	/// `write_fmt` through the runtime's port of `fmt::write`, which calls its `write_str`
+	/// and `write_char` as std does. `None` for any other writer.
+	pub fn fmt_write(
+		&mut self,
+		def_id: DefId,
+		w: Ty<'tcx>,
+		[receiver, arg]: [Expr; 2],
+		literal: Option<String>,
+		span: Span,
+		out: &mut Vec<Stmt>,
+	) -> Option<Expr> {
+		let tcx = self.t.tcx;
+		let name = tcx.item_name(def_id);
+		let name = name.as_str();
+		let wargs = tcx.mk_args(&[w.into()]);
+		let write_str = super::collections::trait_fn(tcx, "FmtWrite", "write_str");
+		let std = self.t.std_of(w);
+		if !matches!(std, Some(Std::String | Std::Formatter)) && !self.t.translated(write_str, wargs) {
+			return None;
+		}
+		if std == Some(Std::String) {
+			return Some(self.string_write(name, receiver, arg, literal, out));
+		}
+		// The crate's impl writes this method itself.
+		if self.t.translated(def_id, wargs) {
+			return Some(self.call_def(def_id, wargs, vec![receiver, arg], span, out));
+		}
+		if std == Some(Std::Formatter) {
+			return Some(match (name, literal) {
+				("write_char", _) => Expr::rs("fmtWriteChar", vec![receiver, arg]),
+				("write_fmt", Some(s)) => Expr::rs("fmtWriteStr", vec![receiver, Expr::Str(s)]),
+				("write_fmt", None) => Expr::rs("fmtWriteFmt", vec![receiver, arg]),
+				_ => Expr::rs("fmtWriteStr", vec![receiver, arg]),
+			});
+		}
+		// The provided `write_fmt` writes a literal with one `write_str`, as std's does.
+		let text = match (name, literal) {
+			("write_char", _) => library::char_text(arg),
+			("write_fmt", Some(s)) => Expr::Str(s),
+			("write_fmt", None) => {
+				let write_char = super::collections::trait_fn(tcx, "FmtWrite", "write_char");
+				// Read in each function it writes through.
+				let receiver = match receiver.is_path() {
+					true => receiver,
+					false => self.spill(receiver, "w", out),
+				};
+				let (s, c) = (self.fresh("s"), self.fresh("c"));
+				let (s_arg, c_arg) = (Expr::ident(&s), Expr::ident(&c));
+				let mut pre = Vec::new();
+				let str_call = self.call_def(write_str, wargs, vec![receiver.clone(), s_arg], span, &mut pre);
+				// std's provided `write_char` writes the char's UTF-8 through `write_str`.
+				let char_call = match self.t.translated(write_char, wargs) {
+					true => self.call_def(write_char, wargs, vec![receiver, c_arg], span, &mut pre),
+					false => self.call_def(
+						write_str,
+						wargs,
+						vec![receiver, library::char_text(c_arg)],
+						span,
+						&mut pre,
+					),
+				};
+				if !pre.is_empty() {
+					return Some(self.err(span, format!("`write_str` of `{w}` needs statements")));
+				}
+				let lambda = |name: String, body: Expr| Expr::Lambda(vec![Param { name, ty: None }], Box::new(body));
+				return Some(Expr::rs(
+					"fmtWrite",
+					vec![lambda(s, str_call), lambda(c, char_call), arg],
+				));
+			}
+			_ => arg,
+		};
+		Some(self.call_def(write_str, wargs, vec![receiver, text], span, out))
+	}
+
+	/// `fmt::Write`'s `name` of the `String` `s`, writing `arg`, a `fmt::Arguments` whose only
+	/// piece is `literal` if it is one, in place: what the call returns. What a placeholder
+	/// wrote before an error stays written.
+	pub fn string_write(
+		&mut self,
+		name: &str,
+		s: Expr,
+		arg: Expr,
+		literal: Option<String>,
+		out: &mut Vec<Stmt>,
+	) -> Expr {
+		let pushed = match (name, literal) {
+			("write_char", _) => Expr::rs("stringPush", vec![s, arg]),
+			("write_fmt", Some(text)) => Expr::rs("stringPushStr", vec![s, Expr::Str(text)]),
+			("write_fmt", None) => return Expr::rs("fmtWriteString", vec![s, arg]),
+			_ => Expr::rs("stringPushStr", vec![s, arg]),
+		};
+		out.push(StmtKind::Expr(pushed).at(None));
+		Expr::Rs("OK".into())
+	}
+}
+
 /// `f.debug_struct(name).finish_non_exhaustive()`: the name and ` { .. }`, each a `write_str`.
 fn non_exhaustive(f: Expr, name: &str) -> Expr {
 	let builder = Expr::rs("fmtDebugStruct", vec![f, Expr::Str(name.into())]);
@@ -224,9 +326,9 @@ pub fn std_impl<'tcx>(
 	let rs = |name: &str, args: Vec<Expr>| Expr::rs_of("fmt", name).call(args);
 	let text = matches!(tr, Trait::Display | Trait::Debug);
 	Some(match ty.kind() {
-		// A reference to an array of bytes is a slice of them, written as a slice is.
-		ty::Ref(_, inner, _) if super::byte_array(*inner) => {
-			b.fmt_call(tr, Ty::new_slice(tcx, tcx.types.u8), value, f, span)
+		// A reference to an array is a slice of it, written as a slice is.
+		ty::Ref(_, inner, _) if let ty::Array(elem, _) = inner.kind() => {
+			b.fmt_call(tr, Ty::new_slice(tcx, *elem), value, f, span)
 		}
 		ty::Ref(_, inner, _) => {
 			let value = b.t.pointee_value(ty, value);
@@ -372,11 +474,16 @@ pub fn std_impl<'tcx>(
 			e
 		}
 		ty::Adt(adt, args) => match (Std::of(tcx, adt.did())?, tr) {
-			(Std::String, Trait::Display) => Expr::rs("fmtPad", vec![f, value]),
-			(Std::String, Trait::Debug) => rs("str", vec![value, f]),
+			(Std::String, Trait::Display) => Expr::rs("fmtPad", vec![f, value.member("v")]),
+			(Std::String, Trait::Debug) => rs("str", vec![value.member("v"), f]),
 			// A `NonZero`, a `Wrapping`, and a `Saturating` write their integer, by each trait.
 			(Std::Box | Std::NonZero | Std::Wrapping | Std::Saturating, _) => {
 				b.fmt_call(tr, args.type_at(0), value, f, span)
+			}
+			// An `IoSlice` writes the bytes it lends.
+			(Std::IoSlice, Trait::Debug) => {
+				let bytes = Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, Ty::new_slice(tcx, tcx.types.u8));
+				b.fmt_call(tr, bytes, value, f, span)
 			}
 			// A `Cow` writes what it derefs to.
 			(Std::Cow, _) if let Some(borrowed) = library::cow_borrowed(tcx, ty) => {
@@ -561,6 +668,7 @@ pub fn std_impl<'tcx>(
 			(Std::Utf8Error, Trait::Display) => rs("utf8ErrorDisplay", vec![value, f]),
 			(Std::Utf8Chunk, Trait::Debug) => rs("utf8ChunkDebug", vec![value, f]),
 			(Std::Duration, Trait::Debug) => Expr::rs("durationDebug", vec![value, f]),
+			(Std::TypeId, Trait::Debug) => rs("typeIdDebug", vec![value, f]),
 			(Std::Layout, Trait::Debug) => rs("layoutDebug", vec![value, f]),
 			(Std::Location, Trait::Debug) => rs("locationDebug", vec![value, f]),
 			(Std::Location, Trait::Display) => rs("locationDisplay", vec![value, f]),
@@ -569,6 +677,7 @@ pub fn std_impl<'tcx>(
 			(Std::LayoutError, Trait::Display) => rs("layoutErrorDisplay", vec![value, f]),
 			(Std::TryReserveError, Trait::Debug) => rs("tryReserveErrorDebug", vec![value, f]),
 			(Std::TryReserveError, Trait::Display) => rs("tryReserveErrorDisplay", vec![value, f]),
+			(Std::Sync, Trait::Debug) => return super::tokio::debug(b, ty, value, f, span),
 			(Std::Bytes, Trait::Debug) => Expr::rs("bytesDebug", vec![value, f]),
 			(Std::BytesMut, Trait::Debug) => Expr::rs("bytesDebug", vec![Expr::rs("bytesMutView", vec![value]), f]),
 			_ => return None,

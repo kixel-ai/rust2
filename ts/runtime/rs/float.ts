@@ -11,7 +11,7 @@
 // and its payload at the top, which a signaling one keeps, where JS's conversion from a
 // single would quiet it.
 
-import { Err, type FmtPart, type FmtResult, type Formatter, fmtPadFormatted, fmtToString, Ok, panic, type Result } from "../rs.ts";
+import { Err, type FmtPart, type FmtResult, type Formatter, fmtOwned, fmtPadFormatted, Ok, panicFmt, type Result } from "../rs.ts";
 import type { Ordering } from "./collections.ts";
 import { type f32, type f64, type u32, type u64, u64FromHalves } from "./int.ts";
 
@@ -312,10 +312,7 @@ function mulAddExact(a: number, b: number, c: number): number {
 
 /** `clamp`, which panics with both bounds' `Debug` unless `min <= max`. */
 function clamp(x: number, min: number, max: number, debug: (x: number, f: Formatter) => FmtResult, key: string): number {
-	if (!(min <= max)) {
-		const text = (v: number) => fmtToString((f) => debug(v, f));
-		panic(`min > max, or either was NaN. min = ${text(min)}, max = ${text(max)}`, key, true);
-	}
+	if (!(min <= max)) panicFmt(["min > max, or either was NaN. min = ", fmtOwned(min, debug), ", max = ", fmtOwned(max, debug)], key);
 	return x < min ? min : x > max ? max : x;
 }
 

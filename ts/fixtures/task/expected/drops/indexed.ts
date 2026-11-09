@@ -13,19 +13,20 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		return Guard.new(rs.u32Add(id, n9), Log.clone$Clone(log));
 	};
 	const made: (a0: rs.u32) => Guard.Guard = (n10: rs.u32): Guard.Guard => {
-		const args76: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(n10, f)];
-		Log.note(log, rs.fmtFormat(["make ", args76[0]]));
+		Log.note(log, rs.fmtFormat(["make ", (f: rs.Formatter) => rs.u32Display(n10, f)]));
 		return guard(n10);
 	};
 	const v: rs.u32[] = [1, 2, 3, 4];
 	const w: rs.u32[] = [11, 12, 13, 14];
+	const _11: rs.Slice<rs.u32> = rs.sliceFrom(v);
+	const _13: rs.Slice<rs.u32> = rs.sliceFrom(w);
 	const pairs: () => rs.Iter<[Guard.Guard, Guard.Guard]> = (): rs.Iter<[Guard.Guard, Guard.Guard]> => {
-		const _33: rs.Iter<rs.u32> = rs.iterSlice(v);
+		const _33: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(_11));
 		const captured = made;
 		const _2: rs.Iter<Guard.Guard> = rs.iterMap(_33, (_22: rs.u32): Guard.Guard => {
 			return captured(_22);
 		});
-		const _7: rs.Iter<rs.u32> = rs.iterSlice(w);
+		const _7: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(_13));
 		const captured2 = made;
 		return rs.iterZip(_2, rs.iterMap(_7, (_24: rs.u32): Guard.Guard => {
 			return captured2(_24);
@@ -48,146 +49,134 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const it: rs.Iter<[[Guard.Guard, Guard.Guard], rs.u32]> = rs.iterZip(rs.iterSkip(pairs(), 2, lib_drop$tuple2_model_Guard_model_Guard), new rs.Range(0, 5), [true, false], lib_drop$tuple2_model_Guard_model_Guard);
 		const part51 = rs.iterToOption(it.next());
 		const _35: [rs.u32, rs.u32, rs.u32] | undefined = ids(part51);
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(n, f), (f: rs.Formatter) => rs.fmtOption(_35, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))];
-		Log.note(log, rs.fmtFormat(["count ", args2[0], " ", args2[1]]));
+		const args118 = [(f: rs.Formatter) => rs.usizeDisplay(n, f), (f: rs.Formatter) => rs.fmtOption(_35, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))];
+		Log.note(log, rs.fmtFormat(["count ", args118[0], " ", args118[1]]));
 		const part52 = rs.iterToOption(it.next());
 		const part53 = ids(part52);
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part53, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))];
-		Log.note(log, rs.fmtFormat(["next ", args4[0]]));
+		Log.note(log, rs.fmtFormat(["next ", (f: rs.Formatter) => rs.fmtOption(part53, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))]));
 		const part54 = rs.iterToOption(it.next());
 		const part55 = ids(part54);
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part55, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))];
-		Log.note(log, rs.fmtFormat(["past ", args6[0]]));
+		Log.note(log, rs.fmtFormat(["past ", (f: rs.Formatter) => rs.fmtOption(part55, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))]));
 	} else if (_16 === 1) {
 		const it2: rs.Iter<[[Guard.Guard, Guard.Guard], rs.u32]> = rs.iterZip(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), new rs.Range(0, 2), [true, false], lib_drop$tuple2_model_Guard_model_Guard);
 		const part39 = rs.iterToOption(it2.nextBack());
 		const part40 = ids(part39);
-		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part40, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))];
-		Log.note(log, rs.fmtFormat(["back ", args8[0]]));
+		Log.note(log, rs.fmtFormat(["back ", (f: rs.Formatter) => rs.fmtOption(part40, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))]));
 		const part41 = rs.iterToOption(it2.nextBack());
 		const part42 = ids(part41);
-		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part42, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))];
-		Log.note(log, rs.fmtFormat(["back ", args10[0]]));
+		Log.note(log, rs.fmtFormat(["back ", (f: rs.Formatter) => rs.fmtOption(part42, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))]));
 		const part43 = rs.iterToOption(it2.nextBack());
 		const part44 = ids(part43);
-		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part44, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))];
-		Log.note(log, rs.fmtFormat(["back ", args12[0]]));
+		Log.note(log, rs.fmtFormat(["back ", (f: rs.Formatter) => rs.fmtOption(part44, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))]));
 		const part45 = rs.iterNth(rs.iterZip(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), new rs.Range(0, 3), [true, false], lib_drop$tuple2_model_Guard_model_Guard), 1, lib_drop$tuple2_tuple2_model_Guard_model_Guard_u32);
 		const part46 = ids(part45);
-		const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part46, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))];
-		Log.note(log, rs.fmtFormat(["nth ", args14[0]]));
+		Log.note(log, rs.fmtFormat(["nth ", (f: rs.Formatter) => rs.fmtOption(part46, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))]));
 		const it4: rs.Iter<[[Guard.Guard, Guard.Guard], rs.u32]> = rs.iterZip(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), new rs.Range(0, 3), [true, false], lib_drop$tuple2_model_Guard_model_Guard);
 		const part47 = rs.iterToOption(it4.next());
 		const part48 = ids(part47);
-		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part48, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))];
-		Log.note(log, rs.fmtFormat(["front ", args16[0]]));
+		Log.note(log, rs.fmtFormat(["front ", (f: rs.Formatter) => rs.fmtOption(part48, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))]));
 		const part49 = rs.iterToOption(it4.nextBack());
 		const part50 = ids(part49);
-		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part50, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))];
-		Log.note(log, rs.fmtFormat(["back ", args18[0]]));
+		Log.note(log, rs.fmtFormat(["back ", (f: rs.Formatter) => rs.fmtOption(part50, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))]));
 	} else if (_16 === 2) {
-		const part38 = option_map$0j32j8c(rs.iterToOption(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard).next()), (_258: [Guard.Guard, Guard.Guard]): [rs.u32, rs.u32] => {
-			const a15: Guard.Guard = _258[0];
-			const b12: Guard.Guard = _258[1];
+		const part38 = option_map$0j32j8c(rs.iterToOption(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard).next()), (_264: [Guard.Guard, Guard.Guard]): [rs.u32, rs.u32] => {
+			const a15: Guard.Guard = _264[0];
+			const b12: Guard.Guard = _264[1];
 			const _040: [rs.u32, rs.u32] = [rs.u32Sub(Guard.id(a15), id), rs.u32Sub(Guard.id(b12), id)];
 			b12[Symbol.dispose]();
 			a15[Symbol.dispose]();
 			return _040;
 		});
-		const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part38, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))];
-		Log.note(log, rs.fmtFormat(["skip next ", args20[0]]));
+		Log.note(log, rs.fmtFormat(["skip next ", (f: rs.Formatter) => rs.fmtOption(part38, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))]));
 		const n2: rs.usize = rs.ownedCount(rs.iterSkip(pairs(), 2, lib_drop$tuple2_model_Guard_model_Guard), lib_drop$tuple2_model_Guard_model_Guard);
-		const last: [rs.u32, rs.u32] | undefined = option_map$0j32j8c(rs.ownedLast(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), lib_drop$tuple2_model_Guard_model_Guard), (_259: [Guard.Guard, Guard.Guard]): [rs.u32, rs.u32] => {
-			const a16: Guard.Guard = _259[0];
-			const b13: Guard.Guard = _259[1];
+		const last: [rs.u32, rs.u32] | undefined = option_map$0j32j8c(rs.ownedLast(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), lib_drop$tuple2_model_Guard_model_Guard), (_265: [Guard.Guard, Guard.Guard]): [rs.u32, rs.u32] => {
+			const a16: Guard.Guard = _265[0];
+			const b13: Guard.Guard = _265[1];
 			const _041: [rs.u32, rs.u32] = [rs.u32Sub(Guard.id(a16), id), rs.u32Sub(Guard.id(b13), id)];
 			b13[Symbol.dispose]();
 			a16[Symbol.dispose]();
 			return _041;
 		});
-		const args22: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(n2, f), (f: rs.Formatter) => rs.fmtOption(last, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))];
-		Log.note(log, rs.fmtFormat(["skip count ", args22[0], " ", args22[1]]));
+		const args111 = [(f: rs.Formatter) => rs.usizeDisplay(n2, f), (f: rs.Formatter) => rs.fmtOption(last, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))];
+		Log.note(log, rs.fmtFormat(["skip count ", args111[0], " ", args111[1]]));
 	} else if (_16 === 3) {
-		const part35 = rs.iterFold(rs.iterTake(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), 2, lib_drop$tuple2_model_Guard_model_Guard, true), 0, (n35: rs.u32, _320: [Guard.Guard, Guard.Guard]): rs.u32 => {
-			const a10: Guard.Guard = _320[0];
-			const b8: Guard.Guard = _320[1];
+		const part35 = rs.iterFold(rs.iterTake(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), 2, lib_drop$tuple2_model_Guard_model_Guard, true), 0, (n35: rs.u32, _326: [Guard.Guard, Guard.Guard]): rs.u32 => {
+			const a10: Guard.Guard = _326[0];
+			const b8: Guard.Guard = _326[1];
 			const _035: rs.u32 = rs.u32Sub(rs.u32Add(rs.u32Add(rs.u32Mul(n35, 100), Guard.id(a10)), Guard.id(b8)), rs.u32Mul(2, id));
 			b8[Symbol.dispose]();
 			a10[Symbol.dispose]();
 			return _035;
 		});
-		const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part35, f)];
-		Log.note(log, rs.fmtFormat(["take fold ", args24[0]]));
-		rs.iterForEach(rs.iterTake(rs.iterSkip(pairs(), 2, lib_drop$tuple2_model_Guard_model_Guard), 5, lib_drop$tuple2_model_Guard_model_Guard, true), (_250: [Guard.Guard, Guard.Guard]): undefined => {
-			const a11: Guard.Guard = _250[0];
-			const b9: Guard.Guard = _250[1];
+		Log.note(log, rs.fmtFormat(["take fold ", (f: rs.Formatter) => rs.u32Display(part35, f)]));
+		rs.iterForEach(rs.iterTake(rs.iterSkip(pairs(), 2, lib_drop$tuple2_model_Guard_model_Guard), 5, lib_drop$tuple2_model_Guard_model_Guard, true), (_256: [Guard.Guard, Guard.Guard]): undefined => {
+			const a11: Guard.Guard = _256[0];
+			const b9: Guard.Guard = _256[1];
 			const _1019: rs.u32 = rs.u32Sub(Guard.id(a11), id);
-			const _1613: rs.u32 = rs.u32Sub(Guard.id(b9), id);
-			const args80: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_1019, f), (f: rs.Formatter) => rs.u32Display(_1613, f)];
-			Log.note(log, rs.fmtFormat(["each ", args80[0], " ", args80[1]]));
+			const _1614: rs.u32 = rs.u32Sub(Guard.id(b9), id);
+			const args106 = [(f: rs.Formatter) => rs.u32Display(_1019, f), (f: rs.Formatter) => rs.u32Display(_1614, f)];
+			Log.note(log, rs.fmtFormat(["each ", args106[0], " ", args106[1]]));
 			b9[Symbol.dispose]();
 			a11[Symbol.dispose]();
 		});
-		const part36 = option_map$0j94wbv(rs.iterFind(rs.iterTake(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), 3, lib_drop$tuple2_model_Guard_model_Guard, true), (_254: [Guard.Guard, Guard.Guard]): boolean => {
-			return Guard.id(_254[0]) === rs.u32Add(id, 3);
-		}, lib_drop$tuple2_model_Guard_model_Guard), (_256: [Guard.Guard, Guard.Guard]): rs.u32 => {
-			const a12: Guard.Guard = _256[0];
+		const part36 = option_map$0j94wbv(rs.iterFind(rs.iterTake(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), 3, lib_drop$tuple2_model_Guard_model_Guard, true), (_259: [Guard.Guard, Guard.Guard]): boolean => {
+			return Guard.id(_259[0]) === rs.u32Add(id, 3);
+		}, lib_drop$tuple2_model_Guard_model_Guard), (_263: [Guard.Guard, Guard.Guard]): rs.u32 => {
+			const a12: Guard.Guard = _263[0];
 			const _037: rs.u32 = rs.u32Sub(Guard.id(a12), id);
 			a12[Symbol.dispose]();
-			_256[1][Symbol.dispose]();
+			_263[1][Symbol.dispose]();
 			return _037;
 		});
-		const args26: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part36, f, rs.u32Debug)];
-		Log.note(log, rs.fmtFormat(["take find ", args26[0]]));
-		const n4: rs.u32 = rs.iterFold(rs.iterTake(rs.iterSkip(pairs(), 4, lib_drop$tuple2_model_Guard_model_Guard), 1, lib_drop$tuple2_model_Guard_model_Guard, true), 0, (n36: rs.u32, _326: [Guard.Guard, Guard.Guard]): rs.u32 => {
-			const a13: Guard.Guard = _326[0];
-			const b10: Guard.Guard = _326[1];
+		Log.note(log, rs.fmtFormat(["take find ", (f: rs.Formatter) => rs.fmtOption(part36, f, rs.u32Debug)]));
+		const n4: rs.u32 = rs.iterFold(rs.iterTake(rs.iterSkip(pairs(), 4, lib_drop$tuple2_model_Guard_model_Guard), 1, lib_drop$tuple2_model_Guard_model_Guard, true), 0, (n36: rs.u32, _329: [Guard.Guard, Guard.Guard]): rs.u32 => {
+			const a13: Guard.Guard = _329[0];
+			const b10: Guard.Guard = _329[1];
 			const _038: rs.u32 = rs.u32Add(rs.u32Add(n36, Guard.id(a13)), Guard.id(b10));
 			b10[Symbol.dispose]();
 			a13[Symbol.dispose]();
 			return _038;
 		});
-		const m: rs.u32 = rs.iterFold(rs.iterTake(rs.iterSkip(pairs(), 3, lib_drop$tuple2_model_Guard_model_Guard), 2, lib_drop$tuple2_model_Guard_model_Guard, true), 0, (n37: rs.u32, _329: [Guard.Guard, Guard.Guard]): rs.u32 => {
-			const a14: Guard.Guard = _329[0];
-			const b11: Guard.Guard = _329[1];
+		const m: rs.u32 = rs.iterFold(rs.iterTake(rs.iterSkip(pairs(), 3, lib_drop$tuple2_model_Guard_model_Guard), 2, lib_drop$tuple2_model_Guard_model_Guard, true), 0, (n37: rs.u32, _330: [Guard.Guard, Guard.Guard]): rs.u32 => {
+			const a14: Guard.Guard = _330[0];
+			const b11: Guard.Guard = _330[1];
 			const _039: rs.u32 = rs.u32Sub(rs.u32Add(rs.u32Add(rs.u32Mul(n37, 100), Guard.id(a14)), Guard.id(b11)), rs.u32Mul(2, id));
 			b11[Symbol.dispose]();
 			a14[Symbol.dispose]();
 			return _039;
 		});
-		const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(n4, f), (f: rs.Formatter) => rs.u32Display(m, f)];
-		Log.note(log, rs.fmtFormat(["take past ", args28[0], " ", args28[1]]));
+		const args108 = [(f: rs.Formatter) => rs.u32Display(n4, f), (f: rs.Formatter) => rs.u32Display(m, f)];
+		Log.note(log, rs.fmtFormat(["take past ", args108[0], " ", args108[1]]));
 		const part37 = rs.ownedCount(rs.iterZip(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), rs.vecIntoIter(rs.vecFrom([0, 1])), "index", lib_drop$tuple2_model_Guard_model_Guard), lib_drop$tuple2_tuple2_model_Guard_model_Guard_u32);
-		const args30: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part37, f)];
-		Log.note(log, rs.fmtFormat(["vec count ", args30[0]]));
+		Log.note(log, rs.fmtFormat(["vec count ", (f: rs.Formatter) => rs.usizeDisplay(part37, f)]));
 	} else if (_16 === 4) {
-		const n6: rs.usize = rs.iterCount(rs.iterZip(rs.iterMap(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), (_247: [Guard.Guard, Guard.Guard]): rs.u32 => {
-			const a8: Guard.Guard = _247[0];
-			const b7: Guard.Guard = _247[1];
+		const n6: rs.usize = rs.iterCount(rs.iterZip(rs.iterMap(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), (_250: [Guard.Guard, Guard.Guard]): rs.u32 => {
+			const a8: Guard.Guard = _250[0];
+			const b7: Guard.Guard = _250[1];
 			const _033: rs.u32 = rs.u32Sub(rs.u32Add(Guard.id(a8), Guard.id(b7)), rs.u32Mul(2, id));
 			b7[Symbol.dispose]();
 			a8[Symbol.dispose]();
 			return _033;
 		}), new rs.Range(0, 2), [true, false]));
-		const e: [rs.usize, rs.u32, rs.i32] | undefined = option_map$0nncxiz(rs.ownedLast(rs.iterZip(rs.iterEnumerate(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard)), new rs.Range(0, 2), [true, false], lib_drop$tuple2_usize_tuple2_model_Guard_model_Guard), lib_drop$tuple2_tuple2_usize_tuple2_model_Guard_model_Guard_i32), (_248: [[rs.usize, [Guard.Guard, Guard.Guard]], rs.i32]): [rs.usize, rs.u32, rs.i32] => {
-			const i2: rs.usize = _248[0][0];
-			const a9: Guard.Guard = _248[0][1][0];
-			const n34: rs.i32 = _248[1];
+		const e: [rs.usize, rs.u32, rs.i32] | undefined = option_map$0nncxiz(rs.ownedLast(rs.iterZip(rs.iterEnumerate(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard)), new rs.Range(0, 2), [true, false], lib_drop$tuple2_usize_tuple2_model_Guard_model_Guard), lib_drop$tuple2_tuple2_usize_tuple2_model_Guard_model_Guard_i32), (_254: [[rs.usize, [Guard.Guard, Guard.Guard]], rs.i32]): [rs.usize, rs.u32, rs.i32] => {
+			const i2: rs.usize = _254[0][0];
+			const a9: Guard.Guard = _254[0][1][0];
+			const n34: rs.i32 = _254[1];
 			const _034: [rs.usize, rs.u32, rs.i32] = [i2, rs.u32Sub(Guard.id(a9), id), n34];
 			a9[Symbol.dispose]();
-			_248[0][1][1][Symbol.dispose]();
+			_254[0][1][1][Symbol.dispose]();
 			return _034;
 		});
 		f = rs.ownedCount(rs.iterZip(rs.iterFuse(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), true), new rs.Range(0, 1), [true, false], lib_drop$tuple2_model_Guard_model_Guard), lib_drop$tuple2_tuple2_model_Guard_model_Guard_i32);
-		const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(n6, f), (f: rs.Formatter) => rs.fmtOption(e, f, (value: [rs.usize, rs.u32, rs.i32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.i32Debug(value[2], f)], f)), (f2: rs.Formatter) => rs.usizeDisplay(f, f2)];
-		Log.note(log, rs.fmtFormat(["adapted ", args32[0], " ", args32[1], " ", args32[2]]));
+		const args102 = [(f: rs.Formatter) => rs.usizeDisplay(n6, f), (f: rs.Formatter) => rs.fmtOption(e, f, (value: [rs.usize, rs.u32, rs.i32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.i32Debug(value[2], f)], f)), (f2: rs.Formatter) => rs.usizeDisplay(f, f2)];
+		Log.note(log, rs.fmtFormat(["adapted ", args102[0], " ", args102[1], " ", args102[2]]));
 	} else if (_16 === 5) {
 		const n7: rs.usize = rs.ownedCount(rs.iterZip(rs.iterSkip(pairs(), 9, lib_drop$tuple2_model_Guard_model_Guard), new rs.Range(0, 2), [true, false], lib_drop$tuple2_model_Guard_model_Guard), lib_drop$tuple2_tuple2_model_Guard_model_Guard_i32);
 		const m2: rs.usize = rs.ownedCount(rs.iterZip(rs.iterSkip(pairs(), 0, lib_drop$tuple2_model_Guard_model_Guard), new rs.Range(0, 2), [true, false], lib_drop$tuple2_model_Guard_model_Guard), lib_drop$tuple2_tuple2_model_Guard_model_Guard_i32);
 		const o: rs.usize = rs.ownedCount(rs.iterZip(rs.iterSkip(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), 1, lib_drop$tuple2_model_Guard_model_Guard), new rs.Range(0, 2), [true, false], lib_drop$tuple2_model_Guard_model_Guard), lib_drop$tuple2_tuple2_model_Guard_model_Guard_i32);
 		const p: rs.usize = rs.ownedCount(rs.iterZip(rs.iterSkip(rs.iterZip(rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), new rs.Range(0, 3), [true, false], lib_drop$tuple2_model_Guard_model_Guard), 1, lib_drop$tuple2_tuple2_model_Guard_model_Guard_i32), new rs.Range(0, 1), [true, false], lib_drop$tuple2_tuple2_model_Guard_model_Guard_i32), lib_drop$tuple2_tuple2_tuple2_model_Guard_model_Guard_i32_i32);
-		const args34: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(n7, f), (f: rs.Formatter) => rs.usizeDisplay(m2, f), (f: rs.Formatter) => rs.usizeDisplay(o, f), (f: rs.Formatter) => rs.usizeDisplay(p, f)];
-		Log.note(log, rs.fmtFormat(["edges ", args34[0], " ", args34[1], " ", args34[2], " ", args34[3]]));
+		const args101 = [(f: rs.Formatter) => rs.usizeDisplay(n7, f), (f: rs.Formatter) => rs.usizeDisplay(m2, f), (f: rs.Formatter) => rs.usizeDisplay(o, f), (f: rs.Formatter) => rs.usizeDisplay(p, f)];
+		Log.note(log, rs.fmtFormat(["edges ", args101[0], " ", args101[1], " ", args101[2], " ", args101[3]]));
 	} else if (_16 === 6) {
 		const _398: rs.Iter<rs.u32> = rs.iterSlice(v);
 		const captured14 = made;
@@ -205,60 +194,54 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		};
 		const part7 = rs.iterToOption(it6.nextBack());
 		const part8 = id1(part7);
-		const args36: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part8, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))];
-		Log.note(log, rs.fmtFormat(["back ", args36[0]]));
+		Log.note(log, rs.fmtFormat(["back ", (f: rs.Formatter) => rs.fmtOption(part8, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))]));
 		const part9 = rs.iterToOption(it6.nextBack());
 		const part10 = id1(part9);
-		const args38: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part10, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))];
-		Log.note(log, rs.fmtFormat(["back ", args38[0]]));
+		Log.note(log, rs.fmtFormat(["back ", (f: rs.Formatter) => rs.fmtOption(part10, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))]));
 		const part11 = rs.iterToOption(it6.nextBack());
 		const part12 = id1(part11);
-		const args40: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part12, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))];
-		Log.note(log, rs.fmtFormat(["back ", args40[0]]));
+		Log.note(log, rs.fmtFormat(["back ", (f: rs.Formatter) => rs.fmtOption(part12, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))]));
 		const _453: rs.Iter<rs.u32> = rs.iterSlice(v);
 		const captured15 = made;
-		const _452: rs.Iter<Guard.Guard> = rs.iterMap(_453, (_223: rs.u32): Guard.Guard => {
-			return captured15(_223);
+		const _452: rs.Iter<Guard.Guard> = rs.iterMap(_453, (_224: rs.u32): Guard.Guard => {
+			return captured15(_224);
 		});
-		const _458: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceRange(w, 0, 3));
+		const _458: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(w), 0, 3)));
 		const captured16 = made;
-		const it7: rs.Iter<[[Guard.Guard, Guard.Guard], rs.u32]> = rs.iterZip(rs.iterZip(_452, rs.iterMap(_458, (_224: rs.u32): Guard.Guard => {
-			return captured16(_224);
+		const it7: rs.Iter<[[Guard.Guard, Guard.Guard], rs.u32]> = rs.iterZip(rs.iterZip(_452, rs.iterMap(_458, (_228: rs.u32): Guard.Guard => {
+			return captured16(_228);
 		}), [true, true], rs.drop, rs.drop), new rs.Range(0, 5), [true, false], lib_drop$tuple2_model_Guard_model_Guard);
 		const part13 = rs.iterToOption(it7.nextBack());
 		const part14 = ids(part13);
-		const args42: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part14, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))];
-		Log.note(log, rs.fmtFormat(["uneven ", args42[0]]));
+		Log.note(log, rs.fmtFormat(["uneven ", (f: rs.Formatter) => rs.fmtOption(part14, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))]));
 		const part15 = rs.iterToOption(it7.next());
 		const part16 = ids(part15);
-		const args44: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part16, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))];
-		Log.note(log, rs.fmtFormat(["uneven ", args44[0]]));
+		Log.note(log, rs.fmtFormat(["uneven ", (f: rs.Formatter) => rs.fmtOption(part16, f, (value: [rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f)], f))]));
 		const _499: rs.Iter<rs.u32> = rs.iterSlice(v);
 		const captured17 = made;
-		const _498: rs.Iter<Guard.Guard> = rs.iterMap(_499, (_228: rs.u32): Guard.Guard => {
-			return captured17(_228);
+		const _498: rs.Iter<Guard.Guard> = rs.iterMap(_499, (_230: rs.u32): Guard.Guard => {
+			return captured17(_230);
 		});
-		const _504: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceRange(w, 0, 2));
+		const _504: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(w), 0, 2)));
 		const captured18 = made;
-		const part17 = rs.ownedCount(rs.iterRev(rs.iterZip(rs.iterZip(_498, rs.iterMap(_504, (_230: rs.u32): Guard.Guard => {
-			return captured18(_230);
+		const part17 = rs.ownedCount(rs.iterRev(rs.iterZip(rs.iterZip(_498, rs.iterMap(_504, (_231: rs.u32): Guard.Guard => {
+			return captured18(_231);
 		}), [true, true], rs.drop, rs.drop), new rs.Range(0, 5), [true, false], lib_drop$tuple2_model_Guard_model_Guard)), lib_drop$tuple2_tuple2_model_Guard_model_Guard_u32);
-		const args46: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part17, f)];
-		Log.note(log, rs.fmtFormat(["uneven rev ", args46[0]]));
+		Log.note(log, rs.fmtFormat(["uneven rev ", (f: rs.Formatter) => rs.usizeDisplay(part17, f)]));
 		const _522: rs.Iter<rs.u32> = rs.iterSlice(v);
 		const captured19 = made;
-		const _521: rs.Iter<Guard.Guard> = rs.iterMap(_522, (_231: rs.u32): Guard.Guard => {
-			return captured19(_231);
+		const _521: rs.Iter<Guard.Guard> = rs.iterMap(_522, (_235: rs.u32): Guard.Guard => {
+			return captured19(_235);
 		});
-		const _527: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceRange(w, 0, 3));
+		const _527: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(w), 0, 3)));
 		const captured20 = made;
-		const it8: rs.Iter<[Guard.Guard, Guard.Guard]> = rs.iterZip(_521, rs.iterMap(_527, (_235: rs.u32): Guard.Guard => {
-			return captured20(_235);
+		const it8: rs.Iter<[Guard.Guard, Guard.Guard]> = rs.iterZip(_521, rs.iterMap(_527, (_236: rs.u32): Guard.Guard => {
+			return captured20(_236);
 		}), [true, true], rs.drop, rs.drop);
 		const id2: (a0: [Guard.Guard, Guard.Guard] | undefined) => [rs.u32, rs.u32] | undefined = (p4: [Guard.Guard, Guard.Guard] | undefined): [rs.u32, rs.u32] | undefined => {
-			return option_map$0j32j8c(p4, (_236: [Guard.Guard, Guard.Guard]): [rs.u32, rs.u32] => {
-				const a5: Guard.Guard = _236[0];
-				const b4: Guard.Guard = _236[1];
+			return option_map$0j32j8c(p4, (_237: [Guard.Guard, Guard.Guard]): [rs.u32, rs.u32] => {
+				const a5: Guard.Guard = _237[0];
+				const b4: Guard.Guard = _237[1];
 				const _027: [rs.u32, rs.u32] = [rs.u32Sub(Guard.id(a5), id), rs.u32Sub(Guard.id(b4), id)];
 				b4[Symbol.dispose]();
 				a5[Symbol.dispose]();
@@ -267,32 +250,27 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		};
 		const part18 = rs.iterToOption(it8.next());
 		const part19 = id2(part18);
-		const args48: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part19, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))];
-		Log.note(log, rs.fmtFormat(["ends ", args48[0]]));
+		Log.note(log, rs.fmtFormat(["ends ", (f: rs.Formatter) => rs.fmtOption(part19, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))]));
 		const part20 = rs.iterToOption(it8.nextBack());
 		const part21 = id2(part20);
-		const args50: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part21, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))];
-		Log.note(log, rs.fmtFormat(["ends ", args50[0]]));
+		Log.note(log, rs.fmtFormat(["ends ", (f: rs.Formatter) => rs.fmtOption(part21, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))]));
 		const part22 = rs.iterToOption(it8.next());
 		const part23 = id2(part22);
-		const args52: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part23, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))];
-		Log.note(log, rs.fmtFormat(["ends ", args52[0]]));
+		Log.note(log, rs.fmtFormat(["ends ", (f: rs.Formatter) => rs.fmtOption(part23, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))]));
 		const part24 = rs.iterToOption(it8.nextBack());
 		const part25 = id2(part24);
-		const args54: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part25, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))];
-		Log.note(log, rs.fmtFormat(["ends ", args54[0]]));
+		Log.note(log, rs.fmtFormat(["ends ", (f: rs.Formatter) => rs.fmtOption(part25, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))]));
 		const inner: rs.Iter<[Guard.Guard, Guard.Guard]> = pairs();
 		const part26 = rs.iterToOption(inner.nextBack());
 		const part27 = id2(part26);
-		const args56: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part27, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))];
-		Log.note(log, rs.fmtFormat(["inner ", args56[0]]));
+		Log.note(log, rs.fmtFormat(["inner ", (f: rs.Formatter) => rs.fmtOption(part27, f, (value: [rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f)], f))]));
 		const it9: rs.Iter<[[[Guard.Guard, Guard.Guard], rs.u32], rs.u32]> = rs.iterZip(rs.iterZip(inner, new rs.Range(0, 2), [true, false], lib_drop$tuple2_model_Guard_model_Guard), new rs.Range(0, 2), [true, false], lib_drop$tuple2_tuple2_model_Guard_model_Guard_u32);
 		const id3: (a0: [[[Guard.Guard, Guard.Guard], rs.u32], rs.u32] | undefined) => [rs.u32, rs.u32, rs.u32, rs.u32] | undefined = (p5: [[[Guard.Guard, Guard.Guard], rs.u32], rs.u32] | undefined): [rs.u32, rs.u32, rs.u32, rs.u32] | undefined => {
-			return option_map$0ss4ft9(p5, (_237: [[[Guard.Guard, Guard.Guard], rs.u32], rs.u32]): [rs.u32, rs.u32, rs.u32, rs.u32] => {
-				const a6: Guard.Guard = _237[0][0][0];
-				const b5: Guard.Guard = _237[0][0][1];
-				const m3: rs.u32 = _237[0][1];
-				const n30: rs.u32 = _237[1];
+			return option_map$0ss4ft9(p5, (_241: [[[Guard.Guard, Guard.Guard], rs.u32], rs.u32]): [rs.u32, rs.u32, rs.u32, rs.u32] => {
+				const a6: Guard.Guard = _241[0][0][0];
+				const b5: Guard.Guard = _241[0][0][1];
+				const m3: rs.u32 = _241[0][1];
+				const n30: rs.u32 = _241[1];
 				const _029: [rs.u32, rs.u32, rs.u32, rs.u32] = [rs.u32Sub(Guard.id(a6), id), rs.u32Sub(Guard.id(b5), id), m3, n30];
 				b5[Symbol.dispose]();
 				a6[Symbol.dispose]();
@@ -301,37 +279,33 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		};
 		const part28 = rs.iterToOption(it9.nextBack());
 		const part29 = id3(part28);
-		const args58: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part29, f, (value: [rs.u32, rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f), (f: rs.Formatter) => rs.u32Debug(value[3], f)], f))];
-		Log.note(log, rs.fmtFormat(["nested ", args58[0]]));
+		Log.note(log, rs.fmtFormat(["nested ", (f: rs.Formatter) => rs.fmtOption(part29, f, (value: [rs.u32, rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f), (f: rs.Formatter) => rs.u32Debug(value[3], f)], f))]));
 		const part30 = rs.iterToOption(it9.nextBack());
 		const part31 = id3(part30);
-		const args60: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part31, f, (value: [rs.u32, rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f), (f: rs.Formatter) => rs.u32Debug(value[3], f)], f))];
-		Log.note(log, rs.fmtFormat(["nested ", args60[0]]));
+		Log.note(log, rs.fmtFormat(["nested ", (f: rs.Formatter) => rs.fmtOption(part31, f, (value: [rs.u32, rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f), (f: rs.Formatter) => rs.u32Debug(value[3], f)], f))]));
 		const part32 = rs.iterToOption(it9.nextBack());
 		const part33 = id3(part32);
-		const args62: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part33, f, (value: [rs.u32, rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f), (f: rs.Formatter) => rs.u32Debug(value[3], f)], f))];
-		Log.note(log, rs.fmtFormat(["nested ", args62[0]]));
+		Log.note(log, rs.fmtFormat(["nested ", (f: rs.Formatter) => rs.fmtOption(part33, f, (value: [rs.u32, rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f), (f: rs.Formatter) => rs.u32Debug(value[3], f)], f))]));
 		const _667: rs.Iter<rs.u32> = rs.iterSlice(v);
 		const captured21 = made;
-		const _665: rs.Iter<[rs.usize, Guard.Guard]> = rs.iterEnumerate(rs.iterMap(_667, (_240: rs.u32): Guard.Guard => {
-			return captured21(_240);
+		const _665: rs.Iter<[rs.usize, Guard.Guard]> = rs.iterEnumerate(rs.iterMap(_667, (_245: rs.u32): Guard.Guard => {
+			return captured21(_245);
 		}));
-		const _672: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceRange(w, 0, 3));
+		const _672: rs.Iter<rs.u32> = rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(w), 0, 3)));
 		const captured22 = made;
-		const part34 = option_map$1pp5yot(rs.iterToOption(rs.iterZip(rs.iterZip(_665, rs.iterMap(_672, (_241: rs.u32): Guard.Guard => {
-			return captured22(_241);
-		}), [true, true], lib_drop$tuple2_usize_model_Guard, rs.drop), new rs.Range(0, 5), [true, false], lib_drop$tuple2_tuple2_usize_model_Guard_model_Guard).nextBack()), (_245: [[[rs.usize, Guard.Guard], Guard.Guard], rs.u32]): [rs.usize, rs.u32, rs.u32, rs.u32] => {
-			const i: rs.usize = _245[0][0][0];
-			const a7: Guard.Guard = _245[0][0][1];
-			const b6: Guard.Guard = _245[0][1];
-			const n33: rs.u32 = _245[1];
+		const part34 = option_map$1pp5yot(rs.iterToOption(rs.iterZip(rs.iterZip(_665, rs.iterMap(_672, (_247: rs.u32): Guard.Guard => {
+			return captured22(_247);
+		}), [true, true], lib_drop$tuple2_usize_model_Guard, rs.drop), new rs.Range(0, 5), [true, false], lib_drop$tuple2_tuple2_usize_model_Guard_model_Guard).nextBack()), (_248: [[[rs.usize, Guard.Guard], Guard.Guard], rs.u32]): [rs.usize, rs.u32, rs.u32, rs.u32] => {
+			const i: rs.usize = _248[0][0][0];
+			const a7: Guard.Guard = _248[0][0][1];
+			const b6: Guard.Guard = _248[0][1];
+			const n33: rs.u32 = _248[1];
 			const _032: [rs.usize, rs.u32, rs.u32, rs.u32] = [i, rs.u32Sub(Guard.id(a7), id), rs.u32Sub(Guard.id(b6), id), n33];
 			b6[Symbol.dispose]();
 			a7[Symbol.dispose]();
 			return _032;
 		});
-		const args64: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part34, f, (value: [rs.usize, rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f), (f: rs.Formatter) => rs.u32Debug(value[3], f)], f))];
-		Log.note(log, rs.fmtFormat(["enumerated ", args64[0]]));
+		Log.note(log, rs.fmtFormat(["enumerated ", (f: rs.Formatter) => rs.fmtOption(part34, f, (value: [rs.usize, rs.u32, rs.u32, rs.u32], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(value[0], f), (f: rs.Formatter) => rs.u32Debug(value[1], f), (f: rs.Formatter) => rs.u32Debug(value[2], f), (f: rs.Formatter) => rs.u32Debug(value[3], f)], f))]));
 	} else if (_16 === 7) {
 		const _695: [Guard.Guard, Guard.Guard] = [guard(20), guard(21)];
 		const a: Guard.Guard = _695[0];
@@ -354,8 +328,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured9[Symbol.dispose]();
 		})), "index", 4, true, 4);
-		const args66: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part5.items, f, rs.u32Debug)];
-		Log.note(log, rs.fmtFormat(["in place ", args66[0]]));
+		Log.note(log, rs.fmtFormat(["in place ", (f: rs.Formatter) => rs.fmtList(part5.items, f, rs.u32Debug)]));
 		const c: Guard.Guard = guard(22);
 		const _732: rs.Iter<rs.u32> = rs.vecIntoIter(rs.vecFrom([5, 6, 7]));
 		const _736: rs.Range<rs.u32> = new rs.Range(0, 9);
@@ -368,16 +341,14 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		})), "index"), (_217: [rs.u32, rs.u32]): rs.u32 => {
 			return rs.u32Add(_217[0], _217[1]);
 		}), "index", 4, true, 4);
-		const args68: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part6.items, f, rs.u32Debug)];
-		Log.note(log, rs.fmtFormat(["in place ", args68[0]]));
+		Log.note(log, rs.fmtFormat(["in place ", (f: rs.Formatter) => rs.fmtList(part6.items, f, rs.u32Debug)]));
 	} else {
 		const d: Guard.Guard = guard(23);
 		const _756: rs.Iter<rs.u32> = rs.vecIntoIter(rs.vecFrom([1, 2, 3, 4]));
 		const captured3 = d;
 		const captured4 = id;
 		const part2 = rs.iterToVec(rs.iterMap(rs.iterSkip(rs.iterZip(rs.iterMap(_756, rs.closure((n14: rs.u32): rs.u32 => {
-			const args78: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(n14, f)];
-			Log.note(log, rs.fmtFormat(["map ", args78[0]]));
+			Log.note(log, rs.fmtFormat(["map ", (f: rs.Formatter) => rs.u32Display(n14, f)]));
 			const _156: rs.u32 = Guard.id(captured3);
 			return rs.u32Sub(rs.u32Sub(rs.u32Add(n14, _156), captured4), 23);
 		}, (): void => {
@@ -385,8 +356,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		})), new rs.Range(0, 3), "index"), 1), (_29: [rs.u32, rs.u32]): rs.u32 => {
 			return rs.u32Add(_29[0], _29[1]);
 		}), "index", 4, true, 4);
-		const args70: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part2.items, f, rs.u32Debug)];
-		Log.note(log, rs.fmtFormat(["skipped ", args70[0]]));
+		Log.note(log, rs.fmtFormat(["skipped ", (f: rs.Formatter) => rs.fmtList(part2.items, f, rs.u32Debug)]));
 		const part3 = rs.iterToVec(rs.iterMap(rs.iterZip(rs.vecIntoIter(rs.vecFrom([1, 2, 3])), rs.iterSkip(pairs(), 1, lib_drop$tuple2_model_Guard_model_Guard), "index", undefined, lib_drop$tuple2_model_Guard_model_Guard), (_211: [rs.u32, [Guard.Guard, Guard.Guard]]): rs.u32 => {
 			const n16: rs.u32 = _211[0];
 			const a3: Guard.Guard = _211[1][0];
@@ -396,8 +366,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			a3[Symbol.dispose]();
 			return _010;
 		}), "index", 4, true, 4);
-		const args72: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part3.items, f, rs.u32Debug)];
-		Log.note(log, rs.fmtFormat(["beside ", args72[0]]));
+		Log.note(log, rs.fmtFormat(["beside ", (f: rs.Formatter) => rs.fmtList(part3.items, f, rs.u32Debug)]));
 		const e2: Guard.Guard = guard(24);
 		const _799: rs.Iter<rs.u32> = rs.vecIntoIter(new rs.Vec());
 		const captured5 = e2;
@@ -408,8 +377,7 @@ export function indexed(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		})), new rs.Range(0, 3), "index"), (_212: [rs.u32, rs.u32]): rs.u32 => {
 			return rs.u32Add(_212[0], _212[1]);
 		}), "index", 4, true, 4);
-		const args74: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part4.items, f, rs.u32Debug)];
-		Log.note(log, rs.fmtFormat(["empty ", args74[0]]));
+		Log.note(log, rs.fmtFormat(["empty ", (f: rs.Formatter) => rs.fmtList(part4.items, f, rs.u32Debug)]));
 	}
 }
 

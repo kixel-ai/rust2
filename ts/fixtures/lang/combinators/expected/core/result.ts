@@ -37,7 +37,7 @@ export function asRef$0qzh9or(self: rs.Result<rs.u8, rs.u16>): rs.Result<rs.u8, 
 	return rs.Err(self.error);
 }
 
-export function map$0jdlh8o(self: rs.Result<rs.ByteVec, string>, op: (a0: rs.ByteVec) => rs.ByteVec): rs.Result<rs.ByteVec, string> {
+export function map$022lpi2(self: rs.Result<rs.ByteVec, rs.String>, op: (a0: rs.ByteVec) => rs.ByteVec): rs.Result<rs.ByteVec, rs.String> {
 	if (self.ok) {
 		return rs.Ok(op(self.value));
 	}
@@ -156,11 +156,11 @@ export function copied$10r3llp(self: rs.Result<rs.u8, rs.u16>): rs.Result<rs.u8,
 	return self;
 }
 
-export function clone$1dcpug1(self: rs.Result<rs.ByteVec, string>): rs.Result<rs.ByteVec, string> {
+export function clone$1mincpv(self: rs.Result<rs.ByteVec, rs.String>): rs.Result<rs.ByteVec, rs.String> {
 	if (self.ok) {
 		return rs.Ok(rs.byteVecFrom(rs.byteVecView(self.value)));
 	}
-	return rs.Err(self.error);
+	return rs.Err(rs.stringClone(self.error));
 }
 
 //# sourceMappingURL=result.ts.map

@@ -9,15 +9,15 @@
 // plain loops here. A panic in `less` leaves the slice as it is, which wasm32, where a
 // panic aborts, never shows.
 
-import { byValue, panic } from "../rs.ts";
+import { byValue, panic, type SliceLike } from "../rs.ts";
 import { drop as dispose } from "./task.ts";
 
-type Slice<T> = { [i: number]: T; length: number };
+type Items<T> = { [i: number]: T; length: number };
 type Less<T> = (a: T, b: T) => boolean;
 
 /** The sort of one slice: its elements and test, and what std picks by the type. */
 type Sort<T> = {
-	s: Slice<T>;
+	s: Items<T>;
 	less: Less<T>;
 	/** `size_of::<T>()` on wasm32. */
 	size: number;
@@ -32,11 +32,11 @@ type Sort<T> = {
 };
 
 /** `sort`, `sort_by`, and `sort_by_key`: std's driftsort of `s` by `less`, of elements `size` bytes long on wasm32. */
-export function sliceSort<T>(s: Slice<T>, less: Less<T>, size: number, freeze: boolean): void {
-	byValue(s as T[], (s) => driftsort(s, less, size, freeze));
+export function sliceSort<T>(s: SliceLike<T>, less: Less<T>, size: number, freeze: boolean): void {
+	byValue(s, (s) => driftsort(s, less, size, freeze));
 }
 
-function driftsort<T>(s: Slice<T>, less: Less<T>, size: number, freeze: boolean): void {
+function driftsort<T>(s: Items<T>, less: Less<T>, size: number, freeze: boolean): void {
 	const n = s.length;
 	if (size === 0 || n < 2) return;
 	if (n <= 20) {
@@ -53,11 +53,11 @@ function driftsort<T>(s: Slice<T>, less: Less<T>, size: number, freeze: boolean)
 }
 
 /** `sort_unstable` and its `_by` and `_by_key` forms: std's ipnsort of `s` by `less`, of elements `size` bytes long on wasm32. */
-export function sliceSortUnstable<T>(s: Slice<T>, less: Less<T>, size: number, freeze: boolean, copy: boolean): void {
-	byValue(s as T[], (s) => ipnsort(s, less, size, freeze, copy));
+export function sliceSortUnstable<T>(s: SliceLike<T>, less: Less<T>, size: number, freeze: boolean, copy: boolean): void {
+	byValue(s, (s) => ipnsort(s, less, size, freeze, copy));
 }
 
-function ipnsort<T>(s: Slice<T>, less: Less<T>, size: number, freeze: boolean, copy: boolean): void {
+function ipnsort<T>(s: Items<T>, less: Less<T>, size: number, freeze: boolean, copy: boolean): void {
 	const n = s.length;
 	if (size === 0 || n < 2) return;
 	if (n <= 20) {
@@ -81,17 +81,17 @@ function ipnsort<T>(s: Slice<T>, less: Less<T>, size: number, freeze: boolean, c
  * `key` dropped if the sort `owns` it, the pairs, `size` bytes long on wasm32, sorted by
  * `sort_unstable` by `lt`, which then permute `s`, and drop by `drop`.
  */
-export function sliceSortByCachedKey<T, K>(s: Slice<T>, key: (item: T) => K, lt: Less<[K, number]>, size: number, freeze: boolean, copy: boolean, owns = false, drop?: (key: K) => void): void {
+export function sliceSortByCachedKey<T, K>(s: SliceLike<T>, key: (item: T) => K, lt: Less<[K, number]>, size: number, freeze: boolean, copy: boolean, owns = false, drop?: (key: K) => void): void {
 	const n = s.length;
 	if (n < 2) {
 		if (owns) dispose(key);
 		return;
 	}
 	const indices: [K, number][] = [];
-	for (let i = 0; i < n; i++) indices.push([key(s[i]), i]);
+	for (let i = 0; i < n; i++) indices.push([key(s.data[s.start + i]), i]);
 	if (owns) dispose(key);
 	ipnsort(indices, lt, size, freeze, copy);
-	byValue(s as T[], (s) => {
+	byValue(s, (s) => {
 		for (let i = 0; i < n; i++) {
 			let index = indices[i][1];
 			while (index < i) index = indices[index][1];
@@ -110,7 +110,7 @@ export function keyLt<T, K>(key: (item: T) => K, lt: Less<K>): Less<T> {
 }
 
 /** Scratch for `n` elements of `s`, filled so that engines keep it a dense array. */
-function scratch<T>(s: Slice<T>, n: number): T[] {
+function scratch<T>(s: Items<T>, n: number): T[] {
 	return new Array<T>(n).fill(s[0]);
 }
 
@@ -118,7 +118,7 @@ function log2(n: number): number {
 	return 31 - Math.clz32(n | 1);
 }
 
-function reverse<T>(s: Slice<T>, lo: number, hi: number): void {
+function reverse<T>(s: Items<T>, lo: number, hi: number): void {
 	for (hi--; lo < hi; lo++, hi--) {
 		const x = s[lo];
 		s[lo] = s[hi];
@@ -126,14 +126,14 @@ function reverse<T>(s: Slice<T>, lo: number, hi: number): void {
 	}
 }
 
-function swap<T>(s: Slice<T>, a: number, b: number): void {
+function swap<T>(s: Items<T>, a: number, b: number): void {
 	const x = s[a];
 	s[a] = s[b];
 	s[b] = x;
 }
 
 /** The run `s[lo..hi]` starts with: its length, negative where it strictly descends. */
-function existingRun<T>(s: Slice<T>, lo: number, hi: number, less: Less<T>): number {
+function existingRun<T>(s: Items<T>, lo: number, hi: number, less: Less<T>): number {
 	const n = hi - lo;
 	if (n < 2) return n;
 	let run = 2;
@@ -146,7 +146,7 @@ function existingRun<T>(s: Slice<T>, lo: number, hi: number, less: Less<T>): num
 }
 
 /** Sorts `v[begin..=tail]` where `v[begin..tail]` is sorted. */
-function insertTail<T>(v: Slice<T>, begin: number, tail: number, less: Less<T>): void {
+function insertTail<T>(v: Items<T>, begin: number, tail: number, less: Less<T>): void {
 	let sift = tail - 1;
 	if (!less(v[tail], v[sift])) return;
 	const x = v[tail];
@@ -167,7 +167,7 @@ function smallSortInsertion<T>(c: Sort<T>, lo: number, hi: number): void {
 }
 
 /** Sorts `v[lo..hi]` where `v[lo..lo + sorted]` is. */
-function insertionSort<T>(v: Slice<T>, lo: number, hi: number, sorted: number, less: Less<T>): void {
+function insertionSort<T>(v: Items<T>, lo: number, hi: number, sorted: number, less: Less<T>): void {
 	for (let tail = lo + sorted; tail < hi; tail++) insertTail(v, lo, tail, less);
 }
 
@@ -342,7 +342,7 @@ function stablePartition<T>(c: Sort<T>, lo: number, hi: number, p: number, pivot
 }
 
 /** The index of a pseudomedian of `s[lo..hi]`, which holds at least 8: of 3, or of 3 of 3 recursively past 64. */
-function choosePivot<T>(s: Slice<T>, lo: number, hi: number, less: Less<T>): number {
+function choosePivot<T>(s: Items<T>, lo: number, hi: number, less: Less<T>): number {
 	const n = hi - lo;
 	const eighth = Math.floor(n / 8);
 	const b = lo + eighth * 4;
@@ -350,7 +350,7 @@ function choosePivot<T>(s: Slice<T>, lo: number, hi: number, less: Less<T>): num
 	return n < 64 ? median3(s, lo, b, c, less) : median3Rec(s, lo, b, c, eighth, less);
 }
 
-function median3Rec<T>(s: Slice<T>, a: number, b: number, c: number, n: number, less: Less<T>): number {
+function median3Rec<T>(s: Items<T>, a: number, b: number, c: number, n: number, less: Less<T>): number {
 	if (n * 8 >= 64) {
 		const eighth = Math.floor(n / 8);
 		a = median3Rec(s, a, a + eighth * 4, a + eighth * 7, eighth, less);
@@ -360,7 +360,7 @@ function median3Rec<T>(s: Slice<T>, a: number, b: number, c: number, n: number, 
 	return median3(s, a, b, c, less);
 }
 
-function median3<T>(s: Slice<T>, a: number, b: number, c: number, less: Less<T>): number {
+function median3<T>(s: Items<T>, a: number, b: number, c: number, less: Less<T>): number {
 	const x = less(s[a], s[b]);
 	const y = less(s[a], s[c]);
 	if (x !== y) return a;
@@ -401,7 +401,7 @@ function smallSortGeneral<T>(c: Sort<T>, lo: number, hi: number): void {
 }
 
 /** Sorts `v[i..i + 4]` stably into `dst[j..j + 4]` in 5 tests. */
-function sort4<T>(v: Slice<T>, i: number, dst: Slice<T>, j: number, less: Less<T>): void {
+function sort4<T>(v: Items<T>, i: number, dst: Items<T>, j: number, less: Less<T>): void {
 	const c1 = less(v[i + 1], v[i]);
 	const c2 = less(v[i + 3], v[i + 2]);
 	const a = c1 ? i + 1 : i;
@@ -422,7 +422,7 @@ function sort4<T>(v: Slice<T>, i: number, dst: Slice<T>, j: number, less: Less<T
 }
 
 /** Sorts `v[i..i + 8]` stably into `dst[j..j + 8]`, through `tmp[k..k + 8]`. */
-function sort8<T>(v: Slice<T>, i: number, dst: Slice<T>, j: number, tmp: Slice<T>, k: number, less: Less<T>): void {
+function sort8<T>(v: Items<T>, i: number, dst: Items<T>, j: number, tmp: Items<T>, k: number, less: Less<T>): void {
 	sort4(v, i, tmp, k, less);
 	sort4(v, i + 4, tmp, k + 4, less);
 	bidirectionalMerge(tmp, k, 8, dst, j, less);
@@ -433,7 +433,7 @@ function sort8<T>(v: Slice<T>, i: number, dst: Slice<T>, j: number, tmp: Slice<T
  * once, and panics as std's does if they don't meet, as only a `less` that is no strict
  * weak order makes them.
  */
-function bidirectionalMerge<T>(src: Slice<T>, i: number, n: number, dst: Slice<T>, j: number, less: Less<T>): void {
+function bidirectionalMerge<T>(src: Items<T>, i: number, n: number, dst: Items<T>, j: number, less: Less<T>): void {
 	const half = Math.floor(n / 2);
 	let left = i;
 	let right = i + half;
@@ -504,7 +504,7 @@ function partition<T>(c: Sort<T>, lo: number, hi: number, p: number, equal: bool
 	return lt;
 }
 
-function lomuto<T>(s: Slice<T>, lo: number, hi: number, test: (x: T) => boolean): number {
+function lomuto<T>(s: Items<T>, lo: number, hi: number, test: (x: T) => boolean): number {
 	if (lo === hi) return 0;
 	const first = s[lo];
 	let gap = lo;
@@ -522,7 +522,7 @@ function lomuto<T>(s: Slice<T>, lo: number, hi: number, test: (x: T) => boolean)
 	return lt;
 }
 
-function hoare<T>(s: Slice<T>, lo: number, hi: number, test: (x: T) => boolean): number {
+function hoare<T>(s: Items<T>, lo: number, hi: number, test: (x: T) => boolean): number {
 	let left = lo;
 	let right = hi;
 	let gap = -1;
@@ -541,7 +541,7 @@ function hoare<T>(s: Slice<T>, lo: number, hi: number, test: (x: T) => boolean):
 	return left - lo;
 }
 
-function heapsort<T>(s: Slice<T>, lo: number, hi: number, less: Less<T>): void {
+function heapsort<T>(s: Items<T>, lo: number, hi: number, less: Less<T>): void {
 	const n = hi - lo;
 	for (let i = n + Math.floor(n / 2) - 1; i >= 0; i--) {
 		let node = 0;
@@ -579,7 +579,7 @@ function smallSortNetwork<T>(c: Sort<T>, lo: number, hi: number): void {
 }
 
 /** Sorts `s[lo..hi]` by a network of its first 13 or 9, and then insertion. */
-function networkSort<T>(s: Slice<T>, lo: number, hi: number, less: Less<T>): void {
+function networkSort<T>(s: Items<T>, lo: number, hi: number, less: Less<T>): void {
 	let sorted = 1;
 	if (hi - lo >= 13) {
 		network(s, lo, SORT13, less);
@@ -591,7 +591,7 @@ function networkSort<T>(s: Slice<T>, lo: number, hi: number, less: Less<T>): voi
 	insertionSort(s, lo, hi, sorted, less);
 }
 
-function network<T>(s: Slice<T>, lo: number, pairs: readonly number[], less: Less<T>): void {
+function network<T>(s: Items<T>, lo: number, pairs: readonly number[], less: Less<T>): void {
 	for (let i = 0; i < pairs.length; i += 2) {
 		const a = lo + pairs[i];
 		const b = lo + pairs[i + 1];

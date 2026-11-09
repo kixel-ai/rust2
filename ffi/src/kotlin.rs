@@ -17,13 +17,13 @@
 //! into a `byte[]` field by field as its C struct holds it, so each call is one crossing.
 //! An object never closed, and Rust's bytes, are freed once the GC collects them.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 use std::hash::Hasher;
 
 use rustc_data_structures::stable_hash::StableHasher;
 
-use crate::abi::{self, Abi, Ty};
+use crate::abi::{self, Abi, Ty, pascal};
 use crate::ir::{Access, Family, Function, Int, Literal, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.kt");
@@ -43,6 +43,7 @@ pub struct Output {
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
 		abi,
+		classes: abi.classes(|_| (String::new(), 0)),
 		types: String::new(),
 		top: String::new(),
 		natives: String::new(),
@@ -276,6 +277,8 @@ struct Arg {
 
 struct Gen<'a> {
 	abi: &'a Abi<'a>,
+	/// Each exported type's name, by its C name.
+	classes: HashMap<String, String>,
 	/// Types, then top-level functions and codecs, then the native methods.
 	types: String,
 	top: String,
@@ -307,19 +310,19 @@ impl<'a> Gen<'a> {
 
 	/// The Kotlin name of the C type `c`.
 	fn class(&self, c: &str) -> String {
-		pascal(self.bare(c))
+		self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c)))
 	}
 
 	/// Claim the top-level Kotlin name `name` for `what`.
 	fn claim(&mut self, name: &str, what: String) {
 		if TAKEN.contains(&name) {
 			self.errors.push(format!(
-				"{what} is `{}.{name}` in Kotlin, which its runtime names: rename it in the config",
+				"{what} is `{}.{name}` in Kotlin, which its runtime names: rename it in the source or exclude it in the config",
 				self.abi.prefix
 			));
 		} else if let Some(first) = self.names.insert(name.to_string(), what.clone()) {
 			self.errors.push(format!(
-				"{first} and {what} are both `{}.{name}` in Kotlin: rename one in the config",
+				"{first} and {what} are both `{}.{name}` in Kotlin: rename one in the source or exclude it in the config",
 				self.abi.prefix
 			));
 		}
@@ -1073,7 +1076,7 @@ impl<'a> Gen<'a> {
 		let mut glue_reads = Vec::new();
 		let mut glue_writes = Vec::new();
 		for (n, variant) in e.variants.iter().enumerate() {
-			let vname = pascal(&abi::snake(&variant.name));
+			let vname = pascal(&variant.name);
 			members.push(format!("class {vname}"));
 			let fields: Vec<String> = variant
 				.fields
@@ -1102,7 +1105,7 @@ impl<'a> Gen<'a> {
 						write.join("\n\t\t\t")
 					));
 					reads.push(format!("\t\t{n} -> {name}.{vname}({})", read.join(", ")));
-					let payload = format!("{c}_{}", abi::snake(&variant.name));
+					let payload = abi::payload(&c, &variant.name);
 					let fields: Vec<String> = (0..variant.fields.len()).map(|k| format!("f{k}: r.get()")).collect();
 					glue_reads.push(format!(
 						"\t\t\t{n} => Self {{ tag, u: crate::{c}_union {{ v{n}: crate::{payload} {{ {} }} }} }},",
@@ -1405,7 +1408,7 @@ impl<'a> Gen<'a> {
 			if !seen.insert(member) {
 				let name = member.split(' ').next_back().unwrap_or(member);
 				self.errors.push(format!(
-					"two members of `{rust}` are both `{name}` in Kotlin: rename one in the config"
+					"two members of `{rust}` are both `{name}` in Kotlin: rename one in the source or exclude it in the config"
 				));
 			}
 		}
@@ -2055,20 +2058,6 @@ fn ordinal(k: usize) -> String {
 	ORDINALS
 		.get(k)
 		.map_or_else(|| format!("item{}", k + 1), |o| o.to_string())
-}
-
-/// A snake-case name in Pascal case: `size_pair` is `SizePair`.
-pub(crate) fn pascal(name: &str) -> String {
-	name.split('_')
-		.filter(|s| !s.is_empty())
-		.map(|s| {
-			let mut chars = s.chars();
-			match chars.next() {
-				Some(first) => first.to_uppercase().chain(chars).collect(),
-				None => String::new(),
-			}
-		})
-		.collect()
 }
 
 /// A snake-case name in camel case: `into_label` is `intoLabel`, and `0` is `_0`.

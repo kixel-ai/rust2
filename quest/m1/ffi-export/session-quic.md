@@ -7,11 +7,6 @@ the library owns QUIC and TLS, and the binding moves UDP datagrams and drives th
 poll from its own event loop, as driving decided for the origin's
 `Driver`. Proven from C in `moq/moq.c` against a local server.
 
-This waits on moq's [runtime-free QUIC driver](https://github.com/moq-dev/moq/blob/main/quest/m2/quic-sansio-driver.md),
-planned in [moq-dev/moq#7197](https://github.com/moq-dev/moq/pull/7197), which itself
-waits on moq-quic owning its waits. It has landed once that quest is gone from moq's
-`main` and the driver's connections implement moq-net's `transport::poll::Session`.
-
 ## Plan
 
 Decided with the maintainer on 2026-10-27: the full-control path, after sessions on
@@ -29,6 +24,14 @@ crosses the ABI, and no buffer is lent mutably.
 Then bump the moq pin and export the driver from its crate's `pub` API, with no wrapper.
 At `30f25c04`, the census exports 60% of moq-quic's types and 86% of its methods, and
 none of its traits. It refuses `Endpoint::handle`, `connection::Connection`, `Transmit`,
-and `poll_transmit`'s `&mut Vec<u8>`. Report the driver crate's coverage before and after.
+and `poll_transmit`'s `&mut Vec<u8>`. Those figures predate the pin at `ffcb7cd9`; measure
+them again at the start, and report the driver crate's coverage before and after.
 
 Public API: the C names moq's bindings get.
+
+## Waiting
+
+- moq-dev/moq: the [runtime-free QUIC driver](https://github.com/moq-dev/moq/blob/main/quest/m3/quic-sansio-driver.md),
+  planned in [moq-dev/moq#7197](https://github.com/moq-dev/moq/pull/7197), lands. moq ranks
+  it in m3, after its next breaking release. Done once that quest is gone from moq's `main`
+  and the driver's connections implement moq-net's `transport::poll::Session`.

@@ -3,6 +3,13 @@
 //! index or of the bounds, rather than an `rs.Iter`, which a bundler can't shake its
 //! adaptors from. Variables, not an object of both: V8 took up to 1.25x as long over a
 //! `BTreeMap` stepping an object's fields.
+//!
+//! A slice's `iter_mut` of values JS copies lends each item as its place. Where its `next`
+//! results are read only by a switch on their variant and by moving the item into a
+//! reference assigned nothing else, it is three variables, the array, an index, and the
+//! end, and each item is its index: the item reads and writes the array there, as
+//! `&mut v[i]` does, and one passed on whole is `rs.arrayAsPtr` of its element, as
+//! `rs.iterSliceMut` would have lent it, rather than an `rs.Place` made for every item.
 
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_middle::mir::{self, Local, Operand, Rvalue, StatementKind, TerminatorKind};
@@ -20,8 +27,8 @@ fn array_iter<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	let path = library::std_path(tcx, adt.did());
 	let path: Vec<&str> = path.iter().map(String::as_str).collect();
 	match path.as_slice() {
-		// A reference to an array of bytes is a slice of it made as the item is read.
-		["slice", "iter", "Iter" | "IterMut"] if args.types().next().is_some_and(crate::lower::byte_array) => None,
+		// A reference to an array is a slice of it made as the item is read.
+		["slice", "iter", "Iter" | "IterMut"] if args.types().next().is_some_and(|t| t.is_array()) => None,
 		["slice", "iter", "Iter" | "IterMut"] | ["vec", "into_iter", "IntoIter"] => args.types().next(),
 		_ => None,
 	}
@@ -49,9 +56,10 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			.filter(|&l| !self.is_arg(l) && l != mir::RETURN_PLACE && self.defs[l] == 1)
 			.filter(|&l| {
 				let ty = mir.local_decls[l].ty;
-				// An element JS copies is lent as its place, which `rs.iterSliceMut` makes.
+				// An element JS copies is lent as its place, which `rs.iterSliceMut` makes; one
+				// lent whole as a place steps by its index, if its items allow it, below.
 				let places = || self.b.t.iter_item(ty).is_some_and(|item| self.b.t.has_place(item));
-				array_iter(tcx, ty).is_some() && !places() || super::small_range(tcx, ty)
+				array_iter(tcx, ty).is_some() && (!places() || self.lends_places(l)) || super::small_range(tcx, ty)
 			})
 			.collect();
 		if iters.is_empty() {
@@ -63,6 +71,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let mut moves: Vec<(Local, Local)> = Vec::new();
 		let mut borrows: FxHashMap<Local, Local> = FxHashMap::default();
 		let mut next_reads: FxHashMap<Local, u32> = FxHashMap::default();
+		// Each `next`'s receiver and the local it assigns.
+		let mut nexts: Vec<(Local, Local)> = Vec::new();
 		for data in mir.basic_blocks.iter() {
 			for stmt in &data.statements {
 				let StatementKind::Assign(assign) = &stmt.kind else {
@@ -120,10 +130,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						&& let [arg] = &**args
 					{
 						match &arg.node {
-							// A range is its own iterator.
+							// A range, or an array's iterator, is its own iterator.
 							Operand::Move(from)
 								if let Some(from) = from.as_local()
-									&& super::small_range(tcx, mir.local_decls[from].ty) =>
+									&& let ty = mir.local_decls[from].ty
+									&& (super::small_range(tcx, ty) || array_iter(tcx, ty).is_some()) =>
 							{
 								*reads.entry(from).or_default() += 1;
 								moves.push((from, to));
@@ -141,6 +152,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 						&& let Some(recv) = p.as_local()
 					{
 						*next_reads.entry(recv).or_default() += 1;
+						nexts.push((recv, destination.local));
 					}
 				}
 				_ => {}
@@ -156,6 +168,25 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		ok.retain(|&l| reads.get(&l).copied().unwrap_or(0) == self.uses[l]);
 		ok.retain(|&l| made.contains(&l) || moves.iter().any(|&(_, to)| to == l));
 		ok.retain(|&l| borrows.iter().all(|(&b, &from)| from != l || stepping(self, b)));
+		// One lending places steps by index only where each `next` it steps by lends items
+		// that index allows.
+		let mut lent: Vec<(Local, Local, Vec<Local>)> = Vec::new();
+		ok.retain(|&l| {
+			if !self.lends_places(l) {
+				return true;
+			}
+			let mut found = Vec::new();
+			for (&b, _) in borrows.iter().filter(|&(_, &from)| from == l) {
+				for &(_, next) in nexts.iter().filter(|&&(recv, _)| recv == b) {
+					match self.lent_items(next) {
+						Some(items) => found.push((next, items)),
+						None => return false,
+					}
+				}
+			}
+			lent.extend(found.into_iter().map(|(next, items)| (l, next, items)));
+			true
+		});
 		// A move joins two iterators that must both step in place, or neither.
 		loop {
 			let before = ok.len();
@@ -174,6 +205,12 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				self.stepped_borrows.insert(b, from);
 			}
 		}
+		for (iter, next, items) in lent {
+			if ok.contains(&iter) {
+				self.lent_nexts.insert(next);
+				self.lent_items.extend(items.into_iter().map(|item| (item, iter)));
+			}
+		}
 		// One moved into another and read nowhere else shares its variables: the other is
 		// assigned only by the move, so neither is live while the other is.
 		for &(from, to) in &moves {
@@ -182,6 +219,72 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 		}
 		self.stepped = ok;
+	}
+
+	/// Whether `local` is a slice's iterator lending each item as its place, a `&mut` to a
+	/// value JS copies.
+	fn lends_places(&self, local: Local) -> bool {
+		let ty = self.mir.local_decls[local].ty;
+		let ty::Adt(adt, args) = ty.kind() else {
+			return false;
+		};
+		let path = library::std_path(self.tcx, adt.did());
+		path.iter().map(String::as_str).eq(["slice", "iter", "IterMut"])
+			&& args
+				.types()
+				.next()
+				.is_some_and(|elem| !elem.is_array() && self.b.t.needs_place(elem))
+	}
+
+	/// The locals the item `next`, a `next` result, lends is moved into, if that is all that
+	/// reads it but a switch on its variant, and each is a reference read as the place it
+	/// borrows, which an index into the array reads and writes as well.
+	fn lent_items(&self, next: Local) -> Option<Vec<Local>> {
+		use rustc_middle::mir::visit::{MutatingUseContext, NonMutatingUseContext, PlaceContext, Visitor};
+		struct Reads {
+			next: Local,
+			/// The statements moving `Some`'s value out whole, and into which local.
+			moves: FxHashMap<mir::Location, Local>,
+			ok: bool,
+		}
+		impl<'tcx> Visitor<'tcx> for Reads {
+			fn visit_place(&mut self, place: &mir::Place<'tcx>, cx: PlaceContext, at: mir::Location) {
+				if place.local != self.next {
+					return;
+				}
+				self.ok &= match place.projection.as_slice() {
+					[] => matches!(
+						cx,
+						PlaceContext::NonUse(_)
+							| PlaceContext::NonMutatingUse(NonMutatingUseContext::Inspect)
+							| PlaceContext::MutatingUse(MutatingUseContext::Call)
+					),
+					[mir::ProjectionElem::Downcast(..), mir::ProjectionElem::Field(..)] => self.moves.contains_key(&at),
+					_ => false,
+				};
+			}
+		}
+		let mir = self.mir;
+		let mut moves = FxHashMap::default();
+		for (block, data) in mir.basic_blocks.iter_enumerated() {
+			for (statement_index, stmt) in data.statements.iter().enumerate() {
+				if let StatementKind::Assign(assign) = &stmt.kind
+					&& let (to, Rvalue::Use(Operand::Copy(from) | Operand::Move(from), _)) = &**assign
+					&& from.local == next
+					&& let [mir::ProjectionElem::Downcast(_, v), mir::ProjectionElem::Field(f, _)] =
+						from.projection.as_slice()
+					&& v.as_u32() == 1
+					&& f.as_u32() == 0
+					&& let Some(to) = to.as_local()
+					&& self.alias(to)
+				{
+					moves.insert(mir::Location { block, statement_index }, to);
+				}
+			}
+		}
+		let mut reads = Reads { next, moves, ok: true };
+		reads.visit_body(mir);
+		reads.ok.then(|| reads.moves.into_values().collect())
 	}
 
 	/// The local whose variables `local` holds its fields in: the last it is moved into.
@@ -203,27 +306,39 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			.is_some_and(|&l| array_iter(self.tcx, self.mir.local_decls[l].ty).is_some())
 	}
 
-	/// The keys of `local`'s fields: its array and index, or its bounds.
-	fn stepped_keys(&self, local: Local) -> [&'static str; 2] {
+	/// The keys of `local`'s fields: its array and index, and its end where it lends each
+	/// item as that index, or its bounds.
+	fn stepped_keys(&self, local: Local) -> &'static [&'static str] {
 		match array_iter(self.tcx, self.mir.local_decls[local].ty) {
-			Some(_) => ["s", "i"],
-			None => ["start", "end"],
+			Some(_) if self.lends_places(local) => &["s", "i", "e"],
+			Some(_) => &["s", "i"],
+			None => &["start", "end"],
 		}
 	}
 
-	/// Name the two variables `local` holds its fields in, unless it shares another's. A
-	/// read of either counts as one of memory, since `next` changes them in place.
+	/// Name the variables `local` holds its fields in, unless it shares another's. A read
+	/// of an index or a bound counts as one of memory, since `next` changes it in place; an
+	/// array and an end change only where the iterator is made, which assigns them.
 	pub(super) fn name_stepped(&mut self, local: Local, base: &str) {
 		if self.stepped_root(local) != local {
 			return;
 		}
-		let vars = self.stepped_keys(local).map(|key| {
-			let mut suffix = key.to_string();
-			suffix[..1].make_ascii_uppercase();
-			let name = self.b.fresh(&format!("{base}{suffix}"));
-			self.shared.insert(name.clone());
-			name
-		});
+		let keys = self.stepped_keys(local);
+		let vars = keys
+			.iter()
+			.map(|key| {
+				let mut suffix = key.to_string();
+				suffix[..1].make_ascii_uppercase();
+				let name = self.b.fresh(&format!("{base}{suffix}"));
+				if !matches!(*key, "s" | "e") {
+					self.shared.insert(name.clone());
+				}
+				name
+			})
+			.collect::<Vec<_>>();
+		if self.lends_places(local) {
+			self.item_arrays.insert(vars[0].clone());
+		}
 		self.stepped_vars.insert(local, vars);
 	}
 
@@ -243,9 +358,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	pub(super) fn stepped_value(&self, local: Local) -> Option<Expr> {
 		let vars = self.stepped_vars.get(&local)?;
 		let keys = self.stepped_keys(local);
-		let fields = keys.into_iter().zip(vars);
+		let fields = keys.iter().zip(vars);
 		Some(Expr::Object(
-			fields.map(|(k, v)| (Key::Name(k.into()), Expr::ident(v))).collect(),
+			fields.map(|(k, v)| (Key::Name((*k).into()), Expr::ident(v))).collect(),
 		))
 	}
 
@@ -273,28 +388,67 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 
 	/// An iterator stepped in place, from the `rs.Iter` its mapping makes: `{ s, i: 0 }`
 	/// from `rs.iterSlice(s)`, or `rs.iterSlice(s, drop)` of items it owns, which its drop
-	/// drops again, `{ s: v.items, i: 0 }` from `rs.vecIntoIter(v, drop)`, the view of `v`'s bytes from `rs.byteVecIntoIter(v)`, and
-	/// `{ start, end }` from `new rs.Range(start, end)`. A moved one is already made.
-	pub(super) fn stepped_make(&mut self, value: Expr, span: rustc_span::Span) -> Expr {
-		let rs = |f: &Expr, name: &str| matches!(f, Expr::Rs(n) if n == name);
-		let object = |fields: [(&str, Expr); 2]| {
+	/// drops again, `{ s: v.items, i: 0 }` from `rs.vecIntoIter(v, drop)`, the view of `v`'s
+	/// bytes from `rs.byteVecIntoIter(v)`, the array, start, and end of the slice of
+	/// `rs.iterSliceMut(slice)`, held in `out` first unless it is a path, and `{ start, end }`
+	/// from `new rs.Range(start, end)`. A moved one is already made.
+	pub(super) fn stepped_make(&mut self, value: Expr, span: rustc_span::Span, out: &mut Vec<Stmt>) -> Expr {
+		let rs = |f: &Expr, name: &str| matches!(peel(f), Expr::Rs(n) if n == name);
+		let object = |fields: Vec<(&str, Expr)>| {
 			Expr::Object(fields.into_iter().map(|(k, v)| (Key::Name(k.into()), v)).collect())
 		};
 		match value {
 			Expr::Call(f, mut args) if rs(&f, "iterSlice") && matches!(args.len(), 1 | 2) => {
 				args.truncate(1);
-				object([("s", args.pop().unwrap()), ("i", Expr::lit("0"))])
+				object(vec![("s", args.pop().unwrap()), ("i", Expr::lit("0"))])
 			}
 			Expr::Call(f, mut args) if rs(&f, "vecIntoIter") && matches!(args.len(), 1 | 2) => {
 				args.truncate(1);
-				object([("s", args.pop().unwrap().member("items")), ("i", Expr::lit("0"))])
+				object(vec![("s", args.pop().unwrap().member("items")), ("i", Expr::lit("0"))])
 			}
 			Expr::Call(f, args) if rs(&f, "byteVecIntoIter") && args.len() == 1 => {
-				object([("s", Expr::rs("byteVecView", args)), ("i", Expr::lit("0"))])
+				object(vec![("s", Expr::rs("byteVecView", args)), ("i", Expr::lit("0"))])
+			}
+			Expr::Call(f, mut args) if rs(&f, "iterSliceMut") && args.len() == 1 => {
+				// All of an array, or of a `Vec<u8>`'s bytes, held back or not, is read where
+				// they are: the array or `ByteVec`, and whether it is a `ByteVec`. Any other
+				// slice is held in a variable of its own.
+				let whole = |e: &Expr| match peel(e) {
+					Expr::Call(f, a) if a.len() == 1 && a[0].is_path() && rs(f, "sliceFrom") => {
+						Some((a[0].clone(), false))
+					}
+					Expr::Call(f, a) if a.len() == 1 && a[0].is_path() && rs(f, "byteVecSlice") => {
+						Some((a[0].clone(), true))
+					}
+					_ => None,
+				};
+				let mut slice = args.pop().unwrap();
+				if let Expr::Ident(name) = peel(&slice)
+					&& self
+						.pending
+						.iter()
+						.any(|p| p.name == *name && whole(&p.value).is_some())
+				{
+					slice = self.fold_exprs(Vec::new(), vec![slice], false, out).remove(0);
+				}
+				let (s, i, e) = match whole(&slice) {
+					Some((v, bytes)) => {
+						let v = self.path(v, "items", out);
+						let s = if bytes { v.clone().member("data") } else { v.clone() };
+						(s, Expr::lit("0"), v.member("length"))
+					}
+					None => {
+						let slice = self.path(slice, "slice", out);
+						let start = slice.clone().member("start");
+						let end = start.clone().binary("+", slice.clone().member("length"));
+						(slice.member("data"), start, end)
+					}
+				};
+				object(vec![("s", s), ("i", i), ("e", e)])
 			}
 			Expr::New(f, args) if rs(&f, "Range") && args.len() == 2 => {
 				let [start, end] = <[Expr; 2]>::try_from(args).expect("checked above");
-				object([("start", start), ("end", end)])
+				object(vec![("start", start), ("end", end)])
 			}
 			Expr::Object(_) => value,
 			// Refused already.
@@ -303,13 +457,21 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		}
 	}
 
-	/// The next item of `it`, stepped in place, or `rs.DONE`.
+	/// The next item of `it`, stepped in place, or `rs.DONE`: the index of the next item of
+	/// one that lends each as its index.
 	pub(super) fn stepped_next(&self, it: &Expr) -> Expr {
 		let s = stepped_field(it, "s");
 		let i = stepped_field(it, "i");
+		let (end, item) = match stepped_field_of(it, "e") {
+			Some(e) => (e, Expr::Postfix(Box::new(i.clone()), "++")),
+			None => (
+				s.clone().member("length"),
+				s.index(Expr::Postfix(Box::new(i.clone()), "++")),
+			),
+		};
 		Expr::Cond(
-			Box::new(i.clone().binary("<", s.clone().member("length"))),
-			Box::new(s.index(Expr::Postfix(Box::new(i), "++"))),
+			Box::new(i.binary("<", end)),
+			Box::new(item),
 			Box::new(Expr::Rs("DONE".into())),
 		)
 	}
@@ -325,25 +487,30 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		))
 	}
 
-	/// The types of a stepped local's variables: its array and index, or its bounds.
-	pub(super) fn stepped_tys(&mut self, local: Local) -> [Type; 2] {
+	/// The types of a stepped local's variables: its array, index, and any end, or its
+	/// bounds.
+	pub(super) fn stepped_tys(&mut self, local: Local) -> Vec<Type> {
 		let ty = self.mir.local_decls[local].ty;
 		let span = self.local_span(local);
 		match array_iter(self.tcx, ty) {
-			// What `library::elements` makes of the slice: a view of bytes.
-			Some(item) => [
-				match item.kind() {
+			// What `library::elements` makes of the slice, a view of bytes or an array, or
+			// the array of the slice itself.
+			Some(item) => {
+				let array = match item.kind() {
 					_ if crate::lower::byte(item) => Type::Builtin("Uint8Array"),
-					_ => self.b.t.held_ty(Ty::new_slice(self.tcx, item), span),
-				},
-				Type::Builtin("number"),
-			],
+					_ => Type::Array(Box::new(self.b.t.held_ty(item, span))),
+				};
+				let n = self.stepped_keys(local).len();
+				std::iter::once(array)
+					.chain(std::iter::repeat_n(Type::Builtin("number"), n - 1))
+					.collect()
+			}
 			None => {
 				let ty::Adt(_, args) = ty.kind() else {
 					unreachable!("a range is a struct")
 				};
 				let bound = self.b.t.held_ty(args.type_at(0), span);
-				[bound.clone(), bound]
+				vec![bound.clone(), bound]
 			}
 		}
 	}
@@ -353,13 +520,20 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 /// [`Fx::stepped_value`] reads it as.
 pub(super) fn stepped_field(it: &Expr, key: &str) -> Expr {
 	match it {
-		Expr::Object(fields) => fields
-			.iter()
-			.find(|(k, _)| matches!(k, Key::Name(n) if n == key))
-			.map(|(_, v)| v.clone())
-			.expect("a stepped iterator's field"),
+		Expr::Object(_) => stepped_field_of(it, key).expect("a stepped iterator's field"),
 		it => it.clone().member(key),
 	}
+}
+
+/// The field `key` of `it`, an iterator stepped in place, if it has one.
+fn stepped_field_of(it: &Expr, key: &str) -> Option<Expr> {
+	let Expr::Object(fields) = it else {
+		return None;
+	};
+	fields
+		.iter()
+		.find(|(k, _)| matches!(k, Key::Name(n) if n == key))
+		.map(|(_, v)| v.clone())
 }
 
 /// Each loop over an array iterator stepped in place that only the loop steps, as
@@ -462,6 +636,31 @@ fn loops(
 			};
 			if owned {
 				stmts.remove(at + 1);
+			}
+		}
+		let stmt = &mut stmts[at];
+		// Any other loop over an iterator stepped in place tests for an item as its own
+		// condition, `while (i < s.length) { const item = s[i++]; ... }`, which V8 and
+		// JavaScriptCore step as a counted loop, where a test of the item against
+		// `rs.DONE` costs several times as much.
+		if let StmtKind::While { label, cond, body } = &mut stmt.kind
+			&& matches!(cond, Expr::Lit(l) if l == "true")
+			&& let Some((test, item)) = stepped_header(body, label.as_deref())
+		{
+			*cond = test;
+			body.remove(1);
+			if let StmtKind::Decl { ty, init, .. } = &mut body[0].kind {
+				*init = Some(item);
+				*ty = ty.take().map(|ty| match ty {
+					Type::Union(mut tys) => {
+						tys.retain(|t| !matches!(t, Type::Rs(name, _) if *name == "Done"));
+						match tys.len() {
+							1 => tys.pop().unwrap(),
+							_ => Type::Union(tys),
+						}
+					}
+					ty => ty,
+				});
 			}
 		}
 		let stmt = &mut stmts[at];
@@ -579,6 +778,43 @@ fn header(body: &[Stmt], label: Option<&str>) -> Option<(String, String, String)
 	let tests = matches!(peel(cond), Expr::Binary(l, "===", r)
 		if same(l, item) && matches!(peel(r), Expr::Rs(d) if d == "DONE"));
 	(leaves && tests && els.is_empty()).then(|| (item.clone(), array.clone(), index.clone()))
+}
+
+/// The test and the item of a loop that starts `const item = test ? next : rs.DONE; if
+/// (item === rs.DONE) break;`, the `break` leaving it, where `next` steps an iterator in
+/// place: `s[i++]`, or `i++` of one lending each item as its index, neither ever `rs.DONE`.
+fn stepped_header(body: &[Stmt], label: Option<&str>) -> Option<(Expr, Expr)> {
+	let [next, test, ..] = body else {
+		return None;
+	};
+	let StmtKind::Decl {
+		mutable: false,
+		name: item,
+		init: Some(init),
+		..
+	} = &next.kind
+	else {
+		return None;
+	};
+	let Expr::Cond(c, a, b) = peel(init) else {
+		return None;
+	};
+	let steps = |e: &Expr| matches!(peel(e), Expr::Postfix(i, "++") if matches!(peel(i), Expr::Ident(_)));
+	let stepped = match peel(a) {
+		Expr::Index(s, i) => matches!(peel(s), Expr::Ident(_)) && steps(i),
+		e => steps(e),
+	};
+	if !stepped || !matches!(peel(b), Expr::Rs(done) if done == "DONE") {
+		return None;
+	}
+	let StmtKind::If { cond, then, els } = &test.kind else {
+		return None;
+	};
+	let leaves = matches!(then.as_slice(), [Stmt { kind: StmtKind::Break(target), .. }]
+		if target.is_none() || target.as_deref() == label);
+	let tests = matches!(peel(cond), Expr::Binary(l, "===", r)
+		if matches!(peel(l), Expr::Ident(n) if n == item) && matches!(peel(r), Expr::Rs(d) if d == "DONE"));
+	(leaves && tests && els.is_empty()).then(|| ((**c).clone(), (**a).clone()))
 }
 
 /// `e` without its source location.

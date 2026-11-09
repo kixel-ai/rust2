@@ -279,8 +279,8 @@ export class closuresFuture {
 														const arg5 = this.#tallied;
 														const _91: rs.Fmt = (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u32Debug(arg5[0], f), (f: rs.Formatter) => rs.u32Debug(arg5[1], f), (f: rs.Formatter) => rs.u32Debug(arg5[2], f)], f);
 														const arg6 = this.#count;
-														const args2: rs.Fmt[] = [_87, _88, _89, _90, _91, (f: rs.Formatter) => rs.u32Display(arg6, f)];
-														const _74: string = rs.fmtFormat(["seen ", args2[0], " first ", args2[1], " second ", args2[2], " reads ", args2[3], " tallied ", args2[4], " count ", args2[5]]);
+														const args9 = [_87, _88, _89, _90, _91, (f: rs.Formatter) => rs.u32Display(arg6, f)];
+														const _74: string = rs.fmtFormat(["seen ", args9[0], " first ", args9[1], " second ", args9[2], " reads ", args9[3], " tallied ", args9[4], " count ", args9[5]]).v;
 														Guard.note(this.#guard, _74);
 														const captured2 = Guard.new(rs.u32Add(this.#id, 500), Log.clone$Clone(this.#log));
 														this.#awaitee$3 = new callOnceFuture$closures_closures_closure0_closure2(rs.closure(rs.byMove((rx: Consumer.Consumer): rs.Future<rs.u64> => {
@@ -300,8 +300,7 @@ export class closuresFuture {
 													this.#third = _105;
 													rs.drop(this.#awaitee$3);
 													const arg7 = this.#third;
-													const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Display(arg7, f)];
-													const _115: string = rs.fmtFormat(["third ", args4[0]]);
+													const _115: string = rs.fmtFormat(["third ", (f: rs.Formatter) => rs.u64Display(arg7, f)]).v;
 													Guard.note(this.#guard, _115);
 													this.#lent = Guard.new(rs.u32Add(this.#id, 600), Log.clone$Clone(this.#log));
 													this.#peek = (value3: rs.u64): rs.Future<rs.u64> => {
@@ -415,8 +414,8 @@ export class closuresFuture {
 					const arg8 = this.#fourth;
 					const _249: rs.Fmt = (f: rs.Formatter) => rs.u64Display(arg8, f);
 					const arg9 = this.#fifth;
-					const args6: rs.Fmt[] = [_249, (f: rs.Formatter) => rs.u64Display(arg9, f)];
-					const _240: string = rs.fmtFormat(["fourth ", args6[0], " fifth ", args6[1]]);
+					const args11 = [_249, (f: rs.Formatter) => rs.u64Display(arg9, f)];
+					const _240: string = rs.fmtFormat(["fourth ", args11[0], " fifth ", args11[1]]).v;
 					Guard.note(this.#guard, _240);
 					const captured5 = Guard.new(rs.u32Add(this.#id, 900), Log.clone$Clone(this.#log));
 					this.#awaitee$3 = new callOnceFuture$boxed_Box_closures_closures_closure0_closure7(rs.closure(rs.byMove((rx2: Consumer.Consumer): rs.Future<rs.u64> => {
@@ -480,8 +479,8 @@ export class closuresFuture {
 				captured8[Symbol.dispose]();
 			}))());
 			const arg10 = this.#sixth;
-			const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Display(arg10, f), (f: rs.Formatter) => rs.u32Display(seventh, f)];
-			const _319: string = rs.fmtFormat(["sixth ", args8[0], " seventh ", args8[1]]);
+			const args12 = [(f: rs.Formatter) => rs.u64Display(arg10, f), (f: rs.Formatter) => rs.u32Display(seventh, f)];
+			const _319: string = rs.fmtFormat(["sixth ", args12[0], " seventh ", args12[1]]).v;
 			Guard.note(this.#guard, _319);
 			const _360: rs.u64 = rs.u64Add(rs.u64Add(rs.u64Add(rs.u64Add(rs.u64Add(option_unwrapOr$15hbiwd(this.#first, 0), option_unwrapOr$15hbiwd(this.#second, 0)), this.#third), this.#fourth), this.#fifth), this.#sixth);
 			this.#saved$4 = false;
@@ -592,9 +591,7 @@ export class closuresFuture$closure2_closure0 {
 		if (_7 !== rs.Pending) {
 			const value: rs.u64 | undefined = _7;
 			rs.drop(this.#awaitee);
-			const _27: Guard.Guard = this.#owned;
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(value, f, rs.u64Debug)];
-			Guard.note(_27, rs.fmtFormat(["once ", args2[0]]));
+			Guard.note(this.#owned, rs.fmtFormat(["once ", (f: rs.Formatter) => rs.fmtOption(value, f, rs.u64Debug)]).v);
 			const _0: rs.Poll<rs.u64> = option_unwrapOr$15hbiwd(value, 0);
 			this.#state = 1;
 			return _0;
@@ -634,8 +631,7 @@ export class closuresFuture$closure2_closure0_once {
 		if (_7 !== rs.Pending) {
 			const value: rs.u64 | undefined = _7;
 			rs.drop(this.#awaitee);
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(value, f, rs.u64Debug)];
-			const _17: string = rs.fmtFormat(["once ", args2[0]]);
+			const _17: string = rs.fmtFormat(["once ", (f: rs.Formatter) => rs.fmtOption(value, f, rs.u64Debug)]).v;
 			Guard.note(this.#owned, _17);
 			const _29: rs.u64 = option_unwrapOr$15hbiwd(value, 0);
 			this.#owned[Symbol.dispose]();
@@ -663,9 +659,7 @@ export class closuresFuture$closure3_closure0 {
 	poll(_2: rs.Context): rs.Poll<rs.u64> {
 		if (this.#state === 0) {
 			const value: rs.u64 = this.#value;
-			const _17: Guard.Guard = this.#lent;
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Display(value, f)];
-			Guard.note(_17, rs.fmtFormat(["peek ", args2[0]]));
+			Guard.note(this.#lent, rs.fmtFormat(["peek ", (f: rs.Formatter) => rs.u64Display(value, f)]).v);
 			const _0: rs.Poll<rs.u64> = rs.u64Add(value, 1);
 			this.#state = 1;
 			return _0;
@@ -736,9 +730,7 @@ export class closuresFuture$closure6_closure0 {
 	poll(_2: rs.Context): rs.Poll<rs.u64> {
 		if (this.#state === 0) {
 			const value: rs.u64 = this.#value;
-			const _16: Guard.Guard = this.#last;
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Display(value, f)];
-			Guard.note(_16, rs.fmtFormat(["last ", args2[0]]));
+			Guard.note(this.#last, rs.fmtFormat(["last ", (f: rs.Formatter) => rs.u64Display(value, f)]).v);
 			this.#state = 1;
 			return value;
 		}
@@ -765,8 +757,7 @@ export class closuresFuture$closure6_closure0_once {
 	poll(_2: rs.Context): rs.Poll<rs.u64> {
 		if (this.#state === 0) {
 			const value: rs.u64 = this.#value;
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Display(value, f)];
-			const _6: string = rs.fmtFormat(["last ", args2[0]]);
+			const _6: string = rs.fmtFormat(["last ", (f: rs.Formatter) => rs.u64Display(value, f)]).v;
 			Guard.note(this.#last, _6);
 			this.#last[Symbol.dispose]();
 			this.#state = 1;
@@ -803,9 +794,7 @@ export class closuresFuture$closure7_closure0 {
 		if (_7 !== rs.Pending) {
 			const value: rs.u64 | undefined = _7;
 			rs.drop(this.#awaitee);
-			const _27: Guard.Guard = this.#boxed;
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(value, f, rs.u64Debug)];
-			Guard.note(_27, rs.fmtFormat(["boxed ", args2[0]]));
+			Guard.note(this.#boxed, rs.fmtFormat(["boxed ", (f: rs.Formatter) => rs.fmtOption(value, f, rs.u64Debug)]).v);
 			const _0: rs.Poll<rs.u64> = option_unwrapOr$15hbiwd(value, 0);
 			this.#state = 1;
 			return _0;
@@ -845,8 +834,7 @@ export class closuresFuture$closure7_closure0_once {
 		if (_7 !== rs.Pending) {
 			const value: rs.u64 | undefined = _7;
 			rs.drop(this.#awaitee);
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(value, f, rs.u64Debug)];
-			const _17: string = rs.fmtFormat(["boxed ", args2[0]]);
+			const _17: string = rs.fmtFormat(["boxed ", (f: rs.Formatter) => rs.fmtOption(value, f, rs.u64Debug)]).v;
 			Guard.note(this.#boxed, _17);
 			const _29: rs.u64 = option_unwrapOr$15hbiwd(value, 0);
 			this.#boxed[Symbol.dispose]();

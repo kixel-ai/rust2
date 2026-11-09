@@ -9,4 +9,11 @@ export function thenSome$06c3xh5(self: boolean, t: [rs.u8, rs.u8]): [rs.u8, rs.u
 	return t;
 }
 
+export function thenSome$1gvhopg(self: boolean, t: rs.u16): rs.u16 | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return t;
+}
+
 //# sourceMappingURL=bool.ts.map

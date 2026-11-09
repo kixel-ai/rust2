@@ -42,10 +42,9 @@ export function grow$dyns_Shape(self: Square, by: rs.u8): void {
 	self.side = rs.u16WrappingAdd(self.side, by as rs.u16);
 }
 
-export function label$dyns_Named(self: Square): string {
+export function label$dyns_Named(self: Square): rs.String {
 	const arg = self.side;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u16Display(arg, f)];
-	return rs.fmtFormat(["square ", args2[0]]);
+	return rs.fmtFormat(["square ", (f: rs.Formatter) => rs.u16Display(arg, f)]);
 }
 
 export function asAny$dyns_Erased(self: Square): Any.Any {
@@ -58,6 +57,11 @@ export function asAnyMut$dyns_Erased(self: Square): Any.Any {
 
 export function key$dyns_Keyed(self: Square): rs.u32 {
 	return self.side as rs.u32;
+}
+
+export function run$dyns_Task_u32(self: Square): rs.u32 {
+	self.side = rs.u16WrappingAdd(self.side, 1);
+	return area$dyns_Shape(self);
 }
 
 //# sourceMappingURL=dyns.Square.ts.map

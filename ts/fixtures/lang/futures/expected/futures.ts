@@ -48,7 +48,7 @@ export function pollOnce$future_Pending_u8(f: rs.Future<rs.u8>): rs.Poll<rs.u8> 
 }
 
 /** What one poll of `f` gives, with a waker that does nothing. */
-export function pollOnce$future_Ready_String(f: rs.Ready<string>): rs.Poll<string> {
+export function pollOnce$future_Ready_String(f: rs.Ready<rs.String>): rs.Poll<rs.String> {
 	return f.poll(rs.NOOP_WAKER);
 }
 
@@ -79,114 +79,86 @@ export function pollOnce$futures_readies_closure0(f: rs.Future<rs.u8>): rs.Poll<
 
 /** `value` written by `Debug`, plain and with `#`, apart by a byte no UTF-8 holds. */
 export function debug$future_Pending_futures_Logged(out: rs.ByteVec, _value: rs.Future<Logged.Logged>): void {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtWriteStr(f, "Pending")];
-	put(out, rs.fmtFormat([args2[0]]));
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtWriteStr(f, "Pending")];
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, args4[0])]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, "Pending")]).v);
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => rs.fmtWriteStr(f, "Pending"))]).v);
 }
 
 /** `value` written by `Debug`, plain and with `#`, apart by a byte no UTF-8 holds. */
 export function debug$future_PollFn_futures_pendings_closure0(out: rs.ByteVec, _value: rs.Future<rs.usize>): void {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtWriteStr(f, "PollFn")];
-	put(out, rs.fmtFormat([args2[0]]));
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtWriteStr(f, "PollFn")];
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, args4[0])]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtWriteStr(f, "PollFn")]).v);
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => rs.fmtWriteStr(f, "PollFn"))]).v);
 }
 
 /** `value` written by `Debug`, plain and with `#`, apart by a byte no UTF-8 holds. */
 export function debug$future_Ready_Option_Option_u8(out: rs.ByteVec, value: rs.Ready<rs.u8 | undefined | rs.None>): void {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => value.debug(f, (value: rs.u8 | undefined | rs.None, f: rs.Formatter) => rs.fmtOption(value, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None))];
-	put(out, rs.fmtFormat([args2[0]]));
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => value.debug(f, (value: rs.u8 | undefined | rs.None, f: rs.Formatter) => rs.fmtOption(value, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None))];
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, args4[0])]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => value.debug(f, (value: rs.u8 | undefined | rs.None, f: rs.Formatter) => rs.fmtOption(value, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None))]).v);
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => value.debug(f, (value: rs.u8 | undefined | rs.None, f: rs.Formatter) => rs.fmtOption(value, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug), rs.None)))]).v);
 }
 
 /** `value` written by `Debug`, plain and with `#`, apart by a byte no UTF-8 holds. */
 export function debug$future_Ready_Option_u8(out: rs.ByteVec, value: rs.Ready<rs.u8 | undefined>): void {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => value.debug(f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))];
-	put(out, rs.fmtFormat([args2[0]]));
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => value.debug(f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))];
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, args4[0])]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => value.debug(f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))]).v);
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => value.debug(f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug)))]).v);
 }
 
 /** `value` written by `Debug`, plain and with `#`, apart by a byte no UTF-8 holds. */
-export function debug$future_Ready_String(out: rs.ByteVec, value: rs.Ready<string>): void {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => value.debug(f, rs.fmtStr)];
-	put(out, rs.fmtFormat([args2[0]]));
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => value.debug(f, rs.fmtStr)];
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, args4[0])]));
+export function debug$future_Ready_String(out: rs.ByteVec, value: rs.Ready<rs.String>): void {
+	put(out, rs.fmtFormat([(f: rs.Formatter) => value.debug(f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))]).v);
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => value.debug(f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)))]).v);
 }
 
 /** `value` written by `Debug`, plain and with `#`, apart by a byte no UTF-8 holds. */
 export function debug$future_Ready_u8(out: rs.ByteVec, value: rs.Ready<rs.u8>): void {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => value.debug(f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0]]));
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => value.debug(f, rs.u8Debug)];
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, args4[0])]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => value.debug(f, rs.u8Debug)]).v);
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => value.debug(f, rs.u8Debug))]).v);
 }
 
 /** `value` written by `Debug`, plain and with `#`, apart by a byte no UTF-8 holds. */
 export function debug$future_Ready_unit(out: rs.ByteVec, value: rs.Ready<undefined>): void {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => value.debug(f, rs.fmtUnit)];
-	put(out, rs.fmtFormat([args2[0]]));
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => value.debug(f, rs.fmtUnit)];
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, args4[0])]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => value.debug(f, rs.fmtUnit)]).v);
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => value.debug(f, rs.fmtUnit))]).v);
 }
 
 /** `value` written by `Debug`, plain and with `#`, apart by a byte no UTF-8 holds. */
 export function debug$task_Poll_Option_u8(out: rs.ByteVec, value: rs.Poll<rs.u8 | undefined>): void {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPoll(value, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))];
-	put(out, rs.fmtFormat([args2[0]]));
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPoll(value, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))];
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, args4[0])]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPoll(value, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug))]).v);
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => rs.fmtPoll(value, f, (value: rs.u8 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u8Debug)))]).v);
 }
 
 /** `value` written by `Debug`, plain and with `#`, apart by a byte no UTF-8 holds. */
-export function debug$task_Poll_Result_u8_String(out: rs.ByteVec, value: rs.Poll<rs.Result<rs.u8, string>>): void {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPoll(value, f, (value: rs.Result<rs.u8, string>, f: rs.Formatter) => rs.fmtResult(value, f, rs.u8Debug, rs.fmtStr))];
-	put(out, rs.fmtFormat([args2[0]]));
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPoll(value, f, (value: rs.Result<rs.u8, string>, f: rs.Formatter) => rs.fmtResult(value, f, rs.u8Debug, rs.fmtStr))];
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, args4[0])]));
+export function debug$task_Poll_Result_u8_String(out: rs.ByteVec, value: rs.Poll<rs.Result<rs.u8, rs.String>>): void {
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPoll(value, f, (value: rs.Result<rs.u8, rs.String>, f: rs.Formatter) => rs.fmtResult(value, f, rs.u8Debug, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)))]).v);
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => rs.fmtPoll(value, f, (value: rs.Result<rs.u8, rs.String>, f: rs.Formatter) => rs.fmtResult(value, f, rs.u8Debug, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))))]).v);
 }
 
 /** `value` written by `Debug`, plain and with `#`, apart by a byte no UTF-8 holds. */
-export function debug$task_Poll_String(out: rs.ByteVec, value: rs.Poll<string>): void {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPoll(value, f, rs.fmtStr)];
-	put(out, rs.fmtFormat([args2[0]]));
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPoll(value, f, rs.fmtStr)];
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, args4[0])]));
+export function debug$task_Poll_String(out: rs.ByteVec, value: rs.Poll<rs.String>): void {
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPoll(value, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f))]).v);
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => rs.fmtPoll(value, f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)))]).v);
 }
 
 /** `value` written by `Debug`, plain and with `#`, apart by a byte no UTF-8 holds. */
 export function debug$task_Poll_array2_u8(out: rs.ByteVec, value: rs.Poll<Uint8Array>): void {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPoll(value, f, (value: Uint8Array, f: rs.Formatter) => rs.fmtList(value, f, rs.u8Debug))];
-	put(out, rs.fmtFormat([args2[0]]));
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPoll(value, f, (value: Uint8Array, f: rs.Formatter) => rs.fmtList(value, f, rs.u8Debug))];
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, args4[0])]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPoll(value, f, (value: Uint8Array, f: rs.Formatter) => rs.fmtList(value, f, rs.u8Debug))]).v);
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => rs.fmtPoll(value, f, (value: Uint8Array, f: rs.Formatter) => rs.fmtList(value, f, rs.u8Debug)))]).v);
 }
 
 /** `value` written by `Debug`, plain and with `#`, apart by a byte no UTF-8 holds. */
 export function debug$task_Poll_task_Poll_u8(out: rs.ByteVec, value: rs.Poll<rs.u8> | rs.OuterPending): void {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPoll(value, f, (value: rs.Poll<rs.u8>, f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug), rs.OuterPending)];
-	put(out, rs.fmtFormat([args2[0]]));
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPoll(value, f, (value: rs.Poll<rs.u8>, f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug), rs.OuterPending)];
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, args4[0])]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPoll(value, f, (value: rs.Poll<rs.u8>, f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug), rs.OuterPending)]).v);
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => rs.fmtPoll(value, f, (value: rs.Poll<rs.u8>, f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug), rs.OuterPending))]).v);
 }
 
 /** `value` written by `Debug`, plain and with `#`, apart by a byte no UTF-8 holds. */
 export function debug$task_Poll_u8(out: rs.ByteVec, value: rs.Poll<rs.u8>): void {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0]]));
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, args4[0])]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug)]).v);
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => rs.fmtPoll(value, f, rs.u8Debug))]).v);
 }
 
 /** `value` written by `Debug`, plain and with `#`, apart by a byte no UTF-8 holds. */
 export function debug$task_Poll_unit(out: rs.ByteVec, value: rs.Poll<undefined>): void {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPoll(value, f, rs.fmtUnit)];
-	put(out, rs.fmtFormat([args2[0]]));
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPoll(value, f, rs.fmtUnit)];
-	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, args4[0])]));
+	put(out, rs.fmtFormat([(f: rs.Formatter) => rs.fmtPoll(value, f, rs.fmtUnit)]).v);
+	put(out, rs.fmtFormat([rs.fmtSpec({ alternate: true }, (f: rs.Formatter) => rs.fmtPoll(value, f, rs.fmtUnit))]).v);
 }
 
 /**
@@ -219,11 +191,11 @@ export function readies(data: rs.ByteSlice, out: rs.ByteVec): void {
 	debug$future_Ready_unit(out, new rs.Ready(undefined));
 	debug$future_Ready_Option_u8(out, new rs.Ready(rs.byteSliceFirst(data)));
 	debug$future_Ready_Option_Option_u8(out, new rs.Ready(rs.None as rs.u8 | undefined | rs.None));
-	const text_: rs.Ready<string> = new rs.Ready(text(data));
+	const text_: rs.Ready<rs.String> = new rs.Ready(text(data));
 	debug$future_Ready_String(out, text_);
-	const _52: rs.Poll<string> = pollOnce$future_Ready_String(text_);
+	const _52: rs.Poll<rs.String> = pollOnce$future_Ready_String(text_);
 	if (_52 !== rs.Pending) {
-		rs.iterExtendBytes(out, rs.strBytes(_52), undefined, true);
+		rs.iterExtendBytes(out, rs.strBytes(_52.v), undefined, true);
 	}
 	debug$future_Ready_String(out, text_);
 	const boxed: rs.Future<rs.usize> = new rs.Ready(data.length);
@@ -465,7 +437,7 @@ export function pendings(data: rs.ByteSlice, out: rs.ByteVec): void {
  */
 export function polls(data: rs.ByteSlice, out: rs.ByteVec): void {
 	let q!: rs.Poll<rs.u8>;
-	let r!: rs.Poll<rs.Result<rs.u8, string>>;
+	let r!: rs.Poll<rs.Result<rs.u8, rs.String>>;
 	for (const b of rs.byteSliceView(data)) {
 		const p: rs.Poll<rs.u8> = b;
 		if (!(rs.u8Rem(b, 3) === 0)) {
@@ -475,8 +447,8 @@ export function polls(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		debug$task_Poll_u8(out, p);
 		debug$task_Poll_u8(out, q);
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPoll(q, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtPoll(p, f, rs.u8Debug)];
-		put(out, rs.fmtFormat([rs.fmtSpec({ align: ">", width: 4 }, args2[0]), "|", rs.fmtSpec({ align: "<", alternate: true, debugHex: "x", width: 5 }, args2[1]), "|", rs.fmtSpec({ zero: true, width: 8 }, args2[1])]));
+		const args3 = [(f: rs.Formatter) => rs.fmtPoll(q, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtPoll(p, f, rs.u8Debug)];
+		put(out, rs.fmtFormat([rs.fmtSpec({ align: ">", width: 4 }, args3[0]), "|", rs.fmtSpec({ align: "<", alternate: true, debugHex: "x", width: 5 }, args3[1]), "|", rs.fmtSpec({ zero: true, width: 8 }, args3[1])]).v);
 		debug$task_Poll_Option_u8(out, poll_map$1jzbsum(b as rs.Poll<rs.u8 | undefined>, (o: rs.u8 | undefined): rs.u8 | undefined => {
 			return filter$0hq86nl(o, (v: rs.u8): boolean => {
 				return rs.u8Rem(v, 2) === 0;
@@ -488,7 +460,7 @@ export function polls(data: rs.ByteSlice, out: rs.ByteVec): void {
 		} else if (_38 === 1) {
 			r = rs.Ok(b);
 		} else {
-			r = rs.Err(rs.fmtToString((f: rs.Formatter) => rs.u8Display(b, f)));
+			r = rs.Err(rs.fmtToString((f: rs.Formatter) => rs.u8Display(b, f), 0));
 		}
 		debug$task_Poll_Result_u8_String(out, r);
 		debug$task_Poll_task_Poll_u8(out, nested(b));
@@ -584,8 +556,9 @@ export function wakers(data: rs.ByteSlice, out: rs.ByteVec): void {
 		maybe = rs.optionCloneFrom(maybe, from, (a0: rs.Waker): rs.Waker => {
 			return a0.clone();
 		}, rs.drop, rs.wakerCloneFromFn());
+		const _51: rs.Slice<rs.Waker> = rs.sliceFrom(pair);
 		const _53: rs.Waker[] = [w.clone(), source.clone()];
-		rs.sliceCloneFromSlice(pair, _53, (a02: rs.Waker): rs.Waker => {
+		rs.sliceCloneFromSlice(_51, rs.sliceFrom(_53), (a02: rs.Waker): rs.Waker => {
 			return a02.clone();
 		}, rs.drop, rs.wakerCloneFromFn());
 		rs.dropAll(_53);

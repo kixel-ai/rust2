@@ -1,7 +1,8 @@
 // A pointer the translation can't follow, such as one a struct's field holds, fails with
 // a rust2-ts error where JS keeps apart what Rust's reaches, which native Rust can't show:
-// there each is defined, as `repr(C)` fields and a shared subslice's parent are one
-// allocation, and a `Vec`'s capacity is past its length.
+// there each is defined, as `repr(C)` fields are one allocation, and a `Vec`'s capacity
+// is past its length. One Rust leaves undefined, such as a read through a dangling
+// pointer, aborts as std's debug checks do.
 //
 // usage: node pointers.ts
 
@@ -10,6 +11,8 @@ import { strict as assert } from "node:assert";
 import * as rs from "../runtime/rs.ts";
 
 const unsure = (f: () => void) => assert.throws(f, (e: Error) => !(e instanceof rs.Panic) && e.message.startsWith("rust2-ts: "));
+// What Rust leaves undefined aborts, as std's debug checks of unsafe preconditions do.
+const undefinedBehavior = (f: () => void) => assert.throws(f, (e: Error) => e instanceof rs.Abort && e.message.startsWith("unsafe precondition(s) violated: "));
 
 // Two `&raw const x` of one variable, each its own `rs.Place`.
 let x = 5;
@@ -27,16 +30,6 @@ unsure(() => rs.ptrAdd(high, -1).v);
 unsure(() => rs.ptrSlice(low, 2));
 unsure(() => rs.ptrCopy(low, high, 2));
 
-// A shared subslice, which is a copy: before it, past it, and against its parent.
-const lanes = [1, 2, 3, 4];
-const part = rs.sliceRange(lanes, 1, 3);
-unsure(() => rs.ptrAdd(rs.sliceAsPtr(part), -1).v);
-unsure(() => rs.ptrAdd(rs.sliceAsPtr(part), 2).v);
-unsure(() => rs.ptrOffsetFrom(rs.sliceAsPtr(part), rs.sliceAsPtr(lanes)));
-unsure(() => rs.ptrSlice(rs.sliceAsPtr(part), 3));
-unsure(() => rs.ptrCopy(rs.sliceAsPtr(part), rs.sliceAsPtr(lanes), 3));
-assert.equal(rs.ptrAdd(rs.sliceAsPtr(part), 1).v, 3);
-
 // A byte in no array, as a raw or mutable slice, as a shared one past it, and the
 // pointer of a shared one, a copy, against the byte's.
 let byte = 3;
@@ -47,12 +40,32 @@ const shared = rs.ptrByteSlice(lone, 1, true);
 assert.deepEqual(shared.data, Uint8Array.of(3));
 unsure(() => rs.ptrOffsetFrom(rs.byteSliceAsPtr(shared), lone));
 
-// A write into a `Vec`'s capacity past its length, which a JS array would grow by.
+// A write past an array that is no `Vec`'s items, which a JS array would grow by.
 const vec: number[] = [7];
 unsure(() => {
-	rs.ptrAdd(rs.sliceAsPtr(vec), 1).v = 8;
+	rs.ptrAdd(rs.arrayAsPtr(vec), 1).v = 8;
 });
 assert.equal(vec.length, 1);
+
+// A write past a `Vec`'s length lands in its room, but not past its capacity, and the
+// room moves with the items to the `Vec` that takes them.
+const held = rs.vecFrom([7]);
+const end = rs.ptrAdd(rs.vecAsPtr(held, 4), 1);
+unsure(() => {
+	end.v = 8;
+});
+rs.vecReserveExact(held, 1, 4);
+end.v = 8;
+assert.deepEqual(held.items, [7]);
+rs.vecSetLen(held, 2, 4, () => 0);
+assert.deepEqual(held.items, [7, 8]);
+rs.vecReserveExact(held, 4, 4);
+rs.ptrAdd(end, 1).v = 9;
+const taken = new rs.Vec(held.items, held.cap);
+held.items = [];
+assert.deepEqual(Array.from(rs.ptrSlice(rs.ptrAdd(end, -1), 3).data.slice(0, 3)), [7, 8, 9]);
+rs.vecSetLen(taken, 3, 4, () => 0);
+assert.deepEqual(taken.items, [7, 8, 9]);
 
 // Memory from `alloc`, which JS keeps as values once a cast types it: its bytes, typed as
 // another type of the same size, a pointer past the start of what it holds cast back to
@@ -67,32 +80,33 @@ unsure(() => rs.allocBytes(words, 4, "f32"));
 unsure(() => rs.allocBytes(rs.ptrAdd(words, 1), 4, "u32"));
 // Grown, it keeps its values, as many as fit; freed or grown, a pointer to its values is
 // no block.
-unsure(() => rs.dealloc(words));
-unsure(() => rs.realloc(words, 16));
+undefinedBehavior(() => rs.dealloc(words));
+undefinedBehavior(() => rs.realloc(words, 16));
 const grown = rs.realloc(rs.allocBytes(words, 4, "u32"), 18);
 assert.deepEqual(Array.from(grown.array ?? []), [0xffffffff, undefined, undefined, undefined]);
 
 // A dangling pointer read through, written through, or copied from, which Rust leaves
 // undefined, rather than reading `undefined`.
 const dangling: rs.Place<number> = rs.DANGLING;
-unsure(() => rs.ptrAdd(dangling, 1).v);
-unsure(() => {
+undefinedBehavior(() => rs.ptrAdd(dangling, 1).v);
+undefinedBehavior(() => {
 	rs.ptrAdd(dangling, 1).v = 1;
 });
-unsure(() => rs.ptrCopy(dangling, rs.sliceAsPtr(vec), 1));
-unsure(() => rs.ptrSlice(dangling, 1));
+undefinedBehavior(() => rs.ptrCopy(dangling, rs.arrayAsPtr(vec), 1));
+undefinedBehavior(() => rs.ptrSlice(dangling, 1));
+undefinedBehavior(() => rs.ptrAdd(rs.NULL as rs.Place<number>, 1).v);
 assert.equal(vec[0], 7);
 
 // A raw slice pointer read through once its `Vec` has shrunk past it, which Rust keeps
 // the old values for, and one past the array, which Rust allows until a read.
 const rows = [1, 2, 3, 4];
-const all = new rs.RawSlice(rs.sliceAsPtr(rows), 4);
-const tail = new rs.RawSlice(rs.sliceAsPtr(rows, 1), 3);
-assert.equal(all.deref()[3] + tail.deref()[2], 8);
+const all = new rs.RawSlice(rs.arrayAsPtr(rows), 4);
+const tail = new rs.RawSlice(rs.arrayAsPtr(rows, 1), 3);
+assert.equal(rs.sliceItems(all.deref())[3] + rs.sliceItems(tail.deref())[2], 8);
 rows.length = 3;
 unsure(() => all.deref());
 unsure(() => tail.deref());
-const long = new rs.RawSlice(rs.sliceAsPtr(rows), 10);
+const long = new rs.RawSlice(rs.arrayAsPtr(rows), 10);
 assert.equal(long.length, 10);
 unsure(() => long.deref());
 
@@ -119,17 +133,17 @@ assert.notEqual(two, rs.DANGLING_UNIT);
 const aligned = rs.ptrUnerase(two, "raw::Byte", 1) as object;
 assert.notEqual(aligned, rs.DANGLING);
 assert.equal(rs.ptrErase(aligned, "raw::Byte", 1), two);
-unsure(() => (aligned as rs.Place<number>).v);
+undefinedBehavior(() => (aligned as rs.Place<number>).v);
 
 // `Arc::from_raw` of a pointer no `Arc::into_raw` or `as_ptr` gave, such as a box's, of an
 // `Rc`'s, or of one whose value dropped, which Rust leaves undefined.
 const task = new rs.Arc({ id: 1 });
 const raw = rs.arcRaw(task, task.value, "Arc");
 assert.equal(rs.arcFromRaw(raw, "Arc"), task);
-unsure(() => rs.arcFromRaw({ id: 1 }, "Arc"));
-unsure(() => rs.arcFromRaw(raw, "Rc"));
+undefinedBehavior(() => rs.arcFromRaw({ id: 1 }, "Arc"));
+undefinedBehavior(() => rs.arcFromRaw(raw, "Rc"));
 task[Symbol.dispose]();
-assert.throws(() => rs.arcFromRaw(raw, "Arc"), /`Arc::from_raw` of a pointer to a value already dropped/);
+assert.throws(() => rs.arcFromRaw(raw, "Arc"), /Arc::from_raw requires a pointer to a value not yet dropped/);
 // Moved off its place by arithmetic and back, which is the same address.
 const counted = new rs.Arc(7);
 const at = rs.arcRaw(counted, rs.arcPlace(counted), "Rc");
@@ -141,3 +155,24 @@ const flagAt = rs.arcRaw(flag, rs.arcPlace(flag), "Arc");
 assert.equal(rs.arcErase(rs.ptrAdd(rs.ptrAdd(flagAt, 1), -1), "bool", 1), flagAt);
 assert.equal(rs.arcErase(rs.NULL, "bool", 1), rs.NULL);
 assert.throws(() => rs.arcErase({ v: false }, "bool", 1), /only an `Arc`'s or `Rc`'s raw pointer keeps the place of/);
+
+// A `str`'s UTF-8 through `as_ptr`, which JS encodes anew from its text: read through,
+// moved by arithmetic, and viewed, but a write or a copy into it, which Rust leaves
+// undefined, aborts, and a mutable slice of it, undefined under Stacked Borrows alone, fails.
+const text = rs.strAsPtr("aé");
+assert.equal(rs.ptrAdd(text, 2).v, 0xa9);
+assert.deepEqual(Array.from(rs.byteSliceView(rs.ptrByteSlice(text, 3, true))), [0x61, 0xc3, 0xa9]);
+assert.equal(rs.ptrOffsetFrom(rs.ptrWrappingAdd(text, 2, 1, 1), text), 2);
+undefinedBehavior(() => {
+	rs.ptrAdd(text, 1).v = 0;
+});
+undefinedBehavior(() => {
+	rs.ptrWrappingAdd(text, 1, 1, 1).v = 0;
+});
+undefinedBehavior(() => rs.ptrCopy(rs.byteSliceAsPtr(rs.byteSliceFrom(Uint8Array.of(1))), rs.ptrAdd(text, 1), 1));
+unsure(() => rs.ptrByteSlice(text, 1, false));
+unsure(() => new rs.RawSlice(text, 3).derefBytes(false));
+// None of it is nothing written, and two calls' pointers are two encodings.
+rs.ptrCopy(rs.byteSliceAsPtr(rs.byteSliceFrom(Uint8Array.of(1))), text, 0);
+assert.equal(rs.ptrByteSlice(text, 0, false).length, 0);
+unsure(() => rs.ptrOffsetFrom(rs.strAsPtr("aé"), text));

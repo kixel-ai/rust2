@@ -95,13 +95,12 @@ export function fields(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		p.headLen = _119.length;
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(p.headLen & 0xff, q.headLen & 0xff, Couple.eq$cmp_PartialEq(p, q) ? 1 : 0)));
 		rs.byteVecExtendFromSlice(out, new rs.ByteSlice(q.wordData, q.wordStart, q.wordLen));
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => Couple.fmt$fmt_Debug(p, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0]])));
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => Couple.fmt$fmt_Debug(p, f)]).v));
 	}
 	const _148: rs.ByteSlice = rs.byteSliceRange(data, 0, rs.min(data.length, 3));
 	const open: Exposed.Exposed = { buf: _148, at: kind };
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => Exposed.fmt$fmt_Debug(open, f), (f: rs.Formatter) => Scanner.fmt$fmt_Debug(r2, f)];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], args4[1]])));
+	const args8 = [(f: rs.Formatter) => Exposed.fmt$fmt_Debug(open, f), (f: rs.Formatter) => Scanner.fmt$fmt_Debug(r2, f)];
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args8[0], args8[1]]).v));
 	rs.byteVecPush(out, kind ^ (_148.length & 0xff));
 	if (!(rs.u8Rem(kind, 2) === 0)) {
 		const _175: Glued.Glued = { _0Data: Uint8Array.of(97, 98), _0Start: 0, _0Len: 2, _1Data: Uint8Array.of(), _1Start: 0, _1Len: 0 };
@@ -109,8 +108,7 @@ export function fields(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else {
 		two = { _0Data: Uint8Array.of(97, 98), _0Start: 0, _0Len: 2, _1Data: Uint8Array.of(), _1Start: 0, _1Len: 0 };
 	}
-	const args6: rs.Fmt[] = [(f: rs.Formatter) => Glued.fmt$fmt_Debug(two, f)];
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0]])));
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => Glued.fmt$fmt_Debug(two, f)]).v));
 	rs.byteVecPush(out, rs.usizeAdd(two._0Len, two._1Len) & 0xff);
 	const _195: Scanner.Scanner = SCANNER;
 	rs.byteVecExtendFromSlice(out, new rs.ByteSlice(_195.bufData, _195.bufStart, _195.bufLen));

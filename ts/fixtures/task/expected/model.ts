@@ -82,12 +82,11 @@ export class sumFuture {
 							const value: rs.u64 = result;
 							if (!(value !== 99)) {
 								const arg2 = this.#guard.id;
-								const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(arg2, f)];
-								rs.panicFmt(["g", args2[0], " poisoned"]);
+								rs.panicFmt(["g", (f: rs.Formatter) => rs.u32Display(arg2, f), " poisoned"]);
 							} else {
 								const arg = this.#guard.id;
-								const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(arg, f), (f: rs.Formatter) => rs.u64Display(value, f)];
-								const _32: string = rs.fmtFormat(["g", args4[0], " got ", args4[1]]);
+								const args5 = [(f: rs.Formatter) => rs.u32Display(arg, f), (f: rs.Formatter) => rs.u64Display(value, f)];
+								const _32: rs.String = rs.fmtFormat(["g", args5[0], " got ", args5[1]]);
 								Log.note(this.#inner.log, _32);
 								this.#total = rs.u64Add(this.#total, value);
 								bb0 = 4;
@@ -224,8 +223,7 @@ export class watchFuture {
 						this.#awaitee[Symbol.dispose]();
 						rs.drop(this.#pinned);
 						const arg = this.#first;
-						const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(arg, f, rs.u64Debug)];
-						const _22: string = rs.fmtFormat(["first ", args2[0]]);
+						const _22: string = rs.fmtFormat(["first ", (f: rs.Formatter) => rs.fmtOption(arg, f, rs.u64Debug)]).v;
 						Guard.note(this.#guard, _22);
 						this.#saved$2 = false;
 						this.#pending = Pending.new$model_Watch(new Watch.Watch(this.#rx, 1));
@@ -246,8 +244,7 @@ export class watchFuture {
 						const result2: rs.u64 | undefined = _38;
 						if (result2 !== undefined) {
 							value = result2;
-							const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Display(value, f)];
-							const _50: string = rs.fmtFormat(["watched ", args4[0]]);
+							const _50: string = rs.fmtFormat(["watched ", (f: rs.Formatter) => rs.u64Display(value, f)]).v;
 							Guard.note(this.#guard, _50);
 							this.#total = rs.u64Add(this.#total, value);
 							const _62: Watch.Watch = Pending.derefMut$ops_DerefMut_model_Watch(this.#pending);
@@ -266,7 +263,7 @@ export class watchFuture {
 				case 45:
 					if (this.#awaitee$3.poll(_2) !== rs.Pending) {
 						rs.drop(this.#awaitee$3);
-						this.#awaitee$4 = new waitFuture$kio_Consumer_model_watch_closure0_closure1_usize(this.#watch.rx, (queue: rs.u64[]): rs.Poll<rs.usize> => {
+						this.#awaitee$4 = new waitFuture$kio_Consumer_model_watch_closure0_closure1_usize(this.#watch.rx, (queue: rs.Slice<rs.u64>): rs.Poll<rs.usize> => {
 							return queue.length;
 						});
 						bb0 = 53;
@@ -280,8 +277,8 @@ export class watchFuture {
 						const sent: rs.Result<rs.usize, Closed.Closed> = _82;
 						rs.drop(this.#awaitee$4);
 						const arg2 = this.#watch.index;
-						const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(arg2, f), (f: rs.Formatter) => rs.fmtResult(sent, f, rs.usizeDebug, (value: Closed.Closed, f: rs.Formatter) => Closed.fmt$fmt_Debug(value, f))];
-						const _92: string = rs.fmtFormat(["watched to ", args6[0], " of ", args6[1]]);
+						const args9 = [(f: rs.Formatter) => rs.usizeDisplay(arg2, f), (f: rs.Formatter) => rs.fmtResult(sent, f, rs.usizeDebug, (value: Closed.Closed, f: rs.Formatter) => Closed.fmt$fmt_Debug(value, f))];
+						const _92: string = rs.fmtFormat(["watched to ", args9[0], " of ", args9[1]]).v;
 						Guard.note(this.#guard, _92);
 						const _109: rs.u64 = this.#total;
 						this.#watch[Symbol.dispose]();
@@ -396,14 +393,13 @@ export class frontFuture {
 					return rs.Pending;
 				case 23:
 					const arg = this.#listing;
-					const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(arg, f, (value: Listing.Listing, f: rs.Formatter) => Listing.fmt$fmt_Debug(value, f))];
-					const _32: string = rs.fmtFormat(["listing ", args2[0]]);
+					const _32: string = rs.fmtFormat(["listing ", (f: rs.Formatter) => rs.fmtOption(arg, f, (value: Listing.Listing, f: rs.Formatter) => Listing.fmt$fmt_Debug(value, f))]).v;
 					Guard.note(this.#guard, _32);
 					this.#awaitee$2 = wait$model_front_closure0_closure0_usize((waiter: Waiter.Waiter): rs.Poll<rs.usize> => {
 						while (true) {
-							const _42: rs.Poll<rs.u64 | undefined> = Consumer.pollRecv(this.#rx, waiter);
-							if (_42 !== rs.Pending) {
-								const next: rs.u64 | undefined = _42;
+							const _43: rs.Poll<rs.u64 | undefined> = Consumer.pollRecv(this.#rx, waiter);
+							if (_43 !== rs.Pending) {
+								const next: rs.u64 | undefined = _43;
 								if (next === undefined) {
 									return this.#inFlight.items.length;
 								}
@@ -433,8 +429,8 @@ export class frontFuture {
 						this.#awaitee$2[Symbol.dispose]();
 						const _69: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(closed, f);
 						const arg2 = this.#inFlight;
-						const args4: rs.Fmt[] = [_69, (f: rs.Formatter) => rs.fmtList(arg2.items, f, rs.u64Debug)];
-						const _60: string = rs.fmtFormat(["closed with ", args4[0], " in flight ", args4[1]]);
+						const args6 = [_69, (f: rs.Formatter) => rs.fmtList(arg2.items, f, rs.u64Debug)];
+						const _60: string = rs.fmtFormat(["closed with ", args6[0], " in flight ", args6[1]]).v;
 						Guard.note(this.#guard, _60);
 						const _79: rs.u64 = rs.iterSum(rs.iterSlice(this.#inFlight.items), rs.u64Add, 0);
 						this.#guard[Symbol.dispose]();
@@ -501,7 +497,7 @@ export function at(rx: Consumer.Consumer, index: rs.usize, waiter: Waiter.Waiter
  * its `Pending`.
  */
 export function held(rx: Consumer.Consumer, index: rs.usize, waiter: Waiter.Waiter): rs.Result<rs.Poll<rs.u64> | rs.OuterPending, Closed.Closed> {
-	const _4: rs.Result<rs.Poll<rs.u64> | rs.OuterPending, Closed.Closed> = rs.pollBranch(Consumer.poll$model_held_closure0_task_Poll_u64(rx, waiter, (queue: rs.u64[]): rs.Poll<rs.u64> | rs.OuterPending => {
+	const _4: rs.Result<rs.Poll<rs.u64> | rs.OuterPending, Closed.Closed> = rs.pollBranch(Consumer.poll$model_held_closure0_task_Poll_u64(rx, waiter, (queue: rs.Slice<rs.u64>): rs.Poll<rs.u64> | rs.OuterPending => {
 		const _3: rs.u64 | undefined = rs.sliceGet(queue, index);
 		if (_3 === undefined) {
 			return rs.OuterPending;
@@ -676,7 +672,7 @@ export class blocksFuture {
 									this.#waited = consume(this.#saved, result);
 									this.#slots = [Guard.new(rs.u32Add(this.#guard.id, 910), Log.clone$Clone(this.#guard.log)), Guard.new(rs.u32Add(this.#guard.id, 920), Log.clone$Clone(this.#guard.log))];
 									this.#saved = Guard.new(rs.u32Add(this.#guard.id, 930), Log.clone$Clone(this.#guard.log));
-									this.#awaitee$2 = new slotFuture(this.#rx, this.#slots.length);
+									this.#awaitee$2 = new slotFuture(this.#rx, rs.sliceFrom(this.#slots).length);
 								} else {
 									this.#state = 3;
 									return rs.Pending;
@@ -692,8 +688,7 @@ export class blocksFuture {
 								this.#slots[result2][Symbol.dispose]();
 								this.#slots[result2] = this.#saved;
 								const arg = this.#waited;
-								const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Display(arg, f)];
-								const _76: string = rs.fmtFormat(["slot after ", args2[0]]);
+								const _76: string = rs.fmtFormat(["slot after ", (f: rs.Formatter) => rs.u64Display(arg, f)]).v;
 								Guard.note(this.#slots[0], _76);
 								this.#tally = { n: this.#guard.id };
 								const seen: rs.Future<rs.u32> = new blocksFuture$closure1(copy$model_Tally(this.#tally));
@@ -711,8 +706,8 @@ export class blocksFuture {
 							const _98: rs.u32 = _100;
 							rs.drop(this.#awaitee$3);
 							const arg2 = this.#saved$2;
-							const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(arg2, f), (f: rs.Formatter) => rs.u32Display(_98, f)];
-							const _91: string = rs.fmtFormat(["tally ", args4[0], " then ", args4[1]]);
+							const args12 = [(f: rs.Formatter) => rs.u32Display(arg2, f), (f: rs.Formatter) => rs.u32Display(_98, f)];
+							const _91: string = rs.fmtFormat(["tally ", args12[0], " then ", args12[1]]).v;
 							Guard.note(this.#saved, _91);
 							this.#mark = { n: 1 };
 							this.#awaitee$3 = new blocksFuture$closure2(this.#mark);
@@ -728,8 +723,8 @@ export class blocksFuture {
 						const arg3 = this.#saved$2;
 						const _135: rs.Fmt = (f: rs.Formatter) => rs.u32Display(arg3, f);
 						const arg4 = this.#mark.n;
-						const args6: rs.Fmt[] = [_135, (f: rs.Formatter) => rs.u32Display(arg4, f)];
-						const _126: string = rs.fmtFormat(["mark ", args6[0], " ", args6[1]]);
+						const args13 = [_135, (f: rs.Formatter) => rs.u32Display(arg4, f)];
+						const _126: string = rs.fmtFormat(["mark ", args13[0], " ", args13[1]]).v;
 						Guard.note(this.#guard, _126);
 						this.#count = this.#guard.id;
 						this.#awaitee$3 = new blocksFuture$closure3(rs.place(() => this.#count, (value) => this.#count = value));
@@ -745,8 +740,8 @@ export class blocksFuture {
 					const arg5 = this.#counted;
 					const _161: rs.Fmt = (f: rs.Formatter) => rs.u32Display(arg5, f);
 					const arg6 = this.#count;
-					const args8: rs.Fmt[] = [_161, (f: rs.Formatter) => rs.u32Display(arg6, f)];
-					const _152: string = rs.fmtFormat(["count ", args8[0], " ", args8[1]]);
+					const args14 = [_161, (f: rs.Formatter) => rs.u32Display(arg6, f)];
+					const _152: string = rs.fmtFormat(["count ", args14[0], " ", args14[1]]).v;
 					Guard.note(this.#guard, _152);
 					this.#nested = new Inner.Inner(new Outer.Outer(undefined, Guard.new(rs.u32Add(this.#guard.id, 800), Log.clone$Clone(this.#guard.log))));
 					const third: Guard.Guard = Guard.new(rs.u32Add(this.#guard.id, 400), Log.clone$Clone(this.#guard.log));
@@ -767,8 +762,7 @@ export class blocksFuture {
 				this.#looped = _187;
 				rs.drop(this.#awaitee$3);
 				const arg7 = this.#looped;
-				const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(arg7, f)];
-				const _197: string = rs.fmtFormat(["looped ", args10[0]]);
+				const _197: string = rs.fmtFormat(["looped ", (f: rs.Formatter) => rs.u32Display(arg7, f)]).v;
 				Guard.note(this.#saved, _197);
 				if (this.#moves) {
 					this.#saved$3 = false;
@@ -1139,8 +1133,7 @@ export function temporaries(log: Log.Log, id: rs.u32): void {
 	};
 	const _11: Guard.Guard = guard(1000);
 	const arg = _11.id;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(arg, f)];
-	const _7: string = rs.fmtFormat(["temporary ", args2[0]]);
+	const _7: rs.String = rs.fmtFormat(["temporary ", (f: rs.Formatter) => rs.u32Display(arg, f)]);
 	_11[Symbol.dispose]();
 	Log.note(log, _7);
 	const _19: Guard.Guard | undefined = guard(1010);
@@ -1159,31 +1152,27 @@ export function temporaries(log: Log.Log, id: rs.u32): void {
 	}
 	const _39: Guard.Guard = guard(1030);
 	const arg2 = _39.id;
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(arg2, f), (f: rs.Formatter) => rs.i32Display(matched, f)];
-	const _35: string = rs.fmtFormat(["boxed temporary ", args4[0], " ", args4[1]]);
+	const args14 = [(f: rs.Formatter) => rs.u32Display(arg2, f), (f: rs.Formatter) => rs.i32Display(matched, f)];
+	const _35: rs.String = rs.fmtFormat(["boxed temporary ", args14[0], " ", args14[1]]);
 	_39[Symbol.dispose]();
 	Log.note(log, _35);
 	const part = first([guard(1040), guard(1050)] as [Guard.Guard, Guard.Guard]);
-	const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part, f)];
-	Log.note(log, rs.fmtFormat(["skipped ", args6[0]]));
+	Log.note(log, rs.fmtFormat(["skipped ", (f: rs.Formatter) => rs.u32Display(part, f)]));
 	const _69: Guard.Guard[] = [guard(1060), guard(1070), guard(1080)];
 	const head: Guard.Guard = _69[0];
 	const rest: Guard.Guard[] = _69.slice(1, 3);
 	Guard.note(head, "head");
 	Guard.note(rest[1], "rest");
 	guard(1090)[Symbol.dispose]();
-	const _98: Guard.Guard[] = [];
-	const part2 = _98.length;
-	const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part2, f)];
-	Log.note(log, rs.fmtFormat(["empty ", args8[0]]));
+	const part2 = rs.sliceFrom([]).length;
+	Log.note(log, rs.fmtFormat(["empty ", (f: rs.Formatter) => rs.usizeDisplay(part2, f)]));
 	const captured = guard(1100);
 	const part3 = rs.closure((): rs.u32 => {
 		return Guard.finish(captured, "closure");
 	}, (): void => {
 		captured[Symbol.dispose]();
 	})();
-	const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part3, f)];
-	Log.note(log, rs.fmtFormat(["closed ", args10[0]]));
+	Log.note(log, rs.fmtFormat(["closed ", (f: rs.Formatter) => rs.u32Display(part3, f)]));
 	let sum: rs.u32 = 0;
 	const iter: Countdown.Countdown = new Countdown.Countdown(2, guard(1110));
 	while (true) {
@@ -1194,8 +1183,7 @@ export function temporaries(log: Log.Log, id: rs.u32): void {
 		sum = rs.u32Add(sum, _126);
 	}
 	iter[Symbol.dispose]();
-	const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(sum, f)];
-	Log.note(log, rs.fmtFormat(["counted ", args12[0]]));
+	Log.note(log, rs.fmtFormat(["counted ", (f: rs.Formatter) => rs.u32Display(sum, f)]));
 	rs.dropAll(rest);
 	head[Symbol.dispose]();
 }
@@ -1213,8 +1201,7 @@ export function read(t: Tally.Tally): rs.u32 {
 
 /** `i`, noted as picked. */
 export function pick(log: Log.Log, i: rs.usize): rs.usize {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(i, f)];
-	Log.note(log, rs.fmtFormat(["pick ", args2[0]]));
+	Log.note(log, rs.fmtFormat(["pick ", (f: rs.Formatter) => rs.usizeDisplay(i, f)]));
 	return i;
 }
 
@@ -1246,44 +1233,38 @@ export function turns(log: Log.Log, count: rs.u32): void {
 	const _42: Guard.Guard = Guard.new(rs.u32Add(count, 90), Log.clone$Clone(log));
 	const scoped: rs.u32 = _42.id;
 	_42[Symbol.dispose]();
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(scoped, f)];
-	Log.note(log, rs.fmtFormat(["after ", args2[0]]));
+	Log.note(log, rs.fmtFormat(["after ", (f: rs.Formatter) => rs.u32Display(scoped, f)]));
 	const boxed: Guard.Guard = Guard.new(rs.u32Add(count, 100), Log.clone$Clone(log));
 	const once: rs.u32 = boxed.id;
 	const _70: rs.Fmt = (f: rs.Formatter) => rs.u32Display(once, f);
 	const arg = boxed.id;
-	const args4: rs.Fmt[] = [_70, (f: rs.Formatter) => rs.u32Display(arg, f)];
-	Log.note(log, rs.fmtFormat(["boxed ", args4[0], " ", args4[1]]));
+	const args16 = [_70, (f: rs.Formatter) => rs.u32Display(arg, f)];
+	Log.note(log, rs.fmtFormat(["boxed ", args16[0], " ", args16[1]]));
 	const part = Guard.finish(Guard.new(rs.u32Add(count, 110), Log.clone$Clone(log)), "finishing");
-	const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part, f)];
-	Log.note(log, rs.fmtFormat(["finished ", args6[0]]));
+	Log.note(log, rs.fmtFormat(["finished ", (f: rs.Formatter) => rs.u32Display(part, f)]));
 	const part2 = Guard.unbox(Guard.new(rs.u32Add(count, 120), Log.clone$Clone(log)), "unboxing");
-	const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part2, f)];
-	Log.note(log, rs.fmtFormat(["unboxed ", args8[0]]));
+	Log.note(log, rs.fmtFormat(["unboxed ", (f: rs.Formatter) => rs.u32Display(part2, f)]));
 	if (rs.u32Rem(count, 2) === 0) {
 		stacked = [Guard.new(rs.u32Add(count, 130), Log.clone$Clone(log)), Guard.new(rs.u32Add(count, 140), Log.clone$Clone(log))];
 	} else {
 		stacked = undefined;
 	}
 	const part3 = stacked !== undefined;
-	const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part3, f)];
-	Log.note(log, rs.fmtFormat(["stacked ", args10[0]]));
+	Log.note(log, rs.fmtFormat(["stacked ", (f: rs.Formatter) => rs.fmtBool(part3, f)]));
 	if (rs.u32Rem(count, 2) === 0) {
 		failed = rs.Err(Guard.new(rs.u32Add(count, 150), Log.clone$Clone(log)));
 	} else {
 		failed = rs.Ok(count);
 	}
 	const part4 = !failed.ok;
-	const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part4, f)];
-	Log.note(log, rs.fmtFormat(["failed ", args12[0]]));
+	Log.note(log, rs.fmtFormat(["failed ", (f: rs.Formatter) => rs.fmtBool(part4, f)]));
 	if (rs.u32Rem(count, 3) === 0) {
 		flow = rs.Err(Guard.new(rs.u32Add(count, 160), Log.clone$Clone(log)));
 	} else {
 		flow = rs.Ok(count);
 	}
 	const part5 = !flow.ok;
-	const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part5, f)];
-	Log.note(log, rs.fmtFormat(["flow ", args14[0]]));
+	Log.note(log, rs.fmtFormat(["flow ", (f: rs.Formatter) => rs.fmtBool(part5, f)]));
 	const spares: Guard.Guard[] = [Guard.new(rs.u32Add(count, 70), Log.clone$Clone(log)), Guard.new(rs.u32Add(count, 80), Log.clone$Clone(log))];
 	const _179: rs.usize = pick(log, rs.usizeRem(count as rs.usize, 2));
 	if (!(_179 < 2)) {

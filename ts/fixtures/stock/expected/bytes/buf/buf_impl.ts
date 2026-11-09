@@ -4,11 +4,14 @@ import * as rs from "../../rs.ts";
 import { out$i64, out$u128, out$u16, out$u8 } from "../../lib.ts";
 import type * as Leased from "../../buf.Leased.ts";
 import type * as Provided from "../../buf.Provided.ts";
+import { panicAdvance, panicDoesNotFit } from "../../bytes.ts";
 import type * as Buf from "../../bytes/buf/buf_impl.Buf.ts";
 import * as Chain from "../../bytes/buf/chain.Chain.ts";
 import { new_$bytes_Bytes as take_new_$bytes_Bytes, new_$mut_bytes_Bytes as take_new_$mut_bytes_Bytes, new_$mut_bytes_BytesMut as take_new_$mut_bytes_BytesMut, new_$mut_mut_ref_slice_u8 as take_new_$mut_mut_ref_slice_u8, new_$mut_ref_slice_u8 as take_new_$mut_ref_slice_u8, new_$ref_slice_u8 as take_new_$ref_slice_u8 } from "../../bytes/buf/take.ts";
 import type * as Take from "../../bytes/buf/take.Take.ts";
+import { remaining$bytes_Buf_collections_VecDeque_u8 as vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, chunk$bytes_Buf_collections_VecDeque_u8 as vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, advance$bytes_Buf_collections_VecDeque_u8 as vec_deque_advance$bytes_Buf_collections_VecDeque_u8 } from "../../bytes/buf/vec_deque.ts";
 import type * as TryGetError from "../../bytes.TryGetError.ts";
+import { unwrapOrElse$1b4ownx as result_unwrapOrElse$1b4ownx, unwrapOrElse$1fg63zn as result_unwrapOrElse$1fg63zn } from "../../core/result.ts";
 
 export function signExtend(val: rs.u64, nbytes: rs.usize): rs.i64 {
 	if (!(nbytes === 0)) {
@@ -16,6 +19,432 @@ export function signExtend(val: rs.u64, nbytes: rs.usize): rs.i64 {
 		return rs.i64Shr(rs.i64Cast(rs.u64Shl(val, shift)), shift);
 	}
 	return 0;
+}
+
+/**
+ * Fills `dst` with potentially multiple slices starting at `self`'s
+ * current position.
+ *
+ * If the `Buf` is backed by disjoint slices of bytes, `chunk_vectored` enables
+ * fetching more than one slice at once. `dst` is a slice of `IoSlice`
+ * references, enabling the slice to be directly used with [`writev`]
+ * without any further conversion. The sum of the lengths of all the
+ * buffers written to `dst` will be less than or equal to `Buf::remaining()`.
+ *
+ * The entries in `dst` will be overwritten, but the data **contained** by
+ * the slices **will not** be modified. The return value is the number of
+ * slices written to `dst`. If `Buf::remaining()` is non-zero, then this
+ * writes at least one non-empty slice to `dst`.
+ *
+ * This is a lower level function. Most operations are done with other
+ * functions.
+ *
+ * # Implementer notes
+ *
+ * This function should never panic. Once the end of the buffer is reached,
+ * i.e., `Buf::remaining` returns 0, calls to `chunk_vectored` must return 0
+ * without mutating `dst`.
+ *
+ * Implementations should also take care to properly handle being called
+ * with `dst` being a zero length slice.
+ *
+ * [`writev`]: http://man7.org/linux/man-pages/man2/readv.2.html
+ */
+export function chunksVectored$bytes_Buf_bytes_Bytes(self: rs.ByteSlice, dst: rs.Slice<rs.ByteSlice>): rs.usize {
+	if (!(dst.length === 0)) {
+		if (!(self.length !== 0)) {
+			return 0;
+		}
+		const _6: rs.ByteSlice = self;
+		rs.idx(dst, 0);
+		dst.data[dst.start] = _6;
+		return 1;
+	}
+	return 0;
+}
+
+/**
+ * Fills `dst` with potentially multiple slices starting at `self`'s
+ * current position.
+ *
+ * If the `Buf` is backed by disjoint slices of bytes, `chunk_vectored` enables
+ * fetching more than one slice at once. `dst` is a slice of `IoSlice`
+ * references, enabling the slice to be directly used with [`writev`]
+ * without any further conversion. The sum of the lengths of all the
+ * buffers written to `dst` will be less than or equal to `Buf::remaining()`.
+ *
+ * The entries in `dst` will be overwritten, but the data **contained** by
+ * the slices **will not** be modified. The return value is the number of
+ * slices written to `dst`. If `Buf::remaining()` is non-zero, then this
+ * writes at least one non-empty slice to `dst`.
+ *
+ * This is a lower level function. Most operations are done with other
+ * functions.
+ *
+ * # Implementer notes
+ *
+ * This function should never panic. Once the end of the buffer is reached,
+ * i.e., `Buf::remaining` returns 0, calls to `chunk_vectored` must return 0
+ * without mutating `dst`.
+ *
+ * Implementations should also take care to properly handle being called
+ * with `dst` being a zero length slice.
+ *
+ * [`writev`]: http://man7.org/linux/man-pages/man2/readv.2.html
+ */
+export function chunksVectored$bytes_Buf_bytes_BytesMut(self: rs.BytesMut, dst: rs.Slice<rs.ByteSlice>): rs.usize {
+	if (!(dst.length === 0)) {
+		if (!(self.length !== 0)) {
+			return 0;
+		}
+		const _6: rs.ByteSlice = rs.bytesMutView(self);
+		rs.idx(dst, 0);
+		dst.data[dst.start] = _6;
+		return 1;
+	}
+	return 0;
+}
+
+/**
+ * Fills `dst` with potentially multiple slices starting at `self`'s
+ * current position.
+ *
+ * If the `Buf` is backed by disjoint slices of bytes, `chunk_vectored` enables
+ * fetching more than one slice at once. `dst` is a slice of `IoSlice`
+ * references, enabling the slice to be directly used with [`writev`]
+ * without any further conversion. The sum of the lengths of all the
+ * buffers written to `dst` will be less than or equal to `Buf::remaining()`.
+ *
+ * The entries in `dst` will be overwritten, but the data **contained** by
+ * the slices **will not** be modified. The return value is the number of
+ * slices written to `dst`. If `Buf::remaining()` is non-zero, then this
+ * writes at least one non-empty slice to `dst`.
+ *
+ * This is a lower level function. Most operations are done with other
+ * functions.
+ *
+ * # Implementer notes
+ *
+ * This function should never panic. Once the end of the buffer is reached,
+ * i.e., `Buf::remaining` returns 0, calls to `chunk_vectored` must return 0
+ * without mutating `dst`.
+ *
+ * Implementations should also take care to properly handle being called
+ * with `dst` being a zero length slice.
+ *
+ * [`writev`]: http://man7.org/linux/man-pages/man2/readv.2.html
+ */
+export function chunksVectored$bytes_Buf_ref_slice_u8(self: rs.ByteSlice, dst: rs.Slice<rs.ByteSlice>): rs.usize {
+	if (!(dst.length === 0)) {
+		if (!(self.length !== 0)) {
+			return 0;
+		}
+		const _6: rs.ByteSlice = self;
+		rs.idx(dst, 0);
+		dst.data[dst.start] = _6;
+		return 1;
+	}
+	return 0;
+}
+
+/**
+ * Returns true if there are any more bytes to consume
+ *
+ * This is equivalent to `self.remaining() != 0`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"a"[..];
+ *
+ * assert!(buf.has_remaining());
+ *
+ * buf.get_u8();
+ *
+ * assert!(!buf.has_remaining());
+ * ```
+ */
+export function hasRemaining$bytes_Buf_collections_VecDeque_u8(self: rs.VecDeque<rs.u8>): boolean {
+	return vec_deque_remaining$bytes_Buf_collections_VecDeque_u8(self) > 0;
+}
+
+/**
+ * Copies bytes from `self` into `dst`.
+ *
+ * The cursor is advanced by the number of bytes copied. `self` must have
+ * enough remaining bytes to fill `dst`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"hello world"[..];
+ * let mut dst = [0; 5];
+ *
+ * buf.copy_to_slice(&mut dst);
+ * assert_eq!(&b"hello"[..], &dst);
+ * assert_eq!(6, buf.remaining());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if `self.remaining() < dst.len()`.
+ */
+export function copyToSlice$bytes_Buf_collections_VecDeque_u8(self: rs.VecDeque<rs.u8>, dst: rs.ByteSlice): void {
+	result_unwrapOrElse$1fg63zn(tryCopyToSlice$bytes_Buf_collections_VecDeque_u8(self, dst), (error: TryGetError.TryGetError): undefined => {
+		panicAdvance(error);
+	});
+}
+
+/**
+ * Gets an unsigned 8 bit integer from `self`.
+ *
+ * The current position is advanced by 1.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x08 hello"[..];
+ * assert_eq!(8, buf.get_u8());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is no more remaining data in `self`.
+ */
+export function getU8$bytes_Buf_collections_VecDeque_u8(self: rs.VecDeque<rs.u8>): rs.u8 {
+	if (!(remaining$bytes_Buf_mut_collections_VecDeque_u8(self) < 1)) {
+		const _7: rs.ByteSlice = chunk$bytes_Buf_mut_collections_VecDeque_u8(self);
+		rs.idx(_7, 0);
+		const ret: rs.u8 = _7.data[_7.start];
+		vec_deque_advance$bytes_Buf_collections_VecDeque_u8(self, 1);
+		return ret;
+	}
+	panicAdvance({ requested: 1, available: 0 });
+}
+
+/**
+ * Gets a signed 8 bit integer from `self`.
+ *
+ * The current position is advanced by 1.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x08 hello"[..];
+ * assert_eq!(8, buf.get_i8());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is no more remaining data in `self`.
+ */
+export function getI8$bytes_Buf_collections_VecDeque_u8(self: rs.VecDeque<rs.u8>): rs.i8 {
+	if (!(remaining$bytes_Buf_mut_collections_VecDeque_u8(self) < 1)) {
+		const _8: rs.ByteSlice = chunk$bytes_Buf_mut_collections_VecDeque_u8(self);
+		rs.idx(_8, 0);
+		const ret: rs.i8 = (_8.data[_8.start] << 24) >> 24;
+		vec_deque_advance$bytes_Buf_collections_VecDeque_u8(self, 1);
+		return ret;
+	}
+	panicAdvance({ requested: 1, available: 0 });
+}
+
+/**
+ * Gets an unsigned n-byte integer from `self` in big-endian byte order.
+ *
+ * The current position is advanced by `nbytes`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x01\x02\x03 hello"[..];
+ * assert_eq!(0x010203, buf.get_uint(3));
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`, or
+ * if `nbytes` is greater than 8.
+ */
+export function getUint$bytes_Buf_collections_VecDeque_u8(self: rs.VecDeque<rs.u8>, nbytes: rs.usize): rs.u64 {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+		const _2: rs.usize | undefined = rs.usizeCheckedSub(8, nbytes);
+		if (_2 === undefined) {
+			panicDoesNotFit(8, nbytes);
+		} else {
+			const sliceAt: rs.usize = _2;
+			const buf: Uint8Array = rs.bytes(8);
+			const _9: rs.Result<undefined, TryGetError.TryGetError> = tryCopyToSlice$bytes_Buf_collections_VecDeque_u8(self, rs.byteSliceRange(rs.byteSliceFrom(buf), sliceAt));
+			if (_9.ok) {
+				return rs.Ok(rs.u64FromBeBytes(buf));
+			}
+			return _9;
+		}
+	})(), (error: TryGetError.TryGetError): rs.u64 => {
+		panicAdvance(error);
+	});
+}
+
+/**
+ * Gets an unsigned n-byte integer from `self` in little-endian byte order.
+ *
+ * The current position is advanced by `nbytes`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x03\x02\x01 hello"[..];
+ * assert_eq!(0x010203, buf.get_uint_le(3));
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`, or
+ * if `nbytes` is greater than 8.
+ */
+export function getUintLe$bytes_Buf_collections_VecDeque_u8(self: rs.VecDeque<rs.u8>, nbytes: rs.usize): rs.u64 {
+	return result_unwrapOrElse$1b4ownx(((): rs.Result<rs.u64, TryGetError.TryGetError> => {
+		const buf: Uint8Array = rs.bytes(8);
+		const _32: rs.ByteSlice | undefined = rs.byteSliceGetRange(rs.byteSliceFrom(buf), 0, nbytes);
+		if (_32 === undefined) {
+			panicDoesNotFit(8, nbytes);
+		} else {
+			const _12: rs.Result<undefined, TryGetError.TryGetError> = tryCopyToSlice$bytes_Buf_collections_VecDeque_u8(self, _32);
+			if (_12.ok) {
+				return rs.Ok(rs.u64FromBeBytes(buf.slice().reverse()));
+			}
+			return _12;
+		}
+	})(), (error: TryGetError.TryGetError): rs.u64 => {
+		panicAdvance(error);
+	});
+}
+
+/**
+ * Gets a signed n-byte integer from `self` in little-endian byte order.
+ *
+ * The current position is advanced by `nbytes`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x03\x02\x01 hello"[..];
+ * assert_eq!(0x010203, buf.get_int_le(3));
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`, or
+ * if `nbytes` is greater than 8.
+ */
+export function getIntLe$bytes_Buf_collections_VecDeque_u8(self: rs.VecDeque<rs.u8>, nbytes: rs.usize): rs.i64 {
+	return signExtend(getUintLe$bytes_Buf_collections_VecDeque_u8(self, nbytes), nbytes);
+}
+
+/**
+ * Gets an IEEE754 single-precision (4 bytes) floating point number from
+ * `self` in little-endian byte order.
+ *
+ * The current position is advanced by 4.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x9A\x99\x99\x3F hello"[..];
+ * assert_eq!(1.2f32, buf.get_f32_le());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`.
+ */
+export function getF32Le$bytes_Buf_collections_VecDeque_u8(self: rs.VecDeque<rs.u8>): rs.f32 {
+	return rs.f32FromBits(rs.bufGet(self, 4, true, rs.u32FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined));
+}
+
+/**
+ * Gets an IEEE754 double-precision (8 bytes) floating point number from
+ * `self` in big-endian byte order.
+ *
+ * The current position is advanced by 8.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x3F\xF3\x33\x33\x33\x33\x33\x33 hello"[..];
+ * assert_eq!(1.2f64, buf.get_f64());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`.
+ */
+export function getF64$bytes_Buf_collections_VecDeque_u8(self: rs.VecDeque<rs.u8>): rs.f64 {
+	return rs.f64FromBits(rs.bufGet(self, 8, false, rs.u64FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined));
+}
+
+/**
+ * Copies bytes from `self` into `dst`.
+ *
+ * The cursor is advanced by the number of bytes copied. `self` must have
+ * enough remaining bytes to fill `dst`.
+ *
+ * Returns `Err(TryGetError)` when there are not enough
+ * remaining bytes to read the value.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"hello world"[..];
+ * let mut dst = [0; 5];
+ *
+ * assert_eq!(Ok(()), buf.try_copy_to_slice(&mut dst));
+ * assert_eq!(&b"hello"[..], &dst);
+ * assert_eq!(6, buf.remaining());
+ * ```
+ *
+ * ```
+ * use bytes::{Buf, TryGetError};
+ *
+ * let mut buf = &b"hello world"[..];
+ * let mut dst = [0; 12];
+ *
+ * assert_eq!(Err(TryGetError{requested: 12, available: 11}), buf.try_copy_to_slice(&mut dst));
+ * assert_eq!(11, buf.remaining());
+ * ```
+ */
+export function tryCopyToSlice$bytes_Buf_collections_VecDeque_u8(self: rs.VecDeque<rs.u8>, dst: rs.ByteSlice): rs.Result<undefined, TryGetError.TryGetError> {
+	if (!(remaining$bytes_Buf_mut_collections_VecDeque_u8(self) < dst.length)) {
+		while (!(dst.length === 0)) {
+			const src: rs.ByteSlice = chunk$bytes_Buf_mut_collections_VecDeque_u8(self);
+			const cnt: rs.usize = rs.min(src.length, dst.length);
+			rs.byteSliceCopyFromSlice(rs.byteSliceRange(dst, 0, cnt), rs.byteSliceRange(src, 0, cnt));
+			dst = rs.byteSliceRange(dst, cnt);
+			vec_deque_advance$bytes_Buf_collections_VecDeque_u8(self, cnt);
+		}
+		return rs.OK;
+	}
+	return rs.Err({ requested: dst.length, available: remaining$bytes_Buf_mut_collections_VecDeque_u8(self) });
 }
 
 /**
@@ -89,6 +518,43 @@ export function tryGetU8$bytes_Buf_bytes_BytesMut(self: rs.BytesMut): rs.u8 | un
 		return ret;
 	}
 	out$u8.err = { requested: 1, available: remaining$bytes_Buf_mut_bytes_BytesMut(self) };
+	return undefined;
+}
+
+/**
+ * Gets an unsigned 8 bit integer from `self`.
+ *
+ * The current position is advanced by 1.
+ *
+ * Returns `Err(TryGetError)` when there are not enough
+ * remaining bytes to read the value.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x08 hello"[..];
+ * assert_eq!(Ok(0x08_u8), buf.try_get_u8());
+ * assert_eq!(6, buf.remaining());
+ * ```
+ *
+ * ```
+ * use bytes::{Buf, TryGetError};
+ *
+ * let mut buf = &b""[..];
+ * assert_eq!(Err(TryGetError{requested: 1, available: 0}), buf.try_get_u8());
+ * ```
+ */
+export function tryGetU8$bytes_Buf_collections_VecDeque_u8(self: rs.VecDeque<rs.u8>): rs.u8 | undefined {
+	if (!(remaining$bytes_Buf_mut_collections_VecDeque_u8(self) < 1)) {
+		const _9: rs.ByteSlice = chunk$bytes_Buf_mut_collections_VecDeque_u8(self);
+		rs.idx(_9, 0);
+		const ret: rs.u8 = _9.data[_9.start];
+		vec_deque_advance$bytes_Buf_collections_VecDeque_u8(self, 1);
+		return ret;
+	}
+	out$u8.err = { requested: 1, available: remaining$bytes_Buf_mut_collections_VecDeque_u8(self) };
 	return undefined;
 }
 
@@ -536,6 +1002,42 @@ export function advance$bytes_Buf_mut_bytes_BytesMut(self: rs.Place<rs.BytesMut>
  *
  * A call with `cnt == 0` should never panic and be a no-op.
  */
+export function advance$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>, cnt: rs.usize): void {
+	vec_deque_advance$bytes_Buf_collections_VecDeque_u8(self.v, cnt);
+}
+
+/**
+ * Advance the internal cursor of the Buf
+ *
+ * The next call to `chunk()` will return a slice starting `cnt` bytes
+ * further into the underlying buffer.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"hello world"[..];
+ *
+ * assert_eq!(buf.chunk(), &b"hello world"[..]);
+ *
+ * buf.advance(6);
+ *
+ * assert_eq!(buf.chunk(), &b"world"[..]);
+ * ```
+ *
+ * # Panics
+ *
+ * This function **may** panic if `cnt > self.remaining()`.
+ *
+ * # Implementer notes
+ *
+ * It is recommended for implementations of `advance` to panic if `cnt >
+ * self.remaining()`. If the implementation does not panic, the call must
+ * behave as if `cnt == self.remaining()`.
+ *
+ * A call with `cnt == 0` should never panic and be a no-op.
+ */
 export function advance$bytes_Buf_mut_dyn_bytes_Buf(self: rs.Place<Buf.Buf>, cnt: rs.usize): void {
 	self.v.advance$Buf(cnt);
 }
@@ -744,6 +1246,40 @@ export function chunk$bytes_Buf_mut_bytes_BytesMut(self: rs.BytesMut): rs.ByteSl
  * return 0 and `remaining()` returning 0 implies that `chunk()` will
  * return an empty slice.
  */
+export function chunk$bytes_Buf_mut_collections_VecDeque_u8(self: rs.VecDeque<rs.u8>): rs.ByteSlice {
+	return vec_deque_chunk$bytes_Buf_collections_VecDeque_u8(self);
+}
+
+/**
+ * Returns a slice starting at the current position and of length between 0
+ * and `Buf::remaining()`. Note that this *can* return a shorter slice (this
+ * allows non-continuous internal representation).
+ *
+ * This is a lower level function. Most operations are done with other
+ * functions.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"hello world"[..];
+ *
+ * assert_eq!(buf.chunk(), &b"hello world"[..]);
+ *
+ * buf.advance(6);
+ *
+ * assert_eq!(buf.chunk(), &b"world"[..]);
+ * ```
+ *
+ * # Implementer notes
+ *
+ * This function should never panic. `chunk()` should return an empty
+ * slice **if and only if** `remaining()` returns 0. In other words,
+ * `chunk()` returning an empty slice implies that `remaining()` will
+ * return 0 and `remaining()` returning 0 implies that `chunk()` will
+ * return an empty slice.
+ */
 export function chunk$bytes_Buf_mut_mut_ref_slice_u8(self: rs.Place<rs.Place<rs.ByteSlice>>): rs.ByteSlice {
 	return chunk$bytes_Buf_mut_ref_slice_u8(self.v);
 }
@@ -780,6 +1316,39 @@ export function chunk$bytes_Buf_mut_mut_ref_slice_u8(self: rs.Place<rs.Place<rs.
  */
 export function chunk$bytes_Buf_mut_ref_slice_u8(self: rs.Place<rs.ByteSlice>): rs.ByteSlice {
 	return self.v;
+}
+
+/**
+ * Fills `dst` with potentially multiple slices starting at `self`'s
+ * current position.
+ *
+ * If the `Buf` is backed by disjoint slices of bytes, `chunk_vectored` enables
+ * fetching more than one slice at once. `dst` is a slice of `IoSlice`
+ * references, enabling the slice to be directly used with [`writev`]
+ * without any further conversion. The sum of the lengths of all the
+ * buffers written to `dst` will be less than or equal to `Buf::remaining()`.
+ *
+ * The entries in `dst` will be overwritten, but the data **contained** by
+ * the slices **will not** be modified. The return value is the number of
+ * slices written to `dst`. If `Buf::remaining()` is non-zero, then this
+ * writes at least one non-empty slice to `dst`.
+ *
+ * This is a lower level function. Most operations are done with other
+ * functions.
+ *
+ * # Implementer notes
+ *
+ * This function should never panic. Once the end of the buffer is reached,
+ * i.e., `Buf::remaining` returns 0, calls to `chunk_vectored` must return 0
+ * without mutating `dst`.
+ *
+ * Implementations should also take care to properly handle being called
+ * with `dst` being a zero length slice.
+ *
+ * [`writev`]: http://man7.org/linux/man-pages/man2/readv.2.html
+ */
+export function chunksVectored$bytes_Buf_mut_ref_slice_u8(self: rs.Place<rs.ByteSlice>, dst: rs.Slice<rs.ByteSlice>): rs.usize {
+	return chunksVectored$bytes_Buf_ref_slice_u8(self.v, dst);
 }
 
 /**
@@ -855,6 +1424,31 @@ export function copyToBytes$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs
  */
 export function copyToBytes$bytes_Buf_mut_bytes_BytesMut(self: rs.Place<rs.BytesMut>, len: rs.usize): rs.ByteSlice {
 	return rs.bytesMutFreeze(rs.bytesMutSplitTo(self.v, len));
+}
+
+/**
+ * Consumes `len` bytes inside self and returns new instance of `Bytes`
+ * with this data.
+ *
+ * This function may be optimized by the underlying type to avoid actual
+ * copies. For example, `Bytes` implementation will do a shallow copy
+ * (ref-count increment).
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let bytes = (&b"hello world"[..]).copy_to_bytes(5);
+ * assert_eq!(&bytes[..], &b"hello"[..]);
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if `len > self.remaining()`.
+ */
+export function copyToBytes$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>, len: rs.usize): rs.ByteSlice {
+	return rs.bufCopyToBytes(self.v, len, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined);
 }
 
 /**
@@ -982,6 +1576,33 @@ export function copyToSlice$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs
  *
  * This function panics if `self.remaining() < dst.len()`.
  */
+export function copyToSlice$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>, dst: rs.ByteSlice): void {
+	copyToSlice$bytes_Buf_collections_VecDeque_u8(self.v, dst);
+}
+
+/**
+ * Copies bytes from `self` into `dst`.
+ *
+ * The cursor is advanced by the number of bytes copied. `self` must have
+ * enough remaining bytes to fill `dst`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"hello world"[..];
+ * let mut dst = [0; 5];
+ *
+ * buf.copy_to_slice(&mut dst);
+ * assert_eq!(&b"hello"[..], &dst);
+ * assert_eq!(6, buf.remaining());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if `self.remaining() < dst.len()`.
+ */
 export function copyToSlice$bytes_Buf_mut_dyn_bytes_Buf(self: rs.Place<Buf.Buf>, dst: rs.ByteSlice): void {
 	self.v.copyToSlice$Buf(dst);
 }
@@ -1034,6 +1655,29 @@ export function copyToSlice$bytes_Buf_mut_ref_slice_u8(self: rs.Place<rs.Place<r
  */
 export function getF32Le$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.ByteSlice>>): rs.f32 {
 	return rs.f32FromBeBytes(rs.bytesRead(self.v, 4, true));
+}
+
+/**
+ * Gets an IEEE754 single-precision (4 bytes) floating point number from
+ * `self` in little-endian byte order.
+ *
+ * The current position is advanced by 4.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x9A\x99\x99\x3F hello"[..];
+ * assert_eq!(1.2f32, buf.get_f32_le());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`.
+ */
+export function getF32Le$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.f32 {
+	return getF32Le$bytes_Buf_collections_VecDeque_u8(self.v);
 }
 
 /**
@@ -1124,6 +1768,29 @@ export function getF64$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.Byte
  *
  * This function panics if there is not enough remaining data in `self`.
  */
+export function getF64$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.f64 {
+	return getF64$bytes_Buf_collections_VecDeque_u8(self.v);
+}
+
+/**
+ * Gets an IEEE754 double-precision (8 bytes) floating point number from
+ * `self` in big-endian byte order.
+ *
+ * The current position is advanced by 8.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x3F\xF3\x33\x33\x33\x33\x33\x33 hello"[..];
+ * assert_eq!(1.2f64, buf.get_f64());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`.
+ */
 export function getF64$bytes_Buf_mut_dyn_bytes_Buf(self: rs.Place<Buf.Buf>): rs.f64 {
 	return self.v.getF64$Buf();
 }
@@ -1171,6 +1838,28 @@ export function getF64$bytes_Buf_mut_ref_slice_u8(self: rs.Place<rs.Place<rs.Byt
  */
 export function getI128$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.ByteSlice>>): rs.i128 {
 	return rs.i128FromBeBytes(rs.bytesRead(self.v, 16, false));
+}
+
+/**
+ * Gets a signed 128 bit integer from `self` in big-endian byte order.
+ *
+ * The current position is advanced by 16.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x10\x11\x12\x13\x14\x15\x16 hello"[..];
+ * assert_eq!(0x01020304050607080910111213141516, buf.get_i128());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`.
+ */
+export function getI128$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.i128 {
+	return rs.bufGet(self.v, 16, false, rs.i128FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined);
 }
 
 /**
@@ -1257,6 +1946,28 @@ export function getI16Le$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.By
  *
  * This function panics if there is not enough remaining data in `self`.
  */
+export function getI16Le$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.i16 {
+	return rs.bufGet(self.v, 2, true, rs.i16FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined);
+}
+
+/**
+ * Gets a signed 16 bit integer from `self` in little-endian byte order.
+ *
+ * The current position is advanced by 2.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x09\x08 hello"[..];
+ * assert_eq!(0x0809, buf.get_i16_le());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`.
+ */
 export function getI16Le$bytes_Buf_mut_dyn_bytes_Buf(self: rs.Place<Buf.Buf>): rs.i16 {
 	return self.v.getI16Le$Buf();
 }
@@ -1303,6 +2014,28 @@ export function getI16Le$bytes_Buf_mut_ref_slice_u8(self: rs.Place<rs.Place<rs.B
  */
 export function getI32$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.ByteSlice>>): rs.i32 {
 	return (rs.bytesReadWord(self.v, 4, false) | 0) as rs.i32;
+}
+
+/**
+ * Gets a signed 32 bit integer from `self` in big-endian byte order.
+ *
+ * The current position is advanced by 4.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x08\x09\xA0\xA1 hello"[..];
+ * assert_eq!(0x0809A0A1, buf.get_i32());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`.
+ */
+export function getI32$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.i32 {
+	return rs.bufGet(self.v, 4, false, rs.i32FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined);
 }
 
 /**
@@ -1389,6 +2122,28 @@ export function getI64Le$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.By
  *
  * This function panics if there is not enough remaining data in `self`.
  */
+export function getI64Le$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.i64 {
+	return rs.bufGet(self.v, 8, true, rs.i64FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined);
+}
+
+/**
+ * Gets a signed 64 bit integer from `self` in little-endian byte order.
+ *
+ * The current position is advanced by 8.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x08\x07\x06\x05\x04\x03\x02\x01 hello"[..];
+ * assert_eq!(0x0102030405060708, buf.get_i64_le());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`.
+ */
 export function getI64Le$bytes_Buf_mut_dyn_bytes_Buf(self: rs.Place<Buf.Buf>): rs.i64 {
 	return self.v.getI64Le$Buf();
 }
@@ -1435,6 +2190,28 @@ export function getI64Le$bytes_Buf_mut_ref_slice_u8(self: rs.Place<rs.Place<rs.B
  */
 export function getI8$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.ByteSlice>>): rs.i8 {
 	return (rs.bytesReadWord(self.v, 1, false) << 24) >> 24 as rs.i8;
+}
+
+/**
+ * Gets a signed 8 bit integer from `self`.
+ *
+ * The current position is advanced by 1.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x08 hello"[..];
+ * assert_eq!(8, buf.get_i8());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is no more remaining data in `self`.
+ */
+export function getI8$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.i8 {
+	return getI8$bytes_Buf_collections_VecDeque_u8(self.v);
 }
 
 /**
@@ -1523,6 +2300,29 @@ export function getIntLe$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.By
  * This function panics if there is not enough remaining data in `self`, or
  * if `nbytes` is greater than 8.
  */
+export function getIntLe$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>, nbytes: rs.usize): rs.i64 {
+	return getIntLe$bytes_Buf_collections_VecDeque_u8(self.v, nbytes);
+}
+
+/**
+ * Gets a signed n-byte integer from `self` in little-endian byte order.
+ *
+ * The current position is advanced by `nbytes`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x03\x02\x01 hello"[..];
+ * assert_eq!(0x010203, buf.get_int_le(3));
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`, or
+ * if `nbytes` is greater than 8.
+ */
 export function getIntLe$bytes_Buf_mut_dyn_bytes_Buf(self: rs.Place<Buf.Buf>, nbytes: rs.usize): rs.i64 {
 	return self.v.getIntLe$Buf(nbytes);
 }
@@ -1570,6 +2370,28 @@ export function getIntLe$bytes_Buf_mut_ref_slice_u8(self: rs.Place<rs.Place<rs.B
  */
 export function getU128Le$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.ByteSlice>>): rs.u128 {
 	return rs.u128FromBeBytes(rs.bytesRead(self.v, 16, true));
+}
+
+/**
+ * Gets an unsigned 128 bit integer from `self` in little-endian byte order.
+ *
+ * The current position is advanced by 16.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x16\x15\x14\x13\x12\x11\x10\x09\x08\x07\x06\x05\x04\x03\x02\x01 hello"[..];
+ * assert_eq!(0x01020304050607080910111213141516, buf.get_u128_le());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`.
+ */
+export function getU128Le$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.u128 {
+	return rs.bufGet(self.v, 16, true, rs.u128FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined);
 }
 
 /**
@@ -1656,6 +2478,28 @@ export function getU16$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.Byte
  *
  * This function panics if there is not enough remaining data in `self`.
  */
+export function getU16$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.u16 {
+	return rs.bufGet(self.v, 2, false, rs.u16FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined);
+}
+
+/**
+ * Gets an unsigned 16 bit integer from `self` in big-endian byte order.
+ *
+ * The current position is advanced by 2.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x08\x09 hello"[..];
+ * assert_eq!(0x0809, buf.get_u16());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`.
+ */
 export function getU16$bytes_Buf_mut_dyn_bytes_Buf(self: rs.Place<Buf.Buf>): rs.u16 {
 	return self.v.getU16$Buf();
 }
@@ -1702,6 +2546,28 @@ export function getU16$bytes_Buf_mut_ref_slice_u8(self: rs.Place<rs.Place<rs.Byt
  */
 export function getU32Le$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.ByteSlice>>): rs.u32 {
 	return rs.bytesReadWord(self.v, 4, true) as rs.u32;
+}
+
+/**
+ * Gets an unsigned 32 bit integer from `self` in the little-endian byte order.
+ *
+ * The current position is advanced by 4.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\xA1\xA0\x09\x08 hello"[..];
+ * assert_eq!(0x0809A0A1, buf.get_u32_le());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`.
+ */
+export function getU32Le$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.u32 {
+	return rs.bufGet(self.v, 4, true, rs.u32FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined);
 }
 
 /**
@@ -1788,6 +2654,28 @@ export function getU64$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.Byte
  *
  * This function panics if there is not enough remaining data in `self`.
  */
+export function getU64$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.u64 {
+	return rs.bufGet(self.v, 8, false, rs.u64FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined);
+}
+
+/**
+ * Gets an unsigned 64 bit integer from `self` in big-endian byte order.
+ *
+ * The current position is advanced by 8.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x01\x02\x03\x04\x05\x06\x07\x08 hello"[..];
+ * assert_eq!(0x0102030405060708, buf.get_u64());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`.
+ */
 export function getU64$bytes_Buf_mut_dyn_bytes_Buf(self: rs.Place<Buf.Buf>): rs.u64 {
 	return self.v.getU64$Buf();
 }
@@ -1834,6 +2722,28 @@ export function getU64$bytes_Buf_mut_ref_slice_u8(self: rs.Place<rs.Place<rs.Byt
  */
 export function getU8$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.ByteSlice>>): rs.u8 {
 	return rs.bytesReadWord(self.v, 1, false) as rs.u8;
+}
+
+/**
+ * Gets an unsigned 8 bit integer from `self`.
+ *
+ * The current position is advanced by 1.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x08 hello"[..];
+ * assert_eq!(8, buf.get_u8());
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is no more remaining data in `self`.
+ */
+export function getU8$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.u8 {
+	return getU8$bytes_Buf_collections_VecDeque_u8(self.v);
 }
 
 /**
@@ -1901,6 +2811,29 @@ export function getU8$bytes_Buf_mut_ref_slice_u8(self: rs.Place<rs.Place<rs.Byte
  */
 export function getUint$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.ByteSlice>>, nbytes: rs.usize): rs.u64 {
 	return rs.u64FromBeBytes(rs.bytesReadInt(self.v, 8, nbytes, false, false));
+}
+
+/**
+ * Gets an unsigned n-byte integer from `self` in big-endian byte order.
+ *
+ * The current position is advanced by `nbytes`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x01\x02\x03 hello"[..];
+ * assert_eq!(0x010203, buf.get_uint(3));
+ * ```
+ *
+ * # Panics
+ *
+ * This function panics if there is not enough remaining data in `self`, or
+ * if `nbytes` is greater than 8.
+ */
+export function getUint$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>, nbytes: rs.usize): rs.u64 {
+	return getUint$bytes_Buf_collections_VecDeque_u8(self.v, nbytes);
 }
 
 /**
@@ -2037,6 +2970,29 @@ export function hasRemaining$bytes_Buf_mut_bytes_BytesMut(self: rs.BytesMut): bo
  * assert!(!buf.has_remaining());
  * ```
  */
+export function hasRemaining$bytes_Buf_mut_collections_VecDeque_u8(self: rs.VecDeque<rs.u8>): boolean {
+	return hasRemaining$bytes_Buf_collections_VecDeque_u8(self);
+}
+
+/**
+ * Returns true if there are any more bytes to consume
+ *
+ * This is equivalent to `self.remaining() != 0`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"a"[..];
+ *
+ * assert!(buf.has_remaining());
+ *
+ * buf.get_u8();
+ *
+ * assert!(!buf.has_remaining());
+ * ```
+ */
 export function hasRemaining$bytes_Buf_mut_dyn_buf_Leased(self: Leased.Leased): boolean {
 	return self.hasRemaining$Buf();
 }
@@ -2085,6 +3041,29 @@ export function hasRemaining$bytes_Buf_mut_dyn_bytes_Buf(self: Buf.Buf): boolean
  */
 export function hasRemaining$bytes_Buf_mut_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.ByteSlice>>): boolean {
 	return hasRemaining$bytes_Buf_mut_bytes_Bytes(self.v);
+}
+
+/**
+ * Returns true if there are any more bytes to consume
+ *
+ * This is equivalent to `self.remaining() != 0`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"a"[..];
+ *
+ * assert!(buf.has_remaining());
+ *
+ * buf.get_u8();
+ *
+ * assert!(!buf.has_remaining());
+ * ```
+ */
+export function hasRemaining$bytes_Buf_mut_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): boolean {
+	return hasRemaining$bytes_Buf_mut_collections_VecDeque_u8(self.v);
 }
 
 /**
@@ -2276,6 +3255,37 @@ export function remaining$bytes_Buf_mut_bytes_BytesMut(self: rs.BytesMut): rs.us
  * not change unless a call is made to `advance` or any other function that
  * is documented to change the `Buf`'s current position.
  */
+export function remaining$bytes_Buf_mut_collections_VecDeque_u8(self: rs.VecDeque<rs.u8>): rs.usize {
+	return vec_deque_remaining$bytes_Buf_collections_VecDeque_u8(self);
+}
+
+/**
+ * Returns the number of bytes between the current position and the end of
+ * the buffer.
+ *
+ * This value is greater than or equal to the length of the slice returned
+ * by `chunk()`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"hello world"[..];
+ *
+ * assert_eq!(buf.remaining(), 11);
+ *
+ * buf.get_u8();
+ *
+ * assert_eq!(buf.remaining(), 10);
+ * ```
+ *
+ * # Implementer notes
+ *
+ * Implementations of `remaining` should ensure that the return value does
+ * not change unless a call is made to `advance` or any other function that
+ * is documented to change the `Buf`'s current position.
+ */
 export function remaining$bytes_Buf_mut_dyn_buf_Leased(self: Leased.Leased): rs.usize {
 	return self.remaining$Buf();
 }
@@ -2340,6 +3350,37 @@ export function remaining$bytes_Buf_mut_dyn_bytes_Buf(self: Buf.Buf): rs.usize {
  */
 export function remaining$bytes_Buf_mut_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.ByteSlice>>): rs.usize {
 	return remaining$bytes_Buf_mut_bytes_Bytes(self.v);
+}
+
+/**
+ * Returns the number of bytes between the current position and the end of
+ * the buffer.
+ *
+ * This value is greater than or equal to the length of the slice returned
+ * by `chunk()`.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"hello world"[..];
+ *
+ * assert_eq!(buf.remaining(), 11);
+ *
+ * buf.get_u8();
+ *
+ * assert_eq!(buf.remaining(), 10);
+ * ```
+ *
+ * # Implementer notes
+ *
+ * Implementations of `remaining` should ensure that the return value does
+ * not change unless a call is made to `advance` or any other function that
+ * is documented to change the `Buf`'s current position.
+ */
+export function remaining$bytes_Buf_mut_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.usize {
+	return remaining$bytes_Buf_mut_collections_VecDeque_u8(self.v);
 }
 
 /**
@@ -2504,6 +3545,41 @@ export function tryGetI64Le$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs
  * assert_eq!(7, buf.remaining());
  * ```
  */
+export function tryGetI64Le$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.i64 | undefined {
+	const _0: rs.Result<rs.i64, TryGetError.TryGetError> = rs.bufTryGet(self.v, 8, true, rs.i64FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined);
+	if (!_0.ok) {
+		out$i64.err = _0.error;
+		return undefined;
+	}
+	return _0.value;
+}
+
+/**
+ * Gets a signed 64 bit integer from `self` in little-endian byte order.
+ *
+ * The current position is advanced by 8.
+ *
+ * Returns `Err(TryGetError)` when there are not enough
+ * remaining bytes to read the value.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x08\x07\x06\x05\x04\x03\x02\x01 hello"[..];
+ * assert_eq!(Ok(0x0102030405060708_i64), buf.try_get_i64_le());
+ * assert_eq!(6, buf.remaining());
+ * ```
+ *
+ * ```
+ * use bytes::{Buf, TryGetError};
+ *
+ * let mut buf = &b"\x08\x07\x06\x05\x04\x03\x02"[..];
+ * assert_eq!(Err(TryGetError{requested: 8, available: 7}), buf.try_get_i64_le());
+ * assert_eq!(7, buf.remaining());
+ * ```
+ */
 export function tryGetI64Le$bytes_Buf_mut_dyn_bytes_Buf(self: rs.Place<Buf.Buf>): rs.i64 | undefined {
 	const _0: rs.Result<rs.i64, TryGetError.TryGetError> = self.v.tryGetI64Le$Buf();
 	if (!_0.ok) {
@@ -2592,6 +3668,41 @@ export function tryGetU128$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.
 	}, (a04: rs.Place<rs.ByteSlice>, a12: rs.ByteSlice): undefined => {
 		rs.bytesCopyToSlice(a04, a12);
 	});
+	if (!_0.ok) {
+		out$u128.err = _0.error;
+		return undefined;
+	}
+	return _0.value;
+}
+
+/**
+ * Gets an unsigned 128 bit integer from `self` in big-endian byte order.
+ *
+ * The current position is advanced by 16.
+ *
+ * Returns `Err(TryGetError)` when there are not enough
+ * remaining bytes to read the value.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x10\x11\x12\x13\x14\x15\x16 hello"[..];
+ * assert_eq!(Ok(0x01020304050607080910111213141516_u128), buf.try_get_u128());
+ * assert_eq!(6, buf.remaining());
+ * ```
+ *
+ * ```
+ * use bytes::{Buf, TryGetError};
+ *
+ * let mut buf = &b"\x01\x02\x03\x04\x05\x06\x07\x08\x09\x10\x11\x12\x13\x14\x15"[..];
+ * assert_eq!(Err(TryGetError{requested: 16, available: 15}), buf.try_get_u128());
+ * assert_eq!(15, buf.remaining());
+ * ```
+ */
+export function tryGetU128$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.u128 | undefined {
+	const _0: rs.Result<rs.u128, TryGetError.TryGetError> = rs.bufTryGet(self.v, 16, false, rs.u128FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined);
 	if (!_0.ok) {
 		out$u128.err = _0.error;
 		return undefined;
@@ -2746,6 +3857,41 @@ export function tryGetU16$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.B
  * assert_eq!(1, buf.remaining());
  * ```
  */
+export function tryGetU16$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.u16 | undefined {
+	const _0: rs.Result<rs.u16, TryGetError.TryGetError> = rs.bufTryGet(self.v, 2, false, rs.u16FromBeBytes, vec_deque_remaining$bytes_Buf_collections_VecDeque_u8, vec_deque_chunk$bytes_Buf_collections_VecDeque_u8, vec_deque_advance$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.usize) => undefined, copyToSlice$bytes_Buf_collections_VecDeque_u8 as (a0: rs.VecDeque<rs.u8>, a1: rs.ByteSlice) => undefined);
+	if (!_0.ok) {
+		out$u16.err = _0.error;
+		return undefined;
+	}
+	return _0.value;
+}
+
+/**
+ * Gets an unsigned 16 bit integer from `self` in big-endian byte order.
+ *
+ * The current position is advanced by 2.
+ *
+ * Returns `Err(TryGetError)` when there are not enough
+ * remaining bytes to read the value.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x08\x09 hello"[..];
+ * assert_eq!(Ok(0x0809_u16), buf.try_get_u16());
+ * assert_eq!(6, buf.remaining());
+ * ```
+ *
+ * ```
+ * use bytes::{Buf, TryGetError};
+ *
+ * let mut buf = &b"\x08"[..];
+ * assert_eq!(Err(TryGetError{requested: 2, available: 1}), buf.try_get_u16());
+ * assert_eq!(1, buf.remaining());
+ * ```
+ */
 export function tryGetU16$bytes_Buf_mut_dyn_bytes_Buf(self: rs.Place<Buf.Buf>): rs.u16 | undefined {
 	const _0: rs.Result<rs.u16, TryGetError.TryGetError> = self.v.tryGetU16$Buf();
 	if (!_0.ok) {
@@ -2825,6 +3971,35 @@ export function tryGetU16$bytes_Buf_mut_ref_slice_u8(self: rs.Place<rs.Place<rs.
  */
 export function tryGetU8$bytes_Buf_mut_bytes_Bytes(self: rs.Place<rs.Place<rs.ByteSlice>>): rs.u8 | undefined {
 	return tryGetU8$bytes_Buf_bytes_Bytes(self.v);
+}
+
+/**
+ * Gets an unsigned 8 bit integer from `self`.
+ *
+ * The current position is advanced by 1.
+ *
+ * Returns `Err(TryGetError)` when there are not enough
+ * remaining bytes to read the value.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut buf = &b"\x08 hello"[..];
+ * assert_eq!(Ok(0x08_u8), buf.try_get_u8());
+ * assert_eq!(6, buf.remaining());
+ * ```
+ *
+ * ```
+ * use bytes::{Buf, TryGetError};
+ *
+ * let mut buf = &b""[..];
+ * assert_eq!(Err(TryGetError{requested: 1, available: 0}), buf.try_get_u8());
+ * ```
+ */
+export function tryGetU8$bytes_Buf_mut_collections_VecDeque_u8(self: rs.Place<rs.VecDeque<rs.u8>>): rs.u8 | undefined {
+	return tryGetU8$bytes_Buf_collections_VecDeque_u8(self.v);
 }
 
 /**
@@ -2958,6 +4133,39 @@ export function advance$bytes_Buf_boxed_Box_dyn_bytes_Buf(self: rs.Place<Buf.Buf
  */
 export function chunk$bytes_Buf_boxed_Box_dyn_bytes_Buf(self: Buf.Buf): rs.ByteSlice {
 	return self.chunk$Buf();
+}
+
+/**
+ * Fills `dst` with potentially multiple slices starting at `self`'s
+ * current position.
+ *
+ * If the `Buf` is backed by disjoint slices of bytes, `chunk_vectored` enables
+ * fetching more than one slice at once. `dst` is a slice of `IoSlice`
+ * references, enabling the slice to be directly used with [`writev`]
+ * without any further conversion. The sum of the lengths of all the
+ * buffers written to `dst` will be less than or equal to `Buf::remaining()`.
+ *
+ * The entries in `dst` will be overwritten, but the data **contained** by
+ * the slices **will not** be modified. The return value is the number of
+ * slices written to `dst`. If `Buf::remaining()` is non-zero, then this
+ * writes at least one non-empty slice to `dst`.
+ *
+ * This is a lower level function. Most operations are done with other
+ * functions.
+ *
+ * # Implementer notes
+ *
+ * This function should never panic. Once the end of the buffer is reached,
+ * i.e., `Buf::remaining` returns 0, calls to `chunk_vectored` must return 0
+ * without mutating `dst`.
+ *
+ * Implementations should also take care to properly handle being called
+ * with `dst` being a zero length slice.
+ *
+ * [`writev`]: http://man7.org/linux/man-pages/man2/readv.2.html
+ */
+export function chunksVectored$bytes_Buf_boxed_Box_dyn_bytes_Buf(self: Buf.Buf, dst: rs.Slice<rs.ByteSlice>): rs.usize {
+	return self.chunksVectored$Buf(dst);
 }
 
 /**

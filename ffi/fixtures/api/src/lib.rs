@@ -8,8 +8,8 @@ use std::task::{Poll, Waker};
 use std::time::Duration;
 
 use bytes::Bytes;
-// Another export's type, which this names rather than exports again.
-pub use dep::Size;
+// Another crate's types, which the export follows this re-export to.
+pub use dep::{Area, Size};
 
 /// The largest value a [`Counter`] reaches.
 pub const LIMIT: u64 = 1000;
@@ -262,6 +262,12 @@ impl Board {
 pub struct Span {
 	pub bounds: (u32, u32),
 	pub named: Option<(String, Shape)>,
+}
+
+/// How far a span from `start` to `end` reaches: a function named as a type of its crate
+/// that does not return it.
+pub fn span(start: u32, end: u32) -> u32 {
+	end - start
 }
 
 /// The span's two halves, each a tuple inside the tuple returned.
@@ -800,6 +806,13 @@ impl Gauge {
 		yielded(0).await;
 		self.level()
 	}
+
+	/// Whether the level reaches `this`, read once [`yielded`] finishes: a parameter named
+	/// as a binding might name the receiver.
+	pub async fn reaches(&self, this: u64) -> bool {
+		yielded(0).await;
+		self.level() >= this
+	}
 }
 
 /// The gauge lent shared to `watch` for the call.
@@ -878,7 +891,8 @@ pub fn next_packet(packet: Packet) -> Packet {
 }
 
 /// Retry settings: each field is unset until C sets it, and the method of its name
-/// resolves it, as Rust's accessors do. Not exhaustive, so an object with getters.
+/// resolves it, as Rust's accessors do, and `set_limit` sets it, as Rust's setters do: C
+/// names each apart from the field's accessors. Not exhaustive, so an object with getters.
 #[non_exhaustive]
 pub struct Retry {
 	pub limit: Option<u32>,
@@ -896,6 +910,10 @@ impl Retry {
 
 	pub fn delay(&self) -> u32 {
 		self.delay.unwrap_or(100)
+	}
+
+	pub fn set_limit(&mut self, limit: u32) {
+		self.limit = Some(limit);
 	}
 }
 
@@ -1191,7 +1209,7 @@ impl Pair<u32> {
 	}
 
 	/// The left value as a byte, beside `right`: the one instance that names the result
-	/// fills the type parameter, with `dep_fixture::Size`, and names this instance.
+	/// fills the type parameter, with `Size`, and names this instance.
 	pub fn beside<T: Copy>(&self, right: T) -> Pair<u8, T> {
 		Pair {
 			left: self.left as u8,
@@ -1409,6 +1427,35 @@ pub mod polar {
 			u64::from(self.turns) + u64::from(self.distance)
 		}
 	}
+
+	/// The point `distance` out at turn zero, or none at the origin, which has no angle: a
+	/// function named as the type it returns.
+	pub fn point(distance: u32) -> Option<Point> {
+		(distance > 0).then_some(Point { turns: 0, distance })
+	}
+
+	/// A part of a turn, in 256ths.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Turn {
+		pub part: u8,
+	}
+}
+
+/// A count of whole turns, whose name joins in Pascal case as `polar::Turn`'s does: a
+/// language that joins them keeps where the other's path splits.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct PolarTurn {
+	pub whole: u8,
+}
+
+/// `whole` and `part` turns together, in 256ths: two types whose paths join alike.
+pub fn wind(whole: PolarTurn, part: polar::Turn) -> u32 {
+	u32::from(whole.whole) * 256 + u32::from(part.part)
+}
+
+/// The area of `size`: a function named as a type it does not return.
+pub fn area(size: Size) -> u64 {
+	u64::from(size.width) * u64::from(size.height)
 }
 
 impl Counter {
@@ -1426,9 +1473,9 @@ pub fn seeds<T: Seed<u64> + Default>(from: impl Seed<u64>) -> u64 {
 }
 
 /// An area grown by `by` on each side: another export's types, across crates.
-pub fn grow(area: &dep::Area, by: u32) -> dep::Area {
+pub fn grow(area: &Area, by: u32) -> Area {
 	let size = area.size();
-	dep::Area::new(Size {
+	Area::new(Size {
 		width: size.width + by,
 		height: size.height + by,
 	})

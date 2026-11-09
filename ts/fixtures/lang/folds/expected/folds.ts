@@ -11,8 +11,8 @@ export function state$i64_Option_i64(out: rs.ByteVec, v: rs.i64 | undefined, r: 
 	const _12: rs.i64 = rs.rangeInclusiveStart(r);
 	const _14: rs.i64 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(v, f, rs.i64Debug), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtOption(v, f, rs.i64Debug), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -20,8 +20,8 @@ export function state$i64_Option_tuple2_i64_usize(out: rs.ByteVec, v: [rs.i64, r
 	const _12: rs.i64 = rs.rangeInclusiveStart(r);
 	const _14: rs.i64 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(v, f, (value: [rs.i64, rs.usize], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i64Debug(value[0], f), (f: rs.Formatter) => rs.usizeDebug(value[1], f)], f)), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtOption(v, f, (value: [rs.i64, rs.usize], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.i64Debug(value[0], f), (f: rs.Formatter) => rs.usizeDebug(value[1], f)], f)), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -29,8 +29,8 @@ export function state$i64_Option_tuple2_usize_i64(out: rs.ByteVec, v: [rs.usize,
 	const _12: rs.i64 = rs.rangeInclusiveStart(r);
 	const _14: rs.i64 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(v, f, (value: [rs.usize, rs.i64], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(value[0], f), (f: rs.Formatter) => rs.i64Debug(value[1], f)], f)), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtOption(v, f, (value: [rs.usize, rs.i64], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(value[0], f), (f: rs.Formatter) => rs.i64Debug(value[1], f)], f)), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -38,8 +38,8 @@ export function state$i64_Option_usize(out: rs.ByteVec, v: rs.usize | undefined,
 	const _12: rs.i64 = rs.rangeInclusiveStart(r);
 	const _14: rs.i64 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(v, f, rs.usizeDebug), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtOption(v, f, rs.usizeDebug), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -47,8 +47,8 @@ export function state$i64_Result_usize_unit(out: rs.ByteVec, v: rs.Result<rs.usi
 	const _12: rs.i64 = rs.rangeInclusiveStart(r);
 	const _14: rs.i64 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtResult(v, f, rs.usizeDebug, rs.fmtUnit), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtResult(v, f, rs.usizeDebug, rs.fmtUnit), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -56,8 +56,8 @@ export function state$i64_bool(out: rs.ByteVec, v: boolean, r: rs.RangeInclusive
 	const _12: rs.i64 = rs.rangeInclusiveStart(r);
 	const _14: rs.i64 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(v, f), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtBool(v, f), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -65,8 +65,8 @@ export function state$i64_tuple2_Option_i64_Option_i64(out: rs.ByteVec, v: [rs.i
 	const _12: rs.i64 = rs.rangeInclusiveStart(r);
 	const _14: rs.i64 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(v[0], f, rs.i64Debug), (f: rs.Formatter) => rs.fmtOption(v[1], f, rs.i64Debug)], f), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(v[0], f, rs.i64Debug), (f: rs.Formatter) => rs.fmtOption(v[1], f, rs.i64Debug)], f), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -74,8 +74,8 @@ export function state$i64_tuple2_Option_i64_Option_usize(out: rs.ByteVec, v: [rs
 	const _12: rs.i64 = rs.rangeInclusiveStart(r);
 	const _14: rs.i64 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(v[0], f, rs.i64Debug), (f: rs.Formatter) => rs.fmtOption(v[1], f, rs.usizeDebug)], f), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(v[0], f, rs.i64Debug), (f: rs.Formatter) => rs.fmtOption(v[1], f, rs.usizeDebug)], f), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -83,8 +83,8 @@ export function state$i64_tuple2_Option_i64_usize(out: rs.ByteVec, v: [rs.i64 | 
 	const _12: rs.i64 = rs.rangeInclusiveStart(r);
 	const _14: rs.i64 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(v[0], f, rs.i64Debug), (f: rs.Formatter) => rs.usizeDebug(v[1], f)], f), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(v[0], f, rs.i64Debug), (f: rs.Formatter) => rs.usizeDebug(v[1], f)], f), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -92,8 +92,8 @@ export function state$i64_unit(out: rs.ByteVec, _: undefined, r: rs.RangeInclusi
 	const _12: rs.i64 = rs.rangeInclusiveStart(r);
 	const _14: rs.i64 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtUnit(undefined, f), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtUnit(undefined, f), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -101,8 +101,8 @@ export function state$i64_usize(out: rs.ByteVec, v: rs.usize, r: rs.RangeInclusi
 	const _12: rs.i64 = rs.rangeInclusiveStart(r);
 	const _14: rs.i64 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDebug(v, f), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.usizeDebug(v, f), (f: rs.Formatter) => rs.i64Debug(_12, f), (f: rs.Formatter) => rs.i64Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.i64Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -110,8 +110,8 @@ export function state$u8_Option_tuple2_u8_usize(out: rs.ByteVec, v: [rs.u8, rs.u
 	const _12: rs.u8 = rs.rangeInclusiveStart(r);
 	const _14: rs.u8 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(v, f, (value: [rs.u8, rs.usize], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.usizeDebug(value[1], f)], f)), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtOption(v, f, (value: [rs.u8, rs.usize], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.u8Debug(value[0], f), (f: rs.Formatter) => rs.usizeDebug(value[1], f)], f)), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -119,8 +119,8 @@ export function state$u8_Option_tuple2_usize_u8(out: rs.ByteVec, v: [rs.usize, r
 	const _12: rs.u8 = rs.rangeInclusiveStart(r);
 	const _14: rs.u8 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(v, f, (value: [rs.usize, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f)), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtOption(v, f, (value: [rs.usize, rs.u8], f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.usizeDebug(value[0], f), (f: rs.Formatter) => rs.u8Debug(value[1], f)], f)), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -128,8 +128,8 @@ export function state$u8_Option_u8(out: rs.ByteVec, v: rs.u8 | undefined, r: rs.
 	const _12: rs.u8 = rs.rangeInclusiveStart(r);
 	const _14: rs.u8 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(v, f, rs.u8Debug), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtOption(v, f, rs.u8Debug), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -137,8 +137,8 @@ export function state$u8_Option_usize(out: rs.ByteVec, v: rs.usize | undefined, 
 	const _12: rs.u8 = rs.rangeInclusiveStart(r);
 	const _14: rs.u8 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(v, f, rs.usizeDebug), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtOption(v, f, rs.usizeDebug), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -146,8 +146,8 @@ export function state$u8_Result_usize_unit(out: rs.ByteVec, v: rs.Result<rs.usiz
 	const _12: rs.u8 = rs.rangeInclusiveStart(r);
 	const _14: rs.u8 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtResult(v, f, rs.usizeDebug, rs.fmtUnit), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtResult(v, f, rs.usizeDebug, rs.fmtUnit), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -155,8 +155,8 @@ export function state$u8_bool(out: rs.ByteVec, v: boolean, r: rs.RangeInclusive<
 	const _12: rs.u8 = rs.rangeInclusiveStart(r);
 	const _14: rs.u8 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(v, f), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtBool(v, f), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -164,8 +164,8 @@ export function state$u8_tuple2_Option_u8_Option_u8(out: rs.ByteVec, v: [rs.u8 |
 	const _12: rs.u8 = rs.rangeInclusiveStart(r);
 	const _14: rs.u8 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(v[0], f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(v[1], f, rs.u8Debug)], f), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(v[0], f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(v[1], f, rs.u8Debug)], f), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -173,8 +173,8 @@ export function state$u8_tuple2_Option_u8_Option_usize(out: rs.ByteVec, v: [rs.u
 	const _12: rs.u8 = rs.rangeInclusiveStart(r);
 	const _14: rs.u8 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(v[0], f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(v[1], f, rs.usizeDebug)], f), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(v[0], f, rs.u8Debug), (f: rs.Formatter) => rs.fmtOption(v[1], f, rs.usizeDebug)], f), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -182,8 +182,8 @@ export function state$u8_tuple2_Option_u8_usize(out: rs.ByteVec, v: [rs.u8 | und
 	const _12: rs.u8 = rs.rangeInclusiveStart(r);
 	const _14: rs.u8 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(v[0], f, rs.u8Debug), (f: rs.Formatter) => rs.usizeDebug(v[1], f)], f), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtOption(v[0], f, rs.u8Debug), (f: rs.Formatter) => rs.usizeDebug(v[1], f)], f), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -191,8 +191,8 @@ export function state$u8_unit(out: rs.ByteVec, _: undefined, r: rs.RangeInclusiv
 	const _12: rs.u8 = rs.rangeInclusiveStart(r);
 	const _14: rs.u8 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtUnit(undefined, f), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.fmtUnit(undefined, f), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /** `r`'s state after `v`, what read it returned. */
@@ -200,8 +200,8 @@ export function state$u8_usize(out: rs.ByteVec, v: rs.usize, r: rs.RangeInclusiv
 	const _12: rs.u8 = rs.rangeInclusiveStart(r);
 	const _14: rs.u8 = rs.rangeInclusiveEnd(r);
 	const _16: boolean = rs.rangeInclusiveIsEmpty(r);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDebug(v, f), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
-	put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4]]));
+	const args3 = [(f: rs.Formatter) => rs.usizeDebug(v, f), (f: rs.Formatter) => rs.u8Debug(_12, f), (f: rs.Formatter) => rs.u8Debug(_14, f), (f: rs.Formatter) => rs.fmtBool(_16, f), (f: rs.Formatter) => rs.fmtRangeInclusive(r, f, rs.u8Debug)];
+	put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3], " ", args3[4]]).v);
 }
 
 /**

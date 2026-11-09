@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"strings"
+	"syscall"
 	"testing"
 
 	"codec"
@@ -88,11 +89,31 @@ func BenchmarkCodec(b *testing.B) {
 			run  func([]uint8) []uint8
 		}{{"go", codec.BenchRun}, {"cgo", native}} {
 			b.Run(w.name+"/"+route.name, func(b *testing.B) {
+				start := usage()
 				for b.Loop() {
 					route.run(w.input)
 				}
-				b.ReportMetric(float64(b.Elapsed().Nanoseconds())/float64(b.N*w.items), "ns/item")
+				used := usage()
+				items := float64(b.N * w.items)
+				b.ReportMetric(float64(b.Elapsed().Nanoseconds())/items, "ns/item")
+				b.ReportMetric(float64(used.cpu-start.cpu)/items, "cpu-ns/item")
+				b.ReportMetric(float64(used.faults-start.faults)/float64(b.N), "faults/op")
 			})
 		}
 	}
+}
+
+// rusage is what the process has used: CPU time in nanoseconds, every thread's, the
+// collector's workers included, so it counts what a run costs where wall time would count
+// how many of the host's cores were free; and minor page faults, every fault the kernel
+// served without I/O, copy-on-write included, so an overall diagnostic rather than a count
+// of fresh pages.
+type rusage struct{ cpu, faults int64 }
+
+func usage() rusage {
+	var u syscall.Rusage
+	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &u); err != nil {
+		panic(err)
+	}
+	return rusage{u.Utime.Nano() + u.Stime.Nano(), u.Minflt}
 }

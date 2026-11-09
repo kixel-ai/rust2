@@ -1,0 +1,10 @@
+src/refused.rs:43:1: `refused::exported`, a `#[wasm_bindgen]` export, which translation refuses: it exports the crate's `pub` API itself
+src/refused.rs:49:2: `refused::fill`, of wasm-bindgen: an import's argument of `&mut [u16]`, which wasm-bindgen converts in a way translation does not
+src/refused.rs:51:2: `refused::set_timeout`, of wasm-bindgen: an import's argument of `&wasm_bindgen::prelude::ScopedClosure<'_, dyn std::ops::FnMut()>`, which wasm-bindgen converts in a way translation does not
+src/refused.rs:53:18: `refused::suspended`, of wasm-bindgen: `suspending`, which suspends the WASM stack on a promise, as no JS call can
+src/refused.rs:54:16: `refused::generic`, of wasm-bindgen: `experimental_generic_mono`, which the CLI makes JS of per instance, as translation does not
+src/refused.rs:55:2: `refused::custom`, of wasm-bindgen: its JS file `js/custom.js`, custom JS, which translation refuses
+src/refused.rs:55:13: `refused::raw`, of wasm-bindgen: its JS module `./raw.js`, custom JS, which translation refuses
+src/refused.rs:55:21: `refused::inline`, of wasm-bindgen: its `inline_js`, custom JS, which translation refuses
+wasm-bindgen-0.2.129/src/closure.rs:359:17: `wasm_bindgen::__rt::wbg_cast`, of wasm-bindgen: an import's argument of `wasm_bindgen::closure::OwnedClosure<dyn std::ops::FnMut(), true>`, which wasm-bindgen converts in a way translation does not
+wasm-bindgen-0.2.129/src/lib.rs:1752:5: `wasm_bindgen::__wbindgen_memory`, of wasm-bindgen: wasm-bindgen's intrinsic `__wbindgen_memory`, which translation refuses

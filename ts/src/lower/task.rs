@@ -223,9 +223,9 @@ pub fn call<'tcx>(
 		}
 		("Arc" | "Rc", "strong_count") => first(args).member("strong"),
 		("Arc" | "Rc", "weak_count") => first(args).member("weak"),
-		// Two `Arc`s of trait objects, or of structs of them, are views of the `Arc`s they
-		// were made from.
-		("Arc" | "Rc", "ptr_eq") if self_ty.is_some_and(|t| super::dynamic::unsized_object(tcx, t)) => {
+		// Two `Arc`s of trait objects, of structs of them, or of slices are views of the
+		// `Arc`s they were made from, of the array where it is a slice of one.
+		("Arc" | "Rc", "ptr_eq") if self_ty.is_some_and(|t| t.is_slice() || super::dynamic::unsized_object(tcx, t)) => {
 			Expr::rs("arcPtrEq", args)
 		}
 		("Arc" | "Rc", "ptr_eq") => {
@@ -235,7 +235,7 @@ pub fn call<'tcx>(
 		("Weak", "upgrade") => Expr::rs("weakUpgrade", args),
 		("Weak", "strong_count") => first(args).member("arc").member("strong"),
 		("Weak", "weak_count") => Expr::rs("weakWeakCount", args),
-		("Weak", "ptr_eq") if self_ty.is_some_and(|t| super::dynamic::unsized_object(tcx, t)) => {
+		("Weak", "ptr_eq") if self_ty.is_some_and(|t| t.is_slice() || super::dynamic::unsized_object(tcx, t)) => {
 			let [l, r] = two(args);
 			Expr::rs("arcPtrEq", vec![l.member("arc"), r.member("arc")])
 		}
@@ -386,6 +386,16 @@ pub fn call<'tcx>(
 			Expr::New(Box::new(Expr::Rs(once_class(b, cell).into())), args)
 		}
 		("atomic", "fence" | "compiler_fence") => Expr::rs("fence", args),
+		// Scheduler hints, which promise nothing observable. A spin loop waiting on another
+		// thread hangs on one thread natively too.
+		("hint", "spin_loop") => Expr::undefined(),
+		(_, "yield_now")
+			if library::std_path(tcx, call.def_id)
+				.first()
+				.is_some_and(|m| m == "thread") =>
+		{
+			Expr::undefined()
+		}
 		// A panic aborts, so a thread is panicking only while its hook runs.
 		(_, "panicking")
 			if library::std_path(tcx, call.def_id)
@@ -496,7 +506,7 @@ fn atomic<'tcx>(
 		Expr::rs("atomicFetch", args)
 	};
 	// A pointer compares as `ptr::eq` does only where it is the object it points at, or
-	// a slice of the bytes it points at, which `rs.byteSliceSame` compares.
+	// a slice of the array it points at, which `rs.sliceSame` compares.
 	let generics = tcx.generics_of(imp).count();
 	let atomic = tcx
 		.type_of(imp)
@@ -521,12 +531,12 @@ fn atomic<'tcx>(
 			format!("comparing pointers to `{pointee}` in an atomic, which JS has no address of"),
 		)));
 	}
-	let bytes = pointee.is_some_and(|p| b.t.pointee(p) == crate::lower::pointer::Pointee::Bytes);
+	let same = pointee.and_then(|p| b.t.same_fn(p));
 	// A compare-exchange, given what compares a wide integer, whose limbs `===` can't, or
-	// pointers to bytes.
+	// pointers `===` can't.
 	let exchange = |f: &str, mut args: Vec<Expr>| {
 		args.extend(int.filter(|int| int.big()).map(|int| int.func("eq")));
-		args.extend(bytes.then(|| Expr::Rs("byteSliceSame".into())));
+		args.extend(same.clone());
 		Expr::rs(f, args)
 	};
 	let e = match name {
@@ -579,26 +589,77 @@ fn cell<'tcx>(
 	args: Vec<Expr>,
 	out: &mut Vec<Stmt>,
 ) -> Result<Option<Expr>, Vec<Expr>> {
+	use super::pointer::{self, Pointee};
 	let tcx = b.t.tcx;
+	let span = call.span;
 	let ty = call.args.type_at(0);
+	// A pointer `as_ptr` gave to an object or an array is it, so a write lands in it, as it
+	// does in each cell a value keeps.
+	let in_place =
+		(matches!(b.t.pointee(ty), Pointee::Object | Pointee::Array) || b.t.keeps_cells(ty)) && !b.t.zero_sized(ty);
+	let default = |b: &mut Body<'_, '_, 'tcx>, out: &mut Vec<Stmt>| {
+		let f = super::collections::trait_fn(tcx, "Default", "default");
+		b.call_def(f, tcx.mk_args(&[ty.into()]), Vec::new(), span, out)
+	};
 	let e = match name {
+		"set" | "replace" | "take" | "update" | "swap" if b.t.wraps_cells(ty) => pointer::wrapped_write(b, ty, span),
 		"new" => Expr::New(Box::new(Expr::Rs("Cell".into())), args),
-		"get" => b.t.copied(first(args).member("v"), ty, call.span),
+		"get" => b.t.copied(first(args).member("v"), ty, span),
 		"into_inner" => first(args).member("v"),
 		// As its `UnsafeCell`'s `get` and `get_mut`, the same `rs.Cell`.
 		"as_ptr" | "get_mut" => return Err(args),
+		// With what drops the value it replaces.
+		"set" if in_place => {
+			let [cell, value] = two(args);
+			let p = pointer::cell_pointer(b, cell, ty);
+			match b.t.drops(ty) {
+				true => {
+					let old = pointer::replace(b, p, value, ty, span, out);
+					b.t.drop_value(old, ty, span).unwrap_or_else(Expr::undefined)
+				}
+				false => pointer::write(b, p, value, ty, span, out),
+			}
+		}
+		"replace" | "take" if in_place => {
+			let [cell, value] = two(args);
+			// Made before the value it replaces is read, as `Default` may write the cell.
+			let value = match name {
+				"take" => {
+					let value = default(b, out);
+					b.spill(value, "value", out)
+				}
+				_ => value,
+			};
+			let p = pointer::cell_pointer(b, cell, ty);
+			pointer::replace(b, p, value, ty, span, out)
+		}
+		"update" if in_place => {
+			let [cell, f] = two(args);
+			let p = b.spill(pointer::cell_pointer(b, cell, ty), "pointer", out);
+			let new = f.call(vec![pointer::read(b, p.clone(), ty, span, out)]);
+			pointer::write(b, p, new, ty, span, out)
+		}
+		// Rust panics on cells that partially overlap, which only arrays' can.
+		"swap" if b.t.pointee(ty) == Pointee::Array => b.err(
+			span,
+			format!("`Cell::swap` of `{ty}`, an array, whose cells may partially overlap, which Rust panics on"),
+		),
+		"swap" => {
+			let [x, y] = two(args);
+			let (x, y) = (pointer::cell_pointer(b, x, ty), pointer::cell_pointer(b, y, ty));
+			pointer::swap(b, x, y, ty, span, out)
+		}
 		"replace" => Expr::rs("cellReplace", args),
 		"update" => Expr::rs("cellUpdate", args),
 		// With what drops the value it replaces.
 		"set" => {
-			let Some(droppers) = b.t.droppers([ty], call.span) else {
+			let Some(droppers) = b.t.droppers([ty], span) else {
 				return Ok(Some(Expr::undefined()));
 			};
 			Expr::rs("cellSet", args.into_iter().chain(droppers).collect())
 		}
 		"take" => {
-			let f = super::collections::trait_fn(tcx, "Default", "default");
-			let value = b.call_def(f, tcx.mk_args(&[ty.into()]), Vec::new(), call.span, out);
+			let value = default(b, out);
 			Expr::rs("cellReplace", vec![first(args), value])
 		}
 		_ => return Ok(None),

@@ -9,13 +9,13 @@ import type * as Tagged from "./borrows.Tagged.ts";
  */
 export class Parts {
 	n: rs.u32;
-	text: string;
+	text: rs.String;
 	bytes: rs.ByteVec;
 	tagged: Tagged.Tagged;
 	maybe: rs.u16 | undefined;
 	quad: Uint8Array;
 
-	constructor(n: rs.u32, text: string, bytes: rs.ByteVec, tagged: Tagged.Tagged, maybe: rs.u16 | undefined, quad: Uint8Array) {
+	constructor(n: rs.u32, text: rs.String, bytes: rs.ByteVec, tagged: Tagged.Tagged, maybe: rs.u16 | undefined, quad: Uint8Array) {
 		this.n = n;
 		this.text = text;
 		this.bytes = bytes;

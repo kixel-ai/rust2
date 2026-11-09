@@ -10,10 +10,9 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 cargo_shim := if env("RUST2_CARGO_SHIM", "") == "" { "" } else { env("RUST2_CARGO_SHIM") + ":" }
 export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { cargo_shim + env("RUST2_TS_TOOLCHAIN") / "bin:" + env("PATH") }
 
-# The moq revision these recipes export by default, behind `just ts moq`'s: moq's later API
-# needs moq/ffi.toml to follow it, and past moq-dev/moq#7032 moq-tokio's `Send` check
-# overflows the recursion limit `moq-export` denies.
-moq_rev := "30f25c04e6d0288d87893dc609ba582518be2cf6"
+# The moq revision these recipes export by default: `just ts`'s, so both follow one moq.
+# just's own path is quoted wherever bash runs it: on Windows, its backslashes are escapes.
+moq_rev := shell(quote(just_executable()) + " --justfile ../ts/justfile --evaluate moq_rev")
 
 default:
     @just --list
@@ -44,7 +43,7 @@ fix:
 run *args:
     cargo run --locked --quiet -- {{ args }}
 
-# Census each package moq/ffi.toml exports into target/census/<package>.md, from the pinned moq revision or a checkout.
+# Census the stand-in facade moq/ffi.toml exports into target/census/moq-ffi.md, from the pinned moq revision or a checkout.
 census checkout="": (standin checkout)
     cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --census target/census
 
@@ -62,11 +61,11 @@ bench checkout="": (moq checkout)
     cc -O2 -std=c11 -Wall -Wextra -Werror -I "$out/include" moq/bench/export.c "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export
     cc -O2 -std=c11 -Wall -Wextra -Werror -I "$moqc/include" moq/bench/moq-c.c "$src/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-moq-c
     c++ -O2 -std=c++17 -Wall -Wextra -Werror -I "$out/include" moq/bench/export.cpp "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export-cpp
-    {{ just_executable() }} go-module bench-go moq/bench/export.go
+    {{ quote(just_executable()) }} go-module bench-go moq/bench/export.go
     read -ra native < target/moq-native
     export CGO_LDFLAGS="$PWD/$out/target/release/libmoq.a ${native[*]}" GOFLAGS=-buildvcs=false
     (cd target/bench-go && go build -o bench .)
-    {{ just_executable() }} dart-program bench-dart moq/bench/export.dart
+    {{ quote(just_executable()) }} dart-program bench-dart moq/bench/export.dart
     rm -rf target/bench-kt
     kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/bench/export.kt -d target/bench-kt
     swift=true
@@ -74,8 +73,8 @@ bench checkout="": (moq checkout)
         echo "skipping the Swift: nixpkgs builds no Swift for aarch64-linux (quest/m2/uniffi-swift-arm.md)" >&2
         swift=false
     else
-        {{ just_executable() }} swift-module -O
-        swiftc -O -warnings-as-errors $({{ just_executable() }} swift-target 15) -I target/swift -I "$out/swift" moq/bench/export.swift target/swift/libMoq.a "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export-swift
+        {{ quote(just_executable()) }} swift-module -O
+        swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I "$out/swift" moq/bench/export.swift target/swift/libMoq.a "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export-swift
     fi
     for _ in 1 2 3; do
         target/bench-moq-c
@@ -100,19 +99,23 @@ moq checkout="": (moq-cpp checkout)
     rm -rf target/moq-kt
     kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/moq.kt -d target/moq-kt
     kotlin -Djava.library.path="$out/target/release" -cp "target/moq-kt:$KOTLINX_COROUTINES" MoqKt
-    # The Python, through the CPython extension the python feature builds.
+    # The Python, through the CPython extension the python feature builds, and its types
+    # through mypy and pyright, as `api_py_types` checks the api fixture's.
     PYTHONPATH="$out/python" python3 -P -X dev -W error moq/moq.py
+    mypy --strict --python-version 3.11 --cache-dir target/mypy "$out/python/moq.py"
+    pyright -p tests/pyright.json "$out/python/moq.py"
     if [ "{{ os() }}-{{ arch() }}" = linux-aarch64 ]; then
         echo "skipping moq/moq.swift: nixpkgs builds no Swift for aarch64-linux (quest/m2/uniffi-swift-arm.md)" >&2
     else
-        {{ just_executable() }} moq-swift-run
+        {{ quote(just_executable()) }} moq-swift-run
     fi
     # The Go, through cgo, linking the library and what it needs besides.
-    {{ just_executable() }} go-module moq-go moq/moq.go
+    {{ quote(just_executable()) }} go-module moq-go moq/moq.go
     export CGO_LDFLAGS="$PWD/$out/target/release/libmoq.a ${native[*]}" GOFLAGS=-buildvcs=false
+    (cd target/moq-go/export && go vet ./...)
     (cd target/moq-go && go vet ./... && go run .)
     # The Dart, through the shared library the dart feature builds.
-    {{ just_executable() }} dart-program moq-dart moq/moq.dart
+    {{ quote(just_executable()) }} dart-program moq-dart moq/moq.dart
     dart --enable-asserts target/moq-dart/main.dill
 
 # Export and build moq's crates' C ABI as `just ffi moq` does, and run only moq/moq.cpp against it, built by $CXX or the platform's compiler: MSVC's on Windows, from a developer environment.
@@ -141,8 +144,8 @@ moq-swift-run:
     set -euo pipefail
     out=target/export/moq
     read -ra native < target/moq-native
-    {{ just_executable() }} swift-module
-    swiftc -warnings-as-errors $({{ just_executable() }} swift-target 15) -parse-as-library -I target/swift -I "$out/swift" moq/moq.swift target/swift/libMoq.a "$out/target/release/libmoq.a" "${native[@]}" -o target/moq-swift-test
+    {{ quote(just_executable()) }} swift-module
+    swiftc -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -parse-as-library -I target/swift -I "$out/swift" moq/moq.swift target/swift/libMoq.a "$out/target/release/libmoq.a" "${native[@]}" -o target/moq-swift-test
     target/moq-swift-test
 
 # Build target/export/moq's Swift as the module Moq in target/swift, at Swift 6's language mode. Its deployment target is the oldest its `Swift.Duration` allows.
@@ -153,7 +156,7 @@ swift-module *flags:
     out=target/export/moq/swift
     rm -rf target/swift
     mkdir -p target/swift
-    swiftc -warnings-as-errors $({{ just_executable() }} swift-target 13) -swift-version 6 {{ flags }} -parse-as-library -module-name Moq -emit-module -emit-module-path target/swift/Moq.swiftmodule -emit-library -static -I "$out" "$out/moq.swift" -o target/swift/libMoq.a
+    swiftc -warnings-as-errors $({{ quote(just_executable()) }} swift-target 13) -swift-version 6 {{ flags }} -parse-as-library -module-name Moq -emit-module -emit-module-path target/swift/Moq.swiftmodule -emit-library -static -I "$out" "$out/moq.swift" -o target/swift/libMoq.a
 
 # swiftc's target at this macOS deployment target on macOS, and nothing elsewhere.
 [private]
@@ -161,7 +164,7 @@ swift-target macos:
     #!/usr/bin/env bash
     if [ "{{ os() }}" = macos ]; then echo "-target $(uname -m)-apple-macos{{ macos }}"; fi
 
-# Lay out target/<dir> as a Go module whose main package is <main>, beside the export's moq package, linking the library through cgo.
+# Lay out target/<dir> as a Go module whose main package is <main>, requiring the export's module of a package per crate in export/, beside the header it includes, linking the library through cgo.
 [private]
 go-module dir main:
     #!/usr/bin/env bash
@@ -169,11 +172,11 @@ go-module dir main:
     out=target/export/moq
     dir=target/{{ dir }}
     rm -rf "$dir"
-    mkdir -p "$dir/moq" "$dir/include"
-    cp "$out/go/moq.go" "$dir/moq/"
+    mkdir -p "$dir/include"
+    cp -r "$out/go" "$dir/export"
     cp "$out/include/moq.h" "$dir/include/"
     cp {{ main }} "$dir/main.go"
-    printf 'module moqtest\n\ngo 1.24\n' > "$dir/go.mod"
+    printf 'module moqtest\n\ngo 1.24\n\nrequire moq v0.0.0\n\nreplace moq => ./export\n' > "$dir/go.mod"
 
 # Lay out target/<dir> as a Dart program whose main is <main>, importing the export's Dart as package:moq/moq.dart, whose native asset is the shared library, as a package's build hook would bundle it, which `dart compile` has no flag for; analyze it, and compile it into target/<dir>/main.dill.
 [private]
@@ -225,14 +228,14 @@ moq-export checkout="": (standin checkout)
     cargo build --quiet --release --manifest-path "$out/Cargo.toml" --features kotlin,dart 2>&1 | tee target/moq-build.log
     sed -n 's/^note: native-static-libs: //p' target/moq-build.log > target/moq-native
 
-# Write target/moq-ffi, an empty library on every crate moq/ffi.toml exports, from the pinned moq revision or a checkout: the check builds with all of them, as moq-ffi's remainder will.
+# Write target/moq-ffi, a facade re-exporting what moq-ffi ships from moq's crates, from the pinned moq revision or a checkout: the export follows its re-exports, as it will moq-ffi's remainder's.
 [private]
 standin checkout="":
     #!/usr/bin/env bash
     set -euo pipefail
     src="{{ checkout }}"
     if [ -z "$src" ]; then
-        {{ just_executable() }} moq-pin
+        {{ quote(just_executable()) }} moq-pin
         src=target/moq
     fi
     src=$(realpath "$src")
@@ -241,26 +244,43 @@ standin checkout="":
         src=$(cygpath -m "$src")
     fi
     dir=target/moq-ffi
-    # moq-ffi's dependencies among the exports, moq-tokio with its default features as
-    # moq-ffi has them, and moq-pattern and kio, which moq-ffi reaches through moq-net.
-    exports=(hang kio moq-clock moq-mux moq-net moq-pattern moq-tokio)
+    # moq-ffi's dependencies, moq-tokio with its default features as moq-ffi has them.
+    deps=(hang kio moq-mux moq-net moq-pattern moq-tokio)
     mkdir -p "$dir/src"
     {
         printf '# Generated by just ffi standin, from %s.\n' "$src"
-        printf '[package]\nname = "moq-ffi"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n[dependencies]\n'
-        for name in "${exports[@]}"; do
+        printf '[package]\nname = "moq-ffi"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n'
+        # The prefix of every C name.
+        printf '[lib]\nname = "moq"\n\n[dependencies]\n'
+        for name in "${deps[@]}"; do
             printf '%s = { path = "%s/rs/%s" }\n' "$name" "$src" "$name"
         done
         printf '\n[workspace]\n'
     } > "$dir/Cargo.toml"
-    # rustc loads a dependency only once the crate names it.
-    for name in "${exports[@]}"; do
-        printf 'use %s as _;\n' "${name//-/_}"
-    done > "$dir/src/lib.rs"
+    # What moq-ffi ships, re-exported: moq-net and moq-pattern at the root, beside the
+    # waiter a driver's poll registers and the clock it polls at, and each other crate in a
+    # module of its own, since several name an item alike, such as `Error`.
+    cat > "$dir/src/lib.rs" <<'EOF'
+    pub use kio::{Park, Waiter, WaiterList, clock, coop, log};
+    pub use moq_net::*;
+    pub use moq_pattern::*;
+
+    pub mod hang {
+        pub use ::hang::*;
+    }
+
+    pub mod mux {
+        pub use ::moq_mux::*;
+    }
+
+    pub mod tokio {
+        pub use ::moq_tokio::*;
+    }
+    EOF
     # moq's lockfile pins what moq's own builds use.
     cp "$src/Cargo.lock" "$dir/Cargo.lock"
 
-# Check out the pinned moq revision in target/moq, apart from `just ts`'s so each builds its own pin, copying the objects its clone already has.
+# Check out the pinned moq revision in target/moq, apart from `just ts`'s so neither recipe touches the other's checkout, copying the objects its clone already has.
 [private]
 moq-pin:
     [ -d target/moq/.git ] || git clone --quiet --filter=blob:none --reference-if-able ../ts/target/moq --dissociate https://github.com/moq-dev/moq target/moq

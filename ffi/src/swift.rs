@@ -15,10 +15,10 @@
 //! returned bytes are `Data` lending Rust's buffer, so neither is copied; nested in another
 //! value, bytes passed in are copied into the call's arena.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
-use crate::abi::{self, Abi, Ty};
+use crate::abi::{self, Abi, Ty, pascal};
 use crate::ir::{Access, Function, Int, Literal, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.swift");
@@ -41,6 +41,7 @@ fn module(prefix: &str) -> String {
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
 		abi,
+		classes: abi.classes(|_| (String::new(), 0)),
 		types: String::new(),
 		top: String::new(),
 		natives: String::new(),
@@ -165,6 +166,8 @@ struct Arg {
 
 struct Gen<'a> {
 	abi: &'a Abi<'a>,
+	/// Each exported type's name, by its C name.
+	classes: HashMap<String, String>,
 	/// The types, then the top-level functions and constants, then `Native`'s additions.
 	types: String,
 	top: String,
@@ -192,18 +195,18 @@ impl<'a> Gen<'a> {
 
 	/// The Swift name of the C type `c`.
 	fn class(&self, c: &str) -> String {
-		pascal(self.bare(c))
+		self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c)))
 	}
 
 	/// Claim the top-level Swift name `name`, a function's [`full`] one, for `what`.
 	fn claim(&mut self, name: &str, what: String) {
 		if TAKEN.contains(&name.split('(').next().unwrap_or(name)) {
 			self.errors.push(format!(
-				"{what} is `{name}` in Swift, which its runtime names: rename it in the config"
+				"{what} is `{name}` in Swift, which its runtime names: rename it in the source or exclude it in the config"
 			));
 		} else if let Some(first) = self.names.insert(name.to_string(), what.clone()) {
 			self.errors.push(format!(
-				"{first} and {what} are both `{name}` in Swift: rename one in the config"
+				"{first} and {what} are both `{name}` in Swift: rename one in the source or exclude it in the config"
 			));
 		}
 	}
@@ -215,7 +218,7 @@ impl<'a> Gen<'a> {
 		for member in members {
 			if !seen.insert(member) {
 				self.errors.push(format!(
-					"two members of `{rust}` are both `{member}` in Swift: rename one in the config"
+					"two members of `{rust}` are both `{member}` in Swift: rename one in the source or exclude it in the config"
 				));
 			}
 		}
@@ -755,7 +758,7 @@ impl<'a> Gen<'a> {
 				})
 				.collect();
 			let binds: Vec<String> = (0..variant.fields.len()).map(|k| format!("let p{k}_")).collect();
-			let payload = format!("{c}_{snake}");
+			let payload = abi::payload(&c, &variant.name);
 			let lowered: Vec<String> = (variant.fields.iter().enumerate())
 				.map(|(k, f)| format!("{}: {}", abi::escape(&f.name), self.lower(&f.ty, &format!("p{k}_"))))
 				.collect();
@@ -1367,20 +1370,6 @@ fn lift_int(int: Int, e: &str) -> String {
 		Int::Usize => format!("Swift.UInt(bitPattern: {e})"),
 		_ => e.to_string(),
 	}
-}
-
-/// A snake-case name in Pascal case: `size_pair` is `SizePair`.
-fn pascal(name: &str) -> String {
-	name.split('_')
-		.filter(|s| !s.is_empty())
-		.map(|s| {
-			let mut chars = s.chars();
-			match chars.next() {
-				Some(first) => first.to_uppercase().chain(chars).collect(),
-				None => String::new(),
-			}
-		})
-		.collect()
 }
 
 /// The Swift names of parameters, in camel case, [`abi::distinct`], and quoted if a

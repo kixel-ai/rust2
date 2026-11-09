@@ -92,7 +92,7 @@ func round() throws -> String {
 	// Payload reads: the last frame's 100 bytes, lent without a copy, then freed.
 	start = DispatchTime.now().uptimeNanoseconds
 	for _ in 0..<groups * frames {
-		closed += Int(last.payload[0])
+		closed += Int(last.payloadGet[0])
 	}
 	let lent = perFrame(start)
 

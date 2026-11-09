@@ -8,9 +8,9 @@ export function clone$Clone(self: Log): Log {
 
 /** A shared, append-only list of events. */
 export class Log {
-	_0: rs.Arc<rs.Mutex<rs.Vec<string>>>;
+	_0: rs.Arc<rs.Mutex<rs.Vec<rs.String>>>;
 
-	constructor(_0: rs.Arc<rs.Mutex<rs.Vec<string>>>) {
+	constructor(_0: rs.Arc<rs.Mutex<rs.Vec<rs.String>>>) {
 		this._0 = _0;
 	}
 
@@ -24,23 +24,18 @@ function new_(): Log {
 }
 
 /** Append one event. */
-export function note(self: Log, event: string): void {
-	const _6: rs.Mutex<rs.Vec<string>> = rs.mutexLock(self._0.value);
+export function note(self: Log, event: rs.String): void {
+	const _6: rs.Mutex<rs.Vec<rs.String>> = rs.mutexLock(self._0.value);
 	_6.value.items.push(event);
 	rs.mutexUnlock(_6);
 }
 
 /** Every event so far, one per line. */
 export function text(self: Log): rs.ByteVec {
-	const events: rs.Mutex<rs.Vec<string>> = rs.mutexLock(self._0.value);
+	const events: rs.Mutex<rs.Vec<rs.String>> = rs.mutexLock(self._0.value);
 	const out: rs.ByteVec = new rs.ByteVec();
-	const iter: rs.Iter<string> = rs.iterSlice(events.value.items);
-	while (true) {
-		const _13: string | rs.Done = iter.next();
-		if (_13 === rs.DONE) {
-			break;
-		}
-		const _19: rs.ByteSlice = rs.stringAsBytes(_13);
+	for (const _13 of events.value.items) {
+		const _19: rs.ByteSlice = rs.stringAsBytes(_13.v);
 		rs.byteVecExtendFromSlice(out, _19);
 		rs.byteVecPush(out, 10);
 	}

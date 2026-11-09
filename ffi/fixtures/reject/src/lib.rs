@@ -135,12 +135,12 @@ impl Lease {
 	}
 }
 
-/// `reject_size` in C, as another export's `Size` is: one prefix serves every export.
+/// A record, a type of the facade's own.
 pub struct Size {
 	pub bytes: u64,
 }
 
-/// Another export's type, which this one names.
+/// Another crate's types, which the facade does not re-export.
 pub fn measure(size: dep::Size) -> dep::Area {
 	dep::Area::new(size)
 }
@@ -242,33 +242,12 @@ pub fn fixed() -> Fixed<2> {
 	Fixed(2)
 }
 
-/// Another crate's item that is no export, so nothing names it.
+/// The standard library's item, whose types the export maps by role instead.
 pub use std::collections::HashSet;
 
 /// A borrowed waker: one crosses only into Rust, which keeps it.
 pub fn lend(waker: &std::task::Waker) {
 	waker.wake_by_ref();
-}
-
-/// A field and a method of one name, which claim one C name until `field@` renames one.
-#[non_exhaustive]
-pub struct Limit {
-	pub max: u32,
-}
-
-impl Limit {
-	pub fn new(max: u32) -> Self {
-		Self { max }
-	}
-
-	pub fn max(&self) -> u32 {
-		self.max.max(1)
-	}
-
-	/// The name of `max`'s setter too.
-	pub fn set_max(&mut self, max: u32) {
-		self.max = max;
-	}
 }
 
 /// A field holding a `'static` borrow, which a setter cannot take from C's borrow for

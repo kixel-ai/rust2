@@ -5,13 +5,15 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 /// The command line every driver takes:
-/// `--config <file> (--out <dir> | --census <path>) [--manifest-path <Cargo.toml>] [-- <cargo args>]`.
-pub struct Args {
+/// `--config <file> (--out <dir> | --census <path>) [--manifest-path <Cargo.toml>] [-- <cargo args>]`,
+/// or the same without `--config` for a driver that has none, as `Args<()>`.
+pub struct Args<Config = PathBuf> {
 	/// The driver's config file, absolute.
-	pub config: PathBuf,
+	pub config: Config,
 	/// What to write.
 	pub output: Output,
-	/// The package's `Cargo.toml`, absolute: beside the config unless given.
+	/// The package's `Cargo.toml`, absolute: beside the config, or else in the current
+	/// directory, unless given.
 	pub manifest: PathBuf,
 	/// Passed on to `cargo check`.
 	pub cargo: Vec<String>,
@@ -29,59 +31,91 @@ impl Args {
 	/// Parse `args`, without the program name, or `None` after printing `usage` for
 	/// `--help`. An error ends with `usage`.
 	pub fn parse(args: &[String], usage: &str) -> Result<Option<Self>, String> {
-		let mut config = None;
-		let mut out = None;
-		let mut census = None;
-		let mut manifest = None;
-		let mut cargo: &[String] = &[];
-		let mut rest = args;
-		while let [arg, tail @ ..] = rest {
-			rest = tail;
-			match arg.as_str() {
-				"--config" | "--out" | "--census" | "--manifest-path" => {
-					let [value, tail @ ..] = rest else {
-						return Err(format!("{arg} needs a value\n\n{usage}"));
-					};
-					rest = tail;
-					let slot = match arg.as_str() {
-						"--config" => &mut config,
-						"--out" => &mut out,
-						"--census" => &mut census,
-						_ => &mut manifest,
-					};
-					*slot = Some(absolute(Path::new(value))?);
-				}
-				"--" => {
-					cargo = rest;
-					break;
-				}
-				"-h" | "--help" => {
-					println!("{usage}");
-					return Ok(None);
-				}
-				_ => return Err(format!("unexpected argument {arg}\n\n{usage}")),
-			}
-		}
-		let config: PathBuf = config.ok_or_else(|| format!("--config is required\n\n{usage}"))?;
-		let output = match (out, census) {
-			(Some(out), None) => Output::Dir(out),
-			(None, Some(census)) => Output::Census(census),
-			_ => return Err(format!("one of --out and --census is required\n\n{usage}")),
+		let Some(args) = parse(args, usage, true)? else {
+			return Ok(None);
 		};
-		let manifest = match manifest {
-			Some(manifest) => manifest,
-			None => config
-				.parent()
-				.expect("an absolute file path has a parent")
-				.join("Cargo.toml"),
-		};
-		Ok(Some(Self {
-			config,
-			output,
-			manifest,
-			cargo: cargo.to_vec(),
-		}))
+		let config = args
+			.config
+			.clone()
+			.ok_or_else(|| format!("--config is required\n\n{usage}"))?;
+		Ok(Some(args.with(config)))
 	}
+}
+
+impl Args<()> {
+	/// Parse `args` as [`Args::parse`] does, refusing `--config`.
+	pub fn parse_configless(args: &[String], usage: &str) -> Result<Option<Self>, String> {
+		Ok(parse(args, usage, false)?.map(|args| args.with(())))
+	}
+}
+
+impl<Config> Args<Config> {
+	fn with<Other>(self, config: Other) -> Args<Other> {
+		Args {
+			config,
+			output: self.output,
+			manifest: self.manifest,
+			cargo: self.cargo,
+		}
+	}
+}
+
+/// Parse `args`, taking `--config` if `configured`, and defaulting the manifest to the
+/// one beside the config, or else in the current directory.
+fn parse(args: &[String], usage: &str, configured: bool) -> Result<Option<Args<Option<PathBuf>>>, String> {
+	let mut config = None;
+	let mut out = None;
+	let mut census = None;
+	let mut manifest = None;
+	let mut cargo: &[String] = &[];
+	let mut rest = args;
+	while let [arg, tail @ ..] = rest {
+		rest = tail;
+		match arg.as_str() {
+			"--config" if !configured => return Err(format!("unexpected argument {arg}\n\n{usage}")),
+			"--config" | "--out" | "--census" | "--manifest-path" => {
+				let [value, tail @ ..] = rest else {
+					return Err(format!("{arg} needs a value\n\n{usage}"));
+				};
+				rest = tail;
+				let slot = match arg.as_str() {
+					"--config" => &mut config,
+					"--out" => &mut out,
+					"--census" => &mut census,
+					_ => &mut manifest,
+				};
+				*slot = Some(absolute(Path::new(value))?);
+			}
+			"--" => {
+				cargo = rest;
+				break;
+			}
+			"-h" | "--help" => {
+				println!("{usage}");
+				return Ok(None);
+			}
+			_ => return Err(format!("unexpected argument {arg}\n\n{usage}")),
+		}
+	}
+	let output = match (out, census) {
+		(Some(out), None) => Output::Dir(out),
+		(None, Some(census)) => Output::Census(census),
+		_ => return Err(format!("one of --out and --census is required\n\n{usage}")),
+	};
+	let manifest = match (manifest, &config) {
+		(Some(manifest), _) => manifest,
+		(None, Some(config)) => config
+			.parent()
+			.expect("an absolute file path has a parent")
+			.join("Cargo.toml"),
+		(None, None) => absolute(Path::new("Cargo.toml"))?,
+	};
+	Ok(Some(Args {
+		config,
+		output,
+		manifest,
+		cargo: cargo.to_vec(),
+	}))
 }
 
 /// A `cargo check` of one package's library, with this executable as rustc.

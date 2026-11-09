@@ -5,7 +5,10 @@
 //! that log when they drop; and a slice's parts by each kind of range and by fixed size,
 //! with what is written through a mutable one landing in the slice; a slice's edits in
 //! place, of values that log as they are cloned and drop; and a slice's runs as arrays,
-//! and a `Vec` cloned from a slice.
+//! and a `Vec` cloned from a slice; and slices of arrays in each form they take: constants,
+//! defaults, an `Option`'s, a `Cow`'s, a generic struct's, clones, and runs of references
+//! and of wrapped arrays; and a mutable reference to part of a slice as an array, written
+//! whole.
 
 use std::cell::RefCell;
 
@@ -331,7 +334,7 @@ pub fn subslices(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	for (x, &b) in array.iter_mut().zip(data) {
 		*x = b as u32 * 65599;
 	}
-	match kind % 8 {
+	match kind % 9 {
 		0 => {
 			poke_words(0, &mut words[a..b]);
 			poke_pairs(0, &mut pairs[a..b]);
@@ -446,6 +449,29 @@ pub fn subslices(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			}
 			let [_, middle @ .., _] = &mut array;
 			middle.swap(0, 2);
+		}
+		// A part's pointers, which reach the rest of what it is a part of, as one
+		// allocation does.
+		7 => {
+			let n = words.len();
+			let (l, r) = (a.min(b).min(n), a.max(b).min(n));
+			let at = words[l..r].as_ptr();
+			out.push(unsafe { at.offset_from(words.as_ptr()) } as u8);
+			if l > 0 {
+				out.push(unsafe { *at.sub(1) } as u8);
+			}
+			let p = words[l..r].as_mut_ptr();
+			unsafe {
+				if l > 0 {
+					*p.sub(1) ^= 0x3c3c;
+				}
+				if r < n {
+					*p.add(r - l) = 0x9999;
+				}
+			}
+			let (front, back) = words.split_at_mut(l);
+			poke_words(14, back);
+			out.push(unsafe { back.as_ptr().offset_from(front.as_ptr()) } as u8);
 		}
 		_ => {
 			let (l, r) = bytes.split_at_mut(a);
@@ -1278,4 +1304,586 @@ pub fn arrays_mut(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	out.push(tags(&items));
 	drop(items);
 	flush(out);
+}
+
+/// Arrays of two bytes a constant holds.
+const PAIRS: &[[u8; 2]] = &[[1, 2], [3, 4]];
+
+/// A generic struct's slice, instanced with arrays.
+struct View<'a, T> {
+	view: &'a [T],
+}
+
+impl<T: Copy> View<'_, T> {
+	/// Its last element, if any.
+	fn last(&self) -> Option<T> {
+		self.view.last().copied()
+	}
+}
+
+/// Puts each run's bytes.
+fn put_runs<const N: usize>(runs: &[[u8; N]], out: &mut Vec<u8>) {
+	out.push(runs.len() as u8);
+	for run in runs {
+		out.extend_from_slice(run);
+	}
+}
+
+/// Slices of arrays in each form they take, each read after.
+pub fn array_forms(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let byte = |at: usize| data.get(at).copied().unwrap_or(at as u8);
+	let pairs: Vec<[u8; 2]> = data.chunks_exact(2).map(|c| [c[0], c[1]]).collect();
+	match kind % 8 {
+		// A reference copied out of an array of one, or out of runs of them, still points at
+		// the cell it did.
+		0 => {
+			let cell = std::cell::Cell::new(byte(0));
+			let other = std::cell::Cell::new(byte(1));
+			let mut r = &cell;
+			let a = std::array::from_mut(&mut r);
+			let copy = *a;
+			let runs = std::array::from_mut(a);
+			let [[old]] = std::mem::replace(runs, [[&other]]);
+			cell.set(byte(2));
+			out.extend([copy[0].get(), old.get(), r.get()]);
+			let mut refs = [[&cell], [&other]];
+			refs.swap(0, 1);
+			other.set(byte(3));
+			out.extend([refs[0][0].get(), refs[1][0].get()]);
+		}
+		// Clones of slices of arrays, of values a clone copies and of others.
+		1 => {
+			let words: Vec<[String; 2]> = pairs.iter().map(|p| [p[0].to_string(), p[1].to_string()]).collect();
+			let cloned = words[words.len().min(1)..].to_vec();
+			out.push(cloned.len() as u8);
+			for [a, b] in &cloned {
+				out.extend(a.bytes().chain(b.bytes()));
+			}
+			let boxed: Box<[[u8; 2]]> = pairs.clone().into_boxed_slice();
+			let copy = boxed.clone();
+			put_runs(&copy, out);
+			put_runs(&boxed.into_vec(), out);
+		}
+		// A constant's, a default, and an `Option`'s.
+		2 => {
+			put_runs(PAIRS, out);
+			let empty: &[[u8; 2]] = Default::default();
+			put_runs(empty, out);
+			let some = pairs.first().copied();
+			put_runs(some.as_slice(), out);
+			put_runs(None::<[u8; 2]>.as_slice(), out);
+		}
+		// A generic struct's slice, of byte arrays and of others.
+		3 => {
+			let bytes = View { view: &pairs[..] };
+			out.extend(bytes.last().unwrap_or_default());
+			let words: Vec<[u16; 2]> = pairs.iter().map(|p| [p[0].into(), p[1].into()]).collect();
+			let words = View { view: &words[..] };
+			out.extend(words.last().unwrap_or_default().map(|w| w as u8));
+		}
+		// Arrays of wrapped arrays, which are elements of their own, copied through a borrow.
+		4 => {
+			let wrapped = [std::mem::MaybeUninit::new([byte(0), byte(1)])];
+			let r = &wrapped;
+			let copy = *r;
+			// SAFETY: the one element is initialized.
+			out.extend(unsafe { copy[0].assume_init() });
+			let kept = [std::mem::ManuallyDrop::new([byte(2), byte(3)])];
+			let r = &kept;
+			let copy = *r;
+			out.extend(*copy[0]);
+		}
+		// A `Cow`'s, borrowed and owned.
+		5 => {
+			let borrowed: std::borrow::Cow<[[u8; 2]]> = std::borrow::Cow::Borrowed(&pairs[..]);
+			put_runs(&borrowed, out);
+			let mut owned = borrowed.clone();
+			if let Some(first) = owned.to_mut().first_mut() {
+				first[0] ^= 0xff;
+			}
+			put_runs(&owned, out);
+			put_runs(&borrowed, out);
+			put_runs(&borrowed.into_owned(), out);
+			let from: std::borrow::Cow<[[u8; 2]]> = pairs.clone().into();
+			put_runs(&from, out);
+		}
+		// An `Option`'s array written through its slice, a borrowed `Vec`'s `Cow`, initialized
+		// `MaybeUninit`s of arrays, shared, mutable, and boxed, and slices of arrays joined.
+		6 => {
+			let mut some = pairs.first().copied();
+			if let Some(run) = some.as_mut_slice().first_mut() {
+				run[1] ^= 0x5a;
+			}
+			put_runs(some.as_slice(), out);
+			out.push(None::<[u8; 2]>.as_mut_slice().len() as u8);
+			let cow: std::borrow::Cow<'_, [[u8; 2]]> = std::borrow::Cow::from(&pairs);
+			put_runs(&cow, out);
+			let mut wrapped: Vec<std::mem::MaybeUninit<[u8; 2]>> =
+				pairs.iter().map(|&p| std::mem::MaybeUninit::new(p)).collect();
+			// SAFETY: every element is initialized.
+			put_runs(unsafe { wrapped.assume_init_ref() }, out);
+			// SAFETY: every element is initialized.
+			if let Some(run) = unsafe { wrapped.assume_init_mut() }.last_mut() {
+				run[0] = run[0].wrapping_add(1);
+			}
+			// SAFETY: every element is initialized.
+			put_runs(unsafe { wrapped.assume_init_ref() }, out);
+			let mut boxed = Box::<[[u8; 2]]>::new_uninit_slice(pairs.len());
+			for (slot, &p) in boxed.iter_mut().zip(&pairs) {
+				slot.write(p);
+			}
+			// SAFETY: every element is written.
+			put_runs(&unsafe { boxed.assume_init() }, out);
+			let half = pairs.len() / 2;
+			let joined = [&pairs[..half], &pairs[half..]].concat();
+			put_runs(&joined, out);
+			let cows = [
+				std::borrow::Cow::Borrowed(&pairs[..half]),
+				std::borrow::Cow::Owned(pairs[half..].to_vec()),
+			];
+			put_runs(&cows.concat(), out);
+			put_runs(&[&pairs[..half], &pairs[half..]].join(&[0xee_u8, 0xff]), out);
+			put_runs(
+				&[&pairs[..half], &pairs[half..]].join(&[[0xdd_u8, 0xcc], [0xbb, 0xaa]][..]),
+				out,
+			);
+		}
+		// `mem::replace` and `Cell` of a run whose elements a write lands in.
+		_ => {
+			let mut item = vec![byte(0)];
+			let a = std::array::from_mut(&mut item);
+			let runs = std::slice::from_mut(a);
+			let [old] = std::mem::replace(&mut runs[0], [vec![byte(1), byte(2)]]);
+			out.extend(&old);
+			let [[old]] = std::cell::Cell::from_mut(std::array::from_mut(std::array::from_mut(&mut item)))
+				.replace([[vec![byte(3)]]]);
+			out.extend(&old);
+			out.extend(&item);
+		}
+	}
+}
+
+/// What logs, as it is cloned, whether it is the one its `home` points at.
+struct Probe<'a> {
+	tag: u8,
+	home: &'a std::cell::Cell<Option<&'a Probe<'a>>>,
+}
+
+impl Clone for Probe<'_> {
+	fn clone(&self) -> Self {
+		let home = self.home.get().is_some_and(|home| std::ptr::eq(home, self));
+		LOG.with_borrow_mut(|log| log.push(self.tag ^ home as u8));
+		Probe {
+			tag: self.tag,
+			home: self.home,
+		}
+	}
+}
+
+/// Whether a callback std lends each row of `rows` gets that row itself, by `ptr::eq`.
+fn lent_rows<const N: usize>(rows: &[[u8; N]], out: &mut Vec<u8>) {
+	for target in rows {
+		let mut lent = false;
+		let found = rows.binary_search_by(|row| {
+			lent |= std::ptr::eq(row, target);
+			row.cmp(target)
+		});
+		out.extend([found.is_ok() as u8, lent as u8]);
+	}
+}
+
+/// The same as [`lent_rows`], for rows of words and of arrays.
+fn lent_words(rows: &[[u16; 2]], nested: &[[[u8; 2]; 2]], out: &mut Vec<u8>) {
+	for target in rows {
+		out.push(rows.iter().filter(|row| std::ptr::eq(*row, target)).count() as u8);
+		out.push(rows.partition_point(|row| !std::ptr::eq(row, target) && row < target) as u8);
+		let mut lent = false;
+		let _ = rows.binary_search_by(|row| {
+			lent |= std::ptr::eq(row, target);
+			row.cmp(target)
+		});
+		out.push(lent as u8);
+	}
+	for target in nested {
+		let mut lent = false;
+		let _ = nested.binary_search_by(|row| {
+			lent |= std::ptr::eq(row, target);
+			row.cmp(target)
+		});
+		out.push(lent as u8);
+	}
+}
+
+/// Rows of slices of arrays as std reads them: lent to a callback as themselves, and a
+/// `join`'s separator cloned where it is.
+pub fn array_identity(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let mut rows: Vec<[u8; 2]> = data.chunks_exact(2).map(|c| [c[0], c[1]]).collect();
+	rows.sort();
+	rows.dedup();
+	match kind % 2 {
+		// A callback's `ptr::eq` on a row std lends, of all the rows and of part of them.
+		0 => {
+			lent_rows(&rows, out);
+			lent_rows(&rows[rows.len() / 2..], out);
+			let words: Vec<[u16; 2]> = rows.iter().map(|r| [r[0].into(), r[1].into()]).collect();
+			let nested: Vec<[[u8; 2]; 2]> = rows.windows(2).map(|w| [w[0], w[1]]).collect();
+			lent_words(&words[words.len().min(1)..], &nested[nested.len() / 2..], out);
+		}
+		// `join`'s separator, an array, cloned by each element's `Clone` where it is.
+		_ => {
+			let away = std::cell::Cell::new(None);
+			let probes = |at: usize| -> Vec<[Probe; 1]> {
+				rows[at..]
+					.iter()
+					.map(|r| {
+						[Probe {
+							tag: r[0] & 0xfe,
+							home: &away,
+						}]
+					})
+					.collect()
+			};
+			let (a, b) = (probes(0), probes(rows.len() / 2));
+			let home = std::cell::Cell::new(None);
+			let sep = [Probe { tag: 0xee, home: &home }];
+			home.set(Some(&sep[0]));
+			let joined = [&a[..], &b[..], &a[..1.min(a.len())]].join(&sep);
+			out.extend(joined.iter().map(|[p]| p.tag));
+			flush(out);
+		}
+	}
+}
+
+/// Slices of arrays std's collections and pointers hand out, each read and written after.
+pub fn array_sources(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let rows: Vec<[u8; 2]> = data.chunks_exact(2).map(|c| [c[0], c[1]]).collect();
+	match kind % 5 {
+		// A deque's, shared, mutable, and made contiguous, of bytes and of words.
+		0 => {
+			let mut q: std::collections::VecDeque<[u8; 2]> = rows.iter().copied().collect();
+			if let Some(&first) = rows.first() {
+				q.push_front(first);
+				q.rotate_left(q.len() / 2);
+			}
+			let (a, b) = q.as_slices();
+			out.extend([a.len() as u8, b.len() as u8]);
+			out.extend(a.first().into_iter().chain(b.last()).flatten());
+			let (a, b) = q.as_mut_slices();
+			if let Some(row) = a.last_mut().or(b.first_mut()) {
+				row[0] ^= 0x33;
+			}
+			out.extend(q.make_contiguous().iter().flatten());
+			if let Some(row) = q.make_contiguous().first_mut() {
+				row[1] ^= 0x44;
+			}
+			out.extend(q.iter().flatten());
+			let mut words: std::collections::VecDeque<[u16; 2]> =
+				rows.iter().map(|r| [r[0].into(), r[1].into()]).collect();
+			words.rotate_right(words.len() / 3);
+			let (a, b) = words.as_slices();
+			out.extend(a.iter().chain(b).flatten().map(|&w| w as u8));
+			out.extend(words.make_contiguous().iter().flatten().map(|&w| w as u8));
+		}
+		// A box's, through a raw pointer and back, and written through it.
+		1 => {
+			let boxed: Box<[[u8; 2]]> = rows.clone().into_boxed_slice();
+			let raw = Box::into_raw(boxed);
+			// SAFETY: `raw` is the box's, which nothing else holds.
+			let shared = unsafe { &*raw };
+			out.push(shared.len() as u8);
+			// SAFETY: `raw` is the box's, which nothing else holds.
+			if let Some(row) = unsafe { (*raw).first_mut() } {
+				row[0] ^= 0x55;
+			}
+			// SAFETY: `raw` came from `Box::into_raw`.
+			let back = unsafe { Box::from_raw(raw) };
+			out.extend(back.iter().flatten());
+			let mut owned = rows.clone();
+			let p: *mut [[u8; 2]] = &mut owned[..];
+			// SAFETY: `p` points at `owned`, which nothing else borrows.
+			if let Some(row) = unsafe { (*p).last_mut() } {
+				row[1] ^= 0x66;
+			}
+			out.extend(owned.iter().flatten());
+		}
+		// A heap's and a shared box's.
+		2 => {
+			let heap: std::collections::BinaryHeap<[u8; 2]> = rows.iter().copied().collect();
+			out.extend(heap.as_slice().iter().flatten());
+			let shared: std::rc::Rc<[[u8; 2]]> = rows.clone().into();
+			out.extend(shared.iter().rev().flatten());
+		}
+		// A borrowed `Cow`'s, matched.
+		3 => {
+			let row = |at: usize| rows.get(at).copied().unwrap_or([at as u8; 2]);
+			let grid = [row(0), row(1), row(2)];
+			let cow: std::borrow::Cow<'_, [[u8; 2]]> = std::borrow::Cow::Borrowed(&grid[1..]);
+			match cow {
+				std::borrow::Cow::Borrowed(rows) => out.extend([rows.len() as u8, rows[0][0], rows[rows.len() - 1][1]]),
+				std::borrow::Cow::Owned(rows) => out.push(rows.len() as u8),
+			}
+		}
+		// A leaked `Vec`'s, written through.
+		_ => {
+			let leaked: &mut [[u8; 2]] = rows.clone().leak();
+			if let Some(row) = leaked.first_mut() {
+				row[0] = row[0].wrapping_add(1);
+			}
+			out.extend(leaked.iter().flatten());
+		}
+	}
+}
+
+/// Bumps the number it is given, which takes the item's place whole.
+fn bump(x: &mut u32) {
+	*x = x.wrapping_add(7);
+}
+
+/// Each item a `for` loop writes through `iter_mut`, of numbers, bytes, and `Option`s, in a
+/// slice's part, a `Vec`, and a struct's field, left early, read again after the loop, and
+/// passed on whole, which takes its place.
+pub fn item_writes(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	struct Held {
+		words: Vec<u16>,
+	}
+	let mut wide: Vec<u64> = data.iter().map(|&b| u64::from(b) << 50 | u64::from(b)).collect();
+	let mut bytes = data.to_vec();
+	let mut words: Vec<u32> = data.iter().map(|&b| u32::from(b) * 0x0101_0101).collect();
+	let mut options: Vec<Option<u16>> = data.iter().map(|&b| (b % 3 != 0).then_some(u16::from(b))).collect();
+	let cut = usize::from(data.first().copied().unwrap_or(0)) % (data.len() + 1);
+	match kind % 8 {
+		// A part of a slice, as the codec bench's prefix writes are.
+		0 => {
+			let part = &mut wide[..cut];
+			for x in part.iter_mut() {
+				*x = x.wrapping_add(1);
+			}
+			for x in &mut wide[cut..] {
+				*x ^= 0xff;
+			}
+		}
+		// Bytes, by `&mut Vec` and from a struct's field, with a read before the write, and
+		// a local array's items.
+		1 => {
+			let mut array = [cut as u32; 4];
+			for (x, &b) in array.iter_mut().zip(data) {
+				*x += u32::from(b);
+			}
+			for x in &mut array {
+				*x = x.rotate_left(5);
+			}
+			out.extend(array.iter().flat_map(|x| x.to_le_bytes()));
+			for b in &mut bytes {
+				let before = *b;
+				*b = before.rotate_left(3) ^ before;
+			}
+			let mut held = Held {
+				words: words.iter().map(|&w| w as u16).collect(),
+			};
+			for w in held.words.iter_mut() {
+				*w = w.wrapping_mul(3);
+			}
+			out.extend(held.words.iter().flat_map(|w| w.to_le_bytes()));
+		}
+		// Left at an item, by `break` and by `return`, which leaves the rest as it was.
+		2 => {
+			for w in words.iter_mut() {
+				if *w > 0x8000_0000 {
+					break;
+				}
+				*w += 1;
+			}
+			for b in bytes.iter_mut().rev() {
+				*b = b.wrapping_sub(1);
+			}
+			for b in bytes.iter_mut() {
+				if *b == 0 {
+					out.extend(&bytes);
+					return;
+				}
+				*b -= 1;
+			}
+		}
+		// `Option`s, tested and replaced, and taken, which borrows the item whole.
+		3 => {
+			for o in options.iter_mut() {
+				if let Some(v) = *o {
+					*o = v.checked_mul(300);
+				}
+			}
+			for o in options.iter_mut() {
+				if o.take().is_none() {
+					*o = Some(1);
+				}
+			}
+		}
+		// Passed on whole, and swapped, which take each item's place.
+		4 => {
+			for w in words.iter_mut() {
+				bump(w);
+			}
+			let mut carry = 0u32;
+			for w in words.iter_mut() {
+				std::mem::swap(w, &mut carry);
+			}
+			out.extend(carry.to_le_bytes());
+		}
+		// Stepped by hand, then the rest by a loop.
+		5 => {
+			let mut it = words.iter_mut();
+			if let Some(first) = it.next() {
+				*first = 0;
+			}
+			for w in it {
+				*w = w.wrapping_mul(5);
+			}
+		}
+		// Nested, each row's items, and places kept past the loops that lent them: of
+		// items, and of `Some`'s payloads.
+		6 => {
+			let mut rows: Vec<Vec<u8>> = data.chunks(3).map(<[u8]>::to_vec).collect();
+			for row in rows.iter_mut() {
+				for b in row.iter_mut() {
+					*b = b.wrapping_add(row_len(cut));
+				}
+			}
+			let mut kept: Vec<&mut u8> = Vec::new();
+			for row in rows.iter_mut() {
+				for b in row.iter_mut() {
+					if *b % 2 == 0 {
+						kept.push(b);
+					}
+				}
+			}
+			for b in kept {
+				*b ^= 0x80;
+			}
+			out.extend(rows.into_iter().flatten());
+			let mut grid: Vec<Vec<Option<u16>>> = options.chunks(2).map(<[Option<u16>]>::to_vec).collect();
+			let mut payloads: Vec<&mut u16> = Vec::new();
+			for row in grid.iter_mut() {
+				for o in row.iter_mut() {
+					if let Some(v) = o {
+						payloads.push(v);
+					}
+				}
+			}
+			for v in payloads {
+				*v = v.wrapping_add(1000);
+			}
+			out.extend(
+				grid.into_iter()
+					.flatten()
+					.flat_map(|o| o.map_or([0xee, 0xee], u16::to_le_bytes)),
+			);
+		}
+		// Overflow panics where Rust's does, part way through.
+		_ => {
+			for b in bytes.iter_mut() {
+				*b += 100;
+			}
+		}
+	}
+	out.extend(wide.iter().flat_map(|x| x.to_le_bytes()));
+	out.extend(&bytes);
+	out.extend(words.iter().flat_map(|w| w.to_le_bytes()));
+	out.extend(options.iter().flat_map(|o| o.map_or([0xff, 0xff], u16::to_le_bytes)));
+}
+
+/// A step that depends on the input.
+fn row_len(cut: usize) -> u8 {
+	cut as u8 | 1
+}
+
+/// Puts each word's low byte.
+fn put_words(words: &[u32], out: &mut Vec<u8>) {
+	out.extend(words.iter().map(|&w| w as u8));
+}
+
+/// A `&mut [T; N]` to part of a slice, of numbers, of strings, and of arrays, written whole:
+/// by `mem::replace` and `mem::swap`, and through a `Cell` and an `UnsafeCell` of it, each
+/// way a cell reads, writes, and points at it; a cell of arrays pointed at before a write,
+/// and of pinned boxes, whose replacement keeps their allocations; and one std holds in an `Option` and a `Vec` and writes through.
+pub fn array_parts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	use std::cell::{Cell, UnsafeCell};
+	let mut words: Vec<u32> = data.iter().map(|&b| u32::from(b)).collect();
+	words.resize(words.len().max(6), 9);
+	let mut names: Vec<String> = data.iter().map(|b| b.to_string()).collect();
+	names.resize(names.len().max(6), String::from("z"));
+	let mut rows: Vec<[u32; 2]> = words.chunks(2).map(|c| [c[0], c[c.len() - 1]]).collect();
+	let n = u32::from(kind);
+	match kind % 4 {
+		0 => {
+			let (head, rest) = words.split_at_mut(1);
+			let a: &mut [u32; 2] = rest.first_chunk_mut().unwrap();
+			let old = std::mem::replace(a, [n, n + 1]);
+			put_words(&old, out);
+			let (x, y) = rest[2..].split_first_chunk_mut::<2>().unwrap();
+			let y: &mut [u32; 2] = y.first_chunk_mut().unwrap();
+			std::mem::swap(x, y);
+			head[0] = n;
+			let s: &mut [String; 2] = names[1..].first_chunk_mut().unwrap();
+			let old = std::mem::replace(s, [String::from("a"), String::from("b")]);
+			out.extend(old.iter().map(String::len).map(|l| l as u8));
+		}
+		1 => {
+			let a: &mut [u32; 2] = words[1..].first_chunk_mut().unwrap();
+			let cell = Cell::from_mut(a);
+			let old = cell.replace([n, n + 2]);
+			put_words(&old, out);
+			put_words(&cell.get(), out);
+			cell.set([n + 3, n + 4]);
+			let p = cell.as_ptr();
+			unsafe { (*p)[1] = n + 5 };
+			cell.update(|[x, y]| [y, x]);
+			put_words(&cell.take(), out);
+			let s: &mut [String; 2] = names[2..].first_chunk_mut().unwrap();
+			let old = Cell::from_mut(s).replace([String::from("abc"), String::new()]);
+			out.extend(old.iter().map(String::len).map(|l| l as u8));
+			let a: &mut [u32; 2] = words[2..].first_chunk_mut().unwrap();
+			let cell = UnsafeCell::from_mut(a);
+			unsafe { (*cell.get())[0] = n + 6 };
+			cell.get_mut()[1] = n + 7;
+		}
+		2 => {
+			let r: &mut [[u32; 2]; 2] = rows[1..].first_chunk_mut().unwrap();
+			let cell = Cell::from_mut(r);
+			let p = cell.as_ptr();
+			unsafe { (*p)[0][1] = n + 6 };
+			let old = cell.replace([[n, n + 7], [n + 8, n]]);
+			out.extend(old.iter().flatten().map(|&w| w as u8));
+			let r: &mut [[u32; 2]; 2] = rows[..2].first_chunk_mut().unwrap();
+			let cell = UnsafeCell::from_mut(r);
+			unsafe { (*cell.get())[1][0] = n + 9 };
+			cell.get_mut()[0][0] = n + 10;
+			let held = Cell::new([[n, 1], [2, n]]);
+			let p = held.as_ptr();
+			held.set([[3, n], [n, 4]]);
+			out.extend(unsafe { *p }.iter().flatten().map(|&w| w as u8));
+			let pinned = Box::pin((n as u8, 1));
+			let at: *const (u8, u8) = &*pinned;
+			let boxes = Cell::new([[pinned]]);
+			let [[old]] = boxes.replace([[Box::pin((2, n as u8))]]);
+			out.extend([u8::from(std::ptr::eq(at, &*old)), old.0]);
+		}
+		_ => {
+			let (a, b) = words[1..].split_first_chunk_mut::<2>().unwrap();
+			b[0] = n;
+			let mut kept = Some(a);
+			if let Some(a) = kept.as_mut() {
+				a[0] = n + 1;
+			}
+			kept.map(|a| a[1] = n + 2);
+			let mut v: Vec<&mut [u32; 2]> = Vec::new();
+			let (d, rest) = words.split_at_mut(2);
+			v.push(rest.first_chunk_mut().unwrap());
+			v.push(d.first_chunk_mut().unwrap());
+			for a in v {
+				a.swap(0, 1);
+			}
+		}
+	}
+	put_words(&words, out);
+	out.extend(names.iter().map(String::len).map(|l| l as u8));
+	out.extend(rows.iter().flatten().map(|&w| w as u8));
 }

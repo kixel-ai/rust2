@@ -315,9 +315,9 @@ pub fn byte_pointer_parts(a: [u8; 4], b: [[u8; 2]; 3]) -> bool {
 	std::ptr::eq(x, y) || std::ptr::eq(&b[0], &b[1])
 }
 
-/// Pointers to arrays of other values than bytes, which a slice lends as copies, compared.
-pub fn array_pointers(a: [u16; 2], s: &[u16]) -> bool {
-	s.first_chunk::<2>().is_some_and(|c| std::ptr::eq(c, &a))
+/// Pointers to arrays of one, which JS makes of its own for a value, compared.
+pub fn array_of_one(n: u32) -> bool {
+	std::ptr::eq(std::array::from_ref(&n), std::array::from_ref(&n))
 }
 
 /// Pointers to an array of bytes in a variable assigned again while they point there,
@@ -408,12 +408,16 @@ pub fn pointers_apart(n: u32, h: Halves, r: Rows, byte: u8) -> isize {
 	}
 }
 
-/// A raw and a mutable slice of a byte in no array, which no `Uint8Array` can share.
-pub fn lone_byte_slices(mut b: u8) -> u8 {
-	let raw = std::ptr::slice_from_raw_parts_mut(&raw mut b, 1);
-	let s = unsafe { std::slice::from_raw_parts_mut(&raw mut b, 1) };
-	s[0] = 1;
-	unsafe { (*raw)[0] }
+/// `offset_from` between pointers into a `str`'s bytes, which JS encodes anew at each
+/// `as_ptr`: a substring's against its text's, and two of one text.
+pub fn text_apart(s: &str) -> isize {
+	unsafe { s[1..].as_ptr().offset_from(s.as_ptr()) + s.as_ptr().offset_from(s.as_ptr()) }
+}
+
+/// A pointer into a substring's bytes moved back before them, into its text's, which JS
+/// encodes apart, and read.
+pub fn text_before(s: &str) -> u8 {
+	unsafe { *s[1..].as_ptr().sub(1) }
 }
 
 /// Pointers, slices, and copies the body shows reach out of an array of one or a copied
@@ -432,14 +436,65 @@ pub fn reached_out(h: Halves, lanes: [u32; 4]) -> u32 {
 	}
 }
 
-/// A slice of one `u8`'s place, which no `rs.ByteSlice` views.
-pub fn byte_slice_of_place(b: &mut u8) {
-	std::slice::from_mut(b)[0] = 1;
+/// `write_bytes` through a pointer to what JS keeps as a value rather than its bytes, and
+/// through one to a byte in no array, past it.
+pub fn written_bytes(mut lanes: [u32; 2], mut b: u8) -> u32 {
+	unsafe {
+		std::ptr::write_bytes(lanes.as_mut_ptr(), 0, 2);
+		(&raw mut b).write_bytes(0xff, 2);
+	}
+	lanes[0] + u32::from(b)
 }
 
-/// A slice of an `Option`'s byte, which no `rs.ByteSlice` views either.
-pub fn byte_option_slice(o: &mut Option<u8>) {
-	o.as_mut_slice().fill(1);
+/// A byte in a field, which no array of bytes holds.
+pub struct Tagged {
+	pub tag: u8,
+}
+
+/// A slice of one byte in a field, returned: its copy would be written back after no
+/// statement of the function.
+pub fn byte_slice_returned(t: &mut Tagged) -> &mut [u8] {
+	std::slice::from_mut(&mut t.tag)
+}
+
+/// A slice of one byte in a field, kept where a parameter points: no variable of the
+/// function holds it.
+pub fn byte_slice_stored<'a>(t: &'a mut Tagged, out: &mut Vec<&'a mut [u8]>) {
+	out.push(std::slice::from_mut(&mut t.tag));
+}
+
+/// Slices of one byte in each of the fields, kept together: the one variable holding
+/// the copy the call makes can't keep them apart.
+pub fn byte_slices_kept(ts: &mut [Tagged]) {
+	let mut kept = Vec::new();
+	for t in ts.iter_mut() {
+		kept.push(std::slice::from_mut(&mut t.tag));
+	}
+	for s in kept {
+		s[0] = 1;
+	}
+}
+
+/// Whether the byte `s` holds is zero, as a name that borrows none of it.
+fn zero_name(s: &mut [u8]) -> &'static str {
+	if s[0] == 0 { "zero" } else { "other" }
+}
+
+/// What a call given a slice of one byte in a field returns, kept where a parameter
+/// points: it could hold the slice whatever its lifetime says, and no variable of the
+/// function holds it.
+pub fn byte_result_stored(t: &mut Tagged, out: &mut Vec<&'static str>) {
+	out.push(zero_name(std::slice::from_mut(&mut t.tag)));
+}
+
+/// What calls given slices of one byte in each of the fields return, kept together:
+/// each could hold its slice whatever its lifetime says.
+pub fn byte_results_kept(ts: &mut [Tagged]) -> usize {
+	let mut names = Vec::new();
+	for t in ts.iter_mut() {
+		names.push(zero_name(std::slice::from_mut(&mut t.tag)));
+	}
+	names.len()
 }
 
 /// A pointer to a variable's object, which `clone_from` of the whole variable replaces.
@@ -513,6 +568,12 @@ pub fn erased_borrows(n: &u32, c: &std::cell::UnsafeCell<u32>, a: &std::sync::Ar
 	std::ptr::from_ref(n) as *const () == arc && c.get().cast_const().cast() == arc
 }
 
+/// A pointer to a value JS copies from elsewhere, cast to one to `()`, which only an `Arc`'s
+/// raw pointer would keep the one place of.
+pub fn erased_unshown(p: *const u32) -> *const () {
+	p.cast()
+}
+
 /// A pointer to a box, cast to one to `()`, which JS keeps as what it holds.
 pub fn erased_box(b: Box<(u8, u8)>) -> bool {
 	let p = &raw const b;
@@ -533,4 +594,36 @@ pub fn rc_raw_bytes(p: *const [u8; 4]) -> u8 {
 /// shows holds, which JS copies.
 pub fn arc_from_borrow(n: &u32) -> u32 {
 	unsafe { *std::sync::Arc::from_raw(std::ptr::from_ref(n)) }
+}
+
+/// The greater of two pointers to numbers, which orders by their addresses.
+pub fn pointers_ordered(a: &u32, b: &u32) -> bool {
+	let (p, q) = (std::ptr::from_ref(a), std::ptr::from_ref(b));
+	std::cmp::max(p, q) == p
+}
+
+/// A mutable reborrow of a `MaybeUninit` of arrays of arrays through a raw pointer, whose
+/// arrays `as_chunks_mut` may have split from one slice with no JS array of their own.
+pub fn uninit_rows_mut(rows: &mut [[u8; 2]]) -> u8 {
+	let Some(first) = rows.first_chunk_mut::<2>() else {
+		return 0;
+	};
+	let p = std::ptr::from_mut(first).cast::<std::mem::MaybeUninit<[[u8; 2]; 2]>>();
+	let wrapped = unsafe { &mut *p };
+	let rows = unsafe { wrapped.assume_init_mut() };
+	rows[0][0] = 99;
+	rows[1][1]
+}
+
+/// A mutable reborrow of a `MaybeUninit` of an array through a raw pointer into part of a
+/// slice, which no JS array holds alone.
+pub fn uninit_part_mut(words: &mut [u32]) -> u32 {
+	if words.len() < 3 {
+		return 0;
+	}
+	let p = (&mut words[1..] as *mut [u32]).cast::<std::mem::MaybeUninit<[u32; 2]>>();
+	let wrapped = unsafe { &mut *p };
+	let pair = unsafe { wrapped.assume_init_mut() };
+	pair[0] = 99;
+	pair[1]
 }

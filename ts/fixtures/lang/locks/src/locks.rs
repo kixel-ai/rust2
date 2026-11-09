@@ -6,9 +6,11 @@
 //! and written through guards mapped and filtered to parts of their values, a mutex's
 //! included, and locked again while a guard holds them, which aborts as wasm32's does;
 //! write guards downgraded, which keep the lock read; guards mapped to the whole of the
-//! bytes a lock holds; and each lock and its guards printed.
+//! bytes a lock holds; each lock and its guards printed; and a crate's own guards, one
+//! of a mutex as kio's is and one of no lock, written through to values JS copies.
 
 use std::fmt;
+use std::ops::{Deref, DerefMut};
 use std::sync::{
 	Arc, MappedMutexGuard, MappedRwLockReadGuard, MappedRwLockWriteGuard, Mutex, MutexGuard, PoisonError, RwLock,
 	RwLockReadGuard, RwLockWriteGuard, TryLockError,
@@ -591,4 +593,112 @@ pub fn shown(data: &[u8], out: &mut Vec<u8>) {
 		};
 		out.extend_from_slice(text.as_bytes());
 	}
+}
+
+/// A crate's own lock, as kio's is: a `Mutex` in an `Arc`, whose guard derefs to what
+/// the mutex holds.
+struct Shared<T>(Arc<Mutex<T>>);
+
+impl<T> Shared<T> {
+	fn new(value: T) -> Self {
+		Self(Arc::new(Mutex::new(value)))
+	}
+
+	fn lock(&self) -> Held<'_, T> {
+		Held(self.0.lock().unwrap_or_else(PoisonError::into_inner))
+	}
+}
+
+/// The guard of a `Shared`.
+struct Held<'a, T>(MutexGuard<'a, T>);
+
+impl<T> Deref for Held<'_, T> {
+	type Target = T;
+
+	fn deref(&self) -> &T {
+		&self.0
+	}
+}
+
+impl<T> DerefMut for Held<'_, T> {
+	fn deref_mut(&mut self) -> &mut T {
+		&mut self.0
+	}
+}
+
+/// A guard of no lock: a field of what it borrows, which it puts as it drops.
+struct Lent<'a> {
+	tally: &'a mut (u8, Option<u8>),
+	out: &'a mut Vec<u8>,
+}
+
+impl Deref for Lent<'_> {
+	type Target = Option<u8>;
+
+	fn deref(&self) -> &Option<u8> {
+		&self.tally.1
+	}
+}
+
+impl DerefMut for Lent<'_> {
+	fn deref_mut(&mut self) -> &mut Option<u8> {
+		self.tally.0 += 1;
+		&mut self.tally.1
+	}
+}
+
+impl Drop for Lent<'_> {
+	fn drop(&mut self) {
+		self.out.push(self.tally.1.unwrap_or(0xfc));
+	}
+}
+
+/// Each byte an operation through a crate's own guards to values JS copies, its value the
+/// operand: written whole, taken, added to, written through `as_mut`, and appended to, through a
+/// guard held or a temporary one, and through one that counts its lends and puts what it
+/// lends as it drops; each puts what it read.
+pub fn guarded(data: &[u8], out: &mut Vec<u8>) {
+	let slot = Shared::new(None::<u8>);
+	let number = Shared::new(0u32);
+	let text = Shared::new(String::new());
+	let seen = Shared::new(Vec::new());
+	let mut tally = (0u8, None::<u8>);
+	for &op in data {
+		match op % 6 {
+			0 => *slot.lock() = Some(op),
+			1 => {
+				let mut held = slot.lock();
+				out.push(held.take().unwrap_or(0xfd));
+				*held = Some(op);
+				out.push(held.unwrap_or(0xfd));
+			}
+			2 => {
+				*number.lock() += u32::from(op);
+				out.push(*number.lock() as u8);
+			}
+			3 => {
+				if let Some(b) = slot.lock().as_mut() {
+					*b = b.wrapping_add(op);
+				}
+				out.push(slot.lock().unwrap_or(0xfe));
+			}
+			4 => {
+				text.lock().push(char::from(b'a' + op % 26));
+				let mut held = text.lock();
+				if held.len() > 3 {
+					*held = held.to_uppercase();
+				}
+				seen.lock().push(op);
+			}
+			_ => {
+				let mut lent = Lent { tally: &mut tally, out };
+				*lent = lent.map_or(Some(op), |b| b.checked_add(op));
+			}
+		}
+	}
+	out.push(slot.lock().unwrap_or(0xfd));
+	out.push(*number.lock() as u8);
+	out.extend_from_slice(text.lock().as_bytes());
+	out.extend_from_slice(&seen.lock());
+	out.push(tally.0);
 }

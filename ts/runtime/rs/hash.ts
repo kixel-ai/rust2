@@ -5,7 +5,7 @@
 // A hash collection hashes a key that is a JS object with a faster hasher of its own,
 // whose values nothing sees, as std keys a map's hasher at random.
 
-import { asSlice, ByteSlice, type ByteVec, type None, type Vec } from "../rs.ts";
+import { ByteSlice, type ByteVec, type Elements, type None, Slice, sliceData, sliceItems, sliceLength, sliceStart } from "../rs.ts";
 import {
 	type i8,
 	type i16,
@@ -26,6 +26,7 @@ import {
 	u128Cast,
 } from "./int.ts";
 import type { LinkedList } from "./collections.ts";
+import type { String as RsString } from "./str.ts";
 import type { Arc } from "./task.ts";
 
 /** What `Hash` writes into, by `Hasher`'s methods: `DefaultHasher`, a hash collection's own, or the crate's. */
@@ -679,9 +680,9 @@ export function hashWrite(bytes: ByteSlice, s: Hasher): void {
 	s.write(bytes.data, bytes.start, bytes.length);
 }
 
-/** `Hash::hash` of a string. */
-export function hashStr(str: string, s: Hasher): void {
-	s.str(str);
+/** `Hash::hash` of a `str` or a `String`, which hash the same. */
+export function hashStr(str: string | RsString, s: Hasher): void {
+	s.str(typeof str === "string" ? str : str.v);
 }
 
 /** `Hash::hash` of what holds nothing, as `()` and `PhantomData`: nothing written. */
@@ -695,11 +696,11 @@ export function hashTuple<T extends readonly unknown[]>(fields: readonly ((value
 }
 
 /** `Hash::hash` of a slice: its length as a `usize`, then its elements' in order. */
-export function hashSlice<T>(hash: (value: T, s: Hasher) => void): (items: ArrayLike<T> | Vec<T>, s: Hasher) => void {
+export function hashSlice<T>(hash: (value: T, s: Hasher) => void): (items: Elements<T>, s: Hasher) => void {
 	return (items, s) => {
-		const value = asSlice(items);
-		s.prefix(value.length);
-		for (let i = 0; i < value.length; i++) hash(value[i], s);
+		const [a, i, n] = [sliceData(items), sliceStart(items), sliceLength(items)];
+		s.prefix(n);
+		for (let k = 0; k < n; k++) hash(a[i + k], s);
 	};
 }
 
@@ -707,11 +708,10 @@ export function hashSlice<T>(hash: (value: T, s: Hasher) => void): (items: Array
  * `Hash::hash` of a slice of integers `size` bytes wide: its length as a `usize`, then
  * their bytes in one `write`, as their `hash_slice` writes them.
  */
-export function hashInts(size: 1 | 2 | 4 | 8 | 16): (items: ArrayLike<number | Limbs> | Vec<number | Limbs>, s: Hasher) => void {
+export function hashInts(size: 1 | 2 | 4 | 8 | 16): (items: Elements<number | Limbs>, s: Hasher) => void {
 	return (items, s) => {
-		const value = asSlice(items);
-		s.prefix(value.length);
-		s.ints(value, size);
+		s.prefix(sliceLength(items));
+		s.ints(items instanceof Slice ? sliceItems(items) : sliceData(items), size);
 	};
 }
 
@@ -757,9 +757,12 @@ export function hashFinish(s: Hasher): u64 {
 	return s.finish();
 }
 
+/** The JS map key a hash collection files a key that is a JS object under: its hash, or its text. */
+export type HashKey = number | string;
+
 /** How a hash collection finds a key that is a JS object: its `Hash` and `Eq`. */
 export interface Hashing<K> {
-	readonly hash: (key: K) => number;
+	readonly hash: (key: K) => HashKey;
 	readonly eq: (a: K, b: K) => boolean;
 	/** Whether a key that is a JS primitive goes by them too: an enum with its own `Eq`. */
 	readonly all: boolean;

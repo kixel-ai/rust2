@@ -48,7 +48,42 @@ export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u
 	return self;
 }
 
+export function map$00buaky(self: rs.u16 | undefined | rs.None, f: (a0: rs.u16 | undefined) => rs.u16 | undefined): rs.u16 | undefined | rs.None {
+	if (self === rs.None) {
+		return rs.None;
+	}
+	return f(self);
+}
+
+export function map$1h9tk16(self: rs.ByteVec | undefined, f: (a0: rs.ByteVec) => rs.ByteVec): rs.ByteVec | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 export function map$1cfrse5(self: Loaded.Loaded | undefined, f: (a0: Loaded.Loaded) => Loaded.Loaded): Loaded.Loaded | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1ng7x7l(self: rs.Weak<rs.u32> | undefined, f: (a0: rs.Weak<rs.u32>) => rs.Weak<rs.u32>): rs.Weak<rs.u32> | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$070fw7m(self: rs.u32 | undefined, f: (a0: rs.u32) => rs.u32): rs.u32 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1px2rk4(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.ByteVec): rs.ByteVec | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -69,11 +104,46 @@ export function mapOr$00zno7m(self: Spot.Spot | undefined, default_: Spot.Spot, 
 	return f(copy$pointers_Spot(self));
 }
 
+export function mapOr$18adzvj(self: rs.Cell<rs.u32> | undefined, default_: rs.u32, _: (a0: rs.Cell<rs.u32>) => rs.u32): rs.u32 {
+	if (self === undefined) {
+		return default_;
+	}
+	return self.v;
+}
+
+export function mapOr$0m14xib(self: Uint8Array | rs.None, default_: Uint8Array, f: (a0: Uint8Array) => Uint8Array): Uint8Array {
+	if (self === rs.None) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$1wlsr3s(self: rs.u8 | undefined, default_: rs.u32, f: (a0: rs.u8) => rs.u32): rs.u32 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$0emjeap(self: rs.Arc<rs.u32> | undefined, default_: rs.u8, f: (a0: rs.Arc<rs.u32>) => rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function mapOr$173j2gr(self: [rs.u8, rs.Arc<rs.u8>] | undefined, default_: rs.u8, f: (a0: [rs.u8, rs.Arc<rs.u8>]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
+}
+
+export function mapOr$0smr0aj(self: rs.u16 | undefined, default_: Uint8Array, _: (a0: rs.u16) => Uint8Array): Uint8Array {
+	if (self === undefined) {
+		return default_;
+	}
+	return rs.u16ToBeBytes(self);
 }
 
 export function filter$0wvwd70(self: rs.u32 | undefined, predicate: (a0: rs.u32) => boolean): rs.u32 | undefined {

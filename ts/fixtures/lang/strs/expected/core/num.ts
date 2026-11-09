@@ -39,16 +39,15 @@ export function canNotOverflow$0bdyog2(radix: rs.u32, isSignedTy: boolean, _digi
 }
 
 export function fromAsciiBytesRadixPanic(radix: rs.u32): never {
-	doPanic$16ya8t2(radix);
+	doPanic$1tugyvz(radix);
 }
 
-export function doPanic$16ya8t2(radix: rs.u32): never {
-	runtime$0o4i17s(radix);
+export function doPanic$1tugyvz(radix: rs.u32): never {
+	runtime$09k496w(radix);
 }
 
-export function runtime$0o4i17s(radix: rs.u32): never {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(radix, f)];
-	rs.panicFmt(["from_ascii_bytes_radix: radix must lie in the range `[2, 36]` - found ", args2[0]]);
+export function runtime$09k496w(radix: rs.u32): never {
+	rs.panicFmt(["from_ascii_bytes_radix: radix must lie in the range `[2, 36]` - found ", (f: rs.Formatter) => rs.u32Display(radix, f)]);
 }
 
 export function fromAsciiBytesRadixImpl$1r0rye7(src: rs.ByteSlice, radix: rs.u32): rs.Result<rs.i128, rs.ParseIntError> {

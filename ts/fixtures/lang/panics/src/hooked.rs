@@ -1,8 +1,9 @@
 //! `panic::set_hook` and `take_hook`, and the `PanicHookInfo` a hook reads: its payload,
 //! as text and downcast, its location, and its `Display`, for panics of the crate's own
 //! code, of std's functions that take their caller's location, of those an integer's macro
-//! defines, and of std's own code, at the path the native build names; a hook that
-//! panics, which aborts; and `thread::panicking` within one and outside.
+//! defines, of std's own code, at the path the native build names, and of a 2018-edition
+//! crate's `panic!`, whose payload is any value; a hook that panics, which aborts; and
+//! `thread::panicking` within one and outside.
 //!
 //! Each case's hook writes what it read to [`NOTE`], which the host reads once the panic
 //! traps, and passes the panic on to the hook it replaced, the harness's natively.
@@ -23,16 +24,18 @@ use bytes::{Buf, BufMut, Bytes, BytesMut};
 
 use crate::NOTE;
 
-/// Write what `info` says: its `Display`, its payload's type and text, and its location's
-/// parts, and whether the thread is panicking.
+/// Write what `info` says: its `Display`, its payload's type and text, a `String` payload's
+/// capacity, its location's parts, and whether the thread is panicking.
 fn record(info: &PanicHookInfo<'_>) {
 	let payload = info.payload();
-	let kind = if payload.is::<&'static str>() {
+	let kind = if payload.type_id() == std::any::TypeId::of::<&'static str>() {
 		"&str".to_string()
-	} else if payload.is::<String>() {
-		"String".to_string()
+	} else if let Some(s) = payload.downcast_ref::<String>() {
+		format!("String {}", s.capacity())
 	} else if let Some(n) = payload.downcast_ref::<u32>() {
 		format!("u32 {n}")
+	} else if let Some(n) = payload.downcast_ref::<u8>() {
+		format!("u8 {n}")
 	} else {
 		"other".to_string()
 	};
@@ -81,7 +84,7 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let n = data.first().copied().unwrap_or(0);
 	hook();
 	let v = vec![n, n];
-	match kind % 32 {
+	match kind % 37 {
 		0 => panic!("literal"),
 		1 => panic!("formatted {n}"),
 		2 => out.push(v[usize::from(n) + 2]),
@@ -118,6 +121,18 @@ pub fn panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		29 => todo!(),
 		30 => assert_ne!(n, n),
 		31 => unimplemented!("not {n}"),
+		// SAFETY: none, past `u8::MAX`: std's check of its precondition aborts.
+		32 => out.push(unsafe { n.max(200).unchecked_add(n.max(100)) }),
+		// SAFETY: none, of zero: std's check of its precondition aborts.
+		33 => out.push(unsafe { std::num::NonZero::new_unchecked(n.wrapping_mul(0)) }.get()),
+		// SAFETY: none, past `u8::MAX`: std's check of its integer's precondition aborts in
+		// std's code, at the call of the macro that defines `NonZero<u8>`'s.
+		34 => out.push(unsafe { std::num::NonZero::new(n.max(200)).unwrap().unchecked_add(n.max(100)) }.get()),
+		// SAFETY: none, past `i16::MAX`, at `NonZero<i16>`'s macro call.
+		35 => {
+			let x = std::num::NonZero::new(i16::from(n.max(200))).unwrap();
+			out.extend_from_slice(&unsafe { x.unchecked_mul(x) }.get().to_be_bytes());
+		}
 		_ => {
 			let len = HashMap::<u8, u8>::with_capacity(usize::MAX).len();
 			out.push(len as u8);
@@ -180,7 +195,7 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let deque = VecDeque::from(v.clone());
 	let map = BTreeMap::from([(u16::from(n), n)]);
 	let set = BTreeSet::from([u16::from(n)]);
-	match kind % 70 {
+	match kind % 87 {
 		0 => out.push(Vec::<u8>::with_capacity(usize::MAX - at).len() as u8),
 		1 => v.clone().rotate_right(at + 3),
 		2 => out.push(n.clamp(n.max(1), n.max(1) - 1)),
@@ -300,13 +315,55 @@ pub fn sited(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		),
 		k @ 53..=56 => joined(k - 53, n, out),
 		k @ 57..=67 => out.push(compared(k - 57, n)),
-		68 => {
+		68 if n % 2 == 0 => {
 			let mut v = Vec::<u8>::with_capacity(at % 4);
 			// SAFETY: none, past the capacity: std's check of its precondition aborts.
 			unsafe { v.set_len(v.capacity() + 1) };
 			out.push(v.len() as u8);
 		}
-		_ => out.push(Lying(n).len() as u8),
+		68 => {
+			let mut v = Vec::<u32>::with_capacity(at % 4);
+			// SAFETY: none, past the capacity: std's check of its precondition aborts.
+			unsafe { v.set_len(v.capacity() + 1) };
+			out.push(v.len() as u8);
+		}
+		69 => _ = [std::mem::MaybeUninit::uninit(); 2].write_copy_of_slice(&v[..at % 2]),
+		70 => _ = [const { std::mem::MaybeUninit::uninit() }; 2].write_clone_of_slice(&[String::new()][..at % 2]),
+		71 => out.push(Box::<[u16]>::new_uninit_slice(usize::MAX - at).len() as u8),
+		72 => {
+			let mut lent = std::io::IoSlice::new(&v);
+			lent.advance(at % 2 + 3);
+			out.extend_from_slice(&lent);
+		}
+		73 => {
+			let mut lent = [std::io::IoSlice::new(&v)];
+			let mut left = &mut lent[..];
+			std::io::IoSlice::advance_slices(&mut left, at % 2 + 3);
+			out.push(left.len() as u8);
+		}
+		74 => v.clone().insert(at + 3, n),
+		75 => out.extend(v.clone().split_off(at + 3)),
+		76 => out.push(vec![u16::from(n)].remove(at + 1) as u8),
+		77 => out.push(vec![u16::from(n)].swap_remove(at + 1) as u8),
+		78 => vec![u16::from(n)].insert(at + 2, 0),
+		79 => out.extend(vec![u16::from(n)].split_off(at + 2).iter().map(|&w| w as u8)),
+		80 => v.clone().copy_within(at + 1..at + 3, 0),
+		81 => out.push(u64::from(n).clamp(u64::from(n) + 1, u64::from(n)) as u8),
+		82 => out.push((-i32::from(n)).clamp(0, -1) as u8),
+		83 => out.extend_from_slice(format!("{Failing}").as_bytes()),
+		84 => out.extend_from_slice(Failing.to_string().as_bytes()),
+		85 => out.push(Lying(n).len() as u8),
+		_ => out.extend(Short(n % 4).zip(0..n % 4 + 1).rev().map(|(a, b)| a ^ b)),
+	}
+}
+
+/// A `Display` that fails though the writer did not, which `format!` and `to_string`
+/// panic on.
+struct Failing;
+
+impl fmt::Display for Failing {
+	fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
+		Err(fmt::Error)
 	}
 }
 
@@ -367,6 +424,32 @@ impl Iterator for Lying {
 
 impl ExactSizeIterator for Lying {}
 
+/// An iterator of one item fewer than the length it says, which a zip from the back finds
+/// short.
+struct Short(u8);
+
+impl Iterator for Short {
+	type Item = u8;
+
+	fn next(&mut self) -> Option<u8> {
+		self.next_back()
+	}
+
+	fn size_hint(&self) -> (usize, Option<usize>) {
+		let len = usize::from(self.0) + 1;
+		(len, Some(len))
+	}
+}
+
+impl DoubleEndedIterator for Short {
+	fn next_back(&mut self) -> Option<u8> {
+		self.0 = self.0.checked_sub(1)?;
+		Some(self.0)
+	}
+}
+
+impl ExactSizeIterator for Short {}
+
 /// One panic of `bytes`' own code, by `kind`, with a hook set: each where the native build
 /// names it, in the source of the `bytes` it builds.
 pub fn stock(kind: u8, data: &[u8], out: &mut Vec<u8>) {
@@ -375,7 +458,7 @@ pub fn stock(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let whole = Bytes::from(vec![n; 4]);
 	// `slice_ref`'s message names addresses, which JS has none of, so its hook reads where
 	// alone, then panics, which aborts and leaves the message unread.
-	if let k @ 0..=1 = kind % 30 {
+	if let k @ 0..=1 = kind % 33 {
 		panic::set_hook(Box::new(|info| {
 			let at = info.location().unwrap();
 			let line = format!("{} {} {}\n", at.file(), at.line(), at.column());
@@ -392,7 +475,7 @@ pub fn stock(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	}
 	hook();
 	let mut shared = BytesMut::from(&[n; 8][..]);
-	match kind % 30 {
+	match kind % 33 {
 		2 => out.extend_from_slice(&whole.slice(at + 3..2)),
 		3 => out.extend_from_slice(&whole.slice(..at + 5)),
 		4 => out.extend_from_slice(&whole.slice(usize::MAX - at % 2..=usize::MAX)),
@@ -443,7 +526,38 @@ pub fn stock(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		26 => (&mut *out).put_bytes(n, usize::MAX - at % 2),
 		27 => out.extend_from_slice(&whole.clone().take(2).copy_to_bytes(at + 3)),
 		28 => out.push(whole.clone().take(1).get_u16() as u8),
+		// Past the chunk `chunk_mut` lends, which is of 64 bytes once it reserved them.
+		29 => {
+			let chunk = shared.chunk_mut();
+			chunk.write_byte(chunk.len() + at % 2, n);
+		}
+		30 => Vec::<u8>::with_capacity(at % 4).chunk_mut()[65 + at % 2..].write_byte(0, n),
+		31 => BytesMut::new().chunk_mut()[..at % 2].copy_from_slice(&[n; 3]),
 		_ => out.push(BytesMut::zeroed(usize::MAX - at).len() as u8),
 	}
 	out.extend_from_slice(&shared);
+}
+
+/// The 2018-edition crate's panics, with a hook set on the paths that panic, so the hook
+/// does not outlive a case that returns.
+pub fn edition2018_panicked(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	if kind % 7 != 6 || data.first().copied().unwrap_or(0) > 200 {
+		hook();
+	}
+	edition2018::panicked(kind, data, out);
+}
+
+/// A panic of tokio's own code in what translation maps, with a hook set: a oneshot
+/// receiver polled again once it gave its value.
+pub fn tokio_stock(_kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let n = data.first().copied().unwrap_or(0);
+	hook();
+	let (tx, mut rx) = tokio::sync::oneshot::channel();
+	tx.send(n).unwrap();
+	let mut cx = Context::from_waker(Waker::noop());
+	for _ in 0..2 {
+		if let Poll::Ready(Ok(n)) = Pin::new(&mut rx).poll(&mut cx) {
+			out.push(n);
+		}
+	}
 }

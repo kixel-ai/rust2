@@ -222,12 +222,7 @@ export function args(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.panic("mid > len");
 		}
 		const halves: rs.ByteSlice[] = [new rs.ByteSlice(data.data, data.start, mid), new rs.ByteSlice(data.data, data.start + mid2, data.length - mid2)];
-		const iter2: rs.Iter<rs.ByteSlice> = rs.iterSlice(halves);
-		while (true) {
-			const _111: rs.ByteSlice | rs.Done = iter2.next();
-			if (_111 === rs.DONE) {
-				break;
-			}
+		for (const _111 of halves) {
 			const _138: rs.ByteSlice = _111;
 			rs.byteVecPush(out, sum(_138.data, _138.start, _138.length));
 			rs.byteVecPush(out, relay(_111));

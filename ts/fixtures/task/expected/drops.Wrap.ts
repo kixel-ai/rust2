@@ -22,43 +22,37 @@ export class Wrap<T> {
 
 export function drop$ops_Drop_Vec_drops_Wrap_drops_Held(self: Wrap<rs.Vec<Wrap<Held.Held>>>): void {
 	const arg = self.id;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(arg, f)];
-	const _4: string = rs.fmtFormat(["w", args2[0], " drop"]);
+	const _4: rs.String = rs.fmtFormat(["w", (f: rs.Formatter) => rs.u32Display(arg, f), " drop"]);
 	Log.note(self.log, _4);
 }
 
 export function drop$ops_Drop_drops_Held(self: Wrap<Held.Held>): void {
 	const arg = self.id;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(arg, f)];
-	const _4: string = rs.fmtFormat(["w", args2[0], " drop"]);
+	const _4: rs.String = rs.fmtFormat(["w", (f: rs.Formatter) => rs.u32Display(arg, f), " drop"]);
 	Log.note(self.log, _4);
 }
 
 export function drop$ops_Drop_drops_Pair_drops_Held(self: Wrap<Pair.Pair<Held.Held>>): void {
 	const arg = self.id;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(arg, f)];
-	const _4: string = rs.fmtFormat(["w", args2[0], " drop"]);
+	const _4: rs.String = rs.fmtFormat(["w", (f: rs.Formatter) => rs.u32Display(arg, f), " drop"]);
 	Log.note(self.log, _4);
 }
 
 export function drop$ops_Drop_model_Guard(self: Wrap<Guard.Guard>): void {
 	const arg = self.id;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(arg, f)];
-	const _4: string = rs.fmtFormat(["w", args2[0], " drop"]);
+	const _4: rs.String = rs.fmtFormat(["w", (f: rs.Formatter) => rs.u32Display(arg, f), " drop"]);
 	Log.note(self.log, _4);
 }
 
 export function drop$ops_Drop_sync_Arc_drops_Held(self: Wrap<rs.Arc<Held.Held>>): void {
 	const arg = self.id;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(arg, f)];
-	const _4: string = rs.fmtFormat(["w", args2[0], " drop"]);
+	const _4: rs.String = rs.fmtFormat(["w", (f: rs.Formatter) => rs.u32Display(arg, f), " drop"]);
 	Log.note(self.log, _4);
 }
 
 export function drop$ops_Drop_u32(self: Wrap<rs.u32>): void {
 	const arg = self.id;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(arg, f)];
-	const _4: string = rs.fmtFormat(["w", args2[0], " drop"]);
+	const _4: rs.String = rs.fmtFormat(["w", (f: rs.Formatter) => rs.u32Display(arg, f), " drop"]);
 	Log.note(self.log, _4);
 }
 

@@ -6,10 +6,10 @@ import * as Key from "../drops.Key.ts";
 import * as Log from "../log.Log.ts";
 
 /** The ids of a list's keys, front to back, apart from `id`. */
-export function ids(id: rs.u32, l: rs.LinkedList<Key.Key>): string {
-	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.listIter(l), (k: Key.Key): string => {
+export function ids(id: rs.u32, l: rs.LinkedList<Key.Key>): rs.String {
+	return rs.strsJoin(rs.iterToVec(rs.iterMap(rs.listIter(l), (k: Key.Key): rs.String => {
 		const _4: rs.u32 = rs.u32Sub(k.id, id);
-		return rs.fmtToString((f: rs.Formatter) => rs.u32Display(_4, f));
+		return rs.fmtToString((f: rs.Formatter) => rs.u32Display(_4, f), 0);
 	}), undefined, 12, true).items, ",");
 }
 
@@ -18,8 +18,8 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 	const key: (a0: rs.u32) => Key.Key = (n: rs.u32): Key.Key => {
 		return Key.new(rs.u32Add(id, n), Log.clone$Clone(log));
 	};
-	const keys: (a0: rs.u32[]) => rs.LinkedList<Key.Key> = (ns: rs.u32[]): rs.LinkedList<Key.Key> => {
-		const _32: rs.Iter<Key.Key> = rs.iterMap(rs.iterSlice(ns), (_2: rs.u32): Key.Key => {
+	const keys: (a0: rs.Slice<rs.u32>) => rs.LinkedList<Key.Key> = (ns: rs.Slice<rs.u32>): rs.LinkedList<Key.Key> => {
+		const _32: rs.Iter<Key.Key> = rs.iterMap(rs.iterSlice(rs.sliceItems(ns)), (_2: rs.u32): Key.Key => {
 			return key(_2);
 		});
 		return rs.listExtend(rs.listNew() as rs.LinkedList<Key.Key>, _32);
@@ -38,66 +38,61 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _33: Key.Key = key(0);
 		rs.listPushFront(l, _33);
 		rs.drop(rs.listPopBack(l));
-		Log.note(log, "popped back");
+		Log.note(log, rs.stringFrom("popped back"));
 		rs.drop(rs.listPopFront(l));
 		const part11 = ids(id, l);
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part11)];
-		Log.note(log, rs.fmtFormat(["left ", args2[0]]));
+		Log.note(log, rs.fmtFormat(["left ", (f: rs.Formatter) => rs.fmtPad(f, part11.v)]));
 		rs.listDrop(l, rs.drop);
 	} else if (_8 === 1) {
-		let l2: rs.LinkedList<Key.Key> = keys([1, 2, 3]);
+		let l2: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([1, 2, 3]));
 		rs.listClear(l2, rs.drop);
 		const part9 = l2.n;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part9, f)];
-		Log.note(log, rs.fmtFormat(["cleared ", args4[0]]));
+		Log.note(log, rs.fmtFormat(["cleared ", (f: rs.Formatter) => rs.usizeDisplay(part9, f)]));
 		rs.listPushBack(l2, key(4));
-		const _81: rs.LinkedList<Key.Key> = keys([5, 6]);
+		const _81: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([5, 6]));
 		rs.listDrop(l2, rs.drop);
 		l2 = _81;
 		const part10 = ids(id, l2);
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part10)];
-		Log.note(log, rs.fmtFormat(["replaced ", args6[0]]));
+		Log.note(log, rs.fmtFormat(["replaced ", (f: rs.Formatter) => rs.fmtPad(f, part10.v)]));
 		rs.listDrop(l2, rs.drop);
 	} else if (_8 === 2) {
-		const it: rs.Iter<Key.Key> = rs.listIter(keys([1, 2, 3, 4, 5, 6]), rs.drop);
+		const it: rs.Iter<Key.Key> = rs.listIter(keys(rs.sliceFrom([1, 2, 3, 4, 5, 6])), rs.drop);
 		rs.drop(rs.iterToOption(it.nextBack()));
 		rs.drop(rs.iterToOption(it.next()));
 		rs.drop(rs.iterToOption(it.nextBack()));
 		const part7 = it.len();
-		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part7, f)];
-		Log.note(log, rs.fmtFormat(["len ", args8[0]]));
+		Log.note(log, rs.fmtFormat(["len ", (f: rs.Formatter) => rs.usizeDisplay(part7, f)]));
 		const part8 = option_map$0bmexgo(rs.iterNth(it, 1, rs.drop), (k6: Key.Key): rs.u32 => {
 			const _09: rs.u32 = rs.u32Sub(k6.id, id);
 			k6[Symbol.dispose]();
 			return _09;
 		});
-		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part8, f, rs.u32Debug)];
-		Log.note(log, rs.fmtFormat(["nth ", args10[0]]));
+		Log.note(log, rs.fmtFormat(["nth ", (f: rs.Formatter) => rs.fmtOption(part8, f, rs.u32Debug)]));
 		rs.drop(it);
 	} else if (_8 === 3) {
-		const l3: rs.LinkedList<Key.Key> = keys([1, 2, 3, 4, 5]);
+		const l3: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([1, 2, 3, 4, 5]));
 		const back: rs.LinkedList<Key.Key> = rs.listSplitOff(l3, 3);
 		const none: rs.LinkedList<Key.Key> = rs.listSplitOff(l3, 3);
 		const all: rs.LinkedList<Key.Key> = rs.listSplitOff(l3, 0);
-		const _157: string = ids(id, l3);
-		const _160: string = ids(id, back);
-		const _163: string = ids(id, none);
-		const _166: string = ids(id, all);
-		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _157), (f: rs.Formatter) => rs.fmtPad(f, _160), (f: rs.Formatter) => rs.fmtPad(f, _163), (f: rs.Formatter) => rs.fmtPad(f, _166)];
-		Log.note(log, rs.fmtFormat(["split ", args12[0], " ", args12[1], " ", args12[2], " ", args12[3]]));
+		const _157: rs.String = ids(id, l3);
+		const _160: rs.String = ids(id, back);
+		const _163: rs.String = ids(id, none);
+		const _166: rs.String = ids(id, all);
+		const args43 = [(f: rs.Formatter) => rs.fmtPad(f, _157.v), (f: rs.Formatter) => rs.fmtPad(f, _160.v), (f: rs.Formatter) => rs.fmtPad(f, _163.v), (f: rs.Formatter) => rs.fmtPad(f, _166.v)];
+		Log.note(log, rs.fmtFormat(["split ", args43[0], " ", args43[1], " ", args43[2], " ", args43[3]]));
 		rs.listDrop(all, rs.drop);
-		Log.note(log, "front dropped");
+		Log.note(log, rs.stringFrom("front dropped"));
 		rs.listDrop(back, rs.drop);
 		rs.listDrop(none, rs.drop);
 		rs.listDrop(l3, rs.drop);
 	} else if (_8 === 4) {
-		const l4: rs.LinkedList<Key.Key> = keys([1, 2]);
-		const other: rs.LinkedList<Key.Key> = keys([3, 4]);
+		const l4: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([1, 2]));
+		const other: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([3, 4]));
 		rs.listAppend(l4, other);
-		const _199: string = ids(id, l4);
+		const _199: rs.String = ids(id, l4);
 		const _202: rs.usize = other.n;
-		const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _199), (f: rs.Formatter) => rs.usizeDisplay(_202, f)];
-		Log.note(log, rs.fmtFormat(["appended ", args14[0], " ", args14[1]]));
+		const args41 = [(f: rs.Formatter) => rs.fmtPad(f, _199.v), (f: rs.Formatter) => rs.usizeDisplay(_202, f)];
+		Log.note(log, rs.fmtFormat(["appended ", args41[0], " ", args41[1]]));
 		const _211: Key.Key = key(5);
 		rs.listPushBack(other, _211);
 		rs.listAppend(l4, other);
@@ -105,36 +100,34 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		rs.listExtend(l4, rs.iterSlice(_219, rs.drop), "fold");
 		const empty: rs.LinkedList<Key.Key> = rs.listNew() as rs.LinkedList<Key.Key>;
 		rs.listAppend(empty, l4);
-		const _236: string = ids(id, empty);
+		const _236: rs.String = ids(id, empty);
 		const _239: rs.usize = l4.n;
-		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, _236), (f: rs.Formatter) => rs.usizeDisplay(_239, f)];
-		Log.note(log, rs.fmtFormat(["moved ", args16[0], " ", args16[1]]));
+		const args42 = [(f: rs.Formatter) => rs.fmtPad(f, _236.v), (f: rs.Formatter) => rs.usizeDisplay(_239, f)];
+		Log.note(log, rs.fmtFormat(["moved ", args42[0], " ", args42[1]]));
 		rs.listDrop(empty, rs.drop);
 		rs.listDrop(l4, rs.drop);
 	} else if (_8 === 5) {
-		const l5: rs.LinkedList<Key.Key> = keys([1, 2, 3, 4]);
-		const source: rs.LinkedList<Key.Key> = keys([5, 6]);
+		const l5: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([1, 2, 3, 4]));
+		const source: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([5, 6]));
 		rs.listCloneFrom(l5, source, Key.clone$Clone, rs.drop);
 		const part5 = ids(id, l5);
-		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part5)];
-		Log.note(log, rs.fmtFormat(["cloned ", args18[0]]));
-		const longer: rs.LinkedList<Key.Key> = keys([7, 8, 9]);
+		Log.note(log, rs.fmtFormat(["cloned ", (f: rs.Formatter) => rs.fmtPad(f, part5.v)]));
+		const longer: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([7, 8, 9]));
 		rs.listCloneFrom(l5, longer, Key.clone$Clone, rs.drop);
 		const part6 = ids(id, l5);
-		const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part6)];
-		Log.note(log, rs.fmtFormat(["cloned ", args20[0]]));
+		Log.note(log, rs.fmtFormat(["cloned ", (f: rs.Formatter) => rs.fmtPad(f, part6.v)]));
 		rs.listDrop(longer, rs.drop);
 		rs.listDrop(source, rs.drop);
 		rs.listDrop(l5, rs.drop);
 	} else if (_8 === 6) {
-		const l6: rs.LinkedList<Key.Key> = keys([1, 2, 3, 4, 5, 6]);
+		const l6: rs.LinkedList<Key.Key> = keys(rs.sliceFrom([1, 2, 3, 4, 5, 6]));
 		const taken: rs.Vec<Key.Key> = rs.iterToVec(rs.listExtractIf(l6, (k2: Key.Key): boolean => {
 			return rs.u32Rem(rs.u32Sub(k2.id, id), 2) === 0;
 		}), "next", 12);
 		const _307: rs.usize = taken.items.length;
-		const _310: string = ids(id, l6);
-		const args22: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(_307, f), (f: rs.Formatter) => rs.fmtPad(f, _310)];
-		Log.note(log, rs.fmtFormat(["taken ", args22[0], " left ", args22[1]]));
+		const _310: rs.String = ids(id, l6);
+		const args35 = [(f: rs.Formatter) => rs.usizeDisplay(_307, f), (f: rs.Formatter) => rs.fmtPad(f, _310.v)];
+		Log.note(log, rs.fmtFormat(["taken ", args35[0], " left ", args35[1]]));
 		rs.dropVec(taken);
 		const first: Key.Key | undefined = rs.iterToOption(rs.listExtractIf(l6, (k3: Key.Key): boolean => {
 			return rs.u32Sub(k3.id, id) > 1;
@@ -142,9 +135,9 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const _330: rs.u32 | undefined = option_map$0bmexgo(first, (k4: Key.Key): rs.u32 => {
 			return rs.u32Sub(k4.id, id);
 		});
-		const _336: string = ids(id, l6);
-		const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(_330, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtPad(f, _336)];
-		Log.note(log, rs.fmtFormat(["first ", args24[0], " left ", args24[1]]));
+		const _336: rs.String = ids(id, l6);
+		const args36 = [(f: rs.Formatter) => rs.fmtOption(_330, f, rs.u32Debug), (f: rs.Formatter) => rs.fmtPad(f, _336.v)];
+		Log.note(log, rs.fmtFormat(["first ", args36[0], " left ", args36[1]]));
 		const captured = key(9);
 		const it2: rs.Iter<Key.Key> = rs.listExtractIf(l6, rs.closure((k5: Key.Key): boolean => {
 			return k5.id > captured.id;
@@ -153,30 +146,26 @@ export function run(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}));
 		const _357: Key.Key | undefined = rs.iterToOption(it2.next());
 		const part3 = _357 === undefined;
-		const args26: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part3, f)];
-		const _351: string = rs.fmtFormat(["none ", args26[0]]);
+		const _351: rs.String = rs.fmtFormat(["none ", (f: rs.Formatter) => rs.fmtBool(part3, f)]);
 		rs.drop(_357);
 		Log.note(log, _351);
 		rs.drop(it2);
 		const part4 = ids(id, l6);
-		const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, part4)];
-		Log.note(log, rs.fmtFormat(["kept ", args28[0]]));
+		Log.note(log, rs.fmtFormat(["kept ", (f: rs.Formatter) => rs.fmtPad(f, part4.v)]));
 		rs.drop(first);
 		rs.listDrop(l6, rs.drop);
 	} else {
-		const it3: rs.Iter<Key.Key> = rs.listIter(keys([1, 2, 3]), rs.drop);
+		const it3: rs.Iter<Key.Key> = rs.listIter(keys(rs.sliceFrom([1, 2, 3])), rs.drop);
 		rs.drop(rs.iterToOption(it3.next()));
 		const copy: rs.Iter<Key.Key> = it3.clone({ v: Key.clone$Clone });
 		const part = rs.ownedCount(it3, rs.drop);
-		const args30: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(part, f)];
-		Log.note(log, rs.fmtFormat(["counted ", args30[0]]));
+		Log.note(log, rs.fmtFormat(["counted ", (f: rs.Formatter) => rs.usizeDisplay(part, f)]));
 		const part2 = option_map$0bmexgo(rs.ownedLast(copy, rs.drop), (k: Key.Key): rs.u32 => {
 			const _04: rs.u32 = rs.u32Sub(k.id, id);
 			k[Symbol.dispose]();
 			return _04;
 		});
-		const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part2, f, rs.u32Debug)];
-		Log.note(log, rs.fmtFormat(["last ", args32[0]]));
+		Log.note(log, rs.fmtFormat(["last ", (f: rs.Formatter) => rs.fmtOption(part2, f, rs.u32Debug)]));
 	}
 }
 

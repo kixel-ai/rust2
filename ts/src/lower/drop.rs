@@ -15,6 +15,15 @@ use super::{Adt, AdtRepr, Translator};
 use crate::program::{SymKind, Symbol};
 use crate::ts::{self, Expr, Param, Stmt, StmtKind, Type};
 
+/// What [`Translator::glue_all`] asks of what an instance's glue drops through.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Asked {
+	/// That JS sees none of it drop.
+	Inert,
+	/// That each drops through its own `[Symbol.dispose]`, giving glue where it needs it if so.
+	Disposable(bool),
+}
+
 impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether dropping a `ty` does something JS can see.
 	pub fn drops(&mut self, ty: Ty<'tcx>) -> bool {
@@ -43,7 +52,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::RefMut
 					| Std::PeekMut
 					| Std::Bytes
-					| Std::BytesMut,
+					| Std::BytesMut
+					| Std::Sync,
 				) => true,
 				Some(
 					Std::Option
@@ -124,8 +134,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Closure(..) | ty::CoroutineClosure(..) => {
 				super::captured(ty).is_some_and(|tys| tys.iter().any(|t| self.drops(t)))
 			}
-			// Whatever it was made of may drop.
+			// Whatever it was made of may drop, as may what a projection from a type
+			// parameter is at an instance.
 			ty::Coroutine(..) | ty::Param(_) | ty::Dynamic(..) => true,
+			ty::Alias(..) => ty.has_param(),
 			_ => false,
 		};
 		self.drops_open.remove(&ty);
@@ -179,7 +191,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Adt(adt, _) if self.bound_drops(adt.did()).is_some() => true,
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did()) {
 				// Each drops by what it was given, or a `Weak` or a `BytesMut` by its own count.
-				Some(Std::Waker | Std::PollFn | Std::Ready | Std::Weak | Std::BytesMut) => true,
+				Some(Std::Waker | Std::PollFn | Std::Ready | Std::Weak | Std::BytesMut | Std::Sync) => true,
 				Some(
 					Std::Arc
 					| Std::Mutex
@@ -200,7 +212,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				None | Some(Std::Peekable) if self.std_iter(ty) => self.closures_held(ty),
 				Some(_) => false,
 				None if self.shared_glue(*adt) => {
-					if !args.types().all(|t| self.disposable(t, glue)) {
+					if !self.glue_all(ty, *adt, args, Asked::Disposable(glue.is_some()), |t, held| {
+						t.disposable(held, glue)
+					}) {
 						return false;
 					}
 					if let Some(span) = glue {
@@ -213,9 +227,103 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			},
 			// A closure's `[Symbol.dispose]` drops what it owns, a `dyn Future`'s what it is, and
 			// another trait object's what it wraps.
-			ty::Closure(..) | ty::CoroutineClosure(..) | ty::Coroutine(..) | ty::Param(_) | ty::Dynamic(..) => true,
+			ty::Closure(..)
+			| ty::CoroutineClosure(..)
+			| ty::Coroutine(..)
+			| ty::Param(_)
+			| ty::Alias(..)
+			| ty::Dynamic(..) => true,
 			_ => false,
 		}
+	}
+
+	/// Whether `f`, which `asked` names, holds of everything [`Self::glue_held`] has `ty`, an
+	/// instance of `adt` with `args`, drop through. It holds of an instance already being
+	/// asked about, which a projection whose value holds the instance again reaches: what
+	/// the instance drops through there it drops through already. Each answer is kept, once
+	/// it no longer rests on an instance still being asked about, so an instance is asked
+	/// about once however many paths reach it. What nests past the crate's recursion limit
+	/// is refused.
+	fn glue_all(
+		&mut self,
+		ty: Ty<'tcx>,
+		adt: AdtDef<'tcx>,
+		args: ty::GenericArgsRef<'tcx>,
+		asked: Asked,
+		f: impl Fn(&mut Self, Ty<'tcx>) -> bool,
+	) -> bool {
+		let key = (ty, asked);
+		let state = &mut self.defining_state;
+		if let Some(&all) = state.glue_known.get(&key) {
+			return all;
+		}
+		// What rests on the instances it rested on.
+		if let Some(&rests) = state.glue_resting.get(&key) {
+			state.glue_rests = state.glue_rests.min(rests);
+			return true;
+		}
+		if let Some(open) = state.glue_open.iter().position(|t| *t == ty) {
+			state.glue_rests = state.glue_rests.min(open);
+			return true;
+		}
+		if state.glue_open.len() > self.tcx.recursion_limit().0 {
+			// At the definition of the outermost, which it names.
+			let outer = state.glue_open[0];
+			let span = match outer.kind() {
+				ty::Adt(outer, _) => self.tcx.def_span(outer.did()),
+				_ => self.tcx.def_span(adt.did()),
+			};
+			self.err(
+				span,
+				format!(
+					"dropping `{outer}` is not supported: what its glue drops through, by its projections, nests past the crate's recursion limit"
+				),
+			);
+			return false;
+		}
+		let depth = state.glue_open.len();
+		state.glue_open.push(ty);
+		let outer_rests = std::mem::replace(&mut state.glue_rests, usize::MAX);
+		let resting = state.glue_order.len();
+		let all = self.glue_held(adt, args).into_iter().all(|held| f(self, held));
+		let state = &mut self.defining_state;
+		state.glue_open.pop();
+		let rests = std::mem::replace(&mut state.glue_rests, outer_rests);
+		match () {
+			// Still resting on one further out, whose answer decides it too.
+			_ if all && rests < depth => {
+				state.glue_rests = state.glue_rests.min(rests);
+				state.glue_resting.insert(key, rests);
+				state.glue_order.push(key);
+			}
+			_ => {
+				// Each answer that rested on it holds if it does.
+				for rested in state.glue_order.drain(resting..) {
+					state.glue_resting.remove(&rested);
+					if all {
+						state.glue_known.insert(rested, true);
+					}
+				}
+				state.glue_known.insert(key, all);
+			}
+		}
+		all
+	}
+
+	/// What a generic struct's glue drops through, at an instance with `args`: each type
+	/// argument, and what each projection from them its fields name is there.
+	fn glue_held(&mut self, adt: AdtDef<'tcx>, args: ty::GenericArgsRef<'tcx>) -> Vec<Ty<'tcx>> {
+		let mut held: Vec<Ty<'tcx>> = args.types().collect();
+		if self.crates.translates(adt.did()) {
+			let env = self.typing_env_pub();
+			let projections: Vec<Ty<'tcx>> = self.defined(adt.did()).projections.iter().map(|(p, _)| *p).collect();
+			held.extend(
+				projections
+					.into_iter()
+					.map(|p| super::copy::instantiate(self.tcx, env, p, args)),
+			);
+		}
+		held
 	}
 
 	/// Whether every JS value of `ty`, a type that drops and is [`Self::disposable`], is an
@@ -248,7 +356,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				| Std::Cell
 				| Std::OnceCell
 				| Std::OnceLock
-				| Std::BytesMut,
+				| Std::BytesMut
+				| Std::Sync,
 			) => true,
 			Some(_) => false,
 			// An `rs.Iter` has one only if it was given what drops.
@@ -390,7 +499,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Some(Std::Context) => false,
 				Some(_) => true,
 				// Its glue, if an instance that drops gave it one, drops its type parameters' fields.
-				None if adt.is_struct() => args.types().all(|t| self.inert(t)),
+				None if adt.is_struct() => self.glue_all(ty, *adt, args, Asked::Inert, |t, held| t.inert(held)),
 				None => true,
 			},
 			_ => true,
@@ -673,8 +782,12 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		// Only an instance whose parameters drop runs the glue, so none is a byte: a field
 		// whose definition's type an instance decides is read as an array of them holds it.
 		let glue = std::mem::replace(&mut self.glue, true);
+		// Its fields' types over its parameters, and the projections from them it names.
+		let identity = ty::GenericArgs::identity_for_item(tcx, adt.did());
+		let env = ty::TypingEnv::post_analysis(tcx, adt.did());
+		let defining = self.defining.replace((adt.did(), env));
 		for (field, &id) in adt.non_enum_variant().fields.iter().zip(fields) {
-			let ty = tcx.type_of(field.did).instantiate_identity().skip_norm_wip();
+			let ty = super::copy::field_ty(tcx, env, field.did, identity);
 			let read = match self.instanced_fields.contains_key(&field.did) {
 				true => Expr::As(Box::new(Translator::read_field(Expr::This, id)), self.ty(ty, span)),
 				false => Translator::read_field(Expr::This, id),
@@ -684,6 +797,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			}
 		}
 		self.glue = glue;
+		self.defining = defining;
 		let sym = self.program.sym(Symbol {
 			module: self.module_of(adt.did()),
 			base: "[Symbol.dispose]".into(),

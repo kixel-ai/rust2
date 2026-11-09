@@ -38,12 +38,14 @@ pub fn is_next(tcx: ty::TyCtxt<'_>, def_id: DefId) -> bool {
 
 impl<'tcx> Translator<'_, 'tcx> {
 	/// `Iterator::Item` of `ty`, if `ty` is an iterator. A type over parameters, which a
-	/// generic type's fields and a census have, may leave it a projection.
+	/// generic type's fields and a census have, may leave it a projection; a field's
+	/// normalizes by its type's bounds.
 	pub fn iter_item(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
 		let tcx = self.tcx;
 		let (_, item) = trait_items(tcx)?;
 		let projection = Ty::new_projection(tcx, ty::IsRigid::No, item, [ty]);
-		tcx.try_normalize_erasing_regions(self.typing_env_pub(), ty::Unnormalized::new_wip(projection))
+		let env = self.defining.map_or(self.typing_env_pub(), |(_, env)| env);
+		tcx.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(projection))
 			.ok()
 	}
 
@@ -514,6 +516,21 @@ fn own_collect<'tcx>(
 	Some((vec, Expr::Sym(b.t.instance(instance))))
 }
 
+/// The crate's own impl of `tr::name`, a function of std's trait `tr`, for `args`, the type
+/// it is for first, as a value: its `FromIterator` or `IntoIterator`, which std's adaptors
+/// call.
+fn own_impl<'tcx>(b: &mut Body<'_, '_, 'tcx>, tr: &str, name: &str, args: &[Ty<'tcx>], span: Span) -> Option<Expr> {
+	let tcx = b.t.tcx;
+	// Over parameters, only a census's instance, which never runs, would call it.
+	if args.iter().any(|t| t.has_param() || t.has_aliases()) {
+		return None;
+	}
+	let f = super::collections::trait_fn(tcx, tr, name);
+	let args = tcx.mk_args_from_iter(args.iter().map(|&t| ty::GenericArg::from(t)));
+	let instance = Instance::try_resolve(tcx, b.t.typing_env_pub(), f, args).ok()??;
+	b.t.own(instance.def_id()).then(|| b.fn_value(f, args, span))
+}
+
 /// Whether `ty` holds, by value rather than through a reference, an iterator of the crate with a
 /// method in `BY_VALUE` of its own, which std's consumers call where they take it.
 fn folds_own<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
@@ -546,10 +563,10 @@ fn own_methods<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, owned: bool, span
 		let Some(instance) = own_method(b, ty, tr, name) else {
 			continue;
 		};
-		// The closure is given a reference to each item, which std lends a `[u8; N]` to as
+		// The closure is given a reference to each item, which std lends a `[T; N]` to as
 		// the array, where the crate's is a slice of it.
 		if matches!(*name, "find" | "rfind" | "is_sorted_by")
-			&& let Some(item) = item.filter(|&item| super::byte_array(item))
+			&& let Some(item) = item.filter(|&item| item.is_array())
 		{
 			b.t.err(
 				span,
@@ -792,6 +809,10 @@ fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr,
 			None => value,
 		});
 	}
+	// The crate's own collection, by its own `IntoIterator`, as the iterator that makes.
+	if let Some(into) = own_impl(b, "IntoIterator", "into_iter", &[ty], span) {
+		return into_iter(b, iter_of(b.t, ty)?, into.call(vec![value]), span);
+	}
 	// What drops each item of one that owns them.
 	let each = |b: &mut Body<'_, '_, 'tcx>, elem: Ty<'tcx>, mut args: Vec<Expr>| {
 		if owned && b.t.drops(elem) {
@@ -809,8 +830,12 @@ fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr,
 		ty.ref_mutability() == Some(ty::Mutability::Mut) && b.t.needs_place(elem)
 	};
 	match ty.peel_refs().kind() {
+		// Each array, where a slice of arrays holds it.
+		ty::Slice(elem) | ty::Array(elem, _) if ty.is_ref() && elem.is_array() => {
+			Some(Expr::rs("arraySliceIter", vec![value]))
+		}
 		ty::Slice(elem) | ty::Array(elem, _) if places(b, *elem) => {
-			Some(Expr::rs("iterSliceMut", vec![library::elements(value, ty)]))
+			Some(Expr::rs("iterSliceMut", vec![library::slice_of(value, ty)]))
 		}
 		ty::Slice(elem) | ty::Array(elem, _) => {
 			let values = each(b, *elem, vec![library::elements(value, ty)]);
@@ -818,7 +843,7 @@ fn peeled_into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr,
 		}
 		ty::Adt(adt, args) => match Std::of(tcx, adt.did())? {
 			Std::Vec if places(b, args.type_at(0)) => {
-				Some(Expr::rs("iterSliceMut", vec![library::elements(value, ty)]))
+				Some(Expr::rs("iterSliceMut", vec![library::slice_of(value, ty)]))
 			}
 			// A `Vec<u8>`'s owned bytes keep its buffer, as a deque collected from them does.
 			Std::Vec if owned && super::byte(args.type_at(0)) => Some(Expr::rs("byteVecIntoIter", vec![value])),
@@ -867,11 +892,11 @@ fn result_places(place: Expr) -> Expr {
 }
 
 /// `iter`, over the elements of a slice or `Vec` of `elem`s or the payload of an `Option`
-/// or a `Result`, yielding references to them: a slice of each array of bytes.
+/// or a `Result`, yielding references to them: a slice of each array.
 pub(super) fn by_ref(iter: Expr, elem: Ty<'_>) -> Expr {
-	match super::byte_array(elem) {
-		true => Expr::rs("iterLend", vec![iter, Expr::Rs("byteSliceFrom".into())]),
-		false => iter,
+	match elem.kind() {
+		ty::Array(..) => Expr::rs("iterLend", vec![iter, super::array_fn(elem, "From")]),
+		_ => iter,
 	}
 }
 
@@ -1013,9 +1038,9 @@ pub fn call<'tcx>(
 	// Where iterators come from.
 	match (owner, name) {
 		("slice", "iter_mut") if b.t.needs_place(targ(0)?) => {
-			let s = library::elements(args.pop()?, Ty::new_slice(tcx, targ(0)?));
-			return Some(Expr::rs("iterSliceMut", vec![s]));
+			return Some(Expr::rs("iterSliceMut", args));
 		}
+		("slice", "iter" | "iter_mut") if targ(0)?.is_array() => return Some(Expr::rs("arraySliceIter", args)),
 		("slice", "iter" | "iter_mut") => {
 			let s = args.pop()?;
 			let s = library::elements(s, Ty::new_slice(tcx, targ(0)?));
@@ -1099,6 +1124,14 @@ pub fn call<'tcx>(
 		};
 		let iter = iter_of(b.t, source)?;
 		let items = into_iter(b, source, value, span)?;
+		// Text of an array of `&str`s, which std's reserves for at once.
+		if str_array(source) && library::textual(b.t.tcx, targ(0)?) {
+			let s = Expr::rs("stringExtendArray", vec![Expr::rs("stringNew", vec![]), items]);
+			return Some(match b.t.std_of(targ(0)?) {
+				Some(Std::Box) => s.member("v"),
+				_ => s,
+			});
+		}
 		let trusted = implements(b.t, iter, "TrustedLen");
 		return collect(b, targ(0)?, targ(1)?, items, iter, trusted, span);
 	}
@@ -1166,6 +1199,12 @@ pub fn call<'tcx>(
 			}
 		};
 		return Some(Expr::rs("iterToOption", [item].into_iter().chain(none).collect()));
+	}
+	// Into the crate's own collection, its `from_iter` of the iterator, as std's `collect` is.
+	if name == "collect"
+		&& let Some(from_iter) = own_impl(b, "FromIterator", "from_iter", &[targ(1)?, item, targ(0)?], span)
+	{
+		return Some(from_iter.call(vec![first]));
 	}
 	let recv = into_iter(b, self_ty, first, span)?;
 	// `rs.iter<Name>(recv, ...args)`, or `peekable<Name>` of a `Peekable`'s own.
@@ -1343,7 +1382,20 @@ pub fn call<'tcx>(
 				true => super::collections::eq_fn(b, item, span),
 				false => {
 					let by = Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, expected);
-					super::collections::impl_eq(b, "eq", item, expected, [item, by], span)
+					let eq = super::collections::impl_eq(b, "eq", item, expected, [item, by], span);
+					// The mapping is given the array, where the impl's `eq` takes a slice of it.
+					match expected.is_array() {
+						true => {
+							let param = |name: &str| crate::ts::Param {
+								name: name.into(),
+								ty: None,
+							};
+							let slice = super::array_slice(expected, Expr::ident("b"));
+							let call = eq.call(vec![Expr::ident("a"), slice]);
+							Expr::Lambda(vec![param("a"), param("b")], Box::new(call))
+						}
+						false => eq,
+					}
 				}
 			};
 			method(&camel, [rest, vec![eq], none.into_iter().collect()].concat())
@@ -1491,7 +1543,7 @@ pub fn call<'tcx>(
 				// Each item through its `Clone`.
 				_ if !copies => Some(clone(b)?),
 				// Out of the slice each item is.
-				_ if super::byte_array(*inner) => Some(Expr::Rs("byteSliceToArray".into())),
+				_ if inner.is_array() => Some(b.t.array_copy_fn(*inner, span)),
 				_ => b.t.copy_fn(*inner, span),
 			};
 			// std's `copied` skips through its iterator's `nth`, and `cloned` by its own `next`.
@@ -1605,7 +1657,7 @@ pub(super) fn size_of<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span
 /// Whether `copied` of an iterator of `&inner`s is that iterator itself, as JS reads an
 /// `inner` as its value already.
 pub(super) fn copies_itself<'tcx>(t: &Translator<'_, 'tcx>, inner: Ty<'tcx>) -> bool {
-	!super::byte_array(inner) && !t.needs_copy(inner)
+	!inner.is_array() && !t.needs_copy(inner)
 }
 
 /// Whether an iterator of type `ty` is a `FusedIterator`, which std's `fuse` and `flatten`
@@ -2053,6 +2105,13 @@ fn collect<'tcx>(
 	span: Span,
 ) -> Option<Expr> {
 	let tcx = b.t.tcx;
+	// The crate's own collection's `from_iter` of `iter`, which is the value of `from` but for
+	// the crate's own iterator, which `rs.iterFrom` wraps.
+	if own_next(b, from.peel_refs()).is_none()
+		&& let Some(from_iter) = own_impl(b, "FromIterator", "from_iter", &[ty, item, from], span)
+	{
+		return Some(from_iter.call(vec![iter]));
+	}
 	// `()`'s reads every item, each a `()` too, by `for_each`, which folds: from `undefined`,
 	// so the result is typed as `()` is.
 	if ty.is_unit() {
@@ -2104,7 +2163,8 @@ fn collect<'tcx>(
 		});
 	}
 	match std {
-		// The values, collected as the `Ok` or `Some` type is, until the first `Err` or `None`.
+		// The values, collected as the `Ok` or `Some` type is, until an `Err` or `None`, the last
+		// the collection read.
 		std @ (Std::Result | Std::Option) => {
 			let ty::Adt(_, item_args) = item.kind() else {
 				return None;
@@ -2136,7 +2196,11 @@ fn collect<'tcx>(
 			let dropper = b.t.dropper(args.type_at(0), span);
 			let collected = vec![iter, Expr::Lambda(vec![param], Box::new(values))];
 			Some(match std {
-				Std::Result => Expr::rs("iterCollectResult", tail(collected, vec![dropper])),
+				// A later error replaces an earlier one, which then drops.
+				Std::Result => {
+					let error = b.t.dropper(args.type_at(1), span);
+					Expr::rs("iterCollectResult", tail(collected, vec![dropper, error]))
+				}
 				// The items' `None`, and the result's, each `rs.None` where `undefined` is a value.
 				_ => {
 					let nones = [value, args.type_at(0)].map(|t| b.t.none(t));
@@ -2147,28 +2211,33 @@ fn collect<'tcx>(
 				}
 			})
 		}
-		// From chars or text, as `extend` of an empty one, but for an owned string's, which
-		// the rest extend once `next` gives it. A `Cow<str>` and a `Box<str>` own the `String`
-		// std's collects.
+		// From chars or text, as `extend` of `String::new`, but for an owned string's, which
+		// the rest extend once `next` gives it. A `Cow<str>` owns the `String` std's collects,
+		// and a `Box<str>` is its text.
 		Std::String | Std::Cow | Std::Box if std == Std::String || args.types().next().is_some_and(|t| t.is_str()) => {
-			match b.t.std_of(item) {
+			let s = match b.t.std_of(item) {
 				Some(Std::String | Std::Cow) => {
 					let drops = iter_drops(b, from, span);
-					let texts = texts(b.t, iter, item);
-					Some(Expr::rs("stringFromStrings", tail(vec![texts], vec![drops])))
+					Expr::rs("stringFromStrings", tail(vec![iter], vec![drops]))
 				}
-				_ => string_extend(b, Expr::Str(String::new()), iter, item, from, span),
-			}
+				_ => string_extend(b, Expr::rs("stringNew", vec![]), iter, item, from, span)?,
+			};
+			Some(match std {
+				Std::Box => s.member("v"),
+				_ => s,
+			})
 		}
 		_ => super::collections::collect(b, ty, iter, from, trusted, span),
 	}
 }
 
 /// Whether `ty`, collected through a `GenericShunt`, is given it: a tuple, whose `Extend`
-/// is, or a `Result` or `Option` of one, which shunts it again.
+/// is, the crate's own collection, whose `FromIterator` is, or a `Result` or `Option` of
+/// one, which shunts it again.
 fn sees_shunt<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> bool {
 	match ty.kind() {
 		ty::Tuple(_) => true,
+		ty::Adt(adt, _) if t.own(adt.did()) => true,
 		ty::Adt(_, args) if matches!(t.std_of(ty), Some(Std::Result | Std::Option)) => sees_shunt(t, args.type_at(0)),
 		_ => false,
 	}
@@ -2189,6 +2258,11 @@ fn shunt<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>, item: Ty<'tcx>, from: Ty<
 	sig.inputs().first()?.tuple_fields().first().copied()
 }
 
+/// Whether `ty` is an array of `&str`s, whose bytes `String`'s `Extend` reserves at once.
+pub(super) fn str_array(ty: Ty<'_>) -> bool {
+	matches!(ty.kind(), ty::Array(elem, _) if elem.is_ref() && elem.peel_refs().is_str())
+}
+
 /// `s` extended by `items`, an iterator of type `iter` of `item`s, as `String`'s `Extend`
 /// reads it, by `for_each`: of chars, through any `&`, or of text, a `&str`, `String`,
 /// `Box<str>`, or `Cow<str>`.
@@ -2206,15 +2280,7 @@ pub(super) fn string_extend<'tcx>(
 		"stringExtendChars"
 	};
 	let drops = iter_drops(b, iter, span);
-	Some(Expr::rs(extend, tail(vec![s, texts(b.t, items, item)], vec![drops])))
-}
-
-/// `items`, an iterator of `item`s, as one of the strings they are: a `Cow<str>`'s text.
-fn texts<'tcx>(t: &Translator<'_, 'tcx>, items: Expr, item: Ty<'tcx>) -> Expr {
-	match library::cow_str(t.tcx, item.peel_refs()) {
-		true => Expr::rs("iterMap", vec![items, Expr::Rs("strCowStr".into())]),
-		false => items,
-	}
+	Some(Expr::rs(extend, tail(vec![s, items], vec![drops])))
 }
 
 /// Whether a `String` extends by `item`s of text, a `&str`, `String`, `Box<str>`, or

@@ -23,12 +23,13 @@ allow_attributes_without_reason = "warn"
 
 [dependencies]
 rust2-driver = { path = "../driver" }
-serde = { version = "1.0.228", features = ["derive"] }
 toml = "1.1.8"
 
 [dev-dependencies]
 codec = { path = "fixtures/codec" }
+enums = { path = "fixtures/enums" }
 fmt = { path = "fixtures/fmt" }
+hand = { path = "fixtures/hand" }
 ints = { path = "fixtures/ints" }
 items = { path = "fixtures/items" }
 order = { path = "fixtures/order" }

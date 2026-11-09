@@ -1,0 +1,31 @@
+[package]
+name = "bindgen-fixture"
+description = "A harness over js-sys and web-sys, whose wasm-bindgen imports translate to direct JS calls"
+version = "0.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+# Its own workspace and lockfile, which pins wasm-bindgen to the CLI the dev shell has:
+# the native side runs through that CLI's glue, which must match the crate exactly.
+# `wasm-bindgen-0.2.130.lock` is the same workspace at the next schema, which only the
+# translated side builds.
+[workspace]
+
+[lib]
+# The cdylib is the native side of the differential test, built for wasm32.
+crate-type = ["lib", "cdylib"]
+
+[features]
+# What translation refuses, each at its span.
+refused = []
+
+[dependencies]
+js-sys = "0.3.106"
+wasm-bindgen = "0.2.129"
+web-sys = { version = "0.3.106", features = ["TextDecoder", "TextDecoderOptions", "TextEncoder", "console"] }
+
+# The ts workspace's differential profile, which the tests build the native side with.
+[profile.differential]
+inherits = "dev"
+opt-level = 1

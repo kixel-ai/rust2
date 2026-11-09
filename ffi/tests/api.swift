@@ -232,9 +232,9 @@ func script() {
 	let registry = Registry.new(Counter.new("first", 1))
 	print("last \(registry.last() != nil)")
 	registry.push(Counter.new("last", 2))
-	let first = registry.first
+	let first = registry.firstGet
 	_ = try! first.add(10)
-	print("first \(registry.first.get()) lent \(first.get())")
+	print("first \(registry.firstGet.get()) lent \(first.get())")
 	let last = registry.last()!
 	_ = try! last.add(10)
 	print("last \(registry.last()!.get()) lent \(last.get())")
@@ -244,10 +244,10 @@ func script() {
 		_ = try! counter.add(by)
 		return counter.edited() && counter.get() == 6
 	}
-	print("edit \(edited) \(registry.first.get())")
+	print("edit \(edited) \(registry.firstGet.get())")
 	// A setter moves an object in, as assignment does, closing its handle.
-	registry.setFirst(Counter.new("second", 3))
-	print("set first \(registry.first.get()) \(registry.first.name())")
+	registry.firstSet(Counter.new("second", 3))
+	print("set first \(registry.firstGet.get()) \(registry.firstGet.name())")
 	print("walk \(walk(3) { cursor in cursor.at() * 2 })")
 	print("each \(each(2) { at in print("visit \(at)") })")
 	print("offset \(offset({ 7 }, 3))")
@@ -316,18 +316,18 @@ func script() {
 	print("later \(Stamp.fromMillis(3000).later(stamp))")
 	print("secs \(stamp.secs())")
 	let message = Message.new(stamp, Data("body".utf8))
-	print("payload \(text(message.payload))")
-	print("stamp \(debug(message.stamp!))")
+	print("payload \(text(message.payloadGet))")
+	print("stamp \(debug(message.stampGet!))")
 	print("sent \(message.sent())")
 	// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
 	let reset = Stamp.fromMillis(4000)
-	message.setStamp(reset)
-	message.setPayload(Data("edited".utf8))
-	print("payload \(text(message.payload))")
-	print("stamp \(debug(message.stamp!))")
+	message.stampSet(reset)
+	message.payloadSet(Data("edited".utf8))
+	print("payload \(text(message.payloadGet))")
+	print("stamp \(debug(message.stampGet!))")
 	print("secs \(reset.secs())")
-	message.setStamp(nil)
-	print("stamp \(message.stamp != nil)")
+	message.stampSet(nil)
+	print("stamp \(message.stampGet != nil)")
 
 	// Bound first, so Swift's reference is gone before the print.
 	let kept = emit(PrintLog(), Data([1, 2, 3, 4]))
@@ -388,9 +388,9 @@ func script() {
 	print("both \(bumpBoth(tally, tally))")
 	print("peek \(peek(tally) { lent in lent.bump() })")
 
-	let area = grow(Area.new(Size(width: 2, height: 3)), 1)
-	let size = area.size()
-	print("area \(size.width) \(size.height) \(area.pixels())")
+	let grown = grow(Area.new(Size(width: 2, height: 3)), 1)
+	let size = grown.size()
+	print("area \(size.width) \(size.height) \(grown.pixels())")
 
 	// Generic types, each at the instances it infers, named by their arguments.
 	let pair = PairU32(left: 2, right: 5)
@@ -398,7 +398,7 @@ func script() {
 	print("pair \(swappedPair.left) \(swappedPair.right) sum \(pair.sum()) \(debug(pair)) \(pair == swappedPair)")
 	print("even \(pair.even()) \(PairU32(left: 7, right: 7).even())")
 	// An instance renamed alone, beside another of `Pair` that keeps its name.
-	let sized: SizeTag = tag(Size(width: 1, height: 2), 3)
+	let sized: PairSizeU8 = tag(Size(width: 1, height: 2), 3)
 	let flipped: PairU8Size = sized.swap()
 	print("sized \(flipped.left) \(flipped.right.width) \(debug(flipped))")
 	let beside = PairU32(left: 258, right: 9).besideSize(sized.left)
@@ -413,7 +413,7 @@ func script() {
 	// Generic functions and methods, at each implementation of the trait bounding them, by
 	// reference, which leaves Swift its handle.
 	let fromPoint = Counter.seededPoint("p", Point(x: -3, y: 4))
-	let fromSize = Counter.fromSize("s", Size(width: 5, height: 6))
+	let fromSize = Counter.seededSize("s", Size(width: 5, height: 6))
 	let fromCounter = Counter.seededCounter("c", fromPoint)
 	let fromPolar = Counter.seededPolarPoint("q", PolarPoint(turns: 1, distance: 2))
 	print(
@@ -422,6 +422,10 @@ func script() {
 
 	// A trait implemented for `Point` and `&Point` apart: one instance.
 	print("weigh \(weighPoint(Point(x: -1, y: 2)))")
+	// A function named as the type it returns, and one named as a type it does not.
+	print("polar \(polarPoint(2)!.distance) \(polarPoint(0) == nil) area \(area(Size(width: 2, height: 3)))")
+	// Two types whose paths join alike, the second kept apart where its path splits.
+	print("wind \(wind(PolarTurn(whole: 2), Polar_Turn(part: 3)))")
 	// Instances that name each other, and one made only by an impl of it.
 	let crossed = cross(LeftRightU8(value: RightU8(value: 1)), RightLeftU8(value: LeftU8(value: 2)))
 	print("cross \(crossed) outer \(OuterInnerU8.new(4).get())")
@@ -441,16 +445,16 @@ func script() {
 	// Its Drop runs when Swift releases the last reference, not before.
 	do {
 		let token = Token.new(7)
-		withExtendedLifetime(token) { print("token \(token.id) dropped \(dropped())") }
+		withExtendedLifetime(token) { print("token \(token.idGet) dropped \(dropped())") }
 	}
 	print("dropped \(dropped())")
 
 	// A field and the method of its name, each its own member.
 	let retry = Retry.new(5)
-	let limit = retry.limitSetting
+	let limit = retry.limitGet
 	print("retry \(limit != nil ? 1 : 0) \(limit ?? 0) \(retry.limit()) \(retry.delay())")
 	// The renamed field's setter, named as its getter.
-	retry.setLimitSetting(nil)
+	retry.limitSet(nil)
 	print("retry \(retry.limit())")
 	print("slot \(SlotU8.new(200).value())")
 
@@ -505,7 +509,7 @@ func script() {
 		check(false, "parse throws its message")
 	}
 	let site = Site.new(base)
-	print("site \(site.home) \(site.home)")
+	print("site \(site.homeGet) \(site.homeGet)")
 
 	// Slices, passed in and returned as clones, and the socket address of each family.
 	print("shapes \(Shape.ALL) greetings \(GREETINGS)")
@@ -653,7 +657,7 @@ func owned() {
 	check(dropped() == before + 1, "releasing returned bytes frees Rust's")
 	do {
 		let token = Token.new(2)
-		check(token.id == 2, "a token reads back")
+		check(token.idGet == 2, "a token reads back")
 	}
 	check(dropped() == before + 2, "releasing an object frees its handle")
 	do {

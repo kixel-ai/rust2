@@ -1,7 +1,7 @@
 //! Each fixture under `fixtures/` is translated, vetted with `go vet`, and run on the
 //! same inputs as its native build, failing on any difference.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -23,8 +23,6 @@ fn translated(name: &str) -> PathBuf {
 	let module = scratch().join(name);
 	let out = module.join("out");
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-go"))
-		.arg("--config")
-		.arg(fixture(name).join("go.toml"))
 		.arg("--manifest-path")
 		.arg(fixture(name).join("Cargo.toml"))
 		.arg("--out")
@@ -64,21 +62,32 @@ enum Outcome {
 }
 
 thread_local! {
-	/// The message of this thread's last panic, which the hook records.
+	/// Whether `native` is catching this thread's panics, which the hook then records
+	/// instead of printing.
+	static CATCHING: Cell<bool> = const { Cell::new(false) };
+	/// The message of the last panic `native` caught on this thread.
 	static PANIC: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
 fn native(run: fn(&[u8]) -> Vec<u8>, input: &[u8]) -> Outcome {
 	static HOOK: std::sync::Once = std::sync::Once::new();
 	HOOK.call_once(|| {
-		std::panic::set_hook(Box::new(|info| {
+		// Any other panic, such as a failing test's assertion, goes to the default hook.
+		let rest = std::panic::take_hook();
+		std::panic::set_hook(Box::new(move |info| {
+			if !CATCHING.get() {
+				return rest(info);
+			}
 			let msg = info
 				.payload_as_str()
 				.unwrap_or("a panic of a payload other than a message");
 			PANIC.set(Some(msg.to_string()));
 		}))
 	});
-	match std::panic::catch_unwind(|| run(input)) {
+	CATCHING.set(true);
+	let result = std::panic::catch_unwind(|| run(input));
+	CATCHING.set(false);
+	match result {
 		Ok(out) => Outcome::Output(out),
 		Err(_) => Outcome::Panic(PANIC.take().expect("a panic message")),
 	}
@@ -288,18 +297,124 @@ fn vecs() {
 	differential("vecs", vecs::run, "Run", cases);
 }
 
-/// Fields and variants whose escaped names could meet, and constant memory, which each
-/// use shares.
+/// Byte storage the runtime owns, made, grown, copied, and shrunk each way, and handed
+/// to Go code, which `tests/hand/hand_test.go` holds onto as Go code may.
+#[test]
+fn hand() {
+	differential("hand", hand::run, "Run", cases(0, 0, 500));
+	let out = scratch().join("hand/out");
+	// Go code reaches the translation only through its roots, named in camel case, which
+	// hand storage over.
+	let text = std::fs::read_to_string(out.join("hand.go")).unwrap();
+	for name in text.lines().filter_map(|l| l.strip_prefix("func ")?.split('(').next()) {
+		assert!(
+			!name.starts_with(|c: char| c.is_ascii_uppercase()) || !name.contains('_'),
+			"hand: `{name}` is exported past the roots"
+		);
+	}
+	std::fs::copy(manifest_dir().join("tests/hand/hand_test.go"), out.join("hand_test.go")).unwrap();
+	go(&out, &["test", "-count=1", "."]);
+}
+
+/// Fields and variants whose escaped names could meet, constant memory, which each use
+/// shares, constants and statics, and the `pub` API, exported by the paths the crate
+/// exports it at.
 #[test]
 fn items() {
-	differential("items", items::run, "Run", cases(2, 4, 1_000));
+	differential("items", items::run, "Run", cases(4, 4, 1_000));
+	exports();
+	let text = std::fs::read_to_string(scratch().join("items/out/items.go")).unwrap();
+	for exported in [
+		"type Count struct",
+		"func CountNew(",
+		"func CountBump(",
+		"type TalliesTotal struct",
+		"func TalliesSum(",
+		"type Meter struct",
+		"func MeterNew(",
+		"type Byte = Value_2[uint8]",
+		"type Value = uint16",
+		"type Level = uint8",
+		"type Pair[T any] = tuple2[T, T]",
+		"func Unwrap(",
+		"\tSum uint8",
+		"\tTally   uint8",
+		"\t_Tally  uint8",
+		"\t__Tally uint8",
+	] {
+		assert!(text.contains(exported), "items.go lacks `{exported}`");
+	}
+	let dep = std::fs::read_to_string(scratch().join("items/out/items_dep.go")).unwrap();
+	assert!(
+		dep.contains("func ShapesArea("),
+		"items_dep.go lacks `func ShapesArea(`"
+	);
+	for unexported in ["TalliesCounter", "CountHidden", "type Gauge"] {
+		assert!(
+			!text.contains(unexported) && !dep.contains(unexported),
+			"items has `{unexported}`"
+		);
+	}
+}
+
+/// The items fixture's constants and statics as `tests/exports` reads them from Go: each
+/// constant a Go `const` or a fresh value at each call, and each static one variable,
+/// which translated code reads what Go writes to.
+fn exports() {
+	let out = scratch().join("items/out");
+	let main = out.join("exports");
+	std::fs::create_dir_all(&main).unwrap();
+	std::fs::copy(manifest_dir().join("tests/exports/main.go"), main.join("main.go")).unwrap();
+	let output = Command::new("go")
+		.args(["run", "-buildvcs=false", "./exports"])
+		.current_dir(&out)
+		.output()
+		.expect("running go");
+	assert!(
+		output.status.success(),
+		"tests/exports failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	use items::{Count, shapes};
+	let hex = |s: &str| s.bytes().map(|b| format!("{b:02x}")).collect::<String>();
+	let table: Vec<String> = items::TABLE.iter().map(u16::to_string).collect();
+	let mut start = Count::START;
+	start.bump();
+	let want = format!(
+		"{} {} {} {} {} {}\n{} {}\n99 {} {} {}\n{} [{}] {} {} {}\n{} 9 9\nq{}\n",
+		items::MAX_LEN,
+		Count::MAX,
+		items::FLOOR,
+		items::ENABLED,
+		items::LETTER,
+		shapes::SIDES,
+		hex(items::GREETING),
+		items::TEXT,
+		items::ORIGIN.sum,
+		start.count,
+		Count::START.count,
+		items::HITS.count,
+		table.join(" "),
+		items::NAME,
+		std::str::from_utf8(&items::BYTES).unwrap(),
+		shapes::UNIT,
+		items::HITS.count,
+		std::str::from_utf8(&items::TAIL[1..]).unwrap(),
+	);
+	assert_eq!(String::from_utf8_lossy(&output.stdout), want);
+}
+
+/// Enums Go holds as their parts, behind pointers where a part is over four words.
+#[test]
+fn enums() {
+	differential("enums", enums::run, "Run", cases(10, 6, 2_000));
 }
 
 /// Temporaries folded into what reads them, where moving a call, a read of memory, or
 /// an overflow check past another would change the output or the panic.
 #[test]
 fn order() {
-	differential("order", order::run, "Run", cases(10, 4, 2_000));
+	differential("order", order::run, "Run", cases(11, 4, 2_000));
 }
 
 /// Constructs outside the subset each fail translation with a span, as
@@ -309,8 +424,6 @@ fn reject() {
 	let name = "reject";
 	let out = scratch().join(name).join("out");
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-go"))
-		.arg("--config")
-		.arg(fixture(name).join("go.toml"))
 		.arg("--manifest-path")
 		.arg(fixture(name).join("Cargo.toml"))
 		.arg("--out")

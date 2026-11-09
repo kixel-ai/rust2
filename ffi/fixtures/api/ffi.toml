@@ -1,5 +1,3 @@
-package = "api-fixture"
-prefix = "api"
 # The list's tail is not `Clone`, so its getter has no copy to return, one instance leaves
 # out a method the others keep, `Seed` is generic, so no callback implements it, `Payload`
 # and `Kept` consume themselves, which no callback can, `Timed`, `Sample`, `Queued`,
@@ -13,7 +11,7 @@ exclude = [
     "Kept",
     "Layer",
     "Node::next",
-    "Pair<u8, dep_fixture::Size>::swap",
+    "Pair<u8, api::Size>::swap",
     "Payload",
     "Queued",
     "Rooted",
@@ -23,20 +21,9 @@ exclude = [
     "Slot<u32>::value",
     "field@Retry::delay",
     "field@Slot<u8>::value",
-    "Stack::depth_past<api_fixture::polar::Point>",
+    "Stack::depth_past<api::polar::Point>",
     "Stored",
     "Tick",
     "Timed",
     "Tock",
 ]
-
-# The field `Retry::limit`, whose name its method takes, and one instance each of `Pair`
-# and `Counter::seeded`, whose other instances keep their names.
-[rename]
-"Counter::seeded<dep_fixture::Size>" = "counter_from_size"
-"field@Retry::limit" = "retry_limit_setting"
-"Pair<dep_fixture::Size, u8>" = "size_tag"
-
-# Exported into the same library: `grow` names its types.
-[crates.dep-fixture]
-exclude = ["HashSet"]

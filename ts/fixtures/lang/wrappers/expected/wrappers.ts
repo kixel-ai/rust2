@@ -452,7 +452,7 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const ranked: rs.Vec<[rs.u8, rs.usize]> = rs.iterToVec(rs.iterMap(rs.iterEnumerate(rs.iterSlice(rs.byteSliceView(data))), (_23: [rs.usize, rs.u8]): [rs.u8, rs.usize] => {
 			return [_23[1], _23[0]] as [rs.u8, rs.usize];
 		}), undefined, 8, true);
-		rs.sliceSort(ranked.items, rs.keyLt((_25: [rs.u8, rs.usize]): [rs.u8, rs.usize] => {
+		rs.sliceSort(rs.sliceFrom(ranked.items), rs.keyLt((_25: [rs.u8, rs.usize]): [rs.u8, rs.usize] => {
 			return [rs.u8Rem(_25[0], 4), _25[1]] as [rs.u8, rs.usize];
 		}, rs.cmpLt(rs.cmpTuple<[rs.u8, rs.usize], rs.Ordering | undefined>([rs.cmpReverse(rs.cmp), rs.cmp]))), 8, true);
 		for (const _487 of ranked.items) {
@@ -461,7 +461,7 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			rs.byteVecPush(out, d);
 			rs.byteVecPush(out, i2 & 0xff);
 		}
-		put(out, "held");
+		put(out, rs.stringFrom("held").v);
 	} else if (_21 === 3) {
 		const n: rs.u64 | undefined = rs.nonZero(a);
 		if (n === undefined) {
@@ -472,8 +472,8 @@ export function wrappers(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			putU64(out, n2);
 			const _519: rs.u64 = option_unwrapOr$15hbiwd(rs.nonZero(b), n2);
 			const _516: boolean = rs.u64Eq(n2, _519);
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Display(n2, f), (f: rs.Formatter) => rs.u64Debug(n2, f), (f: rs.Formatter) => rs.fmtBool(_516, f)];
-			put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2]]));
+			const args3 = [(f: rs.Formatter) => rs.u64Display(n2, f), (f: rs.Formatter) => rs.u64Debug(n2, f), (f: rs.Formatter) => rs.fmtBool(_516, f)];
+			put(out, rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2]]).v);
 			rs.byteVecPush(out, rs.u64Gt(n2, { _0: 1 }._0) ? 1 : 0);
 			rs.byteVecPush(out, rs.cmp(n2, { _0: 1000 }._0) & 0xff);
 		}

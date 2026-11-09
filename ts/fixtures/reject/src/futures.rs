@@ -10,16 +10,6 @@ pub async fn pending_output() -> std::task::Poll<u8> {
 	std::task::Poll::Pending
 }
 
-/// A generic type's `Poll<T>` is `rs.Poll<T>`, which can't hold `rs.OuterPending`, the
-/// `Pending` of a `Poll<Poll<u8>>`.
-pub struct Waiting<T> {
-	pub poll: std::task::Poll<T>,
-}
-
-pub fn generic_pending(poll: std::task::Poll<std::task::Poll<u8>>) -> bool {
-	Waiting { poll }.poll.is_pending()
-}
-
 /// A census lowers this over `F` and `O`, and `awaited`'s body with it, whose closure names
 /// `O` as this function's second type parameter: that refuses nothing.
 pub async fn generic_awaited<F: Fn() -> u8, O: std::future::Future<Output = u8>>(f: F, o: O) -> u8 {

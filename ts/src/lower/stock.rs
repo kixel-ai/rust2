@@ -2,7 +2,7 @@
 //! none of them: `bytes`' `Bytes`, which is the `rs.ByteSlice` a `&[u8]` is, and
 //! `BytesMut`, which is `rs.BytesMut`, `hashbrown`'s tables, which std's `HashMap` and
 //! `HashSet` are, and `rand`'s thread-local generator, which draws from the platform's
-//! cryptographic source. The rest of `bytes`, such as most of `Buf`'s
+//! cryptographic source, and tokio's sync channels, which [`super::tokio`] maps. The rest of `bytes`, such as most of `Buf`'s
 //! provided methods of the crate's own buffers, translates from its MIR. `tracing`'s
 //! events are left out where they are written, by [`super::Translator::ignored_site`].
 
@@ -11,7 +11,7 @@ use rustc_hir::def_id::{CrateNum, DefId};
 use rustc_middle::ty::{self, Instance, Ty, TyCtxt, TypeVisitableExt};
 
 use super::body::Body;
-use super::library::{self, Call, Std, key, string, targ};
+use super::library::{self, Call, Std, key, owned_string, string, targ};
 use super::num::Int;
 use crate::ts::{Expr, Stmt, StmtKind};
 
@@ -19,6 +19,9 @@ use crate::ts::{Expr, Stmt, StmtKind};
 pub fn of(tcx: TyCtxt<'_>, did: DefId) -> Option<Std> {
 	if !is_stock(tcx, did) {
 		return None;
+	}
+	if super::tokio::Handle::of(tcx, did).is_some() {
+		return Some(Std::Sync);
 	}
 	match (tcx.crate_name(did.krate).as_str(), tcx.opt_item_name(did)?.as_str()) {
 		("bytes", "Bytes") => Some(Std::Bytes),
@@ -42,6 +45,27 @@ pub fn of(tcx: TyCtxt<'_>, did: DefId) -> Option<Std> {
 	}
 }
 
+/// The `[MaybeUninit<u8>]` that `ty` wraps if it is `bytes`' `UninitSlice`, which is
+/// `#[repr(transparent)]` over it, so JS keeps it as that slice's `rs.ByteSlice`, which
+/// views the storage of the buffer that lends it.
+pub fn uninit_slice<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	match ty.kind() {
+		ty::Adt(adt, _) if is_uninit_slice(tcx, adt.did()) => {
+			Some(Ty::new_slice(tcx, Ty::new_maybe_uninit(tcx, tcx.types.u8)))
+		}
+		_ => None,
+	}
+}
+
+/// Whether `did` is `bytes`' `UninitSlice`.
+pub fn is_uninit_slice(tcx: TyCtxt<'_>, did: DefId) -> bool {
+	is_stock(tcx, did)
+		&& tcx.crate_name(did.krate).as_str() == "bytes"
+		&& tcx
+			.opt_item_name(did)
+			.is_some_and(|name| name.as_str() == "UninitSlice")
+}
+
 /// Whether `did` is an item of `hashbrown`, whose tables are std's, so its functions map
 /// as std's do.
 pub fn as_std(tcx: TyCtxt<'_>, did: DefId) -> bool {
@@ -57,7 +81,7 @@ pub fn is_stock(tcx: TyCtxt<'_>, did: DefId) -> bool {
 /// Whether `krate`, a dependency, is one of these crates, whose functions map, or translate
 /// only where [`maps`] says they don't.
 pub fn is_stock_crate(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
-	matches!(tcx.crate_name(krate).as_str(), "bytes" | "hashbrown" | "rand")
+	matches!(tcx.crate_name(krate).as_str(), "bytes" | "hashbrown" | "rand" | "tokio")
 }
 
 /// Whether `krate` is one of these crates of which nothing translates: `rand`, whose
@@ -67,11 +91,14 @@ pub fn is_opaque_crate(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
 }
 
 /// Whether `did`, an item of `bytes`, has a mapping in place of its MIR: `Bytes`,
-/// `BytesMut`, and their functions and impls, and the crate's impls of std's byte slices
+/// `BytesMut`, and their functions and impls, and the crate's impls of std's shared byte slices
 /// and vectors. The mapping of a function stands in for it or refuses it. The impls that
 /// forward through a reference or a `Box`, and the crate's other types and functions,
-/// translate.
+/// translate, as do its impls for a `VecDeque<u8>` and a `&mut [u8]`.
 pub fn mapped(tcx: TyCtxt<'_>, did: DefId) -> bool {
+	if tcx.crate_name(did.krate).as_str() == "tokio" {
+		return super::tokio::mapped(tcx, did);
+	}
 	if tcx.crate_name(did.krate).as_str() != "bytes" {
 		return false;
 	}
@@ -245,11 +272,13 @@ impl Buffer {
 
 /// Whether `ty`, the `Self` of a function of `bytes`, has a representation of its own or
 /// is std's, so a mapping stands in for its impls: not a type parameter, through which an
-/// impl forwards, nor the crate's own buffer or another crate's, which translate.
+/// impl forwards, nor the crate's own buffer or another crate's, nor a `VecDeque<u8>`,
+/// whose impl reads the slices the runtime's deque has, nor a `&mut [u8]`, whose impl
+/// writes its front and moves past it, which translate.
 fn mapped_self<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> bool {
 	match ty.kind() {
-		ty::Adt(adt, _) => library::Std::of(tcx, adt.did()).is_some() && !ty.has_param(),
-		ty::Ref(_, inner, _) => matches!(inner.kind(), ty::Slice(e) if is_u8(*e)),
+		ty::Adt(adt, _) => library::Std::of(tcx, adt.did()).is_some_and(|std| std != Std::VecDeque) && !ty.has_param(),
+		ty::Ref(_, inner, ty::Mutability::Not) => matches!(inner.kind(), ty::Slice(e) if is_u8(*e)),
 		_ => false,
 	}
 }
@@ -273,8 +302,12 @@ pub fn call<'tcx>(
 	if is_stock(tcx, call.def_id) {
 		return Ok(match tcx.crate_name(call.def_id.krate).as_str() {
 			"bytes" => bytes(b, call, &owner, &name, args, out),
+			"tokio" => super::tokio::call(b, call, args, out),
 			_ => rand(b, call, &owner, &name, args, out),
 		});
+	}
+	if self_std == Some(Std::Sync) {
+		return super::tokio::trait_call(b, call, &owner, &name, args, out);
 	}
 	let mut args = args.into_iter();
 	let mut arg = || args.next().expect("an argument");
@@ -320,6 +353,7 @@ fn as_slice<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr) -> Option<E
 		ty::Slice(e) if is_u8(*e) => value,
 		ty::Array(e, _) if is_u8(*e) => Expr::rs("byteSliceFrom", vec![value]),
 		_ if string(b.t.tcx, ty) => Expr::rs("stringAsBytes", vec![value]),
+		_ if owned_string(b.t.tcx, ty) => Expr::rs("stringAsBytes", vec![value.member("v")]),
 		_ => match b.t.std_of(ty)? {
 			Std::Bytes => value,
 			Std::BytesMut => view(value),
@@ -343,11 +377,9 @@ fn from<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>) ->
 	let f = match (b.t.std_of(to), b.t.std_of(from)) {
 		(Some(Std::Bytes), Some(Std::BytesMut)) => "bytesMutFreeze",
 		(Some(Std::Bytes), _) if byte_vec(from) => "bytesFromVec",
-		// A `&'static str`'s bytes are static. A `String`'s are a vector whose capacity is
-		// their length, as JS keeps none of the `String`'s, so the program's reads of one are refused.
+		// A `&'static str`'s bytes are static, and a `String`'s are its vector, with its capacity.
 		(Some(Std::Bytes), _) if from.is_ref() && string(tcx, from.peel_refs()) => "stringAsBytes",
-		(Some(Std::Bytes), _) if string(tcx, from) => {
-			b.t.string_bytes();
+		(Some(Std::Bytes), _) if owned_string(tcx, from) => {
 			let bytes = Expr::rs("stringIntoBytes", args.collect());
 			return Ok(Some(Expr::rs("bytesFromVec", vec![bytes])));
 		}
@@ -356,18 +388,12 @@ fn from<'tcx>(b: &mut Body<'_, '_, 'tcx>, call: &Call<'tcx>, args: Vec<Expr>) ->
 		(Some(Std::BytesMut), _) => {
 			let bytes = match as_slice(b, from.peel_refs(), args.next().expect("an operand")) {
 				Some(bytes) if from.is_ref() => Expr::rs("bytesMutFrom", vec![bytes]),
-				Some(bytes) if b.t.std_of(from) == Some(Std::Bytes) => {
-					b.t.string_capacity(call.span, "BytesMut::from(Bytes)");
-					Expr::rs("bytesMutFromBytes", vec![bytes])
-				}
+				Some(bytes) if b.t.std_of(from) == Some(Std::Bytes) => Expr::rs("bytesMutFromBytes", vec![bytes]),
 				_ => return Ok(None),
 			};
 			return Ok(Some(bytes));
 		}
-		(_, Some(Std::Bytes)) if byte_vec(to) => {
-			b.t.string_capacity(call.span, "Vec::from(Bytes)");
-			"bytesToByteVec"
-		}
+		(_, Some(Std::Bytes)) if byte_vec(to) => "bytesToByteVec",
 		(_, Some(Std::BytesMut)) if byte_vec(to) => "bytesMutToByteVec",
 		(_, Some(Std::Bytes | Std::BytesMut)) => return Ok(None),
 		_ => return Err(args.collect()),
@@ -427,10 +453,6 @@ fn bytes_own<'tcx>(
 	out: &mut Vec<Stmt>,
 ) -> Option<Expr> {
 	let tcx = b.t.tcx;
-	// Whether the storage is unique, and whether truncating gives it up, hinge on its capacity.
-	if matches!(name, "is_unique" | "try_into_mut" | "truncate" | "clear") {
-		b.t.string_capacity(call.span, &format!("Bytes::{name}"));
-	}
 	let mut args = args.into_iter();
 	Some(match name {
 		"new" => Expr::rs("bytesNew", vec![]),
@@ -450,26 +472,32 @@ fn bytes_own<'tcx>(
 		"split_off" => Expr::rs("bytesSplitOff", vec![args.next()?, args.next()?]),
 		"truncate" => Expr::rs("bytesTruncate", vec![args.next()?, args.next()?]),
 		"clear" => Expr::rs("bytesTruncate", vec![args.next()?, Expr::lit("0")]),
-		// The owner is read once, as `bytes` reads it, and would drop with the last `Bytes`
-		// that shares it, which `rs.Shared` keeps no owner to drop.
+		// The owner is read once, as `bytes` reads it, and one that drops is kept in the
+		// storage, which drops it with the last `Bytes` that shares it.
 		"from_owner" => {
 			let owner = targ(call.args, 0);
-			if b.t.drops(owner) {
-				let msg = format!(
-					"`Bytes::from_owner` of `{owner}`, which would drop with the last clone of what it makes, which is not supported"
-				);
-				return Some(b.err(call.span, msg));
-			}
+			let drop = match b.t.drops(owner) {
+				true => Some(b.t.drop_fn(owner, call.span)?),
+				false => None,
+			};
+			let value = args.next()?;
+			let value = match drop {
+				Some(_) => b.spill(value, "owner", out),
+				None => value,
+			};
 			let as_ref = trait_fn(tcx, rustc_span::sym::AsRef)?;
 			let slice = Ty::new_slice(tcx, tcx.types.u8);
 			let bytes = b.call_def(
 				as_ref,
 				tcx.mk_args(&[owner.into(), slice.into()]),
-				vec![args.next()?],
+				vec![value.clone()],
 				call.span,
 				out,
 			);
-			Expr::rs("bytesStatic", vec![bytes])
+			match drop {
+				Some(drop) => Expr::rs("bytesFromOwner", vec![value, bytes, drop]),
+				None => Expr::rs("bytesStatic", vec![bytes]),
+			}
 		}
 		_ => return None,
 	})
@@ -634,6 +662,7 @@ fn buf_mut<'tcx>(
 		),
 		"has_remaining_mut" => this.member("length").binary("<", isize_max),
 		"advance_mut" => rs("AdvanceMut", vec![this, args.next()?]),
+		"chunk_mut" => rs("ChunkMut", vec![this]),
 		"put_slice" if buffer == Buffer::BytesMut => Expr::rs("bytesMutExtend", vec![this, args.next()?]),
 		"put_slice" => Expr::rs("byteVecExtendFromSlice", vec![this, args.next()?]),
 		"put" => put(b, call, buffer, through, this, args.next()?, out)?,
@@ -681,15 +710,6 @@ fn put<'tcx>(
 	// Into a `BytesMut` of no capacity, `bytes` copies it out whole and drops it, then takes
 	// the copy's storage if no other handle holds it, so the runtime drops it there.
 	if buffer == Buffer::BytesMut && !through {
-		// `bytes`' own puts fill a `BytesMut::with_capacity` of what they put, never one of no capacity.
-		let file = tcx
-			.sess
-			.source_map()
-			.lookup_source_file(call.span.source_callsite().lo());
-		let own = tcx.crate_name(file.cnum).as_str() == "bytes";
-		if !own && !matches!(source, Some(Buffer::BytesMut | Buffer::Slice)) {
-			b.t.string_capacity(call.span, "BufMut::put");
-		}
 		let f = match source {
 			Some(Buffer::Bytes) => "bytesMutPutStorage",
 			Some(Buffer::BytesMut) => "bytesMutPutMut",

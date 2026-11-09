@@ -2,7 +2,7 @@
 
 import * as rs from "./rs.ts";
 import type * as Held from "./ascii.Held.ts";
-import { isSomeAnd$1s2u5lz, unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOr$05jq4mv as option_unwrapOr$05jq4mv, mapOr$1d4bp7c as option_mapOr$1d4bp7c, mapOr$0p20wlb as option_mapOr$0p20wlb, mapOr$188iunt as option_mapOr$188iunt, asDeref$0w8at8i as option_asDeref$0w8at8i } from "./core/option.ts";
+import { isSomeAnd$1s2u5lz, unwrapOr$1iemzn8 as option_unwrapOr$1iemzn8, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOr$05jq4mv as option_unwrapOr$05jq4mv, mapOr$1d4bp7c as option_mapOr$1d4bp7c, mapOr$0p20wlb as option_mapOr$0p20wlb, mapOr$188iunt as option_mapOr$188iunt, asDeref$0wpj87j as option_asDeref$0wpj87j } from "./core/option.ts";
 import { put } from "./harness.ts";
 
 /** Each test of `b`, a bit apiece. */
@@ -27,8 +27,9 @@ export function lowerChar(c: rs.Place<rs.char>): void {
 	c.v = rs.toAsciiLowercase(c.v);
 }
 
-export function upperText(s: rs.Place<string>): void {
-	s.v = rs.strToAsciiUppercase(s.v);
+export function upperText(s: rs.String): void {
+	const _3: rs.Place<string> = s;
+	_3.v = rs.strToAsciiUppercase(_3.v);
 }
 
 /**
@@ -57,12 +58,10 @@ export function steps$ascii_EscapeDefault(e: rs.Iter<rs.u8>, data: rs.ByteSlice,
 		}
 		if (next !== undefined) {
 			rs.byteVecPush(out, next);
-			let shown: string = "";
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtEscapeAscii(e, f)];
-			const written = rs.fmtWriteString(shown, [args2[0]]);
-			shown = written.s;
-			rs.resultUnwrap(written.result, rs.fmtErrorDebug);
-			put(out, shown);
+			const shown: rs.String = rs.stringNew();
+			const args3 = [(f: rs.Formatter) => rs.fmtEscapeAscii(e, f)];
+			rs.resultUnwrap(rs.fmtWriteString(shown, [args3[0]]), rs.fmtErrorDebug);
+			put(out, shown.v);
 			i = rs.usizeAdd(i, 1);
 		} else {
 			return;
@@ -120,7 +119,7 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					all.data[at] = rs.toAsciiLowercase(all.data[at]);
 				}
 			}
-			const iter4: rs.Iter<rs.Place<rs.u8>> = rs.iterSkip(rs.iterSliceMut(rs.byteSliceView(rs.byteVecSlice(all))), option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.usize);
+			const iter4: rs.Iter<rs.Place<rs.u8>> = rs.iterSkip(rs.iterSliceMut(rs.byteVecSlice(all)), option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0) as rs.usize);
 			while (true) {
 				const _90: rs.Place<rs.u8> | rs.Done = iter4.next();
 				if (_90 === rs.DONE) {
@@ -139,18 +138,16 @@ export function bytes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 					}
 					const b3: rs.u8 = _101;
 					const e: rs.Iter<rs.u8> = rs.escapeAscii(b3);
-					let shown: string = "";
+					const shown: rs.String = rs.stringNew();
 					const _113: rs.Iter<rs.u8> = rs.escapeAscii(b3);
 					const _115: rs.usize = rs.iterCount(e.clone());
-					const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtEscapeAscii(e, f), (f: rs.Formatter) => rs.fmtEscapeAscii(_113, f), (f: rs.Formatter) => rs.usizeDisplay(_115, f)];
-					const written = rs.fmtWriteString(shown, [args2[0], "|", rs.fmtSpec({ align: ">", width: 6 }, args2[1]), "|", args2[2]]);
-					shown = written.s;
-					rs.resultUnwrap(written.result, rs.fmtErrorDebug);
-					put(out, shown);
+					const args3 = [(f: rs.Formatter) => rs.fmtEscapeAscii(e, f), (f: rs.Formatter) => rs.fmtEscapeAscii(_113, f), (f: rs.Formatter) => rs.usizeDisplay(_115, f)];
+					rs.resultUnwrap(rs.fmtWriteString(shown, [args3[0], "|", rs.fmtSpec({ align: ">", width: 6 }, args3[1]), "|", args3[2]]), rs.fmtErrorDebug);
+					put(out, shown.v);
 					rs.iterExtendBytes(out, e.clone(), "next");
 					rs.iterExtendBytes(out, rs.iterRev(e.clone()), "next");
 					rs.byteVecPush(out, rs.optionUnwrap(rs.iterLast(e.clone())));
-					rs.byteVecPush(out, rs.stringLen(rs.fmtToString((f: rs.Formatter) => rs.fmtEscapeAscii(e, f))) & 0xff);
+					rs.byteVecPush(out, rs.fmtToString((f: rs.Formatter) => rs.fmtEscapeAscii(e, f)).len & 0xff);
 				}
 			}
 			const iter6: rs.RangeInclusive<rs.u8> = new rs.RangeInclusive(0, 255, rs.u8Step);
@@ -252,48 +249,52 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			rs.byteSliceMakeAsciiUppercase(rs.byteSliceFrom(array));
 			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(array));
 		} else if (_10 === 1) {
-			let s: string = "";
+			const s: rs.String = rs.stringNew();
 			for (const _95 of rs.byteSliceView(data)) {
-				const _103: rs.usize = rs.usizeRem(_95 as rs.usize, [0, 9, 10, 11, 12, 13, 31, 32, 33, 47, 48, 55, 56, 57, 58, 64, 65, 70, 71, 90, 91, 96, 97, 102, 103, 122, 123, 126, 127, 128, 192, 255, 256, 383, 304, 8490, 55295, 57344, 65535, 65536, 1114111].length);
+				const _103: rs.usize = rs.usizeRem(_95 as rs.usize, rs.sliceFrom([0, 9, 10, 11, 12, 13, 31, 32, 33, 47, 48, 55, 56, 57, 58, 64, 65, 70, 71, 90, 91, 96, 97, 102, 103, 122, 123, 126, 127, 128, 192, 255, 256, 383, 304, 8490, 55295, 57344, 65535, 65536, 1114111]).length);
 				if (!(_103 < 41)) {
 					rs.panic("index out of bounds: the len is " + 41 + " but the index is " + _103);
 				}
-				s = s + String.fromCodePoint([0, 9, 10, 11, 12, 13, 31, 32, 33, 47, 48, 55, 56, 57, 58, 64, 65, 70, 71, 90, 91, 96, 97, 102, 103, 122, 123, 126, 127, 128, 192, 255, 256, 383, 304, 8490, 55295, 57344, 65535, 65536, 1114111][_103]);
+				rs.stringPush(s, [0, 9, 10, 11, 12, 13, 31, 32, 33, 47, 48, 55, 56, 57, 58, 64, 65, 70, 71, 90, 91, 96, 97, 102, 103, 122, 123, 126, 127, 128, 192, 255, 256, 383, 304, 8490, 55295, 57344, 65535, 65536, 1114111][_103]);
 			}
-			const mid: rs.usize = option_unwrapOr$05jq4mv(rs.iterFind(rs.iterRev(new rs.RangeInclusive(0, rs.usizeDiv(rs.stringLen(s), 2), rs.usizeStep)), (_2: rs.usize): boolean => {
-				return rs.strIsCharBoundary(s, _2);
+			const mid: rs.usize = option_unwrapOr$05jq4mv(rs.iterFind(rs.iterRev(new rs.RangeInclusive(0, rs.usizeDiv(s.len, 2), rs.usizeStep)), (_2: rs.usize): boolean => {
+				return rs.strIsCharBoundary(s.v, _2);
 			}), 0);
-			const _124: string = rs.strSlice(s, 0, mid);
-			const _127: string = rs.strSlice(s, mid);
-			rs.byteVecPush(out, rs.strIsAscii(s) ? 1 : 0);
+			const _124: string = rs.strSlice(s.v, 0, mid);
+			const _127: string = rs.strSlice(s.v, mid);
+			rs.byteVecPush(out, rs.strIsAscii(s.v) ? 1 : 0);
 			rs.byteVecPush(out, rs.strEqIgnoreAsciiCase(_124, _127) ? 1 : 0);
-			rs.byteVecPush(out, rs.strEqIgnoreAsciiCase(_124, rs.strToAsciiUppercase(_127)) ? 1 : 0);
-			put(out, rs.strToAsciiUppercase(s));
-			put(out, rs.stringExtendChars("", rs.iterFilter(rs.strChars(s), (a0: rs.char): boolean => {
+			rs.byteVecPush(out, rs.strEqIgnoreAsciiCase(_124, rs.stringFrom(rs.strToAsciiUppercase(_127)).v) ? 1 : 0);
+			put(out, rs.stringFrom(rs.strToAsciiUppercase(s.v)).v);
+			const _154: rs.Iter<rs.char> = rs.iterFilter(rs.strChars(s.v), (a0: rs.char): boolean => {
 				return rs.isAsciiAlphanumeric(a0);
-			})));
-			put(out, rs.strToAsciiLowercase(s));
-			put(out, rs.strTrimAsciiStart(s));
-			put(out, rs.strTrimAsciiEnd(s));
-			put(out, rs.strTrimAscii(s));
-			let t: string = s;
-			t = rs.strToAsciiUppercase(t);
-			put(out, t);
-			t = rs.strToAsciiLowercase(t);
-			put(out, t);
+			});
+			put(out, rs.stringExtendChars(rs.stringNew(), _154).v);
+			put(out, rs.stringFrom(rs.strToAsciiLowercase(s.v)).v);
+			put(out, rs.strTrimAsciiStart(s.v));
+			put(out, rs.strTrimAsciiEnd(s.v));
+			put(out, rs.strTrimAscii(s.v));
+			const t: rs.String = rs.stringClone(s);
+			const _179: rs.Place<string> = t;
+			_179.v = rs.strToAsciiUppercase(_179.v);
+			put(out, t.v);
+			const _186: rs.Place<string> = t;
+			_186.v = rs.strToAsciiLowercase(_186.v);
+			put(out, t.v);
 			const held: Held.Held = { n: 0, text: t };
-			upperText(rs.place(() => held.text, (value) => held.text = value));
-			put(out, held.text);
-			held.text = rs.strToAsciiLowercase(held.text);
-			put(out, held.text);
+			upperText(held.text);
+			put(out, held.text.v);
+			const _198: rs.Place<string> = held.text;
+			_198.v = rs.strToAsciiLowercase(_198.v);
+			put(out, held.text.v);
 			held.n = rs.toAsciiUppercase(held.n);
 			rs.byteVecPush(out, held.n);
 		} else if (_10 === 2) {
 			const e: rs.Iter<rs.u8> = rs.byteSliceEscapeAscii(data);
-			put(out, rs.fmtToString((f: rs.Formatter) => rs.fmtEscapeAscii(e, f)));
+			put(out, rs.fmtToString((f: rs.Formatter) => rs.fmtEscapeAscii(e, f)).v);
 			const _221: rs.usize = rs.iterCount(e.clone());
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtEscapeAscii(e, f), (f: rs.Formatter) => rs.usizeDisplay(_221, f)];
-			put(out, rs.fmtFormat([rs.fmtSpec({ align: ">", width: 40 }, args2[0]), "|", args2[1]]));
+			const args3 = [(f: rs.Formatter) => rs.fmtEscapeAscii(e, f), (f: rs.Formatter) => rs.usizeDisplay(_221, f)];
+			put(out, rs.fmtFormat([rs.fmtSpec({ align: ">", width: 40 }, args3[0]), "|", args3[1]]).v);
 			rs.iterExtendBytes(out, rs.iterRev(e.clone()), "next");
 			rs.byteVecPush(out, option_unwrapOr$1fr498u(rs.iterLast(e.clone()), 255));
 		} else {
@@ -316,7 +317,7 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				}
 				if (next !== undefined) {
 					rs.byteVecPush(out, next);
-					put(out, rs.fmtToString((f: rs.Formatter) => rs.fmtEscapeAscii(e2, f)));
+					put(out, rs.fmtToString((f: rs.Formatter) => rs.fmtEscapeAscii(e2, f)).v);
 					rs.iterExtendBytes(out, e2.clone(), "next");
 					i = rs.usizeAdd(i, 1);
 				} else {
@@ -368,50 +369,46 @@ export function parts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _10: [rs.usize, rs.usize] = [at(0), at(1)];
 	const a: rs.usize = _10[0];
 	const b: rs.usize = _10[1];
-	let s: string = text;
-	const pair: [rs.u8, string] = [7, text];
-	const array: string[] = ["q", text];
-	const v: rs.Vec<string> = rs.vecFrom([text, text]);
+	const s: rs.String = rs.stringFrom(text);
+	const pair: [rs.u8, rs.String] = [7, rs.stringFrom(text)];
+	const array: rs.String[] = [rs.stringFrom("q"), rs.stringFrom(text)];
+	const v: rs.Vec<rs.String> = rs.vecFrom([rs.stringFrom(text), rs.stringFrom(text)]);
 	const _32: rs.u8 = rs.u8Rem(kind, 8);
 	if (_32 === 0) {
-		s = rs.strToAsciiUppercase(s);
-		put(out, s);
-		const _41: rs.Place<string> = rs.strPart(rs.place(() => s, (value15) => s = value15), a, b);
+		const _35: rs.Place<string> = s;
+		_35.v = rs.strToAsciiUppercase(_35.v);
+		put(out, s.v);
+		const _41: rs.Place<string> = rs.strPart(s, a, b);
 		_41.v = rs.strToAsciiLowercase(_41.v);
-		put(out, s);
+		put(out, s.v);
 	} else if (_32 === 1) {
-		pair[1] = rs.strToAsciiUppercase(pair[1]);
-		put(out, pair[1]);
-		const _54: rs.Place<string> = rs.strPart(rs.place(() => pair[1], (value14) => pair[1] = value14), a);
+		const _48: rs.Place<string> = pair[1];
+		_48.v = rs.strToAsciiUppercase(_48.v);
+		put(out, pair[1].v);
+		const _54: rs.Place<string> = rs.strPart(pair[1], a);
 		_54.v = rs.strToAsciiLowercase(_54.v);
-		put(out, pair[1]);
+		put(out, pair[1].v);
 		rs.byteVecPush(out, pair[0]);
 	} else if (_32 === 2) {
-		array[1] = rs.strToAsciiUppercase(array[1]);
-		put(out, array[1]);
-		const _73: rs.Place<string> = rs.strPart(rs.place(() => array[1], (value13) => array[1] = value13), 0, b);
+		const _63: rs.Place<string> = array[1];
+		_63.v = rs.strToAsciiUppercase(_63.v);
+		put(out, array[1].v);
+		const _73: rs.Place<string> = rs.strPart(array[1], 0, b);
 		_73.v = rs.strToAsciiLowercase(_73.v);
-		put(out, array[1]);
-		put(out, array[0]);
+		put(out, array[1].v);
+		put(out, array[0].v);
 	} else if (_32 === 3) {
-		const iter: rs.Iter<rs.Place<string>> = rs.iterSliceMut(v.items);
-		while (true) {
-			const _93: rs.Place<string> | rs.Done = iter.next();
-			if (_93 === rs.DONE) {
-				break;
-			}
-			_93.v = rs.strToAsciiUppercase(_93.v);
+		for (const _98 of v.items) {
+			_98.v = rs.strToAsciiUppercase(_98.v);
 		}
-		const at6 = rs.idx(v.items, 0);
-		const _100: rs.Place<string> = rs.strPart(rs.place(() => v.items[at6], (value11) => v.items[at6] = value11), 0);
+		const _100: rs.Place<string> = rs.strPart(v.items[rs.idx(v.items, 0)], 0);
 		_100.v = rs.strToAsciiLowercase(_100.v);
-		const at7 = rs.idx(v.items, 1);
-		const _105: rs.Place<string> = rs.strPart(rs.place(() => v.items[at7], (value12) => v.items[at7] = value12), a, b);
+		const _105: rs.Place<string> = rs.strPart(v.items[rs.idx(v.items, 1)], a, b);
 		_105.v = rs.strToAsciiLowercase(_105.v);
-		put(out, v.items[rs.idx(v.items, 0)]);
-		put(out, v.items[rs.idx(v.items, 1)]);
+		put(out, v.items[rs.idx(v.items, 0)].v);
+		put(out, v.items[rs.idx(v.items, 1)].v);
 	} else if (_32 === 4) {
-		const _119: [rs.Place<string>, rs.Place<string>] = rs.strSplitAtMut(rs.place(() => s, (value10) => s = value10), a);
+		const _119: [rs.Place<string>, rs.Place<string>] = rs.strSplitAtMut(s, a);
 		_119[0].v = rs.strToAsciiUppercase(_119[0].v);
 		_119[1].v = rs.strToAsciiUppercase(_119[1].v);
 		_119[0].v = rs.strToAsciiLowercase(_119[0].v);
@@ -421,38 +418,37 @@ export function parts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_131[1].v = rs.strToAsciiLowercase(_131[1].v);
 		put(out, _131[0].v);
 		put(out, _131[1].v);
-		put(out, s);
+		put(out, s.v);
 	} else if (_32 === 5) {
-		putUpper(out, rs.strGetMut(rs.place(() => s, (value7) => s = value7), a, b));
-		putUpper(out, rs.strGetMut(rs.place(() => pair[1], (value8) => pair[1] = value8), a));
-		const at4 = rs.idx(v.items, 1);
-		putUpper(out, rs.strGetMut(rs.place(() => v.items[at4], (value9) => v.items[at4] = value9), 0, b));
-		put(out, s);
-		put(out, pair[1]);
-		put(out, v.items[rs.idx(v.items, 1)]);
+		putUpper(out, rs.strGetMut(s, a, b));
+		putUpper(out, rs.strGetMut(pair[1], a));
+		putUpper(out, rs.strGetMut(v.items[rs.idx(v.items, 1)], 0, b));
+		put(out, s.v);
+		put(out, pair[1].v);
+		put(out, v.items[rs.idx(v.items, 1)].v);
 	} else if (_32 === 6) {
-		const _168: [rs.Place<string>, rs.Place<string>] | undefined = rs.strSplitAtMutChecked(rs.place(() => array[1], (value5) => array[1] = value5), a);
+		const _168: [rs.Place<string>, rs.Place<string>] | undefined = rs.strSplitAtMutChecked(array[1], a);
 		if (_168 === undefined) {
 			rs.byteVecPush(out, 253);
 		} else {
 			_168[1].v = rs.strToAsciiUppercase(_168[1].v);
 			putUpper(out, rs.strGetMut(_168[0], rs.min(b, rs.stringLen(_168[0].v))));
 		}
-		put(out, array[1]);
-		let held: string | undefined = text;
-		const _191: rs.Place<string> | undefined = held === undefined ? undefined : rs.place(() => held as string, (value6) => held = value6);
+		put(out, array[1].v);
+		const held: rs.String | undefined = rs.stringFrom(text);
+		const _191: rs.String | undefined = held;
 		if (_191 !== undefined) {
-			_191.v = rs.strToAsciiUppercase(_191.v);
+			const _196: rs.Place<string> = _191;
+			_196.v = rs.strToAsciiUppercase(_196.v);
 		}
-		put(out, option_unwrapOr$1iemzn8(option_asDeref$0w8at8i(held), "-"));
+		put(out, option_unwrapOr$1iemzn8(option_asDeref$0wpj87j(held), "-"));
 	} else {
-		const at2 = rs.idx(v.items, 1);
-		upperPart(rs.strPart(rs.place(() => v.items[at2], (value) => v.items[at2] = value), a), 0, rs.usizeSaturatingSub(b, a));
-		put(out, v.items[rs.idx(v.items, 1)]);
-		upperPart(rs.place(() => s, (value2) => s = value2), a, b);
-		put(out, rs.strPart(rs.place(() => s, (value3) => s = value3), 0, a).v);
-		put(out, rs.strPart(rs.place(() => s, (value4) => s = value4), a).v);
-		const leaked: rs.Place<string> = { v: pair[1] };
+		upperPart(rs.strPart(v.items[rs.idx(v.items, 1)], a), 0, rs.usizeSaturatingSub(b, a));
+		put(out, v.items[rs.idx(v.items, 1)].v);
+		upperPart(s, a, b);
+		put(out, rs.stringFrom(rs.strPart(s, 0, a).v).v);
+		put(out, rs.stringFrom(rs.strPart(s, a).v).v);
+		const leaked: rs.Place<string> = pair[1];
 		const _234: rs.Place<string> = rs.strPart(leaked, rs.min(b, a));
 		_234.v = rs.strToAsciiUppercase(_234.v);
 		put(out, leaked.v);

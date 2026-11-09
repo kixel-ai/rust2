@@ -4,7 +4,14 @@ import * as rs from "./rs.ts";
 import { byte, make$conversions_Value_String, put$conversions_Value_String as conversions_put$conversions_Value_String } from "./conversions.ts";
 
 export function clone$Clone(self: Named): Named {
-	return { id: self.id, name: self.name };
+	return { id: self.id, name: rs.stringClone(self.name) };
+}
+
+export function eq$cmp_PartialEq(self: Named, other: Named): boolean {
+	if (!(self.id === other.id)) {
+		return false;
+	}
+	return rs.eqStr(self.name, other.name);
 }
 
 export function partialCmp$cmp_PartialOrd(self: Named, other: Named): rs.Ordering | undefined {
@@ -22,7 +29,7 @@ export function cmp$cmp_Ord(self: Named, other: Named): rs.Ordering {
 /** A struct, which JS holds as an object. */
 export interface Named {
 	id: rs.u16;
-	name: string;
+	name: rs.String;
 }
 
 /** The value `data` makes from `at`. */

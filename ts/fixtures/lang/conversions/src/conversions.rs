@@ -3,13 +3,16 @@
 //! parameter; `binary_search`, by a closure and by a key, and `partition_point` over runs
 //! of equal elements; `size_of_val` and `align_of_val`; slices, arrays, and cells of one
 //! value, written through; arrays as slices by `AsRef`, `AsMut`, `Borrow`, and
-//! `BorrowMut`, and `Vec`s by those and as themselves; `clone_from` of boxes; and raw
-//! pointers of references. Each is generic over the value, run for numbers JS copies,
+//! `BorrowMut`, and `Vec`s by those and as themselves; std's impls on references, which
+//! `AsRef`, `AsMut`, and the comparisons forward to what they point at and `Deref` and
+//! `Borrow` lend; `clone_from` of boxes; and raw pointers of references. Each is generic
+//! over the value, run for numbers JS copies,
 //! strings, `Option`s, arrays and `Vec`s of bytes and of numbers, a struct, and one that
 //! logs its clones and drops.
 
 use std::borrow::{Borrow, BorrowMut};
 use std::cell::{Cell, RefCell};
+use std::ops::Deref;
 use std::rc::Rc;
 
 /// A value made from the case's bytes, put back as bytes.
@@ -227,25 +230,46 @@ struct Held<T> {
 	value: T,
 }
 
-/// Runs each conversion of the type `kind` picks, but a slice of one `u8`, whose `&mut`
-/// no slice can view, and [`searched`] of those that order.
+/// Runs each conversion of the type `kind` picks, and [`searched`] of those that order;
+/// and [`referenced`] of one type of each form JS keeps a value in.
 pub fn conversions(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	match kind % 14 {
-		0 => ordered::<u32>(data, out),
-		1 => ordered::<u64>(data, out),
-		2 => ordered::<String>(data, out),
-		3 => ordered::<Option<u16>>(data, out),
+		0 => {
+			ordered::<u32>(data, out);
+			referenced::<u32>(data, out);
+		}
+		1 => {
+			ordered::<u64>(data, out);
+			referenced::<u64>(data, out);
+		}
+		2 => {
+			ordered::<String>(data, out);
+			referenced::<String>(data, out);
+		}
+		3 => {
+			ordered::<Option<u16>>(data, out);
+			referenced::<Option<u16>>(data, out);
+		}
 		4 => ordered::<[u8; 0]>(data, out),
 		5 => ordered::<[u8; 1]>(data, out),
-		6 => ordered::<[u8; 3]>(data, out),
+		6 => {
+			ordered::<[u8; 3]>(data, out);
+			referenced::<[u8; 3]>(data, out);
+		}
 		7 => ordered::<[u8; 40]>(data, out),
 		8 => ordered::<[u32; 2]>(data, out),
-		9 => ordered::<Named>(data, out),
+		9 => {
+			ordered::<Named>(data, out);
+			referenced::<Named>(data, out);
+		}
 		10 => ordered::<Vec<u32>>(data, out),
-		11 => ordered::<Vec<u8>>(data, out),
+		11 => {
+			ordered::<Vec<u8>>(data, out);
+			referenced::<Vec<u8>>(data, out);
+		}
 		12 => {
-			converted::<u8>(data, out);
-			searched::<u8>(data, out);
+			ordered::<u8>(data, out);
+			referenced::<u8>(data, out);
 		}
 		_ => {
 			// What an earlier case dropped at its end, which JS runs on after.
@@ -254,9 +278,11 @@ pub fn conversions(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			lent_one::<Logged>(data, out);
 			lent_through::<Logged>(data, out);
 			searched::<Logged>(data, out);
+			referenced::<Logged>(data, out);
 		}
 	}
 	measured(data, out);
+	referenced_bytes(data, out);
 	pointed(data, out);
 	boxed_kept(data, out);
 }
@@ -441,6 +467,11 @@ fn converted<T: Value>(data: &[u8], out: &mut Vec<u8>) {
 	let q = std::ptr::from_mut(&mut c);
 	unsafe { *q = T::make(data, 16) };
 	c.put(out);
+	// A box's pointer written through once, the only use of it, leaking the box, which
+	// holds a copy of what it was made of.
+	let kept = byte(data, 17);
+	unsafe { *Box::into_raw(Box::new(kept)) = 2 };
+	out.push(kept);
 }
 
 /// Boxes, which clone what they hold by its own `clone_from`: a box, one in a box, in an
@@ -621,4 +652,330 @@ fn pointed(data: &[u8], out: &mut Vec<u8>) {
 	out.extend_from_slice(&a);
 	let one = std::array::from_ref(&a[1]);
 	out.extend_from_slice(one);
+}
+
+/// std's impls on references, reached by generic functions: `AsRef` and `AsMut` of
+/// slices, arrays, and `Vec`s through `&`, `&mut`, and a reference to either, which
+/// forward to what each points at; `Deref`, `Borrow`, and `BorrowMut` of a `&` and a
+/// `&mut`, which lend what it points at; and the comparisons of references to elements and to slices.
+fn referenced<T: Value + Ord>(data: &[u8], out: &mut Vec<u8>) {
+	let mut array = [T::make(data, 13), T::make(data, 14), T::make(data, 15)];
+	let mut list = vec![T::make(data, 16), T::make(data, 17)];
+	read_as(&array[..], out);
+	read_as(&&array[1..], out);
+	read_as(&array, out);
+	read_as(&list, out);
+	read_as(&mut list, out);
+	read_as(&&mut list, out);
+	write_as(&mut array[..], T::make(data, 18));
+	write_as(&mut array, T::make(data, 19));
+	write_as(&mut list, T::make(data, 20));
+	write_as(&mut &mut list, T::make(data, 21));
+	deref_put(&array[0], out);
+	deref_put(&mut list[0], out);
+	borrow_put::<T, _>(&array[1], out);
+	borrow_put::<T, _>(&mut list[1], out);
+	borrow_write(&mut list[1], T::make(data, 24));
+	borrow_write(&mut array[1], T::make(data, 25));
+	// std's own impls for any `T`, and through a `&mut` to a `&mut`.
+	let mut whole = T::make(data, 26);
+	*BorrowMut::<T>::borrow_mut(&mut whole) = T::make(data, 27);
+	Borrow::<T>::borrow(&whole).put(out);
+	BorrowMut::<Vec<T>>::borrow_mut(&mut &mut list).push(T::make(data, 28));
+	let other = T::make(data, 29);
+	let mut r = &whole;
+	*BorrowMut::<&T>::borrow_mut(&mut r) = &other;
+	r.put(out);
+	compared(&array[0], &array[1], out).put(out);
+	compared(&&list[1], &&array[2], out).put(out);
+	compared(&mut T::make(data, 22), &mut T::make(data, 23), out).put(out);
+	let max = compared(&array[..], &list[..], out);
+	out.push(max.len() as u8);
+	for x in array.iter().chain(&list) {
+		x.put(out);
+	}
+}
+
+/// Bytes through `AsRef<[u8]>` and text through `AsRef<str>` of strings, slices, and
+/// `Vec`s behind `&`, `&mut`, and a reference to one, as moq's buffers reach them.
+fn referenced_bytes(data: &[u8], out: &mut Vec<u8>) {
+	let mut text: String = data.iter().take(4).map(|&b| char::from(b)).collect();
+	let mut bytes = data.to_vec();
+	read_bytes(text.as_str(), out);
+	read_bytes(&text, out);
+	read_bytes(&mut text, out);
+	read_bytes(&&*text, out);
+	read_bytes(data, out);
+	read_bytes(&data, out);
+	read_bytes(&bytes, out);
+	read_bytes(&mut bytes, out);
+	read_str(text.as_str(), out);
+	read_str(&text, out);
+	read_str(&&mut text, out);
+}
+
+/// What `b` reads as a slice: its length, then each element.
+fn read_as<T: Value, B: AsRef<[T]>>(b: B, out: &mut Vec<u8>) {
+	let s = b.as_ref();
+	out.push(s.len() as u8);
+	for x in s {
+		x.put(out);
+	}
+}
+
+/// Writes `value` over the last element of what `b` lends as a slice.
+fn write_as<T: Value, B: AsMut<[T]>>(mut b: B, value: T) {
+	if let Some(last) = b.as_mut().last_mut() {
+		*last = value;
+	}
+}
+
+/// What `b` derefs to, by `deref` and by `*`.
+fn deref_put<T: Value, B: Deref<Target = T>>(b: B, out: &mut Vec<u8>) {
+	b.deref().put(out);
+	(*b).put(out);
+}
+
+/// What `b` lends by `borrow`.
+fn borrow_put<T: Value, B: Borrow<T>>(b: B, out: &mut Vec<u8>) {
+	b.borrow().put(out);
+}
+
+/// Writes `value` over what `b` lends by `borrow_mut`.
+fn borrow_write<T: Value, B: BorrowMut<T>>(mut b: B, value: T) {
+	*b.borrow_mut() = value;
+}
+
+/// Each comparison of `a` with `b`, and the greater.
+fn compared<A: Ord>(a: A, b: A, out: &mut Vec<u8>) -> A {
+	let order = [a == b, a != b, a < b, a <= b, a > b, a >= b];
+	out.extend(order.map(u8::from));
+	out.push(a.cmp(&b) as u8);
+	out.push(a.partial_cmp(&b).map_or(9, |o| o as u8));
+	a.max(b)
+}
+
+/// The bytes `b` reads as.
+fn read_bytes<B: AsRef<[u8]>>(b: B, out: &mut Vec<u8>) {
+	out.push(b.as_ref().len() as u8);
+	out.extend_from_slice(b.as_ref());
+}
+
+/// The text `s` reads as, as bytes.
+fn read_str<S: AsRef<str>>(s: S, out: &mut Vec<u8>) {
+	out.push(s.as_ref().len() as u8);
+	out.extend_from_slice(s.as_ref().as_bytes());
+}
+
+/// Reads bytes off the front of a slice, as a decoder does.
+struct Cursor<'a> {
+	data: &'a [u8],
+}
+
+impl Cursor<'_> {
+	/// Fills `buf` from the front, or leaves it as it is if too few are left.
+	fn read_exact(&mut self, buf: &mut [u8]) -> bool {
+		if self.data.len() < buf.len() {
+			return false;
+		}
+		let (head, rest) = self.data.split_at(buf.len());
+		buf.copy_from_slice(head);
+		self.data = rest;
+		true
+	}
+}
+
+/// Bytes in each place a `&mut u8` reaches: fields, a tuple's, an array's, an `Option`'s,
+/// and a `MaybeUninit`'s.
+struct Header {
+	tag: u8,
+	pair: (u8, u8),
+	bytes: [u8; 2],
+	payload: Option<u8>,
+	uninit: std::mem::MaybeUninit<u8>,
+}
+
+impl Header {
+	/// Each byte, the `MaybeUninit`'s once written.
+	fn put(&self, out: &mut Vec<u8>) {
+		out.extend([self.tag, self.pair.0, self.pair.1, self.bytes[0], self.bytes[1]]);
+		out.push(self.payload.map_or(0xee, |p| p ^ 0x80));
+	}
+
+	/// Adds `by` to its tag through a slice of one of it.
+	fn bump(&mut self, by: u8) {
+		for x in std::slice::from_mut(&mut self.tag) {
+			*x = x.wrapping_add(by);
+		}
+	}
+}
+
+/// Writes `value` through a slice of one of whatever byte `b` points at.
+fn fill_one(b: &mut u8, value: u8) {
+	std::slice::from_mut(b).fill(value);
+}
+
+/// Pushes the byte a slice of one of `b` reads, then adds `by` through it.
+fn read_add(b: &mut u8, by: u8, out: &mut Vec<u8>) {
+	let s = std::array::from_mut(b);
+	out.push(s[0]);
+	s[0] = s[0].wrapping_add(by);
+}
+
+/// A raw pointer to the first byte of `s`, which names none of its regions.
+fn first(s: &mut [u8]) -> *mut u8 {
+	s.as_mut_ptr()
+}
+
+/// Puts a raw pointer to the first byte of `s` where `into` points.
+fn stash(s: &mut [u8], into: &mut Option<*mut u8>) {
+	*into = Some(s.as_mut_ptr());
+}
+
+/// Puts a pointer to the first byte of `s` where `into` points, as std's `NonNull`.
+fn stash_non_null(s: &mut [u8], into: &mut Option<std::ptr::NonNull<u8>>) {
+	*into = std::ptr::NonNull::new(s.as_mut_ptr());
+}
+
+/// The first byte of `s`, with a lifetime its signature makes up, which names none of
+/// the slice's regions.
+///
+/// # Safety
+///
+/// The byte must be used only while `s` could be.
+unsafe fn detached(s: &mut [u8]) -> &'static mut u8 {
+	// SAFETY: the caller uses the byte only while `s` could be.
+	unsafe { &mut *s.as_mut_ptr() }
+}
+
+/// Adds `by` to the byte `s` holds, then gives it back, as an error if it is odd.
+fn add_checked(s: &mut [u8], by: u8) -> Result<u8, u8> {
+	s[0] = s[0].wrapping_add(by);
+	if s[0] % 2 == 0 { Ok(s[0]) } else { Err(s[0]) }
+}
+
+/// [`add_checked`] of a slice of one of `b`, whose result it returns as is.
+fn add_through(b: &mut u8, by: u8) -> Result<u8, u8> {
+	add_checked(std::slice::from_mut(b), by)
+}
+
+/// Slices of one byte where it is, each read and written, and the byte read where it is
+/// after: in a field, a tuple's, an array's, an `Option`'s, a `MaybeUninit`'s, a variable,
+/// through a parameter and a `&mut` to a `&mut`, kept in a closure, a `Vec`, a copy, a
+/// raw pointer, and a reference whose lifetime unsafe code made up, swapped, made again
+/// in a loop with the byte written between, and in a function returning what a call given
+/// one returns.
+pub fn byte_places(_kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let at = |i: usize| data.get(i).copied().unwrap_or(i as u8);
+	let mut h = Header {
+		tag: at(0),
+		pair: (at(1), at(2)),
+		bytes: [at(3), at(4)],
+		payload: (at(5) % 3 != 0).then(|| at(6)),
+		uninit: std::mem::MaybeUninit::uninit(),
+	};
+	let mut cursor = Cursor { data };
+	out.push(u8::from(cursor.read_exact(std::slice::from_mut(&mut h.tag))));
+	out.push(u8::from(cursor.read_exact(std::slice::from_mut(&mut h.pair.1))));
+	out.push(u8::from(cursor.read_exact(std::array::from_mut(&mut h.bytes[1]))));
+	h.put(out);
+	// An `Option`'s, of none or of the one it holds.
+	let s = h.payload.as_mut_slice();
+	out.push(s.len() as u8);
+	s.fill(at(7));
+	h.bump(at(8));
+	h.put(out);
+	// Kept while it is written through, by itself and by what is made of it.
+	let s = std::slice::from_mut(&mut h.tag);
+	s[0] ^= 0x55;
+	let t = &mut s[..];
+	t[0] = t[0].rotate_left(1);
+	*std::array::from_mut(&mut h.pair.0) = [at(9)];
+	out.extend([h.tag, h.pair.0]);
+	// Two at once, swapped, and copied into.
+	std::mem::swap(
+		&mut std::slice::from_mut(&mut h.pair.0)[0],
+		&mut std::slice::from_mut(&mut h.pair.1)[0],
+	);
+	std::slice::from_mut(&mut h.tag).copy_from_slice(&[at(10)]);
+	h.put(out);
+	// Through a closure, then a `Vec` of two.
+	let s = std::slice::from_mut(&mut h.tag);
+	let mut set = |v: u8| s[0] = s[0].wrapping_mul(3) ^ v;
+	set(at(11));
+	set(at(12));
+	out.push(h.tag);
+	let mut v: Vec<&mut [u8]> = vec![std::slice::from_mut(&mut h.pair.0), std::slice::from_mut(&mut h.pair.1)];
+	for s in &mut v {
+		s[0] = s[0].wrapping_add(at(13));
+	}
+	v.swap(0, 1);
+	v[0][0] ^= 1;
+	drop(v);
+	h.put(out);
+	// A copy made of it, read after the byte is written where it is.
+	let s = std::slice::from_mut(&mut h.tag);
+	s[0] = s[0].wrapping_add(1);
+	let copy = s.to_vec();
+	h.tag = at(14);
+	out.extend_from_slice(&copy);
+	out.push(h.tag);
+	// Only read through, so nothing is written back.
+	let s = std::slice::from_mut(&mut h.pair.1);
+	out.push(s[0]);
+	// Made again each round, the byte written between.
+	for i in 0..3 {
+		cursor.read_exact(std::slice::from_mut(&mut h.tag));
+		h.tag = h.tag.wrapping_add(i);
+		out.push(h.tag);
+	}
+	// A `MaybeUninit`'s, written through one.
+	std::slice::from_mut(&mut h.uninit)[0] = std::mem::MaybeUninit::new(at(15));
+	// SAFETY: written just above.
+	out.push(unsafe { h.uninit.assume_init() });
+	// Through a parameter: a field's, a tuple's, an array's, a variable's, and through a
+	// `&mut` to a `&mut`.
+	fill_one(&mut h.tag, at(16));
+	read_add(&mut h.pair.0, at(17), out);
+	read_add(&mut h.bytes[0], at(18), out);
+	let mut b = at(19);
+	read_add(&mut b, at(20), out);
+	let mut r = &mut h.pair.1;
+	read_add(*&mut r, at(21), out);
+	fill_one(r, at(22));
+	out.push(b);
+	h.put(out);
+	// Written through a raw pointer made of one, returned and stashed.
+	let p = first(std::slice::from_mut(&mut h.tag));
+	// SAFETY: `p` points at `h.tag`, which nothing else uses until it is read below.
+	unsafe { *p = p.read().wrapping_add(at(23)) };
+	out.push(h.tag);
+	let mut into = None;
+	stash(std::slice::from_mut(&mut h.pair.0), &mut into);
+	if let Some(p) = into {
+		// SAFETY: as above, for `h.pair.0`.
+		unsafe { *p ^= at(24) };
+	}
+	let mut into = None;
+	stash_non_null(std::slice::from_mut(&mut h.pair.1), &mut into);
+	if let Some(p) = into {
+		// SAFETY: as above, for `h.pair.1`.
+		unsafe { *p.as_ptr() = (*p.as_ptr()).wrapping_mul(at(25)) };
+	}
+	// Written through a reference returned with a lifetime the callee made up.
+	// SAFETY: `b` is used only before `h.tag` is read below.
+	let b = unsafe { detached(std::slice::from_mut(&mut h.tag)) };
+	*b = b.wrapping_add(at(26));
+	h.put(out);
+	// Through a function that returns what a call given one returns, as `Ok` and as `Err`:
+	// the second adds one, so one of the two is odd.
+	let first = add_through(&mut h.tag, at(27));
+	let second = add_through(&mut h.tag, 1);
+	for r in [first, second] {
+		out.extend(match r {
+			Ok(v) => [0, v],
+			Err(v) => [1, v],
+		});
+	}
+	h.put(out);
 }

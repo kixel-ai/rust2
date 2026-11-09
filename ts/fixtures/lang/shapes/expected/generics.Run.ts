@@ -4,16 +4,16 @@ import * as rs from "./rs.ts";
 
 export function fmt$fmt_Debug_u16(self: Run<rs.u16>, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
 	if (self.tag === "Listed") {
-		const arg2 = self._0 as rs.Vec<rs.u16>;
+		const arg = self._0 as rs.Vec<rs.u16>;
 		const _5: string = "Listed";
-		const _6: rs.Fmt = (f: rs.Formatter) => rs.fmtList(arg2.items, f, rs.u16Debug);
+		const _6: rs.Fmt = (f: rs.Formatter) => rs.fmtList(arg.items, f, rs.u16Debug);
 		return rs.debugTupleFinish(rs.debugTupleField(rs.fmtDebugTuple(f, _5), _6));
 	}
 	if (self.tag === "Fixed") {
-		const arg = self.array as rs.u16[];
+		const __self0: rs.Slice<rs.u16> = rs.sliceFrom(self.array as rs.u16[]);
 		const _9: string = "Fixed";
 		const _10: string = "array";
-		const _11: rs.Fmt = (f: rs.Formatter) => rs.fmtList(arg, f, rs.u16Debug);
+		const _11: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.sliceItems(__self0), f, rs.u16Debug);
 		return rs.debugStructFinish(rs.debugStructField(rs.fmtDebugStruct(f, _9), _10, _11));
 	}
 	return rs.fmtWriteStr(f, "Empty");
@@ -44,10 +44,11 @@ export type Run<T> =
 
 export function first$u16(self: Run<rs.u16>): rs.u16 | undefined {
 	if (self.tag === "Listed") {
-		return rs.sliceFirst((self._0 as rs.Vec<rs.u16>).items);
+		return rs.sliceFirst(rs.sliceFrom((self._0 as rs.Vec<rs.u16>).items));
 	}
 	if (self.tag === "Fixed") {
-		return (self.array as rs.u16[])[0];
+		const array: rs.Slice<rs.u16> = rs.sliceFrom(self.array as rs.u16[]);
+		return array.data[array.start];
 	}
 	return undefined;
 }

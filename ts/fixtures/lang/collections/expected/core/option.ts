@@ -3,9 +3,11 @@
 import * as rs from "../rs.ts";
 import type * as ByRef from "../collections.ByRef.ts";
 import type * as ByVal from "../collections.ByVal.ts";
+import type * as Lent from "../collections.Lent.ts";
 import type * as Mixed from "../collections.Mixed.ts";
 import type * as Nibble from "../collections.Nibble.ts";
 import type * as Picky from "../collections.Picky.ts";
+import type * as Probe from "../collections.Probe.ts";
 import type * as Rank from "../collections.Rank.ts";
 import type * as Tally from "../collections.Tally.ts";
 
@@ -51,7 +53,7 @@ export function map$16w3l9s(self: Nibble.Nibble | undefined, f: (a0: Nibble.Nibb
 	return f(self);
 }
 
-export function map$1y26nmr(self: rs.u8 | undefined, f: (a0: rs.u8) => string): string | undefined {
+export function map$0n6ziv9(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.String): rs.String | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -72,7 +74,21 @@ export function mapOr$14runhi(self: rs.Ordering | undefined, default_: rs.u8, f:
 	return f(self);
 }
 
+export function mapOr$0tj0y3q(self: Lent.Lent | undefined, default_: rs.u16, f: (a0: Lent.Lent) => rs.u16): rs.u16 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function mapOr$0f7cus0(self: Nibble.Nibble | undefined, default_: rs.u8, f: (a0: Nibble.Nibble) => rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$0vkblkh(self: Probe.Probe | undefined, default_: rs.u16, f: (a0: Probe.Probe) => rs.u16): rs.u16 {
 	if (self === undefined) {
 		return default_;
 	}
@@ -114,6 +130,13 @@ export function mapOr$13kt6x8(self: [rs.u8, rs.u8] | undefined, default_: Uint8A
 	return f(self);
 }
 
+export function mapOr$1wei0sy(self: rs.u16 | undefined, default_: rs.u16, f: (a0: rs.u16) => rs.u16): rs.u16 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function mapOr$031uhqp(self: rs.u16 | undefined, default_: rs.u8, f: (a0: rs.u16) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
@@ -149,6 +172,20 @@ export function mapOr$188iunt(self: rs.usize | undefined, default_: rs.u8, f: (a
 	return f(self);
 }
 
+export function mapOr$1f8lrju(self: [Lent.Lent, rs.u16] | undefined, default_: rs.u16, f: (a0: [Lent.Lent, rs.u16]) => rs.u16): rs.u16 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$05q90i2(self: [Probe.Probe, rs.u16] | undefined, default_: rs.u16, f: (a0: [Probe.Probe, rs.u16]) => rs.u16): rs.u16 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function mapOr$0955beb(self: [Rank.Rank, Tally.Tally] | undefined, default_: rs.u8, f: (a0: [Rank.Rank, Tally.Tally]) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
@@ -163,11 +200,11 @@ export function mapOr$1h9hu6n(self: [rs.u8, rs.u8] | undefined, default_: rs.u8,
 	return f(self);
 }
 
-export function clone$14nprly(self: string | undefined): string | undefined {
+export function clone$0dg4ec5(self: rs.String | undefined): rs.String | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
-	return self;
+	return rs.stringClone(self);
 }
 
 export function flatten$0ux6gqw(self: rs.u8 | undefined | rs.None): rs.u8 | undefined {

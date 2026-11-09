@@ -7,13 +7,13 @@ import { isSomeAnd$1s2u5lz } from "./core/option.ts";
 import { unwrapOr$0u1litd as result_unwrapOr$0u1litd, unwrapOr$14lx6wa as result_unwrapOr$14lx6wa, unwrapOr$1vlkfwl as result_unwrapOr$1vlkfwl, unwrapOr$08ab42n as result_unwrapOr$08ab42n, unwrapOr$1495lg8 as result_unwrapOr$1495lg8, unwrapOr$0jt2sr8 as result_unwrapOr$0jt2sr8, unwrapOr$0sf2nxo as result_unwrapOr$0sf2nxo, unwrapOr$0ca9158 as result_unwrapOr$0ca9158, unwrapOr$0gfqfcv as result_unwrapOr$0gfqfcv, unwrapOr$0kcfya3 as result_unwrapOr$0kcfya3 } from "./core/result.ts";
 
 /** An ordering from `b`: one of `valid`, or from 0xf0 on any, which may panic. */
-export function order(b: rs.u8, valid: rs.AtomicOrdering[]): rs.AtomicOrdering {
+export function order(b: rs.u8, valid: rs.Slice<rs.AtomicOrdering>): rs.AtomicOrdering {
 	if (!(b >= 240)) {
 		const _12: rs.usize = rs.usizeRem(b as rs.usize, valid.length);
 		rs.idx(valid, _12);
-		return valid[_12];
+		return valid.data[valid.start + _12];
 	}
-	const _5: rs.usize = rs.usizeRem(b as rs.usize, [0, 1, 2, 3, 4].length);
+	const _5: rs.usize = rs.usizeRem(b as rs.usize, rs.sliceFrom([0, 1, 2, 3, 4]).length);
 	if (!(_5 < 5)) {
 		rs.panic("index out of bounds: the len is " + 5 + " but the index is " + _5);
 	}
@@ -50,14 +50,14 @@ export function i16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		data2 = _45;
 		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const any: rs.AtomicOrdering = order(b2, [0, 1, 2, 3, 4]);
-		const failure: rs.AtomicOrdering = order(b2 ^ 15, [0, 2, 4]);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
 		const _60: rs.u8 = rs.u8Rem(op2, 16);
 		if (_60 === 0) {
-			const _63: rs.AtomicOrdering = order(b2, [0, 2, 4]);
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
 			old = rs.atomicLoad(atomic, _63);
 		} else if (_60 === 1) {
-			const _68: rs.AtomicOrdering = order(b2, [0, 1, 4]);
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
 			rs.atomicStore(atomic, v, _68);
 			old = v;
 		} else if (_60 === 2) {
@@ -163,14 +163,14 @@ export function i32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		data2 = _45;
 		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const any: rs.AtomicOrdering = order(b2, [0, 1, 2, 3, 4]);
-		const failure: rs.AtomicOrdering = order(b2 ^ 15, [0, 2, 4]);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
 		const _60: rs.u8 = rs.u8Rem(op2, 16);
 		if (_60 === 0) {
-			const _63: rs.AtomicOrdering = order(b2, [0, 2, 4]);
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
 			old = rs.atomicLoad(atomic, _63);
 		} else if (_60 === 1) {
-			const _68: rs.AtomicOrdering = order(b2, [0, 1, 4]);
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
 			rs.atomicStore(atomic, v, _68);
 			old = v;
 		} else if (_60 === 2) {
@@ -276,14 +276,14 @@ export function i64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		data2 = _45;
 		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const any: rs.AtomicOrdering = order(b2, [0, 1, 2, 3, 4]);
-		const failure: rs.AtomicOrdering = order(b2 ^ 15, [0, 2, 4]);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
 		const _60: rs.u8 = rs.u8Rem(op2, 16);
 		if (_60 === 0) {
-			const _63: rs.AtomicOrdering = order(b2, [0, 2, 4]);
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
 			old = rs.atomicLoad(atomic, _63);
 		} else if (_60 === 1) {
-			const _68: rs.AtomicOrdering = order(b2, [0, 1, 4]);
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
 			rs.atomicStore(atomic, v, _68);
 			old = v;
 		} else if (_60 === 2) {
@@ -389,14 +389,14 @@ export function i8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		data2 = _45;
 		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const any: rs.AtomicOrdering = order(b2, [0, 1, 2, 3, 4]);
-		const failure: rs.AtomicOrdering = order(b2 ^ 15, [0, 2, 4]);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
 		const _60: rs.u8 = rs.u8Rem(op2, 16);
 		if (_60 === 0) {
-			const _63: rs.AtomicOrdering = order(b2, [0, 2, 4]);
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
 			old = rs.atomicLoad(atomic, _63);
 		} else if (_60 === 1) {
-			const _68: rs.AtomicOrdering = order(b2, [0, 1, 4]);
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
 			rs.atomicStore(atomic, v, _68);
 			old = v;
 		} else if (_60 === 2) {
@@ -502,14 +502,14 @@ export function isizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 		data2 = _45;
 		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const any: rs.AtomicOrdering = order(b2, [0, 1, 2, 3, 4]);
-		const failure: rs.AtomicOrdering = order(b2 ^ 15, [0, 2, 4]);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
 		const _60: rs.u8 = rs.u8Rem(op2, 16);
 		if (_60 === 0) {
-			const _63: rs.AtomicOrdering = order(b2, [0, 2, 4]);
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
 			old = rs.atomicLoad(atomic, _63);
 		} else if (_60 === 1) {
-			const _68: rs.AtomicOrdering = order(b2, [0, 1, 4]);
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
 			rs.atomicStore(atomic, v, _68);
 			old = v;
 		} else if (_60 === 2) {
@@ -615,14 +615,14 @@ export function u16s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		data2 = _45;
 		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const any: rs.AtomicOrdering = order(b2, [0, 1, 2, 3, 4]);
-		const failure: rs.AtomicOrdering = order(b2 ^ 15, [0, 2, 4]);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
 		const _60: rs.u8 = rs.u8Rem(op2, 16);
 		if (_60 === 0) {
-			const _63: rs.AtomicOrdering = order(b2, [0, 2, 4]);
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
 			old = rs.atomicLoad(atomic, _63);
 		} else if (_60 === 1) {
-			const _68: rs.AtomicOrdering = order(b2, [0, 1, 4]);
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
 			rs.atomicStore(atomic, v, _68);
 			old = v;
 		} else if (_60 === 2) {
@@ -728,14 +728,14 @@ export function u32s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		data2 = _45;
 		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const any: rs.AtomicOrdering = order(b2, [0, 1, 2, 3, 4]);
-		const failure: rs.AtomicOrdering = order(b2 ^ 15, [0, 2, 4]);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
 		const _60: rs.u8 = rs.u8Rem(op2, 16);
 		if (_60 === 0) {
-			const _63: rs.AtomicOrdering = order(b2, [0, 2, 4]);
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
 			old = rs.atomicLoad(atomic, _63);
 		} else if (_60 === 1) {
-			const _68: rs.AtomicOrdering = order(b2, [0, 1, 4]);
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
 			rs.atomicStore(atomic, v, _68);
 			old = v;
 		} else if (_60 === 2) {
@@ -841,14 +841,14 @@ export function u64s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		data2 = _45;
 		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const any: rs.AtomicOrdering = order(b2, [0, 1, 2, 3, 4]);
-		const failure: rs.AtomicOrdering = order(b2 ^ 15, [0, 2, 4]);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
 		const _60: rs.u8 = rs.u8Rem(op2, 16);
 		if (_60 === 0) {
-			const _63: rs.AtomicOrdering = order(b2, [0, 2, 4]);
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
 			old = rs.atomicLoad(atomic, _63);
 		} else if (_60 === 1) {
-			const _68: rs.AtomicOrdering = order(b2, [0, 1, 4]);
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
 			rs.atomicStore(atomic, v, _68);
 			old = v;
 		} else if (_60 === 2) {
@@ -954,14 +954,14 @@ export function u8s(data: rs.ByteSlice, out: rs.ByteVec): void {
 		data2 = _45;
 		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const any: rs.AtomicOrdering = order(b2, [0, 1, 2, 3, 4]);
-		const failure: rs.AtomicOrdering = order(b2 ^ 15, [0, 2, 4]);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
 		const _60: rs.u8 = rs.u8Rem(op2, 16);
 		if (_60 === 0) {
-			const _63: rs.AtomicOrdering = order(b2, [0, 2, 4]);
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
 			old = rs.atomicLoad(atomic, _63);
 		} else if (_60 === 1) {
-			const _68: rs.AtomicOrdering = order(b2, [0, 1, 4]);
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
 			rs.atomicStore(atomic, v, _68);
 			old = v;
 		} else if (_60 === 2) {
@@ -1067,14 +1067,14 @@ export function usizes(data: rs.ByteSlice, out: rs.ByteVec): void {
 		data2 = _45;
 		const b2: rs.u8 = b;
 		const op2: rs.u8 = op;
-		const any: rs.AtomicOrdering = order(b2, [0, 1, 2, 3, 4]);
-		const failure: rs.AtomicOrdering = order(b2 ^ 15, [0, 2, 4]);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
+		const failure: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
 		const _60: rs.u8 = rs.u8Rem(op2, 16);
 		if (_60 === 0) {
-			const _63: rs.AtomicOrdering = order(b2, [0, 2, 4]);
+			const _63: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
 			old = rs.atomicLoad(atomic, _63);
 		} else if (_60 === 1) {
-			const _68: rs.AtomicOrdering = order(b2, [0, 1, 4]);
+			const _68: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
 			rs.atomicStore(atomic, v, _68);
 			old = v;
 		} else if (_60 === 2) {
@@ -1170,13 +1170,13 @@ export function bools(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const op2: rs.u8 = op;
 		const b2: rs.u8 = b;
 		const v: boolean = (b2 & 1) === 1;
-		const any: rs.AtomicOrdering = order(b2, [0, 1, 2, 3, 4]);
+		const any: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 2, 3, 4]));
 		const _23: rs.u8 = rs.u8Rem(op2, 11);
 		if (_23 === 0) {
-			const _26: rs.AtomicOrdering = order(b2, [0, 2, 4]);
+			const _26: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 2, 4]));
 			old = rs.atomicLoad(flag, _26);
 		} else if (_23 === 1) {
-			const _31: rs.AtomicOrdering = order(b2, [0, 1, 4]);
+			const _31: rs.AtomicOrdering = order(b2, rs.sliceFrom([0, 1, 4]));
 			rs.atomicStore(flag, v, _31);
 			old = v;
 		} else if (_23 === 2) {
@@ -1193,7 +1193,7 @@ export function bools(data: rs.ByteSlice, out: rs.ByteVec): void {
 			old = rs.atomicFetch(flag, (old, value) => old !== value, true, any);
 		} else if (_23 === 8) {
 			const _42: boolean = !v;
-			const _43: rs.AtomicOrdering = order(b2 ^ 15, [0, 2, 4]);
+			const _43: rs.AtomicOrdering = order(b2 ^ 15, rs.sliceFrom([0, 2, 4]));
 			const _40: rs.Result<boolean, boolean> = rs.atomicCompareExchange(flag, v, _42, any, _43);
 			if (_40.ok) {
 				old = _40.value;
@@ -1201,8 +1201,8 @@ export function bools(data: rs.ByteSlice, out: rs.ByteVec): void {
 				old = !_40.error;
 			}
 		} else if (_23 === 9) {
-			rs.fence(order(b2, [1, 2, 3, 4]));
-			rs.fence(order(b2 ^ 15, [1, 2, 3, 4]));
+			rs.fence(order(b2, rs.sliceFrom([1, 2, 3, 4])));
+			rs.fence(order(b2 ^ 15, rs.sliceFrom([1, 2, 3, 4])));
 			old = v;
 		} else {
 			old = rs.atomicUpdate(flag, any, 0, (x3: boolean): boolean => {
@@ -1238,11 +1238,32 @@ export function shared(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.atomicStore(stats2.value.open, b > 128, 1);
 		rs.byteVecPush(out, rs.atomicLoad(stats2.value.open, 2) ? 1 : 0);
 	}
-	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(sent(peer.value, order(data.length & 0xff, [0, 2, 4])))));
+	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(sent(peer.value, order(data.length & 0xff, rs.sliceFrom([0, 2, 4]))))));
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.usizeToBeBytes(rs.atomicLoad(peer.value.peers, 4))));
 	rs.byteVecPush(out, stats.strong & 0xff);
 	peer[Symbol.dispose]();
 	stats[Symbol.dispose]();
+}
+
+/**
+ * A spin-wait, as moq-net's frame has on a write another thread runs, between each of
+ * `data`'s steps: neither hint promises anything observable, so the wait ends on what its
+ * own loop changes.
+ */
+export function spins(kind: rs.u8, dataData: Uint8Array, dataStart: number, dataLen: number, out: rs.ByteVec): void {
+	const left: rs.Atomic<rs.usize> = new rs.Atomic(dataLen);
+	while (rs.atomicLoad(left, 4) > 0) {
+		const _13: rs.usize = rs.usizeSub(rs.atomicLoad(left, 0), 1);
+		if (_13 >= dataLen) {
+			rs.panic("index out of bounds: the len is " + dataLen + " but the index is " + _13);
+		}
+		if (!(((dataData[dataStart + _13] ^ kind) & 1) === 0)) {
+			undefined;
+		} else {
+			undefined;
+		}
+		rs.byteVecPush(out, rs.atomicFetch(left, rs.usizeWrappingSub, 1, 4) & 0xff);
+	}
 }
 
 export function atomics(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {

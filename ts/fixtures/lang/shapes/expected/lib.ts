@@ -2,11 +2,15 @@
 
 import * as rs from "./rs.ts";
 import { ints, strings, derived, written, counts, rounding, panics, wrapped, collections, enums, iters, adaptors, writes, objects, sources, sets, calls, cells, searches } from "./fmt.ts";
-import { methods, runs } from "./generics.ts";
+import { methods, runs, units, projections, projectedCycles, projectedSelves } from "./generics.ts";
 import type * as Either from "./generics.Either.ts";
 import * as Fixed from "./generics.Fixed.ts";
+import * as Getter from "./generics.Getter.ts";
+import type * as Holder from "./generics.Holder.ts";
+import type * as Pile from "./generics.Pile.ts";
 import type * as Run from "./generics.Run.ts";
 import type * as Ticked from "./generics.Ticked.ts";
+import type * as Ticks from "./generics.Ticks.ts";
 import * as Wrap from "./generics.Wrap.ts";
 import { copies, order, discriminants, loops, patterns, uninhabited, closures, library, flows } from "./shapes.ts";
 import type * as shapes_Gauge from "./shapes.Gauge.ts";
@@ -137,11 +141,38 @@ export function copy$tuple2_u8_u8(v: [rs.u8, rs.u8]): [rs.u8, rs.u8] {
 	return [v[0], v[1]];
 }
 
+export function drop$generics_Pile_generics_Ticks(_1: Pile.Pile<Ticks.Ticks, Ticked.Ticked>): void {
+	if (_1.tag !== "Empty") {
+		if (_1.tag === "Full") {
+			_1._0[Symbol.dispose]();
+		} else {
+			_1.item[Symbol.dispose]();
+			drop$generics_Pile_generics_Ticks(_1.next);
+		}
+	}
+}
+
 export function drop$generics_Run_generics_Ticked(_1: Run.Run<Ticked.Ticked>): void {
 	if (_1.tag === "Listed") {
 		rs.dropVec(_1._0 as rs.Vec<Ticked.Ticked>);
 	} else if (_1.tag === "Fixed") {
 		rs.dropAll(_1.array as Ticked.Ticked[]);
+	}
+}
+
+export class of$generics_Getter {
+	v: Getter.Getter;
+
+	constructor(v: Getter.Getter) {
+		this.v = v;
+	}
+
+	get$Get(): rs.OptionOf<rs.u8> {
+		return Getter.get$generics_Get_u8(this.v) as rs.OptionOf<rs.u8>;
+	}
+
+	holder$Get(): Holder.Holder | undefined {
+		return Getter.holder$generics_Get_u8(this.v);
 	}
 }
 
@@ -218,6 +249,14 @@ export function cases(): rs.Vec<[string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.By
 		cells(data26, out27);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["fmt::searches", (_237: rs.u8, data27: rs.ByteSlice, out28: rs.ByteVec): undefined => {
 		searches(data27, out28);
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["generics::units", (_238: rs.u8, data28: rs.ByteSlice, out29: rs.ByteVec): undefined => {
+		units(data28, out29);
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["generics::projections", (_239: rs.u8, data29: rs.ByteSlice, out30: rs.ByteVec): undefined => {
+		projections(data29, out30);
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["generics::projected_cycles", (_240: rs.u8, data30: rs.ByteSlice, out31: rs.ByteVec): undefined => {
+		projectedCycles(data30, out31);
+	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined], ["generics::projected_selves", (_241: rs.u8, data31: rs.ByteSlice, out32: rs.ByteVec): undefined => {
+		projectedSelves(data31, out32);
 	}] as [string, (a0: rs.u8, a1: rs.ByteSlice, a2: rs.ByteVec) => undefined]]);
 }
 

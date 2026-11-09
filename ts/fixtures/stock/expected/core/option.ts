@@ -2,6 +2,8 @@
 
 import * as rs from "../rs.ts";
 import type * as Logged from "../maps.Logged.ts";
+import type * as RangeInclusiveStartWrapper from "../rangemap/range_wrapper.RangeInclusiveStartWrapper.ts";
+import type * as RangeStartWrapper from "../rangemap/range_wrapper.RangeStartWrapper.ts";
 
 export function unwrapOr$1b5hww3(self: rs.u32 | undefined, default_: rs.u32): rs.u32 {
 	if (self === undefined) {
@@ -22,6 +24,99 @@ export function unwrapOr$05jq4mv(self: rs.usize | undefined, default_: rs.usize)
 		return default_;
 	}
 	return self;
+}
+
+export function map$1szk2qx(self: [rs.Range<rs.u64>, undefined] | undefined, f: (a0: [rs.Range<rs.u64>, undefined]) => rs.Range<rs.u64>): rs.Range<rs.u64> | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1uwf58c(self: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, rs.u32] | undefined, f: (a0: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, rs.u32]) => [rs.RangeInclusive<rs.u64>, rs.u32]): [rs.RangeInclusive<rs.u64>, rs.u32] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$13fvwc4(self: [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined] | undefined, f: (a0: [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined]) => [rs.Range<rs.u64>, undefined]): [rs.Range<rs.u64>, undefined] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$0xbjbpp(self: [rs.RangeInclusive<rs.u64>, undefined] | undefined, f: (a0: [rs.RangeInclusive<rs.u64>, undefined]) => rs.RangeInclusive<rs.u64>): rs.RangeInclusive<rs.u64> | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$0j6jw4e(self: [rs.RangeInclusive<rs.u64>, undefined] | undefined, f: (a0: [rs.RangeInclusive<rs.u64>, undefined]) => undefined): undefined | rs.None {
+	if (self === undefined) {
+		return rs.None;
+	}
+	f(self);
+	return undefined;
+}
+
+export function map$0wqo9kn(self: [rs.Range<rs.u64>, rs.u64] | undefined, f: (a0: [rs.Range<rs.u64>, rs.u64]) => rs.u64): rs.u64 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1yav3xg(self: [rs.Range<rs.u64>, undefined] | undefined, f: (a0: [rs.Range<rs.u64>, undefined]) => undefined): undefined | rs.None {
+	if (self === undefined) {
+		return rs.None;
+	}
+	f(self);
+	return undefined;
+}
+
+export function map$0uvwlsi(self: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, rs.u32] | undefined, f: (a0: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, rs.u32]) => [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, rs.u32]): [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, rs.u32] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$05vmvpg(self: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, undefined] | undefined, f: (a0: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, undefined]) => [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, undefined]): [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, undefined] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$0q44qdt(self: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, undefined] | undefined, f: (a0: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, undefined]) => [rs.RangeInclusive<rs.u64>, undefined]): [rs.RangeInclusive<rs.u64>, undefined] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$02ffuo4(self: [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64] | undefined, f: (a0: [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64]) => [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64]): [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$15xkbmr(self: [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64] | undefined, f: (a0: [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64]) => [rs.Range<rs.u64>, rs.u64]): [rs.Range<rs.u64>, rs.u64] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$105h877(self: [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined] | undefined, f: (a0: [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined]) => [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined]): [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined] | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
 }
 
 export function map$0faa8rw(self: [rs.u16, rs.Place<rs.u32>] | undefined, f: (a0: [rs.u16, rs.Place<rs.u32>]) => rs.Place<rs.u32>): rs.Place<rs.u32> | undefined {
@@ -45,6 +140,13 @@ export function map$1nxhy7e(self: [rs.u16, rs.u32] | undefined, f: (a0: [rs.u16,
 	return f(self);
 }
 
+export function mapOr$0yzb10z(self: rs.char | undefined, default_: rs.u32, _: (a0: rs.char) => rs.u32): rs.u32 {
+	if (self === undefined) {
+		return default_;
+	}
+	return self as rs.u32;
+}
+
 export function mapOr$00octnd(self: Logged.Logged | undefined, default_: rs.u8, f: (a0: Logged.Logged) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
@@ -57,6 +159,13 @@ export function mapOr$17oc7db(self: rs.Place<rs.u32> | undefined, default_: rs.u
 		return default_;
 	}
 	return f(self);
+}
+
+export function mapOr$0ntbuih(self: rs.Range<rs.u64> | undefined, default_: rs.Range<rs.u64>, _: (a0: rs.Range<rs.u64>) => rs.Range<rs.u64>): rs.Range<rs.u64> {
+	if (self === undefined) {
+		return default_;
+	}
+	return self.clone();
 }
 
 export function mapOr$0o00yzv(self: [rs.u16, rs.u32] | undefined, default_: rs.usize, f: (a0: [rs.u16, rs.u32]) => rs.usize): rs.usize {
@@ -80,11 +189,72 @@ export function mapOr$0as7mjc(self: rs.u32 | undefined, default_: rs.usize, f: (
 	return f(self);
 }
 
+export function mapOr$0mwbrmg(self: rs.u64 | undefined, default_: rs.u8, f: (a0: rs.u64) => rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$1ui9ilq(self: [rs.RangeInclusive<rs.u64>, rs.u32] | undefined, default_: [rs.Range<rs.u64>, rs.u32], f: (a0: [rs.RangeInclusive<rs.u64>, rs.u32]) => [rs.Range<rs.u64>, rs.u32]): [rs.Range<rs.u64>, rs.u32] {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$0x6k90y(self: [rs.Range<rs.u64>, rs.u64] | undefined, default_: rs.Range<rs.u64>, f: (a0: [rs.Range<rs.u64>, rs.u64]) => rs.Range<rs.u64>): rs.Range<rs.u64> {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function mapOr$0bhoutc(self: [rs.u16, rs.Place<rs.u32>] | undefined, default_: rs.usize, f: (a0: [rs.u16, rs.Place<rs.u32>]) => rs.usize): rs.usize {
 	if (self === undefined) {
 		return default_;
 	}
 	return f(self);
+}
+
+export function filter$1nfpslh(self: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, rs.u32] | undefined, predicate: (a0: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, rs.u32]) => boolean): [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, rs.u32] | undefined {
+	if (self !== undefined) {
+		const x: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, rs.u32] = self;
+		if (predicate(x)) {
+			return x;
+		}
+	}
+	return undefined;
+}
+
+export function filter$0w6ybci(self: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, undefined] | undefined, predicate: (a0: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, undefined]) => boolean): [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, undefined] | undefined {
+	if (self !== undefined) {
+		const x: [RangeInclusiveStartWrapper.RangeInclusiveStartWrapper<rs.u64>, undefined] = self;
+		if (predicate(x)) {
+			return x;
+		}
+	}
+	return undefined;
+}
+
+export function filter$00vfvog(self: [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64] | undefined, predicate: (a0: [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64]) => boolean): [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64] | undefined {
+	if (self !== undefined) {
+		const x: [RangeStartWrapper.RangeStartWrapper<rs.u64>, rs.u64] = self;
+		if (predicate(x)) {
+			return x;
+		}
+	}
+	return undefined;
+}
+
+export function filter$16uxvkg(self: [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined] | undefined, predicate: (a0: [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined]) => boolean): [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined] | undefined {
+	if (self !== undefined) {
+		const x: [RangeStartWrapper.RangeStartWrapper<rs.u64>, undefined] = self;
+		if (predicate(x)) {
+			return x;
+		}
+	}
+	return undefined;
 }
 
 export function clone$1i3gmk3(self: rs.ByteSlice | undefined): rs.ByteSlice | undefined {

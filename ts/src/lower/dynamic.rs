@@ -1,23 +1,28 @@
 //! Trait objects. A `dyn Trait` is a JS object with a method for each of the trait's
-//! dispatchable functions, its supertraits' included, or for std's `Error` and `bytes`'
-//! `Buf`, each that a call dispatches to, named as an impl's function is,
+//! dispatchable functions, its supertraits' included, or for std's or a mapped crate's
+//! trait, each that a call dispatches to, named as an impl's function is,
 //! for its trait (`area$Shape`), and taking the arguments after `self`. That is the
-//! trait's type, which a TS caller can implement. A coercion to one wraps the value in a
+//! trait's type, which a TS caller can implement, generic over the trait's type parameters
+//! and the associated types its objects bind (`Source<Item>`), and typed as the trait
+//! declares them, which a call casts to what its object's arguments return. A coercion to one wraps the value in a
 //! class of its type's own, shared by every trait object of the type, whose methods call
-//! that type's impls and whose `[Symbol.dispose]`, which a `Box<dyn Trait>` drops it by,
+//! that type's impls, a std type's through their mappings, and whose `[Symbol.dispose]`, which a `Box<dyn Trait>` drops it by,
 //! drops the value. An `Arc<dyn Trait>` is an `rs.ArcDyn` around the one a box would be. A
 //! struct whose last field unsizes to one, such as a `RefCell<dyn Trait>`, is an
 //! `rs.tailDyn` view of the struct it was made from, whose last field is that field's
 //! object. A raw pointer unsizes as a `&mut` to what it points at does. A
-//! `dyn Any` has no methods, and a downcast, of it or of a `dyn Error`, checks for the
-//! class of the type it names. A `dyn Fn`,
+//! `dyn Any`'s one method is `type_id`, a constant of its class's type's `TypeId`, and a
+//! downcast, of it or of a `dyn Error`, checks for the class of the type it names. A `dyn Fn`,
 //! `dyn FnMut`, or `dyn FnOnce` is the function it was made of, which a call calls as it
 //! would the closure itself.
 
 use std::collections::hash_map::Entry;
 
 use rustc_hir::def_id::DefId;
-use rustc_middle::ty::{self, GenericArgsRef, Instance, Interner as _, Ty, TyCtxt, TypeVisitableExt};
+use rustc_middle::ty::{
+	self, GenericArgsRef, Instance, Interner as _, Ty, TyCtxt, TypeFoldable, TypeFolder, TypeSuperFoldable,
+	TypeVisitableExt, TypingEnv, Upcast as _,
+};
 use rustc_span::Span;
 
 use super::body::Body;
@@ -26,25 +31,43 @@ use super::{AdtRepr, StructField, Translator};
 use crate::program::{SymKind, Symbol};
 use crate::ts::{self, Expr, FieldId, FieldInit, Item, Key, Param, Stmt, StmtKind, SymId, Type};
 
-/// A trait that objects of it translate for: its type, its methods in vtable order, and
-/// the values its objects wrap.
+/// A trait that objects of it translate for: its type and the type's parameters, its
+/// methods in vtable order, and the values its objects wrap.
 pub struct Object<'tcx> {
 	sym: SymId,
-	methods: Vec<Method>,
+	/// Its type's parameters, each by its name: the trait's own type parameters, then the
+	/// associated types its objects bind that no supertrait binds already.
+	params: Vec<(String, Slot)>,
+	methods: Vec<Method<'tcx>>,
 	/// Where its type is in the program's items.
 	item: usize,
-	/// The types and holds of the classes its objects wrap values in.
-	classes: Vec<(Ty<'tcx>, Held)>,
+	/// The types and holds of the classes its objects wrap values in, with the trait object
+	/// each was made for.
+	classes: Vec<(Ty<'tcx>, Held, Ty<'tcx>)>,
+	/// The trait objects of it whose methods take and return what its type gives them at
+	/// their arguments, or don't, which is refused.
+	checked: Vec<Ty<'tcx>>,
+}
+
+/// A parameter of a trait object's type.
+#[derive(Clone, Copy, PartialEq)]
+enum Slot {
+	/// The trait's type parameter at this index of its generics, past `Self`.
+	Arg(usize),
+	/// An associated type its objects bind.
+	Binding(DefId),
 }
 
 #[derive(Clone)]
-struct Method {
+struct Method<'tcx> {
 	def_id: DefId,
+	/// The arguments of the trait it is of, over the object's trait's own parameters.
+	tr: GenericArgsRef<'tcx>,
 	name: String,
-	/// Its type, once the object holds it: from the start for the trait of a crate that
-	/// translates whole, which a TS caller may call or implement, and else, for std's
-	/// `Error` and `bytes`' `Buf`, at the first call that dispatches to it, so a `dyn Buf`
-	/// holds a few of `Buf`'s many methods.
+	/// Its type over the object type's parameters, once the object holds it: from the start for the trait of a crate that
+	/// translates whole, which a TS caller may call or implement, and else, for std's or a
+	/// mapped crate's trait, at the first call that dispatches to it, so a `dyn Buf` holds a
+	/// few of `Buf`'s many methods, and a std type's class only the impls it calls.
 	ty: Option<Type>,
 }
 
@@ -94,6 +117,15 @@ impl<'tcx> Translator<'_, 'tcx> {
 		})
 	}
 
+	/// `ty`'s `TypeId`: rustc's hash of it, as 32 hex digits, or `undefined` in a census over
+	/// type parameters, where only an instance decides what `ty` is.
+	pub fn type_id(&self, ty: Ty<'tcx>) -> Expr {
+		match self.polymorphic() && ty.has_param() {
+			true => Expr::undefined(),
+			false => Expr::Str(format!("{:032x}", self.tcx.type_id_hash(ty).as_u128())),
+		}
+	}
+
 	/// The function trait that calls the closure, async closure, or `dyn Fn*` that `ty` is,
 	/// or boxes.
 	pub fn owned_fn(&self, ty: Ty<'tcx>) -> Option<ty::ClosureKind> {
@@ -115,9 +147,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 		ty
 	}
 
-	/// The type of the trait object `ty`, a `dyn Trait`, made the first time.
-	pub fn object(&mut self, ty: Ty<'tcx>, span: Span) -> Option<SymId> {
-		let tcx = self.tcx;
+	/// The type of the trait object `ty`, a `dyn Trait`, its trait's made the first time.
+	pub fn object(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Type> {
 		let ty::Dynamic(preds, ..) = ty.kind() else {
 			return None;
 		};
@@ -128,33 +159,66 @@ impl<'tcx> Translator<'_, 'tcx> {
 			);
 			return None;
 		};
-		if let Some(object) = self.objects.get(&principal) {
-			return Some(object.sym);
+		if !self.objects.contains_key(&principal) {
+			// Over the trait's own parameters, whatever definition is typing it.
+			self.outside_definition(|t| t.define_object(principal, ty, span))?;
 		}
-		// A trait of a crate translated from source is as the crate's own.
-		if !self.own(principal) && !is_any(tcx, principal) && !is_error(tcx, principal) && !is_buf(tcx, principal) {
-			self.unrepresented(
-				span,
-				format!("`{ty}`, a trait object of another crate's trait, which is not supported yet"),
-			);
-			return None;
+		let args = self.object_args(principal, ty, span);
+		let sym = self.objects[&principal].sym;
+		Some(Type::Sym(sym, args.into_iter().map(|(_, t)| t).collect()))
+	}
+
+	/// Make the object of `principal`, the trait of the trait object `ty`, unless it is
+	/// refused.
+	fn define_object(&mut self, principal: DefId, ty: Ty<'tcx>, span: Span) -> Option<()> {
+		let tcx = self.tcx;
+		let identity = ty::Binder::dummy(ty::TraitRef::identity(tcx, principal));
+		let mut params = Vec::new();
+		for param in &tcx.generics_of(principal).own_params {
+			match param.kind {
+				ty::GenericParamDefKind::Type { .. } if param.index > 0 => {
+					params.push((param.name.to_string(), Slot::Arg(param.index as usize)));
+				}
+				ty::GenericParamDefKind::Const { .. } => {
+					let msg =
+						format!("`{ty}`, a trait object of a trait with a const parameter, which is not supported yet");
+					self.unrepresented(span, msg);
+					return None;
+				}
+				_ => {}
+			}
 		}
-		if preds.projection_bounds().next().is_some() {
-			self.unrepresented(
-				span,
-				format!("`{ty}`, a trait object with an associated type, which is not supported yet"),
-			);
-			return None;
+		// The associated types every object binds alike, as a supertrait binds them, are no
+		// parameters: `Counted` for `trait Counted: Source<Item = u32>`.
+		let clause: ty::Clause<'tcx> = identity.upcast(tcx);
+		let implied: Vec<DefId> = ty::elaborate::elaborate(tcx, [clause])
+			.filter_map(|c| c.as_projection_clause())
+			.map(|p| p.skip_binder().def_id())
+			.collect();
+		let ty::Dynamic(preds, ..) = ty.kind() else {
+			unreachable!("a trait object");
+		};
+		for binding in preds.projection_bounds().map(|p| p.item_def_id()) {
+			if !implied.contains(&binding) {
+				params.push((tcx.item_name(binding).to_string(), Slot::Binding(binding)));
+			}
 		}
-		let traits: Vec<DefId> = tcx.supertrait_def_ids(principal).collect();
-		if let Some(&generic) = traits.iter().find(|&&tr| tcx.generics_of(tr).count() > 1) {
+		if let Some((name, _)) = params
+			.iter()
+			.enumerate()
+			.find_map(|(i, p)| params[..i].iter().find(|q| q.0 == p.0))
+		{
 			let msg = format!(
-				"`{ty}`, a trait object of the generic trait `{}`, which is not supported yet",
-				tcx.def_path_str(generic)
+				"`{ty}`, whose trait's type parameters and associated types have two named `{name}`, which is not supported yet"
 			);
 			self.unrepresented(span, msg);
 			return None;
 		}
+		// Each supertrait with the arguments the principal's give it, over the principal's
+		// own parameters.
+		let refs: Vec<ty::TraitRef<'tcx>> = ty::elaborate::supertraits(tcx, identity)
+			.map(|tr| tr.skip_binder())
+			.collect();
 		let name = tcx.item_name(principal).to_string();
 		let sym = self.program.sym(Symbol {
 			module: self.type_module(principal),
@@ -169,40 +233,46 @@ impl<'tcx> Translator<'_, 'tcx> {
 			alias: None,
 		});
 		let mut methods = Vec::new();
-		// `Any`'s object is its class, which a downcast checks for, so it needs no method.
-		for &tr in traits.iter().filter(|&&tr| !is_any(tcx, tr)) {
+		let traits = tcx.supertrait_def_ids(principal);
+		for trait_ref in traits.flat_map(|tr| refs.iter().filter(move |r| r.def_id == tr)) {
+			let tr = trait_ref.def_id;
 			for &def_id in tcx.own_existential_vtable_entries(tr) {
 				// Of `Error`, only `source`: `type_id`'s `TypeId` has no JS value, `provide` is
 				// unstable, and `description` and `cause` are deprecated.
 				if is_error(tcx, tr) && tcx.item_name(def_id).as_str() != "source" {
 					continue;
 				}
-				// `Buf::chunks_vectored`, whose `IoSlice` has no JS value.
-				if is_buf(tcx, tr) && tcx.item_name(def_id).as_str() == "chunks_vectored" {
-					continue;
-				}
 				let name = format!("{}${}", super::camel(tcx.item_name(def_id).as_str()), tcx.item_name(tr));
-				if methods.iter().any(|m: &Method| m.name == name) {
+				if methods.iter().any(|m: &Method<'_>| m.name == name) {
 					self.err(span, format!("`{ty}`, whose traits have two methods named `{name}`"));
 					return None;
 				}
-				methods.push(Method { def_id, name, ty: None });
+				methods.push(Method {
+					def_id,
+					tr: trait_ref.args,
+					name,
+					ty: None,
+				});
 			}
 		}
 		let count = methods.len();
+		let names = params.iter().map(|(name, _)| name.clone()).collect();
 		self.objects.insert(
 			principal,
 			Object {
 				sym,
+				params,
 				methods,
 				item: self.program.items.len(),
 				classes: Vec::new(),
+				checked: Vec::new(),
 			},
 		);
 		self.program.items.push(Item::Union {
 			sym,
-			params: Vec::new(),
-			// Any object, as a downcast checks for the class of the value's own type.
+			params: names,
+			// Any object, as a downcast checks for the class of the value's own type, until it
+			// holds `type_id`.
 			ty: match is_any(tcx, principal) {
 				true => Type::Builtin("object"),
 				false => Type::Object(Vec::new()),
@@ -211,28 +281,112 @@ impl<'tcx> Translator<'_, 'tcx> {
 		});
 		if self.own(principal) && !super::stock::is_stock(tcx, principal) {
 			for index in 0..count {
-				self.hold(principal, index, ty, span);
+				self.hold(principal, index, span);
 			}
 		}
-		Some(sym)
+		Some(())
 	}
 
-	/// The object of `principal`, of the trait object `ty`, holding its method `index` from
-	/// now on: in its type, and in each class its objects wrap a value in.
-	fn hold(&mut self, principal: DefId, index: usize, ty: Ty<'tcx>, span: Span) {
-		let tcx = self.tcx;
-		let method = &self.objects[&principal].methods[index];
-		if method.ty.is_some() {
+	/// Refuse the trait object `ty` of `principal` if a method its object holds takes or
+	/// returns, at its arguments, what its type gives in another form than a cast reaches,
+	/// as an `rs.OptionOf<T>` whose `T` is a `MaybeUninit<u32>`, which can be `undefined`
+	/// though its type can't. Checked where a
+	/// value becomes one or a call dispatches through one, by which time the object holds each method of a crate's own
+	/// trait, and not where a type names one, as a method may return an object of other
+	/// arguments without end, `Nest<Vec<T>>` of `Nest<T>`.
+	fn check_object(&mut self, principal: DefId, ty: Ty<'tcx>, span: Span) {
+		let object = &self.objects[&principal];
+		if object.params.is_empty() || ty.has_param() || object.checked.contains(&ty) {
 			return;
 		}
+		let held: Vec<(usize, Type)> = (object.methods.iter().enumerate())
+			.filter_map(|(i, m)| Some((i, m.ty.clone()?)))
+			.collect();
+		self.objects
+			.get_mut(&principal)
+			.expect("a made object")
+			.checked
+			.push(ty);
+		let args = self.object_args(principal, ty, span);
+		for (index, defined) in held {
+			let called = self.called_ty(principal, index, ty, span);
+			if !fits(&defined.subst(&|p| param(&args, p)), &called) {
+				let def_id = self.objects[&principal].methods[index].def_id;
+				let msg = format!(
+					"`{ty}`, whose `{}` takes or returns a value of another form than its trait's object type gives it, which is not supported yet",
+					self.tcx.def_path_str(def_id)
+				);
+				self.err(span, msg);
+			}
+		}
+	}
+
+	/// The arguments the trait object `ty` gives its object's type parameters, by name.
+	fn object_args(&mut self, principal: DefId, ty: Ty<'tcx>, span: Span) -> Vec<(String, Type)> {
+		let params = self.objects[&principal].params.clone();
+		params
+			.into_iter()
+			.map(|(name, p)| (name, self.ty(param_ty(self.tcx, ty, p), span)))
+			.collect()
+	}
+
+	/// The type of the method `index` of the object of `principal` as the trait object `ty`
+	/// calls it, at its own arguments.
+	fn called_ty(&mut self, principal: DefId, index: usize, ty: Ty<'tcx>, span: Span) -> Type {
+		let method = &self.objects[&principal].methods[index];
 		let def_id = method.def_id;
-		let sig = self.sig(def_id, method_args(tcx, def_id, ty));
+		let args = instance_args(self.tcx, def_id, method.tr, ty, ty);
+		let sig = self.sig(def_id, args);
+		self.method_ty(def_id, sig, span)
+	}
+
+	/// The type of a trait object's method `def_id` of the signature `sig`.
+	fn method_ty(&mut self, def_id: DefId, sig: ty::FnSig<'tcx>, span: Span) -> Type {
 		// The methods it holds are declared, so their `()` is `void`.
 		let mut params: Vec<Type> = sig.inputs()[1..].iter().map(|t| self.ty(*t, span)).collect();
 		if super::caller::tracks_virtual(self, def_id) {
 			params.push(super::caller::param_ty());
 		}
-		let func = Type::Func(params, Box::new(self.ret_ty(sig.output(), span)));
+		Type::Func(params, Box::new(self.ret_ty(sig.output(), span)))
+	}
+
+	/// The object of `principal` holding its method `index` from now on: in its type, and in
+	/// each class its objects wrap a value in.
+	fn hold(&mut self, principal: DefId, index: usize, span: Span) {
+		self.outside_definition(|t| t.hold_method(principal, index, span));
+	}
+
+	/// [`Self::hold`], outside any definition being typed.
+	fn hold_method(&mut self, principal: DefId, index: usize, span: Span) {
+		let tcx = self.tcx;
+		let object = &self.objects[&principal];
+		let method = &object.methods[index];
+		if method.ty.is_some() {
+			return;
+		}
+		let def_id = method.def_id;
+		// Its signature over the trait's own parameters, each associated type its objects
+		// bind the type's parameter of its name.
+		let sig = tcx
+			.fn_sig(def_id)
+			.instantiate(tcx, method_args(tcx, def_id, method.tr))
+			.skip_norm_wip();
+		let sig = tcx.instantiate_bound_regions_with_erased(sig);
+		let env = TypingEnv::post_analysis(tcx, principal);
+		let sig = tcx
+			.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(sig))
+			.unwrap_or(sig);
+		let bound: Vec<(DefId, Ty<'tcx>)> = (object.params.iter().enumerate())
+			.filter_map(|(i, (name, p))| match *p {
+				Slot::Binding(def_id) => {
+					let index = (tcx.generics_of(principal).count() + i) as u32;
+					Some((def_id, Ty::new_param(tcx, index, rustc_span::Symbol::intern(name))))
+				}
+				Slot::Arg(_) => None,
+			})
+			.collect();
+		let sig = sig.fold_with(&mut Bindings { tcx, bound: &bound });
+		let func = self.method_ty(def_id, sig, span);
 		let object = self.objects.get_mut(&principal).expect("a made object");
 		object.methods[index].ty = Some(func);
 		let members = object
@@ -241,15 +395,37 @@ impl<'tcx> Translator<'_, 'tcx> {
 			.filter_map(|m| Some((m.name.clone(), m.ty.clone()?)))
 			.collect();
 		let classes = object.classes.clone();
+		// `dyn Any`'s, which is any object until it holds `type_id`.
 		if let Item::Union {
-			ty: Type::Object(held), ..
+			ty: ty @ (Type::Object(_) | Type::Builtin("object")),
+			..
 		} = &mut self.program.items[object.item]
 		{
-			*held = members;
+			*ty = Type::Object(members);
 		}
-		for (from, held) in classes {
-			self.class_method(principal, index, from, held, span);
+		for (from, held, object) in classes {
+			self.class_method(principal, index, from, held, object, span);
 		}
+	}
+
+	/// Fill in the [`Type::Later`]s of the methods objects hold, as [`Type::fill`] does,
+	/// returning whether one reaches itself.
+	pub(super) fn fill_objects(&mut self, later: &impl Fn(usize) -> Option<Vec<Type>>) -> bool {
+		let mut endless = false;
+		for object in self.objects.values_mut() {
+			for ty in object.methods.iter_mut().filter_map(|m| m.ty.as_mut()) {
+				endless |= ty.fill(later).is_none();
+			}
+		}
+		endless
+	}
+
+	/// Whether an upcast from the trait object `from` to `to`, a made object, is cast to
+	/// `to`'s type: a generic trait's, whose methods have a form only its arguments decide
+	/// where `from`'s have another.
+	pub fn upcast_retypes(&self, from: Ty<'tcx>, to: Ty<'tcx>) -> bool {
+		let to = principal(to).expect("an object's trait");
+		principal(from) != Some(to) && !self.objects[&to].params.is_empty()
 	}
 
 	/// Whether `instance` is a call through a trait object's method, whose wrapper takes
@@ -282,46 +458,78 @@ impl<'tcx> Translator<'_, 'tcx> {
 		let to = tcx.erase_and_anonymize_regions(to);
 		self.object(to, span)?;
 		let principal = principal(to).expect("an object's trait");
+		self.check_object(principal, to, span);
 		let class = match self.object_classes.get(&(from, held)) {
 			Some(&class) => class,
 			None => self.new_object_class(from, held, span),
 		};
 		let object = self.objects.get_mut(&principal).expect("a made object");
-		if object.classes.contains(&(from, held)) {
+		// A generic trait's class calls the impls of each of its objects' arguments, which
+		// its methods refuse if they differ.
+		let generic = !object.params.is_empty();
+		if (object.classes.iter()).any(|c| (c.0, c.1) == (from, held) && (!generic || c.2 == to)) {
 			return Some(class);
 		}
-		object.classes.push((from, held));
+		object.classes.push((from, held, to));
 		for index in 0..object.methods.len() {
 			if self.objects[&principal].methods[index].ty.is_some() {
-				self.class_method(principal, index, from, held, span);
+				self.class_method(principal, index, from, held, to, span);
 			}
 		}
 		Some(class)
 	}
 
 	/// The method `index` of the object of `principal` in the class wrapping a `from` held as
-	/// `held`, which calls the type's impl, made the first time.
-	fn class_method(&mut self, principal: DefId, index: usize, from: Ty<'tcx>, held: Held, span: Span) {
+	/// `held`, which calls the type's impl at the arguments of the trait object `object`,
+	/// made the first time.
+	fn class_method(
+		&mut self,
+		principal: DefId,
+		index: usize,
+		from: Ty<'tcx>,
+		held: Held,
+		object: Ty<'tcx>,
+		span: Span,
+	) {
 		let tcx = self.tcx;
 		let Class { sym, v } = self.object_classes[&(from, held)];
 		let method = self.objects[&principal].methods[index].clone();
+		let args = instance_args(tcx, method.def_id, method.tr, object, from);
 		match self.class_methods.entry((sym, method.name.clone())) {
-			Entry::Occupied(called) if *called.get() == method.def_id => return,
-			Entry::Occupied(_) => {
-				let msg = format!(
-					"`{from}` as `dyn {}`, whose class has another trait's method named `{}`, which is not supported yet",
-					tcx.def_path_str(principal),
-					method.name
-				);
+			Entry::Occupied(called) if *called.get() == (method.def_id, args) => return,
+			Entry::Occupied(called) => {
+				let msg = match called.get().0 == method.def_id {
+					true => format!(
+						"`{from}` as `{object}`, whose class has `{}` of other arguments of the trait, which is not supported yet",
+						method.name
+					),
+					false => format!(
+						"`{from}` as `dyn {}`, whose class has another trait's method named `{}`, which is not supported yet",
+						tcx.def_path_str(principal),
+						method.name
+					),
+				};
 				self.err(span, msg);
 				return;
 			}
 			Entry::Vacant(entry) => {
-				entry.insert(method.def_id);
+				entry.insert((method.def_id, args));
 			}
 		}
-		let args = method_args(tcx, method.def_id, from);
 		let sig = self.sig(method.def_id, args);
+		// It takes what the object's type gives its method at the object's arguments, which
+		// the impl takes as its own.
+		let defined = match self.objects[&principal].params.is_empty() {
+			true => None,
+			false => {
+				let object_args = self.object_args(principal, object, span);
+				let Some(Type::Func(params, ret)) = &method.ty else {
+					unreachable!("a held method's type");
+				};
+				let params: Vec<Type> = params.iter().map(|t| t.subst(&|p| param(&object_args, p))).collect();
+				Some((params, ret.subst(&|p| param(&object_args, p))))
+			}
+		};
 		let Some(receiver) = self.receiver(sig.inputs()[0], from, held, Expr::This.field(v)) else {
 			let msg = format!(
 				"`dyn {}` with the receiver `{}`, which is not supported yet",
@@ -332,14 +540,27 @@ impl<'tcx> Translator<'_, 'tcx> {
 			return;
 		};
 		let mut b = Body::new(self);
-		let mut params: Vec<Param> = sig.inputs()[1..]
-			.iter()
-			.map(|input| Param {
-				name: b.fresh("a"),
-				ty: Some(b.t.ty(*input, span)),
-			})
-			.collect();
-		let values: Vec<Expr> = params.iter().map(|p| Expr::ident(&p.name)).collect();
+		// What a `&mut` receiver points at, where std's mapping takes that, as a call's
+		// operands pass it.
+		let receiver = match b.t.mapped(method.def_id, args)
+			&& super::pointer::pointees(b.t, method.def_id, args).first() == Some(&true)
+		{
+			true => b.t.pointee_value(sig.inputs()[0], receiver),
+			false => receiver,
+		};
+		let mut params = Vec::new();
+		let mut values = Vec::new();
+		for (i, input) in sig.inputs()[1..].iter().enumerate() {
+			let name = b.fresh("a");
+			let ty = b.t.ty(*input, span);
+			let value = Expr::ident(&name);
+			let (ty, value) = match defined.as_ref().map(|(d, _)| d[i].clone()) {
+				Some(defined) if defined != ty => (defined, Expr::As(Box::new(value), ty)),
+				_ => (ty, value),
+			};
+			params.push(Param { name, ty: Some(ty) });
+			values.push(value);
+		}
 		// The impl takes the location the object's caller passed, or, if only it tracks its
 		// caller, its own, as rustc's shim passes.
 		if let Ok(Some(imp)) = Instance::try_resolve(tcx, b.t.typing_env_pub(), method.def_id, args)
@@ -367,7 +588,13 @@ impl<'tcx> Translator<'_, 'tcx> {
 			&mut body,
 		);
 		let ret = self.ret_ty(sig.output(), span);
-		body.push(StmtKind::Return(Some(call.typed())).at(None));
+		// What the object's type returns, such as the `undefined` of a `T` that is `()`,
+		// where the impl's `()` is `void`.
+		let (ret, call) = match defined {
+			Some((_, defined)) if defined != ret => (defined.clone(), Expr::As(Box::new(call.typed()), defined)),
+			_ => (ret, call.typed()),
+		};
+		body.push(StmtKind::Return(Some(call)).at(None));
 		let method = self.method(sym, method.name);
 		self.program.methods.entry(sym).or_default().push(ts::Function {
 			sym: method,
@@ -490,14 +717,6 @@ pub fn is_error_object(tcx: TyCtxt<'_>, ty: Ty<'_>) -> bool {
 	principal(ty).is_some_and(|p| is_error(tcx, p))
 }
 
-/// Whether `def_id` is `bytes`' `Buf`, whose provided methods translate from its MIR for
-/// a buffer the mapping doesn't name.
-fn is_buf(tcx: TyCtxt<'_>, def_id: DefId) -> bool {
-	super::stock::is_stock(tcx, def_id)
-		&& tcx.crate_name(def_id.krate).as_str() == "bytes"
-		&& tcx.item_name(def_id).as_str() == "Buf"
-}
-
 /// Whether `ty` is a `dyn Any`.
 /// `dyn Any`, whose object's class a value of any type has.
 pub fn any_object(tcx: TyCtxt<'_>) -> Option<Ty<'_>> {
@@ -548,42 +767,172 @@ fn principal(ty: Ty<'_>) -> Option<DefId> {
 	}
 }
 
-/// The arguments of a trait object's method `def_id` for `self_ty`: the trait's `Self`,
-/// then its own early-bound lifetimes, erased, which are all a dispatchable method takes.
-fn method_args<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, self_ty: Ty<'tcx>) -> GenericArgsRef<'tcx> {
-	ty::GenericArgs::for_item(tcx, def_id, |param, _| match param.index {
-		0 => self_ty.into(),
-		_ => tcx.lifetimes.re_erased.into(),
+/// The arguments of a trait object's method `def_id` of a trait with the arguments `tr`:
+/// those, then its own early-bound lifetimes, erased, which are all a dispatchable method
+/// takes.
+fn method_args<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, tr: GenericArgsRef<'tcx>) -> GenericArgsRef<'tcx> {
+	ty::GenericArgs::for_item(tcx, def_id, |param, _| match tr.get(param.index as usize) {
+		Some(&arg) => arg,
+		None => tcx.lifetimes.re_erased.into(),
 	})
+}
+
+/// The arguments of a trait object's method `def_id`, of a trait with the arguments `tr`
+/// over the object's trait's own parameters, at those of the trait object `object`, for
+/// `self_ty`.
+fn instance_args<'tcx>(
+	tcx: TyCtxt<'tcx>,
+	def_id: DefId,
+	tr: GenericArgsRef<'tcx>,
+	object: Ty<'tcx>,
+	self_ty: Ty<'tcx>,
+) -> GenericArgsRef<'tcx> {
+	let ty::Dynamic(preds, ..) = object.kind() else {
+		unreachable!("a trait object");
+	};
+	let principal = tcx.instantiate_bound_regions_with_erased(preds.principal().expect("an object's trait"));
+	let principal = principal.with_self_ty(tcx, self_ty).args;
+	let tr = ty::EarlyBinder::bind(tcx, tr)
+		.instantiate(tcx, principal)
+		.skip_norm_wip();
+	method_args(tcx, def_id, tr)
+}
+
+/// What the trait object `object` gives its object's type parameter `slot`.
+fn param_ty<'tcx>(tcx: TyCtxt<'tcx>, object: Ty<'tcx>, slot: Slot) -> Ty<'tcx> {
+	let ty::Dynamic(preds, ..) = object.kind() else {
+		unreachable!("a trait object");
+	};
+	match slot {
+		Slot::Arg(index) => {
+			let principal = tcx.instantiate_bound_regions_with_erased(preds.principal().expect("an object's trait"));
+			principal.args.type_at(index - 1)
+		}
+		Slot::Binding(def_id) => {
+			let bound = preds
+				.projection_bounds()
+				.find(|p| p.item_def_id() == def_id)
+				.expect("an object's binding");
+			tcx.instantiate_bound_regions_with_erased(bound).term.expect_type()
+		}
+	}
+}
+
+/// The type `args` gives the parameter named `name`.
+fn param(args: &[(String, Type)], name: &str) -> Option<Type> {
+	args.iter().find(|(n, _)| n == name).map(|(_, t)| t.clone())
+}
+
+/// Whether a value of the type `called` is one of `defined`, the same type but where
+/// `defined` has a form only an instance decides, which a cast reaches.
+fn fits(defined: &Type, called: &Type) -> bool {
+	let all = |a: &[Type], b: &[Type]| a.len() == b.len() && a.iter().zip(b).all(|(a, b)| fits(a, b));
+	match (defined, called) {
+		_ if defined == called || super::instanced(defined) => true,
+		// The `()` a declared method returns as `void`.
+		(Type::Builtin("undefined"), Type::Builtin("void")) => true,
+		// What an `rs.OptionOf` or `rs.PollOf` resolves to at the called type's argument.
+		(Type::Rs("OptionOf", x), Type::Union(y)) => match (&x[..], &y[..]) {
+			([x], [some, none]) => {
+				fits(x, some)
+					&& *none
+						== match super::holds_undefined(some) {
+							true => Type::Rs("None", vec![]),
+							false => Type::Builtin("undefined"),
+						}
+			}
+			_ => false,
+		},
+		(Type::Rs("PollOf", x), called) => match (&x[..], called) {
+			([x], Type::Rs("Poll", y)) => matches!(&y[..], [ready] if fits(x, ready) && !super::holds_pending(ready)),
+			([x], Type::Union(y)) => matches!(&y[..], [ready, pending]
+				if fits(x, ready) && super::holds_pending(ready) && *pending == Type::Rs("OuterPending", vec![])),
+			_ => false,
+		},
+		(Type::Rs(a, x), Type::Rs(b, y)) => a == b && all(x, y),
+		(Type::Sym(a, x), Type::Sym(b, y)) => a == b && all(x, y),
+		(Type::Union(x), Type::Union(y)) | (Type::Tuple(x), Type::Tuple(y)) => all(x, y),
+		(Type::Array(x), Type::Array(y)) => fits(x, y),
+		(Type::Func(x, r), Type::Func(y, s)) => all(x, y) && fits(r, s),
+		(Type::Object(x), Type::Object(y)) => {
+			x.len() == y.len() && x.iter().zip(y).all(|((m, a), (n, b))| m == n && fits(a, b))
+		}
+		_ => false,
+	}
+}
+
+/// Replaces each projection of `Self`'s associated type in `bound` with its parameter.
+struct Bindings<'a, 'tcx> {
+	tcx: TyCtxt<'tcx>,
+	bound: &'a [(DefId, Ty<'tcx>)],
+}
+
+impl<'tcx> TypeFolder<TyCtxt<'tcx>> for Bindings<'_, 'tcx> {
+	fn cx(&self) -> TyCtxt<'tcx> {
+		self.tcx
+	}
+
+	fn fold_ty(&mut self, t: Ty<'tcx>) -> Ty<'tcx> {
+		if let ty::Alias(_, alias) = t.kind()
+			&& let Some(def_id) = alias.kind.try_to_projection()
+			&& alias.self_ty().is_param(0)
+			&& let Some(&(_, param)) = self.bound.iter().find(|(d, _)| *d == def_id)
+		{
+			return param;
+		}
+		t.super_fold_with(self)
+	}
 }
 
 impl<'tcx> Body<'_, '_, 'tcx> {
 	/// A call of the trait method `def_id` on a trait object, `args[0]`, through the method
 	/// its object has.
 	pub fn virtual_call(&mut self, def_id: DefId, object: Ty<'tcx>, mut args: Vec<Expr>, span: Span) -> Expr {
+		let object = self.t.tcx.erase_and_anonymize_regions(object);
 		if self.t.object(object, span).is_none() {
 			return Expr::undefined();
 		}
 		let principal = principal(object).expect("an object's trait");
 		let methods = &self.t.objects[&principal].methods;
 		let Some(index) = methods.iter().position(|m| m.def_id == def_id) else {
-			let tcx = self.t.tcx;
-			if tcx.trait_of_assoc(def_id).is_some_and(|tr| is_any(tcx, tr)) {
-				let msg = format!(
-					"`{}` of `{object}`, which is not supported yet",
-					tcx.def_path_str(def_id)
-				);
-				return self.err(span, msg);
-			}
 			return self.err(
 				span,
 				format!("`{}` is not a method of `{object}`", self.t.tcx.def_path_str(def_id)),
 			);
 		};
 		let name = methods[index].name.clone();
-		self.t.hold(principal, index, object, span);
+		let generic = !self.t.objects[&principal].params.is_empty();
+		self.t.hold(principal, index, span);
+		// Called, an object a TS caller made too.
+		self.t.check_object(principal, object, span);
 		let receiver = args.remove(0);
-		receiver.member(name).call(args)
+		if !generic {
+			return receiver.member(name).call(args);
+		}
+		// What it takes and returns at the object's arguments, where its type has a form
+		// only they decide, which a function it takes takes too.
+		let object_args = self.t.object_args(principal, object, span);
+		let Some(Type::Func(params, defined)) = self.t.objects[&principal].methods[index].ty.clone() else {
+			unreachable!("a held method's type");
+		};
+		let Type::Func(taken, called) = self.t.called_ty(principal, index, object, span) else {
+			unreachable!("a method's type");
+		};
+		let args = (args.into_iter().zip(params.iter().zip(&taken)))
+			.map(
+				|(arg, (defined, taken))| match defined.subst(&|p| param(&object_args, p)) {
+					defined if defined != *taken => Expr::As(Box::new(arg), defined),
+					_ => arg,
+				},
+			)
+			.collect();
+		let call = receiver.member(name).call(args);
+		let defined = defined.subst(&|p| param(&object_args, p));
+		// A `()` the object's type returns as `undefined` is the `void` the call is.
+		match defined == *called || (defined, &*called) == (Type::Builtin("undefined"), &Type::Builtin("void")) {
+			true => call,
+			false => Expr::As(Box::new(call), *called),
+		}
 	}
 
 	/// `value`, a `&T`, `&mut T`, or `Box<T>`, unsized to `to`, the same pointer to a trait
@@ -603,9 +952,9 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 			let view = self.tail_object(value, pointee, object, from.is_box(), span);
 			return view.unwrap_or_else(|| unsupported(self));
 		}
-		// A box holds one as a `Uint8Array` and a reference as an `rs.ByteSlice`, which one
+		// A box holds an array as a JS array and a reference as an `rs.Slice` of it, which one
 		// class's methods can't both take.
-		if super::byte_array(pointee) {
+		if pointee.is_array() {
 			return self.err(
 				span,
 				format!("a trait object of `{pointee}`, which is not supported yet"),
@@ -636,7 +985,10 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 		// An upcast, from a trait object, which has its supertraits' methods already, and is
 		// of the class of its value's own type that a downcast checks for.
 		if pointee.is_trait() {
-			return value;
+			return match self.t.upcast_retypes(pointee, object) {
+				true => Expr::As(Box::new(value), self.t.ty(to, span)),
+				false => value,
+			};
 		}
 		// A census over type parameters can't make the class: only an instance decides
 		// what the pointee is.
@@ -855,6 +1207,10 @@ pub fn call<'tcx>(
 	out: &mut Vec<Stmt>,
 ) -> Result<Option<Expr>, Vec<Expr>> {
 	let tcx = b.t.tcx;
+	// `TypeId::of`, and `Any::type_id` of a type's own impl, which a trait object's class calls.
+	if let ("TypeId", "of") | ("Any", "type_id") = (owner, name) {
+		return Ok(Some(b.t.type_id(call.args.type_at(0))));
+	}
 	if !matches!(
 		(owner, name),
 		("dyn Any" | "dyn Error", "is" | "downcast_ref" | "downcast_mut")

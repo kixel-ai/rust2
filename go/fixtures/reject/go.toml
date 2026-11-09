@@ -1,2 +1,0 @@
-package = "reject"
-roots = ["missing", "generic", "wide", "dropped", "dynamic", "unioned", "owned", "float", "capacity", "linked", "compared", "ordered", "aliased"]

@@ -2342,8 +2342,7 @@ pub fn btree_extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			let mut it = map.extract_if(Logged(0xa00 | lo / 4, &log)..Logged(0xa00 | hi / 4, &log), |_, _| false);
 			out.push(it.next().is_none() as u8);
 			drop(it);
-			// In key order, which std's drop of a whole tree does not keep, node by node.
-			map.into_iter().for_each(drop);
+			drop(map);
 			// A range of its own reads its start once, of a map with a root, and its end at each key.
 			let mut bytes: BTreeMap<u16, u8> = BTreeMap::new();
 			let window = |lo, hi| Window { lo, hi, log: &log };
@@ -2359,4 +2358,505 @@ pub fn btree_extracts(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			out.extend(log.take().iter().flat_map(|e| e.to_be_bytes()));
 		}
 	}
+}
+
+/// A B-tree key that logs each comparison std makes of it, in order: `cmp` and `eq` by its
+/// low 10 bits, `le` and `gt` alike, but `lt`, which a set's `collect` sorts by, by those
+/// bits with the low 2 flipped, and `ne`, which `collect` drops all but the last of a run of
+/// equal keys by, by all 16. A collected tree is then out of `cmp`'s order, or holds keys
+/// `cmp` finds equal.
+#[derive(Clone, Copy)]
+struct Probe<'a>(u16, &'a std::cell::Cell<u32>);
+
+impl Probe<'_> {
+	fn log(&self, other: &Self, by: u32) {
+		let call = u32::from(self.0) << 16 ^ u32::from(other.0) ^ by;
+		self.1.set(self.1.get().wrapping_mul(0x01000193).wrapping_add(call));
+	}
+
+	fn low(&self) -> u16 {
+		self.0 & 0x3ff
+	}
+}
+
+impl PartialEq for Probe<'_> {
+	fn eq(&self, other: &Self) -> bool {
+		self.log(other, 0x100);
+		self.low() == other.low()
+	}
+
+	fn ne(&self, other: &Self) -> bool {
+		self.log(other, 0x200);
+		self.0 != other.0
+	}
+}
+
+impl Eq for Probe<'_> {}
+
+impl PartialOrd for Probe<'_> {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		self.log(other, 0x300);
+		Some(self.low().cmp(&other.low()))
+	}
+
+	fn lt(&self, other: &Self) -> bool {
+		self.log(other, 0x400);
+		self.low() ^ 3 < other.low() ^ 3
+	}
+
+	fn le(&self, other: &Self) -> bool {
+		self.log(other, 0x500);
+		self.low() <= other.low()
+	}
+
+	fn gt(&self, other: &Self) -> bool {
+		self.log(other, 0x600);
+		self.low() > other.low()
+	}
+}
+
+impl Ord for Probe<'_> {
+	fn cmp(&self, other: &Self) -> Ordering {
+		self.log(other, 0x800);
+		self.low().cmp(&other.low())
+	}
+}
+
+/// std's B-tree compares keys only as it searches its nodes, each from its first key on,
+/// which `Probe` logs: of maps and sets grown by inserts that split nodes at every height,
+/// then searched, removed from until nodes merge and take from their siblings, extended,
+/// entered, ranged, popped, split, cloned, extracted from, and retained, and of the set
+/// operations that search, of sets of sizes that make std look keys up rather than merge.
+/// Then of a set and map `collect` leaves out of `cmp`'s order, which std searches as is.
+/// Each answer is followed by the log.
+pub fn btree_searches(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let log = std::cell::Cell::new(0u32);
+	let at = |i: usize| data.get(i).copied().unwrap_or(0);
+	let put = |out: &mut Vec<u8>, answer: u16| {
+		out.extend(answer.to_le_bytes());
+		out.extend(log.replace(0).to_le_bytes());
+	};
+	// Distinct keys spread over 0..1024 by an odd stride, so each lands anywhere in the tree.
+	let n = usize::from(at(0)) + 1;
+	let stride = usize::from(at(1)) * 2 + 1;
+	let key = |i: usize| Probe((i * stride + usize::from(at(2))) as u16 & 0x3ff, &log);
+	let probe = |b: u8| Probe(u16::from(b) * 4 + u16::from(b >> 6), &log);
+	let some = |v: Option<&u16>| v.map_or(0xffff, |v| *v);
+	match kind % 4 {
+		0 => {
+			let mut map: BTreeMap<Probe, u16> = BTreeMap::new();
+			for i in 0..n {
+				let old = map.insert(key(i), i as u16);
+				put(out, old.unwrap_or(0xffff));
+			}
+			for &b in &data[data.len().min(3)..] {
+				put(out, some(map.get(&probe(b))));
+				put(out, map.contains_key(&key(usize::from(b))) as u16);
+				put(out, map.remove(&key(usize::from(b) * 3)).unwrap_or(0xffff));
+				*map.entry(probe(b)).or_insert(7) += 1;
+				put(out, map.len() as u16);
+			}
+			map.extend((0..n / 2).map(|i| (key(i * 5), i as u16)));
+			put(out, map.len() as u16);
+			let (lo, hi) = (probe(at(3)), probe(at(4)));
+			let (lo, hi) = if lo.low() <= hi.low() { (lo, hi) } else { (hi, lo) };
+			let mut range = match at(5) % 3 {
+				0 => map.range(lo..hi),
+				1 => map.range(lo..=hi),
+				_ => map.range((Bound::Excluded(lo), Bound::Unbounded)),
+			};
+			while let Some((k, _)) = if at(6) % 2 == 0 {
+				range.next()
+			} else {
+				range.next_back()
+			} {
+				put(out, k.0);
+			}
+			put(out, map.pop_first().map_or(0xffff, |(k, _)| k.0));
+			put(out, map.pop_last().map_or(0xffff, |(k, _)| k.0));
+			let copy = map.clone();
+			put(out, some(copy.get(&probe(at(7)))));
+			let mut right = map.split_off(&probe(at(8)));
+			put(out, (map.len() * 1000 + right.len()) as u16);
+			put(out, some(right.get(&probe(at(9)))));
+			let taken = right
+				.extract_if(probe(at(10))..probe(at(11)), |k, _| k.0 % 3 == 0)
+				.count();
+			put(out, taken as u16);
+			map.retain(|k, _| k.0 % 4 != 0);
+			put(out, map.len() as u16);
+			for i in (0..n).step_by(3) {
+				put(out, map.remove(&key(i)).unwrap_or(0xffff));
+			}
+			put(out, map.len() as u16);
+		}
+		1 => {
+			// One set at least 16 times the other's size, which std looks each key of up.
+			let large: BTreeSet<Probe> = (0..n).map(key).collect();
+			let mut small: BTreeSet<Probe> = BTreeSet::new();
+			for &b in data {
+				put(out, small.insert(probe(b)) as u16);
+			}
+			for (x, y) in [(&small, &large), (&large, &small)] {
+				put(out, x.intersection(y).count() as u16);
+				put(out, x.difference(y).count() as u16);
+				put(out, x.union(y).count() as u16);
+				put(out, x.symmetric_difference(y).count() as u16);
+				put(out, x.is_subset(y) as u16);
+				put(out, x.is_disjoint(y) as u16);
+			}
+			put(out, (&small & &large).len() as u16);
+			for &b in data {
+				put(out, large.contains(&probe(b)) as u16);
+				put(out, large.get(&key(usize::from(b))).map_or(0xffff, |k| k.0));
+			}
+		}
+		2 => {
+			// Sorted by `lt` and deduplicated by `ne`, out of `cmp`'s order.
+			let mut set: BTreeSet<Probe> = data.iter().map(|&b| probe(b)).chain((0..n).map(key)).collect();
+			put(out, set.len() as u16);
+			for &b in data {
+				put(out, set.contains(&probe(b)) as u16);
+				put(out, set.get(&key(usize::from(b))).map_or(0xffff, |k| k.0));
+			}
+			let (lo, hi) = (probe(at(3)), probe(at(4)));
+			let (lo, hi) = if lo.low() <= hi.low() { (lo, hi) } else { (hi, lo) };
+			for k in set.range(lo..=hi) {
+				put(out, k.0);
+			}
+			let sorted: BTreeSet<Probe> = (0..n).map(key).collect();
+			put(out, set.intersection(&sorted).count() as u16);
+			put(out, set.difference(&sorted).count() as u16);
+			put(out, set.is_subset(&sorted) as u16);
+			for &b in data {
+				put(out, set.insert(probe(b ^ 0x55)) as u16);
+				put(out, set.remove(&probe(b)) as u16);
+			}
+			put(out, set.replace(probe(at(5))).map_or(0xffff, |k| k.0));
+			put(out, set.take(&probe(at(6))).map_or(0xffff, |k| k.0));
+			put(out, set.iter().map(|k| k.0).fold(0, u16::wrapping_add));
+		}
+		_ => {
+			// Sorted by `cmp`, but keys it finds equal stay where `ne` tells them apart.
+			let mut map: BTreeMap<Probe, u16> = data
+				.iter()
+				.map(|&b| (Probe(u16::from(b) << 8 | u16::from(b & 7), &log), u16::from(b)))
+				.collect();
+			put(out, map.len() as u16);
+			for &b in data {
+				put(out, some(map.get(&Probe(u16::from(b & 7), &log))));
+				put(out, map.remove(&Probe(u16::from(b) & 7, &log)).unwrap_or(0xffff));
+			}
+			put(out, map.len() as u16);
+		}
+	}
+}
+
+/// A B-tree key ordered by its `start`, which lends its `end`, as rangemap's start wrapper
+/// lends its end wrapper, and its `id`, a form of std's.
+struct Lent<'a> {
+	start: Probe<'a>,
+	end: Probe<'a>,
+	id: u16,
+}
+
+impl PartialEq for Lent<'_> {
+	fn eq(&self, other: &Self) -> bool {
+		self.start == other.start
+	}
+}
+
+impl Eq for Lent<'_> {}
+
+impl PartialOrd for Lent<'_> {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		Some(self.cmp(other))
+	}
+}
+
+impl Ord for Lent<'_> {
+	fn cmp(&self, other: &Self) -> Ordering {
+		self.start.cmp(&other.start)
+	}
+}
+
+impl<'a> std::borrow::Borrow<Probe<'a>> for Lent<'a> {
+	fn borrow(&self) -> &Probe<'a> {
+		&self.end
+	}
+}
+
+impl std::borrow::Borrow<u16> for Lent<'_> {
+	fn borrow(&self) -> &u16 {
+		&self.id
+	}
+}
+
+/// std's B-tree searched by a form its keys lend by the crate's own `Borrow`, which it
+/// orders by that form's `Ord` against what each key lends, as `Probe` logs: of a map and a
+/// set whose keys' ends and ids rise with their starts, or of odd `kind`s fall, so a search
+/// by one disagrees with the tree's order. Each answer is followed by the log.
+pub fn btree_borrows(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let log = std::cell::Cell::new(0u32);
+	let at = |i: usize| data.get(i).copied().unwrap_or(0);
+	let put = |out: &mut Vec<u8>, answer: u16| {
+		out.extend(answer.to_le_bytes());
+		out.extend(log.replace(0).to_le_bytes());
+	};
+	let n = usize::from(at(0)) + 1;
+	let falls = kind % 2 == 1;
+	let lent = |i: usize| {
+		let start = (i * 7) as u16 & 0x3ff;
+		let end = if falls { 0x3ff - start } else { start + 3 };
+		Lent {
+			start: Probe(start, &log),
+			end: Probe(end, &log),
+			id: end ^ 0x100,
+		}
+	};
+	let probe = |b: u8| Probe(u16::from(b) * 4 + u16::from(b >> 6), &log);
+	let id = |b: u8| (u16::from(b) * 4) ^ 0x100;
+	let some = |v: Option<&u16>| v.map_or(0xffff, |v| *v);
+	let mut map: BTreeMap<Lent, u16> = BTreeMap::new();
+	let mut set: BTreeSet<Lent> = BTreeSet::new();
+	for i in 0..n {
+		map.insert(lent(i), i as u16);
+		set.insert(lent(i * 2));
+	}
+	put(out, map.len() as u16);
+	for &b in &data[data.len().min(4)..] {
+		put(out, some(map.get(&probe(b))));
+		put(out, some(map.get(&id(b))));
+		if let Some(v) = map.get_mut(&probe(b ^ 1)) {
+			*v += 1;
+		}
+		put(out, map.get_key_value(&probe(b)).map_or(0xffff, |(k, v)| k.start.0 ^ v));
+		put(out, map.contains_key(&id(b ^ 2)) as u16);
+		if map.contains_key(&probe(b)) {
+			put(out, map[&probe(b)]);
+		}
+		put(out, set.contains(&probe(b)) as u16);
+		put(out, set.get(&id(b)).map_or(0xffff, |k| k.start.0));
+		match b % 5 {
+			0 => put(out, map.remove(&probe(b)).unwrap_or(0xffff)),
+			1 => put(out, map.remove_entry(&id(b)).map_or(0xffff, |(k, v)| k.id ^ v)),
+			2 => put(out, set.remove(&probe(b)) as u16),
+			3 => put(out, set.take(&id(b)).map_or(0xffff, |k| k.id)),
+			_ => put(out, map.len() as u16),
+		}
+	}
+	// Backwards with `kind` 2, which std's checks by the form's `gt` and panics on.
+	let (lo, hi) = match kind % 4 < 2 {
+		true => (at(1).min(at(2)), at(1).max(at(2))),
+		false => (at(1), at(2)),
+	};
+	let ranges: [(Bound<Probe>, Bound<Probe>); 4] = [
+		(Bound::Excluded(probe(lo)), Bound::Unbounded),
+		(Bound::Included(probe(lo)), Bound::Excluded(probe(hi))),
+		(Bound::Unbounded, Bound::Included(probe(hi))),
+		(Bound::Excluded(probe(lo)), Bound::Included(probe(hi))),
+	];
+	for range in ranges {
+		for (k, v) in map.range::<Probe, _>(range) {
+			put(out, k.start.0 ^ v);
+		}
+	}
+	// rangemap's form: a bound of a reference.
+	let sliver = probe(lo);
+	for (k, v) in map.range::<Probe, (Bound<&Probe>, Bound<_>)>((Bound::Excluded(&sliver), Bound::Unbounded)) {
+		put(out, k.start.0 ^ v);
+	}
+	for (_, v) in map.range_mut::<u16, _>(id(lo)..=id(hi)) {
+		*v ^= 0x55;
+	}
+	for k in set.range::<u16, _>(id(lo)..id(hi)) {
+		put(out, k.id);
+	}
+	for k in set.range::<Probe, _>(..probe(hi)).rev() {
+		put(out, k.start.0);
+	}
+	let right = map.split_off(&probe(at(3)));
+	put(out, (map.len() * 1000 + right.len()) as u16);
+	let high = set.split_off(&id(at(3)));
+	put(out, (set.len() * 1000 + high.len()) as u16);
+	put(out, right.values().fold(0, |a, v| a ^ v));
+}
+
+/// A B-tree value, or a set's key, that logs its tag as it drops, ordered by it. A clone's
+/// tag is 1000 past the original's.
+struct Tagged<'a>(u16, &'a std::cell::RefCell<Vec<u16>>);
+
+impl Drop for Tagged<'_> {
+	fn drop(&mut self) {
+		self.1.borrow_mut().push(self.0);
+	}
+}
+
+impl Clone for Tagged<'_> {
+	fn clone(&self) -> Self {
+		Tagged(self.0 + 1000, self.1)
+	}
+}
+
+impl PartialEq for Tagged<'_> {
+	fn eq(&self, other: &Self) -> bool {
+		self.0 == other.0
+	}
+}
+
+impl Eq for Tagged<'_> {}
+
+impl PartialOrd for Tagged<'_> {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+		Some(self.cmp(other))
+	}
+}
+
+impl Ord for Tagged<'_> {
+	fn cmp(&self, other: &Self) -> Ordering {
+		self.0.cmp(&other.0)
+	}
+}
+
+/// Whole B-trees whose entries log as they drop, which std drops node by node, each node's
+/// entries in order after its children's: maps built by random, ascending, and descending
+/// inserts and by `collect`, emptied in part by removals that merge nodes, cleared, assigned
+/// over, retained, split, cloned, and nested, sets, and `IntoIter`, which drops what it still
+/// holds in key order. The first byte sets how many entries, up to 297 so trees reach height
+/// 2, and the rest seed the keys. Each drop is logged, with a mark between the steps.
+pub fn btree_drops(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let log = std::cell::RefCell::new(Vec::new());
+	let tag = |k: u16| Tagged(k, &log);
+	let mark = |m: u16| log.borrow_mut().push(0xf000 | m);
+	let n = u16::from(data.first().copied().unwrap_or(0)) * 7 / 6;
+	// xorshift32, seeded by the input, so a short input scripts a tree of hundreds of entries.
+	let mut state = data
+		.iter()
+		.fold(0x9e37_79b9u32, |s, &b| s.rotate_left(5) ^ u32::from(b))
+		| 1;
+	// Keys apart enough that a random script repeats some.
+	let mut key = || {
+		state ^= state << 13;
+		state ^= state >> 17;
+		state ^= state << 5;
+		(state % 400) as u16
+	};
+	let mut random = |count: u16| {
+		let mut map = BTreeMap::new();
+		for _ in 0..count {
+			let k = key();
+			map.insert(k, tag(k));
+		}
+		map
+	};
+	match kind % 10 {
+		// By random inserts, whose replaced values drop as they go.
+		0 => {
+			let map = random(n);
+			mark(0);
+			drop(map);
+		}
+		// In ascending order, then descending, which leave nodes of other sizes.
+		1 => {
+			drop((0..n).fold(BTreeMap::new(), |mut map, k| {
+				map.insert(k, tag(k));
+				map
+			}));
+			mark(0);
+			drop((0..n).rev().fold(BTreeMap::new(), |mut map, k| {
+				map.insert(k, tag(k));
+				map
+			}));
+		}
+		// By `collect`, std's bulk build from sorted entries, whose repeats drop as it builds.
+		2 => {
+			let keys: Vec<u16> = (0..n).map(|_| key()).collect();
+			let map: BTreeMap<u16, Tagged> = keys.into_iter().map(|k| (k, tag(k))).collect();
+			mark(0);
+			drop(map);
+		}
+		// Removals after random inserts, which steal from and merge nodes, then pops.
+		3 => {
+			let mut map = random(n);
+			for _ in 0..n {
+				let k = key();
+				if k % 3 != 0 {
+					drop(map.remove(&k));
+				}
+			}
+			for _ in 0..n / 8 {
+				drop(map.pop_first());
+				drop(map.pop_last());
+			}
+			mark(0);
+			drop(map);
+		}
+		// A set, by inserts and removals.
+		4 => {
+			let mut set = BTreeSet::new();
+			for _ in 0..n {
+				set.insert(tag(key()));
+			}
+			for _ in 0..n / 2 {
+				set.remove(&tag(key()));
+			}
+			mark(0);
+			drop(set);
+		}
+		// Maps of maps, each of which drops its own nodes as its outer entry drops.
+		5 => {
+			let mut map: BTreeMap<u16, BTreeMap<u16, Tagged>> = BTreeMap::new();
+			for _ in 0..n {
+				let (k, j) = (key() % 24, key());
+				map.entry(k).or_default().insert(j, tag(j));
+			}
+			mark(0);
+			drop(map);
+		}
+		// `IntoIter`, read from both ends, drops what it still holds in key order.
+		6 => {
+			let mut iter = random(n).into_iter();
+			for _ in 0..data.len() {
+				drop(iter.next());
+				drop(iter.next_back());
+			}
+			mark(0);
+			drop(iter);
+		}
+		// `clear`, and a map assigned over.
+		7 => {
+			let mut map = random(n);
+			mark(0);
+			map.clear();
+			mark(1);
+			for k in 0..n {
+				map.insert(k, tag(k));
+			}
+			map = BTreeMap::new();
+			mark(map.len() as u16);
+		}
+		// `retain`, and a map split in two, each of which drops as its nodes are.
+		8 => {
+			let mut map = random(n);
+			map.retain(|k, _| k % 5 != 0);
+			mark(0);
+			let high = map.split_off(&200);
+			drop(map);
+			mark(1);
+			drop(high);
+		}
+		// A clone, which std builds node for node as the original.
+		_ => {
+			let mut map = random(n);
+			for _ in 0..n / 2 {
+				drop(map.remove(&key()));
+			}
+			mark(0);
+			let copy = map.clone();
+			drop(map);
+			mark(1);
+			drop(copy);
+		}
+	}
+	out.extend(log.take().iter().flat_map(|e| e.to_be_bytes()));
 }

@@ -154,8 +154,8 @@ fn parse_budget(value: &str) -> Result<u64, String> {
 }
 
 /// Compile with the `rust2` tool and cfg, and lint the crate.
-fn job(args: &mut Vec<String>) -> Result<Option<rustc::Job>, String> {
-	args.extend(
+fn job(_: &[String], added: &mut Vec<String>) -> Result<Option<rustc::Job>, String> {
+	added.extend(
 		[
 			"--cfg=rust2",
 			"-Zcrate-attr=feature(register_tool)",

@@ -38,7 +38,7 @@ type sink interface{ writeStr(s []uint8) fmtResult }
 type byteSink struct{ buf *[]uint8 }
 
 func (b byteSink) writeStr(s []uint8) fmtResult {
-	*b.buf = append(*b.buf, s...)
+	bytesExtend(b.buf, s)
 	return fmtOk
 }
 

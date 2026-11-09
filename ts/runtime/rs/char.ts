@@ -4,10 +4,10 @@
 // Each reads std's own Unicode tables, which `rs/unicode.ts` holds, rather than the
 // engine's, whose Unicode version may differ from std's.
 
-import { type ByteSlice, type Debug, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugStructFields, fmtDebugTuple, fmtOption, fmtPad, fmtUnit, fmtWriteFmt, OK, Ok, type Place, panic, type Result, sliceView } from "../rs.ts";
-import { type char, type u8, type u16, u16Debug, u16LowerHex, type u32, type usize } from "./int.ts";
+import { type ByteSlice, type Debug, debugListEntry, debugListFinish, debugStructField, debugStructFinish, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtCharDebug, fmtDebugList, fmtDebugStruct, fmtDebugStructFields, fmtDebugTuple, fmtOption, fmtOwned, fmtPad, fmtSpec, fmtUnit, fmtWriteFmt, OK, Ok, type Place, panic, panicFmt, type Result, Slice } from "../rs.ts";
+import { type char, type u8, type u16, u16Debug, u16LowerHex, type u32, u32UpperHex, type usize, usizeDisplay } from "./int.ts";
 import { type Clones, DONE, type Done, Iter, iterFlatMap, iterHeld, type SizeHint } from "./iter.ts";
-import { strChars } from "./str.ts";
+import { type String as RsString, strChars, stringCased } from "./str.ts";
 import { drop as dispose } from "./task.ts";
 import { ALPHABETIC, CASE_IGNORABLE, LOWERCASE, NUMERIC, TITLECASE, TO_LOWERCASE, TO_LOWERCASE_MULTI, TO_UPPERCASE, TO_UPPERCASE_MULTI, UNPRINTABLE, UPPERCASE } from "./unicode.ts";
 import type { Location } from "./location.ts";
@@ -151,7 +151,7 @@ const toLowercase = /* @__PURE__ */ new CaseMap(TO_LOWERCASE, TO_LOWERCASE_MULTI
 const toUppercase = /* @__PURE__ */ new CaseMap(TO_UPPERCASE, TO_UPPERCASE_MULTI);
 
 /** `str::to_lowercase`: each char's, but a capital sigma's at the end of a word, which is final. */
-export function strToLowercase(s: string): string {
+export function strToLowercase(s: string): RsString {
 	let out = "";
 	for (let i = 0; i < s.length; ) {
 		const c = s.codePointAt(i) as char;
@@ -160,7 +160,7 @@ export function strToLowercase(s: string): string {
 		else out += String.fromCodePoint(...toLowercase.map(c));
 		i = end;
 	}
-	return out;
+	return stringCased(s, out);
 }
 
 /**
@@ -188,14 +188,14 @@ function isLowSurrogate(u: number): boolean {
 }
 
 /** `str::to_uppercase`: each char's. */
-export function strToUppercase(s: string): string {
+export function strToUppercase(s: string): RsString {
 	let out = "";
 	for (let i = 0; i < s.length; ) {
 		const c = s.codePointAt(i) as char;
 		out += String.fromCodePoint(...toUppercase.map(c));
 		i += c > 0xffff ? 2 : 1;
 	}
-	return out;
+	return stringCased(s, out);
 }
 
 /** The chars a case map or an escape still has, from either end, exactly sized. */
@@ -408,8 +408,8 @@ export function charLenUtf16(c: char): usize {
 
 /** std's panic for a buffer too short to encode `c` into, by `encode_utf8` or `encode_utf16`. */
 function tooShort(encoding: string, c: char, len: number, has: number): never {
-	const code = c.toString(16).toUpperCase().padStart(4, "0");
-	panic(`${encoding}: need ${len} bytes to encode U+${code} but buffer has just ${has}`, encoding, true);
+	const code = fmtSpec({ zero: true, width: 4 }, fmtOwned(c as u32, u32UpperHex));
+	panicFmt([`${encoding}: need `, fmtOwned(len as usize, usizeDisplay), " bytes to encode U+", code, " but buffer has just ", fmtOwned(has as usize, usizeDisplay)], encoding);
 }
 
 /** The `&mut str` `encode_utf8` returns: the bytes it wrote, which a write changes in place. */
@@ -440,12 +440,12 @@ export function charEncodeUtf8(c: char, dst: ByteSlice): Place<string> {
 }
 
 /** `char::encode_utf16`: its UTF-16 written to the front of `dst`, and a view of that part of it. */
-export function charEncodeUtf16(c: char, dst: u16[]): u16[] {
+export function charEncodeUtf16(c: char, dst: Slice<u16>): Slice<u16> {
 	const len = charLenUtf16(c);
 	if (dst.length < len) tooShort("encode_utf16", c, len, dst.length);
 	const s = String.fromCodePoint(c);
-	for (let i = 0; i < len; i++) dst[i] = s.charCodeAt(i) as u16;
-	return sliceView(dst, 0, len);
+	for (let i = 0; i < len; i++) dst.data[dst.start + i] = s.charCodeAt(i) as u16;
+	return new Slice(dst.data, dst.start, len);
 }
 
 /** `char::DecodeUtf16Error`: the surrogate that had no pair. */

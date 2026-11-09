@@ -1,6 +1,8 @@
 //! A part of the language the driver translates, exercised against native Rust: what
 //! each of its modules says.
 
+#![cfg_attr(feature = "hook", feature(nonzero_ops))]
+
 #[path = "../../harness.rs"]
 pub mod harness;
 #[cfg(feature = "hook")]
@@ -28,6 +30,7 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("located::called", located::called),
 		("located::read", located::read),
 		("located::panicked", located::panicked),
+		("edition2018::panicked", edition2018::panicked),
 	];
 	#[cfg(feature = "hook")]
 	let cases = (cases.into_iter())
@@ -36,6 +39,8 @@ fn cases() -> Vec<(&'static str, Case)> {
 			("hooked::aborted", hooked::aborted),
 			("hooked::sited", hooked::sited),
 			("hooked::stock", hooked::stock),
+			("hooked::edition2018_panicked", hooked::edition2018_panicked),
+			("hooked::tokio_stock", hooked::tokio_stock),
 		])
 		.collect();
 	cases

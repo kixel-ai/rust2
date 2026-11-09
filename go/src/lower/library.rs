@@ -14,7 +14,7 @@ use super::body::{Fx, int_bits};
 /// A library type Go holds as a type of its own.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Mapped {
-	/// `Vec<T>`: a Go slice, whose `append` grows it as std's does, by doubling.
+	/// `Vec<T>`: a Go slice, which the runtime grows as std's does, by doubling.
 	Vec,
 	/// `slice::Iter<T>`: the slice left.
 	SliceIter,
@@ -126,10 +126,12 @@ fn refused_in<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>, seen:
 	}
 }
 
-/// What a bound call is in Go: an expression assigned to the call's destination, or a
+/// What a bound call is in Go: an expression assigned to the call's destination, or the
+/// parts of a destination Go holds split, as an expression of as many values, or a
 /// statement.
 pub enum Bound {
 	Expr(String),
+	Parts(String),
 	Stmt(String),
 }
 
@@ -222,6 +224,8 @@ pub fn call_with<'tcx>(
 	}
 	let key = key(tcx, did);
 	let targ = |i: usize| instance.args.types().nth(i).expect("a binding's type argument");
+	// A `Vec<u8>`, whose storage the runtime owns while the translation holds it.
+	let bytes = || matches!(targ(0).kind(), ty::Uint(ty::UintTy::U8));
 	let dest = |fx: &mut Fx<'_, 'tcx>| fx.ty(dest_ty, span);
 	let expr = Bound::Expr;
 	let stmt = Bound::Stmt;
@@ -233,33 +237,39 @@ pub fn call_with<'tcx>(
 		"<alloc::boxed::Box>::new" => expr(format!("ptrTo({})", a[0])),
 		"alloc::boxed::box_assume_init_into_vec_unsafe" => expr(format!("(*{})[:]", a[0])),
 		"<alloc::vec::Vec>::new" => expr(format!("{}(nil)", dest(fx))),
+		"<alloc::vec::Vec>::with_capacity" if bytes() => expr(format!("bytesWithCapacity({})", a[0])),
 		"<alloc::vec::Vec>::with_capacity" => {
 			let size = tcx.layout_of(fx.t_env().as_query_input(targ(0))).ok()?.size.bytes();
 			expr(format!("vecWithCapacity[{}]({}, {size})", fx.ty(targ(0), span), a[0]))
 		}
-		"<alloc::vec::Vec>::push" => stmt(format!("*{0} = append(*{0}, {1})", a[0], a[1])),
+		"<alloc::vec::Vec>::push" if bytes() => stmt(format!("bytesPush({}, {})", a[0], a[1])),
+		"<alloc::vec::Vec>::push" => stmt(format!("vecPush({}, {})", a[0], a[1])),
 		"<alloc::vec::Vec>::pop" => expr(format!("vecPop({})", a[0])),
 		"<alloc::vec::Vec>::len" => expr(format!("uint(len(*{}))", a[0])),
 		"<alloc::vec::Vec>::capacity" => {
 			expr(fx.err(span, "`Vec::capacity`, which Go's growth would make differ from Rust's"))
 		}
 		"<alloc::vec::Vec>::is_empty" => expr(format!("len(*{}) == 0", a[0])),
+		"<alloc::vec::Vec>::truncate" if bytes() => stmt(format!("bytesTruncate({}, {})", a[0], a[1])),
 		"<alloc::vec::Vec>::truncate" => {
 			fx_drop_check(fx, targ(0), span);
 			stmt(format!("vecTruncate({}, {})", a[0], a[1]))
 		}
+		"<alloc::vec::Vec>::clear" if bytes() => stmt(format!("*{0} = (*{0})[:0]", a[0])),
 		"<alloc::vec::Vec>::clear" => {
 			fx_drop_check(fx, targ(0), span);
-			stmt(format!("*{0} = (*{0})[:0]", a[0]))
+			stmt(format!("vecTruncate({}, 0)", a[0]))
 		}
+		"<alloc::vec::Vec>::extend_from_slice" if bytes() => stmt(format!("bytesExtend({}, {})", a[0], a[1])),
 		"<alloc::vec::Vec>::extend_from_slice" => {
 			copy_check(fx, targ(0), span);
-			stmt(format!("*{0} = append(*{0}, {1}...)", a[0], a[1]))
+			stmt(format!("vecExtend({}, {})", a[0], a[1]))
 		}
 		"<alloc::vec::Vec>::as_slice"
 		| "<alloc::vec::Vec>::as_mut_slice"
 		| "<alloc::vec::Vec as core::ops::deref::Deref>::deref"
 		| "<alloc::vec::Vec as core::ops::deref::DerefMut>::deref_mut" => expr(format!("*{}", a[0])),
+		"<alloc::vec::Vec as core::clone::Clone>::clone" if bytes() => expr(format!("bytesClone(*{})", a[0])),
 		"<alloc::vec::Vec as core::clone::Clone>::clone" => {
 			copy_check(fx, targ(0), span);
 			expr(format!("append({}(nil), (*{})...)", dest(fx), a[0]))
@@ -269,11 +279,17 @@ pub fn call_with<'tcx>(
 		"<[T]>::split_first_chunk" | "<[T]>::split_first_chunk_mut" => {
 			let n = instance.args.consts().next().and_then(|c| c.try_to_target_usize(tcx))?;
 			let elem = fx.ty(targ(0), span);
-			let d = dest(fx);
-			expr(format!(
-				"func() {d} {{ if len({0}) < {n} {{ return {d}{{}} }}; return {d}{{tag: 1, Some: struct{{ F0 tuple2[*[{n}]{elem}, []{elem}] }}{{tuple2[*[{n}]{elem}, []{elem}]{{(*[{n}]{elem})({0}[:{n}]), {0}[{n}:]}}}}}} }}()",
+			let some = format!(
+				"tuple2[*[{n}]{elem}, []{elem}]{{(*[{n}]{elem})({0}[:{n}]), {0}[{n}:]}}",
 				a[0]
-			))
+			);
+			let none = fx.variant(dest_ty, 0, &[], span);
+			let some = fx.variant(dest_ty, 1, &[some], span);
+			fx.returning(
+				dest_ty,
+				format!("if len({}) < {n} {{ return {none} }}; return {some}", a[0]),
+				span,
+			)
 		}
 		"<core::fmt::Formatter>::debug_lower_hex" => expr(format!("{}.flags&flagDebugLowerHex != 0", a[0])),
 		"<core::fmt::Formatter>::debug_upper_hex" => expr(format!("{}.flags&flagDebugUpperHex != 0", a[0])),
@@ -297,6 +313,7 @@ pub fn call_with<'tcx>(
 		"<core::slice::iter::Iter as core::iter::traits::iterator::Iterator>::next" => {
 			expr(format!("sliceIterNext({})", a[0]))
 		}
+		"<[T]>::to_vec" if bytes() => expr(format!("bytesClone({})", a[0])),
 		"<[T]>::to_vec" => {
 			copy_check(fx, targ(0), span);
 			expr(format!("append({}(nil), {}...)", dest(fx), a[0]))
@@ -313,7 +330,7 @@ pub fn call_with<'tcx>(
 			let range = instance.args.type_at(1);
 			match range.kind() {
 				ty::Adt(adt, _) if super::library::path(tcx, adt.did()) == "core::ops::range::Range" => stmt(format!(
-					"sliceCopyWithin({0}, {1}.start, {1}.end, {2})",
+					"sliceCopyWithin({0}, {1}.Start, {1}.End, {2})",
 					a[0], a[1], a[2]
 				)),
 				_ => {
@@ -324,13 +341,18 @@ pub fn call_with<'tcx>(
 		}
 
 		"core::str::converts::from_utf8" => {
-			let r = dest(fx);
 			let ty::Adt(_, rargs) = dest_ty.kind() else { return None };
 			let e = fx.ty(rargs.type_at(1), span);
-			expr(format!(
-				"func() {r} {{ if n, l, ok := utf8Check({0}); !ok {{ return {r}{{tag: 1, Err: struct{{ F0 {e} }}{{{e}{{valid_up_to: n, error_len: l}}}}}} }}; return {r}{{tag: 0, Ok: struct{{ F0 []uint8 }}{{{0}}}}} }}()",
-				a[0]
-			))
+			let err = fx.variant(dest_ty, 1, &[format!("{e}{{valid_up_to: n, error_len: l}}")], span);
+			let ok = fx.variant(dest_ty, 0, &[a[0].clone()], span);
+			fx.returning(
+				dest_ty,
+				format!(
+					"if n, l, ok := utf8Check({}); !ok {{ return {err} }}; return {ok}",
+					a[0]
+				),
+				span,
+			)
 		}
 
 		"<core::fmt::Arguments>::new" => expr(format!("Arguments{{template: {}[:], args: {}[:]}}", a[0], a[1])),
@@ -496,7 +518,7 @@ pub fn fmt_call<'tcx>(fx: &mut Fx<'_, 'tcx>, name: &str, ty: Ty<'tcx>, value: &s
 		span,
 	) {
 		Some(Bound::Expr(e)) => e,
-		Some(Bound::Stmt(_)) => return None,
+		Some(Bound::Parts(_) | Bound::Stmt(_)) => return None,
 		None => format!("{}({value}, f)", fx.t.func(instance, span)),
 	};
 	Some(format!("func(f *Formatter) fmtResult {{ return {body} }}"))
@@ -621,6 +643,14 @@ fn intrinsic<'tcx>(
 					return None;
 				}
 			};
+			// Called with its arguments and result whole.
+			if tys.iter().chain([dest_ty]).any(|t| fx.t.split(t, span).is_some()) {
+				fx.err(
+					span,
+					"`const_eval_select` of a function taking or returning an enum of over four words",
+				);
+				return None;
+			}
 			let name = fx.t.func(instance, span);
 			let fields: Vec<String> = (0..tys.len()).map(|i| format!("{}.F{i}", a[0])).collect();
 			let call = format!("{name}({})", fields.join(", "));

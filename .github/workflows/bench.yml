@@ -117,8 +117,6 @@ jobs:
             args: --corpus moq --variant nightly --variant jobs-frontend --variant cranelift --variant cache-proc-macros --variant nightly-control
           - name: moq ra-jit
             args: --corpus moq --variant ra-jit-baseline --variant ra-jit --no-attribute
-          - name: moq pure-crypto
-            args: --corpus moq --corpus moq-pure-crypto --variant baseline
           - name: pure
             args: --corpus regex --corpus wasmparser
 

@@ -1,10 +1,13 @@
-//! Copies of `Copy` aggregates, by their type.
+//! Copies of `Copy` aggregates, and of values a read through a pointer moves out, by
+//! their type.
 //!
 //! JS shares an object where Rust copies its value, so a `Copy` value that is a JS object
 //! the crate's code writes into in place, or compares pointers to, is copied where Rust
-//! copies it. A function made for its type copies what it holds by value and shares what
-//! it holds by reference, as Rust does. A value of a type nothing writes into or compares
-//! pointers to never changes once made, so sharing it is a copy no one can tell apart.
+//! copies it, as is each such object a read through a pointer moves out, a library
+//! object such as a `RefCell` included, one object deep. A function made for its type copies
+//! what it holds by value and shares what it holds by reference, as Rust does. A value of
+//! a type nothing writes into or compares pointers to never changes once made, so sharing
+//! it is a copy no one can tell apart.
 
 use std::cell::RefCell;
 
@@ -25,6 +28,16 @@ use super::mir::holders::{Filled, Holds, Trace};
 use super::{AdtRepr, Translator, field_name, names};
 use crate::program::{SymKind, Symbol};
 use crate::ts::{self, Expr, Key, Param, Stmt, StmtKind};
+
+/// What a library object holds inline, which its copy one object deep would share.
+#[derive(Default)]
+struct Inline<'tcx> {
+	/// Each field of its JS object holding a value inline, and the type held there.
+	fields: Vec<(&'static str, Ty<'tcx>)>,
+	/// The types it holds inline that its copy shares, a hash map's hasher, which a move
+	/// out of it through a pointer counts as it counts the collection.
+	shared: Vec<Ty<'tcx>>,
+}
 
 impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether a `ty` is copied where Rust copies it: a `Copy` value that is, or holds by
@@ -55,7 +68,26 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Some(Std::Bound) => (true, args.types().collect()),
 				// Records of functions and pointers, which JS shares.
 				Some(Std::WakerVTable | Std::RawWaker) => (true, Vec::new()),
-				Some(Std::MaybeUninit | Std::ManuallyDrop) => return self.changes(args.type_at(0)),
+				// What it holds, which a `Pin` is in JS too.
+				Some(Std::MaybeUninit | Std::ManuallyDrop | Std::Pin) => return self.changes(args.type_at(0)),
+				// A library object a whole write lands in in place, which a copy copies one
+				// object deep; through a shared reference too, where it has interior
+				// mutability, which no write the crate shows records.
+				Some(_) if self.write_in(ty).is_some() => {
+					return self.writes.contains(&self.writes.into, false, self.tcx, ty)
+						|| self.addressed(ty)
+						|| !ty.is_freeze(self.tcx, self.typing_env())
+						|| match self.inline_held(ty) {
+							Some(inline) => inline
+								.fields
+								.into_iter()
+								.map(|(_, t)| t)
+								.chain(inline.shared)
+								.any(|t| self.changes(t)),
+							// Any type it is over may be held inline, which its copy refuses.
+							None => args.types().any(|t| self.changes(t)),
+						};
+				}
 				Some(_) => return false,
 				None if self.own(adt.did()) && adt.all_fields().next().is_some() => {
 					(true, adt.all_fields().map(|f| self.field_ty(f.did, args)).collect())
@@ -66,6 +98,159 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		};
 		object && (self.writes.contains(&self.writes.into, false, self.tcx, ty) || self.addressed(ty))
 			|| parts.into_iter().any(|t| self.changes(t))
+	}
+
+	/// What a library object `ty` holds inline rather than on the heap, which a copy of the
+	/// object one object deep shares: each field of its JS object holding such a value and
+	/// the type held there, a cell's, a lock's, a range's ends, or a one-time cell's, which
+	/// holds nothing until set; and the types it holds where no copy reaches, a hash map's
+	/// hasher. A collection's items, and what a `Weak` points at, are on the heap, which
+	/// Rust's read shares too. `None` for any other library object, such as a `LazyCell` or
+	/// a `Peekable`, whose inline state only its runtime class knows, so a read that would
+	/// copy one is refused.
+	fn inline_held(&self, ty: Ty<'tcx>) -> Option<Inline<'tcx>> {
+		let ty::Adt(adt, args) = ty.kind() else {
+			return None;
+		};
+		let at = |i: usize| args.type_at(i);
+		let fields = match Std::of(self.tcx, adt.did()) {
+			Some(Std::Cell) => vec![("v", at(0))],
+			Some(Std::RefCell | Std::Mutex) => vec![("value", at(0))],
+			Some(Std::OnceCell | Std::OnceLock) => vec![("v", Ty::new_option(self.tcx, at(0)))],
+			Some(Std::Range) => vec![("start", at(0)), ("end", at(0))],
+			Some(Std::RangeInclusive) => vec![("lo", at(0)), ("hi", at(0))],
+			Some(Std::RangeFrom) => vec![("start", at(0))],
+			Some(
+				Std::Vec
+				| Std::VecDeque
+				| Std::String
+				| Std::LinkedList
+				| Std::BinaryHeap
+				| Std::BTreeMap
+				| Std::BTreeSet
+				| Std::HashTable
+				| Std::BytesMut
+				| Std::Weak,
+			) => Vec::new(),
+			Some(Std::HashMap) => {
+				return Some(Inline {
+					shared: vec![at(2)],
+					..Inline::default()
+				});
+			}
+			Some(Std::HashSet) => {
+				return Some(Inline {
+					shared: vec![at(1)],
+					..Inline::default()
+				});
+			}
+			_ => return None,
+		};
+		Some(Inline {
+			fields,
+			..Inline::default()
+		})
+	}
+
+	/// What a move of a `ty` out of where it is kept, as `ptr::read` makes, would copy that no
+	/// JS copy splits from the original as Rust's read does, if anything, and why: a
+	/// collection held by value, a `Vec` of other than bytes, a `VecDeque`, a `String`, a
+	/// map, a set, or a list, whose JS object keeps its length with its storage, sharing the
+	/// storage while each keeps a length of its own; a closure whose captures its copy
+	/// would split, or a coroutine, whose state is the JS function's or generator's own; or
+	/// a library object whose inline state only its runtime class knows, which the copy
+	/// copies one object deep. A safe move leaves nothing pointing into the original,
+	/// which a copy one object deep is exact for.
+	pub fn unsplit(&self, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, &'static str)> {
+		if let Some(opaque) = self.opaque(ty) {
+			return Some((
+				opaque,
+				"a library object whose inline state only its runtime class knows",
+			));
+		}
+		by_value(self.tcx, self.typing_env(), ty).find_map(|part| {
+			if self.stateful(part) {
+				return Some((
+					part,
+					"a closure or coroutine whose state JS keeps in the function itself",
+				));
+			}
+			let ty::Adt(adt, args) = part.kind() else {
+				return None;
+			};
+			let joined = match Std::of(self.tcx, adt.did()) {
+				Some(Std::Vec) => !super::byte(args.type_at(0)),
+				Some(
+					Std::VecDeque
+					| Std::BinaryHeap
+					| Std::String
+					| Std::LinkedList
+					| Std::BTreeMap
+					| Std::BTreeSet
+					| Std::HashMap
+					| Std::HashSet
+					| Std::HashTable,
+				) => true,
+				_ => false,
+			};
+			(joined && self.changes(part))
+				.then_some((part, "a collection whose JS object keeps its length with its storage"))
+		})
+	}
+
+	/// The library object a copy of `ty` reaches whose inline state only its runtime class
+	/// knows, such as a `LazyCell` or a `Peekable`, if any, as [`Self::copy_parts`] walks it:
+	/// copied one object deep, which an unsafe move can tell apart.
+	fn opaque(&self, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+		if !self.changes(ty) {
+			return None;
+		}
+		match ty.kind() {
+			ty::Tuple(tys) => tys.iter().find_map(|t| self.opaque(t)),
+			ty::Array(elem, _) | ty::Slice(elem) => self.opaque(*elem),
+			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did()) {
+				Some(Std::WakerVTable | Std::RawWaker) => None,
+				Some(
+					Std::MaybeUninit
+					| Std::ManuallyDrop
+					| Std::Pin
+					| Std::Option
+					| Std::Poll
+					| Std::Result
+					| Std::ControlFlow
+					| Std::Reverse
+					| Std::AssertUnwindSafe
+					| Std::Wrapping
+					| Std::Saturating
+					| Std::Bound,
+				) => args.types().find_map(|t| self.opaque(t)),
+				Some(_) => match self.inline_held(ty) {
+					Some(inline) => inline.fields.into_iter().find_map(|(_, t)| self.opaque(t)),
+					None => Some(ty),
+				},
+				None => adt.all_fields().find_map(|f| self.opaque(self.field_ty(f.did, args))),
+			},
+			_ => None,
+		}
+	}
+
+	/// Whether `ty` is a closure whose copy Rust can tell apart from the original, as it
+	/// writes its captures or captures, at any depth, a value with interior mutability or
+	/// one a copy copies, such as a `Vec` the crate writes into, which the closure may move
+	/// out, or a coroutine.
+	fn stateful(&self, ty: Ty<'tcx>) -> bool {
+		let (tcx, env) = (self.tcx, self.typing_env());
+		match ty.kind() {
+			ty::Coroutine(..) => true,
+			ty::Closure(..) | ty::CoroutineClosure(..) => {
+				super::mir::writes_captures(tcx, ty)
+					|| (super::captured(ty).unwrap_or_default().iter()).any(|t| {
+						by_value(tcx, env, t)
+							.any(|part| !part.is_freeze(tcx, env) || self.changes(part) || self.stateful(part))
+					})
+			}
+			_ => false,
+		}
 	}
 
 	/// Whether the runs before compared pointers to a `ty`, or to a type it holds by value,
@@ -141,6 +326,55 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		self.changes(ty).then(|| self.shim(ty, span)).flatten()
 	}
 
+	/// A copy of the `ty`, a `[T; N]`, that `s`, the slice a reference to one is, holds, as
+	/// a read through the reference copies it: an array of its own, with each element JS
+	/// keeps as an object the crate writes into copied too.
+	pub fn array_copy(&mut self, s: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
+		let elem = match self.uninit_inner(ty).kind() {
+			ty::Array(elem, _) => *elem,
+			_ => unreachable!("an array's slice"),
+		};
+		if super::byte(elem) {
+			return Expr::rs("byteSliceToArray", vec![s]);
+		}
+		// An array slice of arrays, as a slice holds them, but not of a wrapper's, which is an element.
+		if elem.is_array() {
+			let copy = self.array_copy_fn(elem, span);
+			return Expr::rs("arraySliceToArray", vec![s, copy]);
+		}
+		let mut values = vec![s];
+		values.extend(self.changes(elem).then(|| self.shim(elem, span)).flatten());
+		Expr::rs("sliceToArray", values)
+	}
+
+	/// What copies an element of the arrays of `ty`, an array or slice of arrays, as arrays
+	/// copied out and written back read it: a `Copy` value's copy where it is an object, and
+	/// `rs.objectCopy` of an object a write lands in, which a write of the arrays back changes.
+	pub fn elem_copy(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
+		let mut elem = self.uninit_inner(ty);
+		while let ty::Array(inner, _) | ty::Slice(inner) = elem.kind() {
+			elem = *inner;
+		}
+		match self.changes(elem) {
+			true => self.shim(elem, span),
+			false => self.write_in(elem).map(|_| Expr::Rs("objectCopy".into())),
+		}
+	}
+
+	/// The function [`Self::array_copy`] calls on a slice of a `ty`.
+	pub fn array_copy_fn(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
+		match self.array_copy(Expr::ident("s"), ty, span) {
+			Expr::Call(f, args) if args.len() == 1 => *f,
+			copy => Expr::Lambda(
+				vec![ts::Param {
+					name: "s".into(),
+					ty: None,
+				}],
+				Box::new(copy),
+			),
+		}
+	}
+
 	/// `value`, copied if a `ty` is.
 	pub fn copied(&mut self, value: Expr, ty: Ty<'tcx>, span: Span) -> Expr {
 		match self.copy_fn(ty, span) {
@@ -164,7 +398,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		let tcx = self.tcx;
 		let (ty, any_length) = match ty.kind() {
 			// The copy of what it holds.
-			ty::Adt(adt, args) if Std::of(tcx, adt.did()) == Some(Std::ManuallyDrop) => {
+			ty::Adt(adt, args) if matches!(Std::of(tcx, adt.did()), Some(Std::ManuallyDrop | Std::Pin)) => {
 				return self.shim(args.type_at(0), span);
 			}
 			ty::Array(elem, _) => (Ty::new_array(tcx, *elem, 0), true),
@@ -219,7 +453,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The body of the function copying `v`, a `ty`, or a `MaybeUninit` of one if `uninit`:
-	/// then any of its parts kept as objects may hold nothing yet.
+	/// then any of its parts kept as objects may hold nothing yet, as a cell in an
+	/// uninitialized shell holds nothing.
 	fn copy_parts(&mut self, ty: Ty<'tcx>, uninit: bool, span: Span) -> Vec<Stmt> {
 		let v = || Expr::ident("v");
 		let ret = |e: Expr| vec![StmtKind::Return(Some(e.typed())).at(None)];
@@ -254,12 +489,13 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					body.extend(self.copy_parts(args.type_at(0), true, span));
 					body
 				}
-				Some(Std::ManuallyDrop) => self.copy_parts(args.type_at(0), uninit, span),
+				// What it holds, as [`Self::shim`] copies it.
+				Some(Std::ManuallyDrop | Std::Pin) => self.copy_parts(args.type_at(0), uninit, span),
 				Some(Std::Option) => ret(self.copy_unless(self.none(args.type_at(0)), args.type_at(0), span)),
 				Some(Std::Poll) => ret(self.copy_unless(self.pending(args.type_at(0)), args.type_at(0), span)),
 				Some(Std::Result) => ret(self.copy_result(args.type_at(0), args.type_at(1), span)),
 				Some(Std::Reverse | Std::AssertUnwindSafe | Std::Wrapping | Std::Saturating) => {
-					ret(self.snapshot(v(), args.type_at(0), span))
+					ret(self.snapshot(v(), part(args.type_at(0)), span))
 				}
 				Some(Std::Bound) => {
 					let ts_ty = self.ty(ty, span);
@@ -286,6 +522,33 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						(Flow::Option, _) => self.copy_unless(self.none(value), value, span),
 						_ => self.copy_result(value, residual, span),
 					})
+				}
+				// A library object, which [`Self::changes`] says a whole write lands in, and a
+				// copy of what it holds inline.
+				Some(std) => {
+					// One object deep, which a safe move is exact for; an unsafe one is refused
+					// ([`Self::unsplit`]).
+					let Some(inline) = self.inline_held(ty) else {
+						return ret(Expr::rs("objectCopy", vec![v()]));
+					};
+					// A cell of its own, as `Cell::from_mut`'s place reads and writes another's.
+					if std == Std::Cell {
+						let held = self.snapshot(v().member("v"), part(args.type_at(0)), span);
+						return ret(Expr::New(Box::new(Expr::Rs("Cell".into())), vec![held]));
+					}
+					let fields: Vec<_> = inline.fields.into_iter().filter(|&(_, t)| self.changes(t)).collect();
+					let copy = Expr::rs("objectCopy", vec![v()]);
+					if fields.is_empty() {
+						return ret(copy);
+					}
+					let c = || Expr::ident("c");
+					let mut body = vec![StmtKind::decl(false, "c", None, Some(copy)).at(None)];
+					for (field, t) in fields {
+						let read = self.snapshot(c().member(field), part(t), span);
+						body.push(StmtKind::Expr(c().member(field).assign(read)).at(None));
+					}
+					body.push(StmtKind::Return(Some(c())).at(None));
+					body
 				}
 				_ => {
 					let info = self.adt(*adt, span);
@@ -328,18 +591,19 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 							body
 						}
 						// A slot no field was written into yet holds nothing.
-						AdtRepr::Slots(_) => {
-							let (_, slots) = self.overlay(*adt, span).expect("a union is laid out where it is made");
+						AdtRepr::Slots(layout) => {
+							let (_, slots) = self.laid_out(*adt, args, span);
 							let ts_ty = self.ty(ty, span);
 							let slots = slots
 								.into_iter()
 								.map(|(name, slot_ty)| {
-									let slot_ty = instantiate(tcx, self.typing_env(), slot_ty, args);
-									let value = self.snapshot(
-										v().member(name.clone()),
-										Ty::new_maybe_uninit(tcx, slot_ty),
-										span,
-									);
+									let read = match layout {
+										super::unions::Layout::Open => {
+											Expr::As(Box::new(v().member(name.clone())), self.ty(slot_ty, span))
+										}
+										_ => v().member(name.clone()),
+									};
+									let value = self.snapshot(read, Ty::new_maybe_uninit(tcx, slot_ty), span);
 									(name, value)
 								})
 								.collect();
@@ -490,6 +754,7 @@ impl<'tcx> Writes<'tcx> {
 			}
 			BodyWrites {
 				tcx,
+				t,
 				body,
 				def_id,
 				writes: &mut writes,
@@ -608,8 +873,8 @@ fn by_value<'tcx>(tcx: TyCtxt<'tcx>, env: ty::TypingEnv<'tcx>, ty: Ty<'tcx>) -> 
 
 /// The value std's `def_id`, given `this` as its `self`, writes whole through that shared
 /// reference, putting another object in its place: the value of the `RefCell` it is, or
-/// that a thread-local's `RefCell` holds. A `Cell`'s are left out, as none of its methods
-/// that translate lends a reference into its value.
+/// that a thread-local's `RefCell` holds. A `Cell`'s and an `UnsafeCell`'s are left out,
+/// as each writes into the object it holds, which [`cell_writes`] says.
 fn replaces<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, this: Ty<'tcx>) -> Option<Ty<'tcx>> {
 	let (owner, name) = super::library::key(tcx, def_id)?;
 	let replaces = matches!(
@@ -630,6 +895,35 @@ fn replaces<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, this: Ty<'tcx>) -> Option<Ty
 			_ => return None,
 		}
 	}
+}
+
+/// The value std's `def_id`, a method of a cell of it, writes whole in place of the one the
+/// cell holds: as a write through the pointer `as_ptr` or `get` gives, into the object or
+/// array it is. A `Cell`'s arrays of arrays are put in its place instead, and its `swap`
+/// of an array is refused.
+fn cell_writes<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> Option<Ty<'tcx>> {
+	let (owner, name) = super::library::key(tcx, def_id)?;
+	let writes = match owner.as_str() {
+		// Refused of an array.
+		"Cell" if name == "swap" && args.type_at(0).is_array() => false,
+		"Cell" if super::array_slice::of_arrays(args.type_at(0)) => false,
+		"Cell" => matches!(name.as_str(), "replace" | "set" | "swap" | "take" | "update"),
+		"UnsafeCell" => name == "replace",
+		_ => false,
+	};
+	(writes && super::library::is_std(tcx, def_id)).then(|| args.type_at(0))
+}
+
+/// The type std's `def_id` writes whole through a raw pointer to one, by the runtime's
+/// write of a pointer's value: `ptr::write`, `replace`, or `swap`.
+fn pointer_writes<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> Option<Ty<'tcx>> {
+	let (owner, name) = super::library::key(tcx, def_id)?;
+	let writes = owner == "ptr"
+		&& matches!(
+			name.as_str(),
+			"write" | "write_unaligned" | "write_volatile" | "replace" | "swap"
+		);
+	(writes && super::library::is_std(tcx, def_id)).then(|| args.type_at(0))
 }
 
 /// The place each local of `body` borrows, where its one assignment is a borrow and
@@ -878,6 +1172,7 @@ impl<'tcx> Visitor<'tcx> for UsesOf<'_> {
 /// The writes of one body.
 struct BodyWrites<'w, 'm, 'a, 'tcx> {
 	tcx: TyCtxt<'tcx>,
+	t: &'m Translator<'a, 'tcx>,
 	body: &'m mir::Body<'tcx>,
 	def_id: DefId,
 	writes: &'w mut Writes<'tcx>,
@@ -905,6 +1200,30 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 		}
 		for ty in self.parts(ty) {
 			self.writes.replaced.insert(self.tcx, self.def_id, ty);
+		}
+	}
+
+	/// A whole `ty` written into in place by the runtime's write of a cell's value, which
+	/// keeps each cell it [keeps](Translator::keeps_cells), writing into it in place too,
+	/// and replaces the rest as [`Self::replace`] does.
+	fn replace_kept(&mut self, ty: Ty<'tcx>) {
+		use super::pointer::KeptCells;
+		self.insert(ty);
+		match self.t.kept_cells(ty) {
+			Some(KeptCells::Cell(held)) => self.replace_kept(held),
+			Some(KeptCells::Fields(fields)) => {
+				for (i, (field, kept)) in fields.into_iter().enumerate() {
+					match kept {
+						true => self.replace_kept(field),
+						false => {
+							let holders = self.writes.holders.entry(Some(FieldIdx::from_usize(i))).or_default();
+							holders.insert(self.tcx, self.def_id, ty);
+							self.replace(field);
+						}
+					}
+				}
+			}
+			None => self.replace(ty),
 		}
 	}
 
@@ -1170,8 +1489,16 @@ impl<'tcx> Visitor<'tcx> for BodyWrites<'_, '_, '_, 'tcx> {
 			{
 				self.replace(value);
 			}
+			if let Some(held) = cell_writes(self.tcx, def_id, args.skip_binder()) {
+				self.replace_kept(held);
+			}
+			// A pointer's whole write keeps the cells a value keeps, as a cell's does.
+			let kept = pointer_writes(self.tcx, def_id, args.skip_binder()).filter(|&ty| self.t.keeps_cells(ty));
+			if let Some(ty) = kept {
+				self.replace_kept(ty);
+			}
 			// Those that point a pointer elsewhere or read through it replace nothing.
-			let replace = !super::pointer::keeps(self.tcx, def_id, args.skip_binder());
+			let replace = kept.is_none() && !super::pointer::keeps(self.tcx, def_id, args.skip_binder());
 			// A call's argument may point into memory nothing else points into yet.
 			let body = self.body;
 			let call = match &body[location.block].terminator().kind {

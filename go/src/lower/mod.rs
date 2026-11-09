@@ -1,14 +1,17 @@
-//! MIR to Go: every function instance the roots reach, monomorphized, becomes a Go
-//! function of one package, its body the MIR's blocks as labels and its locals as
-//! variables. Types become Go types, generic where Rust's are, and std's functions
+//! MIR to Go: every function instance the `pub` API reaches, monomorphized, becomes a Go
+//! function of one package, its body the MIR's blocks structured into loops and `if`s
+//! and its locals as variables. Types become Go types, generic where Rust's are, and std's functions
 //! translate from their own MIR down to the bindings that stand in for what Go does
 //! itself, such as a `Vec`'s growth or UTF-8 validation.
 
 mod body;
 mod consts;
 mod fold;
+mod hand;
 mod library;
 mod names;
+mod split;
+mod stmt;
 mod ty;
 
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
@@ -16,10 +19,10 @@ use std::path::Path;
 
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{CrateNum, DefId, LOCAL_CRATE};
-use rustc_middle::ty::{Instance, Ty, TyCtxt, TypingEnv};
+use rustc_middle::ty::{Instance, Ty, TyCtxt, TyKind, TypingEnv, Unnormalized};
 use rustc_span::Span;
 
-use crate::config::Config;
+use hand::Hand;
 
 /// The runtime's files, copied into the package beside the translation.
 const RUNTIME: &[(&str, &str)] = &[
@@ -64,12 +67,17 @@ fn runtime_names(text: &str) -> Vec<String> {
 	names
 }
 
-/// Translate the crate from the config's roots, or `None` after reporting what it
-/// refuses. Each file is a name and its text.
-pub fn translate(tcx: TyCtxt<'_>, config: &Config) -> Option<Vec<(String, String)>> {
+/// Translate the crate from its `pub` API, or `None` after reporting what it refuses.
+/// Each file is a name and its text.
+pub fn translate(tcx: TyCtxt<'_>) -> Option<Vec<(String, String)>> {
 	let mut t = Translator::new(tcx);
-	for root in &config.roots {
-		t.root(root);
+	let public = names::public(tcx);
+	// Before any root's signature declares one by its own name.
+	for (path, def_id, _) in &public {
+		t.name_item(path, *def_id);
+	}
+	for (path, def_id, export) in public {
+		t.root(&path, def_id, export);
 	}
 	while let Some((instance, span)) = t.queue.pop_front() {
 		let text = body::function(&mut t, instance, span);
@@ -160,12 +168,29 @@ pub struct Translator<'tcx> {
 	/// Each type declared, by what it declares: an ADT's definition, or a closure's or a
 	/// trait object adapter's monomorphic type.
 	types: HashMap<TypeKey<'tcx>, String>,
+	/// The Go name of each type and alias of the `pub` API, which its declaration takes.
+	type_names: HashMap<DefId, String>,
 	/// Every local ADT's name, to tell which names must be qualified by their module.
 	local_names: HashMap<String, usize>,
 	out: BTreeMap<CrateNum, CrateOut>,
 	/// The package-level variable holding each constant allocation, and the offset,
 	/// length, and type it holds it at.
 	allocs: HashMap<rustc_middle::mir::interpret::AllocId, ((u64, u64, Ty<'tcx>), String)>,
+	/// The Go variable of each static reached.
+	statics: HashMap<DefId, String>,
+	/// The Go name of each function, constant, and static of the `pub` API, which its
+	/// declaration takes.
+	value_names: HashMap<DefId, String>,
+	/// The statics whose values are being lowered, and those of them a value reached
+	/// again, which Go would refuse as an initialization cycle.
+	initializing: Vec<DefId>,
+	cyclic: HashSet<DefId>,
+	/// Each type's parts, if Go holds it split.
+	splits: HashMap<Ty<'tcx>, Option<std::rc::Rc<split::Split<'tcx>>>>,
+	/// The types whose parts are being found.
+	splitting: Vec<Ty<'tcx>>,
+	/// The Go function walking each type to hand its storage each way.
+	hand_fns: HashMap<(Ty<'tcx>, hand::Hand), String>,
 	/// Each refusal reported, so a construct met again at the same place is reported once.
 	reported: HashSet<(Span, String)>,
 	failed: bool,
@@ -195,9 +220,17 @@ impl<'tcx> Translator<'tcx> {
 			queue: VecDeque::new(),
 			taken,
 			types: HashMap::new(),
+			type_names: HashMap::new(),
 			local_names,
 			out: BTreeMap::new(),
 			allocs: HashMap::new(),
+			statics: HashMap::new(),
+			value_names: HashMap::new(),
+			initializing: Vec::new(),
+			cyclic: HashSet::new(),
+			splits: HashMap::new(),
+			splitting: Vec::new(),
+			hand_fns: HashMap::new(),
 			reported: HashSet::new(),
 			failed: false,
 		}
@@ -216,32 +249,269 @@ impl<'tcx> Translator<'tcx> {
 		}
 	}
 
-	/// A root function, by its path from the crate root, exported to Go callers.
-	fn root(&mut self, path: &str) {
+	/// An item of the `pub` API, by the path the crate exports it at, exported to Go
+	/// callers: a function, a type with its `pub` inherent methods, or an alias as Go's.
+	/// A trait comes along as its impls are called, and a module's items are their own.
+	/// `export` is the span of the name that exports it.
+	fn root(&mut self, path: &str, def_id: DefId, export: Span) {
 		let tcx = self.tcx;
-		let Some(def_id) = names::resolve(tcx, path) else {
-			tcx.dcx().err(format!("rust2-go: no item `{path}` in the crate"));
-			self.failed = true;
-			return;
+		let span = tcx.def_span(def_id);
+		match tcx.def_kind(def_id) {
+			DefKind::Fn => self.root_fn(path, def_id),
+			DefKind::Struct | DefKind::Enum | DefKind::Union => match library::mapped(tcx, def_id) {
+				None => {
+					self.adt_decl(tcx.adt_def(def_id), span);
+					for &imp in tcx.inherent_impls(def_id) {
+						self.root_impl(path, imp);
+					}
+				}
+				Some(library::Mapped::Refused(why)) => self.err(
+					export,
+					format!("`{}`, {why} is not supported", tcx.def_path_str(def_id)),
+				),
+				// A type std's are mapped to is Go's, not the crate's.
+				Some(_) => {}
+			},
+			DefKind::TyAlias => {
+				let name = self.type_names[&def_id].clone();
+				self.alias_decl(&name, def_id);
+				// The `pub` items of a type no other path reaches would be Go callers' only
+				// through this alias, which rooting needs the impls that apply to it for.
+				let ty = tcx.type_of(def_id).instantiate_identity().skip_norm_wip();
+				if let TyKind::Adt(adt, _) = ty.kind()
+					&& library::mapped(tcx, adt.did()).is_none()
+					&& !self.type_names.contains_key(&adt.did())
+					&& tcx.inherent_impls(adt.did()).iter().any(|&imp| {
+						tcx.associated_items(imp)
+							.in_definition_order()
+							.any(|item| tcx.visibility(item.def_id).is_public())
+					}) {
+					self.err(
+						span,
+						"a type with `pub` methods reached only through a specialized alias is not supported",
+					);
+				}
+			}
+			DefKind::Const => self.root_const(path, def_id, export),
+			DefKind::Static { .. } => self.root_static(def_id, export),
+			_ => {}
+		}
+	}
+
+	/// The `pub` items of an inherent impl, under the path of the type it names.
+	fn root_impl(&mut self, path: &str, imp: DefId) {
+		let tcx = self.tcx;
+		for item in tcx.associated_items(imp).in_definition_order() {
+			if !tcx.visibility(item.def_id).is_public() {
+				continue;
+			}
+			let path = format!("{path}::{}", item.name());
+			match tcx.def_kind(item.def_id) {
+				DefKind::AssocFn => self.root_fn(&path, item.def_id),
+				DefKind::AssocConst => self.root_const(&path, item.def_id, tcx.def_span(item.def_id)),
+				_ => {}
+			}
+		}
+	}
+
+	/// Name an item of the `pub` API, and a type's `pub` inherent items, by its path in
+	/// camel case, as its declaration takes: all before any is lowered, since lowering one
+	/// can declare a type another's name would then meet.
+	fn name_item(&mut self, path: &str, def_id: DefId) {
+		let tcx = self.tcx;
+		let span = tcx.def_span(def_id);
+		let name = match tcx.def_kind(def_id) {
+			DefKind::Struct | DefKind::Enum | DefKind::Union if library::mapped(tcx, def_id).is_some() => return,
+			DefKind::Struct | DefKind::Enum | DefKind::Union | DefKind::TyAlias => {
+				let name = names::exported(path);
+				self.claim(&name, span);
+				self.type_names.insert(def_id, name);
+				if tcx.def_kind(def_id) == DefKind::TyAlias {
+					return;
+				}
+				for &imp in tcx.inherent_impls(def_id) {
+					for item in tcx.associated_items(imp).in_definition_order() {
+						if tcx.visibility(item.def_id).is_public() {
+							self.name_item(&format!("{path}::{}", item.name()), item.def_id);
+						}
+					}
+				}
+				return;
+			}
+			DefKind::Fn | DefKind::AssocFn => names::exported(path),
+			DefKind::Const | DefKind::AssocConst | DefKind::Static { .. } => names::exported_value(path),
+			_ => return,
 		};
-		if tcx.def_kind(def_id) != DefKind::Fn {
-			self.err(tcx.def_span(def_id), "a root must be a function");
+		self.claim(&name, span);
+		self.value_names.insert(def_id, name);
+	}
+
+	/// A `pub` constant, evaluated once as rustc does: a Go `const` where Go has a constant
+	/// of its type, an integer, `bool`, `char`, or `&str`, as a Go string. Any other is a
+	/// function returning its value, so each use is a fresh one, as Rust's is, which no Go
+	/// caller can change for another. `export` is where it is exported.
+	fn root_const(&mut self, path: &str, def_id: DefId, export: Span) {
+		let tcx = self.tcx;
+		let span = tcx.def_span(def_id);
+		if tcx.generics_of(def_id).requires_monomorphization(tcx) {
+			self.err(
+				span,
+				"a `pub` constant of a generic type, which translates only as its uses instantiate it, is not supported",
+			);
 			return;
 		}
+		let name = self.value_names[&def_id].clone();
+		let ty = tcx.normalize_erasing_regions(
+			self.env(),
+			Unnormalized::new_wip(tcx.type_of(def_id).instantiate_identity().skip_norm_wip()),
+		);
+		let Ok(val) = tcx.const_eval_poly(def_id) else {
+			self.err(span, "a constant that fails to evaluate is not supported");
+			return;
+		};
+		let body = rustc_middle::mir::Body::new_cfg_only(rustc_index::IndexVec::new());
+		let mut fx = body::Fx::new(self, &body, export, def_id.is_local());
+		let doc = format!("// {name} is `{path}`.\n");
+		match ty.kind() {
+			TyKind::Ref(_, inner, _) if inner.is_str() => {
+				if let Some(bytes) = fx.slice_bytes(val, ty, span) {
+					let text = format!("{doc}const {name} = {}\n", consts::go_string(bytes));
+					self.declare(def_id.krate, &name, text);
+				}
+			}
+			TyKind::Int(_) | TyKind::Uint(_) | TyKind::Bool | TyKind::Char => {
+				let text = format!("{doc}const {name} = {}\n", fx.const_value(val, ty, span));
+				self.declare(def_id.krate, &name, text);
+			}
+			_ => {
+				let go = fx.ty(ty, span);
+				let value = fx.const_value(val, ty, span);
+				let text = format!("{doc}func {name}() {go} {{\n\treturn {value}\n}}\n");
+				self.out.entry(def_id.krate).or_default().funcs.push((name, text));
+			}
+		}
+	}
+
+	/// A `pub` static: the Go variable translated code reads it through, which Go callers
+	/// share. `export` is where it is exported.
+	fn root_static(&mut self, def_id: DefId, export: Span) {
+		let body = rustc_middle::mir::Body::new_cfg_only(rustc_index::IndexVec::new());
+		let mut fx = body::Fx::new(self, &body, export, def_id.is_local());
+		fx.static_var(def_id, fx.tcx.def_span(def_id));
+	}
+
+	/// A root function, exported to Go callers by its path in camel case.
+	fn root_fn(&mut self, path: &str, def_id: DefId) {
+		let tcx = self.tcx;
 		if tcx.generics_of(def_id).requires_monomorphization(tcx) {
-			self.err(tcx.def_span(def_id), "a root must not be generic");
+			self.err(
+				tcx.def_span(def_id),
+				"a generic `pub` function, which translates only as its callers instantiate it, is not supported",
+			);
 			return;
 		}
 		let instance = Instance::mono(tcx, def_id);
-		let name = names::exported(path);
-		self.claim(&name, tcx.def_span(def_id));
-		self.funcs.insert(instance, name);
-		self.queue.push_back((instance, tcx.def_span(def_id)));
+		let span = tcx.def_span(def_id);
+		let name = self.value_names[&def_id].clone();
+		let sig = tcx.instantiate_bound_regions_with_erased(tcx.fn_sig(def_id).skip_binder());
+		let normal = |t: Ty<'tcx>| tcx.normalize_erasing_regions(self.env(), Unnormalized::new_wip(t));
+		let inputs: Vec<Ty<'tcx>> = sig.inputs().iter().map(|t| normal(*t)).collect();
+		let output = normal(sig.output());
+		let splits = inputs.iter().chain([&output]).any(|t| self.split(*t, span).is_some());
+		let hands =
+			inputs.iter().any(|t| self.hands(*t, Hand::In) || self.hands_back(*t)) || self.hands(output, Hand::Out);
+		self.refuse_unhandable(&inputs, output, span);
+		if !splits && !hands {
+			self.funcs.insert(instance, name);
+			self.queue.push_back((instance, span));
+			return;
+		}
+		// Its callers' Go holds its enums whole and its storage handed over.
+		let inner = self.func(instance, span);
+		let text = self.wrapper(&name, path, &inner, &inputs, output, span);
+		self.out.entry(def_id.krate).or_default().funcs.push((name, text));
 	}
 
-	/// Claim a package-level name, refusing one already taken.
+	/// The root `name` of the function at `path`, calling `inner`, the function as
+	/// translated code calls it, with its enums whole and its storage handed over.
+	fn wrapper(
+		&mut self,
+		name: &str,
+		path: &str,
+		inner: &str,
+		inputs: &[Ty<'tcx>],
+		output: Ty<'tcx>,
+		span: Span,
+	) -> String {
+		let mut params = Vec::new();
+		let mut args = Vec::new();
+		let mut enter = String::new();
+		let mut back = Vec::new();
+		for (i, input) in inputs.iter().enumerate() {
+			let param = format!("_{}", i + 1);
+			params.push(format!("{param} {}", self.ty(*input, span)));
+			if self.hands(*input, Hand::In) {
+				enter.push_str(&format!("\t{}(&{param})\n", self.hand(*input, Hand::In, span)));
+			}
+			if self.hands_back(*input) {
+				back.push(format!("{}(&{param})", self.hand(*input, Hand::Out, span)));
+			}
+			match self.split(*input, span) {
+				Some(split) => args.extend(split.parts.iter().map(|p| match p.big {
+					true => format!("&{param}{}", p.path),
+					false => format!("{param}{}", p.path),
+				})),
+				None => args.push(param),
+			}
+		}
+		let ret = match Self::no_value(output) {
+			true => String::new(),
+			false => format!(" {}", self.ty(output, span)),
+		};
+		if !back.is_empty() {
+			// Even when a panic unwinds out, what Go keeps is handed back.
+			enter.push_str(&format!("\tdefer func() {{ {} }}()\n", back.join("; ")));
+		}
+		let out = match self.hands(output, Hand::Out) {
+			true => format!("\t{}(&_0)\n", self.hand(output, Hand::Out, span)),
+			false => String::new(),
+		};
+		let body = match self.split(output, span) {
+			Some(split) => {
+				let mut lhs = Vec::new();
+				for p in &split.parts {
+					match p.big {
+						true => args.push(format!("&_0{}", p.path)),
+						false => lhs.push(format!("_0{}", p.path)),
+					}
+				}
+				format!(
+					"\tvar _0{ret}\n\t{} = {inner}({})\n{out}\treturn _0\n",
+					lhs.join(", "),
+					args.join(", ")
+				)
+			}
+			None if ret.is_empty() => format!("\t{inner}({})\n", args.join(", ")),
+			None if out.is_empty() => format!("\treturn {inner}({})\n", args.join(", ")),
+			None => format!("\t_0 := {inner}({})\n{out}\treturn _0\n", args.join(", ")),
+		};
+		format!(
+			"// {name} is `{path}`.\nfunc {name}({}){ret} {{\n{enter}{body}}}\n",
+			params.join(", ")
+		)
+	}
+
+	/// Claim an exported package-level name, refusing one Go would not export or already
+	/// taken.
 	fn claim(&mut self, name: &str, span: Span) {
-		if !self.taken.insert(name.to_string()) {
+		if !names::is_exported(name) {
+			self.err(
+				span,
+				format!(
+					"a `pub` item whose Go name `{name}` is not ASCII with a leading uppercase letter is not supported"
+				),
+			);
+		} else if !self.taken.insert(name.to_string()) {
 			self.err(span, format!("two items translate to the Go name `{name}`"));
 		}
 	}
@@ -266,7 +536,10 @@ impl<'tcx> Translator<'tcx> {
 		if let Some(name) = self.funcs.get(&instance) {
 			return name.clone();
 		}
-		let base = names::func_base(self.tcx, instance);
+		// Unexported, so Go callers reach the translation only through its roots, which
+		// hand storage over.
+		let mut base = names::ident(&names::func_base(self.tcx, instance));
+		base[..1].make_ascii_lowercase();
 		let name = self.fresh(&base);
 		self.funcs.insert(instance, name.clone());
 		self.queue.push_back((instance, span));

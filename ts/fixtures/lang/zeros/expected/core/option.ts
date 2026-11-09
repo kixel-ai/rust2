@@ -18,7 +18,7 @@ export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u
 	return self;
 }
 
-export function unwrapOrDefault$1b97y1a(self: Tagged.Tagged<string> | undefined): Tagged.Tagged<string> {
+export function unwrapOrDefault$0348bav(self: Tagged.Tagged<rs.String> | undefined): Tagged.Tagged<rs.String> {
 	if (self === undefined) {
 		return Tagged.default$Default_String();
 	}

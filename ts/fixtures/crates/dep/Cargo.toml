@@ -6,8 +6,5 @@ edition.workspace = true
 license.workspace = true
 publish = false
 
-[dependencies]
-bytes = "1.12.1"
-
 [lints]
 workspace = true

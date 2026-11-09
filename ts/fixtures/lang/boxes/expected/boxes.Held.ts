@@ -5,10 +5,10 @@ import type * as Logged from "./boxes.Logged.ts";
 
 /** A boxed slice in a field, beside one that drops after it. */
 export class Held {
-	items: Logged.Logged[];
+	items: rs.Slice<Logged.Logged>;
 	last: Logged.Logged;
 
-	constructor(items: Logged.Logged[], last: Logged.Logged) {
+	constructor(items: rs.Slice<Logged.Logged>, last: Logged.Logged) {
 		this.items = items;
 		this.last = last;
 	}

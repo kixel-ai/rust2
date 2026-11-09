@@ -7,13 +7,13 @@ export function panicAdvance(errorInfo: TryGetError.TryGetError): never {
 	const arg = errorInfo.available;
 	const _8: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(arg, f);
 	const arg2 = errorInfo.requested;
-	const args2: rs.Fmt[] = [_8, (f: rs.Formatter) => rs.usizeDisplay(arg2, f)];
-	rs.panicFmt(["advance out of bounds: the len is ", args2[0], " but advancing by ", args2[1]]);
+	const args3 = [_8, (f: rs.Formatter) => rs.usizeDisplay(arg2, f)];
+	rs.panicFmt(["advance out of bounds: the len is ", args3[0], " but advancing by ", args3[1]]);
 }
 
 export function panicDoesNotFit(size: rs.usize, nbytes: rs.usize): never {
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(size, f), (f: rs.Formatter) => rs.usizeDisplay(nbytes, f)];
-	rs.panicFmt(["size too large: the integer type can fit ", args2[0], " bytes, but nbytes is ", args2[1]]);
+	const args3 = [(f: rs.Formatter) => rs.usizeDisplay(size, f), (f: rs.Formatter) => rs.usizeDisplay(nbytes, f)];
+	rs.panicFmt(["size too large: the integer type can fit ", args3[0], " bytes, but nbytes is ", args3[1]]);
 }
 
 //# sourceMappingURL=bytes.ts.map

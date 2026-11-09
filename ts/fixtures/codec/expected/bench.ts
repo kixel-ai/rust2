@@ -10,7 +10,7 @@ import type * as EncodeError from "./coding/encode.EncodeError.ts";
 import * as Encoder from "./coding/encode.Encoder.ts";
 import { zigzag as varint_zigzag, unzigzag } from "./coding/varint.ts";
 import * as Form from "./coding/varint.Form.ts";
-import { unwrapOr$1b5hww3 as option_unwrapOr$1b5hww3, map$1haiqd3 as option_map$1haiqd3, mapOr$1glsik0 as option_mapOr$1glsik0 } from "./core/option.ts";
+import { unwrapOr$1b5hww3 as option_unwrapOr$1b5hww3, unwrapOr$15hbiwd as option_unwrapOr$15hbiwd, map$1haiqd3 as option_map$1haiqd3, mapOr$1glsik0 as option_mapOr$1glsik0 } from "./core/option.ts";
 import { form, liteVersion, putU64 as harness_putU64, putUsize, takeU64, decodeError, encodeError } from "./harness.ts";
 import * as Group from "./lite/group.Group.ts";
 import type * as lite_version_Version from "./lite/version.Version.ts";
@@ -54,6 +54,18 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 				packets(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else if (op === 16) {
 				format(new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
+			} else if (op === 17) {
+				parts(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
+			} else if (op === 18) {
+				frames(new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
+			} else if (op === 19) {
+				encoded(encodeStrings(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out), out);
+			} else if (op === 20) {
+				decoded(decodeStrings(new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out), out);
+			} else if (op === 21) {
+				join(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
+			} else if (op === 22) {
+				keyed(selector, new rs.ByteSlice(input.data, input.start + 2, input.length - 2), out);
 			} else {
 				decoded(decodeGroup(new rs.ByteSlice(input.data, input.start + 2, input.length - 2), liteVersion(selector), out), out);
 			}
@@ -379,9 +391,9 @@ export function order(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		return rs.u32Rem(rs.u32Mul(i, 40503), 1 << 16);
 	}), undefined, 4, true);
 	if (selector === 0) {
-		rs.sliceSort(v.items, rs.lt, 4, true);
+		rs.sliceSort(rs.sliceFrom(v.items), rs.lt, 4, true);
 	} else if (selector === 1) {
-		rs.sliceSort(v.items, rs.keyLt((_212: rs.u32): rs.u32 => {
+		rs.sliceSort(rs.sliceFrom(v.items), rs.keyLt((_212: rs.u32): rs.u32 => {
 			return rs.u32Rem(_212, 1024);
 		}, rs.lt), 4, true);
 	} else if (selector === 2) {
@@ -483,7 +495,7 @@ export function push(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		while ((_66 = iterStart3++) < iterEnd3) {
 			v2.items.push(_66);
 		}
-		_13 = [v2.items.length, rs.sliceGet(v2.items, rs.usizeDiv(v2.items.length, 2))] as [rs.usize, rs.u32 | undefined];
+		_13 = [v2.items.length, rs.sliceGet(rs.sliceFrom(v2.items), rs.usizeDiv(v2.items.length, 2))] as [rs.usize, rs.u32 | undefined];
 	}
 	const len: rs.usize = _13[0];
 	const middle: rs.u32 | undefined = _13[1];
@@ -499,7 +511,7 @@ export function push(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
  */
 export function format(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const count2: rs.i64 = rs.i64Cast(rs.u64Min(takeU64(data)[0], 65536));
-	let s: string = "";
+	const s: rs.String = rs.stringNew();
 	const iter: rs.Range<rs.i64> = new rs.Range(0, count2, rs.i64Step);
 	while (true) {
 		const _14: rs.i64 | rs.Done = iter.next();
@@ -510,13 +522,152 @@ export function format(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const point: Point.Point = { x: i, y: rs.i64Neg(i) };
 		const _26: rs.f64 = rs.i64ToF64(i) / 3.0;
 		const _29: rs.i64 = rs.i64Neg(i);
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.i64Display(i, f), (f: rs.Formatter) => Point.fmt$fmt_Debug(point, f), (f: rs.Formatter) => rs.f64Display(_26, f), (f: rs.Formatter) => rs.i64Display(_29, f)];
-		s = rs.fmtWriteString(s, [rs.fmtSpec({ align: ">", width: 6 }, args2[0]), "|", args2[1], "|", rs.fmtSpec({ precision: 2 }, args2[2]), "|", args2[3], "\n"]).s;
+		const args3 = [(f: rs.Formatter) => rs.i64Display(i, f), (f: rs.Formatter) => Point.fmt$fmt_Debug(point, f), (f: rs.Formatter) => rs.f64Display(_26, f), (f: rs.Formatter) => rs.i64Display(_29, f)];
+		rs.fmtWriteString(s, [rs.fmtSpec({ align: ">", width: 6 }, args3[0]), "|", args3[1], "|", rs.fmtSpec({ precision: 2 }, args3[2]), "|", args3[3], "\n"]);
 	}
-	putUsize(out, rs.stringLen(s));
-	harness_putU64(out, rs.iterSum(rs.iterMap(rs.strBytes(s), (a0: rs.u8): rs.u64 => {
+	putUsize(out, s.len);
+	harness_putU64(out, rs.iterSum(rs.iterMap(rs.strBytes(s.v), (a0: rs.u8): rs.u64 => {
 		return a0 as rs.u64;
 	}), rs.u64Add, 0));
+}
+
+/**
+ * The `selector`th name of [`NAMES`], `count` times, each size-prefixed, as moq-net's
+ * `Encoder::string` writes a path.
+ */
+export function encodeStrings(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): rs.Result<undefined, EncodeError.EncodeError> {
+	const count: rs.u64 = takeU64(data)[0];
+	const _8: rs.usize = rs.usizeRem(selector as rs.usize, rs.sliceFrom(["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"]).length);
+	if (!(_8 < 2)) {
+		rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _8);
+	}
+	const w: Encoder.Encoder = Encoder.new(out, { tag: "Quic" } as Form.Form);
+	let iterStart: rs.usize = 0;
+	const iterEnd: rs.usize = rs.u64Low(count);
+	while (true) {
+		const _7: string[] = ["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"];
+		if (!(iterStart++ < iterEnd)) {
+			break;
+		}
+		const _24: rs.Result<undefined, EncodeError.EncodeError> = Encoder.string(w, _7[_8]);
+		if (!_24.ok) {
+			return _24;
+		}
+	}
+	return rs.OK;
+}
+
+/**
+ * Every string on the wire, each an owned `String`, as moq-net decodes a path: how many,
+ * their total length, and the last one's.
+ */
+export function decodeStrings(wire: rs.ByteSlice, out: rs.ByteVec): rs.Result<undefined, DecodeError.DecodeError> {
+	const r: Decoder.Decoder = Decoder.new(wire, { tag: "Quic" } as Form.Form);
+	let count: rs.usize = 0;
+	let total: rs.usize = 0;
+	let last: rs.String = rs.stringNew();
+	while (!Decoder.isEmpty(r)) {
+		const _10: rs.Result<rs.String, DecodeError.DecodeError> = Decoder.string(r);
+		if (_10.ok) {
+			last = _10.value;
+			total = rs.usizeAdd(total, last.len);
+			count = rs.usizeAdd(count, 1);
+		} else {
+			return _10;
+		}
+	}
+	putUsize(out, count);
+	putUsize(out, total);
+	putUsize(out, last.len);
+	return rs.OK;
+}
+
+/**
+ * `count` paths, each the `selector`th name of [`NAMES`] and a track joined into a
+ * `String` sized up front, as moq-net's `Path::concat` builds one, then stripped of the
+ * name at a segment boundary, as `Path::strip_prefix` is: their total length, and the
+ * stripped tracks'.
+ */
+export function join(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	let _25!: rs.usize;
+	const count: rs.u64 = takeU64(data)[0];
+	const _8: rs.usize = rs.usizeRem(selector as rs.usize, rs.sliceFrom(["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"]).length);
+	if (!(_8 < 2)) {
+		rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _8);
+	}
+	const _7: string[] = ["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"];
+	let total: rs.usize = 0;
+	let stripped: rs.usize = 0;
+	const _19: rs.usize = rs.u64Low(rs.u64Min(count, 65536));
+	let iterStart: rs.usize = 0;
+	const iterEnd: rs.usize = _19;
+	while ((_25 = iterStart++) < iterEnd) {
+		const _31: rs.usize = rs.usizeRem(_25, rs.sliceFrom(["video", "audio", "catalog.json", "字幕"]).length);
+		if (!(_31 < 4)) {
+			rs.panic("index out of bounds: the len is " + 4 + " but the index is " + _31);
+		}
+		const _30: string[] = ["video", "audio", "catalog.json", "字幕"];
+		const path: rs.String = rs.stringWithCapacity(rs.usizeAdd(rs.usizeAdd(rs.stringLen(_7[_8]), 1), rs.stringLen(_30[_31])));
+		rs.stringPushStr(path, _7[_8]);
+		rs.stringPush(path, 47);
+		rs.stringPushStr(path, _30[_31]);
+		total = rs.usizeAdd(total, path.len);
+		const _53: string | undefined = rs.strStripPrefix(path.v, _7[_8]);
+		if (_53 !== undefined) {
+			const _58: string | undefined = rs.strStripPrefix(_53, "/");
+			if (_58 !== undefined) {
+				stripped = rs.usizeAdd(stripped, rs.stringLen(_58));
+			}
+		}
+	}
+	putUsize(out, total);
+	putUsize(out, stripped);
+}
+
+/**
+ * `count` paths, the `selector`th name of [`NAMES`] and a number, each a key of a
+ * `HashMap` and looked up by its `&str` four times, as moq-net finds a broadcast by its
+ * path: the sum of what the lookups found.
+ */
+export function keyed(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	const count: rs.u64 = takeU64(data)[0];
+	const _8: rs.usize = rs.usizeRem(selector as rs.usize, rs.sliceFrom(["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"]).length);
+	if (!(_8 < 2)) {
+		rs.panic("index out of bounds: the len is " + 2 + " but the index is " + _8);
+	}
+	const _7: string[] = ["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"];
+	const keys: rs.Vec<rs.String> = rs.iterToVec(rs.iterMap(new rs.Range(0, rs.u64Low(rs.u64Min(count, 65536))), (i2: rs.u32): rs.String => {
+		const part = _7[_8];
+		const args3 = [(f: rs.Formatter) => rs.fmtPad(f, part), (f: rs.Formatter) => rs.u32Display(i2, f)];
+		return rs.fmtFormat([args3[0], "/", args3[1]]);
+	}), undefined, 12, true);
+	const map: rs.HashMap<rs.String, rs.u64> = rs.hashNew(rs.HASH_TEXT) as rs.HashMap<rs.String, rs.u64>;
+	const iter: rs.Iter<[rs.usize, rs.String]> = rs.iterEnumerate(rs.iterSlice(keys.items));
+	while (true) {
+		const _32: [rs.usize, rs.String] | rs.Done = iter.next();
+		if (_32 === rs.DONE) {
+			break;
+		}
+		const i: rs.usize = _32[0];
+		const _39: rs.String = rs.stringClone(_32[1]);
+		rs.hashInsert(map, _39, i as rs.u64);
+	}
+	let sum: rs.u64 = 0;
+	let iterStart: rs.i32 = 0;
+	const iterEnd: rs.i32 = 4;
+	l3: while (iterStart++ < iterEnd) {
+		const iterS: rs.String[] = keys.items;
+		let iterI: number = 0;
+		while (true) {
+			const _51: rs.String | rs.Done = iterI < iterS.length ? iterS[iterI++] : rs.DONE;
+			if (_51 === rs.DONE) {
+				continue l3;
+			}
+			sum = rs.u64Add(sum, option_unwrapOr$15hbiwd(rs.hashGet(map, (_51.v as unknown) as rs.String), 0));
+		}
+	}
+	harness_putU64(out, sum);
+	putUsize(out, rs.hashLen(map));
 }
 
 /**
@@ -529,7 +680,7 @@ export function packets(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 	let _32!: rs.u8;
 	let cc!: rs.u8;
 	const packets: rs.ByteVec = rs.byteVecOf(0, rs.usizeMul(rs.u64Low(rs.u64Min(takeU64(data)[0], 4096)), 188));
-	const iter: rs.Iter<[rs.usize, rs.ByteSlice]> = rs.iterEnumerate(rs.iterLend(rs.iterSlice(rs.byteSliceAsChunksMut(rs.byteVecSlice(packets), 188)[0]), rs.byteSliceFrom));
+	const iter: rs.Iter<[rs.usize, rs.ByteSlice]> = rs.iterEnumerate(rs.arraySliceIter(rs.sliceAsChunks(rs.byteVecSlice(packets), 188)[0]));
 	while (true) {
 		const _21: [rs.usize, rs.ByteSlice] | rs.Done = iter.next();
 		if (_21 === rs.DONE) {
@@ -548,7 +699,7 @@ export function packets(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 	}
 	const counters: Uint8Array = rs.bytes(3);
 	let sum: rs.u64 = 0;
-	const iter2: rs.Iter<rs.ByteSlice> = rs.iterLend(rs.iterSlice(rs.byteSliceAsChunksMut(rs.byteVecSlice(packets), 188)[0]), rs.byteSliceFrom);
+	const iter2: rs.Iter<rs.ByteSlice> = rs.arraySliceIter(rs.sliceAsChunks(rs.byteVecSlice(packets), 188)[0]);
 	while (true) {
 		const _48: rs.ByteSlice | rs.Done = iter2.next();
 		if (_48 === rs.DONE) {
@@ -573,6 +724,128 @@ export function packets(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): v
 		sum = rs.u64Add(sum, cc as rs.u64);
 	}
 	harness_putU64(out, sum);
+}
+
+/**
+ * `count` steps through mutable parts of a `Vec` of `size` integers, as `selector` picks:
+ * a min-heap of deadlines, as a timer wheel keeps them, whose root is pushed later and
+ * sifted down through the halves `split_at_mut` lends, or `parts[..k]` written, `k`
+ * cycling from 1 to `size`. Its first item and the sum of what each step read.
+ */
+export function parts(selector: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	let sum!: rs.u64;
+	let c!: rs.usize;
+	const _6: [rs.u64, rs.ByteSlice] = takeU64(data);
+	const count: rs.u64 = _6[0];
+	const size2: rs.usize = rs.u64Low(rs.u64Clamp(takeU64(_6[1])[0], 1, 65536));
+	const v: rs.Vec<rs.u64> = rs.iterToVec(rs.iterMap(new rs.Range(0, size2 as rs.u64, rs.u64Step), (i2: rs.u64): rs.u64 => {
+		return rs.u64Rem(rs.u64Mul(i2, 40503), 65536);
+	}), undefined, 8, true);
+	b0: {
+		sum = 0;
+		if (selector === 0) {
+			rs.sliceSort(rs.sliceFrom(v.items), rs.lt, 8, true);
+			const iter: rs.Range<rs.u64> = new rs.Range(0, count, rs.u64Step);
+			while (true) {
+				const _25: rs.u64 | rs.Done = iter.next();
+				if (_25 === rs.DONE) {
+					break b0;
+				}
+				const _29: rs.u64 = rs.u64Add(1, rs.u64Mul(rs.u64Rem(_25, 64), 1024));
+				const at = rs.idx(v.items, 0);
+				v.items[at] = rs.u64Add(v.items[at], _29);
+				let i: rs.usize = 0;
+				while (true) {
+					const l: rs.usize = rs.usizeAdd(rs.usizeMul(2, i), 1);
+					if (!(l >= size2)) {
+						b7: {
+							if (rs.usizeAdd(l, 1) < size2) {
+								if (rs.u64Lt(v.items[rs.idx(v.items, rs.usizeAdd(l, 1))], v.items[rs.idx(v.items, l)])) {
+									c = rs.usizeAdd(l, 1);
+									break b7;
+								}
+							}
+							c = l;
+						}
+						const _61: [rs.Slice<rs.u64>, rs.Slice<rs.u64>] = rs.sliceSplitAt(rs.sliceFrom(v.items), c);
+						const _67: rs.usize = i;
+						rs.idx(_61[0], _67);
+						const _66: rs.u64 = _61[0].data[_61[0].start + _67];
+						rs.idx(_61[1], 0);
+						if (!rs.u64Le(_66, _61[1].data[_61[1].start])) {
+							const _78: rs.usize = i;
+							rs.idx(_61[0], _78);
+							rs.idx(_61[1], 0);
+							const swapped = _61[0].data[_61[0].start + _78];
+							_61[0].data[_61[0].start + _78] = _61[1].data[_61[1].start];
+							_61[1].data[_61[1].start] = swapped;
+							i = c;
+						} else {
+							break;
+						}
+					} else {
+						break;
+					}
+				}
+				sum = rs.u64WrappingAdd(sum, v.items[rs.idx(v.items, 0)]);
+			}
+		}
+		const iter2: rs.Range<rs.u64> = new rs.Range(0, count, rs.u64Step);
+		while (true) {
+			const _96: rs.u64 | rs.Done = iter2.next();
+			if (_96 === rs.DONE) {
+				break b0;
+			}
+			const part2 = rs.usizeAdd(rs.usizeRem(rs.u64Low(_96), size2), 1);
+			const part: rs.Slice<rs.u64> = rs.sliceRange(rs.sliceFrom(v.items), 0, part2);
+			const iterS: rs.u64[] = part.data;
+			let iterI: number = part.start;
+			const iterE: number = part.start + part.length;
+			while (iterI < iterE) {
+				const _111: number = iterI++;
+				iterS[_111] = rs.u64WrappingAdd(iterS[_111], 1);
+			}
+			const _120: rs.usize = rs.usizeSub(part.length, 1);
+			rs.idx(part, _120);
+			sum = rs.u64WrappingAdd(sum, part.data[part.start + _120]);
+		}
+	}
+	harness_putU64(out, v.items[rs.idx(v.items, 0)]);
+	harness_putU64(out, sum);
+}
+
+/**
+ * `count` frames of `size` bytes split off the front of a group's `Bytes`, as moq-net's
+ * model hands a frame's bytes to its consumers: each cloned for a second consumer, which
+ * reads past its first byte, then dropped, leaving the group the one handle of its storage
+ * again. The sum of what each frame read, then how many times the group was unique.
+ */
+export function frames(data: rs.ByteSlice, out: rs.ByteVec): void {
+	const _5: [rs.u64, rs.ByteSlice] = takeU64(data);
+	const count: rs.u64 = _5[0];
+	const size: rs.u64 = takeU64(_5[1])[0];
+	const count2: rs.usize = rs.u64Low(rs.u64Min(count, 65536));
+	const size2: rs.usize = rs.u64Low(rs.u64Clamp(size, 1, 1024));
+	let group: rs.ByteSlice = rs.bytesFromVec(rs.byteVecOf(90, rs.usizeMul(count2, size2)));
+	let sum: rs.u64 = 0;
+	let unique: rs.u64 = 0;
+	let iterStart: rs.usize = 0;
+	const iterEnd: rs.usize = count2;
+	while (iterStart++ < iterEnd) {
+		const frame: rs.ByteSlice = rs.bytesSplitTo(rs.place(() => group, (value) => group = value), size2);
+		const copy: rs.ByteSlice = rs.bytesClone(frame);
+		const rest: rs.ByteSlice = rs.bytesSlice(copy, 1);
+		const _40: rs.ByteSlice = frame;
+		rs.idx(_40, 0);
+		sum = rs.u64Add(sum, rs.u64Add(_40.data[_40.start] as rs.u64, rest.length as rs.u64));
+		rs.bytesDrop(rest);
+		rs.bytesDrop(copy);
+		rs.bytesDrop(frame);
+		unique = rs.u64Add(unique, rs.bytesIsUnique(group) ? 1 : 0);
+	}
+	harness_putU64(out, sum);
+	harness_putU64(out, unique);
+	rs.bytesDrop(group);
 }
 
 /**

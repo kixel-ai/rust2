@@ -228,7 +228,7 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.u8 = (at: rs.usize): rs.u8 => {
 		const buf: Uint8Array = Uint8Array.of(0);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
@@ -364,8 +364,8 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(a, f), (f: rs.Formatter) => rs.u8Debug(b, f), (f: rs.Formatter) => rs.u8LowerHex(a, f), (f: rs.Formatter) => rs.u8UpperHex(b, f), (f: rs.Formatter) => rs.u8Octal(c, f), (f: rs.Formatter) => rs.u8Binary(a, f), (f: rs.Formatter) => rs.u8Display(b, f), (f: rs.Formatter) => rs.u8LowerHex(c, f), (f: rs.Formatter) => rs.u8Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		const args6 = [(f: rs.Formatter) => rs.u8Display(a, f), (f: rs.Formatter) => rs.u8Debug(b, f), (f: rs.Formatter) => rs.u8LowerHex(a, f), (f: rs.Formatter) => rs.u8UpperHex(b, f), (f: rs.Formatter) => rs.u8Octal(c, f), (f: rs.Formatter) => rs.u8Binary(a, f), (f: rs.Formatter) => rs.u8Display(b, f), (f: rs.Formatter) => rs.u8LowerHex(c, f), (f: rs.Formatter) => rs.u8Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		const all: rs.u8[] = [a, b, c];
 		const part8 = rs.iterSum(rs.iterSlice(all), rs.u8SaturatingAdd, 0);
@@ -376,9 +376,9 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_20(out, part10);
 		const part11 = rs.iterProduct(rs.iterSlice(all), rs.u8SaturatingMul, 1);
 		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u8SaturatingAdd, 0);
+		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u8SaturatingAdd, 0);
 		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u8SaturatingMul, 1);
+		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u8SaturatingMul, 1);
 		_20(out, part13);
 	} else if (_21 === 20) {
 		_20(out, 0);
@@ -389,8 +389,8 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x7: Gauge.Gauge<rs.u8> = _370[0];
 		const y: Gauge.Gauge<rs.u8> = _370[1];
 		const _378: Gauge.Gauge<rs.u8> = Gauge.default$Default_u8();
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u8(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u8(_378, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u8(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u8(_378, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_u8(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_u8(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_u8(x7), hashed$num_Saturating_u8(a)) ? 1 : 0);
@@ -426,7 +426,7 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.u16 = (at: rs.usize): rs.u16 => {
 		const buf: Uint8Array = rs.bytes(2);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
@@ -562,8 +562,8 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u16Display(a, f), (f: rs.Formatter) => rs.u16Debug(b, f), (f: rs.Formatter) => rs.u16LowerHex(a, f), (f: rs.Formatter) => rs.u16UpperHex(b, f), (f: rs.Formatter) => rs.u16Octal(c, f), (f: rs.Formatter) => rs.u16Binary(a, f), (f: rs.Formatter) => rs.u16Display(b, f), (f: rs.Formatter) => rs.u16LowerHex(c, f), (f: rs.Formatter) => rs.u16Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		const args6 = [(f: rs.Formatter) => rs.u16Display(a, f), (f: rs.Formatter) => rs.u16Debug(b, f), (f: rs.Formatter) => rs.u16LowerHex(a, f), (f: rs.Formatter) => rs.u16UpperHex(b, f), (f: rs.Formatter) => rs.u16Octal(c, f), (f: rs.Formatter) => rs.u16Binary(a, f), (f: rs.Formatter) => rs.u16Display(b, f), (f: rs.Formatter) => rs.u16LowerHex(c, f), (f: rs.Formatter) => rs.u16Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		const all: rs.u16[] = [a, b, c];
 		const part8 = rs.iterSum(rs.iterSlice(all), rs.u16SaturatingAdd, 0);
@@ -574,9 +574,9 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_20(out, part10);
 		const part11 = rs.iterProduct(rs.iterSlice(all), rs.u16SaturatingMul, 1);
 		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u16SaturatingAdd, 0);
+		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u16SaturatingAdd, 0);
 		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u16SaturatingMul, 1);
+		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u16SaturatingMul, 1);
 		_20(out, part13);
 	} else if (_21 === 20) {
 		_20(out, 0);
@@ -587,8 +587,8 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x7: Gauge.Gauge<rs.u16> = _370[0];
 		const y: Gauge.Gauge<rs.u16> = _370[1];
 		const _378: Gauge.Gauge<rs.u16> = Gauge.default$Default_u16();
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u16(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u16(_378, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u16(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u16(_378, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_u16(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_u16(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_u16(x7), hashed$num_Saturating_u16(a)) ? 1 : 0);
@@ -624,7 +624,7 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.u32 = (at: rs.usize): rs.u32 => {
 		const buf: Uint8Array = rs.bytes(4);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
@@ -760,8 +760,8 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(a, f), (f: rs.Formatter) => rs.u32Debug(b, f), (f: rs.Formatter) => rs.u32LowerHex(a, f), (f: rs.Formatter) => rs.u32UpperHex(b, f), (f: rs.Formatter) => rs.u32Octal(c, f), (f: rs.Formatter) => rs.u32Binary(a, f), (f: rs.Formatter) => rs.u32Display(b, f), (f: rs.Formatter) => rs.u32LowerHex(c, f), (f: rs.Formatter) => rs.u32Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		const args6 = [(f: rs.Formatter) => rs.u32Display(a, f), (f: rs.Formatter) => rs.u32Debug(b, f), (f: rs.Formatter) => rs.u32LowerHex(a, f), (f: rs.Formatter) => rs.u32UpperHex(b, f), (f: rs.Formatter) => rs.u32Octal(c, f), (f: rs.Formatter) => rs.u32Binary(a, f), (f: rs.Formatter) => rs.u32Display(b, f), (f: rs.Formatter) => rs.u32LowerHex(c, f), (f: rs.Formatter) => rs.u32Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		const all: rs.u32[] = [a, b, c];
 		const part8 = rs.iterSum(rs.iterSlice(all), rs.u32SaturatingAdd, 0);
@@ -772,9 +772,9 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_20(out, part10);
 		const part11 = rs.iterProduct(rs.iterSlice(all), rs.u32SaturatingMul, 1);
 		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u32SaturatingAdd, 0);
+		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u32SaturatingAdd, 0);
 		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u32SaturatingMul, 1);
+		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u32SaturatingMul, 1);
 		_20(out, part13);
 	} else if (_21 === 20) {
 		_20(out, 0);
@@ -785,8 +785,8 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x7: Gauge.Gauge<rs.u32> = _370[0];
 		const y: Gauge.Gauge<rs.u32> = _370[1];
 		const _378: Gauge.Gauge<rs.u32> = Gauge.default$Default_u32();
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u32(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u32(_378, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u32(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u32(_378, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_u32(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_u32(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_u32(x7), hashed$num_Saturating_u32(a)) ? 1 : 0);
@@ -822,7 +822,7 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.u64 = (at: rs.usize): rs.u64 => {
 		const buf: Uint8Array = rs.bytes(8);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
@@ -958,8 +958,8 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u64Display(a, f), (f: rs.Formatter) => rs.u64Debug(b, f), (f: rs.Formatter) => rs.u64LowerHex(a, f), (f: rs.Formatter) => rs.u64UpperHex(b, f), (f: rs.Formatter) => rs.u64Octal(c, f), (f: rs.Formatter) => rs.u64Binary(a, f), (f: rs.Formatter) => rs.u64Display(b, f), (f: rs.Formatter) => rs.u64LowerHex(c, f), (f: rs.Formatter) => rs.u64Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		const args6 = [(f: rs.Formatter) => rs.u64Display(a, f), (f: rs.Formatter) => rs.u64Debug(b, f), (f: rs.Formatter) => rs.u64LowerHex(a, f), (f: rs.Formatter) => rs.u64UpperHex(b, f), (f: rs.Formatter) => rs.u64Octal(c, f), (f: rs.Formatter) => rs.u64Binary(a, f), (f: rs.Formatter) => rs.u64Display(b, f), (f: rs.Formatter) => rs.u64LowerHex(c, f), (f: rs.Formatter) => rs.u64Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		const all: rs.u64[] = [a, b, c];
 		const part8 = rs.iterSum(rs.iterSlice(all), rs.u64SaturatingAdd, 0);
@@ -970,9 +970,9 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_20(out, part10);
 		const part11 = rs.iterProduct(rs.iterSlice(all), rs.u64SaturatingMul, 1);
 		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u64SaturatingAdd, 0);
+		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u64SaturatingAdd, 0);
 		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u64SaturatingMul, 1);
+		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u64SaturatingMul, 1);
 		_20(out, part13);
 	} else if (_21 === 20) {
 		_20(out, 0);
@@ -983,8 +983,8 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x7: Gauge.Gauge<rs.u64> = _370[0];
 		const y: Gauge.Gauge<rs.u64> = _370[1];
 		const _378: Gauge.Gauge<rs.u64> = Gauge.default$Default_u64();
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u64(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u64(_378, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u64(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u64(_378, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_u64(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_u64(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_u64(x7), hashed$num_Saturating_u64(a)) ? 1 : 0);
@@ -1020,7 +1020,7 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.u128 = (at: rs.usize): rs.u128 => {
 		const buf: Uint8Array = rs.bytes(16);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
@@ -1156,8 +1156,8 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u128Display(a, f), (f: rs.Formatter) => rs.u128Debug(b, f), (f: rs.Formatter) => rs.u128LowerHex(a, f), (f: rs.Formatter) => rs.u128UpperHex(b, f), (f: rs.Formatter) => rs.u128Octal(c, f), (f: rs.Formatter) => rs.u128Binary(a, f), (f: rs.Formatter) => rs.u128Display(b, f), (f: rs.Formatter) => rs.u128LowerHex(c, f), (f: rs.Formatter) => rs.u128Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		const args6 = [(f: rs.Formatter) => rs.u128Display(a, f), (f: rs.Formatter) => rs.u128Debug(b, f), (f: rs.Formatter) => rs.u128LowerHex(a, f), (f: rs.Formatter) => rs.u128UpperHex(b, f), (f: rs.Formatter) => rs.u128Octal(c, f), (f: rs.Formatter) => rs.u128Binary(a, f), (f: rs.Formatter) => rs.u128Display(b, f), (f: rs.Formatter) => rs.u128LowerHex(c, f), (f: rs.Formatter) => rs.u128Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		const all: rs.u128[] = [a, b, c];
 		const part8 = rs.iterSum(rs.iterSlice(all), rs.u128SaturatingAdd, 0);
@@ -1168,9 +1168,9 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_20(out, part10);
 		const part11 = rs.iterProduct(rs.iterSlice(all), rs.u128SaturatingMul, 1);
 		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u128SaturatingAdd, 0);
+		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u128SaturatingAdd, 0);
 		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.u128SaturatingMul, 1);
+		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.u128SaturatingMul, 1);
 		_20(out, part13);
 	} else if (_21 === 20) {
 		_20(out, 0);
@@ -1181,8 +1181,8 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x7: Gauge.Gauge<rs.u128> = _370[0];
 		const y: Gauge.Gauge<rs.u128> = _370[1];
 		const _378: Gauge.Gauge<rs.u128> = Gauge.default$Default_u128();
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u128(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u128(_378, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_u128(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_u128(_378, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_u128(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_u128(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_u128(x7), hashed$num_Saturating_u128(a)) ? 1 : 0);
@@ -1218,7 +1218,7 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.usize = (at: rs.usize): rs.usize => {
 		const buf: Uint8Array = rs.bytes(4);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
@@ -1354,8 +1354,8 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.usizeDisplay(a, f), (f: rs.Formatter) => rs.usizeDebug(b, f), (f: rs.Formatter) => rs.usizeLowerHex(a, f), (f: rs.Formatter) => rs.usizeUpperHex(b, f), (f: rs.Formatter) => rs.usizeOctal(c, f), (f: rs.Formatter) => rs.usizeBinary(a, f), (f: rs.Formatter) => rs.usizeDisplay(b, f), (f: rs.Formatter) => rs.usizeLowerHex(c, f), (f: rs.Formatter) => rs.usizeDebug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		const args6 = [(f: rs.Formatter) => rs.usizeDisplay(a, f), (f: rs.Formatter) => rs.usizeDebug(b, f), (f: rs.Formatter) => rs.usizeLowerHex(a, f), (f: rs.Formatter) => rs.usizeUpperHex(b, f), (f: rs.Formatter) => rs.usizeOctal(c, f), (f: rs.Formatter) => rs.usizeBinary(a, f), (f: rs.Formatter) => rs.usizeDisplay(b, f), (f: rs.Formatter) => rs.usizeLowerHex(c, f), (f: rs.Formatter) => rs.usizeDebug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		const all: rs.usize[] = [a, b, c];
 		const part8 = rs.iterSum(rs.iterSlice(all), rs.usizeSaturatingAdd, 0);
@@ -1366,9 +1366,9 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_20(out, part10);
 		const part11 = rs.iterProduct(rs.iterSlice(all), rs.usizeSaturatingMul, 1);
 		_20(out, part11);
-		const part12 = rs.iterSum(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.usizeSaturatingAdd, 0);
+		const part12 = rs.iterSum(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.usizeSaturatingAdd, 0);
 		_20(out, part12);
-		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceRange(all, 0, 0)), rs.usizeSaturatingMul, 1);
+		const part13 = rs.iterProduct(rs.iterSlice(rs.sliceItems(rs.sliceRange(rs.sliceFrom(all), 0, 0))), rs.usizeSaturatingMul, 1);
 		_20(out, part13);
 	} else if (_21 === 20) {
 		_20(out, 0);
@@ -1379,8 +1379,8 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x7: Gauge.Gauge<rs.usize> = _370[0];
 		const y: Gauge.Gauge<rs.usize> = _370[1];
 		const _378: Gauge.Gauge<rs.usize> = Gauge.default$Default_usize();
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_usize(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_usize(_378, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_usize(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_usize(_378, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_usize(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_usize(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_usize(x7), hashed$num_Saturating_usize(a)) ? 1 : 0);
@@ -1416,7 +1416,7 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.i8 = (at: rs.usize): rs.i8 => {
 		const buf: Uint8Array = Uint8Array.of(0);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
@@ -1559,8 +1559,8 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.i8Display(a, f), (f: rs.Formatter) => rs.i8Debug(b, f), (f: rs.Formatter) => rs.i8LowerHex(a, f), (f: rs.Formatter) => rs.i8UpperHex(b, f), (f: rs.Formatter) => rs.i8Octal(c, f), (f: rs.Formatter) => rs.i8Binary(a, f), (f: rs.Formatter) => rs.i8Display(b, f), (f: rs.Formatter) => rs.i8LowerHex(c, f), (f: rs.Formatter) => rs.i8Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		const args6 = [(f: rs.Formatter) => rs.i8Display(a, f), (f: rs.Formatter) => rs.i8Debug(b, f), (f: rs.Formatter) => rs.i8LowerHex(a, f), (f: rs.Formatter) => rs.i8UpperHex(b, f), (f: rs.Formatter) => rs.i8Octal(c, f), (f: rs.Formatter) => rs.i8Binary(a, f), (f: rs.Formatter) => rs.i8Display(b, f), (f: rs.Formatter) => rs.i8LowerHex(c, f), (f: rs.Formatter) => rs.i8Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		rs.byteVecPush(out, 0);
 	} else if (_21 === 20) {
@@ -1572,8 +1572,8 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x7: Gauge.Gauge<rs.i8> = _344[0];
 		const y: Gauge.Gauge<rs.i8> = _344[1];
 		const _352: Gauge.Gauge<rs.i8> = Gauge.default$Default_i8();
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i8(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i8(_352, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i8(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i8(_352, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_i8(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_i8(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_i8(x7), hashed$num_Saturating_i8(a)) ? 1 : 0);
@@ -1610,7 +1610,7 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.i16 = (at: rs.usize): rs.i16 => {
 		const buf: Uint8Array = rs.bytes(2);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
@@ -1753,8 +1753,8 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.i16Display(a, f), (f: rs.Formatter) => rs.i16Debug(b, f), (f: rs.Formatter) => rs.i16LowerHex(a, f), (f: rs.Formatter) => rs.i16UpperHex(b, f), (f: rs.Formatter) => rs.i16Octal(c, f), (f: rs.Formatter) => rs.i16Binary(a, f), (f: rs.Formatter) => rs.i16Display(b, f), (f: rs.Formatter) => rs.i16LowerHex(c, f), (f: rs.Formatter) => rs.i16Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		const args6 = [(f: rs.Formatter) => rs.i16Display(a, f), (f: rs.Formatter) => rs.i16Debug(b, f), (f: rs.Formatter) => rs.i16LowerHex(a, f), (f: rs.Formatter) => rs.i16UpperHex(b, f), (f: rs.Formatter) => rs.i16Octal(c, f), (f: rs.Formatter) => rs.i16Binary(a, f), (f: rs.Formatter) => rs.i16Display(b, f), (f: rs.Formatter) => rs.i16LowerHex(c, f), (f: rs.Formatter) => rs.i16Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		rs.byteVecPush(out, 0);
 	} else if (_21 === 20) {
@@ -1766,8 +1766,8 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x7: Gauge.Gauge<rs.i16> = _344[0];
 		const y: Gauge.Gauge<rs.i16> = _344[1];
 		const _352: Gauge.Gauge<rs.i16> = Gauge.default$Default_i16();
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i16(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i16(_352, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i16(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i16(_352, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_i16(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_i16(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_i16(x7), hashed$num_Saturating_i16(a)) ? 1 : 0);
@@ -1804,7 +1804,7 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.i32 = (at: rs.usize): rs.i32 => {
 		const buf: Uint8Array = rs.bytes(4);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
@@ -1947,8 +1947,8 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.i32Display(a, f), (f: rs.Formatter) => rs.i32Debug(b, f), (f: rs.Formatter) => rs.i32LowerHex(a, f), (f: rs.Formatter) => rs.i32UpperHex(b, f), (f: rs.Formatter) => rs.i32Octal(c, f), (f: rs.Formatter) => rs.i32Binary(a, f), (f: rs.Formatter) => rs.i32Display(b, f), (f: rs.Formatter) => rs.i32LowerHex(c, f), (f: rs.Formatter) => rs.i32Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		const args6 = [(f: rs.Formatter) => rs.i32Display(a, f), (f: rs.Formatter) => rs.i32Debug(b, f), (f: rs.Formatter) => rs.i32LowerHex(a, f), (f: rs.Formatter) => rs.i32UpperHex(b, f), (f: rs.Formatter) => rs.i32Octal(c, f), (f: rs.Formatter) => rs.i32Binary(a, f), (f: rs.Formatter) => rs.i32Display(b, f), (f: rs.Formatter) => rs.i32LowerHex(c, f), (f: rs.Formatter) => rs.i32Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		rs.byteVecPush(out, 0);
 	} else if (_21 === 20) {
@@ -1960,8 +1960,8 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x7: Gauge.Gauge<rs.i32> = _344[0];
 		const y: Gauge.Gauge<rs.i32> = _344[1];
 		const _352: Gauge.Gauge<rs.i32> = Gauge.default$Default_i32();
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i32(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i32(_352, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i32(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i32(_352, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_i32(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_i32(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_i32(x7), hashed$num_Saturating_i32(a)) ? 1 : 0);
@@ -1998,7 +1998,7 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.i64 = (at: rs.usize): rs.i64 => {
 		const buf: Uint8Array = rs.bytes(8);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
@@ -2141,8 +2141,8 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.i64Display(a, f), (f: rs.Formatter) => rs.i64Debug(b, f), (f: rs.Formatter) => rs.i64LowerHex(a, f), (f: rs.Formatter) => rs.i64UpperHex(b, f), (f: rs.Formatter) => rs.i64Octal(c, f), (f: rs.Formatter) => rs.i64Binary(a, f), (f: rs.Formatter) => rs.i64Display(b, f), (f: rs.Formatter) => rs.i64LowerHex(c, f), (f: rs.Formatter) => rs.i64Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		const args6 = [(f: rs.Formatter) => rs.i64Display(a, f), (f: rs.Formatter) => rs.i64Debug(b, f), (f: rs.Formatter) => rs.i64LowerHex(a, f), (f: rs.Formatter) => rs.i64UpperHex(b, f), (f: rs.Formatter) => rs.i64Octal(c, f), (f: rs.Formatter) => rs.i64Binary(a, f), (f: rs.Formatter) => rs.i64Display(b, f), (f: rs.Formatter) => rs.i64LowerHex(c, f), (f: rs.Formatter) => rs.i64Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		rs.byteVecPush(out, 0);
 	} else if (_21 === 20) {
@@ -2154,8 +2154,8 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x7: Gauge.Gauge<rs.i64> = _344[0];
 		const y: Gauge.Gauge<rs.i64> = _344[1];
 		const _352: Gauge.Gauge<rs.i64> = Gauge.default$Default_i64();
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i64(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i64(_352, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i64(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i64(_352, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_i64(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_i64(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_i64(x7), hashed$num_Saturating_i64(a)) ? 1 : 0);
@@ -2192,7 +2192,7 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.i128 = (at: rs.usize): rs.i128 => {
 		const buf: Uint8Array = rs.bytes(16);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
@@ -2335,8 +2335,8 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.i128Display(a, f), (f: rs.Formatter) => rs.i128Debug(b, f), (f: rs.Formatter) => rs.i128LowerHex(a, f), (f: rs.Formatter) => rs.i128UpperHex(b, f), (f: rs.Formatter) => rs.i128Octal(c, f), (f: rs.Formatter) => rs.i128Binary(a, f), (f: rs.Formatter) => rs.i128Display(b, f), (f: rs.Formatter) => rs.i128LowerHex(c, f), (f: rs.Formatter) => rs.i128Debug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		const args6 = [(f: rs.Formatter) => rs.i128Display(a, f), (f: rs.Formatter) => rs.i128Debug(b, f), (f: rs.Formatter) => rs.i128LowerHex(a, f), (f: rs.Formatter) => rs.i128UpperHex(b, f), (f: rs.Formatter) => rs.i128Octal(c, f), (f: rs.Formatter) => rs.i128Binary(a, f), (f: rs.Formatter) => rs.i128Display(b, f), (f: rs.Formatter) => rs.i128LowerHex(c, f), (f: rs.Formatter) => rs.i128Debug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		rs.byteVecPush(out, 0);
 	} else if (_21 === 20) {
@@ -2348,8 +2348,8 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x7: Gauge.Gauge<rs.i128> = _344[0];
 		const y: Gauge.Gauge<rs.i128> = _344[1];
 		const _352: Gauge.Gauge<rs.i128> = Gauge.default$Default_i128();
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i128(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i128(_352, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_i128(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_i128(_352, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_i128(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_i128(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_i128(x7), hashed$num_Saturating_i128(a)) ? 1 : 0);
@@ -2386,7 +2386,7 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	};
 	const take: (a0: rs.usize) => rs.isize = (at: rs.usize): rs.isize => {
 		const buf: Uint8Array = rs.bytes(4);
-		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceView(rs.byteSliceFrom(buf))));
+		const iter3: rs.Iter<[rs.usize, rs.Place<rs.u8>]> = rs.iterEnumerate(rs.iterSliceMut(rs.byteSliceFrom(buf)));
 		while (true) {
 			const _10: [rs.usize, rs.Place<rs.u8>] | rs.Done = iter3.next();
 			if (_10 === rs.DONE) {
@@ -2529,8 +2529,8 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, rs.hashContains(seen, c) ? 1 : 0);
 		rs.byteVecPush(out, rs.hashLen(seen) & 0xff);
 	} else if (_21 === 18) {
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.isizeDisplay(a, f), (f: rs.Formatter) => rs.isizeDebug(b, f), (f: rs.Formatter) => rs.isizeLowerHex(a, f), (f: rs.Formatter) => rs.isizeUpperHex(b, f), (f: rs.Formatter) => rs.isizeOctal(c, f), (f: rs.Formatter) => rs.isizeBinary(a, f), (f: rs.Formatter) => rs.isizeDisplay(b, f), (f: rs.Formatter) => rs.isizeLowerHex(c, f), (f: rs.Formatter) => rs.isizeDebug(a, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", args2[4], " ", args2[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args2[6]), " ", rs.fmtSpec({ alternate: true }, args2[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args2[8]), " ", rs.fmtSpec({ plus: true }, args2[6])])));
+		const args6 = [(f: rs.Formatter) => rs.isizeDisplay(a, f), (f: rs.Formatter) => rs.isizeDebug(b, f), (f: rs.Formatter) => rs.isizeLowerHex(a, f), (f: rs.Formatter) => rs.isizeUpperHex(b, f), (f: rs.Formatter) => rs.isizeOctal(c, f), (f: rs.Formatter) => rs.isizeBinary(a, f), (f: rs.Formatter) => rs.isizeDisplay(b, f), (f: rs.Formatter) => rs.isizeLowerHex(c, f), (f: rs.Formatter) => rs.isizeDebug(a, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args6[0], " ", args6[1], " ", args6[2], " ", args6[3], " ", args6[4], " ", args6[5], " ", rs.fmtSpec({ align: ">", width: 6 }, args6[6]), " ", rs.fmtSpec({ alternate: true }, args6[7]), " ", rs.fmtSpec({ zero: true, width: 8 }, args6[8]), " ", rs.fmtSpec({ plus: true }, args6[6])]).v));
 	} else if (_21 === 19) {
 		rs.byteVecPush(out, 0);
 	} else if (_21 === 20) {
@@ -2542,8 +2542,8 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const x7: Gauge.Gauge<rs.isize> = _344[0];
 		const y: Gauge.Gauge<rs.isize> = _344[1];
 		const _352: Gauge.Gauge<rs.isize> = Gauge.default$Default_isize();
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_isize(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_isize(_352, f)];
-		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args4[0], " ", args4[1]])));
+		const args5 = [(f: rs.Formatter) => Gauge.fmt$fmt_Debug_isize(x7, f), (f: rs.Formatter) => Gauge.fmt$fmt_Debug_isize(_352, f)];
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args5[0], " ", args5[1]]).v));
 		rs.byteVecPush(out, Gauge.eq$cmp_PartialEq_isize(x7, y) ? 1 : 0);
 		rs.byteVecPush(out, Gauge.cmp$cmp_Ord_isize(x7, y) & 0xff);
 		rs.byteVecPush(out, rs.u64Eq(hashed$saturates_Gauge_isize(x7), hashed$num_Saturating_isize(a)) ? 1 : 0);

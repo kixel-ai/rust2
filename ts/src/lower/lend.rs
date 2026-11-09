@@ -1,11 +1,12 @@
-//! The references to `[u8; N]`s that cross between translated code and std. Such an array
-//! is a `Uint8Array`, where a `&[u8; N]` is an `rs.ByteSlice` of its bytes, as a `&[u8]`
-//! is, but std's mappings take and hand out a reference to an array as the array itself.
-//! So each `&[u8; N]` std makes of an array it holds, which it returns or hands a closure,
-//! is lent as a slice of it, and each std is given as a `&T` of a `T = [u8; N]` is given
-//! as a view of the slice's bytes. The function's generic signature tells such a
-//! reference from one std takes as it is, which is an `rs.ByteSlice` on both sides: a `&T`
-//! where `T = [u8; N]`, not a `T` where `T = &[u8; N]`.
+//! The references to `[T; N]`s that cross between translated code and std. Such an array
+//! is a JS array, or a `Uint8Array` of bytes, where a `&[T; N]` is an `rs.Slice` of its
+//! elements, as a `&[T]` is, or an `rs.ByteSlice` of bytes, but std's mappings take and
+//! hand out a reference to an array as the array itself. So each `&[T; N]` std makes of an
+//! array it holds, which it returns or hands a closure, is lent as a slice of all of it,
+//! and each std is given as a `&T` of a `T = [T; N]` is given as its elements: a view of a
+//! byte slice's bytes, and else the array where the slice is all of it, or a copy. The
+//! function's generic signature tells such a reference from one std takes as it is, which
+//! is a slice on both sides: a `&T` where `T = [T; N]`, not a `T` where `T = &[T; N]`.
 
 use rustc_hir::def_id::DefId;
 use rustc_middle::ty::{self, EarlyBinder, GenericArgsRef, Instance, Ty, TypingEnv};
@@ -16,7 +17,7 @@ use super::body::Body;
 use super::library::{self, Std};
 use crate::ts::{Expr, Param, Stmt, StmtKind};
 
-/// What a call of std's function makes of the `[u8; N]`s it holds.
+/// What a call of std's function makes of the `[T; N]`s it holds.
 pub enum Plan<'tcx> {
 	/// It lends none, or its mapping makes each slice itself.
 	Untouched,
@@ -30,7 +31,7 @@ pub enum Plan<'tcx> {
 /// A type in std's generic code, and as instantiated.
 pub type Pair<'tcx> = (Ty<'tcx>, Ty<'tcx>);
 
-/// Where a call lends `&[u8; N]`s, or is given them.
+/// Where a call lends `&[T; N]`s, or is given them.
 pub struct Lent<'tcx> {
 	/// The closures it lends them to.
 	pub closures: Vec<Closure<'tcx>>,
@@ -40,7 +41,7 @@ pub struct Lent<'tcx> {
 	pub given: Vec<(usize, Pair<'tcx>)>,
 }
 
-/// A closure std lends a `&[u8; N]` to.
+/// A closure std lends a `&[T; N]` to.
 pub struct Closure<'tcx> {
 	/// Its index among the call's inputs.
 	pub index: usize,
@@ -55,7 +56,7 @@ pub struct Closure<'tcx> {
 /// What a call of std's `def_id` lends.
 pub fn plan<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgsRef<'tcx>) -> Plan<'tcx> {
 	let tcx = t.tcx;
-	if t.translated(def_id, args) || !args.types().any(owns_bytes) {
+	if t.translated(def_id, args) || !args.types().any(owns_array) || super::array_slice::native(tcx, def_id, args) {
 		return Plan::Untouched;
 	}
 	let self_ty = args.types().next();
@@ -74,11 +75,18 @@ pub fn plan<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgsRef<
 				("mem", "swap" | "replace" | "take")
 				| ("Clone", "clone_from")
 				| ("ToOwned", "clone_into")
-				| ("raw" | "array" | "Cell" | "ptr", "from_mut") => true,
+				| ("raw" | "array" | "Cell" | "UnsafeCell" | "ptr", "from_mut")
+				| ("Option", "get_or_insert" | "get_or_insert_with" | "get_or_insert_default" | "insert") => true,
+				// A reference to an array a pointer or a cell points at, which is the slice the pointer is.
+				("ptr" | "NonNull", "as_ref" | "as_mut")
+				| ("UnsafeCell", "get_mut" | "as_ref_unchecked" | "as_mut_unchecked")
+				| ("Cell", "get_mut") => true,
 				// `Clone::clone`, which takes the slice, and an array as a slice, which it is.
 				("ToOwned", "to_owned") => true,
+				// An array as a slice, which it is, and what a reference lends, which it is too.
 				("AsRef" | "AsMut" | "Borrow" | "BorrowMut", _) => {
 					args.type_at(0).is_array() && args.type_at(1).is_slice()
+						|| matches!(args.type_at(0).kind(), ty::Ref(_, inner, _) if *inner == args.type_at(1))
 				}
 				("IntoIterator", "into_iter") => self_ty.is_some_and(|s| {
 					let s = super::iter::unbox_ref(tcx, s).peel_refs();
@@ -133,7 +141,7 @@ pub fn plan<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgsRef<
 		}
 		match lends(t, generic, ty) {
 			Some(false) => {}
-			Some(true) if reads => {}
+			Some(true) if reads && reads_either(ty) => {}
 			Some(true) if gives(t, generic, ty) => lent.given.push((i, (generic, ty))),
 			_ => return Plan::Refused,
 		}
@@ -168,14 +176,22 @@ fn collection<'tcx>(t: &Translator<'_, 'tcx>, def_id: DefId, args: GenericArgsRe
 	t.std_of(coll).is_some_and(super::collections::lending)
 }
 
-/// Whether `ty` holds a `[u8; N]` other than behind a reference or in a closure, which std
-/// only calls.
-fn owns_bytes(ty: Ty<'_>) -> bool {
+/// Whether every `&[T; N]` `ty` holds is of bytes, which a collection's runtime reads in
+/// either form.
+fn reads_either(ty: Ty<'_>) -> bool {
+	ty.walk()
+		.all(|arg| arg.as_type().and_then(super::array_ref).is_none_or(super::byte))
+}
+
+/// Whether `ty` holds a `[T; N]` other than behind a reference or in a closure, which std
+/// only calls, or one a closure returns, which std may hold as an iterator's item.
+fn owns_array(ty: Ty<'_>) -> bool {
 	match ty.kind() {
-		_ if super::byte_array(ty) => true,
-		ty::Array(elem, _) | ty::Slice(elem) => owns_bytes(*elem),
-		ty::Tuple(tys) => tys.iter().any(owns_bytes),
-		ty::Adt(_, args) | ty::Alias(_, ty::AliasTy { args, .. }) => args.types().any(owns_bytes),
+		ty::Array(..) => true,
+		ty::Closure(_, args) => owns_array(args.as_closure().sig().skip_binder().output()),
+		ty::Slice(elem) => owns_array(*elem),
+		ty::Tuple(tys) => tys.iter().any(owns_array),
+		ty::Adt(_, args) | ty::Alias(_, ty::AliasTy { args, .. }) => args.types().any(owns_array),
 		_ => false,
 	}
 }
@@ -248,7 +264,7 @@ fn normalize<'tcx, T: ty::TypeFoldable<ty::TyCtxt<'tcx>> + Copy>(
 		.unwrap_or(value)
 }
 
-/// Whether a `ty`, whose type in std's generic code is `generic`, holds a `&[u8; N]` std
+/// Whether a `ty`, whose type in std's generic code is `generic`, holds a `&[T; N]` std
 /// made of an array it holds: `Some(true)` if it does, by itself or in a tuple, an
 /// `Option`, or an iterator's items, which [`lend`] reaches, `Some(false)` if it holds
 /// none, and `None` if it holds one [`lend`] cannot reach.
@@ -256,7 +272,8 @@ pub fn lends<'tcx>(t: &Translator<'_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>) ->
 	match (generic.kind(), ty.kind()) {
 		// What std was given, as it was given it.
 		(ty::Param(_) | ty::Alias(..), _) => Some(false),
-		(_, ty::Ref(_, inner, _)) if super::byte_array(*inner) => Some(true),
+		// A mapping that names the array takes and makes the slice of it itself.
+		(ty::Ref(_, generic, _), ty::Ref(_, inner, _)) if inner.is_array() => Some(!generic.is_array()),
 		// A reference to what was given holds none std made.
 		(ty::Ref(_, generic, _), ty::Ref(_, inner, _)) => lends(t, *generic, *inner).filter(|&lent| !lent),
 		(ty::Tuple(generics), ty::Tuple(parts)) => std::iter::zip(generics.iter(), parts.iter())
@@ -271,7 +288,7 @@ pub fn lends<'tcx>(t: &Translator<'_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>) ->
 			let held = std::iter::zip(generics.types(), args.types()).all(|(g, arg)| lends(t, g, arg) == Some(false));
 			held.then_some(false)
 		}
-		_ => (!holds_bytes_ref(ty)).then_some(false),
+		_ => (!holds_array_ref(ty)).then_some(false),
 	}
 }
 
@@ -306,44 +323,46 @@ fn item<'tcx>(t: &Translator<'_, 'tcx>, ty: Ty<'tcx>) -> Option<(Option<Ty<'tcx>
 	Some((generic, item))
 }
 
-/// Whether `ty` holds a `&[u8; N]`, as a closure's signature does if it takes one.
-pub fn holds_bytes_ref(ty: Ty<'_>) -> bool {
-	ty.walk().any(|arg| arg.as_type().is_some_and(super::bytes_ref))
+/// Whether `ty` holds a `&[T; N]`, as a closure's signature does if it takes one.
+pub fn holds_array_ref(ty: Ty<'_>) -> bool {
+	ty.walk().any(|arg| arg.as_type().and_then(super::array_ref).is_some())
 }
 
 /// `value`, a `ty` std's mapping hands out, whose type in std's generic code is `generic`,
-/// as translated code reads it: each `&[u8; N]` std made of an array it holds, which the
-/// mapping hands out as the `Uint8Array`, an `rs.ByteSlice` of it. It shares the bytes,
-/// which nothing writes through a `&`, and a `&mut` writes where std holds them.
+/// as translated code reads it: each `&[T; N]` std made of an array it holds, which the
+/// mapping hands out as the JS array, a slice of all of it. It shares the elements, which
+/// nothing writes through a `&`, and a `&mut` writes where std holds them.
 pub fn lend<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Expr {
 	cross(b, generic, ty, value, Way::Lent, span)
 }
 
 /// `value`, a `ty` translated code gives std's mapping as an input whose type in std's
-/// generic code is `generic`, as the mapping reads it: each `&[u8; N]` where it takes a
-/// `&T`, which it reads, copies, and writes through as the array, an `rs.byteSliceView`
-/// of the `rs.ByteSlice`. It shares the bytes for as long as the reference lives, so
-/// whatever the mapping keeps of it reads and writes where the reference does.
+/// generic code is `generic`, as the mapping reads it: each `&[T; N]` where it takes a
+/// `&T`, which it reads, copies, and writes through as the array: the `rs.byteSliceView`
+/// of an `rs.ByteSlice`, which shares the bytes for as long as the reference lives, so
+/// whatever the mapping keeps of it reads and writes where the reference does, or else the
+/// `rs.sliceItems` of a shared one, which nothing writes through. A mutable one of other
+/// elements, which no JS array shares, is refused.
 pub fn give<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Expr {
 	cross(b, generic, ty, value, Way::Given, span)
 }
 
-/// Which way a `&[u8; N]` crosses between translated code and std's mapping.
+/// Which way a `&[T; N]` crosses between translated code and std's mapping.
 #[derive(Clone, Copy, PartialEq)]
 enum Way {
-	/// To translated code, from the `Uint8Array` std holds: [`lend`].
+	/// To translated code, from the array std holds: [`lend`].
 	Lent,
-	/// To std's mapping, from the `rs.ByteSlice` translated code holds: [`give`].
+	/// To std's mapping, from the slice translated code holds: [`give`].
 	Given,
 }
 
-/// Whether [`give`] reaches each `&[u8; N]` std is given in a `ty`, whose type in std's
+/// Whether [`give`] reaches each `&[T; N]` std is given in a `ty`, whose type in std's
 /// generic code is `generic`: by itself, or in a tuple or an `Option`. An iterator's items
 /// it does not reach, which std's own iterator holds as arrays already.
 fn gives<'tcx>(t: &Translator<'_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>) -> bool {
 	match (generic.kind(), ty.kind()) {
 		(ty::Param(_) | ty::Alias(..), _) => true,
-		(_, ty::Ref(_, inner, _)) if super::byte_array(*inner) => true,
+		(ty::Ref(..), ty::Ref(_, inner, _)) if inner.is_array() => true,
 		(ty::Tuple(generics), ty::Tuple(parts)) => {
 			std::iter::zip(generics.iter(), parts.iter()).all(|(g, part)| gives(t, g, part))
 		}
@@ -376,18 +395,40 @@ fn cross<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, valu
 			.collect();
 		return Expr::Array(parts);
 	}
-	cross_fn(b, generic, ty, way, span).call(vec![value])
+	match cross_fn(b, generic, ty, way, span) {
+		// The slice of the elements a slice was read as is that slice.
+		Expr::Rs(f) if f == "sliceFrom" => super::library::slice_from(value),
+		Expr::Rs(f) if f == "sliceItems" => super::library::slice_items(value),
+		f => f.call(vec![value]),
+	}
 }
 
 /// A function that [`cross`]es a `ty`.
 fn cross_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, generic: Ty<'tcx>, ty: Ty<'tcx>, way: Way, span: Span) -> Expr {
-	if let ty::Ref(_, inner, _) = ty.kind()
-		&& super::byte_array(*inner)
+	if let ty::Ref(_, inner, mutability) = ty.kind()
+		&& let ty::Array(elem, _) = inner.kind()
 	{
+		// Only bytes have a JS array that is part of another, a `Uint8Array` view, so a mapping
+		// can't write through any other part of an array as an array.
+		if way == Way::Given && *mutability == ty::Mutability::Mut && !super::byte(*elem) {
+			return b.err(
+				span,
+				format!("giving std a `{ty}` to write through as an array, which is not supported yet"),
+			);
+		}
+		// An array slice, each array lent as its own `From` lends it, and given as copies, which a `&` reads.
+		if elem.is_array() {
+			return match way {
+				Way::Lent => super::array_fn(*inner, "From"),
+				Way::Given => Expr::Rs("arraySliceItems".into()),
+			};
+		}
 		return Expr::Rs(
-			match way {
-				Way::Lent => "byteSliceFrom",
-				Way::Given => "byteSliceView",
+			match (way, super::byte(*elem)) {
+				(Way::Lent, true) => "byteSliceFrom",
+				(Way::Given, true) => "byteSliceView",
+				(Way::Lent, false) => "sliceFrom",
+				(Way::Given, false) => "sliceItems",
 			}
 			.into(),
 		);
@@ -443,12 +484,15 @@ pub fn lend_closure<'tcx>(
 }
 
 /// A function copying a `ty` out of what `Extend<&T>` and `Extend<(&K, &V)>` are given,
-/// where each `[u8; N]` is the `rs.ByteSlice` a `&[u8; N]` is: `None` if a copy is the
-/// value itself.
+/// where each `[T; N]` is the slice a `&[T; N]` is: `None` if a copy is the value itself.
 pub fn copy_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
 	match ty.kind() {
-		_ if super::byte_array(ty) => Some(Expr::Rs("byteSliceToArray".into())),
-		ty::Tuple(parts) if parts.iter().any(super::byte_array) => {
+		ty::Array(..) => {
+			let name = b.fresh("held");
+			let copy = b.t.array_copy(Expr::ident(&name), ty, span);
+			Some(Expr::Lambda(vec![Param { name, ty: None }], Box::new(copy)))
+		}
+		ty::Tuple(parts) if parts.iter().any(|part| part.is_array()) => {
 			let name = b.fresh("held");
 			let parts = (parts.iter().enumerate())
 				.map(|(i, part)| {

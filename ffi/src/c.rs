@@ -335,7 +335,7 @@ impl Header<'_> {
 		));
 		let mut members = Vec::new();
 		for variant in e.variants.iter().filter(|v| !v.fields.is_empty()) {
-			let payload = format!("{name}_{}", abi::snake(&variant.name));
+			let payload = abi::payload(name, &variant.name);
 			let fields: Vec<Ty> = variant.fields.iter().map(|f| abi.ty(&f.ty)).collect();
 			for field in &fields {
 				self.value(field);

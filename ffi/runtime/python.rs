@@ -1609,6 +1609,14 @@ unsafe extern "C" fn queue_take(obj: *mut PyObject, read: *mut PyObject) -> *mut
 	})
 }
 
+/// `signaled()`: whether a wake wrote a byte the loop has yet to take. The socket alone
+/// cannot say, since a proactor loop's pending read takes the byte as it lands.
+unsafe extern "C" fn queue_signaled(obj: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
+	// SAFETY: Python calls it on a `Queue`.
+	let queue = unsafe { (*obj.cast::<QueueObj>()).queue.as_ref() }.expect("a live queue");
+	bool_out(queue.signaled.load(Ordering::SeqCst)).map_or(null_mut(), Obj::into_ptr)
+}
+
 /// `Node`: a Python `Waker`'s node, made on its loop's queue.
 #[repr(C)]
 struct NodeObj {
@@ -1938,9 +1946,10 @@ static FUTURE_METHODS: Methods<4> = Methods(UnsafeCell::new([
 	END,
 ]));
 
-static QUEUE_METHODS: Methods<3> = Methods(UnsafeCell::new([
+static QUEUE_METHODS: Methods<4> = Methods(UnsafeCell::new([
 	noargs(c"fileno", queue_fileno),
 	onearg(c"take", queue_take),
+	noargs(c"signaled", queue_signaled),
 	END,
 ]));
 

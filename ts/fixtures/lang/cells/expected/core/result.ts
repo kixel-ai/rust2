@@ -17,7 +17,7 @@ export function map$0vjzmou(self: rs.Result<rs.u8 | undefined, rs.u8>, op: (a0: 
 	return self as rs.Result<undefined, rs.u8>;
 }
 
-export function map$0ac8dwe(self: rs.Result<string, rs.u8>, op: (a0: string) => undefined): rs.Result<undefined, rs.u8> {
+export function map$1kzzqt5(self: rs.Result<rs.String, rs.u8>, op: (a0: rs.String) => undefined): rs.Result<undefined, rs.u8> {
 	if (self.ok) {
 		op(self.value);
 		return rs.OK;

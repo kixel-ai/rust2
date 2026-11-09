@@ -14,7 +14,7 @@ export { ops, run } from "./lang.ts";
 function methods(): Uint8Array[] {
 	const widths: [string, number, boolean][] = [["u8s", 8, false], ["u16s", 16, false], ["u32s", 32, false], ["u64s", 64, false], ["u128s", 128, false], ["usizes", 32, false], ["i8s", 8, true], ["i16s", 16, true], ["i32s", 32, true], ["i64s", 64, true], ["i128s", 128, true], ["isizes", 32, true]];
 	// The kinds that read the `u32`, and the others, which read `b`.
-	const exponents = new Set([3, 4, 7, 8, 21, 22, 23, 38, 39, 40]);
+	const exponents = new Set([3, 4, 7, 8, 21, 22, 23, 38, 39, 40, 45, 46, 47]);
 	const cases: Uint8Array[] = [];
 	for (const [name, bits, signed] of widths) {
 		const o = op(`methods::${name}`);
@@ -32,7 +32,7 @@ function methods(): Uint8Array[] {
 		const be = (v: bigint) => Array.from({ length: bits / 8 }, (_, i) => Number((v >> BigInt(bits - 8 - 8 * i)) & 0xffn));
 		const u32 = (n: number) => [n >>> 24, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff];
 		let i = 0;
-		for (let kind = 0; kind < 42; kind++) {
+		for (let kind = 0; kind < 51; kind++) {
 			for (const a of edges) {
 				if (exponents.has(kind)) {
 					for (const n of shifts) cases.push(Uint8Array.of(...o, kind, ...be(a), ...be(others[i++ % others.length]), ...u32(n)));

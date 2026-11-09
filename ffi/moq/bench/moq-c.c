@@ -35,7 +35,8 @@ int main(void) {
 	for (int g = 0; g < GROUPS; g++) {
 		int32_t group = moq_publish_track_group((uint32_t)track);
 		for (int f = 0; f < FRAMES; f++) {
-			if (moq_publish_group_frame((uint32_t)group, payload, sizeof payload, micros++) < 0) {
+			moq_timestamp at = {.value = micros++, .scale = 1000000};
+			if (moq_publish_group_frame((uint32_t)group, payload, sizeof payload, &at) < 0) {
 				return 2;
 			}
 		}

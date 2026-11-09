@@ -6,8 +6,8 @@
 //
 // A key compares as Rust's `Eq` or `Ord` says, never by JS identity: a hash collection
 // finds a key that is a JS object through its translated `Hash` and `Eq`, and a B-tree
-// orders every key by its translated `Ord`. Which of those calls the runtime makes, and
-// how often, are its own, not std's.
+// orders every key by its translated `Ord`. Which `Hash` and `Eq` calls the runtime makes,
+// and how often, are its own, not std's; a B-tree makes std's `Ord` calls.
 //
 // No key, value, or item is ever `undefined`, which the translator refuses, so
 // `undefined` is a missing one.
@@ -15,10 +15,11 @@
 // A function that may drop a key, value, or item std's would, rather than return or keep
 // it, takes what drops each that does, as `k`, `v`, or `f`, and drops it where std's does.
 
-import { asSlice, ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, searchBy, sliceSort, sliceView, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity } from "../rs.ts";
+import { type ArrayRef, ArraySlice, NO_MEMORY, nowhere, arraySliceOfSlice, Borrowed, ByteSlice, ByteVec, byteVecPush, byteVecReserve, capReserve, capReserveExact, capTryReserve, capTryReserveExact, type CloneFrom, type Debug, debugStructField, debugStructFinishNonExhaustive, Err, type Fmt, fmtDebugStruct, fmtDebugStructFields, fmtDebugTupleFields, fmtIter, fmtList, type FmtResult, fmtSet, fmtTuple, type Formatter, type None, OK, Ok, panic, type Place, type RangeBound, rangeCheck, type Result, type Room, roomPast, searchBy, type Elements, Slice, sliceData, sliceFrom, sliceLength, sliceSort, sliceStart, Vec, vecAppend, vecCapacity, vecCloneFrom, vecFrom, vecHold, vecKeep, vecMax, vecReserve, vecWithCapacity, panicSizes } from "../rs.ts";
 import { allocError, CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
-import type { Hashing } from "./hash.ts";
+import type { HashKey, Hashing } from "./hash.ts";
 import { type Limbs, lt, type u64, type usize } from "./int.ts";
+import type { String as RsString } from "./str.ts";
 import {
 	type Clones,
 	DONE,
@@ -68,7 +69,9 @@ export function cmp<T extends number | boolean | Limbs>(a: T, b: T): Ordering {
  * `Ord::cmp` of two strings, by code point as Rust's UTF-8 bytes sort. JS's `<` compares
  * UTF-16 units, which puts a character past U+FFFF, a surrogate pair, below U+E000.
  */
-export function cmpStr(a: string, b: string): Ordering {
+export function cmpStr(x: string | RsString, y: string | RsString): Ordering {
+	const a = typeof x === "string" ? x : x.v;
+	const b = typeof y === "string" ? y : y.v;
 	if (a === b) return 0;
 	const n = Math.min(a.length, b.length);
 	for (let i = 0; i < n; i++) {
@@ -171,16 +174,14 @@ export function cmpReverse<T, O>(cmp: (a: T, b: T) => O): (a: T, b: T) => O {
  * `Ord::cmp` of slices, or `PartialOrd::partial_cmp`, by their elements' in order, then
  * by length.
  */
-export function cmpSlice<T, O extends Ordering | undefined>(cmp: (a: T, b: T) => O): (x: ArrayLike<T> | Vec<T>, y: ArrayLike<T> | Vec<T>) => O {
+export function cmpSlice<T, O extends Ordering | undefined>(cmp: (a: T, b: T) => O): (x: Elements<T>, y: Elements<T>) => O {
 	return (x, y) => {
-		const a = asSlice(x);
-		const b = asSlice(y);
-		const n = Math.min(a.length, b.length);
-		for (let i = 0; i < n; i++) {
-			const c = cmp(a[i], b[i]);
+		const [a, i, m, b, j, n] = [sliceData(x), sliceStart(x), sliceLength(x), sliceData(y), sliceStart(y), sliceLength(y)];
+		for (let k = 0; k < Math.min(m, n); k++) {
+			const c = cmp(a[i + k], b[j + k]);
 			if (c !== 0) return c;
 		}
-		return (a.length < b.length ? -1 : a.length > b.length ? 1 : 0) as O;
+		return (m < n ? -1 : m > n ? 1 : 0) as O;
 	};
 }
 
@@ -310,6 +311,23 @@ export function same<T>(a: T, b: T): boolean {
 	return a === b;
 }
 
+/** `PartialEq::eq` of text of any form, a `str`, a `String`, or a `Cow<str>`: their text. */
+export function eqStr(a: string | RsString | Borrowed<string>, b: string | RsString | Borrowed<string>): boolean {
+	return textOf(a) === textOf(b);
+}
+
+/** The text of a `str`, a `String`, or a `Cow<str>`. */
+function textOf(s: string | RsString | Borrowed<string>): string {
+	return typeof s === "string" ? s : s instanceof Borrowed ? s.slice : s.v;
+}
+
+/**
+ * How a hash collection finds a key that is a `String` or a `Cow<str>`, or a `str` looking
+ * one up: by its text, which the engine hashes as a JS map key, so the keys filed under
+ * one are equal.
+ */
+export const HASH_TEXT: Hashing<string | RsString | Borrowed<string>> = { hash: textOf, eq: () => true, all: true };
+
 /** `PartialEq::eq` of tuples, from each field's. */
 export function eqTuple<T extends readonly unknown[]>(fields: readonly ((a: never, b: never) => boolean)[]): (a: T, b: T) => boolean {
 	return (a, b) => {
@@ -319,24 +337,28 @@ export function eqTuple<T extends readonly unknown[]>(fields: readonly ((a: neve
 }
 
 /** `PartialEq::eq` of slices: their lengths', then their elements' in order. */
-export function eqSlice<T>(eq: (a: T, b: T) => boolean): (x: ArrayLike<T> | Vec<T>, y: ArrayLike<T> | Vec<T>) => boolean {
+export function eqSlice<T>(eq: (a: T, b: T) => boolean): (x: Elements<T>, y: Elements<T>) => boolean {
 	return (x, y) => {
-		const a = asSlice(x);
-		const b = asSlice(y);
-		if (a.length !== b.length) return false;
-		for (let i = 0; i < a.length; i++) if (!eq(a[i], b[i])) return false;
+		const [a, i, m, b, j, n] = [sliceData(x), sliceStart(x), sliceLength(x), sliceData(y), sliceStart(y), sliceLength(y)];
+		if (m !== n) return false;
+		for (let k = 0; k < m; k++) if (!eq(a[i + k], b[j + k])) return false;
 		return true;
 	};
 }
 
 /** A slice, an array, or a `Vec`, of bytes in any form, or a `VecDeque`. */
-type Seq<T> = ArrayLike<T> | ByteSlice | ByteVec | Vec<T> | VecDeque<T>;
+type Seq<T> = Elements<T> | ByteSlice | ByteVec | VecDeque<T>;
 
 /** The length of `s` and what reads its element at an index. */
 function seqItems<T>(s: Seq<T>): [number, (i: number) => T] {
 	if (s instanceof ByteSlice) return [s.length, (i) => s.data[s.start + i] as T];
+	if (s instanceof Slice) return [s.length, (i) => s.data[s.start + i]];
 	if (s instanceof ByteVec) return [s.length, (i) => s.data[i] as T];
 	if (s instanceof Vec) return [s.items.length, (i) => s.items[i] as T];
+	if (s instanceof ArraySlice) {
+		const items = sliceData(s) as ArrayLike<T>;
+		return [items.length, (i) => items[i]];
+	}
 	if (!("length" in s)) return [s.n, (i) => s.b[phys(s, i)] as T];
 	return [s.length, (i) => s[i] as T];
 }
@@ -389,26 +411,36 @@ export class AtIndex<T> implements Place<T> {
 	}
 
 	get v(): T {
-		this.reach(1);
-		return this.array[this.index];
+		if (this.index >= 0 && this.index < (this.array as ArrayLike<T>).length) return this.array[this.index];
+		return this.room(1).get(this.index);
 	}
 
 	set v(value: T) {
-		this.reach(1);
-		this.array[this.index] = value;
+		if (this.index >= 0 && this.index < (this.array as ArrayLike<T>).length) this.array[this.index] = value;
+		else this.room(1).set(this.index, value);
+	}
+
+	/** The place of element `index` of the same array, as pointer arithmetic moves to it. */
+	at(index: number): AtIndex<T> {
+		return new AtIndex(this.array, index);
 	}
 
 	/**
 	 * Fails where `n` elements from here run past either end of the array, which JS
-	 * doesn't keep Rust's memory around: a JS array grows by a write past its end, where a
-	 * `Vec`'s length stays until `set_len`, and a shared subslice is a copy, which a
-	 * pointer moved past it would read nothing of.
+	 * doesn't keep Rust's memory around, but into the room of the `Vec` it is the items
+	 * of: a shared subslice is a copy, which a pointer moved past it would read nothing of.
 	 */
 	reach(n: number): void {
-		const length = (this.array as ArrayLike<T>).length;
-		if (this.index < 0 || this.index + n > length) {
-			throw new Error("rust2-ts: a read or write through a pointer past the array JS keeps it in");
-		}
+		if (this.index >= 0 && this.index + n <= (this.array as ArrayLike<T>).length) return;
+		this.room(n);
+	}
+
+	/** The room past the array that holds `n` elements from here, which `reach` requires. */
+	private room(n: number): Room<T> {
+		const room = this.index >= 0 ? roomPast<T>(this.array, this.index + n) : undefined;
+		if (room === undefined && this.array === NO_MEMORY) nowhere();
+		if (room === undefined) throw new Error("rust2-ts: a read or write through a pointer past the array JS keeps it in");
+		return room;
 	}
 }
 
@@ -444,12 +476,12 @@ interface Slot<K, V> {
  * `HashMap<K, V>`, and `HashSet<K>` as a map to `undefined`, std's or hashbrown's. A key
  * that is a JS primitive, a number, string, or boolean, is its own JS map key, as Rust
  * compares it; a key that is an object goes by its hash, to a chain of the keys `Eq`
- * tells apart. Iteration visits the first kind in insertion order and then the second by
+ * tells apart, or by its text where it is a `String` or a `Cow<str>`, as `HASH_TEXT` finds one. Iteration visits the first kind in insertion order and then the second by
  * hash, an order Rust leaves unspecified.
  */
 export interface HashMap<K, V> {
 	p: Map<K, V>;
-	o: Map<number, Slot<K, V>> | undefined;
+	o: Map<HashKey, Slot<K, V>> | undefined;
 	/** How many keys `o` holds. */
 	n: number;
 	/** How to find a key that is an object, or `undefined` if no key is one. */
@@ -484,7 +516,7 @@ function hashed<K, V>(m: HashMap<K, V>, key: K): boolean {
  * The slot holding a key equal to `key`, a hashed key whose hash is `hash` if given, which
  * compares by `key`'s `eq`, as std's lookups do.
  */
-function slot<K, V>(m: HashMap<K, V>, key: K, hash?: number): Slot<K, V> | undefined {
+function slot<K, V>(m: HashMap<K, V>, key: K, hash?: HashKey): Slot<K, V> | undefined {
 	const h = m.h as Hashing<K>;
 	for (let s = m.o?.get(hash ?? h.hash(key)); s !== undefined; s = s.next) if (h.eq(key, s.k)) return s;
 	return undefined;
@@ -691,8 +723,8 @@ export function hashRemoveEntry<K, V>(m: HashMap<K, V>, key: K): [K, V] | undefi
 }
 
 /** Take `s`, a slot whose key's hash is `hash`, out of `m`. */
-function unlink<K, V>(m: HashMap<K, V>, hash: number, s: Slot<K, V>): void {
-	const o = m.o as Map<number, Slot<K, V>>;
+function unlink<K, V>(m: HashMap<K, V>, hash: HashKey, s: Slot<K, V>): void {
+	const o = m.o as Map<HashKey, Slot<K, V>>;
 	let prev = o.get(hash) as Slot<K, V>;
 	if (prev === s) {
 		if (s.next !== undefined) o.set(hash, s.next);
@@ -818,9 +850,9 @@ function retainHash<K, V>(m: HashMap<K, V>, f: (key: K, value: V | Place<V>) => 
 class HashExtractIf<K, V, T> extends Iter<T> implements Disposable {
 	private readonly m: HashMap<K, V>;
 	private readonly p: Iterator<[K, V]>;
-	private readonly o: Iterator<[number, Slot<K, V>]> | undefined;
+	private readonly o: Iterator<[HashKey, Slot<K, V>]> | undefined;
 	/** The chain it reads, by its hash, the slot it reads next, and the last it kept there. */
-	private hash = 0;
+	private hash: HashKey = 0;
 	private at: Slot<K, V> | undefined;
 	private kept: Slot<K, V> | undefined;
 	private readonly f: (key: K, value: V | Place<V>) => boolean;
@@ -854,7 +886,7 @@ class HashExtractIf<K, V, T> extends Iter<T> implements Disposable {
 				return (this.keys ? key : [key, now]) as T;
 			}
 			if (this.at === undefined) {
-				[this.hash, this.at] = (this.o as Iterator<[number, Slot<K, V>]>).next().value as [number, Slot<K, V>];
+				[this.hash, this.at] = (this.o as Iterator<[HashKey, Slot<K, V>]>).next().value as [HashKey, Slot<K, V>];
 				this.kept = undefined;
 			}
 			const s = this.at;
@@ -863,7 +895,7 @@ class HashExtractIf<K, V, T> extends Iter<T> implements Disposable {
 				this.kept = s;
 				continue;
 			}
-			const o = m.o as Map<number, Slot<K, V>>;
+			const o = m.o as Map<HashKey, Slot<K, V>>;
 			if (this.kept !== undefined) this.kept.next = s.next;
 			else if (s.next !== undefined) o.set(this.hash, s.next);
 			else o.delete(this.hash);
@@ -1422,35 +1454,32 @@ export function tableDrain<T>(t: HashTable<T>, d?: (item: T) => void): Iter<T> {
 // BTreeMap and BTreeSet
 
 /**
- * The most keys a node holds. A B+ tree's leaves hold its keys and values in order, and
- * its branches each child's lower bound, so every operation but a split or merge shifts
- * at most this many array slots after `log_{NODE/2} n` searches of one node each.
+ * The most keys a node holds, std's: `2 * B - 1` of its `B` of 6. Each node is std's,
+ * split, merged, and evened out where std's is, so a search reads the same keys in the same
+ * order.
  */
-const NODE = 64;
-/** The fewest keys a node other than the root holds, half of `NODE`, as a literal a bundler can drop. */
-const MIN = 32;
+const CAPACITY = 11;
+/** The fewest keys a node other than the root holds after std's removals. */
+const MIN_LEN = 5;
 
-/** A leaf: its keys in order, each key's value at the same index, and the leaves beside it. */
-interface Leaf<K, V> {
+/**
+ * A node, as std's: its keys in order, each key's value at the same index, and of an
+ * internal node, its children, one more than its keys, each holding the keys between the
+ * two around it. Each knows its parent and its index among the parent's children.
+ */
+interface Node<K, V> {
 	k: K[];
 	v: V[];
-	prev: Leaf<K, V> | undefined;
-	next: Leaf<K, V> | undefined;
+	e: Node<K, V>[] | undefined;
+	p: Node<K, V> | undefined;
+	i: number;
 }
 
-/** A branch: its children, and each one's lower bound, which the first child's is not. */
-interface Branch<K, V> {
-	k: K[];
-	c: Node<K, V>[];
-}
-
-type Node<K, V> = Leaf<K, V> | Branch<K, V>;
-
-/** `BTreeMap<K, V>`, and `BTreeSet<K>` as a map to `undefined`: a B+ tree ordered by `Ord`. */
+/** `BTreeMap<K, V>`, and `BTreeSet<K>` as a map to `undefined`: std's B-tree, ordered by `Ord`. */
 export interface BTreeMap<K, V> {
 	/** The root, which is a leaf where `h` is 0. */
 	t: Node<K, V>;
-	/** The height: how many branches are above each leaf. */
+	/** The height: how many internal nodes are above each leaf. */
 	h: number;
 	/** How many keys it holds. */
 	n: number;
@@ -1466,8 +1495,20 @@ export interface BTreeMap<K, V> {
 /** `BTreeSet<K>`. */
 export type BTreeSet<K> = BTreeMap<K, undefined>;
 
-function leaf<K, V>(k: K[] = [], v: V[] = []): Leaf<K, V> {
-	return { k, v, prev: undefined, next: undefined };
+/** An empty node, internal if it has children `e`, which it becomes the parent of. */
+function node<K, V>(e?: Node<K, V>[]): Node<K, V> {
+	const n: Node<K, V> = { k: [], v: [], e, p: undefined, i: 0 };
+	if (e !== undefined) adopt(n);
+	return n;
+}
+
+/** Makes `n` the parent of each of its children from index `from` on, at its index. */
+function adopt<K, V>(n: Node<K, V>, from = 0): void {
+	const e = n.e as Node<K, V>[];
+	for (let i = from; i < e.length; i++) {
+		e[i].p = n;
+		e[i].i = i;
+	}
 }
 
 /**
@@ -1475,53 +1516,108 @@ function leaf<K, V>(k: K[] = [], v: V[] = []): Leaf<K, V> {
  * inferred from `cmp`: a slice's order takes any `ArrayLike`.
  */
 export function btreeNew<K, V>(cmp: (a: NoInfer<K>, b: NoInfer<K>) => Ordering): BTreeMap<K, V> {
-	return { t: leaf(), h: 0, n: 0, c: cmp, r: false };
+	return { t: node(), h: 0, n: 0, c: cmp, r: false };
 }
 
-/** The index of `key` in `keys` if there, or else the bitwise not of where it would go. */
-function search<K>(keys: K[], key: K, cmp: (a: K, b: K) => Ordering): number {
-	let lo = 0;
-	let hi = keys.length;
-	while (lo < hi) {
-		const mid = (lo + hi) >>> 1;
-		const c = cmp(keys[mid], key);
-		if (c === 0) return mid;
-		if (c < 0) lo = mid + 1;
-		else hi = mid;
+/**
+ * The index a function that finds a key or edge leaves here beside the node it returns,
+ * which its caller reads before anything else runs.
+ */
+let idx = 0;
+
+/**
+ * A key of another type `Q`, which a B-tree's keys borrow as, that it is searched by as
+ * std's search by a `Borrow` form is: by `Q`'s `Ord::cmp` of it against each key's `borrow`.
+ */
+export class By<K> {
+	readonly q: unknown;
+	/** `Q`'s `Ord::cmp`. */
+	readonly cmp: (a: unknown, b: unknown) => Ordering;
+	/** `Q`'s `Ord::cmp` of a `Q` against a key's `borrow`. */
+	readonly c: (q: unknown, k: K) => Ordering;
+
+	constructor(q: unknown, cmp: (a: unknown, b: unknown) => Ordering, c: (q: unknown, k: K) => Ordering) {
+		this.q = q;
+		this.cmp = cmp;
+		this.c = c;
 	}
-	return ~lo;
 }
 
-/** The index of the child of `b` whose keys `key` would be among. */
-function child<K, V>(b: Branch<K, V>, key: K, cmp: (a: K, b: K) => Ordering): number {
-	let lo = 1;
-	let hi = b.k.length;
-	while (lo < hi) {
-		const mid = (lo + hi) >>> 1;
-		if (cmp(b.k[mid], key) <= 0) lo = mid + 1;
-		else hi = mid;
-	}
-	return lo - 1;
+/** `q`, a key or a range of keys of type `Q`, by `Q`'s `cmp` against each key `K`'s `borrow`. */
+export function by<Q, K>(q: NoInfer<Q | Bounds<Q>>, cmp: (a: Q, b: Q) => Ordering, borrow: (k: K) => Q): By<K> {
+	return new By(q, cmp as (a: unknown, b: unknown) => Ordering, (q, k) => cmp(q as Q, borrow(k)));
 }
 
-/** The leaf `key` would be in. */
-function leafOf<K, V>(m: BTreeMap<K, V>, key: K): Leaf<K, V> {
-	let node = m.t;
-	for (let h = m.h; h > 0; h--) {
-		const b = node as Branch<K, V>;
-		node = b.c[child(b, key, m.c)];
+/**
+ * std's `find_key_index`: the index of the first of `n`'s keys from `from` on that `key` is
+ * not greater than, by `key.cmp(k)`, if equal, or else the bitwise not of the edge before it.
+ */
+function find<Q, K, V>(cmp: (a: Q, b: K) => Ordering, n: Node<K, V>, key: Q, from = 0): number {
+	const keys = n.k;
+	const len = keys.length;
+	for (let i = from; i < len; i++) {
+		const order = cmp(key, keys[i]);
+		if (order === 0) return i;
+		if (order < 0) return ~i;
 	}
-	return node as Leaf<K, V>;
+	return ~len;
+}
+
+/**
+ * std's `search_tree`: the node holding a key equal to `key`, with `idx` its index, or else
+ * the leaf it would go in, with `idx` the bitwise not of the edge it goes at.
+ */
+function seek<K, V>(m: BTreeMap<K, V>, key: K): Node<K, V> {
+	return seekBy(m, m.c, key);
+}
+
+/** `seek` by `key`, or by what a `By` holds, as std's lookups search by a `Borrow` form. */
+function lookup<K, V>(m: BTreeMap<K, V>, key: K | By<K>): Node<K, V> {
+	return key instanceof By ? seekBy(m, key.c, key.q) : seekBy(m, m.c, key);
+}
+
+/** `seek` by `cmp`, of `key` against each key. */
+function seekBy<Q, K, V>(m: BTreeMap<K, V>, cmp: (a: Q, b: K) => Ordering, key: Q): Node<K, V> {
+	let n = m.t;
+	for (;;) {
+		const i = find(cmp, n, key);
+		if (i >= 0 || n.e === undefined) {
+			idx = i;
+			return n;
+		}
+		n = n.e[~i];
+	}
 }
 
 /** The first leaf, or with `last`, the last. */
-function end<K, V>(m: BTreeMap<K, V>, last: boolean): Leaf<K, V> {
-	let node = m.t;
-	for (let h = m.h; h > 0; h--) {
-		const c = (node as Branch<K, V>).c;
-		node = c[last ? c.length - 1 : 0];
+function end<K, V>(m: BTreeMap<K, V>, last: boolean): Node<K, V> {
+	let n = m.t;
+	while (n.e !== undefined) n = n.e[last ? n.e.length - 1 : 0];
+	return n;
+}
+
+/** std's `next_leaf_edge` of the key at index `i` of `n`: the leaf, with `idx` the edge's index. */
+function nextEdge<K, V>(n: Node<K, V>, i: number): Node<K, V> {
+	if (n.e === undefined) {
+		idx = i + 1;
+		return n;
 	}
-	return node as Leaf<K, V>;
+	n = n.e[i + 1];
+	while (n.e !== undefined) n = n.e[0];
+	idx = 0;
+	return n;
+}
+
+/** std's `next_back_leaf_edge` of the key at index `i` of `n`: the leaf, with `idx` the edge's index. */
+function backEdge<K, V>(n: Node<K, V>, i: number): Node<K, V> {
+	if (n.e === undefined) {
+		idx = i;
+		return n;
+	}
+	n = n.e[i];
+	while (n.e !== undefined) n = n.e[n.e.length - 1];
+	idx = n.k.length;
+	return n;
 }
 
 export function btreeLen<K, V>(m: BTreeMap<K, V>): number {
@@ -1529,37 +1625,34 @@ export function btreeLen<K, V>(m: BTreeMap<K, V>): number {
 }
 
 /** `BTreeMap::get`: the value there, or else `none`, the `None` of an `Option` of a value that can be `undefined`. */
-export function btreeGet<K, V>(m: BTreeMap<K, V>, key: K): V | undefined;
-export function btreeGet<K, V>(m: BTreeMap<K, V>, key: K, none: None): V | None;
-export function btreeGet<K, V>(m: BTreeMap<K, V>, key: K, none?: None): V | None | undefined {
-	const l = leafOf(m, key);
-	const i = search(l.k, key, m.c);
-	return i < 0 ? none : l.v[i];
+export function btreeGet<K, V>(m: BTreeMap<K, V>, key: K | By<K>): V | undefined;
+export function btreeGet<K, V>(m: BTreeMap<K, V>, key: K | By<K>, none: None): V | None;
+export function btreeGet<K, V>(m: BTreeMap<K, V>, key: K | By<K>, none?: None): V | None | undefined {
+	const n = lookup(m, key);
+	return idx < 0 ? none : n.v[idx];
 }
 
 /** `BTreeMap::get_mut` of a value JS copies: its place, if the map holds `key`. */
-export function btreeGetMut<K, V>(m: BTreeMap<K, V>, key: K): Place<V> | undefined {
-	const l = leafOf(m, key);
-	const i = search(l.k, key, m.c);
-	return i < 0 ? undefined : new AtIndex(l.v, i);
+export function btreeGetMut<K, V>(m: BTreeMap<K, V>, key: K | By<K>): Place<V> | undefined {
+	const n = lookup(m, key);
+	return idx < 0 ? undefined : new AtIndex(n.v, idx);
 }
 
 /** `BTreeMap::get_key_value`: the equal key the map holds, and its value. */
-export function btreeGetKeyValue<K, V>(m: BTreeMap<K, V>, key: K): [K, V] | undefined {
-	const l = leafOf(m, key);
-	const i = search(l.k, key, m.c);
-	return i < 0 ? undefined : [l.k[i], l.v[i]];
+export function btreeGetKeyValue<K, V>(m: BTreeMap<K, V>, key: K | By<K>): [K, V] | undefined {
+	const n = lookup(m, key);
+	return idx < 0 ? undefined : [n.k[idx], n.v[idx]];
 }
 
 /** `BTreeSet::get`, and `BTreeSet::take` if `take`: the equal key the set holds, or else `none`. */
-export function btreeKey<K, V>(m: BTreeMap<K, V>, key: K, take?: boolean): K | undefined;
-export function btreeKey<K, V>(m: BTreeMap<K, V>, key: K, take: boolean, none: None): K | None;
-export function btreeKey<K, V>(m: BTreeMap<K, V>, key: K, take = false, none?: None): K | None | undefined {
-	const l = leafOf(m, key);
-	const i = search(l.k, key, m.c);
+export function btreeKey<K, V>(m: BTreeMap<K, V>, key: K | By<K>, take?: boolean): K | undefined;
+export function btreeKey<K, V>(m: BTreeMap<K, V>, key: K | By<K>, take: boolean, none: None): K | None;
+export function btreeKey<K, V>(m: BTreeMap<K, V>, key: K | By<K>, take = false, none?: None): K | None | undefined {
+	const n = lookup(m, key);
+	const i = idx;
 	if (i < 0) return none;
-	const held = l.k[i];
-	if (take) removeAt(m, l, i);
+	const held = n.k[i];
+	if (take) removeAt(m, n, i);
 	return held;
 }
 
@@ -1567,53 +1660,105 @@ export function btreeKey<K, V>(m: BTreeMap<K, V>, key: K, take = false, none?: N
 export function btreeReplace<K>(m: BTreeSet<K>, key: K): K | undefined;
 export function btreeReplace<K>(m: BTreeSet<K>, key: K, none: None): K | None;
 export function btreeReplace<K>(m: BTreeSet<K>, key: K, none?: None): K | None | undefined {
-	const l = leafOf(m, key);
-	const i = search(l.k, key, m.c);
+	const n = seek(m, key);
+	const i = idx;
 	if (i < 0) {
-		insertAt(m, l, ~i, key, undefined);
+		insertAt(m, n, ~i, key, undefined);
 		return none;
 	}
-	const old = l.k[i];
-	l.k[i] = key;
-	if (bounding(l, i)) rebound(m, key, old);
+	const old = n.k[i];
+	n.k[i] = key;
 	return old;
 }
 
-export function btreeContains<K, V>(m: BTreeMap<K, V>, key: K): boolean {
-	return search(leafOf(m, key).k, key, m.c) >= 0;
+export function btreeContains<K, V>(m: BTreeMap<K, V>, key: K | By<K>): boolean {
+	lookup(m, key);
+	return idx >= 0;
 }
 
 /** `BTreeMap::index`: `map[&key]`. */
-export function btreeIndex<K, V>(m: BTreeMap<K, V>, key: K, at?: Location): V {
-	const l = leafOf(m, key);
-	const i = search(l.k, key, m.c);
-	if (i < 0) panic("no entry found for key", at, true);
-	return l.v[i];
+export function btreeIndex<K, V>(m: BTreeMap<K, V>, key: K | By<K>, at?: Location): V {
+	const n = lookup(m, key);
+	if (idx < 0) panic("no entry found for key", at, true);
+	return n.v[idx];
 }
 
 /** `BTreeMap::insert`: the old value, or else `none`. An equal key already there stays, and `key` drops. */
 export function btreeInsert<K, V>(m: BTreeMap<K, V>, key: K, value: V, k?: (key: K) => void): V | undefined;
 export function btreeInsert<K, V>(m: BTreeMap<K, V>, key: K, value: V, k: ((key: K) => void) | undefined, none: None): V | None;
 export function btreeInsert<K, V>(m: BTreeMap<K, V>, key: K, value: V, k?: (key: K) => void, none?: None): V | None | undefined {
-	const l = leafOf(m, key);
-	const i = search(l.k, key, m.c);
+	const n = seek(m, key);
+	const i = idx;
 	if (i < 0) {
-		insertAt(m, l, ~i, key, value);
+		insertAt(m, n, ~i, key, value);
 		return none;
 	}
 	k?.(key);
-	const old = l.v[i];
-	l.v[i] = value;
+	const old = n.v[i];
+	n.v[i] = value;
 	return old;
 }
 
-/** Puts `key` and `value` at index `i` of `l`, the leaf it goes in, and splits what overflows. */
-function insertAt<K, V>(m: BTreeMap<K, V>, l: Leaf<K, V>, i: number, key: K, value: V): void {
+/**
+ * std's `insert_recursing`: puts `key` and `value` at edge `i` of leaf `l`, splitting a full
+ * node about std's `splitpoint` and putting its middle key into its parent in turn, or a
+ * new root. Returns the leaf the key went in, with `idx` its index.
+ */
+function insertAt<K, V>(m: BTreeMap<K, V>, l: Node<K, V>, i: number, key: K, value: V): Node<K, V> {
 	m.r = true;
 	m.n++;
-	put(l.k, i, key);
-	put(l.v, i, value);
-	if (l.k.length > NODE) settle(m, key);
+	let n = l;
+	let edge: Node<K, V> | undefined;
+	let leaf: Node<K, V> | undefined;
+	let index = 0;
+	for (;;) {
+		let into = n;
+		let j = i;
+		let right: Node<K, V> | undefined;
+		if (n.k.length === CAPACITY) {
+			const mid = i < 5 ? 4 : i <= 6 ? 5 : 6;
+			right = split(n, mid);
+			if (i > mid) {
+				into = right;
+				j = i - mid - 1;
+			}
+		}
+		put(into.k, j, key);
+		put(into.v, j, value);
+		if (edge !== undefined) {
+			put(into.e as Node<K, V>[], j + 1, edge);
+			adopt(into, j + 1);
+		}
+		if (leaf === undefined) {
+			leaf = into;
+			index = j;
+		}
+		if (right === undefined) break;
+		// The middle key, left last in `n`, goes up.
+		key = n.k.pop() as K;
+		value = n.v.pop() as V;
+		edge = right;
+		if (n.p === undefined) {
+			const root = node([n, right]);
+			root.k.push(key);
+			root.v.push(value);
+			m.t = root;
+			m.h++;
+			break;
+		}
+		i = n.i;
+		n = n.p;
+	}
+	idx = index;
+	return leaf;
+}
+
+/** Moves the keys of `n` after index `mid`, and the children after them, into a new node, which it returns. */
+function split<K, V>(n: Node<K, V>, mid: number): Node<K, V> {
+	const right = node(n.e?.splice(mid + 1));
+	right.k = n.k.splice(mid + 1);
+	right.v = n.v.splice(mid + 1);
+	return right;
 }
 
 /** Puts `item` at index `i` of `a`, after moving the rest up: in a node, faster than `splice`. */
@@ -1633,208 +1778,281 @@ function take<T>(a: T[], i: number): void {
 
 /** `BTreeSet::insert`: whether `key` was not there yet. An equal key already there stays, and `key` drops. */
 export function btreeAdd<K>(m: BTreeSet<K>, key: K, k?: (key: K) => void): boolean {
-	const l = leafOf(m, key);
-	const i = search(l.k, key, m.c);
+	const n = seek(m, key);
+	const i = idx;
 	if (i >= 0) {
 		k?.(key);
 		return false;
 	}
-	insertAt(m, l, ~i, key, undefined);
+	insertAt(m, n, ~i, key, undefined);
 	return true;
 }
 
-/** Takes the key and value at index `i` of `l` out, and merges the leaf if too small. */
-function removeAt<K, V>(m: BTreeMap<K, V>, l: Leaf<K, V>, i: number): void {
-	const key = l.k[i];
-	const bound = bounding(l, i);
+/**
+ * std's `remove_kv_tracking`: takes the key and value at index `i` of `n` out, an internal
+ * node's by moving the last key before it in its place, and rebalances as std's does.
+ * Returns the leaf edge where it was, the leaf, with `idx` the edge's index.
+ */
+function removeAt<K, V>(m: BTreeMap<K, V>, n: Node<K, V>, i: number): Node<K, V> {
 	m.n--;
-	take(l.k, i);
-	take(l.v, i);
-	if (l.k.length < MIN && m.h > 0) settle(m, key);
-	if (bound) rebound(m, key, key);
+	if (n.e === undefined) return removeLeaf(m, n, i);
+	let l = n.e[i];
+	while (l.e !== undefined) l = l.e[l.e.length - 1];
+	const last = l.k.length - 1;
+	const key = l.k[last];
+	const value = l.v[last];
+	// Rebalancing may move the key being replaced, which is the next one after the hole.
+	let hole = removeLeaf(m, l, last);
+	let j = idx;
+	while (j === hole.k.length) {
+		j = hole.i;
+		hole = hole.p as Node<K, V>;
+	}
+	hole.k[j] = key;
+	hole.v[j] = value;
+	return nextEdge(hole, j);
 }
 
 /**
- * Whether index `i` of `l` may hold a key a branch bounds a child by: a leaf's first,
- * but for the first leaf's, whose bounds no lookup reads, as `pop_first` takes.
+ * std's `remove_leaf_kv`: takes index `i` out of leaf `n`, and if that leaves it too small,
+ * merges it with a sibling or takes one key from it, the left one if it has one, then fixes
+ * each ancestor that leaves too small. Returns where the key was, as `removeAt`.
  */
-function bounding<K, V>(l: Leaf<K, V>, i: number): boolean {
-	return i === 0 && l.prev !== undefined;
+function removeLeaf<K, V>(m: BTreeMap<K, V>, n: Node<K, V>, i: number): Node<K, V> {
+	take(n.k, i);
+	take(n.v, i);
+	const p = n.p;
+	if (n.k.length >= MIN_LEN || p === undefined) {
+		idx = i;
+		return n;
+	}
+	let pos = n;
+	if (n.i > 0) {
+		const left = (p.e as Node<K, V>[])[n.i - 1];
+		if (left.k.length + 1 + n.k.length <= CAPACITY) {
+			i += left.k.length + 1;
+			merge(p, n.i - 1);
+			pos = left;
+		} else {
+			stealLeft(p, n.i - 1, 1);
+			i++;
+		}
+	} else if (n.k.length + 1 + (p.e as Node<K, V>[])[1].k.length <= CAPACITY) {
+		merge(p, 0);
+	} else {
+		stealRight(p, 0, 1);
+	}
+	if (!fixUp(pos.p as Node<K, V>)) popRoot(m);
+	idx = i;
+	return pos;
 }
 
 /**
- * Bounds each child by its first key where `old`, a key the tree gave back, which may
- * change as it drops, bounds it: on the path to `key`, which `old` is equal to.
+ * std's `fix_node_and_affected_ancestors`: merges `n` and each ancestor that left too
+ * small with a sibling, or evens it out with one. False if it emptied the internal root.
  */
-function rebound<K, V>(m: BTreeMap<K, V>, key: K, old: K): void {
-	let node = m.t;
-	for (let h = m.h; h > 0; h--) {
-		const b = node as Branch<K, V>;
-		const j = child(b, key, m.c);
-		node = b.c[j];
-		if (b.k[j] !== old) continue;
-		let first = node;
-		for (let d = h - 1; d > 0; d--) first = (first as Branch<K, V>).c[0];
-		b.k[j] = first.k[0];
+function fixUp<K, V>(n: Node<K, V>): boolean {
+	for (;;) {
+		const len = n.k.length;
+		if (len >= MIN_LEN) return true;
+		const p = n.p;
+		if (p === undefined) return len > 0;
+		const e = p.e as Node<K, V>[];
+		const j = n.i > 0 ? n.i - 1 : 0;
+		if (e[j].k.length + 1 + e[j + 1].k.length <= CAPACITY) {
+			merge(p, j);
+			n = p;
+		} else {
+			if (n.i > 0) stealLeft(p, j, MIN_LEN - len);
+			else stealRight(p, j, MIN_LEN - len);
+			return true;
+		}
 	}
 }
 
+/** std's `pop_internal_level`: the root's first child becomes the root. */
+function popRoot<K, V>(m: BTreeMap<K, V>): void {
+	m.t = (m.t.e as Node<K, V>[])[0];
+	m.t.p = undefined;
+	m.h--;
+}
+
+/** std's `do_merge`: moves key `j` of `p`, then its right child's keys and children, into its left child. */
+function merge<K, V>(p: Node<K, V>, j: number): void {
+	const e = p.e as Node<K, V>[];
+	const left = e[j];
+	const right = e[j + 1];
+	const old = left.k.length;
+	left.k.push(p.k[j]);
+	left.v.push(p.v[j]);
+	append(left.k, right.k, 0);
+	append(left.v, right.v, 0);
+	take(p.k, j);
+	take(p.v, j);
+	take(e, j + 1);
+	adopt(p, j + 1);
+	if (left.e !== undefined) {
+		append(left.e, right.e as Node<K, V>[], 0);
+		adopt(left, old + 1);
+	}
+}
+
+/**
+ * std's `bulk_steal_left`: moves the last `count` keys of the left child of key `j` of `p`
+ * through it into its right child, the first of them into `p`, with their children.
+ */
+function stealLeft<K, V>(p: Node<K, V>, j: number, count: number): void {
+	const e = p.e as Node<K, V>[];
+	const left = e[j];
+	const right = e[j + 1];
+	const keep = left.k.length - count;
+	passRight(left.k, right.k, p.k, j, keep, count);
+	passRight(left.v, right.v, p.v, j, keep, count);
+	if (right.e !== undefined) {
+		const from = left.e as Node<K, V>[];
+		shiftUp(right.e, count);
+		for (let t = 0; t < count; t++) right.e[t] = from[keep + 1 + t];
+		from.length = keep + 1;
+		adopt(right);
+	}
+}
+
+/** Moves `from`'s items from `keep` on through index `j` of `parent` to the front of `to`, as `stealLeft` moves keys. */
+function passRight<T>(from: T[], to: T[], parent: T[], j: number, keep: number, count: number): void {
+	shiftUp(to, count);
+	for (let t = 0; t < count - 1; t++) to[t] = from[keep + 1 + t];
+	to[count - 1] = parent[j];
+	parent[j] = from[keep];
+	from.length = keep;
+}
+
+/**
+ * std's `bulk_steal_right`: moves the first `count` keys of the right child of key `j` of
+ * `p` through it into its left child, the last of them into `p`, with their children.
+ */
+function stealRight<K, V>(p: Node<K, V>, j: number, count: number): void {
+	const e = p.e as Node<K, V>[];
+	const left = e[j];
+	const right = e[j + 1];
+	const old = left.k.length;
+	passLeft(right.k, left.k, p.k, j, count);
+	passLeft(right.v, left.v, p.v, j, count);
+	if (left.e !== undefined) {
+		const from = right.e as Node<K, V>[];
+		for (let t = 0; t < count; t++) left.e.push(from[t]);
+		shiftDown(from, count);
+		adopt(left, old + 1);
+		adopt(right);
+	}
+}
+
+/** Moves `from`'s first `count` items through index `j` of `parent` to the end of `to`, as `stealRight` moves keys. */
+function passLeft<T>(from: T[], to: T[], parent: T[], j: number, count: number): void {
+	to.push(parent[j]);
+	for (let t = 0; t < count - 1; t++) to.push(from[t]);
+	parent[j] = from[count - 1];
+	shiftDown(from, count);
+}
+
+/** Moves each item of `a` up `count` slots, leaving the first `count` to be written. */
+function shiftUp<T>(a: T[], count: number): void {
+	const n = a.length;
+	for (let t = 0; t < count; t++) a.push(a[n - 1]);
+	for (let i = n - 1; i >= 0; i--) a[i + count] = a[i];
+}
+
+/** Takes the first `count` items out of `a`, moving the rest down. */
+function shiftDown<T>(a: T[], count: number): void {
+	const n = a.length - count;
+	for (let i = 0; i < n; i++) a[i] = a[i + count];
+	a.length = n;
+}
+
+/** Pushes `b`'s items from `from` on onto `a`. */
+function append<T>(a: T[], b: T[], from: number): void {
+	for (let i = from; i < b.length; i++) a.push(b[i]);
+}
+
 /** `BTreeMap::remove_entry`. */
-export function btreeRemoveEntry<K, V>(m: BTreeMap<K, V>, key: K): [K, V] | undefined {
-	const l = leafOf(m, key);
-	const i = search(l.k, key, m.c);
+export function btreeRemoveEntry<K, V>(m: BTreeMap<K, V>, key: K | By<K>): [K, V] | undefined {
+	const n = lookup(m, key);
+	const i = idx;
 	if (i < 0) return undefined;
-	const entry: [K, V] = [l.k[i], l.v[i]];
-	removeAt(m, l, i);
+	const entry: [K, V] = [n.k[i], n.v[i]];
+	removeAt(m, n, i);
 	return entry;
 }
 
 /** `BTreeMap::remove`: the value there, whose key drops, or else `none`. */
-export function btreeRemove<K, V>(m: BTreeMap<K, V>, key: K, k?: (key: K) => void): V | undefined;
-export function btreeRemove<K, V>(m: BTreeMap<K, V>, key: K, k: ((key: K) => void) | undefined, none: None): V | None;
-export function btreeRemove<K, V>(m: BTreeMap<K, V>, key: K, k?: (key: K) => void, none?: None): V | None | undefined {
-	const l = leafOf(m, key);
-	const i = search(l.k, key, m.c);
+export function btreeRemove<K, V>(m: BTreeMap<K, V>, key: K | By<K>, k?: (key: K) => void): V | undefined;
+export function btreeRemove<K, V>(m: BTreeMap<K, V>, key: K | By<K>, k: ((key: K) => void) | undefined, none: None): V | None;
+export function btreeRemove<K, V>(m: BTreeMap<K, V>, key: K | By<K>, k?: (key: K) => void, none?: None): V | None | undefined {
+	const n = lookup(m, key);
+	const i = idx;
 	if (i < 0) return none;
-	const held = l.k[i];
-	const value = l.v[i];
-	removeAt(m, l, i);
+	const held = n.k[i];
+	const value = n.v[i];
+	removeAt(m, n, i);
 	k?.(held);
 	return value;
 }
 
 /** `BTreeSet::remove`: whether `key` was there. The key it held drops. */
-export function btreeDelete<K>(m: BTreeSet<K>, key: K, k?: (key: K) => void): boolean {
-	const l = leafOf(m, key);
-	const i = search(l.k, key, m.c);
+export function btreeDelete<K>(m: BTreeSet<K>, key: K | By<K>, k?: (key: K) => void): boolean {
+	const n = lookup(m, key);
+	const i = idx;
 	if (i < 0) return false;
-	const held = l.k[i];
-	removeAt(m, l, i);
+	const held = n.k[i];
+	removeAt(m, n, i);
 	k?.(held);
 	return true;
 }
 
+/** An internal node with no keys and one child, and below it another, down to an empty leaf: `height` of them above it. */
+function pillar<K, V>(height: number): Node<K, V> {
+	let n = node<K, V>();
+	for (let h = 0; h < height; h++) n = node([n]);
+	return n;
+}
+
 /**
- * Splits or merges the node on `key`'s path that a change left too large or too small,
- * and each above it that this leaves so in turn, finding them again from the root.
+ * std's `bulk_push` into `m`, an empty tree: `keys` and their `values`, in order and
+ * without equal keys, each pushed onto the last leaf, or where that is full, onto the
+ * lowest node above it with room, with a new right child of empty nodes, before the right
+ * border takes enough from its left siblings.
  */
-function settle<K, V>(m: BTreeMap<K, V>, key: K): void {
-	if (m.h > 0) settleBelow(m, m.t as Branch<K, V>, m.h, key);
-	const t = m.t;
-	if (t.k.length > NODE) {
-		const right = split(t, m.h === 0);
-		m.t = { k: [t.k[0], right.k[0]], c: [t, right] };
-		m.h++;
-	} else if (m.h > 0 && (t as Branch<K, V>).c.length === 1) {
-		m.t = (t as Branch<K, V>).c[0];
-		m.h--;
-	}
-}
-
-/** `settle` below `b`, a branch at height `h`. */
-function settleBelow<K, V>(m: BTreeMap<K, V>, b: Branch<K, V>, h: number, key: K): void {
-	const i = child(b, key, m.c);
-	const c = b.c[i];
-	if (h > 1) settleBelow(m, c as Branch<K, V>, h - 1, key);
-	if (c.k.length > NODE) {
-		const right = split(c, h === 1);
-		b.k.splice(i + 1, 0, right.k[0]);
-		b.c.splice(i + 1, 0, right);
-	} else if (c.k.length < MIN) {
-		const j = i > 0 ? i - 1 : i;
-		balance(b, j, h === 1);
-	}
-}
-
-/** Takes the second half of `node` into a new node beside it, and returns that. */
-function split<K, V>(node: Node<K, V>, isLeaf: boolean): Node<K, V> {
-	const mid = node.k.length >> 1;
-	if (!isLeaf) {
-		const b = node as Branch<K, V>;
-		return { k: b.k.splice(mid), c: b.c.splice(mid) };
-	}
-	const l = node as Leaf<K, V>;
-	const right = leaf(l.k.splice(mid), l.v.splice(mid));
-	right.prev = l;
-	right.next = l.next;
-	if (l.next !== undefined) l.next.prev = right;
-	l.next = right;
-	return right;
-}
-
-/** Evens out children `j` and `j + 1` of `b`, one of which is too small, or merges them. */
-function balance<K, V>(b: Branch<K, V>, j: number, isLeaf: boolean): void {
-	const left = b.c[j];
-	const right = b.c[j + 1];
-	const total = left.k.length + right.k.length;
-	if (total <= NODE) {
-		left.k.push(...right.k);
-		if (isLeaf) {
-			const l = left as Leaf<K, V>;
-			const r = right as Leaf<K, V>;
-			l.v.push(...r.v);
-			l.next = r.next;
-			if (r.next !== undefined) r.next.prev = l;
-		} else {
-			(left as Branch<K, V>).c.push(...(right as Branch<K, V>).c);
-		}
-		b.k.splice(j + 1, 1);
-		b.c.splice(j + 1, 1);
-		return;
-	}
-	const half = total >> 1;
-	if (left.k.length < half) {
-		const n = half - left.k.length;
-		left.k.push(...right.k.splice(0, n));
-		if (isLeaf) (left as Leaf<K, V>).v.push(...(right as Leaf<K, V>).v.splice(0, n));
-		else (left as Branch<K, V>).c.push(...(right as Branch<K, V>).c.splice(0, n));
-	} else {
-		const n = left.k.length - half;
-		right.k.unshift(...left.k.splice(half, n));
-		if (isLeaf) (right as Leaf<K, V>).v.unshift(...(left as Leaf<K, V>).v.splice(half, n));
-		else (right as Branch<K, V>).c.unshift(...(left as Branch<K, V>).c.splice(half, n));
-	}
-	b.k[j + 1] = right.k[0];
-}
-
-/** The tree of `keys` and their `values`, in order and without equal keys, built whole. */
-function build<K, V>(m: BTreeMap<K, V>, keys: K[], values: V[]): void {
+function bulk<K, V>(m: BTreeMap<K, V>, keys: K[], values: V[]): void {
+	m.t = node();
+	m.h = 0;
 	m.n = keys.length;
-	// As few nodes per level as hold them, evened out, so each holds at least half.
-	const chunks = (n: number) => {
-		const count = Math.max(1, Math.ceil(n / NODE));
-		return Array.from({ length: count }, (_, i) => [Math.floor((i * n) / count), Math.floor(((i + 1) * n) / count)]);
-	};
-	let level: Node<K, V>[] = [];
-	let prev: Leaf<K, V> | undefined;
-	for (const [from, to] of chunks(keys.length)) {
-		const l = leaf(keys.slice(from, to), values.slice(from, to));
-		l.prev = prev;
-		if (prev !== undefined) prev.next = l;
-		prev = l;
-		level.push(l);
+	let leaf = m.t;
+	for (let j = 0; j < keys.length; j++) {
+		if (leaf.k.length < CAPACITY) {
+			leaf.k.push(keys[j]);
+			leaf.v.push(values[j]);
+			continue;
+		}
+		let open = leaf.p;
+		let h = 1;
+		for (; open !== undefined && open.k.length === CAPACITY; h++) open = open.p;
+		if (open === undefined) {
+			open = node([m.t]);
+			m.t = open;
+			m.h++;
+		}
+		const e = open.e as Node<K, V>[];
+		open.k.push(keys[j]);
+		open.v.push(values[j]);
+		e.push(pillar(h - 1));
+		adopt(open, e.length - 1);
+		leaf = open;
+		while (leaf.e !== undefined) leaf = leaf.e[leaf.e.length - 1];
 	}
-	let h = 0;
-	while (level.length > 1) {
-		level = chunks(level.length).map(([from, to]) => {
-			const c = level.slice(from, to);
-			return { k: c.map((node) => node.k[0]), c };
-		});
-		h++;
+	// std's `fix_right_border_of_plentiful`.
+	for (let n = m.t; n.e !== undefined; n = n.e[n.e.length - 1]) {
+		const short = MIN_LEN - n.e[n.e.length - 1].k.length;
+		if (short > 0) stealLeft(n, n.k.length - 1, short);
 	}
-	m.t = level[0];
-	m.h = h;
-}
-
-/** Each key in order, and each one's value. */
-function flatten<K, V>(m: BTreeMap<K, V>): [K[], V[]] {
-	const keys: K[] = [];
-	const values: V[] = [];
-	for (let l: Leaf<K, V> | undefined = end(m, false); l !== undefined; l = l.next) {
-		keys.push(...l.k);
-		values.push(...l.v);
-	}
-	return [keys, values];
 }
 
 /** `first_key_value`, and with `last`, `last_key_value`. */
@@ -1872,13 +2090,21 @@ export function btreePopKey<K, V>(m: BTreeMap<K, V>, last = false, none?: None):
 	return entry === undefined ? none : entry[0];
 }
 
-/** Drop `m`: each key by `k` and each value by `v`, of those that drop, in key order. */
+/**
+ * Drop `m`: each key by `k` and each value by `v`, of those that drop, as std's `drop_tree`
+ * does, node by node in postorder, so each node's entries in order after its children's.
+ */
 export function btreeDrop<K, V>(m: BTreeMap<K, V>, k: ((key: K) => void) | undefined, v?: (value: V) => void): void {
-	const [keys, values] = flatten(m);
-	dropPairs(keys, values, k, v);
+	dropTree(m.t, k, v);
 }
 
-/** `clear`, which leaves the map empty and then drops each entry in key order. */
+/** Drops the entries of `n` and the nodes below it, as `btreeDrop` does. */
+function dropTree<K, V>(n: Node<K, V>, k: ((key: K) => void) | undefined, v?: (value: V) => void): void {
+	if (n.e !== undefined) for (const child of n.e) dropTree(child, k, v);
+	dropPairs(n.k, n.v, k, v);
+}
+
+/** `clear`, which leaves the map empty and then drops it, as `btreeDrop` does. */
 export function btreeClear<K, V>(m: BTreeMap<K, V>, k?: (key: K) => void, v?: (value: V) => void): void {
 	if (k !== undefined || v !== undefined) {
 		const old: BTreeMap<K, V> = { t: m.t, h: m.h, n: m.n, c: m.c, r: m.r };
@@ -1886,26 +2112,74 @@ export function btreeClear<K, V>(m: BTreeMap<K, V>, k?: (key: K) => void, v?: (v
 		btreeDrop(old, k, v);
 		return;
 	}
-	m.t = leaf();
+	m.t = node();
 	m.h = 0;
 	m.n = 0;
 	m.r = false;
 }
 
 /**
- * `split_off` of a map or set: the entries from `key` on, moved in order into a tree of
- * their own. Like std's, the new tree has a root unless `m` was empty.
+ * `split_off` of a map or set, as std's: the entries from `key` on, cut from each node on
+ * the path to it into a column of empty nodes, whose borders then even out. Like std's,
+ * the new tree has a root unless `m` was empty.
  */
-export function btreeSplitOff<K, V>(m: BTreeMap<K, V>, key: K): BTreeMap<K, V> {
+export function btreeSplitOff<K, V>(m: BTreeMap<K, V>, key: K | By<K>): BTreeMap<K, V> {
 	const out = btreeNew<K, V>(m.c);
 	if (m.n === 0) return out;
-	const [keys, values] = flatten(m);
-	const i = search(keys, key, m.c);
-	const phys = i < 0 ? ~i : i;
-	build(out, keys.slice(phys), values.slice(phys));
-	build(m, keys.slice(0, phys), values.slice(0, phys));
+	const [cmp, q] = key instanceof By ? [key.c, key.q] : [m.c as (a: unknown, b: K) => Ordering, key];
+	out.t = pillar(m.h);
+	out.h = m.h;
 	out.r = true;
+	let left = m.t;
+	let right = out.t;
+	for (;;) {
+		const i = find(cmp, left, q);
+		const cut = i < 0 ? ~i : i;
+		right.k = left.k.splice(cut);
+		right.v = left.v.splice(cut);
+		if (left.e === undefined) break;
+		const e = right.e as Node<K, V>[];
+		e.push(...left.e.splice(cut + 1));
+		adopt(right, 1);
+		left = left.e[cut];
+		right = e[0];
+	}
+	fixBorder(m, true);
+	fixBorder(out, false);
+	out.n = count(out.t);
+	m.n -= out.n;
 	return out;
+}
+
+/** How many keys `n` and the nodes below it hold. */
+function count<K, V>(n: Node<K, V>): number {
+	let total = n.k.length;
+	if (n.e !== undefined) for (const c of n.e) total += count(c);
+	return total;
+}
+
+/**
+ * std's `fix_right_border` of `m`, or else its `fix_left_border`: drops empty roots, and
+ * merges each node along the border with its sibling, or has it take enough from it.
+ */
+function fixBorder<K, V>(m: BTreeMap<K, V>, last: boolean): void {
+	while (m.h > 0 && m.t.k.length === 0) popRoot(m);
+	if (m.t.k.length === 0) return;
+	for (let n = m.t; n.e !== undefined; ) {
+		const j = last ? n.k.length - 1 : 0;
+		const left = n.e[j];
+		const right = n.e[j + 1];
+		const short = MIN_LEN + 1 - (last ? right : left).k.length;
+		if (left.k.length + 1 + right.k.length <= CAPACITY) {
+			merge(n, j);
+			n = left;
+		} else {
+			if (short > 0 && last) stealLeft(n, j, short);
+			else if (short > 0) stealRight(n, j, short);
+			n = last ? right : left;
+		}
+	}
+	while (m.h > 0 && m.t.k.length === 0) popRoot(m);
 }
 
 /**
@@ -1921,39 +2195,22 @@ export function btreeRetainMut<K, V>(m: BTreeMap<K, V>, f: (key: K, value: Place
 	retainBTree(m, f as (key: K, value: V | Place<V>) => boolean, true, k, v);
 }
 
-/** `retain`, handing `f` each value or, if `lend`, its place, which the map is built from again. */
+/** `retain`, as std's: `extract_if` of the whole map, handing `f` each value or, if `lend`, its place. */
 function retainBTree<K, V>(m: BTreeMap<K, V>, f: (key: K, value: V | Place<V>) => boolean, lend: boolean, k?: (key: K) => void, v?: (value: V) => void): void {
-	const [keys, values] = flatten(m);
-	let kept = 0;
-	for (let i = 0; i < keys.length; i++) {
-		const key = keys[i];
-		const keep = f(key, lend ? new AtIndex(values, i) : values[i]);
-		const value = values[i];
-		if (!keep) {
-			dropPair(key, value, k, v);
-			continue;
-		}
-		keys[kept] = key;
-		values[kept] = value;
-		kept++;
-	}
-	if (kept < keys.length || lend) {
-		keys.length = kept;
-		values.length = kept;
-		build(m, keys, values);
-	}
+	const it = new BTreeExtractIf<K, V, [K, V]>(m, undefined, (key, value) => !f(key, value), lend, false);
+	for (let entry = it.next(); entry !== DONE; entry = it.next()) dropPair(entry[0], entry[1], k, v);
 }
 
 /**
- * An iterator of a B-tree's entries, keys, or values, from index `fi` of leaf `fl` up to
- * before index `bi` of leaf `bl`. The front moves to the next leaf as it passes a leaf's
- * last key, and the back to the previous leaf as it passes a leaf's first key. One that
+ * An iterator of a B-tree's entries, keys, or values, from leaf edge `fi` of leaf `fl` up
+ * to leaf edge `bi` of leaf `bl`, as std's: the front climbs from a leaf's last edge to the
+ * next key, then steps to the first leaf edge after it, and the back likewise. One that
  * owns its entries drops as `HashIter` does.
  */
 export class BTreeIter<K, V, T> extends Iter<T> implements Disposable {
-	fl: Leaf<K, V>;
+	fl: Node<K, V>;
 	fi: number;
-	bl: Leaf<K, V>;
+	bl: Node<K, V>;
 	bi: number;
 	/** How many items are left, where it is known: an iterator of the whole map. */
 	private n: number;
@@ -1963,17 +2220,9 @@ export class BTreeIter<K, V, T> extends Iter<T> implements Disposable {
 	/** Whether its `last` reads from the back, as a map's `into_keys`' and `into_values`' do. */
 	readonly back: boolean;
 
-	constructor(pick: Pick, fl: Leaf<K, V>, fi: number, bl: Leaf<K, V>, bi: number, n = -1, k?: (key: K) => void, v?: (value: V) => void, back = false) {
+	constructor(pick: Pick, fl: Node<K, V>, fi: number, bl: Node<K, V>, bi: number, n = -1, k?: (key: K) => void, v?: (value: V) => void, back = false) {
 		super();
 		this.pick = pick;
-		if (fi === fl.k.length && fl.next !== undefined) {
-			fl = fl.next;
-			fi = 0;
-		}
-		if (bi === 0 && bl.prev !== undefined) {
-			bl = bl.prev;
-			bi = bl.k.length;
-		}
 		this.fl = fl;
 		this.fi = fi;
 		this.bl = bl;
@@ -1986,42 +2235,40 @@ export class BTreeIter<K, V, T> extends Iter<T> implements Disposable {
 
 	next(): T | Done {
 		if (done(this)) return DONE;
-		const l = this.fl;
-		const i = this.fi++;
-		if (this.fi === l.k.length && l.next !== undefined) {
-			this.fl = l.next;
-			this.fi = 0;
-		}
+		const n = front(this);
 		this.n--;
-		return this.picked(l, i);
+		return this.picked(n, idx);
 	}
 
 	override nextBack(): T | Done {
 		if (done(this)) return DONE;
-		const l = this.bl;
-		const i = --this.bi;
-		if (this.bi === 0 && l.prev !== undefined) {
-			this.bl = l.prev;
-			this.bi = this.bl.k.length;
+		let n = this.bl;
+		let i = this.bi;
+		while (i === 0) {
+			i = n.i;
+			n = n.p as Node<K, V>;
 		}
+		i--;
+		this.bl = backEdge(n, i);
+		this.bi = idx;
 		this.n--;
-		return this.picked(l, i);
+		return this.picked(n, i);
 	}
 
 	/**
-	 * What it yields of index `i` of leaf `l`: of `into_keys` or `into_values`, the other
+	 * What it yields of index `i` of node `n`: of `into_keys` or `into_values`, the other
 	 * half drops first.
 	 */
-	private picked(l: Leaf<K, V>, i: number): T {
-		if (this.pick === ENTRIES) return [l.k[i], l.v[i]] as T;
-		if (this.pick === PLACES) return [l.k[i], new AtIndex(l.v, i)] as T;
-		if (this.pick === VALUE_PLACES) return new AtIndex(l.v, i) as T;
+	private picked(n: Node<K, V>, i: number): T {
+		if (this.pick === ENTRIES) return [n.k[i], n.v[i]] as T;
+		if (this.pick === PLACES) return [n.k[i], new AtIndex(n.v, i)] as T;
+		if (this.pick === VALUE_PLACES) return new AtIndex(n.v, i) as T;
 		if (this.pick === KEYS) {
-			this.v?.(l.v[i]);
-			return l.k[i] as unknown as T;
+			this.v?.(n.v[i]);
+			return n.k[i] as unknown as T;
 		}
-		this.k?.(l.k[i]);
-		return l.v[i] as unknown as T;
+		this.k?.(n.k[i]);
+		return n.v[i] as unknown as T;
 	}
 
 	override remaining(): Iterable<unknown> {
@@ -2047,23 +2294,32 @@ export class BTreeIter<K, V, T> extends Iter<T> implements Disposable {
 		const keys: K[] = [];
 		const values: V[] = [];
 		while (!done(this)) {
-			const l = this.fl;
-			keys.push(l.k[this.fi]);
-			values.push(l.v[this.fi]);
-			this.fi++;
-			if (this.fi === l.k.length && l.next !== undefined) {
-				this.fl = l.next;
-				this.fi = 0;
-			}
+			const n = front(this);
+			keys.push(n.k[idx]);
+			values.push(n.v[idx]);
 		}
 		this.n = 0;
 		dropPairs(keys, values, this.k, this.v);
 	}
 }
 
-/** Whether `it`'s front has met its back. */
+/** Whether `it`'s front has met its back: the same leaf edge, as only one lies between two keys. */
 function done<K, V, T>(it: BTreeIter<K, V, T>): boolean {
-	return it.fl === it.bl ? it.fi >= it.bi : it.fi === 0 && it.bl.next === it.fl && it.bi === it.bl.k.length;
+	return it.fi === it.bi && it.fl === it.bl;
+}
+
+/** Steps `it`'s front past its next key: the node holding that key, with `idx` its index. */
+function front<K, V, T>(it: BTreeIter<K, V, T>): Node<K, V> {
+	let n = it.fl;
+	let i = it.fi;
+	while (i === n.k.length) {
+		i = n.i;
+		n = n.p as Node<K, V>;
+	}
+	it.fl = nextEdge(n, i);
+	it.fi = idx;
+	idx = i;
+	return n;
 }
 
 function whole<K, V, T>(m: BTreeMap<K, V>, pick: Pick, k?: (key: K) => void, v?: (value: V) => void, back = false): Iter<T> {
@@ -2149,46 +2405,123 @@ function bounds<K>(r: Bounds<K>): BoundPair<K> {
 }
 
 /**
- * `BTreeMap::range` and `range_mut`: the entries within `r`. A key of the crate's own gives
- * its `PartialEq::eq` and `PartialOrd::gt`, which std checks the ends by.
+ * `BTreeMap::range` and `range_mut`: the entries within `r`, or within the range of another
+ * type a `By` holds. A key of the crate's own gives its `PartialEq::eq` and
+ * `PartialOrd::gt`, which std checks the ends by.
  */
-export function btreeRange<K, V>(m: BTreeMap<K, V>, r: Bounds<K>, eq?: Test<K>, gt?: Test<K>): Iter<[K, V]> {
+export function btreeRange<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>>>, eq?: Test<K>, gt?: Test<K>): Iter<[K, V]>;
+export function btreeRange<K, V, Q>(m: BTreeMap<K, V>, r: By<K>, eq?: Test<Q>, gt?: Test<Q>): Iter<[K, V]>;
+export function btreeRange<K, V>(m: BTreeMap<K, V>, r: Bounds<K> | By<K>, eq?: Test<unknown>, gt?: Test<unknown>): Iter<[K, V]> {
 	return range(m, r, ENTRIES, "BTreeMap", eq, gt);
 }
 
 /** `range_mut` of values JS copies: each key within `r` and the place of its value. */
-export function btreeRangeMut<K, V>(m: BTreeMap<K, V>, r: Bounds<K>, eq?: Test<K>, gt?: Test<K>): Iter<[K, Place<V>]> {
+export function btreeRangeMut<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>>>, eq?: Test<K>, gt?: Test<K>): Iter<[K, Place<V>]>;
+export function btreeRangeMut<K, V, Q>(m: BTreeMap<K, V>, r: By<K>, eq?: Test<Q>, gt?: Test<Q>): Iter<[K, Place<V>]>;
+export function btreeRangeMut<K, V>(m: BTreeMap<K, V>, r: Bounds<K> | By<K>, eq?: Test<unknown>, gt?: Test<unknown>): Iter<[K, Place<V>]> {
 	return range(m, r, PLACES, "BTreeMap", eq, gt);
 }
 
 /** `BTreeSet::range`: the keys within `r`. */
-export function btreeRangeKeys<K, V>(m: BTreeMap<K, V>, r: Bounds<K>, eq?: Test<K>, gt?: Test<K>): Iter<K> {
+export function btreeRangeKeys<K, V>(m: BTreeMap<K, V>, r: NoInfer<Bounds<Key<K>>>, eq?: Test<K>, gt?: Test<K>): Iter<K>;
+export function btreeRangeKeys<K, V, Q>(m: BTreeMap<K, V>, r: By<K>, eq?: Test<Q>, gt?: Test<Q>): Iter<K>;
+export function btreeRangeKeys<K, V>(m: BTreeMap<K, V>, r: Bounds<K> | By<K>, eq?: Test<unknown>, gt?: Test<unknown>): Iter<K> {
 	return range(m, r, KEYS, "BTreeSet", eq, gt);
 }
 
-/** The items of `m` within `r`, checked as std checks it: by `eq` and `gt`, or by `m`'s order. */
-function range<K, V, T>(m: BTreeMap<K, V>, r: Bounds<K>, pick: Pick, name: string, eq?: Test<K>, gt?: Test<K>): Iter<T> {
-	if (!m.r) return new BTreeIter<K, V, T>(pick, m.t as Leaf<K, V>, 0, m.t as Leaf<K, V>, 0);
-	const [start, stop] = bounds(r);
+/**
+ * What a range of keys `K` is bounded by: a key, or for an array's or a `Vec`'s, a `Slice`,
+ * which `cmpSlice` orders alike, or for a `String`'s or a `Cow<str>`'s, a `str`, which
+ * `cmpStr` orders alike.
+ */
+type Key<K> = K | (K extends (infer E)[] ? Slice<E> : never) | (K extends RsString | Borrowed<string> ? string : never);
+
+/**
+ * The items of `m` within `r`, checked as std checks it: by `eq` and `gt`, or by the order
+ * of its keys, `m`'s or a `By`'s. Its ends are found as std's
+ * `find_leaf_edges_spanning_range` finds them: down one path while both lie below the same
+ * edge, then each down its own.
+ */
+function range<K, V, T>(m: BTreeMap<K, V>, r: Bounds<K> | By<K>, pick: Pick, name: string, eq?: Test<unknown>, gt?: Test<unknown>): Iter<T> {
+	if (!m.r) return new BTreeIter<K, V, T>(pick, m.t, 0, m.t, 0);
+	const by = r instanceof By ? r : undefined;
+	const order = (by?.cmp ?? m.c) as (a: unknown, b: unknown) => Ordering;
+	const cmp = (by?.c ?? m.c) as (a: unknown, b: K) => Ordering;
+	const [start, stop] = bounds((by === undefined ? r : by.q) as Bounds<unknown>);
 	if (start.tag !== "Unbounded" && stop.tag !== "Unbounded") {
 		const s = start._0;
 		const e = stop._0;
-		if (start.tag === "Excluded" && stop.tag === "Excluded" && (eq === undefined ? m.c(s, e) === 0 : eq(s, e))) {
+		if (start.tag === "Excluded" && stop.tag === "Excluded" && (eq === undefined ? order(s, e) === 0 : eq(s, e))) {
 			panic(`range start and end are equal and excluded in ${name}`, `btree_range_equal_${name}`);
 		}
-		if (gt === undefined ? m.c(s, e) > 0 : gt(s, e)) panic(`range start is greater than range end in ${name}`, `btree_range_order_${name}`);
+		if (gt === undefined ? order(s, e) > 0 : gt(s, e)) panic(`range start is greater than range end in ${name}`, `btree_range_order_${name}`);
 	}
-	const [fl, fi] = start.tag === "Unbounded" ? [end(m, false), 0] : edge(m, start._0, start.tag === "Excluded");
-	const last = end(m, true);
-	const [bl, bi] = stop.tag === "Unbounded" ? [last, last.k.length] : edge(m, stop._0, stop.tag === "Included");
-	return new BTreeIter<K, V, T>(pick, fl, fi, bl, bi);
+	const lo = side(start);
+	const hi = side(stop);
+	for (let n = m.t; ; ) {
+		const fi = lower(cmp, n, lo);
+		const bi = upper(cmp, n, hi, fi);
+		if (fi < bi) {
+			let fl = n;
+			let bl = n;
+			let f = fi;
+			let b = bi;
+			while (fl.e !== undefined) {
+				fl = fl.e[f];
+				f = lower(cmp, fl, lo);
+				bl = (bl.e as Node<K, V>[])[b];
+				b = upper(cmp, bl, hi, 0);
+			}
+			return new BTreeIter<K, V, T>(pick, fl, f, bl, b);
+		}
+		if (n.e === undefined) return new BTreeIter<K, V, T>(pick, n, fi, n, fi);
+		n = n.e[fi];
+	}
 }
 
-/** Where the first key past `key` is if `past`, or else the first key not below it. */
-function edge<K, V>(m: BTreeMap<K, V>, key: K, past: boolean): [Leaf<K, V>, number] {
-	const l = leafOf(m, key);
-	const i = search(l.k, key, m.c);
-	return [l, i < 0 ? ~i : past ? i + 1 : i];
+/** std's `SearchBound`s, of a range's end as its search narrows it. */
+const INCLUDED = 0;
+const EXCLUDED = 1;
+const ALL_INCLUDED = 2;
+const ALL_EXCLUDED = 3;
+
+/** One end of a range as std's search narrows it: a `SearchBound` and, where it has one, its key. */
+interface Side<K> {
+	tag: number;
+	key: K | undefined;
+}
+
+function side<K>(b: RangeBound<K>): Side<K> {
+	if (b.tag === "Unbounded") return { tag: ALL_INCLUDED, key: undefined };
+	return { tag: b.tag === "Included" ? INCLUDED : EXCLUDED, key: b._0 };
+}
+
+/** std's `find_lower_bound_index`: the edge of `n` a range from `s` starts at, narrowing `s` for the child below it. */
+function lower<Q, K, V>(cmp: (a: Q, b: K) => Ordering, n: Node<K, V>, s: Side<Q>): number {
+	if (s.tag === ALL_INCLUDED) return 0;
+	if (s.tag === ALL_EXCLUDED) return n.k.length;
+	const i = find(cmp, n, s.key as Q);
+	if (i < 0) return ~i;
+	if (s.tag === INCLUDED) {
+		s.tag = ALL_EXCLUDED;
+		return i;
+	}
+	s.tag = ALL_INCLUDED;
+	return i + 1;
+}
+
+/** std's `find_upper_bound_index`: the edge of `n` from `from` on that a range to `s` ends at, narrowing `s` likewise. */
+function upper<Q, K, V>(cmp: (a: Q, b: K) => Ordering, n: Node<K, V>, s: Side<Q>, from: number): number {
+	if (s.tag === ALL_INCLUDED) return n.k.length;
+	if (s.tag === ALL_EXCLUDED) return from;
+	const i = find(cmp, n, s.key as Q, from);
+	if (i < 0) return ~i;
+	if (s.tag === INCLUDED) {
+		s.tag = ALL_EXCLUDED;
+		return i + 1;
+	}
+	s.tag = ALL_INCLUDED;
+	return i;
 }
 
 /**
@@ -2201,8 +2534,8 @@ function edge<K, V>(m: BTreeMap<K, V>, key: K, past: boolean): [Leaf<K, V>, numb
  */
 class BTreeExtractIf<K, V, T> extends Iter<T> implements Disposable {
 	private readonly m: BTreeMap<K, V>;
-	/** The leaf of the entry it reads next, and its index, until it stops, as std's cursor. */
-	l: Leaf<K, V> | undefined;
+	/** std's cursor: the leaf edge before the entry it reads next, until it stops. */
+	l: Node<K, V> | undefined;
 	i = 0;
 	private readonly r: Bounds<K>;
 	private readonly f: (key: K, value: V | Place<V>) => boolean;
@@ -2224,19 +2557,16 @@ class BTreeExtractIf<K, V, T> extends Iter<T> implements Disposable {
 		this.drop = drop;
 		// std's reads the start only of a map with its root node.
 		if (!m.r) return;
-		const start = other(r) ? r.startBound() : bounds(r)[0];
-		if (start.tag === "Unbounded") this.at(end(m, false), 0);
-		else this.at(...edge(m, start._0, start.tag === "Excluded"));
-	}
-
-	/** Moves to index `i` of `l`, or to the next leaf's first where `i` is past `l`'s last. */
-	private at(l: Leaf<K, V>, i: number): void {
-		if (i === l.k.length && l.next !== undefined) {
-			l = l.next;
-			i = 0;
+		const s = side(other(r) ? r.startBound() : bounds(r)[0]);
+		let n = m.t;
+		for (let i = lower(m.c, n, s); ; i = lower(m.c, n, s)) {
+			if (n.e === undefined) {
+				this.l = n;
+				this.i = i;
+				return;
+			}
+			n = n.e[i];
 		}
-		this.l = l;
-		this.i = i;
 	}
 
 	/** Whether `key` is within the end of `r`. */
@@ -2249,31 +2579,25 @@ class BTreeExtractIf<K, V, T> extends Iter<T> implements Disposable {
 	}
 
 	next(): T | Done {
-		const m = this.m;
-		for (let l = this.l; l !== undefined; l = this.l) {
+		for (let n = this.l; n !== undefined; n = this.l) {
 			let i = this.i;
 			// Stopped where it ends, past the end of `r`, or by a panic, as std's is.
 			this.l = undefined;
-			if (i === l.k.length) return DONE;
-			const key = l.k[i];
+			while (i === n.k.length) {
+				if (n.p === undefined) return DONE;
+				i = n.i;
+				n = n.p;
+			}
+			const key = n.k[i];
 			if (!this.within(key)) return DONE;
-			if (!this.f(key, this.places ? new AtIndex(l.v, i) : l.v[i])) {
-				this.at(l, i + 1);
+			if (!this.f(key, this.places ? new AtIndex(n.v, i) : n.v[i])) {
+				this.l = nextEdge(n, i);
+				this.i = idx;
 				continue;
 			}
-			const value = l.v[i];
-			// A leaf left too small evens out with a neighbor or merges with it. Only one that
-			// merges into the leaf before it or takes from it moves what is left of it.
-			const prev = l.prev;
-			const before = prev?.k.length ?? 0;
-			removeAt(m, l, i);
-			if (prev !== undefined && prev.next !== l) {
-				i += before;
-				l = prev;
-			} else if (prev !== undefined) {
-				i += before - prev.k.length;
-			}
-			this.at(l, i);
+			const value = n.v[i];
+			this.l = removeAt(this.m, n, i);
+			this.i = idx;
 			return (this.keys ? key : [key, value]) as T;
 		}
 		return DONE;
@@ -2292,12 +2616,17 @@ class BTreeExtractIf<K, V, T> extends Iter<T> implements Disposable {
 
 /** `Debug` of a B-tree's `ExtractIf`: the entry it reads next, if any, or of a set, with no `value`, its key. */
 export function fmtBTreeExtractIf<K, V>(it: Iter<unknown>, f: Formatter, key: Debug<K>, value?: Debug<V>): FmtResult {
-	const { l, i } = it as BTreeExtractIf<K, V, unknown>;
+	let { l: n, i } = it as BTreeExtractIf<K, V, unknown>;
+	while (n !== undefined && i === n.k.length) {
+		i = n.i;
+		n = n.p;
+	}
 	let peek: Fmt = (f) => f.out.writeStr("None");
-	if (l !== undefined && i < l.k.length) {
-		const k: Fmt = (f) => key(l.k[i], f);
-		const kv: Fmt = value === undefined ? k : (f) => fmtTuple([k, (f) => value(l.v[i], f)], f);
-		peek = (f) => fmtDebugTupleFields(f, "Some", [kv]);
+	if (n !== undefined) {
+		const kv = n;
+		const k: Fmt = (f) => key(kv.k[i], f);
+		const both: Fmt = value === undefined ? k : (f) => fmtTuple([k, (f) => value(kv.v[i], f)], f);
+		peek = (f) => fmtDebugTupleFields(f, "Some", [both]);
 	}
 	return debugStructFinishNonExhaustive(debugStructField(fmtDebugStruct(f, "ExtractIf"), "peek", peek));
 }
@@ -2342,12 +2671,12 @@ export function btreeExtend<K, V>(
 			if (old !== undefined) v?.(old);
 			return;
 		}
-		const l = leafOf(m, item[0]);
-		const i = search(l.k, item[0], m.c);
-		if (i < 0) insertAt(m, l, ~i, item[0], item[1]);
+		const n = seek(m, item[0]);
+		const i = idx;
+		if (i < 0) insertAt(m, n, ~i, item[0], item[1]);
 		else {
-			l.k[i] = item[0];
-			l.v[i] = item[1];
+			n.k[i] = item[0];
+			n.v[i] = item[1];
 		}
 	};
 	return vecExtending(m, 0, items, add, take, size, trusted);
@@ -2360,10 +2689,10 @@ export function btreeExtendKeys<K>(m: BTreeSet<K>, keys: Iter<K>, last = false, 
 			btreeAdd(m, key, k);
 			return;
 		}
-		const l = leafOf(m, key);
-		const i = search(l.k, key, m.c);
-		if (i < 0) insertAt(m, l, ~i, key, undefined);
-		else l.k[i] = key;
+		const n = seek(m, key);
+		const i = idx;
+		if (i < 0) insertAt(m, n, ~i, key, undefined);
+		else n.k[i] = key;
 	};
 	return vecExtending(m, 0, keys, add, take, size, trusted);
 }
@@ -2377,7 +2706,7 @@ export function btreeExtendKeys<K>(m: BTreeSet<K>, keys: Iter<K>, last = false, 
  */
 export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], size: number, freeze: boolean, same?: Test<K>, k?: (key: K) => void, v?: (value: V) => void): BTreeMap<K, V> {
 	if (same === undefined) entries.sort((a, b) => m.c(a[0], b[0]));
-	else sliceSort(entries, (a, b) => m.c(a[0], b[0]) === -1, size, freeze);
+	else sliceSort(sliceFrom(entries), (a, b) => m.c(a[0], b[0]) === -1, size, freeze);
 	const keys: K[] = [];
 	const values: V[] = [];
 	const n = entries.length;
@@ -2388,7 +2717,7 @@ export function btreeCollect<K, V>(m: BTreeMap<K, V>, entries: [K, V][], size: n
 			values.push(value);
 		} else dropPair(key, value, k, v);
 	}
-	build(m, keys, values);
+	bulk(m, keys, values);
 	// std's makes no root of none.
 	m.r = n > 0;
 	return m;
@@ -2409,26 +2738,36 @@ export function btreeCollectKeys<K>(m: BTreeSet<K>, keys: K[], size: number, fre
 			k,
 		);
 	}
-	if (less !== undefined) sliceSort(keys, less, size, freeze);
+	if (less !== undefined) sliceSort(sliceFrom(keys), less, size, freeze);
 	btreeFromSorted(m, iterSlice(keys), same, k);
 	m.r = keys.length > 0;
 	return m;
 }
 
-/** `clone`, with each key and value through its `Clone`, or as itself without one. */
+
+/**
+ * `clone`, of std's shape, node for node, with each key and value through its `Clone`, or as
+ * itself without one, in key order, each key before its value, as std's clones them.
+ */
 export function btreeClone<K, V>(m: BTreeMap<K, V>, key: (k: K) => K = itself, value: (v: V) => V = itself): BTreeMap<K, V> {
-	const keys: K[] = [];
-	const values: V[] = [];
-	// Each key, then its value, as std's clones them.
-	for (let l: Leaf<K, V> | undefined = end(m, false); l !== undefined; l = l.next) {
-		for (let i = 0; i < l.k.length; i++) {
-			keys.push(key(l.k[i]));
-			values.push(value(l.v[i]));
+	const copy = (n: Node<K, V>): Node<K, V> => {
+		const e = n.e === undefined ? undefined : [copy(n.e[0])];
+		const out = node(e);
+		for (let i = 0; i < n.k.length; i++) {
+			out.k.push(key(n.k[i]));
+			out.v.push(value(n.v[i]));
+			if (e !== undefined) e.push(copy((n.e as Node<K, V>[])[i + 1]));
 		}
-	}
+		if (e !== undefined) adopt(out);
+		return out;
+	};
 	const out = btreeNew<K, V>(m.c);
-	build(out, keys, values);
-	out.r = m.n > 0;
+	// std's clones an empty map as a new one, with no root.
+	if (m.n === 0) return out;
+	out.t = copy(m.t);
+	out.h = m.h;
+	out.n = m.n;
+	out.r = true;
 	return out;
 }
 
@@ -2784,7 +3123,7 @@ export function btreeFromSorted<K>(m: BTreeSet<K>, keys: Iter<K>, same?: Test<K>
 			key = next;
 		}
 	}
-	build(
+	bulk(
 		m,
 		held,
 		held.map(() => undefined),
@@ -2809,9 +3148,9 @@ export interface Entry<K, V> {
 	readonly o: boolean;
 	/** A hashed key's slot if it is occupied, and its hash. */
 	readonly s: Slot<K, V> | undefined;
-	readonly h: number | undefined;
-	/** A B-tree's leaf, and the key's index in it, or the complement of where it goes. */
-	readonly l: Leaf<K, V> | undefined;
+	readonly h: HashKey | undefined;
+	/** A B-tree's node holding the key, and its index there, or else the leaf and the complement of where it goes. */
+	readonly l: Node<K, V> | undefined;
 	readonly i: number;
 }
 
@@ -2827,8 +3166,8 @@ export function entry<K, V>(m: HashMap<K, V> | BTreeMap<K, V>, key: K, k?: (key:
 
 function locate<K, V>(m: HashMap<K, V> | BTreeMap<K, V>, key: K): Entry<K, V> {
 	if (!isHash(m)) {
-		const l = leafOf(m, key);
-		const i = search(l.k, key, m.c);
+		const l = seek(m, key);
+		const i = idx;
 		return { m, k: i < 0 ? key : l.k[i], o: i >= 0, s: undefined, h: undefined, l, i };
 	}
 	if (!hashed(m, key)) return { m, k: key, o: m.p.has(key), s: undefined, h: undefined, l: undefined, i: 0 };
@@ -2845,11 +3184,8 @@ function fill<K, V>(e: Entry<K, V>, value: V): Place<V> {
 		m.p.set(e.k, value);
 		return new AtKey(m.p, e.k);
 	}
-	const l = e.l as Leaf<K, V>;
-	const i = ~e.i;
-	insertAt(m, l, i, e.k, value);
-	// A split keeps the leaf's first half and moves the rest to the next leaf.
-	return i < l.k.length ? new AtIndex(l.v, i) : new AtIndex((l.next as Leaf<K, V>).v, i - l.k.length);
+	const l = insertAt(m, e.l as Node<K, V>, ~e.i, e.k, value);
+	return new AtIndex(l.v, idx);
 }
 
 /** Drop `e`, an `Entry`: a vacant one holds the key it was given. */
@@ -2954,7 +3290,7 @@ export function entryRemoveEntry<K, V>(e: Entry<K, V>): [K, V] {
 	const m = e.m;
 	if (isHash(m)) hold(m);
 	const value = entryGet(e);
-	if (!isHash(m)) removeAt(m, e.l as Leaf<K, V>, e.i);
+	if (!isHash(m)) removeAt(m, e.l as Node<K, V>, e.i);
 	else if (e.s !== undefined) unlink(m, e.h as number, e.s);
 	else m.p.delete(e.k);
 	return [e.k, value];
@@ -3384,11 +3720,16 @@ function contiguous<T>(q: VecDeque<T>): number {
 	return head > tail ? free : 0;
 }
 
-/** `make_contiguous`: the items moved to one run of slots, as std's, and a view of them that writes into it. */
-export function dequeMakeContiguous<T>(q: VecDeque<T>): T[] {
+/** `make_contiguous`: the items moved to one run of slots, as std's, and the slice of them. */
+export function dequeMakeContiguous<T>(q: VecDeque<T>): Slice<T> {
 	const h = contiguous(q);
 	if (h !== q.h) place(q, q.b.length, h);
-	return sliceView(q.b as T[], q.h, q.h + q.n);
+	return new Slice(q.b as T[], q.h, q.n);
+}
+
+/** `make_contiguous` of arrays: the deque's own arrays, each lent by `of`. */
+export function dequeArrayMakeContiguous<A, S extends ArrayRef>(q: VecDeque<A>, of: (array: A) => S): ArraySlice<S> {
+	return arraySliceOfSlice(dequeMakeContiguous(q), of);
 }
 
 /** `make_contiguous` of bytes, viewing the deque's. */
@@ -3572,12 +3913,16 @@ export function fmtDequeIter<T>(it: Iter<unknown>, f: Formatter, debug: Debug<T>
 	return fmtDebugTupleFields(f, name, [(f) => fmtList(a, f, debug), (f) => fmtList(b, f, debug)]);
 }
 
-/** `as_slices`, and with `lend`, `as_mut_slices`, whose slices write into the deque. */
-export function dequeAsSlices<T>(q: VecDeque<T>, lend = false): [T[], T[]] {
-	const p = phys(q, 0);
+/** `as_slices` and `as_mut_slices`: the slices of the deque's slots. */
+export function dequeAsSlices<T>(q: VecDeque<T>): [Slice<T>, Slice<T>] {
 	const n = firstEnd(q, 0, q.n);
-	const part = (start: number, end: number) => (lend ? sliceView(q.b as T[], start, end) : q.b.slice(start, end) as T[]);
-	return [part(p, p + n), part(0, q.n - n)];
+	return [new Slice(q.b as T[], phys(q, 0), n), new Slice(q.b as T[], 0, q.n - n)];
+}
+
+/** `as_slices` and `as_mut_slices` of arrays: the deque's own arrays, each lent by `of`. */
+export function dequeArraySlices<A, S extends ArrayRef>(q: VecDeque<A>, of: (array: A) => S): [ArraySlice<S>, ArraySlice<S>] {
+	const [a, b] = dequeAsSlices(q);
+	return [arraySliceOfSlice(a, of), arraySliceOfSlice(b, of)];
 }
 
 /** `as_slices` and `as_mut_slices` of bytes, which view the deque's. */
@@ -3808,7 +4153,7 @@ function inclusive<K>(r: Bounds<K>): r is RangeInclusive<K> {
 /** std's `slice_index_fail`, which names the end where neither bound is out of order. */
 function sliceIndexFail(start: number, end: number, n: number, at?: Location): never {
 	rangeCheck(n, start, end, at);
-	return panic(`range end index ${end} out of range for slice of length ${n}`, at, true);
+	return panicSizes(["range end index ", end, " out of range for slice of length ", n], at);
 }
 
 // `Vec::drain`, which leaves the vector only what comes before the range until the drain

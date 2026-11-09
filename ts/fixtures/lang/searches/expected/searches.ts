@@ -3615,8 +3615,8 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		return [_2[0], _2[1]] as [rs.u8, rs.ByteSlice];
 	});
 	const pick: rs.u8 = _6[0];
-	const s: string = text(_6[1]);
-	const alphabet: rs.Vec<rs.char> = rs.iterToVec(rs.strChars(text(rs.byteSliceFrom(Uint8Array.of(rs.u8Rem(pick, 16), rs.u8Div(pick, 16))))), "next", 4);
+	const s: rs.String = text(_6[1]);
+	const alphabet: rs.Vec<rs.char> = rs.iterToVec(rs.strChars(text(rs.byteSliceFrom(Uint8Array.of(rs.u8Rem(pick, 16), rs.u8Div(pick, 16)))).v), "next", 4);
 	const _25: rs.char = alphabet.items[rs.idx(alphabet.items, 0)];
 	const _24: [rs.char, rs.char] = [_25, alphabet.items[rs.idx(alphabet.items, 1)]];
 	const c: rs.char = _25;
@@ -3635,7 +3635,7 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 	};
 	const _42: rs.u8 = rs.u8Rem(rs.u8Div(kind, 17), 5);
 	if (_42 === 0) {
-		const _50: string = s;
+		const _50: string = s.v;
 		const part4 = _6[1];
 		if (m === 9) {
 			harness_put(out, rs.strTrimMatches(_50, String.fromCodePoint(c)));
@@ -3662,8 +3662,8 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			putOption(out, rs.strStripPrefix(_50, String.fromCodePoint(c)));
 			putOption(out, rs.strStripSuffix(_50, String.fromCodePoint(c)));
 		} else if (m === 2) {
-			harness_put(out, rs.strReplace(_50, String.fromCodePoint(c), "<>"));
-			harness_put(out, rs.strReplace(_50, String.fromCodePoint(c), "é", n));
+			harness_put(out, rs.strReplace(_50, String.fromCodePoint(c), "<>", true).v);
+			harness_put(out, rs.strReplacen(_50, String.fromCodePoint(c), "é", n).v);
 		} else if (m === 3) {
 			front$ref_str_str_Split_char(rs.strSplit(_50, String.fromCodePoint(c)), out);
 			front$ref_str_str_RSplit_char(rs.strRsplit(_50, String.fromCodePoint(c)), out);
@@ -3683,112 +3683,87 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			front$tuple2_usize_ref_str_str_RMatchIndices_char(rs.strRmatchIndices(_50, String.fromCodePoint(c)), out);
 		}
 	} else if (_42 === 1) {
-		const needle: string = rs.stringExtendChars("", rs.iterTake(rs.iterSkip(rs.strChars(s), rs.u8Div(pick, 64) as rs.usize), rs.u8Rem(rs.u8Div(pick, 16), 4) as rs.usize));
+		const _109: rs.Iter<rs.char> = rs.iterTake(rs.iterSkip(rs.strChars(s.v), rs.u8Div(pick, 64) as rs.usize), rs.u8Rem(rs.u8Div(pick, 16), 4) as rs.usize);
+		const needle: rs.String = rs.stringExtendChars(rs.stringNew(), _109);
+		const _125: string = s.v;
 		const _127: rs.u8 = rs.u8Rem(m, 9);
 		if (_127 === 0) {
-			putOffset(out, rs.strFind(s, needle));
-			putOffset(out, rs.strRfind(s, needle));
+			putOffset(out, rs.strFind(_125, needle.v));
+			putOffset(out, rs.strRfind(_125, needle.v));
 		} else if (_127 === 1) {
-			putOption(out, rs.strStripPrefix(s, needle));
-			putOption(out, rs.strStripSuffix(s, needle));
+			putOption(out, rs.strStripPrefix(_125, needle.v));
+			putOption(out, rs.strStripSuffix(_125, needle.v));
 		} else if (_127 === 2) {
-			harness_put(out, rs.strReplace(s, needle, "<>"));
-			harness_put(out, rs.strReplace(s, needle, "é", n));
+			harness_put(out, rs.strReplace(_125, needle.v, "<>", true).v);
+			harness_put(out, rs.strReplacen(_125, needle.v, "é", n).v);
 		} else if (_127 === 3) {
-			front$ref_str_str_Split_ref_str(rs.strSplit(s, needle), out);
-			front$ref_str_str_RSplit_ref_str(rs.strRsplit(s, needle), out);
+			front$ref_str_str_Split_ref_str(rs.strSplit(_125, needle.v), out);
+			front$ref_str_str_RSplit_ref_str(rs.strRsplit(_125, needle.v), out);
 		} else if (_127 === 4) {
-			front$ref_str_str_SplitTerminator_ref_str(rs.strSplitTerminator(s, needle), out);
-			front$ref_str_str_RSplitTerminator_ref_str(rs.strRsplitTerminator(s, needle), out);
+			front$ref_str_str_SplitTerminator_ref_str(rs.strSplitTerminator(_125, needle.v), out);
+			front$ref_str_str_RSplitTerminator_ref_str(rs.strRsplitTerminator(_125, needle.v), out);
 		} else if (_127 === 5) {
-			front$ref_str_str_SplitN_ref_str(rs.strSplitn(s, n, needle), out);
-			front$ref_str_str_RSplitN_ref_str(rs.strRsplitn(s, n, needle), out);
+			front$ref_str_str_SplitN_ref_str(rs.strSplitn(_125, n, needle.v), out);
+			front$ref_str_str_RSplitN_ref_str(rs.strRsplitn(_125, n, needle.v), out);
 		} else if (_127 === 6) {
-			front$ref_str_str_SplitInclusive_ref_str(rs.strSplitInclusive(s, needle), out);
+			front$ref_str_str_SplitInclusive_ref_str(rs.strSplitInclusive(_125, needle.v), out);
 		} else if (_127 === 7) {
-			front$ref_str_str_Matches_ref_str(rs.strMatches(s, needle), out);
-			front$ref_str_str_RMatches_ref_str(rs.strRmatches(s, needle), out);
+			front$ref_str_str_Matches_ref_str(rs.strMatches(_125, needle.v), out);
+			front$ref_str_str_RMatches_ref_str(rs.strRmatches(_125, needle.v), out);
 		} else {
-			front$tuple2_usize_ref_str_str_MatchIndices_ref_str(rs.strMatchIndices(s, needle), out);
-			front$tuple2_usize_ref_str_str_RMatchIndices_ref_str(rs.strRmatchIndices(s, needle), out);
+			front$tuple2_usize_ref_str_str_MatchIndices_ref_str(rs.strMatchIndices(_125, needle.v), out);
+			front$tuple2_usize_ref_str_str_RMatchIndices_ref_str(rs.strRmatchIndices(_125, needle.v), out);
 		}
 	} else if (_42 === 2) {
-		const _206: string = s;
+		const _206: string = s.v;
 		const part3 = _6[1];
 		if (m === 9) {
-			const _211: rs.char[] = [c, d];
-			harness_put(out, rs.strTrimMatches(_206, rs.patternChars(rs.sliceRange(_211, 0))));
+			harness_put(out, rs.strTrimMatches(_206, rs.patternChars([c, d])));
 		} else if (m === 10) {
-			const _215: rs.char[] = [c, d];
-			both$ref_str_str_Split_ref_slice_char(rs.strSplit(_206, rs.patternChars(rs.sliceRange(_215, 0))), part3, out);
+			both$ref_str_str_Split_ref_slice_char(rs.strSplit(_206, rs.patternChars([c, d])), part3, out);
 		} else if (m === 11) {
-			const _219: rs.char[] = [c, d];
-			both$ref_str_str_RSplit_ref_slice_char(rs.strRsplit(_206, rs.patternChars(rs.sliceRange(_219, 0))), part3, out);
+			both$ref_str_str_RSplit_ref_slice_char(rs.strRsplit(_206, rs.patternChars([c, d])), part3, out);
 		} else if (m === 12) {
-			const _223: rs.char[] = [c, d];
-			both$ref_str_str_SplitTerminator_ref_slice_char(rs.strSplitTerminator(_206, rs.patternChars(rs.sliceRange(_223, 0))), part3, out);
+			both$ref_str_str_SplitTerminator_ref_slice_char(rs.strSplitTerminator(_206, rs.patternChars([c, d])), part3, out);
 		} else if (m === 13) {
-			const _227: rs.char[] = [c, d];
-			both$ref_str_str_RSplitTerminator_ref_slice_char(rs.strRsplitTerminator(_206, rs.patternChars(rs.sliceRange(_227, 0))), part3, out);
+			both$ref_str_str_RSplitTerminator_ref_slice_char(rs.strRsplitTerminator(_206, rs.patternChars([c, d])), part3, out);
 		} else if (m === 14) {
-			const _231: rs.char[] = [c, d];
-			both$ref_str_str_SplitInclusive_ref_slice_char(rs.strSplitInclusive(_206, rs.patternChars(rs.sliceRange(_231, 0))), part3, out);
+			both$ref_str_str_SplitInclusive_ref_slice_char(rs.strSplitInclusive(_206, rs.patternChars([c, d])), part3, out);
 		} else if (m === 15) {
-			const _236: rs.char[] = [c, d];
-			both$ref_str_str_Matches_ref_slice_char(rs.strMatches(_206, rs.patternChars(rs.sliceRange(_236, 0))), part3, out);
-			const _241: rs.char[] = [c, d];
-			both$ref_str_str_RMatches_ref_slice_char(rs.strRmatches(_206, rs.patternChars(rs.sliceRange(_241, 0))), part3, out);
+			both$ref_str_str_Matches_ref_slice_char(rs.strMatches(_206, rs.patternChars([c, d])), part3, out);
+			both$ref_str_str_RMatches_ref_slice_char(rs.strRmatches(_206, rs.patternChars([c, d])), part3, out);
 		} else if (m === 16) {
-			const _246: rs.char[] = [c, d];
-			both$tuple2_usize_ref_str_str_MatchIndices_ref_slice_char(rs.strMatchIndices(_206, rs.patternChars(rs.sliceRange(_246, 0))), part3, out);
-			const _251: rs.char[] = [c, d];
-			both$tuple2_usize_ref_str_str_RMatchIndices_ref_slice_char(rs.strRmatchIndices(_206, rs.patternChars(rs.sliceRange(_251, 0))), part3, out);
+			both$tuple2_usize_ref_str_str_MatchIndices_ref_slice_char(rs.strMatchIndices(_206, rs.patternChars([c, d])), part3, out);
+			both$tuple2_usize_ref_str_str_RMatchIndices_ref_slice_char(rs.strRmatchIndices(_206, rs.patternChars([c, d])), part3, out);
 		} else if (m === 0) {
-			const _259: rs.char[] = [c, d];
-			putOffset(out, rs.strFind(_206, rs.patternChars(rs.sliceRange(_259, 0))));
-			const _264: rs.char[] = [c, d];
-			putOffset(out, rs.strRfind(_206, rs.patternChars(rs.sliceRange(_264, 0))));
+			putOffset(out, rs.strFind(_206, rs.patternChars([c, d])));
+			putOffset(out, rs.strRfind(_206, rs.patternChars([c, d])));
 		} else if (m === 1) {
-			const _269: rs.char[] = [c, d];
-			putOption(out, rs.strStripPrefix(_206, rs.patternChars(rs.sliceRange(_269, 0))));
-			const _274: rs.char[] = [c, d];
-			putOption(out, rs.strStripSuffix(_206, rs.patternChars(rs.sliceRange(_274, 0))));
+			putOption(out, rs.strStripPrefix(_206, rs.patternChars([c, d])));
+			putOption(out, rs.strStripSuffix(_206, rs.patternChars([c, d])));
 		} else if (m === 2) {
-			const _281: rs.char[] = [c, d];
-			harness_put(out, rs.strReplace(_206, rs.patternChars(rs.sliceRange(_281, 0)), "<>"));
-			const _289: rs.char[] = [c, d];
-			harness_put(out, rs.strReplace(_206, rs.patternChars(rs.sliceRange(_289, 0)), "é", n));
+			harness_put(out, rs.strReplace(_206, rs.patternChars([c, d]), "<>", false).v);
+			harness_put(out, rs.strReplacen(_206, rs.patternChars([c, d]), "é", n).v);
 		} else if (m === 3) {
-			const _295: rs.char[] = [c, d];
-			front$ref_str_str_Split_ref_slice_char(rs.strSplit(_206, rs.patternChars(rs.sliceRange(_295, 0))), out);
-			const _300: rs.char[] = [c, d];
-			front$ref_str_str_RSplit_ref_slice_char(rs.strRsplit(_206, rs.patternChars(rs.sliceRange(_300, 0))), out);
+			front$ref_str_str_Split_ref_slice_char(rs.strSplit(_206, rs.patternChars([c, d])), out);
+			front$ref_str_str_RSplit_ref_slice_char(rs.strRsplit(_206, rs.patternChars([c, d])), out);
 		} else if (m === 4) {
-			const _305: rs.char[] = [c, d];
-			front$ref_str_str_SplitTerminator_ref_slice_char(rs.strSplitTerminator(_206, rs.patternChars(rs.sliceRange(_305, 0))), out);
-			const _310: rs.char[] = [c, d];
-			front$ref_str_str_RSplitTerminator_ref_slice_char(rs.strRsplitTerminator(_206, rs.patternChars(rs.sliceRange(_310, 0))), out);
+			front$ref_str_str_SplitTerminator_ref_slice_char(rs.strSplitTerminator(_206, rs.patternChars([c, d])), out);
+			front$ref_str_str_RSplitTerminator_ref_slice_char(rs.strRsplitTerminator(_206, rs.patternChars([c, d])), out);
 		} else if (m === 5) {
-			const _315: rs.char[] = [c, d];
-			front$ref_str_str_SplitN_ref_slice_char(rs.strSplitn(_206, n, rs.patternChars(rs.sliceRange(_315, 0))), out);
-			const _320: rs.char[] = [c, d];
-			front$ref_str_str_RSplitN_ref_slice_char(rs.strRsplitn(_206, n, rs.patternChars(rs.sliceRange(_320, 0))), out);
+			front$ref_str_str_SplitN_ref_slice_char(rs.strSplitn(_206, n, rs.patternChars([c, d])), out);
+			front$ref_str_str_RSplitN_ref_slice_char(rs.strRsplitn(_206, n, rs.patternChars([c, d])), out);
 		} else if (m === 6) {
-			const _324: rs.char[] = [c, d];
-			front$ref_str_str_SplitInclusive_ref_slice_char(rs.strSplitInclusive(_206, rs.patternChars(rs.sliceRange(_324, 0))), out);
+			front$ref_str_str_SplitInclusive_ref_slice_char(rs.strSplitInclusive(_206, rs.patternChars([c, d])), out);
 		} else if (m === 7) {
-			const _329: rs.char[] = [c, d];
-			front$ref_str_str_Matches_ref_slice_char(rs.strMatches(_206, rs.patternChars(rs.sliceRange(_329, 0))), out);
-			const _334: rs.char[] = [c, d];
-			front$ref_str_str_RMatches_ref_slice_char(rs.strRmatches(_206, rs.patternChars(rs.sliceRange(_334, 0))), out);
+			front$ref_str_str_Matches_ref_slice_char(rs.strMatches(_206, rs.patternChars([c, d])), out);
+			front$ref_str_str_RMatches_ref_slice_char(rs.strRmatches(_206, rs.patternChars([c, d])), out);
 		} else {
-			const _339: rs.char[] = [c, d];
-			front$tuple2_usize_ref_str_str_MatchIndices_ref_slice_char(rs.strMatchIndices(_206, rs.patternChars(rs.sliceRange(_339, 0))), out);
-			const _344: rs.char[] = [c, d];
-			front$tuple2_usize_ref_str_str_RMatchIndices_ref_slice_char(rs.strRmatchIndices(_206, rs.patternChars(rs.sliceRange(_344, 0))), out);
+			front$tuple2_usize_ref_str_str_MatchIndices_ref_slice_char(rs.strMatchIndices(_206, rs.patternChars([c, d])), out);
+			front$tuple2_usize_ref_str_str_RMatchIndices_ref_slice_char(rs.strRmatchIndices(_206, rs.patternChars([c, d])), out);
 		}
 	} else if (_42 === 3) {
-		const _349: string = s;
+		const _349: string = s.v;
 		const part2 = _6[1];
 		if (m === 9) {
 			harness_put(out, rs.strTrimMatches(_349, rs.patternChars([c, d])));
@@ -3815,8 +3790,8 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			putOption(out, rs.strStripPrefix(_349, rs.patternChars([c, d])));
 			putOption(out, rs.strStripSuffix(_349, rs.patternChars([c, d])));
 		} else if (m === 2) {
-			harness_put(out, rs.strReplace(_349, rs.patternChars([c, d]), "<>"));
-			harness_put(out, rs.strReplace(_349, rs.patternChars([c, d]), "é", n));
+			harness_put(out, rs.strReplace(_349, rs.patternChars([c, d]), "<>", false).v);
+			harness_put(out, rs.strReplacen(_349, rs.patternChars([c, d]), "é", n).v);
 		} else if (m === 3) {
 			front$ref_str_str_Split_array2_char(rs.strSplit(_349, rs.patternChars([c, d])), out);
 			front$ref_str_str_RSplit_array2_char(rs.strRsplit(_349, rs.patternChars([c, d])), out);
@@ -3836,7 +3811,7 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			front$tuple2_usize_ref_str_str_RMatchIndices_array2_char(rs.strRmatchIndices(_349, rs.patternChars([c, d])), out);
 		}
 	} else {
-		const _438: string = s;
+		const _438: string = s.v;
 		const part = _6[1];
 		if (m === 9) {
 			harness_put(out, rs.strTrimMatches(_438, p));
@@ -3863,8 +3838,8 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			putOption(out, rs.strStripPrefix(_438, p));
 			putOption(out, rs.strStripSuffix(_438, p));
 		} else if (m === 2) {
-			harness_put(out, rs.strReplace(_438, p, "<>"));
-			harness_put(out, rs.strReplace(_438, p, "é", n));
+			harness_put(out, rs.strReplace(_438, p, "<>", false).v);
+			harness_put(out, rs.strReplacen(_438, p, "é", n).v);
 		} else if (m === 3) {
 			front$ref_str_str_Split_searches_searches_closure1(rs.strSplit(_438, p), out);
 			front$ref_str_str_RSplit_searches_searches_closure1(rs.strRsplit(_438, p), out);
@@ -3885,12 +3860,7 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		}
 	}
 	const _501: rs.RefCell<rs.Vec<rs.char>> = rs.refCellBorrow(seen);
-	const iter: rs.Iter<rs.char> = rs.iterSlice(_501.value.items);
-	while (true) {
-		const _504: rs.char | rs.Done = iter.next();
-		if (_504 === rs.DONE) {
-			break;
-		}
+	for (const _504 of _501.value.items) {
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u32ToBeBytes(_504 as rs.u32)));
 	}
 	rs.refRelease(_501);
@@ -3901,27 +3871,28 @@ export function searches(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
  * low bits of each byte, read from the end each byte's high bit picks.
  */
 export function texts(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const s: string = rs.stringExtendChars("", rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.char => {
+	const _5: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.char => {
 		const _52: rs.usize = rs.u8Rem(_2, 16) as rs.usize;
 		if (!(_52 < 16)) {
 			rs.panic("index out of bounds: the len is " + 16 + " but the index is " + _52);
 		}
 		return [10, 13, 97, 32, 9, 11, 133, 160, 5760, 8202, 8203, 8232, 12288, 65279, 233, 128512][_52];
-	}));
+	});
+	const s: rs.String = rs.stringExtendChars(rs.stringNew(), _5);
 	const _7: rs.u8 = rs.u8Rem(kind, 5);
 	if (_7 === 0) {
-		both$tuple2_usize_char_str_CharIndices(rs.strCharIndices(s), data, out);
+		both$tuple2_usize_char_str_CharIndices(rs.strCharIndices(s.v), data, out);
 	} else if (_7 === 1) {
-		both$ref_str_str_Lines(rs.strLines(s), data, out);
+		both$ref_str_str_Lines(rs.strLines(s.v), data, out);
 	} else if (_7 === 2) {
-		both$ref_str_str_SplitWhitespace(rs.strSplitWhitespace(s), data, out);
+		both$ref_str_str_SplitWhitespace(rs.strSplitWhitespace(s.v), data, out);
 	} else if (_7 === 3) {
-		both$ref_str_str_SplitAsciiWhitespace(rs.strSplitAsciiWhitespace(s), data, out);
+		both$ref_str_str_SplitAsciiWhitespace(rs.strSplitAsciiWhitespace(s.v), data, out);
 	} else {
-		harness_put(out, rs.strTrimMatches(s, rs.charIsWhitespace));
-		harness_put(out, rs.strTrimStartMatches(s, rs.charIsWhitespace));
-		harness_put(out, rs.strTrimEndMatches(s, rs.charIsWhitespace));
-		for (const _40 of rs.iterToVec(rs.iterMap(rs.strChars(s), (a0: rs.char): boolean => {
+		harness_put(out, rs.strTrimMatches(s.v, rs.charIsWhitespace));
+		harness_put(out, rs.strTrimStartMatches(s.v, rs.charIsWhitespace));
+		harness_put(out, rs.strTrimEndMatches(s.v, rs.charIsWhitespace));
+		for (const _40 of rs.iterToVec(rs.iterMap(rs.strChars(s.v), (a0: rs.char): boolean => {
 			return rs.charIsWhitespace(a0);
 		}), "next", 1).items) {
 			rs.byteVecPush(out, _40 ? 1 : 0);

@@ -14,7 +14,7 @@ fork stays in maintenance and keeps building moq's bindings until then; its feat
 are folded into the [exporter's](/quest/m1/ffi-export/README.md). The
 [binding benchmark](/bench/ffi/README.md) continues as the exporter's baseline.
 
-Decided 2026-11-02 (maintainer, moq's /quest-unblock): the fork is not published to crates.io. moq skips it and switches straight to the exporter ([moq's switch](https://github.com/moq-dev/moq/blob/main/quest/m2/ffi-exporter.md)), so publishing would only commit permanent `rust2-*` names to code already slated for retirement. moq keeps its own pinned generator forks until the exporter is ready.
+Decided 2026-11-02 (maintainer, moq's /quest-unblock): the fork is not published to crates.io. moq skips it and switches straight to the exporter ([moq's switch](https://github.com/moq-dev/moq/blob/main/quest/m3/ffi-exporter.md)), so publishing would only commit permanent `rust2-*` names to code already slated for retirement. moq keeps its own pinned generator forks until the exporter is ready.
 
 ## Required
 

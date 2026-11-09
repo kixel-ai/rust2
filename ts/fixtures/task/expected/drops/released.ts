@@ -35,9 +35,8 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			_262 = true;
 			_252 = true;
 			const part27 = Guard.id(captured26);
-			const args64: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part27, f)];
-			const _626: string = rs.fmtFormat(["reduce ", args64[0]]);
-			Guard.note(y4, _626);
+			const _627: string = rs.fmtFormat(["reduce ", (f: rs.Formatter) => rs.u32Display(part27, f)]).v;
+			Guard.note(y4, _627);
 			if (!(Guard.id(x4) < Guard.id(y4))) {
 				_262 = false;
 				_029 = x4;
@@ -60,38 +59,36 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			g18[Symbol.dispose]();
 			return _030;
 		});
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part28, f, rs.u32Debug)];
-		Log.note(log, rs.fmtFormat(["reduced ", args2[0]]));
+		Log.note(log, rs.fmtFormat(["reduced ", (f: rs.Formatter) => rs.fmtOption(part28, f, rs.u32Debug)]));
 		const b: Guard.Guard = guard(11);
 		const _32: rs.Iter<Guard.Guard> = rs.iterTake(rs.vecIntoIter(guards(log, id, new rs.Range(5, 7)), rs.drop), 0, rs.drop);
 		const captured27 = b;
-		const none: Guard.Guard | undefined = rs.iterReduce(_32, rs.closure((x5: Guard.Guard, _339: Guard.Guard): Guard.Guard => {
+		const none: Guard.Guard | undefined = rs.iterReduce(_32, rs.closure((x5: Guard.Guard, _340: Guard.Guard): Guard.Guard => {
 			Guard.note(captured27, "never");
-			_339[Symbol.dispose]();
+			_340[Symbol.dispose]();
 			return x5;
 		}, (): void => {
 			captured27[Symbol.dispose]();
 		}), true, true);
 		const part29 = none === undefined;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part29, f)];
-		Log.note(log, rs.fmtFormat(["none ", args4[0]]));
+		Log.note(log, rs.fmtFormat(["none ", (f: rs.Formatter) => rs.fmtBool(part29, f)]));
 		const c: Guard.Guard = guard(12);
 		const _53: rs.Iter<Guard.Guard> = rs.iterMap(new rs.Range(13, 16), guard);
 		const captured28 = c;
 		const part30 = option_map$06w9waf(rs.iterReduce(_53, rs.closure((x6: Guard.Guard, y5: Guard.Guard): Guard.Guard => {
 			let _032!: Guard.Guard;
 			let _1211: boolean = false;
-			let _1116: boolean = false;
+			let _1120: boolean = false;
 			_1211 = true;
-			_1116 = true;
+			_1120 = true;
 			if (!(Guard.id(y5) === rs.u32Add(Guard.id(captured28), 2))) {
 				_1211 = false;
 				_032 = x6;
 			} else {
-				_1116 = false;
+				_1120 = false;
 				_032 = y5;
 			}
-			if (_1116) {
+			if (_1120) {
 				y5[Symbol.dispose]();
 			}
 			if (_1211) {
@@ -106,12 +103,11 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			g19[Symbol.dispose]();
 			return _033;
 		});
-		const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part30, f, rs.u32Debug)];
-		Log.note(log, rs.fmtFormat(["made ", args6[0]]));
+		Log.note(log, rs.fmtFormat(["made ", (f: rs.Formatter) => rs.fmtOption(part30, f, rs.u32Debug)]));
 		const captured29 = guard(16);
-		const first: (a0: Guard.Guard, a1: Guard.Guard) => Guard.Guard = rs.closure((x7: Guard.Guard, _340: Guard.Guard): Guard.Guard => {
+		const first: (a0: Guard.Guard, a1: Guard.Guard) => Guard.Guard = rs.closure((x7: Guard.Guard, _344: Guard.Guard): Guard.Guard => {
 			Guard.note(captured29, "first");
-			_340[Symbol.dispose]();
+			_344[Symbol.dispose]();
 			return x7;
 		}, (): void => {
 			captured29[Symbol.dispose]();
@@ -121,8 +117,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			g20[Symbol.dispose]();
 			return _035;
 		});
-		const args8: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part31, f, rs.u32Debug)];
-		Log.note(log, rs.fmtFormat(["lent ", args8[0]]));
+		Log.note(log, rs.fmtFormat(["lent ", (f: rs.Formatter) => rs.fmtOption(part31, f, rs.u32Debug)]));
 		rs.drop(first);
 		rs.drop(none);
 	} else if (_6 === 1) {
@@ -138,8 +133,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			g16[Symbol.dispose]();
 			return _025;
 		});
-		const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part24, f, rs.u32Debug)];
-		Log.note(log, rs.fmtFormat(["max ", args10[0]]));
+		Log.note(log, rs.fmtFormat(["max ", (f: rs.Formatter) => rs.fmtOption(part24, f, rs.u32Debug)]));
 		const b2: Guard.Guard = guard(11);
 		const _113: rs.Iter<Guard.Guard> = rs.vecIntoIter(guards(log, id, new rs.Range(5, 8)), rs.drop);
 		const captured24 = b2;
@@ -152,8 +146,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			g17[Symbol.dispose]();
 			return _027;
 		});
-		const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part25, f, rs.u32Debug)];
-		Log.note(log, rs.fmtFormat(["min ", args12[0]]));
+		Log.note(log, rs.fmtFormat(["min ", (f: rs.Formatter) => rs.fmtOption(part25, f, rs.u32Debug)]));
 		const c2: Guard.Guard = guard(12);
 		const _132: rs.Iter<Guard.Guard> = rs.iterTake(rs.vecIntoIter(guards(log, id, new rs.Range(13, 15)), rs.drop), 0, rs.drop);
 		const captured25 = c2;
@@ -163,8 +156,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			captured25[Symbol.dispose]();
 		}), true, rs.drop, true);
 		const part26 = none2 === undefined;
-		const args14: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part26, f)];
-		Log.note(log, rs.fmtFormat(["none ", args14[0]]));
+		Log.note(log, rs.fmtFormat(["none ", (f: rs.Formatter) => rs.fmtBool(part26, f)]));
 		rs.drop(none2);
 	} else if (_6 === 2) {
 		const a3: Guard.Guard = guard(10);
@@ -179,8 +171,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			g10[Symbol.dispose]();
 			return _018;
 		});
-		const args16: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part20, f, rs.u32Debug)];
-		Log.note(log, rs.fmtFormat(["max ", args16[0]]));
+		Log.note(log, rs.fmtFormat(["max ", (f: rs.Formatter) => rs.fmtOption(part20, f, rs.u32Debug)]));
 		const b3: Guard.Guard = guard(11);
 		const _173: rs.Iter<Guard.Guard> = rs.vecIntoIter(guards(log, id, new rs.Range(5, 8)), rs.drop);
 		const captured20 = b3;
@@ -193,8 +184,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			g12[Symbol.dispose]();
 			return _020;
 		});
-		const args18: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part21, f, rs.u32Debug)];
-		Log.note(log, rs.fmtFormat(["min ", args18[0]]));
+		Log.note(log, rs.fmtFormat(["min ", (f: rs.Formatter) => rs.fmtOption(part21, f, rs.u32Debug)]));
 		const c3: Guard.Guard = guard(12);
 		const _192: rs.Iter<Guard.Guard> = rs.iterTake(rs.vecIntoIter(guards(log, id, new rs.Range(13, 15)), rs.drop), 0, rs.drop);
 		const captured21 = c3;
@@ -204,8 +194,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			captured21[Symbol.dispose]();
 		}), rs.lt, true, rs.drop, true);
 		const part22 = none3 === undefined;
-		const args20: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part22, f)];
-		Log.note(log, rs.fmtFormat(["none ", args20[0]]));
+		Log.note(log, rs.fmtFormat(["none ", (f: rs.Formatter) => rs.fmtBool(part22, f)]));
 		const captured22 = guard(15);
 		const key: (a0: Guard.Guard) => rs.u32 = rs.closure((g14: Guard.Guard): rs.u32 => {
 			return rs.u32Add(Guard.id(g14), Guard.id(captured22));
@@ -217,8 +206,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			g15[Symbol.dispose]();
 			return _023;
 		});
-		const args22: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtOption(part23, f, rs.u32Debug)];
-		Log.note(log, rs.fmtFormat(["lent ", args22[0]]));
+		Log.note(log, rs.fmtFormat(["lent ", (f: rs.Formatter) => rs.fmtOption(part23, f, rs.u32Debug)]));
 		rs.drop(key);
 		rs.drop(none3);
 	} else if (_6 === 3) {
@@ -227,8 +215,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const captured15 = a4;
 		const part16 = rs.iterIsSortedBy(rs.iterMap(_235, rs.closure((g6: Guard.Guard): rs.u32 => {
 			const part15 = Guard.id(captured15);
-			const args62: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part15, f)];
-			const _517: string = rs.fmtFormat(["key ", args62[0]]);
+			const _517: string = rs.fmtFormat(["key ", (f: rs.Formatter) => rs.u32Display(part15, f)]).v;
 			Guard.note(g6, _517);
 			const _013: rs.u32 = Guard.id(g6);
 			g6[Symbol.dispose]();
@@ -236,8 +223,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured15[Symbol.dispose]();
 		})), rs.le, true);
-		const args24: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part16, f)];
-		Log.note(log, rs.fmtFormat(["sorted ", args24[0]]));
+		Log.note(log, rs.fmtFormat(["sorted ", (f: rs.Formatter) => rs.fmtBool(part16, f)]));
 		const b4: Guard.Guard = guard(11);
 		const _253: rs.Iter<Guard.Guard> = rs.vecIntoIter(guards(log, id, new rs.Range(4, 8)), rs.drop);
 		const captured16 = b4;
@@ -248,8 +234,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured16[Symbol.dispose]();
 		})), rs.le, true);
-		const args26: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part17, f)];
-		Log.note(log, rs.fmtFormat(["unsorted ", args26[0]]));
+		Log.note(log, rs.fmtFormat(["unsorted ", (f: rs.Formatter) => rs.fmtBool(part17, f)]));
 		const c4: Guard.Guard = guard(12);
 		const _271: rs.Iter<Guard.Guard> = rs.iterTake(rs.vecIntoIter(guards(log, id, new rs.Range(13, 15)), rs.drop), 0, rs.drop);
 		const captured17 = c4;
@@ -260,8 +245,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured17[Symbol.dispose]();
 		})), rs.le, true);
-		const args28: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part18, f)];
-		Log.note(log, rs.fmtFormat(["empty ", args28[0]]));
+		Log.note(log, rs.fmtFormat(["empty ", (f: rs.Formatter) => rs.fmtBool(part18, f)]));
 		const d3: Guard.Guard = guard(15);
 		const _290: rs.Iter<rs.u32> = rs.iterSlice([3, 1]);
 		const captured18 = d3;
@@ -270,8 +254,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured18[Symbol.dispose]();
 		})), rs.le, true);
-		const args30: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtBool(part19, f)];
-		Log.note(log, rs.fmtFormat(["plain ", args30[0]]));
+		Log.note(log, rs.fmtFormat(["plain ", (f: rs.Formatter) => rs.fmtBool(part19, f)]));
 	} else if (_6 === 4) {
 		const id2: rs.u32 = id;
 		const guard2: (a0: rs.u32) => Guard.Guard = (n3: rs.u32): Guard.Guard => {
@@ -290,8 +273,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured9[Symbol.dispose]();
 		}), rs.drop));
-		const args32: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part8, f)];
-		Log.note(log, rs.fmtFormat(["hash occupied ", args32[0]]));
+		Log.note(log, rs.fmtFormat(["hash occupied ", (f: rs.Formatter) => rs.u32Display(part8, f)]));
 		const _349: rs.Entry<rs.u32, Guard.Guard> = rs.entry(map, 2);
 		const captured10 = b5;
 		const part9 = Guard.id(rs.entryOrInsertWith(_349, rs.closure((): Guard.Guard => {
@@ -299,8 +281,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured10[Symbol.dispose]();
 		}), rs.drop));
-		const args34: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part9, f)];
-		Log.note(log, rs.fmtFormat(["hash vacant ", args34[0]]));
+		Log.note(log, rs.fmtFormat(["hash vacant ", (f: rs.Formatter) => rs.u32Display(part9, f)]));
 		const captured11 = guard2(4);
 		const made2: () => Guard.Guard = rs.closure((): Guard.Guard => {
 			return Guard.new(rs.u32Add(Guard.id(captured11), 10), Log.clone$Clone(log));
@@ -308,8 +289,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			captured11[Symbol.dispose]();
 		});
 		const part10 = Guard.id(rs.entryOrInsertWith(rs.entry(map, 3), rs.once(made2), rs.drop));
-		const args36: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part10, f)];
-		Log.note(log, rs.fmtFormat(["hash made ", args36[0]]));
+		Log.note(log, rs.fmtFormat(["hash made ", (f: rs.Formatter) => rs.u32Display(part10, f)]));
 		const captured12 = guard2(5);
 		const keyed: (a0: rs.u32) => Guard.Guard = rs.closure((k4: rs.u32): Guard.Guard => {
 			return Guard.new(rs.u32Add(Guard.id(captured12), k4), Log.clone$Clone(log));
@@ -317,8 +297,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			captured12[Symbol.dispose]();
 		});
 		const part11 = Guard.id(rs.entryOrInsertWith(rs.entry(map, 4), rs.once(keyed), rs.drop));
-		const args38: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part11, f)];
-		Log.note(log, rs.fmtFormat(["hash keyed ", args38[0]]));
+		Log.note(log, rs.fmtFormat(["hash keyed ", (f: rs.Formatter) => rs.u32Display(part11, f)]));
 		const _396: [Guard.Guard, Guard.Guard] = [guard2(6), guard2(7)];
 		const e: Guard.Guard = _396[0];
 		f = _396[1];
@@ -326,8 +305,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const captured13 = e;
 		rs.entryAndModify(_404, rs.closure((g4: Guard.Guard): undefined => {
 			const part12 = Guard.id(captured13);
-			const args58: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part12, f)];
-			Guard.note(g4, rs.fmtFormat(["modified ", args58[0]]));
+			Guard.note(g4, rs.fmtFormat(["modified ", (f: rs.Formatter) => rs.u32Display(part12, f)]).v);
 			captured13[Symbol.dispose]();
 		}, (): void => {
 			captured13[Symbol.dispose]();
@@ -336,14 +314,12 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const captured14 = f;
 		const part14 = Guard.id(rs.entryOrInsert(rs.entryAndModify(_409, rs.closure((g5: Guard.Guard): undefined => {
 			const part13 = Guard.id(captured14);
-			const args60: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part13, f)];
-			Guard.note(g5, rs.fmtFormat([args60[0]]));
+			Guard.note(g5, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(part13, f)]).v);
 			captured14[Symbol.dispose]();
 		}, (): void => {
 			captured14[Symbol.dispose]();
 		}), rs.drop), guard2(8), rs.drop));
-		const args40: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part14, f)];
-		Log.note(log, rs.fmtFormat(["hash added ", args40[0]]));
+		Log.note(log, rs.fmtFormat(["hash added ", (f: rs.Formatter) => rs.u32Display(part14, f)]));
 		let iterStart: rs.u32 = 1;
 		const iterEnd: rs.u32 = 6;
 		while ((_430 = iterStart++) < iterEnd) {
@@ -368,8 +344,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured3[Symbol.dispose]();
 		}), rs.drop));
-		const args42: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part, f)];
-		Log.note(log, rs.fmtFormat(["btree occupied ", args42[0]]));
+		Log.note(log, rs.fmtFormat(["btree occupied ", (f: rs.Formatter) => rs.u32Display(part, f)]));
 		const _483: rs.Entry<rs.u32, Guard.Guard> = rs.entry(map2, 2);
 		const captured4 = b6;
 		const part2 = Guard.id(rs.entryOrInsertWith(_483, rs.closure((): Guard.Guard => {
@@ -377,8 +352,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		}, (): void => {
 			captured4[Symbol.dispose]();
 		}), rs.drop));
-		const args44: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part2, f)];
-		Log.note(log, rs.fmtFormat(["btree vacant ", args44[0]]));
+		Log.note(log, rs.fmtFormat(["btree vacant ", (f: rs.Formatter) => rs.u32Display(part2, f)]));
 		const captured5 = guard3(4);
 		const made3: () => Guard.Guard = rs.closure((): Guard.Guard => {
 			return Guard.new(rs.u32Add(Guard.id(captured5), 10), Log.clone$Clone(log));
@@ -386,8 +360,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			captured5[Symbol.dispose]();
 		});
 		const part3 = Guard.id(rs.entryOrInsertWith(rs.entry(map2, 3), rs.once(made3), rs.drop));
-		const args46: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part3, f)];
-		Log.note(log, rs.fmtFormat(["btree made ", args46[0]]));
+		Log.note(log, rs.fmtFormat(["btree made ", (f: rs.Formatter) => rs.u32Display(part3, f)]));
 		const captured6 = guard3(5);
 		const keyed2: (a0: rs.u32) => Guard.Guard = rs.closure((k3: rs.u32): Guard.Guard => {
 			return Guard.new(rs.u32Add(Guard.id(captured6), k3), Log.clone$Clone(log));
@@ -395,8 +368,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			captured6[Symbol.dispose]();
 		});
 		const part4 = Guard.id(rs.entryOrInsertWith(rs.entry(map2, 4), rs.once(keyed2), rs.drop));
-		const args48: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part4, f)];
-		Log.note(log, rs.fmtFormat(["btree keyed ", args48[0]]));
+		Log.note(log, rs.fmtFormat(["btree keyed ", (f: rs.Formatter) => rs.u32Display(part4, f)]));
 		const _530: [Guard.Guard, Guard.Guard] = [guard3(6), guard3(7)];
 		const e2: Guard.Guard = _530[0];
 		const f2: Guard.Guard = _530[1];
@@ -404,8 +376,7 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const captured7 = e2;
 		rs.entryAndModify(_538, rs.closure((g2: Guard.Guard): undefined => {
 			const part5 = Guard.id(captured7);
-			const args54: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part5, f)];
-			Guard.note(g2, rs.fmtFormat(["modified ", args54[0]]));
+			Guard.note(g2, rs.fmtFormat(["modified ", (f: rs.Formatter) => rs.u32Display(part5, f)]).v);
 			captured7[Symbol.dispose]();
 		}, (): void => {
 			captured7[Symbol.dispose]();
@@ -414,14 +385,12 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const captured8 = f2;
 		const part7 = Guard.id(rs.entryOrInsert(rs.entryAndModify(_543, rs.closure((g3: Guard.Guard): undefined => {
 			const part6 = Guard.id(captured8);
-			const args56: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part6, f)];
-			Guard.note(g3, rs.fmtFormat([args56[0]]));
+			Guard.note(g3, rs.fmtFormat([(f: rs.Formatter) => rs.u32Display(part6, f)]).v);
 			captured8[Symbol.dispose]();
 		}, (): void => {
 			captured8[Symbol.dispose]();
 		}), rs.drop), guard3(8), rs.drop));
-		const args50: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(part7, f)];
-		Log.note(log, rs.fmtFormat(["btree added ", args50[0]]));
+		Log.note(log, rs.fmtFormat(["btree added ", (f: rs.Formatter) => rs.u32Display(part7, f)]));
 		let iterStart2: rs.u32 = 1;
 		const iterEnd2: rs.u32 = 6;
 		while ((_564 = iterStart2++) < iterEnd2) {
@@ -437,8 +406,8 @@ export function released(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 			if (!(Guard.id(g) !== rs.u32Add(captured, 2))) {
 				const _122: rs.u32 = Guard.id(g);
 				const _142: rs.u32 = Guard.id(captured2);
-				const args52: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(_122, f), (f: rs.Formatter) => rs.u32Display(_142, f)];
-				rs.panicFmt(["key of g", args52[0], " with g", args52[1]]);
+				const args53 = [(f: rs.Formatter) => rs.u32Display(_122, f), (f: rs.Formatter) => rs.u32Display(_142, f)];
+				rs.panicFmt(["key of g", args53[0], " with g", args53[1]]);
 			} else {
 				return Guard.id(g);
 			}

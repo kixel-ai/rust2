@@ -104,11 +104,12 @@ export function needs$unit(): boolean {
  * generic body that branches on it does, as std's collections do; and types' names.
  */
 export function needsDrops(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const captured = rs.stringExtendChars("", rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.char => {
+	const _4: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.char => {
 		return _2 as rs.char;
-	}));
+	});
+	const captured = rs.stringExtendChars(rs.stringNew(), _4);
 	const named: () => rs.usize = (): rs.usize => {
-		return rs.stringLen(captured);
+		return captured.len;
 	};
 	const copied: () => rs.usize = (): rs.usize => {
 		return data.length;
@@ -117,8 +118,8 @@ export function needsDrops(data: rs.ByteSlice, out: rs.ByteVec): void {
 		return a0 ? 1 : 0;
 	})), undefined, true);
 	rs.byteVecPush(out, (named() & 0xff) ^ (copied() & 0xff));
-	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(droppedByHand$String(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b2: rs.u8): string => {
-		return rs.fmtToString((f: rs.Formatter) => rs.u8Display(b2, f));
+	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(droppedByHand$String(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (b2: rs.u8): rs.String => {
+		return rs.fmtToString((f: rs.Formatter) => rs.u8Display(b2, f), 0);
 	}), undefined, 12, true))).reverse()), undefined, true);
 	rs.iterExtendBytes(out, rs.iterSlice(rs.u32ToBeBytes(droppedByHand$u8(rs.byteSliceToByteVec(data))).reverse()), undefined, true);
 	const iter: rs.Iter<string> = rs.iterSlice(["lang_manual_fixture::manual::ByHand", "core::option::Option<&[alloc::string::String]>", "lang_manual_fixture::manual::needs_drops::{{closure}}", "[u8]", nameOf$u8(), nameOf$String()]);
@@ -155,7 +156,7 @@ export function nameOf$u8(): string {
  * How many items a generic body drops one by one, as std's collections do only of a type
  * that needs dropping, and forgets the rest.
  */
-export function droppedByHand$String(items: rs.Vec<string>): rs.u32 {
+export function droppedByHand$String(items: rs.Vec<rs.String>): rs.u32 {
 	if (false) {
 		return 0;
 	}

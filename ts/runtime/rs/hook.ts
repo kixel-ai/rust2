@@ -1,6 +1,7 @@
 // `std::panic`'s hook, for rust2-ts output: only a program that sets one reaches this
 // module, so a bundler drops all of it from one that doesn't. `rs.ts` re-exports all of it.
 
+import { type String as RsString, stringNew, stringPushStr } from "./str.ts";
 import { Abort, type Arguments, type FmtResult, type Formatter, fmtWriteFmt, fmtWriteString, Panic, panic } from "../rs.ts";
 import { fmtLocationDisplay, type Location } from "./location.ts";
 import { drop } from "./task.ts";
@@ -9,8 +10,8 @@ import { drop } from "./task.ts";
 export interface PanicHookInfo {
 	/** `payload_as_str`: the payload, if it is a `&str` or a `String`. */
 	readonly text: string | undefined;
-	/** Whether that text is a `String`, as a message `panic!` formats is, rather than a `&'static str`. */
-	readonly owned: boolean;
+	/** The payload, if it is a `String`, as a message `panic!` formats is, rather than a `&'static str`. */
+	readonly string: RsString | undefined;
 	/** Any other payload, as the `dyn Any` object `panic_any` made of it. */
 	readonly payload: object | undefined;
 	/** Where it panicked. */
@@ -36,12 +37,13 @@ let sites: Sites | undefined;
 
 /**
  * Run the hook on a panic at `at`, or at the key of std's or `bytes`' site in `Sites`, whose payload is
- * `message` or else `payload`: a `String` if `owned`, or if it is `Arguments` with
- * placeholders, as `Arguments::as_str` says. It formats `Arguments` once the panic has
- * begun, as std does, and gives the text. A panic while the hook runs aborts, as std's does,
+ * `message` or else `payload`: the `String` `owned`, or one written from empty as std's
+ * `panic!` writes its message: `message` in one write if `owned` is true, or `Arguments`
+ * with placeholders, as `Arguments::as_str` says, by `write_fmt` once the panic has begun.
+ * It gives the text. A panic while the hook runs aborts, as std's does,
  * without running it again.
  */
-function run(message: string | Arguments | undefined, at: Location | string | undefined, owned?: boolean, payload?: object): string | undefined {
+function run(message: string | Arguments | undefined, at: Location | string | undefined, owned?: boolean | RsString, payload?: object): string | undefined {
 	const literal = typeof message === "object" ? asStr(message) : message;
 	if (hooking) throw new Abort(`${literal ?? ""}\nthread panicked while processing panic. aborting.`);
 	if (hook === defaultHook) return undefined;
@@ -49,8 +51,16 @@ function run(message: string | Arguments | undefined, at: Location | string | un
 	if (location === undefined) throw new Error(`rust2-ts: a panic its hook can't locate: ${literal ?? "a formatted message"}`);
 	hooking = true;
 	try {
-		const text = typeof message === "object" ? fmtWriteString("", message).s : message;
-		hook({ text, owned: owned ?? literal === undefined, payload, location });
+		let string = typeof owned === "object" ? owned : undefined;
+		if (typeof message === "object" && literal === undefined) {
+			string = stringNew();
+			fmtWriteString(string, message);
+		} else if (owned === true) {
+			string = stringNew();
+			stringPushStr(string, literal ?? "");
+		}
+		const text = string?.v ?? literal;
+		hook({ text, string, payload, location });
 		return text;
 	} finally {
 		hooking = false;
@@ -97,8 +107,10 @@ export function panicAny(payload: object, at?: Location): never {
  * `PanicHookInfo::payload`: what `panic_any` was given, or else the text, as a `str` or a
  * `String` object, whose classes translation makes.
  */
-export function hookPayload(info: PanicHookInfo, str: new (text: string) => object, string: new (text: string) => object): object {
-	return info.payload ?? new (info.owned ? string : str)(info.text ?? "");
+export function hookPayload<S extends object, O extends object>(info: PanicHookInfo, str: new (text: string) => S, string: new (text: RsString) => O): S | O {
+	// `panic_any` made its payload an object of the same `dyn Any` the classes are.
+	if (info.payload !== undefined) return info.payload as S | O;
+	return info.string !== undefined ? new string(info.string) : new str(info.text ?? "");
 }
 
 /** `PanicHookInfo`'s `Display`: where it panicked, then any text, as the default hook's first lines. */

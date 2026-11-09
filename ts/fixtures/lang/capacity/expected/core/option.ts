@@ -9,6 +9,13 @@ export function unwrapOr$1fr498u(self: rs.u8 | undefined, default_: rs.u8): rs.u
 	return self;
 }
 
+export function unwrapOr$05jq4mv(self: rs.usize | undefined, default_: rs.usize): rs.usize {
+	if (self === undefined) {
+		return default_;
+	}
+	return self;
+}
+
 export function unwrapOrDefault$0avqj0t(self: rs.ByteSlice | undefined): rs.ByteSlice {
 	if (self === undefined) {
 		return rs.byteSliceFrom(new Uint8Array(0));
@@ -49,6 +56,13 @@ export function map$1d4d0v7(self: rs.Vec<undefined>[] | undefined, f: (a0: rs.Ve
 		return undefined;
 	}
 	return f(self);
+}
+
+export function mapOr$0yzb10z(self: rs.char | undefined, default_: rs.u32, _: (a0: rs.char) => rs.u32): rs.u32 {
+	if (self === undefined) {
+		return default_;
+	}
+	return self as rs.u32;
 }
 
 export function mapOr$1d4bp7c(self: rs.u8 | undefined, default_: rs.usize, f: (a0: rs.u8) => rs.usize): rs.usize {

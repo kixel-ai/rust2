@@ -33,7 +33,7 @@ export function put(out: rs.ByteVec, n: rs.usize): void {
 export function map(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const own: rs.HashMap<rs.u16, rs.u32> = rs.hashNew() as rs.HashMap<rs.u16, rs.u32>;
 	const pairs: rs.HashMap<[rs.u8, rs.u8], rs.u32> = rs.hashNew(rs.hashing(rs.hashTuple([rs.hash8, rs.hash8]), rs.eqTuple([rs.same, rs.same]))) as rs.HashMap<[rs.u8, rs.u8], rs.u32>;
-	const set: rs.HashSet<string> = rs.hashWithCapacity(rs.usizeDiv(data.length, 4), 117440512) as rs.HashSet<string>;
+	const set: rs.HashSet<rs.String> = rs.hashWithCapacity(rs.usizeDiv(data.length, 4), 117440512, rs.HASH_TEXT) as rs.HashSet<rs.String>;
 	const iter: rs.Iter<rs.ByteSlice> = rs.byteSliceChunks(data, 2);
 	while (true) {
 		const _12: rs.ByteSlice | rs.Done = iter.next();
@@ -82,16 +82,13 @@ export function map(data: rs.ByteSlice, out: rs.ByteVec): void {
 				return k5[0] !== rs.u8Rem(arg, 4);
 			});
 		} else if (_35 === 6) {
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u16Display(key, f)];
-			const _88: string = rs.fmtFormat([args2[0]]);
+			const _88: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(key, f)]);
 			rs.byteVecPush(out, rs.hashAdd(set, _88) ? 1 : 0);
 			const part = rs.u16Add(key, 1);
-			const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.u16Display(part, f)];
-			const _102: string = rs.fmtFormat([args4[0]]);
+			const _102: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(part, f)]);
 			rs.byteVecPush(out, rs.hashContains(set, _102) ? 1 : 0);
 		} else if (_35 === 7) {
-			const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.u16Display(key, f)];
-			const _117: string = rs.fmtFormat([args6[0]]);
+			const _117: rs.String = rs.fmtFormat([(f: rs.Formatter) => rs.u16Display(key, f)]);
 			rs.byteVecPush(out, rs.hashDelete(set, _117) ? 1 : 0);
 		} else if (_35 === 8) {
 			put(out, option_mapOr$0o00yzv(rs.hashRemoveEntry(own, key), 256, (_26: [rs.u16, rs.u32]): rs.usize => {
@@ -107,7 +104,7 @@ export function map(data: rs.ByteSlice, out: rs.ByteVec): void {
 		put(out, rs.hashLen(set));
 	}
 	const own2: rs.Vec<[rs.u16, rs.u32]> = rs.iterToVec(rs.hashIter(own), "next", 8);
-	rs.sliceSort(own2.items, rs.cmpLt(rs.cmpTuple<[rs.u16, rs.u32], rs.Ordering | undefined>([rs.cmp, rs.cmp])), 8, true);
+	rs.sliceSort(rs.sliceFrom(own2.items), rs.cmpLt(rs.cmpTuple<[rs.u16, rs.u32], rs.Ordering | undefined>([rs.cmp, rs.cmp])), 8, true);
 	for (const _155 of own2.items) {
 		const k: rs.u16 = _155[0];
 		const v: rs.u32 = _155[1];
@@ -117,7 +114,7 @@ export function map(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const pairs2: rs.Vec<[[rs.u8, rs.u8], rs.u32]> = rs.iterToVec(rs.iterMap(rs.hashIter(pairs), (_210: [[rs.u8, rs.u8], rs.u32]): [[rs.u8, rs.u8], rs.u32] => {
 		return [_210[0], _210[1]] as [[rs.u8, rs.u8], rs.u32];
 	}), "next", 8);
-	rs.sliceSort(pairs2.items, rs.cmpLt(rs.cmpTuple<[[rs.u8, rs.u8], rs.u32], rs.Ordering | undefined>([rs.cmpTuple<[rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp]), rs.cmp])), 8, true);
+	rs.sliceSort(rs.sliceFrom(pairs2.items), rs.cmpLt(rs.cmpTuple<[[rs.u8, rs.u8], rs.u32], rs.Ordering | undefined>([rs.cmpTuple<[rs.u8, rs.u8], rs.Ordering | undefined>([rs.cmp, rs.cmp]), rs.cmp])), 8, true);
 	for (const _174 of pairs2.items) {
 		const a: rs.u8 = _174[0][0];
 		const b: rs.u8 = _174[0][1];
@@ -125,9 +122,9 @@ export function map(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(Uint8Array.of(a, b)));
 		put(out, v2 as rs.usize);
 	}
-	const set2: rs.Vec<string> = rs.iterToVec(rs.hashKeys(set), "next", 12);
-	rs.sliceSort(set2.items, rs.cmpLt(rs.cmpStr), 12, true);
-	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.strsJoin(set2.items, ",")));
+	const set2: rs.Vec<rs.String> = rs.iterToVec(rs.hashKeys(set), "next", 12);
+	rs.sliceSort(rs.sliceFrom(set2.items), rs.cmpLt(rs.cmpStr), 12, true);
+	rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.strsJoin(set2.items, ",").v));
 }
 
 /**
@@ -250,7 +247,7 @@ export function table(dataData: Uint8Array, dataStart: number, dataLen: number, 
 				}), rs.u32Add, 0) as rs.usize);
 				const copy: rs.HashTable<[rs.u16, rs.u32]> = rs.hashClone(t, undefined, copy$tuple2_u16_u32);
 				const drained: rs.Vec<[rs.u16, rs.u32]> = rs.iterToVec(rs.tableDrain(t), "next", 8);
-				rs.sliceSort(drained.items, rs.cmpLt(rs.cmpTuple<[rs.u16, rs.u32], rs.Ordering | undefined>([rs.cmp, rs.cmp])), 8, true);
+				rs.sliceSort(rs.sliceFrom(drained.items), rs.cmpLt(rs.cmpTuple<[rs.u16, rs.u32], rs.Ordering | undefined>([rs.cmp, rs.cmp])), 8, true);
 				for (const _162 of drained.items) {
 					const k2: rs.u16 = _162[0];
 					const v2: rs.u32 = _162[1];
@@ -271,7 +268,7 @@ export function table(dataData: Uint8Array, dataStart: number, dataLen: number, 
 			rs.byteVecPush(out, rs.hashLen(t) === 0 ? 1 : 0);
 		}
 		const left: rs.Vec<[rs.u16, rs.u32]> = rs.iterToVec(rs.hashValues(t), "next", 8);
-		rs.sliceSort(left.items, rs.cmpLt(rs.cmpTuple<[rs.u16, rs.u32], rs.Ordering | undefined>([rs.cmp, rs.cmp])), 8, true);
+		rs.sliceSort(rs.sliceFrom(left.items), rs.cmpLt(rs.cmpTuple<[rs.u16, rs.u32], rs.Ordering | undefined>([rs.cmp, rs.cmp])), 8, true);
 		for (const _199 of left.items) {
 			const k3: rs.u16 = _199[0];
 			const v3: rs.u32 = _199[1];
@@ -356,7 +353,7 @@ export function numbers(n: rs.HashTable<rs.u32>, kind: rs.u8, op: rs.u8, key: rs
 		}
 	}
 	const items: rs.Vec<rs.u32> = rs.iterToVec(rs.hashValues(n), "next", 4);
-	rs.sliceSort(items.items, rs.lt, 4, true);
+	rs.sliceSort(rs.sliceFrom(items.items), rs.lt, 4, true);
 	for (const _85 of items.items) {
 		put(out, _85 as rs.usize);
 	}

@@ -6,10 +6,10 @@ import type * as Logged from "./shares.Logged.ts";
 
 /** A shared slice in a field, beside one that drops after it. */
 export class Held {
-	items: rs.Arc<Logged.Logged[]>;
+	items: rs.Arc<rs.Slice<Logged.Logged>>;
 	last: Logged.Logged;
 
-	constructor(items: rs.Arc<Logged.Logged[]>, last: Logged.Logged) {
+	constructor(items: rs.Arc<rs.Slice<Logged.Logged>>, last: Logged.Logged) {
 		this.items = items;
 		this.last = last;
 	}

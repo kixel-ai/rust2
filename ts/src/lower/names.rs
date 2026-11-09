@@ -13,7 +13,7 @@ use crate::program::{ModPath, Names};
 impl<'tcx> Translator<'_, 'tcx> {
 	/// What tells this instance apart from others of its item, after a `$`: the items it is
 	/// nested in below its module, the trait it implements with the trait's type arguments,
-	/// then its self type and its own type arguments, each as [`ty`] spells it. In its
+	/// then its self type and its own type and const arguments, each as [`ty`] spells it. In its
 	/// type's module, `owned`, the type goes without saying, but not its arguments nor, after
 	/// them, the references to it: `fmt_Display_copy_Pair` for `Wrap<copy::Pair>`'s
 	/// `Display::fmt`, and `bytes_Buf_u8_mut` for `&mut Wrap<u8>`'s `Buf::chunk`.
@@ -44,8 +44,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 			match inner.kind() {
 				// The references after the arguments, which no spelling of a type ends in, so
 				// `&mut Take<T>`'s differ from `Take<&mut T>`'s.
-				ty::Adt(_, args) if owned => {
-					parts.extend(args.types().map(|t| ty(tcx, t)));
+				ty::Adt(_, adt_args) if owned => {
+					parts.extend(args(tcx, adt_args));
 					parts.extend(refs);
 				}
 				_ => parts.push(ty(tcx, self_ty)),
@@ -74,8 +74,9 @@ impl<'tcx> Translator<'_, 'tcx> {
 	pub(super) fn names(&self) -> Names {
 		let tcx = self.tcx;
 		let mut names = Names::default();
-		// The copies, drops, slots of `Ok` parts, and trait objects' classes `lib.ts` makes.
-		for shim in ["copy", "drop", "out", "of", "ofPlace"] {
+		// The copies, drops, slots of `Ok` parts, trait objects' classes, and forwarding
+		// hashers' methods `lib.ts` makes.
+		for shim in ["copy", "drop", "out", "of", "ofPlace", "hasher"] {
 			importable(&mut names, shim, Vec::new());
 		}
 		for (module, namespace, prefix) in self.bound_files() {
@@ -144,7 +145,8 @@ impl<'tcx> Translator<'_, 'tcx> {
 				let named = match tcx.def_kind(parent) {
 					DefKind::Impl { .. } => {
 						let ty = tcx.type_of(parent).instantiate_identity().skip_norm_wip().peel_refs();
-						!matches!(ty.kind(), ty::Adt(adt, _) if self.own(adt.did()))
+						// A JS value's, which has no class, are its Rust module's.
+						!matches!(ty.kind(), ty::Adt(adt, _) if self.own(adt.did()) && !super::bindgen::represents(tcx, adt.did()))
 					}
 					_ => tcx.defaultness(def_id).has_value(),
 				};
@@ -228,7 +230,7 @@ pub fn ty<'tcx>(tcx: TyCtxt<'tcx>, t: Ty<'tcx>) -> String {
 			.chain(tys.iter().map(|t| ty(tcx, t)))
 			.collect(),
 		ty::Slice(elem) => vec!["slice".into(), ty(tcx, *elem)],
-		ty::Array(elem, len) => vec![format!("array{}", konst(tcx, *len)), ty(tcx, *elem)],
+		ty::Array(elem, len) => vec![format!("array{}", konst(*len)), ty(tcx, *elem)],
 		// By its trait, the types it binds, and its auto traits, as `dyn_Future_u64`.
 		ty::Dynamic(preds, ..) => {
 			let principal = preds.principal().map(|p| p.skip_binder());
@@ -262,19 +264,35 @@ fn defined<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, def_args: &[GenericArg<'tcx>]
 }
 
 /// The type and const arguments of `args`, as a suffix spells them.
-fn args<'tcx>(tcx: TyCtxt<'tcx>, args: &[GenericArg<'tcx>]) -> impl Iterator<Item = String> {
+pub(super) fn args<'tcx>(tcx: TyCtxt<'tcx>, args: &[GenericArg<'tcx>]) -> impl Iterator<Item = String> {
 	args.iter().filter_map(move |arg| match arg.kind() {
 		ty::GenericArgKind::Type(t) => Some(ty(tcx, t)),
-		ty::GenericArgKind::Const(c) => Some(konst(tcx, c)),
+		ty::GenericArgKind::Const(c) => Some(konst(c)),
 		ty::GenericArgKind::Lifetime(_) => None,
 	})
 }
 
-/// A const argument, as an array's length: `4`.
-fn konst<'tcx>(tcx: TyCtxt<'tcx>, c: ty::Const<'tcx>) -> String {
-	match c.try_to_target_usize(tcx) {
-		Some(n) => n.to_string(),
-		None => c.to_string().replace(|c: char| !c.is_alphanumeric(), ""),
+/// A const argument: an integer, such as an array's length, as `4` or `neg4`, a `bool` as
+/// `true`, and a `char` as itself if an ASCII letter or digit, else as `u` and its hex
+/// code point, `u1f600`.
+fn konst(c: ty::Const<'_>) -> String {
+	let ty::ConstKind::Value(value) = c.kind() else {
+		return c.to_string().replace(|c: char| !c.is_alphanumeric(), "");
+	};
+	let Some(leaf) = value.try_to_leaf() else {
+		return c.to_string().replace(|c: char| !c.is_alphanumeric(), "");
+	};
+	match value.ty.kind() {
+		ty::Bool => (leaf.to_bits_unchecked() != 0).to_string(),
+		ty::Char => match char::from_u32(leaf.to_u32()) {
+			Some(c) if c.is_ascii_alphanumeric() => c.to_string(),
+			_ => format!("u{:x}", leaf.to_u32()),
+		},
+		ty::Int(_) => match leaf.to_int(leaf.size()) {
+			n if n < 0 => format!("neg{}", n.unsigned_abs()),
+			n => n.to_string(),
+		},
+		_ => leaf.to_bits_unchecked().to_string(),
 	}
 }
 

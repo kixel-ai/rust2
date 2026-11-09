@@ -48,5 +48,25 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("pointers::distinct", |_, data, out| pointers::distinct(data, out)),
 		("pointers::raw_arcs", |_, data, out| pointers::raw_arcs(data, out)),
 		("pointers::raw_places", |_, data, out| pointers::raw_places(data, out)),
+		("pointers::arrays", |_, data, out| pointers::arrays(data, out)),
+		("pointers::behind_refs", |_, data, out| pointers::behind_refs(data, out)),
+		("pointers::array_casts", |_, data, out| pointers::array_casts(data, out)),
+		("pointers::generic_unions", |_, data, out| {
+			pointers::generic_unions(data, out)
+		}),
+		("pointers::raw_cells", |_, data, out| pointers::raw_cells(data, out)),
+		("pointers::cell_writes", |_, data, out| pointers::cell_writes(data, out)),
+		("pointers::nested_cells", |_, data, out| {
+			pointers::nested_cells(data, out)
+		}),
+		("pointers::lone_bytes", |_, data, out| pointers::lone_bytes(data, out)),
+		("pointers::moved_out", |_, data, out| pointers::moved_out(data, out)),
+		("pointers::array_parts", |_, data, out| pointers::array_parts(data, out)),
 	]
+}
+
+/// `UnsafeCell::get` and `raw_get` of a cell of a slice, which only a caller can give, as
+/// translated code can't unsize a cell.
+pub fn cell_slice(c: &std::cell::UnsafeCell<[u16]>, at: usize) -> u16 {
+	unsafe { (*std::cell::UnsafeCell::raw_get(c))[at] ^ (*c.get())[0] }
 }

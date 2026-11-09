@@ -32,5 +32,8 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("collections::deque_ranges", collections::deque_ranges),
 		("collections::extracts", collections::extracts),
 		("collections::btree_extracts", collections::btree_extracts),
+		("collections::btree_searches", collections::btree_searches),
+		("collections::btree_borrows", collections::btree_borrows),
+		("collections::btree_drops", collections::btree_drops),
 	]
 }

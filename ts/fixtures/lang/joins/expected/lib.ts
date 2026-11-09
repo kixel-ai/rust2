@@ -12,7 +12,7 @@ export function drop$array2_joins_Logged(value: Logged.Logged[]): void {
 	rs.dropAll(value);
 }
 
-export function drop$boxed_Box_slice_joins_Logged(value: Logged.Logged[]): void {
+export function drop$boxed_Box_slice_joins_Logged(value: rs.Slice<Logged.Logged>): void {
 	rs.dropAll(value);
 }
 

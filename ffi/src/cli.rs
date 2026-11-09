@@ -10,14 +10,14 @@ use crate::config::{self, Config};
 
 const USAGE: &str = "usage: rust2-ffi --config <ffi.toml> (--out <dir> | --census <dir>) [--manifest-path <Cargo.toml>] [-- <cargo args>]
 
-Exports the pub API of the library of the package that ffi.toml names, and of the other
-packages it lists, into one library: a crate in <dir> that builds the C ABI, with its C
-header in <dir>/include. The package's Cargo.toml is beside ffi.toml unless
---manifest-path says where. Cargo args, such as --features, are passed to `cargo check`,
-on the host.
+Exports the pub API of the package's library, following its `pub use` re-exports into
+other crates, as one library: a crate in <dir> that builds the C ABI, with its C header
+in <dir>/include, every C name prefixed by the library's crate name. ffi.toml says what
+to leave out. The package's Cargo.toml is beside ffi.toml unless --manifest-path says
+where. Cargo args, such as --features, are passed to `cargo check`, on the host.
 
---census writes a Markdown report per package, <dir>/<package>.md, of what exports and
-of every construct the export refuses, instead of exporting.";
+--census writes a Markdown report, <dir>/<package>.md, of what exports and of every
+construct the export refuses, instead of exporting.";
 
 pub fn run(args: &[String]) -> ExitCode {
 	match try_run(args) {
@@ -33,16 +33,18 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	let Some(args) = Args::parse(args, USAGE)? else {
 		return Ok(ExitCode::SUCCESS);
 	};
-	let config = Config::load(&args.config)?;
-	let (crates, patch) = crates(&args.manifest, &config, &args.cargo)?;
+	// Read now, so a malformed config fails before the check.
+	Config::load(&args.config)?;
+	let (facade, patch) = facade(&args.manifest, &args.cargo)?;
 	let output = match &args.output {
 		Output::Dir(out) => (config::env::OUT, out.as_os_str()),
 		Output::Census(census) => (config::env::CENSUS, census.as_os_str()),
 	};
+	let line = facade.line();
 	Check {
 		tool: "rust2-ffi",
 		manifest: &args.manifest,
-		package: &config.package,
+		package: &facade.name,
 		root: None,
 		// The host's, whatever cargo's config names: a C ABI is the platform's, and the
 		// exports are found on it.
@@ -50,7 +52,7 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		args: &args.cargo,
 		env: &[
 			(config::env::CONFIG, args.config.as_os_str()),
-			(config::env::CRATES, crates.as_ref()),
+			(config::env::PACKAGE, line.as_ref()),
 			(config::env::PATCH, patch.as_ref()),
 			output,
 		],
@@ -58,9 +60,9 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	.run()
 }
 
-/// Each export's package, as [`config::env::CRATES`] lists them: the configured package
-/// first. Then the patches it resolved with, as [`config::env::PATCH`] has them.
-fn crates(manifest: &Path, config: &Config, cargo: &[String]) -> Result<(String, String), String> {
+/// The facade, the package of `manifest`, then the patches it resolved with, as
+/// [`config::env::PATCH`] has them.
+fn facade(manifest: &Path, cargo: &[String]) -> Result<(config::Package, String), String> {
 	let picks = Picks::parse(cargo)?;
 	// On the host, so the resolved dependencies are the ones the check passes rustc.
 	let host = rustc_session::config::host_tuple();
@@ -74,96 +76,25 @@ fn crates(manifest: &Path, config: &Config, cargo: &[String]) -> Result<(String,
 		std::fs::canonicalize(manifest).map_err(|err| format!("resolving {}: {err}", manifest.display()))?;
 	// Cargo keeps a symlink's spelling of the path.
 	let top = (metadata.packages.iter())
-		.find(|p| p.name == config.package && std::fs::canonicalize(&p.manifest_path).is_ok_and(|p| p == canonical));
+		.find(|p| p.source.is_none() && std::fs::canonicalize(&p.manifest_path).is_ok_and(|p| p == canonical));
 	let Some(top) = top else {
-		return Err(format!(
-			"{} is not the package of {}",
-			config.package,
-			manifest.display()
-		));
+		return Err(format!("{} is no package's manifest", manifest.display()));
 	};
-	// What the library builds with on the host, each package as `<name> v<version>`, then
-	// its directory in parentheses for a path package. Metadata's graph would also hold
-	// what dev-dependencies' features add, and a workspace may hold another version of a
-	// package beside it.
-	let tree = [
-		"tree",
-		// The check's package, not the workspace's default members.
-		"--package",
-		&config.package,
-		"--edges",
-		"normal",
-		"--target",
-		rustc_session::config::host_tuple(),
-		"--prefix",
-		"none",
-		"--format",
-		"{p}",
-		// Plain, whatever cargo's config says, so a repeat's `(*)` reads as one.
-		"--color",
-		"never",
-	];
-	let output = run_cargo(manifest, &tree, &picks)?;
-	let output = String::from_utf8(output).map_err(|err| format!("reading cargo tree: {err}"))?;
-	let reached: BTreeSet<&str> = output.lines().map(|line| line.trim_end_matches(" (*)")).collect();
-	let features = picks.of_exports(top, config)?;
-	let mut lines = String::new();
-	for name in std::iter::once(&config.package).chain(config.crates.keys()) {
-		let mut found = reached.iter().filter(|p| p.split(' ').next() == Some(name.as_str()));
-		let (Some(&found), None) = (found.next(), found.next()) else {
-			return Err(format!(
-				"{name} is not exactly one package that {} builds with",
-				config.package
-			));
-		};
-		// The glue depends on each by path, so it builds the crate the export checked.
-		let package = (metadata.packages.iter()).find(|p| {
-			let dir = p.manifest_path.parent().expect("a manifest path has a parent");
-			p.source.is_none() && found == format!("{} v{} ({})", p.name, p.version, dir.display())
-		});
-		let Some(package) = package else {
-			return Err(format!("{name} is not a path package, which the export can depend on"));
-		};
-		let lib = (package.targets.iter()).find(|t| t.kind.iter().any(|k| matches!(k.as_str(), "lib" | "rlib")));
-		let Some(lib) = lib else {
-			return Err(format!("{name} has no library"));
-		};
-		let dir = package.manifest_path.parent().expect("a manifest path has a parent");
-		// Another export by the name the configured package depends on it by, unique among
-		// its dependencies: crates of two packages may share a name.
-		let node = metadata.resolve.nodes.iter().find(|n| n.id == top.id);
-		let krate = match package.id == top.id {
-			true => Some(lib.name.clone()),
-			false => (node.into_iter().flat_map(|n| &n.deps))
-				.filter(|d| d.pkg == package.id && d.dep_kinds.iter().any(|k| k.kind.is_none()))
-				.map(|d| d.name.clone())
-				.min(),
-		};
-		let Some(krate) = krate else {
-			return Err(format!(
-				"{name} is not a dependency of {}, which names each export",
-				config.package
-			));
-		};
-		let package = config::Package {
-			name: name.clone(),
-			krate: krate.replace('-', "_"),
-			dir: dir.into(),
-			features: features.get(name.as_str()).cloned().unwrap_or_default(),
-		};
-		if lines
-			.lines()
-			.filter_map(|l| l.split('\t').next())
-			.any(|n| n.replace('-', "_") == package.root())
-		{
-			return Err(format!("{name} is another export's name in snake case"));
-		}
-		lines.push_str(&package.line());
-	}
+	let lib = (top.targets.iter()).find(|t| t.kind.iter().any(|k| k.contains("lib")));
+	let Some(lib) = lib else {
+		return Err(format!("{} has no library", top.name));
+	};
+	picks.of_facade(top)?;
+	let facade = config::Package {
+		name: top.name.clone(),
+		lib: lib.name.replace('-', "_"),
+		dir: manifest.parent().expect("a manifest path has a parent").into(),
+		features: Vec::new(),
+	};
 	// Every platform's dependencies, which cargo resolves wherever the glue builds.
 	let output = run_cargo(manifest, &["metadata", "--format-version", "1"], &picks)?;
 	let resolved: Metadata = serde_json::from_slice(&output).map_err(|err| format!("reading cargo metadata: {err}"))?;
-	Ok((lines, overrides(&resolved, top)?))
+	Ok((facade, overrides(&resolved, top)?))
 }
 
 /// The `[patch]` the glue's workspace resolves the exports by as the check did, wherever
@@ -346,30 +277,21 @@ impl<'a> Picks<'a> {
 		args
 	}
 
-	/// The features named in another export directly, as `<dependency>/<feature>`, by
-	/// package. Cargo unifies in the rest through the configured package's own.
-	fn of_exports(&self, top: &'a Package, config: &Config) -> Result<BTreeMap<&'a str, Vec<String>>, String> {
-		let mut features: BTreeMap<&str, Vec<String>> = BTreeMap::new();
+	/// Refuse a feature named in a dependency, `<dependency>/<feature>`: the generated
+	/// crate depends on the facade alone, which enables what its dependencies build with.
+	fn of_facade(&self, top: &Package) -> Result<(), String> {
 		for feature in &self.named {
-			let Some((key, name)) = feature.split_once('/') else {
+			let Some((key, _)) = feature.split_once('/') else {
 				continue;
 			};
-			let key = key.strip_suffix('?').unwrap_or(key);
-			let dep =
-				(top.dependencies.iter()).find(|d| d.kind.is_none() && d.rename.as_deref().unwrap_or(&d.name) == key);
-			// Cargo refuses a feature of no dependency.
-			let Some(dep) = dep else {
-				continue;
-			};
-			if !config.crates.contains_key(&dep.name) {
+			if key.strip_suffix('?').unwrap_or(key) != top.name {
 				return Err(format!(
-					"--features {feature}: the export builds {} with only the features {} enables in it, unless it is an export too",
-					dep.name, config.package
+					"--features {feature}: the export builds {}'s dependencies with only the features it enables in them",
+					top.name
 				));
 			}
-			features.entry(&dep.name).or_default().push(name.to_string());
 		}
-		Ok(features)
+		Ok(())
 	}
 }
 

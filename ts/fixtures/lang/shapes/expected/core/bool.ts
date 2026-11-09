@@ -2,7 +2,27 @@
 
 import * as rs from "../rs.ts";
 import type * as Pair from "../fmt.Pair.ts";
+import type * as Copse from "../generics.Copse.ts";
+import type * as Grove from "../generics.Grove.ts";
+import type * as Holder from "../generics.Holder.ts";
+import type * as Layer from "../generics.Layer.ts";
+import type * as Peel from "../generics.Peel.ts";
+import type * as Remade from "../generics.Remade.ts";
+import type * as Seed from "../generics.Seed.ts";
+import type * as Shoot from "../generics.Shoot.ts";
+import type * as Sibling from "../generics.Sibling.ts";
+import type * as Sprout from "../generics.Sprout.ts";
+import type * as Ticked from "../generics.Ticked.ts";
+import type * as Top from "../generics.Top.ts";
+import type * as Twig from "../generics.Twig.ts";
 import type * as Void from "../shapes.Void.ts";
+
+export function thenSome$1ctlqen(self: boolean, t: rs.u8 | undefined): rs.u8 | undefined | rs.None {
+	if (!self) {
+		return rs.None;
+	}
+	return t;
+}
 
 export function thenSome$1uv8pdy(self: boolean, t: rs.Result<rs.u16, Void.Void>): rs.Result<rs.u16, Void.Void> | undefined {
 	if (!self) {
@@ -25,11 +45,60 @@ export function thenSome$05ku0zn(self: boolean, t: rs.i32): rs.i32 | undefined {
 	return t;
 }
 
+export function thenSome$0bd8znh(self: boolean, t: Layer.Layer<Peel.Peel<Top.Top>, boolean, rs.u8>): Layer.Layer<Peel.Peel<Top.Top>, boolean, rs.u8> | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return t;
+}
+
+export function thenSome$0czqe00(self: boolean, t: Shoot.Shoot<Seed.Seed, Copse.Copse$generics_Tail>): Shoot.Shoot<Seed.Seed, Copse.Copse$generics_Tail> | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return t;
+}
+
+export function thenSome$0rdxccx(self: boolean, t: Sibling.Sibling<Remade.Remade<rs.u8>, rs.u8, rs.u8>): Sibling.Sibling<Remade.Remade<rs.u8>, rs.u8, rs.u8> | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return t;
+}
+
+export function thenSome$0tbnivw(self: boolean, t: Ticked.Ticked): Ticked.Ticked | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return t;
+}
+
+export function thenSome$0epplxd(self: boolean, t: Twig.Twig<Sprout.Sprout, Grove.Grove$generics_Tail>): Twig.Twig<Sprout.Sprout, Grove.Grove$generics_Tail> | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return t;
+}
+
+export function thenSome$19pue01(self: boolean, t: rs.Poll<rs.u8>): rs.Poll<rs.u8> | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return t;
+}
+
 export function thenSome$0quywni(self: boolean, t: rs.u8): rs.u8 | undefined {
 	if (!self) {
 		return undefined;
 	}
 	return t;
+}
+
+export function thenSome$1n1oy1h(self: boolean, _: undefined): undefined | rs.None {
+	if (!self) {
+		return rs.None;
+	}
+	return undefined;
 }
 
 export function then$01xsbgy(self: boolean, _: () => rs.Vec<rs.u16>): rs.Vec<rs.u16> | undefined {
@@ -44,6 +113,20 @@ export function then$0y7on52(self: boolean, _: () => rs.ByteVec): rs.ByteVec | u
 		return undefined;
 	}
 	return new rs.ByteVec();
+}
+
+export function then$1tgze8k(self: boolean, f: () => Holder.Holder): Holder.Holder | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return f();
+}
+
+export function then$1qflv5x(self: boolean, f: () => Ticked.Ticked): Ticked.Ticked | undefined {
+	if (!self) {
+		return undefined;
+	}
+	return f();
 }
 
 export function then$1ldvmdq(self: boolean, f: () => rs.u8): rs.u8 | undefined {

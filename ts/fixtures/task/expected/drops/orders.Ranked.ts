@@ -26,8 +26,7 @@ export class Ranked {
 
 export function drop$ops_Drop(self: Ranked): void {
 	const arg = self.id;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u32Display(arg, f)];
-	const _4: string = rs.fmtFormat(["k", args2[0], " drop"]);
+	const _4: rs.String = rs.fmtFormat(["k", (f: rs.Formatter) => rs.u32Display(arg, f), " drop"]);
 	Log.note(self.log, _4);
 }
 
@@ -35,8 +34,8 @@ export function eq$cmp_PartialEq(self: Ranked, other: Ranked): boolean {
 	const arg = self.id;
 	const _12: rs.Fmt = (f: rs.Formatter) => rs.u32Display(arg, f);
 	const arg2 = other.id;
-	const args2: rs.Fmt[] = [_12, (f: rs.Formatter) => rs.u32Display(arg2, f)];
-	const _5: string = rs.fmtFormat(["eq ", args2[0], " ", args2[1]]);
+	const args3 = [_12, (f: rs.Formatter) => rs.u32Display(arg2, f)];
+	const _5: rs.String = rs.fmtFormat(["eq ", args3[0], " ", args3[1]]);
 	Log.note(self.log, _5);
 	return rs.u8Rem(self.rank, 3) === rs.u8Rem(other.rank, 3);
 }
@@ -45,8 +44,8 @@ export function partialCmp$cmp_PartialOrd(self: Ranked, other: Ranked): rs.Order
 	const arg = self.id;
 	const _12: rs.Fmt = (f: rs.Formatter) => rs.u32Display(arg, f);
 	const arg2 = other.id;
-	const args2: rs.Fmt[] = [_12, (f: rs.Formatter) => rs.u32Display(arg2, f)];
-	const _5: string = rs.fmtFormat(["partial_cmp ", args2[0], " ", args2[1]]);
+	const args3 = [_12, (f: rs.Formatter) => rs.u32Display(arg2, f)];
+	const _5: rs.String = rs.fmtFormat(["partial_cmp ", args3[0], " ", args3[1]]);
 	Log.note(self.log, _5);
 	return rs.cmp(rs.u8Div(self.rank, 2), rs.u8Div(other.rank, 2));
 }
@@ -55,8 +54,8 @@ export function cmp$cmp_Ord(self: Ranked, other: Ranked): rs.Ordering {
 	const arg = self.id;
 	const _12: rs.Fmt = (f: rs.Formatter) => rs.u32Display(arg, f);
 	const arg2 = other.id;
-	const args2: rs.Fmt[] = [_12, (f: rs.Formatter) => rs.u32Display(arg2, f)];
-	const _5: string = rs.fmtFormat(["cmp ", args2[0], " ", args2[1]]);
+	const args5 = [_12, (f: rs.Formatter) => rs.u32Display(arg2, f)];
+	const _5: rs.String = rs.fmtFormat(["cmp ", args5[0], " ", args5[1]]);
 	Log.note(self.log, _5);
 	if (self.rank !== 99) {
 		if (other.rank !== 99) {
@@ -66,8 +65,8 @@ export function cmp$cmp_Ord(self: Ranked, other: Ranked): rs.Ordering {
 	const arg3 = self.id;
 	const _26: rs.Fmt = (f: rs.Formatter) => rs.u32Display(arg3, f);
 	const arg4 = other.id;
-	const args4: rs.Fmt[] = [_26, (f: rs.Formatter) => rs.u32Display(arg4, f)];
-	rs.panicFmt(["cmp of k", args4[0], " with k", args4[1]]);
+	const args6 = [_26, (f: rs.Formatter) => rs.u32Display(arg4, f)];
+	rs.panicFmt(["cmp of k", args6[0], " with k", args6[1]]);
 }
 
 //# sourceMappingURL=orders.Ranked.ts.map

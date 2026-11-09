@@ -208,10 +208,6 @@ pub fn pushed_part_kept(n: u16) -> u16 {
 /// may still be read.
 pub struct ByRead(pub std::cell::UnsafeCell<u16>);
 
-pub struct ByWrite(pub std::cell::UnsafeCell<u16>);
-
-pub struct BySwap(pub std::cell::UnsafeCell<u16>);
-
 pub struct ByReplace(pub std::cell::UnsafeCell<u16>);
 
 pub struct ByBox(pub std::cell::UnsafeCell<u16>);
@@ -257,31 +253,6 @@ pub fn kept_read(n: u16) -> u16 {
 	let part = unsafe { (*kept.at).0.get() };
 	let at = kept.at;
 	unsafe { *at = ByRead(cell(0)) };
-	unsafe { *part }
-}
-
-/// Read back from memory, then written whole by `ptr::write`.
-pub fn kept_written(n: u16) -> u16 {
-	let mut whole = ByWrite(cell(n));
-	let mut kept = Kept {
-		at: std::ptr::null_mut(),
-	};
-	kept.at = &raw mut whole;
-	let part = unsafe { (*kept.at).0.get() };
-	unsafe { kept.at.write(ByWrite(cell(0))) };
-	unsafe { *part }
-}
-
-/// Read back from memory, then swapped whole by `ptr::swap`.
-pub fn kept_swapped(n: u16) -> u16 {
-	let mut whole = BySwap(cell(n));
-	let mut other = BySwap(cell(0));
-	let mut kept = Kept {
-		at: std::ptr::null_mut(),
-	};
-	kept.at = &raw mut whole;
-	let part = unsafe { (*kept.at).0.get() };
-	unsafe { std::ptr::swap(kept.at, &raw mut other) };
 	unsafe { *part }
 }
 

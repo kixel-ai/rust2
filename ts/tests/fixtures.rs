@@ -23,6 +23,11 @@ fn cargo() -> Command {
 	Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
 }
 
+/// The manifest of the workspace the fixtures but `model` are members of.
+fn workspace() -> PathBuf {
+	manifest_dir().join("Cargo.toml")
+}
+
 fn fixture(name: &str) -> PathBuf {
 	manifest_dir().join("fixtures").join(name)
 }
@@ -37,28 +42,61 @@ fn driver(name: &str, config: &Path, args: &[&std::ffi::OsStr], build: &str) -> 
 
 /// The command [`driver`] runs.
 fn driver_command(name: &str, config: &Path, args: &[&std::ffi::OsStr], build: &str) -> Command {
+	driver_at(&fixture(name).join("Cargo.toml"), config, args, build)
+}
+
+/// The command that runs the driver on the package of `manifest`.
+fn driver_at(manifest: &Path, config: &Path, args: &[&std::ffi::OsStr], build: &str) -> Command {
 	let mut command = Command::new(env!("CARGO_BIN_EXE_rust2-ts"));
 	command
 		.arg("--config")
 		.arg(config)
 		.arg("--manifest-path")
-		.arg(fixture(name).join("Cargo.toml"))
+		.arg(manifest)
 		.args(args)
 		.env("CARGO_TARGET_DIR", scratch().join(build))
 		.env("RUSTFLAGS", remap());
 	command
 }
 
-/// The flag that names cargo's home `/cargo` in both builds, so the files of the registry's
-/// crates, which a hook's locations name, are named alike on any host.
+/// The flags that name cargo's home `/cargo` in both builds, so the files of the registry's
+/// crates, which a hook's locations name, are named alike on any host, and tokio's `sync`
+/// module `tokio/channels`, a remap of a directory within a crate, which the location of
+/// tokio's panic must follow as native does.
 fn remap() -> String {
+	static FLAGS: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+	FLAGS.get_or_init(remap_flags).clone()
+}
+
+/// The flags [`remap`] gives, once the lockfile's crates are unpacked, so they don't
+/// depend on what a build before unpacked.
+fn remap_flags() -> String {
+	let status = cargo()
+		.args(["fetch", "--locked", "--manifest-path"])
+		.arg(workspace())
+		.status()
+		.expect("running cargo");
+	assert!(status.success(), "fetching the fixtures' crates failed");
 	let home = match std::env::var_os("CARGO_HOME") {
 		Some(home) => PathBuf::from(home),
 		None => std::env::home_dir()
 			.expect("a home directory, which holds cargo's")
 			.join(".cargo"),
 	};
-	format!("--remap-path-prefix={}=/cargo", home.display())
+	let lock = std::fs::read_to_string(manifest_dir().join("Cargo.lock")).unwrap();
+	let (_, tokio) = lock
+		.split_once("name = \"tokio\"\nversion = \"")
+		.expect("tokio in the lockfile");
+	let tokio = format!("tokio-{}", &tokio[..tokio.find('"').unwrap()]);
+	// The later flag wins where both match.
+	let mut flags = format!("--remap-path-prefix={}=/cargo", home.display());
+	for index in std::fs::read_dir(home.join("registry/src")).into_iter().flatten() {
+		let sync = index.unwrap().path().join(&tokio).join("src/sync");
+		if sync.is_dir() {
+			flags += &format!(" --remap-path-prefix={}=tokio/channels", sync.display());
+		}
+	}
+	flags
 }
 
 /// Run the driver on a fixture, returning its output directory and what it printed.
@@ -109,7 +147,10 @@ fn sources(dir: &Path) -> Vec<(PathBuf, String)> {
 /// Compare the output with the fixture's `expected/` directory.
 fn snapshot(name: &str, out: &Path) {
 	let expected = fixture(name).join("expected");
-	let got = sources(out);
+	let got: Vec<_> = sources(out)
+		.into_iter()
+		.map(|(rel, text)| (rel, mask_type_ids(&text)))
+		.collect();
 	if std::env::var_os("UPDATE_EXPECT").is_some() {
 		let _ = std::fs::remove_dir_all(&expected);
 		for (rel, text) in &got {
@@ -134,6 +175,34 @@ fn snapshot(name: &str, out: &Path) {
 			diff(want, got)
 		);
 	}
+}
+
+/// `text` with each `TypeId`, a string literal of 32 hex digits, named by its first
+/// appearance: cargo hashes the host's profile into a crate's `-C metadata`, and so into
+/// the hash of every type it defines, which leaves only which ids are equal alike on
+/// every host.
+fn mask_type_ids(text: &str) -> String {
+	let mut seen: Vec<&str> = Vec::new();
+	let mut out = String::with_capacity(text.len());
+	let mut rest = text;
+	while let Some(at) = rest.find('"') {
+		out.push_str(&rest[..=at]);
+		rest = &rest[at + 1..];
+		let hash = rest
+			.get(..32)
+			.filter(|hash| hash.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')))
+			.filter(|_| rest[32..].starts_with('"'));
+		if let Some(hash) = hash {
+			let n = seen.iter().position(|seen| *seen == hash).unwrap_or_else(|| {
+				seen.push(hash);
+				seen.len() - 1
+			});
+			out.push_str(&format!("<TypeId {}>\"", n + 1));
+			rest = &rest[33..];
+		}
+	}
+	out.push_str(rest);
+	out
 }
 
 /// The first lines where two texts differ.
@@ -173,8 +242,14 @@ fn typecheck(out: &Path) {
 
 /// Run the harness natively, as wasm32, and translated, on the same inputs: the
 /// translated side through `entry`, a module in `out`. `build` are the native build's
-/// arguments, such as `--features`.
-fn differential(package: &str, build: &[&str], out: &Path, entry: &str, cases: u32) {
+/// arguments, such as `--features`, in the workspace whose manifest is `workspace`.
+fn differential(workspace: &Path, package: &str, build: &[&str], out: &Path, entry: &str, cases: u32) {
+	let wasm = native(workspace, package, build);
+	compare(&wasm, out, entry, cases, None);
+}
+
+/// Build the harness natively, as wasm32, returning its module.
+fn native(workspace: &Path, package: &str, build: &[&str]) -> PathBuf {
 	let target_dir = scratch().join("wasm");
 	let status = cargo()
 		.args([
@@ -193,30 +268,38 @@ fn differential(package: &str, build: &[&str], out: &Path, entry: &str, cases: u
 		.env("CARGO_UNSTABLE_PROFILE_RUSTFLAGS", "true")
 		.env("RUSTFLAGS", remap())
 		.arg("--manifest-path")
-		.arg(manifest_dir().join("Cargo.toml"))
+		.arg(workspace)
 		.status()
 		.expect("running cargo");
 	assert!(status.success(), "building {package} for {TARGET} failed");
-	let wasm = target_dir
+	target_dir
 		.join(TARGET)
 		.join(PROFILE)
-		.join(format!("{}.wasm", package.replace('-', "_")));
+		.join(format!("{}.wasm", package.replace('-', "_")))
+}
+
+/// Run the native module `wasm` and the translation in `out`, through its module `entry`,
+/// on the same inputs: `wasm` with wasm-bindgen's JS `glue`, the `_bg.js` its CLI made, if
+/// it imports any.
+fn compare(wasm: &Path, out: &Path, entry: &str, cases: u32, glue: Option<&Path>) {
 	std::fs::write(out.join("package.json"), "{ \"type\": \"module\" }\n").unwrap();
 	// One thread: the cases run one at a time, and V8's background compilers and
 	// collectors would spend more CPU than they save.
 	let output = Command::new("node")
 		.arg("--single-threaded")
 		.arg(manifest_dir().join("tests").join("differential.ts"))
-		.arg(&wasm)
+		.arg(wasm)
 		.arg(out.join(entry))
 		.arg(cases.to_string())
+		.args(glue)
 		.output()
 		.expect("running node, which the dev shell provides");
 	let stdout = String::from_utf8_lossy(&output.stdout);
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
 		output.status.success(),
-		"{package} differs from native Rust:\n{stdout}{stderr}"
+		"{} differs from native Rust:\n{stdout}{stderr}",
+		wasm.display()
 	);
 	println!("{stdout}");
 }
@@ -229,8 +312,25 @@ fn codec() {
 	std::fs::copy(fixture("codec").join("caller.ts"), out.join("caller.ts")).unwrap();
 	typecheck(&out);
 	// As many random inputs per case as each had of 20,000 picked by their first byte.
-	differential("codec-fixture", &[], &out, "caller.ts", 2_300);
+	differential(&workspace(), "codec-fixture", &[], &out, "caller.ts", 2_300);
 	shake(&out);
+}
+
+/// moq-net's model at the moq pin, translated with the harness as one program.
+#[test]
+fn model() {
+	let out = translated("model");
+	snapshot("model", &out);
+	std::fs::copy(fixture("model").join("caller.ts"), out.join("caller.ts")).unwrap();
+	typecheck(&out);
+	differential(
+		&fixture("model").join("Cargo.toml"),
+		"model-fixture",
+		&["--config", GETRANDOM],
+		&out,
+		"caller.ts",
+		2_000,
+	);
 }
 
 /// A caller of two functions of a type, through its module, as moq's TypeScript calls
@@ -420,6 +520,7 @@ mod lang {
 		chars,
 		chunks,
 		clones,
+		collects,
 		collections,
 		combinators,
 		constants,
@@ -443,6 +544,7 @@ mod lang {
 		heap,
 		hints,
 		holds,
+		inlines,
 		ints,
 		iters,
 		joins,
@@ -523,7 +625,14 @@ fn lang(module: &str, feature: Option<&str>) {
 	}
 	typecheck(&out);
 	// As many random inputs per case as when one fixture held every module.
-	differential(&format!("lang-{module}-fixture"), &build, &out, entry, 151);
+	differential(
+		&workspace(),
+		&format!("lang-{module}-fixture"),
+		&build,
+		&out,
+		entry,
+		151,
+	);
 }
 
 /// A copy that only one write in the crate keeps, of each kind: one per feature.
@@ -532,7 +641,7 @@ fn share() {
 	let out = translated("share");
 	snapshot("share", &out);
 	typecheck(&out);
-	differential("share-fixture", &[], &out, "harness.ts", 1_000);
+	differential(&workspace(), "share-fixture", &[], &out, "harness.ts", 1_000);
 	let config = fixture("share").join("ts.toml");
 	for feature in ["call", "pointer", "unwritten"] {
 		let out = scratch().join("share").join(feature);
@@ -550,7 +659,14 @@ fn share() {
 			String::from_utf8_lossy(&output.stderr)
 		);
 		typecheck(&out);
-		differential("share-fixture", &["--features", feature], &out, "harness.ts", 1_000);
+		differential(
+			&workspace(),
+			"share-fixture",
+			&["--features", feature],
+			&out,
+			"harness.ts",
+			1_000,
+		);
 	}
 }
 
@@ -588,7 +704,7 @@ import * as closures from "./closures.ts";
 import {{ harness }} from {harness:?};
 
 export {{ cases, input, ops }} from {harness:?};
-const fixture = {{ Pending: rs.Pending, u64: {{ of: rs.u64Of }}, Log, Channel, Guard, sum, drain, blocks, watch, front, drops, futures, closures }};
+const fixture = {{ Pending: rs.Pending, u64: {{ of: rs.u64Of }}, string: rs.stringFrom, Log, Channel, Guard, sum, drain, blocks, watch, front, drops, futures, closures }};
 const script = harness(fixture);
 export const run = (input: rs.ByteSlice) => script(rs.byteSliceView(input));
 "#
@@ -596,7 +712,88 @@ export const run = (input: rs.ByteSlice) => script(rs.byteSliceView(input));
 	std::fs::write(out.join("caller.ts"), text).unwrap();
 	typecheck(out);
 	// Each step as often in random scripts as its share of 20,000 that mixed every step.
-	differential("task-fixture", &[], out, "caller.ts", 800);
+	differential(&workspace(), "task-fixture", &[], out, "caller.ts", 800);
+}
+
+/// js-sys's and web-sys's imports, and the fixture's own of each kind, as direct JS calls.
+/// The native side runs through wasm-bindgen's CLI, whose JS glue must match the
+/// fixture's locked wasm-bindgen exactly; the translated side, once per schema translation
+/// reads, against that one native run: the locked version's, then the next one's, from
+/// the fixture's other lockfile. What translation refuses fails at its span.
+#[test]
+fn bindgen() {
+	let wasm = native(&fixture("bindgen").join("Cargo.toml"), "bindgen-fixture", &[]);
+	let glue = scratch().join("bindgen").join("glue");
+	let status = Command::new("wasm-bindgen")
+		.args(["--target", "bundler", "--out-dir"])
+		.arg(&glue)
+		.arg(&wasm)
+		.status()
+		.expect("running wasm-bindgen, which the dev shell provides");
+	assert!(status.success(), "wasm-bindgen failed on {}", wasm.display());
+	let (glued, js) = (glue.join("bindgen_fixture_bg.wasm"), glue.join("bindgen_fixture_bg.js"));
+	// Each case as many times as `model`'s, of about as many steps.
+	let cases = 300;
+
+	let out = translated("bindgen");
+	snapshot("bindgen", &out);
+	std::fs::copy(fixture("bindgen").join("caller.ts"), out.join("caller.ts")).unwrap();
+	typecheck(&out);
+	compare(&glued, &out, "caller.ts", cases, Some(&js));
+
+	// The next schema: a copy of the fixture with its other lockfile, beside the shared
+	// `wasm.rs` its `lib.rs` reaches.
+	let next = scratch().join("bindgen").join("next");
+	let _ = std::fs::remove_dir_all(&next);
+	for file in [
+		"Cargo.toml",
+		"ts.toml",
+		"src/lib.rs",
+		"src/harness.rs",
+		"src/imports.rs",
+	] {
+		let to = next.join(file);
+		std::fs::create_dir_all(to.parent().unwrap()).unwrap();
+		std::fs::copy(fixture("bindgen").join(file), to).unwrap();
+	}
+	std::fs::copy(
+		fixture("bindgen").join("wasm-bindgen-0.2.130.lock"),
+		next.join("Cargo.lock"),
+	)
+	.unwrap();
+	std::fs::copy(
+		manifest_dir().join("fixtures").join("wasm.rs"),
+		scratch().join("bindgen").join("wasm.rs"),
+	)
+	.unwrap();
+	let out = scratch().join("bindgen").join("next-out");
+	let output = driver_at(
+		&next.join("Cargo.toml"),
+		&next.join("ts.toml"),
+		&["--out".as_ref(), out.as_ref()],
+		"build",
+	)
+	.output()
+	.expect("running rust2-ts");
+	assert!(
+		output.status.success(),
+		"translating bindgen at the next schema failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	std::fs::copy(fixture("bindgen").join("caller.ts"), out.join("caller.ts")).unwrap();
+	typecheck(&out);
+	compare(&glued, &out, "caller.ts", cases, Some(&js));
+
+	let out = scratch().join("bindgen").join("refused");
+	let args: [&std::ffi::OsStr; 5] = [
+		"--out".as_ref(),
+		out.as_ref(),
+		"--".as_ref(),
+		"--features".as_ref(),
+		"refused".as_ref(),
+	];
+	let output = driver("bindgen", &fixture("bindgen").join("refused.toml"), &args, "build");
+	rejected(&out, &output, &fixture("bindgen").join("refused.txt"));
 }
 
 /// Each construct outside the subset fails with its span, and nothing is written.
@@ -737,7 +934,7 @@ fn bind() {
 	let out = translated("bind");
 	snapshot("bind", &out);
 	typecheck(&out);
-	differential("bind-fixture", &[], &out, "harness.ts", 1_000);
+	differential(&workspace(), "bind-fixture", &[], &out, "harness.ts", 1_000);
 	// Each through a symlink, as a linked target directory reaches its output, though `tsc`
 	// names each file from the real directory.
 	let real = scratch().join("bind").join("real");
@@ -776,19 +973,18 @@ fn bind() {
 /// A package and its dependency translate as one program, trait objects of the
 /// dependency's trait and its safe twin of its `unsafe` included, and run as native Rust
 /// does. Its `unsafe` that nothing binds is refused at its span, and so are a module of
-/// the package's that would share the dependency's files, two instances whose suffixes
-/// are alike, and the package's read of the capacity of the dependency's `String` bytes.
+/// the package's that would share the dependency's files, and two instances whose
+/// suffixes are alike.
 #[test]
 fn crates() {
 	let out = translated("crates");
 	snapshot("crates", &out);
 	typecheck(&out);
-	differential("crates-fixture", &[], &out, "harness.ts", 1_000);
-	let cases: [(&str, &str, &[&str]); 4] = [
+	differential(&workspace(), "crates-fixture", &[], &out, "harness.ts", 1_000);
+	let cases: [(&str, &str, &[&str]); 3] = [
 		("refused", "refused.toml", &[]),
 		("shared", "ts.toml", &["--", "--features", "shared"]),
 		("alike", "alike.toml", &["--", "--features", "alike"]),
-		("strings", "strings.toml", &[]),
 	];
 	for (case, config, cargo) in cases {
 		let out = scratch().join("crates").join(case);
@@ -1080,5 +1276,32 @@ fn stock() {
 	std::fs::copy(fixture("stock").join("caller.ts"), out.join("caller.ts")).unwrap();
 	typecheck(&out);
 	// As many random inputs per case as each had of 5,000 picked by their first byte.
-	differential("stock-fixture", &["--config", GETRANDOM], &out, "caller.ts", 320);
+	differential(
+		&workspace(),
+		"stock-fixture",
+		&["--config", GETRANDOM],
+		&out,
+		"caller.ts",
+		320,
+	);
+}
+
+/// tokio's `sync` channels and `select!`, which translation maps without a binding or
+/// config, against tokio itself: each log shows the values, their order and drops, the
+/// errors, and when each waiting task was woken and became ready.
+#[test]
+fn tokio() {
+	let out = scratch().join("tokio").join("out");
+	let config = fixture("tokio").join("ts.toml");
+	let output = driver("tokio", &config, &["--out".as_ref(), out.as_ref()], "build");
+	assert!(
+		output.status.success(),
+		"translating tokio failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	snapshot("tokio", &out);
+	// A hand-written caller, which names the cases and the scripts random steps rarely reach.
+	std::fs::copy(fixture("tokio").join("caller.ts"), out.join("caller.ts")).unwrap();
+	typecheck(&out);
+	differential(&workspace(), "tokio-fixture", &[], &out, "caller.ts", 2000);
 }

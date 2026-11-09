@@ -1,17 +1,18 @@
-//! The command line: run cargo on the configured package with this binary as rustc.
+//! The command line: run cargo on the package with this binary as rustc.
 
+use std::path::Path;
 use std::process::ExitCode;
 
 use rust2_driver::cargo::{Args, Check, Output};
 
-use crate::config::{self, Config};
+use crate::driver::env;
 
-const USAGE: &str = "usage: rust2-go --config <go.toml> --out <dir> [--manifest-path <Cargo.toml>] [-- <cargo args>]
+const USAGE: &str = "usage: rust2-go --out <dir> [--manifest-path <Cargo.toml>] [-- <cargo args>]
 
-Translates the library of the package that go.toml names to a Go package in <dir>. The
-package's Cargo.toml is beside go.toml unless --manifest-path says where. Cargo args,
-such as --features, are passed to `cargo check`, which checks with the dev profile on the
-host, with std checked from source.";
+Translates the library of the package whose Cargo.toml is in the current directory, or
+wherever --manifest-path says, to a Go package in <dir> named after the crate, exporting
+its whole `pub` API. Cargo args, such as --features, are passed to `cargo check`, which
+checks with the dev profile on the host, with std checked from source.";
 
 pub fn run(args: &[String]) -> ExitCode {
 	match try_run(args) {
@@ -24,10 +25,10 @@ pub fn run(args: &[String]) -> ExitCode {
 }
 
 fn try_run(args: &[String]) -> Result<ExitCode, String> {
-	let Some(args) = Args::parse(args, USAGE)? else {
+	let Some(args) = Args::parse_configless(args, USAGE)? else {
 		return Ok(ExitCode::SUCCESS);
 	};
-	let config = Config::load(&args.config)?;
+	let package = package(&args.manifest)?;
 	let Output::Dir(out) = &args.output else {
 		return Err(format!("--census is not supported\n\n{USAGE}"));
 	};
@@ -38,19 +39,35 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	Check {
 		tool: "rust2-go",
 		manifest: &args.manifest,
-		package: &config.package,
+		package: &package,
 		root: None,
 		// The host's: Go's `int` and `uint` are 64 bits on every platform the output
 		// targets, as the host's `usize` is.
 		target: Some(rustc_session::config::host_tuple()),
 		args: &cargo,
 		env: &[
-			(config::env::CONFIG, args.config.as_os_str()),
-			(config::env::OUT, out.as_os_str()),
+			(env::PACKAGE, package.as_ref()),
+			(env::OUT, out.as_os_str()),
 			("CARGO_UNSTABLE_PROFILE_RUSTFLAGS", "true".as_ref()),
 		],
 	}
 	.run()
+}
+
+/// The name of the package `manifest` declares.
+fn package(manifest: &Path) -> Result<String, String> {
+	let text = std::fs::read_to_string(manifest).map_err(|err| format!("reading {}: {err}", manifest.display()))?;
+	let table: toml::Table = text
+		.parse()
+		.map_err(|err| format!("parsing {}: {err}", manifest.display()))?;
+	match table
+		.get("package")
+		.and_then(|p| p.get("name"))
+		.and_then(|n| n.as_str())
+	{
+		Some(name) => Ok(name.to_string()),
+		None => Err(format!("{} declares no package", manifest.display())),
+	}
 }
 
 /// The cargo config of the profile every crate compiles with, one `--config` per line.

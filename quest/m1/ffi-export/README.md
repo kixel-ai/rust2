@@ -49,16 +49,17 @@ Decided with the maintainer on 2026-11-01: the Swift, Python, Go, and Dart gener
 independent and unranked, and each generates the crate's own API in its language's idiom, as
 Kotlin does. Only Python skips the C ABI, since a CPython extension calls about 40 times faster
 than `ctypes`; the others call C natively. moq's packages switch to them in moq's own
-[quest](https://github.com/moq-dev/moq/blob/main/quest/m2/uniffi-fork.md).
+[quest](https://github.com/moq-dev/moq/blob/main/quest/m3/ffi-exporter.md).
 
 Decided with the maintainer on 2026-11-02
 ([moq-dev/rust2#460](https://github.com/moq-dev/rust2/pull/460)): the RSS glibc's per-thread
 arenas keep under Go's lent `Bytes` is the consumer's to fix with its global allocator, as
 `ffi/README.md` documents. moq declares mimalloc in its exported crate, in its own tree.
 
+Decided with the maintainer on 2026-11-04: the exporter is configless, with opinionated
+names and defaults, and fails the export on a public item it cannot export.
+
 ## Required
 
-- [moq-clock's C names once it moves into kio](/quest/m1/ffi-export/crates.md) - `moq_now` and `moq_origin` become the clock's, after moq moves it into `kio::clock`
+- [Every public item exports](/quest/m1/ffi-export/refusals/README.md) - the census lists no refusals and `ffi.toml` is deleted, so the exporter reads no config
 - [Sessions on sans-IO QUIC](/quest/m1/ffi-export/session-quic.md) - bindings move UDP datagrams and drive the session's poll themselves, over moq's runtime-free QUIC driver once it lands
-- [C++ bindings on MSVC](/quest/m1/ffi-export/cpp.md) - the nightly's MSVC job passes the C++ checks
-- [Waiting: moq-tokio within the recursion limit](/quest/m1/ffi-export/recursion-limit.md) - the exporter's moq pin moves past moq-dev/moq#7032 once moq-tokio's `Send` check fits the limit

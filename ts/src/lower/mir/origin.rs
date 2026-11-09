@@ -1,21 +1,21 @@
 //! Where a raw pointer a body makes points, as far as the body shows. JS keeps a value in
-//! no array, and a shared subslice of values it copies, apart from what holds them in
-//! Rust, so a pointer leaving one, or measured against another, fails at run time; where
-//! the body proves that it does, translation refuses it with a span instead. A pointer the
+//! no array, and a shared slice of a byte in no array, apart from what holds them in Rust,
+//! so a pointer leaving one, or measured against another, fails at run time; where the
+//! body proves that it does, translation refuses it with a span instead. A pointer the
 //! body takes from elsewhere, such as a field or a parameter, is left to the runtime.
 //!
 //! So is whether a pointer to a value JS copies is an `Arc`'s, the one place of its value,
 //! or a borrow's, a place of its own: only an `Arc`'s is an identity, which `from_raw`
-//! takes back to it and a cast to `*const ()` keeps.
+//! takes back to it and a cast to `*const ()` keeps. That cast is refused unless the body
+//! shows an `Arc`'s, or null or dangling, since a place from elsewhere has no one identity.
 
 use rustc_middle::mir::{self, BasicBlock, Local, Location, Operand, ProjectionElem, Rvalue, TerminatorKind};
 use rustc_middle::ty::{self, GenericArgsRef};
 use rustc_span::Spanned;
 
-use super::Fx;
+use super::{Fx, Slot};
 use crate::lower::library::{self, Std};
-use crate::lower::num::Int;
-use crate::lower::pointer::Pointee;
+use crate::lower::pointer::{self, Pointee};
 use crate::ts::{Expr, Stmt};
 
 /// The array JS keeps what a pointer points at in.
@@ -23,29 +23,34 @@ use crate::ts::{Expr, Stmt};
 enum Array<'tcx> {
 	/// An array of one, around the place a `&raw` here took, which each `&raw` makes anew.
 	Lone(Location),
-	/// A shared slice JS copies, of values it copies or of a byte in no array, made by the
-	/// call ending this block, with its length if the body fixes it.
+	/// The `Uint8Array` of one a byte variable, whose `&raw` the body takes, is kept in.
+	Byte(Local),
+	/// A shared slice JS copies, of a byte in no array, made by the call ending this block,
+	/// with its length if the body fixes it.
 	Copy(BasicBlock, Option<i128>),
 	/// The array of a variable of this body's own, or of a field of one, at this place.
 	Owned(mir::Place<'tcx>),
+	/// A `str`'s UTF-8, which JS encodes anew at each `as_ptr`, the call ending this block.
+	Text(BasicBlock),
 }
 
 impl<'tcx> Array<'tcx> {
 	/// How many elements the array holds, if the body shows it.
 	fn len(self) -> Option<i128> {
 		match self {
-			Array::Lone(_) => Some(1),
+			Array::Lone(_) | Array::Byte(_) => Some(1),
 			Array::Copy(_, len) => len,
-			Array::Owned(_) => None,
+			Array::Owned(_) | Array::Text(_) => None,
 		}
 	}
 
 	/// What the array is, as a refusal names it.
 	fn what(self) -> &'static str {
 		match self {
-			Array::Lone(_) => "a value in no array",
+			Array::Lone(_) | Array::Byte(_) => "a value in no array",
 			Array::Copy(..) => "a shared slice JS copies",
 			Array::Owned(_) => "an array of this body's own",
+			Array::Text(_) => "a `str`'s bytes",
 		}
 	}
 }
@@ -59,9 +64,11 @@ struct Origin<'tcx> {
 
 impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	/// Why the call of std's `def_id` would fail at run time where Rust's is defined, if the
-	/// body proves it would: `offset_from` between pointers JS keeps in different arrays, a
-	/// raw or mutable slice of a byte in no array of bytes, or a pointer, slice, or copy
-	/// reaching out of an array of one or a copied subslice.
+	/// body proves it would: `offset_from` between pointers JS keeps in different arrays, or
+	/// a pointer, slice, copy, or write reaching out of an array of one or a copied byte.
+	/// From an array of one, every offset, count, length, and access, wrapping or not, must
+	/// be one the body fixes and proves stays within it: past it, Rust may reach the
+	/// neighbour the reference was borrowed beside, which JS keeps apart.
 	pub(super) fn stray(
 		&self,
 		def_id: rustc_hir::def_id::DefId,
@@ -85,18 +92,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		{
 			return Some(super::alloc::BYTES.into());
 		}
-		let out = |o: Origin<'tcx>, n: Option<i128>, what: &str| {
-			let index = o.index?;
-			let past = o.array.len().is_some_and(|len| index + n.unwrap_or(0) > len);
-			(index < 0 || past).then(|| {
-				format!(
-					"{what} reaching past {}, which JS keeps apart from what holds it in Rust",
-					o.array.what()
-				)
-			})
-		};
+		let (unfixed, out) = (Self::unfixed, Self::out);
 		match (owner.as_str(), name.as_str()) {
-			("ptr" | "NonNull", "cast") => self.erased_borrow(arg(0)?, pointee, gargs.types().nth(1)?),
+			("ptr" | "NonNull", "cast") => self.erased_place(arg(0)?, pointee, gargs.types().nth(1)?),
 			("Arc" | "Rc", "from_raw" | "increment_strong_count" | "decrement_strong_count")
 				if self.arc_pointer(arg(0)?) == Some(false) =>
 			{
@@ -106,6 +104,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			}
 			("ptr" | "NonNull", "offset_from" | "offset_from_unsigned") => {
 				let (a, b) = (self.origin(arg(0)?)?, self.origin(arg(1)?)?);
+				if let (Array::Text(_), Array::Text(_)) = (a.array, b.array) {
+					return (a.array != b.array).then(|| {
+						"`offset_from` between pointers of two `str::as_ptr` calls, each into an encoding of the text of its own, which JS keeps in different arrays".into()
+					});
+				}
 				self.apart(a.array, b.array).then(|| {
 					format!(
 						"`offset_from` between a pointer into {} and one into {}, which JS keeps in different arrays",
@@ -118,20 +121,34 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				let o = self.moved(self.origin(arg(0)?)?, name.as_str(), arg(1)?);
 				out(o, None, "a pointer")
 			}
+			// A wrapping offset may leave any other array while nothing reads through it.
+			("ptr" | "NonNull", "wrapping_add" | "wrapping_sub" | "wrapping_offset") => {
+				let o = self.lone_origin(arg(0)?)?;
+				out(self.moved(o, name.as_str(), arg(1)?), None, "a pointer")
+			}
+			// An access through a pointer, which the body shows one element at: both of a
+			// swap's, and else the first argument, as the second is the value written.
+			(
+				"ptr" | "NonNull",
+				"read" | "read_unaligned" | "read_volatile" | "write" | "write_unaligned" | "write_volatile"
+				| "replace" | "swap" | "as_ref" | "as_mut" | "drop_in_place",
+			) => [Some(arg(0)?), arg(1).filter(|_| name == "swap")]
+				.into_iter()
+				.flatten()
+				.find_map(|p| self.access(self.lone_origin(p)?)),
 			("raw", "from_raw_parts" | "from_raw_parts_mut")
 			| ("ptr", "slice_from_raw_parts" | "slice_from_raw_parts_mut")
 			| ("NonNull", "slice_from_raw_parts") => {
 				let o = self.origin(arg(0)?)?;
-				let byte = crate::lower::byte(pointee);
-				let none = self.const_int(arg(1)?) == Some(0);
-				if byte && name != "from_raw_parts" && !none && matches!(o.array, Array::Lone(_)) {
-					return Some("a raw or mutable slice of a byte in no array of bytes".into());
-				}
-				// A raw pointer to a slice reads nothing until a read through it.
-				if owner != "raw" {
+				// A raw pointer to a slice of any other array reads nothing until a read
+				// through it.
+				if owner != "raw" && !matches!(o.array, Array::Lone(_)) {
 					return None;
 				}
-				out(o, Some(self.const_int(arg(1)?)?), "a slice")
+				match self.const_int(arg(1)?) {
+					Some(n) => out(o, Some(n), "a slice"),
+					None => unfixed(o, "a slice of a length"),
+				}
 			}
 			(
 				"ptr",
@@ -144,12 +161,77 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			)
 			| ("NonNull", "copy_to" | "copy_to_nonoverlapping" | "copy_from" | "copy_from_nonoverlapping") => {
 				let n = self.const_int(arg(2)?);
-				[arg(0)?, arg(1)?]
-					.into_iter()
-					.find_map(|p| out(self.origin(p)?, n, "a copy"))
+				[arg(0)?, arg(1)?].into_iter().find_map(|p| {
+					let o = self.origin(p)?;
+					match n {
+						Some(_) => out(o, n, "a copy"),
+						None => unfixed(o, "a copy of a count"),
+					}
+				})
+			}
+			("ptr" | "NonNull", "write_bytes") => {
+				let o = self.origin(arg(0)?)?;
+				match self.const_int(arg(2)?) {
+					Some(n) => out(o, Some(n), "a write"),
+					None => unfixed(o, "a write of a count"),
+				}
 			}
 			_ => None,
 		}
+	}
+
+	/// Why a read or write through the raw pointer `place` derefs would fail at run time, if
+	/// the body shows that pointer off the element of an array of one.
+	pub(super) fn beside(&self, place: mir::Place<'tcx>) -> Option<String> {
+		let [ProjectionElem::Deref, ..] = place.projection.as_slice() else {
+			return None;
+		};
+		// Every pointer to a value of no bytes is where it was, as `stray` leaves it.
+		let ty::RawPtr(pointee, _) = *self.mir.local_decls[place.local].ty.kind() else {
+			return None;
+		};
+		if self.b.t.zero_sized(pointee) || self.b.t.pointee(pointee) != Pointee::Place {
+			return None;
+		}
+		self.access(self.lone_origin(&Operand::Copy(mir::Place::from(place.local)))?)
+	}
+
+	/// Why an access of the one element a pointer at `o` reads or writes reaches out of its
+	/// array, if the body fixes where it is: one past it, as a pointer further out, or at
+	/// an offset the body doesn't fix, is refused where it is made.
+	fn access(&self, o: Origin<'tcx>) -> Option<String> {
+		let len = o.array.len()?;
+		(o.index? == len).then(|| Self::out(o, Some(1), "a read or write"))?
+	}
+
+	/// Where the pointer `op` points, if the body shows it in an array of one.
+	fn lone_origin(&self, op: &Operand<'tcx>) -> Option<Origin<'tcx>> {
+		self.origin(op).filter(|o| matches!(o.array, Array::Lone(_)))
+	}
+
+	/// Why an offset or a count the body doesn't fix, from `o`, may reach out of it: only
+	/// from an array of one.
+	fn unfixed(o: Origin<'tcx>, what: &str) -> Option<String> {
+		matches!(o.array, Array::Lone(_)).then(|| {
+			format!(
+				"{what} the body doesn't fix, from {}, which JS keeps apart from what holds it in Rust",
+				o.array.what()
+			)
+		})
+	}
+
+	/// Why `what`, at `o` and reaching `n` elements past it if a count, leaves `o`'s array.
+	fn out(o: Origin<'tcx>, n: Option<i128>, what: &str) -> Option<String> {
+		let Some(index) = o.index else {
+			return Self::unfixed(o, &format!("{what} moved by an offset"));
+		};
+		let past = o.array.len().is_some_and(|len| index + n.unwrap_or(0) > len);
+		(index < 0 || past).then(|| {
+			format!(
+				"{what} reaching past {}, which JS keeps apart from what holds it in Rust",
+				o.array.what()
+			)
+		})
 	}
 
 	/// Whether JS keeps `a` and `b` in different arrays. Arrays of different variables are;
@@ -195,49 +277,139 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 					op,
 					_,
 				) if self.same_pointee(op, local) => self.origin(op),
-				Rvalue::RawPtr(mir::RawPtrKind::Const | mir::RawPtrKind::Mut, place) => {
-					match place.projection.as_slice() {
-						// `&raw mut *p` is `p`.
-						[ProjectionElem::Deref] => self.origin(&Operand::Copy(mir::Place::from(place.local))),
-						[.., ProjectionElem::Deref] => None,
-						[
-							array @ ..,
-							ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. },
-						] => (!place.projection.contains(&ProjectionElem::Deref)).then(|| Origin {
-							array: Array::Owned(mir::Place {
-								local: place.local,
-								projection: self.tcx.mk_place_elems(array),
-							}),
-							index: None,
-						}),
-						_ => Some(Origin {
-							array: Array::Lone(Location {
-								block: bb,
-								statement_index: i,
-							}),
-							index: Some(0),
-						}),
-					}
-				}
+				Rvalue::RawPtr(mir::RawPtrKind::Const | mir::RawPtrKind::Mut, place) => self.raw_origin(
+					*place,
+					Location {
+						block: bb,
+						statement_index: i,
+					},
+				),
 				_ => None,
 			};
 		}
-		let (def_id, _, args) = self.def_call(local)?;
+		let (def_id, gargs, args) = self.def_call(local)?;
 		let (owner, name) = library::key(self.tcx, def_id)?;
 		match (owner.as_str(), name.as_str()) {
+			("ptr", "from_ref" | "from_mut") | ("From", "from") | ("Into", "into")
+				if crate::lower::pointer::from_reference(self.tcx, def_id, gargs) =>
+			{
+				let block = self.def_block(local)?;
+				let at = Location {
+					block,
+					statement_index: self.mir.basic_blocks[block].statements.len(),
+				};
+				self.reference_origin(args[0].node.place()?, at)
+			}
 			("ptr" | "NonNull", "add" | "sub" | "offset") => {
 				Some(self.moved(self.origin(&args[0].node)?, name.as_str(), &args[1].node))
 			}
-			("NonNull", "as_ptr" | "new_unchecked") => self.origin(&args[0].node),
+			// Only an array of one's, which every wrapping offset must stay within.
+			("ptr" | "NonNull", "wrapping_add" | "wrapping_sub" | "wrapping_offset") => {
+				Some(self.moved(self.lone_origin(&args[0].node)?, name.as_str(), &args[1].node))
+			}
+			("NonNull", "as_ptr" | "new_unchecked") | ("ptr" | "NonNull", "cast_const" | "cast_mut") => {
+				self.origin(&args[0].node)
+			}
+			("ptr" | "NonNull", "cast")
+				if self.b.t.uninit_inner(gargs.type_at(0)) == self.b.t.uninit_inner(gargs.type_at(1)) =>
+			{
+				self.origin(&args[0].node)
+			}
 			("slice" | "Vec", "as_ptr" | "as_mut_ptr") => self.start(&args[0].node),
+			// The start of its own text's encoding, though a substring's bytes start past its
+			// text's in Rust, so a move back before it is refused, as one off a copy is.
+			("str", "as_ptr") => Some(Origin {
+				array: Array::Text(self.def_block(local)?),
+				index: Some(0),
+			}),
 			_ => None,
 		}
 	}
 
-	/// `o` moved by the offset `op` as `add`, `sub`, or `offset` moves it.
+	/// Where a raw pointer to `place`, made at `at`, points, if the body shows it.
+	fn raw_origin(&self, place: mir::Place<'tcx>, at: Location) -> Option<Origin<'tcx>> {
+		if let Some(local) = self.raw_byte(place)
+			&& matches!(self.slots[local], Slot::Byte(_))
+		{
+			return Some(Origin {
+				array: Array::Byte(local),
+				index: Some(0),
+			});
+		}
+		match place.projection.as_slice() {
+			// `&raw mut *p` is `p`.
+			[ProjectionElem::Deref] if self.mir.local_decls[place.local].ty.is_raw_ptr() => {
+				self.origin(&Operand::Copy(mir::Place::from(place.local)))
+			}
+			[rest @ .., ProjectionElem::Deref] => self.reference_origin(
+				mir::Place {
+					local: place.local,
+					projection: self.tcx.mk_place_elems(rest),
+				},
+				at,
+			),
+			[
+				array @ ..,
+				ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. },
+			] => (!place.projection.contains(&ProjectionElem::Deref)).then(|| Origin {
+				array: Array::Owned(mir::Place {
+					local: place.local,
+					projection: self.tcx.mk_place_elems(array),
+				}),
+				index: None,
+			}),
+			_ => Some(Origin {
+				array: Array::Lone(at),
+				index: Some(0),
+			}),
+		}
+	}
+
+	/// Where a raw pointer to what the reference `r` points at, made at `at`, points, as
+	/// [`Self::behind_reference`] makes it: where the body shows `r` borrowed, and else at
+	/// a place of its own, or, where `r` is an `rs.Place`, where that points.
+	fn reference_origin(&self, r: mir::Place<'tcx>, at: Location) -> Option<Origin<'tcx>> {
+		let ty = r.ty(&self.mir.local_decls, self.tcx).ty;
+		// A reference to an `Arc`'s value points at that value's one place.
+		if !ty.is_ref() || self.arc_of(&Operand::Copy(r)).is_some() {
+			return None;
+		}
+		let pointee = self.tcx.mk_place_deref(r);
+		let borrowed = self.through_aliases(pointee);
+		if borrowed != pointee {
+			return self.raw_origin(borrowed, at);
+		}
+		if self.indexed(r).is_some() {
+			let (def_id, _, args) = self.def_call(r.as_local()?)?;
+			let (owner, name) = library::key(self.tcx, def_id)?;
+			if !matches!(
+				(owner.as_str(), name.as_str()),
+				("Index" | "IndexMut", "index" | "index_mut")
+			) {
+				return None;
+			}
+			let o = self.start(&args[0].node)?;
+			return Some(Origin {
+				index: o.index.zip(self.const_int(&args[1].node)).map(|(i, n)| i + n),
+				..o
+			});
+		}
+		if let Some(p) = self.reborrowed_pointer(r) {
+			return self.origin(&Operand::Copy(p));
+		}
+		if self.b.t.place_pointee(ty).is_some() {
+			return None;
+		}
+		Some(Origin {
+			array: Array::Lone(at),
+			index: Some(0),
+		})
+	}
+
+	/// `o` moved by the offset `op` as `add`, `sub`, or `offset`, or a wrapping one, moves it.
 	fn moved(&self, o: Origin<'tcx>, name: &str, op: &Operand<'tcx>) -> Origin<'tcx> {
 		let n = self.const_int(op).map(|n| match name {
-			"sub" => -n,
+			"sub" | "wrapping_sub" => -n,
 			_ => n,
 		});
 		Origin {
@@ -273,60 +445,20 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			};
 		}
 		let (def_id, gargs, args) = self.def_call(local)?;
-		let (owner, name) = library::key(self.tcx, def_id)?;
-		let mut types = gargs.types();
-		let container = types.next()?.peel_refs();
-		let byte = crate::lower::byte;
-		let copy = |len| {
-			Some(Origin {
-				array: Array::Copy(self.def_block(local)?, len),
-				index: Some(0),
-			})
-		};
-		// `get_unchecked` and `from_raw_parts` are generic over the element, not the slice.
-		let elem = match (owner.as_str(), name.as_str(), container.kind()) {
-			("raw", "from_raw_parts" | "from_raw_parts_mut", _) => {
+		// A shared slice of a byte in no array is a copy of it, as no `Uint8Array` can share
+		// it, unless empty, which keeps the pointer. Any other slice is a view of where it is.
+		match library::key(self.tcx, def_id)? {
+			(owner, name) if owner == "raw" && matches!(name.as_str(), "from_raw_parts" | "from_raw_parts_mut") => {
 				let o = self.origin(&args[0].node)?;
-				// A shared slice of a byte in no array is a copy of it, as no `Uint8Array` can
-				// share it, unless empty, which keeps the pointer.
 				let len = self.const_int(&args[1].node);
-				return match (byte(container), o.array) {
-					(true, Array::Lone(_)) if len != Some(0) => copy(len),
+				match (crate::lower::byte(gargs.types().next()?), o.array) {
+					(true, Array::Lone(_)) if len != Some(0) => Some(Origin {
+						array: Array::Copy(self.def_block(local)?, len),
+						index: Some(0),
+					}),
 					_ => Some(o),
-				};
+				}
 			}
-			("slice", "get_unchecked", _) => container,
-			("Index", "index", ty::Slice(e) | ty::Array(e, _)) => *e,
-			("Index", "index", ty::Adt(adt, a)) if Std::of(self.tcx, adt.did()) == Some(Std::Vec) => a.type_at(0),
-			_ => return None,
-		};
-		let range = types.next()?;
-		// A shared range of bytes is a view of them.
-		if byte(elem) || Int::of(range).is_some() {
-			return None;
-		}
-		copy(self.range_len(&args[1].node, container))
-	}
-
-	/// How many elements the range `op` takes of `container`, if the body fixes it.
-	fn range_len(&self, op: &Operand<'tcx>, container: ty::Ty<'tcx>) -> Option<i128> {
-		let local = self.traced(op)?;
-		let Rvalue::Aggregate(kind, ops) = self.def_rvalue(local)? else {
-			return None;
-		};
-		let mir::AggregateKind::Adt(did, ..) = **kind else {
-			return None;
-		};
-		let all = match container.kind() {
-			ty::Array(_, n) => n.try_to_target_usize(self.tcx).map(i128::from),
-			_ => None,
-		};
-		let ops: Vec<_> = ops.iter().map(|op| self.const_int(op)).collect();
-		match (self.tcx.item_name(did).as_str(), ops.as_slice()) {
-			("Range", [Some(start), Some(end)]) => Some(end - start),
-			("RangeTo", [Some(end)]) => Some(*end),
-			("RangeFrom", [Some(start)]) => Some(all? - start),
-			("RangeFull", []) => all,
 			_ => None,
 		}
 	}
@@ -454,19 +586,79 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			("ptr" | "NonNull", "cast_const" | "cast_mut") | ("NonNull", "as_ptr" | "new_unchecked") => {
 				self.arc_pointer(&args.first()?.node)
 			}
-			("UnsafeCell", "get") | ("Cell", "as_ptr") | ("MaybeUninit", "as_ptr" | "as_mut_ptr") => Some(false),
+			("ptr" | "NonNull", "cast") if self.same_pointee(&args.first()?.node, local) => {
+				self.arc_pointer(&args.first()?.node)
+			}
+			("UnsafeCell", "get" | "raw_get") | ("Cell", "as_ptr") | ("MaybeUninit", "as_ptr" | "as_mut_ptr") => {
+				Some(false)
+			}
 			_ => None,
 		}
 	}
 
 	/// Why the cast of the raw pointer `op` to `from` to one to `to` can't be, if it erases
-	/// one to a value JS copies that the body shows is a borrow's place to a `*const ()`, and
-	/// the cast itself refuses no pointer to `from`.
-	pub(super) fn erased_borrow(&self, op: &Operand<'tcx>, from: ty::Ty<'tcx>, to: ty::Ty<'tcx>) -> Option<String> {
+	/// one to a value JS copies to a `*const ()`, and the cast itself refuses no pointer to
+	/// `from`: unless the body shows an `Arc`'s or `Rc`'s `into_raw` or `as_ptr` gave it, its
+	/// value's one place, or that it is null or dangling, it has no one identity.
+	pub(super) fn erased_place(&self, op: &Operand<'tcx>, from: ty::Ty<'tcx>, to: ty::Ty<'tcx>) -> Option<String> {
 		let t = &self.b.t;
 		let erases = t.identity_pointee(to) && !t.identity_pointee(from) && t.pointee(from) == Pointee::Place;
-		(erases && crate::lower::pointer::unerasable(self.b, from).is_none() && self.arc_pointer(op) == Some(false))
-			.then(|| crate::lower::pointer::erased_place(t.uninit_inner(from)))
+		if !erases || pointer::unerasable(self.b, from).is_some() || self.nowhere(op) {
+			return None;
+		}
+		let pointee = t.uninit_inner(from);
+		match self.arc_pointer(op) {
+			Some(true) => None,
+			Some(false) => Some(pointer::erased_place(pointee)),
+			None => Some(format!(
+				"a pointer to `{pointee}` cast to one to `()`, which only an `Arc`'s or `Rc`'s raw pointer keeps the place of, and the body doesn't show this one is"
+			)),
+		}
+	}
+
+	/// Whether the body shows the raw pointer `op` is null or dangling, at no memory.
+	fn nowhere(&self, op: &Operand<'tcx>) -> bool {
+		// A constant pointer of no allocation, an integer: null, or another, which a
+		// constant's lowering refuses.
+		if let Operand::Constant(c) = op {
+			return (c.const_)
+				.try_eval_scalar_int(self.tcx, self.b.t.typing_env_pub())
+				.is_some();
+		}
+		let Some(local) = self.traced(op) else {
+			return false;
+		};
+		if self.def_at[local].is_some() {
+			return match self.def_rvalue(local) {
+				Some(
+					Rvalue::Use(op, _)
+					| Rvalue::Cast(
+						mir::CastKind::PtrToPtr
+						| mir::CastKind::PointerCoercion(ty::adjustment::PointerCoercion::MutToConstPointer, _),
+						op,
+						_,
+					),
+				) => self.nowhere(op),
+				_ => false,
+			};
+		}
+		let Some((def_id, _, args)) = self.def_call(local) else {
+			return false;
+		};
+		match library::key(self.tcx, def_id) {
+			Some((owner, name)) => match (owner.as_str(), name.as_str()) {
+				(
+					"ptr",
+					"null" | "null_mut" | "dangling" | "dangling_mut" | "without_provenance" | "without_provenance_mut",
+				)
+				| ("NonNull", "dangling") => true,
+				("ptr" | "NonNull", "cast" | "cast_const" | "cast_mut") | ("NonNull", "as_ptr") => {
+					args.first().is_some_and(|a| self.nowhere(&a.node))
+				}
+				_ => false,
+			},
+			None => false,
+		}
 	}
 
 	/// The local `op` reads whole, if the body assigns it once.
@@ -475,9 +667,16 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		(self.defs[local] == 1 && !self.is_arg(local)).then_some(local)
 	}
 
-	/// Whether `op` is a pointer to what `local` points at.
+	/// Whether `op` is a pointer, raw or `NonNull`, to what `local` points at, through any
+	/// `MaybeUninit`s or `ManuallyDrop`s, which a cast between keeps the pointer of.
 	fn same_pointee(&self, op: &Operand<'tcx>, local: Local) -> bool {
-		let pointee = |ty: ty::Ty<'tcx>| ty.builtin_deref(true);
+		let pointee = |ty: ty::Ty<'tcx>| {
+			let pointee = match ty.kind() {
+				ty::Adt(adt, args) if Std::of(self.tcx, adt.did()) == Some(Std::NonNull) => Some(args.type_at(0)),
+				_ => ty.builtin_deref(true),
+			};
+			pointee.map(|t| self.b.t.uninit_inner(t))
+		};
 		let from = op.ty(&self.mir.local_decls, self.tcx);
 		pointee(from).is_some() && pointee(from) == pointee(self.mir.local_decls[local].ty)
 	}

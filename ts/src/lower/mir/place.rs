@@ -8,16 +8,17 @@ use rustc_abi::{BackendRepr, FieldIdx, Size, VariantIdx};
 use rustc_data_structures::fx::FxHashSet;
 use rustc_hir::def::DefKind;
 use rustc_hir::def_id::{DefId, DefIndex};
-use rustc_middle::mir::interpret::{AllocId, ConstAllocation, GlobalAlloc, GlobalId, Scalar, alloc_range};
+use rustc_middle::mir::interpret::{AllocId, Allocation, ConstAllocation, GlobalAlloc, GlobalId, Scalar, alloc_range};
 use rustc_middle::mir::visit::{MutatingUseContext, PlaceContext, Visitor};
 use rustc_middle::mir::{self, ConstValue, Local, Operand, Place, PlaceTy, ProjectionElem};
+use rustc_middle::ty::layout::ValidityRequirement;
 use rustc_middle::ty::{self, Instance, Ty, TyCtxt, TypeVisitableExt};
 use rustc_span::Span;
 
 use super::{Env, Fx, Pending, Slot};
 use crate::lower::library::{self, Flow, Std};
 use crate::lower::num::Int;
-use crate::lower::{AdtRepr, ObjectKind, StructField, Translator, byte_array, bytes_ref};
+use crate::lower::{AdtRepr, ObjectKind, StructField, Translator, byte_array};
 use crate::program::{SymKind, Symbol};
 use crate::ts::{Expr, Item, Stmt, StmtKind, SymId};
 
@@ -36,6 +37,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 		match &self.slots[local] {
 			Slot::Var(name) => Expr::ident(name),
+			Slot::Byte(name) => Expr::ident(name).index(Expr::lit("0")),
 			// A value of type `!`, as a generic instantiated at `!` reads: native code never
 			// gets here, and `tsc` sees that through `rs.unreachable`.
 			Slot::Unit if self.mir.local_decls[local].ty.is_never() => Expr::rs("unreachable", vec![Expr::undefined()]),
@@ -62,7 +64,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// The JS expression of `place`, read without a copy.
 	pub fn place_expr(&mut self, place: Place<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		let tcx = self.tcx;
-		if let Some(why) = self.alloc_bytes(place) {
+		if let Some(why) = self.alloc_bytes(place).map(String::from).or_else(|| self.beside(place)) {
 			return self.err(span, why);
 		}
 		// A local held as its parts reads them, as far as they go.
@@ -188,9 +190,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	) -> Expr {
 		let tcx = self.tcx;
 		let decls = &self.mir.local_decls;
-		// Whether `e` is an `rs.ByteSlice` of the place's bytes: a `[u8]`, or a `[u8; N]`
-		// behind a reference or raw pointer.
-		let mut in_bytes = false;
+		// Whether `e` is an `rs.Slice` or `rs.ByteSlice` of the place's elements: a `[T]`, or
+		// a `[T; N]` behind a reference or raw pointer.
+		let mut in_slice = false;
 		// The projections a union's field consumed with it, down to a slot.
 		let mut consumed = 0;
 		for (read, elem) in place.projection.iter().enumerate().skip(from) {
@@ -200,14 +202,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				pty = pty.projection_ty(tcx, elem);
 				continue;
 			}
-			in_bytes = in_bytes || byte_slice(ty);
+			in_slice = in_slice || ty.is_slice();
 			match elem {
 				ProjectionElem::Field(field, field_ty)
-					if let ty::Adt(adt, _) = ty.kind()
+					if let ty::Adt(adt, args) = ty.kind()
 						&& adt.is_union() =>
 				{
-					let (parts, n, part_ty) =
-						self.union_part(*adt, field.as_usize(), field_ty, &place.projection[read + 1..], span);
+					let rest = &place.projection[read + 1..];
+					let (parts, n, part_ty) = self.union_part(*adt, args, field.as_usize(), field_ty, rest, span);
 					consumed = n;
 					e = self.b.t.of_slots(e, part_ty, &parts, span);
 				}
@@ -247,10 +249,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				}
 				ProjectionElem::Index(index) => {
 					let i = self.local_expr(index, span);
-					e = match in_bytes {
+					e = match in_slice {
 						true => {
 							let base = self.slice_path(e, out);
-							byte_at(base, i)
+							self.slice_elem(base, i, ty)
 						}
 						false => e.index(i),
 					};
@@ -260,7 +262,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					min_length: _,
 					from_end,
 				} => {
-					let base = match from_end || in_bytes {
+					let base = match from_end || in_slice {
 						true => self.slice_path(e, out),
 						false => e,
 					};
@@ -268,8 +270,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						false => Expr::lit(offset.to_string()),
 						true => super::scalar::sub(slice_member(base.clone(), "length"), Expr::lit(offset.to_string())),
 					};
-					e = match in_bytes {
-						true => byte_at(base, i),
+					e = match in_slice {
+						true => self.slice_elem(base, i, ty),
 						false => base.index(i),
 					};
 				}
@@ -278,33 +280,49 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					from,
 					to,
 					from_end: true,
-				} if byte_slice(ty) => {
+				} if let ty::Slice(elem_ty) = ty.kind() => {
 					let base = self.slice_path(e, out);
 					// A range of parts, which the pattern that took it checked the length for.
-					if let Some([data, start, length]) = made_slice(&base) {
+					if elem_ty.is_array() {
+						let end = base.clone().member("length").binary("-", Expr::lit(to.to_string()));
+						e = Expr::rs("arraySlicePart", vec![base, Expr::lit(from.to_string()), end]);
+					} else if let Some([data, start, length]) = made_slice(&base) {
 						let len = super::scalar::sub(length.clone(), Expr::lit((from + to).to_string()));
 						let start = super::scalar::add(start.clone(), Expr::lit(from.to_string()));
-						e = Expr::New(Box::new(Expr::Rs("ByteSlice".into())), vec![data.clone(), start, len]);
+						e = Expr::New(
+							Box::new(Expr::Rs(slice_class(*elem_ty).into())),
+							vec![data.clone(), start, len],
+						);
 					} else {
 						let mut values = vec![base.clone(), Expr::lit(from.to_string())];
 						if to != 0 {
 							values.push(base.member("length").binary("-", Expr::lit(to.to_string())));
 						}
-						e = Expr::rs("byteSliceRange", values);
+						e = match crate::lower::byte(*elem_ty) {
+							true => Expr::rs("byteSliceRange", values),
+							false => Expr::rs("sliceRange", values),
+						};
 					}
 				}
-				// Part of a `[u8; N]` behind a reference, as `[a, rest @ ..]` of a `&[u8; N]`.
-				ProjectionElem::Subslice { from, to, from_end } if in_bytes => {
-					let end = match (from_end, ty.kind()) {
-						(false, _) => to,
-						(true, ty::Array(_, len)) if let Some(len) = len.try_to_target_usize(tcx) => len - to,
+				// Part of a `[T; N]` behind a reference, as `[a, rest @ ..]` of a `&[T; N]`, or a
+				// `[T; N]` part of a slice, as `[a, rest @ ..]` of a `[T]` of known length.
+				ProjectionElem::Subslice { from, to, from_end } if in_slice => {
+					let (elem, end) = match (from_end, ty.kind()) {
+						(false, ty::Array(elem, _) | ty::Slice(elem)) => (*elem, to),
+						(true, ty::Array(elem, len)) if let Some(len) = len.try_to_target_usize(tcx) => {
+							(*elem, len - to)
+						}
 						_ => return self.err(span, format!("a subslice of `{ty}`")),
 					};
 					let base = self.slice_path(e, out);
 					e = match made_slice(&base) {
+						_ if elem.is_array() => Expr::rs(
+							"arraySlicePart",
+							vec![base, Expr::lit(from.to_string()), Expr::lit(end.to_string())],
+						),
 						// In bounds of the array's.
 						Some([data, start, _]) => Expr::New(
-							Box::new(Expr::Rs("ByteSlice".into())),
+							Box::new(Expr::Rs(slice_class(elem).into())),
 							vec![
 								data.clone(),
 								super::scalar::add(start.clone(), Expr::lit(from.to_string())),
@@ -313,7 +331,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 						),
 						None => {
 							let values = vec![base, Expr::lit(from.to_string()), Expr::lit(end.to_string())];
-							Expr::rs("byteSliceRange", values)
+							match crate::lower::byte(elem) {
+								true => Expr::rs("byteSliceRange", values),
+								false => Expr::rs("sliceRange", values),
+							}
 						}
 					};
 				}
@@ -334,14 +355,26 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				| ProjectionElem::UnwrapUnsafeBinder(_)
 				| ProjectionElem::PhantomDeref => {}
 			}
-			in_bytes = match elem {
-				ProjectionElem::Deref => self.bytes_behind(place.local, read, ty),
-				ProjectionElem::Subslice { .. } => in_bytes,
+			let next = pty.projection_ty(tcx, elem);
+			in_slice = match elem {
+				ProjectionElem::Deref => self.array_behind(place.local, read, ty),
+				ProjectionElem::Subslice { .. } => in_slice,
+				// An array of a slice of arrays is the slice of its elements.
+				ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. } => in_slice && next.ty.is_array(),
 				_ => false,
 			};
-			pty = pty.projection_ty(tcx, elem);
+			pty = next;
 		}
 		e
+	}
+
+	/// Element `i` of `base`, the slice a place of `ty`, a `[T]` or a `[T; N]`, is: an
+	/// An `rs.ArraySlice`'s array, lent as the slice of its elements, of arrays.
+	fn slice_elem(&self, base: Expr, i: Expr, ty: Ty<'tcx>) -> Expr {
+		match ty.kind() {
+			ty::Slice(elem) | ty::Array(elem, _) if elem.is_array() => Expr::rs("arraySliceAt", vec![base, i]),
+			_ => slice_at(base, i),
+		}
 	}
 
 	/// The parts of field `field` of union `adt` that `rest`, the projections after it,
@@ -350,12 +383,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	pub(super) fn union_part(
 		&mut self,
 		adt: ty::AdtDef<'tcx>,
+		args: ty::GenericArgsRef<'tcx>,
 		field: usize,
 		field_ty: Ty<'tcx>,
 		rest: &[ProjectionElem<Local, Ty<'tcx>>],
 		span: Span,
 	) -> (Vec<crate::lower::unions::Part>, usize, Ty<'tcx>) {
-		let mut parts = self.b.t.union_field(adt, field, span);
+		let mut parts = self.b.t.union_field(adt, args, field, span);
 		let (mut n, mut ty) = (0, field_ty);
 		while !crate::lower::unions::whole(&parts)
 			&& let Some(ProjectionElem::Field(inner, inner_ty)) = rest.get(n)
@@ -378,43 +412,57 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			let ProjectionElem::Field(field, field_ty) = elem else {
 				continue;
 			};
-			let ty::Adt(adt, _) = base.ty(&self.mir.local_decls, tcx).ty.kind() else {
+			let ty::Adt(adt, args) = base.ty(&self.mir.local_decls, tcx).ty.kind() else {
 				continue;
 			};
 			if !adt.is_union() {
 				continue;
 			}
 			let rest = &place.projection[i + 1..];
-			let (parts, n, _) = self.union_part(*adt, field.as_usize(), field_ty, rest, span);
+			let (parts, n, _) = self.union_part(*adt, args, field.as_usize(), field_ty, rest, span);
 			let whole = crate::lower::unions::whole(&parts);
 			return (n == rest.len() && !whole).then(|| (base.to_place(tcx), parts));
 		}
 		None
 	}
 
-	/// Whether `place` is a `[u8; N]` read through a reference or raw pointer, or a
-	/// `MaybeUninit` of one through a raw pointer, whose JS value is an `rs.ByteSlice` of
-	/// its bytes rather than a `Uint8Array`, as [`Self::place_expr`] reads it.
-	pub(super) fn in_bytes(&self, place: Place<'tcx>) -> bool {
-		let mut in_bytes = false;
+	/// Whether `place` is a `[T; N]` read through a reference or raw pointer, or a
+	/// `MaybeUninit` of one through a raw pointer, or one a slice holds, whose JS value is
+	/// an `rs.Slice` of its elements, an `rs.ByteSlice` of bytes, rather than the array, as
+	/// [`Self::place_expr`] reads it.
+	pub(super) fn in_array(&self, place: Place<'tcx>) -> bool {
+		let mut in_array = false;
 		for (at, (base, elem)) in place.iter_projections().enumerate() {
 			let ty = base.ty(&self.mir.local_decls, self.tcx).ty;
-			in_bytes = match elem {
-				ProjectionElem::Deref => self.bytes_behind(place.local, at, ty),
-				ProjectionElem::Subslice { .. } => in_bytes || byte_slice(ty),
+			in_array = match elem {
+				ProjectionElem::Deref => self.array_behind(place.local, at, ty),
+				ProjectionElem::Subslice { .. } => in_array || ty.is_slice(),
+				ProjectionElem::Index(_) | ProjectionElem::ConstantIndex { .. } => {
+					(in_array || ty.is_slice()) && matches!(ty.kind(), ty::Slice(e) | ty::Array(e, _) if e.is_array())
+				}
 				_ => false,
 			};
 		}
-		in_bytes && byte_array(self.b.t.uninit_inner(place.ty(&self.mir.local_decls, self.tcx).ty))
+		in_array
+			&& self
+				.b
+				.t
+				.uninit_inner(place.ty(&self.mir.local_decls, self.tcx).ty)
+				.is_array()
 	}
 
-	/// Whether `ty`, which projection `at` of a place of `local` derefs, is an
-	/// `rs.ByteSlice` of the bytes it points at: a reference or a raw pointer to a
-	/// `[u8; N]`, but not a box's pointer, which is the box.
-	fn bytes_behind(&self, local: Local, at: usize, ty: Ty<'tcx>) -> bool {
+	/// Whether `place` is a `[u8; N]` that [`Self::in_array`] reads as an `rs.ByteSlice`.
+	pub(super) fn in_bytes(&self, place: Place<'tcx>) -> bool {
+		self.in_array(place) && byte_array(self.b.t.uninit_inner(place.ty(&self.mir.local_decls, self.tcx).ty))
+	}
+
+	/// Whether `ty`, which projection `at` of a place of `local` derefs, is the slice of
+	/// the elements it points at: a reference or a raw pointer to a `[T; N]`, but not a
+	/// box's pointer, which is the box.
+	fn array_behind(&self, local: Local, at: usize, ty: Ty<'tcx>) -> bool {
 		use crate::lower::pointer::Pointee;
-		bytes_ref(ty)
-			|| matches!(ty.kind(), ty::RawPtr(pointee, _) if self.b.t.pointee(*pointee) == Pointee::Bytes)
+		crate::lower::array_ref(ty).is_some()
+			|| matches!(ty.kind(), ty::RawPtr(pointee, _) if self.b.t.pointee(*pointee) == Pointee::Array)
 				&& !(at == 0 && self.box_pointer(local))
 	}
 
@@ -429,23 +477,22 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
-	/// A mutable borrow of a slice pattern's rest of other than bytes, which a JS array's
-	/// `slice` would copy: the runtime's view of it.
-	pub(super) fn mut_subslice(
+	/// A borrow of an array pattern's rest of other than bytes, which a JS array's `slice`
+	/// would copy: the slice of where the array holds it.
+	pub(super) fn array_subslice(
 		&mut self,
 		kind: mir::BorrowKind,
 		place: Place<'tcx>,
 		span: Span,
 		out: &mut Vec<Stmt>,
 	) -> Option<Expr> {
-		if !matches!(kind, mir::BorrowKind::Mut { .. }) {
-			return None;
-		}
 		let (base, ty, from, to, from_end) = place.iter_projections().find_map(|(base, elem)| match elem {
 			ProjectionElem::Subslice { from, to, from_end } => {
 				let ty = base.ty(&self.mir.local_decls, self.tcx).ty;
+				// A part of a slice, or of an array behind a reference, is a slice of the same
+				// storage already.
 				match ty.kind() {
-					ty::Array(elem, _) | ty::Slice(elem) if !crate::lower::byte(*elem) => {
+					ty::Array(elem, _) if !crate::lower::byte(*elem) && !self.in_array(base.to_place(self.tcx)) => {
 						Some((base, ty, from, to, from_end))
 					}
 					_ => None,
@@ -454,12 +501,25 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			_ => None,
 		})?;
 		if base.projection.len() + 1 != place.projection.len() {
-			return Some(self.err(span, format!("a mutable borrow within a subslice of `{ty}`")));
+			return match kind {
+				mir::BorrowKind::Mut { .. } => {
+					Some(self.err(span, format!("a mutable borrow within a subslice of `{ty}`")))
+				}
+				_ => None,
+			};
 		}
 		let base = self.place_expr(base.to_place(self.tcx), span, out);
-		let base = self.path(base, "slice", out);
 		let end = self.subslice_end(&base, ty, to, from_end);
-		Some(Expr::rs("sliceView", vec![base, Expr::lit(from.to_string()), end]))
+		let from = Expr::lit(from.to_string());
+		// Of arrays, the arrays of an array slice of them all.
+		if let ty::Array(elem, _) = ty.kind()
+			&& elem.is_array()
+		{
+			let all = crate::lower::slice_items_from(base, *elem);
+			return Some(Expr::rs("arraySlicePart", vec![all, from, end]));
+		}
+		let length = super::scalar::sub(end, from.clone());
+		Some(Expr::New(Box::new(Expr::Rs("Slice".into())), vec![base, from, length]))
 	}
 
 	/// `base`, a `ty`, cast to its `variant`, which MIR reads without a switch where the
@@ -630,16 +690,20 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Some(Std::Cow) if let Some(borrowed) = crate::lower::library::cow_borrowed(tcx, ty) => {
 					let bytes = crate::lower::library::cow_slice(tcx, ty).is_some_and(crate::lower::byte);
 					let owned = variant.is_some_and(|v| v.index() == 1);
-					// What an `rs.Borrowed` holds, and what it owns: an array and an `rs.Vec`, or text.
+					// What an `rs.Borrowed` holds, and what it owns: an `rs.Slice`, or for
+					// arrays an `rs.ArraySlice`, and an `rs.Vec`, or text and an `rs.String`.
 					let (held, owns) = match borrowed.kind() {
 						ty::Slice(elem) => {
-							let elem = self.b.t.ty(*elem, span);
-							(
-								crate::ts::Type::Array(Box::new(elem.clone())),
-								crate::ts::Type::Rs("Vec", vec![elem]),
-							)
+							let held = match elem.is_array() {
+								true => self.b.t.slice_ty(*elem, span),
+								false => crate::ts::Type::Rs("Slice", vec![self.b.t.ty(*elem, span)]),
+							};
+							(held, crate::ts::Type::Rs("Vec", vec![self.b.t.ty(*elem, span)]))
 						}
-						_ => (crate::ts::Type::Builtin("string"), crate::ts::Type::Builtin("string")),
+						_ => (
+							crate::ts::Type::Builtin("string"),
+							crate::ts::Type::Rs("String", Vec::new()),
+						),
 					};
 					let class = match (bytes, owned) {
 						(true, false) => crate::ts::Type::Rs("ByteSlice", Vec::new()),
@@ -654,6 +718,26 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					}
 				}
 				Some(Std::ControlFlow) => super::call::control_flow_field(self, base, ty, variant),
+				// An imported type's `obj` is the JS value itself, and its marker nothing.
+				Some(Std::Js) => {
+					let ty::Adt(_, args) = ty.kind() else { unreachable!() };
+					let def = &adt.non_enum_variant().fields[field];
+					match def.name.as_str() {
+						"obj" => base,
+						_ if def
+							.ty(tcx, args)
+							.skip_norm_wip()
+							.ty_adt_def()
+							.is_some_and(|f| f.is_phantom_data()) =>
+						{
+							Expr::undefined()
+						}
+						name => self.err(
+							span,
+							format!("`{ty}`'s `{name}`, a slot of wasm-bindgen's heap, which only WASM has"),
+						),
+					}
+				}
 				_ if transparent(self.b.t, ty) || crate::lower::library::wrapped(tcx, ty).is_some() => base,
 				None if self.b.t.own(adt.did()) => {
 					let info = self.b.t.adt(*adt, span);
@@ -686,10 +770,11 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// An operand's value, copied if it is a `Copy` aggregate read from a place that keeps it.
 	pub fn operand(&mut self, op: &Operand<'tcx>, span: Span, out: &mut Vec<Stmt>) -> Expr {
 		match op {
-			// An array of bytes read through a reference, copied out of its slice.
-			Operand::Copy(place) | Operand::Move(place) if self.in_bytes(*place) => {
+			// An array read through a reference, copied out of its slice.
+			Operand::Copy(place) | Operand::Move(place) if self.in_array(*place) => {
 				let value = self.place_expr(*place, span, out);
-				Expr::rs("byteSliceToArray", vec![value])
+				let ty = place.ty(&self.mir.local_decls, self.tcx).ty;
+				self.b.t.array_copy(value, ty, span)
 			}
 			// JS shares objects where Rust copies, so a `Copy` aggregate is copied where
 			// either side could change in place: into a local changed in place, or out of a
@@ -728,10 +813,12 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		let Expr::Ident(name) = e else {
 			return false;
 		};
-		self.local_named(name).is_some_and(|local| {
-			let assigned = self.defs[local] + u32::from(self.is_arg(local));
-			assigned <= 1 && !self.mutated[local]
-		})
+		// A byte's buffer is the same one throughout.
+		self.byte_named(name)
+			|| self.local_named(name).is_some_and(|local| {
+				let assigned = self.defs[local] + u32::from(self.is_arg(local));
+				assigned <= 1 && !self.mutated[local]
+			})
 	}
 
 	/// Whether `place` is part of a local's own value that nothing changes in place.
@@ -739,11 +826,28 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		!self.mutated[place.local] && place.projection.iter().all(|e| !matches!(e, ProjectionElem::Deref))
 	}
 
+	/// The statement that copies `value` into `target`, the slice an array `place` a
+	/// reference points at is, named as [`Self::slice_path`] names it.
+	pub(super) fn store_in_slice(&mut self, place: Place<'tcx>, target: Expr, value: Expr, span: Span) -> Stmt {
+		let e = match self.in_bytes(place) {
+			true => target
+				.clone()
+				.member("data")
+				.member("set")
+				.call(vec![value, target.member("start")]),
+			false => {
+				let ty = self.b.t.uninit_inner(place.ty(&self.mir.local_decls, self.tcx).ty);
+				crate::lower::array_fn(ty, "Set").call(vec![target, value])
+			}
+		};
+		StmtKind::Expr(e).at(self.b.t.loc(span))
+	}
+
 	/// The statements that assign `value` to `place`, which has projections.
 	pub(super) fn store(&mut self, place: Place<'tcx>, value: Expr, span: Span) -> Vec<Stmt> {
 		let (place, value) = self.rebuilt(place, value, span);
 		let mut out = Vec::new();
-		if let Some(why) = self.alloc_bytes(place) {
+		if let Some(why) = self.alloc_bytes(place).map(String::from).or_else(|| self.beside(place)) {
 			out.push(StmtKind::Expr(self.err(span, why)).at(None));
 			return out;
 		}
@@ -765,13 +869,30 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			}
 			return out;
 		}
-		// Bytes through a reference are copied into the slice of them it holds.
-		if self.in_bytes(place) {
+		// An array through a reference is copied into the slice of it it holds.
+		if self.in_array(place) {
 			let target = self.place_expr(place, span, &mut out);
 			let target = self.slice_path(target, &mut out);
-			let set = target.clone().member("data").member("set");
-			out.push(StmtKind::Expr(set.call(vec![value, target.member("start")])).at(self.b.t.loc(span)));
+			out.push(self.store_in_slice(place, target, value, span));
 			return out;
+		}
+		// A whole write through a raw pointer keeps the cells a value keeps, as `ptr::write`
+		// does, and is refused where it would not.
+		if let [ProjectionElem::Deref] = place.projection.as_slice()
+			&& matches!(self.mir.local_decls[place.local].ty.kind(), ty::RawPtr(..))
+			&& let pointee = place.ty(&self.mir.local_decls, self.tcx).ty
+		{
+			if self.b.t.wraps_cells(pointee) {
+				let err = crate::lower::pointer::wrapped_write(self.b, pointee, span);
+				out.push(StmtKind::Expr(err).at(self.b.t.loc(span)));
+				return out;
+			}
+			if self.b.t.keeps_cells(pointee) {
+				let at = self.place_expr(place, span, &mut out);
+				let at = self.path(at, "kept", &mut out);
+				crate::lower::pointer::write_kept_at(self.b, at, value, pointee, span, &mut out);
+				return out;
+			}
 		}
 		// `*r = v` replaces the object `r` points at in place, which other references and
 		// captures share. An alias of a borrowed place assigns the place, and an `rs.Place`
@@ -847,6 +968,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			&& self.b.t.object_kind(pointee).is_none();
 		let ok = !self.alias_of_place(place.local)
 			&& !lent
+			&& !self.in_array(place)
 			&& self.b.t.place_pointee(ty).is_none()
 			&& !(place.local.as_u32() == 1 && matches!(self.env, Env::Closure(_)));
 		ok.then_some(pointee)
@@ -921,6 +1043,8 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	pub(super) fn alias_of_place(&self, local: Local) -> bool {
 		matches!(self.slots[local], Slot::Alias(_))
 			&& match self.def_rvalue(local) {
+				// An item a slice's `iter_mut` lends by index: the element it indexes.
+				_ if self.lent_items.contains_key(&local) => true,
 				// A reborrow of what an alias of a borrowed place points at borrows that place.
 				// A box's pointer is the box, so what it points at is the place holding the box.
 				Some(mir::Rvalue::Ref(_, _, p)) => match p.projection.as_slice() {
@@ -1108,6 +1232,10 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			return e;
 		}
 		let name = self.b.fresh("borrowed");
+		// A copy of the array items lent by index are in is one too.
+		if matches!(&e, Expr::Ident(array) if self.item_arrays.contains(array)) {
+			self.item_arrays.insert(name.clone());
+		}
 		let stmt = StmtKind::decl(false, name.clone(), None, Some(e)).at(None);
 		self.emit(vec![stmt], false, out);
 		Expr::ident(name)
@@ -1116,6 +1244,18 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 	/// The `rs.Place` that reads and writes `target`, a path that stays put, read as
 	/// `payload` if it is a variant's.
 	pub(super) fn place_of(&mut self, target: Expr, payload: Option<crate::ts::Type>) -> Expr {
+		if let Some(p) = self.byte_place(&target) {
+			return p;
+		}
+		// An item a slice's `iter_mut` lends by index, the element's place, as `rs.iterSliceMut`
+		// lends it. A payload's is of the payload's type, which an `rs.place` reads it as.
+		if payload.is_none()
+			&& let Expr::Index(array, index) = target.unlocated()
+			&& let Expr::Ident(name) = array.unlocated()
+			&& self.item_arrays.contains(name)
+		{
+			return Expr::rs("arrayAsPtr", vec![(**array).clone(), (**index).clone()]);
+		}
 		let value = self.b.fresh("value");
 		let param = crate::ts::Param {
 			name: value.clone(),
@@ -1138,6 +1278,24 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			None => Expr::Lambda(vec![param], Box::new(target.assign(Expr::ident(value)))),
 		};
 		Expr::rs("place", vec![get, set])
+	}
+
+	/// The pointer to the byte `target` reads, if it is a [`Slot::Byte`]'s: element 0 of its
+	/// buffer, the same each time it is taken.
+	fn byte_place(&self, target: &Expr) -> Option<Expr> {
+		let Expr::Index(buffer, index) = target.unlocated() else {
+			return None;
+		};
+		let Expr::Ident(name) = buffer.unlocated() else {
+			return None;
+		};
+		(self.byte_named(name) && matches!(index.unlocated(), Expr::Lit(i) if i == "0"))
+			.then(|| Expr::rs("arrayAsPtr", vec![Expr::ident(name)]))
+	}
+
+	/// Whether `name` is a [`Slot::Byte`]'s buffer.
+	fn byte_named(&self, name: &str) -> bool {
+		self.slots.iter().any(|slot| matches!(slot, Slot::Byte(n) if n == name))
 	}
 
 	/// The `rs.Place` of `place`, a reborrow `&mut *r` of a reference or pointer `r` that is
@@ -1532,12 +1690,127 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		}
 	}
 
+	/// A `MaybeUninit<ty>` of zero bytes, as `Box::new_zeroed` makes it: each part that zero
+	/// bytes are a value of holds that value, and the rest, such as a reference, holds
+	/// nothing yet, as [`Translator::uninit`] makes it, for a write to give it one before a
+	/// read. It is cast as that is, so `tsc` narrows it to no variant a write may change.
+	pub(super) fn zeroed(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
+		let value = self.zero(ty, span);
+		let ts_ty = self.b.t.ty(Ty::new_maybe_uninit(self.tcx, ty), span);
+		Expr::As(
+			Box::new(Expr::As(Box::new(value), crate::ts::Type::Builtin("unknown"))),
+			ts_ty,
+		)
+	}
+
+	/// What [`Self::zeroed`] holds, untyped.
+	fn zero(&mut self, ty: Ty<'tcx>, span: Span) -> Expr {
+		let tcx = self.tcx;
+		let ty = self.b.t.uninit_inner(ty);
+		match ty.kind() {
+			ty::Array(elem, len) => {
+				let len = Expr::lit(len.try_to_target_usize(tcx).unwrap_or(0).to_string());
+				if crate::lower::byte(*elem) {
+					return Expr::New(Box::new(Expr::ident("Uint8Array")), vec![len]);
+				}
+				let elem_ty = self.b.t.ty(*elem, span);
+				let each = self.zero(*elem, span);
+				let each = Expr::Arrow(Vec::new(), elem_ty, vec![StmtKind::Return(Some(each)).at(None)]);
+				let length = Expr::Object(vec![(crate::ts::Key::Name("length".into()), len)]);
+				Expr::ident("Array").member("from").call(vec![length, each])
+			}
+			ty::Tuple(tys) if !tys.is_empty() => {
+				let values = tys.iter().map(|t| self.zero(t, span)).collect();
+				let ts_ty = self.b.t.ty(ty, span);
+				Expr::As(Box::new(Expr::Array(values)), ts_ty)
+			}
+			// A cell holds its value as a part of it, which a pointer from `as_ptr` reaches; zero
+			// bytes are one unborrowed, unlocked, and unpoisoned.
+			ty::Adt(adt, args)
+				if let Some(class) = match Std::of(tcx, adt.did()) {
+					Some(Std::Cell) => Some("Cell"),
+					Some(Std::RefCell) => Some("RefCell"),
+					Some(Std::Mutex) => Some("Mutex"),
+					_ => None,
+				} =>
+			{
+				let inner = self.zero(args.type_at(0), span);
+				Expr::New(Box::new(Expr::Rs(class.into())), vec![inner])
+			}
+			// The crate's struct, or one of std's JS keeps as the value it wraps.
+			ty::Adt(adt, args)
+				if adt.is_struct()
+					&& (self.b.t.own(adt.did())
+						|| matches!(
+							Std::of(tcx, adt.did()),
+							Some(Std::Reverse | Std::AssertUnwindSafe | Std::Wrapping | Std::Saturating)
+						))
+					&& adt.all_fields().next().is_some() =>
+			{
+				let values = (adt.non_enum_variant().fields.iter())
+					.map(|f| {
+						let t = self.b.t.field_ty(f.did, args);
+						self.zero(t, span)
+					})
+					.collect();
+				self.adt(adt.did(), rustc_abi::FIRST_VARIANT, args, values, ty, span)
+			}
+			_ => {
+				let env = self.b.t.typing_env_pub();
+				let valid = tcx.check_validity_requirement((ValidityRequirement::Zero, env.as_query_input(ty)));
+				let Ok(layout) = tcx.layout_of(env.as_query_input(ty)) else {
+					return self.err(span, format!("zero bytes of `{ty}`, whose layout is unknown"));
+				};
+				if !matches!(valid, Ok(true)) {
+					return self.b.t.uninit(ty, span);
+				}
+				let memory = Allocation::from_bytes(
+					vec![0; layout.size.bytes_usize()],
+					layout.align.abi,
+					rustc_ast::Mutability::Not,
+					(),
+				);
+				let val = ConstValue::Indirect {
+					alloc_id: tcx.reserve_and_set_memory_alloc(tcx.mk_const_alloc(memory)),
+					offset: Size::ZERO,
+				};
+				// An enum is the variant its tag or niche of zero picks, whose fields rustc's
+				// check of the tag alone doesn't check, so each is zeroed as a part.
+				let ty::Adt(adt, args) = ty.kind() else {
+					return self.const_value(val, ty, span);
+				};
+				if !adt.is_enum() {
+					return self.const_value(val, ty, span);
+				}
+				let Some(variant) = tcx
+					.try_destructure_mir_constant_for_user_output(val, ty)
+					.and_then(|d| d.variant)
+				else {
+					return self.err(span, format!("zero bytes of `{ty}`, which are none of its variants"));
+				};
+				let values = (adt.variant(variant).fields.iter())
+					.map(|f| {
+						let t = self.b.t.field_ty(f.did, args);
+						self.zero(t, span)
+					})
+					.collect();
+				self.adt(adt.did(), variant, args, values, ty, span)
+			}
+		}
+	}
+
 	/// The value of a constant `val` of type `ty`: a fresh one at each use, as Rust copies a
 	/// constant there.
 	pub(super) fn const_value(&mut self, val: ConstValue, ty: Ty<'tcx>, span: Span) -> Expr {
 		let tcx = self.tcx;
 		if let Some(value) = self.cell_value(val, ty, span) {
 			return value;
+		}
+		if self.b.t.std_of(ty) == Some(Std::TypeId) {
+			return match self.type_id_const(val, ty) {
+				Some(of) => self.b.t.type_id(of),
+				None => self.err(span, format!("a constant of type `{ty}` that names no type")),
+			};
 		}
 		// An aggregate, field by field.
 		if let ty::Adt(..) | ty::Tuple(_) | ty::Array(..) = ty.kind()
@@ -1567,6 +1840,9 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				),
 				_ => unreachable!(),
 			};
+		}
+		if let ty::Pat(base, _) = ty.kind() {
+			return self.const_value(val, *base, span);
 		}
 		match val {
 			ConstValue::ZeroSized => match *ty.kind() {
@@ -1622,6 +1898,14 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					);
 				};
 				let unnamed = format!("a constant of type `{ty}`, a pointer into memory translation can't name");
+				// A `&TypeId`, or a reference to one, which translation holds as the `TypeId`.
+				if self.b.t.std_of(ty.peel_refs()) == Some(Std::TypeId) {
+					let val = ConstValue::Indirect {
+						alloc_id: prov.alloc_id(),
+						offset,
+					};
+					return self.const_value(val, *inner, span);
+				}
 				// A `Location`, as `Location::caller` gives a constant.
 				if self.b.t.std_of(*inner) == Some(Std::Location) {
 					return match self.location_const(alloc, offset, *inner) {
@@ -1659,6 +1943,22 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				Some(val) => self.const_value(val, ty, span),
 				None => self.err(span, format!("a constant of type `{ty}` held in memory")),
 			},
+		}
+	}
+
+	/// The type the constant `TypeId` `val` is of, which the allocation its first word points
+	/// into names, as const evaluation writes it.
+	fn type_id_const(&self, val: ConstValue, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+		let tcx = self.tcx;
+		let id = tcx.try_destructure_mir_constant_for_user_output(val, ty)?;
+		let &(words, words_ty) = id.fields.first()?;
+		let words = tcx.try_destructure_mir_constant_for_user_output(words, words_ty)?;
+		let &(ConstValue::Scalar(Scalar::Ptr(ptr, _)), _) = words.fields.first()? else {
+			return None;
+		};
+		match tcx.global_alloc(ptr.provenance.alloc_id()) {
+			GlobalAlloc::TypeId { ty } => Some(ty),
+			_ => None,
 		}
 	}
 
@@ -1862,8 +2162,16 @@ pub fn byte_slice(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Slice(elem) if crate::lower::byte(*elem))
 }
 
-/// Byte `i` of `slice`, an `rs.ByteSlice` that reading twice reads the same.
-pub fn byte_at(slice: Expr, i: Expr) -> Expr {
+/// The runtime's class of a slice of `elem`: `ByteSlice` of bytes, and `Slice` of others.
+pub fn slice_class(elem: Ty<'_>) -> &'static str {
+	match crate::lower::byte(elem) {
+		true => "ByteSlice",
+		false => "Slice",
+	}
+}
+
+/// Element `i` of `slice`, an `rs.Slice` or `rs.ByteSlice` that reading twice reads the same.
+pub fn slice_at(slice: Expr, i: Expr) -> Expr {
 	let at = super::scalar::add(slice_member(slice.clone(), "start"), i);
 	slice_member(slice, "data").index(at)
 }
@@ -1917,10 +2225,12 @@ fn reads_fields(e: &Expr, ids: &[crate::ts::FieldId]) -> bool {
 	}
 }
 
-/// The parts of `slice`, if it is an `rs.ByteSlice` made in place.
+/// The parts of `slice`, if it is an `rs.ByteSlice` or `rs.Slice` made in place.
 pub fn made_slice(slice: &Expr) -> Option<&[Expr; 3]> {
 	match slice {
-		Expr::New(f, args) if matches!(&**f, Expr::Rs(name) if name == "ByteSlice") => args.as_slice().try_into().ok(),
+		Expr::New(f, args) if matches!(&**f, Expr::Rs(name) if name == "ByteSlice" || name == "Slice") => {
+			args.as_slice().try_into().ok()
+		}
 		_ => None,
 	}
 }
@@ -2174,25 +2484,26 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	}
 
 	/// Whether a raw pointer to a `ty` is, or is a slice of, the object JS keeps it in, or
-	/// with `cells`, is or holds an `rs.Cell`. Only an instance decides what a parameter is.
+	/// with `cells`, is or holds an `rs.Cell`, through any `MaybeUninit`s, which JS keeps as
+	/// what they hold. Only an instance decides what a parameter is.
 	fn pointed_object(&self, ty: Ty<'tcx>, cells: bool) -> bool {
 		let t = &self.b.t;
 		!(t.polymorphic() && ty.has_param())
-			&& (t.pointee(ty) != crate::lower::pointer::Pointee::Place || cells && t.std_of(ty) == Some(Std::Cell))
+			&& (t.pointee(ty) != crate::lower::pointer::Pointee::Place
+				|| cells && t.std_of(t.uninit_inner(ty)) == Some(Std::Cell))
 	}
 
-	/// Why the pointer std's `def_id` makes of what `reference` points at would not keep
-	/// pointing where Rust's does, if it would not, judged as [`Self::out_of_step`] judges a
-	/// raw pointer: `UnsafeCell::get`'s, holding a `T`, is the `rs.Cell` itself or the
-	/// object it holds.
+	/// Why the pointer std's `def_id` makes of `pointee`, what a reference points at, would
+	/// not keep pointing where Rust's does, if it would not, judged as [`Self::out_of_step`]
+	/// judges a raw pointer: `UnsafeCell::get`'s, holding a `T`, is the `rs.Cell` itself or
+	/// the object it holds.
 	pub(super) fn made_out_of_step(
 		&self,
 		def_id: rustc_hir::def_id::DefId,
 		gargs: ty::GenericArgsRef<'tcx>,
-		reference: &Operand<'tcx>,
+		pointee: Place<'tcx>,
 	) -> Option<String> {
 		let tcx = self.tcx;
-		let pointee = tcx.mk_place_deref(reference.place()?);
 		let owner = library::key(tcx, def_id).map(|(owner, _)| owner);
 		let cell = matches!(owner.as_deref(), Some("UnsafeCell" | "Cell"));
 		let held = gargs.type_at(0);

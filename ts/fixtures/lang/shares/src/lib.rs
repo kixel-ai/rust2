@@ -24,5 +24,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("shares::generics", shares::generics),
 		("shares::keys", shares::keys),
 		("shares::addresses", shares::addresses),
+		("shares::unsized_arrays", shares::unsized_arrays),
 	]
 }

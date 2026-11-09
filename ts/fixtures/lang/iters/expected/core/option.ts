@@ -40,9 +40,9 @@ export function unwrapOr$15hbiwd(self: rs.u64 | undefined, default_: rs.u64): rs
 	return self;
 }
 
-export function unwrapOrDefault$165pyh5(self: string | undefined): string {
+export function unwrapOrDefault$1exlfpa(self: rs.String | undefined): rs.String {
 	if (self === undefined) {
-		return "";
+		return rs.stringNew();
 	}
 	return self;
 }
@@ -54,14 +54,14 @@ export function unwrapOrDefault$0w012ed(self: rs.ByteVec | undefined): rs.ByteVe
 	return self;
 }
 
-export function map$1uo1d4o(self: string | undefined, _: (a0: string) => string): string | undefined {
+export function map$06og5bz(self: rs.String | undefined, _: (a0: rs.String) => string): string | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
-	return self;
+	return self.v;
 }
 
-export function map$1bpbukm(self: rs.Vec<string> | undefined, f: (a0: rs.Vec<string>) => string): string | undefined {
+export function map$1wdw03s(self: rs.Vec<rs.String> | undefined, f: (a0: rs.Vec<rs.String>) => string): string | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
@@ -73,6 +73,20 @@ export function map$167hjon(self: rs.StrCow | undefined, _: (a0: rs.StrCow) => s
 		return undefined;
 	}
 	return rs.strCowStr(self);
+}
+
+export function map$1p2lbl3(self: [rs.u8, rs.String] | undefined, f: (a0: [rs.u8, rs.String]) => rs.String): rs.String | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function map$1oqs2fe(self: [rs.u8, rs.u16] | undefined, f: (a0: [rs.u8, rs.u16]) => rs.u16): rs.u16 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
 }
 
 export function map$0vu84i0(self: rs.u8 | undefined, f: (a0: rs.u8) => Badge.Badge): Badge.Badge | undefined {
@@ -111,7 +125,7 @@ export function map$14ju55r(self: rs.usize | undefined, f: (a0: rs.usize) => rs.
 	return f(self);
 }
 
-export function mapOr$1nyk1yj(self: string | undefined, default_: rs.u8, f: (a0: string) => rs.u8): rs.u8 {
+export function mapOr$1fzqoua(self: rs.String | undefined, default_: rs.u8, f: (a0: rs.String) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
@@ -181,7 +195,28 @@ export function mapOr$02sqh24(self: rs.Place<rs.u8> | undefined, default_: rs.u8
 	return f(self);
 }
 
+export function mapOr$085bdex(self: rs.String | undefined, default_: rs.u32, f: (a0: rs.String) => rs.u32): rs.u32 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
 export function mapOr$0vxw5sq(self: rs.u8 | undefined, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$1nyk1yj(self: string | undefined, default_: rs.u8, f: (a0: string) => rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$164lw4w(self: rs.u16 | undefined, default_: rs.u32, f: (a0: rs.u16) => rs.u32): rs.u32 {
 	if (self === undefined) {
 		return default_;
 	}
@@ -258,9 +293,9 @@ export function mapOr$188iunt(self: rs.usize | undefined, default_: rs.u8, f: (a
 	return f(self);
 }
 
-export function asDeref$0w8at8i(self: string | undefined): string | undefined {
-	return map$1uo1d4o(self, (a0: string): string => {
-		return a0;
+export function asDeref$0wpj87j(self: rs.String | undefined): string | undefined {
+	return map$06og5bz(self, (a0: rs.String): string => {
+		return a0.v;
 	});
 }
 
@@ -268,6 +303,20 @@ export function asDeref$0pg0e8a(self: rs.StrCow | undefined): string | undefined
 	return map$167hjon(self, (a0: rs.StrCow): string => {
 		return rs.strCowStr(a0);
 	});
+}
+
+export function andThen$1x5oz34(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.String | undefined): rs.String | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
+export function andThen$1fnqvxl(self: rs.u8 | undefined, f: (a0: rs.u8) => rs.u16 | undefined): rs.u16 | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
 }
 
 export function filter$0hq86nl(self: rs.u8 | undefined, predicate: (a0: rs.u8) => boolean): rs.u8 | undefined {
@@ -278,6 +327,13 @@ export function filter$0hq86nl(self: rs.u8 | undefined, predicate: (a0: rs.u8) =
 		}
 	}
 	return undefined;
+}
+
+export function clone$0dg4ec5(self: rs.String | undefined): rs.String | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return rs.stringClone(self);
 }
 
 //# sourceMappingURL=option.ts.map

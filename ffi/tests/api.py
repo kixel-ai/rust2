@@ -9,7 +9,6 @@ import asyncio
 import datetime
 import gc
 import os
-import select
 import sys
 import threading
 
@@ -188,9 +187,9 @@ def script():
 	registry = api.Registry.new(api.Counter.new("first", 1))
 	print(f"last {flag(registry.last() is not None)}")
 	registry.push(api.Counter.new("last", 2))
-	first = registry.first
+	first = registry.first_get
 	first.add(10)
-	print(f"first {registry.first.get()} lent {first.get()}")
+	print(f"first {registry.first_get.get()} lent {first.get()}")
 	last = registry.last()
 	last.add(10)
 	print(f"last {registry.last().get()} lent {last.get()}")
@@ -201,10 +200,10 @@ def script():
 		counter.add(by)
 		return counter.edited() and counter.get() == 6
 
-	print(f"edit {flag(registry.edit(edit))} {registry.first.get()}")
+	print(f"edit {flag(registry.edit(edit))} {registry.first_get.get()}")
 	# A setter moves an object in, as assignment does, closing it.
-	registry.set_first(api.Counter.new("second", 3))
-	print(f"set first {registry.first.get()} {registry.first.name()}")
+	registry.first_set(api.Counter.new("second", 3))
+	print(f"set first {registry.first_get.get()} {registry.first_get.name()}")
 	print(f"walk {api.walk(3, lambda cursor: cursor.at() * 2)}")
 	print(f"each {api.each(2, lambda at: print(f'visit {at}'))}")
 	print(f"offset {api.offset(lambda: 7, 3)}")
@@ -265,18 +264,18 @@ def script():
 	print(f"later {flag(api.Stamp.from_millis(3000).later(stamp))}")
 	print(f"secs {stamp.secs()}")
 	message = api.Message.new(stamp, b"body")
-	print(f"payload {text(message.payload)}")
-	print(f"stamp {message.stamp!r}")
+	print(f"payload {text(message.payload_get)}")
+	print(f"stamp {message.stamp_get!r}")
 	print(f"sent {flag(message.sent())}")
 	# Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
 	reset = api.Stamp.from_millis(4000)
-	message.set_stamp(reset)
-	message.set_payload(b"edited")
-	print(f"payload {text(message.payload)}")
-	print(f"stamp {message.stamp!r}")
+	message.stamp_set(reset)
+	message.payload_set(b"edited")
+	print(f"payload {text(message.payload_get)}")
+	print(f"stamp {message.stamp_get!r}")
 	print(f"secs {reset.secs()}")
-	message.set_stamp(None)
-	print(f"stamp {flag(message.stamp is not None)}")
+	message.stamp_set(None)
+	print(f"stamp {flag(message.stamp_get is not None)}")
 
 	print(f"kept {api.emit(PrintLog(), bytes([1, 2, 3, 4]))}")
 	logger = api.Logger.new(PrintLog())
@@ -374,7 +373,7 @@ def script():
 	# Generic functions and methods, at each implementation of the trait bounding them, by
 	# reference, which leaves Python its object.
 	from_point = api.Counter.seeded_point("p", api.Point(-3, 4))
-	from_size = api.Counter.from_size("s", api.Size(5, 6))
+	from_size = api.Counter.seeded_size("s", api.Size(5, 6))
 	from_counter = api.Counter.seeded_counter("c", from_point)
 	from_polar = api.Counter.seeded_polar_point("q", api.PolarPoint(1, 2))
 	print(
@@ -384,6 +383,12 @@ def script():
 
 	# A trait implemented for `Point` and `&Point` apart: one instance.
 	print(f"weigh {api.weigh_point(api.Point(-1, 2))}")
+	# A function named as the type it returns, and one named as a type it does not.
+	polar = api.polar_point(2)
+	check(polar is not None, "a point off the origin")
+	print(f"polar {polar.distance} {flag(api.polar_point(0) is None)} area {api.area(api.Size(2, 3))}")
+	# Two types whose paths join alike, the second kept apart where its path splits.
+	print(f"wind {api.wind(api.PolarTurn(2), api.Polar_Turn(3))}")
 	# Instances that name each other, and one made only by an impl of it.
 	cross = api.cross(api.LeftRightU8(api.RightU8(1)), api.RightLeftU8(api.LeftU8(2)))
 	print(f"cross {cross} outer {api.OuterInnerU8.new(4).get()}")
@@ -400,16 +405,16 @@ def script():
 
 	# Its Drop runs when its last reference goes, not before.
 	token = api.Token.new(7)
-	print(f"token {token.id} dropped {api.dropped()}")
+	print(f"token {token.id_get} dropped {api.dropped()}")
 	del token
 	print(f"dropped {api.dropped()}")
 
 	# A field and the method of its name, each its own member.
 	retry = api.Retry.new(5)
-	limit = retry.limit_setting
+	limit = retry.limit_get
 	print(f"retry {0 if limit is None else 1} {limit or 0} {retry.limit()} {retry.delay()}")
 	# The renamed field's setter, named as its getter.
-	retry.set_limit_setting(None)
+	retry.limit_set(None)
 	print(f"retry {retry.limit()}")
 	print(f"slot {api.SlotU8.new(200).value()}")
 
@@ -466,7 +471,7 @@ def script():
 	except api.StringException as e:
 		print(f"json parse err {e.error}")
 	site = api.Site.new(base)
-	print(f"site {site.home} {site.home}")
+	print(f"site {site.home_get} {site.home_get}")
 
 	# Slices, passed in and returned as clones, and the socket address of each family.
 	print(f"shapes {debugs(api.Shape.ALL)} greetings {quoted(api.GREETINGS)}")
@@ -605,7 +610,7 @@ async def on_loop():
 		return task
 
 	def signaled():
-		return bool(select.select([wakeup.queue.fileno()], [], [], 0)[0])
+		return wakeup.queue.signaled()
 
 	async def settle():
 		for _ in range(4):
@@ -772,7 +777,7 @@ def calls():
 		(api.Counter, "get"): "method_descriptor",
 		(api.Counter, "new"): "staticmethod",
 		(api.Counter, "__repr__"): "method_descriptor",
-		(api.Registry, "first"): "getset_descriptor",
+		(api.Registry, "first_get"): "getset_descriptor",
 		(api.Point, "offset"): "method_descriptor",
 		(api.Channel, "send_later"): "method_descriptor",
 		# An `async def` stays a coroutine function.
@@ -815,7 +820,7 @@ def calls():
 	check(api.has_text.__doc__ == "Whether `note` has text, even empty.", "a function's docstring")
 	check(api.Gauge.set.__doc__ == "Set the level each clone reads.", "a method's docstring")
 	check(api.Counter.get.__doc__ is None, "a method without docs has no docstring")
-	check(api.Registry.first.__doc__ is None, "a property without docs has no docstring")
+	check(api.Registry.first_get.__doc__ is None, "a property without docs has no docstring")
 	print("calls ok")
 
 

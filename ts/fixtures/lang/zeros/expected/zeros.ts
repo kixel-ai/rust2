@@ -3,7 +3,7 @@
 import * as rs from "./rs.ts";
 import { drop$zeros_Lock_u32, drop$zeros_Lock_zeros_Loud } from "./lib.ts";
 import { thenSome$1n1oy1h } from "./core/bool.ts";
-import { unwrapOr$1la41a6 as option_unwrapOr$1la41a6, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$1b97y1a as option_unwrapOrDefault$1b97y1a, map$1b6tbot as option_map$1b6tbot, map$12cu62z as option_map$12cu62z, map$0ul65ro as option_map$0ul65ro, map$0w716ia as option_map$0w716ia } from "./core/option.ts";
+import { unwrapOr$1la41a6 as option_unwrapOr$1la41a6, unwrapOr$1fr498u as option_unwrapOr$1fr498u, unwrapOrDefault$0348bav as option_unwrapOrDefault$0348bav, map$1b6tbot as option_map$1b6tbot, map$12cu62z as option_map$12cu62z, map$0ul65ro as option_map$0ul65ro, map$0w716ia as option_map$0w716ia } from "./core/option.ts";
 import * as Both from "./zeros.Both.ts";
 import * as Defaulted from "./zeros.Defaulted.ts";
 import * as Holds from "./zeros.Holds.ts";
@@ -31,7 +31,7 @@ export function pair(): Pair.Pair {
 	return { _0: {}, _1: undefined };
 }
 
-export function none$String(): string[] {
+export function none$String(): rs.String[] {
 	return [];
 }
 
@@ -80,8 +80,8 @@ export function zeros(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		phantom$u8();
 		rs.byteVecPush(out, (Unit.eq$cmp_PartialEq(_11, {}) ? 1 : 0) | (((Unit.eq$cmp_PartialEq(_13._0, _16) ? 1 : 0) << 1) & 0xff));
 		const _40: One.One = One.clone$Clone("Only" as One.One);
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => Unit.fmt$fmt_Debug(_11, f), (f: rs.Formatter) => One.fmt$fmt_Debug(_40, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1]])), undefined, true);
+		const args6 = [(f: rs.Formatter) => Unit.fmt$fmt_Debug(_11, f), (f: rs.Formatter) => One.fmt$fmt_Debug(_40, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]]).v), undefined, true);
 	} else if (_8 === 1) {
 		rs.byteVecPush(out, rs.iterCount(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_213: rs.u8): Uint8Array => {
 			return Uint8Array.of();
@@ -100,12 +100,12 @@ export function zeros(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, One.eq$cmp_PartialEq(_72(1), one()) ? 1 : 0);
 	} else if (_8 === 2) {
 		const _87: Unit.Unit = unit();
-		const _89: string[] = none$String();
-		const _91: Unit.Unit[] = units();
+		const _88: rs.Slice<rs.String> = rs.sliceFrom(none$String());
+		const _90: rs.Slice<Unit.Unit> = rs.sliceFrom(units());
 		const _93: One.One = one();
 		const _95: [undefined, Unit.Unit, Uint8Array] = tuple();
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Unit.fmt$fmt_Debug(_87, f), (f: rs.Formatter) => rs.fmtList(_89, f, rs.fmtStr), (f: rs.Formatter) => rs.fmtList(_91, f, (value: Unit.Unit, f: rs.Formatter) => Unit.fmt$fmt_Debug(value, f)), (f: rs.Formatter) => One.fmt$fmt_Debug(_93, f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtUnit(_95[0], f), (f: rs.Formatter) => Unit.fmt$fmt_Debug(_95[1], f), (f: rs.Formatter) => rs.fmtList(_95[2], f, rs.u8Debug)], f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", args4[1], " ", args4[2], " ", args4[3], " ", args4[4]])), undefined, true);
+		const args5 = [(f: rs.Formatter) => Unit.fmt$fmt_Debug(_87, f), (f: rs.Formatter) => rs.fmtList(rs.sliceItems(_88), f, (value: rs.String, f: rs.Formatter) => rs.fmtStr(value.v, f)), (f: rs.Formatter) => rs.fmtList(rs.sliceItems(_90), f, (value: Unit.Unit, f: rs.Formatter) => Unit.fmt$fmt_Debug(value, f)), (f: rs.Formatter) => One.fmt$fmt_Debug(_93, f), (f: rs.Formatter) => rs.fmtTuple([(f: rs.Formatter) => rs.fmtUnit(_95[0], f), (f: rs.Formatter) => Unit.fmt$fmt_Debug(_95[1], f), (f: rs.Formatter) => rs.fmtList(_95[2], f, rs.u8Debug)], f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", args5[2], " ", args5[3], " ", args5[4]]).v), undefined, true);
 	} else if (_8 === 3) {
 		const _108: (a0: rs.u8) => rs.u8 = adder();
 		adder();
@@ -229,7 +229,7 @@ export function hash$zeros_Names(value: Names.Names): rs.u64 {
 }
 
 /** `DefaultHasher::new`'s hash of `value`. */
-export function hash$zeros_Tagged_String(value: Tagged.Tagged<string>): rs.u64 {
+export function hash$zeros_Tagged_String(value: Tagged.Tagged<rs.String>): rs.u64 {
 	const h: rs.Hasher = rs.hasher();
 	Tagged.hash$Hash_String_hash_DefaultHasher(value, h);
 	return rs.hashFinish(h);
@@ -266,50 +266,50 @@ export function digest$zeros_Names(value: Names.Names, out: rs.ByteVec): void {
 }
 
 /** [`hash`] of `value`, little-endian. */
-export function digest$zeros_Tagged_String(value: Tagged.Tagged<string>, out: rs.ByteVec): void {
+export function digest$zeros_Tagged_String(value: Tagged.Tagged<rs.String>, out: rs.ByteVec): void {
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(rs.u64ToBeBytes(hash$zeros_Tagged_String(value)).reverse()));
 }
 
 /** The impls `#[derive]` calls on `PhantomData`, `PhantomPinned`, and `()` fields. */
 export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
-	const tags: rs.Vec<Tagged.Tagged<string>> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): Tagged.Tagged<string> => {
+	const tags: rs.Vec<Tagged.Tagged<rs.String>> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): Tagged.Tagged<rs.String> => {
 		const n: rs.u8 = _2;
 		Tagged.default$Default_String();
 		return { n, of: undefined, pin: undefined, unit: undefined };
 	}), undefined, 1, true);
 	const _7: rs.u8 = rs.u8Rem(kind, 4);
 	if (_7 === 0) {
-		const _11: Tagged.Tagged<string> | undefined = rs.sliceFirst(tags.items);
-		const t: Tagged.Tagged<string> = option_unwrapOrDefault$1b97y1a(_11 === undefined ? undefined : Tagged.clone$Clone_String(_11));
+		const _11: Tagged.Tagged<rs.String> | undefined = rs.sliceFirst(rs.sliceFrom(tags.items));
+		const t: Tagged.Tagged<rs.String> = option_unwrapOrDefault$0348bav(_11 === undefined ? undefined : Tagged.clone$Clone_String(_11));
 		const _15: rs.u8 = t.n;
 		Tagged.default$Default_u8();
 		const copied: Tagged.Tagged<rs.u8> = { n: _15, of: undefined, pin: undefined, unit: undefined };
 		const again: Tagged.Tagged<rs.u8> = copied;
 		const _27: Names.Names = Names.default$Default();
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => Tagged.fmt$fmt_Debug_String(t, f), (f: rs.Formatter) => Tagged.fmt$fmt_Debug_u8(copied, f), (f: rs.Formatter) => Tagged.fmt$fmt_Debug_u8(again, f), (f: rs.Formatter) => Names.fmt$fmt_Debug(_27, f)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0], " ", args2[1], " ", rs.fmtSpec({ alternate: true }, args2[2]), " ", rs.fmtSpec({ alternate: true }, args2[3])])), undefined, true);
+		const args5 = [(f: rs.Formatter) => Tagged.fmt$fmt_Debug_String(t, f), (f: rs.Formatter) => Tagged.fmt$fmt_Debug_u8(copied, f), (f: rs.Formatter) => Tagged.fmt$fmt_Debug_u8(again, f), (f: rs.Formatter) => Names.fmt$fmt_Debug(_27, f)];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args5[0], " ", args5[1], " ", rs.fmtSpec({ alternate: true }, args5[2]), " ", rs.fmtSpec({ alternate: true }, args5[3])]).v), undefined, true);
 		const _38: Rest.Rest = Rest.clone$Clone(Rest.default$Default());
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => Rest.fmt$fmt_Debug(_38, f), (f: rs.Formatter) => rs.fmtWriteStr(f, "PhantomPinned"), (f: rs.Formatter) => rs.fmtWriteFmt(f, ["PhantomData<", "u8", ">"])];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0], " ", rs.fmtSpec({ alternate: true }, args4[0]), " ", rs.fmtSpec({ align: ">", width: 9 }, args4[1]), "|", rs.fmtSpec({ align: "<", width: 9 }, args4[2]), "|"])), undefined, true);
+		const args6 = [(f: rs.Formatter) => Rest.fmt$fmt_Debug(_38, f), (f: rs.Formatter) => rs.fmtWriteStr(f, "PhantomPinned"), (f: rs.Formatter) => rs.fmtWriteFmt(f, ["PhantomData<", "u8", ">"])];
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", rs.fmtSpec({ alternate: true }, args6[0]), " ", rs.fmtSpec({ align: ">", width: 9 }, args6[1]), "|", rs.fmtSpec({ align: "<", width: 9 }, args6[2]), "|"]).v), undefined, true);
 		rs.byteVecPush(out, rs.iterCount(rs.iterEmpty() as rs.Iter<rs.u8>) & 0xff);
 	} else if (_7 === 1) {
-		const sorted: rs.Vec<Tagged.Tagged<string>> = rs.vecFrom(tags.items.map(Tagged.clone$Clone_String));
-		rs.sliceSort(sorted.items, rs.cmpLt(Tagged.partialCmp$cmp_PartialOrd_String), 1, true);
-		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(sorted.items), (t3: Tagged.Tagged<string>): rs.u8 => {
+		const sorted: rs.Vec<Tagged.Tagged<rs.String>> = rs.vecFrom(tags.items.map(Tagged.clone$Clone_String));
+		rs.sliceSort(rs.sliceFrom(sorted.items), rs.cmpLt(Tagged.partialCmp$cmp_PartialOrd_String), 1, true);
+		rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(sorted.items), (t3: Tagged.Tagged<rs.String>): rs.u8 => {
 			return t3.n;
 		}), undefined, true);
-		const iter: rs.Iter<Tagged.Tagged<string>[]> = rs.sliceWindows(tags.items, 2);
+		const iter: rs.Iter<rs.Slice<Tagged.Tagged<rs.String>>> = rs.sliceWindows(rs.sliceFrom(tags.items), 2);
 		while (true) {
-			const _76: Tagged.Tagged<string>[] | rs.Done = iter.next();
+			const _76: rs.Slice<Tagged.Tagged<rs.String>> | rs.Done = iter.next();
 			if (_76 === rs.DONE) {
 				break;
 			}
 			rs.idx(_76, 0);
 			rs.idx(_76, 1);
-			const part = _76[0];
-			const part2 = _76[1];
-			const a: Tagged.Tagged<string> = part;
-			const b: Tagged.Tagged<string> = part2;
+			const part = _76.data[_76.start];
+			const part2 = _76.data[_76.start + 1];
+			const a: Tagged.Tagged<rs.String> = part;
+			const b: Tagged.Tagged<rs.String> = part2;
 			rs.byteVecPush(out, (Tagged.cmp$cmp_Ord_String(a, b) & 0xff) | (((Tagged.eq$cmp_PartialEq_String(a, b) ? 1 : 0) << 2) & 0xff) | (((Tagged.partialCmp$cmp_PartialOrd_String(a, b) === Tagged.cmp$cmp_Ord_String(a, b) as rs.Ordering | undefined ? 1 : 0) << 3) & 0xff));
 			rs.byteVecPush(out, Tagged.cmp$cmp_Ord_String(a, b) === 0 === rs.u64Eq(hash$zeros_Tagged_String(a), hash$zeros_Tagged_String(b)) ? 1 : 0);
 		}
@@ -332,7 +332,7 @@ export function impls(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, Names.eq$cmp_PartialEq(_168, _176) ? 1 : 0);
 		const _183: Names.Names = Names.default$Default();
 		rs.byteVecPush(out, Names.cmp$cmp_Ord(_168, _183) === 0 ? 1 : 0);
-		rs.byteVecPush(out, rs.iterAll(rs.iterSlice(tags.items), (t2: Tagged.Tagged<string>): boolean => {
+		rs.byteVecPush(out, rs.iterAll(rs.iterSlice(tags.items), (t2: Tagged.Tagged<rs.String>): boolean => {
 			return Tagged.eq$cmp_PartialEq_String(Tagged.clone$Clone_String(t2), t2);
 		}) ? 1 : 0);
 		Rest.default$Default();
@@ -447,11 +447,11 @@ export function rewritten(_1: undefined, n: rs.u8): rs.u8 {
  * How many items `xs` hold if `value` is `()`, which it always is, beside a function
  * std's `flatten` makes, whose own parameter is `value` too.
  */
-export function flattened(_value: undefined, xs: rs.ByteVec[]): rs.u8 {
+export function flattened(_value: undefined, xs: rs.Slice<rs.ByteVec>): rs.u8 {
 	if (false) {
 		return 0;
 	}
-	return rs.iterCount(rs.iterFlatten(rs.iterSlice(xs), (value: rs.ByteVec) => rs.iterSlice(rs.byteVecView(value)), true)) & 0xff;
+	return rs.iterCount(rs.iterFlatten(rs.iterSlice(rs.sliceItems(xs)), (value: rs.ByteVec) => rs.iterSlice(rs.byteVecView(value)), true)) & 0xff;
 }
 
 /**
@@ -479,7 +479,7 @@ export function unread(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, phantomEq$String(undefined, n));
 		rs.byteVecPush(out, unitEq(undefined, n));
 		rs.byteVecPush(out, rewritten(undefined, n));
-		rs.byteVecPush(out, flattened(undefined, [rs.byteSliceToByteVec(data), rs.byteSliceToByteVec(data)]));
+		rs.byteVecPush(out, flattened(undefined, rs.sliceFrom([rs.byteSliceToByteVec(data), rs.byteSliceToByteVec(data)])));
 	} else {
 		const lock: Lock.Lock<rs.u32> = Lock.new$u32(option_map$12cu62z(rs.byteSliceFirst(data), (_2: rs.u8): rs.u32 => {
 			return _2 as rs.u32;
@@ -540,10 +540,11 @@ export function writes(kind: rs.u8, _dataData: Uint8Array, _dataStart: number, d
 		rs.cellReplace(_113, undefined);
 		rs.cellReplace(_113, undefined);
 		rs.cellSet(_113, undefined);
-		rs.sliceSwap([undefined, undefined, undefined], 0, n as rs.usize);
+		const units: rs.Slice<undefined> = rs.sliceFrom([undefined, undefined, undefined]);
+		rs.sliceSwap(units, 0, n as rs.usize);
 		const v: rs.Vec<Unit.Unit> = rs.vecFromElem({}, 2, undefined);
-		rs.sliceSwap(v.items, 0, 1);
-		rs.byteVecPush(out, ([undefined, undefined, undefined].length & 0xff) | (((v.items.length & 0xff) << 4) & 0xff));
+		rs.sliceSwap(rs.sliceFrom(v.items), 0, 1);
+		rs.byteVecPush(out, (units.length & 0xff) | (((v.items.length & 0xff) << 4) & 0xff));
 		const _141: rs.Cell<undefined> = new rs.Cell(undefined);
 		rs.cellReplace(_141, undefined);
 		rs.cellReplace(_141, undefined);

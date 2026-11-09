@@ -114,7 +114,7 @@ def round(loop):
 	# Payload reads: the last frame's 100 bytes, lent without a copy, then released.
 	start = time.perf_counter_ns()
 	for _ in range(GROUPS * FRAMES):
-		with last.payload as payload:
+		with last.payload_get as payload:
 			closed += payload[0]
 	lent = per_frame(start)
 

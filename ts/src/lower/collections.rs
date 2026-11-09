@@ -59,7 +59,7 @@ pub fn call<'tcx>(
 				// Into `DefaultHasher`, whose state the runtime's functions write, or the crate's
 				// own, which they write through its methods.
 				let hasher = library::targ(call.args, 1);
-				let own = own_hasher(b.t, hasher);
+				let own = called_hasher(b.t, hasher);
 				if !std_key(b, t) || !(own || b.t.std_of(hasher) == Some(Std::Hasher)) {
 					return Err(args);
 				}
@@ -71,16 +71,24 @@ pub fn call<'tcx>(
 				return Ok(Some(f.call(args)));
 			}
 			// `Ord`'s defaults, of a std type or the crate's, which compare by `PartialOrd`'s `<`,
-			// `<=`, and `>`.
+			// `<=`, and `>`, and of `&mut`s to values JS copies, their `rs.Place`s, by what they
+			// hold, as std's impls for a `&mut` forward them.
 			("Ord", "max" | "min" | "clamp", ..) if let Some(t) = self_ty => {
-				let t = peel_ord(b, t, false);
+				let held = mut_place(b, t);
+				let t = peel_ord(b, held.unwrap_or(t), false);
 				let own = matches!(t.kind(), ty::Adt(adt, _) if b.t.own(adt.did())) || pointee(b, t).is_some();
-				if !(std_key(b, t) || own) || Int::of(t).is_some() {
+				if !(std_key(b, t) || own) || held.is_none() && Int::of(t).is_some() {
 					return Err(args);
 				}
 				let tests: &[&str] = if name == "clamp" { &["le", "lt", "gt"] } else { &["lt"] };
 				let mut values = args;
-				values.extend(tests.iter().map(|test| test_fn(b, t, test, span)));
+				for test in tests {
+					let f = test_fn(b, t, test, span);
+					values.push(match held {
+						Some(_) => Expr::rs("cellBy", vec![f]),
+						None => f,
+					});
+				}
 				// What drops the operands it does not return.
 				let Some(droppers) = b.t.droppers(self_ty, span) else {
 					return Ok(Some(Expr::undefined()));
@@ -142,7 +150,10 @@ pub fn call<'tcx>(
 				{
 					return Err(args);
 				}
+				// A `String` against text of any form, as `eqStr` reads each.
+				let text = library::owned_string(tcx, t) || library::owned_string(tcx, peel(b, rhs));
 				let eq = match name {
+					_ if text => Expr::Rs("eqStr".into()),
 					"eq" => eq_fn(b, t, span),
 					_ => not_ne_fn(b, t, span),
 				};
@@ -155,9 +166,26 @@ pub fn call<'tcx>(
 			}
 			("Borrow", "borrow", ..) | ("BorrowMut", "borrow_mut", ..) if let Some(t) = self_ty => {
 				let by = library::targ(call.args, 1);
-				let value = match (same_key(b, t, by), arc_of(b, peel(b, t))) {
-					(true, _) => args.pop(),
-					(false, Some(inner)) if same_key(b, inner, by) => args.pop().map(|v| v.member("value")),
+				// A `&mut` to a value JS copies is its `rs.Place`, which `borrow` reads.
+				let held = mut_place(b, t).is_some_and(|inner| same_key(b, inner, by));
+				let text = library::owned_string(tcx, peel(b, t)) && !library::owned_string(tcx, peel(b, by));
+				let value = match arc_of(b, peel(b, t)) {
+					// A `String`'s `str` is its text, and its `&mut str` the `String`, the place of it.
+					_ if text && name == "borrow" && same_key(b, t, by) => args.pop().map(|v| v.member("v")),
+					_ if held || same_key(b, t, by) => args.pop().map(|value| match name {
+						"borrow" if held => b.t.pointee_value(t, value),
+						// Given the place of its receiver, which a `&mut` holds, but where it lends
+						// itself, as std's impl for any `T` does.
+						"borrow_mut"
+							if t.is_ref()
+								&& tcx.erase_and_anonymize_regions(t) != tcx.erase_and_anonymize_regions(by) =>
+						{
+							let receiver = Ty::new_mut_ref(tcx, tcx.lifetimes.re_erased, t);
+							b.t.pointee_value(receiver, value)
+						}
+						_ => value,
+					}),
+					Some(inner) if same_key(b, inner, by) => args.pop().map(|v| v.member("value")),
 					_ => return Err(args),
 				};
 				return Ok(value);
@@ -205,6 +233,17 @@ pub fn call<'tcx>(
 			*at = Expr::rs("byteSliceView", vec![std::mem::replace(at, Expr::undefined())]);
 		}
 	}
+	// An array or a `Vec` key is a JS array, so the elements of an `rs.Slice` stand in.
+	if let Some(by) = by
+		&& !matches!(name, "range" | "range_mut")
+		&& let ty::Slice(elem) = by.kind()
+		&& !super::byte(*elem)
+		&& let key = peel(b, arg(coll, 0))
+		&& (key.is_array() || b.t.std_of(key) == Some(Std::Vec))
+		&& let Some(at) = args.get_mut(1)
+	{
+		*at = super::library::items_of(std::mem::replace(at, Expr::undefined()), *elem);
+	}
 	// Elements of any form, an array, a slice, or a `Vec`, hash and compare alike, so each
 	// finds the others. A reference key finds what it points at by that value's own impls,
 	// whatever `alike` makes of its `PartialEq` against a reference.
@@ -217,11 +256,14 @@ pub fn call<'tcx>(
 		// or a range's bounds, stands in as it is, as JS reads it as an owned `Cow`. An `Arc`'s
 		// are its value's, so the value it is looked up by stands in as an `Arc` of it, which
 		// the collection only compares.
+		// A B-tree searches by what the crate's own `Borrow` lends of each key, which
+		// `btree` gives it.
+		let lent = matches!(std, Std::BTreeMap | Std::BTreeSet) && own_borrow(b, key, by);
 		let key = peel(b, key);
 		let cow = cow_of(b, key).is_some_and(|borrowed| same_key(b, borrowed, by));
 		let arc = arc_of(b, key).is_some_and(|inner| same_key(b, inner, by));
 		match args.get_mut(1) {
-			_ if cow => {}
+			_ if cow || lent => {}
 			Some(key) if arc && !matches!(name, "range" | "range_mut") => {
 				let value = std::mem::replace(key, Expr::undefined());
 				*key = Expr::New(Box::new(Expr::Rs("Arc".into())), vec![value]);
@@ -234,11 +276,12 @@ pub fn call<'tcx>(
 			}
 		}
 	}
-	// A slice or an array finds an `rs.Vec` key, which the runtime reads alike, as its type.
+	// A slice or an array finds an `rs.Vec` key, and a `str` an `rs.String` or an
+	// `rs.StrCow` key, which the runtime reads alike, as its type.
 	if let Some(by) = by
 		&& !matches!(name, "range" | "range_mut")
 		&& let Some(at) = args.get_mut(1)
-		&& other_shape(b, arg(coll, 0), by)
+		&& (other_shape(b, arg(coll, 0), by) || text_key(b, arg(coll, 0), by))
 	{
 		let key = b.t.ty(arg(coll, 0), span);
 		*at = as_type(std::mem::replace(at, Expr::undefined()), key);
@@ -381,13 +424,33 @@ fn lookup_ty<'tcx>(b: &Body<'_, '_, 'tcx>, std: Std, call: &Call<'tcx>, owner: &
 	}
 }
 
+/// Whether `<key as Borrow<by>>::borrow` is the crate's own, so a search by a `by` orders
+/// what it lends of each key, as std's does.
+fn own_borrow<'tcx>(b: &Body<'_, '_, 'tcx>, key: Ty<'tcx>, by: Ty<'tcx>) -> bool {
+	let tcx = b.t.tcx;
+	let f = trait_fn(tcx, "Borrow", "borrow");
+	Instance::try_resolve(tcx, b.t.typing_env_pub(), f, tcx.mk_args(&[key.into(), by.into()]))
+		.ok()
+		.flatten()
+		.is_some_and(|instance| b.t.own(instance.def_id()))
+}
+
 /// Whether a key of type `by` is a JS value that hashes, compares, and orders as one of
-/// type `key` does: the same type through references and boxes, or a string either way.
+/// type `key` does: the same type through references and boxes, or text either way, a JS
+/// string or an `rs.String`, which the runtime's string functions take both of.
 fn same_key<'tcx>(b: &Body<'_, '_, 'tcx>, key: Ty<'tcx>, by: Ty<'tcx>) -> bool {
 	let tcx = b.t.tcx;
 	let (key, by) = (peel(b, key), peel(b, by));
-	tcx.erase_and_anonymize_regions(key) == tcx.erase_and_anonymize_regions(by)
-		|| (library::string(tcx, key) && library::string(tcx, by))
+	let text = |ty| library::string(tcx, ty) || library::owned_string(tcx, ty);
+	tcx.erase_and_anonymize_regions(key) == tcx.erase_and_anonymize_regions(by) || (text(key) && text(by))
+}
+
+/// Whether a key of type `by` is a JS string that finds a `key` that is a `String` or a
+/// `Cow<str>`, an object.
+fn text_key<'tcx>(b: &Body<'_, '_, 'tcx>, key: Ty<'tcx>, by: Ty<'tcx>) -> bool {
+	let tcx = b.t.tcx;
+	let key = peel(b, key);
+	(library::owned_string(tcx, key) || library::cow_str(tcx, key)) && library::string(tcx, peel(b, by))
 }
 
 /// Whether a key of type `by` is a slice or an array that finds a `key` that is a `Vec`,
@@ -505,6 +568,15 @@ fn peel<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
 	match pointee(b, ty) {
 		Some(inner) => peel(b, inner),
 		None => ty,
+	}
+}
+
+/// What `ty`, a `&mut` that is an `rs.Place`, points at; not a raw pointer, which orders
+/// by its address.
+fn mut_place<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<Ty<'tcx>> {
+	match ty.kind() {
+		ty::Ref(_, _, ty::Mutability::Mut) => b.t.place_pointee(ty),
+		_ => None,
 	}
 }
 
@@ -1053,10 +1125,14 @@ fn hashing<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, key: Ty<'tcx>, span
 		b.t.err(span, format!("hashing by the hasher of `{coll}`"));
 		return None;
 	};
+	// Text goes by itself, as a JS map key the engine hashes.
+	if library::owned_string(b.t.tcx, peeled) || library::cow_str(b.t.tcx, peeled) {
+		return Some(Some(Expr::Rs("HASH_TEXT".into())));
+	}
 	let mut values = vec![hash_fn(b, key, hasher, span), eq_fn(b, key, span)];
 	// A fieldless enum is a JS string, and a bound value may be any primitive, which its
-	// own `Eq` may tell apart where JS can't, and an owned `Cow<str>` is a string its
-	// borrowed one equals, as is the `Some` of an `Option` of one, and a `Reverse`, a
+	// own `Eq` may tell apart where JS can't, and a `String` and an owned `Cow<str>` are
+	// objects a `str` equals, as is the `Some` of an `Option` of one, and a `Reverse`, a
 	// `Wrapping`, or a `Saturating` of one.
 	let mut held = peeled;
 	while let Some(inner) = option_of(b, held)
@@ -1066,6 +1142,7 @@ fn hashing<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, key: Ty<'tcx>, span
 		held = peel(b, inner);
 	}
 	if library::cow_str(b.t.tcx, held)
+		|| library::owned_string(b.t.tcx, held)
 		|| matches!(held.kind(), ty::Adt(adt, _) if fieldless(*adt) || b.t.bound_drops(adt.did()).is_some())
 	{
 		values.push(Expr::lit("true"));
@@ -1158,7 +1235,7 @@ pub fn test_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, test: &str, span:
 		}
 		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => {
 			let f = test_fn(b, inner, test, span);
-			cell_by(b, by, f, test)
+			cell_by(b, ty, by, f, test, span)
 		}
 		_ => {
 			let f = trait_fn(tcx, "PartialOrd", test);
@@ -1230,6 +1307,23 @@ pub(super) fn own_hasher<'tcx>(t: &Translator<'_, 'tcx>, h: Ty<'tcx>) -> bool {
 	t.translated(hasher_fn(t.tcx, "finish"), t.tcx.mk_args(&[h.into()]))
 }
 
+/// Whether the runtime writes into `h` by its methods, through an `rs.OwnHasher` of the
+/// `&mut` to it: the crate's own hasher, or one std's impls forward.
+pub(super) fn called_hasher<'tcx>(t: &Translator<'_, 'tcx>, h: Ty<'tcx>) -> bool {
+	own_hasher(t, h) || forwards_hasher(t, h)
+}
+
+/// Whether `h` is a `&mut` or a box of a trait object, the crate's own `Hasher`, std's
+/// `DefaultHasher`, or another such, to which std's impls forward each method.
+fn forwards_hasher<'tcx>(t: &Translator<'_, 'tcx>, h: Ty<'tcx>) -> bool {
+	let held = match *h.kind() {
+		ty::Ref(_, held, ty::Mutability::Mut) => held,
+		_ if let Some(held) = h.boxed_ty() => held,
+		_ => return false,
+	};
+	held.is_trait() || own_hasher(t, held) || t.std_of(held) == Some(Std::Hasher) || forwards_hasher(t, held)
+}
+
 /// Each key of `rs.HasherImpl`, and the `Hasher` method it holds.
 const HASHER_METHODS: [(&str, &str); 16] = [
 	("write", "write"),
@@ -1261,15 +1355,66 @@ fn own_state<'tcx>(b: &mut Body<'_, '_, 'tcx>, h: Ty<'tcx>, state: Expr, span: S
 /// The methods of `h`, a `Hasher` of the crate's own, as an `rs.HasherImpl`: `write`,
 /// `finish`, and those of std's provided ones its impl writes, a module-level value beside
 /// its `finish`, made once. Each takes the `&mut` to `h`, which `finish`, given `&self`,
-/// reads where JS copies `h`.
+/// reads where JS copies `h`. One that forwards to another hasher has each method, as
+/// what it forwards to, a trait object's, may have any.
 fn hasher_impl<'tcx>(b: &mut Body<'_, '_, 'tcx>, h: Ty<'tcx>, span: Span) -> Expr {
 	if let Some(&sym) = b.t.hashers.get(&h) {
 		return Expr::Sym(sym);
 	}
 	let tcx = b.t.tcx;
 	let args = tcx.mk_args(&[h.into()]);
-	let state = b.t.ty(Ty::new_mut_ref(tcx, tcx.lifetimes.re_erased, h), span);
+	let state_ty = Ty::new_mut_ref(tcx, tcx.lifetimes.re_erased, h);
+	let state = b.t.ty(state_ty, span);
 	let mut methods = Vec::new();
+	if forwards_hasher(b.t, h) {
+		for (key, item) in HASHER_METHODS {
+			let f = hasher_fn(tcx, item);
+			let sig = b.t.sig(f, args);
+			let name = b.fresh("h");
+			let receiver = match item {
+				"finish" => b.t.pointee_value(state_ty, Expr::ident(&name)),
+				_ => Expr::ident(&name),
+			};
+			let mut params = vec![Param {
+				name,
+				ty: Some(state.clone()),
+			}];
+			let mut values = vec![receiver];
+			for &input in &sig.inputs()[1..] {
+				let name = b.fresh("value");
+				values.push(Expr::ident(&name));
+				params.push(Param {
+					name,
+					ty: Some(b.t.ty(input, span)),
+				});
+			}
+			let mut body = Vec::new();
+			let call = b.call_def(f, args, values, span, &mut body);
+			body.push(StmtKind::Return(Some(call)).at(None));
+			let ret = b.t.ret_ty(sig.output(), span);
+			methods.push((crate::ts::Key::Name(key.into()), Expr::Arrow(params, ret, body)));
+		}
+		let sym = b.t.program.sym(crate::program::Symbol {
+			module: Vec::new(),
+			base: "hasher".into(),
+			suffix: super::names::ty(tcx, h),
+			owner: None,
+			kind: crate::program::SymKind::Value,
+			order: 0,
+			span,
+			instance: String::new(),
+			name: String::new(),
+			alias: None,
+		});
+		b.t.program.items.push(crate::ts::Item::Value {
+			sym,
+			ty: Type::Rs("HasherImpl", vec![state]),
+			value: Expr::Object(methods),
+			doc: Some(format!("The methods of `{h}`, which forward to what it points at.")),
+		});
+		b.t.hashers.insert(h, sym);
+		return Expr::Sym(sym);
+	}
 	for (key, item) in HASHER_METHODS {
 		let f = hasher_fn(tcx, item);
 		if matches!(item, "write" | "finish") || b.t.translated(f, args) {
@@ -1381,6 +1526,22 @@ fn btree<'tcx>(
 			values.push(eq_fn(b, target, span));
 			values.push(test_fn(b, target, "gt", span));
 		}
+	}
+	// A key, or a range of keys, of a type each key lends by the crate's own `Borrow`, which
+	// is searched by that type's `Ord` against what each key lends.
+	if let Some(by) = b.t.std_of(coll).and_then(|std| lookup_ty(b, std, call, owner, name))
+		&& own_borrow(b, key, by)
+		&& let Some(at) = values.get_mut(1)
+	{
+		let tcx = b.t.tcx;
+		let at = std::mem::replace(at, Expr::undefined());
+		let cmp = cmp_fn(b, by, false, span);
+		let borrow = b.fn_value(
+			trait_fn(tcx, "Borrow", "borrow"),
+			tcx.mk_args(&[key.into(), by.into()]),
+			span,
+		);
+		values[1] = Expr::rs("by", vec![at, cmp, borrow]);
 	}
 	// It holds the range, reads its end at each key it reads, and checks each key against
 	// the end by `<=` or `<`, which a key of the crate's own does by its `PartialOrd`.
@@ -1689,6 +1850,10 @@ fn deque<'tcx>(
 		(_, "rotate_left") => Expr::rs("dequeRotate", values),
 		(_, "rotate_right") => Expr::rs("dequeRotate", flagged(values, true, false)),
 		(_, "make_contiguous") if super::byte(item) => Expr::rs("dequeByteMakeContiguous", values),
+		(_, "make_contiguous") if item.is_array() => {
+			values.push(super::array_fn(item, "From"));
+			Expr::rs("dequeArrayMakeContiguous", values)
+		}
 		(_, "make_contiguous") => Expr::rs("dequeMakeContiguous", values),
 		(_, "binary_search") => {
 			values.push(cmp_fn(b, item, false, span));
@@ -1723,10 +1888,13 @@ fn deque<'tcx>(
 			ranged.after(Expr::rs(f, values))
 		}
 		// Each a copy of its part of the buffer, or with `_mut`, a view that writes into it;
-		// bytes are views either way.
+		// bytes and arrays are views either way.
 		(_, "as_slices" | "as_mut_slices") if super::byte(item) => Expr::rs("dequeByteSlices", values),
-		(_, "as_slices") => Expr::rs("dequeAsSlices", values),
-		(_, "as_mut_slices") => Expr::rs("dequeAsSlices", flagged(values, true, false)),
+		(_, "as_slices" | "as_mut_slices") if item.is_array() => {
+			values.push(super::array_fn(item, "From"));
+			Expr::rs("dequeArraySlices", values)
+		}
+		(_, "as_slices" | "as_mut_slices") => Expr::rs("dequeAsSlices", values),
 		(_, "drain") => {
 			let ranged = bounds(b, call, values.pop()?);
 			values.push(ranged.bounds.clone());
@@ -1926,6 +2094,7 @@ fn heap<'tcx>(
 					.call(vec![values.pop()?.member("items")]),
 			],
 		),
+		(_, "as_slice") if item.is_array() => super::slice_items_from(values.pop()?.member("items"), item),
 		(_, "as_slice") => values.pop()?.member("items"),
 		(_, "clear") => Expr::rs("heapClear", values),
 		(_, "drain") => {
@@ -2358,7 +2527,7 @@ fn default<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Opti
 			.then(|| b.fn_value(default, args, span).call(Vec::new()));
 	};
 	Some(match std {
-		Std::String => Expr::Str(String::new()),
+		Std::String => Expr::rs("stringNew", Vec::new()),
 		Std::Vec if super::byte(arg(coll, 0)) => Expr::New(Box::new(Expr::Rs("ByteVec".into())), Vec::new()),
 		Std::Vec => library::vec_new(false),
 		Std::VecDeque => deque_new(b, coll, span),
@@ -2649,9 +2818,10 @@ fn std_key<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> bool {
 		ty::Adt(..) if b.t.std_of(ty).is_some_and(Std::record) => true,
 		ty::Adt(..) => {
 			library::string(b.t.tcx, ty)
+				|| library::owned_string(b.t.tcx, ty)
 				|| matches!(
 					b.t.std_of(ty),
-					Some(Std::Ordering | Std::Duration | Std::Location | Std::TryReserveError)
+					Some(Std::Ordering | Std::Duration | Std::TypeId | Std::Location | Std::TryReserveError)
 				)
 		}
 		_ => false,
@@ -2877,10 +3047,17 @@ fn cell_of<'tcx>(b: &Body<'_, '_, 'tcx>, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, &'st
 
 /// The runtime's `by` of `f`, as [`cell_of`] says a cell compares, for its `method`: given
 /// where a `RefCell`'s borrows, in a program with a panic hook.
-fn cell_by(b: &Body<'_, '_, '_>, by: &str, f: Expr, method: &str) -> Expr {
+/// A `Cell`'s values are compared as copies, as its `get` gives them, since a comparison
+/// may write the cell, and a write lands in an object it holds.
+fn cell_by<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, by: &str, f: Expr, method: &str, span: Span) -> Expr {
 	let mut values = vec![f];
 	if by == "refCellBy" && b.t.hooked {
 		values.extend(super::caller::cell_sites(b.t.tcx, method));
+	}
+	if let ty::Adt(_, args) = ty.kind()
+		&& b.t.std_of(ty) == Some(Std::Cell)
+	{
+		values.extend(b.t.copy_fn(args.type_at(0), span));
 	}
 	Expr::rs(by, values)
 }
@@ -2896,9 +3073,10 @@ pub fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, spa
 		// `None` for a NaN: only `PartialOrd`, since a float is no `Ord`.
 		_ if partial && let Some(float) = super::float::Float::of(ty) => Expr::rs_of(float.name(), "partialCmp"),
 		ty::Str => Expr::Rs("cmpStr".into()),
-		ty::Adt(..) if library::string(tcx, ty) => Expr::Rs("cmpStr".into()),
+		ty::Adt(..) if library::string(tcx, ty) || library::owned_string(tcx, ty) => Expr::Rs("cmpStr".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Ordering) => Expr::Rs("cmp".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rs("durationCmp".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::TypeId) => Expr::Rs("typeIdCmp".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rs("locationCmp".into()),
 		_ if library::nothing(tcx, ty) => Expr::Rs("cmpNothing".into()),
 		ty::Tuple(tys) => {
@@ -2920,7 +3098,7 @@ pub fn cmp_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, partial: bool, spa
 		ty::Adt(..) if let Some(inner) = arc_of(b, ty) => Expr::rs("cmpArc", vec![cmp_fn(b, inner, partial, span)]),
 		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => {
 			let cmp = cmp_fn(b, inner, partial, span);
-			cell_by(b, by, cmp, if partial { "partial_cmp" } else { "cmp" })
+			cell_by(b, ty, by, cmp, if partial { "partial_cmp" } else { "cmp" }, span)
 		}
 		// An `rs.Place` compares by its value, as std's impl on `&mut` does by what it points at.
 		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => {
@@ -2974,9 +3152,13 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		}
 		ty::Bool | ty::Char | ty::Int(_) | ty::Uint(_) | ty::Float(_) | ty::Str => Expr::Rs("same".into()),
 		_ if library::nothing(tcx, ty) => Expr::Rs("same".into()),
-		ty::Adt(..) if library::string(tcx, ty) || matches!(b.t.std_of(ty), Some(Std::Ordering | Std::ErrorKind)) => {
+		ty::Adt(..)
+			if library::string(tcx, ty)
+				|| matches!(b.t.std_of(ty), Some(Std::Ordering | Std::ErrorKind | Std::TypeId)) =>
+		{
 			Expr::Rs("same".into())
 		}
+		ty::Adt(..) if library::owned_string(tcx, ty) => Expr::Rs("eqStr".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rs("durationEq".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rs("locationEq".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::TryReserveError) => Expr::Rs("tryReserveErrorEq".into()),
@@ -2986,8 +3168,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		}
 		_ if let Some(pointee) = raw_pointee(tcx, ty) => match b.t.incomparable(pointee) {
 			Some(why) => b.err(span, why),
-			None if b.t.pointee(pointee) == super::pointer::Pointee::Bytes => Expr::Rs("byteSliceSame".into()),
-			None => Expr::Rs("same".into()),
+			None => b.t.same_fn(pointee).unwrap_or_else(|| Expr::Rs("same".into())),
 		},
 		ty::Adt(..) if let Some(inner) = option_of(b, ty) => match eq_fn(b, inner, span) {
 			// `None` is no value of `inner`, so `===` tells it from each.
@@ -2995,6 +3176,8 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 			eq => Expr::rs("eqOption", [eq].into_iter().chain(b.t.none_arg(inner)).collect()),
 		},
 		ty::Adt(..) if let Some(inner) = reverse_of(b, ty).or_else(|| overflowing_of(b, ty)) => eq_fn(b, inner, span),
+		// An owned `Cow<str>` derefs to its `rs.String`, which `eqStr` reads.
+		ty::Adt(..) if library::cow_str(tcx, ty) => Expr::Rs("eqStr".into()),
 		ty::Adt(..) if let Some(borrowed) = cow_of(b, ty) => Expr::rs("cowBy", vec![eq_fn(b, borrowed, span)]),
 		ty::Adt(..) if let Some(bound) = range_of(b, ty) => Expr::rs("rangeEq", vec![eq_fn(b, bound, span)]),
 		// A slice compares its elements by `!=`, as a deque does each of its halves.
@@ -3013,7 +3196,7 @@ pub fn eq_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> Expr
 		// Whose `ne` is `!eq`, which compares what it holds by `eq`.
 		ty::Adt(..) if let Some((inner, by)) = cell_of(b, ty) => {
 			let eq = eq_fn(b, inner, span);
-			cell_by(b, by, eq, "eq")
+			cell_by(b, ty, by, eq, "eq", span)
 		}
 		ty::Ref(..) if let Some(inner) = b.t.place_pointee(ty) => Expr::rs("cellBy", vec![eq_fn(b, inner, span)]),
 		_ if by_own(b, ty) || derived_std(b, ty) || b.t.std_of(ty).is_some_and(Std::record) => {
@@ -3208,10 +3391,11 @@ fn hash_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, hasher: Ty<'tcx>, spa
 				.into(),
 		),
 		ty::Str => Expr::Rs("hashStr".into()),
-		ty::Adt(..) if library::string(tcx, ty) => Expr::Rs("hashStr".into()),
+		ty::Adt(..) if library::string(tcx, ty) || library::owned_string(tcx, ty) => Expr::Rs("hashStr".into()),
 		// Its derived `Hash` writes its `i8` discriminant.
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Ordering) => Expr::Rs("hashI8".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Duration) => Expr::Rs("durationHash".into()),
+		ty::Adt(..) if b.t.std_of(ty) == Some(Std::TypeId) => Expr::Rs("typeIdHash".into()),
 		ty::Adt(..) if b.t.std_of(ty) == Some(Std::Location) => Expr::Rs("locationHash".into()),
 		_ if library::nothing(tcx, ty) => Expr::Rs("hashNothing".into()),
 		ty::Tuple(tys) => {
@@ -3258,9 +3442,9 @@ fn hash_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, hasher: Ty<'tcx>, spa
 			let hash = trait_fn(tcx, "Hash", "hash");
 			let args = tcx.mk_args(&[ty.into(), hasher.into()]);
 			let f = b.fn_value(hash, args, span);
-			// A translated one takes the `&mut` to the crate's own hasher, which the runtime's
-			// functions wrap; a binding's export takes the `rs.Hasher`.
-			match own_hasher(b.t, hasher) && !b.t.binds(hash, args) {
+			// A translated one takes the `&mut` to a hasher the runtime calls the methods of,
+			// which its functions wrap; a binding's export takes the `rs.Hasher`.
+			match called_hasher(b.t, hasher) && !b.t.binds(hash, args) {
 				true => Expr::rs("hashOwn", vec![f]),
 				false => f,
 			}
@@ -3301,6 +3485,19 @@ pub fn clone_fn<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, span: Span) -> E
 	if let ty::Closure(def_id, _) | ty::CoroutineClosure(def_id, _) = ty.kind() {
 		b.t.clone_closure(*def_id);
 		return Expr::Rs("closureClone".into());
+	}
+	// The runtime holds an array as its items, where its `clone` takes a slice of them.
+	if let ty::Array(elem, _) = ty.kind() {
+		let items = Expr::ident("a");
+		let made = match clone_fn(b, *elem, span) {
+			Expr::Lit(l) if l == "undefined" => items.member("slice").call(Vec::new()),
+			clone => items.member("map").call(vec![clone]),
+		};
+		let param = crate::ts::Param {
+			name: "a".into(),
+			ty: Some(b.t.ty(ty, span)),
+		};
+		return Expr::Lambda(vec![param], Box::new(made));
 	}
 	let clone = trait_fn(tcx, "Clone", "clone");
 	b.fn_value(clone, tcx.mk_args(&[ty.into()]), span)

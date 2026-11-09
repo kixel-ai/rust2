@@ -5,7 +5,7 @@ import { out$u8 } from "../../lib.ts";
 import * as Pieces from "../../buf.Pieces.ts";
 import * as Provided from "../../buf.Provided.ts";
 import { panicAdvance, panicDoesNotFit } from "../../bytes.ts";
-import { signExtend, advance$bytes_Buf_mut_bytes_Bytes as buf_impl_advance$bytes_Buf_mut_bytes_Bytes, advance$bytes_Buf_mut_bytes_BytesMut as buf_impl_advance$bytes_Buf_mut_bytes_BytesMut, advance$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_advance$bytes_Buf_mut_mut_ref_slice_u8, advance$bytes_Buf_mut_ref_slice_u8 as buf_impl_advance$bytes_Buf_mut_ref_slice_u8, chunk$bytes_Buf_mut_bytes_Bytes as buf_impl_chunk$bytes_Buf_mut_bytes_Bytes, chunk$bytes_Buf_mut_bytes_BytesMut as buf_impl_chunk$bytes_Buf_mut_bytes_BytesMut, chunk$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_chunk$bytes_Buf_mut_mut_ref_slice_u8, chunk$bytes_Buf_mut_ref_slice_u8 as buf_impl_chunk$bytes_Buf_mut_ref_slice_u8, copyToBytes$bytes_Buf_mut_bytes_Bytes as buf_impl_copyToBytes$bytes_Buf_mut_bytes_Bytes, copyToBytes$bytes_Buf_mut_bytes_BytesMut as buf_impl_copyToBytes$bytes_Buf_mut_bytes_BytesMut, copyToBytes$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_copyToBytes$bytes_Buf_mut_mut_ref_slice_u8, copyToBytes$bytes_Buf_mut_ref_slice_u8 as buf_impl_copyToBytes$bytes_Buf_mut_ref_slice_u8, remaining$bytes_Buf_mut_bytes_Bytes as buf_impl_remaining$bytes_Buf_mut_bytes_Bytes, remaining$bytes_Buf_mut_bytes_BytesMut as buf_impl_remaining$bytes_Buf_mut_bytes_BytesMut, remaining$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_remaining$bytes_Buf_mut_mut_ref_slice_u8, remaining$bytes_Buf_mut_ref_slice_u8 as buf_impl_remaining$bytes_Buf_mut_ref_slice_u8 } from "../../bytes/buf/buf_impl.ts";
+import { signExtend, chunksVectored$bytes_Buf_bytes_Bytes as buf_impl_chunksVectored$bytes_Buf_bytes_Bytes, chunksVectored$bytes_Buf_ref_slice_u8 as buf_impl_chunksVectored$bytes_Buf_ref_slice_u8, advance$bytes_Buf_mut_bytes_Bytes as buf_impl_advance$bytes_Buf_mut_bytes_Bytes, advance$bytes_Buf_mut_bytes_BytesMut as buf_impl_advance$bytes_Buf_mut_bytes_BytesMut, advance$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_advance$bytes_Buf_mut_mut_ref_slice_u8, advance$bytes_Buf_mut_ref_slice_u8 as buf_impl_advance$bytes_Buf_mut_ref_slice_u8, chunk$bytes_Buf_mut_bytes_Bytes as buf_impl_chunk$bytes_Buf_mut_bytes_Bytes, chunk$bytes_Buf_mut_bytes_BytesMut as buf_impl_chunk$bytes_Buf_mut_bytes_BytesMut, chunk$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_chunk$bytes_Buf_mut_mut_ref_slice_u8, chunk$bytes_Buf_mut_ref_slice_u8 as buf_impl_chunk$bytes_Buf_mut_ref_slice_u8, copyToBytes$bytes_Buf_mut_bytes_Bytes as buf_impl_copyToBytes$bytes_Buf_mut_bytes_Bytes, copyToBytes$bytes_Buf_mut_bytes_BytesMut as buf_impl_copyToBytes$bytes_Buf_mut_bytes_BytesMut, copyToBytes$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_copyToBytes$bytes_Buf_mut_mut_ref_slice_u8, copyToBytes$bytes_Buf_mut_ref_slice_u8 as buf_impl_copyToBytes$bytes_Buf_mut_ref_slice_u8, remaining$bytes_Buf_mut_bytes_Bytes as buf_impl_remaining$bytes_Buf_mut_bytes_Bytes, remaining$bytes_Buf_mut_bytes_BytesMut as buf_impl_remaining$bytes_Buf_mut_bytes_BytesMut, remaining$bytes_Buf_mut_mut_ref_slice_u8 as buf_impl_remaining$bytes_Buf_mut_mut_ref_slice_u8, remaining$bytes_Buf_mut_ref_slice_u8 as buf_impl_remaining$bytes_Buf_mut_ref_slice_u8 } from "../../bytes/buf/buf_impl.ts";
 import * as Chain from "../../bytes/buf/chain.Chain.ts";
 import type * as TryGetError from "../../bytes.TryGetError.ts";
 import { min$00xoube } from "../../core/cmp.ts";
@@ -2554,6 +2554,180 @@ export function copyToBytes$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>, len
 		self.limit = rs.usizeSub(self.limit, len);
 		return r;
 	}
+}
+
+/**
+ * Fills `dst` with potentially multiple slices starting at `self`'s
+ * current position.
+ *
+ * If the `Buf` is backed by disjoint slices of bytes, `chunk_vectored` enables
+ * fetching more than one slice at once. `dst` is a slice of `IoSlice`
+ * references, enabling the slice to be directly used with [`writev`]
+ * without any further conversion. The sum of the lengths of all the
+ * buffers written to `dst` will be less than or equal to `Buf::remaining()`.
+ *
+ * The entries in `dst` will be overwritten, but the data **contained** by
+ * the slices **will not** be modified. The return value is the number of
+ * slices written to `dst`. If `Buf::remaining()` is non-zero, then this
+ * writes at least one non-empty slice to `dst`.
+ *
+ * This is a lower level function. Most operations are done with other
+ * functions.
+ *
+ * # Implementer notes
+ *
+ * This function should never panic. Once the end of the buffer is reached,
+ * i.e., `Buf::remaining` returns 0, calls to `chunk_vectored` must return 0
+ * without mutating `dst`.
+ *
+ * Implementations should also take care to properly handle being called
+ * with `dst` being a zero length slice.
+ *
+ * [`writev`]: http://man7.org/linux/man-pages/man2/readv.2.html
+ */
+export function chunksVectored$bytes_Buf_buf_Pieces(self: Take<Pieces.Pieces>, dst: rs.Slice<rs.ByteSlice>): rs.usize {
+	if (!(self.limit === 0)) {
+		const _6: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of());
+		const slices: rs.ByteSlice[] = Array.from({ length: 16 }, (): rs.ByteSlice => {
+			return _6;
+		});
+		const _11: rs.Slice<rs.ByteSlice> = rs.sliceRange(rs.sliceFrom(slices), 0, rs.min(dst.length, 16));
+		const cnt: rs.usize = Pieces.chunksVectored$bytes_Buf(self.inner, _11);
+		let limit: rs.usize = self.limit;
+		const iter: rs.Iter<[rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]]> = rs.iterEnumerate(rs.iterZip(rs.iterSliceMut(rs.sliceRange(dst, 0, cnt)), rs.iterSlice(slices), [false, false]));
+		while (true) {
+			const _28: [rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]] | rs.Done = iter.next();
+			if (_28 === rs.DONE) {
+				break;
+			}
+			const i: rs.usize = _28[0];
+			const _34: rs.ByteSlice | undefined = rs.byteSliceGetRange(_28[1][1], 0, limit);
+			if (_34 !== undefined) {
+				_28[1][0].v = _34;
+				return rs.usizeAdd(i, 1);
+			}
+			_28[1][0].v = _28[1][1];
+			limit = rs.usizeSub(limit, _28[1][1].length);
+		}
+		return cnt;
+	}
+	return 0;
+}
+
+/**
+ * Fills `dst` with potentially multiple slices starting at `self`'s
+ * current position.
+ *
+ * If the `Buf` is backed by disjoint slices of bytes, `chunk_vectored` enables
+ * fetching more than one slice at once. `dst` is a slice of `IoSlice`
+ * references, enabling the slice to be directly used with [`writev`]
+ * without any further conversion. The sum of the lengths of all the
+ * buffers written to `dst` will be less than or equal to `Buf::remaining()`.
+ *
+ * The entries in `dst` will be overwritten, but the data **contained** by
+ * the slices **will not** be modified. The return value is the number of
+ * slices written to `dst`. If `Buf::remaining()` is non-zero, then this
+ * writes at least one non-empty slice to `dst`.
+ *
+ * This is a lower level function. Most operations are done with other
+ * functions.
+ *
+ * # Implementer notes
+ *
+ * This function should never panic. Once the end of the buffer is reached,
+ * i.e., `Buf::remaining` returns 0, calls to `chunk_vectored` must return 0
+ * without mutating `dst`.
+ *
+ * Implementations should also take care to properly handle being called
+ * with `dst` being a zero length slice.
+ *
+ * [`writev`]: http://man7.org/linux/man-pages/man2/readv.2.html
+ */
+export function chunksVectored$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>, dst: rs.Slice<rs.ByteSlice>): rs.usize {
+	if (!(self.limit === 0)) {
+		const _6: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of());
+		const slices: rs.ByteSlice[] = Array.from({ length: 16 }, (): rs.ByteSlice => {
+			return _6;
+		});
+		const _11: rs.Slice<rs.ByteSlice> = rs.sliceRange(rs.sliceFrom(slices), 0, rs.min(dst.length, 16));
+		const cnt: rs.usize = buf_impl_chunksVectored$bytes_Buf_bytes_Bytes(self.inner, _11);
+		let limit: rs.usize = self.limit;
+		const iter: rs.Iter<[rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]]> = rs.iterEnumerate(rs.iterZip(rs.iterSliceMut(rs.sliceRange(dst, 0, cnt)), rs.iterSlice(slices), [false, false]));
+		while (true) {
+			const _28: [rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]] | rs.Done = iter.next();
+			if (_28 === rs.DONE) {
+				break;
+			}
+			const i: rs.usize = _28[0];
+			const _34: rs.ByteSlice | undefined = rs.byteSliceGetRange(_28[1][1], 0, limit);
+			if (_34 !== undefined) {
+				_28[1][0].v = _34;
+				return rs.usizeAdd(i, 1);
+			}
+			_28[1][0].v = _28[1][1];
+			limit = rs.usizeSub(limit, _28[1][1].length);
+		}
+		return cnt;
+	}
+	return 0;
+}
+
+/**
+ * Fills `dst` with potentially multiple slices starting at `self`'s
+ * current position.
+ *
+ * If the `Buf` is backed by disjoint slices of bytes, `chunk_vectored` enables
+ * fetching more than one slice at once. `dst` is a slice of `IoSlice`
+ * references, enabling the slice to be directly used with [`writev`]
+ * without any further conversion. The sum of the lengths of all the
+ * buffers written to `dst` will be less than or equal to `Buf::remaining()`.
+ *
+ * The entries in `dst` will be overwritten, but the data **contained** by
+ * the slices **will not** be modified. The return value is the number of
+ * slices written to `dst`. If `Buf::remaining()` is non-zero, then this
+ * writes at least one non-empty slice to `dst`.
+ *
+ * This is a lower level function. Most operations are done with other
+ * functions.
+ *
+ * # Implementer notes
+ *
+ * This function should never panic. Once the end of the buffer is reached,
+ * i.e., `Buf::remaining` returns 0, calls to `chunk_vectored` must return 0
+ * without mutating `dst`.
+ *
+ * Implementations should also take care to properly handle being called
+ * with `dst` being a zero length slice.
+ *
+ * [`writev`]: http://man7.org/linux/man-pages/man2/readv.2.html
+ */
+export function chunksVectored$bytes_Buf_ref_slice_u8(self: Take<rs.ByteSlice>, dst: rs.Slice<rs.ByteSlice>): rs.usize {
+	if (!(self.limit === 0)) {
+		const _6: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of());
+		const slices: rs.ByteSlice[] = Array.from({ length: 16 }, (): rs.ByteSlice => {
+			return _6;
+		});
+		const _11: rs.Slice<rs.ByteSlice> = rs.sliceRange(rs.sliceFrom(slices), 0, rs.min(dst.length, 16));
+		const cnt: rs.usize = buf_impl_chunksVectored$bytes_Buf_ref_slice_u8(self.inner, _11);
+		let limit: rs.usize = self.limit;
+		const iter: rs.Iter<[rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]]> = rs.iterEnumerate(rs.iterZip(rs.iterSliceMut(rs.sliceRange(dst, 0, cnt)), rs.iterSlice(slices), [false, false]));
+		while (true) {
+			const _28: [rs.usize, [rs.Place<rs.ByteSlice>, rs.ByteSlice]] | rs.Done = iter.next();
+			if (_28 === rs.DONE) {
+				break;
+			}
+			const i: rs.usize = _28[0];
+			const _34: rs.ByteSlice | undefined = rs.byteSliceGetRange(_28[1][1], 0, limit);
+			if (_34 !== undefined) {
+				_28[1][0].v = _34;
+				return rs.usizeAdd(i, 1);
+			}
+			_28[1][0].v = _28[1][1];
+			limit = rs.usizeSub(limit, _28[1][1].length);
+		}
+		return cnt;
+	}
+	return 0;
 }
 
 //# sourceMappingURL=take.Take.ts.map

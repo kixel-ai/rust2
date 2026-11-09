@@ -7,7 +7,14 @@
 // surrogate pair.
 
 import {
+	Borrowed,
 	ByteSlice,
+	capReserve,
+	capReserveExact,
+	capShrink,
+	capTryReserve,
+	capTryReserveExact,
+	type Slice,
 	byteSliceView,
 	Err,
 	type Fmt,
@@ -19,6 +26,7 @@ import {
 	fmtDebugStructFields,
 	fmtDebugTupleFields,
 	fmtList,
+	fmtOwned,
 	fmtPad,
 	fmtStr,
 	OK,
@@ -26,10 +34,9 @@ import {
 	type Place,
 	panic,
 	panicFmt,
+	panicSizes,
 	type Result,
 	type StrCow,
-	strCowStr,
-	stringLen,
 	utf8Check,
 } from "../rs.ts";
 import { CAPACITY_OVERFLOW, type TryReserveError } from "./alloc.ts";
@@ -179,16 +186,17 @@ export function strSplitAtMutChecked(p: Place<string>, mid: number): [Place<stri
  */
 function sliceFailed(s: string, start: number, end: number, at?: Location): never {
 	const len = stringLen(s);
-	if (start > len) panic(`start byte index ${start} is out of bounds for string of length ${len}`, at, true);
-	if (end > len) panic(`end byte index ${end} is out of bounds for string of length ${len}`, at, true);
-	if (start > end) panic(`byte range starts at ${start} but ends at ${end}`, at, true);
+	const outOfBounds = (): never => panicSizes(["end byte index ", end, " is out of bounds for string of length ", len], at);
+	if (start > len) panicSizes(["start byte index ", start, " is out of bounds for string of length ", len], at);
+	if (end > len) outOfBounds();
+	if (start > end) panicSizes(["byte range starts at ", start, " but ends at ", end], at);
 	// Neither inside a char: an inclusive end at the length, which is past the last byte.
 	const [which, pos] =
 		unitAt(s, 0, 0, start) < 0
 			? ["start", start]
 			: unitAt(s, 0, 0, end) < 0
 				? ["end", end]
-				: panic(`end byte index ${end} is out of bounds for string of length ${len}`, at, true);
+				: outOfBounds();
 	// The char `at` is inside, and where its bytes start.
 	let floor = 0;
 	let c = 0;
@@ -197,11 +205,8 @@ function sliceFailed(s: string, start: number, end: number, at?: Location): neve
 		if (floor + charLen(c) > pos) break;
 		floor += charLen(c);
 	}
-	panicFmt([
-		`${which} byte index ${pos} is not a char boundary; it is inside `,
-		(f) => fmtCharDebug(c as char, f),
-		` (bytes ${floor}..${floor + charLen(c)} of string)`,
-	], at);
+	const size = (n: number): Fmt => fmtOwned(n as usize, usizeDebug);
+	panicFmt([`${which} byte index `, size(pos), " is not a char boundary; it is inside ", fmtOwned(c as char, fmtCharDebug), " (bytes ", size(floor), "..", size(floor + charLen(c)), " of string)"], at);
 }
 
 /** `str::chars`. */
@@ -1113,18 +1118,6 @@ export function strFind(s: string, p: Pattern): usize | undefined {
 	return m.nextMatch() ? (utf8Len(s, 0, m.start) as usize) : undefined;
 }
 
-/** `str::replace`, and `replacen` of the first `n` matches. */
-export function strReplace(s: string, p: Pattern, to: string, n = Infinity): string {
-	const m = new Searcher(s, p);
-	let out = "";
-	let last = 0;
-	for (let i = 0; i < n && m.nextMatch(); i++) {
-		out += s.slice(last, m.start) + to;
-		last = m.end;
-	}
-	return out + s.slice(last);
-}
-
 /** `str::rfind`: the last match's offset in UTF-8 bytes. */
 export function strRfind(s: string, p: Pattern): usize | undefined {
 	const m = new Searcher(s, p);
@@ -1267,35 +1260,211 @@ export function fmtUtf8ChunkDebug(chunk: Utf8Chunk, f: Formatter): FmtResult {
 	]);
 }
 
-// `String`'s edits, each giving the edited string, which the caller writes where the
-// `&mut String` points, and what the edit returns beside it.
+// `String`: a JS string, as a `str` is, and the length in UTF-8 bytes and the capacity std's
+// would hold. Each step grows it as `RawVec` grows a `Vec<u8>`'s, so a `capacity` read gives
+// std's. A `&mut String` is the object, edited in place, and so is a `&mut str` of it, as
+// no write through one changes its length.
+
+/** `alloc::string::String`: its text, `v`, its length in UTF-8 bytes, and its capacity. */
+class RsString implements Place<string> {
+	v: string;
+	len: usize;
+	cap: usize;
+
+	constructor(v: string, len: usize, cap: usize) {
+		this.v = v;
+		this.len = len;
+		this.cap = cap;
+	}
+}
+
+export { RsString as String };
 
 /** `isize::MAX` on wasm32, past which std refuses a capacity. */
 const ISIZE_MAX = 0x7fffffff;
 
-/**
- * `concat` and `join` of strings by `sep`, which panic as std's do where the bytes they
- * reserve pass `usize::MAX` or what a `String` may hold.
- */
-export function strsJoin(parts: readonly string[], sep: string): string {
-	const seps = Math.max(parts.length - 1, 0);
-	let units = sep.length * seps;
-	for (const part of parts) units += part.length;
-	// A code unit is one to three bytes, so only a long result needs its bytes counted, each
-	// distinct part once, as such a result mostly repeats a few.
-	if (units * 3 > ISIZE_MAX) {
-		const counted = new Map<string, number>();
-		const count = (s: string): number => {
-			let n = counted.get(s);
-			if (n === undefined) counted.set(s, (n = stringLen(s)));
-			return n;
-		};
-		let len = count(sep) * seps;
-		for (const part of parts) len += count(part);
-		if (len > 0xffffffff) panic("attempt to join into collection with len > usize::MAX", "join_len", true);
-		if (len > ISIZE_MAX) panic("capacity overflow", "capacity");
+/** `str::len`: its length in UTF-8 bytes. */
+export function stringLen(s: string): usize {
+	return utf8Len(s, 0, s.length) as usize;
+}
+
+/** `String::new`, which holds nothing. */
+export function stringNew(): RsString {
+	return new RsString("", 0 as usize, 0 as usize);
+}
+
+/** A `String` of `text` with room for exactly its bytes, as `str::to_owned` makes one. */
+export function stringFrom(text: string): RsString {
+	const len = stringLen(text);
+	return new RsString(text, len, len);
+}
+
+/** A `String` of `text`, `len` bytes long, with room for `cap`. */
+export function stringOf(text: string, len: usize, cap: usize): RsString {
+	return new RsString(text, len, cap);
+}
+
+/** `String::with_capacity`, which panics past what it may hold. */
+export function stringWithCapacity(capacity: usize): RsString {
+	return new RsString("", 0 as usize, capReserveExact(0, 0, capacity, 1) as usize);
+}
+
+/** `String::reserve`: room for `additional` more bytes, at least doubled if it grows. */
+export function stringReserve(s: RsString, additional: usize): void {
+	s.cap = capReserve(s.len, s.cap, additional, 1) as usize;
+}
+
+/** `String::reserve_exact`: room for exactly `additional` more bytes if it grows. */
+export function stringReserveExact(s: RsString, additional: usize): void {
+	s.cap = capReserveExact(s.len, s.cap, additional, 1) as usize;
+}
+
+/** `String::try_reserve`: `reserve`'s room, or the error where it panics. */
+export function stringTryReserve(s: RsString, additional: usize): Result<undefined, TryReserveError> {
+	return reserved(s, capTryReserve(s.len, s.cap, additional, 1));
+}
+
+/** `String::try_reserve_exact`. */
+export function stringTryReserveExact(s: RsString, additional: usize): Result<undefined, TryReserveError> {
+	return reserved(s, capTryReserveExact(s.len, s.cap, additional, 1));
+}
+
+/** `s` with room for `cap`, or the error of an overflow, `undefined`. */
+function reserved(s: RsString, cap: number | undefined): Result<undefined, TryReserveError> {
+	if (cap === undefined) return CAPACITY_OVERFLOW;
+	s.cap = cap as usize;
+	return OK;
+}
+
+/** `String::shrink_to`, and `shrink_to_fit`, of 0. */
+export function stringShrinkTo(s: RsString, min: usize): void {
+	s.cap = capShrink(s.len, s.cap, min) as usize;
+}
+
+/** `String::push_str` of `text`, `len` bytes long. */
+export function stringPushStr(s: RsString, text: string, len: usize = stringLen(text)): void {
+	stringReserve(s, len);
+	s.v += text;
+	s.len = (s.len + len) as usize;
+}
+
+/** `String::push`. */
+export function stringPush(s: RsString, c: char): void {
+	stringPushStr(s, globalThis.String.fromCodePoint(c), charLen(c) as usize);
+}
+
+/** `String + &str`, and `+=`: `s`, once it pushed `text`. */
+export function stringAdd(s: RsString, text: string): RsString {
+	stringPushStr(s, text);
+	return s;
+}
+
+/** Push each char of `text` in turn, as std's `push` of each grows `s`. */
+export function stringPushChars(s: RsString, text: string): void {
+	let { len, cap } = s;
+	for (let i = 0; i < text.length; i++) {
+		const u = text.charCodeAt(i);
+		// A pair's high half is two bytes, and its low half the other two.
+		const n = u < 0x80 ? 1 : u < 0x800 ? 2 : u >= 0xd800 && u <= 0xdbff ? 4 : u >= 0xdc00 && u <= 0xdfff ? 0 : 3;
+		if (n > cap - len) cap = capReserve(len, cap, n, 1);
+		len += n;
 	}
-	return parts.join(sep);
+	s.v += text;
+	s.len = len as usize;
+	s.cap = cap as usize;
+}
+
+/** `Clone` of a `String`: its text, with room for exactly its bytes. */
+export function stringClone(s: RsString): RsString {
+	return new RsString(s.v, s.len, s.len);
+}
+
+/**
+ * `clone_from` of `src` into `s`, as `Vec<u8>`'s clears it and extends it by `src`'s bytes,
+ * and `str::clone_into`, which clears it and pushes the text.
+ */
+export function stringCloneFrom(s: RsString, src: RsString | string): RsString {
+	s.v = "";
+	s.len = 0 as usize;
+	if (typeof src === "string") stringPushStr(s, src);
+	else stringPushStr(s, src.v, src.len);
+	return s;
+}
+
+/** `String::clear`, which keeps its room. */
+export function stringClear(s: RsString): void {
+	s.v = "";
+	s.len = 0 as usize;
+}
+
+/**
+ * `concat` and `join` of strings or `String`s by `sep`: a `String` with room for exactly
+ * their bytes, as std's reserves them, which panics as std's does where they pass
+ * `usize::MAX` or what a `String` may hold.
+ */
+export function strsJoin(parts: readonly (string | RsString)[], sep: string): RsString {
+	const seps = Math.max(parts.length - 1, 0);
+	// Each distinct text's bytes counted once, as a long result mostly repeats a few.
+	const counted = new Map<string, number>();
+	const count = (s: string): number => {
+		let n = counted.get(s);
+		if (n === undefined) counted.set(s, (n = stringLen(s)));
+		return n;
+	};
+	let len = count(sep) * seps;
+	const texts: string[] = [];
+	for (const part of parts) {
+		if (typeof part === "string") {
+			len += count(part);
+			texts.push(part);
+		} else {
+			len += part.len;
+			texts.push(part.v);
+		}
+	}
+	if (len > 0xffffffff) panic("attempt to join into collection with len > usize::MAX", "join_len", true);
+	if (len > ISIZE_MAX) panic("capacity overflow", "capacity");
+	return new RsString(texts.join(sep), len as usize, len as usize);
+}
+
+/**
+ * `str::replace` of a pattern, `utf8` if a `char`, `&str`, or `&String`: room for `s`'s
+ * bytes if what replaces each match is no shorter, and else none, which each push grows.
+ * One ASCII byte for another is a copy, with room for exactly its bytes.
+ */
+export function strReplace(s: string, p: Pattern, to: string, utf8: boolean): RsString {
+	const len = stringLen(s);
+	if (utf8 && typeof p === "string" && p.length === 1 && p.charCodeAt(0) < 0x80 && to.length === 1 && to.charCodeAt(0) < 0x80) {
+		return new RsString(s.replaceAll(p, to), len, len);
+	}
+	const toLen = stringLen(to);
+	const fits = utf8 && typeof p === "string" && stringLen(p) <= toLen;
+	return replaced(new RsString("", 0 as usize, fits ? len : (0 as usize)), s, p, to, toLen, Infinity);
+}
+
+/** `str::replacen`: room for 32 bytes, which each push of the first `n` matches grows. */
+export function strReplacen(s: string, p: Pattern, to: string, n: usize): RsString {
+	return replaced(new RsString("", 0 as usize, 32 as usize), s, p, to, stringLen(to), n);
+}
+
+/** `out`, once it pushed the text of `s` between its first `n` matches of `p`, and `to` for each. */
+function replaced(out: RsString, s: string, p: Pattern, to: string, toLen: usize, n: number): RsString {
+	const m = new Searcher(s, p);
+	let last = 0;
+	for (let i = 0; i < n && m.nextMatch(); i++) {
+		stringPushStr(out, s.slice(last, m.start));
+		stringPushStr(out, to, toLen);
+		last = m.end;
+	}
+	stringPushStr(out, s.slice(last));
+	return out;
+}
+
+/** `str::to_lowercase` and `to_uppercase` of `s` to `text`: room for `s`'s bytes, which each char's push grows. */
+export function stringCased(s: string, text: string): RsString {
+	const out = new RsString("", 0 as usize, stringLen(s));
+	stringPushChars(out, text);
+	return out;
 }
 
 /** `String::FromUtf16Error`: `{ kind }`, its private `FromUtf16ErrorKind`'s name. */
@@ -1316,33 +1485,51 @@ function fromUtf16Units(len: number, unit: (i: number) => number, lossy: boolean
 	for (let i = 0; i < len; i++) {
 		const u = unit(i);
 		if (u < 0xd800 || u > 0xdfff) {
-			s += String.fromCharCode(u);
+			s += globalThis.String.fromCharCode(u);
 			continue;
 		}
 		const next = i + 1 < len ? unit(i + 1) : 0;
 		if (u <= 0xdbff && next >= 0xdc00 && next <= 0xdfff) {
-			s += String.fromCharCode(u, next);
+			s += globalThis.String.fromCharCode(u, next);
 			i++;
-		} else if (lossy) s += "\ufffd";
+		} else if (lossy) s += "�";
 		else return undefined;
 	}
 	return s;
 }
 
-/** The text of `len` units, `unit(i)` the `i`th, or a `LoneSurrogate` error, as `String::from_utf16` reads them. */
-function fromUtf16(len: number, unit: (i: number) => number): Result<string, FromUtf16Error> {
-	const s = fromUtf16Units(len, unit, false);
-	return s === undefined ? Err(new FromUtf16Error("LoneSurrogate")) : Ok(s);
+/**
+ * The `String` of `len` units, `unit(i)` the `i`th, or a `LoneSurrogate` error, as
+ * `String::from_utf16` reads them: room for a byte a unit, which each char's push grows.
+ */
+function fromUtf16(len: number, unit: (i: number) => number): Result<RsString, FromUtf16Error> {
+	const text = fromUtf16Units(len, unit, false);
+	if (text === undefined) return Err(new FromUtf16Error("LoneSurrogate"));
+	const s = stringWithCapacity(len as usize);
+	stringPushChars(s, text);
+	return Ok(s);
+}
+
+/**
+ * The `String` of `len` units, `unit(i)` the `i`th, U+FFFD for each surrogate without its
+ * pair, as `String::from_utf16_lossy` collects them: room for half a char a unit, which
+ * each char's push grows.
+ */
+function fromUtf16Lossy(len: number, unit: (i: number) => number): RsString {
+	const s = stringNew();
+	stringReserve(s, Math.ceil(len / 2) as usize);
+	stringPushChars(s, fromUtf16Units(len, unit, true) as string);
+	return s;
 }
 
 /** `String::from_utf16`. */
-export function stringFromUtf16(v: ArrayLike<u16>): Result<string, FromUtf16Error> {
-	return fromUtf16(v.length, (i) => v[i]);
+export function stringFromUtf16(v: Slice<u16>): Result<RsString, FromUtf16Error> {
+	return fromUtf16(v.length, (i) => v.data[v.start + i]);
 }
 
 /** `String::from_utf16_lossy`: U+FFFD for each surrogate without its pair. */
-export function stringFromUtf16Lossy(v: ArrayLike<u16>): string {
-	return fromUtf16Units(v.length, (i) => v[i], true) as string;
+export function stringFromUtf16Lossy(v: Slice<u16>): RsString {
+	return fromUtf16Lossy(v.length, (i) => v.data[v.start + i]);
 }
 
 /** The `i`th unit of `v`'s bytes, little-endian unless `big`. */
@@ -1352,23 +1539,29 @@ function byteUnit(v: ByteSlice, big: boolean): (i: number) => number {
 }
 
 /** `String::from_utf16le`, an `OddBytes` error of an odd number of bytes. */
-export function stringFromUtf16le(v: ByteSlice): Result<string, FromUtf16Error> {
+export function stringFromUtf16le(v: ByteSlice): Result<RsString, FromUtf16Error> {
 	return v.length % 2 === 1 ? Err(new FromUtf16Error("OddBytes")) : fromUtf16(v.length / 2, byteUnit(v, false));
 }
 
 /** `String::from_utf16be`, an `OddBytes` error of an odd number of bytes. */
-export function stringFromUtf16be(v: ByteSlice): Result<string, FromUtf16Error> {
+export function stringFromUtf16be(v: ByteSlice): Result<RsString, FromUtf16Error> {
 	return v.length % 2 === 1 ? Err(new FromUtf16Error("OddBytes")) : fromUtf16(v.length / 2, byteUnit(v, true));
 }
 
-/** `String::from_utf16le_lossy`, and U+FFFD for an odd byte at the end. */
-export function stringFromUtf16leLossy(v: ByteSlice): string {
-	return (fromUtf16Units(v.length >>> 1, byteUnit(v, false), true) as string) + (v.length % 2 === 1 ? "\ufffd" : "");
+/** `String::from_utf16le_lossy`, and U+FFFD pushed for an odd byte at the end. */
+export function stringFromUtf16leLossy(v: ByteSlice): RsString {
+	return oddByte(fromUtf16Lossy(v.length >>> 1, byteUnit(v, false)), v);
 }
 
-/** `String::from_utf16be_lossy`, and U+FFFD for an odd byte at the end. */
-export function stringFromUtf16beLossy(v: ByteSlice): string {
-	return (fromUtf16Units(v.length >>> 1, byteUnit(v, true), true) as string) + (v.length % 2 === 1 ? "\ufffd" : "");
+/** `String::from_utf16be_lossy`, and U+FFFD pushed for an odd byte at the end. */
+export function stringFromUtf16beLossy(v: ByteSlice): RsString {
+	return oddByte(fromUtf16Lossy(v.length >>> 1, byteUnit(v, true)), v);
+}
+
+/** `s`, and U+FFFD pushed if `v` has an odd byte at the end. */
+function oddByte(s: RsString, v: ByteSlice): RsString {
+	if (v.length % 2 === 1) stringPushStr(s, "�", 3 as usize);
+	return s;
 }
 
 /** `Debug` of `FromUtf16Error`. */
@@ -1381,23 +1574,7 @@ export function fmtFromUtf16ErrorDisplay(e: FromUtf16Error, f: Formatter): FmtRe
 	return fmtPad(f, e.kind === "LoneSurrogate" ? "invalid utf-16: lone surrogate found" : "invalid utf-16: odd number of bytes");
 }
 
-/** `String::with_capacity`: the empty string, which keeps no capacity. */
-export function stringWithCapacity(capacity: usize): string {
-	if (capacity > ISIZE_MAX) panic("capacity overflow", "capacity");
-	return "";
-}
-
-/** `String::reserve` and `reserve_exact`, which panic as std's do past `isize::MAX`. */
-export function stringReserve(s: string, additional: usize): void {
-	if (!stringTryReserve(s, additional).ok) panic("capacity overflow", "capacity");
-}
-
-/** `String::try_reserve` and `try_reserve_exact`: the error where `reserve` panics. */
-export function stringTryReserve(s: string, additional: usize): Result<undefined, TryReserveError> {
-	// A code unit is at most three bytes, so only a large `additional` needs the length.
-	const over = additional > ISIZE_MAX - 3 * s.length && additional > ISIZE_MAX - utf8Len(s, 0, s.length);
-	return over ? CAPACITY_OVERFLOW : OK;
-}
+// `String`'s edits, in place.
 
 /** The code unit where byte `i` of `s` starts a char, or panic with `message`. */
 function boundary(s: string, i: number, message: string, at?: Location): number {
@@ -1406,127 +1583,163 @@ function boundary(s: string, i: number, message: string, at?: Location): number 
 	return pos;
 }
 
-/** `String::truncate`: `s` to `len` bytes, or as it is if no longer. */
-export function stringTruncate(s: string, len: usize, at?: Location): string {
-	const pos = unitAt(s, 0, 0, len);
-	if (pos >= 0) return s.slice(0, pos);
-	if (len > utf8Len(s, 0, s.length)) return s;
-	panic("assertion failed: self.is_char_boundary(new_len)", at);
+/** `String::truncate`: to `len` bytes, unless already no longer. */
+export function stringTruncate(s: RsString, len: usize, at?: Location): void {
+	if (len > s.len) return;
+	s.v = s.v.slice(0, boundary(s.v, len, "assertion failed: self.is_char_boundary(new_len)", at));
+	s.len = len;
 }
 
-/** `String::insert_str`, and `insert` of a char's text. */
-export function stringInsertStr(s: string, i: usize, text: string, at?: Location): string {
-	const pos = boundary(s, i, "assertion failed: self.is_char_boundary(idx)", at);
-	return s.slice(0, pos) + text + s.slice(pos);
+/** `String::insert_str`, and `insert` of a char's text: room for its bytes reserved. */
+export function stringInsertStr(s: RsString, i: usize, text: string, at?: Location): void {
+	const pos = boundary(s.v, i, "assertion failed: self.is_char_boundary(idx)", at);
+	const len = stringLen(text);
+	stringReserve(s, len);
+	s.v = s.v.slice(0, pos) + text + s.v.slice(pos);
+	s.len = (s.len + len) as usize;
 }
 
 /** `String::retain`: the chars `f` keeps, calling it on each in order. */
-export function stringRetain(s: string, f: (c: char) => boolean): string {
+export function stringRetain(s: RsString, f: (c: char) => boolean): void {
 	let kept = "";
-	for (const ch of s) if (f(ch.codePointAt(0) as char)) kept += ch;
-	return kept;
+	for (const ch of s.v) if (f(ch.codePointAt(0) as char)) kept += ch;
+	s.v = kept;
+	s.len = stringLen(kept);
 }
 
-/** `String::replace_range`. */
-export function stringReplaceRange(s: string, r: Bounds<number>, text: string, at?: Location): string {
-	const [start, end] = boundsRange(r, utf8Len(s, 0, s.length), at);
-	const from = boundary(s, start, "start of range should be a character boundary", at);
-	const to = boundary(s, end, "end of range should be a character boundary", at);
-	return s.slice(0, from) + text + s.slice(to);
+/** `String::replace_range`: room reserved for what `text` adds. */
+export function stringReplaceRange(s: RsString, r: Bounds<number>, text: string, at?: Location): void {
+	const [start, end] = boundsRange(r, s.len, at);
+	const from = boundary(s.v, start, "start of range should be a character boundary", at);
+	const to = boundary(s.v, end, "end of range should be a character boundary", at);
+	const len = stringLen(text);
+	if (len > end - start) stringReserve(s, (len - (end - start)) as usize);
+	s.v = s.v.slice(0, from) + text + s.v.slice(to);
+	s.len = (s.len - (end - start) + len) as usize;
 }
 
-/** `String::extend_from_within`. */
-export function stringExtendFromWithin(s: string, r: Bounds<number>, at?: Location): string {
-	const [start, end] = boundsRange(r, utf8Len(s, 0, s.length), at);
-	const from = boundary(s, start, "assertion failed: self.is_char_boundary(start)", at);
-	const to = boundary(s, end, "assertion failed: self.is_char_boundary(end)", at);
-	return s + s.slice(from, to);
+/** `String::extend_from_within`: room reserved for the bytes it copies. */
+export function stringExtendFromWithin(s: RsString, r: Bounds<number>, at?: Location): void {
+	const [start, end] = boundsRange(r, s.len, at);
+	const from = boundary(s.v, start, "assertion failed: self.is_char_boundary(start)", at);
+	const to = boundary(s.v, end, "assertion failed: self.is_char_boundary(end)", at);
+	stringPushStr(s, s.v.slice(from, to), (end - start) as usize);
 }
 
-/** `String::pop`: the rest, and the last char if any. */
-export function stringPop(s: string): [string, char | undefined] {
-	if (s.length === 0) return [s, undefined];
-	const pos = before(s, s.length);
-	return [s.slice(0, pos), s.codePointAt(pos) as char];
+/** `String::pop`: the last char, if any. */
+export function stringPop(s: RsString): char | undefined {
+	if (s.len === 0) return undefined;
+	const pos = before(s.v, s.v.length);
+	const c = s.v.codePointAt(pos) as char;
+	s.v = s.v.slice(0, pos);
+	s.len = (s.len - charLen(c)) as usize;
+	return c;
 }
 
-/** `String::remove`: the rest, and the char at byte `i`. */
-export function stringRemove(s: string, i: usize, at?: Location): [string, char] {
-	const pos = unitAt(s, 0, 0, i);
-	if (pos < 0) sliceFailed(s, i, utf8Len(s, 0, s.length), at);
-	if (pos === s.length) panic("cannot remove a char from the end of a string", at);
-	const c = s.codePointAt(pos) as number;
-	return [s.slice(0, pos) + s.slice(pos + (c > 0xffff ? 2 : 1)), c as char];
+/** `String::remove`: the char at byte `i`. */
+export function stringRemove(s: RsString, i: usize, at?: Location): char {
+	const pos = unitAt(s.v, 0, 0, i);
+	if (pos < 0) sliceFailed(s.v, i, s.len, at);
+	if (pos === s.v.length) panic("cannot remove a char from the end of a string", at);
+	const c = s.v.codePointAt(pos) as char;
+	s.v = s.v.slice(0, pos) + s.v.slice(pos + (c > 0xffff ? 2 : 1));
+	s.len = (s.len - charLen(c)) as usize;
+	return c;
 }
 
-/** `String::split_off`: what comes before byte `i`, and after it. */
-export function stringSplitOff(s: string, i: usize, at?: Location): [string, string] {
-	const pos = boundary(s, i, "assertion failed: self.is_char_boundary(at)", at);
-	return [s.slice(0, pos), s.slice(pos)];
+/** `String::split_off`: what comes after byte `i`, with room for exactly its bytes. */
+export function stringSplitOff(s: RsString, i: usize, at?: Location): RsString {
+	const pos = boundary(s.v, i, "assertion failed: self.is_char_boundary(at)", at);
+	const len = (s.len - i) as usize;
+	const rest = new RsString(s.v.slice(pos), len, len);
+	s.v = s.v.slice(0, pos);
+	s.len = i;
+	return rest;
 }
 
 // `String` from and into iterators. Each reads the iterator by `for_each`, as std's does,
 // which `drops` makes its own `fold`.
 
 /**
- * `Extend<char>` and `Extend<&char>` of `s`, and `collect` of chars from `""`: `s` and each
- * char, once it reserved the iterator's lower bound, which panics past `isize::MAX`.
+ * `Extend<char>` and `Extend<&char>` of `s`, and `collect` of chars from `String::new`: each
+ * char pushed, once it reserved the iterator's lower bound.
  */
-export function stringExtendChars(s: string, it: Iter<char>, drops = false): string {
-	stringReserve(s, it.sizeHint()[0]);
-	iterForEach(
-		it,
-		(c) => {
-			s += String.fromCodePoint(c);
-		},
-		drops,
-	);
+export function stringExtendChars(s: RsString, it: Iter<char>, drops = false): RsString {
+	stringReserve(s, it.sizeHint()[0] as usize);
+	iterForEach(it, (c) => stringPush(s, c), drops);
 	return s;
 }
 
 /** `String` as a tuple's part, of chars, which reserves as `stringReserve`. */
-export const STRING_CHARS_PART: Part<string, char> = {
+export const STRING_CHARS_PART: Part<RsString, char> = {
 	reserve: stringReserve,
-	one: (s, c) => s + String.fromCodePoint(c),
+	one: (s, c) => (stringPush(s, c), s),
 };
 
 /** `String` as a tuple's part, of strings, which never reserves. */
-export const STRING_PART: Part<string, string> = { one: (s, text) => s + text };
+export const STRING_PART: Part<RsString, string | RsString> = { one: (s, text) => (pushText(s, text), s) };
 
 /** `String` as a tuple's part, of `Cow<str>`s, which never reserves. */
-export const STRING_COW_PART: Part<string, StrCow> = { one: (s, c) => s + strCowStr(c) };
+export const STRING_COW_PART: Part<RsString, StrCow> = { one: (s, c) => (pushText(s, strCowText(c)), s) };
 
-/** `Extend` of `s` by strings, `&str`, `String`, or `Cow<str>`, and `collect` of `&str`s from `""`. */
-export function stringExtend(s: string, it: Iter<string>, drops = false): string {
-	iterForEach(
-		it,
-		(text) => {
-			s += text;
-		},
-		drops,
-	);
-	return s;
+/** `push_str` of a `str` or a `String`'s text. */
+function pushText(s: RsString, text: string | RsString): void {
+	if (typeof text === "string") stringPushStr(s, text);
+	else stringPushStr(s, text.v, text.len);
 }
 
-/** `collect` of owned strings, a `String` or `Cow<str>`: the first by `next`, then the rest extend it. */
-export function stringFromStrings(it: Iter<string>, drops = false): string {
-	const first = it.next();
-	if (first !== DONE) return stringExtend(first, it, drops);
-	if (drops) dispose(it);
-	return "";
+/** A `Cow<str>`'s text, or the `String` it owns. */
+function strCowText(c: StrCow): string | RsString {
+	return c instanceof Borrowed ? c.slice : c;
 }
 
 /**
- * `String::drain`: the chars within the byte range `r` of the string at `s`, which leaves
- * the string without them as it drops, and as it was if it never does, as `mem::forget`
- * leaves it.
+ * `Extend` of `s` by `&str`, `Box<str>`, `String`, or `Cow<str>`, each pushed, and `collect`
+ * of `&str`s and `Box<str>`s from `String::new`.
  */
-export function stringDrain(s: Place<string>, r: Bounds<number>, at?: Location): Iter<char> {
+export function stringExtend(s: RsString, it: Iter<string | RsString | StrCow>, drops = false): RsString {
+	iterForEach(it, (text) => pushText(s, text instanceof Borrowed ? text.slice : text), drops);
+	return s;
+}
+
+/** `Extend<&str>` of an array's strings, and `from_iter` of one: room reserved for all of them, then each pushed. */
+export function stringExtendArray(s: RsString, it: Iter<string>): RsString {
+	const texts: string[] = [];
+	const lens: usize[] = [];
+	let len = 0;
+	iterForEach(it, (text) => {
+		const n = stringLen(text);
+		texts.push(text);
+		lens.push(n);
+		len += n;
+	});
+	// std's sum saturates, so a reserve past `usize::MAX` panics as one of it does.
+	stringReserve(s, Math.min(len, 0xffffffff) as usize);
+	texts.forEach((text, i) => stringPushStr(s, text, lens[i]));
+	return s;
+}
+
+/**
+ * `collect` of `String`s or `Cow<str>`s: the first, owned, by `next`, which the rest extend,
+ * as std's keeps the first's room.
+ */
+export function stringFromStrings(it: Iter<RsString | StrCow>, drops = false): RsString {
+	const first = it.next();
+	if (first !== DONE) return stringExtend(first instanceof Borrowed ? stringFrom(first.slice) : first, it, drops);
+	if (drops) dispose(it);
+	return stringNew();
+}
+
+/**
+ * `String::drain`: the chars within the byte range `r` of `s`, which leaves `s` without them
+ * as it drops, and as it was if it never does, as `mem::forget` leaves it.
+ */
+export function stringDrain(s: RsString, r: Bounds<number>, at?: Location): Iter<char> {
 	const text = s.v;
-	const [start, end] = boundsRange(r, utf8Len(text, 0, text.length), at);
+	const [start, end] = boundsRange(r, s.len, at);
 	const from = boundary(text, start, "assertion failed: self.is_char_boundary(start)", at);
 	const to = boundary(text, end, "assertion failed: self.is_char_boundary(end)", at);
-	return new StringDrain(s, text, from, to);
+	return new StringDrain(s, text, from, to, end - start);
 }
 
 /** `Drain::as_str`: the chars `drain` has yet to yield. */
@@ -1540,20 +1753,23 @@ export function fmtStringDrain(drain: Iter<unknown>, f: Formatter): FmtResult {
 }
 
 class StringDrain extends Chars implements Disposable {
-	readonly #s: Place<string>;
+	readonly #s: RsString;
 	readonly #text: string;
 	readonly #from: number;
 	readonly #to: number;
+	readonly #bytes: number;
 
-	constructor(s: Place<string>, text: string, from: number, to: number) {
+	constructor(s: RsString, text: string, from: number, to: number, bytes: number) {
 		super(text.slice(from, to));
 		this.#s = s;
 		this.#text = text;
 		this.#from = from;
 		this.#to = to;
+		this.#bytes = bytes;
 	}
 
 	[Symbol.dispose](): void {
 		this.#s.v = this.#text.slice(0, this.#from) + this.#text.slice(this.#to);
+		this.#s.len = (this.#s.len - this.#bytes) as usize;
 	}
 }

@@ -16,6 +16,7 @@ use crate::ts::{self, FieldId, Function, Item, SymId};
 pub const RUNTIME: &[(&str, &str)] = &[
 	("rs.ts", include_str!("../runtime/rs.ts")),
 	("rs/alloc.ts", include_str!("../runtime/rs/alloc.ts")),
+	("rs/any.ts", include_str!("../runtime/rs/any.ts")),
 	("rs/ascii.ts", include_str!("../runtime/rs/ascii.ts")),
 	("rs/bytes.ts", include_str!("../runtime/rs/bytes.ts")),
 	("rs/char.ts", include_str!("../runtime/rs/char.ts")),
@@ -25,12 +26,14 @@ pub const RUNTIME: &[(&str, &str)] = &[
 	("rs/hook.ts", include_str!("../runtime/rs/hook.ts")),
 	("rs/int.ts", include_str!("../runtime/rs/int.ts")),
 	("rs/iter.ts", include_str!("../runtime/rs/iter.ts")),
+	("rs/js.ts", include_str!("../runtime/rs/js.ts")),
 	("rs/location.ts", include_str!("../runtime/rs/location.ts")),
 	("rs/rand.ts", include_str!("../runtime/rs/rand.ts")),
 	("rs/sort.ts", include_str!("../runtime/rs/sort.ts")),
 	("rs/str.ts", include_str!("../runtime/rs/str.ts")),
 	("rs/task.ts", include_str!("../runtime/rs/task.ts")),
 	("rs/time.ts", include_str!("../runtime/rs/time.ts")),
+	("rs/tokio.ts", include_str!("../runtime/rs/tokio.ts")),
 	("rs/unicode.ts", include_str!("../runtime/rs/unicode.ts")),
 ];
 

@@ -19,9 +19,9 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 		Point.shift(q, 1, -1);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(p.x & 0xff, p.y & 0xff, q.x & 0xff, q.y & 0xff)), undefined, true);
 	}
-	const _29: Item.Item | undefined = heaviest$harness_Item(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(input)), (_2: rs.u8): Item.Item => {
+	const _29: Item.Item | undefined = heaviest$harness_Item(rs.sliceFrom(rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(input)), (_2: rs.u8): Item.Item => {
 		return { _0: _2 };
-	}), undefined, 1, true).items);
+	}), undefined, 1, true).items));
 	if (_29 !== undefined) {
 		rs.byteVecPush(out, _29._0);
 	}
@@ -43,20 +43,19 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 		let n: rs.u32 = input.data[input.start + 1] as rs.u32;
 		const guard: Guard.Guard = Guard.new(input.data[input.start + 2], log);
 		const _77: Tally.Tally[] = [new of$harness_Item(item), new ofPlace$u32(rs.place(() => n, (value) => n = value)), new of$crates_dep_Guard(guard)];
-		const _87: Uint8Array = rs.u32ToBeBytes(tally(_77, input.data[input.start])).reverse();
+		const _87: Uint8Array = rs.u32ToBeBytes(tally(rs.sliceFrom(_77), input.data[input.start])).reverse();
 		rs.iterExtendBytes(out, rs.iterSlice(_87), undefined, true);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(item._0, n & 0xff)), undefined, true);
 		const boxed: rs.Vec<Tally.Tally> = rs.vecFrom([new of$crates_dep_Guard(guard), new of$harness_Item(item), new of$u32(n)]);
-		rs.sliceSwap(boxed.items, 0, 2);
+		rs.sliceSwap(rs.sliceFrom(boxed.items), 0, 2);
 		rs.vecTruncate(boxed, 2, rs.drop);
-		const iter: rs.Iter<rs.Place<Tally.Tally>> = rs.iterSliceMut(boxed.items);
-		while (true) {
-			const _113: rs.Place<Tally.Tally> | rs.Done = iter.next();
-			if (_113 === rs.DONE) {
-				break;
-			}
-			_113.v.add$Tally(input.data[input.start + 2]);
-			const _122: rs.u8 = _113.v.count$Tally() & 0xff;
+		const iterS: Tally.Tally[] = boxed.items;
+		let iterI: number = 0;
+		const iterE: number = boxed.items.length;
+		while (iterI < iterE) {
+			const _113: number = iterI++;
+			iterS[_113].add$Tally(input.data[input.start + 2]);
+			const _122: rs.u8 = iterS[_113].count$Tally() & 0xff;
 			rs.byteVecPush(out, _122);
 		}
 		rs.dropVec(boxed);
@@ -88,7 +87,7 @@ export function run(input: rs.ByteSlice): rs.ByteVec {
 	}
 	const kept: rs.i16[] = [(input.length << 16) >> 16, 7];
 	const filled: rs.i16[] = copy$array_i16(kept);
-	Slots.fill(Slots.withBase(kept[0]), filled);
+	Slots.fill(Slots.withBase(kept[0]), rs.sliceFrom(filled));
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(kept[0] & 0xff, kept[1] & 0xff, filled[0] & 0xff, filled[1] & 0xff)), undefined, true);
 	const _202: rs.u8 = first(input.data, input.start, input.length);
 	rs.byteVecPush(out, _202);

@@ -59,6 +59,16 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			Some(Std::Once) if self.incomplete(val, ty) => crate::lower::task::once_unrun(),
 			Some(Std::Once) => self.unreadable(ty, span),
 			// Its function, which the first `force` runs.
+			// wasm-bindgen's, around a lazy of its own: the function, wherever it keeps it.
+			Some(Std::LazyCell)
+				if let ty::Adt(adt, _) = ty.kind()
+					&& crate::lower::bindgen::is_lazy(tcx, adt.did()) =>
+			{
+				match self.lazy_init(val, ty) {
+					Some(init) => self.lazy("LazyCell", init, span),
+					None => self.unreadable(ty, span),
+				}
+			}
 			Some(Std::LazyCell) => match self.variant_fields(val, ty) {
 				Some((variant, fields)) if variant == "Uninit" => self.lazy("LazyCell", fields[0], span),
 				_ => self.unreadable(ty, span),
@@ -90,6 +100,19 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	fn lazy(&mut self, class: &str, (f, f_ty): (ConstValue, Ty<'tcx>), span: Span) -> Expr {
 		let f = self.const_value(f, f_ty, span);
 		Expr::New(Box::new(Expr::Rs(class.into())), vec![f])
+	}
+
+	/// The function a lazy `val`, a `ty`, has yet to run, in whichever of its fields holds it.
+	fn lazy_init(&self, val: ConstValue, ty: Ty<'tcx>) -> Option<(ConstValue, Ty<'tcx>)> {
+		match ty.kind() {
+			ty::FnPtr(..) | ty::FnDef(..) => Some((val, ty)),
+			ty::Adt(..) => self
+				.destructure(val, ty)?
+				.fields
+				.iter()
+				.find_map(|&(v, t)| self.lazy_init(v, t)),
+			_ => None,
+		}
 	}
 
 	/// The refusal of a `ty` in a state translation can't read, as a `OnceLock` const

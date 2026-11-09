@@ -14,6 +14,10 @@ export function copy$tuple2_u64_u64(v: [rs.u64, rs.u64]): [rs.u64, rs.u64] {
 	return [v[0], v[1]];
 }
 
+export function copy$tuple2_u8_char(v: [rs.u8, rs.char]): [rs.u8, rs.char] {
+	return [v[0], v[1]];
+}
+
 export function drop$Option_cell_RefMut_borrows_Tagged(_1: rs.RefCell<Tagged.Tagged> | undefined): void {
 	if (_1 !== undefined) {
 		rs.refMutRelease(_1);
@@ -173,7 +177,7 @@ export function drop$tuple2_cell_Ref_tuple2_u8_ref_str_u8(_1: [rs.RefCell<[rs.u8
 	rs.refRelease(_1[0]);
 }
 
-export function drop$tuple3_cell_Ref_String_cell_Ref_array4_u8_cell_Ref_u32(_1: [rs.RefCell<string>, rs.RefCell<Uint8Array>, rs.RefCell<rs.u32>]): void {
+export function drop$tuple3_cell_Ref_String_cell_Ref_array4_u8_cell_Ref_u32(_1: [rs.RefCell<rs.String>, rs.RefCell<Uint8Array>, rs.RefCell<rs.u32>]): void {
 	rs.refRelease(_1[0]);
 	rs.refRelease(_1[1]);
 	rs.refRelease(_1[2]);

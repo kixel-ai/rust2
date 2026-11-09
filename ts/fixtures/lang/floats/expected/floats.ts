@@ -42,8 +42,8 @@ export function putSecs(out: rs.ByteVec, d: rs.Result<rs.Duration, rs.TryFromFlo
 		putDuration(out, d.value);
 	} else {
 		const e: rs.TryFromFloatSecsError = d.error;
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtTryFromFloatSecsErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtTryFromFloatSecsErrorDebug(e, f)];
-		put(out, rs.fmtFormat([args2[0], "|", args2[1], "|", rs.fmtSpec({ alternate: true }, args2[1])]));
+		const args3 = [(f: rs.Formatter) => rs.fmtTryFromFloatSecsErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtTryFromFloatSecsErrorDebug(e, f)];
+		put(out, rs.fmtFormat([args3[0], "|", args3[1], "|", rs.fmtSpec({ alternate: true }, args3[1])]).v);
 	}
 }
 
@@ -245,8 +245,7 @@ export function floats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const v2: rs.f64[] = [a, b, 0.5];
 		putF64(out, rs.iterSum(rs.iterSlice(v2), rs.f64Add, -0.0));
 		putF64(out, rs.iterProduct(rs.iterSlice(v2), rs.f64Mul, 1.0));
-		const _403: rs.f64[] = [];
-		putF64(out, rs.iterSum(rs.iterSlice(_403), rs.f64Add, -0.0));
+		putF64(out, rs.iterSum(rs.iterSlice([]), rs.f64Add, -0.0));
 		putF64(out, rs.iterSum(rs.iterSlice([-0.0, -0.0]), rs.f64Add, -0.0));
 		putF64(out, 0.0);
 		const g: Gauge.Gauge = { level: a, peak: b };
@@ -388,14 +387,14 @@ export function formats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		const w: rs.usize = rs.usizeDiv(p, 4);
 		const _13: rs.u8 = rs.u8Rem(kind, 5);
 		if (_13 === 0) {
-			const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.f64Display(a, f), (f: rs.Formatter) => rs.f64Debug(a, f), (f: rs.Formatter) => rs.f64LowerExp(a, f), (f: rs.Formatter) => rs.f64UpperExp(a, f), rs.fmtCount(p)];
-			put(out, rs.fmtFormat([args2[0], " ", args2[1], " ", args2[2], " ", args2[3], " ", rs.fmtSpec({ precision: rs.fmtCountOf(args2[4]) }, args2[0]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args2[4]) }, args2[1]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args2[4]) }, args2[2]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args2[4]) }, args2[3]), " ", rs.fmtSpec({ plus: true }, args2[0]), " ", rs.fmtSpec({ plus: true }, args2[1]), " ", rs.fmtSpec({ plus: true, precision: rs.fmtCountOf(args2[4]) }, args2[2])]));
-			const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.f64Display(a, f), (f: rs.Formatter) => rs.f64LowerExp(a, f), (f: rs.Formatter) => rs.f64Debug(a, f), (f: rs.Formatter) => rs.f64UpperExp(a, f), rs.fmtCount(w), rs.fmtCount(p)];
-			put(out, rs.fmtFormat([rs.fmtSpec({ zero: true, width: 8, precision: 3 }, args4[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 12 }, args4[1]), "|", rs.fmtSpec({ align: "<", width: 9 }, args4[0]), "|", rs.fmtSpec({ align: "^", width: 12 }, args4[2]), "|", rs.fmtSpec({ fill: "*", align: ">", width: 10, precision: 1 }, args4[0]), "|", rs.fmtSpec({ alternate: true }, args4[2]), "|", rs.fmtSpec({ debugHex: "x" }, args4[2]), "|", rs.fmtSpec({ fill: "-", align: "^", plus: true, width: 15, precision: 2 }, args4[3]), "|", rs.fmtSpec({ zero: true, width: 10 }, args4[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 10 }, args4[2]), "|", rs.fmtSpec({ align: ">", width: rs.fmtCountOf(args4[4]), precision: rs.fmtCountOf(args4[5]) }, args4[0]), "|", rs.fmtSpec({ fill: "é", align: "<", width: rs.fmtCountOf(args4[4]) }, args4[2])]));
-			put(out, rs.fmtToString((f: rs.Formatter) => rs.f64Display(a, f)));
+			const args17 = [(f: rs.Formatter) => rs.f64Display(a, f), (f: rs.Formatter) => rs.f64Debug(a, f), (f: rs.Formatter) => rs.f64LowerExp(a, f), (f: rs.Formatter) => rs.f64UpperExp(a, f), rs.fmtCount(p)];
+			put(out, rs.fmtFormat([args17[0], " ", args17[1], " ", args17[2], " ", args17[3], " ", rs.fmtSpec({ precision: rs.fmtCountOf(args17[4]) }, args17[0]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args17[4]) }, args17[1]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args17[4]) }, args17[2]), " ", rs.fmtSpec({ precision: rs.fmtCountOf(args17[4]) }, args17[3]), " ", rs.fmtSpec({ plus: true }, args17[0]), " ", rs.fmtSpec({ plus: true }, args17[1]), " ", rs.fmtSpec({ plus: true, precision: rs.fmtCountOf(args17[4]) }, args17[2])]).v);
+			const args18 = [(f: rs.Formatter) => rs.f64Display(a, f), (f: rs.Formatter) => rs.f64LowerExp(a, f), (f: rs.Formatter) => rs.f64Debug(a, f), (f: rs.Formatter) => rs.f64UpperExp(a, f), rs.fmtCount(w), rs.fmtCount(p)];
+			put(out, rs.fmtFormat([rs.fmtSpec({ zero: true, width: 8, precision: 3 }, args18[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 12 }, args18[1]), "|", rs.fmtSpec({ align: "<", width: 9 }, args18[0]), "|", rs.fmtSpec({ align: "^", width: 12 }, args18[2]), "|", rs.fmtSpec({ fill: "*", align: ">", width: 10, precision: 1 }, args18[0]), "|", rs.fmtSpec({ alternate: true }, args18[2]), "|", rs.fmtSpec({ debugHex: "x" }, args18[2]), "|", rs.fmtSpec({ fill: "-", align: "^", plus: true, width: 15, precision: 2 }, args18[3]), "|", rs.fmtSpec({ zero: true, width: 10 }, args18[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 10 }, args18[2]), "|", rs.fmtSpec({ align: ">", width: rs.fmtCountOf(args18[4]), precision: rs.fmtCountOf(args18[5]) }, args18[0]), "|", rs.fmtSpec({ fill: "é", align: "<", width: rs.fmtCountOf(args18[4]) }, args18[2])]).v);
+			put(out, rs.fmtToString((f: rs.Formatter) => rs.f64Display(a, f)).v);
 		} else if (_13 === 1) {
-			const args6: rs.Fmt[] = [(f: rs.Formatter) => rs.f64Display(a, f), (f: rs.Formatter) => rs.f64LowerExp(a, f), (f: rs.Formatter) => rs.f64Debug(a, f)];
-			put(out, rs.fmtFormat([rs.fmtSpec({ precision: 1100 }, args6[0]), " ", rs.fmtSpec({ precision: 800 }, args6[1]), " ", rs.fmtSpec({ precision: 1100 }, args6[2]), " ", rs.fmtSpec({ precision: 65535 }, args6[0])]));
+			const args16 = [(f: rs.Formatter) => rs.f64Display(a, f), (f: rs.Formatter) => rs.f64LowerExp(a, f), (f: rs.Formatter) => rs.f64Debug(a, f)];
+			put(out, rs.fmtFormat([rs.fmtSpec({ precision: 1100 }, args16[0]), " ", rs.fmtSpec({ precision: 800 }, args16[1]), " ", rs.fmtSpec({ precision: 1100 }, args16[2]), " ", rs.fmtSpec({ precision: 65535 }, args16[0])]).v);
 		} else if (_13 === 2) {
 			const _72: [rs.f64, rs.ByteSlice] = take(_6[1]);
 			const b: rs.f64 = _72[0];
@@ -405,16 +404,16 @@ export function formats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 			const _78: rs.f64 | undefined = a * 0.5;
 			const _80: rs.Vec<rs.f64> = rs.vecFrom([a, -0.0, 1e-7, 1e16, NaN]);
 			const part = { level: a, peak: _78, history: _80 };
-			const args8: rs.Fmt[] = [(f: rs.Formatter) => Reading.fmt$fmt_Debug(part, f)];
-			put(out, rs.fmtFormat([args8[0], "|", rs.fmtSpec({ alternate: true }, args8[0]), "|", rs.fmtSpec({ precision: 2 }, args8[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 12 }, args8[0])]));
+			const args15 = [(f: rs.Formatter) => Reading.fmt$fmt_Debug(part, f)];
+			put(out, rs.fmtFormat([args15[0], "|", rs.fmtSpec({ alternate: true }, args15[0]), "|", rs.fmtSpec({ precision: 2 }, args15[0]), "|", rs.fmtSpec({ plus: true, zero: true, width: 12 }, args15[0])]).v);
 		} else {
 			let state: rs.u64 = rs.u64Or(takeBits(data)[0], 1);
 			let iterStart: rs.i32 = 0;
 			const iterEnd: rs.i32 = 64;
 			while (iterStart++ < iterEnd) {
 				const x: rs.f64 = rs.f64FromBits(step(rs.place(() => state, (value) => state = value)));
-				const args10: rs.Fmt[] = [(f: rs.Formatter) => rs.f64Display(x, f), (f: rs.Formatter) => rs.f64Debug(x, f), (f: rs.Formatter) => rs.f64LowerExp(x, f)];
-				put(out, rs.fmtFormat([args10[0], " ", args10[1], " ", args10[2]]));
+				const args13 = [(f: rs.Formatter) => rs.f64Display(x, f), (f: rs.Formatter) => rs.f64Debug(x, f), (f: rs.Formatter) => rs.f64LowerExp(x, f)];
+				put(out, rs.fmtFormat([args13[0], " ", args13[1], " ", args13[2]]).v);
 			}
 			let iterStart2: rs.i32 = 0;
 			const iterEnd2: rs.i32 = 64;
@@ -424,8 +423,8 @@ export function formats(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 				}
 				const r2: rs.u64 = step(rs.place(() => state, (value2) => state = value2));
 				const x2: rs.f64 = rs.u64ToF64(rs.u64Shr(r2, 11)) / rs.u64ToF64(rs.u64Shl(1, rs.u64Add(rs.u64Rem(r2, 24), 1)));
-				const args12: rs.Fmt[] = [(f: rs.Formatter) => rs.f64Debug(x2, f), (f: rs.Formatter) => rs.f64LowerExp(x2, f)];
-				put(out, rs.fmtFormat([args12[0], " ", args12[1]]));
+				const args14 = [(f: rs.Formatter) => rs.f64Debug(x2, f), (f: rs.Formatter) => rs.f64LowerExp(x2, f)];
+				put(out, rs.fmtFormat([args14[0], " ", args14[1]]).v);
 			}
 		}
 	}
@@ -445,14 +444,14 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				one(_6.value, out);
 			}
 		} else if (_4 === 1) {
-			let s: string = "";
+			const s: rs.String = rs.stringNew();
 			for (const b of rs.byteSliceView(data)) {
 				const _21: rs.ByteSlice = rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 46, 101, 69, 43, 45, 95, 105, 110, 102, 73, 78, 70, 116, 121, 84, 89, 97, 32));
 				const _22: rs.usize = rs.usizeRem(b as rs.usize, rs.byteSliceFrom(Uint8Array.of(48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 48, 46, 101, 69, 43, 45, 95, 105, 110, 102, 73, 78, 70, 116, 121, 84, 89, 97, 32)).length);
 				rs.idx(_21, _22);
-				s = s + String.fromCodePoint(_21.data[_21.start + _22] as rs.char);
+				rs.stringPush(s, _21.data[_21.start + _22] as rs.char);
 			}
-			one(s, out);
+			one(s.v, out);
 		} else {
 			let state: rs.u64 = rs.u64Or(takeBits(data)[0], 1);
 			let iterStart: rs.i32 = 0;
@@ -464,19 +463,19 @@ export function parses(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const r: rs.u64 = step(rs.place(() => state, (value) => state = value));
 				const len: rs.usize = rs.u64Low(rs.u64Add(rs.u64Rem(r, 40), 1));
 				const point: rs.usize = rs.usizeRem(rs.u64Low(rs.u64Shr(r, 8)), rs.usizeAdd(len, 1));
-				let s2: string = "";
+				const s2: rs.String = rs.stringNew();
 				let iterStart2: rs.usize = 0;
 				const iterEnd2: rs.usize = len;
 				while ((_60 = iterStart2++) < iterEnd2) {
 					if (_60 === point) {
-						s2 = s2 + ".";
+						rs.stringPush(s2, 46);
 					}
 					const _69: rs.char = rs.u8Add(48, rs.u64Low(rs.u64Rem(step(rs.place(() => state, (value2) => state = value2)), 10)) & 0xff) as rs.char;
-					s2 = s2 + String.fromCodePoint(_69);
+					rs.stringPush(s2, _69);
 				}
 				const _85: rs.i64 = rs.i64Sub(rs.i64Cast(rs.u64Rem(rs.u64Shr(r, 16), 700)), 350);
-				const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtPad(f, s2), (f: rs.Formatter) => rs.i64Display(_85, f)];
-				one(rs.fmtFormat([args2[0], "e", args2[1]]), out);
+				const args3 = [(f: rs.Formatter) => rs.fmtPad(f, s2.v), (f: rs.Formatter) => rs.i64Display(_85, f)];
+				one(rs.fmtFormat([args3[0], "e", args3[1]]).v, out);
 			}
 		}
 	}
@@ -488,12 +487,11 @@ export function one(s: string, out: rs.ByteVec): void {
 	if (_4.ok) {
 		const v: rs.f64 = _4.value;
 		putF64(out, v);
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.f64Debug(v, f)];
-		put(out, rs.fmtFormat([args2[0]]));
+		put(out, rs.fmtFormat([(f: rs.Formatter) => rs.f64Debug(v, f)]).v);
 	} else {
 		const e: rs.ParseFloatError = _4.error;
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtParseFloatErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtParseFloatErrorDebug(e, f)];
-		put(out, rs.fmtFormat([args4[0], "|", args4[1], "|", rs.fmtSpec({ alternate: true }, args4[1]), "|", rs.fmtSpec({ align: ">", width: 30 }, args4[0]), "|", rs.fmtSpec({ precision: 7 }, args4[0])]));
+		const args5 = [(f: rs.Formatter) => rs.fmtParseFloatErrorDisplay(e, f), (f: rs.Formatter) => rs.fmtParseFloatErrorDebug(e, f)];
+		put(out, rs.fmtFormat([args5[0], "|", args5[1], "|", rs.fmtSpec({ alternate: true }, args5[1]), "|", rs.fmtSpec({ align: ">", width: 30 }, args5[0]), "|", rs.fmtSpec({ precision: 7 }, args5[0])]).v);
 	}
 	rs.byteVecPush(out, rs.f64FromStr(s).ok ? 1 : 0);
 }

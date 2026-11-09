@@ -4,15 +4,15 @@ import * as rs from "./rs.ts";
 import * as Logged from "./clones.Logged.ts";
 
 export function clone$Clone(self: Pair): Pair {
-	return new Pair(self.left.map(Logged.clone$Clone), self.tag);
+	return new Pair(self.left.map(Logged.clone$Clone), rs.stringClone(self.tag));
 }
 
 /** A derived `Clone`, which clones each field in order. */
 export class Pair {
 	left: Logged.Logged[];
-	tag: string;
+	tag: rs.String;
 
-	constructor(left: Logged.Logged[], tag: string) {
+	constructor(left: Logged.Logged[], tag: rs.String) {
 		this.left = left;
 		this.tag = tag;
 	}

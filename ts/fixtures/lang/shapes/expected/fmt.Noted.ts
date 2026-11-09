@@ -12,8 +12,8 @@ export function fmt$fmt_Display(self: Noted, f: rs.Formatter): rs.Result<undefin
 	const log: rs.ByteVec = new rs.ByteVec();
 	const _7: rs.u8 = note(log, self._0);
 	const _11: boolean = note(log, 1) === self._0;
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(_7, f), (f: rs.Formatter) => rs.fmtBool(_11, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(log), f, rs.u8Debug)];
-	return rs.fmtWriteFmt(f, [args2[0], " ", args2[1], " ", args2[2]]);
+	const args3 = [(f: rs.Formatter) => rs.u8Display(_7, f), (f: rs.Formatter) => rs.fmtBool(_11, f), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(log), f, rs.u8Debug)];
+	return rs.fmtWriteFmt(f, [args3[0], " ", args3[1], " ", args3[2]]);
 }
 
 //# sourceMappingURL=fmt.Noted.ts.map

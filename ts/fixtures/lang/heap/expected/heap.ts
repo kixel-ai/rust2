@@ -79,11 +79,11 @@ export function spills(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		rs.byteVecPush(out, shared.strong & 0xff);
 	}
-	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(Spill.asSlice$u32(ints)), (x: rs.u32): Uint8Array => {
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(Spill.asSlice$u32(ints))), (x: rs.u32): Uint8Array => {
 		return rs.u32ToBeBytes(x).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
 	rs.byteVecPush(out, ints.cap & 0xff);
-	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(Spill.asSlice$Option_tuple2_u8_u16(pairs)), (p: [rs.u8, rs.u16] | undefined): rs.u8 => {
+	rs.iterExtendBytes(out, rs.iterMap(rs.iterSlice(rs.sliceItems(Spill.asSlice$Option_tuple2_u8_u16(pairs))), (p: [rs.u8, rs.u16] | undefined): rs.u8 => {
 		return option_mapOr$12lsao8(p, 0, (_2: [rs.u8, rs.u16]): rs.u8 => {
 			return _2[0] ^ (_2[1] & 0xff);
 		});
@@ -114,7 +114,7 @@ export function remnants(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.ptrAdd(slots, i).v = ((((b as rs.u32) << 8) >>> 0) | 1) >>> 0;
 	}
 	const words: rs.Place<rs.u32> = slots;
-	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.ptrSlice(words, data.length)), (x: rs.u32): Uint8Array => {
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(rs.sliceItems(rs.ptrSlice(words, data.length))), (x: rs.u32): Uint8Array => {
 		return rs.u32ToBeBytes(x).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
 	rs.dealloc(rs.allocBytes(words, 4, "u32"));
@@ -166,25 +166,22 @@ export function layouts(data: rs.ByteSlice, out: rs.ByteVec): void {
 			align = rs.usizeShl(1, rs.u8Rem(b, 32));
 		}
 		const made: rs.Result<rs.Layout, rs.LayoutError> = rs.layoutFromSizeAlign(size, align);
-		const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtResult(made, f, rs.fmtLayoutDebug, rs.fmtLayoutErrorDebug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args2[0]])), undefined, true);
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(made, f, rs.fmtLayoutDebug, rs.fmtLayoutErrorDebug)]).v), undefined, true);
 		if (!made.ok) {
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtToString((f: rs.Formatter) => rs.fmtLayoutErrorDisplay(rs.LAYOUT_ERROR, f))), undefined, true);
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtToString((f: rs.Formatter) => rs.fmtLayoutErrorDisplay(rs.LAYOUT_ERROR, f)).v), undefined, true);
 		}
 		const part3 = rs.layoutArray(rs.usizeShr(size, rs.u8Rem(b, 8)), 8, 8);
-		const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtResult(part3, f, rs.fmtLayoutDebug, rs.fmtLayoutErrorDebug)];
-		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args4[0]])), undefined, true);
+		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(part3, f, rs.fmtLayoutDebug, rs.fmtLayoutErrorDebug)]).v), undefined, true);
 		const unit: rs.Layout = rs.resultUnwrap(rs.layoutArray(size, 0, 1), rs.fmtLayoutErrorDebug);
 		rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(unit.size & 0xff, unit.align & 0xff)), undefined, true);
 	}
 	const _92: Fault.Fault = { tag: "Alloc", layout: { size: 16, align: 8 } };
 	const _94: rs.Layout = { size: 4, align: 4 };
-	const args6: rs.Fmt[] = [(f: rs.Formatter) => Fault.fmt$fmt_Debug(_92, f), (f: rs.Formatter) => rs.fmtLayoutDebug(_94, f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args6[0], " ", args6[1]])), undefined, true);
+	const args11 = [(f: rs.Formatter) => Fault.fmt$fmt_Debug(_92, f), (f: rs.Formatter) => rs.fmtLayoutDebug(_94, f)];
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args11[0], " ", args11[1]]).v), undefined, true);
 	rs.byteVecPush(out, 8 & 0xff);
 	const arg = { tag: "Overflow" } as Fault.Fault;
-	const args8: rs.Fmt[] = [(f: rs.Formatter) => Fault.fmt$fmt_Debug(arg, f)];
-	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([args8[0]])), undefined, true);
+	rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => Fault.fmt$fmt_Debug(arg, f)]).v), undefined, true);
 }
 
 //# sourceMappingURL=heap.ts.map

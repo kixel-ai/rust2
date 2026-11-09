@@ -234,16 +234,16 @@ export function edges(data: rs.ByteSlice, out: rs.ByteVec): void {
 
 /** `Debug` of the lists and of their iterators part read, plain, pretty, and in hex. */
 export function printed(l: rs.LinkedList<rs.u8>, m: rs.LinkedList<rs.u8>, out: rs.ByteVec): void {
-	let text: string = "";
+	const text: rs.String = rs.stringNew();
 	const it: rs.Iter<rs.u8> = rs.listIter(l);
 	it.next();
 	const owned: rs.Iter<rs.u8> = rs.listIter(rs.listClone(m, undefined));
 	rs.iterToOption(owned.nextBack());
 	const lent: rs.Iter<rs.Place<rs.u8>> = rs.listIterMut(rs.listClone(m, undefined));
 	lent.next();
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.listIter(l), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.listIter(m), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtListIter(it, f, rs.u8Debug, rs.usizeDebug, "Iter"), (f: rs.Formatter) => rs.fmtIter(owned, f, rs.u8Debug, ["IntoIter"]), (f: rs.Formatter) => rs.fmtListIter(lent, f, rs.u8Debug, rs.usizeDebug, "IterMut")];
-	text = rs.fmtWriteString(text, [args2[0], "|", rs.fmtSpec({ alternate: true }, args2[1]), "|", args2[2], "|", rs.fmtSpec({ debugHex: "x" }, args2[2]), "|", rs.fmtSpec({ alternate: true }, args2[2]), "|", args2[3], "|", args2[4]]).s;
-	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(text))), undefined, true);
+	const args3 = [(f: rs.Formatter) => rs.fmtList(rs.listIter(l), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.listIter(m), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtListIter(it, f, rs.u8Debug, rs.usizeDebug, "Iter"), (f: rs.Formatter) => rs.fmtIter(owned, f, rs.u8Debug, ["IntoIter"]), (f: rs.Formatter) => rs.fmtListIter(lent, f, rs.u8Debug, rs.usizeDebug, "IterMut")];
+	rs.fmtWriteString(text, [args3[0], "|", rs.fmtSpec({ alternate: true }, args3[1]), "|", args3[2], "|", rs.fmtSpec({ debugHex: "x" }, args3[2]), "|", rs.fmtSpec({ alternate: true }, args3[2]), "|", args3[3], "|", args3[4]]);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(text.v))), undefined, true);
 }
 
 /** A list of `Tally`s, which JS changes in place rather than through places. */
@@ -294,13 +294,13 @@ export function tallies(data: rs.ByteSlice, out: rs.ByteVec): void {
 	rs.byteVecPush(out, rs.listContains(l, { n: 120 }, Tally.eq$cmp_PartialEq) ? 1 : 0);
 	rs.byteVecPush(out, rs.cmpList(Tally.cmp$cmp_Ord)(l, copy) & 0xff);
 	rs.byteVecPush(out, rs.u64Eq(hashOf$collections_LinkedList_lists_Tally(taken), hashOf$collections_LinkedList_lists_Tally(rest)) ? 1 : 0);
-	let text: string = "";
+	const text: rs.String = rs.stringNew();
 	const part = rs.iterToVec(rs.iterTake(rs.iterRev(rs.listIter(rest)), 2), undefined, 4, true);
-	const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(part.items, f, (value: Tally.Tally, f: rs.Formatter) => Tally.fmt$fmt_Debug(value, f))];
-	text = rs.fmtWriteString(text, [args2[0]]).s;
-	const args4: rs.Fmt[] = [(f: rs.Formatter) => rs.fmtList(rs.listIter(taken), f, (value: Tally.Tally, f: rs.Formatter) => Tally.fmt$fmt_Debug(value, f))];
-	text = rs.fmtWriteString(text, [rs.fmtSpec({ alternate: true }, args4[0])]).s;
-	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(text))), undefined, true);
+	const args5 = [(f: rs.Formatter) => rs.fmtList(part.items, f, (value: Tally.Tally, f: rs.Formatter) => Tally.fmt$fmt_Debug(value, f))];
+	rs.fmtWriteString(text, [args5[0]]);
+	const args6 = [(f: rs.Formatter) => rs.fmtList(rs.listIter(taken), f, (value: Tally.Tally, f: rs.Formatter) => Tally.fmt$fmt_Debug(value, f))];
+	rs.fmtWriteString(text, [rs.fmtSpec({ alternate: true }, args6[0])]);
+	rs.iterExtendBytes(out, rs.iterSlice(rs.byteSliceView(rs.stringAsBytes(text.v))), undefined, true);
 }
 
 //# sourceMappingURL=lists.ts.map

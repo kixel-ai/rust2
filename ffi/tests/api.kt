@@ -120,9 +120,9 @@ fun script() {
 	val registry = Registry.new(Counter.new("first", 1u))
 	println("last ${registry.last() != null}")
 	registry.push(Counter.new("last", 2u))
-	val first = registry.first
+	val first = registry.firstGet
 	first.add(10u)
-	println("first ${registry.first.get()} lent ${first.get()}")
+	println("first ${registry.firstGet.get()} lent ${first.get()}")
 	val last = registry.last()!!
 	last.add(10u)
 	println("last ${registry.last()!!.get()} lent ${last.get()}")
@@ -132,10 +132,10 @@ fun script() {
 		counter.add(by)
 		counter.edited() && counter.get() == 6uL
 	}
-	println("edit $edited ${registry.first.get()}")
+	println("edit $edited ${registry.firstGet.get()}")
 	// A setter moves an object in, as assignment does, closing its handle.
-	registry.setFirst(Counter.new("second", 3u))
-	println("set first ${registry.first.get()} ${registry.first.name()}")
+	registry.firstSet(Counter.new("second", 3u))
+	println("set first ${registry.firstGet.get()} ${registry.firstGet.name()}")
 	println("walk ${walk(3u) { cursor -> cursor.at() * 2u }}")
 	println("each ${each(2u) { at -> println("visit $at") }}")
 	println("offset ${offset({ 7u }, 3u)}")
@@ -195,18 +195,18 @@ fun script() {
 	println("later ${Stamp.fromMillis(3000u).later(stamp)}")
 	println("secs ${stamp.secs()}")
 	val message = Message.new(stamp, "body".encodeToByteArray())
-	println("payload ${message.payload.text()}")
-	println("stamp ${message.stamp!!.debug()}")
+	println("payload ${message.payloadGet.text()}")
+	println("stamp ${message.stampGet!!.debug()}")
 	println("sent ${message.sent()}")
 	// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
 	val reset = Stamp.fromMillis(4000u)
-	message.setStamp(reset)
-	message.setPayload("edited".encodeToByteArray())
-	println("payload ${message.payload.text()}")
-	println("stamp ${message.stamp!!.debug()}")
+	message.stampSet(reset)
+	message.payloadSet("edited".encodeToByteArray())
+	println("payload ${message.payloadGet.text()}")
+	println("stamp ${message.stampGet!!.debug()}")
 	println("secs ${reset.secs()}")
-	message.setStamp(null)
-	println("stamp ${message.stamp != null}")
+	message.stampSet(null)
+	println("stamp ${message.stampGet != null}")
 
 	println("kept ${emit(PrintLog(), byteArrayOf(1, 2, 3, 4))}")
 	Logger.new(PrintLog()).use { logger -> println("write ${logger.write("hi")}") }
@@ -273,7 +273,7 @@ fun script() {
 	println("pair ${swapped.left} ${swapped.right} sum ${pair.sum()} ${pair.debug()} ${pair == swapped}")
 	println("even ${pair.even()} ${PairU32(7u, 7u).even()}")
 	// An instance renamed alone, beside another of `Pair` that keeps its name.
-	val sized: SizeTag = tag(Size(1u, 2u), 3u)
+	val sized: PairSizeU8 = tag(Size(1u, 2u), 3u)
 	val flipped: PairU8Size = sized.swap()
 	println("sized ${flipped.left} ${flipped.right.width} ${flipped.debug()}")
 	val beside = PairU32(258u, 9u).besideSize(sized.left)
@@ -288,7 +288,7 @@ fun script() {
 	// Generic functions and methods, at each implementation of the trait bounding them, by
 	// reference, which leaves Kotlin its handle.
 	val fromPoint = Counter.seededPoint("p", Point(-3, 4))
-	val fromSize = Counter.fromSize("s", Size(5u, 6u))
+	val fromSize = Counter.seededSize("s", Size(5u, 6u))
 	val fromCounter = Counter.seededCounter("c", fromPoint)
 	val fromPolar = Counter.seededPolarPoint("q", PolarPoint(1u, 2u))
 	println(
@@ -298,6 +298,10 @@ fun script() {
 
 	// A trait implemented for `Point` and `&Point` apart: one instance.
 	println("weigh ${weighPoint(Point(-1, 2))}")
+	// A function named as the type it returns, and one named as a type it does not.
+	println("polar ${polarPoint(2u)!!.distance} ${polarPoint(0u) == null} area ${area(Size(2u, 3u))}")
+	// Two types whose paths join alike, the second kept apart where its path splits.
+	println("wind ${wind(PolarTurn(2u), Polar_Turn(3u))}")
 	// Instances that name each other, and one made only by an impl of it.
 	println("cross ${cross(LeftRightU8(RightU8(1u)), RightLeftU8(LeftU8(2u)))} outer ${OuterInnerU8.new(4u).get()}")
 	// A bound that outlives the call takes a value, and an instance only a constant names.
@@ -313,16 +317,16 @@ fun script() {
 
 	// Its Drop runs when Kotlin closes the handle, not before.
 	val token = Token.new(7u)
-	println("token ${token.id} dropped ${dropped()}")
+	println("token ${token.idGet} dropped ${dropped()}")
 	token.close()
 	println("dropped ${dropped()}")
 
 	// A field and the method of its name, each its own member.
 	val retry = Retry.new(5u)
-	val limit = retry.limitSetting
+	val limit = retry.limitGet
 	println("retry ${if (limit != null) 1 else 0} ${limit ?: 0u} ${retry.limit()} ${retry.delay()}")
 	// The renamed field's setter, named as its getter.
-	retry.setLimitSetting(null)
+	retry.limitSet(null)
 	println("retry ${retry.limit()}")
 	println("slot ${SlotU8.new(200u).value()}")
 
@@ -374,7 +378,7 @@ fun script() {
 		println("json parse err ${e.error}")
 	}
 	val site = Site.new(base)
-	site.home.use { a -> site.home.use { b -> println("site $a $b") } }
+	site.homeGet.use { a -> site.homeGet.use { b -> println("site $a $b") } }
 
 	// Slices, passed in and returned as clones, and the socket address of each family.
 	println("shapes ${Shape.ALL.joinToString(", ", "[", "]") { it.debug() }} greetings ${GREETINGS.joinToString(", ", "[", "]") { "\"$it\"" }}")
@@ -582,12 +586,12 @@ fun owned() {
 	check(dropped() == before + 1u, "closing frees at once")
 	token.close()
 	check(dropped() == before + 1u, "closing again frees nothing")
-	check(runCatching { token.id }.exceptionOrNull()?.message == "Token is closed", "a call after close throws")
+	check(runCatching { token.idGet }.exceptionOrNull()?.message == "Token is closed", "a call after close throws")
 
 	// Bytes outlive the object that returned them and the record that held them.
 	val body = ByteArray(2048) { 'b'.code.toByte() }
 	val message = Message.new(Stamp.fromMillis(1u), body)
-	val payload = message.payload
+	val payload = message.payloadGet
 	message.close()
 	val carried = nextPacket(Packet(1u, Bytes(body))).payload
 	uncollected(before + 1u, "the GC frees nothing still reachable")
@@ -660,7 +664,7 @@ fun raced() {
 		thread {
 			while (true) {
 				val id = try {
-					token.id
+					token.idGet
 				} catch (e: IllegalStateException) {
 					check(e.message == "Token is closed", "a call racing close throws")
 					failed.incrementAndGet()
@@ -693,7 +697,7 @@ fun raced() {
 		val id = rounds % 100u + 1u
 		check(tokenBytes(id, 2048u)[2047] == id.toByte(), "a read by index races the GC")
 		check(tokenBytes(id, 2048u).slice(1024).toByteArray().all { it == id.toByte() }, "a slice's copy races the GC")
-		check(Token.new(id).id == id, "a call on an object races the GC")
+		check(Token.new(id).idGet == id, "a call on an object races the GC")
 		rounds++
 	}
 	collecting.set(false)

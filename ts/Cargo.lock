@@ -9,6 +9,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
+name = "arrayvec"
+version = "0.7.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56"
+
+[[package]]
 name = "base64-simd"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -80,9 +86,6 @@ dependencies = [
 [[package]]
 name = "crates-dep"
 version = "0.0.0"
-dependencies = [
- "bytes",
-]
 
 [[package]]
 name = "crates-fixture"
@@ -90,6 +93,10 @@ version = "0.0.0"
 dependencies = [
  "crates-dep",
 ]
+
+[[package]]
+name = "edition2018"
+version = "0.0.0"
 
 [[package]]
 name = "equivalent"
@@ -223,6 +230,10 @@ name = "lang-collections-fixture"
 version = "0.0.0"
 
 [[package]]
+name = "lang-collects-fixture"
+version = "0.0.0"
+
+[[package]]
 name = "lang-combinators-fixture"
 version = "0.0.0"
 
@@ -311,6 +322,10 @@ name = "lang-holds-fixture"
 version = "0.0.0"
 
 [[package]]
+name = "lang-inlines-fixture"
+version = "0.0.0"
+
+[[package]]
 name = "lang-ints-fixture"
 version = "0.0.0"
 
@@ -371,6 +386,8 @@ name = "lang-panics-fixture"
 version = "0.0.0"
 dependencies = [
  "bytes",
+ "edition2018",
+ "tokio",
 ]
 
 [[package]]
@@ -546,6 +563,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
 
 [[package]]
+name = "rangemap"
+version = "1.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a611d15b50743feb4c76b7d03edcb0e64f399c26961e4efe6975bc398be6aa3d"
+
+[[package]]
 name = "reject-fixture"
 version = "0.0.0"
 dependencies = [
@@ -636,11 +659,13 @@ version = "0.0.0"
 name = "stock-fixture"
 version = "0.0.0"
 dependencies = [
+ "arrayvec",
  "bytes",
  "getrandom",
  "hashbrown",
  "hashlink",
  "rand",
+ "rangemap",
  "tracing",
 ]
 
@@ -691,6 +716,34 @@ name = "thiserror-impl"
 version = "2.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe5197923287db20a58125f0bc85c062f7f2c892de97b18c356f9efb14b28524"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
+name = "tokio"
+version = "1.54.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b52fd3255258d26fac7264ab5a76b53c13367136dc011d3d6ad4f8ed070396a3"
+dependencies = [
+ "pin-project-lite",
+ "tokio-macros",
+]
+
+[[package]]
+name = "tokio-fixture"
+version = "0.0.0"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
+name = "tokio-macros"
+version = "2.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78773a2a397f451582ce068015985c33193cf6dea8b74d2a639fe457b2f07b0e"
 dependencies = [
  "proc-macro2",
  "quote",

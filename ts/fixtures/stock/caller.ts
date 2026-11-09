@@ -2,7 +2,9 @@
 // `buf::far`'s reads past where a vector shares its storage, which only these reach, as
 // each allocates 128 MiB, `buf::reclaims` after each pick of the handles to drop, each of `hashlink`'s iterators read through every pick of steps from
 // either end, each `buf::chains` chain copied by each pick of a length, split at either
-// end and between, and every pair of steps over `hashlink`'s maps of what drops.
+// end and between, every pair of steps over `hashlink`'s maps of what drops,
+// `buf::deques` wrapped at each slot, and each `Bytes` of a `String` by each room and way
+// taken back.
 
 import { cases as named, op, run } from "./harness.ts";
 
@@ -38,4 +40,19 @@ const reclaims = [0, 3, 200].flatMap((cap) =>
 	Array.from({ length: 8 * 4 * 2 }, (_, i) => Uint8Array.of(op("buf::reclaims"), cap, i % 8, [0, 3, 40, 255][Math.floor(i / 8) % 4], i < 32 ? 0 : 5)),
 );
 
-export const cases: Uint8Array[] = [...far, ...reclaims, ...linked, ...chains, ...nested];
+/** Six bytes wrapped at each slot, read across the wrap by two, four, and eight, and advanced across it and past the end. */
+const deques = [0, 1, 2, 3, 4, 5].flatMap((cut) =>
+	[
+		[0x02, 0x02, 0x02, 0x00, 0x00, 0x00],
+		[0xf1, 0x04, 0x0e, 0xf1, 0xf1, 0xf1],
+		[0xf3, 0x0f, 0xf2, 0x00, 0xf0, 0xf2],
+		[0x0a, 0x0b, 0x12, 0x10, 0x11, 0x06],
+	].map((ops) => Uint8Array.of(op("buf::deques"), cut, ...ops, 1, 2, 3, 4, 5, 6)),
+);
+
+/** `buf::strings` of no room, of exactly its text, and of more, each way taken back, with a clone held or not. */
+const strings = [0, 4, 23].flatMap((cap) =>
+	Array.from({ length: 2 * 2 * 3 }, (_, i) => Uint8Array.of(op("buf::strings"), cap, 4, 0x61, 0xc3, 0xa9, 0x62, i % 2 === 0 ? 0 : 6, Math.floor(i / 2) % 2, Math.floor(i / 4))),
+);
+
+export const cases: Uint8Array[] = [...far, ...reclaims, ...linked, ...chains, ...nested, ...deques, ...strings];

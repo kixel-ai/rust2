@@ -11,16 +11,36 @@ std the translators cover before a consumer calls them.
 Decided with the maintainer on 2026-10-27: rust2 aims to support all of std, so a
 generic std gap is planned here even when moq never calls it.
 
+Decided with the maintainer on 2026-11-07, the unsafe policy, to stop one-off fixes for
+ever rarer `unsafe`:
+
+1. ✅ Safe Rust is the contract, and where translation effort goes.
+2. ✅ `unsafe` inside std and common crates is wrapped at their safe API, as std,
+   `hashbrown`, `bytes`, and [tokio's channels](/ts/src/lower/tokio.rs)
+   are, and [smallvec](/quest/m2/ts-model/smallvec.md) will be, rather than translated.
+3. ✅ Other `unsafe` translates only where it fits the translator's existing pointer forms
+   (a place, an array element, a byte in a buffer). A construct needing a new pointer form
+   or pointer metadata is refused with its span, unless a consumer needs it and no library
+   wrapper covers it.
+4. ✅ An `unsafe`-heavy crate a consumer needs is compiled to WASM behind its public API
+   rather than fixed construct by construct. Not planned until a consumer needs it.
+
+Rejected: an unsafe std gap with no consumer becoming its own quest, as
+`MaybeUninit::zeroed`, `Rc::new_uninit`, and `ptr::write_bytes` would have
+([#647](https://github.com/moq-dev/rust2/pull/647)), or as `Vec::from_raw_parts`'s adopted
+storage did ([#635](https://github.com/moq-dev/rust2/pull/635)); and a second, byte-backed
+memory model for values whose address is reinterpreted, without a consumer.
+
 ## Required
 
 - [Retrial Cranelift on moq's tests](/quest/m3/cranelift-unwind.md) - waits on upstream: moq's tests pass under Cranelift, so its CI can weigh it again
 - [Relink without rebuilding](/quest/m3/relink.md) - measure upstream's skip of dependency-only rebuilds on moq's edits once it reaches nightly
-- [Unsafe code the translator can model](/quest/m3/ts-unsafe.md) - a dependency using only `unsafe` the translator can model translates from source
-- [Trait objects](/quest/m3/ts-dyn.md) - std's other traits, generic traits, traits with an associated type, and `Any::type_id` translate, so a consumer neither rewrites nor binds them
+- [`if let` of a temporary whose rest drops](/quest/m3/ts-if-let-drop.md) - `if let Some(E::A(x)) = temp()` with a destructor in the rest of `temp` emits TypeScript that type-checks
+- [A Pin of a crate's own Deref type](/quest/m3/ts-pin-own-deref.md) - `Pin<P>` over a crate's own `Deref` derefs through its impl and type-checks
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
 - [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
-- [rs.Slice](/quest/m3/ts-slice-object.md) - slices and arrays of other values are a runtime type of array, start, and length, splitting in O(1) and comparing by where they point
-- [rs.String](/quest/m3/ts-string-capacity.md) - `String`, `Box<str>`, and `&str` are a runtime type holding std's capacity
-- [A B-tree's searches call Ord as std's do](/quest/m3/ts-btree-search-order.md) - a B-tree's lookups and inserts call a key's own `Ord` in std's order and number
-- [The chunk a BufMut lends](/quest/m3/ts-chunk-mut.md) - `BufMut::chunk_mut` and its `UninitSlice`'s writes translate, reaching the buffer's storage
-- [Slices not yet written](/quest/m3/ts-uninit-slices.md) - `Box::new_uninit_slice` and `write_clone_of_slice` translate
+- [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md) - no runtime `rust2-ts:` error where native Rust goes on: exact, or refused at translation
+- [rust2-ts with no ts.toml](/quest/m3/ts-configless.md) - a crate's whole `pub` API translates with no config and no bound items
+- [Browser APIs through wasm-bindgen](/quest/m3/ts-wasm-bindgen/README.md) - web-sys and js-sys imports become direct JS calls, so idiomatic crates such as web-rs's web-codecs translate as stock crates
+- [`u64` wrapping arithmetic in V8](/quest/m3/ts-u64-wrapping.md) - `rs.u64WrappingAdd` and its kin cost near a plain `+` while the value is a safe integer
+- [Array references from slices and cells](/quest/m3/ts-array-ref-conversions.md) - `try_into` of a slice into an array reference, `Cell::as_array_of_cells`, and `identity` of a `&mut [T; N]` lend the array where it is

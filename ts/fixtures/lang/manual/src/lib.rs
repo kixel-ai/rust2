@@ -20,5 +20,8 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("manual::arcs", |_, data, out| manual::arcs(data, out)),
 		("manual::needs_drops", |_, data, out| manual::needs_drops(data, out)),
 		("uninit::uninits", |_, data, out| uninit::uninits(data, out)),
+		("uninit::boxed_uninits", |_, data, out| uninit::boxed_uninits(data, out)),
+		("uninit::boxed_one", |_, data, out| uninit::boxed_one(data, out)),
+		("uninit::boxed_zeroed", |_, data, out| uninit::boxed_zeroed(data, out)),
 	]
 }

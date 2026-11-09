@@ -1,8 +1,8 @@
-//! The `pub` API of each exported crate, as rustc checked it, to the [IR](crate::ir).
+//! The `pub` API of the facade, as rustc checked it, to the [IR](crate::ir).
 //!
-//! Every `pub` item reachable from an exported crate's root is exported by fixed rules, or
-//! refused with its span. An export names another's types across crates; another crate's
-//! type is refused. Nothing is opted in by attribute and nothing is skipped silently: the
+//! Every `pub` item reachable from the facade's root, through its re-exports into other
+//! crates too, is exported by fixed rules, or refused with its span. A type it does not
+//! reach is refused. Nothing is opted in by attribute and nothing is skipped silently: the
 //! config's `exclude` is the only way to leave an item out, and `#[doc(hidden)]` items,
 //! which are no part of the documented API, are listed in the census. A generic type
 //! exports at the instances it infers, before any type is mapped: its defaults, each
@@ -12,7 +12,7 @@
 use std::collections::VecDeque;
 
 use rustc_hir::def::{DefKind, Res};
-use rustc_hir::def_id::{CrateNum, DefId};
+use rustc_hir::def_id::{CrateNum, DefId, LOCAL_CRATE};
 use rustc_infer::infer::TyCtxtInferExt;
 use rustc_infer::traits::util::elaborate;
 use rustc_infer::traits::{Obligation, ObligationCause};
@@ -27,8 +27,8 @@ use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _
 
 use crate::config;
 use crate::ir::{
-	Access, Api, Callback, Constant, Dyn, Enum, Family, Field, Function, Int, Literal, Mutability, Object, Param, Path,
-	Receiver, Record, Traits, Type, Variant,
+	Access, Api, Callback, Constant, Dyn, Enum, Family, Field, Function, Home, Int, Literal, Mutability, Object, Param,
+	Path, Receiver, Record, Traits, Type, Variant,
 };
 
 /// Why something is refused: a construct, ranked by the census, and what it names.
@@ -41,9 +41,10 @@ pub struct Why {
 }
 
 /// Types of crates that are no export, by crate and name, each exported as an object made
-/// by parsing its text, where some crate builds with it: `url::Url`, and
-/// `serde_json::Value`, which a `Serialize` or `Deserialize` parameter takes.
-const FOREIGN: [(&str, &str); 2] = [("url", "Url"), ("serde_json", "Value")];
+/// by parsing its text, where some crate builds with it, and named at the facade's root by
+/// its role: `url::Url` as `Url`, and `serde_json::Value`, which a `Serialize` or
+/// `Deserialize` parameter takes, as `Json`.
+const FOREIGN: [(&str, &str, &str); 2] = [("url", "Url", "Url"), ("serde_json", "Value", "Json")];
 
 /// The construct of an instance inference missed: a bug in the exporter, not the crate.
 pub const NOT_INFERRED: &str = "instance not inferred";
@@ -69,13 +70,11 @@ pub struct Refusal {
 /// What collection found.
 pub struct Collected {
 	pub api: Api,
-	/// Each export's, in the order given.
-	pub reports: Vec<Report>,
+	pub report: Report,
 }
 
-/// An exported crate.
-pub struct Crate<'a> {
-	pub krate: CrateNum,
+/// The facade, the local crate.
+pub struct Facade<'a> {
 	/// The first segment of its items' paths in the IR.
 	pub root: String,
 	pub package: &'a str,
@@ -83,11 +82,11 @@ pub struct Crate<'a> {
 	pub exclude: &'a [String],
 }
 
-/// What collection found in one exported crate, by paths from its root.
+/// What collection found in the facade, by paths from its root.
 pub struct Report {
 	pub package: String,
-	/// Its crate's root, the first segment of its items' paths in the IR.
-	pub krate: String,
+	/// The facade's root, the first segment of its items' paths in the IR.
+	pub root: String,
 	pub refusals: Vec<Refusal>,
 	/// Records and enums exported as objects, since a field does not map: the first.
 	pub opaque: Vec<(String, Why)>,
@@ -99,8 +98,6 @@ pub struct Report {
 	pub excluded: Vec<(String, usize)>,
 	/// Type aliases, which export nothing of their own.
 	pub aliases: Vec<String>,
-	/// Re-exports of another export's items, which name that export's.
-	pub reexports: Vec<String>,
 }
 
 /// How an exported crate's type is exported, once decided.
@@ -151,6 +148,11 @@ struct Collector<'tcx> {
 	tcx: TyCtxt<'tcx>,
 	/// Each `pub` item and its shortest path, in the order the walk met them.
 	items: Vec<(DefId, Path)>,
+	/// How many leading segments of each item's path lie outside its crate, as
+	/// [`Home::outside`] counts them.
+	outside: rustc_data_structures::fx::FxHashMap<DefId, usize>,
+	/// Each crate's [`Home::krate`].
+	keys: rustc_data_structures::fx::FxHashMap<CrateNum, String>,
 	decls: rustc_data_structures::fx::FxHashMap<Key<'tcx>, Decl>,
 	/// The instances generic types export at, each type's by how reports name them.
 	instances: Vec<Site<'tcx>>,
@@ -159,15 +161,18 @@ struct Collector<'tcx> {
 	/// Whether instances are still being inferred, before any type is declared: each type
 	/// then counts as mapping, so inference takes every choice typing could.
 	inferring: bool,
-	/// The exported crates, the configured one first, and what collection found in each.
+	/// The crates of the items the walk reached, the facade's first.
 	crates: Vec<CrateNum>,
-	reports: Vec<Report>,
+	report: Report,
 	/// Items the walk left out, and why: `excluded` or `doc(hidden)`.
 	left_out: rustc_data_structures::fx::FxHashMap<DefId, &'static str>,
 	/// The type parameters of the function being mapped that take a foreign
 	/// implementation or a lent closure, with the type each takes.
 	impls: std::cell::RefCell<Vec<(Ty<'tcx>, Type)>>,
 	bytes: Option<DefId>,
+	/// The standard library's crates, `core`, `alloc`, and `std`, known by what each
+	/// defines, since the facade or another crate may share their names.
+	sysroot: Vec<CrateNum>,
 	/// Each type in [`FOREIGN`] that some crate builds with and no export is, and the
 	/// object it exports as.
 	foreign: Vec<(DefId, usize)>,
@@ -179,8 +184,18 @@ struct Collector<'tcx> {
 	api: Api,
 }
 
-/// Collect the exported crates' API, leaving out what each one's `exclude` names.
-pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, crates: &[Crate<'_>]) -> Collected {
+/// Every crate, each after those it depends on, the facade's last.
+fn order(tcx: TyCtxt<'_>) -> Vec<CrateNum> {
+	let mut order: Vec<CrateNum> = (tcx.postorder_cnums(()).iter())
+		.copied()
+		.filter(|&k| k != LOCAL_CRATE)
+		.collect();
+	order.push(LOCAL_CRATE);
+	order
+}
+
+/// Collect the facade's API, leaving out what its `exclude` names.
+pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 	// A type at a crate's root, by the crate's name and its own.
 	let root = |krate: &str, name: &str| {
 		let krate = *tcx.crates(()).iter().find(|&&k| tcx.crate_name(k).as_str() == krate)?;
@@ -189,9 +204,17 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, crates: &[Crate<'_>]) -> Collected {
 			.and_then(|child| child.res.opt_def_id())
 	};
 	let bytes = root("bytes", "Bytes");
+	let sysroot: Vec<CrateNum> = [
+		tcx.lang_items().sized_trait(),
+		tcx.lang_items().owned_box(),
+		tcx.get_diagnostic_item(rustc_span::Symbol::intern("HashMap")),
+	]
+	.into_iter()
+	.flatten()
+	.map(|def_id| def_id.krate)
+	.collect();
 	let foreign: Vec<DefId> = (FOREIGN.iter())
-		.filter_map(|&(krate, name)| root(krate, name))
-		.filter(|ty| !crates.iter().any(|c| c.krate == ty.krate))
+		.filter_map(|&(krate, name, _)| root(krate, name))
 		.collect();
 	let range_bounds = tcx.get_diagnostic_item(rustc_span::Symbol::intern("RangeBounds"));
 	// `RangeBounds::start_bound` returns a `Bound`, which has no diagnostic item of its own.
@@ -205,33 +228,45 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, crates: &[Crate<'_>]) -> Collected {
 			_ => None,
 		}
 	});
+	// A later crate of an earlier one's name takes `#` and how many have it so far.
+	let mut keys = rustc_data_structures::fx::FxHashMap::default();
+	let mut seen: std::collections::HashMap<rustc_span::Symbol, usize> = Default::default();
+	for krate in order(tcx) {
+		let name = tcx.crate_name(krate);
+		let count = seen.entry(name).or_default();
+		*count += 1;
+		let key = match *count {
+			1 => name.to_string(),
+			n => format!("{name}#{n}"),
+		};
+		keys.insert(krate, key);
+	}
 	let pass = |orphans: &rustc_data_structures::fx::FxHashSet<Key<'tcx>>| {
 		let mut c = Collector {
 			tcx,
 			items: Vec::new(),
+			outside: Default::default(),
+			keys: keys.clone(),
 			decls: Default::default(),
-			crates: crates.iter().map(|c| c.krate).collect(),
-			reports: crates
-				.iter()
-				.map(|c| Report {
-					package: c.package.to_string(),
-					krate: c.root.clone(),
-					refusals: Vec::new(),
-					opaque: Vec::new(),
-					twins: Vec::new(),
-					hidden: Vec::new(),
-					excluded: c.exclude.iter().map(|path| (path.clone(), 0)).collect(),
-					aliases: Vec::new(),
-					reexports: Vec::new(),
-				})
-				.collect(),
+			crates: vec![LOCAL_CRATE],
+			report: Report {
+				package: facade.package.to_string(),
+				root: facade.root.clone(),
+				refusals: Vec::new(),
+				opaque: Vec::new(),
+				twins: Vec::new(),
+				hidden: Vec::new(),
+				excluded: facade.exclude.iter().map(|path| (path.clone(), 0)).collect(),
+				aliases: Vec::new(),
+			},
 			instances: Vec::new(),
 			rejected: Default::default(),
 			inferring: true,
 			left_out: Default::default(),
 			impls: Default::default(),
 			bytes,
-			foreign: foreign.iter().map(|&ty| (ty, 0)).collect(),
+			sysroot: sysroot.clone(),
+			foreign: Vec::new(),
 			bound,
 			range_bounds,
 			orphans: orphans.clone(),
@@ -242,13 +277,21 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, crates: &[Crate<'_>]) -> Collected {
 				callbacks: Vec::new(),
 				functions: Vec::new(),
 				constants: Vec::new(),
+				crates: Vec::new(),
 			},
 		};
 		c.walk();
+		// A foreign type the facade re-exports is its own export, whatever else of its
+		// crate the facade reaches.
+		c.foreign = (foreign.iter())
+			.filter(|&&ty| !c.items.iter().any(|(item, _)| *item == ty))
+			.map(|&ty| (ty, 0))
+			.collect();
 		c.infer();
 		c.declare();
 		c.define();
 		c.prune();
+		c.rehome();
 		unshare(&mut c.api);
 		c
 	};
@@ -261,7 +304,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, crates: &[Crate<'_>]) -> Collected {
 		if more.is_empty() {
 			return Collected {
 				api: c.api,
-				reports: c.reports,
+				report: c.report,
 			};
 		}
 		orphans.extend(more);
@@ -269,15 +312,160 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, crates: &[Crate<'_>]) -> Collected {
 }
 
 impl<'tcx> Collector<'tcx> {
-	/// What collection found in the crate `path` starts with, and the rest of `path`.
+	/// What collection found, and `path` without the facade's root.
 	fn report(&mut self, path: &[String]) -> (&mut Report, String) {
-		let report = (self.reports.iter_mut())
-			.find(|r| r.krate == path[0])
-			.expect("a path starts with its exported crate");
-		(report, path[1..].join("::"))
+		(&mut self.report, path[1..].join("::"))
 	}
 
-	/// Whether `krate` is exported.
+	/// Where the item `def_id` the walk reached belongs, before any instance moves on.
+	fn home(&self, def_id: DefId) -> Home {
+		let tcx = self.tcx;
+		// An associated item, whose path goes through its type's, is at home with it.
+		let item = match self.outside.contains_key(&def_id) {
+			true => def_id,
+			false => match tcx
+				.type_of(tcx.parent(def_id))
+				.instantiate_identity()
+				.skip_norm_wip()
+				.kind()
+			{
+				ty::Adt(adt, _) => adt.did(),
+				other => unreachable!("an associated item of {other:?}"),
+			},
+		};
+		Home {
+			krate: self.keys[&item.krate].clone(),
+			outside: self.outside[&item],
+		}
+	}
+
+	/// Move each instance, and each function naming one, to the last crate among its own
+	/// and those its arguments belong to, then list the crates in that order. An instance
+	/// that leaves its crate shows its whole path there.
+	fn rehome(&mut self) {
+		let tcx = self.tcx;
+		let order: Vec<String> = order(tcx).into_iter().map(|k| self.keys[&k].clone()).collect();
+		let rank = |krate: &str| {
+			order
+				.iter()
+				.position(|k| k == krate)
+				.expect("each crate is in the order")
+		};
+		let api = &mut self.api;
+		// An argument's home may move in turn, so this repeats until none does.
+		loop {
+			let later = |home: &Home, types: &mut dyn Iterator<Item = &Type>| -> Option<String> {
+				let mut last = home.krate.clone();
+				for ty in types {
+					crate::ir::each(ty, &mut |named| {
+						let krate = match named {
+							Type::Record(i) => &api.records[*i].home.krate,
+							Type::Enum(i) => &api.enums[*i].home.krate,
+							Type::Object(i) => &api.objects[*i].home.krate,
+							Type::Callback(i, _) => &api.callbacks[*i].home.krate,
+							_ => return,
+						};
+						if rank(krate) > rank(&last) {
+							last = krate.clone();
+						}
+					});
+				}
+				(last != home.krate).then_some(last)
+			};
+			let mut moves = Vec::new();
+			for (i, r) in api.records.iter().enumerate() {
+				moves.extend(later(&r.home, &mut r.args.iter()).map(|k| (0, i, k)));
+			}
+			for (i, e) in api.enums.iter().enumerate() {
+				moves.extend(later(&e.home, &mut e.args.iter()).map(|k| (1, i, k)));
+			}
+			for (i, o) in api.objects.iter().enumerate() {
+				moves.extend(later(&o.home, &mut o.args.iter()).map(|k| (2, i, k)));
+			}
+			for (i, f) in api.functions.iter().enumerate() {
+				let mut types = (f.params.iter().map(|p| &p.ty)).chain([&f.ok]).chain(&f.err);
+				moves.extend(later(&f.home, &mut types).map(|k| (3, i, k)));
+			}
+			if moves.is_empty() {
+				break;
+			}
+			for (kind, i, krate) in moves {
+				let home = match kind {
+					0 => &mut api.records[i].home,
+					1 => &mut api.enums[i].home,
+					2 => &mut api.objects[i].home,
+					_ => &mut api.functions[i].home,
+				};
+				*home = Home { krate, outside: 1 };
+			}
+		}
+		// A method whose instance names a later crate's type belongs there too; any other
+		// with its type.
+		let method_homes = |owner: &Home, methods: &[Function]| -> Vec<Home> {
+			(methods.iter())
+				.map(|f| {
+					let mut last = owner.krate.clone();
+					let types = (f.params.iter().map(|p| &p.ty)).chain([&f.ok]).chain(&f.err);
+					for ty in types {
+						crate::ir::each(ty, &mut |named| {
+							let krate = match named {
+								Type::Record(i) => &api.records[*i].home.krate,
+								Type::Enum(i) => &api.enums[*i].home.krate,
+								Type::Object(i) => &api.objects[*i].home.krate,
+								Type::Callback(i, _) => &api.callbacks[*i].home.krate,
+								_ => return,
+							};
+							if rank(krate) > rank(&last) {
+								last = krate.clone();
+							}
+						});
+					}
+					match last == owner.krate {
+						true => owner.clone(),
+						false => Home {
+							krate: last,
+							outside: 1,
+						},
+					}
+				})
+				.collect()
+		};
+		let records: Vec<Vec<Home>> = api.records.iter().map(|r| method_homes(&r.home, &r.methods)).collect();
+		let enums: Vec<Vec<Home>> = api.enums.iter().map(|e| method_homes(&e.home, &e.methods)).collect();
+		let objects: Vec<Vec<Home>> = api.objects.iter().map(|o| method_homes(&o.home, &o.methods)).collect();
+		let callbacks: Vec<Vec<Home>> = api
+			.callbacks
+			.iter()
+			.map(|c| method_homes(&c.home, &c.methods))
+			.collect();
+		let set = |methods: &mut [Function], homes: Vec<Home>| {
+			for (method, home) in methods.iter_mut().zip(homes) {
+				method.home = home;
+			}
+		};
+		for (r, homes) in api.records.iter_mut().zip(records) {
+			set(&mut r.methods, homes);
+		}
+		for (e, homes) in api.enums.iter_mut().zip(enums) {
+			set(&mut e.methods, homes);
+		}
+		for (o, homes) in api.objects.iter_mut().zip(objects) {
+			set(&mut o.methods, homes);
+		}
+		for (c, homes) in api.callbacks.iter_mut().zip(callbacks) {
+			set(&mut c.methods, homes);
+		}
+		let homes = (api.records.iter().map(|r| &r.home.krate))
+			.chain(api.enums.iter().map(|e| &e.home.krate))
+			.chain(api.objects.iter().map(|o| &o.home.krate))
+			.chain(api.callbacks.iter().map(|c| &c.home.krate))
+			.chain(api.functions.iter().map(|f| &f.home.krate))
+			.chain(api.constants.iter().map(|c| &c.home.krate));
+		let homes: std::collections::BTreeSet<&String> = homes.collect();
+		api.crates = order.iter().filter(|k| homes.contains(k)).cloned().collect();
+	}
+
+	/// Whether the walk reached an item of `krate`.
 	fn exported(&self, krate: CrateNum) -> bool {
 		self.crates.contains(&krate)
 	}
@@ -285,7 +473,7 @@ impl<'tcx> Collector<'tcx> {
 	/// Whether the config excludes `path`, counting the exclusion. A member of an instance
 	/// is left out by its instance's path or its type's, which leaves it out of each.
 	fn exclude(&mut self, path: &[String]) -> bool {
-		let (report, _) = self.report(path);
+		let report = &mut self.report;
 		for (_, key) in config::keys(&path[1..]) {
 			if let Some((_, count)) = report.excluded.iter_mut().find(|(excluded, _)| *excluded == key) {
 				*count += 1;
@@ -696,82 +884,86 @@ impl<'tcx> Collector<'tcx> {
 		report.refusals.push(Refusal { path, kind, span, why });
 	}
 
-	/// Every `pub` item reachable from each exported crate's root, breadth first so each
-	/// keeps its shortest path, which starts with its crate's root.
+	/// Every `pub` item reachable from the facade's root, through re-exports of other
+	/// crates' items and modules too, breadth first so each keeps its shortest path, which
+	/// starts with the facade's root.
 	fn walk(&mut self) {
 		let tcx = self.tcx;
-		for (i, krate) in self.crates.clone().into_iter().enumerate() {
-			// Per export: two may re-export one item, and each refuses or excludes it.
-			let mut seen = rustc_data_structures::fx::FxHashSet::default();
-			let mut queue = VecDeque::from([(krate.as_def_id(), vec![self.reports[i].krate.clone()])]);
-			while let Some((module, path)) = queue.pop_front() {
-				let children = match module.as_local() {
-					Some(local) => tcx.module_children_local(local),
-					None => tcx.module_children(module),
+		let mut seen = rustc_data_structures::fx::FxHashSet::default();
+		// Each module with its path, and the module each segment of it names.
+		let root = LOCAL_CRATE.as_def_id();
+		let mut queue = VecDeque::from([(root, vec![self.report.root.clone()], vec![root])]);
+		while let Some((module, path, modules)) = queue.pop_front() {
+			let children = match module.as_local() {
+				Some(local) => tcx.module_children_local(local),
+				None => tcx.module_children(module),
+			};
+			for child in children {
+				if !child.vis.is_public() || child.ident.name == rustc_span::kw::Underscore {
+					continue;
+				}
+				let Res::Def(kind, def_id) = child.res else {
+					continue;
 				};
-				for child in children {
-					if !child.vis.is_public() || child.ident.name == rustc_span::kw::Underscore {
-						continue;
-					}
-					let Res::Def(kind, def_id) = child.res else {
-						continue;
-					};
-					// Variants and constructors come along with their type.
-					if matches!(kind, DefKind::Ctor(..) | DefKind::Variant) {
-						continue;
-					}
-					let mut path = path.clone();
-					path.push(child.ident.to_string());
-					// Another export's item, which that export walks from its own root.
-					if def_id.krate != krate && self.exported(def_id.krate) {
+				// Variants and constructors come along with their type.
+				if matches!(kind, DefKind::Ctor(..) | DefKind::Variant) {
+					continue;
+				}
+				if !seen.insert(def_id) {
+					continue;
+				}
+				let mut path = path.clone();
+				path.push(child.ident.to_string());
+				let mut modules = modules.clone();
+				modules.push(def_id);
+				if self.exclude(&path) {
+					self.left_out.insert(def_id, "excluded type");
+					continue;
+				}
+				if tcx.is_doc_hidden(def_id) {
+					let (report, rest) = self.report(&path);
+					report.hidden.push(rest);
+					self.left_out.insert(def_id, "doc(hidden) type");
+					continue;
+				}
+				let span = child
+					.reexport_chain
+					.first()
+					.and_then(|reexport| reexport.id())
+					.map_or_else(|| tcx.def_span(def_id), |id| tcx.def_span(id));
+				// Its types map by role, not as items of the facade's.
+				if self.sysroot.contains(&def_id.krate) {
+					let krate = tcx.crate_name(def_id.krate);
+					let why = why("re-export of the standard library's item", krate.to_string());
+					self.refuse(&path, "use", span, vec![why]);
+					continue;
+				}
+				match kind {
+					DefKind::Mod => queue.push_back((def_id, path, modules)),
+					DefKind::TyAlias => {
 						let (report, rest) = self.report(&path);
-						report.reexports.push(rest);
-						continue;
+						report.aliases.push(rest);
 					}
-					if !seen.insert(def_id) {
-						continue;
-					}
-					if self.exclude(&path) {
-						self.left_out.insert(def_id, "excluded type");
-						continue;
-					}
-					if tcx.is_doc_hidden(def_id) {
-						let (report, rest) = self.report(&path);
-						report.hidden.push(rest);
-						self.left_out.insert(def_id, "doc(hidden) type");
-						continue;
-					}
-					let span = child
-						.reexport_chain
-						.first()
-						.and_then(|reexport| reexport.id())
-						.map_or_else(|| tcx.def_span(def_id), |id| tcx.def_span(id));
-					if def_id.krate != krate {
-						let other = tcx.crate_name(def_id.krate);
-						self.refuse(
-							&path,
-							"use",
-							span,
-							vec![why("re-export of another crate's item", other.to_string())],
-						);
-						continue;
-					}
-					match kind {
-						DefKind::Mod => queue.push_back((def_id, path)),
-						DefKind::TyAlias => {
-							let (report, rest) = self.report(&path);
-							report.aliases.push(rest);
+					DefKind::Macro(_) => self.refuse(&path, "macro", span, vec![why("macro", "")]),
+					DefKind::Static { .. } => self.refuse(&path, "static", span, vec![why("static", "")]),
+					DefKind::Struct
+					| DefKind::Enum
+					| DefKind::Union
+					| DefKind::Trait
+					| DefKind::Fn
+					| DefKind::Const => {
+						if !self.crates.contains(&def_id.krate) {
+							self.crates.push(def_id.krate);
 						}
-						DefKind::Macro(_) => self.refuse(&path, "macro", span, vec![why("macro", "")]),
-						DefKind::Static { .. } => self.refuse(&path, "static", span, vec![why("static", "")]),
-						DefKind::Struct
-						| DefKind::Enum
-						| DefKind::Union
-						| DefKind::Trait
-						| DefKind::Fn
-						| DefKind::Const => self.items.push((def_id, path)),
-						_ => self.refuse(&path, "item", span, vec![why("item kind", format!("{kind:?}"))]),
+						// Its crate's own segments end the path, after any naming the
+						// facade's modules or another crate's.
+						let own = (modules.iter().rev())
+							.take_while(|m| m.krate == def_id.krate && !m.is_crate_root())
+							.count();
+						self.outside.insert(def_id, path.len() - own);
+						self.items.push((def_id, path))
 					}
+					_ => self.refuse(&path, "item", span, vec![why("item kind", format!("{kind:?}"))]),
 				}
 			}
 		}
@@ -824,6 +1016,7 @@ impl<'tcx> Collector<'tcx> {
 		for (def_id, path) in self.items.clone() {
 			let span = tcx.def_span(def_id);
 			let docs = docs(tcx, def_id);
+			let home = self.home(def_id);
 			for site in self.sites(def_id, &path) {
 				let Some(decl) = self.decls.get_mut(&site.key) else {
 					continue;
@@ -835,6 +1028,7 @@ impl<'tcx> Collector<'tcx> {
 						*i = api.records.len();
 						api.records.push(Record {
 							path,
+							home: home.clone(),
 							shown,
 							args: Vec::new(),
 							span,
@@ -849,6 +1043,7 @@ impl<'tcx> Collector<'tcx> {
 						*i = api.enums.len();
 						api.enums.push(Enum {
 							path,
+							home: home.clone(),
 							shown,
 							args: Vec::new(),
 							span,
@@ -867,6 +1062,7 @@ impl<'tcx> Collector<'tcx> {
 						let lifetimes = tcx.generics_of(def_id).own_counts().lifetimes;
 						api.objects.push(Object {
 							path,
+							home: home.clone(),
 							shown,
 							args: Vec::new(),
 							span,
@@ -877,12 +1073,14 @@ impl<'tcx> Collector<'tcx> {
 							lifetimes,
 							methods: Vec::new(),
 							traits: Traits::default(),
+							foreign: false,
 						});
 					}
 					Decl::Callback(i) => {
 						*i = api.callbacks.len();
 						api.callbacks.push(Callback {
 							path,
+							home: home.clone(),
 							span,
 							docs,
 							methods: Vec::new(),
@@ -908,16 +1106,25 @@ impl<'tcx> Collector<'tcx> {
 		let span = tcx.def_span(def_id);
 		let ty = Type::Object(index);
 		let krate = tcx.crate_name(def_id.krate);
-		let path = |rest: &str| -> Path {
-			[krate.as_str(), tcx.item_name(def_id).as_str(), rest]
+		let name = tcx.item_name(def_id);
+		let role = (FOREIGN.iter())
+			.find(|&&(k, n, _)| k == krate.as_str() && n == name.as_str())
+			.map(|&(_, _, role)| role)
+			.expect("a foreign type is in FOREIGN");
+		let segments = |first: &str, second: &str, rest: &str| -> Path {
+			[first, second, rest]
 				.iter()
 				.filter(|s| !s.is_empty())
 				.map(|s| s.to_string())
 				.collect()
 		};
+		// Its path is its own crate's, which the glue names it by; it shows at the facade's
+		// root, which names it in every language.
+		let path = |rest: &str| segments(krate.as_str(), name.as_str(), rest);
+		let shown = |rest: &str| segments(&self.report.root, role, rest);
 		let parse = |docs: &str| Function {
 			path: path("parse"),
-			shown: path("parse"),
+			shown: shown("parse"),
 			span,
 			docs: docs.to_string(),
 			receiver: None,
@@ -932,6 +1139,7 @@ impl<'tcx> Collector<'tcx> {
 			collect: false,
 			access: Access::Parse,
 			instance: None,
+			home: Home::default(),
 		};
 		let (docs, methods, traits) = match krate.as_str() {
 			"url" => (
@@ -952,7 +1160,7 @@ impl<'tcx> Collector<'tcx> {
 					parse("Parse a JSON document, failing with why it is not one."),
 					Function {
 						path: path("to_text"),
-						shown: path("to_text"),
+						shown: shown("to_text"),
 						span,
 						docs: "The document as JSON text.".to_string(),
 						receiver: Some(Receiver::Ref),
@@ -964,6 +1172,7 @@ impl<'tcx> Collector<'tcx> {
 						collect: false,
 						access: Access::Text,
 						instance: None,
+						home: Home::default(),
 					},
 				],
 				Traits::default(),
@@ -971,7 +1180,11 @@ impl<'tcx> Collector<'tcx> {
 		};
 		Object {
 			path: path(""),
-			shown: path(""),
+			home: Home {
+				krate: self.keys[&def_id.krate].clone(),
+				outside: 1,
+			},
+			shown: shown(""),
 			args: Vec::new(),
 			span,
 			docs: docs.to_string(),
@@ -982,6 +1195,7 @@ impl<'tcx> Collector<'tcx> {
 			lifetimes: 0,
 			methods,
 			traits,
+			foreign: true,
 		}
 	}
 
@@ -1241,14 +1455,18 @@ impl<'tcx> Collector<'tcx> {
 					DefKind::Fn => {
 						for (function, shown, _) in self.functions(def_id, &path, &path, None, None) {
 							match function {
-								Ok(function) => self.api.functions.push(function),
+								Ok(function) => self.api.functions.push(Function {
+									home: self.home(def_id),
+									..function
+								}),
 								Err(why) => self.refuse(&shown, "fn", span, why),
 							}
 						}
 					}
 					DefKind::Const => {
 						if let Some(getter) = self.constant_item(def_id, path, None) {
-							self.api.functions.push(getter);
+							let home = self.home(def_id);
+							self.api.functions.push(Function { home, ..getter });
 						}
 					}
 					_ => {}
@@ -1459,6 +1677,7 @@ impl<'tcx> Collector<'tcx> {
 						collect: false,
 						access: Access::Field { shared, set },
 						instance: None,
+						home: Home::default(),
 					};
 					accessors.push(accessor(Receiver::Ref, Vec::new(), get, false));
 					let value = Param {
@@ -1867,6 +2086,7 @@ impl<'tcx> Collector<'tcx> {
 				collect,
 				access: Access::Call,
 				instance,
+				home: Home::default(),
 			}),
 			_ => Err(errs),
 		}
@@ -2607,7 +2827,14 @@ impl<'tcx> Collector<'tcx> {
 		if !matches!(ty.kind(), ty::Adt(..)) || !implements(iterator, ty) {
 			return None;
 		}
-		let std = |krate| matches!(tcx.crate_name(krate), sym::core | sym::alloc);
+		// core and alloc, known by what each defines.
+		let lang = tcx.lang_items();
+		let std = |krate| {
+			[lang.sized_trait(), lang.owned_box()]
+				.into_iter()
+				.flatten()
+				.any(|d| d.krate == krate)
+		};
 		let drained = |did: DefId| {
 			let path = tcx.def_path_str(did);
 			std(did.krate) && path.split_once("::").is_some_and(|(_, path)| DRAINED.contains(&path))
@@ -2673,7 +2900,7 @@ impl<'tcx> Collector<'tcx> {
 		}
 		// Besides items, the listed iterators call into only their allocator and `Split`'s
 		// pattern, whose impls must be core's or alloc's too, on a type or a borrow of one.
-		let krate = *tcx.crates(()).iter().find(|&&k| tcx.crate_name(k) == sym::core)?;
+		let krate = tcx.lang_items().sized_trait()?.krate;
 		let callee = |path: &str, method: &str| {
 			let tr = (tcx.traits(krate).iter().copied())
 				.find(|&tr| tcx.def_path_str(tr).split_once("::").is_some_and(|(_, p)| p == path))?;
@@ -2937,9 +3164,7 @@ impl<'tcx> Collector<'tcx> {
 					]) {
 					// std's own `Clone`, written by hand, clones each element.
 					args.types().all(|arg| self.shares(arg, env, seen))
-				} else if ["core", "alloc", "std"].contains(&tcx.crate_name(did.krate).as_str())
-					&& tcx.type_is_copy_modulo_regions(env, ty)
-				{
+				} else if self.sysroot.contains(&did.krate) && tcx.type_is_copy_modulo_regions(env, ty) {
 					// std's `Clone` of a `Copy` type, such as `NonZero`'s, copies it, as std's own
 					// specializations of `Clone` for `Copy` types assume.
 					true
@@ -2989,8 +3214,10 @@ impl<'tcx> Collector<'tcx> {
 			None => {
 				let why = match self.constant(def_id) {
 					Ok(value) => {
+						let home = self.home(def_id);
 						self.api.constants.push(Constant {
 							path,
+							home,
 							span,
 							docs: docs(tcx, def_id),
 							value,
@@ -3021,6 +3248,7 @@ impl<'tcx> Collector<'tcx> {
 				collect: false,
 				access: Access::Const,
 				instance: None,
+				home: Home::default(),
 			}),
 			Err(why) => {
 				self.refuse(&path, "const", span, vec![why]);
@@ -3148,7 +3376,7 @@ impl<'tcx> Collector<'tcx> {
 					Type::Duration
 				} else if tcx.is_diagnostic_item(rustc_span::Symbol::intern("PathBuf"), did) {
 					Type::PathBuf
-				} else if let Some(family) = (tcx.crate_name(did.krate) == sym::core)
+				} else if let Some(family) = (tcx.lang_items().sized_trait().map(|d| d.krate) == Some(did.krate))
 					.then(|| match tcx.item_name(did).as_str() {
 						"SocketAddr" => Some(Family::Any),
 						"SocketAddrV4" => Some(Family::V4),

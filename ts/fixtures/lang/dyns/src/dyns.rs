@@ -15,7 +15,9 @@
 //! value it was made from, a future there polled in place and dropped once. A
 //! `ManuallyDrop` of one drops only by its own `drop`, and a raw pointer unsized to one, or
 //! to a struct of one, reads and writes what it points at, drops it as the box made of it,
-//! or stays null.
+//! or stays null. An object of a generic trait, or of one with an associated type, calls
+//! the impl at its arguments, through a supertrait at others too, held in a generic struct
+//! too, and drops what its methods give out where Rust drops it.
 
 use std::any::Any;
 use std::cell::{Cell, RefCell, UnsafeCell};
@@ -1782,4 +1784,392 @@ pub fn rests(data: &[u8], out: &mut Vec<u8>) {
 	let shown: *const dyn Debug = &raw const side;
 	let null: *const dyn Shape = std::ptr::null::<Square>();
 	put(out, &format!("{:?} {}", unsafe { &*shown }, null.is_null()));
+}
+
+/// A generic trait.
+trait Scaled<T> {
+	fn scale(&self, by: T) -> T;
+	/// Writes through a `&mut` to the argument, an `rs.Place` for a number.
+	fn bump(&self, at: &mut T);
+	/// Takes and returns references to the argument, which the trait's type has in each
+	/// form a reference may be.
+	fn pick<'a>(&self, a: &'a T, b: &'a T) -> &'a T;
+	/// Provided, taking a function of a reference to the argument, which the trait's type
+	/// takes in each form a reference may be.
+	fn apply(&self, f: fn(&T) -> T, x: T) -> T {
+		f(&self.scale(x))
+	}
+}
+
+/// A trait whose method returns an object of it at another argument, and so on without end.
+trait Nest<T> {
+	fn next(&self) -> Option<&dyn Nest<Vec<T>>>;
+	fn depth(&self) -> u8;
+}
+
+struct Leaf(u8);
+
+impl<T> Nest<T> for Leaf {
+	fn next(&self) -> Option<&dyn Nest<Vec<T>>> {
+		None
+	}
+	fn depth(&self) -> u8 {
+		self.0
+	}
+}
+
+fn doubled(x: &u8) -> u8 {
+	x.wrapping_mul(2)
+}
+
+/// A generic trait over its supertrait at another argument.
+trait Paired<T>: Scaled<Vec<T>> {
+	fn pair(&self, x: T) -> (T, T);
+}
+
+/// A trait with an associated type.
+trait Source {
+	type Item;
+	fn take(&mut self) -> Option<Self::Item>;
+	fn left(&self) -> usize;
+}
+
+/// A trait whose supertrait binds an associated type.
+trait Counted: Source<Item = u32> {
+	fn total(&self) -> u32;
+}
+
+struct By(u8);
+
+impl Scaled<u8> for By {
+	fn scale(&self, by: u8) -> u8 {
+		self.0.wrapping_mul(by)
+	}
+	fn bump(&self, at: &mut u8) {
+		*at = at.wrapping_add(self.0);
+	}
+	fn pick<'a>(&self, a: &'a u8, b: &'a u8) -> &'a u8 {
+		if self.0 % 2 == 0 { a } else { b }
+	}
+}
+
+/// A number, which JS copies.
+impl Scaled<u16> for u16 {
+	fn scale(&self, by: u16) -> u16 {
+		self.wrapping_mul(by).wrapping_add(1)
+	}
+	fn bump(&self, at: &mut u16) {
+		*at = at.wrapping_sub(*self);
+	}
+	fn pick<'a>(&self, a: &'a u16, b: &'a u16) -> &'a u16 {
+		if a > b { a } else { b }
+	}
+}
+
+impl Scaled<String> for Tri {
+	fn scale(&self, by: String) -> String {
+		format!("{by}{self:?}")
+	}
+	fn bump(&self, at: &mut String) {
+		at.push_str(&self.area().to_string());
+	}
+	fn pick<'a>(&self, a: &'a String, b: &'a String) -> &'a String {
+		if a.len() >= b.len() { a } else { b }
+	}
+}
+
+/// Bytes, which JS keeps apart from other vectors.
+struct Many(u8);
+
+impl Scaled<Vec<u8>> for Many {
+	fn scale(&self, by: Vec<u8>) -> Vec<u8> {
+		by.iter().map(|x| x.wrapping_add(self.0)).collect()
+	}
+	fn bump(&self, at: &mut Vec<u8>) {
+		at.push(self.0);
+	}
+	fn pick<'a>(&self, a: &'a Vec<u8>, b: &'a Vec<u8>) -> &'a Vec<u8> {
+		if a.len() < b.len() { a } else { b }
+	}
+}
+
+impl Paired<u8> for Many {
+	fn pair(&self, x: u8) -> (u8, u8) {
+		(x, x.wrapping_add(self.0))
+	}
+}
+
+/// Owns what it gives out, each dropped where Rust drops it.
+struct Drained(Vec<Noisy>);
+
+impl Source for Drained {
+	type Item = Noisy;
+	fn take(&mut self) -> Option<Noisy> {
+		self.0.pop()
+	}
+	fn left(&self) -> usize {
+		self.0.len()
+	}
+}
+
+struct Steps(u32, u32);
+
+impl Source for Steps {
+	type Item = u32;
+	fn take(&mut self) -> Option<u32> {
+		self.0.checked_sub(1).map(|n| {
+			self.0 = n;
+			self.1 = self.1.wrapping_add(n);
+			n
+		})
+	}
+	fn left(&self) -> usize {
+		self.0 as usize
+	}
+}
+
+impl Counted for Steps {
+	fn total(&self) -> u32 {
+		self.1
+	}
+}
+
+/// A copied value, which `&mut self` reaches through a place, giving strings.
+impl Source for u8 {
+	type Item = String;
+	fn take(&mut self) -> Option<String> {
+		*self = self.checked_sub(1)?;
+		Some(format!("<{self}>"))
+	}
+	fn left(&self) -> usize {
+		usize::from(*self)
+	}
+}
+
+fn taken<I: Debug>(s: &mut dyn Source<Item = I>) -> String {
+	let mut taken = Vec::new();
+	while let Some(x) = s.take() {
+		taken.push(format!("{x:?}"));
+	}
+	taken.join(",")
+}
+
+impl Debug for Noisy {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "N{}", self.0)
+	}
+}
+
+/// A generic trait whose method returns its argument, `()` too.
+trait Task<T> {
+	fn run(&mut self) -> T;
+}
+
+impl Task<()> for Steps {
+	fn run(&mut self) {
+		self.1 = self.1.wrapping_mul(3);
+	}
+}
+
+impl Task<u32> for Square {
+	fn run(&mut self) -> u32 {
+		self.side = self.side.wrapping_add(1);
+		self.area()
+	}
+}
+
+/// A generic struct of trait objects of its parameter, which its type has as its own.
+struct Over<T> {
+	scale: Box<dyn Scaled<T>>,
+	source: Box<dyn Source<Item = T>>,
+}
+
+impl<T: Clone> Over<T> {
+	fn run(&mut self) -> Option<T> {
+		let next = self.source.take()?;
+		let other = self.scale.scale(next.clone());
+		Some(self.scale.pick(&next, &other).clone())
+	}
+}
+
+pub fn generics(data: &[u8], out: &mut Vec<u8>) {
+	let [a, b, c, rest @ ..] = data else {
+		return;
+	};
+	let (a, b, c) = (*a, *b, *c);
+	let log = Rc::new(RefCell::new(Vec::new()));
+
+	// Objects of a generic trait at three arguments, each of another type.
+	let by = By(a);
+	let narrow: &dyn Scaled<u8> = &by;
+	let wide: Box<dyn Scaled<u16> + Send> = Box::new(u16::from(b) * 7);
+	let tri = if c % 2 == 0 { Tri::Flat } else { Tri::Tall(c) };
+	let named: &dyn Scaled<String> = &tri;
+	let (mut n, mut w, mut s) = (b, u16::from(c) << 8, String::from("s"));
+	narrow.bump(&mut n);
+	wide.bump(&mut w);
+	named.bump(&mut s);
+	put(
+		out,
+		&format!(
+			"{} {} {} {n} {w} {s} ",
+			narrow.scale(b),
+			wide.scale(u16::from(c) * 300),
+			named.scale(format!("{a}"))
+		),
+	);
+	let (x, y) = (String::from("ab"), format!("{c}"));
+	put(
+		out,
+		&format!(
+			"{} {} {} ",
+			narrow.pick(&b, &c),
+			wide.pick(&u16::from(a), &w),
+			named.pick(&x, &y)
+		),
+	);
+
+	// A subtrait at one argument, its supertrait at another, through the subtrait and
+	// upcast to the supertrait.
+	let many = Many(b);
+	let paired: &dyn Paired<u8> = &many;
+	let up: &dyn Scaled<Vec<u8>> = paired;
+	let mut v = rest.to_vec();
+	paired.bump(&mut v);
+	let picked = up.pick(&v, &[a].to_vec()).clone();
+	put(
+		out,
+		&format!("{:?} {:?} {v:?} {picked:?} ", paired.pair(c), up.scale(rest.to_vec())),
+	);
+	// Shared, upcast through the `Arc`, whose count both sides share.
+	let shared: Arc<dyn Paired<u8>> = Arc::new(Many(c));
+	let up: Arc<dyn Scaled<Vec<u8>>> = shared.clone();
+	let mut v = vec![a];
+	up.bump(&mut v);
+	put(out, &format!("{:?} {v:?} {} ", shared.pair(b), Arc::strong_count(&up)));
+	let weak: Weak<dyn Paired<u8>> = Arc::downgrade(&shared);
+	let weak: Weak<dyn Scaled<Vec<u8>>> = weak;
+	drop(up);
+	let scaled = weak.upgrade().map(|s| s.scale(vec![a, b]));
+	drop(shared);
+	put(out, &format!("{scaled:?} {} ", weak.upgrade().is_none()));
+	let nest: &dyn Nest<u8> = &Leaf(c);
+	put(
+		out,
+		&format!(
+			"{} {} {} ",
+			nest.next().is_none(),
+			nest.depth(),
+			narrow.apply(doubled, c)
+		),
+	);
+
+	// Associated types: owned items each dropped as Rust drops them, numbers, and strings
+	// from a copied value changed in place.
+	let items = rest.iter().map(|&x| Noisy(x, log.clone())).collect();
+	let mut owned: Box<dyn Source<Item = Noisy>> = Box::new(Drained(items));
+	let first = owned.take();
+	put(out, &format!("{} {first:?} {:?} ", owned.left(), log.borrow()));
+	drop(first);
+	put(out, &format!("{:?} ", log.borrow()));
+	if a % 2 == 0 {
+		owned.take();
+	}
+	drop(owned);
+	put(out, &format!("{:?} ", log.borrow()));
+	let mut steps = Steps(u32::from(a % 6), u32::from(b));
+	let counted: &mut dyn Counted = &mut steps;
+	let next = counted.take();
+	put(out, &format!("{next:?} {} {} ", counted.left(), counted.total()));
+	put(out, &format!("{} {} ", taken(counted), steps.1));
+	let mut left = c % 5;
+	put(out, &format!("{} {left} ", taken(&mut left)));
+
+	// A unit return, and a number's.
+	let mut tasks: Vec<Box<dyn Task<()>>> = vec![Box::new(Steps(1, u32::from(a)))];
+	let mut square: Box<dyn Task<u32>> = Box::new(Square { side: u16::from(c) });
+	tasks[0].run();
+	let ran = tasks.iter_mut().map(|t| t.run()).count();
+	put(out, &format!("{ran} {} ", square.run()));
+
+	// Held in a generic struct, whose type names the objects' arguments.
+	let mut over = Over {
+		scale: Box::new(tri),
+		source: Box::new(a % 4),
+	};
+	let mut runs = Vec::new();
+	while let Some(x) = over.run() {
+		runs.push(x);
+	}
+	put(out, &format!("{runs:?} {}", over.source.left()));
+}
+
+/// Items that can already be `undefined`, whose `None` is `rs.None`: a countdown's
+/// remainders, `None` where it skips one, and its ticks.
+struct Skips(u8);
+
+impl Source for Skips {
+	type Item = Option<u8>;
+	fn take(&mut self) -> Option<Option<u8>> {
+		self.0 = self.0.checked_sub(1)?;
+		Some((self.0 % 3 != 0).then_some(self.0))
+	}
+	fn left(&self) -> usize {
+		usize::from(self.0)
+	}
+}
+
+struct Beats(u8);
+
+impl Source for Beats {
+	type Item = ();
+	fn take(&mut self) -> Option<()> {
+		self.0 = self.0.checked_sub(1)?;
+		Some(())
+	}
+	fn left(&self) -> usize {
+		usize::from(self.0)
+	}
+}
+
+/// A generic trait returning an `Option` of its parameter, which an object's type has as
+/// an `rs.OptionOf`, at a parameter that can be `undefined`.
+trait Peek<T> {
+	fn peek(&self) -> Option<T>;
+}
+
+impl Peek<()> for u8 {
+	fn peek(&self) -> Option<()> {
+		(*self % 2 == 0).then_some(())
+	}
+}
+
+impl Peek<Option<u8>> for u16 {
+	fn peek(&self) -> Option<Option<u8>> {
+		match *self % 3 {
+			0 => None,
+			1 => Some(None),
+			_ => Some(Some(*self as u8)),
+		}
+	}
+}
+
+/// Objects whose methods return an `Option` of what can already be `undefined`: of an
+/// associated type and of a generic trait's parameter.
+pub fn options(data: &[u8], out: &mut Vec<u8>) {
+	let [a, b, ..] = data else {
+		return;
+	};
+	let mut skips: Box<dyn Source<Item = Option<u8>>> = Box::new(Skips(*a % 8));
+	let first = skips.take();
+	put(out, &format!("{first:?} {} {} ", skips.left(), taken(&mut *skips)));
+	let mut beats = Beats(*b % 5);
+	let ticked: &mut dyn Source<Item = ()> = &mut beats;
+	put(out, &format!("{:?} {} ", ticked.take(), taken(ticked)));
+	for x in data {
+		let unit: &dyn Peek<()> = x;
+		let wide = u16::from(*x);
+		let nested: &dyn Peek<Option<u8>> = &wide;
+		put(out, &format!("{:?} {:?} ", unit.peek(), nested.peek()));
+	}
 }

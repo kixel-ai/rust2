@@ -14,24 +14,28 @@
 [[corpus]]
 name = "moq"
 git = "https://github.com/moq-dev/moq"
-rev = "f36c8482066bb5704d02d7cf7ea5350f5f78e025"
+rev = "142b03bd5c8360444750872223b03db04b106978"
 args = ["-p", "moq-relay"]
 leaf = "rs/moq-relay/src/lib.rs"
 hub = "rs/moq-net/src/lib.rs"
-# What moq-relay calls to drain a session at shutdown, and awaits to see it close.
+no-c = true
+# What moq-relay calls to drain a session at shutdown, and awaits to see it close:
+# a wrapper over `poll_closed`, as moq writes an async fn.
 sync = ["rs/moq-net/src/goaway.rs", "pub fn send(self, goaway: Goaway) -> Result<()> {"]
 async = ["rs/moq-net/src/session.rs", "pub async fn closed(&self) -> Error {"]
 # The tests of every workspace crate moq-relay builds, under the profile moq's CI
-# uses. Not moq-auth's: its tests depend on its published self, so no package
-# spec names it alone. The versions pick the workspace crate over a published one.
+# uses. Not moq-auth's or moq-pattern's: moq-auth's tests depend on its published
+# self, which brings a published moq-pattern, and both share their workspace
+# twin's version, so no package spec names either alone. qmux's version picks the
+# workspace crate over a published one.
 test = [
     "--profile=ci",
-    "--package=kio@0.6.2",
-    "--package=moq-clock",
-    "--package=moq-flate",
+    "--package=kio",
+    "--package=kio-macros",
+    "--package=moq-congestion",
+    "--package=moq-crypto",
     "--package=moq-json",
     "--package=moq-net",
-    "--package=moq-pattern@0.1.2",
     "--package=moq-quic",
     "--package=moq-relay",
     "--package=moq-sock",
@@ -39,17 +43,6 @@ test = [
     "--package=moq-tokio",
     "--package=qmux@0.7.0",
 ]
-
-# The moq corpus's rev plus moq-dev/moq's spike/pure-crypto branch, which moves
-# moq-relay's crypto off aws-lc-rs onto graviola and RustCrypto. Compare it with moq.
-[[corpus]]
-name = "moq-pure-crypto"
-git = "https://github.com/moq-dev/moq"
-rev = "fd53b86f6d3fd2b3d40be5e0c8c00f77f464c149"
-args = ["-p", "moq-relay"]
-leaf = "rs/moq-relay/src/lib.rs"
-hub = "rs/moq-net/src/lib.rs"
-no-c = true
 
 [[corpus]]
 name = "regex"
@@ -74,8 +67,8 @@ pure = true
 
 # Each variant is one build configuration. `base` names the variant it is
 # compared against; a variant without one is a base. `rustflags` replaces any
-# host rustflags the corpus configures (none do today). `subcommand` goes between
-# cargo and `build` or `check`. `corpora` and `scenarios` limit a variant to those
+# host rustflags the corpus configures (none do today). `config` holds cargo
+# `--config` values, and `subcommand` goes between cargo and `build` or `check`. `corpora` and `scenarios` limit a variant to those
 # they list, which its base must run too. A variant without `scenarios` runs
 # `check`, `build`, `edit-leaf`, and `edit-hub`; only the levers worth their cost
 # list the body edits and the test scenarios.
@@ -113,11 +106,14 @@ base = "nightly"
 toolchain = "nightly"
 rustflags = "-Z unstable-options --jobs-frontend=8"
 
+# rind, moq's crypto, builds with LLVM: its naked_asm! takes sym operands, which
+# Cranelift cannot compile yet (rust-lang/rustc_codegen_cranelift#1620). A profile
+# picks the backend, since cargo passes RUSTFLAGS after a package's own flags.
 [[variant]]
 name = "cranelift"
 base = "nightly"
 toolchain = "nightly"
-rustflags = "-Z codegen-backend=cranelift"
+config = ["unstable.codegen-backend=true", 'profile.dev.codegen-backend="cranelift"', 'profile.dev.package.rind.codegen-backend="llvm"']
 scenarios = ["check", "build", "edit-leaf", "edit-hub", "test-build", "test-run", "test-edit"]
 
 [[variant]]
@@ -142,7 +138,7 @@ toolchain = "nightly"
 [[variant]]
 name = "ra-jit-baseline"
 toolchain = "ra-jit"
-corpora = ["moq", "moq-pure-crypto"]
+corpora = ["moq"]
 scenarios = ["build", "edit-leaf", "edit-hub", "edit-sync", "edit-async"]
 
 [[variant]]
@@ -150,5 +146,5 @@ name = "ra-jit"
 base = "ra-jit-baseline"
 toolchain = "ra-jit"
 subcommand = "ra-jit"
-corpora = ["moq", "moq-pure-crypto"]
+corpora = ["moq"]
 scenarios = ["build", "edit-leaf", "edit-hub", "edit-sync", "edit-async"]

@@ -6,11 +6,16 @@
 //! keeps a `BTreeMap`, as moq-net's model keeps its state, op 9 converts timestamps
 //! between timescales, ops 10 and 11 add and order them as moq-net's `Timestamp` does,
 //! op 12 orders integers by std's own `Ord`, op 13 pushes onto vectors, op 14 keeps a
-//! `HashMap`, op 15 numbers TS packets as moq-mux does, and op 16 formats log lines.
+//! `HashMap`, op 15 numbers TS packets as moq-mux does, op 16 formats log lines, op 17
+//! writes through the mutable parts of a slice of integers, op 18 splits frames' `Bytes`
+//! off a group's, ops 19 and 20 code strings as moq-net codes a path, op 21 joins and
+//! strips paths, and op 22 keeps a `HashMap` keyed by `String`.
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, VecDeque};
 use std::fmt::Write;
+
+use bytes::Bytes;
 
 use crate::coding::{Decode, DecodeError, Decoder, Encode, EncodeError, Encoder, Form, varint};
 use crate::harness::{decode_error, encode_error, form, lite_version, put_u64, put_usize, take_u64};
@@ -43,6 +48,12 @@ pub fn run(input: &[u8]) -> Vec<u8> {
 		14 => hashed(selector, data, &mut out),
 		15 => packets(selector, data, &mut out),
 		16 => format(data, &mut out),
+		17 => parts(selector, data, &mut out),
+		18 => frames(data, &mut out),
+		19 => encoded(encode_strings(selector, data, &mut out), &mut out),
+		20 => decoded(decode_strings(data, &mut out), &mut out),
+		21 => join(selector, data, &mut out),
+		22 => keyed(selector, data, &mut out),
 		_ => decoded(decode_group(data, lite_version(selector), &mut out), &mut out),
 	}
 	out
@@ -335,6 +346,90 @@ fn format(data: &[u8], out: &mut Vec<u8>) {
 	put_u64(out, s.bytes().map(u64::from).sum());
 }
 
+/// Broadcast paths as moq names them: one ASCII, and one with chars of two, three, and four
+/// bytes.
+const NAMES: [&str; 2] = ["demo/room-42/alice/camera", "démo/salle-42/アリス/📷"];
+
+/// The tracks `join` appends to a broadcast's path.
+const TRACKS: [&str; 4] = ["video", "audio", "catalog.json", "字幕"];
+
+/// The `selector`th name of [`NAMES`], `count` times, each size-prefixed, as moq-net's
+/// `Encoder::string` writes a path.
+fn encode_strings(selector: u8, data: &[u8], out: &mut Vec<u8>) -> Result<(), EncodeError> {
+	let (count, _) = take_u64(data);
+	let name = NAMES[selector as usize % NAMES.len()];
+	let mut w = Encoder::new(out, Form::Quic);
+	for _ in 0..count as usize {
+		w.string(name)?;
+	}
+	Ok(())
+}
+
+/// Every string on the wire, each an owned `String`, as moq-net decodes a path: how many,
+/// their total length, and the last one's.
+fn decode_strings(wire: &[u8], out: &mut Vec<u8>) -> Result<(), DecodeError> {
+	let mut r = Decoder::new(wire, Form::Quic);
+	let mut count = 0;
+	let mut total = 0;
+	let mut last = String::new();
+	while !r.is_empty() {
+		last = r.string()?;
+		total += last.len();
+		count += 1;
+	}
+	put_usize(out, count);
+	put_usize(out, total);
+	put_usize(out, last.len());
+	Ok(())
+}
+
+/// `count` paths, each the `selector`th name of [`NAMES`] and a track joined into a
+/// `String` sized up front, as moq-net's `Path::concat` builds one, then stripped of the
+/// name at a segment boundary, as `Path::strip_prefix` is: their total length, and the
+/// stripped tracks'.
+fn join(selector: u8, data: &[u8], out: &mut Vec<u8>) {
+	let (count, _) = take_u64(data);
+	let name = NAMES[selector as usize % NAMES.len()];
+	let mut total = 0;
+	let mut stripped = 0;
+	for i in 0..count.min(1 << 16) as usize {
+		let track = TRACKS[i % TRACKS.len()];
+		let mut path = String::with_capacity(name.len() + 1 + track.len());
+		path.push_str(name);
+		path.push('/');
+		path.push_str(track);
+		total += path.len();
+		if let Some(rest) = path.strip_prefix(name)
+			&& let Some(rest) = rest.strip_prefix('/')
+		{
+			stripped += rest.len();
+		}
+	}
+	put_usize(out, total);
+	put_usize(out, stripped);
+}
+
+/// `count` paths, the `selector`th name of [`NAMES`] and a number, each a key of a
+/// `HashMap` and looked up by its `&str` four times, as moq-net finds a broadcast by its
+/// path: the sum of what the lookups found.
+fn keyed(selector: u8, data: &[u8], out: &mut Vec<u8>) {
+	let (count, _) = take_u64(data);
+	let name = NAMES[selector as usize % NAMES.len()];
+	let keys: Vec<String> = (0..count.min(1 << 16) as u32).map(|i| format!("{name}/{i}")).collect();
+	let mut map = HashMap::new();
+	for (i, key) in keys.iter().enumerate() {
+		map.insert(key.clone(), i as u64);
+	}
+	let mut sum = 0u64;
+	for _ in 0..4 {
+		for key in &keys {
+			sum += map.get(key.as_str()).copied().unwrap_or(0);
+		}
+	}
+	put_u64(out, sum);
+	put_usize(out, map.len());
+}
+
 /// A pair `format` writes with its derived `Debug`.
 #[derive(Debug)]
 struct Point {
@@ -373,6 +468,77 @@ fn packets(selector: u8, data: &[u8], out: &mut Vec<u8>) {
 		sum += u64::from(cc);
 	}
 	put_u64(out, sum);
+}
+
+/// `count` steps through mutable parts of a `Vec` of `size` integers, as `selector` picks:
+/// a min-heap of deadlines, as a timer wheel keeps them, whose root is pushed later and
+/// sifted down through the halves `split_at_mut` lends, or `parts[..k]` written, `k`
+/// cycling from 1 to `size`. Its first item and the sum of what each step read.
+fn parts(selector: u8, data: &[u8], out: &mut Vec<u8>) {
+	let (count, data) = take_u64(data);
+	let (size, _) = take_u64(data);
+	let size = size.clamp(1, 1 << 16) as usize;
+	let mut v: Vec<u64> = (0..size as u64).map(|i| i * 40503 % 65536).collect();
+	let mut sum = 0u64;
+	match selector {
+		0 => {
+			v.sort();
+			for step in 0..count {
+				v[0] += 1 + step % 64 * 1024;
+				let mut i = 0;
+				loop {
+					let l = 2 * i + 1;
+					if l >= size {
+						break;
+					}
+					let c = if l + 1 < size && v[l + 1] < v[l] { l + 1 } else { l };
+					let (parent, rest) = v.split_at_mut(c);
+					if parent[i] <= rest[0] {
+						break;
+					}
+					std::mem::swap(&mut parent[i], &mut rest[0]);
+					i = c;
+				}
+				sum = sum.wrapping_add(v[0]);
+			}
+		}
+		_ => {
+			for step in 0..count {
+				let part = &mut v[..step as usize % size + 1];
+				for x in part.iter_mut() {
+					*x = x.wrapping_add(1);
+				}
+				sum = sum.wrapping_add(part[part.len() - 1]);
+			}
+		}
+	}
+	put_u64(out, v[0]);
+	put_u64(out, sum);
+}
+
+/// `count` frames of `size` bytes split off the front of a group's `Bytes`, as moq-net's
+/// model hands a frame's bytes to its consumers: each cloned for a second consumer, which
+/// reads past its first byte, then dropped, leaving the group the one handle of its storage
+/// again. The sum of what each frame read, then how many times the group was unique.
+fn frames(data: &[u8], out: &mut Vec<u8>) {
+	let (count, data) = take_u64(data);
+	let (size, _) = take_u64(data);
+	let count = count.min(1 << 16) as usize;
+	let size = size.clamp(1, 1 << 10) as usize;
+	let mut group = Bytes::from(vec![0x5a; count * size]);
+	let mut sum = 0u64;
+	let mut unique = 0u64;
+	for _ in 0..count {
+		{
+			let frame = group.split_to(size);
+			let copy = frame.clone();
+			let rest = copy.slice(1..);
+			sum += u64::from(frame[0]) + rest.len() as u64;
+		}
+		unique += u64::from(group.is_unique());
+	}
+	put_u64(out, sum);
+	put_u64(out, unique);
 }
 
 /// One iterator chain over every byte, picked by `chain`, with closures that cost little

@@ -639,8 +639,8 @@ export function folded$boxed_Box_ends_Overrides(it: Overrides.Overrides, pick: r
 			if (!(k < 15)) {
 				if (!(b21 !== 2)) {
 					const _1110: rs.ByteSlice = rs.byteVecSlice(rs.refCellBorrow(log).value);
-					const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(b21, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_1110), f, rs.u8Debug)];
-					rs.panicFmt(["rfold at ", args2[0], " after ", args2[1]]);
+					const args3 = [(f: rs.Formatter) => rs.u8Display(b21, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_1110), f, rs.u8Debug)];
+					rs.panicFmt(["rfold at ", args3[0], " after ", args3[1]]);
 				}
 			}
 			return rs.u8WrappingMul(a15, 3) ^ b21;
@@ -885,8 +885,8 @@ export function folded$boxed_Box_iter_Map_ends_Overrides_ends_ends_closure1(it: 
 			if (!(k < 15)) {
 				if (!(b21 !== 2)) {
 					const _1110: rs.ByteSlice = rs.byteVecSlice(rs.refCellBorrow(log).value);
-					const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(b21, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_1110), f, rs.u8Debug)];
-					rs.panicFmt(["rfold at ", args2[0], " after ", args2[1]]);
+					const args3 = [(f: rs.Formatter) => rs.u8Display(b21, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_1110), f, rs.u8Debug)];
+					rs.panicFmt(["rfold at ", args3[0], " after ", args3[1]]);
 				}
 			}
 			return rs.u8WrappingMul(a15, 3) ^ b21;
@@ -1131,8 +1131,8 @@ export function folded$ends_Counted(it: Counted.Counted, pick: rs.u8, k: rs.usiz
 			if (!(k < 15)) {
 				if (!(b21 !== 2)) {
 					const _1110: rs.ByteSlice = rs.byteVecSlice(rs.refCellBorrow(log).value);
-					const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(b21, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_1110), f, rs.u8Debug)];
-					rs.panicFmt(["rfold at ", args2[0], " after ", args2[1]]);
+					const args3 = [(f: rs.Formatter) => rs.u8Display(b21, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_1110), f, rs.u8Debug)];
+					rs.panicFmt(["rfold at ", args3[0], " after ", args3[1]]);
 				}
 			}
 			return rs.u8WrappingMul(a15, 3) ^ b21;
@@ -1376,8 +1376,8 @@ export function folded$ends_Overrides(it: Overrides.Overrides, pick: rs.u8, k: r
 			if (!(k < 15)) {
 				if (!(b21 !== 2)) {
 					const _1110: rs.ByteSlice = rs.byteVecSlice(rs.refCellBorrow(log).value);
-					const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(b21, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_1110), f, rs.u8Debug)];
-					rs.panicFmt(["rfold at ", args2[0], " after ", args2[1]]);
+					const args3 = [(f: rs.Formatter) => rs.u8Display(b21, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_1110), f, rs.u8Debug)];
+					rs.panicFmt(["rfold at ", args3[0], " after ", args3[1]]);
 				}
 			}
 			return rs.u8WrappingMul(a15, 3) ^ b21;
@@ -1621,8 +1621,8 @@ export function folded$ends_Run(it: Run.Run, pick: rs.u8, k: rs.usize, log: rs.R
 			if (!(k < 15)) {
 				if (!(b21 !== 2)) {
 					const _1110: rs.ByteSlice = rs.byteVecSlice(rs.refCellBorrow(log).value);
-					const args2: rs.Fmt[] = [(f: rs.Formatter) => rs.u8Display(b21, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_1110), f, rs.u8Debug)];
-					rs.panicFmt(["rfold at ", args2[0], " after ", args2[1]]);
+					const args3 = [(f: rs.Formatter) => rs.u8Display(b21, f), (f: rs.Formatter) => rs.fmtList(rs.byteSliceView(_1110), f, rs.u8Debug)];
+					rs.panicFmt(["rfold at ", args3[0], " after ", args3[1]]);
 				}
 			}
 			return rs.u8WrappingMul(a15, 3) ^ b21;

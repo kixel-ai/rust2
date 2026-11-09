@@ -4,10 +4,10 @@ import * as rs from "./rs.ts";
 import { out$f32, out$f64, out$i64, out$i8, out$u128, out$u16, out$u64, out$u8 } from "./lib.ts";
 import type * as Provided from "./buf.Provided.ts";
 import { panicAdvance, panicDoesNotFit } from "./bytes.ts";
-import { signExtend, hasRemaining$bytes_Buf_mut_dyn_bytes_Buf, remaining$bytes_Buf_mut_dyn_bytes_Buf } from "./bytes/buf/buf_impl.ts";
+import { signExtend, hasRemaining$bytes_Buf_mut_dyn_bytes_Buf, remaining$bytes_Buf_mut_dyn_bytes_Buf as buf_impl_remaining$bytes_Buf_mut_dyn_bytes_Buf } from "./bytes/buf/buf_impl.ts";
 import type * as Buf from "./bytes/buf/buf_impl.Buf.ts";
 import * as Chain from "./bytes/buf/chain.Chain.ts";
-import { new_$mut_buf_Pieces as take_new_$mut_buf_Pieces } from "./bytes/buf/take.ts";
+import { new_$buf_Pieces as take_new_$buf_Pieces, new_$mut_buf_Pieces as take_new_$mut_buf_Pieces } from "./bytes/buf/take.ts";
 import type * as Take from "./bytes/buf/take.Take.ts";
 import type * as TryGetError from "./bytes.TryGetError.ts";
 import { unwrapOrElse$1b4ownx as result_unwrapOrElse$1b4ownx, unwrapOrElse$1fg63zn as result_unwrapOrElse$1fg63zn } from "./core/result.ts";
@@ -96,7 +96,7 @@ export function remaining$bytes_Buf(self: Pieces): rs.usize {
  * return an empty slice.
  */
 export function chunk$bytes_Buf(self: Pieces): rs.ByteSlice {
-	const _3: rs.ByteVec | undefined = rs.sliceFirst(self.parts.items);
+	const _3: rs.ByteVec | undefined = rs.sliceFirst(rs.sliceFrom(self.parts.items));
 	if (_3 === undefined) {
 		return rs.byteSliceFrom(Uint8Array.of());
 	}
@@ -195,8 +195,50 @@ export function skip$buf_Leased(self: Pieces, other: Buf.Buf): void {
 	if (hasRemaining$bytes_Buf_mut_dyn_bytes_Buf(other)) {
 		other.advance$Buf(1);
 	}
-	const _7: rs.usize = rs.min(remaining$bytes_Buf_mut_dyn_bytes_Buf(other), remaining$bytes_Buf_mut(self));
+	const _7: rs.usize = rs.min(buf_impl_remaining$bytes_Buf_mut_dyn_bytes_Buf(other), remaining$bytes_Buf_mut(self));
 	advance$bytes_Buf(self, _7);
+}
+
+/**
+ * Fills `dst` with potentially multiple slices starting at `self`'s
+ * current position.
+ *
+ * If the `Buf` is backed by disjoint slices of bytes, `chunk_vectored` enables
+ * fetching more than one slice at once. `dst` is a slice of `IoSlice`
+ * references, enabling the slice to be directly used with [`writev`]
+ * without any further conversion. The sum of the lengths of all the
+ * buffers written to `dst` will be less than or equal to `Buf::remaining()`.
+ *
+ * The entries in `dst` will be overwritten, but the data **contained** by
+ * the slices **will not** be modified. The return value is the number of
+ * slices written to `dst`. If `Buf::remaining()` is non-zero, then this
+ * writes at least one non-empty slice to `dst`.
+ *
+ * This is a lower level function. Most operations are done with other
+ * functions.
+ *
+ * # Implementer notes
+ *
+ * This function should never panic. Once the end of the buffer is reached,
+ * i.e., `Buf::remaining` returns 0, calls to `chunk_vectored` must return 0
+ * without mutating `dst`.
+ *
+ * Implementations should also take care to properly handle being called
+ * with `dst` being a zero length slice.
+ *
+ * [`writev`]: http://man7.org/linux/man-pages/man2/readv.2.html
+ */
+export function chunksVectored$bytes_Buf(self: Pieces, dst: rs.Slice<rs.ByteSlice>): rs.usize {
+	if (!(dst.length === 0)) {
+		if (!hasRemaining$bytes_Buf(self)) {
+			return 0;
+		}
+		const _6: rs.ByteSlice = chunk$bytes_Buf(self);
+		rs.idx(dst, 0);
+		dst.data[dst.start] = _6;
+		return 1;
+	}
+	return 0;
 }
 
 /**
@@ -1253,6 +1295,33 @@ export function tryGetF64Ne$bytes_Buf(self: Pieces): rs.f64 | undefined {
  * assert_eq!(dst, b" world");
  * ```
  */
+export function take$bytes_Buf(self: Pieces, limit: rs.usize): Take.Take<Pieces> {
+	return take_new_$buf_Pieces(self, limit);
+}
+
+/**
+ * Creates an adaptor which will read at most `limit` bytes from `self`.
+ *
+ * This function returns a new instance of `Buf` which will read at most
+ * `limit` bytes.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::{Buf, BufMut};
+ *
+ * let mut buf = b"hello world"[..].take(5);
+ * let mut dst = vec![];
+ *
+ * dst.put(&mut buf);
+ * assert_eq!(dst, b"hello");
+ *
+ * let mut buf = buf.into_inner();
+ * dst.clear();
+ * dst.put(&mut buf);
+ * assert_eq!(dst, b" world");
+ * ```
+ */
 export function take$bytes_Buf_mut(self: Pieces, limit: rs.usize): Take.Take<Pieces> {
 	return take_new_$mut_buf_Pieces(self, limit);
 }
@@ -1276,6 +1345,27 @@ export function take$bytes_Buf_mut(self: Pieces, limit: rs.usize): Take.Take<Pie
  */
 export function chain$bytes_Buf_buf_Provided(self: Pieces, next: Provided.Provided): Chain.Chain<Pieces, Provided.Provided> {
 	return Chain.new$buf_Pieces_buf_Provided(self, next);
+}
+
+/**
+ * Creates an adaptor which will chain this buffer with another.
+ *
+ * The returned `Buf` instance will first consume all bytes from `self`.
+ * Afterwards the output is equivalent to the output of next.
+ *
+ * # Examples
+ *
+ * ```
+ * use bytes::Buf;
+ *
+ * let mut chain = b"hello "[..].chain(&b"world"[..]);
+ *
+ * let full = chain.copy_to_bytes(11);
+ * assert_eq!(full.chunk(), b"hello world");
+ * ```
+ */
+export function chain$bytes_Buf_bytes_Bytes(self: Pieces, next: rs.ByteSlice): Chain.Chain<Pieces, rs.ByteSlice> {
+	return Chain.new$buf_Pieces_bytes_Bytes(self, next);
 }
 
 /**

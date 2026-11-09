@@ -40,7 +40,7 @@ pub fn counted() -> u8 {
 	}
 }
 
-/// A `Bytes` of an owner that drops, which would drop with the last clone of what it makes.
-pub fn owned(owner: std::sync::Arc<[u8]>) -> usize {
-	bytes::Bytes::from_owner(owner).len()
+/// The address of a dependency's type's value, whose API is its path.
+pub fn located(b: bytes::Bytes) -> usize {
+	&b as *const bytes::Bytes as usize
 }

@@ -8,6 +8,9 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/bits"
+	"slices"
+	"sync"
+	"unsafe"
 )
 
 type tuple1[A any] struct{ F0 A }
@@ -277,6 +280,7 @@ func vecPop[T any](v *[]T) Option[T] {
 		return Option[T]{}
 	}
 	x := (*v)[n-1]
+	zero(&(*v)[n-1])
 	*v = (*v)[:n-1]
 	return Option[T]{tag: 1, Some: struct{ F0 T }{x}}
 }
@@ -295,7 +299,175 @@ func vecWithCapacity[T any](n uint, size uint64) []T {
 	return make([]T, 0, n)
 }
 
+// vecPush is `Vec::push`.
+func vecPush[T any](v *[]T, x T) {
+	if len(*v) == cap(*v) {
+		vecGrow(v, 1)
+	}
+	*v = append(*v, x)
+}
+
+// vecExtend is `Vec::extend_from_slice`.
+func vecExtend[T any](v *[]T, xs []T) {
+	if len(xs) > cap(*v)-len(*v) {
+		vecGrow(v, len(xs))
+	}
+	*v = append(*v, xs...)
+}
+
+// vecGrow makes room for n more elements as std's `RawVec` does, to at least twice the
+// capacity, where `append` grows a slice past 256 elements by about 1.25x and so copies
+// a growing buffer several times as often.
+func vecGrow[T any](v *[]T, n int) {
+	*v = slices.Grow(*v, max(2*cap(*v), len(*v)+n)-len(*v))
+}
+
+// A `Vec<u8>`'s storage is the translation's own, to grow without zeroing and to recycle
+// once outgrown, until Go code outside the translation can reach it. Own storage is told
+// apart by its shape: a capacity that is a power of two of at least 8, never filled, since
+// own growth always leaves a byte spare. A root function hands Go storage in through
+// bytesEnter, which takes a Go slice of that capacity off it, and own storage out through
+// bytesEscape, which clips it to its length, so storage Go can reach never has the shape
+// and is never recycled. Empty storage, such as `Vec::new`'s, grows into own storage.
+
+// bytePools[k] holds own buffers of capacity 1<<k that a grow left behind.
+var bytePools [63]sync.Pool
+
+// u8Type is the runtime's type descriptor of uint8, the type word of an interface's.
+var u8Type = func() unsafe.Pointer {
+	var x any = uint8(0)
+	return (*[2]unsafe.Pointer)(unsafe.Pointer(&x))[0]
+}()
+
+// bytesOwn reports whether s has the shape of own storage.
+func bytesOwn(s []uint8) bool {
+	c := cap(s)
+	return c >= 8 && c&(c-1) == 0 && len(s) < c
+}
+
+// bytesTake is own storage of capacity 1<<k: a recycled buffer, or a new one the
+// runtime's growslice leaves unzeroed, since the translation writes what it reads.
+func bytesTake(k int) []uint8 {
+	if p, _ := bytePools[k].Get().(unsafe.Pointer); p != nil {
+		return unsafe.Slice((*uint8)(p), 1<<k)[:0]
+	}
+	r := growslice(nil, 1<<k, 0, 1<<k, u8Type)
+	return unsafe.Slice((*uint8)(r.ptr), 1<<k)[:0]
+}
+
+// bytesWithCapacity is `Vec::<u8>::with_capacity`, as vecWithCapacity is for others.
+func bytesWithCapacity(n uint) []uint8 {
+	if n > 1<<63-1 {
+		panic(RustPanic{"capacity overflow"})
+	}
+	if n == 0 {
+		return nil
+	}
+	if n >= 1<<62 {
+		// More than any allocation, which fails where Rust's would abort.
+		return make([]uint8, 0, n)
+	}
+	return bytesTake(max(bits.Len(n), 3))
+}
+
+// bytesPush is `Vec::<u8>::push`.
+func bytesPush(v *[]uint8, x uint8) {
+	if len(*v)+1 >= cap(*v) {
+		bytesGrow(v, 1)
+	}
+	*v = append(*v, x)
+}
+
+// bytesExtend is `Vec::<u8>::extend_from_slice`.
+func bytesExtend(v *[]uint8, xs []uint8) {
+	if len(*v)+len(xs) >= cap(*v) {
+		bytesGrow(v, len(xs))
+	}
+	*v = append(*v, xs...)
+}
+
+// bytesClone is a copy of xs in own storage: `Vec::<u8>::clone` and `<[u8]>::to_vec`.
+func bytesClone(xs []uint8) []uint8 {
+	var v []uint8
+	bytesExtend(&v, xs)
+	return v
+}
+
+// bytesGrow makes room for n more bytes and a spare one, as vecGrow does. Own storage
+// grows into own storage and is recycled; Go's grows as `append` would, zeroed, and is
+// trimmed off the shape of own storage.
+func bytesGrow(v *[]uint8, n int) {
+	s := *v
+	want := max(2*cap(s), len(s)+n+1)
+	if cap(s) == 0 || bytesOwn(s) {
+		next := bytesTake(max(bits.Len(uint(want-1)), 3))[:len(s)]
+		copy(next, s)
+		if cap(s) != 0 {
+			bytePools[bits.Len(uint(cap(s)))-1].Put(unsafe.Pointer(unsafe.SliceData(s)))
+		}
+		*v = next
+		return
+	}
+	s = slices.Grow(s, want-len(s))
+	if c := cap(s); c&(c-1) == 0 {
+		s = s[: len(s) : c-1]
+	}
+	*v = s
+}
+
+// bytesEnter takes Go's storage into a root function off the shape of own storage, so it
+// is never recycled: trimmed by a byte, or copied when full, since shortening it would
+// give it the shape.
+func bytesEnter(v *[]uint8) {
+	s := *v
+	c := cap(s)
+	if c < 8 || c&(c-1) != 0 {
+		return
+	}
+	if len(s) < c {
+		*v = s[: len(s) : c-1]
+		return
+	}
+	next := make([]uint8, len(s), len(s)+1)
+	copy(next, s)
+	*v = next
+}
+
+// bytesEscape hands own storage out of a root function to Go, clipped to its length,
+// past which lie another buffer's bytes, and so never recycled.
+func bytesEscape(v *[]uint8) {
+	if bytesOwn(*v) {
+		clip(v)
+	}
+}
+
+// clip hides a slice's capacity past its length, which may hold another buffer's bytes.
+func clip[T any](v *[]T) {
+	*v = (*v)[:len(*v):len(*v)]
+}
+
+type rawSlice struct {
+	ptr      unsafe.Pointer
+	len, cap int
+}
+
+// growslice is the runtime's, which keeps its signature for the packages that link it:
+// go.dev/issue/67401.
+//
+//go:linkname growslice runtime.growslice
+func growslice(oldPtr unsafe.Pointer, newLen, oldCap, num int, et unsafe.Pointer) rawSlice
+
+// vecTruncate is `Vec::truncate`, which zeroes the slots it vacates, as `slices.Delete`
+// does, so Go code reading past the length sees nothing moved out of them.
 func vecTruncate[T any](v *[]T, n uint) {
+	if n < uint(len(*v)) {
+		clear((*v)[n:])
+		*v = (*v)[:n]
+	}
+}
+
+// bytesTruncate is `Vec::<u8>::truncate`, which has nothing to zero.
+func bytesTruncate(v *[]uint8, n uint) {
 	if n < uint(len(*v)) {
 		*v = (*v)[:n]
 	}
@@ -406,3 +578,9 @@ func fromBe64(b [8]uint8) uint64 { return binary.BigEndian.Uint64(b[:]) }
 func fromLe16(b [2]uint8) uint16 { return binary.LittleEndian.Uint16(b[:]) }
 func fromLe32(b [4]uint8) uint32 { return binary.LittleEndian.Uint32(b[:]) }
 func fromLe64(b [8]uint8) uint64 { return binary.LittleEndian.Uint64(b[:]) }
+
+// zero sets *p to its zero value.
+func zero[T any](p *T) {
+	var z T
+	*p = z
+}

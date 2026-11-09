@@ -22,7 +22,7 @@
 // `owned` functions follow it, dispatching on the kind, so a bundle that never drops an
 // item carries none of it.
 
-import { ByteSlice, ByteVec, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, capReserve, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, slicePart, sliceView, Vec, vecCapacity, vecExtendFromSlice, vecFrom, vecHold, vecMax, vecWithCapacity } from "../rs.ts";
+import { ByteSlice, ByteVec, violated, type ArrayRef, type ArraySlice, arraySliceItems, arraySliceAt, arraySlicePart, byteVecExtendFromSlice, byteVecPush, byteVecReserve, byteVecReserveExact, byteVecShrinkTo, byteVecWithCapacity, capReserve, type Debug, Err, type Fmt, type FmtResult, type Formatter, fmtBool, fmtDebugStructFields, fmtDebugTupleFields, fmtOption, type None, Ok, type Place, panic, place, type RangeBound, type Result, sliceItems, slicePart, type Slice, type SliceLike, Vec, vecCapacity, vecExtendFromSlice, vecFrom, vecHold, vecMax, vecWithCapacity, assertFailed, fmtOwned } from "../rs.ts";
 import { AtIndex, BTreeIter, HashIter, type Ordering } from "./collections.ts";
 import { type Hasher, hash8 } from "./hash.ts";
 import { charStep, intToBig, type Limbs, type Step, usizeDebug, lt as wideLt } from "./int.ts";
@@ -68,8 +68,8 @@ export function exactHint(n: number): SizeHint {
 function hintLen(it: Iter<unknown>): number {
 	const [lower, upper] = it.sizeHint();
 	if (upper !== lower) {
-		const left = upper === undefined ? "None" : `Some(${upper})`;
-		panic(`assertion \`left == right\` failed\n  left: ${left}\n right: Some(${lower})`, "exact_len", true);
+		const hint = (n: number | undefined, f: Formatter) => fmtOption(n, f, usizeDebug);
+		assertFailed("==", fmtOwned(upper, hint), fmtOwned(lower, hint), undefined, "exact_len");
 	}
 	return lower;
 }
@@ -383,54 +383,37 @@ export function byteVecIntoIter(v: ByteVec): Iter<number> {
 }
 
 /** `slice::IterMut` of elements JS copies: the place of each. */
-export function iterSliceMut<T>(s: { [i: number]: T; length: number }): Iter<Place<T>> {
-	return new SliceMutIter(s);
+export function iterSliceMut<T>(s: SliceLike<T>): Iter<Place<T>> {
+	const it = new SliceMutIter(s.data);
+	it.front = s.start;
+	it.back = s.start + s.length;
+	return it;
 }
 
 /** `slice::windows`: each run of `size` elements, panicking on a size of 0 as std's does. */
-export function sliceWindows<T>(s: T[], size: number, at?: Location): Iter<T[]> {
+export function sliceWindows<T>(s: Slice<T>, size: number, at?: Location): Iter<Slice<T>> {
 	if (size === 0) panic("window size must be non-zero", at, true);
-	return new PartsIter(s, s.length, size, 1, Math.max(s.length - size + 1, 0), false, sliceCopy);
+	return new PartsIter(s, s.length, size, 1, Math.max(s.length - size + 1, 0), false, slicePart);
 }
 
-/** `slice::chunks`: each `size` elements, the last fewer, panicking on a size of 0 as std's does. */
-export function sliceChunks<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, false, false, sliceCopy, at);
+/** `slice::chunks` and `chunks_mut`: each `size` elements, the last fewer, panicking on a size of 0 as std's does. */
+export function sliceChunks<T>(s: Slice<T>, size: number, at?: Location): Iter<Slice<T>> {
+	return chunks(s, s.length, size, false, false, slicePart, at);
 }
 
-/** `slice::chunks_exact`: each `size` elements, leaving the rest as its remainder. */
-export function sliceChunksExact<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, true, false, sliceCopy, at);
+/** `slice::chunks_exact` and `chunks_exact_mut`: each `size` elements, leaving the rest as its remainder. */
+export function sliceChunksExact<T>(s: Slice<T>, size: number, at?: Location): Iter<Slice<T>> {
+	return chunks(s, s.length, size, true, false, slicePart, at);
 }
 
-/** `slice::rchunks`: `chunks` from the back, the last part the front of the slice. */
-export function sliceRchunks<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, false, true, sliceCopy, at);
+/** `slice::rchunks` and `rchunks_mut`: `chunks` from the back, the last part the front of the slice. */
+export function sliceRchunks<T>(s: Slice<T>, size: number, at?: Location): Iter<Slice<T>> {
+	return chunks(s, s.length, size, false, true, slicePart, at);
 }
 
-/** `slice::rchunks_exact`: `chunks_exact` from the back, the remainder the front. */
-export function sliceRchunksExact<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, true, true, sliceCopy, at);
-}
-
-/** `slice::chunks_mut`: as `chunks`, but each part a view of `s` that writes through to it. */
-export function sliceChunksMut<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, false, false, sliceView, at);
-}
-
-/** `slice::chunks_exact_mut`. */
-export function sliceChunksExactMut<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, true, false, sliceView, at);
-}
-
-/** `slice::rchunks_mut`. */
-export function sliceRchunksMut<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, false, true, sliceView, at);
-}
-
-/** `slice::rchunks_exact_mut`. */
-export function sliceRchunksExactMut<T>(s: T[], size: number, at?: Location): Iter<T[]> {
-	return chunks(s, s.length, size, true, true, sliceView, at);
+/** `slice::rchunks_exact` and `rchunks_exact_mut`: `chunks_exact` from the back, the remainder the front. */
+export function sliceRchunksExact<T>(s: Slice<T>, size: number, at?: Location): Iter<Slice<T>> {
+	return chunks(s, s.length, size, true, true, slicePart, at);
 }
 
 /** `slice::windows` of bytes. */
@@ -467,54 +450,54 @@ export function partsRemainder<S>(parts: Iter<S>): S {
 	return (parts as PartsIter<S>).remainder();
 }
 
-/** `slice::split`: the parts between the elements `f` is true of, the empty ones too. */
-export function sliceSplit<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceCopy, f, false, false);
+/** `slice::split` and `split_mut`: the parts between the elements `f` is true of, the empty ones too. */
+export function sliceSplit<T>(s: Slice<T>, f: (item: T) => boolean): Iter<Slice<T>> {
+	return new SplitIter(s, s.data, s.start, slicePart, f, false, false);
 }
 
-/** `slice::split_mut`: as `split`, but each part a view of `s` that writes through to it. */
-export function sliceSplitMut<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceView, f, false, false);
+/** `slice::rsplit` and `rsplit_mut`: `split` from the back. */
+export function sliceRsplit<T>(s: Slice<T>, f: (item: T) => boolean): Iter<Slice<T>> {
+	return new SplitIter(s, s.data, s.start, slicePart, f, true, false);
 }
 
-/** `slice::rsplit`: `split` from the back. */
-export function sliceRsplit<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceCopy, f, true, false);
+/** `slice::split_inclusive` and `split_inclusive_mut`: as `split`, but each part ends with its separator. */
+export function sliceSplitInclusive<T>(s: Slice<T>, f: (item: T) => boolean): Iter<Slice<T>> {
+	return new SplitIter(s, s.data, s.start, slicePart, f, false, true);
 }
 
-/** `slice::rsplit_mut`. */
-export function sliceRsplitMut<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceView, f, true, false);
+/** `slice::splitn` and `splitn_mut`: `split`, but the `n`th part all that is left. */
+export function sliceSplitn<T>(s: Slice<T>, n: number, f: (item: T) => boolean): Iter<Slice<T>> {
+	return new SplitIter(s, s.data, s.start, slicePart, f, false, false, n);
 }
 
-/** `slice::split_inclusive`: as `split`, but each part ends with its separator. */
-export function sliceSplitInclusive<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceCopy, f, false, true);
+/** `slice::rsplitn` and `rsplitn_mut`: `rsplit`, but the `n`th part all that is left. */
+export function sliceRsplitn<T>(s: Slice<T>, n: number, f: (item: T) => boolean): Iter<Slice<T>> {
+	return new SplitIter(s, s.data, s.start, slicePart, f, true, false, n);
 }
 
-/** `slice::split_inclusive_mut`. */
-export function sliceSplitInclusiveMut<T>(s: T[], f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceView, f, false, true);
+/** `slice::split` and `split_mut` of an array slice: the parts between the arrays `f` is true of, each lent where the slice holds it. */
+export function arraySliceSplit<S extends ArrayRef>(r: ArraySlice<S>, f: (run: S) => boolean): Iter<ArraySlice<S>> {
+	return new SplitIter(r, (i: number) => arraySliceAt(r, i), 0, arraySlicePart, f, false, false);
 }
 
-/** `slice::splitn`: `split`, but the `n`th part all that is left. */
-export function sliceSplitn<T>(s: T[], n: number, f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceCopy, f, false, false, n);
+/** `slice::rsplit` and `rsplit_mut` of an array slice. */
+export function arraySliceRsplit<S extends ArrayRef>(r: ArraySlice<S>, f: (run: S) => boolean): Iter<ArraySlice<S>> {
+	return new SplitIter(r, (i: number) => arraySliceAt(r, i), 0, arraySlicePart, f, true, false);
 }
 
-/** `slice::splitn_mut`. */
-export function sliceSplitnMut<T>(s: T[], n: number, f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceView, f, false, false, n);
+/** `slice::split_inclusive` and `split_inclusive_mut` of an array slice. */
+export function arraySliceSplitInclusive<S extends ArrayRef>(r: ArraySlice<S>, f: (run: S) => boolean): Iter<ArraySlice<S>> {
+	return new SplitIter(r, (i: number) => arraySliceAt(r, i), 0, arraySlicePart, f, false, true);
 }
 
-/** `slice::rsplitn`: `rsplit`, but the `n`th part all that is left. */
-export function sliceRsplitn<T>(s: T[], n: number, f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceCopy, f, true, false, n);
+/** `slice::splitn` and `splitn_mut` of an array slice. */
+export function arraySliceSplitn<S extends ArrayRef>(r: ArraySlice<S>, n: number, f: (run: S) => boolean): Iter<ArraySlice<S>> {
+	return new SplitIter(r, (i: number) => arraySliceAt(r, i), 0, arraySlicePart, f, false, false, n);
 }
 
-/** `slice::rsplitn_mut`. */
-export function sliceRsplitnMut<T>(s: T[], n: number, f: (item: T) => boolean): Iter<T[]> {
-	return new SplitIter(s, s, 0, sliceView, f, true, false, n);
+/** `slice::rsplitn` and `rsplitn_mut` of an array slice. */
+export function arraySliceRsplitn<S extends ArrayRef>(r: ArraySlice<S>, n: number, f: (run: S) => boolean): Iter<ArraySlice<S>> {
+	return new SplitIter(r, (i: number) => arraySliceAt(r, i), 0, arraySlicePart, f, true, false, n);
 }
 
 /** `slice::split` and `split_mut` of bytes, whose parts are views already. */
@@ -554,12 +537,39 @@ function chunks<S>(s: S, length: number, size: number, exact: boolean, rev: bool
 	return new PartsIter(s, length, size, size, count, rev, part);
 }
 
-function sliceCopy<T>(s: T[], start: number, end: number): T[] {
-	return slicePart(s, start, end);
-}
-
 function byteSlicePart(s: ByteSlice, start: number, end: number): ByteSlice {
 	return new ByteSlice(s.data, s.start + start, end - start);
+}
+
+/** `slice::iter` and `iter_mut` of an array slice: each array, lent where the slice holds it. */
+export function arraySliceIter<S extends ArrayRef>(r: ArraySlice<S>): Iter<S> {
+	return new ArraySliceIter(r);
+}
+
+/** `slice::windows` of an array slice. */
+export function arraySliceWindows<S extends ArrayRef>(r: ArraySlice<S>, size: number, at?: Location): Iter<ArraySlice<S>> {
+	if (size === 0) panic("window size must be non-zero", at, true);
+	return new PartsIter(r, r.length, size, 1, Math.max(r.length - size + 1, 0), false, arraySlicePart);
+}
+
+/** `slice::chunks` and `chunks_mut` of an array slice. */
+export function arraySliceChunks<S extends ArrayRef>(r: ArraySlice<S>, size: number, at?: Location): Iter<ArraySlice<S>> {
+	return chunks(r, r.length, size, false, false, arraySlicePart, at);
+}
+
+/** `slice::chunks_exact` and `chunks_exact_mut` of an array slice. */
+export function arraySliceChunksExact<S extends ArrayRef>(r: ArraySlice<S>, size: number, at?: Location): Iter<ArraySlice<S>> {
+	return chunks(r, r.length, size, true, false, arraySlicePart, at);
+}
+
+/** `slice::rchunks` and `rchunks_mut` of an array slice. */
+export function arraySliceRchunks<S extends ArrayRef>(r: ArraySlice<S>, size: number, at?: Location): Iter<ArraySlice<S>> {
+	return chunks(r, r.length, size, false, true, arraySlicePart, at);
+}
+
+/** `slice::rchunks_exact` and `rchunks_exact_mut` of an array slice. */
+export function arraySliceRchunksExact<S extends ArrayRef>(r: ArraySlice<S>, size: number, at?: Location): Iter<ArraySlice<S>> {
+	return chunks(r, r.length, size, true, true, arraySlicePart, at);
 }
 
 /** `Option::iter`, and with what drops its item, `option::IntoIter`. */
@@ -707,8 +717,9 @@ export function capNext(it: Iter<unknown>, len: number, cap: number, size: numbe
  * each item's elements, read from it by `slice` unless it is the slice, with `sep`'s
  * between them, each cloned in order by `clone` if given.
  */
-export function slicesJoin<V, T>(items: readonly V[], size: number, sep?: ArrayLike<T>, slice?: (item: V) => ArrayLike<T>, clone?: (item: T) => T): Vec<T> {
-	const parts = slice === undefined ? (items as unknown as readonly ArrayLike<T>[]) : items.map(slice);
+export function slicesJoin<V, T>(items: Slice<V>, size: number, sep?: Slice<T>, slice?: (item: V) => Slice<T>, clone?: (item: T) => T): Vec<T> {
+	const all = sliceItems(items);
+	const parts = slice === undefined ? (all as unknown as readonly Slice<T>[]) : all.map(slice);
 	// std's makes one with room for exactly them.
 	const v = vecWithCapacity<T>(joinedLength(parts, sep, size), size);
 	for (let i = 0; i < parts.length; i++) {
@@ -723,8 +734,9 @@ export function slicesJoin<V, T>(items: readonly V[], size: number, sep?: ArrayL
  * read from it by `slice` unless it is the slice, with `sep` between them, into a
  * `Vec<u8>` of the capacity std's has, their exact length.
  */
-export function byteSlicesJoin<V>(items: readonly V[], sep?: ByteSlice, slice?: (item: V) => ByteSlice): ByteVec {
-	const parts = slice === undefined ? (items as unknown as readonly ByteSlice[]) : items.map(slice);
+export function byteSlicesJoin<V>(items: Slice<V>, sep?: ByteSlice, slice?: (item: V) => ByteSlice): ByteVec {
+	const all = sliceItems(items);
+	const parts = slice === undefined ? (all as unknown as readonly ByteSlice[]) : all.map(slice);
 	const v = new ByteVec(joinedLength(parts, sep, 1));
 	for (let i = 0; i < parts.length; i++) {
 		if (i > 0 && sep !== undefined) byteVecExtendFromSlice(v, sep);
@@ -1735,11 +1747,12 @@ function toByteVec(it: Iter<number>, take?: Take, trusted = false): ByteVec {
 }
 
 /**
- * `collect` of `Result`s: the first error, or every value collected by `into`, which drops
- * the iterator. On an error, what it collected drops by `drop`.
+ * `collect` of `Result`s: the last error `into` read, or every value collected by `into`,
+ * which drops the iterator. On an error, what it collected drops by `drop`, and an error a
+ * later one replaced by `dropError`.
  */
-export function iterCollectResult<U, E, C>(it: Iter<Result<U, E>>, into: (values: Iter<U>) => C, drop?: Drop<C>): Result<C, E> {
-	const shunt = new ResultShunt(it);
+export function iterCollectResult<U, E, C>(it: Iter<Result<U, E>>, into: (values: Iter<U>) => C, drop?: Drop<C>, dropError?: Drop<E>): Result<C, E> {
+	const shunt = new ResultShunt(it, dropError);
 	const values = into(shunt);
 	if (shunt.error === undefined) return Ok(values);
 	const error = Err(shunt.error.value);
@@ -2035,11 +2048,63 @@ class SliceIter<T> extends Iter<T> implements Disposable {
 	}
 }
 
+/** The arrays of a slice of arrays, from both ends, each lent where the slice holds it. */
+class ArraySliceIter<S extends ArrayRef> extends Iter<S> {
+	private readonly r: ArraySlice<S>;
+	front = 0;
+	back: number;
+
+	constructor(r: ArraySlice<S>) {
+		super();
+		this.r = r;
+		this.back = r.length;
+	}
+
+	next(): S | Done {
+		return this.front < this.back ? arraySliceAt(this.r, this.front++) : DONE;
+	}
+
+	override nextBack(): S | Done {
+		return this.front < this.back ? arraySliceAt(this.r, --this.back) : DONE;
+	}
+
+	override len(): number {
+		return this.back - this.front;
+	}
+
+	override sizeHint(): SizeHint {
+		return exactHint(this.len());
+	}
+
+	override remaining(): Iterable<unknown> {
+		return arraySliceItems(arraySlicePart(this.r, this.front, this.back));
+	}
+
+	override clone(): Iter<S> {
+		const it = new ArraySliceIter(this.r);
+		it.front = this.front;
+		it.back = this.back;
+		return it;
+	}
+
+	override advanceBy(n: number): number {
+		const step = Math.min(n, this.back - this.front);
+		this.front += step;
+		return n - step;
+	}
+
+	override advanceBackBy(n: number): number {
+		const step = Math.min(n, this.back - this.front);
+		this.back -= step;
+		return n - step;
+	}
+}
+
 /** The places of a slice's elements, from both ends. */
 class SliceMutIter<T> extends Iter<Place<T>> {
 	private readonly s: { [i: number]: T; length: number };
-	private front = 0;
-	private back: number;
+	front = 0;
+	back: number;
 
 	constructor(s: { [i: number]: T; length: number }) {
 		super();
@@ -2199,7 +2264,8 @@ class PartsIter<S> extends Iter<S> {
  */
 class SplitIter<S, T> extends Iter<S> implements Disposable {
 	readonly #s: S;
-	readonly #items: ArrayLike<T>;
+	/** The items, from `#offset`, or what reads item `i`, as an array slice lends each array only once read. */
+	readonly #items: ArrayLike<T> | ((i: number) => T);
 	readonly #offset: number;
 	readonly #part: (s: S, start: number, end: number) => S;
 	readonly #f: (item: T) => boolean;
@@ -2215,7 +2281,7 @@ class SplitIter<S, T> extends Iter<S> implements Disposable {
 	#finished: boolean;
 	#dropped = false;
 
-	constructor(s: S, items: ArrayLike<T>, offset: number, part: (s: S, start: number, end: number) => S, f: (item: T) => boolean, rev: boolean, inclusive: boolean, count?: number) {
+	constructor(s: S, items: ArrayLike<T> | ((i: number) => T), offset: number, part: (s: S, start: number, end: number) => S, f: (item: T) => boolean, rev: boolean, inclusive: boolean, count?: number) {
 		super();
 		this.#s = s;
 		this.#items = items;
@@ -2228,6 +2294,12 @@ class SplitIter<S, T> extends Iter<S> implements Disposable {
 		this.#end = (s as { length: number }).length;
 		// An empty slice has no part to include a separator in.
 		this.#finished = inclusive && this.#end === 0;
+	}
+
+	/** Item `i` of what is split. */
+	#at(i: number): T {
+		const items = this.#items;
+		return typeof items === "function" ? items(i) : items[this.#offset + i];
 	}
 
 	override clone(h?: Clones): Iter<S> {
@@ -2290,7 +2362,7 @@ class SplitIter<S, T> extends Iter<S> implements Disposable {
 		if (this.#finished) return DONE;
 		const start = this.#start;
 		let i = start;
-		while (i < this.#end && !this.#f(this.#items[this.#offset + i])) i++;
+		while (i < this.#end && !this.#f(this.#at(i))) i++;
 		if (this.#inclusive) {
 			const end = Math.min(i + 1, this.#end);
 			if (end === this.#end) this.#finished = true;
@@ -2307,7 +2379,7 @@ class SplitIter<S, T> extends Iter<S> implements Disposable {
 		const end = this.#end;
 		// The last element ends an inclusive part whether it is a separator or not.
 		let i = this.#inclusive ? Math.max(end - 1, this.#start) : end;
-		while (i > this.#start && !this.#f(this.#items[this.#offset + i - 1])) i--;
+		while (i > this.#start && !this.#f(this.#at(i - 1))) i--;
 		if (this.#inclusive) {
 			if (i === this.#start) this.#finished = true;
 			this.#end = i;
@@ -3345,7 +3417,7 @@ class ZipIter<A, B> extends Iter<[A, B]> implements Disposable {
 		const a = this.a.nextBack();
 		const b = this.b.nextBack();
 		if (a === DONE && b === DONE) return DONE;
-		if (a === DONE || b === DONE) panic("internal error: entered unreachable code");
+		if (a === DONE || b === DONE) panic("internal error: entered unreachable code", "zip_next_back");
 		return [a, b];
 	}
 
@@ -3394,7 +3466,8 @@ class ZipFold<A, B> extends Iter<[A, B]> {
 		this.left--;
 		const a = this.a.next();
 		const b = this.b.next();
-		if (a === DONE || b === DONE) panic("internal error: entered unreachable code");
+		// Only std's iterators are `TrustedLen`, which never run out early.
+		if (a === DONE || b === DONE) violated("hint::unreachable_unchecked must never be reached");
 		return [a, b];
 	}
 
@@ -4972,16 +5045,25 @@ export function peekableNextIfEq<T, U>(p: Peekable<T>, expected: U, eq: (a: T, b
 	return peekableNextIf(p, (item: T) => eq(item, expected), none);
 }
 
-/** What `iterCollectResult` collects from: values until the first error, which it keeps. */
+/**
+ * What `iterCollectResult` collects from: values until an error, which it keeps. Read
+ * again, it reads on, as std's does, and a later error replaces it, which drops by `dropError`.
+ */
 class ResultShunt<U, E> extends Adaptor<Result<U, E>, U> {
 	error: { value: E } | undefined;
+	private readonly dropError: Drop<E> | undefined;
+
+	constructor(inner: Iter<Result<U, E>>, dropError: Drop<E> | undefined) {
+		super(inner);
+		this.dropError = dropError;
+	}
 
 	/** std's, by `try_for_each`, which folds its iterator. */
 	next(): U | Done {
-		if (this.error !== undefined) return DONE;
 		const item = this.inner.folded().next();
 		if (item === DONE) return DONE;
 		if (item.ok) return item.value;
+		if (this.error !== undefined) this.dropError?.(this.error.value);
 		this.error = { value: item.error };
 		return DONE;
 	}
@@ -4991,7 +5073,10 @@ class ResultShunt<U, E> extends Adaptor<Result<U, E>, U> {
 	}
 }
 
-/** What `iterCollectOption` collects from: values until the first `None`, which is `itemNone`. */
+/**
+ * What `iterCollectOption` collects from: values until a `None`, which is `itemNone`. Read
+ * again, it reads on, as std's does.
+ */
 class OptionShunt<U> extends Adaptor<U | undefined | None, U> {
 	none = false;
 	private readonly itemNone: None | undefined;
@@ -5002,7 +5087,6 @@ class OptionShunt<U> extends Adaptor<U | undefined | None, U> {
 	}
 
 	next(): U | Done {
-		if (this.none) return DONE;
 		const item = this.inner.folded().next();
 		if (item === DONE) return DONE;
 		if (item !== this.itemNone) return item as U;
@@ -5201,7 +5285,7 @@ function forward<T>(n: T, by: number, int: Step<T> | undefined): T {
 	if (int === undefined) throw new Error("rust2-ts: stepping a range of no integer type");
 	const [sum, over] = int(n, by);
 	if (!over) return sum;
-	if (int === (charStep as unknown)) panic("overflow in `Step::forward`", "char_forward");
+	if (int === (charStep as unknown)) panic("overflow in `Step::forward`", "char_forward", true);
 	return panic("attempt to add with overflow", "int_forward");
 }
 

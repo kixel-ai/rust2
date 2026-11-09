@@ -646,3 +646,173 @@ pub fn maps(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 		put(out, huge.len());
 	}
 }
+
+/// Text of each width a char's UTF-8 takes, and of format's thresholds: none, short, and
+/// past 16 bytes.
+const TEXTS: [&str; 4] = ["", "ab", "démo", "アリス📷, and more text past sixteen bytes"];
+
+/// A char of each UTF-8 width.
+const CHARS: [char; 4] = ['a', 'é', '中', '😀'];
+
+/// The char boundary at or before byte `arg` of `s`, modulo its length and one.
+fn boundary(s: &str, arg: u8) -> usize {
+	let mut i = usize::from(arg) % (s.len() + 1);
+	while !s.is_char_boundary(i) {
+		i -= 1;
+	}
+	i
+}
+
+/// A `String` that `first` makes, by `new`, `with_capacity`, `to_owned`, or `format!`, and
+/// each pair of `steps` changes, its length and capacity after each, then its bytes: each
+/// step std's capacity follows, of growth, of shrinking, and of each way std makes one.
+pub fn strings(first: u8, steps: &[u8], out: &mut Vec<u8>) {
+	let text = |arg: u8| TEXTS[usize::from(arg) % TEXTS.len()];
+	let mut s = match first % 4 {
+		0 => String::new(),
+		1 => String::with_capacity(usize::from(first >> 2)),
+		2 => text(first >> 2).to_owned(),
+		_ => format!("{}{}", first, text(first >> 2)),
+	};
+	put(out, s.capacity());
+	for step in steps.chunks(2) {
+		let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
+		let c = CHARS[usize::from(arg) % CHARS.len()];
+		match op % 49 {
+			0 => s.push(c),
+			1 => s.push_str(text(arg)),
+			2 => s.reserve(amount(arg, s.len(), 1)),
+			3 => s.reserve_exact(amount(arg, s.len(), 1)),
+			4 => put(out, usize::from(s.try_reserve(amount(arg, s.len(), 1)).is_ok())),
+			5 => put(out, usize::from(s.try_reserve_exact(amount(arg, s.len(), 1)).is_ok())),
+			6 => s.shrink_to(usize::from(arg % 40)),
+			7 => s.shrink_to_fit(),
+			8 => s.truncate(boundary(&s, arg)),
+			9 => s.insert(boundary(&s, arg), c),
+			10 => s.insert_str(boundary(&s, arg), text(arg >> 2)),
+			11 => s.clear(),
+			12 => {
+				let mut keep = alternate();
+				s.retain(|_| keep());
+			}
+			13 => {
+				let (a, b) = (boundary(&s, arg), boundary(&s, arg >> 1));
+				s.replace_range(a.min(b)..a.max(b), text(arg >> 2));
+			}
+			14 => s.extend_from_within(..boundary(&s, arg)),
+			15 => put(out, s.pop().map_or(0, u32::from) as usize),
+			16 if !s.is_empty() => {
+				let i = boundary(&s, arg).min(s.len() - 1);
+				let i = (0..=i).rev().find(|&i| s.is_char_boundary(i)).unwrap_or(0);
+				put(out, u32::from(s.remove(i)) as usize);
+			}
+			17 => {
+				let rest = s.split_off(boundary(&s, arg));
+				sized(out, rest.len(), rest.capacity());
+			}
+			18 => drop(s.drain(..boundary(&s, arg))),
+			// A clone, and a `String::from` of a reference's, which leaves the original as it was.
+			19 => {
+				let mut copy = String::from(&s);
+				copy.push_str(text(arg));
+				sized(out, copy.len(), copy.capacity());
+				s = s.clone();
+			}
+			// Grown from `with_capacity` only where it holds fewer, by a `String`'s or a `str`'s.
+			20 => {
+				let mut over = String::with_capacity(usize::from(arg % 24));
+				over.push_str(text(arg >> 2));
+				match arg & 0x80 {
+					0 => over.clone_from(&s),
+					_ => s.as_str().clone_into(&mut over),
+				}
+				s = over;
+			}
+			21 => s.extend(text(arg).chars().filter(|c| *c != 'e')),
+			22 => s.extend([text(arg), text(arg >> 2)]),
+			23 => s.extend(vec![text(arg), text(arg >> 2)]),
+			24 => s = s + text(arg),
+			25 => s += text(arg),
+			26 => {
+				use std::fmt::Write;
+				write!(s, "{arg}-{}", text(arg >> 2)).unwrap();
+			}
+			// Each of `format!`'s estimates: none past a placeholder first, twice its text
+			// if 16 bytes or more or a placeholder is after it, and its text alone.
+			27 => s = format!("{s}{arg}"),
+			28 => s = format!("{s} and then some text {arg}"),
+			29 => s = format!("[{s}]"),
+			30 => s = format!("text alone"),
+			31 => {
+				s = match arg % 6 {
+					0 => (arg as i8).to_string(),
+					1 => (i32::from(arg) - 128).to_string(),
+					2 => arg.to_string(),
+					3 => c.to_string(),
+					4 => (arg % 2 == 0).to_string(),
+					_ => format_args!("{arg}").to_string(),
+				}
+			}
+			32 => s = s.to_lowercase(),
+			33 => s = s.to_uppercase(),
+			34 => s = s.to_ascii_uppercase(),
+			35 => {
+				s = match arg % 5 {
+					0 => s.replace('a', "b"),
+					1 => s.replace("a", "xyz"),
+					2 => s.replace(c, ""),
+					3 => s.replace(|c: char| c.is_alphabetic(), "-"),
+					_ => s.replace(&String::from("é"), "e"),
+				}
+			}
+			36 => s = s.replacen('a', "bc", usize::from(arg % 3)),
+			37 => {
+				let bytes = s.into_bytes();
+				sized(out, bytes.len(), bytes.capacity());
+				s = String::from_utf8(bytes).unwrap();
+			}
+			38 => {
+				let bytes = Vec::from(s.as_str());
+				sized(out, bytes.len(), bytes.capacity());
+				let bytes = Vec::from(s);
+				sized(out, bytes.len(), bytes.capacity());
+				s = String::from_utf8(bytes).unwrap();
+			}
+			39 => s = s.chars().rev().collect(),
+			40 => s = vec![s, text(arg).to_owned()].into_iter().collect(),
+			41 => {
+				let units: Vec<u16> = s.encode_utf16().collect();
+				s = match arg % 2 {
+					0 => String::from_utf16(&units).unwrap(),
+					_ => String::from_utf16_lossy(&units),
+				}
+			}
+			42 => {
+				let mut bytes = s.into_bytes();
+				bytes.push(0xff);
+				s = String::from_utf8_lossy(&bytes).into_owned();
+			}
+			43 => s = [s.as_str(), text(arg)].join(text(arg >> 2)),
+			44 => s = s.into_boxed_str().into_string(),
+			45 => {
+				let mut cow = std::borrow::Cow::Borrowed(text(arg));
+				cow += s.as_str();
+				cow += text(arg >> 2);
+				s = cow.into_owned();
+			}
+			46 => s = String::from_iter([text(arg), text(arg >> 2)]),
+			47 => s = mem::take(&mut s) + text(arg),
+			// Its `str` lent through a trait object, which a write through changes in place.
+			48 => {
+				use std::borrow::{Borrow, BorrowMut};
+				let lent: &mut dyn BorrowMut<str> = &mut s;
+				lent.borrow_mut().make_ascii_uppercase();
+				let shared: &dyn Borrow<str> = &s;
+				put(out, shared.borrow().len());
+			}
+			_ => {}
+		}
+		sized(out, s.len(), s.capacity());
+	}
+	out.extend_from_slice(s.as_bytes());
+}

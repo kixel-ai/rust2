@@ -26,19 +26,19 @@ export function new$sync_Arc_u8(): Inline<rs.Arc<rs.u8>> {
 }
 
 export function ptr$Option_tuple2_u8_u8(self: Inline<[rs.u8, rs.u8] | undefined>): rs.Place<[rs.u8, rs.u8] | undefined> {
-	return rs.sliceAsPtr(self.items as Array<[rs.u8, rs.u8] | undefined>);
+	return rs.sliceAsPtr(rs.sliceFrom(self.items as Array<[rs.u8, rs.u8] | undefined>));
 }
 
 export function ptr$sync_Arc_u8(self: Inline<rs.Arc<rs.u8>>): rs.Place<rs.Arc<rs.u8>> {
-	return rs.sliceAsPtr(self.items as rs.Arc<rs.u8>[]);
+	return rs.sliceAsPtr(rs.sliceFrom(self.items as rs.Arc<rs.u8>[]));
 }
 
-export function asSlice$Option_tuple2_u8_u8(self: Inline<[rs.u8, rs.u8] | undefined>): Array<[rs.u8, rs.u8] | undefined> {
-	return rs.ptrSlice(rs.sliceAsPtr(self.items as Array<[rs.u8, rs.u8] | undefined>), self.len);
+export function asSlice$Option_tuple2_u8_u8(self: Inline<[rs.u8, rs.u8] | undefined>): rs.Slice<[rs.u8, rs.u8] | undefined> {
+	return rs.ptrSlice(rs.sliceAsPtr(rs.sliceFrom(self.items as Array<[rs.u8, rs.u8] | undefined>)), self.len);
 }
 
-export function asSlice$sync_Arc_u8(self: Inline<rs.Arc<rs.u8>>): rs.Arc<rs.u8>[] {
-	return rs.ptrSlice(rs.sliceAsPtr(self.items as rs.Arc<rs.u8>[]), self.len);
+export function asSlice$sync_Arc_u8(self: Inline<rs.Arc<rs.u8>>): rs.Slice<rs.Arc<rs.u8>> {
+	return rs.ptrSlice(rs.sliceAsPtr(rs.sliceFrom(self.items as rs.Arc<rs.u8>[])), self.len);
 }
 
 export function insert$Option_tuple2_u8_u8(self: Inline<[rs.u8, rs.u8] | undefined>, at: rs.usize, value: [rs.u8, rs.u8] | undefined): void {

@@ -100,7 +100,7 @@ Future<void> until(bool Function() done, String what) async {
 }
 
 Future<void> script() async {
-  print('limit ${api.limit}');
+  print('limit ${api.LIMIT}');
 
   final p = const api.Point(x: 1, y: 2).offset(2, 3);
   print('offset ${p.x} ${p.y}');
@@ -191,9 +191,9 @@ Future<void> script() async {
   final registry = api.Registry(api.Counter('first', 1));
   print('last ${registry.last() != null}');
   registry.push(api.Counter('last', 2));
-  final first = registry.first;
+  final first = registry.firstGet;
   first.add(10);
-  print('first ${registry.first.get()} lent ${first.get()}');
+  print('first ${registry.firstGet.get()} lent ${first.get()}');
   final last = registry.last()!;
   last.add(10);
   print('last ${registry.last()!.get()} lent ${last.get()}');
@@ -203,10 +203,10 @@ Future<void> script() async {
     counter.add(by);
     return counter.edited() && counter.get() == 6;
   });
-  print('edit $edited ${registry.first.get()}');
+  print('edit $edited ${registry.firstGet.get()}');
   // A setter moves an object in, as assignment does, closing it.
-  registry.setFirst(api.Counter('second', 3));
-  print('set first ${registry.first.get()} ${registry.first.name()}');
+  registry.firstSet(api.Counter('second', 3));
+  print('set first ${registry.firstGet.get()} ${registry.firstGet.name()}');
   print('walk ${api.walk(3, (cursor) => cursor.at() * 2)}');
   print('each ${api.each(2, (at) => print('visit $at'))}');
   print('offset ${api.offset(() => 7, 3)}');
@@ -266,18 +266,18 @@ Future<void> script() async {
   print('later ${api.Stamp.fromMillis(3000).later(stamp)}');
   print('secs ${stamp.secs()}');
   final message = api.Message(stamp, utf8.encode('body'));
-  print('payload ${text(message.payload)}');
-  print('stamp ${message.stamp!.debug()}');
+  print('payload ${text(message.payloadGet)}');
+  print('stamp ${message.stampGet!.debug()}');
   print('sent ${message.sent()}');
   // Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
   final reset = api.Stamp.fromMillis(4000);
-  message.setStamp(reset);
-  message.setPayload(utf8.encode('edited'));
-  print('payload ${text(message.payload)}');
-  print('stamp ${message.stamp!.debug()}');
+  message.stampSet(reset);
+  message.payloadSet(utf8.encode('edited'));
+  print('payload ${text(message.payloadGet)}');
+  print('stamp ${message.stampGet!.debug()}');
   print('secs ${reset.secs()}');
-  message.setStamp(null);
-  print('stamp ${message.stamp != null}');
+  message.stampSet(null);
+  print('stamp ${message.stampGet != null}');
 
   print('kept ${api.emit(PrintLog(), bytes([1, 2, 3, 4]))}');
   final logger = api.Logger(PrintLog());
@@ -358,7 +358,7 @@ Future<void> script() async {
   // Generic functions and methods, at each implementation of the trait bounding them, by
   // reference, which leaves Dart its object.
   final fromPoint = api.Counter.seededPoint('p', const api.Point(x: -3, y: 4));
-  final fromSize = api.Counter.fromSize('s', const api.Size(width: 5, height: 6));
+  final fromSize = api.Counter.seededSize('s', const api.Size(width: 5, height: 6));
   final fromCounter = api.Counter.seededCounter('c', fromPoint);
   final fromPolar = api.Counter.seededPolarPoint('q', const api.PolarPoint(turns: 1, distance: 2));
   print(
@@ -369,6 +369,11 @@ Future<void> script() async {
 
   // A trait implemented for `Point` and `&Point` apart: one instance.
   print('weigh ${api.weighPoint(const api.Point(x: -1, y: 2))}');
+  // A function named as the type it returns, and one named as a type it does not.
+  print('polar ${api.polarPoint(2)!.distance} ${api.polarPoint(0) == null} '
+      'area ${api.area(const api.Size(width: 2, height: 3))}');
+  // Two types whose paths join alike, the second kept apart where its path splits.
+  print('wind ${api.wind(const api.PolarTurn(whole: 2), const api.Polar_Turn(part: 3))}');
   // Instances that name each other, and one made only by an impl of it.
   final cross = api.cross(
     const api.LeftRightU8(value: api.RightU8(value: 1)),
@@ -376,7 +381,7 @@ Future<void> script() async {
   );
   print('cross $cross outer ${api.OuterInnerU8(4).get()}');
   // A bound that outlives the call takes a value, and an instance only a constant names.
-  print('kept ${api.keptPoint(const api.Point(x: 1, y: -2))} boxed ${api.boxed.value}');
+  print('kept ${api.keptPoint(const api.Point(x: 1, y: -2))} boxed ${api.BOXED.value}');
   print('keep ${api.keepPoint(const api.Point(x: 1, y: -2))}');
   // Inferred instances taking a lent closure and a foreign implementation, and one only
   // its impl of a trait names.
@@ -388,16 +393,16 @@ Future<void> script() async {
 
   // Its Drop runs when Dart closes it, not before.
   final token = api.Token(7);
-  print('token ${token.id} dropped ${api.dropped()}');
+  print('token ${token.idGet} dropped ${api.dropped()}');
   token.close();
   print('dropped ${api.dropped()}');
 
   // A field and the method of its name, each its own member.
   final retry = api.Retry(5);
-  final limit = retry.limitSetting;
+  final limit = retry.limitGet;
   print('retry ${limit == null ? 0 : 1} ${limit ?? 0} ${retry.limit()} ${retry.delay()}');
   // The renamed field's setter, named as its getter.
-  retry.setLimitSetting(null);
+  retry.limitSet(null);
   print('retry ${retry.limit()}');
   print('slot ${api.SlotU8(200).value()}');
 
@@ -463,7 +468,7 @@ Future<void> script() async {
     print('json parse err ${e.error}');
   }
   final site = api.Site(base);
-  print('site ${site.home} ${site.home}');
+  print('site ${site.homeGet} ${site.homeGet}');
 
   // Slices, passed in and returned as clones, and the socket address of each family.
   String debugs(List<Object> values) =>
@@ -473,7 +478,7 @@ Future<void> script() async {
         api.Label l => l.debug(),
         _ => throw ArgumentError(v),
       }).join(', ')}]';
-  print('shapes ${debugs(api.Shape.all)} greetings ${quoted(api.greetings)}');
+  print('shapes ${debugs(api.Shape.ALL)} greetings ${quoted(api.GREETINGS)}');
   final trail = api.Trail([const api.Point(x: 1, y: 2), const api.Point(x: 3, y: 4)], ['a', 'b']);
   print('trail ${debugs(trail.points())} ${debugs(trail.labels())}');
   // Returned iterators, each collected at the call: drained labels are gone after.
@@ -674,7 +679,7 @@ Future<void> owned() async {
   check(api.dropped() == before + 1, 'closing frees at once');
   token.close();
   check(api.dropped() == before + 1, 'closing again frees nothing');
-  closed(() => token.id, 'Token', 'a closed token refuses a read');
+  closed(() => token.idGet, 'Token', 'a closed token refuses a read');
 
   unclosed();
   await collect(() => api.dropped() >= before + 2, 'the garbage collector frees what nobody closed');
@@ -717,9 +722,9 @@ void closedObjects() {
   closed(() => api.Tally() == tally, 'Tally', '== with a closed object');
   final registry = api.Registry(api.Counter('first', 1));
   registry.close();
-  closed(() => registry.first, 'Registry', "a field's getter of a closed object");
+  closed(() => registry.firstGet, 'Registry', "a field's getter of a closed object");
   final second = api.Counter('second', 2);
-  closed(() => registry.setFirst(second), 'Registry', "a field's setter of a closed object");
+  closed(() => registry.firstSet(second), 'Registry', "a field's setter of a closed object");
   check(second.get() == 2, 'a call that throws moves nothing in');
 
   // An argument, alone, or in a list, beside others the call then moves none of.
@@ -767,11 +772,11 @@ void closedObjects() {
   final editing = api.Registry(api.Counter('e', 4));
   final edited = editing.edit((counter) {
     editing.close();
-    closed(() => editing.first, 'Registry', 'an object closed in a closure refuses calls');
+    closed(() => editing.firstGet, 'Registry', 'an object closed in a closure refuses calls');
     return counter.get() == 4;
   });
   check(edited, 'the call holding a closed object still reaches it');
-  closed(() => editing.first, 'Registry', 'an object closed in a closure stays closed');
+  closed(() => editing.firstGet, 'Registry', 'an object closed in a closure stays closed');
   // As the drop of what it holds shows: once, after the call.
   late api.Logger logger;
   late CountLog log;

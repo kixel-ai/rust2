@@ -20,12 +20,8 @@ export function dropLater$u16_u32(self: DropFilteredValues<rs.u16, rs.u32>, node
 }
 
 export function drop$ops_Drop_u16_u32(self: DropFilteredValues<rs.u16, rs.u32>): void {
-	let endFree!: Node.Node<rs.u16, rs.u32> | undefined;
-	while (true) {
-		endFree = self.curFree;
-		if (!(self.curFree !== self.free.v)) {
-			break;
-		}
+	const endFree: Node.Node<rs.u16, rs.u32> | undefined = self.curFree;
+	while (self.curFree !== self.free.v) {
 		const curFree: Node.Node<rs.u16, rs.u32> = asPtr$hashlink_linked_hash_map_OptNonNullExt_hashlink_linked_hash_map_Node_u16_u32_Option_ptr_NonNull_hashlink_linked_hash_map_Node_u16_u32(self.curFree);
 		Node.takeEntry$u16_u32(curFree);
 		self.curFree = curFree.links.at0;

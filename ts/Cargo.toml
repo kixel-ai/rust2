@@ -27,6 +27,7 @@ members = [
     "fixtures/share",
     "fixtures/stock",
     "fixtures/task",
+    "fixtures/tokio",
 ]
 resolver = "3"
 

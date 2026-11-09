@@ -6,6 +6,10 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 publish = false
 
+# The export's prefix.
+[lib]
+name = "reject"
+
 [dependencies]
 dep-fixture = { path = "../dep" }
 

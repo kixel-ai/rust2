@@ -19,8 +19,8 @@ globalThis.Uint8Array = class extends Native {
 	}
 } as Uint8ArrayConstructor;
 
-const debug = (e: rs.TryReserveError, spec: rs.Spec = {}) => rs.fmtToString(rs.fmtSpec(spec, (f) => rs.fmtTryReserveErrorDebug(e, f)));
-const display = (e: rs.TryReserveError) => rs.fmtToString((f) => rs.fmtTryReserveErrorDisplay(e, f));
+const debug = (e: rs.TryReserveError, spec: rs.Spec = {}) => rs.fmtToString(rs.fmtSpec(spec, (f) => rs.fmtTryReserveErrorDebug(e, f))).v;
+const display = (e: rs.TryReserveError) => rs.fmtToString((f) => rs.fmtTryReserveErrorDisplay(e, f)).v;
 const failed = (r: rs.Result<undefined, rs.TryReserveError>, size: number): rs.TryReserveError => {
 	assert.ok(!r.ok);
 	assert.deepEqual(r.error.layout, { size, align: 1 });

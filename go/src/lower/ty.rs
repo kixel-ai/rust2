@@ -64,11 +64,14 @@ impl<'tcx> Translator<'tcx> {
 				if sig.abi() != rustc_abi::ExternAbi::Rust {
 					return self.refuse(span, format!("`{ty}`, a function pointer of a foreign ABI"));
 				}
-				let params: Vec<String> = sig.inputs().iter().map(|t| self.go_ty(*t, span, generic)).collect();
-				let ret = match Self::no_value(sig.output()) {
-					true => String::new(),
-					false => format!(" {}", self.go_ty(sig.output(), span, generic)),
-				};
+				// How a function lays out its values depends on their monomorphic types.
+				if generic && sig.inputs_and_output.iter().any(|t| t.has_param()) {
+					return self.refuse(
+						span,
+						format!("`{ty}`, a function pointer over a type parameter, in a type's field"),
+					);
+				}
+				let (params, ret) = self.sig_types(sig.inputs(), sig.output(), span);
 				format!("func({}){ret}", params.join(", "))
 			}
 			ty::Dynamic(preds, ..) => match preds.principal_def_id() {
@@ -142,47 +145,80 @@ impl<'tcx> Translator<'tcx> {
 		}
 	}
 
-	/// The Go name of an ADT's declaration, declaring it if new: generic over its type
-	/// parameters, as the Rust type is.
-	fn adt_decl(&mut self, adt: AdtDef<'tcx>, span: Span) -> String {
-		let tcx = self.tcx;
-		let did = adt.did();
-		if let Some(name) = self.types.get(&TypeKey::Adt(did)) {
-			return name.clone();
+	/// Refuse a named `pub` field Go cannot export by its name: one that is not ASCII with
+	/// a leading lowercase letter, which capitalizing would leave unexported, invalid, or
+	/// not apart from its neighbors.
+	fn check_field(&mut self, field: &ty::FieldDef) {
+		if field.vis.is_public() && !names::is_exported(&names::field(field, 0)) {
+			self.err(
+				self.tcx.def_span(field.did),
+				"a `pub` field not named in ASCII with a leading lowercase letter, which Go cannot export one to one, is not supported",
+			);
 		}
-		let base = tcx.item_name(did).to_string();
-		let base = match did.krate == LOCAL_CRATE && self.local_names.get(&base).is_some_and(|&n| n > 1) {
-			// Its module's path, so two modules' `Version` stay apart.
-			true => module_path(tcx, did),
-			false => base,
-		};
-		let name = self.fresh(&base);
-		self.types.insert(TypeKey::Adt(did), name.clone());
-		let generics = tcx.generics_of(did);
+	}
+
+	/// A `pub` type alias, as a Go alias named `name` of its type, generic where Rust's is.
+	pub(super) fn alias_decl(&mut self, name: &str, def_id: DefId) {
+		let tcx = self.tcx;
+		let params = self.type_params(def_id);
+		let ty = tcx.type_of(def_id).instantiate_identity().skip_norm_wip();
+		let target = self.go_ty(ty, tcx.def_span(def_id), true);
+		let doc = format!("// {name} is Rust's `{}`.\n", tcx.def_path_str(def_id));
+		self.declare(def_id.krate, name, format!("{doc}type {name}{params} = {target}\n"));
+	}
+
+	/// The Go type parameters of a type's or alias's declaration, as its own Rust ones.
+	fn type_params(&mut self, def_id: DefId) -> String {
+		let tcx = self.tcx;
 		let mut params = Vec::new();
-		for param in &generics.own_params {
+		for param in &tcx.generics_of(def_id).own_params {
 			match param.kind {
 				ty::GenericParamDefKind::Lifetime => {}
 				ty::GenericParamDefKind::Type { .. } => {
 					params.push(format!("{} any", names::ident(param.name.as_str())))
 				}
 				ty::GenericParamDefKind::Const { .. } => {
-					self.err(tcx.def_span(did), "a type with a const parameter is not supported");
+					self.err(tcx.def_span(def_id), "a type with a const parameter is not supported");
 				}
 			}
 		}
-		let params = match params.is_empty() {
+		match params.is_empty() {
 			true => String::new(),
 			false => format!("[{}]", params.join(", ")),
+		}
+	}
+
+	/// The Go name of an ADT's declaration, declaring it if new: generic over its type
+	/// parameters, as the Rust type is.
+	pub(super) fn adt_decl(&mut self, adt: AdtDef<'tcx>, span: Span) -> String {
+		let tcx = self.tcx;
+		let did = adt.did();
+		if let Some(name) = self.types.get(&TypeKey::Adt(did)) {
+			return name.clone();
+		}
+		let name = match self.type_names.get(&did) {
+			Some(name) => name.clone(),
+			None => {
+				let base = tcx.item_name(did).to_string();
+				let base = match did.krate == LOCAL_CRATE && self.local_names.get(&base).is_some_and(|&n| n > 1) {
+					// Its module's path, so two modules' `Version` stay apart.
+					true => module_path(tcx, did),
+					false => base,
+				};
+				self.fresh(&base)
+			}
 		};
+		self.types.insert(TypeKey::Adt(did), name.clone());
+		let params = self.type_params(did);
 		let identity = ty::GenericArgs::identity_for_item(tcx, did);
 		let mut fields = String::new();
 		if adt.is_union() {
 			self.err(tcx.def_span(did), "a union is not supported");
 		} else if adt.is_struct() {
 			for (i, field) in adt.non_enum_variant().fields.iter().enumerate() {
+				self.check_field(field);
 				let fty = self.field_ty(field.did, identity, tcx.def_span(field.did));
-				fields.push_str(&format!("\t{} {fty}\n", names::field(field.name.as_str(), i)));
+				fields.push_str(&format!("\t{} {fty}\n", names::field(field, i)));
 			}
 		} else {
 			let tag = self.go_ty(adt.repr().discr_type().to_ty(tcx), span, false);
@@ -193,8 +229,9 @@ impl<'tcx> Translator<'tcx> {
 				}
 				let mut inner = Vec::new();
 				for (i, field) in variant.fields.iter().enumerate() {
+					self.check_field(field);
 					let fty = self.field_ty(field.did, identity, tcx.def_span(field.did));
-					inner.push(format!("{} {fty}", names::field(field.name.as_str(), i)));
+					inner.push(format!("{} {fty}", names::field(field, i)));
 				}
 				fields.push_str(&format!(
 					"\t{} struct{{ {} }}\n",

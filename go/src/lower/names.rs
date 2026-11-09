@@ -1,9 +1,12 @@
 //! Go names: items resolved by their paths from the crate root, and every Rust item's
 //! package-level Go name.
 
+use std::collections::{HashSet, VecDeque};
+
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::def_id::{CRATE_DEF_ID, DefId, LOCAL_CRATE};
 use rustc_middle::ty::{self, GenericArgKind, Instance, InstanceKind, ShimKind, Ty, TyCtxt};
+use rustc_span::Span;
 
 /// Go's keywords and predeclared identifiers, which a package-level name must not shadow.
 pub const PREDECLARED: &[&str] = &[
@@ -78,24 +81,54 @@ pub const PREDECLARED: &[&str] = &[
 	"comparable",
 ];
 
-/// The item a path from the crate root names, through modules.
-pub fn resolve(tcx: TyCtxt<'_>, path: &str) -> Option<DefId> {
-	let mut item = CRATE_DEF_ID.to_def_id();
-	for segment in path.split("::") {
-		let local = item.as_local()?;
-		item = tcx
-			.module_children_local(local)
-			.iter()
-			.find_map(|child| match child.res {
-				Res::Def(kind, def_id)
-					if child.ident.as_str() == segment && !matches!(kind, DefKind::Ctor(..) | DefKind::Macro(_)) =>
-				{
-					Some(def_id)
-				}
-				_ => None,
-			})?;
+/// The crate's `pub` API: each item a path of `pub` names from the crate root reaches,
+/// through its modules, re-exports, and those of the crates it re-exports modules of, by
+/// its shortest such path, the first in definition order of those as short. A module is
+/// walked rather than listed, and an alias of a type with the alias's own parameters
+/// stands for the type where no other path reaches it. Each comes with the span of the
+/// name that exports it.
+pub fn public(tcx: TyCtxt<'_>) -> Vec<(String, DefId, Span)> {
+	let root = CRATE_DEF_ID.to_def_id();
+	let mut items = Vec::new();
+	let mut aliased = Vec::new();
+	let mut seen = HashSet::from([root]);
+	let mut modules = VecDeque::from([(String::new(), root)]);
+	while let Some((prefix, module)) = modules.pop_front() {
+		let children = match module.as_local() {
+			Some(local) => tcx.module_children_local(local),
+			None => tcx.module_children(module),
+		};
+		for child in children {
+			let Res::Def(kind, def_id) = child.res else {
+				continue;
+			};
+			if !child.vis.is_public() || matches!(kind, DefKind::Ctor(..)) || !seen.insert(def_id) {
+				continue;
+			}
+			let (name, span) = (child.ident.name, child.ident.span);
+			let path = match prefix.is_empty() {
+				true => name.to_string(),
+				false => format!("{prefix}::{name}"),
+			};
+			match kind {
+				DefKind::Mod => modules.push_back((path, def_id)),
+				DefKind::TyAlias => aliased.push((path, def_id, span)),
+				_ => items.push((path, def_id, span)),
+			}
+		}
 	}
-	Some(item)
+	for (path, alias, span) in aliased {
+		let identity = ty::GenericArgs::identity_for_item(tcx, alias);
+		match *tcx.type_of(alias).instantiate_identity().skip_norm_wip().kind() {
+			ty::Adt(adt, args)
+				if args == identity && super::library::mapped(tcx, adt.did()).is_none() && seen.insert(adt.did()) =>
+			{
+				items.push((path, adt.did(), span))
+			}
+			_ => items.push((path, alias, span)),
+		}
+	}
+	items
 }
 
 /// The item a path names in another crate, from its root through modules.
@@ -128,6 +161,27 @@ pub fn exported(path: &str) -> String {
 		.collect()
 }
 
+/// A constant's or static's exported Go name: its path as [`exported`] names it, but each
+/// upper-case word of its own name capitalized as Go names constants, `limits::MAX_LEN`
+/// as `LimitsMaxLen`.
+pub fn exported_value(path: &str) -> String {
+	let (owner, name) = path.rsplit_once("::").map_or(("", path), |(o, n)| (o, n));
+	let words: Vec<String> = name
+		.split('_')
+		.map(|word| match word.chars().any(|c| c.is_lowercase()) {
+			true => word.to_string(),
+			false => word.to_lowercase(),
+		})
+		.collect();
+	format!("{}{}", exported(owner), exported(&words.join("_")))
+}
+
+/// Whether Go exports `name` as written: an ASCII identifier with a leading uppercase
+/// letter, so no Unicode letter or mark Rust allows and Go does not can reach Go's output.
+pub fn is_exported(name: &str) -> bool {
+	name.starts_with(|c: char| c.is_ascii_uppercase()) && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 /// `name` as a Go identifier: anything but letters, digits, and `_` becomes `_`.
 pub fn ident(name: &str) -> String {
 	let mut out: String = name
@@ -144,12 +198,25 @@ pub fn ident(name: &str) -> String {
 	out
 }
 
-/// A field's Go name: its Rust name, or `F<i>` for a tuple's, escaped as [`escaped`].
-pub fn field(name: &str, index: usize) -> String {
+/// A field's Go name: `F<i>` for a tuple's, else its Rust name escaped as [`escaped`],
+/// exported when the field is `pub` so Go callers in other packages reach it. Any other
+/// name Go would export, or that starts with `_`, takes a leading `_`, which keeps the
+/// mapping one to one; a `pub` one that is not ASCII with a leading lowercase letter is
+/// refused where its type is declared.
+pub fn field(field: &ty::FieldDef, index: usize) -> String {
+	let name = field.name.as_str();
 	if name.parse::<usize>().is_ok() || name.is_empty() {
 		return format!("F{index}");
 	}
-	escaped(name)
+	let name = escaped(name);
+	let mut chars = name.chars();
+	match chars.next() {
+		Some(first) if first.is_ascii_lowercase() && field.vis.is_public() => {
+			first.to_ascii_uppercase().to_string() + chars.as_str()
+		}
+		Some(first) if first.is_uppercase() || first == '_' => format!("_{name}"),
+		_ => name,
+	}
 }
 
 /// A field's or variant's name kept off Go's keywords and the enum's `tag`, by a trailing
@@ -159,6 +226,16 @@ pub fn escaped(name: &str) -> String {
 		true => format!("{name}_"),
 		false => name.to_string(),
 	}
+}
+
+/// The base of a static's Go name, unexported: its path, with its crate when not the
+/// translated one.
+pub fn static_base(tcx: TyCtxt<'_>, def_id: DefId) -> String {
+	let mut base = String::from("static");
+	if def_id.krate != LOCAL_CRATE {
+		base = format!("{base}_{}", tcx.crate_name(def_id.krate));
+	}
+	format!("{base}_{}", item_base(tcx, def_id))
 }
 
 /// The base of a function instance's Go name: its owner and name, its crate when not the

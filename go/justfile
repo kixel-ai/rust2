@@ -34,7 +34,7 @@ fix:
     cargo sort --workspace --no-format
     gofmt -w runtime tests bench
 
-# Run the translator: `just go run --config <go.toml> --out <dir>`.
+# Run the translator: `just go run --manifest-path <Cargo.toml> --out <dir>`.
 run *args:
     cargo run --locked --quiet -- {{ args }}
 
@@ -43,7 +43,7 @@ bench *args:
     #!/usr/bin/env bash
     set -euo pipefail
     out="$PWD/target/bench"
-    cargo run --locked --quiet -- --config fixtures/codec/go.toml --manifest-path fixtures/codec/Cargo.toml --out "$out/codec" \
+    cargo run --locked --quiet -- --manifest-path fixtures/codec/Cargo.toml --out "$out/codec" \
         -- --config profile.dev.overflow-checks=false
     printf 'module codec\n\ngo 1.24\n' > "$out/codec/go.mod"
     cargo run --locked --quiet --manifest-path ../ffi/Cargo.toml -- --config bench/ffi.toml --manifest-path fixtures/codec/Cargo.toml --out "$out/ffi"

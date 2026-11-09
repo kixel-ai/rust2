@@ -5,7 +5,7 @@ import * as rs from "./rs.ts";
 /** Boxes of values JS copies, held in a struct a `&mut` reaches. */
 export interface Owner {
 	n: rs.u32;
-	s: string;
+	s: rs.String;
 	nested: rs.u32;
 }
 

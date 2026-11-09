@@ -10,8 +10,16 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 cargo_shim := if env("RUST2_CARGO_SHIM", "") == "" { "" } else { env("RUST2_CARGO_SHIM") + ":" }
 export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { cargo_shim + env("RUST2_TS_TOOLCHAIN") / "bin:" + env("PATH") }
 
-# The moq revision `moq` translates by default.
-moq_rev := "4b8e37bd44e407b3416a17992720870ea3f9221c"
+# The model fixture, its own workspace, which builds moq-net at the moq pin.
+model := "fixtures/model/Cargo.toml"
+
+# The wasm-bindgen fixture, its own workspace, which pins wasm-bindgen to the dev shell's CLI.
+bindgen := "fixtures/bindgen/Cargo.toml"
+
+# The moq revision `moq` and `census` translate and `just ffi` exports by default: the one
+# the model fixture builds. Read without taplo, which the nightly's runners outside Nix lack.
+moq_rev_match := replace_regex(read(model), '(?s).*\nmoq-net = \{[^\n]*\brev = "([0-9a-f]{40})".*', '$1')
+moq_rev := if moq_rev_match =~ '^[0-9a-f]{40}$' { moq_rev_match } else { error("no moq-net rev in " + model) }
 
 default:
     @just --list
@@ -19,9 +27,17 @@ default:
 # Lint and format-check the driver, its fixtures, and the bench.
 check:
     cargo clippy --locked --all-targets -- -D warnings
+    cargo clippy --locked --all-targets --manifest-path {{ model }} -- -D warnings
+    cargo clippy --locked --all-targets --manifest-path {{ bindgen }} -- -D warnings
     cargo fmt --all --check
+    cargo fmt --check --manifest-path {{ model }}
+    cargo fmt --check --manifest-path {{ bindgen }}
     cargo shear
+    cargo shear fixtures/model
+    cargo shear fixtures/bindgen
     cargo sort --workspace --check --no-format
+    cargo sort --check --no-format fixtures/model
+    cargo sort --check --no-format fixtures/bindgen
     tsc -p runtime
     # The bench against moq's TypeScript at the pin, so a pin that drops what it uses fails here.
     just moq-pin
@@ -35,9 +51,17 @@ test *args:
 # Apply formatters without changing program behavior.
 fix:
     cargo clippy --locked --fix --allow-staged --allow-dirty --all-targets
+    cargo clippy --locked --fix --allow-staged --allow-dirty --all-targets --manifest-path {{ model }}
+    cargo clippy --locked --fix --allow-staged --allow-dirty --all-targets --manifest-path {{ bindgen }}
     cargo fmt --all
+    cargo fmt --manifest-path {{ model }}
+    cargo fmt --manifest-path {{ bindgen }}
     cargo shear --fix
+    cargo shear --fix fixtures/model
+    cargo shear --fix fixtures/bindgen
     cargo sort --workspace --no-format
+    cargo sort --no-format fixtures/model
+    cargo sort --no-format fixtures/bindgen
 
 # Run the driver: `just ts run --config <ts.toml> --out <dir>`.
 run *args:

@@ -7,8 +7,8 @@ export function panicAdvance(errorInfo: TryGetError.TryGetError): never {
 	const arg = errorInfo.available;
 	const _8: rs.Fmt = (f: rs.Formatter) => rs.usizeDisplay(arg, f);
 	const arg2 = errorInfo.requested;
-	const args2: rs.Fmt[] = [_8, (f: rs.Formatter) => rs.usizeDisplay(arg2, f)];
-	rs.panicFmt(["advance out of bounds: the len is ", args2[0], " but advancing by ", args2[1]], { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/lib.rs", line: 207, col: 5 });
+	const args3 = [_8, (f: rs.Formatter) => rs.usizeDisplay(arg2, f)];
+	rs.panicFmt(["advance out of bounds: the len is ", args3[0], " but advancing by ", args3[1]], { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/lib.rs", line: 207, col: 5 });
 }
 
 //# sourceMappingURL=bytes.ts.map

@@ -118,6 +118,9 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 		if let Some(sym) = self.t.bound_fn(instance, span) {
 			return Expr::Sym(sym).call(args.into_iter().map(Expr::typed).collect());
 		}
+		if let Some(glue) = super::bindgen::glue(self.t, instance) {
+			return super::bindgen::call(self, instance, glue, args, span, out);
+		}
 		if let ty::InstanceKind::Virtual(method, _) = instance.def
 			&& self.t.dispatches(instance)
 		{
@@ -197,11 +200,32 @@ impl<'b, 'a, 'tcx> Body<'b, 'a, 'tcx> {
 		let tcx = self.t.tcx;
 		if let Some(referent) = library::referent(tcx, def_id, gargs, instance) {
 			// An operand that was a reference to an `rs.Place`, as `&&mut u32` is, passes
-			// what the Place points at.
+			// what the Place points at, and a `&mut` to a `&mut` or a box what the place it
+			// is holds, as JS holds a box as what it holds, but where that is a place too. A
+			// mapping that takes what a `&mut` points at, as `pointees` says, was given the
+			// inner `&mut`, and takes what that points at.
 			let inputs = |gargs| self.t.sig(def_id, gargs).inputs().to_vec();
+			let pointees = |gargs| super::pointer::pointees(self.t, def_id, gargs);
+			let (given, taken) = (pointees(gargs), pointees(referent));
 			let args = std::iter::zip(args, std::iter::zip(inputs(gargs), inputs(referent)))
-				.map(|(arg, (was, now))| match was.kind() {
-					ty::Ref(_, inner, _) if was != now => self.t.pointee_value(*inner, arg),
+				.enumerate()
+				.map(|(i, (arg, (was, now)))| match was.kind() {
+					_ if was == now => arg,
+					ty::Ref(_, inner, mutability) if inner.is_box() => match mutability {
+						ty::Mutability::Mut if self.t.place_pointee(now).is_none() => self.t.pointee_value(was, arg),
+						_ => arg,
+					},
+					ty::Ref(_, _, ty::Mutability::Mut) => {
+						let inner = match given[i] {
+							true => arg,
+							false => self.t.pointee_value(was, arg),
+						};
+						match taken[i] {
+							true => self.t.pointee_value(now, inner),
+							false => inner,
+						}
+					}
+					ty::Ref(_, inner, _) => self.t.pointee_value(*inner, arg),
 					_ => arg,
 				})
 				.collect();

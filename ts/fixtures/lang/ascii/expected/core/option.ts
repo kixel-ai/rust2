@@ -30,11 +30,11 @@ export function unwrapOr$05jq4mv(self: rs.usize | undefined, default_: rs.usize)
 	return self;
 }
 
-export function map$1uo1d4o(self: string | undefined, _: (a0: string) => string): string | undefined {
+export function map$06og5bz(self: rs.String | undefined, _: (a0: rs.String) => string): string | undefined {
 	if (self === undefined) {
 		return undefined;
 	}
-	return self;
+	return self.v;
 }
 
 export function mapOr$1d4bp7c(self: rs.u8 | undefined, default_: rs.usize, f: (a0: rs.u8) => rs.usize): rs.usize {
@@ -58,9 +58,9 @@ export function mapOr$188iunt(self: rs.usize | undefined, default_: rs.u8, f: (a
 	return f(self);
 }
 
-export function asDeref$0w8at8i(self: string | undefined): string | undefined {
-	return map$1uo1d4o(self, (a0: string): string => {
-		return a0;
+export function asDeref$0wpj87j(self: rs.String | undefined): string | undefined {
+	return map$06og5bz(self, (a0: rs.String): string => {
+		return a0.v;
 	});
 }
 
