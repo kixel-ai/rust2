@@ -594,3 +594,42 @@ pub fn rests(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	front[0][1] = front[1][0];
 	out.extend(grid.iter().flatten());
 }
+
+/// Array references `try_into` makes of a slice, of bytes and of wide integers, lending the
+/// array where the slice holds it and failing on any other length; `identity` of one; and
+/// `as_array_of_cells` of a cell of an array, each cell written through.
+pub fn converted(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let at = usize::from(kind % 3);
+	let mut buf = data.to_vec();
+	let end = buf.len().min(at + 3);
+	let start = at.min(end);
+	if let Ok(head) = <&mut [u8; 3]>::try_from(&mut buf[start..end]) {
+		head[0] ^= 0x11;
+		let head = std::convert::identity(head);
+		head.swap(1, 2);
+	}
+	let shared: Result<&[u8; 2], _> = buf.get(..2).unwrap_or(&[]).try_into();
+	match shared {
+		Ok(pair) => out.extend_from_slice(pair),
+		Err(e) => out.extend_from_slice(e.to_string().as_bytes()),
+	}
+	out.extend_from_slice(&buf);
+	let mut wide: Vec<u32> = data.iter().map(|&d| u32::from(d) << 20).collect();
+	let len = wide.len();
+	let taken: Result<&mut [u32; 2], _> = (&mut wide[len.min(at)..]).try_into();
+	if let Ok(two) = taken {
+		two[1] = two[0].wrapping_add(7);
+	}
+	let shared: Option<&[u32; 2]> = wide.get(..2).and_then(|s| s.try_into().ok());
+	out.extend(shared.into_iter().flatten().flat_map(|w| w.to_le_bytes()));
+	out.extend(wide.iter().flat_map(|w| w.to_le_bytes()));
+	let cell = std::cell::Cell::new([kind, at as u8, 9]);
+	let cells = cell.as_array_of_cells();
+	cells[0].set(cells[2].get().wrapping_add(kind));
+	cells[1].swap(&cells[2]);
+	out.extend_from_slice(&cell.get());
+	let wide = std::cell::Cell::new([u64::from(kind), 1]);
+	let cells: &[std::cell::Cell<u64>; 2] = wide.as_array_of_cells();
+	cells[1].set(cells[0].get() << 40);
+	out.extend(wide.get().iter().flat_map(|w| w.to_le_bytes()));
+}

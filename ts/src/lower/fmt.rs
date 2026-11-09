@@ -608,6 +608,8 @@ pub fn std_impl<'tcx>(
 			(Std::ErrorKind, Trait::Debug) => rs("writeStr", vec![f, value]),
 			(Std::CharTryFromError, Trait::Debug) => rs("charTryFromErrorDebug", vec![value, f]),
 			(Std::CharTryFromError, Trait::Display) => rs("charTryFromErrorDisplay", vec![value, f]),
+			(Std::TryFromSliceError, Trait::Debug) => rs("tryFromSliceErrorDebug", vec![value, f]),
+			(Std::TryFromSliceError, Trait::Display) => rs("tryFromSliceErrorDisplay", vec![value, f]),
 			(Std::TryFromCharError, Trait::Debug) => rs("tryFromCharErrorDebug", vec![value, f]),
 			(Std::TryFromCharError, Trait::Display) => rs("tryFromCharErrorDisplay", vec![value, f]),
 			(Std::DecodeUtf16Error, Trait::Debug) => rs("decodeUtf16ErrorDebug", vec![value, f]),

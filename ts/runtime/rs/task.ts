@@ -4,7 +4,7 @@
 // A value whose drop JS can observe has `[Symbol.dispose]`, which runs its `Drop` impl
 // and drops its fields. `None` is `undefined`, which drops as nothing.
 
-import { Abort, arrayAssign, type ByteSlice, type ArrayRef, type LentArray, type ElemCopy, ArraySlice, arraySliceItems, arraySliceCopy, arraySliceSet, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, sliceSet, violated, sliceToArray, stringAsBytes, type Vec, assertFailed, fmtOwned } from "../rs.ts";
+import { Abort, arrayAssign, type ByteSlice, type ArrayRef, type LentArray, type ElemCopy, ArraySlice, arraySliceItems, arraySliceCopy, arraySliceSet, type CloneFrom, cloneOver, type Debug, type DebugStruct, debugStructField, debugStructFinish, debugStructFinishNonExhaustive, debugTupleField, debugTupleFinish, Err, type FmtResult, type Formatter, fmtBool, fmtDebugStruct, fmtDebugTuple, fmtDebugTupleFields, fmtPad, fmtStr, type None, NULL, objectCopy, OK, Ok, Panic, panic, type Place, place, ptrErase, ptrHome, ptrNowhere, ptrWrite, type Result, Slice, sliceSet, type SliceLike, slicePlaces, violated, sliceToArray, stringAsBytes, type Vec, assertFailed, fmtOwned } from "../rs.ts";
 import type { Hasher } from "./hash.ts";
 import type { Location } from "./location.ts";
 
@@ -911,6 +911,11 @@ export function cellDebug<T>(get: () => T, f: Formatter, debug: Debug<T>): FmtRe
 /** `Cell::from_mut` of the place `p`: a cell of it, which nothing drops, as nothing owns it. */
 export function cellOfPlace<T>(p: Place<T>): Cell<T> {
 	return p as Cell<T>;
+}
+
+/** `Cell::as_array_of_cells` of the slice `s` of the array a cell holds: a cell of each element's place. */
+export function cellsOf<T>(s: SliceLike<T>): Cell<T>[] {
+	return slicePlaces(s) as Cell<T>[];
 }
 
 /**

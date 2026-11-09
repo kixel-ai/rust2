@@ -23,5 +23,6 @@ fn cases() -> Vec<(&'static str, Case)> {
 		("arrays::given", arrays::given),
 		("arrays::flattened", arrays::flattened),
 		("arrays::rests", arrays::rests),
+		("arrays::converted", arrays::converted),
 	]
 }
