@@ -55,11 +55,9 @@ Public API: the exporter's command line and the C API of every item that exports
 ## Required
 
 - [The stand-in exports only moq-tokio's session side](/quest/m1/ffi-export/refusals/narrow-standin.md) - `just ffi standin` names the session items moq-ffi ships in place of `pub use ::moq_tokio::*;`
-- [Whole-crate re-exports are refused with one span](/quest/m1/ffi-export/refusals/reexports.md) - the exporter stops at a `pub use` of a crate root, turning about 790 refusals into one per re-export
 - [Generic parameters and traits export](/quest/m1/ffi-export/refusals/generics.md) - `Client::connect`'s `Boxable`, futures and readers as parameters, trait objects, associated types, and callbacks
 - [Standard and common types export by role](/quest/m1/ffi-export/refusals/std-types.md) - maps, sets, errors, `NonZero`, addresses, instants, sockets, levels, JSON maps, and iterator adapters
 - [Poll and Context export](/quest/m1/ffi-export/refusals/poll.md) - a `poll_*` with no async twin takes a waker, as futures' polls do
 - [Borrow shapes export](/quest/m1/ffi-export/refusals/borrows.md) - `Option<&T>`, `&mut` buffers, `&Bytes`, `Arc<T>`, `'static` borrows, and borrowed returns that are not `Clone`
 - [Small shapes export](/quest/m1/ffi-export/refusals/small-shapes.md) - `u128`, arrays, const generics, unit and `Result` off a return, `!`, empty enums, and what is not `Send`
-- [What C can never hold is left out and listed](/quest/m1/ffi-export/refusals/unholdable.md) - objects no export returns or lends to a closure, and generics no export instantiates leave the bindings but stay in the census
 - [Bump the moq pin past its re-export and reachability fixes](/quest/m1/ffi-export/refusals/moq-pin.md) - the census has no whole-crate re-export refusal and no unreachable type of moq's own

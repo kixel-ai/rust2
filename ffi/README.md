@@ -52,7 +52,10 @@ exclude = ["track::Producer::poll_closed"]
 Every `pub` item reachable from the facade's root, by its shortest path, is exported or
 refused. `#[doc(hidden)]` items are no part of the API and are left out; type aliases
 export nothing of their own. A re-export of the standard library's item is refused, since
-its types map by role; a type no path reaches is refused.
+its types map by role. A `pub use` of a whole crate, as in `pub use rustls;` or
+`pub use web_transport_proto as proto;`, is refused once at that `pub use`, since it puts
+every release of that crate in the facade's API; a glob of its root, `pub use dep::*;`,
+re-exports its items instead, which export. A type no path reaches is refused.
 
 | Rust | C |
 | --- | --- |
@@ -106,9 +109,10 @@ returned as a clone, so it must be `Clone`, and a handle in it is a new handle t
 clone. A handle outlives every call, so every lifetime an object takes is `'static`, as is
 every lifetime that must outlive one; any other lifetime is the call's. A signature may
 not lend C's borrow for one that is `'static`, nor return an object that borrows. A
-parameter is a reference only at its top, not inside an `Option` or `Box`, and an object
-no export C can call returns is refused, since C could never hold one. Everything else is
-refused, and the census counts why.
+parameter is a reference only at its top, not inside an `Option` or `Box`. What C could
+never hold, an object no export C can call returns or lends to a closure, a generic type
+no export instantiates, and whatever takes one, is left out and listed in the census.
+Everything else is refused, and the census counts why.
 
 ## The C ABI
 
@@ -613,8 +617,8 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 ## Census
 
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
-lists each refused item at its span, and ends with the `exclude` list that exports the
-rest. It ignores the config's `exclude`. It still fails on an `instance not inferred`
+lists each refused item at its span, then the `exclude` list that exports the rest, and
+what else it left out, such as what C can never hold. It ignores the config's `exclude`. It still fails on an `instance not inferred`
 refusal, which is a bug in the exporter's inference rather than in the crate.
 
 ## Tests

@@ -649,6 +649,17 @@ fn cell<'tcx>(
 			let (x, y) = (pointer::cell_pointer(b, x, ty), pointer::cell_pointer(b, y, ty));
 			pointer::swap(b, x, y, ty, span, out)
 		}
+		// A cell of each element JS copies, its place where the cell holds the array, as
+		// `Cell::from_mut` of a place makes one.
+		// `Cell<[T; N]>`'s impl, whose first argument is `T`.
+		"as_array_of_cells" if b.t.needs_place(ty) => {
+			let array = b.t.sig(call.def_id, call.args).inputs()[0].peel_refs();
+			let ty::Adt(_, cell) = array.kind() else {
+				unreachable!("as_array_of_cells takes a reference to a cell")
+			};
+			let s = pointer::cell_pointer(b, first(args), cell.type_at(0));
+			Expr::rs("cellsOf", vec![s])
+		}
 		"replace" => Expr::rs("cellReplace", args),
 		"update" => Expr::rs("cellUpdate", args),
 		// With what drops the value it replaces.

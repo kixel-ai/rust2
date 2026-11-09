@@ -92,24 +92,41 @@ struct Facts<'tcx> {
 
 impl<'tcx> Facts<'tcx> {
 	/// What both `self` and `other` know, and what either may have narrowed.
-	fn join(&self, other: &Self) -> Self {
-		let known = self
+	///
+	/// A place of a variant that only one way in can hold, as `(x as Some).0` where the
+	/// other way knows `x` is `None`, keeps what that way knows: only it reads the place.
+	fn join(&self, other: &Self, excludes: impl Fn(&Self, Place<'tcx>) -> bool) -> Self {
+		let mut known: Vec<_> = self
 			.known
 			.iter()
-			.filter_map(|(p, vs)| {
-				let (_, theirs) = other.known.iter().find(|(q, _)| q == p)?;
-				Some((*p, union(vs, theirs)))
+			.filter_map(|(p, vs)| match other.known.iter().find(|(q, _)| q == p) {
+				Some((_, theirs)) => Some((*p, union(vs, theirs))),
+				None => excludes(other, *p).then(|| (*p, vs.clone())),
 			})
 			.collect();
+		known.extend(
+			other
+				.known
+				.iter()
+				.filter(|(p, _)| excludes(self, *p) && !self.known.iter().any(|(q, _)| q == p))
+				.cloned(),
+		);
 		// What one way in left unnarrowed has its whole type.
-		let narrowed = self
+		let mut narrowed: Vec<_> = self
 			.narrowed
 			.iter()
-			.filter_map(|(p, vs)| {
-				let (_, theirs) = other.narrowed.iter().find(|(q, _)| q == p)?;
-				Some((*p, vs.as_ref().zip(theirs.as_ref()).map(|(a, b)| union(a, b))))
+			.filter_map(|(p, vs)| match other.narrowed.iter().find(|(q, _)| q == p) {
+				Some((_, theirs)) => Some((*p, vs.as_ref().zip(theirs.as_ref()).map(|(a, b)| union(a, b)))),
+				None => excludes(other, *p).then(|| (*p, vs.clone())),
 			})
 			.collect();
+		narrowed.extend(
+			other
+				.narrowed
+				.iter()
+				.filter(|(p, _)| excludes(self, *p) && !self.narrowed.iter().any(|(q, _)| q == p))
+				.cloned(),
+		);
 		let bools = self.bools.iter().filter(|b| other.bools.contains(b)).copied().collect();
 		// What a `bool` says on either way in, where one way knows only its value.
 		let mut implied: Vec<Implication<'tcx>> = Vec::new();
@@ -412,7 +429,7 @@ impl<'c, 'tcx> Flow<'c, 'tcx> {
 			for (to, out) in self.block(body, bb, facts, None).1 {
 				let joined = match &entry[to] {
 					None => out,
-					Some(old) => old.join(&out),
+					Some(old) => old.join(&out, |facts, place| self.excludes(body, facts, place)),
 				};
 				if entry[to].as_ref() != Some(&joined) {
 					entry[to] = Some(joined);
@@ -421,6 +438,20 @@ impl<'c, 'tcx> Flow<'c, 'tcx> {
 			}
 		}
 		entry
+	}
+
+	/// Whether `facts` know an enum that `place` is part of a variant of not to hold it.
+	fn excludes(&self, body: &mir::Body<'tcx>, facts: &Facts<'tcx>, place: Place<'tcx>) -> bool {
+		place.iter_projections().any(|(base, elem)| {
+			let (ProjectionElem::Downcast(_, variant), ty::Adt(adt, _)) =
+				(elem, base.ty(&body.local_decls, self.tcx).ty.kind())
+			else {
+				return false;
+			};
+			let discr = adt.discriminant_for_variant(self.tcx, variant).val;
+			let base = base.to_place(self.tcx);
+			facts.known.iter().any(|(p, vs)| *p == base && !vs.contains(&discr))
+		})
 	}
 
 	/// `place`, through each reference it reads that borrows a place that stays put.
