@@ -27,6 +27,7 @@ mod mir;
 pub(crate) mod names;
 mod num;
 pub mod pointer;
+pub(crate) mod smallvec;
 mod stock;
 mod task;
 mod time;
@@ -1343,6 +1344,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				(!self.is_copy(ty)).then_some(ObjectKind::Class)
 			}
 			ty::Adt(..) if let Some(slice) = stock::uninit_slice(self.tcx, ty) => self.object_kind(slice),
+			ty::Adt(..) if let Some(vec) = smallvec::as_vec(self.tcx, ty) => self.object_kind(vec),
 			ty::Adt(adt, args) => match library::Std::of(self.tcx, adt.did()) {
 				Some(library::Std::Vec) => Some(ObjectKind::Vec),
 				// Its text, length, and capacity, edited in place.
@@ -1727,6 +1729,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 
 	fn adt_ty(&mut self, adt: AdtDef<'tcx>, args: GenericArgsRef<'tcx>, span: Span) -> Type {
 		let tcx = self.tcx;
+		if let Some(vec) = smallvec::as_vec(tcx, Ty::new_adt(tcx, adt, args)) {
+			return self.ty(vec, span);
+		}
 		if let Some(sym) = self.bound_type(adt, args, span) {
 			let args = args.types().map(|t| self.ty(t, span)).collect();
 			return Type::Sym(sym, args);

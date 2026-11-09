@@ -109,6 +109,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// a `Peekable`, whose inline state only its runtime class knows, so a read that would
 	/// copy one is refused.
 	fn inline_held(&self, ty: Ty<'tcx>) -> Option<Inline<'tcx>> {
+		if let Some(vec) = super::smallvec::as_vec(self.tcx, ty) {
+			return self.inline_held(vec);
+		}
 		let ty::Adt(adt, args) = ty.kind() else {
 			return None;
 		};
@@ -857,6 +860,7 @@ fn by_value<'tcx>(tcx: TyCtxt<'tcx>, env: ty::TypingEnv<'tcx>, ty: Ty<'tcx>) -> 
 			continue;
 		}
 		match *ty.kind() {
+			ty::Adt(..) if let Some(vec) = super::smallvec::as_vec(tcx, ty) => stack.push(vec),
 			ty::Array(_, len) if len.try_to_target_usize(tcx) == Some(0) => {}
 			ty::Array(elem, _) | ty::Pat(elem, _) => stack.push(elem),
 			ty::Tuple(tys) => stack.extend(tys),

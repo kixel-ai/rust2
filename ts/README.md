@@ -154,6 +154,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `bytes::BytesMut` | `rs.BytesMut`: a window of storage, which what it splits off and freezes share without overlapping |
 | `rand::rngs::ThreadRng` | `rs.ThreadRng`, which holds no state |
 | `hashbrown::HashMap`, `HashSet` | `rs.HashMap<K, V>` and `rs.HashSet<K>`, as std's, which are hashbrown's |
+| `smallvec::SmallVec<[T; N]>` | `rs.Vec<T>`, as `Vec<T>` is, whose capacity `rs/smallvec.ts` reads and sets as smallvec's does; its `Drain` and `IntoIter` are `rs.Iter<T>`, as `Vec`'s |
 | `tokio::sync::mpsc::Sender<T>`, `UnboundedSender<T>`, `WeakSender<T>`, `WeakUnboundedSender<T>`, `Receiver<T>`, `UnboundedReceiver<T>` | `rs.MpscSender<T>`, `rs.MpscWeakSender<T>`, and `rs.MpscReceiver<T>`, either kind of channel's, which share an `rs/tokio.ts` channel; its `Permit`, `PermitIterator`, and `OwnedPermit` are `rs.MpscPermit<T>`, `rs.MpscPermits<T>`, an `rs.Iter` of them, and `rs.MpscOwnedPermit<T>` |
 | `tokio::sync::watch::Sender<T>`, `Receiver<T>`, `Ref<'_, T>` | `rs.WatchSender<T>`, `rs.WatchReceiver<T>`, and `rs.WatchRef<T>`, which holds the value's lock read until it drops |
 | `tokio::sync::oneshot::Sender<T>`, `Receiver<T>` | `rs.OneshotSender<T>` and `rs.OneshotReceiver<T>`, a future of its value |
@@ -823,6 +824,24 @@ of them:
   `hashlink`'s default too, a crate's own `Hasher` over hashbrown's. Nothing of hashbrown
   translates, so `hashlink`, which keeps its entries in a `HashTable`, translates over the
   runtime's.
+- smallvec's `SmallVec<[T; N]>` is the `rs.Vec<T>` a `Vec<T>` is, whose `cap` is smallvec's
+  capacity while it spilled and 0 while it holds its items inline. `rs/smallvec.ts` reads
+  and sets it as smallvec's own code does, for each method that reads or sets it: `spilled`,
+  `capacity`, and `inline_size`, which is `usize::MAX` of zero-sized elements, which never
+  spill, `with_capacity`, `reserve`, `grow`, and their `try_` forms, `shrink_to_fit`, which
+  moves it back inline where its items fit, `from_vec`, `into_vec`, `into_inner`, which
+  gives it back where it spilled or isn't full, `from_slice`, `from_elem`, `from_buf`,
+  `from_buf_and_len`, `clone`, `extend`, `collect`, `resize`, `resize_with`,
+  `insert_from_slice`, `extend_from_slice`, and `append`. A push past the capacity grows it
+  to the next power of two, as smallvec's does. `truncate` and `clear` drop from the back,
+  `insert`, `remove`, `swap_remove`, and `drain` panic as smallvec's do, and the rest,
+  `push`, `pop`, `len`, `retain`, its slice, its indexing, its `Drain` and `IntoIter`, and
+  its `Debug`, `PartialEq`, and `Hash`, map as `Vec`'s, which behave the same.
+  `CollectionAllocErr`, the error of its `try_` methods, translates from smallvec's MIR. Its
+  `unsafe` and raw-pointer methods, `dedup`, `insert_many`, `clone_from`, `drain_filter`,
+  and `io::Write` are refused, as is a `SmallVec` of bytes, which would be an
+  `rs.ByteVec`, of a type parameter's elements, or of arrays, and, in a program with a
+  panic hook, a method whose panic the hook couldn't locate in smallvec's code.
 - `rand::rng()` is an `rs.ThreadRng`, whose `random` of an integer or `bool` and
   `random_range` of an integer range map to `rs/rand.ts`. Each value comes from
   `crypto.getRandomValues`, uniform as `rand`'s are, though no seed reproduces them, as
@@ -1289,7 +1308,7 @@ so adding, removing, or reordering a case changes no other case's inputs.
   impls, beside values that drop inside std's types. Its caller is hand-written TS (`tests/task.ts`): a FIFO executor that runs a
   script of spawns, sends, polls, and drops, and logs every poll, wake, and drop, as the
   fixture's native executor does. The logs must match byte for byte.
-- `stock` calls `bytes`, `hashbrown`, `rand`, and `tracing` with no config, `hashlink`
+- `stock` calls `bytes`, `hashbrown`, `rand`, `smallvec`, and `tracing` with no config, `hashlink`
   over `hashbrown`, `rangemap` over std's B-tree, and arrayvec's `ArrayString` over raw
   pointers, against native Rust, whose
   `rand::rng()` reads the fixture's own getrandom backend on wasm32. It checks `Bytes`'s
@@ -1307,7 +1326,12 @@ so adding, removing, or reordering a case changes no other case's inputs.
   `hashlink::LinkedHashMap` in its own order. It inserts, removes, looks up, overlaps, and
   gaps `rangemap`'s maps and sets, which search their B-trees by what each key lends by
   rangemap's own `Borrow`. It pushes, pops, truncates, and removes text of each UTF-8
-  width in an `ArrayString` until it is full. `caller.ts` names the inputs that read a `BytesMut` past
+  width in an `ArrayString` until it is full. It edits a `SmallVec` by ops its input picks,
+  of items that log their drops and clones, ending each with its length, capacity, and
+  whether it spilled, past and back within its inline size and past what it may hold,
+  makes one of `Copy` items each way and gives it back as its array or not, keeps one of
+  zero-sized items, which never spills, and registers and wakes `Weak`s in one as kio's
+  waiter list does. `caller.ts` names the inputs that read a `BytesMut` past
   where `bytes` shares a vector's storage, 128 MiB, drop each pick of a storage's
   handles before reserving, and read a deque across where its ring wraps and past its end.
 - `tokio` passes values through tokio's mpsc, watch, and oneshot channels with no config,

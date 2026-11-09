@@ -45,16 +45,15 @@ Decided with the maintainer on 2026-10-27, from a census of the model's 22 publi
 - The end-to-end work stays here: the model's roots, its differential harness, and the
   `frames.ts` workload. moq writes the binding files `model.toml` names, in its own tree.
 
-The census at the pin on 2026-11-07: 45 refusals. `Timestamp` alone refuses nothing, and
+The census at the pin on 2026-11-09: 41 refusals. `Timestamp` alone refuses nothing, and
 the [model fixture](/ts/README.md#tests)'s harness runs it against native moq-net at the
 pin; each case it adds as a type translates. Every other root reaches the rest of the
 model, all of it moq's, for its research quest: kio's `log.rs` reads bytes as its segments
 and retires them through crossbeam-epoch, whose tagged pointers and inline closures (36
 refusals) translation refuses for good, so moq rewrites or drops them, as it does the
-`unsafe` slice of `model/frame.rs`'s `Filled`. smallvec's union over a type parameter and
-raw parts (4) go once [smallvec maps into the runtime](/quest/m2/ts-model/smallvec.md)
-(decided with the maintainer on 2026-11-07, in the quest audit, under rule 2 of
-[m3's unsafe policy](/quest/m3/README.md); rejected: moq dropping smallvec).
+`unsafe` slice of `model/frame.rs`'s `Filled`. smallvec maps into the runtime, its
+`SmallVec` an `rs.Vec` (decided with the maintainer on 2026-11-07, in the quest audit,
+under rule 2 of [m3's unsafe policy](/quest/m3/README.md); rejected: moq dropping smallvec).
 
 Decided with the maintainer on 2026-11-04, from a census at the bumped pin
 (moq-dev/rust2#390): the refusals no quest owned became child quests, since finished.
@@ -85,7 +84,3 @@ Public API: the translator's output for moq-net's model.
 - moq-dev/moq: [rs2ts-model-subset](https://github.com/moq-dev/moq/blob/main/quest/m5/rs2ts-model-subset.md)
   lands: moq rewrites kio's `log.rs` and its own `unsafe` in safe Rust, or drops them from the
   model's path. moq defers it to its m5. Check by the model census at the pin.
-
-## Required
-
-- [smallvec maps into the runtime](/quest/m2/ts-model/smallvec.md) - `SmallVec` is the runtime's `rs.Vec`, so smallvec's 4 refusals go without moq dropping it

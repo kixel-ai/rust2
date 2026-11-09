@@ -730,6 +730,7 @@ impl<'tcx> Body<'_, '_, 'tcx> {
 /// type without a mapping. One that owns what it yields, by value, is given what drops
 /// each, and the crate's own iterator what drops it.
 pub fn into_iter<'tcx>(b: &mut Body<'_, '_, 'tcx>, ty: Ty<'tcx>, value: Expr, span: Span) -> Option<Expr> {
+	let ty = super::smallvec::fold(b.t.tcx, ty);
 	let (peeled, value) = peel_iter(b, ty, value);
 	let it = peeled_into_iter(b, peeled, value, span)?;
 	Some(boxes(b, ty, it))
@@ -2111,6 +2112,9 @@ fn collect<'tcx>(
 		&& let Some(from_iter) = own_impl(b, "FromIterator", "from_iter", &[ty, item, from], span)
 	{
 		return Some(from_iter.call(vec![iter]));
+	}
+	if let Some(e) = super::smallvec::collect(b, ty, iter.clone(), from, span) {
+		return Some(e);
 	}
 	// `()`'s reads every item, each a `()` too, by `for_each`, which folds: from `undefined`,
 	// so the result is typed as `()` is.
