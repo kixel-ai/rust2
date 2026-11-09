@@ -82,8 +82,10 @@ fixtures/reject/src/lib.rs:695:1: rust2-ffi: cannot export fn `poll_named`: poll
 fixtures/reject/src/lib.rs:6:1: rust2-ffi: cannot export struct `Wrap`: generic type; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:701:1: rust2-ffi: cannot export fn `poll_first`: borrowed Poll `&u8`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:707:1: rust2-ffi: cannot export fn `poll_until`: poll's parameter taken by value that is not Copy `impl Fn(u8) -> bool`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:718:1: rust2-ffi: cannot export fn `poll_both`: several task parameters; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:718:1: rust2-ffi: cannot export fn `context_later`: Context of a function returning a future; future not Send; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:72:1: rust2-ffi: cannot export fn `letters`: Range `char`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:737:1: rust2-ffi: cannot export fn `poll_ticket`: Poll with no Context or waiter parameter `std::task::Poll<u16>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:742:1: rust2-ffi: cannot export fn `poll_both`: several task parameters; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:81:2: rust2-ffi: cannot export method `Text::new`: 'static borrow `&'a str`; exclude it in the config to leave it out
 	fixtures/reject/src/lib.rs:79:6: note: `'a` is `'static`, as a handle outlives every call
 fixtures/reject/src/lib.rs:86:2: rust2-ffi: cannot export method `Text::view`: returned object that borrows `Text<'_>`; exclude it in the config to leave it out

@@ -2094,6 +2094,10 @@ impl<'tcx> Collector<'tcx> {
 			future = true;
 			eager = false;
 		} else if let Some(inner) = self.future_output(output, env) {
+			// The context C's waker makes lives only for the call.
+			if task.is_some() {
+				errs.push(why("Context of a function returning a future", ""));
+			}
 			if !self.is_send(output, env) {
 				errs.push(why("future not Send", ""));
 			}
@@ -3251,13 +3255,14 @@ impl<'tcx> Collector<'tcx> {
 
 	/// What a parameter of type `ty` polls its task through, if it does: a `&Context` or
 	/// `&mut Context`, or where the function returns a `Poll`, a reference to an object
-	/// exactly one associated function makes from a `Waker` alone, such as kio's `Waiter`.
+	/// exactly one associated function makes from a `Waker` alone, of a type with no
+	/// generic parameters, such as kio's `Waiter`.
 	fn task(&self, ty: Ty<'tcx>, polled: bool) -> Option<TaskKind> {
 		let tcx = self.tcx;
 		let ty::Ref(_, inner, m) = *ty.kind() else {
 			return None;
 		};
-		let ty::Adt(adt, _) = *inner.kind() else {
+		let ty::Adt(adt, args) = *inner.kind() else {
 			return None;
 		};
 		if tcx.is_lang_item(adt.did(), LangItem::Context) {
@@ -3266,7 +3271,8 @@ impl<'tcx> Collector<'tcx> {
 				ty::Mutability::Mut => Mutability::Mut,
 			}));
 		}
-		if !polled || m == ty::Mutability::Mut {
+		// A generic type's constructor may belong to another of its instances.
+		if !polled || m == ty::Mutability::Mut || !args.is_empty() {
 			return None;
 		}
 		let Ok(Type::Object(object)) = self.ty(inner, Pos::Behind) else {

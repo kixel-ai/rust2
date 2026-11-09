@@ -714,6 +714,30 @@ pub fn poll_until(cx: &mut std::task::Context<'_>, done: impl Fn(u8) -> bool) ->
 	}
 }
 
+/// A future holding a context, which C's waker makes only for the call.
+pub async fn context_later(cx: &std::task::Context<'_>) {
+	cx.waker().wake_by_ref();
+}
+
+/// A ticket made from a waker at only one instance of its type.
+pub struct Ticket<T>(Option<std::task::Waker>, T);
+
+impl Ticket<u8> {
+	pub fn new(waker: std::task::Waker) -> Self {
+		Self(Some(waker), 0)
+	}
+}
+
+/// The instance C holds, which no constructor makes from a waker.
+pub fn ticket() -> Ticket<u16> {
+	Ticket(None, 1)
+}
+
+/// A poll through an instance no constructor makes from a waker.
+pub fn poll_ticket(ticket: &Ticket<u16>) -> std::task::Poll<u16> {
+	std::task::Poll::Ready(ticket.1)
+}
+
 /// A poll through two contexts, which one future's poll cannot both be.
 pub fn poll_both(a: &mut std::task::Context<'_>, b: &std::task::Context<'_>) -> std::task::Poll<()> {
 	a.waker().wake_by_ref();
