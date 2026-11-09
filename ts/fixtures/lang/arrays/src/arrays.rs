@@ -631,5 +631,6 @@ pub fn converted(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 	let wide = std::cell::Cell::new([u64::from(kind), 1]);
 	let cells: &[std::cell::Cell<u64>; 2] = wide.as_array_of_cells();
 	cells[1].set(cells[0].get() << 40);
+	out.push(u8::from(std::ptr::eq(cells, wide.as_array_of_cells())));
 	out.extend(wide.get().iter().flat_map(|w| w.to_le_bytes()));
 }

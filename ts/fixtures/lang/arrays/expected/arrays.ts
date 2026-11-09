@@ -2101,7 +2101,7 @@ export function converted(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 		return rs.u32ToBeBytes(w2).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
 	const cell: rs.Cell<Uint8Array> = new rs.Cell(Uint8Array.of(kind, at & 0xff, 9));
-	const cells: rs.Slice<rs.Cell<rs.u8>> = rs.sliceFrom(rs.cellsOf(rs.byteSliceFrom(cell.v)));
+	const cells: rs.Slice<rs.Cell<rs.u8>> = rs.cellsOf(rs.byteSliceFrom(cell.v));
 	const _86: rs.u8 = rs.u8WrappingAdd(cells.data[cells.start + 2].v, kind);
 	rs.cellSet(cells.data[cells.start], _86);
 	const x = cells.data[cells.start + 1];
@@ -2111,8 +2111,9 @@ export function converted(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): voi
 	y.v = old;
 	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(copy$array_u8(cell.v)));
 	const wide2: rs.Cell<rs.u64[]> = new rs.Cell([kind as rs.u64, 1]);
-	const cells2: rs.Slice<rs.Cell<rs.u64>> = rs.sliceFrom(rs.cellsOf(rs.cellArray(wide2, rs.sliceFrom)));
+	const cells2: rs.Slice<rs.Cell<rs.u64>> = rs.cellsOf(rs.cellArray(wide2, rs.sliceFrom));
 	rs.cellSet(cells2.data[cells2.start + 1], rs.u64Shl(cells2.data[cells2.start].v, 40));
+	rs.byteVecPush(out, rs.sliceSame(cells2, rs.cellsOf(rs.cellArray(wide2, rs.sliceFrom))) ? 1 : 0);
 	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(wide2.v), (w3: rs.u64): Uint8Array => {
 		return rs.u64ToBeBytes(w3).reverse();
 	}, (value: Uint8Array) => rs.iterSlice(value), true, 8), undefined, true);

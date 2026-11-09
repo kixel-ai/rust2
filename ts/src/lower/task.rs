@@ -658,7 +658,7 @@ fn cell<'tcx>(
 				unreachable!("as_array_of_cells takes a reference to a cell")
 			};
 			let s = pointer::cell_pointer(b, first(args), cell.type_at(0));
-			library::slice_from(Expr::rs("cellsOf", vec![s]))
+			Expr::rs("cellsOf", vec![s])
 		}
 		"replace" => Expr::rs("cellReplace", args),
 		"update" => Expr::rs("cellUpdate", args),
