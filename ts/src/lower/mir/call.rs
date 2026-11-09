@@ -1209,7 +1209,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			("Bytes", "slice_ref") if bytes && !self.bytes_of(&args[1].node, &args[0].node) => done(
 				self.err(
 					span,
-					"`Bytes::slice_ref` of bytes the body doesn't show it borrowed from that `Bytes`, through `Deref`, `as_ref`, or a slice of one, which JS may keep apart where Rust shares them",
+					"`Bytes::slice_ref` of bytes the body doesn't show it borrowed from that `Bytes`'s storage, through `Deref`, `as_ref`, or a slice of one, which JS may keep apart where Rust shares them",
 				),
 				true,
 			),

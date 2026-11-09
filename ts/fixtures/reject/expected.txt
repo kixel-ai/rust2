@@ -79,9 +79,8 @@ fixtures/reject/src/alloc.rs:wrapped_cells+12:3: a whole write of `std::mem::Man
 fixtures/reject/src/alloc.rs:zeroed+1:12: a cast from a pointer to `u8` to one to `u32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:zeroed+1:13: unsupported call to `std::alloc::alloc_zeroed`
 fixtures/reject/src/buffers.rs:blank_bytes+1:2: `Buf::copy_to_bytes` of `buffers::Blank`, a value JS copies, which is not supported
-fixtures/reject/src/buffers.rs:sliced_elsewhere+5:4: `Bytes::slice_ref` of bytes the body doesn't show it borrowed from that `Bytes`, through `Deref`, `as_ref`, or a slice of one, which JS may keep apart where Rust shares them
-fixtures/reject/src/buffers.rs:sliced_elsewhere+5:47: `Bytes::slice_ref` of bytes the body doesn't show it borrowed from that `Bytes`, through `Deref`, `as_ref`, or a slice of one, which JS may keep apart where Rust shares them
-fixtures/reject/src/buffers.rs:sliced_elsewhere+5:76: `Bytes::slice_ref` of bytes the body doesn't show it borrowed from that `Bytes`, through `Deref`, `as_ref`, or a slice of one, which JS may keep apart where Rust shares them
+fixtures/reject/src/buffers.rs:sliced_elsewhere+4:4: `Bytes::slice_ref` of bytes the body doesn't show it borrowed from that `Bytes`'s storage, through `Deref`, `as_ref`, or a slice of one, which JS may keep apart where Rust shares them
+fixtures/reject/src/buffers.rs:sliced_elsewhere+4:47: `Bytes::slice_ref` of bytes the body doesn't show it borrowed from that `Bytes`'s storage, through `Deref`, `as_ref`, or a slice of one, which JS may keep apart where Rust shares them
 fixtures/reject/src/clones.rs:greatest_slot+6:13: a raw pointer to `(u8, u8)` in `([clones::Greatest; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:stashed_slots+5:19: a raw pointer to `(u8, u8)` in `([u8; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:tagged_slots!+2:23: a raw pointer to `(u8, u8)` in `([clones::Cloned; 2], (u8, u8))`, which the crate may put another object in place of

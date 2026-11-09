@@ -539,9 +539,44 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		stays.then_some(place)
 	}
 
-	/// Whether the shared slice `subset` is of the bytes of the `Bytes` the shared reference
-	/// `bytes` is to, as the body shows: through its `Deref` or `as_ref`, or a slice of one.
-	/// Only then does JS keep both in one buffer where Rust does.
+	/// The place of the `Bytes` whose storage the `Bytes` at `place` shares, as the body
+	/// shows: through `slice` or `clone` of one, into a variable assigned once and never
+	/// changed in place, which keeps that storage.
+	fn storage(&self, place: mir::Place<'tcx>) -> mir::Place<'tcx> {
+		let Some(local) = place.as_local() else {
+			return place;
+		};
+		if self.defs[local] != 1 || self.is_arg(local) || self.mutated[local] {
+			return place;
+		}
+		let Some(bb) = self.def_block(local) else {
+			return place;
+		};
+		let TerminatorKind::Call { func, args, .. } = &self.mir.basic_blocks[bb].terminator().kind else {
+			return place;
+		};
+		let Some((def_id, gargs)) = func.const_fn_def() else {
+			return place;
+		};
+		let bytes = |ty: ty::Ty<'tcx>| matches!(ty.kind(), ty::Adt(adt, _) if Std::of(self.tcx, adt.did()) == Some(Std::Bytes));
+		let shares = match library::key(self.tcx, def_id) {
+			Some((owner, name)) => match (owner.as_str(), name.as_str()) {
+				("Bytes", "slice") => library::inherent_std(self.tcx, def_id) == Some(Std::Bytes),
+				("Clone", "clone") => gargs.types().next().is_some_and(bytes),
+				_ => false,
+			},
+			None => false,
+		};
+		match args.first().filter(|_| shares).and_then(|a| self.referent(&a.node)) {
+			Some(from) => self.storage(from),
+			None => place,
+		}
+	}
+
+	/// Whether the shared slice `subset` is of the storage of the `Bytes` the shared
+	/// reference `bytes` is to, as the body shows: through the `Deref` or `as_ref`, or a slice
+	/// of one, of that `Bytes` or one sharing its storage, as [`Self::storage`] has it. Only
+	/// then does JS keep both in one buffer where Rust does.
 	pub(super) fn bytes_of(&self, subset: &Operand<'tcx>, bytes: &Operand<'tcx>) -> bool {
 		let Some(local) = self.traced(subset) else {
 			return false;
@@ -573,7 +608,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				("Deref", "deref") | ("AsRef", "as_ref")
 					if matches!(self_ty.kind(), ty::Adt(adt, _) if Std::of(self.tcx, adt.did()) == Some(Std::Bytes)) =>
 				{
-					self.referent(of).is_some_and(|place| self.referent(bytes) == Some(place))
+					let storage = |r| self.referent(r).map(|place| self.storage(place));
+					storage(of).is_some_and(|place| storage(bytes) == Some(place))
 				}
 				_ => false,
 			},

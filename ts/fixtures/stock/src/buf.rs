@@ -1107,7 +1107,7 @@ pub fn owners(data: &[u8], out: &mut Vec<u8>) {
 			}
 			13 => {
 				let handle = &handles[i];
-				let part = handle.slice_ref(&handle[at..]);
+				let part = handle.clone().slice_ref(&handle[at..]);
 				handles.push(part);
 				vec![]
 			}

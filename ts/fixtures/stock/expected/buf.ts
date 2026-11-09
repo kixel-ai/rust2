@@ -4844,37 +4844,39 @@ export function owners(dataData: Uint8Array, dataStart: number, dataLen: number,
 				noted = new rs.ByteVec();
 			} else if (_74 === 13) {
 				const at4 = rs.idx(handles.items, i);
-				const _142: rs.ByteSlice = rs.byteSliceRange(handles.items[at4], at);
-				const part5: rs.ByteSlice = rs.bytesSliceRef(handles.items[at4], _142);
+				const _143: rs.ByteSlice = rs.bytesClone(handles.items[at4]);
+				const _144: rs.ByteSlice = rs.byteSliceRange(handles.items[at4], at);
+				const part5: rs.ByteSlice = rs.bytesSliceRef(_143, _144);
+				rs.bytesDrop(_143);
 				handles.items.push(part5);
 				noted = new rs.ByteVec();
 			} else if (_74 === 14) {
 				const buf: rs.BytesMut = rs.bytesMutWithCapacity(0);
-				const _150: rs.ByteSlice = rs.vecRemove(handles, i);
-				rs.bytesMutPutStorage(buf, _150);
+				const _152: rs.ByteSlice = rs.vecRemove(handles, i);
+				rs.bytesMutPutStorage(buf, _152);
 				noted = rs.byteSliceToByteVec(rs.bytesMutView(buf));
 				buf[Symbol.dispose]();
 			} else {
-				const _154: rs.ByteSlice = rs.bytesNew();
+				const _156: rs.ByteSlice = rs.bytesNew();
 				const at3 = rs.idx(handles.items, i);
 				rs.bytesDrop(handles.items[at3]);
-				handles.items[at3] = _154;
+				handles.items[at3] = _156;
 				noted = new rs.ByteVec();
 			}
 			const log2: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
 			rs.byteVecPush(log2.value, op);
 			rs.byteVecPush(log2.value, shared.strong & 0xff);
-			const _173: rs.ByteSlice = rs.byteVecSlice(noted);
-			rs.byteVecExtendFromSlice(log2.value, _173);
+			const _175: rs.ByteSlice = rs.byteVecSlice(noted);
+			rs.byteVecExtendFromSlice(log2.value, _175);
 			rs.mutexUnlock(log2);
 		}
-		for (const _178 of handles.items) {
-			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.bytesDebug(_178, f)]).v));
+		for (const _180 of handles.items) {
+			rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([(f: rs.Formatter) => rs.bytesDebug(_180, f)]).v));
 		}
 		rs.dropVec(handles, rs.bytesDrop);
-		const _200: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
-		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_200.value));
-		rs.mutexUnlock(_200);
+		const _202: rs.Mutex<rs.ByteVec> = rs.mutexLock(log.value);
+		rs.byteVecExtendFromSlice(out, rs.byteVecSlice(_202.value));
+		rs.mutexUnlock(_202);
 		rs.byteVecPush(out, shared.strong & 0xff);
 		rs.byteVecPush(out, log.strong & 0xff);
 		shared[Symbol.dispose]();

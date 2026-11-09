@@ -251,7 +251,7 @@ export function bytesTruncate(p: Place<Bytes>, len: usize): void {
 /**
  * `Bytes::slice_ref`: the bytes of `b` that `subset` is, by where they are in memory. Its
  * panic names no addresses, which JS has none of. Translation refuses a `subset` the body
- * doesn't show borrowed from `b`, as Rust may share what JS copied, such as a `&'static
+ * doesn't show borrowed from `b`'s storage, as Rust may share what JS copied, such as a `&'static
  * str`'s bytes, which `as_bytes` encodes anew each time.
  */
 export function bytesSliceRef(b: Bytes, subset: ByteSlice): Bytes {
