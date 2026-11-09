@@ -718,12 +718,13 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 					}
 				}
 				Some(Std::ControlFlow) => super::call::control_flow_field(self, base, ty, variant),
-				// An imported type's `obj` is the JS value itself, and its marker nothing.
+				// An imported type's `obj`, or a `JsError`'s `value`, is the JS value itself, and
+				// its marker nothing.
 				Some(Std::Js) => {
 					let ty::Adt(_, args) = ty.kind() else { unreachable!() };
 					let def = &adt.non_enum_variant().fields[field];
 					match def.name.as_str() {
-						"obj" => base,
+						name if crate::lower::bindgen::js_field(tcx, adt.did()) == Some(name) => base,
 						_ if def
 							.ty(tcx, args)
 							.skip_norm_wip()

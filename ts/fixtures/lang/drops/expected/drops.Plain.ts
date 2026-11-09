@@ -11,6 +11,10 @@ export class Plain<U> {
 		this.u = u;
 		this.n = n;
 	}
+
+	[Symbol.dispose](): void {
+		rs.drop(this.u);
+	}
 }
 
 //# sourceMappingURL=drops.Plain.ts.map

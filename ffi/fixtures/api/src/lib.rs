@@ -8,8 +8,8 @@ use std::task::{Poll, Waker};
 use std::time::Duration;
 
 use bytes::Bytes;
-// Another crate's types, which the export follows this re-export to.
-pub use dep::{Area, Size};
+// Another crate's items, which the export follows this glob of its root to.
+pub use dep::*;
 
 /// The largest value a [`Counter`] reaches.
 pub const LIMIT: u64 = 1000;
@@ -953,6 +953,24 @@ impl Cursor {
 pub fn walk(steps: u64, mut visit: impl FnMut(&Cursor) -> u64) -> u64 {
 	(0..steps).map(|at| visit(&Cursor { at })).sum()
 }
+
+/// An object no export returns but its own method, so C never holds one: left out of the
+/// bindings, with what takes it, and listed in the census.
+pub struct Lease(u8);
+
+impl Lease {
+	pub fn split(&mut self) -> Lease {
+		Lease(self.0)
+	}
+}
+
+/// What C can never call, since it never holds a `Lease`.
+pub fn release(lease: Lease) -> u8 {
+	lease.0
+}
+
+/// A generic type no export instantiates, so C never holds one either.
+pub struct Unnamed<T>(pub T);
 
 /// Each of `0..steps` passed to `visit`, which returns nothing; how many it visited.
 pub fn each(steps: u32, mut visit: impl FnMut(u32)) -> u32 {
