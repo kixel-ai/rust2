@@ -197,7 +197,7 @@ fn unsupported(elem: Ty<'_>) -> Option<&'static str> {
 	if elem.has_param() || elem.has_aliases() {
 		Some("of a type parameter's elements")
 	} else if super::byte(elem) {
-		Some("of bytes, which would be an `rs.ByteVec`")
+		Some("of bytes")
 	} else if elem.is_array() {
 		Some("of arrays")
 	} else {
