@@ -8,8 +8,8 @@ use std::task::{Poll, Waker};
 use std::time::Duration;
 
 use bytes::Bytes;
-// Another crate's types, which the export follows this re-export to.
-pub use dep::{Area, Size};
+// Another crate's items, which the export follows this glob of its root to.
+pub use dep::*;
 
 /// The largest value a [`Counter`] reaches.
 pub const LIMIT: u64 = 1000;

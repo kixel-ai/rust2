@@ -909,11 +909,22 @@ impl<'tcx> Collector<'tcx> {
 				if matches!(kind, DefKind::Ctor(..) | DefKind::Variant) {
 					continue;
 				}
+				let mut path = path.clone();
+				path.push(child.ident.to_string());
+				// A crate re-exported whole makes its every release part of the facade's
+				// semver, so each such `pub use` is refused once, and the crate not walked.
+				// A glob of its root re-exports its items instead, which export. The span is
+				// the `pub use` naming the crate, past any glob of the module holding it.
+				if kind == DefKind::Mod && def_id.is_crate_root() && !def_id.is_local() {
+					let span = child.reexport_chain.last().and_then(|reexport| reexport.id());
+					let span = span.map_or_else(|| tcx.def_span(def_id), |id| tcx.def_span(id));
+					let krate = tcx.crate_name(def_id.krate).to_string();
+					self.refuse(&path, "use", span, vec![why("re-export of a whole crate", krate)]);
+					continue;
+				}
 				if !seen.insert(def_id) {
 					continue;
 				}
-				let mut path = path.clone();
-				path.push(child.ident.to_string());
 				let mut modules = modules.clone();
 				modules.push(def_id);
 				if self.exclude(&path) {
