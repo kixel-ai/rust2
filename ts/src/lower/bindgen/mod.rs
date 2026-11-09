@@ -178,7 +178,7 @@ pub fn glue<'tcx>(t: &Translator<'_, 'tcx>, instance: Instance<'tcx>) -> Option<
 		// The closure type of the `ScopedClosure` it makes.
 		let made = || match t.sig(did, instance.args).output().kind() {
 			ty::Adt(_, args) => args.types().next().expect("a closure type"),
-			_ => unreachable!("a `ScopedClosure`"),
+			_ => unreachable!("what makes a ScopedClosure returns one"),
 		};
 		match name.as_str() {
 			"wrap_maybe_aborting" => {
