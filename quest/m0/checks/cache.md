@@ -1,4 +1,4 @@
-# [XS] A warm gate
+# [S] A warm gate
 
 ## Goal
 
@@ -13,15 +13,12 @@ gate has. PR code can write to it, a risk moq already accepts; mbx keys each com
 its compiler, target, and inputs. Local worktrees share it too, where the dev shell already
 can.
 
-The dev shell puts mbx's Cargo shim ahead of its toolchains wherever `mbx setup` installed
-one. That needs mbx 1.29.2 or later: older releases name a file in a build script's `OUT_DIR`
-by mbx's placeholder in compile errors, which fails `uniffi_uitests`' trybuild snapshots
-([jdx/mr-boxington#896](https://github.com/jdx/mr-boxington/issues/896)).
+Public API: `uniffi_macros`' `generate_and_include_scaffolding!` with the `trybuild` feature
+resolves a relative path from the calling file, not from rustc's working directory. This is
+breaking and has no `MIGRATE.md` entry yet.
 
-What remains is on the host: its mbx pin moves to 1.29.2 or later, and rust2's land instance
-takes a per-repository mbx profile, as moq's has (maintainer, 2026-11-02).
-[#426](https://github.com/moq-dev/rust2/pull/426)'s `## Host changes` lists both.
+## Waiting
 
-Check it by reading a gate run's log for mbx's cache summary.
-
-Public API: none.
+- Maintainer: move the land host's mbx pin from 1.28.0 to 1.29.2 or later, then rerun `mbx setup` wherever a shim exists, since a shim runs the mbx its `mbx-target` file names. Check: `mbx --version` on the land host prints 1.29.2 or later, and the shim's `mbx-target` names that store path. 1.28.0 prints no real paths for files in a build script's `OUT_DIR` ([jdx/mr-boxington#896](https://github.com/jdx/mr-boxington/issues/896)).
+- Maintainer: give rust2's land instance moq's per-repository mbx profile, `id = 9`, `command = "just ci"`, `cpuQuota = 800`, `memoryHigh = "8G"`, `memorySwapMax = "1G"`, with `enable = lib.mkDefault false` until the next item. Check: the host config's `rust2` entry has these values.
+- Maintainer: enable that profile once [#426](https://github.com/moq-dev/rust2/pull/426) has merged. Check: a gate run's log shows `mbx[cache]: object cache: ...`.
