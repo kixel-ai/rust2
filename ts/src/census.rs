@@ -212,6 +212,7 @@ const VERBATIM: &[&str] = &[
 	"if let",
 	"inline_js",
 	"instanceof",
+	"jspi_block_on_promise",
 	"let",
 	"let ... else",
 	"match",

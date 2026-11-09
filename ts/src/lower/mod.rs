@@ -952,7 +952,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			return None;
 		};
 		// A JS value has no class: its methods are functions of it.
-		if !self.crates.translates(adt.did()) || bindgen::represents(self.tcx, adt.did()) {
+		if !self.crates.translates(adt.did())
+			|| bindgen::represents(self.tcx, adt.did())
+			|| bindgen::is_closure(self.tcx, adt.did())
+		{
 			return None;
 		}
 		let span = self.tcx.def_span(instance.def_id());
@@ -1394,7 +1397,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| library::Std::Hasher
 					| library::Std::BytesMut
 					| library::Std::ThreadRng
-					| library::Std::Sync,
+					| library::Std::Sync
+					| library::Std::JsClosure,
 				) => Some(ObjectKind::Class),
 				// What it holds, which its JS value is.
 				Some(library::Std::AssertUnwindSafe) => self.object_kind(args.type_at(0)),
@@ -1790,6 +1794,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::ParseCharError => Type::Rs("ParseCharError", vec![]),
 				library::Std::FromUtf16Error => Type::Rs("FromUtf16Error", vec![]),
 				library::Std::CharTryFromError => Type::Rs("CharTryFromError", vec![]),
+				library::Std::TryFromSliceError => Type::Rs("TryFromSliceError", vec![]),
 				library::Std::TryFromCharError => Type::Rs("TryFromCharError", vec![]),
 				library::Std::DecodeUtf16Error => Type::Rs("DecodeUtf16Error", vec![]),
 				library::Std::Utf8Chunk => Type::Rs("Utf8Chunk", vec![]),
@@ -1915,6 +1920,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				library::Std::BytesMut => Type::Rs("BytesMut", vec![]),
 				library::Std::ThreadRng => Type::Rs("ThreadRng", vec![]),
 				library::Std::Js => Type::Rs("JsValue", vec![]),
+				library::Std::JsClosure => Type::Rs("JsClosure", vec![]),
 				// A handle over the type of the values its channel holds.
 				library::Std::Sync => {
 					let handle = tokio::Handle::of(tcx, adt.did()).expect("a tokio handle");

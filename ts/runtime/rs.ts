@@ -1407,6 +1407,24 @@ export function sliceGetRange<T>(s: Slice<T>, start: number, end: number = s.len
 	return start <= end && end <= s.length ? slicePart(s, start, end) : undefined;
 }
 
+/** `array::TryFromSliceError`. */
+export class TryFromSliceError {}
+
+/** `try_from` a slice, of any form, into the reference to an array of `n`: the slice itself, if it holds `n`. */
+export function sliceTryAsArray<S extends { readonly length: number }>(s: S, n: number): Result<S, TryFromSliceError> {
+	return s.length === n ? Ok(s) : Err(new TryFromSliceError());
+}
+
+/** `Display` of a `TryFromSliceError`, padded as a `str`. */
+export function fmtTryFromSliceErrorDisplay(_: TryFromSliceError, f: Formatter): FmtResult {
+	return fmtPad(f, "could not convert slice to array");
+}
+
+/** `Debug` of a `TryFromSliceError`. */
+export function fmtTryFromSliceErrorDebug(_: TryFromSliceError, f: Formatter): FmtResult {
+	return debugTupleFinish(debugTupleField(fmtDebugTuple(f, "TryFromSliceError"), (f) => fmtUnit(undefined, f)));
+}
+
 /** `last_chunk`, shared or mutable: the last `n` elements, or `undefined` if fewer. */
 export function sliceLastChunk<T>(s: Slice<T>, n: number): Slice<T> | undefined {
 	return n > s.length ? undefined : slicePart(s, s.length - n);

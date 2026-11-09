@@ -1,4 +1,4 @@
-# Browser APIs through wasm-bindgen
+# [M] Browser APIs through wasm-bindgen
 
 ## Goal
 
@@ -31,14 +31,15 @@ Decided with the maintainer on 2026-11-06:
   `indexing_deleter`, `typescript_type`, `is_type_of`, `final`, `structural`,
   `thread_local_v2`, and `vendor_prefix`. js-sys's JSPI bridge also declares a
   `suspending` import, which suspends the WASM stack on a promise. No JS call can, so it
-  is refused where reached, and no translated path reaches it (see
-  [closures](/quest/m3/ts-wasm-bindgen/closures.md)).
+  is refused where reached, as is `jspi_block_on_promise`, which suspends on it. No
+  translated path reaches it: `spawn_local` is mapped, and no JSPI context exists.
 - ✅ The wasm-bindgen crate is mapped into the runtime, as std is (rejected: translating it
   from source). Its real implementation is `unsafe` glue between WASM memory and a JS heap
   table, which means nothing when the caller is JS: `JsValue` is the JS value itself,
   `JsCast` checks with `instanceof` or the import's `is_type_of`, `Closure` is a JS
-  function, and `JsFuture` and `spawn_local`, which js-sys now defines and
-  wasm-bindgen-futures re-exports, are a promise and a microtask.
+  function, and `spawn_local`, which js-sys now defines and wasm-bindgen-futures
+  re-exports, is a microtask. `JsFuture` then translates from js-sys's source, its
+  callbacks `Closure`s.
 - ✅ web-rs's web-codecs is the first consumer, and the epic joins m3 (rejected: moq's clock
   first, staying in m2). moq calls no wasm-bindgen import at the
   [model fixture](/ts/fixtures/model/Cargo.toml)'s pin: kio's clock reads `std::time` and
@@ -55,7 +56,3 @@ Decided with the maintainer on 2026-11-06:
   [tokio's sync channels are mapped into the runtime](/ts/src/lower/tokio.rs)
   (rejected: translating tokio's source, whose intrusive lists and raw pointers into
   `UnsafeCell`s are unsafe code a JS caller has no use for).
-
-## Required
-
-- [wasm-bindgen closures and promises](/quest/m3/ts-wasm-bindgen/closures.md) - `Closure` and js-sys's futures mapped, proven on web-sys's `VideoEncoder` in headless Chromium
