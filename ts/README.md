@@ -193,7 +193,8 @@ where the arrays are, whether each is a JS array of its own, as a `Vec<[T; N]>` 
 split it. A caller passes one as `rs.arraySliceFrom(arrays, rs.sliceFrom)`, `rs.byteSliceFrom`
 for bytes and `rs.arraySliceOf(rs.sliceFrom)` for arrays of arrays, and reads one as
 `rs.arraySliceItems(slice)`: the arrays themselves, or copies of the ones a split of one
-slice holds, which have no array of their own. std's methods that lend arrays or parts of
+slice holds, which have no array of their own, each remembered as its run, so `ptr::eq`
+compares a pointer to one where the run is. std's methods that lend arrays or parts of
 the slice, such as `iter_mut`, `split_at_mut`, `chunks_mut`, and `swap`, take them where
 they are; any other reads them as `rs.arraySliceItems` does, or for a `&mut` one, such as
 `sort` or `rotate_left`, reads copies of the arrays, which it writes back once it returns,
