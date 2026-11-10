@@ -219,47 +219,40 @@ fn stripped_member(tcx: TyCtxt<'_>, adt: DefId, name: &str) -> bool {
 	{
 		return false;
 	}
-	// The item from its name on, up to the `;` or closing delimiter that ends it: past it the
-	// file may close a module the item is in, which the parser would refuse unmatched.
+	// The item from its name on, up to the `;` or closing brace that ends it: past it the
+	// file may close a module the item is in, which the parser would refuse unmatched. Each
+	// place nesting returns to the item's own level may end it, such as a const generic's
+	// block before its fields, so the first that parses as an item does.
 	let source_map = tcx.sess.source_map();
 	let head = tcx.def_span(adt);
 	let source_file = source_map.lookup_source_file(head.lo());
-	let Ok(mut source) = source_map.span_to_snippet(head.with_hi(source_file.end_position())) else {
+	let Ok(source) = source_map.span_to_snippet(head.with_hi(source_file.end_position())) else {
 		return false;
 	};
 	let (mut depth, mut at) = (0usize, 0usize);
+	let mut item = None;
 	for token in rustc_lexer::tokenize(&source, FrontmatterAllowed::No) {
 		at += token.len as usize;
-		match token.kind {
-			TokenKind::OpenParen | TokenKind::OpenBrace | TokenKind::OpenBracket => depth += 1,
-			TokenKind::CloseParen | TokenKind::CloseBrace | TokenKind::CloseBracket => {
-				depth = depth.saturating_sub(1);
-				if depth == 0 && token.kind == TokenKind::CloseBrace {
-					break;
-				}
+		let end = match token.kind {
+			TokenKind::OpenParen | TokenKind::OpenBrace | TokenKind::OpenBracket => {
+				depth += 1;
+				false
 			}
-			TokenKind::Semi if depth == 0 => break,
-			_ => {}
+			TokenKind::CloseParen | TokenKind::CloseBrace | TokenKind::CloseBracket => {
+				// A delimiter the item never opened closes the module it is in.
+				let Some(inner) = depth.checked_sub(1) else { break };
+				depth = inner;
+				depth == 0 && token.kind == TokenKind::CloseBrace
+			}
+			TokenKind::Semi => depth == 0,
+			_ => false,
+		};
+		if end && let Some(parsed) = parse_item(tcx, &source[..at]) {
+			item = Some(parsed);
+			break;
 		}
 	}
-	source.truncate(at);
-	let file = FileName::anon_source_code(&source);
-	let mut parser = match rustc_parse::new_parser_from_source_str(&tcx.sess.psess, file, source, StripTokens::Nothing)
-	{
-		Ok(parser) => parser,
-		Err(errors) => {
-			errors.into_iter().for_each(|e| e.cancel());
-			return false;
-		}
-	};
-	let item = match parser.parse_item(ForceCollect::No, AllowConstBlockItems::DoesNotMatter) {
-		Ok(Some(item)) => item,
-		Ok(None) => return false,
-		Err(e) => {
-			e.cancel();
-			return false;
-		}
-	};
+	let Some(item) = item else { return false };
 	let configured = |attrs: &[ast::Attribute]| attrs.iter().any(|attr| attr.has_name(sym::cfg));
 	match &item.kind {
 		ast::ItemKind::Struct(_, _, data) | ast::ItemKind::Union(_, _, data) => {
@@ -269,6 +262,30 @@ fn stripped_member(tcx: TyCtxt<'_>, adt: DefId, name: &str) -> bool {
 			(def.variants.iter()).any(|v| v.ident.as_str() == name && configured(&v.attrs))
 		}
 		_ => false,
+	}
+}
+
+/// `source` parsed as one item, or none if it is not one.
+fn parse_item(tcx: TyCtxt<'_>, source: &str) -> Option<Box<ast::Item>> {
+	let file = FileName::anon_source_code(source);
+	let mut parser = match rustc_parse::new_parser_from_source_str(
+		&tcx.sess.psess,
+		file,
+		source.to_string(),
+		StripTokens::Nothing,
+	) {
+		Ok(parser) => parser,
+		Err(errors) => {
+			errors.into_iter().for_each(|e| e.cancel());
+			return None;
+		}
+	};
+	match parser.parse_item(ForceCollect::No, AllowConstBlockItems::DoesNotMatter) {
+		Ok(item) => item,
+		Err(e) => {
+			e.cancel();
+			None
+		}
 	}
 }
 
