@@ -105,11 +105,6 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 	let variants = variants(abi, &types, &classes);
 	// What each package's types, their variants and tables, and its errors take.
 	let mut taken: BTreeMap<String, BTreeSet<String>> = classes.clone();
-	for (krate, name) in
-		(0..abi.api.callbacks.len()).map(|i| (&abi.api.callbacks[i].home.krate, &types[&abi.callback(i)]))
-	{
-		taken.entry(krate.clone()).or_default().insert(format!("{name}Vtable_"));
-	}
 	for ((c, _), name) in &variants {
 		let krate = (0..abi.api.enums.len())
 			.find(|&i| abi.enumeration(i) == *c)
@@ -122,11 +117,23 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 	for (name, (home, _)) in &thrown {
 		taken.entry(home.clone()).or_default().insert(name.clone());
 	}
+	// Each callback's table, `<name>Vtable_`, unless a name of its package takes that.
+	let mut vtables = HashMap::new();
+	for i in 0..abi.api.callbacks.len() {
+		let krate = &abi.api.callbacks[i].home.krate;
+		let names = taken.entry(krate.clone()).or_default();
+		let mut vtable = format!("{}Vtable_", types[&abi.callback(i)]);
+		while !names.insert(vtable.clone()) {
+			vtable.push('_');
+		}
+		vtables.insert(abi.callback(i), vtable);
+	}
 	let shared = Shared {
 		thrown,
 		type_names: types,
 		classes,
 		variants,
+		vtables,
 		taken,
 	};
 	let mut files = Vec::new();
@@ -393,6 +400,8 @@ struct Gen<'a> {
 	classes: &'a BTreeMap<String, BTreeSet<String>>,
 	/// Each enum's variant's Go name, by the enum's C name and the variant's.
 	variants: &'a HashMap<(String, String), String>,
+	/// Each callback's table's Go name, by the callback's C name.
+	vtables: &'a HashMap<String, String>,
 	/// The other packages the package's items name, by crate.
 	imports: BTreeSet<String>,
 	errors: Vec<String>,
@@ -407,6 +416,8 @@ struct Shared {
 	type_names: HashMap<String, String>,
 	classes: BTreeMap<String, BTreeSet<String>>,
 	variants: HashMap<(String, String), String>,
+	/// Each callback's table's Go name, by the callback's C name.
+	vtables: HashMap<String, String>,
 	/// The names each package's types, their variants and tables, and its errors take.
 	taken: BTreeMap<String, BTreeSet<String>>,
 }
@@ -431,6 +442,7 @@ impl<'a> Gen<'a> {
 			type_names: &shared.type_names,
 			classes: &shared.classes,
 			variants: &shared.variants,
+			vtables: &shared.vtables,
 			imports: BTreeSet::new(),
 			errors: Vec::new(),
 			thrown: &shared.thrown,
@@ -1380,8 +1392,8 @@ impl<'a> Gen<'a> {
 		let ty = Type::Record(i);
 		let name = self.named(&ty).1;
 		let rust = abi.api.rust(&record.path, &record.args);
-		let fields: Vec<(String, String)> = (record.fields.iter())
-			.map(|f| (field_name(&f.name), self.go(&f.ty)))
+		let fields: Vec<(String, String)> = (self.record_fields(i).into_iter().zip(&record.fields))
+			.map(|(name, f)| (name, self.go(&f.ty)))
 			.collect();
 		let mut members: Vec<String> = fields.iter().map(|(f, _)| f.clone()).collect();
 		let body: String = (record.fields.iter().zip(&fields))
@@ -1406,6 +1418,33 @@ impl<'a> Gen<'a> {
 		self.distinct(&rust, &members);
 	}
 
+	/// The Go names of a record's fields: each [`field_name`], with a trailing `_` while
+	/// a method its traits give it, which an interface requires by name, or an earlier
+	/// field takes it.
+	fn record_fields(&self, i: usize) -> Vec<String> {
+		let record = &self.abi.api.records[i];
+		let t = record.traits;
+		let methods = [
+			(t.display, "String"),
+			(t.debug, "GoString"),
+			(t.eq, "Equal"),
+			(self.errored(&Type::Record(i)), "Error"),
+		];
+		let mut taken: BTreeSet<String> = (methods.iter())
+			.filter(|(has, _)| *has)
+			.map(|(_, name)| name.to_string())
+			.collect();
+		(record.fields.iter())
+			.map(|f| {
+				let mut name = field_name(&f.name);
+				while !taken.insert(name.clone()) {
+					name.push('_');
+				}
+				name
+			})
+			.collect()
+	}
+
 	/// A record's lift and lower.
 	fn record_conv(&mut self, i: usize) -> String {
 		let abi = self.abi;
@@ -1413,15 +1452,16 @@ impl<'a> Gen<'a> {
 		let c = abi.record(i);
 		let ty = Type::Record(i);
 		let name = self.qualified(&ty);
-		let lifted: Vec<String> = (record.fields.iter())
-			.map(|f| {
+		let names = self.record_fields(i);
+		let lifted: Vec<String> = (record.fields.iter().zip(&names))
+			.map(|(f, field)| {
 				let value = self.lift(&f.ty, &format!("c.{}", cgo_field(&abi::escape(&f.name))));
-				format!("{}: {value}", field_name(&f.name))
+				format!("{field}: {value}")
 			})
 			.collect();
-		let lowered: Vec<String> = (record.fields.iter())
-			.map(|f| {
-				let value = self.lower(&f.ty, &format!("v.{}", field_name(&f.name)));
+		let lowered: Vec<String> = (record.fields.iter().zip(&names))
+			.map(|(f, field)| {
+				let value = self.lower(&f.ty, &format!("v.{field}"));
 				format!("{}: {value}", cgo_field(&abi::escape(&f.name)))
 			})
 			.collect();
@@ -1454,8 +1494,7 @@ impl<'a> Gen<'a> {
 		let mut members = Vec::new();
 		let mut taken: BTreeSet<String> = fields.iter().cloned().collect();
 		for mut method in methods {
-			// `Error` implements `error`, so it keeps its name, and a field of it fails loud.
-			while method.name != "Error" && !taken.insert(method.name.clone()) {
+			while !taken.insert(method.name.clone()) {
 				method.name.push('_');
 			}
 			members.push(method.name.clone());
@@ -1717,7 +1756,7 @@ impl<'a> Gen<'a> {
 		let ty = Type::Callback(i, crate::ir::Dyn::Impl);
 		let name = self.named(&ty).1;
 		let rust = callback.path.join("::");
-		let vtable = format!("{name}Vtable_");
+		let vtable = self.vtables[&c].clone();
 		let p = &abi.prefix;
 		let mut body = Vec::new();
 		let mut members = Vec::new();
@@ -1778,7 +1817,7 @@ impl<'a> Gen<'a> {
 		let ty = Type::Callback(i, crate::ir::Dyn::Impl);
 		let (krate, local) = self.named(&ty);
 		let name = self.qualify(krate, &local);
-		let vtable = self.qualify(krate, &format!("{local}Vtable_"));
+		let vtable = self.qualify(krate, &self.vtables[&c]);
 		format!(
 			"func lower_{c}(v {name}) C.{c} {{\n\tif v == nil {{\n\t\tpanic(\"a nil {local}\")\n\t}}\n\treturn C.{c}{{vtable: (*C.{c}_vtable)({vtable}()), data: give_(v)}}\n}}\n\n"
 		)
