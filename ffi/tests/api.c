@@ -469,6 +469,7 @@ static int script(void) {
 	unsigned long long emptied = api_drain_4(batch);
 	printf("batch %zu %u %llu %llu %zu %u %llu\n", api_Batch_capacity(batch), accepted, emptied,
 		(unsigned long long)api_drain_4(batch), api_Batch_2_capacity(batch2), paired, (unsigned long long)api_drain_2(batch2));
+	printf("capacities %zu %zu\n", api_capacities_4_2(batch, batch2), api_capacities_2_2(batch2, batch2));
 	api_Batch_2_free(batch2);
 	api_Batch_free(batch);
 	api_range_u64 wide = api_widen((api_range_u64){.start = 2, .end = 5}, 1);

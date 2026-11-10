@@ -294,6 +294,7 @@ func script() {
 	let paired = (1...3).filter { batch2.push($0) }.count
 	let emptied = drain4(batch)
 	print("batch \(batch.capacity()) \(accepted) \(emptied) \(drain4(batch)) \(batch2.capacity()) \(paired) \(drain2(batch2))")
+	print("capacities \(capacities42(batch, batch2)) \(capacities22(batch2, batch2))")
 	let wide = widen(RangeU64(start: 2, end: 5), 1)
 	print("widen \(wide.start) \(wide.end)")
 	let counts = [

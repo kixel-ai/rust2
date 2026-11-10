@@ -2944,16 +2944,19 @@ impl<'tcx> Collector<'tcx> {
 				let Some(args) = at(candidate) else {
 					continue;
 				};
-				let named = spelled(args).into_iter().filter_map(exported).all(|(adt, args)| {
-					let key = self.key(adt, args);
-					match self.inferring {
-						true => self.instances.iter().any(|site| site.key == key),
-						false => matches!(
-							self.decls.get(&key),
-							Some(Decl::Record(_) | Decl::Enum(_) | Decl::Object(_))
-						),
-					}
-				});
+				// A type naming a parameter not yet chosen is checked once it is.
+				let named = (spelled(args).into_iter().filter_map(exported))
+					.filter(|(_, args)| !args.has_non_region_param())
+					.all(|(adt, args)| {
+						let key = self.key(adt, args);
+						match self.inferring {
+							true => self.instances.iter().any(|site| site.key == key),
+							false => matches!(
+								self.decls.get(&key),
+								Some(Decl::Record(_) | Decl::Enum(_) | Decl::Object(_))
+							),
+						}
+					});
 				if named {
 					found.push(candidate);
 				}
@@ -2964,7 +2967,7 @@ impl<'tcx> Collector<'tcx> {
 
 	/// The values a const parameter exports at: as an argument of a generic type the
 	/// signature names, each value an instance of it has there, where each generic type the
-	/// signature then names is an instance.
+	/// signature then names at chosen arguments only is an instance.
 	fn each_const(&self, def_id: DefId, param: ty::Const<'tcx>, args: &[ty::GenericArg<'tcx>]) -> Vec<ty::Const<'tcx>> {
 		let tcx = self.tcx;
 		let exported = |ty: Ty<'tcx>| match ty.kind() {
@@ -2989,9 +2992,11 @@ impl<'tcx> Collector<'tcx> {
 				}
 				let mut args = args.to_vec();
 				args[p.index as usize] = value.into();
+				// A type naming a parameter not yet chosen is checked once it is.
 				let named = spelled(tcx.mk_args(&args))
 					.into_iter()
 					.filter_map(exported)
+					.filter(|(_, args)| !args.has_non_region_param())
 					.all(|(adt, args)| {
 						let key = self.key(adt, args);
 						match self.inferring {

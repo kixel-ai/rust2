@@ -181,6 +181,7 @@ fun script() {
 			val paired = (1u..3u).count { batch2.push(it) }
 			val emptied = drain4(batch)
 			println("batch ${batch.capacity()} $accepted $emptied ${drain4(batch)} ${batch2.capacity()} $paired ${drain2(batch2)}")
+			println("capacities ${capacities42(batch, batch2)} ${capacities22(batch2, batch2)}")
 		}
 	}
 	val wide = widen(RangeU64(2u, 5u), 1u)

@@ -334,6 +334,7 @@ func script() {
 	emptied := must(api.Drain4(batch))
 	fmt.Printf("batch %d %d %d %d %d %d %d\n", must(batch.Capacity()), accepted, emptied, must(api.Drain4(batch)),
 		must(batch2.Capacity()), paired, must(api.Drain2(batch2)))
+	fmt.Printf("capacities %d %d\n", must(api.Capacities42(batch, batch2)), must(api.Capacities22(batch2, batch2)))
 	wide := api.Widen(rt.RangeU64{Start: 2, End: 5}, 1)
 	fmt.Printf("widen %d %d\n", wide.Start, wide.End)
 	included := func(n uint64) rt.BoundU64 { return rt.BoundU64{Kind: rt.BoundIncluded, Value: n} }

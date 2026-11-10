@@ -225,6 +225,11 @@ fn main() {
 		batch2.capacity(),
 		api::drain(&mut batch2)
 	);
+	println!(
+		"capacities {} {}",
+		api::capacities(&batch, &batch2),
+		api::capacities(&batch2, &batch2)
+	);
 	let wide = api::widen(2..5, 1);
 	println!("widen {} {}", wide.start, wide.end);
 	println!(

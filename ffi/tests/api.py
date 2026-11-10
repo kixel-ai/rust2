@@ -242,6 +242,7 @@ def script():
 	paired = sum(batch2.push(v) for v in range(1, 4))
 	emptied = api.drain_4(batch)
 	print(f"batch {batch.capacity()} {accepted} {emptied} {api.drain_4(batch)} {batch2.capacity()} {paired} {api.drain_2(batch2)}")
+	print(f"capacities {api.capacities_4_2(batch, batch2)} {api.capacities_2_2(batch2, batch2)}")
 	wide = api.widen(range(2, 5), 1)
 	print(f"widen {wide.start} {wide.stop}")
 	inc, exc, unb = api.Bound.INCLUDED, api.Bound.EXCLUDED, api.Bound.UNBOUNDED

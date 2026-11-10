@@ -381,6 +381,7 @@ int script() {
 		auto emptied = api::drain_4(batch);
 		std::printf("batch %zu %u %llu %llu %zu %u %llu\n", batch.capacity(), accepted, ull(emptied), ull(api::drain_4(batch)),
 			batch2.capacity(), paired, ull(api::drain_2(batch2)));
+		std::printf("capacities %zu %zu\n", api::capacities_4_2(batch, batch2), api::capacities_2_2(batch2, batch2));
 	}
 	api::range_u64 wide = api::widen({2, 5}, 1);
 	std::printf("widen %llu %llu\n", ull(wide.start), ull(wide.end));

@@ -118,6 +118,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 const TAKEN: &[&str] = &[
 	"Array",
 	"Bool",
+	"Comparable",
 	"CustomDebugStringConvertible",
 	"CustomStringConvertible",
 	"Data",
@@ -129,9 +130,11 @@ const TAKEN: &[&str] = &[
 	"OpaquePointer",
 	"Optional",
 	"Sendable",
+	"SocketAddr",
 	"StaticString",
 	"Swift",
 	"Task",
+	"U128",
 	"UInt",
 	"UInt16",
 	"UInt32",
@@ -1543,4 +1546,33 @@ fn indent(code: &str) -> String {
 		out.pop();
 	}
 	out
+}
+
+#[cfg(test)]
+mod tests {
+	use super::{RUNTIME, TAKEN};
+
+	/// Each type the runtime declares at its top level, and each protocol one conforms to,
+	/// is a name no export may take, as either would clash with or shadow it.
+	#[test]
+	fn runtime_names_taken() {
+		for line in RUNTIME.lines() {
+			let Some(decl) = [
+				"public struct ",
+				"public final class ",
+				"public enum ",
+				"public protocol ",
+			]
+			.iter()
+			.find_map(|kind| line.strip_prefix(kind)) else {
+				continue;
+			};
+			let decl = decl.trim_end_matches('{').trim();
+			let (name, conforms) = decl.split_once(':').unwrap_or((decl, ""));
+			let names = std::iter::once(name).chain(conforms.split(','));
+			for name in names.map(str::trim).filter(|n| !n.is_empty() && !n.starts_with('@')) {
+				assert!(TAKEN.contains(&name), "the runtime's `{name}` is not in TAKEN");
+			}
+		}
+	}
 }

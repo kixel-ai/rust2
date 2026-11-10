@@ -525,6 +525,11 @@ pub fn drain<const N: usize>(batch: &mut Batch<N>) -> u64 {
 	batch.0.drain(..).map(u64::from).sum()
 }
 
+/// Both batches' capacities: two const parameters, each at every instance's value.
+pub fn capacities<const N: usize, const M: usize>(a: &Batch<N>, b: &Batch<M>) -> usize {
+	a.capacity() + b.capacity()
+}
+
 /// Fill a batch with `v` until it holds `N`, lending what it holds: a future whose result
 /// borrows a parameter, as moq's `group::Consumer::read_frames` does.
 pub async fn fill<const N: usize>(batch: &mut Batch<N>, v: u32) -> &mut [u32] {
