@@ -2,9 +2,6 @@
 #![feature(allocator_api, pattern)]
 use std::collections::HashMap;
 
-/// A generic type.
-pub struct Wrap<T>(pub T);
-
 /// A tuple of references taken: C lends nothing inside a value.
 pub fn pair(pair: (&str, u8)) -> u8 {
 	pair.1
@@ -124,15 +121,6 @@ impl<'a> Text<'a> {
 /// itself.
 pub fn either(text: Option<&str>) -> usize {
 	text.map_or(0, str::len)
-}
-
-/// An object no export returns but its own method, so C never holds one.
-pub struct Lease(u8);
-
-impl Lease {
-	pub fn split(&mut self) -> Lease {
-		Lease(self.0)
-	}
 }
 
 /// A record, a type of the facade's own.
@@ -742,5 +730,61 @@ pub fn poll_ticket(ticket: &Ticket<u16>) -> std::task::Poll<u16> {
 pub fn poll_both(a: &mut std::task::Context<'_>, b: &std::task::Context<'_>) -> std::task::Poll<()> {
 	a.waker().wake_by_ref();
 	b.waker().wake_by_ref();
+	std::task::Poll::Ready(())
+}
+
+/// Another crate whole, whose every release would change this one's API.
+pub use dep;
+
+/// The same crate whole, by another name.
+pub use ::dep as renamed;
+
+/// A crate whole, which the config excludes, so nothing refuses it.
+pub use ::dep as Shed;
+
+/// A value whose poll changes it, which C passes as a copy.
+pub struct Tally {
+	pub count: u8,
+}
+
+impl Tally {
+	pub fn poll_bump(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<u8> {
+		cx.waker().wake_by_ref();
+		self.count += 1;
+		std::task::Poll::Ready(self.count)
+	}
+}
+
+/// A waiter made from a waker only by an `unsafe` function.
+pub struct Risky(std::task::Waker);
+
+impl Risky {
+	/// # Safety
+	///
+	/// Nothing, in this fixture.
+	pub unsafe fn new(waker: std::task::Waker) -> Self {
+		Self(waker)
+	}
+}
+
+/// A poll through a waiter no safe function makes.
+pub fn poll_risky(waiter: &Risky) -> std::task::Poll<()> {
+	waiter.0.wake_by_ref();
+	std::task::Poll::Ready(())
+}
+
+/// A waiter made from a waker only by a function whose type argument the call cannot infer.
+pub struct Loose(std::task::Waker);
+
+impl Loose {
+	pub fn new<T: Default>(waker: std::task::Waker) -> Self {
+		let _ = T::default();
+		Self(waker)
+	}
+}
+
+/// A poll through a waiter no non-generic function makes.
+pub fn poll_loose(waiter: &Loose) -> std::task::Poll<()> {
+	waiter.0.wake_by_ref();
 	std::task::Poll::Ready(())
 }

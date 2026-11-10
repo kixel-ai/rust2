@@ -1,23 +1,25 @@
-# [S] Returned wakers and contexts export
+# [M] Returned wakers and contexts export
 
 ## Goal
 
 kio's `Waiter::waker`, which returns `&Waker`, and `Waiter::context`, which returns
-`Context<'_>`, stop refusing at moq's pin: the last of the census's `Poll`, `Context`, and
+`Context<'_>`, export at moq's pin: the last of the census's `Poll`, `Context`, and
 `Waker` refusals that no sibling owns.
 
 ## Plan
 
 A function returning `Poll` already exports as a future, and a `&Context` parameter as a
-`<prefix>_waker`. A waker crosses only into Rust, so what is left is the other direction.
-moq-tokio's `poll_lease`, whose `Poll` holds a borrowed `Lease<'_>`, is
-[borrows](/quest/m1/ffi-export/refusals/borrows.md)'s, if narrowing the stand-in keeps it.
+`<prefix>_waker`, so a waker crosses into Rust; this adds the other direction.
 
-## Waiting
+The maintainer settled on 2026-11-09: ✅ proper waker support (rejected: moq marks both
+`#[doc(hidden)]`, since rust2 neither hides APIs nor worsens moq's Rust API for bindings).
 
-- Maintainer: pick how a returned `Waker` or `Context` exports, since either changes the
-  exporter's rules or moq's API. Recommended: moq marks both `#[doc(hidden)]`, as only Rust
-  code polling a foreign future needs them, and the exporter keeps refusing a returned
-  waker. Rejected unless a binding needs one: the C ABI returns a `<prefix>_waker` that
-  wraps Rust's waker, which C calls and drops, and each of the seven generators wraps it in
-  its language's callable. Done when the decision is recorded here.
+- The C ABI returns a `<prefix>_waker` wrapping a clone of Rust's waker, with functions
+  to wake it and drop it. A returned `&Waker` clones; a returned `Context<'_>` exports as
+  its waker, since a context is only a waker lent for a call.
+- Each of the seven generators wraps the returned waker in its language's callable, which
+  wakes it, and frees it when the callable is dropped or collected.
+- The api fixture's `Waiter` gains both methods, and every language's test wakes a pending
+  future through the returned waker.
+- moq-tokio's `poll_lease`, whose `Poll` holds a borrowed `Lease<'_>`, is
+  [borrows](/quest/m1/ffi-export/refusals/borrows.md)'s, if narrowing the stand-in keeps it.

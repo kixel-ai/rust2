@@ -138,7 +138,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | a type's function | a function of the type's module, taking `self` first: `Decoder.slice(dec, 4)` after `import * as Decoder` |
 | `Arc<T>`, `Rc<T>`, `Weak<T>`, `Mutex<T>` | `rs.Arc` for either, of what a `Box<T>` is for a slice or `str`, with its strong and weak counts, an `Arc<[T; N]>` unsized to an `Arc<[T]>` an `rs.ArcDyn` of the slice of its array, sharing its count, an `Arc<[u8]>` of an `Arc<str>`'s bytes sharing its count, and `new_cyclic`'s `Weak` upgrading only once its value is made, `get_mut` lending its value only while no other `Arc` or `Weak` shares it, `make_mut` cloning it into a new `rs.Arc` while another `Arc` shares it, or moving it there while only `Weak`s do, which then dangle, as a copy where pointers to it compare, `as_ptr` and `into_raw` pointing where a reference to its value does, or at its place where JS copies it, as a pointer the body shows made from a reference to that value does, which `from_raw`, `increment_strong_count`, and `decrement_strong_count` take back to its `rs.Arc` and count, refused for one the body shows a borrow made, and aborting, as std's debug checks of unsafe preconditions do, on another pointer no `as_ptr` or `into_raw` of that type of `Arc` gave, or one whose value dropped, which Rust leaves undefined, and refused for one to a slice or bytes, which JS makes anew each time, and `ptr::addr_eq` comparing what `ptr::eq` compares, of one pointee type, and `into_inner` giving it only from the last strong `Arc`, after which its `Weak`s no longer upgrade; `rs.Weak`, counted in its `rs.Arc` until it drops, and of no `Arc` once made by `Weak::new`; `rs.Mutex`, its own guard, which a lock gives as `Ok` and the guard's drop unlocks: locking it again while held panics and `try_lock` gives `WouldBlock`, as wasm32's do, and a guard's `map` and `filter_map` make `rs.MutexMap`s, each where the part it lends is, which hold the mutex locked until they drop, and a panic aborts, so nothing poisons it and `thread::panicking` is `false`; a `Mutex`'s, a `RefCell`'s, and an `RwLock`'s `into_inner` gives its value and `get_mut` lends it, or an `rs.Place` of it where JS copies it |
 | `PoisonError<T>`, `TryLockError<T>` | the `T` it holds; `rs.TryLockError<T>`, tagged as `Bound` is |
-| `Cell<T>`, `UnsafeCell<T>`, `RefCell<T>`, `RwLock<T>` | `rs.Cell`, the place holding its value in `v`, for either of the first two: `UnsafeCell::get`'s and `Cell::as_ptr`'s pointer, and `get_mut`'s reference, is the cell where it is an `rs.Place`, and otherwise the object in `v`, refused where the crate may put another cell or object in its place; `rs.RefCell` for either of the others, its own guard, counting its borrows: borrowing it while that conflicts panics as `RefCell`'s does, and locking it so aborts as wasm32's `RwLock` does; `try_borrow` and `try_borrow_mut` fail with `rs.BorrowError` and `rs.BorrowMutError` instead, a clone borrows the cell, `Ref::clone` counts another borrow of it, and a guard's `map`, `filter_map`, `try_map`, and `map_split`, an `RwLock` guard's included, make `rs.RefMap`s, each where a part it lends is, which a write through a mapped `RefMut` reaches in place, sharing the cell's borrow until the last drops; `RwLockWriteGuard::downgrade` keeps the lock as one read, and `Ref::leak` and `RefMut::leak` keep the borrow until `RefCell::undo_leak` ends it; `Cell::update` calls its function on a copy, and `RefCell::replace_with` on the value, borrowed as `borrow_mut` does, or its place where JS copies it; refused for a part of a sized type JS can't write in place, such as a binding's |
+| `Cell<T>`, `UnsafeCell<T>`, `RefCell<T>`, `RwLock<T>` | `rs.Cell`, the place holding its value in `v`, for either of the first two: `UnsafeCell::get`'s and `Cell::as_ptr`'s pointer, and `get_mut`'s reference, is the cell where it is an `rs.Place`, and otherwise the object in `v`, refused where the crate may put another cell or object in its place; `rs.RefCell` for either of the others, its own guard, counting its borrows: borrowing it while that conflicts panics as `RefCell`'s does, and locking it so aborts as wasm32's `RwLock` does; `try_borrow` and `try_borrow_mut` fail with `rs.BorrowError` and `rs.BorrowMutError` instead, a clone borrows the cell, `Ref::clone` counts another borrow of it, and a guard's `map`, `filter_map`, `try_map`, and `map_split`, an `RwLock` guard's included, make `rs.RefMap`s, each where a part it lends is, which a write through a mapped `RefMut` reaches in place, sharing the cell's borrow until the last drops; `RwLockWriteGuard::downgrade` keeps the lock as one read, and `Ref::leak` and `RefMut::leak` keep the borrow until `RefCell::undo_leak` ends it; `Cell::as_array_of_cells` of an array of values JS copies is an `rs.Slice` of a cell of each element's place, where the cell holds the array; `Cell::update` calls its function on a copy, and `RefCell::replace_with` on the value, borrowed as `borrow_mut` does, or its place where JS copies it; refused for a part of a sized type JS can't write in place, such as a binding's |
 | `thread_local!`, `LocalKey<T>` | an `rs.LocalKey`, a module's value that each copy of the key is, which makes its value on first use from the `const` or the expression and never drops it, as wasm32's do; `with` calls its function on that value, `try_with` never fails, the `Cell` and `RefCell` helpers lower from std, and a `RefCell` key's `set` and `with_borrow_mut` borrow it as `borrow_mut` does |
 | `OnceCell<T>`, `OnceLock<T>` | `rs.OnceCell` and `rs.OnceLock`, holding the `Option<T>` in `v`, which is the place `get_mut` lends where JS copies the value; a `OnceLock` initialized from within its own initialization panics, as wasm32's does, and `get_or_try_init`'s error leaves either empty |
 | `Once`, `OnceState` | `rs.Once`, an `rs.OnceLock` that holds `true` once `call_once` or `call_once_force` ran its function, and panics as wasm32's does if run again from within it; `rs.OnceState`, that `Once`, which a panic never poisons, as it aborts |
@@ -183,7 +183,8 @@ same array. A caller passes one as `rs.sliceFrom(array)` and reads one it gets a
 `rs.sliceItems(slice)`, the array itself where the slice is all of it. A `[T; N]` stays a
 JS array, and a `&[T; N]` or `&mut [T; N]` is an `rs.Slice` of its elements where they
 are, as a `&[u8; N]` is an `rs.ByteSlice`, so `first_chunk_mut`, `split_first_chunk_mut`,
-a subslice pattern, and `array::from_mut` lend part of the same array, and a whole write
+`try_from` of a slice of `N`, a subslice pattern, and `array::from_mut` lend part of the
+same array, and a whole write
 through one writes each element in place. A slice of arrays, a `&[[T; N]]`,
 `&mut [[T; N]]`, `&[[T; N]; M]`, or `Box<[[T; N]]>`, is an `rs.ArraySlice` of the slice each
 array is, `rs.ArraySlice<rs.Slice<T>>`, `rs.ArraySlice<rs.ByteSlice>` for bytes, and
@@ -870,9 +871,25 @@ of them:
   one `None` where it is `undefined`, and a `static_string` its literal. `instanceof`,
   `JsCast::has_type` and `dyn_into`, the intrinsics `js-sys` reads, such as `typeof`,
   equality, operators, and `debug_string`, and `throw_str` and `throw_val` are JS's own.
+  A `JsError` is the JS error it holds.
+  A `Closure` is an `rs.JsClosure`, the JS function the CLI's glue makes of it: one call
+  of the closure per call, its arguments converted as an import's result is and its result
+  as an import's argument, an `Err` thrown. Calling it once it is dropped throws
+  wasm-bindgen's error once its arguments are converted, as WASM's ABI coerces them before
+  the closure's code checks, as does calling an `FnMut` one from within its own call, while an
+  `Fn` one stays reentrant. A call that runs as the `Closure` drops finishes, and the
+  closure drops after it, as the CLI counts its calls. `forget` and `into_js_value` keep
+  it alive, and a forgotten one drops once JS collects its function, as the CLI's
+  `FinalizationRegistry` drops it. A `&dyn Fn` or `&dyn FnMut` an import takes is a JS
+  function over the closure for that call only, which throws once the import returns.
+  `JsFuture` and `future_to_promise` translate from js-sys's MIR, and `spawn_local`, as
+  wasm-bindgen-futures reexports it, is `rs.jsSpawnLocal`, js-sys's microtask queue: each
+  run polls only the tasks queued before it began, and a task woken as it runs runs on
+  the next microtask.
   Refused, each at its span: imports of custom JS, by `module`, `raw_module`, or
-  `inline_js`, a `suspending` import, an `experimental_generic_mono` one, which the CLI
-  makes JS of per instance, a `Closure`, a mutable slice within an `Option`, 0.2.130's
+  `inline_js`, a `suspending` import, and `jspi_block_on_promise`, which suspends the WASM
+  stack as no JS call can, an `experimental_generic_mono` import, which the CLI
+  makes JS of per instance, a mutable slice within an `Option`, 0.2.130's
   `Nullable`, which no CLI in the dev shell makes glue of to compare against, the
   intrinsics only WASM has, such as `memory()`, and a `#[wasm_bindgen]` export, as a
   translation exports the crate's `pub` API itself.
@@ -1229,10 +1246,9 @@ functions without a mapping in `src/lower/library.rs`, but for `bool`'s, `Option
 `Result`'s, and `Poll`'s methods that take no `&mut`, and `cmp`'s `max` and `min` forms,
 which lower from core's MIR.
 
-These emit TypeScript that `tsc` rejects, so translation fails at its type check rather
-than with a span: `if let` of a temporary whose rest has a destructor
-([ts-if-let-drop](/quest/m3/ts-if-let-drop.md)), and a `Pin` of a crate's own `Deref`
-type ([ts-pin-own-deref](/quest/m3/ts-pin-own-deref.md)).
+This emits TypeScript that `tsc` rejects, so translation fails at its type check rather
+than with a span: a `Pin` of a crate's own `Deref` type
+([ts-pin-own-deref](/quest/m3/ts-pin-own-deref.md)).
 
 ## Tests
 
@@ -1343,6 +1359,14 @@ so adding, removing, or reordering a case changes no other case's inputs.
   compared by its message. It is translated again under `wasm-bindgen-0.2.130.lock`, the
   next schema, and compared against the same native run. `refused.toml`, with its
   `refused` feature, holds what translation refuses, with the errors in `refused.txt`.
+- `encoder` drives WebCodecs' `VideoEncoder` through web-sys with the calls of
+  web-codecs' encoder, a workspace of its own like `bindgen`'s, built with
+  `--cfg=web_sys_unstable_apis`. Its harness makes, calls, drops, and forgets closures of
+  each kind, awaits promises and spawns tasks, and encodes three VP8 frames through the
+  encoder's output and error callbacks and `isConfigSupported`'s promise. Its native side,
+  through the CLI's glue for the web, and its translation run in one headless Chromium
+  page that `tests/browser.ts` serves, which compares their reports. Only the bench shell
+  carries Chromium, so it runs nightly, ignored otherwise.
 - `reject` holds constructs outside the subset, a module per kind of construct. Its
   expected errors are `expected.txt` and its census's spans `census.txt`, each line keyed
   by the item it points into and sorted, so cases added to different items don't conflict.

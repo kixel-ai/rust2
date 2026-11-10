@@ -59,4 +59,11 @@ export function mapOr$0vxw5sq(self: rs.u8 | undefined, default_: rs.u8, f: (a0: 
 	return f(self);
 }
 
+export function andThen$1mydyfo(self: rs.Slice<rs.u32> | undefined, f: (a0: rs.Slice<rs.u32>) => rs.Slice<rs.u32> | undefined): rs.Slice<rs.u32> | undefined {
+	if (self === undefined) {
+		return undefined;
+	}
+	return f(self);
+}
+
 //# sourceMappingURL=option.ts.map

@@ -4,7 +4,8 @@
 //! crates too, is exported by fixed rules, or refused with its span. A type it does not
 //! reach is refused. Nothing is opted in by attribute and nothing is skipped silently: the
 //! config's `exclude` is the only way to leave an item out, and `#[doc(hidden)]` items,
-//! which are no part of the documented API, are listed in the census. A generic type
+//! which are no part of the documented API, and what C can never hold, are listed in the
+//! census. A generic type
 //! exports at the instances it infers, before any type is mapped: its defaults, each
 //! instance an inherent impl is of, its exports' implementations of the traits bounding it,
 //! and each instance a signature names at any choice its bounds allow; and only there.
@@ -49,6 +50,14 @@ const FOREIGN: [(&str, &str, &str); 2] = [("url", "Url", "Url"), ("serde_json", 
 
 /// The construct of an instance inference missed: a bug in the exporter, not the crate.
 pub const NOT_INFERRED: &str = "instance not inferred";
+
+/// What C can never hold: left out and listed in the census rather than refused, since
+/// exporting it would need constructors or returns the crate has no use for.
+const UNHELD: [&str; 3] = [
+	"object no export returns",
+	"generic type no export instantiates",
+	"type C never holds",
+];
 
 fn why(construct: &'static str, detail: impl Into<String>) -> Why {
 	Why {
@@ -95,6 +104,8 @@ pub struct Report {
 	pub twins: Vec<String>,
 	/// `#[doc(hidden)]` items, by path.
 	pub hidden: Vec<String>,
+	/// Items C can never hold or call, by path, and why.
+	pub unheld: Vec<(String, Why)>,
 	/// Excluded paths, and how many items each left out.
 	pub excluded: Vec<(String, usize)>,
 	/// Type aliases, which export nothing of their own.
@@ -180,7 +191,7 @@ struct Collector<'tcx> {
 	/// `std::ops::Bound`, and `std::ops::RangeBounds`, which names it.
 	bound: Option<DefId>,
 	range_bounds: Option<DefId>,
-	/// Objects no export returns, refused.
+	/// Objects no export returns, left out.
 	orphans: rustc_data_structures::fx::FxHashSet<Key<'tcx>>,
 	api: Api,
 }
@@ -257,6 +268,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 				opaque: Vec::new(),
 				twins: Vec::new(),
 				hidden: Vec::new(),
+				unheld: Vec::new(),
 				excluded: facade.exclude.iter().map(|path| (path.clone(), 0)).collect(),
 				aliases: Vec::new(),
 			},
@@ -296,7 +308,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 		unshare(&mut c.api);
 		c
 	};
-	// Refusing an object no export returns refuses what takes it, which may leave another
+	// Leaving out an object no export returns leaves out what takes it, which may leave another
 	// object no export returns, so collection repeats until it refuses no more.
 	let mut orphans = rustc_data_structures::fx::FxHashSet::default();
 	loop {
@@ -882,7 +894,10 @@ impl<'tcx> Collector<'tcx> {
 
 	fn refuse(&mut self, path: &[String], kind: &'static str, span: Span, why: Vec<Why>) {
 		let (report, path) = self.report(path);
-		report.refusals.push(Refusal { path, kind, span, why });
+		match why.iter().find(|why| UNHELD.contains(&why.construct)) {
+			Some(unheld) => report.unheld.push((path, unheld.clone())),
+			None => report.refusals.push(Refusal { path, kind, span, why }),
+		}
 	}
 
 	/// Every `pub` item reachable from the facade's root, through re-exports of other
@@ -910,11 +925,25 @@ impl<'tcx> Collector<'tcx> {
 				if matches!(kind, DefKind::Ctor(..) | DefKind::Variant) {
 					continue;
 				}
+				let mut path = path.clone();
+				path.push(child.ident.to_string());
+				// A crate re-exported whole makes its every release part of the facade's
+				// semver, so each such `pub use` is refused once, and the crate not walked.
+				// A glob of its root re-exports its items instead, which export. The span is
+				// the `pub use` naming the crate, past any glob of the module holding it.
+				if kind == DefKind::Mod && def_id.is_crate_root() && !def_id.is_local() {
+					if self.exclude(&path) {
+						continue;
+					}
+					let span = child.reexport_chain.last().and_then(|reexport| reexport.id());
+					let span = span.map_or_else(|| tcx.def_span(def_id), |id| tcx.def_span(id));
+					let krate = tcx.crate_name(def_id.krate).to_string();
+					self.refuse(&path, "use", span, vec![why("re-export of a whole crate", krate)]);
+					continue;
+				}
 				if !seen.insert(def_id) {
 					continue;
 				}
-				let mut path = path.clone();
-				path.push(child.ident.to_string());
 				let mut modules = modules.clone();
 				modules.push(def_id);
 				if self.exclude(&path) {
@@ -1217,9 +1246,10 @@ impl<'tcx> Collector<'tcx> {
 			DefKind::Union => Decl::Refused(why("union", "")),
 			// Held by a handle that outlives any call, it is the form that borrows nothing.
 			DefKind::Struct | DefKind::Enum if lifetimes && (instance || !self.typed(def_id)) => self.object(site),
-			DefKind::Struct | DefKind::Enum | DefKind::Trait if generic && !instance => {
-				Decl::Refused(why("generic type", ""))
+			DefKind::Struct | DefKind::Enum if generic && !instance => {
+				Decl::Refused(why("generic type no export instantiates", ""))
 			}
+			DefKind::Trait if generic && !instance => Decl::Refused(why("generic type", "")),
 			// A value is copied across and lowered into memory C frees, so its own `Drop`
 			// would run when Rust lets go of it, not when C does.
 			DefKind::Struct | DefKind::Enum if tcx.adt_destructor(def_id).is_some() => self.object(site),
@@ -1499,6 +1529,7 @@ impl<'tcx> Collector<'tcx> {
 						let variants = self.fields(&site).expect("settled");
 						let variant = variants.into_iter().next().expect("a struct has a variant");
 						let (methods, traits) = self.methods(&site);
+						let methods = self.unmutated(methods);
 						let record = &mut self.api.records[index];
 						record.args = args;
 						record.fields = variant.fields;
@@ -1510,6 +1541,7 @@ impl<'tcx> Collector<'tcx> {
 						let variants = self.fields(&site).expect("settled");
 						let exhaustive = !tcx.adt_def(def_id).is_variant_list_non_exhaustive();
 						let (methods, traits) = self.methods(&site);
+						let methods = self.unmutated(methods);
 						let e = &mut self.api.enums[index];
 						e.args = args;
 						e.variants = variants;
@@ -1698,6 +1730,17 @@ impl<'tcx> Collector<'tcx> {
 
 	/// A type's inherent `pub` methods, from each impl that applies to it, and the std
 	/// traits it implements.
+	/// A value's methods, refusing each through `&mut self`: C passes the value as a copy,
+	/// so what the method changes would be lost.
+	fn unmutated(&mut self, methods: Vec<Function>) -> Vec<Function> {
+		let (mutated, kept): (Vec<Function>, Vec<Function>) =
+			(methods.into_iter()).partition(|m| m.receiver == Some(Receiver::Mut));
+		for m in mutated {
+			self.refuse(&m.shown, "method", m.span, vec![why("`&mut self` of a value", "")]);
+		}
+		kept
+	}
+
 	fn methods(&mut self, site: &Site<'tcx>) -> (Vec<Function>, Traits) {
 		let tcx = self.tcx;
 		let def_id = site.key.def_id;
@@ -3255,8 +3298,8 @@ impl<'tcx> Collector<'tcx> {
 
 	/// What a parameter of type `ty` polls its task through, if it does: a `&Context` or
 	/// `&mut Context`, or where the function returns a `Poll`, a reference to an object
-	/// exactly one associated function makes from a `Waker` alone, of a type with no
-	/// generic parameters, such as kio's `Waiter`.
+	/// exactly one safe, non-generic associated function makes from a `Waker` alone, of a
+	/// type with no generic parameters, such as kio's `Waiter`.
 	fn task(&self, ty: Ty<'tcx>, polled: bool) -> Option<TaskKind> {
 		let tcx = self.tcx;
 		let ty::Ref(_, inner, m) = *ty.kind() else {
@@ -3287,7 +3330,11 @@ impl<'tcx> Collector<'tcx> {
 			})
 			.filter(|item| {
 				let sig = tcx.fn_sig(item.def_id).skip_binder().skip_binder();
-				matches!(sig.inputs(), [input] if waker(*input))
+				// The call names no generic arguments and opens no `unsafe` block.
+				let generics = tcx.generics_of(item.def_id).own_counts();
+				sig.safety().is_safe()
+					&& generics.types + generics.consts == 0
+					&& matches!(sig.inputs(), [input] if waker(*input))
 					&& matches!(sig.output().kind(), ty::Adt(out, _) if out.did() == adt.did())
 			})
 			.map(|item| item.name().to_string())
@@ -3556,6 +3603,9 @@ impl<'tcx> Collector<'tcx> {
 							return Err(why("object in a value", name));
 						}
 						Some(Decl::Object(i)) => Type::Object(*i),
+						Some(Decl::Refused(refused)) if UNHELD.contains(&refused.construct) => {
+							return Err(why("type C never holds", name));
+						}
 						Some(Decl::Refused(_)) => return Err(why("refused type", name)),
 						Some(Decl::Callback(_)) | None => {
 							if let Some(construct) = self.left_out.get(&did) {
