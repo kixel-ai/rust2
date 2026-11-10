@@ -58,8 +58,8 @@ The other 324 are moq's own, 107 of them in moq-tokio (61 under `quic`); each ch
 its construct's count, and an item counts under every construct it hits. The counts
 include the moq-tokio items narrowing drops; each child measures again once it lands. 17 more refuse
 only because a type they name is refused, and clear with it. After the stand-in narrows
-([moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683)), the census refuses 337
-items, 51 of them in moq-tokio, and 104 types.
+([moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683)), the census refuses 130
+items, 41 of them in moq-tokio, and 6 types.
 
 Public API: the exporter's command line and the C API of every item that exports.
 

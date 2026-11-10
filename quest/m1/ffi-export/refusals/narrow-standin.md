@@ -50,8 +50,9 @@ Decided with the maintainer on 2026-11-09, in the iterate of
   languages keep their names (rejected: renaming to `ConnectConfig`, `ListenConfig`, and
   `QuicConfig` in the stand-in; re-exporting whole modules).
 
-The census at this change refuses 337 items, 51 of them in moq-tokio, and 104 types, down
-from 1111 items, 84 in moq-tokio, and 321 types.
+The census at this change refuses 130 items, 41 of them in moq-tokio, and 6 types, down
+from 1111 items, 84 in moq-tokio, and 321 types. The after-census is on the merged tree, which
+includes main's own export changes, so it is not the stand-in change alone.
 
 Public API: the stand-in's exports, which the census and the bindings' fixtures read.
 
