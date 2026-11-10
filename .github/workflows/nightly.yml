@@ -57,87 +57,10 @@ jobs:
       - name: Fixtures without the sysroot
         run: nix develop --command env RUST2_TS_SYSROOT= just ts test --test fixtures
 
-  uniffi-fixtures:
-    name: UniFFI fixtures
-    # x86_64: nixpkgs marks Swift 6.3 broken on aarch64-linux, where it fails to link with
-    # gold. Swift 6.4 links with LLD and lifts the mark once it reaches nixpkgs-unstable.
-    runs-on: ubuntu-24.04
-    timeout-minutes: 90
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: ./.github/actions/nix
-
-      # Kotlin, Swift, Python, and Dart run under cargo; Go and C++ run their own harness.
-      - name: Fixtures
-        run: nix develop .#uniffi --command just uniffi fixtures
-
-  # The Linux job above builds the C and C++ fixtures with GCC; consumers also build them
-  # with these. Each standard reuses the job's one Rust build.
-  uniffi-cpp:
-    name: UniFFI C and C++ (${{ matrix.name }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: MSVC
-            os: windows-latest
-          - name: Apple Clang
-            os: macos-latest
-    defaults:
-      run:
-        shell: bash
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      # No Nix: its dev shell would replace the system compiler under test. The runner's
-      # rustup installs rust-toolchain.toml's channel. The suite also builds its expected-style
-      # and C consumers without exceptions or RTTI.
-      - name: C++17
-        run: |
-          cmake -S uniffi/cpp/cpp-tests -B target/cpp17 -DCMAKE_BUILD_TYPE=Debug
-          cmake --build target/cpp17 --config Debug --parallel
-          ctest --test-dir target/cpp17 -C Debug --output-on-failure
-
-      - name: C++20
-        run: |
-          cmake -S uniffi/cpp/cpp-tests -B target/cpp20 -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_STANDARD=20
-          cmake --build target/cpp20 --config Debug --parallel
-          ctest --test-dir target/cpp20 -C Debug --output-on-failure
-
-  uniffi-install:
-    name: UniFFI install
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 60
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: ./.github/actions/nix
-
-      # A consumer's `cargo install` ignores the lockfile, so resolve it fresh.
-      - name: Install
-        run: nix develop --command just uniffi install
-
-      - name: Symlink
-        run: nix develop --command just uniffi symlink
-
-      # The flake packages moq pins.
-      - name: Build
-        run: nix build .#uniffi
+      # WebCodecs' encoder both ways in headless Chromium, which only the bench shell
+      # carries, against the same build as the step before.
+      - name: Encoder in Chromium
+        run: nix develop .#bench --command env RUST2_TS_SYSROOT= just ts test --test fixtures -- --ignored --exact encoder
 
   bench:
     name: Benchmark

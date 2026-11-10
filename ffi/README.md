@@ -1,7 +1,7 @@
 # rust2-ffi
 
 A rustc driver that exports a crate's `pub` API as a C ABI and a C header, with no
-attributes in the Rust source. It replaces [the UniFFI fork](../uniffi/README.md) for moq.
+attributes in the Rust source.
 Every language's generator but Python's builds on the C ABI.
 
 ```bash
@@ -52,7 +52,10 @@ exclude = ["track::Producer::poll_closed"]
 Every `pub` item reachable from the facade's root, by its shortest path, is exported or
 refused. `#[doc(hidden)]` items are no part of the API and are left out; type aliases
 export nothing of their own. A re-export of the standard library's item is refused, since
-its types map by role; a type no path reaches is refused.
+its types map by role. A `pub use` of a whole crate, as in `pub use rustls;` or
+`pub use web_transport_proto as proto;`, is refused once at that `pub use`, since it puts
+every release of that crate in the facade's API; a glob of its root, `pub use dep::*;`,
+re-exports its items instead, which export. A type no path reaches is refused.
 
 | Rust | C |
 | --- | --- |
@@ -62,10 +65,10 @@ its types map by role; a type no path reaches is refused.
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
 | a `pub` field of an object | a getter returning a copy, and a setter assigning in place, as `x.field = value` does |
-| a `pub` trait | a callback interface: a table of C functions and their data |
+| a `pub` trait | a callback interface: a table of C functions and their data; a trait C cannot implement, such as one with a blanket impl, an associated type, or a supertrait but a marker, is left out, since C never passes one, and a signature taking one from C is refused |
 | a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce`, which no lifetime bound or return lets outlive the call | a C function and its `void *` data, which Rust calls only during the call; any other closure is refused |
 | `fn` and inherent `pub` methods | functions named through their type |
-| `Result<T, E>` | `bool f(..., T *out, E *err)` |
+| `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
 | a tuple inside another type, or as a field or parameter | `<prefix>_tuple_<A>_<B>`: a struct of fields `_0`, `_1`, and so on; of references only returned |
 | `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it; a function that is not `async` runs at the call, as in Rust |
@@ -78,6 +81,7 @@ its types map by role; a type no path reaches is refused.
 | `url::Url` | an object `<prefix>_Url`, made by `<prefix>_Url_parse`, which fails with the parse error's message, and printed by `_to_string` |
 | `serde_json::Value` | an object `<prefix>_Json`, made by `<prefix>_Json_parse` from JSON text, which fails with serde_json's message, and read back by `_to_text`; its contents are the caller's JSON library's to read |
 | `Vec<T>` and `&[T]` of any other `T` | `<prefix>_vec_<T>`: an array of `T`'s C values, viewed passed in and owned returned, a slice as a clone; of references only returned |
+| `BTreeSet<T>`, `BTreeMap<K, V>`, and `serde_json::Map` | as `Vec<T>`, `Vec<(K, V)>`, and `Vec<(String, serde_json::Value)>`: its items in order, from which Rust builds it, keeping the last of a key |
 | a returned iterator, such as `slice::Iter` or an `impl Iterator`, that no other rule maps, outside a future, made of core's and alloc's iterators over a slice, string, `Option`, `Result`, or collection, through `rev`, `chain`, `flatten`, `fuse`, `enumerate`, `peekable`, `copied`, or `cloned`, with no closure, function, or trait object inside | what `collect::<Vec<_>>()` makes of it: every item, taken at the call |
 | `Waker`, taken by value | `<prefix>_waker`, as a future's poll takes it |
 | `Range<T>`, `Bound<T>` of an integer | `<prefix>_range_<T>`, `<prefix>_bound_<T>`: a `<prefix>_bound` kind and a value |
@@ -86,8 +90,9 @@ its types map by role; a type no path reaches is refused.
 | a `pub const` | a `#define` if a `bool` or integer, else a function returning it |
 | `impl Into<X>`, `impl AsRef<X>`, or a bound implying one, as a supertrait does | `X`, or `&X` and then `String` or `Vec<T>` where `X` is `str` or `[T]` |
 | `impl Into<X>`, where `X` does not map | what a `From` implementation into `X` takes: a source parameter by its bounds as above, so `impl<B: Into<Bytes>> From<B> for Timed<Bytes>` takes `Bytes`, and by each `Into<Y>` whose `Y` does not map, what converts into `Y` in turn, each `Y` once and refusing a chain longer than the crate's recursion limit; any other source as it is, so `impl<'a, V> From<&'a V> for Timed<&'a V>` takes `&V`. Two sources C passes as one buffer, such as `String` and `Vec<u8>`, are refused, unless they are forms of one value, as `&str` and `String` are |
-| `impl IntoIterator<Item = X>`, where `X` is no type parameter | `Vec<X>` |
-| another type parameter | `serde_json::Value` for a serde `Serialize` or `Deserialize` bound, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
+| `impl IntoIterator<Item = X>`, where `X` is no type parameter | `Vec<X>`, or `&[Y]` where `X` is `&Y` |
+| `impl io::Read` | `&[u8]` |
+| another type parameter | `serde_json::Value` for a serde `Serialize` or `Deserialize` bound, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, through a blanket impl at each type implementing what the impl requires, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
 
 A generic type infers the instances it exports at, with no config: the one at its
 defaults, if each type parameter has one; the one each inherent impl is of, such as
@@ -106,9 +111,10 @@ returned as a clone, so it must be `Clone`, and a handle in it is a new handle t
 clone. A handle outlives every call, so every lifetime an object takes is `'static`, as is
 every lifetime that must outlive one; any other lifetime is the call's. A signature may
 not lend C's borrow for one that is `'static`, nor return an object that borrows. A
-parameter is a reference only at its top, not inside an `Option` or `Box`, and an object
-no export C can call returns is refused, since C could never hold one. Everything else is
-refused, and the census counts why.
+parameter is a reference only at its top, not inside an `Option` or `Box`. What C could
+never hold, an object no export C can call returns or lends to a closure, a generic type
+no export instantiates, and whatever takes one, is left out and listed in the census.
+Everything else is refused, and the census counts why.
 
 ## The C ABI
 
@@ -616,8 +622,9 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 ## Census
 
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
-lists each refused item at its span, and ends with the `exclude` list that exports the
-rest. It ignores the config's `exclude`. It still fails on an `instance not inferred`
+lists each refused item at its span, then the `exclude` list that exports the rest, and
+what else it left out, such as what C can never hold and the traits C cannot implement, and why.
+It ignores the config's `exclude`. It still fails on an `instance not inferred`
 refusal, which is a bug in the exporter's inference rather than in the crate.
 
 ## Tests
@@ -657,7 +664,7 @@ abort with its message; the Python with another contract must refuse the library
 language mode and type-checked in Swift 5's, checks its futures the same way and that
 releasing frees, and breaks each runtime check, which must trap or abort with its message.
 It runs with nixpkgs' Swift on Linux, which builds none for aarch64-linux
-([quest](/quest/m2/uniffi-swift-arm.md)), and nightly with Apple's on macOS.
+([quest](/quest/m2/swift-arm.md)), and nightly with Apple's on macOS.
 `tests/api.go` runs the script through the Go after `go vet`, checks its futures the same
 way, plus a context done before the call, a deadline, and a handle closed during a call,
 checks that bytes cross both ways, that a `Bytes` keeps Rust's buffer while only a sub-view

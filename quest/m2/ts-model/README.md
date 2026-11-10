@@ -8,13 +8,20 @@ calls (kio, with its clock, and moq-pattern), as it translates the codec today, 
 
 ## Plan
 
+Decided with the maintainer on 2026-11-09, in the quest audit: ✅ WASM ships, and the
+translation must beat it. [rust2-wasm](/quest/m2/wasm/README.md) is moq's browser route,
+and its gate compares this translation against it; moq adopts the translation only where
+that report shows it faster or smaller. This supersedes the 2026-11-01 decision below.
+Rejected: JS-only staying the goal; pausing this epic.
+
 Decided with the maintainer on 2026-11-01, after moq removed its WASM build
 ([moq-dev/moq#7475](https://github.com/moq-dev/moq/pull/7475)): the translated model is
 moq's browser route, which moq's [JS-only `@moq/net`](https://github.com/moq-dev/moq/blob/main/quest/m5/rs2ts-js.md)
 adopts once it matches the handwritten package in a full browser workload. Once the model
 translates, moq measures it on the [TS benchmark](/ts/README.md#bench), consuming the driver
 as the `ts` package of this flake. That adds moq's `js/net/bench/frames.ts`, a group stream
-read into a group, to the benchmark's workloads, which hold only its sync frame headers. The
+read into a group, to the benchmark's workloads, which hold no async model workload yet
+(`ts/bench/frames.ts` is the `bytes/` route, not moq's). The
 codec's WASM route stays in the benchmark as the baseline of compiled Rust in a browser.
 
 The codec's differential harness is the pattern to repeat. The shared npm runtime
@@ -45,16 +52,21 @@ Decided with the maintainer on 2026-10-27, from a census of the model's 22 publi
 - The end-to-end work stays here: the model's roots, its differential harness, and the
   `frames.ts` workload. moq writes the binding files `model.toml` names, in its own tree.
 
-The census at the pin on 2026-11-07: 45 refusals. `Timestamp` alone refuses nothing, and
+The census at the pin on 2026-11-09: 41 refusals. `Timestamp` alone refuses nothing, and
 the [model fixture](/ts/README.md#tests)'s harness runs it against native moq-net at the
 pin; each case it adds as a type translates. Every other root reaches the rest of the
 model, all of it moq's, for its research quest: kio's `log.rs` reads bytes as its segments
 and retires them through crossbeam-epoch, whose tagged pointers and inline closures (36
 refusals) translation refuses for good, so moq rewrites or drops them, as it does the
-`unsafe` slice of `model/frame.rs`'s `Filled`. smallvec's union over a type parameter and
-raw parts (4) go once [smallvec maps into the runtime](/quest/m2/ts-model/smallvec.md)
-(decided with the maintainer on 2026-11-07, in the quest audit, under rule 2 of
-[m3's unsafe policy](/quest/m3/README.md); rejected: moq dropping smallvec).
+`unsafe` slice of `model/frame.rs`'s `Filled`. smallvec maps into the runtime, its
+`SmallVec` an `rs.Vec` (decided with the maintainer on 2026-11-07, in the quest audit,
+under rule 2 of [m3's unsafe policy](/quest/m3/README.md); rejected: moq dropping smallvec).
+
+Not all of the rest is moq's. moq-net tests identity with
+`std::ptr::eq(owner.as_ptr(), self)` on a `Weak` (`model/group/content.rs` at the pin),
+which is safe Rust, and translation maps `Arc::as_ptr` but refuses `Weak::as_ptr`. Map
+it here, as pointer identity already translates as JS identity; that is on the gate's
+path.
 
 Decided with the maintainer on 2026-11-04, from a census at the bumped pin
 (moq-dev/rust2#390): the refusals no quest owned became child quests, since finished.
@@ -85,7 +97,3 @@ Public API: the translator's output for moq-net's model.
 - moq-dev/moq: [rs2ts-model-subset](https://github.com/moq-dev/moq/blob/main/quest/m5/rs2ts-model-subset.md)
   lands: moq rewrites kio's `log.rs` and its own `unsafe` in safe Rust, or drops them from the
   model's path. moq defers it to its m5. Check by the model census at the pin.
-
-## Required
-
-- [smallvec maps into the runtime](/quest/m2/ts-model/smallvec.md) - `SmallVec` is the runtime's `rs.Vec`, so smallvec's 4 refusals go without moq dropping it

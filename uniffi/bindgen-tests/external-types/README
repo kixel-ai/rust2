@@ -1,4 +1,0 @@
-Separate crate for testing external types.
-
-This crate defines a bunch of external types and `uniffi-bindgen-tests` exports functions that use
-them.

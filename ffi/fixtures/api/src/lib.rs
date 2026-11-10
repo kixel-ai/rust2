@@ -8,8 +8,8 @@ use std::task::{Poll, Waker};
 use std::time::Duration;
 
 use bytes::Bytes;
-// Another crate's types, which the export follows this re-export to.
-pub use dep::{Area, Size};
+// Another crate's items, which the export follows this glob of its root to.
+pub use dep::*;
 
 /// The largest value a [`Counter`] reaches.
 pub const LIMIT: u64 = 1000;
@@ -255,6 +255,27 @@ impl Board {
 		ranked.sort_by_key(|(_, counter)| std::cmp::Reverse(counter.get()));
 		ranked.into_iter()
 	}
+}
+
+/// Points by name and the ids in use, as hang's renditions and moq-mux's selections: a map
+/// and a set, which cross as their items in order, each key once.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Atlas {
+	pub points: std::collections::BTreeMap<String, Point>,
+	pub ids: std::collections::BTreeSet<u32>,
+}
+
+impl Atlas {
+	/// It with `at` named `name`, replacing any point of that name.
+	pub fn with(mut self, name: &str, at: Point) -> Self {
+		self.points.insert(name.to_string(), at);
+		self
+	}
+}
+
+/// `text` as a port: another crate's error crosses as its message.
+pub fn port(text: &str) -> Result<u16, std::num::ParseIntError> {
+	text.parse()
 }
 
 /// A span: a record whose fields are tuples, one holding text.
@@ -954,6 +975,24 @@ pub fn walk(steps: u64, mut visit: impl FnMut(&Cursor) -> u64) -> u64 {
 	(0..steps).map(|at| visit(&Cursor { at })).sum()
 }
 
+/// An object no export returns but its own method, so C never holds one: left out of the
+/// bindings, with what takes it, and listed in the census.
+pub struct Lease(u8);
+
+impl Lease {
+	pub fn split(&mut self) -> Lease {
+		Lease(self.0)
+	}
+}
+
+/// What C can never call, since it never holds a `Lease`.
+pub fn release(lease: Lease) -> u8 {
+	lease.0
+}
+
+/// A generic type no export instantiates, so C never holds one either.
+pub struct Unnamed<T>(pub T);
+
 /// Each of `0..steps` passed to `visit`, which returns nothing; how many it visited.
 pub fn each(steps: u32, mut visit: impl FnMut(u32)) -> u32 {
 	(0..steps).for_each(&mut visit);
@@ -1339,6 +1378,24 @@ pub fn keep(kept: impl Kept) -> i32 {
 	kept.kept()
 }
 
+/// `kept`'s, or 0 without one: `K` exports at each type implementing `Kept`, and the
+/// parameter naming it at the option of each.
+pub fn kept_or<K: Kept>(kept: impl Into<Option<K>>) -> i32 {
+	kept.into().map_or(0, Kept::kept)
+}
+
+/// Implemented for what `Kept` is, as moq's `Boxable` is for each `Session`: a blanket impl,
+/// which C cannot implement apart, so a parameter it bounds exports at each type implementing
+/// what the impl requires.
+pub trait Keeper: Kept + Copy {}
+
+impl<K: Kept + Copy> Keeper for K {}
+
+/// As `keep`, through the blanket impl.
+pub fn keeper(keeper: impl Keeper) -> i32 {
+	keeper.kept()
+}
+
 /// A generic record only a constant names, which infers its instance.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Boxed<T> {
@@ -1397,6 +1454,44 @@ pub fn report<T: Copy + fmt::Debug, L: Log>(pair: Pair<T>, log: L) -> u32 {
 		.iter()
 		.filter(|side| log.log(1, &format!("{side:?}")))
 		.count() as u32
+}
+
+/// What a log kept, made from any log.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LogCount {
+	pub kept: u32,
+}
+
+/// A count, which C cannot implement as it needs `Copy`: a parameter it bounds exports at
+/// each type implementing it.
+pub trait Tallied: Copy {
+	fn tally(self) -> u32;
+}
+
+impl Tallied for LogCount {
+	fn tally(self) -> u32 {
+		self.kept
+	}
+}
+
+impl Tallied for Point {
+	fn tally(self) -> u32 {
+		self.x.unsigned_abs()
+	}
+}
+
+impl<L: Log> From<L> for LogCount {
+	fn from(log: L) -> Self {
+		Self {
+			kept: u32::from(log.log(3, "tally")),
+		}
+	}
+}
+
+/// What `log` kept, as each tally that converts from a log: `LogCount`, and not `Point`,
+/// which is `Tallied` too but converts from no log.
+pub fn tally<T: Tallied + From<L>, L: Log>(log: L) -> u32 {
+	T::from(log).tally()
 }
 
 /// A wrapped value, which only its impl of `Seed<u64>` at `Wrap<u32>` names: each
@@ -1644,6 +1739,39 @@ pub fn summed(points: impl IntoIterator<Item = Point>) -> Point {
 	points.into_iter().fold(Point::default(), |sum, p| sum.offset(p.x, p.y))
 }
 
+/// Bounds on a measure, as moq's `health::Limits<Duration>` is: a generic record whose
+/// instances are of types that map by role.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Limits<T> {
+	pub low: T,
+	pub high: T,
+}
+
+/// How far apart `limits` are: an instance at `Duration`, passed in.
+pub fn breadth(limits: Limits<Duration>) -> Duration {
+	limits.high.saturating_sub(limits.low)
+}
+
+/// `low` and `high` as limits: an instance at `Bytes`, returned.
+pub fn byte_limits(low: Bytes, high: Bytes) -> Limits<Bytes> {
+	Limits { low, high }
+}
+
+/// The parts joined, from anything that lends them for the call: a slice C lends.
+pub fn joined<'a, I: IntoIterator<Item = &'a Bytes>>(parts: I) -> Bytes {
+	parts.into_iter().flat_map(|part| part.iter().copied()).collect()
+}
+
+/// The first of `items`, a borrow of what C lends that is copied out before the call ends.
+pub fn first_of<'a, I: IntoIterator<Item = &'a String>>(items: I) -> Option<&'a String> {
+	items.into_iter().next()
+}
+
+/// How many bytes `reader` holds: bytes C lends for the call.
+pub fn read_len(mut reader: impl std::io::Read) -> u64 {
+	std::io::copy(&mut reader, &mut std::io::sink()).expect("a slice reads")
+}
+
 /// The length of the longest word, naming its iterator.
 pub fn longest<I>(words: I) -> usize
 where
@@ -1660,6 +1788,15 @@ pub fn encode<T: serde::Serialize>(value: &T) -> String {
 /// `doc` under `tag`, as a new document.
 pub fn tagged(doc: serde_json::Value, tag: &str) -> serde_json::Value {
 	serde_json::json!({ "tag": tag, "doc": doc })
+}
+
+/// `entries` with `tag` added, as hang's `extra` fields hold a JSON object's entries.
+pub fn entries(
+	mut entries: serde_json::Map<String, serde_json::Value>,
+	tag: &str,
+) -> serde_json::Map<String, serde_json::Value> {
+	entries.insert("tag".to_string(), tag.into());
+	entries
 }
 
 /// A site: every field is `pub`, but a URL is a handle C cannot copy, so it is an object

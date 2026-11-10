@@ -102,6 +102,14 @@ struct Chain<T> {
 	next: Option<Box<Chain<T>>>,
 }
 
+/// What an `if let` moves out of a temporary, beside variants whose rest the statement
+/// drops.
+enum Picked<'a, T> {
+	A(Logged<'a>),
+	B(T),
+	C(Option<T>),
+}
+
 /// The byte logged between drops, so where each happens shows.
 const MARK: u8 = 0xfe;
 
@@ -280,6 +288,37 @@ pub fn drops(kind: u8, data: &[u8], out: &mut Vec<u8>) {
 			log.borrow_mut().push(MARK);
 			drop(after);
 		}
+	}
+	out.extend(log.borrow().iter());
+}
+
+/// An `if let` that moves `A`'s value out of a temporary `make` makes, picked by `pick`, of
+/// a `Drop` struct, an `Option` of one, and a plain struct holding one, whose rest drops
+/// at the end of the statement.
+pub fn if_lets(kind: u8, data: &[u8], out: &mut Vec<u8>) {
+	let log = RefCell::new(Vec::new());
+	let pick = data.first().copied().unwrap_or(0);
+	let l = |id: u8| Logged(id, &log);
+	fn bind<'a, T>(make: impl Fn() -> Option<Picked<'a, T>>, log: &RefCell<Vec<u8>>) {
+		if let Some(Picked::A(x)) = make() {
+			log.borrow_mut().push(MARK);
+			drop(x);
+		}
+		log.borrow_mut().push(MARK);
+	}
+	fn picked<'a, T>(pick: u8, a: Logged<'a>, make: impl Fn() -> T) -> Option<Picked<'a, T>> {
+		match pick % 5 {
+			0 => None,
+			1 => Some(Picked::A(a)),
+			2 => Some(Picked::B(make())),
+			3 => Some(Picked::C(Some(make()))),
+			_ => Some(Picked::C(None)),
+		}
+	}
+	match kind % 3 {
+		0 => bind(|| picked(pick, l(0), || l(1)), &log),
+		1 => bind(|| picked(pick, l(0), || Some(l(2))), &log),
+		_ => bind(|| picked(pick, l(0), || Plain { u: l(3), n: pick }), &log),
 	}
 	out.extend(log.borrow().iter());
 }

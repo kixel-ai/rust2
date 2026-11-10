@@ -2,11 +2,12 @@
 
 ## Goal
 
-[rust2-ffi](/ffi/README.md) replaces [the UniFFI fork](/uniffi/README.md) for moq: it exports
-what moq's bindings need from moq's own crates, with no attributes and no hand-written wrapper
-beyond what the census shows is genuinely new API, and generates the languages moq ships on its
-C ABI. moq-ffi shrinks to that remainder. The fork stays in maintenance, building moq's bindings
-until then.
+moq can pin [rust2-ffi](/ffi/README.md) and switch its bindings to it: the exporter exports
+what moq's bindings need from moq's own crates, with no attributes, no config, and no
+hand-written wrapper beyond what the census shows is genuinely new API, in every language
+moq ships. It ends once every child has merged, the flake has an `ffi` package, and the
+root `README.md` lists the generators, which is what
+[moq's wait](https://github.com/moq-dev/moq/blob/main/quest/m3/rust2-exporter.md) checks.
 
 ## Plan
 
@@ -15,41 +16,68 @@ Decided with the maintainer on 2026-10-25, from the spike
 the fork's paused feature quests into it.
 
 Decided with the maintainer on 2026-10-27: this is an epic, with each item a child ranked by
-what the census refuses and what moq waits on first, then the runtime, then the generators.
-What stays here is the end-to-end: moq-ffi shrinks to its remainder and takes the stand-in
-package's place.
+what the census refuses and what moq waits on first.
 
-Every generator:
+Decided with the maintainer on 2026-11-09, in the quest audit:
+
+- ✅ The epic ends where moq can pin it. Rejected: ending with moq-ffi shrunk to its
+  remainder, which only [moq's switch](https://github.com/moq-dev/moq/blob/main/quest/m3/ffi-exporter.md)
+  does, and that waits on this epic, so each waited on the other; ending at a clean census
+  with the children below as a later epic, which would break the generated APIs after moq
+  adopts them. Swapping the stand-in package for the real moq-ffi is a pin bump after
+  moq's switch.
+- ✅ [Sessions on sans-IO QUIC](/quest/m3/session-quic.md) left the epic for m3, since it
+  waits on moq's m3 driver and would hold the epic open. Rejected: m2; staying in m1.
+- ✅ A binding's types are lossless, with checked conversions to and from the idiomatic
+  ones ([lossless](/quest/m1/ffi-export/lossless.md)). Rejected: idiomatic types whose
+  truncations and aborts become errors; today's mappings.
+- ✅ A failed run-time check raises the language's own error, and a Rust panic aborts
+  ([checks-raise](/quest/m1/ffi-export/checks-raise.md)). Rejected: catching panics at the
+  boundary; aborting on every failed check.
+- ✅ A type or future that is not `Send` exports, checked by thread
+  ([not-send](/quest/m1/ffi-export/not-send.md)). Rejected: a Rust-owned thread for every
+  such object; keeping the refusal.
+- ✅ No opt-out: `#[doc(hidden)]` items stay left out, as they are no part of a crate's API,
+  but no quest or PR recommends the attribute to get an item past the exporter, and moq
+  bans it ([moq's doc-hidden quest](https://github.com/moq-dev/moq/blob/main/quest/m2/api-shape/doc-hidden.md)).
+  An item C cannot take exports by a new rule, or is refused and its signature changes.
+  Rejected: `#[doc(hidden)]` as the opt-out; exporting hidden items too.
+
+The Swift, Python, Go, and Dart generators landed in
+[#406](https://github.com/moq-dev/rust2/pull/406), [#407](https://github.com/moq-dev/rust2/pull/407),
+[#411](https://github.com/moq-dev/rust2/pull/411), and [#422](https://github.com/moq-dev/rust2/pull/422),
+each generating the crate's own API in its language's idiom, as Kotlin does (decided with
+the maintainer on 2026-11-01). Only Python skips the C ABI, since a CPython extension calls
+about 40 times faster than `ctypes`; the others call C natively.
+
+Every generator, the [targets m3 plans](/quest/m3/README.md) included:
 
 - checks `<prefix>_contract()` against the header's contract when it loads, before any
-  other call, and fails loud on a mismatch;
-- is measured on the [binding benchmark](/bench/ffi/README.md);
-- keeps the C ABI's bulk and zero-copy payloads, with no per-byte loop on either side;
-- reports its generated size, raw and gzipped, against the fork's (Python 653 KiB, Kotlin
-  914 KiB, Swift 684 KiB for moq-ffi);
-- wraps the C ABI's futures in the language's native future. Those futures already take the
-  result in the poll that finishes them, so a cancel never loses a frame, cost three crossings
-  when ready at once, and reuse a repeated waker. The native future must latch a wake that
-  lands between `PENDING` and parking, prove no loss on cancel in a test that forces that
-  window, and pick a semantic for concurrent pollers. A hot read still makes a future handle
-  per read; measure it before adding a per-handle poll. Decided with the maintainer on
-  2026-10-27: async lands with each generator, not as its own quest.
-- drives each of moq's `Driver`s from the language's own event loop. Decided with the
-  maintainer on 2026-10-27: the C ABI exports the poll, with no generated thread and no
-  moq-tokio helpers, which would tie bindings to tokio. A binding holds one `kio::Waiter`
-  per driver, made from its waker, since what a poll registers lives only as long as its
-  waiter; it polls on each wake and at the deadline the poll returns, and frees the driver
-  to cancel it. Decided with the maintainer on 2026-10-27, for Go: a cancel ends only that
-  read and leaves the stream usable, as in Rust, since a cancelled C ABI future loses
-  nothing; moq's `go/wrapper/doc.go`, which ends the stream, changes with the generator.
-  Each driver runs on a goroutine that lives as long as its object, and a call's `ctx`
-  bounds only that call.
+  other call, and fails loud on a mismatch (done in all six);
+- keeps the C ABI's bulk and zero-copy payloads, with no per-byte loop on either side (done);
+- wraps the C ABI's futures in the language's native future (done). Those futures already
+  take the result in the poll that finishes them, so a cancel never loses a frame, cost three
+  crossings when ready at once, and reuse a repeated waker. The native future must latch a
+  wake that lands between `PENDING` and parking, prove no loss on cancel in a test that
+  forces that window, and pick a semantic for concurrent pollers. Decided with the
+  maintainer on 2026-10-27: async lands with each generator, not as its own quest.
+- drives each of moq's `Driver`s from the language's own event loop (done in all seven
+  `ffi/moq/moq.*`). Decided with the maintainer on 2026-10-27: the C ABI exports the poll,
+  with no generated thread and no moq-tokio helpers, which would tie bindings to tokio. A
+  binding holds one `kio::Waiter` per driver, made from its waker, since what a poll
+  registers lives only as long as its waiter; it polls on each wake and at the deadline the
+  poll returns, and frees the driver to cancel it. Decided with the maintainer on
+  2026-10-27, for Go: a cancel ends only that read and leaves the stream usable, as in
+  Rust, since a cancelled C ABI future loses nothing; moq's `go/wrapper/doc.go`, which ends
+  the stream, changes with the generator. Each driver runs on a goroutine that lives as
+  long as its object, and a call's `ctx` bounds only that call.
+- is measured, with its generated size raw and gzipped
+  ([bench](/quest/m1/ffi-export/bench.md) owns both, and the per-handle poll a hot read
+  may need).
 
-Decided with the maintainer on 2026-11-01: the Swift, Python, Go, and Dart generators are
-independent and unranked, and each generates the crate's own API in its language's idiom, as
-Kotlin does. Only Python skips the C ABI, since a CPython extension calls about 40 times faster
-than `ctypes`; the others call C natively. moq's packages switch to them in moq's own
-[quest](https://github.com/moq-dev/moq/blob/main/quest/m3/ffi-exporter.md).
+What stays here once every child has merged: the flake's `ffi` package, the root
+`README.md` listing the generators, and the generator rules above moved into
+`ffi/README.md`, since this file is deleted.
 
 Decided with the maintainer on 2026-11-02
 ([moq-dev/rust2#460](https://github.com/moq-dev/rust2/pull/460)): the RSS glibc's per-thread
@@ -62,4 +90,12 @@ names and defaults, and fails the export on a public item it cannot export.
 ## Required
 
 - [Every public item exports](/quest/m1/ffi-export/refusals/README.md) - the census lists no refusals and `ffi.toml` is deleted, so the exporter reads no config
-- [Sessions on sans-IO QUIC](/quest/m1/ffi-export/session-quic.md) - bindings move UDP datagrams and drive the session's poll themselves, over moq's runtime-free QUIC driver once it lands
+- [Export for a target](/quest/m1/ffi-export/target.md) - `--target` exports the API that target compiles, so `cfg`-gated items are right on Android, iOS, Windows, and wasm
+- [Lossless binding types](/quest/m1/ffi-export/lossless.md) - durations, addresses, paths, text, and integers cross exactly, with checked conversions to the idiomatic types
+- [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - a failed borrow, move, or close check is the language's own error from one accounting, and only a panic aborts
+- [Types that are not Send export](/quest/m1/ffi-export/not-send.md) - a `!Send` object or future is checked by thread, with an owner thread where a language has none
+- [No name clash fails an export](/quest/m1/ffi-export/names.md) - every generator names every item by rule, so no error tells a crate to rename or exclude one
+- [The glue builds what the export checked](/quest/m1/ffi-export/reproducible.md) - the generated crate carries its lockfile, and a discriminant or nightly-only item it cannot build is refused at export
+- [Swift handles are non-copyable](/quest/m1/ffi-export/swift-noncopyable.md) - a call on a moved handle or a lent handle kept past its call is a Swift compile error, not a trap
+- [C++ checks ownership at compile time](/quest/m1/ffi-export/cpp-attributes.md) - typestate and lifetime attributes and `api::borrow<T>` make Clang refuse what the run-time checks catch
+- [The exporter on the binding benchmark](/quest/m1/ffi-export/bench.md) - committed call, throughput, and size numbers per language against the Rust floor, whose report plans the speed work

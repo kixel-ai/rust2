@@ -1,23 +1,19 @@
 # The list's tail is not `Clone`, so its getter has no copy to return, one instance leaves
-# out a method the others keep, `Seed` is generic, so no callback implements it, `Payload`
-# and `Kept` consume themselves, which no callback can, `Timed`, `Sample`, `Queued`,
-# `Tick`, `Tock`, `Scoped`, `Rooted`, `Copied`, `Stored`, and `Layer` only convert, so
-# their parameters take what converts into them, and
+# out a method the others keep, `Timed`, `Sample`, `Queued`, `Tick`, `Tock`, `Scoped`,
+# `Rooted`, `Copied`, `Stored`, and `Layer` only convert, so their parameters take what
+# converts into them, and
 # `field@` leaves out a field alone where a method takes its path, as `Retry`'s and
 # `Slot<u8>`'s do. `Slot<u32>` has no such method, so its path alone names its field. A
 # function instance is left out by its path, as `depth_past` at `polar::Point` is.
 exclude = [
     "Copied",
-    "Kept",
     "Layer",
     "Node::next",
     "Pair<u8, api::Size>::swap",
-    "Payload",
     "Queued",
     "Rooted",
     "Sample",
     "Scoped",
-    "Seed",
     "Slot<u32>::value",
     "field@Retry::delay",
     "field@Slot<u8>::value",

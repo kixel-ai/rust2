@@ -68,7 +68,7 @@ bench checkout="": (moq checkout)
     kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/bench/export.kt -d target/bench-kt
     swift=true
     if [ "{{ os() }}-{{ arch() }}" = linux-aarch64 ]; then
-        echo "skipping the Swift: nixpkgs builds no Swift for aarch64-linux (quest/m2/uniffi-swift-arm.md)" >&2
+        echo "skipping the Swift: nixpkgs builds no Swift for aarch64-linux (quest/m2/swift-arm.md)" >&2
         swift=false
     else
         {{ quote(just_executable()) }} swift-module -O
@@ -103,7 +103,7 @@ moq checkout="": (moq-cpp checkout)
     mypy --strict --python-version 3.11 --cache-dir target/mypy "$out/python/moq.py"
     pyright -p tests/pyright.json "$out/python/moq.py"
     if [ "{{ os() }}-{{ arch() }}" = linux-aarch64 ]; then
-        echo "skipping moq/moq.swift: nixpkgs builds no Swift for aarch64-linux (quest/m2/uniffi-swift-arm.md)" >&2
+        echo "skipping moq/moq.swift: nixpkgs builds no Swift for aarch64-linux (quest/m2/swift-arm.md)" >&2
     else
         {{ quote(just_executable()) }} moq-swift-run
     fi

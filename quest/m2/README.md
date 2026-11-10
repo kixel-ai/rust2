@@ -2,9 +2,8 @@
 
 ## Goal
 
-Research work with a named consumer that is not waiting on it yet: the
-TypeScript translator's spikes and features, and the UniFFI fork's gated or
-speculative work.
+Research work with a named consumer that is not waiting on it yet: rust2-wasm, moq's
+browser route, and the TypeScript translator that has to beat it.
 
 ## Plan
 
@@ -16,6 +15,10 @@ Decided with the maintainer on 2026-10-24: the translator's output ranks correct
 then speed, then the size of the consumer's final tree-shaken, minified JS; readability
 is not a goal, and types must be solid at the API boundary ([design](/ts/README.md#design)).
 
+Decided with the maintainer on 2026-11-09, in the quest audit: WASM ships, and the
+translator must beat it. [rust2-wasm](/quest/m2/wasm/README.md) is the browser route and
+holds the gate; until it reports, translator work is only what the gate needs.
+
 Decided with the maintainer on 2026-10-26: the translator targets browsers. A native
 runtime such as Node or Bun calls Rust through [rust2-ffi](/ffi/README.md), so Node and
 Bun matter only as proxies for V8 and JavaScriptCore, and a speed call that splits them
@@ -26,6 +29,6 @@ The fork's feature quests folded into the [exporter](/quest/m1/ffi-export/README
 
 ## Required
 
-- [Translate moq-net's model to TypeScript](/quest/m2/ts-model/README.md) - the model translates with kio and moq-pattern, as moq's browser route
-- [Waiting: Swift 6.4 in nixpkgs-unstable](/quest/m2/uniffi-swift-arm.md) - the nightly UniFFI fixtures move back to arm
-- [Waiting: ubrn reads UniFFI 0.32](/quest/m2/ubrn-release.md) - the binding benchmark's browser runner pins a ubrn release, not an open PR
+- [rust2-wasm](/quest/m2/wasm/README.md) - a crate's `pub` API in the browser through the exporter's wasm32 target, and the gate the translator has to pass
+- [Translate moq-net's model to TypeScript](/quest/m2/ts-model/README.md) - the model translates with kio and moq-pattern, for the gate to compare
+- [Waiting: Swift 6.4 in nixpkgs-unstable](/quest/m2/swift-arm.md) - rust2-ffi stops skipping its Swift on aarch64-linux

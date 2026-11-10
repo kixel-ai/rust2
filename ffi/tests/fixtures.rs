@@ -612,7 +612,7 @@ fn kotlin_contract(kotlin: &Path) -> u64 {
 #[test]
 #[cfg_attr(
 	all(target_os = "linux", target_arch = "aarch64"),
-	ignore = "nixpkgs builds no Swift for aarch64-linux: quest/m2/uniffi-swift-arm.md"
+	ignore = "nixpkgs builds no Swift for aarch64-linux: quest/m2/swift-arm.md"
 )]
 fn api_swift() {
 	let api = api();
@@ -1123,7 +1123,14 @@ fn relative_target() {
 		"the census failed:\n{}",
 		String::from_utf8_lossy(&output.stderr)
 	);
-	assert!(census.join("api-fixture.md").exists());
+	let text = std::fs::read_to_string(census.join("api-fixture.md")).unwrap();
+	for line in [
+		"- `Lease`: object no export returns",
+		"- `release`: type C never holds `Lease`",
+		"- `Unnamed`: generic type no export instantiates",
+	] {
+		assert!(text.contains(line), "the census lists no `{line}`:\n{text}");
+	}
 	assert!(dir.join("build").exists());
 }
 

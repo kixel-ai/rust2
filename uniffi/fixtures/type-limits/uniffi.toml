@@ -1,2 +1,0 @@
-[bindings.python]
-cdylib_name = "uniffi_type_limits"

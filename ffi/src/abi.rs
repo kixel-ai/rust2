@@ -81,7 +81,7 @@ fn owned(ty: &Type) -> Type {
 		Type::Ref(_, inner) => owned(inner),
 		Type::Option(inner) => Type::Option(Box::new(owned(inner))),
 		Type::Box(inner) => Type::Box(Box::new(owned(inner))),
-		Type::List(inner) => Type::List(Box::new(owned(inner))),
+		Type::List(c, inner) => Type::List(*c, Box::new(owned(inner))),
 		Type::Tuple(elements) => Type::Tuple(elements.iter().map(owned).collect()),
 		ty => ty.clone(),
 	}
@@ -357,7 +357,7 @@ impl<'a> Abi<'a> {
 			Type::Duration => "duration".to_string(),
 			Type::SocketAddr(_) => "socket_addr".to_string(),
 			Type::Option(inner) => format!("option_{}", self.key(inner)),
-			Type::List(inner) => format!("vec_{}", self.key(inner)),
+			Type::List(_, inner) => format!("vec_{}", self.key(inner)),
 			Type::Tuple(elements) => {
 				let keys: Vec<String> = elements.iter().map(|e| self.key(e)).collect();
 				format!("tuple_{}", keys.join("_"))
@@ -399,7 +399,7 @@ impl<'a> Abi<'a> {
 	/// Whether `Option<ty>` crosses as `ty`, with a null pointer for `None`: a handle, a
 	/// buffer, or a `Vec`'s array.
 	pub fn nullable(ty: &Type) -> bool {
-		matches!(ty.base(), Type::Object(_) | Type::List(_)) || Self::is_buf(ty)
+		matches!(ty.base(), Type::Object(_) | Type::List(..)) || Self::is_buf(ty)
 	}
 
 	/// The C type of `ty` as a value: a parameter, field, or what a function returns.
@@ -415,7 +415,7 @@ impl<'a> Abi<'a> {
 			Type::Duration => Ty::Duration,
 			Type::SocketAddr(_) => Ty::SocketAddr,
 			Type::Waker => Ty::Waker,
-			Type::List(inner) => Ty::Struct(self.list(inner)),
+			Type::List(_, inner) => Ty::Struct(self.list(inner)),
 			Type::Option(inner) => match Self::nullable(inner) {
 				true => self.ty(inner),
 				false => Ty::Struct(self.option(inner)),
@@ -706,7 +706,7 @@ impl<'a> Abi<'a> {
 					}
 					stack.push(inner);
 				}
-				Type::List(inner) => {
+				Type::List(_, inner) => {
 					// A returned `Vec<&T>` holds clones, which its free frees.
 					lists.insert(self.list(inner), owned(inner));
 					stack.push(inner);

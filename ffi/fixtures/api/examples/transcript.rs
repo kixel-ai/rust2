@@ -120,6 +120,25 @@ fn main() {
 		.map(|(name, counter)| format!("{name} {} {}", counter.name(), counter.get()))
 		.collect();
 	println!("ranked {}", ranked.join(", "));
+	let atlas = api::Atlas {
+		points: [("b", 1, 1), ("ab", 2, 3), ("b", 4, 4)]
+			.into_iter()
+			.map(|(name, x, y)| (name.to_string(), Point { x, y }))
+			.collect(),
+		ids: [3, 1, 3].into_iter().collect(),
+	}
+	.with("c", Point { x: 5, y: 6 });
+	let points: Vec<String> = (atlas.points.iter())
+		.map(|(name, p)| format!("{name} {} {}", p.x, p.y))
+		.collect();
+	let ids: Vec<String> = atlas.ids.iter().map(u32::to_string).collect();
+	println!("atlas {}; ids {}", points.join(", "), ids.join(" "));
+	for text in ["80", "x"] {
+		match api::port(text) {
+			Ok(port) => println!("port {port}"),
+			Err(e) => println!("port err {e}"),
+		}
+	}
 	let span = api::Span {
 		bounds: (2, 10),
 		named: Some(("s".to_string(), Shape::Square)),
@@ -374,6 +393,13 @@ fn main() {
 	println!("cross {} outer {}", api::cross(left, right), api::Outer::new(4).get());
 	println!("kept {} boxed {}", api::kept(Point { x: 1, y: -2 }), api::BOXED.value);
 	println!("keep {}", api::keep(Point { x: 1, y: -2 }));
+	let five = Point { x: 5, y: 2 };
+	println!(
+		"kept or {} {} keeper {}",
+		api::kept_or(five),
+		api::kept_or::<Point>(None),
+		api::keeper(five)
+	);
 	let sides = Pair { left: 2u32, right: 5 };
 	println!("apply {}", api::apply(sides, |side| side * 3));
 	println!("report {}", api::report(sides, Print));
@@ -465,10 +491,39 @@ fn main() {
 		api::longest(["a".to_string(), "abc".to_string()]),
 		api::longest([])
 	);
+	let words = ["a".to_string(), "b".to_string()];
+	println!("first of {:?} {:?}", api::first_of(&words), api::first_of(&[]));
+	let limits = api::byte_limits(Bytes::from_static(b"a"), Bytes::from_static(b"bc"));
+	let waits = api::Limits {
+		low: std::time::Duration::from_millis(5),
+		high: std::time::Duration::from_secs(2),
+	};
+	println!(
+		"limits {} {} breadth {}",
+		String::from_utf8_lossy(&limits.low),
+		String::from_utf8_lossy(&limits.high),
+		api::breadth(waits).as_millis()
+	);
+	let parts = [Bytes::from_static(b"ab"), Bytes::new(), Bytes::from_static(b"c")];
+	println!(
+		"joined {} {} read {}",
+		String::from_utf8_lossy(&api::joined(&parts)),
+		api::joined(&[]).len(),
+		api::read_len(&b"hello"[..])
+	);
 	let doc: serde_json::Value = r#"{"b": [1, 2.5, null], "a": "\u00e9"}"#.parse().expect("a JSON document");
 	println!("json {}", api::encode(&doc));
 	println!("timed text {}", api::timed_text(&doc));
 	println!("tagged {}", api::tagged(doc, "t"));
+	let entries = api::entries(
+		[("b", "[1]"), ("a", "2")]
+			.into_iter()
+			.map(|(key, text)| (key.to_string(), text.parse().expect("a JSON document")))
+			.collect(),
+		"t",
+	);
+	let entries: Vec<String> = entries.iter().map(|(key, value)| format!("{key} {value}")).collect();
+	println!("entries {}", entries.join(", "));
 	match "{\"a\":".parse::<serde_json::Value>() {
 		Ok(doc) => println!("json parse {doc}"),
 		Err(err) => println!("json parse err {err}"),

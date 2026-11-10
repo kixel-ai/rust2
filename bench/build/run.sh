@@ -200,9 +200,8 @@ record_host() {
 
 # Clones the corpus at its pinned rev, undoing edits an interrupted run left behind.
 checkout() {
-    local name=$1 dir=$2 rev lock
+    local name=$1 dir=$2 rev
     rev=$(field corpus "$name" .rev)
-    lock=$(field corpus "$name" .lock)
     if [[ ! -d $dir/.git ]]; then
         git init -q "$dir"
         git -C "$dir" remote add origin "$(field corpus "$name" .git)"
@@ -213,25 +212,21 @@ checkout() {
     fi
     git -C "$dir" reset -q --hard "$rev"
     git -C "$dir" clean -qfd
-    [[ -z $lock ]] || cp "$bench/$lock" "$dir/Cargo.lock"
     (cd "$dir" && PATH=$stable_path cargo fetch --locked -q)
 }
 
-# Fails if a crate in the build breaks the corpus's rule. Both forbid a `links`
-# key; `pure` also forbids any build script, `no-c` only the crates that compile C.
-check_graph() { # corpus rule cargo-args...
-    local name=$1 rule=$2 tree found
-    shift 2
+# Fails if a crate in the build has a `links` key or compiles C with cc or cmake.
+check_no_c() { # corpus cargo-args...
+    local name=$1 tree found
+    shift
     tree=$(cargo tree --locked --offline "$@" -e normal,build --prefix none -f '{p}' |
         awk '{ sub(/^v/, "", $2); print $1 " " $2 }' | sort -u | jq -R . | jq -s .)
-    found=$(cargo metadata --locked --offline --format-version 1 | jq -r --argjson tree "$tree" --arg rule "$rule" '
+    found=$(cargo metadata --locked --offline --format-version 1 | jq -r --argjson tree "$tree" '
 		.packages[]
 		| select(("\(.name) \(.version)") as $k | $tree | index($k))
-		| select(.links != null or if $rule == "pure"
-			then any(.targets[]; .kind | index("custom-build"))
-			else .name == "cc" or .name == "cmake" end)
+		| select(.links != null or .name == "cc" or .name == "cmake")
 		| "\(.name) \(.version)"')
-    [[ -z $found ]] || die "corpus $name is marked $rule but builds: $(tr '\n' ' ' <<<"$found")"
+    [[ -z $found ]] || die "corpus $name is marked no-c but builds: $(tr '\n' ' ' <<<"$found")"
 }
 
 # Enters a variant's toolchain, flags, and target directory for the cargo calls that
@@ -547,11 +542,9 @@ for corpus in "${corpora[@]}"; do
     dir=$work/src/$corpus
     checkout "$corpus" "$dir"
     mapfile -t args < <(jq -r --arg n "$corpus" '.corpus[] | select(.name == $n) | .args[]' <<<"$config")
-    for rule in pure no-c; do
-        if [[ $(field corpus "$corpus" ".\"$rule\"") == true ]]; then
-            (cd "$dir" && PATH=$stable_path check_graph "$corpus" "$rule" "${args[@]}")
-        fi
-    done
+    if [[ $(field corpus "$corpus" '."no-c"') == true ]]; then
+        (cd "$dir" && PATH=$stable_path check_no_c "$corpus" "${args[@]}")
+    fi
     bench_corpus "$corpus" "$dir"
     # A subshell keeps the nightly toolchain and flags from leaking into the next corpus.
     ((attribute == 0)) || (attribute "$corpus" "$dir")

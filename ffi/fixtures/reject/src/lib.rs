@@ -2,9 +2,6 @@
 #![feature(allocator_api, pattern)]
 use std::collections::HashMap;
 
-/// A generic type.
-pub struct Wrap<T>(pub T);
-
 /// A tuple of references taken: C lends nothing inside a value.
 pub fn pair(pair: (&str, u8)) -> u8 {
 	pair.1
@@ -124,15 +121,6 @@ impl<'a> Text<'a> {
 /// itself.
 pub fn either(text: Option<&str>) -> usize {
 	text.map_or(0, str::len)
-}
-
-/// An object no export returns but its own method, so C never holds one.
-pub struct Lease(u8);
-
-impl Lease {
-	pub fn split(&mut self) -> Lease {
-		Lease(self.0)
-	}
 }
 
 /// A record, a type of the facade's own.
@@ -503,9 +491,63 @@ pub async fn eventually() -> std::vec::IntoIter<u8> {
 	Vec::new().into_iter()
 }
 
-/// A callback returning an iterator, which C would have to make.
+/// A callback returning an iterator, which C would have to make, so C cannot implement it.
 pub trait Source: Send + Sync {
 	fn items(&self) -> std::vec::IntoIter<u8>;
+}
+
+/// A count, which C cannot implement as it needs `Copy`.
+pub trait Tallied: Copy {
+	fn tally(self) -> u32;
+}
+
+impl Tallied for u32 {
+	fn tally(self) -> u32 {
+		self
+	}
+}
+
+/// What a tally counts, which C implements.
+pub trait Measured {
+	fn measure(&self) -> u32;
+}
+
+/// A tally made from `counted`, though no type implementing `Tallied` converts from one.
+pub fn tallied<T: Tallied + From<C>, C: Measured>(counted: C) -> u32 {
+	T::from(counted).tally()
+}
+
+/// How many items `source` has: a trait object C cannot make.
+pub fn drain(source: Box<dyn Source>) -> usize {
+	source.items().count()
+}
+
+/// The sum of items borrowed forever, which a slice C lends for the call cannot be.
+pub fn summed_forever<I: IntoIterator<Item = &'static u32>>(items: I) -> u32 {
+	items.into_iter().sum()
+}
+
+/// Items `text` could keep, as `retext` keeps its borrow.
+pub fn retext_last<'a, I: IntoIterator<Item = &'a String>>(text: &mut Text<'a>, items: I) {
+	if let Some(item) = items.into_iter().last() {
+		text.0 = item;
+	}
+}
+
+/// Items outliving `text`'s borrow, which is `'static` in a handle, so they are too.
+pub fn outlast<'a, 'b: 'a, I: IntoIterator<Item = &'b String>>(text: &mut Text<'a>, items: I) {
+	if let Some(item) = items.into_iter().last() {
+		text.0 = item;
+	}
+}
+
+/// Items a text taken by value could keep, once its parameter is chosen as a handle.
+pub fn retext_into<'a, T: Into<Text<'a>>, I: IntoIterator<Item = &'a String>>(text: T, items: I) -> usize {
+	let mut text = text.into();
+	if let Some(item) = items.into_iter().last() {
+		text.0 = item;
+	}
+	text.0.len()
 }
 
 /// One byte forever.
@@ -601,6 +643,12 @@ pub fn values() -> std::collections::btree_map::IntoValues<u8, u8> {
 	std::collections::BTreeMap::new().into_values()
 }
 
+/// How many floats a set holds, which Rust could not build from C's floats, as they are
+/// not `Ord`.
+pub fn floats(set: std::collections::BTreeSet<f64>) -> usize {
+	set.len()
+}
+
 /// As many zeros as the caller asks, held nowhere until made.
 pub fn zeros(n: usize) -> std::iter::RepeatN<u8> {
 	std::iter::repeat_n(0, n)
@@ -685,3 +733,12 @@ pub fn halves() -> impl Iterator<Item = &'static str> {
 pub fn mixed(a: Option<((u8, u16), u32)>, b: Option<((u8, u16, u32),)>) -> bool {
 	a.is_some() && b.is_some()
 }
+
+/// Another crate whole, whose every release would change this one's API.
+pub use dep;
+
+/// The same crate whole, by another name.
+pub use ::dep as renamed;
+
+/// A crate whole, which the config excludes, so nothing refuses it.
+pub use ::dep as Shed;
