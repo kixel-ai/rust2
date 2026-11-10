@@ -688,3 +688,10 @@ pub use ::dep as renamed;
 
 /// A crate whole, which the config excludes, so nothing refuses it.
 pub use ::dep as Shed;
+
+/// A plain enum whose discriminant C's `int32_t` cannot hold.
+#[repr(i64)]
+pub enum Wide {
+	Small = 1,
+	Large = 1 << 40,
+}

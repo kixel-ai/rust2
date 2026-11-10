@@ -84,13 +84,12 @@ fn api() -> &'static Api {
 			"exporting failed:\n{}",
 			String::from_utf8_lossy(&output.stderr)
 		);
-		// The workspace's lockfile pins what the export depends on.
-		std::fs::copy(manifest_dir().join("Cargo.lock"), out.join("Cargo.lock")).unwrap();
 		let target = scratch().join("api").join("glue");
 		let build = |feature: &str| {
 			run(cargo()
 				.arg("build")
 				.arg("--quiet")
+				.arg("--locked")
 				.arg("--manifest-path")
 				.arg(out.join("Cargo.toml"))
 				.arg("--target-dir")
@@ -363,7 +362,7 @@ fn api_android() {
 	run(cargo()
 		.args(["ndk", "--target", &abi, "--platform", "24", "--output-dir"])
 		.arg(dir.join("lib"))
-		.args(["build", "--quiet", "--manifest-path"])
+		.args(["build", "--quiet", "--locked", "--manifest-path"])
 		.arg(api.out.join("Cargo.toml"))
 		.arg("--target-dir")
 		.arg(scratch().join("api").join("glue"))
@@ -1322,7 +1321,7 @@ fn lookalike() {
 		String::from_utf8_lossy(&output.stderr)
 	);
 	run(cargo()
-		.args(["build", "--quiet", "--manifest-path"])
+		.args(["build", "--quiet", "--locked", "--manifest-path"])
 		.arg(out.join("Cargo.toml"))
 		.arg("--target-dir")
 		.arg(package.join("glue"))

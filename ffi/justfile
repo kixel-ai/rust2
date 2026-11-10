@@ -208,8 +208,6 @@ moq-export checkout="": (standin checkout)
     set -euo pipefail
     out=target/export/moq
     cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --out "$out"
-    # The lockfile the check resolved with pins what the export depends on.
-    cp target/moq-ffi/Cargo.lock "$out/Cargo.lock"
     # A later nightly makes this future-compat lint a hard error; fail on it in moq's crates
     # and the glue now, while the pin can still move. rustc prints the native libraries.
     export RUSTFLAGS="-D recursion_depth_exceeding_limit --print=native-static-libs"
@@ -220,10 +218,10 @@ moq-export checkout="": (standin checkout)
         macos) lib=libmoq.dylib ;;
         *) lib=libmoq.so ;;
     esac
-    cargo build --quiet --release --manifest-path "$out/Cargo.toml" --features python
+    cargo build --locked --quiet --release --manifest-path "$out/Cargo.toml" --features python
     mv "$out/target/release/$lib" "$out/python/$lib"
     # The library the C programs link, and the shared one Kotlin and Dart load.
-    cargo build --quiet --release --manifest-path "$out/Cargo.toml" --features kotlin,dart 2>&1 | tee target/moq-build.log
+    cargo build --locked --quiet --release --manifest-path "$out/Cargo.toml" --features kotlin,dart 2>&1 | tee target/moq-build.log
     sed -n 's/^note: native-static-libs: //p' target/moq-build.log > target/moq-native
 
 # Write target/moq-ffi, a facade re-exporting what moq-ffi ships from moq's crates, from the pinned moq revision or a checkout: the export follows its re-exports, as it will moq-ffi's remainder's.
