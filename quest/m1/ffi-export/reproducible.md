@@ -13,8 +13,11 @@ Found in the 2026-11-09 quest audit:
 
 - `--out` writes no `Cargo.lock`; only `ffi/justfile` copies one. A build that resolves a
   newer dependency can reach the wildcard arm the glue emits for a `#[non_exhaustive]`
-  enum, which panics and so aborts (`ffi/src/glue.rs`). Write the lockfile the check
-  resolved beside the manifest, as the manifest already carries its `[patch]`es.
+  enum, which panics and so aborts (`ffi/src/glue.rs`). Write a lockfile beside the
+  manifest, as the manifest already carries its `[patch]`es: resolved for the generated
+  manifest, which adds dependencies of its own (`smallvec`, `pyo3-ffi`), with every
+  package the check resolved at the version it checked, or the export fails. The recipes
+  and `ffi/README.md` then build it `--locked`.
 - An enum's discriminants are collected as `i128` (`ffi/src/collect.rs`) and lifted as
   `i32` (`glue.rs`, `c.rs`), with no refusal for one out of range, so a wide `repr`
   fails when the glue builds. Refuse it at export, at the variant's span.

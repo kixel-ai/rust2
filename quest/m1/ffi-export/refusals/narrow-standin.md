@@ -34,3 +34,13 @@ Narrowing drops moq-tokio's `rustls`, `notify`,
 [epic](/quest/m1/ffi-export/refusals/README.md) and its children from the new census.
 
 Public API: the stand-in's exports, which the census and the bindings' fixtures read.
+
+## Waiting
+
+- Maintainer: how the stand-in closes over what its session items name, from
+  [#683](https://github.com/moq-dev/rust2/pull/683), since the Goal's list alone fails
+  `just ffi moq`. Options: add those types and `origin::spawn` to the list, keeping the CLI
+  helpers and listener types out (recommended: a stand-in that cannot construct a client
+  is not the session side); or keep the list and rewrite the seven fixtures to it, losing
+  their coverage of client config, server config, and origin spawn. An agent cannot pick:
+  it changes which of moq-tokio's API bindings get.
