@@ -830,7 +830,7 @@ impl<'a> Header<'a> {
 						"\tbool operator==(const {name} &other) const;\n\tbool operator!=(const {name} &other) const {{\n\t\treturn !(*this == other);\n\t}}"
 					));
 					self.def(format!(
-						"inline bool {name}::operator==(const {name} &other) const {{\n{}\tauto a = {};\n\tauto b = {};\n\treturn ::{c}_eq(&a, &b);\n}}\n",
+						"inline bool {name}::operator==(const {name} &other) const {{\n{}\tauto c_a_ = {};\n\tauto c_b_ = {};\n\treturn ::{c}_eq(&c_a_, &c_b_);\n}}\n",
 						self.scope([ty]),
 						self.lower(ty, "*this"),
 						self.lower(ty, "other"),

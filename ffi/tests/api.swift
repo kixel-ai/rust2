@@ -456,6 +456,8 @@ func script() {
 	// A bound that outlives the call takes a value, and an instance only a constant names.
 	print("kept \(keptPoint(Point(x: 1, y: -2))) boxed \(BOXED.value)")
 	print("keep \(keepPoint(Point(x: 1, y: -2)))")
+	let five = Point(x: 5, y: 2)
+	print("kept or \(keptOrPoint(five)) \(keptOrPoint(nil)) keeper \(keeperPoint(five))")
 	// Inferred instances taking a lent closure and a foreign implementation, and one only
 	// its impl of a trait names.
 	let sides = PairU32(left: 2, right: 5)
@@ -520,6 +522,14 @@ func script() {
 	let noneSum = summed([])
 	print("summed \(sum.x) \(sum.y) \(noneSum.x) \(noneSum.y)")
 	print("longest \(longest(["a", "abc"])) \(longest([]))")
+	print("first of Some(\"\(firstOf(["a", "b"])!)\") \(firstOf([]) ?? "None")")
+	let limits = byteLimits(Data("a".utf8), Data("bc".utf8))
+	let waits = breadth(LimitsDuration(low: .milliseconds(5), high: .seconds(2)))
+	let low = String(decoding: limits.low, as: UTF8.self)
+	let high = String(decoding: limits.high, as: UTF8.self)
+	print("limits \(low) \(high) breadth \(waits.components.seconds * 1000 + waits.components.attoseconds / 1_000_000_000_000_000)")
+	let parts = String(decoding: Api.joined([Data("ab".utf8), Data(), Data("c".utf8)]), as: UTF8.self)
+	print("joined \(parts) \(Api.joined([]).count) read \(readLen(Data("hello".utf8)))")
 	let doc = try! Json.parse(#"{"b": [1, 2.5, null], "a": "é"}"#)
 	print("json \(encode(doc))")
 	print("timed text \(timedText(doc))")

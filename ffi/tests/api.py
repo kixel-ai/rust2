@@ -410,6 +410,8 @@ def script():
 	# A bound that outlives the call takes a value, and an instance only a constant names.
 	print(f"kept {api.kept_point(api.Point(1, -2))} boxed {api.BOXED.value}")
 	print(f"keep {api.keep_point(api.Point(1, -2))}")
+	five = api.Point(5, 2)
+	print(f"kept or {api.kept_or_point(five)} {api.kept_or_point(None)} keeper {api.keeper_point(five)}")
 	# Inferred instances taking a lent closure and a foreign implementation, and one only
 	# its impl of a trait names.
 	sides = api.PairU32(2, 5)
@@ -476,6 +478,13 @@ def script():
 	none_summed = api.summed([])
 	print(f"summed {summed.x} {summed.y} {none_summed.x} {none_summed.y}")
 	print(f"longest {api.longest(['a', 'abc'])} {api.longest([])}")
+	print(f'first of Some("{api.first_of(["a", "b"])}") {api.first_of([]) or "None"}')
+	limits = api.byte_limits(b'a', b'bc')
+	waits = api.LimitsDuration(datetime.timedelta(milliseconds=5), datetime.timedelta(seconds=2))
+	breadth = api.breadth(waits) // datetime.timedelta(milliseconds=1)
+	print(f"limits {bytes(limits.low).decode()} {bytes(limits.high).decode()} breadth {breadth}")
+	joined = bytes(api.joined([b'ab', b'', b'c'])).decode()
+	print(f"joined {joined} {len(api.joined([]))} read {api.read_len(b'hello')}")
 	doc = api.Json.parse('{"b": [1, 2.5, null], "a": "é"}')
 	print(f"json {api.encode(doc)}")
 	print(f"timed text {api.timed_text(doc)}")

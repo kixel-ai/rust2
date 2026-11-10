@@ -491,9 +491,63 @@ pub async fn eventually() -> std::vec::IntoIter<u8> {
 	Vec::new().into_iter()
 }
 
-/// A callback returning an iterator, which C would have to make.
+/// A callback returning an iterator, which C would have to make, so C cannot implement it.
 pub trait Source: Send + Sync {
 	fn items(&self) -> std::vec::IntoIter<u8>;
+}
+
+/// A count, which C cannot implement as it needs `Copy`.
+pub trait Tallied: Copy {
+	fn tally(self) -> u32;
+}
+
+impl Tallied for u32 {
+	fn tally(self) -> u32 {
+		self
+	}
+}
+
+/// What a tally counts, which C implements.
+pub trait Measured {
+	fn measure(&self) -> u32;
+}
+
+/// A tally made from `counted`, though no type implementing `Tallied` converts from one.
+pub fn tallied<T: Tallied + From<C>, C: Measured>(counted: C) -> u32 {
+	T::from(counted).tally()
+}
+
+/// How many items `source` has: a trait object C cannot make.
+pub fn drain(source: Box<dyn Source>) -> usize {
+	source.items().count()
+}
+
+/// The sum of items borrowed forever, which a slice C lends for the call cannot be.
+pub fn summed_forever<I: IntoIterator<Item = &'static u32>>(items: I) -> u32 {
+	items.into_iter().sum()
+}
+
+/// Items `text` could keep, as `retext` keeps its borrow.
+pub fn retext_last<'a, I: IntoIterator<Item = &'a String>>(text: &mut Text<'a>, items: I) {
+	if let Some(item) = items.into_iter().last() {
+		text.0 = item;
+	}
+}
+
+/// Items outliving `text`'s borrow, which is `'static` in a handle, so they are too.
+pub fn outlast<'a, 'b: 'a, I: IntoIterator<Item = &'b String>>(text: &mut Text<'a>, items: I) {
+	if let Some(item) = items.into_iter().last() {
+		text.0 = item;
+	}
+}
+
+/// Items a text taken by value could keep, once its parameter is chosen as a handle.
+pub fn retext_into<'a, T: Into<Text<'a>>, I: IntoIterator<Item = &'a String>>(text: T, items: I) -> usize {
+	let mut text = text.into();
+	if let Some(item) = items.into_iter().last() {
+		text.0 = item;
+	}
+	text.0.len()
 }
 
 /// One byte forever.

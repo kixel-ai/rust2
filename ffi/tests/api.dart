@@ -406,6 +406,8 @@ Future<void> script() async {
   // A bound that outlives the call takes a value, and an instance only a constant names.
   print('kept ${api.keptPoint(const api.Point(x: 1, y: -2))} boxed ${api.BOXED.value}');
   print('keep ${api.keepPoint(const api.Point(x: 1, y: -2))}');
+  const five = api.Point(x: 5, y: 2);
+  print('kept or ${api.keptOrPoint(five)} ${api.keptOrPoint(null)} keeper ${api.keeperPoint(five)}');
   // Inferred instances taking a lent closure and a foreign implementation, and one only
   // its impl of a trait names.
   const sides = api.PairU32(left: 2, right: 5);
@@ -479,6 +481,12 @@ Future<void> script() async {
   final noneSummed = api.summed([]);
   print('summed ${summed.x} ${summed.y} ${noneSummed.x} ${noneSummed.y}');
   print('longest ${api.longest(['a', 'abc'])} ${api.longest([])}');
+  print('first of Some("${api.firstOf(['a', 'b'])}") ${api.firstOf([]) ?? 'None'}');
+  final limits = api.byteLimits(utf8.encode('a'), utf8.encode('bc'));
+  final waits = api.breadth(const api.LimitsDuration(low: Duration(milliseconds: 5), high: Duration(seconds: 2)));
+  print('limits ${utf8.decode(limits.low)} ${utf8.decode(limits.high)} breadth ${waits.inMilliseconds}');
+  final parts = utf8.decode(api.joined([utf8.encode('ab'), Uint8List(0), utf8.encode('c')]));
+  print('joined $parts ${api.joined([]).length} read ${api.readLen(utf8.encode('hello'))}');
   final doc = api.Json.parse('{"b": [1, 2.5, null], "a": "é"}');
   print('json ${api.encode(doc)}');
   print('timed text ${api.timedText(doc)}');

@@ -3,9 +3,12 @@
 ## Goal
 
 The stand-in facade (`just ffi standin`, in `ffi/justfile`) re-exports only the session
-side moq-ffi ships from moq-tokio: `Client`, `Server`, `server::Request`,
-`connect::Config`, `listen::Config`, `quic::Config`, `Connection`, `Transport`, `Log`,
-`tls`, `panic`, and the errors, in place of `pub use ::moq_tokio::*;`. `ffi/moq/ffi.toml`
+side moq-ffi ships from moq-tokio, in place of `pub use ::moq_tokio::*;`: `Client`,
+`Server`, `Connection`, `Transport`, `Log`, `tls`, `panic`, the errors, and the types
+those items and the fixtures name: `client::Config`, `connect::Config`, `listen::Config`
+with `listen::Bind`, `quic::Config`, `server::Config` with `server::Request` and
+`server::Listener`, `origin::spawn`, `Backoff`, `Restart`, `Status`, `connection::Monitor`,
+and `cli::Duration`. `ffi/moq/ffi.toml`
 loses the excludes that only hid items outside it, and the census at the pin reports the
 refusals before and after, per crate.
 
@@ -22,10 +25,10 @@ sibling leaves the moq-tokio items outside the session side alone, and whichever
 later measures the census again. Rejected: this landing first, as decided on 2026-11-07,
 which no `Required` link held and which two siblings ready for review had already passed.
 
-The list above is not closed over what the fixtures and moq-ffi call:
-[#683](https://github.com/moq-dev/rust2/pull/683) found `just ffi moq` fails with it, since
-`ffi/moq/moq.*` use about 40 moq-tokio names it leaves out, such as `client::Config`,
-`server::Config`, `origin::spawn`, `Backoff`, and `listen::Bind`.
+The list above was not closed over what the fixtures and moq-ffi call. Its closure was
+decided on 2026-11-09 in the iterate of
+[#683](https://github.com/moq-dev/rust2/pull/683), which found `just ffi moq` fails
+without it: `ffi/moq/moq.*` use about 40 moq-tokio names the list left out.
 
 Narrowing drops moq-tokio's `rustls`, `notify`,
 `congestion`, `cli::usage_rs`, and `quic::web`'s `http` and `proto` re-exports, and
@@ -33,14 +36,23 @@ Narrowing drops moq-tokio's `rustls`, `notify`,
 (`rs/moq-tokio/src/lib.rs`). Update the counts in the
 [epic](/quest/m1/ffi-export/refusals/README.md) and its children from the new census.
 
+Decided with the maintainer on 2026-11-09, in the iterate of
+[moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683):
+
+- ✅ The closure over the session side adds the types the session items and the fixtures
+  name, and keeps the CLI helpers and listener internals out, so `Client::new`,
+  `Server::new`, and the like export again (rejected: rewriting the seven fixtures to the
+  narrow list).
+- ✅ No rename of the three `Config`s: Rust keeps `connect::Config`, `listen::Config`, and
+  `quic::Config`, and C keeps `moq_tokio_connect_Config_*`. Go, which clashes, keeps its
+  module segment for a name still shared, so they are `tokio.ConnectConfig`,
+  `tokio.ListenConfig`, and `tokio.QuicConfig`, the names its fixture already uses. Other
+  languages keep their names (rejected: renaming to `ConnectConfig`, `ListenConfig`, and
+  `QuicConfig` in the stand-in; re-exporting whole modules).
+
+The census at this change refuses 130 items, 41 of them in moq-tokio, and 6 types, down
+from 1111 items, 84 in moq-tokio, and 321 types. The after-census is on the merged tree, which
+includes main's own export changes, so it is not the stand-in change alone.
+
 Public API: the stand-in's exports, which the census and the bindings' fixtures read.
 
-## Waiting
-
-- Maintainer: how the stand-in closes over what its session items name, from
-  [#683](https://github.com/moq-dev/rust2/pull/683), since the Goal's list alone fails
-  `just ffi moq`. Options: add those types and `origin::spawn` to the list, keeping the CLI
-  helpers and listener types out (recommended: a stand-in that cannot construct a client
-  is not the session side); or keep the list and rewrite the seven fixtures to it, losing
-  their coverage of client config, server config, and origin spawn. An agent cannot pick:
-  it changes which of moq-tokio's API bindings get.

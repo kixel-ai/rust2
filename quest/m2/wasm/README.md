@@ -30,7 +30,7 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
   [the WASI target](/quest/m3/wasi.md) serves hosts with no JavaScript, in m3 as the
   other targets planned ahead of a consumer are. Rejected: one `wasm32-wasip1` module for
   both, with the binding implementing its imports.
-- ✅ m2, with [per-target export](/quest/m1/ffi-export/target.md) in m1. Rejected: all of
+- ✅ m2, with per-target export in m1. Rejected: all of
   it in m1; all of it in m2.
 - ✅ Until the gate reports, translator work is only what the gate needs: the model's
   remaining refusals and the benchmark. [m3](/quest/m3/README.md#plan) records what waits.

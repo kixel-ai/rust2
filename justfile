@@ -12,9 +12,6 @@ mod go
 # The drivers' shared front end and rust2-lint, its own workspace on the TypeScript driver's nightly: `just driver <recipe>`.
 mod driver
 
-# The UniFFI fork, in the root workspace: `just uniffi <recipe>`.
-mod uniffi
-
 # List the available development commands.
 default:
     @just --list
@@ -43,20 +40,11 @@ test $BASE="":
 bench *args:
     bench/build/run.sh {{ args }}
 
-# Measure moq's Nix release builds in CPU time, built each way; see bench/build/README.md.
-bench-nix *args:
-    bench/build/nix.sh {{ args }}
-
-# Measure what moq's binding wrappers add over Rust, against the UniFFI fork; see bench/ffi/README.md.
-bench-ffi *args:
-    bench/ffi/run.sh {{ args }}
-
 # Apply formatters without changing program behavior.
 fix:
     shfmt -w bench/*/*.sh sh/*.sh
     taplo format
-    nixfmt flake.nix bench/build/nix.nix
-    cargo fmt --all
+    nixfmt flake.nix
     just ts fix
     just ffi fix
     just go fix
