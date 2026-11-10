@@ -197,7 +197,12 @@ fn main() {
 	println!("total {}", api::total(2..5));
 	println!("reach {}", api::reach(2, (), 5));
 	let scaled = |v, by| api::scaled(v, by).map_or("none".to_string(), |v| format!("{v:032x}"));
-	println!("scaled {} {} {}", scaled(u128::MAX, 1), scaled((1 << 64) + 1, 1 << 63), scaled(1 << 127, 2));
+	println!(
+		"scaled {} {} {}",
+		scaled(u128::MAX, 1),
+		scaled((1 << 64) + 1, 1 << 63),
+		scaled(1 << 127, 2)
+	);
 	let wide = api::widen(2..5, 1);
 	println!("widen {} {}", wide.start, wide.end);
 	println!(

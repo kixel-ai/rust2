@@ -494,8 +494,8 @@ reads a go.mod.
   returns freed memory, such as [mimalloc](https://crates.io/crates/mimalloc), declared in
   the exported crate, holds it near what is lent. `Copy()` copies it out. Text Rust returns is copied once into a `string`, and Rust's
   freed at the call. A path is a `string`
-  of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object its
-  pointer, nil for `None`. A tuple is `rt.Tuple2[A, B]` and so on, but a tuple of one is its
+  of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object or
+  `u128` its pointer, nil for `None`. A tuple is `rt.Tuple2[A, B]` and so on, but a tuple of one is its
   element, and one returned whole is the function's results. A `u128` is a `*big.Int`, which
   panics passed in out of its range. `Duration` is
   `time.Duration`: a negative one passed in, or one Rust returns past its 292 years,

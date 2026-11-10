@@ -544,7 +544,7 @@ impl<'a> Gen<'a> {
 			Type::Waker => "func()".to_string(),
 			Type::Option(inner) => match inner.base() {
 				// Already a pointer, nil for none.
-				Type::Object(_) => self.go(inner),
+				Type::Object(_) | Type::U128 => self.go(inner),
 				_ => format!("*{}", self.go(inner)),
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.go(inner),
@@ -731,11 +731,14 @@ impl<'a> Gen<'a> {
 					let arena = self.arena(inner);
 					let inner = (**inner).clone();
 					self.helper(&format!("lower_{c}"), |g| {
-						let go = g.go(&inner);
-						let value = g.lower(&inner, "*v");
+						// A Go pointer already, which nil is none of.
+						let (go, value) = match inner.base() {
+							Type::U128 => (g.go(&inner), g.lower(&inner, "v")),
+							_ => (format!("*{}", g.go(&inner)), g.lower(&inner, "*v")),
+						};
 						let param = g.arena_param(&inner);
 						format!(
-							"func lower_{c}({param}v *{go}) C.{c} {{\n\tif v == nil {{\n\t\treturn C.{c}{{}}\n\t}}\n\treturn C.{c}{{some: true, value: {value}}}\n}}\n\n"
+							"func lower_{c}({param}v {go}) C.{c} {{\n\tif v == nil {{\n\t\treturn C.{c}{{}}\n\t}}\n\treturn C.{c}{{some: true, value: {value}}}\n}}\n\n"
 						)
 					});
 					match arena {
@@ -855,10 +858,13 @@ impl<'a> Gen<'a> {
 					let c = abi.option(inner);
 					let inner = (**inner).clone();
 					self.helper(&format!("lift_{c}"), |g| {
-						let go = g.go(&inner);
 						let value = g.lift(&inner, "c.value");
+						let (go, v) = match inner.base() {
+							Type::U128 => (g.go(&inner), "v"),
+							_ => (format!("*{}", g.go(&inner)), "&v"),
+						};
 						format!(
-							"func lift_{c}(c C.{c}) *{go} {{\n\tif !c.some {{\n\t\treturn nil\n\t}}\n\tv := {value}\n\treturn &v\n}}\n\n"
+							"func lift_{c}(c C.{c}) {go} {{\n\tif !c.some {{\n\t\treturn nil\n\t}}\n\tv := {value}\n\treturn {v}\n}}\n\n"
 						)
 					});
 					format!("lift_{c}({e})")

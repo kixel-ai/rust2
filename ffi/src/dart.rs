@@ -494,7 +494,10 @@ impl<'a> Gen<'a> {
 
 	/// Whether `dart:ffi` passes a C type as a Dart scalar, not a struct.
 	fn scalar(ty: &Ty) -> bool {
-		!matches!(ty, Ty::Buf | Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::Waker)
+		!matches!(
+			ty,
+			Ty::Buf | Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::Waker
+		)
 	}
 
 	/// The class of a C struct, defined once.
