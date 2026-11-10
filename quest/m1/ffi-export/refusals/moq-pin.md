@@ -6,7 +6,7 @@ The moq pin moves to moq's current `main`, whose crates re-export no whole crate
 included. `just ffi census` there lists no whole-crate re-export refusal. Its "type not
 reachable from the crate root" refusals are `kio::Pending` and `lite::version::Version`,
 which Waiting covers, and moq-quic's stats and varint types under moq-tokio's `quic::driver`,
-which narrow-standin drops. At `ffcb7cd9` there were 20 such refusals (18 Guard and Side, and
+which [moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683) drops. At `ffcb7cd9` there were 20 such refusals (18 Guard and Side, and
 `Version`), and 9 at moq's head on 2026-11-09, measured in
 [#676](https://github.com/moq-dev/rust2/pull/676).
 
