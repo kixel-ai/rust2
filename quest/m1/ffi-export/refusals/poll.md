@@ -21,5 +21,3 @@ The maintainer settled on 2026-11-09: ✅ proper waker support (rejected: moq ma
   wakes it, and frees it when the callable is dropped or collected.
 - The api fixture's `Waiter` gains both methods, and every language's test wakes a pending
   future through the returned waker.
-- moq-tokio's `poll_lease`, whose `Poll` holds a borrowed `Lease<'_>`, is
-  [borrows](/quest/m1/ffi-export/refusals/borrows.md)'s, if narrowing the stand-in keeps it.
