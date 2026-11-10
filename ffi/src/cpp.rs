@@ -612,12 +612,19 @@ impl<'a> Header<'a> {
 			format!("\texplicit {name}(decltype(raw_) raw) noexcept : raw_(::std::move(raw)) {{}}\n"),
 			format!("\tfriend struct {d}::access;\n"),
 			"public:".to_string(),
+			// A move leaves the source consumed, which Clang's `-Wconsumed` then refuses to call.
+			format!("\tRUST2_FFI_UNCONSUMED {name}({name} &&other RUST2_FFI_MOVED_FROM) noexcept = default;"),
+			format!("\t{name} &operator=({name} &&other) noexcept = default;"),
 		];
+		if object.shared {
+			body.push(format!("\tRUST2_FFI_UNCONSUMED {name}(const {name} &other) = default;"));
+			body.push(format!("\t{name} &operator=(const {name} &other) = default;"));
+		}
 		let mut members = Vec::new();
 		if t.clone && !object.shared {
 			let clone = apart("clone", &name);
 			body.push(format!(
-				"\t/// Rust's `Clone`, a value of its own: copies sharing one value could be told apart\n\t/// from clones, so it does not copy.\n\t{name} {clone}() const;"
+				"\t/// Rust's `Clone`, a value of its own: copies sharing one value could be told apart\n\t/// from clones, so it does not copy.\n\tRUST2_FFI_CALLABLE {name} {clone}() const;"
 			));
 			self.def(format!(
 				"inline {name} {name}::{clone}() const {{\n\treturn {d}::access::wrap<{name}>(::{c}_clone(raw_.get()));\n}}\n"
@@ -642,7 +649,7 @@ impl<'a> Header<'a> {
 		}
 		self.distinct(&name, &abi.api.rust(&object.path, &object.args), &members);
 		self.line(format!(
-			"{}class {name} {{\n{}\n}};\n",
+			"{}class RUST2_FFI_CONSUMABLE {name} {{\n{}\n}};\n",
 			docs(text.trim(), ""),
 			body.join("\n")
 		));
@@ -662,6 +669,10 @@ impl<'a> Header<'a> {
 		let ns = self.ns.clone();
 		let d = self.d();
 		let object = value.is_none();
+		let callable = match object {
+			true => "RUST2_FFI_CALLABLE ",
+			false => "",
+		};
 		let (this, lower) = match value {
 			None => ("raw_.get()", String::new()),
 			Some(ty) => (
@@ -671,7 +682,7 @@ impl<'a> Header<'a> {
 		};
 		if t.display {
 			let member = apart("to_string", name);
-			body.push(format!("\t::{ns}::buf {member}() const;"));
+			body.push(format!("\t{callable}::{ns}::buf {member}() const;"));
 			self.def(format!(
 				"inline ::{ns}::buf {name}::{member}() const {{\n{lower}\treturn {d}::access::adopt(::{c}_to_string({this}));\n}}\n"
 			));
@@ -679,7 +690,7 @@ impl<'a> Header<'a> {
 		}
 		if t.debug {
 			let member = apart("debug", name);
-			body.push(format!("\t::{ns}::buf {member}() const;"));
+			body.push(format!("\t{callable}::{ns}::buf {member}() const;"));
 			self.def(format!(
 				"inline ::{ns}::buf {name}::{member}() const {{\n{lower}\treturn {d}::access::adopt(::{c}_debug({this}));\n}}\n"
 			));
@@ -1209,14 +1220,18 @@ impl<'a> Header<'a> {
 				}
 			}
 		}
+		// An object's method is callable only before a move empties it, and one taking
+		// `self` empties it.
+		let prefix = match (is_static, free, owner) {
+			(true, _, _) => "static ",
+			(false, false, Some(Ty::Handle { .. })) if qualifier == " &&" => "RUST2_FFI_CONSUMES ",
+			(false, false, Some(Ty::Handle { .. })) => "RUST2_FFI_CALLABLE ",
+			_ => "",
+		};
 		let declaration = format!(
-			"{}\t{}{}{ret} {member}({}){qualifier};",
+			"{}\t{}{prefix}{ret} {member}({}){qualifier};",
 			docs(text.trim(), "\t"),
 			template.replace('\n', "\n\t"),
-			match is_static {
-				true => "static ",
-				false => "",
-			},
 			params.join(", ")
 		);
 		(declaration, member)
@@ -1254,7 +1269,9 @@ impl<'a> Header<'a> {
 					));
 					args.push(match m {
 						crate::ir::Mutability::Not => format!("::std::as_const(l{k}_.get())"),
-						crate::ir::Mutability::Mut => format!("l{k}_.get()"),
+						crate::ir::Mutability::Mut => {
+							format!("::{}::borrow<{}>(l{k}_.get())", self.ns, self.owned(object))
+						}
 					});
 				}
 				_ => args.push(self.lift_lent(ty, &p)),

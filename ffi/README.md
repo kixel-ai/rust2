@@ -212,7 +212,10 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   by value; moving out of a shared copy another copy holds, or a pending future borrows,
   moves out a clone, leaving that copy whole, as Rust leaves a clone. A call on a
   moved-from object, or one a call moved the value out of, aborts; a dangling reference
-  to an object is C++'s own undefined behavior.
+  to an object is C++'s own undefined behavior. Under Clang with `-Wconsumed`, such a call
+  on a local is a compile error: each class carries Clang's typestate attributes, behind
+  macros other compilers see as empty. The abort stays for a move Clang cannot see, as
+  through a reference.
 - **Sharing** stands in for `clone` where no call can tell the two apart but by counting
   an `Arc`'s or `Rc`'s clones, which the exporter decides at compile time. A type's copies share when it is `Clone`; `Sync`,
   since one that is not is borrowed on one thread at a time, which copies on two threads
@@ -235,14 +238,17 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   a `buf`, which owns Rust's buffer without a copy, so it outlives the object it came
   from. From C++20, either converts to `std::span<const std::uint8_t>`. A `view` or span
   lives only as long as the bytes it views, and a `view` lent to a callback only for the
-  call; reading one past that is C++'s own undefined behavior. A `Vec<T>` is a `std::vector`, of
+  call; reading one past that is C++'s own undefined behavior, which Clang's `-Wdangling`
+  refuses for a view or `str()` of a temporary `buf`. A `Vec<T>` is a `std::vector`, of
   `view`s for bytes passed in, and a socket address `socket_addr`, the C struct. `Option<T>` is `std::optional<T>`, a
   tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
   error.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
 - **Closures** lent for a call are any callable, taken by a template parameter, which
-  Rust calls only during the call, from any thread. An object it lends is a reference to
-  its class for that call: moving out of it, or keeping a copy past the call, aborts.
+  Rust calls only during the call, from any thread. An object it lends as `&T` is a
+  `const` reference to its class, and as `&mut T` an `api::borrow<T>`, which reaches its
+  methods through `->` but neither moves nor copies. Moving out of either, or keeping a
+  copy past the call, aborts.
 - **Futures** are move-only `future<...>`s, freed when destroyed, which cancels them and
   loses nothing. `poll(waker)` polls once; `std::move(f).get()` blocks the thread;
   `std::move(f).then(exec, callback)` polls on an executor and calls back there, returning
@@ -649,7 +655,8 @@ export into the same library. `tests/api.c` runs the same script as the
 fixture's `examples/transcript.rs`, and the two transcripts must match line for line;
 then it breaks each runtime check, which must abort with its message. `tests/api.cpp`
 runs the script through the C++ header at C++17, 20, and 23, with exceptions and RTTI off
-at 17 and 23, then checks its futures: a wake that lands during a poll, a cancel between a
+at 17 and 23, builds it under Clang's `-Wconsumed -Wdangling -Werror`, each case of
+`tests/api_strict.cpp` failing there, then checks its futures: a wake that lands during a poll, a cancel between a
 wake and its poll that loses nothing, and a coroutine resumed or destroyed. `tests/api.kt`
 runs the script through the Kotlin on the JVM, checks its futures the same way, that a call
 after `close()` throws, that `Bytes` and their slices keep Rust's buffer, past the object or

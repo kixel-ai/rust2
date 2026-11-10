@@ -97,5 +97,4 @@ names and defaults, and fails the export on a public item it cannot export.
 - [No name clash fails an export](/quest/m1/ffi-export/names.md) - every generator names every item by rule, so no error tells a crate to rename or exclude one
 - [The glue builds what the export checked](/quest/m1/ffi-export/reproducible.md) - the generated crate carries its lockfile, and a discriminant or nightly-only item it cannot build is refused at export
 - [Swift handles are non-copyable](/quest/m1/ffi-export/swift-noncopyable.md) - a call on a moved handle or a lent handle kept past its call is a Swift compile error, not a trap
-- [C++ checks ownership at compile time](/quest/m1/ffi-export/cpp-attributes.md) - typestate and lifetime attributes and `api::borrow<T>` make Clang refuse what the run-time checks catch
 - [The exporter on the binding benchmark](/quest/m1/ffi-export/bench.md) - committed call, throughput, and size numbers per language against the Rust floor, whose report plans the speed work
