@@ -20,6 +20,7 @@ exclude = [
     "clock::timeout_at",
     "coop::Budget::poll_yield",
     "datagram::Producer::poll_priority",
+    "field@mux::codec::flac::Config::md5",
     "field@tokio::Log::level",
     "frame::Producer::group",
     "goaway::Consumer::poll",

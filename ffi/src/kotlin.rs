@@ -307,6 +307,16 @@ impl<'a> Gen<'a> {
 		format!("{base}{}", self.fresh)
 	}
 
+	/// A fresh Kotlin name that is none of `params`, for a local in their scope.
+	fn fresh_beside(&mut self, base: &str, params: &[String]) -> String {
+		loop {
+			let name = self.fresh(base);
+			if !params.contains(&name) {
+				return name;
+			}
+		}
+	}
+
 	/// A C name without the prefix.
 	fn bare<'n>(&self, c: &'n str) -> &'n str {
 		&c[self.abi.prefix.len() + 1..]
@@ -1536,7 +1546,7 @@ impl<'a> Gen<'a> {
 			.collect();
 		let mut exprs: Vec<String> = args.iter().flat_map(|a| a.exprs.clone()).collect();
 		// A future's call also takes the signal its waker parks, if its first poll pends.
-		let signal = export.future.is_some().then(|| self.fresh("s"));
+		let signal = export.future.is_some().then(|| self.fresh_beside("s", &names));
 		exprs.extend(signal.clone());
 		let rust_pre: Vec<String> = args.iter().flat_map(|a| a.rust_pre.clone()).collect();
 		let rust_args: Vec<String> = args.iter().flat_map(|a| a.rust_args.clone()).collect();
@@ -1655,16 +1665,18 @@ impl<'a> Gen<'a> {
 				),
 			);
 			let mut lines = Vec::new();
+			// The reader, named apart from the parameters it writes back to.
+			let r = self.fresh_beside("r", &names);
 			// What Rust wrote back comes first, read whether or not the call failed.
 			for (name, ty) in &written {
-				let read = self.read_value(ty, "r");
+				let read = self.read_value(ty, &r);
 				lines.push(format!("{name}.value = {}", to_param(ty, &read)));
 			}
-			lines.extend(self.lift_result(&ok, err.as_ref(), exception.as_deref(), "r"));
+			lines.extend(self.lift_result(&ok, err.as_ref(), exception.as_deref(), &r));
 			value = match lines.is_empty() {
 				true => call,
 				false => format!(
-					"Native.Reader({call}).let {{ r ->\n{}}}",
+					"Native.Reader({call}).let {{ {r} ->\n{}}}",
 					lines.iter().map(|l| format!("\t{l}\n")).collect::<String>()
 				),
 			};

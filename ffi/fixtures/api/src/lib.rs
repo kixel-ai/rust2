@@ -1787,13 +1787,14 @@ pub fn put_number(value: u32, buf: &mut impl bytes::BufMut) {
 	buf.put_slice(format!("{value},").as_bytes());
 }
 
-/// Takes the first byte of `buf` as a decimal digit, as moq's decoders take from an
+/// Takes the first byte of `r` as a decimal digit, as moq's decoders take from an
 /// `impl Buf`, which takes `Bytes`. It takes the byte even when it fails, and Rust writes
-/// back what the call left on either path.
-pub fn digit(buf: &mut impl bytes::Buf) -> Result<u8, Error> {
-	match buf.has_remaining() {
+/// back what the call left on either path. Named `r`, as moq's `varint::decode_quic`'s
+/// is, the name a binding's reader of what Rust wrote back might take.
+pub fn digit(r: &mut impl bytes::Buf) -> Result<u8, Error> {
+	match r.has_remaining() {
 		false => Err(Error::Underflow { by: 1 }),
-		true => match buf.get_u8() {
+		true => match r.get_u8() {
 			digit @ b'0'..=b'9' => Ok(digit - b'0'),
 			_ => Err(Error::Overflow),
 		},
