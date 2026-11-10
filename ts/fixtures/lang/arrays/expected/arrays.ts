@@ -6,7 +6,8 @@ import * as Bracketed from "./arrays.Bracketed.ts";
 import type * as Framed from "./arrays.Framed.ts";
 import * as Listed from "./arrays.Listed.ts";
 import { then$11x7xqs } from "./core/bool.ts";
-import { isSomeAnd$1s2u5lz, unwrapOr$0yvilko as option_unwrapOr$0yvilko, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1tggsfb as option_map$1tggsfb, map$0p6o7wa as option_map$0p6o7wa, map$10o993m as option_map$10o993m, map$1yv0md6 as option_map$1yv0md6, mapOr$0vxw5sq as option_mapOr$0vxw5sq } from "./core/option.ts";
+import { isSomeAnd$1s2u5lz, unwrapOr$0yvilko as option_unwrapOr$0yvilko, unwrapOr$1fr498u as option_unwrapOr$1fr498u, map$1tggsfb as option_map$1tggsfb, map$0p6o7wa as option_map$0p6o7wa, map$10o993m as option_map$10o993m, map$1yv0md6 as option_map$1yv0md6, mapOr$0vxw5sq as option_mapOr$0vxw5sq, andThen$1mydyfo as option_andThen$1mydyfo } from "./core/option.ts";
+import { ok$1py4ce4 } from "./core/result.ts";
 
 /** Each byte an operation, its value the operand; each puts what it read. */
 export function fromFns(data: rs.ByteSlice, out: rs.ByteVec): void {
@@ -2057,6 +2058,65 @@ export function rests(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const slice6 = rs.arraySliceAt(front, 0);
 	slice6.data[slice6.start + 1] = _34;
 	rs.iterExtendBytes(out, rs.iterFlatten(rs.arraySliceIter(rs.arraySliceFrom(grid, rs.byteSliceFrom)), (value: rs.ByteSlice) => rs.iterSlice(rs.byteSliceView(value)), true, 2), undefined, true);
+}
+
+/**
+ * Array references `try_into` makes of a slice, of bytes and of wide integers, lending the
+ * array where the slice holds it and failing on any other length; `identity` of one; and
+ * `as_array_of_cells` of a cell of an array, each cell written through.
+ */
+export function converted(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	const at: rs.usize = rs.u8Rem(kind, 3) as rs.usize;
+	const buf: rs.ByteVec = rs.byteSliceToByteVec(data);
+	const end: rs.usize = rs.min(buf.length, rs.usizeAdd(at, 3));
+	const part = rs.min(at, end);
+	const _14: rs.Result<rs.ByteSlice, rs.TryFromSliceError> = rs.sliceTryAsArray(rs.byteSliceRange(rs.byteVecSlice(buf), part, end), 3);
+	if (_14.ok) {
+		_14.value.data[_14.value.start] = _14.value.data[_14.value.start] ^ 17;
+		rs.byteSliceSwap(_14.value, 1, 2);
+	}
+	const shared: rs.Result<rs.ByteSlice, rs.TryFromSliceError> = rs.sliceTryAsArray(option_unwrapOr$0yvilko(rs.byteSliceGetRange(rs.byteVecSlice(buf), 0, 2), rs.byteSliceFrom(Uint8Array.of())), 2);
+	if (shared.ok) {
+		rs.byteVecExtendFromSlice(out, shared.value);
+	} else {
+		const arg = new rs.TryFromSliceError();
+		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtToString((f: rs.Formatter) => rs.fmtTryFromSliceErrorDisplay(arg, f)).v));
+	}
+	rs.byteVecExtendFromSlice(out, rs.byteVecSlice(buf));
+	const wide: rs.Vec<rs.u32> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u32 => {
+		return ((_2 as rs.u32) << 20) >>> 0;
+	}), undefined, 4, true);
+	const part2 = rs.min(wide.items.length, at);
+	const taken: rs.Result<rs.Slice<rs.u32>, rs.TryFromSliceError> = rs.sliceTryAsArray(rs.sliceRange(rs.sliceFrom(wide.items), part2), 2);
+	if (taken.ok) {
+		const _57: rs.u32 = rs.u32WrappingAdd(taken.value.data[taken.value.start], 7);
+		taken.value.data[taken.value.start + 1] = _57;
+	}
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterFlatten(rs.iterOption(option_andThen$1mydyfo(rs.sliceGetRange(rs.sliceFrom(wide.items), 0, 2), (s: rs.Slice<rs.u32>): rs.Slice<rs.u32> | undefined => {
+		return ok$1py4ce4(rs.sliceTryAsArray(s, 2));
+	})), (value: rs.Slice<rs.u32>) => rs.iterSlice(rs.sliceItems(value)), true, 2), (w: rs.u32): Uint8Array => {
+		return rs.u32ToBeBytes(w).reverse();
+	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(wide.items), (w2: rs.u32): Uint8Array => {
+		return rs.u32ToBeBytes(w2).reverse();
+	}, (value: Uint8Array) => rs.iterSlice(value), true, 4), undefined, true);
+	const cell: rs.Cell<Uint8Array> = new rs.Cell(Uint8Array.of(kind, at & 0xff, 9));
+	const cells: rs.Slice<rs.Cell<rs.u8>> = rs.cellsOf(rs.byteSliceFrom(cell.v));
+	const _86: rs.u8 = rs.u8WrappingAdd(cells.data[cells.start + 2].v, kind);
+	rs.cellSet(cells.data[cells.start], _86);
+	const x = cells.data[cells.start + 1];
+	const y = cells.data[cells.start + 2];
+	const old = x.v;
+	x.v = y.v;
+	y.v = old;
+	rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(copy$array_u8(cell.v)));
+	const wide2: rs.Cell<rs.u64[]> = new rs.Cell([kind as rs.u64, 1]);
+	const cells2: rs.Slice<rs.Cell<rs.u64>> = rs.cellsOf(rs.cellArray(wide2, rs.sliceFrom));
+	rs.cellSet(cells2.data[cells2.start + 1], rs.u64Shl(cells2.data[cells2.start].v, 40));
+	rs.byteVecPush(out, rs.sliceSame(cells2, rs.cellsOf(rs.cellArray(wide2, rs.sliceFrom))) ? 1 : 0);
+	rs.iterExtendBytes(out, rs.iterFlatMap(rs.iterSlice(wide2.v), (w3: rs.u64): Uint8Array => {
+		return rs.u64ToBeBytes(w3).reverse();
+	}, (value: Uint8Array) => rs.iterSlice(value), true, 8), undefined, true);
 }
 
 //# sourceMappingURL=arrays.ts.map

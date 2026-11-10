@@ -120,347 +120,385 @@ export function scriptRun(tx: mpsc_Tx.Tx, rx: mpsc_Rx.Rx, script: rs.ByteSlice, 
 }
 
 export function stepRun(s: mpsc_State.State, op: rs.u8, arg: rs.u8): void {
-	let _145!: boolean;
+	let _149!: boolean;
 	let got!: rs.Result<Item.Item, mpsc_error_TryRecvError.TryRecvError>;
-	let _444!: Weak.Weak;
+	let _449!: Weak.Weak;
 	let up!: mpsc_Tx.Tx | undefined;
-	let _515: boolean = false;
-	let _516: boolean = false;
-	let _517: boolean = false;
-	let _518: boolean = false;
-	if (op === 0) {
-		const _4: [mpsc_Rx.Rx, rs.Arc<rs.RefCell<mpsc_Rx.Rx | undefined>>] | undefined = mpsc_State.takeRx(s);
-		if (_4 !== undefined) {
-			Executor.spawn$mpsc_step_run_closure0(s.exec, new stepRunFuture$closure0(_4[0], _4[1]));
-		}
-	} else if (op === 1) {
-		const _12: [mpsc_Rx.Rx, rs.Arc<rs.RefCell<mpsc_Rx.Rx | undefined>>] | undefined = mpsc_State.takeRx(s);
-		if (_12 !== undefined) {
-			const _22: rs.Future<rs.String> = new stepRunFuture$closure1(rs.u8Rem(arg, 4) as rs.usize, _12[0], _12[1]);
-			Executor.spawn$mpsc_step_run_closure1(s.exec, _22);
-		}
-	} else if (op === 2) {
-		const _23: [mpsc_Rx.Rx, rs.Arc<rs.RefCell<mpsc_Rx.Rx | undefined>>] | undefined = mpsc_State.takeRx(s);
-		if (_23 !== undefined) {
-			Executor.spawn$mpsc_step_run_closure2(s.exec, new stepRunFuture$closure2(_23[0], _23[1]));
-		}
-	} else if (op === 3) {
-		const item: Item.Item = mpsc_State.item(s);
-		_515 = true;
-		const _32: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
-		if (_32 !== undefined) {
-			if (_32.tag === "Bounded") {
-				const tx: rs.MpscSender<Item.Item> = _32._0;
-				_515 = false;
-				Executor.spawn$mpsc_step_run_closure3(s.exec, new stepRunFuture$closure3(tx, item));
-			} else {
-				const tx2: rs.MpscSender<Item.Item> = _32._0;
-				_515 = false;
-				const _40: rs.Result<undefined, mpsc_error_SendError.SendError<Item.Item>> = rs.mpscUnboundedSend(tx2, item, (a08: Item.Item): mpsc_error_SendError.SendError<Item.Item> => {
-					return new mpsc_error_SendError.SendError(a08);
-				});
-				if (_40.ok) {
-					note(rs.stringFrom("sent"));
-				} else {
-					const e: mpsc_error_SendError.SendError<Item.Item> = _40.error;
-					const _54: rs.Fmt = (f: rs.Formatter) => mpsc_error_SendError.fmt$fmt_Display_log_Item(e, f);
-					const _55: rs.Fmt = (f: rs.Formatter) => mpsc_error_SendError.fmt$fmt_Debug_log_Item(e, f);
-					const arg3 = e._0;
-					const args45 = [_54, _55, (f: rs.Formatter) => Item.fmt$fmt_Display(arg3, f)];
-					note(rs.fmtFormat(["send ", args45[0], " ", args45[1], " ", args45[2]]));
-					e[Symbol.dispose]();
-				}
-				tx2[Symbol.dispose]();
+	b0: {
+		let _520: boolean = false;
+		let _522: boolean = false;
+		let _524: boolean = false;
+		let _527: boolean = false;
+		if (op === 0) {
+			const _4: [mpsc_Rx.Rx, rs.Arc<rs.RefCell<mpsc_Rx.Rx | undefined>>] | undefined = mpsc_State.takeRx(s);
+			if (_4 !== undefined) {
+				Executor.spawn$mpsc_step_run_closure0(s.exec, new stepRunFuture$closure0(_4[0], _4[1]));
 			}
-		}
-		if (_515) {
-			item[Symbol.dispose]();
-		}
-		_515 = false;
-	} else if (op === 4) {
-		const item2: Item.Item = mpsc_State.item(s);
-		_516 = true;
-		const _60: rs.MpscSender<Item.Item> | undefined = mpsc_State.bounded(s, arg);
-		if (_60 !== undefined) {
-			const tx3: rs.MpscSender<Item.Item> = _60;
-			_516 = false;
-			Executor.spawn$mpsc_step_run_closure4(s.exec, new stepRunFuture$closure4(tx3, arg, item2));
-		}
-		if (_516) {
-			item2[Symbol.dispose]();
-		}
-		_516 = false;
-	} else if (op === 5) {
-		const first: Item.Item = mpsc_State.item(s);
-		_517 = true;
-		const _68: rs.MpscSender<Item.Item> | undefined = mpsc_State.bounded(s, arg);
-		if (_68 !== undefined) {
-			const tx4: rs.MpscSender<Item.Item> = _68;
-			const n: rs.usize = rs.u8Rem(arg, 6) as rs.usize;
-			const sent: rs.usize = rs.usizeRem(arg >> 4 as rs.usize, 3);
-			_517 = false;
-			Executor.spawn$mpsc_step_run_closure5(s.exec, new stepRunFuture$closure5(tx4, n, first, sent));
-		}
-		if (_517) {
-			first[Symbol.dispose]();
-		}
-		_517 = false;
-	} else if (op === 6) {
-		const _84: rs.MpscSender<Item.Item> | undefined = mpsc_State.bounded(s, arg);
-		if (_84 !== undefined) {
-			const tx5: rs.MpscSender<Item.Item> = _84;
-			const owned: rs.Arc<rs.RefCell<rs.MpscOwnedPermit<Item.Item> | undefined>> = new rs.Arc(new rs.RefCell(undefined as rs.MpscOwnedPermit<Item.Item> | undefined));
-			const _95: rs.Future<rs.String> = new stepRunFuture$closure6(tx5, rs.arcClone(owned));
-			Executor.spawn$mpsc_step_run_closure6(s.exec, _95);
-			Executor.run(s.exec);
-			const _101: rs.RefCell<rs.MpscOwnedPermit<Item.Item> | undefined> = rs.refCellBorrowMut(owned.value);
-			const taken3 = _101.value;
-			_101.value = undefined;
-			const _98: rs.MpscOwnedPermit<Item.Item> | undefined = taken3;
-			if (_98 !== undefined) {
-				s.owned.items.push(_98);
-				rs.refMutRelease(_101);
-			} else {
-				rs.refMutRelease(_101);
+		} else if (op === 1) {
+			const _12: [mpsc_Rx.Rx, rs.Arc<rs.RefCell<mpsc_Rx.Rx | undefined>>] | undefined = mpsc_State.takeRx(s);
+			if (_12 !== undefined) {
+				const _22: rs.Future<rs.String> = new stepRunFuture$closure1(rs.u8Rem(arg, 4) as rs.usize, _12[0], _12[1]);
+				Executor.spawn$mpsc_step_run_closure1(s.exec, _22);
 			}
-			owned[Symbol.dispose]();
-		}
-	} else if (op === 7) {
-		const live: rs.Vec<rs.usize> = rs.iterToVec(rs.iterFilter(new rs.Range(0, s.owned.items.length), (_24: rs.usize): boolean => {
-			return s.owned.items[rs.idx(s.owned.items, _24)] !== undefined;
-		}), "next", 4);
-		if (!(live.items.length === 0)) {
-			const at5 = rs.idx(s.owned.items, live.items[rs.idx(live.items, rs.usizeRem(arg as rs.usize, live.items.length))]);
-			const taken2 = s.owned.items[at5];
-			s.owned.items[at5] = undefined;
-			const permit2: rs.MpscOwnedPermit<Item.Item> = rs.optionExpect(taken2, "live");
-			const _131: rs.MpscSender<Item.Item> | undefined = mpsc_State.bounded(s, 0);
-			if (_131 !== undefined) {
-				const tx6: rs.MpscSender<Item.Item> = _131;
-				const _141: boolean = rs.mpscOwnedPermitSameChannelAsSender(permit2, tx6);
-				if (!(live.items.length > 1)) {
-					_145 = false;
+		} else if (op === 2) {
+			const _23: [mpsc_Rx.Rx, rs.Arc<rs.RefCell<mpsc_Rx.Rx | undefined>>] | undefined = mpsc_State.takeRx(s);
+			if (_23 !== undefined) {
+				Executor.spawn$mpsc_step_run_closure2(s.exec, new stepRunFuture$closure2(_23[0], _23[1]));
+			}
+		} else if (op === 3) {
+			const item: Item.Item = mpsc_State.item(s);
+			_520 = true;
+			const _32: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
+			if (_32 !== undefined) {
+				if (_32.tag === "Bounded") {
+					const tx: rs.MpscSender<Item.Item> = _32._0;
+					_520 = false;
+					Executor.spawn$mpsc_step_run_closure3(s.exec, new stepRunFuture$closure3(tx, item));
 				} else {
-					_145 = isSomeAnd$1ydwehv(s.owned.items[rs.idx(s.owned.items, live.items[rs.idx(live.items, rs.usizeRem(rs.usizeAdd(arg as rs.usize, 1), live.items.length))])], (other: rs.MpscOwnedPermit<Item.Item>): boolean => {
-						return rs.mpscOwnedPermitSameChannel(permit2, other);
+					const tx2: rs.MpscSender<Item.Item> = _32._0;
+					_520 = false;
+					const _40: rs.Result<undefined, mpsc_error_SendError.SendError<Item.Item>> = rs.mpscUnboundedSend(tx2, item, (a08: Item.Item): mpsc_error_SendError.SendError<Item.Item> => {
+						return new mpsc_error_SendError.SendError(a08);
 					});
-				}
-				const args42 = [(f: rs.Formatter) => rs.fmtBool(_141, f), (f: rs.Formatter) => rs.fmtBool(_145, f)];
-				note(rs.fmtFormat(["same ", args42[0], " ", args42[1]]));
-				tx6[Symbol.dispose]();
-			}
-			const _169: rs.u8 = rs.u8Rem(arg, 3);
-			if (_169 === 0) {
-				const item3: Item.Item = mpsc_State.item(s);
-				const tx7: rs.MpscSender<Item.Item> = rs.mpscOwnedPermitSend(permit2, item3);
-				const part5 = rs.mpscStrongCount(tx7);
-				note(rs.fmtFormat(["owned sent, ", (f: rs.Formatter) => rs.usizeDisplay(part5, f), " senders"]));
-				s.senders.items.push(({ tag: "Bounded", _0: tx7 } as mpsc_Tx.Tx) as mpsc_Tx.Tx | undefined);
-			} else if (_169 === 1) {
-				const tx8: rs.MpscSender<Item.Item> = rs.mpscOwnedPermitRelease(permit2);
-				const part4 = rs.mpscCapacity(tx8);
-				note(rs.fmtFormat(["owned released, capacity ", (f: rs.Formatter) => rs.usizeDisplay(part4, f)]));
-				s.senders.items.push(({ tag: "Bounded", _0: tx8 } as mpsc_Tx.Tx) as mpsc_Tx.Tx | undefined);
-			} else {
-				permit2[Symbol.dispose]();
-				note(rs.stringFrom("owned dropped"));
-			}
-		}
-	} else if (op === 8) {
-		const _210: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
-		if (_210 !== undefined) {
-			Executor.spawn$mpsc_step_run_closure8(s.exec, new stepRunFuture$closure8(_210));
-		}
-	} else if (op === 9) {
-		const item4: Item.Item = mpsc_State.item(s);
-		_518 = true;
-		const _218: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
-		if (_218 !== undefined) {
-			if (_218.tag === "Bounded") {
-				const tx10: rs.MpscSender<Item.Item> = _218._0;
-				_518 = false;
-				const _223: rs.Result<undefined, TrySendError.TrySendError<Item.Item>> = rs.mpscTrySend(tx10, item4, (a06: Item.Item): TrySendError.TrySendError<Item.Item> => {
-					return { tag: "Full", _0: a06 };
-				}, (a07: Item.Item): TrySendError.TrySendError<Item.Item> => {
-					return { tag: "Closed", _0: a07 };
-				});
-				if (_223.ok) {
-					note(rs.stringFrom("try_send ok"));
-				} else {
-					const e2: TrySendError.TrySendError<Item.Item> = _223.error;
-					const args40 = [(f: rs.Formatter) => TrySendError.fmt$fmt_Display_log_Item(e2, f), (f: rs.Formatter) => TrySendError.fmt$fmt_Debug_log_Item(e2, f)];
-					const line: rs.String = rs.fmtFormat(["try_send ", args40[0], " ", args40[1]]);
-					const _246: Item.Item = TrySendError.intoInner$log_Item(e2);
-					const args41 = [(f: rs.Formatter) => rs.fmtPad(f, line.v), (f: rs.Formatter) => Item.fmt$fmt_Display(_246, f)];
-					const _242: rs.String = rs.fmtFormat([args41[0], " ", args41[1]]);
-					_246[Symbol.dispose]();
-					note(_242);
-				}
-				tx10[Symbol.dispose]();
-			} else {
-				const tx11: rs.MpscSender<Item.Item> = _218._0;
-				_518 = false;
-				const _261: rs.Result<undefined, mpsc_error_SendError.SendError<Item.Item>> = rs.mpscUnboundedSend(tx11, item4, (a05: Item.Item): mpsc_error_SendError.SendError<Item.Item> => {
-					return new mpsc_error_SendError.SendError(a05);
-				});
-				const part3 = _261.ok;
-				const _255: rs.String = rs.fmtFormat(["send ", (f: rs.Formatter) => rs.fmtBool(part3, f)]);
-				drop$Result_unit_tokio_sync_mpsc_error_SendError_log_Item(_261);
-				note(_255);
-				tx11[Symbol.dispose]();
-			}
-		}
-		if (_518) {
-			item4[Symbol.dispose]();
-		}
-		_518 = false;
-	} else if (op === 10) {
-		const _268: rs.MpscSender<Item.Item> | undefined = mpsc_State.bounded(s, arg);
-		if (_268 !== undefined) {
-			const tx12: rs.MpscSender<Item.Item> = _268;
-			const _272: rs.u8 = rs.u8Rem(arg, 3);
-			if (_272 === 0) {
-				const _274: rs.Result<rs.MpscPermit<Item.Item>, TrySendError.TrySendError<undefined>> = rs.mpscTryReserve(tx12, { tag: "Full", _0: undefined } as TrySendError.TrySendError<undefined>, { tag: "Closed", _0: undefined } as TrySendError.TrySendError<undefined>);
-				if (_274.ok) {
-					rs.mpscPermitSend(_274.value, mpsc_State.item(s));
-					note(rs.stringFrom("try_reserve sent"));
-				} else {
-					const e3: TrySendError.TrySendError<undefined> = _274.error;
-					const args38 = [(f: rs.Formatter) => TrySendError.fmt$fmt_Display_unit(e3, f), (f: rs.Formatter) => TrySendError.fmt$fmt_Debug_unit(e3, f)];
-					note(rs.fmtFormat(["try_reserve ", args38[0], " ", args38[1]]));
-				}
-			} else if (_272 === 1) {
-				const _294: rs.Result<rs.MpscPermits<Item.Item>, TrySendError.TrySendError<undefined>> = rs.mpscTryReserveMany(tx12, arg >> 4 as rs.usize, { tag: "Full", _0: undefined } as TrySendError.TrySendError<undefined>, { tag: "Closed", _0: undefined } as TrySendError.TrySendError<undefined>);
-				if (_294.ok) {
-					const permits: rs.MpscPermits<Item.Item> = _294.value;
-					const part2 = permits.len();
-					note(rs.fmtFormat(["try_reserve_many ", (f: rs.Formatter) => rs.usizeDisplay(part2, f)]));
-					permits[Symbol.dispose]();
-				} else {
-					const arg2 = _294.error;
-					note(rs.fmtFormat(["try_reserve_many ", (f: rs.Formatter) => TrySendError.fmt$fmt_Display_unit(arg2, f)]));
-				}
-			} else {
-				const _323: rs.Result<rs.MpscOwnedPermit<Item.Item>, TrySendError.TrySendError<rs.MpscSender<Item.Item>>> = rs.mpscTryReserveOwned(rs.mpscSenderClone(tx12), (a03: rs.MpscSender<Item.Item>): TrySendError.TrySendError<rs.MpscSender<Item.Item>> => {
-					return { tag: "Full", _0: a03 };
-				}, (a04: rs.MpscSender<Item.Item>): TrySendError.TrySendError<rs.MpscSender<Item.Item>> => {
-					return { tag: "Closed", _0: a04 };
-				});
-				if (_323.ok) {
-					s.owned.items.push(_323.value);
-				} else {
-					const e5: TrySendError.TrySendError<rs.MpscSender<Item.Item>> = _323.error;
-					note(rs.fmtFormat(["try_reserve_owned ", (f: rs.Formatter) => TrySendError.fmt$fmt_Display_tokio_sync_mpsc_Sender_log_Item(e5, f)]));
-					drop$tokio_sync_mpsc_error_TrySendError_tokio_sync_mpsc_Sender_log_Item(e5);
-				}
-			}
-			tx12[Symbol.dispose]();
-		}
-	} else if (op === 11) {
-		const slot5: rs.RefCell<mpsc_Rx.Rx | undefined> = rs.refCellBorrowMut(s.rx.value);
-		const borrowed2 = slot5;
-		const _344: rs.Place<mpsc_Rx.Rx> | undefined = slot5.value === undefined ? undefined : rs.place(() => borrowed2.value as mpsc_Rx.Rx, (value2) => borrowed2.value = value2);
-		if (_344 === undefined) {
-			rs.refMutRelease(slot5);
-		} else {
-			if (_344.v.tag === "Bounded") {
-				got = rs.mpscTryRecv(_344.v._0, "Empty" as mpsc_error_TryRecvError.TryRecvError, "Disconnected" as mpsc_error_TryRecvError.TryRecvError);
-			} else {
-				got = rs.mpscTryRecv(_344.v._0, "Empty" as mpsc_error_TryRecvError.TryRecvError, "Disconnected" as mpsc_error_TryRecvError.TryRecvError);
-			}
-			rs.refMutRelease(slot5);
-			if (got.ok) {
-				const v: Item.Item = got.value;
-				note(rs.fmtFormat(["try_recv ", (f: rs.Formatter) => Item.fmt$fmt_Display(v, f)]));
-				v[Symbol.dispose]();
-			} else {
-				const e6: mpsc_error_TryRecvError.TryRecvError = got.error;
-				const args33 = [(f: rs.Formatter) => mpsc_error_TryRecvError.fmt$fmt_Display(e6, f), (f: rs.Formatter) => mpsc_error_TryRecvError.fmt$fmt_Debug(e6, f)];
-				note(rs.fmtFormat(["try_recv ", args33[0], " ", args33[1]]));
-			}
-		}
-	} else if (op === 12) {
-		const _378: rs.RefCell<mpsc_Rx.Rx | undefined> = rs.refCellBorrowMut(s.rx.value);
-		const borrowed = _378;
-		const _375: rs.Place<mpsc_Rx.Rx> | undefined = _378.value === undefined ? undefined : rs.place(() => borrowed.value as mpsc_Rx.Rx, (value) => borrowed.value = value);
-		if (_375 !== undefined) {
-			if (_375.v.tag === "Bounded") {
-				rs.mpscClose(_375.v._0);
-			} else {
-				rs.mpscClose(_375.v._0);
-			}
-		}
-		rs.refMutRelease(_378);
-	} else if (op === 13) {
-		const live2: rs.Vec<rs.usize> = rs.iterToVec(rs.iterFilter(new rs.Range(0, s.senders.items.length), (_2: rs.usize): boolean => {
-			return s.senders.items[rs.idx(s.senders.items, _2)] !== undefined;
-		}), "next", 4);
-		const _392: rs.usize | undefined = rs.sliceGet(rs.sliceFrom(live2.items), rs.usizeRem(arg as rs.usize, rs.max(live2.items.length, 1)));
-		if (_392 !== undefined) {
-			const i2: rs.usize = _392;
-			note(rs.fmtFormat(["drop sender ", (f: rs.Formatter) => rs.usizeDisplay(i2, f)]));
-			const at2 = rs.idx(s.senders.items, i2);
-			drop$Option_mpsc_Tx(s.senders.items[at2]);
-			s.senders.items[at2] = undefined;
-		}
-	} else if (op === 14) {
-		const _416: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
-		if (_416 !== undefined) {
-			s.senders.items.push(_416 as mpsc_Tx.Tx | undefined);
-		}
-	} else if (op === 15) {
-		note(rs.stringFrom("drop receiver"));
-		const _430: rs.RefCell<mpsc_Rx.Rx | undefined> = rs.refCellBorrowMut(s.rx.value);
-		const taken = _430.value;
-		_430.value = undefined;
-		drop$Option_mpsc_Rx(taken);
-		rs.refMutRelease(_430);
-	} else if (op === 16) {
-		Executor.cancel(s.exec, arg);
-	} else if (op === 17) {
-		Executor.run(s.exec);
-	} else if (op === 18) {
-		const _435: rs.u8 = rs.u8Rem(arg, 3);
-		if (_435 === 0) {
-			const _437: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
-			if (_437 !== undefined) {
-				const tx14: mpsc_Tx.Tx = _437;
-				if (tx14.tag === "Bounded") {
-					_444 = { tag: "Bounded", _0: rs.mpscDowngrade(tx14._0) } as Weak.Weak;
-				} else {
-					_444 = { tag: "Unbounded", _0: rs.mpscDowngrade(tx14._0) } as Weak.Weak;
-				}
-				s.weaks.items.push(_444 as Weak.Weak | undefined);
-				drop$mpsc_Tx(tx14);
-			}
-		} else if (_435 === 1) {
-			const _451: Weak.Weak | undefined | rs.None = rs.sliceLast(rs.sliceFrom(s.weaks.items), rs.None);
-			if (_451 !== rs.None) {
-				if (_451 !== undefined) {
-					const _458: Weak.Weak = Weak.clone$Clone(_451);
-					if (_458.tag === "Bounded") {
-						const w: rs.MpscWeakSender<Item.Item> = _458._0;
-						up = option_map$1e5jqg6(rs.mpscUpgrade(w), (a02: rs.MpscSender<Item.Item>): mpsc_Tx.Tx => {
-							return { tag: "Bounded", _0: a02 };
-						});
-						w[Symbol.dispose]();
+					if (_40.ok) {
+						note(rs.stringFrom("sent"));
 					} else {
-						const w2: rs.MpscWeakSender<Item.Item> = _458._0;
-						up = option_map$0m0dsn3(rs.mpscUpgrade(w2), (a0: rs.MpscSender<Item.Item>): mpsc_Tx.Tx => {
-							return { tag: "Unbounded", _0: a0 };
-						});
-						w2[Symbol.dispose]();
+						const e: mpsc_error_SendError.SendError<Item.Item> = _40.error;
+						const _54: rs.Fmt = (f: rs.Formatter) => mpsc_error_SendError.fmt$fmt_Display_log_Item(e, f);
+						const _55: rs.Fmt = (f: rs.Formatter) => mpsc_error_SendError.fmt$fmt_Debug_log_Item(e, f);
+						const arg3 = e._0;
+						const args45 = [_54, _55, (f: rs.Formatter) => Item.fmt$fmt_Display(arg3, f)];
+						note(rs.fmtFormat(["send ", args45[0], " ", args45[1], " ", args45[2]]));
+						e[Symbol.dispose]();
 					}
-					const part = up !== undefined;
-					note(rs.fmtFormat(["upgrade ", (f: rs.Formatter) => rs.fmtBool(part, f)]));
-					s.senders.items.push(up);
+					tx2[Symbol.dispose]();
 				}
 			}
+			if (_520) {
+				item[Symbol.dispose]();
+			}
+			_520 = false;
+		} else if (op === 4) {
+			const item2: Item.Item = mpsc_State.item(s);
+			_522 = true;
+			const _60: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
+			b24: {
+				if (_60 !== undefined) {
+					if (_60.tag === "Bounded") {
+						const tx3: rs.MpscSender<Item.Item> = _60._0;
+						_522 = false;
+						Executor.spawn$mpsc_step_run_closure4(s.exec, new stepRunFuture$closure4(tx3, arg, item2));
+						break b24;
+					}
+				}
+				if (_60 !== undefined) {
+					drop$mpsc_Tx(_60);
+				}
+			}
+			if (_522) {
+				item2[Symbol.dispose]();
+			}
+			_522 = false;
+		} else if (op === 5) {
+			const first: Item.Item = mpsc_State.item(s);
+			_524 = true;
+			const _69: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
+			b20: {
+				if (_69 !== undefined) {
+					if (_69.tag === "Bounded") {
+						const tx4: rs.MpscSender<Item.Item> = _69._0;
+						const n: rs.usize = rs.u8Rem(arg, 6) as rs.usize;
+						const sent: rs.usize = rs.usizeRem(arg >> 4 as rs.usize, 3);
+						_524 = false;
+						Executor.spawn$mpsc_step_run_closure5(s.exec, new stepRunFuture$closure5(tx4, n, first, sent));
+						break b20;
+					}
+				}
+				if (_69 !== undefined) {
+					drop$mpsc_Tx(_69);
+				}
+			}
+			if (_524) {
+				first[Symbol.dispose]();
+			}
+			_524 = false;
+		} else if (op === 6) {
+			const _86: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
+			if (_86 !== undefined) {
+				if (_86.tag === "Bounded") {
+					const tx5: rs.MpscSender<Item.Item> = _86._0;
+					const owned: rs.Arc<rs.RefCell<rs.MpscOwnedPermit<Item.Item> | undefined>> = new rs.Arc(new rs.RefCell(undefined as rs.MpscOwnedPermit<Item.Item> | undefined));
+					const _98: rs.Future<rs.String> = new stepRunFuture$closure6(tx5, rs.arcClone(owned));
+					Executor.spawn$mpsc_step_run_closure6(s.exec, _98);
+					Executor.run(s.exec);
+					const _104: rs.RefCell<rs.MpscOwnedPermit<Item.Item> | undefined> = rs.refCellBorrowMut(owned.value);
+					const taken3 = _104.value;
+					_104.value = undefined;
+					const _101: rs.MpscOwnedPermit<Item.Item> | undefined = taken3;
+					if (_101 !== undefined) {
+						s.owned.items.push(_101);
+						rs.refMutRelease(_104);
+					} else {
+						rs.refMutRelease(_104);
+					}
+					owned[Symbol.dispose]();
+					break b0;
+				}
+			}
+			if (_86 !== undefined) {
+				drop$mpsc_Tx(_86);
+			}
+		} else if (op === 7) {
+			const live: rs.Vec<rs.usize> = rs.iterToVec(rs.iterFilter(new rs.Range(0, s.owned.items.length), (_24: rs.usize): boolean => {
+				return s.owned.items[rs.idx(s.owned.items, _24)] !== undefined;
+			}), "next", 4);
+			if (!(live.items.length === 0)) {
+				const at5 = rs.idx(s.owned.items, live.items[rs.idx(live.items, rs.usizeRem(arg as rs.usize, live.items.length))]);
+				const taken2 = s.owned.items[at5];
+				s.owned.items[at5] = undefined;
+				const permit2: rs.MpscOwnedPermit<Item.Item> = rs.optionExpect(taken2, "live");
+				const _134: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, 0);
+				b12: {
+					if (_134 !== undefined) {
+						if (_134.tag === "Bounded") {
+							const tx6: rs.MpscSender<Item.Item> = _134._0;
+							const _145: boolean = rs.mpscOwnedPermitSameChannelAsSender(permit2, tx6);
+							if (!(live.items.length > 1)) {
+								_149 = false;
+							} else {
+								_149 = isSomeAnd$1ydwehv(s.owned.items[rs.idx(s.owned.items, live.items[rs.idx(live.items, rs.usizeRem(rs.usizeAdd(arg as rs.usize, 1), live.items.length))])], (other: rs.MpscOwnedPermit<Item.Item>): boolean => {
+									return rs.mpscOwnedPermitSameChannel(permit2, other);
+								});
+							}
+							const args42 = [(f: rs.Formatter) => rs.fmtBool(_145, f), (f: rs.Formatter) => rs.fmtBool(_149, f)];
+							note(rs.fmtFormat(["same ", args42[0], " ", args42[1]]));
+							tx6[Symbol.dispose]();
+							break b12;
+						}
+					}
+					if (_134 !== undefined) {
+						drop$mpsc_Tx(_134);
+					}
+				}
+				const _173: rs.u8 = rs.u8Rem(arg, 3);
+				if (_173 === 0) {
+					const item3: Item.Item = mpsc_State.item(s);
+					const tx7: rs.MpscSender<Item.Item> = rs.mpscOwnedPermitSend(permit2, item3);
+					const part5 = rs.mpscStrongCount(tx7);
+					note(rs.fmtFormat(["owned sent, ", (f: rs.Formatter) => rs.usizeDisplay(part5, f), " senders"]));
+					s.senders.items.push(({ tag: "Bounded", _0: tx7 } as mpsc_Tx.Tx) as mpsc_Tx.Tx | undefined);
+				} else if (_173 === 1) {
+					const tx8: rs.MpscSender<Item.Item> = rs.mpscOwnedPermitRelease(permit2);
+					const part4 = rs.mpscCapacity(tx8);
+					note(rs.fmtFormat(["owned released, capacity ", (f: rs.Formatter) => rs.usizeDisplay(part4, f)]));
+					s.senders.items.push(({ tag: "Bounded", _0: tx8 } as mpsc_Tx.Tx) as mpsc_Tx.Tx | undefined);
+				} else {
+					permit2[Symbol.dispose]();
+					note(rs.stringFrom("owned dropped"));
+				}
+			}
+		} else if (op === 8) {
+			const _214: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
+			if (_214 !== undefined) {
+				Executor.spawn$mpsc_step_run_closure8(s.exec, new stepRunFuture$closure8(_214));
+			}
+		} else if (op === 9) {
+			const item4: Item.Item = mpsc_State.item(s);
+			_527 = true;
+			const _222: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
+			if (_222 !== undefined) {
+				if (_222.tag === "Bounded") {
+					const tx10: rs.MpscSender<Item.Item> = _222._0;
+					_527 = false;
+					const _227: rs.Result<undefined, TrySendError.TrySendError<Item.Item>> = rs.mpscTrySend(tx10, item4, (a06: Item.Item): TrySendError.TrySendError<Item.Item> => {
+						return { tag: "Full", _0: a06 };
+					}, (a07: Item.Item): TrySendError.TrySendError<Item.Item> => {
+						return { tag: "Closed", _0: a07 };
+					});
+					if (_227.ok) {
+						note(rs.stringFrom("try_send ok"));
+					} else {
+						const e2: TrySendError.TrySendError<Item.Item> = _227.error;
+						const args40 = [(f: rs.Formatter) => TrySendError.fmt$fmt_Display_log_Item(e2, f), (f: rs.Formatter) => TrySendError.fmt$fmt_Debug_log_Item(e2, f)];
+						const line: rs.String = rs.fmtFormat(["try_send ", args40[0], " ", args40[1]]);
+						const _250: Item.Item = TrySendError.intoInner$log_Item(e2);
+						const args41 = [(f: rs.Formatter) => rs.fmtPad(f, line.v), (f: rs.Formatter) => Item.fmt$fmt_Display(_250, f)];
+						const _246: rs.String = rs.fmtFormat([args41[0], " ", args41[1]]);
+						_250[Symbol.dispose]();
+						note(_246);
+					}
+					tx10[Symbol.dispose]();
+				} else {
+					const tx11: rs.MpscSender<Item.Item> = _222._0;
+					_527 = false;
+					const _265: rs.Result<undefined, mpsc_error_SendError.SendError<Item.Item>> = rs.mpscUnboundedSend(tx11, item4, (a05: Item.Item): mpsc_error_SendError.SendError<Item.Item> => {
+						return new mpsc_error_SendError.SendError(a05);
+					});
+					const part3 = _265.ok;
+					const _259: rs.String = rs.fmtFormat(["send ", (f: rs.Formatter) => rs.fmtBool(part3, f)]);
+					drop$Result_unit_tokio_sync_mpsc_error_SendError_log_Item(_265);
+					note(_259);
+					tx11[Symbol.dispose]();
+				}
+			}
+			if (_527) {
+				item4[Symbol.dispose]();
+			}
+			_527 = false;
+		} else if (op === 10) {
+			const _272: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
+			if (_272 !== undefined) {
+				if (_272.tag === "Bounded") {
+					const tx12: rs.MpscSender<Item.Item> = _272._0;
+					const _277: rs.u8 = rs.u8Rem(arg, 3);
+					if (_277 === 0) {
+						const _279: rs.Result<rs.MpscPermit<Item.Item>, TrySendError.TrySendError<undefined>> = rs.mpscTryReserve(tx12, { tag: "Full", _0: undefined } as TrySendError.TrySendError<undefined>, { tag: "Closed", _0: undefined } as TrySendError.TrySendError<undefined>);
+						if (_279.ok) {
+							rs.mpscPermitSend(_279.value, mpsc_State.item(s));
+							note(rs.stringFrom("try_reserve sent"));
+						} else {
+							const e3: TrySendError.TrySendError<undefined> = _279.error;
+							const args38 = [(f: rs.Formatter) => TrySendError.fmt$fmt_Display_unit(e3, f), (f: rs.Formatter) => TrySendError.fmt$fmt_Debug_unit(e3, f)];
+							note(rs.fmtFormat(["try_reserve ", args38[0], " ", args38[1]]));
+						}
+					} else if (_277 === 1) {
+						const _299: rs.Result<rs.MpscPermits<Item.Item>, TrySendError.TrySendError<undefined>> = rs.mpscTryReserveMany(tx12, arg >> 4 as rs.usize, { tag: "Full", _0: undefined } as TrySendError.TrySendError<undefined>, { tag: "Closed", _0: undefined } as TrySendError.TrySendError<undefined>);
+						if (_299.ok) {
+							const permits: rs.MpscPermits<Item.Item> = _299.value;
+							const part2 = permits.len();
+							note(rs.fmtFormat(["try_reserve_many ", (f: rs.Formatter) => rs.usizeDisplay(part2, f)]));
+							permits[Symbol.dispose]();
+						} else {
+							const arg2 = _299.error;
+							note(rs.fmtFormat(["try_reserve_many ", (f: rs.Formatter) => TrySendError.fmt$fmt_Display_unit(arg2, f)]));
+						}
+					} else {
+						const _328: rs.Result<rs.MpscOwnedPermit<Item.Item>, TrySendError.TrySendError<rs.MpscSender<Item.Item>>> = rs.mpscTryReserveOwned(rs.mpscSenderClone(tx12), (a03: rs.MpscSender<Item.Item>): TrySendError.TrySendError<rs.MpscSender<Item.Item>> => {
+							return { tag: "Full", _0: a03 };
+						}, (a04: rs.MpscSender<Item.Item>): TrySendError.TrySendError<rs.MpscSender<Item.Item>> => {
+							return { tag: "Closed", _0: a04 };
+						});
+						if (_328.ok) {
+							s.owned.items.push(_328.value);
+						} else {
+							const e5: TrySendError.TrySendError<rs.MpscSender<Item.Item>> = _328.error;
+							note(rs.fmtFormat(["try_reserve_owned ", (f: rs.Formatter) => TrySendError.fmt$fmt_Display_tokio_sync_mpsc_Sender_log_Item(e5, f)]));
+							drop$tokio_sync_mpsc_error_TrySendError_tokio_sync_mpsc_Sender_log_Item(e5);
+						}
+					}
+					tx12[Symbol.dispose]();
+					break b0;
+				}
+			}
+			if (_272 !== undefined) {
+				drop$mpsc_Tx(_272);
+			}
+		} else if (op === 11) {
+			const slot5: rs.RefCell<mpsc_Rx.Rx | undefined> = rs.refCellBorrowMut(s.rx.value);
+			const borrowed2 = slot5;
+			const _349: rs.Place<mpsc_Rx.Rx> | undefined = slot5.value === undefined ? undefined : rs.place(() => borrowed2.value as mpsc_Rx.Rx, (value2) => borrowed2.value = value2);
+			if (_349 === undefined) {
+				rs.refMutRelease(slot5);
+			} else {
+				if (_349.v.tag === "Bounded") {
+					got = rs.mpscTryRecv(_349.v._0, "Empty" as mpsc_error_TryRecvError.TryRecvError, "Disconnected" as mpsc_error_TryRecvError.TryRecvError);
+				} else {
+					got = rs.mpscTryRecv(_349.v._0, "Empty" as mpsc_error_TryRecvError.TryRecvError, "Disconnected" as mpsc_error_TryRecvError.TryRecvError);
+				}
+				rs.refMutRelease(slot5);
+				if (got.ok) {
+					const v: Item.Item = got.value;
+					note(rs.fmtFormat(["try_recv ", (f: rs.Formatter) => Item.fmt$fmt_Display(v, f)]));
+					v[Symbol.dispose]();
+				} else {
+					const e6: mpsc_error_TryRecvError.TryRecvError = got.error;
+					const args33 = [(f: rs.Formatter) => mpsc_error_TryRecvError.fmt$fmt_Display(e6, f), (f: rs.Formatter) => mpsc_error_TryRecvError.fmt$fmt_Debug(e6, f)];
+					note(rs.fmtFormat(["try_recv ", args33[0], " ", args33[1]]));
+				}
+			}
+		} else if (op === 12) {
+			const _383: rs.RefCell<mpsc_Rx.Rx | undefined> = rs.refCellBorrowMut(s.rx.value);
+			const borrowed = _383;
+			const _380: rs.Place<mpsc_Rx.Rx> | undefined = _383.value === undefined ? undefined : rs.place(() => borrowed.value as mpsc_Rx.Rx, (value) => borrowed.value = value);
+			if (_380 !== undefined) {
+				if (_380.v.tag === "Bounded") {
+					rs.mpscClose(_380.v._0);
+				} else {
+					rs.mpscClose(_380.v._0);
+				}
+			}
+			rs.refMutRelease(_383);
+		} else if (op === 13) {
+			const live2: rs.Vec<rs.usize> = rs.iterToVec(rs.iterFilter(new rs.Range(0, s.senders.items.length), (_2: rs.usize): boolean => {
+				return s.senders.items[rs.idx(s.senders.items, _2)] !== undefined;
+			}), "next", 4);
+			const _397: rs.usize | undefined = rs.sliceGet(rs.sliceFrom(live2.items), rs.usizeRem(arg as rs.usize, rs.max(live2.items.length, 1)));
+			if (_397 !== undefined) {
+				const i2: rs.usize = _397;
+				note(rs.fmtFormat(["drop sender ", (f: rs.Formatter) => rs.usizeDisplay(i2, f)]));
+				const at2 = rs.idx(s.senders.items, i2);
+				drop$Option_mpsc_Tx(s.senders.items[at2]);
+				s.senders.items[at2] = undefined;
+			}
+		} else if (op === 14) {
+			const _421: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
+			if (_421 !== undefined) {
+				s.senders.items.push(_421 as mpsc_Tx.Tx | undefined);
+			}
+		} else if (op === 15) {
+			note(rs.stringFrom("drop receiver"));
+			const _435: rs.RefCell<mpsc_Rx.Rx | undefined> = rs.refCellBorrowMut(s.rx.value);
+			const taken = _435.value;
+			_435.value = undefined;
+			drop$Option_mpsc_Rx(taken);
+			rs.refMutRelease(_435);
+		} else if (op === 16) {
+			Executor.cancel(s.exec, arg);
+		} else if (op === 17) {
+			Executor.run(s.exec);
+		} else if (op === 18) {
+			const _440: rs.u8 = rs.u8Rem(arg, 3);
+			if (_440 === 0) {
+				const _442: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, arg);
+				if (_442 !== undefined) {
+					const tx14: mpsc_Tx.Tx = _442;
+					if (tx14.tag === "Bounded") {
+						_449 = { tag: "Bounded", _0: rs.mpscDowngrade(tx14._0) } as Weak.Weak;
+					} else {
+						_449 = { tag: "Unbounded", _0: rs.mpscDowngrade(tx14._0) } as Weak.Weak;
+					}
+					s.weaks.items.push(_449 as Weak.Weak | undefined);
+					drop$mpsc_Tx(tx14);
+				}
+			} else if (_440 === 1) {
+				const _456: Weak.Weak | undefined | rs.None = rs.sliceLast(rs.sliceFrom(s.weaks.items), rs.None);
+				if (_456 !== rs.None) {
+					if (_456 !== undefined) {
+						const _463: Weak.Weak = Weak.clone$Clone(_456);
+						if (_463.tag === "Bounded") {
+							const w: rs.MpscWeakSender<Item.Item> = _463._0;
+							up = option_map$1e5jqg6(rs.mpscUpgrade(w), (a02: rs.MpscSender<Item.Item>): mpsc_Tx.Tx => {
+								return { tag: "Bounded", _0: a02 };
+							});
+							w[Symbol.dispose]();
+						} else {
+							const w2: rs.MpscWeakSender<Item.Item> = _463._0;
+							up = option_map$0m0dsn3(rs.mpscUpgrade(w2), (a0: rs.MpscSender<Item.Item>): mpsc_Tx.Tx => {
+								return { tag: "Unbounded", _0: a0 };
+							});
+							w2[Symbol.dispose]();
+						}
+						const part = up !== undefined;
+						note(rs.fmtFormat(["upgrade ", (f: rs.Formatter) => rs.fmtBool(part, f)]));
+						s.senders.items.push(up);
+					}
+				}
+			} else {
+				drop$Option_Option_mpsc_Weak(rs.vecPop(s.weaks, rs.None));
+			}
 		} else {
-			drop$Option_Option_mpsc_Weak(rs.vecPop(s.weaks, rs.None));
+			state(s);
 		}
-	} else {
-		state(s);
 	}
 }
 
@@ -1004,66 +1042,75 @@ export function state(s: mpsc_State.State): void {
 			const _37: string = rs.fmtFormat([" tx closed ", args15[0], " strong ", args15[1], " weak ", args15[2]]).v;
 			rs.stringPushStr(line, _37);
 		}
-		const _55: rs.MpscSender<Item.Item> | undefined = mpsc_State.bounded(s, 1);
-		if (_55 !== undefined) {
-			const other: rs.MpscSender<Item.Item> = _55;
-			if (tx.tag === "Bounded") {
-				const part = rs.mpscSameChannel(tx._0, other);
-				const _63: string = rs.fmtFormat([" same ", (f: rs.Formatter) => rs.fmtBool(part, f)]).v;
-				rs.stringPushStr(line, _63);
-				other[Symbol.dispose]();
-			} else {
-				other[Symbol.dispose]();
+		const _55: mpsc_Tx.Tx | undefined = mpsc_State.sender(s, 1);
+		b2: {
+			if (_55 !== undefined) {
+				if (_55.tag === "Bounded") {
+					const other: rs.MpscSender<Item.Item> = _55._0;
+					if (tx.tag === "Bounded") {
+						const part = rs.mpscSameChannel(tx._0, other);
+						const _64: string = rs.fmtFormat([" same ", (f: rs.Formatter) => rs.fmtBool(part, f)]).v;
+						rs.stringPushStr(line, _64);
+						other[Symbol.dispose]();
+						break b2;
+					}
+					other[Symbol.dispose]();
+				}
+			}
+			if (_55 !== undefined) {
+				if (_55.tag !== "Bounded") {
+					drop$mpsc_Tx(_55);
+				}
 			}
 		}
 		drop$mpsc_Tx(tx);
 	}
-	const _77: Weak.Weak | undefined | rs.None = rs.sliceLast(rs.sliceFrom(s.weaks.items), rs.None);
-	if (_77 !== rs.None) {
-		if (_77 !== undefined) {
-			if (_77.tag === "Bounded") {
-				const w: rs.MpscWeakSender<Item.Item> = _77._0;
-				const _93: rs.usize = rs.mpscStrongCount(w);
-				const _95: rs.usize = rs.mpscWeakCount(w);
-				const args19 = [(f: rs.Formatter) => rs.usizeDisplay(_93, f), (f: rs.Formatter) => rs.usizeDisplay(_95, f), (f: rs.Formatter) => f.out.writeStr("WeakSender")];
-				const _86: string = rs.fmtFormat([" weak ", args19[0], " ", args19[1], " ", args19[2]]).v;
-				rs.stringPushStr(line, _86);
+	const _78: Weak.Weak | undefined | rs.None = rs.sliceLast(rs.sliceFrom(s.weaks.items), rs.None);
+	if (_78 !== rs.None) {
+		if (_78 !== undefined) {
+			if (_78.tag === "Bounded") {
+				const w: rs.MpscWeakSender<Item.Item> = _78._0;
+				const _94: rs.usize = rs.mpscStrongCount(w);
+				const _96: rs.usize = rs.mpscWeakCount(w);
+				const args19 = [(f: rs.Formatter) => rs.usizeDisplay(_94, f), (f: rs.Formatter) => rs.usizeDisplay(_96, f), (f: rs.Formatter) => f.out.writeStr("WeakSender")];
+				const _87: string = rs.fmtFormat([" weak ", args19[0], " ", args19[1], " ", args19[2]]).v;
+				rs.stringPushStr(line, _87);
 			} else {
-				const w2: rs.MpscWeakSender<Item.Item> = _77._0;
-				const _112: rs.usize = rs.mpscStrongCount(w2);
-				const _114: rs.usize = rs.mpscWeakCount(w2);
-				const args18 = [(f: rs.Formatter) => rs.usizeDisplay(_112, f), (f: rs.Formatter) => rs.usizeDisplay(_114, f), (f: rs.Formatter) => f.out.writeStr("WeakUnboundedSender")];
-				const _105: string = rs.fmtFormat([" weak ", args18[0], " ", args18[1], " ", args18[2]]).v;
-				rs.stringPushStr(line, _105);
+				const w2: rs.MpscWeakSender<Item.Item> = _78._0;
+				const _113: rs.usize = rs.mpscStrongCount(w2);
+				const _115: rs.usize = rs.mpscWeakCount(w2);
+				const args18 = [(f: rs.Formatter) => rs.usizeDisplay(_113, f), (f: rs.Formatter) => rs.usizeDisplay(_115, f), (f: rs.Formatter) => f.out.writeStr("WeakUnboundedSender")];
+				const _106: string = rs.fmtFormat([" weak ", args18[0], " ", args18[1], " ", args18[2]]).v;
+				rs.stringPushStr(line, _106);
 			}
 		}
 	}
-	const _126: rs.RefCell<mpsc_Rx.Rx | undefined> = rs.refCellBorrow(s.rx.value);
-	const _123: mpsc_Rx.Rx | undefined = _126.value;
-	if (_123 !== undefined) {
-		if (_123.tag === "Bounded") {
-			const _140: boolean = rs.mpscRxIsClosed(_123._0);
-			const _142: boolean = rs.mpscIsEmpty(_123._0);
-			const _144: rs.usize = rs.mpscLen(_123._0);
-			const _146: rs.usize = rs.mpscCapacity(_123._0);
-			const _148: rs.usize = rs.mpscMaxCapacity(_123._0);
-			const _150: rs.usize = rs.mpscStrongCount(_123._0);
-			const _152: rs.usize = rs.mpscWeakCount(_123._0);
-			const args21 = [(f: rs.Formatter) => rs.fmtBool(_140, f), (f: rs.Formatter) => rs.fmtBool(_142, f), (f: rs.Formatter) => rs.usizeDisplay(_144, f), (f: rs.Formatter) => rs.usizeDisplay(_146, f), (f: rs.Formatter) => rs.usizeDisplay(_148, f), (f: rs.Formatter) => rs.usizeDisplay(_150, f), (f: rs.Formatter) => rs.usizeDisplay(_152, f)];
-			const _133: string = rs.fmtFormat([" rx closed ", args21[0], " empty ", args21[1], " len ", args21[2], " cap ", args21[3], "/", args21[4], " senders ", args21[5], " ", args21[6]]).v;
-			rs.stringPushStr(line, _133);
+	const _127: rs.RefCell<mpsc_Rx.Rx | undefined> = rs.refCellBorrow(s.rx.value);
+	const _124: mpsc_Rx.Rx | undefined = _127.value;
+	if (_124 !== undefined) {
+		if (_124.tag === "Bounded") {
+			const _141: boolean = rs.mpscRxIsClosed(_124._0);
+			const _143: boolean = rs.mpscIsEmpty(_124._0);
+			const _145: rs.usize = rs.mpscLen(_124._0);
+			const _147: rs.usize = rs.mpscCapacity(_124._0);
+			const _149: rs.usize = rs.mpscMaxCapacity(_124._0);
+			const _151: rs.usize = rs.mpscStrongCount(_124._0);
+			const _153: rs.usize = rs.mpscWeakCount(_124._0);
+			const args21 = [(f: rs.Formatter) => rs.fmtBool(_141, f), (f: rs.Formatter) => rs.fmtBool(_143, f), (f: rs.Formatter) => rs.usizeDisplay(_145, f), (f: rs.Formatter) => rs.usizeDisplay(_147, f), (f: rs.Formatter) => rs.usizeDisplay(_149, f), (f: rs.Formatter) => rs.usizeDisplay(_151, f), (f: rs.Formatter) => rs.usizeDisplay(_153, f)];
+			const _134: string = rs.fmtFormat([" rx closed ", args21[0], " empty ", args21[1], " len ", args21[2], " cap ", args21[3], "/", args21[4], " senders ", args21[5], " ", args21[6]]).v;
+			rs.stringPushStr(line, _134);
 		} else {
-			const _172: boolean = rs.mpscRxIsClosed(_123._0);
-			const _174: boolean = rs.mpscIsEmpty(_123._0);
-			const _176: rs.usize = rs.mpscLen(_123._0);
-			const _178: rs.usize = rs.mpscStrongCount(_123._0);
-			const _180: rs.usize = rs.mpscWeakCount(_123._0);
-			const args20 = [(f: rs.Formatter) => rs.fmtBool(_172, f), (f: rs.Formatter) => rs.fmtBool(_174, f), (f: rs.Formatter) => rs.usizeDisplay(_176, f), (f: rs.Formatter) => rs.usizeDisplay(_178, f), (f: rs.Formatter) => rs.usizeDisplay(_180, f)];
-			const _165: string = rs.fmtFormat([" rx closed ", args20[0], " empty ", args20[1], " len ", args20[2], " senders ", args20[3], " ", args20[4]]).v;
-			rs.stringPushStr(line, _165);
+			const _173: boolean = rs.mpscRxIsClosed(_124._0);
+			const _175: boolean = rs.mpscIsEmpty(_124._0);
+			const _177: rs.usize = rs.mpscLen(_124._0);
+			const _179: rs.usize = rs.mpscStrongCount(_124._0);
+			const _181: rs.usize = rs.mpscWeakCount(_124._0);
+			const args20 = [(f: rs.Formatter) => rs.fmtBool(_173, f), (f: rs.Formatter) => rs.fmtBool(_175, f), (f: rs.Formatter) => rs.usizeDisplay(_177, f), (f: rs.Formatter) => rs.usizeDisplay(_179, f), (f: rs.Formatter) => rs.usizeDisplay(_181, f)];
+			const _166: string = rs.fmtFormat([" rx closed ", args20[0], " empty ", args20[1], " len ", args20[2], " senders ", args20[3], " ", args20[4]]).v;
+			rs.stringPushStr(line, _166);
 		}
 	}
-	rs.refRelease(_126);
+	rs.refRelease(_127);
 	note(line);
 }
 

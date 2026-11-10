@@ -4,6 +4,7 @@ import * as rs from "../rs.ts";
 import type * as Logged from "../maps.Logged.ts";
 import type * as RangeInclusiveStartWrapper from "../rangemap/range_wrapper.RangeInclusiveStartWrapper.ts";
 import type * as RangeStartWrapper from "../rangemap/range_wrapper.RangeStartWrapper.ts";
+import type * as Noted from "../small.Noted.ts";
 
 export function unwrapOr$1b5hww3(self: rs.u32 | undefined, default_: rs.u32): rs.u32 {
 	if (self === undefined) {
@@ -190,6 +191,20 @@ export function mapOr$0as7mjc(self: rs.u32 | undefined, default_: rs.usize, f: (
 }
 
 export function mapOr$0mwbrmg(self: rs.u64 | undefined, default_: rs.u8, f: (a0: rs.u64) => rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$1d4bp7c(self: rs.u8 | undefined, default_: rs.usize, f: (a0: rs.u8) => rs.usize): rs.usize {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$0i9sfrs(self: Noted.Noted | undefined, default_: rs.usize, f: (a0: Noted.Noted) => rs.usize): rs.usize {
 	if (self === undefined) {
 		return default_;
 	}
