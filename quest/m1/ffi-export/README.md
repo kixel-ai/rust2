@@ -71,9 +71,8 @@ Every generator, the [targets m3 plans](/quest/m3/README.md) included:
   Rust, since a cancelled C ABI future loses nothing; moq's `go/wrapper/doc.go`, which ends
   the stream, changes with the generator. Each driver runs on a goroutine that lives as
   long as its object, and a call's `ctx` bounds only that call.
-- is measured, with its generated size raw and gzipped
-  ([bench](/quest/m1/ffi-export/bench.md) owns both, and the per-handle poll a hot read
-  may need).
+- is measured, with its generated size raw and gzipped, on
+  [the binding benchmark](/bench/ffi/README.md), whose `just ffi bench` covers it.
 
 What stays here once every child has merged: the flake's `ffi` package, the root
 `README.md` listing the generators, and the generator rules above moved into
@@ -98,4 +97,3 @@ names and defaults, and fails the export on a public item it cannot export.
 - [The glue builds what the export checked](/quest/m1/ffi-export/reproducible.md) - the generated crate carries its lockfile, and a discriminant or nightly-only item it cannot build is refused at export
 - [Swift handles are non-copyable](/quest/m1/ffi-export/swift-noncopyable.md) - a call on a moved handle or a lent handle kept past its call is a Swift compile error, not a trap
 - [C++ checks ownership at compile time](/quest/m1/ffi-export/cpp-attributes.md) - typestate and lifetime attributes and `api::borrow<T>` make Clang refuse what the run-time checks catch
-- [The exporter on the binding benchmark](/quest/m1/ffi-export/bench.md) - committed call, throughput, and size numbers per language against the Rust floor, whose report plans the speed work

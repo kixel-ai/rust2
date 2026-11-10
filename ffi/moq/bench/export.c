@@ -1,6 +1,7 @@
 /* Every case bench/ffi/README.md lists, through the exported C ABI: the floor every other
  * language's binding builds on. bench/export.rs times the same in Rust, and
- * bench/export.cpp through the C++ header. Futures are polled by hand with a null waker. */
+ * bench/export.cpp through the C++ header. Futures are polled by hand with a null waker.
+ * Each case prints its wall time and the process's CPU time. */
 
 #define _POSIX_C_SOURCE 199309L
 
@@ -18,10 +19,25 @@
 
 static const size_t sizes[] = {100, 1024, 16384, 65536, 1048576};
 
-static double now(void) {
+static double clock_ns(clockid_t clock) {
 	struct timespec ts;
-	clock_gettime(CLOCK_MONOTONIC, &ts);
+	clock_gettime(clock, &ts);
 	return (double)ts.tv_sec * 1e9 + (double)ts.tv_nsec;
+}
+
+/* Wall and CPU nanoseconds: a point, an elapsed span, or a span per call. */
+typedef struct {
+	double wall, cpu;
+} span;
+
+static span now(void) {
+	return (span){clock_ns(CLOCK_MONOTONIC), clock_ns(CLOCK_PROCESS_CPUTIME_ID)};
+}
+
+/* Nanoseconds per call since `start`, over `n` calls. */
+static span per(span start, double n) {
+	span end = now();
+	return (span){(end.wall - start.wall) / n, (end.cpu - start.cpu) / n};
 }
 
 static moq_buf str(const char *s) {
@@ -85,13 +101,13 @@ static void finish(moq_group_Producer *group) {
 }
 
 /* Groups of 100 frames of `size` bytes written and each read back, its payload's first byte
- * touched, in about 64 MiB and at least 300 frames: megabytes a second. */
-static double throughput(moq_track_Producer *track, moq_track_Subscriber *subscriber, const moq_Timestamp *at, size_t size, unsigned *sum) {
+ * touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second. */
+static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscriber, const moq_Timestamp *at, size_t size, unsigned *sum) {
 	size_t groups = (64u << 20) / (size * FRAMES);
 	groups = groups < 3 ? 3 : groups > 2000 ? 2000 : groups;
 	uint8_t *payload = calloc(size, 1);
 	moq_buf frame = {.ptr = payload, .len = size};
-	double start = now();
+	span start = now();
 	for (size_t g = 0; g < groups; g++) {
 		moq_group_Producer *group = append_group(track);
 		moq_group_Consumer *reader = recv_group(subscriber);
@@ -106,9 +122,9 @@ static double throughput(moq_track_Producer *track, moq_track_Subscriber *subscr
 		finish(group);
 		moq_group_Consumer_free(reader);
 	}
-	double elapsed = now() - start;
+	span ns = per(start, (double)(groups * FRAMES * size));
 	free(payload);
-	return (double)(groups * FRAMES * size) / elapsed * 1e3;
+	return (span){1e3 / ns.wall, 1e3 / ns.cpu};
 }
 
 static void round_(int print) {
@@ -130,13 +146,13 @@ static void round_(int print) {
 	uint8_t payload[100] = {0};
 	moq_buf frame = {.ptr = payload, .len = sizeof payload};
 	unsigned sum = 0;
-	double start;
+	span start;
 
 	start = now();
 	for (int i = 0; i < N; i++) {
 		sum += moq_track_Producer_is_closed(track);
 	}
-	double call = (now() - start) / N;
+	span call = per(start, N);
 
 	moq_group_Producer *demanded = append_group(track);
 	moq_group_Demand *demand = moq_group_Producer_demand(demanded);
@@ -144,7 +160,7 @@ static void round_(int print) {
 	for (int i = 0; i < N; i++) {
 		sum += (unsigned)moq_group_Demand_sequence(demand);
 	}
-	double getter = (now() - start) / N;
+	span getter = per(start, N);
 	moq_group_Demand_free(demand);
 	finish(demanded);
 
@@ -152,13 +168,13 @@ static void round_(int print) {
 	for (int i = 0; i < N; i++) {
 		sum += moq_track_Producer_largest(track).some;
 	}
-	double record = (now() - start) / N;
+	span record = per(start, N);
 
 	start = now();
 	for (int i = 0; i < N; i++) {
 		moq_track_Info_free(moq_track_Producer_info(track));
 	}
-	double object = (now() - start) / N;
+	span object = per(start, N);
 
 	/* Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must. */
 	uint64_t micros = 0;
@@ -176,7 +192,7 @@ static void round_(int print) {
 		}
 		finish(group);
 	}
-	double stamped = (now() - start) / N;
+	span stamped = per(start, N);
 
 	moq_Timestamp *at = NULL;
 	moq_TimeOverflow *overflow = NULL;
@@ -191,7 +207,7 @@ static void round_(int print) {
 		}
 		finish(group);
 	}
-	double write = (now() - start) / N;
+	span write = per(start, N);
 
 	moq_track_Consumer *consumer = moq_track_Producer_consume(track);
 	moq_track_Consumer_subscribe_future *subscribing = moq_track_Consumer_subscribe(consumer, NULL);
@@ -218,7 +234,7 @@ static void round_(int print) {
 		finish(group);
 		moq_group_Consumer_free(reader);
 	}
-	double ready = (now() - start) / N;
+	span ready = per(start, N);
 
 	/* Each read polled before its frame is written, so it pends, then polled again. */
 	start = now();
@@ -241,7 +257,7 @@ static void round_(int print) {
 		finish(group);
 		moq_group_Consumer_free(reader);
 	}
-	double woken = (now() - start) / N;
+	span woken = per(start, N);
 
 	/* The last frame's 100 bytes, owned without a copy, then freed. */
 	start = now();
@@ -250,10 +266,10 @@ static void round_(int print) {
 		sum += bytes.ptr[0];
 		moq_buf_free(bytes);
 	}
-	double payload_ = (now() - start) / N;
+	span payload_ = per(start, N);
 	moq_frame_Frame_free(last);
 
-	double mbps[sizeof sizes / sizeof sizes[0]];
+	span mbps[sizeof sizes / sizeof sizes[0]];
 	for (size_t i = 0; i < sizeof sizes / sizeof sizes[0]; i++) {
 		mbps[i] = throughput(track, subscriber, at, sizes[i], &sum);
 	}
@@ -266,10 +282,13 @@ static void round_(int print) {
 	moq_broadcast_Producer_free(broadcast);
 
 	if (print) {
-		printf("call\t%f\ngetter\t%f\nrecord\t%f\nobject\t%f\nstamped\t%f\nwrite\t%f\nready\t%f\nwoken\t%f\npayload\t%f\n",
-			   call, getter, record, object, stamped, write, ready, woken, payload_);
+		const char *names[] = {"call", "getter", "record", "object", "stamped", "write", "ready", "woken", "payload"};
+		span values[] = {call, getter, record, object, stamped, write, ready, woken, payload_};
+		for (size_t i = 0; i < sizeof names / sizeof names[0]; i++) {
+			printf("%s\t%f\t%f\n", names[i], values[i].wall, values[i].cpu);
+		}
 		for (size_t i = 0; i < sizeof sizes / sizeof sizes[0]; i++) {
-			printf("mbps:%zu\t%f\n", sizes[i], mbps[i]);
+			printf("mbps:%zu\t%f\t%f\n", sizes[i], mbps[i].wall, mbps[i].cpu);
 		}
 	}
 }

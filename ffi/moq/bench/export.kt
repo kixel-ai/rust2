@@ -1,6 +1,8 @@
 // bench/export.c's cases through the generated Kotlin, so the two differ by what JNI and
-// the Kotlin wrapper add. Each round runs twice, the first to warm the JIT.
+// the Kotlin wrapper add. Each round runs twice, the first to warm the JIT. Each case prints
+// its wall time and the process's CPU time, the JIT's and GC's threads included.
 
+import java.lang.management.ManagementFactory
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
@@ -11,19 +13,29 @@ const val FRAMES = 100
 const val N = GROUPS * FRAMES
 val SIZES = listOf(100, 1024, 16384, 65536, 1048576)
 
+// Wall and CPU nanoseconds: a point, or a span per call.
+data class Span(val wall: Double, val cpu: Double)
+
+val os = ManagementFactory.getOperatingSystemMXBean() as com.sun.management.OperatingSystemMXBean
+
+fun now() = Span(System.nanoTime().toDouble(), os.processCpuTime.toDouble())
+
 // Nanoseconds per call since `start`, over `n` calls.
-fun per(start: Long, n: Int = N): Double = (System.nanoTime() - start).toDouble() / n
+fun per(start: Span, n: Double = N.toDouble()): Span {
+	val end = now()
+	return Span((end.wall - start.wall) / n, (end.cpu - start.cpu) / n)
+}
 
 // What the loops sum, kept so the JIT cannot drop the calls.
 @Volatile var sink = 0
 
 // Groups of 100 frames of `size` bytes written and each read back, its payload's first
-// byte touched, in about 64 MiB and at least 300 frames: megabytes a second.
-suspend fun throughput(track: TrackProducer, subscriber: TrackSubscriber, at: Timestamp, size: Int): Double {
+// byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
+suspend fun throughput(track: TrackProducer, subscriber: TrackSubscriber, at: Timestamp, size: Int): Span {
 	val groups = ((64 shl 20) / (size * FRAMES)).coerceIn(3, 2000)
 	val frame = ByteArray(size)
 	var sum = 0
-	val start = System.nanoTime()
+	val start = now()
 	repeat(groups) {
 		track.appendGroup().use { group ->
 			subscriber.recvGroup()!!.use { reader ->
@@ -36,11 +48,12 @@ suspend fun throughput(track: TrackProducer, subscriber: TrackSubscriber, at: Ti
 		}
 	}
 	sink += sum
-	return groups.toDouble() * FRAMES * size * 1e3 / (System.nanoTime() - start)
+	val ns = per(start, groups.toDouble() * FRAMES * size)
+	return Span(1e3 / ns.wall, 1e3 / ns.cpu)
 }
 
-fun round(): Map<String, Double> {
-	val out = linkedMapOf<String, Double>()
+fun round(): Map<String, Span> {
+	val out = linkedMapOf<String, Span>()
 	val broadcast = BroadcastInfo.new().produce()
 	val track = Timescale.MICRO.use { micro ->
 		broadcast.createTrack("bench", TrackInfo.default().withTimescale(micro))
@@ -48,30 +61,30 @@ fun round(): Map<String, Double> {
 	val frame = ByteArray(100)
 	var sum = 0
 
-	var start = System.nanoTime()
+	var start = now()
 	repeat(N) { if (track.isClosed()) sum++ }
 	out["call"] = per(start)
 
 	track.appendGroup().use { group ->
 		group.demand().use { demand ->
-			start = System.nanoTime()
+			start = now()
 			repeat(N) { sum += demand.sequence().toInt() }
 			out["getter"] = per(start)
 		}
 		group.finish()
 	}
 
-	start = System.nanoTime()
+	start = now()
 	repeat(N) { if (track.largest() != null) sum++ }
 	out["record"] = per(start)
 
-	start = System.nanoTime()
+	start = now()
 	repeat(N) { track.info().close() }
 	out["object"] = per(start)
 
 	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
 	var micros = 0uL
-	start = System.nanoTime()
+	start = now()
 	repeat(GROUPS) {
 		track.appendGroup().use { group ->
 			repeat(FRAMES) {
@@ -83,7 +96,7 @@ fun round(): Map<String, Double> {
 	out["stamped"] = per(start)
 
 	val at = Timestamp.fromMicros(micros)
-	start = System.nanoTime()
+	start = now()
 	repeat(GROUPS) {
 		track.appendGroup().use { group ->
 			repeat(FRAMES) { group.writeFrame(at, frame) }
@@ -98,7 +111,7 @@ fun round(): Map<String, Double> {
 
 		// Each frame written, then read through a suspend fun whose future is ready at its
 		// first poll, so it never suspends.
-		var t0 = System.nanoTime()
+		var t0 = now()
 		repeat(GROUPS) {
 			track.appendGroup().use { group ->
 				subscriber.recvGroup()!!.use { reader ->
@@ -115,7 +128,7 @@ fun round(): Map<String, Double> {
 
 		// Each read started before its frame is written, so it suspends, and the write's wake
 		// resumes it through runBlocking's event loop.
-		t0 = System.nanoTime()
+		t0 = now()
 		repeat(GROUPS) {
 			track.appendGroup().use { group ->
 				subscriber.recvGroup()!!.use { reader ->
@@ -135,7 +148,7 @@ fun round(): Map<String, Double> {
 	}
 
 	// The last frame's 100 bytes, copied across, and one of them read.
-	start = System.nanoTime()
+	start = now()
 	last!!.use { read ->
 		repeat(N) { sum += read.payloadGet[0] }
 	}
@@ -149,5 +162,5 @@ fun round(): Map<String, Double> {
 
 fun main() {
 	round()
-	for ((case, value) in round()) println("$case\t$value")
+	for ((case, value) in round()) println("$case\t${value.wall}\t${value.cpu}")
 }

@@ -59,7 +59,7 @@ bench-build checkout="": (moq-export checkout)
     # The floor: the stand-in's API called from Rust, resolved as the export is.
     rm -rf target/bench-rust
     mkdir -p target/bench-rust
-    printf '[package]\nname = "bench"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n[[bin]]\nname = "bench"\npath = "%s"\n\n[dependencies]\nmoq = { package = "moq-ffi", path = "../moq-ffi" }\n\n[workspace]\n' "$PWD/moq/bench/export.rs" > target/bench-rust/Cargo.toml
+    printf '[package]\nname = "bench"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n[[bin]]\nname = "bench"\npath = "%s"\n\n[dependencies]\nlibc = "0.2"\nmoq = { package = "moq-ffi", path = "../moq-ffi" }\n\n[workspace]\n' "$PWD/moq/bench/export.rs" > target/bench-rust/Cargo.toml
     cp target/moq-ffi/Cargo.lock target/bench-rust/Cargo.lock
     cargo build --quiet --release --manifest-path target/bench-rust/Cargo.toml
     # moq-c's header is written to its build script's output directory.
@@ -83,7 +83,7 @@ bench-build checkout="": (moq-export checkout)
         swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I "$out/swift" moq/bench/export.swift target/swift/libMoq.a "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export-swift
     fi
 
-# Run what bench-build built, alone on a quiet host: each program `rounds` times into target/bench/raw.tsv, and their medians and the export's sizes into target/bench/report.md.
+# Run what bench-build built: each program `rounds` times into target/bench/raw.tsv, with the 1-minute load average over each run, and their medians and the export's sizes into target/bench/report.md.
 bench-run rounds="3":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -91,11 +91,18 @@ bench-run rounds="3":
     mkdir -p target/bench
     raw=target/bench/raw.tsv
     : > "$raw"
-    # Each program prints a case and its value a line; this prefixes its language and round.
+    # Each program prints a case, its wall time, and its CPU time a line; this prefixes its
+    # language and round, and suffixes the load average over the run, the mean of the
+    # 1-minute averages before and after it.
     run() {
-        local lang=$1
+        local lang=$1 before after
         shift
-        "$@" | awk -v lang="$lang" -v round="$r" -F '\t' 'NF == 2 { print lang "\t" round "\t" $1 "\t" $2; next } { print "bench: " lang ": unexpected line: " $0 > "/dev/stderr"; exit 1 }' >> "$raw"
+        read -r before _ < /proc/loadavg
+        "$@" > target/bench/run.tsv
+        read -r after _ < /proc/loadavg
+        awk -v lang="$lang" -v round="$r" -v loadavg="$(echo "$before $after" | awk '{ print ($1 + $2) / 2 }')" -F '\t' \
+            'NF == 3 { print lang "\t" round "\t" $1 "\t" $2 "\t" $3 "\t" loadavg; next } { print "bench: " lang ": unexpected line: " $0 > "/dev/stderr"; exit 1 }' \
+            target/bench/run.tsv >> "$raw"
     }
     for r in $(seq {{ rounds }}); do
         run rust target/bench-rust/target/release/bench

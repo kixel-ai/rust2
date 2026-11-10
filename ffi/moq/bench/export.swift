@@ -1,5 +1,6 @@
 // bench/export.c's cases through the generated Swift, so the two differ by what the Swift
-// wrapper adds. Each round runs twice, the first to warm up.
+// wrapper adds. Each round runs twice, the first to warm up. Each case prints its wall time
+// and the process's CPU time, the global executor's threads included.
 
 import Foundation
 import Moq
@@ -9,14 +10,27 @@ let frames = 100
 let n = groups * frames
 let sizes = [100, 1024, 16384, 65536, 1_048_576]
 
-/// Nanoseconds now.
-func now() -> UInt64 {
-	DispatchTime.now().uptimeNanoseconds
+/// Wall and CPU nanoseconds: a point, or a span per call.
+struct Span: Sendable {
+	var wall: Double
+	var cpu: Double
+}
+
+/// `clock` in nanoseconds.
+func nanoseconds(_ clock: clockid_t) -> Double {
+	var ts = timespec()
+	clock_gettime(clock, &ts)
+	return Double(ts.tv_sec) * 1e9 + Double(ts.tv_nsec)
+}
+
+func now() -> Span {
+	Span(wall: nanoseconds(CLOCK_MONOTONIC), cpu: nanoseconds(CLOCK_PROCESS_CPUTIME_ID))
 }
 
 /// Nanoseconds per call since `start`, over `calls` calls.
-func per(_ start: UInt64, _ calls: Int = n) -> Double {
-	Double(now() - start) / Double(calls)
+func per(_ start: Span, _ calls: Double = Double(n)) -> Span {
+	let end = now()
+	return Span(wall: (end.wall - start.wall) / calls, cpu: (end.cpu - start.cpu) / calls)
 }
 
 /// A value a task sets and this thread reads once the task signals.
@@ -37,8 +51,8 @@ func block<T: Sendable>(_ body: @escaping @Sendable () async throws -> T) -> T {
 }
 
 /// Groups of 100 frames of `size` bytes written and each read back, its payload's first
-/// byte touched, in about 64 MiB and at least 300 frames: megabytes a second.
-func throughput(_ track: TrackProducer, _ subscriber: TrackSubscriber, _ at: Timestamp, _ size: Int) async throws -> (Double, Int) {
+/// byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
+func throughput(_ track: TrackProducer, _ subscriber: TrackSubscriber, _ at: Timestamp, _ size: Int) async throws -> (Span, Int) {
 	let count = min(max((64 << 20) / (size * frames), 3), 2000)
 	let frame = Data(count: size)
 	var sum = 0
@@ -52,11 +66,12 @@ func throughput(_ track: TrackProducer, _ subscriber: TrackSubscriber, _ at: Tim
 		}
 		try group.finish()
 	}
-	return (Double(count * frames * size) * 1e3 / Double(now() - start), sum)
+	let ns = per(start, Double(count * frames * size))
+	return (Span(wall: 1e3 / ns.wall, cpu: 1e3 / ns.cpu), sum)
 }
 
-func round() throws -> ([(String, Double)], Int) {
-	var out: [(String, Double)] = []
+func round() throws -> ([(String, Span)], Int) {
+	var out: [(String, Span)] = []
 	let broadcast = BroadcastInfo.new().produce()
 	let track = try broadcast.createTrack("bench", TrackInfo.default().withTimescale(Timescale.MICRO))
 	let frame = Data(count: 100)
@@ -115,7 +130,7 @@ func round() throws -> ([(String, Double)], Int) {
 	out.append(("write", per(start)))
 
 	let (reads, last, readSum) = block {
-		var out: [(String, Double)] = []
+		var out: [(String, Span)] = []
 		let subscriber = try await track.consume().subscribe(nil)
 
 		// Each frame written, then read through an async func whose future is ready at its
@@ -174,7 +189,7 @@ sink += try round().1
 let (out, sum) = try round()
 sink += sum
 for (key, value) in out {
-	print("\(key)\t\(value)")
+	print("\(key)\t\(value.wall)\t\(value.cpu)")
 }
 if sink == Int.min {
 	print("!")

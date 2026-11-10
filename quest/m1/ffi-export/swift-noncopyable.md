@@ -28,7 +28,8 @@ has the scripts that generated the stricter forms:
 - ✅ Drop the per-handle atomic hold count once a release-build measurement confirms the
   gain (rejected: keeping it as a backstop). The compiler then refuses everything it
   guarded; the one case left, a data race in Swift 5 mode, is already undefined behavior
-  in Swift. The spike measured `get()` at 24.6 ns with it and 17.9 ns without, against a
+  in Swift. Measure it on [the binding benchmark](/bench/ffi/README.md), whose Swift handle
+  call is the baseline. The spike measured `get()` at 24.6 ns with it and 17.9 ns without, against a
   debug library on a loaded host. This is the Swift side of
   [checks-raise](/quest/m1/ffi-export/checks-raise.md)'s one accounting.
 - ✅ m1, in the exporter epic (rejected: m2), since the switch breaks the generated Swift
@@ -56,5 +57,4 @@ the generated package's swift-collections dependency.
 ## Related
 
 - [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - the run-time checks left after this switch raise rather than trap
-- [The exporter on the binding benchmark](/quest/m1/ffi-export/bench.md) - where the hold count's release-build measurement belongs
 - [C++ checks ownership at compile time](/quest/m1/ffi-export/cpp-attributes.md) - the same spike's C++ half

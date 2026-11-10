@@ -1,6 +1,7 @@
 """The binding benchmark's tables, in Markdown: the median of each case's rounds per language,
-read from `just ffi bench-run`'s raw.tsv, and the sizes of the export's generated bindings
-and native libraries.
+in CPU and wall time, each beside the median 1-minute load average over its rounds, read
+from `just ffi bench-run`'s raw.tsv, and the sizes of the export's generated bindings and
+native libraries.
 
 Usage: report.py <raw.tsv> <export dir>
 """
@@ -86,11 +87,7 @@ def kib(n):
 	return f"{n / 1024:,.0f} KiB"
 
 
-def ns(value):
-	return f"{value:.1f}" if value < 10 else f"{value:,.0f}"
-
-
-def mbps(value):
+def number(value):
 	return f"{value:,.1f}" if value < 10 else f"{value:,.0f}"
 
 
@@ -104,25 +101,33 @@ def main(raw_path, export):
 	rounds = collections.defaultdict(list)
 	with open(raw_path) as f:
 		for line in f:
-			lang, _, case, value = line.rstrip("\n").split("\t")
-			rounds[(lang, case)].append(float(value))
-	median = {key: statistics.median(values) for key, values in rounds.items()}
+			lang, _, case, wall, cpu, load = line.rstrip("\n").split("\t")
+			rounds[(lang, case)].append((float(wall), float(cpu), float(load)))
+	median = {
+		key: tuple(statistics.median(values[i] for values in samples) for i in range(3))
+		for key, samples in rounds.items()
+	}
 	langs = [(key, name) for key, name in LANGS if any(lang == key for lang, _ in median)]
 
-	def cell(lang, case, fmt):
-		return fmt(median[(lang, case)]) if (lang, case) in median else ""
+	def cell(lang, case, i):
+		if (lang, case) not in median:
+			return ""
+		values = median[(lang, case)]
+		return f"{number(values[i])} ({values[2]:.0f})"
 
-	print("### Calls (ns per call)\n")
-	header = ["call"] + [name for _, name in langs]
-	print(table(header, [[label] + [cell(lang, case, ns) for lang, _ in langs] for case, label in CALLS]))
-
-	print("\n### Throughput (MB/s, write plus ready read)\n")
 	thru = [(key, name) for key, name in langs if (key, f"mbps:{SIZES[0]}") in median]
-	header = ["frame"] + [name for _, name in thru]
 	labels = {100: "100 B", 1024: "1 KiB", 16384: "16 KiB", 65536: "64 KiB", 1048576: "1 MiB"}
-	print(table(header, [[labels[n]] + [cell(lang, f"mbps:{n}", mbps) for lang, _ in thru] for n in SIZES]))
+	for i, clock, rate in [(1, "CPU", "MB per CPU second"), (0, "wall", "MB/s")]:
+		print(f"### Calls (ns per call, {clock} time; load average)\n")
+		header = ["call"] + [name for _, name in langs]
+		print(table(header, [[label] + [cell(lang, case, i) for lang, _ in langs] for case, label in CALLS]))
+		print(f"\n### Throughput ({rate}, write plus ready read; load average)\n")
+		header = ["frame"] + [name for _, name in thru]
+		rows = [[labels[n]] + [cell(lang, f"mbps:{n}", i) for lang, _ in thru] for n in SIZES]
+		print(table(header, rows))
+		print()
 
-	print("\n### Size\n")
+	print("### Size\n")
 	rows = []
 	for name, generated, glue in BINDINGS:
 		raw, zipped = size(files(export, generated))

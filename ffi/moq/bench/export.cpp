@@ -1,8 +1,10 @@
 // bench/export.c's cases through the generated C++ header, so the two differ by what the
-// C++ wrapper adds. Futures are polled by hand with a waker that does nothing.
+// C++ wrapper adds. Futures are polled by hand with a waker that does nothing. Each case
+// prints its wall time and the process's CPU time.
 
 #include <algorithm>
 #include <chrono>
+#include <ctime>
 #include <cstdio>
 #include <cstdlib>
 #include <optional>
@@ -20,12 +22,25 @@ constexpr std::size_t sizes[] = {100, 1024, 16384, 65536, 1048576};
 // What the loops sum, kept so the compiler cannot drop the calls.
 volatile unsigned sink;
 
-using steady = std::chrono::steady_clock;
+// Wall and CPU nanoseconds: a point, or a span per call.
+struct span {
+	double wall, cpu;
+};
+
+double clock_ns(clockid_t clock) {
+	timespec ts;
+	clock_gettime(clock, &ts);
+	return static_cast<double>(ts.tv_sec) * 1e9 + static_cast<double>(ts.tv_nsec);
+}
+
+span now() {
+	return {clock_ns(CLOCK_MONOTONIC), clock_ns(CLOCK_PROCESS_CPUTIME_ID)};
+}
 
 // Nanoseconds per call since `start`, over `calls` calls.
-double per(steady::time_point start, double calls = n) {
-	std::chrono::duration<double, std::nano> elapsed = steady::now() - start;
-	return elapsed.count() / calls;
+span per(span start, double calls = n) {
+	span end = now();
+	return {(end.wall - start.wall) / calls, (end.cpu - start.cpu) / calls};
 }
 
 template <class T>
@@ -66,11 +81,11 @@ auto ready(F future, const char *what) {
 }
 
 // Groups of 100 frames of `size` bytes written and each read back, its payload's first byte
-// touched, in about 64 MiB and at least 300 frames: megabytes a second.
-double throughput(moq::track_Producer &track, moq::track_Subscriber &subscriber, const moq::Timestamp &at, std::size_t size, unsigned &sum) {
+// touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
+span throughput(moq::track_Producer &track, moq::track_Subscriber &subscriber, const moq::Timestamp &at, std::size_t size, unsigned &sum) {
 	std::size_t count = std::clamp<std::size_t>((64u << 20) / (size * frames), 3, 2000);
 	std::vector<std::uint8_t> payload(size);
-	auto start = steady::now();
+	auto start = now();
 	for (std::size_t g = 0; g < count; g++) {
 		auto group = must(track.append_group(), "append_group");
 		auto reader = ready(subscriber.recv_group(), "recv_group");
@@ -81,8 +96,8 @@ double throughput(moq::track_Producer &track, moq::track_Subscriber &subscriber,
 		}
 		must(std::move(group).finish(), "finish");
 	}
-	std::chrono::duration<double> elapsed = steady::now() - start;
-	return static_cast<double>(count * frames * size) / elapsed.count() / 1e6;
+	span ns = per(start, static_cast<double>(count * frames * size));
+	return {1e3 / ns.wall, 1e3 / ns.cpu};
 }
 
 void round(bool print) {
@@ -94,17 +109,17 @@ void round(bool print) {
 	moq::view frame(bytes, sizeof bytes);
 	unsigned sum = 0;
 
-	auto start = steady::now();
+	auto start = now();
 	for (int i = 0; i < n; i++) {
 		sum += track.is_closed();
 	}
-	double call = per(start);
+	span call = per(start);
 
-	double getter;
+	span getter;
 	{
 		auto demanded = must(track.append_group(), "append_group");
 		auto demand = demanded.demand();
-		start = steady::now();
+		start = now();
 		for (int i = 0; i < n; i++) {
 			sum += static_cast<unsigned>(demand.sequence());
 		}
@@ -112,21 +127,21 @@ void round(bool print) {
 		must(std::move(demanded).finish(), "finish");
 	}
 
-	start = steady::now();
+	start = now();
 	for (int i = 0; i < n; i++) {
 		sum += track.largest().has_value();
 	}
-	double record = per(start);
+	span record = per(start);
 
-	start = steady::now();
+	start = now();
 	for (int i = 0; i < n; i++) {
 		(void)track.info();
 	}
-	double object = per(start);
+	span object = per(start);
 
 	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
 	std::uint64_t micros = 0;
-	start = steady::now();
+	start = now();
 	for (int g = 0; g < groups; g++) {
 		auto group = must(track.append_group(), "append_group");
 		for (int f = 0; f < frames; f++) {
@@ -135,10 +150,10 @@ void round(bool print) {
 		}
 		must(std::move(group).finish(), "finish");
 	}
-	double stamped = per(start);
+	span stamped = per(start);
 
 	auto at = must(moq::Timestamp::from_micros(micros), "from_micros");
-	start = steady::now();
+	start = now();
 	for (int g = 0; g < groups; g++) {
 		auto group = must(track.append_group(), "append_group");
 		for (int f = 0; f < frames; f++) {
@@ -146,13 +161,13 @@ void round(bool print) {
 		}
 		must(std::move(group).finish(), "finish");
 	}
-	double write = per(start);
+	span write = per(start);
 
 	auto subscriber = must(must(track.consume().subscribe(std::nullopt).poll(noop()), "subscribe"), "subscribe");
 
 	// Each frame written, then read through a new future ready at its first poll.
 	std::optional<moq::frame_Frame> last;
-	start = steady::now();
+	start = now();
 	for (int g = 0; g < groups; g++) {
 		auto group = must(track.append_group(), "append_group");
 		auto reader = ready(subscriber.recv_group(), "recv_group");
@@ -162,10 +177,10 @@ void round(bool print) {
 		}
 		must(std::move(group).finish(), "finish");
 	}
-	double read = per(start);
+	span read = per(start);
 
 	// Each read polled before its frame is written, so it pends, then polled again.
-	start = steady::now();
+	start = now();
 	for (int g = 0; g < groups; g++) {
 		auto group = must(track.append_group(), "append_group");
 		auto reader = ready(subscriber.recv_group(), "recv_group");
@@ -180,26 +195,29 @@ void round(bool print) {
 		}
 		must(std::move(group).finish(), "finish");
 	}
-	double woken = per(start);
+	span woken = per(start);
 
 	// The last frame's 100 bytes, owned without a copy, then freed.
-	start = steady::now();
+	start = now();
 	for (int i = 0; i < n; i++) {
 		sum += last->payload_get().data()[0];
 	}
-	double payload = per(start);
+	span payload = per(start);
 
-	double mbps[std::size(sizes)];
+	span mbps[std::size(sizes)];
 	for (std::size_t i = 0; i < std::size(sizes); i++) {
 		mbps[i] = throughput(track, subscriber, at, sizes[i], sum);
 	}
 	sink = sum;
 
 	if (print) {
-		std::printf("call\t%f\ngetter\t%f\nrecord\t%f\nobject\t%f\nstamped\t%f\nwrite\t%f\nready\t%f\nwoken\t%f\npayload\t%f\n",
-		            call, getter, record, object, stamped, write, read, woken, payload);
+		const char *names[] = {"call", "getter", "record", "object", "stamped", "write", "ready", "woken", "payload"};
+		span values[] = {call, getter, record, object, stamped, write, read, woken, payload};
+		for (std::size_t i = 0; i < std::size(names); i++) {
+			std::printf("%s\t%f\t%f\n", names[i], values[i].wall, values[i].cpu);
+		}
 		for (std::size_t i = 0; i < std::size(sizes); i++) {
-			std::printf("mbps:%zu\t%f\n", sizes[i], mbps[i]);
+			std::printf("mbps:%zu\t%f\t%f\n", sizes[i], mbps[i].wall, mbps[i].cpu);
 		}
 	}
 }
