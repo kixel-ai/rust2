@@ -48,7 +48,9 @@ The census at moq `ffcb7cd9` (2026-11-07) refuses 1111 items, which `ffi/moq/ffi
 The other 324 are moq's own, 107 of them in moq-tokio (61 under `quic`); each child gives
 its construct's count, and an item counts under every construct it hits. The counts
 include the moq-tokio items narrowing drops; each child measures again once it lands. 17 more refuse
-only because a type they name is refused, and clear with it.
+only because a type they name is refused, and clear with it. After the stand-in narrows
+([moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683)), the census refuses 337
+items, 51 of them in moq-tokio, and 104 types.
 
 Public API: the exporter's command line and the C API of every item that exports.
 

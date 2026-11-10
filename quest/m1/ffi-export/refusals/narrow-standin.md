@@ -3,9 +3,12 @@
 ## Goal
 
 The stand-in facade (`just ffi standin`, in `ffi/justfile`) re-exports only the session
-side moq-ffi ships from moq-tokio: `Client`, `Server`, `server::Request`,
-`connect::Config`, `listen::Config`, `quic::Config`, `Connection`, `Transport`, `Log`,
-`tls`, `panic`, and the errors, in place of `pub use ::moq_tokio::*;`. `ffi/moq/ffi.toml`
+side moq-ffi ships from moq-tokio, in place of `pub use ::moq_tokio::*;`: `Client`,
+`Server`, `Connection`, `Transport`, `Log`, `tls`, `panic`, the errors, and the types
+those items and the fixtures name: `client::Config`, `connect::Config`, `listen::Config`
+with `listen::Bind`, `quic::Config`, `server::Config` with `server::Request` and
+`server::Listener`, `origin::spawn`, `Backoff`, `Restart`, `Status`, `connection::Monitor`,
+and `cli::Duration`. `ffi/moq/ffi.toml`
 loses the excludes that only hid items outside it, and the census at the pin reports the
 refusals before and after, per crate.
 
@@ -23,5 +26,22 @@ other children count only what stays. Narrowing drops moq-tokio's `rustls`, `not
 `quic::driver`'s `Side` refusals. Every item named exists at moq `ffcb7cd9`
 (`rs/moq-tokio/src/lib.rs`). Update the counts in the
 [epic](/quest/m1/ffi-export/refusals/README.md) and its children from the new census.
+
+Decided with the maintainer on 2026-11-09, in the iterate of
+[moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683):
+
+- ✅ The closure over the session side adds the types the session items and the fixtures
+  name, and keeps the CLI helpers and listener internals out, so `Client::new`,
+  `Server::new`, and the like export again (rejected: rewriting the seven fixtures to the
+  narrow list).
+- ✅ No rename of the three `Config`s: Rust keeps `connect::Config`, `listen::Config`, and
+  `quic::Config`, and C keeps `moq_tokio_connect_Config_*`. Go, which clashes, keeps its
+  module segment for a name still shared, so they are `tokio.ConnectConfig`,
+  `tokio.ListenConfig`, and `tokio.QuicConfig`, the names its fixture already uses. Other
+  languages keep their names (rejected: renaming to `ConnectConfig`, `ListenConfig`, and
+  `QuicConfig` in the stand-in; re-exporting whole modules).
+
+The census at this change refuses 337 items, 51 of them in moq-tokio, and 104 types, down
+from 1111 items, 84 in moq-tokio, and 321 types.
 
 Public API: the stand-in's exports, which the census and the bindings' fixtures read.
