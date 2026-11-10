@@ -1894,6 +1894,12 @@ pub fn put_number(value: u32, buf: &mut impl bytes::BufMut) {
 	buf.put_slice(format!("{value},").as_bytes());
 }
 
+/// `w235` a second later: a parameter named as Kotlin's generated writer of it would be,
+/// whose name the writer must take apart from it.
+pub fn second_later(w235: Duration) -> Duration {
+	w235.saturating_add(Duration::from_secs(1))
+}
+
 /// Takes the first byte of `r` as a decimal digit, as moq's decoders take from an
 /// `impl Buf`, which takes `Bytes`. It takes the byte even when it fails, and Rust writes
 /// back what the call left on either path. Named `r`, as moq's `varint::decode_quic`'s
