@@ -11,7 +11,7 @@ Later reports append their data points here.
 - The fork carries its changes itself rather than working through upstream.
 - Measure each reason on moq's edits in the
   [build-speed benchmark](/bench/build/README.md).
-- Code that follows the subset's rules (poll-first, thin generics) only gains
+- Code that follows moq's poll-first and thin-generics rules only gains
   more; it is never required.
 
 ### Reasons to fork
@@ -50,6 +50,6 @@ Public API: none until the fork has a consumer.
 
 ## Waiting
 
-- Maintainer: decide that the reasons to fork below add up to enough to pay for
+- Maintainer: decide that the reasons to fork above add up to enough to pay for
   maintaining one. An agent can only gather the evidence; the cost of carrying a fork is
   the maintainer's to weigh.

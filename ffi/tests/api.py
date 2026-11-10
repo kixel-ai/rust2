@@ -162,6 +162,18 @@ def script():
 	board = api.Board.new([("low", api.Counter.new("l", 1)), ("high", api.Counter.new("h", 9))])
 	ranked = board.ranked()
 	print("ranked " + ", ".join(f"{name} {counter.name()} {counter.get()}" for name, counter in ranked))
+	# A map crosses as its pairs and a set as its items, which Rust collects in order, each
+	# key once, the last kept.
+	atlas = api.Atlas([("b", api.Point(1, 1)), ("ab", api.Point(2, 3)), ("b", api.Point(4, 4))], [3, 1, 3])
+	atlas = atlas.with_("c", api.Point(5, 6))
+	atlas_points = ", ".join(f"{name} {p.x} {p.y}" for name, p in atlas.points)
+	print(f"atlas {atlas_points}; ids {' '.join(str(i) for i in atlas.ids)}")
+	# Another crate's error crosses as its message.
+	for port_text in ["80", "x"]:
+		try:
+			print(f"port {api.port(port_text)}")
+		except api.StringException as e:
+			print(f"port err {e.error}")
 	span = api.Span((2, 10), ("s", api.Shape.SQUARE))
 	lower_half, upper_half = api.halves(span)
 	print(f"halves {lower_half[0]} {lower_half[1]} {upper_half[0]} {upper_half[1]} {span!r}")
@@ -408,6 +420,8 @@ def script():
 	# A bound that outlives the call takes a value, and an instance only a constant names.
 	print(f"kept {api.kept_point(api.Point(1, -2))} boxed {api.BOXED.value}")
 	print(f"keep {api.keep_point(api.Point(1, -2))}")
+	five = api.Point(5, 2)
+	print(f"kept or {api.kept_or_point(five)} {api.kept_or_point(None)} keeper {api.keeper_point(five)}")
 	# Inferred instances taking a lent closure and a foreign implementation, and one only
 	# its impl of a trait names.
 	sides = api.PairU32(2, 5)
@@ -474,11 +488,21 @@ def script():
 	none_summed = api.summed([])
 	print(f"summed {summed.x} {summed.y} {none_summed.x} {none_summed.y}")
 	print(f"longest {api.longest(['a', 'abc'])} {api.longest([])}")
+	print(f'first of Some("{api.first_of(["a", "b"])}") {api.first_of([]) or "None"}')
+	limits = api.byte_limits(b'a', b'bc')
+	waits = api.LimitsDuration(datetime.timedelta(milliseconds=5), datetime.timedelta(seconds=2))
+	breadth = api.breadth(waits) // datetime.timedelta(milliseconds=1)
+	print(f"limits {bytes(limits.low).decode()} {bytes(limits.high).decode()} breadth {breadth}")
+	joined = bytes(api.joined([b'ab', b'', b'c'])).decode()
+	print(f"joined {joined} {len(api.joined([]))} read {api.read_len(b'hello')}")
 	doc = api.Json.parse('{"b": [1, 2.5, null], "a": "é"}')
 	print(f"json {api.encode(doc)}")
 	print(f"timed text {api.timed_text(doc)}")
 	tagged = api.tagged(doc, "t")
 	print(f"tagged {tagged.to_text()}")
+	# A JSON object's entries cross as pairs of a key and its document, each moved in.
+	entries = api.entries([("b", api.Json.parse("[1]")), ("a", api.Json.parse("2"))], "t")
+	print("entries " + ", ".join(f"{key} {value.to_text()}" for key, value in entries))
 	try:
 		api.Json.parse('{"a":')
 	except api.StringException as e:

@@ -1,55 +1,13 @@
 # Binding benchmark
 
-`just bench-ffi` measures what each of moq's binding wrappers adds over Rust, with moq-ffi at the revision pinned in [pins.toml](pins.toml) built against [the UniFFI fork](../../uniffi/README.md) in this tree.
-It runs nightly in CI ([bench-ffi.yml](../../.github/workflows/bench-ffi.yml)), and every fork perf change states its effect with its numbers.
-
-```bash
-just bench-ffi                              # every wrapper this host runs, three rounds
-just bench-ffi --runner py --rounds 1       # a quick smoke test
-just bench-ffi --base origin/main           # a fork change against its base
-```
-
-Results land in `target/bench/ffi/`, newest at `target/bench/ffi/latest/report.md`.
-Checkouts and builds live in `/var/tmp/rust2-bench-<user>/ffi/`, with their own `CARGO_HOME` and none of the caller's cargo or rustc variables, as in the [build-speed benchmark](../build/README.md).
-Runs on one host share that directory, so a second run waits for the first to finish.
-
-## What runs
-
-The native runners, their recipes, and the Rust baselines stay in moq beside the wrappers they measure (see moq's [bench/README.md](https://github.com/moq-dev/moq/blob/main/bench/README.md)); this harness drives them.
-The browser runner lives here, since moq has no browser wrapper over moq-ffi yet.
-Every runner runs the same in-process rounds with no network: each publisher writes one group while every subscriber reads it on its own task.
-They sweep frame sizes from 100 B to 1 MiB at one publisher and subscriber, then 1 and 4 publishers by 1 and 4 subscribers at 1 KiB, and time two sync calls (`sequence`, `info`).
-Each case reports delivered MB/s and process CPU per MB, and checks every received frame byte for byte.
-
-- `rust-ffi` calls moq-ffi's API from Rust without crossing the FFI, so a wrapper's ratio to it is what its boundary and wrapper cost.
-- `rust-net` runs the same rounds on moq-net, so its ratio is what moq-ffi's handles and runtime cost.
-- `go`, `py`, `kt`, `cpp`, `dart`, and `browser` run on Linux and macOS; `swift` runs on macOS only.
-- `browser` builds moq-ffi for wasm32, generates its TypeScript with ubrn's `wasm2` player, and runs [browser-page.ts](browser-page.ts) in headless Chromium through [browser.ts](browser.ts). Its CPU is every thread of the renderer, read over CDP. No ubrn release reads UniFFI 0.32 yet, so [pins.toml](pins.toml) pins the head of [jhugman/uniffi-bindgen-react-native#468](https://github.com/jhugman/uniffi-bindgen-react-native/pull/468), and the run builds its CLI and packs its `@ubjs/core` and `@ubjs/wasm` runtimes from that source.
-
-The run enters the pinned moq's own dev shell, so every wrapper builds with the toolchains moq ships with.
-moq's Go, Dart, and C++ scripts find their generators on `PATH`, where the run puts the fork's.
-Its Kotlin, Python, and Swift generator and moq-ffi's runtime are the `uniffi` crate, which the run points at the fork's path in every manifest; the run fails if any UniFFI crate still resolves elsewhere.
-For the browser, the run also links ubrn's `uniffi-runtime-wasm` helper crate into moq-ffi on wasm32, as ubrn's player requires.
-Bump a pin in its own change, since numbers on either side of it do not compare.
-
-## Variants
-
-- `fork` builds against this tree.
-- `control` reruns fork's builds, so its change against fork is the run's noise floor: an A/A control.
-- `base`, with `--base REV`, builds against the fork at another rust2 revision, so fork's change against it is the effect of the change.
-
-An untimed warm-up round builds every runner once per checkout.
-The timed rounds interleave the variants and rotate which goes first each round, so drift over a long job spreads across all of them.
-The report shows each case's trimmed mean over the rounds (without the fastest and slowest) with its cost against `rust-ffi`, taken within each round so drift between rounds cancels, then each comparison as a change in that cost, so one slow round on a busy host does not move it.
-`results.jsonl` keeps every round's value, mean, and standard deviation.
-The host, its load average before and after, and every toolchain's version head the report.
-No threshold is set: the numbers inform a decision, they do not gate one.
+What moq's bindings cost over Rust, measured before [rust2-ffi](../../ffi/README.md) replaced UniFFI.
+The harness that built moq-ffi against the UniFFI fork was deleted with the fork; [its quest](/quest/m1/ffi-export/bench.md) rebuilds it on rust2-ffi, against the targets below.
 
 ## BoltFFI comparison
 
 Before forking UniFFI, moq compared it with [BoltFFI](https://github.com/boltffi/boltffi) 0.31.1 on a slice of moq-ffi bound by each generator, measured from Python and Kotlin with a Rust floor.
 Its harness is deleted; [moq-dev/moq@0f986d9](https://github.com/moq-dev/moq/tree/0f986d9fdb7c074b0bd4b34739f7199c3bf2d9e5/bench/ffi-gen) holds it if a decision needs fresh numbers.
-BoltFFI's numbers are the targets for the fork's backends: its speed comes from calling conventions a UniFFI fork can adopt one backend at a time (a CPython extension instead of `ctypes`, JNI instead of JNA, and bulk byte copies), not from its core.
+BoltFFI's numbers are the targets for rust2-ffi's generators: its speed comes from calling conventions (a CPython extension instead of `ctypes`, JNI instead of JNA, and bulk byte copies), not from its core.
 
 Measured 2026-10-16 on an Intel Core Ultra 7 270K Plus (24 threads), Linux, at moq `b4eab0db1`, on a shared host (load average 8 to 29), so cells are medians of 3 rounds.
 Rust 1.98.1, CPython 3.14.7, OpenJDK 17 with Kotlin 2.4.20 and kotlinx-coroutines 1.11.0, JNA 5.19.1.

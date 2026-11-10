@@ -1,4 +1,4 @@
-//! Calls into `bytes`, `hashbrown`, `rand`, and `tracing`, which translation maps itself,
+//! Calls into `bytes`, `hashbrown`, `rand`, `smallvec`, and `tracing`, which translation maps itself,
 //! into `hashlink`, which translates over `hashbrown`, into `rangemap`, which translates
 //! over std's B-tree, and into `arrayvec`'s `ArrayString`, which translates over raw
 //! pointers, so this config binds and leaves out nothing.
@@ -10,6 +10,7 @@ mod fixed;
 pub mod harness;
 mod maps;
 mod ranges;
+mod small;
 #[cfg(target_arch = "wasm32")]
 #[path = "../../wasm.rs"]
 mod wasm;

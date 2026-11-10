@@ -81,7 +81,7 @@ fn owned(ty: &Type) -> Type {
 		Type::Ref(_, inner) => owned(inner),
 		Type::Option(inner) => Type::Option(Box::new(owned(inner))),
 		Type::Box(inner) => Type::Box(Box::new(owned(inner))),
-		Type::List(inner) => Type::List(Box::new(owned(inner))),
+		Type::List(c, inner) => Type::List(*c, Box::new(owned(inner))),
 		Type::Tuple(elements) => Type::Tuple(elements.iter().map(owned).collect()),
 		ty => ty.clone(),
 	}
@@ -274,20 +274,44 @@ impl<'a> Abi<'a> {
 		let objects = (0..api.objects.len()).map(|i| (self.object(i), &api.objects[i].shown, &api.objects[i].home));
 		let callbacks =
 			(0..api.callbacks.len()).map(|i| (self.callback(i), &api.callbacks[i].path, &api.callbacks[i].home));
-		let mut scopes: BTreeMap<String, Vec<(String, Vec<String>)>> = BTreeMap::new();
+		let mut scopes: BTreeMap<String, Vec<(String, Vec<String>, usize)>> = BTreeMap::new();
 		for (c, shown, home) in records.chain(enums).chain(objects).chain(callbacks) {
 			let (scope, outside) = scope(home);
 			// An instance's suffix, after its generic type's name, is one more segment.
 			let suffix = c[self.name(shown).len()..].strip_prefix('_').map(str::to_string);
 			let mut segments = self.segments(shown);
-			segments.drain(..outside);
 			segments.extend(suffix);
-			scopes.entry(scope).or_default().push((c, segments));
+			scopes.entry(scope).or_default().push((c, segments, outside));
 		}
 		(scopes.into_values())
 			.flat_map(|types| {
-				let names = apart(types.iter().map(|(_, segments)| segments.as_slice()));
-				types.into_iter().map(|(c, _)| c).zip(names)
+				// Names still shared once `apart` has split what it can keep the segment before
+				// them, a module of their own, so each of `connect::Config` and `listen::Config`
+				// keeps its module. Only the names a clash would refuse change.
+				let mut outside: Vec<usize> = types.iter().map(|(_, _, outside)| *outside).collect();
+				let names = loop {
+					let names = apart(
+						types
+							.iter()
+							.zip(&outside)
+							.map(|((_, segments, _), &outside)| &segments[outside..]),
+					);
+					let mut count: HashMap<&str, usize> = HashMap::new();
+					for name in &names {
+						*count.entry(name).or_default() += 1;
+					}
+					let mut grew = false;
+					for (i, name) in names.iter().enumerate() {
+						if count[name.as_str()] > 1 && outside[i] > 0 {
+							outside[i] -= 1;
+							grew = true;
+						}
+					}
+					if !grew {
+						break names;
+					}
+				};
+				types.into_iter().map(|(c, _, _)| c).zip(names)
 			})
 			.collect()
 	}
@@ -333,7 +357,7 @@ impl<'a> Abi<'a> {
 			Type::Duration => "duration".to_string(),
 			Type::SocketAddr(_) => "socket_addr".to_string(),
 			Type::Option(inner) => format!("option_{}", self.key(inner)),
-			Type::List(inner) => format!("vec_{}", self.key(inner)),
+			Type::List(_, inner) => format!("vec_{}", self.key(inner)),
 			Type::Tuple(elements) => {
 				let keys: Vec<String> = elements.iter().map(|e| self.key(e)).collect();
 				format!("tuple_{}", keys.join("_"))
@@ -375,7 +399,7 @@ impl<'a> Abi<'a> {
 	/// Whether `Option<ty>` crosses as `ty`, with a null pointer for `None`: a handle, a
 	/// buffer, or a `Vec`'s array.
 	pub fn nullable(ty: &Type) -> bool {
-		matches!(ty.base(), Type::Object(_) | Type::List(_)) || Self::is_buf(ty)
+		matches!(ty.base(), Type::Object(_) | Type::List(..)) || Self::is_buf(ty)
 	}
 
 	/// The C type of `ty` as a value: a parameter, field, or what a function returns.
@@ -391,7 +415,7 @@ impl<'a> Abi<'a> {
 			Type::Duration => Ty::Duration,
 			Type::SocketAddr(_) => Ty::SocketAddr,
 			Type::Waker => Ty::Waker,
-			Type::List(inner) => Ty::Struct(self.list(inner)),
+			Type::List(_, inner) => Ty::Struct(self.list(inner)),
 			Type::Option(inner) => match Self::nullable(inner) {
 				true => self.ty(inner),
 				false => Ty::Struct(self.option(inner)),
@@ -682,7 +706,7 @@ impl<'a> Abi<'a> {
 					}
 					stack.push(inner);
 				}
-				Type::List(inner) => {
+				Type::List(_, inner) => {
 					// A returned `Vec<&T>` holds clones, which its free frees.
 					lists.insert(self.list(inner), owned(inner));
 					stack.push(inner);

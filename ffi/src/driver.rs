@@ -140,6 +140,7 @@ impl Callbacks for Export {
 					abi: &abi,
 					facade: &self.facade,
 					patch: &self.patch,
+					target: tcx.sess.opts.target_triple.tuple(),
 				};
 				glue.write(out)
 			}

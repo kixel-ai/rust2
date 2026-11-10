@@ -212,6 +212,22 @@ func script() {
 	let board = Board.new([("low", Counter.new("l", 1)), ("high", Counter.new("h", 9))])
 	let ranked = board.ranked()
 	print("ranked \(ranked.map { "\($0.0) \($0.1.name()) \($0.1.get())" }.joined(separator: ", "))")
+	// A map crosses as its pairs and a set as its items, which Rust collects in order, each
+	// key once, the last kept.
+	let atlas = Atlas(points: [("b", Point(x: 1, y: 1)), ("ab", Point(x: 2, y: 3)), ("b", Point(x: 4, y: 4))], ids: [3, 1, 3])
+		.with("c", Point(x: 5, y: 6))
+	let atlasPoints = atlas.points.map { "\($0.0) \($0.1.x) \($0.1.y)" }.joined(separator: ", ")
+	print("atlas \(atlasPoints); ids \(atlas.ids.map { "\($0)" }.joined(separator: " "))")
+	// Another crate's error crosses as its message.
+	for text in ["80", "x"] {
+		do {
+			print("port \(try port(text))")
+		} catch let e as StringError {
+			print("port err \(e.error)")
+		} catch {
+			check(false, "port throws its message")
+		}
+	}
 	let span = Span(bounds: (2, 10), named: ("s", .square))
 	let (lowerHalf, upperHalf) = halves(span)
 	print("halves \(lowerHalf.0) \(lowerHalf.1) \(upperHalf.0) \(upperHalf.1) \(debug(span))")
@@ -442,6 +458,8 @@ func script() {
 	// A bound that outlives the call takes a value, and an instance only a constant names.
 	print("kept \(keptPoint(Point(x: 1, y: -2))) boxed \(BOXED.value)")
 	print("keep \(keepPoint(Point(x: 1, y: -2)))")
+	let five = Point(x: 5, y: 2)
+	print("kept or \(keptOrPoint(five)) \(keptOrPoint(nil)) keeper \(keeperPoint(five))")
 	// Inferred instances taking a lent closure and a foreign implementation, and one only
 	// its impl of a trait names.
 	let sides = PairU32(left: 2, right: 5)
@@ -506,11 +524,22 @@ func script() {
 	let noneSum = summed([])
 	print("summed \(sum.x) \(sum.y) \(noneSum.x) \(noneSum.y)")
 	print("longest \(longest(["a", "abc"])) \(longest([]))")
+	print("first of Some(\"\(firstOf(["a", "b"])!)\") \(firstOf([]) ?? "None")")
+	let limits = byteLimits(Data("a".utf8), Data("bc".utf8))
+	let waits = breadth(LimitsDuration(low: .milliseconds(5), high: .seconds(2)))
+	let low = String(decoding: limits.low, as: UTF8.self)
+	let high = String(decoding: limits.high, as: UTF8.self)
+	print("limits \(low) \(high) breadth \(waits.components.seconds * 1000 + waits.components.attoseconds / 1_000_000_000_000_000)")
+	let parts = String(decoding: Api.joined([Data("ab".utf8), Data(), Data("c".utf8)]), as: UTF8.self)
+	print("joined \(parts) \(Api.joined([]).count) read \(readLen(Data("hello".utf8)))")
 	let doc = try! Json.parse(#"{"b": [1, 2.5, null], "a": "é"}"#)
 	print("json \(encode(doc))")
 	print("timed text \(timedText(doc))")
 	let tagged = tagged(doc, "t")
 	print("tagged \(tagged.toText())")
+	// A JSON object's entries cross as pairs of a key and its document, each moved in.
+	let jsonEntries = entries([("b", try! Json.parse("[1]")), ("a", try! Json.parse("2"))], "t")
+	print("entries \(jsonEntries.map { "\($0.0) \($0.1.toText())" }.joined(separator: ", "))")
 	do {
 		_ = try Json.parse("{\"a\":")
 	} catch let e as StringError {
