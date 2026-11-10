@@ -2307,7 +2307,7 @@ impl<'tcx> Collector<'tcx> {
 			// C passes nothing for `()`, the one value of its type. A callback's stays
 			// refused: the glue's implementation of its trait names every parameter.
 			if ty.is_unit() && !callback {
-				units.push(params.len() + units.len());
+				units.push(i - usize::from(has_self));
 				continue;
 			}
 			let name = names
