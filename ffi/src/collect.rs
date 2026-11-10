@@ -2320,9 +2320,11 @@ impl<'tcx> Collector<'tcx> {
 			}
 			output = normalize(inner);
 			future = true;
-			if params.iter().any(|p: &Param| p.ty.written()) {
-				errs.push(why("&mut of a value in a future", ""));
-			}
+		}
+		// A future, polled or async, lifts each value into what it owns, so has nothing to
+		// write back.
+		if future && params.iter().any(|p: &Param| p.ty.written()) {
+			errs.push(why("&mut of a value in a future", ""));
 		}
 		// An iterator no other rule maps crosses as the array of its items, all taken at
 		// the call, as `collect` takes them, when no caller could tell; a future's stays

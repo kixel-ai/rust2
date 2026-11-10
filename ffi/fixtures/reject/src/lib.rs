@@ -799,6 +799,13 @@ pub fn poll_both(a: &mut std::task::Context<'_>, b: &std::task::Context<'_>) -> 
 	std::task::Poll::Ready(())
 }
 
+/// A poll lent a value mutably, which its future owns, so would never write back.
+pub fn poll_bump(cx: &mut std::task::Context<'_>, count: &mut u32) -> std::task::Poll<()> {
+	*count += 1;
+	cx.waker().wake_by_ref();
+	std::task::Poll::Ready(())
+}
+
 /// An optional handle lent inside a `Box`, as [`peek`] lends one.
 pub fn peek_some(value: Option<&Box<Opaque>>) -> u8 {
 	value.map_or(0, |value| value.0)
