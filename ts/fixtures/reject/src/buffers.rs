@@ -32,3 +32,11 @@ pub fn sliced_elsewhere(n: usize) -> usize {
 	let b = bytes::Bytes::from_static(text.as_bytes());
 	a.slice_ref(&text.as_bytes()[..n]).len() + a.slice_ref(&b[..n]).len()
 }
+
+/// `slice_ref` of a clone of a `Bytes` the body then points at other storage.
+pub fn sliced_reassigned(n: usize) -> usize {
+	let mut a = bytes::Bytes::from_static(b"one");
+	let c = a.clone();
+	a = bytes::Bytes::from_static(b"two");
+	a.slice_ref(&c[..n]).len()
+}

@@ -11,6 +11,9 @@ fixtures/reject/src/alloc.rs:alloc_retyped+5:11: memory from `alloc` cast to poi
 fixtures/reject/src/alloc.rs:alloc_retyped+7:17: memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:alloc_retyped+8:21: memory from `alloc` cast to pointers to `u32` and to `i32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:alloc_retyped+10:17: memory from `alloc` cast to pointers to `i32` and to `u32`, which reads the bytes of one type as another
+fixtures/reject/src/alloc.rs:alloc_untraced+3:15: `alloc` whose pointer the body passes on as bytes, other than to a cast to a pointer to values, `dealloc`, or `realloc`, which JS keeps as the values a cast types the memory as
+fixtures/reject/src/alloc.rs:alloc_untraced+6:7: `alloc` whose pointer the body passes on as bytes, other than to a cast to a pointer to values, `dealloc`, or `realloc`, which JS keeps as the values a cast types the memory as
+fixtures/reject/src/alloc.rs:alloc_untraced+7:13: `alloc` whose pointer the body passes on as bytes, other than to a cast to a pointer to values, `dealloc`, or `realloc`, which JS keeps as the values a cast types the memory as
 fixtures/reject/src/alloc.rs:allocated+4:3: a byte of memory from `alloc`, which JS keeps as the values a cast of its pointer types it as
 fixtures/reject/src/alloc.rs:allocated+5:11: a byte of memory from `alloc`, which JS keeps as the values a cast of its pointer types it as
 fixtures/reject/src/alloc.rs:arrays_boxed+4:22: `Box::from_raw` of `[[u32; 2]; 2]`, which may be arrays `as_chunks` split from one flat array, which is not supported yet
@@ -57,6 +60,7 @@ fixtures/reject/src/alloc.rs:peeked_moved+3:26: a read moving out a `std::iter::
 fixtures/reject/src/alloc.rs:pinned_lent+1:32: `UnsafeCell::get_mut` of `std::pin::Pin<std::boxed::Box<(u8, u8)>>`, an object a whole write through the reference changes in place, so a value read out before would be a copy at another address
 fixtures/reject/src/alloc.rs:pinned_lent+2:43: `UnsafeCell::as_mut_unchecked` of `std::pin::Pin<std::boxed::Box<(u8, u8)>>`, an object a whole write through the reference changes in place, so a value read out before would be a copy at another address
 fixtures/reject/src/alloc.rs:realloc_retyped+2:11: `realloc` of memory cast from a pointer to `u32` whose result is cast to one to `i32`, which reads the bytes of one type as another
+fixtures/reject/src/alloc.rs:realloc_twice_retyped+3:15: `realloc` of memory cast from a pointer to `u32` whose result is cast to one to `i32`, which reads the bytes of one type as another
 fixtures/reject/src/alloc.rs:recast_reference+4:11: a read or write reaching past a value in no array, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/alloc.rs:recast_reference+4:48: a read or write reaching past a value in no array, which JS keeps apart from what holds it in Rust
 fixtures/reject/src/alloc.rs:recast_reference+4:76: a read or write reaching past a value in no array, which JS keeps apart from what holds it in Rust
@@ -81,6 +85,7 @@ fixtures/reject/src/alloc.rs:zeroed+1:13: unsupported call to `std::alloc::alloc
 fixtures/reject/src/buffers.rs:blank_bytes+1:2: `Buf::copy_to_bytes` of `buffers::Blank`, a value JS copies, which is not supported
 fixtures/reject/src/buffers.rs:sliced_elsewhere+4:4: `Bytes::slice_ref` of bytes the body doesn't show it borrowed from that `Bytes`'s storage, through `Deref`, `as_ref`, or a slice of one, which JS may keep apart where Rust shares them
 fixtures/reject/src/buffers.rs:sliced_elsewhere+4:47: `Bytes::slice_ref` of bytes the body doesn't show it borrowed from that `Bytes`'s storage, through `Deref`, `as_ref`, or a slice of one, which JS may keep apart where Rust shares them
+fixtures/reject/src/buffers.rs:sliced_reassigned+4:4: `Bytes::slice_ref` of bytes the body doesn't show it borrowed from that `Bytes`'s storage, through `Deref`, `as_ref`, or a slice of one, which JS may keep apart where Rust shares them
 fixtures/reject/src/clones.rs:greatest_slot+6:13: a raw pointer to `(u8, u8)` in `([clones::Greatest; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:stashed_slots+5:19: a raw pointer to `(u8, u8)` in `([u8; 2], (u8, u8))`, which the crate may put another object in place of
 fixtures/reject/src/clones.rs:tagged_slots!+2:23: a raw pointer to `(u8, u8)` in `([clones::Cloned; 2], (u8, u8))`, which the crate may put another object in place of

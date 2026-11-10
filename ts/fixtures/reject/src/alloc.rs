@@ -367,3 +367,28 @@ pub fn realloc_retyped(words: *mut u32) -> i32 {
 	let layout = std::alloc::Layout::new::<u32>();
 	unsafe { std::alloc::realloc(words as *mut u8, layout, 8).cast::<i32>().read() }
 }
+
+/// A byte pointer from `alloc` in a variable assigned again, written before, or in an array
+/// of copies, which JS can't trace back to the memory.
+pub fn alloc_untraced(n: u8) -> u8 {
+	let layout = std::alloc::Layout::new::<u8>();
+	unsafe {
+		let mut p = std::alloc::alloc(layout);
+		*p = n;
+		std::alloc::dealloc(p, layout);
+		p = std::alloc::alloc(layout);
+		let ps = [std::alloc::alloc(layout); 2];
+		std::alloc::dealloc(ps[0], layout);
+		std::alloc::dealloc(p, layout);
+		n
+	}
+}
+
+/// `realloc` twice of memory a pointer to `u32`s points at, whose second result is read as `i32`s.
+pub fn realloc_twice_retyped(words: *mut u32) -> i32 {
+	let layout = std::alloc::Layout::new::<u32>();
+	unsafe {
+		let grown = std::alloc::realloc(words as *mut u8, layout, 8);
+		std::alloc::realloc(grown, layout, 16).cast::<i32>().read()
+	}
+}

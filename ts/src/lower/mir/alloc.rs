@@ -250,8 +250,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		let mut seen = vec![root];
 		let mut todo = vec![root];
 		while let Some(local) = todo.pop() {
-			// Out of the body, as what it returns or into what it was given.
-			if local == RETURN_PLACE || self.is_arg(local) {
+			// Out of the body, as what it returns or into what it was given, or into a local
+			// assigned again, whose byte reads and writes `alloc_bytes` can't trace back.
+			if local == RETURN_PLACE || self.is_arg(local) || self.defs[local] != 1 {
 				return None;
 			}
 			let mut carry = |to: mir::Place<'tcx>| -> Option<()> {
@@ -285,6 +286,7 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 							return None;
 						}
 						Rvalue::Aggregate(_, ops) if ops.iter().any(|op| reads(op, local)) => return None,
+						Rvalue::Repeat(op, _) if reads(op, local) => return None,
 						_ => {}
 					}
 				}
@@ -305,7 +307,9 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				};
 				let (owner, name) = library::key(tcx, def_id).filter(|_| library::is_std(tcx, def_id))?;
 				match (owner.as_str(), name.as_str()) {
-					("alloc", "dealloc" | "realloc") if at == 0 => {}
+					("alloc", "dealloc") if at == 0 => {}
+					// The memory it grows, whose casts type it as this one's do.
+					("alloc", "realloc") if at == 0 => carry(*destination)?,
 					("ptr" | "NonNull", "is_null") => {}
 					("ptr" | "NonNull", "cast") => match gargs.skip_binder().types().nth(1) {
 						Some(to) if !byte(to) => types.push(self.alloc_key(to)),

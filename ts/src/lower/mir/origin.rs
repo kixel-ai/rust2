@@ -579,14 +579,22 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 	}
 
 	/// The place of the `Bytes` whose storage the `Bytes` at `place` shares, as the body
-	/// shows: through `slice` or `clone` of one, into a variable assigned once and never
-	/// changed in place, which keeps that storage.
+	/// shows: through a move, or `slice` or `clone`, of one never assigned again,
+	/// into a variable assigned once and never changed in place, which keeps that storage.
 	fn storage(&self, place: mir::Place<'tcx>) -> mir::Place<'tcx> {
 		let Some(local) = place.as_local() else {
 			return place;
 		};
 		if self.defs[local] != 1 || self.is_arg(local) || self.mutated[local] {
 			return place;
+		}
+		// A source never assigned again; `Bytes`' own `&mut self` methods keep its storage.
+		let fixed = |from: &mir::Place<'tcx>| self.defs[from.local] == u32::from(!self.is_arg(from.local));
+		if self.def_at[local].is_some() {
+			return match self.def_rvalue(local) {
+				Some(Rvalue::Use(Operand::Copy(from) | Operand::Move(from), _)) if fixed(from) => self.storage(*from),
+				_ => place,
+			};
 		}
 		let Some(bb) = self.def_block(local) else {
 			return place;
@@ -609,8 +617,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			None => false,
 		};
 		match args.first().filter(|_| shares).and_then(|a| self.referent(&a.node)) {
-			Some(from) => self.storage(from),
-			None => place,
+			Some(from) if fixed(&from) => self.storage(from),
+			_ => place,
 		}
 	}
 
