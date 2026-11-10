@@ -51,18 +51,3 @@ Rejected: an unsafe std gap with no consumer becoming its own quest, as
 ([#647](https://github.com/moq-dev/rust2/pull/647)), or as `Vec::from_raw_parts`'s adopted
 storage did ([#635](https://github.com/moq-dev/rust2/pull/635)); and a second, byte-backed
 memory model for values whose address is reinterpreted, without a consumer.
-
-## Required
-
-- [Sessions on sans-IO QUIC](/quest/m3/session-quic.md) - bindings move UDP datagrams and drive the session's poll themselves, over moq's runtime-free QUIC driver once it lands
-- [C# and Unity bindings](/quest/m3/csharp.md) - a C# generator over the C ABI that runs under .NET and Unity's IL2CPP
-- [A Node-API addon](/quest/m3/node.md) - a native Node binding, kept only if it beats rust2-wasm and `node:ffi`
-- [React Native bindings](/quest/m3/react-native.md) - a JSI module over the generated C++ header
-- [A WASI target](/quest/m3/wasi.md) - the exporter's API as a WASI module or component for hosts with no JavaScript
-- [Retrial Cranelift on moq's tests](/quest/m3/cranelift-unwind.md) - waits on upstream: moq's tests pass under Cranelift, so its CI can weigh it again
-- [Relink without rebuilding](/quest/m3/relink.md) - measure upstream's skip of dependency-only rebuilds on moq's edits once it reaches nightly
-- [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly
-- [Waiting: type-check in process with tsrs](/quest/m3/ts-tsrs.md) - rust2-ts checks bindings through tsrs instead of `tsc` once it is a stable library
-- [Throw only where Rust panics](/quest/m3/ts-runtime-throws.md) - no runtime `rust2-ts:` error where native Rust goes on: exact, or refused at translation
-- [rust2-ts with no ts.toml](/quest/m3/ts-configless.md) - a crate's whole `pub` API translates with no config and no bound items
-- [Browser APIs through wasm-bindgen](/quest/m3/ts-wasm-bindgen/README.md) - web-sys and js-sys imports become direct JS calls, so idiomatic crates such as web-rs's web-codecs translate as stock crates

@@ -266,13 +266,13 @@ static int script(void) {
 	printf("\n");
 	api_vec_tuple_string_Shape_Point_free(stat_rows);
 	/* Each handle in a tuple moves in, as one taken by value does. */
-	api_tuple_string_Counter tallies[] = {
+	api_tuple_string_Counter meters[] = {
 		{._0 = str("low"), ._1 = api_Counter_new(str("l"), 1)},
 		{._0 = str("high"), ._1 = api_Counter_new(str("h"), 9)},
 	};
-	api_Board *board = api_Board_new((api_vec_tuple_string_Counter){.ptr = tallies, .len = 2});
-	api_Counter_free(tallies[0]._1);
-	api_Counter_free(tallies[1]._1);
+	api_Board *board = api_Board_new((api_vec_tuple_string_Counter){.ptr = meters, .len = 2});
+	api_Counter_free(meters[0]._1);
+	api_Counter_free(meters[1]._1);
 	api_vec_tuple_string_Counter ranked = api_Board_ranked(board);
 	printf("ranked");
 	for (size_t i = 0; i < ranked.len; i++) {
@@ -429,6 +429,16 @@ static int script(void) {
 	api_Name *unnamed = api_unnamed();
 	print("unnamed [", api_Name_as_str(unnamed), "]\n");
 	api_Name_free(unnamed);
+	/* Two buffers of equal text, interned into one string. */
+	char lit_text[] = "lit", again_text[] = "lit";
+	api_Name *lit = api_Name_borrowed(str(lit_text));
+	api_Name *again = api_Name_borrowed(str(again_text));
+	api_Name *other = api_Name_borrowed(str("other"));
+	print("borrowed ", api_Name_as_str(lit), " ");
+	printf("%s %s\n", api_Name_shares(lit, again) ? "true" : "false", api_Name_shares(lit, other) ? "true" : "false");
+	api_Name_free(lit);
+	api_Name_free(again);
+	api_Name_free(other);
 
 	printf("total %llu\n", (unsigned long long)api_total((api_range_u64){.start = 2, .end = 5}));
 	api_range_u64 wide = api_widen((api_range_u64){.start = 2, .end = 5}, 1);
@@ -581,6 +591,35 @@ static int script(void) {
 	api_Channel_notify(channel, waker);
 	api_Channel_send(channel, str("rung"));
 	printf("woken %d\n", wakes);
+	/* A poll with no async twin is a future: it takes what the last send left. */
+	api_Channel_poll_take_future *take = api_Channel_poll_take(channel);
+	if (api_Channel_poll_take_poll(take, waker, &payload) == API_POLL_READY) {
+		print("take ", payload, "\n");
+	}
+	api_Channel_poll_take_future_free(take);
+	api_Channel_send(channel, str("measured"));
+	api_Channel_poll_measure_future *measure = api_Channel_poll_measure(channel, 2);
+	if (api_Channel_poll_measure_poll(measure, waker, &len, &err) == API_POLL_READY) {
+		printf("measure %zu\n", len);
+	}
+	api_Channel_poll_measure_future_free(measure);
+	/* A context is made of the waker, which Rust keeps until the send wakes it. */
+	api_Channel_listen(channel, waker);
+	api_Channel_send(channel, str("heard"));
+	printf("woken %d\n", wakes);
+	api_Channel_clear(channel);
+	/* The waiter a pending poll registers lives until the next poll, so the send wakes it. */
+	take = api_Channel_poll_take(channel);
+	if (api_Channel_poll_take_poll(take, waker, &payload) != API_POLL_PENDING) {
+		return 1;
+	}
+	int woken = wakes;
+	api_Channel_send(channel, str("later"));
+	if (wakes != woken + 1 || api_Channel_poll_take_poll(take, waker, &payload) != API_POLL_READY) {
+		return 1;
+	}
+	api_buf_free(payload);
+	api_Channel_poll_take_future_free(take);
 	api_Channel_free(channel);
 
 	/* A value that holds itself is an object. */
@@ -814,6 +853,83 @@ static int script(void) {
 	/* An empty array that is not None: its pointer is not null. */
 	api_buf no_words[1];
 	print("sentence ", api_sentence((api_vec_string){.ptr = no_words, .len = 0}), "|\n");
+	/* An optional borrow: a null buffer or handle is None. */
+	printf("either %zu %zu\n", api_either(str("abc")), api_either((api_buf){0}));
+	print("prefixed ", api_prefixed(str("cd"), str("ab")), " ");
+	print("", api_prefixed(str("cd"), (api_buf){0}), "\n");
+	api_Point corner = {.x = 2, .y = 3};
+	printf("coordinates %d %d\n", api_coordinates((api_option_Point){.some = true, .value = corner}),
+		api_coordinates((api_option_Point){0}));
+	api_Counter *two = api_Counter_new(str("two"), 2);
+	api_Counter *three = api_Counter_new(str("three"), 3);
+	printf("plus %llu %llu\n", (unsigned long long)api_Counter_plus(two, three),
+		(unsigned long long)api_Counter_plus(two, NULL));
+	bool added = api_Counter_add_to(two, three);
+	bool added_none = api_Counter_add_to(two, NULL);
+	printf("add_to %s %s %llu\n", added ? "true" : "false", added_none ? "true" : "false",
+		(unsigned long long)api_Counter_get(three));
+	api_Counter_free(two);
+	api_Counter_free(three);
+
+	/* A value passed for &mut: Rust writes back what the call left, which the caller frees,
+	 * and keeps what it passed. */
+	api_buf encoded, appended;
+	api_put_number(1, str("0,"), &encoded);
+	api_put_number(23, encoded, &appended);
+	api_buf_free(encoded);
+	print("put_number ", appended, "\n");
+	api_tuple_bytes_u32 stamped;
+	uint32_t stamps = api_push_counted((api_tuple_bytes_u32){._0 = str("ab"), ._1 = 1}, 'c', &stamped);
+	printf("push_counted %u ", stamps);
+	print("", stamped._0, " ");
+	printf("%u\n", stamped._1);
+	api_buf digits_left, digits_rest;
+	uint8_t first_digit, last_digit;
+	api_Error digit_error;
+	api_digit(str("7x9"), &digits_left, &first_digit, &digit_error);
+	/* The failed call took a byte too. */
+	bool skipped = !api_digit(digits_left, &digits_rest, &last_digit, &digit_error);
+	api_buf_free(digits_left);
+	api_digit(digits_rest, &digits_left, &last_digit, &digit_error);
+	api_buf_free(digits_rest);
+	printf("digit %u %s %u %zu\n", first_digit, skipped ? "true" : "false", last_digit, digits_left.len);
+	api_buf_free(digits_left);
+	api_Point nudged = {.x = 1, .y = 2};
+	api_nudge(nudged, 3, &nudged);
+	printf("nudge %d %d\n", nudged.x, nudged.y);
+
+	/* An Arc of another crate's type: an opaque handle, taken back by value or lent. */
+	api_tls_Config *config = api_secure(str("h3"));
+	print("secure ", api_alpn_lent(config), " ");
+	api_tls_Config *config_copy = api_tls_Config_clone(config);
+	print("", api_alpn(config_copy), "\n");
+	api_tls_Config_free(config_copy);
+	api_tls_Config_free(config);
+	/* A borrow of a meter that is not Clone, lent from its owner's handle. */
+	{
+		api_Meters *lender = api_Meters_new();
+		api_Meter *first = api_Meters_first(lender);
+		api_Meter_add(first, 2);
+		unsigned long long added = api_Meter_add(first, 3);
+		api_Meter *again = api_Meters_first(lender);
+		printf("lent %llu %llu\n", added, (unsigned long long)api_Meter_count(again));
+		api_Meter_free(again);
+		api_Meter_free(first);
+		api_Meters_clear(lender);
+		again = api_Meters_first(lender);
+		printf("cleared %llu\n", (unsigned long long)api_Meter_count(again));
+		api_Meter_free(again);
+		api_Meters_free(lender);
+		/* One lent from a handle that is not Sync, on one thread at a time. */
+		api_Tallies *tallies = api_Tallies_new();
+		api_Tally *tallied = api_Tallies_first(tallies);
+		api_Tally_bump(tallied);
+		api_Tally_free(tallied);
+		tallied = api_Tallies_first(tallies);
+		printf("tallied %u\n", api_Tally_bump(tallied));
+		api_Tally_free(tallied);
+		api_Tallies_free(tallies);
+	}
 
 	api_vec_bytes chunks = api_chunks(str("abcde"), 2);
 	printf("chunks [");
@@ -1033,7 +1149,7 @@ static int script(void) {
 	api_Token_free(twice);
 
 	/* Each future dropped its waker once it finished, and Rust the one it was given. */
-	return drops == 5 ? 0 : 1;
+	return drops == 9 ? 0 : 1;
 }
 
 /* Each breaks a contract, which must abort with a message naming the function. */
@@ -1069,6 +1185,14 @@ static int broken(const char *which) {
 	} else if (strcmp(which, "lent") == 0 || strcmp(which, "lent moved") == 0) {
 		api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0));
 		api_Registry_edit(registry, strcmp(which, "lent") == 0 ? free_lent : move_lent, NULL);
+	} else if (strcmp(which, "outlived") == 0) {
+		api_Meters *meters = api_Meters_new();
+		api_Meter *first = api_Meters_first(meters);
+		api_Meters_clear(meters);
+		api_Meter_count(first);
+	} else if (strcmp(which, "lent shared") == 0) {
+		api_Meters *meters = api_Meters_new();
+		api_Meter_reset(api_Meters_first(meters));
 	} else if (strcmp(which, "null") == 0) {
 		api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0));
 		api_Registry_edit(registry, NULL, NULL);

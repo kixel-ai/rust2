@@ -3,8 +3,8 @@
 use std::borrow::Cow;
 use std::fmt;
 use std::ops::{Bound, Range, RangeBounds};
-use std::sync::{Arc, Mutex};
-use std::task::{Poll, Waker};
+use std::sync::{Arc, Mutex, Weak};
+use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 
 use bytes::Bytes;
@@ -145,6 +145,22 @@ impl Counter {
 	/// lent for the call keeps.
 	pub fn edited(&self) -> bool {
 		std::ptr::from_ref(self) as usize == EDITING.load(std::sync::atomic::Ordering::Relaxed)
+	}
+
+	/// This count plus `other`'s, if any: an optional handle, lent shared.
+	pub fn plus(&self, other: Option<&Counter>) -> u64 {
+		self.value + other.map_or(0, |other| other.value)
+	}
+
+	/// [`Self::plus`], once [`yielded`] finishes: a future borrowing both handles meanwhile.
+	pub async fn plus_later(&self, other: Option<&Counter>) -> u64 {
+		yielded(0).await;
+		self.plus(other)
+	}
+
+	/// Adds this count to `other`, if any: an optional handle, lent exclusively.
+	pub fn add_to(&self, other: Option<&mut Counter>) -> bool {
+		other.map(|other| other.value += self.value).is_some()
 	}
 
 	/// Consumes the counter.
@@ -331,6 +347,50 @@ pub fn swapped(pair: (String, u32)) -> (u32, String) {
 	(pair.1, pair.0)
 }
 
+/// A meter that is deliberately not `Clone`, as moq's group writers are, so a borrowed
+/// return of one is lent from its owner's handle rather than cloned.
+#[derive(Default)]
+pub struct Meter(std::sync::atomic::AtomicU64);
+
+impl Meter {
+	/// Adds `n`, returning the new count: through `&self`, as a lent handle allows.
+	pub fn add(&self, n: u64) -> u64 {
+		self.0.fetch_add(n, std::sync::atomic::Ordering::Relaxed) + n
+	}
+
+	pub fn count(&self) -> u64 {
+		self.0.load(std::sync::atomic::Ordering::Relaxed)
+	}
+
+	/// Zeroes the count: through `&mut self`, which a lent handle refuses.
+	pub fn reset(&mut self) {
+		*self.0.get_mut() = 0;
+	}
+}
+
+/// Owns a meter it lends.
+#[derive(Default)]
+pub struct Meters {
+	first: Meter,
+}
+
+impl Meters {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// The first meter, lent: a handle to it lives until these meters are borrowed
+	/// exclusively, moved out, or freed.
+	pub fn first(&self) -> &Meter {
+		&self.first
+	}
+
+	/// Replaces the first meter, borrowing these exclusively, which ends what `first` lent.
+	pub fn clear(&mut self) {
+		self.first = Meter::default();
+	}
+}
+
 /// Holds counters and lends them: each borrowed return is a new handle to a clone.
 #[derive(Default)]
 pub struct Registry {
@@ -382,6 +442,17 @@ impl Name<'_> {
 	/// `other` after this name, as a name that borrows neither.
 	pub fn join(&self, other: &Name<'_>) -> Name<'static> {
 		Name(Cow::Owned(format!("{}/{}", self.0, other.0)))
+	}
+
+	/// A name borrowing text that lives as long as the program, which a binding's string
+	/// does once interned.
+	pub fn borrowed(text: &'static str) -> Name<'static> {
+		Name(Cow::Borrowed(text))
+	}
+
+	/// Whether both names borrow the same text, where it lies, not only equal text.
+	pub fn shares(&self, other: &Name<'_>) -> bool {
+		matches!((&self.0, &other.0), (Cow::Borrowed(a), Cow::Borrowed(b)) if std::ptr::eq(*a, *b))
 	}
 
 	/// Takes a parameter that must outlive the call, so a `String`, not a borrow of C's.
@@ -458,7 +529,17 @@ impl Window {
 /// A one-slot channel: its receive is a future that waits for a send.
 #[derive(Clone, Default)]
 pub struct Channel {
-	state: Arc<Mutex<(Option<Bytes>, Option<Waker>)>>,
+	state: Arc<Mutex<(Option<Bytes>, Option<Waker>, Option<Weak<Waker>>)>>,
+}
+
+/// What a poll registers, made from a task's waker: it wakes the task only while it lives,
+/// as kio's `Waiter` does, so a future polling with one must keep it between polls.
+pub struct Waiter(Arc<Waker>);
+
+impl Waiter {
+	pub fn new(waker: Waker) -> Self {
+		Self(Arc::new(waker))
+	}
 }
 
 impl Channel {
@@ -477,6 +558,9 @@ impl Channel {
 		state.0 = Some(payload);
 		if let Some(waker) = state.1.take() {
 			waker.wake();
+		}
+		if let Some(waiter) = state.2.take().and_then(|waiter| waiter.upgrade()) {
+			waiter.wake_by_ref();
 		}
 	}
 
@@ -527,6 +611,39 @@ impl Channel {
 				Poll::Pending
 			}
 		}
+	}
+
+	/// The next payload, waiting for it through `waiter`: a poll with no async twin, which
+	/// exports as a future.
+	pub fn poll_take(&self, waiter: &Waiter) -> Poll<Bytes> {
+		let mut state = self.state.lock().unwrap();
+		match state.0.take() {
+			Some(payload) => Poll::Ready(payload),
+			None => {
+				state.2 = Some(Arc::downgrade(&waiter.0));
+				Poll::Pending
+			}
+		}
+	}
+
+	/// The next payload's length past `extra`, failing once it is empty: a poll through a
+	/// context, of `&mut self`, which passes `extra` again at each poll.
+	pub fn poll_measure(&mut self, cx: &mut Context<'_>, extra: usize) -> Poll<Result<usize, Error>> {
+		let mut state = self.state.lock().unwrap();
+		match state.0.take() {
+			Some(payload) if payload.is_empty() => Poll::Ready(Err(Error::Underflow { by: 1 })),
+			Some(payload) => Poll::Ready(Ok(payload.len() + extra)),
+			None => {
+				state.1 = Some(cx.waker().clone());
+				Poll::Pending
+			}
+		}
+	}
+
+	/// Wakes the context's task on the next send, as `notify` wakes its waker: C passes the
+	/// waker the context is made of.
+	pub fn listen(&self, cx: &Context<'_>) {
+		self.state.lock().unwrap().1 = Some(cx.waker().clone());
 	}
 
 	/// The next payload and its length: a future's tuple is written through its poll's
@@ -780,6 +897,24 @@ impl Tally {
 	pub fn bump(&self) -> u32 {
 		self.count.set(self.count.get() + 1);
 		self.count.get()
+	}
+}
+
+/// Owns a tally it lends, and so is not `Sync` either: its handle lends on one thread at a
+/// time.
+#[derive(Default)]
+pub struct Tallies {
+	first: Tally,
+}
+
+impl Tallies {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// The first tally, lent, as [`Meters::first`] lends its meter.
+	pub fn first(&self) -> &Tally {
+		&self.first
 	}
 }
 
@@ -1689,6 +1824,77 @@ pub fn words(text: &str) -> Vec<String> {
 /// `words` joined by spaces, or `none` for none.
 pub fn sentence(words: Option<Vec<String>>) -> String {
 	words.map_or_else(|| "none".to_string(), |words| words.join(" "))
+}
+
+/// Appends `value` in decimal and a comma to `buf`, as moq's encoders append to an
+/// `impl BufMut`, which takes a `Vec<u8>`: C passes the bytes in, and Rust writes back
+/// what the call left in them.
+pub fn put_number(value: u32, buf: &mut impl bytes::BufMut) {
+	buf.put_slice(format!("{value},").as_bytes());
+}
+
+/// Takes the first byte of `buf` as a decimal digit, as moq's decoders take from an
+/// `impl Buf`, which takes `Bytes`. It takes the byte even when it fails, and Rust writes
+/// back what the call left on either path.
+pub fn digit(buf: &mut impl bytes::Buf) -> Result<u8, Error> {
+	match buf.has_remaining() {
+		false => Err(Error::Underflow { by: 1 }),
+		true => match buf.get_u8() {
+			digit @ b'0'..=b'9' => Ok(digit - b'0'),
+			_ => Err(Error::Overflow),
+		},
+	}
+}
+
+/// Appends `byte` to an entry's bytes and counts it, returning the count: a tuple holding
+/// bytes, written back beside the value C returns.
+pub fn push_counted(entry: &mut (Vec<u8>, u32), byte: u8) -> u32 {
+	entry.0.push(byte);
+	entry.1 += 1;
+	entry.1
+}
+
+/// Moves `point` by `by` on each axis: a record, written back.
+pub fn nudge(point: &mut Point, by: i32) {
+	point.x += by;
+	point.y += by;
+}
+
+/// A config of a crate no export is, behind an `Arc`, as moq-tokio's listener returns
+/// rustls's: an opaque handle, which Rust takes back.
+pub fn secure(alpn: &str) -> Arc<tls::Config> {
+	Arc::new(tls::Config::new(alpn))
+}
+
+/// The ALPN of a config [`secure`] made, taken back by value.
+pub fn alpn(config: Arc<tls::Config>) -> String {
+	config.alpn().to_string()
+}
+
+/// [`alpn`], lent.
+pub fn alpn_lent(config: &Arc<tls::Config>) -> String {
+	config.alpn().to_string()
+}
+
+/// `text`'s length, or 0 for none: an optional borrow, lent as the borrow alone is.
+pub fn either(text: Option<&str>) -> usize {
+	text.map_or(0, str::len)
+}
+
+/// [`either`], once [`yielded`] finishes: a future owning what it lends.
+pub async fn either_later(text: Option<&str>) -> usize {
+	yielded(0).await;
+	either(text)
+}
+
+/// `payload` after `prefix`, if any.
+pub fn prefixed(payload: &[u8], prefix: Option<&[u8]>) -> Vec<u8> {
+	[prefix.unwrap_or_default(), payload].concat()
+}
+
+/// `point`'s coordinates summed, or 0 for none: an optional value, lent shared.
+pub fn coordinates(point: Option<&Point>) -> i32 {
+	point.map_or(0, |point| point.x + point.y)
 }
 
 /// `bytes` in chunks of up to `size`, which is not 0.

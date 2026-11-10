@@ -33,11 +33,3 @@ Decided with the maintainer on 2026-10-23, when rust2 was planned from moq
 - The first quest that adds a crate also adds the Cargo workspace (moq's
   workspace lints, including a reason on every suppression) and the cargo
   steps of `just check`.
-
-## Required
-
-- [m0: immediate priorities](/quest/m0/README.md) - urgent fixes, the checks' cost, and a green nightly
-- [m1: consumers waiting](/quest/m1/README.md) - the exporter moq can pin and switch its bindings to
-- [m2: research](/quest/m2/README.md) - rust2-wasm as the browser route, and the TypeScript translator that has to beat it
-- [m3: deferred](/quest/m3/README.md) - upstream's build-speed levers, the translator features that wait on the gate, and binding targets planned ahead of a consumer
-- [m4: long-term research](/quest/m4/README.md) - ideas no consumer needs yet, such as a rustc and cargo fork

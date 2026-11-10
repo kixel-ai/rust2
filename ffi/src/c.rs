@@ -389,7 +389,10 @@ impl Header<'_> {
 		let receiver = function.receiver.map(|r| r == Receiver::Owned);
 		let by_value = receiver
 			.into_iter()
-			.chain(function.params.iter().map(|p| !matches!(p.ty, Type::Ref(..))));
+			.chain((function.params.iter()).map(|p| match &p.ty {
+				Type::Option(inner) => !matches!(**inner, Type::Ref(..)),
+				ty => !matches!(ty, Type::Ref(..)),
+			}));
 		let moved: Vec<String> = export
 			.call
 			.params
@@ -404,6 +407,13 @@ impl Header<'_> {
 			docs.push_str(&format!(
 				"\n\nMoves the value out of {}: free the handle after.",
 				moved.join(" and ")
+			));
+		}
+		for param in function.params.iter().filter(|p| p.ty.written()) {
+			let name = abi::escape(&param.name);
+			docs.push_str(&format!(
+				"\n\nRust writes what the call left in `{name}` through `{}`, on every path, errors included: the caller keeps what it passed, and frees what Rust wrote as a returned value.",
+				Abi::written(function, &name)
 			));
 		}
 		for param in &function.params {

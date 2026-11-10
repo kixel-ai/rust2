@@ -224,10 +224,10 @@ int script() {
 	std::printf("\n");
 	{
 		// Each handle in a tuple moves in, as one taken by value does.
-		std::vector<std::tuple<api::view, api::Counter>> tallies;
-		tallies.emplace_back("low", api::Counter::new_("l", 1));
-		tallies.emplace_back("high", api::Counter::new_("h", 9));
-		auto board = api::Board::new_(std::move(tallies));
+		std::vector<std::tuple<api::view, api::Counter>> meters;
+		meters.emplace_back("low", api::Counter::new_("l", 1));
+		meters.emplace_back("high", api::Counter::new_("h", 9));
+		auto board = api::Board::new_(std::move(meters));
 		std::printf("ranked");
 		auto ranked = board.ranked();
 		for (std::size_t i = 0; i < ranked.size(); i++) {
@@ -321,9 +321,9 @@ int script() {
 	}
 	// A closure lent for the call edits the first counter through its class.
 	std::uint64_t by = 5;
-	bool edited = registry.edit([&](api::Counter &counter) {
-		(void)counter.add(by);
-		return counter.edited() && counter.get() == 6;
+	bool edited = registry.edit([&](api::borrow<api::Counter> counter) {
+		(void)counter->add(by);
+		return counter->edited() && counter->get() == 6;
 	});
 	std::printf("edit %s %llu\n", yes(edited), ull(registry.first_get().get()));
 	// A setter moves an object in, as assignment does.
@@ -350,6 +350,10 @@ int script() {
 		api::Name longest = api::longer(std::move(joined), api::Name::owned("dd"));
 		print("longer ", longest.as_str(), "\n");
 		print("unnamed [", api::unnamed().as_str(), "]\n");
+		api::Name lit = api::Name::borrowed("lit");
+		print("borrowed ", lit.as_str(), " ");
+		std::printf("%s %s\n", lit.shares(api::Name::borrowed("lit")) ? "true" : "false",
+			lit.shares(api::Name::borrowed("other")) ? "true" : "false");
 	}
 
 	std::printf("total %llu\n", ull(api::total({2, 5})));
@@ -487,6 +491,24 @@ int script() {
 		// The waker moves into Rust, which keeps it until the send wakes it.
 		channel.notify(waker);
 		channel.send("rung");
+		std::printf("woken %d\n", wakes);
+		// A poll with no async twin is a future.
+		{
+			api::Channel_poll_take_future take = channel.poll_take();
+			if (auto payload = take.poll(waker)) {
+				print("take ", *payload, "\n");
+			}
+		}
+		channel.send("measured");
+		{
+			api::Channel_poll_measure_future measure = channel.poll_measure(2);
+			if (auto r = measure.poll(waker)) {
+				std::printf("measure %zu\n", r->value());
+			}
+		}
+		// A context is made of the waker, which Rust keeps until the send wakes it.
+		channel.listen(waker);
+		channel.send("heard");
 		std::printf("woken %d\n", wakes);
 	}
 
@@ -664,6 +686,57 @@ int script() {
 	print("sentence ", api::sentence(std::vector<api::view>(words.begin(), words.end())), " ");
 	print("", api::sentence(std::nullopt), "\n");
 	print("sentence ", api::sentence(std::vector<api::view>()), "|\n");
+	std::printf("either %zu %zu\n", api::either("abc"), api::either(std::nullopt));
+	print("prefixed ", api::prefixed("cd", api::view("ab")), " ");
+	print("", api::prefixed("cd", std::nullopt), "\n");
+	std::printf("coordinates %d %d\n", api::coordinates(api::Point{2, 3}), api::coordinates(std::nullopt));
+	{
+		auto two = api::Counter::new_("two", 2);
+		auto three = api::Counter::new_("three", 3);
+		std::printf("plus %llu %llu\n", static_cast<unsigned long long>(two.plus(&three)),
+			static_cast<unsigned long long>(two.plus(nullptr)));
+		bool added = two.add_to(&three);
+		bool added_none = two.add_to(nullptr);
+		std::printf("add_to %s %s %llu\n", added ? "true" : "false", added_none ? "true" : "false",
+			static_cast<unsigned long long>(three.get()));
+	}
+
+	{
+		// A value passed for &mut, which takes what Rust wrote back.
+		api::buf encoded(api::view("0,"));
+		api::put_number(1, encoded);
+		api::put_number(23, encoded);
+		print("put_number ", encoded, "\n");
+		::std::tuple<api::buf, uint32_t> entry(api::buf(api::view("ab")), 1);
+		uint32_t stamps = api::push_counted(entry, 'c');
+		std::printf("push_counted %u ", stamps);
+		print("", ::std::get<0>(entry), " ");
+		std::printf("%u\n", ::std::get<1>(entry));
+		api::buf digits(api::view("7x9"));
+		auto first_digit = api::digit(digits);
+		auto skipped = api::digit(digits);
+		auto last_digit = api::digit(digits);
+		std::printf("digit %u %s %u %zu\n", unsigned(first_digit.value()), yes(!skipped.has_value()),
+			unsigned(last_digit.value()), digits.size());
+		api::Point nudged{1, 2};
+		api::nudge(nudged, 3);
+		std::printf("nudge %d %d\n", nudged.x, nudged.y);
+	}
+	{
+		auto config = api::secure("h3");
+		print("secure ", api::alpn_lent(config), " ");
+		print("", api::alpn(config), "\n");
+		auto meters = api::Meters::new_();
+		auto first = meters.first();
+		first.add(2);
+		unsigned long long added = first.add(3);
+		std::printf("lent %llu %llu\n", added, ull(meters.first().count()));
+		meters.clear();
+		std::printf("cleared %llu\n", ull(meters.first().count()));
+		auto tallies = api::Tallies::new_();
+		tallies.first().bump();
+		std::printf("tallied %u\n", tallies.first().bump());
+	}
 
 	std::printf("chunks [");
 	auto chunks = api::chunks("abcde", 2);
@@ -1134,24 +1207,30 @@ int lifetimes() {
 	return 0;
 }
 
-// Each breaks a contract, which must abort with a message naming the function.
+// Each breaks a contract, which must abort with a message naming the function. Those
+// `tests/api_strict.cpp` refuses at compile time reach the object through a reference or
+// pointer, whose state Clang does not track.
 int broken(const char *which) {
 	if (std::strcmp(which, "moved") == 0) {
 		api::Counter c = api::Counter::new_("c", 0);
+		api::Counter &same = c;
 		api::Label label = std::move(c).into_label(std::nullopt);
-		c.get();
+		same.get();
 	} else if (std::strcmp(which, "moved from") == 0) {
 		api::Counter c = api::Counter::new_("c", 0);
+		api::Counter &same = c;
 		api::Counter d = std::move(c);
-		c.get();
+		same.get();
 	} else if (std::strcmp(which, "shared moved from") == 0) {
 		api::Gauge g = api::Gauge::new_(0);
+		api::Gauge &same = g;
 		api::Gauge h = std::move(g);
-		std::move(g).into_level();
+		std::move(same).into_level();
 	} else if (std::strcmp(which, "shared moved out") == 0) {
 		api::Gauge g = api::Gauge::new_(0);
+		api::Gauge &same = g;
 		std::move(g).into_level();
-		std::move(g).into_level();
+		std::move(same).into_level();
 	} else if (std::strcmp(which, "lent copied") == 0) {
 		static std::optional<api::Gauge> kept;
 		api::watch(api::Gauge::new_(0), [](const api::Gauge &lent) {
@@ -1170,17 +1249,22 @@ int broken(const char *which) {
 		recv.poll(waker);
 	} else if (std::strcmp(which, "null view") == 0) {
 		api::len(api::view(nullptr, 1));
+	} else if (std::strcmp(which, "outlived") == 0) {
+		api::Meters meters = api::Meters::new_();
+		api::Meter first = meters.first();
+		meters.clear();
+		first.count();
 	} else if (std::strcmp(which, "lent moved") == 0) {
 		api::Registry registry = api::Registry::new_(api::Counter::new_("c", 0));
-		registry.edit([](api::Counter &counter) {
-			api::Label label = std::move(counter).into_label(std::nullopt);
+		registry.edit([](api::borrow<api::Counter> counter) {
+			api::Label label = std::move(*counter.operator->()).into_label(std::nullopt);
 			return false;
 		});
 	} else if (std::strcmp(which, "lent kept") == 0) {
 		static std::optional<api::Counter> kept;
 		api::Registry registry = api::Registry::new_(api::Counter::new_("c", 0));
-		registry.edit([](api::Counter &counter) {
-			kept.emplace(std::move(counter));
+		registry.edit([](api::borrow<api::Counter> counter) {
+			kept.emplace(std::move(*counter.operator->()));
 			return false;
 		});
 	}

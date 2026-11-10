@@ -9,7 +9,10 @@
 //! takes back to it and a cast to `*const ()` keeps. That cast is refused unless the body
 //! shows an `Arc`'s, or null or dangling, since a place from elsewhere has no one identity.
 
-use rustc_middle::mir::{self, BasicBlock, Local, Location, Operand, ProjectionElem, Rvalue, TerminatorKind};
+use rustc_middle::mir::visit::{MutatingUseContext, PlaceContext, Visitor};
+use rustc_middle::mir::{
+	self, BasicBlock, Local, Location, Operand, ProjectionElem, Rvalue, StatementKind, TerminatorKind,
+};
 use rustc_middle::ty::{self, GenericArgsRef};
 use rustc_span::Spanned;
 
@@ -492,15 +495,23 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			return None;
 		}
 		let owner = self.tcx.item_name(adt.did()).to_string();
-		let arc = &args.first()?.node;
-		let place = match self.traced(arc) {
+		Some((self.referent(&args.first()?.node)?, owner))
+	}
+
+	/// The place the shared reference `r` borrows, if the body shows it and that it holds the
+	/// same value while the borrow lives: one a borrow here took, or what a reference it is
+	/// given or assigns once points at.
+	fn referent(&self, r: &Operand<'tcx>) -> Option<mir::Place<'tcx>> {
+		let place = match self.traced(r) {
+			Some(r) if self.def_at[r].is_none() => return Some(self.tcx.mk_place_deref(mir::Place::from(r))),
 			Some(r) => match self.def_rvalue(r)? {
+				Rvalue::Use(op, _) => return self.referent(op),
 				Rvalue::Ref(_, _, place) => *place,
 				_ => return None,
 			},
 			// A reference the function is given and never assigns.
 			None => {
-				let r = arc.place()?.as_local()?;
+				let r = r.place()?.as_local()?;
 				if !self.is_arg(r) || self.defs[r] != 0 {
 					return None;
 				}
@@ -528,7 +539,194 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				}
 				_ => false,
 			});
-		stays.then_some((place, owner))
+		stays.then_some(place)
+	}
+
+	/// The place the shared reference `r` borrows, as [`Self::referent`] has it, or the
+	/// element `v[i]` it is where it is `&v[i]` of a `Vec` or slice by an index the body
+	/// assigns once, which the borrow keeps where it is: two such borrows lend one element.
+	fn lent(&self, r: &Operand<'tcx>) -> Option<mir::Place<'tcx>> {
+		let indexed = self.traced(r).filter(|&l| self.def_at[l].is_none()).and_then(|l| {
+			let (def_id, gargs, args) = self.def_call(l)?;
+			let by_usize = gargs
+				.types()
+				.nth(1)
+				.is_some_and(|ty| matches!(ty.kind(), ty::Uint(ty::UintTy::Usize)));
+			if !by_usize || library::key(self.tcx, def_id)? != ("Index".into(), "index".into()) {
+				return None;
+			}
+			let elem = match &args.get(1)?.node {
+				Operand::Constant(_) => {
+					let offset = u64::try_from(self.const_int(&args[1].node)?).ok()?;
+					ProjectionElem::ConstantIndex {
+						offset,
+						min_length: offset + 1,
+						from_end: false,
+					}
+				}
+				op => {
+					let i = op.place()?.as_local()?;
+					let fixed = match self.is_arg(i) {
+						true => self.defs[i] == 0,
+						false => self.defs[i] == 1,
+					};
+					if !fixed || self.mutated[i] {
+						return None;
+					}
+					ProjectionElem::Index(i)
+				}
+			};
+			Some(self.lent(&args.first()?.node)?.project_deeper(&[elem], self.tcx))
+		});
+		indexed.or_else(|| self.referent(r))
+	}
+
+	/// The place of the `Bytes` whose storage the `Bytes` at `place` shares, as the body
+	/// shows: through a move, or `slice` or `clone`, of one never assigned again,
+	/// into a variable assigned once and never changed in place, which keeps that storage.
+	fn storage(&self, place: mir::Place<'tcx>) -> mir::Place<'tcx> {
+		let Some(local) = place.as_local() else {
+			return place;
+		};
+		if self.defs[local] != 1 || self.is_arg(local) || self.mutated[local] {
+			return place;
+		}
+		// A source never assigned again, and lent mutably only to `Bytes`' own methods, which
+		// keep its storage, unlike `mem::swap` or `replace`.
+		let fixed = |from: &mir::Place<'tcx>| {
+			self.defs[from.local] == u32::from(!self.is_arg(from.local)) && self.only_own_edits(from.local)
+		};
+		if self.def_at[local].is_some() {
+			return match self.def_rvalue(local) {
+				Some(Rvalue::Use(Operand::Copy(from) | Operand::Move(from), _)) if fixed(from) => self.storage(*from),
+				_ => place,
+			};
+		}
+		let Some(bb) = self.def_block(local) else {
+			return place;
+		};
+		let TerminatorKind::Call { func, args, .. } = &self.mir.basic_blocks[bb].terminator().kind else {
+			return place;
+		};
+		let Some((def_id, gargs)) = func.const_fn_def() else {
+			return place;
+		};
+		let shares = match library::key(self.tcx, def_id) {
+			Some((owner, name)) => match (owner.as_str(), name.as_str()) {
+				("Bytes", "slice") => library::inherent_std(self.tcx, def_id) == Some(Std::Bytes),
+				("Clone", "clone") => gargs
+					.types()
+					.next()
+					.is_some_and(|ty| self.b.t.std_of(ty) == Some(Std::Bytes)),
+				_ => false,
+			},
+			None => false,
+		};
+		match args.first().filter(|_| shares).and_then(|a| self.referent(&a.node)) {
+			Some(from) if fixed(&from) => self.storage(from),
+			_ => place,
+		}
+	}
+
+	/// Whether every `&mut` of the `Bytes` at `local` goes only to a method of `Bytes`, its own
+	/// or a trait's, rather than to a generic function such as `mem::swap`.
+	fn only_own_edits(&self, local: Local) -> bool {
+		let lent: Vec<Local> = self
+			.mir
+			.basic_blocks
+			.iter()
+			.flat_map(|data| &data.statements)
+			.filter_map(|stmt| match &stmt.kind {
+				StatementKind::Assign(assign) => match &**assign {
+					(to, Rvalue::Ref(_, mir::BorrowKind::Mut { .. }, place) | Rvalue::RawPtr(_, place))
+						if place.local == local =>
+					{
+						Some(to.as_local())
+					}
+					_ => None,
+				},
+				_ => None,
+			})
+			.collect::<Option<_>>()
+			.unwrap_or_else(|| vec![local]);
+		lent.iter().all(|&r| {
+			r != local
+				&& self.mir.basic_blocks.iter().all(|data| {
+					let read = |op: &Operand<'tcx>| op.place().is_some_and(|p| p.local == r);
+					// Any use of the borrow in a statement, a copy, cast, or reborrow among them,
+					// carries it where this check can't follow.
+					let used = |at: &dyn Fn(&mut Uses)| {
+						let mut uses = Uses { local: r, used: false };
+						at(&mut uses);
+						uses.used
+					};
+					let in_stmt = data
+						.statements
+						.iter()
+						.any(|stmt| used(&|u| u.visit_statement(stmt, mir::Location::START)));
+					let ok_call = match &data.terminator().kind {
+						TerminatorKind::Call { func, args, .. } => {
+							let rest = args.iter().skip(1).any(|a| read(&a.node));
+							let own = |def_id, gargs: GenericArgsRef<'tcx>| {
+								library::inherent_std(self.tcx, def_id) == Some(Std::Bytes)
+									|| (self.tcx.trait_of_assoc(def_id).is_some()
+										&& gargs
+											.types()
+											.next()
+											.is_some_and(|ty| self.b.t.std_of(ty) == Some(Std::Bytes)))
+							};
+							!rest
+								&& (!args.first().is_some_and(|a| read(&a.node))
+									|| func.const_fn_def().is_some_and(|(def_id, gargs)| own(def_id, gargs)))
+						}
+						// Any other terminator that uses the borrow, it escapes through.
+						_ => !used(&|u| u.visit_terminator(data.terminator(), mir::Location::START)),
+					};
+					!in_stmt && ok_call
+				})
+		})
+	}
+
+	/// Whether the shared slice `subset` is of the storage of the `Bytes` the shared
+	/// reference `bytes` is to, as the body shows: through the `Deref` or `as_ref`, or a slice
+	/// of one, of that `Bytes` or one sharing its storage, as [`Self::storage`] has it. Only
+	/// then does JS keep both in one buffer where Rust does.
+	pub(super) fn bytes_of(&self, subset: &Operand<'tcx>, bytes: &Operand<'tcx>) -> bool {
+		let Some(local) = self.traced(subset) else {
+			return false;
+		};
+		if self.def_at[local].is_some() {
+			return match self.def_rvalue(local) {
+				Some(Rvalue::Use(op, _)) => self.bytes_of(op, bytes),
+				// `&*s`, of the shared slice `s`.
+				Some(Rvalue::Ref(_, mir::BorrowKind::Shared, place))
+					if let [ProjectionElem::Deref] = place.projection.as_slice() =>
+				{
+					self.bytes_of(&Operand::Copy(mir::Place::from(place.local)), bytes)
+				}
+				_ => false,
+			};
+		}
+		let Some((def_id, gargs, args)) = self.def_call(local) else {
+			return false;
+		};
+		let Some(of) = args.first().map(|a| &a.node) else {
+			return false;
+		};
+		let Some(self_ty) = gargs.types().next() else {
+			return false;
+		};
+		match library::key(self.tcx, def_id) {
+			Some((owner, name)) => match (owner.as_str(), name.as_str()) {
+				("Index", "index") if self_ty.is_slice() => self.bytes_of(of, bytes),
+				("Deref", "deref") | ("AsRef", "as_ref") if self.b.t.std_of(self_ty) == Some(Std::Bytes) => {
+					let storage = |r| self.lent(r).map(|place| self.storage(place));
+					storage(of).is_some_and(|place| storage(bytes) == Some(place))
+				}
+				_ => false,
+			},
+			None => false,
+		}
 	}
 
 	/// `Arc::as_ptr` of the `Arc` or `Rc` whose value of a type JS copies the shared
@@ -710,5 +908,23 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				TerminatorKind::Call { destination, .. } if destination.as_local() == Some(local) => Some(bb),
 				_ => None,
 			})
+	}
+}
+
+/// Whether a statement or terminator uses `local`, other than to assign it whole.
+struct Uses {
+	local: Local,
+	used: bool,
+}
+
+impl<'tcx> Visitor<'tcx> for Uses {
+	fn visit_local(&mut self, local: Local, cx: PlaceContext, _: mir::Location) {
+		if local == self.local
+			&& !matches!(
+				cx,
+				PlaceContext::NonUse(_) | PlaceContext::MutatingUse(MutatingUseContext::Store)
+			) {
+			self.used = true;
+		}
 	}
 }

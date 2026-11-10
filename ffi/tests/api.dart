@@ -236,6 +236,8 @@ Future<void> script() async {
   final long = api.longer(joined, api.Name.owned('dd'));
   print('longer ${long.asStr()}');
   print('unnamed [${api.unnamed().asStr()}]');
+  final lit = api.Name.borrowed('lit');
+  print('borrowed ${lit.asStr()} ${lit.shares(api.Name.borrowed('lit'))} ${lit.shares(api.Name.borrowed('other'))}');
 
   print('total ${api.total(const api.RangeU64(2, 5))}');
   final wide = api.widen(const api.RangeU64(2, 5), 1);
@@ -337,6 +339,15 @@ Future<void> script() async {
   channel.notify(() => wakes++);
   channel.send(utf8.encode('rung'));
   await until(() => wakes == 2, 'the send wakes the waker Rust keeps');
+  print('woken $wakes');
+  // A poll with no async twin is a future.
+  print('take ${text(await channel.pollTake())}');
+  channel.send(utf8.encode('measured'));
+  print('measure ${await channel.pollMeasure(2)}');
+  // A context is made of the waker, which Rust keeps until the send wakes it.
+  channel.listen(() => wakes++);
+  channel.send(utf8.encode('heard'));
+  await until(() => wakes == 3, 'the send wakes the context Rust keeps');
   print('woken $wakes');
 
   final nodes = api.Node(1, null);
@@ -457,6 +468,50 @@ Future<void> script() async {
   print('words ${words.length} ${quoted(words)}');
   print('sentence ${api.sentence(words)} ${api.sentence(null)}');
   print('sentence ${api.sentence([])}|');
+  print('either ${api.either('abc')} ${api.either(null)}');
+  print('prefixed ${utf8.decode(api.prefixed(utf8.encode('cd'), utf8.encode('ab')))} '
+      '${utf8.decode(api.prefixed(utf8.encode('cd'), null))}');
+  print('coordinates ${api.coordinates(const api.Point(x: 2, y: 3))} ${api.coordinates(null)}');
+  final two = api.Counter('two', 2);
+  final three = api.Counter('three', 3);
+  print('plus ${two.plus(three)} ${two.plus(null)}');
+  print('add_to ${two.addTo(three)} ${two.addTo(null)} ${three.get()}');
+  two.close();
+  three.close();
+  final encoded = api.Mut(utf8.encode('0,'));
+  api.putNumber(1, encoded);
+  api.putNumber(23, encoded);
+  print('put_number ${utf8.decode(encoded.value)}');
+  final entry = api.Mut((utf8.encode('ab'), 1));
+  final stamps = api.pushCounted(entry, 0x63);
+  print('push_counted $stamps ${utf8.decode(entry.value.$1)} ${entry.value.$2}');
+  final digits = api.Mut(utf8.encode('7x9'));
+  final firstDigit = api.digit(digits);
+  var skipped = false;
+  try {
+    api.digit(digits);
+  } on api.Error {
+    skipped = true;
+  }
+  print('digit $firstDigit $skipped ${api.digit(digits)} ${digits.value.length}');
+  final nudged = api.Mut(const api.Point(x: 1, y: 2));
+  api.nudge(nudged, 3);
+  print('nudge ${nudged.value.x} ${nudged.value.y}');
+  final config = api.secure('h3');
+  print('secure ${api.alpnLent(config)} ${api.alpn(config.clone())}');
+  config.close();
+  final meters = api.Meters();
+  final lentMeter = meters.first();
+  lentMeter.add(2);
+  print('lent ${lentMeter.add(3)} ${meters.first().count()}');
+  lentMeter.close();
+  meters.clear();
+  print('cleared ${meters.first().count()}');
+  meters.close();
+  final tallies = api.Tallies();
+  tallies.first().bump();
+  print('tallied ${tallies.first().bump()}');
+  tallies.close();
   print('chunks ${api.chunks(utf8.encode('abcde'), 2)}');
   final counters = api.counters(['x', 'y']);
   print('counters ${counters.map((c) => '${c.name()} ${c.get()}').join(', ')}');
@@ -906,6 +961,11 @@ void broken(String which) {
       final tail = api.Node(1, null);
       api.Node(2, tail);
       tail.sum();
+    case 'outlived':
+      final meters = api.Meters();
+      final first = meters.first();
+      meters.clear();
+      first.count();
     case 'lent moved':
       api.Registry(api.Counter('c', 0)).edit((counter) {
         counter.intoLabel(null);

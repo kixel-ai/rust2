@@ -1,0 +1,13 @@
+[package]
+name = "tls-fixture"
+description = "A crate the api fixture names behind an Arc but does not re-export, as moq-tokio names rustls"
+version = "0.0.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+publish = false
+
+[lib]
+name = "tls"
+
+[lints]
+workspace = true
