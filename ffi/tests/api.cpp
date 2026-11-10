@@ -567,6 +567,8 @@ int script() {
 	// A bound that outlives the call takes a value, and an instance only a constant names.
 	std::printf("kept %llu boxed %u\n", ull(api::kept_Point({1, -2})), api::BOXED().value);
 	std::printf("keep %d\n", api::keep_Point({1, -2}));
+	std::printf("kept or %d %d keeper %d\n", api::kept_or_Point(api::Point{5, 2}), api::kept_or_Point(std::nullopt),
+		api::keeper_Point({5, 2}));
 	// Inferred instances taking a lent closure and a foreign implementation, and one only
 	// its impl of a trait names.
 	api::Pair_u32 sides{2, 5};
@@ -746,6 +748,15 @@ int script() {
 	auto none_summed = api::summed({});
 	std::printf("summed %d %d %d %d\n", summed.x, summed.y, none_summed.x, none_summed.y);
 	std::printf("longest %zu %zu\n", api::longest({"a", "abc"}), api::longest({}));
+	print("first of Some(\"", api::first_of({"a", "b"}).value(), "\") ");
+	std::printf("%s\n", api::first_of({}) ? "Some" : "None");
+	auto limits = api::byte_limits("a", "bc");
+	print("limits ", limits.low, " ");
+	print("", limits.high, " ");
+	auto breadth = api::breadth({{0, 5000000}, {2, 0}});
+	std::printf("breadth %llu\n", static_cast<unsigned long long>(breadth.secs * 1000 + breadth.nanos / 1000000));
+	print("joined ", api::joined({"ab", "", "c"}), " ");
+	std::printf("%zu read %llu\n", api::joined({}).size(), static_cast<unsigned long long>(api::read_len("hello")));
 
 	api::Json doc = api::Json::parse(R"({"b": [1, 2.5, null], "a": "\u00e9"})").value();
 	print("json ", api::encode(doc), "\n");

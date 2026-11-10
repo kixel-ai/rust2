@@ -1,3 +1,0 @@
-namespace swift_bridging_header_compile {
-    void no_arguments();
-};

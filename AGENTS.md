@@ -1,4 +1,4 @@
-rust2 holds Rust tools that take Rust somewhere else: to any language through an exporter of a crate's `pub` API, which replaces a fork of UniFFI, to TypeScript through an own rustc driver, and to faster builds by measuring upstream's levers.
+rust2 holds Rust tools that take Rust somewhere else: to any language through an exporter of a crate's `pub` API, to TypeScript through an own rustc driver, and to faster builds by measuring upstream's levers.
 Each project lives in its own top-level directory; the [quest tree](quest/README.md) says what each is doing now.
 
 # Required

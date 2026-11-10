@@ -1,6 +1,0 @@
-namespace uitests {};
-
-interface Counter {
-  constructor();
-  u32 increment();
-};

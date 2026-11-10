@@ -42,6 +42,8 @@ impl Api {
 			Type::F64 => "f64".to_string(),
 			Type::Char => "char".to_string(),
 			Type::String => "String".to_string(),
+			Type::Bytes => "bytes::Bytes".to_string(),
+			Type::Duration => "std::time::Duration".to_string(),
 			Type::Record(i) => self.rust(&self.records[*i].path, &self.records[*i].args),
 			Type::Enum(i) => self.rust(&self.enums[*i].path, &self.enums[*i].args),
 			Type::Object(i) => self.rust(&self.objects[*i].path, &self.objects[*i].args),
