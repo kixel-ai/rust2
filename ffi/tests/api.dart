@@ -340,6 +340,15 @@ Future<void> script() async {
   channel.send(utf8.encode('rung'));
   await until(() => wakes == 2, 'the send wakes the waker Rust keeps');
   print('woken $wakes');
+  // A poll with no async twin is a future.
+  print('take ${text(await channel.pollTake())}');
+  channel.send(utf8.encode('measured'));
+  print('measure ${await channel.pollMeasure(2)}');
+  // A context is made of the waker, which Rust keeps until the send wakes it.
+  channel.listen(() => wakes++);
+  channel.send(utf8.encode('heard'));
+  await until(() => wakes == 3, 'the send wakes the context Rust keeps');
+  print('woken $wakes');
 
   final nodes = api.Node(1, null);
   nodes.push(2);

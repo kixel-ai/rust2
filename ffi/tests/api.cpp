@@ -492,6 +492,24 @@ int script() {
 		channel.notify(waker);
 		channel.send("rung");
 		std::printf("woken %d\n", wakes);
+		// A poll with no async twin is a future.
+		{
+			api::Channel_poll_take_future take = channel.poll_take();
+			if (auto payload = take.poll(waker)) {
+				print("take ", *payload, "\n");
+			}
+		}
+		channel.send("measured");
+		{
+			api::Channel_poll_measure_future measure = channel.poll_measure(2);
+			if (auto r = measure.poll(waker)) {
+				std::printf("measure %zu\n", r->value());
+			}
+		}
+		// A context is made of the waker, which Rust keeps until the send wakes it.
+		channel.listen(waker);
+		channel.send("heard");
+		std::printf("woken %d\n", wakes);
 	}
 
 	// A value that holds itself is an object.

@@ -76,6 +76,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
 | a tuple inside another type, or as a field or parameter | `<prefix>_tuple_<A>_<B>`: a struct of fields `_0`, `_1`, and so on; of references only returned |
 | `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it; a function that is not `async` runs at the call, as in Rust |
+| a function returning `Poll<T>` that polls through a `&Context`, a `&mut Context`, or a reference to an object exactly one associated function makes from a `Waker` alone, of a type with no generic parameters, such as kio's `Waiter` | a future of `T`, as an `async fn`'s: each poll calls the function again with the poll's context, or with an object made from its waker and kept until the next poll, so what it registers stays registered; each other parameter taken by value must be `Copy` |
 | `poll_x`, when `x` exports as a future | left out: the future is its poll |
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
 | `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: a view passed in, an owned buffer returned |
@@ -89,6 +90,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `BTreeSet<T>`, `BTreeMap<K, V>`, and `serde_json::Map` | as `Vec<T>`, `Vec<(K, V)>`, and `Vec<(String, serde_json::Value)>`: its items in order, from which Rust builds it, keeping the last of a key |
 | a returned iterator, such as `slice::Iter` or an `impl Iterator`, that no other rule maps, outside a future, made of core's and alloc's iterators over a slice, string, `Option`, `Result`, or collection, through `rev`, `chain`, `flatten`, `fuse`, `enumerate`, `peekable`, `copied`, or `cloned`, with no closure, function, or trait object inside | what `collect::<Vec<_>>()` makes of it: every item, taken at the call |
 | `Waker`, taken by value | `<prefix>_waker`, as a future's poll takes it |
+| `&Context` or `&mut Context` of a function returning no `Poll` and no future | `<prefix>_waker`, which the context is made of for the call |
 | `Range<T>`, `Bound<T>` of an integer | `<prefix>_range_<T>`, `<prefix>_bound_<T>`: a `<prefix>_bound` kind and a value |
 | `impl RangeBounds<T>` of an integer | `<prefix>_bounds_<T>`: its start and end bounds |
 | `Option<T>` | a null handle or buffer, or `<prefix>_option_<T>` |

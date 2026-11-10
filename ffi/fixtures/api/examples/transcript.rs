@@ -10,7 +10,7 @@ use std::task::{Context, Poll, Wake, Waker};
 
 use api::{
 	Channel, Counter, Event, LIMIT, Label, Log, Logger, Message, Name, Node, Pair, Point, Registry, Shape, Size, Stack,
-	Stamp, Tally, Window,
+	Stamp, Tally, Waiter, Window,
 };
 use bytes::Bytes;
 
@@ -323,6 +323,16 @@ fn main() {
 	}
 	channel.notify(waker.clone());
 	channel.send(Bytes::from_static(b"rung"));
+	println!("woken {}", count.0.load(Ordering::Relaxed));
+	if let Poll::Ready(payload) = channel.poll_take(&Waiter::new(waker.clone())) {
+		println!("take {}", String::from_utf8_lossy(&payload));
+	}
+	channel.send(Bytes::from_static(b"measured"));
+	if let Poll::Ready(Ok(len)) = channel.clone().poll_measure(&mut cx, 2) {
+		println!("measure {len}");
+	}
+	channel.listen(&cx);
+	channel.send(Bytes::from_static(b"heard"));
 	println!("woken {}", count.0.load(Ordering::Relaxed));
 
 	let list = Node {
