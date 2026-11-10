@@ -1,31 +1,26 @@
-# [S] The glue builds what the export checked
+# [S] The glue builds on the channel the export checked
 
 ## Goal
 
-The crate `rust2-ffi --out` writes builds against exactly the dependency versions the
-export checked, on the consumer's own toolchain, or the export fails with a span: no
-difference between the check and the build shows up as a glue compile error or a run-time
-abort.
+No item the export checks on the pinned nightly is missing when the glue builds on the
+consumer's toolchain: an exported item that a build script's release-channel detection
+enables, as `rustversion` and `autocfg` users do, is refused at export with a span, rather
+than a glue compile error.
 
 ## Plan
 
-Found in the 2026-11-09 quest audit:
+The export checks the whole graph on the pinned nightly (`ffi/rust-toolchain.toml`), with
+build scripts reading that nightly from `RUSTC`. The generated manifest now carries the
+facade's `rust-version` and a `Cargo.lock` pinned to the check's resolution, but not the
+channel.
 
-- `--out` writes no `Cargo.lock`; only `ffi/justfile` copies one. A build that resolves a
-  newer dependency can reach the wildcard arm the glue emits for a `#[non_exhaustive]`
-  enum, which panics and so aborts (`ffi/src/glue.rs`). Write a lockfile beside the
-  manifest, as the manifest already carries its `[patch]`es: resolved for the generated
-  manifest, which adds dependencies of its own (`smallvec`, `pyo3-ffi`), with every
-  package the check resolved at the version it checked, or the export fails. The recipes
-  and `ffi/README.md` then build it `--locked`.
-- An enum's discriminants are collected as `i128` (`ffi/src/collect.rs`) and lifted as
-  `i32` (`glue.rs`, `c.rs`), with no refusal for one out of range, so a wide `repr`
-  fails when the glue builds. Refuse it at export, at the variant's span.
-- The export checks the whole graph on the pinned nightly (`ffi/rust-toolchain.toml`),
-  and the glue then builds on the consumer's toolchain, which the generated manifest does
-  not name. A build script that detects nightly, as `rustversion` and `autocfg` users do,
-  can give the check an item the stable build lacks. Add a fixture with such an item and
-  report what happens; recommended: refuse an exported item whose `cfg` depends on the
-  release channel, and give the generated manifest the `rust-version` the facade declares.
+Add a fixture whose build script emits a `cfg` on nightly and gates an exported item on
+it, and report what the glue build does on stable.
 
-Public API: the generated crate's `Cargo.lock` and `rust-version`.
+## Waiting
+
+- Maintainer: how to refuse a channel-dependent item. Options: (a) refuse an exported
+  item whose `cfg_trace` names a `--cfg` a build script set, which also refuses
+  target-only detection; (b) run the check's build scripts against a stable `RUSTC`, so
+  they see the consumer's channel; (c) accept the gap. Recommended: (b), since it removes
+  the difference instead of guessing which `cfg`s depend on it.

@@ -20,7 +20,7 @@ snake case. `--out` writes a crate of `extern "C"` functions over the facade, it
 beside it, and the header in `include/<prefix>.h`; `cargo build` on that crate makes a
 static and a shared library, built `--locked` against the `Cargo.lock` written beside the
 manifest: the facade's, with what the crate adds of its own resolved in. If that moves any
-package the exports build with from the version the check resolved, the export fails. That crate enables the facade's features as the check did;
+package the exports build with from the version the check resolved, the export fails. Its manifest declares the facade's `rust-version`. That crate enables the facade's features as the check did;
 a feature named in a dependency, `--features <dependency>/<feature>`, is an error, since
 the facade enables what its dependencies build with. It resolves them as the check did,
 wherever it is built: its manifest carries, as a `[patch]`, each patch or `[replace]` cargo applied
