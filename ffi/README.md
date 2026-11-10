@@ -453,7 +453,10 @@ reads a go.mod.
   `TrackProducer.AppendGroup`, and `moq_mux_codec_opus_Config` is `mux.CodecOpusConfig`. Two
   types of a package whose names would match are kept apart as Kotlin's are, after the
   segments outside the crate: moq-tokio's `ConnectError` and `connect::Error` are
-  `tokio.ConnectError` and `tokio.Connect_Error`. An
+  `tokio.ConnectError` and `tokio.Connect_Error`. A name still shared after that keeps the
+  module segment before it: the facade's `tokio::connect::Config`, `tokio::listen::Config`,
+  and `tokio::quic::Config` are `tokio.ConnectConfig`, `tokio.ListenConfig`, and
+  `tokio.QuicConfig`. An
   instance in another crate's package keeps its whole path. A function of a type that takes no receiver is a function of
   the package named through its type (`CounterSeededPoint`), but `new`, which is
   `NewCounter`. A constant keeps its upper case (`LIMIT`), and one that is not a `bool` or
