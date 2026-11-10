@@ -4,6 +4,7 @@
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
+use rustc_ast as ast;
 use rustc_data_structures::fx::FxHashSet;
 use rustc_driver::{Callbacks, Compilation};
 use rustc_hir::def::{DefKind, Res};
@@ -11,7 +12,9 @@ use rustc_hir::def_id::{DefId, LOCAL_CRATE};
 use rustc_interface::interface::Compiler;
 use rustc_middle::middle::resolve::Reexport;
 use rustc_middle::ty::TyCtxt;
-use rustc_span::Span;
+use rustc_parse::lexer::StripTokens;
+use rustc_parse::parser::{AllowConstBlockItems, ForceCollect};
+use rustc_span::{FileName, Span, sym};
 
 use crate::abi::Abi;
 use crate::config::{self, Config};
@@ -206,13 +209,60 @@ pub fn write(path: &Path, text: &str) -> Result<(), String> {
 	std::fs::write(path, text).map_err(|err| format!("writing {}: {err}", path.display()))
 }
 
-/// Whether `path`, from the facade's root, names an item a `cfg` leaves out of this build:
-/// the config names it for the builds that have it. Its first segment no module has is
-/// stripped from that module or from one the module glob-re-exports.
+/// Whether the struct, enum, or union `adt` declares a field or variant `name` under a
+/// `cfg` this build left it out by. rustc records only the items a `cfg` strips, not their
+/// members, so this reads the declaration from its source.
+fn stripped_member(tcx: TyCtxt<'_>, adt: DefId, name: &str) -> bool {
+	if tcx.adt_def(adt).all_fields().any(|f| f.name.as_str() == name)
+		|| tcx.adt_def(adt).variants().iter().any(|v| v.name.as_str() == name)
+	{
+		return false;
+	}
+	// The item from its name on, which the parser reads up to its end.
+	let source_map = tcx.sess.source_map();
+	let head = tcx.def_span(adt);
+	let source_file = source_map.lookup_source_file(head.lo());
+	let Ok(source) = source_map.span_to_snippet(head.with_hi(source_file.end_position())) else {
+		return false;
+	};
+	let file = FileName::anon_source_code(&source);
+	let mut parser = match rustc_parse::new_parser_from_source_str(&tcx.sess.psess, file, source, StripTokens::Nothing)
+	{
+		Ok(parser) => parser,
+		Err(errors) => {
+			errors.into_iter().for_each(|e| e.cancel());
+			return false;
+		}
+	};
+	let item = match parser.parse_item(ForceCollect::No, AllowConstBlockItems::DoesNotMatter) {
+		Ok(Some(item)) => item,
+		Ok(None) => return false,
+		Err(e) => {
+			e.cancel();
+			return false;
+		}
+	};
+	let configured = |attrs: &[ast::Attribute]| attrs.iter().any(|attr| attr.has_name(sym::cfg));
+	match &item.kind {
+		ast::ItemKind::Struct(_, _, data) | ast::ItemKind::Union(_, _, data) => {
+			(data.fields().iter()).any(|f| f.ident.is_some_and(|ident| ident.as_str() == name) && configured(&f.attrs))
+		}
+		ast::ItemKind::Enum(_, _, def) => {
+			(def.variants.iter()).any(|v| v.ident.as_str() == name && configured(&v.attrs))
+		}
+		_ => false,
+	}
+}
+
+/// Whether `path`, from the facade's root, names an item a `cfg` leaves out of this build,
+/// or a field or variant of one: the config names it for the builds that have it. Its first
+/// segment no module has is stripped from that module or from one the module
+/// glob-re-exports.
 fn configured_out(tcx: TyCtxt<'_>, path: &str) -> bool {
 	let path = path.strip_prefix("field@").unwrap_or(path);
+	let segments: Vec<&str> = path.split("::").collect();
 	let mut module = LOCAL_CRATE.as_def_id();
-	for segment in path.split("::") {
+	for (i, segment) in segments.iter().enumerate() {
 		let name = segment.split('<').next().unwrap_or(segment);
 		let children = match module.as_local() {
 			Some(local) => tcx.module_children_local(local),
@@ -224,7 +274,10 @@ fn configured_out(tcx: TyCtxt<'_>, path: &str) -> bool {
 					module = def_id;
 					continue;
 				}
-				// A member of an item, which no `cfg` this checks strips.
+				Res::Def(DefKind::Struct | DefKind::Enum | DefKind::Union, def_id) if i + 2 == segments.len() => {
+					return stripped_member(tcx, def_id, segments[i + 1]);
+				}
+				// A method, or a member past one, which no `cfg` this checks strips.
 				_ => return false,
 			}
 		}
