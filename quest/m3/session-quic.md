@@ -5,12 +5,16 @@
 A binding runs moq sessions over moq-quic's sans-IO QUIC with no runtime in the library:
 the library owns QUIC and TLS, and the binding moves UDP datagrams and drives the session's
 poll from its own event loop, as driving decided for the origin's
-`Driver`. Proven from C in `moq/moq.c` against a local server.
+`Driver`. Proven from C in `ffi/moq/moq.c` against a local server.
 
 ## Plan
 
+Decided with the maintainer on 2026-11-09, in the quest audit: ✅ m3, out of
+[the exporter epic](/quest/m1/ffi-export/README.md), which it would have held open until
+moq's m3 driver lands. Rejected: m2; a top-level m1 quest.
+
 Decided with the maintainer on 2026-10-27: the full-control path, after sessions on
-moq-tokio, which `moq/moq.c` proves with moq-tokio's fallback runtime. It suits consumers
+moq-tokio, which `ffi/moq/moq.c` proves with moq-tokio's fallback runtime. It suits consumers
 with their own event loop or sockets.
 
 Decided with the maintainer on 2026-10-28, from

@@ -422,7 +422,7 @@ impl<'a> Gen<'a> {
 			Type::Slice | Type::Vec | Type::Bytes => "typed.Uint8List".to_string(),
 			Type::Duration => "Duration".to_string(),
 			Type::SocketAddr(_) => "SocketAddr".to_string(),
-			Type::List(inner) => format!("List<{}>", self.dt(inner)),
+			Type::List(_, inner) => format!("List<{}>", self.dt(inner)),
 			Type::Waker => "void Function()".to_string(),
 			Type::Option(inner) => {
 				if matches!(inner.base(), Type::Option(_)) {
@@ -753,7 +753,7 @@ impl<'a> Gen<'a> {
 			Type::Option(inner) => match inner.base() {
 				Type::Str | Type::String | Type::Path | Type::PathBuf => format!("a_.string({dst}, {e});"),
 				Type::Slice | Type::Vec | Type::Bytes => format!("a_.bytes({dst}, {e});"),
-				Type::List(_) => {
+				Type::List(..) => {
 					let c = self.c_name(inner);
 					let w = self.writer(&c, inner);
 					format!("{w}({e}, {dst}, a_);")
@@ -766,7 +766,7 @@ impl<'a> Gen<'a> {
 			},
 			Type::Record(_)
 			| Type::Enum(_)
-			| Type::List(_)
+			| Type::List(..)
 			| Type::Tuple(_)
 			| Type::Range(_)
 			| Type::Bound(_)
@@ -832,7 +832,7 @@ impl<'a> Gen<'a> {
 				let some = self.write(inner, "v", "c.$value");
 				format!("if (v == null) {{\n\t\tc.$some = false;\n\t}} else {{\n\t\tc.$some = true;\n\t\t{some}\n\t}}")
 			}
-			Type::List(elem) => {
+			Type::List(_, elem) => {
 				let elem_c = abi.ty(elem);
 				let nt = self.nt(&elem_c);
 				let item = match Self::scalar(&elem_c) {
@@ -874,7 +874,7 @@ impl<'a> Gen<'a> {
 			other => unreachable!("{other:?} has no writer"),
 		};
 		let nullable = match ty {
-			Type::List(_) => "?",
+			Type::List(..) => "?",
 			_ => "",
 		};
 		self.helpers.insert(
@@ -951,7 +951,7 @@ impl<'a> Gen<'a> {
 				let value = self.lift(inner, "c.$value");
 				(class, format!("c.$some ? {value} : null"))
 			}
-			Type::List(elem) => {
+			Type::List(_, elem) => {
 				let class = self.struct_class(&Ty::Struct(c.to_string()));
 				let item = self.lift(elem, "p[i]");
 				let free = self.native_fn(&format!("{c}_free"), vec![Ty::Struct(c.to_string())], Ty::Void);
@@ -1024,7 +1024,7 @@ impl<'a> Gen<'a> {
 				Type::Str | Type::String => format!("_n.stringOrNull({e})"),
 				Type::Path | Type::PathBuf => format!("_n.pathOrNull({e})"),
 				Type::Slice | Type::Vec | Type::Bytes => format!("_n.bytesOrNull({e})"),
-				Type::List(_) => {
+				Type::List(..) => {
 					let lifted = self.lift(inner, e);
 					format!("({e}.$ptr == ffi.nullptr ? null : {lifted})")
 				}
@@ -1038,7 +1038,7 @@ impl<'a> Gen<'a> {
 			Type::Object(_) => format!("{}._({e})", self.dt(ty)),
 			Type::Record(_)
 			| Type::Enum(_)
-			| Type::List(_)
+			| Type::List(..)
 			| Type::Tuple(_)
 			| Type::Range(_)
 			| Type::Bound(_)
@@ -1639,7 +1639,7 @@ impl<'a> Gen<'a> {
 					.collect();
 				closes.join(" ")
 			}
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let close = self.close(inner, "v");
 				format!("for (final v in {e}) {{ {close} }}")
 			}
@@ -2000,7 +2000,7 @@ fn thrown_value(thrown: &Thrown, lifted: &str) -> String {
 fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
 	match ty {
 		Type::Object(i) => !abi.api.objects[*i].copy,
-		Type::Option(inner) | Type::Box(inner) | Type::List(inner) => moved(abi, inner),
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
 		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
 		_ => false,
 	}

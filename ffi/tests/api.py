@@ -162,6 +162,18 @@ def script():
 	board = api.Board.new([("low", api.Counter.new("l", 1)), ("high", api.Counter.new("h", 9))])
 	ranked = board.ranked()
 	print("ranked " + ", ".join(f"{name} {counter.name()} {counter.get()}" for name, counter in ranked))
+	# A map crosses as its pairs and a set as its items, which Rust collects in order, each
+	# key once, the last kept.
+	atlas = api.Atlas([("b", api.Point(1, 1)), ("ab", api.Point(2, 3)), ("b", api.Point(4, 4))], [3, 1, 3])
+	atlas = atlas.with_("c", api.Point(5, 6))
+	atlas_points = ", ".join(f"{name} {p.x} {p.y}" for name, p in atlas.points)
+	print(f"atlas {atlas_points}; ids {' '.join(str(i) for i in atlas.ids)}")
+	# Another crate's error crosses as its message.
+	for port_text in ["80", "x"]:
+		try:
+			print(f"port {api.port(port_text)}")
+		except api.StringException as e:
+			print(f"port err {e.error}")
 	span = api.Span((2, 10), ("s", api.Shape.SQUARE))
 	lower_half, upper_half = api.halves(span)
 	print(f"halves {lower_half[0]} {lower_half[1]} {upper_half[0]} {upper_half[1]} {span!r}")
@@ -474,6 +486,9 @@ def script():
 	print(f"timed text {api.timed_text(doc)}")
 	tagged = api.tagged(doc, "t")
 	print(f"tagged {tagged.to_text()}")
+	# A JSON object's entries cross as pairs of a key and its document, each moved in.
+	entries = api.entries([("b", api.Json.parse("[1]")), ("a", api.Json.parse("2"))], "t")
+	print("entries " + ", ".join(f"{key} {value.to_text()}" for key, value in entries))
 	try:
 		api.Json.parse('{"a":')
 	except api.StringException as e:

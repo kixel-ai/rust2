@@ -81,7 +81,10 @@ pub fn is_stock(tcx: TyCtxt<'_>, did: DefId) -> bool {
 /// Whether `krate`, a dependency, is one of these crates, whose functions map, or translate
 /// only where [`maps`] says they don't.
 pub fn is_stock_crate(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
-	matches!(tcx.crate_name(krate).as_str(), "bytes" | "hashbrown" | "rand" | "tokio")
+	matches!(
+		tcx.crate_name(krate).as_str(),
+		"bytes" | "hashbrown" | "rand" | "smallvec" | "tokio"
+	)
 }
 
 /// Whether `krate` is one of these crates of which nothing translates: `rand`, whose
@@ -98,6 +101,9 @@ pub fn is_opaque_crate(tcx: TyCtxt<'_>, krate: CrateNum) -> bool {
 pub fn mapped(tcx: TyCtxt<'_>, did: DefId) -> bool {
 	if tcx.crate_name(did.krate).as_str() == "tokio" {
 		return super::tokio::mapped(tcx, did);
+	}
+	if super::smallvec::is_crate(tcx, did.krate) {
+		return super::smallvec::mapped(tcx, did);
 	}
 	if tcx.crate_name(did.krate).as_str() != "bytes" {
 		return false;
@@ -294,6 +300,10 @@ pub fn call<'tcx>(
 	let tcx = b.t.tcx;
 	let Some((owner, name)) = key(tcx, call.def_id) else {
 		return Err(args);
+	};
+	let args = match super::smallvec::call(b, call, &owner, &name, args, out) {
+		Ok(e) => return Ok(e),
+		Err(args) => args,
 	};
 	let self_std = call.args.types().next().and_then(|t| b.t.std_of(t.peel_refs()));
 	if as_std(tcx, call.def_id) {

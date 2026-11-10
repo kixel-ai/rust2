@@ -8,8 +8,8 @@ use std::task::{Poll, Waker};
 use std::time::Duration;
 
 use bytes::Bytes;
-// Another crate's types, which the export follows this re-export to.
-pub use dep::{Area, Size};
+// Another crate's items, which the export follows this glob of its root to.
+pub use dep::*;
 
 /// The largest value a [`Counter`] reaches.
 pub const LIMIT: u64 = 1000;
@@ -255,6 +255,27 @@ impl Board {
 		ranked.sort_by_key(|(_, counter)| std::cmp::Reverse(counter.get()));
 		ranked.into_iter()
 	}
+}
+
+/// Points by name and the ids in use, as hang's renditions and moq-mux's selections: a map
+/// and a set, which cross as their items in order, each key once.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Atlas {
+	pub points: std::collections::BTreeMap<String, Point>,
+	pub ids: std::collections::BTreeSet<u32>,
+}
+
+impl Atlas {
+	/// It with `at` named `name`, replacing any point of that name.
+	pub fn with(mut self, name: &str, at: Point) -> Self {
+		self.points.insert(name.to_string(), at);
+		self
+	}
+}
+
+/// `text` as a port: another crate's error crosses as its message.
+pub fn port(text: &str) -> Result<u16, std::num::ParseIntError> {
+	text.parse()
 }
 
 /// A span: a record whose fields are tuples, one holding text.
@@ -953,6 +974,24 @@ impl Cursor {
 pub fn walk(steps: u64, mut visit: impl FnMut(&Cursor) -> u64) -> u64 {
 	(0..steps).map(|at| visit(&Cursor { at })).sum()
 }
+
+/// An object no export returns but its own method, so C never holds one: left out of the
+/// bindings, with what takes it, and listed in the census.
+pub struct Lease(u8);
+
+impl Lease {
+	pub fn split(&mut self) -> Lease {
+		Lease(self.0)
+	}
+}
+
+/// What C can never call, since it never holds a `Lease`.
+pub fn release(lease: Lease) -> u8 {
+	lease.0
+}
+
+/// A generic type no export instantiates, so C never holds one either.
+pub struct Unnamed<T>(pub T);
 
 /// Each of `0..steps` passed to `visit`, which returns nothing; how many it visited.
 pub fn each(steps: u32, mut visit: impl FnMut(u32)) -> u32 {
@@ -1706,6 +1745,15 @@ pub fn encode<T: serde::Serialize>(value: &T) -> String {
 /// `doc` under `tag`, as a new document.
 pub fn tagged(doc: serde_json::Value, tag: &str) -> serde_json::Value {
 	serde_json::json!({ "tag": tag, "doc": doc })
+}
+
+/// `entries` with `tag` added, as hang's `extra` fields hold a JSON object's entries.
+pub fn entries(
+	mut entries: serde_json::Map<String, serde_json::Value>,
+	tag: &str,
+) -> serde_json::Map<String, serde_json::Value> {
+	entries.insert("tag".to_string(), tag.into());
+	entries
 }
 
 /// A site: every field is `pub`, but a URL is a handle C cannot copy, so it is an object

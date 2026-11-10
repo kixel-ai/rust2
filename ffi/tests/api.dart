@@ -164,6 +164,22 @@ Future<void> script() async {
   final ranked = board.ranked();
   print('ranked ${ranked.map((r) => '${r.$1} ${r.$2.name()} ${r.$2.get()}').join(', ')}');
   board.close();
+  // A map crosses as its pairs and a set as its items, which Rust collects in order, each
+  // key once, the last kept.
+  final atlas = const api.Atlas(
+    points: [('b', api.Point(x: 1, y: 1)), ('ab', api.Point(x: 2, y: 3)), ('b', api.Point(x: 4, y: 4))],
+    ids: [3, 1, 3],
+  ).with_('c', const api.Point(x: 5, y: 6));
+  final atlasPoints = atlas.points.map((p) => '${p.$1} ${p.$2.x} ${p.$2.y}').join(', ');
+  print('atlas $atlasPoints; ids ${atlas.ids.join(' ')}');
+  // Another crate's error crosses as its message.
+  for (final text in ['80', 'x']) {
+    try {
+      print('port ${api.port(text)}');
+    } on api.StringException catch (e) {
+      print('port err ${e.error}');
+    }
+  }
   const span = api.Span(bounds: (2, 10), named: ('s', api.Shape.square));
   final (lowerHalf, upperHalf) = api.halves(span);
   print('halves ${lowerHalf.$1} ${lowerHalf.$2} ${upperHalf.$1} ${upperHalf.$2} ${span.debug()}');
@@ -469,6 +485,12 @@ Future<void> script() async {
   final tagged = api.tagged(doc, 't');
   print('tagged ${tagged.toText()}');
   tagged.close();
+  // A JSON object's entries cross as pairs of a key and its document, each moved in.
+  final entries = api.entries([('b', api.Json.parse('[1]')), ('a', api.Json.parse('2'))], 't');
+  print('entries ${entries.map((e) => '${e.$1} ${e.$2.toText()}').join(', ')}');
+  for (final entry in entries) {
+    entry.$2.close();
+  }
   try {
     api.Json.parse('{"a":').close();
   } on api.StringException catch (e) {

@@ -2,6 +2,7 @@
 
 import * as rs from "./rs.ts";
 import { unwrapOr$1fr498u as option_unwrapOr$1fr498u, mapOr$1gfk3jk as option_mapOr$1gfk3jk } from "./core/option.ts";
+import * as OwnPtr from "./objects.OwnPtr.ts";
 import * as Wakes from "./objects.Wakes.ts";
 import * as Window from "./objects.Window.ts";
 
@@ -490,6 +491,9 @@ export function objects(data: rs.ByteSlice, out: rs.ByteVec): void {
 	w2[Symbol.dispose]();
 	rs.byteVecPush(out, rs.atomicLoad(wakes.value._0, 0));
 	rs.byteVecPush(out, wakes.strong & 0xff);
+	const own: OwnPtr.OwnPtr = { _0: new rs.Cell(by) };
+	rs.cellSet(OwnPtr.deref$ops_Deref(own), rs.u8WrappingAdd(OwnPtr.deref$ops_Deref(own).v, 5));
+	rs.byteVecPush(out, OwnPtr.deref$ops_Deref(own).v);
 	noop[Symbol.dispose]();
 	counting[Symbol.dispose]();
 	wakes[Symbol.dispose]();

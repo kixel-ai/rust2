@@ -49,6 +49,8 @@ pub enum Std {
 	FromUtf16Error,
 	/// `rs.CharTryFromError`: why `char::try_from` a `u32` failed.
 	CharTryFromError,
+	/// `rs.TryFromSliceError`: why `try_from` a slice into an array failed.
+	TryFromSliceError,
 	/// `rs.TryFromCharError`: why `u8::try_from` or `u16::try_from` a `char` failed.
 	TryFromCharError,
 	/// `rs.DecodeUtf16Error`: `{ code }`, the unpaired surrogate.
@@ -211,8 +213,11 @@ pub enum Std {
 	BytesMut,
 	/// `rand::rngs::ThreadRng`: `rs.ThreadRng`, which holds no state.
 	ThreadRng,
-	/// wasm-bindgen's `JsValue`, or a type an import declares: the JS value itself.
+	/// wasm-bindgen's `JsValue`, `JsError`, or a type an import declares: the JS value itself.
 	Js,
+	/// wasm-bindgen's `ScopedClosure`, which `Closure` is: `rs.JsClosure`, the JS function
+	/// over the closure it was made of, which throws once it drops.
+	JsClosure,
 	/// A handle of one of tokio's sync channels, or what one lends: a class of
 	/// `rs/tokio.ts`'s, which [`super::tokio::Handle`] names.
 	Sync,
@@ -231,6 +236,7 @@ impl Std {
 				| Self::ParseBoolError
 				| Self::ParseCharError
 				| Self::CharTryFromError
+				| Self::TryFromSliceError
 				| Self::TryFromCharError
 				| Self::DecodeUtf16Error
 				| Self::ParseFloatError
@@ -256,6 +262,9 @@ impl Std {
 		if !is_std(tcx, did) {
 			if super::bindgen::represents(tcx, did) {
 				return Some(Self::Js);
+			}
+			if super::bindgen::is_closure(tcx, did) {
+				return Some(Self::JsClosure);
 			}
 			if super::bindgen::is_lazy(tcx, did) {
 				return Some(Self::LazyCell);
@@ -360,6 +369,7 @@ impl Std {
 			["str", "error", "ParseBoolError"] => Some(Self::ParseBoolError),
 			["char", "convert", "ParseCharError"] => Some(Self::ParseCharError),
 			["char", "convert", "CharTryFromError"] => Some(Self::CharTryFromError),
+			["array", "TryFromSliceError"] => Some(Self::TryFromSliceError),
 			["char", "TryFromCharError"] => Some(Self::TryFromCharError),
 			["char", "decode", "DecodeUtf16Error"] => Some(Self::DecodeUtf16Error),
 			["str", "lossy", "Utf8Chunk"] => Some(Self::Utf8Chunk),
@@ -1781,6 +1791,18 @@ fn mapping<'tcx>(
 					Box::new(Expr::rs("Err", vec![from_value])),
 				));
 			}
+			// A slice of `N` elements is the reference to the array of them it lends, where it holds them.
+			if let (ty::Ref(_, array, _), ty::Ref(_, slice, _)) = (to.kind(), from.kind())
+				&& let ty::Array(_, n) = array.kind()
+				&& slice.is_slice()
+			{
+				let n = n.try_to_target_usize(tcx)?;
+				let mut values = args;
+				return Some(Expr::rs(
+					"sliceTryAsArray",
+					vec![values.pop()?, Expr::lit(n.to_string())],
+				));
+			}
 			if to.is_char() && from == tcx.types.u32 {
 				return Some(Expr::rs("charTryFrom", args));
 			}
@@ -3159,6 +3181,7 @@ fn mapping<'tcx>(
 				(_, Some(len)) => len.binary("*", Expr::lit(size.to_string())),
 			}
 		}
+		("convert", "identity") => args.pop()?,
 		// A reference to an array is a slice of it already.
 		("array", "as_slice" | "as_mut_slice") => args.pop()?,
 		("array", "from_fn") => {

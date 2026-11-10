@@ -2,9 +2,6 @@
 #![feature(allocator_api, pattern)]
 use std::collections::HashMap;
 
-/// A generic type.
-pub struct Wrap<T>(pub T);
-
 /// A tuple of references taken: C lends nothing inside a value.
 pub fn pair(pair: (&str, u8)) -> u8 {
 	pair.1
@@ -124,15 +121,6 @@ impl<'a> Text<'a> {
 /// itself.
 pub fn either(text: Option<&str>) -> usize {
 	text.map_or(0, str::len)
-}
-
-/// An object no export returns but its own method, so C never holds one.
-pub struct Lease(u8);
-
-impl Lease {
-	pub fn split(&mut self) -> Lease {
-		Lease(self.0)
-	}
 }
 
 /// A record, a type of the facade's own.
@@ -623,6 +611,12 @@ pub fn values() -> std::collections::btree_map::IntoValues<u8, u8> {
 	std::collections::BTreeMap::new().into_values()
 }
 
+/// How many floats a set holds, which Rust could not build from C's floats, as they are
+/// not `Ord`.
+pub fn floats(set: std::collections::BTreeSet<f64>) -> usize {
+	set.len()
+}
+
 /// As many zeros as the caller asks, held nowhere until made.
 pub fn zeros(n: usize) -> std::iter::RepeatN<u8> {
 	std::iter::repeat_n(0, n)
@@ -707,3 +701,12 @@ pub fn halves() -> impl Iterator<Item = &'static str> {
 pub fn mixed(a: Option<((u8, u16), u32)>, b: Option<((u8, u16, u32),)>) -> bool {
 	a.is_some() && b.is_some()
 }
+
+/// Another crate whole, whose every release would change this one's API.
+pub use dep;
+
+/// The same crate whole, by another name.
+pub use ::dep as renamed;
+
+/// A crate whole, which the config excludes, so nothing refuses it.
+pub use ::dep as Shed;

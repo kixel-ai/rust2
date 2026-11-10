@@ -61,15 +61,6 @@ impl State {
 		(!live.is_empty()).then(|| live[usize::from(arg) % live.len()].clone())
 	}
 
-	/// The bounded sender `arg` picks, if it picks one, read by reference: rust2-ts can't yet
-	/// type-check the drop of the rest of a temporary `if let Some(Tx::Bounded(tx))` tests.
-	fn bounded(&self, arg: u8) -> Option<mpsc::Sender<Item>> {
-		match self.sender(arg)? {
-			Tx::Bounded(tx) => Some(tx),
-			Tx::Unbounded(_) => None,
-		}
-	}
-
 	/// Take the receiver from its slot for a task, which puts it back once it is done.
 	fn take_rx(&self) -> Option<(Rx, Rc<RefCell<Option<Rx>>>)> {
 		let rx = self.rx.borrow_mut().take()?;
@@ -181,7 +172,7 @@ fn step_run(s: &mut State, op: u8, arg: u8) {
 		// Reserve a slot, then send or not.
 		4 => {
 			let item = s.item();
-			if let Some(tx) = s.bounded(arg) {
+			if let Some(Tx::Bounded(tx)) = s.sender(arg) {
 				s.exec.spawn(async move {
 					match tx.reserve().await {
 						Ok(permit) if arg & 0x80 == 0 => {
@@ -200,7 +191,7 @@ fn step_run(s: &mut State, op: u8, arg: u8) {
 		// Reserve `arg % 6` slots, more than any channel holds included, and send through some.
 		5 => {
 			let first = s.item();
-			if let Some(tx) = s.bounded(arg) {
+			if let Some(Tx::Bounded(tx)) = s.sender(arg) {
 				let n = usize::from(arg % 6);
 				let sent = usize::from(arg >> 4) % 3;
 				s.exec.spawn(async move {
@@ -222,7 +213,7 @@ fn step_run(s: &mut State, op: u8, arg: u8) {
 		}
 		// Reserve a slot with a sender of its own, kept to use later.
 		6 => {
-			if let Some(tx) = s.bounded(arg) {
+			if let Some(Tx::Bounded(tx)) = s.sender(arg) {
 				let owned = Rc::new(RefCell::new(None));
 				let slot = owned.clone();
 				s.exec.spawn(async move {
@@ -248,7 +239,7 @@ fn step_run(s: &mut State, op: u8, arg: u8) {
 			}
 			let i = live[usize::from(arg) % live.len()];
 			let permit = s.owned[i].take().expect("live");
-			if let Some(tx) = s.bounded(0) {
+			if let Some(Tx::Bounded(tx)) = s.sender(0) {
 				note(format!(
 					"same {} {}",
 					permit.same_channel_as_sender(&tx),
@@ -305,7 +296,7 @@ fn step_run(s: &mut State, op: u8, arg: u8) {
 		}
 		// Reserve without waiting.
 		10 => {
-			if let Some(tx) = s.bounded(arg) {
+			if let Some(Tx::Bounded(tx)) = s.sender(arg) {
 				match arg % 3 {
 					0 => match tx.try_reserve() {
 						Ok(permit) => {
@@ -416,7 +407,7 @@ fn state(s: &State) {
 				)
 			}
 		}
-		if let Some(other) = s.bounded(1)
+		if let Some(Tx::Bounded(other)) = s.sender(1)
 			&& let Tx::Bounded(tx) = &tx
 		{
 			line += &format!(" same {}", tx.same_channel(&other));
