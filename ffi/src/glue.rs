@@ -10,7 +10,7 @@ use std::path::Path;
 
 use crate::abi::{self, Abi, Ty};
 use crate::config::Package;
-use crate::ir::{Access, Family, Function, Mutability, Receiver, Traits, Type};
+use crate::ir::{Access, Collection, Family, Function, Mutability, Receiver, Traits, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
 
@@ -32,6 +32,16 @@ fn dependency(krate: &str) -> String {
 /// when the facade shares that crate's name.
 fn foreign(krate: &str) -> String {
 	format!("{krate}_foreign")
+}
+
+/// The Rust path of a collection, without its arguments.
+fn collection(c: Collection) -> String {
+	match c {
+		Collection::Vec => "::std::vec::Vec".to_string(),
+		Collection::BTreeSet => "::std::collections::BTreeSet".to_string(),
+		Collection::BTreeMap => "::std::collections::BTreeMap".to_string(),
+		Collection::JsonMap => format!("::{}::Map", foreign("serde_json")),
+	}
 }
 
 /// The Rust spelling of a C type.
@@ -331,7 +341,13 @@ impl Gen<'_> {
 			Type::SocketAddr(Family::Any) => "::std::net::SocketAddr".to_string(),
 			Type::SocketAddr(Family::V4) => "::std::net::SocketAddrV4".to_string(),
 			Type::SocketAddr(Family::V6) => "::std::net::SocketAddrV6".to_string(),
-			Type::List(inner) => format!("::std::vec::Vec<{}>", self.rust(inner)),
+			Type::List(c, inner) => match (c, &**inner) {
+				// A map's items are its key and value.
+				(Collection::BTreeMap | Collection::JsonMap, Type::Tuple(pair)) => {
+					format!("{}<{}, {}>", collection(*c), self.rust(&pair[0]), self.rust(&pair[1]))
+				}
+				_ => format!("{}<{}>", collection(*c), self.rust(inner)),
+			},
 			Type::Option(inner) => format!("Option<{}>", self.rust(inner)),
 			Type::Ref(Mutability::Not, inner) => format!("&{}", self.rust(inner)),
 			Type::Ref(Mutability::Mut, inner) => format!("&mut {}", self.rust(inner)),
@@ -360,9 +376,14 @@ impl Gen<'_> {
 			Type::SocketAddr(Family::V4) => format!("{e}.lift_v4(w)"),
 			Type::SocketAddr(Family::V6) => format!("{e}.lift_v6(w)"),
 			Type::Waker => format!("{e}.lift()"),
-			Type::List(inner) => format!(
-				"unsafe {{ {e}.items(w) }}.iter().map(|c| {}).collect::<::std::vec::Vec<_>>()",
-				self.lift(inner, "(*c)")
+			Type::List(c, inner) => format!(
+				"unsafe {{ {e}.items(w) }}.iter().map(|c| {}).collect::<{}<{}>>()",
+				self.lift(inner, "(*c)"),
+				collection(*c),
+				match c {
+					Collection::BTreeMap | Collection::JsonMap => "_, _",
+					Collection::Vec | Collection::BTreeSet => "_",
+				}
 			),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(_) => format!("if {e}.is_null() {{ None }} else {{ Some({}) }}", self.lift(inner, e)),
@@ -462,7 +483,7 @@ impl Gen<'_> {
 			Type::PathBuf => format!("rt::Buf::path_buf({e})"),
 			Type::Duration => format!("rt::Duration::lower({e})"),
 			Type::SocketAddr(_) => format!("rt::SocketAddr::lower(::std::net::SocketAddr::from({e}))"),
-			Type::List(inner) => format!(
+			Type::List(_, inner) => format!(
 				"rt::List::owned(::std::iter::IntoIterator::into_iter({e}).map(|v| {}).collect())",
 				self.lower(inner, "v")
 			),
@@ -470,7 +491,7 @@ impl Gen<'_> {
 				let none = match inner.base() {
 					Type::Object(_) => "::std::ptr::null()".to_string(),
 					base if Abi::is_buf(base) => "rt::Buf::NONE".to_string(),
-					Type::List(_) => "rt::List::NONE".to_string(),
+					Type::List(..) => "rt::List::NONE".to_string(),
 					_ => {
 						let name = self.abi.option(inner);
 						return format!(
@@ -514,7 +535,7 @@ impl Gen<'_> {
 	fn free(&self, ty: &Type, e: &str) -> Option<String> {
 		match ty {
 			_ if Abi::is_buf(ty) => Some(format!("unsafe {{ {e}.free() }};")),
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let each = self.free(inner, "c").unwrap_or_default();
 				Some(format!(
 					"unsafe {{ {e}.free(\"{}_free\", |c| {{ let _ = c; {each} }}) }};",
@@ -524,7 +545,7 @@ impl Gen<'_> {
 			Type::Option(inner) => match inner.base() {
 				base if Abi::is_buf(base) => Some(format!("unsafe {{ {e}.free() }};")),
 				// A null handle or array frees nothing.
-				Type::Object(_) | Type::List(_) => self.free(inner, e),
+				Type::Object(_) | Type::List(..) => self.free(inner, e),
 				_ => self
 					.free(inner, &format!("{e}.value"))
 					.map(|free| format!("if {e}.some {{ {free} }}")),
@@ -550,7 +571,7 @@ impl Gen<'_> {
 	fn owns(&self, ty: &Type) -> bool {
 		match ty {
 			_ if Abi::is_buf(ty) => true,
-			Type::Object(_) | Type::List(_) => true,
+			Type::Object(_) | Type::List(..) => true,
 			Type::Option(inner) | Type::Box(inner) => self.owns(inner),
 			Type::Tuple(elements) => elements.iter().any(|ty| self.owns(ty)),
 			Type::Record(i) => self.abi.api.records[*i].fields.iter().any(|f| self.owns(&f.ty)),
@@ -602,7 +623,7 @@ impl Gen<'_> {
 			let c = rs(&self.abi.ty(elem));
 			self.line(format!("pub type {name} = rt::List<{c}>;\n"));
 			let free = self
-				.free(&Type::List(Box::new(elem.clone())), "this")
+				.free(&Type::List(Collection::Vec, Box::new(elem.clone())), "this")
 				.expect("an array is freed");
 			self.line(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: {name}) {{\n\t{free}\n}}\n"
@@ -1128,7 +1149,11 @@ impl Gen<'_> {
 			Some(err) => format!(
 				"match result {{\n\t\tOk(v) => {{\n\t\t\tlet _ = &v;\n\t\t\t{write_ok}\n\t\t\t{ready}\n\t\t}}\n\t\tErr(e) => {{\n\t\t\tunsafe {{ rt::write::<{}>(err.cast(), || {}) }};\n\t\t\t{error}\n\t\t}}\n\t}}",
 				rs(&self.abi.ty(err)),
-				self.lower(err, "e")
+				match err {
+					// A `String` error may stand for another crate's, as its message.
+					Type::String => self.lower(err, "::std::string::ToString::to_string(&e)"),
+					err => self.lower(err, "e"),
+				}
 			),
 		}
 	}

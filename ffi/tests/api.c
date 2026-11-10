@@ -283,6 +283,41 @@ static int script(void) {
 	printf("\n");
 	api_vec_tuple_string_Counter_free(ranked);
 	api_Board_free(board);
+	/* A map crosses as its pairs and a set as its items, which Rust collects in order, each
+	 * key once, the last kept. */
+	api_tuple_string_Point atlas_points[] = {
+		{._0 = str("b"), ._1 = {.x = 1, .y = 1}},
+		{._0 = str("ab"), ._1 = {.x = 2, .y = 3}},
+		{._0 = str("b"), ._1 = {.x = 4, .y = 4}},
+	};
+	uint32_t atlas_ids[] = {3, 1, 3};
+	api_Atlas loose = {
+		.points = {.ptr = atlas_points, .len = 3},
+		.ids = {.ptr = atlas_ids, .len = 3},
+	};
+	api_Atlas atlas = api_Atlas_with(&loose, str("c"), (api_Point){.x = 5, .y = 6});
+	printf("atlas");
+	for (size_t i = 0; i < atlas.points.len; i++) {
+		printf("%s%.*s ", i == 0 ? " " : ", ", (int)atlas.points.ptr[i]._0.len, (const char *)atlas.points.ptr[i]._0.ptr);
+		printf("%d %d", atlas.points.ptr[i]._1.x, atlas.points.ptr[i]._1.y);
+	}
+	printf("; ids");
+	for (size_t i = 0; i < atlas.ids.len; i++) {
+		printf(" %u", atlas.ids.ptr[i]);
+	}
+	printf("\n");
+	api_Atlas_free(&atlas);
+	/* Another crate's error crosses as its message. */
+	const char *port_texts[] = {"80", "x"};
+	for (size_t i = 0; i < 2; i++) {
+		uint16_t port;
+		api_buf port_err;
+		if (api_port(str(port_texts[i]), &port, &port_err)) {
+			printf("port %u\n", port);
+		} else {
+			print("port err ", port_err, "\n");
+		}
+	}
 	api_Span span = {
 		.bounds = {._0 = 2, ._1 = 10},
 		.named = {.some = true, .value = {._0 = str("s"), ._1 = API_SHAPE_SQUARE}},
@@ -831,6 +866,22 @@ static int script(void) {
 	api_Json_free(doc);
 	print("tagged ", api_Json_to_text(tagged), "\n");
 	api_Json_free(tagged);
+	/* A JSON object's entries cross as pairs of a key and its document, each moved in. */
+	api_tuple_string_Json json_pairs[2] = {{._0 = str("b")}, {._0 = str("a")}};
+	if (!api_Json_parse(str("[1]"), &json_pairs[0]._1, &parse_err) ||
+	    !api_Json_parse(str("2"), &json_pairs[1]._1, &parse_err)) {
+		return 1;
+	}
+	api_vec_tuple_string_Json json_entries = api_entries((api_vec_tuple_string_Json){.ptr = json_pairs, .len = 2}, str("t"));
+	api_Json_free(json_pairs[0]._1);
+	api_Json_free(json_pairs[1]._1);
+	printf("entries");
+	for (size_t i = 0; i < json_entries.len; i++) {
+		printf("%s%.*s ", i == 0 ? " " : ", ", (int)json_entries.ptr[i]._0.len, (const char *)json_entries.ptr[i]._0.ptr);
+		print("", api_Json_to_text(json_entries.ptr[i]._1), "");
+	}
+	printf("\n");
+	api_vec_tuple_string_Json_free(json_entries);
 	api_Json *broken;
 	if (api_Json_parse(str("{\"a\":"), &broken, &parse_err)) {
 		print("json parse ", api_Json_to_text(broken), "\n");
