@@ -581,7 +581,9 @@ impl<'tcx> Collector<'tcx> {
 
 	/// The first `explicit` type and const arguments of `args`, which name an instance.
 	fn shown_args(args: ty::GenericArgsRef<'tcx>, explicit: usize) -> Vec<ty::GenericArg<'tcx>> {
-		let named = args.iter().filter(|arg| !matches!(arg.kind(), GenericArgKind::Lifetime(_)));
+		let named = args
+			.iter()
+			.filter(|arg| !matches!(arg.kind(), GenericArgKind::Lifetime(_)));
 		named.take(explicit).collect()
 	}
 
@@ -814,15 +816,15 @@ impl<'tcx> Collector<'tcx> {
 				GenericArgKind::Lifetime(_) => return None,
 			};
 			let unarguable = match ty.kind() {
-			ty::Tuple(list) => !list.is_empty(),
-			ty::Bool | ty::Char | ty::Float(_) => false,
-			ty::Int(_) | ty::Uint(_) => int(ty).is_none(),
-			ty::Adt(adt, _) => {
-				tcx.lang_items().string() != Some(adt.did())
-					&& self.bytes != Some(adt.did())
-					&& !tcx.is_diagnostic_item(rustc_span::Symbol::intern("Duration"), adt.did())
-					&& !self.exported(adt.did().krate)
-					&& !self.foreign.iter().any(|&(ty, _)| ty == adt.did())
+				ty::Tuple(list) => !list.is_empty(),
+				ty::Bool | ty::Char | ty::Float(_) => false,
+				ty::Int(_) | ty::Uint(_) => int(ty).is_none(),
+				ty::Adt(adt, _) => {
+					tcx.lang_items().string() != Some(adt.did())
+						&& self.bytes != Some(adt.did())
+						&& !tcx.is_diagnostic_item(rustc_span::Symbol::intern("Duration"), adt.did())
+						&& !self.exported(adt.did().krate)
+						&& !self.foreign.iter().any(|&(ty, _)| ty == adt.did())
 				}
 				_ => true,
 			};
@@ -2987,16 +2989,19 @@ impl<'tcx> Collector<'tcx> {
 				}
 				let mut args = args.to_vec();
 				args[p.index as usize] = value.into();
-				let named = spelled(tcx.mk_args(&args)).into_iter().filter_map(exported).all(|(adt, args)| {
-					let key = self.key(adt, args);
-					match self.inferring {
-						true => self.instances.iter().any(|site| site.key == key),
-						false => matches!(
-							self.decls.get(&key),
-							Some(Decl::Record(_) | Decl::Enum(_) | Decl::Object(_))
-						),
-					}
-				});
+				let named = spelled(tcx.mk_args(&args))
+					.into_iter()
+					.filter_map(exported)
+					.all(|(adt, args)| {
+						let key = self.key(adt, args);
+						match self.inferring {
+							true => self.instances.iter().any(|site| site.key == key),
+							false => matches!(
+								self.decls.get(&key),
+								Some(Decl::Record(_) | Decl::Enum(_) | Decl::Object(_))
+							),
+						}
+					});
 				if named {
 					found.push(value);
 				}

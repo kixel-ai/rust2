@@ -601,6 +601,27 @@ static int script(void) {
 		printf("nonempty pending\n");
 	}
 	api_Channel_recv_nonempty_future_free(nonempty);
+	api_Batch *fill4 = api_Batch_new();
+	api_Batch_2 *fill2 = api_pair();
+	api_fill_4_future *filling4 = api_fill_4(fill4, 9);
+	api_fill_2_future *filling2 = api_fill_2(fill2, 1);
+	api_vec_u32 filled4, filled2;
+	if (api_fill_4_poll(filling4, waker, &filled4) == API_POLL_READY && api_fill_2_poll(filling2, waker, &filled2) == API_POLL_READY) {
+		printf("fill");
+		for (size_t i = 0; i < filled4.len; i++) {
+			printf(" %u", (unsigned)filled4.ptr[i]);
+		}
+		for (size_t i = 0; i < filled2.len; i++) {
+			printf(" %u", (unsigned)filled2.ptr[i]);
+		}
+		printf("\n");
+		api_vec_u32_free(filled4);
+		api_vec_u32_free(filled2);
+	}
+	api_fill_4_future_free(filling4);
+	api_fill_2_future_free(filling2);
+	api_Batch_2_free(fill2);
+	api_Batch_free(fill4);
 
 	/* The send happens at the call: the future is dropped unpolled. */
 	api_Channel_send_later_future_free(api_Channel_send_later(channel, str("eager")));
@@ -1132,7 +1153,7 @@ static int script(void) {
 	api_Token_free(twice);
 
 	/* Each future dropped its waker once it finished, and Rust the one it was given. */
-	return drops == 5 ? 0 : 1;
+	return drops == 7 ? 0 : 1;
 }
 
 /* Each breaks a contract, which must abort with a message naming the function. */

@@ -347,6 +347,8 @@ def script():
 				print(f"nonempty {payload.nbytes}")
 		except api.ErrorException as e:
 			print(f"nonempty err {e}")
+		filled = await api.fill_4(api.Batch.new(), 9) + await api.fill_2(api.pair(), 1)
+		print("fill " + " ".join(map(str, filled)))
 		# The send happens at the call: the future is dropped unawaited.
 		channel.send_later(b"eager")
 		print(f"recv {text(await channel.recv())}")

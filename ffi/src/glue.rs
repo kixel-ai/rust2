@@ -1184,7 +1184,7 @@ impl Gen<'_> {
 	/// The statements that hand a call's `result` to C: return it, or for a fallible
 	/// function or a tuple, write it through its out pointers or `err`, and return whether
 	/// it succeeded.
-	fn finish(&self, function: &Function, ret: (&str, &str, &str)) -> String {
+	fn finish(&self, function: &Function, ok: &Type, ret: (&str, &str, &str)) -> String {
 		let (ok_value, ready, error) = ret;
 		let write = |ty: &Type, out: &str, v: &str| {
 			format!(
@@ -1193,9 +1193,10 @@ impl Gen<'_> {
 				self.lower(ty, v)
 			)
 		};
-		let write_ok = match &function.ok {
-			Type::Unit => String::new(),
-			Type::Tuple(elements) => {
+		// The outs C passes follow what the function returns, which `ok` may own.
+		let write_ok = match (&function.ok, ok) {
+			(_, Type::Unit) => String::new(),
+			(Type::Tuple(_), Type::Tuple(elements)) => {
 				let names: Vec<String> = (0..elements.len()).map(|n| format!("v{n}")).collect();
 				let writes: Vec<String> = elements
 					.iter()
@@ -1206,15 +1207,15 @@ impl Gen<'_> {
 				// The trailing comma makes `(v0,)` a tuple pattern, not parentheses.
 				format!("let ({},) = v;\n\t{}", names.join(", "), writes.join("\n\t"))
 			}
-			ok => write(ok, "out", "v"),
+			(_, ok) => write(ok, "out", "v"),
 		};
 		match &function.err {
-			None if ok_value.is_empty() => match function.ok {
-				Type::Unit => "result".to_string(),
-				Type::Tuple(_) => format!("let v = result;\n\t{write_ok}"),
-				_ => self.lower(&function.ok, "result"),
+			None if ok_value.is_empty() => match (&function.ok, ok) {
+				(_, Type::Unit) => "result".to_string(),
+				(Type::Tuple(_), _) => format!("let v = result;\n\t{write_ok}"),
+				_ => self.lower(ok, "result"),
 			},
-			None => match function.ok {
+			None => match ok {
 				Type::Unit => format!("let _ = result;\n\t{ready}"),
 				_ => format!("let v = result;\n\t{write_ok}\n\t{ready}"),
 			},
@@ -1344,15 +1345,23 @@ impl Gen<'_> {
 				true => (format!("\n\tlet future = {call};"), "future".to_string()),
 				false => (String::new(), call),
 			};
+			// The value C takes is lowered when it polls, outside the future, so a result
+			// borrowing what the future holds is cloned before the future ends.
+			let (ok, own) = owned(&function.ok);
+			let later = match (own, &function.err) {
+				(None, _) => format!("{later}.await"),
+				(Some(own), Some(_)) => format!("{later}.await.map(|v| {own})"),
+				(Some(own), None) => format!("{{ let v = {later}.await; {own} }}"),
+			};
 			let bind: String = Self::outs(function)
 				.iter()
 				.enumerate()
 				.map(|(n, out)| format!("let {out} = outs[{n}];\n\t\t\t"))
 				.collect();
 			self.line(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}{now}\n\trt::Future::new(async move {{\n\t\tlet result = {later}.await;\n\t\t::std::boxed::Box::new(move |outs: &[*mut ::std::ffi::c_void], err: *mut ::std::ffi::c_void| -> i32 {{\n\t\t\tlet _ = (outs, err);\n\t\t\t{bind}{}\n\t\t}}) as rt::Done\n\t}})\n}}\n",
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}{now}\n\trt::Future::new(async move {{\n\t\tlet result = {later};\n\t\t::std::boxed::Box::new(move |outs: &[*mut ::std::ffi::c_void], err: *mut ::std::ffi::c_void| -> i32 {{\n\t\t\tlet _ = (outs, err);\n\t\t\t{bind}{}\n\t\t}}) as rt::Done\n\t}})\n}}\n",
 				params.join(", "),
-				self.finish(function, ("v", "rt::READY", "rt::ERROR"))
+				self.finish(function, &ok, ("v", "rt::READY", "rt::ERROR"))
 			));
 			let poll_params: Vec<String> = poll.params[2..]
 				.iter()
@@ -1384,8 +1393,8 @@ impl Gen<'_> {
 		let ret = rs(&export.call.ret);
 		self.lends = function.lends;
 		let finish = match function.err {
-			Some(_) => self.finish(function, ("v", "true", "false")),
-			None => self.finish(function, ("", "", "")),
+			Some(_) => self.finish(function, &function.ok, ("v", "true", "false")),
+			None => self.finish(function, &function.ok, ("", "", "")),
 		};
 		self.lends = false;
 		self.line(format!(
@@ -1397,5 +1406,37 @@ impl Gen<'_> {
 				false => call,
 			},
 		));
+	}
+}
+
+/// What a function returns, owned: each reference at its top or in a returned tuple as
+/// its clone's type, with the expression cloning `v` into it, if any is one.
+fn owned(ok: &Type) -> (Type, Option<String>) {
+	let one = |ty: &Type| match ty {
+		Type::Ref(_, inner) => Some(match &**inner {
+			Type::Str => Type::String,
+			Type::Slice => Type::Vec,
+			Type::Path => Type::PathBuf,
+			inner => inner.clone(),
+		}),
+		_ => None,
+	};
+	match ok {
+		Type::Tuple(elements) if elements.iter().any(|e| one(e).is_some()) => {
+			let names: Vec<String> = (0..elements.len()).map(|n| format!("v{n}")).collect();
+			let owned: Vec<String> = (elements.iter().zip(&names))
+				.map(|(e, n)| match one(e) {
+					Some(_) => format!("::std::borrow::ToOwned::to_owned({n})"),
+					None => n.clone(),
+				})
+				.collect();
+			let ty = Type::Tuple(elements.iter().map(|e| one(e).unwrap_or_else(|| e.clone())).collect());
+			let own = format!("{{ let ({},) = v; ({},) }}", names.join(", "), owned.join(", "));
+			(ty, Some(own))
+		}
+		ok => match one(ok) {
+			Some(ty) => (ty, Some("::std::borrow::ToOwned::to_owned(v)".to_string())),
+			None => (ok.clone(), None),
+		},
 	}
 }

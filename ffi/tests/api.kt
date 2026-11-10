@@ -273,6 +273,9 @@ fun script() {
 		} catch (e: ErrorException) {
 			println("nonempty err ${e.message}")
 		}
+		Batch.new().use { b4 ->
+			pair().use { b2 -> println("fill " + (fill4(b4, 9u) + fill2(b2, 1u)).joinToString(" ")) }
+		}
 		// The send happens at the call: the future is dropped unawaited.
 		channel.sendLater("eager".encodeToByteArray())
 		println("recv ${channel.recv().text()}")

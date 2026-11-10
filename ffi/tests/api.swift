@@ -397,6 +397,8 @@ func script() {
 		} catch {
 			print("nonempty err \(error)")
 		}
+		let filled = try await fill4(Batch.new(), 9) + fill2(Api.pair(), 1)
+		print("fill \(filled.map { Swift.String($0) }.joined(separator: " "))")
 		// The send happens at the call, before the future is first polled.
 		try await channel.sendLater(Data("eager".utf8))
 		print("recv \(text(try await channel.recv()))")

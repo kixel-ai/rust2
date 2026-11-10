@@ -525,6 +525,13 @@ pub fn drain<const N: usize>(batch: &mut Batch<N>) -> u64 {
 	batch.0.drain(..).map(u64::from).sum()
 }
 
+/// Fill a batch with `v` until it holds `N`, lending what it holds: a future whose result
+/// borrows a parameter, as moq's `group::Consumer::read_frames` does.
+pub async fn fill<const N: usize>(batch: &mut Batch<N>, v: u32) -> &mut [u32] {
+	while batch.push(v) {}
+	&mut batch.0
+}
+
 /// A range, widened by `by` at each end.
 pub fn widen(range: Range<u64>, by: u64) -> Range<u64> {
 	range.start.saturating_sub(by)..range.end + by

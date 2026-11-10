@@ -343,6 +343,10 @@ Future<void> script() async {
   } on api.Error catch (e) {
     print('nonempty err $e');
   }
+  final fill4 = api.Batch(), fill2 = api.pair();
+  print('fill ${[...await api.fill4(fill4, 9), ...await api.fill2(fill2, 1)].join(' ')}');
+  fill4.close();
+  fill2.close();
   // The send happens at the call: the future is dropped unawaited.
   channel.sendLater(utf8.encode('eager'));
   print('recv ${text(await channel.recv())}');

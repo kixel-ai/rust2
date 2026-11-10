@@ -496,6 +496,22 @@ int script() {
 				std::printf("nonempty pending\n");
 			}
 		}
+		{
+			auto fill4 = api::Batch::new_();
+			auto fill2 = api::pair();
+			auto filled4 = api::fill_4(fill4, 9).poll(waker);
+			auto filled2 = api::fill_2(fill2, 1).poll(waker);
+			if (filled4 && filled2) {
+				std::printf("fill");
+				for (auto v : *filled4) {
+					std::printf(" %u", unsigned(v));
+				}
+				for (auto v : *filled2) {
+					std::printf(" %u", unsigned(v));
+				}
+				std::printf("\n");
+			}
+		}
 
 		// The send happens at the call: the future is dropped unpolled.
 		channel.send_later("eager");

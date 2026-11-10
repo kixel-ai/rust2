@@ -80,5 +80,5 @@ Public API: the exporter's command line and the C API of every item that exports
 - [Futures and kept closures as parameters export](/quest/m1/ffi-export/refusals/generics.md) - `clock::timeout`'s future, `clock::drive`'s kept closure, and `mp4::repair`'s seekable reader cross from C
 - [Standard and common types export by role](/quest/m1/ffi-export/refusals/std-types.md) - `Filter`, serde_json's map iterators, `Instant`, and tracing's levels, once their maintainer decisions land
 - [Poll and Context export](/quest/m1/ffi-export/refusals/poll.md) - a `poll_*` with no async twin takes a waker, as futures' polls do
-- [Small shapes export](/quest/m1/ffi-export/refusals/small-shapes.md) - `tokio::tls::parse_fingerprint`'s returned array, once the maintainer picks its mapping
+- [Small shapes export](/quest/m1/ffi-export/refusals/small-shapes.md) - `parse_fingerprint`'s and `flac::Config::md5`'s arrays, once the maintainer picks their mapping
 - [Bump the moq pin past its re-export and reachability fixes](/quest/m1/ffi-export/refusals/moq-pin.md) - the census has no whole-crate re-export refusal and no unreachable type of moq's own

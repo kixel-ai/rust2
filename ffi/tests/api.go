@@ -429,6 +429,11 @@ func script() {
 	if _, err := channel.RecvNonempty(ctx); err != nil {
 		fmt.Printf("nonempty err %s\n", err)
 	}
+	fmt.Print("fill")
+	for _, v := range append(must(api.Fill4(ctx, api.NewBatch(), 9)), must(api.Fill2(ctx, api.Pair(), 1))...) {
+		fmt.Printf(" %d", v)
+	}
+	fmt.Println()
 	// The send happens at the call: the future is cancelled before its first poll.
 	cancelled, cancel := context.WithCancel(ctx)
 	cancel()

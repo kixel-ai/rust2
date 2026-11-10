@@ -329,6 +329,16 @@ fn main() {
 		Poll::Ready(Err(e)) => println!("nonempty err {e}"),
 		Poll::Pending => println!("nonempty pending"),
 	}
+	let mut filled: Vec<String> = Vec::new();
+	let mut fill4: api::Batch = api::Batch::new();
+	if let Poll::Ready(v) = pin!(api::fill(&mut fill4, 9)).poll(&mut cx) {
+		filled.extend(v.iter().map(u32::to_string));
+	}
+	let mut fill2 = api::pair();
+	if let Poll::Ready(v) = pin!(api::fill(&mut fill2, 1)).poll(&mut cx) {
+		filled.extend(v.iter().map(u32::to_string));
+	}
+	println!("fill {}", filled.join(" "));
 
 	// The send happens at the call: the future is dropped unpolled.
 	drop(channel.send_later(Bytes::from_static(b"eager")));
