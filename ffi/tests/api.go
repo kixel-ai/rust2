@@ -410,6 +410,14 @@ func script() {
 	channel.Notify(func() { wakes++ })
 	channel.Send([]byte("rung"))
 	fmt.Printf("woken %d\n", wakes)
+	// A poll with no async twin is a future.
+	fmt.Printf("take %s\n", must(channel.PollTake(ctx)).Copy())
+	channel.Send([]byte("measured"))
+	fmt.Printf("measure %d\n", must(channel.PollMeasure(ctx, 2)))
+	// A context is made of the waker, which Rust keeps until the send wakes it.
+	channel.Listen(func() { wakes++ })
+	channel.Send([]byte("heard"))
+	fmt.Printf("woken %d\n", wakes)
 
 	list1 := must(api.NewNode(1, nil))
 	ok(list1.Push(2))

@@ -9,14 +9,16 @@
 //! A program that reaches `panic::set_hook` passes where each panic is, which its hook
 //! reads: each statement's own, the caller's location to each std function that takes it,
 //! and the call of the macro that defines one, as an integer's methods. A panic in std's
-//! own code is where the toolchain's source has it, and one in `bytes`' where the
-//! program's `bytes` has it, named as the session names that file, which `rs.setHook` is
-//! given. One in tokio's is where its compiled code has it, passed at the call.
+//! own code is where the toolchain's source has it, which `rs.setHook` is given, with one in
+//! `bytes`' where its compiled code has it. One in tokio's is where its compiled code has
+//! it, passed at the call.
 
 use std::sync::OnceLock;
 
 use rustc_attr_ir::LangItem;
+use rustc_hir::def::DefKind;
 use rustc_hir::def_id::DefId;
+use rustc_middle::middle::codegen_fn_attrs::CodegenFnAttrFlags;
 use rustc_middle::mir::TerminatorKind;
 use rustc_middle::ty::{Instance, InstanceKind, TyCtxt};
 use rustc_span::{RemapPathScopeComponents, SourceFile, Span};
@@ -480,61 +482,30 @@ const CALLEES: &[(&str, &str, &str, &str)] = &[
 ];
 
 /// Where `bytes`' code panics, for each of its panics the runtime makes, by the key it
-/// passes in place of a location: a file under the crate's `src/`, the texts before it in
-/// turn, and the text the call that panics starts with. None of its public functions takes
-/// its caller's location, so each panic is where its source has it.
-const BYTES: &[(&str, &str, &[&str], &str)] = &[
-	("bytes_advance", "lib.rs", &["fn panic_advance("], "panic!("),
-	("bytes_does_not_fit", "lib.rs", &["fn panic_does_not_fit("], "panic!("),
+/// passes in place of a location: the function, by its path, and which of its calls that
+/// panic it is, in the order of its source, from 0. None of its public functions takes its
+/// caller's location, so each panic is where its compiled code has it.
+const BYTES: &[(&str, &str, usize)] = &[
+	("bytes_advance", "bytes::panic_advance", 0),
+	("bytes_does_not_fit", "bytes::panic_does_not_fit", 0),
 	// `range` takes its caller's location, so its panics are at its call.
-	("bytes_slice", "bytes.rs", &["pub fn slice(&self"], "crate::range("),
-	("bytes_slice_ref_start", "bytes.rs", &["pub fn slice_ref("], "assert!("),
-	(
-		"bytes_slice_ref_end",
-		"bytes.rs",
-		&["pub fn slice_ref(", "assert!("],
-		"assert!(",
-	),
-	("bytes_split_off", "bytes.rs", &["pub fn split_off("], "assert!("),
-	("bytes_split_to", "bytes.rs", &["pub fn split_to("], "assert!("),
-	(
-		"bytes_buf_advance",
-		"bytes.rs",
-		&["impl Buf for Bytes", "fn advance("],
-		"assert!(",
-	),
-	(
-		"bytes_mut_split_off",
-		"bytes_mut.rs",
-		&["pub fn split_off("],
-		"assert!(",
-	),
-	("bytes_mut_split_to", "bytes_mut.rs", &["pub fn split_to("], "assert!("),
-	(
-		"bytes_mut_set_len",
-		"bytes_mut.rs",
-		&["pub unsafe fn set_len("],
-		"debug_assert!(",
-	),
-	(
-		"bytes_mut_overflow",
-		"bytes_mut.rs",
-		&["fn reserve_inner(", "len.checked_add(additional)"],
-		"panic!(",
-	),
-	(
-		"bytes_mut_overflow_offset",
-		"bytes_mut.rs",
-		&["fn reserve_inner(", "new_cap.checked_add(offset)"],
-		"panic!(",
-	),
-	(
-		"bytes_mut_buf_advance",
-		"bytes_mut.rs",
-		&["impl Buf for BytesMut", "fn advance("],
-		"assert!(",
-	),
+	("bytes_slice", "bytes::Bytes::slice", 0),
+	("bytes_slice_ref_start", "bytes::Bytes::slice_ref", 0),
+	("bytes_slice_ref_end", "bytes::Bytes::slice_ref", 1),
+	("bytes_split_off", "bytes::Bytes::split_off", 0),
+	("bytes_split_to", "bytes::Bytes::split_to", 0),
+	("bytes_buf_advance", "<bytes::Bytes as bytes::Buf>::advance", 0),
+	("bytes_mut_split_off", "bytes::BytesMut::split_off", 0),
+	("bytes_mut_split_to", "bytes::BytesMut::split_to", 0),
+	("bytes_mut_set_len", "bytes::BytesMut::set_len", 0),
+	("bytes_mut_overflow", "bytes::BytesMut::reserve_inner", 0),
+	("bytes_mut_overflow_offset", "bytes::BytesMut::reserve_inner", 1),
+	("bytes_mut_buf_advance", "<bytes::BytesMut as bytes::Buf>::advance", 0),
 ];
+
+/// The [`BYTES`] sites of a `debug_assert!`, which a build without debug assertions leaves
+/// out, as Rust leaves a call past it undefined.
+const BYTES_DEBUG: &[&str] = &["bytes_mut_set_len"];
 
 /// The `rs.Sites` of the toolchain's std, which `rs.setHook` takes: where each panic
 /// [`SITES`] names is, as the native build names it, and each [`BYTES`] names, in the
@@ -566,18 +537,30 @@ fn bytes_sites(t: &mut Translator<'_, '_>, span: Span) -> Vec<(Key, Expr)> {
 		if tcx.crate_name(krate).as_str() != "bytes" {
 			continue;
 		}
-		tcx.import_source_files(krate);
+		let mut fns = rustc_data_structures::fx::FxHashMap::default();
+		let count = rustc_metadata::creader::CStore::from_tcx(tcx).num_def_ids_untracked(krate);
+		for index in 0..count {
+			let def_id = DefId {
+				krate,
+				index: rustc_hir::def_id::DefIndex::from_usize(index),
+			};
+			if matches!(tcx.def_kind(def_id), DefKind::Fn | DefKind::AssocFn) {
+				fns.insert(
+					rustc_middle::ty::print::with_no_trimmed_paths!(tcx.def_path_str(def_id)),
+					def_id,
+				);
+			}
+		}
 		let mut props = Vec::new();
-		for &(key, file, after, needle) in BYTES {
-			match bytes_find(tcx, krate, file, after, needle) {
-				Some(at) => props.push((Key::Name(key.into()), at)),
-				None => {
-					let after = after.join(" then ");
+		for &(key, path, nth) in BYTES {
+			let found = fns.get(path).map(|&f| panics(tcx, f, true).into_iter().nth(nth));
+			match found {
+				Some(Some(at)) => props.push((Key::Name(key.into()), location(tcx, at))),
+				Some(None) if BYTES_DEBUG.contains(&key) => {}
+				_ => {
 					t.err(
 						span,
-						format!(
-							"the bytes crate's source has no `{needle}` in `src/{file}` after `{after}`, where it panics"
-						),
+						format!("the bytes crate's compiled code has no panic {nth} in `{path}`, counting from 0"),
 					);
 				}
 			}
@@ -595,29 +578,41 @@ fn bytes_sites(t: &mut Translator<'_, '_>, span: Span) -> Vec<(Key, Expr)> {
 	tables.pop().unwrap_or_default()
 }
 
-/// The `rs.Location` of the first `needle` after each of `after` in turn in `file`, under
-/// `krate`'s `src/`, named as the session names it.
-fn bytes_find(
-	tcx: TyCtxt<'_>,
-	krate: rustc_span::def_id::CrateNum,
-	file: &str,
-	after: &[&str],
-	needle: &str,
-) -> Option<Expr> {
-	let map = tcx.sess.source_map();
-	let suffix = format!("/src/{file}");
-	let source = (map.files().iter())
-		.find(|f| f.cnum == krate && self::file(tcx, f).ends_with(&suffix))
-		.cloned()?;
-	if !map.ensure_source_file_source_present(&source) {
-		return None;
+/// The calls in the MIR `def_id`'s crate compiled for it that panic, outside what that
+/// inlined, in the order of its source, by the macro call each came from: of std's `panic!`,
+/// which `assert!` makes too, and if `tracked`, of a function of its own crate that takes its
+/// caller's location, whose panics are at the call. None without that MIR.
+fn panics(tcx: TyCtxt<'_>, def_id: DefId, tracked: bool) -> Vec<Span> {
+	if !tcx.is_mir_available(def_id) {
+		return Vec::new();
 	}
-	let text = match &source.src {
-		Some(src) => src.to_string(),
-		None => source.external_src.read().get_source()?.to_string(),
-	};
-	let (line, col) = position(&text, after, needle)?;
-	Some(object(self::file(tcx, &source), line, col))
+	let mir = tcx.optimized_mir(def_id);
+	let mut spans: Vec<Span> = (mir.basic_blocks.iter())
+		.filter_map(|block| {
+			let terminator = block.terminator();
+			let TerminatorKind::Call { func, .. } = &terminator.kind else {
+				return None;
+			};
+			let (callee, _) = func.const_fn_def()?;
+			let panics = [LangItem::PanicFmt, LangItem::Panic, LangItem::PanicDisplay]
+				.into_iter()
+				.any(|item| tcx.is_lang_item(callee, item))
+				|| (tracked
+					&& callee.krate == def_id.krate
+					&& tcx
+						.codegen_fn_attrs(callee)
+						.flags
+						.contains(CodegenFnAttrFlags::TRACK_CALLER));
+			let own = (terminator.source_info.scope)
+				.inlined_instance(&mir.source_scopes)
+				.is_none();
+			let span = terminator.source_info.span;
+			(panics && own).then(|| span.ctxt().outer_expn().expansion_cause().unwrap_or(span))
+		})
+		.collect();
+	spans.sort_by_key(|span| span.lo());
+	spans.dedup();
+	spans
 }
 
 /// Where `def_id`, a dependency's function that takes no caller's location, makes its one
@@ -625,26 +620,10 @@ fn bytes_find(
 /// named as the native build names it under any `--remap-path-prefix`. `None` without that
 /// MIR, or with other than one such call.
 pub fn own_panic(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Expr> {
-	if !tcx.is_mir_available(def_id) {
-		return None;
+	match panics(tcx, def_id, false)[..] {
+		[span] => Some(location(tcx, span)),
+		_ => None,
 	}
-	let mir = tcx.optimized_mir(def_id);
-	let mut spans = mir.basic_blocks.iter().filter_map(|block| {
-		let terminator = block.terminator();
-		let TerminatorKind::Call { func, .. } = &terminator.kind else {
-			return None;
-		};
-		let (callee, _) = func.const_fn_def()?;
-		let panics = [LangItem::PanicFmt, LangItem::Panic, LangItem::PanicDisplay]
-			.into_iter()
-			.any(|item| tcx.is_lang_item(callee, item));
-		let own = (terminator.source_info.scope)
-			.inlined_instance(&mir.source_scopes)
-			.is_none();
-		(panics && own).then_some(terminator.source_info.span)
-	});
-	let span = spans.next()?;
-	spans.next().is_none().then(|| location(tcx, span))
 }
 
 /// Where std's `def_id` panics, if [`CALLEES`] names it.

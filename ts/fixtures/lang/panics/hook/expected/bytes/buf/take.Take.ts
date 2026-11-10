@@ -72,8 +72,8 @@ export function tryCopyToSlice$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>, d
 		while (!(dst.length === 0)) {
 			const src: rs.ByteSlice = chunk$bytes_Buf_bytes_Bytes_mut(self);
 			const cnt: rs.usize = rs.min(src.length, dst.length);
-			rs.byteSliceCopyFromSlice(rs.byteSliceRange(dst, 0, cnt, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_impl.rs", line: 1178, col: 16 }), rs.byteSliceRange(src, 0, cnt, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_impl.rs", line: 1178, col: 44 }), { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_impl.rs", line: 1178, col: 24 });
-			dst = rs.byteSliceRange(dst, cnt, undefined, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_impl.rs", line: 1179, col: 27 });
+			rs.byteSliceCopyFromSlice(rs.byteSliceRange(dst, 0, cnt, { file: "bytes/source/buf/buf_impl.rs", line: 1178, col: 16 }), rs.byteSliceRange(src, 0, cnt, { file: "bytes/source/buf/buf_impl.rs", line: 1178, col: 44 }), { file: "bytes/source/buf/buf_impl.rs", line: 1178, col: 24 });
+			dst = rs.byteSliceRange(dst, cnt, undefined, { file: "bytes/source/buf/buf_impl.rs", line: 1179, col: 27 });
 			advance$bytes_Buf_bytes_Bytes(self, cnt);
 		}
 		return rs.OK;
@@ -225,7 +225,7 @@ export function remaining$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>): rs.us
  */
 export function chunk$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>): rs.ByteSlice {
 	const bytes: rs.ByteSlice = self.inner;
-	return rs.byteSliceRange(bytes, 0, min$00xoube(bytes.length, self.limit), { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/take.rs", line: 142, col: 15 });
+	return rs.byteSliceRange(bytes, 0, min$00xoube(bytes.length, self.limit), { file: "bytes/source/buf/take.rs", line: 142, col: 15 });
 }
 
 /**
@@ -262,10 +262,10 @@ export function chunk$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>): rs.ByteSl
  */
 export function advance$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>, cnt: rs.usize): void {
 	if (!(cnt <= self.limit)) {
-		rs.panic("assertion failed: cnt <= self.limit", { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/take.rs", line: 146, col: 9 });
+		rs.panic("assertion failed: cnt <= self.limit", { file: "bytes/source/buf/take.rs", line: 146, col: 9 });
 	} else {
 		rs.bytesAdvance(rs.place(() => self.inner, (value) => self.inner = value), cnt);
-		self.limit = rs.usizeSub(self.limit, cnt, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/take.rs", line: 148, col: 9 });
+		self.limit = rs.usizeSub(self.limit, cnt, { file: "bytes/source/buf/take.rs", line: 148, col: 9 });
 	}
 }
 
@@ -292,10 +292,10 @@ export function advance$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>, cnt: rs.
  */
 export function copyToBytes$bytes_Buf_bytes_Bytes(self: Take<rs.ByteSlice>, len: rs.usize): rs.ByteSlice {
 	if (!(len <= remaining$bytes_Buf_bytes_Bytes_mut(self))) {
-		rs.panicFmt(["`len` greater than remaining"], { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/take.rs", line: 152, col: 9 });
+		rs.panicFmt(["`len` greater than remaining"], { file: "bytes/source/buf/take.rs", line: 152, col: 9 });
 	} else {
 		const r: rs.ByteSlice = rs.bytesSplitTo(rs.place(() => self.inner, (value) => self.inner = value), len);
-		self.limit = rs.usizeSub(self.limit, len, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/take.rs", line: 155, col: 9 });
+		self.limit = rs.usizeSub(self.limit, len, { file: "bytes/source/buf/take.rs", line: 155, col: 9 });
 		return r;
 	}
 }

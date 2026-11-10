@@ -352,6 +352,19 @@ def script():
 	channel.send(b"rung")
 	until(loop, lambda: wakes == 2)
 	print(f"woken {wakes}")
+
+	async def polls():
+		# A poll with no async twin is a future.
+		print(f"take {text(await channel.poll_take())}")
+		channel.send(b"measured")
+		print(f"measure {await channel.poll_measure(2)}")
+
+	loop.run_until_complete(polls())
+	# A context is made of the waker, which Rust keeps until the send wakes it.
+	channel.listen(waker)
+	channel.send(b"heard")
+	until(loop, lambda: wakes == 3)
+	print(f"woken {wakes}")
 	loop.close()
 
 	nodes = api.Node.new(1, None)

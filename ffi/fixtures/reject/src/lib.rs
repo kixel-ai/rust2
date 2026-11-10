@@ -740,6 +740,72 @@ pub fn mixed(a: Option<((u8, u16), u32)>, b: Option<((u8, u16, u32),)>) -> bool 
 	a.is_some() && b.is_some()
 }
 
+/// A `Poll` with nothing to register a wake through: its future would pend forever.
+pub fn settled() -> std::task::Poll<u8> {
+	std::task::Poll::Ready(1)
+}
+
+/// A poll taking an owned value, which the future cannot pass again at its next poll.
+pub fn poll_named(cx: &mut std::task::Context<'_>, name: String) -> std::task::Poll<usize> {
+	cx.waker().wake_by_ref();
+	std::task::Poll::Ready(name.len())
+}
+
+/// A poll whose value borrows what the future owns.
+pub fn poll_first<'a>(items: &'a [u8], cx: &mut std::task::Context<'_>) -> std::task::Poll<&'a u8> {
+	cx.waker().wake_by_ref();
+	items.first().map_or(std::task::Poll::Pending, std::task::Poll::Ready)
+}
+
+/// A poll lent a closure, which C lends only for the call, and the future outlives.
+pub fn poll_until(cx: &mut std::task::Context<'_>, done: impl Fn(u8) -> bool) -> std::task::Poll<()> {
+	match done(1) {
+		true => std::task::Poll::Ready(()),
+		false => {
+			cx.waker().wake_by_ref();
+			std::task::Poll::Pending
+		}
+	}
+}
+
+/// A future holding a context, which C's waker makes only for the call.
+pub async fn context_later(cx: &std::task::Context<'_>) {
+	cx.waker().wake_by_ref();
+}
+
+/// A ticket made from a waker at only one instance of its type.
+pub struct Ticket<T>(Option<std::task::Waker>, T);
+
+impl Ticket<u8> {
+	pub fn new(waker: std::task::Waker) -> Self {
+		Self(Some(waker), 0)
+	}
+}
+
+/// The instance C holds, which no constructor makes from a waker.
+pub fn ticket() -> Ticket<u16> {
+	Ticket(None, 1)
+}
+
+/// A poll through an instance no constructor makes from a waker.
+pub fn poll_ticket(ticket: &Ticket<u16>) -> std::task::Poll<u16> {
+	std::task::Poll::Ready(ticket.1)
+}
+
+/// A poll through two contexts, which one future's poll cannot both be.
+pub fn poll_both(a: &mut std::task::Context<'_>, b: &std::task::Context<'_>) -> std::task::Poll<()> {
+	a.waker().wake_by_ref();
+	b.waker().wake_by_ref();
+	std::task::Poll::Ready(())
+}
+
+/// A poll lent a value mutably, which its future owns, so would never write back.
+pub fn poll_bump(cx: &mut std::task::Context<'_>, count: &mut u32) -> std::task::Poll<()> {
+	*count += 1;
+	cx.waker().wake_by_ref();
+	std::task::Poll::Ready(())
+}
+
 /// An optional handle lent inside a `Box`, as [`peek`] lends one.
 pub fn peek_some(value: Option<&Box<Opaque>>) -> u8 {
 	value.map_or(0, |value| value.0)
@@ -799,3 +865,50 @@ pub use ::dep as renamed;
 
 /// A crate whole, which the config excludes, so nothing refuses it.
 pub use ::dep as Shed;
+
+/// A value whose poll changes it, which C passes as a copy.
+pub struct Tally {
+	pub count: u8,
+}
+
+impl Tally {
+	pub fn poll_bump(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<u8> {
+		cx.waker().wake_by_ref();
+		self.count += 1;
+		std::task::Poll::Ready(self.count)
+	}
+}
+
+/// A waiter made from a waker only by an `unsafe` function.
+pub struct Risky(std::task::Waker);
+
+impl Risky {
+	/// # Safety
+	///
+	/// Nothing, in this fixture.
+	pub unsafe fn new(waker: std::task::Waker) -> Self {
+		Self(waker)
+	}
+}
+
+/// A poll through a waiter no safe function makes.
+pub fn poll_risky(waiter: &Risky) -> std::task::Poll<()> {
+	waiter.0.wake_by_ref();
+	std::task::Poll::Ready(())
+}
+
+/// A waiter made from a waker only by a function whose type argument the call cannot infer.
+pub struct Loose(std::task::Waker);
+
+impl Loose {
+	pub fn new<T: Default>(waker: std::task::Waker) -> Self {
+		let _ = T::default();
+		Self(waker)
+	}
+}
+
+/// A poll through a waiter no non-generic function makes.
+pub fn poll_loose(waiter: &Loose) -> std::task::Poll<()> {
+	waiter.0.wake_by_ref();
+	std::task::Poll::Ready(())
+}
