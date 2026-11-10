@@ -1454,7 +1454,8 @@ impl<'a> Gen<'a> {
 		let mut members = Vec::new();
 		let mut taken: BTreeSet<String> = fields.iter().cloned().collect();
 		for mut method in methods {
-			while !taken.insert(method.name.clone()) {
+			// `Error` implements `error`, so it keeps its name, and a field of it fails loud.
+			while method.name != "Error" && !taken.insert(method.name.clone()) {
 				method.name.push('_');
 			}
 			members.push(method.name.clone());
