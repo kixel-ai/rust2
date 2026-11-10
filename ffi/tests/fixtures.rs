@@ -1469,7 +1469,7 @@ fn target() {
 			"pub const MAX: usize = usize::MAX;\n\n\
 			pub fn halve(n: usize) -> usize {\n\tn / 2\n}\n\n\
 			#[cfg(target_arch = \"wasm32\")]\npub fn wasm() -> u32 {\n\t32\n}\n\n\
-			#[cfg(not(target_arch = \"wasm32\"))]\npub fn native() -> u32 {\n\t64\n}\n",
+			#[cfg(not(target_arch = \"wasm32\"))]\npub fn desktop() -> u32 {\n\t64\n}\n",
 		)],
 	);
 	let export = |name: &str, target: &[&str]| {
@@ -1486,20 +1486,36 @@ fn target() {
 		(out, header)
 	};
 	let (host, header) = export("host", &[]);
-	assert!(header.contains("targeted_native(") && !header.contains("targeted_wasm("), "{header}");
+	assert!(
+		header.contains("targeted_desktop(") && !header.contains("targeted_wasm("),
+		"{header}"
+	);
 	assert!(header.contains(&u64::MAX.to_string()), "{header}");
 	build_offline(&host, &package.join("glue"));
 	let (wasm, header) = export("wasm", &["--target", "wasm32-unknown-unknown"]);
-	assert!(header.contains("targeted_wasm(") && !header.contains("targeted_native("), "{header}");
-	assert!(header.contains(&u32::MAX.to_string()) && !header.contains(&u64::MAX.to_string()), "{header}");
+	assert!(
+		header.contains("targeted_wasm(") && !header.contains("targeted_desktop("),
+		"{header}"
+	);
+	assert!(
+		header.contains(&u32::MAX.to_string()) && !header.contains(&u64::MAX.to_string()),
+		"{header}"
+	);
 	let glue = |target: &[&str]| {
 		let mut cmd = cargo();
-		cmd.args(["check", "--quiet", "--offline", "--features", "kotlin,dart", "--manifest-path"])
-			.arg(wasm.join("Cargo.toml"))
-			.arg("--target-dir")
-			.arg(package.join("glue"))
-			.args(target)
-			.env("RUSTFLAGS", "-D warnings");
+		cmd.args([
+			"check",
+			"--quiet",
+			"--offline",
+			"--features",
+			"kotlin,dart",
+			"--manifest-path",
+		])
+		.arg(wasm.join("Cargo.toml"))
+		.arg("--target-dir")
+		.arg(package.join("glue"))
+		.args(target)
+		.env("RUSTFLAGS", "-D warnings");
 		cmd
 	};
 	run(&mut glue(&["--target", "wasm32-unknown-unknown"]));

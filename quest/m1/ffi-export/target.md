@@ -31,15 +31,12 @@ Each target's census has to run where its C toolchain is: moq's dependencies `aw
 and `ring` compile C in their build scripts even for a check, so a Linux host without the
 NDK, Apple's SDK, or MSVC can census only itself.
 
-## Waiting
-
-- Maintainer: how a shared binding exports an item that some of its targets lack. (a)
-  Refuse it, at its span, naming the targets that differ, as the quest first recommended:
-  this refuses moq's `tokio::Error`, `tokio::listen::Config`, and `tokio::tls::Error` in
-  Kotlin, Dart, and Go, which moq can avoid only by changing its source. (b) Export the
-  union: a target that lacks an item raises the language's own error when it is called,
-  never produces a variant it lacks, and refuses a value holding a field it lacks; refuse at
-  compile time only an item whose shape differs between targets, such as a parameter's
-  type, at its span, naming both. (c) Ship a binding per target, which the JVM, Dart, and
-  Go cannot load side by side under one name. Recommendation: (b), since moq's error type
-  differs by target and rust2 asks moq for no source changes.
+Decided on 2026-11-10, taken unattended under the maintainer's standing instruction to
+take the recommended option, so it may be revisited: how a shared binding treats an item
+only some of its targets have. ✅ (b) export every target's items: on a target that lacks
+one, calling it raises the language's own error, and a value holding a field it lacks is
+refused; only an item whose signature differs between targets is refused at export, at its
+span, naming both. Rejected: (a) refuse such items, which would refuse moq's
+`tokio::Error`, `tokio::listen::Config`, and `tokio::tls::Error` in Kotlin, Dart, and Go
+and need moq source changes, against the 2026-11-09 rule that rust2 asks moq for none;
+(c) one binding per target, which the JVM, Dart, and Go cannot load under one name.
