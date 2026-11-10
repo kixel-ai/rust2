@@ -1,14 +1,12 @@
-# What `just bench` builds and how. Changing a rev, lock, or args is a corpus
+# What `just bench` builds and how. Changing a rev or args is a corpus
 # bump: land it on its own so numbers on either side of it are not compared.
 
 # `args` selects what each scenario builds. `leaf` and `hub` are the crate roots
 # the incremental scenarios edit: a crate nothing in the build depends on, and
 # one most of the build depends on. `sync` and `async` are the body edits: a file
 # and the line in it that opens the body of a sync or async function the build
-# calls; a corpus without one skips its scenario. `pure` fails the run if any
-# crate in the build has a build script or links native code; `no-c` allows
-# pure-Rust build scripts but fails on native links and on the cc and cmake
-# crates. `test` is what the test scenarios pass to `cargo nextest run`; a corpus
+# calls; a corpus without one skips its scenario. `no-c` allows pure-Rust
+# build scripts but fails on native links and on the cc and cmake crates. `test` is what the test scenarios pass to `cargo nextest run`; a corpus
 # without it skips them.
 
 [[corpus]]
@@ -43,27 +41,6 @@ test = [
     "--package=moq-tokio",
     "--package=qmux@0.7.0",
 ]
-
-[[corpus]]
-name = "regex"
-git = "https://github.com/rust-lang/regex"
-rev = "80b9d14e4be9f0b703a742d11c064abce05f210b"
-# The repository commits no lockfile, and its dev profile optimizes to speed
-# up its tests; build it at cargo's default debug opt-level instead.
-lock = "regex.Cargo.lock"
-args = ["-p", "regex", "--config", "profile.dev.opt-level=0"]
-leaf = "src/lib.rs"
-hub = "regex-syntax/src/lib.rs"
-pure = true
-
-[[corpus]]
-name = "wasmparser"
-git = "https://github.com/bytecodealliance/wasm-tools"
-rev = "8c7a8e6404d8f4612d975fa8943a796ecc18019c"
-# The default features minus serde, whose build script makes the graph impure.
-args = ["-p", "wasmparser", "--no-default-features", "--features", "std,validate,features,component-model,hash-collections,simd"]
-leaf = "crates/wasmparser/src/lib.rs"
-pure = true
 
 # Each variant is one build configuration. `base` names the variant it is
 # compared against; a variant without one is a base. `rustflags` replaces any

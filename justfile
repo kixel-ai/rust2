@@ -43,10 +43,6 @@ test $BASE="":
 bench *args:
     bench/build/run.sh {{ args }}
 
-# Measure moq's Nix release builds in CPU time, built each way; see bench/build/README.md.
-bench-nix *args:
-    bench/build/nix.sh {{ args }}
-
 # Measure what moq's binding wrappers add over Rust, against the UniFFI fork; see bench/ffi/README.md.
 bench-ffi *args:
     bench/ffi/run.sh {{ args }}
@@ -55,7 +51,7 @@ bench-ffi *args:
 fix:
     shfmt -w bench/*/*.sh sh/*.sh
     taplo format
-    nixfmt flake.nix bench/build/nix.nix
+    nixfmt flake.nix
     cargo fmt --all
     just ts fix
     just ffi fix
