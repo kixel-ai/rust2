@@ -24,5 +24,7 @@ Public API: none.
 
 - NixOS/nixpkgs: the latest `nixpkgs-unstable` carries Swift 6.4.0
   ([NixOS/nixpkgs#574002](https://github.com/NixOS/nixpkgs/pull/574002), merged to
-  `staging` on 2026-10-22, not in `nixpkgs-unstable` on 2026-11-07). Check that
+  `staging` on 2026-10-22 and to `master` on 2026-11-07 through
+  [NixOS/nixpkgs#580394](https://github.com/NixOS/nixpkgs/pull/580394), not in
+  `nixpkgs-unstable` on 2026-11-09). Check that
   `nix build --dry-run .#devShells.aarch64-linux.uniffi` succeeds after a bump.

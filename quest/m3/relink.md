@@ -8,7 +8,10 @@ variant on moq's edits.
 
 ## Plan
 
-It is the one upstream lever the moq-net edit leaves room for. The benchmark's
+It is the one upstream lever the moq-net edit leaves room for. The figures below are from
+moq before its poll-first rewrite: [#646](https://github.com/moq-dev/rust2/pull/646) has
+since moved the benchmark's pin past it, and numbers across a pin bump do not compare, so
+measure again before relying on them. The benchmark's
 attribution ([run](https://github.com/moq-dev/rust2/actions/runs/40093020939))
 puts 4.5 s of that edit's 6.95 s critical path in crates rebuilt only because
 moq-net changed, 0.6 s of it the final link that would remain. Cranelift and
