@@ -240,6 +240,21 @@ Future<void> script() async {
   print('borrowed ${lit.asStr()} ${lit.shares(api.Name.borrowed('lit'))} ${lit.shares(api.Name.borrowed('other'))}');
 
   print('total ${api.total(const api.RangeU64(2, 5))}');
+  print('reach ${api.reach(2, 5)}');
+  final scaled = [
+    api.scaled((BigInt.one << 128) - BigInt.one, 1),
+    api.scaled((BigInt.one << 64) + BigInt.one, 1 << 63),
+    api.scaled(BigInt.one << 127, 2),
+  ];
+  print('scaled ${scaled.map((v) => v?.toRadixString(16).padLeft(32, '0') ?? 'none').join(' ')}');
+  final batch = api.Batch(), batch2 = api.pair();
+  final accepted = [for (var v = 1; v <= 5; v++) batch.push(v)].where((p) => p).length;
+  final paired = [for (var v = 1; v <= 3; v++) batch2.push(v)].where((p) => p).length;
+  final emptied = api.drain4(batch);
+  print('batch ${batch.capacity()} $accepted $emptied ${api.drain4(batch)} ${batch2.capacity()} $paired ${api.drain2(batch2)}');
+  print('capacities ${api.capacities42(batch, batch2)} ${api.capacities22(batch2, batch2)}');
+  batch.close();
+  batch2.close();
   final wide = api.widen(const api.RangeU64(2, 5), 1);
   print('widen ${wide.start} ${wide.end}');
   final counts = [
@@ -329,6 +344,10 @@ Future<void> script() async {
   } on api.Error catch (e) {
     print('nonempty err $e');
   }
+  final fill4 = api.Batch(), fill2 = api.pair();
+  print('fill ${[...await api.fill4(fill4, 9), ...await api.fill2(fill2, 1)].join(' ')}');
+  fill4.close();
+  fill2.close();
   // The send happens at the call: the future is dropped unawaited.
   channel.sendLater(utf8.encode('eager'));
   print('recv ${text(await channel.recv())}');
@@ -922,6 +941,8 @@ void bounds() {
   throws<ArgumentError>(() => api.nextChar(String.fromCharCode(0xd800)), 'a low surrogate');
   throws<ArgumentError>(() => api.nextChar(String.fromCharCode(0xdfff)), 'a high surrogate');
   check(api.nextChar('\u{d7ff}') == null, 'the scalar before the surrogates');
+  throws<ArgumentError>(() => api.scaled(BigInt.one << 128, 1), 'an int past u128');
+  throws<ArgumentError>(() => api.scaled(-BigInt.one, 1), 'a negative int for a u128');
 
   // Dart's longest Duration is 9223372036854 seconds and 775807 microseconds.
   for (final us in [9223372036854000000, 9223372036854775806]) {

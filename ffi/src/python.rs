@@ -398,9 +398,10 @@ impl<'a> Gen<'a> {
 	fn py_ty(&self, ty: &Type) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "None".to_string(),
 			Type::Bool => "bool".to_string(),
-			Type::Int(_) => "int".to_string(),
+			Type::Int(_) | Type::U128 => "int".to_string(),
 			Type::F32 | Type::F64 => "float".to_string(),
 			Type::Char | Type::Str | Type::String | Type::Path | Type::PathBuf => "str".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => "memoryview".to_string(),
@@ -470,6 +471,7 @@ impl<'a> Gen<'a> {
 	fn lift(&mut self, ty: &Type, o: &str, m: &str) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Bool => format!("rt::bool_in({o})"),
 			Type::Int(int) => format!("rt::int_in::<{}>({o})", int.rust()),
 			Type::F32 => format!("rt::float_in({o}).map(|f| f as f32)"),
@@ -478,6 +480,7 @@ impl<'a> Gen<'a> {
 			Type::Str | Type::String => format!("rt::str_in({o})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("rt::bytes_in({o}, s)"),
 			Type::Path | Type::PathBuf => format!("rt::path_in({o}, s)"),
+			Type::U128 => format!("rt::u128_in({o})"),
 			Type::Duration => format!("rt::duration_in({o})"),
 			Type::SocketAddr(family) => format!("rt::addr_in({o}, {})", family_of(*family)),
 			Type::List(..) => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
@@ -533,6 +536,7 @@ impl<'a> Gen<'a> {
 	fn lower(&mut self, ty: &Type, v: &str) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "rt::none()".to_string(),
 			Type::Bool => format!("rt::bool_out({v})"),
 			Type::Int(int) if signed(*int) => format!("rt::int_out({v} as i64)"),
@@ -542,6 +546,7 @@ impl<'a> Gen<'a> {
 			Type::Str | Type::String => format!("rt::str_out({v})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("rt::bytes_out({v})"),
 			Type::Path | Type::PathBuf => format!("rt::path_out({v})"),
+			Type::U128 => format!("rt::u128_out({v})"),
 			Type::Duration => format!("rt::duration_out({v})"),
 			Type::SocketAddr(_) => format!("rt::addr_out({v})"),
 			Type::List(..) => format!("w_{}({v})", self.c_struct(ty)),

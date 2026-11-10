@@ -100,6 +100,7 @@ impl<'a> Header<'a> {
 	fn owned(&self, ty: &Type) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "void".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(int) => cpp_int(*int).to_string(),
@@ -109,6 +110,7 @@ impl<'a> Header<'a> {
 			Type::Str | Type::String | Type::Slice | Type::Vec | Type::Bytes | Type::Path | Type::PathBuf => {
 				format!("::{}::buf", self.ns)
 			}
+			Type::U128 => format!("::{}::u128", self.ns),
 			Type::Duration => format!("::{}::duration", self.ns),
 			Type::SocketAddr(_) => format!("::{}::socket_addr", self.ns),
 			Type::List(_, inner) => format!("::std::vector<{}>", self.owned(inner)),
@@ -247,10 +249,13 @@ impl<'a> Header<'a> {
 			return format!("{d}::access::raw(::{ns}::view({e}))");
 		}
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("static_cast<uint32_t>({e})"),
-			Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => e.to_string(),
+			Type::U128 | Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
+				e.to_string()
+			}
 			Type::Waker => format!("{d}::give({d}::access::raw({e}))"),
 			Type::List(_, inner) => {
 				let x = format!("x{}_", lists(inner));
@@ -311,7 +316,9 @@ impl<'a> Header<'a> {
 		match ty {
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("static_cast<char32_t>({e})"),
-			Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => e.to_string(),
+			Type::U128 | Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
+				e.to_string()
+			}
 			Type::List(_, inner) => {
 				let c = format!("c{}_", lists(inner));
 				format!(
@@ -426,6 +433,7 @@ impl<'a> Header<'a> {
 			upper = p.to_uppercase()
 		));
 		let mut aliases = vec![
+			("u128".to_string(), format!("{p}_u128")),
 			("duration".to_string(), format!("{p}_duration")),
 			("socket_addr".to_string(), format!("{p}_socket_addr")),
 		];
