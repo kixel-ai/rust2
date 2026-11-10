@@ -47,6 +47,7 @@ impl Api {
 			Type::Record(i) => self.rust(&self.records[*i].path, &self.records[*i].args),
 			Type::Enum(i) => self.rust(&self.enums[*i].path, &self.enums[*i].args),
 			Type::Object(i) => self.rust(&self.objects[*i].path, &self.objects[*i].args),
+			Type::Const(value) => value.to_string(),
 			other => unreachable!("no type argument is {other:?}"),
 		}
 	}
@@ -76,7 +77,7 @@ pub struct Record {
 	/// Its path with its instance's arguments, which the config names it by, such as
 	/// `moq_mux::catalog::Producer<moq_mux::catalog::hang::Extra>`.
 	pub shown: Path,
-	/// The type arguments of the instance it is, empty unless the type is generic.
+	/// The type and const arguments of the instance it is, empty unless the type is generic.
 	pub args: Vec<Type>,
 	pub span: Span,
 	pub docs: String,
@@ -187,6 +188,8 @@ pub struct Function {
 	pub docs: String,
 	pub receiver: Option<Receiver>,
 	pub params: Vec<Param>,
+	/// Where among Rust's parameters each `()` one sits, which C does not pass.
+	pub units: Vec<usize>,
 	/// What it returns, or for a future, what the future does.
 	pub ok: Type,
 	/// The error of a `Result` it returns: `String` for another crate's error, as its message.
@@ -215,12 +218,12 @@ pub struct Function {
 	pub home: Home,
 }
 
-/// An instance of a generic function or method, at one of the types a type parameter
-/// exports at.
+/// An instance of a generic function or method, at one of the arguments a type or const
+/// parameter exports at.
 pub struct Instance {
-	/// The arguments of its declared type parameters, which the call names, as Rust
-	/// cannot infer one no argument names; its argument infers an `impl Trait` one, and
-	/// one left `None`, which takes a lent closure or a foreign implementation.
+	/// The arguments of its declared type and const parameters, which the call names, as
+	/// Rust cannot infer one no argument names; its argument infers an `impl Trait` one,
+	/// and one left `None`, which takes a lent closure or a foreign implementation.
 	pub args: Vec<Option<Type>>,
 	/// The arguments that tell it from its other instances, which name it.
 	pub named: Vec<Type>,
@@ -294,9 +297,20 @@ pub struct Constant {
 	pub value: Literal,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Literal {
 	Bool(bool),
 	Int(Int, i128),
+}
+
+impl std::fmt::Display for Literal {
+	/// The value as Rust writes it.
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		match self {
+			Literal::Bool(b) => write!(f, "{b}"),
+			Literal::Int(_, v) => write!(f, "{v}"),
+		}
+	}
 }
 
 /// A type as the API uses it, in the exact form the Rust side takes or returns.
@@ -305,6 +319,8 @@ pub enum Type {
 	Unit,
 	Bool,
 	Int(Int),
+	/// `u128`, which C passes as its two `u64` halves.
+	U128,
 	F32,
 	F64,
 	Char,
@@ -351,6 +367,8 @@ pub enum Type {
 	Bounds(Int),
 	/// A tuple of one element or more.
 	Tuple(Vec<Type>),
+	/// A const argument of an instance, such as the `8` of `Buffer<8>`.
+	Const(Literal),
 }
 
 /// The Rust collection a [`Type::List`] is, which Rust builds from its items in order.

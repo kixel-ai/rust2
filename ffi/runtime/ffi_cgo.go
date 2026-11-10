@@ -1,5 +1,5 @@
 // What each generated package converts its C types with, which cgo makes its own, after
-// the generated code names the export's C types as cBuf, cWaker, cDuration, and cAddr, its
+// the generated code names the export's C types as cBuf, cWaker, cU128, cDuration, and cAddr, its
 // buffer's free as cBufFree, and the runtime's callbacks into Go as goCall and goRelease:
 // the arena a call lowers nested values into, values across the C ABI, and what a future
 // waits on.
@@ -103,6 +103,26 @@ func lentBytesOption_(buf cBuf) *[]byte {
 	}
 	b := lentBytes_(buf)
 	return &b
+}
+
+// lowerU128_ is a u128 as Rust holds it, from 0 through 2^128 - 1.
+func lowerU128_(v *big.Int) cU128 {
+	if v.Sign() < 0 || v.BitLen() > 128 {
+		panic("an int out of range for Rust's u128")
+	}
+	var b [16]byte
+	v.FillBytes(b[:])
+	var hi, lo uint64
+	for i := range 8 {
+		hi = hi<<8 | uint64(b[i])
+		lo = lo<<8 | uint64(b[8+i])
+	}
+	return cU128{lo: C.uint64_t(lo), hi: C.uint64_t(hi)}
+}
+
+func liftU128_(c cU128) *big.Int {
+	hi := new(big.Int).SetUint64(uint64(c.hi))
+	return hi.Lsh(hi, 64).Or(hi, new(big.Int).SetUint64(uint64(c.lo)))
 }
 
 // lowerDuration_ is a Duration as Rust holds it, which has no negative one.

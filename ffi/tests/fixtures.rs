@@ -1206,6 +1206,7 @@ fn relative_target() {
 	let text = std::fs::read_to_string(census.join("api-fixture.md")).unwrap();
 	for line in [
 		"- `Lease`: object no export returns",
+		"- `Void`: object no export returns",
 		"- `release`: type C never holds `Lease`",
 		"- `Unnamed`: generic type no export instantiates",
 	] {

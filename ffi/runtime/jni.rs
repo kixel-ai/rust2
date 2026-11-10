@@ -732,6 +732,17 @@ where
 	}
 }
 
+impl Wire for rt::U128 {
+	fn read(r: &mut Reader<'_>) -> Self {
+		Self { lo: r.get(), hi: r.get() }
+	}
+
+	fn write(self, w: &mut Writer) {
+		w.put(self.lo);
+		w.put(self.hi);
+	}
+}
+
 impl Wire for rt::Duration {
 	fn read(r: &mut Reader<'_>) -> Self {
 		Self {

@@ -68,6 +68,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\tstatic let file = \"{p}.swift\"\n\n\
 		\ttypealias Buf = {p}_buf\n\
 		\ttypealias CWaker = {p}_waker\n\
+		\ttypealias CU128 = {p}_u128\n\
 		\ttypealias CDuration = {p}_duration\n\
 		\ttypealias CAddr = {p}_socket_addr\n\n\
 		\tstatic func contract() -> Swift.Bool {{\n\t\t{p}_contract() == 0x{contract:016x} && {upper}_CONTRACT == 0x{contract:016x}\n\t}}\n\n\
@@ -117,6 +118,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 const TAKEN: &[&str] = &[
 	"Array",
 	"Bool",
+	"Comparable",
 	"CustomDebugStringConvertible",
 	"CustomStringConvertible",
 	"Data",
@@ -128,9 +130,11 @@ const TAKEN: &[&str] = &[
 	"OpaquePointer",
 	"Optional",
 	"Sendable",
+	"SocketAddr",
 	"StaticString",
 	"Swift",
 	"Task",
+	"U128",
 	"UInt",
 	"UInt16",
 	"UInt32",
@@ -228,6 +232,7 @@ impl<'a> Gen<'a> {
 	fn sw(&self, ty: &Type) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "Void".to_string(),
 			Type::Bool => "Swift.Bool".to_string(),
 			Type::Int(int) => sw_int(*int).to_string(),
@@ -236,6 +241,7 @@ impl<'a> Gen<'a> {
 			Type::Char => "Swift.Unicode.Scalar".to_string(),
 			Type::Str | Type::String | Type::Path | Type::PathBuf => "Swift.String".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => "Data".to_string(),
+			Type::U128 => "U128".to_string(),
 			Type::Duration => "Swift.Duration".to_string(),
 			Type::SocketAddr(_) => "SocketAddr".to_string(),
 			Type::List(_, inner) => format!("[{}]", self.sw(inner)),
@@ -272,6 +278,7 @@ impl<'a> Gen<'a> {
 			Ty::F64 => "Swift.Double".to_string(),
 			Ty::Char => "Swift.UInt32".to_string(),
 			Ty::Buf => abi.rt("buf"),
+			Ty::U128 => abi.rt("u128"),
 			Ty::Duration => abi.rt("duration"),
 			Ty::SocketAddr => abi.rt("socket_addr"),
 			Ty::Struct(n) | Ty::Enum(n) => n.clone(),
@@ -327,6 +334,7 @@ impl<'a> Gen<'a> {
 			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
 			Type::Int(int) => lower_int(*int, e),
 			Type::Char => format!("{e}.value"),
+			Type::U128 => format!("Native.u128({e})"),
 			Type::Duration => format!("Native.duration({e})"),
 			Type::SocketAddr(_) => format!("Native.socketAddr({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{e}._lower()"),
@@ -384,6 +392,7 @@ impl<'a> Gen<'a> {
 			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
 			Type::Int(int) => lift_int(*int, e),
 			Type::Char => format!("Native.scalar({e})"),
+			Type::U128 => format!("Native.u128({e})"),
 			Type::Duration => format!("Native.duration({e})"),
 			Type::SocketAddr(_) => format!("Native.socketAddr({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{}._lift({e})", self.sw(ty)),
@@ -1537,4 +1546,33 @@ fn indent(code: &str) -> String {
 		out.pop();
 	}
 	out
+}
+
+#[cfg(test)]
+mod tests {
+	use super::{RUNTIME, TAKEN};
+
+	/// Each type the runtime declares at its top level, and each protocol one conforms to,
+	/// is a name no export may take, as either would clash with or shadow it.
+	#[test]
+	fn runtime_names_taken() {
+		for line in RUNTIME.lines() {
+			let Some(decl) = [
+				"public struct ",
+				"public final class ",
+				"public enum ",
+				"public protocol ",
+			]
+			.iter()
+			.find_map(|kind| line.strip_prefix(kind)) else {
+				continue;
+			};
+			let decl = decl.trim_end_matches('{').trim();
+			let (name, conforms) = decl.split_once(':').unwrap_or((decl, ""));
+			let names = std::iter::once(name).chain(conforms.split(','));
+			for name in names.map(str::trim).filter(|n| !n.is_empty() && !n.starts_with('@')) {
+				assert!(TAKEN.contains(&name), "the runtime's `{name}` is not in TAKEN");
+			}
+		}
+	}
 }

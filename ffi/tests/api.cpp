@@ -357,6 +357,32 @@ int script() {
 	}
 
 	std::printf("total %llu\n", ull(api::total({2, 5})));
+	std::printf("reach %u\n", unsigned(api::reach(2, 5)));
+	std::printf("scaled");
+	for (auto v : {api::scaled({UINT64_MAX, UINT64_MAX}, 1), api::scaled({1, 1}, 1ULL << 63), api::scaled({0, 1ULL << 63}, 2)}) {
+		if (v) {
+			std::printf(" %016llx%016llx", ull(v->hi), ull(v->lo));
+		} else {
+			std::printf(" none");
+		}
+	}
+	std::printf("\n");
+	{
+		auto batch = api::Batch::new_();
+		unsigned accepted = 0;
+		for (std::uint32_t v = 1; v <= 5; v++) {
+			accepted += batch.push(v);
+		}
+		auto batch2 = api::pair();
+		unsigned paired = 0;
+		for (std::uint32_t v = 1; v <= 3; v++) {
+			paired += batch2.push(v);
+		}
+		auto emptied = api::drain_4(batch);
+		std::printf("batch %zu %u %llu %llu %zu %u %llu\n", batch.capacity(), accepted, ull(emptied), ull(api::drain_4(batch)),
+			batch2.capacity(), paired, ull(api::drain_2(batch2)));
+		std::printf("capacities %zu %zu\n", api::capacities_4_2(batch, batch2), api::capacities_2_2(batch2, batch2));
+	}
 	api::range_u64 wide = api::widen({2, 5}, 1);
 	std::printf("widen %llu %llu\n", ull(wide.start), ull(wide.end));
 	api::bounds_u64 ranges[] = {
@@ -469,6 +495,22 @@ int script() {
 				}
 			} else {
 				std::printf("nonempty pending\n");
+			}
+		}
+		{
+			auto fill4 = api::Batch::new_();
+			auto fill2 = api::pair();
+			auto filled4 = api::fill_4(fill4, 9).poll(waker);
+			auto filled2 = api::fill_2(fill2, 1).poll(waker);
+			if (filled4 && filled2) {
+				std::printf("fill");
+				for (auto v : *filled4) {
+					std::printf(" %u", unsigned(v));
+				}
+				for (auto v : *filled2) {
+					std::printf(" %u", unsigned(v));
+				}
+				std::printf("\n");
 			}
 		}
 

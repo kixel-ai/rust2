@@ -20,6 +20,38 @@ public struct SocketAddr: Hashable, Sendable {
 	}
 }
 
+/// A Rust `u128`, as its two halves, until the deployment target allows Swift's `UInt128`.
+public struct U128: Hashable, Comparable, Sendable, CustomStringConvertible {
+	public var high: UInt64
+	public var low: UInt64
+
+	public init(high: UInt64, low: UInt64) {
+		self.high = high
+		self.low = low
+	}
+
+	public init(_ value: UInt64) {
+		self.init(high: 0, low: value)
+	}
+
+	public static func < (a: U128, b: U128) -> Bool {
+		(a.high, a.low) < (b.high, b.low)
+	}
+
+	/// Its decimal digits.
+	public var description: Swift.String {
+		if high == 0 {
+			return Swift.String(low)
+		}
+		// Split off the last 19 digits, as 10^19 is the largest power of ten a UInt64 holds.
+		let base: UInt64 = 10_000_000_000_000_000_000
+		let (q, r) = high.quotientAndRemainder(dividingBy: base)
+		let (lowQ, digits) = base.dividingFullWidth((r, low))
+		let tail = Swift.String(digits)
+		return U128(high: q, low: lowQ).description + Swift.String(repeating: "0", count: 19 - tail.count) + tail
+	}
+}
+
 extension Native {
 	/// Checked before any other call: a Swift file and a library from different builds
 	/// must not mix.
@@ -180,6 +212,14 @@ extension Native {
 		// Past Int64's seconds, as Rust's may be, in halves.
 		let half = Swift.Duration.seconds(Int64(value.secs >> 1))
 		return half * 2 + .seconds(Int64(value.secs & 1)) + .nanoseconds(Int64(value.nanos))
+	}
+
+	static func u128(_ value: U128) -> CU128 {
+		CU128(lo: value.low, hi: value.high)
+	}
+
+	static func u128(_ value: CU128) -> U128 {
+		U128(high: value.hi, low: value.lo)
 	}
 
 	static func socketAddr(_ addr: SocketAddr) -> CAddr {

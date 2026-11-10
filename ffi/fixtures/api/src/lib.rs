@@ -480,6 +480,63 @@ pub fn total(range: Range<u64>) -> u64 {
 	range.sum()
 }
 
+/// How far `start` reaches to `end`, past a `()` C does not pass.
+pub fn reach(start: u32, _: (), end: u32) -> u32 {
+	end - start
+}
+
+/// `v` times `by`, unless past `u128::MAX`.
+pub fn scaled(v: u128, by: u64) -> Option<u128> {
+	v.checked_mul(by.into())
+}
+
+/// Up to `N` numbers, as moq's `frame::Buffer` holds up to `N` frames: a const parameter
+/// with a default, which exports at it and at each other value a signature names.
+pub struct Batch<const N: usize = 4>(Vec<u32>);
+
+impl<const N: usize> Batch<N> {
+	/// An empty batch.
+	pub fn new() -> Self {
+		Self(Vec::new())
+	}
+
+	/// Append `v`, unless the batch already holds `N`.
+	pub fn push(&mut self, v: u32) -> bool {
+		let room = self.0.len() < N;
+		if room {
+			self.0.push(v);
+		}
+		room
+	}
+
+	/// How many numbers it holds at most.
+	pub fn capacity(&self) -> usize {
+		N
+	}
+}
+
+/// A batch of two, an instance at a const argument other than the default.
+pub fn pair() -> Batch<2> {
+	Batch::new()
+}
+
+/// The sum of a batch's numbers, draining it: a const parameter at each instance's value.
+pub fn drain<const N: usize>(batch: &mut Batch<N>) -> u64 {
+	batch.0.drain(..).map(u64::from).sum()
+}
+
+/// Both batches' capacities: two const parameters, each at every instance's value.
+pub fn capacities<const N: usize, const M: usize>(a: &Batch<N>, b: &Batch<M>) -> usize {
+	a.capacity() + b.capacity()
+}
+
+/// Fill a batch with `v` until it holds `N`, lending what it holds: a future whose result
+/// borrows a parameter, as moq's `group::Consumer::read_frames` does.
+pub async fn fill<const N: usize>(batch: &mut Batch<N>, v: u32) -> &mut [u32] {
+	while batch.push(v) {}
+	&mut batch.0
+}
+
 /// A range, widened by `by` at each end.
 pub fn widen(range: Range<u64>, by: u64) -> Range<u64> {
 	range.start.saturating_sub(by)..range.end + by
@@ -641,8 +698,8 @@ impl Channel {
 	}
 
 	/// Wakes the context's task on the next send, as `notify` wakes its waker: C passes the
-	/// waker the context is made of.
-	pub fn listen(&self, cx: &Context<'_>) {
+	/// waker the context is made of, and nothing for the `()` before it.
+	pub fn listen(&self, _: (), cx: &Context<'_>) {
 		self.state.lock().unwrap().1 = Some(cx.waker().clone());
 	}
 
@@ -1109,6 +1166,10 @@ impl Cursor {
 pub fn walk(steps: u64, mut visit: impl FnMut(&Cursor) -> u64) -> u64 {
 	(0..steps).map(|at| visit(&Cursor { at })).sum()
 }
+
+/// An enum without variants: no value is one, so C never holds one, as an object no export
+/// returns, and the bindings leave it out.
+pub enum Void {}
 
 /// An object no export returns but its own method, so C never holds one: left out of the
 /// bindings, with what takes it, and listed in the census.

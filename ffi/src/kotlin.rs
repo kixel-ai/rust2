@@ -373,6 +373,7 @@ impl<'a> Gen<'a> {
 	fn kt(&mut self, ty: &Type) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "Unit".to_string(),
 			Type::Bool => "Boolean".to_string(),
 			Type::Int(int) => kt_int(*int).to_string(),
@@ -382,6 +383,7 @@ impl<'a> Gen<'a> {
 			Type::Str | Type::String => "String".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => "Bytes".to_string(),
 			Type::Path | Type::PathBuf => "String".to_string(),
+			Type::U128 => "java.math.BigInteger".to_string(),
 			Type::Duration => "kotlin.time.Duration".to_string(),
 			Type::SocketAddr(_) => "java.net.InetSocketAddress".to_string(),
 			Type::List(_, inner) => format!("kotlin.collections.List<{}>", self.kt(inner)),
@@ -435,6 +437,7 @@ impl<'a> Gen<'a> {
 			Type::Char => format!("{w}.i32({e})"),
 			Type::Str | Type::String | Type::Path | Type::PathBuf => format!("{w}.string({e})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("{w}.bytes({e})"),
+			Type::U128 => format!("{w}.u128({e})"),
 			Type::Duration => format!("{w}.duration({e})"),
 			Type::SocketAddr(Family::Any) => format!("{w}.socketAddr({e})"),
 			Type::SocketAddr(Family::V4) => format!("{w}.socketAddrV4({e})"),
@@ -501,6 +504,7 @@ impl<'a> Gen<'a> {
 			Type::Path | Type::PathBuf => format!("{r}.path()!!"),
 			Type::Slice | Type::Vec | Type::Bytes if owned => format!("{r}.owned()!!"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("{r}.bytes()!!"),
+			Type::U128 => format!("{r}.u128()"),
 			Type::Duration => format!("{r}.duration()"),
 			Type::SocketAddr(_) => format!("{r}.socketAddr()"),
 			Type::List(_, inner) => {
@@ -655,7 +659,7 @@ impl<'a> Gen<'a> {
 					"crate::{name} {{ vtable: &VTABLE_{name}, data: rt::global(env, {p}) }}"
 				));
 			}
-			Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => {
+			Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => {
 				let w = self.fresh("w");
 				// Taken by value, each object in a list moves out, as one passed alone does.
 				if moved(abi, ty) {
@@ -1974,7 +1978,7 @@ fn jni_type(c: &Ty, ty: &Type) -> (&'static str, &'static str) {
 		Ty::Handle { .. } | Ty::Future(_) => ("jlong", "Long"),
 		Ty::Buf => ("jbyteArray", "ByteArray?"),
 		Ty::Struct(_) if matches!(ty.base(), Type::Callback(..)) => ("jobject", "Any"),
-		Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => ("jbyteArray", "ByteArray"),
+		Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => ("jbyteArray", "ByteArray"),
 		Ty::Fn(..) => ("jobject", "Any"),
 		Ty::Waker => ("jobject", "Waker"),
 		Ty::Poll | Ty::Out(_) | Ty::Data => unreachable!("{c:?} never crosses JNI"),
@@ -2043,6 +2047,7 @@ pub(crate) fn rust_c(abi: &Abi<'_>, c: &Ty) -> String {
 		Ty::Char => "u32".to_string(),
 		Ty::Enum(_) => "i32".to_string(),
 		Ty::Buf => "crate::rt::Buf".to_string(),
+		Ty::U128 => "crate::rt::U128".to_string(),
 		Ty::Duration => "crate::rt::Duration".to_string(),
 		Ty::SocketAddr => "crate::rt::SocketAddr".to_string(),
 		Ty::Struct(name) => format!("crate::{name}"),
