@@ -460,6 +460,16 @@ func script() {
 	fmt.Printf("polar %d %t area %d\n", polar.Distance, api.NewPolarPoint(0) == nil, api.Area(dep.Size{Width: 2, Height: 3}))
 	// Two types whose paths join alike, the second kept apart where its path splits.
 	fmt.Printf("wind %d\n", api.Wind(api.PolarTurn{Whole: 2}, api.Polar_Turn{Part: 3}))
+	// Names that clash in some language, each kept apart there.
+	clashSpan := api.ClashSpan{Width: 4}
+	clashStore := api.NewClashStore(7)
+	clashPair := rt.Tuple2[rt.Tuple2[uint8, uint16], uint32]{V0: rt.Tuple2[uint8, uint16]{V0: 1, V1: 2}, V1: 3}
+	clashTriple := rt.Tuple3[uint8, uint16, uint32]{V0: 1, V1: 2, V2: 3}
+	fmt.Printf("clash %s %s %s span %d %s %s store %d %d audio %d %d nested %d\n",
+		api.ClashTone{Hz: 440}.GoString(), api.ClashTone_{Db: 3}.GoString(), api.Cancelled{Step: 2}.GoString(),
+		clashSpan.Width_(), clashSpan.ToString(), clashSpan.String(), must(clashStore.Free()), must(clashStore.Close_()),
+		api.ClashAudioEncoderFinish(), api.ClashAudioEncoderFinish_(), api.ClashNested(&clashPair, &clashTriple))
+	clashStore.Close()
 	// Instances that name each other, and one made only by an impl of it.
 	crossed := api.Cross(api.LeftRightU8{Value: api.RightU8{Value: 1}}, api.RightLeftU8{Value: api.LeftU8{Value: 2}})
 	fmt.Printf("cross %d outer %d\n", crossed, must(api.NewOuterInnerU8(4).Get()))

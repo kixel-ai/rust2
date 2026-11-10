@@ -1913,3 +1913,94 @@ pub fn refuse(reason: &str) -> Result<u32, Box<Refusal>> {
 		reason: reason.to_string(),
 	}))
 }
+
+/// A cancellation at a step, named as a class Dart's runtime declares: Dart's name takes a
+/// trailing `_`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Cancelled {
+	pub step: u8,
+}
+
+/// Items whose names clash in some language, each kept apart there and only there.
+pub mod clash {
+	/// A pitch in hertz, whose name Pascal case cannot tell from `TONE`'s.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Tone {
+		pub hz: u16,
+	}
+
+	/// A loudness in decibels, named as `Tone` but for case.
+	#[allow(non_camel_case_types)]
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct TONE {
+		pub db: u8,
+	}
+
+	/// A span `width` wide: its method `width`, which Swift, Go, and Dart cannot name as the
+	/// field, and its own `to_string`, which C cannot name as `Display`'s.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Span {
+		pub width: u32,
+	}
+
+	impl Span {
+		/// Twice the width.
+		pub fn width(&self) -> u32 {
+			self.width * 2
+		}
+
+		/// The width in words.
+		#[allow(clippy::inherent_to_string_shadow_display)]
+		pub fn to_string(&self) -> String {
+			format!("{} wide", self.width)
+		}
+	}
+
+	impl std::fmt::Display for Span {
+		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+			write!(f, "{}", self.width)
+		}
+	}
+
+	/// A count, whose methods are named as what C and some languages give every handle.
+	pub struct Store {
+		count: u32,
+	}
+
+	impl Store {
+		pub fn new(count: u32) -> Store {
+			Store { count }
+		}
+
+		/// The count, named as the C function freeing the handle.
+		pub fn free(&self) -> u32 {
+			self.count
+		}
+
+		/// The count plus one, named as the method closing the handle.
+		pub fn close(&self) -> u32 {
+			self.count + 1
+		}
+	}
+
+	pub mod audio {
+		/// One, named in C as `audio_encoder::finish` is but for where the paths split.
+		pub fn encoder_finish() -> u8 {
+			1
+		}
+	}
+
+	pub mod audio_encoder {
+		/// Two.
+		pub fn finish() -> u8 {
+			2
+		}
+	}
+
+	/// The sum of both tuples, whose C names run their elements together alike.
+	pub fn nested(a: Option<((u8, u16), u32)>, b: Option<((u8, u16, u32),)>) -> u32 {
+		let a = a.map_or(0, |((x, y), z)| u32::from(x) + u32::from(y) + z);
+		let b = b.map_or(0, |((x, y, z),)| u32::from(x) + u32::from(y) + z);
+		a + b
+	}
+}

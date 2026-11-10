@@ -6,9 +6,11 @@
 //! field's getter and setter add `_get` and `_set` to it. Case keeps a type apart from a
 //! function or module of its name, and Rust's verb-first names keep a method apart from a
 //! field's accessors. Joining still loses where segments split (`audio_encoder::finish`
-//! and `audio::encoder_finish` are both `moq_audio_encoder_finish`), so every name is
-//! registered, and a second item claiming one is a compile error at both spans rather
-//! than a silent clash.
+//! and `audio::encoder_finish` both join as `moq_audio_encoder_finish`), so every name is
+//! registered, and items whose own names clash each keep a doubled `_` at every split after
+//! the leading segments they share: `moq_audio_encoder__finish` and `moq_audio__encoder_finish`.
+//! An item whose name or a name made from it still clashes, as with the runtime's or a
+//! type's `_free`, takes a trailing `_`. Only the names that clash change.
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -16,8 +18,38 @@ use rustc_span::Span;
 
 use crate::ir::{Access, Api, Dyn, Function, Home, Int, Receiver, Type};
 
-/// A C name claimed twice: the name, then what claimed it first and second.
+/// A C name one item claims twice, which no rename can tell apart: the name, then what
+/// claimed it first and second.
 pub type Clash = (String, (String, Span), (String, Span));
+
+/// What a C name names, which a clash renames: a type, a function by its address in the
+/// API, a constant by its path, or a tuple by its elements.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+enum Item {
+	Record(usize),
+	Enum(usize),
+	Object(usize),
+	Callback(usize),
+	Function(usize),
+	Constant(Vec<String>),
+	Tuple(Vec<Type>),
+}
+
+/// The item a claimed name belongs to: its own C name, and the segments that name joins
+/// when the claimed name is that one rather than one made from it.
+struct Owner {
+	item: Item,
+	base: String,
+	segments: Option<Vec<String>>,
+}
+
+/// A C name claimed, by what, and the item a clash renames, or none for the runtime's.
+struct Claim {
+	name: String,
+	what: String,
+	span: Span,
+	owner: Option<Owner>,
+}
 
 /// A C type, as a parameter, field, or return value takes it.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -71,6 +103,9 @@ pub struct Sig {
 pub struct Export {
 	/// The function itself: for a future, the call that makes it.
 	pub call: Sig,
+	/// The C name its path gives it, which another language names it by, as a clash in C
+	/// renames only C's.
+	pub named: String,
 	/// For a future: its handle type, its poll, and its free.
 	pub future: Option<(String, Sig, Sig)>,
 }
@@ -104,9 +139,11 @@ pub struct Abi<'a> {
 	pub lists: BTreeMap<String, Type>,
 	/// Each tuple struct by C name, with its elements.
 	pub tuples: BTreeMap<String, Vec<Type>>,
-	/// Every C name claimed, with what claimed it.
-	names: HashMap<String, (String, Span)>,
-	/// Each name claimed twice.
+	/// Every C name claimed.
+	claims: Vec<Claim>,
+	/// The C name of each item whose own clashed.
+	renames: HashMap<Item, String>,
+	/// Each name one item claims twice.
 	pub clashes: Vec<Clash>,
 }
 
@@ -120,11 +157,96 @@ impl<'a> Abi<'a> {
 			ranges: BTreeMap::new(),
 			lists: BTreeMap::new(),
 			tuples: BTreeMap::new(),
-			names: HashMap::new(),
+			claims: Vec::new(),
+			renames: HashMap::new(),
 			clashes: Vec::new(),
 		};
-		abi.claim_all();
+		// Each round renames what clashed, until a round finds nothing more to rename.
+		loop {
+			abi.claims.clear();
+			abi.claim_all();
+			if !abi.rename() {
+				break;
+			}
+		}
+		abi.clashes = abi.residue();
 		abi
+	}
+
+	/// The C name of `item`, renamed if its own clashed, else `name`.
+	fn renamed(&self, item: Item, name: impl FnOnce() -> String) -> String {
+		self.renames.get(&item).cloned().unwrap_or_else(name)
+	}
+
+	/// The claims of each name claimed more than once.
+	fn groups(&self) -> BTreeMap<&str, Vec<&Claim>> {
+		let mut groups: BTreeMap<&str, Vec<&Claim>> = BTreeMap::new();
+		for claim in &self.claims {
+			groups.entry(&claim.name).or_default().push(claim);
+		}
+		groups.retain(|_, claims| claims.len() > 1);
+		groups
+	}
+
+	/// Rename the items whose names clash, returning whether any was. The runtime's names
+	/// come first, then names made from an item, then items' own, each by what claims it:
+	/// the first keeps the name. Items whose own names alone clash take [`split`] names,
+	/// and where that changes none, every later one takes a trailing `_`.
+	fn rename(&mut self) -> bool {
+		let mut renames: HashMap<Item, String> = HashMap::new();
+		for group in self.groups().into_values() {
+			let mut group = group;
+			let rank = |claim: &Claim| match &claim.owner {
+				None => 0,
+				Some(Owner { segments: None, .. }) => 1,
+				Some(_) => 2,
+			};
+			group.sort_by(|a, b| (rank(a), &a.what).cmp(&(rank(b), &b.what)));
+			let own: Option<Vec<(&Owner, &[String])>> = (group.iter())
+				.map(|claim| {
+					let owner = claim.owner.as_ref()?;
+					Some((owner, owner.segments.as_deref()?))
+				})
+				.collect();
+			if let Some(own) = own {
+				let names = split(own.iter().map(|(_, segments)| *segments));
+				let mut changed = false;
+				for ((owner, _), name) in own.iter().zip(names) {
+					if name != owner.base {
+						renames.entry(owner.item.clone()).or_insert(name);
+						changed = true;
+					}
+				}
+				if changed {
+					continue;
+				}
+			}
+			let first = group[0].owner.as_ref().map(|owner| &owner.item);
+			for claim in &group[1..] {
+				// A name an item claims twice, no rename of it tells apart.
+				if let Some(owner) = claim.owner.as_ref().filter(|owner| Some(&owner.item) != first) {
+					renames.entry(owner.item.clone()).or_insert(format!("{}_", owner.base));
+				}
+			}
+		}
+		let renamed = !renames.is_empty();
+		self.renames.extend(renames);
+		renamed
+	}
+
+	/// Each name still claimed twice once renaming is done: one item's, twice.
+	fn residue(&self) -> Vec<Clash> {
+		let mut clashes = Vec::new();
+		for (name, group) in self.groups() {
+			for claim in &group[1..] {
+				clashes.push((
+					name.to_string(),
+					(group[0].what.clone(), group[0].span),
+					(claim.what.clone(), claim.span),
+				));
+			}
+		}
+		clashes
 	}
 
 	/// The C name for a Rust path, which starts with the facade's root.
@@ -145,22 +267,48 @@ impl<'a> Abi<'a> {
 
 	/// A constant's name for a path: the name in upper case.
 	pub fn constant(&self, path: &[String]) -> String {
-		self.name(path).to_uppercase()
+		self.renamed(Item::Constant(path.to_vec()), || self.name(path).to_uppercase())
 	}
 
 	pub fn record(&self, i: usize) -> String {
-		let item = &self.api.records[i];
-		self.type_instance(&item.path, &item.shown, &item.args)
+		self.renamed(Item::Record(i), || self.unrenamed(&Item::Record(i)))
 	}
 
 	pub fn enumeration(&self, i: usize) -> String {
-		let item = &self.api.enums[i];
-		self.type_instance(&item.path, &item.shown, &item.args)
+		self.renamed(Item::Enum(i), || self.unrenamed(&Item::Enum(i)))
 	}
 
 	pub fn object(&self, i: usize) -> String {
-		let item = &self.api.objects[i];
-		self.type_instance(&item.path, &item.shown, &item.args)
+		self.renamed(Item::Object(i), || self.unrenamed(&Item::Object(i)))
+	}
+
+	/// The C name of the type `item` as no clash renames it.
+	fn unrenamed(&self, item: &Item) -> String {
+		let api = self.api;
+		match *item {
+			Item::Record(i) => self.type_instance(&api.records[i].path, &api.records[i].shown, &api.records[i].args),
+			Item::Enum(i) => self.type_instance(&api.enums[i].path, &api.enums[i].shown, &api.enums[i].args),
+			Item::Object(i) => self.type_instance(&api.objects[i].path, &api.objects[i].shown, &api.objects[i].args),
+			Item::Callback(i) => self.name(&api.callbacks[i].path),
+			ref other => unreachable!("{other:?} is no type"),
+		}
+	}
+
+	/// The segments the unrenamed C name of the type `item` joins after the prefix: its
+	/// path's, then an instance's suffix.
+	fn type_segments(&self, item: &Item) -> Vec<String> {
+		let api = self.api;
+		let shown = match *item {
+			Item::Record(i) => &api.records[i].shown,
+			Item::Enum(i) => &api.enums[i].shown,
+			Item::Object(i) => &api.objects[i].shown,
+			Item::Callback(i) => &api.callbacks[i].path,
+			ref other => unreachable!("{other:?} is no type"),
+		};
+		let mut segments = self.segments(shown);
+		let name = self.unrenamed(item);
+		segments.extend(name[self.name(shown).len()..].strip_prefix('_').map(str::to_string));
+		segments
 	}
 
 	/// The C name of the instance of the type at `path` at `args`, shown as `shown`, among
@@ -229,6 +377,12 @@ impl<'a> Abi<'a> {
 	/// A function's C name: a method's through its type's, then each argument of the
 	/// instance it is. A field's getter adds `_get`, and its setter `_set`.
 	fn function_name(&self, function: &Function, owner: Option<&Ty>) -> String {
+		// An item of the API it is, which outlives this, so its address names it.
+		let item = Item::Function(function as *const Function as usize);
+		self.renamed(item, || self.unrenamed_function(function, owner))
+	}
+
+	fn unrenamed_function(&self, function: &Function, owner: Option<&Ty>) -> String {
 		let owner = match owner {
 			Some(Ty::Struct(owner) | Ty::Enum(owner) | Ty::Handle { name: owner, .. }) => Some(owner.as_str()),
 			_ => None,
@@ -261,30 +415,29 @@ impl<'a> Abi<'a> {
 	}
 
 	pub fn callback(&self, i: usize) -> String {
-		self.name(&self.api.callbacks[i].path)
+		self.renamed(Item::Callback(i), || self.unrenamed(&Item::Callback(i)))
 	}
 
 	/// Each exported type's name in Pascal case, by its C name, kept [`apart`] from those
-	/// beside it: `scope` gives the scope a type's [`Home`] puts it in, and how many leading
-	/// segments of its path its name there leaves out.
-	pub fn classes(&self, scope: impl Fn(&Home) -> (String, usize)) -> HashMap<String, String> {
+	/// beside it and [`unique`] among them and the language's `taken` names: `scope` gives
+	/// the scope a type's [`Home`] puts it in, and how many leading segments of its path its
+	/// name there leaves out.
+	pub fn classes(&self, scope: impl Fn(&Home) -> (String, usize), taken: impl Fn(&str) -> bool) -> HashMap<String, String> {
 		let api = self.api;
-		let records = (0..api.records.len()).map(|i| (self.record(i), &api.records[i].shown, &api.records[i].home));
-		let enums = (0..api.enums.len()).map(|i| (self.enumeration(i), &api.enums[i].shown, &api.enums[i].home));
-		let objects = (0..api.objects.len()).map(|i| (self.object(i), &api.objects[i].shown, &api.objects[i].home));
-		let callbacks =
-			(0..api.callbacks.len()).map(|i| (self.callback(i), &api.callbacks[i].path, &api.callbacks[i].home));
+		let records = (0..api.records.len()).map(|i| (Item::Record(i), &api.records[i].home));
+		let enums = (0..api.enums.len()).map(|i| (Item::Enum(i), &api.enums[i].home));
+		let objects = (0..api.objects.len()).map(|i| (Item::Object(i), &api.objects[i].home));
+		let callbacks = (0..api.callbacks.len()).map(|i| (Item::Callback(i), &api.callbacks[i].home));
 		let mut scopes: BTreeMap<String, Vec<(String, Vec<String>, usize)>> = BTreeMap::new();
-		for (c, shown, home) in records.chain(enums).chain(objects).chain(callbacks) {
+		for (item, home) in records.chain(enums).chain(objects).chain(callbacks) {
 			let (scope, outside) = scope(home);
-			// An instance's suffix, after its generic type's name, is one more segment.
-			let suffix = c[self.name(shown).len()..].strip_prefix('_').map(str::to_string);
-			let mut segments = self.segments(shown);
-			segments.extend(suffix);
+			// Named as Rust's path is, whatever C's clashes rename.
+			let segments = self.type_segments(&item);
+			let c = self.renamed(item.clone(), || self.unrenamed(&item));
 			scopes.entry(scope).or_default().push((c, segments, outside));
 		}
 		(scopes.into_values())
-			.flat_map(|types| {
+			.flat_map(move |types| {
 				// Names still shared once `apart` has split what it can keep the segment before
 				// them, a module of their own, so each of `connect::Config` and `listen::Config`
 				// keeps its module. Only the names a clash would refuse change.
@@ -311,7 +464,17 @@ impl<'a> Abi<'a> {
 						break names;
 					}
 				};
-				types.into_iter().map(|(c, _, _)| c).zip(names)
+				// Those still alike, as segments apart only by case are, the one Rust names in
+				// Pascal case first, then by C name.
+				let mut named: Vec<(bool, String, String)> = (types.into_iter().zip(names))
+					.map(|((c, segments, _), name)| {
+						let last = segments.last().map_or("", String::as_str);
+						(pascal(last) != last, c, name)
+					})
+					.collect();
+				named.sort();
+				let (cs, names): (Vec<String>, Vec<String>) = named.into_iter().map(|(_, c, name)| (c, name)).unzip();
+				cs.into_iter().zip(unique(names, &taken))
 			})
 			.collect()
 	}
@@ -333,7 +496,10 @@ impl<'a> Abi<'a> {
 
 	/// The C name of a tuple's struct: `<prefix>_tuple_string_u64`.
 	pub fn tuple(&self, elements: &[Type]) -> String {
-		format!("{}_{}", self.prefix, self.key(&Type::Tuple(elements.to_vec())))
+		self.renamed(Item::Tuple(elements.iter().map(owned).collect()), || {
+			let keys: Vec<String> = elements.iter().map(|e| self.key(e)).collect();
+			format!("{}_tuple_{}", self.prefix, keys.join("_"))
+		})
 	}
 
 	/// The C name of a range, bound, or pair of bounds struct: `<prefix>_range_u64`.
@@ -358,10 +524,7 @@ impl<'a> Abi<'a> {
 			Type::SocketAddr(_) => "socket_addr".to_string(),
 			Type::Option(inner) => format!("option_{}", self.key(inner)),
 			Type::List(_, inner) => format!("vec_{}", self.key(inner)),
-			Type::Tuple(elements) => {
-				let keys: Vec<String> = elements.iter().map(|e| self.key(e)).collect();
-				format!("tuple_{}", keys.join("_"))
-			}
+			Type::Tuple(elements) => strip(self.tuple(elements)),
 			Type::Record(i) => strip(self.record(*i)),
 			Type::Enum(i) => strip(self.enumeration(*i)),
 			Type::Object(i) => strip(self.object(*i)),
@@ -453,6 +616,7 @@ impl<'a> Abi<'a> {
 	/// The C signature of `function`, a method of the type named `owner` if it has one.
 	pub fn export(&self, function: &Function, owner: Option<&Ty>) -> Export {
 		let name = self.function_name(function, owner);
+		let named = self.unrenamed_function(function, owner);
 		let mut params = Vec::new();
 		if let (Some(receiver), Some(owner)) = (function.receiver, owner) {
 			let ty = match owner {
@@ -535,6 +699,7 @@ impl<'a> Abi<'a> {
 					ret: Ty::Future(handle.clone()),
 				},
 				future: Some((handle, poll, free)),
+				named,
 			};
 		}
 		let ret = match (&function.err, &function.ok) {
@@ -551,15 +716,47 @@ impl<'a> Abi<'a> {
 		Export {
 			call: Sig { name, params, ret },
 			future: None,
+			named,
 		}
 	}
 
-	fn claim(&mut self, name: String, what: String, span: Span) {
-		match self.names.get(&name) {
-			Some(first) => self.clashes.push((name, first.clone(), (what, span))),
-			None => {
-				self.names.insert(name, (what, span));
-			}
+	fn claim(&mut self, name: String, what: String, span: Span, owner: Option<Owner>) {
+		self.claims.push(Claim { name, what, span, owner });
+	}
+
+	/// The owner of a name made from `item`, whose own C name is `base`.
+	fn made(item: &Item, base: &str) -> Option<Owner> {
+		Some(Owner {
+			item: item.clone(),
+			base: base.to_string(),
+			segments: None,
+		})
+	}
+
+	/// The owner of `item`'s own C name, `base`, which joins the prefix and `segments`
+	/// unless a rename already changed it.
+	fn own(&self, item: &Item, base: &str, segments: Vec<String>) -> Option<Owner> {
+		let prefix = match base.starts_with(&self.prefix) {
+			true => self.prefix.clone(),
+			false => self.prefix.to_uppercase(),
+		};
+		let segments: Vec<String> = std::iter::once(prefix).chain(segments).collect();
+		Some(Owner {
+			item: item.clone(),
+			base: base.to_string(),
+			segments: (segments.join("_") == base).then_some(segments),
+		})
+	}
+
+	/// The item a name made from `ty` belongs to, with its own C name: a type's, or a tuple's.
+	fn item_of(&self, ty: &Type) -> Option<(Item, String)> {
+		match ty {
+			Type::Record(i) => Some((Item::Record(*i), self.record(*i))),
+			Type::Enum(i) => Some((Item::Enum(*i), self.enumeration(*i))),
+			Type::Object(i) => Some((Item::Object(*i), self.object(*i))),
+			Type::Tuple(elements) => Some((Item::Tuple(elements.iter().map(owned).collect()), self.tuple(elements))),
+			Type::Ref(_, inner) | Type::Box(inner) => self.item_of(inner),
+			_ => None,
 		}
 	}
 
@@ -596,24 +793,29 @@ impl<'a> Abi<'a> {
 			"atomic_exchange",
 			"atomic_cas",
 		] {
-			self.claim(self.rt(runtime), "the runtime".to_string(), crate_span);
+			self.claim(self.rt(runtime), "the runtime".to_string(), crate_span, None);
 		}
 		for constant in ["CONTRACT", "POLL_PENDING", "POLL_READY", "POLL_ERROR", "ATOMICS_H"] {
 			let name = format!("{}_{constant}", self.prefix.to_uppercase());
-			self.claim(name, "the runtime".to_string(), crate_span);
+			self.claim(name, "the runtime".to_string(), crate_span, None);
 		}
 		let mut types: Vec<&Type> = Vec::new();
-		let mut functions: Vec<(&Function, Option<Ty>)> = Vec::new();
+		// Each function, with its type's C name and segments if it is a method.
+		let mut functions: Vec<(&Function, Option<Ty>, Vec<String>)> = Vec::new();
 		for (i, record) in api.records.iter().enumerate() {
+			let item = Item::Record(i);
 			let name = self.record(i);
+			let segments = self.type_segments(&item);
 			let what = format!("struct `{}`", api.rust(&record.path, &record.args));
-			self.claim_traits(&name, &what, record.span, record.traits, true);
-			self.claim(name.clone(), what, record.span);
+			self.claim_traits(&item, &name, &what, record.span, record.traits, true);
+			self.claim(name.clone(), what, record.span, self.own(&item, &name, segments.clone()));
 			types.extend(record.fields.iter().map(|f| &f.ty));
-			functions.extend(record.methods.iter().map(|m| (m, Some(Ty::Struct(name.clone())))));
+			functions.extend(record.methods.iter().map(|m| (m, Some(Ty::Struct(name.clone())), segments.clone())));
 		}
 		for (i, e) in api.enums.iter().enumerate() {
+			let item = Item::Enum(i);
 			let name = self.enumeration(i);
+			let segments = self.type_segments(&item);
 			let what = format!("enum `{}`", api.rust(&e.path, &e.args));
 			let upper = name.to_uppercase();
 			for variant in &e.variants {
@@ -621,61 +823,83 @@ impl<'a> Abi<'a> {
 					format!("{upper}_{}", snake(&variant.name).to_uppercase()),
 					what.clone(),
 					e.span,
+					Self::made(&item, &name),
 				);
 				types.extend(variant.fields.iter().map(|f| &f.ty));
 			}
 			let plain = e.plain();
 			if !plain {
-				self.claim(format!("{name}_tag"), what.clone(), e.span);
+				self.claim(format!("{name}_tag"), what.clone(), e.span, Self::made(&item, &name));
 				// Each variant's payload, which C++ names even when it has no fields.
 				for variant in &e.variants {
-					self.claim(payload(&name, &variant.name), what.clone(), e.span);
+					self.claim(payload(&name, &variant.name), what.clone(), e.span, Self::made(&item, &name));
 				}
 			}
-			self.claim_traits(&name, &what, e.span, e.traits, !plain);
-			self.claim(name.clone(), what, e.span);
+			self.claim_traits(&item, &name, &what, e.span, e.traits, !plain);
+			self.claim(name.clone(), what, e.span, self.own(&item, &name, segments.clone()));
 			let owner = match plain {
 				true => Ty::Enum(name.clone()),
 				false => Ty::Struct(name.clone()),
 			};
-			functions.extend(e.methods.iter().map(|m| (m, Some(owner.clone()))));
+			functions.extend(e.methods.iter().map(|m| (m, Some(owner.clone()), segments.clone())));
 		}
 		for (i, object) in api.objects.iter().enumerate() {
+			let item = Item::Object(i);
 			let name = self.object(i);
+			let segments = self.type_segments(&item);
 			let what = format!("type `{}`", api.rust(&object.path, &object.args));
-			self.claim(format!("{name}_free"), what.clone(), object.span);
+			self.claim(format!("{name}_free"), what.clone(), object.span, Self::made(&item, &name));
 			if object.shared {
-				self.claim(format!("{name}_borrowed"), what.clone(), object.span);
+				self.claim(format!("{name}_borrowed"), what.clone(), object.span, Self::made(&item, &name));
 			}
-			self.claim_traits(&name, &what, object.span, object.traits, false);
-			self.claim(name.clone(), what, object.span);
+			self.claim_traits(&item, &name, &what, object.span, object.traits, false);
+			self.claim(name.clone(), what, object.span, self.own(&item, &name, segments.clone()));
 			let owner = Ty::Handle { name, constant: false };
-			functions.extend(object.methods.iter().map(|m| (m, Some(owner.clone()))));
+			functions.extend(object.methods.iter().map(|m| (m, Some(owner.clone()), segments.clone())));
 		}
 		for (i, callback) in api.callbacks.iter().enumerate() {
+			let item = Item::Callback(i);
 			let name = self.callback(i);
+			let segments = self.type_segments(&item);
 			let what = format!("trait `{}`", callback.path.join("::"));
-			self.claim(format!("{name}_vtable"), what.clone(), callback.span);
-			self.claim(name, what, callback.span);
+			self.claim(format!("{name}_vtable"), what.clone(), callback.span, Self::made(&item, &name));
+			self.claim(name.clone(), what, callback.span, self.own(&item, &name, segments));
 			for method in &callback.methods {
 				types.extend(method.params.iter().map(|p| &p.ty));
 				types.push(&method.ok);
 				types.extend(&method.err);
 			}
 		}
-		functions.extend(api.functions.iter().map(|f| (f, None)));
-		for (function, owner) in functions {
+		functions.extend(api.functions.iter().map(|f| (f, None, Vec::new())));
+		for (function, owner, mut segments) in functions {
+			let item = Item::Function(function as *const Function as usize);
 			let export = self.export(function, owner.as_ref());
+			let name = export.call.name.clone();
 			let what = match function.access {
 				Access::Field { set: false, .. } => format!("field `{}`", function.path.join("::")),
 				Access::Field { set: true, .. } => format!("setter of field `{}`", function.path.join("::")),
 				_ => format!("fn `{}`", function.path.join("::")),
 			};
-			self.claim(export.call.name.clone(), what.clone(), function.span);
+			// Its own segments: its type's then its name's, or its path's, then a field's
+			// accessor and an instance's suffix.
+			match owner {
+				Some(_) => segments.push(function.name().to_string()),
+				None => segments = self.segments(&function.shown),
+			}
+			match function.access {
+				Access::Field { set: false, .. } => segments.push("get".to_string()),
+				Access::Field { set: true, .. } => segments.push("set".to_string()),
+				_ => {}
+			}
+			let unrenamed = self.unrenamed_function(function, owner.as_ref());
+			let joined = format!("{}_{}", self.prefix, segments.join("_"));
+			segments.extend(unrenamed.strip_prefix(&joined).and_then(|s| s.strip_prefix('_')).map(str::to_string));
+			let own = self.own(&item, &name, segments);
+			self.claim(name.clone(), what.clone(), function.span, own);
 			if let Some((handle, poll, free)) = &export.future {
-				self.claim(handle.clone(), what.clone(), function.span);
-				self.claim(poll.name.clone(), what.clone(), function.span);
-				self.claim(free.name.clone(), what.clone(), function.span);
+				for made in [handle, &poll.name, &free.name] {
+					self.claim(made.clone(), what.clone(), function.span, Self::made(&item, &name));
+				}
 			}
 			types.extend(function.params.iter().map(|p| &p.ty));
 			// A tuple returned whole is written element by element, with no struct of its own.
@@ -686,11 +910,12 @@ impl<'a> Abi<'a> {
 			types.extend(&function.err);
 		}
 		for constant in &api.constants {
-			self.claim(
-				self.constant(&constant.path),
-				format!("const `{}`", constant.path.join("::")),
-				constant.span,
-			);
+			let item = Item::Constant(constant.path.clone());
+			let name = self.constant(&constant.path);
+			let segments: Vec<String> = self.segments(&constant.path).iter().map(|s| s.to_uppercase()).collect();
+			let own = self.own(&item, &name, segments);
+			let what = format!("const `{}`", constant.path.join("::"));
+			self.claim(name, what, constant.span, own);
 		}
 		let mut options = BTreeMap::new();
 		let mut ranges = BTreeMap::new();
@@ -741,23 +966,24 @@ impl<'a> Abi<'a> {
 				_ => {}
 			}
 		}
-		for name in options.keys() {
-			self.claim(name.clone(), "an option".to_string(), crate_span);
+		for (name, inner) in &options {
+			let owner = self.item_of(inner).and_then(|(item, base)| Self::made(&item, &base));
+			self.claim(name.clone(), "an option".to_string(), crate_span, owner);
 		}
 		for name in ranges.keys() {
-			self.claim(name.clone(), "a range".to_string(), crate_span);
+			self.claim(name.clone(), "a range".to_string(), crate_span, None);
 		}
-		for (name, elements) in &tuples {
-			let what = format!("tuple `{}`", self.spell(&Type::Tuple(elements.clone())));
-			self.claim(name.clone(), what, crate_span);
+		for (name, elements) in tuples.iter().chain(mixed.iter().map(|(name, elements)| (name, elements))) {
+			let ty = Type::Tuple(elements.clone());
+			let what = format!("tuple `{}`", self.spell(&ty));
+			let owner = self.item_of(&ty).and_then(|(item, base)| Self::made(&item, &base));
+			self.claim(name.clone(), what, crate_span, owner);
 		}
-		for (name, elements) in mixed {
-			let what = format!("tuple `{}`", self.spell(&Type::Tuple(elements)));
-			self.claim(name, what, crate_span);
-		}
-		for name in lists.keys() {
-			self.claim(name.clone(), "a Vec".to_string(), crate_span);
-			self.claim(format!("{name}_free"), "a Vec".to_string(), crate_span);
+		for (name, inner) in &lists {
+			let item = self.item_of(inner);
+			let owner = || item.as_ref().and_then(|(item, base)| Self::made(item, base));
+			self.claim(name.clone(), "a Vec".to_string(), crate_span, owner());
+			self.claim(format!("{name}_free"), "a Vec".to_string(), crate_span, owner());
 		}
 		if ranges.values().any(|ty| matches!(ty, Type::Bound(_))) {
 			let bound = self.rt("bound");
@@ -766,7 +992,7 @@ impl<'a> Abi<'a> {
 					"" => bound.clone(),
 					kind => format!("{}{kind}", bound.to_uppercase()),
 				};
-				self.claim(name, "a bound".to_string(), crate_span);
+				self.claim(name, "a bound".to_string(), crate_span, None);
 			}
 		}
 		self.options = options;
@@ -776,8 +1002,9 @@ impl<'a> Abi<'a> {
 	}
 
 	/// Claim the functions a type's std traits export.
-	fn claim_traits(&mut self, name: &str, what: &str, span: Span, traits: crate::ir::Traits, owned: bool) {
-		let mut claim = |suffix: &str| self.claim(format!("{name}_{suffix}"), what.to_string(), span);
+	fn claim_traits(&mut self, item: &Item, name: &str, what: &str, span: Span, traits: crate::ir::Traits, owned: bool) {
+		let mut claim =
+			|suffix: &str| self.claim(format!("{name}_{suffix}"), what.to_string(), span, Self::made(item, name));
 		if traits.clone && !owned {
 			claim("clone");
 		}
@@ -834,6 +1061,27 @@ fn shortest(group: &[Vec<Vec<String>>]) -> Vec<String> {
 			lens[a][j] += 1;
 		}
 	}
+}
+
+/// The C name of each item by its segments, whose names join alike: the segments joined
+/// by `_`, with a doubled `_` at every split after the leading segments they all share,
+/// so one whose rest is a single segment keeps its name.
+fn split<'s>(items: impl IntoIterator<Item = &'s [String]>) -> Vec<String> {
+	let items: Vec<&[String]> = items.into_iter().collect();
+	let first = items[0];
+	let shared = (0..first.len())
+		.take_while(|&k| items.iter().all(|segments| segments.get(k) == Some(&first[k])))
+		.count();
+	(items.iter())
+		.map(|segments| {
+			let rest = segments[shared..].join("__");
+			let shared = segments[..shared].join("_");
+			match (shared.is_empty(), rest.is_empty()) {
+				(false, false) => format!("{shared}_{rest}"),
+				_ => shared + &rest,
+			}
+		})
+		.collect()
 }
 
 /// Each name in Pascal case of items by their paths' segments: the segments joined, but
@@ -907,6 +1155,33 @@ pub fn snake(name: &str) -> String {
 		}
 	}
 	out
+}
+
+/// The name `what` takes in a scope whose names so far are `names`: `name`, with a trailing
+/// `_` until neither `taken` nor an earlier item names it.
+pub fn claim(names: &mut BTreeMap<String, String>, taken: impl Fn(&str) -> bool, name: &str, what: String) -> String {
+	let mut free = name.to_string();
+	while taken(&free) || names.contains_key(&free) {
+		free.push('_');
+	}
+	names.insert(free.clone(), what);
+	free
+}
+
+/// Names made distinct from each other and from what `taken` names: one taken, or an
+/// earlier one's, takes a trailing `_` until it is neither, never becoming another's own.
+pub fn unique(names: Vec<String>, taken: impl Fn(&str) -> bool) -> Vec<String> {
+	let mut used = std::collections::BTreeSet::new();
+	(names.iter())
+		.map(|name| {
+			let mut unique = name.clone();
+			while taken(&unique) || used.contains(&unique) || (unique != *name && names.contains(&unique)) {
+				unique.push('_');
+			}
+			used.insert(unique.clone());
+			unique
+		})
+		.collect()
 }
 
 /// A language's names of parameters made distinct where Rust's differ only in what its
@@ -1055,7 +1330,7 @@ pub fn dyn_wrap(form: Dyn, expr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::{apart, shortest};
+	use super::{apart, shortest, split, unique};
 
 	/// Each item's [`apart`] name, by its path's segments.
 	fn names(items: &[&[&str]]) -> Vec<String> {
@@ -1084,6 +1359,32 @@ mod tests {
 			names(&[&["connect", "X"], &["Connect", "X"]]),
 			["Connect_X", "Connect_X"]
 		);
+	}
+
+	#[test]
+	fn splits_c_names_where_paths_differ() {
+		let items = |items: &[&[&str]]| -> Vec<Vec<String>> {
+			(items.iter())
+				.map(|segments| segments.iter().map(|s| s.to_string()).collect())
+				.collect()
+		};
+		let names = |items: &[Vec<String>]| split(items.iter().map(Vec::as_slice));
+		// Each keeps a doubled `_` at every split past the segments they share.
+		let both = items(&[&["moq", "audio", "encoder_finish"], &["moq", "audio_encoder", "finish"]]);
+		assert_eq!(names(&both), ["moq_audio__encoder_finish", "moq_audio_encoder__finish"]);
+		// One whose rest is a single segment keeps its name.
+		let one = items(&[&["moq", "audio_encoder_finish"], &["moq", "audio", "encoder_finish"]]);
+		assert_eq!(names(&one), ["moq_audio_encoder_finish", "moq_audio__encoder_finish"]);
+	}
+
+	#[test]
+	fn unique_keeps_names_their_own() {
+		let names = |names: &[&str], taken: &[&str]| {
+			unique(names.iter().map(|n| n.to_string()).collect(), |n| taken.contains(&n))
+		};
+		// A later alike one, or one taken, takes a `_`, past any that is another's own.
+		assert_eq!(names(&["A", "A", "A_"], &[]), ["A", "A__", "A_"]);
+		assert_eq!(names(&["String", "B"], &["String"]), ["String_", "B"]);
 	}
 
 	/// Each instance's arguments, each by its path's segments, whose forms are their

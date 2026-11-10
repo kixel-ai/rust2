@@ -662,6 +662,24 @@ static int script(void) {
 	printf("polar %u %s area %llu\n", api_polar_point(2).value.distance, api_polar_point(0).some ? "false" : "true",
 	       (unsigned long long)api_area((api_Size){.width = 2, .height = 3}));
 	printf("wind %u\n", api_wind((api_PolarTurn){.whole = 2}, (api_polar_Turn){.part = 3}));
+	/* Names that clash in some language, each kept apart there. */
+	api_clash_Tone tone = {.hz = 440};
+	api_clash_TONE loud = {.db = 3};
+	api_Cancelled cancelled = {.step = 2};
+	print("clash ", api_clash_Tone_debug(&tone), " ");
+	print("", api_clash_TONE_debug(&loud), " ");
+	print("", api_Cancelled_debug(&cancelled), "");
+	api_clash_Span clash_span = {.width = 4};
+	printf(" span %u ", api_clash_Span_width(&clash_span));
+	print("", api_clash_Span_to_string_(&clash_span), " ");
+	print("", api_clash_Span_to_string(&clash_span), "");
+	api_clash_Store *clash_store = api_clash_Store_new(7);
+	printf(" store %u %u", api_clash_Store_free_(clash_store), api_clash_Store_close(clash_store));
+	api_clash_Store_free(clash_store);
+	api_option_tuple_tuple_u8_u16_u32 clash_pair = {.some = true, .value = {._0 = {._0 = 1, ._1 = 2}, ._1 = 3}};
+	api_option_tuple_tuple_u8_u16_u32_ clash_triple = {.some = true, .value = {._0 = {._0 = 1, ._1 = 2, ._2 = 3}}};
+	printf(" audio %u %u nested %u\n", api_clash_audio__encoder_finish(), api_clash_audio_encoder__finish(),
+	       api_clash_nested(clash_pair, clash_triple));
 	/* Instances that name each other, and one made only by an impl of it. */
 	api_Outer_Inner_u8 *outer = api_Outer_Inner_u8_new(4);
 	printf("cross %u outer %u\n",

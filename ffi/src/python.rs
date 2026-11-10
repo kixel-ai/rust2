@@ -90,7 +90,9 @@ const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume"];
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
 		abi,
-		classes: abi.classes(|_| (String::new(), 0)),
+		classes: abi.classes(|_| (String::new(), 0), |name| {
+			TAKEN.contains(&name) || abi.ranges.keys().any(|c| pascal(&c[abi.prefix.len() + 1..]) == name)
+		}),
 		py: String::new(),
 		top: String::new(),
 		consts: Vec::new(),
@@ -102,11 +104,15 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		index: BTreeMap::new(),
 		keys: BTreeSet::new(),
 		exceptions: BTreeMap::new(),
+		thrown: HashMap::new(),
 		names: BTreeMap::new(),
 		errors: Vec::new(),
 	};
 	for name in TAKEN {
 		g.names.insert(name.to_string(), "the runtime".to_string());
+	}
+	for name in g.classes.values() {
+		g.names.insert(name.clone(), "a type".to_string());
 	}
 	g.write();
 	if !g.errors.is_empty() {
@@ -331,6 +337,8 @@ struct Gen<'a> {
 	keys: BTreeSet<String>,
 	/// The exception class of each error type, by name.
 	exceptions: BTreeMap<String, Type>,
+	/// Each exception class's name, by the name it would take but for a clash.
+	thrown: HashMap<String, String>,
 	/// Each module-level Python name, with what claimed it.
 	names: BTreeMap<String, String>,
 	errors: Vec<String>,
@@ -347,21 +355,9 @@ impl<'a> Gen<'a> {
 		self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c)))
 	}
 
-	/// Claim the module-level Python name `name` for `what`.
-	fn claim(&mut self, name: &str, what: String) {
-		if let Some(first) = self.names.insert(name.to_string(), what.clone()) {
-			let clash = match first.as_str() {
-				"the runtime" => format!(
-					"{what} is `{}.{name}` in Python, which its runtime names: rename it in the source or exclude it in the config",
-					self.abi.prefix
-				),
-				_ => format!(
-					"{first} and {what} are both `{}.{name}` in Python: rename one in the source or exclude it in the config",
-					self.abi.prefix
-				),
-			};
-			self.errors.push(clash);
-		}
+	/// The module-level Python name `what` takes, `name` unless that is taken.
+	fn claim(&mut self, name: &str, what: String) -> String {
+		abi::claim(&mut self.names, |_| false, name, what)
 	}
 
 	/// Register the class the Python expression `py` names under `key`, returning the
@@ -614,7 +610,7 @@ impl<'a> Gen<'a> {
 		}
 		for constant in &api.constants {
 			let name = self.bare(&abi.name(&constant.path)).to_uppercase();
-			self.claim(&name, format!("const `{}`", constant.path.join("::")));
+			let name = self.claim(&name, format!("const `{}`", constant.path.join("::")));
 			let value = match constant.value {
 				Literal::Bool(true) => "True".to_string(),
 				Literal::Bool(false) => "False".to_string(),
@@ -708,7 +704,6 @@ impl<'a> Gen<'a> {
 			}
 			other => unreachable!("{other:?} is no range"),
 		};
-		self.claim(&name, format!("`{c}`"));
 		self.register(c, name.clone());
 		let _ = write!(self.py, "@_dataclass(slots=True)\nclass {name}:\n{fields}\n\n");
 		let _ = write!(
@@ -866,16 +861,17 @@ impl<'a> Gen<'a> {
 		reserved: &[&str],
 		body: &mut Body,
 	) {
-		let reserved: Vec<&str> = reserved
-			.iter()
-			.copied()
-			.chain(data.iter().map(String::as_str))
-			.collect();
 		for method in methods {
 			let place = match method.receiver {
 				Some(_) => Place::Member,
 				None => Place::Static,
 			};
+			// A name its data or an earlier member takes, its own takes a trailing `_` against.
+			let earlier: Vec<String> = body.codes().filter_map(|code| member_name(code)).collect();
+			let reserved: Vec<&str> = (reserved.iter().copied())
+				.chain(data.iter().map(String::as_str))
+				.chain(earlier.iter().map(String::as_str))
+				.collect();
 			match self.function(method, Some(owner), Some((ty, &reserved)), place) {
 				Some(Form::Native(code, binding)) => {
 					body.native.push(indent_by(&code, 1));
@@ -894,7 +890,7 @@ impl<'a> Gen<'a> {
 		for name in data.iter().cloned().chain(codes.filter_map(|code| member_name(code))) {
 			if !seen.insert(name.clone()) {
 				self.errors.push(format!(
-					"two members of `{rust}` are both `{name}` in Python: rename one in the source or exclude it in the config"
+					"two members of `{rust}` are both `{name}` in Python, which rust2-ffi should keep apart"
 				));
 			}
 		}
@@ -906,7 +902,6 @@ impl<'a> Gen<'a> {
 		let c = abi.record(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&record.path, &record.args);
-		self.claim(&name, format!("struct `{rust}`"));
 		let t = self.register(&c, name.clone());
 		let ty = Type::Record(i);
 		let mut body = Body::default();
@@ -968,7 +963,6 @@ impl<'a> Gen<'a> {
 		let c = abi.enumeration(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&e.path, &e.args);
-		self.claim(&name, format!("enum `{rust}`"));
 		let t = self.register(&c, name.clone());
 		let ty = Type::Enum(i);
 		let mut body = Body::default();
@@ -1081,7 +1075,6 @@ impl<'a> Gen<'a> {
 		let c = abi.object(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&object.path, &object.args);
-		self.claim(&name, format!("type `{rust}`"));
 		self.register(&c, name.clone());
 		let ty = Type::Object(i);
 		let mut body = Body {
@@ -1112,7 +1105,6 @@ impl<'a> Gen<'a> {
 		let c = abi.callback(i);
 		let name = self.class(&c);
 		let rust = callback.path.join("::");
-		self.claim(&name, format!("trait `{rust}`"));
 		self.register(&c, name.clone());
 		let mut body = Vec::new();
 		let mut table = vec!["free: Some(rt::free_callback)".to_string()];
@@ -1303,12 +1295,20 @@ impl<'a> Gen<'a> {
 			_ => None,
 		};
 		let own = match &owner_c {
-			Some(o) => c_name.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_')),
+			Some(o) => export.named.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_')),
 			None => None,
 		};
 		let reserved = owner_ty.map_or(&[][..], |(_, r)| r);
-		let snake = own.unwrap_or(&bare);
+		// Named as Rust's path is, whatever C's clashes rename.
+		let named = self.bare(&export.named).to_string();
+		let snake = own.unwrap_or(&named);
 		let member = member(&abi::snake(snake), reserved);
+		let constant = function.access == Access::Const && function.params.is_empty() && place != Place::Member;
+		let member = match (place, constant) {
+			(Place::Top, true) => self.claim(&member.to_uppercase(), format!("const `{}`", function.path.join("::"))),
+			(Place::Top, false) => self.claim(&member, format!("fn `{}`", function.path.join("::"))),
+			_ => member,
+		};
 
 		// The glue: each argument read, the call, and its value lowered.
 		let mut stmts = Vec::new();
@@ -1391,11 +1391,16 @@ impl<'a> Gen<'a> {
 				Type::Str | Type::String => "StringException".to_string(),
 				_ => format!("{}Exception", pascal_type(&py)),
 			};
-			if !self.exceptions.contains_key(&name) {
-				self.claim(&name, format!("the exception of `{py}`"));
-				self.exceptions.insert(name.clone(), e.clone());
-				self.register(&format!("exc_{name}"), name.clone());
-			}
+			let name = match self.thrown.get(&name) {
+				Some(thrown) => thrown.clone(),
+				None => {
+					let thrown = self.claim(&name, format!("the exception of `{py}`"));
+					self.thrown.insert(name, thrown.clone());
+					self.exceptions.insert(thrown.clone(), e.clone());
+					self.register(&format!("exc_{thrown}"), thrown.clone());
+					thrown
+				}
+			};
 			self.t(&format!("exc_{name}"))
 		});
 		if let Some((_, poll, free)) = &export.future {
@@ -1443,7 +1448,6 @@ impl<'a> Gen<'a> {
 			}
 		}
 		let body = stmts.join("\n\t\t");
-		let constant = function.access == Access::Const && function.params.is_empty() && place != Place::Member;
 		// An `async def` stays Python's, as callers may need a coroutine.
 		let direct = !constant && (export.future.is_none() || function.eager);
 		let property = matches!(function.access, Access::Field { set: false, .. }) && place == Place::Member;
@@ -1485,8 +1489,7 @@ impl<'a> Gen<'a> {
 		};
 		let code = match (function.access, place) {
 			(Access::Const, Place::Top) if constant => {
-				let name = member.to_uppercase();
-				self.claim(&name, format!("const `{}`", function.path.join("::")));
+				let name = member.clone();
 				self.consts.push(Const {
 					name,
 					bare,
@@ -1513,9 +1516,6 @@ impl<'a> Gen<'a> {
 			(_, Place::Static) => format!("@_staticmethod\n{code}"),
 			_ => code,
 		};
-		if place == Place::Top {
-			self.claim(&member, format!("fn `{}`", function.path.join("::")));
-		}
 		Some(match (direct, place) {
 			(true, Place::Top) => Form::Native(code, Some(format!("{member} = _n.{member}\n"))),
 			(true, _) => Form::Native(code, None),
@@ -1615,13 +1615,17 @@ fn kw(name: &str) -> String {
 	}
 }
 
-/// A member's Python name: its snake-case name, with `_` appended if a keyword or one
-/// Python gives every such class.
+/// A member's Python name: its snake-case name, with `_` appended if a keyword, and until
+/// it is none of `reserved`, such as one Python gives every such class.
 fn member(snake: &str, reserved: &[&str]) -> String {
-	match reserved.contains(&snake) {
-		true => format!("{snake}_"),
-		false => kw(snake),
+	if !reserved.contains(&snake) {
+		return kw(snake);
 	}
+	let mut name = format!("{snake}_");
+	while reserved.contains(&name.as_str()) {
+		name.push('_');
+	}
+	name
 }
 
 /// A field's Python name: a positional one's is `_0`, `_1`, ...
