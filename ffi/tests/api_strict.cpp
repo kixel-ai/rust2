@@ -53,5 +53,9 @@ void broken() {
 	std::string_view text = api::Counter::new_("c", 0).name().str();
 	(void)name;
 	(void)text;
+#elif CASE == 8
+	// An object lent from a temporary receiver, which is freed at the semicolon.
+	api::Meter first = api::Meters::new_().first();
+	(void)first;
 #endif
 }

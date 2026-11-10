@@ -304,6 +304,7 @@ fn cpp_strict(api: &Api) {
 		(5, "'this' argument to member function 'into_label' is an lvalue"),
 		(6, "no matching member function for call to 'emplace'"),
 		(7, "temporary whose address is used as value of local variable 'name'"),
+		(8, "temporary whose address is used as value of local variable 'first'"),
 	] {
 		let output = clang(&tests.join("api_strict.cpp"), case).output().unwrap();
 		assert!(!output.status.success(), "case {case} built");

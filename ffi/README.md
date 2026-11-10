@@ -237,7 +237,10 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   to an object is C++'s own undefined behavior. Under Clang with `-Wconsumed`, such a call
   on a local is a compile error: each class carries Clang's typestate attributes, behind
   macros other compilers see as empty. The abort stays for a move Clang cannot see, as
-  through a reference.
+  through a reference. Under `-Wdangling`, a view of a temporary `buf`, and an object
+  lent from a temporary receiver, are compile errors through `[[clang::lifetimebound]]`.
+  No export keeps a view or reference past its call, so none carries
+  `[[clang::lifetime_capture_by]]`; the first that does adds it.
 - **Sharing** stands in for `clone` where no call can tell the two apart but by counting
   an `Arc`'s or `Rc`'s clones, which the exporter decides at compile time. A type's copies share when it is `Clone`; `Sync`,
   since one that is not is borrowed on one thread at a time, which copies on two threads
