@@ -525,6 +525,21 @@ fn type_name(class: *mut PyObject) -> String {
 	}
 }
 
+/// The value the `Mut` `obj` holds, which a call takes `&mut`, kept for the call.
+pub fn mut_value(obj: *mut PyObject, s: &mut Scope) -> R<*mut PyObject> {
+	attr(obj, &VALUE, s)
+}
+
+/// Write `value`, what a call left in a value it took `&mut`, back into the `Mut` `obj`.
+pub fn set_mut(obj: *mut PyObject, value: R<Obj>) -> R<()> {
+	let value = value?;
+	// SAFETY: the GIL is held, and `obj` and `value` are live.
+	match unsafe { PyObject_SetAttr(obj, VALUE.get()?, value.ptr()) } {
+		0 => Ok(()),
+		_ => Err(Raised),
+	}
+}
+
 /// The attribute `key` of `obj`, kept for the call.
 pub fn attr(obj: *mut PyObject, key: &Key, s: &mut Scope) -> R<*mut PyObject> {
 	// SAFETY: the GIL is held, and `obj` is live.

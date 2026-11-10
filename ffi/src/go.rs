@@ -1953,6 +1953,14 @@ impl<'a> Gen<'a> {
 				c_params.next().expect("a closure has its data");
 			}
 			let name = name.clone();
+			// A value passed for `&mut`: the call reads it and writes back what it left.
+			if param.ty.written() {
+				let inner = param.ty.base();
+				params.push((name.clone(), format!("*{}", self.go(inner))));
+				arena |= self.arena(inner);
+				args.push(self.lower(inner, &format!("(*{name})")));
+				continue;
+			}
 			params.push((name.clone(), self.go_param(&param.ty)));
 			if moved(abi, &param.ty) {
 				after.push(self.close(&param.ty, &name, 0));
@@ -2068,8 +2076,48 @@ impl<'a> Gen<'a> {
 			}
 			let mut call_args = args.clone();
 			call_args.extend(outs.iter().map(|(n, _)| format!("&c_{n}_")));
-			let call = format!("C.{c_name}({})", call_args.join(", "));
+			let mut call = format!("C.{c_name}({})", call_args.join(", "));
+			// Each value passed for `&mut` takes what Rust wrote back, on every path.
+			let writes: Vec<String> = (function.params.iter().zip(&names))
+				.filter(|(param, _)| param.ty.written())
+				.map(|(param, name)| {
+					let out = Abi::written(function, &abi::escape(&param.name));
+					format!("*{name} = {}", self.lift(param.ty.base(), &format!("c_{out}_")))
+				})
+				.collect();
+			if !writes.is_empty() {
+				let made = match &err {
+					Some(_) => {
+						body.push(format!("ok_ := {call}"));
+						"ok_".to_string()
+					}
+					// A value C returns, beside what Rust wrote back, is the out the result
+					// lifts from.
+					None if !matches!(export.call.ret, Ty::Void) => {
+						body.push(format!("c_out_ := {call}"));
+						String::new()
+					}
+					None => {
+						body.push(call);
+						String::new()
+					}
+				};
+				body.extend(writes);
+				call = made;
+			}
 			match (&err, oks.is_empty()) {
+				(None, false) if call.is_empty() => {
+					let mut values: Vec<String> = (oks.iter().enumerate())
+						.map(|(k, ty)| {
+							let out = out_name(&function.ok, k);
+							self.lift(ty, &out)
+						})
+						.collect();
+					if closable {
+						values.push("nil".to_string());
+					}
+					body.push(format!("return {}", values.join(", ")));
+				}
 				(Some(err), _) => {
 					let mut values: Vec<String> = Vec::new();
 					for (k, ty) in oks.iter().enumerate() {
@@ -2083,7 +2131,9 @@ impl<'a> Gen<'a> {
 					body.push(format!("return {}", zeros.join(", ")));
 				}
 				(None, true) => {
-					body.push(call);
+					if !call.is_empty() {
+						body.push(call);
+					}
 					if closable {
 						body.push("return nil".to_string());
 					}

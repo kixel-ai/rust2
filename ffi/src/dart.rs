@@ -229,6 +229,7 @@ const TAKEN: &[&str] = &[
 	"Future",
 	"List",
 	"Map",
+	"Mut",
 	"Never",
 	"Object",
 	"RangeError",
@@ -1718,8 +1719,29 @@ impl<'a> Gen<'a> {
 		// Rust nothing.
 		let mut gave = false;
 		let names = abi::distinct(function.params.iter().map(|param| param_name(&param.name)));
+		let mut writes = Vec::new();
 		for (k, (param, name)) in function.params.iter().zip(names).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
+			// A value passed for `&mut`, in a holder that takes what Rust writes back.
+			if param.ty.written() {
+				let inner = param.ty.base();
+				params.push(format!("Mut<{}> {name}", self.dt(inner)));
+				let value = format!("{name}.value");
+				match Self::scalar(c) {
+					true => args.push(self.lower(inner, &value)),
+					false => {
+						let v = format!("c{k}_");
+						let nt = self.nt(c);
+						let write = self.write(inner, &value, &format!("{v}.ref"));
+						pre.push(format!("final {v} = a_<{nt}>();\n{write}"));
+						args.push(format!("{v}.ref"));
+					}
+				}
+				let out = Abi::written(function, &abi::escape(&param.name));
+				let lifted = self.lift(inner, &self.out_value(&out, Some(&Ty::Out(Box::new(c.clone())))));
+				writes.push(format!("{value} = {lifted};"));
+				continue;
+			}
 			params.push(format!("{} {name}", self.dt(&param.ty)));
 			if moved(abi, &param.ty) {
 				after.push(self.close(&param.ty, &name));
@@ -1828,6 +1850,7 @@ impl<'a> Gen<'a> {
 			match (&err, &ok) {
 				(Some(err), ok) => {
 					inner.push(format!("final ok_ = {call};"));
+					inner.extend(writes);
 					inner.extend(after.clone());
 					let ready = match ok {
 						Type::Unit => "return;".to_string(),
@@ -1843,15 +1866,19 @@ impl<'a> Gen<'a> {
 				}
 				(None, Type::Unit) => {
 					inner.push(format!("{call};"));
+					inner.extend(writes);
 					inner.extend(after.clone());
 				}
-				(None, ok) if !outs.is_empty() => {
+				// A value C returns beside what Rust wrote back is its return, as with none.
+				(None, ok) if outs.len() > writes.len() => {
 					inner.push(format!("{call};"));
+					inner.extend(writes);
 					inner.extend(after.clone());
 					inner.push(format!("return {};", self.lift_outs(&function.ok, ok)));
 				}
 				(None, ok) => {
 					inner.push(format!("final r_ = {call};"));
+					inner.extend(writes);
 					inner.extend(after.clone());
 					inner.push(format!("return {};", self.lift(ok, "r_")));
 				}

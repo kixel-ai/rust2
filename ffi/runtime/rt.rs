@@ -21,6 +21,66 @@ pub fn fail(what: &str, msg: &str) -> ! {
 	std::process::abort()
 }
 
+/// `s` for as long as the program runs, for a parameter that must be `'static`: each
+/// distinct string is leaked once and lent to every later call with equal content, so the
+/// strings held grow only with the distinct ones passed.
+pub fn intern(s: &str) -> &'static str {
+	static INTERNED: std::sync::Mutex<std::collections::BTreeSet<&'static str>> =
+		std::sync::Mutex::new(std::collections::BTreeSet::new());
+	let mut interned = INTERNED.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+	if let Some(&s) = interned.get(s) {
+		return s;
+	}
+	let s: &'static str = Box::leak(Box::from(s));
+	interned.insert(s);
+	s
+}
+
+/// An `Arc` of another crate's type, held erased behind a handle with none of its API, so
+/// the export names neither the type nor its crate. Rust takes it back as the `Arc` it
+/// gave, and a handle of another such type aborts. A clone clones the `Arc` itself, so
+/// Rust counts each handle as an owner.
+pub struct Opaque(Box<dyn Held>);
+
+/// An `Arc<T>` of any `T`, erased.
+trait Held: Send + Sync {
+	fn any(&self) -> &dyn std::any::Any;
+	fn clone_box(&self) -> Box<dyn Held>;
+}
+
+impl<T: Send + Sync + 'static> Held for Arc<T> {
+	fn any(&self) -> &dyn std::any::Any {
+		self
+	}
+
+	fn clone_box(&self) -> Box<dyn Held> {
+		Box::new(Arc::clone(self))
+	}
+}
+
+impl Clone for Opaque {
+	fn clone(&self) -> Self {
+		Self(self.0.clone_box())
+	}
+}
+
+impl Opaque {
+	pub fn new<T: Send + Sync + 'static>(value: Arc<T>) -> Self {
+		Self(Box::new(value))
+	}
+
+	/// The `Arc` it holds, lent.
+	pub fn get<T: Send + Sync + 'static>(&self, what: &str) -> &Arc<T> {
+		(self.0.any().downcast_ref())
+			.unwrap_or_else(|| fail(what, "an opaque handle holds another type"))
+	}
+
+	/// A clone of the `Arc` it holds.
+	pub fn arc<T: Send + Sync + 'static>(&self, what: &str) -> Arc<T> {
+		Arc::clone(self.get(what))
+	}
+}
+
 /// Bytes across the ABI. Passed in, a view Rust copies or borrows for the call and never
 /// frees. Returned, an owned buffer the caller frees once. A null `ptr` is `None`.
 #[repr(C)]
@@ -409,6 +469,51 @@ pub struct Object<T> {
 	/// The value a lent handle points at, where Rust lent it, or null if it owns `value`.
 	lent: *mut T,
 	value: UnsafeCell<MaybeUninit<T>>,
+	/// Bumped each time the value is borrowed exclusively or moved out, or the handle is
+	/// freed, so no handle lent from the value outlives any of them.
+	epoch: AtomicUsize,
+	/// For a handle a call returned lent from another's value, that handle.
+	lender: Option<Lender>,
+}
+
+/// The handle a returned borrow was lent from, and its epoch then: the borrow lives while
+/// the epoch stands, and each use holds the handle shared, so none can start meanwhile. A
+/// value that is not `Sync` is held `local`ly, on the using thread alone.
+pub struct Lender {
+	handle: Arc<dyn Lends>,
+	epoch: usize,
+	local: bool,
+}
+
+/// A handle another is lent from.
+trait Lends: Send + Sync {
+	/// Borrow the value shared for a use of a handle lent from it, if still at `epoch`.
+	fn hold(&self, epoch: usize, local: bool, what: &str);
+	/// End what [`Self::hold`] took.
+	fn unhold(&self, local: bool);
+}
+
+impl<T: Send> Lends for Object<T> {
+	fn hold(&self, epoch: usize, local: bool, what: &str) {
+		match local {
+			true => self.acquire_local(what),
+			false => self.acquire(what),
+		}
+		if self.epoch.load(Ordering::Acquire) != epoch {
+			self.unhold(local);
+			fail(
+				what,
+				"a handle lent from another outlived it: the other was borrowed exclusively, moved out, or freed",
+			);
+		}
+	}
+
+	fn unhold(&self, local: bool) {
+		match local {
+			true => self.release_local(),
+			false => Object::release(self),
+		}
+	}
 }
 
 /// This thread's id for [`Object::borrow_local`]: the address of a thread local, which no
@@ -440,8 +545,62 @@ impl<T> Object<T> {
 			depth: UnsafeCell::new(0),
 			lent: std::ptr::null_mut(),
 			value: UnsafeCell::new(MaybeUninit::new(value)),
+			epoch: AtomicUsize::new(0),
+			lender: None,
 		}))
 		.cast()
+	}
+
+	/// A handle to `value`, which a call returned lent from `lender`'s value: shared, as a
+	/// returned `&T` is, and borrowed as its own type is, until that value is borrowed
+	/// exclusively, moved out, or freed, after which a use aborts. It is never borrowed
+	/// exclusively nor moved out itself.
+	pub fn lent(value: &T, lender: Lender) -> *const c_void {
+		Arc::into_raw(Arc::new(Self {
+			state: AtomicUsize::new(0),
+			depth: UnsafeCell::new(0),
+			lent: std::ptr::from_ref(value).cast_mut(),
+			value: UnsafeCell::new(MaybeUninit::uninit()),
+			epoch: AtomicUsize::new(0),
+			lender: Some(lender),
+		}))
+		.cast()
+	}
+
+	/// The handle a call borrowing it shared returns a borrow lent from, as a [`Lender`].
+	///
+	/// # Safety
+	/// `handle` is a live handle of this type.
+	pub unsafe fn lender(handle: *const c_void, what: &str) -> Lender
+	where
+		T: Send + Sync + 'static,
+	{
+		// SAFETY: the caller's contract.
+		unsafe { Self::lender_of(handle, false, what) }
+	}
+
+	/// [`Self::lender`] of a value that is not `Sync`, held on one thread at a time.
+	///
+	/// # Safety
+	/// As [`Self::lender`].
+	pub unsafe fn lender_local(handle: *const c_void, what: &str) -> Lender
+	where
+		T: Send + 'static,
+	{
+		// SAFETY: the caller's contract.
+		unsafe { Self::lender_of(handle, true, what) }
+	}
+
+	/// # Safety
+	/// As [`Self::lender`].
+	unsafe fn lender_of(handle: *const c_void, local: bool, what: &str) -> Lender
+	where
+		T: Send + 'static,
+	{
+		// SAFETY: the caller's contract.
+		let object = unsafe { Self::arc(handle, what) };
+		let epoch = object.epoch.load(Ordering::Acquire);
+		Lender { handle: object, epoch, local }
 	}
 
 	/// The value: its own, or the one it was lent.
@@ -474,13 +633,63 @@ impl<T> Object<T> {
 				.state
 				.compare_exchange_weak(state, state + 1, Ordering::Acquire, Ordering::Relaxed)
 			{
-				Ok(_) => return,
+				Ok(_) => break,
 				Err(now) => state = now,
 			}
+		}
+		self.hold_lender(what);
+	}
+
+	/// End a shared borrow [`Self::acquire`] took.
+	fn release(&self) {
+		self.release_lender();
+		self.state.fetch_sub(1, Ordering::Release);
+	}
+
+	/// Borrow a value that is not `Sync` shared: any number of times on one thread, as
+	/// Rust allows, and on no other thread meanwhile.
+	fn acquire_local(&self, what: &str) {
+		let me = thread();
+		match self.state.compare_exchange(0, me, Ordering::Acquire, Ordering::Relaxed) {
+			Ok(_) => {}
+			Err(owner) if owner == me => {}
+			Err(TAKEN) => fail(what, "a handle's value was moved out"),
+			Err(EXCLUSIVE) => fail(what, "a handle is borrowed exclusively"),
+			Err(_) => fail(what, "a handle is borrowed on another thread"),
+		}
+		// SAFETY: only the thread in `state` touches `depth`.
+		unsafe { *self.depth.get() += 1 };
+		self.hold_lender(what);
+	}
+
+	/// End a shared borrow [`Self::acquire_local`] took, on its thread.
+	fn release_local(&self) {
+		self.release_lender();
+		// SAFETY: this thread is the one in `state`, so `depth` is its own.
+		let depth = unsafe { &mut *self.depth.get() };
+		*depth -= 1;
+		if *depth == 0 {
+			self.state.store(0, Ordering::Release);
+		}
+	}
+
+	/// For a handle lent from another, hold that one for a use of this one.
+	fn hold_lender(&self, what: &str) {
+		if let Some(lender) = &self.lender {
+			lender.handle.hold(lender.epoch, lender.local, what);
+		}
+	}
+
+	fn release_lender(&self) {
+		if let Some(lender) = &self.lender {
+			lender.handle.unhold(lender.local);
 		}
 	}
 
 	fn acquire_mut(&self, what: &str) {
+		if self.lender.is_some() {
+			fail(what, "a handle a call lent shared is borrowed exclusively");
+		}
 		if let Err(state) = self
 			.state
 			.compare_exchange(0, EXCLUSIVE, Ordering::Acquire, Ordering::Relaxed)
@@ -490,6 +699,7 @@ impl<T> Object<T> {
 				_ => fail(what, "a handle is already borrowed"),
 			}
 		}
+		self.epoch.fetch_add(1, Ordering::Release);
 	}
 
 	/// Borrow the value shared for a call.
@@ -514,16 +724,7 @@ impl<T> Object<T> {
 	pub unsafe fn borrow_local<'a>(handle: *const c_void, what: &str) -> Local<'a, T> {
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
-		let me = thread();
-		match object.state.compare_exchange(0, me, Ordering::Acquire, Ordering::Relaxed) {
-			Ok(_) => {}
-			Err(owner) if owner == me => {}
-			Err(TAKEN) => fail(what, "a handle's value was moved out"),
-			Err(EXCLUSIVE) => fail(what, "a handle is borrowed exclusively"),
-			Err(_) => fail(what, "a handle is borrowed on another thread"),
-		}
-		// SAFETY: only the thread in `state` touches `depth`.
-		unsafe { *object.depth.get() += 1 };
+		object.acquire_local(what);
 		Local { object }
 	}
 
@@ -603,6 +804,8 @@ impl<T> Object<T> {
 			depth: UnsafeCell::new(depth),
 			lent: ptr,
 			value: UnsafeCell::new(MaybeUninit::uninit()),
+			epoch: AtomicUsize::new(0),
+			lender: None,
 		});
 		// A second count, which a free by C would take, so the handle outlives it.
 		let spare = Arc::clone(&object);
@@ -646,6 +849,7 @@ impl<T> Object<T> {
 				_ => fail(what, "a handle is borrowed"),
 			}
 		}
+		object.epoch.fetch_add(1, Ordering::Release);
 		// SAFETY: TAKEN excludes every other access, and the value is never read again.
 		unsafe { (*object.value.get()).assume_init_read() }
 	}
@@ -657,7 +861,10 @@ impl<T> Object<T> {
 	pub unsafe fn free(handle: *const c_void) {
 		if !handle.is_null() {
 			// SAFETY: the caller's contract.
-			drop(unsafe { Arc::from_raw(handle.cast::<Self>()) });
+			let object = unsafe { Arc::from_raw(handle.cast::<Self>()) };
+			// A future may still hold the value, but no handle lent from it outlives C's.
+			object.epoch.fetch_add(1, Ordering::Release);
+			drop(object);
 		}
 	}
 }
@@ -685,7 +892,7 @@ impl<T> Deref for Shared<'_, T> {
 
 impl<T> Drop for Shared<'_, T> {
 	fn drop(&mut self) {
-		self.object.state.fetch_sub(1, Ordering::Release);
+		self.object.release();
 	}
 }
 
@@ -703,12 +910,7 @@ impl<T> Deref for Local<'_, T> {
 
 impl<T> Drop for Local<'_, T> {
 	fn drop(&mut self) {
-		// SAFETY: this thread is the one in `state`, so `depth` is its own.
-		let depth = unsafe { &mut *self.object.depth.get() };
-		*depth -= 1;
-		if *depth == 0 {
-			self.object.state.store(0, Ordering::Release);
-		}
+		self.object.release_local();
 	}
 }
 
@@ -751,7 +953,7 @@ impl<T> Deref for SharedArc<T> {
 
 impl<T> Drop for SharedArc<T> {
 	fn drop(&mut self) {
-		self.object.state.fetch_sub(1, Ordering::Release);
+		self.object.release();
 	}
 }
 

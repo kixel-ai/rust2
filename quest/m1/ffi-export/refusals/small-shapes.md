@@ -1,44 +1,26 @@
-# [S] Small shapes export
+# [XS] Arrays export
 
 ## Goal
 
-The census at the moq pin refuses no item of moq's own for a small shape: 26 items at moq
-`ffcb7cd9` use `u128` (`Timestamp::as_nanos`), an array, a const generic, unit outside a
-return, `Result` outside a return, `!`, or an enum without variants. The count includes
-the objects and futures that are not `Send`, which
-[not-send](/quest/m1/ffi-export/not-send.md) owns since 2026-11-09.
+The census at the moq pin refuses no item of moq's own for an array. One is left:
+`tokio::tls::parse_fingerprint` returns `Result<[u8; 32]>`, a moq-tokio item the narrowed
+stand-in still exports.
 
 ## Plan
 
-Each is its own small mapping. Changing moq is a non-goal: what has no C shape yet gets
-one here or in the quest that owns it, never a request for moq to change its signature.
+Changing moq is a non-goal: the array gets a C shape here, never a request for moq to
+change its signature.
 
-Decided with the maintainer on 2026-11-09:
+`u128`, const generics, a `()` parameter, and an enum without variants export since
+[moq-dev/rust2#675](https://github.com/moq-dev/rust2/pull/675); `Result` and `!` off a
+return left the census with the narrowed stand-in.
 
-- ✅ `u128` maps by rule as `<prefix>_u128`, two `uint64_t` halves in C, with each
-  language's exact big integer above it: Python `int`, Kotlin `BigInteger`, Dart `BigInt`,
-  Go `*big.Int`, Swift a `U128` struct until its deployment target allows `UInt128`, and
-  C++ the C struct. Rejected: leaving it out. Clears `Timestamp::as_scale`, `as_millis`,
-  `as_micros`, and `as_nanos`. `i128` stays refused: no consumer, and its sign is a
-  conversion of its own in each language.
-- ✅ Not `Send` (`clock::Entered`, `clock::Rng`, `catalog::Guard`) belongs to
-  [not-send](/quest/m1/ffi-export/not-send.md)'s thread check.
-- ✅ Const generics land here once [generics](/quest/m1/ffi-export/refusals/generics.md)
-  does, since both edit instance inference. Rejected: a separate quest.
+## Waiting
 
-✅ A `()` parameter is passed by nothing in C, clearing `container::Producer<C>::set`'s four
-instances, and an enum without variants is an object no export returns, which the bindings
-leave out.
-
-Left at moq `ffcb7cd9`, outside the moq-tokio items narrowing the stand-in drops (the
-arrays, `Result` and `!` off a return, and `worker::Group::finished`'s future):
-
-- const generics: `group::Producer::write_frames` and `group::Consumer::read_frames` over
-  `frame::Buffer<const N: usize = 8>`. The IR keeps only type arguments; a const argument
-  in `Type`, inferred at its default as a type parameter's is, exports `Buffer<8>` and the
-  methods at it.
-
-## Required
-
-- [Generics](/quest/m1/ffi-export/refusals/generics.md) - instance inference, which const
-  arguments extend
+- Maintainer: how `[T; N]` maps. Options: (a) a returned `[u8; N]` is bytes, as `Vec<u8>`
+  is, and a parameter `[u8; N]` is bytes whose length the glue checks, raising the
+  language's error on a mismatch; (b) a C struct `<prefix>_array_<T>_<N>` holding the
+  array, with each language's fixed-size form above it; (c) leave arrays refused and
+  keep this quest open until a consumer needs one. Recommended: (a), which reuses the
+  bytes every binding already has and clears `parse_fingerprint` with no new type; any
+  other element type stays refused until one is needed.

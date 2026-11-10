@@ -34,6 +34,14 @@ final class SocketAddr {
       : '${address.address}:$port';
 }
 
+/// A value a call reads and writes back, as Rust's `&mut` of a value: the call leaves
+/// what Rust left in it, whether it returns or throws.
+final class Mut<T> {
+  T value;
+
+  Mut(this.value);
+}
+
 /// What a [Cancelable] completes with once cancelled.
 final class Cancelled implements Exception {
   const Cancelled();

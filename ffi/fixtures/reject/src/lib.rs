@@ -106,7 +106,8 @@ impl<'a> Text<'a> {
 		Self("")
 	}
 
-	/// `'b` outlives the handle's `'a`, so it is `'static` too.
+	/// `'b` outlives the handle's `'a`, so it is `'static` too, which a string is once
+	/// interned.
 	pub fn replace<'b: 'a>(&mut self, text: &'b str) {
 		self.0 = text;
 	}
@@ -117,10 +118,15 @@ impl<'a> Text<'a> {
 	}
 }
 
-/// An optional borrow: C's value is lifted into an owned one, lent only as the parameter
-/// itself.
-pub fn either(text: Option<&str>) -> usize {
-	text.map_or(0, str::len)
+/// Bytes that must be `'static`, which only a string's interning makes them.
+pub fn forever(bytes: &'static [u8]) -> usize {
+	bytes.len()
+}
+
+/// A boxed borrow: C's value is lifted into an owned one, lent only as the parameter
+/// itself or `Some` of it.
+pub fn boxed(text: Box<&str>) -> usize {
+	text.len()
 }
 
 /// A record, a type of the facade's own.
@@ -732,6 +738,57 @@ pub fn halves() -> impl Iterator<Item = &'static str> {
 /// `reject_tuple_tuple_u8_u16_u32`.
 pub fn mixed(a: Option<((u8, u16), u32)>, b: Option<((u8, u16, u32),)>) -> bool {
 	a.is_some() && b.is_some()
+}
+
+/// An optional handle lent inside a `Box`, as [`peek`] lends one.
+pub fn peek_some(value: Option<&Box<Opaque>>) -> u8 {
+	value.map_or(0, |value| value.0)
+}
+
+/// An optional value lent mutably.
+pub fn bump_some(value: Option<&mut u32>) {
+	if let Some(value) = value {
+		*value += 1;
+	}
+}
+
+/// Bytes written back that the return still borrows, which Rust's write would move.
+pub fn rest(buf: &mut Vec<u8>) -> &[u8] {
+	buf.as_slice()
+}
+
+/// Bytes written back by a future, which owns what it borrows, so has nothing to write.
+pub async fn fill(buf: &mut Vec<u8>) {
+	buf.push(0);
+}
+
+/// A slice lent mutably, which C cannot pass in and out as a value without a copy.
+pub fn zero(buf: &mut [u8]) {
+	buf.fill(0);
+}
+
+/// Another crate's `Arc` lent mutably, which its opaque handle cannot replace in place.
+pub fn reseat(size: &mut std::sync::Arc<dep::Size>) {
+	*size = std::sync::Arc::new(**size);
+}
+
+/// Holds a value it lends only as an error, which crosses as a clone, never lent.
+pub struct Keeper(Opaque);
+
+impl Keeper {
+	pub fn new() -> Self {
+		Self(Opaque(0))
+	}
+
+	/// Its value, lent as an error: only the value returned itself is lent.
+	pub fn check(&self) -> Result<u8, &Opaque> {
+		Err(&self.0)
+	}
+}
+
+/// A callback taking bytes it writes back, which a foreign implementation cannot.
+pub trait Sink: Send + Sync {
+	fn fill(&self, buf: &mut Vec<u8>);
 }
 
 /// Another crate whole, whose every release would change this one's API.

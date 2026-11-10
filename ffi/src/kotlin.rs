@@ -79,6 +79,9 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		"/** Wakes a future's poller. Rust may call [wake] from any thread, any number of times. */\nfun interface Waker {\n\tfun wake()\n}\n\n",
 	);
 	kotlin.push_str(BYTES);
+	kotlin.push_str(
+		"/** A value a call takes `&mut`, which Rust writes back into [value] once it returns, errors included. */\nclass Mut<T>(var value: T)\n\n",
+	);
 	kotlin.push_str(&g.types);
 	kotlin.push_str(&g.top);
 	let _ = write!(
@@ -222,8 +225,9 @@ class Bytes private constructor(
 ";
 
 /// The names the generated code uses unqualified, which no exported type or function may
-/// take. The runtime's own are the C ABI's: `Native`, `Waker`, `Bytes`, and `Bound` are
-/// claimed as `<prefix>_native`, `<prefix>_waker`, `<prefix>_bytes`, and `<prefix>_bound`.
+/// take. The runtime's own are the C ABI's: `Native`, `Waker`, `Bytes`, `Mut`, and `Bound`
+/// are claimed as `<prefix>_native`, `<prefix>_waker`, `<prefix>_bytes`, `<prefix>_mut`, and
+/// `<prefix>_bound`.
 const TAKEN: &[&str] = &[
 	"Any",
 	"AutoCloseable",
@@ -399,6 +403,7 @@ impl<'a> Gen<'a> {
 			Type::Slice | Type::Vec | Type::Bytes => "ByteArray".to_string(),
 			Type::List(_, inner) => format!("kotlin.collections.List<{}>", self.kt_param(inner)),
 			Type::Option(inner) => format!("{}?", self.kt_param(inner)),
+			Type::Ref(_, inner) if ty.written() => format!("Mut<{}>", self.kt_param(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.kt_param(inner),
 			Type::Tuple(elements) => {
 				let elements: Vec<String> = elements.iter().map(|e| self.kt_param(e)).collect();
@@ -1490,6 +1495,8 @@ impl<'a> Gen<'a> {
 		let mut kt_params = Vec::new();
 		let mut closures = Vec::new();
 		let names = locals(&function.params);
+		// Each parameter Rust writes back, by its Kotlin name, and what it holds.
+		let mut written: Vec<(String, Type)> = Vec::new();
 		for (param, name) in function.params.iter().zip(&names) {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
 			kt_params.push(format!("{name}: {}", self.kt_param(&param.ty)));
@@ -1502,7 +1509,13 @@ impl<'a> Gen<'a> {
 				}
 				_ => None,
 			};
-			args.push(self.arg(&param.ty, c, name, &mut n, trampoline.as_deref()));
+			match &param.ty {
+				Type::Ref(_, inner) if param.ty.written() => {
+					written.push((name.clone(), (**inner).clone()));
+					args.push(self.arg(inner, c, &format!("{name}.value"), &mut n, None));
+				}
+				_ => args.push(self.arg(&param.ty, c, name, &mut n, trampoline.as_deref())),
+			}
 		}
 		for (param, c, trampoline) in closures {
 			let (Type::Closure(lent, ret), Ty::Fn(c_lent, c_ret)) = (&param.ty, &c) else {
@@ -1569,7 +1582,7 @@ impl<'a> Gen<'a> {
 			let poll_bare = self.bare(&poll.name).to_string();
 			let free_bare = self.bare(&free.name).to_string();
 			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
-			let (decl, ptrs, write) = self.glue_outs(&poll_outs, &function.ok, function.err.as_ref());
+			let (decl, ptrs, write) = self.glue_outs(&poll_outs, &[], &function.ok, function.err.as_ref());
 			let ok_set = match function.err.is_some() {
 				true => "let ok = ret == 1;\n\t",
 				false => "",
@@ -1624,12 +1637,16 @@ impl<'a> Gen<'a> {
 				s = signal.as_deref().expect("a future takes a signal"),
 			);
 		} else if !outs.is_empty() {
-			let (decl, ptrs, write) = self.glue_outs(&outs, &function.ok, function.err.as_ref());
+			let types: Vec<&Type> = written.iter().map(|(_, ty)| ty).collect();
+			let (decl, ptrs, write) = self.glue_outs(&outs, &types, &function.ok, function.err.as_ref());
 			let params: Vec<(&str, &str)> = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect();
-			// Only a result's write reads whether it returned ok.
-			let ret_set = match function.err.is_some() {
-				true => "let ok = ",
-				false => "",
+			// Only a result's write reads whether it returned ok; a value C returns, beside
+			// what Rust wrote back, follows what it wrote.
+			let returned = function.err.is_none() && !matches!(function.ok, Type::Unit | Type::Tuple(_));
+			let (ret_set, write) = match (function.err.is_some(), returned) {
+				(true, _) => ("let ok = ", write),
+				(false, true) => ("let ret = ", format!("{write}\n\t\t{};", put(&function.ok, "ret"))),
+				(false, false) => ("", write),
 			};
 			self.native(
 				&bare,
@@ -1641,7 +1658,13 @@ impl<'a> Gen<'a> {
 					rust_call(&ptrs)
 				),
 			);
-			let lines = self.lift_result(&ok, err.as_ref(), exception.as_deref(), "r");
+			let mut lines = Vec::new();
+			// What Rust wrote back comes first, read whether or not the call failed.
+			for (name, ty) in &written {
+				let read = self.read_value(ty, "r");
+				lines.push(format!("{name}.value = {}", to_param(ty, &read)));
+			}
+			lines.extend(self.lift_result(&ok, err.as_ref(), exception.as_deref(), "r"));
 			value = match lines.is_empty() {
 				true => call,
 				false => format!(
@@ -1785,9 +1808,18 @@ impl<'a> Gen<'a> {
 	/// The glue's out values for `outs`, of a function returning `ok` or `err`, the
 	/// pointers the C call takes after its parameters, and the statements writing them,
 	/// `ok` saying whether it returned ok.
-	fn glue_outs(&mut self, outs: &[(String, Ty)], ok: &Type, err_ty: Option<&Type>) -> (String, Vec<String>, String) {
+	/// The glue's out declarations, their pointers, and its writes of them: first what
+	/// Rust wrote back into each of `written`, then the result.
+	fn glue_outs(
+		&mut self,
+		outs: &[(String, Ty)],
+		written: &[&Type],
+		ok: &Type,
+		err_ty: Option<&Type>,
+	) -> (String, Vec<String>, String) {
 		let mut decl = Vec::new();
 		let mut ptrs = Vec::new();
+		let mut back = Vec::new();
 		let mut oks = Vec::new();
 		let mut err = String::new();
 		// Each out's type, in the order the C ABI lists them.
@@ -1796,12 +1828,13 @@ impl<'a> Gen<'a> {
 			Type::Tuple(elements) => elements.iter().collect(),
 			ok => vec![ok],
 		};
-		let types = types.into_iter().chain(err_ty);
-		for ((name, _), ty) in outs.iter().zip(types) {
+		let results = types.into_iter().chain(err_ty);
+		for (k, ((name, _), ty)) in outs.iter().zip(written.iter().copied().chain(results)).enumerate() {
 			decl.push(format!("let mut o_{name} = std::mem::MaybeUninit::zeroed();"));
 			ptrs.push(format!("o_{name}.as_mut_ptr()"));
 			let put = format!("{};", put(ty, &format!("o_{name}.assume_init()")));
 			match name.as_str() {
+				_ if k < written.len() => back.push(put),
 				"err" => err = put,
 				_ => oks.push(put),
 			}
@@ -1813,7 +1846,8 @@ impl<'a> Gen<'a> {
 			),
 			false => oks.join("\n\t\t"),
 		};
-		(decl.join("\n\t\t"), ptrs, write)
+		back.push(write);
+		(decl.join("\n\t\t"), ptrs, back.join("\n\t\t"))
 	}
 
 	/// Kotlin statements reading a result from the reader `r`: throwing its error, then
@@ -1828,6 +1862,40 @@ impl<'a> Gen<'a> {
 			lines.push(self.read_value(ok, r));
 		}
 		lines
+	}
+}
+
+/// The Kotlin parameter value of the value `e` of type `ty` read back: bytes, which a
+/// parameter takes as a `ByteArray`, copied out of each `Bytes` read, wherever they are.
+fn to_param(ty: &Type, e: &str) -> String {
+	match ty {
+		_ if !holds_bytes(ty) => e.to_string(),
+		Type::Slice | Type::Vec | Type::Bytes => format!("{e}.toByteArray()"),
+		Type::Box(inner) | Type::Ref(_, inner) => to_param(inner, e),
+		Type::Option(inner) => format!("{e}?.let {{ v -> {} }}", to_param(inner, "v")),
+		Type::List(_, inner) => format!("{e}.map {{ v -> {} }}", to_param(inner, "v")),
+		Type::Tuple(elements) => {
+			let converted: Vec<String> = (elements.iter().enumerate())
+				.map(|(k, ty)| to_param(ty, &format!("t.{}", ordinal(k))))
+				.collect();
+			let make = match elements.len() {
+				2 => "kotlin.Pair".to_string(),
+				3 => "kotlin.Triple".to_string(),
+				n => format!("Tuple{n}"),
+			};
+			format!("{e}.let {{ t -> {make}({}) }}", converted.join(", "))
+		}
+		_ => e.to_string(),
+	}
+}
+
+/// Whether `ty` holds bytes anywhere a parameter's form of it differs from a returned one's.
+fn holds_bytes(ty: &Type) -> bool {
+	match ty {
+		Type::Slice | Type::Vec | Type::Bytes => true,
+		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => holds_bytes(inner),
+		Type::Tuple(elements) => elements.iter().any(holds_bytes),
+		_ => false,
 	}
 }
 

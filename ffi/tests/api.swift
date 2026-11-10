@@ -277,6 +277,8 @@ func script() {
 	let long = longer(joined, Name.owned("dd"))
 	print("longer \(long.asStr())")
 	print("unnamed [\(unnamed().asStr())]")
+	let lit = Name.borrowed("lit")
+	print("borrowed \(lit.asStr()) \(lit.shares(Name.borrowed("lit"))) \(lit.shares(Name.borrowed("other")))")
 
 	print("total \(total(RangeU64(start: 2, end: 5)))")
 	print("reach \(reach(2, 5))")
@@ -514,6 +516,45 @@ func script() {
 	print("words \(words.count) \(words)")
 	print("sentence \(sentence(words)) \(sentence(nil))")
 	print("sentence \(sentence([]))|")
+	print("either \(either("abc")) \(either(nil))")
+	print("prefixed \(String(decoding: prefixed(Data("cd".utf8), Data("ab".utf8)), as: UTF8.self)) \(String(decoding: prefixed(Data("cd".utf8), nil), as: UTF8.self))")
+	print("coordinates \(coordinates(Point(x: 2, y: 3))) \(coordinates(nil))")
+	do {
+		let two = Counter.new("two", 2)
+		let three = Counter.new("three", 3)
+		print("plus \(two.plus(three)) \(two.plus(nil))")
+		print("add_to \(two.addTo(three)) \(two.addTo(nil)) \(three.get())")
+	}
+	do {
+		var encoded = Data("0,".utf8)
+		putNumber(1, &encoded)
+		putNumber(23, &encoded)
+		print("put_number \(String(decoding: encoded, as: UTF8.self))")
+		var entry = (Data("ab".utf8), UInt32(1))
+		let stamps = pushCounted(&entry, UInt8(ascii: "c"))
+		print("push_counted \(stamps) \(String(decoding: entry.0, as: UTF8.self)) \(entry.1)")
+		var digits = Data("7x9".utf8)
+		let firstDigit = try! digit(&digits)
+		let skipped = (try? digit(&digits)) == nil
+		let lastDigit = try! digit(&digits)
+		print("digit \(firstDigit) \(skipped) \(lastDigit) \(digits.count)")
+		var nudged = Point(x: 1, y: 2)
+		nudge(&nudged, 3)
+		print("nudge \(nudged.x) \(nudged.y)")
+	}
+	do {
+		let config = secure("h3")
+		print("secure \(alpnLent(config)) \(alpn(config.clone()))")
+		let meters = Meters.new()
+		let first = meters.first()
+		_ = first.add(2)
+		print("lent \(first.add(3)) \(meters.first().count())")
+		meters.clear()
+		print("cleared \(meters.first().count())")
+		let tallies = Tallies.new()
+		_ = tallies.first().bump()
+		print("tallied \(tallies.first().bump())")
+	}
 	print("chunks \(chunks(Data("abcde".utf8), 2).map { Array($0) })")
 	let counters = counters(["x", "y"])
 	print("counters \(counters.map { "\($0.name()) \($0.get())" }.joined(separator: ", "))")
@@ -727,6 +768,11 @@ func broken(_ which: String) {
 		let tail = Node.new(1, nil)
 		_ = Node.new(2, tail)
 		_ = tail.sum()
+	case "outlived":
+		let meters = Meters.new()
+		let first = meters.first()
+		meters.clear()
+		_ = first.count()
 	case "lent moved":
 		_ = Registry.new(Counter.new("c", 0)).edit { counter in
 			_ = counter.intoLabel(nil)

@@ -133,6 +133,12 @@ impl<'a> Header<'a> {
 	/// The C++ type of a parameter of type `ty`.
 	fn param(&self, ty: &Type) -> String {
 		let abi = self.abi;
+		// A value Rust writes back, through the caller's own.
+		if let Type::Ref(_, inner) = ty
+			&& ty.written()
+		{
+			return format!("{} &", self.owned(inner));
+		}
 		if Abi::is_buf(ty) {
 			return format!("::{}::view", self.ns);
 		}
@@ -1153,6 +1159,14 @@ impl<'a> Header<'a> {
 			args.push(self.lower(&param.ty, &name));
 		}
 		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		// Each value passed for `&mut` takes what Rust wrote back, on every path.
+		let writes: Vec<String> = (function.params.iter().zip(&names))
+			.filter(|(param, _)| param.ty.written())
+			.map(|(param, name)| {
+				let out = Abi::written(function, &abi::escape(&param.name));
+				format!("{name} = {};", self.lift(param.ty.base(), &format!("c_{out}_")))
+			})
+			.collect();
 		for (name, _) in &outs {
 			args.push(format!("&c_{name}_"));
 		}
@@ -1164,17 +1178,28 @@ impl<'a> Header<'a> {
 			let (declared, ok, err) = self.outs(function, &outs, &ret);
 			body.extend(declared);
 			match (&function.err, &function.ok) {
+				(Some(_), _) if !writes.is_empty() => {
+					body.push(format!("bool c_ok_ = {call};"));
+					body.extend(writes);
+					body.push(format!("if (c_ok_) {{\n\t\treturn {ok};\n\t}}"));
+					body.push(format!("return {};", err.expect("an error lifts")));
+				}
 				(Some(_), _) => {
 					body.push(format!("if ({call}) {{\n\t\treturn {ok};\n\t}}"));
 					body.push(format!("return {};", err.expect("an error lifts")));
 				}
 				(None, Type::Tuple(_)) => {
 					body.push(format!("{call};"));
+					body.extend(writes);
 					body.push(format!("return {ok};"));
 				}
-				(None, Type::Unit) => body.push(format!("{call};")),
+				(None, Type::Unit) => {
+					body.push(format!("{call};"));
+					body.extend(writes);
+				}
 				(None, ok_ty) => {
 					body.push(format!("auto c_out_ = {call};"));
+					body.extend(writes);
 					let lifted = self.lift(&strip_refs(ok_ty), "c_out_");
 					body.push(format!("return {lifted};"));
 				}
