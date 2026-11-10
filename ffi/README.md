@@ -76,6 +76,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
 | a tuple inside another type, or as a field or parameter | `<prefix>_tuple_<A>_<B>`: a struct of fields `_0`, `_1`, and so on; of references only returned |
 | `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it; a function that is not `async` runs at the call, as in Rust |
+| a function returning `Poll<T>` that polls through a `&Context`, a `&mut Context`, or a reference to an object exactly one associated function makes from a `Waker` alone, of a type with no generic parameters, such as kio's `Waiter` | a future of `T`, as an `async fn`'s: each poll calls the function again with the poll's context, or with an object made from its waker and kept until the next poll, so what it registers stays registered; each other parameter taken by value must be `Copy` |
 | `poll_x`, when `x` exports as a future | left out: the future is its poll |
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
 | `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: a view passed in, an owned buffer returned |
@@ -83,11 +84,13 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `Duration` | `<prefix>_duration` |
 | `SocketAddr`, `SocketAddrV4`, `SocketAddrV6` | `<prefix>_socket_addr`: its IP's bytes, port, and whether it is IPv6; one of the other family passed to `V4` or `V6` aborts |
 | `url::Url` | an object `<prefix>_Url`, made by `<prefix>_Url_parse`, which fails with the parse error's message, and printed by `_to_string` |
+| `Arc<T>` of another crate's `Send` and `Sync` type that no other rule maps, such as `Arc<rustls::ServerConfig>` | an opaque object named by `T`'s crate and name, such as `<prefix>_rustls_ServerConfig`, with `_clone` and `_free` and none of `T`'s API: it only passes back to Rust |
 | `serde_json::Value` | an object `<prefix>_Json`, made by `<prefix>_Json_parse` from JSON text, which fails with serde_json's message, and read back by `_to_text`; its contents are the caller's JSON library's to read |
 | `Vec<T>` and `&[T]` of any other `T` | `<prefix>_vec_<T>`: an array of `T`'s C values, viewed passed in and owned returned, a slice as a clone; of references only returned |
 | `BTreeSet<T>`, `BTreeMap<K, V>`, and `serde_json::Map` | as `Vec<T>`, `Vec<(K, V)>`, and `Vec<(String, serde_json::Value)>`: its items in order, from which Rust builds it, keeping the last of a key |
 | a returned iterator, such as `slice::Iter` or an `impl Iterator`, that no other rule maps, outside a future, made of core's and alloc's iterators over a slice, string, `Option`, `Result`, or collection, through `rev`, `chain`, `flatten`, `fuse`, `enumerate`, `peekable`, `copied`, or `cloned`, with no closure, function, or trait object inside | what `collect::<Vec<_>>()` makes of it: every item, taken at the call |
 | `Waker`, taken by value | `<prefix>_waker`, as a future's poll takes it |
+| `&Context` or `&mut Context` of a function returning no `Poll` and no future | `<prefix>_waker`, which the context is made of for the call |
 | `Range<T>`, `Bound<T>` of an integer | `<prefix>_range_<T>`, `<prefix>_bound_<T>`: a `<prefix>_bound` kind and a value |
 | `impl RangeBounds<T>` of an integer | `<prefix>_bounds_<T>`: its start and end bounds |
 | `Option<T>` | a null handle or buffer, or `<prefix>_option_<T>` |
@@ -112,13 +115,21 @@ refused, as it could name ever deeper ones.
 A record or enum holds only values and `Copy` handles: one with a field that does not map,
 or that holds itself, is an object instead, and the census lists it. A borrowed return is
 returned as a clone, so it must be `Clone`, and a handle in it is a new handle to the
-clone. A handle outlives every call, so every lifetime an object takes is `'static`, as is
-every lifetime that must outlive one; any other lifetime is the call's. A signature may
-not lend C's borrow for one that is `'static`, nor return an object that borrows. A
-parameter is a reference only at its top, not inside an `Option` or `Box`. What C could
-never hold, an object no export C can call returns or lends to a closure, a generic type
-no export instantiates, and whatever takes one, is left out and listed in the census.
-Everything else is refused, and the census counts why.
+clone, but for an object a `&self` method of an object returns borrowed from its receiver
+alone: that one, if not `Clone`, is a lent handle, which holds its receiver and checks it
+on each use, on one thread at a time where the receiver is not `Sync`. A handle outlives every call, so every lifetime an
+object takes is `'static`, as is every lifetime that must outlive one; any other lifetime
+is the call's. A signature may not lend C's borrow for one that is `'static`, but for a
+`&str`, which Rust interns, nor return an object that borrows. A parameter is a reference
+only at its top or as `Some` of an `Option`, lent as the reference alone is, so
+`Option<&T>` is a null or borrowed handle, a null or viewed buffer, or an option of a
+value, and not inside a `Box` or any other type. A `&mut` of a value, but a `str` or a
+slice, is in and out, and not inside an `Option`, a callback, or a future, nor borrowed
+by what the call returns; a `&mut` of another crate's `Arc` is refused. Only a bare
+returned `&Object` is lent, never one inside what a call returns nor its error. What C could never hold, an
+object no export C can call returns or lends to a closure, a generic type no export
+instantiates, and whatever takes one, is left out and listed in the census. Everything
+else is refused, and the census counts why.
 
 ## The C ABI
 
@@ -133,6 +144,19 @@ Everything else is refused, and the census counts why.
   while a getter's copy is C's own: a nested field is got, set, and set back. A type
   whose C++ copies share one value has `_borrowed`, true while a call or future borrows
   it, so moving it out would abort.
+- **In and out**: a `&mut` of a value is two parameters, the value passed in as one taken
+  by value is, and a `<name>_out` pointer, through which Rust writes what the call left in
+  it on every path, its errors included. C keeps what it passed, and frees what Rust wrote
+  as a returned value. C++ takes a reference, Swift an `inout`, and Go a pointer, each
+  assigned what Rust wrote; Kotlin, Python, and Dart take a `Mut` holding the value, whose
+  `value` Rust's write replaces, before any error raises.
+- **Lent handles** borrow from the handle a call lent them from: each use holds that one
+  shared and aborts, naming the function, once it was since borrowed exclusively, moved
+  out, or freed, which Rust's borrow checker would refuse. Borrowing a lent handle
+  exclusively aborts too, as Rust lent it shared.
+- **Interned strings**: a `&str` a function needs for `'static`, as `Path::from_static`
+  does, is leaked once per distinct content and reused for every later equal one, so a
+  caller passing ever-new strings grows the set without bound.
 - **Arrays** of a `Vec` are a pointer, a length, and an owner, as a buffer is: passed
   in, Rust copies each element out of C's array; returned, `<prefix>_vec_<T>_free` frees
   the array and its first `len` elements, so a binding that takes the elements sets
@@ -212,7 +236,14 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   by value; moving out of a shared copy another copy holds, or a pending future borrows,
   moves out a clone, leaving that copy whole, as Rust leaves a clone. A call on a
   moved-from object, or one a call moved the value out of, aborts; a dangling reference
-  to an object is C++'s own undefined behavior.
+  to an object is C++'s own undefined behavior. Under Clang with `-Wconsumed`, such a call
+  on a local is a compile error: each class carries Clang's typestate attributes, behind
+  macros other compilers see as empty. The abort stays for a move Clang cannot see, as
+  through a reference. Under `-Wdangling`, a view of a temporary `buf` is a compile
+  error through `[[clang::lifetimebound]]`; an object lent from a receiver keeps its
+  run-time check, since Clang does not track a returned handle class.
+  No export keeps a view or reference past its call, so none carries
+  `[[clang::lifetime_capture_by]]`; the first that does adds it.
 - **Sharing** stands in for `clone` where no call can tell the two apart but by counting
   an `Arc`'s or `Rc`'s clones, which the exporter decides at compile time. A type's copies share when it is `Clone`; `Sync`,
   since one that is not is borrowed on one thread at a time, which copies on two threads
@@ -235,14 +266,17 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   a `buf`, which owns Rust's buffer without a copy, so it outlives the object it came
   from. From C++20, either converts to `std::span<const std::uint8_t>`. A `view` or span
   lives only as long as the bytes it views, and a `view` lent to a callback only for the
-  call; reading one past that is C++'s own undefined behavior. A `Vec<T>` is a `std::vector`, of
+  call; reading one past that is C++'s own undefined behavior, which Clang's `-Wdangling`
+  refuses for a view or `str()` of a temporary `buf`. A `Vec<T>` is a `std::vector`, of
   `view`s for bytes passed in, and a socket address `socket_addr`, the C struct. `Option<T>` is `std::optional<T>`, a
   tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
   error.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
 - **Closures** lent for a call are any callable, taken by a template parameter, which
-  Rust calls only during the call, from any thread. An object it lends is a reference to
-  its class for that call: moving out of it, or keeping a copy past the call, aborts.
+  Rust calls only during the call, from any thread. An object it lends as `&T` is a
+  `const` reference to its class, and as `&mut T` an `api::borrow<T>`, which reaches its
+  methods through `->` but neither moves nor copies. Moving out of either, or keeping a
+  copy past the call, aborts.
 - **Futures** are move-only `future<...>`s, freed when destroyed, which cancels them and
   loses nothing. `poll(waker)` polls once; `std::move(f).get()` blocks the thread;
   `std::move(f).then(exec, callback)` polls on an executor and calls back there, returning
@@ -660,7 +694,8 @@ export into the same library. `tests/api.c` runs the same script as the
 fixture's `examples/transcript.rs`, and the two transcripts must match line for line;
 then it breaks each runtime check, which must abort with its message. `tests/api.cpp`
 runs the script through the C++ header at C++17, 20, and 23, with exceptions and RTTI off
-at 17 and 23, then checks its futures: a wake that lands during a poll, a cancel between a
+at 17 and 23, builds it under Clang's `-Wconsumed -Wdangling -Werror`, each case of
+`tests/api_strict.cpp` failing there, then checks its futures: a wake that lands during a poll, a cancel between a
 wake and its poll that loses nothing, and a coroutine resumed or destroyed. `tests/api.kt`
 runs the script through the Kotlin on the JVM, checks its futures the same way, that a call
 after `close()` throws, that `Bytes` and their slices keep Rust's buffer, past the object or

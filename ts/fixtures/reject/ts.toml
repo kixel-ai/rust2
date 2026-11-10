@@ -1,7 +1,9 @@
 package = "reject-fixture"
 roots = [
     "alloc::addressed",
+    "alloc::alloc_leaked",
     "alloc::alloc_retyped",
+    "alloc::alloc_untraced",
     "alloc::allocated",
     "alloc::arrays_boxed",
     "alloc::beside_reference",
@@ -19,6 +21,8 @@ roots = [
     "alloc::past_reference",
     "alloc::peeked_moved",
     "alloc::pinned_lent",
+    "alloc::realloc_retyped",
+    "alloc::realloc_twice_retyped",
     "alloc::recast_reference",
     "alloc::reinterpreted",
     "alloc::unfixed_reference",
@@ -29,6 +33,9 @@ roots = [
     "alloc::zeroed",
     "bound_ranges",
     "buffers::blank_bytes",
+    "buffers::sliced_elsewhere",
+    "buffers::sliced_reassigned",
+    "buffers::sliced_swapped",
     "clones::cloned_slots",
     "clones::dropped_slots",
     "clones::ranked_slots",

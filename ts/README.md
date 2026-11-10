@@ -123,7 +123,7 @@ crate translation reaches is refused, and so are two versions of one crate it re
 | `Ordering`, `DefaultHasher`, `RandomState`, `BuildHasherDefault<H>` | `rs.Ordering`, which is `-1`, `0`, or `1`; `rs.Hasher`; `rs.RandomState`, the keys of the `DefaultHasher` it builds, never changed once made; `undefined`, as `PhantomData` is, whose `build_hasher` is `H::default()` |
 | `Duration` | `rs.Duration`: `{ secs, nanos }`, std's whole seconds as an `rs.u64` and the nanoseconds past them, never changed once made |
 | `TypeId` | `rs.TypeId`: rustc's 128-bit hash of the type, which std's holds at run time, as 32 hex digits, equal by `===`; ordered as std's derive orders the hash's pointer-sized words, lowest first, hashed as its high 64 bits, and written as `TypeId(0x…)`, as std's are |
-| `Layout`, `alloc::alloc` | `rs.Layout`: `{ size, align }`, never changed once made, checked as std's constructors check it; `alloc` gives an `rs.Block` of its bytes, which a cast of its pointer to `*mut T` the body shows came from `alloc` or `realloc` makes a JS array of `T`s, values JS copies, as an `rs.AtIndex` of its first; a cast back to `*mut u8` only as what `dealloc` or `realloc` takes, which free the array or copy it into a new one, and abort on memory `alloc` didn't give, as Rust leaves that undefined; its bytes, read, written, or cast to any other type, are refused, and fail at run time through a pointer from elsewhere |
+| `Layout`, `alloc::alloc` | `rs.Layout`: `{ size, align }`, never changed once made, checked as std's constructors check it; `alloc` gives an `rs.Block` of its bytes, which a cast of its pointer to `*mut T` the body shows came from `alloc` or `realloc` makes a JS array of `T`s, values JS copies, as an `rs.AtIndex` of its first; a cast back to `*mut u8` only as what `dealloc` or `realloc` takes, which free the array or copy it into a new one, and abort on memory `alloc` didn't give, as Rust leaves that undefined; its bytes, read, written, or cast to any other type, are refused, as are a call of `alloc` or `realloc` whose pointer the body passes on as bytes elsewhere, such as out of the body, and a `realloc` whose result it casts to a type other than the one the memory it grows was cast from, so no pointer to its bytes leaves the body that made it |
 | closure | an arrow function, with `[Symbol.dispose]` if it owns a value that drops, and what makes its clone if a clone can't be itself |
 | `fn` pointer, function item as a value | the function, or std's an arrow that calls it as a written call does, as a closure is typed: a `()` result is `undefined`, where a declared function returns `void` |
 | `&dyn Trait`, `&mut dyn Trait`, `Box<dyn Trait>`, `Arc<dyn Trait>`, `Rc<dyn Trait>`, `Weak<dyn Trait>`, `Pin<P>` of one | an object with the trait's methods, its supertraits' included: `shape.area$Shape()`; behind an `Arc` or an `Rc`, an `rs.ArcDyn` sharing the count of the `Arc` it was made from |
@@ -195,7 +195,8 @@ where the arrays are, whether each is a JS array of its own, as a `Vec<[T; N]>` 
 split it. A caller passes one as `rs.arraySliceFrom(arrays, rs.sliceFrom)`, `rs.byteSliceFrom`
 for bytes and `rs.arraySliceOf(rs.sliceFrom)` for arrays of arrays, and reads one as
 `rs.arraySliceItems(slice)`: the arrays themselves, or copies of the ones a split of one
-slice holds, which have no array of their own. std's methods that lend arrays or parts of
+slice holds, which have no array of their own, each remembered as its run, so `ptr::eq`
+compares a pointer to one where the run is. std's methods that lend arrays or parts of
 the slice, such as `iter_mut`, `split_at_mut`, `chunks_mut`, and `swap`, take them where
 they are; any other reads them as `rs.arraySliceItems` does, or for a `&mut` one, such as
 `sort` or `rotate_left`, reads copies of the arrays, which it writes back once it returns,
@@ -215,9 +216,8 @@ with its payload if that is text, or `Box<dyn Any>` as std's hook writes any oth
 A program that reaches `set_hook` has each panic carry the `Location` native code gives
 it, std's own at the `/rustc/<commit>/library/...` path its build names, read from the
 toolchain's source, and runs its hook with a `PanicHookInfo` before throwing; a panic in
-the hook throws `rs.Abort`, as std aborts. A panic of `bytes`' own code is where the
-program's `bytes` has it, and one of tokio's where its compiled code has it, named as the
-session names that file: by the host's cargo registry, unless the build remaps it, as
+the hook throws `rs.Abort`, as std aborts. A panic of `bytes`' or tokio's own code is
+where its compiled code has it, named as the session names that file: by the host's cargo registry, unless the build remaps it, as
 `--remap-path-prefix` does natively. The default
 hook writes nothing, as wasm32 has no stderr. A program without one passes no locations,
 and a bundler drops the hook's runtime, `rs/hook.ts`, from it; what stays is the location
@@ -767,8 +767,9 @@ of them:
   `rs/bytes.ts`, panicking as `bytes` does, and so do `split_to`, `split_off`,
   `truncate`, `clear`, and `slice_ref`, whose panic names no addresses. A `Bytes` of a
   `String` takes storage of its capacity, as `bytes` does. `slice_ref` of
-  bytes from other storage throws, since Rust may share what JS copied, as a `&'static
-  str`'s bytes that `as_bytes` encodes anew. `Bytes::from_owner`
+  bytes the body doesn't show borrowed, through `Deref`, `as_ref`, or a slice of one, from
+  that `Bytes` or one sharing its storage through `slice` or `clone`, is refused, since Rust
+  may share what JS copied, as a `&'static str`'s bytes that `as_bytes` encodes anew. `Bytes::from_owner`
   reads its owner's bytes once, as `bytes` does, and an owner that drops is kept in the
   `rs.Shared` they count, which drops it with the last `Bytes` sharing them; one of an owner
   is never unique, so taking it back copies.

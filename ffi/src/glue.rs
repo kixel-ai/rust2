@@ -10,7 +10,7 @@ use std::path::Path;
 
 use crate::abi::{self, Abi, Ty};
 use crate::config::Package;
-use crate::ir::{Access, Collection, Family, Function, Mutability, Receiver, Traits, Type};
+use crate::ir::{Access, Collection, Family, Function, Mutability, Receiver, Task, TaskKind, Traits, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
 
@@ -183,6 +183,7 @@ impl Crate<'_> {
 			packages: self.packages(),
 			contract,
 			dependency: dependency(&facade.root()),
+			lends: false,
 			out: String::new(),
 		};
 		generator.lib();
@@ -303,6 +304,9 @@ struct Gen<'a> {
 	contract: u64,
 	/// The name the crate depends on the facade by.
 	dependency: String,
+	/// Whether the function being written returns a borrow lent from its receiver's
+	/// handle, which `lender` holds.
+	lends: bool,
 	out: String,
 }
 
@@ -365,6 +369,7 @@ impl Gen<'_> {
 			Type::Ref(Mutability::Mut, inner) => format!("&mut {}", self.rust(inner)),
 			Type::Record(i) => generic(&api.records[*i].path, 0, &api.records[*i].args),
 			Type::Enum(i) => generic(&api.enums[*i].path, 0, &api.enums[*i].args),
+			Type::Object(i) if api.objects[*i].opaque => "rt::Opaque".to_string(),
 			Type::Object(i) if api.objects[*i].foreign => {
 				let path = &api.objects[*i].path;
 				format!("::{}", foreign(&path[0])) + &path[1..].iter().map(|s| format!("::{s}")).collect::<String>()
@@ -414,6 +419,9 @@ impl Gen<'_> {
 				true => format!("lift_{}({e}, w)", self.abi.enumeration(*i)),
 				false => format!("lift_{}(&{e}, w)", self.abi.enumeration(*i)),
 			},
+			Type::Object(i) if self.abi.api.objects[*i].opaque => {
+				format!("unsafe {{ rt::Object::<rt::Opaque>::take({e}, w) }}.arc(w)")
+			}
 			Type::Object(i) => match self.abi.api.objects[*i].copy {
 				true => format!(
 					"*unsafe {{ rt::Object::<{}>::{}({e}, w) }}",
@@ -517,11 +525,15 @@ impl Gen<'_> {
 			Type::Box(inner) => self.lower(inner, &format!("*{e}")),
 			Type::Ref(_, inner) => match &**inner {
 				Type::Str | Type::Slice | Type::Path => self.lower(inner, e),
+				Type::Object(i) if self.lends => {
+					format!("rt::Object::<{}>::lent({e}, lender)", self.object_path(*i))
+				}
 				// A handle in the clone is a new handle, and a slice's clone a `Vec`.
 				inner => self.lower(inner, &format!("::std::borrow::ToOwned::to_owned({e})")),
 			},
 			Type::Record(i) => format!("lower_{}({e})", self.abi.record(*i)),
 			Type::Enum(i) => format!("lower_{}({e})", self.abi.enumeration(*i)),
+			Type::Object(i) if self.abi.api.objects[*i].opaque => format!("rt::Object::new(rt::Opaque::new({e}))"),
 			Type::Object(_) => format!("rt::Object::new({e})"),
 			Type::Callback(..) | Type::Closure(..) => unreachable!("a callback is never returned"),
 			Type::Waker => unreachable!("a waker is never returned"),
@@ -1065,31 +1077,13 @@ impl Gen<'_> {
 		match ty {
 			Type::Ref(m, inner) => match (&**inner, m, future) {
 				(Type::Object(i), _, _) => {
-					let sync = self.abi.api.objects[*i].sync;
-					// A future may be polled on any thread, so it holds a value that is not
-					// `Sync` exclusively.
-					let exclusive = *m == Mutability::Mut || (future && !sync);
-					let borrow = match (exclusive, future) {
-						(false, false) => self.shared(*i),
-						(true, false) => "borrow_mut",
-						(false, true) => "borrow_arc",
-						(true, true) => "borrow_mut_arc",
+					let (binding, borrow) = self.borrow(*i, *m, c, future);
+					let pass = match (m, self.abi.api.objects[*i].opaque) {
+						(Mutability::Not, true) => format!("{local}.get(w)"),
+						(Mutability::Mut, _) => format!("&mut *{local}"),
+						(Mutability::Not, false) => format!("&*{local}"),
 					};
-					let binding = match exclusive {
-						true => "let mut",
-						false => "let",
-					};
-					let pass = match m {
-						Mutability::Mut => format!("&mut *{local}"),
-						Mutability::Not => format!("&*{local}"),
-					};
-					(
-						format!(
-							"{binding} {local} = unsafe {{ rt::Object::<{}>::{borrow}({c}, w) }};",
-							self.object_path(*i)
-						),
-						pass,
-					)
+					(format!("{binding} {local} = {borrow};"), pass)
 				}
 				(Type::Str, Mutability::Not, false) => {
 					(format!("let {local} = unsafe {{ {c}.str(w) }};"), local.to_string())
@@ -1108,8 +1102,65 @@ impl Gen<'_> {
 					(format!("{binding} {local} = {};", self.lift(inner, c)), pass)
 				}
 			},
+			// `Some` of a borrow, lent as the borrow alone is: a null handle or buffer is `None`.
+			Type::Option(opt) if let Type::Ref(m, inner) = &**opt => match (&**inner, future) {
+				(Type::Object(i), _) => {
+					let (binding, borrow) = self.borrow(*i, *m, c, future);
+					let pass = match (m, self.abi.api.objects[*i].opaque) {
+						(Mutability::Not, true) => format!("{local}.as_deref().map(|v| v.get(w))"),
+						(Mutability::Mut, _) => format!("{local}.as_deref_mut()"),
+						(Mutability::Not, false) => format!("{local}.as_deref()"),
+					};
+					(
+						format!("{binding} {local} = if {c}.is_null() {{ None }} else {{ Some({borrow}) }};"),
+						pass,
+					)
+				}
+				(Type::Str | Type::Slice | Type::Path, false) => {
+					let view = match &**inner {
+						Type::Str => "str",
+						Type::Slice => "bytes",
+						_ => "path",
+					};
+					(
+						format!(
+							"let {local} = if {c}.is_none() {{ None }} else {{ Some(unsafe {{ {c}.{view}(w) }}) }};"
+						),
+						local.to_string(),
+					)
+				}
+				// A future owns its arguments, so it lends a buffer's owned form.
+				(Type::Str | Type::Slice | Type::Path, true) => (
+					format!("let {local} = {};", self.lift(ty, c)),
+					format!("{local}.as_deref()"),
+				),
+				_ => (
+					format!("let {local} = {};", self.lift(ty, c)),
+					format!("{local}.as_ref()"),
+				),
+			},
 			_ => (format!("let {local} = {};", self.lift(ty, c)), local.to_string()),
 		}
+	}
+
+	/// The binding and expression borrowing object `i`'s handle `c` as `m` does. A future
+	/// may be polled on any thread, so it holds a value that is not `Sync` exclusively.
+	fn borrow(&self, i: usize, m: Mutability, c: &str, future: bool) -> (&'static str, String) {
+		let exclusive = m == Mutability::Mut || (future && !self.abi.api.objects[i].sync);
+		let borrow = match (exclusive, future) {
+			(false, false) => self.shared(i),
+			(true, false) => "borrow_mut",
+			(false, true) => "borrow_arc",
+			(true, true) => "borrow_mut_arc",
+		};
+		let binding = match exclusive {
+			true => "let mut",
+			false => "let",
+		};
+		(
+			binding,
+			format!("unsafe {{ rt::Object::<{}>::{borrow}({c}, w) }}", self.object_path(i)),
+		)
 	}
 
 	/// The out pointers a call's value is written through: one per element of a tuple.
@@ -1211,10 +1262,66 @@ impl Gen<'_> {
 				let (_, data) = c_params.next().expect("a lent function's data");
 				params.push(format!("p{n}_data: {}", rs(data)));
 			}
-			let (stmt, arg) = self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future);
+			let (stmt, arg) = match &function.task {
+				// A context made of C's waker, lent for the call.
+				Some(Task {
+					at,
+					kind: TaskKind::Context(m),
+				}) if *at == n && !function.future => {
+					let (binding, pass) = match m {
+						Mutability::Mut => ("let mut", format!("&mut a{n}")),
+						Mutability::Not => ("let", format!("&a{n}")),
+					};
+					(
+						format!(
+							"let a{n}_waker = p{n}.lift();\n\t{binding} a{n} = ::std::task::Context::from_waker(&a{n}_waker);"
+						),
+						pass,
+					)
+				}
+				_ if param.interned => (
+					format!("let a{n} = rt::intern(unsafe {{ p{n}.str(w) }});"),
+					format!("a{n}"),
+				),
+				_ => self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future),
+			};
 			stmts.push(stmt);
 			args.push(arg);
 		}
+		// A future made of a `Poll` calls the function at each poll, passing the poll's
+		// context, or a value made from its waker and kept until the next poll, so what that
+		// poll registers stays registered.
+		let mut made = String::new();
+		if let Some(task) = function.task.as_ref().filter(|_| function.future) {
+			let pass = match &task.kind {
+				TaskKind::Context(Mutability::Mut) => "&mut *t_cx".to_string(),
+				TaskKind::Context(Mutability::Not) => "&*t_cx".to_string(),
+				TaskKind::Made { object, make } => {
+					made = format!(
+						"let t_made = t_held.insert(<{}>::{make}(::std::task::Context::waker(t_cx).clone()));\n\t\t\t",
+						self.object_path(*object)
+					);
+					"&*t_made".to_string()
+				}
+			};
+			args.insert(usize::from(receiver_ty.is_some()) + task.at, pass);
+		}
+		// Rust writes back what the call left in each value C passed for `&mut`, on every
+		// path, errors included.
+		let writes: String = (function.params.iter().enumerate())
+			.filter(|(_, param)| param.ty.written())
+			.map(|(n, param)| {
+				let Type::Ref(_, inner) = &param.ty else {
+					unreachable!("a written parameter is `&mut`")
+				};
+				let out = Abi::written(function, &crate::abi::escape(&param.name));
+				format!(
+					"\n\tunsafe {{ rt::write::<{}>({out}.cast(), || {}) }};",
+					rs(&self.abi.ty(inner)),
+					self.lower(inner, &format!("a{n}"))
+				)
+			})
+			.collect();
 		let mut callee = match &owner {
 			Some((_, owner_type)) => format!("<{}>::{}", self.rust(owner_type), function.name()),
 			None => self.path(&function.path),
@@ -1237,13 +1344,38 @@ impl Gen<'_> {
 			),
 			Access::Text => format!("::std::string::ToString::to_string({})", args[0]),
 		};
+		if function.lends {
+			let Some((_, Type::Object(i))) = &owner else {
+				unreachable!("a lent return is a method of an object's")
+			};
+			let lender = match self.abi.api.objects[*i].sync {
+				true => "lender",
+				false => "lender_local",
+			};
+			stmts.push(format!(
+				"let lender = unsafe {{ rt::Object::<{}>::{lender}(this, w) }};",
+				self.object_path(*i)
+			));
+		}
 		let body = stmts.join("\n\t");
 		if let Some((_, poll, free)) = &export.future {
 			// A function that is not `async` runs when called, and what it returns
 			// borrows nothing, so it is called now; an `async fn` runs when polled.
-			let (now, later) = match function.eager {
-				true => (format!("\n\tlet future = {call};"), "future".to_string()),
-				false => (String::new(), call),
+			let (now, later) = match (function.eager, &function.task) {
+				(true, _) => (format!("\n\tlet future = {call};"), "future".to_string()),
+				(false, None) => (String::new(), call),
+				(false, Some(task)) => {
+					let held = match task.kind {
+						TaskKind::Made { .. } => "let mut t_held = None;\n\t\t",
+						TaskKind::Context(_) => "",
+					};
+					(
+						String::new(),
+						format!(
+							"{{\n\t\t{held}::std::future::poll_fn(move |t_cx: &mut ::std::task::Context<'_>| {{\n\t\t\t{made}{call}\n\t\t}})\n\t\t}}"
+						),
+					)
+				}
 			};
 			let bind: String = Self::outs(function)
 				.iter()
@@ -1283,12 +1415,14 @@ impl Gen<'_> {
 			.collect();
 		params.extend(outs);
 		let ret = rs(&export.call.ret);
+		self.lends = function.lends;
 		let finish = match function.err {
 			Some(_) => self.finish(function, ("v", "true", "false")),
 			None => self.finish(function, ("", "", "")),
 		};
+		self.lends = false;
 		self.line(format!(
-			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}\n\tlet result = {};\n\t{finish}\n}}\n",
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}\n\tlet result = {};{writes}\n\t{finish}\n}}\n",
 			params.join(", "),
 			match function.collect {
 				// An iterator's items, all taken now.

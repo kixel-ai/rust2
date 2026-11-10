@@ -3,6 +3,26 @@
 // `detail` names the export's C types. It throws nothing and reads no type information,
 // so it builds with exceptions and RTTI off.
 
+// Clang's checks of ownership, which a caller enables with `-Wconsumed -Wdangling`: an
+// object is used after a move, or a view outlives the bytes it reads. Other compilers see
+// nothing. A method callable "unknown" takes a reference parameter's object, whose state
+// Clang does not track.
+#if defined(__clang__)
+#define RUST2_FFI_LIFETIMEBOUND [[clang::lifetimebound]]
+#define RUST2_FFI_CONSUMABLE [[clang::consumable(unconsumed)]]
+#define RUST2_FFI_CALLABLE [[clang::callable_when("unconsumed", "unknown")]]
+#define RUST2_FFI_CONSUMES [[clang::callable_when("unconsumed", "unknown"), clang::set_typestate(consumed)]]
+#define RUST2_FFI_UNCONSUMED [[clang::return_typestate(unconsumed)]]
+#define RUST2_FFI_MOVED_FROM [[clang::return_typestate(consumed)]]
+#else
+#define RUST2_FFI_LIFETIMEBOUND
+#define RUST2_FFI_CONSUMABLE
+#define RUST2_FFI_CALLABLE
+#define RUST2_FFI_CONSUMES
+#define RUST2_FFI_UNCONSUMED
+#define RUST2_FFI_MOVED_FROM
+#endif
+
 namespace detail {
 
 [[noreturn]] inline void fail(const char *what) noexcept {
@@ -207,6 +227,21 @@ inline const ::std::uint8_t *bytes(const void *data, ::std::size_t len) noexcept
 
 class buf;
 
+// An object Rust lends a closure as `&mut`: its methods through `->`, but neither a move
+// nor a copy of it, which would keep the loan past the call.
+template <class T>
+class borrow {
+	T &object_;
+
+public:
+	explicit borrow(T &object) noexcept : object_(object) {}
+	borrow(const borrow &) = delete;
+	borrow &operator=(const borrow &) = delete;
+	T *operator->() const noexcept {
+		return &object_;
+	}
+};
+
 // Bytes lent to a call: text or binary, read during the call and never kept. A contiguous
 // range, so from C++20 it converts to `std::span<const std::uint8_t>`, and back.
 class view {
@@ -221,7 +256,7 @@ public:
 	template <class R, class = ::std::enable_if_t<sizeof(*::std::declval<const R &>().data()) == 1 &&
 	                                              !::std::is_pointer_v<::std::decay_t<R>>>,
 	          class = decltype(::std::declval<const R &>().size())>
-	view(const R &range) noexcept : view(range.data(), range.size()) {}
+	view(const R &range RUST2_FFI_LIFETIMEBOUND) noexcept : view(range.data(), range.size()) {}
 
 	const ::std::uint8_t *data() const noexcept {
 		return data_;
@@ -288,7 +323,7 @@ public:
 		reset();
 	}
 
-	const ::std::uint8_t *data() const noexcept {
+	const ::std::uint8_t *data() const noexcept RUST2_FFI_LIFETIMEBOUND {
 		return detail::bytes(raw_.ptr, raw_.len);
 	}
 	::std::size_t size() const noexcept {
@@ -303,7 +338,7 @@ public:
 	const ::std::uint8_t *end() const noexcept {
 		return data() + size();
 	}
-	::std::string_view str() const noexcept {
+	::std::string_view str() const noexcept RUST2_FFI_LIFETIMEBOUND {
 		return view(*this).str();
 	}
 

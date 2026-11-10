@@ -138,6 +138,10 @@ fn api() -> &'static Api {
 	})
 }
 
+/// What a use of a handle lent from another's value prints once that value was borrowed
+/// exclusively.
+const OUTLIVED: &str = "api_Meter_count: a handle lent from another outlived it";
+
 #[test]
 fn api_c() {
 	let api = api();
@@ -178,6 +182,11 @@ fn api_c() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("null", "api_Registry_edit: a function is null"),
+		("outlived", OUTLIVED),
+		(
+			"lent shared",
+			"api_Meter_reset: a handle a call lent shared is borrowed exclusively",
+		),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
 		assert!(!output.status.success(), "{case} did not abort");
@@ -228,12 +237,17 @@ fn api_cpp() {
 			),
 			("lent kept", "a lent object was moved out of"),
 			("null view", "a view of null bytes has a length"),
+			("outlived", OUTLIVED),
 		] {
 			let output = Command::new(&exe).arg(case).output().unwrap();
 			assert!(!output.status.success(), "C++{standard} {case} did not abort");
 			let stderr = String::from_utf8_lossy(&output.stderr);
 			assert!(stderr.contains(message), "C++{standard} {case} printed {stderr}");
 		}
+	}
+
+	if !cfg!(target_env = "msvc") {
+		cpp_strict(api);
 	}
 
 	// A C++ program whose header names another contract than its library's aborts at load.
@@ -252,6 +266,50 @@ fn api_cpp() {
 		stderr.contains("api.hpp and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
+}
+
+/// Clang's ownership checks: the whole script builds clean under them, and each case of
+/// `tests/api_strict.cpp` fails with its diagnostic.
+fn cpp_strict(api: &Api) {
+	let clang = |src: &Path, case: u8| {
+		let mut cmd = Command::new("clang++");
+		cmd.args(["-std=c++17", "-Wconsumed", "-Wdangling", "-Werror", "-c", "-I"])
+			.arg(api.out.join("include"))
+			.arg(format!("-DCASE={case}"))
+			.arg(src)
+			.arg("-o")
+			.arg(scratch().join("api").join("strict.o"));
+		cmd
+	};
+	let tests = manifest_dir().join("tests");
+	run(&mut clang(&tests.join("api.cpp"), 0));
+	run(&mut clang(&tests.join("api_strict.cpp"), 0));
+	for (case, message) in [
+		(
+			1,
+			"invalid invocation of method 'get' on object 'c' while it is in the 'consumed' state",
+		),
+		(
+			2,
+			"invalid invocation of method 'get' on object 'c' while it is in the 'consumed' state",
+		),
+		(
+			3,
+			"invalid invocation of method 'into_level' on a temporary object while it is in the 'consumed' state",
+		),
+		(
+			4,
+			"invalid invocation of method 'into_level' on a temporary object while it is in the 'consumed' state",
+		),
+		(5, "'this' argument to member function 'into_label' is an lvalue"),
+		(6, "no matching member function for call to 'emplace'"),
+		(7, "temporary whose address is used as value of local variable 'name'"),
+	] {
+		let output = clang(&tests.join("api_strict.cpp"), case).output().unwrap();
+		assert!(!output.status.success(), "case {case} built");
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(stderr.contains(message), "case {case} printed {stderr}");
+	}
 }
 
 /// A build of the C++ `src` against the api library into `exe`, at C++`standard`, with
@@ -501,6 +559,7 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Kotlin threw"),
+		("outlived", OUTLIVED),
 		("stray", "MalformedInputException"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 	] {
@@ -554,6 +613,7 @@ fn api_python() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Python raised"),
+		("outlived", OUTLIVED),
 		("family", "ValueError: an IPv6 address has no Rust SocketAddrV4"),
 	] {
 		let output = python(&dir, &[case]).output().unwrap();
@@ -695,6 +755,7 @@ fn api_swift() {
 	}
 	for (case, message) in [
 		("family", "api_nexts: an IPv6 socket address where IPv4 is taken"),
+		("outlived", OUTLIVED),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
 	] {
@@ -768,6 +829,7 @@ fn api_dart() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Dart threw"),
+		("outlived", OUTLIVED),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
@@ -964,6 +1026,7 @@ fn api_go() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("family", "an address that is not IPv4 has no Rust SocketAddrV4"),
+		("outlived", OUTLIVED),
 		("text", "api_greet: a string is not UTF-8"),
 		("callback panicked", "a log failed"),
 		("duration", "a Rust Duration past time.Duration's longest"),

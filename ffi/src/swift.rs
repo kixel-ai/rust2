@@ -250,6 +250,7 @@ impl<'a> Gen<'a> {
 			_ if !self.unique(ty) => "",
 			Type::Ref(Mutability::Not, _) => "borrowing ",
 			Type::Ref(Mutability::Mut, _) => "inout ",
+			Type::Option(inner) if matches!(**inner, Type::Ref(Mutability::Mut, _)) => "inout ",
 			_ => "consuming ",
 		}
 	}
@@ -586,7 +587,7 @@ impl<'a> Gen<'a> {
 			self.callback(i);
 		}
 		for function in &api.functions {
-			if let Some((code, name)) = self.function(function, None, None) {
+			for (code, name) in self.function(function, None, None) {
 				self.claim(&name, format!("fn `{}`", function.path.join("::")));
 				self.top.push_str(&code);
 				self.top.push('\n');
@@ -777,7 +778,7 @@ impl<'a> Gen<'a> {
 		members: &mut Vec<String>,
 	) {
 		for method in methods {
-			if let Some((code, member)) = self.function(method, Some(owner), Some(ty)) {
+			for (code, member) in self.function(method, Some(owner), Some(ty)) {
 				members.push(member);
 				body.push(indent(&code));
 			}
@@ -1207,14 +1208,52 @@ impl<'a> Gen<'a> {
 		format!("{{ {} in\n\t{}\n}}", params.join(", "), body.join("\n\t"))
 	}
 
-	/// `function`'s Swift form and its member name, a member of `owner` (whose IR type is
-	/// `owner_ty`) if it has one.
+	/// `function`'s Swift forms and their member names, members of `owner` (whose IR type
+	/// is `owner_ty`) if it has one: an overload for each choice of passing or leaving out
+	/// each `Option<&T>` of a struct, since an optional holds a struct only by consuming it.
 	fn function(
 		&mut self,
 		function: &Function,
 		owner: Option<&Ty>,
 		owner_ty: Option<&Type>,
-	) -> Option<(String, String)> {
+	) -> Vec<(String, String)> {
+		let optional: Vec<usize> = (function.params.iter().enumerate())
+			.filter(|(_, p)| self.lent_option(&p.ty))
+			.map(|(k, _)| k)
+			.collect();
+		if optional.len() > MAX_OPTIONAL {
+			self.errors.push(format!(
+				"fn `{}` takes {} optional borrowed objects, each an overload with and without it in Swift, past the {MAX_OPTIONAL} it exports",
+				function.path.join("::"),
+				optional.len()
+			));
+			return Vec::new();
+		}
+		(0..1usize << optional.len())
+			.map(|mask| {
+				let left: BTreeSet<usize> = (optional.iter().enumerate())
+					.filter(|(bit, _)| mask & (1 << bit) == 0)
+					.map(|(_, k)| *k)
+					.collect();
+				self.overload(function, owner, owner_ty, &left)
+			})
+			.collect()
+	}
+
+	/// Whether `ty` is an `Option<&T>` of a struct.
+	fn lent_option(&self, ty: &Type) -> bool {
+		matches!(ty, Type::Option(inner) if matches!(&**inner, Type::Ref(Mutability::Not, object) if self.unique(object)))
+	}
+
+	/// One of `function`'s Swift forms, leaving out the optional borrowed parameters in
+	/// `left`, which pass `None`.
+	fn overload(
+		&mut self,
+		function: &Function,
+		owner: Option<&Ty>,
+		owner_ty: Option<&Type>,
+		left: &BTreeSet<usize>,
+	) -> (String, String) {
 		let abi = self.abi;
 		let export = abi.export(function, owner);
 		let c_name = export.call.name.clone();
@@ -1287,12 +1326,48 @@ impl<'a> Gen<'a> {
 			if let Type::Closure(..) = param.ty {
 				c_params.next().expect("a closure has its data");
 			}
-			params.push(format!("_ {name}: {}{}", self.ownership(&param.ty), self.sw(&param.ty)));
+			if left.contains(&k) {
+				args.push(Arg {
+					exprs: vec!["nil".to_string()],
+					..Arg::default()
+				});
+				continue;
+			}
+			if let Type::Option(lent) = &param.ty
+				&& self.lent_option(&param.ty)
+			{
+				params.push(format!("_ {name}: borrowing {}", self.sw(lent)));
+				args.push(Arg {
+					exprs: vec![format!("{name}.handle")],
+					..Arg::default()
+				});
+				continue;
+			}
+			// A value Rust writes back is `inout`, as is an object it borrows mutably.
+			let ownership = match param.ty.written() {
+				true => "inout ",
+				false => self.ownership(&param.ty),
+			};
+			params.push(format!("_ {name}: {ownership}{}", self.sw(&param.ty)));
 			let (arg, needs) = self.arg(&param.ty, c, name, k, tr);
 			arena |= needs;
 			args.push(arg);
 		}
 		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		// Each value passed for `&mut` takes what Rust wrote back, once the call's own
+		// access to it ends, on every path, a throw included.
+		let mut written = Vec::new();
+		for (param, name) in function.params.iter().zip(&names).filter(|(p, _)| p.ty.written()) {
+			let out = Abi::written(function, &abi::escape(&param.name));
+			let (_, ty) = outs
+				.iter()
+				.find(|(n, _)| *n == out)
+				.expect("a written parameter has its out");
+			prelude.push(self.out_decl(&out, ty));
+			let lifted = self.lift(param.ty.base(), &format!("c_{out}_"));
+			prelude.push(format!("defer {{ {name} = {lifted} }}"));
+			written.push(out);
+		}
 		if arena {
 			prelude.insert(
 				1.min(prelude.len()),
@@ -1356,7 +1431,7 @@ impl<'a> Gen<'a> {
 			));
 		} else {
 			tail = None;
-			for (n, ty) in &outs {
+			for (n, ty) in outs.iter().filter(|(n, _)| !written.contains(n)) {
 				inner.push(self.out_decl(n, ty));
 			}
 			let mut call_args = exprs.clone();
@@ -1376,7 +1451,8 @@ impl<'a> Gen<'a> {
 					));
 				}
 				(None, Type::Unit) => inner.push(call),
-				(None, ok) if !outs.is_empty() => {
+				// A value C returns beside what Rust wrote back is its return, as with none.
+				(None, ok) if outs.iter().any(|(n, _)| !written.contains(n)) => {
 					inner.push(call);
 					inner.push(format!("return {}", self.lift_outs(&function.ok, ok)));
 				}
@@ -1413,6 +1489,9 @@ impl<'a> Gen<'a> {
 		}
 
 		let mut text = function.docs.clone();
+		for k in left {
+			text.push_str(&format!("\n\nWithout `{}`, as Rust's `None`.", unquote(&names[*k])));
+		}
 		for (param, name) in function.params.iter().zip(&names) {
 			if let Type::Closure(lent, _) = &param.ty {
 				text.push_str(&format!(
@@ -1463,9 +1542,9 @@ impl<'a> Gen<'a> {
 		let code = format!("{}{head} {{\n{}\n}}\n", docs(text.trim(), ""), indent(&body));
 		let labels = match head.contains(" var ") {
 			true => Vec::new(),
-			false => function.params.iter().map(|_| "_".to_string()).collect(),
+			false => params.iter().map(|_| "_".to_string()).collect(),
 		};
-		Some((code, full(is_static, &member, labels)))
+		(code, full(is_static, &member, labels))
 	}
 
 	/// The declaration of the local the call writes the out value `name` of C type `ty` to.
@@ -1532,6 +1611,10 @@ fn thrown_value(thrown: &Thrown, lifted: &str) -> String {
 		Thrown::Wrapped(name) => format!("{name}(error: {lifted})"),
 	}
 }
+
+/// The most `Option<&T>` parameters of a struct a function takes, each doubling its
+/// overloads.
+const MAX_OPTIONAL: usize = 2;
 
 /// The objects Swift holds as noncopyable structs: each but those `Copy`, and those thrown
 /// as errors, which `Swift.Error` requires be copyable.
