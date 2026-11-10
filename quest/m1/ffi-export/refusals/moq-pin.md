@@ -2,11 +2,13 @@
 
 ## Goal
 
-The moq pin moves to a revision whose crates re-export no whole crate, moq's own included,
-and where every type a facade export names is reachable from the facade's root. `just ffi
-census` there lists no whole-crate re-export refusal and no "type not reachable from the
-crate root" refusal of moq's own (20 at moq `ffcb7cd9`, and 9 at moq's head on
-2026-11-09, measured in [#676](https://github.com/moq-dev/rust2/pull/676)).
+The moq pin moves to moq's current `main`, whose crates re-export no whole crate, moq's own
+included. `just ffi census` there lists no whole-crate re-export refusal. Its "type not
+reachable from the crate root" refusals are `kio::Pending` and `lite::version::Version`,
+which Waiting covers, and moq-quic's stats and varint types under moq-tokio's `quic::driver`,
+which narrow-standin drops. At `ffcb7cd9` there were 20 such refusals (18 Guard and Side, and
+`Version`), and 9 at moq's head on 2026-11-09, measured in
+[#676](https://github.com/moq-dev/rust2/pull/676).
 
 ## Plan
 
@@ -49,11 +51,23 @@ and report the census before and after. The last bump
 pin: run `just ts census` too, and update the count in the
 [model epic](/quest/m2/ts-model/README.md).
 
+Decided with the maintainer on 2026-11-09: bump to moq's current main now, and narrow the
+Goal to the two moq-owned types. Rejected: wait for moq to fix the rest first. Not landed:
+moq's `main` fails `just ts moq` and `just ffi moq-cpp`, so the bump waits on Waiting.
+
 ## Waiting
 
-- Maintainer: whether the bump lands before moq fixes the two unreachable types, narrowing
-  this Goal to what the census then lists. [#676](https://github.com/moq-dev/rust2/pull/676)
-  recommends landing it, since the sibling quests need moq's head.
-- moq-dev/moq: `kio::Pending` and `lite::version::Version` are reachable from moq-net's
-  root, by name or by wrapping. No moq quest owns it yet. Done when `just ffi census` at
-  moq's head lists no "type not reachable from the crate root" item for them.
+- moq-dev/moq: `rind` builds for wasm32. moq-net depends on `rind`, whose md5 inline asm has
+  no wasm32 arm, so `just ts moq <checkout>` fails at moq's `main`. Done when it passes there.
+- moq-dev/moq: moq-tokio builds without tripping `recursion_depth_exceeding_limit` (an
+  overflow proving `Send` on `Instrumented<...>`), which `just ffi moq-cpp <checkout>` denies.
+  Done when it passes at moq's `main`.
+- Maintainer: decide how `kio::Pending`, named by `dial_tcp` and `dial_track`, and
+  `lite::version::Version` stop refusing as "type not reachable from the crate root", which
+  `just ffi census <checkout>` lists at moq's `main`. Options: (a) rust2 exports a type the
+  crate root does not reach by its defining path, recommended, since it asks moq for no source
+  change, as the maintainer's 2026-11-09 decision does; a type whose defining path is itself
+  private stays refused. (b) moq-dev/moq makes both reachable from moq-net's root, by name or
+  by wrapping; no moq quest owns this yet. Whichever is chosen, its change lands before the
+  bump: the exporter change under (a), or moq's fix under (b). Done when the census at moq's
+  `main` lists neither type.

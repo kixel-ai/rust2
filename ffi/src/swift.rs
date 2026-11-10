@@ -1078,12 +1078,30 @@ impl<'a> Gen<'a> {
 			if let Type::Closure(..) = param.ty {
 				c_params.next().expect("a closure has its data");
 			}
-			params.push(format!("_ {name}: {}", self.sw(&param.ty)));
+			let inout = match param.ty.written() {
+				true => "inout ",
+				false => "",
+			};
+			params.push(format!("_ {name}: {inout}{}", self.sw(&param.ty)));
 			let (arg, needs) = self.arg(&param.ty, c, name, k, tr);
 			arena |= needs;
 			args.push(arg);
 		}
 		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		// Each value passed for `&mut` takes what Rust wrote back, once the call's own
+		// access to it ends, on every path, a throw included.
+		let mut written = Vec::new();
+		for (param, name) in function.params.iter().zip(&names).filter(|(p, _)| p.ty.written()) {
+			let out = Abi::written(function, &abi::escape(&param.name));
+			let (_, ty) = outs
+				.iter()
+				.find(|(n, _)| *n == out)
+				.expect("a written parameter has its out");
+			prelude.push(self.out_decl(&out, ty));
+			let lifted = self.lift(param.ty.base(), &format!("c_{out}_"));
+			prelude.push(format!("defer {{ {name} = {lifted} }}"));
+			written.push(out);
+		}
 		if arena {
 			prelude.insert(
 				1.min(prelude.len()),
@@ -1140,7 +1158,7 @@ impl<'a> Gen<'a> {
 			));
 		} else {
 			tail = None;
-			for (n, ty) in &outs {
+			for (n, ty) in outs.iter().filter(|(n, _)| !written.contains(n)) {
 				inner.push(self.out_decl(n, ty));
 			}
 			let mut call_args = exprs.clone();
@@ -1160,7 +1178,8 @@ impl<'a> Gen<'a> {
 					));
 				}
 				(None, Type::Unit) => inner.push(call),
-				(None, ok) if !outs.is_empty() => {
+				// A value C returns beside what Rust wrote back is its return, as with none.
+				(None, ok) if outs.iter().any(|(n, _)| !written.contains(n)) => {
 					inner.push(call);
 					inner.push(format!("return {}", self.lift_outs(&function.ok, ok)));
 				}

@@ -468,6 +468,8 @@ impl<'a> Abi<'a> {
 			};
 			params.push(("self".to_string(), ty));
 		}
+		// What Rust writes back for each value C passes for `&mut`, after every parameter.
+		let mut written = Vec::new();
 		for param in &function.params {
 			let copied = match &param.ty {
 				Type::Object(i) => Some(*i),
@@ -496,9 +498,14 @@ impl<'a> Abi<'a> {
 				params.push((data, Ty::Data));
 				continue;
 			}
+			if param.ty.written() {
+				written.push((Self::written(function, &name), Ty::Out(Box::new(ty.clone()))));
+			}
 			params.push((name, ty));
 		}
-		let mut outs = Vec::new();
+		// A value returned is C's return, after which only the written outs follow.
+		let writes = written.len();
+		let mut outs = written;
 		match &function.ok {
 			Type::Unit => {}
 			Type::Tuple(elements) => {
@@ -546,12 +553,25 @@ impl<'a> Abi<'a> {
 				params.extend(outs);
 				Ty::Void
 			}
-			(None, ok) => self.returned(ok),
+			(None, ok) => {
+				params.extend(outs.into_iter().take(writes));
+				self.returned(ok)
+			}
 		};
 		Export {
 			call: Sig { name, params, ret },
 			future: None,
 		}
+	}
+
+	/// The out pointer Rust writes back the value C passed for `&mut` as parameter `name`
+	/// through, named apart from every parameter of `function`.
+	pub fn written(function: &Function, name: &str) -> String {
+		let mut out = format!("{name}_out");
+		while function.params.iter().any(|p| escape(&p.name) == out) {
+			out.push('_');
+		}
+		out
 	}
 
 	fn claim(&mut self, name: String, what: String, span: Span) {
@@ -590,6 +610,7 @@ impl<'a> Abi<'a> {
 			"detail",
 			"native",
 			"bytes",
+			"mut",
 			"atomic_load",
 			"atomic_store",
 			"atomic_add",

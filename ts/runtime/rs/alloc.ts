@@ -1,9 +1,10 @@
 // `std::alloc`, for rust2-ts output: a `Layout`, and memory from `alloc` that a cast of its
 // pointer to one to `T` makes a JS array of `T`s, as many as fit. `rs.ts` re-exports all of it.
 //
-// JS keeps values, not bytes, so the memory is untyped until that cast, and a read or
-// write of its bytes fails. `realloc` keeps the values in a new array, and `dealloc` lets
-// the array go; a pointer into it after either reads what Rust leaves undefined.
+// JS keeps values, not bytes, so the memory is untyped until that cast, and translation
+// refuses a read or write of its bytes, and a pointer to them leaving the body that made
+// it. `realloc` keeps the values in a new array, and `dealloc` lets the array go; a pointer
+// into it after either reads what Rust leaves undefined.
 
 import { Abort, Err, type Fmt, type FmtResult, type Formatter, fmtDebugStructFields, fmtPad, fmtWriteFmt, Ok, type Place, type Result, violated } from "../rs.ts";
 import { AtIndex } from "./collections.ts";
@@ -128,7 +129,7 @@ export class Block implements Place<number> {
 }
 
 function bytes(): never {
-	throw new Error("rust2-ts: a read or write of the bytes of memory from `alloc`, which JS keeps as values");
+	throw new Error("rust2-ts: a read or write of the bytes of memory from `alloc`, which translation refuses");
 }
 
 /** The block each array a cast of one's pointer made is in. */
@@ -145,6 +146,7 @@ export function alloc(layout: Layout): Block {
  * it holds already, of values of that type.
  */
 export function allocAs<T>(p: Place<number>, elem: number, type: string): Place<T> {
+	// Translation casts only a pointer the body shows `alloc` or `realloc` returned.
 	if (!(p instanceof Block)) {
 		throw new Error("rust2-ts: a pointer cast from one to bytes to one to values, which isn't memory from `alloc`");
 	}
@@ -155,6 +157,7 @@ export function allocAs<T>(p: Place<number>, elem: number, type: string): Place<
 		p.type = type;
 		BLOCKS.set(p.array, p);
 	}
+	// Translation refuses casting memory from one `alloc` to two types, and from `realloc` to another than its argument's.
 	if (p.type !== type) throw new Error(`rust2-ts: memory from \`alloc\` holding \`${p.type}\`s, as \`${type}\`s`);
 	return new AtIndex(p.array as T[], 0);
 }

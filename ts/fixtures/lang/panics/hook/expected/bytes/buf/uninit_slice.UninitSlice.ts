@@ -64,9 +64,9 @@ export function uninit(slice: rs.ByteSlice): rs.ByteSlice {
  */
 export function writeByte(self: rs.ByteSlice, index: rs.usize, byte: rs.u8): void {
 	if (!(index < len(self))) {
-		rs.panic("assertion failed: index < self.len()", { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/uninit_slice.rs", line: 108, col: 9 });
+		rs.panic("assertion failed: index < self.len()", { file: "bytes/source/buf/uninit_slice.rs", line: 108, col: 9 });
 	} else {
-		asMutPtr(indexMut$ops_IndexMut_ops_RangeFrom_usize(self, new rs.RangeFrom(index, rs.usizeStep), { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/uninit_slice.rs", line: 110, col: 22 })).v = byte;
+		asMutPtr(indexMut$ops_IndexMut_ops_RangeFrom_usize(self, new rs.RangeFrom(index, rs.usizeStep), { file: "bytes/source/buf/uninit_slice.rs", line: 110, col: 22 })).v = byte;
 	}
 }
 
@@ -96,7 +96,7 @@ export function copyFromSlice(self: rs.ByteSlice, src: rs.ByteSlice): void {
 	const _5: rs.usize = len(self);
 	const _8: rs.usize = src.length;
 	if (!(_5 === _8)) {
-		rs.assertFailed("==", (f: rs.Formatter) => rs.usizeDebug(_5, f), (f: rs.Formatter) => rs.usizeDebug(_8, f), undefined as rs.Arguments | undefined, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/uninit_slice.rs", line: 137, col: 9 });
+		rs.assertFailed("==", (f: rs.Formatter) => rs.usizeDebug(_5, f), (f: rs.Formatter) => rs.usizeDebug(_8, f), undefined as rs.Arguments | undefined, { file: "bytes/source/buf/uninit_slice.rs", line: 137, col: 9 });
 	} else {
 		rs.ptrCopy(rs.byteSliceAsPtr(src), asMutPtr(self), len(self));
 	}

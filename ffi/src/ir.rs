@@ -150,6 +150,9 @@ pub struct Object {
 	/// Whether it is a foreign type, such as `url::Url`, that the facade maps rather than
 	/// exports: its path is the type's in its own crate, not in the facade.
 	pub foreign: bool,
+	/// Whether it is a foreign type behind an `Arc`, held erased, which the glue never
+	/// names: a handle with none of its API, which Rust takes back as the `Arc`.
+	pub opaque: bool,
 }
 
 /// A `pub` trait: implemented by the foreign side, through a table of functions.
@@ -193,9 +196,16 @@ pub struct Function {
 	/// For a future, whether the call itself runs code, as a function that is not
 	/// `async` returning one does: the export calls it at once, and polls what it returns.
 	pub eager: bool,
+	/// The parameter it polls its task through, if any: C passes a waker for it or, for a
+	/// future made of a returned `Poll`, the future's poll supplies it.
+	pub task: Option<Task>,
 	/// Whether it returns another crate's iterator, whose items the export collects into
 	/// the array it returns.
 	pub collect: bool,
+	/// Whether it returns a borrow of an object that is not `Clone`, which C holds as a handle
+	/// lent from its receiver's: shared, until the receiver's value is borrowed
+	/// exclusively, moved out, or freed.
+	pub lends: bool,
 	/// What it reads: Rust's function, a field it reads or writes, or a constant named as it is.
 	pub access: Access,
 	/// The instance it is, if a type parameter exports at several.
@@ -240,6 +250,22 @@ impl Function {
 	}
 }
 
+/// A parameter a function polls its task through.
+pub struct Task {
+	/// Its place among the parameters after `self`.
+	pub at: usize,
+	pub kind: TaskKind,
+}
+
+/// What a [`Task`] parameter is.
+pub enum TaskKind {
+	/// `&Context` or `&mut Context`: made from C's waker, or the future's own.
+	Context(Mutability),
+	/// A reference to an object made from a `Waker` by its associated function `make`, which
+	/// the future makes from its waker at each poll and keeps until the next.
+	Made { object: usize, make: String },
+}
+
 /// How a method takes `self`.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Receiver {
@@ -254,6 +280,9 @@ pub enum Receiver {
 pub struct Param {
 	pub name: String,
 	pub ty: Type,
+	/// Whether it is a `&str` that must be `'static`, which the glue interns: it leaks each
+	/// distinct string once and lends that copy to every later call with equal content.
+	pub interned: bool,
 }
 
 /// A `pub const`.
@@ -416,6 +445,12 @@ pub fn each(ty: &Type, f: &mut dyn FnMut(&Type)) {
 }
 
 impl Type {
+	/// Whether a parameter of this type is a value C passes in that Rust writes back
+	/// through an out pointer: `&mut` of anything but an object, whose handle it borrows.
+	pub fn written(&self) -> bool {
+		matches!(self, Type::Ref(Mutability::Mut, inner) if !matches!(**inner, Type::Object(_)))
+	}
+
 	/// The type behind any reference or `Box`.
 	pub fn base(&self) -> &Type {
 		match self {
