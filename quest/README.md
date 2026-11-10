@@ -7,14 +7,21 @@ grouped into milestones ordered by priority.
 
 ## Plan
 
-m0 holds urgent fixes. m1 is the work with a consumer waiting on it now:
-the exporter that replaces the UniFFI fork (moq skips switching to the fork). m2 is
-research: the TypeScript translator, which moq's browser package adopts once it matches
-the handwritten one, and the fork's gated or speculative work. m3 holds work that waits
-on evidence or has no consumer yet: the build-speed tracks, which the
-[build-speed benchmark](/bench/build/README.md) rescopes before they start, and the
-parts of std and the translators' features no consumer calls yet. m4 holds long-term
-research.
+m0 holds urgent fixes and what every run pays for. m1 is the work with a consumer
+waiting on it now: the exporter moq switches its bindings to. m2 is research with a named
+consumer: rust2-wasm, moq's browser route, and the TypeScript translator, an experiment
+that has to beat it. m3 holds work that waits on evidence or has no consumer yet:
+upstream's build-speed levers, which the [build-speed benchmark](/bench/build/README.md)
+measures, the translator's features that wait on that gate, and the binding targets
+planned ahead of a consumer. m4 holds long-term research.
+
+Decided with the maintainer on 2026-11-09, in the quest audit, the goal: one Rust code
+base callable from any language or framework, with no manual wrappers or annotations.
+Speed ranks above API ergonomics, Rust's correctness is kept wherever the target can hold
+it, and what is unsupported fails the export, not the run. The
+[exporter](/quest/m1/ffi-export/README.md) is the product, WebAssembly its browser
+target, the translator an experiment against that, and build speed a side track that
+keeps only what costs nothing.
 
 Decided with the maintainer on 2026-10-23, when rust2 was planned from moq
 ([moq-dev/moq#6578](https://github.com/moq-dev/moq/pull/6578)):
@@ -29,8 +36,8 @@ Decided with the maintainer on 2026-10-23, when rust2 was planned from moq
 
 ## Required
 
-- [m0: immediate priorities](/quest/m0/README.md) - urgent fixes
-- [m1: consumers waiting](/quest/m1/README.md) - the exporter that replaces the UniFFI fork for moq
-- [m2: research](/quest/m2/README.md) - the TypeScript translator's spikes and features toward moq-net's model, and the fork's gated work
-- [m3: deferred](/quest/m3/README.md) - upstream's build-speed levers, measured by the benchmark, and the std gaps and translator features no consumer calls yet
+- [m0: immediate priorities](/quest/m0/README.md) - urgent fixes, a green nightly, and the fork's deletion
+- [m1: consumers waiting](/quest/m1/README.md) - the exporter moq can pin and switch its bindings to
+- [m2: research](/quest/m2/README.md) - rust2-wasm as the browser route, and the TypeScript translator that has to beat it
+- [m3: deferred](/quest/m3/README.md) - upstream's build-speed levers, the translator features that wait on the gate, and binding targets planned ahead of a consumer
 - [m4: long-term research](/quest/m4/README.md) - ideas no consumer needs yet, such as a rustc and cargo fork

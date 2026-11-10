@@ -2,9 +2,6 @@
 #![feature(allocator_api, pattern)]
 use std::collections::HashMap;
 
-/// A generic type.
-pub struct Wrap<T>(pub T);
-
 /// A tuple of references taken: C lends nothing inside a value.
 pub fn pair(pair: (&str, u8)) -> u8 {
 	pair.1
@@ -109,7 +106,8 @@ impl<'a> Text<'a> {
 		Self("")
 	}
 
-	/// `'b` outlives the handle's `'a`, so it is `'static` too.
+	/// `'b` outlives the handle's `'a`, so it is `'static` too, which a string is once
+	/// interned.
 	pub fn replace<'b: 'a>(&mut self, text: &'b str) {
 		self.0 = text;
 	}
@@ -120,19 +118,15 @@ impl<'a> Text<'a> {
 	}
 }
 
+/// Bytes that must be `'static`, which only a string's interning makes them.
+pub fn forever(bytes: &'static [u8]) -> usize {
+	bytes.len()
+}
+
 /// A boxed borrow: C's value is lifted into an owned one, lent only as the parameter
 /// itself or `Some` of it.
 pub fn boxed(text: Box<&str>) -> usize {
 	text.len()
-}
-
-/// An object no export returns but its own method, so C never holds one.
-pub struct Lease(u8);
-
-impl Lease {
-	pub fn split(&mut self) -> Lease {
-		Lease(self.0)
-	}
 }
 
 /// A record, a type of the facade's own.
@@ -601,6 +595,12 @@ pub fn values() -> std::collections::btree_map::IntoValues<u8, u8> {
 	std::collections::BTreeMap::new().into_values()
 }
 
+/// How many floats a set holds, which Rust could not build from C's floats, as they are
+/// not `Ord`.
+pub fn floats(set: std::collections::BTreeSet<f64>) -> usize {
+	set.len()
+}
+
 /// As many zeros as the caller asks, held nowhere until made.
 pub fn zeros(n: usize) -> std::iter::RepeatN<u8> {
 	std::iter::repeat_n(0, n)
@@ -697,3 +697,32 @@ pub fn bump_some(value: Option<&mut u32>) {
 		*value += 1;
 	}
 }
+
+/// Bytes written back that the return still borrows, which Rust's write would move.
+pub fn rest(buf: &mut Vec<u8>) -> &[u8] {
+	buf.as_slice()
+}
+
+/// Bytes written back by a future, which owns what it borrows, so has nothing to write.
+pub async fn fill(buf: &mut Vec<u8>) {
+	buf.push(0);
+}
+
+/// A slice lent mutably, which C cannot pass in and out as a value without a copy.
+pub fn zero(buf: &mut [u8]) {
+	buf.fill(0);
+}
+
+/// A callback taking bytes it writes back, which a foreign implementation cannot.
+pub trait Sink: Send + Sync {
+	fn fill(&self, buf: &mut Vec<u8>);
+}
+
+/// Another crate whole, whose every release would change this one's API.
+pub use dep;
+
+/// The same crate whole, by another name.
+pub use ::dep as renamed;
+
+/// A crate whole, which the config excludes, so nothing refuses it.
+pub use ::dep as Shed;

@@ -8,8 +8,8 @@ use std::task::{Poll, Waker};
 use std::time::Duration;
 
 use bytes::Bytes;
-// Another crate's types, which the export follows this re-export to.
-pub use dep::{Area, Size};
+// Another crate's items, which the export follows this glob of its root to.
+pub use dep::*;
 
 /// The largest value a [`Counter`] reaches.
 pub const LIMIT: u64 = 1000;
@@ -273,6 +273,27 @@ impl Board {
 	}
 }
 
+/// Points by name and the ids in use, as hang's renditions and moq-mux's selections: a map
+/// and a set, which cross as their items in order, each key once.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Atlas {
+	pub points: std::collections::BTreeMap<String, Point>,
+	pub ids: std::collections::BTreeSet<u32>,
+}
+
+impl Atlas {
+	/// It with `at` named `name`, replacing any point of that name.
+	pub fn with(mut self, name: &str, at: Point) -> Self {
+		self.points.insert(name.to_string(), at);
+		self
+	}
+}
+
+/// `text` as a port: another crate's error crosses as its message.
+pub fn port(text: &str) -> Result<u16, std::num::ParseIntError> {
+	text.parse()
+}
+
 /// A span: a record whose fields are tuples, one holding text.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Span {
@@ -326,6 +347,50 @@ pub fn swapped(pair: (String, u32)) -> (u32, String) {
 	(pair.1, pair.0)
 }
 
+/// A meter that is deliberately not `Clone`, as moq's group writers are, so a borrowed
+/// return of one is lent from its owner's handle rather than cloned.
+#[derive(Default)]
+pub struct Meter(std::sync::atomic::AtomicU64);
+
+impl Meter {
+	/// Adds `n`, returning the new count: through `&self`, as a lent handle allows.
+	pub fn add(&self, n: u64) -> u64 {
+		self.0.fetch_add(n, std::sync::atomic::Ordering::Relaxed) + n
+	}
+
+	pub fn count(&self) -> u64 {
+		self.0.load(std::sync::atomic::Ordering::Relaxed)
+	}
+
+	/// Zeroes the count: through `&mut self`, which a lent handle refuses.
+	pub fn reset(&mut self) {
+		*self.0.get_mut() = 0;
+	}
+}
+
+/// Owns a meter it lends.
+#[derive(Default)]
+pub struct Meters {
+	first: Meter,
+}
+
+impl Meters {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// The first meter, lent: a handle to it lives until these meters are borrowed
+	/// exclusively, moved out, or freed.
+	pub fn first(&self) -> &Meter {
+		&self.first
+	}
+
+	/// Replaces the first meter, borrowing these exclusively, which ends what `first` lent.
+	pub fn clear(&mut self) {
+		self.first = Meter::default();
+	}
+}
+
 /// Holds counters and lends them: each borrowed return is a new handle to a clone.
 #[derive(Default)]
 pub struct Registry {
@@ -377,6 +442,17 @@ impl Name<'_> {
 	/// `other` after this name, as a name that borrows neither.
 	pub fn join(&self, other: &Name<'_>) -> Name<'static> {
 		Name(Cow::Owned(format!("{}/{}", self.0, other.0)))
+	}
+
+	/// A name borrowing text that lives as long as the program, which a binding's string
+	/// does once interned.
+	pub fn borrowed(text: &'static str) -> Name<'static> {
+		Name(Cow::Borrowed(text))
+	}
+
+	/// Whether both names borrow the same text, where it lies, not only equal text.
+	pub fn shares(&self, other: &Name<'_>) -> bool {
+		matches!((&self.0, &other.0), (Cow::Borrowed(a), Cow::Borrowed(b)) if std::ptr::eq(*a, *b))
 	}
 
 	/// Takes a parameter that must outlive the call, so a `String`, not a borrow of C's.
@@ -778,6 +854,24 @@ impl Tally {
 	}
 }
 
+/// Owns a tally it lends, and so is not `Sync` either: its handle lends on one thread at a
+/// time.
+#[derive(Default)]
+pub struct Tallies {
+	first: Tally,
+}
+
+impl Tallies {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// The first tally, lent, as [`Meters::first`] lends its meter.
+	pub fn first(&self) -> &Tally {
+		&self.first
+	}
+}
+
 static DROPPED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
 /// A level its clones share through an `Arc`, with no `&mut self` method: a clone no call
@@ -969,6 +1063,24 @@ impl Cursor {
 pub fn walk(steps: u64, mut visit: impl FnMut(&Cursor) -> u64) -> u64 {
 	(0..steps).map(|at| visit(&Cursor { at })).sum()
 }
+
+/// An object no export returns but its own method, so C never holds one: left out of the
+/// bindings, with what takes it, and listed in the census.
+pub struct Lease(u8);
+
+impl Lease {
+	pub fn split(&mut self) -> Lease {
+		Lease(self.0)
+	}
+}
+
+/// What C can never call, since it never holds a `Lease`.
+pub fn release(lease: Lease) -> u8 {
+	lease.0
+}
+
+/// A generic type no export instantiates, so C never holds one either.
+pub struct Unnamed<T>(pub T);
 
 /// Each of `0..steps` passed to `visit`, which returns nothing; how many it visited.
 pub fn each(steps: u32, mut visit: impl FnMut(u32)) -> u32 {
@@ -1612,6 +1724,48 @@ pub fn sentence(words: Option<Vec<String>>) -> String {
 	words.map_or_else(|| "none".to_string(), |words| words.join(" "))
 }
 
+/// Appends `value` in decimal and a comma to `buf`, as moq's encoders append to an
+/// `impl BufMut`, which takes a `Vec<u8>`: C passes the bytes in, and Rust writes back
+/// what the call left in them.
+pub fn put_number(value: u32, buf: &mut impl bytes::BufMut) {
+	buf.put_slice(format!("{value},").as_bytes());
+}
+
+/// Takes the first byte of `buf` as a decimal digit, as moq's decoders take from an
+/// `impl Buf`, which takes `Bytes`. It takes the byte even when it fails, and Rust writes
+/// back what the call left on either path.
+pub fn digit(buf: &mut impl bytes::Buf) -> Result<u8, Error> {
+	match buf.has_remaining() {
+		false => Err(Error::Underflow { by: 1 }),
+		true => match buf.get_u8() {
+			digit @ b'0'..=b'9' => Ok(digit - b'0'),
+			_ => Err(Error::Overflow),
+		},
+	}
+}
+
+/// Moves `point` by `by` on each axis: a record, written back.
+pub fn nudge(point: &mut Point, by: i32) {
+	point.x += by;
+	point.y += by;
+}
+
+/// A config of a crate no export is, behind an `Arc`, as moq-tokio's listener returns
+/// rustls's: an opaque handle, which Rust takes back.
+pub fn secure(alpn: &str) -> Arc<tls::Config> {
+	Arc::new(tls::Config::new(alpn))
+}
+
+/// The ALPN of a config [`secure`] made, taken back by value.
+pub fn alpn(config: Arc<tls::Config>) -> String {
+	config.alpn().to_string()
+}
+
+/// [`alpn`], lent.
+pub fn alpn_lent(config: &Arc<tls::Config>) -> String {
+	config.alpn().to_string()
+}
+
 /// `text`'s length, or 0 for none: an optional borrow, lent as the borrow alone is.
 pub fn either(text: Option<&str>) -> usize {
 	text.map_or(0, str::len)
@@ -1697,6 +1851,15 @@ pub fn encode<T: serde::Serialize>(value: &T) -> String {
 /// `doc` under `tag`, as a new document.
 pub fn tagged(doc: serde_json::Value, tag: &str) -> serde_json::Value {
 	serde_json::json!({ "tag": tag, "doc": doc })
+}
+
+/// `entries` with `tag` added, as hang's `extra` fields hold a JSON object's entries.
+pub fn entries(
+	mut entries: serde_json::Map<String, serde_json::Value>,
+	tag: &str,
+) -> serde_json::Map<String, serde_json::Value> {
+	entries.insert("tag".to_string(), tag.into());
+	entries
 }
 
 /// A site: every field is `pub`, but a URL is a handle C cannot copy, so it is an object

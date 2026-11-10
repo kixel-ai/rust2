@@ -52,7 +52,10 @@ exclude = ["track::Producer::poll_closed"]
 Every `pub` item reachable from the facade's root, by its shortest path, is exported or
 refused. `#[doc(hidden)]` items are no part of the API and are left out; type aliases
 export nothing of their own. A re-export of the standard library's item is refused, since
-its types map by role; a type no path reaches is refused.
+its types map by role. A `pub use` of a whole crate, as in `pub use rustls;` or
+`pub use web_transport_proto as proto;`, is refused once at that `pub use`, since it puts
+every release of that crate in the facade's API; a glob of its root, `pub use dep::*;`,
+re-exports its items instead, which export. A type no path reaches is refused.
 
 | Rust | C |
 | --- | --- |
@@ -65,7 +68,7 @@ its types map by role; a type no path reaches is refused.
 | a `pub` trait | a callback interface: a table of C functions and their data |
 | a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce`, which no lifetime bound or return lets outlive the call | a C function and its `void *` data, which Rust calls only during the call; any other closure is refused |
 | `fn` and inherent `pub` methods | functions named through their type |
-| `Result<T, E>` | `bool f(..., T *out, E *err)` |
+| `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
 | a tuple inside another type, or as a field or parameter | `<prefix>_tuple_<A>_<B>`: a struct of fields `_0`, `_1`, and so on; of references only returned |
 | `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it; a function that is not `async` runs at the call, as in Rust |
@@ -76,8 +79,10 @@ its types map by role; a type no path reaches is refused.
 | `Duration` | `<prefix>_duration` |
 | `SocketAddr`, `SocketAddrV4`, `SocketAddrV6` | `<prefix>_socket_addr`: its IP's bytes, port, and whether it is IPv6; one of the other family passed to `V4` or `V6` aborts |
 | `url::Url` | an object `<prefix>_Url`, made by `<prefix>_Url_parse`, which fails with the parse error's message, and printed by `_to_string` |
+| `Arc<T>` of another crate's `Send` and `Sync` type that no other rule maps, such as `Arc<rustls::ServerConfig>` | an opaque object named by `T`'s crate and name, such as `<prefix>_rustls_ServerConfig`, with `_clone` and `_free` and none of `T`'s API: it only passes back to Rust |
 | `serde_json::Value` | an object `<prefix>_Json`, made by `<prefix>_Json_parse` from JSON text, which fails with serde_json's message, and read back by `_to_text`; its contents are the caller's JSON library's to read |
 | `Vec<T>` and `&[T]` of any other `T` | `<prefix>_vec_<T>`: an array of `T`'s C values, viewed passed in and owned returned, a slice as a clone; of references only returned |
+| `BTreeSet<T>`, `BTreeMap<K, V>`, and `serde_json::Map` | as `Vec<T>`, `Vec<(K, V)>`, and `Vec<(String, serde_json::Value)>`: its items in order, from which Rust builds it, keeping the last of a key |
 | a returned iterator, such as `slice::Iter` or an `impl Iterator`, that no other rule maps, outside a future, made of core's and alloc's iterators over a slice, string, `Option`, `Result`, or collection, through `rev`, `chain`, `flatten`, `fuse`, `enumerate`, `peekable`, `copied`, or `cloned`, with no closure, function, or trait object inside | what `collect::<Vec<_>>()` makes of it: every item, taken at the call |
 | `Waker`, taken by value | `<prefix>_waker`, as a future's poll takes it |
 | `Range<T>`, `Bound<T>` of an integer | `<prefix>_range_<T>`, `<prefix>_bound_<T>`: a `<prefix>_bound` kind and a value |
@@ -103,14 +108,20 @@ refused, as it could name ever deeper ones.
 A record or enum holds only values and `Copy` handles: one with a field that does not map,
 or that holds itself, is an object instead, and the census lists it. A borrowed return is
 returned as a clone, so it must be `Clone`, and a handle in it is a new handle to the
-clone. A handle outlives every call, so every lifetime an object takes is `'static`, as is
-every lifetime that must outlive one; any other lifetime is the call's. A signature may
-not lend C's borrow for one that is `'static`, nor return an object that borrows. A
-parameter is a reference only at its top or as `Some` of an `Option`, lent as the reference
-alone is, so `Option<&T>` is a null or borrowed handle, a null or viewed buffer, or an
-option of a value, and not inside a `Box` or any other type. An object
-no export C can call returns is refused, since C could never hold one. Everything else is
-refused, and the census counts why.
+clone, but for an object a `&self` method of an object returns borrowed from its receiver
+alone: that one, if not `Clone`, is a lent handle, which holds its receiver and checks it
+on each use, on one thread at a time where the receiver is not `Sync`. A handle outlives every call, so every lifetime an
+object takes is `'static`, as is every lifetime that must outlive one; any other lifetime
+is the call's. A signature may not lend C's borrow for one that is `'static`, but for a
+`&str`, which Rust interns, nor return an object that borrows. A parameter is a reference
+only at its top or as `Some` of an `Option`, lent as the reference alone is, so
+`Option<&T>` is a null or borrowed handle, a null or viewed buffer, or an option of a
+value, and not inside a `Box` or any other type. A `&mut` of a value, but a `str` or a
+slice, is in and out, and not inside an `Option`, a callback, or a future, nor borrowed
+by what the call returns. What C could never hold, an
+object no export C can call returns or lends to a closure, a generic type no export
+instantiates, and whatever takes one, is left out and listed in the census. Everything
+else is refused, and the census counts why.
 
 ## The C ABI
 
@@ -125,6 +136,19 @@ refused, and the census counts why.
   while a getter's copy is C's own: a nested field is got, set, and set back. A type
   whose C++ copies share one value has `_borrowed`, true while a call or future borrows
   it, so moving it out would abort.
+- **In and out**: a `&mut` of a value is two parameters, the value passed in as one taken
+  by value is, and a `<name>_out` pointer, through which Rust writes what the call left in
+  it on every path, its errors included. C keeps what it passed, and frees what Rust wrote
+  as a returned value. C++ takes a reference, Swift an `inout`, and Go a pointer, each
+  assigned what Rust wrote; Kotlin, Python, and Dart take a `Mut` holding the value, whose
+  `value` Rust's write replaces, before any error raises.
+- **Lent handles** borrow from the handle a call lent them from: each use holds that one
+  shared and aborts, naming the function, once it was since borrowed exclusively, moved
+  out, or freed, which Rust's borrow checker would refuse. Borrowing a lent handle
+  exclusively aborts too, as Rust lent it shared.
+- **Interned strings**: a `&str` a function needs for `'static`, as `Path::from_static`
+  does, is leaked once per distinct content and reused for every later equal one, so a
+  caller passing ever-new strings grows the set without bound.
 - **Arrays** of a `Vec` are a pointer, a length, and an owner, as a buffer is: passed
   in, Rust copies each element out of C's array; returned, `<prefix>_vec_<T>_free` frees
   the array and its first `len` elements, so a binding that takes the elements sets
@@ -615,8 +639,8 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 ## Census
 
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
-lists each refused item at its span, and ends with the `exclude` list that exports the
-rest. It ignores the config's `exclude`. It still fails on an `instance not inferred`
+lists each refused item at its span, then the `exclude` list that exports the rest, and
+what else it left out, such as what C can never hold. It ignores the config's `exclude`. It still fails on an `instance not inferred`
 refusal, which is a bug in the exporter's inference rather than in the crate.
 
 ## Tests

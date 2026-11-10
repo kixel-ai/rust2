@@ -266,13 +266,13 @@ static int script(void) {
 	printf("\n");
 	api_vec_tuple_string_Shape_Point_free(stat_rows);
 	/* Each handle in a tuple moves in, as one taken by value does. */
-	api_tuple_string_Counter tallies[] = {
+	api_tuple_string_Counter meters[] = {
 		{._0 = str("low"), ._1 = api_Counter_new(str("l"), 1)},
 		{._0 = str("high"), ._1 = api_Counter_new(str("h"), 9)},
 	};
-	api_Board *board = api_Board_new((api_vec_tuple_string_Counter){.ptr = tallies, .len = 2});
-	api_Counter_free(tallies[0]._1);
-	api_Counter_free(tallies[1]._1);
+	api_Board *board = api_Board_new((api_vec_tuple_string_Counter){.ptr = meters, .len = 2});
+	api_Counter_free(meters[0]._1);
+	api_Counter_free(meters[1]._1);
 	api_vec_tuple_string_Counter ranked = api_Board_ranked(board);
 	printf("ranked");
 	for (size_t i = 0; i < ranked.len; i++) {
@@ -283,6 +283,41 @@ static int script(void) {
 	printf("\n");
 	api_vec_tuple_string_Counter_free(ranked);
 	api_Board_free(board);
+	/* A map crosses as its pairs and a set as its items, which Rust collects in order, each
+	 * key once, the last kept. */
+	api_tuple_string_Point atlas_points[] = {
+		{._0 = str("b"), ._1 = {.x = 1, .y = 1}},
+		{._0 = str("ab"), ._1 = {.x = 2, .y = 3}},
+		{._0 = str("b"), ._1 = {.x = 4, .y = 4}},
+	};
+	uint32_t atlas_ids[] = {3, 1, 3};
+	api_Atlas loose = {
+		.points = {.ptr = atlas_points, .len = 3},
+		.ids = {.ptr = atlas_ids, .len = 3},
+	};
+	api_Atlas atlas = api_Atlas_with(&loose, str("c"), (api_Point){.x = 5, .y = 6});
+	printf("atlas");
+	for (size_t i = 0; i < atlas.points.len; i++) {
+		printf("%s%.*s ", i == 0 ? " " : ", ", (int)atlas.points.ptr[i]._0.len, (const char *)atlas.points.ptr[i]._0.ptr);
+		printf("%d %d", atlas.points.ptr[i]._1.x, atlas.points.ptr[i]._1.y);
+	}
+	printf("; ids");
+	for (size_t i = 0; i < atlas.ids.len; i++) {
+		printf(" %u", atlas.ids.ptr[i]);
+	}
+	printf("\n");
+	api_Atlas_free(&atlas);
+	/* Another crate's error crosses as its message. */
+	const char *port_texts[] = {"80", "x"};
+	for (size_t i = 0; i < 2; i++) {
+		uint16_t port;
+		api_buf port_err;
+		if (api_port(str(port_texts[i]), &port, &port_err)) {
+			printf("port %u\n", port);
+		} else {
+			print("port err ", port_err, "\n");
+		}
+	}
 	api_Span span = {
 		.bounds = {._0 = 2, ._1 = 10},
 		.named = {.some = true, .value = {._0 = str("s"), ._1 = API_SHAPE_SQUARE}},
@@ -394,6 +429,16 @@ static int script(void) {
 	api_Name *unnamed = api_unnamed();
 	print("unnamed [", api_Name_as_str(unnamed), "]\n");
 	api_Name_free(unnamed);
+	/* Two buffers of equal text, interned into one string. */
+	char lit_text[] = "lit", again_text[] = "lit";
+	api_Name *lit = api_Name_borrowed(str(lit_text));
+	api_Name *again = api_Name_borrowed(str(again_text));
+	api_Name *other = api_Name_borrowed(str("other"));
+	print("borrowed ", api_Name_as_str(lit), " ");
+	printf("%s %s\n", api_Name_shares(lit, again) ? "true" : "false", api_Name_shares(lit, other) ? "true" : "false");
+	api_Name_free(lit);
+	api_Name_free(again);
+	api_Name_free(other);
 
 	printf("total %llu\n", (unsigned long long)api_total((api_range_u64){.start = 2, .end = 5}));
 	api_range_u64 wide = api_widen((api_range_u64){.start = 2, .end = 5}, 1);
@@ -776,6 +821,61 @@ static int script(void) {
 	api_Counter_free(two);
 	api_Counter_free(three);
 
+	/* A value passed for &mut: Rust writes back what the call left, which the caller frees,
+	 * and keeps what it passed. */
+	api_buf encoded, appended;
+	api_put_number(1, str("0,"), &encoded);
+	api_put_number(23, encoded, &appended);
+	api_buf_free(encoded);
+	print("put_number ", appended, "\n");
+	api_buf digits_left, digits_rest;
+	uint8_t first_digit, last_digit;
+	api_Error digit_error;
+	api_digit(str("7x9"), &digits_left, &first_digit, &digit_error);
+	/* The failed call took a byte too. */
+	bool skipped = !api_digit(digits_left, &digits_rest, &last_digit, &digit_error);
+	api_buf_free(digits_left);
+	api_digit(digits_rest, &digits_left, &last_digit, &digit_error);
+	api_buf_free(digits_rest);
+	printf("digit %u %s %u %zu\n", first_digit, skipped ? "true" : "false", last_digit, digits_left.len);
+	api_buf_free(digits_left);
+	api_Point nudged = {.x = 1, .y = 2};
+	api_nudge(nudged, 3, &nudged);
+	printf("nudge %d %d\n", nudged.x, nudged.y);
+
+	/* An Arc of another crate's type: an opaque handle, taken back by value or lent. */
+	api_tls_Config *config = api_secure(str("h3"));
+	print("secure ", api_alpn_lent(config), " ");
+	api_tls_Config *config_copy = api_tls_Config_clone(config);
+	print("", api_alpn(config_copy), "\n");
+	api_tls_Config_free(config_copy);
+	api_tls_Config_free(config);
+	/* A borrow of a meter that is not Clone, lent from its owner's handle. */
+	{
+		api_Meters *lender = api_Meters_new();
+		api_Meter *first = api_Meters_first(lender);
+		api_Meter_add(first, 2);
+		unsigned long long added = api_Meter_add(first, 3);
+		api_Meter *again = api_Meters_first(lender);
+		printf("lent %llu %llu\n", added, (unsigned long long)api_Meter_count(again));
+		api_Meter_free(again);
+		api_Meter_free(first);
+		api_Meters_clear(lender);
+		again = api_Meters_first(lender);
+		printf("cleared %llu\n", (unsigned long long)api_Meter_count(again));
+		api_Meter_free(again);
+		api_Meters_free(lender);
+		/* One lent from a handle that is not Sync, on one thread at a time. */
+		api_Tallies *tallies = api_Tallies_new();
+		api_Tally *tallied = api_Tallies_first(tallies);
+		api_Tally_bump(tallied);
+		api_Tally_free(tallied);
+		tallied = api_Tallies_first(tallies);
+		printf("tallied %u\n", api_Tally_bump(tallied));
+		api_Tally_free(tallied);
+		api_Tallies_free(tallies);
+	}
+
 	api_vec_bytes chunks = api_chunks(str("abcde"), 2);
 	printf("chunks [");
 	for (size_t i = 0; i < chunks.len; i++) {
@@ -848,6 +948,22 @@ static int script(void) {
 	api_Json_free(doc);
 	print("tagged ", api_Json_to_text(tagged), "\n");
 	api_Json_free(tagged);
+	/* A JSON object's entries cross as pairs of a key and its document, each moved in. */
+	api_tuple_string_Json json_pairs[2] = {{._0 = str("b")}, {._0 = str("a")}};
+	if (!api_Json_parse(str("[1]"), &json_pairs[0]._1, &parse_err) ||
+	    !api_Json_parse(str("2"), &json_pairs[1]._1, &parse_err)) {
+		return 1;
+	}
+	api_vec_tuple_string_Json json_entries = api_entries((api_vec_tuple_string_Json){.ptr = json_pairs, .len = 2}, str("t"));
+	api_Json_free(json_pairs[0]._1);
+	api_Json_free(json_pairs[1]._1);
+	printf("entries");
+	for (size_t i = 0; i < json_entries.len; i++) {
+		printf("%s%.*s ", i == 0 ? " " : ", ", (int)json_entries.ptr[i]._0.len, (const char *)json_entries.ptr[i]._0.ptr);
+		print("", api_Json_to_text(json_entries.ptr[i]._1), "");
+	}
+	printf("\n");
+	api_vec_tuple_string_Json_free(json_entries);
 	api_Json *broken;
 	if (api_Json_parse(str("{\"a\":"), &broken, &parse_err)) {
 		print("json parse ", api_Json_to_text(broken), "\n");
@@ -1001,6 +1117,14 @@ static int broken(const char *which) {
 	} else if (strcmp(which, "lent") == 0 || strcmp(which, "lent moved") == 0) {
 		api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0));
 		api_Registry_edit(registry, strcmp(which, "lent") == 0 ? free_lent : move_lent, NULL);
+	} else if (strcmp(which, "outlived") == 0) {
+		api_Meters *meters = api_Meters_new();
+		api_Meter *first = api_Meters_first(meters);
+		api_Meters_clear(meters);
+		api_Meter_count(first);
+	} else if (strcmp(which, "lent shared") == 0) {
+		api_Meters *meters = api_Meters_new();
+		api_Meter_reset(api_Meters_first(meters));
 	} else if (strcmp(which, "null") == 0) {
 		api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0));
 		api_Registry_edit(registry, NULL, NULL);

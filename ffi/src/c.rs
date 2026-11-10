@@ -409,6 +409,13 @@ impl Header<'_> {
 				moved.join(" and ")
 			));
 		}
+		for param in function.params.iter().filter(|p| p.ty.written()) {
+			let name = abi::escape(&param.name);
+			docs.push_str(&format!(
+				"\n\nRust writes what the call left in `{name}` through `{}`, on every path, errors included: the caller keeps what it passed, and frees what Rust wrote as a returned value.",
+				Abi::written(function, &name)
+			));
+		}
 		for param in &function.params {
 			let Type::Closure(params, _) = &param.ty else {
 				continue;

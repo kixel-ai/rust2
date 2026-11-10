@@ -10,7 +10,7 @@ use std::path::Path;
 
 use crate::abi::{self, Abi, Ty};
 use crate::config::Package;
-use crate::ir::{Access, Family, Function, Mutability, Receiver, Traits, Type};
+use crate::ir::{Access, Collection, Family, Function, Mutability, Receiver, Traits, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
 
@@ -32,6 +32,16 @@ fn dependency(krate: &str) -> String {
 /// when the facade shares that crate's name.
 fn foreign(krate: &str) -> String {
 	format!("{krate}_foreign")
+}
+
+/// The Rust path of a collection, without its arguments.
+fn collection(c: Collection) -> String {
+	match c {
+		Collection::Vec => "::std::vec::Vec".to_string(),
+		Collection::BTreeSet => "::std::collections::BTreeSet".to_string(),
+		Collection::BTreeMap => "::std::collections::BTreeMap".to_string(),
+		Collection::JsonMap => format!("::{}::Map", foreign("serde_json")),
+	}
 }
 
 /// The Rust spelling of a C type.
@@ -161,6 +171,7 @@ impl Crate<'_> {
 			packages: self.packages(),
 			contract,
 			dependency: dependency(&facade.root()),
+			lends: false,
 			out: String::new(),
 		};
 		generator.lib();
@@ -281,6 +292,9 @@ struct Gen<'a> {
 	contract: u64,
 	/// The name the crate depends on the facade by.
 	dependency: String,
+	/// Whether the function being written returns a borrow lent from its receiver's
+	/// handle, which `lender` holds.
+	lends: bool,
 	out: String,
 }
 
@@ -331,12 +345,19 @@ impl Gen<'_> {
 			Type::SocketAddr(Family::Any) => "::std::net::SocketAddr".to_string(),
 			Type::SocketAddr(Family::V4) => "::std::net::SocketAddrV4".to_string(),
 			Type::SocketAddr(Family::V6) => "::std::net::SocketAddrV6".to_string(),
-			Type::List(inner) => format!("::std::vec::Vec<{}>", self.rust(inner)),
+			Type::List(c, inner) => match (c, &**inner) {
+				// A map's items are its key and value.
+				(Collection::BTreeMap | Collection::JsonMap, Type::Tuple(pair)) => {
+					format!("{}<{}, {}>", collection(*c), self.rust(&pair[0]), self.rust(&pair[1]))
+				}
+				_ => format!("{}<{}>", collection(*c), self.rust(inner)),
+			},
 			Type::Option(inner) => format!("Option<{}>", self.rust(inner)),
 			Type::Ref(Mutability::Not, inner) => format!("&{}", self.rust(inner)),
 			Type::Ref(Mutability::Mut, inner) => format!("&mut {}", self.rust(inner)),
 			Type::Record(i) => generic(&api.records[*i].path, 0, &api.records[*i].args),
 			Type::Enum(i) => generic(&api.enums[*i].path, 0, &api.enums[*i].args),
+			Type::Object(i) if api.objects[*i].opaque => "rt::Opaque".to_string(),
 			Type::Object(i) if api.objects[*i].foreign => {
 				let path = &api.objects[*i].path;
 				format!("::{}", foreign(&path[0])) + &path[1..].iter().map(|s| format!("::{s}")).collect::<String>()
@@ -360,9 +381,14 @@ impl Gen<'_> {
 			Type::SocketAddr(Family::V4) => format!("{e}.lift_v4(w)"),
 			Type::SocketAddr(Family::V6) => format!("{e}.lift_v6(w)"),
 			Type::Waker => format!("{e}.lift()"),
-			Type::List(inner) => format!(
-				"unsafe {{ {e}.items(w) }}.iter().map(|c| {}).collect::<::std::vec::Vec<_>>()",
-				self.lift(inner, "(*c)")
+			Type::List(c, inner) => format!(
+				"unsafe {{ {e}.items(w) }}.iter().map(|c| {}).collect::<{}<{}>>()",
+				self.lift(inner, "(*c)"),
+				collection(*c),
+				match c {
+					Collection::BTreeMap | Collection::JsonMap => "_, _",
+					Collection::Vec | Collection::BTreeSet => "_",
+				}
 			),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(_) => format!("if {e}.is_null() {{ None }} else {{ Some({}) }}", self.lift(inner, e)),
@@ -381,6 +407,9 @@ impl Gen<'_> {
 				true => format!("lift_{}({e}, w)", self.abi.enumeration(*i)),
 				false => format!("lift_{}(&{e}, w)", self.abi.enumeration(*i)),
 			},
+			Type::Object(i) if self.abi.api.objects[*i].opaque => {
+				format!("unsafe {{ rt::Object::<rt::Opaque>::take({e}, w) }}.arc(w)")
+			}
 			Type::Object(i) => match self.abi.api.objects[*i].copy {
 				true => format!(
 					"*unsafe {{ rt::Object::<{}>::{}({e}, w) }}",
@@ -462,7 +491,7 @@ impl Gen<'_> {
 			Type::PathBuf => format!("rt::Buf::path_buf({e})"),
 			Type::Duration => format!("rt::Duration::lower({e})"),
 			Type::SocketAddr(_) => format!("rt::SocketAddr::lower(::std::net::SocketAddr::from({e}))"),
-			Type::List(inner) => format!(
+			Type::List(_, inner) => format!(
 				"rt::List::owned(::std::iter::IntoIterator::into_iter({e}).map(|v| {}).collect())",
 				self.lower(inner, "v")
 			),
@@ -470,7 +499,7 @@ impl Gen<'_> {
 				let none = match inner.base() {
 					Type::Object(_) => "::std::ptr::null()".to_string(),
 					base if Abi::is_buf(base) => "rt::Buf::NONE".to_string(),
-					Type::List(_) => "rt::List::NONE".to_string(),
+					Type::List(..) => "rt::List::NONE".to_string(),
 					_ => {
 						let name = self.abi.option(inner);
 						return format!(
@@ -484,11 +513,15 @@ impl Gen<'_> {
 			Type::Box(inner) => self.lower(inner, &format!("*{e}")),
 			Type::Ref(_, inner) => match &**inner {
 				Type::Str | Type::Slice | Type::Path => self.lower(inner, e),
+				Type::Object(i) if self.lends => {
+					format!("rt::Object::<{}>::lent({e}, lender)", self.object_path(*i))
+				}
 				// A handle in the clone is a new handle, and a slice's clone a `Vec`.
 				inner => self.lower(inner, &format!("::std::borrow::ToOwned::to_owned({e})")),
 			},
 			Type::Record(i) => format!("lower_{}({e})", self.abi.record(*i)),
 			Type::Enum(i) => format!("lower_{}({e})", self.abi.enumeration(*i)),
+			Type::Object(i) if self.abi.api.objects[*i].opaque => format!("rt::Object::new(rt::Opaque::new({e}))"),
 			Type::Object(_) => format!("rt::Object::new({e})"),
 			Type::Callback(..) | Type::Closure(..) => unreachable!("a callback is never returned"),
 			Type::Waker => unreachable!("a waker is never returned"),
@@ -514,7 +547,7 @@ impl Gen<'_> {
 	fn free(&self, ty: &Type, e: &str) -> Option<String> {
 		match ty {
 			_ if Abi::is_buf(ty) => Some(format!("unsafe {{ {e}.free() }};")),
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let each = self.free(inner, "c").unwrap_or_default();
 				Some(format!(
 					"unsafe {{ {e}.free(\"{}_free\", |c| {{ let _ = c; {each} }}) }};",
@@ -524,7 +557,7 @@ impl Gen<'_> {
 			Type::Option(inner) => match inner.base() {
 				base if Abi::is_buf(base) => Some(format!("unsafe {{ {e}.free() }};")),
 				// A null handle or array frees nothing.
-				Type::Object(_) | Type::List(_) => self.free(inner, e),
+				Type::Object(_) | Type::List(..) => self.free(inner, e),
 				_ => self
 					.free(inner, &format!("{e}.value"))
 					.map(|free| format!("if {e}.some {{ {free} }}")),
@@ -550,7 +583,7 @@ impl Gen<'_> {
 	fn owns(&self, ty: &Type) -> bool {
 		match ty {
 			_ if Abi::is_buf(ty) => true,
-			Type::Object(_) | Type::List(_) => true,
+			Type::Object(_) | Type::List(..) => true,
 			Type::Option(inner) | Type::Box(inner) => self.owns(inner),
 			Type::Tuple(elements) => elements.iter().any(|ty| self.owns(ty)),
 			Type::Record(i) => self.abi.api.records[*i].fields.iter().any(|f| self.owns(&f.ty)),
@@ -602,7 +635,7 @@ impl Gen<'_> {
 			let c = rs(&self.abi.ty(elem));
 			self.line(format!("pub type {name} = rt::List<{c}>;\n"));
 			let free = self
-				.free(&Type::List(Box::new(elem.clone())), "this")
+				.free(&Type::List(Collection::Vec, Box::new(elem.clone())), "this")
 				.expect("an array is freed");
 			self.line(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: {name}) {{\n\t{free}\n}}\n"
@@ -1033,9 +1066,10 @@ impl Gen<'_> {
 			Type::Ref(m, inner) => match (&**inner, m, future) {
 				(Type::Object(i), _, _) => {
 					let (binding, borrow) = self.borrow(*i, *m, c, future);
-					let pass = match m {
-						Mutability::Mut => format!("&mut *{local}"),
-						Mutability::Not => format!("&*{local}"),
+					let pass = match (m, self.abi.api.objects[*i].opaque) {
+						(Mutability::Not, true) => format!("{local}.get(w)"),
+						(Mutability::Mut, _) => format!("&mut *{local}"),
+						(Mutability::Not, false) => format!("&*{local}"),
 					};
 					(format!("{binding} {local} = {borrow};"), pass)
 				}
@@ -1060,9 +1094,10 @@ impl Gen<'_> {
 			Type::Option(opt) if let Type::Ref(m, inner) = &**opt => match (&**inner, future) {
 				(Type::Object(i), _) => {
 					let (binding, borrow) = self.borrow(*i, *m, c, future);
-					let pass = match m {
-						Mutability::Mut => format!("{local}.as_deref_mut()"),
-						Mutability::Not => format!("{local}.as_deref()"),
+					let pass = match (m, self.abi.api.objects[*i].opaque) {
+						(Mutability::Not, true) => format!("{local}.as_deref().map(|v| v.get(w))"),
+						(Mutability::Mut, _) => format!("{local}.as_deref_mut()"),
+						(Mutability::Not, false) => format!("{local}.as_deref()"),
 					};
 					(
 						format!("{binding} {local} = if {c}.is_null() {{ None }} else {{ Some({borrow}) }};"),
@@ -1165,7 +1200,11 @@ impl Gen<'_> {
 			Some(err) => format!(
 				"match result {{\n\t\tOk(v) => {{\n\t\t\tlet _ = &v;\n\t\t\t{write_ok}\n\t\t\t{ready}\n\t\t}}\n\t\tErr(e) => {{\n\t\t\tunsafe {{ rt::write::<{}>(err.cast(), || {}) }};\n\t\t\t{error}\n\t\t}}\n\t}}",
 				rs(&self.abi.ty(err)),
-				self.lower(err, "e")
+				match err {
+					// A `String` error may stand for another crate's, as its message.
+					Type::String => self.lower(err, "::std::string::ToString::to_string(&e)"),
+					err => self.lower(err, "e"),
+				}
 			),
 		}
 	}
@@ -1211,10 +1250,32 @@ impl Gen<'_> {
 				let (_, data) = c_params.next().expect("a lent function's data");
 				params.push(format!("p{n}_data: {}", rs(data)));
 			}
-			let (stmt, arg) = self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future);
+			let (stmt, arg) = match param.interned {
+				true => (
+					format!("let a{n} = rt::intern(unsafe {{ p{n}.str(w) }});"),
+					format!("a{n}"),
+				),
+				false => self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future),
+			};
 			stmts.push(stmt);
 			args.push(arg);
 		}
+		// Rust writes back what the call left in each value C passed for `&mut`, on every
+		// path, errors included.
+		let writes: String = (function.params.iter().enumerate())
+			.filter(|(_, param)| param.ty.written())
+			.map(|(n, param)| {
+				let Type::Ref(_, inner) = &param.ty else {
+					unreachable!("a written parameter is `&mut`")
+				};
+				let out = Abi::written(function, &crate::abi::escape(&param.name));
+				format!(
+					"\n\tunsafe {{ rt::write::<{}>({out}.cast(), || {}) }};",
+					rs(&self.abi.ty(inner)),
+					self.lower(inner, &format!("a{n}"))
+				)
+			})
+			.collect();
 		let mut callee = match &owner {
 			Some((_, owner_type)) => format!("<{}>::{}", self.rust(owner_type), function.name()),
 			None => self.path(&function.path),
@@ -1237,6 +1298,19 @@ impl Gen<'_> {
 			),
 			Access::Text => format!("::std::string::ToString::to_string({})", args[0]),
 		};
+		if function.lends {
+			let Some((_, Type::Object(i))) = &owner else {
+				unreachable!("a lent return is a method of an object's")
+			};
+			let lender = match self.abi.api.objects[*i].sync {
+				true => "lender",
+				false => "lender_local",
+			};
+			stmts.push(format!(
+				"let lender = unsafe {{ rt::Object::<{}>::{lender}(this, w) }};",
+				self.object_path(*i)
+			));
+		}
 		let body = stmts.join("\n\t");
 		if let Some((_, poll, free)) = &export.future {
 			// A function that is not `async` runs when called, and what it returns
@@ -1283,12 +1357,14 @@ impl Gen<'_> {
 			.collect();
 		params.extend(outs);
 		let ret = rs(&export.call.ret);
+		self.lends = function.lends;
 		let finish = match function.err {
 			Some(_) => self.finish(function, ("v", "true", "false")),
 			None => self.finish(function, ("", "", "")),
 		};
+		self.lends = false;
 		self.line(format!(
-			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}\n\tlet result = {};\n\t{finish}\n}}\n",
+			"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> {ret} {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}\n\tlet result = {};{writes}\n\t{finish}\n}}\n",
 			params.join(", "),
 			match function.collect {
 				// An iterator's items, all taken now.

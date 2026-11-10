@@ -224,10 +224,10 @@ int script() {
 	std::printf("\n");
 	{
 		// Each handle in a tuple moves in, as one taken by value does.
-		std::vector<std::tuple<api::view, api::Counter>> tallies;
-		tallies.emplace_back("low", api::Counter::new_("l", 1));
-		tallies.emplace_back("high", api::Counter::new_("h", 9));
-		auto board = api::Board::new_(std::move(tallies));
+		std::vector<std::tuple<api::view, api::Counter>> meters;
+		meters.emplace_back("low", api::Counter::new_("l", 1));
+		meters.emplace_back("high", api::Counter::new_("h", 9));
+		auto board = api::Board::new_(std::move(meters));
 		std::printf("ranked");
 		auto ranked = board.ranked();
 		for (std::size_t i = 0; i < ranked.size(); i++) {
@@ -237,6 +237,35 @@ int script() {
 			std::printf("%llu", ull(counter.get()));
 		}
 		std::printf("\n");
+	}
+	{
+		// A map crosses as its pairs and a set as its items, which Rust collects in order,
+		// each key once, the last kept.
+		api::Atlas loose;
+		loose.points.emplace_back(api::buf("b"), api::Point{1, 1});
+		loose.points.emplace_back(api::buf("ab"), api::Point{2, 3});
+		loose.points.emplace_back(api::buf("b"), api::Point{4, 4});
+		loose.ids = {3, 1, 3};
+		auto atlas = loose.with("c", api::Point{5, 6});
+		std::printf("atlas");
+		for (std::size_t i = 0; i < atlas.points.size(); i++) {
+			auto &[name, at] = atlas.points[i];
+			print(i == 0 ? " " : ", ", name, " ");
+			std::printf("%d %d", at.x, at.y);
+		}
+		std::printf("; ids");
+		for (auto id : atlas.ids) {
+			std::printf(" %u", id);
+		}
+		std::printf("\n");
+	}
+	// Another crate's error crosses as its message.
+	for (const char *text : {"80", "x"}) {
+		if (auto port = api::port(text)) {
+			std::printf("port %u\n", unsigned(port.value()));
+		} else {
+			print("port err ", port.error(), "\n");
+		}
 	}
 	api::Span span{{2, 10}, std::make_tuple(api::buf("s"), api::Shape::square)};
 	auto [lower_half, upper_half] = api::halves(span);
@@ -321,6 +350,10 @@ int script() {
 		api::Name longest = api::longer(std::move(joined), api::Name::owned("dd"));
 		print("longer ", longest.as_str(), "\n");
 		print("unnamed [", api::unnamed().as_str(), "]\n");
+		api::Name lit = api::Name::borrowed("lit");
+		print("borrowed ", lit.as_str(), " ");
+		std::printf("%s %s\n", lit.shares(api::Name::borrowed("lit")) ? "true" : "false",
+			lit.shares(api::Name::borrowed("other")) ? "true" : "false");
 	}
 
 	std::printf("total %llu\n", ull(api::total({2, 5})));
@@ -635,6 +668,38 @@ int script() {
 			static_cast<unsigned long long>(three.get()));
 	}
 
+	{
+		// A value passed for &mut, which takes what Rust wrote back.
+		api::buf encoded(api::view("0,"));
+		api::put_number(1, encoded);
+		api::put_number(23, encoded);
+		print("put_number ", encoded, "\n");
+		api::buf digits(api::view("7x9"));
+		auto first_digit = api::digit(digits);
+		auto skipped = api::digit(digits);
+		auto last_digit = api::digit(digits);
+		std::printf("digit %u %s %u %zu\n", unsigned(first_digit.value()), yes(!skipped.has_value()),
+			unsigned(last_digit.value()), digits.size());
+		api::Point nudged{1, 2};
+		api::nudge(nudged, 3);
+		std::printf("nudge %d %d\n", nudged.x, nudged.y);
+	}
+	{
+		auto config = api::secure("h3");
+		print("secure ", api::alpn_lent(config), " ");
+		print("", api::alpn(config), "\n");
+		auto meters = api::Meters::new_();
+		auto first = meters.first();
+		first.add(2);
+		unsigned long long added = first.add(3);
+		std::printf("lent %llu %llu\n", added, ull(meters.first().count()));
+		meters.clear();
+		std::printf("cleared %llu\n", ull(meters.first().count()));
+		auto tallies = api::Tallies::new_();
+		tallies.first().bump();
+		std::printf("tallied %u\n", tallies.first().bump());
+	}
+
 	std::printf("chunks [");
 	auto chunks = api::chunks("abcde", 2);
 	for (std::size_t i = 0; i < chunks.size(); i++) {
@@ -687,6 +752,20 @@ int script() {
 	print("timed text ", api::timed_text(doc), "\n");
 	api::Json tagged = api::tagged(std::move(doc), "t");
 	print("tagged ", tagged.to_text(), "\n");
+	{
+		// A JSON object's entries cross as pairs of a key and its document, each moved in.
+		std::vector<std::tuple<api::view, api::Json>> pairs;
+		pairs.emplace_back("b", api::Json::parse("[1]").value());
+		pairs.emplace_back("a", api::Json::parse("2").value());
+		auto entries = api::entries(std::move(pairs), "t");
+		std::printf("entries");
+		for (std::size_t i = 0; i < entries.size(); i++) {
+			auto &[key, value] = entries[i];
+			print(i == 0 ? " " : ", ", key, " ");
+			print("", value.to_text(), "");
+		}
+		std::printf("\n");
+	}
 	if (auto parsed = api::Json::parse("{\"a\":")) {
 		print("json parse ", parsed->to_text(), "\n");
 	} else {
@@ -1117,6 +1196,11 @@ int broken(const char *which) {
 		recv.poll(waker);
 	} else if (std::strcmp(which, "null view") == 0) {
 		api::len(api::view(nullptr, 1));
+	} else if (std::strcmp(which, "outlived") == 0) {
+		api::Meters meters = api::Meters::new_();
+		api::Meter first = meters.first();
+		meters.clear();
+		first.count();
 	} else if (std::strcmp(which, "lent moved") == 0) {
 		api::Registry registry = api::Registry::new_(api::Counter::new_("c", 0));
 		registry.edit([](api::Counter &counter) {

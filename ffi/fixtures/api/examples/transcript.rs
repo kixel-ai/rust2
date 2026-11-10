@@ -120,6 +120,25 @@ fn main() {
 		.map(|(name, counter)| format!("{name} {} {}", counter.name(), counter.get()))
 		.collect();
 	println!("ranked {}", ranked.join(", "));
+	let atlas = api::Atlas {
+		points: [("b", 1, 1), ("ab", 2, 3), ("b", 4, 4)]
+			.into_iter()
+			.map(|(name, x, y)| (name.to_string(), Point { x, y }))
+			.collect(),
+		ids: [3, 1, 3].into_iter().collect(),
+	}
+	.with("c", Point { x: 5, y: 6 });
+	let points: Vec<String> = (atlas.points.iter())
+		.map(|(name, p)| format!("{name} {} {}", p.x, p.y))
+		.collect();
+	let ids: Vec<String> = atlas.ids.iter().map(u32::to_string).collect();
+	println!("atlas {}; ids {}", points.join(", "), ids.join(" "));
+	for text in ["80", "x"] {
+		match api::port(text) {
+			Ok(port) => println!("port {port}"),
+			Err(e) => println!("port err {e}"),
+		}
+	}
 	let span = api::Span {
 		bounds: (2, 10),
 		named: Some(("s".to_string(), Shape::Square)),
@@ -174,6 +193,16 @@ fn main() {
 	let long = api::longer(joined, &Name::owned("dd".to_string()));
 	println!("longer {}", long.as_str());
 	println!("unnamed [{}]", api::unnamed().as_str());
+	// One static, so Rust lends one string, as interning lends a binding's equal ones.
+	static LIT: &str = "lit";
+	let (lit, again) = (Name::borrowed(LIT), Name::borrowed(LIT));
+	let other = Name::borrowed("other");
+	println!(
+		"borrowed {} {} {}",
+		lit.as_str(),
+		lit.shares(&again),
+		lit.shares(&other)
+	);
 
 	println!("total {}", api::total(2..5));
 	let wide = api::widen(2..5, 1);
@@ -449,6 +478,32 @@ fn main() {
 		two.add_to(None),
 		three.get()
 	);
+	let mut buf = b"0,".to_vec();
+	api::put_number(1, &mut buf);
+	api::put_number(23, &mut buf);
+	println!("put_number {}", String::from_utf8(buf).unwrap());
+	let mut buf = bytes::Bytes::from_static(b"7x9");
+	let first = api::digit(&mut buf).unwrap();
+	let skipped = api::digit(&mut buf).is_err();
+	println!(
+		"digit {first} {skipped} {} {}",
+		api::digit(&mut buf).unwrap(),
+		buf.len()
+	);
+	let mut point = Point { x: 1, y: 2 };
+	api::nudge(&mut point, 3);
+	println!("nudge {} {}", point.x, point.y);
+	let config = api::secure("h3");
+	println!("secure {} {}", api::alpn_lent(&config), api::alpn(config.clone()));
+	let mut meters = api::Meters::new();
+	let first = meters.first();
+	first.add(2);
+	println!("lent {} {}", first.add(3), meters.first().count());
+	meters.clear();
+	println!("cleared {}", meters.first().count());
+	let tallies = api::Tallies::new();
+	tallies.first().bump();
+	println!("tallied {}", tallies.first().bump());
 	println!("chunks {:?}", api::chunks(b"abcde", 2));
 	let mut counters = api::counters(vec!["x".to_string(), "y".to_string()]);
 	let names: Vec<String> = counters.iter().map(|c| format!("{} {}", c.name(), c.get())).collect();
@@ -485,6 +540,15 @@ fn main() {
 	println!("json {}", api::encode(&doc));
 	println!("timed text {}", api::timed_text(&doc));
 	println!("tagged {}", api::tagged(doc, "t"));
+	let entries = api::entries(
+		[("b", "[1]"), ("a", "2")]
+			.into_iter()
+			.map(|(key, text)| (key.to_string(), text.parse().expect("a JSON document")))
+			.collect(),
+		"t",
+	);
+	let entries: Vec<String> = entries.iter().map(|(key, value)| format!("{key} {value}")).collect();
+	println!("entries {}", entries.join(", "));
 	match "{\"a\":".parse::<serde_json::Value>() {
 		Ok(doc) => println!("json parse {doc}"),
 		Err(err) => println!("json parse err {err}"),
