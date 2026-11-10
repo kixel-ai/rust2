@@ -273,13 +273,13 @@ pub fn call<'tcx>(
 		("Deref", "deref") | ("DerefMut", "deref_mut") => match self_std {
 			Some(Std::Arc | Std::Mutex | Std::MutexGuard | Std::Ref | Std::RefMut) => first(args).member("value"),
 			Some(Std::LazyCell | Std::LazyLock) if name == "deref" => first(args).member("force").call(vec![]),
-			// A pin is its pointer, which derefs as it does: an `Arc` to the value it holds, and
-			// a reference to what it points at.
+			// A pin is its pointer, which derefs as it does: a reference to what it points at,
+			// and any other pointer, such as an `Arc` or a crate's own, through its own impl.
 			Some(Std::Pin) => match self_ty.map(|t| t.kind()) {
 				Some(ty::Adt(_, pin)) => match pin.type_at(0).kind() {
-					ty::Adt(arc, _) if Std::of(tcx, arc.did()) == Some(Std::Arc) => first(args).member("value"),
 					ty::Ref(..) if name == "deref" => b.t.pointee_value(pin.type_at(0), first(args)),
-					_ => first(args),
+					ty::Ref(..) => first(args),
+					_ => b.call_def(call.def_id, tcx.mk_args(&[pin.type_at(0).into()]), args, call.span, out),
 				},
 				_ => first(args),
 			},

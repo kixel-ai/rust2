@@ -1,4 +1,4 @@
-# [XS] Bump the moq pin past its re-export and reachability fixes
+# [S] Bump the moq pin past its re-export and reachability fixes
 
 ## Goal
 
@@ -6,7 +6,9 @@ The moq pin moves to moq's current `main`, whose crates re-export no whole crate
 included. `just ffi census` there lists no whole-crate re-export refusal. Its "type not
 reachable from the crate root" refusals are `kio::Pending` and `lite::version::Version`,
 which Waiting covers, and moq-quic's stats and varint types under moq-tokio's `quic::driver`,
-which narrow-standin drops.
+which narrow-standin drops. At `ffcb7cd9` there were 20 such refusals (18 Guard and Side, and
+`Version`), and 9 at moq's head on 2026-11-09, measured in
+[#676](https://github.com/moq-dev/rust2/pull/676).
 
 ## Plan
 
@@ -33,8 +35,21 @@ session side also drops `quic::driver`.
 Decided with the maintainer on 2026-11-07, in the quest audit: one pin bump for both, since
 each is an XS bump of the same pin line. Rejected: one bump per moq quest.
 
+Both of moq's fixes merged on 2026-11-09:
+[moq-dev/moq#8247](https://github.com/moq-dev/moq/pull/8247) dropped every whole-crate
+re-export and re-exports `Guard`, and
+[moq-dev/moq#8302](https://github.com/moq-dev/moq/pull/8302) removed
+`stream::Id::{new, initiator}`. At moq's head the 9 unreachable items left are
+`kio::Pending` (from `dial_tcp` and `dial_track`, reachable before only through
+`pub use kio;`), `lite::version::Version`, which was already unreachable at the pin, and
+moq-tokio's `quic::driver` items, which the narrowed stand-in drops.
+
 Then bump the pin in `ts/fixtures/model/Cargo.toml`, which `ts/justfile`'s `moq_rev` reads,
-and report the census before and after.
+and report the census before and after. The last bump
+([#390](https://github.com/moq-dev/rust2/pull/390)) also changed `ffi/moq/ffi.toml`, every
+`ffi/moq/moq.*`, and rust2-ts's model fixture, bench, and expected output, which share the
+pin: run `just ts census` too, and update the count in the
+[model epic](/quest/m2/ts-model/README.md).
 
 Decided with the maintainer on 2026-11-09: bump to moq's current main now, and narrow the
 Goal to the two moq-owned types. Rejected: wait for moq to fix the rest first. Not landed:
@@ -50,3 +65,4 @@ moq's `main` fails `just ts moq` and `just ffi moq-cpp`, so the bump waits on Wa
 - moq-dev/moq: `kio::Pending`, named by `dial_tcp` and `dial_track`, and `lite::version::Version`
   are reachable from moq-net's root, by name or by wrapping. Done when `just ffi census
   <checkout>` at moq's `main` lists no "type not reachable from the crate root" for either.
+  No moq quest owns this yet.

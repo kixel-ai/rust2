@@ -31,6 +31,7 @@ export * from "./rs/iter.ts";
 export * from "./rs/js.ts";
 export * from "./rs/location.ts";
 export * from "./rs/rand.ts";
+export * from "./rs/smallvec.ts";
 export * from "./rs/sort.ts";
 export * from "./rs/str.ts";
 export * from "./rs/task.ts";

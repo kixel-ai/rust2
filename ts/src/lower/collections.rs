@@ -2143,7 +2143,7 @@ pub fn heap_vec(h: Expr, bytes: bool) -> Expr {
 
 /// What `extend` or `from` adds to a collection: an `rs.Iter` of what `source` holds, and
 /// the type of the iterator std's makes of it.
-fn extend_source<'tcx>(
+pub(super) fn extend_source<'tcx>(
 	b: &mut Body<'_, '_, 'tcx>,
 	coll: Ty<'tcx>,
 	call: &Call<'tcx>,
@@ -2510,6 +2510,7 @@ fn one_items<'tcx>(
 /// `Default::default` of a collection of type `coll` that a tuple's `Extend` takes, or of a
 /// tuple of them.
 fn default<'tcx>(b: &mut Body<'_, '_, 'tcx>, coll: Ty<'tcx>, span: Span) -> Option<Expr> {
+	let coll = super::smallvec::as_vec(b.t.tcx, coll).unwrap_or(coll);
 	if coll.is_unit() {
 		return Some(Expr::undefined());
 	}
