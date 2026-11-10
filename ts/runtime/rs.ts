@@ -969,6 +969,8 @@ export function boxArrayFromRaw<T>(s: Slice<T>): T[] {
  */
 export function sliceSame<T>(a: Slice<T>, b: Slice<T>): boolean {
 	if (!(a instanceof Slice && b instanceof Slice)) return a === b;
+	a = arrayRefWhere(a);
+	b = arrayRefWhere(b);
 	return (roomItems(a.data) ?? a.data) === (roomItems(b.data) ?? b.data) && a.start === b.start;
 }
 
@@ -1276,6 +1278,8 @@ export function arraySliceCopy<S extends ArrayRef>(r: ArraySlice<S>, copy?: Elem
  */
 export function arraySliceSame(a: ArraySlice<ArrayRef>, b: ArraySlice<ArrayRef>): boolean {
 	if (!(a instanceof ArraySlice && b instanceof ArraySlice)) return a === b;
+	a = arrayRefWhere(a);
+	b = arrayRefWhere(b);
 	if (a.items !== undefined || b.items !== undefined) return a.items === b.items && a.start === b.start;
 	return arrayRefSame(arrayRefPart(a.flat!, a.start * a.n, 0), arrayRefPart(b.flat!, b.start * b.n, 0));
 }
@@ -1290,10 +1294,11 @@ function arrayRefSame(a: ArrayRef, b: ArrayRef): boolean {
 /**
  * The arrays of `r` as a JS array of arrays, for what only reads them: the arrays themselves
  * where each array is one, so a callback's `ptr::eq` sees the array it was lent, or else copies
- * of the arrays `as_chunks` split from one flat slice, which have no array of their own.
+ * of the arrays `as_chunks` split from one flat slice, which have no array of their own, as
+ * `arraySliceRuns` makes them.
  */
 export function arraySliceItems<S extends ArrayRef>(r: ArraySlice<S>): LentArray<S>[] {
-	if (r.items === undefined) return arraySliceCopy(r);
+	if (r.items === undefined) return arraySliceRuns(r);
 	if (r.start === 0 && r.length === r.items.length) return r.items as LentArray<S>[];
 	return r.items.slice(r.start, r.start + r.length) as LentArray<S>[];
 }
@@ -1311,7 +1316,26 @@ export function arraySliceSplitLastChunk<S extends ArrayRef>(r: ArraySlice<S>, n
 /** The arrays of `r` as a slice of arrays, as `arraySliceItems` reads them: a slice of the arrays where each array is one. */
 export function arraySliceAsSlice<S extends ArrayRef>(r: ArraySlice<S>): Slice<LentArray<S>> {
 	if (r.items !== undefined) return new Slice(r.items as LentArray<S>[], r.start, r.length);
-	return sliceFrom(arraySliceCopy(r));
+	return sliceFrom(arraySliceRuns(r));
+}
+
+/** Each run `arraySliceRuns` copied, by the array the copy is. */
+const RUNS = /* @__PURE__ */ new WeakMap<object, ArrayRef>();
+
+/**
+ * Copies of the arrays of `r`, runs `as_chunks` split from one flat slice, for what only
+ * reads them, each remembered as its run, so a pointer into a copy compares where the run is.
+ */
+function arraySliceRuns<S extends ArrayRef>(r: ArraySlice<S>): LentArray<S>[] {
+	const out = arraySliceCopy(r);
+	for (let i = 0; i < out.length; i++) RUNS.set(out[i] as object, arraySliceAt(r, i));
+	return out;
+}
+
+/** Where `s`, the slice a pointer to a `[T; N]` is, points: into the run it copies if it is of a copy `arraySliceRuns` made. */
+function arrayRefWhere<S extends ArrayRef>(s: S): S {
+	const run = RUNS.get((s instanceof ArraySlice ? s.items : s.data) ?? s) as S | undefined;
+	return run === undefined ? s : arrayRefPart(arrayRefWhere(run), s.start, s.length);
 }
 
 /**
@@ -2222,6 +2246,8 @@ export function byteSliceSplitLastMut(s: ByteSlice): [Place<number>, ByteSlice] 
  */
 export function byteSliceSame(a: ByteSlice, b: ByteSlice): boolean {
 	if (!(a instanceof ByteSlice && b instanceof ByteSlice)) return a === b;
+	a = arrayRefWhere(a);
+	b = arrayRefWhere(b);
 	return a.data.buffer === b.data.buffer && a.data.byteOffset + a.start === b.data.byteOffset + b.start;
 }
 

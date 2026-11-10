@@ -12,6 +12,7 @@
 
 use std::collections::VecDeque;
 
+use rustc_attr_ir::LangItem;
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::def_id::{CrateNum, DefId, LOCAL_CRATE};
 use rustc_infer::infer::TyCtxtInferExt;
@@ -29,7 +30,7 @@ use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _
 use crate::config;
 use crate::ir::{
 	Access, Api, Callback, Collection, Constant, Dyn, Enum, Family, Field, Function, Home, Int, Literal, Mutability,
-	Object, Param, Path, Receiver, Record, Traits, Type, Variant,
+	Object, Param, Path, Receiver, Record, Task, TaskKind, Traits, Type, Variant,
 };
 
 /// Why something is refused: a construct, ranked by the census, and what it names.
@@ -1311,6 +1312,7 @@ impl<'tcx> Collector<'tcx> {
 			err: Some(Type::String),
 			future: false,
 			eager: false,
+			task: None,
 			collect: false,
 			lends: false,
 			access: Access::Parse,
@@ -1346,6 +1348,7 @@ impl<'tcx> Collector<'tcx> {
 						err: None,
 						future: false,
 						eager: false,
+						task: None,
 						collect: false,
 						lends: false,
 						access: Access::Text,
@@ -1688,6 +1691,7 @@ impl<'tcx> Collector<'tcx> {
 						let variants = self.fields(&site).expect("settled");
 						let variant = variants.into_iter().next().expect("a struct has a variant");
 						let (methods, traits) = self.methods(&site);
+						let methods = self.unmutated(methods);
 						let record = &mut self.api.records[index];
 						record.args = args;
 						record.fields = variant.fields;
@@ -1699,6 +1703,7 @@ impl<'tcx> Collector<'tcx> {
 						let variants = self.fields(&site).expect("settled");
 						let exhaustive = !tcx.adt_def(def_id).is_variant_list_non_exhaustive();
 						let (methods, traits) = self.methods(&site);
+						let methods = self.unmutated(methods);
 						let e = &mut self.api.enums[index];
 						e.args = args;
 						e.variants = variants;
@@ -1867,6 +1872,7 @@ impl<'tcx> Collector<'tcx> {
 						err: None,
 						future: false,
 						eager: false,
+						task: None,
 						collect: false,
 						lends: false,
 						access: Access::Field { shared, set },
@@ -1889,6 +1895,17 @@ impl<'tcx> Collector<'tcx> {
 
 	/// A type's inherent `pub` methods, from each impl that applies to it, and the std
 	/// traits it implements.
+	/// A value's methods, refusing each through `&mut self`: C passes the value as a copy,
+	/// so what the method changes would be lost.
+	fn unmutated(&mut self, methods: Vec<Function>) -> Vec<Function> {
+		let (mutated, kept): (Vec<Function>, Vec<Function>) =
+			(methods.into_iter()).partition(|m| m.receiver == Some(Receiver::Mut));
+		for m in mutated {
+			self.refuse(&m.shown, "method", m.span, vec![why("`&mut self` of a value", "")]);
+		}
+		kept
+	}
+
 	fn methods(&mut self, site: &Site<'tcx>) -> (Vec<Function>, Traits) {
 		let tcx = self.tcx;
 		let def_id = site.key.def_id;
@@ -1921,12 +1938,25 @@ impl<'tcx> Collector<'tcx> {
 			}
 		}
 		// `poll_x` is left out when `x` exports as a future: the future is its poll.
+		// One made of a `Poll` is no twin's.
+		let futures: Vec<String> = (methods.iter())
+			.filter(|m| m.future && m.task.is_none())
+			.map(|m| m.name().to_string())
+			.collect();
+		let twin = |name: &str| {
+			name.strip_prefix("poll_")
+				.is_some_and(|x| futures.iter().any(|f| f == x))
+		};
+		let (twins, kept): (Vec<Function>, Vec<Function>) =
+			(methods.into_iter()).partition(|m| m.future && m.task.is_some() && m.instance.is_none() && twin(m.name()));
+		methods = kept;
+		for function in twins {
+			let (report, rest) = self.report(&function.shown);
+			report.twins.push(rest);
+		}
 		for (method, span, why, instance) in refused {
 			let name = method.last().expect("a method has a name");
-			let twin = !instance
-				&& name
-					.strip_prefix("poll_")
-					.is_some_and(|x| methods.iter().any(|m| m.future && m.name() == x));
+			let twin = !instance && twin(name);
 			match twin {
 				true => {
 					let (report, rest) = self.report(&method);
@@ -2255,6 +2285,22 @@ impl<'tcx> Collector<'tcx> {
 			}
 		};
 		let callback = tcx.def_kind(tcx.parent(def_id)) == DefKind::Trait;
+		let mut output = normalize(sig.output());
+		// A returned `Poll` is a future's: each time C polls the future, it calls the function
+		// with the poll's context, so the future owns every other argument and passes it again.
+		let polled = match output.kind() {
+			ty::Adt(adt, args) if !callback && tcx.is_lang_item(adt.did(), LangItem::Poll) => Some(args.type_at(0)),
+			_ => None,
+		};
+		let again = |ty: Ty<'tcx>| ty.is_ref() || tcx.type_is_copy_modulo_regions(env, ty);
+		if polled.is_some()
+			&& receiver == Some(Receiver::Owned)
+			&& let Some(self_ty) = self_ty
+			&& !again(normalize(self_ty))
+		{
+			errs.push(why("poll taking self by value", self_ty.to_string()));
+		}
+		let mut tasks = Vec::new();
 		let mut params = Vec::new();
 		let mut units = Vec::new();
 		for (i, ty) in inputs {
@@ -2269,6 +2315,25 @@ impl<'tcx> Collector<'tcx> {
 				.copied()
 				.flatten()
 				.map_or_else(|| format!("arg{i}"), |ident| ident.to_string());
+			if !callback && let Some(kind) = self.task(ty, polled.is_some()) {
+				// C passes a waker for a context the future does not supply.
+				if polled.is_none() {
+					params.push(Param {
+						name,
+						ty: Type::Waker,
+						interned: false,
+					});
+				}
+				tasks.push(Task {
+					at: i - usize::from(has_self),
+					kind,
+				});
+				continue;
+			}
+			if polled.is_some() && !again(ty) {
+				errs.push(why("poll's parameter taken by value that is not Copy", ty.to_string()));
+				continue;
+			}
 			match self.ty(ty, Pos::Param) {
 				// C's value is lifted into an owned Rust one, lent only as the parameter
 				// itself, or as `Some` of it. A callback's parameters are lent the other way,
@@ -2304,10 +2369,27 @@ impl<'tcx> Collector<'tcx> {
 				Err(why) => errs.push(why),
 			}
 		}
-		let mut output = normalize(sig.output());
+		let task = tasks.pop();
+		if !tasks.is_empty() {
+			errs.push(why("several task parameters", ""));
+		}
 		let mut future = false;
-		let eager = !tcx.asyncness(def_id).is_async();
-		if let Some(inner) = self.future_output(output, env) {
+		let mut eager = !tcx.asyncness(def_id).is_async();
+		if let Some(inner) = polled {
+			if task.is_none() {
+				errs.push(why("Poll with no Context or waiter parameter", output.to_string()));
+			}
+			if borrows {
+				errs.push(why("borrowed Poll", inner.to_string()));
+			}
+			output = normalize(inner);
+			future = true;
+			eager = false;
+		} else if let Some(inner) = self.future_output(output, env) {
+			// The context C's waker makes lives only for the call.
+			if task.is_some() {
+				errs.push(why("Context of a function returning a future", ""));
+			}
 			if !self.is_send(output, env) {
 				errs.push(why("future not Send", ""));
 			}
@@ -2317,9 +2399,11 @@ impl<'tcx> Collector<'tcx> {
 			}
 			output = normalize(inner);
 			future = true;
-			if params.iter().any(|p: &Param| p.ty.written()) {
-				errs.push(why("&mut of a value in a future", ""));
-			}
+		}
+		// A future, polled or async, lifts each value into what it owns, so has nothing to
+		// write back.
+		if future && params.iter().any(|p: &Param| p.ty.written()) {
+			errs.push(why("&mut of a value in a future", ""));
 		}
 		// An iterator no other rule maps crosses as the array of its items, all taken at
 		// the call, as `collect` takes them, when no caller could tell; a future's stays
@@ -2389,6 +2473,7 @@ impl<'tcx> Collector<'tcx> {
 				err,
 				future,
 				eager: future && eager,
+				task,
 				collect,
 				lends,
 				access: Access::Call,
@@ -3632,6 +3717,55 @@ impl<'tcx> Collector<'tcx> {
 		}
 	}
 
+	/// What a parameter of type `ty` polls its task through, if it does: a `&Context` or
+	/// `&mut Context`, or where the function returns a `Poll`, a reference to an object
+	/// exactly one safe, non-generic associated function makes from a `Waker` alone, of a
+	/// type with no generic parameters, such as kio's `Waiter`.
+	fn task(&self, ty: Ty<'tcx>, polled: bool) -> Option<TaskKind> {
+		let tcx = self.tcx;
+		let ty::Ref(_, inner, m) = *ty.kind() else {
+			return None;
+		};
+		let ty::Adt(adt, args) = *inner.kind() else {
+			return None;
+		};
+		if tcx.is_lang_item(adt.did(), LangItem::Context) {
+			return Some(TaskKind::Context(match m {
+				ty::Mutability::Not => Mutability::Not,
+				ty::Mutability::Mut => Mutability::Mut,
+			}));
+		}
+		// A generic type's constructor may belong to another of its instances.
+		if !polled || m == ty::Mutability::Mut || !args.is_empty() {
+			return None;
+		}
+		let Ok(Type::Object(object)) = self.ty(inner, Pos::Behind) else {
+			return None;
+		};
+		let waker = |ty: Ty<'tcx>| matches!(ty.kind(), ty::Adt(w, _) if tcx.is_diagnostic_item(rustc_span::Symbol::intern("Waker"), w.did()));
+		let makes: Vec<String> = (tcx.inherent_impls(adt.did()).iter())
+			.flat_map(|&imp| tcx.associated_items(imp).in_definition_order())
+			.filter(|item| {
+				matches!(item.kind, ty::AssocKind::Fn { has_self: false, .. })
+					&& tcx.visibility(item.def_id).is_public()
+			})
+			.filter(|item| {
+				let sig = tcx.fn_sig(item.def_id).skip_binder().skip_binder();
+				// The call names no generic arguments and opens no `unsafe` block.
+				let generics = tcx.generics_of(item.def_id).own_counts();
+				sig.safety().is_safe()
+					&& generics.types + generics.consts == 0
+					&& matches!(sig.inputs(), [input] if waker(*input))
+					&& matches!(sig.output().kind(), ty::Adt(out, _) if out.did() == adt.did())
+			})
+			.map(|item| item.name().to_string())
+			.collect();
+		match <[String; 1]>::try_from(makes) {
+			Ok([make]) => Some(TaskKind::Made { object, make }),
+			Err(_) => None,
+		}
+	}
+
 	/// Whether `ty` is `Sync`, as a handle shared across threads must be.
 	fn is_sync(&self, ty: Ty<'tcx>) -> bool {
 		let tcx = self.tcx;
@@ -3700,6 +3834,7 @@ impl<'tcx> Collector<'tcx> {
 				err: None,
 				future: false,
 				eager: false,
+				task: None,
 				collect: false,
 				lends: false,
 				access: Access::Const,

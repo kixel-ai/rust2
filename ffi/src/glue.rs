@@ -10,7 +10,7 @@ use std::path::Path;
 
 use crate::abi::{self, Abi, Ty};
 use crate::config::Package;
-use crate::ir::{Access, Collection, Family, Function, Literal, Mutability, Receiver, Traits, Type};
+use crate::ir::{Access, Collection, Family, Function, Literal, Mutability, Receiver, Task, TaskKind, Traits, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
 
@@ -1272,19 +1272,56 @@ impl Gen<'_> {
 				let (_, data) = c_params.next().expect("a lent function's data");
 				params.push(format!("p{n}_data: {}", rs(data)));
 			}
-			let (stmt, arg) = match param.interned {
-				true => (
+			let (stmt, arg) = match &function.task {
+				// A context made of C's waker, lent for the call.
+				Some(Task {
+					at,
+					kind: TaskKind::Context(m),
+				}) if *at == n && !function.future => {
+					let (binding, pass) = match m {
+						Mutability::Mut => ("let mut", format!("&mut a{n}")),
+						Mutability::Not => ("let", format!("&a{n}")),
+					};
+					(
+						format!(
+							"let a{n}_waker = p{n}.lift();\n\t{binding} a{n} = ::std::task::Context::from_waker(&a{n}_waker);"
+						),
+						pass,
+					)
+				}
+				_ if param.interned => (
 					format!("let a{n} = rt::intern(unsafe {{ p{n}.str(w) }});"),
 					format!("a{n}"),
 				),
-				false => self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future),
+				_ => self.arg(&param.ty, &format!("p{n}"), &format!("a{n}"), future),
 			};
 			stmts.push(stmt);
 			args.push(arg);
 		}
-		let first = args.len() - function.params.len();
-		for unit in &function.units {
-			args.insert(first + unit, "()".to_string());
+		// A future made of a `Poll` calls the function at each poll, passing the poll's
+		// context, or a value made from its waker and kept until the next poll, so what that
+		// poll registers stays registered.
+		let mut made = String::new();
+		// Each argument C does not pass, by its place among Rust's parameters after `self`,
+		// inserted in order so each lands where Rust takes it.
+		let mut extra: Vec<(usize, String)> = function.units.iter().map(|&at| (at, "()".to_string())).collect();
+		if let Some(task) = function.task.as_ref().filter(|_| function.future) {
+			let pass = match &task.kind {
+				TaskKind::Context(Mutability::Mut) => "&mut *t_cx".to_string(),
+				TaskKind::Context(Mutability::Not) => "&*t_cx".to_string(),
+				TaskKind::Made { object, make } => {
+					made = format!(
+						"let t_made = t_held.insert(<{}>::{make}(::std::task::Context::waker(t_cx).clone()));\n\t\t\t",
+						self.object_path(*object)
+					);
+					"&*t_made".to_string()
+				}
+			};
+			extra.push((task.at, pass));
+		}
+		extra.sort_by_key(|(at, _)| *at);
+		for (at, arg) in extra {
+			args.insert(usize::from(receiver_ty.is_some()) + at, arg);
 		}
 		// Rust writes back what the call left in each value C passed for `&mut`, on every
 		// path, errors included.
@@ -1341,9 +1378,21 @@ impl Gen<'_> {
 		if let Some((_, poll, free)) = &export.future {
 			// A function that is not `async` runs when called, and what it returns
 			// borrows nothing, so it is called now; an `async fn` runs when polled.
-			let (now, later) = match function.eager {
-				true => (format!("\n\tlet future = {call};"), "future".to_string()),
-				false => (String::new(), call),
+			let (now, later) = match (function.eager, &function.task) {
+				(true, _) => (format!("\n\tlet future = {call};"), "future".to_string()),
+				(false, None) => (String::new(), call),
+				(false, Some(task)) => {
+					let held = match task.kind {
+						TaskKind::Made { .. } => "let mut t_held = None;\n\t\t",
+						TaskKind::Context(_) => "",
+					};
+					(
+						String::new(),
+						format!(
+							"{{\n\t\t{held}::std::future::poll_fn(move |t_cx: &mut ::std::task::Context<'_>| {{\n\t\t\t{made}{call}\n\t\t}})\n\t\t}}"
+						),
+					)
+				}
 			};
 			// The value C takes is lowered when it polls, outside the future, so a result
 			// borrowing what the future holds is cloned before the future ends.
