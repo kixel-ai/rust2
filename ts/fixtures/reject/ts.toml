@@ -35,6 +35,7 @@ roots = [
     "buffers::blank_bytes",
     "buffers::sliced_elsewhere",
     "buffers::sliced_reassigned",
+    "buffers::sliced_swapped",
     "clones::cloned_slots",
     "clones::dropped_slots",
     "clones::ranked_slots",

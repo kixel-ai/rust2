@@ -9,7 +9,9 @@
 //! takes back to it and a cast to `*const ()` keeps. That cast is refused unless the body
 //! shows an `Arc`'s, or null or dangling, since a place from elsewhere has no one identity.
 
-use rustc_middle::mir::{self, BasicBlock, Local, Location, Operand, ProjectionElem, Rvalue, TerminatorKind};
+use rustc_middle::mir::{
+	self, BasicBlock, Local, Location, Operand, ProjectionElem, Rvalue, StatementKind, TerminatorKind,
+};
 use rustc_middle::ty::{self, GenericArgsRef};
 use rustc_span::Spanned;
 
@@ -588,8 +590,11 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		if self.defs[local] != 1 || self.is_arg(local) || self.mutated[local] {
 			return place;
 		}
-		// A source never assigned again; `Bytes`' own `&mut self` methods keep its storage.
-		let fixed = |from: &mir::Place<'tcx>| self.defs[from.local] == u32::from(!self.is_arg(from.local));
+		// A source never assigned again, and lent mutably only to `Bytes`' own methods, which
+		// keep its storage, unlike `mem::swap` or `replace`.
+		let fixed = |from: &mir::Place<'tcx>| {
+			self.defs[from.local] == u32::from(!self.is_arg(from.local)) && self.only_own_edits(from.local)
+		};
 		if self.def_at[local].is_some() {
 			return match self.def_rvalue(local) {
 				Some(Rvalue::Use(Operand::Copy(from) | Operand::Move(from), _)) if fixed(from) => self.storage(*from),
@@ -620,6 +625,62 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			Some(from) if fixed(&from) => self.storage(from),
 			_ => place,
 		}
+	}
+
+	/// Whether every `&mut` of the `Bytes` at `local` goes only to a method of `Bytes`, its own
+	/// or a trait's, rather than to a generic function such as `mem::swap`.
+	fn only_own_edits(&self, local: Local) -> bool {
+		let lent: Vec<Local> = self
+			.mir
+			.basic_blocks
+			.iter()
+			.flat_map(|data| &data.statements)
+			.filter_map(|stmt| match &stmt.kind {
+				StatementKind::Assign(assign) => match &**assign {
+					(to, Rvalue::Ref(_, mir::BorrowKind::Mut { .. }, place) | Rvalue::RawPtr(_, place))
+						if place.local == local =>
+					{
+						Some(to.as_local())
+					}
+					_ => None,
+				},
+				_ => None,
+			})
+			.collect::<Option<_>>()
+			.unwrap_or_else(|| vec![local]);
+		lent.iter().all(|&r| {
+			r != local
+				&& self.mir.basic_blocks.iter().all(|data| {
+					let read = |op: &Operand<'tcx>| op.place().is_some_and(|p| p.local == r);
+					let in_stmt = data.statements.iter().any(|stmt| match &stmt.kind {
+						StatementKind::Assign(assign) => match &assign.1 {
+							Rvalue::Use(op, _) => read(op),
+							Rvalue::Aggregate(_, ops) => ops.iter().any(read),
+							Rvalue::Ref(_, _, p) | Rvalue::RawPtr(_, p) => p.local == r,
+							_ => false,
+						},
+						_ => false,
+					});
+					let ok_call = match &data.terminator().kind {
+						TerminatorKind::Call { func, args, .. } => {
+							let rest = args.iter().skip(1).any(|a| read(&a.node));
+							let own = |def_id, gargs: GenericArgsRef<'tcx>| {
+								library::inherent_std(self.tcx, def_id) == Some(Std::Bytes)
+									|| (self.tcx.trait_of_assoc(def_id).is_some()
+										&& gargs
+											.types()
+											.next()
+											.is_some_and(|ty| self.b.t.std_of(ty) == Some(Std::Bytes)))
+							};
+							!rest
+								&& (!args.first().is_some_and(|a| read(&a.node))
+									|| func.const_fn_def().is_some_and(|(def_id, gargs)| own(def_id, gargs)))
+						}
+						_ => true,
+					};
+					!in_stmt && ok_call
+				})
+		})
 	}
 
 	/// Whether the shared slice `subset` is of the storage of the `Bytes` the shared

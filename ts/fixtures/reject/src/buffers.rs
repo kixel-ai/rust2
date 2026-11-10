@@ -40,3 +40,16 @@ pub fn sliced_reassigned(n: usize) -> usize {
 	a = bytes::Bytes::from_static(b"two");
 	a.slice_ref(&c[..n]).len()
 }
+
+/// `slice_ref` of a clone of a `Bytes` that `mem::swap` or `mem::replace` points at other
+/// storage through a `&mut`.
+pub fn sliced_swapped(n: usize) -> usize {
+	let mut a = bytes::Bytes::from_static(b"one");
+	let mut b = bytes::Bytes::from_static(b"two");
+	let c = a.clone();
+	std::mem::swap(&mut a, &mut b);
+	let mut d = bytes::Bytes::from_static(b"six");
+	let e = d.clone();
+	drop(std::mem::replace(&mut d, b));
+	a.slice_ref(&c[..n]).len() + d.slice_ref(&e[..n]).len()
+}
