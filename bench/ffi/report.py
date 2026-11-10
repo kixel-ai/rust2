@@ -52,11 +52,17 @@ BINDINGS = [
 	("Dart", ["dart/moq.dart"], ["src/dart"]),
 ]
 
+# The shared library's suffix, as `just ffi moq-export` names it on each platform it builds on.
+SHARED = "dylib" if sys.platform == "darwin" else "so"
+
 LIBRARIES = [
 	("`libmoq.a`, the C ABI that C, C++, Swift, and Go link", "target/release/libmoq.a"),
-	("`libmoq.so`, with the Kotlin and Dart glue", "target/release/libmoq.so"),
-	("`python/libmoq.so`, the CPython extension", "python/libmoq.so"),
+	(f"`libmoq.{SHARED}`, with the Kotlin and Dart glue", f"target/release/libmoq.{SHARED}"),
+	(f"`python/libmoq.{SHARED}`, the CPython extension", f"python/libmoq.{SHARED}"),
 ]
+
+# What `strip --strip-all` drops, or on macOS, whose strip lacks it, every local symbol.
+STRIP = ["strip", "-x"] if sys.platform == "darwin" else ["strip", "--strip-all"]
 
 
 def files(root, paths):
@@ -144,7 +150,7 @@ def main(raw_path, export):
 		with tempfile.TemporaryDirectory() as tmp:
 			copy = os.path.join(tmp, os.path.basename(path))
 			shutil.copyfile(full, copy)
-			subprocess.run(["strip", "--strip-all", copy], check=True)
+			subprocess.run([*STRIP, copy], check=True)
 			rows.append([label, kib(os.path.getsize(full)), kib(os.path.getsize(copy))])
 	print(table(["native library", "as built", "stripped"], rows))
 

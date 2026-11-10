@@ -94,12 +94,19 @@ bench-run rounds="3":
     # Each program prints a case, its wall time, and its CPU time a line; this prefixes its
     # language and round, and suffixes the load average over the run, the mean of the
     # 1-minute averages before and after it.
+    load() {
+        if [ "{{ os() }}" = macos ]; then
+            sysctl -n vm.loadavg | awk '{ print $2 }'
+        else
+            awk '{ print $1 }' /proc/loadavg
+        fi
+    }
     run() {
         local lang=$1 before after
         shift
-        read -r before _ < /proc/loadavg
+        before=$(load)
         "$@" > target/bench/run.tsv
-        read -r after _ < /proc/loadavg
+        after=$(load)
         awk -v lang="$lang" -v round="$r" -v loadavg="$(echo "$before $after" | awk '{ print ($1 + $2) / 2 }')" -F '\t' \
             'NF == 3 { print lang "\t" round "\t" $1 "\t" $2 "\t" $3 "\t" loadavg; next } { print "bench: " lang ": unexpected line: " $0 > "/dev/stderr"; exit 1 }' \
             target/bench/run.tsv >> "$raw"
