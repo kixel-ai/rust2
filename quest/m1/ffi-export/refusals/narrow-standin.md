@@ -15,10 +15,19 @@ Decided with the maintainer on 2026-11-07, from
 [moq-dev/rust2#655](https://github.com/moq-dev/rust2/pull/655): ✅ the stand-in re-exports
 only that session side. Rejected: all of moq-tokio, whose tokio QUIC driver, CLI helpers,
 worker groups, and listeners no binding calls; bindings drive the sans-IO driver of
-[session-quic](/quest/m1/ffi-export/session-quic.md) instead.
+[session-quic](/quest/m3/session-quic.md) instead.
 
-Decided with the maintainer on 2026-11-07, in the quest audit: ✅ this lands first, so the
-other children count only what stays. Narrowing drops moq-tokio's `rustls`, `notify`,
+Decided with the maintainer on 2026-11-09, in the quest audit: ✅ no landing order. Each
+sibling leaves the moq-tokio items outside the session side alone, and whichever PR lands
+later measures the census again. Rejected: this landing first, as decided on 2026-11-07,
+which no `Required` link held and which two siblings ready for review had already passed.
+
+The list above is not closed over what the fixtures and moq-ffi call:
+[#683](https://github.com/moq-dev/rust2/pull/683) found `just ffi moq` fails with it, since
+`ffi/moq/moq.*` use about 40 moq-tokio names it leaves out, such as `client::Config`,
+`server::Config`, `origin::spawn`, `Backoff`, and `listen::Bind`.
+
+Narrowing drops moq-tokio's `rustls`, `notify`,
 `congestion`, `cli::usage_rs`, and `quic::web`'s `http` and `proto` re-exports, and
 `quic::driver`'s `Side` refusals. Every item named exists at moq `ffcb7cd9`
 (`rs/moq-tokio/src/lib.rs`). Update the counts in the
