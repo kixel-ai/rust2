@@ -407,7 +407,10 @@ impl<'a> Gen<'a> {
 					Type::List(_, elem) => (self.lower(inner, &v), format!("{}()", abi.list(elem))),
 					_ => {
 						let c = abi.option(inner);
-						(format!("{c}(some: true, value: {})", self.lower(inner, &v)), format!("{c}()"))
+						(
+							format!("{c}(some: true, value: {})", self.lower(inner, &v)),
+							format!("{c}()"),
+						)
 					}
 				};
 				format!("Native.option({e}, {{ {v} in {some} }}, {none})")
@@ -546,7 +549,8 @@ impl<'a> Gen<'a> {
 			for ty in types {
 				crate::ir::each(&strip_refs(ty), &mut |ty| {
 					if let Type::Tuple(elements) = ty
-						&& elements.len() > 1 && self.unique(ty)
+						&& elements.len() > 1
+						&& self.unique(ty)
 					{
 						tuples.insert(abi.tuple(elements), elements.clone());
 					}
@@ -1442,7 +1446,9 @@ impl<'a> Gen<'a> {
 		};
 		let body = body.join("\n");
 		let head = match (function.access, receiver) {
-			(Access::Field { set: false, .. }, Some(_)) if function.params.is_empty() && !throws && mutation.is_empty() => {
+			(Access::Field { set: false, .. }, Some(_))
+				if function.params.is_empty() && !throws && mutation.is_empty() =>
+			{
 				format!("public var {member}{}", ret.replacen(" -> ", ": ", 1))
 			}
 			(Access::Const, None) if function.params.is_empty() && !throws => {

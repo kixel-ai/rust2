@@ -674,7 +674,10 @@ fn api_swift() {
 	for (case, message) in [
 		("MOVED", "'c' used after consume"),
 		("BOXED_MOVED", "'tail' used after consume"),
-		("LENT_MOVED", "missing reinitialization of inout parameter 'counter' after consume"),
+		(
+			"LENT_MOVED",
+			"missing reinitialization of inout parameter 'counter' after consume",
+		),
 		("LENT_KEPT", "implicit conversion to 'Tally?' is consuming"),
 	] {
 		let output = swiftc(&module, 15)
@@ -910,7 +913,10 @@ fn swiftc(module: &Path, macos: u8) -> Command {
 		};
 		cmd.arg("-target").arg(format!("{arch}-apple-macos{macos}"));
 	}
-	cmd.args(["-warnings-as-errors", "-I"]).arg(module).arg("-I").arg(collections_dir());
+	cmd.args(["-warnings-as-errors", "-I"])
+		.arg(module)
+		.arg("-I")
+		.arg(collections_dir());
 	cmd
 }
 
