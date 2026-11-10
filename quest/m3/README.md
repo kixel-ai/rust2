@@ -17,8 +17,8 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
   supersedes, until then, the 2026-10-27 decision that rust2 aims to support all of std,
   so a generic std gap was planned here even when moq never calls it. Rejected:
   continuing as before; freezing the model's work too.
-- ✅ C# and Unity, a Node-API addon, and React Native are planned here before any consumer
-  asks, since they are the targets a media SDK's users expect: LiveKit ships Python, Node,
+- ✅ C# and Unity, a Node-API addon, React Native, and a WASI target are planned here
+  before any consumer asks, since they are the targets a media SDK's users expect: LiveKit ships Python, Node,
   Unity, and React Native over its Rust core. Each waits on
   [the exporter epic](/quest/m1/ffi-export/README.md), so it copies the settled C ABI,
   types, and checks. Rejected: none until a consumer asks. Not planned: Java without
@@ -58,6 +58,7 @@ memory model for values whose address is reinterpreted, without a consumer.
 - [C# and Unity bindings](/quest/m3/csharp.md) - a C# generator over the C ABI that runs under .NET and Unity's IL2CPP
 - [A Node-API addon](/quest/m3/node.md) - a native Node binding, kept only if it beats rust2-wasm and `node:ffi`
 - [React Native bindings](/quest/m3/react-native.md) - a JSI module over the generated C++ header
+- [A WASI target](/quest/m3/wasi.md) - the exporter's API as a WASI module or component for hosts with no JavaScript
 - [Retrial Cranelift on moq's tests](/quest/m3/cranelift-unwind.md) - waits on upstream: moq's tests pass under Cranelift, so its CI can weigh it again
 - [Relink without rebuilding](/quest/m3/relink.md) - measure upstream's skip of dependency-only rebuilds on moq's edits once it reaches nightly
 - [Waiting: drop the lang fixture's mul_add allowance](/quest/m3/ts-fma-allowance.md) - the differential fails on any `mul_add` difference again once wasm32's `fma` rounds exactly

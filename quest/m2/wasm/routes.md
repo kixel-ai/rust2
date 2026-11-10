@@ -35,4 +35,4 @@ Public API: none.
 
 ## Required
 
-- [The exporter's wasm32 target](/quest/m2/wasm/backend.md) - the binding the new route calls through
+- [The exporter's web target](/quest/m2/wasm/backend.md) - the binding the new route calls through
