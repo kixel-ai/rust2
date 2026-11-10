@@ -62,13 +62,12 @@ moq's `main` fails `just ts moq` and `just ffi moq-cpp`, so the bump waits on Wa
 - moq-dev/moq: moq-tokio builds without tripping `recursion_depth_exceeding_limit` (an
   overflow proving `Send` on `Instrumented<...>`), which `just ffi moq-cpp <checkout>` denies.
   Done when it passes at moq's `main`.
-- moq-dev/moq: `kio::Pending`, named by `dial_tcp` and `dial_track`, and `lite::version::Version`
-  are reachable from moq-net's root, by name or by wrapping. Done when `just ffi census
-  <checkout>` at moq's `main` lists no "type not reachable from the crate root" for either.
-  No moq quest owns this yet.
-- Maintainer: decide whether rust2 exports a type the crate root does not reach by its defining
-  path, rather than waiting for moq to re-export it. Options: (a) export `kio::Pending` and
-  `lite::version::Version` by their defining paths, recommended, since it asks moq for no source
-  change, as the maintainer's 2026-11-09 decision does; (b) wait for the moq item above. A type
-  whose defining path is itself private stays refused under (a). Done when the decision is
-  recorded here.
+- Maintainer: decide how `kio::Pending`, named by `dial_tcp` and `dial_track`, and
+  `lite::version::Version` stop refusing as "type not reachable from the crate root", which
+  `just ffi census <checkout>` lists at moq's `main`. Options: (a) rust2 exports a type the
+  crate root does not reach by its defining path, recommended, since it asks moq for no source
+  change, as the maintainer's 2026-11-09 decision does; a type whose defining path is itself
+  private stays refused. (b) moq-dev/moq makes both reachable from moq-net's root, by name or
+  by wrapping; no moq quest owns this yet. Whichever is chosen, its change lands before the
+  bump: the exporter change under (a), or moq's fix under (b). Done when the census at moq's
+  `main` lists neither type.
