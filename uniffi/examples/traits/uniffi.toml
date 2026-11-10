@@ -1,9 +1,0 @@
-[bindings.kotlin]
-package_name = "uniffi.traits"
-cdylib_name = "uniffi_traits"
-
-[bindings.swift]
-cdylib_name = "uniffi_traits"
-
-[bindings.python]
-cdylib_name = "uniffi_traits"

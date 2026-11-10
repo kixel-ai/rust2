@@ -612,7 +612,7 @@ fn kotlin_contract(kotlin: &Path) -> u64 {
 #[test]
 #[cfg_attr(
 	all(target_os = "linux", target_arch = "aarch64"),
-	ignore = "nixpkgs builds no Swift for aarch64-linux: quest/m2/uniffi-swift-arm.md"
+	ignore = "nixpkgs builds no Swift for aarch64-linux: quest/m2/swift-arm.md"
 )]
 fn api_swift() {
 	let api = api();

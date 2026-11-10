@@ -36,7 +36,7 @@ Decided with the maintainer on 2026-10-23, when rust2 was planned from moq
 
 ## Required
 
-- [m0: immediate priorities](/quest/m0/README.md) - urgent fixes, a green nightly, and the fork's deletion
+- [m0: immediate priorities](/quest/m0/README.md) - urgent fixes, the checks' cost, and a green nightly
 - [m1: consumers waiting](/quest/m1/README.md) - the exporter moq can pin and switch its bindings to
 - [m2: research](/quest/m2/README.md) - rust2-wasm as the browser route, and the TypeScript translator that has to beat it
 - [m3: deferred](/quest/m3/README.md) - upstream's build-speed levers, the translator features that wait on the gate, and binding targets planned ahead of a consumer

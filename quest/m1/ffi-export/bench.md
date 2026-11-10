@@ -10,9 +10,10 @@ numbers justify as quests.
 
 ## Plan
 
-Found in the 2026-11-09 quest audit: no exporter measurement is committed. The benchmark
-measures moq-ffi over the UniFFI fork, `just ffi bench` (`ffi/justfile`,
-`ffi/moq/bench/export.*`) prints timings and records nothing, and the epic's rule that
+Found in the 2026-11-09 quest audit: no exporter measurement is committed. The benchmark's
+harness, which measured moq-ffi over the UniFFI fork, was deleted with the fork; its README
+keeps the numbers. `just ffi bench` (`ffi/justfile`, `ffi/moq/bench/export.*`) prints
+timings and records nothing, and the epic's rule that
 every generator "is measured on the binding benchmark" and "reports its generated size"
 had no owner. Speed ranks above ergonomics here (AGENTS.md), so it needs a baseline.
 
@@ -40,7 +41,3 @@ had no owner. Speed ranks above ergonomics here (AGENTS.md), so it needs a basel
   report plans.
 
 Public API: none.
-
-## Required
-
-- [Delete the UniFFI fork](/quest/m0/delete-uniffi.md) - the benchmark's harness stops building the fork, so this rebuilds it on the exporter
