@@ -66,3 +66,9 @@ moq's `main` fails `just ts moq` and `just ffi moq-cpp`, so the bump waits on Wa
   are reachable from moq-net's root, by name or by wrapping. Done when `just ffi census
   <checkout>` at moq's `main` lists no "type not reachable from the crate root" for either.
   No moq quest owns this yet.
+- Maintainer: decide whether rust2 exports a type the crate root does not reach by its defining
+  path, rather than waiting for moq to re-export it. Options: (a) export `kio::Pending` and
+  `lite::version::Version` by their defining paths, recommended, since it asks moq for no source
+  change, as the maintainer's 2026-11-09 decision does; (b) wait for the moq item above. A type
+  whose defining path is itself private stays refused under (a). Done when the decision is
+  recorded here.
