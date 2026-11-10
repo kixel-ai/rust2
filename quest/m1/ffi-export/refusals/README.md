@@ -49,6 +49,17 @@ Decided with the maintainer on 2026-11-07, from
 - ✅ This epic, with the children below ranked by what moq-ffi's hand-written wrapper still
   covers.
 
+Decided with the maintainer on 2026-11-09, from
+[moq-dev/rust2#678](https://github.com/moq-dev/rust2/pull/678):
+
+- ✅ rust2 asks moq for no source changes: changing moq is a non-goal, so every refusal
+  that waited on moq changing a signature gets an answer on rust2's side. moq's merged
+  removal of its whole-crate re-exports stands, as moq drops them for its semver anyway.
+  Rejected: refusing a shape and leaving moq to change its signature.
+- ✅ A third-party type a signature still names behind an `Arc`, such as
+  `Arc<rustls::ServerConfig>`, crosses as an opaque handle with none of its API, which
+  passes back into moq's calls. Rejected: moq wrapping it in a type of its own.
+
 The census at moq `ffcb7cd9` (2026-11-07) refused 1111 items, which `ffi/moq/ffi.toml`'s
 347 excludes hide by naming whole modules. About 790 lay in crates moq re-exports whole,
 which [#668](https://github.com/moq-dev/rust2/pull/668) has since made one refusal each,
@@ -69,6 +80,5 @@ Public API: the exporter's command line and the C API of every item that exports
 - [Futures and kept closures as parameters export](/quest/m1/ffi-export/refusals/generics.md) - `clock::timeout`'s future, `clock::drive`'s kept closure, and `mp4::repair`'s seekable reader cross from C
 - [Standard and common types export by role](/quest/m1/ffi-export/refusals/std-types.md) - `Filter`, serde_json's map iterators, `Instant`, and tracing's levels, once their maintainer decisions land
 - [Poll and Context export](/quest/m1/ffi-export/refusals/poll.md) - a `poll_*` with no async twin takes a waker, as futures' polls do
-- [Borrow shapes export](/quest/m1/ffi-export/refusals/borrows.md) - `Option<&T>`, `&mut` buffers, `&Bytes`, `Arc<T>`, `'static` borrows, and borrowed returns that are not `Clone`
 - [Small shapes export](/quest/m1/ffi-export/refusals/small-shapes.md) - `u128`, arrays, const generics, unit and `Result` off a return, `!`, empty enums, and what is not `Send`
 - [Bump the moq pin past its re-export and reachability fixes](/quest/m1/ffi-export/refusals/moq-pin.md) - the census has no whole-crate re-export refusal and no unreachable type of moq's own
