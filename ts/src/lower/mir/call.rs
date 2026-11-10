@@ -107,6 +107,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			ty::FnDef(def_id, gargs) if let Some(why) = self.stray(def_id, gargs.skip_binder(), args) => {
 				(self.err(span, why), true)
 			}
+			ty::FnDef(def_id, _) if let Some(why) = self.alloc_leak(def_id, args, dest) => (self.err(span, why), true),
 			ty::FnDef(def_id, gargs)
 				if let Some(cast) = self.alloc_cast_call(def_id, gargs.skip_binder(), args, span, &mut pre) =>
 			{
@@ -1203,6 +1204,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				self.slots[local] = Slot::Alias(Some(place));
 				Some(None)
 			}
+			// Bytes from other storage, which JS may keep apart where Rust shares them, as a
+			// `&'static str`'s bytes that `as_bytes` encodes anew.
+			("Bytes", "slice_ref") if bytes && !self.bytes_of(&args[1].node, &args[0].node) => done(
+				self.err(
+					span,
+					"`Bytes::slice_ref` of bytes the body doesn't show it borrowed from that `Bytes`'s storage, through `Deref`, `as_ref`, or a slice of one, which JS may keep apart where Rust shares them",
+				),
+				true,
+			),
 			// A `Bytes`'s slice by a range's bounds, read where the range is made. Its bounds
 			// check panics, so it runs even if the slice goes unused.
 			("Bytes", "slice")
