@@ -18,7 +18,3 @@ Decided 2026-11-02 (maintainer, moq's /quest-unblock): the fork is not published
 Decided with the maintainer on 2026-11-09, in the quest audit: ✅ the fork is deleted now,
 since moq never builds on it and its only consumers here were the binding benchmark's
 baseline and nightly jobs. Rejected: keeping it until moq switches; keeping it as is.
-
-## Required
-
-- [Exporter](/quest/m1/ffi-export/README.md) - moq can pin an exporter that exports its crates' `pub` API in every language it ships

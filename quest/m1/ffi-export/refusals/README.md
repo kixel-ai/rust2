@@ -73,12 +73,3 @@ only because a type they name is refused, and clear with it. After the stand-in 
 items, 41 of them in moq-tokio, and 6 types.
 
 Public API: the exporter's command line and the C API of every item that exports.
-
-## Required
-
-- [The stand-in exports only moq-tokio's session side](/quest/m1/ffi-export/refusals/narrow-standin.md) - `just ffi standin` names the session items moq-ffi ships in place of `pub use ::moq_tokio::*;`
-- [Futures and kept closures as parameters export](/quest/m1/ffi-export/refusals/generics.md) - `clock::timeout`'s future, `clock::drive`'s kept closure, and `mp4::repair`'s seekable reader cross from C
-- [Standard and common types export by role](/quest/m1/ffi-export/refusals/std-types.md) - `Filter`, serde_json's map iterators, `Instant`, and tracing's levels, once their maintainer decisions land
-- [Returned wakers and contexts export](/quest/m1/ffi-export/refusals/poll.md) - kio's `Waiter::waker` and `Waiter::context`, once a function returning `Poll` exports as a future
-- [Small shapes export](/quest/m1/ffi-export/refusals/small-shapes.md) - `u128`, arrays, const generics, unit and `Result` off a return, `!`, empty enums, and what is not `Send`
-- [Bump the moq pin past its re-export and reachability fixes](/quest/m1/ffi-export/refusals/moq-pin.md) - the census has no whole-crate re-export refusal and no unreachable type of moq's own

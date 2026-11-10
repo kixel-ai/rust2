@@ -16,7 +16,3 @@ stays the rule, and costs less now that it selects by the diff
 keep their rules. All of it is m0, since every agent pays the cost now.
 
 Each child reports its CPU saved, cold and warm, against `origin/main`.
-
-## Required
-
-- [A warm gate](/quest/m0/checks/cache.md) - the land gate builds through mbx, as moq's does

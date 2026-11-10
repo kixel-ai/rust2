@@ -55,8 +55,3 @@ Why this shape, from the audit's survey of 2026's tools:
 moq's [`rs2ts-js`](https://github.com/moq-dev/moq/blob/main/quest/m5/rs2ts-js.md) and
 [`rs2ts-wasm2js`](https://github.com/moq-dev/moq/blob/main/quest/m5/rs2ts-wasm2js.md) still
 record the superseded decision; they are moq's tree's to update.
-
-## Required
-
-- [The exporter's web target](/quest/m2/wasm/backend.md) - the glue crate builds for wasm32 with a generated TypeScript binding over web APIs, proven on the api fixture
-- [Every route on the browser benchmark](/quest/m2/wasm/routes.md) - `just ts bench` runs rust2-wasm's export and a `wasm2js` control beside the translation

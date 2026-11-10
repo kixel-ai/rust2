@@ -25,9 +25,3 @@ at moq's types, closures included, so it would have to compile std too. Levers
 that need no new frontend reach its best case: ra-jit already applies the
 moq-net body edits it serves in under half a second, and Cranelift cuts a clean
 build's retired instructions by 16%.
-
-## Required
-
-- [Bench TPDE on moq](/quest/m4/tpde.md) - what TPDE cuts from moq's clean build and non-incremental edit; waits on `-Zllvm-tpde` reaching a nightly
-- [Waiting: a rustc and cargo fork](/quest/m4/fork.md) - the evidence ledger for carrying a fork; condition: enough measured reasons to pay for one
-- [moq in pure Go](/quest/m4/go/README.md) - rust2-go translating moq-net, with no cgo, fast enough to replace the cgo bindings for Go users; parked until a consumer needs moq in pure Go

@@ -44,11 +44,3 @@ moq's codec held to rust2-ts's bar: 35,273 codec cases and 124,193 integer cases
 native Rust, panics included. It runs 2 to 113 times slower than cgo on batched loops,
 and beats it only on a single short call, where cgo's crossing dominates. Stripped, it
 adds 324 KB to a Go binary where cgo adds 1.15 MB and a libc dependency.
-
-## Required
-
-- [moq-net beyond the codec](/quest/m4/go/coverage.md) - `Drop`, floats, 128-bit integers, trait objects, and collections, so moq-net translates whole
-- [Exported names off the runtime's](/quest/m4/go/runtime-names.md) - a crate's own `Result` or `Formatter` exports beside the runtime's
-- [A Go API for exported enums](/quest/m4/go/enums.md) - Go callers in another package build, match, and pass a `pub enum`, pinned by an external test package
-- [Trait-impl methods](/quest/m4/go/trait-impls.md) - a `pub` type's `Display`, `Debug`, `From`, and other impls callable from Go by a naming rule
-- [Methods through a specialized alias](/quest/m4/go/alias-methods.md) - a private generic type's methods exported through `pub type Byte = Value<u8>` instead of refused
