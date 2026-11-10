@@ -5,6 +5,7 @@
 // breaks a contract, which must fail.
 
 import Api
+import BasicContainers
 import Foundation
 
 // The Log callback: keeps even levels.
@@ -34,6 +35,15 @@ func debug<T>(_ value: T) -> String {
 
 func text(_ data: Data) -> String {
 	String(decoding: data, as: UTF8.self)
+}
+
+/// Each of `items` as `each` prints it, joined by commas.
+func listed<T: ~Copyable>(_ items: borrowing UniqueArray<T>, _ each: (borrowing T) -> String) -> String {
+	var out: [String] = []
+	for i in 0..<items.count {
+		out.append(each(items[i]))
+	}
+	return out.joined(separator: ", ")
 }
 
 /// A path's UTF-8 bytes as Rust's `escape_ascii` prints them.
@@ -149,7 +159,7 @@ func script() {
 	let d = Point.default()
 	print("default \(d.x) \(d.y)")
 
-	let c = Counter.new("c", 5)
+	var c = Counter.new("c", 5)
 	print("get \(c.get())")
 	print("name \(c.name())")
 	print("add ok \(try! c.add(10))")
@@ -170,16 +180,17 @@ func script() {
 	c.rename("d")
 	print("name \(c.name())")
 	print("is d \(c.`is`("d"))")
-	let copy = c.clone()
+	var copy = c.clone()
 	_ = try! copy.add(1)
 	print("clone \(copy.get()) original \(c.get())")
-	print("debug \(debug(c))")
+	print("debug \(c.debugDescription)")
 	let label = c.intoLabel(p)
 	print("label \(debug(label))")
 	print("note \(hasText(Note(text: ""))) \(hasText(Note(text: nil)))")
 
-	let (below, above) = Counter.new("s", 7).split(5)
-	print("split \(below.name()) \(below.get()) \(above.name()) \(above.get())")
+	// A tuple holding a handle is a struct of its elements.
+	let split = Counter.new("s", 7).split(5)
+	print("split \(split._0.name()) \(split._0.get()) \(split._1.name()) \(split._1.get())")
 	let one = only(Counter.new("o", 3))
 	print("only \(one.name()) \(one.get())")
 	let (w8, w16, w32, w64) = widths(98305)
@@ -208,10 +219,14 @@ func script() {
 	}
 	let statRows = rows([Point(x: 1, y: 2), Point(x: 3, y: 3)])
 	print("rows \(statRows.map { "\($0.0) \(debug($0.1)) \($0.2.x) \($0.2.y)" }.joined(separator: ", "))")
-	// Each handle in a tuple moves in, as one taken by value does.
-	let board = Board.new([("low", Counter.new("l", 1)), ("high", Counter.new("h", 9))])
+	// Each handle in a tuple moves in, as one taken by value does, and an array of them is a
+	// `UniqueArray`.
+	var ranks = UniqueArray<TupleStringCounter>()
+	ranks.append(TupleStringCounter("low", Counter.new("l", 1)))
+	ranks.append(TupleStringCounter("high", Counter.new("h", 9)))
+	let board = Board.new(ranks)
 	let ranked = board.ranked()
-	print("ranked \(ranked.map { "\($0.0) \($0.1.name()) \($0.1.get())" }.joined(separator: ", "))")
+	print("ranked \(listed(ranked) { "\($0._0) \($0._1.name()) \($0._1.get())" })")
 	// A map crosses as its pairs and a set as its items, which Rust collects in order, each
 	// key once, the last kept.
 	let atlas = Atlas(points: [("b", Point(x: 1, y: 1)), ("ab", Point(x: 2, y: 3)), ("b", Point(x: 4, y: 4))], ids: [3, 1, 3])
@@ -245,13 +260,13 @@ func script() {
 	print("title Some((\"\(title(true)!)\",)) \(title(false) == nil ? "None" : "Some") named Some((\"\(named("x")!)\",))")
 
 	// Each lent counter is a new handle to a clone.
-	let registry = Registry.new(Counter.new("first", 1))
+	var registry = Registry.new(Counter.new("first", 1))
 	print("last \(registry.last() != nil)")
 	registry.push(Counter.new("last", 2))
-	let first = registry.firstGet
+	var first = registry.firstGet
 	_ = try! first.add(10)
 	print("first \(registry.firstGet.get()) lent \(first.get())")
-	let last = registry.last()!
+	var last = registry.last()!
 	_ = try! last.add(10)
 	print("last \(registry.last()!.get()) lent \(last.get())")
 	// A closure lent for the call edits the first counter through a handle.
@@ -270,8 +285,8 @@ func script() {
 	print("shift \(shift({ 7 }, 4))")
 
 	let name = Name.owned("a")
-	let joined = name.join(Name.owned("b"))
-	print("joined \(joined.asStr()) \(debug(joined)) \(joined == name)")
+	var joined = name.join(Name.owned("b"))
+	print("joined \(joined.asStr()) \(joined.debugDescription) \(joined == name)")
 	joined.rename("c")
 	print("renamed \(joined.asStr())")
 	let long = longer(joined, Name.owned("dd"))
@@ -331,7 +346,7 @@ func script() {
 	print("secs \(stamp.secs())")
 	print("later \(Stamp.fromMillis(3000).later(stamp))")
 	print("secs \(stamp.secs())")
-	let message = Message.new(stamp, Data("body".utf8))
+	var message = Message.new(stamp, Data("body".utf8))
 	print("payload \(text(message.payloadGet))")
 	print("stamp \(debug(message.stampGet!))")
 	print("sent \(message.sent())")
@@ -394,7 +409,7 @@ func script() {
 	channel.send(Data("rung".utf8))
 	print("woken \(wakes.value)")
 
-	let list = Node.new(1, nil)
+	var list = Node.new(1, nil)
 	list.push(2)
 	print("node \(list.sum())")
 
@@ -420,7 +435,7 @@ func script() {
 	let beside = PairU32(left: 258, right: 9).besideSize(sized.left)
 	print("beside \(beside.left) \(debug(beside))")
 	// At its default, named as the type itself.
-	let stack = Stack.new()
+	var stack = Stack.new()
 	for (i, n) in ["a", "b"].enumerated() {
 		stack.push(Counter.new(n, UInt64(i) + 1))
 	}
@@ -468,7 +483,7 @@ func script() {
 	print("dropped \(dropped())")
 
 	// A field and the method of its name, each its own member.
-	let retry = Retry.new(5)
+	var retry = Retry.new(5)
 	let limit = retry.limitGet
 	print("retry \(limit != nil ? 1 : 0) \(limit ?? 0) \(retry.limit()) \(retry.delay())")
 	// The renamed field's setter, named as its getter.
@@ -478,9 +493,9 @@ func script() {
 
 	// Foreign types: a URL parsed from text, socket addresses, OS paths, and `Vec`s.
 	let base = try! Url.parse("https://example.com/a/b")
-	print("url \(base) host \(host(base).map { "Some(\"\($0)\")" } ?? "None")")
+	print("url \(base.description) host \(host(base).map { "Some(\"\($0)\")" } ?? "None")")
 	let url = try! resolve(base.clone(), "c?d")
-	print("resolve \(url) \(url == base)")
+	print("resolve \(url.description) \(url == base)")
 	do {
 		_ = try Url.parse("no scheme")
 	} catch let e as StringError {
@@ -502,10 +517,14 @@ func script() {
 	print("sentence \(sentence(words)) \(sentence(nil))")
 	print("sentence \(sentence([]))|")
 	print("chunks \(chunks(Data("abcde".utf8), 2).map { Array($0) })")
-	let counters = counters(["x", "y"])
-	print("counters \(counters.map { "\($0.name()) \($0.get())" }.joined(separator: ", "))")
-	// Each counter moves in, so Swift closes it.
-	print("worth \(worth([counters[0]], [counters[1]])) \(worth(nil, []))")
+	var counters = counters(["x", "y"])
+	print("counters \(listed(counters) { "\($0.name()) \($0.get())" })")
+	// Each counter moves in.
+	var some = UniqueArray<Counter>()
+	some.append(counters.remove(at: 0))
+	var boxed = UniqueArray<Counter>()
+	boxed.append(counters.remove(at: 0))
+	print("worth \(worth(some, boxed)) \(worth(nil, UniqueArray()))")
 	print("held \([heldCount(Counter.new("h", 4)), heldCount(nil)].map { $0.map { "Some(\($0))" } ?? "None" }.joined(separator: " "))")
 	print("boxed \(boxedName(boxedCounter("b")).map { "Some(\"\($0)\")" } ?? "None") \(boxedName(nil) ?? "None") \(boxedCounter(nil) == nil)")
 	print("less \(less(5, 2))")
@@ -528,8 +547,11 @@ func script() {
 	let tagged = tagged(doc, "t")
 	print("tagged \(tagged.toText())")
 	// A JSON object's entries cross as pairs of a key and its document, each moved in.
-	let jsonEntries = entries([("b", try! Json.parse("[1]")), ("a", try! Json.parse("2"))], "t")
-	print("entries \(jsonEntries.map { "\($0.0) \($0.1.toText())" }.joined(separator: ", "))")
+	var pairs = UniqueArray<TupleStringJson>()
+	pairs.append(TupleStringJson("b", try! Json.parse("[1]")))
+	pairs.append(TupleStringJson("a", try! Json.parse("2")))
+	let jsonEntries = entries(pairs, "t")
+	print("entries \(listed(jsonEntries) { "\($0._0) \($0._1.toText())" })")
 	do {
 		_ = try Json.parse("{\"a\":")
 	} catch let e as StringError {
@@ -538,17 +560,17 @@ func script() {
 		check(false, "parse throws its message")
 	}
 	let site = Site.new(base)
-	print("site \(site.homeGet) \(site.homeGet)")
+	print("site \(site.homeGet.description) \(site.homeGet.description)")
 
 	// Slices, passed in and returned as clones, and the socket address of each family.
 	print("shapes \(Shape.ALL) greetings \(GREETINGS)")
-	let trail = Trail.new([Point(x: 1, y: 2), Point(x: 3, y: 4)], ["a", "b"])
+	var trail = Trail.new([Point(x: 1, y: 2), Point(x: 3, y: 4)], ["a", "b"])
 	print("trail \(trail.points()) \(trail.labels())")
 	// Returned iterators, each collected at the call: drained labels are gone after.
 	print("iterated \(trail.iter()) \(trail.names()) \(Array(trail.bytes()))")
 	print("drained \(trail.drain()) then \(trail.labels())")
 	let numbered = numbered(["p", "q"])
-	print("numbered \(numbered.map { "\($0.name()) \($0.get())" }.joined(separator: ", "))")
+	print("numbered \(listed(numbered) { "\($0.name()) \($0.get())" })")
 	let (next4, next6) = nexts(SocketAddr(ip: [127, 0, 0, 1], port: 8080), v6)
 	print("nexts \(next4.ip.map(String.init).joined(separator: ".")) \(next4.port) \(next6.port) \(next6.scopeId)")
 }
@@ -656,12 +678,14 @@ func futures() {
 	// An object whose last reference goes while a call awaits on it stays alive until the
 	// call ends.
 	do {
-		let other = Cell<Channel?>(Channel.new())
-		let sender = other.value!.clone()
 		let got = Cell<String?>(nil)
-		q.launch { got.value = text(try await other.value!.recv()) }
-		q.drain()
-		other.value = nil
+		let sender: Channel
+		do {
+			let other = Channel.new()
+			sender = other.clone()
+			q.launch { got.value = text(try await other.recv()) }
+			q.drain()
+		}
 		sender.send(Data("held".utf8))
 		q.drain()
 		check(got.value == "held", "the call awaiting on an object holds it")
@@ -698,34 +722,52 @@ func owned() {
 	print("owned ok")
 }
 
-/// Holds a lent counter past the call it was lent for.
-final class Kept: @unchecked Sendable {
-	var counter: Counter?
+// Each breaks a contract Swift's compiler checks, so it fails to compile, built alone with
+// its flag.
+#if MOVED
+func moved() {
+	let c = Counter.new("c", 0)
+	_ = c.intoLabel(nil)
+	_ = c.get()
 }
+#endif
+
+#if BOXED_MOVED
+func boxedMoved() {
+	let tail = Node.new(1, nil)
+	_ = Node.new(2, tail)
+	_ = tail.sum()
+}
+#endif
+
+#if LENT_MOVED
+func lentMoved() {
+	var registry = Registry.new(Counter.new("c", 0))
+	_ = registry.edit { counter in
+		_ = counter.intoLabel(nil)
+		return false
+	}
+}
+#endif
+
+#if LENT_KEPT
+/// Holds a lent tally past the call it was lent for.
+final class Kept: @unchecked Sendable {
+	var tally: Tally?
+}
+
+func lentKept() {
+	let kept = Kept()
+	_ = peek(Tally.new()) { lent in
+		kept.tally = lent
+		return 0
+	}
+}
+#endif
 
 // Each breaks a contract, which must fail with a message naming it.
 func broken(_ which: String) {
 	switch which {
-	case "moved":
-		let c = Counter.new("c", 0)
-		_ = c.intoLabel(nil)
-		_ = c.get()
-	case "boxed moved":
-		let tail = Node.new(1, nil)
-		_ = Node.new(2, tail)
-		_ = tail.sum()
-	case "lent moved":
-		_ = Registry.new(Counter.new("c", 0)).edit { counter in
-			_ = counter.intoLabel(nil)
-			return false
-		}
-	case "lent kept":
-		let kept = Kept()
-		_ = Registry.new(Counter.new("c", 0)).edit { counter in
-			kept.counter = counter
-			return false
-		}
-		_ = kept.counter!.get()
 	// An IPv6 address where Rust takes `SocketAddrV4`.
 	case "family":
 		let any = SocketAddr(ip: Array(repeating: 0, count: 16), port: 1)

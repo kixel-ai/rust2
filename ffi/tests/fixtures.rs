@@ -623,7 +623,8 @@ fn kotlin_contract(kotlin: &Path) -> u64 {
 /// The generated Swift, built as the module `Api` with warnings as errors in Swift 6's
 /// language mode and type-checked in Swift 5's, which moq's package builds in, runs
 /// `tests/api.swift`'s script, its futures, and what releasing frees, then fails loud on
-/// each broken contract and on a library of another contract.
+/// each broken contract and on a library of another contract. Each contract Swift's
+/// compiler checks, a move or a borrow, fails to compile instead.
 #[test]
 #[cfg_attr(
 	all(target_os = "linux", target_arch = "aarch64"),
@@ -636,6 +637,7 @@ fn api_swift() {
 	std::fs::create_dir_all(&dir).unwrap();
 	let module = api.out.join("swift");
 	let source = module.join("api.swift");
+	let collections = swift_collections();
 	run(swiftc(&module, 13)
 		.args(["-swift-version", "5", "-typecheck"])
 		.arg(&source));
@@ -648,11 +650,13 @@ fn api_swift() {
 		.arg(&source));
 	// The test's executor preference is macOS 15's.
 	let exe = dir.join("api-test");
+	let test = manifest_dir().join("tests").join("api.swift");
 	run(swiftc(&module, 15)
 		.args(["-parse-as-library", "-I"])
 		.arg(&dir)
-		.arg(manifest_dir().join("tests").join("api.swift"))
+		.arg(&test)
 		.arg(dir.join("libApi.a"))
+		.args(&collections)
 		.arg(api.staticlib())
 		.args(&api.native)
 		.arg("-o")
@@ -665,14 +669,28 @@ fn api_swift() {
 	);
 	run(Command::new(&exe).arg("futures"));
 	run(Command::new(&exe).arg("owned"));
+	// Each in a build of its own, since the first error stops the rest; move checking runs
+	// on SIL, which type-checking alone skips.
 	for (case, message) in [
-		("moved", "Counter is closed"),
-		("boxed moved", "Node is closed"),
-		("lent kept", "Counter is closed"),
-		(
-			"lent moved",
-			"api_Counter_into_label: a lent handle's value cannot move out",
-		),
+		("MOVED", "'c' used after consume"),
+		("BOXED_MOVED", "'tail' used after consume"),
+		("LENT_MOVED", "missing reinitialization of inout parameter 'counter' after consume"),
+		("LENT_KEPT", "implicit conversion to 'Tally?' is consuming"),
+	] {
+		let output = swiftc(&module, 15)
+			.args(["-parse-as-library", "-emit-sil", "-o"])
+			.arg(dir.join("broken.sil"))
+			.args(["-I"])
+			.arg(&dir)
+			.arg(format!("-D{case}"))
+			.arg(&test)
+			.output()
+			.unwrap();
+		assert!(!output.status.success(), "Swift {case} compiled");
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(stderr.contains(message), "Swift {case} printed {stderr}");
+	}
+	for (case, message) in [
 		("family", "api_nexts: an IPv6 socket address where IPv4 is taken"),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
@@ -702,6 +720,7 @@ fn api_swift() {
 		.args(["-module-name", "Api"])
 		.arg(contract.join("api.swift"))
 		.arg(contract.join("main.swift"))
+		.args(&collections)
 		.arg(api.staticlib())
 		.args(&api.native)
 		.arg("-o")
@@ -861,8 +880,27 @@ fn url(dir: &Path) -> String {
 	}
 }
 
-/// swiftc, with warnings as errors, finding the C header's module in `module`, at this
-/// macOS deployment target on macOS: 13 is the oldest the generated `Swift.Duration` allows.
+/// The static libraries of swift-collections' modules the generated Swift imports, which
+/// `just ffi swift-collections` builds beside their modules, where [`swiftc`] finds them.
+fn swift_collections() -> Vec<PathBuf> {
+	run(Command::new("just")
+		.arg("--justfile")
+		.arg(manifest_dir().join("justfile"))
+		.arg("swift-collections"));
+	let build = collections_dir();
+	["BasicContainers", "InternalCollectionsUtilities", "SpanPreview"]
+		.iter()
+		.map(|module| build.join(format!("lib{module}.a")))
+		.collect()
+}
+
+fn collections_dir() -> PathBuf {
+	manifest_dir().join("target").join("swift-collections").join("build")
+}
+
+/// swiftc, with warnings as errors, finding the C header's module in `module` and
+/// swift-collections' in [`collections_dir`], at this macOS deployment target on macOS: 13
+/// is the oldest the generated `Swift.Duration` allows.
 fn swiftc(module: &Path, macos: u8) -> Command {
 	let mut cmd = Command::new("swiftc");
 	if cfg!(target_os = "macos") {
@@ -872,7 +910,7 @@ fn swiftc(module: &Path, macos: u8) -> Command {
 		};
 		cmd.arg("-target").arg(format!("{arch}-apple-macos{macos}"));
 	}
-	cmd.args(["-warnings-as-errors", "-I"]).arg(module);
+	cmd.args(["-warnings-as-errors", "-I"]).arg(module).arg("-I").arg(collections_dir());
 	cmd
 }
 
