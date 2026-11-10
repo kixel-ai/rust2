@@ -1211,12 +1211,7 @@ impl<'a> Gen<'a> {
 	/// `function`'s Swift forms and their member names, members of `owner` (whose IR type
 	/// is `owner_ty`) if it has one: an overload for each choice of passing or leaving out
 	/// each `Option<&T>` of a struct, since an optional holds a struct only by consuming it.
-	fn function(
-		&mut self,
-		function: &Function,
-		owner: Option<&Ty>,
-		owner_ty: Option<&Type>,
-	) -> Vec<(String, String)> {
+	fn function(&mut self, function: &Function, owner: Option<&Ty>, owner_ty: Option<&Type>) -> Vec<(String, String)> {
 		let optional: Vec<usize> = (function.params.iter().enumerate())
 			.filter(|(_, p)| self.lent_option(&p.ty))
 			.map(|(k, _)| k)
@@ -1336,7 +1331,9 @@ impl<'a> Gen<'a> {
 			if let Type::Option(lent) = &param.ty
 				&& self.lent_option(&param.ty)
 			{
-				params.push(format!("_ {name}: borrowing {}", self.sw(lent)));
+				// Labelled, as a defaulted argument is, so that overloads leaving out
+				// different ones differ in name.
+				params.push(format!("{name}: borrowing {}", self.sw(lent)));
 				args.push(Arg {
 					exprs: vec![format!("{name}.handle")],
 					..Arg::default()
@@ -1542,7 +1539,9 @@ impl<'a> Gen<'a> {
 		let code = format!("{}{head} {{\n{}\n}}\n", docs(text.trim(), ""), indent(&body));
 		let labels = match head.contains(" var ") {
 			true => Vec::new(),
-			false => params.iter().map(|_| "_".to_string()).collect(),
+			false => (params.iter())
+				.map(|p| unquote(p.split([' ', ':']).next().expect("a parameter has its label")))
+				.collect(),
 		};
 		(code, full(is_static, &member, labels))
 	}

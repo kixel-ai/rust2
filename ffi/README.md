@@ -428,7 +428,7 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
 - **Names** are as Kotlin's, at the module's top level: types in PascalCase without the
   prefix, members in camelCase without their type's name (`TrackProducer.appendGroup`). A
   keyword is quoted in backticks, and a member named as one Swift gives its type, such as
-  `init`, takes a trailing `_`. Parameters have no labels, so a call reads as Rust's, and a
+  `init`, takes a trailing `_`. Parameters have no labels but an optional borrowed object's, so a call reads as Rust's, and a
   constructor such as `new` stays a static function: `Counter.new(1)`.
 - **Objects** are noncopyable structs (`~Copyable`) owning their handle, freed in `deinit`,
   so there is no `close()`, and Swift's compiler checks each move and borrow Rust makes: a
@@ -437,7 +437,10 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   `&mut T`. A call on a moved object, or an object lent to a closure kept past its call,
   fails to compile. A tuple holding one is a generated struct, `TupleStringCounter`, whose
   fields `_0`, `_1`, ... are its elements, and an array of them swift-collections'
-  `UniqueArray`. `Clone` is `clone()`, and `PartialEq` is `==`, which Swift 6.4 makes
+  `UniqueArray`. Since an optional holds one only by consuming it, an `Option<&T>` of one
+  is an overload with and without it, labelled by its name, as a defaulted argument is:
+  `clamped()`, `clamped(low:)`, `clamped(high:)` and `clamped(low:high:)`, up to two per
+  function; `Option<&mut T>` is `inout T?`. `Clone` is `clone()`, and `PartialEq` is `==`, which Swift 6.4 makes
   `Equatable`; `Display` is `description` and `Debug` `debugDescription`, which Swift
   conforms no noncopyable type to yet. An object that is `Copy`, or thrown as an error,
   which `Swift.Error` requires be copyable, is a final class instead, whose handle a call
