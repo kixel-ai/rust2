@@ -5,10 +5,11 @@ attributes in the Rust source. It replaces [the UniFFI fork](../uniffi/README.md
 Every language's generator but Python's builds on the C ABI.
 
 ```bash
-rust2-ffi --config ffi.toml (--out dir | --census dir) [--manifest-path Cargo.toml] [-- cargo args]
+rust2-ffi --config ffi.toml (--out dir | --census dir) [--manifest-path Cargo.toml] [--target triple] [-- cargo args]
 ```
 
-It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, on the host, through
+It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for `--target` or
+else the host, whatever cargo's config names, through
 the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). The
 package is the facade: once rustc has checked its library, it walks every `pub` item
 reachable from the crate root, following `pub use` re-exports of other crates' items and
@@ -18,7 +19,10 @@ it ships, and a type no path from its root reaches is refused. The prefix of eve
 is the library's crate name, Cargo's `[lib] name`, which defaults to the package's name in
 snake case. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
 beside it, and the header in `include/<prefix>.h`; `cargo build` on that crate makes a
-static and a shared library. That crate enables the facade's features as the check did;
+static and a shared library for that target alone: its build script refuses another, on
+which an item the target compiles would be missing, or one it leaves out left over. So a
+`cfg`-gated item is in its target's export and in no other's, and the layouts, `usize`
+included, are that target's. That crate enables the facade's features as the check did;
 a feature named in a dependency, `--features <dependency>/<feature>`, is an error, since
 the facade enables what its dependencies build with. It resolves them as the check did,
 wherever it is built: its manifest carries, as a `[patch]`, each patch or `[replace]` cargo applied
@@ -288,7 +292,8 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   garbage in Kotlin's heap runs the GC, which frees them. `Bytes(ByteArray)` holds
   Kotlin's for a record passed in. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
   record holding bytes does too; Rust's lent ones are copied across in one call to compare.
-  Strings are `String`, `Option<T>` `T?`, a tuple `Pair`,
+  Strings are `String`, `usize` `ULong` and `isize` `Long`, which abort past a 32-bit
+  target's range, `Option<T>` `T?`, a tuple `Pair`,
   `Triple`, or else a generated `Tuple<n>`, though a tuple of one returned whole is its element, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
   holding it, whose message is its `Display`.
 - A **path** is a `String`: one Rust returns that is not UTF-8 throws. A `SocketAddr`,

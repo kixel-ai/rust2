@@ -1456,6 +1456,59 @@ fn configured_out() {
 	);
 }
 
+/// Each target exports the API it compiles, at its widths, and its crate builds for that
+/// target alone: wasm32 has a function the host lacks, lacks one the host has, and a
+/// 32-bit `usize`, which Kotlin's 64-bit `ULong` crosses into checked.
+#[test]
+fn target() {
+	let package = package("targeted");
+	write_all(
+		&package,
+		&[(
+			"src/lib.rs",
+			"pub const MAX: usize = usize::MAX;\n\n\
+			pub fn halve(n: usize) -> usize {\n\tn / 2\n}\n\n\
+			#[cfg(target_arch = \"wasm32\")]\npub fn wasm() -> u32 {\n\t32\n}\n\n\
+			#[cfg(not(target_arch = \"wasm32\"))]\npub fn native() -> u32 {\n\t64\n}\n",
+		)],
+	);
+	let export = |name: &str, target: &[&str]| {
+		let out = package.join(name);
+		run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+			.arg("--config")
+			.arg(package.join("ffi.toml"))
+			.arg("--out")
+			.arg(&out)
+			.args(target)
+			.env("CARGO_TARGET_DIR", package.join("build")));
+		std::fs::copy(package.join("Cargo.lock"), out.join("Cargo.lock")).unwrap();
+		let header = std::fs::read_to_string(out.join("include/targeted.h")).unwrap();
+		(out, header)
+	};
+	let (host, header) = export("host", &[]);
+	assert!(header.contains("targeted_native(") && !header.contains("targeted_wasm("), "{header}");
+	assert!(header.contains(&u64::MAX.to_string()), "{header}");
+	build_offline(&host, &package.join("glue"));
+	let (wasm, header) = export("wasm", &["--target", "wasm32-unknown-unknown"]);
+	assert!(header.contains("targeted_wasm(") && !header.contains("targeted_native("), "{header}");
+	assert!(header.contains(&u32::MAX.to_string()) && !header.contains(&u64::MAX.to_string()), "{header}");
+	let glue = |target: &[&str]| {
+		let mut cmd = cargo();
+		cmd.args(["check", "--quiet", "--offline", "--features", "kotlin,dart", "--manifest-path"])
+			.arg(wasm.join("Cargo.toml"))
+			.arg("--target-dir")
+			.arg(package.join("glue"))
+			.args(target)
+			.env("RUSTFLAGS", "-D warnings");
+		cmd
+	};
+	run(&mut glue(&["--target", "wasm32-unknown-unknown"]));
+	let output = glue(&[]).output().unwrap();
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(!output.status.success(), "wasm32's export built for the host");
+	assert!(stderr.contains("exported for wasm32-unknown-unknown, not "), "{stderr}");
+}
+
 /// Writes each `(path, text)` into `dir`.
 fn write_all(dir: &Path, files: &[(&str, &str)]) {
 	for (path, text) in files {

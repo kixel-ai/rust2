@@ -593,7 +593,7 @@ impl<'a> Gen<'a> {
 			}
 			Ty::Int(int) => {
 				arg.exprs.push(to_signed(*int, e));
-				arg.rust_args.push(format!("{p} as {}", int.rust()));
+				arg.rust_args.push(from_jni(*int, &p));
 			}
 			Ty::F32 | Ty::F64 => {
 				arg.exprs.push(e.to_string());
@@ -1322,7 +1322,7 @@ impl<'a> Gen<'a> {
 		let back = match c_ret {
 			Ty::Void => String::new(),
 			Ty::Bool => "ret".to_string(),
-			Ty::Int(int) => format!("ret as {}", int.rust()),
+			Ty::Int(int) => from_jni(*int, "ret"),
 			Ty::F32 | Ty::F64 => "ret".to_string(),
 			Ty::Char => "ret as u32".to_string(),
 			_ => unreachable!("a callback returns only scalars"),
@@ -1985,6 +1985,17 @@ fn kt_int(int: Int) -> &'static str {
 		Int::I16 => "Short",
 		Int::I32 => "Int",
 		Int::I64 | Int::Isize => "Long",
+	}
+}
+
+/// The Rust integer of type `int` the JNI integer `e` holds: of the same width, or checked
+/// to fit a 32-bit target's `usize` and `isize`.
+fn from_jni(int: Int, e: &str) -> String {
+	match int {
+		// A `long` holds a `usize`'s bits.
+		Int::Usize => format!("rt::narrow::<usize, _>({e} as u64)"),
+		Int::Isize => format!("rt::narrow::<isize, _>({e})"),
+		_ => format!("{e} as {}", int.rust()),
 	}
 }
 
