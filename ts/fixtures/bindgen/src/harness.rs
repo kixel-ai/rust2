@@ -200,7 +200,8 @@ fn math(input: &mut Input, out: &mut String) {
 	writeln!(out, "trunc {:?}", op_bits(Math::trunc(x))).unwrap();
 	writeln!(out, "sign {:?}", op_bits(Math::sign(x))).unwrap();
 	let fround = Math::fround(x);
-	writeln!(out, "fround {:?}", if fround.is_nan() { f32::NAN } else { fround }.to_bits()).unwrap();
+	let fround = if fround.is_nan() { f32::NAN } else { fround };
+	writeln!(out, "fround {:?}", fround.to_bits()).unwrap();
 	writeln!(out, "hypot {:?}", op_bits(Math::hypot(x, y))).unwrap();
 	writeln!(out, "atan2 {:?}", op_bits(Math::atan2(x, y))).unwrap();
 	writeln!(out, "pow {:?}", op_bits(Math::pow(x, y))).unwrap();
