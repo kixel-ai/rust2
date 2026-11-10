@@ -302,12 +302,12 @@ func script() {
 
 	fmt.Printf("total %d\n", api.Total(rt.RangeU64{Start: 2, End: 5}))
 	fmt.Printf("reach %d\n", api.Reach(2, 5))
-	one := big.NewInt(1)
-	pow := func(n uint) *big.Int { return new(big.Int).Lsh(one, n) }
+	bigOne := big.NewInt(1)
+	pow := func(n uint) *big.Int { return new(big.Int).Lsh(bigOne, n) }
 	fmt.Print("scaled")
 	for _, v := range []*big.Int{
-		api.Scaled(new(big.Int).Sub(pow(128), one), 1),
-		api.Scaled(new(big.Int).Add(pow(64), one), 1<<63),
+		api.Scaled(new(big.Int).Sub(pow(128), bigOne), 1),
+		api.Scaled(new(big.Int).Add(pow(64), bigOne), 1<<63),
 		api.Scaled(pow(127), 2),
 	} {
 		if v == nil {

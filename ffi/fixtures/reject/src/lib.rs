@@ -688,6 +688,3 @@ pub use ::dep as renamed;
 
 /// A crate whole, which the config excludes, so nothing refuses it.
 pub use ::dep as Shed;
-
-/// No value is one, so C never holds a handle to it.
-pub enum Void {}

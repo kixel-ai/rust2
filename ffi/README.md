@@ -75,6 +75,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it; a function that is not `async` runs at the call, as in Rust |
 | `poll_x`, when `x` exports as a future | left out: the future is its poll |
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
+| `u128` | `<prefix>_u128`: its low and high 64 bits |
 | `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: a view passed in, an owned buffer returned |
 | `&Path`, `PathBuf` | `<prefix>_buf` of the path's bytes as the OS holds them on Unix, which need not be UTF-8, else UTF-8 |
 | `Duration` | `<prefix>_duration` |
@@ -232,7 +233,7 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   from. From C++20, either converts to `std::span<const std::uint8_t>`. A `view` or span
   lives only as long as the bytes it views, and a `view` lent to a callback only for the
   call; reading one past that is C++'s own undefined behavior. A `Vec<T>` is a `std::vector`, of
-  `view`s for bytes passed in, and a socket address `socket_addr`, the C struct. `Option<T>` is `std::optional<T>`, a
+  `view`s for bytes passed in, a socket address `socket_addr`, the C struct, and a `u128` `u128`, the C struct. `Option<T>` is `std::optional<T>`, a
   tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
   error.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
@@ -290,7 +291,7 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   Kotlin's for a record passed in. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
   record holding bytes does too; Rust's lent ones are copied across in one call to compare.
   Strings are `String`, `Option<T>` `T?`, a tuple `Pair`,
-  `Triple`, or else a generated `Tuple<n>`, though a tuple of one returned whole is its element, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
+  `Triple`, or else a generated `Tuple<n>`, though a tuple of one returned whole is its element, `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
   holding it, whose message is its `Display`.
 - A **path** is a `String`: one Rust returns that is not UTF-8 throws. A `SocketAddr`,
   `SocketAddrV4`, or `SocketAddrV6` is a `java.net.InetSocketAddress`, which must be
@@ -347,7 +348,7 @@ caller imports it with no ignores.
   place, and others, which Python may change while Rust reads, are copied. Bytes Rust
   returns, or a record holds, are a read-only `memoryview` lending Rust's buffer until it
   and its views are released. Those Rust lends a closure or trait method are copied into
-  `bytes`. Strings are `str`, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
+  `bytes`. Strings are `str`, `u128` an `int`, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
   `datetime.timedelta`, truncated to the microsecond, with `timedelta.max` for any longer
   and for `Duration::MAX`, a `Range` a `range`, and an `Err` a raised `<E>Exception`
   holding it in `error`, whose `str` is its `Display`.
@@ -404,7 +405,8 @@ in either language mode.
   another value, they are copied in. Bytes Rust returns lend its buffer until Swift
   releases the `Data`, though `Data` copies a few bytes inline, freeing Rust's at once.
   Strings are `String`, copied, `char` `Unicode.Scalar`, `usize` `UInt`, `Option<T>` `T?`,
-  a tuple a Swift tuple, though a tuple of one is its element, and `Duration`
+  a tuple a Swift tuple, though a tuple of one is its element, `u128` a `U128` of its
+  `high` and `low` halves until the deployment target allows `UInt128`, and `Duration`
   `Swift.Duration`. An `Err` is thrown: an exported type as itself, which conforms to
   `Swift.Error`, and any other in a generated `<T>Error` holding it.
 - A **path** is a `String`: one Rust returns that is not UTF-8 traps. A `SocketAddr`,
@@ -494,7 +496,8 @@ reads a go.mod.
   freed at the call. A path is a `string`
   of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object its
   pointer, nil for `None`. A tuple is `rt.Tuple2[A, B]` and so on, but a tuple of one is its
-  element, and one returned whole is the function's results. `Duration` is
+  element, and one returned whole is the function's results. A `u128` is a `*big.Int`, which
+  panics passed in out of its range. `Duration` is
   `time.Duration`: a negative one passed in, or one Rust returns past its 292 years,
   panics. A socket address is a `netip.AddrPort`, whose zone names an IPv6 scope by its
   number or its interface's name; one Rust returns with an IPv6 flow label, which
@@ -562,7 +565,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   returns is copied into a `String`. A path is a `String`, and one Rust returns that is
   not UTF-8 aborts, since a throw would leave the rest of a list or record being lifted
   unfreed. `Option<T>` is `T?`, a tuple a Dart record, and a `Vec<T>` or `&[T]` a
-  `List<T>`. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
+  `List<T>`. A `u128` is a `BigInt`, which throws an `ArgumentError` passed in out of
+  its range. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
   in throws an `ArgumentError`, and Rust's longest is Dart's. A socket address is a
   `SocketAddr` of an `InternetAddress`, a port, and IPv6's flow label and scope; one passed
   in of the wrong family throws an `ArgumentError`, and a port, label, or scope out of its

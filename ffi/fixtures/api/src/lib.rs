@@ -985,6 +985,10 @@ pub fn walk(steps: u64, mut visit: impl FnMut(&Cursor) -> u64) -> u64 {
 	(0..steps).map(|at| visit(&Cursor { at })).sum()
 }
 
+/// An enum without variants: no value is one, so C never holds one, as an object no export
+/// returns, and the bindings leave it out.
+pub enum Void {}
+
 /// An object no export returns but its own method, so C never holds one: left out of the
 /// bindings, with what takes it, and listed in the census.
 pub struct Lease(u8);

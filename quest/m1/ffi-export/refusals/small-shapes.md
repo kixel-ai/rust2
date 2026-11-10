@@ -1,4 +1,4 @@
-# [M] Small shapes export
+# [S] Small shapes export
 
 ## Goal
 
@@ -10,28 +10,35 @@ the objects and futures that are not `Send`, which
 
 ## Plan
 
-Each is its own small mapping; what has no C shape, such as an object that is not `Send`
-under the C ABI's any-thread calls, keeps its refusal and goes to the maintainer as moq's
-signature to change.
+Each is its own small mapping. Changing moq is a non-goal: what has no C shape yet gets
+one here or in the quest that owns it, never a request for moq to change its signature.
+
+Decided with the maintainer on 2026-11-09:
+
+- ✅ `u128` maps by rule as `<prefix>_u128`, two `uint64_t` halves in C, with each
+  language's exact big integer above it: Python `int`, Kotlin `BigInteger`, Dart `BigInt`,
+  Go `*big.Int`, Swift a `U128` struct until its deployment target allows `UInt128`, and
+  C++ the C struct. Rejected: leaving it out. Clears `Timestamp::as_scale`, `as_millis`,
+  `as_micros`, and `as_nanos`. `i128` stays refused: no consumer, and its sign is a
+  conversion of its own in each language.
+- ✅ Not `Send` (`clock::Entered`, `clock::Rng`, `catalog::Guard`) belongs to
+  [not-send](/quest/m1/ffi-export/not-send.md)'s thread check.
+- ✅ Const generics land here once [generics](/quest/m1/ffi-export/refusals/generics.md)
+  does, since both edit instance inference. Rejected: a separate quest.
 
 ✅ A `()` parameter is passed by nothing in C, clearing `container::Producer<C>::set`'s four
-instances, and an enum without variants is an object, which no export returns, so it leaves
-with [the unholdable rule](/quest/m1/ffi-export/refusals/unholdable.md).
+instances, and an enum without variants is an object no export returns, which the bindings
+leave out.
 
 Left at moq `ffcb7cd9`, outside the moq-tokio items narrowing the stand-in drops (the
 arrays, `Result` and `!` off a return, and `worker::Group::finished`'s future):
 
-- `u128`: `Timestamp::as_scale`, `as_millis`, `as_micros`, `as_nanos`. std returns it too
-  (`Duration::as_nanos`), so it maps by rule: proposed as `<prefix>_u128`, two `uint64_t`
-  halves in C, and each language's arbitrary-precision integer above it.
 - const generics: `group::Producer::write_frames` and `group::Consumer::read_frames` over
   `frame::Buffer<const N: usize = 8>`. The IR keeps only type arguments; a const argument
   in `Type`, inferred at its default as a type parameter's is, exports `Buffer<8>` and the
   methods at it.
-- not `Send`: `clock::Entered` and `clock::Rng` pin a thread, and `catalog::Guard` holds a
-  `MutexGuard`; no C shape, so moq's signatures change or they stay refused.
 
-## Waiting
+## Required
 
-- Maintainer: choose the `u128` mapping, and whether moq changes or keeps refused
-  `Entered`, `Rng`, and `Guard`; check the PR's decisions are answered
+- [Generics](/quest/m1/ffi-export/refusals/generics.md) - instance inference, which const
+  arguments extend

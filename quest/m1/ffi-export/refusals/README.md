@@ -68,5 +68,5 @@ Public API: the exporter's command line and the C API of every item that exports
 - [Standard and common types export by role](/quest/m1/ffi-export/refusals/std-types.md) - `Filter`, serde_json's map iterators, `Instant`, and tracing's levels, once their maintainer decisions land
 - [Poll and Context export](/quest/m1/ffi-export/refusals/poll.md) - a `poll_*` with no async twin takes a waker, as futures' polls do
 - [Borrow shapes export](/quest/m1/ffi-export/refusals/borrows.md) - `Option<&T>`, `&mut` buffers, `&Bytes`, `Arc<T>`, `'static` borrows, and borrowed returns that are not `Clone`
-- [Small shapes export](/quest/m1/ffi-export/refusals/small-shapes.md) - `u128`, arrays, const generics, unit and `Result` off a return, `!`, empty enums, and what is not `Send`
+- [Small shapes export](/quest/m1/ffi-export/refusals/small-shapes.md) - const generics, once generics lands
 - [Bump the moq pin past its re-export and reachability fixes](/quest/m1/ffi-export/refusals/moq-pin.md) - the census has no whole-crate re-export refusal and no unreachable type of moq's own

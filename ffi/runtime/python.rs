@@ -600,7 +600,7 @@ pub fn u128_in(obj: *mut PyObject) -> R<rt::U128> {
 		let hi = PyLong_AsUnsignedLongLong(high.ptr());
 		if hi == u64::MAX && !PyErr_Occurred().is_null() {
 			PyErr_Clear();
-			return overflow_int::<u128>();
+			return overflow("int out of range for Rust's u128");
 		}
 		let lo = PyLong_AsUnsignedLongLongMask(index.ptr());
 		if lo == u64::MAX && !PyErr_Occurred().is_null() {
