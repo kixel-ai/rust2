@@ -1,10 +1,11 @@
-// bench/export.c's frame writes and reads through the generated Go, so the two differ by
-// what cgo and the Go wrapper add. Each round runs twice, the first to warm up.
+// bench/export.c's cases through the generated Go, so the two differ by what cgo and the
+// Go wrapper add. Each round runs twice, the first to warm up.
 package main
 
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"time"
 
 	"moq/net"
@@ -13,11 +14,14 @@ import (
 const (
 	groups = 10000
 	frames = 100
+	n      = groups * frames
 )
 
-// perFrame is the nanoseconds per frame since start.
-func perFrame(start time.Time) float64 {
-	return float64(time.Since(start).Nanoseconds()) / (groups * frames)
+var sizes = []int{100, 1024, 16384, 65536, 1048576}
+
+// per is the nanoseconds per call since start, over n calls.
+func per(start time.Time) float64 {
+	return float64(time.Since(start).Nanoseconds()) / n
 }
 
 // must is v, failing the bench on err.
@@ -35,18 +39,80 @@ func check(err error) {
 	}
 }
 
-func round() string {
+// sink holds what the loops sum, so the compiler cannot drop the calls.
+var sink int
+
+// throughput writes groups of 100 frames of size bytes, reading each back and touching its
+// payload's first byte, in about 64 MiB and at least 300 frames: megabytes a second.
+func throughput(ctx context.Context, track *net.TrackProducer, subscriber *net.TrackSubscriber, at *net.Timestamp, size int) float64 {
+	count := min(max((64<<20)/(size*frames), 3), 2000)
+	frame := make([]byte, size)
+	start := time.Now()
+	for range count {
+		group := must(track.AppendGroup())
+		reader := must(subscriber.RecvGroup(ctx))
+		for range frames {
+			check(group.WriteFrame(at, frame))
+			read := must(reader.ReadFrame(ctx))
+			sink += int(must(read.PayloadGet()).At(0))
+			read.Close()
+		}
+		reader.Close()
+		check(group.Finish())
+		group.Close()
+	}
+	return float64(count*frames*size) * 1e3 / float64(time.Since(start).Nanoseconds())
+}
+
+type result struct {
+	name  string
+	value float64
+}
+
+func round() []result {
+	var out []result
 	broadcast := must(net.NewBroadcastInfo().Produce())
 	micro := net.TimescaleMICRO()
 	track := must(broadcast.CreateTrack("bench", must(net.TrackInfoDefault().WithTimescale(micro))))
 	micro.Close()
-
-	// A frame of 100 zero bytes, as bench/export.c writes.
 	frame := make([]byte, 100)
-	var micros uint64
+
+	start := time.Now()
+	for range n {
+		if must(track.IsClosed()) {
+			sink++
+		}
+	}
+	out = append(out, result{"call", per(start)})
+
+	demanded := must(track.AppendGroup())
+	demand := must(demanded.Demand())
+	start = time.Now()
+	for range n {
+		sink += int(must(demand.Sequence()))
+	}
+	out = append(out, result{"getter", per(start)})
+	demand.Close()
+	check(demanded.Finish())
+	demanded.Close()
+
+	start = time.Now()
+	for range n {
+		if must(track.Largest()) != nil {
+			sink++
+		}
+	}
+	out = append(out, result{"record", per(start)})
+
+	start = time.Now()
+	for range n {
+		must(track.Info()).Close()
+	}
+	out = append(out, result{"object", per(start)})
 
 	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
-	start := time.Now()
+	var micros uint64
+	start = time.Now()
 	for range groups {
 		group := must(track.AppendGroup())
 		for range frames {
@@ -58,9 +124,8 @@ func round() string {
 		check(group.Finish())
 		group.Close()
 	}
-	stamped := perFrame(start)
+	out = append(out, result{"stamped", per(start)})
 
-	// The same, reusing one timestamp handle: what the handle costs.
 	at := must(net.TimestampFromMicros(micros))
 	start = time.Now()
 	for range groups {
@@ -71,90 +136,73 @@ func round() string {
 		check(group.Finish())
 		group.Close()
 	}
-	reused := perFrame(start)
+	out = append(out, result{"write", per(start)})
 
-	// The floor: a hold of a handle and a bool back.
-	closed := 0
-	start = time.Now()
-	for range groups * frames {
-		if must(track.IsClosed()) {
-			closed++
-		}
-	}
-	call := perFrame(start)
-
-	// Reads: each frame written, then read through a call whose future is ready at its
-	// first poll, so it never waits.
 	ctx := context.Background()
 	consumer := must(track.Consume())
 	subscriber := must(consumer.Subscribe(ctx, nil))
 	consumer.Close()
+
+	// Each frame written, then read through a call whose future is ready at its first poll,
+	// so it never waits.
 	var last *net.FrameFrame
 	start = time.Now()
-	for g := range groups {
+	for range groups {
 		group := must(track.AppendGroup())
 		reader := must(subscriber.RecvGroup(ctx))
-		for f := range frames {
+		for range frames {
 			check(group.WriteFrame(at, frame))
-			read := must(reader.ReadFrame(ctx))
-			if g == groups-1 && f == frames-1 {
-				last = read
-			} else {
-				read.Close()
+			if last != nil {
+				last.Close()
 			}
+			last = must(reader.ReadFrame(ctx))
 		}
 		reader.Close()
 		check(group.Finish())
 		group.Close()
 	}
-	read := perFrame(start)
+	out = append(out, result{"ready", per(start)})
 
-	// And one 512 B frame, the least lent, and one 4 KiB.
-	group := must(track.AppendGroup())
-	reader := must(subscriber.RecvGroup(ctx))
-	check(group.WriteFrame(at, make([]byte, 512)))
-	edge := must(reader.ReadFrame(ctx))
-	check(group.WriteFrame(at, make([]byte, 4096)))
-	big := must(reader.ReadFrame(ctx))
-	reader.Close()
-	group.Close()
+	// Each read started on a goroutine before its frame is written, which the yield lets
+	// block, and the write's wake resumes it.
+	start = time.Now()
+	read := make(chan *net.FrameFrame)
+	for range groups {
+		group := must(track.AppendGroup())
+		reader := must(subscriber.RecvGroup(ctx))
+		for range frames {
+			go func() { read <- must(reader.ReadFrame(ctx)) }()
+			runtime.Gosched()
+			check(group.WriteFrame(at, frame))
+			(<-read).Close()
+		}
+		reader.Close()
+		check(group.Finish())
+		group.Close()
+	}
+	out = append(out, result{"woken", per(start)})
+
+	for _, size := range sizes {
+		out = append(out, result{fmt.Sprintf("mbps:%d", size), throughput(ctx, track, subscriber, at, size)})
+	}
 	subscriber.Close()
 
-	// Payload reads: each frame's bytes, as a Bytes, then copied out of it. 100 B are copied
-	// at the call; from 512 B, they are lent without a copy until the GC frees them.
-	lent := func(frame *net.FrameFrame) float64 {
-		start := time.Now()
-		for range groups * frames {
-			closed += int(must(frame.PayloadGet()).At(0))
-		}
-		return perFrame(start)
+	// The last frame's 100 bytes, as a Bytes, and one of them read.
+	start = time.Now()
+	for range n {
+		sink += int(must(last.PayloadGet()).At(0))
 	}
-	copied := func(frame *net.FrameFrame) float64 {
-		start := time.Now()
-		for range groups * frames {
-			closed += int(must(frame.PayloadGet()).Copy()[0])
-		}
-		return perFrame(start)
-	}
-	small, smallCopied := lent(last), copied(last)
-	least, leastCopied := lent(edge), copied(edge)
-	large, largeCopied := lent(big), copied(big)
+	out = append(out, result{"payload", per(start)})
 	last.Close()
-	edge.Close()
-	big.Close()
 	at.Close()
 	track.Close()
 	broadcast.Close()
-
-	bang := ""
-	if closed != 0 {
-		bang = "!"
-	}
-	return fmt.Sprintf("export (Go): %.0f ns per stamped 100 B frame, %.0f reusing the timestamp, %.1f ns per handle call, %.0f ns per frame written and read, %.0f ns per 100 B payload read (%.0f copied), %.0f per 512 B (%.0f copied), %.0f per 4 KiB (%.0f copied)%s",
-		stamped, reused, call, read, small, smallCopied, least, leastCopied, large, largeCopied, bang)
+	return out
 }
 
 func main() {
 	round()
-	fmt.Println(round())
+	for _, r := range round() {
+		fmt.Printf("%s\t%f\n", r.name, r.value)
+	}
 }

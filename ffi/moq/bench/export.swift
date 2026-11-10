@@ -1,15 +1,22 @@
-// bench/export.cpp's frame writes and reads through the generated Swift, so the two differ
-// by what the Swift wrapper adds.
+// bench/export.c's cases through the generated Swift, so the two differ by what the Swift
+// wrapper adds. Each round runs twice, the first to warm up.
 
 import Foundation
 import Moq
 
 let groups = 10000
 let frames = 100
+let n = groups * frames
+let sizes = [100, 1024, 16384, 65536, 1_048_576]
 
-/// Nanoseconds per frame since `start`.
-func perFrame(_ start: UInt64) -> Double {
-	Double(DispatchTime.now().uptimeNanoseconds - start) / Double(groups * frames)
+/// Nanoseconds now.
+func now() -> UInt64 {
+	DispatchTime.now().uptimeNanoseconds
+}
+
+/// Nanoseconds per call since `start`, over `calls` calls.
+func per(_ start: UInt64, _ calls: Int = n) -> Double {
+	Double(now() - start) / Double(calls)
 }
 
 /// A value a task sets and this thread reads once the task signals.
@@ -29,16 +36,62 @@ func block<T: Sendable>(_ body: @escaping @Sendable () async throws -> T) -> T {
 	return result.value!
 }
 
-func round() throws -> String {
+/// Groups of 100 frames of `size` bytes written and each read back, its payload's first
+/// byte touched, in about 64 MiB and at least 300 frames: megabytes a second.
+func throughput(_ track: TrackProducer, _ subscriber: TrackSubscriber, _ at: Timestamp, _ size: Int) async throws -> (Double, Int) {
+	let count = min(max((64 << 20) / (size * frames), 3), 2000)
+	let frame = Data(count: size)
+	var sum = 0
+	let start = now()
+	for _ in 0..<count {
+		let group = try track.appendGroup()
+		let reader = try await subscriber.recvGroup()!
+		for _ in 0..<frames {
+			try group.writeFrame(at, frame)
+			sum += Int(try await reader.readFrame()!.payloadGet[0])
+		}
+		try group.finish()
+	}
+	return (Double(count * frames * size) * 1e3 / Double(now() - start), sum)
+}
+
+func round() throws -> ([(String, Double)], Int) {
+	var out: [(String, Double)] = []
 	let broadcast = BroadcastInfo.new().produce()
 	let track = try broadcast.createTrack("bench", TrackInfo.default().withTimescale(Timescale.MICRO))
-
-	// A frame of 100 zero bytes, as bench/export.c writes.
 	let frame = Data(count: 100)
-	var micros: UInt64 = 0
+	var sum = 0
+
+	var start = now()
+	for _ in 0..<n where track.isClosed() {
+		sum += 1
+	}
+	out.append(("call", per(start)))
+
+	let demanded = try track.appendGroup()
+	let demand = demanded.demand()
+	start = now()
+	for _ in 0..<n {
+		sum &+= Int(demand.sequence())
+	}
+	out.append(("getter", per(start)))
+	try demanded.finish()
+
+	start = now()
+	for _ in 0..<n where track.largest() != nil {
+		sum += 1
+	}
+	out.append(("record", per(start)))
+
+	start = now()
+	for _ in 0..<n {
+		_ = track.info()
+	}
+	out.append(("object", per(start)))
 
 	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
-	var start = DispatchTime.now().uptimeNanoseconds
+	var micros: UInt64 = 0
+	start = now()
 	for _ in 0..<groups {
 		let group = try track.appendGroup()
 		for _ in 0..<frames {
@@ -48,11 +101,10 @@ func round() throws -> String {
 		}
 		try group.finish()
 	}
-	let stamped = perFrame(start)
+	out.append(("stamped", per(start)))
 
-	// The same, reusing one timestamp handle: what the handle costs.
 	let at = try Timestamp.fromMicros(micros)
-	start = DispatchTime.now().uptimeNanoseconds
+	start = now()
 	for _ in 0..<groups {
 		let group = try track.appendGroup()
 		for _ in 0..<frames {
@@ -60,46 +112,70 @@ func round() throws -> String {
 		}
 		try group.finish()
 	}
-	let reused = perFrame(start)
+	out.append(("write", per(start)))
 
-	// The floor: a hold of a handle and a bool back.
-	start = DispatchTime.now().uptimeNanoseconds
-	var closed = 0
-	for _ in 0..<groups * frames where track.isClosed() {
-		closed += 1
-	}
-	let call = perFrame(start)
-
-	// Reads: each frame written, then read through an async func whose future is ready at
-	// its first poll, so it never suspends.
-	let (read, last) = block {
+	let (reads, last, readSum) = block {
+		var out: [(String, Double)] = []
 		let subscriber = try await track.consume().subscribe(nil)
-		let start = DispatchTime.now().uptimeNanoseconds
+
+		// Each frame written, then read through an async func whose future is ready at its
+		// first poll, so it never suspends.
+		var start = now()
 		var last: FrameFrame?
 		for _ in 0..<groups {
 			let group = try track.appendGroup()
 			let reader = try await subscriber.recvGroup()!
 			for _ in 0..<frames {
 				try group.writeFrame(at, frame)
-				let read = try await reader.readFrame()!
-				last = read
+				last = try await reader.readFrame()!
 			}
 			try group.finish()
 		}
-		return (perFrame(start), last!)
-	}
+		out.append(("ready", per(start)))
 
-	// Payload reads: the last frame's 100 bytes, lent without a copy, then freed.
-	start = DispatchTime.now().uptimeNanoseconds
-	for _ in 0..<groups * frames {
-		closed += Int(last.payloadGet[0])
-	}
-	let lent = perFrame(start)
+		// Each read started in a task before its frame is written, which the yield lets
+		// suspend, and the write's wake resumes it on the global executor.
+		start = now()
+		for _ in 0..<groups {
+			let group = try track.appendGroup()
+			let reader = try await subscriber.recvGroup()!
+			for _ in 0..<frames {
+				let pending = Task { try await reader.readFrame()! }
+				await Task.yield()
+				try group.writeFrame(at, frame)
+				_ = try await pending.value
+			}
+			try group.finish()
+		}
+		out.append(("woken", per(start)))
 
-	let bang = closed != 0 ? "!" : ""
-	return String(
-		format: "export (Swift): %.0f ns per stamped 100 B frame, %.0f reusing the timestamp, %.1f ns per handle call, %.0f ns per frame written and read, %.0f ns per payload read%@",
-		stamped, reused, call, read, lent, bang)
+		var sum = 0
+		for size in sizes {
+			let (mbps, read) = try await throughput(track, subscriber, at, size)
+			out.append(("mbps:\(size)", mbps))
+			sum += read
+		}
+		return (out, last!, sum)
+	}
+	out += reads
+	sum += readSum
+
+	// The last frame's 100 bytes, copied into a Data, and one of them read.
+	start = now()
+	for _ in 0..<n {
+		sum += Int(last.payloadGet[0])
+	}
+	out.append(("payload", per(start)))
+	return (out, sum)
 }
 
-print(try round())
+var sink = 0
+sink += try round().1
+let (out, sum) = try round()
+sink += sum
+for (key, value) in out {
+	print("\(key)\t\(value)")
+}
+if sink == Int.min {
+	print("!")
+}

@@ -224,7 +224,7 @@ jobs:
           script: nix develop .#android --command just ffi android
 
   ffi-bench:
-    name: Bench the C export against moq-c
+    name: Bench the bindings
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
 
@@ -236,8 +236,7 @@ jobs:
 
       - uses: ./.github/actions/nix
 
-      # Frame writes through each C API. The numbers go in the run's summary: no threshold
-      # fails the job.
+      # The binding benchmark's tables go in the run's summary: no threshold fails the job.
       - name: Bench
         # Named, so a failing bench fails the pipe.
         shell: bash

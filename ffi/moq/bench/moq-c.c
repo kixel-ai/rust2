@@ -1,5 +1,5 @@
-/* bench/export.c's frame write path, through moq's hand-written rs/moq-c: a timed track,
- * groups of 100 frames of 100 bytes, each frame stamped. */
+/* bench/export.c's stamped frame writes, through moq's hand-written rs/moq-c: a timed
+ * track, groups of 100 frames of 100 bytes, each frame stamped. */
 
 #define _POSIX_C_SOURCE 199309L
 
@@ -44,7 +44,7 @@ int main(void) {
 	}
 	double stamped = (now() - start) / (GROUPS * FRAMES);
 
-	printf("moq-c: %.0f ns per stamped 100 B frame\n", stamped);
+	printf("stamped\t%f\n", stamped);
 	moq_publish_close(broadcast);
 	moq_publication_free((uint32_t)publication);
 	moq_origin_close((uint32_t)origin);
