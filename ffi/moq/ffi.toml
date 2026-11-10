@@ -3,12 +3,8 @@
 # still has to cover. `kio` is moq-net's re-export of all of kio, of which moq-ffi ships
 # only what the facade re-exports.
 exclude = [
-    "announce::Consumer::poll_synced",
-    "broadcast::Lister::poll_unwanted",
-    "broadcast::Lister::poll_wanted",
     "bytes",
     "Client::connect<moq::transport::memory::Session>",
-    "clock::Deadline::poll",
     "clock::Deadlines::enter",
     "clock::drive",
     "clock::Entered",
@@ -18,12 +14,9 @@ exclude = [
     "clock::Rng",
     "clock::timeout",
     "clock::timeout_at",
-    "coop::Budget::poll_yield",
-    "datagram::Producer::poll_priority",
     "field@mux::codec::flac::Config::md5",
     "field@tokio::Log::level",
     "frame::Producer::group",
-    "goaway::Consumer::poll",
     "group::Consumer::poll_read_frames",
     "group::Consumer::read_frames",
     "group::Producer::write_frames",
@@ -80,7 +73,6 @@ exclude = [
     "mux::Source::resolve",
     "mux::Source::resolve_reference",
     "mux::Source::subscribe_track",
-    "Park::hold",
     "Path::from_static",
     "Timestamp::as_micros",
     "Timestamp::as_millis",

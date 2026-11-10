@@ -57,4 +57,3 @@ the generated package's swift-collections dependency.
 
 - [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - the run-time checks left after this switch raise rather than trap
 - [The exporter on the binding benchmark](/quest/m1/ffi-export/bench.md) - where the hold count's release-build measurement belongs
-- [C++ checks ownership at compile time](/quest/m1/ffi-export/cpp-attributes.md) - the same spike's C++ half

@@ -972,8 +972,11 @@ pub fn edits(data: &[u8], out: &mut Vec<u8>) {
 			Bytes::new()
 		}
 		4 => {
-			let sub = &bytes[a.min(rest.len())..];
-			bytes.slice_ref(sub)
+			let held = bytes.clone();
+			let moved = held;
+			let all: &[u8] = moved.as_ref();
+			let sub = &all[a.min(rest.len())..];
+			bytes.clone().slice_ref(sub)
 		}
 		5 => {
 			bytes.advance(a);

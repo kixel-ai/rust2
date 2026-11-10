@@ -61,8 +61,8 @@ fn driver_at(manifest: &Path, config: &Path, args: &[&std::ffi::OsStr], build: &
 
 /// The flags that name cargo's home `/cargo` in both builds, so the files of the registry's
 /// crates, which a hook's locations name, are named alike on any host, and tokio's `sync`
-/// module `tokio/channels`, a remap of a directory within a crate, which the location of
-/// tokio's panic must follow as native does.
+/// module `tokio/channels` and bytes' `src` `bytes/source`, remaps of a directory within a
+/// crate, which the locations of their panics must follow as native does.
 fn remap() -> String {
 	static FLAGS: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 	FLAGS.get_or_init(remap_flags).clone()
@@ -84,16 +84,25 @@ fn remap_flags() -> String {
 			.join(".cargo"),
 	};
 	let lock = std::fs::read_to_string(manifest_dir().join("Cargo.lock")).unwrap();
-	let (_, tokio) = lock
-		.split_once("name = \"tokio\"\nversion = \"")
-		.expect("tokio in the lockfile");
-	let tokio = format!("tokio-{}", &tokio[..tokio.find('"').unwrap()]);
+	let version = |name: &str| {
+		let (_, rest) = lock
+			.split_once(&format!("name = \"{name}\"\nversion = \""))
+			.unwrap_or_else(|| panic!("{name} in the lockfile"));
+		format!("{name}-{}", &rest[..rest.find('"').unwrap()])
+	};
+	let dirs = [
+		(version("tokio") + "/src/sync", "tokio/channels"),
+		(version("bytes") + "/src", "bytes/source"),
+	];
 	// The later flag wins where both match.
 	let mut flags = format!("--remap-path-prefix={}=/cargo", home.display());
 	for index in std::fs::read_dir(home.join("registry/src")).into_iter().flatten() {
-		let sync = index.unwrap().path().join(&tokio).join("src/sync");
-		if sync.is_dir() {
-			flags += &format!(" --remap-path-prefix={}=tokio/channels", sync.display());
+		let index = index.unwrap().path();
+		for (dir, to) in &dirs {
+			let dir = index.join(dir);
+			if dir.is_dir() {
+				flags += &format!(" --remap-path-prefix={}={to}", dir.display());
+			}
 		}
 	}
 	flags
@@ -504,6 +513,30 @@ mod lang {
 	fn panics() {
 		super::lang("panics", None);
 		super::lang("panics", Some("hook"));
+	}
+
+	/// A program with a hook translates when its crates are built without debug assertions,
+	/// which leave out the panic of `bytes`' `debug_assert!`.
+	#[test]
+	fn panics_without_debug_assertions() {
+		let name = "lang/panics";
+		let out = super::scratch().join(name).join("nodebug");
+		let args: [&std::ffi::OsStr; 5] = [
+			"--out".as_ref(),
+			out.as_ref(),
+			"--".as_ref(),
+			"--features".as_ref(),
+			"hook".as_ref(),
+		];
+		let output = super::driver_command(name, &super::fixture(name).join("ts.toml"), &args, "nodebug-build")
+			.env("CARGO_PROFILE_DEV_DEBUG_ASSERTIONS", "false")
+			.output()
+			.expect("running rust2-ts");
+		assert!(
+			output.status.success(),
+			"translating {name} without debug assertions failed:\n{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
 	}
 
 	lang!(

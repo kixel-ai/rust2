@@ -196,6 +196,9 @@ pub struct Function {
 	/// For a future, whether the call itself runs code, as a function that is not
 	/// `async` returning one does: the export calls it at once, and polls what it returns.
 	pub eager: bool,
+	/// The parameter it polls its task through, if any: C passes a waker for it or, for a
+	/// future made of a returned `Poll`, the future's poll supplies it.
+	pub task: Option<Task>,
 	/// Whether it returns another crate's iterator, whose items the export collects into
 	/// the array it returns.
 	pub collect: bool,
@@ -245,6 +248,22 @@ impl Function {
 	pub fn name(&self) -> &str {
 		self.path.last().expect("a function has a name")
 	}
+}
+
+/// A parameter a function polls its task through.
+pub struct Task {
+	/// Its place among the parameters after `self`.
+	pub at: usize,
+	pub kind: TaskKind,
+}
+
+/// What a [`Task`] parameter is.
+pub enum TaskKind {
+	/// `&Context` or `&mut Context`: made from C's waker, or the future's own.
+	Context(Mutability),
+	/// A reference to an object made from a `Waker` by its associated function `make`, which
+	/// the future makes from its waker at each poll and keeps until the next.
+	Made { object: usize, make: String },
 }
 
 /// How a method takes `self`.

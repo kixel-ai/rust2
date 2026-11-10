@@ -4718,12 +4718,16 @@ export function edits(dataData: Uint8Array, dataStart: number, dataLen: number, 
 			rs.bytesTruncate(rs.place(() => bytes, (value5) => bytes = value5), 0);
 			part = rs.bytesNew();
 		} else if (_17 === 4) {
-			const sub: rs.ByteSlice = rs.byteSliceRange(bytes, rs.min(a, dataLen - 2));
-			part = rs.bytesSliceRef(bytes, sub);
+			const moved: rs.ByteSlice = rs.bytesClone(bytes);
+			const sub: rs.ByteSlice = rs.byteSliceRange(moved, rs.min(a, dataLen - 2));
+			const _35: rs.ByteSlice = rs.bytesClone(bytes);
+			part = rs.bytesSliceRef(_35, sub);
+			rs.bytesDrop(_35);
+			rs.bytesDrop(moved);
 		} else if (_17 === 5) {
 			rs.bytesAdvance(rs.place(() => bytes, (value3) => bytes = value3), a);
-			const _35: rs.usize = rs.usizeDiv(a, 2);
-			part = rs.bytesSplitTo(rs.place(() => bytes, (value4) => bytes = value4), _35);
+			const _40: rs.usize = rs.usizeDiv(a, 2);
+			part = rs.bytesSplitTo(rs.place(() => bytes, (value4) => bytes = value4), _40);
 		} else if (_17 === 6) {
 			let clone: rs.ByteSlice = rs.bytesClone(bytes);
 			rs.bytesTruncate(rs.place(() => clone, (value2) => clone = value2), a);
@@ -4733,15 +4737,15 @@ export function edits(dataData: Uint8Array, dataStart: number, dataLen: number, 
 			rs.bytesTruncate(rs.place(() => bytes, (value) => bytes = value), a);
 			part = clone2;
 		} else {
-			const _46: rs.Place<rs.ByteSlice> = { v: rs.bytesClone(bytes) };
-			rs.bytesDrop(rs.bytesStatic(_46.v));
-			rs.bytesDrop(rs.bytesStatic(rs.byteSliceRange(_46.v, 0)));
-			part = rs.bytesStatic(_46.v);
+			const _51: rs.Place<rs.ByteSlice> = { v: rs.bytesClone(bytes) };
+			rs.bytesDrop(rs.bytesStatic(_51.v));
+			rs.bytesDrop(rs.bytesStatic(rs.byteSliceRange(_51.v, 0)));
+			part = rs.bytesStatic(_51.v);
 		}
-		const _65: boolean = rs.bytesIsUnique(part);
-		const _68: boolean = rs.bytesIsUnique(bytes);
-		const _70: rs.ByteSlice = part;
-		const args3 = [(f: rs.Formatter) => rs.bytesDebug(_70, f), (f: rs.Formatter) => rs.bytesDebug(bytes, f), (f: rs.Formatter) => rs.fmtBool(_65, f), (f: rs.Formatter) => rs.fmtBool(_68, f)];
+		const _70: boolean = rs.bytesIsUnique(part);
+		const _73: boolean = rs.bytesIsUnique(bytes);
+		const _75: rs.ByteSlice = part;
+		const args3 = [(f: rs.Formatter) => rs.bytesDebug(_75, f), (f: rs.Formatter) => rs.bytesDebug(bytes, f), (f: rs.Formatter) => rs.fmtBool(_70, f), (f: rs.Formatter) => rs.fmtBool(_73, f)];
 		rs.byteVecExtendFromSlice(out, rs.stringAsBytes(rs.fmtFormat([args3[0], " ", args3[1], " ", args3[2], " ", args3[3]]).v));
 		rs.bytesDrop(part);
 		rs.bytesDrop(bytes);

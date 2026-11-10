@@ -603,6 +603,7 @@ impl<'a> Abi<'a> {
 			"waker",
 			"poll",
 			"view",
+			"borrow",
 			"result",
 			"task",
 			"future",

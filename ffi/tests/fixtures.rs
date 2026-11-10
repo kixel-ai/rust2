@@ -246,6 +246,10 @@ fn api_cpp() {
 		}
 	}
 
+	if !cfg!(target_env = "msvc") {
+		cpp_strict(api);
+	}
+
 	// A C++ program whose header names another contract than its library's aborts at load.
 	let mismatched = scratch().join("api").join("contract.cpp");
 	std::fs::write(
@@ -262,6 +266,50 @@ fn api_cpp() {
 		stderr.contains("api.hpp and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
+}
+
+/// Clang's ownership checks: the whole script builds clean under them, and each case of
+/// `tests/api_strict.cpp` fails with its diagnostic.
+fn cpp_strict(api: &Api) {
+	let clang = |src: &Path, case: u8| {
+		let mut cmd = Command::new("clang++");
+		cmd.args(["-std=c++17", "-Wconsumed", "-Wdangling", "-Werror", "-c", "-I"])
+			.arg(api.out.join("include"))
+			.arg(format!("-DCASE={case}"))
+			.arg(src)
+			.arg("-o")
+			.arg(scratch().join("api").join("strict.o"));
+		cmd
+	};
+	let tests = manifest_dir().join("tests");
+	run(&mut clang(&tests.join("api.cpp"), 0));
+	run(&mut clang(&tests.join("api_strict.cpp"), 0));
+	for (case, message) in [
+		(
+			1,
+			"invalid invocation of method 'get' on object 'c' while it is in the 'consumed' state",
+		),
+		(
+			2,
+			"invalid invocation of method 'get' on object 'c' while it is in the 'consumed' state",
+		),
+		(
+			3,
+			"invalid invocation of method 'into_level' on a temporary object while it is in the 'consumed' state",
+		),
+		(
+			4,
+			"invalid invocation of method 'into_level' on a temporary object while it is in the 'consumed' state",
+		),
+		(5, "'this' argument to member function 'into_label' is an lvalue"),
+		(6, "no matching member function for call to 'emplace'"),
+		(7, "temporary whose address is used as value of local variable 'name'"),
+	] {
+		let output = clang(&tests.join("api_strict.cpp"), case).output().unwrap();
+		assert!(!output.status.success(), "case {case} built");
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(stderr.contains(message), "case {case} printed {stderr}");
+	}
 }
 
 /// A build of the C++ `src` against the api library into `exe`, at C++`standard`, with
