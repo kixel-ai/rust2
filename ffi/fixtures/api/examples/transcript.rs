@@ -193,6 +193,16 @@ fn main() {
 	let long = api::longer(joined, &Name::owned("dd".to_string()));
 	println!("longer {}", long.as_str());
 	println!("unnamed [{}]", api::unnamed().as_str());
+	// One static, so Rust lends one string, as interning lends a binding's equal ones.
+	static LIT: &str = "lit";
+	let (lit, again) = (Name::borrowed(LIT), Name::borrowed(LIT));
+	let other = Name::borrowed("other");
+	println!(
+		"borrowed {} {} {}",
+		lit.as_str(),
+		lit.shares(&again),
+		lit.shares(&other)
+	);
 
 	println!("total {}", api::total(2..5));
 	let wide = api::widen(2..5, 1);
@@ -459,6 +469,55 @@ fn main() {
 	println!("words {} {words:?}", words.len());
 	println!("sentence {} {}", api::sentence(Some(words)), api::sentence(None));
 	println!("sentence {}|", api::sentence(Some(Vec::new())));
+	println!("either {} {}", api::either(Some("abc")), api::either(None));
+	let prefixed = |prefix: Option<&[u8]>| String::from_utf8(api::prefixed(b"cd", prefix)).unwrap();
+	println!("prefixed {} {}", prefixed(Some(b"ab")), prefixed(None));
+	println!(
+		"coordinates {} {}",
+		api::coordinates(Some(&Point { x: 2, y: 3 })),
+		api::coordinates(None)
+	);
+	let (two, mut three) = (Counter::new("two", 2), Counter::new("three", 3));
+	println!("plus {} {}", two.plus(Some(&three)), two.plus(None));
+	println!(
+		"add_to {} {} {}",
+		two.add_to(Some(&mut three)),
+		two.add_to(None),
+		three.get()
+	);
+	let mut buf = b"0,".to_vec();
+	api::put_number(1, &mut buf);
+	api::put_number(23, &mut buf);
+	println!("put_number {}", String::from_utf8(buf).unwrap());
+	let mut entry = (b"ab".to_vec(), 1);
+	let count = api::push_counted(&mut entry, b'c');
+	println!(
+		"push_counted {count} {} {}",
+		String::from_utf8(entry.0).unwrap(),
+		entry.1
+	);
+	let mut buf = bytes::Bytes::from_static(b"7x9");
+	let first = api::digit(&mut buf).unwrap();
+	let skipped = api::digit(&mut buf).is_err();
+	println!(
+		"digit {first} {skipped} {} {}",
+		api::digit(&mut buf).unwrap(),
+		buf.len()
+	);
+	let mut point = Point { x: 1, y: 2 };
+	api::nudge(&mut point, 3);
+	println!("nudge {} {}", point.x, point.y);
+	let config = api::secure("h3");
+	println!("secure {} {}", api::alpn_lent(&config), api::alpn(config.clone()));
+	let mut meters = api::Meters::new();
+	let first = meters.first();
+	first.add(2);
+	println!("lent {} {}", first.add(3), meters.first().count());
+	meters.clear();
+	println!("cleared {}", meters.first().count());
+	let tallies = api::Tallies::new();
+	tallies.first().bump();
+	println!("tallied {}", tallies.first().bump());
 	println!("chunks {:?}", api::chunks(b"abcde", 2));
 	let mut counters = api::counters(vec!["x".to_string(), "y".to_string()]);
 	let names: Vec<String> = counters.iter().map(|c| format!("{} {}", c.name(), c.get())).collect();

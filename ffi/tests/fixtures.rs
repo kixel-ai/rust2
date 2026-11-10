@@ -138,6 +138,10 @@ fn api() -> &'static Api {
 	})
 }
 
+/// What a use of a handle lent from another's value prints once that value was borrowed
+/// exclusively.
+const OUTLIVED: &str = "api_Meter_count: a handle lent from another outlived it";
+
 #[test]
 fn api_c() {
 	let api = api();
@@ -178,6 +182,11 @@ fn api_c() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("null", "api_Registry_edit: a function is null"),
+		("outlived", OUTLIVED),
+		(
+			"lent shared",
+			"api_Meter_reset: a handle a call lent shared is borrowed exclusively",
+		),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
 		assert!(!output.status.success(), "{case} did not abort");
@@ -228,6 +237,7 @@ fn api_cpp() {
 			),
 			("lent kept", "a lent object was moved out of"),
 			("null view", "a view of null bytes has a length"),
+			("outlived", OUTLIVED),
 		] {
 			let output = Command::new(&exe).arg(case).output().unwrap();
 			assert!(!output.status.success(), "C++{standard} {case} did not abort");
@@ -549,6 +559,7 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Kotlin threw"),
+		("outlived", OUTLIVED),
 		("stray", "MalformedInputException"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 	] {
@@ -602,6 +613,7 @@ fn api_python() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Python raised"),
+		("outlived", OUTLIVED),
 		("family", "ValueError: an IPv6 address has no Rust SocketAddrV4"),
 	] {
 		let output = python(&dir, &[case]).output().unwrap();
@@ -722,6 +734,7 @@ fn api_swift() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("family", "api_nexts: an IPv6 socket address where IPv4 is taken"),
+		("outlived", OUTLIVED),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
 	] {
@@ -794,6 +807,7 @@ fn api_dart() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Dart threw"),
+		("outlived", OUTLIVED),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
@@ -968,6 +982,7 @@ fn api_go() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("family", "an address that is not IPv4 has no Rust SocketAddrV4"),
+		("outlived", OUTLIVED),
 		("text", "api_greet: a string is not UTF-8"),
 		("callback panicked", "a log failed"),
 		("duration", "a Rust Duration past time.Duration's longest"),
