@@ -489,6 +489,13 @@ fn main() {
 	api::put_number(1, &mut buf);
 	api::put_number(23, &mut buf);
 	println!("put_number {}", String::from_utf8(buf).unwrap());
+	let mut entry = (b"ab".to_vec(), 1);
+	let count = api::push_counted(&mut entry, b'c');
+	println!(
+		"push_counted {count} {} {}",
+		String::from_utf8(entry.0).unwrap(),
+		entry.1
+	);
 	let mut buf = bytes::Bytes::from_static(b"7x9");
 	let first = api::digit(&mut buf).unwrap();
 	let skipped = api::digit(&mut buf).is_err();

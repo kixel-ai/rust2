@@ -545,6 +545,9 @@ func script() {
 	api.PutNumber(1, &encoded)
 	api.PutNumber(23, &encoded)
 	fmt.Printf("put_number %s\n", encoded.Copy())
+	entry := rt.Tuple2[rt.Bytes, uint32]{V0: rt.NewBytes([]byte("ab")), V1: 1}
+	stamps := api.PushCounted(&entry, 'c')
+	fmt.Printf("push_counted %d %s %d\n", stamps, entry.V0.Copy(), entry.V1)
 	digits := rt.NewBytes([]byte("7x9"))
 	firstDigit := must(api.Digit(&digits))
 	_, skipped := api.Digit(&digits)

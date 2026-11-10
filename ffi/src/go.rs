@@ -2078,6 +2078,12 @@ impl<'a> Gen<'a> {
 						body.push(format!("ok_ := {call}"));
 						"ok_".to_string()
 					}
+					// A value C returns, beside what Rust wrote back, is the out the result
+					// lifts from.
+					None if !matches!(export.call.ret, Ty::Void) => {
+						body.push(format!("c_out_ := {call}"));
+						String::new()
+					}
 					None => {
 						body.push(call);
 						String::new()

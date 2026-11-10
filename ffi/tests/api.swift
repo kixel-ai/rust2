@@ -517,6 +517,9 @@ func script() {
 		putNumber(1, &encoded)
 		putNumber(23, &encoded)
 		print("put_number \(String(decoding: encoded, as: UTF8.self))")
+		var entry = (Data("ab".utf8), UInt32(1))
+		let stamps = pushCounted(&entry, UInt8(ascii: "c"))
+		print("push_counted \(stamps) \(String(decoding: entry.0, as: UTF8.self)) \(entry.1)")
 		var digits = Data("7x9".utf8)
 		let firstDigit = try! digit(&digits)
 		let skipped = (try? digit(&digits)) == nil

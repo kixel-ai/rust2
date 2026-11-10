@@ -1800,6 +1800,14 @@ pub fn digit(buf: &mut impl bytes::Buf) -> Result<u8, Error> {
 	}
 }
 
+/// Appends `byte` to an entry's bytes and counts it, returning the count: a tuple holding
+/// bytes, written back beside the value C returns.
+pub fn push_counted(entry: &mut (Vec<u8>, u32), byte: u8) -> u32 {
+	entry.0.push(byte);
+	entry.1 += 1;
+	entry.1
+}
+
 /// Moves `point` by `by` on each axis: a record, written back.
 pub fn nudge(point: &mut Point, by: i32) {
 	point.x += by;

@@ -831,6 +831,11 @@ static int script(void) {
 	api_put_number(23, encoded, &appended);
 	api_buf_free(encoded);
 	print("put_number ", appended, "\n");
+	api_tuple_bytes_u32 stamped;
+	uint32_t stamps = api_push_counted((api_tuple_bytes_u32){._0 = str("ab"), ._1 = 1}, 'c', &stamped);
+	printf("push_counted %u ", stamps);
+	print("", stamped._0, " ");
+	printf("%u\n", stamped._1);
 	api_buf digits_left, digits_rest;
 	uint8_t first_digit, last_digit;
 	api_Error digit_error;

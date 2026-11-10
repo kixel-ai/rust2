@@ -1178,7 +1178,8 @@ impl<'a> Gen<'a> {
 					));
 				}
 				(None, Type::Unit) => inner.push(call),
-				(None, ok) if !outs.is_empty() => {
+				// A value C returns beside what Rust wrote back is its return, as with none.
+				(None, ok) if outs.iter().any(|(n, _)| !written.contains(n)) => {
 					inner.push(call);
 					inner.push(format!("return {}", self.lift_outs(&function.ok, ok)));
 				}

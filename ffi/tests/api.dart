@@ -464,6 +464,9 @@ Future<void> script() async {
   api.putNumber(1, encoded);
   api.putNumber(23, encoded);
   print('put_number ${utf8.decode(encoded.value)}');
+  final entry = api.Mut((utf8.encode('ab'), 1));
+  final stamps = api.pushCounted(entry, 0x63);
+  print('push_counted $stamps ${utf8.decode(entry.value.$1)} ${entry.value.$2}');
   final digits = api.Mut(utf8.encode('7x9'));
   final firstDigit = api.digit(digits);
   var skipped = false;

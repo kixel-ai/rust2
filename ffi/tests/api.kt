@@ -385,6 +385,9 @@ fun script() {
 	putNumber(1u, encoded)
 	putNumber(23u, encoded)
 	println("put_number ${encoded.value.decodeToString()}")
+	val entry = Mut(Pair("ab".encodeToByteArray(), 1u))
+	val stamps = pushCounted(entry, 'c'.code.toUByte())
+	println("push_counted $stamps ${entry.value.first.decodeToString()} ${entry.value.second}")
 	val digits = Mut("7x9".encodeToByteArray())
 	val firstDigit = digit(digits)
 	val skipped = try {

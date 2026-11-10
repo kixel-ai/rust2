@@ -767,6 +767,25 @@ pub fn zero(buf: &mut [u8]) {
 	buf.fill(0);
 }
 
+/// Another crate's `Arc` lent mutably, which its opaque handle cannot replace in place.
+pub fn reseat(size: &mut std::sync::Arc<dep::Size>) {
+	*size = std::sync::Arc::new(**size);
+}
+
+/// Holds a value it lends only as an error, which crosses as a clone, never lent.
+pub struct Keeper(Opaque);
+
+impl Keeper {
+	pub fn new() -> Self {
+		Self(Opaque(0))
+	}
+
+	/// Its value, lent as an error: only the value returned itself is lent.
+	pub fn check(&self) -> Result<u8, &Opaque> {
+		Err(&self.0)
+	}
+}
+
 /// A callback taking bytes it writes back, which a foreign implementation cannot.
 pub trait Sink: Send + Sync {
 	fn fill(&self, buf: &mut Vec<u8>);

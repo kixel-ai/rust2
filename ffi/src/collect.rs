@@ -2255,7 +2255,15 @@ impl<'tcx> Collector<'tcx> {
 			output = items;
 			collect = true;
 		}
-		self.lending.set(lendable && !future);
+		// Only the returned value itself, a bare `&Object`, is lent: not one inside it, nor
+		// the error.
+		let ret = |ty: Ty<'tcx>| {
+			self.lending
+				.set(lendable && !future && matches!(ty.kind(), ty::Ref(_, _, ty::Mutability::Not)));
+			let mapped = self.ret(ty);
+			self.lending.set(false);
+			mapped
+		};
 		let (ok, err) = match output.kind() {
 			ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Result, adt.did()) => {
 				let error = args.type_at(1);
@@ -2270,11 +2278,10 @@ impl<'tcx> Collector<'tcx> {
 					}
 					err => err,
 				};
-				(self.ret(args.type_at(0)), Some(err))
+				(ret(args.type_at(0)), Some(err))
 			}
-			_ => (self.ret(output), None),
+			_ => (ret(output), None),
 		};
-		self.lending.set(false);
 		let ok_ty = match output.kind() {
 			ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Result, adt.did()) => args.type_at(0),
 			_ => output,
@@ -3630,10 +3637,14 @@ impl<'tcx> Collector<'tcx> {
 					ty::Mutability::Mut => Mutability::Mut,
 				};
 				match (&inner_ty, pos, mutability) {
+					// An opaque handle holds its `Arc` erased, which Rust cannot replace in place.
+					(Type::Object(_), _, Mutability::Mut) if self.opaque_arc(*inner).is_some() => {
+						return Err(why("&mut of another crate's Arc", inner.to_string()));
+					}
 					// Returned as a clone: a handle in it is a new handle to its clone.
 					(Type::Str | Type::Slice | Type::Path, Pos::Return | Pos::Returned, _) => {}
 					// Lent from the receiver's handle, as [`Self::function`] decides.
-					(Type::Object(_), Pos::Return, Mutability::Not) if self.lending.get() => {}
+					(Type::Object(_), Pos::Return, Mutability::Not) if self.lending.take() => {}
 					// A slice's clone is a `Vec` of its elements' clones.
 					(_, Pos::Return | Pos::Returned, _)
 						if !self.is_clone(match inner.kind() {

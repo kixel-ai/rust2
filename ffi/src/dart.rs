@@ -1860,7 +1860,8 @@ impl<'a> Gen<'a> {
 					inner.extend(writes);
 					inner.extend(after.clone());
 				}
-				(None, ok) if !outs.is_empty() => {
+				// A value C returns beside what Rust wrote back is its return, as with none.
+				(None, ok) if outs.len() > writes.len() => {
 					inner.push(format!("{call};"));
 					inner.extend(writes);
 					inner.extend(after.clone());
@@ -1868,6 +1869,7 @@ impl<'a> Gen<'a> {
 				}
 				(None, ok) => {
 					inner.push(format!("final r_ = {call};"));
+					inner.extend(writes);
 					inner.extend(after.clone());
 					inner.push(format!("return {};", self.lift(ok, "r_")));
 				}

@@ -676,6 +676,11 @@ int script() {
 		api::put_number(1, encoded);
 		api::put_number(23, encoded);
 		print("put_number ", encoded, "\n");
+		::std::tuple<api::buf, uint32_t> entry(api::buf(api::view("ab")), 1);
+		uint32_t stamps = api::push_counted(entry, 'c');
+		std::printf("push_counted %u ", stamps);
+		print("", ::std::get<0>(entry), " ");
+		std::printf("%u\n", ::std::get<1>(entry));
 		api::buf digits(api::view("7x9"));
 		auto first_digit = api::digit(digits);
 		auto skipped = api::digit(digits);

@@ -1862,13 +1862,36 @@ impl<'a> Gen<'a> {
 }
 
 /// The Kotlin parameter value of the value `e` of type `ty` read back: bytes, which a
-/// parameter takes as a `ByteArray`, copied out of the `Bytes` read.
+/// parameter takes as a `ByteArray`, copied out of each `Bytes` read, wherever they are.
 fn to_param(ty: &Type, e: &str) -> String {
 	match ty {
+		_ if !holds_bytes(ty) => e.to_string(),
 		Type::Slice | Type::Vec | Type::Bytes => format!("{e}.toByteArray()"),
-		Type::Option(inner) if bytes(inner) => format!("{e}?.let {{ v -> {} }}", to_param(inner, "v")),
-		Type::List(_, inner) if bytes(inner) => format!("{e}.map {{ v -> {} }}", to_param(inner, "v")),
+		Type::Box(inner) | Type::Ref(_, inner) => to_param(inner, e),
+		Type::Option(inner) => format!("{e}?.let {{ v -> {} }}", to_param(inner, "v")),
+		Type::List(_, inner) => format!("{e}.map {{ v -> {} }}", to_param(inner, "v")),
+		Type::Tuple(elements) => {
+			let converted: Vec<String> = (elements.iter().enumerate())
+				.map(|(k, ty)| to_param(ty, &format!("t.{}", ordinal(k))))
+				.collect();
+			let make = match elements.len() {
+				2 => "kotlin.Pair".to_string(),
+				3 => "kotlin.Triple".to_string(),
+				n => format!("Tuple{n}"),
+			};
+			format!("{e}.let {{ t -> {make}({}) }}", converted.join(", "))
+		}
 		_ => e.to_string(),
+	}
+}
+
+/// Whether `ty` holds bytes anywhere a parameter's form of it differs from a returned one's.
+fn holds_bytes(ty: &Type) -> bool {
+	match ty {
+		Type::Slice | Type::Vec | Type::Bytes => true,
+		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => holds_bytes(inner),
+		Type::Tuple(elements) => elements.iter().any(holds_bytes),
+		_ => false,
 	}
 }
 

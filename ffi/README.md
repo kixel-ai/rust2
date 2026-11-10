@@ -123,7 +123,8 @@ only at its top or as `Some` of an `Option`, lent as the reference alone is, so
 `Option<&T>` is a null or borrowed handle, a null or viewed buffer, or an option of a
 value, and not inside a `Box` or any other type. A `&mut` of a value, but a `str` or a
 slice, is in and out, and not inside an `Option`, a callback, or a future, nor borrowed
-by what the call returns. What C could never hold, an
+by what the call returns; a `&mut` of another crate's `Arc` is refused. Only a bare
+returned `&Object` is lent, never one inside what a call returns nor its error. What C could never hold, an
 object no export C can call returns or lends to a closure, a generic type no export
 instantiates, and whatever takes one, is left out and listed in the census. Everything
 else is refused, and the census counts why.

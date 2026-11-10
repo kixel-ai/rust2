@@ -468,6 +468,9 @@ def script():
 	api.put_number(1, encoded)
 	api.put_number(23, encoded)
 	print(f"put_number {bytes(encoded.value).decode()}")
+	entry = api.Mut((memoryview(b"ab"), 1))
+	stamps = api.push_counted(entry, ord("c"))
+	print(f"push_counted {stamps} {bytes(entry.value[0]).decode()} {entry.value[1]}")
 	digits = api.Mut(memoryview(b"7x9"))
 	first_digit = api.digit(digits)
 	try:

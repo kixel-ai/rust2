@@ -38,18 +38,40 @@ pub fn intern(s: &str) -> &'static str {
 
 /// An `Arc` of another crate's type, held erased behind a handle with none of its API, so
 /// the export names neither the type nor its crate. Rust takes it back as the `Arc` it
-/// gave, and a handle of another such type aborts.
-#[derive(Clone)]
-pub struct Opaque(Arc<dyn std::any::Any + Send + Sync>);
+/// gave, and a handle of another such type aborts. A clone clones the `Arc` itself, so
+/// Rust counts each handle as an owner.
+pub struct Opaque(Box<dyn Held>);
+
+/// An `Arc<T>` of any `T`, erased.
+trait Held: Send + Sync {
+	fn any(&self) -> &dyn std::any::Any;
+	fn clone_box(&self) -> Box<dyn Held>;
+}
+
+impl<T: Send + Sync + 'static> Held for Arc<T> {
+	fn any(&self) -> &dyn std::any::Any {
+		self
+	}
+
+	fn clone_box(&self) -> Box<dyn Held> {
+		Box::new(Arc::clone(self))
+	}
+}
+
+impl Clone for Opaque {
+	fn clone(&self) -> Self {
+		Self(self.0.clone_box())
+	}
+}
 
 impl Opaque {
 	pub fn new<T: Send + Sync + 'static>(value: Arc<T>) -> Self {
-		Self(Arc::new(value))
+		Self(Box::new(value))
 	}
 
 	/// The `Arc` it holds, lent.
 	pub fn get<T: Send + Sync + 'static>(&self, what: &str) -> &Arc<T> {
-		(self.0.downcast_ref())
+		(self.0.any().downcast_ref())
 			.unwrap_or_else(|| fail(what, "an opaque handle holds another type"))
 	}
 
