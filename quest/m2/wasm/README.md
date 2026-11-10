@@ -25,6 +25,11 @@ Decided with the maintainer on 2026-11-09, in the quest audit:
   [the model epic](/quest/m2/ts-model/README.md)'s 2026-11-01 "the translated model is
   moq's browser route". Rejected: JS-only staying the goal, with rust2-wasm only a
   baseline; pausing rust2-ts until rust2-wasm is measured.
+- ✅ Web and WASI are separate targets. [The web target](/quest/m2/wasm/backend.md) calls
+  web APIs directly, `performance.now` for its clock, and ships nothing of WASI;
+  [the WASI target](/quest/m3/wasi.md) serves hosts with no JavaScript, in m3 as the
+  other targets planned ahead of a consumer are. Rejected: one `wasm32-wasip1` module for
+  both, with the binding implementing its imports.
 - ✅ m2, with [per-target export](/quest/m1/ffi-export/target.md) in m1. Rejected: all of
   it in m1; all of it in m2.
 - ✅ Until the gate reports, translator work is only what the gate needs: the model's
@@ -53,5 +58,5 @@ record the superseded decision; they are moq's tree's to update.
 
 ## Required
 
-- [The exporter's wasm32 target](/quest/m2/wasm/backend.md) - the glue crate builds for wasm32 with a generated TypeScript binding, proven on the api fixture
+- [The exporter's web target](/quest/m2/wasm/backend.md) - the glue crate builds for wasm32 with a generated TypeScript binding over web APIs, proven on the api fixture
 - [Every route on the browser benchmark](/quest/m2/wasm/routes.md) - `just ts bench` runs rust2-wasm's export and a `wasm2js` control beside the translation

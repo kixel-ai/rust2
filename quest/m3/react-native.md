@@ -31,4 +31,4 @@ Public API: the generated module's TypeScript API.
 ## Required
 
 - [Exporter](/quest/m1/ffi-export/README.md) - the C ABI, its lossless types, and its checks are settled before a new generator copies them
-- [The exporter's wasm32 target](/quest/m2/wasm/backend.md) - the TypeScript API this matches, and the route it is measured against
+- [The exporter's web target](/quest/m2/wasm/backend.md) - the TypeScript API this matches, and the route it is measured against
