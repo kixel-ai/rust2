@@ -57,6 +57,11 @@ jobs:
       - name: Fixtures without the sysroot
         run: nix develop --command env RUST2_TS_SYSROOT= just ts test --test fixtures
 
+      # WebCodecs' encoder both ways in headless Chromium, which only the bench shell
+      # carries, against the same build as the step before.
+      - name: Encoder in Chromium
+        run: nix develop .#bench --command env RUST2_TS_SYSROOT= just ts test --test fixtures -- --ignored --exact encoder
+
   uniffi-fixtures:
     name: UniFFI fixtures
     # x86_64: nixpkgs marks Swift 6.3 broken on aarch64-linux, where it fails to link with

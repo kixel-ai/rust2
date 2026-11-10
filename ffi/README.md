@@ -52,7 +52,10 @@ exclude = ["track::Producer::poll_closed"]
 Every `pub` item reachable from the facade's root, by its shortest path, is exported or
 refused. `#[doc(hidden)]` items are no part of the API and are left out; type aliases
 export nothing of their own. A re-export of the standard library's item is refused, since
-its types map by role; a type no path reaches is refused.
+its types map by role. A `pub use` of a whole crate, as in `pub use rustls;` or
+`pub use web_transport_proto as proto;`, is refused once at that `pub use`, since it puts
+every release of that crate in the facade's API; a glob of its root, `pub use dep::*;`,
+re-exports its items instead, which export. A type no path reaches is refused.
 
 | Rust | C |
 | --- | --- |
@@ -66,7 +69,7 @@ its types map by role; a type no path reaches is refused.
 | a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce`, which no lifetime bound or return lets outlive the call | a C function and its `void *` data, which Rust calls only during the call; any other closure is refused |
 | `fn` and inherent `pub` methods | functions named through their type |
 | a `()` parameter of a function, not of a callback's method | nothing: C passes no argument for it |
-| `Result<T, E>` | `bool f(..., T *out, E *err)` |
+| `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
 | a tuple inside another type, or as a field or parameter | `<prefix>_tuple_<A>_<B>`: a struct of fields `_0`, `_1`, and so on; of references only returned |
 | `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it; a function that is not `async` runs at the call, as in Rust |
@@ -79,6 +82,7 @@ its types map by role; a type no path reaches is refused.
 | `url::Url` | an object `<prefix>_Url`, made by `<prefix>_Url_parse`, which fails with the parse error's message, and printed by `_to_string` |
 | `serde_json::Value` | an object `<prefix>_Json`, made by `<prefix>_Json_parse` from JSON text, which fails with serde_json's message, and read back by `_to_text`; its contents are the caller's JSON library's to read |
 | `Vec<T>` and `&[T]` of any other `T` | `<prefix>_vec_<T>`: an array of `T`'s C values, viewed passed in and owned returned, a slice as a clone; of references only returned |
+| `BTreeSet<T>`, `BTreeMap<K, V>`, and `serde_json::Map` | as `Vec<T>`, `Vec<(K, V)>`, and `Vec<(String, serde_json::Value)>`: its items in order, from which Rust builds it, keeping the last of a key |
 | a returned iterator, such as `slice::Iter` or an `impl Iterator`, that no other rule maps, outside a future, made of core's and alloc's iterators over a slice, string, `Option`, `Result`, or collection, through `rev`, `chain`, `flatten`, `fuse`, `enumerate`, `peekable`, `copied`, or `cloned`, with no closure, function, or trait object inside | what `collect::<Vec<_>>()` makes of it: every item, taken at the call |
 | `Waker`, taken by value | `<prefix>_waker`, as a future's poll takes it |
 | `Range<T>`, `Bound<T>` of an integer | `<prefix>_range_<T>`, `<prefix>_bound_<T>`: a `<prefix>_bound` kind and a value |
@@ -107,9 +111,10 @@ returned as a clone, so it must be `Clone`, and a handle in it is a new handle t
 clone. A handle outlives every call, so every lifetime an object takes is `'static`, as is
 every lifetime that must outlive one; any other lifetime is the call's. A signature may
 not lend C's borrow for one that is `'static`, nor return an object that borrows. A
-parameter is a reference only at its top, not inside an `Option` or `Box`, and an object
-no export C can call returns is refused, since C could never hold one. Everything else is
-refused, and the census counts why.
+parameter is a reference only at its top, not inside an `Option` or `Box`. What C could
+never hold, an object no export C can call returns or lends to a closure, a generic type
+no export instantiates, and whatever takes one, is left out and listed in the census.
+Everything else is refused, and the census counts why.
 
 ## The C ABI
 
@@ -614,8 +619,8 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 ## Census
 
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
-lists each refused item at its span, and ends with the `exclude` list that exports the
-rest. It ignores the config's `exclude`. It still fails on an `instance not inferred`
+lists each refused item at its span, then the `exclude` list that exports the rest, and
+what else it left out, such as what C can never hold. It ignores the config's `exclude`. It still fails on an `instance not inferred`
 refusal, which is a bug in the exporter's inference rather than in the crate.
 
 ## Tests

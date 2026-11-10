@@ -220,6 +220,29 @@ func script() {
 		return fmt.Sprintf("%s %s %d", r.V0, must(r.V1.Name()), must(r.V1.Get()))
 	}), "[]"))
 	board.Close()
+	// A map crosses as its pairs and a set as its items, which Rust collects in order, each
+	// key once, the last kept.
+	atlas := api.Atlas{
+		Points: []rt.Tuple2[string, api.Point]{
+			{V0: "b", V1: api.Point{X: 1, Y: 1}},
+			{V0: "ab", V1: api.Point{X: 2, Y: 3}},
+			{V0: "b", V1: api.Point{X: 4, Y: 4}},
+		},
+		Ids: []uint32{3, 1, 3},
+	}.With("c", api.Point{X: 5, Y: 6})
+	atlasPoints := strings.Trim(list(atlas.Points, func(r rt.Tuple2[string, api.Point]) string {
+		return fmt.Sprintf("%s %d %d", r.V0, r.V1.X, r.V1.Y)
+	}), "[]")
+	atlasIds := strings.Trim(fmt.Sprint(atlas.Ids), "[]")
+	fmt.Printf("atlas %s; ids %s\n", atlasPoints, atlasIds)
+	// Another crate's error crosses as its message.
+	for _, text := range []string{"80", "x"} {
+		if port, err := api.Port(text); err == nil {
+			fmt.Printf("port %d\n", port)
+		} else {
+			fmt.Printf("port err %s\n", err)
+		}
+	}
 	square := api.ShapeSquare
 	span := api.Span{Bounds: rt.Tuple2[uint32, uint32]{V0: 2, V1: 10}, Named: &rt.Tuple2[string, api.Shape]{V0: "s", V1: square}}
 	lower, upper := api.Halves(span)
@@ -542,6 +565,17 @@ func script() {
 	tagged2 := must(api.Tagged(doc, "t"))
 	fmt.Printf("tagged %s\n", must(tagged2.ToText()))
 	tagged2.Close()
+	// A JSON object's entries cross as pairs of a key and its document, each moved in.
+	jsonEntries := must(api.Entries([]rt.Tuple2[string, *serdejson.Json]{
+		{V0: "b", V1: must(serdejson.JsonParse(`[1]`))},
+		{V0: "a", V1: must(serdejson.JsonParse(`2`))},
+	}, "t"))
+	fmt.Printf("entries %s\n", strings.Trim(list(jsonEntries, func(r rt.Tuple2[string, *serdejson.Json]) string {
+		return fmt.Sprintf("%s %s", r.V0, must(r.V1.ToText()))
+	}), "[]"))
+	for _, entry := range jsonEntries {
+		entry.V1.Close()
+	}
 	_, err = serdejson.JsonParse(`{"a":`)
 	check(errors.As(err, &parse), "parse returns its message")
 	fmt.Printf("json parse err %s\n", err)

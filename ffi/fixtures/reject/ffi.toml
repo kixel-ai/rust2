@@ -1,2 +1,2 @@
 # An exclusion leaves an item or an instance out, so nothing refuses it.
-exclude = ["Called", "Caller", "Cell<u16>", "Excluded", "Grows", "Held", "Holder", "Lender", "Outlived", "Paired", "Pinned", "Pinner"]
+exclude = ["Called", "Caller", "Cell<u16>", "Excluded", "Grows", "Held", "Holder", "Lender", "Outlived", "Paired", "Pinned", "Pinner", "Shed"]

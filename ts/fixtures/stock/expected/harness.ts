@@ -6,6 +6,7 @@ import { strings as fixed_strings } from "./fixed.ts";
 import * as Owner from "./harness.Owner.ts";
 import { map as maps_map, table, capacity, linked, linkedIters, nested, ownHasher, ownFromIter, equal, defaultHasher } from "./maps.ts";
 import { ranges } from "./ranges.ts";
+import { ops, copies, zero, waiters } from "./small.ts";
 
 /**
  * Each case's name and what it runs. The first byte picks one modulo their count, so a
@@ -46,7 +47,11 @@ export function cases(): rs.Vec<[string, (a0: rs.ByteSlice, a1: rs.ByteVec) => u
 		deques(a016.data, a016.start, a016.length, a116);
 	}] as [string, (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined], ["buf::vectored", vectored as (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined] as [string, (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined], ["fixed::strings", fixed_strings as (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined] as [string, (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined], ["buf::slices", (a017: rs.ByteSlice, a117: rs.ByteVec): undefined => {
 		buf_slices(a017.data, a017.start, a017.length, a117);
-	}] as [string, (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined]]);
+	}] as [string, (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined], ["small::ops", (a018: rs.ByteSlice, a118: rs.ByteVec): undefined => {
+		ops(a018.data, a018.start, a018.length, a118);
+	}] as [string, (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined], ["small::copies", (a019: rs.ByteSlice, a119: rs.ByteVec): undefined => {
+		copies(a019.data, a019.start, a019.length, a119);
+	}] as [string, (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined], ["small::zero", zero as (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined] as [string, (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined], ["small::waiters", waiters as (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined] as [string, (a0: rs.ByteSlice, a1: rs.ByteVec) => undefined]]);
 }
 
 /** Run one case. */

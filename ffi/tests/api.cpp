@@ -238,6 +238,35 @@ int script() {
 		}
 		std::printf("\n");
 	}
+	{
+		// A map crosses as its pairs and a set as its items, which Rust collects in order,
+		// each key once, the last kept.
+		api::Atlas loose;
+		loose.points.emplace_back(api::buf("b"), api::Point{1, 1});
+		loose.points.emplace_back(api::buf("ab"), api::Point{2, 3});
+		loose.points.emplace_back(api::buf("b"), api::Point{4, 4});
+		loose.ids = {3, 1, 3};
+		auto atlas = loose.with("c", api::Point{5, 6});
+		std::printf("atlas");
+		for (std::size_t i = 0; i < atlas.points.size(); i++) {
+			auto &[name, at] = atlas.points[i];
+			print(i == 0 ? " " : ", ", name, " ");
+			std::printf("%d %d", at.x, at.y);
+		}
+		std::printf("; ids");
+		for (auto id : atlas.ids) {
+			std::printf(" %u", id);
+		}
+		std::printf("\n");
+	}
+	// Another crate's error crosses as its message.
+	for (const char *text : {"80", "x"}) {
+		if (auto port = api::port(text)) {
+			std::printf("port %u\n", unsigned(port.value()));
+		} else {
+			print("port err ", port.error(), "\n");
+		}
+	}
 	api::Span span{{2, 10}, std::make_tuple(api::buf("s"), api::Shape::square)};
 	auto [lower_half, upper_half] = api::halves(span);
 	std::printf("halves %u %u %u %u ", std::get<0>(lower_half), std::get<1>(lower_half), std::get<0>(upper_half),
@@ -674,6 +703,20 @@ int script() {
 	print("timed text ", api::timed_text(doc), "\n");
 	api::Json tagged = api::tagged(std::move(doc), "t");
 	print("tagged ", tagged.to_text(), "\n");
+	{
+		// A JSON object's entries cross as pairs of a key and its document, each moved in.
+		std::vector<std::tuple<api::view, api::Json>> pairs;
+		pairs.emplace_back("b", api::Json::parse("[1]").value());
+		pairs.emplace_back("a", api::Json::parse("2").value());
+		auto entries = api::entries(std::move(pairs), "t");
+		std::printf("entries");
+		for (std::size_t i = 0; i < entries.size(); i++) {
+			auto &[key, value] = entries[i];
+			print(i == 0 ? " " : ", ", key, " ");
+			print("", value.to_text(), "");
+		}
+		std::printf("\n");
+	}
 	if (auto parsed = api::Json::parse("{\"a\":")) {
 		print("json parse ", parsed->to_text(), "\n");
 	} else {

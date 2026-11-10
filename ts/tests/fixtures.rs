@@ -244,12 +244,12 @@ fn typecheck(out: &Path) {
 /// translated side through `entry`, a module in `out`. `build` are the native build's
 /// arguments, such as `--features`, in the workspace whose manifest is `workspace`.
 fn differential(workspace: &Path, package: &str, build: &[&str], out: &Path, entry: &str, cases: u32) {
-	let wasm = native(workspace, package, build);
+	let wasm = native(workspace, package, build, &remap());
 	compare(&wasm, out, entry, cases, None);
 }
 
-/// Build the harness natively, as wasm32, returning its module.
-fn native(workspace: &Path, package: &str, build: &[&str]) -> PathBuf {
+/// Build the harness natively, as wasm32, with `RUSTFLAGS` `flags`, returning its module.
+fn native(workspace: &Path, package: &str, build: &[&str], flags: &str) -> PathBuf {
 	let target_dir = scratch().join("wasm");
 	let status = cargo()
 		.args([
@@ -266,7 +266,7 @@ fn native(workspace: &Path, package: &str, build: &[&str]) -> PathBuf {
 		.arg(&target_dir)
 		.args(build)
 		.env("CARGO_UNSTABLE_PROFILE_RUSTFLAGS", "true")
-		.env("RUSTFLAGS", remap())
+		.env("RUSTFLAGS", flags)
 		.arg("--manifest-path")
 		.arg(workspace)
 		.status()
@@ -722,7 +722,7 @@ export const run = (input: rs.ByteSlice) => script(rs.byteSliceView(input));
 /// the fixture's other lockfile. What translation refuses fails at its span.
 #[test]
 fn bindgen() {
-	let wasm = native(&fixture("bindgen").join("Cargo.toml"), "bindgen-fixture", &[]);
+	let wasm = native(&fixture("bindgen").join("Cargo.toml"), "bindgen-fixture", &[], &remap());
 	let glue = scratch().join("bindgen").join("glue");
 	let status = Command::new("wasm-bindgen")
 		.args(["--target", "bundler", "--out-dir"])
@@ -794,6 +794,54 @@ fn bindgen() {
 	];
 	let output = driver("bindgen", &fixture("bindgen").join("refused.toml"), &args, "build");
 	rejected(&out, &output, &fixture("bindgen").join("refused.txt"));
+}
+
+/// web-codecs' `VideoEncoder` calls over web-sys, with wasm-bindgen's closures and
+/// js-sys's futures, translate with no binding and run as their wasm-bindgen build does,
+/// both in one headless Chromium page, the only place here WebCodecs runs.
+#[test]
+#[ignore = "needs Chromium, which only the bench shell carries: run nightly"]
+fn encoder() {
+	// WebCodecs is behind web-sys's unstable APIs, in both builds.
+	let flags = format!("{} --cfg=web_sys_unstable_apis", remap());
+	let wasm = native(&fixture("encoder").join("Cargo.toml"), "encoder-fixture", &[], &flags);
+	let glue = scratch().join("encoder").join("glue");
+	let status = Command::new("wasm-bindgen")
+		.args(["--target", "web", "--out-dir"])
+		.arg(&glue)
+		.arg(&wasm)
+		.status()
+		.expect("running wasm-bindgen, which the dev shell provides");
+	assert!(status.success(), "wasm-bindgen failed on {}", wasm.display());
+
+	let out = scratch().join("encoder").join("out");
+	let config = fixture("encoder").join("ts.toml");
+	let output = driver_command("encoder", &config, &["--out".as_ref(), out.as_ref()], "build")
+		.env("RUSTFLAGS", &flags)
+		.output()
+		.expect("running rust2-ts");
+	assert!(
+		output.status.success(),
+		"translating encoder failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	snapshot("encoder", &out);
+	typecheck(&out);
+
+	let output = Command::new("bun")
+		.arg(manifest_dir().join("tests").join("browser.ts"))
+		.arg(glue.join("encoder_fixture.js"))
+		.arg(out.join("harness.ts"))
+		.arg(scratch().join("encoder").join("page"))
+		.output()
+		.expect("running bun, which the dev shell provides");
+	let stdout = String::from_utf8_lossy(&output.stdout);
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		output.status.success(),
+		"the encoder differs from native Rust:\n{stdout}{stderr}"
+	);
+	println!("{stdout}");
 }
 
 /// Each construct outside the subset fails with its span, and nothing is written.

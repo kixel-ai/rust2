@@ -4,7 +4,8 @@
 //! crates too, is exported by fixed rules, or refused with its span. A type it does not
 //! reach is refused. Nothing is opted in by attribute and nothing is skipped silently: the
 //! config's `exclude` is the only way to leave an item out, and `#[doc(hidden)]` items,
-//! which are no part of the documented API, are listed in the census. A generic type
+//! which are no part of the documented API, and what C can never hold, are listed in the
+//! census. A generic type
 //! exports at the instances it infers, before any type is mapped: its defaults, each
 //! instance an inherent impl is of, its exports' implementations of the traits bounding it,
 //! and each instance a signature names at any choice its bounds allow; and only there.
@@ -27,8 +28,8 @@ use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _
 
 use crate::config;
 use crate::ir::{
-	Access, Api, Callback, Constant, Dyn, Enum, Family, Field, Function, Home, Int, Literal, Mutability, Object, Param,
-	Path, Receiver, Record, Traits, Type, Variant,
+	Access, Api, Callback, Collection, Constant, Dyn, Enum, Family, Field, Function, Home, Int, Literal, Mutability,
+	Object, Param, Path, Receiver, Record, Traits, Type, Variant,
 };
 
 /// Why something is refused: a construct, ranked by the census, and what it names.
@@ -48,6 +49,14 @@ const FOREIGN: [(&str, &str, &str); 2] = [("url", "Url", "Url"), ("serde_json", 
 
 /// The construct of an instance inference missed: a bug in the exporter, not the crate.
 pub const NOT_INFERRED: &str = "instance not inferred";
+
+/// What C can never hold: left out and listed in the census rather than refused, since
+/// exporting it would need constructors or returns the crate has no use for.
+const UNHELD: [&str; 3] = [
+	"object no export returns",
+	"generic type no export instantiates",
+	"type C never holds",
+];
 
 fn why(construct: &'static str, detail: impl Into<String>) -> Why {
 	Why {
@@ -94,6 +103,8 @@ pub struct Report {
 	pub twins: Vec<String>,
 	/// `#[doc(hidden)]` items, by path.
 	pub hidden: Vec<String>,
+	/// Items C can never hold or call, by path, and why.
+	pub unheld: Vec<(String, Why)>,
 	/// Excluded paths, and how many items each left out.
 	pub excluded: Vec<(String, usize)>,
 	/// Type aliases, which export nothing of their own.
@@ -170,6 +181,8 @@ struct Collector<'tcx> {
 	/// implementation or a lent closure, with the type each takes.
 	impls: std::cell::RefCell<Vec<(Ty<'tcx>, Type)>>,
 	bytes: Option<DefId>,
+	/// `serde_json::Map`, a map of `serde_json::Value`s.
+	json_map: Option<DefId>,
 	/// The standard library's crates, `core`, `alloc`, and `std`, known by what each
 	/// defines, since the facade or another crate may share their names.
 	sysroot: Vec<CrateNum>,
@@ -179,7 +192,7 @@ struct Collector<'tcx> {
 	/// `std::ops::Bound`, and `std::ops::RangeBounds`, which names it.
 	bound: Option<DefId>,
 	range_bounds: Option<DefId>,
-	/// Objects no export returns, refused.
+	/// Objects no export returns, left out.
 	orphans: rustc_data_structures::fx::FxHashSet<Key<'tcx>>,
 	api: Api,
 }
@@ -204,6 +217,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			.and_then(|child| child.res.opt_def_id())
 	};
 	let bytes = root("bytes", "Bytes");
+	let json_map = root("serde_json", "Map");
 	let sysroot: Vec<CrateNum> = [
 		tcx.lang_items().sized_trait(),
 		tcx.lang_items().owned_box(),
@@ -256,6 +270,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 				opaque: Vec::new(),
 				twins: Vec::new(),
 				hidden: Vec::new(),
+				unheld: Vec::new(),
 				excluded: facade.exclude.iter().map(|path| (path.clone(), 0)).collect(),
 				aliases: Vec::new(),
 			},
@@ -265,6 +280,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			left_out: Default::default(),
 			impls: Default::default(),
 			bytes,
+			json_map,
 			sysroot: sysroot.clone(),
 			foreign: Vec::new(),
 			bound,
@@ -295,7 +311,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 		unshare(&mut c.api);
 		c
 	};
-	// Refusing an object no export returns refuses what takes it, which may leave another
+	// Leaving out an object no export returns leaves out what takes it, which may leave another
 	// object no export returns, so collection repeats until it refuses no more.
 	let mut orphans = rustc_data_structures::fx::FxHashSet::default();
 	loop {
@@ -881,7 +897,10 @@ impl<'tcx> Collector<'tcx> {
 
 	fn refuse(&mut self, path: &[String], kind: &'static str, span: Span, why: Vec<Why>) {
 		let (report, path) = self.report(path);
-		report.refusals.push(Refusal { path, kind, span, why });
+		match why.iter().find(|why| UNHELD.contains(&why.construct)) {
+			Some(unheld) => report.unheld.push((path, unheld.clone())),
+			None => report.refusals.push(Refusal { path, kind, span, why }),
+		}
 	}
 
 	/// Every `pub` item reachable from the facade's root, through re-exports of other
@@ -909,11 +928,25 @@ impl<'tcx> Collector<'tcx> {
 				if matches!(kind, DefKind::Ctor(..) | DefKind::Variant) {
 					continue;
 				}
+				let mut path = path.clone();
+				path.push(child.ident.to_string());
+				// A crate re-exported whole makes its every release part of the facade's
+				// semver, so each such `pub use` is refused once, and the crate not walked.
+				// A glob of its root re-exports its items instead, which export. The span is
+				// the `pub use` naming the crate, past any glob of the module holding it.
+				if kind == DefKind::Mod && def_id.is_crate_root() && !def_id.is_local() {
+					if self.exclude(&path) {
+						continue;
+					}
+					let span = child.reexport_chain.last().and_then(|reexport| reexport.id());
+					let span = span.map_or_else(|| tcx.def_span(def_id), |id| tcx.def_span(id));
+					let krate = tcx.crate_name(def_id.krate).to_string();
+					self.refuse(&path, "use", span, vec![why("re-export of a whole crate", krate)]);
+					continue;
+				}
 				if !seen.insert(def_id) {
 					continue;
 				}
-				let mut path = path.clone();
-				path.push(child.ident.to_string());
 				let mut modules = modules.clone();
 				modules.push(def_id);
 				if self.exclude(&path) {
@@ -1216,9 +1249,10 @@ impl<'tcx> Collector<'tcx> {
 			DefKind::Union => Decl::Refused(why("union", "")),
 			// Held by a handle that outlives any call, it is the form that borrows nothing.
 			DefKind::Struct | DefKind::Enum if lifetimes && (instance || !self.typed(def_id)) => self.object(site),
-			DefKind::Struct | DefKind::Enum | DefKind::Trait if generic && !instance => {
-				Decl::Refused(why("generic type", ""))
+			DefKind::Struct | DefKind::Enum if generic && !instance => {
+				Decl::Refused(why("generic type no export instantiates", ""))
 			}
+			DefKind::Trait if generic && !instance => Decl::Refused(why("generic type", "")),
 			// A value is copied across and lowered into memory C frees, so its own `Drop`
 			// would run when Rust lets go of it, not when C does.
 			DefKind::Struct | DefKind::Enum if tcx.adt_destructor(def_id).is_some() => self.object(site),
@@ -2067,7 +2101,19 @@ impl<'tcx> Collector<'tcx> {
 		}
 		let (ok, err) = match output.kind() {
 			ty::Adt(adt, args) if tcx.is_diagnostic_item(sym::Result, adt.did()) => {
-				(self.ret(args.type_at(0)), Some(self.ty(args.type_at(1), Pos::Return)))
+				let error = args.type_at(1);
+				// Another crate's error, such as `anyhow::Error` or `io::Error`, crosses as
+				// its message, as an exported error's `Display` already reads.
+				let err = match self.ty(error, Pos::Return) {
+					Err(why)
+						if why.construct == "foreign type"
+							&& implements(tcx, error, def_id, rustc_span::sym::Display) =>
+					{
+						Ok(Type::String)
+					}
+					err => err,
+				};
+				(self.ret(args.type_at(0)), Some(err))
 			}
 			_ => (self.ret(output), None),
 		};
@@ -2819,6 +2865,7 @@ impl<'tcx> Collector<'tcx> {
 			"str::Chars",
 			"str::Lines",
 			"str::Split",
+			"str::SplitTerminator",
 			"str::SplitWhitespace",
 			"string::Drain",
 			"vec::Drain",
@@ -3325,7 +3372,7 @@ impl<'tcx> Collector<'tcx> {
 						if borrows(&item) && !matches!(pos, Pos::Return | Pos::Returned) {
 							return Err(why("slice of references", elem.to_string()));
 						}
-						Type::List(Box::new(item))
+						Type::List(Collection::Vec, Box::new(item))
 					}
 					ty::Dynamic(..) => return Err(why("trait object", inner.to_string())),
 					_ => self.ty(
@@ -3379,8 +3426,47 @@ impl<'tcx> Collector<'tcx> {
 						if borrows(&inner) && !matches!(pos, Pos::Return | Pos::Returned) {
 							return Err(why("Vec of references", elem.to_string()));
 						}
-						Type::List(Box::new(inner))
+						Type::List(Collection::Vec, Box::new(inner))
 					}
+				} else if let Some(c) = (tcx.is_diagnostic_item(rustc_span::Symbol::intern("BTreeSet"), did))
+					.then_some(Collection::BTreeSet)
+					.or_else(|| {
+						(tcx.is_diagnostic_item(rustc_span::Symbol::intern("BTreeMap"), did))
+							.then_some(Collection::BTreeMap)
+					})
+					// serde_json's own, unless serde_json is an export.
+					.or_else(|| {
+						(Some(did) == self.json_map && !self.exported(did.krate)).then_some(Collection::JsonMap)
+					}) {
+					// A set crosses as its items, and a map as its pairs, in order.
+					let inner = match c {
+						Collection::BTreeSet => self.ty(args.type_at(0), pos.inner())?,
+						_ => Type::Tuple(vec![
+							self.ty(args.type_at(0), pos.inner())?,
+							self.ty(args.type_at(1), pos.inner())?,
+						]),
+					};
+					if !matches!(pos, Pos::Return | Pos::Returned) {
+						if borrows(&inner) {
+							return Err(why("collection of references", ty.to_string()));
+						}
+						// Rust builds what C passes from its items, which a set of floats,
+						// say, cannot be built from.
+						let item = match c {
+							Collection::BTreeSet => args.type_at(0),
+							_ => Ty::new_tup(tcx, &[args.type_at(0), args.type_at(1)]),
+						};
+						let builds = tcx.get_diagnostic_item(sym::FromIterator).is_some_and(|tr| {
+							let (infcx, env) = tcx.infer_ctxt().build_with_typing_env(TypingEnv::fully_monomorphized());
+							infcx
+								.type_implements_trait(tr, [ty, item], env)
+								.must_apply_modulo_regions()
+						});
+						if !builds {
+							return Err(why("collection not built from its items", ty.to_string()));
+						}
+					}
+					Type::List(c, Box::new(inner))
 				} else if Some(did) == self.bytes {
 					Type::Bytes
 				} else if tcx.is_diagnostic_item(rustc_span::Symbol::intern("Duration"), did) {
@@ -3455,6 +3541,9 @@ impl<'tcx> Collector<'tcx> {
 							return Err(why("object in a value", name));
 						}
 						Some(Decl::Object(i)) => Type::Object(*i),
+						Some(Decl::Refused(refused)) if UNHELD.contains(&refused.construct) => {
+							return Err(why("type C never holds", name));
+						}
 						Some(Decl::Refused(_)) => return Err(why("refused type", name)),
 						Some(Decl::Callback(_)) | None => {
 							if let Some(construct) = self.left_out.get(&did) {
@@ -3567,7 +3656,7 @@ fn buildable(api: &Api, ty: &Type, held: &[bool]) -> bool {
 fn returns(api: &Api, ty: &Type, objects: &mut Vec<usize>) {
 	match ty {
 		Type::Object(i) => objects.push(*i),
-		Type::Ref(_, inner) | Type::Box(inner) | Type::Option(inner) | Type::List(inner) => {
+		Type::Ref(_, inner) | Type::Box(inner) | Type::Option(inner) | Type::List(_, inner) => {
 			returns(api, inner, objects)
 		}
 		Type::Tuple(elements) => elements.iter().for_each(|ty| returns(api, ty, objects)),
@@ -3595,7 +3684,7 @@ fn serde(tcx: TyCtxt<'_>, tr: DefId) -> bool {
 fn renumber(ty: &mut Type, gone: usize) {
 	match ty {
 		Type::Object(o) if *o > gone => *o -= 1,
-		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(inner) => renumber(inner, gone),
+		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => renumber(inner, gone),
 		Type::Tuple(elements) => elements.iter_mut().for_each(|ty| renumber(ty, gone)),
 		Type::Closure(params, ret) => params.iter_mut().chain([&mut **ret]).for_each(|ty| renumber(ty, gone)),
 		_ => {}
@@ -3614,7 +3703,7 @@ fn unshare(api: &mut Api) {
 				}
 				borrowed(inner, out);
 			}
-			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(inner) => borrowed(inner, out),
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => borrowed(inner, out),
 			Type::Tuple(elements) => elements.iter().for_each(|ty| borrowed(ty, out)),
 			Type::Closure(params, ret) => params.iter().chain([&**ret]).for_each(|ty| borrowed(ty, out)),
 			_ => {}
@@ -3645,7 +3734,7 @@ fn unshare(api: &mut Api) {
 fn names(ty: &Type, i: usize) -> bool {
 	match ty {
 		Type::Object(o) => *o == i,
-		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(inner) => names(inner, i),
+		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => names(inner, i),
 		Type::Tuple(elements) => elements.iter().any(|ty| names(ty, i)),
 		Type::Closure(params, ret) => params.iter().chain([&**ret]).any(|ty| names(ty, i)),
 		_ => false,
@@ -3656,7 +3745,7 @@ fn names(ty: &Type, i: usize) -> bool {
 fn borrows(ty: &Type) -> bool {
 	match ty {
 		Type::Ref(..) => true,
-		Type::Option(inner) | Type::Box(inner) | Type::List(inner) => borrows(inner),
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => borrows(inner),
 		Type::Tuple(elements) => elements.iter().any(borrows),
 		_ => false,
 	}

@@ -2155,6 +2155,22 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		span: Span,
 		out: &mut Vec<Stmt>,
 	) -> Option<Option<(Expr, bool)>> {
+		// A `SmallVec` indexes as the `Vec` it is, but panics in smallvec's own code, which a
+		// hook would read the location of.
+		let gargs = match crate::lower::smallvec::as_vec(self.tcx, gargs.type_at(0)) {
+			Some(_) if self.b.t.hooked => {
+				let e = self.err(
+					span,
+					format!(
+						"`{name}` of `{}`, in a program with a panic hook, whose panic is in smallvec's code, which is not supported yet",
+						gargs.type_at(0)
+					),
+				);
+				return Some(Some((e, false)));
+			}
+			Some(_) => crate::lower::smallvec::fold(self.tcx, gargs),
+			None => gargs,
+		};
 		let container = gargs.type_at(0);
 		let index_ty = gargs.type_at(1);
 		// A string slices by UTF-8 byte offsets, which a JS string doesn't index by, and a

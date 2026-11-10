@@ -370,7 +370,7 @@ impl<'a> Gen<'a> {
 			Type::Path | Type::PathBuf => "String".to_string(),
 			Type::Duration => "kotlin.time.Duration".to_string(),
 			Type::SocketAddr(_) => "java.net.InetSocketAddress".to_string(),
-			Type::List(inner) => format!("kotlin.collections.List<{}>", self.kt(inner)),
+			Type::List(_, inner) => format!("kotlin.collections.List<{}>", self.kt(inner)),
 			Type::Waker => "Waker".to_string(),
 			Type::Option(inner) => format!("{}?", self.kt(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.kt(inner),
@@ -395,7 +395,7 @@ impl<'a> Gen<'a> {
 	fn kt_param(&mut self, ty: &Type) -> String {
 		match ty {
 			Type::Slice | Type::Vec | Type::Bytes => "ByteArray".to_string(),
-			Type::List(inner) => format!("kotlin.collections.List<{}>", self.kt_param(inner)),
+			Type::List(_, inner) => format!("kotlin.collections.List<{}>", self.kt_param(inner)),
 			Type::Option(inner) => format!("{}?", self.kt_param(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.kt_param(inner),
 			Type::Tuple(elements) => {
@@ -424,7 +424,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(Family::Any) => format!("{w}.socketAddr({e})"),
 			Type::SocketAddr(Family::V4) => format!("{w}.socketAddrV4({e})"),
 			Type::SocketAddr(Family::V6) => format!("{w}.socketAddrV6({e})"),
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let (l, v) = (self.fresh("l"), self.fresh("v"));
 				let item = self.write_value(inner, w, &v);
 				format!("{e}.let {{ {l} -> {w}.i32({l}.size); for ({v} in {l}) {{ {item} }} }}")
@@ -433,7 +433,7 @@ impl<'a> Gen<'a> {
 				Type::Object(_) => format!("{w}.handle({e}?.handle)"),
 				base if Abi::is_buf(base) => self.write_value(base, w, e),
 				// None is a length of -1.
-				Type::List(_) => {
+				Type::List(..) => {
 					let v = self.fresh("v");
 					let some = self.write_value(inner, w, &v);
 					format!("{e}.let {{ {v} -> if ({v} == null) {w}.i32(-1) else {some} }}")
@@ -488,7 +488,7 @@ impl<'a> Gen<'a> {
 			Type::Slice | Type::Vec | Type::Bytes => format!("{r}.bytes()!!"),
 			Type::Duration => format!("{r}.duration()"),
 			Type::SocketAddr(_) => format!("{r}.socketAddr()"),
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let item = self.read(inner, r, owned);
 				format!("kotlin.collections.List({r}.i32()) {{ {item} }}")
 			}
@@ -499,7 +499,7 @@ impl<'a> Gen<'a> {
 				}
 				Type::Str | Type::String => format!("{r}.string()"),
 				Type::Path | Type::PathBuf => format!("{r}.path()"),
-				Type::List(item) => {
+				Type::List(_, item) => {
 					let n = self.fresh("n");
 					let item = self.read(item, r, owned);
 					format!(
@@ -1769,7 +1769,7 @@ impl<'a> Gen<'a> {
 					.collect();
 				format!("{e}.let {{ {t} -> {} }}", closes.join("; "))
 			}
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let v = self.fresh("v");
 				let close = self.close(inner, &v);
 				format!("{e}.forEach {{ {v} -> {close} }}")
@@ -1840,7 +1840,7 @@ fn put(ty: &Type, e: &str) -> String {
 fn bytes(ty: &Type) -> bool {
 	match ty {
 		Type::Slice | Type::Vec | Type::Bytes => true,
-		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(inner) => bytes(inner),
+		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => bytes(inner),
 		_ => false,
 	}
 }
@@ -1850,7 +1850,7 @@ fn bytes(ty: &Type) -> bool {
 fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
 	match ty {
 		Type::Object(i) => !abi.api.objects[*i].copy,
-		Type::Option(inner) | Type::Box(inner) | Type::List(inner) => moved(abi, inner),
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
 		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
 		_ => false,
 	}
