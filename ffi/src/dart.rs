@@ -57,13 +57,16 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 				Type::Bound(_) => &["", "Unbounded", "Included", "Excluded"],
 				_ => &[""],
 			};
-			cases.iter().map(move |case| format!("{name}{case}")).collect::<Vec<_>>()
+			cases
+				.iter()
+				.map(move |case| format!("{name}{case}"))
+				.collect::<Vec<_>>()
 		})
 		.collect();
 	let taken = |name: &str| TAKEN.contains(&name) || ranges.contains(name);
 	let mut g = Gen {
 		abi,
-		classes: abi.classes(|_| (String::new(), 0), &taken),
+		classes: abi.classes(|_| (String::new(), 0), taken),
 		variants: HashMap::new(),
 		structs: BTreeMap::new(),
 		natives: BTreeMap::new(),
@@ -81,7 +84,10 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		space: Gen::space(abi),
 	};
 	g.variants = g.variants(&taken);
-	let types: Vec<String> = (g.classes.keys()).map(|c| g.class(c)).chain(g.variants.values().cloned()).collect();
+	let types: Vec<String> = (g.classes.keys())
+		.map(|c| g.class(c))
+		.chain(g.variants.values().cloned())
+		.collect();
 	for name in types {
 		g.names.insert(name, "a type".to_string());
 	}
@@ -385,9 +391,16 @@ impl<'a> Gen<'a> {
 		}
 		names.extend((0..api.callbacks.len()).map(|i| abi.callback(i)));
 		functions.extend(api.functions.iter().map(|f| (f, None)));
-		names.extend(functions.into_iter().map(|(function, owner)| abi.export(function, owner.as_ref()).call.name));
+		names.extend(
+			functions
+				.into_iter()
+				.map(|(function, owner)| abi.export(function, owner.as_ref()).call.name),
+		);
 		let mut space = abi.rt("dart");
-		while names.iter().any(|name| *name == space || name.starts_with(&format!("{space}_"))) {
+		while names
+			.iter()
+			.any(|name| *name == space || name.starts_with(&format!("{space}_")))
+		{
 			space.push('_');
 		}
 		space
@@ -433,7 +446,9 @@ impl<'a> Gen<'a> {
 			}
 		}
 		for name in clashes {
-			self.errors.push(format!("two members of `{rust}` are both `{name}` in Dart, which rust2-ffi should keep apart"));
+			self.errors.push(format!(
+				"two members of `{rust}` are both `{name}` in Dart, which rust2-ffi should keep apart"
+			));
 		}
 	}
 
@@ -2105,8 +2120,6 @@ fn param_name(name: &str) -> String {
 fn enum_value(variant: &str) -> String {
 	member(&abi::snake(variant), &["values", "index", "name"])
 }
-
-/// The class of a data enum's variant: the enum's name, then the variant's.
 
 /// Whether the members `a` and `b` of one type clash, each `static x`, `new x` for a
 /// constructor, or else an instance member: Dart's instance and static members share one

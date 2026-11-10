@@ -41,9 +41,7 @@ fn module(prefix: &str) -> String {
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
 		abi,
-		classes: abi.classes(|_| (String::new(), 0), |name| {
-			TAKEN.contains(&name) || abi.ranges.keys().any(|c| pascal(&c[abi.prefix.len() + 1..]) == name)
-		}),
+		classes: abi.classes(|_| (String::new(), 0), |name| TAKEN.contains(&name)),
 		types: String::new(),
 		top: String::new(),
 		natives: String::new(),

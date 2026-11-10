@@ -419,15 +419,26 @@ impl<'a> Abi<'a> {
 	}
 
 	/// Each exported type's name in Pascal case, by its C name, kept [`apart`] from those
-	/// beside it and [`unique`] among them and the language's `taken` names: `scope` gives
+	/// beside it and [`unique`] among them, the ranges' classes, and the language's `taken`
+	/// names: `scope` gives
 	/// the scope a type's [`Home`] puts it in, and how many leading segments of its path its
 	/// name there leaves out.
-	pub fn classes(&self, scope: impl Fn(&Home) -> (String, usize), taken: impl Fn(&str) -> bool) -> HashMap<String, String> {
+	pub fn classes(
+		&self,
+		scope: impl Fn(&Home) -> (String, usize),
+		taken: impl Fn(&str) -> bool,
+	) -> HashMap<String, String> {
 		let api = self.api;
 		let records = (0..api.records.len()).map(|i| (Item::Record(i), &api.records[i].home));
 		let enums = (0..api.enums.len()).map(|i| (Item::Enum(i), &api.enums[i].home));
 		let objects = (0..api.objects.len()).map(|i| (Item::Object(i), &api.objects[i].home));
 		let callbacks = (0..api.callbacks.len()).map(|i| (Item::Callback(i), &api.callbacks[i].home));
+		let ranges: std::collections::BTreeSet<String> = self
+			.ranges
+			.keys()
+			.map(|c| pascal(&c[self.prefix.len() + 1..]))
+			.collect();
+		let taken = move |name: &str| taken(name) || ranges.contains(name);
 		let mut scopes: BTreeMap<String, Vec<(String, Vec<String>, usize)>> = BTreeMap::new();
 		for (item, home) in records.chain(enums).chain(objects).chain(callbacks) {
 			let (scope, outside) = scope(home);
@@ -721,7 +732,12 @@ impl<'a> Abi<'a> {
 	}
 
 	fn claim(&mut self, name: String, what: String, span: Span, owner: Option<Owner>) {
-		self.claims.push(Claim { name, what, span, owner });
+		self.claims.push(Claim {
+			name,
+			what,
+			span,
+			owner,
+		});
 	}
 
 	/// The owner of a name made from `item`, whose own C name is `base`.
@@ -808,9 +824,19 @@ impl<'a> Abi<'a> {
 			let segments = self.type_segments(&item);
 			let what = format!("struct `{}`", api.rust(&record.path, &record.args));
 			self.claim_traits(&item, &name, &what, record.span, record.traits, true);
-			self.claim(name.clone(), what, record.span, self.own(&item, &name, segments.clone()));
+			self.claim(
+				name.clone(),
+				what,
+				record.span,
+				self.own(&item, &name, segments.clone()),
+			);
 			types.extend(record.fields.iter().map(|f| &f.ty));
-			functions.extend(record.methods.iter().map(|m| (m, Some(Ty::Struct(name.clone())), segments.clone())));
+			functions.extend(
+				record
+					.methods
+					.iter()
+					.map(|m| (m, Some(Ty::Struct(name.clone())), segments.clone())),
+			);
 		}
 		for (i, e) in api.enums.iter().enumerate() {
 			let item = Item::Enum(i);
@@ -832,7 +858,12 @@ impl<'a> Abi<'a> {
 				self.claim(format!("{name}_tag"), what.clone(), e.span, Self::made(&item, &name));
 				// Each variant's payload, which C++ names even when it has no fields.
 				for variant in &e.variants {
-					self.claim(payload(&name, &variant.name), what.clone(), e.span, Self::made(&item, &name));
+					self.claim(
+						payload(&name, &variant.name),
+						what.clone(),
+						e.span,
+						Self::made(&item, &name),
+					);
 				}
 			}
 			self.claim_traits(&item, &name, &what, e.span, e.traits, !plain);
@@ -848,21 +879,46 @@ impl<'a> Abi<'a> {
 			let name = self.object(i);
 			let segments = self.type_segments(&item);
 			let what = format!("type `{}`", api.rust(&object.path, &object.args));
-			self.claim(format!("{name}_free"), what.clone(), object.span, Self::made(&item, &name));
+			self.claim(
+				format!("{name}_free"),
+				what.clone(),
+				object.span,
+				Self::made(&item, &name),
+			);
 			if object.shared {
-				self.claim(format!("{name}_borrowed"), what.clone(), object.span, Self::made(&item, &name));
+				self.claim(
+					format!("{name}_borrowed"),
+					what.clone(),
+					object.span,
+					Self::made(&item, &name),
+				);
 			}
 			self.claim_traits(&item, &name, &what, object.span, object.traits, false);
-			self.claim(name.clone(), what, object.span, self.own(&item, &name, segments.clone()));
+			self.claim(
+				name.clone(),
+				what,
+				object.span,
+				self.own(&item, &name, segments.clone()),
+			);
 			let owner = Ty::Handle { name, constant: false };
-			functions.extend(object.methods.iter().map(|m| (m, Some(owner.clone()), segments.clone())));
+			functions.extend(
+				object
+					.methods
+					.iter()
+					.map(|m| (m, Some(owner.clone()), segments.clone())),
+			);
 		}
 		for (i, callback) in api.callbacks.iter().enumerate() {
 			let item = Item::Callback(i);
 			let name = self.callback(i);
 			let segments = self.type_segments(&item);
 			let what = format!("trait `{}`", callback.path.join("::"));
-			self.claim(format!("{name}_vtable"), what.clone(), callback.span, Self::made(&item, &name));
+			self.claim(
+				format!("{name}_vtable"),
+				what.clone(),
+				callback.span,
+				Self::made(&item, &name),
+			);
 			self.claim(name.clone(), what, callback.span, self.own(&item, &name, segments));
 			for method in &callback.methods {
 				types.extend(method.params.iter().map(|p| &p.ty));
@@ -893,7 +949,12 @@ impl<'a> Abi<'a> {
 			}
 			let unrenamed = self.unrenamed_function(function, owner.as_ref());
 			let joined = format!("{}_{}", self.prefix, segments.join("_"));
-			segments.extend(unrenamed.strip_prefix(&joined).and_then(|s| s.strip_prefix('_')).map(str::to_string));
+			segments.extend(
+				unrenamed
+					.strip_prefix(&joined)
+					.and_then(|s| s.strip_prefix('_'))
+					.map(str::to_string),
+			);
 			let own = self.own(&item, &name, segments);
 			self.claim(name.clone(), what.clone(), function.span, own);
 			if let Some((handle, poll, free)) = &export.future {
@@ -973,7 +1034,10 @@ impl<'a> Abi<'a> {
 		for name in ranges.keys() {
 			self.claim(name.clone(), "a range".to_string(), crate_span, None);
 		}
-		for (name, elements) in tuples.iter().chain(mixed.iter().map(|(name, elements)| (name, elements))) {
+		for (name, elements) in tuples
+			.iter()
+			.chain(mixed.iter().map(|(name, elements)| (name, elements)))
+		{
 			let ty = Type::Tuple(elements.clone());
 			let what = format!("tuple `{}`", self.spell(&ty));
 			let owner = self.item_of(&ty).and_then(|(item, base)| Self::made(&item, &base));
@@ -1002,9 +1066,23 @@ impl<'a> Abi<'a> {
 	}
 
 	/// Claim the functions a type's std traits export.
-	fn claim_traits(&mut self, item: &Item, name: &str, what: &str, span: Span, traits: crate::ir::Traits, owned: bool) {
-		let mut claim =
-			|suffix: &str| self.claim(format!("{name}_{suffix}"), what.to_string(), span, Self::made(item, name));
+	fn claim_traits(
+		&mut self,
+		item: &Item,
+		name: &str,
+		what: &str,
+		span: Span,
+		traits: crate::ir::Traits,
+		owned: bool,
+	) {
+		let mut claim = |suffix: &str| {
+			self.claim(
+				format!("{name}_{suffix}"),
+				what.to_string(),
+				span,
+				Self::made(item, name),
+			)
+		};
 		if traits.clone && !owned {
 			claim("clone");
 		}

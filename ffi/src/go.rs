@@ -105,12 +105,19 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 	let variants = variants(abi, &types, &classes);
 	// What each package's types, their variants and tables, and its errors take.
 	let mut taken: BTreeMap<String, BTreeSet<String>> = classes.clone();
-	for (krate, name) in (0..abi.api.callbacks.len()).map(|i| (&abi.api.callbacks[i].home.krate, &types[&abi.callback(i)])) {
+	for (krate, name) in
+		(0..abi.api.callbacks.len()).map(|i| (&abi.api.callbacks[i].home.krate, &types[&abi.callback(i)]))
+	{
 		taken.entry(krate.clone()).or_default().insert(format!("{name}Vtable_"));
 	}
 	for ((c, _), name) in &variants {
-		let krate = (0..abi.api.enums.len()).find(|&i| abi.enumeration(i) == *c).map(|i| &abi.api.enums[i].home.krate);
-		taken.entry(krate.expect("a variant's enum").clone()).or_default().insert(name.clone());
+		let krate = (0..abi.api.enums.len())
+			.find(|&i| abi.enumeration(i) == *c)
+			.map(|i| &abi.api.enums[i].home.krate);
+		taken
+			.entry(krate.expect("a variant's enum").clone())
+			.or_default()
+			.insert(name.clone());
 	}
 	for (name, (home, _)) in &thrown {
 		taken.entry(home.clone()).or_default().insert(name.clone());
@@ -185,10 +192,14 @@ fn thrown(abi: &Abi<'_>, classes: &BTreeMap<String, BTreeSet<String>>) -> BTreeM
 	for (key, err) in keys {
 		let home = last(abi, &err);
 		let types = classes.get(&home);
-		let taken = |name: &str| {
-			types.is_some_and(|types| types.contains(name)) || (home == Packages::RT && taken(name))
-		};
-		let name = abi::claim(names.entry(home.clone()).or_default(), taken, &format!("{}Error", pascal(&key)), key);
+		let taken =
+			|name: &str| types.is_some_and(|types| types.contains(name)) || (home == Packages::RT && taken(name));
+		let name = abi::claim(
+			names.entry(home.clone()).or_default(),
+			taken,
+			&format!("{}Error", pascal(&key)),
+			key,
+		);
 		thrown.insert(name, (home, err));
 	}
 	thrown
@@ -206,10 +217,17 @@ fn variants(
 	for krate in &api.crates {
 		let enums = (0..api.enums.len()).filter(|&i| api.enums[i].home.krate == *krate);
 		let mut keys: Vec<(String, String)> = (enums)
-			.flat_map(|i| api.enums[i].variants.iter().map(move |v| (abi.enumeration(i), v.name.clone())))
+			.flat_map(|i| {
+				api.enums[i]
+					.variants
+					.iter()
+					.map(move |v| (abi.enumeration(i), v.name.clone()))
+			})
 			.collect();
 		keys.sort();
-		let names = (keys.iter()).map(|(c, variant)| format!("{}{}", types[c], pascal(variant))).collect();
+		let names = (keys.iter())
+			.map(|(c, variant)| format!("{}{}", types[c], pascal(variant)))
+			.collect();
 		let taken = classes.get(krate);
 		let names = abi::unique(names, |name| taken.is_some_and(|taken| taken.contains(name)));
 		variants.extend(keys.into_iter().zip(names));
@@ -1376,7 +1394,15 @@ impl<'a> Gen<'a> {
 			docs(text.trim(), "")
 		);
 		let fields: Vec<String> = members.clone();
-		members.extend(self.methods_of(&ty, &c, &rust, record.traits, &record.methods, &Ty::Struct(c.clone()), &fields));
+		members.extend(self.methods_of(
+			&ty,
+			&c,
+			&rust,
+			record.traits,
+			&record.methods,
+			&Ty::Struct(c.clone()),
+			&fields,
+		));
 		self.distinct(&rust, &members);
 	}
 
@@ -1410,7 +1436,10 @@ impl<'a> Gen<'a> {
 	/// The methods and functions of a record, plain enum, or object, written after its type,
 	/// returning its methods' names. A method named as one of its `fields` or an earlier
 	/// method, as its traits' come first, takes a trailing `_`.
-	#[allow(clippy::too_many_arguments)]
+	#[allow(
+		clippy::too_many_arguments,
+		reason = "a type's every part, which its three kinds each pass"
+	)]
 	fn methods_of(
 		&mut self,
 		ty: &Type,
