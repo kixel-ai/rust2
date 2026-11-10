@@ -31,6 +31,8 @@ pub enum Ty {
 	Char,
 	/// `<prefix>_buf`: a view of bytes passed in, an owned buffer returned.
 	Buf,
+	/// `<prefix>_u128`
+	U128,
 	/// `<prefix>_duration`
 	Duration,
 	/// `<prefix>_socket_addr`
@@ -330,6 +332,7 @@ impl<'a> Abi<'a> {
 			Type::F32 => "f32".to_string(),
 			Type::F64 => "f64".to_string(),
 			Type::Char => "char".to_string(),
+			Type::U128 => "u128".to_string(),
 			Type::Duration => "duration".to_string(),
 			Type::SocketAddr(_) => "socket_addr".to_string(),
 			Type::Option(inner) => format!("option_{}", self.key(inner)),
@@ -388,6 +391,7 @@ impl<'a> Abi<'a> {
 			Type::F64 => Ty::F64,
 			Type::Char => Ty::Char,
 			Type::Str | Type::String | Type::Slice | Type::Vec | Type::Bytes | Type::Path | Type::PathBuf => Ty::Buf,
+			Type::U128 => Ty::U128,
 			Type::Duration => Ty::Duration,
 			Type::SocketAddr(_) => Ty::SocketAddr,
 			Type::Waker => Ty::Waker,
@@ -554,6 +558,7 @@ impl<'a> Abi<'a> {
 			"contract",
 			"buf",
 			"buf_free",
+			"u128",
 			"duration",
 			"socket_addr",
 			"waker",

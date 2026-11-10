@@ -354,6 +354,15 @@ int script() {
 
 	std::printf("total %llu\n", ull(api::total({2, 5})));
 	std::printf("reach %u\n", unsigned(api::reach(2, 5)));
+	std::printf("scaled");
+	for (auto v : {api::scaled({UINT64_MAX, UINT64_MAX}, 1), api::scaled({1, 1}, 1ULL << 63), api::scaled({0, 1ULL << 63}, 2)}) {
+		if (v) {
+			std::printf(" %016llx%016llx", ull(v->hi), ull(v->lo));
+		} else {
+			std::printf(" none");
+		}
+	}
+	std::printf("\n");
 	api::range_u64 wide = api::widen({2, 5}, 1);
 	std::printf("widen %llu %llu\n", ull(wide.start), ull(wide.end));
 	api::bounds_u64 ranges[] = {

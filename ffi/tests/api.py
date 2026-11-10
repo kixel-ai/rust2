@@ -232,6 +232,8 @@ def script():
 
 	print(f"total {api.total(range(2, 5))}")
 	print(f"reach {api.reach(2, 5)}")
+	scaled = [api.scaled(2**128 - 1, 1), api.scaled(2**64 + 1, 2**63), api.scaled(2**127, 2)]
+	print("scaled " + " ".join("none" if v is None else f"{v:032x}" for v in scaled))
 	wide = api.widen(range(2, 5), 1)
 	print(f"widen {wide.start} {wide.stop}")
 	inc, exc, unb = api.Bound.INCLUDED, api.Bound.EXCLUDED, api.Bound.UNBOUNDED
@@ -758,6 +760,8 @@ def values():
 	raises(OverflowError, lambda: api.widths(2**64), "an int past u64 raises")
 	raises(OverflowError, lambda: api.widths(-1), "a negative int for a u64 raises")
 	raises(TypeError, lambda: api.title(1), "an int is no bool")
+	raises(OverflowError, lambda: api.scaled(2**128, 1), "an int past u128 raises")
+	raises(OverflowError, lambda: api.scaled(-1, 1), "a negative int for a u128 raises")
 
 	# A borrowed tuple is one C value, not one out per element.
 	check(api.corner(True) == (1, 1), "a borrowed tuple returns whole")

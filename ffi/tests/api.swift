@@ -280,6 +280,13 @@ func script() {
 
 	print("total \(total(RangeU64(start: 2, end: 5)))")
 	print("reach \(reach(2, 5))")
+	let scaledHex = [
+		scaled(U128(high: .max, low: .max), 1), scaled(U128(high: 1, low: 1), 1 << 63), scaled(U128(high: 1 << 63, low: 0), 2),
+	].map { v in
+		v.map { v in [v.high, v.low].map { h in Swift.String(repeating: "0", count: 16 - Swift.String(h, radix: 16).count) + Swift.String(h, radix: 16) }.joined() } ?? "none"
+	}
+	print("scaled \(scaledHex.joined(separator: " "))")
+	check(U128(high: .max, low: .max).description == "340282366920938463463374607431768211455", "a u128's decimal digits")
 	let wide = widen(RangeU64(start: 2, end: 5), 1)
 	print("widen \(wide.start) \(wide.end)")
 	let counts = [

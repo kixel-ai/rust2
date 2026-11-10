@@ -276,6 +276,8 @@ pub enum Type {
 	Unit,
 	Bool,
 	Int(Int),
+	/// `u128`, which C passes as its two `u64` halves.
+	U128,
 	F32,
 	F64,
 	Char,

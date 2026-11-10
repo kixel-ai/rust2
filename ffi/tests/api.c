@@ -432,6 +432,20 @@ static int script(void) {
 
 	printf("total %llu\n", (unsigned long long)api_total((api_range_u64){.start = 2, .end = 5}));
 	printf("reach %u\n", (unsigned)api_reach(2, 5));
+	api_option_u128 scaled[] = {
+		api_scaled((api_u128){.lo = UINT64_MAX, .hi = UINT64_MAX}, 1),
+		api_scaled((api_u128){.lo = 1, .hi = 1}, 1ULL << 63),
+		api_scaled((api_u128){.hi = 1ULL << 63}, 2),
+	};
+	printf("scaled");
+	for (size_t i = 0; i < 3; i++) {
+		if (scaled[i].some) {
+			printf(" %016llx%016llx", (unsigned long long)scaled[i].value.hi, (unsigned long long)scaled[i].value.lo);
+		} else {
+			printf(" none");
+		}
+	}
+	printf("\n");
 	api_range_u64 wide = api_widen((api_range_u64){.start = 2, .end = 5}, 1);
 	printf("widen %llu %llu\n", (unsigned long long)wide.start, (unsigned long long)wide.end);
 	api_bounds_u64 ranges[] = {

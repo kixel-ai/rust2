@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/big"
 	"net/netip"
 	"os"
 	"runtime"
@@ -301,6 +302,21 @@ func script() {
 
 	fmt.Printf("total %d\n", api.Total(rt.RangeU64{Start: 2, End: 5}))
 	fmt.Printf("reach %d\n", api.Reach(2, 5))
+	one := big.NewInt(1)
+	pow := func(n uint) *big.Int { return new(big.Int).Lsh(one, n) }
+	fmt.Print("scaled")
+	for _, v := range []*big.Int{
+		api.Scaled(new(big.Int).Sub(pow(128), one), 1),
+		api.Scaled(new(big.Int).Add(pow(64), one), 1<<63),
+		api.Scaled(pow(127), 2),
+	} {
+		if v == nil {
+			fmt.Print(" none")
+		} else {
+			fmt.Printf(" %032x", v)
+		}
+	}
+	fmt.Println()
 	wide := api.Widen(rt.RangeU64{Start: 2, End: 5}, 1)
 	fmt.Printf("widen %d %d\n", wide.Start, wide.End)
 	included := func(n uint64) rt.BoundU64 { return rt.BoundU64{Kind: rt.BoundIncluded, Value: n} }

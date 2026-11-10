@@ -239,6 +239,12 @@ Future<void> script() async {
 
   print('total ${api.total(const api.RangeU64(2, 5))}');
   print('reach ${api.reach(2, 5)}');
+  final scaled = [
+    api.scaled((BigInt.one << 128) - BigInt.one, 1),
+    api.scaled((BigInt.one << 64) + BigInt.one, 1 << 63),
+    api.scaled(BigInt.one << 127, 2),
+  ];
+  print('scaled ${scaled.map((v) => v?.toRadixString(16).padLeft(32, '0') ?? 'none').join(' ')}');
   final wide = api.widen(const api.RangeU64(2, 5), 1);
   print('widen ${wide.start} ${wide.end}');
   final counts = [
@@ -860,6 +866,8 @@ void bounds() {
   throws<ArgumentError>(() => api.nextChar(String.fromCharCode(0xd800)), 'a low surrogate');
   throws<ArgumentError>(() => api.nextChar(String.fromCharCode(0xdfff)), 'a high surrogate');
   check(api.nextChar('\u{d7ff}') == null, 'the scalar before the surrogates');
+  throws<ArgumentError>(() => api.scaled(BigInt.one << 128, 1), 'an int past u128');
+  throws<ArgumentError>(() => api.scaled(-BigInt.one, 1), 'a negative int for a u128');
 
   // Dart's longest Duration is 9223372036854 seconds and 775807 microseconds.
   for (final us in [9223372036854000000, 9223372036854775806]) {

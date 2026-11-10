@@ -166,6 +166,12 @@ fun script() {
 
 	println("total ${total(RangeU64(2u, 5u))}")
 	println("reach ${reach(2u, 5u)}")
+	val two = java.math.BigInteger.TWO
+	val scaled = listOf(scaled(two.pow(128) - java.math.BigInteger.ONE, 1u), scaled(two.pow(64) + java.math.BigInteger.ONE, 1uL shl 63), scaled(two.pow(127), 2u))
+	println("scaled " + scaled.joinToString(" ") { it?.toString(16)?.padStart(32, '0') ?: "none" })
+	for (v in listOf(two.pow(128), java.math.BigInteger.ONE.negate())) {
+		check(runCatching { scaled(v, 1u) }.exceptionOrNull() is IllegalArgumentException, "$v is no u128")
+	}
 	val wide = widen(RangeU64(2u, 5u), 1u)
 	println("widen ${wide.start} ${wide.end}")
 	val counts = listOf(

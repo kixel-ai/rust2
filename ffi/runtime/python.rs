@@ -589,6 +589,39 @@ pub fn uint_out(value: u64) -> R<Obj> {
 	unsafe { Obj::new(PyLong_FromUnsignedLongLong(value)) }
 }
 
+/// A `u128`, from any `int` or object with `__index__` in its range.
+pub fn u128_in(obj: *mut PyObject) -> R<rt::U128> {
+	// SAFETY: the GIL is held, and `obj` is live.
+	unsafe {
+		let index = Obj::new(PyNumber_Index(obj))?;
+		let shift = uint_out(64)?;
+		let high = Obj::new(PyNumber_Rshift(index.ptr(), shift.ptr()))?;
+		// A negative int's high half is negative, which raises here as one past `u64` does.
+		let hi = PyLong_AsUnsignedLongLong(high.ptr());
+		if hi == u64::MAX && !PyErr_Occurred().is_null() {
+			PyErr_Clear();
+			return overflow_int::<u128>();
+		}
+		let lo = PyLong_AsUnsignedLongLongMask(index.ptr());
+		if lo == u64::MAX && !PyErr_Occurred().is_null() {
+			return Err(Raised);
+		}
+		Ok(rt::U128 { lo, hi })
+	}
+}
+
+pub fn u128_out(value: rt::U128) -> R<Obj> {
+	let lo = uint_out(value.lo)?;
+	if value.hi == 0 {
+		return Ok(lo);
+	}
+	// SAFETY: the GIL is held, and each operand is live.
+	unsafe {
+		let high = Obj::new(PyNumber_Lshift(uint_out(value.hi)?.ptr(), uint_out(64)?.ptr()))?;
+		Obj::new(PyNumber_Or(high.ptr(), lo.ptr()))
+	}
+}
+
 pub fn float_in(obj: *mut PyObject) -> R<f64> {
 	// SAFETY: the GIL is held, and `obj` is live.
 	let value = unsafe { PyFloat_AsDouble(obj) };

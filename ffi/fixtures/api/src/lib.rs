@@ -414,6 +414,11 @@ pub fn reach(start: u32, _: (), end: u32) -> u32 {
 	end - start
 }
 
+/// `v` times `by`, unless past `u128::MAX`.
+pub fn scaled(v: u128, by: u64) -> Option<u128> {
+	v.checked_mul(by.into())
+}
+
 /// A range, widened by `by` at each end.
 pub fn widen(range: Range<u64>, by: u64) -> Range<u64> {
 	range.start.saturating_sub(by)..range.end + by

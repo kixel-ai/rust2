@@ -3352,6 +3352,7 @@ impl<'tcx> Collector<'tcx> {
 			ty::Char => Type::Char,
 			ty::Float(ty::FloatTy::F32) => Type::F32,
 			ty::Float(ty::FloatTy::F64) => Type::F64,
+			ty::Uint(ty::UintTy::U128) => Type::U128,
 			ty::Int(_) | ty::Uint(_) => Type::Int(int(ty).ok_or_else(|| why("128-bit integer", ty.to_string()))?),
 			ty::Ref(_, inner, m) => {
 				let inner_ty = match inner.kind() {

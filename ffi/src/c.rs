@@ -76,6 +76,9 @@ impl Header<'_> {
 			"/* Bytes. Passed in, a view Rust reads during the call and never frees. Returned,\n * an owned buffer to free once with {p}_buf_free. A null ptr is None. */\ntypedef struct {p}_buf {{\n\tconst uint8_t *ptr;\n\tsize_t len;\n\tvoid *owner;\n}} {p}_buf;\n\nvoid {p}_buf_free({p}_buf buf);\n"
 		));
 		self.line(format!(
+			"/* A u128: lo holds its low 64 bits and hi its high 64. */\ntypedef struct {p}_u128 {{\n\tuint64_t lo;\n\tuint64_t hi;\n}} {p}_u128;\n"
+		));
+		self.line(format!(
 			"typedef struct {p}_duration {{\n\tuint64_t secs;\n\tuint32_t nanos;\n}} {p}_duration;\n"
 		));
 		self.line(format!(
@@ -454,6 +457,7 @@ pub fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
 		Ty::F64 => space("double"),
 		Ty::Char => space("uint32_t"),
 		Ty::Buf => space(&abi.rt("buf")),
+		Ty::U128 => space(&abi.rt("u128")),
 		Ty::Duration => space(&abi.rt("duration")),
 		Ty::SocketAddr => space(&abi.rt("socket_addr")),
 		Ty::Struct(n) | Ty::Enum(n) => space(n),
