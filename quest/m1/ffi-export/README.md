@@ -94,7 +94,6 @@ names and defaults, and fails the export on a public item it cannot export.
 - [Lossless binding types](/quest/m1/ffi-export/lossless.md) - durations, addresses, paths, text, and integers cross exactly, with checked conversions to the idiomatic types
 - [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - a failed borrow, move, or close check is the language's own error from one accounting, and only a panic aborts
 - [Types that are not Send export](/quest/m1/ffi-export/not-send.md) - a `!Send` object or future is checked by thread, with an owner thread where a language has none
-- [No name clash fails an export](/quest/m1/ffi-export/names.md) - every generator names every item by rule, so no error tells a crate to rename or exclude one
 - [The glue builds what the export checked](/quest/m1/ffi-export/reproducible.md) - the generated crate carries its lockfile, and a discriminant or nightly-only item it cannot build is refused at export
 - [Swift handles are non-copyable](/quest/m1/ffi-export/swift-noncopyable.md) - a call on a moved handle or a lent handle kept past its call is a Swift compile error, not a trap
 - [C++ checks ownership at compile time](/quest/m1/ffi-export/cpp-attributes.md) - typestate and lifetime attributes and `api::borrow<T>` make Clang refuse what the run-time checks catch
