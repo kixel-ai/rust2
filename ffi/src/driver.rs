@@ -12,6 +12,7 @@ use rustc_hir::def_id::{DefId, LOCAL_CRATE};
 use rustc_interface::interface::Compiler;
 use rustc_middle::middle::resolve::Reexport;
 use rustc_middle::ty::TyCtxt;
+use rustc_lexer::{FrontmatterAllowed, TokenKind};
 use rustc_parse::lexer::StripTokens;
 use rustc_parse::parser::{AllowConstBlockItems, ForceCollect};
 use rustc_span::{FileName, Span, sym};
@@ -218,13 +219,30 @@ fn stripped_member(tcx: TyCtxt<'_>, adt: DefId, name: &str) -> bool {
 	{
 		return false;
 	}
-	// The item from its name on, which the parser reads up to its end.
+	// The item from its name on, up to the `;` or closing delimiter that ends it: past it the
+	// file may close a module the item is in, which the parser would refuse unmatched.
 	let source_map = tcx.sess.source_map();
 	let head = tcx.def_span(adt);
 	let source_file = source_map.lookup_source_file(head.lo());
-	let Ok(source) = source_map.span_to_snippet(head.with_hi(source_file.end_position())) else {
+	let Ok(mut source) = source_map.span_to_snippet(head.with_hi(source_file.end_position())) else {
 		return false;
 	};
+	let (mut depth, mut at) = (0usize, 0usize);
+	for token in rustc_lexer::tokenize(&source, FrontmatterAllowed::No) {
+		at += token.len as usize;
+		match token.kind {
+			TokenKind::OpenParen | TokenKind::OpenBrace | TokenKind::OpenBracket => depth += 1,
+			TokenKind::CloseParen | TokenKind::CloseBrace | TokenKind::CloseBracket => {
+				depth = depth.saturating_sub(1);
+				if depth == 0 && token.kind == TokenKind::CloseBrace {
+					break;
+				}
+			}
+			TokenKind::Semi if depth == 0 => break,
+			_ => {}
+		}
+	}
+	source.truncate(at);
 	let file = FileName::anon_source_code(&source);
 	let mut parser = match rustc_parse::new_parser_from_source_str(&tcx.sess.psess, file, source, StripTokens::Nothing)
 	{

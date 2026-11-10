@@ -1441,8 +1441,9 @@ fn foreign_role_names() {
 
 /// An exclude may name what a `cfg` leaves out of this build, whether the facade's own
 /// module or another crate's that the facade re-exports through a glob, or a chain of them,
-/// or a field or variant of the facade's or another crate's type, but not what no build
-/// has, nor what a module only some of whose items the facade re-exports leaves out.
+/// or a field or variant of the facade's or another crate's type, an inline module's
+/// included, but not what no build has, nor what a module only some of whose items the
+/// facade re-exports leaves out.
 #[test]
 fn configured_out() {
 	let package = package("configured_out");
@@ -1462,11 +1463,12 @@ fn configured_out() {
 				mod inner {\n\tpub fn kept() -> u32 {\n\t\t1\n\t}\n\n\t#[cfg(any())]\n\tpub mod gone {}\n}\n\n\
 				mod middle {\n\tpub use crate::inner::*;\n}\n\npub mod outer {\n\tpub use crate::middle::*;\n}\n\n\
 				pub struct Shape {\n\tpub n: u32,\n\t#[cfg(any())]\n\tpub gone: u32,\n}\n\n\
-				pub enum Kind {\n\tKept,\n\t#[cfg(any())]\n\tGone,\n}\n",
+				pub enum Kind {\n\tKept,\n\t#[cfg(any())]\n\tGone,\n}\n\n\
+				pub mod nested {\n\tpub struct Inner {\n\t\tpub n: u32,\n\t\t#[cfg(any())]\n\t\tpub gone: u32,\n\t}\n}\n",
 			),
 			(
 				"ffi.toml",
-				"exclude = [\"Gone\", \"Kind::Gone\", \"Shape::gone\", \"Shape::missing\", \"Size::depth\", \"dep::gone::Gone\", \"gone::Gone\", \"local::Gone\", \"outer::gone::Gone\"]\n",
+				"exclude = [\"Gone\", \"Kind::Gone\", \"Shape::gone\", \"Shape::missing\", \"Size::depth\", \"nested::Inner::gone\", \"dep::gone::Gone\", \"gone::Gone\", \"local::Gone\", \"outer::gone::Gone\"]\n",
 			),
 		],
 	);
