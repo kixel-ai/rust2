@@ -1882,7 +1882,7 @@ impl<'tcx> Collector<'tcx> {
 		let tcx = self.tcx;
 		let mut args = ty::GenericArgs::identity_for_item(tcx, item).to_vec();
 		args[..parent.len()].copy_from_slice(parent);
-		self.holds(item, tcx.mk_args(&args))
+		self.holds(item, tcx.mk_args(&args), &[])
 	}
 
 	/// A trait's required methods, as a callback interface.
@@ -2265,9 +2265,9 @@ impl<'tcx> Collector<'tcx> {
 		let choices: Vec<_> = (choices.into_iter())
 			.map(|(args, named)| (tcx.mk_args(&args), named))
 			.collect();
-		let unmet = self.unmet(def_id, choices[0].0);
+		let unmet = self.unmet(def_id, choices[0].0, &kept);
 		let instances: Vec<Instantiation<'tcx>> = (choices.into_iter())
-			.filter(|(args, _)| self.holds(def_id, args))
+			.filter(|(args, _)| self.holds(def_id, args, &kept))
 			.map(|(args, named)| Instantiation {
 				args,
 				kept: kept.clone(),
@@ -2280,22 +2280,42 @@ impl<'tcx> Collector<'tcx> {
 		}
 	}
 
-	/// Whether `def_id`'s bounds hold at `args`.
-	fn holds(&self, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> bool {
-		self.unmet(def_id, args).is_none()
+	/// Whether `def_id`'s bounds hold at `args`, with `kept` the parameters kept for what
+	/// the call passes.
+	fn holds(&self, def_id: DefId, args: ty::GenericArgsRef<'tcx>, kept: &[Ty<'tcx>]) -> bool {
+		self.unmet(def_id, args, kept).is_none()
 	}
 
-	/// The first of `def_id`'s bounds that fails at `args`, skipping each that names a type
-	/// parameter still one: a kept parameter's, which what the call passes meets, or one
-	/// not yet chosen's, which the item's own environment states only at its parameters.
-	fn unmet(&self, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> Option<ty::Clause<'tcx>> {
+	/// The first of `def_id`'s bounds that fails at `args`. A bound on a kept parameter is
+	/// met by what the call passes, and one naming a parameter not yet chosen is stated by
+	/// the item's own environment only at its parameters, so both are skipped. Any other
+	/// bound naming a kept parameter must hold for each type passed for it, as the item's
+	/// own environment proves: `B: From<U>` holds for every `U: Callback` only through an
+	/// impl for each.
+	fn unmet(&self, def_id: DefId, args: ty::GenericArgsRef<'tcx>, kept: &[Ty<'tcx>]) -> Option<ty::Clause<'tcx>> {
 		let tcx = self.tcx;
 		let env = TypingEnv::post_analysis(tcx, def_id);
 		let (infcx, param_env) = tcx.infer_ctxt().build_with_typing_env(env);
+		let checked = |clause: ty::Clause<'tcx>| {
+			if !clause.has_non_region_param() {
+				return true;
+			}
+			let (args, term) = match clause.kind().skip_binder() {
+				ty::ClauseKind::Trait(pred) => (pred.trait_ref.args, None),
+				ty::ClauseKind::Projection(pred) => (pred.projection_term.args, pred.term.as_type()),
+				_ => return false,
+			};
+			let mut params = (args.iter().chain(term.map(Into::into)))
+				.flat_map(|arg| arg.walk())
+				.filter_map(|arg| arg.as_type())
+				.filter(|ty| matches!(ty.kind(), ty::Param(_)));
+			let subject = args.first().and_then(|arg| arg.as_type());
+			params.all(|ty| kept.contains(&ty)) && !subject.is_some_and(|ty| kept.contains(&ty))
+		};
 		(tcx.clauses_of(def_id).instantiate(tcx, args).clauses.iter())
 			.map(|clause| clause.skip_norm_wip())
 			.find(|&clause| {
-				!clause.has_non_region_param() && {
+				checked(clause) && {
 					let obligation = Obligation::new(tcx, ObligationCause::dummy(), param_env, clause);
 					!infcx.predicate_must_hold_modulo_regions(&obligation)
 				}
@@ -2623,7 +2643,7 @@ impl<'tcx> Collector<'tcx> {
 		let mut args = base.to_vec();
 		args[p.index as usize] = candidate.into();
 		let args = tcx.mk_args(&args);
-		self.holds(def_id, args).then_some(args)
+		self.holds(def_id, args, &[]).then_some(args)
 	}
 
 	/// The types a type parameter exports at each of, where no one type is the rules':

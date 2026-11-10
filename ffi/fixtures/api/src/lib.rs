@@ -1456,6 +1456,44 @@ pub fn report<T: Copy + fmt::Debug, L: Log>(pair: Pair<T>, log: L) -> u32 {
 		.count() as u32
 }
 
+/// What a log kept, made from any log.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LogCount {
+	pub kept: u32,
+}
+
+/// A count, which C cannot implement as it needs `Copy`: a parameter it bounds exports at
+/// each type implementing it.
+pub trait Tallied: Copy {
+	fn tally(self) -> u32;
+}
+
+impl Tallied for LogCount {
+	fn tally(self) -> u32 {
+		self.kept
+	}
+}
+
+impl Tallied for Point {
+	fn tally(self) -> u32 {
+		self.x.unsigned_abs()
+	}
+}
+
+impl<L: Log> From<L> for LogCount {
+	fn from(log: L) -> Self {
+		Self {
+			kept: u32::from(log.log(3, "tally")),
+		}
+	}
+}
+
+/// What `log` kept, as each tally that converts from a log: `LogCount`, and not `Point`,
+/// which is `Tallied` too but converts from no log.
+pub fn tally<T: Tallied + From<L>, L: Log>(log: L) -> u32 {
+	T::from(log).tally()
+}
+
 /// A wrapped value, which only its impl of `Seed<u64>` at `Wrap<u32>` names: each
 /// function taking a seed infers that instance.
 #[derive(Clone, Copy, Debug, PartialEq)]

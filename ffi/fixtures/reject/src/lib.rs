@@ -496,6 +496,27 @@ pub trait Source: Send + Sync {
 	fn items(&self) -> std::vec::IntoIter<u8>;
 }
 
+/// A count, which C cannot implement as it needs `Copy`.
+pub trait Tallied: Copy {
+	fn tally(self) -> u32;
+}
+
+impl Tallied for u32 {
+	fn tally(self) -> u32 {
+		self
+	}
+}
+
+/// What a tally counts, which C implements.
+pub trait Measured {
+	fn measure(&self) -> u32;
+}
+
+/// A tally made from `counted`, though no type implementing `Tallied` converts from one.
+pub fn tallied<T: Tallied + From<C>, C: Measured>(counted: C) -> u32 {
+	T::from(counted).tally()
+}
+
 /// How many items `source` has: a trait object C cannot make.
 pub fn drain(source: Box<dyn Source>) -> usize {
 	source.items().count()
