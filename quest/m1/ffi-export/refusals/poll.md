@@ -21,3 +21,6 @@ The maintainer settled on 2026-11-09: ✅ proper waker support (rejected: moq ma
   wakes it, and frees it when the callable is dropped or collected.
 - The api fixture's `Waiter` gains both methods, and every language's test wakes a pending
   future through the returned waker.
+- moq-net's `Transport::poll_lease`, whose `Poll` holds `Self::Lease<'_>` borrowed from the
+  transport, stays refused as a borrowed `Poll`, since its future would own what the lease
+  borrows; this quest owns it if narrowing the stand-in keeps it.
