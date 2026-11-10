@@ -1070,6 +1070,17 @@ impl<'a> Gen<'a> {
 	/// call moved them out.
 	fn close(&mut self, ty: &Type, e: &str) -> String {
 		match ty {
+			// A struct's container is borrowed, since `if let` and `for in` would consume it.
+			Type::Option(inner) if self.unique(inner) => {
+				let v = self.fresh("v");
+				let close = self.close(inner, &v);
+				format!("Native.option({e}, {{ {v} in {close} }}, ())")
+			}
+			Type::List(_, inner) if self.unique(inner) => {
+				let i = self.fresh("i");
+				let close = self.close(inner, &format!("{e}[{i}]"));
+				format!("for {i} in {e}.indices {{ {close} }}")
+			}
 			Type::Option(inner) => {
 				let v = self.fresh("v");
 				let close = self.close(inner, &v);
@@ -1376,13 +1387,6 @@ impl<'a> Gen<'a> {
 			ok => strip_refs(ok),
 		};
 		let err = function.err.as_ref().map(strip_refs);
-		if let Some(err) = err.as_ref().filter(|err| self.unique(err)) {
-			self.errors.push(format!(
-				"fn `{}` returns the error `{}`, which holds an object Swift cannot copy, as `Swift.Error` requires",
-				function.path.join("::"),
-				self.sw(err)
-			));
-		}
 		let thrown = err.as_ref().map(|e| self.thrown(e));
 
 		let mut inner = Vec::new();
@@ -1608,32 +1612,38 @@ fn thrown_value(thrown: &Thrown, lifted: &str) -> String {
 /// overloads.
 const MAX_OPTIONAL: usize = 2;
 
-/// Each function or method taking more optional borrowed structs than [`MAX_OPTIONAL`],
-/// with its span and why Swift cannot export it, which the driver refuses before any
-/// language is generated.
+/// Each function or method Swift cannot export, with its span and why, which the driver
+/// refuses before any language is generated: one taking more optional borrowed structs
+/// than [`MAX_OPTIONAL`], or returning an error that holds one, which `Swift.Error`
+/// requires be copyable.
 pub fn refusals(abi: &Abi<'_>) -> Vec<(Span, String)> {
 	let structs = structs(abi);
 	let api = abi.api;
 	let methods = (api.records.iter().flat_map(|r| &r.methods))
 		.chain(api.enums.iter().flat_map(|e| &e.methods))
 		.chain(api.objects.iter().flat_map(|o| &o.methods));
-	(api.functions.iter().map(|f| ("fn", f)))
-		.chain(methods.map(|f| ("method", f)))
-		.filter_map(|(kind, function)| {
-			let optional = (function.params.iter())
-				.filter(|p| lent_option(&structs, &p.ty))
-				.count();
-			(optional > MAX_OPTIONAL).then(|| {
-				(
-					function.span,
-					format!(
-						"cannot export {kind} `{}`: {optional} optional borrowed objects, past the {MAX_OPTIONAL} Swift takes, which overloads each with and without it since its optional holds an object only by consuming it",
-						function.shown[1..].join("::")
-					),
-				)
-			})
-		})
-		.collect()
+	let mut refusals = Vec::new();
+	for (kind, function) in (api.functions.iter().map(|f| ("fn", f))).chain(methods.map(|f| ("method", f))) {
+		let what = format!("cannot export {kind} `{}`", function.shown[1..].join("::"));
+		let optional = (function.params.iter())
+			.filter(|p| lent_option(&structs, &p.ty))
+			.count();
+		if optional > MAX_OPTIONAL {
+			refusals.push((
+				function.span,
+				format!(
+					"{what}: {optional} optional borrowed objects, past the {MAX_OPTIONAL} Swift takes, which overloads each with and without it since its optional holds an object only by consuming it"
+				),
+			));
+		}
+		if function.err.as_ref().is_some_and(|err| unique(&structs, err)) {
+			refusals.push((
+				function.span,
+				format!("{what}: error holding an object Swift cannot copy, as `Swift.Error` requires"),
+			));
+		}
+	}
+	refusals
 }
 
 /// Whether Swift's value of `ty` is noncopyable: it holds one of `structs`.

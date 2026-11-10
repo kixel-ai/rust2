@@ -2120,6 +2120,16 @@ impl fmt::Display for Refusal {
 	}
 }
 
+/// Each counter's name with its refusal, `last`'s too if any: an object Swift holds as a
+/// struct beside one it holds as a class, moved in inside a list and an option.
+pub fn reasons(pairs: Vec<(Counter, Refusal)>, last: Option<(Counter, Refusal)>) -> String {
+	let pairs = pairs.iter().chain(&last);
+	pairs
+		.map(|(counter, refusal)| format!("{} {refusal}", counter.name))
+		.collect::<Vec<_>>()
+		.join(", ")
+}
+
 /// Always refuses, for `reason`.
 pub fn refuse(reason: &str) -> Result<u32, Box<Refusal>> {
 	Err(Box::new(Refusal {

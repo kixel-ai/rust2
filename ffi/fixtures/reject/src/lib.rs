@@ -918,3 +918,9 @@ pub fn poll_loose(waiter: &Loose) -> std::task::Poll<()> {
 pub fn among(first: Option<&Opaque>, second: Option<&Opaque>, third: Option<&Opaque>) -> u8 {
 	[first, second, third].into_iter().flatten().map(|o| o.0).sum()
 }
+
+/// An error holding an object, which Swift holds as a noncopyable struct while
+/// `Swift.Error` requires a copyable type.
+pub fn wrapped(value: u8) -> Result<u8, Vec<Opaque>> {
+	Err(vec![Opaque(value)])
+}

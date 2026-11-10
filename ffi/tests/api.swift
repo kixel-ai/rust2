@@ -540,6 +540,22 @@ func script() {
 		var three: Counter? = Counter.new("three", 3)
 		var none: Counter? = nil
 		print("plus \(two.plus(other: three!)) \(two.plus())")
+		// A list and an option holding a struct beside a class, whose handle each moves.
+		func refusal(_ reason: String) -> Refusal {
+			do {
+				_ = try refuse(reason)
+			} catch let refusal as Refusal {
+				return refusal
+			} catch {}
+			fatalError("refuse returned")
+		}
+		var pairs = UniqueArray<TupleCounterRefusal>()
+		pairs.append(TupleCounterRefusal(Counter.new("a", 1), refusal("x")))
+		check(
+			reasons(pairs, TupleCounterRefusal(Counter.new("b", 2), refusal("y")))
+				== "a refused: x, b refused: y",
+			"reasons moves a struct and a class out of a list and an option"
+		)
 		// Each optional borrowed parameter is an overload with and without its label.
 		let one = Counter.new("one", 1)
 		check(
