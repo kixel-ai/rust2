@@ -9,6 +9,7 @@
 //! takes back to it and a cast to `*const ()` keeps. That cast is refused unless the body
 //! shows an `Arc`'s, or null or dangling, since a place from elsewhere has no one identity.
 
+use rustc_middle::mir::visit::{MutatingUseContext, PlaceContext, Visitor};
 use rustc_middle::mir::{
 	self, BasicBlock, Local, Location, Operand, ProjectionElem, Rvalue, StatementKind, TerminatorKind,
 };
@@ -652,15 +653,17 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 			r != local
 				&& self.mir.basic_blocks.iter().all(|data| {
 					let read = |op: &Operand<'tcx>| op.place().is_some_and(|p| p.local == r);
-					let in_stmt = data.statements.iter().any(|stmt| match &stmt.kind {
-						StatementKind::Assign(assign) => match &assign.1 {
-							Rvalue::Use(op, _) => read(op),
-							Rvalue::Aggregate(_, ops) => ops.iter().any(read),
-							Rvalue::Ref(_, _, p) | Rvalue::RawPtr(_, p) => p.local == r,
-							_ => false,
-						},
-						_ => false,
-					});
+					// Any use of the borrow in a statement, a copy, cast, or reborrow among them,
+					// carries it where this check can't follow.
+					let used = |at: &dyn Fn(&mut Uses)| {
+						let mut uses = Uses { local: r, used: false };
+						at(&mut uses);
+						uses.used
+					};
+					let in_stmt = data
+						.statements
+						.iter()
+						.any(|stmt| used(&|u| u.visit_statement(stmt, mir::Location::START)));
 					let ok_call = match &data.terminator().kind {
 						TerminatorKind::Call { func, args, .. } => {
 							let rest = args.iter().skip(1).any(|a| read(&a.node));
@@ -676,7 +679,8 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 								&& (!args.first().is_some_and(|a| read(&a.node))
 									|| func.const_fn_def().is_some_and(|(def_id, gargs)| own(def_id, gargs)))
 						}
-						_ => true,
+						// Any other terminator that uses the borrow, it escapes through.
+						_ => !used(&|u| u.visit_terminator(data.terminator(), mir::Location::START)),
 					};
 					!in_stmt && ok_call
 				})
@@ -904,5 +908,23 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 				TerminatorKind::Call { destination, .. } if destination.as_local() == Some(local) => Some(bb),
 				_ => None,
 			})
+	}
+}
+
+/// Whether a statement or terminator uses `local`, other than to assign it whole.
+struct Uses {
+	local: Local,
+	used: bool,
+}
+
+impl<'tcx> Visitor<'tcx> for Uses {
+	fn visit_local(&mut self, local: Local, cx: PlaceContext, _: mir::Location) {
+		if local == self.local
+			&& !matches!(
+				cx,
+				PlaceContext::NonUse(_) | PlaceContext::MutatingUse(MutatingUseContext::Store)
+			) {
+			self.used = true;
+		}
 	}
 }

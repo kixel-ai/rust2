@@ -53,3 +53,15 @@ pub fn sliced_swapped(n: usize) -> usize {
 	drop(std::mem::replace(&mut d, b));
 	a.slice_ref(&c[..n]).len() + d.slice_ref(&e[..n]).len()
 }
+
+/// `slice_ref` of a clone of a `Bytes` that `mem::swap` points at other storage through a
+/// `&mut` cast to a raw pointer and back.
+pub fn sliced_cast_swapped(n: usize) -> usize {
+	let mut a = bytes::Bytes::from_static(b"one");
+	let mut b = bytes::Bytes::from_static(b"two");
+	let c = a.clone();
+	let p = &raw mut a;
+	let q = p as *const bytes::Bytes;
+	std::mem::swap(unsafe { &mut *(q as *mut bytes::Bytes) }, &mut b);
+	a.slice_ref(&c[..n]).len()
+}
