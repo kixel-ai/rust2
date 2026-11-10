@@ -474,6 +474,7 @@ Future<void> script() async {
   final noneSummed = api.summed([]);
   print('summed ${summed.x} ${summed.y} ${noneSummed.x} ${noneSummed.y}');
   print('longest ${api.longest(['a', 'abc'])} ${api.longest([])}');
+  print('first of Some("${api.firstOf(['a', 'b'])}") ${api.firstOf([]) ?? 'None'}');
   final limits = api.byteLimits(utf8.encode('a'), utf8.encode('bc'));
   final waits = api.breadth(const api.LimitsDuration(low: Duration(milliseconds: 5), high: Duration(seconds: 2)));
   print('limits ${utf8.decode(limits.low)} ${utf8.decode(limits.high)} breadth ${waits.inMilliseconds}');

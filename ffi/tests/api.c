@@ -857,6 +857,9 @@ static int script(void) {
 	size_t most = api_longest((api_vec_string){.ptr = longest_words, .len = 2});
 	size_t no_longest = api_longest((api_vec_string){.ptr = longest_words, .len = 0});
 	printf("longest %zu %zu\n", most, no_longest);
+	api_buf no_first = api_first_of((api_vec_string){.ptr = longest_words, .len = 0});
+	print("first of Some(\"", api_first_of((api_vec_string){.ptr = longest_words, .len = 2}), "\") ");
+	printf("%s\n", no_first.ptr == NULL ? "None" : "Some");
 	api_Limits_bytes limits = api_byte_limits(str("a"), str("bc"));
 	api_duration breadth = api_breadth((api_Limits_duration){.low = {.secs = 0, .nanos = 5000000}, .high = {.secs = 2, .nanos = 0}});
 	printf("limits %.*s %.*s breadth %llu\n", (int)limits.low.len, (const char *)limits.low.ptr, (int)limits.high.len,

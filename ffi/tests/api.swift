@@ -514,6 +514,7 @@ func script() {
 	let noneSum = summed([])
 	print("summed \(sum.x) \(sum.y) \(noneSum.x) \(noneSum.y)")
 	print("longest \(longest(["a", "abc"])) \(longest([]))")
+	print("first of Some(\"\(firstOf(["a", "b"])!)\") \(firstOf([]) ?? "None")")
 	let limits = byteLimits(Data("a".utf8), Data("bc".utf8))
 	let waits = breadth(LimitsDuration(low: .milliseconds(5), high: .seconds(2)))
 	let low = String(decoding: limits.low, as: UTF8.self)

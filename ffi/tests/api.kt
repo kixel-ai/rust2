@@ -385,6 +385,7 @@ fun script() {
 	val noneSummed = summed(emptyList())
 	println("summed ${summed.x} ${summed.y} ${noneSummed.x} ${noneSummed.y}")
 	println("longest ${longest(listOf("a", "abc"))} ${longest(emptyList())}")
+	println("first of Some(\"${firstOf(listOf("a", "b"))}\") ${firstOf(emptyList()) ?: "None"}")
 	val limits = byteLimits("a".encodeToByteArray(), "bc".encodeToByteArray())
 	val waits = breadth(LimitsDuration(5.milliseconds, 2.seconds))
 	println("limits ${limits.low.toByteArray().decodeToString()} ${limits.high.toByteArray().decodeToString()} breadth ${waits.inWholeMilliseconds}")

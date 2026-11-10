@@ -1724,6 +1724,11 @@ pub fn joined<'a, I: IntoIterator<Item = &'a Bytes>>(parts: I) -> Bytes {
 	parts.into_iter().flat_map(|part| part.iter().copied()).collect()
 }
 
+/// The first of `items`, a borrow of what C lends that is copied out before the call ends.
+pub fn first_of<'a, I: IntoIterator<Item = &'a String>>(items: I) -> Option<&'a String> {
+	items.into_iter().next()
+}
+
 /// How many bytes `reader` holds: bytes C lends for the call.
 pub fn read_len(mut reader: impl std::io::Read) -> u64 {
 	std::io::copy(&mut reader, &mut std::io::sink()).expect("a slice reads")

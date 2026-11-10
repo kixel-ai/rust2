@@ -491,6 +491,8 @@ fn main() {
 		api::longest(["a".to_string(), "abc".to_string()]),
 		api::longest([])
 	);
+	let words = ["a".to_string(), "b".to_string()];
+	println!("first of {:?} {:?}", api::first_of(&words), api::first_of(&[]));
 	let limits = api::byte_limits(Bytes::from_static(b"a"), Bytes::from_static(b"bc"));
 	let waits = api::Limits {
 		low: std::time::Duration::from_millis(5),

@@ -698,6 +698,8 @@ int script() {
 	auto none_summed = api::summed({});
 	std::printf("summed %d %d %d %d\n", summed.x, summed.y, none_summed.x, none_summed.y);
 	std::printf("longest %zu %zu\n", api::longest({"a", "abc"}), api::longest({}));
+	print("first of Some(\"", api::first_of({"a", "b"}).value(), "\") ");
+	std::printf("%s\n", api::first_of({}) ? "Some" : "None");
 	auto limits = api::byte_limits("a", "bc");
 	print("limits ", limits.low, " ");
 	print("", limits.high, " ");

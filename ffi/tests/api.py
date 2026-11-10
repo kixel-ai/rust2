@@ -475,6 +475,7 @@ def script():
 	none_summed = api.summed([])
 	print(f"summed {summed.x} {summed.y} {none_summed.x} {none_summed.y}")
 	print(f"longest {api.longest(['a', 'abc'])} {api.longest([])}")
+	print(f'first of Some("{api.first_of(["a", "b"])}") {api.first_of([]) or "None"}')
 	limits = api.byte_limits(b'a', b'bc')
 	waits = api.LimitsDuration(datetime.timedelta(milliseconds=5), datetime.timedelta(seconds=2))
 	breadth = api.breadth(waits) // datetime.timedelta(milliseconds=1)
