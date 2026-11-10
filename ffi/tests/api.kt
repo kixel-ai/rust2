@@ -8,6 +8,7 @@ import api.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executor
 import kotlin.concurrent.thread
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -321,6 +322,8 @@ fun script() {
 	// A bound that outlives the call takes a value, and an instance only a constant names.
 	println("kept ${keptPoint(Point(1, -2))} boxed ${BOXED.value}")
 	println("keep ${keepPoint(Point(1, -2))}")
+	val five = Point(5, 2)
+	println("kept or ${keptOrPoint(five)} ${keptOrPoint(null)} keeper ${keeperPoint(five)}")
 	// Inferred instances taking a lent closure and a foreign implementation, and one only
 	// its impl of a trait names.
 	val sides = PairU32(2u, 5u)
@@ -382,6 +385,12 @@ fun script() {
 	val noneSummed = summed(emptyList())
 	println("summed ${summed.x} ${summed.y} ${noneSummed.x} ${noneSummed.y}")
 	println("longest ${longest(listOf("a", "abc"))} ${longest(emptyList())}")
+	println("first of Some(\"${firstOf(listOf("a", "b"))}\") ${firstOf(emptyList()) ?: "None"}")
+	val limits = byteLimits("a".encodeToByteArray(), "bc".encodeToByteArray())
+	val waits = breadth(LimitsDuration(5.milliseconds, 2.seconds))
+	println("limits ${limits.low.toByteArray().decodeToString()} ${limits.high.toByteArray().decodeToString()} breadth ${waits.inWholeMilliseconds}")
+	val parts = joined(listOf("ab".encodeToByteArray(), ByteArray(0), "c".encodeToByteArray())).toByteArray().decodeToString()
+	println("joined $parts ${joined(emptyList()).toByteArray().size} read ${readLen("hello".encodeToByteArray())}")
 	val doc = Json.parse("""{"b": [1, 2.5, null], "a": "\u00e9"}""")
 	println("json ${encode(doc)}")
 	println("timed text ${timedText(doc)}")

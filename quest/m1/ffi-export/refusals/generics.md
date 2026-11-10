@@ -1,21 +1,40 @@
-# [L] Generic parameters and traits export
+# [L] Futures and kept closures as parameters export
 
 ## Goal
 
-The census at the moq pin refuses no item of moq's own for a generic parameter, type
-argument, trait object, supertrait, associated type, unmet bound, callback or closure
-signature, or blanket impl: 51 items at moq `ffcb7cd9`.
+The census at the moq pin refuses no item of moq's own for a future or a kept closure
+taken as a parameter, or a reader it seeks: 11 items at moq `ffcb7cd9`, once
+[narrowing](/quest/m1/ffi-export/refusals/narrow-standin.md) drops the moq-tokio items
+outside its session side.
+
+- A future parameter: kio's `Waiter::poll_future`, `clock::timeout`, and
+  `clock::timeout_at`, and moq-tokio's `panic::isolate` and `server::Request::within`.
+- A closure kept past the call: kio's `clock::drive` and `wait`, and `Waiter::batch`, whose
+  lent closure returns a type parameter.
+- moq-mux's `container::mp4::repair`, which seeks a `&mut impl Read + Seek`.
+- moq-tokio's `panic::message`, which takes a `&(dyn Any + Send)` panic payload, and
+  `tls::Serve::resolver`, which takes rustls's `Arc<dyn ResolvesServerCert>`.
 
 ## Plan
 
-Ranked first by moq-ffi's hand-written wrapper: `Client::connect` and `Server::accept`
-take `transport::poll::Boxable`, which moq-ffi's `session.rs` and `server.rs` wrap by hand.
-Then `impl Future` and `IntoFuture` parameters (`clock::timeout`, `Waiter::poll_future`),
-`io::Read` parameters, trait objects, associated types (`mux::catalog::Stream`,
-`transport::poll::Session`), supertraits, `time::Driver`'s callback signature, and
-`clock::drive`'s kept closure.
+Generic parameters and traits already export: a parameter bounded by a blanket impl's trait,
+as `Client::connect`'s `Boxable` is, exports at each type implementing what the impl requires;
+a parameter whose bounds name an earlier one, as `track`'s `impl Into<Option<R>>` does, is
+chosen at each choice of it; `impl io::Read` takes bytes and `impl IntoIterator<Item = &X>` a
+slice; `Bytes` and `Duration` are type arguments; and a trait C cannot implement is left out
+and listed in the census. moq-mux's `codec::annexb::build_prefix` exports once moq stops
+re-exporting `bytes` whole, as [moq-pin](/quest/m1/ffi-export/refusals/moq-pin.md) has it,
+since the re-export makes `Bytes` a handle.
 
-A generic exports at the instances the facade names, as generic types already do; a trait a
-language implements crosses as the vtable the exporter already gives callback traits.
-Where a construct has no C shape, the census keeps refusing it with its span, and moq's
-signature is what changes: report it to the maintainer rather than add config.
+## Waiting
+
+- Maintainer: how a future or a kept closure crosses from C. Options: (a) the exporter gains
+  a foreign future, a poll function, its data, and `free`, the inverse of the futures it
+  returns, and a kept closure, a function, its data, and `free`, each wrapped in every
+  language's native future and function, so moq changes nothing; (b) moq's signatures
+  change, such as the stand-in re-exporting only kio's `Instant` from `clock`, and kio's and
+  moq-tokio's runtime helpers leaving what the facade reaches. Recommendation: (a), since
+  each has a C shape and AGENTS.md counts a source change a consumer needs as a gap; `repair`
+  then takes a foreign `Read + Seek`, while `panic::message` and `tls::Serve::resolver`, which
+  name what C can never hold, go to moq to wrap or drop, as the epic decided for third-party
+  types.

@@ -671,6 +671,9 @@ static int script(void) {
 	/* A bound that outlives the call takes a value, and an instance only a constant names. */
 	printf("kept %llu boxed %u\n", (unsigned long long)api_kept_Point((api_Point){.x = 1, .y = -2}), api_BOXED().value);
 	printf("keep %d\n", api_keep_Point((api_Point){.x = 1, .y = -2}));
+	api_Point five = {.x = 5, .y = 2};
+	printf("kept or %d %d keeper %d\n", api_kept_or_Point((api_option_Point){.some = true, .value = five}),
+		api_kept_or_Point((api_option_Point){0}), api_keeper_Point(five));
 	/* Inferred instances taking a lent closure and a foreign implementation, and one only
 	 * its impl of a trait names. */
 	api_Pair_u32 sides = {.left = 2, .right = 5};
@@ -854,6 +857,19 @@ static int script(void) {
 	size_t most = api_longest((api_vec_string){.ptr = longest_words, .len = 2});
 	size_t no_longest = api_longest((api_vec_string){.ptr = longest_words, .len = 0});
 	printf("longest %zu %zu\n", most, no_longest);
+	api_buf no_first = api_first_of((api_vec_string){.ptr = longest_words, .len = 0});
+	print("first of Some(\"", api_first_of((api_vec_string){.ptr = longest_words, .len = 2}), "\") ");
+	printf("%s\n", no_first.ptr == NULL ? "None" : "Some");
+	api_Limits_bytes limits = api_byte_limits(str("a"), str("bc"));
+	api_duration breadth = api_breadth((api_Limits_duration){.low = {.secs = 0, .nanos = 5000000}, .high = {.secs = 2, .nanos = 0}});
+	printf("limits %.*s %.*s breadth %llu\n", (int)limits.low.len, (const char *)limits.low.ptr, (int)limits.high.len,
+		(const char *)limits.high.ptr, (unsigned long long)(breadth.secs * 1000 + breadth.nanos / 1000000));
+	api_Limits_bytes_free(&limits);
+	api_buf parts[] = {str("ab"), str(""), str("c")};
+	print("joined ", api_joined((api_vec_bytes){.ptr = parts, .len = 3}), " ");
+	api_buf no_parts = api_joined((api_vec_bytes){.ptr = parts, .len = 0});
+	printf("%zu read %llu\n", no_parts.len, (unsigned long long)api_read_len(str("hello")));
+	api_buf_free(no_parts);
 
 	/* JSON crosses as a document, made from text and read back as text. */
 	api_Json *doc;

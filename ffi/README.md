@@ -65,7 +65,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
 | a `pub` field of an object | a getter returning a copy, and a setter assigning in place, as `x.field = value` does |
-| a `pub` trait | a callback interface: a table of C functions and their data |
+| a `pub` trait | a callback interface: a table of C functions and their data; a trait C cannot implement, such as one with a blanket impl, an associated type, or a supertrait but a marker, is left out, since C never passes one, and a signature taking one from C is refused |
 | a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce`, which no lifetime bound or return lets outlive the call | a C function and its `void *` data, which Rust calls only during the call; any other closure is refused |
 | `fn` and inherent `pub` methods | functions named through their type |
 | `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message |
@@ -90,8 +90,9 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | a `pub const` | a `#define` if a `bool` or integer, else a function returning it |
 | `impl Into<X>`, `impl AsRef<X>`, or a bound implying one, as a supertrait does | `X`, or `&X` and then `String` or `Vec<T>` where `X` is `str` or `[T]` |
 | `impl Into<X>`, where `X` does not map | what a `From` implementation into `X` takes: a source parameter by its bounds as above, so `impl<B: Into<Bytes>> From<B> for Timed<Bytes>` takes `Bytes`, and by each `Into<Y>` whose `Y` does not map, what converts into `Y` in turn, each `Y` once and refusing a chain longer than the crate's recursion limit; any other source as it is, so `impl<'a, V> From<&'a V> for Timed<&'a V>` takes `&V`. Two sources C passes as one buffer, such as `String` and `Vec<u8>`, are refused, unless they are forms of one value, as `&str` and `String` are |
-| `impl IntoIterator<Item = X>`, where `X` is no type parameter | `Vec<X>` |
-| another type parameter | `serde_json::Value` for a serde `Serialize` or `Deserialize` bound, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
+| `impl IntoIterator<Item = X>`, where `X` is no type parameter | `Vec<X>`, or `&[Y]` where `X` is `&Y` |
+| `impl io::Read` | `&[u8]` |
+| another type parameter | `serde_json::Value` for a serde `Serialize` or `Deserialize` bound, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, through a blanket impl at each type implementing what the impl requires, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
 
 A generic type infers the instances it exports at, with no config: the one at its
 defaults, if each type parameter has one; the one each inherent impl is of, such as
@@ -619,7 +620,8 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
 lists each refused item at its span, then the `exclude` list that exports the rest, and
-what else it left out, such as what C can never hold. It ignores the config's `exclude`. It still fails on an `instance not inferred`
+what else it left out, such as what C can never hold and the traits C cannot implement, and why.
+It ignores the config's `exclude`. It still fails on an `instance not inferred`
 refusal, which is a bug in the exporter's inference rather than in the crate.
 
 ## Tests

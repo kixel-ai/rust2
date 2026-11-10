@@ -393,6 +393,13 @@ fn main() {
 	println!("cross {} outer {}", api::cross(left, right), api::Outer::new(4).get());
 	println!("kept {} boxed {}", api::kept(Point { x: 1, y: -2 }), api::BOXED.value);
 	println!("keep {}", api::keep(Point { x: 1, y: -2 }));
+	let five = Point { x: 5, y: 2 };
+	println!(
+		"kept or {} {} keeper {}",
+		api::kept_or(five),
+		api::kept_or::<Point>(None),
+		api::keeper(five)
+	);
 	let sides = Pair { left: 2u32, right: 5 };
 	println!("apply {}", api::apply(sides, |side| side * 3));
 	println!("report {}", api::report(sides, Print));
@@ -483,6 +490,26 @@ fn main() {
 		"longest {} {}",
 		api::longest(["a".to_string(), "abc".to_string()]),
 		api::longest([])
+	);
+	let words = ["a".to_string(), "b".to_string()];
+	println!("first of {:?} {:?}", api::first_of(&words), api::first_of(&[]));
+	let limits = api::byte_limits(Bytes::from_static(b"a"), Bytes::from_static(b"bc"));
+	let waits = api::Limits {
+		low: std::time::Duration::from_millis(5),
+		high: std::time::Duration::from_secs(2),
+	};
+	println!(
+		"limits {} {} breadth {}",
+		String::from_utf8_lossy(&limits.low),
+		String::from_utf8_lossy(&limits.high),
+		api::breadth(waits).as_millis()
+	);
+	let parts = [Bytes::from_static(b"ab"), Bytes::new(), Bytes::from_static(b"c")];
+	println!(
+		"joined {} {} read {}",
+		String::from_utf8_lossy(&api::joined(&parts)),
+		api::joined(&[]).len(),
+		api::read_len(&b"hello"[..])
 	);
 	let doc: serde_json::Value = r#"{"b": [1, 2.5, null], "a": "\u00e9"}"#.parse().expect("a JSON document");
 	println!("json {}", api::encode(&doc));
