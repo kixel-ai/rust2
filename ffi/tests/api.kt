@@ -176,11 +176,11 @@ fun script() {
 		check(runCatching { scaled(v, 1u) }.exceptionOrNull() is IllegalArgumentException, "$v is no u128")
 	}
 	Batch.new().use { batch ->
-		pair().use { two ->
+		pair().use { batch2 ->
 			val accepted = (1u..5u).count { batch.push(it) }
-			val paired = (1u..3u).count { two.push(it) }
+			val paired = (1u..3u).count { batch2.push(it) }
 			val emptied = drain4(batch)
-			println("batch ${batch.capacity()} $accepted $emptied ${drain4(batch)} ${two.capacity()} $paired ${drain2(two)}")
+			println("batch ${batch.capacity()} $accepted $emptied ${drain4(batch)} ${batch2.capacity()} $paired ${drain2(batch2)}")
 		}
 	}
 	val wide = widen(RangeU64(2u, 5u), 1u)

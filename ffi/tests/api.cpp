@@ -373,14 +373,14 @@ int script() {
 		for (std::uint32_t v = 1; v <= 5; v++) {
 			accepted += batch.push(v);
 		}
-		auto two = api::pair();
+		auto batch2 = api::pair();
 		unsigned paired = 0;
 		for (std::uint32_t v = 1; v <= 3; v++) {
-			paired += two.push(v);
+			paired += batch2.push(v);
 		}
 		auto emptied = api::drain_4(batch);
 		std::printf("batch %zu %u %llu %llu %zu %u %llu\n", batch.capacity(), accepted, ull(emptied), ull(api::drain_4(batch)),
-			two.capacity(), paired, ull(api::drain_2(two)));
+			batch2.capacity(), paired, ull(api::drain_2(batch2)));
 	}
 	api::range_u64 wide = api::widen({2, 5}, 1);
 	std::printf("widen %llu %llu\n", ull(wide.start), ull(wide.end));

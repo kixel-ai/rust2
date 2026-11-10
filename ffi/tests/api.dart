@@ -247,13 +247,13 @@ Future<void> script() async {
     api.scaled(BigInt.one << 127, 2),
   ];
   print('scaled ${scaled.map((v) => v?.toRadixString(16).padLeft(32, '0') ?? 'none').join(' ')}');
-  final batch = api.Batch(), two = api.pair();
+  final batch = api.Batch(), batch2 = api.pair();
   final accepted = [for (var v = 1; v <= 5; v++) batch.push(v)].where((p) => p).length;
-  final paired = [for (var v = 1; v <= 3; v++) two.push(v)].where((p) => p).length;
+  final paired = [for (var v = 1; v <= 3; v++) batch2.push(v)].where((p) => p).length;
   final emptied = api.drain4(batch);
-  print('batch ${batch.capacity()} $accepted $emptied ${api.drain4(batch)} ${two.capacity()} $paired ${api.drain2(two)}');
+  print('batch ${batch.capacity()} $accepted $emptied ${api.drain4(batch)} ${batch2.capacity()} $paired ${api.drain2(batch2)}');
   batch.close();
-  two.close();
+  batch2.close();
   final wide = api.widen(const api.RangeU64(2, 5), 1);
   print('widen ${wide.start} ${wide.end}');
   final counts = [
