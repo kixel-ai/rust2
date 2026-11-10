@@ -205,7 +205,7 @@ pub fn shell() -> Shell<(u32,)> {
 }
 
 /// A const generic function whose bound names an instance nothing else does: refused at
-/// its const parameter, before any candidate for the other is mapped.
+/// its const parameter, which nothing names, before any candidate for the other is mapped.
 pub struct Probe<T>(T);
 
 pub fn probe<const N: usize>(x: impl Into<Probe<u8>>) {
@@ -222,11 +222,11 @@ pub fn listed(cell: Cell<Vec<String>>) -> usize {
 	cell.0.len()
 }
 
-/// A const-generic type, whose const argument the IR cannot carry.
-pub struct Fixed<const N: usize>(pub u8);
+/// A type whose const argument is a `char`, which only a `bool` or integer may be.
+pub struct Fixed<const C: char>(pub u8);
 
 /// An instance of it, which a signature names.
-pub fn fixed() -> Fixed<2> {
+pub fn fixed() -> Fixed<'a'> {
 	Fixed(2)
 }
 

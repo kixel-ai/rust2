@@ -529,6 +529,7 @@ impl<'a> Gen<'a> {
 	/// The Go type of `ty`, as a value, a parameter, or a result.
 	fn go(&mut self, ty: &Type) -> String {
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool => "bool".to_string(),
 			Type::Int(int) => go_int(*int).to_string(),
@@ -684,6 +685,7 @@ impl<'a> Gen<'a> {
 	fn lower(&mut self, ty: &Type, e: &str) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Str | Type::String | Type::Path | Type::PathBuf => format!("a_.bufString({e})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("a_.bufView({e})"),
 			Type::Unit => unreachable!("no value is unit"),

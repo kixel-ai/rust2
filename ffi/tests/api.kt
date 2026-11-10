@@ -173,6 +173,14 @@ fun script() {
 	for (v in listOf(two.pow(128), java.math.BigInteger.ONE.negate())) {
 		check(runCatching { scaled(v, 1u) }.exceptionOrNull() is IllegalArgumentException, "$v is no u128")
 	}
+	Batch.new().use { batch ->
+		pair().use { two ->
+			val accepted = (1u..5u).count { batch.push(it) }
+			val paired = (1u..3u).count { two.push(it) }
+			val emptied = drain4(batch)
+			println("batch ${batch.capacity()} $accepted $emptied ${drain4(batch)} ${two.capacity()} $paired ${drain2(two)}")
+		}
+	}
 	val wide = widen(RangeU64(2u, 5u), 1u)
 	println("widen ${wide.start} ${wide.end}")
 	val counts = listOf(

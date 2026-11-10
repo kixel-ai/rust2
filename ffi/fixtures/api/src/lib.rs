@@ -419,6 +419,41 @@ pub fn scaled(v: u128, by: u64) -> Option<u128> {
 	v.checked_mul(by.into())
 }
 
+/// Up to `N` numbers, as moq's `frame::Buffer` holds up to `N` frames: a const parameter
+/// with a default, which exports at it and at each other value a signature names.
+pub struct Batch<const N: usize = 4>(Vec<u32>);
+
+impl<const N: usize> Batch<N> {
+	/// An empty batch.
+	pub fn new() -> Self {
+		Self(Vec::new())
+	}
+
+	/// Append `v`, unless the batch already holds `N`.
+	pub fn push(&mut self, v: u32) -> bool {
+		let room = self.0.len() < N;
+		if room {
+			self.0.push(v);
+		}
+		room
+	}
+
+	/// How many numbers it holds at most.
+	pub fn capacity(&self) -> usize {
+		N
+	}
+}
+
+/// A batch of two, an instance at a const argument other than the default.
+pub fn pair() -> Batch<2> {
+	Batch::new()
+}
+
+/// The sum of a batch's numbers, draining it: a const parameter at each instance's value.
+pub fn drain<const N: usize>(batch: &mut Batch<N>) -> u64 {
+	batch.0.drain(..).map(u64::from).sum()
+}
+
 /// A range, widened by `by` at each end.
 pub fn widen(range: Range<u64>, by: u64) -> Range<u64> {
 	range.start.saturating_sub(by)..range.end + by

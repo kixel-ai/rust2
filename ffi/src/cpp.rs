@@ -100,6 +100,7 @@ impl<'a> Header<'a> {
 	fn owned(&self, ty: &Type) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "void".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(int) => cpp_int(*int).to_string(),
@@ -242,6 +243,7 @@ impl<'a> Header<'a> {
 			return format!("{d}::access::raw(::{ns}::view({e}))");
 		}
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("static_cast<uint32_t>({e})"),

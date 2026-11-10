@@ -203,6 +203,18 @@ fn main() {
 		scaled((1 << 64) + 1, 1 << 63),
 		scaled(1 << 127, 2)
 	);
+	let mut batch: api::Batch = api::Batch::new();
+	let accepted = (1..=5).filter(|&v| batch.push(v)).count();
+	let mut two = api::pair();
+	let paired = (1..=3).filter(|&v| two.push(v)).count();
+	let emptied = api::drain(&mut batch);
+	println!(
+		"batch {} {accepted} {emptied} {} {} {paired} {}",
+		batch.capacity(),
+		api::drain(&mut batch),
+		two.capacity(),
+		api::drain(&mut two)
+	);
 	let wide = api::widen(2..5, 1);
 	println!("widen {} {}", wide.start, wide.end);
 	println!(

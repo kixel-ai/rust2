@@ -359,6 +359,7 @@ impl<'a> Gen<'a> {
 	fn kt(&mut self, ty: &Type) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "Unit".to_string(),
 			Type::Bool => "Boolean".to_string(),
 			Type::Int(int) => kt_int(*int).to_string(),

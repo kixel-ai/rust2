@@ -99,17 +99,19 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `impl IntoIterator<Item = X>`, where `X` is no type parameter | `Vec<X>`, or `&[Y]` where `X` is `&Y` |
 | `impl io::Read` | `&[u8]` |
 | another type parameter | `serde_json::Value` for a serde `Serialize` or `Deserialize` bound, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, through a blanket impl at each type implementing what the impl requires, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
+| a const parameter of a function | an instance of the function at each value an instance of a generic type the signature passes it to has there, where each generic type the signature then names is an instance |
+| a const argument | a `bool` or an integer below 128 bits; any other is refused |
 
 A generic type infers the instances it exports at, with no config: the one at its
-defaults, if each type parameter has one; the one each inherent impl is of, such as
-`impl Pair<u32>`; each choice, for each parameter, among its default and the types the
-exports implement a trait bounding it for, one of the exports', which are `()`, a
-primitive, `String`, or an exported type or an instance of one, such as
-`impl Seed<u64> for Wrap<u32>`; and each instance a signature, `pub` field, or constant
-names at any choice its bounds allow, whether or not the rest of it maps, which may name
-more. Inference finishes before any type is mapped, so mapping never adds an instance.
-An instance that holds an instance of a type inside it, such as `Cell<Cell<u8>>`, is
-refused, as it could name ever deeper ones.
+defaults, if each type and const parameter has one, as `frame::Buffer` at `N = 8`; the
+one each inherent impl is of, such as `impl Pair<u32>`; each choice, for each parameter,
+among its default and the types the exports implement a trait bounding it for, one of
+the exports', which are `()`, a primitive, `String`, or an exported type or an instance
+of one, such as `impl Seed<u64> for Wrap<u32>`; and each instance a signature, `pub`
+field, or constant names at any choice its bounds allow, whether or not the rest of it
+maps, which may name more. Inference finishes before any type is mapped, so mapping
+never adds an instance. An instance that holds an instance of a type inside it, such as
+`Cell<Cell<u8>>`, is refused, as it could name ever deeper ones.
 
 A record or enum holds only values and `Copy` handles: one with a field that does not map,
 or that holds itself, is an object instead, and the census lists it. A borrowed return is
@@ -190,8 +192,10 @@ Everything else is refused, and the census counts why.
   `Point`, and `api_Counter_seeded_polar_Point` at `polar::Point`. The names depend on
   every instance the item exports at, so one an upstream change adds can lengthen another's
   name. A type instance's methods are named through it, and a function instance appends
-  its arguments' names, a reference's by what it borrows. An `exclude` of a type or method
-  by the generic type's path leaves it out of every instance, and by the instance's path
+  its arguments' names, a reference's by what it borrows and a const's by its value: the
+  api fixture's `drain` is `api_drain_4` at `Batch` and `api_drain_2` at `Batch<2>`. An
+  `exclude` of a type or method by the generic type's path leaves it out of every
+  instance, and by the instance's path
   (`"mux::catalog::Producer<moq::mux::catalog::hang::Extra>::stats"`) out of that one.
 
 ## C++

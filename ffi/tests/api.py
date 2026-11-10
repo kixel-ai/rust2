@@ -234,6 +234,11 @@ def script():
 	print(f"reach {api.reach(2, 5)}")
 	scaled = [api.scaled(2**128 - 1, 1), api.scaled(2**64 + 1, 2**63), api.scaled(2**127, 2)]
 	print("scaled " + " ".join("none" if v is None else f"{v:032x}" for v in scaled))
+	batch, two = api.Batch.new(), api.pair()
+	accepted = sum(batch.push(v) for v in range(1, 6))
+	paired = sum(two.push(v) for v in range(1, 4))
+	emptied = api.drain_4(batch)
+	print(f"batch {batch.capacity()} {accepted} {emptied} {api.drain_4(batch)} {two.capacity()} {paired} {api.drain_2(two)}")
 	wide = api.widen(range(2, 5), 1)
 	print(f"widen {wide.start} {wide.stop}")
 	inc, exc, unb = api.Bound.INCLUDED, api.Bound.EXCLUDED, api.Bound.UNBOUNDED

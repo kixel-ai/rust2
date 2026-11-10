@@ -446,6 +446,21 @@ static int script(void) {
 		}
 	}
 	printf("\n");
+	api_Batch *batch = api_Batch_new();
+	unsigned accepted = 0;
+	for (uint32_t v = 1; v <= 5; v++) {
+		accepted += api_Batch_push(batch, v);
+	}
+	api_Batch_2 *two = api_pair();
+	unsigned paired = 0;
+	for (uint32_t v = 1; v <= 3; v++) {
+		paired += api_Batch_2_push(two, v);
+	}
+	unsigned long long emptied = api_drain_4(batch);
+	printf("batch %zu %u %llu %llu %zu %u %llu\n", api_Batch_capacity(batch), accepted, emptied,
+		(unsigned long long)api_drain_4(batch), api_Batch_2_capacity(two), paired, (unsigned long long)api_drain_2(two));
+	api_Batch_2_free(two);
+	api_Batch_free(batch);
 	api_range_u64 wide = api_widen((api_range_u64){.start = 2, .end = 5}, 1);
 	printf("widen %llu %llu\n", (unsigned long long)wide.start, (unsigned long long)wide.end);
 	api_bounds_u64 ranges[] = {

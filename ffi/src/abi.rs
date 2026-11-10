@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use rustc_span::Span;
 
-use crate::ir::{Access, Api, Dyn, Function, Home, Int, Receiver, Type};
+use crate::ir::{Access, Api, Dyn, Function, Home, Int, Literal, Receiver, Type};
 
 /// A C name claimed twice: the name, then what claimed it first and second.
 pub type Clash = (String, (String, Span), (String, Span));
@@ -372,6 +372,9 @@ impl<'a> Abi<'a> {
 			Type::Bound(int) => format!("bound_{}", int.rust()),
 			Type::Bounds(int) => format!("bounds_{}", int.rust()),
 			Type::Ref(_, inner) | Type::Box(inner) => self.key(inner),
+			// Only an instance's name holds one, where a C identifier has no `-`.
+			Type::Const(Literal::Int(_, v)) if *v < 0 => format!("neg{}", v.unsigned_abs()),
+			Type::Const(value) => value.to_string(),
 			other => unreachable!("no option struct holds {other:?}"),
 		}
 	}
@@ -408,6 +411,7 @@ impl<'a> Abi<'a> {
 	/// The C type of `ty` as a value: a parameter, field, or what a function returns.
 	pub fn ty(&self, ty: &Type) -> Ty {
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => Ty::Void,
 			Type::Bool => Ty::Bool,
 			Type::Int(int) => Ty::Int(*int),

@@ -10,7 +10,7 @@ use std::path::Path;
 
 use crate::abi::{self, Abi, Ty};
 use crate::config::Package;
-use crate::ir::{Access, Collection, Family, Function, Mutability, Receiver, Traits, Type};
+use crate::ir::{Access, Collection, Family, Function, Literal, Mutability, Receiver, Traits, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
 
@@ -372,6 +372,9 @@ impl Gen<'_> {
 				format!("::{}", foreign(&path[0])) + &path[1..].iter().map(|s| format!("::{s}")).collect::<String>()
 			}
 			Type::Object(i) => generic(&api.objects[*i].path, api.objects[*i].lifetimes, &api.objects[*i].args),
+			// A negative argument is an expression, which Rust takes only in braces.
+			Type::Const(Literal::Int(_, v)) if *v < 0 => format!("{{{v}}}"),
+			Type::Const(value) => value.to_string(),
 			other => unreachable!("no callback or type argument is {other:?}"),
 		}
 	}
@@ -379,6 +382,7 @@ impl Gen<'_> {
 	/// The Rust value of type `ty` that the C value `e` holds, copied out of it.
 	fn lift(&self, ty: &Type, e: &str) -> String {
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => e.to_string(),
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("rt::char({e}, w)"),
@@ -486,6 +490,7 @@ impl Gen<'_> {
 	/// The C value of the Rust value `e` of type `ty`, which the caller frees.
 	fn lower(&self, ty: &Type, e: &str) -> String {
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "()".to_string(),
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("{e} as u32"),

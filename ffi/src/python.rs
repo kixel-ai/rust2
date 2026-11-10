@@ -398,6 +398,7 @@ impl<'a> Gen<'a> {
 	fn py_ty(&self, ty: &Type) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "None".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(_) | Type::U128 => "int".to_string(),
@@ -470,6 +471,7 @@ impl<'a> Gen<'a> {
 	fn lift(&mut self, ty: &Type, o: &str, m: &str) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Bool => format!("rt::bool_in({o})"),
 			Type::Int(int) => format!("rt::int_in::<{}>({o})", int.rust()),
 			Type::F32 => format!("rt::float_in({o}).map(|f| f as f32)"),
@@ -534,6 +536,7 @@ impl<'a> Gen<'a> {
 	fn lower(&mut self, ty: &Type, v: &str) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "rt::none()".to_string(),
 			Type::Bool => format!("rt::bool_out({v})"),
 			Type::Int(int) if signed(*int) => format!("rt::int_out({v} as i64)"),

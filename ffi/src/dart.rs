@@ -415,6 +415,7 @@ impl<'a> Gen<'a> {
 	fn dt(&mut self, ty: &Type) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "void".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(_) => "int".to_string(),

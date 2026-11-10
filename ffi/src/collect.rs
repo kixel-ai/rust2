@@ -137,7 +137,7 @@ struct Site<'tcx> {
 	key: Key<'tcx>,
 	/// Its generic arguments as exported, each lifetime `'static`.
 	args: ty::GenericArgsRef<'tcx>,
-	/// How many of its type arguments it is named by: each up to the last that is not its
+	/// How many of its type and const arguments it is named by: each up to the last that is not its
 	/// default, as Rust spells it.
 	explicit: usize,
 	/// Its item's path, which names its members in the IR.
@@ -153,8 +153,9 @@ struct Instantiation<'tcx> {
 	/// The type parameters that stay parameters, each taking a lent closure or a foreign
 	/// implementation, which typing maps.
 	kept: Vec<Ty<'tcx>>,
-	/// The arguments of the type parameters that export at several types, which name it.
-	named: Vec<Ty<'tcx>>,
+	/// The arguments of the type parameters that export at several types, and of the const
+	/// parameters, which name it.
+	named: Vec<ty::GenericArg<'tcx>>,
 }
 
 struct Collector<'tcx> {
@@ -551,12 +552,12 @@ impl<'tcx> Collector<'tcx> {
 			.skip_norm_wip()
 	}
 
-	/// How many of `def_id`'s type arguments `args` names it by, as Rust spells it: each up
-	/// to the last that is not its default.
+	/// How many of `def_id`'s type and const arguments `args` names it by, as Rust spells
+	/// it: each up to the last that is not its default.
 	fn explicit(&self, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> usize {
 		let tcx = self.tcx;
 		let params: Vec<&ty::GenericParamDef> = (tcx.generics_of(def_id).own_params.iter())
-			.filter(|p| matches!(p.kind, ty::GenericParamDefKind::Type { .. }))
+			.filter(|p| !matches!(p.kind, ty::GenericParamDefKind::Lifetime))
 			.collect();
 		let mut explicit = params.len();
 		while let Some(param) = explicit.checked_sub(1).map(|i| params[i]) {
@@ -574,6 +575,38 @@ impl<'tcx> Collector<'tcx> {
 		explicit
 	}
 
+	/// The first `explicit` type and const arguments of `args`, which name an instance.
+	fn shown_args(args: ty::GenericArgsRef<'tcx>, explicit: usize) -> Vec<ty::GenericArg<'tcx>> {
+		let named = args.iter().filter(|arg| !matches!(arg.kind(), GenericArgKind::Lifetime(_)));
+		named.take(explicit).collect()
+	}
+
+	/// A type or const argument as reports spell it.
+	fn spell_arg(&self, arg: ty::GenericArg<'tcx>) -> String {
+		match arg.kind() {
+			GenericArgKind::Type(ty) => self.spell(ty),
+			GenericArgKind::Const(ct) => self.const_arg(ct).map_or_else(|_| ct.to_string(), |c| c.to_string()),
+			GenericArgKind::Lifetime(region) => region.to_string(),
+		}
+	}
+
+	/// A const argument's value, which must be a `bool` or an integer that is not 128 bits.
+	fn const_arg(&self, ct: ty::Const<'tcx>) -> Result<Literal, Why> {
+		let tcx = self.tcx;
+		let refused = || why("const argument", ct.to_string());
+		let ty::ConstKind::Value(value) = ct.kind() else {
+			return Err(refused());
+		};
+		let scalar = value.try_to_leaf().ok_or_else(refused)?;
+		let bits = scalar.to_bits(scalar.size());
+		match value.ty.kind() {
+			ty::Bool => Ok(Literal::Bool(bits != 0)),
+			_ => int(value.ty)
+				.map(|int| Literal::Int(int, signed(tcx, value.ty, bits)))
+				.ok_or_else(refused),
+		}
+	}
+
 	/// A type as reports spell it, each export's by its path in the IR, and an instance by
 	/// the arguments that name it.
 	fn spell(&self, ty: Ty<'tcx>) -> String {
@@ -587,7 +620,9 @@ impl<'tcx> Collector<'tcx> {
 					None => tcx.def_path_str(adt.did()),
 				};
 				let explicit = self.explicit(adt.did(), args);
-				let args: Vec<String> = args.types().take(explicit).map(|ty| self.spell(ty)).collect();
+				let args: Vec<String> = (Self::shown_args(args, explicit).into_iter())
+					.map(|arg| self.spell_arg(arg))
+					.collect();
 				match args.is_empty() {
 					true => path,
 					false => format!("{path}<{}>", args.join(", ")),
@@ -628,7 +663,10 @@ impl<'tcx> Collector<'tcx> {
 					.flat_map(|choice| {
 						let options: Vec<ty::GenericArg<'tcx>> = match param.kind {
 							ty::GenericParamDefKind::Lifetime => vec![tcx.lifetimes.re_static.into()],
-							ty::GenericParamDefKind::Const { .. } => Vec::new(),
+							ty::GenericParamDefKind::Const { .. } => (param.default_value(tcx))
+								.map(|default| default.instantiate(tcx, &choice[..]).skip_norm_wip())
+								.into_iter()
+								.collect(),
 							ty::GenericParamDefKind::Type { .. } => (param.default_value(tcx))
 								.map(|default| default.instantiate(tcx, &choice[..]).skip_norm_wip())
 								.into_iter()
@@ -724,12 +762,19 @@ impl<'tcx> Collector<'tcx> {
 		named
 	}
 
-	/// The first type argument an instance is named by that cannot map as [`Self::arg`]
-	/// requires, which is `()`, a primitive, `String`, `Bytes`, `Duration`, a foreign object,
-	/// or an export's type.
-	fn unarguable(&self, site: &Site<'tcx>) -> Option<Ty<'tcx>> {
+	/// Why the first argument an instance is named by cannot map as [`Self::arg`] requires:
+	/// a type that is not `()`, a primitive, `String`, `Bytes`, `Duration`, a foreign
+	/// object, or an export's type, or a const that is not a `bool` or integer.
+	fn unarguable(&self, site: &Site<'tcx>) -> Option<Why> {
 		let tcx = self.tcx;
-		site.args.types().take(site.explicit).find(|&ty| match ty.kind() {
+		let mut args = Self::shown_args(site.args, site.explicit).into_iter();
+		args.find_map(|arg| {
+			let ty = match arg.kind() {
+				GenericArgKind::Const(ct) => return self.const_arg(ct).err(),
+				GenericArgKind::Type(ty) => ty,
+				GenericArgKind::Lifetime(_) => return None,
+			};
+			let unarguable = match ty.kind() {
 			ty::Tuple(list) => !list.is_empty(),
 			ty::Bool | ty::Char | ty::Float(_) => false,
 			ty::Int(_) | ty::Uint(_) => int(ty).is_none(),
@@ -739,8 +784,10 @@ impl<'tcx> Collector<'tcx> {
 					&& !tcx.is_diagnostic_item(rustc_span::Symbol::intern("Duration"), adt.did())
 					&& !self.exported(adt.did().krate)
 					&& !self.foreign.iter().any(|&(ty, _)| ty == adt.did())
-			}
-			_ => true,
+				}
+				_ => true,
+			};
+			unarguable.then(|| why("type argument", self.spell(ty)))
 		})
 	}
 
@@ -769,7 +816,12 @@ impl<'tcx> Collector<'tcx> {
 	fn shown(&mut self, shown: &Path, instance: &Instantiation<'tcx>) -> Option<Path> {
 		let mut shown = shown.clone();
 		if !instance.named.is_empty() {
-			let spelled: Vec<String> = instance.named.iter().map(|&ty| self.spell(ty.peel_refs())).collect();
+			let spelled: Vec<String> = (instance.named.iter())
+				.map(|&arg| match arg.kind() {
+					GenericArgKind::Type(ty) => self.spell(ty.peel_refs()),
+					_ => self.spell_arg(arg),
+				})
+				.collect();
 			*shown.last_mut().expect("a path has a segment") += &format!("<{}>", spelled.join(", "));
 			if self.exclude(&shown) {
 				return None;
@@ -883,10 +935,6 @@ impl<'tcx> Collector<'tcx> {
 				Err(why("instance holding an instance of a type inside it", spelled)),
 			));
 		}
-		// The IR keeps only an instance's type arguments, which would lose a const one.
-		if args.consts().next().is_some() {
-			return Some((key, Err(why("const generic", spelled))));
-		}
 		let (infcx, env) = tcx.infer_ctxt().build_with_typing_env(TypingEnv::fully_monomorphized());
 		for clause in tcx.clauses_of(def_id).instantiate(tcx, args).clauses {
 			let clause = clause.skip_norm_wip();
@@ -898,7 +946,9 @@ impl<'tcx> Collector<'tcx> {
 		let explicit = self.explicit(def_id, args);
 		let mut shown = path.clone();
 		if explicit > 0 {
-			let spelled: Vec<String> = args.types().take(explicit).map(|ty| self.spell(ty)).collect();
+			let spelled: Vec<String> = (Self::shown_args(args, explicit).into_iter())
+				.map(|arg| self.spell_arg(arg))
+				.collect();
 			let last = shown.last_mut().expect("a path has a segment");
 			*last = format!("{last}<{}>", spelled.join(", "));
 		}
@@ -1034,7 +1084,7 @@ impl<'tcx> Collector<'tcx> {
 			}
 			for site in self.sites(def_id, &path) {
 				let decl = match self.unarguable(&site) {
-					Some(ty) => Decl::Refused(why("type argument", self.spell(ty))),
+					Some(why) => Decl::Refused(why),
 					None => self.declare_site(&site),
 				};
 				self.decls.insert(site.key, decl);
@@ -1293,10 +1343,15 @@ impl<'tcx> Collector<'tcx> {
 		}
 	}
 
-	/// The type arguments an instance is named by, each of which must export as a value or
+	/// The arguments an instance is named by, each type of which must export as a value or
 	/// a handle: Rust fills in the defaults after them, which may be any type.
 	fn args(&self, site: &Site<'tcx>) -> Result<Vec<Type>, Why> {
-		site.args.types().take(site.explicit).map(|ty| self.arg(ty)).collect()
+		(Self::shown_args(site.args, site.explicit).into_iter())
+			.map(|arg| match arg.kind() {
+				GenericArgKind::Const(ct) => self.const_arg(ct).map(Type::Const),
+				_ => self.arg(arg.expect_ty()),
+			})
+			.collect()
 	}
 
 	/// A type argument that names an instance: a value or a handle.
@@ -2010,29 +2065,42 @@ impl<'tcx> Collector<'tcx> {
 		*self.impls.borrow_mut() = impls;
 		// What the glue names a declared type parameter as, which a call cannot always
 		// infer; an `impl Trait` one cannot be named, and is inferred from its argument.
-		let mut arg = |ty: Ty<'tcx>| {
-			let mapped = match *ty.kind() {
-				ty::Ref(_, inner, ty::Mutability::Not) => {
-					self.arg(inner).map(|inner| Type::Ref(Mutability::Not, Box::new(inner)))
-				}
-				_ => self.arg(ty),
+		let mut arg = |arg: ty::GenericArg<'tcx>| {
+			let mapped = match arg.kind() {
+				GenericArgKind::Const(ct) => self.const_arg(ct).map(Type::Const),
+				GenericArgKind::Type(ty) => match *ty.kind() {
+					ty::Ref(_, inner, ty::Mutability::Not) => {
+						self.arg(inner).map(|inner| Type::Ref(Mutability::Not, Box::new(inner)))
+					}
+					_ => self.arg(ty),
+				},
+				GenericArgKind::Lifetime(_) => unreachable!("no lifetime names an instance"),
 			};
 			mapped.map_err(|why| errs.push(why)).ok()
 		};
 		let instance = match instance.named.is_empty() {
 			true => None,
 			false => {
-				let declared = (tcx.generics_of(def_id).own_params.iter())
-					.filter(|p| matches!(p.kind, ty::GenericParamDefKind::Type { synthetic: false, .. }));
+				let declared = (tcx.generics_of(def_id).own_params.iter()).filter(|p| {
+					matches!(
+						p.kind,
+						ty::GenericParamDefKind::Type { synthetic: false, .. } | ty::GenericParamDefKind::Const { .. }
+					)
+				});
 				// A kept parameter is left for Rust to infer from its argument.
 				let args = declared
-					.map(|p| args.type_at(p.index as usize))
-					.filter_map(|ty| match instance.kept.contains(&ty) {
+					.map(|p| args[p.index as usize])
+					.filter_map(|a| match a.as_type().is_some_and(|ty| instance.kept.contains(&ty)) {
 						true => Some(None),
-						false => arg(ty).map(Some),
+						false => arg(a).map(Some),
 					})
 					.collect();
-				let named = instance.named.iter().filter_map(|&ty| arg(ty.peel_refs())).collect();
+				let named = (instance.named.iter())
+					.filter_map(|&a| match a.kind() {
+						GenericArgKind::Type(ty) => arg(ty.peel_refs().into()),
+						_ => arg(a),
+					})
+					.collect();
 				Some(crate::ir::Instance { args, named })
 			}
 		};
@@ -2199,14 +2267,29 @@ impl<'tcx> Collector<'tcx> {
 		}
 		let base = args.clone();
 		let mut kept = Vec::new();
-		// Each choice of the parameters so far, with the types that name it.
-		let mut choices = vec![(args, Vec::new())];
+		// Each choice of the parameters so far, with the arguments that name it.
+		let mut choices: Vec<(Vec<ty::GenericArg<'tcx>>, Vec<ty::GenericArg<'tcx>>)> = vec![(args, Vec::new())];
 		for (i, arg) in identity.iter().enumerate() {
 			let param = match arg.kind() {
 				_ if i < count => continue,
 				GenericArgKind::Lifetime(_) => continue,
-				// The first refusal ends it, before any later parameter's candidates are mapped.
-				GenericArgKind::Const(_) => return Err(vec![why("const generic", "")]),
+				GenericArgKind::Const(param) => {
+					let next: Vec<_> = (choices.into_iter())
+						.flat_map(|(args, named)| {
+							(self.each_const(def_id, param, &args).into_iter()).map(move |value| {
+								let mut args = args.clone();
+								args[i] = value.into();
+								(args, [&named[..], &[value.into()]].concat())
+							})
+						})
+						.collect();
+					// The first refusal ends it, before any later parameter's candidates are mapped.
+					if next.is_empty() {
+						return Err(vec![why("const generic", param.to_string())]);
+					}
+					choices = next;
+					continue;
+				}
 				GenericArgKind::Type(param) if self.lent(def_id, param) => {
 					kept.push(param);
 					continue;
@@ -2262,7 +2345,7 @@ impl<'tcx> Collector<'tcx> {
 				for ty in each {
 					let mut args = args.clone();
 					args[i] = ty.into();
-					next.push((args, [&named[..], &[ty]].concat()));
+					next.push((args, [&named[..], &[ty.into()]].concat()));
 				}
 			}
 			// A choice no type of this parameter meets is dropped; with none left, the first
@@ -2718,6 +2801,51 @@ impl<'tcx> Collector<'tcx> {
 				});
 				if named {
 					found.push(candidate);
+				}
+			}
+		}
+		found
+	}
+
+	/// The values a const parameter exports at: as an argument of a generic type the
+	/// signature names, each value an instance of it has there, where each generic type the
+	/// signature then names is an instance.
+	fn each_const(&self, def_id: DefId, param: ty::Const<'tcx>, args: &[ty::GenericArg<'tcx>]) -> Vec<ty::Const<'tcx>> {
+		let tcx = self.tcx;
+		let exported = |ty: Ty<'tcx>| match ty.kind() {
+			ty::Adt(adt, args) if self.exported(adt.did().krate) && self.typed(adt.did()) => Some((adt.did(), args)),
+			_ => None,
+		};
+		let spelled = |args| self.spelled(def_id, args);
+		let ty::ConstKind::Param(p) = param.kind() else {
+			unreachable!("a generic const argument is a parameter");
+		};
+		let mut found: Vec<ty::Const<'tcx>> = Vec::new();
+		for (adt, at) in spelled(tcx.mk_args(args)).into_iter().filter_map(exported) {
+			let Some(j) = at.iter().position(|arg| arg == param.into()) else {
+				continue;
+			};
+			for site in self.instances.iter().filter(|site| site.key.def_id == adt) {
+				let Some(value) = site.args[j].as_const() else {
+					continue;
+				};
+				if found.contains(&value) {
+					continue;
+				}
+				let mut args = args.to_vec();
+				args[p.index as usize] = value.into();
+				let named = spelled(tcx.mk_args(&args)).into_iter().filter_map(exported).all(|(adt, args)| {
+					let key = self.key(adt, args);
+					match self.inferring {
+						true => self.instances.iter().any(|site| site.key == key),
+						false => matches!(
+							self.decls.get(&key),
+							Some(Decl::Record(_) | Decl::Enum(_) | Decl::Object(_))
+						),
+					}
+				});
+				if named {
+					found.push(value);
 				}
 			}
 		}
@@ -3974,8 +4102,21 @@ fn matches<'tcx>(tcx: TyCtxt<'tcx>, pattern: Ty<'tcx>, ty: Ty<'tcx>, args: &mut 
 			}
 		}
 		(ty::Adt(a, pattern_args), ty::Adt(b, ty_args)) if a.did() == b.did() => {
-			(pattern_args.iter().zip(ty_args.iter())).all(|(p, t)| match (p.as_type(), t.as_type()) {
-				(Some(p), Some(t)) => matches(tcx, p, t, args),
+			(pattern_args.iter().zip(ty_args.iter())).all(|(p, t)| match (p.kind(), t.kind()) {
+				(GenericArgKind::Type(p), GenericArgKind::Type(t)) => matches(tcx, p, t, args),
+				(GenericArgKind::Const(p), GenericArgKind::Const(t)) => match p.kind() {
+					ty::ConstKind::Param(param) => {
+						let slot = &mut args[param.index as usize];
+						match slot.as_const() == Some(p) {
+							true => {
+								*slot = t.into();
+								true
+							}
+							false => slot.as_const() == Some(t),
+						}
+					}
+					_ => p == t,
+				},
 				_ => true,
 			})
 		}

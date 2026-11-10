@@ -229,6 +229,7 @@ impl<'a> Gen<'a> {
 	fn sw(&self, ty: &Type) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "Void".to_string(),
 			Type::Bool => "Swift.Bool".to_string(),
 			Type::Int(int) => sw_int(*int).to_string(),

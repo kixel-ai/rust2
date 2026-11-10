@@ -317,6 +317,21 @@ func script() {
 		}
 	}
 	fmt.Println()
+	batch, two := api.NewBatch(), api.Pair()
+	accepted, paired := 0, 0
+	for v := uint32(1); v <= 5; v++ {
+		if must(batch.Push(v)) {
+			accepted++
+		}
+	}
+	for v := uint32(1); v <= 3; v++ {
+		if must(two.Push(v)) {
+			paired++
+		}
+	}
+	emptied := must(api.Drain4(batch))
+	fmt.Printf("batch %d %d %d %d %d %d %d\n", must(batch.Capacity()), accepted, emptied, must(api.Drain4(batch)),
+		must(two.Capacity()), paired, must(api.Drain2(two)))
 	wide := api.Widen(rt.RangeU64{Start: 2, End: 5}, 1)
 	fmt.Printf("widen %d %d\n", wide.Start, wide.End)
 	included := func(n uint64) rt.BoundU64 { return rt.BoundU64{Kind: rt.BoundIncluded, Value: n} }
