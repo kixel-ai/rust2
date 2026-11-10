@@ -621,7 +621,7 @@ impl<'a> Gen<'a> {
 		let shown: Vec<&str> = types.iter().map(|t| t.trim_start_matches("Swift.")).collect();
 		let _ = write!(
 			self.types,
-			"/// The tuple `({})`, as a struct, since it holds a value Swift cannot copy.\npublic struct {name}: ~Copyable, Sendable {{\n{fields}\n\tpublic init({}) {{\n{assigns}\t}}\n}}\n\n",
+			"/// The tuple `({})`, as a struct, since it holds a value Swift cannot copy. Frozen, so\n/// another module may move each element out.\n@frozen public struct {name}: ~Copyable, Sendable {{\n{fields}\n\tpublic init({}) {{\n{assigns}\t}}\n}}\n\n",
 			shown.join(", "),
 			params.join(", ")
 		);

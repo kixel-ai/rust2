@@ -12,13 +12,13 @@ func perFrame(_ start: UInt64) -> Double {
 	Double(DispatchTime.now().uptimeNanoseconds - start) / Double(groups * frames)
 }
 
-/// A value a task sets and this thread reads once the task signals.
-final class Cell<T>: @unchecked Sendable {
+/// A value a task sets and this thread takes once the task signals.
+final class Cell<T: ~Copyable>: @unchecked Sendable {
 	var value: T?
 }
 
 /// `body`'s result, waiting on this thread for it to finish on the global executor.
-func block<T: Sendable>(_ body: @escaping @Sendable () async throws -> T) -> T {
+func block<T: ~Copyable>(_ body: @escaping @Sendable () async throws -> T) -> T {
 	let done = DispatchSemaphore(value: 0)
 	let result = Cell<T>()
 	Task {
@@ -26,7 +26,13 @@ func block<T: Sendable>(_ body: @escaping @Sendable () async throws -> T) -> T {
 		done.signal()
 	}
 	done.wait()
-	return result.value!
+	return result.value.take()!
+}
+
+/// The reads' time per frame, and the last frame read, which a tuple cannot hold.
+struct Reads: ~Copyable {
+	var perFrame: Double
+	var last: FrameFrame
 }
 
 func round() throws -> String {
@@ -40,7 +46,7 @@ func round() throws -> String {
 	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
 	var start = DispatchTime.now().uptimeNanoseconds
 	for _ in 0..<groups {
-		let group = try track.appendGroup()
+		var group = try track.appendGroup()
 		for _ in 0..<frames {
 			let at = try Timestamp.fromMicros(micros)
 			micros += 1
@@ -54,7 +60,7 @@ func round() throws -> String {
 	let at = try Timestamp.fromMicros(micros)
 	start = DispatchTime.now().uptimeNanoseconds
 	for _ in 0..<groups {
-		let group = try track.appendGroup()
+		var group = try track.appendGroup()
 		for _ in 0..<frames {
 			try group.writeFrame(at, frame)
 		}
@@ -72,22 +78,23 @@ func round() throws -> String {
 
 	// Reads: each frame written, then read through an async func whose future is ready at
 	// its first poll, so it never suspends.
-	let (read, last) = block {
-		let subscriber = try await track.consume().subscribe(nil)
+	let reads = block {
+		var subscriber = try await track.consume().subscribe(nil)
 		let start = DispatchTime.now().uptimeNanoseconds
 		var last: FrameFrame?
 		for _ in 0..<groups {
-			let group = try track.appendGroup()
-			let reader = try await subscriber.recvGroup()!
+			var group = try track.appendGroup()
+			var reader = try await subscriber.recvGroup()!
 			for _ in 0..<frames {
 				try group.writeFrame(at, frame)
-				let read = try await reader.readFrame()!
-				last = read
+				last = try await reader.readFrame()!
 			}
 			try group.finish()
 		}
-		return (perFrame(start), last!)
+		return Reads(perFrame: perFrame(start), last: last.take()!)
 	}
+	let read = reads.perFrame
+	let last = reads.last
 
 	// Payload reads: the last frame's 100 bytes, lent without a copy, then freed.
 	start = DispatchTime.now().uptimeNanoseconds
