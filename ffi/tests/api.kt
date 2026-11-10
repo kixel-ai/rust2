@@ -786,8 +786,8 @@ fun budgeted() {
 }
 
 // Rust's bytes either side of the copy limit, returning the drops once the call has freed
-// those it copied. In its own frame, as ART's interpreter keeps the last ones reachable
-// from the caller's until it returns.
+// those it copied. In its own frame, which the Android test keeps from R8's inlining, as
+// ART's interpreter keeps the last ones reachable from the caller's until it returns.
 fun lentAround(): UInt {
 	var freed = dropped()
 	for (n in 1023..1025) {
@@ -799,7 +799,8 @@ fun lentAround(): UInt {
 	return freed
 }
 
-// In its own frame, so nothing on the caller's keeps them reachable.
+// In its own frame, which the Android test keeps from R8's inlining, so nothing on the
+// caller's keeps them reachable.
 fun lentToBudget(before: UInt) {
 	val mib = 1 shl 20
 	val held = List(64) { tokenBytes(1u, mib.toUInt()) }
