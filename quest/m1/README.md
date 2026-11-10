@@ -14,10 +14,9 @@ whose feature quests are folded into the [exporter's](/quest/m1/ffi-export/READM
 
 Decided 2026-11-02 (maintainer, moq's /quest-unblock): the fork is not published to crates.io. moq skips it and switches straight to the exporter ([moq's switch](https://github.com/moq-dev/moq/blob/main/quest/m3/ffi-exporter.md)), so publishing would only commit permanent `rust2-*` names to code already slated for retirement. moq keeps its own pinned generator forks until the exporter is ready.
 
-Decided with the maintainer on 2026-11-09, in the quest audit: ✅ the fork is deleted now
-([its quest](/quest/m0/delete-uniffi.md)), since moq never builds on it and its only
-consumers here were the binding benchmark's baseline and nightly jobs. Rejected: keeping it
-until moq switches; keeping it as is.
+Decided with the maintainer on 2026-11-09, in the quest audit: ✅ the fork is deleted now,
+since moq never builds on it and its only consumers here were the binding benchmark's
+baseline and nightly jobs. Rejected: keeping it until moq switches; keeping it as is.
 
 ## Required
 

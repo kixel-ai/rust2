@@ -1,2 +1,0 @@
-# Upstream UniFFI formatting, overriding the root rustfmt.toml so imported code stays
-# byte-comparable with its upstream.

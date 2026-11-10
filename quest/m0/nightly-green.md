@@ -9,8 +9,8 @@ cause, and a regression in a suite only the nightly runs cannot go unseen for a 
 
 Found in the 2026-11-09 quest audit: the nightly has failed every scheduled run since
 2026-10-29, with no quest owning it. Decided with the maintainer on 2026-11-09: ✅ m0,
-after [the fork's deletion](/quest/m0/delete-uniffi.md), which removes the `uniffi-*`
-jobs, so this fixes only what remains. Rejected: m1.
+after the UniFFI fork's deletion removed the `uniffi-*` jobs, so this fixes only what
+remains. Rejected: m1.
 
 What failed on 2026-11-09 (run
 [42655190735](https://github.com/moq-dev/rust2/actions/runs/42655190735), at `f7a0c279`):
@@ -37,7 +37,3 @@ issue the maintainer sees, and `just ffi moq`'s export step joins `just ci` when
 or the pin changes, if it fits the gate's budget; measure it and report.
 
 Public API: none.
-
-## Required
-
-- [Delete the UniFFI fork](/quest/m0/delete-uniffi.md) - the nightly's `uniffi-*` jobs, one of them red, are deleted rather than fixed

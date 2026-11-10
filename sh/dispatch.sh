@@ -25,7 +25,6 @@ declare -A scope=(
     [lint]=''
     [quest]='^quest/'
     [sh]='^sh/dispatch\.test\.py$'
-    [uniffi]='^uniffi/'
     # The driver and ffi link ts's toolchain, and both of the others build on
     # the driver's front end.
     [driver]='^(driver/|ts/rust-toolchain\.toml$)'
@@ -35,7 +34,7 @@ declare -A scope=(
     [ts]='^(ts|driver)/'
 )
 # Cheapest first, so a lint fails before the builds start.
-modules=(lint quest sh uniffi driver ffi go ts)
+modules=(lint quest sh driver ffi go ts)
 
 # Paths that only the repository-wide lints read.
 lints='^(bench/|\.agents/|\.claude/|\.codex/|[^/]+\.md$|LICENSE-|\.(editorconfig|gitattributes|gitignore|taplo\.toml)$)'
@@ -58,7 +57,7 @@ else
     } | sort -u)
 
     # A path no module claims is a shared input, such as the flake, a
-    # toolchain, the root Cargo.* and justfile, .github, or this map, so it
+    # toolchain, the root justfile, .github, or this map, so it
     # selects everything. A new project selects everything until it is mapped.
     claimed=$lints
     for module in "${modules[@]}"; do
@@ -94,18 +93,11 @@ check_lint() {
     nixfmt --check flake.nix bench/build/nix.nix
 }
 check_quest() { quest check; }
-# The root workspace holds only the UniFFI fork.
-check_uniffi() {
-    cargo fmt --all --check
-    cargo clippy --locked --workspace --all-targets -- -D warnings
-    just uniffi check
-}
 check_driver() { just driver check; }
 check_ffi() { just ffi check; }
 check_go() { just go check; }
 check_ts() { just ts check; }
 test_sh() { python3 -I sh/dispatch.test.py; }
-test_uniffi() { just uniffi test; }
 test_driver() { just driver test; }
 test_ffi() { just ffi test; }
 test_go() { just go test; }
