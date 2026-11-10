@@ -2239,7 +2239,11 @@ impl<'tcx> Collector<'tcx> {
 			if !callback && let Some(kind) = self.task(ty, polled.is_some()) {
 				// C passes a waker for a context the future does not supply.
 				if polled.is_none() {
-					params.push(Param { name, ty: Type::Waker, interned: false });
+					params.push(Param {
+						name,
+						ty: Type::Waker,
+						interned: false,
+					});
 				}
 				tasks.push(Task {
 					at: i - usize::from(has_self),
