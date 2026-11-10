@@ -2365,25 +2365,13 @@ impl<'tcx> Collector<'tcx> {
 			} else if Some(tr) == self.range_bounds {
 				candidates.extend(self.bounds(target()).map(|ty| (ty, None)));
 			} else if tcx.is_diagnostic_item(sym::IntoIterator, tr) {
-				// Items borrowed for the call iterate a slice C lends: borrowed for a lifetime of
-				// the function's own that no other parameter, return, or lifetime bound names,
-				// since any of them, as `'static`, a returned borrow, `'a: 'b`, or a handle's
-				// `Text<'a>` would, may ask more than the call of C's slice.
-				let lent = |region: ty::Region<'tcx>| {
-					if !matches!(tcx.def_kind(def_id), DefKind::Fn | DefKind::AssocFn) {
-						return false;
-					}
-					let sig = tcx.fn_sig(def_id).instantiate_identity().skip_norm_wip().skip_binder();
-					let named = |ty: Ty<'tcx>| ty.walk().any(|arg| arg.as_region() == Some(region));
-					matches!(region.kind(), ty::ReEarlyParam(_))
-						&& !sig.inputs_and_output.iter().any(named)
-						&& !(self.implied(def_id, base).iter())
-							.filter_map(|clause| clause.as_region_outlives_clause())
-							.any(|pred| pred.skip_binder().0 == region || pred.skip_binder().1 == region)
-				};
+				// Borrowed items iterate a slice C lends, borrowed for the items' own lifetime,
+				// so the signature's borrows decide whether C's slice lives long enough.
 				let items = self.items(&identity.clauses, param).and_then(|item| match item.kind() {
-					ty::Ref(region, elem, ty::Mutability::Not) if !outlives && lent(*region) => {
-						Some(Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, Ty::new_slice(tcx, *elem)))
+					ty::Ref(region, elem, ty::Mutability::Not)
+						if !outlives && !matches!(region.kind(), ty::ReBound(..)) =>
+					{
+						Some(Ty::new_imm_ref(tcx, *region, Ty::new_slice(tcx, *elem)))
 					}
 					_ => self.vec_of(item),
 				});

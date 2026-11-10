@@ -518,6 +518,22 @@ pub fn retext_last<'a, I: IntoIterator<Item = &'a String>>(text: &mut Text<'a>, 
 	}
 }
 
+/// Items outliving `text`'s borrow, which is `'static` in a handle, so they are too.
+pub fn outlast<'a, 'b: 'a, I: IntoIterator<Item = &'b String>>(text: &mut Text<'a>, items: I) {
+	if let Some(item) = items.into_iter().last() {
+		text.0 = item;
+	}
+}
+
+/// Items a text taken by value could keep, once its parameter is chosen as a handle.
+pub fn retext_into<'a, T: Into<Text<'a>>, I: IntoIterator<Item = &'a String>>(text: T, items: I) -> usize {
+	let mut text = text.into();
+	if let Some(item) = items.into_iter().last() {
+		text.0 = item;
+	}
+	text.0.len()
+}
+
 /// One byte forever.
 pub fn ones() -> std::iter::Repeat<u8> {
 	std::iter::repeat(1)
