@@ -90,7 +90,7 @@ check_lint() {
     shellcheck "${scripts[@]}"
     shfmt -d "${scripts[@]}"
     taplo format --check
-    nixfmt --check flake.nix bench/build/nix.nix
+    nixfmt --check flake.nix
 }
 check_quest() { quest check; }
 check_driver() { just driver check; }

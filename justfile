@@ -40,15 +40,11 @@ test $BASE="":
 bench *args:
     bench/build/run.sh {{ args }}
 
-# Measure moq's Nix release builds in CPU time, built each way; see bench/build/README.md.
-bench-nix *args:
-    bench/build/nix.sh {{ args }}
-
 # Apply formatters without changing program behavior.
 fix:
     shfmt -w bench/*/*.sh sh/*.sh
     taplo format
-    nixfmt flake.nix bench/build/nix.nix
+    nixfmt flake.nix
     just ts fix
     just ffi fix
     just go fix

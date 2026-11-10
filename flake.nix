@@ -23,12 +23,6 @@
       inputs.rust-overlay.follows = "rust-overlay";
       inputs.flake-utils.follows = "flake-utils";
     };
-    # The compiler cache the benchmark's Nix comparison measures, at the release
-    # moq's CI runs. Bumping it is a corpus change, like ra-jit's.
-    mbx = {
-      url = "github:jdx/mr-boxington/v1.29.0";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs =
@@ -39,7 +33,6 @@
       rust-overlay,
       quest,
       ra-jit,
-      mbx,
       ...
     }:
     flake-utils.lib.eachSystem
@@ -184,17 +177,6 @@
               paths = [
                 ra-jit.packages.${system}.ra-jit
                 raJitToolchain
-              ];
-            };
-          }
-          # What `just bench-nix` runs beyond the build-bench shell, built only then:
-          # mbx compiles from source.
-          // pkgs.lib.optionalAttrs (mbx.packages ? ${system}) {
-            bench-nix = pkgs.symlinkJoin {
-              name = "bench-nix";
-              paths = [
-                mbx.packages.${system}.mbx
-                pkgs.crate2nix
               ];
             };
           };
