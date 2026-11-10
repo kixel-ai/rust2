@@ -13,7 +13,7 @@ and `LevelFilter`.
 The rest of the original count lies in moq-tokio outside its session side (`NonZero` in
 `quic::driver`, `IpAddr` in `quic::demux`, `UdpSocket` and `TcpListener` in `bind`, and
 `io::Error` parameters in `accept` and `notify`), which
-[narrow-standin](/quest/m1/ffi-export/refusals/narrow-standin.md) drops.
+[moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683) drops.
 
 ## Plan
 

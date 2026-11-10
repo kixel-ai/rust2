@@ -41,8 +41,8 @@ Decided with the maintainer on 2026-11-07, from
   binding calls; the sans-IO driver bindings use instead is
   [session-quic](/quest/m3/session-quic.md). Children leave the moq-tokio items
   outside that session side alone, since narrowing the stand-in drops them.
-- Narrowing the stand-in was to land first; the 2026-11-09 audit dropped the order, as
-  [its quest](/quest/m1/ffi-export/refusals/narrow-standin.md) records.
+- Narrowing the stand-in was to land first; the 2026-11-09 audit dropped that order, and
+  [moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683) narrowed it.
 - ✅ What C can never hold, an object no export returns or lends to a closure, or a generic
   type no export instantiates, is left out of the bindings and kept listed in the census.
   Rejected: refusing them, which would make moq add constructors it has no use for.
@@ -65,7 +65,6 @@ Public API: the exporter's command line and the C API of every item that exports
 
 ## Required
 
-- [The stand-in exports only moq-tokio's session side](/quest/m1/ffi-export/refusals/narrow-standin.md) - `just ffi standin` names the session items moq-ffi ships in place of `pub use ::moq_tokio::*;`
 - [Futures and kept closures as parameters export](/quest/m1/ffi-export/refusals/generics.md) - `clock::timeout`'s future, `clock::drive`'s kept closure, and `mp4::repair`'s seekable reader cross from C
 - [Standard and common types export by role](/quest/m1/ffi-export/refusals/std-types.md) - `Filter`, serde_json's map iterators, `Instant`, and tracing's levels, once their maintainer decisions land
 - [Poll and Context export](/quest/m1/ffi-export/refusals/poll.md) - a `poll_*` with no async twin takes a waker, as futures' polls do

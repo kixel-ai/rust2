@@ -4,7 +4,7 @@
 
 The census at the moq pin refuses no item of moq's own for a future or a kept closure
 taken as a parameter, or a reader it seeks: 11 items at moq `ffcb7cd9`, once
-[narrowing](/quest/m1/ffi-export/refusals/narrow-standin.md) drops the moq-tokio items
+[moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683) drops the moq-tokio items
 outside its session side.
 
 - A future parameter: kio's `Waiter::poll_future`, `clock::timeout`, and
