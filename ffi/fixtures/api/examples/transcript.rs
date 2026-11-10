@@ -366,7 +366,7 @@ fn main() {
 	if let Poll::Ready(Ok(len)) = channel.clone().poll_measure(&mut cx, 2) {
 		println!("measure {len}");
 	}
-	channel.listen(&cx);
+	channel.listen((), &cx);
 	channel.send(Bytes::from_static(b"heard"));
 	println!("woken {}", count.0.load(Ordering::Relaxed));
 

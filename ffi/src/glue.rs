@@ -1265,7 +1265,15 @@ impl Gen<'_> {
 				}
 			}
 		}
+		// Each parameter's place among Rust's after `self`, past the `()` ones C does not
+		// pass and a future's context, which is the poll's.
+		let omitted = |at: &usize| {
+			function.units.contains(at)
+				|| (function.future && function.task.as_ref().is_some_and(|task| task.at == *at))
+		};
+		let mut places = (0..).filter(|at| !omitted(at));
 		for (n, param) in function.params.iter().enumerate() {
+			let place = places.next().expect("a place for each parameter");
 			let (_, c_ty) = c_params.next().expect("a C parameter for each");
 			params.push(format!("p{n}: {}", rs(c_ty)));
 			if let Type::Closure(..) = param.ty {
@@ -1277,7 +1285,7 @@ impl Gen<'_> {
 				Some(Task {
 					at,
 					kind: TaskKind::Context(m),
-				}) if *at == n && !function.future => {
+				}) if *at == place && !function.future => {
 					let (binding, pass) = match m {
 						Mutability::Mut => ("let mut", format!("&mut a{n}")),
 						Mutability::Not => ("let", format!("&a{n}")),

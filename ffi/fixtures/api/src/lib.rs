@@ -698,8 +698,8 @@ impl Channel {
 	}
 
 	/// Wakes the context's task on the next send, as `notify` wakes its waker: C passes the
-	/// waker the context is made of.
-	pub fn listen(&self, cx: &Context<'_>) {
+	/// waker the context is made of, and nothing for the `()` before it.
+	pub fn listen(&self, _: (), cx: &Context<'_>) {
 		self.state.lock().unwrap().1 = Some(cx.waker().clone());
 	}
 
