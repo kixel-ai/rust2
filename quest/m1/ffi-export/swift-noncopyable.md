@@ -42,7 +42,8 @@ has the scripts that generated the stricter forms:
   `Borrowed<T>` view built at each call). Wrapping a borrowed handle in an optional consumes
   it. moq's items have one such parameter each; refuse past a small bound at the item's span.
   Each present one is labelled by its name, as a defaulted argument is, so overloads leaving
-  out different ones differ in name: moq's `Source::follow` takes two. The bound is two.
+  out different ones differ in name: moq's `Source::follow` takes two. The bound is two,
+  refused at the item's span before any language is generated.
 - ✅ Swift 6.4 conformances (`Equatable`, `Hashable`, `CustomStringConvertible`,
   `CustomDebugStringConvertible` for noncopyable types, from
   [SE-0499](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0499-support-non-copyable-simple-protocols.md))

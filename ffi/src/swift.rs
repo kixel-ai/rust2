@@ -23,6 +23,8 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
+use rustc_span::Span;
+
 use crate::abi::{self, Abi, Ty, pascal};
 use crate::ir::{Access, Function, Int, Literal, Mutability, Param, Receiver, Type};
 
@@ -235,12 +237,7 @@ impl<'a> Gen<'a> {
 
 	/// Whether Swift's value of `ty` is noncopyable: it holds an object's struct.
 	fn unique(&self, ty: &Type) -> bool {
-		match ty {
-			Type::Object(i) => self.structs.contains(i),
-			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => self.unique(inner),
-			Type::Tuple(elements) => elements.iter().any(|e| self.unique(e)),
-			_ => false,
-		}
+		unique(&self.structs, ty)
 	}
 
 	/// The ownership a parameter of type `ty` declares, which Swift requires of a
@@ -1216,14 +1213,10 @@ impl<'a> Gen<'a> {
 			.filter(|(_, p)| self.lent_option(&p.ty))
 			.map(|(k, _)| k)
 			.collect();
-		if optional.len() > MAX_OPTIONAL {
-			self.errors.push(format!(
-				"fn `{}` takes {} optional borrowed objects, each an overload with and without it in Swift, past the {MAX_OPTIONAL} it exports",
-				function.path.join("::"),
-				optional.len()
-			));
-			return Vec::new();
-		}
+		assert!(
+			optional.len() <= MAX_OPTIONAL,
+			"the driver refuses past the bound first"
+		);
 		(0..1usize << optional.len())
 			.map(|mask| {
 				let left: BTreeSet<usize> = (optional.iter().enumerate())
@@ -1237,7 +1230,7 @@ impl<'a> Gen<'a> {
 
 	/// Whether `ty` is an `Option<&T>` of a struct.
 	fn lent_option(&self, ty: &Type) -> bool {
-		matches!(ty, Type::Option(inner) if matches!(&**inner, Type::Ref(Mutability::Not, object) if self.unique(object)))
+		lent_option(&self.structs, ty)
 	}
 
 	/// One of `function`'s Swift forms, leaving out the optional borrowed parameters in
@@ -1614,6 +1607,49 @@ fn thrown_value(thrown: &Thrown, lifted: &str) -> String {
 /// The most `Option<&T>` parameters of a struct a function takes, each doubling its
 /// overloads.
 const MAX_OPTIONAL: usize = 2;
+
+/// Each function or method taking more optional borrowed structs than [`MAX_OPTIONAL`],
+/// with its span and why Swift cannot export it, which the driver refuses before any
+/// language is generated.
+pub fn refusals(abi: &Abi<'_>) -> Vec<(Span, String)> {
+	let structs = structs(abi);
+	let api = abi.api;
+	let methods = (api.records.iter().flat_map(|r| &r.methods))
+		.chain(api.enums.iter().flat_map(|e| &e.methods))
+		.chain(api.objects.iter().flat_map(|o| &o.methods));
+	(api.functions.iter().map(|f| ("fn", f)))
+		.chain(methods.map(|f| ("method", f)))
+		.filter_map(|(kind, function)| {
+			let optional = (function.params.iter())
+				.filter(|p| lent_option(&structs, &p.ty))
+				.count();
+			(optional > MAX_OPTIONAL).then(|| {
+				(
+					function.span,
+					format!(
+						"cannot export {kind} `{}`: {optional} optional borrowed objects, past the {MAX_OPTIONAL} Swift takes, which overloads each with and without it since its optional holds an object only by consuming it",
+						function.shown[1..].join("::")
+					),
+				)
+			})
+		})
+		.collect()
+}
+
+/// Whether Swift's value of `ty` is noncopyable: it holds one of `structs`.
+fn unique(structs: &BTreeSet<usize>, ty: &Type) -> bool {
+	match ty {
+		Type::Object(i) => structs.contains(i),
+		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => unique(structs, inner),
+		Type::Tuple(elements) => elements.iter().any(|e| unique(structs, e)),
+		_ => false,
+	}
+}
+
+/// Whether `ty` is an `Option<&T>` of one of `structs`.
+fn lent_option(structs: &BTreeSet<usize>, ty: &Type) -> bool {
+	matches!(ty, Type::Option(inner) if matches!(&**inner, Type::Ref(Mutability::Not, object) if unique(structs, object)))
+}
 
 /// The objects Swift holds as noncopyable structs: each but those `Copy`, and those thrown
 /// as errors, which `Swift.Error` requires be copyable.

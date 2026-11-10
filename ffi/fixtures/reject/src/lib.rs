@@ -912,3 +912,9 @@ pub fn poll_loose(waiter: &Loose) -> std::task::Poll<()> {
 	waiter.0.wake_by_ref();
 	std::task::Poll::Ready(())
 }
+
+/// Three optional borrowed objects: Swift, whose optional holds an object only by consuming
+/// it, would overload each with and without it, past the bound it takes.
+pub fn among(first: Option<&Opaque>, second: Option<&Opaque>, third: Option<&Opaque>) -> u8 {
+	[first, second, third].into_iter().flatten().map(|o| o.0).sum()
+}

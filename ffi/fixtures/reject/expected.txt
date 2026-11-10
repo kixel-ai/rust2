@@ -104,4 +104,5 @@ fixtures/reject/src/lib.rs:864:9: rust2-ffi: cannot export use `renamed`: re-exp
 fixtures/reject/src/lib.rs:875:2: rust2-ffi: cannot export method `Tally::poll_bump`: `&mut self` of a value; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:895:1: rust2-ffi: cannot export fn `poll_risky`: Poll with no Context or waiter parameter `std::task::Poll<()>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:911:1: rust2-ffi: cannot export fn `poll_loose`: Poll with no Context or waiter parameter `std::task::Poll<()>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:918:1: rust2-ffi: cannot export fn `among`: 3 optional borrowed objects, past the 2 Swift takes, which overloads each with and without it since its optional holds an object only by consuming it; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:94:1: rust2-ffi: cannot export fn `first`: borrowed return that is not Clone `Opaque`; exclude it in the config to leave it out
