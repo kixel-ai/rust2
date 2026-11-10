@@ -1253,13 +1253,8 @@ impl<'a> Header<'a> {
 			(false, false, Some(Ty::Handle { .. })) => "RUST2_FFI_CALLABLE ",
 			_ => "",
 		};
-		// A returned lent handle lives no longer than its receiver.
-		let bound = match function.lends {
-			true => " RUST2_FFI_LIFETIMEBOUND",
-			false => "",
-		};
 		let declaration = format!(
-			"{}\t{}{prefix}{ret} {member}({}){qualifier}{bound};",
+			"{}\t{}{prefix}{ret} {member}({}){qualifier};",
 			docs(text.trim(), "\t"),
 			template.replace('\n', "\n\t"),
 			params.join(", ")
