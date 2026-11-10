@@ -1,14 +1,15 @@
 # rust2-ffi
 
 A rustc driver that exports a crate's `pub` API as a C ABI and a C header, with no
-attributes in the Rust source. It replaces [the UniFFI fork](../uniffi/README.md) for moq.
+attributes in the Rust source.
 Every language's generator but Python's builds on the C ABI.
 
 ```bash
-rust2-ffi --config ffi.toml (--out dir | --census dir) [--manifest-path Cargo.toml] [-- cargo args]
+rust2-ffi --config ffi.toml (--out dir | --census dir) [--manifest-path Cargo.toml] [--target triple] [-- cargo args]
 ```
 
-It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, on the host, through
+It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for `--target` or
+else the host, whatever cargo's config names, through
 the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). The
 package is the facade: once rustc has checked its library, it walks every `pub` item
 reachable from the crate root, following `pub use` re-exports of other crates' items and
@@ -18,7 +19,10 @@ it ships, and a type no path from its root reaches is refused. The prefix of eve
 is the library's crate name, Cargo's `[lib] name`, which defaults to the package's name in
 snake case. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
 beside it, and the header in `include/<prefix>.h`; `cargo build` on that crate makes a
-static and a shared library. That crate enables the facade's features as the check did;
+static and a shared library for that target alone: its build script refuses another, on
+which an item the target compiles would be missing, or one it leaves out left over. So a
+`cfg`-gated item is in its target's export and in no other's, and the layouts, `usize`
+included, are that target's. That crate enables the facade's features as the check did;
 a feature named in a dependency, `--features <dependency>/<feature>`, is an error, since
 the facade enables what its dependencies build with. It resolves them as the check did,
 wherever it is built: its manifest carries, as a `[patch]`, each patch or `[replace]` cargo applied
@@ -65,10 +69,10 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
 | a `pub` field of an object | a getter returning a copy, and a setter assigning in place, as `x.field = value` does |
-| a `pub` trait | a callback interface: a table of C functions and their data |
+| a `pub` trait | a callback interface: a table of C functions and their data; a trait C cannot implement, such as one with a blanket impl, an associated type, or a supertrait but a marker, is left out, since C never passes one, and a signature taking one from C is refused |
 | a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce`, which no lifetime bound or return lets outlive the call | a C function and its `void *` data, which Rust calls only during the call; any other closure is refused |
 | `fn` and inherent `pub` methods | functions named through their type |
-| `Result<T, E>` | `bool f(..., T *out, E *err)` |
+| `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
 | a tuple inside another type, or as a field or parameter | `<prefix>_tuple_<A>_<B>`: a struct of fields `_0`, `_1`, and so on; of references only returned |
 | `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it; a function that is not `async` runs at the call, as in Rust |
@@ -79,8 +83,10 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `Duration` | `<prefix>_duration` |
 | `SocketAddr`, `SocketAddrV4`, `SocketAddrV6` | `<prefix>_socket_addr`: its IP's bytes, port, and whether it is IPv6; one of the other family passed to `V4` or `V6` aborts |
 | `url::Url` | an object `<prefix>_Url`, made by `<prefix>_Url_parse`, which fails with the parse error's message, and printed by `_to_string` |
+| `Arc<T>` of another crate's `Send` and `Sync` type that no other rule maps, such as `Arc<rustls::ServerConfig>` | an opaque object named by `T`'s crate and name, such as `<prefix>_rustls_ServerConfig`, with `_clone` and `_free` and none of `T`'s API: it only passes back to Rust |
 | `serde_json::Value` | an object `<prefix>_Json`, made by `<prefix>_Json_parse` from JSON text, which fails with serde_json's message, and read back by `_to_text`; its contents are the caller's JSON library's to read |
 | `Vec<T>` and `&[T]` of any other `T` | `<prefix>_vec_<T>`: an array of `T`'s C values, viewed passed in and owned returned, a slice as a clone; of references only returned |
+| `BTreeSet<T>`, `BTreeMap<K, V>`, and `serde_json::Map` | as `Vec<T>`, `Vec<(K, V)>`, and `Vec<(String, serde_json::Value)>`: its items in order, from which Rust builds it, keeping the last of a key |
 | a returned iterator, such as `slice::Iter` or an `impl Iterator`, that no other rule maps, outside a future, made of core's and alloc's iterators over a slice, string, `Option`, `Result`, or collection, through `rev`, `chain`, `flatten`, `fuse`, `enumerate`, `peekable`, `copied`, or `cloned`, with no closure, function, or trait object inside | what `collect::<Vec<_>>()` makes of it: every item, taken at the call |
 | `Waker`, taken by value | `<prefix>_waker`, as a future's poll takes it |
 | `Range<T>`, `Bound<T>` of an integer | `<prefix>_range_<T>`, `<prefix>_bound_<T>`: a `<prefix>_bound` kind and a value |
@@ -89,8 +95,9 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | a `pub const` | a `#define` if a `bool` or integer, else a function returning it |
 | `impl Into<X>`, `impl AsRef<X>`, or a bound implying one, as a supertrait does | `X`, or `&X` and then `String` or `Vec<T>` where `X` is `str` or `[T]` |
 | `impl Into<X>`, where `X` does not map | what a `From` implementation into `X` takes: a source parameter by its bounds as above, so `impl<B: Into<Bytes>> From<B> for Timed<Bytes>` takes `Bytes`, and by each `Into<Y>` whose `Y` does not map, what converts into `Y` in turn, each `Y` once and refusing a chain longer than the crate's recursion limit; any other source as it is, so `impl<'a, V> From<&'a V> for Timed<&'a V>` takes `&V`. Two sources C passes as one buffer, such as `String` and `Vec<u8>`, are refused, unless they are forms of one value, as `&str` and `String` are |
-| `impl IntoIterator<Item = X>`, where `X` is no type parameter | `Vec<X>` |
-| another type parameter | `serde_json::Value` for a serde `Serialize` or `Deserialize` bound, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
+| `impl IntoIterator<Item = X>`, where `X` is no type parameter | `Vec<X>`, or `&[Y]` where `X` is `&Y` |
+| `impl io::Read` | `&[u8]` |
+| another type parameter | `serde_json::Value` for a serde `Serialize` or `Deserialize` bound, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, through a blanket impl at each type implementing what the impl requires, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
 
 A generic type infers the instances it exports at, with no config: the one at its
 defaults, if each type parameter has one; the one each inherent impl is of, such as
@@ -106,13 +113,21 @@ refused, as it could name ever deeper ones.
 A record or enum holds only values and `Copy` handles: one with a field that does not map,
 or that holds itself, is an object instead, and the census lists it. A borrowed return is
 returned as a clone, so it must be `Clone`, and a handle in it is a new handle to the
-clone. A handle outlives every call, so every lifetime an object takes is `'static`, as is
-every lifetime that must outlive one; any other lifetime is the call's. A signature may
-not lend C's borrow for one that is `'static`, nor return an object that borrows. A
-parameter is a reference only at its top, not inside an `Option` or `Box`. What C could
-never hold, an object no export C can call returns or lends to a closure, a generic type
-no export instantiates, and whatever takes one, is left out and listed in the census.
-Everything else is refused, and the census counts why.
+clone, but for an object a `&self` method of an object returns borrowed from its receiver
+alone: that one, if not `Clone`, is a lent handle, which holds its receiver and checks it
+on each use, on one thread at a time where the receiver is not `Sync`. A handle outlives every call, so every lifetime an
+object takes is `'static`, as is every lifetime that must outlive one; any other lifetime
+is the call's. A signature may not lend C's borrow for one that is `'static`, but for a
+`&str`, which Rust interns, nor return an object that borrows. A parameter is a reference
+only at its top or as `Some` of an `Option`, lent as the reference alone is, so
+`Option<&T>` is a null or borrowed handle, a null or viewed buffer, or an option of a
+value, and not inside a `Box` or any other type. A `&mut` of a value, but a `str` or a
+slice, is in and out, and not inside an `Option`, a callback, or a future, nor borrowed
+by what the call returns; a `&mut` of another crate's `Arc` is refused. Only a bare
+returned `&Object` is lent, never one inside what a call returns nor its error. What C could never hold, an
+object no export C can call returns or lends to a closure, a generic type no export
+instantiates, and whatever takes one, is left out and listed in the census. Everything
+else is refused, and the census counts why.
 
 ## The C ABI
 
@@ -127,6 +142,19 @@ Everything else is refused, and the census counts why.
   while a getter's copy is C's own: a nested field is got, set, and set back. A type
   whose C++ copies share one value has `_borrowed`, true while a call or future borrows
   it, so moving it out would abort.
+- **In and out**: a `&mut` of a value is two parameters, the value passed in as one taken
+  by value is, and a `<name>_out` pointer, through which Rust writes what the call left in
+  it on every path, its errors included. C keeps what it passed, and frees what Rust wrote
+  as a returned value. C++ takes a reference, Swift an `inout`, and Go a pointer, each
+  assigned what Rust wrote; Kotlin, Python, and Dart take a `Mut` holding the value, whose
+  `value` Rust's write replaces, before any error raises.
+- **Lent handles** borrow from the handle a call lent them from: each use holds that one
+  shared and aborts, naming the function, once it was since borrowed exclusively, moved
+  out, or freed, which Rust's borrow checker would refuse. Borrowing a lent handle
+  exclusively aborts too, as Rust lent it shared.
+- **Interned strings**: a `&str` a function needs for `'static`, as `Path::from_static`
+  does, is leaked once per distinct content and reused for every later equal one, so a
+  caller passing ever-new strings grows the set without bound.
 - **Arrays** of a `Vec` are a pointer, a length, and an owner, as a buffer is: passed
   in, Rust copies each element out of C's array; returned, `<prefix>_vec_<T>_free` frees
   the array and its first `len` elements, so a binding that takes the elements sets
@@ -287,7 +315,8 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   garbage in Kotlin's heap runs the GC, which frees them. `Bytes(ByteArray)` holds
   Kotlin's for a record passed in. A `Bytes` equals and hashes by its contents, wherever each keeps them, so a
   record holding bytes does too; Rust's lent ones are copied across in one call to compare.
-  Strings are `String`, `Option<T>` `T?`, a tuple `Pair`,
+  Strings are `String`, `usize` `ULong` and `isize` `Long`, which abort past a 32-bit
+  target's range, `Option<T>` `T?`, a tuple `Pair`,
   `Triple`, or else a generated `Tuple<n>`, though a tuple of one returned whole is its element, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
   holding it, whose message is its `Display`.
 - A **path** is a `String`: one Rust returns that is not UTF-8 throws. A `SocketAddr`,
@@ -446,7 +475,10 @@ reads a go.mod.
   `TrackProducer.AppendGroup`, and `moq_mux_codec_opus_Config` is `mux.CodecOpusConfig`. Two
   types of a package whose names would match are kept apart as Kotlin's are, after the
   segments outside the crate: moq-tokio's `ConnectError` and `connect::Error` are
-  `tokio.ConnectError` and `tokio.Connect_Error`. An
+  `tokio.ConnectError` and `tokio.Connect_Error`. A name still shared after that keeps the
+  module segment before it: the facade's `tokio::connect::Config`, `tokio::listen::Config`,
+  and `tokio::quic::Config` are `tokio.ConnectConfig`, `tokio.ListenConfig`, and
+  `tokio.QuicConfig`. An
   instance in another crate's package keeps its whole path. A function of a type that takes no receiver is a function of
   the package named through its type (`CounterSeededPoint`), but `new`, which is
   `NewCounter`. A constant keeps its upper case (`LIMIT`), and one that is not a `bool` or
@@ -618,7 +650,8 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
 lists each refused item at its span, then the `exclude` list that exports the rest, and
-what else it left out, such as what C can never hold. It ignores the config's `exclude`. It still fails on an `instance not inferred`
+what else it left out, such as what C can never hold and the traits C cannot implement, and why.
+It ignores the config's `exclude`. It still fails on an `instance not inferred`
 refusal, which is a bug in the exporter's inference rather than in the crate.
 
 ## Tests
@@ -658,7 +691,7 @@ abort with its message; the Python with another contract must refuse the library
 language mode and type-checked in Swift 5's, checks its futures the same way and that
 releasing frees, and breaks each runtime check, which must trap or abort with its message.
 It runs with nixpkgs' Swift on Linux, which builds none for aarch64-linux
-([quest](/quest/m2/uniffi-swift-arm.md)), and nightly with Apple's on macOS.
+([quest](/quest/m2/swift-arm.md)), and nightly with Apple's on macOS.
 `tests/api.go` runs the script through the Go after `go vet`, checks its futures the same
 way, plus a context done before the call, a deadline, and a handle closed during a call,
 checks that bytes cross both ways, that a `Bytes` keeps Rust's buffer while only a sub-view

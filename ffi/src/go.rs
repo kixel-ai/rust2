@@ -538,7 +538,7 @@ impl<'a> Gen<'a> {
 			Type::Slice | Type::Vec | Type::Bytes => self.qualify(Packages::RT, "Bytes"),
 			Type::Duration => "time.Duration".to_string(),
 			Type::SocketAddr(_) => "netip.AddrPort".to_string(),
-			Type::List(inner) => format!("[]{}", self.go(inner)),
+			Type::List(_, inner) => format!("[]{}", self.go(inner)),
 			Type::Waker => "func()".to_string(),
 			Type::Option(inner) => match inner.base() {
 				// Already a pointer, nil for none.
@@ -626,7 +626,7 @@ impl<'a> Gen<'a> {
 		let api = self.abi.api;
 		match ty {
 			ty if Abi::is_buf(ty) => true,
-			Type::List(_) | Type::Object(_) => true,
+			Type::List(..) | Type::Object(_) => true,
 			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => self.arena(inner),
 			Type::Tuple(elements) => elements.iter().any(|e| self.arena(e)),
 			Type::Record(i) => api.records[*i].fields.iter().any(|f| self.arena(&f.ty)),
@@ -641,7 +641,7 @@ impl<'a> Gen<'a> {
 		let api = self.abi.api;
 		match ty {
 			Type::Object(_) => true,
-			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(inner) => self.holds(inner),
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => self.holds(inner),
 			Type::Tuple(elements) => elements.iter().any(|e| self.holds(e)),
 			Type::Record(i) => api.records[*i].fields.iter().any(|f| self.holds(&f.ty)),
 			Type::Enum(i) => (api.enums[*i].variants.iter()).any(|v| v.fields.iter().any(|f| self.holds(&f.ty))),
@@ -698,7 +698,7 @@ impl<'a> Gen<'a> {
 				self.convert(ty);
 				format!("lower_{}({e})", abi.range(ty))
 			}
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let c = abi.list(inner);
 				self.lower_list(&c, inner);
 				format!("lower_{c}(a_, {e})")
@@ -710,7 +710,7 @@ impl<'a> Gen<'a> {
 				}
 				Type::Str | Type::String | Type::Path | Type::PathBuf => format!("a_.bufStringOption({e})"),
 				Type::Slice | Type::Vec | Type::Bytes => format!("a_.bufViewOption({e})"),
-				Type::List(elem) => {
+				Type::List(_, elem) => {
 					let c = abi.list(elem);
 					self.lower_list(&c, elem);
 					let name = format!("lower_option_{c}");
@@ -822,7 +822,7 @@ impl<'a> Gen<'a> {
 				self.convert(ty);
 				format!("lift_{}({e})", abi.range(ty))
 			}
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let c = abi.list(inner);
 				self.lift_list(&c, inner);
 				format!("lift_{c}({e})")
@@ -834,7 +834,7 @@ impl<'a> Gen<'a> {
 				}
 				Type::Str | Type::String | Type::Path | Type::PathBuf => format!("liftStringOption_({e})"),
 				Type::Slice | Type::Vec | Type::Bytes => format!("liftBytesOption_({e})"),
-				Type::List(elem) => {
+				Type::List(_, elem) => {
 					let c = abi.list(elem);
 					self.lift_list(&c, elem);
 					let name = format!("lift_option_{c}");
@@ -1067,7 +1067,7 @@ impl<'a> Gen<'a> {
 			Type::Range(int) => format!("Range<{}>", int.rust()),
 			Type::Bounds(int) => format!("(Bound<{0}>, Bound<{0}>)", int.rust()),
 			Type::Option(inner) => format!("Option<{}>", self.describe(inner)),
-			Type::List(inner) => format!("Vec<{}>", self.describe(inner)),
+			Type::List(_, inner) => format!("Vec<{}>", self.describe(inner)),
 			Type::Int(int) => int.rust().to_string(),
 			Type::Ref(_, inner) | Type::Box(inner) => self.describe(inner),
 			other => format!("{other:?}"),
@@ -1801,7 +1801,7 @@ impl<'a> Gen<'a> {
 					.collect();
 				closes.join("; ")
 			}
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let v = format!("v{depth}_");
 				format!("for _, {v} := range {e} {{ {} }}", self.close(inner, &v, depth + 1))
 			}
@@ -1940,6 +1940,14 @@ impl<'a> Gen<'a> {
 				c_params.next().expect("a closure has its data");
 			}
 			let name = name.clone();
+			// A value passed for `&mut`: the call reads it and writes back what it left.
+			if param.ty.written() {
+				let inner = param.ty.base();
+				params.push((name.clone(), format!("*{}", self.go(inner))));
+				arena |= self.arena(inner);
+				args.push(self.lower(inner, &format!("(*{name})")));
+				continue;
+			}
 			params.push((name.clone(), self.go_param(&param.ty)));
 			if moved(abi, &param.ty) {
 				after.push(self.close(&param.ty, &name, 0));
@@ -2055,8 +2063,48 @@ impl<'a> Gen<'a> {
 			}
 			let mut call_args = args.clone();
 			call_args.extend(outs.iter().map(|(n, _)| format!("&c_{n}_")));
-			let call = format!("C.{c_name}({})", call_args.join(", "));
+			let mut call = format!("C.{c_name}({})", call_args.join(", "));
+			// Each value passed for `&mut` takes what Rust wrote back, on every path.
+			let writes: Vec<String> = (function.params.iter().zip(&names))
+				.filter(|(param, _)| param.ty.written())
+				.map(|(param, name)| {
+					let out = Abi::written(function, &abi::escape(&param.name));
+					format!("*{name} = {}", self.lift(param.ty.base(), &format!("c_{out}_")))
+				})
+				.collect();
+			if !writes.is_empty() {
+				let made = match &err {
+					Some(_) => {
+						body.push(format!("ok_ := {call}"));
+						"ok_".to_string()
+					}
+					// A value C returns, beside what Rust wrote back, is the out the result
+					// lifts from.
+					None if !matches!(export.call.ret, Ty::Void) => {
+						body.push(format!("c_out_ := {call}"));
+						String::new()
+					}
+					None => {
+						body.push(call);
+						String::new()
+					}
+				};
+				body.extend(writes);
+				call = made;
+			}
 			match (&err, oks.is_empty()) {
+				(None, false) if call.is_empty() => {
+					let mut values: Vec<String> = (oks.iter().enumerate())
+						.map(|(k, ty)| {
+							let out = out_name(&function.ok, k);
+							self.lift(ty, &out)
+						})
+						.collect();
+					if closable {
+						values.push("nil".to_string());
+					}
+					body.push(format!("return {}", values.join(", ")));
+				}
 				(Some(err), _) => {
 					let mut values: Vec<String> = Vec::new();
 					for (k, ty) in oks.iter().enumerate() {
@@ -2070,7 +2118,9 @@ impl<'a> Gen<'a> {
 					body.push(format!("return {}", zeros.join(", ")));
 				}
 				(None, true) => {
-					body.push(call);
+					if !call.is_empty() {
+						body.push(call);
+					}
 					if closable {
 						body.push("return nil".to_string());
 					}
@@ -2171,7 +2221,7 @@ fn poll_error(abi: &Abi<'_>) -> String {
 fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
 	match ty {
 		Type::Object(i) => !abi.api.objects[*i].copy,
-		Type::Option(inner) | Type::Box(inner) | Type::List(inner) => moved(abi, inner),
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
 		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
 		_ => false,
 	}
@@ -2183,7 +2233,7 @@ fn strip_refs(ty: &Type) -> Type {
 		Type::Ref(_, inner) => strip_refs(inner),
 		Type::Option(inner) => Type::Option(Box::new(strip_refs(inner))),
 		Type::Box(inner) => Type::Box(Box::new(strip_refs(inner))),
-		Type::List(inner) => Type::List(Box::new(strip_refs(inner))),
+		Type::List(c, inner) => Type::List(*c, Box::new(strip_refs(inner))),
 		Type::Tuple(elements) => Type::Tuple(elements.iter().map(strip_refs).collect()),
 		ty => ty.clone(),
 	}

@@ -42,6 +42,8 @@ impl Api {
 			Type::F64 => "f64".to_string(),
 			Type::Char => "char".to_string(),
 			Type::String => "String".to_string(),
+			Type::Bytes => "bytes::Bytes".to_string(),
+			Type::Duration => "std::time::Duration".to_string(),
 			Type::Record(i) => self.rust(&self.records[*i].path, &self.records[*i].args),
 			Type::Enum(i) => self.rust(&self.enums[*i].path, &self.enums[*i].args),
 			Type::Object(i) => self.rust(&self.objects[*i].path, &self.objects[*i].args),
@@ -148,6 +150,9 @@ pub struct Object {
 	/// Whether it is a foreign type, such as `url::Url`, that the facade maps rather than
 	/// exports: its path is the type's in its own crate, not in the facade.
 	pub foreign: bool,
+	/// Whether it is a foreign type behind an `Arc`, held erased, which the glue never
+	/// names: a handle with none of its API, which Rust takes back as the `Arc`.
+	pub opaque: bool,
 }
 
 /// A `pub` trait: implemented by the foreign side, through a table of functions.
@@ -184,7 +189,7 @@ pub struct Function {
 	pub params: Vec<Param>,
 	/// What it returns, or for a future, what the future does.
 	pub ok: Type,
-	/// The error of a `Result` it returns.
+	/// The error of a `Result` it returns: `String` for another crate's error, as its message.
 	pub err: Option<Type>,
 	/// Whether it returns a future: an `async fn`, or a value that implements `Future`.
 	pub future: bool,
@@ -194,6 +199,10 @@ pub struct Function {
 	/// Whether it returns another crate's iterator, whose items the export collects into
 	/// the array it returns.
 	pub collect: bool,
+	/// Whether it returns a borrow of an object that is not `Clone`, which C holds as a handle
+	/// lent from its receiver's: shared, until the receiver's value is borrowed
+	/// exclusively, moved out, or freed.
+	pub lends: bool,
 	/// What it reads: Rust's function, a field it reads or writes, or a constant named as it is.
 	pub access: Access,
 	/// The instance it is, if a type parameter exports at several.
@@ -252,6 +261,9 @@ pub enum Receiver {
 pub struct Param {
 	pub name: String,
 	pub ty: Type,
+	/// Whether it is a `&str` that must be `'static`, which the glue interns: it leaks each
+	/// distinct string once and lends that copy to every later call with equal content.
+	pub interned: bool,
 }
 
 /// A `pub const`.
@@ -294,9 +306,10 @@ pub enum Type {
 	PathBuf,
 	/// `std::net::SocketAddr`, or `SocketAddrV4` or `SocketAddrV6` for one family.
 	SocketAddr(Family),
-	/// `Vec<T>` of any `T` but `u8`, which is [`Type::Vec`], and behind a reference, `[T]`
-	/// too: C passes and returns either as an array.
-	List(Box<Type>),
+	/// A collection of `T`, which C passes and returns as an array of its items: `Vec<T>` of
+	/// any `T` but `u8`, which is [`Type::Vec`], and behind a reference, `[T]` too; a set;
+	/// or a map, whose `T` is the tuple of a key and its value.
+	List(Collection, Box<Type>),
 	/// `std::task::Waker`, only as a parameter taken by value.
 	Waker,
 	Option(Box<Type>),
@@ -319,6 +332,19 @@ pub enum Type {
 	Bounds(Int),
 	/// A tuple of one element or more.
 	Tuple(Vec<Type>),
+}
+
+/// The Rust collection a [`Type::List`] is, which Rust builds from its items in order.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Collection {
+	/// `Vec<T>`, or behind a reference, `[T]`.
+	Vec,
+	/// `std::collections::BTreeSet<T>`
+	BTreeSet,
+	/// `std::collections::BTreeMap<K, V>`
+	BTreeMap,
+	/// `serde_json::Map`, of `String` keys and `serde_json::Value`s.
+	JsonMap,
 }
 
 /// The addresses a socket address type holds.
@@ -383,7 +409,7 @@ impl Int {
 pub fn each(ty: &Type, f: &mut dyn FnMut(&Type)) {
 	f(ty);
 	match ty {
-		Type::List(inner) | Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => each(inner, f),
+		Type::List(_, inner) | Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => each(inner, f),
 		Type::Closure(params, ret) => {
 			for param in params {
 				each(param, f);
@@ -400,6 +426,12 @@ pub fn each(ty: &Type, f: &mut dyn FnMut(&Type)) {
 }
 
 impl Type {
+	/// Whether a parameter of this type is a value C passes in that Rust writes back
+	/// through an out pointer: `&mut` of anything but an object, whose handle it borrows.
+	pub fn written(&self) -> bool {
+		matches!(self, Type::Ref(Mutability::Mut, inner) if !matches!(**inner, Type::Object(_)))
+	}
+
 	/// The type behind any reference or `Box`.
 	pub fn base(&self) -> &Type {
 		match self {

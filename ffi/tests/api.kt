@@ -8,6 +8,7 @@ import api.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executor
 import kotlin.concurrent.thread
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -100,6 +101,20 @@ fun script() {
 		println("ranked ${ranked.joinToString(", ") { (name, counter) -> "$name ${counter.name()} ${counter.get()}" }}")
 		ranked.forEach { it.second.close() }
 	}
+	// A map crosses as its pairs and a set as its items, which Rust collects in order, each
+	// key once, the last kept.
+	val atlas = Atlas(listOf(Pair("b", Point(1, 1)), Pair("ab", Point(2, 3)), Pair("b", Point(4, 4))), listOf(3u, 1u, 3u))
+		.with("c", Point(5, 6))
+	val atlasPoints = atlas.points.joinToString(", ") { (name, p) -> "$name ${p.x} ${p.y}" }
+	println("atlas $atlasPoints; ids ${atlas.ids.joinToString(" ")}")
+	// Another crate's error crosses as its message.
+	for (text in listOf("80", "x")) {
+		try {
+			println("port ${port(text)}")
+		} catch (e: StringException) {
+			println("port err ${e.error}")
+		}
+	}
 	val span = Span(Pair(2u, 10u), Pair("s", Shape.SQUARE))
 	val (lowerHalf, upperHalf) = halves(span)
 	println("halves ${lowerHalf.first} ${lowerHalf.second} ${upperHalf.first} ${upperHalf.second} ${span.debug()}")
@@ -149,6 +164,8 @@ fun script() {
 	val long = longer(joined, Name.owned("dd"))
 	println("longer ${long.asStr()}")
 	println("unnamed [${unnamed().asStr()}]")
+	val lit = Name.borrowed("lit")
+	println("borrowed ${lit.asStr()} ${lit.shares(Name.borrowed("lit"))} ${lit.shares(Name.borrowed("other"))}")
 
 	println("total ${total(RangeU64(2u, 5u))}")
 	val wide = widen(RangeU64(2u, 5u), 1u)
@@ -307,6 +324,8 @@ fun script() {
 	// A bound that outlives the call takes a value, and an instance only a constant names.
 	println("kept ${keptPoint(Point(1, -2))} boxed ${BOXED.value}")
 	println("keep ${keepPoint(Point(1, -2))}")
+	val five = Point(5, 2)
+	println("kept or ${keptOrPoint(five)} ${keptOrPoint(null)} keeper ${keeperPoint(five)}")
 	// Inferred instances taking a lent closure and a foreign implementation, and one only
 	// its impl of a trait names.
 	val sides = PairU32(2u, 5u)
@@ -352,6 +371,48 @@ fun script() {
 	println("words ${words.size} ${words.joinToString(", ", "[", "]") { "\"$it\"" }}")
 	println("sentence ${sentence(words)} ${sentence(null)}")
 	println("sentence ${sentence(emptyList())}|")
+	println("either ${either("abc")} ${either(null)}")
+	val cd = "cd".encodeToByteArray()
+	println("prefixed ${prefixed(cd, "ab".encodeToByteArray()).toByteArray().decodeToString()} ${prefixed(cd, null).toByteArray().decodeToString()}")
+	println("coordinates ${coordinates(Point(2, 3))} ${coordinates(null)}")
+	Counter.new("two", 2u).use { two ->
+		Counter.new("three", 3u).use { three ->
+			println("plus ${two.plus(three)} ${two.plus(null)}")
+			println("add_to ${two.addTo(three)} ${two.addTo(null)} ${three.get()}")
+		}
+	}
+	val encoded = Mut("0,".encodeToByteArray())
+	putNumber(1u, encoded)
+	putNumber(23u, encoded)
+	println("put_number ${encoded.value.decodeToString()}")
+	val entry = Mut(Pair("ab".encodeToByteArray(), 1u))
+	val stamps = pushCounted(entry, 'c'.code.toUByte())
+	println("push_counted $stamps ${entry.value.first.decodeToString()} ${entry.value.second}")
+	val digits = Mut("7x9".encodeToByteArray())
+	val firstDigit = digit(digits)
+	val skipped = try {
+		digit(digits)
+		false
+	} catch (e: ErrorException) {
+		true
+	}
+	println("digit $firstDigit $skipped ${digit(digits)} ${digits.value.size}")
+	val nudged = Mut(Point(1, 2))
+	nudge(nudged, 3)
+	println("nudge ${nudged.value.x} ${nudged.value.y}")
+	secure("h3").use { config -> println("secure ${alpnLent(config)} ${alpn(config.clone())}") }
+	Meters.new().use { meters ->
+		meters.first().use { first ->
+			first.add(2uL)
+			println("lent ${first.add(3uL)} ${meters.first().use { it.count() }}")
+		}
+		meters.clear()
+		println("cleared ${meters.first().use { it.count() }}")
+	}
+	Tallies.new().use { tallies ->
+		tallies.first().use { it.bump() }
+		println("tallied ${tallies.first().use { it.bump() }}")
+	}
 	println("chunks ${chunks("abcde".encodeToByteArray(), 2uL).map { it.toByteArray().toList() }}")
 	val counters = counters(listOf("x", "y"))
 	println("counters ${counters.joinToString(", ") { "${it.name()} ${it.get()}" }}")
@@ -368,10 +429,20 @@ fun script() {
 	val noneSummed = summed(emptyList())
 	println("summed ${summed.x} ${summed.y} ${noneSummed.x} ${noneSummed.y}")
 	println("longest ${longest(listOf("a", "abc"))} ${longest(emptyList())}")
+	println("first of Some(\"${firstOf(listOf("a", "b"))}\") ${firstOf(emptyList()) ?: "None"}")
+	val limits = byteLimits("a".encodeToByteArray(), "bc".encodeToByteArray())
+	val waits = breadth(LimitsDuration(5.milliseconds, 2.seconds))
+	println("limits ${limits.low.toByteArray().decodeToString()} ${limits.high.toByteArray().decodeToString()} breadth ${waits.inWholeMilliseconds}")
+	val parts = joined(listOf("ab".encodeToByteArray(), ByteArray(0), "c".encodeToByteArray())).toByteArray().decodeToString()
+	println("joined $parts ${joined(emptyList()).toByteArray().size} read ${readLen("hello".encodeToByteArray())}")
 	val doc = Json.parse("""{"b": [1, 2.5, null], "a": "\u00e9"}""")
 	println("json ${encode(doc)}")
 	println("timed text ${timedText(doc)}")
 	tagged(doc, "t").use { tagged -> println("tagged ${tagged.toText()}") }
+	// A JSON object's entries cross as pairs of a key and its document, each moved in.
+	val jsonEntries = entries(listOf(Pair("b", Json.parse("[1]")), Pair("a", Json.parse("2"))), "t")
+	println("entries ${jsonEntries.joinToString(", ") { (key, value) -> "$key ${value.toText()}" }}")
+	jsonEntries.forEach { it.second.close() }
 	try {
 		Json.parse("{\"a\":").close()
 	} catch (e: StringException) {
@@ -528,6 +599,11 @@ fun broken(which: String) {
 			val tail = Node.new(1u, null)
 			Node.new(2u, tail)
 			tail.sum()
+		}
+		"outlived" -> Meters.new().let { meters ->
+			val first = meters.first()
+			meters.clear()
+			first.count()
 		}
 		"lent moved" -> Registry.new(Counter.new("c", 0u)).edit { counter ->
 			counter.intoLabel(null)

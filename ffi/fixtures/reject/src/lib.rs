@@ -106,7 +106,8 @@ impl<'a> Text<'a> {
 		Self("")
 	}
 
-	/// `'b` outlives the handle's `'a`, so it is `'static` too.
+	/// `'b` outlives the handle's `'a`, so it is `'static` too, which a string is once
+	/// interned.
 	pub fn replace<'b: 'a>(&mut self, text: &'b str) {
 		self.0 = text;
 	}
@@ -117,10 +118,15 @@ impl<'a> Text<'a> {
 	}
 }
 
-/// An optional borrow: C's value is lifted into an owned one, lent only as the parameter
-/// itself.
-pub fn either(text: Option<&str>) -> usize {
-	text.map_or(0, str::len)
+/// Bytes that must be `'static`, which only a string's interning makes them.
+pub fn forever(bytes: &'static [u8]) -> usize {
+	bytes.len()
+}
+
+/// A boxed borrow: C's value is lifted into an owned one, lent only as the parameter
+/// itself or `Some` of it.
+pub fn boxed(text: Box<&str>) -> usize {
+	text.len()
 }
 
 /// A record, a type of the facade's own.
@@ -491,9 +497,63 @@ pub async fn eventually() -> std::vec::IntoIter<u8> {
 	Vec::new().into_iter()
 }
 
-/// A callback returning an iterator, which C would have to make.
+/// A callback returning an iterator, which C would have to make, so C cannot implement it.
 pub trait Source: Send + Sync {
 	fn items(&self) -> std::vec::IntoIter<u8>;
+}
+
+/// A count, which C cannot implement as it needs `Copy`.
+pub trait Tallied: Copy {
+	fn tally(self) -> u32;
+}
+
+impl Tallied for u32 {
+	fn tally(self) -> u32 {
+		self
+	}
+}
+
+/// What a tally counts, which C implements.
+pub trait Measured {
+	fn measure(&self) -> u32;
+}
+
+/// A tally made from `counted`, though no type implementing `Tallied` converts from one.
+pub fn tallied<T: Tallied + From<C>, C: Measured>(counted: C) -> u32 {
+	T::from(counted).tally()
+}
+
+/// How many items `source` has: a trait object C cannot make.
+pub fn drain(source: Box<dyn Source>) -> usize {
+	source.items().count()
+}
+
+/// The sum of items borrowed forever, which a slice C lends for the call cannot be.
+pub fn summed_forever<I: IntoIterator<Item = &'static u32>>(items: I) -> u32 {
+	items.into_iter().sum()
+}
+
+/// Items `text` could keep, as `retext` keeps its borrow.
+pub fn retext_last<'a, I: IntoIterator<Item = &'a String>>(text: &mut Text<'a>, items: I) {
+	if let Some(item) = items.into_iter().last() {
+		text.0 = item;
+	}
+}
+
+/// Items outliving `text`'s borrow, which is `'static` in a handle, so they are too.
+pub fn outlast<'a, 'b: 'a, I: IntoIterator<Item = &'b String>>(text: &mut Text<'a>, items: I) {
+	if let Some(item) = items.into_iter().last() {
+		text.0 = item;
+	}
+}
+
+/// Items a text taken by value could keep, once its parameter is chosen as a handle.
+pub fn retext_into<'a, T: Into<Text<'a>>, I: IntoIterator<Item = &'a String>>(text: T, items: I) -> usize {
+	let mut text = text.into();
+	if let Some(item) = items.into_iter().last() {
+		text.0 = item;
+	}
+	text.0.len()
 }
 
 /// One byte forever.
@@ -589,6 +649,12 @@ pub fn values() -> std::collections::btree_map::IntoValues<u8, u8> {
 	std::collections::BTreeMap::new().into_values()
 }
 
+/// How many floats a set holds, which Rust could not build from C's floats, as they are
+/// not `Ord`.
+pub fn floats(set: std::collections::BTreeSet<f64>) -> usize {
+	set.len()
+}
+
 /// As many zeros as the caller asks, held nowhere until made.
 pub fn zeros(n: usize) -> std::iter::RepeatN<u8> {
 	std::iter::repeat_n(0, n)
@@ -672,6 +738,57 @@ pub fn halves() -> impl Iterator<Item = &'static str> {
 /// `reject_tuple_tuple_u8_u16_u32`.
 pub fn mixed(a: Option<((u8, u16), u32)>, b: Option<((u8, u16, u32),)>) -> bool {
 	a.is_some() && b.is_some()
+}
+
+/// An optional handle lent inside a `Box`, as [`peek`] lends one.
+pub fn peek_some(value: Option<&Box<Opaque>>) -> u8 {
+	value.map_or(0, |value| value.0)
+}
+
+/// An optional value lent mutably.
+pub fn bump_some(value: Option<&mut u32>) {
+	if let Some(value) = value {
+		*value += 1;
+	}
+}
+
+/// Bytes written back that the return still borrows, which Rust's write would move.
+pub fn rest(buf: &mut Vec<u8>) -> &[u8] {
+	buf.as_slice()
+}
+
+/// Bytes written back by a future, which owns what it borrows, so has nothing to write.
+pub async fn fill(buf: &mut Vec<u8>) {
+	buf.push(0);
+}
+
+/// A slice lent mutably, which C cannot pass in and out as a value without a copy.
+pub fn zero(buf: &mut [u8]) {
+	buf.fill(0);
+}
+
+/// Another crate's `Arc` lent mutably, which its opaque handle cannot replace in place.
+pub fn reseat(size: &mut std::sync::Arc<dep::Size>) {
+	*size = std::sync::Arc::new(**size);
+}
+
+/// Holds a value it lends only as an error, which crosses as a clone, never lent.
+pub struct Keeper(Opaque);
+
+impl Keeper {
+	pub fn new() -> Self {
+		Self(Opaque(0))
+	}
+
+	/// Its value, lent as an error: only the value returned itself is lent.
+	pub fn check(&self) -> Result<u8, &Opaque> {
+		Err(&self.0)
+	}
+}
+
+/// A callback taking bytes it writes back, which a foreign implementation cannot.
+pub trait Sink: Send + Sync {
+	fn fill(&self, buf: &mut Vec<u8>);
 }
 
 /// Another crate whole, whose every release would change this one's API.

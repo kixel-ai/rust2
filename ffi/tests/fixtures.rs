@@ -34,15 +34,16 @@ fn run(cmd: &mut Command) -> Output {
 	output
 }
 
-/// Export the fixture `name` into `out` with these cargo args, returning what the
-/// exporter printed.
-fn export(name: &str, out: &Path, cargo: &[&str]) -> Output {
+/// Export the fixture `name` into `out` for `target`, else the host, with these cargo
+/// args, returning what the exporter printed.
+fn export(name: &str, out: &Path, target: Option<&str>, cargo: &[&str]) -> Output {
 	let fixture = manifest_dir().join("fixtures").join(name);
 	Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 		.arg("--config")
 		.arg(fixture.join("ffi.toml"))
 		.arg("--out")
 		.arg(out)
+		.args(target.map(|target| ["--target", target]).into_iter().flatten())
 		.arg("--")
 		.args(cargo)
 		.env("CARGO_TARGET_DIR", scratch().join(name).join("build"))
@@ -78,7 +79,7 @@ fn api() -> &'static Api {
 		// A feature of the facade's that enables one in a crate it re-exports, which the C
 		// library must build with.
 		let features = ["--features", "doubled"];
-		let output = export("api", &out, &features);
+		let output = export("api", &out, None, &features);
 		assert!(
 			output.status.success(),
 			"exporting failed:\n{}",
@@ -137,6 +138,10 @@ fn api() -> &'static Api {
 	})
 }
 
+/// What a use of a handle lent from another's value prints once that value was borrowed
+/// exclusively.
+const OUTLIVED: &str = "api_Meter_count: a handle lent from another outlived it";
+
 #[test]
 fn api_c() {
 	let api = api();
@@ -177,6 +182,11 @@ fn api_c() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("null", "api_Registry_edit: a function is null"),
+		("outlived", OUTLIVED),
+		(
+			"lent shared",
+			"api_Meter_reset: a handle a call lent shared is borrowed exclusively",
+		),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
 		assert!(!output.status.success(), "{case} did not abort");
@@ -227,6 +237,7 @@ fn api_cpp() {
 			),
 			("lent kept", "a lent object was moved out of"),
 			("null view", "a view of null bytes has a length"),
+			("outlived", OUTLIVED),
 		] {
 			let output = Command::new(&exe).arg(case).output().unwrap();
 			assert!(!output.status.success(), "C++{standard} {case} did not abort");
@@ -360,11 +371,25 @@ fn api_android() {
 
 	let abi = run(Command::new(&adb).args(["shell", "getprop", "ro.product.cpu.abi"]));
 	let abi = String::from_utf8_lossy(&abi.stdout).trim().to_string();
+	// Exported for the device's target, the only one its crate builds for.
+	let target = match abi.as_str() {
+		"arm64-v8a" => "aarch64-linux-android",
+		"x86_64" => "x86_64-linux-android",
+		abi => panic!("the android shell's toolchain has no target for the device's ABI {abi}"),
+	};
+	let out = dir.join("out");
+	let output = export("api", &out, Some(target), &["--features", "doubled"]);
+	assert!(
+		output.status.success(),
+		"exporting for {target} failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	std::fs::copy(manifest_dir().join("Cargo.lock"), out.join("Cargo.lock")).unwrap();
 	run(cargo()
 		.args(["ndk", "--target", &abi, "--platform", "24", "--output-dir"])
 		.arg(dir.join("lib"))
 		.args(["build", "--quiet", "--manifest-path"])
-		.arg(api.out.join("Cargo.toml"))
+		.arg(out.join("Cargo.toml"))
 		.arg("--target-dir")
 		.arg(scratch().join("api").join("glue"))
 		.args(["--features", "kotlin"])
@@ -375,7 +400,7 @@ fn api_android() {
 	// generated ones, and those kotlinx-coroutines' jar holds, which an app's build reads
 	// from it. Kotlin's annotations are on an app's classpath, not in its dex.
 	let jar = dir.join("app.jar");
-	run(kotlinc(&api.out, &jar).arg("-include-runtime"));
+	run(kotlinc(&out, &jar).arg("-include-runtime"));
 	run(Command::new("jar")
 		.arg("xf")
 		.arg(coroutines())
@@ -398,7 +423,7 @@ fn api_android() {
 		.args(["com.android.tools.r8.R8", "--release", "--min-api", "24", "--lib"])
 		.arg(newest(&sdk.join("platforms")).join("android.jar"))
 		.arg("--pg-conf")
-		.arg(api.out.join("kotlin").join("api.pro"))
+		.arg(out.join("kotlin").join("api.pro"))
 		.arg("--pg-conf")
 		.arg(dir.join("META-INF/com.android.tools/r8/coroutines.pro"))
 		.arg("--pg-conf")
@@ -486,6 +511,7 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Kotlin threw"),
+		("outlived", OUTLIVED),
 		("stray", "MalformedInputException"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 	] {
@@ -539,6 +565,7 @@ fn api_python() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Python raised"),
+		("outlived", OUTLIVED),
 		("family", "ValueError: an IPv6 address has no Rust SocketAddrV4"),
 	] {
 		let output = python(&dir, &[case]).output().unwrap();
@@ -612,7 +639,7 @@ fn kotlin_contract(kotlin: &Path) -> u64 {
 #[test]
 #[cfg_attr(
 	all(target_os = "linux", target_arch = "aarch64"),
-	ignore = "nixpkgs builds no Swift for aarch64-linux: quest/m2/uniffi-swift-arm.md"
+	ignore = "nixpkgs builds no Swift for aarch64-linux: quest/m2/swift-arm.md"
 )]
 fn api_swift() {
 	let api = api();
@@ -659,6 +686,7 @@ fn api_swift() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("family", "api_nexts: an IPv6 socket address where IPv4 is taken"),
+		("outlived", OUTLIVED),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
 	] {
@@ -731,6 +759,7 @@ fn api_dart() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Dart threw"),
+		("outlived", OUTLIVED),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
@@ -905,6 +934,7 @@ fn api_go() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("family", "an address that is not IPv4 has no Rust SocketAddrV4"),
+		("outlived", OUTLIVED),
 		("text", "api_greet: a string is not UTF-8"),
 		("callback panicked", "a log failed"),
 		("duration", "a Rust Duration past time.Duration's longest"),
@@ -955,7 +985,7 @@ fn go_module() {
 	)
 	.unwrap();
 	let out = module.join("sub").join("out");
-	let output = export("api", &out, &[]);
+	let output = export("api", &out, None, &[]);
 	assert!(
 		output.status.success(),
 		"exporting failed:\n{}",
@@ -1137,7 +1167,7 @@ fn relative_target() {
 #[test]
 fn reject() {
 	let out = scratch().join("reject").join("out");
-	let output = export("reject", &out, &[]);
+	let output = export("reject", &out, None, &[]);
 	assert!(!output.status.success(), "exporting reject succeeded");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	// Each error at its span, then each of its notes at its own.
@@ -1182,7 +1212,7 @@ fn reject() {
 #[test]
 fn feature_of_dependency() {
 	let out = scratch().join("feature").join("out");
-	let output = export("api", &out, &["--features", "bytes/std"]);
+	let output = export("api", &out, None, &["--features", "bytes/std"]);
 	assert!(!output.status.success(), "exporting with bytes/std succeeded");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
@@ -1454,6 +1484,75 @@ fn configured_out() {
 		],
 		"{stderr}"
 	);
+}
+
+/// Each target exports the API it compiles, at its widths, and its crate builds for that
+/// target alone: wasm32 has a function the host lacks, lacks one the host has, and a
+/// 32-bit `usize`, which Kotlin's 64-bit `ULong` crosses into checked.
+#[test]
+fn target() {
+	let package = package("targeted");
+	write_all(
+		&package,
+		&[(
+			"src/lib.rs",
+			"pub const MAX: usize = usize::MAX;\n\n\
+			pub fn halve(n: usize) -> usize {\n\tn / 2\n}\n\n\
+			#[cfg(target_arch = \"wasm32\")]\npub fn wasm() -> u32 {\n\t32\n}\n\n\
+			#[cfg(not(target_arch = \"wasm32\"))]\npub fn desktop() -> u32 {\n\t64\n}\n",
+		)],
+	);
+	let export = |name: &str, target: &[&str]| {
+		let out = package.join(name);
+		run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+			.arg("--config")
+			.arg(package.join("ffi.toml"))
+			.arg("--out")
+			.arg(&out)
+			.args(target)
+			.env("CARGO_TARGET_DIR", package.join("build")));
+		std::fs::copy(package.join("Cargo.lock"), out.join("Cargo.lock")).unwrap();
+		let header = std::fs::read_to_string(out.join("include/targeted.h")).unwrap();
+		(out, header)
+	};
+	let (host, header) = export("host", &[]);
+	assert!(
+		header.contains("targeted_desktop(") && !header.contains("targeted_wasm("),
+		"{header}"
+	);
+	assert!(header.contains(&u64::MAX.to_string()), "{header}");
+	build_offline(&host, &package.join("glue"));
+	let (wasm, header) = export("wasm", &["--target", "wasm32-unknown-unknown"]);
+	assert!(
+		header.contains("targeted_wasm(") && !header.contains("targeted_desktop("),
+		"{header}"
+	);
+	assert!(
+		header.contains(&u32::MAX.to_string()) && !header.contains(&u64::MAX.to_string()),
+		"{header}"
+	);
+	let glue = |target: &[&str]| {
+		let mut cmd = cargo();
+		cmd.args([
+			"check",
+			"--quiet",
+			"--offline",
+			"--features",
+			"kotlin,dart",
+			"--manifest-path",
+		])
+		.arg(wasm.join("Cargo.toml"))
+		.arg("--target-dir")
+		.arg(package.join("glue"))
+		.args(target)
+		.env("RUSTFLAGS", "-D warnings");
+		cmd
+	};
+	run(&mut glue(&["--target", "wasm32-unknown-unknown"]));
+	let output = glue(&[]).output().unwrap();
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(!output.status.success(), "wasm32's export built for the host");
+	assert!(stderr.contains("exported for wasm32-unknown-unknown, not "), "{stderr}");
 }
 
 /// Writes each `(path, text)` into `dir`.

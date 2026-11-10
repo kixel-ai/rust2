@@ -111,7 +111,7 @@ impl<'a> Header<'a> {
 			}
 			Type::Duration => format!("::{}::duration", self.ns),
 			Type::SocketAddr(_) => format!("::{}::socket_addr", self.ns),
-			Type::List(inner) => format!("::std::vector<{}>", self.owned(inner)),
+			Type::List(_, inner) => format!("::std::vector<{}>", self.owned(inner)),
 			Type::Waker => format!("::{}::waker", self.ns),
 			Type::Option(inner) => format!("::std::optional<{}>", self.owned(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.owned(inner),
@@ -131,21 +131,27 @@ impl<'a> Header<'a> {
 	/// The C++ type of a parameter of type `ty`.
 	fn param(&self, ty: &Type) -> String {
 		let abi = self.abi;
+		// A value Rust writes back, through the caller's own.
+		if let Type::Ref(_, inner) = ty
+			&& ty.written()
+		{
+			return format!("{} &", self.owned(inner));
+		}
 		if Abi::is_buf(ty) {
 			return format!("::{}::view", self.ns);
 		}
 		match ty {
 			Type::Option(inner) if Abi::is_buf(inner) => format!("::std::optional<::{}::view>", self.ns),
 			// Moved out of, each handle as a handle taken by value is.
-			Type::Option(inner) if matches!(inner.base(), Type::List(elem) if moves(abi, elem)) => {
+			Type::Option(inner) if matches!(inner.base(), Type::List(_, elem) if moves(abi, elem)) => {
 				format!("::std::optional<{}>", self.items(inner.base()))
 			}
-			Type::Option(inner) if matches!(inner.base(), Type::List(_)) => {
+			Type::Option(inner) if matches!(inner.base(), Type::List(..)) => {
 				format!("const ::std::optional<{}> &", self.items(inner.base()))
 			}
 			// Moved out of, each handle as a handle taken by value is.
-			Type::List(inner) if moves(abi, inner) => self.items(ty),
-			Type::List(_) => format!("const {} &", self.items(ty)),
+			Type::List(_, inner) if moves(abi, inner) => self.items(ty),
+			Type::List(..) => format!("const {} &", self.items(ty)),
 			Type::Option(inner) => match &**inner {
 				// Lent, or copied out: a pointer, null for none.
 				Type::Ref(m, object) if matches!(**object, Type::Object(_)) => {
@@ -180,7 +186,7 @@ impl<'a> Header<'a> {
 
 	/// The C++ vector a `Vec` parameter of type `ty` takes: of views, for bytes.
 	fn items(&self, ty: &Type) -> String {
-		let Type::List(inner) = ty else {
+		let Type::List(_, inner) = ty else {
 			unreachable!("{ty:?} is no Vec")
 		};
 		format!("::std::vector<{}>", self.held(inner))
@@ -203,7 +209,7 @@ impl<'a> Header<'a> {
 	fn arena(&self, ty: &Type) -> bool {
 		let api = self.abi.api;
 		match ty {
-			Type::List(_) => true,
+			Type::List(..) => true,
 			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => self.arena(inner),
 			Type::Tuple(elements) => elements.iter().any(|e| self.arena(e)),
 			Type::Record(i) => api.records[*i].fields.iter().any(|f| self.arena(&f.ty)),
@@ -246,7 +252,7 @@ impl<'a> Header<'a> {
 			Type::Char => format!("static_cast<uint32_t>({e})"),
 			Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => e.to_string(),
 			Type::Waker => format!("{d}::give({d}::access::raw({e}))"),
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let x = format!("x{}_", lists(inner));
 				format!(
 					"a_.list<::{}>({e}, [&](auto &{x}) {{ return {}; }})",
@@ -256,7 +262,7 @@ impl<'a> Header<'a> {
 			}
 			Type::Option(inner) => match inner.base() {
 				Type::Object(_) => format!("({e} ? {} : nullptr)", self.lower(inner, &format!("*{e}"))),
-				base @ Type::List(elem) => format!(
+				base @ Type::List(_, elem) => format!(
 					"({e} ? {} : ::{}{{}})",
 					self.lower(base, &format!("(*{e})")),
 					abi.list(elem)
@@ -306,7 +312,7 @@ impl<'a> Header<'a> {
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("static_cast<char32_t>({e})"),
 			Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => e.to_string(),
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let c = format!("c{}_", lists(inner));
 				format!(
 					"{d}::lift_list<{}>({e}, [&](const auto &{c}) {{ return {}; }}, &::{}_free)",
@@ -321,7 +327,7 @@ impl<'a> Header<'a> {
 					Type::Object(_) => {
 						format!("({e} ? ::std::optional<{owned}>({d}::access::wrap<{owned}>({e})) : ::std::nullopt)")
 					}
-					Type::List(_) => format!(
+					Type::List(..) => format!(
 						"({e}.ptr ? ::std::optional<{owned}>({}) : ::std::nullopt)",
 						self.lift(inner, e)
 					),
@@ -788,7 +794,7 @@ impl<'a> Header<'a> {
 		let c = match ty {
 			Type::Record(i) => abi.record(*i),
 			Type::Enum(i) if !abi.api.enums[*i].plain() => abi.enumeration(*i),
-			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(inner) => {
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => {
 				return self.value(inner);
 			}
 			Type::Tuple(elements) => {
@@ -824,7 +830,7 @@ impl<'a> Header<'a> {
 						"\tbool operator==(const {name} &other) const;\n\tbool operator!=(const {name} &other) const {{\n\t\treturn !(*this == other);\n\t}}"
 					));
 					self.def(format!(
-						"inline bool {name}::operator==(const {name} &other) const {{\n{}\tauto a = {};\n\tauto b = {};\n\treturn ::{c}_eq(&a, &b);\n}}\n",
+						"inline bool {name}::operator==(const {name} &other) const {{\n{}\tauto c_a_ = {};\n\tauto c_b_ = {};\n\treturn ::{c}_eq(&c_a_, &c_b_);\n}}\n",
 						self.scope([ty]),
 						self.lower(ty, "*this"),
 						self.lower(ty, "other"),
@@ -1145,6 +1151,14 @@ impl<'a> Header<'a> {
 			args.push(self.lower(&param.ty, &name));
 		}
 		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		// Each value passed for `&mut` takes what Rust wrote back, on every path.
+		let writes: Vec<String> = (function.params.iter().zip(&names))
+			.filter(|(param, _)| param.ty.written())
+			.map(|(param, name)| {
+				let out = Abi::written(function, &abi::escape(&param.name));
+				format!("{name} = {};", self.lift(param.ty.base(), &format!("c_{out}_")))
+			})
+			.collect();
 		for (name, _) in &outs {
 			args.push(format!("&c_{name}_"));
 		}
@@ -1156,17 +1170,28 @@ impl<'a> Header<'a> {
 			let (declared, ok, err) = self.outs(function, &outs, &ret);
 			body.extend(declared);
 			match (&function.err, &function.ok) {
+				(Some(_), _) if !writes.is_empty() => {
+					body.push(format!("bool c_ok_ = {call};"));
+					body.extend(writes);
+					body.push(format!("if (c_ok_) {{\n\t\treturn {ok};\n\t}}"));
+					body.push(format!("return {};", err.expect("an error lifts")));
+				}
 				(Some(_), _) => {
 					body.push(format!("if ({call}) {{\n\t\treturn {ok};\n\t}}"));
 					body.push(format!("return {};", err.expect("an error lifts")));
 				}
 				(None, Type::Tuple(_)) => {
 					body.push(format!("{call};"));
+					body.extend(writes);
 					body.push(format!("return {ok};"));
 				}
-				(None, Type::Unit) => body.push(format!("{call};")),
+				(None, Type::Unit) => {
+					body.push(format!("{call};"));
+					body.extend(writes);
+				}
 				(None, ok_ty) => {
 					body.push(format!("auto c_out_ = {call};"));
+					body.extend(writes);
 					let lifted = self.lift(&strip_refs(ok_ty), "c_out_");
 					body.push(format!("return {lifted};"));
 				}
@@ -1367,8 +1392,9 @@ fn generated(name: &str) -> bool {
 /// those of the lambdas around it.
 fn lists(ty: &Type) -> usize {
 	match ty {
-		Type::List(inner) => 1 + lists(inner),
+		Type::List(_, inner) => 1 + lists(inner),
 		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => lists(inner),
+		Type::Tuple(elements) => elements.iter().map(lists).max().unwrap_or(0),
 		_ => 0,
 	}
 }
@@ -1390,7 +1416,7 @@ fn record(abi: &Abi<'_>, c: &str) -> Type {
 fn moves(abi: &Abi<'_>, ty: &Type) -> bool {
 	match ty {
 		Type::Object(i) => !abi.api.objects[*i].copy,
-		Type::Option(inner) | Type::Box(inner) | Type::List(inner) => moves(abi, inner),
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moves(abi, inner),
 		Type::Tuple(elements) => elements.iter().any(|e| moves(abi, e)),
 		_ => false,
 	}

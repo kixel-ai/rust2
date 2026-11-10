@@ -4,8 +4,6 @@ permissions:
   contents: read
 
 on:
-  schedule:
-    - cron: "0 7 * * *"
   workflow_dispatch:
   # A change to the benchmark or its toolchains reports its numbers before it merges.
   pull_request:
@@ -78,8 +76,8 @@ jobs:
             from=HEAD^ to=HEAD
           fi
           echo "Comparing $from to $to"
-          # The trigger's paths, less the flake's and the Nix comparison's, which runs nightly only.
-          if ! git diff --quiet "$from" "$to" -- bench/build .github/workflows/bench.yml ':!*.md' ':!bench/build/nix*'; then
+          # The trigger's paths, less the flake's.
+          if ! git diff --quiet "$from" "$to" -- bench/build .github/workflows/bench.yml ':!*.md'; then
             echo "bench=true" >>"$GITHUB_OUTPUT"
             exit 0
           fi
@@ -100,7 +98,7 @@ jobs:
   bench:
     name: Bench (${{ matrix.name }})
     needs: changed
-    # Only the changed job's verdict skips the bench: a schedule or dispatch skips that
+    # Only the changed job's verdict skips the bench: a dispatch skips that
     # job, and its failure runs the bench rather than quietly skipping it.
     if: ${{ !cancelled() && needs.changed.outputs.bench != 'false' }}
     # x86_64 Linux is where rustc links with LLD by default.
@@ -117,8 +115,6 @@ jobs:
             args: --corpus moq --variant nightly --variant jobs-frontend --variant cranelift --variant cache-proc-macros --variant nightly-control
           - name: moq ra-jit
             args: --corpus moq --variant ra-jit-baseline --variant ra-jit --no-attribute
-          - name: pure
-            args: --corpus regex --corpus wasmparser
 
     steps:
       - name: Checkout
@@ -146,40 +142,3 @@ jobs:
           path: bench-results
           if-no-files-found: ignore
 
-  # moq's Nix release builds, each way they could share compilations. It takes
-  # hours and informs a choice rather than gating a change, so it runs nightly only.
-  nix:
-    name: Bench (moq nix)
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 330
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: ./.github/actions/nix
-
-      # Each variant builds in a private Nix store, which sandboxes its builds in
-      # user namespaces that Ubuntu reserves for root.
-      - name: Allow user namespaces
-        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-
-      - name: Allow perf counters
-        run: sudo sysctl -w kernel.perf_event_paranoid=2
-
-      - name: Bench
-        run: nix develop .#build-bench --command just bench-nix --out bench-results
-
-      - name: Summary
-        run: cat bench-results/report.md >>"$GITHUB_STEP_SUMMARY"
-
-      - name: Upload
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: bench-nix
-          path: bench-results
-          if-no-files-found: ignore

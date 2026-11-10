@@ -147,6 +147,22 @@ impl Counter {
 		std::ptr::from_ref(self) as usize == EDITING.load(std::sync::atomic::Ordering::Relaxed)
 	}
 
+	/// This count plus `other`'s, if any: an optional handle, lent shared.
+	pub fn plus(&self, other: Option<&Counter>) -> u64 {
+		self.value + other.map_or(0, |other| other.value)
+	}
+
+	/// [`Self::plus`], once [`yielded`] finishes: a future borrowing both handles meanwhile.
+	pub async fn plus_later(&self, other: Option<&Counter>) -> u64 {
+		yielded(0).await;
+		self.plus(other)
+	}
+
+	/// Adds this count to `other`, if any: an optional handle, lent exclusively.
+	pub fn add_to(&self, other: Option<&mut Counter>) -> bool {
+		other.map(|other| other.value += self.value).is_some()
+	}
+
 	/// Consumes the counter.
 	pub fn into_label(self, at: Option<Point>) -> Label {
 		Label {
@@ -257,6 +273,27 @@ impl Board {
 	}
 }
 
+/// Points by name and the ids in use, as hang's renditions and moq-mux's selections: a map
+/// and a set, which cross as their items in order, each key once.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Atlas {
+	pub points: std::collections::BTreeMap<String, Point>,
+	pub ids: std::collections::BTreeSet<u32>,
+}
+
+impl Atlas {
+	/// It with `at` named `name`, replacing any point of that name.
+	pub fn with(mut self, name: &str, at: Point) -> Self {
+		self.points.insert(name.to_string(), at);
+		self
+	}
+}
+
+/// `text` as a port: another crate's error crosses as its message.
+pub fn port(text: &str) -> Result<u16, std::num::ParseIntError> {
+	text.parse()
+}
+
 /// A span: a record whose fields are tuples, one holding text.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Span {
@@ -310,6 +347,50 @@ pub fn swapped(pair: (String, u32)) -> (u32, String) {
 	(pair.1, pair.0)
 }
 
+/// A meter that is deliberately not `Clone`, as moq's group writers are, so a borrowed
+/// return of one is lent from its owner's handle rather than cloned.
+#[derive(Default)]
+pub struct Meter(std::sync::atomic::AtomicU64);
+
+impl Meter {
+	/// Adds `n`, returning the new count: through `&self`, as a lent handle allows.
+	pub fn add(&self, n: u64) -> u64 {
+		self.0.fetch_add(n, std::sync::atomic::Ordering::Relaxed) + n
+	}
+
+	pub fn count(&self) -> u64 {
+		self.0.load(std::sync::atomic::Ordering::Relaxed)
+	}
+
+	/// Zeroes the count: through `&mut self`, which a lent handle refuses.
+	pub fn reset(&mut self) {
+		*self.0.get_mut() = 0;
+	}
+}
+
+/// Owns a meter it lends.
+#[derive(Default)]
+pub struct Meters {
+	first: Meter,
+}
+
+impl Meters {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// The first meter, lent: a handle to it lives until these meters are borrowed
+	/// exclusively, moved out, or freed.
+	pub fn first(&self) -> &Meter {
+		&self.first
+	}
+
+	/// Replaces the first meter, borrowing these exclusively, which ends what `first` lent.
+	pub fn clear(&mut self) {
+		self.first = Meter::default();
+	}
+}
+
 /// Holds counters and lends them: each borrowed return is a new handle to a clone.
 #[derive(Default)]
 pub struct Registry {
@@ -361,6 +442,17 @@ impl Name<'_> {
 	/// `other` after this name, as a name that borrows neither.
 	pub fn join(&self, other: &Name<'_>) -> Name<'static> {
 		Name(Cow::Owned(format!("{}/{}", self.0, other.0)))
+	}
+
+	/// A name borrowing text that lives as long as the program, which a binding's string
+	/// does once interned.
+	pub fn borrowed(text: &'static str) -> Name<'static> {
+		Name(Cow::Borrowed(text))
+	}
+
+	/// Whether both names borrow the same text, where it lies, not only equal text.
+	pub fn shares(&self, other: &Name<'_>) -> bool {
+		matches!((&self.0, &other.0), (Cow::Borrowed(a), Cow::Borrowed(b)) if std::ptr::eq(*a, *b))
 	}
 
 	/// Takes a parameter that must outlive the call, so a `String`, not a borrow of C's.
@@ -759,6 +851,24 @@ impl Tally {
 	pub fn bump(&self) -> u32 {
 		self.count.set(self.count.get() + 1);
 		self.count.get()
+	}
+}
+
+/// Owns a tally it lends, and so is not `Sync` either: its handle lends on one thread at a
+/// time.
+#[derive(Default)]
+pub struct Tallies {
+	first: Tally,
+}
+
+impl Tallies {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// The first tally, lent, as [`Meters::first`] lends its meter.
+	pub fn first(&self) -> &Tally {
+		&self.first
 	}
 }
 
@@ -1357,6 +1467,24 @@ pub fn keep(kept: impl Kept) -> i32 {
 	kept.kept()
 }
 
+/// `kept`'s, or 0 without one: `K` exports at each type implementing `Kept`, and the
+/// parameter naming it at the option of each.
+pub fn kept_or<K: Kept>(kept: impl Into<Option<K>>) -> i32 {
+	kept.into().map_or(0, Kept::kept)
+}
+
+/// Implemented for what `Kept` is, as moq's `Boxable` is for each `Session`: a blanket impl,
+/// which C cannot implement apart, so a parameter it bounds exports at each type implementing
+/// what the impl requires.
+pub trait Keeper: Kept + Copy {}
+
+impl<K: Kept + Copy> Keeper for K {}
+
+/// As `keep`, through the blanket impl.
+pub fn keeper(keeper: impl Keeper) -> i32 {
+	keeper.kept()
+}
+
 /// A generic record only a constant names, which infers its instance.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Boxed<T> {
@@ -1415,6 +1543,44 @@ pub fn report<T: Copy + fmt::Debug, L: Log>(pair: Pair<T>, log: L) -> u32 {
 		.iter()
 		.filter(|side| log.log(1, &format!("{side:?}")))
 		.count() as u32
+}
+
+/// What a log kept, made from any log.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct LogCount {
+	pub kept: u32,
+}
+
+/// A count, which C cannot implement as it needs `Copy`: a parameter it bounds exports at
+/// each type implementing it.
+pub trait Tallied: Copy {
+	fn tally(self) -> u32;
+}
+
+impl Tallied for LogCount {
+	fn tally(self) -> u32 {
+		self.kept
+	}
+}
+
+impl Tallied for Point {
+	fn tally(self) -> u32 {
+		self.x.unsigned_abs()
+	}
+}
+
+impl<L: Log> From<L> for LogCount {
+	fn from(log: L) -> Self {
+		Self {
+			kept: u32::from(log.log(3, "tally")),
+		}
+	}
+}
+
+/// What `log` kept, as each tally that converts from a log: `LogCount`, and not `Point`,
+/// which is `Tallied` too but converts from no log.
+pub fn tally<T: Tallied + From<L>, L: Log>(log: L) -> u32 {
+	T::from(log).tally()
 }
 
 /// A wrapped value, which only its impl of `Seed<u64>` at `Wrap<u32>` names: each
@@ -1614,6 +1780,77 @@ pub fn sentence(words: Option<Vec<String>>) -> String {
 	words.map_or_else(|| "none".to_string(), |words| words.join(" "))
 }
 
+/// Appends `value` in decimal and a comma to `buf`, as moq's encoders append to an
+/// `impl BufMut`, which takes a `Vec<u8>`: C passes the bytes in, and Rust writes back
+/// what the call left in them.
+pub fn put_number(value: u32, buf: &mut impl bytes::BufMut) {
+	buf.put_slice(format!("{value},").as_bytes());
+}
+
+/// Takes the first byte of `buf` as a decimal digit, as moq's decoders take from an
+/// `impl Buf`, which takes `Bytes`. It takes the byte even when it fails, and Rust writes
+/// back what the call left on either path.
+pub fn digit(buf: &mut impl bytes::Buf) -> Result<u8, Error> {
+	match buf.has_remaining() {
+		false => Err(Error::Underflow { by: 1 }),
+		true => match buf.get_u8() {
+			digit @ b'0'..=b'9' => Ok(digit - b'0'),
+			_ => Err(Error::Overflow),
+		},
+	}
+}
+
+/// Appends `byte` to an entry's bytes and counts it, returning the count: a tuple holding
+/// bytes, written back beside the value C returns.
+pub fn push_counted(entry: &mut (Vec<u8>, u32), byte: u8) -> u32 {
+	entry.0.push(byte);
+	entry.1 += 1;
+	entry.1
+}
+
+/// Moves `point` by `by` on each axis: a record, written back.
+pub fn nudge(point: &mut Point, by: i32) {
+	point.x += by;
+	point.y += by;
+}
+
+/// A config of a crate no export is, behind an `Arc`, as moq-tokio's listener returns
+/// rustls's: an opaque handle, which Rust takes back.
+pub fn secure(alpn: &str) -> Arc<tls::Config> {
+	Arc::new(tls::Config::new(alpn))
+}
+
+/// The ALPN of a config [`secure`] made, taken back by value.
+pub fn alpn(config: Arc<tls::Config>) -> String {
+	config.alpn().to_string()
+}
+
+/// [`alpn`], lent.
+pub fn alpn_lent(config: &Arc<tls::Config>) -> String {
+	config.alpn().to_string()
+}
+
+/// `text`'s length, or 0 for none: an optional borrow, lent as the borrow alone is.
+pub fn either(text: Option<&str>) -> usize {
+	text.map_or(0, str::len)
+}
+
+/// [`either`], once [`yielded`] finishes: a future owning what it lends.
+pub async fn either_later(text: Option<&str>) -> usize {
+	yielded(0).await;
+	either(text)
+}
+
+/// `payload` after `prefix`, if any.
+pub fn prefixed(payload: &[u8], prefix: Option<&[u8]>) -> Vec<u8> {
+	[prefix.unwrap_or_default(), payload].concat()
+}
+
+/// `point`'s coordinates summed, or 0 for none: an optional value, lent shared.
+pub fn coordinates(point: Option<&Point>) -> i32 {
+	point.map_or(0, |point| point.x + point.y)
+}
+
 /// `bytes` in chunks of up to `size`, which is not 0.
 pub fn chunks(bytes: &[u8], size: usize) -> Vec<Vec<u8>> {
 	bytes.chunks(size).map(<[u8]>::to_vec).collect()
@@ -1662,6 +1899,39 @@ pub fn summed(points: impl IntoIterator<Item = Point>) -> Point {
 	points.into_iter().fold(Point::default(), |sum, p| sum.offset(p.x, p.y))
 }
 
+/// Bounds on a measure, as moq's `health::Limits<Duration>` is: a generic record whose
+/// instances are of types that map by role.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Limits<T> {
+	pub low: T,
+	pub high: T,
+}
+
+/// How far apart `limits` are: an instance at `Duration`, passed in.
+pub fn breadth(limits: Limits<Duration>) -> Duration {
+	limits.high.saturating_sub(limits.low)
+}
+
+/// `low` and `high` as limits: an instance at `Bytes`, returned.
+pub fn byte_limits(low: Bytes, high: Bytes) -> Limits<Bytes> {
+	Limits { low, high }
+}
+
+/// The parts joined, from anything that lends them for the call: a slice C lends.
+pub fn joined<'a, I: IntoIterator<Item = &'a Bytes>>(parts: I) -> Bytes {
+	parts.into_iter().flat_map(|part| part.iter().copied()).collect()
+}
+
+/// The first of `items`, a borrow of what C lends that is copied out before the call ends.
+pub fn first_of<'a, I: IntoIterator<Item = &'a String>>(items: I) -> Option<&'a String> {
+	items.into_iter().next()
+}
+
+/// How many bytes `reader` holds: bytes C lends for the call.
+pub fn read_len(mut reader: impl std::io::Read) -> u64 {
+	std::io::copy(&mut reader, &mut std::io::sink()).expect("a slice reads")
+}
+
 /// The length of the longest word, naming its iterator.
 pub fn longest<I>(words: I) -> usize
 where
@@ -1678,6 +1948,15 @@ pub fn encode<T: serde::Serialize>(value: &T) -> String {
 /// `doc` under `tag`, as a new document.
 pub fn tagged(doc: serde_json::Value, tag: &str) -> serde_json::Value {
 	serde_json::json!({ "tag": tag, "doc": doc })
+}
+
+/// `entries` with `tag` added, as hang's `extra` fields hold a JSON object's entries.
+pub fn entries(
+	mut entries: serde_json::Map<String, serde_json::Value>,
+	tag: &str,
+) -> serde_json::Map<String, serde_json::Value> {
+	entries.insert("tag".to_string(), tag.into());
+	entries
 }
 
 /// A site: every field is `pub`, but a URL is a handle C cannot copy, so it is an object

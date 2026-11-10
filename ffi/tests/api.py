@@ -162,6 +162,18 @@ def script():
 	board = api.Board.new([("low", api.Counter.new("l", 1)), ("high", api.Counter.new("h", 9))])
 	ranked = board.ranked()
 	print("ranked " + ", ".join(f"{name} {counter.name()} {counter.get()}" for name, counter in ranked))
+	# A map crosses as its pairs and a set as its items, which Rust collects in order, each
+	# key once, the last kept.
+	atlas = api.Atlas([("b", api.Point(1, 1)), ("ab", api.Point(2, 3)), ("b", api.Point(4, 4))], [3, 1, 3])
+	atlas = atlas.with_("c", api.Point(5, 6))
+	atlas_points = ", ".join(f"{name} {p.x} {p.y}" for name, p in atlas.points)
+	print(f"atlas {atlas_points}; ids {' '.join(str(i) for i in atlas.ids)}")
+	# Another crate's error crosses as its message.
+	for port_text in ["80", "x"]:
+		try:
+			print(f"port {api.port(port_text)}")
+		except api.StringException as e:
+			print(f"port err {e.error}")
 	span = api.Span((2, 10), ("s", api.Shape.SQUARE))
 	lower_half, upper_half = api.halves(span)
 	print(f"halves {lower_half[0]} {lower_half[1]} {upper_half[0]} {upper_half[1]} {span!r}")
@@ -217,6 +229,9 @@ def script():
 	long = api.longer(joined, api.Name.owned("dd"))
 	print(f"longer {long.as_str()}")
 	print(f"unnamed [{api.unnamed().as_str()}]")
+	lit = api.Name.borrowed("lit")
+	shares = [str(lit.shares(api.Name.borrowed(text))).lower() for text in ("lit", "other")]
+	print(f"borrowed {lit.as_str()} {' '.join(shares)}")
 
 	print(f"total {api.total(range(2, 5))}")
 	wide = api.widen(range(2, 5), 1)
@@ -395,6 +410,8 @@ def script():
 	# A bound that outlives the call takes a value, and an instance only a constant names.
 	print(f"kept {api.kept_point(api.Point(1, -2))} boxed {api.BOXED.value}")
 	print(f"keep {api.keep_point(api.Point(1, -2))}")
+	five = api.Point(5, 2)
+	print(f"kept or {api.kept_or_point(five)} {api.kept_or_point(None)} keeper {api.keeper_point(five)}")
 	# Inferred instances taking a lent closure and a foreign implementation, and one only
 	# its impl of a trait names.
 	sides = api.PairU32(2, 5)
@@ -441,6 +458,41 @@ def script():
 	print(f"words {len(words)} {quoted(words)}")
 	print(f"sentence {api.sentence(words)} {api.sentence(None)}")
 	print(f"sentence {api.sentence([])}|")
+	print(f"either {api.either('abc')} {api.either(None)}")
+	print(f"prefixed {bytes(api.prefixed(b'cd', b'ab')).decode()} {bytes(api.prefixed(b'cd', None)).decode()}")
+	print(f"coordinates {api.coordinates(api.Point(2, 3))} {api.coordinates(None)}")
+	two, three = api.Counter.new("two", 2), api.Counter.new("three", 3)
+	print(f"plus {two.plus(three)} {two.plus(None)}")
+	print(f"add_to {str(two.add_to(three)).lower()} {str(two.add_to(None)).lower()} {three.get()}")
+	encoded = api.Mut(memoryview(b"0,"))
+	api.put_number(1, encoded)
+	api.put_number(23, encoded)
+	print(f"put_number {bytes(encoded.value).decode()}")
+	entry = api.Mut((memoryview(b"ab"), 1))
+	stamps = api.push_counted(entry, ord("c"))
+	print(f"push_counted {stamps} {bytes(entry.value[0]).decode()} {entry.value[1]}")
+	digits = api.Mut(memoryview(b"7x9"))
+	first_digit = api.digit(digits)
+	try:
+		api.digit(digits)
+		skipped = False
+	except api.ErrorException:
+		skipped = True
+	print(f"digit {first_digit} {str(skipped).lower()} {api.digit(digits)} {len(digits.value)}")
+	nudged = api.Mut(api.Point(1, 2))
+	api.nudge(nudged, 3)
+	print(f"nudge {nudged.value.x} {nudged.value.y}")
+	config = api.secure("h3")
+	print(f"secure {api.alpn_lent(config)} {api.alpn(config.clone())}")
+	meters = api.Meters.new()
+	first = meters.first()
+	first.add(2)
+	print(f"lent {first.add(3)} {meters.first().count()}")
+	meters.clear()
+	print(f"cleared {meters.first().count()}")
+	tallies = api.Tallies.new()
+	tallies.first().bump()
+	print(f"tallied {tallies.first().bump()}")
 	print(f"chunks {[list(data(chunk)) for chunk in api.chunks(b'abcde', 2)]}")
 	counters = api.counters(["x", "y"])
 	print("counters " + ", ".join(f"{c.name()} {c.get()}" for c in counters))
@@ -461,11 +513,21 @@ def script():
 	none_summed = api.summed([])
 	print(f"summed {summed.x} {summed.y} {none_summed.x} {none_summed.y}")
 	print(f"longest {api.longest(['a', 'abc'])} {api.longest([])}")
+	print(f'first of Some("{api.first_of(["a", "b"])}") {api.first_of([]) or "None"}')
+	limits = api.byte_limits(b'a', b'bc')
+	waits = api.LimitsDuration(datetime.timedelta(milliseconds=5), datetime.timedelta(seconds=2))
+	breadth = api.breadth(waits) // datetime.timedelta(milliseconds=1)
+	print(f"limits {bytes(limits.low).decode()} {bytes(limits.high).decode()} breadth {breadth}")
+	joined = bytes(api.joined([b'ab', b'', b'c'])).decode()
+	print(f"joined {joined} {len(api.joined([]))} read {api.read_len(b'hello')}")
 	doc = api.Json.parse('{"b": [1, 2.5, null], "a": "é"}')
 	print(f"json {api.encode(doc)}")
 	print(f"timed text {api.timed_text(doc)}")
 	tagged = api.tagged(doc, "t")
 	print(f"tagged {tagged.to_text()}")
+	# A JSON object's entries cross as pairs of a key and its document, each moved in.
+	entries = api.entries([("b", api.Json.parse("[1]")), ("a", api.Json.parse("2"))], "t")
+	print("entries " + ", ".join(f"{key} {value.to_text()}" for key, value in entries))
 	try:
 		api.Json.parse('{"a":')
 	except api.StringException as e:
@@ -798,6 +860,11 @@ def calls():
 	channel = api.Channel.new()
 	loop.run_until_complete(channel.send_later(payload=b"kw"))
 	check(bytes(loop.run_until_complete(channel.recv())) == b"kw", "an eager future takes keywords")
+	check(loop.run_until_complete(api.either_later("ab")) == 2, "a future owns an optional borrow")
+	check(loop.run_until_complete(api.either_later(None)) == 0, "a future owns a None borrow")
+	two, three = api.Counter.new("two", 2), api.Counter.new("three", 3)
+	check(loop.run_until_complete(two.plus_later(three)) == 5, "a future holds an optional handle")
+	check(loop.run_until_complete(two.plus_later(None)) == 2, "a future holds a None handle")
 	loop.close()
 
 	# C callers may pass no argument array at all for no arguments.
@@ -835,6 +902,11 @@ def broken(which):
 			tail = api.Node.new(1, None)
 			api.Node.new(2, tail)
 			tail.sum()
+		case "outlived":
+			meters = api.Meters.new()
+			first = meters.first()
+			meters.clear()
+			first.count()
 		case "lent moved":
 			api.Registry.new(api.Counter.new("c", 0)).edit(lambda counter: counter.into_label(None) and False)
 		case "lent kept":

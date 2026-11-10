@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 DISPATCH = Path(__file__).with_name("dispatch.sh").resolve()
-EVERYTHING = ["lint", "quest", "sh", "uniffi", "driver", "ffi", "go", "ts"]
+EVERYTHING = ["lint", "quest", "sh", "driver", "ffi", "go", "ts"]
 
 
 class SelectTests(unittest.TestCase):
@@ -68,7 +68,6 @@ class SelectTests(unittest.TestCase):
             (["ffi/src/lib.rs"], ["lint", "ffi"]),
             (["go/src/lib.rs"], ["lint", "go"]),
             (["ts/fixtures/codec/src/lib.rs"], ["lint", "go", "ts"]),
-            (["uniffi/uniffi_core/src/lib.rs"], ["lint", "uniffi"]),
             (["quest/m0/example.md"], ["lint", "quest"]),
             (["sh/dispatch.test.py"], ["lint", "sh"]),
             (["ts/src/lib.rs", "ffi/src/lib.rs"], ["lint", "ffi", "ts"]),
@@ -102,8 +101,6 @@ class SelectTests(unittest.TestCase):
             "flake.nix",
             "flake.lock",
             "rust-toolchain.toml",
-            "Cargo.toml",
-            "Cargo.lock",
             "justfile",
             ".github/workflows/nightly.yml",
             "sh/dispatch.sh",
@@ -127,7 +124,7 @@ class SelectTests(unittest.TestCase):
 
     def test_base_changes_since_the_branch_do_not_count(self):
         branch = self.git("rev-parse", "HEAD")
-        self.commit("uniffi/uniffi_core/src/lib.rs")
+        self.commit("go/src/lib.rs")
         self.git("update-ref", "refs/remotes/origin/main", "HEAD")
         self.git("checkout", "-q", "-b", "work", branch)
         self.commit("ts/src/lib.rs")

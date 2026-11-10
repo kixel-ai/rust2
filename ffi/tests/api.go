@@ -220,6 +220,29 @@ func script() {
 		return fmt.Sprintf("%s %s %d", r.V0, must(r.V1.Name()), must(r.V1.Get()))
 	}), "[]"))
 	board.Close()
+	// A map crosses as its pairs and a set as its items, which Rust collects in order, each
+	// key once, the last kept.
+	atlas := api.Atlas{
+		Points: []rt.Tuple2[string, api.Point]{
+			{V0: "b", V1: api.Point{X: 1, Y: 1}},
+			{V0: "ab", V1: api.Point{X: 2, Y: 3}},
+			{V0: "b", V1: api.Point{X: 4, Y: 4}},
+		},
+		Ids: []uint32{3, 1, 3},
+	}.With("c", api.Point{X: 5, Y: 6})
+	atlasPoints := strings.Trim(list(atlas.Points, func(r rt.Tuple2[string, api.Point]) string {
+		return fmt.Sprintf("%s %d %d", r.V0, r.V1.X, r.V1.Y)
+	}), "[]")
+	atlasIds := strings.Trim(fmt.Sprint(atlas.Ids), "[]")
+	fmt.Printf("atlas %s; ids %s\n", atlasPoints, atlasIds)
+	// Another crate's error crosses as its message.
+	for _, text := range []string{"80", "x"} {
+		if port, err := api.Port(text); err == nil {
+			fmt.Printf("port %d\n", port)
+		} else {
+			fmt.Printf("port err %s\n", err)
+		}
+	}
 	square := api.ShapeSquare
 	span := api.Span{Bounds: rt.Tuple2[uint32, uint32]{V0: 2, V1: 10}, Named: &rt.Tuple2[string, api.Shape]{V0: "s", V1: square}}
 	lower, upper := api.Halves(span)
@@ -275,6 +298,8 @@ func script() {
 	long := must(api.Longer(joined, api.NameOwned("dd")))
 	fmt.Printf("longer %s\n", must(long.AsStr()))
 	fmt.Printf("unnamed [%s]\n", must(api.Unnamed().AsStr()))
+	lit := api.NameBorrowed("lit")
+	fmt.Printf("borrowed %s %t %t\n", must(lit.AsStr()), must(lit.Shares(api.NameBorrowed("lit"))), must(lit.Shares(api.NameBorrowed("other"))))
 
 	fmt.Printf("total %d\n", api.Total(rt.RangeU64{Start: 2, End: 5}))
 	wide := api.Widen(rt.RangeU64{Start: 2, End: 5}, 1)
@@ -443,6 +468,8 @@ func script() {
 	// A bound that outlives the call takes a value, and an instance only a constant names.
 	fmt.Printf("kept %d boxed %d\n", api.KeptPoint(api.Point{X: 1, Y: -2}), api.BOXED().Value)
 	fmt.Printf("keep %d\n", api.KeepPoint(api.Point{X: 1, Y: -2}))
+	five := api.Point{X: 5, Y: 2}
+	fmt.Printf("kept or %d %d keeper %d\n", api.KeptOrPoint(&five), api.KeptOrPoint(nil), api.KeeperPoint(five))
 	// Inferred instances taking a lent closure and a foreign implementation, and one only
 	// its impl of a trait names.
 	sides := api.PairU32{Left: 2, Right: 5}
@@ -506,6 +533,40 @@ func script() {
 	fmt.Printf("words %d %s\n", len(words), list(words, quoted))
 	fmt.Printf("sentence %s %s\n", api.Sentence(&words), api.Sentence(nil))
 	fmt.Printf("sentence %s|\n", api.Sentence(&[]string{}))
+	abc := "abc"
+	fmt.Printf("either %d %d\n", api.Either(&abc), api.Either(nil))
+	ab := []byte("ab")
+	fmt.Printf("prefixed %s %s\n", api.Prefixed([]byte("cd"), &ab).Copy(), api.Prefixed([]byte("cd"), nil).Copy())
+	fmt.Printf("coordinates %d %d\n", api.Coordinates(&api.Point{X: 2, Y: 3}), api.Coordinates(nil))
+	two, three := api.NewCounter("two", 2), api.NewCounter("three", 3)
+	fmt.Printf("plus %d %d\n", must(two.Plus(three)), must(two.Plus(nil)))
+	fmt.Printf("add_to %t %t %d\n", must(two.AddTo(three)), must(two.AddTo(nil)), must(three.Get()))
+	encoded := rt.NewBytes([]byte("0,"))
+	api.PutNumber(1, &encoded)
+	api.PutNumber(23, &encoded)
+	fmt.Printf("put_number %s\n", encoded.Copy())
+	entry := rt.Tuple2[rt.Bytes, uint32]{V0: rt.NewBytes([]byte("ab")), V1: 1}
+	stamps := api.PushCounted(&entry, 'c')
+	fmt.Printf("push_counted %d %s %d\n", stamps, entry.V0.Copy(), entry.V1)
+	digits := rt.NewBytes([]byte("7x9"))
+	firstDigit := must(api.Digit(&digits))
+	_, skipped := api.Digit(&digits)
+	lastDigit := must(api.Digit(&digits))
+	fmt.Printf("digit %d %t %d %d\n", firstDigit, skipped != nil, lastDigit, digits.Len())
+	nudged := api.Point{X: 1, Y: 2}
+	api.Nudge(&nudged, 3)
+	fmt.Printf("nudge %d %d\n", nudged.X, nudged.Y)
+	config := api.Secure("h3")
+	fmt.Printf("secure %s %s\n", must(api.AlpnLent(config)), must(api.Alpn(must(config.Clone()))))
+	meters := api.NewMeters()
+	meter := must(meters.First())
+	_ = must(meter.Add(2))
+	fmt.Printf("lent %d %d\n", must(meter.Add(3)), must(must(meters.First()).Count()))
+	ok(meters.Clear())
+	fmt.Printf("cleared %d\n", must(must(meters.First()).Count()))
+	tallies := api.NewTallies()
+	_ = must(must(tallies.First()).Bump())
+	fmt.Printf("tallied %d\n", must(must(tallies.First()).Bump()))
 	fmt.Printf("chunks %s\n", list(api.Chunks([]byte("abcde"), 2), func(b rt.Bytes) string { return list(b.Copy(), number) }))
 	counters := api.Counters([]string{"x", "y"})
 	fmt.Printf("counters %s\n", strings.Trim(list(counters, func(c *api.Counter) string {
@@ -535,12 +596,33 @@ func script() {
 	none := api.Summed(nil)
 	fmt.Printf("summed %d %d %d %d\n", sum.X, sum.Y, none.X, none.Y)
 	fmt.Printf("longest %d %d\n", api.Longest([]string{"a", "abc"}), api.Longest(nil))
+	noFirst := "None"
+	if api.FirstOf(nil) != nil {
+		noFirst = "Some"
+	}
+	fmt.Printf("first of Some(%s) %s\n", quoted(*api.FirstOf([]string{"a", "b"})), noFirst)
+	limits := api.ByteLimits([]byte("a"), []byte("bc"))
+	breadth := api.Breadth(api.LimitsDuration{Low: 5 * time.Millisecond, High: 2 * time.Second})
+	fmt.Printf("limits %s %s breadth %d\n", limits.Low.Copy(), limits.High.Copy(), breadth.Milliseconds())
+	parts := []rt.Bytes{rt.NewBytes([]byte("ab")), rt.NewBytes(nil), rt.NewBytes([]byte("c"))}
+	fmt.Printf("joined %s %d read %d\n", api.Joined(parts).Copy(), len(api.Joined(nil).Copy()), api.ReadLen([]byte("hello")))
 	doc := must(serdejson.JsonParse(`{"b": [1, 2.5, null], "a": "é"}`))
 	fmt.Printf("json %s\n", must(api.Encode(doc)))
 	fmt.Printf("timed text %s\n", must(api.TimedText(doc)))
 	tagged2 := must(api.Tagged(doc, "t"))
 	fmt.Printf("tagged %s\n", must(tagged2.ToText()))
 	tagged2.Close()
+	// A JSON object's entries cross as pairs of a key and its document, each moved in.
+	jsonEntries := must(api.Entries([]rt.Tuple2[string, *serdejson.Json]{
+		{V0: "b", V1: must(serdejson.JsonParse(`[1]`))},
+		{V0: "a", V1: must(serdejson.JsonParse(`2`))},
+	}, "t"))
+	fmt.Printf("entries %s\n", strings.Trim(list(jsonEntries, func(r rt.Tuple2[string, *serdejson.Json]) string {
+		return fmt.Sprintf("%s %s", r.V0, must(r.V1.ToText()))
+	}), "[]"))
+	for _, entry := range jsonEntries {
+		entry.V1.Close()
+	}
 	_, err = serdejson.JsonParse(`{"a":`)
 	check(errors.As(err, &parse), "parse returns its message")
 	fmt.Printf("json parse err %s\n", err)
@@ -915,6 +997,11 @@ func batched() []rt.Bytes {
 // broken breaks a contract, which must fail with a message naming it.
 func broken(which string) {
 	switch which {
+	case "outlived":
+		meters := api.NewMeters()
+		first := must(meters.First())
+		ok(meters.Clear())
+		_ = must(first.Count())
 	case "lent moved":
 		must(api.NewRegistry(api.NewCounter("c", 0))).Edit(func(counter *api.Counter) bool {
 			counter.IntoLabel(nil)

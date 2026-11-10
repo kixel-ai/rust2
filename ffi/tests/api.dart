@@ -164,6 +164,22 @@ Future<void> script() async {
   final ranked = board.ranked();
   print('ranked ${ranked.map((r) => '${r.$1} ${r.$2.name()} ${r.$2.get()}').join(', ')}');
   board.close();
+  // A map crosses as its pairs and a set as its items, which Rust collects in order, each
+  // key once, the last kept.
+  final atlas = const api.Atlas(
+    points: [('b', api.Point(x: 1, y: 1)), ('ab', api.Point(x: 2, y: 3)), ('b', api.Point(x: 4, y: 4))],
+    ids: [3, 1, 3],
+  ).with_('c', const api.Point(x: 5, y: 6));
+  final atlasPoints = atlas.points.map((p) => '${p.$1} ${p.$2.x} ${p.$2.y}').join(', ');
+  print('atlas $atlasPoints; ids ${atlas.ids.join(' ')}');
+  // Another crate's error crosses as its message.
+  for (final text in ['80', 'x']) {
+    try {
+      print('port ${api.port(text)}');
+    } on api.StringException catch (e) {
+      print('port err ${e.error}');
+    }
+  }
   const span = api.Span(bounds: (2, 10), named: ('s', api.Shape.square));
   final (lowerHalf, upperHalf) = api.halves(span);
   print('halves ${lowerHalf.$1} ${lowerHalf.$2} ${upperHalf.$1} ${upperHalf.$2} ${span.debug()}');
@@ -220,6 +236,8 @@ Future<void> script() async {
   final long = api.longer(joined, api.Name.owned('dd'));
   print('longer ${long.asStr()}');
   print('unnamed [${api.unnamed().asStr()}]');
+  final lit = api.Name.borrowed('lit');
+  print('borrowed ${lit.asStr()} ${lit.shares(api.Name.borrowed('lit'))} ${lit.shares(api.Name.borrowed('other'))}');
 
   print('total ${api.total(const api.RangeU64(2, 5))}');
   final wide = api.widen(const api.RangeU64(2, 5), 1);
@@ -383,6 +401,8 @@ Future<void> script() async {
   // A bound that outlives the call takes a value, and an instance only a constant names.
   print('kept ${api.keptPoint(const api.Point(x: 1, y: -2))} boxed ${api.BOXED.value}');
   print('keep ${api.keepPoint(const api.Point(x: 1, y: -2))}');
+  const five = api.Point(x: 5, y: 2);
+  print('kept or ${api.keptOrPoint(five)} ${api.keptOrPoint(null)} keeper ${api.keeperPoint(five)}');
   // Inferred instances taking a lent closure and a foreign implementation, and one only
   // its impl of a trait names.
   const sides = api.PairU32(left: 2, right: 5);
@@ -430,6 +450,50 @@ Future<void> script() async {
   print('words ${words.length} ${quoted(words)}');
   print('sentence ${api.sentence(words)} ${api.sentence(null)}');
   print('sentence ${api.sentence([])}|');
+  print('either ${api.either('abc')} ${api.either(null)}');
+  print('prefixed ${utf8.decode(api.prefixed(utf8.encode('cd'), utf8.encode('ab')))} '
+      '${utf8.decode(api.prefixed(utf8.encode('cd'), null))}');
+  print('coordinates ${api.coordinates(const api.Point(x: 2, y: 3))} ${api.coordinates(null)}');
+  final two = api.Counter('two', 2);
+  final three = api.Counter('three', 3);
+  print('plus ${two.plus(three)} ${two.plus(null)}');
+  print('add_to ${two.addTo(three)} ${two.addTo(null)} ${three.get()}');
+  two.close();
+  three.close();
+  final encoded = api.Mut(utf8.encode('0,'));
+  api.putNumber(1, encoded);
+  api.putNumber(23, encoded);
+  print('put_number ${utf8.decode(encoded.value)}');
+  final entry = api.Mut((utf8.encode('ab'), 1));
+  final stamps = api.pushCounted(entry, 0x63);
+  print('push_counted $stamps ${utf8.decode(entry.value.$1)} ${entry.value.$2}');
+  final digits = api.Mut(utf8.encode('7x9'));
+  final firstDigit = api.digit(digits);
+  var skipped = false;
+  try {
+    api.digit(digits);
+  } on api.Error {
+    skipped = true;
+  }
+  print('digit $firstDigit $skipped ${api.digit(digits)} ${digits.value.length}');
+  final nudged = api.Mut(const api.Point(x: 1, y: 2));
+  api.nudge(nudged, 3);
+  print('nudge ${nudged.value.x} ${nudged.value.y}');
+  final config = api.secure('h3');
+  print('secure ${api.alpnLent(config)} ${api.alpn(config.clone())}');
+  config.close();
+  final meters = api.Meters();
+  final lentMeter = meters.first();
+  lentMeter.add(2);
+  print('lent ${lentMeter.add(3)} ${meters.first().count()}');
+  lentMeter.close();
+  meters.clear();
+  print('cleared ${meters.first().count()}');
+  meters.close();
+  final tallies = api.Tallies();
+  tallies.first().bump();
+  print('tallied ${tallies.first().bump()}');
+  tallies.close();
   print('chunks ${api.chunks(utf8.encode('abcde'), 2)}');
   final counters = api.counters(['x', 'y']);
   print('counters ${counters.map((c) => '${c.name()} ${c.get()}').join(', ')}');
@@ -456,12 +520,24 @@ Future<void> script() async {
   final noneSummed = api.summed([]);
   print('summed ${summed.x} ${summed.y} ${noneSummed.x} ${noneSummed.y}');
   print('longest ${api.longest(['a', 'abc'])} ${api.longest([])}');
+  print('first of Some("${api.firstOf(['a', 'b'])}") ${api.firstOf([]) ?? 'None'}');
+  final limits = api.byteLimits(utf8.encode('a'), utf8.encode('bc'));
+  final waits = api.breadth(const api.LimitsDuration(low: Duration(milliseconds: 5), high: Duration(seconds: 2)));
+  print('limits ${utf8.decode(limits.low)} ${utf8.decode(limits.high)} breadth ${waits.inMilliseconds}');
+  final parts = utf8.decode(api.joined([utf8.encode('ab'), Uint8List(0), utf8.encode('c')]));
+  print('joined $parts ${api.joined([]).length} read ${api.readLen(utf8.encode('hello'))}');
   final doc = api.Json.parse('{"b": [1, 2.5, null], "a": "é"}');
   print('json ${api.encode(doc)}');
   print('timed text ${api.timedText(doc)}');
   final tagged = api.tagged(doc, 't');
   print('tagged ${tagged.toText()}');
   tagged.close();
+  // A JSON object's entries cross as pairs of a key and its document, each moved in.
+  final entries = api.entries([('b', api.Json.parse('[1]')), ('a', api.Json.parse('2'))], 't');
+  print('entries ${entries.map((e) => '${e.$1} ${e.$2.toText()}').join(', ')}');
+  for (final entry in entries) {
+    entry.$2.close();
+  }
   try {
     api.Json.parse('{"a":').close();
   } on api.StringException catch (e) {
@@ -867,6 +943,11 @@ void broken(String which) {
       final tail = api.Node(1, null);
       api.Node(2, tail);
       tail.sum();
+    case 'outlived':
+      final meters = api.Meters();
+      final first = meters.first();
+      meters.clear();
+      first.count();
     case 'lent moved':
       api.Registry(api.Counter('c', 0)).edit((counter) {
         counter.intoLabel(null);
