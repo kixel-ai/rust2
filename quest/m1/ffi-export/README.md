@@ -90,7 +90,7 @@ names and defaults, and fails the export on a public item it cannot export.
 ## Required
 
 - [Every public item exports](/quest/m1/ffi-export/refusals/README.md) - the census lists no refusals and `ffi.toml` is deleted, so the exporter reads no config
-- [Export for a target](/quest/m1/ffi-export/target.md) - `--target` exports the API that target compiles, so `cfg`-gated items are right on Android, iOS, Windows, and wasm
+- [Share a binding across targets](/quest/m1/ffi-export/target.md) - one Kotlin, Dart, Go, or Swift binding serves every target moq ships it to, though their `cfg`-gated items differ
 - [Lossless binding types](/quest/m1/ffi-export/lossless.md) - durations, addresses, paths, text, and integers cross exactly, with checked conversions to the idiomatic types
 - [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - a failed borrow, move, or close check is the language's own error from one accounting, and only a panic aborts
 - [Types that are not Send export](/quest/m1/ffi-export/not-send.md) - a `!Send` object or future is checked by thread, with an owner thread where a language has none
