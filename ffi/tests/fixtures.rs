@@ -34,15 +34,16 @@ fn run(cmd: &mut Command) -> Output {
 	output
 }
 
-/// Export the fixture `name` into `out` with these cargo args, returning what the
-/// exporter printed.
-fn export(name: &str, out: &Path, cargo: &[&str]) -> Output {
+/// Export the fixture `name` into `out` for `target`, else the host, with these cargo
+/// args, returning what the exporter printed.
+fn export(name: &str, out: &Path, target: Option<&str>, cargo: &[&str]) -> Output {
 	let fixture = manifest_dir().join("fixtures").join(name);
 	Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 		.arg("--config")
 		.arg(fixture.join("ffi.toml"))
 		.arg("--out")
 		.arg(out)
+		.args(target.map(|target| ["--target", target]).into_iter().flatten())
 		.arg("--")
 		.args(cargo)
 		.env("CARGO_TARGET_DIR", scratch().join(name).join("build"))
@@ -78,7 +79,7 @@ fn api() -> &'static Api {
 		// A feature of the facade's that enables one in a crate it re-exports, which the C
 		// library must build with.
 		let features = ["--features", "doubled"];
-		let output = export("api", &out, &features);
+		let output = export("api", &out, None, &features);
 		assert!(
 			output.status.success(),
 			"exporting failed:\n{}",
@@ -360,11 +361,25 @@ fn api_android() {
 
 	let abi = run(Command::new(&adb).args(["shell", "getprop", "ro.product.cpu.abi"]));
 	let abi = String::from_utf8_lossy(&abi.stdout).trim().to_string();
+	// Exported for the device's target, the only one its crate builds for.
+	let target = match abi.as_str() {
+		"arm64-v8a" => "aarch64-linux-android",
+		"x86_64" => "x86_64-linux-android",
+		abi => panic!("the android shell's toolchain has no target for the device's ABI {abi}"),
+	};
+	let out = dir.join("out");
+	let output = export("api", &out, Some(target), &["--features", "doubled"]);
+	assert!(
+		output.status.success(),
+		"exporting for {target} failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	std::fs::copy(manifest_dir().join("Cargo.lock"), out.join("Cargo.lock")).unwrap();
 	run(cargo()
 		.args(["ndk", "--target", &abi, "--platform", "24", "--output-dir"])
 		.arg(dir.join("lib"))
 		.args(["build", "--quiet", "--manifest-path"])
-		.arg(api.out.join("Cargo.toml"))
+		.arg(out.join("Cargo.toml"))
 		.arg("--target-dir")
 		.arg(scratch().join("api").join("glue"))
 		.args(["--features", "kotlin"])
@@ -375,7 +390,7 @@ fn api_android() {
 	// generated ones, and those kotlinx-coroutines' jar holds, which an app's build reads
 	// from it. Kotlin's annotations are on an app's classpath, not in its dex.
 	let jar = dir.join("app.jar");
-	run(kotlinc(&api.out, &jar).arg("-include-runtime"));
+	run(kotlinc(&out, &jar).arg("-include-runtime"));
 	run(Command::new("jar")
 		.arg("xf")
 		.arg(coroutines())
@@ -398,7 +413,7 @@ fn api_android() {
 		.args(["com.android.tools.r8.R8", "--release", "--min-api", "24", "--lib"])
 		.arg(newest(&sdk.join("platforms")).join("android.jar"))
 		.arg("--pg-conf")
-		.arg(api.out.join("kotlin").join("api.pro"))
+		.arg(out.join("kotlin").join("api.pro"))
 		.arg("--pg-conf")
 		.arg(dir.join("META-INF/com.android.tools/r8/coroutines.pro"))
 		.arg("--pg-conf")
@@ -955,7 +970,7 @@ fn go_module() {
 	)
 	.unwrap();
 	let out = module.join("sub").join("out");
-	let output = export("api", &out, &[]);
+	let output = export("api", &out, None, &[]);
 	assert!(
 		output.status.success(),
 		"exporting failed:\n{}",
@@ -1137,7 +1152,7 @@ fn relative_target() {
 #[test]
 fn reject() {
 	let out = scratch().join("reject").join("out");
-	let output = export("reject", &out, &[]);
+	let output = export("reject", &out, None, &[]);
 	assert!(!output.status.success(), "exporting reject succeeded");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	// Each error at its span, then each of its notes at its own.
@@ -1182,7 +1197,7 @@ fn reject() {
 #[test]
 fn feature_of_dependency() {
 	let out = scratch().join("feature").join("out");
-	let output = export("api", &out, &["--features", "bytes/std"]);
+	let output = export("api", &out, None, &["--features", "bytes/std"]);
 	assert!(!output.status.success(), "exporting with bytes/std succeeded");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
