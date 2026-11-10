@@ -321,9 +321,9 @@ int script() {
 	}
 	// A closure lent for the call edits the first counter through its class.
 	std::uint64_t by = 5;
-	bool edited = registry.edit([&](api::Counter &counter) {
-		(void)counter.add(by);
-		return counter.edited() && counter.get() == 6;
+	bool edited = registry.edit([&](api::borrow<api::Counter> counter) {
+		(void)counter->add(by);
+		return counter->edited() && counter->get() == 6;
 	});
 	std::printf("edit %s %llu\n", yes(edited), ull(registry.first_get().get()));
 	// A setter moves an object in, as assignment does.
@@ -1194,24 +1194,30 @@ int lifetimes() {
 	return 0;
 }
 
-// Each breaks a contract, which must abort with a message naming the function.
+// Each breaks a contract, which must abort with a message naming the function. Those
+// `tests/api_strict.cpp` refuses at compile time reach the object through a reference or
+// pointer, whose state Clang does not track.
 int broken(const char *which) {
 	if (std::strcmp(which, "moved") == 0) {
 		api::Counter c = api::Counter::new_("c", 0);
+		api::Counter &same = c;
 		api::Label label = std::move(c).into_label(std::nullopt);
-		c.get();
+		same.get();
 	} else if (std::strcmp(which, "moved from") == 0) {
 		api::Counter c = api::Counter::new_("c", 0);
+		api::Counter &same = c;
 		api::Counter d = std::move(c);
-		c.get();
+		same.get();
 	} else if (std::strcmp(which, "shared moved from") == 0) {
 		api::Gauge g = api::Gauge::new_(0);
+		api::Gauge &same = g;
 		api::Gauge h = std::move(g);
-		std::move(g).into_level();
+		std::move(same).into_level();
 	} else if (std::strcmp(which, "shared moved out") == 0) {
 		api::Gauge g = api::Gauge::new_(0);
+		api::Gauge &same = g;
 		std::move(g).into_level();
-		std::move(g).into_level();
+		std::move(same).into_level();
 	} else if (std::strcmp(which, "lent copied") == 0) {
 		static std::optional<api::Gauge> kept;
 		api::watch(api::Gauge::new_(0), [](const api::Gauge &lent) {
@@ -1237,15 +1243,15 @@ int broken(const char *which) {
 		first.count();
 	} else if (std::strcmp(which, "lent moved") == 0) {
 		api::Registry registry = api::Registry::new_(api::Counter::new_("c", 0));
-		registry.edit([](api::Counter &counter) {
-			api::Label label = std::move(counter).into_label(std::nullopt);
+		registry.edit([](api::borrow<api::Counter> counter) {
+			api::Label label = std::move(*counter.operator->()).into_label(std::nullopt);
 			return false;
 		});
 	} else if (std::strcmp(which, "lent kept") == 0) {
 		static std::optional<api::Counter> kept;
 		api::Registry registry = api::Registry::new_(api::Counter::new_("c", 0));
-		registry.edit([](api::Counter &counter) {
-			kept.emplace(std::move(counter));
+		registry.edit([](api::borrow<api::Counter> counter) {
+			kept.emplace(std::move(*counter.operator->()));
 			return false;
 		});
 	}
