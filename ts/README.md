@@ -1265,10 +1265,6 @@ functions without a mapping in `src/lower/library.rs`, but for `bool`'s, `Option
 `Result`'s, and `Poll`'s methods that take no `&mut`, and `cmp`'s `max` and `min` forms,
 which lower from core's MIR.
 
-This emits TypeScript that `tsc` rejects, so translation fails at its type check rather
-than with a span: a `Pin` of a crate's own `Deref` type
-([ts-pin-own-deref](/quest/m3/ts-pin-own-deref.md)).
-
 ## Tests
 
 ```bash
