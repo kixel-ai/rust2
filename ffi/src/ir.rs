@@ -63,8 +63,7 @@ pub struct Home {
 	/// crates before it.
 	pub krate: String,
 	/// How many leading segments of its `shown` path, the facade's root among them, name
-	/// no module of that crate: the facade's own modules, and a crate root re-exported as
-	/// a module.
+	/// no module of that crate: the facade's own modules.
 	pub outside: usize,
 }
 

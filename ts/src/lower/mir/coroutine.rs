@@ -213,7 +213,7 @@ pub fn info<'tcx>(t: &mut Translator<'_, 'tcx>, def_id: DefId, args: GenericArgs
 		name: String::new(),
 		alias: None,
 	});
-	if let Some(mir) = resume {
+	let mut poll = resume.map(|mir| {
 		let ret = mir.return_ty();
 		let mut b = Body::new(t);
 		let mut fx = Fx::new(&mut b, &mir, Env::Coroutine, span);
@@ -221,15 +221,15 @@ pub fn info<'tcx>(t: &mut Translator<'_, 'tcx>, def_id: DefId, args: GenericArgs
 		let body = fx.lower();
 		let ret = b.t.ret_ty(ret, span);
 		let loc = t.loc(span);
-		t.program.methods.entry(sym).or_default().push(ts::Function {
+		ts::Function {
 			sym: poll,
 			params,
 			ret,
 			body,
 			loc,
 			doc: None,
-		});
-	}
+		}
+	});
 	// `[Symbol.dispose]`: the drop, by the state it is in.
 	let dispose = t.program.sym(Symbol {
 		module: t.module_of(parent),
@@ -244,7 +244,7 @@ pub fn info<'tcx>(t: &mut Translator<'_, 'tcx>, def_id: DefId, args: GenericArgs
 		alias: None,
 	});
 	let drop = tcx.optimized_mir(body_id).coroutine_drop().cloned();
-	let body: Vec<Stmt> = match drop {
+	let mut body: Vec<Stmt> = match drop {
 		Some(drop) => {
 			let mir = instance.instantiate_mir_and_normalize_erasing_regions(
 				tcx,
@@ -257,6 +257,21 @@ pub fn info<'tcx>(t: &mut Translator<'_, 'tcx>, def_id: DefId, args: GenericArgs
 		}
 		None => Vec::new(),
 	};
+	// The two methods are all that read the class's private fields.
+	let mut bodies: Vec<&mut Vec<Stmt>> = poll.iter_mut().map(|poll| &mut poll.body).collect();
+	bodies.push(&mut body);
+	let unread = prune_unread_saved(&mut bodies, &info);
+	if !unread.is_empty() {
+		for item in t.program.items.iter_mut().rev() {
+			if let Item::Struct { sym: of, fields, .. } = item
+				&& *of == sym
+			{
+				fields.retain(|field| !unread.contains(&field.id));
+				break;
+			}
+		}
+	}
+	t.program.methods.entry(sym).or_default().extend(poll);
 	t.program.methods.entry(sym).or_default().push(ts::Function {
 		sym: dispose,
 		params: Vec::<Param>::new(),
@@ -266,6 +281,113 @@ pub fn info<'tcx>(t: &mut Translator<'_, 'tcx>, def_id: DefId, args: GenericArgs
 		doc: None,
 	});
 	info
+}
+
+/// Drop the saved locals of `info` that `bodies` only assign, keeping the effects of what
+/// was assigned, until what those dropped read is read elsewhere: a drop flag, say, of a
+/// value whose drop does nothing here. Returns their fields.
+fn prune_unread_saved(bodies: &mut [&mut Vec<Stmt>], info: &Info<'_>) -> FxHashSet<FieldId> {
+	// An upvar's field is the constructor's to set.
+	let saved: FxHashSet<FieldId> = info
+		.saved
+		.iter()
+		.copied()
+		.filter(|id| !info.upvars.contains(id))
+		.collect();
+	let mut unread = FxHashSet::default();
+	loop {
+		// Every use of a field but as the whole target of a statement's assignment.
+		let mut reads: FxHashMap<FieldId, isize> = FxHashMap::default();
+		for body in bodies.iter() {
+			for stmt in body.iter() {
+				super::visit_stmt(stmt, &mut |e| {
+					super::visit_expr(e, &mut |e| {
+						if let Some(id) = own_field(e) {
+							*reads.entry(id).or_default() += 1;
+						}
+					})
+				});
+				count_writes(stmt, &mut |id| *reads.entry(id).or_default() -= 1);
+			}
+		}
+		let more: FxHashSet<FieldId> = saved
+			.iter()
+			.copied()
+			.filter(|id| !unread.contains(id) && reads.get(id).copied().unwrap_or(0) == 0)
+			.collect();
+		if more.is_empty() {
+			return unread;
+		}
+		for body in bodies.iter_mut() {
+			strip_writes(body, &more);
+		}
+		unread.extend(more);
+	}
+}
+
+/// The field of the class `e` is, `this.#field`.
+fn own_field(e: &Expr) -> Option<FieldId> {
+	match e {
+		Expr::Member(base, ts::Key::Field(id)) if matches!(**base, Expr::This) => Some(*id),
+		_ => None,
+	}
+}
+
+/// The field a statement assigns whole, `this.#field = value;`.
+fn field_write(stmt: &Stmt) -> Option<FieldId> {
+	match &stmt.kind {
+		ts::StmtKind::Expr(Expr::Assign(target, _)) => own_field(target),
+		_ => None,
+	}
+}
+
+/// Call `write` on each field `stmt` and the blocks within it assign whole.
+fn count_writes(stmt: &Stmt, write: &mut dyn FnMut(FieldId)) {
+	use ts::StmtKind;
+	if let Some(id) = field_write(stmt) {
+		write(id);
+	}
+	match &stmt.kind {
+		StmtKind::If { then, els, .. } => then.iter().chain(els).for_each(|s| count_writes(s, write)),
+		StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } | StmtKind::Block { body, .. } => {
+			body.iter().for_each(|s| count_writes(s, write))
+		}
+		StmtKind::Switch { cases, default, .. } => cases
+			.iter()
+			.flat_map(|(_, body)| body)
+			.chain(default)
+			.for_each(|s| count_writes(s, write)),
+		_ => {}
+	}
+}
+
+/// `stmts` with each whole assignment of `fields` its value alone, and dropped if that
+/// does nothing.
+fn strip_writes(stmts: &mut Vec<Stmt>, fields: &FxHashSet<FieldId>) {
+	use ts::StmtKind;
+	for stmt in stmts.iter_mut() {
+		if field_write(stmt).is_some_and(|id| fields.contains(&id))
+			&& let StmtKind::Expr(Expr::Assign(_, value)) = &mut stmt.kind
+		{
+			let value = std::mem::replace(&mut **value, Expr::undefined());
+			stmt.kind = StmtKind::Expr(value);
+		}
+		match &mut stmt.kind {
+			StmtKind::If { then, els, .. } => {
+				strip_writes(then, fields);
+				strip_writes(els, fields);
+			}
+			StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } | StmtKind::Block { body, .. } => {
+				strip_writes(body, fields)
+			}
+			StmtKind::Switch { cases, default, .. } => {
+				cases.iter_mut().for_each(|(_, body)| strip_writes(body, fields));
+				strip_writes(default, fields);
+			}
+			_ => {}
+		}
+	}
+	stmts.retain(|s| !matches!(&s.kind, ts::StmtKind::Expr(e) if super::inert(e)));
 }
 
 /// The class of the future the `async fn` `instance` returns, if its body only moves its

@@ -65,7 +65,3 @@ What remains:
   follow-ups).
 
 Public API: the translator's output, and which crates translate.
-
-## Related
-
-- [Array references from slices and cells](/quest/m3/ts-array-ref-conversions.md) - also changes how an array taken from a flat slice is represented, on the same `rs.ArraySlice`

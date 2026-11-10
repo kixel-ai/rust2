@@ -7,6 +7,7 @@
 import { ByteSlice, ByteVec, byteSliceFrom, Err, Ok, type Result, Slice, Vec } from "../rs.ts";
 import { type char, type f32, type i8, type i16, type i32, intFromBig, intToBig, type isize, type Limbs, type u8, type u16, type u32, type usize } from "./int.ts";
 import { String as RsString, stringFrom } from "./str.ts";
+import { type Future, Pending, type Waker, type WakerVTable, wakerVTable } from "./task.ts";
 
 /** A JS value, as a `JsValue` and every imported type are. */
 export type JsValue = unknown;
@@ -325,4 +326,201 @@ export function jsCopyToTypedArray(data: Uint8Array, js: unknown): void {
 /** `__wbindgen_string_from_utf8_lossy`: the bytes as UTF-8, each malformed sequence as U+FFFD. */
 export function jsUtf8Lossy(data: Uint8Array): string {
 	return new TextDecoder("utf-8", { ignoreBOM: true }).decode(data);
+}
+
+// Closures
+
+/** What wasm-bindgen's closures throw once ended, or called again while running if `FnMut`. */
+const CLOSURE_ENDED = "closure invoked recursively or after being dropped";
+
+/** wasm-bindgen's `ScopedClosure`: the JS function over a closure, which `_wbg_cb_unref` ends, as its drop does. */
+// biome-ignore lint/suspicious/noExplicitAny: JS calls it with any arguments.
+export type JsClosure = ((...args: any[]) => unknown) & Disposable & { _wbg_cb_unref(): void };
+
+/** How JS calls a closure `f`: its arguments from JS, and its result to JS. */
+type Invoke<F> = (f: F, args: unknown[]) => unknown;
+
+/**
+ * `f`, called only if `live`, else throwing wasm-bindgen's error: as the closure's code
+ * in WASM checks, after WASM's ABI coerced the arguments the invoke converts.
+ */
+function closureChecked<F>(f: F, live: boolean): F {
+	if (live) return f;
+	return (() => {
+		throw new Error(CLOSURE_ENDED);
+	}) as F;
+}
+
+/** What an owned closure's JS function keeps: whether it is callable, its count of the `Closure` and the calls running, and its drop. */
+interface Owned<F> {
+	f: F;
+	live: boolean;
+	count: number;
+	drop: ((f: F) => void) | undefined;
+}
+
+/** Drop what `state` keeps, once: as a `Closure` and its last call end, or as JS collects its function. */
+function ownedEnd<F>(state: Owned<F>): void {
+	if (!state.live) return;
+	state.live = false;
+	state.drop?.(state.f);
+}
+
+/** Each owned closure's state, which drops once JS collects its function, as the CLI's `CLOSURE_DTORS` drops it. */
+const CLOSURE_DROPS = /* @__PURE__ */ (() =>
+	typeof FinalizationRegistry === "undefined" ? undefined : new FinalizationRegistry<Owned<unknown>>(ownedEnd))();
+
+/**
+ * A `Closure`'s JS function over `f`, as the CLI's `makeClosure` and `makeMutClosure` make
+ * it: a call throws once it ended, or, if `mut`, while another call runs, and `f` drops by
+ * `drop` once the `Closure` ends it and no call of it runs.
+ */
+export function jsClosure<F>(f: F, mut: boolean, invoke: Invoke<F>, drop?: (f: F) => void): JsClosure {
+	const state: Owned<F> = { f, live: true, count: 1, drop };
+	const real = ((...args: unknown[]) => {
+		state.count++;
+		const live = state.live;
+		if (mut) state.live = false;
+		try {
+			return invoke(closureChecked(state.f, live), args);
+		} finally {
+			if (mut) state.live = live;
+			real._wbg_cb_unref();
+		}
+	}) as JsClosure;
+	real._wbg_cb_unref = () => {
+		if (--state.count !== 0) return;
+		CLOSURE_DROPS?.unregister(state);
+		ownedEnd(state);
+	};
+	real[Symbol.dispose] = real._wbg_cb_unref;
+	CLOSURE_DROPS?.register(real, state as Owned<unknown>, state);
+	return real;
+}
+
+/**
+ * A borrowed closure's JS function over `f`, as the CLI's glue makes it for a
+ * `ScopedClosure::borrow` or a `&dyn FnMut` an import takes: a call throws once it ended,
+ * or, if `mut`, while another call runs.
+ */
+export function jsClosureRef<F>(f: F, mut: boolean, invoke: Invoke<F>): JsClosure {
+	const state = { live: true };
+	const cb = ((...args: unknown[]) => {
+		const live = state.live;
+		if (mut) state.live = false;
+		try {
+			return invoke(closureChecked(f, live), args);
+		} finally {
+			if (mut) state.live = live;
+		}
+	}) as JsClosure;
+	cb._wbg_cb_unref = () => {
+		state.live = false;
+	};
+	cb[Symbol.dispose] = cb._wbg_cb_unref;
+	return cb;
+}
+
+/** An import's call that borrows `closures`, which end as it returns or throws. */
+export function jsLending<T>(closures: JsClosure[], call: () => T): T {
+	try {
+		return call();
+	} finally {
+		for (const c of closures) c._wbg_cb_unref();
+	}
+}
+
+/** What a closure's `Result` returns to JS: its `Ok`, or its `Err`, thrown. */
+export function jsReturn<T>(r: Result<T, unknown>): T {
+	if (r.ok) return r.value;
+	throw r.error;
+}
+
+// js-sys's task queue
+
+/** The tasks `spawn_local` queued, in order. */
+const localQueue: LocalTask[] = [];
+let localScheduled = false;
+
+/** js-sys's `QueueState::run_all`: each task queued before it began, once; a task queued as it runs waits for the next microtask. */
+function localRun(): void {
+	localScheduled = false;
+	for (let left = localQueue.length; left > 0; left--) {
+		const task = localQueue.shift();
+		if (task === undefined) break;
+		task.run();
+	}
+}
+
+/** The vtable of every local task's waker, whose data is the task. */
+const LOCAL_VTABLE: WakerVTable = /* @__PURE__ */ wakerVTable(
+	(data) => ({ data, vtable: LOCAL_VTABLE }),
+	(data) => (data as unknown as LocalTask).wake(),
+	(data) => (data as unknown as LocalTask).wake(),
+	() => {},
+);
+
+/** js-sys's `Task`: a spawned future, which is also the waker of each poll it gets. */
+class LocalTask implements Waker {
+	#future: Future<undefined> | undefined;
+	#queued = true;
+
+	constructor(future: Future<undefined>) {
+		this.#future = future;
+	}
+
+	/** Queue it, for the next microtask if none is queued. */
+	schedule(): void {
+		localQueue.push(this);
+		if (localScheduled) return;
+		localScheduled = true;
+		queueMicrotask(localRun);
+	}
+
+	/** Poll it, dropping the future once it is ready, or as what it throws goes on. */
+	run(): void {
+		const future = this.#future;
+		if (future === undefined) return;
+		this.#queued = false;
+		let ready: boolean;
+		try {
+			ready = future.poll(this) !== Pending;
+		} catch (err) {
+			this.#future = undefined;
+			future[Symbol.dispose]();
+			throw err;
+		}
+		if (!ready) return;
+		this.#future = undefined;
+		future[Symbol.dispose]();
+	}
+
+	wake(): void {
+		if (this.#queued) return;
+		this.#queued = true;
+		this.schedule();
+	}
+
+	wakeByRef(): void {
+		this.wake();
+	}
+
+	get data(): unknown {
+		return this;
+	}
+
+	get vtable(): WakerVTable {
+		return LOCAL_VTABLE;
+	}
+
+	clone(): Waker {
+		return this;
+	}
+
+	[Symbol.dispose](): void {}
+}
+
+/** js-sys's `spawn_local`: run `future` to completion on js-sys's queue, which runs on microtasks. */
+export function jsSpawnLocal(future: Future<undefined>): void {
+	new LocalTask(future).schedule();
 }

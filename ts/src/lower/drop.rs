@@ -27,6 +27,9 @@ pub enum Asked {
 impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Whether dropping a `ty` does something JS can see.
 	pub fn drops(&mut self, ty: Ty<'tcx>) -> bool {
+		if let Some(vec) = super::smallvec::as_vec(self.tcx, ty) {
+			return self.drops(vec);
+		}
 		if let Some(&drops) = self.drops.get(&ty) {
 			return drops;
 		}
@@ -53,7 +56,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					| Std::PeekMut
 					| Std::Bytes
 					| Std::BytesMut
-					| Std::Sync,
+					| Std::Sync
+					| Std::JsClosure,
 				) => true,
 				Some(
 					Std::Option
@@ -160,7 +164,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		};
 		matches!(
 			self.tcx.crate_name(adt.did().krate).as_str(),
-			"core" | "alloc" | "std" | "hashbrown"
+			"core" | "alloc" | "std" | "hashbrown" | "smallvec"
 		) && self.iter_item(ty).is_some()
 	}
 
@@ -191,7 +195,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			ty::Adt(adt, _) if self.bound_drops(adt.did()).is_some() => true,
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did()) {
 				// Each drops by what it was given, or a `Weak` or a `BytesMut` by its own count.
-				Some(Std::Waker | Std::PollFn | Std::Ready | Std::Weak | Std::BytesMut | Std::Sync) => true,
+				Some(
+					Std::Waker | Std::PollFn | Std::Ready | Std::Weak | Std::BytesMut | Std::Sync | Std::JsClosure,
+				) => true,
 				Some(
 					Std::Arc
 					| Std::Mutex
@@ -357,7 +363,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				| Std::OnceCell
 				| Std::OnceLock
 				| Std::BytesMut
-				| Std::Sync,
+				| Std::Sync
+				| Std::JsClosure,
 			) => true,
 			Some(_) => false,
 			// An `rs.Iter` has one only if it was given what drops.
@@ -511,6 +518,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 		// Lifetimes don't change how a value drops, so a type generic over them alone, as a
 		// class's field may be, has the glue of any instance.
 		let ty = self.tcx.erase_and_anonymize_regions(ty);
+		if let Some(vec) = super::smallvec::as_vec(self.tcx, ty) {
+			return self.drop_value(value, vec, span);
+		}
 		if !self.drops(ty) {
 			return None;
 		}
@@ -652,6 +662,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// refused it: `rs.drop` for a value with `[Symbol.dispose]`, or else its glue.
 	pub fn drop_fn(&mut self, ty: Ty<'tcx>, span: Span) -> Option<Expr> {
 		let ty = self.tcx.erase_and_anonymize_regions(ty);
+		if let Some(vec) = super::smallvec::as_vec(self.tcx, ty) {
+			return self.drop_fn(vec, span);
+		}
 		if !self.drops(ty) {
 			return None;
 		}
@@ -720,6 +733,9 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// The elements of an array, slice, or `Vec` that `ty` is, or holds in an `Option` or a box,
 	/// whose JS value is the array or `rs.Vec`, as the second says, or `undefined`.
 	fn elements(&self, ty: Ty<'tcx>) -> Option<(Ty<'tcx>, bool)> {
+		if let Some(vec) = super::smallvec::as_vec(self.tcx, ty) {
+			return self.elements(vec);
+		}
 		match ty.kind() {
 			ty::Array(elem, _) | ty::Slice(elem) => Some((*elem, false)),
 			ty::Adt(adt, args) => match Std::of(self.tcx, adt.did())? {

@@ -2394,7 +2394,7 @@ function other<K>(r: Bounds<K>): r is BoundsOf<K> {
 }
 
 /** `RangeBounds`: `start_bound`, then `end_bound`. */
-function bounds<K>(r: Bounds<K>): BoundPair<K> {
+export function bounds<K>(r: Bounds<K>): BoundPair<K> {
 	if (r === undefined) return [UNBOUNDED, UNBOUNDED];
 	if (other(r)) return [r.startBound(), r.endBound()];
 	if (Array.isArray(r)) return r as BoundPair<K>;

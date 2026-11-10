@@ -55,6 +55,17 @@ fn pin_via<'a>(p: &'a mut u8) -> Pin<&'a mut u8> {
 	f(p)
 }
 
+/// The crate's own pointer, which a pin derefs through.
+struct OwnPtr(std::cell::Cell<u8>);
+
+impl std::ops::Deref for OwnPtr {
+	type Target = std::cell::Cell<u8>;
+
+	fn deref(&self) -> &std::cell::Cell<u8> {
+		&self.0
+	}
+}
+
 fn locked_by(n: u8) -> Mutex<u8> {
 	Mutex::new(n.wrapping_add(3))
 }
@@ -348,4 +359,8 @@ pub fn objects(data: &[u8], out: &mut Vec<u8>) {
 	drop(w);
 	out.push(wakes.0.load(Ordering::Relaxed));
 	out.push(Arc::strong_count(&wakes) as u8);
+	// A pin of the crate's own pointer derefs through its `Deref`.
+	let own = Pin::new(OwnPtr(std::cell::Cell::new(by)));
+	own.set(own.get().wrapping_add(5));
+	out.push(own.get());
 }
