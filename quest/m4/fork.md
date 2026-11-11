@@ -49,11 +49,12 @@ Each names what the fork changes, the measured gain on moq, and its source.
 Public API: none until the fork has a consumer.
 
 Decided 2026-11-11 (maintainer, /quest-unblock): the reasons above are not yet enough to pay
-for a fork; this ledger stays, and its wait reopens as later reports add evidence (rejected:
-fork now; deleting the ledger).
+for a fork; this ledger stays, and the maintainer decides again once a later report adds
+evidence (rejected: fork now; deleting the ledger).
 
 ## Waiting
 
-- Maintainer: decide that the reasons to fork above add up to enough to pay for
+- Maintainer: once a report adds a reason or a measured gain to this ledger after the
+  2026-11-11 decision, decide whether the reasons to fork add up to enough to pay for
   maintaining one. An agent can only gather the evidence; the cost of carrying a fork is
   the maintainer's to weigh.

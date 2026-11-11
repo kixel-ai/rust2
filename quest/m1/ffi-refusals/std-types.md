@@ -17,9 +17,8 @@ The rest of the original count lies in moq-tokio outside its session side (`NonZ
 
 ## Plan
 
-Each decision below is a change in
-`ffi/src/collect.rs` and `ffi/src/glue.rs`, with the api fixture and its seven language
-tests covering it.
+Each decision below is a change in `ffi/src/collect.rs` and `ffi/src/glue.rs`, with the api
+fixture and its seven language tests covering it.
 
 Decided 2026-11-11 (maintainer, /quest-unblock):
 

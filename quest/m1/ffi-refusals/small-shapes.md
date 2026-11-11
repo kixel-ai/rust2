@@ -1,4 +1,4 @@
-# [XS] Arrays export
+# [S] Arrays export
 
 ## Goal
 
