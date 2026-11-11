@@ -23,7 +23,10 @@ fixture and its seven language tests covering it.
 Decided 2026-11-11 (maintainer, /quest-unblock):
 
 - ✅ `Filter` collects at the call, for items whose drop runs nothing, reversing the `words`
-  fixture's `Split` refusal for the same case (rejected: staying refused).
+  fixture's `Split` refusal for the same case (rejected: staying refused). Collecting runs
+  the predicate on every item at the call, which a Rust caller that stops early would not;
+  that is accepted because the predicate is moq's own and pure, and a C caller can only take
+  every item, as a Rust caller that collects does.
 - ✅ `serde_json`'s map iterators (`Iter`, `IntoIter`, `Keys`, `Values`) collect as core's do
   (rejected: staying refused).
 - ✅ `std::time::Instant` exports as an opaque object, compared and copied by its traits with
