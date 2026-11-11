@@ -443,6 +443,25 @@ extension Native {
 			data: Box.give(wake))
 	}
 
+	/// A waker Rust returned, which Rust drops once Swift lets go of it.
+	final class Returned: @unchecked Sendable {
+		let raw: CWaker
+
+		init(_ raw: CWaker) {
+			self.raw = raw
+		}
+
+		deinit {
+			raw.drop?(raw.data)
+		}
+	}
+
+	/// `raw` as a closure waking it through Rust, which holds it until released.
+	static func returned(_ raw: CWaker) -> @Sendable () -> Void {
+		let owner = Returned(raw)
+		return { owner.raw.wake?(owner.raw.data) }
+	}
+
 	/// The waker of a future's first poll, which wakes nothing: a poll that pends polls
 	/// again with its signal's.
 	static var idle: CWaker { CWaker(wake: nil, drop: nil, data: nil) }

@@ -298,6 +298,12 @@ fun script() {
 	channel.listen(waker)
 	channel.send("heard".encodeToByteArray())
 	println("woken $wakes")
+	// A returned waker wakes the waiter's task through Rust until the GC drops it.
+	Waiter.new(waker).use { waiter ->
+		waiter.waker().wake()
+		waiter.context().wake()
+	}
+	println("woken $wakes")
 
 	val list = Node.new(1u, null)
 	list.push(2u)
@@ -501,6 +507,8 @@ fun script() {
 		// Returned iterators, each collected at the call: drained labels are gone after.
 		println("iterated ${trail.iter().joinToString(", ", "[", "]") { it.debug() }} ${trail.names().joinToString(", ", "[", "]") { "\"$it\"" }} ${trail.bytes().toByteArray().joinToString(", ", "[", "]") { it.toUByte().toString() }}")
 		println("drained ${trail.drain().joinToString(", ", "[", "]") { it.debug() }} then ${trail.labels().joinToString(", ", "[", "]") { it.debug() }}")
+		// A filter, collected at the call.
+		println("beyond ${trail.beyond(1).joinToString(", ") { "${it.x} ${it.y}" }}")
 	}
 	val numbered = numbered(listOf("p", "q"))
 	println("numbered ${numbered.joinToString(", ") { "${it.name()} ${it.get()}" }}")
@@ -509,6 +517,25 @@ fun script() {
 	val at6 = java.net.InetSocketAddress(java.net.Inet6Address.getByAddress(null, loopback, 3), 443)
 	val (next4, next6) = nexts(at4, at6)
 	println("nexts ${next4.address.hostAddress} ${next4.port} ${next6.port} ${(next6.address as java.net.Inet6Address).scopeId}")
+
+	// serde_json's map iterator, collected as pairs of a key and its document.
+	val jsonSections = sections(listOf(Pair("b", Json.parse("[1]")), Pair("a", Json.parse("2"))))
+	println("sections ${jsonSections.joinToString(", ") { (key, value) -> "$key ${value.toText()}" }}")
+	jsonSections.forEach { it.second.close() }
+	// An instant only Rust makes, which each call copies out of its handle, and compares.
+	now().use { began ->
+		later(began, 1500.milliseconds).use { ended ->
+			later(began, kotlin.time.Duration.ZERO).use { same ->
+				println("instants ${since(ended, began).inWholeMilliseconds} ${since(began, ended).inWholeMilliseconds} ${began == same} ${began == ended}")
+			}
+		}
+	}
+	// tracing's level, and its filter as an optional level whose null is `OFF`.
+	Verbosity.new(Level.WARN).use { verbosity ->
+		println("verbosity ${spell(verbosity.filter())} ${spell(louder(verbosity.filter()))}")
+		verbosity.levelSet(Level.TRACE)
+		println("verbosity ${verbosity.levelGet == Level.TRACE} ${spell(verbosity.filter())} ${spell(louder(verbosity.filter()))} ${spell(louder(null))}")
+	}
 }
 
 /** A path's UTF-8 bytes as Rust's `escape_ascii` prints them. */

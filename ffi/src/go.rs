@@ -538,14 +538,18 @@ impl<'a> Gen<'a> {
 			package rt\n\n\
 			/*\n#cgo CFLAGS: -I${{SRCDIR}}/../../include\n#include <stdlib.h>\n#include \"{p}.h\"\n\n\
 			extern void {go}_call(void *data);\nextern void {go}_release(void *data);\n\n\
-			static void {go}_bufs_free({p}_buf *bufs, size_t n) {{\n\tfor (size_t i = 0; i < n; i++) {{\n\t\t{p}_buf_free(bufs[i]);\n\t}}\n}}\n\
+			static void {go}_bufs_free({p}_buf *bufs, size_t n) {{\n\tfor (size_t i = 0; i < n; i++) {{\n\t\t{p}_buf_free(bufs[i]);\n\t}}\n}}\n\n\
+			static void {go}_waker_wake({p}_waker w) {{\n\tif (w.wake != NULL) {{\n\t\tw.wake(w.data);\n\t}}\n}}\n\n\
+			static void {go}_waker_drop({p}_waker w) {{\n\tif (w.drop != NULL) {{\n\t\tw.drop(w.data);\n\t}}\n}}\n\
 			*/\nimport \"C\"\n\n\
 			import (\n\t\"errors\"\n\t\"io\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"sync\"\n\t\"sync/atomic\"\n\t\"unsafe\"\n)\n\n\
-			type cBuf = C.{p}_buf\n\n\
+			type (\n\tcBuf   = C.{p}_buf\n\tcWaker = C.{p}_waker\n)\n\n\
 			var (\n\tgoCall    = (*[0]byte)(C.{go}_call)\n\tgoRelease = (*[0]byte)(C.{go}_release)\n)\n\n\
 			func cBufFree(buf cBuf) {{\n\tC.{p}_buf_free(buf)\n}}\n\n\
 			// cBufsFree frees bufs, which are not empty, in one call.\n\
 			func cBufsFree(bufs []cBuf) {{\n\tC.{go}_bufs_free(&bufs[0], C.size_t(len(bufs)))\n}}\n\n\
+			func cWakerWake(w cWaker) {{\n\tC.{go}_waker_wake(w)\n}}\n\n\
+			func cWakerDrop(w cWaker) {{\n\tC.{go}_waker_drop(w)\n}}\n\n\
 			// Go packages and a library from different builds must not mix: checked when the\n\
 			// runtime loads, before any other call.\n\
 			func init() {{\n\tif C.{p}_contract() != 0x{contract:016x} || C.{upper}_CONTRACT != 0x{contract:016x} {{\n\t\tpanic(\"the Go of {p} and the library are from different builds\")\n\t}}\n}}\n\n\
@@ -979,6 +983,7 @@ impl<'a> Gen<'a> {
 				self.convert(ty);
 				format!("own_{}({e})", abi.object(*i))
 			}
+			Type::Waker => format!("liftWaker_({e})"),
 			Type::Tuple(elements) => match &elements[..] {
 				[element] => self.lift(element, &format!("{e}._0")),
 				elements => {
