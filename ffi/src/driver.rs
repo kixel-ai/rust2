@@ -275,6 +275,12 @@ impl Export {
 				.with_span_note(*first_span, format!("{first} is here"))
 				.emit();
 		}
+		for (span, why) in crate::swift::refusals(&abi) {
+			tcx.dcx().span_err(
+				span,
+				format!("rust2-ffi: {why}; exclude it in the config to leave it out"),
+			);
+		}
 		if tcx.dcx().has_errors().is_some() {
 			return Ok(());
 		}

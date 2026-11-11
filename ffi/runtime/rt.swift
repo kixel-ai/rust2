@@ -1,6 +1,7 @@
 // The runtime every generated Swift file includes, after `Native` names the export's C
-// types and functions: the handles objects own, the arena a call lowers its values into,
-// bytes and text across the C ABI, and the signal a future parks on.
+// types and functions: the handles classes own, the arena a call lowers its values into,
+// bytes and text across the C ABI, and the signal a future parks on. Each helper that
+// returns what its body does takes a noncopyable result, an object's struct.
 
 /// An IP socket address, as Rust's `SocketAddr` holds it.
 public struct SocketAddr: Hashable, Sendable {
@@ -76,32 +77,37 @@ extension Native {
 
 	static var none: Buf { Buf(ptr: nil, len: 0, owner: nil) }
 
-	/// `bytes` as a view C reads during `body`, without a copy.
+	/// `bytes` as a view C reads during `body`, without a copy. Foundation's closure
+	/// returns only a copyable result, so `body`'s leaves through an optional.
 	@inline(__always)
-	static func view<R>(_ bytes: Data, _ body: (Buf) throws -> R) rethrows -> R {
+	static func view<R: ~Copyable>(_ bytes: Data, _ body: (Buf) throws -> R) rethrows -> R {
+		var result: R? = nil
 		try bytes.withUnsafeBytes { raw in
 			let ptr = raw.baseAddress?.assumingMemoryBound(to: UInt8.self) ?? UnsafePointer(empty)
-			return try body(Buf(ptr: ptr, len: raw.count, owner: nil))
+			result = try body(Buf(ptr: ptr, len: raw.count, owner: nil))
 		}
+		return result.take()!
 	}
 
 	@inline(__always)
-	static func view<R>(_ bytes: Data?, _ body: (Buf) throws -> R) rethrows -> R {
+	static func view<R: ~Copyable>(_ bytes: Data?, _ body: (Buf) throws -> R) rethrows -> R {
 		guard let bytes else { return try body(none) }
 		return try view(bytes, body)
 	}
 
 	/// `text`'s UTF-8 as a view C reads during `body`, without a copy for a native string.
 	@inline(__always)
-	static func view<R>(_ text: Swift.String, _ body: (Buf) throws -> R) rethrows -> R {
+	static func view<R: ~Copyable>(_ text: Swift.String, _ body: (Buf) throws -> R) rethrows -> R {
 		var text = text
-		return try text.withUTF8 { utf8 in
-			try body(Buf(ptr: utf8.baseAddress ?? UnsafePointer(empty), len: utf8.count, owner: nil))
+		var result: R? = nil
+		try text.withUTF8 { utf8 in
+			result = try body(Buf(ptr: utf8.baseAddress ?? UnsafePointer(empty), len: utf8.count, owner: nil))
 		}
+		return result.take()!
 	}
 
 	@inline(__always)
-	static func view<R>(_ text: Swift.String?, _ body: (Buf) throws -> R) rethrows -> R {
+	static func view<R: ~Copyable>(_ text: Swift.String?, _ body: (Buf) throws -> R) rethrows -> R {
 		guard let text else { return try body(none) }
 		return try view(text, body)
 	}
@@ -251,9 +257,31 @@ extension Native {
 		return try UnsafeBufferPointer(start: ptr, count: len).map(lift)
 	}
 
-	/// A handle an object owns, or is lent for a call: each call holds it, so `close`,
-	/// once a call moves its value out or a lend ends, frees it only once no call does, and
-	/// a call after `close` traps.
+	/// As `list`, of items Swift cannot copy.
+	static func unique<C, T: ~Copyable>(
+		_ ptr: UnsafePointer<C>?, _ len: Int, _ lift: (C) throws -> T
+	) rethrows -> UniqueArray<T> {
+		var items = UniqueArray<T>(minimumCapacity: len)
+		for i in 0..<len {
+			items.append(try lift(ptr![i]))
+		}
+		return items
+	}
+
+	/// `some` of what `value` holds, borrowed, or else `none`: `Optional.map` takes only a
+	/// copyable value.
+	@inline(__always)
+	static func option<T: ~Copyable, C>(_ value: borrowing T?, _ some: (borrowing T) throws -> C, _ none: C) rethrows -> C {
+		switch value {
+		case .some(let value): return try some(value)
+		case .none: return none
+		}
+	}
+
+	/// A handle a class owns, or is lent for a call: each call holds it, so `close`, once
+	/// a call moves its value out or a lend ends, frees it only once no call does, and a
+	/// call after `close` traps. A struct needs none of this: Swift's compiler orders every
+	/// call before its move or the end of its lend.
 	struct Handle {
 		let raw: OpaquePointer?
 		/// The holds, one for the owner until closed and one per call, shifted past a bit
@@ -296,7 +324,7 @@ extension Native {
 
 		/// Run `body` with the raw handle, held until it returns.
 		@inline(__always)
-		func with<R>(_ body: (OpaquePointer?) throws -> R) rethrows -> R {
+		func with<R: ~Copyable>(_ body: (OpaquePointer?) throws -> R) rethrows -> R {
 			let raw = hold()
 			defer { release() }
 			return try body(raw)
@@ -335,7 +363,7 @@ extension Native {
 
 	/// Run `body` with the raw handle of `handle`, or null for none, held until it returns.
 	@inline(__always)
-	static func with<R>(_ handle: Handle?, _ body: (OpaquePointer?) throws -> R) rethrows -> R {
+	static func with<R: ~Copyable>(_ handle: Handle?, _ body: (OpaquePointer?) throws -> R) rethrows -> R {
 		guard let handle else { return try body(nil) }
 		return try handle.with(body)
 	}
@@ -390,6 +418,18 @@ extension Native {
 			blocks.append(UnsafeMutableRawPointer(array))
 			for (i, item) in items.enumerated() {
 				(array + i).initialize(to: try lower(item))
+			}
+			return (UnsafePointer(array), items.count)
+		}
+
+		/// As `list`, of items Swift cannot copy, each borrowed.
+		func unique<T: ~Copyable, C>(
+			_ items: borrowing UniqueArray<T>, _ lower: (borrowing T) throws -> C
+		) rethrows -> (UnsafePointer<C>, Int) {
+			let array = UnsafeMutablePointer<C>.allocate(capacity: Swift.max(items.count, 1))
+			blocks.append(UnsafeMutableRawPointer(array))
+			for i in 0..<items.count {
+				(array + i).initialize(to: try lower(items[i]))
 			}
 			return (UnsafePointer(array), items.count)
 		}
@@ -524,7 +564,7 @@ extension Native {
 	/// cancelled task frees it unfinished, which cancels it in Rust and loses nothing, and
 	/// throws `CancellationError`. Its first poll makes no signal, which only a future
 	/// that pends needs.
-	static func run<T>(
+	static func run<T: ~Copyable>(
 		_ raw: OpaquePointer?, _ free: @convention(c) (OpaquePointer?) -> Void,
 		_ poll: (OpaquePointer?, CWaker) throws -> T?
 	) async throws -> T {
@@ -536,12 +576,15 @@ extension Native {
 		}
 		let signal = Signal()
 		var given = false
-		return try await withTaskCancellationHandler {
+		// The handler's operation returns only a copyable result, so it leaves through this.
+		var output: T? = nil
+		try await withTaskCancellationHandler {
 			while true {
 				signal.reset()
 				try Task.checkCancellation()
-				if let output = try poll(raw, signal.waker(given: !given)) {
-					return output
+				if let ready = try poll(raw, signal.waker(given: !given)) {
+					output = consume ready
+					return
 				}
 				given = true
 				await signal.park()
@@ -549,5 +592,6 @@ extension Native {
 		} onCancel: {
 			signal.wake()
 		}
+		return output.take()!
 	}
 }

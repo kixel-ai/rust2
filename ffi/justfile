@@ -14,6 +14,9 @@ export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { car
 # just's own path is quoted wherever bash runs it: on Windows, its backslashes are escapes.
 moq_rev := shell(quote(just_executable()) + " --justfile ../ts/justfile --evaluate moq_rev")
 
+# swift-collections 1.7.5, whose `UniqueArray` the generated Swift imports.
+swift_collections_rev := "f96b909e1a9e469620bc5037c1e24e00153f376f"
+
 default:
     @just --list
 
@@ -82,7 +85,7 @@ bench-build checkout="": (moq-export checkout)
         rm -f target/bench-export-swift
     else
         {{ quote(just_executable()) }} swift-module -O
-        swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I "$out/swift" moq/bench/export.swift target/swift/libMoq.a "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export-swift
+        swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I target/swift-collections/build -I "$out/swift" moq/bench/export.swift target/swift/libMoq.a -L target/swift-collections/build -lBasicContainers -lInternalCollectionsUtilities -lSpanPreview "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export-swift
     fi
 
 # Run what bench-build built: each program `rounds` times into target/bench/raw.tsv, with the 1-minute load average over each run, and their medians and the export's sizes into target/bench/report.md.
@@ -185,18 +188,47 @@ moq-swift-run:
     out=target/export/moq
     read -ra native < target/moq-native
     {{ quote(just_executable()) }} swift-module
-    swiftc -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -parse-as-library -I target/swift -I "$out/swift" moq/moq.swift target/swift/libMoq.a "$out/target/release/libmoq.a" "${native[@]}" -o target/moq-swift-test
+    swiftc -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -parse-as-library -I target/swift -I target/swift-collections/build -I "$out/swift" moq/moq.swift target/swift/libMoq.a -L target/swift-collections/build -lBasicContainers -lInternalCollectionsUtilities -lSpanPreview "$out/target/release/libmoq.a" "${native[@]}" -o target/moq-swift-test
     target/moq-swift-test
 
 # Build target/export/moq's Swift as the module Moq in target/swift, at Swift 6's language mode. Its deployment target is the oldest its `Swift.Duration` allows.
 [private]
-swift-module *flags:
+swift-module *flags: swift-collections
     #!/usr/bin/env bash
     set -euo pipefail
     out=target/export/moq/swift
     rm -rf target/swift
     mkdir -p target/swift
-    swiftc -warnings-as-errors $({{ quote(just_executable()) }} swift-target 13) -swift-version 6 {{ flags }} -parse-as-library -module-name Moq -emit-module -emit-module-path target/swift/Moq.swiftmodule -emit-library -static -I "$out" "$out/moq.swift" -o target/swift/libMoq.a
+    swiftc -warnings-as-errors $({{ quote(just_executable()) }} swift-target 13) -swift-version 6 {{ flags }} -parse-as-library -module-name Moq -emit-module -emit-module-path target/swift/Moq.swiftmodule -emit-library -static -I "$out" -I target/swift-collections/build "$out/moq.swift" -o target/swift/libMoq.a
+
+# Build swift-collections' BasicContainers, which the generated Swift imports, and the modules it imports, at the pinned revision with Swift on PATH, into target/swift-collections/build: a module and a static library each, as its package's manifest for Swift 6.2 builds them.
+[private]
+swift-collections:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    src=target/swift-collections/src
+    out=target/swift-collections/build
+    [ -d "$src/.git" ] || git clone --quiet --filter=blob:none --no-checkout https://github.com/apple/swift-collections "$src"
+    GIT_NO_LAZY_FETCH=1 git -C "$src" cat-file -e {{ swift_collections_rev }}^{commit} 2> /dev/null || git -C "$src" fetch --quiet origin {{ swift_collections_rev }}
+    git -C "$src" checkout --quiet --detach {{ swift_collections_rev }}
+    # Built once for each revision and compiler.
+    stamp="{{ swift_collections_rev }} $(swiftc --version 2>&1)"
+    [ "$(cat "$out/stamp" 2> /dev/null)" != "$stamp" ] || exit 0
+    rm -rf "$out"
+    mkdir -p "$out"
+    flags=(-swift-version 6 -O -parse-as-library -package-name swift_collections -I "$out" $({{ quote(just_executable()) }} swift-target 13)
+        -enable-upcoming-feature MemberImportVisibility -enable-experimental-feature BuiltinModule
+        -enable-experimental-feature Lifetimes -enable-experimental-feature InoutLifetimeDependence
+        -enable-experimental-feature AddressableParameters -enable-experimental-feature AddressableTypes)
+    while IFS= read -r macro; do
+        flags+=(-enable-experimental-feature "AvailabilityMacro=$macro")
+    done < <(sed -nE 's/^ *"(SwiftStdlib [0-9.]+)": *"([^"]+)",?$/\1: \2/p' "$src/Package@swift-6.2.swift")
+    for module in InternalCollectionsUtilities SpanPreview BasicContainers; do
+        files=()
+        while IFS= read -r -d '' file; do files+=("$file"); done < <(find "$src/Sources/$module" -name '*.swift' -print0 | sort -z)
+        swiftc "${flags[@]}" -module-name "$module" -emit-module -emit-module-path "$out/$module.swiftmodule" -emit-library -static -o "$out/lib$module.a" "${files[@]}"
+    done
+    echo "$stamp" > "$out/stamp"
 
 # swiftc's target at this macOS deployment target on macOS, and nothing elsewhere.
 [private]
