@@ -1627,10 +1627,21 @@ impl<'tcx> Collector<'tcx> {
 				tuple,
 			});
 		}
-		// A plain enum crosses as a C `int32_t`, whatever its `repr`.
+		// A plain enum crosses as a C `int32_t`, whatever its `repr`. An unsigned value past
+		// `i128::MAX` wraps as a discriminant, so its bits decide.
 		if adt.is_enum() && variants.iter().all(|v| v.fields.is_empty()) {
-			let wide = variants.iter().filter(|v| i32::try_from(v.discriminant).is_err());
-			errs.extend(wide.map(|v| why("discriminant outside `i32`", format!("{} = {}", v.name, v.discriminant))));
+			for ((_, d), variant) in adt.discriminants(tcx).zip(adt.variants()) {
+				let (value, fits) = match d.ty.is_signed() {
+					true => {
+						let value = signed(tcx, d.ty, d.val);
+						(value.to_string(), i32::try_from(value).is_ok())
+					}
+					false => (d.val.to_string(), i32::try_from(d.val).is_ok()),
+				};
+				if !fits {
+					errs.push(why("discriminant outside `i32`", format!("{} = {value}", variant.name)));
+				}
+			}
 		}
 		match errs.is_empty() {
 			true => Ok(variants),
@@ -4374,13 +4385,12 @@ fn int(ty: Ty<'_>) -> Option<Int> {
 
 /// An integer of type `ty` from its bits: sign-extended if `ty` is signed.
 fn signed<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, bits: u128) -> i128 {
-	let width = match int(ty) {
-		Some(Int::U8 | Int::I8) => 8,
-		Some(Int::U16 | Int::I16) => 16,
-		Some(Int::U32 | Int::I32) => 32,
-		Some(Int::U64 | Int::I64) => 64,
-		_ => tcx.data_layout.pointer_size().bits() as u32,
+	let width = match ty.kind() {
+		ty::Int(int) => int.bit_width(),
+		ty::Uint(uint) => uint.bit_width(),
+		_ => None,
 	};
+	let width = width.unwrap_or(tcx.data_layout.pointer_size().bits()) as u32;
 	match ty.is_signed() {
 		true => {
 			let shift = 128 - width;

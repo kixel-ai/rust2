@@ -1597,7 +1597,8 @@ fn dev_feature() {
 }
 
 /// A plain enum whose discriminant C's `int32_t` cannot hold exports as an object, as a
-/// value whose field does not map does, so its glue builds.
+/// value whose field does not map does, so its glue builds: wider than `i32`, past 64
+/// bits, and past `i128::MAX`.
 #[test]
 fn wide() {
 	let package = package("wide");
@@ -1606,13 +1607,20 @@ fn wide() {
 		&[(
 			"src/lib.rs",
 			"#[repr(i64)]\npub enum Wide {\n\tSmall = 1,\n\tLarge = 1 << 40,\n}\n\n\
-			pub fn large() -> Wide {\n\tWide::Large\n}\n",
+			pub fn wide() -> Wide {\n\tWide::Large\n}\n\n\
+			#[repr(i128)]\npub enum Huge {\n\tSmall = 1,\n\tLarge = 1 << 64,\n}\n\n\
+			pub fn huge() -> Huge {\n\tHuge::Large\n}\n\n\
+			#[repr(u128)]\npub enum Top {\n\tSmall = 1,\n\tLarge = u128::MAX,\n}\n\n\
+			pub fn top() -> Top {\n\tTop::Large\n}\n",
 		)],
 	);
 	export_and_build(&package, &[]);
 	let header = std::fs::read_to_string(package.join("out/include/wide.h")).unwrap();
 	assert!(
-		header.contains("wide_large(") && !header.contains(&(1i64 << 40).to_string()),
+		["wide_wide(", "wide_huge(", "wide_top("]
+			.iter()
+			.all(|f| header.contains(f))
+			&& !header.contains("_SMALL = "),
 		"{header}"
 	);
 }

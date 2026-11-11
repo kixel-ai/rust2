@@ -40,7 +40,8 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	// Read now, so a malformed config fails before the check.
 	Config::load(&args.config)?;
 	let target = target.unwrap_or_else(|| rustc_session::config::host_tuple().to_string());
-	let picks = Picks::parse(&args.cargo)?;
+	let dir = args.manifest.parent().expect("a manifest path has a parent");
+	let picks = Picks::parse(&args.cargo, dir)?;
 	let (facade, patch, checked) = facade(&args.manifest, &target, &picks)?;
 	let output = match &args.output {
 		Output::Dir(out) => (config::env::OUT, out.as_os_str()),
@@ -302,11 +303,11 @@ fn patch_key(source: &str) -> Result<String, String> {
 	Err(format!("a patch of {source}, which the export's library cannot patch"))
 }
 
-/// What a cargo subcommand prints for the package, run as the check resolves: from the
-/// package's directory, where cargo reads its config, with the check's picks.
+/// What a cargo subcommand prints for a package, run as the check resolves: from the
+/// facade's directory, where cargo reads its config, with the check's picks.
 fn run_cargo(manifest: &Path, subcommand: &[&str], picks: &Picks<'_>) -> Result<Vec<u8>, String> {
 	let output = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
-		.current_dir(manifest.parent().expect("a manifest path has a parent"))
+		.current_dir(picks.dir)
 		.args(subcommand)
 		.arg("--manifest-path")
 		.arg(manifest)
@@ -321,6 +322,8 @@ fn run_cargo(manifest: &Path, subcommand: &[&str], picks: &Picks<'_>) -> Result<
 
 /// What the cargo args pick for how the check resolves its dependencies.
 struct Picks<'a> {
+	/// Where cargo runs, which its config and a `--config` path are read from: the facade's.
+	dir: &'a Path,
 	/// Each feature `--features` and `-F` name.
 	named: Vec<&'a str>,
 	/// The other args that pick a resolution: feature, lockfile, network, and `--config`.
@@ -328,8 +331,9 @@ struct Picks<'a> {
 }
 
 impl<'a> Picks<'a> {
-	fn parse(cargo: &'a [String]) -> Result<Self, String> {
+	fn parse(cargo: &'a [String], dir: &'a Path) -> Result<Self, String> {
 		let mut picks = Self {
+			dir,
 			named: Vec::new(),
 			flags: Vec::new(),
 		};
@@ -369,15 +373,21 @@ impl<'a> Picks<'a> {
 		args
 	}
 
-	/// The picks that resolve the generated crate as its build will: with its own features,
-	/// with none of the check's `--config`, whose patches its manifest carries, and with a
-	/// lockfile that gains what it adds of its own, which `--locked` would forbid. Only
-	/// staying offline carries over.
+	/// The picks that resolve the generated crate: its own features are not the facade's,
+	/// and its lockfile gains what it adds of its own, which `--locked` would forbid. The
+	/// check's `--config`, such as a source replacement, still applies, from the same
+	/// directory.
 	fn resolving(&self) -> Self {
-		let offline = self.flags.iter().any(|f| matches!(*f, "--offline" | "--frozen"));
+		let flags = self.flags.iter().map(|&f| match f {
+			"--frozen" => "--offline",
+			f => f,
+		});
 		Self {
+			dir: self.dir,
 			named: Vec::new(),
-			flags: offline.then_some("--offline").into_iter().collect(),
+			flags: flags
+				.filter(|f| !matches!(*f, "--locked" | "--all-features" | "--no-default-features"))
+				.collect(),
 		}
 	}
 
@@ -490,7 +500,7 @@ mod tests {
 		] {
 			let cargo: Vec<String> = spelling.iter().map(|s| s.to_string()).collect();
 			assert_eq!(
-				Picks::parse(&cargo).unwrap().args(),
+				Picks::parse(&cargo, Path::new(".")).unwrap().args(),
 				["--features", "a,dep/b"],
 				"{spelling:?}"
 			);
@@ -505,13 +515,13 @@ mod tests {
 		];
 		let cargo: Vec<String> = cargo.iter().map(|s| s.to_string()).collect();
 		let flags = ["--all-features", "--locked", "--config", "a=1", "--config=b=2"];
-		assert_eq!(Picks::parse(&cargo).unwrap().args(), flags);
+		assert_eq!(Picks::parse(&cargo, Path::new(".")).unwrap().args(), flags);
 		for target in [
 			&["--target", "wasm32-unknown-unknown"][..],
 			&["--target=wasm32-unknown-unknown"],
 		] {
 			let cargo: Vec<String> = target.iter().map(|s| s.to_string()).collect();
-			assert!(Picks::parse(&cargo).is_err(), "{target:?}");
+			assert!(Picks::parse(&cargo, Path::new(".")).is_err(), "{target:?}");
 		}
 	}
 }
