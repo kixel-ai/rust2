@@ -1,4 +1,0 @@
-# Bindings `just uniffi go` generates for the Go tests.
-/go/binding_tests/generated/
-# Dart tooling state the fixture tests leave behind.
-.dart_tool/

@@ -338,10 +338,10 @@ func script() {
 	expect(len(alpns) > 0 && !slices.Contains(alpns, ""), "each version has an ALPN")
 	versions.Close()
 	// A socket address, crossing in a listener's bind.
-	bind := tokio.ListenBind(tokio.ListenBindAddr{V0: netip.MustParseAddrPort("[::1]:4443")})
+	bind := tokio.Bind(tokio.BindAddr{V0: netip.MustParseAddrPort("[::1]:4443")})
 	expect(fmt.Sprint(bind) == "[::1]:4443", "an IPv6 bind prints as Rust's")
 	v4 := netip.MustParseAddrPort("127.0.0.1:0")
-	expect(tokio.ListenBindAddr{V0: v4}.String() == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
+	expect(tokio.BindAddr{V0: v4}.String() == "127.0.0.1:0", "an IPv4 bind prints as Rust's")
 	listen := tokio.ListenConfigDefault()
 	check(listen.BindSet(&bind))
 	// The preferred address of each family, which takes only that family.
@@ -367,7 +367,7 @@ func session() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	served := tokio.OriginSpawn()
+	served := tokio.Spawn()
 	live := must(served.CreateBroadcast("live"))
 	expect(live.Announce(net.OriginRouteDefault()) == nil, "a broadcast announces")
 	liveTrack := must(must(live.Broadcast()).CreateTrack("video", nil))
@@ -377,7 +377,7 @@ func session() {
 
 	serverConfig := tokio.ServerConfigDefault()
 	listen := must(serverConfig.ListenGet())
-	var bind tokio.ListenBind = tokio.ListenBindAddr{V0: netip.MustParseAddrPort("[::]:0")}
+	var bind tokio.Bind = tokio.BindAddr{V0: netip.MustParseAddrPort("[::]:0")}
 	check(listen.BindSet(&bind))
 	tls := must(listen.TlsGet())
 	check(tls.GenerateSet([]string{"localhost"}))
@@ -399,7 +399,7 @@ func session() {
 	clientConfig := tokio.ClientConfigDefault()
 	check(clientConfig.ConnectSet(connect))
 	client := must(clientConfig.Init())
-	received := tokio.OriginSpawn()
+	received := tokio.Spawn()
 	remote := must(received.Consume())
 	connection := must(must(must(client.Clone()).WithReconnect(false)).Consume(received))
 	expect(connection != nil, "a client with a URL dials it")

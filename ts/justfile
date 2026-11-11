@@ -16,6 +16,9 @@ model := "fixtures/model/Cargo.toml"
 # The wasm-bindgen fixture, its own workspace, which pins wasm-bindgen to the dev shell's CLI.
 bindgen := "fixtures/bindgen/Cargo.toml"
 
+# The WebCodecs fixture, its own workspace like the wasm-bindgen fixture, behind web-sys's unstable APIs.
+encoder := "fixtures/encoder/Cargo.toml"
+
 # The moq revision `moq` and `census` translate and `just ffi` exports by default: the one
 # the model fixture builds. Read without taplo, which the nightly's runners outside Nix lack.
 moq_rev_match := replace_regex(read(model), '(?s).*\nmoq-net = \{[^\n]*\brev = "([0-9a-f]{40})".*', '$1')
@@ -29,15 +32,19 @@ check:
     cargo clippy --locked --all-targets -- -D warnings
     cargo clippy --locked --all-targets --manifest-path {{ model }} -- -D warnings
     cargo clippy --locked --all-targets --manifest-path {{ bindgen }} -- -D warnings
+    RUSTFLAGS=--cfg=web_sys_unstable_apis cargo clippy --locked --all-targets --manifest-path {{ encoder }} -- -D warnings
     cargo fmt --all --check
     cargo fmt --check --manifest-path {{ model }}
     cargo fmt --check --manifest-path {{ bindgen }}
+    cargo fmt --check --manifest-path {{ encoder }}
     cargo shear
     cargo shear fixtures/model
     cargo shear fixtures/bindgen
+    cargo shear fixtures/encoder
     cargo sort --workspace --check --no-format
     cargo sort --check --no-format fixtures/model
     cargo sort --check --no-format fixtures/bindgen
+    cargo sort --check --no-format fixtures/encoder
     tsc -p runtime
     # The bench against moq's TypeScript at the pin, so a pin that drops what it uses fails here.
     just moq-pin
@@ -53,15 +60,19 @@ fix:
     cargo clippy --locked --fix --allow-staged --allow-dirty --all-targets
     cargo clippy --locked --fix --allow-staged --allow-dirty --all-targets --manifest-path {{ model }}
     cargo clippy --locked --fix --allow-staged --allow-dirty --all-targets --manifest-path {{ bindgen }}
+    RUSTFLAGS=--cfg=web_sys_unstable_apis cargo clippy --locked --fix --allow-staged --allow-dirty --all-targets --manifest-path {{ encoder }}
     cargo fmt --all
     cargo fmt --manifest-path {{ model }}
     cargo fmt --manifest-path {{ bindgen }}
+    cargo fmt --manifest-path {{ encoder }}
     cargo shear --fix
     cargo shear --fix fixtures/model
     cargo shear --fix fixtures/bindgen
+    cargo shear --fix fixtures/encoder
     cargo sort --workspace --no-format
     cargo sort --no-format fixtures/model
     cargo sort --no-format fixtures/bindgen
+    cargo sort --no-format fixtures/encoder
 
 # Run the driver: `just ts run --config <ts.toml> --out <dir>`.
 run *args:

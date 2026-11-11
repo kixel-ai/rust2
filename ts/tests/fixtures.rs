@@ -61,8 +61,8 @@ fn driver_at(manifest: &Path, config: &Path, args: &[&std::ffi::OsStr], build: &
 
 /// The flags that name cargo's home `/cargo` in both builds, so the files of the registry's
 /// crates, which a hook's locations name, are named alike on any host, and tokio's `sync`
-/// module `tokio/channels`, a remap of a directory within a crate, which the location of
-/// tokio's panic must follow as native does.
+/// module `tokio/channels` and bytes' `src` `bytes/source`, remaps of a directory within a
+/// crate, which the locations of their panics must follow as native does.
 fn remap() -> String {
 	static FLAGS: std::sync::OnceLock<String> = std::sync::OnceLock::new();
 	FLAGS.get_or_init(remap_flags).clone()
@@ -84,16 +84,25 @@ fn remap_flags() -> String {
 			.join(".cargo"),
 	};
 	let lock = std::fs::read_to_string(manifest_dir().join("Cargo.lock")).unwrap();
-	let (_, tokio) = lock
-		.split_once("name = \"tokio\"\nversion = \"")
-		.expect("tokio in the lockfile");
-	let tokio = format!("tokio-{}", &tokio[..tokio.find('"').unwrap()]);
+	let version = |name: &str| {
+		let (_, rest) = lock
+			.split_once(&format!("name = \"{name}\"\nversion = \""))
+			.unwrap_or_else(|| panic!("{name} in the lockfile"));
+		format!("{name}-{}", &rest[..rest.find('"').unwrap()])
+	};
+	let dirs = [
+		(version("tokio") + "/src/sync", "tokio/channels"),
+		(version("bytes") + "/src", "bytes/source"),
+	];
 	// The later flag wins where both match.
 	let mut flags = format!("--remap-path-prefix={}=/cargo", home.display());
 	for index in std::fs::read_dir(home.join("registry/src")).into_iter().flatten() {
-		let sync = index.unwrap().path().join(&tokio).join("src/sync");
-		if sync.is_dir() {
-			flags += &format!(" --remap-path-prefix={}=tokio/channels", sync.display());
+		let index = index.unwrap().path();
+		for (dir, to) in &dirs {
+			let dir = index.join(dir);
+			if dir.is_dir() {
+				flags += &format!(" --remap-path-prefix={}={to}", dir.display());
+			}
 		}
 	}
 	flags
@@ -244,12 +253,12 @@ fn typecheck(out: &Path) {
 /// translated side through `entry`, a module in `out`. `build` are the native build's
 /// arguments, such as `--features`, in the workspace whose manifest is `workspace`.
 fn differential(workspace: &Path, package: &str, build: &[&str], out: &Path, entry: &str, cases: u32) {
-	let wasm = native(workspace, package, build);
+	let wasm = native(workspace, package, build, &remap());
 	compare(&wasm, out, entry, cases, None);
 }
 
-/// Build the harness natively, as wasm32, returning its module.
-fn native(workspace: &Path, package: &str, build: &[&str]) -> PathBuf {
+/// Build the harness natively, as wasm32, with `RUSTFLAGS` `flags`, returning its module.
+fn native(workspace: &Path, package: &str, build: &[&str], flags: &str) -> PathBuf {
 	let target_dir = scratch().join("wasm");
 	let status = cargo()
 		.args([
@@ -266,7 +275,7 @@ fn native(workspace: &Path, package: &str, build: &[&str]) -> PathBuf {
 		.arg(&target_dir)
 		.args(build)
 		.env("CARGO_UNSTABLE_PROFILE_RUSTFLAGS", "true")
-		.env("RUSTFLAGS", remap())
+		.env("RUSTFLAGS", flags)
 		.arg("--manifest-path")
 		.arg(workspace)
 		.status()
@@ -506,6 +515,30 @@ mod lang {
 		super::lang("panics", Some("hook"));
 	}
 
+	/// A program with a hook translates when its crates are built without debug assertions,
+	/// which leave out the panic of `bytes`' `debug_assert!`.
+	#[test]
+	fn panics_without_debug_assertions() {
+		let name = "lang/panics";
+		let out = super::scratch().join(name).join("nodebug");
+		let args: [&std::ffi::OsStr; 5] = [
+			"--out".as_ref(),
+			out.as_ref(),
+			"--".as_ref(),
+			"--features".as_ref(),
+			"hook".as_ref(),
+		];
+		let output = super::driver_command(name, &super::fixture(name).join("ts.toml"), &args, "nodebug-build")
+			.env("CARGO_PROFILE_DEV_DEBUG_ASSERTIONS", "false")
+			.output()
+			.expect("running rust2-ts");
+		assert!(
+			output.status.success(),
+			"translating {name} without debug assertions failed:\n{}",
+			String::from_utf8_lossy(&output.stderr)
+		);
+	}
+
 	lang!(
 		args,
 		arrays,
@@ -722,7 +755,7 @@ export const run = (input: rs.ByteSlice) => script(rs.byteSliceView(input));
 /// the fixture's other lockfile. What translation refuses fails at its span.
 #[test]
 fn bindgen() {
-	let wasm = native(&fixture("bindgen").join("Cargo.toml"), "bindgen-fixture", &[]);
+	let wasm = native(&fixture("bindgen").join("Cargo.toml"), "bindgen-fixture", &[], &remap());
 	let glue = scratch().join("bindgen").join("glue");
 	let status = Command::new("wasm-bindgen")
 		.args(["--target", "bundler", "--out-dir"])
@@ -794,6 +827,54 @@ fn bindgen() {
 	];
 	let output = driver("bindgen", &fixture("bindgen").join("refused.toml"), &args, "build");
 	rejected(&out, &output, &fixture("bindgen").join("refused.txt"));
+}
+
+/// web-codecs' `VideoEncoder` calls over web-sys, with wasm-bindgen's closures and
+/// js-sys's futures, translate with no binding and run as their wasm-bindgen build does,
+/// both in one headless Chromium page, the only place here WebCodecs runs.
+#[test]
+#[ignore = "needs Chromium, which only the bench shell carries: run nightly"]
+fn encoder() {
+	// WebCodecs is behind web-sys's unstable APIs, in both builds.
+	let flags = format!("{} --cfg=web_sys_unstable_apis", remap());
+	let wasm = native(&fixture("encoder").join("Cargo.toml"), "encoder-fixture", &[], &flags);
+	let glue = scratch().join("encoder").join("glue");
+	let status = Command::new("wasm-bindgen")
+		.args(["--target", "web", "--out-dir"])
+		.arg(&glue)
+		.arg(&wasm)
+		.status()
+		.expect("running wasm-bindgen, which the dev shell provides");
+	assert!(status.success(), "wasm-bindgen failed on {}", wasm.display());
+
+	let out = scratch().join("encoder").join("out");
+	let config = fixture("encoder").join("ts.toml");
+	let output = driver_command("encoder", &config, &["--out".as_ref(), out.as_ref()], "build")
+		.env("RUSTFLAGS", &flags)
+		.output()
+		.expect("running rust2-ts");
+	assert!(
+		output.status.success(),
+		"translating encoder failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	snapshot("encoder", &out);
+	typecheck(&out);
+
+	let output = Command::new("bun")
+		.arg(manifest_dir().join("tests").join("browser.ts"))
+		.arg(glue.join("encoder_fixture.js"))
+		.arg(out.join("harness.ts"))
+		.arg(scratch().join("encoder").join("page"))
+		.output()
+		.expect("running bun, which the dev shell provides");
+	let stdout = String::from_utf8_lossy(&output.stdout);
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(
+		output.status.success(),
+		"the encoder differs from native Rust:\n{stdout}{stderr}"
+	);
+	println!("{stdout}");
 }
 
 /// Each construct outside the subset fails with its span, and nothing is written.

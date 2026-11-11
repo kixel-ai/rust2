@@ -3,8 +3,7 @@
 ## Goal
 
 The land gate's `just ci` builds through mbx, as moq's does, so a run rebuilds only what
-changed: measured on nixos2, root clippy falls from 399 to 83 CPU-seconds warm, and uniffi's
-test build from 291 to 20.
+changed.
 
 ## Plan
 
@@ -13,9 +12,7 @@ gate has. PR code can write to it, a risk moq already accepts; mbx keys each com
 its compiler, target, and inputs. Local worktrees share it too, where the dev shell already
 can.
 
-Public API: `uniffi_macros`' `generate_and_include_scaffolding!` with the `trybuild` feature
-resolves a relative path from the calling file, not from rustc's working directory. This is
-breaking and has no `MIGRATE.md` entry yet.
+Public API: none.
 
 ## Waiting
 

@@ -608,6 +608,8 @@ pub fn std_impl<'tcx>(
 			(Std::ErrorKind, Trait::Debug) => rs("writeStr", vec![f, value]),
 			(Std::CharTryFromError, Trait::Debug) => rs("charTryFromErrorDebug", vec![value, f]),
 			(Std::CharTryFromError, Trait::Display) => rs("charTryFromErrorDisplay", vec![value, f]),
+			(Std::TryFromSliceError, Trait::Debug) => rs("tryFromSliceErrorDebug", vec![value, f]),
+			(Std::TryFromSliceError, Trait::Display) => rs("tryFromSliceErrorDisplay", vec![value, f]),
 			(Std::TryFromCharError, Trait::Debug) => rs("tryFromCharErrorDebug", vec![value, f]),
 			(Std::TryFromCharError, Trait::Display) => rs("tryFromCharErrorDisplay", vec![value, f]),
 			(Std::DecodeUtf16Error, Trait::Debug) => rs("decodeUtf16ErrorDebug", vec![value, f]),
@@ -678,6 +680,10 @@ pub fn std_impl<'tcx>(
 			(Std::TryReserveError, Trait::Debug) => rs("tryReserveErrorDebug", vec![value, f]),
 			(Std::TryReserveError, Trait::Display) => rs("tryReserveErrorDisplay", vec![value, f]),
 			(Std::Sync, Trait::Debug) => return super::tokio::debug(b, ty, value, f, span),
+			(Std::JsClosure, Trait::Debug) => f
+				.member("out")
+				.member("writeStr")
+				.call(vec![Expr::Str("Closure { ... }".into())]),
 			(Std::Bytes, Trait::Debug) => Expr::rs("bytesDebug", vec![value, f]),
 			(Std::BytesMut, Trait::Debug) => Expr::rs("bytesDebug", vec![Expr::rs("bytesMutView", vec![value]), f]),
 			_ => return None,

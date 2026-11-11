@@ -219,6 +219,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 /// the same name would shadow, and the prefixes they import Dart's libraries under.
 const TAKEN: &[&str] = &[
 	"ArgumentError",
+	"BigInt",
 	"Cancelable",
 	"Cancelled",
 	"Duration",
@@ -228,6 +229,7 @@ const TAKEN: &[&str] = &[
 	"Future",
 	"List",
 	"Map",
+	"Mut",
 	"Never",
 	"Object",
 	"RangeError",
@@ -414,15 +416,17 @@ impl<'a> Gen<'a> {
 	fn dt(&mut self, ty: &Type) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "void".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(_) => "int".to_string(),
 			Type::F32 | Type::F64 => "double".to_string(),
 			Type::Char | Type::Str | Type::String | Type::Path | Type::PathBuf => "String".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => "typed.Uint8List".to_string(),
+			Type::U128 => "BigInt".to_string(),
 			Type::Duration => "Duration".to_string(),
 			Type::SocketAddr(_) => "SocketAddr".to_string(),
-			Type::List(inner) => format!("List<{}>", self.dt(inner)),
+			Type::List(_, inner) => format!("List<{}>", self.dt(inner)),
 			Type::Waker => "void Function()".to_string(),
 			Type::Option(inner) => {
 				if matches!(inner.base(), Type::Option(_)) {
@@ -492,7 +496,10 @@ impl<'a> Gen<'a> {
 
 	/// Whether `dart:ffi` passes a C type as a Dart scalar, not a struct.
 	fn scalar(ty: &Ty) -> bool {
-		!matches!(ty, Ty::Buf | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::Waker)
+		!matches!(
+			ty,
+			Ty::Buf | Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::Waker
+		)
 	}
 
 	/// The class of a C struct, defined once.
@@ -500,6 +507,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		let name = match ty {
 			Ty::Buf => return "_Buf".to_string(),
+			Ty::U128 => return "_U128".to_string(),
 			Ty::Duration => return "_Duration".to_string(),
 			Ty::SocketAddr => return "_Addr".to_string(),
 			Ty::Waker => return "_Waker".to_string(),
@@ -741,6 +749,7 @@ impl<'a> Gen<'a> {
 		match ty.base() {
 			Type::Str | Type::String | Type::Path | Type::PathBuf => format!("a_.string({dst}, {e});"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("a_.bytes({dst}, {e});"),
+			Type::U128 => format!("_n.u128({dst}, {e});"),
 			Type::Duration => format!("_n.duration({dst}, {e});"),
 			Type::SocketAddr(family) => {
 				let family = match family {
@@ -753,7 +762,7 @@ impl<'a> Gen<'a> {
 			Type::Option(inner) => match inner.base() {
 				Type::Str | Type::String | Type::Path | Type::PathBuf => format!("a_.string({dst}, {e});"),
 				Type::Slice | Type::Vec | Type::Bytes => format!("a_.bytes({dst}, {e});"),
-				Type::List(_) => {
+				Type::List(..) => {
 					let c = self.c_name(inner);
 					let w = self.writer(&c, inner);
 					format!("{w}({e}, {dst}, a_);")
@@ -766,7 +775,7 @@ impl<'a> Gen<'a> {
 			},
 			Type::Record(_)
 			| Type::Enum(_)
-			| Type::List(_)
+			| Type::List(..)
 			| Type::Tuple(_)
 			| Type::Range(_)
 			| Type::Bound(_)
@@ -832,7 +841,7 @@ impl<'a> Gen<'a> {
 				let some = self.write(inner, "v", "c.$value");
 				format!("if (v == null) {{\n\t\tc.$some = false;\n\t}} else {{\n\t\tc.$some = true;\n\t\t{some}\n\t}}")
 			}
-			Type::List(elem) => {
+			Type::List(_, elem) => {
 				let elem_c = abi.ty(elem);
 				let nt = self.nt(&elem_c);
 				let item = match Self::scalar(&elem_c) {
@@ -874,7 +883,7 @@ impl<'a> Gen<'a> {
 			other => unreachable!("{other:?} has no writer"),
 		};
 		let nullable = match ty {
-			Type::List(_) => "?",
+			Type::List(..) => "?",
 			_ => "",
 		};
 		self.helpers.insert(
@@ -951,7 +960,7 @@ impl<'a> Gen<'a> {
 				let value = self.lift(inner, "c.$value");
 				(class, format!("c.$some ? {value} : null"))
 			}
-			Type::List(elem) => {
+			Type::List(_, elem) => {
 				let class = self.struct_class(&Ty::Struct(c.to_string()));
 				let item = self.lift(elem, "p[i]");
 				let free = self.native_fn(&format!("{c}_free"), vec![Ty::Struct(c.to_string())], Ty::Void);
@@ -1014,6 +1023,7 @@ impl<'a> Gen<'a> {
 			Type::Slice | Type::Vec | Type::Bytes => format!("_n.bytes({e})"),
 			Type::Bool | Type::F32 | Type::F64 | Type::Int(_) => e.to_string(),
 			Type::Char => format!("_n.scalar({e})"),
+			Type::U128 => format!("_n.u128Of({e})"),
 			Type::Duration => format!("_n.durationOf({e})"),
 			Type::SocketAddr(_) => format!("_n.addrOf({e})"),
 			Type::Option(inner) => match inner.base() {
@@ -1024,7 +1034,7 @@ impl<'a> Gen<'a> {
 				Type::Str | Type::String => format!("_n.stringOrNull({e})"),
 				Type::Path | Type::PathBuf => format!("_n.pathOrNull({e})"),
 				Type::Slice | Type::Vec | Type::Bytes => format!("_n.bytesOrNull({e})"),
-				Type::List(_) => {
+				Type::List(..) => {
 					let lifted = self.lift(inner, e);
 					format!("({e}.$ptr == ffi.nullptr ? null : {lifted})")
 				}
@@ -1038,7 +1048,7 @@ impl<'a> Gen<'a> {
 			Type::Object(_) => format!("{}._({e})", self.dt(ty)),
 			Type::Record(_)
 			| Type::Enum(_)
-			| Type::List(_)
+			| Type::List(..)
 			| Type::Tuple(_)
 			| Type::Range(_)
 			| Type::Bound(_)
@@ -1639,7 +1649,7 @@ impl<'a> Gen<'a> {
 					.collect();
 				closes.join(" ")
 			}
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let close = self.close(inner, "v");
 				format!("for (final v in {e}) {{ {close} }}")
 			}
@@ -1692,7 +1702,8 @@ impl<'a> Gen<'a> {
 					args.push("a_.hold(this)".to_string());
 					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
 					if receiver == Receiver::Owned && !copy {
-						after.push("close();".to_string());
+						// Qualified, apart from a parameter named `close`.
+						after.push("this.close();".to_string());
 					}
 				}
 				Ty::In(inner) => {
@@ -1709,8 +1720,29 @@ impl<'a> Gen<'a> {
 		// Rust nothing.
 		let mut gave = false;
 		let names = abi::distinct(function.params.iter().map(|param| param_name(&param.name)));
+		let mut writes = Vec::new();
 		for (k, (param, name)) in function.params.iter().zip(names).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
+			// A value passed for `&mut`, in a holder that takes what Rust writes back.
+			if param.ty.written() {
+				let inner = param.ty.base();
+				params.push(format!("Mut<{}> {name}", self.dt(inner)));
+				let value = format!("{name}.value");
+				match Self::scalar(c) {
+					true => args.push(self.lower(inner, &value)),
+					false => {
+						let v = format!("c{k}_");
+						let nt = self.nt(c);
+						let write = self.write(inner, &value, &format!("{v}.ref"));
+						pre.push(format!("final {v} = a_<{nt}>();\n{write}"));
+						args.push(format!("{v}.ref"));
+					}
+				}
+				let out = Abi::written(function, &abi::escape(&param.name));
+				let lifted = self.lift(inner, &self.out_value(&out, Some(&Ty::Out(Box::new(c.clone())))));
+				writes.push(format!("{value} = {lifted};"));
+				continue;
+			}
 			params.push(format!("{} {name}", self.dt(&param.ty)));
 			if moved(abi, &param.ty) {
 				after.push(self.close(&param.ty, &name));
@@ -1819,6 +1851,7 @@ impl<'a> Gen<'a> {
 			match (&err, &ok) {
 				(Some(err), ok) => {
 					inner.push(format!("final ok_ = {call};"));
+					inner.extend(writes);
 					inner.extend(after.clone());
 					let ready = match ok {
 						Type::Unit => "return;".to_string(),
@@ -1834,15 +1867,19 @@ impl<'a> Gen<'a> {
 				}
 				(None, Type::Unit) => {
 					inner.push(format!("{call};"));
+					inner.extend(writes);
 					inner.extend(after.clone());
 				}
-				(None, ok) if !outs.is_empty() => {
+				// A value C returns beside what Rust wrote back is its return, as with none.
+				(None, ok) if outs.len() > writes.len() => {
 					inner.push(format!("{call};"));
+					inner.extend(writes);
 					inner.extend(after.clone());
 					inner.push(format!("return {};", self.lift_outs(&function.ok, ok)));
 				}
 				(None, ok) => {
 					inner.push(format!("final r_ = {call};"));
+					inner.extend(writes);
 					inner.extend(after.clone());
 					inner.push(format!("return {};", self.lift(ok, "r_")));
 				}
@@ -2000,7 +2037,7 @@ fn thrown_value(thrown: &Thrown, lifted: &str) -> String {
 fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
 	match ty {
 		Type::Object(i) => !abi.api.objects[*i].copy,
-		Type::Option(inner) | Type::Box(inner) | Type::List(inner) => moved(abi, inner),
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
 		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
 		_ => false,
 	}

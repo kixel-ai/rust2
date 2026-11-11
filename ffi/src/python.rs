@@ -41,8 +41,8 @@ pub struct Output {
 }
 
 /// The runtime's names the generated Python uses unqualified, which no exported item may
-/// take. Its `Waker` and `Bound` need no entry: the C ABI claims `<prefix>_waker` and
-/// `<prefix>_bound` already.
+/// take. Its `Waker`, `Mut`, and `Bound` need no entry: the C ABI claims `<prefix>_waker`,
+/// `<prefix>_mut`, and `<prefix>_bound` already.
 const TAKEN: &[&str] = &[
 	"_n",
 	"_load",
@@ -398,9 +398,10 @@ impl<'a> Gen<'a> {
 	fn py_ty(&self, ty: &Type) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "None".to_string(),
 			Type::Bool => "bool".to_string(),
-			Type::Int(_) => "int".to_string(),
+			Type::Int(_) | Type::U128 => "int".to_string(),
 			Type::F32 | Type::F64 => "float".to_string(),
 			Type::Char | Type::Str | Type::String | Type::Path | Type::PathBuf => "str".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => "memoryview".to_string(),
@@ -410,7 +411,7 @@ impl<'a> Gen<'a> {
 				Family::V6 => V6.to_string(),
 				Family::Any => format!("{V4} | {V6}"),
 			},
-			Type::List(inner) => format!("list[{}]", self.py_ty(inner)),
+			Type::List(_, inner) => format!("list[{}]", self.py_ty(inner)),
 			Type::Waker => "Waker".to_string(),
 			Type::Option(inner) => format!("{} | None", self.py_ty(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.py_ty(inner),
@@ -453,7 +454,7 @@ impl<'a> Gen<'a> {
 			Type::Path | Type::PathBuf => "str".to_string(),
 			// Python's own IPv6 address may leave out its flowinfo and scope_id.
 			Type::SocketAddr(Family::V6) => format!("{V4} | {V6}"),
-			Type::List(inner) => format!("{list}[{}]", self.py_in(inner, list)),
+			Type::List(_, inner) => format!("{list}[{}]", self.py_in(inner, list)),
 			Type::Option(inner) => format!("{} | None", self.py_in(inner, list)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.py_in(inner, list),
 			Type::Tuple(elements) => {
@@ -470,6 +471,7 @@ impl<'a> Gen<'a> {
 	fn lift(&mut self, ty: &Type, o: &str, m: &str) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Bool => format!("rt::bool_in({o})"),
 			Type::Int(int) => format!("rt::int_in::<{}>({o})", int.rust()),
 			Type::F32 => format!("rt::float_in({o}).map(|f| f as f32)"),
@@ -478,9 +480,10 @@ impl<'a> Gen<'a> {
 			Type::Str | Type::String => format!("rt::str_in({o})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("rt::bytes_in({o}, s)"),
 			Type::Path | Type::PathBuf => format!("rt::path_in({o}, s)"),
+			Type::U128 => format!("rt::u128_in({o})"),
 			Type::Duration => format!("rt::duration_in({o})"),
 			Type::SocketAddr(family) => format!("rt::addr_in({o}, {})", family_of(*family)),
-			Type::List(_) => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
+			Type::List(..) => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => {
 					let m = match abi.api.objects[*i].copy || matches!(**inner, Type::Ref(..)) {
@@ -493,7 +496,7 @@ impl<'a> Gen<'a> {
 					let some = self.lift(inner, o, m);
 					format!("(if rt::is_none({o}) {{ Ok(crate::rt::Buf::NONE) }} else {{ {some} }})")
 				}
-				Type::List(_) => {
+				Type::List(..) => {
 					let some = self.lift(inner, o, m);
 					format!("(if rt::is_none({o}) {{ Ok(crate::rt::List::NONE) }} else {{ {some} }})")
 				}
@@ -533,6 +536,7 @@ impl<'a> Gen<'a> {
 	fn lower(&mut self, ty: &Type, v: &str) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "rt::none()".to_string(),
 			Type::Bool => format!("rt::bool_out({v})"),
 			Type::Int(int) if signed(*int) => format!("rt::int_out({v} as i64)"),
@@ -542,16 +546,17 @@ impl<'a> Gen<'a> {
 			Type::Str | Type::String => format!("rt::str_out({v})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("rt::bytes_out({v})"),
 			Type::Path | Type::PathBuf => format!("rt::path_out({v})"),
+			Type::U128 => format!("rt::u128_out({v})"),
 			Type::Duration => format!("rt::duration_out({v})"),
 			Type::SocketAddr(_) => format!("rt::addr_out({v})"),
-			Type::List(_) => format!("w_{}({v})", self.c_struct(ty)),
+			Type::List(..) => format!("w_{}({v})", self.c_struct(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => format!(
 					"rt::object_opt({v}, {}, crate::{}_free)",
 					self.t(&abi.object(*i)),
 					abi.object(*i)
 				),
-				base if Abi::is_buf(base) || matches!(base, Type::List(_)) => {
+				base if Abi::is_buf(base) || matches!(base, Type::List(..)) => {
 					let some = self.lower(inner, "v");
 					format!("{{ let v = {v}; if v.is_none() {{ rt::none() }} else {{ {some} }} }}")
 				}
@@ -1345,13 +1350,27 @@ impl<'a> Gen<'a> {
 			n += 1;
 		}
 		let mut closures = Vec::new();
+		// Each parameter Rust writes back, by its argument's index, and what it holds.
+		let mut written: Vec<(usize, Type)> = Vec::new();
 		for param in &function.params {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
 			let name = param_name(&param.name);
-			py_params.push(format!("{name}: {}", self.py_param(&param.ty)));
-			native_params.push(format!("p{}: {}", native_params.len(), self.py_param(&param.ty)));
+			let annotation = match &param.ty {
+				Type::Ref(_, inner) if param.ty.written() => format!("Mut[{}]", self.py_ty(inner)),
+				ty => self.py_param(ty),
+			};
+			py_params.push(format!("{name}: {annotation}"));
+			native_params.push(format!("p{}: {annotation}", native_params.len()));
 			py_args.push(name.clone());
 			match (&param.ty, c) {
+				(Type::Ref(_, inner), _) if param.ty.written() => {
+					stmts.push(format!(
+						"let h{n} = rt::mut_value(a[{n}], s)?;\n\t\tlet p{n} = {}?;",
+						self.lift(inner, &format!("h{n}"), "true")
+					));
+					c_args.push(format!("p{n}"));
+					written.push((n, (**inner).clone()));
+				}
 				(Type::Closure(lent, ret), Ty::Fn(c_lent, c_ret)) => {
 					c_params.next().expect("a closure has its data");
 					let trampoline = format!("py_{c_name}_{}", abi::escape(&param.name));
@@ -1400,7 +1419,14 @@ impl<'a> Gen<'a> {
 		});
 		if let Some((_, poll, free)) = &export.future {
 			let poll_outs = &poll.params[2..];
-			let (decl, ptrs, value) = self.outs(poll_outs, &function.ok, err.as_ref(), exception.as_deref(), "r == 1");
+			let (decl, ptrs, value) = self.outs(
+				poll_outs,
+				&[],
+				&function.ok,
+				err.as_ref(),
+				exception.as_deref(),
+				"r == 1",
+			);
 			let _ = write!(
 				self.glue,
 				"unsafe fn poll_{c_name}(f: *mut std::ffi::c_void, w: crate::rt::Waker) -> R<Option<Obj>> {{\n\tunsafe {{\n\t\t{decl}\n\t\tlet r = rt::call(|| crate::{}(f as _, w{}));\n\t\tif r == 0 {{\n\t\t\treturn Ok(None);\n\t\t}}\n\t\t{value}.map(Some)\n\t}}\n}}\n\nunsafe fn free_{c_name}(f: *mut std::ffi::c_void) {{\n\tunsafe {{ crate::{}(f as _) }}\n}}\n\n",
@@ -1419,7 +1445,7 @@ impl<'a> Gen<'a> {
 					let value = self.lower(&ok, "ret");
 					(String::new(), Vec::new(), value)
 				}
-				false => self.outs(&outs, &function.ok, err.as_ref(), exception.as_deref(), "ret"),
+				false => self.outs(&outs, &written, &function.ok, err.as_ref(), exception.as_deref(), "ret"),
 			};
 			let args: Vec<String> = c_args.iter().cloned().chain(ptrs).collect();
 			stmts.push(format!(
@@ -1526,10 +1552,12 @@ impl<'a> Gen<'a> {
 	/// The out values of `outs`, for a function returning `ok` or raising `err` as
 	/// `exception`: their declarations, the pointers the C call takes after its arguments,
 	/// and the glue's expression of the value, an `R<Obj>`, where `ok` says whether it
-	/// returned ok.
+	/// returned ok. What Rust wrote back into each of `written`, by its argument's index,
+	/// is set in its `Mut` first, whether or not the call failed.
 	fn outs(
 		&mut self,
 		outs: &[(String, Ty)],
+		written: &[(usize, Type)],
 		ok: &Type,
 		err: Option<&Type>,
 		exception: Option<&str>,
@@ -1544,23 +1572,32 @@ impl<'a> Gen<'a> {
 		};
 		let mut values = Vec::new();
 		let mut error = String::new();
-		for ((name, _), ty) in outs.iter().zip(types.into_iter().chain(err)) {
+		let mut holds = Vec::new();
+		let back = written.iter().map(|(_, ty)| ty);
+		for (k, ((name, _), ty)) in outs.iter().zip(back.chain(types).chain(err)).enumerate() {
 			decl.push(format!("let mut o_{name} = std::mem::MaybeUninit::zeroed();"));
 			ptrs.push(format!("o_{name}.as_mut_ptr()"));
 			let value = self.lower(ty, &format!("o_{name}.assume_init()"));
-			match name.as_str() {
-				"err" => error = value,
-				_ => values.push(value),
+			match written.get(k) {
+				Some((n, _)) => holds.push(format!("rt::set_mut(a[{n}], {value})?; ")),
+				None if name == "err" => error = value,
+				None => values.push(value),
 			}
 		}
 		let value = match ok {
 			Type::Unit => "rt::none()".to_string(),
 			Type::Tuple(_) => format!("rt::tuple(vec![{}])", values.join(", ")),
+			// A value C returns, beside what Rust wrote back.
+			ok if err.is_none() && !written.is_empty() => self.lower(&strip_refs(ok), "ret"),
 			_ => values.pop().expect("an out value"),
 		};
 		let value = match exception {
 			Some(exception) => format!("(if {is_ok} {{ {value} }} else {{ rt::raise_error({exception}, {error}) }})"),
 			None => value,
+		};
+		let value = match holds.is_empty() {
+			true => value,
+			false => format!("{{ {}{value} }}", holds.concat()),
 		};
 		(decl.join("\n\t\t"), ptrs, value)
 	}

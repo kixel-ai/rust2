@@ -266,13 +266,13 @@ static int script(void) {
 	printf("\n");
 	api_vec_tuple_string_Shape_Point_free(stat_rows);
 	/* Each handle in a tuple moves in, as one taken by value does. */
-	api_tuple_string_Counter tallies[] = {
+	api_tuple_string_Counter meters[] = {
 		{._0 = str("low"), ._1 = api_Counter_new(str("l"), 1)},
 		{._0 = str("high"), ._1 = api_Counter_new(str("h"), 9)},
 	};
-	api_Board *board = api_Board_new((api_vec_tuple_string_Counter){.ptr = tallies, .len = 2});
-	api_Counter_free(tallies[0]._1);
-	api_Counter_free(tallies[1]._1);
+	api_Board *board = api_Board_new((api_vec_tuple_string_Counter){.ptr = meters, .len = 2});
+	api_Counter_free(meters[0]._1);
+	api_Counter_free(meters[1]._1);
 	api_vec_tuple_string_Counter ranked = api_Board_ranked(board);
 	printf("ranked");
 	for (size_t i = 0; i < ranked.len; i++) {
@@ -283,6 +283,41 @@ static int script(void) {
 	printf("\n");
 	api_vec_tuple_string_Counter_free(ranked);
 	api_Board_free(board);
+	/* A map crosses as its pairs and a set as its items, which Rust collects in order, each
+	 * key once, the last kept. */
+	api_tuple_string_Point atlas_points[] = {
+		{._0 = str("b"), ._1 = {.x = 1, .y = 1}},
+		{._0 = str("ab"), ._1 = {.x = 2, .y = 3}},
+		{._0 = str("b"), ._1 = {.x = 4, .y = 4}},
+	};
+	uint32_t atlas_ids[] = {3, 1, 3};
+	api_Atlas loose = {
+		.points = {.ptr = atlas_points, .len = 3},
+		.ids = {.ptr = atlas_ids, .len = 3},
+	};
+	api_Atlas atlas = api_Atlas_with(&loose, str("c"), (api_Point){.x = 5, .y = 6});
+	printf("atlas");
+	for (size_t i = 0; i < atlas.points.len; i++) {
+		printf("%s%.*s ", i == 0 ? " " : ", ", (int)atlas.points.ptr[i]._0.len, (const char *)atlas.points.ptr[i]._0.ptr);
+		printf("%d %d", atlas.points.ptr[i]._1.x, atlas.points.ptr[i]._1.y);
+	}
+	printf("; ids");
+	for (size_t i = 0; i < atlas.ids.len; i++) {
+		printf(" %u", atlas.ids.ptr[i]);
+	}
+	printf("\n");
+	api_Atlas_free(&atlas);
+	/* Another crate's error crosses as its message. */
+	const char *port_texts[] = {"80", "x"};
+	for (size_t i = 0; i < 2; i++) {
+		uint16_t port;
+		api_buf port_err;
+		if (api_port(str(port_texts[i]), &port, &port_err)) {
+			printf("port %u\n", port);
+		} else {
+			print("port err ", port_err, "\n");
+		}
+	}
 	api_Span span = {
 		.bounds = {._0 = 2, ._1 = 10},
 		.named = {.some = true, .value = {._0 = str("s"), ._1 = API_SHAPE_SQUARE}},
@@ -394,8 +429,49 @@ static int script(void) {
 	api_Name *unnamed = api_unnamed();
 	print("unnamed [", api_Name_as_str(unnamed), "]\n");
 	api_Name_free(unnamed);
+	/* Two buffers of equal text, interned into one string. */
+	char lit_text[] = "lit", again_text[] = "lit";
+	api_Name *lit = api_Name_borrowed(str(lit_text));
+	api_Name *again = api_Name_borrowed(str(again_text));
+	api_Name *other = api_Name_borrowed(str("other"));
+	print("borrowed ", api_Name_as_str(lit), " ");
+	printf("%s %s\n", api_Name_shares(lit, again) ? "true" : "false", api_Name_shares(lit, other) ? "true" : "false");
+	api_Name_free(lit);
+	api_Name_free(again);
+	api_Name_free(other);
 
 	printf("total %llu\n", (unsigned long long)api_total((api_range_u64){.start = 2, .end = 5}));
+	printf("reach %u\n", (unsigned)api_reach(2, 5));
+	api_option_u128 scaled[] = {
+		api_scaled((api_u128){.lo = UINT64_MAX, .hi = UINT64_MAX}, 1),
+		api_scaled((api_u128){.lo = 1, .hi = 1}, 1ULL << 63),
+		api_scaled((api_u128){.hi = 1ULL << 63}, 2),
+	};
+	printf("scaled");
+	for (size_t i = 0; i < 3; i++) {
+		if (scaled[i].some) {
+			printf(" %016llx%016llx", (unsigned long long)scaled[i].value.hi, (unsigned long long)scaled[i].value.lo);
+		} else {
+			printf(" none");
+		}
+	}
+	printf("\n");
+	api_Batch *batch = api_Batch_new();
+	unsigned accepted = 0;
+	for (uint32_t v = 1; v <= 5; v++) {
+		accepted += api_Batch_push(batch, v);
+	}
+	api_Batch_2 *batch2 = api_pair();
+	unsigned paired = 0;
+	for (uint32_t v = 1; v <= 3; v++) {
+		paired += api_Batch_2_push(batch2, v);
+	}
+	unsigned long long emptied = api_drain_4(batch);
+	printf("batch %zu %u %llu %llu %zu %u %llu\n", api_Batch_capacity(batch), accepted, emptied,
+		(unsigned long long)api_drain_4(batch), api_Batch_2_capacity(batch2), paired, (unsigned long long)api_drain_2(batch2));
+	printf("capacities %zu %zu\n", api_capacities_4_2(batch, batch2), api_capacities_2_2(batch2, batch2));
+	api_Batch_2_free(batch2);
+	api_Batch_free(batch);
 	api_range_u64 wide = api_widen((api_range_u64){.start = 2, .end = 5}, 1);
 	printf("widen %llu %llu\n", (unsigned long long)wide.start, (unsigned long long)wide.end);
 	api_bounds_u64 ranges[] = {
@@ -526,6 +602,27 @@ static int script(void) {
 		printf("nonempty pending\n");
 	}
 	api_Channel_recv_nonempty_future_free(nonempty);
+	api_Batch *fill4 = api_Batch_new();
+	api_Batch_2 *fill2 = api_pair();
+	api_fill_4_future *filling4 = api_fill_4(fill4, 9);
+	api_fill_2_future *filling2 = api_fill_2(fill2, 1);
+	api_vec_u32 filled4, filled2;
+	if (api_fill_4_poll(filling4, waker, &filled4) == API_POLL_READY && api_fill_2_poll(filling2, waker, &filled2) == API_POLL_READY) {
+		printf("fill");
+		for (size_t i = 0; i < filled4.len; i++) {
+			printf(" %u", (unsigned)filled4.ptr[i]);
+		}
+		for (size_t i = 0; i < filled2.len; i++) {
+			printf(" %u", (unsigned)filled2.ptr[i]);
+		}
+		printf("\n");
+		api_vec_u32_free(filled4);
+		api_vec_u32_free(filled2);
+	}
+	api_fill_4_future_free(filling4);
+	api_fill_2_future_free(filling2);
+	api_Batch_2_free(fill2);
+	api_Batch_free(fill4);
 
 	/* The send happens at the call: the future is dropped unpolled. */
 	api_Channel_send_later_future_free(api_Channel_send_later(channel, str("eager")));
@@ -546,6 +643,35 @@ static int script(void) {
 	api_Channel_notify(channel, waker);
 	api_Channel_send(channel, str("rung"));
 	printf("woken %d\n", wakes);
+	/* A poll with no async twin is a future: it takes what the last send left. */
+	api_Channel_poll_take_future *take = api_Channel_poll_take(channel);
+	if (api_Channel_poll_take_poll(take, waker, &payload) == API_POLL_READY) {
+		print("take ", payload, "\n");
+	}
+	api_Channel_poll_take_future_free(take);
+	api_Channel_send(channel, str("measured"));
+	api_Channel_poll_measure_future *measure = api_Channel_poll_measure(channel, 2);
+	if (api_Channel_poll_measure_poll(measure, waker, &len, &err) == API_POLL_READY) {
+		printf("measure %zu\n", len);
+	}
+	api_Channel_poll_measure_future_free(measure);
+	/* A context is made of the waker, which Rust keeps until the send wakes it. */
+	api_Channel_listen(channel, waker);
+	api_Channel_send(channel, str("heard"));
+	printf("woken %d\n", wakes);
+	api_Channel_clear(channel);
+	/* The waiter a pending poll registers lives until the next poll, so the send wakes it. */
+	take = api_Channel_poll_take(channel);
+	if (api_Channel_poll_take_poll(take, waker, &payload) != API_POLL_PENDING) {
+		return 1;
+	}
+	int woken = wakes;
+	api_Channel_send(channel, str("later"));
+	if (wakes != woken + 1 || api_Channel_poll_take_poll(take, waker, &payload) != API_POLL_READY) {
+		return 1;
+	}
+	api_buf_free(payload);
+	api_Channel_poll_take_future_free(take);
 	api_Channel_free(channel);
 
 	/* A value that holds itself is an object. */
@@ -636,6 +762,9 @@ static int script(void) {
 	/* A bound that outlives the call takes a value, and an instance only a constant names. */
 	printf("kept %llu boxed %u\n", (unsigned long long)api_kept_Point((api_Point){.x = 1, .y = -2}), api_BOXED().value);
 	printf("keep %d\n", api_keep_Point((api_Point){.x = 1, .y = -2}));
+	api_Point five = {.x = 5, .y = 2};
+	printf("kept or %d %d keeper %d\n", api_kept_or_Point((api_option_Point){.some = true, .value = five}),
+		api_kept_or_Point((api_option_Point){0}), api_keeper_Point(five));
 	/* Inferred instances taking a lent closure and a foreign implementation, and one only
 	 * its impl of a trait names. */
 	api_Pair_u32 sides = {.left = 2, .right = 5};
@@ -758,6 +887,83 @@ static int script(void) {
 	/* An empty array that is not None: its pointer is not null. */
 	api_buf no_words[1];
 	print("sentence ", api_sentence((api_vec_string){.ptr = no_words, .len = 0}), "|\n");
+	/* An optional borrow: a null buffer or handle is None. */
+	printf("either %zu %zu\n", api_either(str("abc")), api_either((api_buf){0}));
+	print("prefixed ", api_prefixed(str("cd"), str("ab")), " ");
+	print("", api_prefixed(str("cd"), (api_buf){0}), "\n");
+	api_Point corner = {.x = 2, .y = 3};
+	printf("coordinates %d %d\n", api_coordinates((api_option_Point){.some = true, .value = corner}),
+		api_coordinates((api_option_Point){0}));
+	api_Counter *two = api_Counter_new(str("two"), 2);
+	api_Counter *three = api_Counter_new(str("three"), 3);
+	printf("plus %llu %llu\n", (unsigned long long)api_Counter_plus(two, three),
+		(unsigned long long)api_Counter_plus(two, NULL));
+	bool added = api_Counter_add_to(two, three);
+	bool added_none = api_Counter_add_to(two, NULL);
+	printf("add_to %s %s %llu\n", added ? "true" : "false", added_none ? "true" : "false",
+		(unsigned long long)api_Counter_get(three));
+	api_Counter_free(two);
+	api_Counter_free(three);
+
+	/* A value passed for &mut: Rust writes back what the call left, which the caller frees,
+	 * and keeps what it passed. */
+	api_buf encoded, appended;
+	api_put_number(1, str("0,"), &encoded);
+	api_put_number(23, encoded, &appended);
+	api_buf_free(encoded);
+	print("put_number ", appended, "\n");
+	api_tuple_bytes_u32 stamped;
+	uint32_t stamps = api_push_counted((api_tuple_bytes_u32){._0 = str("ab"), ._1 = 1}, 'c', &stamped);
+	printf("push_counted %u ", stamps);
+	print("", stamped._0, " ");
+	printf("%u\n", stamped._1);
+	api_buf digits_left, digits_rest;
+	uint8_t first_digit, last_digit;
+	api_Error digit_error;
+	api_digit(str("7x9"), &digits_left, &first_digit, &digit_error);
+	/* The failed call took a byte too. */
+	bool skipped = !api_digit(digits_left, &digits_rest, &last_digit, &digit_error);
+	api_buf_free(digits_left);
+	api_digit(digits_rest, &digits_left, &last_digit, &digit_error);
+	api_buf_free(digits_rest);
+	printf("digit %u %s %u %zu\n", first_digit, skipped ? "true" : "false", last_digit, digits_left.len);
+	api_buf_free(digits_left);
+	api_Point nudged = {.x = 1, .y = 2};
+	api_nudge(nudged, 3, &nudged);
+	printf("nudge %d %d\n", nudged.x, nudged.y);
+
+	/* An Arc of another crate's type: an opaque handle, taken back by value or lent. */
+	api_tls_Config *config = api_secure(str("h3"));
+	print("secure ", api_alpn_lent(config), " ");
+	api_tls_Config *config_copy = api_tls_Config_clone(config);
+	print("", api_alpn(config_copy), "\n");
+	api_tls_Config_free(config_copy);
+	api_tls_Config_free(config);
+	/* A borrow of a meter that is not Clone, lent from its owner's handle. */
+	{
+		api_Meters *lender = api_Meters_new();
+		api_Meter *first = api_Meters_first(lender);
+		api_Meter_add(first, 2);
+		unsigned long long added = api_Meter_add(first, 3);
+		api_Meter *again = api_Meters_first(lender);
+		printf("lent %llu %llu\n", added, (unsigned long long)api_Meter_count(again));
+		api_Meter_free(again);
+		api_Meter_free(first);
+		api_Meters_clear(lender);
+		again = api_Meters_first(lender);
+		printf("cleared %llu\n", (unsigned long long)api_Meter_count(again));
+		api_Meter_free(again);
+		api_Meters_free(lender);
+		/* One lent from a handle that is not Sync, on one thread at a time. */
+		api_Tallies *tallies = api_Tallies_new();
+		api_Tally *tallied = api_Tallies_first(tallies);
+		api_Tally_bump(tallied);
+		api_Tally_free(tallied);
+		tallied = api_Tallies_first(tallies);
+		printf("tallied %u\n", api_Tally_bump(tallied));
+		api_Tally_free(tallied);
+		api_Tallies_free(tallies);
+	}
 
 	api_vec_bytes chunks = api_chunks(str("abcde"), 2);
 	printf("chunks [");
@@ -819,6 +1025,19 @@ static int script(void) {
 	size_t most = api_longest((api_vec_string){.ptr = longest_words, .len = 2});
 	size_t no_longest = api_longest((api_vec_string){.ptr = longest_words, .len = 0});
 	printf("longest %zu %zu\n", most, no_longest);
+	api_buf no_first = api_first_of((api_vec_string){.ptr = longest_words, .len = 0});
+	print("first of Some(\"", api_first_of((api_vec_string){.ptr = longest_words, .len = 2}), "\") ");
+	printf("%s\n", no_first.ptr == NULL ? "None" : "Some");
+	api_Limits_bytes limits = api_byte_limits(str("a"), str("bc"));
+	api_duration breadth = api_breadth((api_Limits_duration){.low = {.secs = 0, .nanos = 5000000}, .high = {.secs = 2, .nanos = 0}});
+	printf("limits %.*s %.*s breadth %llu\n", (int)limits.low.len, (const char *)limits.low.ptr, (int)limits.high.len,
+		(const char *)limits.high.ptr, (unsigned long long)(breadth.secs * 1000 + breadth.nanos / 1000000));
+	api_Limits_bytes_free(&limits);
+	api_buf parts[] = {str("ab"), str(""), str("c")};
+	print("joined ", api_joined((api_vec_bytes){.ptr = parts, .len = 3}), " ");
+	api_buf no_parts = api_joined((api_vec_bytes){.ptr = parts, .len = 0});
+	printf("%zu read %llu\n", no_parts.len, (unsigned long long)api_read_len(str("hello")));
+	api_buf_free(no_parts);
 
 	/* JSON crosses as a document, made from text and read back as text. */
 	api_Json *doc;
@@ -831,6 +1050,22 @@ static int script(void) {
 	api_Json_free(doc);
 	print("tagged ", api_Json_to_text(tagged), "\n");
 	api_Json_free(tagged);
+	/* A JSON object's entries cross as pairs of a key and its document, each moved in. */
+	api_tuple_string_Json json_pairs[2] = {{._0 = str("b")}, {._0 = str("a")}};
+	if (!api_Json_parse(str("[1]"), &json_pairs[0]._1, &parse_err) ||
+	    !api_Json_parse(str("2"), &json_pairs[1]._1, &parse_err)) {
+		return 1;
+	}
+	api_vec_tuple_string_Json json_entries = api_entries((api_vec_tuple_string_Json){.ptr = json_pairs, .len = 2}, str("t"));
+	api_Json_free(json_pairs[0]._1);
+	api_Json_free(json_pairs[1]._1);
+	printf("entries");
+	for (size_t i = 0; i < json_entries.len; i++) {
+		printf("%s%.*s ", i == 0 ? " " : ", ", (int)json_entries.ptr[i]._0.len, (const char *)json_entries.ptr[i]._0.ptr);
+		print("", api_Json_to_text(json_entries.ptr[i]._1), "");
+	}
+	printf("\n");
+	api_vec_tuple_string_Json_free(json_entries);
 	api_Json *broken;
 	if (api_Json_parse(str("{\"a\":"), &broken, &parse_err)) {
 		print("json parse ", api_Json_to_text(broken), "\n");
@@ -948,7 +1183,7 @@ static int script(void) {
 	api_Token_free(twice);
 
 	/* Each future dropped its waker once it finished, and Rust the one it was given. */
-	return drops == 5 ? 0 : 1;
+	return drops == 11 ? 0 : 1;
 }
 
 /* Each breaks a contract, which must abort with a message naming the function. */
@@ -984,6 +1219,14 @@ static int broken(const char *which) {
 	} else if (strcmp(which, "lent") == 0 || strcmp(which, "lent moved") == 0) {
 		api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0));
 		api_Registry_edit(registry, strcmp(which, "lent") == 0 ? free_lent : move_lent, NULL);
+	} else if (strcmp(which, "outlived") == 0) {
+		api_Meters *meters = api_Meters_new();
+		api_Meter *first = api_Meters_first(meters);
+		api_Meters_clear(meters);
+		api_Meter_count(first);
+	} else if (strcmp(which, "lent shared") == 0) {
+		api_Meters *meters = api_Meters_new();
+		api_Meter_reset(api_Meters_first(meters));
 	} else if (strcmp(which, "null") == 0) {
 		api_Registry *registry = api_Registry_new(api_Counter_new(str("c"), 0));
 		api_Registry_edit(registry, NULL, NULL);

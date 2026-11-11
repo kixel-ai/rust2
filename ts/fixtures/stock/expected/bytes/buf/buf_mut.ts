@@ -132,7 +132,7 @@ export function put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_buf_Pieces(sel
 			const s: rs.ByteSlice = Pieces.chunk$bytes_Buf(src);
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(self, cnt);
 			Pieces.advance$bytes_Buf(src, cnt);
 		}
@@ -169,7 +169,7 @@ export function put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_buf_Provided(s
 			const s: rs.ByteSlice = Provided.chunk$bytes_Buf(src);
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(self, cnt);
 			Provided.advance$bytes_Buf(src, cnt);
 		}
@@ -206,7 +206,7 @@ export function put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_bytes_Bytes(se
 			const s: rs.ByteSlice = src;
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(self, cnt);
 			rs.bytesAdvance(rs.place(() => src, (value) => src = value), cnt);
 		}
@@ -244,7 +244,7 @@ export function put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_bytes_BytesMut
 			const s: rs.ByteSlice = rs.bytesMutView(src);
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(self, cnt);
 			rs.bytesMutAdvance(src, cnt);
 		}
@@ -282,7 +282,7 @@ export function put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_bytes_buf_Chai
 			const s: rs.ByteSlice = Chain.chunk$bytes_Buf_bytes_Bytes_ref_slice_u8(src);
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(self, cnt);
 			Chain.advance$bytes_Buf_bytes_Bytes_ref_slice_u8(src, cnt);
 		}
@@ -320,7 +320,7 @@ export function put$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8_ref_slice_u8(s
 			const s: rs.ByteSlice = src;
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_mut_slice_mem_MaybeUninit_u8(self, cnt);
 			rs.byteSliceAdvance(rs.place(() => src, (value) => src = value), cnt);
 		}
@@ -357,7 +357,7 @@ export function put$bytes_BufMut_mut_mut_slice_u8_buf_Pieces(self: rs.Place<rs.P
 			const s: rs.ByteSlice = Pieces.chunk$bytes_Buf(src);
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_mut_slice_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_mut_slice_u8(self, cnt);
 			Pieces.advance$bytes_Buf(src, cnt);
 		}
@@ -394,7 +394,7 @@ export function put$bytes_BufMut_mut_mut_slice_u8_buf_Provided(self: rs.Place<rs
 			const s: rs.ByteSlice = Provided.chunk$bytes_Buf(src);
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_mut_slice_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_mut_slice_u8(self, cnt);
 			Provided.advance$bytes_Buf(src, cnt);
 		}
@@ -431,7 +431,7 @@ export function put$bytes_BufMut_mut_mut_slice_u8_bytes_Bytes(self: rs.Place<rs.
 			const s: rs.ByteSlice = src;
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_mut_slice_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_mut_slice_u8(self, cnt);
 			rs.bytesAdvance(rs.place(() => src, (value) => src = value), cnt);
 		}
@@ -469,7 +469,7 @@ export function put$bytes_BufMut_mut_mut_slice_u8_bytes_BytesMut(self: rs.Place<
 			const s: rs.ByteSlice = rs.bytesMutView(src);
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_mut_slice_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_mut_slice_u8(self, cnt);
 			rs.bytesMutAdvance(src, cnt);
 		}
@@ -507,7 +507,7 @@ export function put$bytes_BufMut_mut_mut_slice_u8_bytes_buf_Chain_bytes_Bytes_re
 			const s: rs.ByteSlice = Chain.chunk$bytes_Buf_bytes_Bytes_ref_slice_u8(src);
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_mut_slice_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_mut_slice_u8(self, cnt);
 			Chain.advance$bytes_Buf_bytes_Bytes_ref_slice_u8(src, cnt);
 		}
@@ -545,7 +545,7 @@ export function put$bytes_BufMut_mut_mut_slice_u8_ref_slice_u8(self: rs.Place<rs
 			const s: rs.ByteSlice = src;
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_mut_slice_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_mut_slice_u8(self, cnt);
 			rs.byteSliceAdvance(rs.place(() => src, (value) => src = value), cnt);
 		}
@@ -582,7 +582,7 @@ export function put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_buf_Pieces(self: r
 			const s: rs.ByteSlice = Pieces.chunk$bytes_Buf(src);
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(self, cnt);
 			Pieces.advance$bytes_Buf(src, cnt);
 		}
@@ -619,7 +619,7 @@ export function put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_buf_Provided(self:
 			const s: rs.ByteSlice = Provided.chunk$bytes_Buf(src);
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(self, cnt);
 			Provided.advance$bytes_Buf(src, cnt);
 		}
@@ -656,7 +656,7 @@ export function put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_bytes_Bytes(self: 
 			const s: rs.ByteSlice = src;
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(self, cnt);
 			rs.bytesAdvance(rs.place(() => src, (value) => src = value), cnt);
 		}
@@ -694,7 +694,7 @@ export function put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_bytes_BytesMut(sel
 			const s: rs.ByteSlice = rs.bytesMutView(src);
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(self, cnt);
 			rs.bytesMutAdvance(src, cnt);
 		}
@@ -732,7 +732,7 @@ export function put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_bytes_buf_Chain_by
 			const s: rs.ByteSlice = Chain.chunk$bytes_Buf_bytes_Bytes_ref_slice_u8(src);
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(self, cnt);
 			Chain.advance$bytes_Buf_bytes_Bytes_ref_slice_u8(src, cnt);
 		}
@@ -770,7 +770,7 @@ export function put$bytes_BufMut_mut_slice_mem_MaybeUninit_u8_ref_slice_u8(self:
 			const s: rs.ByteSlice = src;
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_slice_mem_MaybeUninit_u8(self, cnt);
 			rs.byteSliceAdvance(rs.place(() => src, (value) => src = value), cnt);
 		}
@@ -807,7 +807,7 @@ export function put$bytes_BufMut_mut_slice_u8_buf_Pieces(self: rs.Place<rs.ByteS
 			const s: rs.ByteSlice = Pieces.chunk$bytes_Buf(src);
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_slice_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_slice_u8(self, cnt);
 			Pieces.advance$bytes_Buf(src, cnt);
 		}
@@ -844,7 +844,7 @@ export function put$bytes_BufMut_mut_slice_u8_buf_Provided(self: rs.Place<rs.Byt
 			const s: rs.ByteSlice = Provided.chunk$bytes_Buf(src);
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_slice_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_slice_u8(self, cnt);
 			Provided.advance$bytes_Buf(src, cnt);
 		}
@@ -881,7 +881,7 @@ export function put$bytes_BufMut_mut_slice_u8_bytes_Bytes(self: rs.Place<rs.Byte
 			const s: rs.ByteSlice = src;
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_slice_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_slice_u8(self, cnt);
 			rs.bytesAdvance(rs.place(() => src, (value) => src = value), cnt);
 		}
@@ -919,7 +919,7 @@ export function put$bytes_BufMut_mut_slice_u8_bytes_BytesMut(self: rs.Place<rs.B
 			const s: rs.ByteSlice = rs.bytesMutView(src);
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_slice_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_slice_u8(self, cnt);
 			rs.bytesMutAdvance(src, cnt);
 		}
@@ -957,7 +957,7 @@ export function put$bytes_BufMut_mut_slice_u8_bytes_buf_Chain_bytes_Bytes_ref_sl
 			const s: rs.ByteSlice = Chain.chunk$bytes_Buf_bytes_Bytes_ref_slice_u8(src);
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_slice_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_slice_u8(self, cnt);
 			Chain.advance$bytes_Buf_bytes_Bytes_ref_slice_u8(src, cnt);
 		}
@@ -995,7 +995,7 @@ export function put$bytes_BufMut_mut_slice_u8_ref_slice_u8(self: rs.Place<rs.Byt
 			const s: rs.ByteSlice = src;
 			const d: rs.ByteSlice = chunkMut$bytes_BufMut_mut_slice_u8(self);
 			const cnt: rs.usize = rs.min(s.length, UninitSlice.len(d));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(d, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 218, col: 14 }), rs.byteSliceRange(s, 0, cnt));
 			advanceMut$bytes_BufMut_mut_slice_u8(self, cnt);
 			rs.byteSliceAdvance(rs.place(() => src, (value) => src = value), cnt);
 		}

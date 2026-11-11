@@ -2,9 +2,10 @@
 //! `*mut u8` to `*mut T` the body shows came from `alloc` or `realloc` makes the memory a JS
 //! array of `T`s, and one back to `*mut u8` is the block, only as what `dealloc` or
 //! `realloc` takes. Any other cast between them reads the bytes of one type as another,
-//! which stays refused.
+//! which stays refused, and so does a call of `alloc` or `realloc` whose byte pointer the
+//! body passes on elsewhere, so no pointer to a block's bytes leaves the body that made it.
 
-use rustc_middle::mir::{self, Local, Operand, ProjectionElem, Rvalue, TerminatorKind};
+use rustc_middle::mir::{self, Local, Operand, ProjectionElem, RETURN_PLACE, Rvalue, StatementKind, TerminatorKind};
 use rustc_middle::ty::{self, Ty};
 use rustc_span::{Span, Spanned};
 
@@ -15,6 +16,22 @@ use crate::ts::{Expr, Stmt};
 
 fn byte(ty: Ty<'_>) -> bool {
 	matches!(ty.kind(), ty::Uint(ty::UintTy::U8))
+}
+
+/// Whether std's `owner::name` gives the byte pointer its first argument holds on, as a
+/// pointer, a `NonNull`, or the payload of an `Option`, a `Result`, or `?`'s `ControlFlow`.
+fn step(owner: &str, name: &str) -> bool {
+	matches!(
+		(owner, name),
+		("NonNull", "new" | "new_unchecked" | "as_ptr")
+			| ("ptr" | "NonNull", "cast" | "cast_const" | "cast_mut")
+			| (
+				"Option",
+				"ok_or" | "ok_or_else" | "unwrap" | "expect" | "unwrap_unchecked"
+			)
+			| ("Result", "unwrap" | "expect" | "unwrap_unchecked")
+			| ("Try", "branch")
+	)
 }
 
 /// Why the bytes of memory from `alloc` are refused.
@@ -168,11 +185,168 @@ impl<'tcx> Fx<'_, '_, '_, 'tcx> {
 		match (owner.as_str(), name.as_str()) {
 			("alloc", "alloc") => library::is_std(self.tcx, def_id).then_some(local),
 			("alloc", "realloc") if library::is_std(self.tcx, def_id) => self.alloc_root(&args[0].node).or(Some(local)),
-			("NonNull", "new" | "new_unchecked" | "as_ptr")
-			| ("ptr" | "NonNull", "cast" | "cast_const" | "cast_mut")
-			| ("Option", "ok_or" | "ok_or_else" | "unwrap" | "expect" | "unwrap_unchecked")
-			| ("Result", "unwrap" | "expect" | "unwrap_unchecked")
-			| ("Try", "branch") => self.alloc_root(&args[0].node),
+			(owner, name) if step(owner, name) => self.alloc_root(&args[0].node),
+			_ => None,
+		}
+	}
+
+	/// Why the call of std's `def_id`, if `alloc` or `realloc`, can't be: the body passes the
+	/// byte pointer it returns into `dest` on elsewhere than a cast to a pointer to values JS
+	/// copies, `dealloc`, `realloc`, or the steps [`step`] names, such as into a field, out
+	/// of the body, or to any other function; or, of `realloc`, casts it to a pointer to a type
+	/// other than the one the memory it grows was cast from. A byte of the memory read or
+	/// written here is refused where it is.
+	pub(super) fn alloc_leak(
+		&self,
+		def_id: rustc_hir::def_id::DefId,
+		args: &[Spanned<Operand<'tcx>>],
+		dest: mir::Place<'tcx>,
+	) -> Option<String> {
+		if !library::is_std(self.tcx, def_id) {
+			return None;
+		}
+		let (owner, name) = library::key(self.tcx, def_id)?;
+		if owner != "alloc" || !matches!(name.as_str(), "alloc" | "realloc") {
+			return None;
+		}
+		let Some(types) = dest.as_local().and_then(|local| self.alloc_uses(local)) else {
+			return Some(format!(
+				"`{name}` whose pointer the body passes on as bytes, other than to a cast to a pointer to values, `dealloc`, or `realloc`, which JS keeps as the values a cast types the memory as"
+			));
+		};
+		// Memory from an `alloc` in the body, whose casts `alloc_cast` checks against each other.
+		if name != "realloc" || self.alloc_root(&args.first()?.node).is_some() {
+			return None;
+		}
+		let from = self.freed_type(&args.first()?.node)?;
+		let to = types.into_iter().find(|t| *t != from)?;
+		Some(format!(
+			"`realloc` of memory cast from a pointer to `{from}` whose result is cast to one to `{to}`, which reads the bytes of one type as another"
+		))
+	}
+
+	/// The types the casts in the body of the byte pointer in `root` type it as, if the body
+	/// passes it on no further than [`Self::alloc_leak`] allows.
+	fn alloc_uses(&self, root: Local) -> Option<Vec<Ty<'tcx>>> {
+		let (decls, tcx) = (&self.mir.local_decls, self.tcx);
+		// Whether a value of `ty` may hold the pointer: one to bytes, or what holds one.
+		let holds = |ty: Ty<'tcx>| {
+			ty.walk().any(|arg| {
+				arg.as_type().is_some_and(|t| match t.kind() {
+					ty::RawPtr(pointee, _) => byte(*pointee),
+					ty::Adt(adt, args) => {
+						library::Std::of(tcx, adt.did()) == Some(library::Std::NonNull) && byte(args.type_at(0))
+					}
+					_ => false,
+				})
+			})
+		};
+		// Whether `op` reads what `local` holds, or a payload of it, but not through it.
+		let reads = |op: &Operand<'tcx>, local: Local| {
+			op.place()
+				.is_some_and(|p| p.local == local && !p.projection.contains(&ProjectionElem::Deref))
+		};
+		let mut types = Vec::new();
+		let mut seen = vec![root];
+		let mut todo = vec![root];
+		while let Some(local) = todo.pop() {
+			// Out of the body, as what it returns or into what it was given, or into a local
+			// assigned again, whose byte reads and writes `alloc_bytes` can't trace back.
+			if local == RETURN_PLACE || self.is_arg(local) || self.defs[local] != 1 {
+				return None;
+			}
+			let mut carry = |to: mir::Place<'tcx>| -> Option<()> {
+				if !holds(to.ty(decls, tcx).ty) {
+					return Some(());
+				}
+				let to = to.as_local()?;
+				if !seen.contains(&to) {
+					seen.push(to);
+					todo.push(to);
+				}
+				Some(())
+			};
+			for data in self.mir.basic_blocks.iter() {
+				for stmt in &data.statements {
+					let StatementKind::Assign(assign) = &stmt.kind else {
+						continue;
+					};
+					let (dest, rvalue) = &**assign;
+					match rvalue {
+						Rvalue::Cast(mir::CastKind::PtrToPtr, op, to) if reads(op, local) => {
+							match to.builtin_deref(true) {
+								Some(pointee) if !byte(pointee) => types.push(self.alloc_key(pointee)),
+								_ => carry(*dest)?,
+							}
+						}
+						Rvalue::Use(op, _) | Rvalue::Cast(_, op, _) if reads(op, local) => carry(*dest)?,
+						Rvalue::Ref(_, _, place) | Rvalue::RawPtr(_, place)
+							if place.local == local && !place.projection.contains(&ProjectionElem::Deref) =>
+						{
+							return None;
+						}
+						Rvalue::Aggregate(_, ops) if ops.iter().any(|op| reads(op, local)) => return None,
+						Rvalue::Repeat(op, _) if reads(op, local) => return None,
+						_ => {}
+					}
+				}
+				let TerminatorKind::Call {
+					func,
+					args,
+					destination,
+					..
+				} = &data.terminator().kind
+				else {
+					continue;
+				};
+				let Some(at) = args.iter().position(|a| reads(&a.node, local)) else {
+					continue;
+				};
+				let ty::FnDef(def_id, gargs) = *func.ty(decls, tcx).kind() else {
+					return None;
+				};
+				let (owner, name) = library::key(tcx, def_id).filter(|_| library::is_std(tcx, def_id))?;
+				match (owner.as_str(), name.as_str()) {
+					("alloc", "dealloc") if at == 0 => {}
+					// The memory it grows, whose casts type it as this one's do.
+					("alloc", "realloc") if at == 0 => carry(*destination)?,
+					("ptr" | "NonNull", "is_null") => {}
+					("ptr" | "NonNull", "cast") => match gargs.skip_binder().types().nth(1) {
+						Some(to) if !byte(to) => types.push(self.alloc_key(to)),
+						_ => carry(*destination)?,
+					},
+					(owner, name) if at == 0 && step(owner, name) => carry(*destination)?,
+					_ => return None,
+				}
+			}
+		}
+		Some(types)
+	}
+
+	/// The type of the values the pointer `op`, which `dealloc` or `realloc` takes, was cast
+	/// from in the body, as `alloc_key` names it.
+	fn freed_type(&self, op: &Operand<'tcx>) -> Option<Ty<'tcx>> {
+		let local = self.traced(op)?;
+		if self.def_at[local].is_some() {
+			return match self.def_rvalue(local)? {
+				Rvalue::Use(op, _) => self.freed_type(op),
+				Rvalue::Cast(mir::CastKind::PtrToPtr, op, _) => {
+					let from = op.ty(&self.mir.local_decls, self.tcx).builtin_deref(true)?;
+					(!byte(from)).then(|| self.alloc_key(from))
+				}
+				_ => None,
+			};
+		}
+		let (def_id, gargs, args) = self.def_call(local)?;
+		match library::key(self.tcx, def_id)? {
+			(owner, name) if matches!(owner.as_str(), "ptr" | "NonNull") && name == "cast" => {
+				let from = gargs.types().next()?;
+				match byte(from) {
+					true => self.freed_type(&args.first()?.node),
+					false => Some(self.alloc_key(from)),
+				}
+			}
+			(owner, name) if owner == "NonNull" && name == "as_ptr" => self.freed_type(&args.first()?.node),
 			_ => None,
 		}
 	}

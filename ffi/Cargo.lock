@@ -10,6 +10,7 @@ dependencies = [
  "dep-fixture",
  "serde",
  "serde_json",
+ "tls-fixture",
  "url",
 ]
 
@@ -340,6 +341,10 @@ dependencies = [
  "displaydoc",
  "zerovec",
 ]
+
+[[package]]
+name = "tls-fixture"
+version = "0.0.0"
 
 [[package]]
 name = "toml"

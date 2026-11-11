@@ -42,6 +42,15 @@ pub fn call<'tcx>(
 		}
 		Glue::Import(Err(why)) => Err(why),
 		Glue::Import(Ok(import)) => lower(b, instance, &import, args, span, out),
+		Glue::Closure { ty, owned } => convert::closure(b, ty, args.swap_remove(0), owned, span),
+		Glue::Dispose => Ok(Expr::rs("drop", vec![args.swap_remove(0)])),
+		// The task owns its future, which drops once ready, as a crate's own `Future` impl
+		// is an `rs.DynFuture` over its `poll`.
+		Glue::SpawnLocal => {
+			let future = b.future_object(instance.args.type_at(0), args.swap_remove(0), false, true, span);
+			Ok(Expr::rs("jsSpawnLocal", vec![future]))
+		}
+		Glue::Refused(why) => Err(why.into()),
 	};
 	match lowered {
 		Ok(value) => value,
@@ -112,10 +121,12 @@ fn lower<'tcx>(
 	};
 	let mut values = Vec::with_capacity(args.len());
 	let mut after = Vec::new();
+	let mut borrowed = Vec::new();
 	for (ty, value) in inputs.iter().zip(args) {
 		let arg = convert::arg(b, *ty, value, span, out)?;
 		values.push(arg.value);
 		after.extend(arg.after);
+		borrowed.extend(arg.borrowed);
 	}
 	let call = match is_intrinsic {
 		true => {
@@ -126,6 +137,14 @@ fn lower<'tcx>(
 				.ok_or_else(|| format!("wasm-bindgen's intrinsic `{}`, which translation refuses", f.name))?
 		}
 		false => shape(b, import, &inputs, values, variadic, output)?,
+	};
+	// The closures it borrows end as it returns or throws.
+	let call = match borrowed.is_empty() {
+		true => call,
+		false => Expr::rs(
+			"jsLending",
+			vec![Expr::Array(borrowed), Expr::Lambda(Vec::new(), Box::new(call))],
+		),
 	};
 	let value = match catch {
 		true => {

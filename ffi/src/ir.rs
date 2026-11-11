@@ -42,9 +42,12 @@ impl Api {
 			Type::F64 => "f64".to_string(),
 			Type::Char => "char".to_string(),
 			Type::String => "String".to_string(),
+			Type::Bytes => "bytes::Bytes".to_string(),
+			Type::Duration => "std::time::Duration".to_string(),
 			Type::Record(i) => self.rust(&self.records[*i].path, &self.records[*i].args),
 			Type::Enum(i) => self.rust(&self.enums[*i].path, &self.enums[*i].args),
 			Type::Object(i) => self.rust(&self.objects[*i].path, &self.objects[*i].args),
+			Type::Const(value) => value.to_string(),
 			other => unreachable!("no type argument is {other:?}"),
 		}
 	}
@@ -63,8 +66,7 @@ pub struct Home {
 	/// crates before it.
 	pub krate: String,
 	/// How many leading segments of its `shown` path, the facade's root among them, name
-	/// no module of that crate: the facade's own modules, and a crate root re-exported as
-	/// a module.
+	/// no module of that crate: the facade's own modules.
 	pub outside: usize,
 }
 
@@ -75,7 +77,7 @@ pub struct Record {
 	/// Its path with its instance's arguments, which the config names it by, such as
 	/// `moq_mux::catalog::Producer<moq_mux::catalog::hang::Extra>`.
 	pub shown: Path,
-	/// The type arguments of the instance it is, empty unless the type is generic.
+	/// The type and const arguments of the instance it is, empty unless the type is generic.
 	pub args: Vec<Type>,
 	pub span: Span,
 	pub docs: String,
@@ -149,6 +151,9 @@ pub struct Object {
 	/// Whether it is a foreign type, such as `url::Url`, that the facade maps rather than
 	/// exports: its path is the type's in its own crate, not in the facade.
 	pub foreign: bool,
+	/// Whether it is a foreign type behind an `Arc`, held erased, which the glue never
+	/// names: a handle with none of its API, which Rust takes back as the `Arc`.
+	pub opaque: bool,
 }
 
 /// A `pub` trait: implemented by the foreign side, through a table of functions.
@@ -183,18 +188,27 @@ pub struct Function {
 	pub docs: String,
 	pub receiver: Option<Receiver>,
 	pub params: Vec<Param>,
+	/// Where among Rust's parameters each `()` one sits, which C does not pass.
+	pub units: Vec<usize>,
 	/// What it returns, or for a future, what the future does.
 	pub ok: Type,
-	/// The error of a `Result` it returns.
+	/// The error of a `Result` it returns: `String` for another crate's error, as its message.
 	pub err: Option<Type>,
 	/// Whether it returns a future: an `async fn`, or a value that implements `Future`.
 	pub future: bool,
 	/// For a future, whether the call itself runs code, as a function that is not
 	/// `async` returning one does: the export calls it at once, and polls what it returns.
 	pub eager: bool,
+	/// The parameter it polls its task through, if any: C passes a waker for it or, for a
+	/// future made of a returned `Poll`, the future's poll supplies it.
+	pub task: Option<Task>,
 	/// Whether it returns another crate's iterator, whose items the export collects into
 	/// the array it returns.
 	pub collect: bool,
+	/// Whether it returns a borrow of an object that is not `Clone`, which C holds as a handle
+	/// lent from its receiver's: shared, until the receiver's value is borrowed
+	/// exclusively, moved out, or freed.
+	pub lends: bool,
 	/// What it reads: Rust's function, a field it reads or writes, or a constant named as it is.
 	pub access: Access,
 	/// The instance it is, if a type parameter exports at several.
@@ -204,12 +218,12 @@ pub struct Function {
 	pub home: Home,
 }
 
-/// An instance of a generic function or method, at one of the types a type parameter
-/// exports at.
+/// An instance of a generic function or method, at one of the arguments a type or const
+/// parameter exports at.
 pub struct Instance {
-	/// The arguments of its declared type parameters, which the call names, as Rust
-	/// cannot infer one no argument names; its argument infers an `impl Trait` one, and
-	/// one left `None`, which takes a lent closure or a foreign implementation.
+	/// The arguments of its declared type and const parameters, which the call names, as
+	/// Rust cannot infer one no argument names; its argument infers an `impl Trait` one,
+	/// and one left `None`, which takes a lent closure or a foreign implementation.
 	pub args: Vec<Option<Type>>,
 	/// The arguments that tell it from its other instances, which name it.
 	pub named: Vec<Type>,
@@ -239,6 +253,22 @@ impl Function {
 	}
 }
 
+/// A parameter a function polls its task through.
+pub struct Task {
+	/// Its place among the parameters after `self`.
+	pub at: usize,
+	pub kind: TaskKind,
+}
+
+/// What a [`Task`] parameter is.
+pub enum TaskKind {
+	/// `&Context` or `&mut Context`: made from C's waker, or the future's own.
+	Context(Mutability),
+	/// A reference to an object made from a `Waker` by its associated function `make`, which
+	/// the future makes from its waker at each poll and keeps until the next.
+	Made { object: usize, make: String },
+}
+
 /// How a method takes `self`.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Receiver {
@@ -253,6 +283,9 @@ pub enum Receiver {
 pub struct Param {
 	pub name: String,
 	pub ty: Type,
+	/// Whether it is a `&str` that must be `'static`, which the glue interns: it leaks each
+	/// distinct string once and lends that copy to every later call with equal content.
+	pub interned: bool,
 }
 
 /// A `pub const`.
@@ -264,9 +297,20 @@ pub struct Constant {
 	pub value: Literal,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Literal {
 	Bool(bool),
 	Int(Int, i128),
+}
+
+impl std::fmt::Display for Literal {
+	/// The value as Rust writes it.
+	fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+		match self {
+			Literal::Bool(b) => write!(f, "{b}"),
+			Literal::Int(_, v) => write!(f, "{v}"),
+		}
+	}
 }
 
 /// A type as the API uses it, in the exact form the Rust side takes or returns.
@@ -275,6 +319,8 @@ pub enum Type {
 	Unit,
 	Bool,
 	Int(Int),
+	/// `u128`, which C passes as its two `u64` halves.
+	U128,
 	F32,
 	F64,
 	Char,
@@ -295,9 +341,10 @@ pub enum Type {
 	PathBuf,
 	/// `std::net::SocketAddr`, or `SocketAddrV4` or `SocketAddrV6` for one family.
 	SocketAddr(Family),
-	/// `Vec<T>` of any `T` but `u8`, which is [`Type::Vec`], and behind a reference, `[T]`
-	/// too: C passes and returns either as an array.
-	List(Box<Type>),
+	/// A collection of `T`, which C passes and returns as an array of its items: `Vec<T>` of
+	/// any `T` but `u8`, which is [`Type::Vec`], and behind a reference, `[T]` too; a set;
+	/// or a map, whose `T` is the tuple of a key and its value.
+	List(Collection, Box<Type>),
 	/// `std::task::Waker`, only as a parameter taken by value.
 	Waker,
 	Option(Box<Type>),
@@ -320,6 +367,21 @@ pub enum Type {
 	Bounds(Int),
 	/// A tuple of one element or more.
 	Tuple(Vec<Type>),
+	/// A const argument of an instance, such as the `8` of `Buffer<8>`.
+	Const(Literal),
+}
+
+/// The Rust collection a [`Type::List`] is, which Rust builds from its items in order.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Collection {
+	/// `Vec<T>`, or behind a reference, `[T]`.
+	Vec,
+	/// `std::collections::BTreeSet<T>`
+	BTreeSet,
+	/// `std::collections::BTreeMap<K, V>`
+	BTreeMap,
+	/// `serde_json::Map`, of `String` keys and `serde_json::Value`s.
+	JsonMap,
 }
 
 /// The addresses a socket address type holds.
@@ -384,7 +446,7 @@ impl Int {
 pub fn each(ty: &Type, f: &mut dyn FnMut(&Type)) {
 	f(ty);
 	match ty {
-		Type::List(inner) | Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => each(inner, f),
+		Type::List(_, inner) | Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => each(inner, f),
 		Type::Closure(params, ret) => {
 			for param in params {
 				each(param, f);
@@ -401,6 +463,12 @@ pub fn each(ty: &Type, f: &mut dyn FnMut(&Type)) {
 }
 
 impl Type {
+	/// Whether a parameter of this type is a value C passes in that Rust writes back
+	/// through an out pointer: `&mut` of anything but an object, whose handle it borrows.
+	pub fn written(&self) -> bool {
+		matches!(self, Type::Ref(Mutability::Mut, inner) if !matches!(**inner, Type::Object(_)))
+	}
+
 	/// The type behind any reference or `Box`.
 	pub fn base(&self) -> &Type {
 		match self {

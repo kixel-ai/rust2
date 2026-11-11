@@ -107,6 +107,7 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 			ty::FnDef(def_id, gargs) if let Some(why) = self.stray(def_id, gargs.skip_binder(), args) => {
 				(self.err(span, why), true)
 			}
+			ty::FnDef(def_id, _) if let Some(why) = self.alloc_leak(def_id, args, dest) => (self.err(span, why), true),
 			ty::FnDef(def_id, gargs)
 				if let Some(cast) = self.alloc_cast_call(def_id, gargs.skip_binder(), args, span, &mut pre) =>
 			{
@@ -1203,6 +1204,15 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 				self.slots[local] = Slot::Alias(Some(place));
 				Some(None)
 			}
+			// Bytes from other storage, which JS may keep apart where Rust shares them, as a
+			// `&'static str`'s bytes that `as_bytes` encodes anew.
+			("Bytes", "slice_ref") if bytes && !self.bytes_of(&args[1].node, &args[0].node) => done(
+				self.err(
+					span,
+					"`Bytes::slice_ref` of bytes the body doesn't show it borrowed from that `Bytes`'s storage, through `Deref`, `as_ref`, or a slice of one, which JS may keep apart where Rust shares them",
+				),
+				true,
+			),
 			// A `Bytes`'s slice by a range's bounds, read where the range is made. Its bounds
 			// check panics, so it runs even if the slice goes unused.
 			("Bytes", "slice")
@@ -2155,6 +2165,22 @@ impl<'m, 'b, 'a, 'tcx> Fx<'m, 'b, 'a, 'tcx> {
 		span: Span,
 		out: &mut Vec<Stmt>,
 	) -> Option<Option<(Expr, bool)>> {
+		// A `SmallVec` indexes as the `Vec` it is, but panics in smallvec's own code, which a
+		// hook would read the location of.
+		let gargs = match crate::lower::smallvec::as_vec(self.tcx, gargs.type_at(0)) {
+			Some(_) if self.b.t.hooked => {
+				let e = self.err(
+					span,
+					format!(
+						"`{name}` of `{}`, in a program with a panic hook, whose panic is in smallvec's code, which is not supported yet",
+						gargs.type_at(0)
+					),
+				);
+				return Some(Some((e, false)));
+			}
+			Some(_) => crate::lower::smallvec::fold(self.tcx, gargs),
+			None => gargs,
+		};
 		let container = gargs.type_at(0);
 		let index_ty = gargs.type_at(1);
 		// A string slices by UTF-8 byte offsets, which a JS string doesn't index by, and a

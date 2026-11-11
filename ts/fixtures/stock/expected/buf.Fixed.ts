@@ -177,7 +177,7 @@ export function putSlice$bytes_BufMut(self: Fixed, src: rs.ByteSlice): void {
 		while (!(src.length === 0)) {
 			const dst: rs.ByteSlice = chunkMut$bytes_BufMut(self);
 			const cnt: rs.usize = rs.min(src.length, UninitSlice.len(dst));
-			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(dst, { end: cnt }, { file: "/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/bytes-1.12.1/src/buf/buf_mut.rs", line: 258, col: 16 }), rs.byteSliceRange(src, 0, cnt));
+			UninitSlice.copyFromSlice(UninitSlice.indexMut$ops_IndexMut_ops_RangeTo_usize(dst, { end: cnt }, { file: "bytes/source/buf/buf_mut.rs", line: 258, col: 16 }), rs.byteSliceRange(src, 0, cnt));
 			src = rs.byteSliceRange(src, cnt);
 			advanceMut$bytes_BufMut(self, cnt);
 		}

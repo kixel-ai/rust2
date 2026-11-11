@@ -52,6 +52,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		names: BTreeMap::new(),
 		errors: Vec::new(),
 		fresh: 0,
+		params: Vec::new(),
 		tuples: BTreeSet::new(),
 		dispatchers: Vec::new(),
 	};
@@ -79,6 +80,9 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		"/** Wakes a future's poller. Rust may call [wake] from any thread, any number of times. */\nfun interface Waker {\n\tfun wake()\n}\n\n",
 	);
 	kotlin.push_str(BYTES);
+	kotlin.push_str(
+		"/** A value a call takes `&mut`, which Rust writes back into [value] once it returns, errors included. */\nclass Mut<T>(var value: T)\n\n",
+	);
 	kotlin.push_str(&g.types);
 	kotlin.push_str(&g.top);
 	let _ = write!(
@@ -222,8 +226,9 @@ class Bytes private constructor(
 ";
 
 /// The names the generated code uses unqualified, which no exported type or function may
-/// take. The runtime's own are the C ABI's: `Native`, `Waker`, `Bytes`, and `Bound` are
-/// claimed as `<prefix>_native`, `<prefix>_waker`, `<prefix>_bytes`, and `<prefix>_bound`.
+/// take. The runtime's own are the C ABI's: `Native`, `Waker`, `Bytes`, `Mut`, and `Bound`
+/// are claimed as `<prefix>_native`, `<prefix>_waker`, `<prefix>_bytes`, `<prefix>_mut`, and
+/// `<prefix>_bound`.
 const TAKEN: &[&str] = &[
 	"Any",
 	"AutoCloseable",
@@ -291,6 +296,8 @@ struct Gen<'a> {
 	errors: Vec<String>,
 	/// A counter for fresh Kotlin names.
 	fresh: usize,
+	/// The Kotlin parameters of the function being written, which a fresh name never takes.
+	params: Vec<String>,
 	/// The arities a tuple class is written for: one, and past `Triple`.
 	tuples: BTreeSet<usize>,
 	/// The Kotlin functions the glue calls, which the rules keep.
@@ -299,8 +306,13 @@ struct Gen<'a> {
 
 impl<'a> Gen<'a> {
 	fn fresh(&mut self, base: &str) -> String {
-		self.fresh += 1;
-		format!("{base}{}", self.fresh)
+		loop {
+			self.fresh += 1;
+			let name = format!("{base}{}", self.fresh);
+			if !self.params.contains(&name) {
+				return name;
+			}
+		}
 	}
 
 	/// A C name without the prefix.
@@ -359,6 +371,7 @@ impl<'a> Gen<'a> {
 	fn kt(&mut self, ty: &Type) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "Unit".to_string(),
 			Type::Bool => "Boolean".to_string(),
 			Type::Int(int) => kt_int(*int).to_string(),
@@ -368,9 +381,10 @@ impl<'a> Gen<'a> {
 			Type::Str | Type::String => "String".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => "Bytes".to_string(),
 			Type::Path | Type::PathBuf => "String".to_string(),
+			Type::U128 => "java.math.BigInteger".to_string(),
 			Type::Duration => "kotlin.time.Duration".to_string(),
 			Type::SocketAddr(_) => "java.net.InetSocketAddress".to_string(),
-			Type::List(inner) => format!("kotlin.collections.List<{}>", self.kt(inner)),
+			Type::List(_, inner) => format!("kotlin.collections.List<{}>", self.kt(inner)),
 			Type::Waker => "Waker".to_string(),
 			Type::Option(inner) => format!("{}?", self.kt(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.kt(inner),
@@ -395,8 +409,9 @@ impl<'a> Gen<'a> {
 	fn kt_param(&mut self, ty: &Type) -> String {
 		match ty {
 			Type::Slice | Type::Vec | Type::Bytes => "ByteArray".to_string(),
-			Type::List(inner) => format!("kotlin.collections.List<{}>", self.kt_param(inner)),
+			Type::List(_, inner) => format!("kotlin.collections.List<{}>", self.kt_param(inner)),
 			Type::Option(inner) => format!("{}?", self.kt_param(inner)),
+			Type::Ref(_, inner) if ty.written() => format!("Mut<{}>", self.kt_param(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.kt_param(inner),
 			Type::Tuple(elements) => {
 				let elements: Vec<String> = elements.iter().map(|e| self.kt_param(e)).collect();
@@ -420,11 +435,12 @@ impl<'a> Gen<'a> {
 			Type::Char => format!("{w}.i32({e})"),
 			Type::Str | Type::String | Type::Path | Type::PathBuf => format!("{w}.string({e})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("{w}.bytes({e})"),
+			Type::U128 => format!("{w}.u128({e})"),
 			Type::Duration => format!("{w}.duration({e})"),
 			Type::SocketAddr(Family::Any) => format!("{w}.socketAddr({e})"),
 			Type::SocketAddr(Family::V4) => format!("{w}.socketAddrV4({e})"),
 			Type::SocketAddr(Family::V6) => format!("{w}.socketAddrV6({e})"),
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let (l, v) = (self.fresh("l"), self.fresh("v"));
 				let item = self.write_value(inner, w, &v);
 				format!("{e}.let {{ {l} -> {w}.i32({l}.size); for ({v} in {l}) {{ {item} }} }}")
@@ -433,7 +449,7 @@ impl<'a> Gen<'a> {
 				Type::Object(_) => format!("{w}.handle({e}?.handle)"),
 				base if Abi::is_buf(base) => self.write_value(base, w, e),
 				// None is a length of -1.
-				Type::List(_) => {
+				Type::List(..) => {
 					let v = self.fresh("v");
 					let some = self.write_value(inner, w, &v);
 					format!("{e}.let {{ {v} -> if ({v} == null) {w}.i32(-1) else {some} }}")
@@ -486,9 +502,10 @@ impl<'a> Gen<'a> {
 			Type::Path | Type::PathBuf => format!("{r}.path()!!"),
 			Type::Slice | Type::Vec | Type::Bytes if owned => format!("{r}.owned()!!"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("{r}.bytes()!!"),
+			Type::U128 => format!("{r}.u128()"),
 			Type::Duration => format!("{r}.duration()"),
 			Type::SocketAddr(_) => format!("{r}.socketAddr()"),
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let item = self.read(inner, r, owned);
 				format!("kotlin.collections.List({r}.i32()) {{ {item} }}")
 			}
@@ -499,7 +516,7 @@ impl<'a> Gen<'a> {
 				}
 				Type::Str | Type::String => format!("{r}.string()"),
 				Type::Path | Type::PathBuf => format!("{r}.path()"),
-				Type::List(item) => {
+				Type::List(_, item) => {
 					let n = self.fresh("n");
 					let item = self.read(item, r, owned);
 					format!(
@@ -593,7 +610,7 @@ impl<'a> Gen<'a> {
 			}
 			Ty::Int(int) => {
 				arg.exprs.push(to_signed(*int, e));
-				arg.rust_args.push(format!("{p} as {}", int.rust()));
+				arg.rust_args.push(from_jni(*int, &p));
 			}
 			Ty::F32 | Ty::F64 => {
 				arg.exprs.push(e.to_string());
@@ -640,7 +657,7 @@ impl<'a> Gen<'a> {
 					"crate::{name} {{ vtable: &VTABLE_{name}, data: rt::global(env, {p}) }}"
 				));
 			}
-			Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => {
+			Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => {
 				let w = self.fresh("w");
 				// Taken by value, each object in a list moves out, as one passed alone does.
 				if moved(abi, ty) {
@@ -1322,7 +1339,7 @@ impl<'a> Gen<'a> {
 		let back = match c_ret {
 			Ty::Void => String::new(),
 			Ty::Bool => "ret".to_string(),
-			Ty::Int(int) => format!("ret as {}", int.rust()),
+			Ty::Int(int) => from_jni(*int, "ret"),
 			Ty::F32 | Ty::F64 => "ret".to_string(),
 			Ty::Char => "ret as u32".to_string(),
 			_ => unreachable!("a callback returns only scalars"),
@@ -1424,6 +1441,7 @@ impl<'a> Gen<'a> {
 		place: Place,
 	) -> Option<String> {
 		let abi = self.abi;
+		self.params = locals(&function.params);
 		let export = abi.export(function, owner);
 		let c_name = export.call.name.clone();
 		let bare = self.bare(&c_name).to_string();
@@ -1469,12 +1487,14 @@ impl<'a> Gen<'a> {
 					n += 1;
 					arg.jni.push("jlong");
 					arg.native.push("Long".to_string());
-					arg.open = Some("handle.hold { h ->".to_string());
-					arg.exprs.push("h".to_string());
+					// Qualified, and named fresh, apart from the parameters in scope.
+					let h = self.fresh("h");
+					arg.open = Some(format!("this.handle.hold {{ {h} ->"));
+					arg.exprs.push(h);
 					arg.rust_args.push(format!("{p} as usize as _"));
 					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
 					if receiver == Receiver::Owned && !copy {
-						arg.after.push("close()".to_string());
+						arg.after.push("this.close()".to_string());
 					}
 					arg
 				}
@@ -1485,7 +1505,9 @@ impl<'a> Gen<'a> {
 		}
 		let mut kt_params = Vec::new();
 		let mut closures = Vec::new();
-		let names = locals(&function.params);
+		let names = self.params.clone();
+		// Each parameter Rust writes back, by its Kotlin name, and what it holds.
+		let mut written: Vec<(String, Type)> = Vec::new();
 		for (param, name) in function.params.iter().zip(&names) {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
 			kt_params.push(format!("{name}: {}", self.kt_param(&param.ty)));
@@ -1498,7 +1520,13 @@ impl<'a> Gen<'a> {
 				}
 				_ => None,
 			};
-			args.push(self.arg(&param.ty, c, name, &mut n, trampoline.as_deref()));
+			match &param.ty {
+				Type::Ref(_, inner) if param.ty.written() => {
+					written.push((name.clone(), (**inner).clone()));
+					args.push(self.arg(inner, c, &format!("{name}.value"), &mut n, None));
+				}
+				_ => args.push(self.arg(&param.ty, c, name, &mut n, trampoline.as_deref())),
+			}
 		}
 		for (param, c, trampoline) in closures {
 			let (Type::Closure(lent, ret), Ty::Fn(c_lent, c_ret)) = (&param.ty, &c) else {
@@ -1565,7 +1593,7 @@ impl<'a> Gen<'a> {
 			let poll_bare = self.bare(&poll.name).to_string();
 			let free_bare = self.bare(&free.name).to_string();
 			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
-			let (decl, ptrs, write) = self.glue_outs(&poll_outs, &function.ok, function.err.as_ref());
+			let (decl, ptrs, write) = self.glue_outs(&poll_outs, &[], &function.ok, function.err.as_ref());
 			let ok_set = match function.err.is_some() {
 				true => "let ok = ret == 1;\n\t",
 				false => "",
@@ -1620,12 +1648,16 @@ impl<'a> Gen<'a> {
 				s = signal.as_deref().expect("a future takes a signal"),
 			);
 		} else if !outs.is_empty() {
-			let (decl, ptrs, write) = self.glue_outs(&outs, &function.ok, function.err.as_ref());
+			let types: Vec<&Type> = written.iter().map(|(_, ty)| ty).collect();
+			let (decl, ptrs, write) = self.glue_outs(&outs, &types, &function.ok, function.err.as_ref());
 			let params: Vec<(&str, &str)> = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect();
-			// Only a result's write reads whether it returned ok.
-			let ret_set = match function.err.is_some() {
-				true => "let ok = ",
-				false => "",
+			// Only a result's write reads whether it returned ok; a value C returns, beside
+			// what Rust wrote back, follows what it wrote.
+			let returned = function.err.is_none() && !matches!(function.ok, Type::Unit | Type::Tuple(_));
+			let (ret_set, write) = match (function.err.is_some(), returned) {
+				(true, _) => ("let ok = ", write),
+				(false, true) => ("let ret = ", format!("{write}\n\t\t{};", put(&function.ok, "ret"))),
+				(false, false) => ("", write),
 			};
 			self.native(
 				&bare,
@@ -1637,11 +1669,18 @@ impl<'a> Gen<'a> {
 					rust_call(&ptrs)
 				),
 			);
-			let lines = self.lift_result(&ok, err.as_ref(), exception.as_deref(), "r");
+			let mut lines = Vec::new();
+			let r = self.fresh("r");
+			// What Rust wrote back comes first, read whether or not the call failed.
+			for (name, ty) in &written {
+				let read = self.read_value(ty, &r);
+				lines.push(format!("{name}.value = {}", to_param(ty, &read)));
+			}
+			lines.extend(self.lift_result(&ok, err.as_ref(), exception.as_deref(), &r));
 			value = match lines.is_empty() {
 				true => call,
 				false => format!(
-					"Native.Reader({call}).let {{ r ->\n{}}}",
+					"Native.Reader({call}).let {{ {r} ->\n{}}}",
 					lines.iter().map(|l| format!("\t{l}\n")).collect::<String>()
 				),
 			};
@@ -1769,7 +1808,7 @@ impl<'a> Gen<'a> {
 					.collect();
 				format!("{e}.let {{ {t} -> {} }}", closes.join("; "))
 			}
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let v = self.fresh("v");
 				let close = self.close(inner, &v);
 				format!("{e}.forEach {{ {v} -> {close} }}")
@@ -1781,9 +1820,18 @@ impl<'a> Gen<'a> {
 	/// The glue's out values for `outs`, of a function returning `ok` or `err`, the
 	/// pointers the C call takes after its parameters, and the statements writing them,
 	/// `ok` saying whether it returned ok.
-	fn glue_outs(&mut self, outs: &[(String, Ty)], ok: &Type, err_ty: Option<&Type>) -> (String, Vec<String>, String) {
+	/// The glue's out declarations, their pointers, and its writes of them: first what
+	/// Rust wrote back into each of `written`, then the result.
+	fn glue_outs(
+		&mut self,
+		outs: &[(String, Ty)],
+		written: &[&Type],
+		ok: &Type,
+		err_ty: Option<&Type>,
+	) -> (String, Vec<String>, String) {
 		let mut decl = Vec::new();
 		let mut ptrs = Vec::new();
+		let mut back = Vec::new();
 		let mut oks = Vec::new();
 		let mut err = String::new();
 		// Each out's type, in the order the C ABI lists them.
@@ -1792,12 +1840,13 @@ impl<'a> Gen<'a> {
 			Type::Tuple(elements) => elements.iter().collect(),
 			ok => vec![ok],
 		};
-		let types = types.into_iter().chain(err_ty);
-		for ((name, _), ty) in outs.iter().zip(types) {
+		let results = types.into_iter().chain(err_ty);
+		for (k, ((name, _), ty)) in outs.iter().zip(written.iter().copied().chain(results)).enumerate() {
 			decl.push(format!("let mut o_{name} = std::mem::MaybeUninit::zeroed();"));
 			ptrs.push(format!("o_{name}.as_mut_ptr()"));
 			let put = format!("{};", put(ty, &format!("o_{name}.assume_init()")));
 			match name.as_str() {
+				_ if k < written.len() => back.push(put),
 				"err" => err = put,
 				_ => oks.push(put),
 			}
@@ -1809,7 +1858,8 @@ impl<'a> Gen<'a> {
 			),
 			false => oks.join("\n\t\t"),
 		};
-		(decl.join("\n\t\t"), ptrs, write)
+		back.push(write);
+		(decl.join("\n\t\t"), ptrs, back.join("\n\t\t"))
 	}
 
 	/// Kotlin statements reading a result from the reader `r`: throwing its error, then
@@ -1827,6 +1877,40 @@ impl<'a> Gen<'a> {
 	}
 }
 
+/// The Kotlin parameter value of the value `e` of type `ty` read back: bytes, which a
+/// parameter takes as a `ByteArray`, copied out of each `Bytes` read, wherever they are.
+fn to_param(ty: &Type, e: &str) -> String {
+	match ty {
+		_ if !holds_bytes(ty) => e.to_string(),
+		Type::Slice | Type::Vec | Type::Bytes => format!("{e}.toByteArray()"),
+		Type::Box(inner) | Type::Ref(_, inner) => to_param(inner, e),
+		Type::Option(inner) => format!("{e}?.let {{ v -> {} }}", to_param(inner, "v")),
+		Type::List(_, inner) => format!("{e}.map {{ v -> {} }}", to_param(inner, "v")),
+		Type::Tuple(elements) => {
+			let converted: Vec<String> = (elements.iter().enumerate())
+				.map(|(k, ty)| to_param(ty, &format!("t.{}", ordinal(k))))
+				.collect();
+			let make = match elements.len() {
+				2 => "kotlin.Pair".to_string(),
+				3 => "kotlin.Triple".to_string(),
+				n => format!("Tuple{n}"),
+			};
+			format!("{e}.let {{ t -> {make}({}) }}", converted.join(", "))
+		}
+		_ => e.to_string(),
+	}
+}
+
+/// Whether `ty` holds bytes anywhere a parameter's form of it differs from a returned one's.
+fn holds_bytes(ty: &Type) -> bool {
+	match ty {
+		Type::Slice | Type::Vec | Type::Bytes => true,
+		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => holds_bytes(inner),
+		Type::Tuple(elements) => elements.iter().any(holds_bytes),
+		_ => false,
+	}
+}
+
 /// The glue's statement writing the C value `e` of IR type `ty`, which Rust returns: its
 /// bytes cross as their owner.
 fn put(ty: &Type, e: &str) -> String {
@@ -1840,7 +1924,7 @@ fn put(ty: &Type, e: &str) -> String {
 fn bytes(ty: &Type) -> bool {
 	match ty {
 		Type::Slice | Type::Vec | Type::Bytes => true,
-		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(inner) => bytes(inner),
+		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => bytes(inner),
 		_ => false,
 	}
 }
@@ -1850,7 +1934,7 @@ fn bytes(ty: &Type) -> bool {
 fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
 	match ty {
 		Type::Object(i) => !abi.api.objects[*i].copy,
-		Type::Option(inner) | Type::Box(inner) | Type::List(inner) => moved(abi, inner),
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
 		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
 		_ => false,
 	}
@@ -1894,7 +1978,7 @@ fn jni_type(c: &Ty, ty: &Type) -> (&'static str, &'static str) {
 		Ty::Handle { .. } | Ty::Future(_) => ("jlong", "Long"),
 		Ty::Buf => ("jbyteArray", "ByteArray?"),
 		Ty::Struct(_) if matches!(ty.base(), Type::Callback(..)) => ("jobject", "Any"),
-		Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => ("jbyteArray", "ByteArray"),
+		Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => ("jbyteArray", "ByteArray"),
 		Ty::Fn(..) => ("jobject", "Any"),
 		Ty::Waker => ("jobject", "Waker"),
 		Ty::Poll | Ty::Out(_) | Ty::Data => unreachable!("{c:?} never crosses JNI"),
@@ -1963,6 +2047,7 @@ pub(crate) fn rust_c(abi: &Abi<'_>, c: &Ty) -> String {
 		Ty::Char => "u32".to_string(),
 		Ty::Enum(_) => "i32".to_string(),
 		Ty::Buf => "crate::rt::Buf".to_string(),
+		Ty::U128 => "crate::rt::U128".to_string(),
 		Ty::Duration => "crate::rt::Duration".to_string(),
 		Ty::SocketAddr => "crate::rt::SocketAddr".to_string(),
 		Ty::Struct(name) => format!("crate::{name}"),
@@ -1985,6 +2070,17 @@ fn kt_int(int: Int) -> &'static str {
 		Int::I16 => "Short",
 		Int::I32 => "Int",
 		Int::I64 | Int::Isize => "Long",
+	}
+}
+
+/// The Rust integer of type `int` the JNI integer `e` holds: of the same width, or checked
+/// to fit a 32-bit target's `usize` and `isize`.
+fn from_jni(int: Int, e: &str) -> String {
+	match int {
+		// A `long` holds a `usize`'s bits.
+		Int::Usize => format!("rt::narrow::<usize, _>({e} as u64)"),
+		Int::Isize => format!("rt::narrow::<isize, _>({e})"),
+		_ => format!("{e} as {}", int.rust()),
 	}
 }
 

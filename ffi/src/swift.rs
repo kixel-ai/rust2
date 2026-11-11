@@ -68,6 +68,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\tstatic let file = \"{p}.swift\"\n\n\
 		\ttypealias Buf = {p}_buf\n\
 		\ttypealias CWaker = {p}_waker\n\
+		\ttypealias CU128 = {p}_u128\n\
 		\ttypealias CDuration = {p}_duration\n\
 		\ttypealias CAddr = {p}_socket_addr\n\n\
 		\tstatic func contract() -> Swift.Bool {{\n\t\t{p}_contract() == 0x{contract:016x} && {upper}_CONTRACT == 0x{contract:016x}\n\t}}\n\n\
@@ -117,6 +118,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 const TAKEN: &[&str] = &[
 	"Array",
 	"Bool",
+	"Comparable",
 	"CustomDebugStringConvertible",
 	"CustomStringConvertible",
 	"Data",
@@ -128,9 +130,11 @@ const TAKEN: &[&str] = &[
 	"OpaquePointer",
 	"Optional",
 	"Sendable",
+	"SocketAddr",
 	"StaticString",
 	"Swift",
 	"Task",
+	"U128",
 	"UInt",
 	"UInt16",
 	"UInt32",
@@ -228,6 +232,7 @@ impl<'a> Gen<'a> {
 	fn sw(&self, ty: &Type) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "Void".to_string(),
 			Type::Bool => "Swift.Bool".to_string(),
 			Type::Int(int) => sw_int(*int).to_string(),
@@ -236,9 +241,10 @@ impl<'a> Gen<'a> {
 			Type::Char => "Swift.Unicode.Scalar".to_string(),
 			Type::Str | Type::String | Type::Path | Type::PathBuf => "Swift.String".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => "Data".to_string(),
+			Type::U128 => "U128".to_string(),
 			Type::Duration => "Swift.Duration".to_string(),
 			Type::SocketAddr(_) => "SocketAddr".to_string(),
-			Type::List(inner) => format!("[{}]", self.sw(inner)),
+			Type::List(_, inner) => format!("[{}]", self.sw(inner)),
 			Type::Waker => "@escaping @Sendable () -> Void".to_string(),
 			Type::Option(inner) => format!("{}?", self.sw(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.sw(inner),
@@ -272,6 +278,7 @@ impl<'a> Gen<'a> {
 			Ty::F64 => "Swift.Double".to_string(),
 			Ty::Char => "Swift.UInt32".to_string(),
 			Ty::Buf => abi.rt("buf"),
+			Ty::U128 => abi.rt("u128"),
 			Ty::Duration => abi.rt("duration"),
 			Ty::SocketAddr => abi.rt("socket_addr"),
 			Ty::Struct(n) | Ty::Enum(n) => n.clone(),
@@ -298,7 +305,7 @@ impl<'a> Gen<'a> {
 		let api = self.abi.api;
 		match ty {
 			ty if Abi::is_buf(ty) => true,
-			Type::List(_) | Type::Object(_) => true,
+			Type::List(..) | Type::Object(_) => true,
 			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => self.arena(inner),
 			Type::Tuple(elements) => elements.iter().any(|e| self.arena(e)),
 			Type::Record(i) => api.records[*i].fields.iter().any(|f| self.arena(&f.ty)),
@@ -327,11 +334,12 @@ impl<'a> Gen<'a> {
 			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
 			Type::Int(int) => lower_int(*int, e),
 			Type::Char => format!("{e}.value"),
+			Type::U128 => format!("Native.u128({e})"),
 			Type::Duration => format!("Native.duration({e})"),
 			Type::SocketAddr(_) => format!("Native.socketAddr({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{e}._lower()"),
 			Type::Waker => format!("Native.waker({e})"),
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let x = self.fresh("x");
 				let item = self.lower(inner, &x);
 				format!(
@@ -342,7 +350,7 @@ impl<'a> Gen<'a> {
 			Type::Option(inner) => match inner.base() {
 				Type::Object(_) => format!("a_.hold({e}?.handle)"),
 				_ if Abi::is_buf(inner) => format!("a_.buf({e})"),
-				Type::List(elem) => {
+				Type::List(_, elem) => {
 					let v = self.fresh("v");
 					let some = self.lower(inner, &v);
 					format!("({e}.map {{ {v} in {some} }} ?? {}())", abi.list(elem))
@@ -384,10 +392,11 @@ impl<'a> Gen<'a> {
 			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
 			Type::Int(int) => lift_int(*int, e),
 			Type::Char => format!("Native.scalar({e})"),
+			Type::U128 => format!("Native.u128({e})"),
 			Type::Duration => format!("Native.duration({e})"),
 			Type::SocketAddr(_) => format!("Native.socketAddr({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{}._lift({e})", self.sw(ty)),
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let (v, c) = (self.fresh("v"), self.fresh("c"));
 				let item = self.lift(inner, &c);
 				format!(
@@ -401,7 +410,7 @@ impl<'a> Gen<'a> {
 				Type::Str | Type::String => format!("Native.string(option: {e})"),
 				Type::Path | Type::PathBuf => format!("Native.path(option: {e})"),
 				Type::Slice | Type::Vec | Type::Bytes => format!("Native.data(option: {e})"),
-				Type::List(_) => format!(
+				Type::List(..) => format!(
 					"({e}.ptr == nil ? nil : {} as {}?)",
 					self.lift(inner, e),
 					self.sw(inner)
@@ -923,7 +932,7 @@ impl<'a> Gen<'a> {
 					.collect();
 				closes.join("; ")
 			}
-			Type::List(inner) => {
+			Type::List(_, inner) => {
 				let v = self.fresh("v");
 				let close = self.close(inner, &v);
 				format!("for {v} in {e} {{ {close} }}")
@@ -1078,12 +1087,30 @@ impl<'a> Gen<'a> {
 			if let Type::Closure(..) = param.ty {
 				c_params.next().expect("a closure has its data");
 			}
-			params.push(format!("_ {name}: {}", self.sw(&param.ty)));
+			let inout = match param.ty.written() {
+				true => "inout ",
+				false => "",
+			};
+			params.push(format!("_ {name}: {inout}{}", self.sw(&param.ty)));
 			let (arg, needs) = self.arg(&param.ty, c, name, k, tr);
 			arena |= needs;
 			args.push(arg);
 		}
 		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		// Each value passed for `&mut` takes what Rust wrote back, once the call's own
+		// access to it ends, on every path, a throw included.
+		let mut written = Vec::new();
+		for (param, name) in function.params.iter().zip(&names).filter(|(p, _)| p.ty.written()) {
+			let out = Abi::written(function, &abi::escape(&param.name));
+			let (_, ty) = outs
+				.iter()
+				.find(|(n, _)| *n == out)
+				.expect("a written parameter has its out");
+			prelude.push(self.out_decl(&out, ty));
+			let lifted = self.lift(param.ty.base(), &format!("c_{out}_"));
+			prelude.push(format!("defer {{ {name} = {lifted} }}"));
+			written.push(out);
+		}
 		if arena {
 			prelude.insert(
 				1.min(prelude.len()),
@@ -1140,7 +1167,7 @@ impl<'a> Gen<'a> {
 			));
 		} else {
 			tail = None;
-			for (n, ty) in &outs {
+			for (n, ty) in outs.iter().filter(|(n, _)| !written.contains(n)) {
 				inner.push(self.out_decl(n, ty));
 			}
 			let mut call_args = exprs.clone();
@@ -1160,7 +1187,8 @@ impl<'a> Gen<'a> {
 					));
 				}
 				(None, Type::Unit) => inner.push(call),
-				(None, ok) if !outs.is_empty() => {
+				// A value C returns beside what Rust wrote back is its return, as with none.
+				(None, ok) if outs.iter().any(|(n, _)| !written.contains(n)) => {
 					inner.push(call);
 					inner.push(format!("return {}", self.lift_outs(&function.ok, ok)));
 				}
@@ -1314,7 +1342,7 @@ fn thrown_value(thrown: &Thrown, lifted: &str) -> String {
 fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
 	match ty {
 		Type::Object(i) => !abi.api.objects[*i].copy,
-		Type::Option(inner) | Type::Box(inner) | Type::List(inner) => moved(abi, inner),
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
 		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
 		_ => false,
 	}
@@ -1326,7 +1354,7 @@ fn strip_refs(ty: &Type) -> Type {
 		Type::Ref(_, inner) => strip_refs(inner),
 		Type::Option(inner) => Type::Option(Box::new(strip_refs(inner))),
 		Type::Box(inner) => Type::Box(Box::new(strip_refs(inner))),
-		Type::List(inner) => Type::List(Box::new(strip_refs(inner))),
+		Type::List(c, inner) => Type::List(*c, Box::new(strip_refs(inner))),
 		Type::Tuple(elements) => Type::Tuple(elements.iter().map(strip_refs).collect()),
 		ty => ty.clone(),
 	}
@@ -1518,4 +1546,33 @@ fn indent(code: &str) -> String {
 		out.pop();
 	}
 	out
+}
+
+#[cfg(test)]
+mod tests {
+	use super::{RUNTIME, TAKEN};
+
+	/// Each type the runtime declares at its top level, and each protocol one conforms to,
+	/// is a name no export may take, as either would clash with or shadow it.
+	#[test]
+	fn runtime_names_taken() {
+		for line in RUNTIME.lines() {
+			let Some(decl) = [
+				"public struct ",
+				"public final class ",
+				"public enum ",
+				"public protocol ",
+			]
+			.iter()
+			.find_map(|kind| line.strip_prefix(kind)) else {
+				continue;
+			};
+			let decl = decl.trim_end_matches('{').trim();
+			let (name, conforms) = decl.split_once(':').unwrap_or((decl, ""));
+			let names = std::iter::once(name).chain(conforms.split(','));
+			for name in names.map(str::trim).filter(|n| !n.is_empty() && !n.starts_with('@')) {
+				assert!(TAKEN.contains(&name), "the runtime's `{name}` is not in TAKEN");
+			}
+		}
+	}
 }

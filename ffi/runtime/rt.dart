@@ -34,6 +34,14 @@ final class SocketAddr {
       : '${address.address}:$port';
 }
 
+/// A value a call reads and writes back, as Rust's `&mut` of a value: the call leaves
+/// what Rust left in it, whether it returns or throws.
+final class Mut<T> {
+  T value;
+
+  Mut(this.value);
+}
+
 /// What a [Cancelable] completes with once cancelled.
 final class Cancelled implements Exception {
   const Cancelled();
@@ -168,6 +176,13 @@ final class _Buf extends ffi.Struct {
   @ffi.Size()
   external int len;
   external ffi.Pointer<ffi.Void> owner;
+}
+
+final class _U128 extends ffi.Struct {
+  @ffi.Uint64()
+  external int lo;
+  @ffi.Uint64()
+  external int hi;
 }
 
 final class _Duration extends ffi.Struct {
@@ -586,6 +601,18 @@ final class _Native {
   }
 
   String scalar(int code) => String.fromCharCode(code);
+
+  void u128(_U128 dst, BigInt value) {
+    if (value.isNegative || value.bitLength > 128) {
+      throw ArgumentError.value(value, 'value', "out of range for Rust's u128");
+    }
+    // Each half as the int that holds its 64 bits.
+    dst.lo = value.toSigned(64).toInt();
+    dst.hi = (value >> 64).toSigned(64).toInt();
+  }
+
+  BigInt u128Of(_U128 c) =>
+      BigInt.from(c.hi).toUnsigned(64) << 64 | BigInt.from(c.lo).toUnsigned(64);
 
   /// Rust's `Duration::MAX`, and any longer than Dart's longest, is that.
   static const _longest = Duration(microseconds: 0x7fffffffffffffff);
