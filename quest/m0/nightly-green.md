@@ -29,7 +29,7 @@ What failed on 2026-11-09 (run
   [#668](https://github.com/moq-dev/rust2/pull/668): the exporter now refuses every
   whole-crate `pub use` (`ffi/src/collect.rs`), and `ffi/moq/ffi.toml` excludes nine of
   the eleven at the pin but not hang's and moq-tokio's `pub use moq_net;`. Not yet run in
-  CI, since no nightly ran after the merge. [The pin bump](/quest/m1/ffi-export/refusals/moq-pin.md)
+  CI, since no nightly ran after the merge. [The pin bump](/quest/m1/ffi-refusals/moq-pin.md)
   removes them if it lands first.
 
 Open: what keeps it green. Recommended: the nightly's failure opens or updates one GitHub

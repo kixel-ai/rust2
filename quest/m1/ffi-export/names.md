@@ -12,7 +12,7 @@ its type, a Dart name the runtime declares) exports and is called from each.
 
 Found in the 2026-11-09 quest audit: these errors are raised by the generators, outside
 the census, so "the census lists no refusals" does not cover them, and once
-[the refusals epic](/quest/m1/ffi-export/refusals/README.md) deletes `ffi.toml` their
+[the refusals epic](/quest/m1/ffi-refusals/README.md) deletes `ffi.toml` their
 advice names a config that no longer exists. The sites: `kotlin.rs` (two types whose
 names match by case), `python.rs`, `cpp.rs`, `dart.rs`, `go.rs`, `swift.rs`, the C names'
 own registry (`audio_encoder::finish` against `audio::encoder_finish`), and

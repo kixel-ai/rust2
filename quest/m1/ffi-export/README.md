@@ -5,7 +5,7 @@
 moq can pin [rust2-ffi](/ffi/README.md) and switch its bindings to it: the exporter exports
 what moq's bindings need from moq's own crates, with no attributes, no config, and no
 hand-written wrapper beyond what the census shows is genuinely new API, in every language
-moq ships. It ends once every child has merged, the flake has an `ffi` package, and the
+moq ships. It ends once every child and blocker has merged, the flake has an `ffi` package, and the
 root `README.md` lists the generators, which is what
 [moq's wait](https://github.com/moq-dev/moq/blob/main/quest/m3/rust2-exporter.md) checks.
 
@@ -86,3 +86,7 @@ arenas keep under Go's lent `Bytes` is the consumer's to fix with its global all
 
 Decided with the maintainer on 2026-11-04: the exporter is configless, with opinionated
 names and defaults, and fails the export on a public item it cannot export.
+
+## Required
+
+- [Refusals](/quest/m1/ffi-refusals/README.md) - the epic that exports or leaves out every item the census refuses, which this epic ends on

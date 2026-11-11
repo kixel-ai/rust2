@@ -23,7 +23,7 @@ a parameter whose bounds name an earlier one, as `track`'s `impl Into<Option<R>>
 chosen at each choice of it; `impl io::Read` takes bytes and `impl IntoIterator<Item = &X>` a
 slice; `Bytes` and `Duration` are type arguments; and a trait C cannot implement is left out
 and listed in the census. moq-mux's `codec::annexb::build_prefix` exports once moq stops
-re-exporting `bytes` whole, as [moq-pin](/quest/m1/ffi-export/refusals/moq-pin.md) has it,
+re-exporting `bytes` whole, as [moq-pin](/quest/m1/ffi-refusals/moq-pin.md) has it,
 since the re-export makes `Bytes` a handle.
 
 ## Waiting
