@@ -339,7 +339,11 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			.filter(|&(level, filter)| {
 				!c.exported(level.krate) && !c.items.iter().any(|(item, _)| *item == level || *item == filter)
 			})
-			.map(|(level, filter)| Level { level, filter, index: 0 });
+			.map(|(level, filter)| Level {
+				level,
+				filter,
+				index: 0,
+			});
 		c.infer();
 		c.declare();
 		c.define();
@@ -1453,7 +1457,12 @@ impl<'tcx> Collector<'tcx> {
 			span,
 			docs: docs.to_string(),
 			sync: true,
-			copy: implements(tcx, tcx.type_of(def_id).instantiate_identity().skip_norm_wip(), def_id, sym::Copy),
+			copy: implements(
+				tcx,
+				tcx.type_of(def_id).instantiate_identity().skip_norm_wip(),
+				def_id,
+				sym::Copy,
+			),
 			shared: traits.clone
 				&& self.clone_shares(tcx.type_of(def_id).instantiate_identity().skip_norm_wip(), def_id),
 			lifetimes: 0,
@@ -3497,7 +3506,9 @@ impl<'tcx> Collector<'tcx> {
 		// Whether core's or alloc's impl of `method` is the one `ty` runs, or for one of
 		// serde_json's iterators, serde_json's.
 		let by_std = |method, ty: Ty<'tcx>| {
-			let ours = |krate| std(krate) || matches!(ty.kind(), ty::Adt(adt, _) if json(adt.did().krate) && krate == adt.did().krate);
+			let ours = |krate| {
+				std(krate) || matches!(ty.kind(), ty::Adt(adt, _) if json(adt.did().krate) && krate == adt.did().krate)
+			};
 			ty::Instance::try_resolve(tcx, env, method, tcx.mk_args(&[ty.into()]))
 				.is_ok_and(|instance| instance.is_some_and(|instance| ours(instance.def_id().krate)))
 		};
