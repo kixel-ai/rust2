@@ -10,9 +10,11 @@ import java.util.concurrent.Executor
 import kotlin.concurrent.thread
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -626,6 +628,55 @@ fun futures() {
 		q.drain()
 		check(got == "held", "a closed handle stays held by the call awaiting on it")
 		sender.close()
+	}
+
+	// Suspending lambdas Rust polls as futures, each launched in the caller's context.
+	run {
+		val ran = mutableListOf<String>()
+		var got = 0u
+		scope.launch { got = after({ ran += "ready" }, 4u) }
+		q.drain()
+		check(got == 8u && ran == listOf("ready"), "Rust awaits a suspending lambda")
+	}
+	run {
+		val gate = CompletableDeferred<Unit>()
+		var got = 0u
+		scope.launch { got = after({ gate.await() }, 5u) }
+		q.drain()
+		check(got == 0u, "Rust waits on a lambda that suspends")
+		gate.complete(Unit)
+		q.drain()
+		check(got == 10u, "a lambda's end wakes Rust")
+	}
+	run {
+		var error: ErrorException? = null
+		var ran = false
+		scope.launch {
+			try {
+				within(0u) { ran = true }
+			} catch (e: ErrorException) {
+				error = e
+			}
+		}
+		q.drain()
+		check(error != null && !ran, "Rust gives up on a lambda before it starts, which never runs")
+	}
+	run {
+		var cancelled = false
+		val job = scope.launch {
+			within(1000u) {
+				try {
+					awaitCancellation()
+				} finally {
+					cancelled = true
+				}
+			}
+		}
+		q.drain()
+		check(!cancelled, "a lambda Rust polls runs until Rust drops it")
+		job.cancel()
+		q.drain()
+		check(cancelled, "cancelling the call cancels the lambda Rust polls")
 	}
 	println("futures ok")
 }

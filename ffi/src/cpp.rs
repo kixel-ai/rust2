@@ -121,7 +121,7 @@ impl<'a> Header<'a> {
 			Type::Enum(i) => self.q(&abi.enumeration(*i)),
 			Type::Object(i) => self.q(&abi.object(*i)),
 			Type::Callback(i, _) => format!("::std::unique_ptr<{}>", self.q(&abi.callback(*i))),
-			Type::Closure(..) => unreachable!("a closure is a template parameter"),
+			Type::Closure(..) | Type::Future => unreachable!("{ty:?} is a template parameter"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => self.q(&abi.range(ty)),
 			Type::Tuple(elements) => {
 				let elements: Vec<String> = elements.iter().map(|e| self.owned(e)).collect();
@@ -292,7 +292,7 @@ impl<'a> Header<'a> {
 			Type::Object(i) if abi.api.objects[*i].copy => format!("{d}::access::raw({e})"),
 			Type::Object(_) => format!("{d}::access::own({e})"),
 			Type::Callback(..) => format!("{d}::lower(::std::move({e}))"),
-			Type::Closure(..) => unreachable!("a closure lowers to its trampoline"),
+			Type::Closure(..) | Type::Future => unreachable!("{ty:?} lowers through its template parameter"),
 			Type::Str | Type::String | Type::Slice | Type::Vec | Type::Bytes | Type::Path | Type::PathBuf => {
 				unreachable!("a buffer is above")
 			}
@@ -425,7 +425,7 @@ impl<'a> Header<'a> {
 		);
 		self.line(format!("namespace {ns} {{\n"));
 		self.line(format!(
-			"namespace detail {{\n\nusing c_buf = ::{p}_buf;\nusing c_waker = ::{p}_waker;\n\ninline void c_buf_free(c_buf buf) noexcept {{\n\t::{p}_buf_free(buf);\n}}\n\n}} // namespace detail\n"
+			"namespace detail {{\n\nusing c_buf = ::{p}_buf;\nusing c_waker = ::{p}_waker;\nusing c_foreign_future = ::{p}_foreign_future;\n\ninline void c_buf_free(c_buf buf) noexcept {{\n\t::{p}_buf_free(buf);\n}}\n\n}} // namespace detail\n"
 		));
 		self.out.push_str(RUNTIME);
 		self.line(format!(
@@ -1152,6 +1152,14 @@ impl<'a> Header<'a> {
 				self.globals.contains(name) || members.iter().chain(&names).any(|n| n == name)
 			});
 			names.push(name.clone());
+			// Any future of nothing, such as a binding's `future` of `void`, moved in.
+			if let Type::Future = param.ty {
+				let f = format!("F{}", templates.len());
+				params.push(format!("{f} {name}"));
+				args.push(format!("{d}::foreign_future(::std::move({name}))"));
+				templates.push(format!("class {f}"));
+				continue;
+			}
 			if let (Type::Closure(lent, ret), Ty::Fn(c_lent, c_ret)) = (&param.ty, c_ty) {
 				c_params.next().expect("a closure has its data");
 				let f = format!("F{}", templates.len());
@@ -1242,6 +1250,11 @@ impl<'a> Header<'a> {
 		));
 		let mut text = function.docs.clone();
 		for (param, name) in function.params.iter().zip(&names) {
+			if let Type::Future = param.ty {
+				text.push_str(&format!(
+					"\n\nRust polls `{name}` from any thread until it is ready, and destroys it once done with it."
+				));
+			}
 			if let Type::Closure(lent, _) = &param.ty {
 				text.push_str(&format!(
 					"\n\nRust calls `{name}` only during the call, from any thread."

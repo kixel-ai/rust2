@@ -408,6 +408,80 @@ class Signal : java.util.concurrent.atomic.AtomicReference<Any?>(null), Waker {
 }
 
 /**
+ * A suspend function Rust polls as a future, one poll at a time from any thread: its first
+ * poll launches it in [context], apart from that context's job, since Rust decides when it
+ * ends, and never in place, since a poll runs inside Rust. Once it returns, the latest
+ * poll's waker is woken; if it throws, the next poll rethrows, which aborts as a callback
+ * that throws does. Rust closes it once it drops it, which cancels it.
+ */
+class Pollable(
+	private val body: suspend () -> Unit,
+	private val context: kotlin.coroutines.CoroutineContext,
+) : AutoCloseable {
+	private var job: kotlinx.coroutines.Job? = null
+	private var done = false
+	private var failure: Throwable? = null
+	// The latest poll's waker, a pointer to Rust's, or 0.
+	private var waker = 0L
+
+	fun poll(given: Long): Boolean {
+		val old: Long
+		synchronized(this) {
+			failure?.let { throw it }
+			if (done) {
+				__rust_drop(given)
+				return true
+			}
+			old = waker
+			waker = given
+			if (job == null) job = kotlinx.coroutines.CoroutineScope(dispatched()).launch { run() }
+		}
+		if (old != 0L) __rust_drop(old)
+		return false
+	}
+
+	/** [context] without its job, on a dispatcher that defers, as [Signal] resumes on. */
+	private fun dispatched(): kotlin.coroutines.CoroutineContext {
+		val bare = context.minusKey(kotlinx.coroutines.Job)
+		val dispatcher = bare[kotlin.coroutines.ContinuationInterceptor] as? kotlinx.coroutines.CoroutineDispatcher
+		return when {
+			dispatcher != null && dispatcher !== kotlinx.coroutines.Dispatchers.Unconfined && dispatcher.isDispatchNeeded(bare) -> bare
+			else -> bare + kotlinx.coroutines.Dispatchers.Default
+		}
+	}
+
+	private suspend fun run() {
+		try {
+			body()
+		} catch (e: kotlinx.coroutines.CancellationException) {
+			throw e
+		} catch (e: Throwable) {
+			synchronized(this) { failure = e }
+		}
+		val w: Long
+		synchronized(this) {
+			done = true
+			w = waker
+			waker = 0L
+		}
+		if (w != 0L) {
+			__rust_wake(w)
+			__rust_drop(w)
+		}
+	}
+
+	override fun close() {
+		val w: Long
+		synchronized(this) {
+			w = waker
+			waker = 0L
+		}
+		job?.cancel()
+		if (w != 0L) __rust_drop(w)
+	}
+}
+
+/**
  * Await the future the call that returned [first] made and polled once with [signal]:
  * poll it until it finishes, then lift its result. A cancel frees it, which cancels it in
  * Rust and loses nothing.

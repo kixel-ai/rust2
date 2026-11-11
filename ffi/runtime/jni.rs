@@ -494,6 +494,55 @@ pub unsafe fn poll(env: *mut JNIEnv, future: *mut c_void, node: *mut Node, poll:
 	}
 }
 
+static POLL: OnceLock<usize> = OnceLock::new();
+
+/// A Kotlin `Pollable` as the future Rust polls, which Rust closes once it drops it.
+pub fn future(env: *mut JNIEnv, pollable: jobject) -> rt::ForeignFuture {
+	rt::ForeignFuture {
+		poll: Some(poll_future),
+		free: Some(free_callback),
+		data: global(env, pollable),
+	}
+}
+
+/// Poll a Kotlin `Pollable`, from any thread, handing it Rust's waker behind a pointer,
+/// which it wakes with [`wake_rust`] and drops once with [`drop_rust`].
+unsafe extern "C" fn poll_future(data: *mut c_void, waker: rt::Waker) -> bool {
+	let waker = Box::into_raw(Box::new(waker)) as usize as jlong;
+	upcall("poll", |env| {
+		let id = method(env, &POLL, c"__poll", c"(Ljava/lang/Object;J)Z");
+		let args = [jvalue { l: data.cast() }, jvalue { j: waker }];
+		// SAFETY: `__poll` takes the `Pollable` and the waker's pointer.
+		unsafe { ((**env).v1_2.CallStaticBooleanMethodA)(env, class(), id, args.as_ptr()) }
+	})
+}
+
+/// Wake the waker [`poll_future`] handed Kotlin, from any thread.
+///
+/// # Safety
+/// `waker` came from [`poll_future`], and is not yet dropped.
+pub unsafe fn wake_rust(waker: jlong) {
+	// SAFETY: the caller's contract.
+	let waker = unsafe { &*(waker as usize as *const rt::Waker) };
+	if let Some(wake) = waker.wake {
+		// SAFETY: the waker's contract.
+		unsafe { wake(waker.data) };
+	}
+}
+
+/// Drop the waker [`poll_future`] handed Kotlin, from any thread.
+///
+/// # Safety
+/// `waker` came from [`poll_future`], and is dropped once.
+pub unsafe fn drop_rust(waker: jlong) {
+	// SAFETY: the caller's contract.
+	let waker = unsafe { Box::from_raw(waker as usize as *mut rt::Waker) };
+	if let Some(drop) = waker.drop {
+		// SAFETY: the waker's contract; this is its last use.
+		unsafe { drop(waker.data) };
+	}
+}
+
 /// A Kotlin `Waker` passed by value: Rust holds its only reference.
 pub fn waker(env: *mut JNIEnv, waker: jobject) -> rt::Waker {
 	lend(node(env, waker))

@@ -493,6 +493,51 @@ public:
 	friend struct detail::access;
 };
 
+namespace detail {
+
+// A waker Rust made, held by the C++ waker around it: the last copy drops it.
+class rust_waker {
+	c_waker raw_;
+
+public:
+	explicit rust_waker(c_waker raw) noexcept : raw_(raw) {}
+	rust_waker(rust_waker &&other) noexcept : raw_(::std::exchange(other.raw_, c_waker{})) {}
+	rust_waker(const rust_waker &) = delete;
+	rust_waker &operator=(const rust_waker &) = delete;
+	rust_waker &operator=(rust_waker &&) = delete;
+	~rust_waker() {
+		if (raw_.drop != nullptr) {
+			raw_.drop(raw_.data);
+		}
+	}
+
+	void operator()() const noexcept {
+		if (raw_.wake != nullptr) {
+			raw_.wake(raw_.data);
+		}
+	}
+};
+
+// `f`, any future of nothing, such as a binding's `future` of `void`, as the future Rust
+// polls: from any thread, with a waker of its own each time, until its `poll` returns
+// true, and destroyed once Rust drops it, finished or not.
+template <class F>
+c_foreign_future foreign_future(F f) {
+	static_assert(::std::is_same_v<decltype(f.poll(::std::declval<const waker &>())), bool>,
+	              "a future Rust polls has `bool poll(const waker &)`, as a future of void does");
+	struct calls {
+		static bool poll(void *data, c_waker w) noexcept {
+			return static_cast<F *>(data)->poll(waker(rust_waker(w)));
+		}
+		static void free(void *data) noexcept {
+			delete static_cast<F *>(data);
+		}
+	};
+	return c_foreign_future{&calls::poll, &calls::free, new F(::std::move(f))};
+}
+
+} // namespace detail
+
 // What a future poll returns: the output when ready, or nothing yet.
 template <class T>
 using poll_t = ::std::conditional_t<::std::is_void_v<T>, bool, ::std::optional<T>>;

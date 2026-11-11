@@ -10,9 +10,12 @@
 #include <cstring>
 #include <deque>
 #include <functional>
+#include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
+#include <variant>
 #include <vector>
 #if __has_include(<version>)
 #include <version>
@@ -955,7 +958,72 @@ int check(bool ok, const char *what) {
 	return 0;
 }
 
+// A future C++ implements, which Rust polls: ready on its `ready`th poll, keeping the
+// waker of the last in what it shares with the test.
+struct countdown {
+	struct state {
+		int ready;
+		int polls = 0;
+		std::optional<api::waker> waker;
+		explicit state(int r) : ready(r) {}
+	};
+	std::shared_ptr<state> s;
+
+	bool poll(const api::waker &w) {
+		if (++s->polls >= s->ready) {
+			s->waker.reset();
+			return true;
+		}
+		s->waker = w;
+		return false;
+	}
+};
+
+int foreign_futures() {
+	// Ready at once.
+	{
+		auto s = std::make_shared<countdown::state>(1);
+		check(api::after(countdown{s}, 4).get() == 8 && s->polls == 1, "a future C++ implements is awaited");
+		check(s.use_count() == 1, "Rust destroys a future C++ implements once done with it");
+	}
+	// Pending once: its wake reaches the waker Rust was polled with.
+	{
+		auto s = std::make_shared<countdown::state>(2);
+		api::after_future after = api::after(countdown{s}, 5);
+		int woken = 0;
+		api::waker waker([&]() { woken++; });
+		check(!after.poll(waker) && s->waker, "a future C++ implements pends");
+		s->waker->wake();
+		check(woken == 1, "its wake reaches Rust's poller");
+		auto got = after.poll(waker);
+		check(got && *got == 10 && s.use_count() == 1, "it finishes once polled again, and is destroyed");
+	}
+	// Never ready: Rust gives up on it, destroying it with the waker it kept.
+	{
+		auto s = std::make_shared<countdown::state>(1000);
+		auto got = api::within(0, countdown{s}).get();
+		check(!got && std::holds_alternative<api::Error_Overflow>(got.error()), "Rust gives up on a future C++ implements");
+		check(s.use_count() == 1 && s->polls == 1, "and destroys it");
+	}
+	// A binding's future of void is one too.
+	{
+		api::Channel channel = api::Channel::new_();
+		check(api::after(channel.send_later("passed"), 6).get() == 12, "a binding's future of void passes to Rust");
+		check(channel.recv().get().str() == "passed", "the future Rust polled ran");
+	}
+	// Ready in time, by a second poll.
+	{
+		auto s = std::make_shared<countdown::state>(2);
+		api::within_future within = api::within(1, countdown{s});
+		api::waker waker([]() {});
+		check(!within.poll(waker), "a future C++ implements pends once");
+		check(within.poll(waker) && s->polls == 2, "a future C++ implements finishes in time");
+	}
+	return 0;
+}
+
 int futures() {
+	foreign_futures();
 	api::Channel channel = api::Channel::new_();
 
 	// Blocking: the send lands from another thread while it waits.

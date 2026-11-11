@@ -743,7 +743,63 @@ func futures() {
 		q.drain()
 		check(got.value == "held", "the call awaiting on an object holds it")
 	}
+
+	// Async closures Rust polls as futures, each run as a task of its own.
+	do {
+		let ran = Cell(false)
+		check(block { try await after({ ran.value = true }, 4) } == 8 && ran.value, "Rust awaits an async closure")
+	}
+	do {
+		let (stream, gate) = AsyncStream<Void>.makeStream()
+		let got = Cell<UInt32>(0)
+		q.launch { got.value = try await after({ for await _ in stream { break } }, 5) }
+		q.drain()
+		check(got.value == 0, "Rust waits on an async closure that waits")
+		gate.yield(())
+		until { q.drain(); return got.value != 0 }
+		check(got.value == 10, "an async closure's end wakes Rust")
+	}
+	do {
+		let threw = Cell(false)
+		q.launch {
+			do {
+				try await within(0) {}
+			} catch is Api.Error {
+				threw.value = true
+			}
+		}
+		q.drain()
+		check(threw.value, "Rust gives up on an async closure")
+	}
+	do {
+		let started = Cell(false)
+		let cancelled = Cell(false)
+		let task = q.launch {
+			try await within(1000) {
+				started.value = true
+				do {
+					try await Task.sleep(nanoseconds: 60_000_000_000)
+				} catch {
+					cancelled.value = true
+				}
+			}
+		}
+		q.drain()
+		until { started.value }
+		task.cancel()
+		q.drain()
+		until { cancelled.value }
+		check(cancelled.value, "cancelling the call cancels the async closure's task")
+	}
 	print("futures ok")
+}
+
+/// Wait up to five seconds for `done`, which another thread makes true.
+func until(_ done: () -> Bool) {
+	let deadline = Date().addingTimeInterval(5)
+	while !done() && Date() < deadline {
+		usleep(1000)
+	}
 }
 
 // What frees an object or bytes: Swift's release of the last reference, at once. Returned

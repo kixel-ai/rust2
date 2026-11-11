@@ -753,6 +753,31 @@ Future<void> futures() async {
   final log = CountLog();
   check(await api.logLater(log), 'the future returns what its log kept');
   check(log.lines == 1 && log.closes == 1, 'a finished future closes the implementation it held');
+
+  // Dart futures Rust polls, whose completion wakes it.
+  var ran = false;
+  check(await api.after(Future(() => ran = true), 4) == 8 && ran, 'Rust awaits a Dart future');
+  final gate = Completer<void>();
+  var after = 0;
+  final doubled = api.after(gate.future, 5).then((value) => after = value);
+  await step();
+  await step();
+  check(after == 0, 'Rust waits on a Dart future');
+  gate.complete();
+  await within(doubled, "a Dart future's completion wakes Rust");
+  check(after == 10, "a Dart future's completion wakes Rust");
+
+  // Given up on, a call into Rust passed back as a Dart future is cancelled.
+  final kept = api.Channel();
+  final recv = kept.recv();
+  try {
+    await api.within(0, recv);
+    check(false, 'Rust gives up on a Dart future');
+  } on api.Error catch (e) {
+    check(e is api.ErrorOverflow, 'Rust gives up on a Dart future');
+  }
+  await cancelled(recv, "Rust's drop of a call into Rust it was given cancels it");
+  kept.close();
   print('futures ok');
 }
 

@@ -1,6 +1,7 @@
 // What each generated package converts its C types with, which cgo makes its own, after
-// the generated code names the export's C types as cBuf, cWaker, cU128, cDuration, and cAddr, its
-// buffer's free as cBufFree, and the runtime's callbacks into Go as goCall and goRelease:
+// the generated code names the export's C types as cBuf, cWaker, cForeignFuture, cU128,
+// cDuration, and cAddr, its buffer's free as cBufFree, and the runtime's callbacks into Go
+// as goCall, goRelease, and goPoll:
 // the arena a call lowers nested values into, values across the C ABI, and what a future
 // waits on.
 
@@ -340,6 +341,13 @@ func lent_(p unsafe.Pointer) any {
 // waker_ is wake as a waker Rust holds until it drops it, calling it from any thread.
 func waker_(wake func()) cWaker {
 	return cWaker{wake: goCall, drop: goRelease, data: give_(wake)}
+}
+
+// future_ is run as the future Rust polls, from any thread: its first poll runs it on a
+// goroutine of its own, whose context Rust cancels once it drops the future, finished or
+// not.
+func future_(run func(context.Context)) cForeignFuture {
+	return cForeignFuture{poll: goPoll, free: goRelease, data: give_(rt.Pollable_(run))}
 }
 
 // await_ polls a future until poll reports it finished, returning its error, or ctx's

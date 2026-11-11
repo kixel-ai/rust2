@@ -366,6 +366,8 @@ pub struct Scope {
 	/// happens.
 	given: Vec<Obj>,
 	nodes: Vec<rt::Waker>,
+	/// Awaitables given to Rust, freed unless the call happens.
+	futures: Vec<rt::ForeignFuture>,
 }
 
 impl Scope {
@@ -389,6 +391,7 @@ impl Scope {
 			given.into_ptr();
 		}
 		self.nodes.clear();
+		self.futures.clear();
 	}
 
 	/// The handles held, which a future keeps until it ends.
@@ -403,6 +406,19 @@ impl Drop for Scope {
 		while let Some(waker) = self.nodes.pop() {
 			// SAFETY: a reference the call never took.
 			unsafe { node_drop(waker.data) };
+		}
+		if !self.futures.is_empty() {
+			// SAFETY: the GIL is held. The exception that failed the call is kept aside
+			// while the frees run Python, and put back after.
+			unsafe {
+				let (mut kind, mut value, mut trace) = (null_mut(), null_mut(), null_mut());
+				PyErr_Fetch(&mut kind, &mut value, &mut trace);
+				while let Some(future) = self.futures.pop() {
+					// An awaitable the call never took.
+					pollable_free(future.data);
+				}
+				PyErr_Restore(kind, value, trace);
+			}
 		}
 		while let Some(lent) = self.lent.pop() {
 			// SAFETY: an object [`lent`] made.
@@ -423,10 +439,12 @@ static TYPES: Gil<Vec<Obj>> = Gil::new(Vec::new());
 static MEMBERS: Gil<Vec<Option<Vec<(i64, Obj)>>>> = Gil::new(Vec::new());
 
 /// The runtime's entries, at the start of the registry: the awaitable a pending future
-/// is, `datetime.timedelta`, and `_resume`, which schedules the running loop's dispatch.
+/// is, `datetime.timedelta`, `_resume`, which schedules the running loop's dispatch, and
+/// `_Pollable`, which runs an awaitable Rust polls.
 pub const T_FUTURE: usize = 0;
 const T_TIMEDELTA: usize = 1;
 const T_RESUME: usize = 2;
+const T_POLLABLE: usize = 3;
 
 /// The class registered at `index`.
 pub fn ty(index: usize) -> *mut PyObject {
@@ -1711,6 +1729,148 @@ pub fn waker_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Waker> {
 	let waker = node.give();
 	s.nodes.push(waker);
 	Ok(waker)
+}
+
+/// Drop a waker Rust gave.
+fn drop_waker(waker: rt::Waker) {
+	if let Some(drop) = waker.drop {
+		// SAFETY: the waker's contract; this is its last use.
+		unsafe { drop(waker.data) };
+	}
+}
+
+/// What an awaitable Rust polls shares with the callable its task calls once it ends.
+struct Ended {
+	done: AtomicBool,
+	/// The latest poll's waker, which the end wakes.
+	waker: Mutex<Option<rt::Waker>>,
+}
+
+// SAFETY: a waker may be woken and dropped from any thread.
+unsafe impl Send for Ended {}
+// SAFETY: as above, and the mutex guards it.
+unsafe impl Sync for Ended {}
+
+impl Ended {
+	/// The latest poll's waker, taken out.
+	fn take(&self) -> Option<rt::Waker> {
+		self.waker.lock().unwrap_or_else(|e| e.into_inner()).take()
+	}
+}
+
+/// A `_Pollable` Rust polls as a future: its first poll starts it.
+struct Pollable {
+	obj: Obj,
+	ended: Arc<Ended>,
+	started: bool,
+}
+
+static ENDED_METHODS: Methods<2> = Methods(UnsafeCell::new([onearg(c"ended", pollable_ended), END]));
+
+/// An awaitable passed by value, as `_Pollable` runs it on the running event loop: Rust
+/// polls it and frees it, or the scope does if the call never happens.
+pub fn future_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::ForeignFuture> {
+	// SAFETY: the GIL is held, and `obj` is live.
+	let obj = call_py(ty(T_POLLABLE), vec![Ok(unsafe { Obj::borrowed(obj) })])?;
+	let pollable = Box::new(Pollable {
+		obj,
+		ended: Arc::new(Ended {
+			done: AtomicBool::new(false),
+			waker: Mutex::new(None),
+		}),
+		started: false,
+	});
+	let future = rt::ForeignFuture {
+		poll: Some(pollable_poll),
+		free: Some(pollable_free),
+		data: Box::into_raw(pollable).cast(),
+	};
+	s.futures.push(future);
+	Ok(future)
+}
+
+/// Poll an awaitable from any thread: the first poll starts its task.
+unsafe extern "C" fn pollable_poll(data: *mut c_void, waker: rt::Waker) -> bool {
+	// SAFETY: Rust polls it one poll at a time, and frees it after the last.
+	let pollable = unsafe { &mut *data.cast::<Pollable>() };
+	if pollable.ended.done.load(Ordering::Acquire) {
+		drop_waker(waker);
+		return true;
+	}
+	let old = pollable.ended.waker.lock().unwrap_or_else(|e| e.into_inner()).replace(waker);
+	if let Some(old) = old {
+		drop_waker(old);
+	}
+	if !pollable.started {
+		pollable.started = true;
+		upcall("poll", || {
+			let ended = Box::into_raw(Box::new(pollable.ended.clone()));
+			// SAFETY: the GIL is held; the capsule owns `ended` until it is collected.
+			let capsule = unsafe { Obj::new(PyCapsule_New(ended.cast(), null(), Some(ended_free))) }?;
+			// SAFETY: as above; the method table lives for the interpreter's life.
+			let ended = unsafe { Obj::new(PyCMethod_New(ENDED_METHODS.ptr(), capsule.ptr(), null_mut(), null_mut())) }?;
+			call_method(pollable.obj.ptr(), &START, vec![Ok(ended)]).map(drop)
+		});
+	}
+	// It may have ended before the waker was in place, which it then never woke.
+	if pollable.ended.done.load(Ordering::Acquire) {
+		if let Some(waker) = pollable.ended.take() {
+			drop_waker(waker);
+		}
+		return true;
+	}
+	false
+}
+
+/// Free an awaitable Rust polled, from any thread, cancelling its task.
+unsafe extern "C" fn pollable_free(data: *mut c_void) {
+	// SAFETY: Rust frees it once.
+	let pollable = unsafe { Box::from_raw(data.cast::<Pollable>()) };
+	if let Some(waker) = pollable.ended.take() {
+		drop_waker(waker);
+	}
+	upcall("free", || {
+		call_method(pollable.obj.ptr(), &CLOSE, Vec::new())?;
+		drop(pollable);
+		Ok(())
+	});
+}
+
+unsafe extern "C" fn ended_free(capsule: *mut PyObject) {
+	// SAFETY: the capsule holds what `pollable_poll` boxed.
+	drop(unsafe { Box::from_raw(PyCapsule_GetPointer(capsule, null()).cast::<Arc<Ended>>()) });
+}
+
+static CANCELLED: Key = Key::new(c"cancelled");
+static RESULT: Key = Key::new(c"result");
+
+/// `ended(task)`: the awaitable's task finished, on its loop. One cancelled ended as Rust
+/// dropped it; one that raised aborts, as a callback that raises does.
+unsafe extern "C" fn pollable_ended(capsule: *mut PyObject, task: *mut PyObject) -> *mut PyObject {
+	// SAFETY: the capsule holds what `pollable_poll` boxed, until it is collected.
+	let ended = unsafe { &*PyCapsule_GetPointer(capsule, null()).cast::<Arc<Ended>>() };
+	let cancelled = call_method(task, &CANCELLED, Vec::new())
+		// SAFETY: the GIL is held.
+		.map(|c| unsafe { PyObject_IsTrue(c.ptr()) } == 1);
+	match cancelled {
+		Ok(true) => {}
+		cancelled => {
+			if cancelled.and_then(|_| call_method(task, &RESULT, Vec::new())).is_err() {
+				// SAFETY: the GIL is held, and an exception is set.
+				unsafe { PyErr_Print() };
+				rt::fail("ended", "a future Rust polls raised");
+			}
+			ended.done.store(true, Ordering::Release);
+			if let Some(waker) = ended.take() {
+				if let Some(wake) = waker.wake {
+					// SAFETY: the waker's contract.
+					unsafe { wake(waker.data) };
+				}
+				drop_waker(waker);
+			}
+		}
+	}
+	none().map_or(null_mut(), Obj::into_ptr)
 }
 
 /// Poll a future once with a waker, returning its value once it finishes.

@@ -1,30 +1,17 @@
-# [L] Futures and kept closures as parameters export
+# [L] Kept closures, a borrowed future, and a seeking reader export
 
 ## Goal
 
-The census at the moq pin refuses no item of moq's own for a future or a kept closure
-taken as a parameter, or a reader it seeks: 11 items at moq `ffcb7cd9`, once
-[moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683) drops the moq-tokio items
-outside its session side.
+The census at the moq pin refuses none of the four items left for a kept closure, a
+borrowed future, or a reader it seeks:
 
-- A future parameter: kio's `Waiter::poll_future`, `clock::timeout`, and
-  `clock::timeout_at`, and moq-tokio's `panic::isolate` and `server::Request::within`.
-- A closure kept past the call: kio's `clock::drive` and `wait`, and `Waiter::batch`, whose
-  lent closure returns a type parameter.
+- kio's `clock::drive`, which keeps an
+  `impl FnMut(Instant, &Waiter) -> Result<Option<Instant>, E> + Unpin` until it fails.
+- kio's `Waiter::batch`, whose lent `impl FnOnce() -> R` returns a type parameter.
+- kio's `Waiter::poll_future`, which polls a `Pin<&mut F>` of an `F: Future + ?Sized`.
 - moq-mux's `container::mp4::repair`, which seeks a `&mut impl Read + Seek`.
-- moq-tokio's `panic::message`, which takes a `&(dyn Any + Send)` panic payload, and
-  `tls::Serve::resolver`, which takes rustls's `Arc<dyn ResolvesServerCert>`.
 
 ## Plan
-
-Generic parameters and traits already export: a parameter bounded by a blanket impl's trait,
-as `Client::connect`'s `Boxable` is, exports at each type implementing what the impl requires;
-a parameter whose bounds name an earlier one, as `track`'s `impl Into<Option<R>>` does, is
-chosen at each choice of it; `impl io::Read` takes bytes and `impl IntoIterator<Item = &X>` a
-slice; `Bytes` and `Duration` are type arguments; and a trait C cannot implement is left out
-and listed in the census. moq-mux's `codec::annexb::build_prefix` exports once moq stops
-re-exporting `bytes` whole, as [moq-pin](/quest/m1/ffi-refusals/moq-pin.md) has it,
-since the re-export makes `Bytes` a handle.
 
 Decided 2026-11-11 (maintainer, /quest-unblock): ✅ (a) the exporter gains a foreign future (a
 poll function, its data, and `free`, the inverse of the futures it returns) and a kept closure
@@ -35,15 +22,23 @@ drop. The maintainer dislikes callbacks and closures in an API, so a moq quest f
 closure-free API is planned separately only if research finds a simpler one; it does not gate
 this quest.
 
-Found on 2026-11-11 at moq's `main` `d528b675`, four of the eleven leave without (a):
+The foreign future landed in [moq-dev/rust2#705](https://github.com/moq-dev/rust2/pull/705):
+a type parameter bounded by `Future` or `IntoFuture` of `()` is
+`Pin<Box<dyn Future<Output = ()> + Send>>`, `<prefix>_foreign_future` in C, and each
+language's own async form, so `clock::timeout` and `clock::timeout_at` export. The same PR
+stopped the stand-in re-exporting `moq_tokio::panic`, so `panic::isolate` and
+`panic::message` left. `server::Request::within` leaves through a planned moq quest, and
+`kio::wait` through the [pin bump](/quest/m1/ffi-refusals/moq-pin.md).
 
-- moq-tokio's `server::Request::within` leaves through a planned moq quest that replaces it
-  with `Request::poll_expired` and `expired()`.
-- `kio::wait` stops being reachable once the [pin bump](/quest/m1/ffi-refusals/moq-pin.md)
-  drops `pub use kio;`.
-- moq-tokio's `panic::isolate` leaves when the stand-in in `ffi/justfile` stops re-exporting
-  `moq_tokio::panic`, from which moq-ffi ships nothing; this quest makes that change, and
-  `panic::message` leaves with it.
+What remains:
 
-kio's other five, `Waiter::poll_future`, `clock::timeout`, `clock::timeout_at`,
-`clock::drive`, and `Waiter::batch`, still need (a), as `repair` does.
+- A kept closure: a function, its data, and `free`, as `<prefix>_foreign_future` is, which
+  Rust may call from any thread until it frees it. `drive` also needs its parameters and
+  return to cross a closure: a lent `&Waiter` and a `Result<Option<Instant>, E>`, with `E`
+  chosen as a type parameter is.
+- `batch`'s `R`, which no bound fixes: `()` or `String` by the rule a type parameter's
+  choice follows, decided by the closure's return.
+- A borrowed future: `poll_future`'s `F` is `?Sized`, so `dyn Future<Output = ()> + Send`
+  lent for the call may stand in for it, the foreign future's poll reused.
+- A foreign `Read + Seek`: a table of `read` and `seek` functions over C's data, lent for
+  the call, as a trait C implements is.

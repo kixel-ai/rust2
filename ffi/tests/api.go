@@ -772,6 +772,43 @@ func futures() {
 		check(<-got == "held", "a closed handle stays alive in the call waiting on it")
 		sender.Close()
 	}
+
+	// Go functions Rust polls as futures, each run on a goroutine of its own.
+	{
+		ran := make(chan struct{}, 1)
+		check(must(api.After(ctx, func(context.Context) { ran <- struct{}{} }, 4)) == 8 && len(ran) == 1, "Rust awaits a Go function")
+	}
+	{
+		gate := make(chan struct{})
+		got := make(chan uint32)
+		go func() { got <- must(api.After(ctx, func(context.Context) { <-gate }, 5)) }()
+		select {
+		case <-got:
+			check(false, "Rust waits on a Go function that blocks")
+		case <-time.After(10 * time.Millisecond):
+		}
+		close(gate)
+		check(<-got == 10, "a Go function's return wakes Rust")
+	}
+	{
+		err := api.Within(ctx, 0, func(context.Context) {})
+		check(errors.Is(err, api.ErrorOverflow{}), "Rust gives up on a Go function")
+	}
+	{
+		short, cancel := context.WithTimeout(ctx, 10*time.Millisecond)
+		defer cancel()
+		cancelled := make(chan struct{})
+		err := api.Within(short, 1000, func(c context.Context) {
+			<-c.Done()
+			close(cancelled)
+		})
+		check(errors.Is(err, context.DeadlineExceeded), "a call waiting on a Go function ends at its deadline")
+		select {
+		case <-cancelled:
+		case <-time.After(5 * time.Second):
+			check(false, "dropping a future Rust polls cancels its context")
+		}
+	}
 	fmt.Println("futures ok")
 }
 

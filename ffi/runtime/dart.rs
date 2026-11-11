@@ -470,3 +470,71 @@ pub unsafe extern "C" fn relay_drop(relay: *mut c_void) {
 	// An isolate that exited has nothing left to close.
 	home.push(Task::Drop(token));
 }
+
+/// A future Dart runs that Rust polls: Rust and Dart each hold it, Rust until it frees the
+/// future and Dart until it completes.
+struct Foreign {
+	home: &'static Home,
+	token: i64,
+	done: AtomicBool,
+	waker: Mutex<Option<std::task::Waker>>,
+}
+
+impl Foreign {
+	fn waker(&self) -> MutexGuard<'_, Option<std::task::Waker>> {
+		self.waker.lock().unwrap_or_else(|e| e.into_inner())
+	}
+}
+
+unsafe extern "C" fn poll_foreign(data: *mut c_void, waker: rt::Waker) -> bool {
+	// SAFETY: `future` made `data`, which Rust holds until `free_foreign`.
+	let foreign = unsafe { &*data.cast::<Foreign>() };
+	let waker = waker.lift();
+	if foreign.done.load(Ordering::Acquire) {
+		return true;
+	}
+	*foreign.waker() = Some(waker);
+	// Dart may have completed it between the check and the store, and found no waker.
+	foreign.done.load(Ordering::Acquire)
+}
+
+unsafe extern "C" fn free_foreign(data: *mut c_void) {
+	// SAFETY: `future` made `data`, Rust's half of which this frees once.
+	let foreign = unsafe { Arc::from_raw(data.cast::<Foreign>()) };
+	foreign.waker().take();
+	// Tell Dart, which cancels the future if it is a call into Rust.
+	foreign.home.post((foreign.token << 2) | DROP);
+}
+
+/// A future of the isolate's `token`, which Dart completes with [`future_done`].
+pub fn future(home: &'static Home, token: i64) -> rt::ForeignFuture {
+	let foreign = Arc::new(Foreign {
+		home,
+		token,
+		done: AtomicBool::new(false),
+		waker: Mutex::default(),
+	});
+	let data = Arc::into_raw(foreign);
+	// SAFETY: `data` is live: Dart's half, which `future_done` frees.
+	unsafe { Arc::increment_strong_count(data) };
+	rt::ForeignFuture {
+		poll: Some(poll_foreign),
+		free: Some(free_foreign),
+		data: data.cast_mut().cast(),
+	}
+}
+
+/// Dart completed the future `future` made of `data`, freeing its half.
+///
+/// # Safety
+///
+/// `data` is a future's, done once.
+pub unsafe fn future_done(data: *const c_void) {
+	// SAFETY: the caller's contract.
+	let foreign = unsafe { Arc::from_raw(data.cast::<Foreign>()) };
+	foreign.done.store(true, Ordering::Release);
+	let waker = foreign.waker().take();
+	if let Some(waker) = waker {
+		waker.wake();
+	}
+}

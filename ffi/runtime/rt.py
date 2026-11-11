@@ -1,5 +1,6 @@
 # The runtime every generated Python module includes: the awaitable a future that pends
-# is, the queue each event loop reads its wakes from, `Waker`, and `Mut`. Its names start
+# is, the queue each event loop reads its wakes from, `Waker`, what runs an awaitable Rust
+# polls, and `Mut`. Its names start
 # with `_` but `Waker` and `Mut`, so no exported name clashes with them.
 
 
@@ -104,6 +105,43 @@ class Waker:
 		w = _wakeup(_get_running_loop() if loop is None else loop)
 		self._node = _n.Node(w.queue)
 		w.wakers[self._node.token()] = wake
+
+
+class _Pollable:
+	"""An awaitable Rust polls as a future, from any thread: its first poll starts it as a
+	task on the event loop running where it was passed, never inside Rust's poll, and the
+	task calls `ended` once it finishes. Rust closes it once it drops it, which cancels the
+	task, or closes a coroutine never started."""
+
+	__slots__ = ("_awaitable", "_loop", "_task", "_closed")
+
+	def __init__(self, awaitable: _typing.Awaitable[None]) -> None:
+		self._loop = _get_running_loop()
+		self._awaitable = awaitable
+		self._task: _asyncio.Future[None] | None = None
+		self._closed = False
+
+	def start(self, ended: _typing.Callable[[_asyncio.Future[None]], object]) -> None:
+		self._loop.call_soon_threadsafe(self._run, ended)
+
+	def _run(self, ended: _typing.Callable[[_asyncio.Future[None]], object]) -> None:
+		if self._closed:
+			return
+		self._task = _asyncio.ensure_future(self._awaitable, loop=self._loop)
+		self._task.add_done_callback(ended)
+
+	def close(self) -> None:
+		if not self._loop.is_closed():
+			self._loop.call_soon_threadsafe(self._cancel)
+		else:
+			self._cancel()
+
+	def _cancel(self) -> None:
+		self._closed = True
+		if self._task is not None:
+			self._task.cancel()
+		elif _asyncio.iscoroutine(self._awaitable):
+			self._awaitable.close()
 
 
 class Mut(_typing.Generic[_T]):

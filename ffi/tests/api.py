@@ -687,8 +687,63 @@ def futures():
 	until(loop, lambda: wakes)
 	check(wakes == [threading.get_ident()], "a waker calls back on its loop's thread")
 	loop.run_until_complete(asyncio.wait_for(on_loop(), 5))
+	loop.run_until_complete(asyncio.wait_for(foreign(), 5))
 	loop.close()
 	print("futures ok")
+
+
+async def foreign():
+	"""Awaitables Rust polls as futures, each run as a task on the loop it was passed on."""
+	ran = []
+
+	async def ready():
+		ran.append("ready")
+
+	check(await api.after(ready(), 4) == 8 and ran == ["ready"], "Rust awaits a coroutine")
+
+	# Rust waits on a coroutine that waits, which wakes it once it ends.
+	gate = asyncio.get_running_loop().create_future()
+
+	async def later():
+		await gate
+		ran.append("later")
+
+	task = asyncio.ensure_future(api.after(later(), 5))
+	for _ in range(3):
+		await asyncio.sleep(0)
+	check(not task.done() and ran == ["ready"], "Rust waits on a coroutine that waits")
+	gate.set_result(None)
+	check(await task == 10 and ran == ["ready", "later"], "a coroutine's end wakes Rust")
+
+	# Given up on before it starts, a coroutine is closed, never run.
+	try:
+		await api.within(0, ready())
+		check(False, "within gives up on a coroutine")
+	except api.ErrorException as e:
+		check(str(e) == "overflow", "within gives up on a coroutine")
+	for _ in range(3):
+		await asyncio.sleep(0)
+	check(ran == ["ready", "later"], "a coroutine Rust gave up on before it started never runs")
+
+	# Dropped while it runs, its task is cancelled.
+	cancelled = []
+
+	async def never():
+		try:
+			await asyncio.get_running_loop().create_future()
+		except asyncio.CancelledError:
+			cancelled.append(True)
+			raise
+
+	try:
+		await asyncio.wait_for(api.within(1, never()), 0.05)
+		check(False, "a coroutine that never ends times out")
+	except asyncio.TimeoutError:
+		pass
+	for _ in range(3):
+		await asyncio.sleep(0)
+	check(cancelled == [True], "dropping a future Rust polls cancels its task")
+
 
 
 async def on_loop():

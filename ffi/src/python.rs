@@ -48,6 +48,7 @@ const TAKEN: &[&str] = &[
 	"_load",
 	"_T",
 	"_Future",
+	"_Pollable",
 	"_Wakeup",
 	"_wakeups",
 	"_wakeup",
@@ -80,9 +81,9 @@ const BUFFER: &str = "bytes | bytearray | memoryview";
 const V4: &str = "tuple[str, int]";
 const V6: &str = "tuple[str, int, int, int]";
 
-/// The registry's first entries, the runtime's: the glue's `T_FUTURE`, `T_TIMEDELTA`, and
-/// `T_RESUME`.
-const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume"];
+/// The registry's first entries, the runtime's: the glue's `T_FUTURE`, `T_TIMEDELTA`,
+/// `T_RESUME`, and `T_POLLABLE`.
+const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume", "_Pollable"];
 
 /// The Python for `abi`, whose header's contract is `contract`, or the names two items
 /// claim alike. The Python's own contract hashes the header's with everything it and its
@@ -407,6 +408,7 @@ impl<'a> Gen<'a> {
 			},
 			Type::List(_, inner) => format!("list[{}]", self.py_ty(inner)),
 			Type::Waker => "Waker".to_string(),
+			Type::Future => "_typing.Awaitable[None]".to_string(),
 			Type::Option(inner) => format!("{} | None", self.py_ty(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.py_ty(inner),
 			Type::Record(i) => self.class(&abi.record(*i)),
@@ -518,6 +520,7 @@ impl<'a> Gen<'a> {
 				)
 			}
 			Type::Waker => format!("rt::waker_in({o}, s)"),
+			Type::Future => format!("rt::future_in({o}, s)"),
 			Type::Range(int) => format!("rt::range_in::<{}>({o})", int.rust()),
 			Type::Bound(_) | Type::Bounds(_) => format!("r_{}({o}, s)", abi.range(ty)),
 			Type::Tuple(_) => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
@@ -574,7 +577,7 @@ impl<'a> Gen<'a> {
 			}
 			Type::Bound(_) | Type::Bounds(_) => format!("w_{}({v})", abi.range(ty)),
 			Type::Tuple(_) => format!("w_{}({v})", self.c_struct(ty)),
-			Type::Callback(..) | Type::Closure(..) | Type::Waker => {
+			Type::Callback(..) | Type::Closure(..) | Type::Waker | Type::Future => {
 				unreachable!("{ty:?} is no value Rust returns")
 			}
 		}

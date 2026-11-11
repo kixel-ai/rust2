@@ -56,6 +56,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		params: Vec::new(),
 		tuples: BTreeSet::new(),
 		dispatchers: Vec::new(),
+		suspends: false,
 	};
 	for name in g.classes.values() {
 		g.names.insert(name.clone(), "a type".to_string());
@@ -91,7 +92,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	kotlin.push_str(&g.top);
 	let _ = write!(
 		kotlin,
-		"internal object Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n{}{}}}\n",
+		"internal object Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic external fun __rust_wake(waker: Long)\n\n\t@JvmStatic external fun __rust_drop(waker: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as Pollable).poll(waker)\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -130,6 +131,14 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		pub unsafe extern \"system\" fn Java_{pkg}_Native__1_1bytes_1free(_: *mut JNIEnv, _: jclass, owner: jlong) {{\n\
 		\tunsafe {{ rt::free_bytes(owner) }}\n\
 		}}\n\n\
+		#[unsafe(no_mangle)]\n\
+		pub unsafe extern \"system\" fn Java_{pkg}_Native__1_1rust_1wake(_: *mut JNIEnv, _: jclass, waker: jlong) {{\n\
+		\tunsafe {{ rt::wake_rust(waker) }}\n\
+		}}\n\n\
+		#[unsafe(no_mangle)]\n\
+		pub unsafe extern \"system\" fn Java_{pkg}_Native__1_1rust_1drop(_: *mut JNIEnv, _: jclass, waker: jlong) {{\n\
+		\tunsafe {{ rt::drop_rust(waker) }}\n\
+		}}\n\n\
 		{}",
 		g.glue,
 		pkg = mangle(p),
@@ -143,7 +152,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		-keepclassmembernames class {p}.Native {{\n\tnative <methods>;\n}}\n\n\
 		-keepclassmembers class {p}.Native {{\n"
 	);
-	for name in ["__wake", "__free"]
+	for name in ["__wake", "__free", "__poll"]
 		.into_iter()
 		.chain(g.dispatchers.iter().map(String::as_str))
 	{
@@ -153,7 +162,11 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	Ok(Output { kotlin, glue, rules })
 }
 
-const IMPORTS: &[&str] = &["kotlin.coroutines.resume", "kotlin.time.toDuration"];
+const IMPORTS: &[&str] = &[
+	"kotlin.coroutines.resume",
+	"kotlin.time.toDuration",
+	"kotlinx.coroutines.launch",
+];
 
 /// The bytes Rust returns, copied when short and otherwise lent.
 const BYTES: &str = "/**
@@ -317,6 +330,9 @@ struct Gen<'a> {
 	tuples: BTreeSet<usize>,
 	/// The Kotlin functions the glue calls, which the rules keep.
 	dispatchers: Vec<String>,
+	/// Whether the function being written suspends, so a future it takes runs in its
+	/// caller's context.
+	suspends: bool,
 }
 
 impl<'a> Gen<'a> {
@@ -390,6 +406,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(_) => "java.net.InetSocketAddress".to_string(),
 			Type::List(_, inner) => format!("kotlin.collections.List<{}>", self.kt(inner)),
 			Type::Waker => "Waker".to_string(),
+			Type::Future => "suspend () -> Unit".to_string(),
 			Type::Option(inner) => format!("{}?", self.kt(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.kt(inner),
 			Type::Record(i) => self.class(&abi.record(*i)),
@@ -690,6 +707,16 @@ impl<'a> Gen<'a> {
 			Ty::Waker => {
 				arg.exprs.push(e.to_string());
 				arg.rust_args.push(format!("rt::waker(env, {p})"));
+			}
+			// Run in the caller's context when it suspends, as Rust holds it no longer than the
+			// call's future.
+			Ty::ForeignFuture => {
+				let context = match self.suspends {
+					true => "kotlin.coroutines.coroutineContext",
+					false => "kotlin.coroutines.EmptyCoroutineContext",
+				};
+				arg.exprs.push(format!("Native.Pollable({e}, {context})"));
+				arg.rust_args.push(format!("rt::future(env, {p})"));
 			}
 			Ty::Void | Ty::Future(_) | Ty::Poll | Ty::Out(_) | Ty::Data => {
 				unreachable!("{c:?} is no parameter Kotlin passes")
@@ -1495,6 +1522,7 @@ impl<'a> Gen<'a> {
 		let mut n = 0;
 		let mut args: Vec<Arg> = Vec::new();
 		let mut c_params = export.call.params.iter();
+		self.suspends = export.future.is_some();
 		let receiver = function.receiver.filter(|_| owner.is_some());
 		if let Some(receiver) = receiver {
 			let (_, c) = c_params.next().expect("a method has its receiver");
@@ -2006,6 +2034,7 @@ fn jni_type(c: &Ty, ty: &Type) -> (&'static str, &'static str) {
 		Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => ("jbyteArray", "ByteArray"),
 		Ty::Fn(..) => ("jobject", "Any"),
 		Ty::Waker => ("jobject", "Waker"),
+		Ty::ForeignFuture => ("jobject", "Any"),
 		Ty::Poll | Ty::Out(_) | Ty::Data => unreachable!("{c:?} never crosses JNI"),
 	}
 }

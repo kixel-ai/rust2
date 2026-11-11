@@ -71,6 +71,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | a `pub` field of an object | a getter returning a copy, and a setter assigning in place, as `x.field = value` does |
 | a `pub` trait | a callback interface: a table of C functions and their data; a trait C cannot implement, such as one with a blanket impl, an associated type, or a supertrait but a marker, is left out, since C never passes one, and a signature taking one from C is refused |
 | a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce`, which no lifetime bound or return lets outlive the call | a C function and its `void *` data, which Rust calls only during the call; any other closure is refused |
+| a type parameter or `impl` taken by value and bounded by `Future` or `IntoFuture`, whose every bound `Pin<Box<dyn Future<Output = ()> + Send>>` meets, as kio's `clock::timeout` takes | `<prefix>_foreign_future`: a future of `()` C implements, which Rust takes as that type; a future of another output is refused |
 | `fn` and inherent `pub` methods | functions named through their type |
 | a `()` parameter of a function, not of a callback's method | nothing: C passes no argument for it |
 | `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message |
@@ -177,6 +178,11 @@ else is refused, and the census counts why.
   state machine polled with a waker, such as moq's `Driver`s through kio's `Waiter`, runs
   from the caller's event loop. Rust may call `wake` and `drop` from any thread, as a
   runtime's workers do.
+- **Foreign futures** are a `poll`, a `free`, and their `data`. Rust calls `poll` from any
+  thread, one call at a time, with a `<prefix>_waker` of its own each time, which C owns
+  and drops once, until it returns true; C wakes the latest waker once the future can
+  progress. Rust calls `free` once it drops the future, done or not, which may be before
+  any poll. A null `poll` aborts.
 - **Callbacks** are a struct of a table and its data. Rust calls `free` once it drops the
   implementation, and may call the others from any thread. A callback takes scalars and
   buffers lent for the call, and returns a scalar.
@@ -296,6 +302,9 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   thread: never inline, since a wake may come from inside Rust. Each wake that lands while
   the future polls polls it again, and a future has one poller at a time, since awaiting
   it moves it.
+- A **future C++ implements** is any value with `bool poll(const api::waker &)`, such as a
+  binding's `future` of `void`, which Rust takes by value, polls from any thread until it
+  returns true, and destroys once done with it.
 - A **waker** is a shared callable, which Rust may call from any thread.
 - **The contract** is checked when the program loads, before any other call: a header
   and a library from different builds abort.
@@ -356,6 +365,10 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   on its executor, and never inside a wake: an `Unconfined` one resumes on `Default`. Cancelling the coroutine frees the future and
   loses nothing. Each call is its own future, so it has one poller. The call polls it once
   before suspending, and makes the waker it parks on only if that poll pends.
+- A **future Kotlin implements** is a `suspend () -> Unit`, which Rust's first poll
+  launches in the calling coroutine's context, without its job, on its dispatcher, or on
+  `Default` for one that does not dispatch. Rust dropping it cancels the coroutine, and one
+  dropped before it starts never runs. One that throws aborts.
 - A **waker** is a `Waker`, which Rust may call from any thread.
 - **The contract** is checked when the library loads, before any other call: a Kotlin
   file and a library from different builds throw.
@@ -423,6 +436,10 @@ caller imports it with no ignores.
   writes nothing and schedules the loop's dispatch once the call returns. Cancelling the task frees the future and
   loses nothing. The call polls it once before suspending, and a future is awaited once,
   as a coroutine is.
+- An **awaitable Python implements** is an `Awaitable[None]`, such as a coroutine, passed
+  on a running event loop, where Rust's first poll runs it as a task. Rust dropping it
+  cancels the task, or closes a coroutine it never started. One that raises prints its
+  traceback and aborts.
 - A **waker** is a `Waker(callback)`, which Rust may wake from any thread, calling
   `callback` on its event loop.
 - **The contract** is checked when the module imports, before any other call: a Python
@@ -473,6 +490,9 @@ in either language mode.
   `CancellationError`. Each call is its own future, so it has one poller. The call polls it
   once before suspending, and makes the signal it parks on only if that poll pends; the
   signal latches a wake that lands before it parks.
+- A **future Swift implements** is an `@escaping @Sendable () async -> Void`, which Rust's
+  first poll runs as a task of its own. Rust dropping it cancels the task, and one dropped
+  before it starts never runs.
 - A **waker** is a `@Sendable () -> Void`, which Rust may call from any thread.
 - **The contract** is checked once, at the first call into the library: a Swift file and a
   library from different builds trap.
@@ -575,6 +595,9 @@ reads a go.mod.
   context done before the call, or while it waits, returns its error and frees the future,
   which cancels it in Rust and loses nothing: the next call takes what it would have.
   Each call is its own future, so it has one poller, and its context bounds only it.
+- A **future Go implements** is a `func(context.Context)`, which Rust's first poll runs on
+  a goroutine of its own. Rust dropping it cancels the context, and one dropped before it
+  starts never runs.
 - A **waker** is a `func()`, which Rust may call from any thread.
 - **The contract** is checked when `rt` loads, before any other call: Go packages and a
   library from different builds panic.
@@ -646,6 +669,9 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   future unless it finished, which cancels it in Rust and loses nothing: the next call
   takes what it would have, and it completes with `Cancelled`. A pending future keeps
   the isolate alive, as a timer does.
+- A **future Dart implements** is any `Future<void>`, already running as Dart's futures
+  are, which Rust polls until it completes. Rust dropping it cancels it if it is a
+  `Cancelable` still running, and one that fails otherwise aborts.
 - A **waker** is a `void Function()`, which runs on the isolate's event loop.
 - **Threads**: Dart runs code only on its isolate's thread, so Rust reaches it from any
   other through the isolate's port, and waits for its event loop to run the call. While

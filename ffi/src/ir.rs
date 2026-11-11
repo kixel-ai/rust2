@@ -347,6 +347,9 @@ pub enum Type {
 	List(Collection, Box<Type>),
 	/// `std::task::Waker`, only as a parameter taken by value.
 	Waker,
+	/// A future the foreign side implements, of `()`, which Rust polls and frees: only as a
+	/// parameter, which Rust takes as `Pin<Box<dyn Future<Output = ()> + Send>>`.
+	Future,
 	Option(Box<Type>),
 	/// `Box<T>`, of a non-trait type.
 	Box(Box<Type>),
