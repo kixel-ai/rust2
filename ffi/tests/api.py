@@ -377,8 +377,10 @@ def script():
 	until(loop, lambda: wakes == 3)
 	print(f"woken {wakes}")
 	# A returned waker wakes the waiter's task through Rust until it is dropped.
+	# Wakes before the loop gets to them call back once, so it runs between them.
 	waiter = api.Waiter.new(waker)
 	waiter.waker()()
+	until(loop, lambda: wakes == 4)
 	waiter.context()()
 	del waiter
 	until(loop, lambda: wakes == 5)

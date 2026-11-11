@@ -1001,7 +1001,7 @@ impl Waker {
 	/// The Rust waker around it, which calls `drop` once its last clone drops. One Rust
 	/// returned is unwrapped, so passing it back adds no layer.
 	pub fn lift(self) -> std::task::Waker {
-		if self.wake.map(|f| f as usize) == Some(rust_wake as usize) {
+		if self.wake.map(|f| f as usize) == Some(rust_wake as *const () as usize) {
 			// SAFETY: `lower` made `data`, which C gave back and frees no longer.
 			return *unsafe { Box::from_raw(self.data.cast::<std::task::Waker>()) };
 		}
