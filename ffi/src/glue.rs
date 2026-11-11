@@ -134,9 +134,14 @@ impl Crate<'_> {
 			})
 			.collect();
 		let dependencies = format!("{dependencies}{foreign}");
-		// The facade's oldest toolchain is the crate's, which cargo sets as rustc compiles it.
+		// The facade's oldest toolchain is the crate's, which cargo sets as rustc compiles it,
+		// though no older than the crate's edition needs; cargo checks the value's form.
 		let rust_version = match std::env::var("CARGO_PKG_RUST_VERSION") {
-			Ok(version) if !version.is_empty() => format!("rust-version = {version:?}\n"),
+			Ok(version) if !version.is_empty() => {
+				let parts: Vec<u64> = version.split('.').map(|p| p.parse().unwrap_or(0)).collect();
+				let version = if parts[..] < [1, 85][..] { "1.85" } else { &version };
+				format!("rust-version = {version:?}\n")
+			}
 			_ => String::new(),
 		};
 		let manifest = format!(

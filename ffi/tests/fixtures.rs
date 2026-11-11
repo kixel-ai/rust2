@@ -1541,6 +1541,61 @@ fn configured_out() {
 	);
 }
 
+/// The glue declares the facade's `rust-version`, raised to the 1.85 its edition needs.
+#[test]
+fn rust_version() {
+	let package = package("rust_version");
+	write_all(
+		&package,
+		&[(
+			"Cargo.toml",
+			"[package]\nname = \"rust_version\"\nversion = \"0.0.0\"\nedition = \"2021\"\nrust-version = \"1.70\"\n\n[workspace]\n",
+		)],
+	);
+	let out = package.join("out");
+	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--out")
+		.arg(&out)
+		.env("CARGO_TARGET_DIR", package.join("build")));
+	let manifest = std::fs::read_to_string(out.join("Cargo.toml")).unwrap();
+	assert!(manifest.contains("rust-version = \"1.85\"\n"), "{manifest}");
+}
+
+/// A dependency the facade's dev-dependency enables an optional dependency of, which
+/// cargo's resolution holds but neither the check nor the glue builds, moves nothing.
+#[test]
+fn dev_feature() {
+	let package = package("dev_feature");
+	let dep = |name: &str, rest: &str| {
+		format!("[package]\nname = \"{name}\"\nversion = \"1.0.0\"\nedition = \"2024\"\n{rest}")
+	};
+	write_all(
+		&package,
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"dev_feature\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+				[dependencies]\ninner = { path = \"inner\" }\n\n\
+				[dev-dependencies]\ninner = { path = \"inner\", features = [\"extra\"] }\n\n\
+				[workspace]\nexclude = [\"inner\", \"extra\"]\n",
+			),
+			(
+				"inner/Cargo.toml",
+				&dep(
+					"inner",
+					"\n[dependencies]\nextra = { path = \"../extra\", optional = true }\n\n[features]\nextra = [\"dep:extra\"]\n",
+				),
+			),
+			("inner/src/lib.rs", ""),
+			("extra/Cargo.toml", &dep("extra", "")),
+			("extra/src/lib.rs", ""),
+		],
+	);
+	export_and_build(&package, &[]);
+}
+
 /// A plain enum whose discriminant C's `int32_t` cannot hold exports as an object, as a
 /// value whose field does not map does, so its glue builds.
 #[test]

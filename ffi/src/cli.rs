@@ -72,8 +72,8 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 }
 
 /// Write the generated crate's lockfile: the check's, with what the crate adds of its own
-/// resolved beside it, or fail if that moves any package the exports build with from the
-/// version the check resolved, which the glue was generated against.
+/// resolved beside it, or fail if the glue would build the facade with any package the
+/// check did not resolve, as another version, which the glue was not generated against.
 fn lock(checked: &Checked, out: &Path, picks: &Picks<'_>) -> Result<(), String> {
 	let lockfile = checked.metadata.workspace_root.join("Cargo.lock");
 	std::fs::copy(&lockfile, out.join("Cargo.lock"))
@@ -85,12 +85,12 @@ fn lock(checked: &Checked, out: &Path, picks: &Picks<'_>) -> Result<(), String> 
 	)?;
 	let generated: Metadata =
 		serde_json::from_slice(&output).map_err(|err| format!("reading cargo metadata: {err}"))?;
-	let packages: BTreeSet<String> = generated.packages.iter().map(Package::identity).collect();
-	let checked_packages: BTreeMap<&str, &Package> =
-		(checked.metadata.packages.iter()).map(|p| (p.id.as_str(), p)).collect();
-	let nodes: BTreeMap<&str, &Node> = (checked.metadata.resolve.nodes.iter())
-		.map(|n| (n.id.as_str(), n))
-		.collect();
+	// The check's resolution holds more than its build: cargo metadata enables what the
+	// facade's dev-dependencies enable, too. So each package the glue builds the facade with
+	// must be among it, not the other way around.
+	let resolved: BTreeSet<String> = checked.metadata.packages.iter().map(Package::identity).collect();
+	let packages: BTreeMap<&str, &Package> = generated.packages.iter().map(|p| (p.id.as_str(), p)).collect();
+	let nodes: BTreeMap<&str, &Node> = generated.resolve.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
 	let mut seen = BTreeSet::new();
 	let mut queue = vec![checked.top.as_str()];
 	let mut moved = Vec::new();
@@ -98,10 +98,7 @@ fn lock(checked: &Checked, out: &Path, picks: &Picks<'_>) -> Result<(), String> 
 		if !seen.insert(id) {
 			continue;
 		}
-		if !checked_packages
-			.get(id)
-			.is_some_and(|p| packages.contains(&p.identity()))
-		{
+		if !packages.get(id).is_some_and(|p| resolved.contains(&p.identity())) {
 			moved.push(id);
 		}
 		let deps = nodes.get(id).into_iter().flat_map(|n| &n.deps);
