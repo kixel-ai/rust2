@@ -2208,6 +2208,12 @@ pub struct Cancelled {
 }
 
 /// Items whose names clash in some language, each kept apart there and only there.
+/// A tone's absence, whose variant Go names as `clash::audible`'s error.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum VecClashTone {
+	Error,
+}
+
 pub mod clash {
 	/// A pitch in hertz, whose name Pascal case cannot tell from `TONE`'s.
 	#[derive(Clone, Copy, Debug, PartialEq)]
@@ -2281,6 +2287,11 @@ pub mod clash {
 		pub fn finish() -> u8 {
 			2
 		}
+	}
+
+	/// The tone, or no tones where it is silent: an error Go names as `VecClashTone`'s variant.
+	pub fn audible(tone: Tone) -> Result<Tone, Vec<Tone>> {
+		if tone.hz == 0 { Err(Vec::new()) } else { Ok(tone) }
 	}
 
 	/// The sum of both tuples, whose C names run their elements together alike.

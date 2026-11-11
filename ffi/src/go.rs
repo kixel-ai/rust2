@@ -103,7 +103,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 	let types = abi.classes(|home| (home.krate.clone(), home.outside - 1), |_| false);
 	let classes = classes(abi, &types);
 	let thrown = thrown(abi, &classes);
-	let variants = variants(abi, &types, &classes);
+	let variants = variants(abi, &types, &classes, &thrown);
 	// What each package's types, their variants and tables, and its errors take.
 	let mut taken: BTreeMap<String, BTreeSet<String>> = classes.clone();
 	for ((c, _), name) in &variants {
@@ -214,11 +214,12 @@ fn thrown(abi: &Abi<'_>, classes: &BTreeMap<String, BTreeSet<String>>) -> BTreeM
 }
 
 /// The Go name of each variant of each enum, by its C name and the variant's: the enum's
-/// name then the variant's, unless another type of its package or variant takes it.
+/// name then the variant's, unless another type, error, or variant of its package takes it.
 fn variants(
 	abi: &Abi<'_>,
 	types: &HashMap<String, String>,
 	classes: &BTreeMap<String, BTreeSet<String>>,
+	thrown: &BTreeMap<String, (String, Type)>,
 ) -> HashMap<(String, String), String> {
 	let api = abi.api;
 	let mut variants = HashMap::new();
@@ -237,7 +238,9 @@ fn variants(
 			.map(|(c, variant)| format!("{}{}", types[c], pascal(variant)))
 			.collect();
 		let taken = classes.get(krate);
-		let names = abi::unique(names, |name| taken.is_some_and(|taken| taken.contains(name)));
+		let names = abi::unique(names, |name| {
+			taken.is_some_and(|taken| taken.contains(name)) || thrown.get(name).is_some_and(|(home, _)| home == krate)
+		});
 		variants.extend(keys.into_iter().zip(names));
 	}
 	variants
