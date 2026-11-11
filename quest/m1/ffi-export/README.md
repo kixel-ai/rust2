@@ -5,7 +5,7 @@
 moq can pin [rust2-ffi](/ffi/README.md) and switch its bindings to it: the exporter exports
 what moq's bindings need from moq's own crates, with no attributes, no config, and no
 hand-written wrapper beyond what the census shows is genuinely new API, in every language
-moq ships. It ends once every child has merged, the flake has an `ffi` package, and the
+moq ships. It ends once every child and blocker has merged, the flake has an `ffi` package, and the
 root `README.md` lists the generators, which is what
 [moq's wait](https://github.com/moq-dev/moq/blob/main/quest/m3/rust2-exporter.md) checks.
 
@@ -89,11 +89,4 @@ names and defaults, and fails the export on a public item it cannot export.
 
 ## Required
 
-- [Every public item exports](/quest/m1/ffi-export/refusals/README.md) - the census lists no refusals and `ffi.toml` is deleted, so the exporter reads no config
-- [Export for a target](/quest/m1/ffi-export/target.md) - `--target` exports the API that target compiles, so `cfg`-gated items are right on Android, iOS, Windows, and wasm
-- [Lossless binding types](/quest/m1/ffi-export/lossless.md) - durations, addresses, paths, text, and integers cross exactly, with checked conversions to the idiomatic types
-- [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - a failed borrow, move, or close check is the language's own error from one accounting, and only a panic aborts
-- [Types that are not Send export](/quest/m1/ffi-export/not-send.md) - a `!Send` object or future is checked by thread, with an owner thread where a language has none
-- [No name clash fails an export](/quest/m1/ffi-export/names.md) - every generator names every item by rule, so no error tells a crate to rename or exclude one
-- [The glue builds what the export checked](/quest/m1/ffi-export/reproducible.md) - the generated crate carries its lockfile, and a discriminant or nightly-only item it cannot build is refused at export
-- [The exporter on the binding benchmark](/quest/m1/ffi-export/bench.md) - committed call, throughput, and size numbers per language against the Rust floor, whose report plans the speed work
+- [Refusals](/quest/m1/ffi-refusals/README.md) - the epic that exports or leaves out every item the census refuses, which this epic ends on

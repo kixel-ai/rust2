@@ -79,6 +79,5 @@ Public API: the TypeScript binding's shape, and the name of the web target.
 
 ## Required
 
-- [Export for a target](/quest/m1/ffi-export/target.md) - the exporter checks and lays out the API for wasm32, not the host
 - [Lossless binding types](/quest/m1/ffi-export/lossless.md) - the types a new binding copies are the exact ones
 - [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - the one accounting a new binding copies raises

@@ -26,10 +26,3 @@ from the browsers goes to the browsers.
 
 The fork's feature quests folded into the [exporter](/quest/m1/ffi-export/README.md);
 [m1](/quest/m1/README.md#plan) records why.
-
-## Required
-
-- [rust2-wasm](/quest/m2/wasm/README.md) - a crate's `pub` API in the browser through the exporter's wasm32 target, and the gate the translator has to pass
-- [Translate moq-net's model to TypeScript](/quest/m2/ts-model/README.md) - the model translates with kio and moq-pattern, for the gate to compare
-- [Spike: the target language's compiler enforces Rust's rules](/quest/m2/compile-checks.md) - which of Swift's and C++'s run-time checks become compile errors, and at what cost
-- [Waiting: Swift 6.4 in nixpkgs-unstable](/quest/m2/uniffi-swift-arm.md) - the nightly UniFFI fixtures move back to arm

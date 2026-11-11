@@ -3,9 +3,9 @@
 //! `Vec<[T; N]>` holds them, or parts of one slice, as `as_chunks` splits it. The runtime's
 //! `arraySlice` functions map std's methods that lend arrays or parts. Any other method of a
 //! slice of arrays reads it as an `rs.Slice` of JS arrays: shared, of its arrays themselves, or
-//! of copies of those `as_chunks` split from one slice, which have no array of their own; and
-//! mutable, of copies that `rs.arraySliceBy` writes back once it returns, as Rust moves their
-//! elements.
+//! of copies of those `as_chunks` split from one slice, which have no array of their own and
+//! compare where their runs are; and mutable, of copies that `rs.arraySliceBy` writes back
+//! once it returns, as Rust moves their elements.
 
 use rustc_middle::ty::{self, Ty, TyCtxt};
 

@@ -2407,6 +2407,17 @@ fn lent(n: u8) -> Vec<u8> {
 	o.push(u8::from(ptr::eq(un.first_chunk::<2>().unwrap(), &*held)));
 	let nested = [[w, 1], [2, 3]];
 	o.push(u8::from(ptr::eq(nested.last().unwrap(), nested.iter().nth(1).unwrap())));
+	// Runs of equal elements a callback of std's tells apart only by where each is.
+	let same = [w; 6];
+	let (runs, _) = same.as_chunks::<2>();
+	let last = runs.last().unwrap();
+	o.push(runs.partition_point(|run| !ptr::eq(run, last)) as u8);
+	let bytes = [n; 6];
+	let (runs, _) = bytes[1..].as_chunks::<2>();
+	o.push(runs.partition_point(|run| !ptr::eq(run, bytes[3..].first_chunk::<2>().unwrap())) as u8);
+	let pairs = [[w; 2]; 4];
+	let (runs, _) = pairs.as_chunks::<2>();
+	o.push(runs.partition_point(|run| !ptr::eq(run, pairs.last_chunk::<2>().unwrap())) as u8);
 	o
 }
 

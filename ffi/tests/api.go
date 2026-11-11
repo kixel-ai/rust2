@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/big"
 	"net/netip"
 	"os"
 	"runtime"
@@ -298,8 +299,42 @@ func script() {
 	long := must(api.Longer(joined, api.NameOwned("dd")))
 	fmt.Printf("longer %s\n", must(long.AsStr()))
 	fmt.Printf("unnamed [%s]\n", must(api.Unnamed().AsStr()))
+	lit := api.NameBorrowed("lit")
+	fmt.Printf("borrowed %s %t %t\n", must(lit.AsStr()), must(lit.Shares(api.NameBorrowed("lit"))), must(lit.Shares(api.NameBorrowed("other"))))
 
 	fmt.Printf("total %d\n", api.Total(rt.RangeU64{Start: 2, End: 5}))
+	fmt.Printf("reach %d\n", api.Reach(2, 5))
+	bigOne := big.NewInt(1)
+	pow := func(n uint) *big.Int { return new(big.Int).Lsh(bigOne, n) }
+	fmt.Print("scaled")
+	for _, v := range []*big.Int{
+		api.Scaled(new(big.Int).Sub(pow(128), bigOne), 1),
+		api.Scaled(new(big.Int).Add(pow(64), bigOne), 1<<63),
+		api.Scaled(pow(127), 2),
+	} {
+		if v == nil {
+			fmt.Print(" none")
+		} else {
+			fmt.Printf(" %032x", v)
+		}
+	}
+	fmt.Println()
+	batch, batch2 := api.NewBatch(), api.Pair()
+	accepted, paired := 0, 0
+	for v := uint32(1); v <= 5; v++ {
+		if must(batch.Push(v)) {
+			accepted++
+		}
+	}
+	for v := uint32(1); v <= 3; v++ {
+		if must(batch2.Push(v)) {
+			paired++
+		}
+	}
+	emptied := must(api.Drain4(batch))
+	fmt.Printf("batch %d %d %d %d %d %d %d\n", must(batch.Capacity()), accepted, emptied, must(api.Drain4(batch)),
+		must(batch2.Capacity()), paired, must(api.Drain2(batch2)))
+	fmt.Printf("capacities %d %d\n", must(api.Capacities42(batch, batch2)), must(api.Capacities22(batch2, batch2)))
 	wide := api.Widen(rt.RangeU64{Start: 2, End: 5}, 1)
 	fmt.Printf("widen %d %d\n", wide.Start, wide.End)
 	included := func(n uint64) rt.BoundU64 { return rt.BoundU64{Kind: rt.BoundIncluded, Value: n} }
@@ -395,6 +430,11 @@ func script() {
 	if _, err := channel.RecvNonempty(ctx); err != nil {
 		fmt.Printf("nonempty err %s\n", err)
 	}
+	fmt.Print("fill")
+	for _, v := range append(must(api.Fill4(ctx, api.NewBatch(), 9)), must(api.Fill2(ctx, api.Pair(), 1))...) {
+		fmt.Printf(" %d", v)
+	}
+	fmt.Println()
 	// The send happens at the call: the future is cancelled before its first poll.
 	cancelled, cancel := context.WithCancel(ctx)
 	cancel()
@@ -407,6 +447,14 @@ func script() {
 	// The waker moves into Rust, which keeps it until the send wakes it.
 	channel.Notify(func() { wakes++ })
 	channel.Send([]byte("rung"))
+	fmt.Printf("woken %d\n", wakes)
+	// A poll with no async twin is a future.
+	fmt.Printf("take %s\n", must(channel.PollTake(ctx)).Copy())
+	channel.Send([]byte("measured"))
+	fmt.Printf("measure %d\n", must(channel.PollMeasure(ctx, 2)))
+	// A context is made of the waker, which Rust keeps until the send wakes it.
+	channel.Listen(func() { wakes++ })
+	channel.Send([]byte("heard"))
 	fmt.Printf("woken %d\n", wakes)
 
 	list1 := must(api.NewNode(1, nil))
@@ -466,6 +514,8 @@ func script() {
 	// A bound that outlives the call takes a value, and an instance only a constant names.
 	fmt.Printf("kept %d boxed %d\n", api.KeptPoint(api.Point{X: 1, Y: -2}), api.BOXED().Value)
 	fmt.Printf("keep %d\n", api.KeepPoint(api.Point{X: 1, Y: -2}))
+	five := api.Point{X: 5, Y: 2}
+	fmt.Printf("kept or %d %d keeper %d\n", api.KeptOrPoint(&five), api.KeptOrPoint(nil), api.KeeperPoint(five))
 	// Inferred instances taking a lent closure and a foreign implementation, and one only
 	// its impl of a trait names.
 	sides := api.PairU32{Left: 2, Right: 5}
@@ -529,6 +579,40 @@ func script() {
 	fmt.Printf("words %d %s\n", len(words), list(words, quoted))
 	fmt.Printf("sentence %s %s\n", api.Sentence(&words), api.Sentence(nil))
 	fmt.Printf("sentence %s|\n", api.Sentence(&[]string{}))
+	abc := "abc"
+	fmt.Printf("either %d %d\n", api.Either(&abc), api.Either(nil))
+	ab := []byte("ab")
+	fmt.Printf("prefixed %s %s\n", api.Prefixed([]byte("cd"), &ab).Copy(), api.Prefixed([]byte("cd"), nil).Copy())
+	fmt.Printf("coordinates %d %d\n", api.Coordinates(&api.Point{X: 2, Y: 3}), api.Coordinates(nil))
+	two, three := api.NewCounter("two", 2), api.NewCounter("three", 3)
+	fmt.Printf("plus %d %d\n", must(two.Plus(three)), must(two.Plus(nil)))
+	fmt.Printf("add_to %t %t %d\n", must(two.AddTo(three)), must(two.AddTo(nil)), must(three.Get()))
+	encoded := rt.NewBytes([]byte("0,"))
+	api.PutNumber(1, &encoded)
+	api.PutNumber(23, &encoded)
+	fmt.Printf("put_number %s\n", encoded.Copy())
+	entry := rt.Tuple2[rt.Bytes, uint32]{V0: rt.NewBytes([]byte("ab")), V1: 1}
+	stamps := api.PushCounted(&entry, 'c')
+	fmt.Printf("push_counted %d %s %d\n", stamps, entry.V0.Copy(), entry.V1)
+	digits := rt.NewBytes([]byte("7x9"))
+	firstDigit := must(api.Digit(&digits))
+	_, skipped := api.Digit(&digits)
+	lastDigit := must(api.Digit(&digits))
+	fmt.Printf("digit %d %t %d %d\n", firstDigit, skipped != nil, lastDigit, digits.Len())
+	nudged := api.Point{X: 1, Y: 2}
+	api.Nudge(&nudged, 3)
+	fmt.Printf("nudge %d %d\n", nudged.X, nudged.Y)
+	config := api.Secure("h3")
+	fmt.Printf("secure %s %s\n", must(api.AlpnLent(config)), must(api.Alpn(must(config.Clone()))))
+	meters := api.NewMeters()
+	meter := must(meters.First())
+	_ = must(meter.Add(2))
+	fmt.Printf("lent %d %d\n", must(meter.Add(3)), must(must(meters.First()).Count()))
+	ok(meters.Clear())
+	fmt.Printf("cleared %d\n", must(must(meters.First()).Count()))
+	tallies := api.NewTallies()
+	_ = must(must(tallies.First()).Bump())
+	fmt.Printf("tallied %d\n", must(must(tallies.First()).Bump()))
 	fmt.Printf("chunks %s\n", list(api.Chunks([]byte("abcde"), 2), func(b rt.Bytes) string { return list(b.Copy(), number) }))
 	counters := api.Counters([]string{"x", "y"})
 	fmt.Printf("counters %s\n", strings.Trim(list(counters, func(c *api.Counter) string {
@@ -558,6 +642,16 @@ func script() {
 	none := api.Summed(nil)
 	fmt.Printf("summed %d %d %d %d\n", sum.X, sum.Y, none.X, none.Y)
 	fmt.Printf("longest %d %d\n", api.Longest([]string{"a", "abc"}), api.Longest(nil))
+	noFirst := "None"
+	if api.FirstOf(nil) != nil {
+		noFirst = "Some"
+	}
+	fmt.Printf("first of Some(%s) %s\n", quoted(*api.FirstOf([]string{"a", "b"})), noFirst)
+	limits := api.ByteLimits([]byte("a"), []byte("bc"))
+	breadth := api.Breadth(api.LimitsDuration{Low: 5 * time.Millisecond, High: 2 * time.Second})
+	fmt.Printf("limits %s %s breadth %d\n", limits.Low.Copy(), limits.High.Copy(), breadth.Milliseconds())
+	parts := []rt.Bytes{rt.NewBytes([]byte("ab")), rt.NewBytes(nil), rt.NewBytes([]byte("c"))}
+	fmt.Printf("joined %s %d read %d\n", api.Joined(parts).Copy(), len(api.Joined(nil).Copy()), api.ReadLen([]byte("hello")))
 	doc := must(serdejson.JsonParse(`{"b": [1, 2.5, null], "a": "é"}`))
 	fmt.Printf("json %s\n", must(api.Encode(doc)))
 	fmt.Printf("timed text %s\n", must(api.TimedText(doc)))
@@ -949,6 +1043,11 @@ func batched() []rt.Bytes {
 // broken breaks a contract, which must fail with a message naming it.
 func broken(which string) {
 	switch which {
+	case "outlived":
+		meters := api.NewMeters()
+		first := must(meters.First())
+		ok(meters.Clear())
+		_ = must(first.Count())
 	case "lent moved":
 		must(api.NewRegistry(api.NewCounter("c", 0))).Edit(func(counter *api.Counter) bool {
 			counter.IntoLabel(nil)

@@ -1,13 +1,13 @@
 # Build-speed benchmark
 
 `just bench` measures Rust build time on the pinned projects and build configurations in [corpus.toml](corpus.toml).
-It runs nightly in CI ([bench.yml](../../.github/workflows/bench.yml)), and on a PR that changes this harness (apart from the [Nix comparison](#nix-builds)), its workflow, the `build-bench` shell, or the `bench-ra-jit` package.
+CI ([bench.yml](../../.github/workflows/bench.yml)) runs it on manual dispatch and on a PR that changes this harness, its workflow, the `build-bench` shell, or the `bench-ra-jit` package, since every input is pinned and nothing else can change its result.
 A later push to that PR reruns it only if it changes one of those since the PR's last benched head, so a docs-only push costs no bench time.
 Every build-speed change here states its effect with its numbers.
 
 ```bash
 just bench                                    # everything; takes hours
-just bench --corpus regex --runs 1            # a quick smoke test
+just bench --variant baseline --runs 1        # a quick smoke test
 just bench --corpus moq --variant baseline --variant mold
 ```
 
@@ -19,9 +19,7 @@ The run also ignores the caller's `CARGO*`, `RUSTC*`, `RUSTDOC*`, `RUSTUP*`, and
 ## Corpus
 
 - **moq** builds `moq-relay`, which pulls in moq-net and the QUIC stack. Its crypto is on rind, which is pure Rust, so it compiles no C: the run fails if any crate in its build gains a `links` key or pulls in cc or cmake, while pure-Rust build scripts stay allowed.
-- **regex** and **wasmparser** are pure Rust: the run fails if any crate in their build gains a build script or a `links` key.
-
-Each corpus pins a git revision (and a lockfile when the project commits none).
+The corpus pins a git revision.
 Bump a pin in its own change, since numbers on either side of it do not compare.
 
 ## Scenarios
@@ -67,50 +65,27 @@ ra-jit bugs seen on moq, not reported upstream:
 
 - Async body edits in moq-net go to cargo (every `edit-async` run): "`parsed_values_given` is not compiled by ra-jit and rustc's copy is from before the edit: an instance of it does not compile", a generic of usage-argv's. The daemon then loads the workspace again: on CI such an edit took 50.6 s and 196 CPU-s, against plain cargo's 10.5 s and 14.5 CPU-s ([run](https://github.com/moq-dev/rust2/actions/runs/42351623273)).
 - At the previous pin (`f36c848`), `cargo ra-jit check` with no build loaded read every crate of the workspace, took minutes and GBs, and failed on errors rustc does not report (`unresolved macro moq_clock::test` in moq-net's integration tests).
-- On a library-only build such as regex, `cargo ra-jit build` returns after `cargo clean` without building anything.
+- On a library-only build, `cargo ra-jit build` returns after `cargo clean` without building anything.
 
 The report shows wall time (trimmed mean, and mean ± standard deviation), CPU time and its change against the base, retired instructions, and peak RSS, all from hyperfine.
 A busy host adds an occasional slow run, which on an edit of a few seconds can move a mean by over 10%, so the change against a base compares trimmed means, which drop each variant's fastest and slowest run; CPU time and instructions are trimmed means too.
 Instructions barely move with machine load, so they are the signal on a busy machine, where wall time is only a smoke test; they read `n/a` where the host exposes no performance counters.
 No threshold is set: the numbers inform a decision, they do not gate one.
 
-## Nix builds
-
-`just bench-nix` measures moq's Nix release builds (`moq-relay`, then `moq-cli`) in CPU time, built each way they could share compilations:
-
-- `crane`: moq's flake as it is, a dependency layer and a workspace layer per package.
-- `crane-mbx`: the same packages with no dependency layer, every compilation going through mbx on a store mounted into the sandbox with `extra-sandbox-paths`, as nixpkgs' ccache support does.
-- `crate2nix`: a derivation per crate, from `crate2nix generate`, so the Nix store itself is the cache.
-- `cargo-mbx`: cargo through mbx outside Nix, as moq's CI builds today, with a fresh target directory per build.
-
-```bash
-just bench-nix                                 # every variant; takes hours
-just bench-nix --variant crane --variant crate2nix
-```
-
-[nix.toml](nix.toml) pins moq, the packages, the edit, and the lockfile bump; [nix.nix](nix.nix) holds the builds, with the toolchain, features, and `RUSTFLAGS` of moq's overlay throughout.
-Results land in `target/bench/nix/`, newest at `target/bench/nix/latest/report.md`.
-It runs nightly in CI, never on a pull request: it informs a choice rather than gating a change.
-
-Each variant runs four scenarios in order on a private Nix store and mbx store, so only the first is cold:
-
-- `clean`: the first package from nothing.
-- `second-package`: the second package, which shows what the two share.
-- `edit-hub`: the first package after the moq-net body edit the cargo scenarios make.
-- `lock-bump`: the first package after `cargo update` of one dependency, the edit reverted.
-
-A cold edit or bump costs what `clean` does, so only the warm ones run.
-Each Nix build runs in a store of its own, which substitutes only from cache.nixos.org, so nothing the host or moq's cache built leaks in; before the timed build, it realises everything the build needs that does not compile Rust (toolchain, sources, vendored crates).
-That store runs its builds as this user in user namespaces, which makes their CPU time the `nix` process's own; Ubuntu reserves those namespaces for root unless `kernel.apparmor_restrict_unprivileged_userns` is 0.
-Evaluation is timed apart from the build, since crate2nix evaluates a derivation per crate.
-The report compares retired instructions, which barely move with machine load, and shows CPU time beside them.
-crate2nix reads no Cargo profile, so nix.nix gives it moq's `[profile.release]`: one codegen unit, and fat LTO and symbol stripping on the linked packages. `crate2nix generate`, which a project commits, is timed but not counted.
-
-### Nix builds for moq
+## Nix builds for moq
 
 Decided on 2026-10-26: moq explores crate2nix, and keeps its crane layers as they are.
 
-Measured on 2026-10-25 and 2026-10-26 on a busy 32-CPU host, in billions of instructions, at the pin in nix.toml:
+A since-deleted `just bench-nix` measured moq's Nix release builds (`moq-relay`, then `moq-cli`) in CPU time, built each way they could share compilations:
+
+- `crane`: moq's flake as it is, a dependency layer and a workspace layer per package.
+- `crane-mbx`: the same packages with no dependency layer, every compilation going through mbx on a store mounted into the sandbox.
+- `crate2nix`: a derivation per crate, from `crate2nix generate`, so the Nix store itself is the cache.
+- `cargo-mbx`: cargo through mbx outside Nix, with a fresh target directory per build.
+
+Its scenarios ran in order on a private store, so only the first was cold: `clean` builds the first package from nothing, `second-package` the second, `edit-hub` the first after the moq-net body edit, and `lock-bump` the first after `cargo update` of one dependency.
+
+Measured on 2026-10-25 and 2026-10-26 on a busy 32-CPU host, in billions of instructions, at moq [`011402e`](https://github.com/moq-dev/moq/commit/011402e005f6c8efeff07c46535fa2cfa95f021e):
 
 | scenario | crane | crane-mbx | crate2nix | cargo-mbx |
 | --- | ---: | ---: | ---: | ---: |

@@ -11,7 +11,7 @@
     # The quest CLI, which also serves the quest guide and skills the stubs in
     # .claude/skills call. Bump the rev to upgrade them.
     quest = {
-      url = "github:moq-dev/quest/6a18b8a815c2d15d37d7433a619f961ec5a07165";
+      url = "github:moq-dev/quest";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.flake-utils.follows = "flake-utils";
     };
@@ -23,12 +23,6 @@
       inputs.rust-overlay.follows = "rust-overlay";
       inputs.flake-utils.follows = "flake-utils";
     };
-    # The compiler cache the benchmark's Nix comparison measures, at the release
-    # moq's CI runs. Bumping it is a corpus change, like ra-jit's.
-    mbx = {
-      url = "github:jdx/mr-boxington/v1.29.0";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
   outputs =
@@ -39,7 +33,6 @@
       rust-overlay,
       quest,
       ra-jit,
-      mbx,
       ...
     }:
     flake-utils.lib.eachSystem
@@ -163,49 +156,7 @@
                 doCheck = false;
               };
 
-          # Every generator binary of the UniFFI fork, built once from its lockfile.
-          uniffi =
-            (pkgs.makeRustPlatform {
-              cargo = toolchain;
-              rustc = toolchain;
-            }).buildRustPackage
-              {
-                pname = "rust2-uniffi";
-                version = (builtins.fromTOML (builtins.readFile ./uniffi/uniffi/Cargo.toml)).package.version;
-                # The root workspace, without the other projects.
-                src = pkgs.lib.fileset.toSource {
-                  root = ./.;
-                  fileset = pkgs.lib.fileset.unions [
-                    ./Cargo.toml
-                    ./Cargo.lock
-                    ./uniffi
-                  ];
-                };
-                cargoLock.lockFile = ./Cargo.lock;
-                cargoBuildFlags = [
-                  "--package=uniffi"
-                  "--package=uniffi-bindgen-go"
-                  "--package=uniffi-dart"
-                  "--package=uniffi-bindgen-cpp"
-                  "--bins"
-                ];
-                buildFeatures = [
-                  "uniffi/cli"
-                  "uniffi-dart/binary"
-                ];
-                # The fixture suite needs every foreign toolchain; `just uniffi fixtures` runs it.
-                doCheck = false;
-              };
-
-          # One generator's binaries, so a consumer can put only that one on PATH.
-          generator =
-            name: bins:
-            pkgs.runCommand name { } ''
-              mkdir -p $out/bin
-              ${pkgs.lib.concatMapStringsSep "\n" (bin: "ln -s ${uniffi}/bin/${bin} $out/bin/") bins}
-            '';
-
-          # Kotlin's generated async code, UniFFI's and rust2-ffi's, needs coroutines on the
+          # rust2-ffi's generated async Kotlin needs coroutines on the
           # classpath; nixpkgs has no jar.
           kotlinx-coroutines = pkgs.fetchurl {
             url = "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core-jvm/1.10.2/kotlinx-coroutines-core-jvm-1.10.2.jar";
@@ -217,14 +168,6 @@
             quest = quest-cli;
             ts = rust2-ts;
             lint = rust2-lint;
-            inherit uniffi;
-            uniffi-bindgen = generator "uniffi-bindgen" [
-              "uniffi-bindgen"
-              "uniffi-bindgen-swift"
-            ];
-            uniffi-bindgen-go = generator "uniffi-bindgen-go" [ "uniffi-bindgen-go" ];
-            uniffi-bindgen-dart = generator "uniffi-bindgen-dart" [ "uniffi_bindgen_dart" ];
-            uniffi-bindgen-cpp = generator "uniffi-bindgen-cpp" [ "uniffi-bindgen-cpp" ];
           }
           # ra-jit and its toolchain for the benchmark's ra-jit variants, which build it
           # only when they run: it compiles from source. ra-jit skips Intel macOS.
@@ -234,17 +177,6 @@
               paths = [
                 ra-jit.packages.${system}.ra-jit
                 raJitToolchain
-              ];
-            };
-          }
-          # What `just bench-nix` runs beyond the build-bench shell, built only then:
-          # mbx compiles from source.
-          // pkgs.lib.optionalAttrs (mbx.packages ? ${system}) {
-            bench-nix = pkgs.symlinkJoin {
-              name = "bench-nix";
-              paths = [
-                mbx.packages.${system}.mbx
-                pkgs.crate2nix
               ];
             };
           };
@@ -288,8 +220,6 @@
               shellcheck
               shfmt
               taplo
-              # bench/ffi/run.sh serializes runs that share a work directory.
-              flock
               nixfmt
               # The TypeScript driver's tests run and type-check its output, and bundle a
               # caller with Bun and esbuild to check that unused output shakes out.
@@ -341,17 +271,6 @@
                 "x86_64-linux-android"
               ];
             };
-          });
-          # Every foreign toolchain the UniFFI fixture suite runs, apart for their size.
-          devShells.uniffi = self.devShells.${system}.default.overrideAttrs (old: {
-            nativeBuildInputs = old.nativeBuildInputs ++ [
-              pkgs.kotlin
-              pkgs.swift
-              pkgs.go
-              pkgs.dart
-              pkgs.cmake
-            ];
-            CLASSPATH = "${pkgs.jna}/share/java/jna.jar:${kotlinx-coroutines}";
           });
           formatter = pkgs.nixfmt;
           checks.quest-tree = pkgs.runCommand "quest-tree" { nativeBuildInputs = [ quest-cli ]; } ''

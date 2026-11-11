@@ -67,31 +67,53 @@ export function show(out: rs.String, what: string, v: rs.JsValue): void {
 	rs.resultUnwrap(rs.fmtWriteString(out, [args3[0], ": ", args3[1], "\n"]), rs.fmtErrorDebug);
 }
 
+/**
+ * A `Math` result's bits, any NaN as `f64::NAN`'s: ECMAScript leaves which NaN a
+ * function returns to the engine, and V8's varies by CPU and call path, both sides'
+ * calls being the same.
+ */
+export function opBits(x: rs.f64): rs.u64 {
+	let _2!: rs.f64;
+	if (!Number.isNaN(x)) {
+		_2 = x;
+	} else {
+		_2 = NaN;
+	}
+	return rs.f64ToBits(_2);
+}
+
 export function math(input: Input.Input, out: rs.String): void {
+	let fround2!: rs.f32;
 	const _5: [rs.f64, rs.f64] = [Input.f64(input), Input.f64(input)];
 	const x: rs.f64 = _5[0];
 	const y: rs.f64 = _5[1];
-	const part = rs.f64ToBits(rs.jsToF64(rs.jsGlobal("Math").floor(x)));
+	const part = opBits(rs.jsToF64(rs.jsGlobal("Math").floor(x)));
 	rs.resultUnwrap(rs.fmtWriteString(out, ["floor ", (f: rs.Formatter) => rs.u64Debug(part, f), "\n"]), rs.fmtErrorDebug);
-	const part2 = rs.f64ToBits(rs.jsToF64(rs.jsGlobal("Math").trunc(x)));
+	const part2 = opBits(rs.jsToF64(rs.jsGlobal("Math").trunc(x)));
 	rs.resultUnwrap(rs.fmtWriteString(out, ["trunc ", (f: rs.Formatter) => rs.u64Debug(part2, f), "\n"]), rs.fmtErrorDebug);
-	const part3 = rs.f64ToBits(rs.jsToF64(rs.jsGlobal("Math").sign(x)));
+	const part3 = opBits(rs.jsToF64(rs.jsGlobal("Math").sign(x)));
 	rs.resultUnwrap(rs.fmtWriteString(out, ["sign ", (f: rs.Formatter) => rs.u64Debug(part3, f), "\n"]), rs.fmtErrorDebug);
-	const part4 = rs.f32ToBits(rs.jsToF32(rs.jsGlobal("Math").fround(x)));
+	const fround: rs.f32 = rs.jsToF32(rs.jsGlobal("Math").fround(x));
+	if (!Number.isNaN(fround)) {
+		fround2 = fround;
+	} else {
+		fround2 = NaN;
+	}
+	const part4 = rs.f32ToBits(fround2);
 	rs.resultUnwrap(rs.fmtWriteString(out, ["fround ", (f: rs.Formatter) => rs.u32Debug(part4, f), "\n"]), rs.fmtErrorDebug);
-	const part5 = rs.f64ToBits(rs.jsToF64(rs.jsGlobal("Math").hypot(x, y)));
+	const part5 = opBits(rs.jsToF64(rs.jsGlobal("Math").hypot(x, y)));
 	rs.resultUnwrap(rs.fmtWriteString(out, ["hypot ", (f: rs.Formatter) => rs.u64Debug(part5, f), "\n"]), rs.fmtErrorDebug);
-	const part6 = rs.f64ToBits(rs.jsToF64(rs.jsGlobal("Math").atan2(x, y)));
+	const part6 = opBits(rs.jsToF64(rs.jsGlobal("Math").atan2(x, y)));
 	rs.resultUnwrap(rs.fmtWriteString(out, ["atan2 ", (f: rs.Formatter) => rs.u64Debug(part6, f), "\n"]), rs.fmtErrorDebug);
-	const part7 = rs.f64ToBits(rs.jsToF64(rs.jsGlobal("Math").pow(x, y)));
+	const part7 = opBits(rs.jsToF64(rs.jsGlobal("Math").pow(x, y)));
 	rs.resultUnwrap(rs.fmtWriteString(out, ["pow ", (f: rs.Formatter) => rs.u64Debug(part7, f), "\n"]), rs.fmtErrorDebug);
-	const part8 = rs.f64ToBits(rs.jsToF64(rs.jsGlobal("Math").max(x, y)));
+	const part8 = opBits(rs.jsToF64(rs.jsGlobal("Math").max(x, y)));
 	rs.resultUnwrap(rs.fmtWriteString(out, ["max ", (f: rs.Formatter) => rs.u64Debug(part8, f), "\n"]), rs.fmtErrorDebug);
-	const _102: rs.i32 = Input.u32(input) | 0;
-	const part9 = rs.jsToU32(rs.jsGlobal("Math").clz32(_102));
+	const _105: rs.i32 = Input.u32(input) | 0;
+	const part9 = rs.jsToU32(rs.jsGlobal("Math").clz32(_105));
 	rs.resultUnwrap(rs.fmtWriteString(out, ["clz32 ", (f: rs.Formatter) => rs.u32Display(part9, f), "\n"]), rs.fmtErrorDebug);
-	const _118: rs.Slice<rs.f64> = rs.sliceRange(rs.sliceFrom([y, Input.f64(input), Input.f64(input)]), 0, rs.u8Rem(Input.u8(input), 4) as rs.usize);
-	const part11 = rs.f64ToBits(rs.jsToF64(rs.jsSpreadMethod(rs.jsGlobal("Math"), "max", [x], rs.jsTyped(rs.global.Float64Array, _118, false))));
+	const _121: rs.Slice<rs.f64> = rs.sliceRange(rs.sliceFrom([y, Input.f64(input), Input.f64(input)]), 0, rs.u8Rem(Input.u8(input), 4) as rs.usize);
+	const part11 = opBits(rs.jsToF64(rs.jsSpreadMethod(rs.jsGlobal("Math"), "max", [x], rs.jsTyped(rs.global.Float64Array, _121, false))));
 	rs.resultUnwrap(rs.fmtWriteString(out, ["max_of ", (f: rs.Formatter) => rs.u64Debug(part11, f), "\n"]), rs.fmtErrorDebug);
 }
 

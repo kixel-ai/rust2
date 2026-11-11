@@ -8,13 +8,16 @@ use rust2_driver::cargo::{Args, Check, Output};
 
 use crate::config::{self, Config};
 
-const USAGE: &str = "usage: rust2-ffi --config <ffi.toml> (--out <dir> | --census <dir>) [--manifest-path <Cargo.toml>] [-- <cargo args>]
+const USAGE: &str = "usage: rust2-ffi --config <ffi.toml> (--out <dir> | --census <dir>) [--manifest-path <Cargo.toml>] [--target <triple>] [-- <cargo args>]
 
 Exports the pub API of the package's library, following its `pub use` re-exports into
 other crates, as one library: a crate in <dir> that builds the C ABI, with its C header
 in <dir>/include, every C name prefixed by the library's crate name. ffi.toml says what
 to leave out. The package's Cargo.toml is beside ffi.toml unless --manifest-path says
-where. Cargo args, such as --features, are passed to `cargo check`, on the host.
+where. Cargo args, such as --features, are passed to `cargo check`.
+
+--target exports the API the package has on that target, the host by default, whatever
+cargo's config names: its `cfg`s and its layouts. The crate builds for that target alone.
 
 --census writes a Markdown report, <dir>/<package>.md, of what exports and of every
 construct the export refuses, instead of exporting.";
@@ -30,13 +33,15 @@ pub fn run(args: &[String]) -> ExitCode {
 }
 
 fn try_run(args: &[String]) -> Result<ExitCode, String> {
-	let Some(args) = Args::parse(args, USAGE)? else {
+	let (target, args) = target(args)?;
+	let Some(args) = Args::parse(&args, USAGE)? else {
 		return Ok(ExitCode::SUCCESS);
 	};
 	// Read now, so a malformed config fails before the check.
 	Config::load(&args.config)?;
+	let target = target.unwrap_or_else(|| rustc_session::config::host_tuple().to_string());
 	let picks = Picks::parse(&args.cargo)?;
-	let (facade, patch, checked) = facade(&args.manifest, &picks)?;
+	let (facade, patch, checked) = facade(&args.manifest, &target, &picks)?;
 	let output = match &args.output {
 		Output::Dir(out) => (config::env::OUT, out.as_os_str()),
 		Output::Census(census) => (config::env::CENSUS, census.as_os_str()),
@@ -47,9 +52,8 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 		manifest: &args.manifest,
 		package: &facade.name,
 		root: None,
-		// The host's, whatever cargo's config names: a C ABI is the platform's, and the
-		// exports are found on it.
-		target: Some(rustc_session::config::host_tuple()),
+		// Always named, so cargo's config never picks another: the exports are found on it.
+		target: Some(&target),
 		args: &args.cargo,
 		env: &[
 			(config::env::CONFIG, args.config.as_os_str()),
@@ -109,14 +113,41 @@ struct Checked {
 	top: String,
 }
 
+/// `--target`'s value, and the rest of `args` for the shared parser, which knows no
+/// `--target`.
+fn target(args: &[String]) -> Result<(Option<String>, Vec<String>), String> {
+	let mut target = None;
+	let mut rest = Vec::new();
+	let mut args = args.iter();
+	while let Some(arg) = args.next() {
+		match arg.as_str() {
+			"--target" => {
+				let Some(value) = args.next() else {
+					return Err(format!("--target needs a value\n\n{USAGE}"));
+				};
+				if target.replace(value.clone()).is_some() {
+					return Err(format!("--target is given twice\n\n{USAGE}"));
+				}
+			}
+			// The cargo args, and the rest after them, are cargo's.
+			"--" => {
+				rest.push(arg.clone());
+				rest.extend(args.cloned());
+				break;
+			}
+			_ => rest.push(arg.clone()),
+		}
+	}
+	Ok((target, rest))
+}
+
 /// The facade, the package of `manifest`, then the patches it resolved with, as
 /// [`config::env::PATCH`] has them.
-fn facade(manifest: &Path, picks: &Picks<'_>) -> Result<(config::Package, String, Checked), String> {
-	// On the host, so the resolved dependencies are the ones the check passes rustc.
-	let host = rustc_session::config::host_tuple();
+fn facade(manifest: &Path, target: &str, picks: &Picks<'_>) -> Result<(config::Package, String, Checked), String> {
+	// On the target, so the resolved dependencies are the ones the check passes rustc.
 	let output = run_cargo(
 		manifest,
-		&["metadata", "--format-version", "1", "--filter-platform", host],
+		&["metadata", "--format-version", "1", "--filter-platform", target],
 		picks,
 	)?;
 	let metadata: Metadata = serde_json::from_slice(&output).map_err(|err| format!("reading cargo metadata: {err}"))?;
@@ -301,8 +332,8 @@ impl<'a> Picks<'a> {
 					picks.flags.push(arg);
 					continue;
 				}
-				"--target" => return Err("--target: the export builds for the host".to_string()),
-				_ if arg.starts_with("--target=") => return Err(format!("{arg}: the export builds for the host")),
+				"--target" => return Err("--target is rust2-ffi's, before --".to_string()),
+				_ if arg.starts_with("--target=") => return Err(format!("{arg}: --target is rust2-ffi's, before --")),
 				"--config" => {
 					picks.flags.extend([Some(arg), args.next()].into_iter().flatten());
 					continue;

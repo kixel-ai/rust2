@@ -68,7 +68,7 @@ bench checkout="": (moq checkout)
     kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/bench/export.kt -d target/bench-kt
     swift=true
     if [ "{{ os() }}-{{ arch() }}" = linux-aarch64 ]; then
-        echo "skipping the Swift: nixpkgs builds no Swift for aarch64-linux (quest/m2/uniffi-swift-arm.md)" >&2
+        echo "skipping the Swift: nixpkgs builds no Swift for aarch64-linux (quest/m2/swift-arm.md)" >&2
         swift=false
     else
         {{ quote(just_executable()) }} swift-module -O
@@ -103,7 +103,7 @@ moq checkout="": (moq-cpp checkout)
     mypy --strict --python-version 3.11 --cache-dir target/mypy "$out/python/moq.py"
     pyright -p tests/pyright.json "$out/python/moq.py"
     if [ "{{ os() }}-{{ arch() }}" = linux-aarch64 ]; then
-        echo "skipping moq/moq.swift: nixpkgs builds no Swift for aarch64-linux (quest/m2/uniffi-swift-arm.md)" >&2
+        echo "skipping moq/moq.swift: nixpkgs builds no Swift for aarch64-linux (quest/m2/swift-arm.md)" >&2
     else
         {{ quote(just_executable()) }} moq-swift-run
     fi
@@ -255,7 +255,10 @@ standin checkout="":
     } > "$dir/Cargo.toml"
     # What moq-ffi ships, re-exported: moq-net and moq-pattern at the root, beside the
     # waiter a driver's poll registers and the clock it polls at, and each other crate in a
-    # module of its own, since several name an item alike, such as `Error`.
+    # module of its own, since several name an item alike, such as `Error`. moq-tokio's
+    # session side only: the client, server, and origin a binding drives, with the configs
+    # and the bind they take. Its QUIC driver, CLI, worker groups, and listener internals
+    # stay out.
     cat > "$dir/src/lib.rs" <<'EOF'
     pub use kio::{Park, Waiter, WaiterList, clock, coop, log};
     pub use moq_net::*;
@@ -270,7 +273,36 @@ standin checkout="":
     }
 
     pub mod tokio {
-        pub use ::moq_tokio::*;
+        pub use ::moq_tokio::cli::Duration;
+        pub use ::moq_tokio::{Backoff, Client, ConnectError, Connection, Error, Log, Restart, Server, Status, Transport, panic, tls};
+
+        pub mod client {
+            pub use ::moq_tokio::client::Config;
+        }
+
+        pub mod connect {
+            pub use ::moq_tokio::connect::Config;
+        }
+
+        pub mod connection {
+            pub use ::moq_tokio::connection::Monitor;
+        }
+
+        pub mod listen {
+            pub use ::moq_tokio::listen::{Bind, Config};
+        }
+
+        pub mod origin {
+            pub use ::moq_tokio::origin::spawn;
+        }
+
+        pub mod quic {
+            pub use ::moq_tokio::quic::Config;
+        }
+
+        pub mod server {
+            pub use ::moq_tokio::server::{Config, Listener, Request};
+        }
     }
     EOF
     # moq's lockfile pins what moq's own builds use.

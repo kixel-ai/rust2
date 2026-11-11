@@ -96,6 +96,13 @@ class Writer {
 		socketAddr(v)
 	}
 
+	/** A `u128`, from 0 through 2^128 - 1. */
+	fun u128(v: java.math.BigInteger) {
+		kotlin.require(v.signum() >= 0 && v.bitLength() <= 128) { "$v is out of range for Rust's u128" }
+		i64(v.toLong())
+		i64(v.shiftRight(64).toLong())
+	}
+
 	fun duration(v: kotlin.time.Duration) {
 		kotlin.require(!v.isNegative()) { "a negative duration has no Rust Duration" }
 		v.toComponents { secs, nanos ->
@@ -192,6 +199,12 @@ class Reader(bytes: ByteArray) {
 			else -> java.net.Inet6Address.getByAddress(null, ip, scope)
 		}
 		return java.net.InetSocketAddress(address, port)
+	}
+
+	fun u128(): java.math.BigInteger {
+		val lo = b.getLong()
+		val hi = b.getLong()
+		return java.math.BigInteger(1, java.nio.ByteBuffer.allocate(16).putLong(hi).putLong(lo).array())
 	}
 
 	fun duration(): kotlin.time.Duration {

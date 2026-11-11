@@ -594,9 +594,18 @@ impl Wire for bool {
 	}
 }
 
+/// What crosses as 64 bits, at the target's width: on a 32-bit target, a value past it
+/// has no `usize` or `isize` to be.
+pub fn narrow<T: TryFrom<W>, W>(wide: W) -> T {
+	match T::try_from(wide) {
+		Ok(v) => v,
+		Err(_) => rt::fail("jni", "a value is too wide for this target's usize or isize"),
+	}
+}
+
 impl Wire for usize {
 	fn read(r: &mut Reader<'_>) -> Self {
-		r.get::<u64>() as usize
+		narrow(r.get::<u64>())
 	}
 
 	fn write(self, w: &mut Writer) {
@@ -606,7 +615,7 @@ impl Wire for usize {
 
 impl Wire for isize {
 	fn read(r: &mut Reader<'_>) -> Self {
-		r.get::<i64>() as isize
+		narrow(r.get::<i64>())
 	}
 
 	fn write(self, w: &mut Writer) {
@@ -616,7 +625,7 @@ impl Wire for isize {
 
 impl Wire for *const c_void {
 	fn read(r: &mut Reader<'_>) -> Self {
-		r.get::<u64>() as usize as Self
+		narrow::<usize, _>(r.get::<u64>()) as Self
 	}
 
 	fn write(self, w: &mut Writer) {
@@ -626,7 +635,7 @@ impl Wire for *const c_void {
 
 impl Wire for *mut c_void {
 	fn read(r: &mut Reader<'_>) -> Self {
-		r.get::<u64>() as usize as Self
+		narrow::<usize, _>(r.get::<u64>()) as Self
 	}
 
 	fn write(self, w: &mut Writer) {
@@ -720,6 +729,17 @@ where
 			list.items("jni").iter().for_each(|&item| w.put(Owned(item)));
 			rt::List { len: 0, ..list }.free("jni", |_| {});
 		}
+	}
+}
+
+impl Wire for rt::U128 {
+	fn read(r: &mut Reader<'_>) -> Self {
+		Self { lo: r.get(), hi: r.get() }
+	}
+
+	fn write(self, w: &mut Writer) {
+		w.put(self.lo);
+		w.put(self.hi);
 	}
 }
 
