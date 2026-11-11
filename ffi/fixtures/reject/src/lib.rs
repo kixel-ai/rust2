@@ -912,3 +912,24 @@ pub fn poll_loose(waiter: &Loose) -> std::task::Poll<()> {
 	waiter.0.wake_by_ref();
 	std::task::Poll::Ready(())
 }
+
+/// A plain enum whose discriminant C's `int32_t` cannot hold.
+#[repr(i64)]
+pub enum Wide {
+	Small = 1,
+	Large = 1 << 40,
+}
+
+/// One past 64 bits.
+#[repr(i128)]
+pub enum Huge {
+	Small = 1,
+	Large = 1 << 64,
+}
+
+/// One past `i128::MAX`.
+#[repr(u128)]
+pub enum Top {
+	Small = 1,
+	Large = u128::MAX,
+}

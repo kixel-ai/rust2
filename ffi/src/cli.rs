@@ -73,8 +73,8 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 }
 
 /// Write the generated crate's lockfile: the check's, with what the crate adds of its own
-/// resolved beside it, or fail if the glue would build the facade with any package the
-/// check did not resolve, as another version, which the glue was not generated against.
+/// resolved beside it, or fail if the glue would build the facade with any dependency the
+/// check did not resolve for the same dependent, which the glue was not generated against.
 fn lock(checked: &Checked, out: &Path, picks: &Picks<'_>) -> Result<(), String> {
 	let lockfile = checked.metadata.workspace_root.join("Cargo.lock");
 	std::fs::copy(&lockfile, out.join("Cargo.lock"))
@@ -87,24 +87,39 @@ fn lock(checked: &Checked, out: &Path, picks: &Picks<'_>) -> Result<(), String> 
 	let generated: Metadata =
 		serde_json::from_slice(&output).map_err(|err| format!("reading cargo metadata: {err}"))?;
 	// The check's resolution holds more than its build: cargo metadata enables what the
-	// facade's dev-dependencies enable, too. So each package the glue builds the facade with
-	// must be among it, not the other way around.
-	let resolved: BTreeSet<String> = checked.metadata.packages.iter().map(Package::identity).collect();
-	let packages: BTreeMap<&str, &Package> = generated.packages.iter().map(|p| (p.id.as_str(), p)).collect();
+	// facade's dev-dependencies enable, too. So each dependency the glue builds the facade
+	// with must be one the check resolved for the same dependent, not the other way around.
+	fn built(node: &Node) -> impl Iterator<Item = &str> {
+		let deps = node.deps.iter();
+		deps.filter(|d| d.dep_kinds.iter().any(|k| k.kind.as_deref() != Some("dev")))
+			.map(|d| d.pkg.as_str())
+	}
+	let identities = |metadata: &Metadata| -> BTreeMap<String, String> {
+		metadata.packages.iter().map(|p| (p.id.clone(), p.identity())).collect()
+	};
+	let (resolved, ids) = (identities(&checked.metadata), identities(&generated));
+	let edges: BTreeSet<(&str, &str)> = (checked.metadata.resolve.nodes.iter())
+		.flat_map(|n| built(n).map(move |dep| (n.id.as_str(), dep)))
+		.map(|(from, to)| (resolved[from].as_str(), resolved[to].as_str()))
+		.collect();
 	let nodes: BTreeMap<&str, &Node> = generated.resolve.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
-	let mut seen = BTreeSet::new();
-	let mut queue = vec![checked.top.as_str()];
+	let top = checked.top.as_str();
 	let mut moved = Vec::new();
+	if ids.get(top) != resolved.get(top) {
+		moved.push(top);
+	}
+	let mut seen = BTreeSet::new();
+	let mut queue = vec![top];
 	while let Some(id) = queue.pop() {
 		if !seen.insert(id) {
 			continue;
 		}
-		if !packages.get(id).is_some_and(|p| resolved.contains(&p.identity())) {
-			moved.push(id);
+		for dep in nodes.get(id).into_iter().flat_map(|n| built(n)) {
+			if !edges.contains(&(ids[id].as_str(), ids[dep].as_str())) {
+				moved.push(dep);
+			}
+			queue.push(dep);
 		}
-		let deps = nodes.get(id).into_iter().flat_map(|n| &n.deps);
-		let built = deps.filter(|d| d.dep_kinds.iter().any(|k| k.kind.as_deref() != Some("dev")));
-		queue.extend(built.map(|d| d.pkg.as_str()));
 	}
 	match moved.is_empty() {
 		true => Ok(()),

@@ -1415,7 +1415,10 @@ impl<'tcx> Collector<'tcx> {
 			}
 			// No value is one, so it is a handle C never holds, which no C enum is.
 			DefKind::Enum if tcx.adt_def(def_id).variants().is_empty() => self.object(site),
-			DefKind::Enum => Decl::Enum(0),
+			DefKind::Enum => match wide(tcx, def_id) {
+				Some(why) => Decl::Refused(why),
+				None => Decl::Enum(0),
+			},
 			_ => Decl::Callback(0),
 		}
 	}
@@ -1626,22 +1629,6 @@ impl<'tcx> Collector<'tcx> {
 				fields,
 				tuple,
 			});
-		}
-		// A plain enum crosses as a C `int32_t`, whatever its `repr`. An unsigned value past
-		// `i128::MAX` wraps as a discriminant, so its bits decide.
-		if adt.is_enum() && variants.iter().all(|v| v.fields.is_empty()) {
-			for ((_, d), variant) in adt.discriminants(tcx).zip(adt.variants()) {
-				let (value, fits) = match d.ty.is_signed() {
-					true => {
-						let value = signed(tcx, d.ty, d.val);
-						(value.to_string(), i32::try_from(value).is_ok())
-					}
-					false => (d.val.to_string(), i32::try_from(d.val).is_ok()),
-				};
-				if !fits {
-					errs.push(why("discriminant outside `i32`", format!("{} = {value}", variant.name)));
-				}
-			}
 		}
 		match errs.is_empty() {
 			true => Ok(variants),
@@ -4381,6 +4368,32 @@ fn int(ty: Ty<'_>) -> Option<Int> {
 		ty::Int(ty::IntTy::Isize) => Int::Isize,
 		_ => return None,
 	})
+}
+
+/// Why a plain enum cannot cross as the C `int32_t` every plain enum crosses as, whatever
+/// its `repr`: its first discriminant outside `i32`. An unsigned one past `i128::MAX` wraps
+/// through [`signed`], so its bits decide.
+fn wide(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Why> {
+	let adt = tcx.adt_def(def_id);
+	if !adt.variants().iter().all(|v| v.fields.is_empty()) {
+		return None;
+	}
+	adt.discriminants(tcx)
+		.zip(adt.variants())
+		.find_map(|((_, d), variant)| {
+			let (value, fits) = match d.ty.is_signed() {
+				true => {
+					let value = signed(tcx, d.ty, d.val);
+					(value.to_string(), i32::try_from(value).is_ok())
+				}
+				false => (d.val.to_string(), i32::try_from(d.val).is_ok()),
+			};
+			(!fits).then(|| Why {
+				construct: "discriminant outside `i32`",
+				detail: format!("{} = {value}", variant.name),
+				note: Some((tcx.def_span(variant.def_id), "has this discriminant".to_string())),
+			})
+		})
 }
 
 /// An integer of type `ty` from its bits: sign-extended if `ty` is signed.
