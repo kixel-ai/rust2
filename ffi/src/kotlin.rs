@@ -43,12 +43,13 @@ pub struct Output {
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
 		abi,
-		classes: abi.classes(|_| (String::new(), 0)),
+		classes: abi.classes(|_| (String::new(), 0), taken),
 		types: String::new(),
 		top: String::new(),
 		natives: String::new(),
 		glue: String::new(),
 		exceptions: BTreeMap::new(),
+		thrown: HashMap::new(),
 		names: BTreeMap::new(),
 		errors: Vec::new(),
 		fresh: 0,
@@ -56,6 +57,9 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		tuples: BTreeSet::new(),
 		dispatchers: Vec::new(),
 	};
+	for name in g.classes.values() {
+		g.names.insert(name.clone(), "a type".to_string());
+	}
 	g.write();
 	if !g.errors.is_empty() {
 		return Err(g.errors.join("\n"));
@@ -251,6 +255,15 @@ const TAKEN: &[&str] = &[
 	"error",
 ];
 
+/// Whether the runtime takes the top-level Kotlin name `name`: one of [`TAKEN`], or a
+/// tuple's class, `Tuple<N>`.
+fn taken(name: &str) -> bool {
+	let tuple = name
+		.strip_prefix("Tuple")
+		.is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
+	tuple || TAKEN.contains(&name)
+}
+
 /// How a function's Kotlin form is held.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Place {
@@ -291,6 +304,8 @@ struct Gen<'a> {
 	glue: String,
 	/// The exception class of each error type, by name.
 	exceptions: BTreeMap<String, Type>,
+	/// Each exception class's name, by the Kotlin type it throws.
+	thrown: HashMap<String, String>,
 	/// Each top-level Kotlin name, with what claimed it.
 	names: BTreeMap<String, String>,
 	errors: Vec<String>,
@@ -325,19 +340,9 @@ impl<'a> Gen<'a> {
 		self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c)))
 	}
 
-	/// Claim the top-level Kotlin name `name` for `what`.
-	fn claim(&mut self, name: &str, what: String) {
-		if TAKEN.contains(&name) {
-			self.errors.push(format!(
-				"{what} is `{}.{name}` in Kotlin, which its runtime names: rename it in the source or exclude it in the config",
-				self.abi.prefix
-			));
-		} else if let Some(first) = self.names.insert(name.to_string(), what.clone()) {
-			self.errors.push(format!(
-				"{first} and {what} are both `{}.{name}` in Kotlin: rename one in the source or exclude it in the config",
-				self.abi.prefix
-			));
-		}
+	/// The top-level Kotlin name `what` takes, `name` unless that is taken.
+	fn claim(&mut self, name: &str, what: String) -> String {
+		abi::claim(&mut self.names, taken, name, what)
 	}
 
 	/// The class of a tuple of `n`, of one or past `Triple`, written once, its fields named
@@ -345,7 +350,6 @@ impl<'a> Gen<'a> {
 	fn tuple(&mut self, n: usize) -> String {
 		let name = format!("Tuple{n}");
 		if self.tuples.insert(n) {
-			self.claim(&name, format!("a tuple of {n}"));
 			let params: Vec<String> = (1..=n).map(|k| format!("T{k}")).collect();
 			let fields: Vec<String> = (0..n).map(|k| format!("\tval {}: T{},\n", ordinal(k), k + 1)).collect();
 			let _ = write!(
@@ -738,7 +742,7 @@ impl<'a> Gen<'a> {
 		}
 		let mut top = Vec::new();
 		for function in &api.functions {
-			if let Some(code) = self.function(function, None, None, Place::Static) {
+			if let Some(code) = self.function(function, None, None, Place::Static, &[]) {
 				top.push(code);
 			}
 		}
@@ -762,7 +766,6 @@ impl<'a> Gen<'a> {
 	/// A Kotlin data class for a range, bound, or pair of bounds, and its codec.
 	fn range(&mut self, c: &str, ty: &Type) {
 		let name = self.class(c);
-		self.claim(&name, format!("`{c}`"));
 		let (fields, write, read) = match ty {
 			Type::Range(int) => {
 				let kt = kt_int(*int);
@@ -937,7 +940,6 @@ impl<'a> Gen<'a> {
 		let c = abi.record(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&record.path, &record.args);
-		self.claim(&name, format!("struct `{rust}`"));
 		let ty = Type::Record(i);
 		let fields: Vec<(String, String)> = record
 			.fields
@@ -954,7 +956,14 @@ impl<'a> Gen<'a> {
 				Some(_) => Place::Member,
 				None => Place::Static,
 			};
-			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place) {
+			// What the type declares before it, which its name keeps apart from.
+			let taken: Vec<String> = match place {
+				Place::Member => (members.iter().cloned())
+					.chain(body.iter().filter_map(|b| member_name(b)))
+					.collect(),
+				Place::Static => statics.iter().filter_map(|s| member_name(s)).collect(),
+			};
+			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place, &taken) {
 				match place {
 					Place::Member => body.push(code),
 					Place::Static => statics.push(indent(&code)),
@@ -1039,7 +1048,6 @@ impl<'a> Gen<'a> {
 		let c = abi.enumeration(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&e.path, &e.args);
-		self.claim(&name, format!("enum `{rust}`"));
 		let ty = Type::Enum(i);
 		let mut body = Vec::new();
 		let mut statics = Vec::new();
@@ -1050,7 +1058,12 @@ impl<'a> Gen<'a> {
 				Some(_) => Place::Member,
 				None => Place::Static,
 			};
-			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place) {
+			// What the type declares before it, which its name keeps apart from.
+			let taken: Vec<String> = match place {
+				Place::Member => body.iter().filter_map(|b| member_name(b)).collect(),
+				Place::Static => statics.iter().filter_map(|s| member_name(s)).collect(),
+			};
+			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place, &taken) {
 				match place {
 					Place::Member => body.push(code),
 					Place::Static => statics.push(indent(&code)),
@@ -1174,7 +1187,6 @@ impl<'a> Gen<'a> {
 		let name = self.class(&c);
 		let bare = self.bare(&c).to_string();
 		let rust = abi.api.rust(&object.path, &object.args);
-		self.claim(&name, format!("type `{rust}`"));
 		let ty = Type::Object(i);
 		self.native(
 			&format!("{bare}_free"),
@@ -1196,7 +1208,12 @@ impl<'a> Gen<'a> {
 				Some(_) => Place::Member,
 				None => Place::Static,
 			};
-			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place) {
+			// What the type declares before it, which its name keeps apart from.
+			let taken: Vec<String> = match place {
+				Place::Member => body.iter().filter_map(|b| member_name(b)).collect(),
+				Place::Static => statics.iter().filter_map(|s| member_name(s)).collect(),
+			};
+			if let Some(code) = self.function(method, Some(&owner), Some(&ty), place, &taken) {
 				match place {
 					Place::Member => body.push(code),
 					Place::Static => statics.push(indent(&code)),
@@ -1225,7 +1242,6 @@ impl<'a> Gen<'a> {
 		let name = self.class(&c);
 		let bare = self.bare(&c).to_string();
 		let rust = callback.path.join("::");
-		self.claim(&name, format!("trait `{rust}`"));
 		let mut body = Vec::new();
 		let mut table = vec!["free: Some(rt::free_callback)".to_string()];
 		let mut members = Vec::new();
@@ -1425,20 +1441,21 @@ impl<'a> Gen<'a> {
 			if !seen.insert(member) {
 				let name = member.split(' ').next_back().unwrap_or(member);
 				self.errors.push(format!(
-					"two members of `{rust}` are both `{name}` in Kotlin: rename one in the source or exclude it in the config"
+					"two members of `{rust}` are both `{name}` in Kotlin, which rust2-ffi should keep apart"
 				));
 			}
 		}
 	}
 
 	/// `function`'s Kotlin form, a member of `owner` (whose IR type is `owner_ty`) if it
-	/// has one, with its native methods and glue.
+	/// has one, apart from the members `taken` names, with its native methods and glue.
 	fn function(
 		&mut self,
 		function: &Function,
 		owner: Option<&Ty>,
 		owner_ty: Option<&Type>,
 		place: Place,
+		taken: &[String],
 	) -> Option<String> {
 		let abi = self.abi;
 		self.params = locals(&function.params);
@@ -1450,7 +1467,7 @@ impl<'a> Gen<'a> {
 			_ => None,
 		};
 		let own = match &owner_c {
-			Some(o) => c_name.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_')),
+			Some(o) => export.named.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_')),
 			None => None,
 		};
 		let reserved: &[&str] = match owner_ty {
@@ -1470,7 +1487,9 @@ impl<'a> Gen<'a> {
 			Some(_) => &["equals", "hashCode", "toString"],
 			None => &[],
 		};
-		let snake = own.unwrap_or(&bare);
+		// Named as Rust's path is, whatever C's clashes rename.
+		let named = self.bare(&export.named).to_string();
+		let snake = own.unwrap_or(&named);
 		let member = member(snake, reserved);
 
 		let mut n = 0;
@@ -1567,11 +1586,13 @@ impl<'a> Gen<'a> {
 		let err = function.err.as_ref().map(strip_refs);
 		let exception = err.as_ref().map(|e| {
 			let kt = self.kt(e);
-			let name = format!("{}Exception", kt.replace(['?', '<', '>', ',', ' ', '.'], ""));
-			if !self.exceptions.contains_key(&name) {
-				self.claim(&name, format!("the exception of `{kt}`"));
-				self.exceptions.insert(name.clone(), e.clone());
+			if let Some(name) = self.thrown.get(&kt) {
+				return name.clone();
 			}
+			let name = format!("{}Exception", kt.replace(['?', '<', '>', ',', ' ', '.'], ""));
+			let name = self.claim(&name, format!("the exception of `{kt}`"));
+			self.exceptions.insert(name.clone(), e.clone());
+			self.thrown.insert(kt, name.clone());
 			name
 		});
 		// The native call, closing what it moves out once it returns.
@@ -1755,27 +1776,31 @@ impl<'a> Gen<'a> {
 			Type::Unit => String::new(),
 			_ => format!(": {ret_kt}"),
 		};
-		let (head, member, getter) = match (function.access, place, receiver) {
-			(Access::Field { .. }, Place::Member, _) | (Access::Const, _, None) if function.params.is_empty() => {
-				let prop = match function.access {
-					Access::Const => member.to_uppercase(),
-					_ => member,
-				};
-				(format!("val {prop}{ret}\n\tget()"), format!("val {prop}"), true)
-			}
-			_ => (
-				format!("{suspend}fun {member}({}){ret}", kt_params.join(", ")),
-				format!("fun {member}"),
-				false,
-			),
+		let property = matches!(
+			(function.access, place, receiver),
+			(Access::Field { .. }, Place::Member, _) | (Access::Const, _, None)
+		) && function.params.is_empty();
+		let member = match function.access {
+			Access::Const if property => member.to_uppercase(),
+			_ => member,
 		};
 		let top = owner.is_none();
-		if top {
-			self.claim(
-				&member.replace("fun ", "").replace("val ", ""),
-				format!("fn `{}`", function.path.join("::")),
-			);
+		let kind = match property {
+			true => "val",
+			false => "fun",
+		};
+		let mut member = match top {
+			true => self.claim(&member, format!("fn `{}`", function.path.join("::"))),
+			false => member,
+		};
+		// A member its type declares already takes a trailing `_`.
+		while taken.contains(&format!("{kind} {member}")) {
+			member = format!("{}_", member.trim_matches('`'));
 		}
+		let (head, getter) = match property {
+			true => (format!("val {member}{ret}\n\tget()"), true),
+			false => (format!("{suspend}fun {member}({}){ret}", kt_params.join(", ")), false),
+		};
 		let indent_level = match top {
 			true => 0,
 			false => 1,

@@ -40,7 +40,7 @@ What the audit found, each a place native Rust would have gone on:
 - `Hash`: Dart's `hashCode` throws on a `PartialEq` type and Kotlin's returns 0; the IR
   carries no `Hash`. Export it where the type implements it.
 
-Each mapping reports its cost on [the benchmark](/quest/m1/ffi-export/bench.md); none
+Each mapping reports its cost on [the binding benchmark](/bench/ffi/README.md); none
 should add a crossing or an allocation, and several remove one. Where a language's range
 is the limit and no exact type exists at a call's speed, such as a Python `int` past
 `u64` raising `OverflowError`, the raise stays: it rejects a value Rust's type cannot hold.

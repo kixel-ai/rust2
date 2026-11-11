@@ -24,7 +24,8 @@ fails. AGENTS.md carries the rule.
   beside the runtime's borrow flag, so a call costs four atomic operations per handle
   where C's costs two.
 - One accounting, where it can raise: the binding's. Measure a call before and after on
-  [the benchmark](/quest/m1/ffi-export/bench.md); the target is the C ABI's two atomics
+  [the binding benchmark](/bench/ffi/README.md), whose handle call and u64 getter rows are
+  the baseline; the target is the C ABI's two atomics
   per handle or fewer.
 - Swift's `async throws` and throwing functions already exist for `Result`; a call that
   can fail only a check becomes throwing too, which changes its signature. Go already
@@ -35,6 +36,3 @@ fails. AGENTS.md carries the rule.
 Public API: which generated functions throw or return an error (breaking in Swift), and
 the error types the runtimes add.
 
-## Required
-
-- [The exporter on the binding benchmark](/quest/m1/ffi-export/bench.md) - the committed baseline this change's call cost is measured against

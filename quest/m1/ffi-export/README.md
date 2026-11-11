@@ -71,9 +71,8 @@ Every generator, the [targets m3 plans](/quest/m3/README.md) included:
   Rust, since a cancelled C ABI future loses nothing; moq's `go/wrapper/doc.go`, which ends
   the stream, changes with the generator. Each driver runs on a goroutine that lives as
   long as its object, and a call's `ctx` bounds only that call.
-- is measured, with its generated size raw and gzipped
-  ([bench](/quest/m1/ffi-export/bench.md) owns both, and the per-handle poll a hot read
-  may need).
+- is measured, with its generated size raw and gzipped, on
+  [the binding benchmark](/bench/ffi/README.md), whose `just ffi bench` covers it.
 
 What stays here once every child has merged: the flake's `ffi` package, the root
 `README.md` listing the generators, and the generator rules above moved into

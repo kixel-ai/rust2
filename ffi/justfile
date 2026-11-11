@@ -6,7 +6,9 @@
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
-export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { env("RUST2_TS_TOOLCHAIN") / "bin:" + env("PATH") }
+# mbx's Cargo shim, which the dev shell exports, stays ahead of the nightly so cargo still builds through it.
+cargo_shim := if env("RUST2_CARGO_SHIM", "") == "" { "" } else { env("RUST2_CARGO_SHIM") + ":" }
+export PATH := if env("RUST2_TS_TOOLCHAIN", "") == "" { env("PATH") } else { cargo_shim + env("RUST2_TS_TOOLCHAIN") / "bin:" + env("PATH") }
 
 # The moq revision these recipes export by default: `just ts`'s, so both follow one moq.
 # just's own path is quoted wherever bash runs it: on Windows, its backslashes are escapes.
@@ -45,14 +47,23 @@ run *args:
 census checkout="": (standin checkout)
     cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --census target/census
 
-# Time frame writes through the export, from C, C++, Kotlin, Python, Swift, Go, and Dart, and through moq's hand-written rs/moq-c, in the bench shell: nix develop .#bench.
-bench checkout="": (moq checkout)
+# Measure the binding benchmark (bench/ffi/README.md) from the pinned moq revision or a checkout, in the bench shell: nix develop .#bench. Its tables go to target/bench/report.md.
+bench checkout="": (bench-build checkout) bench-run
+
+# Build the binding benchmark's programs: Rust's floor, C, C++, Kotlin, Python, Swift, Go, and Dart through the export, and C through moq's hand-written rs/moq-c.
+bench-build checkout="": (moq-export checkout)
     #!/usr/bin/env bash
     set -euo pipefail
     [ -n "${LIBCLANG_PATH:-}" ] || { echo "LIBCLANG_PATH is unset: run this in the bench shell, nix develop .#bench" >&2; exit 1; }
     src="{{ checkout }}"
     [ -n "$src" ] || src=target/moq
     out=target/export/moq
+    # The floor: the stand-in's API called from Rust, resolved as the export is.
+    rm -rf target/bench-rust
+    mkdir -p target/bench-rust
+    printf '[package]\nname = "bench"\nversion = "0.0.0"\nedition = "2024"\npublish = false\n\n[[bin]]\nname = "bench"\npath = "%s"\n\n[dependencies]\nlibc = "0.2"\nmoq = { package = "moq-ffi", path = "../moq-ffi" }\n\n[workspace]\n' "$PWD/moq/bench/export.rs" > target/bench-rust/Cargo.toml
+    cp target/moq-ffi/Cargo.lock target/bench-rust/Cargo.lock
+    cargo build --quiet --release --manifest-path target/bench-rust/Cargo.toml
     # moq-c's header is written to its build script's output directory.
     moqc=$(cd "$src" && cargo build --locked --quiet --release --package moq-c --message-format=json \
         | jq -r 'select(.reason == "build-script-executed" and (.package_id | contains("moq-c#"))) | .out_dir')
@@ -66,24 +77,55 @@ bench checkout="": (moq checkout)
     {{ quote(just_executable()) }} dart-program bench-dart moq/bench/export.dart
     rm -rf target/bench-kt
     kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/bench/export.kt -d target/bench-kt
-    swift=true
     if [ "{{ os() }}-{{ arch() }}" = linux-aarch64 ]; then
         echo "skipping the Swift: nixpkgs builds no Swift for aarch64-linux (quest/m2/swift-arm.md)" >&2
-        swift=false
+        rm -f target/bench-export-swift
     else
         {{ quote(just_executable()) }} swift-module -O
         swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I "$out/swift" moq/bench/export.swift target/swift/libMoq.a "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export-swift
     fi
-    for _ in 1 2 3; do
-        target/bench-moq-c
-        target/bench-export
-        target/bench-export-cpp
-        kotlin -Djava.library.path="$out/target/release" -cp "target/bench-kt:$KOTLINX_COROUTINES" ExportKt
-        PYTHONPATH="$out/python" python3 -P moq/bench/export.py
-        if $swift; then target/bench-export-swift; fi
-        target/bench-go/bench
-        dart target/bench-dart/main.dill
+
+# Run what bench-build built: each program `rounds` times into target/bench/raw.tsv, with the 1-minute load average over each run, and their medians and the export's sizes into target/bench/report.md.
+bench-run rounds="3":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out=target/export/moq
+    mkdir -p target/bench
+    raw=target/bench/raw.tsv
+    : > "$raw"
+    # Each program prints a case, its wall time, and its CPU time a line; this prefixes its
+    # language and round, and suffixes the load average over the run, the mean of the
+    # 1-minute averages before and after it.
+    load() {
+        if [ "{{ os() }}" = macos ]; then
+            sysctl -n vm.loadavg | awk '{ print $2 }'
+        else
+            awk '{ print $1 }' /proc/loadavg
+        fi
+    }
+    run() {
+        local lang=$1 before after
+        shift
+        before=$(load)
+        "$@" > target/bench/run.tsv
+        after=$(load)
+        awk -v lang="$lang" -v round="$r" -v loadavg="$(echo "$before $after" | awk '{ print ($1 + $2) / 2 }')" -F '\t' \
+            'NF == 3 { print lang "\t" round "\t" $1 "\t" $2 "\t" $3 "\t" loadavg; next } { print "bench: " lang ": unexpected line: " $0 > "/dev/stderr"; exit 1 }' \
+            target/bench/run.tsv >> "$raw"
+    }
+    for r in $(seq {{ rounds }}); do
+        run rust target/bench-rust/target/release/bench
+        run c target/bench-export
+        run cpp target/bench-export-cpp
+        run moq-c target/bench-moq-c
+        run kotlin kotlin -Djava.library.path="$out/target/release" -cp "target/bench-kt:$KOTLINX_COROUTINES" ExportKt
+        PYTHONPATH="$out/python" run python python3 -P moq/bench/export.py
+        if [ -x target/bench-export-swift ]; then run swift target/bench-export-swift; fi
+        run go target/bench-go/bench
+        run dart dart target/bench-dart/main.dill
     done
+    python3 -I ../bench/ffi/report.py "$raw" "$out" > target/bench/report.md
+    cat target/bench/report.md
 
 # Export moq's crates' C ABI, build it, and run moq/moq.c, moq/moq.cpp, moq/moq.kt, moq/moq.py, moq/moq.swift, moq/moq.go, and moq/moq.dart against it, from the pinned moq revision or a checkout.
 moq checkout="": (moq-cpp checkout)
