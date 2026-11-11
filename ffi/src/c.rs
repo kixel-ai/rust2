@@ -129,6 +129,9 @@ impl Header<'_> {
 		for name in abi.ranges.keys() {
 			self.value(&Ty::Struct(name.clone()));
 		}
+		for name in abi.arrays.keys() {
+			self.value(&Ty::Struct(name.clone()));
+		}
 		for name in abi.options.keys() {
 			self.value(&Ty::Struct(name.clone()));
 		}
@@ -269,6 +272,10 @@ impl Header<'_> {
 				other => unreachable!("{other:?} is no range"),
 			};
 			self.line(format!("typedef struct {name} {{\n{fields}\n}} {name};\n"));
+			return;
+		}
+		if let Some(n) = abi.arrays.get(name) {
+			self.line(format!("typedef struct {name} {{\n\tuint8_t items[{n}];\n}} {name};\n"));
 			return;
 		}
 		if let Some(elem) = abi.lists.get(name) {

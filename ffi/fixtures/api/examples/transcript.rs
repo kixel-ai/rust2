@@ -213,6 +213,15 @@ fn main() {
 		scaled((1 << 64) + 1, 1 << 63),
 		scaled(1 << 127, 2)
 	);
+	let hex = |sum: [u8; 4]| sum.iter().map(|b| format!("{b:02x}")).collect::<String>();
+	let mut digest = api::Digest::new();
+	digest.sum = api::fingerprint("deadbeef").unwrap();
+	println!(
+		"digest {} {} {}",
+		hex(digest.sum),
+		hex(digest.flipped([0xff, 0, 0xff, 0])),
+		api::fingerprint("zz").unwrap_err()
+	);
 	let mut batch: api::Batch = api::Batch::new();
 	let accepted = (1..=5).filter(|&v| batch.push(v)).count();
 	let mut batch2 = api::pair();

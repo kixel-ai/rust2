@@ -319,6 +319,15 @@ func script() {
 		}
 	}
 	fmt.Println()
+	{
+		digest := api.NewDigest()
+		if err := digest.SumSet(must(api.Fingerprint("deadbeef"))); err != nil {
+			panic(err)
+		}
+		_, unparsed := api.Fingerprint("zz")
+		fmt.Printf("digest %x %x %s\n", must(digest.SumGet()), must(digest.Flipped([4]byte{0xff, 0, 0xff, 0})), unparsed)
+		digest.Close()
+	}
 	batch, batch2 := api.NewBatch(), api.Pair()
 	accepted, paired := 0, 0
 	for v := uint32(1); v <= 5; v++ {

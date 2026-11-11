@@ -101,6 +101,7 @@ impl<'a> Header<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Array(n) => format!("::std::array<::std::uint8_t, {n}>"),
 			Type::Unit => "void".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(int) => cpp_int(*int).to_string(),
@@ -175,7 +176,7 @@ impl<'a> Header<'a> {
 			},
 			Type::Ref(_, inner) | Type::Box(inner) => self.param(inner),
 			Type::Object(i) if abi.api.objects[*i].copy => format!("const {} &", self.owned(ty)),
-			Type::Record(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
+			Type::Record(_) | Type::Array(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				format!("const {} &", self.owned(ty))
 			}
 			Type::Enum(i) if !abi.api.enums[*i].plain() => format!("const {} &", self.owned(ty)),
@@ -250,6 +251,7 @@ impl<'a> Header<'a> {
 		}
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Array(n) => format!("{d}::lower_array<::{}>({e})", abi.array(*n)),
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("static_cast<uint32_t>({e})"),
@@ -352,6 +354,7 @@ impl<'a> Header<'a> {
 				false => format!("{d}::lift({e})"),
 			},
 			Type::Object(_) => format!("{d}::access::wrap<{}>({e})", self.owned(ty)),
+			Type::Array(n) => format!("{d}::lift_array<{n}>({e})"),
 			Type::Tuple(elements) => {
 				let lifted: Vec<String> = (elements.iter().enumerate())
 					.map(|(n, ty)| self.lift(ty, &format!("{e}._{n}")))
@@ -400,6 +403,7 @@ impl<'a> Header<'a> {
 		self.line(format!("#ifndef {guard}\n#define {guard}\n"));
 		self.line(format!("#include \"{p}.h\"\n"));
 		for include in [
+			"array",
 			"atomic",
 			"condition_variable",
 			"cstddef",

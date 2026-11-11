@@ -393,6 +393,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "None".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(_) | Type::U128 => "int".to_string(),
@@ -466,6 +467,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Array(n) => format!("rt::array_in::<{n}>({o}).map(|items| crate::{} {{ items }})", abi.array(*n)),
 			Type::Bool => format!("rt::bool_in({o})"),
 			Type::Int(int) => format!("rt::int_in::<{}>({o})", int.rust()),
 			Type::F32 => format!("rt::float_in({o}).map(|f| f as f32)"),
@@ -531,6 +533,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Array(n) => format!("rt::array_out(&{v}.items, {})", self.t(&abi.array(*n))),
 			Type::Unit => "rt::none()".to_string(),
 			Type::Bool => format!("rt::bool_out({v})"),
 			Type::Int(int) if signed(*int) => format!("rt::int_out({v} as i64)"),
@@ -607,6 +610,14 @@ impl<'a> Gen<'a> {
 		}
 		for (c, elements) in &abi.tuples.clone() {
 			self.tuple(c, elements);
+		}
+		for (c, n) in &abi.arrays {
+			let name = Abi::array_class(*n);
+			self.register(c, name.clone());
+			let _ = write!(
+				self.py,
+				"class {name}(bytes):\n\t\"\"\"A Rust `[u8; {n}]`: exactly {n} bytes.\"\"\"\n\n\t__slots__ = ()\n\n\tdef __new__(cls, value: bytes | bytearray | memoryview) -> _typing.Self:\n\t\tself = super().__new__(cls, value)\n\t\tif len(self) != {n}:\n\t\t\traise ValueError(f\"{{len(self)}} bytes, not {n}\")\n\t\treturn self\n\n\n"
+			);
 		}
 		for (c, elem) in &abi.lists.clone() {
 			self.list(c, elem);

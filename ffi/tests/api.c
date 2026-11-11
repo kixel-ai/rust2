@@ -456,6 +456,19 @@ static int script(void) {
 		}
 	}
 	printf("\n");
+	api_array_u8_4 sum, unparsed;
+	api_buf unparsed_err;
+	if (!api_fingerprint(str("deadbeef"), &sum, &unparsed_err) || api_fingerprint(str("zz"), &unparsed, &unparsed_err)) {
+		return 1;
+	}
+	api_Digest *digest = api_Digest_new();
+	api_Digest_sum_set(digest, sum);
+	api_array_u8_4 got = api_Digest_sum_get(digest);
+	api_array_u8_4 masked = api_Digest_flipped(digest, (api_array_u8_4){{0xff, 0, 0xff, 0}});
+	printf("digest %02x%02x%02x%02x %02x%02x%02x%02x", got.items[0], got.items[1], got.items[2], got.items[3],
+		masked.items[0], masked.items[1], masked.items[2], masked.items[3]);
+	print(" ", unparsed_err, "\n");
+	api_Digest_free(digest);
 	api_Batch *batch = api_Batch_new();
 	unsigned accepted = 0;
 	for (uint32_t v = 1; v <= 5; v++) {

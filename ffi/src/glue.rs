@@ -354,6 +354,7 @@ impl Gen<'_> {
 			Type::Vec => "::std::vec::Vec<u8>".to_string(),
 			Type::Bytes => "::bytes::Bytes".to_string(),
 			Type::Duration => "::std::time::Duration".to_string(),
+			Type::Array(n) => format!("[u8; {n}]"),
 			Type::Path => "::std::path::Path".to_string(),
 			Type::PathBuf => "::std::path::PathBuf".to_string(),
 			Type::SocketAddr(Family::Any) => "::std::net::SocketAddr".to_string(),
@@ -396,6 +397,7 @@ impl Gen<'_> {
 			Type::Bytes => format!("::bytes::Bytes::copy_from_slice(unsafe {{ {e}.bytes(w) }})"),
 			Type::Path | Type::PathBuf => format!("unsafe {{ {e}.path(w) }}.to_path_buf()"),
 			Type::U128 => format!("{e}.lift()"),
+			Type::Array(_) => format!("{e}.items"),
 			Type::Duration | Type::SocketAddr(Family::Any) => format!("{e}.lift(w)"),
 			Type::SocketAddr(Family::V4) => format!("{e}.lift_v4(w)"),
 			Type::SocketAddr(Family::V6) => format!("{e}.lift_v6(w)"),
@@ -511,6 +513,7 @@ impl Gen<'_> {
 			Type::PathBuf => format!("rt::Buf::path_buf({e})"),
 			Type::U128 => format!("rt::U128::lower({e})"),
 			Type::Duration => format!("rt::Duration::lower({e})"),
+			Type::Array(n) => format!("{} {{ items: {e} }}", self.abi.array(*n)),
 			Type::SocketAddr(_) => format!("rt::SocketAddr::lower(::std::net::SocketAddr::from({e}))"),
 			Type::List(_, inner) => format!(
 				"rt::List::owned(::std::iter::IntoIterator::into_iter({e}).map(|v| {}).collect())",
@@ -660,6 +663,11 @@ impl Gen<'_> {
 				.expect("an array is freed");
 			self.line(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: {name}) {{\n\t{free}\n}}\n"
+			));
+		}
+		for (name, n) in &self.abi.arrays {
+			self.line(format!(
+				"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {name} {{\n\tpub items: [u8; {n}],\n}}\n"
 			));
 		}
 		for (name, elements) in &self.abi.tuples.clone() {

@@ -237,6 +237,15 @@ def script():
 	print(f"reach {api.reach(2, 5)}")
 	scaled = [api.scaled(2**128 - 1, 1), api.scaled(2**64 + 1, 2**63), api.scaled(2**127, 2)]
 	print("scaled " + " ".join("none" if v is None else f"{v:032x}" for v in scaled))
+	digest = api.Digest.new()
+	digest.sum_set(api.fingerprint("deadbeef"))
+	try:
+		api.fingerprint("zz")
+		unparsed = ""
+	except api.StringException as e:
+		unparsed = e.error
+	flipped = digest.flipped(api.ArrayU8x4(bytes([0xFF, 0, 0xFF, 0])))
+	print(f"digest {digest.sum_get.hex()} {flipped.hex()} {unparsed}")
 	batch, batch2 = api.Batch.new(), api.pair()
 	accepted = sum(batch.push(v) for v in range(1, 6))
 	paired = sum(batch2.push(v) for v in range(1, 4))
@@ -835,6 +844,7 @@ def values():
 		except error:
 			pass
 
+	raises(ValueError, lambda: api.ArrayU8x4(b"abc"), "3 bytes are no [u8; 4]")
 	raises(OverflowError, lambda: api.widths(2**64), "an int past u64 raises")
 	raises(OverflowError, lambda: api.widths(-1), "a negative int for a u64 raises")
 	raises(TypeError, lambda: api.title(1), "an int is no bool")

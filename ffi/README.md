@@ -81,6 +81,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `poll_x`, when `x` exports as a future | left out: the future is its poll |
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
 | `u128` | `<prefix>_u128`: its low and high 64 bits |
+| `[u8; N]` | `<prefix>_array_u8_<N>`: a struct of its `N` bytes, `items`, copied across; an array of any other element is refused |
 | `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: a view passed in, an owned buffer returned |
 | `&Path`, `PathBuf` | `<prefix>_buf` of the path's bytes as the OS holds them on Unix, which need not be UTF-8, else UTF-8 |
 | `Duration` | `<prefix>_duration` |
@@ -280,7 +281,7 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   refuses for a view or `str()` of a temporary `buf`. A `Vec<T>` is a `std::vector`, of
   `view`s for bytes passed in, a socket address `socket_addr`, the C struct, and a `u128`
   `u128`, the C struct. `Option<T>` is `std::optional<T>`, a tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
-  error.
+  error. A `[u8; N]` is a `std::array<std::uint8_t, N>`.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
 - **Closures** lent for a call are any callable, taken by a template parameter, which
   Rust calls only during the call, from any thread. An object it lends as `&T` is a
@@ -342,7 +343,9 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   Strings are `String`, `usize` `ULong` and `isize` `Long`, which abort past a 32-bit
   target's range, `Option<T>` `T?`, a tuple `Pair`,
   `Triple`, or else a generated `Tuple<n>`, though a tuple of one returned whole is its element, `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
-  holding it, whose message is its `Display`.
+  holding it, whose message is its `Display`. A `[u8; N]` is a generated `ArrayU8x<N>`,
+  which copies the `ByteArray` it is made of and throws `IllegalArgumentException` unless
+  it holds exactly `N` bytes.
 - A **path** is a `String`: one Rust returns that is not UTF-8 throws. A `SocketAddr`,
   `SocketAddrV4`, or `SocketAddrV6` is a `java.net.InetSocketAddress`, which must be
   resolved and, for `V4` or `V6`, of that family; one Rust returns with an IPv6 flow
@@ -402,7 +405,9 @@ caller imports it with no ignores.
   `bytes`. Strings are `str`, `u128` an `int`, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
   `datetime.timedelta`, truncated to the microsecond, with `timedelta.max` for any longer
   and for `Duration::MAX`, a `Range` a `range`, and an `Err` a raised `<E>Exception`
-  holding it in `error`, whose `str` is its `Display`.
+  holding it in `error`, whose `str` is its `Display`. A `[u8; N]` is a generated
+  `ArrayU8x<N>`, a `bytes` that raises `ValueError` unless it holds exactly `N`; a
+  parameter takes any `bytes` of `N`.
 - A **path** is a `str`, or any path passed in, which crosses as `os.fsencode` encodes it, so
   one that is not UTF-8 keeps its bytes. A `SocketAddr` is the `socket` module's tuple,
   `(host, port)` or `(host, port, flowinfo, scope_id)`, of that family for `V4` or `V6`.
@@ -460,7 +465,10 @@ in either language mode.
   a tuple a Swift tuple, though a tuple of one is its element, `u128` a `U128` of its
   `high` and `low` halves until the deployment target allows `UInt128`, and `Duration`
   `Swift.Duration`. An `Err` is thrown: an exported type as itself, which conforms to
-  `Swift.Error`, and any other in a generated `<T>Error` holding it.
+  `Swift.Error`, and any other in a generated `<T>Error` holding it. A `[u8; N]` is a
+  generated `ArrayU8x<N>`, a collection holding its bytes inline in C's struct, made by a
+  failable initializer from exactly `N` bytes, until the deployment target allows
+  `InlineArray`.
 - A **path** is a `String`: one Rust returns that is not UTF-8 traps. A `SocketAddr`,
   `SocketAddrV4`, or `SocketAddrV6` is the runtime's `SocketAddr`, its IP's 4 or 16 bytes
   and its port, flow label, and scope, whose family Rust checks. A `Vec<T>` or `&[T]` is
@@ -554,7 +562,7 @@ reads a go.mod.
   of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object or
   `u128` its pointer, nil for `None`. A tuple is `rt.Tuple2[A, B]` and so on, but a tuple of one is its
   element, and one returned whole is the function's results. A `u128` is a `*big.Int`, which
-  panics passed in out of its range. `Duration` is
+  panics passed in out of its range, and a `[u8; N]` a `[N]byte`. `Duration` is
   `time.Duration`: a negative one passed in, or one Rust returns past its 292 years,
   panics. A socket address is a `netip.AddrPort`, whose zone names an IPv6 scope by its
   number or its interface's name; one Rust returns with an IPv6 flow label, which
@@ -624,7 +632,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   not UTF-8 aborts, since a throw would leave the rest of a list or record being lifted
   unfreed. `Option<T>` is `T?`, a tuple a Dart record, and a `Vec<T>` or `&[T]` a
   `List<T>`. A `u128` is a `BigInt`, which throws an `ArgumentError` passed in out of
-  its range. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
+  its range. A `[u8; N]` is a generated `ArrayU8x<N>`, which copies the list it is made
+  of and throws an `ArgumentError` unless it holds exactly `N` bytes. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
   in throws an `ArgumentError`, and Rust's longest is Dart's. A socket address is a
   `SocketAddr` of an `InternetAddress`, a port, and IPv6's flow label and scope; one passed
   in of the wrong family throws an `ArgumentError`, and a port, label, or scope out of its

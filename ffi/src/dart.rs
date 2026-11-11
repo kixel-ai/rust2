@@ -459,6 +459,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "void".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(_) => "int".to_string(),
@@ -564,6 +565,13 @@ impl<'a> Gen<'a> {
 			return class;
 		}
 		self.structs.insert(name.clone(), String::new());
+		if let Some(n) = abi.arrays.get(&name) {
+			let code = format!(
+				"final class {class} extends ffi.Struct {{\n\t@ffi.Array({n})\n\texternal ffi.Array<ffi.Uint8> items;\n}}\n\n"
+			);
+			self.structs.insert(name, code);
+			return class;
+		}
 		let mut fields: Vec<(String, Ty)> = Vec::new();
 		if let Some(ty) = abi.ranges.get(&name) {
 			match ty {
@@ -793,6 +801,7 @@ impl<'a> Gen<'a> {
 			Type::Slice | Type::Vec | Type::Bytes => format!("a_.bytes({dst}, {e});"),
 			Type::U128 => format!("_n.u128({dst}, {e});"),
 			Type::Duration => format!("_n.duration({dst}, {e});"),
+			Type::Array(_) => format!("{e}._write({dst});"),
 			Type::SocketAddr(family) => {
 				let family = match family {
 					Family::Any => "",
@@ -1067,6 +1076,7 @@ impl<'a> Gen<'a> {
 			Type::Char => format!("_n.scalar({e})"),
 			Type::U128 => format!("_n.u128Of({e})"),
 			Type::Duration => format!("_n.durationOf({e})"),
+			Type::Array(n) => format!("{}._of({e})", Abi::array_class(*n)),
 			Type::SocketAddr(_) => format!("_n.addrOf({e})"),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(_) => {
@@ -1129,6 +1139,14 @@ impl<'a> Gen<'a> {
 		let api = abi.api;
 		for (c, ty) in &abi.ranges.clone() {
 			self.range(c, ty);
+		}
+		for (c, n) in &abi.arrays {
+			let name = Abi::array_class(*n);
+			let s = self.struct_class(&Ty::Struct(c.clone()));
+			let _ = write!(
+				self.types,
+				"/// A Rust `[u8; {n}]`: exactly {n} bytes, copied in and out, so it never changes.\nfinal class {name} {{\n\tfinal typed.Uint8List _bytes;\n\n\t/// A copy of [bytes], which must hold exactly {n}, each from 0 through 255.\n\t{name}(List<int> bytes) : _bytes = typed.Uint8List.fromList(bytes) {{\n\t\tif (bytes.length != {n} || bytes.any((b) => b < 0 || b > 255)) {{\n\t\t\tthrow ArgumentError.value(bytes, 'bytes', 'is no [u8; {n}]');\n\t\t}}\n\t}}\n\n\t{name}._(this._bytes);\n\n\tint operator [](int index) => _bytes[index];\n\n\ttyped.Uint8List toBytes() => typed.Uint8List.fromList(_bytes);\n\n\tstatic {name} _of({s} c) => {name}._(typed.Uint8List.fromList([for (var i = 0; i < {n}; i++) c.items[i]]));\n\n\tvoid _write({s} c) {{\n\t\tfor (var i = 0; i < {n}; i++) {{\n\t\t\tc.items[i] = _bytes[i];\n\t\t}}\n\t}}\n\n\t@override\n\tbool operator ==(Object other) => other is {name} && _equal(other._bytes);\n\n\tbool _equal(typed.Uint8List other) {{\n\t\tfor (var i = 0; i < {n}; i++) {{\n\t\t\tif (other[i] != _bytes[i]) return false;\n\t\t}}\n\t\treturn true;\n\t}}\n\n\t@override\n\tint get hashCode => Object.hashAll(_bytes);\n\n\t@override\n\tString toString() => _bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();\n}}\n\n"
+			);
 		}
 		for constant in &api.constants {
 			let name = abi::snake(self.bare(&abi.name(&constant.path))).to_uppercase();

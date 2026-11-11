@@ -335,6 +335,8 @@ pub enum Type {
 	Bytes,
 	/// `std::time::Duration`
 	Duration,
+	/// `[u8; N]`, which C passes by value in a struct of its `N` bytes.
+	Array(usize),
 	/// `std::path::Path`, only behind a reference.
 	Path,
 	/// `std::path::PathBuf`

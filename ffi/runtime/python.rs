@@ -763,6 +763,32 @@ pub fn bytes_out(buf: rt::Buf) -> R<Obj> {
 	}
 }
 
+/// A `[u8; N]`, from `bytes` of exactly `N`, as its class holds them.
+pub fn array_in<const N: usize>(obj: *mut PyObject) -> R<[u8; N]> {
+	// SAFETY: the GIL is held, and `obj` is live.
+	unsafe {
+		if PyBytes_Check(obj) == 0 {
+			return expected_named(obj, "bytes");
+		}
+		let mut ptr: *mut c_char = null_mut();
+		let mut len = 0;
+		if PyBytes_AsStringAndSize(obj, &mut ptr, &mut len) != 0 {
+			return Err(Raised);
+		}
+		match <[u8; N]>::try_from(std::slice::from_raw_parts(ptr.cast_const().cast::<u8>(), len as usize)) {
+			Ok(items) => Ok(items),
+			Err(_) => value_error(&format!("{len} bytes, not {N}")),
+		}
+	}
+}
+
+/// A `[u8; N]` as its class, `bytes` of exactly `N`, registered at `index`.
+pub fn array_out(items: &[u8], index: usize) -> R<Obj> {
+	// SAFETY: the GIL is held.
+	let bytes = unsafe { Obj::new(PyBytes_FromStringAndSize(items.as_ptr().cast(), items.len() as Py_ssize_t)) };
+	call_py(ty(index), vec![bytes])
+}
+
 /// Bytes Rust lends a callback for its call, copied into `bytes`.
 pub fn lent_bytes(buf: rt::Buf) -> R<Obj> {
 	// SAFETY: the GIL is held, and a buffer Rust lent for the call.

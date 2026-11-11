@@ -896,3 +896,8 @@ pub fn poll_loose(waiter: &Loose) -> std::task::Poll<()> {
 	waiter.0.wake_by_ref();
 	std::task::Poll::Ready(())
 }
+
+/// An array of an element other than `u8`, which no export needs yet.
+pub fn sum_pair(pair: [u16; 2]) -> u32 {
+	u32::from(pair[0]) + u32::from(pair[1])
+}

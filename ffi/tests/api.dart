@@ -247,6 +247,16 @@ Future<void> script() async {
     api.scaled(BigInt.one << 127, 2),
   ];
   print('scaled ${scaled.map((v) => v?.toRadixString(16).padLeft(32, '0') ?? 'none').join(' ')}');
+  final digest = api.Digest();
+  digest.sumSet(api.fingerprint('deadbeef'));
+  var unparsed = '';
+  try {
+    api.fingerprint('zz');
+  } on api.StringException catch (e) {
+    unparsed = e.error;
+  }
+  print('digest ${digest.sumGet} ${digest.flipped(api.ArrayU8x4([0xff, 0, 0xff, 0]))} $unparsed');
+  digest.close();
   final batch = api.Batch(), batch2 = api.pair();
   final accepted = [for (var v = 1; v <= 5; v++) batch.push(v)].where((p) => p).length;
   final paired = [for (var v = 1; v <= 3; v++) batch2.push(v)].where((p) => p).length;
@@ -852,6 +862,8 @@ void closedObjects() {
   // unclosed and force each later call through a thread of its own.
   check(api.onFirstThread(), 'a call while Rust holds no implementation');
   final spared = CountLog();
+  throws<ArgumentError>(() => api.ArrayU8x4([1, 2, 3]), '3 bytes are no [u8; 4]');
+  throws<ArgumentError>(() => api.ArrayU8x4([1, 2, 3, 256]), '256 is no byte');
   throws<RangeError>(() => api.logCounts(spared, 256, open, []), 'an integer out of range after an implementation');
   closed(() => api.logCounts(spared, 0, c, []), 'Counter', 'a closed object after an implementation');
   closed(() => api.logCounts(spared, 0, open, [c]), 'Counter', 'a closed object in a list after an implementation');
