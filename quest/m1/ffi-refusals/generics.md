@@ -26,15 +26,11 @@ and listed in the census. moq-mux's `codec::annexb::build_prefix` exports once m
 re-exporting `bytes` whole, as [moq-pin](/quest/m1/ffi-refusals/moq-pin.md) has it,
 since the re-export makes `Bytes` a handle.
 
-## Waiting
-
-- Maintainer: how a future or a kept closure crosses from C. Options: (a) the exporter gains
-  a foreign future, a poll function, its data, and `free`, the inverse of the futures it
-  returns, and a kept closure, a function, its data, and `free`, each wrapped in every
-  language's native future and function, so moq changes nothing; (b) moq's signatures
-  change, such as the stand-in re-exporting only kio's `Instant` from `clock`, and kio's and
-  moq-tokio's runtime helpers leaving what the facade reaches. Recommendation: (a), since
-  each has a C shape and AGENTS.md counts a source change a consumer needs as a gap; `repair`
-  then takes a foreign `Read + Seek`, while `panic::message` and `tls::Serve::resolver`, which
-  name what C can never hold, go to moq to wrap or drop, as the epic decided for third-party
-  types.
+Decided 2026-11-11 (maintainer, /quest-unblock): ✅ (a) the exporter gains a foreign future (a
+poll function, its data, and `free`, the inverse of the futures it returns) and a kept closure
+(a function, its data, and `free`), each wrapped in every language's native future and
+function, so moq changes nothing (rejected: (b) moq's signatures change). `repair` then takes
+a foreign `Read + Seek`; `panic::message` and `tls::Serve::resolver` go to moq to wrap or
+drop. The maintainer dislikes callbacks and closures in an API, so a moq quest for a
+closure-free API is planned separately only if a simpler one exists; it does not gate this
+quest.

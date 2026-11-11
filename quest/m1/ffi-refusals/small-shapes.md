@@ -16,12 +16,9 @@ change its signature.
 [moq-dev/rust2#675](https://github.com/moq-dev/rust2/pull/675); `Result` and `!` off a
 return left the census with the narrowed stand-in.
 
-## Waiting
-
-- Maintainer: how `[T; N]` maps. Options: (a) a returned `[u8; N]` is bytes, as `Vec<u8>`
-  is, and a parameter `[u8; N]` is bytes whose length the glue checks, raising the
-  language's error on a mismatch; (b) a C struct `<prefix>_array_<T>_<N>` holding the
-  array, with each language's fixed-size form above it; (c) leave arrays refused and
-  keep this quest open until a consumer needs one. Recommended: (a), which reuses the
-  bytes every binding already has and clears both with no new type; any other element
-  type stays refused until one is needed.
+Decided 2026-11-11 (maintainer, /quest-unblock): ✅ (b) `[T; N]` crosses as a C struct
+`<prefix>_array_<T>_<N>` holding the array by value, with each language's fixed-size form above
+it, such as Swift's `InlineArray` and a generated Kotlin type that checks its size: a proper
+new type, with no allocation, that C compiles out (rejected: (a) bytes with a length check;
+(c) leaving arrays refused). Element types beyond `u8` follow the same shape when one is
+needed.

@@ -48,6 +48,10 @@ Each names what the fork changes, the measured gain on moq, and its source.
 
 Public API: none until the fork has a consumer.
 
+Decided 2026-11-11 (maintainer, /quest-unblock): the reasons above are not yet enough to pay
+for a fork; this ledger stays, and its wait reopens as later reports add evidence (rejected:
+fork now; deleting the ledger).
+
 ## Waiting
 
 - Maintainer: decide that the reasons to fork above add up to enough to pay for
