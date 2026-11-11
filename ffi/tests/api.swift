@@ -296,6 +296,20 @@ func script() {
 	print("borrowed \(lit.asStr()) \(lit.shares(Name.borrowed("lit"))) \(lit.shares(Name.borrowed("other")))")
 
 	print("total \(total(RangeU64(start: 2, end: 5)))")
+	print("reach \(reach(2, 5))")
+	let scaledHex = [
+		scaled(U128(high: .max, low: .max), 1), scaled(U128(high: 1, low: 1), 1 << 63), scaled(U128(high: 1 << 63, low: 0), 2),
+	].map { v in
+		v.map { v in [v.high, v.low].map { h in Swift.String(repeating: "0", count: 16 - Swift.String(h, radix: 16).count) + Swift.String(h, radix: 16) }.joined() } ?? "none"
+	}
+	print("scaled \(scaledHex.joined(separator: " "))")
+	check(U128(high: .max, low: .max).description == "340282366920938463463374607431768211455", "a u128's decimal digits")
+	let batch = Batch.new(), batch2 = pair()
+	let accepted = (1...5).filter { batch.push($0) }.count
+	let paired = (1...3).filter { batch2.push($0) }.count
+	let emptied = drain4(batch)
+	print("batch \(batch.capacity()) \(accepted) \(emptied) \(drain4(batch)) \(batch2.capacity()) \(paired) \(drain2(batch2))")
+	print("capacities \(capacities42(batch, batch2)) \(capacities22(batch2, batch2))")
 	let wide = widen(RangeU64(start: 2, end: 5), 1)
 	print("widen \(wide.start) \(wide.end)")
 	let counts = [
@@ -399,6 +413,8 @@ func script() {
 		} catch {
 			print("nonempty err \(error)")
 		}
+		let filled = try await fill4(Batch.new(), 9) + fill2(Api.pair(), 1)
+		print("fill \(filled.map { Swift.String($0) }.joined(separator: " "))")
 		// The send happens at the call, before the future is first polled.
 		try await channel.sendLater(Data("eager".utf8))
 		print("recv \(text(try await channel.recv()))")

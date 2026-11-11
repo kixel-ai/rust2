@@ -234,6 +234,15 @@ def script():
 	print(f"borrowed {lit.as_str()} {' '.join(shares)}")
 
 	print(f"total {api.total(range(2, 5))}")
+	print(f"reach {api.reach(2, 5)}")
+	scaled = [api.scaled(2**128 - 1, 1), api.scaled(2**64 + 1, 2**63), api.scaled(2**127, 2)]
+	print("scaled " + " ".join("none" if v is None else f"{v:032x}" for v in scaled))
+	batch, batch2 = api.Batch.new(), api.pair()
+	accepted = sum(batch.push(v) for v in range(1, 6))
+	paired = sum(batch2.push(v) for v in range(1, 4))
+	emptied = api.drain_4(batch)
+	print(f"batch {batch.capacity()} {accepted} {emptied} {api.drain_4(batch)} {batch2.capacity()} {paired} {api.drain_2(batch2)}")
+	print(f"capacities {api.capacities_4_2(batch, batch2)} {api.capacities_2_2(batch2, batch2)}")
 	wide = api.widen(range(2, 5), 1)
 	print(f"widen {wide.start} {wide.stop}")
 	inc, exc, unb = api.Bound.INCLUDED, api.Bound.EXCLUDED, api.Bound.UNBOUNDED
@@ -339,6 +348,8 @@ def script():
 				print(f"nonempty {payload.nbytes}")
 		except api.ErrorException as e:
 			print(f"nonempty err {e}")
+		filled = await api.fill_4(api.Batch.new(), 9) + await api.fill_2(api.pair(), 1)
+		print("fill " + " ".join(map(str, filled)))
 		# The send happens at the call: the future is dropped unawaited.
 		channel.send_later(b"eager")
 		print(f"recv {text(await channel.recv())}")
@@ -817,6 +828,8 @@ def values():
 	raises(OverflowError, lambda: api.widths(2**64), "an int past u64 raises")
 	raises(OverflowError, lambda: api.widths(-1), "a negative int for a u64 raises")
 	raises(TypeError, lambda: api.title(1), "an int is no bool")
+	raises(OverflowError, lambda: api.scaled(2**128, 1), "an int past u128 raises")
+	raises(OverflowError, lambda: api.scaled(-1, 1), "a negative int for a u128 raises")
 
 	# A borrowed tuple is one C value, not one out per element.
 	check(api.corner(True) == (1, 1), "a borrowed tuple returns whole")

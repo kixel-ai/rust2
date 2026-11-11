@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use rustc_span::Span;
 
-use crate::ir::{Access, Api, Dyn, Function, Home, Int, Receiver, Type};
+use crate::ir::{Access, Api, Dyn, Function, Home, Int, Literal, Receiver, Type};
 
 /// A C name claimed twice: the name, then what claimed it first and second.
 pub type Clash = (String, (String, Span), (String, Span));
@@ -31,6 +31,8 @@ pub enum Ty {
 	Char,
 	/// `<prefix>_buf`: a view of bytes passed in, an owned buffer returned.
 	Buf,
+	/// `<prefix>_u128`
+	U128,
 	/// `<prefix>_duration`
 	Duration,
 	/// `<prefix>_socket_addr`
@@ -354,6 +356,7 @@ impl<'a> Abi<'a> {
 			Type::F32 => "f32".to_string(),
 			Type::F64 => "f64".to_string(),
 			Type::Char => "char".to_string(),
+			Type::U128 => "u128".to_string(),
 			Type::Duration => "duration".to_string(),
 			Type::SocketAddr(_) => "socket_addr".to_string(),
 			Type::Option(inner) => format!("option_{}", self.key(inner)),
@@ -369,6 +372,9 @@ impl<'a> Abi<'a> {
 			Type::Bound(int) => format!("bound_{}", int.rust()),
 			Type::Bounds(int) => format!("bounds_{}", int.rust()),
 			Type::Ref(_, inner) | Type::Box(inner) => self.key(inner),
+			// Only an instance's name holds one, where a C identifier has no `-`.
+			Type::Const(Literal::Int(_, v)) if *v < 0 => format!("neg{}", v.unsigned_abs()),
+			Type::Const(value) => value.to_string(),
 			other => unreachable!("no option struct holds {other:?}"),
 		}
 	}
@@ -405,6 +411,7 @@ impl<'a> Abi<'a> {
 	/// The C type of `ty` as a value: a parameter, field, or what a function returns.
 	pub fn ty(&self, ty: &Type) -> Ty {
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => Ty::Void,
 			Type::Bool => Ty::Bool,
 			Type::Int(int) => Ty::Int(*int),
@@ -412,6 +419,7 @@ impl<'a> Abi<'a> {
 			Type::F64 => Ty::F64,
 			Type::Char => Ty::Char,
 			Type::Str | Type::String | Type::Slice | Type::Vec | Type::Bytes | Type::Path | Type::PathBuf => Ty::Buf,
+			Type::U128 => Ty::U128,
 			Type::Duration => Ty::Duration,
 			Type::SocketAddr(_) => Ty::SocketAddr,
 			Type::Waker => Ty::Waker,
@@ -598,6 +606,7 @@ impl<'a> Abi<'a> {
 			"contract",
 			"buf",
 			"buf_free",
+			"u128",
 			"duration",
 			"socket_addr",
 			"waker",

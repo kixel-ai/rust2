@@ -219,6 +219,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 /// the same name would shadow, and the prefixes they import Dart's libraries under.
 const TAKEN: &[&str] = &[
 	"ArgumentError",
+	"BigInt",
 	"Cancelable",
 	"Cancelled",
 	"Duration",
@@ -415,12 +416,14 @@ impl<'a> Gen<'a> {
 	fn dt(&mut self, ty: &Type) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "void".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(_) => "int".to_string(),
 			Type::F32 | Type::F64 => "double".to_string(),
 			Type::Char | Type::Str | Type::String | Type::Path | Type::PathBuf => "String".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => "typed.Uint8List".to_string(),
+			Type::U128 => "BigInt".to_string(),
 			Type::Duration => "Duration".to_string(),
 			Type::SocketAddr(_) => "SocketAddr".to_string(),
 			Type::List(_, inner) => format!("List<{}>", self.dt(inner)),
@@ -493,7 +496,10 @@ impl<'a> Gen<'a> {
 
 	/// Whether `dart:ffi` passes a C type as a Dart scalar, not a struct.
 	fn scalar(ty: &Ty) -> bool {
-		!matches!(ty, Ty::Buf | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::Waker)
+		!matches!(
+			ty,
+			Ty::Buf | Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::Waker
+		)
 	}
 
 	/// The class of a C struct, defined once.
@@ -501,6 +507,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		let name = match ty {
 			Ty::Buf => return "_Buf".to_string(),
+			Ty::U128 => return "_U128".to_string(),
 			Ty::Duration => return "_Duration".to_string(),
 			Ty::SocketAddr => return "_Addr".to_string(),
 			Ty::Waker => return "_Waker".to_string(),
@@ -742,6 +749,7 @@ impl<'a> Gen<'a> {
 		match ty.base() {
 			Type::Str | Type::String | Type::Path | Type::PathBuf => format!("a_.string({dst}, {e});"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("a_.bytes({dst}, {e});"),
+			Type::U128 => format!("_n.u128({dst}, {e});"),
 			Type::Duration => format!("_n.duration({dst}, {e});"),
 			Type::SocketAddr(family) => {
 				let family = match family {
@@ -1015,6 +1023,7 @@ impl<'a> Gen<'a> {
 			Type::Slice | Type::Vec | Type::Bytes => format!("_n.bytes({e})"),
 			Type::Bool | Type::F32 | Type::F64 | Type::Int(_) => e.to_string(),
 			Type::Char => format!("_n.scalar({e})"),
+			Type::U128 => format!("_n.u128Of({e})"),
 			Type::Duration => format!("_n.durationOf({e})"),
 			Type::SocketAddr(_) => format!("_n.addrOf({e})"),
 			Type::Option(inner) => match inner.base() {
@@ -1693,7 +1702,8 @@ impl<'a> Gen<'a> {
 					args.push("a_.hold(this)".to_string());
 					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
 					if receiver == Receiver::Owned && !copy {
-						after.push("close();".to_string());
+						// Qualified, apart from a parameter named `close`.
+						after.push("this.close();".to_string());
 					}
 				}
 				Ty::In(inner) => {

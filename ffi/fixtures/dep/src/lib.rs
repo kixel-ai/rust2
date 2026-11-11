@@ -5,6 +5,9 @@
 pub struct Size {
 	pub width: u32,
 	pub height: u32,
+	/// What no build has, which the `configured_out` test excludes.
+	#[cfg(any())]
+	pub depth: u32,
 }
 
 /// An area: an object of this crate, which the api fixture's signatures take and return.

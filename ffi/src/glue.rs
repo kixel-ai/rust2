@@ -10,7 +10,7 @@ use std::path::Path;
 
 use crate::abi::{self, Abi, Ty};
 use crate::config::Package;
-use crate::ir::{Access, Collection, Family, Function, Mutability, Receiver, Task, TaskKind, Traits, Type};
+use crate::ir::{Access, Collection, Family, Function, Literal, Mutability, Receiver, Task, TaskKind, Traits, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
 
@@ -64,6 +64,7 @@ pub fn rs(ty: &Ty) -> String {
 		Ty::F64 => "f64".to_string(),
 		Ty::Char => "u32".to_string(),
 		Ty::Buf => "rt::Buf".to_string(),
+		Ty::U128 => "rt::U128".to_string(),
 		Ty::Duration => "rt::Duration".to_string(),
 		Ty::SocketAddr => "rt::SocketAddr".to_string(),
 		Ty::Struct(name) => name.clone(),
@@ -343,6 +344,7 @@ impl Gen<'_> {
 			Type::Unit => "()".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(int) => int.rust().to_string(),
+			Type::U128 => "u128".to_string(),
 			Type::F32 => "f32".to_string(),
 			Type::F64 => "f64".to_string(),
 			Type::Char => "char".to_string(),
@@ -375,6 +377,9 @@ impl Gen<'_> {
 				format!("::{}", foreign(&path[0])) + &path[1..].iter().map(|s| format!("::{s}")).collect::<String>()
 			}
 			Type::Object(i) => generic(&api.objects[*i].path, api.objects[*i].lifetimes, &api.objects[*i].args),
+			// A negative argument is an expression, which Rust takes only in braces.
+			Type::Const(Literal::Int(_, v)) if *v < 0 => format!("{{{v}}}"),
+			Type::Const(value) => value.to_string(),
 			other => unreachable!("no callback or type argument is {other:?}"),
 		}
 	}
@@ -382,6 +387,7 @@ impl Gen<'_> {
 	/// The Rust value of type `ty` that the C value `e` holds, copied out of it.
 	fn lift(&self, ty: &Type, e: &str) -> String {
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => e.to_string(),
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("rt::char({e}, w)"),
@@ -389,6 +395,7 @@ impl Gen<'_> {
 			Type::Slice | Type::Vec => format!("unsafe {{ {e}.bytes(w) }}.to_vec()"),
 			Type::Bytes => format!("::bytes::Bytes::copy_from_slice(unsafe {{ {e}.bytes(w) }})"),
 			Type::Path | Type::PathBuf => format!("unsafe {{ {e}.path(w) }}.to_path_buf()"),
+			Type::U128 => format!("{e}.lift()"),
 			Type::Duration | Type::SocketAddr(Family::Any) => format!("{e}.lift(w)"),
 			Type::SocketAddr(Family::V4) => format!("{e}.lift_v4(w)"),
 			Type::SocketAddr(Family::V6) => format!("{e}.lift_v6(w)"),
@@ -491,6 +498,7 @@ impl Gen<'_> {
 	/// The C value of the Rust value `e` of type `ty`, which the caller frees.
 	fn lower(&self, ty: &Type, e: &str) -> String {
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "()".to_string(),
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("{e} as u32"),
@@ -501,6 +509,7 @@ impl Gen<'_> {
 			Type::Bytes => format!("rt::Buf::owned({e})"),
 			Type::Path => format!("rt::Buf::path_buf({e}.to_path_buf())"),
 			Type::PathBuf => format!("rt::Buf::path_buf({e})"),
+			Type::U128 => format!("rt::U128::lower({e})"),
 			Type::Duration => format!("rt::Duration::lower({e})"),
 			Type::SocketAddr(_) => format!("rt::SocketAddr::lower(::std::net::SocketAddr::from({e}))"),
 			Type::List(_, inner) => format!(
@@ -1175,7 +1184,7 @@ impl Gen<'_> {
 	/// The statements that hand a call's `result` to C: return it, or for a fallible
 	/// function or a tuple, write it through its out pointers or `err`, and return whether
 	/// it succeeded.
-	fn finish(&self, function: &Function, ret: (&str, &str, &str)) -> String {
+	fn finish(&self, function: &Function, ok: &Type, ret: (&str, &str, &str)) -> String {
 		let (ok_value, ready, error) = ret;
 		let write = |ty: &Type, out: &str, v: &str| {
 			format!(
@@ -1184,9 +1193,10 @@ impl Gen<'_> {
 				self.lower(ty, v)
 			)
 		};
-		let write_ok = match &function.ok {
-			Type::Unit => String::new(),
-			Type::Tuple(elements) => {
+		// The outs C passes follow what the function returns, which `ok` may own.
+		let write_ok = match (&function.ok, ok) {
+			(_, Type::Unit) => String::new(),
+			(Type::Tuple(_), Type::Tuple(elements)) => {
 				let names: Vec<String> = (0..elements.len()).map(|n| format!("v{n}")).collect();
 				let writes: Vec<String> = elements
 					.iter()
@@ -1197,15 +1207,15 @@ impl Gen<'_> {
 				// The trailing comma makes `(v0,)` a tuple pattern, not parentheses.
 				format!("let ({},) = v;\n\t{}", names.join(", "), writes.join("\n\t"))
 			}
-			ok => write(ok, "out", "v"),
+			(_, ok) => write(ok, "out", "v"),
 		};
 		match &function.err {
-			None if ok_value.is_empty() => match function.ok {
-				Type::Unit => "result".to_string(),
-				Type::Tuple(_) => format!("let v = result;\n\t{write_ok}"),
-				_ => self.lower(&function.ok, "result"),
+			None if ok_value.is_empty() => match (&function.ok, ok) {
+				(_, Type::Unit) => "result".to_string(),
+				(Type::Tuple(_), _) => format!("let v = result;\n\t{write_ok}"),
+				_ => self.lower(ok, "result"),
 			},
-			None => match function.ok {
+			None => match ok {
 				Type::Unit => format!("let _ = result;\n\t{ready}"),
 				_ => format!("let v = result;\n\t{write_ok}\n\t{ready}"),
 			},
@@ -1255,7 +1265,15 @@ impl Gen<'_> {
 				}
 			}
 		}
+		// Each parameter's place among Rust's after `self`, past the `()` ones C does not
+		// pass and a future's context, which is the poll's.
+		let omitted = |at: &usize| {
+			function.units.contains(at)
+				|| (function.future && function.task.as_ref().is_some_and(|task| task.at == *at))
+		};
+		let mut places = (0..).filter(|at| !omitted(at));
 		for (n, param) in function.params.iter().enumerate() {
+			let place = places.next().expect("a place for each parameter");
 			let (_, c_ty) = c_params.next().expect("a C parameter for each");
 			params.push(format!("p{n}: {}", rs(c_ty)));
 			if let Type::Closure(..) = param.ty {
@@ -1267,7 +1285,7 @@ impl Gen<'_> {
 				Some(Task {
 					at,
 					kind: TaskKind::Context(m),
-				}) if *at == n && !function.future => {
+				}) if *at == place && !function.future => {
 					let (binding, pass) = match m {
 						Mutability::Mut => ("let mut", format!("&mut a{n}")),
 						Mutability::Not => ("let", format!("&a{n}")),
@@ -1292,6 +1310,9 @@ impl Gen<'_> {
 		// context, or a value made from its waker and kept until the next poll, so what that
 		// poll registers stays registered.
 		let mut made = String::new();
+		// Each argument C does not pass, by its place among Rust's parameters after `self`,
+		// inserted in order so each lands where Rust takes it.
+		let mut extra: Vec<(usize, String)> = function.units.iter().map(|&at| (at, "()".to_string())).collect();
 		if let Some(task) = function.task.as_ref().filter(|_| function.future) {
 			let pass = match &task.kind {
 				TaskKind::Context(Mutability::Mut) => "&mut *t_cx".to_string(),
@@ -1304,7 +1325,11 @@ impl Gen<'_> {
 					"&*t_made".to_string()
 				}
 			};
-			args.insert(usize::from(receiver_ty.is_some()) + task.at, pass);
+			extra.push((task.at, pass));
+		}
+		extra.sort_by_key(|(at, _)| *at);
+		for (at, arg) in extra {
+			args.insert(usize::from(receiver_ty.is_some()) + at, arg);
 		}
 		// Rust writes back what the call left in each value C passed for `&mut`, on every
 		// path, errors included.
@@ -1377,15 +1402,23 @@ impl Gen<'_> {
 					)
 				}
 			};
+			// The value C takes is lowered when it polls, outside the future, so a result
+			// borrowing what the future holds is cloned before the future ends.
+			let (ok, own) = owned(&function.ok);
+			let later = match (own, &function.err) {
+				(None, _) => format!("{later}.await"),
+				(Some(own), Some(_)) => format!("{later}.await.map(|v| {own})"),
+				(Some(own), None) => format!("{{ let v = {later}.await; {own} }}"),
+			};
 			let bind: String = Self::outs(function)
 				.iter()
 				.enumerate()
 				.map(|(n, out)| format!("let {out} = outs[{n}];\n\t\t\t"))
 				.collect();
 			self.line(format!(
-				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}{now}\n\trt::Future::new(async move {{\n\t\tlet result = {later}.await;\n\t\t::std::boxed::Box::new(move |outs: &[*mut ::std::ffi::c_void], err: *mut ::std::ffi::c_void| -> i32 {{\n\t\t\tlet _ = (outs, err);\n\t\t\t{bind}{}\n\t\t}}) as rt::Done\n\t}})\n}}\n",
+				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}({}) -> *mut rt::Future {{\n\tlet w = \"{name}\";\n\tlet _ = w;\n\t{body}{now}\n\trt::Future::new(async move {{\n\t\tlet result = {later};\n\t\t::std::boxed::Box::new(move |outs: &[*mut ::std::ffi::c_void], err: *mut ::std::ffi::c_void| -> i32 {{\n\t\t\tlet _ = (outs, err);\n\t\t\t{bind}{}\n\t\t}}) as rt::Done\n\t}})\n}}\n",
 				params.join(", "),
-				self.finish(function, ("v", "rt::READY", "rt::ERROR"))
+				self.finish(function, &ok, ("v", "rt::READY", "rt::ERROR"))
 			));
 			let poll_params: Vec<String> = poll.params[2..]
 				.iter()
@@ -1417,8 +1450,8 @@ impl Gen<'_> {
 		let ret = rs(&export.call.ret);
 		self.lends = function.lends;
 		let finish = match function.err {
-			Some(_) => self.finish(function, ("v", "true", "false")),
-			None => self.finish(function, ("", "", "")),
+			Some(_) => self.finish(function, &function.ok, ("v", "true", "false")),
+			None => self.finish(function, &function.ok, ("", "", "")),
 		};
 		self.lends = false;
 		self.line(format!(
@@ -1430,5 +1463,37 @@ impl Gen<'_> {
 				false => call,
 			},
 		));
+	}
+}
+
+/// What a function returns, owned: each reference at its top or in a returned tuple as
+/// its clone's type, with the expression cloning `v` into it, if any is one.
+fn owned(ok: &Type) -> (Type, Option<String>) {
+	let one = |ty: &Type| match ty {
+		Type::Ref(_, inner) => Some(match &**inner {
+			Type::Str => Type::String,
+			Type::Slice => Type::Vec,
+			Type::Path => Type::PathBuf,
+			inner => inner.clone(),
+		}),
+		_ => None,
+	};
+	match ok {
+		Type::Tuple(elements) if elements.iter().any(|e| one(e).is_some()) => {
+			let names: Vec<String> = (0..elements.len()).map(|n| format!("v{n}")).collect();
+			let owned: Vec<String> = (elements.iter().zip(&names))
+				.map(|(e, n)| match one(e) {
+					Some(_) => format!("::std::borrow::ToOwned::to_owned({n})"),
+					None => n.clone(),
+				})
+				.collect();
+			let ty = Type::Tuple(elements.iter().map(|e| one(e).unwrap_or_else(|| e.clone())).collect());
+			let own = format!("{{ let ({},) = v; ({},) }}", names.join(", "), owned.join(", "));
+			(ty, Some(own))
+		}
+		ok => match one(ok) {
+			Some(ty) => (ty, Some("::std::borrow::ToOwned::to_owned(v)".to_string())),
+			None => (ok.clone(), None),
+		},
 	}
 }
