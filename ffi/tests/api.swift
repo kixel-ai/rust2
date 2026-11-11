@@ -692,15 +692,18 @@ func script() {
 	print("nexts \(next4.ip.map(String.init).joined(separator: ".")) \(next4.port) \(next6.port) \(next6.scopeId)")
 
 	// serde_json's map iterator, collected as pairs of a key and its document.
-	let jsonSections = sections([("b", try! Json.parse("[1]")), ("a", try! Json.parse("2"))])
-	print("sections \(jsonSections.map { "\($0.0) \($0.1.toText())" }.joined(separator: ", "))")
+	var sectionPairs = UniqueArray<TupleStringJson>()
+	sectionPairs.append(TupleStringJson("b", try! Json.parse("[1]")))
+	sectionPairs.append(TupleStringJson("a", try! Json.parse("2")))
+	let jsonSections = sections(sectionPairs)
+	print("sections \(listed(jsonSections) { "\($0._0) \($0._1.toText())" })")
 	// An instant only Rust makes, which each call copies out of its handle, and compares.
 	let millis = { (d: Swift.Duration) in d.components.seconds * 1000 + d.components.attoseconds / 1_000_000_000_000_000 }
 	let began = now()
 	let ended = later(began, .milliseconds(1500))
 	print("instants \(millis(since(ended, began))) \(millis(since(began, ended))) \(began == later(began, .zero)) \(began == ended)")
 	// tracing's level, and its filter as an optional level whose nil is `OFF`.
-	let verbosity = Verbosity.new(.warn)
+	var verbosity = Verbosity.new(.warn)
 	print("verbosity \(spell(verbosity.filter())) \(spell(louder(verbosity.filter())))")
 	verbosity.levelSet(.trace)
 	print("verbosity \(verbosity.levelGet == .trace) \(spell(verbosity.filter())) \(spell(louder(verbosity.filter()))) \(spell(louder(nil)))")
