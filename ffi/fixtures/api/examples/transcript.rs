@@ -671,10 +671,48 @@ fn main() {
 		trail.drain().collect::<Vec<_>>(),
 		trail.labels()
 	);
+	// A filter, collected at the call.
+	let beyond: Vec<String> = trail.beyond(1).map(|p| format!("{} {}", p.x, p.y)).collect();
+	println!("beyond {}", beyond.join(", "));
 	let numbered: Vec<String> = api::numbered(vec!["p".to_string(), "q".to_string()])
 		.map(|c| format!("{} {}", c.name(), c.get()))
 		.collect();
 	println!("numbered {}", numbered.join(", "));
 	let (v4, v6) = api::nexts("127.0.0.1:8080".parse().unwrap(), "[::1%3]:443".parse().unwrap());
 	println!("nexts {} {} {} {}", v4.ip(), v4.port(), v6.port(), v6.scope_id());
+
+	// Standard and common types: serde_json's map iterator, std's instant, and tracing's
+	// level and its filter.
+	let sections: Vec<String> = api::sections(
+		[("b", "[1]"), ("a", "2")]
+			.into_iter()
+			.map(|(key, text)| (key.to_string(), text.parse().expect("a JSON document")))
+			.collect(),
+	)
+	.map(|(key, value)| format!("{key} {value}"))
+	.collect();
+	println!("sections {}", sections.join(", "));
+	let start = api::now();
+	let end = api::later(start, std::time::Duration::from_millis(1500));
+	println!(
+		"instants {} {} {} {}",
+		api::since(end, start).as_millis(),
+		api::since(start, end).as_millis(),
+		start == api::later(start, std::time::Duration::ZERO),
+		start == end
+	);
+	let mut verbosity = api::Verbosity::new(tracing::Level::WARN);
+	println!(
+		"verbosity {} {}",
+		api::spell(verbosity.filter()),
+		api::spell(api::louder(verbosity.filter()))
+	);
+	verbosity.level = tracing::Level::TRACE;
+	println!(
+		"verbosity {} {} {} {}",
+		verbosity.level == tracing::Level::TRACE,
+		api::spell(verbosity.filter()),
+		api::spell(api::louder(verbosity.filter())),
+		api::spell(api::louder(tracing::level_filters::LevelFilter::OFF))
+	);
 }
