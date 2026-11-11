@@ -289,6 +289,19 @@ func script() {
 	}
 	print("scaled \(scaledHex.joined(separator: " "))")
 	check(U128(high: .max, low: .max).description == "340282366920938463463374607431768211455", "a u128's decimal digits")
+	let sumHex = { (sum: ArrayU8x4) in sum.map { Swift.String(format: "%02x", $0) }.joined() }
+	let digest = Digest.new()
+	digest.sumSet(try! fingerprint("deadbeef"))
+	var unparsed = ""
+	do {
+		_ = try fingerprint("zz")
+	} catch let e as StringError {
+		unparsed = e.error
+	} catch {
+		check(false, "fingerprint throws its message")
+	}
+	print("digest \(sumHex(digest.sumGet)) \(sumHex(digest.flipped(ArrayU8x4([0xff, 0, 0xff, 0])!))) \(unparsed)")
+	check(ArrayU8x4([1, 2, 3]) == nil, "3 bytes are no [u8; 4]")
 	let batch = Batch.new(), batch2 = pair()
 	let accepted = (1...5).filter { batch.push($0) }.count
 	let paired = (1...3).filter { batch2.push($0) }.count
@@ -840,6 +853,13 @@ func broken(_ which: String) {
 		_ = stray()
 	case "lent stray":
 		visitStray { _ in }
+	// The file serves wasm32 too, whose items the host's library lacks.
+	case "target":
+		_ = wasmOnly()
+	case "variant":
+		_ = pointerBits(.wasm(bits: 32))
+	case "plain variant":
+		_ = isFamily(.wasm)
 	default:
 		check(false, "no case \(which)")
 	}

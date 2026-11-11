@@ -26,7 +26,7 @@ use std::hash::Hasher;
 use rustc_data_structures::stable_hash::StableHasher;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Family, Function, Int, Literal, Receiver, Traits, Type};
+use crate::ir::{Access, Family, Function, Int, Literal, On, Receiver, Traits, Type};
 use crate::kotlin::{indent_by, rust_c, strip_refs};
 
 const RUNTIME: &str = include_str!("../runtime/rt.py");
@@ -69,7 +69,10 @@ const TAKEN: &[&str] = &[
 	"_staticmethod",
 	"_isinstance",
 	"_str",
+	"_bytes",
+	"_len",
 	"_Exception",
+	"_ValueError",
 	"_AttributeError",
 ];
 
@@ -105,6 +108,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		thrown: HashMap::new(),
 		names: BTreeMap::new(),
 		errors: Vec::new(),
+		on: On::ALL,
 	};
 	for name in TAKEN {
 		g.names.insert(name.to_string(), "the runtime".to_string());
@@ -159,7 +163,10 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		import weakref as _weakref\n\
 		from builtins import AttributeError as _AttributeError\n\
 		from builtins import Exception as _Exception\n\
+		from builtins import ValueError as _ValueError\n\
+		from builtins import bytes as _bytes\n\
 		from builtins import isinstance as _isinstance\n\
+		from builtins import len as _len\n\
 		from builtins import property as _property\n\
 		from builtins import staticmethod as _staticmethod\n\
 		from builtins import str as _str\n\
@@ -340,6 +347,8 @@ struct Gen<'a> {
 	/// Each module-level Python name, with what claimed it.
 	names: BTreeMap<String, String>,
 	errors: Vec<String>,
+	/// The targets of the item being written, whose native functions check theirs.
+	on: On,
 }
 
 impl<'a> Gen<'a> {
@@ -393,6 +402,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "None".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(_) | Type::U128 => "int".to_string(),
@@ -466,6 +476,10 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Array(n) => format!(
+				"rt::array_in::<{n}>({o}).map(|items| crate::{} {{ items }})",
+				abi.array(*n)
+			),
 			Type::Bool => format!("rt::bool_in({o})"),
 			Type::Int(int) => format!("rt::int_in::<{}>({o})", int.rust()),
 			Type::F32 => format!("rt::float_in({o}).map(|f| f as f32)"),
@@ -499,6 +513,14 @@ impl<'a> Gen<'a> {
 			Type::Box(inner) => self.lift(inner, o, m),
 			Type::Ref(_, inner) => self.lift(inner, o, "false"),
 			Type::Record(_) => format!("r_{}({o}, s)", self.c_struct(ty)),
+			Type::Enum(i) if abi.api.enums[*i].variants.iter().any(|v| !abi.api.everywhere(v.on)) => {
+				// Checks the member a value is against the library's target.
+				let c = abi.enumeration(*i);
+				match abi.api.enums[*i].plain() {
+					true => format!("rt::member_in({o}, {}).and_then(on_{c})", self.t(&c)),
+					false => format!("r_{c}({o}, s)"),
+				}
+			}
 			Type::Enum(i) => match abi.api.enums[*i].plain() {
 				true => format!("rt::member_in({o}, {})", self.t(&abi.enumeration(*i))),
 				false => format!("r_{}({o}, s)", abi.enumeration(*i)),
@@ -531,6 +553,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Array(n) => format!("rt::array_out(&{v}.items, {})", self.t(&abi.array(*n))),
 			Type::Unit => "rt::none()".to_string(),
 			Type::Bool => format!("rt::bool_out({v})"),
 			Type::Int(int) if signed(*int) => format!("rt::int_out({v} as i64)"),
@@ -608,6 +631,14 @@ impl<'a> Gen<'a> {
 		}
 		for (c, elements) in &abi.tuples.clone() {
 			self.tuple(c, elements);
+		}
+		for (c, n) in &abi.arrays {
+			let name = Abi::array_class(*n);
+			self.register(c, name.clone());
+			let _ = write!(
+				self.py,
+				"class {name}(_bytes):\n\t\"\"\"A Rust `[u8; {n}]`: exactly {n} bytes.\"\"\"\n\n\t__slots__ = ()\n\n\tdef __new__(cls, value: {BUFFER}) -> _typing.Self:\n\t\tself = _bytes.__new__(cls, value)\n\t\tif _len(self) != {n}:\n\t\t\traise _ValueError(f\"{{_len(self)}} bytes, not {n}\")\n\t\treturn self\n\n\n"
+			);
 		}
 		for (c, elem) in &abi.lists.clone() {
 			self.list(c, elem);
@@ -903,6 +934,7 @@ impl<'a> Gen<'a> {
 	fn record(&mut self, i: usize) {
 		let abi = self.abi;
 		let record = &abi.api.records[i];
+		self.on = record.on;
 		let c = abi.record(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&record.path, &record.args);
@@ -964,6 +996,7 @@ impl<'a> Gen<'a> {
 	fn enumeration(&mut self, i: usize) {
 		let abi = self.abi;
 		let e = &abi.api.enums[i];
+		self.on = e.on;
 		let c = abi.enumeration(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&e.path, &e.args);
@@ -973,6 +1006,22 @@ impl<'a> Gen<'a> {
 		self.traits(&ty, &c, e.traits, &mut body);
 		let owner = abi.ty(&ty);
 		if e.plain() {
+			let missing: String = (e.variants.iter())
+				.filter_map(|v| {
+					let cfg = abi.cfg(v.on)?;
+					let d = v.discriminant;
+					Some(format!(
+						"\t\t#[cfg(not({cfg}))]\n\t\t{d} => rt::missing(\"{c}.{}\"),\n",
+						v.name
+					))
+				})
+				.collect();
+			if !missing.is_empty() {
+				let _ = write!(
+					self.glue,
+					"fn on_{c}(v: i32) -> R<i32> {{\n\tmatch v {{\n{missing}\t\t_ => Ok(v),\n\t}}\n}}\n\n"
+				);
+			}
 			let data: Vec<String> = e.variants.iter().map(|v| abi::snake(&v.name).to_uppercase()).collect();
 			// An `Enum`'s members have these.
 			self.methods(&e.methods, (&ty, &owner, &rust), &data, &["name", "value"], &mut body);
@@ -1035,10 +1084,18 @@ impl<'a> Gen<'a> {
 				self.py,
 				"@_dataclass(slots=True{repr})\nclass {class}({name}):\n{fields}\n\n{class}.__name__ = \"{vname}\"\n{class}.__qualname__ = \"{name}.{vname}\"\nif not _typing.TYPE_CHECKING:\n\t{name}.{vname} = {class}\n\n\n"
 			);
+			// A value of a variant the library's target lacks is refused as it crosses.
+			let missing = match abi.cfg(variant.on) {
+				Some(cfg) => format!(
+					"if !cfg!({cfg}) {{\n\t\t\treturn rt::missing(\"{c}.{}\");\n\t\t}}\n\t\t",
+					variant.name
+				),
+				None => String::new(),
+			};
 			match variant.fields.is_empty() {
 				true => {
 					reads.push(format!(
-						"if rt::is(o, {tv}) {{\n\t\treturn Ok(crate::{c} {{ tag: {n}, u: unsafe {{ std::mem::zeroed() }} }});\n\t}}"
+						"if rt::is(o, {tv}) {{\n\t\t{missing}return Ok(crate::{c} {{ tag: {n}, u: unsafe {{ std::mem::zeroed() }} }});\n\t}}"
 					));
 					writes.push(format!("\t\t{n} => rt::record({tv}, vec![]),"));
 				}
@@ -1054,7 +1111,7 @@ impl<'a> Gen<'a> {
 						lowers.push(format!("({key}, {})", self.lower(&f.ty, &format!("p.f{k}"))));
 					}
 					reads.push(format!(
-						"if rt::is(o, {tv}) {{\n\t\t{}\n\t\treturn Ok(crate::{c} {{ tag: {n}, u: crate::{c}_union {{ v{n}: crate::{payload} {{ {} }} }} }});\n\t}}",
+						"if rt::is(o, {tv}) {{\n\t\t{missing}{}\n\t\treturn Ok(crate::{c} {{ tag: {n}, u: crate::{c}_union {{ v{n}: crate::{payload} {{ {} }} }} }});\n\t}}",
 						binds.join("\n\t\t"),
 						fields.join(", ")
 					));
@@ -1076,6 +1133,7 @@ impl<'a> Gen<'a> {
 	fn object(&mut self, i: usize) {
 		let abi = self.abi;
 		let object = &abi.api.objects[i];
+		self.on = object.on;
 		let c = abi.object(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&object.path, &object.args);
@@ -1106,6 +1164,7 @@ impl<'a> Gen<'a> {
 	fn callback(&mut self, i: usize) {
 		let abi = self.abi;
 		let callback = &abi.api.callbacks[i];
+		self.on = callback.on;
 		let c = abi.callback(i);
 		let name = self.class(&c);
 		let rust = callback.path.join("::");
@@ -1225,6 +1284,7 @@ impl<'a> Gen<'a> {
 	/// A native function `bare`, which the generated Python calls by position with `n`
 	/// arguments as `a`, whose glue runs `body` with a scope `s`, returning an `R<Obj>`.
 	fn native(&mut self, bare: &str, n: usize, body: &str) {
+		let body = self.checked(bare, body);
 		let _ = write!(
 			self.glue,
 			"unsafe extern \"C\" fn f_{bare}(_: *mut PyObject, a: *mut *mut PyObject, n: Py_ssize_t) -> *mut PyObject {{\n\trt::wrap(|| unsafe {{\n\t\tlet a = rt::args(a, n, {n}, \"{bare}\")?;\n\t\tlet s = &mut rt::Scope::default();\n\t\t{body}\n\t}})\n}}\n\n"
@@ -1232,10 +1292,22 @@ impl<'a> Gen<'a> {
 		self.table.push(format!("rt::method(c\"{bare}\", f_{bare})"));
 	}
 
+	/// `body`, raising first on a target the item being written is not on.
+	fn checked(&self, bare: &str, body: &str) -> String {
+		match self.abi.cfg(self.on) {
+			Some(cfg) => format!(
+				"if !cfg!({cfg}) {{\n\t\t\treturn rt::missing(\"{}_{bare}\");\n\t\t}}\n\t\t{body}",
+				self.abi.prefix
+			),
+			None => body.to_string(),
+		}
+	}
+
 	/// A native function `bare` that Python calls as `d` describes, with no Python
 	/// frame between. Its glue runs `body` like a [`Gen::native`]'s, with `a` holding
 	/// `self` first if it has one.
 	fn direct(&mut self, bare: &str, d: Direct<'_>, body: &str) {
+		let body = &self.checked(bare, body);
 		let member = d.member;
 		let class = d.owner.map(|c| (self.t(c), self.class(c)));
 		if d.property {
@@ -1284,6 +1356,19 @@ impl<'a> Gen<'a> {
 	/// `function`'s Python form, a member of `owner` if it has one (whose IR type and
 	/// reserved member names are `owner_ty`), with its native function and glue.
 	fn function(
+		&mut self,
+		function: &Function,
+		owner: Option<&Ty>,
+		owner_ty: Option<(&Type, &[&str])>,
+		place: Place,
+	) -> Option<Form> {
+		let on = std::mem::replace(&mut self.on, function.on);
+		let form = self.function_on(function, owner, owner_ty, place);
+		self.on = on;
+		form
+	}
+
+	fn function_on(
 		&mut self,
 		function: &Function,
 		owner: Option<&Ty>,

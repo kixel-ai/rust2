@@ -904,6 +904,16 @@ pub fn poll_loose(waiter: &Loose) -> std::task::Poll<()> {
 	std::task::Poll::Ready(())
 }
 
+/// An array of an element other than `u8`, which no export needs yet.
+pub fn sum_pair(pair: [u16; 2]) -> u32 {
+	u32::from(pair[0]) + u32::from(pair[1])
+}
+
+/// An empty array, which no C struct holds.
+pub fn empty(bytes: [u8; 0]) -> usize {
+	bytes.len()
+}
+
 /// A plain enum whose discriminant C's `int32_t` cannot hold.
 #[repr(i64)]
 pub enum Wide {

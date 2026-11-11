@@ -456,6 +456,19 @@ static int script(void) {
 		}
 	}
 	printf("\n");
+	api_array_u8_4 sum, unparsed;
+	api_buf unparsed_err;
+	if (!api_fingerprint(str("deadbeef"), &sum, &unparsed_err) || api_fingerprint(str("zz"), &unparsed, &unparsed_err)) {
+		return 1;
+	}
+	api_Digest *digest = api_Digest_new();
+	api_Digest_sum_set(digest, sum);
+	api_array_u8_4 got = api_Digest_sum_get(digest);
+	api_array_u8_4 masked = api_Digest_flipped(digest, (api_array_u8_4){{0xff, 0, 0xff, 0}});
+	printf("digest %02x%02x%02x%02x %02x%02x%02x%02x", got.items[0], got.items[1], got.items[2], got.items[3],
+		masked.items[0], masked.items[1], masked.items[2], masked.items[3]);
+	print(" ", unparsed_err, "\n");
+	api_Digest_free(digest);
 	api_Batch *batch = api_Batch_new();
 	unsigned accepted = 0;
 	for (uint32_t v = 1; v <= 5; v++) {
@@ -1322,6 +1335,13 @@ static int broken(const char *which) {
 		api_vec_u16 ports = api_ports((api_vec_socket_addr){0});
 		ports.len = 1;
 		api_vec_u16_free(ports);
+	} else if (strcmp(which, "target") == 0) {
+		/* The header serves wasm32 too, whose items the host's library lacks. */
+		api_wasm_only();
+	} else if (strcmp(which, "variant") == 0) {
+		api_pointer_bits((api_Platform){.tag = API_PLATFORM_WASM, .wasm = {.bits = 32}});
+	} else if (strcmp(which, "plain variant") == 0) {
+		api_is_family(API_FAMILY_WASM);
 	}
 	return 0;
 }

@@ -80,6 +80,14 @@ pub mod env {
 	pub const OUT: &str = "RUST2_FFI_OUT";
 	/// The directory to write the census into instead of exporting, absolute.
 	pub const CENSUS: &str = "RUST2_FFI_CENSUS";
+	/// The file to write the target's API into instead of exporting, absolute, for the
+	/// export of several targets to merge.
+	pub const API: &str = "RUST2_FFI_API";
+	/// The other targets' APIs the export merges with its own, as a list of paths.
+	pub const MERGE: &str = "RUST2_FFI_MERGE";
+	/// The directories a staged API's spans are relative to, as a list of paths: the
+	/// workspace's root and cargo's home, so an API staged on another host keeps them.
+	pub const ROOTS: &str = "RUST2_FFI_ROOTS";
 	/// The facade's [`Package`](super::Package).
 	pub const PACKAGE: &str = "RUST2_FFI_PACKAGE";
 	/// The `[patch]` resolving the facade as cargo did, as TOML with each path absolute.

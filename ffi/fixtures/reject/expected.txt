@@ -103,9 +103,11 @@ fixtures/reject/src/lib.rs:855:9: rust2-ffi: cannot export use `renamed`: re-exp
 fixtures/reject/src/lib.rs:866:2: rust2-ffi: cannot export method `Tally::poll_bump`: `&mut self` of a value; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:886:1: rust2-ffi: cannot export fn `poll_risky`: Poll with no Context or waiter parameter `std::task::Poll<()>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:902:1: rust2-ffi: cannot export fn `poll_loose`: Poll with no Context or waiter parameter `std::task::Poll<()>`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:909:1: rust2-ffi: cannot export enum `Wide`: discriminant outside `i32` `Large = 1099511627776`; exclude it in the config to leave it out
-	fixtures/reject/src/lib.rs:911:2: note: has this discriminant
-fixtures/reject/src/lib.rs:916:1: rust2-ffi: cannot export enum `Huge`: discriminant outside `i32` `Large = 18446744073709551616`; exclude it in the config to leave it out
-	fixtures/reject/src/lib.rs:918:2: note: has this discriminant
-fixtures/reject/src/lib.rs:923:1: rust2-ffi: cannot export enum `Top`: discriminant outside `i32` `Large = 340282366920938463463374607431768211455`; exclude it in the config to leave it out
-	fixtures/reject/src/lib.rs:925:2: note: has this discriminant
+fixtures/reject/src/lib.rs:908:1: rust2-ffi: cannot export fn `sum_pair`: array of an element other than u8 `[u16; 2]`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:913:1: rust2-ffi: cannot export fn `empty`: empty array `[u8; 0]`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:919:1: rust2-ffi: cannot export enum `Wide`: discriminant outside `i32` `Large = 1099511627776`; exclude it in the config to leave it out
+	fixtures/reject/src/lib.rs:921:2: note: has this discriminant
+fixtures/reject/src/lib.rs:926:1: rust2-ffi: cannot export enum `Huge`: discriminant outside `i32` `Large = 18446744073709551616`; exclude it in the config to leave it out
+	fixtures/reject/src/lib.rs:928:2: note: has this discriminant
+fixtures/reject/src/lib.rs:933:1: rust2-ffi: cannot export enum `Top`: discriminant outside `i32` `Large = 340282366920938463463374607431768211455`; exclude it in the config to leave it out
+	fixtures/reject/src/lib.rs:935:2: note: has this discriminant
