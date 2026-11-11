@@ -801,7 +801,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(Family::V4) => format!("lowerAddrV4_({e})"),
 			Type::SocketAddr(Family::V6) => format!("lowerAddrV6_({e})"),
 			Type::Waker => format!("waker_({e})"),
-			Type::Future => format!("future_({e})"),
+			Type::Future => unreachable!("a foreign future crosses only as a parameter"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				self.convert(ty);
 				format!("lower_{}({e})", abi.range(ty))
@@ -2122,7 +2122,14 @@ impl<'a> Gen<'a> {
 					args.push(format!("lower_{}({name})", abi.callback(*i)))
 				}
 				(Type::Waker, _) => args.push(format!("waker_({name})")),
-				(Type::Future, _) => args.push(format!("future_({name})")),
+				// Its body runs under the caller's context, when the call takes one.
+				(Type::Future, _) => {
+					let ctx = match function.future {
+						true => "ctx",
+						false => "context.Background()",
+					};
+					args.push(format!("future_({ctx}, {name})"))
+				}
 				(ty, Ty::Buf) => {
 					let call = match ty.buffer() {
 						Some(Type::String | Type::PathBuf) => format!("bufString_({name})"),

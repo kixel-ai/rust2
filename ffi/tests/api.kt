@@ -705,6 +705,21 @@ fun futures() {
 		q.drain()
 		check(cancelled, "cancelling the call cancels the lambda Rust polls")
 	}
+	run {
+		// A lambda that returns once the caller cancelled ends unfinished: the call
+		// reports the cancel, never Rust's success.
+		var result: String? = null
+		scope.launch {
+			val caller = coroutineContext[kotlinx.coroutines.Job]!!
+			result = try {
+				"returned ${after({ caller.cancel() }, 1u)}"
+			} catch (e: kotlinx.coroutines.CancellationException) {
+				"cancelled"
+			}
+		}
+		q.drain()
+		check(result == "cancelled", "a caller's cancel the lambda sees reports the cancel")
+	}
 	println("futures ok")
 }
 

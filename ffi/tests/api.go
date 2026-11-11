@@ -850,6 +850,43 @@ func futures() {
 			check(false, "dropping a future Rust polls cancels its context")
 		}
 	}
+	{
+		// The body's context carries the caller's values and deadline.
+		type key struct{}
+		caller, cancel := context.WithTimeout(context.WithValue(ctx, key{}, "caller"), time.Hour)
+		want, _ := caller.Deadline()
+		var value any
+		var deadline time.Time
+		ok(api.Within(caller, 1000, func(c context.Context) {
+			value = c.Value(key{})
+			deadline, _ = c.Deadline()
+		}))
+		cancel()
+		check(value == "caller" && deadline.Equal(want), "a Go function runs under the caller's context")
+	}
+	for range 100 {
+		// A body that returns once the caller cancelled, even one that ignores its
+		// context, ends unfinished: the call reports the cancel, never Rust's success.
+		caller, cancel := context.WithCancel(ctx)
+		_, err := api.After(caller, func(context.Context) { cancel() }, 1)
+		check(errors.Is(err, context.Canceled), "a caller's cancel the body sees reports the cancel")
+	}
+	{
+		// The caller's cancel reaches the body's context.
+		caller, cancel := context.WithCancel(ctx)
+		cancelled := make(chan struct{})
+		got := make(chan error)
+		go func() {
+			_, err := api.After(caller, func(c context.Context) {
+				<-c.Done()
+				close(cancelled)
+			}, 1)
+			got <- err
+		}()
+		cancel()
+		check(errors.Is(<-got, context.Canceled), "a cancelled call waiting on a Go function reports the cancel")
+		<-cancelled
+	}
 	fmt.Println("futures ok")
 }
 

@@ -379,10 +379,10 @@ func GoPoll_() unsafe.Pointer {
 	return unsafe.Pointer(goPoll)
 }
 
-// Pollable_ is run as a future Rust polls, which closing cancels. For the generated
-// packages: use none of it.
-func Pollable_(run func(context.Context)) io.Closer {
-	ctx, cancel := context.WithCancel(context.Background())
+// Pollable_ is run as a future Rust polls, under a context derived from parent, which
+// closing also cancels. For the generated packages: use none of it.
+func Pollable_(parent context.Context, run func(context.Context)) io.Closer {
+	ctx, cancel := context.WithCancel(parent)
 	return &pollable_{run: run, ctx: ctx, cancel: cancel}
 }
 
@@ -419,10 +419,15 @@ func (p *pollable_) poll(waker cWaker) bool {
 	return false
 }
 
-// finish runs it, unless Rust dropped it first, then wakes the latest poll's waker.
+// finish runs it, unless its context is done first, then wakes the latest poll's waker.
+// Once its context is done, by the caller or by Rust dropping it, it ends unfinished:
+// Rust never sees it done, so a call the caller cancelled reports the caller's error.
 func (p *pollable_) finish() {
 	if p.ctx.Err() == nil {
 		p.run(p.ctx)
+	}
+	if p.ctx.Err() != nil {
+		return
 	}
 	p.mu.Lock()
 	p.done = true

@@ -373,9 +373,11 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   loses nothing. Each call is its own future, so it has one poller. The call polls it once
   before suspending, and makes the waker it parks on only if that poll pends.
 - A **future Kotlin implements** is a `suspend () -> Unit`, which Rust's first poll
-  launches in the calling coroutine's context, without its job, on its dispatcher, or on
-  `Default` for one that does not dispatch. Rust dropping it cancels the coroutine, and one
-  dropped before it starts never runs. One that throws aborts.
+  launches in the calling coroutine's context, on its dispatcher, or on `Default` for one
+  that does not dispatch. It runs on a job of its own, so the caller never waits on it,
+  which the caller's job cancelling cancels, as does Rust dropping it; one dropped before it
+  starts never runs. Once cancelled, it ends unfinished, so a cancelled call reports the
+  cancel even if the lambda returns. One that throws otherwise aborts.
 - A **waker** is a `Waker`, which Rust may call from any thread. One Rust returns wakes
   through Rust, and the garbage collector drops it.
 - **The contract** is checked when the library loads, before any other call: a Kotlin
@@ -606,8 +608,11 @@ reads a go.mod.
   which cancels it in Rust and loses nothing: the next call takes what it would have.
   Each call is its own future, so it has one poller, and its context bounds only it.
 - A **future Go implements** is a `func(context.Context)`, which Rust's first poll runs on
-  a goroutine of its own. Rust dropping it cancels the context, and one dropped before it
-  starts never runs.
+  a goroutine of its own. Its context derives from the call's, `context.Background()` for
+  a call without one, so it carries the caller's values and deadline, and the caller's
+  cancel reaches it; Rust dropping it cancels it too, and one dropped before it starts
+  never runs. Once its context is done, it ends unfinished, so a cancelled call reports
+  the cancel even if the function returns.
 - A **waker** is a `func()`, which Rust may call from any thread. One Rust returns wakes
   through Rust, and the garbage collector drops it.
 - **The contract** is checked when `rt` loads, before any other call: Go packages and a

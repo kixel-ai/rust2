@@ -418,21 +418,29 @@ class Signal : java.util.concurrent.atomic.AtomicReference<Any?>(null), Waker {
 
 /**
  * A suspend function Rust polls as a future, one poll at a time from any thread: its first
- * poll launches it in [context], apart from that context's job, since Rust decides when it
- * ends, and never in place, since a poll runs inside Rust. Once it returns, the latest
- * poll's waker is woken; if it throws, the next poll rethrows, which aborts as a callback
- * that throws does. Rust closes it once it drops it, which cancels it.
+ * poll launches it in [context], on a job of its own rather than a child of the caller's,
+ * since Rust decides when it ends, and never in place, since a poll runs inside Rust. The
+ * caller's job cancelling cancels it too. Once it returns, the latest poll's waker is
+ * woken; if it throws, the next poll rethrows, which aborts as a callback that throws
+ * does. Rust closes it once it drops it, which cancels it. Once cancelled, by the caller
+ * or by Rust, it ends unfinished: Rust never sees it done, so a call the caller cancelled
+ * reports the caller's cancel.
  */
 class Pollable(
 	private val body: suspend () -> Unit,
 	private val context: kotlin.coroutines.CoroutineContext,
 ) : AutoCloseable {
 	private var job: kotlinx.coroutines.Job? = null
+	// What passes the caller's cancel on to [job], disposed once it ends or Rust closes it.
+	private var watch: kotlinx.coroutines.DisposableHandle? = null
 	private var done = false
 	private var failure: Throwable? = null
 	// The latest poll's waker, a pointer to Rust's, or 0.
 	private var waker = 0L
 
+	// The caller's job reaches it as it starts cancelling, not once its children finish,
+	// which only the internal overload of invokeOnCompletion tells.
+	@OptIn(kotlinx.coroutines.InternalCoroutinesApi::class)
 	fun poll(given: Long): Boolean {
 		val old: Long
 		synchronized(this) {
@@ -443,7 +451,13 @@ class Pollable(
 			}
 			old = waker
 			waker = given
-			if (job == null) job = kotlinx.coroutines.CoroutineScope(dispatched()).launch { run() }
+			if (job == null) {
+				val launched = kotlinx.coroutines.CoroutineScope(dispatched()).launch { run() }
+				job = launched
+				watch = context[kotlinx.coroutines.Job]?.invokeOnCompletion(onCancelling = true, invokeImmediately = true) { cause ->
+					if (cause != null) launched.cancel()
+				}
+			}
 		}
 		if (old != 0L) __waker_drop(old)
 		return false
@@ -460,19 +474,26 @@ class Pollable(
 	}
 
 	private suspend fun run() {
+		val self = kotlin.coroutines.coroutineContext[kotlinx.coroutines.Job]!!
 		try {
 			body()
-		} catch (e: kotlinx.coroutines.CancellationException) {
-			throw e
 		} catch (e: Throwable) {
+			// Cancelled, it ends unfinished: a throw is how it stopped.
+			if (self.isCancelled) throw e
 			synchronized(this) { failure = e }
 		}
+		// Cancelled as it returned, even one that ignored the cancel, it ends unfinished.
+		if (self.isCancelled) return
 		val w: Long
+		val watched: kotlinx.coroutines.DisposableHandle?
 		synchronized(this) {
 			done = true
 			w = waker
 			waker = 0L
+			watched = watch
+			watch = null
 		}
+		watched?.dispose()
 		if (w != 0L) {
 			__waker_wake(w)
 			__waker_drop(w)
@@ -481,10 +502,14 @@ class Pollable(
 
 	override fun close() {
 		val w: Long
+		val watched: kotlinx.coroutines.DisposableHandle?
 		synchronized(this) {
 			w = waker
 			waker = 0L
+			watched = watch
+			watch = null
 		}
+		watched?.dispose()
 		job?.cancel()
 		if (w != 0L) __waker_drop(w)
 	}

@@ -350,10 +350,10 @@ func waker_(wake func()) cWaker {
 }
 
 // future_ is run as the future Rust polls, from any thread: its first poll runs it on a
-// goroutine of its own, whose context Rust cancels once it drops the future, finished or
-// not.
-func future_(run func(context.Context)) cForeignFuture {
-	return cForeignFuture{poll: goPoll, free: goRelease, data: give_(rt.Pollable_(run))}
+// goroutine of its own, under a context derived from ctx that Rust also cancels once it
+// drops the future, finished or not.
+func future_(ctx context.Context, run func(context.Context)) cForeignFuture {
+	return cForeignFuture{poll: goPoll, free: goRelease, data: give_(rt.Pollable_(ctx, run))}
 }
 
 // await_ polls a future until poll reports it finished, returning its error, or ctx's
