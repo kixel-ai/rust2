@@ -5,7 +5,7 @@
 The moq pin moves to moq's current `main`, whose crates re-export no whole crate, moq's own
 included. `just ffi census` there lists no whole-crate re-export refusal. Its "type not
 reachable from the crate root" refusals are `kio::Pending` and `lite::version::Version`,
-which Waiting covers, and moq-quic's stats and varint types under moq-tokio's `quic::driver`,
+which the exporter change below exports, and moq-quic's stats and varint types under moq-tokio's `quic::driver`,
 which [moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683) drops. At `ffcb7cd9` there were 20 such refusals (18 Guard and Side, and
 `Version`), and 9 at moq's head on 2026-11-09, measured in
 [#676](https://github.com/moq-dev/rust2/pull/676).
@@ -55,19 +55,24 @@ Decided with the maintainer on 2026-11-09: bump to moq's current main now, and n
 Goal to the two moq-owned types. Rejected: wait for moq to fix the rest first. Not landed:
 moq's `main` fails `just ts moq` and `just ffi moq-cpp`, so the bump waits on Waiting.
 
+Decided 2026-11-11 (maintainer, /quest-unblock): ✅ (a) rust2 exports a type the crate root does
+not reach by its defining path, such as `kio::Pending` and `lite::version::Version`; a type
+whose defining path is itself private stays refused (rejected: (b) moq makes both reachable).
+This quest makes the exporter change, in `ffi/src/collect.rs`, before the bump.
+
+Measured on 2026-11-11 at moq's `main` `d528b675`: the bump also has to fix 37 stale
+`ffi/moq/ffi.toml` entries, such as excludes naming `bytes` and `kio`, which no longer
+exist, and the new refusals the census lists there.
+
 ## Waiting
 
 - moq-dev/moq: `rind` builds for wasm32. moq-net depends on `rind`, whose md5 inline asm has
   no wasm32 arm, so `just ts moq <checkout>` fails at moq's `main`. Done when it passes there.
+  Still failing on 2026-11-11 at moq `d528b675`: `rind` 0.3.1, and 0.3.2 too, has an
+  unconditional `asm!` in `src/low/generic/md5.rs:22`, so the wasm32 build fails with E0658.
+  The fix belongs in `rind` itself, then a bump in moq.
 - moq-dev/moq: moq-tokio builds without tripping `recursion_depth_exceeding_limit` (an
   overflow proving `Send` on `Instrumented<...>`), which `just ffi moq-cpp <checkout>` denies.
-  Done when it passes at moq's `main`.
-- Maintainer: decide how `kio::Pending`, named by `dial_tcp` and `dial_track`, and
-  `lite::version::Version` stop refusing as "type not reachable from the crate root", which
-  `just ffi census <checkout>` lists at moq's `main`. Options: (a) rust2 exports a type the
-  crate root does not reach by its defining path, recommended, since it asks moq for no source
-  change, as the maintainer's 2026-11-09 decision does; a type whose defining path is itself
-  private stays refused. (b) moq-dev/moq makes both reachable from moq-net's root, by name or
-  by wrapping; no moq quest owns this yet. Whichever is chosen, its change lands before the
-  bump: the exporter change under (a), or moq's fix under (b). Done when the census at moq's
-  `main` lists neither type.
+  Done when it passes at moq's `main`. Still failing on 2026-11-11 at moq `d528b675`, at
+  `rs/moq-tokio/src/client.rs:722`, on the `Instrumented<...>` from
+  `tokio::spawn(panic::isolate(time::run(driver)).instrument(..))`.
