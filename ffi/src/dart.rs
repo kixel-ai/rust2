@@ -1886,6 +1886,10 @@ impl<'a> Gen<'a> {
 			}
 		}
 		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		// A call this target lacks throws before any argument is lowered or given to Rust.
+		if !abi.api.everywhere(self.on) {
+			pre.insert(0, format!("_on(0x{:x}, '{c_name}');", self.on.0 & abi.api.all().0));
+		}
 
 		// A tuple of one returned whole is its element, written through its one out pointer.
 		let ok = strip_refs(&function.ok);

@@ -2252,6 +2252,12 @@ pub fn wasm_only() -> u32 {
 	32
 }
 
+/// Only wasm32 has it: a call on another target fails before it takes `log`.
+#[cfg(target_arch = "wasm32")]
+pub fn wasm_log(log: Box<dyn Log>) {
+	log.log(0, "wasm");
+}
+
 /// A type only wasm32 has.
 #[cfg(target_arch = "wasm32")]
 pub struct Worker {
