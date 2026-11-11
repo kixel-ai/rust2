@@ -1441,6 +1441,7 @@ impl<'tcx> Collector<'tcx> {
 				Traits::default(),
 			),
 		};
+		let self_ty = tcx.type_of(def_id).instantiate_identity().skip_norm_wip();
 		// std's is named through its module, which the glue names it by.
 		let path = match krate.as_str() {
 			"std" => tcx.def_path_str(def_id).split("::").map(str::to_string).collect(),
@@ -1457,14 +1458,8 @@ impl<'tcx> Collector<'tcx> {
 			span,
 			docs: docs.to_string(),
 			sync: true,
-			copy: implements(
-				tcx,
-				tcx.type_of(def_id).instantiate_identity().skip_norm_wip(),
-				def_id,
-				sym::Copy,
-			),
-			shared: traits.clone
-				&& self.clone_shares(tcx.type_of(def_id).instantiate_identity().skip_norm_wip(), def_id),
+			copy: implements(tcx, self_ty, def_id, sym::Copy),
+			shared: traits.clone && self.clone_shares(self_ty, def_id),
 			lifetimes: 0,
 			methods,
 			traits,
