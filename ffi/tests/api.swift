@@ -470,6 +470,16 @@ func script() {
 	print("polar \(polarPoint(2)!.distance) \(polarPoint(0) == nil) area \(area(Size(width: 2, height: 3)))")
 	// Two types whose paths join alike, the second kept apart where its path splits.
 	print("wind \(wind(PolarTurn(whole: 2), Polar_Turn(part: 3)))")
+	// Names that clash in some language, each kept apart there.
+	let clashSpan = ClashSpan(width: 4)
+	let clashStore = ClashStore.new(7)
+	print(
+		"clash \(debug(ClashTone(hz: 440))) \(debug(ClashTone_(db: 3))) \(debug(Cancelled(step: 2))) "
+			+ "span \(clashSpan.width_()) \(clashSpan.toString()) \(clashSpan) "
+			+ "store \(clashStore.free()) \(clashStore.close()) "
+			+ "audio \(clashAudioEncoderFinish()) \(clashAudioEncoderFinish_()) "
+			+ "nested \(clashNested(((1, 2), 3), (1, 2, 3)))"
+	)
 	// Instances that name each other, and one made only by an impl of it.
 	let crossed = cross(LeftRightU8(value: RightU8(value: 1)), RightLeftU8(value: LeftU8(value: 2)))
 	print("cross \(crossed) outer \(OuterInnerU8.new(4).get())")

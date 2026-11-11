@@ -428,6 +428,16 @@ def script():
 	print(f"polar {polar.distance} {flag(api.polar_point(0) is None)} area {api.area(api.Size(2, 3))}")
 	# Two types whose paths join alike, the second kept apart where its path splits.
 	print(f"wind {api.wind(api.PolarTurn(2), api.Polar_Turn(3))}")
+	# Names that clash in some language, each kept apart there.
+	clash_span = api.ClashSpan(4)
+	clash_store = api.ClashStore.new(7)
+	print(
+		f"clash {api.ClashTone(440)!r} {api.ClashTone_(3)!r} {api.Cancelled(2)!r} "
+		f"span {clash_span.width_()} {clash_span.to_string()} {clash_span} "
+		f"store {clash_store.free()} {clash_store.close()} "
+		f"audio {api.clash_audio_encoder_finish()} {api.clash_audio_encoder_finish_()} "
+		f"nested {api.clash_nested(((1, 2), 3), ((1, 2, 3),))}"
+	)
 	# Instances that name each other, and one made only by an impl of it.
 	cross = api.cross(api.LeftRightU8(api.RightU8(1)), api.RightLeftU8(api.LeftU8(2)))
 	print(f"cross {cross} outer {api.OuterInnerU8.new(4).get()}")

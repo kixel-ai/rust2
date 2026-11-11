@@ -224,7 +224,7 @@ jobs:
           script: nix develop .#android --command just ffi android
 
   ffi-bench:
-    name: Bench the C export against moq-c
+    name: Bench the bindings
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
 
@@ -236,8 +236,7 @@ jobs:
 
       - uses: ./.github/actions/nix
 
-      # Frame writes through each C API. The numbers go in the run's summary: no threshold
-      # fails the job.
+      # The binding benchmark's tables go in the run's summary: no threshold fails the job.
       - name: Bench
         # Named, so a failing bench fails the pipe.
         shell: bash
@@ -269,3 +268,37 @@ jobs:
         with:
           name: census
           path: ts/target/census
+
+  # A scheduled run's failure opens one issue, or comments on the one still open, and a
+  # pass closes it, so a suite only this workflow runs cannot fail unseen. Only the
+  # schedule, which runs main, gets the write token: a dispatch can run any branch.
+  report:
+    name: Report
+    needs: [gate, ts, bench, ffi, ffi-cpp, ffi-android, ffi-bench, census]
+    if: ${{ !cancelled() && github.event_name == 'schedule' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      issues: write
+
+    steps:
+      - name: Issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          FAILED: ${{ contains(needs.*.result, 'failure') }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          title="The nightly fails"
+          issue=$(gh issue list --state open --search "\"$title\" in:title" --json number,title --jq ".[] | select(.title == \"$title\") | .number" | head -n 1)
+          if [ "$FAILED" = true ]; then
+            body="[This run]($RUN) failed at $SHA."
+            if [ -n "$issue" ]; then
+              gh issue comment "$issue" --body "$body"
+            else
+              gh issue create --title "$title" --body "$body"
+            fi
+          elif [ -n "$issue" ]; then
+            gh issue close "$issue" --comment "[This run]($RUN) passed at $SHA."
+          fi

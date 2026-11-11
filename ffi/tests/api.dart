@@ -420,6 +420,15 @@ Future<void> script() async {
       'area ${api.area(const api.Size(width: 2, height: 3))}');
   // Two types whose paths join alike, the second kept apart where its path splits.
   print('wind ${api.wind(const api.PolarTurn(whole: 2), const api.Polar_Turn(part: 3))}');
+  // Names that clash in some language, each kept apart there.
+  const clashSpan = api.ClashSpan(width: 4);
+  final clashStore = api.ClashStore(7);
+  print('clash ${const api.ClashTone(hz: 440).debug()} ${const api.ClashTone_(db: 3).debug()} '
+      '${const api.Cancelled_(step: 2).debug()} span ${clashSpan.width_()} ${clashSpan.toString_()} $clashSpan '
+      'store ${clashStore.free()} ${clashStore.close_()} '
+      'audio ${api.clashAudioEncoderFinish()} ${api.clashAudioEncoderFinish_()} '
+      'nested ${api.clashNested(((1, 2), 3), ((1, 2, 3),))}');
+  clashStore.close();
   // Instances that name each other, and one made only by an impl of it.
   final cross = api.cross(
     const api.LeftRightU8(value: api.RightU8(value: 1)),

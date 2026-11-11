@@ -117,6 +117,18 @@ impl Counter {
 		self.value
 	}
 
+	/// The value plus ten `handle`s and `h`: parameters named as a binding's receiver and
+	/// its held handle might be.
+	pub fn offset(&self, handle: u64, h: u64) -> u64 {
+		self.value + handle * 10 + h
+	}
+
+	/// The value plus `close`, consuming the counter: a parameter named as the method a
+	/// binding closes it with might be.
+	pub fn into_sum(self, close: u64) -> u64 {
+		self.value + close
+	}
+
 	pub fn name(&self) -> &str {
 		&self.name
 	}
@@ -1894,13 +1906,20 @@ pub fn put_number(value: u32, buf: &mut impl bytes::BufMut) {
 	buf.put_slice(format!("{value},").as_bytes());
 }
 
-/// Takes the first byte of `buf` as a decimal digit, as moq's decoders take from an
+/// `w235` a second later: a parameter named as Kotlin's generated writer of it would be,
+/// whose name the writer must take apart from it.
+pub fn second_later(w235: Duration) -> Duration {
+	w235.saturating_add(Duration::from_secs(1))
+}
+
+/// Takes the first byte of `r` as a decimal digit, as moq's decoders take from an
 /// `impl Buf`, which takes `Bytes`. It takes the byte even when it fails, and Rust writes
-/// back what the call left on either path.
-pub fn digit(buf: &mut impl bytes::Buf) -> Result<u8, Error> {
-	match buf.has_remaining() {
+/// back what the call left on either path. Named `r`, as moq's `varint::decode_quic`'s
+/// is, the name a binding's reader of what Rust wrote back might take.
+pub fn digit(r: &mut impl bytes::Buf) -> Result<u8, Error> {
+	match r.has_remaining() {
 		false => Err(Error::Underflow { by: 1 }),
-		true => match buf.get_u8() {
+		true => match r.get_u8() {
 			digit @ b'0'..=b'9' => Ok(digit - b'0'),
 			_ => Err(Error::Overflow),
 		},
@@ -2274,4 +2293,106 @@ pub trait Beat: Send + Sync {
 #[cfg(target_arch = "wasm32")]
 pub fn beats(beat: Box<dyn Beat>) -> u32 {
 	beat.beat()
+}
+
+/// A cancellation at a step, named as a class Dart's runtime declares: Dart's name takes a
+/// trailing `_`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Cancelled {
+	pub step: u8,
+}
+
+/// Items whose names clash in some language, each kept apart there and only there.
+/// A tone's absence, whose variant Go names as `clash::audible`'s error.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum VecClashTone {
+	Error,
+}
+
+pub mod clash {
+	/// A pitch in hertz, whose name Pascal case cannot tell from `TONE`'s.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Tone {
+		pub hz: u16,
+	}
+
+	/// A loudness in decibels, named as `Tone` but for case.
+	#[allow(non_camel_case_types)]
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct TONE {
+		pub db: u8,
+	}
+
+	/// A span `width` wide: its method `width`, which Swift, Go, and Dart cannot name as the
+	/// field, and its own `to_string`, which C cannot name as `Display`'s.
+	#[derive(Clone, Copy, Debug, PartialEq)]
+	pub struct Span {
+		pub width: u32,
+	}
+
+	impl Span {
+		/// Twice the width.
+		pub fn width(&self) -> u32 {
+			self.width * 2
+		}
+
+		/// The width in words.
+		#[allow(clippy::inherent_to_string_shadow_display)]
+		pub fn to_string(&self) -> String {
+			format!("{} wide", self.width)
+		}
+	}
+
+	impl std::fmt::Display for Span {
+		fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+			write!(f, "{}", self.width)
+		}
+	}
+
+	/// A count, whose methods are named as what C and some languages give every handle.
+	pub struct Store {
+		count: u32,
+	}
+
+	impl Store {
+		pub fn new(count: u32) -> Store {
+			Store { count }
+		}
+
+		/// The count, named as the C function freeing the handle.
+		pub fn free(&self) -> u32 {
+			self.count
+		}
+
+		/// The count plus one, named as the method closing the handle.
+		pub fn close(&self) -> u32 {
+			self.count + 1
+		}
+	}
+
+	pub mod audio {
+		/// One, named in C as `audio_encoder::finish` is but for where the paths split.
+		pub fn encoder_finish() -> u8 {
+			1
+		}
+	}
+
+	pub mod audio_encoder {
+		/// Two.
+		pub fn finish() -> u8 {
+			2
+		}
+	}
+
+	/// The tone, or no tones where it is silent: an error Go names as `VecClashTone`'s variant.
+	pub fn audible(tone: Tone) -> Result<Tone, Vec<Tone>> {
+		if tone.hz == 0 { Err(Vec::new()) } else { Ok(tone) }
+	}
+
+	/// The sum of both tuples, whose C names run their elements together alike.
+	pub fn nested(a: Option<((u8, u16), u32)>, b: Option<((u8, u16, u32),)>) -> u32 {
+		let a = a.map_or(0, |((x, y), z)| u32::from(x) + u32::from(y) + z);
+		let b = b.map_or(0, |((x, y, z),)| u32::from(x) + u32::from(y) + z);
+		a + b
+	}
 }

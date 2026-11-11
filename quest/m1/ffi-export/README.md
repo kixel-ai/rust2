@@ -5,7 +5,7 @@
 moq can pin [rust2-ffi](/ffi/README.md) and switch its bindings to it: the exporter exports
 what moq's bindings need from moq's own crates, with no attributes, no config, and no
 hand-written wrapper beyond what the census shows is genuinely new API, in every language
-moq ships. It ends once every child has merged, the flake has an `ffi` package, and the
+moq ships. It ends once every child and blocker has merged, the flake has an `ffi` package, and the
 root `README.md` lists the generators, which is what
 [moq's wait](https://github.com/moq-dev/moq/blob/main/quest/m3/rust2-exporter.md) checks.
 
@@ -71,9 +71,8 @@ Every generator, the [targets m3 plans](/quest/m3/README.md) included:
   Rust, since a cancelled C ABI future loses nothing; moq's `go/wrapper/doc.go`, which ends
   the stream, changes with the generator. Each driver runs on a goroutine that lives as
   long as its object, and a call's `ctx` bounds only that call.
-- is measured, with its generated size raw and gzipped
-  ([bench](/quest/m1/ffi-export/bench.md) owns both, and the per-handle poll a hot read
-  may need).
+- is measured, with its generated size raw and gzipped, on
+  [the binding benchmark](/bench/ffi/README.md), whose `just ffi bench` covers it.
 
 What stays here once every child has merged: the flake's `ffi` package, the root
 `README.md` listing the generators, and the generator rules above moved into
@@ -86,3 +85,7 @@ arenas keep under Go's lent `Bytes` is the consumer's to fix with its global all
 
 Decided with the maintainer on 2026-11-04: the exporter is configless, with opinionated
 names and defaults, and fails the export on a public item it cannot export.
+
+## Required
+
+- [Refusals](/quest/m1/ffi-refusals/README.md) - the epic that exports or leaves out every item the census refuses, which this epic ends on

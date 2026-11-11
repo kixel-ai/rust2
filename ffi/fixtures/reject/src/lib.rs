@@ -55,16 +55,6 @@ pub fn excluded() -> Excluded {
 	Excluded
 }
 
-pub mod audio_encoder {
-	/// `reject_audio_encoder_finish` in C ...
-	pub fn finish() {}
-}
-
-pub mod audio {
-	/// ... and so is this: the clash is refused at both.
-	pub fn encoder_finish() {}
-}
-
 /// A range of what is not an integer.
 pub fn letters(range: std::ops::Range<char>) -> usize {
 	range.count()
@@ -734,12 +724,6 @@ pub fn halves() -> impl Iterator<Item = &'static str> {
 	"a/b".split(Slash)
 }
 
-/// Two tuples whose C names run their elements together alike: both are
-/// `reject_tuple_tuple_u8_u16_u32`.
-pub fn mixed(a: Option<((u8, u16), u32)>, b: Option<((u8, u16, u32),)>) -> bool {
-	a.is_some() && b.is_some()
-}
-
 /// A `Poll` with nothing to register a wake through: its future would pend forever.
 pub fn settled() -> std::task::Poll<u8> {
 	std::task::Poll::Ready(1)
@@ -911,9 +895,4 @@ impl Loose {
 pub fn poll_loose(waiter: &Loose) -> std::task::Poll<()> {
 	waiter.0.wake_by_ref();
 	std::task::Poll::Ready(())
-}
-
-/// The runtime's `reject_target`, which names the library's target.
-pub fn target() -> u32 {
-	0
 }

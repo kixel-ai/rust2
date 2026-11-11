@@ -100,16 +100,50 @@ impl Packages {
 /// path there, for the module path `module` of `go/`; or the names two items claim alike.
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> Result<Vec<(String, String)>, String> {
 	let set = Packages::new(abi, module);
-	let thrown = thrown(abi);
-	let types = abi.classes(|home| (home.krate.clone(), home.outside - 1));
+	let types = abi.classes(|home| (home.krate.clone(), home.outside - 1), |_| false);
 	let classes = classes(abi, &types);
+	let thrown = thrown(abi, &classes);
+	let variants = variants(abi, &types, &classes, &thrown);
+	// What each package's types, their variants and tables, and its errors take.
+	let mut taken: BTreeMap<String, BTreeSet<String>> = classes.clone();
+	for ((c, _), name) in &variants {
+		let krate = (0..abi.api.enums.len())
+			.find(|&i| abi.enumeration(i) == *c)
+			.map(|i| &abi.api.enums[i].home.krate);
+		taken
+			.entry(krate.expect("a variant's enum").clone())
+			.or_default()
+			.insert(name.clone());
+	}
+	for (name, (home, _)) in &thrown {
+		taken.entry(home.clone()).or_default().insert(name.clone());
+	}
+	// Each callback's table, `<name>Vtable_`, unless a name of its package takes that.
+	let mut vtables = HashMap::new();
+	for i in 0..abi.api.callbacks.len() {
+		let krate = &abi.api.callbacks[i].home.krate;
+		let names = taken.entry(krate.clone()).or_default();
+		let mut vtable = format!("{}Vtable_", types[&abi.callback(i)]);
+		while !names.insert(vtable.clone()) {
+			vtable.push('_');
+		}
+		vtables.insert(abi.callback(i), vtable);
+	}
+	let shared = Shared {
+		thrown,
+		type_names: types,
+		classes,
+		variants,
+		vtables,
+		taken,
+	};
 	let mut files = Vec::new();
 	let mut errors = Vec::new();
 	let mut tuples = BTreeSet::new();
-	let mut rt = Gen::new(abi, &set, Packages::RT, &thrown, &types, &classes);
+	let mut rt = Gen::new(abi, &set, Packages::RT, &shared);
 	rt.write_rt();
 	for krate in &abi.api.crates {
-		let mut g = Gen::new(abi, &set, krate, &thrown, &types, &classes);
+		let mut g = Gen::new(abi, &set, krate, &shared);
 		g.write();
 		errors.append(&mut g.errors);
 		tuples.extend(g.tuples.iter().copied());
@@ -143,14 +177,15 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 
 /// Each error type that is no exported type, named by its key as its C structs are, so two
 /// types never share one, with its type and the crate it belongs to: the last of those
-/// its types do, or the runtime for none.
-fn thrown(abi: &Abi<'_>) -> BTreeMap<String, (String, Type)> {
+/// its types do, or the runtime for none. A name its package's types or runtime take
+/// takes a trailing `_`.
+fn thrown(abi: &Abi<'_>, classes: &BTreeMap<String, BTreeSet<String>>) -> BTreeMap<String, (String, Type)> {
 	let api = abi.api;
 	let all = (api.records.iter().flat_map(|r| &r.methods))
 		.chain(api.enums.iter().flat_map(|e| &e.methods))
 		.chain(api.objects.iter().flat_map(|o| &o.methods))
 		.chain(&api.functions);
-	let mut thrown = BTreeMap::new();
+	let mut keys = BTreeMap::new();
 	for function in all {
 		let Some(err) = function.err.as_ref().map(strip_refs) else {
 			continue;
@@ -158,11 +193,57 @@ fn thrown(abi: &Abi<'_>) -> BTreeMap<String, (String, Type)> {
 		if matches!(err.base(), Type::Record(_) | Type::Enum(_) | Type::Object(_)) {
 			continue;
 		}
-		let name = format!("{}Error", pascal(&abi.key(&err)));
+		keys.entry(abi.key(&err)).or_insert(err);
+	}
+	let mut thrown = BTreeMap::new();
+	let mut names = BTreeMap::new();
+	for (key, err) in keys {
 		let home = last(abi, &err);
-		thrown.entry(name).or_insert((home, err));
+		let types = classes.get(&home);
+		let taken =
+			|name: &str| types.is_some_and(|types| types.contains(name)) || (home == Packages::RT && taken(name));
+		let name = abi::claim(
+			names.entry(home.clone()).or_default(),
+			taken,
+			&format!("{}Error", pascal(&key)),
+			key,
+		);
+		thrown.insert(name, (home, err));
 	}
 	thrown
+}
+
+/// The Go name of each variant of each enum, by its C name and the variant's: the enum's
+/// name then the variant's, unless another type, error, or variant of its package takes it.
+fn variants(
+	abi: &Abi<'_>,
+	types: &HashMap<String, String>,
+	classes: &BTreeMap<String, BTreeSet<String>>,
+	thrown: &BTreeMap<String, (String, Type)>,
+) -> HashMap<(String, String), String> {
+	let api = abi.api;
+	let mut variants = HashMap::new();
+	for krate in &api.crates {
+		let enums = (0..api.enums.len()).filter(|&i| api.enums[i].home.krate == *krate);
+		let mut keys: Vec<(String, String)> = (enums)
+			.flat_map(|i| {
+				api.enums[i]
+					.variants
+					.iter()
+					.map(move |v| (abi.enumeration(i), v.name.clone()))
+			})
+			.collect();
+		keys.sort();
+		let names = (keys.iter())
+			.map(|(c, variant)| format!("{}{}", types[c], pascal(variant)))
+			.collect();
+		let taken = classes.get(krate);
+		let names = abi::unique(names, |name| {
+			taken.is_some_and(|taken| taken.contains(name)) || thrown.get(name).is_some_and(|(home, _)| home == krate)
+		});
+		variants.extend(keys.into_iter().zip(names));
+	}
+	variants
 }
 
 /// The last crate, in dependency order, any type within `ty` belongs to, or the runtime's
@@ -243,6 +324,15 @@ const TAKEN: &[&str] = &[
 	"GoRelease_",
 ];
 
+/// Whether the runtime's package takes the Go name `name`: one of [`TAKEN`], or a tuple's
+/// generic, `Tuple<N>`.
+fn taken(name: &str) -> bool {
+	let tuple = name
+		.strip_prefix("Tuple")
+		.is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
+	tuple || TAKEN.contains(&name)
+}
+
 /// Whether the Go code `code` names the package `name`.
 fn uses(code: &str, name: &str) -> bool {
 	let needle = format!("{name}.");
@@ -312,6 +402,10 @@ struct Gen<'a> {
 	type_names: &'a HashMap<String, String>,
 	/// Each exported type's Go name, by package.
 	classes: &'a BTreeMap<String, BTreeSet<String>>,
+	/// Each enum's variant's Go name, by the enum's C name and the variant's.
+	variants: &'a HashMap<(String, String), String>,
+	/// Each callback's table's Go name, by the callback's C name.
+	vtables: &'a HashMap<String, String>,
 	/// The other packages the package's items name, by crate.
 	imports: BTreeSet<String>,
 	errors: Vec<String>,
@@ -320,15 +414,23 @@ struct Gen<'a> {
 	thrown: &'a BTreeMap<String, (String, Type)>,
 }
 
+/// The names every package's generator shares.
+struct Shared {
+	thrown: BTreeMap<String, (String, Type)>,
+	type_names: HashMap<String, String>,
+	classes: BTreeMap<String, BTreeSet<String>>,
+	variants: HashMap<(String, String), String>,
+	/// Each callback's table's Go name, by the callback's C name.
+	vtables: HashMap<String, String>,
+	/// The names each package's types, their variants and tables, and its errors take.
+	taken: BTreeMap<String, BTreeSet<String>>,
+}
+
 impl<'a> Gen<'a> {
-	fn new(
-		abi: &'a Abi<'a>,
-		set: &'a Packages,
-		pkg: &'a str,
-		thrown: &'a BTreeMap<String, (String, Type)>,
-		type_names: &'a HashMap<String, String>,
-		classes: &'a BTreeMap<String, BTreeSet<String>>,
-	) -> Self {
+	fn new(abi: &'a Abi<'a>, set: &'a Packages, pkg: &'a str, shared: &'a Shared) -> Self {
+		let names = (shared.taken.get(pkg).into_iter().flatten())
+			.map(|name| (name.clone(), "a type".to_string()))
+			.collect();
 		Self {
 			abi,
 			set,
@@ -340,12 +442,14 @@ impl<'a> Gen<'a> {
 			decls: Vec::new(),
 			closures: BTreeMap::new(),
 			tuples: BTreeSet::new(),
-			names: BTreeMap::new(),
-			type_names,
-			classes,
+			names,
+			type_names: &shared.type_names,
+			classes: &shared.classes,
+			variants: &shared.variants,
+			vtables: &shared.vtables,
 			imports: BTreeSet::new(),
 			errors: Vec::new(),
-			thrown,
+			thrown: &shared.thrown,
 		}
 	}
 
@@ -513,20 +617,10 @@ impl<'a> Gen<'a> {
 		abi::distinct(params.iter().map(|p| local(&p.name)))
 	}
 
-	/// Claim the package-level Go name `name` for `what`.
-	fn claim(&mut self, name: &str, what: String) {
-		let tuple = name
-			.strip_prefix("Tuple")
-			.is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()));
-		if self.pkg == Packages::RT && (tuple || TAKEN.contains(&name)) {
-			self.errors.push(format!(
-				"{what} is `{name}` in Go, which its runtime names: rename it in the source or exclude it in the config"
-			));
-		} else if let Some(first) = self.names.insert(name.to_string(), what.clone()) {
-			self.errors.push(format!(
-				"{first} and {what} are both `{name}` in Go: rename one in the source or exclude it in the config"
-			));
-		}
+	/// The package-level Go name `what` takes, `name` unless that is taken.
+	fn claim(&mut self, name: &str, what: String) -> String {
+		let rt = self.pkg == Packages::RT;
+		abi::claim(&mut self.names, |name| rt && taken(name), name, what)
 	}
 
 	/// Check that no two members of the type `rust` share a Go name.
@@ -535,7 +629,7 @@ impl<'a> Gen<'a> {
 		for member in members {
 			if !seen.insert(member) {
 				self.errors.push(format!(
-					"two members of `{rust}` are both `{member}` in Go: rename one in the source or exclude it in the config"
+					"two members of `{rust}` are both `{member}` in Go, which rust2-ffi should keep apart"
 				));
 			}
 		}
@@ -961,7 +1055,7 @@ impl<'a> Gen<'a> {
 			}
 			let c = abi.name(&constant.path);
 			let name = rest(&abi.prefix, &c, &constant.path, &constant.home).to_uppercase();
-			self.claim(&name, format!("const `{}`", constant.path.join("::")));
+			let name = self.claim(&name, format!("const `{}`", constant.path.join("::")));
 			let (ty, value) = match constant.value {
 				Literal::Bool(b) => ("bool", b.to_string()),
 				Literal::Int(int, v) => (go_int(int), v.to_string()),
@@ -981,8 +1075,8 @@ impl<'a> Gen<'a> {
 			self.callback(i);
 		}
 		for function in api.functions.iter().filter(|f| mine(&f.home)) {
-			let method = self.function(function, None, None);
-			self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
+			let mut method = self.function(function, None, None);
+			method.name = self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
 			self.top.push_str(&method.write());
 		}
 		self.moved();
@@ -1034,7 +1128,7 @@ impl<'a> Gen<'a> {
 					method.params.insert(0, ("self".to_string(), go));
 					method.name = format!("{}{}", self.named(&ty).1, method.name);
 				}
-				self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
+				method.name = self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
 				self.top.push_str(&method.write());
 			}
 		}
@@ -1065,7 +1159,6 @@ impl<'a> Gen<'a> {
 			if home != self.pkg {
 				continue;
 			}
-			self.claim(name, format!("the error type `{}`", self.describe(ty)));
 			let go = self.go(ty);
 			let message = match ty {
 				Type::String => "e.Value".to_string(),
@@ -1105,7 +1198,7 @@ impl<'a> Gen<'a> {
 	/// A struct for a range or pair of bounds, or one of a kind and a value for a bound.
 	fn range(&mut self, c: &str, ty: &Type) {
 		let name = self.class(c);
-		self.claim(&name, format!("`{c}`"));
+		self.names.insert(name.clone(), format!("`{c}`"));
 		let code = match ty {
 			Type::Range(int) => {
 				let go = go_int(*int);
@@ -1338,9 +1431,8 @@ impl<'a> Gen<'a> {
 		let ty = Type::Record(i);
 		let name = self.named(&ty).1;
 		let rust = abi.api.rust(&record.path, &record.args);
-		self.claim(&name, format!("struct `{rust}`"));
-		let fields: Vec<(String, String)> = (record.fields.iter())
-			.map(|f| (field_name(&f.name), self.go(&f.ty)))
+		let fields: Vec<(String, String)> = (self.record_fields(i).into_iter().zip(&record.fields))
+			.map(|(name, f)| (name, self.go(&f.ty)))
 			.collect();
 		let mut members: Vec<String> = fields.iter().map(|(f, _)| f.clone()).collect();
 		let body: String = (record.fields.iter().zip(&fields))
@@ -1352,8 +1444,44 @@ impl<'a> Gen<'a> {
 			"{}type {name} struct {{\n{body}}}\n\n",
 			docs(text.trim(), "")
 		);
-		members.extend(self.methods_of(&ty, &c, &rust, record.traits, &record.methods, &Ty::Struct(c.clone())));
+		let fields: Vec<String> = members.clone();
+		members.extend(self.methods_of(
+			&ty,
+			&c,
+			&rust,
+			record.traits,
+			&record.methods,
+			&Ty::Struct(c.clone()),
+			&fields,
+		));
 		self.distinct(&rust, &members);
+	}
+
+	/// The Go names of a record's fields: each [`field_name`], with a trailing `_` while
+	/// a method its traits give it, which an interface requires by name, or an earlier
+	/// field takes it.
+	fn record_fields(&self, i: usize) -> Vec<String> {
+		let record = &self.abi.api.records[i];
+		let t = record.traits;
+		let methods = [
+			(t.display, "String"),
+			(t.debug, "GoString"),
+			(t.eq, "Equal"),
+			(self.errored(&Type::Record(i)), "Error"),
+		];
+		let mut taken: BTreeSet<String> = (methods.iter())
+			.filter(|(has, _)| *has)
+			.map(|(_, name)| name.to_string())
+			.collect();
+		(record.fields.iter())
+			.map(|f| {
+				let mut name = field_name(&f.name);
+				while !taken.insert(name.clone()) {
+					name.push('_');
+				}
+				name
+			})
+			.collect()
 	}
 
 	/// A record's lift and lower.
@@ -1363,15 +1491,16 @@ impl<'a> Gen<'a> {
 		let c = abi.record(i);
 		let ty = Type::Record(i);
 		let name = self.qualified(&ty);
-		let lifted: Vec<String> = (record.fields.iter())
-			.map(|f| {
+		let names = self.record_fields(i);
+		let lifted: Vec<String> = (record.fields.iter().zip(&names))
+			.map(|(f, field)| {
 				let value = self.lift(&f.ty, &format!("c.{}", cgo_field(&abi::escape(&f.name))));
-				format!("{}: {value}", field_name(&f.name))
+				format!("{field}: {value}")
 			})
 			.collect();
-		let lowered: Vec<String> = (record.fields.iter())
-			.map(|f| {
-				let value = self.lower(&f.ty, &format!("v.{}", field_name(&f.name)));
+		let lowered: Vec<String> = (record.fields.iter().zip(&names))
+			.map(|(f, field)| {
+				let value = self.lower(&f.ty, &format!("v.{field}"));
 				format!("{}: {value}", cgo_field(&abi::escape(&f.name)))
 			})
 			.collect();
@@ -1384,7 +1513,12 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The methods and functions of a record, plain enum, or object, written after its type,
-	/// returning its methods' names.
+	/// returning its methods' names. A method named as one of its `fields` or an earlier
+	/// method, as its traits' come first, takes a trailing `_`.
+	#[allow(
+		clippy::too_many_arguments,
+		reason = "a type's every part, which its three kinds each pass"
+	)]
 	fn methods_of(
 		&mut self,
 		ty: &Type,
@@ -1393,10 +1527,15 @@ impl<'a> Gen<'a> {
 		traits: crate::ir::Traits,
 		functions: &[Function],
 		owner: &Ty,
+		fields: &[String],
 	) -> Vec<String> {
 		let (methods, statics) = self.members(ty, c, rust, traits, functions, owner);
 		let mut members = Vec::new();
-		for method in methods {
+		let mut taken: BTreeSet<String> = fields.iter().cloned().collect();
+		for mut method in methods {
+			while !taken.insert(method.name.clone()) {
+				method.name.push('_');
+			}
 			members.push(method.name.clone());
 			self.types.push_str(&method.write());
 		}
@@ -1419,17 +1558,17 @@ impl<'a> Gen<'a> {
 	) -> (Vec<Method>, Vec<Method>) {
 		let (mut methods, default) = self.traits(ty, c, traits);
 		let mut statics = Vec::new();
-		if let Some(default) = default {
-			self.claim(&default.name, format!("`{rust}`'s Default"));
+		if let Some(mut default) = default {
+			default.name = self.claim(&default.name, format!("`{rust}`'s Default"));
 			statics.push(default);
 		}
 		let pkg = self.pkg;
 		for function in functions.iter().filter(|f| f.home.krate == pkg) {
-			let method = self.function(function, Some(owner), Some(ty));
+			let mut method = self.function(function, Some(owner), Some(ty));
 			match method.receiver {
 				Some(_) => methods.push(method),
 				None => {
-					self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
+					method.name = self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
 					statics.push(method);
 				}
 			}
@@ -1469,13 +1608,11 @@ impl<'a> Gen<'a> {
 		let ty = Type::Enum(i);
 		let name = self.named(&ty).1;
 		let rust = abi.api.rust(&e.path, &e.args);
-		self.claim(&name, format!("enum `{rust}`"));
 		let text = format!("{name} is `{rust}`.\n\n{}", e.docs);
 		if e.plain() {
 			let consts: String = (e.variants.iter())
 				.map(|v| {
-					let variant = format!("{name}{}", pascal(&v.name));
-					self.claim(&variant, format!("variant `{rust}::{}`", v.name));
+					let variant = &self.variants[&(c.clone(), v.name.clone())];
 					format!("\t{variant} {name} = {}\n", v.discriminant)
 				})
 				.collect();
@@ -1484,7 +1621,7 @@ impl<'a> Gen<'a> {
 				"{}type {name} int32\n\nconst (\n{consts})\n\n",
 				docs(text.trim(), "")
 			);
-			let members = self.methods_of(&ty, &c, &rust, e.traits, &e.methods, &Ty::Enum(c.clone()));
+			let members = self.methods_of(&ty, &c, &rust, e.traits, &e.methods, &Ty::Enum(c.clone()), &[]);
 			self.distinct(&rust, &members);
 			return;
 		}
@@ -1513,8 +1650,7 @@ impl<'a> Gen<'a> {
 			docs(text.trim(), "")
 		);
 		for variant in &e.variants {
-			let vname = format!("{name}{}", pascal(&variant.name));
-			self.claim(&vname, format!("variant `{rust}::{}`", variant.name));
+			let vname = self.variants[&(c.clone(), variant.name.clone())].clone();
 			let fields: Vec<(String, String)> = (variant.fields.iter())
 				.map(|f| (field_name(&f.name), self.go(&f.ty)))
 				.collect();
@@ -1575,8 +1711,9 @@ impl<'a> Gen<'a> {
 		}
 		let mut lifts = Vec::new();
 		let mut lowers = Vec::new();
+		let (krate, _) = self.named(&ty);
 		for ((n, variant), check) in e.variants.iter().enumerate().zip(checks) {
-			let vname = format!("{name}{}", pascal(&variant.name));
+			let vname = self.qualify(krate, &self.variants[&(c.clone(), variant.name.clone())]);
 			let payload = abi::payload(&c, &variant.name);
 			let check = check.map(|check| format!("\t\t{check}\n")).unwrap_or_default();
 			if variant.fields.is_empty() {
@@ -1621,7 +1758,6 @@ impl<'a> Gen<'a> {
 		let ty = Type::Object(i);
 		let name = self.named(&ty).1;
 		let rust = abi.api.rust(&object.path, &object.args);
-		self.claim(&name, format!("type `{rust}`"));
 		let handle = self.qualify(Packages::RT, "Handle_");
 		let text = format!(
 			"{name} is `{rust}`, a handle Close frees, or else the GC once it collects it.\n\n{}",
@@ -1640,7 +1776,8 @@ impl<'a> Gen<'a> {
 			name: c.clone(),
 			constant: false,
 		};
-		members.extend(self.methods_of(&ty, &c, &rust, object.traits, &object.methods, &owner));
+		let fields = members.clone();
+		members.extend(self.methods_of(&ty, &c, &rust, object.traits, &object.methods, &owner, &fields));
 		self.distinct(&rust, &members);
 	}
 
@@ -1670,9 +1807,7 @@ impl<'a> Gen<'a> {
 		let ty = Type::Callback(i, crate::ir::Dyn::Impl);
 		let name = self.named(&ty).1;
 		let rust = callback.path.join("::");
-		self.claim(&name, format!("trait `{rust}`"));
-		let vtable = format!("{name}Vtable_");
-		self.claim(&vtable, format!("trait `{rust}`'s table"));
+		let vtable = self.vtables[&c].clone();
 		let p = &abi.prefix;
 		let mut body = Vec::new();
 		let mut members = Vec::new();
@@ -1733,7 +1868,7 @@ impl<'a> Gen<'a> {
 		let ty = Type::Callback(i, crate::ir::Dyn::Impl);
 		let (krate, local) = self.named(&ty);
 		let name = self.qualify(krate, &local);
-		let vtable = self.qualify(krate, &format!("{local}Vtable_"));
+		let vtable = self.qualify(krate, &self.vtables[&c]);
 		format!(
 			"func lower_{c}(v {name}) C.{c} {{\n\tif v == nil {{\n\t\tpanic(\"a nil {local}\")\n\t}}\n\treturn C.{c}{{vtable: (*C.{c}_vtable)({vtable}()), data: give_(v)}}\n}}\n\n"
 		)
@@ -1868,7 +2003,7 @@ impl<'a> Gen<'a> {
 			_ => None,
 		};
 		let own = match &owner_c {
-			Some(o) => c_name.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_')),
+			Some(o) => export.named.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_')),
 			None => None,
 		};
 		let receiver = function.receiver.filter(|_| owner.is_some());
@@ -1881,7 +2016,7 @@ impl<'a> Gen<'a> {
 				_ => format!("{t}{}", pascal(own)),
 			},
 			_ => {
-				let rest = rest(&abi.prefix, &c_name, &function.shown, &function.home);
+				let rest = rest(&abi.prefix, &export.named, &function.shown, &function.home);
 				match function.access {
 					Access::Const => rest.to_uppercase(),
 					_ => pascal(rest),
@@ -2242,9 +2377,11 @@ impl<'a> Gen<'a> {
 		match err.base() {
 			Type::Record(_) | Type::Enum(_) | Type::Object(_) => lifted,
 			_ => {
-				let name = format!("{}Error", pascal(&self.abi.key(err)));
-				let home = &self.thrown[&name].0;
-				let name = self.qualify(home, &name);
+				let key = self.abi.key(err);
+				let (name, (home, _)) = (self.thrown.iter())
+					.find(|(_, (_, thrown))| self.abi.key(thrown) == key)
+					.expect("each error is thrown");
+				let name = self.qualify(home, name);
 				format!("{name}{{Value: {lifted}}}")
 			}
 		}

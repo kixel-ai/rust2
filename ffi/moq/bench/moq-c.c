@@ -1,5 +1,5 @@
-/* bench/export.c's frame write path, through moq's hand-written rs/moq-c: a timed track,
- * groups of 100 frames of 100 bytes, each frame stamped. */
+/* bench/export.c's stamped frame writes, through moq's hand-written rs/moq-c: a timed
+ * track, groups of 100 frames of 100 bytes, each frame stamped, in wall and CPU time. */
 
 #define _POSIX_C_SOURCE 199309L
 
@@ -12,9 +12,9 @@
 #define GROUPS 10000
 #define FRAMES 100
 
-static double now(void) {
+static double clock_ns(clockid_t clock) {
 	struct timespec ts;
-	clock_gettime(CLOCK_MONOTONIC, &ts);
+	clock_gettime(clock, &ts);
 	return (double)ts.tv_sec * 1e9 + (double)ts.tv_nsec;
 }
 
@@ -28,23 +28,29 @@ int main(void) {
 		return 1;
 	}
 
+	/* Two rounds, printing the second, as bench/export.c does. */
 	uint8_t payload[100] = {0};
 	uint64_t micros = 0;
-
-	double start = now();
-	for (int g = 0; g < GROUPS; g++) {
-		int32_t group = moq_publish_track_group((uint32_t)track);
-		for (int f = 0; f < FRAMES; f++) {
-			moq_timestamp at = {.value = micros++, .scale = 1000000};
-			if (moq_publish_group_frame((uint32_t)group, payload, sizeof payload, &at) < 0) {
-				return 2;
+	for (int round = 0; round < 2; round++) {
+		double wall = clock_ns(CLOCK_MONOTONIC);
+		double cpu = clock_ns(CLOCK_PROCESS_CPUTIME_ID);
+		for (int g = 0; g < GROUPS; g++) {
+			int32_t group = moq_publish_track_group((uint32_t)track);
+			for (int f = 0; f < FRAMES; f++) {
+				moq_timestamp at = {.value = micros++, .scale = 1000000};
+				if (moq_publish_group_frame((uint32_t)group, payload, sizeof payload, &at) < 0) {
+					return 2;
+				}
 			}
+			moq_publish_group_finish((uint32_t)group);
 		}
-		moq_publish_group_finish((uint32_t)group);
-	}
-	double stamped = (now() - start) / (GROUPS * FRAMES);
+		wall = (clock_ns(CLOCK_MONOTONIC) - wall) / (GROUPS * FRAMES);
+		cpu = (clock_ns(CLOCK_PROCESS_CPUTIME_ID) - cpu) / (GROUPS * FRAMES);
 
-	printf("moq-c: %.0f ns per stamped 100 B frame\n", stamped);
+		if (round == 1) {
+			printf("stamped\t%f\t%f\n", wall, cpu);
+		}
+	}
 	moq_publish_close(broadcast);
 	moq_publication_free((uint32_t)publication);
 	moq_origin_close((uint32_t)origin);
