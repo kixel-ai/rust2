@@ -164,6 +164,13 @@ impl Counter {
 		self.value + other.map_or(0, |other| other.value)
 	}
 
+	/// This count, raised to `low`'s and lowered to `high`'s, each if any: two optional
+	/// handles, lent shared.
+	pub fn clamped(&self, low: Option<&Counter>, high: Option<&Counter>) -> u64 {
+		let low = low.map_or(self.value, |low| self.value.max(low.value));
+		high.map_or(low, |high| low.min(high.value))
+	}
+
 	/// [`Self::plus`], once [`yielded`] finishes: a future borrowing both handles meanwhile.
 	pub async fn plus_later(&self, other: Option<&Counter>) -> u64 {
 		yielded(0).await;
@@ -2302,6 +2309,16 @@ impl fmt::Display for Refusal {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		write!(f, "refused: {}", self.reason)
 	}
+}
+
+/// Each counter's name with its refusal, `last`'s too if any: an object Swift holds as a
+/// struct beside one it holds as a class, moved in inside a list and an option.
+pub fn reasons(pairs: Vec<(Counter, Refusal)>, last: Option<(Counter, Refusal)>) -> String {
+	let pairs = pairs.iter().chain(&last);
+	pairs
+		.map(|(counter, refusal)| format!("{} {refusal}", counter.name))
+		.collect::<Vec<_>>()
+		.join(", ")
 }
 
 /// Always refuses, for `reason`.

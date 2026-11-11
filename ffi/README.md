@@ -484,22 +484,35 @@ caller imports it with no ignores.
 the header as the clang module `<Prefix>FFI`, which `swift/module.modulemap` declares
 beside `swift/<prefix>_atomics.h`, the atomics its runtime needs that Swift's standard
 library has only from macOS 15: a build puts `swift/` on its import path and links the
-static library. It needs Swift 6 and, for `Swift.Duration`, macOS 13 or iOS 16, and builds
-in either language mode.
+static library. It imports swift-collections' `BasicContainers` for `UniqueArray`, which
+`just ffi swift-collections` builds at the version the tests pin, 1.7.5. It needs Swift 6.2
+and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mode.
 
 - **Names** are as Kotlin's, at the module's top level: types in PascalCase without the
   prefix, members in camelCase without their type's name (`TrackProducer.appendGroup`). A
   keyword is quoted in backticks, and a member named as one Swift gives its type, such as
   `init`, or as a field or member before it, takes a trailing `_`. Names that clash are
-  kept apart as Kotlin's are. Parameters have no labels, so a call reads as Rust's, and a
+  kept apart as Kotlin's are. Parameters have no labels but an optional borrowed object's,
+  so a call reads as Rust's, and a
   constructor such as `new` stays a static function: `Counter.new(1)`.
-- **Objects** are final classes owning their handle, freed in `deinit`, which a call
-  holds off until it returns, so there is no `close()`. A `self` method, or passing the
-  object by value, moves its value out and closes it once the call returns, after which a
-  call traps. `Clone` is `clone()`, and `PartialEq`
-  is `==`. A field is a computed property, `firstGet`, and its setter a function,
-  `firstSet(value)`, named as the C ones, since setting an object moves it in and closes
-  its handle, which an assignment would hide. An object is `Sendable`, since Rust checks each borrow at run time.
+- **Objects** are noncopyable structs (`~Copyable`) owning their handle, freed in `deinit`,
+  so there is no `close()`, and Swift's compiler checks each move and borrow Rust makes: a
+  `self` method is `consuming`, a `&mut self` one `mutating`, so its object must be a
+  `var`, and a parameter is `consuming` by value, `borrowing` for `&T`, and `inout` for
+  `&mut T`. A call on a moved object, or an object lent to a closure kept past its call,
+  fails to compile. A tuple holding one is a generated struct, `TupleStringCounter`, whose
+  fields `_0`, `_1`, ... are its elements, and an array of them swift-collections'
+  `UniqueArray`. Since an optional holds one only by consuming it, an `Option<&T>` of one
+  is an overload with and without it, labelled by its name, as a defaulted argument is:
+  `clamped()`, `clamped(low:)`, `clamped(high:)` and `clamped(low:high:)`, up to two per
+  function; `Option<&mut T>` is `inout T?`. `Clone` is `clone()`, and `PartialEq` is `==`, which Swift 6.4 makes
+  `Equatable`; `Display` is `description` and `Debug` `debugDescription`, which Swift
+  conforms no noncopyable type to yet. An object that is `Copy`, or thrown as an error,
+  which `Swift.Error` requires be copyable, is a final class instead, whose handle a call
+  holds until it returns, and moving its value out closes it, after which a call traps. A
+  field is a computed property, `firstGet`, and its setter a function, `firstSet(value)`,
+  named as the C ones, since setting an object moves it in, which an assignment would hide.
+  An object is `Sendable`, since Rust checks each borrow at run time.
 - **Records** are structs and **enums** Swift enums, with a variant's data as associated
   values, all `Sendable`. `PartialEq` is `==`, through Rust's; `Display` is `description`,
   `Debug` `debugDescription`, and `Default` a static `default()`.
@@ -517,10 +530,12 @@ in either language mode.
 - A **path** is a `String`: one Rust returns that is not UTF-8 traps. A `SocketAddr`,
   `SocketAddrV4`, or `SocketAddrV6` is the runtime's `SocketAddr`, its IP's 4 or 16 bytes
   and its port, flow label, and scope, whose family Rust checks. A `Vec<T>` or `&[T]` is
-  an array, and passing a `Vec` by value closes each object in it once the call returns.
+  an array, or a `UniqueArray` of objects.
 - **Traits** are `Sendable` protocols, which Rust releases once it drops an implementation.
 - **Closures** lent for a call are `@Sendable` function types, which Rust calls only during
-  the call, from any thread. An object it lends is closed once the call returns.
+  the call, from any thread. An object it lends is `borrowing`, or `inout` for `&mut T`,
+  so it cannot outlive the call; assigning another to the `inout` one traps, since Rust's
+  stays its own.
 - **Futures** are `async throws` functions, which resume on the task's executor, never
   inside a wake. Cancelling the task frees the future, losing nothing, and throws
   `CancellationError`. Each call is its own future, so it has one poller. The call polls it
@@ -781,7 +796,8 @@ abort with its message; the Python with another contract must refuse the library
 `just ffi moq` checks moq's.
 `tests/api.swift` runs the script through the Swift, built as a module in Swift 6's
 language mode and type-checked in Swift 5's, checks its futures the same way and that
-releasing frees, and breaks each runtime check, which must trap or abort with its message.
+releasing frees, and breaks each runtime check, which must trap or abort with its message,
+and each move or borrow the compiler checks, which must fail to compile.
 It runs with nixpkgs' Swift on Linux, which builds none for aarch64-linux
 ([quest](/quest/m2/swift-arm.md)), and nightly with Apple's on macOS.
 `tests/api.go` runs the script through the Go after `go vet`, checks its futures the same
