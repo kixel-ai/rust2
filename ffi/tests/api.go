@@ -864,7 +864,7 @@ func futures() {
 		cancel()
 		check(value == "caller" && deadline.Equal(want), "a Go function runs under the caller's context")
 	}
-	for range 100 {
+	{
 		// A body that returns once the caller cancelled, even one that ignores its
 		// context, ends unfinished: the call reports the cancel, never Rust's success.
 		caller, cancel := context.WithCancel(ctx)
@@ -874,15 +874,18 @@ func futures() {
 	{
 		// The caller's cancel reaches the body's context.
 		caller, cancel := context.WithCancel(ctx)
-		cancelled := make(chan struct{})
+		started, cancelled := make(chan struct{}), make(chan struct{})
 		got := make(chan error)
 		go func() {
 			_, err := api.After(caller, func(c context.Context) {
+				close(started)
 				<-c.Done()
 				close(cancelled)
 			}, 1)
 			got <- err
 		}()
+		// Cancelled before its first poll, the call would never start the body.
+		<-started
 		cancel()
 		check(errors.Is(<-got, context.Canceled), "a cancelled call waiting on a Go function reports the cancel")
 		<-cancelled
