@@ -19,7 +19,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Function, Int, Literal, Param, Receiver, Type};
+use crate::ir::{Access, Function, Int, Literal, On, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.swift");
 
@@ -50,6 +50,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		thrown: BTreeMap::new(),
 		conforms: BTreeSet::new(),
 		fresh: 0,
+		on: On::ALL,
 	};
 	for name in g.classes.values() {
 		g.names.insert(name.clone(), "a type".to_string());
@@ -75,6 +76,10 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\ttypealias CDuration = {p}_duration\n\
 		\ttypealias CAddr = {p}_socket_addr\n\n\
 		\tstatic func contract() -> Swift.Bool {{\n\t\t{p}_contract() == 0x{contract:016x} && {upper}_CONTRACT == 0x{contract:016x}\n\t}}\n\n\
+		\t/// The index of the library's target among those this file serves.\n\
+		\tstatic let target = Swift.UInt64({p}_target())\n\n\
+		\t/// Traps unless the library's target is among those of `on`, as the item `what` is.\n\
+		\tstatic func on(_ on: Swift.UInt64, _ what: Swift.String) {{\n\t\tif (on >> target) & 1 == 0 {{\n\t\t\tfatalError(\"\\(what): it is not on this library's target\")\n\t\t}}\n\t}}\n\n\
 		\tstatic func free(_ buf: Buf) {{\n\t\t{p}_buf_free(buf)\n\t}}\n\n\
 		\tstatic func load(_ state: UnsafeMutablePointer<Swift.Int>) -> Swift.Int {{\n\t\t{p}_atomic_load(state)\n\t}}\n\n\
 		\tstatic func store(_ state: UnsafeMutablePointer<Swift.Int>, _ value: Swift.Int) {{\n\t\t{p}_atomic_store(state, value)\n\t}}\n\n\
@@ -187,9 +192,21 @@ struct Gen<'a> {
 	/// The exported types thrown as errors, which conform to `Swift.Error`.
 	conforms: BTreeSet<String>,
 	fresh: usize,
+	/// The targets of the item being written, whose calls check theirs.
+	on: On,
 }
 
 impl<'a> Gen<'a> {
+	/// The statement that traps unless the library's target is among those of `on`, as the
+	/// item `what` is, then `then`; or `then` alone if it is on every target.
+	fn on(&self, on: On, what: &str, then: &str) -> String {
+		let api = self.abi.api;
+		match api.everywhere(on) {
+			true => then.to_string(),
+			false => format!("Native.on({}, \"{what}\"){then}", on.0 & api.all().0),
+		}
+	}
+
 	fn fresh(&mut self, base: &str) -> String {
 		self.fresh += 1;
 		format!("{base}{}_", self.fresh)
@@ -572,7 +589,8 @@ impl<'a> Gen<'a> {
 				};
 				(
 					format!(
-						"Native.check()\n\t\t{arena}var c_ = self._lower({})\n\t\treturn ",
+						"{}Native.check()\n\t\t{arena}var c_ = self._lower({})\n\t\treturn ",
+						self.on(self.on, c, "\n\t\t"),
 						self.arena_arg(ty)
 					),
 					"&c_",
@@ -617,7 +635,8 @@ impl<'a> Gen<'a> {
 					};
 					let arg = self.arena_arg(ty);
 					format!(
-						"Native.check()\n\t\t{arena}var ca_ = a._lower({arg})\n\t\tvar cb_ = b._lower({arg})\n\t\treturn {c}_eq(&ca_, &cb_)"
+						"{}Native.check()\n\t\t{arena}var ca_ = a._lower({arg})\n\t\tvar cb_ = b._lower({arg})\n\t\treturn {c}_eq(&ca_, &cb_)",
+						self.on(self.on, c, "\n\t\t")
 					)
 				}
 			};
@@ -632,7 +651,8 @@ impl<'a> Gen<'a> {
 				_ => format!("{name}._lift({c}_default())"),
 			};
 			body.push(format!(
-				"\t/// Rust's `Default`.\n\tpublic static func `default`() -> {name} {{\n\t\tNative.check()\n\t\treturn {lift}\n\t}}\n"
+				"\t/// Rust's `Default`.\n\tpublic static func `default`() -> {name} {{\n\t\t{}Native.check()\n\t\treturn {lift}\n\t}}\n",
+				self.on(self.on, c, "\n\t\t")
 			));
 		}
 	}
@@ -657,6 +677,7 @@ impl<'a> Gen<'a> {
 	fn record(&mut self, i: usize) {
 		let abi = self.abi;
 		let record = &abi.api.records[i];
+		self.on = record.on;
 		let c = abi.record(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&record.path, &record.args);
@@ -723,6 +744,7 @@ impl<'a> Gen<'a> {
 	fn enumeration(&mut self, i: usize) {
 		let abi = self.abi;
 		let e = &abi.api.enums[i];
+		self.on = e.on;
 		let c = abi.enumeration(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&e.path, &e.args);
@@ -752,9 +774,11 @@ impl<'a> Gen<'a> {
 				true => cases.push(format!("\tcase {case}\n")),
 				false => cases.push(format!("\tcase {case}({})\n", fields.join(", "))),
 			}
+			// A value of a variant the library's target lacks is refused as it crosses.
+			let refused = self.on(variant.on, &format!("{c}.{}", variant.name), "\n\t\t\t");
 			if e.plain() {
 				lifts.push(format!("\t\tcase {tag}: return .{case}"));
-				lowers.push(format!("\t\tcase .{case}: return {tag}"));
+				lowers.push(format!("\t\tcase .{case}:\n\t\t\t{refused}return {tag}"));
 				continue;
 			}
 			let lifted: Vec<String> = (variant.fields.iter())
@@ -774,12 +798,12 @@ impl<'a> Gen<'a> {
 			match variant.fields.is_empty() {
 				true => {
 					lifts.push(format!("\t\tcase {tag}: return .{case}"));
-					lowers.push(format!("\t\tcase .{case}: c.tag = {tag}"));
+					lowers.push(format!("\t\tcase .{case}:\n\t\t\t{refused}c.tag = {tag}"));
 				}
 				false => {
 					lifts.push(format!("\t\tcase {tag}: return .{case}({})", lifted.join(", ")));
 					lowers.push(format!(
-						"\t\tcase .{case}({}):\n\t\t\tc.tag = {tag}\n\t\t\tc.{member} = {payload}({})",
+						"\t\tcase .{case}({}):\n\t\t\t{refused}c.tag = {tag}\n\t\t\tc.{member} = {payload}({})",
 						binds.join(", "),
 						lowered.join(", ")
 					));
@@ -827,6 +851,7 @@ impl<'a> Gen<'a> {
 	fn object(&mut self, i: usize) {
 		let abi = self.abi;
 		let object = &abi.api.objects[i];
+		self.on = object.on;
 		let c = abi.object(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&object.path, &object.args);
@@ -856,6 +881,7 @@ impl<'a> Gen<'a> {
 	fn callback(&mut self, i: usize) {
 		let abi = self.abi;
 		let callback = &abi.api.callbacks[i];
+		self.on = callback.on;
 		let c = abi.callback(i);
 		let name = self.class(&c);
 		let rust = callback.path.join("::");
@@ -1055,6 +1081,9 @@ impl<'a> Gen<'a> {
 		let mut prelude = Vec::new();
 		if !object {
 			prelude.push("Native.check()".to_string());
+		}
+		if !abi.api.everywhere(function.on) {
+			prelude.push(self.on(function.on, &c_name, ""));
 		}
 		let mut arena = false;
 		let mut args: Vec<Arg> = Vec::new();

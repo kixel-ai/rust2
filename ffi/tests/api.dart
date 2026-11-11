@@ -836,7 +836,28 @@ Future<void> owned() async {
   final log = CountLog();
   unclosedLogger(log);
   await collect(() => log.closes == 1, 'the garbage collector frees what an object it frees holds');
+  targets();
   print('owned ok');
+}
+
+/// `f` throws the UnsupportedError of `what`, which the library's target lacks.
+void lacks(void Function() f, String what) {
+  try {
+    f();
+  } on UnsupportedError catch (e) {
+    check(e.message == "$what: it is not on this library's target", '$what: $e');
+    return;
+  }
+  check(false, what);
+}
+
+/// The bindings serve wasm32 too, whose items the host's library lacks.
+void targets() {
+  check(api.pointerBits(api.platform()) == 64, "the host's variant crosses");
+  check(api.isFamily(api.Family.native), "the host's plain variant crosses");
+  lacks(() => api.wasmOnly(), 'api_wasm_only');
+  lacks(() => api.pointerBits(const api.PlatformWasm(bits: 32)), 'api_Platform.Wasm');
+  lacks(() => api.isFamily(api.Family.wasm), 'api_Family.Wasm');
 }
 
 @pragma('vm:never-inline')
@@ -887,6 +908,8 @@ void closedObjects() {
   closed(() => api.logCounts(spared, 0, open, [c]), 'Counter', 'a closed object in a list after an implementation');
   check(spared.closes == 0, 'a call that throws gives Rust no implementation');
   check(api.onFirstThread(), "a call after one that threw runs on the isolate's thread");
+  lacks(() => api.wasmLog(spared), 'api_wasm_log');
+  check(api.onFirstThread(), "a call after one this target lacks runs on the isolate's thread");
   check(api.logCounts(spared, 0, open, []) == 1, 'an implementation a call that threw gave none of');
   check(spared.lines == 1 && spared.closes == 1, 'an implementation given once is closed once');
 

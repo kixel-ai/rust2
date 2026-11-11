@@ -1116,6 +1116,13 @@ func broken(which string) {
 	// A Rust Duration longer than Go's longest.
 	case "duration":
 		api.Extended(math.MaxInt64, 1)
+	// The packages serve wasm32 too, whose items the host's library lacks.
+	case "target":
+		api.WasmOnly()
+	case "variant":
+		api.PointerBits(api.PlatformWasm{Bits: 32})
+	case "plain variant":
+		api.IsFamily(api.FamilyWasm)
 	default:
 		check(false, "no case "+which)
 	}

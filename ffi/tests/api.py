@@ -886,6 +886,20 @@ def values():
 	check(api.doubled_ttl(td.max) == td.max, "timedelta's max is Duration::MAX")
 	raises(ValueError, lambda: api.doubled_ttl(td(seconds=-1)), "a negative duration raises")
 
+	# The module serves wasm32 too: what only wasm32 has raises on the host's library.
+	check(api.pointer_bits(api.platform()) == api.pointer_bits(api.Platform.Native(64)) == 64, "the host is native")
+	check(api.is_family(api.Family.NATIVE), "and of the native family")
+	for f, what in [
+		(api.wasm_only, "api_wasm_only"),
+		(lambda: api.pointer_bits(api.Platform.Wasm(32)), "api_Platform.Wasm"),
+		(lambda: api.is_family(api.Family.WASM), "api_Family.Wasm"),
+	]:
+		try:
+			f()
+			check(False, f"{what} raises")
+		except NotImplementedError as e:
+			check(str(e) == f"{what}: it is not on this library's target", repr(e))
+
 	if os.name == "posix":
 		path = api.stray()
 		check(os.fsencode(path) == b"\xff", "a path that is not UTF-8 keeps its bytes")

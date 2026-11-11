@@ -19,6 +19,21 @@ fn scratch() -> PathBuf {
 	PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
 }
 
+/// The host's target, which rustc builds for by default.
+fn host() -> &'static str {
+	static HOST: OnceLock<String> = OnceLock::new();
+	HOST.get_or_init(|| {
+		let rustc = run(Command::new(std::env::var_os("RUSTC").unwrap_or_else(|| "rustc".into())).arg("-vV"));
+		let version = String::from_utf8_lossy(&rustc.stdout).into_owned();
+		let host = version.lines().find_map(|line| line.strip_prefix("host: "));
+		host.expect("rustc -vV names the host").to_string()
+	})
+}
+
+/// The target the api fixture's binding serves besides the host's, which has an item the
+/// host lacks and a variant of an enum.
+const WASM: &str = "wasm32-unknown-unknown";
+
 fn cargo() -> Command {
 	Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
 }
@@ -34,16 +49,16 @@ fn run(cmd: &mut Command) -> Output {
 	output
 }
 
-/// Export the fixture `name` into `out` for `target`, else the host, with these cargo
-/// args, returning what the exporter printed.
-fn export(name: &str, out: &Path, target: Option<&str>, cargo: &[&str]) -> Output {
+/// Export the fixture `name` into `out` for `targets` into one binding, else the host,
+/// with these cargo args, returning what the exporter printed.
+fn export(name: &str, out: &Path, targets: &[&str], cargo: &[&str]) -> Output {
 	let fixture = manifest_dir().join("fixtures").join(name);
 	Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 		.arg("--config")
 		.arg(fixture.join("ffi.toml"))
 		.arg("--out")
 		.arg(out)
-		.args(target.map(|target| ["--target", target]).into_iter().flatten())
+		.args(targets.iter().flat_map(|target| ["--target", target]))
 		.arg("--")
 		.args(cargo)
 		.env("CARGO_TARGET_DIR", scratch().join(name).join("build"))
@@ -79,7 +94,8 @@ fn api() -> &'static Api {
 		// A feature of the facade's that enables one in a crate it re-exports, which the C
 		// library must build with.
 		let features = ["--features", "doubled"];
-		let output = export("api", &out, None, &features);
+		// One binding for the host and wasm32, which only the host builds and runs.
+		let output = export("api", &out, &[host(), WASM], &features);
 		assert!(
 			output.status.success(),
 			"exporting failed:\n{}",
@@ -186,6 +202,15 @@ fn api_c() {
 		(
 			"lent shared",
 			"api_Meter_reset: a handle a call lent shared is borrowed exclusively",
+		),
+		("target", "api_wasm_only: it is not on this library's target"),
+		(
+			"variant",
+			"api_pointer_bits: the variant is not on this library's target",
+		),
+		(
+			"plain variant",
+			"api_is_family: the variant is not on this library's target",
 		),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
@@ -426,7 +451,7 @@ fn api_android() {
 		abi => panic!("the android shell's toolchain has no target for the device's ABI {abi}"),
 	};
 	let out = dir.join("out");
-	let output = export("api", &out, Some(target), &["--features", "doubled"]);
+	let output = export("api", &out, &[target, WASM], &["--features", "doubled"]);
 	assert!(
 		output.status.success(),
 		"exporting for {target} failed:\n{}",
@@ -739,6 +764,9 @@ fn api_swift() {
 		("outlived", OUTLIVED),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
+		("target", "api_wasm_only: it is not on this library's target"),
+		("variant", "api_Platform.Wasm: it is not on this library's target"),
+		("plain variant", "api_Family.Wasm: it is not on this library's target"),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
 		assert!(!output.status.success(), "Swift {case} did not fail");
@@ -988,6 +1016,9 @@ fn api_go() {
 		("text", "api_greet: a string is not UTF-8"),
 		("callback panicked", "a log failed"),
 		("duration", "a Rust Duration past time.Duration's longest"),
+		("target", "api_wasm_only: it is not on this library's target"),
+		("variant", "api_Platform.Wasm: it is not on this library's target"),
+		("plain variant", "api_Family.Wasm: it is not on this library's target"),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
 		assert!(!output.status.success(), "Go {case} did not fail");
@@ -1035,7 +1066,7 @@ fn go_module() {
 	)
 	.unwrap();
 	let out = module.join("sub").join("out");
-	let output = export("api", &out, None, &[]);
+	let output = export("api", &out, &[], &[]);
 	assert!(
 		output.status.success(),
 		"exporting failed:\n{}",
@@ -1218,7 +1249,7 @@ fn relative_target() {
 #[test]
 fn reject() {
 	let out = scratch().join("reject").join("out");
-	let output = export("reject", &out, None, &[]);
+	let output = export("reject", &out, &[], &[]);
 	assert!(!output.status.success(), "exporting reject succeeded");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	// Each error at its span, then each of its notes at its own.
@@ -1263,7 +1294,7 @@ fn reject() {
 #[test]
 fn feature_of_dependency() {
 	let out = scratch().join("feature").join("out");
-	let output = export("api", &out, None, &["--features", "bytes/std"]);
+	let output = export("api", &out, &[], &["--features", "bytes/std"]);
 	assert!(!output.status.success(), "exporting with bytes/std succeeded");
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(
@@ -1549,37 +1580,37 @@ fn configured_out() {
 #[test]
 fn target() {
 	let package = package("targeted");
-	write_all(
-		&package,
-		&[(
-			"src/lib.rs",
-			"pub const MAX: usize = usize::MAX;\n\n\
-			pub fn halve(n: usize) -> usize {\n\tn / 2\n}\n\n\
-			#[cfg(target_arch = \"wasm32\")]\npub fn wasm() -> u32 {\n\t32\n}\n\n\
-			#[cfg(not(target_arch = \"wasm32\"))]\npub fn desktop() -> u32 {\n\t64\n}\n",
-		)],
-	);
-	let export = |name: &str, target: &[&str]| {
-		let out = package.join(name);
-		run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
-			.arg("--config")
+	let shared = "pub fn halve(n: usize) -> usize {\n\tn / 2\n}\n\n\
+		#[cfg(target_arch = \"wasm32\")]\npub fn wasm() -> u32 {\n\t32\n}\n\n\
+		#[cfg(not(target_arch = \"wasm32\"))]\npub fn desktop() -> u32 {\n\t64\n}\n";
+	// Items whose definitions differ between targets, which one binding cannot serve.
+	let differing = "pub const MAX: usize = usize::MAX;\n\n\
+		#[cfg(target_arch = \"wasm32\")]\npub fn width() -> u32 {\n\t32\n}\n\n\
+		#[cfg(not(target_arch = \"wasm32\"))]\npub fn width() -> u64 {\n\t64\n}\n";
+	write_all(&package, &[("src/lib.rs", &format!("{shared}\n{differing}"))]);
+	let exporter = |args: &[&str]| {
+		let mut cmd = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"));
+		cmd.arg("--config")
 			.arg(package.join("ffi.toml"))
-			.arg("--out")
-			.arg(&out)
-			.args(target)
-			.env("CARGO_TARGET_DIR", package.join("build")));
+			.args(args)
+			.env("CARGO_TARGET_DIR", package.join("build"));
+		cmd
+	};
+	let export = |name: &str, args: &[&str]| {
+		let out = package.join(name);
+		run(exporter(&["--out", out.to_str().unwrap()]).args(args));
 		std::fs::copy(package.join("Cargo.lock"), out.join("Cargo.lock")).unwrap();
 		let header = std::fs::read_to_string(out.join("include/targeted.h")).unwrap();
 		(out, header)
 	};
-	let (host, header) = export("host", &[]);
+	let (host_out, header) = export("host", &[]);
 	assert!(
 		header.contains("targeted_desktop(") && !header.contains("targeted_wasm("),
 		"{header}"
 	);
 	assert!(header.contains(&u64::MAX.to_string()), "{header}");
-	build_offline(&host, &package.join("glue"));
-	let (wasm, header) = export("wasm", &["--target", "wasm32-unknown-unknown"]);
+	build_offline(&host_out, &package.join("glue"));
+	let (wasm, header) = export("wasm", &["--target", WASM]);
 	assert!(
 		header.contains("targeted_wasm(") && !header.contains("targeted_desktop("),
 		"{header}"
@@ -1588,7 +1619,7 @@ fn target() {
 		header.contains(&u32::MAX.to_string()) && !header.contains(&u64::MAX.to_string()),
 		"{header}"
 	);
-	let glue = |target: &[&str]| {
+	let glue = |out: &Path, target: &[&str]| {
 		let mut cmd = cargo();
 		cmd.args([
 			"check",
@@ -1598,18 +1629,92 @@ fn target() {
 			"kotlin,dart",
 			"--manifest-path",
 		])
-		.arg(wasm.join("Cargo.toml"))
+		.arg(out.join("Cargo.toml"))
 		.arg("--target-dir")
 		.arg(package.join("glue"))
 		.args(target)
 		.env("RUSTFLAGS", "-D warnings");
 		cmd
 	};
-	run(&mut glue(&["--target", "wasm32-unknown-unknown"]));
-	let output = glue(&[]).output().unwrap();
+	run(&mut glue(&wasm, &["--target", WASM]));
+	let output = glue(&wasm, &[]).output().unwrap();
 	let stderr = String::from_utf8_lossy(&output.stderr);
 	assert!(!output.status.success(), "wasm32's export built for the host");
-	assert!(stderr.contains("exported for wasm32-unknown-unknown, not "), "{stderr}");
+	assert!(stderr.contains(&format!("exported for {WASM}, not ")), "{stderr}");
+
+	// One binding cannot serve an item whose definition differs between its targets: each
+	// is refused at its span, naming both.
+	let merged = package.join("merged");
+	// From an earlier run's export.
+	let _ = std::fs::remove_dir_all(&merged);
+	let output = exporter(&["--out", merged.to_str().unwrap(), "--target", host(), "--target", WASM])
+		.output()
+		.unwrap();
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(!output.status.success(), "differing items exported");
+	let (first, second) = match host() < WASM {
+		true => (host(), WASM),
+		false => (WASM, host()),
+	};
+	for what in ["const `targeted::MAX`", "fn `targeted::width`"] {
+		let differs = format!("rust2-ffi: {what} differs between {first} and {second}");
+		assert!(stderr.contains(&differs), "{stderr}");
+	}
+	assert!(!merged.exists(), "a refused export wrote {}", merged.display());
+
+	// Staged on another host, with the checkout elsewhere, an item keeps its span there.
+	let staged = package.join("differing.json");
+	run(&mut exporter(&["--api", staged.to_str().unwrap(), "--target", WASM]));
+	let moved = scratch().join("targeted-moved");
+	for file in ["Cargo.toml", "ffi.toml", "src/lib.rs"] {
+		std::fs::create_dir_all(moved.join(file).parent().unwrap()).unwrap();
+		std::fs::copy(package.join(file), moved.join(file)).unwrap();
+	}
+	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(moved.join("ffi.toml"))
+		.arg("--out")
+		.arg(moved.join("out"))
+		.arg("--with")
+		.arg(&staged)
+		.env("CARGO_TARGET_DIR", moved.join("build"))
+		.output()
+		.unwrap();
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(!output.status.success(), "differing items exported");
+	// Each target's span shows its own line of the moved checkout.
+	assert!(
+		stderr.contains("pub fn width() -> u32") && stderr.contains("pub fn width() -> u64"),
+		"{stderr}"
+	);
+
+	// Without them, one binding serves both targets, each with only its own items.
+	write_all(&package, &[("src/lib.rs", shared)]);
+	let (merged, header) = export("merged", &["--target", host(), "--target", WASM]);
+	assert!(
+		header.contains("targeted_desktop(")
+			&& header.contains("targeted_wasm(")
+			&& header.contains("targeted_target("),
+		"{header}"
+	);
+	run(&mut glue(&merged, &["--target", WASM]));
+	run(&mut glue(&merged, &[]));
+
+	// A target staged on its own host merges into the same binding.
+	let staged = package.join("wasm.json");
+	run(&mut exporter(&["--api", staged.to_str().unwrap(), "--target", WASM]));
+	let (_, joined) = export("joined", &["--with", staged.to_str().unwrap()]);
+	assert_eq!(joined, header);
+
+	// A census or a staged API is of one target.
+	for output in ["--census", "--api"] {
+		let out = package.join("one");
+		let output = exporter(&[output, out.to_str().unwrap(), "--target", host(), "--target", WASM])
+			.output()
+			.unwrap();
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(!output.status.success() && stderr.contains("one --target"), "{stderr}");
+	}
 }
 
 /// Writes each `(path, text)` into `dir`.

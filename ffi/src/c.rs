@@ -72,6 +72,12 @@ impl Header<'_> {
 		let api = abi.api;
 		let p = abi.prefix.clone();
 		let upper = p.to_uppercase();
+		let targets: String = (api.targets.iter().enumerate())
+			.map(|(i, t)| format!("\n * {i}: {t}"))
+			.collect();
+		self.line(format!(
+			"/* The index of the library's target among those this header serves:{targets} */\nuint32_t {p}_target(void);\n"
+		));
 		self.line(format!(
 			"/* Bytes. Passed in, a view Rust reads during the call and never frees. Returned,\n * an owned buffer to free once with {p}_buf_free. A null ptr is None. */\ntypedef struct {p}_buf {{\n\tconst uint8_t *ptr;\n\tsize_t len;\n\tvoid *owner;\n}} {p}_buf;\n\nvoid {p}_buf_free({p}_buf buf);\n"
 		));
@@ -436,6 +442,13 @@ impl Header<'_> {
 					"\nA handle it lends lives only for that call of `{name}`: free none, nor move out of one."
 				));
 			}
+		}
+		let api = self.abi.api;
+		if !api.everywhere(function.on) {
+			docs.push_str(&format!(
+				"\n\nOnly on {}: elsewhere the library aborts if it is called.",
+				api.named(function.on).join(", ")
+			));
 		}
 		self.out.push_str(&comment(docs.trim(), ""));
 		if let Some((handle, poll, free)) = &export.future {

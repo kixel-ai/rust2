@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use rustc_span::Span;
 
-use crate::ir::{Access, Api, Dyn, Function, Home, Int, Literal, Receiver, Type};
+use crate::ir::{Access, Api, Dyn, Function, Home, Int, Literal, On, Receiver, Type};
 
 /// A C name one item claims twice, which no rename can tell apart: the name, then what
 /// claimed it first and second.
@@ -127,6 +127,9 @@ fn owned(ty: &Type) -> Type {
 /// The suffix naming each instance of a generic item, by its arguments.
 type Suffixes = HashMap<Vec<Type>, String>;
 
+/// The `cfg` the crate's build script sets to the target it builds for.
+pub const CFG: &str = "rust2_ffi_target";
+
 pub struct Abi<'a> {
 	pub api: &'a Api,
 	pub prefix: String,
@@ -173,6 +176,33 @@ impl<'a> Abi<'a> {
 		}
 		abi.clashes = abi.residue();
 		abi
+	}
+
+	/// The `cfg` predicate a crate's Rust compiles what is on `on` under, or none if it is
+	/// on every target: its build script sets [`CFG`] to the target it builds for.
+	pub fn cfg(&self, on: On) -> Option<String> {
+		if self.api.everywhere(on) {
+			return None;
+		}
+		let targets: Vec<String> = self.api.named(on).iter().map(|t| format!("{CFG} = {t:?}")).collect();
+		Some(format!("any({})", targets.join(", ")))
+	}
+
+	/// The targets every type `ty` names is on, which a value of it is on.
+	pub fn on(&self, ty: &Type) -> On {
+		let api = self.api;
+		let mut on = On::ALL;
+		crate::ir::each(ty, &mut |ty| {
+			let of = match ty {
+				Type::Record(i) => api.records[*i].on,
+				Type::Enum(i) => api.enums[*i].on,
+				Type::Object(i) => api.objects[*i].on,
+				Type::Callback(i, _) => api.callbacks[*i].on,
+				_ => On::ALL,
+			};
+			on.0 &= of.0;
+		});
+		on
 	}
 
 	/// The C name of `item`, renamed if its own clashed, else `name`.
@@ -797,6 +827,7 @@ impl<'a> Abi<'a> {
 		// package, and Swift's in its module and the atomics header its runtime adds.
 		for runtime in [
 			"contract",
+			"target",
 			"buf",
 			"buf_free",
 			"u128",

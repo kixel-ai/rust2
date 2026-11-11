@@ -5,11 +5,11 @@ attributes in the Rust source.
 Every language's generator but Python's builds on the C ABI.
 
 ```bash
-rust2-ffi --config ffi.toml (--out dir | --census dir) [--manifest-path Cargo.toml] [--target triple] [-- cargo args]
+rust2-ffi --config ffi.toml (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [--target triple]... [--with file]... [-- cargo args]
 ```
 
-It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for `--target` or
-else the host, whatever cargo's config names, through
+It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for each `--target`
+or else the host, whatever cargo's config names, through
 the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). The
 package is the facade: once rustc has checked its library, it walks every `pub` item
 reachable from the crate root, following `pub use` re-exports of other crates' items and
@@ -19,10 +19,10 @@ it ships, and a type no path from its root reaches is refused. The prefix of eve
 is the library's crate name, Cargo's `[lib] name`, which defaults to the package's name in
 snake case. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
 beside it, and the header in `include/<prefix>.h`; `cargo build` on that crate makes a
-static and a shared library for that target alone: its build script refuses another, on
+static and a shared library for those targets alone: its build script refuses another, on
 which an item the target compiles would be missing, or one it leaves out left over. So a
-`cfg`-gated item is in its target's export and in no other's, and the layouts, `usize`
-included, are that target's. That crate enables the facade's features as the check did;
+`cfg`-gated item works on its targets and on no other ([Targets](#targets)), and the
+layouts, `usize` included, are the target's the crate builds for. That crate enables the facade's features as the check did;
 a feature named in a dependency, `--features <dependency>/<feature>`, is an error, since
 the facade enables what its dependencies build with. It resolves them as the check did,
 wherever it is built: its manifest carries, as a `[patch]`, each patch or `[replace]` cargo applied
@@ -138,6 +138,42 @@ returned `&Object` is lent, never one inside what a call returns nor its error. 
 object no export C can call returns or lends to a closure, a generic type no export
 instantiates, and whatever takes one, is left out and listed in the census. Everything
 else is refused, and the census counts why.
+
+## Targets
+
+One binding serves every target its package ships to, such as one Kotlin file for each
+Android ABI and the desktops, though their APIs differ by `cfg`. Each `--target` is
+checked in turn, and the binding holds every item any of them has. On each target, every
+item that target compiles works exactly, and no other does:
+
+- A function, method, or constructor only some targets have is declared everywhere. On
+  another target, the library defines it to fail, and the binding checks the library's
+  target before calling it, raising the language's own error, as for a closed object:
+  `UnsupportedOperationException` in Kotlin, `NotImplementedError` in Python, a trap in
+  Swift, a panic in Go, and `UnsupportedError` in Dart. C and C++ abort with the message.
+- So does a variant only some targets have, when a value holding it crosses into a target
+  without it. A record's fields cross whole, so one whose fields differ between targets
+  is refused, as below.
+- A type only some targets have is declared everywhere, and only those targets' items
+  make or take it.
+- A constant only some targets have keeps its value everywhere, since reading it calls
+  nothing.
+- An item whose definition differs between two targets, such as a function whose
+  signature does, a record with a field only one has, a plain enum whose variant has
+  another value, or a constant of another value, is refused at its span, with a note at the other's, naming both targets.
+
+The crate's build script sets `cfg(rust2_ffi_target = "<triple>")` for the target it
+builds for, which gates each item, and refuses a target it was not exported for.
+`<prefix>_target()` returns the library's target as its index among the header's,
+listed in its comment, which each binding reads once when it loads.
+
+A target's check may need its own C toolchain, as moq's `aws-lc-sys` and `ring` do even
+for a check, which only its own host may have. `--api file` writes one target's API, with
+the spans of its items, instead of exporting; an export elsewhere adds it with
+`--with file`, as though it had checked that target too. Both must check the same
+package, features, and `exclude`, from the same sources: a staged span's file is relative
+to the workspace's root or cargo's home, so a checkout at another path keeps it, and is
+dropped for the other target's span where the file differs.
 
 ## The C ABI
 
@@ -711,7 +747,9 @@ nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi
 ```
 
 The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
-export into the same library. `tests/api.c` runs the same script as the
+export into the same library. The fixture's binding serves the host and wasm32, whose
+items the host's library lacks, and each language's test checks that the host's items work
+and that wasm32's fail. `tests/api.c` runs the same script as the
 fixture's `examples/transcript.rs`, and the two transcripts must match line for line;
 then it breaks each runtime check, which must abort with its message. `tests/api.cpp`
 runs the script through the C++ header at C++17, 20, and 23, with exceptions and RTTI off
@@ -744,7 +782,10 @@ or a reader reaches it and that the GC frees it once none does, that the GC free
 never closed, and that each kind of call meeting a closed object, including one racing
 `Close`, returns `rt.ErrClosed`, and breaks
 each runtime check, which must panic with its message; a runtime package from another
-build must fail its contract check. The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
+build must fail its contract check. The `target` test exports a package for the host, for wasm32, and for both into one
+binding, which builds for each, and staged with `--api` and `--with`; a build for a target
+not exported fails, and items that differ between the two are refused, naming both.
+The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. `moq/moq.c` publishes and subscribes to a moq-net
 track in one process, polling each read, scopes an origin to moq-pattern's patterns and

@@ -101,6 +101,16 @@ pub fn raise<T>(exc: *mut PyObject, msg: &str) -> R<T> {
 	Err(Raised)
 }
 
+/// Raise for a call of `what`, or a value of it crossing in, which the library's target
+/// lacks: the binding serves other targets, which have it.
+pub fn missing<T>(what: &str) -> R<T> {
+	// SAFETY: a static exception type.
+	raise(
+		unsafe { PyExc_NotImplementedError },
+		&format!("{what}: it is not on this library's target"),
+	)
+}
+
 pub fn type_error<T>(msg: &str) -> R<T> {
 	// SAFETY: a static exception type.
 	raise(unsafe { PyExc_TypeError }, msg)

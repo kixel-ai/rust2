@@ -727,6 +727,18 @@ fun owned() {
 	check(dropped() == before + 1u, "closing again frees nothing")
 	check(runCatching { token.idGet }.exceptionOrNull()?.message == "Token is closed", "a call after close throws")
 
+	// The file serves wasm32 too: what only wasm32 has throws on the host's library.
+	check(pointerBits(platform()) == 64u && pointerBits(Platform.Native(64u)) == 64u, "the host is native")
+	check(isFamily(Family.NATIVE), "and of the native family")
+	for ((what, call) in listOf<Pair<String, () -> Unit>>(
+		"api_wasm_only" to { wasmOnly() },
+		"api_Platform.Wasm" to { pointerBits(Platform.Wasm(32u)) },
+		"api_Family.Wasm" to { isFamily(Family.WASM) },
+	)) {
+		val thrown = runCatching(call).exceptionOrNull()
+		check(thrown is UnsupportedOperationException && thrown.message == "$what: it is not on this library's target", "$what throws: $thrown")
+	}
+
 	// Bytes outlive the object that returned them and the record that held them.
 	val body = ByteArray(2048) { 'b'.code.toByte() }
 	val message = Message.new(Stamp.fromMillis(1u), body)

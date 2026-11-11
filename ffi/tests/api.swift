@@ -840,6 +840,13 @@ func broken(_ which: String) {
 		_ = stray()
 	case "lent stray":
 		visitStray { _ in }
+	// The file serves wasm32 too, whose items the host's library lacks.
+	case "target":
+		_ = wasmOnly()
+	case "variant":
+		_ = pointerBits(.wasm(bits: 32))
+	case "plain variant":
+		_ = isFamily(.wasm)
 	default:
 		check(false, "no case \(which)")
 	}
