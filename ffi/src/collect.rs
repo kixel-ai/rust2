@@ -1296,6 +1296,7 @@ impl<'tcx> Collector<'tcx> {
 				shown: vec![self.report.root.clone(), "Level".to_string()],
 				args: Vec::new(),
 				span: tcx.def_span(def_id),
+				on: On::ALL,
 				docs: "`tracing::Level`: how verbose a span or event is, from the most to the least.".to_string(),
 				variants: (variants.iter().zip(0..))
 					.map(|(name, discriminant)| Variant {
@@ -1303,6 +1304,7 @@ impl<'tcx> Collector<'tcx> {
 						discriminant,
 						fields: Vec::new(),
 						tuple: false,
+						on: On::ALL,
 					})
 					.collect(),
 				// A match sees through its constants to the five levels they are.

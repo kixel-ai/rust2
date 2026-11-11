@@ -728,6 +728,7 @@ mod tests {
 			exhaustive: true,
 			methods: Vec::new(),
 			traits: Traits::default(),
+			foreign: false,
 		};
 		let api = Api {
 			records: Vec::new(),
