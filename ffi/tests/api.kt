@@ -408,8 +408,10 @@ fun script() {
 		Counter.new("three", 3u).use { three ->
 			println("plus ${two.plus(three)} ${two.plus(null)}")
 			println("add_to ${two.addTo(three)} ${two.addTo(null)} ${three.get()}")
+			check(two.offset(3u, 4u) == 36uL, "a method's parameters named handle and h are its own")
 		}
 	}
+	check(Counter.new("five", 5u).intoSum(1u) == 6uL, "a consuming method's parameter named close is its own")
 	val encoded = Mut("0,".encodeToByteArray())
 	putNumber(1u, encoded)
 	putNumber(23u, encoded)
@@ -674,14 +676,7 @@ fun owned() {
 		val sliced = nextPacket(Packet(1u, packet.payload.slice(1, n - 1))).payload
 		check(sliced.toByteArray().contentEquals(payload.copyOfRange(1, n - 1)), "a slice of a record's $n bytes crosses as its range")
 	}
-	var freed = dropped()
-	for (n in 1023..1025) {
-		val bytes = tokenBytes(n.toUInt(), n.toUInt())
-		if (n <= 1024) freed++
-		check(dropped() == freed, "$n bytes are freed at the call only if copied")
-		reads(bytes, n.toByte(), "$n bytes")
-	}
-	collected(freed + 1u, "the GC frees lent bytes nothing reaches")
+	collected(lentAround() + 1u, "the GC frees lent bytes nothing reaches")
 	reads(Bytes(ByteArray(1025) { 9 }), 9, "Kotlin's bytes")
 
 	// A call after close throws, and close frees at once, once.
@@ -821,7 +816,22 @@ fun budgeted() {
 	collected(before + 66u, "the GC frees bytes lent once the budget is free")
 }
 
-// In its own frame, so nothing on the caller's keeps them reachable.
+// Rust's bytes either side of the copy limit, returning the drops once the call has freed
+// those it copied. In its own frame, which the Android test keeps from R8's inlining, as
+// ART's interpreter keeps the last ones reachable from the caller's until it returns.
+fun lentAround(): UInt {
+	var freed = dropped()
+	for (n in 1023..1025) {
+		val bytes = tokenBytes(n.toUInt(), n.toUInt())
+		if (n <= 1024) freed++
+		check(dropped() == freed, "$n bytes are freed at the call only if copied")
+		reads(bytes, n.toByte(), "$n bytes")
+	}
+	return freed
+}
+
+// In its own frame, which the Android test keeps from R8's inlining, so nothing on the
+// caller's keeps them reachable.
 fun lentToBudget(before: UInt) {
 	val mib = 1 shl 20
 	val held = List(64) { tokenBytes(1u, mib.toUInt()) }

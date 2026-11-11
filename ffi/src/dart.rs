@@ -1702,7 +1702,8 @@ impl<'a> Gen<'a> {
 					args.push("a_.hold(this)".to_string());
 					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
 					if receiver == Receiver::Owned && !copy {
-						after.push("close();".to_string());
+						// Qualified, apart from a parameter named `close`.
+						after.push("this.close();".to_string());
 					}
 				}
 				Ty::In(inner) => {

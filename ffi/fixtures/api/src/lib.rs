@@ -117,6 +117,18 @@ impl Counter {
 		self.value
 	}
 
+	/// The value plus ten `handle`s and `h`: parameters named as a binding's receiver and
+	/// its held handle might be.
+	pub fn offset(&self, handle: u64, h: u64) -> u64 {
+		self.value + handle * 10 + h
+	}
+
+	/// The value plus `close`, consuming the counter: a parameter named as the method a
+	/// binding closes it with might be.
+	pub fn into_sum(self, close: u64) -> u64 {
+		self.value + close
+	}
+
 	pub fn name(&self) -> &str {
 		&self.name
 	}
@@ -1894,13 +1906,20 @@ pub fn put_number(value: u32, buf: &mut impl bytes::BufMut) {
 	buf.put_slice(format!("{value},").as_bytes());
 }
 
-/// Takes the first byte of `buf` as a decimal digit, as moq's decoders take from an
+/// `w235` a second later: a parameter named as Kotlin's generated writer of it would be,
+/// whose name the writer must take apart from it.
+pub fn second_later(w235: Duration) -> Duration {
+	w235.saturating_add(Duration::from_secs(1))
+}
+
+/// Takes the first byte of `r` as a decimal digit, as moq's decoders take from an
 /// `impl Buf`, which takes `Bytes`. It takes the byte even when it fails, and Rust writes
-/// back what the call left on either path.
-pub fn digit(buf: &mut impl bytes::Buf) -> Result<u8, Error> {
-	match buf.has_remaining() {
+/// back what the call left on either path. Named `r`, as moq's `varint::decode_quic`'s
+/// is, the name a binding's reader of what Rust wrote back might take.
+pub fn digit(r: &mut impl bytes::Buf) -> Result<u8, Error> {
+	match r.has_remaining() {
 		false => Err(Error::Underflow { by: 1 }),
-		true => match buf.get_u8() {
+		true => match r.get_u8() {
 			digit @ b'0'..=b'9' => Ok(digit - b'0'),
 			_ => Err(Error::Overflow),
 		},

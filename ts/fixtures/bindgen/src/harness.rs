@@ -187,22 +187,31 @@ fn show(out: &mut String, what: &str, v: &JsValue) {
 	writeln!(out, "{what}: {text:?}").unwrap();
 }
 
+/// A `Math` result's bits, any NaN as `f64::NAN`'s: ECMAScript leaves which NaN a
+/// function returns to the engine, and V8's varies by CPU and call path, both sides'
+/// calls being the same.
+fn op_bits(x: f64) -> u64 {
+	if x.is_nan() { f64::NAN } else { x }.to_bits()
+}
+
 fn math(input: &mut Input, out: &mut String) {
 	let (x, y) = (input.f64(), input.f64());
-	writeln!(out, "floor {:?}", Math::floor(x).to_bits()).unwrap();
-	writeln!(out, "trunc {:?}", Math::trunc(x).to_bits()).unwrap();
-	writeln!(out, "sign {:?}", Math::sign(x).to_bits()).unwrap();
-	writeln!(out, "fround {:?}", Math::fround(x).to_bits()).unwrap();
-	writeln!(out, "hypot {:?}", Math::hypot(x, y).to_bits()).unwrap();
-	writeln!(out, "atan2 {:?}", Math::atan2(x, y).to_bits()).unwrap();
-	writeln!(out, "pow {:?}", Math::pow(x, y).to_bits()).unwrap();
-	writeln!(out, "max {:?}", Math::max(x, y).to_bits()).unwrap();
+	writeln!(out, "floor {:?}", op_bits(Math::floor(x))).unwrap();
+	writeln!(out, "trunc {:?}", op_bits(Math::trunc(x))).unwrap();
+	writeln!(out, "sign {:?}", op_bits(Math::sign(x))).unwrap();
+	let fround = Math::fround(x);
+	let fround = if fround.is_nan() { f32::NAN } else { fround };
+	writeln!(out, "fround {:?}", fround.to_bits()).unwrap();
+	writeln!(out, "hypot {:?}", op_bits(Math::hypot(x, y))).unwrap();
+	writeln!(out, "atan2 {:?}", op_bits(Math::atan2(x, y))).unwrap();
+	writeln!(out, "pow {:?}", op_bits(Math::pow(x, y))).unwrap();
+	writeln!(out, "max {:?}", op_bits(Math::max(x, y))).unwrap();
 	writeln!(out, "clz32 {}", Math::clz32(input.u32() as i32)).unwrap();
 	let rest = [y, input.f64(), input.f64()];
 	writeln!(
 		out,
 		"max_of {:?}",
-		imports::max_of(x, &rest[..usize::from(input.u8() % 4)]).to_bits()
+		op_bits(imports::max_of(x, &rest[..usize::from(input.u8() % 4)]))
 	)
 	.unwrap();
 }
