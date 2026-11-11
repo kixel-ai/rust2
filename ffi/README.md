@@ -155,8 +155,8 @@ item that target compiles works exactly, and no other does:
 - A constant only some targets have keeps its value everywhere, since reading it calls
   nothing.
 - An item whose definition differs between two targets, such as a function whose
-  signature does, a record with a field only one has, or a constant of another value, is
-  refused at its span, with a note at the other's, naming both targets.
+  signature does, a record with a field only one has, a plain enum whose variant has
+  another value, or a constant of another value, is refused at its span, with a note at the other's, naming both targets.
 
 The crate's build script sets `cfg(rust2_ffi_target = "<triple>")` for the target it
 builds for, which gates each item, and refuses a target it was not exported for.
