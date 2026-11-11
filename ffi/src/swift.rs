@@ -253,6 +253,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "Void".to_string(),
 			Type::Bool => "Swift.Bool".to_string(),
 			Type::Int(int) => sw_int(*int).to_string(),
@@ -355,6 +356,7 @@ impl<'a> Gen<'a> {
 			Type::Int(int) => lower_int(*int, e),
 			Type::Char => format!("{e}.value"),
 			Type::U128 => format!("Native.u128({e})"),
+			Type::Array(_) => format!("{e}._c"),
 			Type::Duration => format!("Native.duration({e})"),
 			Type::SocketAddr(_) => format!("Native.socketAddr({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{e}._lower()"),
@@ -413,6 +415,7 @@ impl<'a> Gen<'a> {
 			Type::Int(int) => lift_int(*int, e),
 			Type::Char => format!("Native.scalar({e})"),
 			Type::U128 => format!("Native.u128({e})"),
+			Type::Array(n) => format!("{}(_c: {e})", Abi::array_class(*n)),
 			Type::Duration => format!("Native.duration({e})"),
 			Type::SocketAddr(_) => format!("Native.socketAddr({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{}._lift({e})", self.sw(ty)),
@@ -481,6 +484,14 @@ impl<'a> Gen<'a> {
 		let api = abi.api;
 		for (c, ty) in &abi.ranges.clone() {
 			self.range(c, ty);
+		}
+		for (c, n) in &abi.arrays {
+			// Its bytes inline, in C's struct, as `InlineArray` would hold them from macOS 26.
+			let name = Abi::array_class(*n);
+			let _ = write!(
+				self.types,
+				"/// A Rust `[u8; {n}]`: exactly {n} bytes, held inline.\npublic struct {name}: Swift.Hashable, Swift.Sendable, Swift.MutableCollection, Swift.RandomAccessCollection {{\n\tvar _c: {c}\n\n\tinit(_c: {c}) {{\n\t\tself._c = _c\n\t}}\n\n\t/// The bytes of `bytes`, or nil unless it holds exactly {n}.\n\tpublic init?(_ bytes: some Swift.Collection<Swift.UInt8>) {{\n\t\tguard bytes.count == {n} else {{\n\t\t\treturn nil\n\t\t}}\n\t\t_c = {c}()\n\t\tSwift.withUnsafeMutableBytes(of: &_c.items) {{ $0.copyBytes(from: bytes) }}\n\t}}\n\n\tpublic var startIndex: Swift.Int {{ 0 }}\n\tpublic var endIndex: Swift.Int {{ {n} }}\n\n\tpublic subscript(i: Swift.Int) -> Swift.UInt8 {{\n\t\tget {{\n\t\t\tSwift.precondition(indices.contains(i), \"index out of range\")\n\t\t\treturn Swift.withUnsafeBytes(of: _c.items) {{ $0[i] }}\n\t\t}}\n\t\tset {{\n\t\t\tSwift.precondition(indices.contains(i), \"index out of range\")\n\t\t\tSwift.withUnsafeMutableBytes(of: &_c.items) {{ $0[i] = newValue }}\n\t\t}}\n\t}}\n\n\tpublic static func == (a: {name}, b: {name}) -> Swift.Bool {{\n\t\ta.elementsEqual(b)\n\t}}\n\n\tpublic func hash(into hasher: inout Swift.Hasher) {{\n\t\tSwift.withUnsafeBytes(of: _c.items) {{ hasher.combine(bytes: $0) }}\n\t}}\n}}\n\n"
+			);
 		}
 		for constant in &api.constants {
 			let name = self.bare(&abi.name(&constant.path)).to_uppercase();

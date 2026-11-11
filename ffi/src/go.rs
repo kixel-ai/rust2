@@ -643,6 +643,7 @@ impl<'a> Gen<'a> {
 	fn go(&mut self, ty: &Type) -> String {
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Array(n) => format!("[{n}]byte"),
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool => "bool".to_string(),
 			Type::Int(int) => go_int(*int).to_string(),
@@ -707,6 +708,7 @@ impl<'a> Gen<'a> {
 			Type::Box(inner) | Type::Ref(_, inner) => self.zero(inner),
 			Type::Tuple(elements) if elements.len() == 1 => self.zero(&elements[0]),
 			Type::Record(_)
+			| Type::Array(_)
 			| Type::SocketAddr(_)
 			| Type::Range(_)
 			| Type::Bound(_)
@@ -799,6 +801,10 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Array(n) => {
+				self.array(*n);
+				format!("lower_{}({e})", abi.array(*n))
+			}
 			Type::Str | Type::String | Type::Path | Type::PathBuf => format!("a_.bufString({e})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("a_.bufView({e})"),
 			Type::Unit => unreachable!("no value is unit"),
@@ -940,6 +946,10 @@ impl<'a> Gen<'a> {
 			Type::Char => format!("rune({e})"),
 			Type::U128 => format!("liftU128_({e})"),
 			Type::Duration => format!("liftDuration_({e})"),
+			Type::Array(n) => {
+				self.array(*n);
+				format!("lift_{}({e})", abi.array(*n))
+			}
 			Type::SocketAddr(_) => format!("liftAddr_({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				self.convert(ty);
@@ -1229,6 +1239,17 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The conversions of a range, bound, or pair of bounds, whose C struct is `c`.
+	/// The conversions of `[u8; n]` between Go's array and C's struct of the same bytes.
+	fn array(&mut self, n: usize) {
+		let c = self.abi.array(n);
+		self.helper(&format!("convert_{c}"), |_| {
+			format!(
+				"func lift_{c}(c C.{c}) [{n}]byte {{\n\treturn *(*[{n}]byte)(unsafe.Pointer(&c.items))\n}}\n\n\
+				func lower_{c}(v [{n}]byte) C.{c} {{\n\treturn *(*C.{c})(unsafe.Pointer(&v))\n}}\n\n"
+			)
+		});
+	}
+
 	fn range_conv(&mut self, c: &str, ty: &Type) -> String {
 		let name = self.qualified(ty);
 		match ty {

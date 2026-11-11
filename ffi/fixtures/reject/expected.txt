@@ -103,3 +103,5 @@ fixtures/reject/src/lib.rs:855:9: rust2-ffi: cannot export use `renamed`: re-exp
 fixtures/reject/src/lib.rs:866:2: rust2-ffi: cannot export method `Tally::poll_bump`: `&mut self` of a value; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:886:1: rust2-ffi: cannot export fn `poll_risky`: Poll with no Context or waiter parameter `std::task::Poll<()>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:902:1: rust2-ffi: cannot export fn `poll_loose`: Poll with no Context or waiter parameter `std::task::Poll<()>`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:908:1: rust2-ffi: cannot export fn `sum_pair`: array of an element other than u8 `[u16; 2]`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:913:1: rust2-ffi: cannot export fn `empty`: empty array `[u8; 0]`; exclude it in the config to leave it out

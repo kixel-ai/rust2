@@ -4319,7 +4319,19 @@ impl<'tcx> Collector<'tcx> {
 				}
 				_ => self.tuple(ty, pos)?,
 			},
-			ty::Array(..) => return Err(why("array", ty.to_string())),
+			// An element type beyond `u8` takes the same shape once an export needs one.
+			ty::Array(elem, len) if *elem == tcx.types.u8 => {
+				let n = len
+					.try_to_target_usize(tcx)
+					.ok_or_else(|| why("array of unknown length", ty.to_string()))?;
+				// C has no struct of no bytes.
+				match usize::try_from(n) {
+					Ok(0) => return Err(why("empty array", ty.to_string())),
+					Ok(n) => Type::Array(n),
+					Err(_) => return Err(why("array too long", ty.to_string())),
+				}
+			}
+			ty::Array(..) => return Err(why("array of an element other than u8", ty.to_string())),
 			ty::Slice(_) | ty::Str => return Err(why("unsized type", ty.to_string())),
 			ty::Dynamic(..) => return Err(why("trait object", ty.to_string())),
 			ty::Param(_) => match self.impls.borrow().iter().find(|(param, _)| *param == ty) {

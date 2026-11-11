@@ -391,6 +391,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "Unit".to_string(),
 			Type::Bool => "Boolean".to_string(),
 			Type::Int(int) => kt_int(*int).to_string(),
@@ -455,6 +456,7 @@ impl<'a> Gen<'a> {
 			Type::Str | Type::String | Type::Path | Type::PathBuf => format!("{w}.string({e})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("{w}.bytes({e})"),
 			Type::U128 => format!("{w}.u128({e})"),
+			Type::Array(_) => format!("{w}.raw({e}.bytes)"),
 			Type::Duration => format!("{w}.duration({e})"),
 			Type::SocketAddr(Family::Any) => format!("{w}.socketAddr({e})"),
 			Type::SocketAddr(Family::V4) => format!("{w}.socketAddrV4({e})"),
@@ -522,6 +524,7 @@ impl<'a> Gen<'a> {
 			Type::Slice | Type::Vec | Type::Bytes if owned => format!("{r}.owned()!!"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("{r}.bytes()!!"),
 			Type::U128 => format!("{r}.u128()"),
+			Type::Array(n) => format!("{}({r}.raw({n}))", Abi::array_class(*n)),
 			Type::Duration => format!("{r}.duration()"),
 			Type::SocketAddr(_) => format!("{r}.socketAddr()"),
 			Type::List(_, inner) => {
@@ -732,6 +735,17 @@ impl<'a> Gen<'a> {
 		}
 		for (c, elements) in &abi.tuples.clone() {
 			self.glue_tuple(c, elements);
+		}
+		for (c, n) in &abi.arrays {
+			let class = Abi::array_class(*n);
+			let _ = write!(
+				self.types,
+				"/** A Rust `[u8; {n}]`: exactly {n} bytes, copied in and out, so it never changes. */\nclass {class}(bytes: ByteArray) {{\n\tinternal val bytes: ByteArray = bytes.copyOf()\n\n\tinit {{\n\t\tkotlin.require(bytes.size == {n}) {{ \"${{bytes.size}} bytes, not {n}\" }}\n\t}}\n\n\toperator fun get(index: Int): Byte = bytes[index]\n\n\tfun toByteArray(): ByteArray = bytes.copyOf()\n\n\toverride fun equals(other: Any?): Boolean = other is {class} && bytes.contentEquals(other.bytes)\n\n\toverride fun hashCode(): Int = bytes.contentHashCode()\n\n\toverride fun toString(): String = bytes.joinToString(\"\") {{ \"%02x\".format(it) }}\n}}\n\n"
+			);
+			let _ = write!(
+				self.glue,
+				"impl Wire for crate::{c} {{\n\tfn read(r: &mut Reader<'_>) -> Self {{\n\t\tSelf {{ items: r.get() }}\n\t}}\n\n\tfn write(self, w: &mut Writer) {{\n\t\tw.put(self.items);\n\t}}\n}}\n\n"
+			);
 		}
 		for constant in &api.constants {
 			let name = self.bare(&abi.name(&constant.path)).to_uppercase();

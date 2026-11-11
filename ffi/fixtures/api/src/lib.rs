@@ -1152,6 +1152,46 @@ impl Retry {
 	}
 }
 
+/// A digest, as moq's FLAC config holds its MD5: an object, whose array field C reads and
+/// assigns by value.
+#[non_exhaustive]
+pub struct Digest {
+	pub sum: [u8; 4],
+}
+
+impl Digest {
+	pub fn new() -> Self {
+		Self { sum: [0; 4] }
+	}
+
+	/// The sum with each byte flipped: an array taken and returned by value.
+	pub fn flipped(&self, mask: [u8; 4]) -> [u8; 4] {
+		std::array::from_fn(|i| self.sum[i] ^ mask[i])
+	}
+}
+
+/// The 4 bytes that 8 hex digits spell, as moq parses a certificate's fingerprint into 32.
+pub fn fingerprint(hex: &str) -> Result<[u8; 4], String> {
+	if hex.len() != 8 {
+		return Err(format!("{} hex digits, not 8", hex.len()));
+	}
+	let mut sum = [0; 4];
+	for (i, byte) in sum.iter_mut().enumerate() {
+		*byte = u8::from_str_radix(&hex[2 * i..2 * i + 2], 16).map_err(|e| e.to_string())?;
+	}
+	Ok(sum)
+}
+
+/// An enum whose variant Dart would name as the class of `[u8; 4]`, which keeps them apart.
+pub enum Array {
+	U8x4(u8),
+}
+
+/// A type named as Swift's, which an array's `Hashable` conformance must not take for it.
+pub struct Hasher {
+	pub seed: u8,
+}
+
 /// How many tokens have dropped.
 pub fn dropped() -> u32 {
 	DROPPED.load(std::sync::atomic::Ordering::Relaxed)

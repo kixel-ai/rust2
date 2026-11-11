@@ -175,6 +175,16 @@ fun script() {
 	for (v in listOf(two.pow(128), java.math.BigInteger.ONE.negate())) {
 		check(runCatching { scaled(v, 1u) }.exceptionOrNull() is IllegalArgumentException, "$v is no u128")
 	}
+	Digest.new().use { digest ->
+		digest.sumSet(fingerprint("deadbeef"))
+		val unparsed = try {
+			fingerprint("zz").toString()
+		} catch (e: StringException) {
+			e.error
+		}
+		println("digest ${digest.sumGet} ${digest.flipped(ArrayU8x4(byteArrayOf(-1, 0, -1, 0)))} $unparsed")
+		check(runCatching { ArrayU8x4(ByteArray(3)) }.exceptionOrNull() is IllegalArgumentException, "3 bytes are no [u8; 4]")
+	}
 	Batch.new().use { batch ->
 		pair().use { batch2 ->
 			val accepted = (1u..5u).count { batch.push(it) }
