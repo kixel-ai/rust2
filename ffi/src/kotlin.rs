@@ -1487,12 +1487,14 @@ impl<'a> Gen<'a> {
 					n += 1;
 					arg.jni.push("jlong");
 					arg.native.push("Long".to_string());
-					arg.open = Some("handle.hold { h ->".to_string());
-					arg.exprs.push("h".to_string());
+					// Qualified, and named fresh, apart from the parameters in scope.
+					let h = self.fresh("h");
+					arg.open = Some(format!("this.handle.hold {{ {h} ->"));
+					arg.exprs.push(h);
 					arg.rust_args.push(format!("{p} as usize as _"));
 					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
 					if receiver == Receiver::Owned && !copy {
-						arg.after.push("close()".to_string());
+						arg.after.push("this.close()".to_string());
 					}
 					arg
 				}

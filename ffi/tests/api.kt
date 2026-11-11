@@ -408,8 +408,10 @@ fun script() {
 		Counter.new("three", 3u).use { three ->
 			println("plus ${two.plus(three)} ${two.plus(null)}")
 			println("add_to ${two.addTo(three)} ${two.addTo(null)} ${three.get()}")
+			check(two.offset(3u, 4u) == 36uL, "a method's parameters named handle and h are its own")
 		}
 	}
+	check(Counter.new("five", 5u).intoSum(1u) == 6uL, "a consuming method's parameter named close is its own")
 	val encoded = Mut("0,".encodeToByteArray())
 	putNumber(1u, encoded)
 	putNumber(23u, encoded)

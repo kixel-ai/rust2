@@ -117,6 +117,18 @@ impl Counter {
 		self.value
 	}
 
+	/// The value plus ten `handle`s and `h`: parameters named as a binding's receiver and
+	/// its held handle might be.
+	pub fn offset(&self, handle: u64, h: u64) -> u64 {
+		self.value + handle * 10 + h
+	}
+
+	/// The value plus `close`, consuming the counter: a parameter named as the method a
+	/// binding closes it with might be.
+	pub fn into_sum(self, close: u64) -> u64 {
+		self.value + close
+	}
+
 	pub fn name(&self) -> &str {
 		&self.name
 	}
