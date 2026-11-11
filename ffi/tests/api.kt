@@ -169,7 +169,7 @@ fun script() {
 
 	println("total ${total(RangeU64(2u, 5u))}")
 	println("reach ${reach(2u, 5u)}")
-	val two = java.math.BigInteger.TWO
+	val two = java.math.BigInteger.valueOf(2)
 	val scaled = listOf(scaled(two.pow(128) - java.math.BigInteger.ONE, 1u), scaled(two.pow(64) + java.math.BigInteger.ONE, 1uL shl 63), scaled(two.pow(127), 2u))
 	println("scaled " + scaled.joinToString(" ") { it?.toString(16)?.padStart(32, '0') ?: "none" })
 	for (v in listOf(two.pow(128), java.math.BigInteger.ONE.negate())) {
@@ -348,6 +348,18 @@ fun script() {
 	println("polar ${polarPoint(2u)!!.distance} ${polarPoint(0u) == null} area ${area(Size(2u, 3u))}")
 	// Two types whose paths join alike, the second kept apart where its path splits.
 	println("wind ${wind(PolarTurn(2u), Polar_Turn(3u))}")
+	// Names that clash in some language, each kept apart there.
+	val clashSpan = ClashSpan(4u)
+	ClashStore.new(7u).use { clashStore ->
+		val clashPair = Pair(Pair(1.toUByte(), 2.toUShort()), 3u)
+		val clashTriple = Tuple1(Triple(1.toUByte(), 2.toUShort(), 3u))
+		println(
+			"clash ${ClashTone(440u).debug()} ${ClashTone_(3u).debug()} ${Cancelled(2u).debug()} " +
+				"span ${clashSpan.width()} ${clashSpan.toString_()} $clashSpan " +
+				"store ${clashStore.free()} ${clashStore.close_()} " +
+				"audio ${clashAudioEncoderFinish()} ${clashAudioEncoderFinish_()} nested ${clashNested(clashPair, clashTriple)}"
+		)
+	}
 	// Instances that name each other, and one made only by an impl of it.
 	println("cross ${cross(LeftRightU8(RightU8(1u)), RightLeftU8(LeftU8(2u)))} outer ${OuterInnerU8.new(4u).get()}")
 	// A bound that outlives the call takes a value, and an instance only a constant names.

@@ -439,6 +439,22 @@ fn main() {
 		"wind {}",
 		api::wind(api::PolarTurn { whole: 2 }, api::polar::Turn { part: 3 })
 	);
+	// Names that clash in some language, each kept apart there.
+	let clash_span = api::clash::Span { width: 4 };
+	let clash_store = api::clash::Store::new(7);
+	println!(
+		"clash {:?} {:?} {:?} span {} {} {clash_span} store {} {} audio {} {} nested {}",
+		api::clash::Tone { hz: 440 },
+		api::clash::TONE { db: 3 },
+		api::Cancelled { step: 2 },
+		clash_span.width(),
+		clash_span.to_string(),
+		clash_store.free(),
+		clash_store.close(),
+		api::clash::audio::encoder_finish(),
+		api::clash::audio_encoder::finish(),
+		api::clash::nested(Some(((1, 2), 3)), Some(((1, 2, 3),)))
+	);
 	let left = api::Left {
 		value: api::Right { value: 1u8 },
 	};

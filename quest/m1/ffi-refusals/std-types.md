@@ -17,25 +17,19 @@ The rest of the original count lies in moq-tokio outside its session side (`NonZ
 
 ## Plan
 
-Each item below waits on a maintainer decision; once decided, each is a change in
-`ffi/src/collect.rs` and `ffi/src/glue.rs`, with the api fixture and its seven language
-tests covering it.
+Each decision below is a change in `ffi/src/collect.rs` and `ffi/src/glue.rs`, with the api
+fixture and its seven language tests covering it.
 
-## Waiting
+Decided 2026-11-11 (maintainer, /quest-unblock):
 
-- Maintainer: `Filter` collects at the call or stays refused. Collecting runs the predicate
-  on every item at the call, which a Rust caller that stops early would not run on the
-  rest; `ffi/fixtures/reject`'s `words` refuses a `Split` by a closure for that reason, so
-  collecting reverses it for both. The predicate is moq's own, pure, and a C caller can
-  only take every item, as a Rust caller that collects does. Recommended: collect, for
-  items whose drop runs nothing, so a refused item's drop never moves to the call.
-- Maintainer: `serde_json`'s map iterators (`Iter`, `IntoIter`, `Keys`, `Values`) collect
-  as core's do, or stay refused. The exporter already trusts serde_json for `Json`, and
-  they only walk the map. Recommended: collect them.
-- Maintainer: `std::time::Instant` exports as an opaque object, compared and copied by its
-  traits with no methods of its own, or as nothing. It has no portable form C could read,
-  and `into_std` and `from_std` only move it between kio and Rust. Recommended: the opaque
-  object, adding no API std lacks.
-- Maintainer: `tracing::Level` exports as a plain enum of its five levels, with
-  `LevelFilter` as an `Option<Level>` whose `None` is `OFF`, or as its text, which a parse
-  could fail on. Recommended: the enum, which no input can make invalid.
+- ✅ `Filter` collects at the call, for items whose drop runs nothing, reversing the `words`
+  fixture's `Split` refusal for the same case (rejected: staying refused). Collecting runs
+  the predicate on every item at the call, which a Rust caller that stops early would not;
+  that is accepted because the predicate is moq's own and pure, and a C caller can only take
+  every item, as a Rust caller that collects does.
+- ✅ `serde_json`'s map iterators (`Iter`, `IntoIter`, `Keys`, `Values`) collect as core's do
+  (rejected: staying refused).
+- ✅ `std::time::Instant` exports as an opaque object, compared and copied by its traits with
+  no methods of its own (rejected: exporting nothing).
+- ✅ `tracing::Level` exports as a plain enum of its five levels, with `LevelFilter` as an
+  `Option<Level>` whose `None` is `OFF` (rejected: its text).

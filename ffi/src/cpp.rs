@@ -600,7 +600,7 @@ impl<'a> Header<'a> {
 		for member in members {
 			if !seen.insert(member) {
 				self.errors.push(format!(
-					"two members of `{rust}` are both `{}::{class}::{member}` in C++: rename one in the source or exclude it in the config",
+					"two members of `{rust}` are both `{}::{class}::{member}` in C++, which rust2-ffi should keep apart",
 					self.ns
 				));
 			}

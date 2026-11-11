@@ -1,27 +1,90 @@
-// bench/export.cpp's frame writes and reads through the generated Kotlin, so the two differ
-// by what JNI and the Kotlin wrapper add. Each round runs twice, the first to warm the JIT.
+// bench/export.c's cases through the generated Kotlin, so the two differ by what JNI and
+// the Kotlin wrapper add. Each round runs twice, the first to warm the JIT. Each case prints
+// its wall time and the process's CPU time, the JIT's and GC's threads included.
 
+import java.lang.management.ManagementFactory
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import moq.*
 
 const val GROUPS = 10000
 const val FRAMES = 100
+const val N = GROUPS * FRAMES
+val SIZES = listOf(100, 1024, 16384, 65536, 1048576)
 
-// Nanoseconds per frame since `start`.
-fun perFrame(start: Long): Double = (System.nanoTime() - start).toDouble() / (GROUPS * FRAMES)
+// Wall and CPU nanoseconds: a point, or a span per call.
+data class Span(val wall: Double, val cpu: Double)
 
-fun round(): String {
+val os = ManagementFactory.getOperatingSystemMXBean() as com.sun.management.OperatingSystemMXBean
+
+fun now() = Span(System.nanoTime().toDouble(), os.processCpuTime.toDouble())
+
+// Nanoseconds per call since `start`, over `n` calls.
+fun per(start: Span, n: Double = N.toDouble()): Span {
+	val end = now()
+	return Span((end.wall - start.wall) / n, (end.cpu - start.cpu) / n)
+}
+
+// What the loops sum, kept so the JIT cannot drop the calls.
+@Volatile var sink = 0
+
+// Groups of 100 frames of `size` bytes written and each read back, its payload's first
+// byte touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
+suspend fun throughput(track: TrackProducer, subscriber: TrackSubscriber, at: Timestamp, size: Int): Span {
+	val groups = ((64 shl 20) / (size * FRAMES)).coerceIn(3, 2000)
+	val frame = ByteArray(size)
+	var sum = 0
+	val start = now()
+	repeat(groups) {
+		track.appendGroup().use { group ->
+			subscriber.recvGroup()!!.use { reader ->
+				repeat(FRAMES) {
+					group.writeFrame(at, frame)
+					reader.readFrame()!!.use { read -> sum += read.payloadGet[0] }
+				}
+			}
+			group.finish()
+		}
+	}
+	sink += sum
+	val ns = per(start, groups.toDouble() * FRAMES * size)
+	return Span(1e3 / ns.wall, 1e3 / ns.cpu)
+}
+
+fun round(): Map<String, Span> {
+	val out = linkedMapOf<String, Span>()
 	val broadcast = BroadcastInfo.new().produce()
 	val track = Timescale.MICRO.use { micro ->
 		broadcast.createTrack("bench", TrackInfo.default().withTimescale(micro))
 	}
-
-	// A frame of 100 zero bytes, as bench/export.c writes.
 	val frame = ByteArray(100)
-	var micros = 0uL
+	var sum = 0
+
+	var start = now()
+	repeat(N) { if (track.isClosed()) sum++ }
+	out["call"] = per(start)
+
+	track.appendGroup().use { group ->
+		group.demand().use { demand ->
+			start = now()
+			repeat(N) { sum += demand.sequence().toInt() }
+			out["getter"] = per(start)
+		}
+		group.finish()
+	}
+
+	start = now()
+	repeat(N) { if (track.largest() != null) sum++ }
+	out["record"] = per(start)
+
+	start = now()
+	repeat(N) { track.info().close() }
+	out["object"] = per(start)
 
 	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
-	var start = System.nanoTime()
+	var micros = 0uL
+	start = now()
 	repeat(GROUPS) {
 		track.appendGroup().use { group ->
 			repeat(FRAMES) {
@@ -30,87 +93,74 @@ fun round(): String {
 			group.finish()
 		}
 	}
-	val stamped = perFrame(start)
+	out["stamped"] = per(start)
 
-	// The same, reusing one timestamp handle: what the handle costs.
 	val at = Timestamp.fromMicros(micros)
-	start = System.nanoTime()
+	start = now()
 	repeat(GROUPS) {
 		track.appendGroup().use { group ->
 			repeat(FRAMES) { group.writeFrame(at, frame) }
 			group.finish()
 		}
 	}
-	val reused = perFrame(start)
+	out["write"] = per(start)
 
-	// The floor: a hold of a handle and a bool back.
-	start = System.nanoTime()
-	var closed = 0
-	repeat(GROUPS * FRAMES) {
-		if (track.isClosed()) closed++
-	}
-	val call = perFrame(start)
-
-	// Reads: each frame written, then read through a suspend fun whose future is ready at
-	// its first poll, so it never suspends.
 	var last: FrameFrame? = null
-	var large: FrameFrame? = null
-	val read = runBlocking {
+	runBlocking {
 		val subscriber = track.consume().use { it.subscribe(null) }
-		val start = System.nanoTime()
-		repeat(GROUPS) { g ->
+
+		// Each frame written, then read through a suspend fun whose future is ready at its
+		// first poll, so it never suspends.
+		var t0 = now()
+		repeat(GROUPS) {
 			track.appendGroup().use { group ->
 				subscriber.recvGroup()!!.use { reader ->
-					repeat(FRAMES) { f ->
+					repeat(FRAMES) {
 						group.writeFrame(at, frame)
-						val read = reader.readFrame()!!
-						if (g == GROUPS - 1 && f == FRAMES - 1) last = read else read.close()
+						last?.close()
+						last = reader.readFrame()!!
 					}
 				}
 				group.finish()
 			}
 		}
-		perFrame(start).also {
-			// A frame long enough that Rust lends its payload rather than copying it.
+		out["ready"] = per(t0)
+
+		// Each read started before its frame is written, so it suspends, and the write's wake
+		// resumes it through runBlocking's event loop.
+		t0 = now()
+		repeat(GROUPS) {
 			track.appendGroup().use { group ->
 				subscriber.recvGroup()!!.use { reader ->
-					group.writeFrame(at, ByteArray(4096))
-					large = reader.readFrame()!!
+					repeat(FRAMES) {
+						val pending = async(start = CoroutineStart.UNDISPATCHED) { reader.readFrame() }
+						group.writeFrame(at, frame)
+						pending.await()!!.close()
+					}
 				}
 				group.finish()
 			}
-			subscriber.close()
 		}
+		out["woken"] = per(t0)
+
+		for (size in SIZES) out["mbps:$size"] = throughput(track, subscriber, at, size)
+		subscriber.close()
 	}
 
-	// Payload reads: the last frame's 100 bytes, copied across, and one of them read.
-	start = System.nanoTime()
+	// The last frame's 100 bytes, copied across, and one of them read.
+	start = now()
 	last!!.use { read ->
-		repeat(GROUPS * FRAMES) {
-			closed += read.payloadGet[0]
-		}
+		repeat(N) { sum += read.payloadGet[0] }
 	}
-	val payload = perFrame(start)
-
-	// Lent payload reads: a 4 KiB frame's payload, which Rust lends until the GC frees it,
-	// copied out.
-	start = System.nanoTime()
-	large!!.use { read ->
-		repeat(GROUPS * FRAMES) {
-			closed += read.payloadGet.toByteArray()[0]
-		}
-	}
-	val lentPayload = perFrame(start)
+	out["payload"] = per(start)
 	at.close()
 	track.close()
 	broadcast.close()
-
-	val bang = if (closed != 0) "!" else ""
-	return "export (Kotlin): %.0f ns per stamped 100 B frame, %.0f reusing the timestamp, %.1f ns per handle call, %.0f ns per frame written and read, %.0f ns per payload read, %.0f ns per 4 KiB payload copied out%s"
-		.format(stamped, reused, call, read, payload, lentPayload, bang)
+	sink += sum
+	return out
 }
 
 fun main() {
 	round()
-	println(round())
+	for ((case, value) in round()) println("$case\t${value.wall}\t${value.cpu}")
 }

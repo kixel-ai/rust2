@@ -1,10 +1,14 @@
-// bench/export.c's frame writes through the generated C++ header, so the two differ by
-// what the C++ wrapper adds; then the read path, each read a future polled once ready, and
-// a frame's payload read.
+// bench/export.c's cases through the generated C++ header, so the two differ by what the
+// C++ wrapper adds. Futures are polled by hand with a waker that does nothing. Each case
+// prints its wall time and the process's CPU time.
 
+#include <algorithm>
 #include <chrono>
+#include <ctime>
 #include <cstdio>
+#include <cstdlib>
 #include <optional>
+#include <vector>
 
 #include "moq.hpp"
 
@@ -12,105 +16,216 @@ namespace {
 
 constexpr int groups = 10000;
 constexpr int frames = 100;
+constexpr int n = groups * frames;
+constexpr std::size_t sizes[] = {100, 1024, 16384, 65536, 1048576};
 
-// Nanoseconds per frame since `start`.
-double per_frame(std::chrono::steady_clock::time_point start) {
-	std::chrono::duration<double, std::nano> elapsed = std::chrono::steady_clock::now() - start;
-	return elapsed.count() / (groups * frames);
+// What the loops sum, kept so the compiler cannot drop the calls.
+volatile unsigned sink;
+
+// Wall and CPU nanoseconds: a point, or a span per call.
+struct span {
+	double wall, cpu;
+};
+
+double clock_ns(clockid_t clock) {
+	timespec ts;
+	clock_gettime(clock, &ts);
+	return static_cast<double>(ts.tv_sec) * 1e9 + static_cast<double>(ts.tv_nsec);
+}
+
+span now() {
+	return {clock_ns(CLOCK_MONOTONIC), clock_ns(CLOCK_PROCESS_CPUTIME_ID)};
+}
+
+// Nanoseconds per call since `start`, over `calls` calls.
+span per(span start, double calls = n) {
+	span end = now();
+	return {(end.wall - start.wall) / calls, (end.cpu - start.cpu) / calls};
+}
+
+template <class T>
+T must(std::optional<T> value, const char *what) {
+	if (!value) {
+		std::fprintf(stderr, "bench: %s\n", what);
+		std::exit(1);
+	}
+	return std::move(*value);
+}
+
+template <class T, class E>
+T must(moq::result<T, E> value, const char *what) {
+	if (!value) {
+		std::fprintf(stderr, "bench: %s\n", what);
+		std::exit(1);
+	}
+	return std::move(*value);
+}
+
+template <class E>
+void must(moq::result<void, E> value, const char *what) {
+	if (!value) {
+		std::fprintf(stderr, "bench: %s\n", what);
+		std::exit(1);
+	}
+}
+
+const moq::waker &noop() {
+	static const moq::waker waker([]() {});
+	return waker;
+}
+
+// The output of a future ready at its first poll, which must be some value.
+template <class F>
+auto ready(F future, const char *what) {
+	return must(must(must(future.poll(noop()), what), what), what);
+}
+
+// Groups of 100 frames of `size` bytes written and each read back, its payload's first byte
+// touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second.
+span throughput(moq::track_Producer &track, moq::track_Subscriber &subscriber, const moq::Timestamp &at, std::size_t size, unsigned &sum) {
+	std::size_t count = std::clamp<std::size_t>((64u << 20) / (size * frames), 3, 2000);
+	std::vector<std::uint8_t> payload(size);
+	auto start = now();
+	for (std::size_t g = 0; g < count; g++) {
+		auto group = must(track.append_group(), "append_group");
+		auto reader = ready(subscriber.recv_group(), "recv_group");
+		for (int f = 0; f < frames; f++) {
+			must(group.write_frame(&at, payload), "write_frame");
+			auto read = ready(reader.read_frame(), "read_frame");
+			sum += read.payload_get().data()[0];
+		}
+		must(std::move(group).finish(), "finish");
+	}
+	span ns = per(start, static_cast<double>(count * frames * size));
+	return {1e3 / ns.wall, 1e3 / ns.cpu};
+}
+
+void round(bool print) {
+	moq::broadcast_Producer broadcast = moq::broadcast_Info::new_().produce();
+	moq::Timescale micro = moq::Timescale::MICRO();
+	auto track = must(broadcast.create_track("bench", moq::track_Info::default_().with_timescale(&micro)), "create_track");
+
+	std::uint8_t bytes[100] = {0};
+	moq::view frame(bytes, sizeof bytes);
+	unsigned sum = 0;
+
+	auto start = now();
+	for (int i = 0; i < n; i++) {
+		sum += track.is_closed();
+	}
+	span call = per(start);
+
+	span getter;
+	{
+		auto demanded = must(track.append_group(), "append_group");
+		auto demand = demanded.demand();
+		start = now();
+		for (int i = 0; i < n; i++) {
+			sum += static_cast<unsigned>(demand.sequence());
+		}
+		getter = per(start);
+		must(std::move(demanded).finish(), "finish");
+	}
+
+	start = now();
+	for (int i = 0; i < n; i++) {
+		sum += track.largest().has_value();
+	}
+	span record = per(start);
+
+	start = now();
+	for (int i = 0; i < n; i++) {
+		(void)track.info();
+	}
+	span object = per(start);
+
+	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
+	std::uint64_t micros = 0;
+	start = now();
+	for (int g = 0; g < groups; g++) {
+		auto group = must(track.append_group(), "append_group");
+		for (int f = 0; f < frames; f++) {
+			auto at = must(moq::Timestamp::from_micros(micros++), "from_micros");
+			must(group.write_frame(&at, frame), "write_frame");
+		}
+		must(std::move(group).finish(), "finish");
+	}
+	span stamped = per(start);
+
+	auto at = must(moq::Timestamp::from_micros(micros), "from_micros");
+	start = now();
+	for (int g = 0; g < groups; g++) {
+		auto group = must(track.append_group(), "append_group");
+		for (int f = 0; f < frames; f++) {
+			must(group.write_frame(&at, frame), "write_frame");
+		}
+		must(std::move(group).finish(), "finish");
+	}
+	span write = per(start);
+
+	auto subscriber = must(must(track.consume().subscribe(std::nullopt).poll(noop()), "subscribe"), "subscribe");
+
+	// Each frame written, then read through a new future ready at its first poll.
+	std::optional<moq::frame_Frame> last;
+	start = now();
+	for (int g = 0; g < groups; g++) {
+		auto group = must(track.append_group(), "append_group");
+		auto reader = ready(subscriber.recv_group(), "recv_group");
+		for (int f = 0; f < frames; f++) {
+			must(group.write_frame(&at, frame), "write_frame");
+			last = ready(reader.read_frame(), "read_frame");
+		}
+		must(std::move(group).finish(), "finish");
+	}
+	span read = per(start);
+
+	// Each read polled before its frame is written, so it pends, then polled again.
+	start = now();
+	for (int g = 0; g < groups; g++) {
+		auto group = must(track.append_group(), "append_group");
+		auto reader = ready(subscriber.recv_group(), "recv_group");
+		for (int f = 0; f < frames; f++) {
+			auto reading = reader.read_frame();
+			if (reading.poll(noop())) {
+				std::fprintf(stderr, "bench: woken read_frame ready\n");
+				std::exit(1);
+			}
+			must(group.write_frame(&at, frame), "write_frame");
+			(void)must(must(must(reading.poll(noop()), "woken read_frame"), "woken read_frame"), "woken read_frame");
+		}
+		must(std::move(group).finish(), "finish");
+	}
+	span woken = per(start);
+
+	// The last frame's 100 bytes, owned without a copy, then freed.
+	start = now();
+	for (int i = 0; i < n; i++) {
+		sum += last->payload_get().data()[0];
+	}
+	span payload = per(start);
+
+	span mbps[std::size(sizes)];
+	for (std::size_t i = 0; i < std::size(sizes); i++) {
+		mbps[i] = throughput(track, subscriber, at, sizes[i], sum);
+	}
+	sink = sum;
+
+	if (print) {
+		const char *names[] = {"call", "getter", "record", "object", "stamped", "write", "ready", "woken", "payload"};
+		span values[] = {call, getter, record, object, stamped, write, read, woken, payload};
+		for (std::size_t i = 0; i < std::size(names); i++) {
+			std::printf("%s\t%f\t%f\n", names[i], values[i].wall, values[i].cpu);
+		}
+		for (std::size_t i = 0; i < std::size(sizes); i++) {
+			std::printf("mbps:%zu\t%f\t%f\n", sizes[i], mbps[i].wall, mbps[i].cpu);
+		}
+	}
 }
 
 } // namespace
 
 int main() {
-	moq::broadcast_Producer broadcast = moq::broadcast_Info::new_().produce();
-	moq::Timescale micro = moq::Timescale::MICRO();
-	auto track = broadcast.create_track("bench", moq::track_Info::default_().with_timescale(&micro));
-	if (!track) {
-		return 1;
-	}
-
-	std::uint8_t payload[100] = {0};
-	moq::view frame(payload, sizeof payload);
-	std::uint64_t micros = 0;
-
-	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
-	auto start = std::chrono::steady_clock::now();
-	for (int g = 0; g < groups; g++) {
-		moq::group_Producer group = std::move(*track->append_group());
-		for (int f = 0; f < frames; f++) {
-			moq::Timestamp at = std::move(*moq::Timestamp::from_micros(micros++));
-			if (!group.write_frame(&at, frame)) {
-				return 2;
-			}
-		}
-		(void)std::move(group).finish();
-	}
-	double stamped = per_frame(start);
-
-	// The same, reusing one timestamp handle: what the handle costs.
-	moq::Timestamp at = std::move(*moq::Timestamp::from_micros(micros));
-	start = std::chrono::steady_clock::now();
-	for (int g = 0; g < groups; g++) {
-		moq::group_Producer group = std::move(*track->append_group());
-		for (int f = 0; f < frames; f++) {
-			if (!group.write_frame(&at, frame)) {
-				return 3;
-			}
-		}
-		(void)std::move(group).finish();
-	}
-	double reused = per_frame(start);
-
-	// The floor: a borrow of a handle and a bool back.
-	start = std::chrono::steady_clock::now();
-	int closed = 0;
-	for (int i = 0; i < groups * frames; i++) {
-		closed += track->is_closed();
-	}
-	double call = per_frame(start);
-
-	// Reads: each frame written, then read through a new future polled once, ready.
-	moq::waker waker([]() {});
-	moq::track_Consumer consumer = track->consume();
-	auto subscribed = consumer.subscribe(std::nullopt).poll(waker);
-	if (!subscribed || !*subscribed) {
-		return 4;
-	}
-	moq::track_Subscriber subscriber = std::move(**subscribed);
-	std::optional<moq::frame_Frame> last;
-	start = std::chrono::steady_clock::now();
-	for (int g = 0; g < groups; g++) {
-		moq::group_Producer group = std::move(*track->append_group());
-		auto received = subscriber.recv_group().poll(waker);
-		if (!received || !*received || !received->value()) {
-			return 5;
-		}
-		moq::group_Consumer reader = std::move(*received->value());
-		for (int f = 0; f < frames; f++) {
-			if (!group.write_frame(&at, frame)) {
-				return 6;
-			}
-			auto read = reader.read_frame().poll(waker);
-			if (!read || !*read || !read->value()) {
-				return 7;
-			}
-			if (g == groups - 1 && f == frames - 1) {
-				last = std::move(*read->value());
-			}
-		}
-		(void)std::move(group).finish();
-	}
-	double read = per_frame(start);
-
-	// Payload reads: the last frame's 100 bytes, owned without a copy, then freed.
-	start = std::chrono::steady_clock::now();
-	for (int i = 0; i < groups * frames; i++) {
-		closed += last->payload_get().data()[0];
-	}
-	double lent = per_frame(start);
-
-	std::printf(
-	    "export (C++): %.0f ns per stamped 100 B frame, %.0f reusing the timestamp, %.1f ns per handle call, %.0f ns per frame written and read, %.0f ns per payload read%s\n",
-	    stamped, reused, call, read, lent, closed ? "!" : "");
+	round(false);
+	round(true);
 	return 0;
 }

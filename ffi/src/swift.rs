@@ -48,7 +48,7 @@ fn module(prefix: &str) -> String {
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
 		abi,
-		classes: abi.classes(|_| (String::new(), 0)),
+		classes: abi.classes(|_| (String::new(), 0), |name| TAKEN.contains(&name)),
 		types: String::new(),
 		top: String::new(),
 		natives: String::new(),
@@ -59,6 +59,9 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		structs: structs(abi),
 		fresh: 0,
 	};
+	for name in g.classes.values() {
+		g.names.insert(name.clone(), "a type".to_string());
+	}
 	g.write();
 	if !g.errors.is_empty() {
 		return Err(g.errors.join("\n"));
@@ -213,17 +216,17 @@ impl<'a> Gen<'a> {
 		self.classes.get(c).cloned().unwrap_or_else(|| pascal(self.bare(c)))
 	}
 
-	/// Claim the top-level Swift name `name`, a function's [`full`] one, for `what`.
-	fn claim(&mut self, name: &str, what: String) {
-		if TAKEN.contains(&name.split('(').next().unwrap_or(name)) {
-			self.errors.push(format!(
-				"{what} is `{name}` in Swift, which its runtime names: rename it in the source or exclude it in the config"
-			));
-		} else if let Some(first) = self.names.insert(name.to_string(), what.clone()) {
-			self.errors.push(format!(
-				"{first} and {what} are both `{name}` in Swift: rename one in the source or exclude it in the config"
-			));
+	/// The top-level Swift name `what` takes with `labels`: `name`, with a trailing `_`
+	/// until neither the runtime nor an earlier item takes its [`full`] name.
+	fn claim(&mut self, name: &str, labels: &[String], what: String) -> String {
+		let mut name = name.to_string();
+		while TAKEN.contains(&unquote(&name).as_str())
+			|| self.names.contains_key(&full(false, &name, labels.iter().cloned()))
+		{
+			name = format!("{}_", unquote(&name));
 		}
+		self.names.insert(full(false, &name, labels.iter().cloned()), what);
+		name
 	}
 
 	/// Check that no two members of the type `rust` share a full Swift name, as [`full`]
@@ -233,7 +236,7 @@ impl<'a> Gen<'a> {
 		for member in members {
 			if !seen.insert(member) {
 				self.errors.push(format!(
-					"two members of `{rust}` are both `{member}` in Swift: rename one in the source or exclude it in the config"
+					"two members of `{rust}` are both `{member}` in Swift, which rust2-ffi should keep apart"
 				));
 			}
 		}
@@ -569,7 +572,7 @@ impl<'a> Gen<'a> {
 		}
 		for constant in &api.constants {
 			let name = self.bare(&abi.name(&constant.path)).to_uppercase();
-			self.claim(&name, format!("const `{}`", constant.path.join("::")));
+			let name = self.claim(&name, &[], format!("const `{}`", constant.path.join("::")));
 			let (ty, value) = match constant.value {
 				Literal::Bool(b) => ("Swift.Bool".to_string(), b.to_string()),
 				Literal::Int(int, v) => (sw_int(int).to_string(), v.to_string()),
@@ -593,8 +596,7 @@ impl<'a> Gen<'a> {
 			self.callback(i);
 		}
 		for function in &api.functions {
-			for (code, name) in self.function(function, None, None) {
-				self.claim(&name, format!("fn `{}`", function.path.join("::")));
+			for (code, _) in self.function(function, None, None, &[]) {
 				self.top.push_str(&code);
 				self.top.push('\n');
 			}
@@ -615,9 +617,9 @@ impl<'a> Gen<'a> {
 	/// The struct of a tuple holding an object's struct, which a Swift tuple cannot hold:
 	/// its fields `_0`, `_1`, ... are the tuple's elements.
 	fn tuple(&mut self, c: &str, elements: &[Type]) {
-		let name = self.class(c);
 		let types: Vec<String> = elements.iter().map(|e| self.sw(e)).collect();
-		self.claim(&name, format!("the tuple `({})`", types.join(", ")));
+		let name = self.claim(&self.class(c), &[], format!("the tuple `({})`", types.join(", ")));
+		self.classes.insert(c.to_string(), name.clone());
 		let fields: String = (types.iter().enumerate())
 			.map(|(n, sw)| format!("\tpublic var _{n}: {sw}\n"))
 			.collect();
@@ -637,7 +639,6 @@ impl<'a> Gen<'a> {
 	/// A struct for a range or pair of bounds, or an enum for a bound, and its conversions.
 	fn range(&mut self, c: &str, ty: &Type) {
 		let name = self.class(c);
-		self.claim(&name, format!("`{c}`"));
 		let p = &self.abi.prefix;
 		let upper = format!("{}_BOUND", p.to_uppercase());
 		let code = match ty {
@@ -784,7 +785,7 @@ impl<'a> Gen<'a> {
 		members: &mut Vec<String>,
 	) {
 		for method in methods {
-			for (code, member) in self.function(method, Some(owner), Some(ty)) {
+			for (code, member) in self.function(method, Some(owner), Some(ty), members) {
 				members.push(member);
 				body.push(indent(&code));
 			}
@@ -797,7 +798,6 @@ impl<'a> Gen<'a> {
 		let c = abi.record(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&record.path, &record.args);
-		self.claim(&name, format!("struct `{rust}`"));
 		let ty = Type::Record(i);
 		let fields: Vec<(String, String)> = (record.fields.iter())
 			.map(|f| (field_name(&f.name), self.sw(&f.ty)))
@@ -864,7 +864,6 @@ impl<'a> Gen<'a> {
 		let c = abi.enumeration(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&e.path, &e.args);
-		self.claim(&name, format!("enum `{rust}`"));
 		let ty = Type::Enum(i);
 		let upper = c.to_uppercase();
 		let mut members = Vec::new();
@@ -969,7 +968,6 @@ impl<'a> Gen<'a> {
 		let c = abi.object(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&object.path, &object.args);
-		self.claim(&name, format!("type `{rust}`"));
 		let ty = Type::Object(i);
 		let unique = self.unique(&ty);
 		let mut members = vec!["handle".to_string()];
@@ -1021,7 +1019,6 @@ impl<'a> Gen<'a> {
 		let c = abi.callback(i);
 		let name = self.class(&c);
 		let rust = callback.path.join("::");
-		self.claim(&name, format!("trait `{rust}`"));
 		let mut body = Vec::new();
 		let mut members = Vec::new();
 		let mut table = vec![format!("free: {{ data in Box<any {name}>.release(data) }}")];
@@ -1226,9 +1223,16 @@ impl<'a> Gen<'a> {
 	}
 
 	/// `function`'s Swift forms and their member names, members of `owner` (whose IR type
-	/// is `owner_ty`) if it has one: an overload for each choice of passing or leaving out
-	/// each `Option<&T>` of a struct, since an optional holds a struct only by consuming it.
-	fn function(&mut self, function: &Function, owner: Option<&Ty>, owner_ty: Option<&Type>) -> Vec<(String, String)> {
+	/// is `owner_ty`) if it has one, apart from the members `taken` names: an overload for
+	/// each choice of passing or leaving out each `Option<&T>` of a struct, since an optional
+	/// holds a struct only by consuming it.
+	fn function(
+		&mut self,
+		function: &Function,
+		owner: Option<&Ty>,
+		owner_ty: Option<&Type>,
+		taken: &[String],
+	) -> Vec<(String, String)> {
 		let optional: Vec<usize> = (function.params.iter().enumerate())
 			.filter(|(_, p)| self.lent_option(&p.ty))
 			.map(|(k, _)| k)
@@ -1243,7 +1247,7 @@ impl<'a> Gen<'a> {
 					.filter(|(bit, _)| mask & (1 << bit) == 0)
 					.map(|(_, k)| *k)
 					.collect();
-				self.overload(function, owner, owner_ty, &left)
+				self.overload(function, owner, owner_ty, taken, &left)
 			})
 			.collect()
 	}
@@ -1253,25 +1257,25 @@ impl<'a> Gen<'a> {
 		lent_option(&self.structs, ty)
 	}
 
-	/// One of `function`'s Swift forms, leaving out the optional borrowed parameters in
-	/// `left`, which pass `None`.
+	/// One of `function`'s Swift forms, apart from the members `taken` names, leaving out
+	/// the optional borrowed parameters in `left`, which pass `None`.
 	fn overload(
 		&mut self,
 		function: &Function,
 		owner: Option<&Ty>,
 		owner_ty: Option<&Type>,
+		taken: &[String],
 		left: &BTreeSet<usize>,
 	) -> (String, String) {
 		let abi = self.abi;
 		let export = abi.export(function, owner);
 		let c_name = export.call.name.clone();
-		let bare = self.bare(&c_name).to_string();
 		let owner_c = match owner {
 			Some(Ty::Struct(n) | Ty::Enum(n) | Ty::Handle { name: n, .. }) => Some(n.clone()),
 			_ => None,
 		};
 		let own = match &owner_c {
-			Some(o) => c_name.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_')),
+			Some(o) => export.named.strip_prefix(o.as_str()).and_then(|r| r.strip_prefix('_')),
 			None => None,
 		};
 		let reserved: &[&str] = match owner_ty {
@@ -1279,7 +1283,9 @@ impl<'a> Gen<'a> {
 			Some(_) => &["init"],
 			None => &[],
 		};
-		let snake = own.unwrap_or(&bare);
+		// Named as Rust's path is, whatever C's clashes rename.
+		let named = self.bare(&export.named).to_string();
+		let snake = own.unwrap_or(&named);
 		let mut member = member(snake, reserved);
 
 		let receiver = function.receiver.filter(|_| owner.is_some());
@@ -1527,28 +1533,40 @@ impl<'a> Gen<'a> {
 			false => "",
 		};
 		let body = body.join("\n");
-		let head = match (function.access, receiver) {
-			(Access::Field { set: false, .. }, Some(_))
-				if function.params.is_empty() && !throws && mutation.is_empty() =>
-			{
-				format!("public var {member}{}", ret.replacen(" -> ", ": ", 1))
+		let var = function.params.is_empty() && !throws;
+		let var = match (function.access, receiver) {
+			(Access::Field { set: false, .. }, Some(_)) => var && mutation.is_empty(),
+			(Access::Const, None) => {
+				if var {
+					member = member.trim_matches('`').to_uppercase();
+				}
+				var
 			}
-			(Access::Const, None) if function.params.is_empty() && !throws => {
-				member = member.trim_matches('`').to_uppercase();
-				format!("public {stat}var {member}{}", ret.replacen(" -> ", ": ", 1))
-			}
-			_ => format!(
-				"public {stat}{mutation}func {member}({}){effects}{ret}",
-				params.join(", ")
-			),
+			_ => false,
 		};
-		let code = format!("{}{head} {{\n{}\n}}\n", docs(text.trim(), ""), indent(&body));
-		let labels = match head.contains(" var ") {
+		let labels: Vec<String> = match var {
 			true => Vec::new(),
 			false => (params.iter())
 				.map(|p| unquote(p.split([' ', ':']).next().expect("a parameter has its label")))
 				.collect(),
 		};
+		// A member its type declares already, as a field of its name, takes a trailing `_`.
+		match owner {
+			None => member = self.claim(&member, &labels, format!("fn `{}`", function.path.join("::"))),
+			Some(_) => {
+				while taken.contains(&full(is_static, &member, labels.iter().cloned())) {
+					member = format!("{}_", unquote(&member));
+				}
+			}
+		}
+		let head = match var {
+			true => format!("public {stat}var {member}{}", ret.replacen(" -> ", ": ", 1)),
+			false => format!(
+				"public {stat}{mutation}func {member}({}){effects}{ret}",
+				params.join(", ")
+			),
+		};
+		let code = format!("{}{head} {{\n{}\n}}\n", docs(text.trim(), ""), indent(&body));
 		(code, full(is_static, &member, labels))
 	}
 
@@ -1587,16 +1605,17 @@ impl<'a> Gen<'a> {
 			}
 			_ => {
 				// Named by its key, as its C structs are, so two types never share one.
-				let name = format!("{}Error", pascal(&self.abi.key(err)));
 				let key = self.abi.key(err);
-				match self.thrown.get(&name) {
-					Some(seen) if self.abi.key(seen) == key => {}
-					// Another type whose key spells the same name in PascalCase: the claim fails.
-					_ => {
-						self.claim(&name, format!("the error type `{}`", self.sw(err)));
+				let seen = self.thrown.iter().find(|(_, seen)| self.abi.key(seen) == key);
+				let name = match seen {
+					Some((name, _)) => name.clone(),
+					None => {
+						let name = format!("{}Error", pascal(&key));
+						let name = self.claim(&name, &[], format!("the error type `{}`", self.sw(err)));
 						self.thrown.insert(name.clone(), err.clone());
+						name
 					}
-				}
+				};
 				Thrown::Wrapped(name)
 			}
 		}
