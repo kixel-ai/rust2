@@ -779,6 +779,21 @@ async def foreign():
 		await asyncio.sleep(0)
 	check(cancelled == [True], "dropping a future Rust polls cancels its task")
 
+	# Refused at the call, before Rust takes it: what is not awaitable, and a future of
+	# another loop, which Rust's first poll could not start.
+	try:
+		await api.after(42, 1)  # type: ignore[arg-type]
+		check(False, "a value that is not awaitable is refused")
+	except TypeError:
+		pass
+	other = asyncio.new_event_loop()
+	try:
+		await api.after(other.create_future(), 1)
+		check(False, "a future of another loop is refused")
+	except ValueError:
+		pass
+	other.close()
+
 
 
 async def on_loop():
@@ -1062,6 +1077,17 @@ def broken(which):
 		# An IPv6 address where Rust takes `SocketAddrV4`.
 		case "family":
 			api.nexts(("::", 1, 0, 0), ("::", 1, 0, 0))
+		# A future Rust polls, cancelled by its owner rather than by Rust.
+		case "foreign cancelled":
+
+			async def cancel():
+				gate = asyncio.get_running_loop().create_future()
+				task = asyncio.ensure_future(api.after(gate, 1))
+				await asyncio.sleep(0)
+				gate.cancel()
+				await task
+
+			asyncio.run(cancel())
 		case "callback threw":
 
 			class Threw(api.Log):

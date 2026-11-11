@@ -448,8 +448,9 @@ caller imports it with no ignores.
   as a coroutine is.
 - An **awaitable Python implements** is an `Awaitable[None]`, such as a coroutine, passed
   on a running event loop, where Rust's first poll runs it as a task. Rust dropping it
-  cancels the task, or closes a coroutine it never started. One that raises prints its
-  traceback and aborts.
+  cancels the task, or closes a coroutine it never started. One that raises, or that
+  anything but Rust cancels, prints its traceback and aborts. A value that is not
+  awaitable, or a future of another loop, raises at the call.
 - A **waker** is a `Waker(callback)`, which Rust may wake from any thread, calling
   `callback` on its event loop; `wake()` wakes it from any thread. One Rust returns is a
   `Waker` too, which wakes through Rust and drops with its last reference.
@@ -687,7 +688,7 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   the isolate alive, as a timer does.
 - A **future Dart implements** is any `Future<void>`, already running as Dart's futures
   are, which Rust polls until it completes. Rust dropping it cancels it if it is a
-  `Cancelable` still running, and one that fails otherwise aborts.
+  `Cancelable` still running, and one that fails while Rust holds it aborts.
 - A **waker** is a `void Function()`, which runs on the isolate's event loop. One Rust
   returns wakes through Rust, and the garbage collector drops it.
 - **Threads**: Dart runs code only on its isolate's thread, so Rust reaches it from any

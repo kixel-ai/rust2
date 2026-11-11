@@ -808,6 +808,18 @@ Future<void> futures() async {
   }
   await cancelled(recv, "Rust's drop of a call into Rust it was given cancels it");
   kept.close();
+
+  // A Dart future that fails once Rust dropped it, before the isolate hears of the drop,
+  // aborts nothing.
+  final late = Completer<void>();
+  try {
+    await api.within(0, late.future);
+    check(false, 'Rust gives up on a Dart future');
+  } on api.Error catch (e) {
+    check(e is api.ErrorOverflow, 'Rust gives up on a Dart future');
+  }
+  late.completeError(StateError('failed after Rust dropped it'));
+  await step();
   print('futures ok');
 }
 

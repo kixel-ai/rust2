@@ -616,6 +616,7 @@ fn api_python() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Python raised"),
+		("foreign cancelled", "a future Rust polls raised"),
 		("outlived", OUTLIVED),
 		("family", "ValueError: an IPv6 address has no Rust SocketAddrV4"),
 	] {

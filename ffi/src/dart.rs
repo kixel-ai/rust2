@@ -146,10 +146,10 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		),
 		(
 			"dart_future_done",
-			"ffi.Pointer<ffi.Void>",
-			"ffi.Void",
-			"ffi.Pointer<ffi.Void> p0",
-			"void",
+			"ffi.Pointer<ffi.Void>, ffi.Bool",
+			"ffi.Bool",
+			"ffi.Pointer<ffi.Void> p0, bool p1",
+			"bool",
 		),
 		(
 			"dart_relay",
@@ -245,7 +245,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		#[unsafe(no_mangle)]\npub extern \"C\" fn {space}_home(port: i64, dropped: unsafe extern \"C\" fn(i64)) -> *const c_void {{\n\tstd::ptr::from_ref(runtime::home(port, dropped)).cast()\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_waker(home: *const c_void, token: i64) -> rt::Waker {{\n\truntime::waker(unsafe {{ &*home.cast() }}, token)\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_future(home: *const c_void, token: i64) -> rt::ForeignFuture {{\n\truntime::future(unsafe {{ &*home.cast() }}, token)\n}}\n\n\
-		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_future_done(data: *const c_void) {{\n\tunsafe {{ runtime::future_done(data) }}\n}}\n\n\
+		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_future_done(data: *const c_void, failed: bool) -> bool {{\n\tunsafe {{ runtime::future_done(data, failed) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_relay(home: *const c_void, f: *const c_void, token: i64) -> *mut c_void {{\n\truntime::relay(unsafe {{ &*home.cast() }}, f, token).cast()\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_relay_free(relay: *mut c_void) {{\n\tunsafe {{ runtime::relay_free(relay.cast()) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_relay_drop(relay: *mut c_void) {{\n\tunsafe {{ runtime::relay_drop(relay) }}\n}}\n\n\

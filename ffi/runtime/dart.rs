@@ -477,6 +477,9 @@ struct Foreign {
 	home: &'static Home,
 	token: i64,
 	done: AtomicBool,
+	/// Set as Rust frees it, before Dart hears of it, so a failure Dart sees after it
+	/// does not abort.
+	freed: AtomicBool,
 	waker: Mutex<Option<std::task::Waker>>,
 }
 
@@ -501,6 +504,7 @@ unsafe extern "C" fn poll_foreign(data: *mut c_void, waker: rt::Waker) -> bool {
 unsafe extern "C" fn free_foreign(data: *mut c_void) {
 	// SAFETY: `future` made `data`, Rust's half of which this frees once.
 	let foreign = unsafe { Arc::from_raw(data.cast::<Foreign>()) };
+	foreign.freed.store(true, Ordering::Release);
 	foreign.waker().take();
 	// Tell Dart, which cancels the future if it is a call into Rust.
 	foreign.home.post((foreign.token << 2) | DROP);
@@ -512,6 +516,7 @@ pub fn future(home: &'static Home, token: i64) -> rt::ForeignFuture {
 		home,
 		token,
 		done: AtomicBool::new(false),
+		freed: AtomicBool::new(false),
 		waker: Mutex::default(),
 	});
 	let data = Arc::into_raw(foreign);
@@ -524,17 +529,23 @@ pub fn future(home: &'static Home, token: i64) -> rt::ForeignFuture {
 	}
 }
 
-/// Dart completed the future `future` made of `data`, freeing its half.
+/// Dart completed the future `future` made of `data`, or it `failed`, freeing Dart's half.
+/// False when it failed while Rust still holds it, which Dart then aborts on: Rust never
+/// sees it done.
 ///
 /// # Safety
 ///
 /// `data` is a future's, done once.
-pub unsafe fn future_done(data: *const c_void) {
+pub unsafe fn future_done(data: *const c_void, failed: bool) -> bool {
 	// SAFETY: the caller's contract.
 	let foreign = unsafe { Arc::from_raw(data.cast::<Foreign>()) };
+	if failed && !foreign.freed.load(Ordering::Acquire) {
+		return false;
+	}
 	foreign.done.store(true, Ordering::Release);
 	let waker = foreign.waker().take();
 	if let Some(waker) = waker {
 		waker.wake();
 	}
+	true
 }

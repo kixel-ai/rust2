@@ -154,6 +154,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		import asyncio as _asyncio\n\
 		import datetime as _datetime\n\
 		import enum as _enum\n\
+		import inspect as _inspect\n\
 		import socket as _socket\n\
 		import sys as _sys\n\
 		import typing as _typing\n\

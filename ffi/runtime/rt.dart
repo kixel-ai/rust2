@@ -517,16 +517,12 @@ final class _Native {
     final token = next();
     final f = _dartFuture(home, token);
     final data = f.data;
-    var freed = false;
-    _drops[token] = () {
-      freed = true;
-      calls[future]?.cancel();
-    };
+    _drops[token] = () => calls[future]?.cancel();
     future.then(
-      (_) => _dartFutureDone(data),
+      (_) => _dartFutureDone(data, false),
       onError: (Object e, StackTrace s) {
-        if (!freed) abort('a future given to Rust', e, s);
-        _dartFutureDone(data);
+        // Rust's free shows here at once, before its message reaches the isolate.
+        if (!_dartFutureDone(data, true)) abort('a future given to Rust', e, s);
       },
     );
     return f;

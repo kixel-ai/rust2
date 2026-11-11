@@ -1851,33 +1851,24 @@ unsafe extern "C" fn ended_free(capsule: *mut PyObject) {
 	drop(unsafe { Box::from_raw(PyCapsule_GetPointer(capsule, null()).cast::<Arc<Ended>>()) });
 }
 
-static CANCELLED: Key = Key::new(c"cancelled");
 static RESULT: Key = Key::new(c"result");
 
-/// `ended(task)`: the awaitable's task finished, on its loop. One cancelled ended as Rust
-/// dropped it; one that raised aborts, as a callback that raises does.
+/// `ended(task)`: the awaitable's task finished, on its loop, while Rust held it. One that
+/// raised, or was cancelled by anyone but Rust, aborts, as a callback that raises does.
 unsafe extern "C" fn pollable_ended(capsule: *mut PyObject, task: *mut PyObject) -> *mut PyObject {
 	// SAFETY: the capsule holds what `pollable_poll` boxed, until it is collected.
 	let ended = unsafe { &*PyCapsule_GetPointer(capsule, null()).cast::<Arc<Ended>>() };
-	let cancelled = call_method(task, &CANCELLED, Vec::new())
-		// SAFETY: the GIL is held.
-		.map(|c| unsafe { PyObject_IsTrue(c.ptr()) } == 1);
-	match cancelled {
-		Ok(true) => {}
-		cancelled => {
-			if cancelled.and_then(|_| call_method(task, &RESULT, Vec::new())).is_err() {
-				// SAFETY: the GIL is held, and an exception is set.
-				unsafe { PyErr_Print() };
-				rt::fail("ended", "a future Rust polls raised");
-			}
-			ended.done.store(true, Ordering::Release);
-			if let Some(waker) = ended.take() {
-				// SAFETY: the latest poll's waker, taken out once.
-				unsafe {
-					waker.wake();
-					waker.release();
-				}
-			}
+	if call_method(task, &RESULT, Vec::new()).is_err() {
+		// SAFETY: the GIL is held, and an exception is set.
+		unsafe { PyErr_Print() };
+		rt::fail("ended", "a future Rust polls raised");
+	}
+	ended.done.store(true, Ordering::Release);
+	if let Some(waker) = ended.take() {
+		// SAFETY: the latest poll's waker, taken out once.
+		unsafe {
+			waker.wake();
+			waker.release();
 		}
 	}
 	none().map_or(null_mut(), Obj::into_ptr)
