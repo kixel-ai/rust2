@@ -27,7 +27,7 @@ use std::fmt::Write;
 
 use crate::abi::{self, Abi, Sig, Ty, pascal};
 use crate::glue::rs;
-use crate::ir::{Access, Family, Function, Int, Literal, Receiver, Type};
+use crate::ir::{Access, Family, Function, Int, Literal, On, Receiver, Type};
 use crate::kotlin::strip_refs;
 
 const RUNTIME: &str = include_str!("../runtime/rt.dart");
@@ -65,6 +65,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		relays: Vec::new(),
 		trampolines: Vec::new(),
 		fresh: 0,
+		on: On::ALL,
 	};
 	g.check_names();
 	g.items();
@@ -84,10 +85,15 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		const _file = '{p}.dart';\n\n\
 		/// Bytes Rust returns past this long are lent to Dart rather than copied.\n\
 		const _lend = {LEND};\n\n\
-		bool _contract() => _{p}_contract() == 0x{contract:016x};\n\n"
+		bool _contract() => _{p}_contract() == 0x{contract:016x};\n\n\
+		/// The index of the library's target among those this file serves.\n\
+		final int _target = _{p}_target();\n\n\
+		/// Throws unless the library's target is among those of [on], as the item [what] is.\n\
+		void _on(int on, String what) {{\n\tif ((on >>> _target) & 1 == 0) {{\n\t\tthrow UnsupportedError(\"$what: it is not on this library's target\");\n\t}}\n}}\n\n"
 	);
 	for (name, params, ret, dart_params, dart_ret) in [
 		("contract", "", "ffi.Uint64", "", "int"),
+		("target", "", "ffi.Uint32", "", "int"),
 		("buf_free", "_Buf", "ffi.Void", "_Buf p0", "void"),
 		(
 			"dart_init",
@@ -162,7 +168,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		("dart_abort", "_Buf", "ffi.Void", "_Buf p0", "void"),
 	] {
 		let local = match name {
-			"contract" => format!("_{p}_contract"),
+			"contract" | "target" => format!("_{p}_{name}"),
 			"buf_free" => "_bufFree".to_string(),
 			other => format!("_{}", camel(other)),
 		};
@@ -315,6 +321,8 @@ struct Gen<'a> {
 	/// Each closure type, whose trampoline is `_t<n>`.
 	trampolines: Vec<Type>,
 	fresh: usize,
+	/// The targets of the item being written, whose calls check theirs.
+	on: On,
 }
 
 impl<'a> Gen<'a> {
@@ -663,7 +671,30 @@ impl<'a> Gen<'a> {
 			call.name,
 			args.join(", ")
 		);
-		self.native_fn(&name, params, call.ret.clone())
+		let native = self.native_fn(&name, params, call.ret.clone());
+		let api = self.abi.api;
+		if api.everywhere(self.on) {
+			return native;
+		}
+		// On a target its item is not on, the call throws before it calls in.
+		let checked = format!("{native}_on");
+		if !self.natives.contains_key(&checked) {
+			let decl = self.natives[&name].replacen(&format!("{native}("), &format!("{checked}("), 1);
+			let params: Vec<String> = (0..=call.params.len()).map(|n| format!("p{n}")).collect();
+			let declared = &decl[decl.find("external ").expect("a native") + "external ".len()..];
+			let ret = &declared[..declared.find(' ').expect("a native's return")];
+			let typed =
+				&declared[declared.find('(').expect("a native's parameters")..declared.rfind(");").expect("a native")];
+			let wrapper = format!(
+				"{ret} {native}{typed}) {{\n\t_on(0x{:x}, '{}');\n\treturn {checked}({});\n}}\n\n",
+				self.on.0 & api.all().0,
+				call.name,
+				params.join(", ")
+			);
+			self.natives.insert(name.clone(), decl);
+			self.natives.insert(checked, wrapper);
+		}
+		native
 	}
 
 	/// The Dart functions owning a handle of the object `c`, whose C type is `handle`: one
@@ -824,6 +855,11 @@ impl<'a> Gen<'a> {
 				for (n, variant) in e.variants.iter().enumerate() {
 					let case = variant_class(&class_name, &variant.name);
 					let mut body = vec![format!("c.$tag = {n};")];
+					// A value of a variant the library's target lacks is refused as it crosses.
+					if !abi.api.everywhere(variant.on) {
+						let on = variant.on.0 & abi.api.all().0;
+						body.insert(0, format!("_on(0x{on:x}, '{c}.{}');", variant.name));
+					}
 					let member = abi::escape(&abi::snake(&variant.name));
 					for field in &variant.fields {
 						let e = format!("v.{}", field_name(&field.name));
@@ -1274,6 +1310,7 @@ impl<'a> Gen<'a> {
 	fn record(&mut self, i: usize) {
 		let abi = self.abi;
 		let record = &abi.api.records[i];
+		self.on = record.on;
 		let c = abi.record(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&record.path, &record.args);
@@ -1317,6 +1354,7 @@ impl<'a> Gen<'a> {
 	fn enumeration(&mut self, i: usize) {
 		let abi = self.abi;
 		let e = &abi.api.enums[i];
+		self.on = e.on;
 		let c = abi.enumeration(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&e.path, &e.args);
@@ -1326,17 +1364,34 @@ impl<'a> Gen<'a> {
 		let mut body = Vec::new();
 		let text = format!("{rust}\n\n{}", e.docs);
 		if e.plain() {
+			// A value of a variant the library's target lacks is refused as it crosses, when
+			// its C value is read.
+			let limited = e.variants.iter().any(|v| !abi.api.everywhere(v.on));
 			let values: Vec<String> = (e.variants.iter())
 				.map(|v| {
 					let value = enum_value(&v.name);
 					members.push(format!("static {value}"));
-					format!("\t{value}({})", v.discriminant)
+					match limited {
+						true => format!(
+							"\t{value}({}, 0x{:x}, '{c}.{}')",
+							v.discriminant,
+							v.on.0 & abi.api.all().0,
+							v.name
+						),
+						false => format!("\t{value}({})", v.discriminant),
+					}
 				})
 				.collect();
-			body.push(format!(
-				"{};\n\n\tconst {name}(this._c);\n\n\t/// Its C value.\n\tfinal int _c;\n",
-				values.join(",\n")
-			));
+			body.push(match limited {
+				true => format!(
+					"{};\n\n\tconst {name}(this._value, this._targets, this._what);\n\n\tfinal int _value;\n\tfinal int _targets;\n\tfinal String _what;\n\n\t/// Its C value.\n\tint get _c {{\n\t\t_on(_targets, _what);\n\t\treturn _value;\n\t}}\n",
+					values.join(",\n")
+				),
+				false => format!(
+					"{};\n\n\tconst {name}(this._c);\n\n\t/// Its C value.\n\tfinal int _c;\n",
+					values.join(",\n")
+				),
+			});
 			self.traits(&ty, &c, e.traits, &mut body, &mut members);
 			let owner = abi.ty(&ty);
 			self.methods(&e.methods, &owner, &ty, &mut body, &mut members);
@@ -1396,6 +1451,7 @@ impl<'a> Gen<'a> {
 	fn object(&mut self, i: usize) {
 		let abi = self.abi;
 		let object = &abi.api.objects[i];
+		self.on = object.on;
 		let c = abi.object(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&object.path, &object.args);
@@ -1426,6 +1482,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		let p = abi.prefix.clone();
 		let callback = &abi.api.callbacks[i];
+		self.on = callback.on;
 		let c = abi.callback(i);
 		let name = self.class(&c);
 		let rust = callback.path.join("::");
@@ -1660,6 +1717,18 @@ impl<'a> Gen<'a> {
 	/// `function`'s Dart form and its member name, a member of `owner` (whose IR type is
 	/// `owner_ty`) if it has one.
 	fn function(
+		&mut self,
+		function: &Function,
+		owner: Option<&Ty>,
+		owner_ty: Option<&Type>,
+	) -> Option<(String, String)> {
+		let on = std::mem::replace(&mut self.on, function.on);
+		let code = self.function_on(function, owner, owner_ty);
+		self.on = on;
+		code
+	}
+
+	fn function_on(
 		&mut self,
 		function: &Function,
 		owner: Option<&Ty>,

@@ -797,7 +797,28 @@ Future<void> owned() async {
   final log = CountLog();
   unclosedLogger(log);
   await collect(() => log.closes == 1, 'the garbage collector frees what an object it frees holds');
+  targets();
   print('owned ok');
+}
+
+/// `f` throws the UnsupportedError of `what`, which the library's target lacks.
+void lacks(void Function() f, String what) {
+  try {
+    f();
+  } on UnsupportedError catch (e) {
+    check(e.message == "$what: it is not on this library's target", '$what: $e');
+    return;
+  }
+  check(false, what);
+}
+
+/// The bindings serve wasm32 too, whose items the host's library lacks.
+void targets() {
+  check(api.pointerBits(api.platform()) == 64, "the host's variant crosses");
+  check(api.isFamily(api.Family.native), "the host's plain variant crosses");
+  lacks(() => api.wasmOnly(), 'api_wasm_only');
+  lacks(() => api.pointerBits(const api.PlatformWasm(bits: 32)), 'api_Platform.Wasm');
+  lacks(() => api.isFamily(api.Family.wasm), 'api_Family.Wasm');
 }
 
 @pragma('vm:never-inline')

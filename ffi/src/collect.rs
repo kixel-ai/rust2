@@ -30,7 +30,7 @@ use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _
 use crate::config;
 use crate::ir::{
 	Access, Api, Callback, Collection, Constant, Dyn, Enum, Family, Field, Function, Home, Int, Literal, Mutability,
-	Object, Param, Path, Receiver, Record, Task, TaskKind, Traits, Type, Variant,
+	Object, On, Param, Path, Receiver, Record, Task, TaskKind, Traits, Type, Variant,
 };
 
 /// Why something is refused: a construct, ranked by the census, and what it names.
@@ -303,6 +303,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 				functions: Vec::new(),
 				constants: Vec::new(),
 				crates: Vec::new(),
+				targets: vec![tcx.sess.opts.target_triple.tuple().to_string()],
 			},
 		};
 		c.walk();
@@ -1177,6 +1178,7 @@ impl<'tcx> Collector<'tcx> {
 							shown,
 							args: Vec::new(),
 							span,
+							on: On::ALL,
 							docs,
 							fields: Vec::new(),
 							tuple: false,
@@ -1192,6 +1194,7 @@ impl<'tcx> Collector<'tcx> {
 							shown,
 							args: Vec::new(),
 							span,
+							on: On::ALL,
 							docs,
 							variants: Vec::new(),
 							exhaustive: true,
@@ -1211,6 +1214,7 @@ impl<'tcx> Collector<'tcx> {
 							shown,
 							args: Vec::new(),
 							span,
+							on: On::ALL,
 							docs,
 							sync,
 							copy,
@@ -1228,6 +1232,7 @@ impl<'tcx> Collector<'tcx> {
 							path,
 							home: home.clone(),
 							span,
+							on: On::ALL,
 							docs,
 							methods: Vec::new(),
 						});
@@ -1264,6 +1269,7 @@ impl<'tcx> Collector<'tcx> {
 				shown: vec![self.report.root.clone(), krate.to_string(), name.to_string()],
 				args: Vec::new(),
 				span,
+				on: On::ALL,
 				docs: format!(
 					"`Arc<{}>`: a handle to another crate's value, which Rust takes back, with none of its API.",
 					tcx.def_path_str(def_id)
@@ -1300,6 +1306,7 @@ impl<'tcx> Collector<'tcx> {
 			path: path("parse"),
 			shown: shown("parse"),
 			span,
+			on: On::ALL,
 			docs: docs.to_string(),
 			receiver: None,
 			params: vec![Param {
@@ -1340,6 +1347,7 @@ impl<'tcx> Collector<'tcx> {
 						path: path("to_text"),
 						shown: shown("to_text"),
 						span,
+						on: On::ALL,
 						docs: "The document as JSON text.".to_string(),
 						receiver: Some(Receiver::Ref),
 						params: Vec::new(),
@@ -1368,6 +1376,7 @@ impl<'tcx> Collector<'tcx> {
 			shown: shown(""),
 			args: Vec::new(),
 			span,
+			on: On::ALL,
 			docs: docs.to_string(),
 			sync: true,
 			copy: false,
@@ -1625,6 +1634,7 @@ impl<'tcx> Collector<'tcx> {
 				discriminant,
 				fields,
 				tuple,
+				on: On::ALL,
 			});
 		}
 		match errs.is_empty() {
@@ -1864,6 +1874,7 @@ impl<'tcx> Collector<'tcx> {
 						path: [&site.path[..], std::slice::from_ref(&name)].concat(),
 						shown: shown.clone(),
 						span,
+						on: On::ALL,
 						docs: docs(tcx, field.did),
 						receiver: Some(receiver),
 						params,
@@ -2465,6 +2476,7 @@ impl<'tcx> Collector<'tcx> {
 				path,
 				shown,
 				span: tcx.def_span(def_id),
+				on: On::ALL,
 				docs: docs(tcx, def_id),
 				receiver,
 				params,
@@ -3807,6 +3819,7 @@ impl<'tcx> Collector<'tcx> {
 							path,
 							home,
 							span,
+							on: On::ALL,
 							docs: docs(tcx, def_id),
 							value,
 						});
@@ -3826,6 +3839,7 @@ impl<'tcx> Collector<'tcx> {
 				path: path.clone(),
 				shown: path,
 				span,
+				on: On::ALL,
 				docs: docs(tcx, def_id),
 				receiver: None,
 				params: Vec::new(),

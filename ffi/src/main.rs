@@ -32,6 +32,7 @@ mod glue;
 mod go;
 mod ir;
 mod kotlin;
+mod merge;
 mod python;
 mod swift;
 

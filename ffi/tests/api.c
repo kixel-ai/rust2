@@ -1239,6 +1239,13 @@ static int broken(const char *which) {
 		api_vec_u16 ports = api_ports((api_vec_socket_addr){0});
 		ports.len = 1;
 		api_vec_u16_free(ports);
+	} else if (strcmp(which, "target") == 0) {
+		/* The header serves wasm32 too, whose items the host's library lacks. */
+		api_wasm_only();
+	} else if (strcmp(which, "variant") == 0) {
+		api_pointer_bits((api_Platform){.tag = API_PLATFORM_WASM, .wasm = {.bits = 32}});
+	} else if (strcmp(which, "plain variant") == 0) {
+		api_is_family(API_FAMILY_WASM);
 	}
 	return 0;
 }

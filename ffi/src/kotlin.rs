@@ -24,7 +24,7 @@ use std::hash::Hasher;
 use rustc_data_structures::stable_hash::StableHasher;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Family, Function, Int, Literal, Param, Receiver, Type};
+use crate::ir::{Access, Family, Function, Int, Literal, On, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.kt");
 pub const GLUE_RUNTIME: &str = include_str!("../runtime/jni.rs");
@@ -54,6 +54,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		fresh: 0,
 		tuples: BTreeSet::new(),
 		dispatchers: Vec::new(),
+		on: On::ALL,
 	};
 	g.write();
 	if !g.errors.is_empty() {
@@ -86,7 +87,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	kotlin.push_str(&g.top);
 	let _ = write!(
 		kotlin,
-		"internal object Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n{}{}}}\n",
+		"internal object Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __target(): Int\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -104,6 +105,10 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		#[unsafe(no_mangle)]\n\
 		pub extern \"system\" fn Java_{pkg}_Native__1_1contract(_: *mut JNIEnv, _: jclass) -> jlong {{\n\
 		\t0x{contract:016x}u64 as jlong\n\
+		}}\n\n\
+		#[unsafe(no_mangle)]\n\
+		pub extern \"system\" fn Java_{pkg}_Native__1_1target(_: *mut JNIEnv, _: jclass) -> jint {{\n\
+		\tcrate::{p}_target() as jint\n\
 		}}\n\n\
 		#[unsafe(no_mangle)]\n\
 		pub extern \"system\" fn Java_{pkg}_Native__1_1waker_1new(env: *mut JNIEnv, _: jclass, waker: jobject) -> jlong {{\n\
@@ -299,6 +304,8 @@ struct Gen<'a> {
 	tuples: BTreeSet<usize>,
 	/// The Kotlin functions the glue calls, which the rules keep.
 	dispatchers: Vec<String>,
+	/// The targets of the item being written, whose native methods check theirs.
+	on: On,
 }
 
 impl<'a> Gen<'a> {
@@ -926,6 +933,7 @@ impl<'a> Gen<'a> {
 	fn record(&mut self, i: usize) {
 		let abi = self.abi;
 		let record = &abi.api.records[i];
+		self.on = record.on;
 		let c = abi.record(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&record.path, &record.args);
@@ -1028,6 +1036,7 @@ impl<'a> Gen<'a> {
 	fn enumeration(&mut self, i: usize) {
 		let abi = self.abi;
 		let e = &abi.api.enums[i];
+		self.on = e.on;
 		let c = abi.enumeration(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&e.path, &e.args);
@@ -1054,11 +1063,25 @@ impl<'a> Gen<'a> {
 			members.push("fun of".to_string());
 			members.push("val value".to_string());
 			self.distinct(&rust, &members);
-			let entries: Vec<String> = e
-				.variants
-				.iter()
-				.map(|v| format!("\t{}({}),", abi::snake(&v.name).to_uppercase(), v.discriminant))
+			// An entry the library's target lacks is refused as it crosses, when its value is read.
+			let entries: Vec<String> = (e.variants.iter())
+				.map(|v| {
+					let entry = abi::snake(&v.name).to_uppercase();
+					match abi.api.everywhere(v.on) {
+						true => format!("\t{entry}({}),", v.discriminant),
+						false => format!(
+							"\t{entry}({}) {{\n\t\toverride val value: Int\n\t\t\tget() = super.value.also {{ Native.check({}uL, \"{c}.{}\") }}\n\t}},",
+							v.discriminant,
+							v.on.0 & abi.api.all().0,
+							v.name
+						),
+					}
+				})
 				.collect();
+			let open = match e.variants.iter().all(|v| abi.api.everywhere(v.on)) {
+				true => "",
+				false => "open ",
+			};
 			let cases: Vec<String> = e
 				.variants
 				.iter()
@@ -1072,7 +1095,7 @@ impl<'a> Gen<'a> {
 			let entries = entries.strip_suffix(',').unwrap_or(&entries);
 			let _ = write!(
 				self.types,
-				"{}enum class {name}(internal val value: Int) {{\n{entries};\n\n{}\tcompanion object {{\n{}\t}}\n}}\n\n",
+				"{}enum class {name}(internal {open}val value: Int) {{\n{entries};\n\n{}\tcompanion object {{\n{}\t}}\n}}\n\n",
 				docs(&e.docs, ""),
 				body.iter().map(|b| format!("{b}\n")).collect::<String>(),
 				statics.join("\n")
@@ -1093,6 +1116,11 @@ impl<'a> Gen<'a> {
 				.map(|f| format!("val {}: {}", field_name(&f.name), self.kt(&f.ty)))
 				.collect();
 			let mut write = vec![format!("w.i32({n})")];
+			// A value of a variant the library's target lacks is refused as it crosses.
+			if !abi.api.everywhere(variant.on) {
+				let on = variant.on.0 & abi.api.all().0;
+				write.insert(0, format!("Native.check({on}uL, \"{c}.{}\")", variant.name));
+			}
 			for f in &variant.fields {
 				let e = format!("v.{}", field_name(&f.name));
 				write.push(self.write_value(&f.ty, "w", &e));
@@ -1162,6 +1190,7 @@ impl<'a> Gen<'a> {
 	fn object(&mut self, i: usize) {
 		let abi = self.abi;
 		let object = &abi.api.objects[i];
+		self.on = object.on;
 		let c = abi.object(i);
 		let name = self.class(&c);
 		let bare = self.bare(&c).to_string();
@@ -1213,6 +1242,7 @@ impl<'a> Gen<'a> {
 	fn callback(&mut self, i: usize) {
 		let abi = self.abi;
 		let callback = &abi.api.callbacks[i];
+		self.on = callback.on;
 		let c = abi.callback(i);
 		let name = self.class(&c);
 		let bare = self.bare(&c).to_string();
@@ -1387,6 +1417,26 @@ impl<'a> Gen<'a> {
 			.enumerate()
 			.map(|(n, (_, k))| format!("p{n}: {k}"))
 			.collect();
+		// On a target its item is not on, the native method throws before it calls in.
+		let api = self.abi.api;
+		let external = match api.everywhere(self.on) {
+			true => bare.to_string(),
+			false => {
+				let external = format!("{bare}__on");
+				let args: Vec<String> = (0..params.len()).map(|n| format!("p{n}")).collect();
+				let _ = write!(
+					self.natives,
+					"\t@JvmStatic fun {bare}({}): {} {{\n\t\tcheck({}uL, \"{}_{bare}\")\n\t\treturn {external}({})\n\t}}\n\n",
+					kt.join(", "),
+					ret.1,
+					self.on.0 & api.all().0,
+					self.abi.prefix,
+					args.join(", ")
+				);
+				external
+			}
+		};
+		let bare = external.as_str();
 		let _ = write!(
 			self.natives,
 			"\t@JvmStatic external fun {bare}({}): {}\n\n",
@@ -1426,6 +1476,19 @@ impl<'a> Gen<'a> {
 	/// `function`'s Kotlin form, a member of `owner` (whose IR type is `owner_ty`) if it
 	/// has one, with its native methods and glue.
 	fn function(
+		&mut self,
+		function: &Function,
+		owner: Option<&Ty>,
+		owner_ty: Option<&Type>,
+		place: Place,
+	) -> Option<String> {
+		let on = std::mem::replace(&mut self.on, function.on);
+		let code = self.function_on(function, owner, owner_ty, place);
+		self.on = on;
+		code
+	}
+
+	fn function_on(
 		&mut self,
 		function: &Function,
 		owner: Option<&Ty>,

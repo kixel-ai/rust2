@@ -2180,3 +2180,73 @@ pub fn refuse(reason: &str) -> Result<u32, Box<Refusal>> {
 		reason: reason.to_string(),
 	}))
 }
+
+/// The kind of target the library was built for. One binding serves the host and wasm32,
+/// so it has every target's variants, and a target refuses one it lacks.
+pub enum Platform {
+	/// A native target, with its pointers' width in bits.
+	Native(u32),
+	/// wasm32, which only that target has.
+	#[cfg(target_arch = "wasm32")]
+	Wasm { bits: u32 },
+}
+
+/// The library's target's platform.
+pub fn platform() -> Platform {
+	#[cfg(target_arch = "wasm32")]
+	return Platform::Wasm { bits: usize::BITS };
+	#[cfg(not(target_arch = "wasm32"))]
+	Platform::Native(usize::BITS)
+}
+
+/// The width of `platform`'s pointers, in bits.
+pub fn pointer_bits(platform: Platform) -> u32 {
+	match platform {
+		Platform::Native(bits) => bits,
+		#[cfg(target_arch = "wasm32")]
+		Platform::Wasm { bits } => bits,
+	}
+}
+
+/// The family of the library's target, a plain enum with a variant only wasm32 has.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Family {
+	Native,
+	#[cfg(target_arch = "wasm32")]
+	Wasm,
+}
+
+/// Whether `family` is the library's target's.
+pub fn is_family(family: Family) -> bool {
+	#[cfg(target_arch = "wasm32")]
+	return family == Family::Wasm;
+	#[cfg(not(target_arch = "wasm32"))]
+	{
+		family == Family::Native
+	}
+}
+
+/// Only wasm32 has it: a call on another target fails.
+#[cfg(target_arch = "wasm32")]
+pub fn wasm_only() -> u32 {
+	32
+}
+
+/// A type only wasm32 has.
+#[cfg(target_arch = "wasm32")]
+pub struct Worker {
+	id: u32,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl Worker {
+	/// A worker numbered `id`.
+	pub fn new(id: u32) -> Self {
+		Self { id }
+	}
+
+	/// Its number.
+	pub fn id(&self) -> u32 {
+		self.id
+	}
+}
