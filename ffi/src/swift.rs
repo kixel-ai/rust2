@@ -567,6 +567,11 @@ impl<'a> Gen<'a> {
 				});
 			}
 		}
+		// Each named before any is written, since one tuple's fields may name another.
+		for c in tuples.keys() {
+			let name = self.claim(&self.class(c), &[], format!("the tuple `{c}`"));
+			self.classes.insert(c.clone(), name);
+		}
 		for (c, elements) in &tuples {
 			self.tuple(c, elements);
 		}
@@ -617,9 +622,8 @@ impl<'a> Gen<'a> {
 	/// The struct of a tuple holding an object's struct, which a Swift tuple cannot hold:
 	/// its fields `_0`, `_1`, ... are the tuple's elements.
 	fn tuple(&mut self, c: &str, elements: &[Type]) {
+		let name = self.class(c);
 		let types: Vec<String> = elements.iter().map(|e| self.sw(e)).collect();
-		let name = self.claim(&self.class(c), &[], format!("the tuple `({})`", types.join(", ")));
-		self.classes.insert(c.to_string(), name.clone());
 		let fields: String = (types.iter().enumerate())
 			.map(|(n, sw)| format!("\tpublic var _{n}: {sw}\n"))
 			.collect();
