@@ -145,6 +145,20 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 			"_Waker",
 		),
 		(
+			"dart_future",
+			"ffi.Pointer<ffi.Void>, ffi.Int64",
+			"_ForeignFuture",
+			"ffi.Pointer<ffi.Void> p0, int p1",
+			"_ForeignFuture",
+		),
+		(
+			"dart_future_done",
+			"ffi.Pointer<ffi.Void>, ffi.Bool",
+			"ffi.Bool",
+			"ffi.Pointer<ffi.Void> p0, bool p1",
+			"bool",
+		),
+		(
 			"dart_relay",
 			"ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>, ffi.Int64",
 			"ffi.Pointer<ffi.Void>",
@@ -237,6 +251,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_init(data: *const c_void) -> bool {{\n\tunsafe {{ runtime::init(data) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub extern \"C\" fn {space}_home(port: i64, dropped: unsafe extern \"C\" fn(i64)) -> *const c_void {{\n\tstd::ptr::from_ref(runtime::home(port, dropped)).cast()\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_waker(home: *const c_void, token: i64) -> rt::Waker {{\n\truntime::waker(unsafe {{ &*home.cast() }}, token)\n}}\n\n\
+		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_future(home: *const c_void, token: i64) -> rt::ForeignFuture {{\n\truntime::future(unsafe {{ &*home.cast() }}, token)\n}}\n\n\
+		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_future_done(data: *const c_void, failed: bool) -> bool {{\n\tunsafe {{ runtime::future_done(data, failed) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_relay(home: *const c_void, f: *const c_void, token: i64) -> *mut c_void {{\n\truntime::relay(unsafe {{ &*home.cast() }}, f, token).cast()\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_relay_free(relay: *mut c_void) {{\n\tunsafe {{ runtime::relay_free(relay.cast()) }}\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_relay_drop(relay: *mut c_void) {{\n\tunsafe {{ runtime::relay_drop(relay) }}\n}}\n\n\
@@ -480,6 +496,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(_) => "SocketAddr".to_string(),
 			Type::List(_, inner) => format!("List<{}>", self.dt(inner)),
 			Type::Waker => "void Function()".to_string(),
+			Type::Future => "Future<void>".to_string(),
 			Type::Option(inner) => {
 				if matches!(inner.base(), Type::Option(_)) {
 					let inner = self.dt(inner.base());
@@ -550,7 +567,7 @@ impl<'a> Gen<'a> {
 	fn scalar(ty: &Ty) -> bool {
 		!matches!(
 			ty,
-			Ty::Buf | Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::Waker
+			Ty::Buf | Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::Waker | Ty::ForeignFuture
 		)
 	}
 
@@ -563,6 +580,7 @@ impl<'a> Gen<'a> {
 			Ty::Duration => return "_Duration".to_string(),
 			Ty::SocketAddr => return "_Addr".to_string(),
 			Ty::Waker => return "_Waker".to_string(),
+			Ty::ForeignFuture => return "_ForeignFuture".to_string(),
 			Ty::Struct(name) => name.clone(),
 			other => unreachable!("{other:?} is no struct"),
 		};
@@ -1884,6 +1902,10 @@ impl<'a> Gen<'a> {
 				}
 				(Type::Waker, _) => {
 					args.push(format!("_n.wakerOf({name})"));
+					gave = true;
+				}
+				(Type::Future, _) => {
+					args.push(format!("_n.future({name})"));
 					gave = true;
 				}
 				(ty, c) if Self::scalar(c) => {

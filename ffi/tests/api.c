@@ -31,6 +31,83 @@ static void drop(void *data) {
 	drops++;
 }
 
+/* A future C implements: ready on its `ready`th poll, holding the waker of the last. */
+typedef struct {
+	int ready;
+	int polls;
+	bool freed;
+	api_waker waker;
+} foreign;
+
+static void foreign_drop(foreign *f) {
+	if (f->waker.drop) {
+		f->waker.drop(f->waker.data);
+	}
+	f->waker = (api_waker){0};
+}
+
+static bool foreign_poll(void *data, api_waker waker) {
+	foreign *f = data;
+	foreign_drop(f);
+	if (++f->polls >= f->ready) {
+		waker.drop(waker.data);
+		return true;
+	}
+	f->waker = waker;
+	return false;
+}
+
+static void foreign_free(void *data) {
+	foreign *f = data;
+	foreign_drop(f);
+	f->freed = true;
+}
+
+static api_foreign_future foreign_future(foreign *f) {
+	return (api_foreign_future){.poll = foreign_poll, .free = foreign_free, .data = f};
+}
+
+/* Futures C implements, which Rust polls: whether each behaved. */
+static bool foreign_futures(void) {
+	api_waker waker = {.wake = wake, .drop = drop, .data = NULL};
+	uint32_t out = 0;
+
+	/* Ready at once. */
+	foreign now = {.ready = 1};
+	api_after_future *after = api_after(foreign_future(&now), 4);
+	bool ok = api_after_poll(after, waker, &out) == API_POLL_READY && out == 8 && now.polls == 1;
+	api_after_future_free(after);
+	ok = ok && now.freed;
+
+	/* Pending once: its wake reaches the waker Rust was polled with. */
+	foreign later = {.ready = 2};
+	after = api_after(foreign_future(&later), 5);
+	int woken = wakes;
+	ok = ok && api_after_poll(after, waker, &out) == API_POLL_PENDING && later.waker.wake;
+	later.waker.wake(later.waker.data);
+	ok = ok && wakes == woken + 1;
+	ok = ok && api_after_poll(after, waker, &out) == API_POLL_READY && out == 10 && !later.waker.wake;
+	api_after_future_free(after);
+	ok = ok && later.freed;
+
+	/* Never ready: Rust gives up on it, freeing it and the waker it held once it finishes. */
+	foreign never = {.ready = 1000};
+	api_within_future *within = api_within(0, foreign_future(&never));
+	api_Error err;
+	ok = ok && api_within_poll(within, waker, &err) == API_POLL_ERROR && err.tag == API_ERROR_OVERFLOW;
+	api_Error_free(&err);
+	ok = ok && never.polls == 1 && never.freed && !never.waker.wake;
+	api_within_future_free(within);
+
+	/* Ready in time, by a second poll. */
+	foreign twice = {.ready = 2};
+	within = api_within(1, foreign_future(&twice));
+	ok = ok && api_within_poll(within, waker, &err) == API_POLL_PENDING;
+	ok = ok && api_within_poll(within, waker, &err) == API_POLL_READY && twice.polls == 2;
+	api_within_future_free(within);
+	return ok && twice.freed;
+}
+
 /* The Log callback: keeps even levels. */
 static bool log_line(void *data, uint8_t level, api_buf line) {
 	(void)data;
@@ -1279,7 +1356,10 @@ static int script(void) {
 	api_Token_free(twice);
 
 	/* Each future dropped its waker once it finished, and Rust the one it was given. */
-	return drops == 12 ? 0 : 1;
+	if (drops != 12) {
+		return 1;
+	}
+	return foreign_futures() ? 0 : 1;
 }
 
 /* Each breaks a contract, which must abort with a message naming the function. */
@@ -1331,6 +1411,9 @@ static int broken(const char *which) {
 	} else if (strcmp(which, "socket") == 0) {
 		api_socket_addr addr = {.ip = {127, 0, 0, 1, 1}};
 		api_ports((api_vec_socket_addr){.ptr = &addr, .len = 1});
+	} else if (strcmp(which, "future") == 0) {
+		/* A future with no poll. */
+		api_after((api_foreign_future){0}, 1);
 	} else if (strcmp(which, "array") == 0) {
 		api_vec_u16 ports = api_ports((api_vec_socket_addr){0});
 		ports.len = 1;

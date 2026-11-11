@@ -80,6 +80,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\tstatic let file = \"{p}.swift\"\n\n\
 		\ttypealias Buf = {p}_buf\n\
 		\ttypealias CWaker = {p}_waker\n\
+		\ttypealias CForeignFuture = {p}_foreign_future\n\
 		\ttypealias CU128 = {p}_u128\n\
 		\ttypealias CDuration = {p}_duration\n\
 		\ttypealias CAddr = {p}_socket_addr\n\n\
@@ -317,6 +318,7 @@ impl<'a> Gen<'a> {
 			Type::List(_, inner) if self.unique(inner) => format!("UniqueArray<{}>", self.sw(inner)),
 			Type::List(_, inner) => format!("[{}]", self.sw(inner)),
 			Type::Waker => "@Sendable () -> Void".to_string(),
+			Type::Future => "@Sendable () async -> Void".to_string(),
 			Type::Option(inner) => format!("{}?", self.sw(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.sw(inner),
 			Type::Record(i) => self.class(&abi.record(*i)),
@@ -415,6 +417,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(_) => format!("Native.socketAddr({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{e}._lower()"),
 			Type::Waker => format!("Native.waker({e})"),
+			Type::Future => format!("Native.future({e})"),
 			Type::List(_, inner) => {
 				let x = self.fresh("x");
 				let item = self.lower(inner, &x);
@@ -1178,6 +1181,7 @@ impl<'a> Gen<'a> {
 			}
 			(Type::Callback(i, _), _) => arg.exprs.push(format!("Native.lower_{}({e})", abi.callback(*i))),
 			(Type::Waker, _) => arg.exprs.push(format!("Native.waker({e})")),
+			(Type::Future, _) => arg.exprs.push(format!("Native.future({e})")),
 			(ty, Ty::Buf) if Abi::is_buf(ty) || matches!(ty.base(), Type::Option(inner) if Abi::is_buf(inner)) => {
 				let b = format!("b{k}_");
 				arg.open = Some((format!("{tr}Native.view({e}) {{ {b} in"), "}".to_string()));
@@ -1408,7 +1412,7 @@ impl<'a> Gen<'a> {
 			let ownership = match (param.ty.written(), &param.ty) {
 				(true, _) => "inout ",
 				// Rust keeps the waker past the call.
-				(false, Type::Waker) => "@escaping ",
+				(false, Type::Waker | Type::Future) => "@escaping ",
 				(false, _) => self.ownership(&param.ty),
 			};
 			params.push(format!("_ {name}: {ownership}{}", self.sw(&param.ty)));

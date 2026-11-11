@@ -1,5 +1,6 @@
 # The runtime every generated Python module includes: the awaitable a future that pends
-# is, the queue each event loop reads its wakes from, `Waker`, and `Mut`. Its names start
+# is, the queue each event loop reads its wakes from, `Waker`, what runs an awaitable Rust
+# polls, and `Mut`. Its names start
 # with `_` but `Waker` and `Mut`, so no exported name clashes with them.
 
 
@@ -110,6 +111,56 @@ class Waker:
 	def wake(self) -> None:
 		"""Wake it, from any thread, as Rust does: one Rust returned wakes through Rust."""
 		self._node.wake()
+
+
+class _Pollable:
+	"""An awaitable Rust polls as a future, from any thread: its first poll starts it as a
+	task on the event loop running where it was passed, never inside Rust's poll, and the
+	task calls `ended` once it finishes, unless Rust closed it first. Rust closes it once it
+	drops it, which cancels the task, or closes a coroutine never started. A task cancelled
+	otherwise reaches `ended`, which aborts on it as on any raise."""
+
+	__slots__ = ("_awaitable", "_loop", "_task", "_closed")
+
+	def __init__(self, awaitable: _typing.Awaitable[None]) -> None:
+		self._loop = _get_running_loop()
+		# Refused at the call, before Rust takes it, rather than stranding Rust once started.
+		if not _inspect.isawaitable(awaitable):
+			raise TypeError(f"{type(awaitable).__name__} is not awaitable")
+		if _asyncio.isfuture(awaitable) and awaitable.get_loop() is not self._loop:
+			raise ValueError("a future of another event loop")
+		self._awaitable = awaitable
+		self._task: _asyncio.Future[None] | None = None
+		self._closed = False
+
+	def start(self, ended: _typing.Callable[[_asyncio.Future[None]], object]) -> None:
+		self._loop.call_soon_threadsafe(self._run, ended)
+
+	def _run(self, ended: _typing.Callable[[_asyncio.Future[None]], object]) -> None:
+		if self._closed:
+			return
+		try:
+			self._task = _asyncio.ensure_future(self._awaitable, loop=self._loop)
+		except BaseException as e:
+			# `ended` aborts on it, as on a task that raised.
+			failed = self._loop.create_future()
+			failed.set_exception(e)
+			ended(failed)
+			return
+		self._task.add_done_callback(lambda task: None if self._closed else ended(task))
+
+	def close(self) -> None:
+		if not self._loop.is_closed():
+			self._loop.call_soon_threadsafe(self._cancel)
+		else:
+			self._cancel()
+
+	def _cancel(self) -> None:
+		self._closed = True
+		if self._task is not None:
+			self._task.cancel()
+		elif _asyncio.iscoroutine(self._awaitable):
+			self._awaitable.close()
 
 
 class Mut(_typing.Generic[_T]):

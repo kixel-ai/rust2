@@ -94,6 +94,9 @@ impl Header<'_> {
 			"/* Wakes a future's poller: wake may be called from any thread, any number of\n * times, until drop releases data. A poll passing the same wake and data again\n * reuses the waker. Either function may be null. One Rust returns is the caller's,\n * to drop once or pass back into Rust. */\ntypedef struct {p}_waker {{\n\tvoid (*wake)(void *data);\n\tvoid (*drop)(void *data);\n\tvoid *data;\n}} {p}_waker;\n"
 		));
 		self.line(format!(
+			"/* A future C implements, of nothing: Rust polls it from any thread with a waker of\n * its own each time, which C wakes once the future can make progress and drops once,\n * until poll returns true, and calls free with data once it drops the future, done or\n * not. free may be null. */\ntypedef struct {p}_foreign_future {{\n\tbool (*poll)(void *data, {p}_waker waker);\n\tvoid (*free)(void *data);\n\tvoid *data;\n}} {p}_foreign_future;\n"
+		));
+		self.line(format!(
 			"typedef enum {p}_poll {{\n\t{upper}_POLL_PENDING = 0,\n\t{upper}_POLL_READY = 1,\n\t{upper}_POLL_ERROR = 2,\n}} {p}_poll;\n"
 		));
 
@@ -497,6 +500,7 @@ pub fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
 		},
 		Ty::Future(n) => format!("{n} *{name}"),
 		Ty::Waker => space(&abi.rt("waker")),
+		Ty::ForeignFuture => space(&abi.rt("foreign_future")),
 		Ty::Poll => space(&abi.rt("poll")),
 		Ty::Out(inner) => decl(abi, inner, &format!("*{name}")),
 		Ty::In(inner) => format!("const {}", decl(abi, inner, &format!("*{name}"))),

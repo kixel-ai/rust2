@@ -1,7 +1,8 @@
 // The runtime the generated packages share, after the generated code names the export's
 // buffer as cBuf, its frees as cBufFree and cBufsFree, its waker as cWaker, woken and
-// dropped by cWakerWake and cWakerDrop, and its callbacks into Go as goCall and goRelease:
-// the handles objects own, the bytes and wakers Rust returns, and what Rust keeps of Go's. Each generated package keeps its own copy of what converts its C types, which
+// dropped by cWakerWake and cWakerDrop, and its callbacks into Go as goCall, goRelease,
+// and goPoll: the handles objects own, the bytes and wakers Rust returns, and what Rust
+// keeps of Go's. Each generated package keeps its own copy of what converts its C types, which
 // cgo makes its own, in ffi_cgo.go; it reaches this through Go's types alone.
 
 // The holds a handle counts, one for its owner until closed and one per call, shifted
@@ -363,12 +364,91 @@ func release_(p unsafe.Pointer) {
 	}
 }
 
-// GoCall_ is the C function calling what give_ kept as a func(), and GoRelease_ the one
-// releasing it, for the generated packages' wakers and tables.
+// GoCall_ is the C function calling what give_ kept as a func(), GoRelease_ the one
+// releasing it, and GoPoll_ the one polling what Pollable_ made, for the generated
+// packages' wakers, tables, and futures.
 func GoCall_() unsafe.Pointer {
 	return unsafe.Pointer(goCall)
 }
 
 func GoRelease_() unsafe.Pointer {
 	return unsafe.Pointer(goRelease)
+}
+
+func GoPoll_() unsafe.Pointer {
+	return unsafe.Pointer(goPoll)
+}
+
+// Pollable_ is run as a future Rust polls, under a context derived from parent, which
+// closing also cancels. For the generated packages: use none of it.
+func Pollable_(parent context.Context, run func(context.Context)) io.Closer {
+	ctx, cancel := context.WithCancel(parent)
+	return &pollable_{run: run, ctx: ctx, cancel: cancel}
+}
+
+// pollable_ is a Go function Rust polls as a future, one poll at a time from any thread:
+// its first poll runs it on a goroutine of its own, and once it returns, the waker of the
+// latest poll is woken.
+type pollable_ struct {
+	run    func(context.Context)
+	ctx    context.Context
+	cancel context.CancelFunc
+	mu     sync.Mutex
+	// Whether a poll ran it, whether it returned, and whether the latest poll's waker is held.
+	started, done, held bool
+	waker               cWaker
+}
+
+func (p *pollable_) poll(waker cWaker) bool {
+	p.mu.Lock()
+	if p.done {
+		p.mu.Unlock()
+		cWakerDrop(waker)
+		return true
+	}
+	old, had := p.waker, p.held
+	p.waker, p.held = waker, true
+	if !p.started {
+		p.started = true
+		go p.finish()
+	}
+	p.mu.Unlock()
+	if had {
+		cWakerDrop(old)
+	}
+	return false
+}
+
+// finish runs it, unless its context is done first, then wakes the latest poll's waker.
+// Once its context is done, by the caller or by Rust dropping it, it ends unfinished:
+// Rust never sees it done, so a call the caller cancelled reports the caller's error.
+func (p *pollable_) finish() {
+	if p.ctx.Err() == nil {
+		p.run(p.ctx)
+	}
+	if p.ctx.Err() != nil {
+		return
+	}
+	p.mu.Lock()
+	p.done = true
+	waker, had := p.waker, p.held
+	p.held = false
+	p.mu.Unlock()
+	if had {
+		cWakerWake(waker)
+		cWakerDrop(waker)
+	}
+}
+
+// Close cancels its context, once Rust drops it, and drops the waker it holds.
+func (p *pollable_) Close() error {
+	p.cancel()
+	p.mu.Lock()
+	waker, had := p.waker, p.held
+	p.held = false
+	p.mu.Unlock()
+	if had {
+		cWakerDrop(waker)
+	}
+	return nil
 }

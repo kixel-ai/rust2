@@ -518,8 +518,8 @@ impl<'a> Gen<'a> {
 			/*\n#cgo CFLAGS: -I${{SRCDIR}}/../../include\n#include <stdlib.h>\n#include \"{p}.h\"\n*/\nimport \"C\"\n\n\
 			import (\n\t\"context\"\n\t\"math\"\n\t\"math/big\"\n\t\"net\"\n\t\"net/netip\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"strconv\"\n\t\"time\"\n\t\"unsafe\"\n\n\t\"{rt}\"\n)\n\n\
 			// The runtime's names for the export's C types and functions.\n\
-			type (\n\tcBuf      = C.{p}_buf\n\tcWaker    = C.{p}_waker\n\tcU128     = C.{p}_u128\n\tcDuration = C.{p}_duration\n\tcAddr     = C.{p}_socket_addr\n)\n\n\
-			var (\n\tgoCall    = (*[0]byte)(rt.GoCall_())\n\tgoRelease = (*[0]byte)(rt.GoRelease_())\n)\n\n\
+			type (\n\tcBuf           = C.{p}_buf\n\tcWaker         = C.{p}_waker\n\tcForeignFuture = C.{p}_foreign_future\n\tcU128          = C.{p}_u128\n\tcDuration      = C.{p}_duration\n\tcAddr          = C.{p}_socket_addr\n)\n\n\
+			var (\n\tgoCall    = (*[0]byte)(rt.GoCall_())\n\tgoRelease = (*[0]byte)(rt.GoRelease_())\n\tgoPoll    = (*[0]byte)(rt.GoPoll_())\n)\n\n\
 			func cBufFree(buf cBuf) {{\n\tC.{p}_buf_free(buf)\n}}\n\n"
 		);
 		out.push_str(CONVERSIONS);
@@ -537,14 +537,14 @@ impl<'a> Gen<'a> {
 			// Rust returns, the error a closed object returns, and the types of no crate's.\n\
 			package rt\n\n\
 			/*\n#cgo CFLAGS: -I${{SRCDIR}}/../../include\n#include <stdlib.h>\n#include \"{p}.h\"\n\n\
-			extern void {go}_call(void *data);\nextern void {go}_release(void *data);\n\n\
+			extern void {go}_call(void *data);\nextern void {go}_release(void *data);\nextern bool {go}_poll(void *data, {p}_waker waker);\n\n\
 			static void {go}_bufs_free({p}_buf *bufs, size_t n) {{\n\tfor (size_t i = 0; i < n; i++) {{\n\t\t{p}_buf_free(bufs[i]);\n\t}}\n}}\n\n\
 			static void {go}_waker_wake({p}_waker w) {{\n\tif (w.wake != NULL) {{\n\t\tw.wake(w.data);\n\t}}\n}}\n\n\
 			static void {go}_waker_drop({p}_waker w) {{\n\tif (w.drop != NULL) {{\n\t\tw.drop(w.data);\n\t}}\n}}\n\
 			*/\nimport \"C\"\n\n\
-			import (\n\t\"errors\"\n\t\"io\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"sync\"\n\t\"sync/atomic\"\n\t\"unsafe\"\n)\n\n\
+			import (\n\t\"context\"\n\t\"errors\"\n\t\"io\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"sync\"\n\t\"sync/atomic\"\n\t\"unsafe\"\n)\n\n\
 			type (\n\tcBuf   = C.{p}_buf\n\tcWaker = C.{p}_waker\n)\n\n\
-			var (\n\tgoCall    = (*[0]byte)(C.{go}_call)\n\tgoRelease = (*[0]byte)(C.{go}_release)\n)\n\n\
+			var (\n\tgoCall    = (*[0]byte)(C.{go}_call)\n\tgoRelease = (*[0]byte)(C.{go}_release)\n\tgoPoll    = (*[0]byte)(C.{go}_poll)\n)\n\n\
 			func cBufFree(buf cBuf) {{\n\tC.{p}_buf_free(buf)\n}}\n\n\
 			// cBufsFree frees bufs, which are not empty, in one call.\n\
 			func cBufsFree(bufs []cBuf) {{\n\tC.{go}_bufs_free(&bufs[0], C.size_t(len(bufs)))\n}}\n\n\
@@ -558,7 +558,8 @@ impl<'a> Gen<'a> {
 			// On_ panics unless the library's target is among those of on, as the item what is.\n\
 			func On_(on uint64, what string) {{\n\tif on>>target_&1 == 0 {{\n\t\tpanic(what + \": it is not on this library's target\")\n\t}}\n}}\n\n\
 			//export {go}_call\nfunc {go}_call(data unsafe.Pointer) {{\n\tgiven_(data).(func())()\n}}\n\n\
-			//export {go}_release\nfunc {go}_release(data unsafe.Pointer) {{\n\trelease_(data)\n}}\n\n"
+			//export {go}_release\nfunc {go}_release(data unsafe.Pointer) {{\n\trelease_(data)\n}}\n\n\
+			//export {go}_poll\nfunc {go}_poll(data unsafe.Pointer, waker cWaker) C.bool {{\n\treturn C.bool(given_(data).(*pollable_).poll(waker))\n}}\n\n"
 		);
 		out.push_str(RUNTIME);
 		out
@@ -657,6 +658,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(_) => "netip.AddrPort".to_string(),
 			Type::List(_, inner) => format!("[]{}", self.go(inner)),
 			Type::Waker => "func()".to_string(),
+			Type::Future => "func(context.Context)".to_string(),
 			Type::Option(inner) => match inner.base() {
 				// Already a pointer, nil for none.
 				Type::Object(_) | Type::U128 => self.go(inner),
@@ -735,6 +737,7 @@ impl<'a> Gen<'a> {
 			Ty::Struct(n) | Ty::Enum(n) => format!("C.{n}"),
 			Ty::Handle { name, .. } | Ty::Future(name) => format!("*C.{name}"),
 			Ty::Waker => "cWaker".to_string(),
+			Ty::ForeignFuture => "cForeignFuture".to_string(),
 			other => unreachable!("no local is {other:?}"),
 		}
 	}
@@ -819,6 +822,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(Family::V4) => format!("lowerAddrV4_({e})"),
 			Type::SocketAddr(Family::V6) => format!("lowerAddrV6_({e})"),
 			Type::Waker => format!("waker_({e})"),
+			Type::Future => unreachable!("a foreign future crosses only as a parameter"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				self.convert(ty);
 				format!("lower_{}({e})", abi.range(ty))
@@ -2174,6 +2178,14 @@ impl<'a> Gen<'a> {
 					args.push(format!("lower_{}({name})", abi.callback(*i)))
 				}
 				(Type::Waker, _) => args.push(format!("waker_({name})")),
+				// Its body runs under the caller's context, when the call takes one.
+				(Type::Future, _) => {
+					let ctx = match function.future {
+						true => "ctx",
+						false => "context.Background()",
+					};
+					args.push(format!("future_({ctx}, {name})"))
+				}
 				(ty, Ty::Buf) => {
 					let call = match ty.buffer() {
 						Some(Type::String | Type::PathBuf) => format!("bufString_({name})"),

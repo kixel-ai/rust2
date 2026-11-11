@@ -91,6 +91,7 @@ pub fn rs(ty: &Ty) -> String {
 		Ty::Handle { .. } => "*const ::std::ffi::c_void".to_string(),
 		Ty::Future(_) => "*mut rt::Future".to_string(),
 		Ty::Waker => "rt::Waker".to_string(),
+		Ty::ForeignFuture => "rt::ForeignFuture".to_string(),
 		Ty::Out(inner) => format!("*mut {}", rs(inner)),
 		Ty::In(inner) => format!("*const {}", rs(inner)),
 		Ty::Fn(params, ret) => {
@@ -465,6 +466,7 @@ impl Gen<'_> {
 			Type::SocketAddr(Family::V4) => format!("{e}.lift_v4(w)"),
 			Type::SocketAddr(Family::V6) => format!("{e}.lift_v6(w)"),
 			Type::Waker => format!("{e}.lift()"),
+			Type::Future => format!("{e}.lift(w)"),
 			Type::List(c, inner) => format!(
 				"unsafe {{ {e}.items(w) }}.iter().map(|c| {}).collect::<{}<{}>>()",
 				self.lift(inner, "(*c)"),
@@ -628,6 +630,7 @@ impl Gen<'_> {
 			Type::Object(_) => format!("rt::Object::new({e})"),
 			Type::Callback(..) | Type::Closure(..) => unreachable!("a callback is never returned"),
 			Type::Waker => format!("rt::Waker::lower({e})"),
+			Type::Future => unreachable!("a foreign future is never returned"),
 			Type::Range(_) => format!("rt::Range::lower({e})"),
 			Type::Bound(_) => format!("rt::Bound::lower({e})"),
 			Type::Bounds(_) => format!("rt::Bounds::lower({e})"),

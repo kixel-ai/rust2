@@ -483,6 +483,83 @@ extension Native {
 			data: Box.give(wake))
 	}
 
+	/// `body` as the future Rust polls: its first poll starts it in a task of its own,
+	/// which Rust's free cancels, and the waker of the latest poll is woken once it returns.
+	static func future(_ body: @escaping @Sendable () async -> Void) -> CForeignFuture {
+		CForeignFuture(
+			poll: { data, waker in Box<Pollable>.unbox(data).poll(waker) },
+			free: { data in
+				Box<Pollable>.unbox(data).cancel()
+				Box<Pollable>.release(data)
+			},
+			data: Box.give(Pollable(body)))
+	}
+
+	/// A Swift async function Rust polls, from any thread, one poll at a time.
+	final class Pollable: @unchecked Sendable {
+		private let body: @Sendable () async -> Void
+		/// Started by the first poll; polls and the free never overlap, so only they touch it.
+		private var task: Task<Void, Never>?
+		/// 1 once `body` returned, changed only atomically.
+		private let done = UnsafeMutablePointer<Swift.Int>.allocate(capacity: 1)
+		/// The latest poll's waker, boxed, or 0: changed only atomically, so whoever takes it
+		/// out of the slot drops it.
+		private let waker = UnsafeMutablePointer<Swift.Int>.allocate(capacity: 1)
+
+		init(_ body: @escaping @Sendable () async -> Void) {
+			self.body = body
+			done.initialize(to: 0)
+			waker.initialize(to: 0)
+		}
+
+		deinit {
+			Pollable.drop(exchange(waker, 0))
+			done.deallocate()
+			waker.deallocate()
+		}
+
+		func poll(_ given: CWaker) -> Swift.Bool {
+			if load(done) == 1 {
+				given.drop?(given.data)
+				return true
+			}
+			Pollable.drop(exchange(waker, Swift.Int(bitPattern: Box.give(given))))
+			if task == nil {
+				task = Task { [self] in
+					// Dropped before it started, as a Rust future dropped unpolled, it never runs.
+					guard !Task.isCancelled else { return }
+					await body()
+					store(done, 1)
+					// A poll storing its waker after this sees `done` and takes it back.
+					let taken = exchange(waker, 0)
+					if taken != 0 {
+						let w = Box<CWaker>.unbox(UnsafeMutableRawPointer(bitPattern: taken))
+						w.wake?(w.data)
+						Pollable.drop(taken)
+					}
+				}
+			}
+			if load(done) == 1 {
+				Pollable.drop(exchange(waker, 0))
+				return true
+			}
+			return false
+		}
+
+		func cancel() {
+			task?.cancel()
+			Pollable.drop(exchange(waker, 0))
+		}
+
+		/// Drop the boxed waker `slot` held, if any.
+		private static func drop(_ slot: Swift.Int) {
+			guard let data = UnsafeMutableRawPointer(bitPattern: slot) else { return }
+			let w = Box<CWaker>.unbox(data)
+			Box<CWaker>.release(data)
+			w.drop?(w.data)
+		}
+	}
+
 	/// A waker Rust returned, which Rust drops once Swift lets go of it.
 	final class Returned: @unchecked Sendable {
 		let raw: CWaker

@@ -822,6 +822,83 @@ func futures() {
 		check(<-got == "held", "a closed handle stays alive in the call waiting on it")
 		sender.Close()
 	}
+
+	// Go functions Rust polls as futures, each run on a goroutine of its own.
+	{
+		ran := make(chan struct{}, 1)
+		check(must(api.After(ctx, func(context.Context) { ran <- struct{}{} }, 4)) == 8 && len(ran) == 1, "Rust awaits a Go function")
+	}
+	{
+		gate := make(chan struct{})
+		got := make(chan uint32)
+		go func() { got <- must(api.After(ctx, func(context.Context) { <-gate }, 5)) }()
+		select {
+		case <-got:
+			check(false, "Rust waits on a Go function that blocks")
+		case <-time.After(10 * time.Millisecond):
+		}
+		close(gate)
+		check(<-got == 10, "a Go function's return wakes Rust")
+	}
+	{
+		err := api.Within(ctx, 0, func(context.Context) {})
+		check(errors.Is(err, api.ErrorOverflow{}), "Rust gives up on a Go function")
+	}
+	{
+		short, cancel := context.WithTimeout(ctx, 10*time.Millisecond)
+		defer cancel()
+		cancelled := make(chan struct{})
+		err := api.Within(short, 1000, func(c context.Context) {
+			<-c.Done()
+			close(cancelled)
+		})
+		check(errors.Is(err, context.DeadlineExceeded), "a call waiting on a Go function ends at its deadline")
+		select {
+		case <-cancelled:
+		case <-time.After(5 * time.Second):
+			check(false, "dropping a future Rust polls cancels its context")
+		}
+	}
+	{
+		// The body's context carries the caller's values and deadline.
+		type key struct{}
+		caller, cancel := context.WithTimeout(context.WithValue(ctx, key{}, "caller"), time.Hour)
+		want, _ := caller.Deadline()
+		var value any
+		var deadline time.Time
+		ok(api.Within(caller, 1000, func(c context.Context) {
+			value = c.Value(key{})
+			deadline, _ = c.Deadline()
+		}))
+		cancel()
+		check(value == "caller" && deadline.Equal(want), "a Go function runs under the caller's context")
+	}
+	{
+		// A body that returns once the caller cancelled, even one that ignores its
+		// context, ends unfinished: the call reports the cancel, never Rust's success.
+		caller, cancel := context.WithCancel(ctx)
+		_, err := api.After(caller, func(context.Context) { cancel() }, 1)
+		check(errors.Is(err, context.Canceled), "a caller's cancel the body sees reports the cancel")
+	}
+	{
+		// The caller's cancel reaches the body's context.
+		caller, cancel := context.WithCancel(ctx)
+		started, cancelled := make(chan struct{}), make(chan struct{})
+		got := make(chan error)
+		go func() {
+			_, err := api.After(caller, func(c context.Context) {
+				close(started)
+				<-c.Done()
+				close(cancelled)
+			}, 1)
+			got <- err
+		}()
+		// Cancelled before its first poll, the call would never start the body.
+		<-started
+		cancel()
+		check(errors.Is(<-got, context.Canceled), "a cancelled call waiting on a Go function reports the cancel")
+		<-cancelled
+	}
 	fmt.Println("futures ok")
 }
 

@@ -1062,6 +1062,62 @@ unsafe extern "C" fn rust_drop(data: *mut c_void) {
 	drop(unsafe { Box::from_raw(data.cast::<std::task::Waker>()) });
 }
 
+/// A future C implements, of `()`: Rust polls it with a waker of its own each time, from
+/// any thread, until `poll` returns true, and calls `free` once it drops the future, done
+/// or not. `free` may be null.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ForeignFuture {
+	pub poll: Option<unsafe extern "C" fn(*mut c_void, Waker) -> bool>,
+	pub free: Option<unsafe extern "C" fn(*mut c_void)>,
+	pub data: *mut c_void,
+}
+
+impl ForeignFuture {
+	/// The Rust future around it, which frees it when dropped.
+	pub fn lift(self, what: &str) -> Pin<Box<dyn std::future::Future<Output = ()> + Send>> {
+		let Some(poll) = self.poll else {
+			fail(what, "a future's poll is null");
+		};
+		Box::pin(Polled {
+			poll,
+			free: self.free,
+			data: self.data,
+		})
+	}
+}
+
+/// A [`ForeignFuture`] Rust holds, whose poll is not null.
+struct Polled {
+	poll: unsafe extern "C" fn(*mut c_void, Waker) -> bool,
+	free: Option<unsafe extern "C" fn(*mut c_void)>,
+	data: *mut c_void,
+}
+
+// SAFETY: the foreign future's contract: it may be polled and freed from any thread.
+unsafe impl Send for Polled {}
+
+impl std::future::Future for Polled {
+	type Output = ();
+
+	fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> std::task::Poll<()> {
+		// SAFETY: the foreign future's contract; C owns the waker it is given.
+		match unsafe { (self.poll)(self.data, Waker::lower(cx.waker().clone())) } {
+			true => std::task::Poll::Ready(()),
+			false => std::task::Poll::Pending,
+		}
+	}
+}
+
+impl Drop for Polled {
+	fn drop(&mut self) {
+		if let Some(free) = self.free {
+			// SAFETY: the foreign future's contract; Rust drops it once.
+			unsafe { free(self.data) };
+		}
+	}
+}
+
 struct Foreign(Waker);
 
 // SAFETY: the waker's contract: `wake` and `drop` may be called from any thread.

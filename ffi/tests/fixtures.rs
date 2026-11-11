@@ -192,6 +192,7 @@ fn api_c() {
 		("socket", "api_ports: an IPv4 socket address has IPv6 bytes or fields"),
 		("family", "api_nexts: an IPv6 socket address where IPv4 is taken"),
 		("array", "api_vec_u16_free: an array is not as Rust returned it"),
+		("future", "api_after: a future's poll is null"),
 		("lent", "api_Registry_edit: a lent handle was freed"),
 		(
 			"lent moved",
@@ -640,6 +641,7 @@ fn api_python() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Python raised"),
+		("foreign cancelled", "a future Rust polls raised"),
 		("outlived", OUTLIVED),
 		("family", "ValueError: an IPv6 address has no Rust SocketAddrV4"),
 	] {

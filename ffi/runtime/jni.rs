@@ -494,6 +494,29 @@ pub unsafe fn poll(env: *mut JNIEnv, future: *mut c_void, node: *mut Node, poll:
 	}
 }
 
+static POLL: OnceLock<usize> = OnceLock::new();
+
+/// A Kotlin `Pollable` as the future Rust polls, which Rust closes once it drops it.
+pub fn future(env: *mut JNIEnv, pollable: jobject) -> rt::ForeignFuture {
+	rt::ForeignFuture {
+		poll: Some(poll_future),
+		free: Some(free_callback),
+		data: global(env, pollable),
+	}
+}
+
+/// Poll a Kotlin `Pollable`, from any thread, handing it Rust's waker as [`returned`]
+/// boxes it.
+unsafe extern "C" fn poll_future(data: *mut c_void, waker: rt::Waker) -> bool {
+	let waker = returned(waker);
+	upcall("poll", |env| {
+		let id = method(env, &POLL, c"__poll", c"(Ljava/lang/Object;J)Z");
+		let args = [jvalue { l: data.cast() }, jvalue { j: waker }];
+		// SAFETY: `__poll` takes the `Pollable` and the waker's pointer.
+		unsafe { ((**env).v1_2.CallStaticBooleanMethodA)(env, class(), id, args.as_ptr()) }
+	})
+}
+
 /// A Kotlin `Waker` passed by value: Rust holds its only reference.
 pub fn waker(env: *mut JNIEnv, waker: jobject) -> rt::Waker {
 	lend(node(env, waker))

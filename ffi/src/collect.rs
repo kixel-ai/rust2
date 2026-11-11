@@ -906,7 +906,8 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// Each type a function's signature names at `args`, normalized, with what a returned
-	/// future resolves to.
+	/// future resolves to. A type holding a foreign future names no instance: the future
+	/// that holds it, as `Timeout<F::IntoFuture>` does, is polled, never a handle.
 	fn spelled(&self, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> Vec<Ty<'tcx>> {
 		let tcx = self.tcx;
 		let env = TypingEnv::post_analysis(tcx, def_id);
@@ -921,6 +922,10 @@ impl<'tcx> Collector<'tcx> {
 			.map(normalize)
 			.flat_map(|ty| ty.walk())
 			.filter_map(|arg| arg.as_type())
+			.filter(|ty| {
+				!ty.walk()
+					.any(|arg| arg.as_type().is_some_and(|ty| self.is_foreign_future(ty)))
+			})
 			.collect()
 	}
 
@@ -2862,6 +2867,9 @@ impl<'tcx> Collector<'tcx> {
 				candidates.push((Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, bytes), None));
 			} else if serde(tcx, tr) {
 				candidates.extend(self.json().map(|ty| (ty, None)));
+			} else if Some(tr) == tcx.lang_items().future_trait() || tcx.is_diagnostic_item(sym::IntoFuture, tr) {
+				// A future the foreign side implements, which Rust polls until done.
+				candidates.extend(self.foreign_future().map(|ty| (ty, None)));
 			}
 		}
 		candidates.extend(string.map(|ty| (ty, None)));
@@ -3381,6 +3389,37 @@ impl<'tcx> Collector<'tcx> {
 			Some(Decl::Callback(i)) => Some(*i),
 			_ => None,
 		}
+	}
+
+	/// `Pin<Box<dyn Future<Output = ()> + Send>>`: what Rust takes a foreign future as.
+	fn foreign_future(&self) -> Option<Ty<'tcx>> {
+		let tcx = self.tcx;
+		let lang = tcx.lang_items();
+		let future = ty::ExistentialTraitRef::new(tcx, lang.future_trait()?, ty::List::<ty::GenericArg<'tcx>>::empty());
+		let output = ty::ExistentialProjection::new(
+			tcx,
+			lang.future_output()?,
+			ty::List::<ty::GenericArg<'tcx>>::empty(),
+			tcx.types.unit.into(),
+		);
+		let preds = tcx.mk_poly_existential_predicates(&[
+			ty::Binder::dummy(ty::ExistentialPredicate::Trait(future)),
+			ty::Binder::dummy(ty::ExistentialPredicate::Projection(output)),
+			ty::Binder::dummy(ty::ExistentialPredicate::AutoTrait(tcx.get_diagnostic_item(sym::Send)?)),
+		]);
+		let boxed = Ty::new_box(tcx, Ty::new_dynamic(tcx, preds, tcx.lifetimes.re_static));
+		Some(Ty::new_adt(
+			tcx,
+			tcx.adt_def(lang.pin_type()?),
+			tcx.mk_args(&[boxed.into()]),
+		))
+	}
+
+	/// Whether `ty` is [`Self::foreign_future`], whatever its lifetime.
+	fn is_foreign_future(&self, ty: Ty<'tcx>) -> bool {
+		let tcx = self.tcx;
+		self.foreign_future()
+			.is_some_and(|future| tcx.erase_and_anonymize_regions(future) == tcx.erase_and_anonymize_regions(ty))
 	}
 
 	/// `Vec<item>`.
@@ -4200,6 +4239,11 @@ impl<'tcx> Collector<'tcx> {
 					match pos {
 						Pos::Field => return Err(why("object in a value", tcx.def_path_str(did))),
 						_ => Type::Object(i),
+					}
+				} else if tcx.lang_items().pin_type() == Some(did) {
+					match pos {
+						Pos::Param if self.is_foreign_future(ty) => Type::Future,
+						_ => return Err(why("Pin", ty.to_string())),
 					}
 				} else if let Some(level) = self.level.filter(|l| l.level == did || l.filter == did) {
 					let ty = Type::Enum(level.index);

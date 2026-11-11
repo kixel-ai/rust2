@@ -350,7 +350,7 @@ standin checkout="":
 
     pub mod tokio {
         pub use ::moq_tokio::cli::Duration;
-        pub use ::moq_tokio::{Backoff, Client, ConnectError, Connection, Error, Log, Restart, Server, Status, Transport, panic, tls};
+        pub use ::moq_tokio::{Backoff, Client, ConnectError, Connection, Error, Log, Restart, Server, Status, Transport, tls};
 
         pub mod client {
             pub use ::moq_tokio::client::Config;

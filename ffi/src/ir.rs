@@ -417,6 +417,9 @@ pub enum Type {
 	/// `std::task::Waker`, only as a parameter taken by value or a return: a returned
 	/// `&Waker` is its clone, and a returned `Context` its waker's.
 	Waker,
+	/// A future the foreign side implements, of `()`, which Rust polls and frees: only as a
+	/// parameter, which Rust takes as `Pin<Box<dyn Future<Output = ()> + Send>>`.
+	Future,
 	Option(Box<Type>),
 	/// `Box<T>`, of a non-trait type.
 	Box(Box<Type>),

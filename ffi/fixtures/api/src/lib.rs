@@ -771,6 +771,44 @@ pub async fn yielded(value: u32) -> u32 {
 	value
 }
 
+/// `value` doubled once `first` finishes: an `async fn` polling a future the caller
+/// implements until it is done.
+pub async fn after(first: impl Future<Output = ()> + Send, value: u32) -> u32 {
+	first.await;
+	value * 2
+}
+
+/// Runs `future` until it pends more than `polls` times, which fails with `Overflow`: a
+/// function that is not `async` returning a future made of the caller's, as kio's
+/// `clock::timeout` is.
+pub fn within<F: IntoFuture>(polls: u32, future: F) -> Within<F::IntoFuture> {
+	Within {
+		future: Box::pin(future.into_future()),
+		left: polls,
+	}
+}
+
+/// The future [`within`] returns.
+pub struct Within<F> {
+	future: std::pin::Pin<Box<F>>,
+	left: u32,
+}
+
+impl<F: Future> Future for Within<F> {
+	type Output = Result<F::Output, Error>;
+
+	fn poll(mut self: std::pin::Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+		if let Poll::Ready(output) = self.future.as_mut().poll(cx) {
+			return Poll::Ready(Ok(output));
+		}
+		if self.left == 0 {
+			return Poll::Ready(Err(Error::Overflow));
+		}
+		self.left -= 1;
+		Poll::Pending
+	}
+}
+
 /// A time: an object, since its field is private, but `Copy`, so passing it by value
 /// copies it rather than moving it out of its handle.
 #[derive(Clone, Copy, Debug, PartialEq)]

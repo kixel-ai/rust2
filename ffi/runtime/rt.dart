@@ -211,6 +211,13 @@ final class _Waker extends ffi.Struct {
   external ffi.Pointer<ffi.Void> data;
 }
 
+/// A future Rust polls, which Dart runs.
+final class _ForeignFuture extends ffi.Struct {
+  external ffi.Pointer<ffi.Void> poll;
+  external ffi.Pointer<ffi.Void> free;
+  external ffi.Pointer<ffi.Void> data;
+}
+
 /// A waker Rust returned, which its own drop releases once the garbage collector finds
 /// this unreachable.
 final class _Returned implements ffi.Finalizable {
@@ -501,6 +508,24 @@ final class _Native {
     final token = listen(wake);
     _drops[token] = () => forget(token);
     return waker(token);
+  }
+
+  /// `future` as a future Rust polls until it completes. Rust's free cancels it if it is a
+  /// [Cancelable] still running, whose [Cancelled] then completes it. Any other error
+  /// aborts, as Rust has nowhere to raise it.
+  _ForeignFuture future(Future<void> future) {
+    final token = next();
+    final f = _dartFuture(home, token);
+    final data = f.data;
+    _drops[token] = () => calls[future]?.cancel();
+    future.then<void>(
+      (_) => _dartFutureDone(data, false),
+      onError: (Object e, StackTrace s) {
+        // Rust's free shows here at once, before its message reaches the isolate.
+        if (!_dartFutureDone(data, true)) abort('a future given to Rust', e, s);
+      },
+    );
+    return f;
   }
 
   /// The trait `what`'s two tables, made once: Rust calls through the first, whose `free`

@@ -82,6 +82,8 @@ pub enum Ty {
 	Future(String),
 	/// `<prefix>_waker`
 	Waker,
+	/// `<prefix>_foreign_future`: a future C implements, which Rust polls and frees.
+	ForeignFuture,
 	/// `<prefix>_poll`
 	Poll,
 	/// A pointer the callee writes a result through.
@@ -624,6 +626,7 @@ impl<'a> Abi<'a> {
 			Type::Array(n) => Ty::Struct(self.array(*n)),
 			Type::SocketAddr(_) => Ty::SocketAddr,
 			Type::Waker => Ty::Waker,
+			Type::Future => Ty::ForeignFuture,
 			Type::List(_, inner) => Ty::Struct(self.list(inner)),
 			Type::Option(inner) => match Self::nullable(inner) {
 				true => self.ty(inner),
@@ -851,6 +854,7 @@ impl<'a> Abi<'a> {
 			"duration",
 			"socket_addr",
 			"waker",
+			"foreign_future",
 			"poll",
 			"view",
 			"borrow",
