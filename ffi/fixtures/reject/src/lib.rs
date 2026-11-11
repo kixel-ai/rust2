@@ -915,3 +915,13 @@ pub fn among(first: Option<&Opaque>, second: Option<&Opaque>, third: Option<&Opa
 pub fn wrapped(value: u8) -> Result<u8, Vec<Opaque>> {
 	Err(vec![Opaque(value)])
 }
+
+/// An array of an element other than `u8`, which no export needs yet.
+pub fn sum_pair(pair: [u16; 2]) -> u32 {
+	u32::from(pair[0]) + u32::from(pair[1])
+}
+
+/// An empty array, which no C struct holds.
+pub fn empty(bytes: [u8; 0]) -> usize {
+	bytes.len()
+}

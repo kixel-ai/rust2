@@ -368,6 +368,17 @@ int script() {
 	}
 	std::printf("\n");
 	{
+		auto hex = [](const std::array<std::uint8_t, 4> &sum) {
+			std::printf(" %02x%02x%02x%02x", sum[0], sum[1], sum[2], sum[3]);
+		};
+		auto digest = api::Digest::new_();
+		digest.sum_set(api::fingerprint("deadbeef").value());
+		std::printf("digest");
+		hex(digest.sum_get());
+		hex(digest.flipped({0xff, 0, 0xff, 0}));
+		print(" ", api::fingerprint("zz").error(), "\n");
+	}
+	{
 		auto batch = api::Batch::new_();
 		unsigned accepted = 0;
 		for (std::uint32_t v = 1; v <= 5; v++) {

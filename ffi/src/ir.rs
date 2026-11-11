@@ -7,6 +7,7 @@
 use rustc_span::Span;
 
 /// The exported crates' API.
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Api {
 	pub records: Vec<Record>,
 	pub enums: Vec<Enum>,
@@ -16,9 +17,29 @@ pub struct Api {
 	pub constants: Vec<Constant>,
 	/// The crates items belong to, each after every crate it depends on.
 	pub crates: Vec<String>,
+	/// The targets it serves, sorted: one for a single target's, several merged.
+	pub targets: Vec<String>,
 }
 
 impl Api {
+	/// Whether an item on `on` is on every target the API serves.
+	pub fn everywhere(&self, on: On) -> bool {
+		on.0 & self.all().0 == self.all().0
+	}
+
+	/// Every target the API serves.
+	pub fn all(&self) -> On {
+		On(u64::MAX >> (64 - self.targets.len()))
+	}
+
+	/// The targets of `on`, by name.
+	pub fn named(&self, on: On) -> Vec<&str> {
+		(self.targets.iter().enumerate())
+			.filter(|(i, _)| on.0 >> i & 1 == 1)
+			.map(|(_, target)| target.as_str())
+			.collect()
+	}
+
 	/// A type's Rust path with its instance's arguments, such as
 	/// `moq_mux::catalog::Producer<moq_mux::catalog::hang::Extra>`.
 	pub fn rust(&self, path: &Path, args: &[Type]) -> String {
@@ -53,12 +74,22 @@ impl Api {
 	}
 }
 
+/// The targets an item compiles on, as a bit for each index into [`Api::targets`]: at
+/// most 64 targets.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+pub struct On(pub u64);
+
+impl On {
+	/// On every target, as a single target's API is.
+	pub const ALL: On = On(u64::MAX);
+}
+
 /// A Rust path: its export's package name in snake case, unique among the exports, then
 /// the path from that crate's root, such as `["moq_net", "track", "Producer", "append_group"]`.
 pub type Path = Vec<String>;
 
 /// The crate an item belongs to, and how much of its path lies outside that crate.
-#[derive(Clone, Default, PartialEq, Eq, Debug)]
+#[derive(Clone, Default, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Home {
 	/// The crate's name, followed by `#` and a number for a later crate of a name an
 	/// earlier one has: the one defining the item, or for an instance, the last of its own
@@ -71,6 +102,7 @@ pub struct Home {
 }
 
 /// A struct whose fields are all `pub`: a value, copied across.
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Record {
 	pub path: Path,
 	pub home: Home,
@@ -79,7 +111,10 @@ pub struct Record {
 	pub shown: Path,
 	/// The type and const arguments of the instance it is, empty unless the type is generic.
 	pub args: Vec<Type>,
+	#[serde(with = "crate::merge::span")]
 	pub span: Span,
+	/// The targets it compiles on.
+	pub on: On,
 	pub docs: String,
 	pub fields: Vec<Field>,
 	/// Whether its fields are positional, named `0`, `1`, ...
@@ -88,6 +123,7 @@ pub struct Record {
 	pub traits: Traits,
 }
 
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Field {
 	/// Its Rust name: a number for a positional field.
 	pub name: String,
@@ -97,12 +133,16 @@ pub struct Field {
 
 /// An enum: a value, copied across. Without fields in any variant, it is a plain
 /// enumeration.
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Enum {
 	pub path: Path,
 	pub home: Home,
 	pub shown: Path,
 	pub args: Vec<Type>,
+	#[serde(with = "crate::merge::span")]
 	pub span: Span,
+	/// The targets it compiles on.
+	pub on: On,
 	pub docs: String,
 	pub variants: Vec<Variant>,
 	/// Whether another crate can match it without a wildcard arm.
@@ -115,12 +155,15 @@ pub struct Enum {
 	pub foreign: bool,
 }
 
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Variant {
 	pub name: String,
 	/// Its discriminant, for an enum without fields.
 	pub discriminant: i128,
 	pub fields: Vec<Field>,
 	pub tuple: bool,
+	/// The targets it compiles on.
+	pub on: On,
 }
 
 impl Enum {
@@ -132,12 +175,16 @@ impl Enum {
 
 /// Any other type: a handle to a value the foreign side never sees inside, shared behind
 /// an `Arc`, whose receivers borrow it as Rust's do, checked at run time.
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Object {
 	pub path: Path,
 	pub home: Home,
 	pub shown: Path,
 	pub args: Vec<Type>,
+	#[serde(with = "crate::merge::span")]
 	pub span: Span,
+	/// The targets it compiles on.
+	pub on: On,
 	pub docs: String,
 	/// Whether it is `Sync`: if not, `&self` borrows it on one thread at a time.
 	pub sync: bool,
@@ -161,17 +208,21 @@ pub struct Object {
 }
 
 /// A `pub` trait: implemented by the foreign side, through a table of functions.
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Callback {
 	pub path: Path,
 	pub home: Home,
+	#[serde(with = "crate::merge::span")]
 	pub span: Span,
+	/// The targets it compiles on.
+	pub on: On,
 	pub docs: String,
 	/// Its required methods, each taking `&self` or `&mut self`.
 	pub methods: Vec<Function>,
 }
 
 /// The std traits a type's impls export.
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Traits {
 	pub clone: bool,
 	pub eq: bool,
@@ -181,13 +232,17 @@ pub struct Traits {
 }
 
 /// A function or method.
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Function {
 	/// Its path, ending in its own name: a method's goes through its type's.
 	pub path: Path,
 	/// Its path with the arguments of its type's instance and its own, which the config
 	/// names it by: `moq_mux::catalog::Producer<moq_mux::catalog::hang::Extra>::stats`.
 	pub shown: Path,
+	#[serde(with = "crate::merge::span")]
 	pub span: Span,
+	/// The targets it compiles on.
+	pub on: On,
 	/// Its doc comment, as Markdown.
 	pub docs: String,
 	pub receiver: Option<Receiver>,
@@ -224,6 +279,7 @@ pub struct Function {
 
 /// An instance of a generic function or method, at one of the arguments a type or const
 /// parameter exports at.
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Instance {
 	/// The arguments of its declared type and const parameters, which the call names, as
 	/// Rust cannot infer one no argument names; its argument infers an `impl Trait` one,
@@ -234,7 +290,7 @@ pub struct Instance {
 }
 
 /// What an exported function reads.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Access {
 	/// It calls the function.
 	Call,
@@ -258,6 +314,7 @@ impl Function {
 }
 
 /// A parameter a function polls its task through.
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Task {
 	/// Its place among the parameters after `self`.
 	pub at: usize,
@@ -265,6 +322,7 @@ pub struct Task {
 }
 
 /// What a [`Task`] parameter is.
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum TaskKind {
 	/// `&Context` or `&mut Context`: made from C's waker, or the future's own.
 	Context(Mutability),
@@ -274,7 +332,7 @@ pub enum TaskKind {
 }
 
 /// How a method takes `self`.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Receiver {
 	/// `&self`
 	Ref,
@@ -284,6 +342,7 @@ pub enum Receiver {
 	Owned,
 }
 
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Param {
 	pub name: String,
 	pub ty: Type,
@@ -293,15 +352,19 @@ pub struct Param {
 }
 
 /// A `pub const`.
+#[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Constant {
 	pub path: Path,
 	pub home: Home,
+	#[serde(with = "crate::merge::span")]
 	pub span: Span,
+	/// The targets it compiles on.
+	pub on: On,
 	pub docs: String,
 	pub value: Literal,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Literal {
 	Bool(bool),
 	Int(Int, i128),
@@ -318,7 +381,7 @@ impl std::fmt::Display for Literal {
 }
 
 /// A type as the API uses it, in the exact form the Rust side takes or returns.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Type {
 	Unit,
 	Bool,
@@ -339,6 +402,8 @@ pub enum Type {
 	Bytes,
 	/// `std::time::Duration`
 	Duration,
+	/// `[u8; N]`, which C passes by value in a struct of its `N` bytes.
+	Array(usize),
 	/// `std::path::Path`, only behind a reference.
 	Path,
 	/// `std::path::PathBuf`
@@ -377,7 +442,7 @@ pub enum Type {
 }
 
 /// The Rust collection a [`Type::List`] is, which Rust builds from its items in order.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Collection {
 	/// `Vec<T>`, or behind a reference, `[T]`.
 	Vec,
@@ -390,7 +455,7 @@ pub enum Collection {
 }
 
 /// The addresses a socket address type holds.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Family {
 	/// IPv4 or IPv6: `SocketAddr`.
 	Any,
@@ -398,14 +463,14 @@ pub enum Family {
 	V6,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Mutability {
 	Not,
 	Mut,
 }
 
 /// How a parameter takes a foreign implementation of a trait.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub enum Dyn {
 	/// A type parameter or `impl Trait`, given the foreign type.
 	Impl,
@@ -415,7 +480,7 @@ pub enum Dyn {
 	Arc,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Int {
 	U8,
 	U16,

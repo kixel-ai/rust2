@@ -321,6 +321,15 @@ func script() {
 		}
 	}
 	fmt.Println()
+	{
+		digest := api.NewDigest()
+		if err := digest.SumSet(must(api.Fingerprint("deadbeef"))); err != nil {
+			panic(err)
+		}
+		_, unparsed := api.Fingerprint("zz")
+		fmt.Printf("digest %x %x %s\n", must(digest.SumGet()), must(digest.Flipped([4]byte{0xff, 0, 0xff, 0})), unparsed)
+		digest.Close()
+	}
 	batch, batch2 := api.NewBatch(), api.Pair()
 	accepted, paired := 0, 0
 	for v := uint32(1); v <= 5; v++ {
@@ -1116,6 +1125,13 @@ func broken(which string) {
 	// A Rust Duration longer than Go's longest.
 	case "duration":
 		api.Extended(math.MaxInt64, 1)
+	// The packages serve wasm32 too, whose items the host's library lacks.
+	case "target":
+		api.WasmOnly()
+	case "variant":
+		api.PointerBits(api.PlatformWasm{Bits: 32})
+	case "plain variant":
+		api.IsFamily(api.FamilyWasm)
 	default:
 		check(false, "no case "+which)
 	}

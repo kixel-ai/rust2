@@ -5,11 +5,11 @@ attributes in the Rust source.
 Every language's generator but Python's builds on the C ABI.
 
 ```bash
-rust2-ffi --config ffi.toml (--out dir | --census dir) [--manifest-path Cargo.toml] [--target triple] [-- cargo args]
+rust2-ffi --config ffi.toml (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [--target triple]... [--with file]... [-- cargo args]
 ```
 
-It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for `--target` or
-else the host, whatever cargo's config names, through
+It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for each `--target`
+or else the host, whatever cargo's config names, through
 the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). The
 package is the facade: once rustc has checked its library, it walks every `pub` item
 reachable from the crate root, following `pub use` re-exports of other crates' items and
@@ -19,10 +19,10 @@ it ships, and a type no path from its root reaches is refused. The prefix of eve
 is the library's crate name, Cargo's `[lib] name`, which defaults to the package's name in
 snake case. `--out` writes a crate of `extern "C"` functions over the facade, its runtime
 beside it, and the header in `include/<prefix>.h`; `cargo build` on that crate makes a
-static and a shared library for that target alone: its build script refuses another, on
+static and a shared library for those targets alone: its build script refuses another, on
 which an item the target compiles would be missing, or one it leaves out left over. So a
-`cfg`-gated item is in its target's export and in no other's, and the layouts, `usize`
-included, are that target's. That crate enables the facade's features as the check did;
+`cfg`-gated item works on its targets and on no other ([Targets](#targets)), and the
+layouts, `usize` included, are the target's the crate builds for. That crate enables the facade's features as the check did;
 a feature named in a dependency, `--features <dependency>/<feature>`, is an error, since
 the facade enables what its dependencies build with. It resolves them as the check did,
 wherever it is built: its manifest carries, as a `[patch]`, each patch or `[replace]` cargo applied
@@ -81,6 +81,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `poll_x`, when `x` exports as a future | left out: the future is its poll |
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
 | `u128` | `<prefix>_u128`: its low and high 64 bits |
+| `[u8; N]` | `<prefix>_array_u8_<N>`: a struct of its `N` bytes, `items`, copied across; an empty one, or one of any other element, is refused |
 | `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: a view passed in, an owned buffer returned |
 | `&Path`, `PathBuf` | `<prefix>_buf` of the path's bytes as the OS holds them on Unix, which need not be UTF-8, else UTF-8 |
 | `Duration` | `<prefix>_duration` |
@@ -138,6 +139,42 @@ returned `&Object` is lent, never one inside what a call returns nor its error. 
 object no export C can call returns or lends to a closure, a generic type no export
 instantiates, and whatever takes one, is left out and listed in the census. Everything
 else is refused, and the census counts why.
+
+## Targets
+
+One binding serves every target its package ships to, such as one Kotlin file for each
+Android ABI and the desktops, though their APIs differ by `cfg`. Each `--target` is
+checked in turn, and the binding holds every item any of them has. On each target, every
+item that target compiles works exactly, and no other does:
+
+- A function, method, or constructor only some targets have is declared everywhere. On
+  another target, the library defines it to fail, and the binding checks the library's
+  target before calling it, raising the language's own error, as for a closed object:
+  `UnsupportedOperationException` in Kotlin, `NotImplementedError` in Python, a trap in
+  Swift, a panic in Go, and `UnsupportedError` in Dart. C and C++ abort with the message.
+- So does a variant only some targets have, when a value holding it crosses into a target
+  without it. A record's fields cross whole, so one whose fields differ between targets
+  is refused, as below.
+- A type only some targets have is declared everywhere, and only those targets' items
+  make or take it.
+- A constant only some targets have keeps its value everywhere, since reading it calls
+  nothing.
+- An item whose definition differs between two targets, such as a function whose
+  signature does, a record with a field only one has, a plain enum whose variant has
+  another value, or a constant of another value, is refused at its span, with a note at the other's, naming both targets.
+
+The crate's build script sets `cfg(rust2_ffi_target = "<triple>")` for the target it
+builds for, which gates each item, and refuses a target it was not exported for.
+`<prefix>_target()` returns the library's target as its index among the header's,
+listed in its comment, which each binding reads once when it loads.
+
+A target's check may need its own C toolchain, as moq's `aws-lc-sys` and `ring` do even
+for a check, which only its own host may have. `--api file` writes one target's API, with
+the spans of its items, instead of exporting; an export elsewhere adds it with
+`--with file`, as though it had checked that target too. Both must check the same
+package, features, and `exclude`, from the same sources: a staged span's file is relative
+to the workspace's root or cargo's home, so a checkout at another path keeps it, and is
+dropped for the other target's span where the file differs.
 
 ## The C ABI
 
@@ -286,7 +323,7 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   refuses for a view or `str()` of a temporary `buf`. A `Vec<T>` is a `std::vector`, of
   `view`s for bytes passed in, a socket address `socket_addr`, the C struct, and a `u128`
   `u128`, the C struct. `Option<T>` is `std::optional<T>`, a tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
-  error.
+  error. A `[u8; N]` is a `std::array<std::uint8_t, N>`.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
 - **Closures** lent for a call are any callable, taken by a template parameter, which
   Rust calls only during the call, from any thread. An object it lends as `&T` is a
@@ -349,7 +386,9 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   Strings are `String`, `usize` `ULong` and `isize` `Long`, which abort past a 32-bit
   target's range, `Option<T>` `T?`, a tuple `Pair`,
   `Triple`, or else a generated `Tuple<n>`, though a tuple of one returned whole is its element, `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
-  holding it, whose message is its `Display`.
+  holding it, whose message is its `Display`. A `[u8; N]` is a generated `ArrayU8x<N>`,
+  which copies the `ByteArray` it is made of and throws `IllegalArgumentException` unless
+  it holds exactly `N` bytes.
 - A **path** is a `String`: one Rust returns that is not UTF-8 throws. A `SocketAddr`,
   `SocketAddrV4`, or `SocketAddrV6` is a `java.net.InetSocketAddress`, which must be
   resolved and, for `V4` or `V6`, of that family; one Rust returns with an IPv6 flow
@@ -410,7 +449,9 @@ caller imports it with no ignores.
   `bytes`. Strings are `str`, `u128` an `int`, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
   `datetime.timedelta`, truncated to the microsecond, with `timedelta.max` for any longer
   and for `Duration::MAX`, a `Range` a `range`, and an `Err` a raised `<E>Exception`
-  holding it in `error`, whose `str` is its `Display`.
+  holding it in `error`, whose `str` is its `Display`. A `[u8; N]` is a generated
+  `ArrayU8x<N>`, a `bytes` that raises `ValueError` unless it holds exactly `N`; a
+  parameter takes any `bytes` of `N`.
 - A **path** is a `str`, or any path passed in, which crosses as `os.fsencode` encodes it, so
   one that is not UTF-8 keeps its bytes. A `SocketAddr` is the `socket` module's tuple,
   `(host, port)` or `(host, port, flowinfo, scope_id)`, of that family for `V4` or `V6`.
@@ -482,7 +523,10 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   a tuple a Swift tuple, though a tuple of one is its element, `u128` a `U128` of its
   `high` and `low` halves until the deployment target allows `UInt128`, and `Duration`
   `Swift.Duration`. An `Err` is thrown: an exported type as itself, which conforms to
-  `Swift.Error`, and any other in a generated `<T>Error` holding it.
+  `Swift.Error`, and any other in a generated `<T>Error` holding it. A `[u8; N]` is a
+  generated `ArrayU8x<N>`, a collection holding its bytes inline in C's struct, made by a
+  failable initializer from exactly `N` bytes, until the deployment target allows
+  `InlineArray`.
 - A **path** is a `String`: one Rust returns that is not UTF-8 traps. A `SocketAddr`,
   `SocketAddrV4`, or `SocketAddrV6` is the runtime's `SocketAddr`, its IP's 4 or 16 bytes
   and its port, flow label, and scope, whose family Rust checks. A `Vec<T>` or `&[T]` is
@@ -579,7 +623,7 @@ reads a go.mod.
   of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object or
   `u128` its pointer, nil for `None`. A tuple is `rt.Tuple2[A, B]` and so on, but a tuple of one is its
   element, and one returned whole is the function's results. A `u128` is a `*big.Int`, which
-  panics passed in out of its range. `Duration` is
+  panics passed in out of its range, and a `[u8; N]` a `[N]byte`. `Duration` is
   `time.Duration`: a negative one passed in, or one Rust returns past its 292 years,
   panics. A socket address is a `netip.AddrPort`, whose zone names an IPv6 scope by its
   number or its interface's name; one Rust returns with an IPv6 flow label, which
@@ -650,7 +694,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   not UTF-8 aborts, since a throw would leave the rest of a list or record being lifted
   unfreed. `Option<T>` is `T?`, a tuple a Dart record, and a `Vec<T>` or `&[T]` a
   `List<T>`. A `u128` is a `BigInt`, which throws an `ArgumentError` passed in out of
-  its range. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
+  its range. A `[u8; N]` is a generated `ArrayU8x<N>`, which copies the list it is made
+  of and throws an `ArgumentError` unless it holds exactly `N` bytes. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
   in throws an `ArgumentError`, and Rust's longest is Dart's. A socket address is a
   `SocketAddr` of an `InternetAddress`, a port, and IPv6's flow label and scope; one passed
   in of the wrong family throws an `ArgumentError`, and a port, label, or scope out of its
@@ -726,7 +771,9 @@ nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi
 ```
 
 The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
-export into the same library. `tests/api.c` runs the same script as the
+export into the same library. The fixture's binding serves the host and wasm32, whose
+items the host's library lacks, and each language's test checks that the host's items work
+and that wasm32's fail. `tests/api.c` runs the same script as the
 fixture's `examples/transcript.rs`, and the two transcripts must match line for line;
 then it breaks each runtime check, which must abort with its message. `tests/api.cpp`
 runs the script through the C++ header at C++17, 20, and 23, with exceptions and RTTI off
@@ -760,7 +807,10 @@ or a reader reaches it and that the GC frees it once none does, that the GC free
 never closed, and that each kind of call meeting a closed object, including one racing
 `Close`, returns `rt.ErrClosed`, and breaks
 each runtime check, which must panic with its message; a runtime package from another
-build must fail its contract check. The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
+build must fail its contract check. The `target` test exports a package for the host, for wasm32, and for both into one
+binding, which builds for each, and staged with `--api` and `--with`; a build for a target
+not exported fails, and items that differ between the two are refused, naming both.
+The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. `moq/moq.c` publishes and subscribes to a moq-net
 track in one process, polling each read, scopes an origin to moq-pattern's patterns and

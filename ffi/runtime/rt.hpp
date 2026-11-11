@@ -33,6 +33,20 @@ namespace detail {
 
 struct access;
 
+// A `[u8; N]`'s C struct, of its bytes, and back.
+template <class C, ::std::size_t N> C lower_array(const ::std::array<::std::uint8_t, N> &a) noexcept {
+	static_assert(sizeof(C::items) == N, "an array's C struct holds its N bytes");
+	C c;
+	::std::memcpy(c.items, a.data(), N);
+	return c;
+}
+
+template <::std::size_t N, class C> ::std::array<::std::uint8_t, N> lift_array(const C &c) noexcept {
+	::std::array<::std::uint8_t, N> a;
+	::std::memcpy(a.data(), c.items, N);
+	return a;
+}
+
 // A count of references, held by C++ and, once given a waker, by Rust: freed with the last.
 struct node {
 	::std::atomic<::std::size_t> refs{1};
