@@ -912,3 +912,8 @@ pub fn poll_loose(waiter: &Loose) -> std::task::Poll<()> {
 	waiter.0.wake_by_ref();
 	std::task::Poll::Ready(())
 }
+
+/// The runtime's `reject_target`, which names the library's target.
+pub fn target() -> u32 {
+	0
+}

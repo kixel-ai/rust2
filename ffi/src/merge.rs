@@ -65,12 +65,13 @@ pub fn merge(mut apis: Vec<Api>) -> (Api, Vec<Differs>) {
 	let mut merged = Merged {
 		api: apis.next().expect("an export has a target"),
 		differs: Vec::new(),
+		renumbered: Vec::new(),
 	};
 	merged.api.targets = targets;
 	for api in apis {
 		merged.add(api);
 	}
-	(merged.api, merged.differs)
+	merged.finish()
 }
 
 /// Mark every item of `api` as on `on`.
@@ -100,6 +101,9 @@ fn mark(api: &mut Api, on: On) {
 struct Merged {
 	api: Api,
 	differs: Vec<Differs>,
+	/// Each variant whose discriminant differs between two targets, with its enum: an
+	/// error only if the merged enum is plain, whose C values are its discriminants.
+	renumbered: Vec<(usize, Differs)>,
 }
 
 /// Where each type of the API being added lands among the merged API's.
@@ -208,6 +212,8 @@ fn bare_enum(e: &Enum) -> Enum {
 fn bare_variant(v: &Variant) -> Variant {
 	bare(v, |v| {
 		v.on = On::ALL;
+		// Compared apart, as only a plain enum's matter.
+		v.discriminant = 0;
 		v.fields.iter_mut().for_each(|f| f.docs.clear());
 	})
 }
@@ -246,10 +252,41 @@ impl Merged {
 
 	/// Refuse `what`, which the merged API has on `ours` at `span` and `other` on its target
 	/// at `theirs`.
-	fn differ(&mut self, what: String, (ours, span): (On, Span), (other, theirs): (On, Span)) {
+	fn differ(&mut self, what: String, ours: (On, Span), theirs: (On, Span)) {
+		let differs = self.differs(what, ours, theirs);
+		self.differs.push(differs);
+	}
+
+	fn differs(&self, what: String, (ours, span): (On, Span), (other, theirs): (On, Span)) -> Differs {
 		let first = (self.first(ours), span);
 		let second = (self.first(other), theirs);
-		self.differs.push(Differs { what, first, second });
+		Differs { what, first, second }
+	}
+
+	/// The merged API, and what differs between its targets, once every target is added.
+	fn finish(mut self) -> (Api, Vec<Differs>) {
+		let renumbered = std::mem::take(&mut self.renumbered);
+		for (at, differs) in renumbered {
+			if self.api.enums[at].plain() {
+				self.differs.push(differs);
+			}
+		}
+		// A C enum's values name its variants on every target alike.
+		for e in &self.api.enums {
+			if !e.plain() {
+				continue;
+			}
+			let what = format!("enum `{}`", e.shown.join("::"));
+			for (i, a) in e.variants.iter().enumerate() {
+				if let Some(b) = e.variants[i + 1..].iter().find(|b| b.discriminant == a.discriminant) {
+					let differs = self.differs(what.clone(), (a.on, e.span), (b.on, e.span));
+					self.differs.push(differs);
+					break;
+				}
+			}
+		}
+		self.api.crates = order_crates(&self.api);
+		(self.api, self.differs)
 	}
 
 	/// Add `api`'s items, of one target, to the merged API's.
@@ -286,10 +323,16 @@ impl Merged {
 			maps.functions(&mut callback.methods);
 		}
 		maps.functions(&mut api.functions);
-		for krate in api.crates {
-			if !self.api.crates.contains(&krate) {
-				self.api.crates.push(krate);
+		// In dependency order, as each list is: one only this target has goes before the
+		// first crate after it here that the merged list has already.
+		for (i, krate) in api.crates.iter().enumerate() {
+			if self.api.crates.contains(krate) {
+				continue;
 			}
+			let at = (api.crates[i + 1..].iter())
+				.find_map(|next| self.api.crates.iter().position(|c| c == next))
+				.unwrap_or(self.api.crates.len());
+			self.api.crates.insert(at, krate.clone());
 		}
 		for (record, at) in api.records.into_iter().zip(maps.records) {
 			let Some(ours) = self.api.records.get(at) else {
@@ -390,9 +433,12 @@ impl Merged {
 			let ours = &mut self.api.enums[at].variants;
 			match ours.iter().position(|v| v.name == variant.name) {
 				Some(found) => {
+					let on = ours[found].on;
 					if bare_variant(&ours[found]) != bare_variant(variant) {
-						let on = ours[found].on;
 						self.differ(what.clone(), (on, span), (variant.on, theirs.span));
+					} else if ours[found].discriminant != variant.discriminant {
+						let differs = self.differs(what.clone(), (on, span), (variant.on, theirs.span));
+						self.renumbered.push((at, differs));
 					}
 					self.api.enums[at].variants[found].on.0 |= variant.on.0;
 					after = found + 1;
@@ -403,18 +449,73 @@ impl Merged {
 				}
 			}
 		}
-		// A C enum's values name its variants on every target alike.
-		let e = &self.api.enums[at];
-		if e.plain() {
-			for (i, a) in e.variants.iter().enumerate() {
-				if let Some(b) = e.variants[i + 1..].iter().find(|b| b.discriminant == a.discriminant) {
-					let (a, b) = (a.on, b.on);
-					self.differ(what.clone(), (a, span), (b, theirs.span));
-					return;
-				}
-			}
+	}
+}
+
+/// `api`'s crates in an order where each follows every crate whose types its items name,
+/// on any target, as each target's order has it; else in the order they were merged in.
+/// Two targets may order crates differently where neither names the other's types.
+fn order_crates(api: &Api) -> Vec<String> {
+	let crates = &api.crates;
+	let index = |krate: &str| crates.iter().position(|c| c == krate);
+	// Each crate's home, then a type its items name.
+	let mut uses: Vec<(&str, &Type)> = Vec::new();
+	fn functions<'a>(uses: &mut Vec<(&'a str, &'a Type)>, functions: &'a [Function]) {
+		for f in functions {
+			let types = f.params.iter().map(|p| &p.ty).chain([&f.ok]).chain(&f.err);
+			uses.extend(types.map(|ty| (f.home.krate.as_str(), ty)));
 		}
 	}
+	for r in &api.records {
+		let types = r.fields.iter().map(|f| &f.ty).chain(&r.args);
+		uses.extend(types.map(|ty| (r.home.krate.as_str(), ty)));
+		functions(&mut uses, &r.methods);
+	}
+	for e in &api.enums {
+		let fields = e.variants.iter().flat_map(|v| &v.fields);
+		uses.extend(
+			fields
+				.map(|f| &f.ty)
+				.chain(&e.args)
+				.map(|ty| (e.home.krate.as_str(), ty)),
+		);
+		functions(&mut uses, &e.methods);
+	}
+	for o in &api.objects {
+		uses.extend(o.args.iter().map(|ty| (o.home.krate.as_str(), ty)));
+		functions(&mut uses, &o.methods);
+	}
+	for c in &api.callbacks {
+		functions(&mut uses, &c.methods);
+	}
+	functions(&mut uses, &api.functions);
+	let mut before = vec![std::collections::BTreeSet::new(); crates.len()];
+	for (home, ty) in uses {
+		let Some(home) = index(home) else { continue };
+		crate::ir::each(ty, &mut |named| {
+			let krate = match named {
+				Type::Record(i) => &api.records[*i].home.krate,
+				Type::Enum(i) => &api.enums[*i].home.krate,
+				Type::Object(i) => &api.objects[*i].home.krate,
+				Type::Callback(i, _) => &api.callbacks[*i].home.krate,
+				_ => return,
+			};
+			match index(krate) {
+				Some(named) if named != home => _ = before[home].insert(named),
+				_ => {}
+			}
+		});
+	}
+	let mut placed = vec![false; crates.len()];
+	let mut order = Vec::with_capacity(crates.len());
+	while order.len() < crates.len() {
+		let next = (0..crates.len())
+			.find(|&i| !placed[i] && before[i].iter().all(|&j| placed[j]))
+			.expect("crates whose items name each other's types, which Rust's dependencies cannot");
+		placed[next] = true;
+		order.push(crates[next].clone());
+	}
+	order
 }
 
 /// Spans as their file and byte offsets, which a later session loads that file for.

@@ -1124,8 +1124,18 @@ impl Gen<'_> {
 		self.line(format!(
 			"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {name} {{\n\tpub vtable: *const {name}_vtable,\n\tpub data: *mut ::std::ffi::c_void,\n}}\n"
 		));
+		// Each item apart, as each takes the target's `#[cfg]`.
 		self.item(format!(
-			"/// The foreign implementation, which frees its data when dropped.\npub struct Foreign_{name}({name});\n\n// SAFETY: the callback's contract: its functions may be called from any thread.\nunsafe impl Send for Foreign_{name} {{}}\n// SAFETY: as above.\nunsafe impl Sync for Foreign_{name} {{}}\n\nimpl Drop for Foreign_{name} {{\n\tfn drop(&mut self) {{\n\t\tif let Some(free) = unsafe {{ (*self.0.vtable).free }} {{\n\t\t\tunsafe {{ free(self.0.data) }};\n\t\t}}\n\t}}\n}}\n"
+			"/// The foreign implementation, which frees its data when dropped.\npub struct Foreign_{name}({name});\n"
+		));
+		self.item(format!(
+			"// SAFETY: the callback's contract: its functions may be called from any thread.\nunsafe impl Send for Foreign_{name} {{}}\n"
+		));
+		self.item(format!(
+			"// SAFETY: as above.\nunsafe impl Sync for Foreign_{name} {{}}\n"
+		));
+		self.item(format!(
+			"impl Drop for Foreign_{name} {{\n\tfn drop(&mut self) {{\n\t\tif let Some(free) = unsafe {{ (*self.0.vtable).free }} {{\n\t\t\tunsafe {{ free(self.0.data) }};\n\t\t}}\n\t}}\n}}\n"
 		));
 		self.item(format!("impl {path} for Foreign_{name} {{\n{methods}}}\n"));
 	}

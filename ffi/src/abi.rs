@@ -634,6 +634,7 @@ impl<'a> Abi<'a> {
 		// package, and Swift's in its module and the atomics header its runtime adds.
 		for runtime in [
 			"contract",
+			"target",
 			"buf",
 			"buf_free",
 			"u128",

@@ -2182,13 +2182,14 @@ pub fn refuse(reason: &str) -> Result<u32, Box<Refusal>> {
 }
 
 /// The kind of target the library was built for. One binding serves the host and wasm32,
-/// so it has every target's variants, and a target refuses one it lacks.
+/// so it has every target's variants, and a target refuses one it lacks. As wasm32's comes
+/// first, `Native`'s Rust discriminant differs between the two, which its C tag does not.
 pub enum Platform {
-	/// A native target, with its pointers' width in bits.
-	Native(u32),
 	/// wasm32, which only that target has.
 	#[cfg(target_arch = "wasm32")]
 	Wasm { bits: u32 },
+	/// A native target, with its pointers' width in bits.
+	Native(u32),
 }
 
 /// The library's target's platform.
@@ -2249,4 +2250,28 @@ impl Worker {
 	pub fn id(&self) -> u32 {
 		self.id
 	}
+}
+
+/// A record only wasm32 has.
+#[cfg(target_arch = "wasm32")]
+pub struct Page {
+	pub size: u32,
+}
+
+/// wasm32's page.
+#[cfg(target_arch = "wasm32")]
+pub fn page() -> Page {
+	Page { size: 65536 }
+}
+
+/// A callback only wasm32 has.
+#[cfg(target_arch = "wasm32")]
+pub trait Beat: Send + Sync {
+	fn beat(&self) -> u32;
+}
+
+/// What `beat` counts.
+#[cfg(target_arch = "wasm32")]
+pub fn beats(beat: Box<dyn Beat>) -> u32 {
+	beat.beat()
 }
