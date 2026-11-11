@@ -80,9 +80,9 @@ const BUFFER: &str = "bytes | bytearray | memoryview";
 const V4: &str = "tuple[str, int]";
 const V6: &str = "tuple[str, int, int, int]";
 
-/// The registry's first entries, the runtime's: the glue's `T_FUTURE`, `T_TIMEDELTA`, and
-/// `T_RESUME`.
-const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume"];
+/// The registry's first entries, the runtime's: the glue's `T_FUTURE`, `T_TIMEDELTA`,
+/// `T_RESUME`, and `T_WAKER`.
+const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume", "Waker"];
 
 /// The Python for `abi`, whose header's contract is `contract`, or the names two items
 /// claim alike. The Python's own contract hashes the header's with everything it and its
@@ -406,8 +406,7 @@ impl<'a> Gen<'a> {
 				Family::Any => format!("{V4} | {V6}"),
 			},
 			Type::List(_, inner) => format!("list[{}]", self.py_ty(inner)),
-			// Returned, a callable waking it through Rust.
-			Type::Waker => "_typing.Callable[[], None]".to_string(),
+			Type::Waker => "Waker".to_string(),
 			Type::Option(inner) => format!("{} | None", self.py_ty(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.py_ty(inner),
 			Type::Record(i) => self.class(&abi.record(*i)),
@@ -447,7 +446,6 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Slice | Type::Vec | Type::Bytes => BUFFER.to_string(),
 			Type::Path | Type::PathBuf => "str".to_string(),
-			Type::Waker => "Waker".to_string(),
 			// Python's own IPv6 address may leave out its flowinfo and scope_id.
 			Type::SocketAddr(Family::V6) => format!("{V4} | {V6}"),
 			Type::List(_, inner) => format!("{list}[{}]", self.py_in(inner, list)),

@@ -178,8 +178,8 @@ else is refused, and the census counts why.
   state machine polled with a waker, such as moq's `Driver`s through kio's `Waiter`, runs
   from the caller's event loop. Rust may call `wake` and `drop` from any thread, as a
   runtime's workers do. A waker Rust returns is the caller's, which may wake it from any
-  thread any number of times, then drop it once, or pass it back into Rust, which takes
-  it as its own again.
+  thread any number of times, then drop it once, or pass it back into Rust, which wraps
+  it as any waker.
 - **Callbacks** are a struct of a table and its data. Rust calls `free` once it drops the
   implementation, and may call the others from any thread. A callback takes scalars and
   buffers lent for the call, and returns a scalar.
@@ -429,8 +429,8 @@ caller imports it with no ignores.
   loses nothing. The call polls it once before suspending, and a future is awaited once,
   as a coroutine is.
 - A **waker** is a `Waker(callback)`, which Rust may wake from any thread, calling
-  `callback` on its event loop. One Rust returns is a callable waking through Rust, from
-  any thread, and dropped with its last reference.
+  `callback` on its event loop; `wake()` wakes it from any thread. One Rust returns is a
+  `Waker` too, which wakes through Rust and drops with its last reference.
 - **The contract** is checked when the module imports, before any other call: a Python
   file and a library from different builds raise `ImportError`.
 

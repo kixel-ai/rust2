@@ -379,12 +379,18 @@ def script():
 	# A returned waker wakes the waiter's task through Rust until it is dropped.
 	# Wakes before the loop gets to them call back once, so it runs between them.
 	waiter = api.Waiter.new(waker)
-	waiter.waker()()
+	waiter.waker().wake()
 	until(loop, lambda: wakes == 4)
-	waiter.context()()
-	del waiter
+	returned = waiter.context()
+	returned.wake()
 	until(loop, lambda: wakes == 5)
 	print(f"woken {wakes}")
+	# Passed back, a returned waker is Rust's own again.
+	channel.notify(returned)
+	del waiter, returned
+	channel.send(b"again")
+	until(loop, lambda: wakes == 6)
+	channel.clear()
 	loop.close()
 
 	nodes = api.Node.new(1, None)
