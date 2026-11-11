@@ -49,7 +49,7 @@ pub struct Output {
 /// The Dart for `abi`, whose header's contract is `contract`, or the names two items
 /// claim alike.
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
-	// What the runtime and the ranges' classes, which the ABI names, take.
+	// What the runtime and the ranges' and arrays' classes, which the ABI names, take.
 	let ranges: BTreeSet<String> = (abi.ranges.iter())
 		.flat_map(|(c, ty)| {
 			let name = pascal(&c[abi.prefix.len() + 1..]);
@@ -62,6 +62,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 				.map(move |case| format!("{name}{case}"))
 				.collect::<Vec<_>>()
 		})
+		.chain(abi.arrays.values().map(|n| Abi::array_class(*n)))
 		.collect();
 	let taken = |name: &str| TAKEN.contains(&name) || ranges.contains(name);
 	let mut g = Gen {

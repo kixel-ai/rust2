@@ -1172,6 +1172,16 @@ pub fn fingerprint(hex: &str) -> Result<[u8; 4], String> {
 	Ok(sum)
 }
 
+/// An enum whose variant Dart would name as the class of `[u8; 4]`, which keeps them apart.
+pub enum Array {
+	U8x4(u8),
+}
+
+/// A type named as Swift's, which an array's `Hashable` conformance must not take for it.
+pub struct Hasher {
+	pub seed: u8,
+}
+
 /// How many tokens have dropped.
 pub fn dropped() -> u32 {
 	DROPPED.load(std::sync::atomic::Ordering::Relaxed)

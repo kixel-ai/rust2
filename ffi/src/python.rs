@@ -69,7 +69,10 @@ const TAKEN: &[&str] = &[
 	"_staticmethod",
 	"_isinstance",
 	"_str",
+	"_bytes",
+	"_len",
 	"_Exception",
+	"_ValueError",
 	"_AttributeError",
 ];
 
@@ -159,7 +162,10 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		import weakref as _weakref\n\
 		from builtins import AttributeError as _AttributeError\n\
 		from builtins import Exception as _Exception\n\
+		from builtins import ValueError as _ValueError\n\
+		from builtins import bytes as _bytes\n\
 		from builtins import isinstance as _isinstance\n\
+		from builtins import len as _len\n\
 		from builtins import property as _property\n\
 		from builtins import staticmethod as _staticmethod\n\
 		from builtins import str as _str\n\
@@ -619,7 +625,7 @@ impl<'a> Gen<'a> {
 			self.register(c, name.clone());
 			let _ = write!(
 				self.py,
-				"class {name}(bytes):\n\t\"\"\"A Rust `[u8; {n}]`: exactly {n} bytes.\"\"\"\n\n\t__slots__ = ()\n\n\tdef __new__(cls, value: bytes | bytearray | memoryview) -> _typing.Self:\n\t\tself = super().__new__(cls, value)\n\t\tif len(self) != {n}:\n\t\t\traise ValueError(f\"{{len(self)}} bytes, not {n}\")\n\t\treturn self\n\n\n"
+				"class {name}(_bytes):\n\t\"\"\"A Rust `[u8; {n}]`: exactly {n} bytes.\"\"\"\n\n\t__slots__ = ()\n\n\tdef __new__(cls, value: {BUFFER}) -> _typing.Self:\n\t\tself = _bytes.__new__(cls, value)\n\t\tif _len(self) != {n}:\n\t\t\traise _ValueError(f\"{{_len(self)}} bytes, not {n}\")\n\t\treturn self\n\n\n"
 			);
 		}
 		for (c, elem) in &abi.lists.clone() {
