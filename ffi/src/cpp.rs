@@ -352,6 +352,7 @@ impl<'a> Header<'a> {
 				false => format!("{d}::lift({e})"),
 			},
 			Type::Object(_) => format!("{d}::access::wrap<{}>({e})", self.owned(ty)),
+			Type::Waker => format!("::{}::waker({d}::returned({e}))", self.ns),
 			Type::Tuple(elements) => {
 				let lifted: Vec<String> = (elements.iter().enumerate())
 					.map(|(n, ty)| self.lift(ty, &format!("{e}._{n}")))

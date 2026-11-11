@@ -552,6 +552,11 @@ int script() {
 		channel.listen(waker);
 		channel.send("heard");
 		std::printf("woken %d\n", wakes);
+		// A returned waker wakes the waiter's task, through Rust, until its last copy drops.
+		api::Waiter waiter = api::Waiter::new_(waker);
+		waiter.waker().wake();
+		waiter.context().wake();
+		std::printf("woken %d\n", wakes);
 	}
 
 	// A value that holds itself is an object.
@@ -911,6 +916,13 @@ int script() {
 		print(i == 0 ? "" : ", ", left[i].debug(), "");
 	}
 	std::printf("]\n");
+	// A filter, collected at the call.
+	auto beyond = trail.beyond(1);
+	std::printf("beyond");
+	for (std::size_t i = 0; i < beyond.size(); i++) {
+		std::printf("%s%d %d", i == 0 ? " " : ", ", beyond[i].x, beyond[i].y);
+	}
+	std::printf("\n");
 	auto numbered = api::numbered({"p", "q"});
 	std::printf("numbered");
 	for (std::size_t i = 0; i < numbered.size(); i++) {
@@ -930,6 +942,40 @@ int script() {
 	auto [next4, next6] = api::nexts(at4, at6);
 	std::printf("nexts %u.%u.%u.%u %u %u %u\n", next4.ip[0], next4.ip[1], next4.ip[2], next4.ip[3], next4.port, next6.port,
 				next6.scope_id);
+
+	// serde_json's map iterator, collected as pairs of a key and its document.
+	{
+		std::vector<std::tuple<api::view, api::Json>> pairs;
+		pairs.emplace_back("b", api::Json::parse("[1]").value());
+		pairs.emplace_back("a", api::Json::parse("2").value());
+		auto sections = api::sections(std::move(pairs));
+		std::printf("sections");
+		for (std::size_t i = 0; i < sections.size(); i++) {
+			auto &[key, value] = sections[i];
+			print(i == 0 ? " " : ", ", key, " ");
+			print("", value.to_text(), "");
+		}
+		std::printf("\n");
+	}
+	// An instant only Rust makes, which each call copies out of its handle, and compares.
+	{
+		auto millis = [](api::duration elapsed) { return static_cast<unsigned long long>(elapsed.secs * 1000 + elapsed.nanos / 1000000); };
+		auto began = api::now();
+		auto ended = api::later(began, {1, 500000000});
+		std::printf("instants %llu %llu %s %s\n", millis(api::since(ended, began)), millis(api::since(began, ended)),
+					began == api::later(began, {0, 0}) ? "true" : "false", began == ended ? "true" : "false");
+	}
+	// tracing's level, and its filter as an optional level whose empty is `OFF`.
+	{
+		auto verbosity = api::Verbosity::new_(api::Level::warn);
+		print("verbosity ", api::spell(verbosity.filter()), " ");
+		print("", api::spell(api::louder(verbosity.filter())), "\n");
+		verbosity.level_set(api::Level::trace);
+		std::printf("verbosity %s ", verbosity.level_get() == api::Level::trace ? "true" : "false");
+		print("", api::spell(verbosity.filter()), " ");
+		print("", api::spell(api::louder(verbosity.filter())), " ");
+		print("", api::spell(api::louder(std::nullopt)), "\n");
+	}
 
 	// A returned `Vec<&Token>` holds clones, which the vector drops.
 	api::Token twice = api::Token::new_(9);

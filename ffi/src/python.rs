@@ -80,9 +80,9 @@ const BUFFER: &str = "bytes | bytearray | memoryview";
 const V4: &str = "tuple[str, int]";
 const V6: &str = "tuple[str, int, int, int]";
 
-/// The registry's first entries, the runtime's: the glue's `T_FUTURE`, `T_TIMEDELTA`, and
-/// `T_RESUME`.
-const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume"];
+/// The registry's first entries, the runtime's: the glue's `T_FUTURE`, `T_TIMEDELTA`,
+/// `T_RESUME`, and `T_WAKER`.
+const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume", "Waker"];
 
 /// The Python for `abi`, whose header's contract is `contract`, or the names two items
 /// claim alike. The Python's own contract hashes the header's with everything it and its
@@ -585,7 +585,8 @@ impl<'a> Gen<'a> {
 			}
 			Type::Bound(_) | Type::Bounds(_) => format!("w_{}({v})", abi.range(ty)),
 			Type::Tuple(_) => format!("w_{}({v})", self.c_struct(ty)),
-			Type::Callback(..) | Type::Closure(..) | Type::Waker => {
+			Type::Waker => format!("rt::waker_out({v})"),
+			Type::Callback(..) | Type::Closure(..) => {
 				unreachable!("{ty:?} is no value Rust returns")
 			}
 		}

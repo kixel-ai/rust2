@@ -92,7 +92,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	kotlin.push_str(&g.top);
 	let _ = write!(
 		kotlin,
-		"internal object Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __target(): Int\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n{}{}}}\n",
+		"internal object Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __target(): Int\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __waker_wake(raw: Long)\n\n\t@JvmStatic external fun __waker_drop(raw: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -122,6 +122,14 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		#[unsafe(no_mangle)]\n\
 		pub unsafe extern \"system\" fn Java_{pkg}_Native__1_1waker_1free(_: *mut JNIEnv, _: jclass, node: jlong) {{\n\
 		\tunsafe {{ rt::unref(node as usize as _) }}\n\
+		}}\n\n\
+		#[unsafe(no_mangle)]\n\
+		pub unsafe extern \"system\" fn Java_{pkg}_Native__1_1waker_1wake(_: *mut JNIEnv, _: jclass, raw: jlong) {{\n\
+		\tunsafe {{ rt::wake_returned(raw) }}\n\
+		}}\n\n\
+		#[unsafe(no_mangle)]\n\
+		pub unsafe extern \"system\" fn Java_{pkg}_Native__1_1waker_1drop(_: *mut JNIEnv, _: jclass, raw: jlong) {{\n\
+		\tunsafe {{ rt::drop_returned(raw) }}\n\
 		}}\n\n\
 		#[unsafe(no_mangle)]\n\
 		pub unsafe extern \"system\" fn Java_{pkg}_Native__1_1bytes_1get(_: *mut JNIEnv, _: jclass, _: jobject, owner: jlong, index: jint) -> jbyte {{\n\
@@ -545,6 +553,7 @@ impl<'a> Gen<'a> {
 				false => format!("r_{}({r})", abi.enumeration(*i)),
 			},
 			Type::Object(i) => format!("{}({r}.i64())", self.class(&abi.object(*i))),
+			Type::Waker => format!("Native.Returned({r}.i64())"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("r_{}({r})", abi.range(ty)),
 			Type::Tuple(elements) => {
 				let read: Vec<String> = elements.iter().map(|e| self.read(e, r, owned)).collect();
@@ -567,6 +576,7 @@ impl<'a> Gen<'a> {
 			Ty::Bool | Ty::F32 | Ty::F64 | Ty::Char => e.to_string(),
 			Ty::Int(int) => from_signed(*int, e),
 			Ty::Enum(name) => format!("{}.of({e})", self.class(name)),
+			Ty::Waker => format!("Native.Returned({e})"),
 			Ty::Handle { name, .. } => {
 				let class = self.class(name);
 				let wrap = |h: &str| match lent {
@@ -1774,6 +1784,7 @@ impl<'a> Gen<'a> {
 			let (jni, native) = match c_ret {
 				// Bytes cross copied or as their owner.
 				Ty::Buf if !string(&ok) => ("jobject", "Any?"),
+				Ty::Waker => ("jlong", "Long"),
 				_ => jni_type(&c_ret, &ok),
 			};
 			let params: Vec<(&str, &str)> = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect();
@@ -1785,6 +1796,7 @@ impl<'a> Gen<'a> {
 				Ty::Char => "ret as jint".to_string(),
 				Ty::Enum(_) => "ret".to_string(),
 				Ty::Handle { .. } => "ret as usize as jlong".to_string(),
+				Ty::Waker => "rt::returned(ret)".to_string(),
 				Ty::Buf if string(&ok) => "rt::owned(env, ret)".to_string(),
 				Ty::Buf => "rt::hand(env, ret)".to_string(),
 				_ => format!(

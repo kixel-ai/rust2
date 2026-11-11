@@ -372,7 +372,7 @@ pub struct Scope {
 	held: smallvec::SmallVec<[(Obj, bool); 4]>,
 	/// The objects Rust lends a callback, ended once it returns.
 	lent: Vec<Obj>,
-	/// Python implementations and waker nodes given to Rust, taken back unless the call
+	/// Python implementations and wakers given to Rust, taken back unless the call
 	/// happens.
 	given: Vec<Obj>,
 	nodes: Vec<rt::Waker>,
@@ -411,8 +411,8 @@ impl Scope {
 impl Drop for Scope {
 	fn drop(&mut self) {
 		while let Some(waker) = self.nodes.pop() {
-			// SAFETY: a reference the call never took.
-			unsafe { node_drop(waker.data) };
+			// SAFETY: a waker the call never took.
+			unsafe { waker.release() };
 		}
 		while let Some(lent) = self.lent.pop() {
 			// SAFETY: an object [`lent`] made.
@@ -433,10 +433,12 @@ static TYPES: Gil<Vec<Obj>> = Gil::new(Vec::new());
 static MEMBERS: Gil<Vec<Option<Vec<(i64, Obj)>>>> = Gil::new(Vec::new());
 
 /// The runtime's entries, at the start of the registry: the awaitable a pending future
-/// is, `datetime.timedelta`, and `_resume`, which schedules the running loop's dispatch.
+/// is, `datetime.timedelta`, `_resume`, which schedules the running loop's dispatch, and
+/// `Waker`.
 pub const T_FUTURE: usize = 0;
 const T_TIMEDELTA: usize = 1;
 const T_RESUME: usize = 2;
+const T_WAKER: usize = 3;
 
 /// The class registered at `index`.
 pub fn ty(index: usize) -> *mut PyObject {
@@ -1702,6 +1704,14 @@ unsafe extern "C" fn node_obj_dealloc(obj: *mut PyObject) {
 	}
 }
 
+unsafe extern "C" fn node_wake_py(obj: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
+	// SAFETY: Python calls it on a `Node`.
+	let node = unsafe { (*obj.cast::<NodeObj>()).node.as_ref() }.expect("a live node");
+	// SAFETY: the node is live while its `Node` is.
+	unsafe { node_wake(Arc::as_ptr(node).cast_mut().cast()) };
+	none().map_or(null_mut(), Obj::into_ptr)
+}
+
 unsafe extern "C" fn node_token(obj: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
 	// SAFETY: Python calls it on a `Node`.
 	let node = unsafe { (*obj.cast::<NodeObj>()).node.as_ref() }.expect("a live node");
@@ -1710,17 +1720,60 @@ unsafe extern "C" fn node_token(obj: *mut PyObject, _: *mut PyObject) -> *mut Py
 
 static NODE_ATTR: Key = Key::new(c"_node");
 
-/// A Python `Waker` passed by value: Rust holds a new reference to its node.
+/// A Python `Waker` passed by value: Rust holds a new reference to its node, or a clone
+/// of the waker it returned.
 pub fn waker_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Waker> {
 	let node = attr(obj, &NODE_ATTR, s)?;
-	if !is_type(node, &NODE) {
+	let waker = if is_type(node, &NODE) {
+		// SAFETY: a `Node`, which holds its node until deallocated.
+		let node = unsafe { (*node.cast::<NodeObj>()).node.clone() }.expect("a live node");
+		node.give()
+	} else if is_type(node, &RETURNED) {
+		// SAFETY: a `Returned`, which holds its waker until deallocated.
+		rt::Waker::lower(unsafe { (*node.cast::<ReturnedObj>()).waker.clone() })
+	} else {
 		return expected_named(obj, "Waker");
-	}
-	// SAFETY: a `Node`, which holds its node until deallocated.
-	let node = unsafe { (*node.cast::<NodeObj>()).node.clone() }.expect("a live node");
-	let waker = node.give();
+	};
 	s.nodes.push(waker);
 	Ok(waker)
+}
+
+/// `Returned`: the node of a `Waker` Rust returned, which wakes through Rust.
+#[repr(C)]
+struct ReturnedObj {
+	ob_base: PyObject,
+	waker: std::task::Waker,
+}
+
+/// A waker Rust returned, as a `Waker` whose node is a `Returned`.
+pub fn waker_out(waker: rt::Waker) -> R<Obj> {
+	let waker = waker.lift();
+	let returned = RETURNED.get().expect("made with the module").ptr().cast();
+	// SAFETY: the GIL is held, `returned` is `Returned`, and `T_WAKER` the `Waker` class.
+	unsafe {
+		let node = Obj::new(PyType_GenericAlloc(returned, 0))?;
+		std::ptr::write(&raw mut (*node.ptr().cast::<ReturnedObj>()).waker, waker);
+		let new = Obj::new(PyObject_GetAttrString((&raw mut PyBaseObject_Type).cast(), c"__new__".as_ptr()))?;
+		let obj = Obj::new(PyObject_CallObject(new.ptr(), tuple(vec![Ok(Obj::borrowed(ty(T_WAKER)))])?.ptr()))?;
+		if PyObject_SetAttr(obj.ptr(), NODE_ATTR.get()?, node.ptr()) != 0 {
+			return Err(Raised);
+		}
+		Ok(obj)
+	}
+}
+
+unsafe extern "C" fn returned_wake(obj: *mut PyObject, _: *mut PyObject) -> *mut PyObject {
+	// SAFETY: Python calls it on a live `Returned`.
+	unsafe { &(*obj.cast::<ReturnedObj>()).waker }.wake_by_ref();
+	none().map_or(null_mut(), Obj::into_ptr)
+}
+
+unsafe extern "C" fn returned_dealloc(obj: *mut PyObject) {
+	// SAFETY: Python deallocates a `Returned` once.
+	unsafe {
+		std::ptr::drop_in_place(&raw mut (*obj.cast::<ReturnedObj>()).waker);
+		dealloc(obj);
+	}
 }
 
 /// Poll a future once with a waker, returning its value once it finishes.
@@ -1913,6 +1966,7 @@ static OBJECT: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
 static FUTURE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
 static QUEUE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
 static NODE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
+static RETURNED: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
 
 /// A method table entry.
 pub const fn method(name: &'static CStr, f: PyCFunctionFast) -> PyMethodDef {
@@ -2011,7 +2065,13 @@ static QUEUE_METHODS: Methods<4> = Methods(UnsafeCell::new([
 	END,
 ]));
 
-static NODE_METHODS: Methods<2> = Methods(UnsafeCell::new([noargs(c"token", node_token), END]));
+static NODE_METHODS: Methods<3> = Methods(UnsafeCell::new([
+	noargs(c"token", node_token),
+	noargs(c"wake", node_wake_py),
+	END,
+]));
+
+static RETURNED_METHODS: Methods<2> = Methods(UnsafeCell::new([noargs(c"wake", returned_wake), END]));
 
 static REGISTER: Methods<2> = Methods(UnsafeCell::new([method(c"_register", register), END]));
 
@@ -2107,6 +2167,18 @@ unsafe fn runtime(module: *mut PyObject) -> R<()> {
 			slot(Py_tp_methods, NODE_METHODS.ptr().cast()),
 			slot(0, null_mut()),
 		])?;
+		add_type(
+			module,
+			&RETURNED,
+			c"Returned",
+			size_of::<ReturnedObj>(),
+			Py_TPFLAGS_DISALLOW_INSTANTIATION as u64,
+			&mut [
+				slot(Py_tp_dealloc, returned_dealloc as *mut c_void),
+				slot(Py_tp_methods, RETURNED_METHODS.ptr().cast()),
+				slot(0, null_mut()),
+			],
+		)?;
 		let bytes_slots = &mut [
 			slot(Py_bf_getbuffer, bytes_getbuffer as *mut c_void),
 			slot(Py_tp_dealloc, bytes_dealloc as *mut c_void),

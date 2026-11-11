@@ -368,6 +368,13 @@ Future<void> script() async {
   channel.send(utf8.encode('heard'));
   await until(() => wakes == 3, 'the send wakes the context Rust keeps');
   print('woken $wakes');
+  // A returned waker wakes the waiter's task through Rust until it is dropped.
+  final waiter = api.Waiter(() => wakes++);
+  waiter.waker()();
+  waiter.context()();
+  waiter.close();
+  await until(() => wakes == 5, 'a returned waker wakes the waiter');
+  print('woken $wakes');
 
   final nodes = api.Node(1, null);
   nodes.push(2);
@@ -597,11 +604,34 @@ Future<void> script() async {
   // Returned iterators, each collected at the call: drained labels are gone after.
   print('iterated ${debugs(trail.iter())} ${quoted(trail.names())} ${trail.bytes()}');
   print('drained ${debugs(trail.drain())} then ${debugs(trail.labels())}');
+  // A filter, collected at the call.
+  print('beyond ${trail.beyond(1).map((p) => '${p.x} ${p.y}').join(', ')}');
   trail.close();
   final numbered = api.numbered(['p', 'q']);
   print('numbered ${numbered.map((c) => '${c.name()} ${c.get()}').join(', ')}');
   final (next4, next6) = api.nexts(v4, v6);
   print('nexts ${next4.address.address} ${next4.port} ${next6.port} ${next6.scopeId}');
+
+  // serde_json's map iterator, collected as pairs of a key and its document.
+  final sections = api.sections([('b', api.Json.parse('[1]')), ('a', api.Json.parse('2'))]);
+  print('sections ${sections.map((e) => '${e.$1} ${e.$2.toText()}').join(', ')}');
+  for (final section in sections) {
+    section.$2.close();
+  }
+  // An instant only Rust makes, which each call copies out of its handle, and compares.
+  final began = api.now();
+  final ended = api.later(began, const Duration(milliseconds: 1500));
+  final same = api.later(began, Duration.zero);
+  print('instants ${api.since(ended, began).inMilliseconds} ${api.since(began, ended).inMilliseconds} ${began == same} ${began == ended}');
+  began.close();
+  ended.close();
+  same.close();
+  // tracing's level, and its filter as an optional level whose null is `OFF`.
+  final verbosity = api.Verbosity(api.Level.warn);
+  print('verbosity ${api.spell(verbosity.filter())} ${api.spell(api.louder(verbosity.filter()))}');
+  verbosity.levelSet(api.Level.trace);
+  print('verbosity ${verbosity.levelGet == api.Level.trace} ${api.spell(verbosity.filter())} ${api.spell(api.louder(verbosity.filter()))} ${api.spell(api.louder(null))}');
+  verbosity.close();
 }
 
 /// `future`'s value, failing past a deadline rather than waiting for a wake that never lands.

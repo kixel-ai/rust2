@@ -1124,6 +1124,7 @@ impl<'a> Gen<'a> {
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.lift(inner, e),
 			Type::Object(_) => format!("{}._({e})", self.dt(ty)),
+			Type::Waker => format!("_n.returned({e})"),
 			Type::Record(_)
 			| Type::Enum(_)
 			| Type::List(..)
