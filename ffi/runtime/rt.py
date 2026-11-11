@@ -1,6 +1,6 @@
 # The runtime every generated Python module includes: the awaitable a future that pends
-# is, the queue each event loop reads its wakes from, and `Waker`. Its names start with
-# `_` but `Waker`, so no exported name clashes with them.
+# is, the queue each event loop reads its wakes from, `Waker`, and `Mut`. Its names start
+# with `_` but `Waker` and `Mut`, so no exported name clashes with them.
 
 
 class _Future(_n.Future, _typing.Generic[_T]):
@@ -104,6 +104,16 @@ class Waker:
 		w = _wakeup(_get_running_loop() if loop is None else loop)
 		self._node = _n.Node(w.queue)
 		w.wakers[self._node.token()] = wake
+
+
+class Mut(_typing.Generic[_T]):
+	"""A value a call takes `&mut`, which Rust writes back into `value` once it returns,
+	errors included."""
+
+	__slots__ = ("value",)
+
+	def __init__(self, value: _T) -> None:
+		self.value = value
 
 
 class _Const:

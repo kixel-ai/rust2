@@ -164,8 +164,26 @@ fun script() {
 	val long = longer(joined, Name.owned("dd"))
 	println("longer ${long.asStr()}")
 	println("unnamed [${unnamed().asStr()}]")
+	val lit = Name.borrowed("lit")
+	println("borrowed ${lit.asStr()} ${lit.shares(Name.borrowed("lit"))} ${lit.shares(Name.borrowed("other"))}")
 
 	println("total ${total(RangeU64(2u, 5u))}")
+	println("reach ${reach(2u, 5u)}")
+	val two = java.math.BigInteger.TWO
+	val scaled = listOf(scaled(two.pow(128) - java.math.BigInteger.ONE, 1u), scaled(two.pow(64) + java.math.BigInteger.ONE, 1uL shl 63), scaled(two.pow(127), 2u))
+	println("scaled " + scaled.joinToString(" ") { it?.toString(16)?.padStart(32, '0') ?: "none" })
+	for (v in listOf(two.pow(128), java.math.BigInteger.ONE.negate())) {
+		check(runCatching { scaled(v, 1u) }.exceptionOrNull() is IllegalArgumentException, "$v is no u128")
+	}
+	Batch.new().use { batch ->
+		pair().use { batch2 ->
+			val accepted = (1u..5u).count { batch.push(it) }
+			val paired = (1u..3u).count { batch2.push(it) }
+			val emptied = drain4(batch)
+			println("batch ${batch.capacity()} $accepted $emptied ${drain4(batch)} ${batch2.capacity()} $paired ${drain2(batch2)}")
+			println("capacities ${capacities42(batch, batch2)} ${capacities22(batch2, batch2)}")
+		}
+	}
 	val wide = widen(RangeU64(2u, 5u), 1u)
 	println("widen ${wide.start} ${wide.end}")
 	val counts = listOf(
@@ -256,6 +274,9 @@ fun script() {
 		} catch (e: ErrorException) {
 			println("nonempty err ${e.message}")
 		}
+		Batch.new().use { b4 ->
+			pair().use { b2 -> println("fill " + (fill4(b4, 9u) + fill2(b2, 1u)).joinToString(" ")) }
+		}
 		// The send happens at the call: the future is dropped unawaited.
 		channel.sendLater("eager".encodeToByteArray())
 		println("recv ${channel.recv().text()}")
@@ -266,6 +287,16 @@ fun script() {
 	// The waker moves into Rust, which keeps it until the send wakes it.
 	channel.notify(waker)
 	channel.send("rung".encodeToByteArray())
+	println("woken $wakes")
+	runBlocking {
+		// A poll with no async twin is a future.
+		println("take ${channel.pollTake().text()}")
+		channel.send("measured".encodeToByteArray())
+		println("measure ${channel.pollMeasure(2u)}")
+	}
+	// A context is made of the waker, which Rust keeps until the send wakes it.
+	channel.listen(waker)
+	channel.send("heard".encodeToByteArray())
 	println("woken $wakes")
 
 	val list = Node.new(1u, null)
@@ -369,6 +400,50 @@ fun script() {
 	println("words ${words.size} ${words.joinToString(", ", "[", "]") { "\"$it\"" }}")
 	println("sentence ${sentence(words)} ${sentence(null)}")
 	println("sentence ${sentence(emptyList())}|")
+	println("either ${either("abc")} ${either(null)}")
+	val cd = "cd".encodeToByteArray()
+	println("prefixed ${prefixed(cd, "ab".encodeToByteArray()).toByteArray().decodeToString()} ${prefixed(cd, null).toByteArray().decodeToString()}")
+	println("coordinates ${coordinates(Point(2, 3))} ${coordinates(null)}")
+	Counter.new("two", 2u).use { two ->
+		Counter.new("three", 3u).use { three ->
+			println("plus ${two.plus(three)} ${two.plus(null)}")
+			println("add_to ${two.addTo(three)} ${two.addTo(null)} ${three.get()}")
+			check(two.offset(3u, 4u) == 36uL, "a method's parameters named handle and h are its own")
+		}
+	}
+	check(Counter.new("five", 5u).intoSum(1u) == 6uL, "a consuming method's parameter named close is its own")
+	val encoded = Mut("0,".encodeToByteArray())
+	putNumber(1u, encoded)
+	putNumber(23u, encoded)
+	println("put_number ${encoded.value.decodeToString()}")
+	val entry = Mut(Pair("ab".encodeToByteArray(), 1u))
+	val stamps = pushCounted(entry, 'c'.code.toUByte())
+	println("push_counted $stamps ${entry.value.first.decodeToString()} ${entry.value.second}")
+	val digits = Mut("7x9".encodeToByteArray())
+	val firstDigit = digit(digits)
+	val skipped = try {
+		digit(digits)
+		false
+	} catch (e: ErrorException) {
+		true
+	}
+	println("digit $firstDigit $skipped ${digit(digits)} ${digits.value.size}")
+	val nudged = Mut(Point(1, 2))
+	nudge(nudged, 3)
+	println("nudge ${nudged.value.x} ${nudged.value.y}")
+	secure("h3").use { config -> println("secure ${alpnLent(config)} ${alpn(config.clone())}") }
+	Meters.new().use { meters ->
+		meters.first().use { first ->
+			first.add(2uL)
+			println("lent ${first.add(3uL)} ${meters.first().use { it.count() }}")
+		}
+		meters.clear()
+		println("cleared ${meters.first().use { it.count() }}")
+	}
+	Tallies.new().use { tallies ->
+		tallies.first().use { it.bump() }
+		println("tallied ${tallies.first().use { it.bump() }}")
+	}
 	println("chunks ${chunks("abcde".encodeToByteArray(), 2uL).map { it.toByteArray().toList() }}")
 	val counters = counters(listOf("x", "y"))
 	println("counters ${counters.joinToString(", ") { "${it.name()} ${it.get()}" }}")
@@ -556,6 +631,11 @@ fun broken(which: String) {
 			Node.new(2u, tail)
 			tail.sum()
 		}
+		"outlived" -> Meters.new().let { meters ->
+			val first = meters.first()
+			meters.clear()
+			first.count()
+		}
 		"lent moved" -> Registry.new(Counter.new("c", 0u)).edit { counter ->
 			counter.intoLabel(null)
 			false
@@ -596,14 +676,7 @@ fun owned() {
 		val sliced = nextPacket(Packet(1u, packet.payload.slice(1, n - 1))).payload
 		check(sliced.toByteArray().contentEquals(payload.copyOfRange(1, n - 1)), "a slice of a record's $n bytes crosses as its range")
 	}
-	var freed = dropped()
-	for (n in 1023..1025) {
-		val bytes = tokenBytes(n.toUInt(), n.toUInt())
-		if (n <= 1024) freed++
-		check(dropped() == freed, "$n bytes are freed at the call only if copied")
-		reads(bytes, n.toByte(), "$n bytes")
-	}
-	collected(freed + 1u, "the GC frees lent bytes nothing reaches")
+	collected(lentAround() + 1u, "the GC frees lent bytes nothing reaches")
 	reads(Bytes(ByteArray(1025) { 9 }), 9, "Kotlin's bytes")
 
 	// A call after close throws, and close frees at once, once.
@@ -743,7 +816,22 @@ fun budgeted() {
 	collected(before + 66u, "the GC frees bytes lent once the budget is free")
 }
 
-// In its own frame, so nothing on the caller's keeps them reachable.
+// Rust's bytes either side of the copy limit, returning the drops once the call has freed
+// those it copied. In its own frame, which the Android test keeps from R8's inlining, as
+// ART's interpreter keeps the last ones reachable from the caller's until it returns.
+fun lentAround(): UInt {
+	var freed = dropped()
+	for (n in 1023..1025) {
+		val bytes = tokenBytes(n.toUInt(), n.toUInt())
+		if (n <= 1024) freed++
+		check(dropped() == freed, "$n bytes are freed at the call only if copied")
+		reads(bytes, n.toByte(), "$n bytes")
+	}
+	return freed
+}
+
+// In its own frame, which the Android test keeps from R8's inlining, so nothing on the
+// caller's keeps them reachable.
 fun lentToBudget(before: UInt) {
 	val mib = 1 shl 20
 	val held = List(64) { tokenBytes(1u, mib.toUInt()) }

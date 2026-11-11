@@ -100,6 +100,7 @@ impl<'a> Header<'a> {
 	fn owned(&self, ty: &Type) -> String {
 		let abi = self.abi;
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => "void".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(int) => cpp_int(*int).to_string(),
@@ -109,6 +110,7 @@ impl<'a> Header<'a> {
 			Type::Str | Type::String | Type::Slice | Type::Vec | Type::Bytes | Type::Path | Type::PathBuf => {
 				format!("::{}::buf", self.ns)
 			}
+			Type::U128 => format!("::{}::u128", self.ns),
 			Type::Duration => format!("::{}::duration", self.ns),
 			Type::SocketAddr(_) => format!("::{}::socket_addr", self.ns),
 			Type::List(_, inner) => format!("::std::vector<{}>", self.owned(inner)),
@@ -131,6 +133,12 @@ impl<'a> Header<'a> {
 	/// The C++ type of a parameter of type `ty`.
 	fn param(&self, ty: &Type) -> String {
 		let abi = self.abi;
+		// A value Rust writes back, through the caller's own.
+		if let Type::Ref(_, inner) = ty
+			&& ty.written()
+		{
+			return format!("{} &", self.owned(inner));
+		}
 		if Abi::is_buf(ty) {
 			return format!("::{}::view", self.ns);
 		}
@@ -241,10 +249,13 @@ impl<'a> Header<'a> {
 			return format!("{d}::access::raw(::{ns}::view({e}))");
 		}
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("static_cast<uint32_t>({e})"),
-			Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => e.to_string(),
+			Type::U128 | Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
+				e.to_string()
+			}
 			Type::Waker => format!("{d}::give({d}::access::raw({e}))"),
 			Type::List(_, inner) => {
 				let x = format!("x{}_", lists(inner));
@@ -305,7 +316,9 @@ impl<'a> Header<'a> {
 		match ty {
 			Type::Bool | Type::Int(_) | Type::F32 | Type::F64 => e.to_string(),
 			Type::Char => format!("static_cast<char32_t>({e})"),
-			Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => e.to_string(),
+			Type::U128 | Type::Duration | Type::SocketAddr(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
+				e.to_string()
+			}
 			Type::List(_, inner) => {
 				let c = format!("c{}_", lists(inner));
 				format!(
@@ -420,6 +433,7 @@ impl<'a> Header<'a> {
 			upper = p.to_uppercase()
 		));
 		let mut aliases = vec![
+			("u128".to_string(), format!("{p}_u128")),
 			("duration".to_string(), format!("{p}_duration")),
 			("socket_addr".to_string(), format!("{p}_socket_addr")),
 		];
@@ -612,12 +626,19 @@ impl<'a> Header<'a> {
 			format!("\texplicit {name}(decltype(raw_) raw) noexcept : raw_(::std::move(raw)) {{}}\n"),
 			format!("\tfriend struct {d}::access;\n"),
 			"public:".to_string(),
+			// A move leaves the source consumed, which Clang's `-Wconsumed` then refuses to call.
+			format!("\tRUST2_FFI_UNCONSUMED {name}({name} &&other RUST2_FFI_MOVED_FROM) noexcept = default;"),
+			format!("\t{name} &operator=({name} &&other) noexcept = default;"),
 		];
+		if object.shared {
+			body.push(format!("\tRUST2_FFI_UNCONSUMED {name}(const {name} &other) = default;"));
+			body.push(format!("\t{name} &operator=(const {name} &other) = default;"));
+		}
 		let mut members = Vec::new();
 		if t.clone && !object.shared {
 			let clone = apart("clone", &name);
 			body.push(format!(
-				"\t/// Rust's `Clone`, a value of its own: copies sharing one value could be told apart\n\t/// from clones, so it does not copy.\n\t{name} {clone}() const;"
+				"\t/// Rust's `Clone`, a value of its own: copies sharing one value could be told apart\n\t/// from clones, so it does not copy.\n\tRUST2_FFI_CALLABLE {name} {clone}() const;"
 			));
 			self.def(format!(
 				"inline {name} {name}::{clone}() const {{\n\treturn {d}::access::wrap<{name}>(::{c}_clone(raw_.get()));\n}}\n"
@@ -642,7 +663,7 @@ impl<'a> Header<'a> {
 		}
 		self.distinct(&name, &abi.api.rust(&object.path, &object.args), &members);
 		self.line(format!(
-			"{}class {name} {{\n{}\n}};\n",
+			"{}class RUST2_FFI_CONSUMABLE {name} {{\n{}\n}};\n",
 			docs(text.trim(), ""),
 			body.join("\n")
 		));
@@ -662,6 +683,10 @@ impl<'a> Header<'a> {
 		let ns = self.ns.clone();
 		let d = self.d();
 		let object = value.is_none();
+		let callable = match object {
+			true => "RUST2_FFI_CALLABLE ",
+			false => "",
+		};
 		let (this, lower) = match value {
 			None => ("raw_.get()", String::new()),
 			Some(ty) => (
@@ -671,7 +696,7 @@ impl<'a> Header<'a> {
 		};
 		if t.display {
 			let member = apart("to_string", name);
-			body.push(format!("\t::{ns}::buf {member}() const;"));
+			body.push(format!("\t{callable}::{ns}::buf {member}() const;"));
 			self.def(format!(
 				"inline ::{ns}::buf {name}::{member}() const {{\n{lower}\treturn {d}::access::adopt(::{c}_to_string({this}));\n}}\n"
 			));
@@ -679,7 +704,7 @@ impl<'a> Header<'a> {
 		}
 		if t.debug {
 			let member = apart("debug", name);
-			body.push(format!("\t::{ns}::buf {member}() const;"));
+			body.push(format!("\t{callable}::{ns}::buf {member}() const;"));
 			self.def(format!(
 				"inline ::{ns}::buf {name}::{member}() const {{\n{lower}\treturn {d}::access::adopt(::{c}_debug({this}));\n}}\n"
 			));
@@ -1145,6 +1170,14 @@ impl<'a> Header<'a> {
 			args.push(self.lower(&param.ty, &name));
 		}
 		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		// Each value passed for `&mut` takes what Rust wrote back, on every path.
+		let writes: Vec<String> = (function.params.iter().zip(&names))
+			.filter(|(param, _)| param.ty.written())
+			.map(|(param, name)| {
+				let out = Abi::written(function, &abi::escape(&param.name));
+				format!("{name} = {};", self.lift(param.ty.base(), &format!("c_{out}_")))
+			})
+			.collect();
 		for (name, _) in &outs {
 			args.push(format!("&c_{name}_"));
 		}
@@ -1156,17 +1189,28 @@ impl<'a> Header<'a> {
 			let (declared, ok, err) = self.outs(function, &outs, &ret);
 			body.extend(declared);
 			match (&function.err, &function.ok) {
+				(Some(_), _) if !writes.is_empty() => {
+					body.push(format!("bool c_ok_ = {call};"));
+					body.extend(writes);
+					body.push(format!("if (c_ok_) {{\n\t\treturn {ok};\n\t}}"));
+					body.push(format!("return {};", err.expect("an error lifts")));
+				}
 				(Some(_), _) => {
 					body.push(format!("if ({call}) {{\n\t\treturn {ok};\n\t}}"));
 					body.push(format!("return {};", err.expect("an error lifts")));
 				}
 				(None, Type::Tuple(_)) => {
 					body.push(format!("{call};"));
+					body.extend(writes);
 					body.push(format!("return {ok};"));
 				}
-				(None, Type::Unit) => body.push(format!("{call};")),
+				(None, Type::Unit) => {
+					body.push(format!("{call};"));
+					body.extend(writes);
+				}
 				(None, ok_ty) => {
 					body.push(format!("auto c_out_ = {call};"));
+					body.extend(writes);
 					let lifted = self.lift(&strip_refs(ok_ty), "c_out_");
 					body.push(format!("return {lifted};"));
 				}
@@ -1209,14 +1253,18 @@ impl<'a> Header<'a> {
 				}
 			}
 		}
+		// An object's method is callable only before a move empties it, and one taking
+		// `self` empties it.
+		let prefix = match (is_static, free, owner) {
+			(true, _, _) => "static ",
+			(false, false, Some(Ty::Handle { .. })) if qualifier == " &&" => "RUST2_FFI_CONSUMES ",
+			(false, false, Some(Ty::Handle { .. })) => "RUST2_FFI_CALLABLE ",
+			_ => "",
+		};
 		let declaration = format!(
-			"{}\t{}{}{ret} {member}({}){qualifier};",
+			"{}\t{}{prefix}{ret} {member}({}){qualifier};",
 			docs(text.trim(), "\t"),
 			template.replace('\n', "\n\t"),
-			match is_static {
-				true => "static ",
-				false => "",
-			},
 			params.join(", ")
 		);
 		(declaration, member)
@@ -1254,7 +1302,9 @@ impl<'a> Header<'a> {
 					));
 					args.push(match m {
 						crate::ir::Mutability::Not => format!("::std::as_const(l{k}_.get())"),
-						crate::ir::Mutability::Mut => format!("l{k}_.get()"),
+						crate::ir::Mutability::Mut => {
+							format!("::{}::borrow<{}>(l{k}_.get())", self.ns, self.owned(object))
+						}
 					});
 				}
 				_ => args.push(self.lift_lent(ty, &p)),

@@ -64,7 +64,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | Rust | C |
 | --- | --- |
 | a struct whose fields are all `pub`, not `#[non_exhaustive]`, which map, with no `Drop` of its own | a record: a struct, copied across |
-| an enum whose fields map, with no `Drop` of its own | a C enum without fields, or a struct of a tag and a union |
+| an enum with variants whose fields map, with no `Drop` of its own | a C enum without fields, or a struct of a tag and a union |
 | any other type, if `Send` | an object: an opaque handle to an `Arc`, freed with `_free` |
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
@@ -72,22 +72,27 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | a `pub` trait | a callback interface: a table of C functions and their data; a trait C cannot implement, such as one with a blanket impl, an associated type, or a supertrait but a marker, is left out, since C never passes one, and a signature taking one from C is refused |
 | a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce`, which no lifetime bound or return lets outlive the call | a C function and its `void *` data, which Rust calls only during the call; any other closure is refused |
 | `fn` and inherent `pub` methods | functions named through their type |
+| a `()` parameter of a function, not of a callback's method | nothing: C passes no argument for it |
 | `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
 | a tuple inside another type, or as a field or parameter | `<prefix>_tuple_<A>_<B>`: a struct of fields `_0`, `_1`, and so on; of references only returned |
 | `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it; a function that is not `async` runs at the call, as in Rust |
+| a function returning `Poll<T>` that polls through a `&Context`, a `&mut Context`, or a reference to an object exactly one associated function makes from a `Waker` alone, of a type with no generic parameters, such as kio's `Waiter` | a future of `T`, as an `async fn`'s: each poll calls the function again with the poll's context, or with an object made from its waker and kept until the next poll, so what it registers stays registered; each other parameter taken by value must be `Copy` |
 | `poll_x`, when `x` exports as a future | left out: the future is its poll |
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
+| `u128` | `<prefix>_u128`: its low and high 64 bits |
 | `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: a view passed in, an owned buffer returned |
 | `&Path`, `PathBuf` | `<prefix>_buf` of the path's bytes as the OS holds them on Unix, which need not be UTF-8, else UTF-8 |
 | `Duration` | `<prefix>_duration` |
 | `SocketAddr`, `SocketAddrV4`, `SocketAddrV6` | `<prefix>_socket_addr`: its IP's bytes, port, and whether it is IPv6; one of the other family passed to `V4` or `V6` aborts |
 | `url::Url` | an object `<prefix>_Url`, made by `<prefix>_Url_parse`, which fails with the parse error's message, and printed by `_to_string` |
+| `Arc<T>` of another crate's `Send` and `Sync` type that no other rule maps, such as `Arc<rustls::ServerConfig>` | an opaque object named by `T`'s crate and name, such as `<prefix>_rustls_ServerConfig`, with `_clone` and `_free` and none of `T`'s API: it only passes back to Rust |
 | `serde_json::Value` | an object `<prefix>_Json`, made by `<prefix>_Json_parse` from JSON text, which fails with serde_json's message, and read back by `_to_text`; its contents are the caller's JSON library's to read |
 | `Vec<T>` and `&[T]` of any other `T` | `<prefix>_vec_<T>`: an array of `T`'s C values, viewed passed in and owned returned, a slice as a clone; of references only returned |
 | `BTreeSet<T>`, `BTreeMap<K, V>`, and `serde_json::Map` | as `Vec<T>`, `Vec<(K, V)>`, and `Vec<(String, serde_json::Value)>`: its items in order, from which Rust builds it, keeping the last of a key |
 | a returned iterator, such as `slice::Iter` or an `impl Iterator`, that no other rule maps, outside a future, made of core's and alloc's iterators over a slice, string, `Option`, `Result`, or collection, through `rev`, `chain`, `flatten`, `fuse`, `enumerate`, `peekable`, `copied`, or `cloned`, with no closure, function, or trait object inside | what `collect::<Vec<_>>()` makes of it: every item, taken at the call |
 | `Waker`, taken by value | `<prefix>_waker`, as a future's poll takes it |
+| `&Context` or `&mut Context` of a function returning no `Poll` and no future | `<prefix>_waker`, which the context is made of for the call |
 | `Range<T>`, `Bound<T>` of an integer | `<prefix>_range_<T>`, `<prefix>_bound_<T>`: a `<prefix>_bound` kind and a value |
 | `impl RangeBounds<T>` of an integer | `<prefix>_bounds_<T>`: its start and end bounds |
 | `Option<T>` | a null handle or buffer, or `<prefix>_option_<T>` |
@@ -97,28 +102,38 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `impl IntoIterator<Item = X>`, where `X` is no type parameter | `Vec<X>`, or `&[Y]` where `X` is `&Y` |
 | `impl io::Read` | `&[u8]` |
 | another type parameter | `serde_json::Value` for a serde `Serialize` or `Deserialize` bound, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, through a blanket impl at each type implementing what the impl requires, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
+| a const parameter of a function | an instance of the function at each value an instance of a generic type the signature passes it to has there, where each generic type the signature then names is an instance |
+| a const argument | a `bool` or an integer below 128 bits; any other is refused |
 
 A generic type infers the instances it exports at, with no config: the one at its
-defaults, if each type parameter has one; the one each inherent impl is of, such as
-`impl Pair<u32>`; each choice, for each parameter, among its default and the types the
-exports implement a trait bounding it for, one of the exports', which are `()`, a
-primitive, `String`, or an exported type or an instance of one, such as
-`impl Seed<u64> for Wrap<u32>`; and each instance a signature, `pub` field, or constant
-names at any choice its bounds allow, whether or not the rest of it maps, which may name
-more. Inference finishes before any type is mapped, so mapping never adds an instance.
-An instance that holds an instance of a type inside it, such as `Cell<Cell<u8>>`, is
-refused, as it could name ever deeper ones.
+defaults, if each type and const parameter has one, as `frame::Buffer` at `N = 8`; the
+one each inherent impl is of, such as `impl Pair<u32>`; each choice, for each parameter,
+among its default and the types the exports implement a trait bounding it for, one of
+the exports', which are `()`, a primitive, `String`, or an exported type or an instance
+of one, such as `impl Seed<u64> for Wrap<u32>`; and each instance a signature, `pub`
+field, or constant names at any choice its bounds allow, whether or not the rest of it
+maps, which may name more. Inference finishes before any type is mapped, so mapping
+never adds an instance. An instance that holds an instance of a type inside it, such as
+`Cell<Cell<u8>>`, is refused, as it could name ever deeper ones.
 
 A record or enum holds only values and `Copy` handles: one with a field that does not map,
 or that holds itself, is an object instead, and the census lists it. A borrowed return is
 returned as a clone, so it must be `Clone`, and a handle in it is a new handle to the
-clone. A handle outlives every call, so every lifetime an object takes is `'static`, as is
-every lifetime that must outlive one; any other lifetime is the call's. A signature may
-not lend C's borrow for one that is `'static`, nor return an object that borrows. A
-parameter is a reference only at its top, not inside an `Option` or `Box`. What C could
-never hold, an object no export C can call returns or lends to a closure, a generic type
-no export instantiates, and whatever takes one, is left out and listed in the census.
-Everything else is refused, and the census counts why.
+clone, but for an object a `&self` method of an object returns borrowed from its receiver
+alone: that one, if not `Clone`, is a lent handle, which holds its receiver and checks it
+on each use, on one thread at a time where the receiver is not `Sync`. A handle outlives every call, so every lifetime an
+object takes is `'static`, as is every lifetime that must outlive one; any other lifetime
+is the call's. A signature may not lend C's borrow for one that is `'static`, but for a
+`&str`, which Rust interns, nor return an object that borrows. A parameter is a reference
+only at its top or as `Some` of an `Option`, lent as the reference alone is, so
+`Option<&T>` is a null or borrowed handle, a null or viewed buffer, or an option of a
+value, and not inside a `Box` or any other type. A `&mut` of a value, but a `str` or a
+slice, is in and out, and not inside an `Option`, a callback, or a future, nor borrowed
+by what the call returns; a `&mut` of another crate's `Arc` is refused. Only a bare
+returned `&Object` is lent, never one inside what a call returns nor its error. What C could never hold, an
+object no export C can call returns or lends to a closure, a generic type no export
+instantiates, and whatever takes one, is left out and listed in the census. Everything
+else is refused, and the census counts why.
 
 ## The C ABI
 
@@ -133,6 +148,19 @@ Everything else is refused, and the census counts why.
   while a getter's copy is C's own: a nested field is got, set, and set back. A type
   whose C++ copies share one value has `_borrowed`, true while a call or future borrows
   it, so moving it out would abort.
+- **In and out**: a `&mut` of a value is two parameters, the value passed in as one taken
+  by value is, and a `<name>_out` pointer, through which Rust writes what the call left in
+  it on every path, its errors included. C keeps what it passed, and frees what Rust wrote
+  as a returned value. C++ takes a reference, Swift an `inout`, and Go a pointer, each
+  assigned what Rust wrote; Kotlin, Python, and Dart take a `Mut` holding the value, whose
+  `value` Rust's write replaces, before any error raises.
+- **Lent handles** borrow from the handle a call lent them from: each use holds that one
+  shared and aborts, naming the function, once it was since borrowed exclusively, moved
+  out, or freed, which Rust's borrow checker would refuse. Borrowing a lent handle
+  exclusively aborts too, as Rust lent it shared.
+- **Interned strings**: a `&str` a function needs for `'static`, as `Path::from_static`
+  does, is leaked once per distinct content and reused for every later equal one, so a
+  caller passing ever-new strings grows the set without bound.
 - **Arrays** of a `Vec` are a pointer, a length, and an owner, as a buffer is: passed
   in, Rust copies each element out of C's array; returned, `<prefix>_vec_<T>_free` frees
   the array and its first `len` elements, so a binding that takes the elements sets
@@ -188,8 +216,10 @@ Everything else is refused, and the census counts why.
   `Point`, and `api_Counter_seeded_polar_Point` at `polar::Point`. The names depend on
   every instance the item exports at, so one an upstream change adds can lengthen another's
   name. A type instance's methods are named through it, and a function instance appends
-  its arguments' names, a reference's by what it borrows. An `exclude` of a type or method
-  by the generic type's path leaves it out of every instance, and by the instance's path
+  its arguments' names, a reference's by what it borrows and a const's by its value: the
+  api fixture's `drain` is `api_drain_4` at `Batch` and `api_drain_2` at `Batch<2>`. An
+  `exclude` of a type or method by the generic type's path leaves it out of every
+  instance, and by the instance's path
   (`"mux::catalog::Producer<moq::mux::catalog::hang::Extra>::stats"`) out of that one.
 
 ## C++
@@ -212,7 +242,14 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   by value; moving out of a shared copy another copy holds, or a pending future borrows,
   moves out a clone, leaving that copy whole, as Rust leaves a clone. A call on a
   moved-from object, or one a call moved the value out of, aborts; a dangling reference
-  to an object is C++'s own undefined behavior.
+  to an object is C++'s own undefined behavior. Under Clang with `-Wconsumed`, such a call
+  on a local is a compile error: each class carries Clang's typestate attributes, behind
+  macros other compilers see as empty. The abort stays for a move Clang cannot see, as
+  through a reference. Under `-Wdangling`, a view of a temporary `buf` is a compile
+  error through `[[clang::lifetimebound]]`; an object lent from a receiver keeps its
+  run-time check, since Clang does not track a returned handle class.
+  No export keeps a view or reference past its call, so none carries
+  `[[clang::lifetime_capture_by]]`; the first that does adds it.
 - **Sharing** stands in for `clone` where no call can tell the two apart but by counting
   an `Arc`'s or `Rc`'s clones, which the exporter decides at compile time. A type's copies share when it is `Clone`; `Sync`,
   since one that is not is borrowed on one thread at a time, which copies on two threads
@@ -235,14 +272,17 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   a `buf`, which owns Rust's buffer without a copy, so it outlives the object it came
   from. From C++20, either converts to `std::span<const std::uint8_t>`. A `view` or span
   lives only as long as the bytes it views, and a `view` lent to a callback only for the
-  call; reading one past that is C++'s own undefined behavior. A `Vec<T>` is a `std::vector`, of
-  `view`s for bytes passed in, and a socket address `socket_addr`, the C struct. `Option<T>` is `std::optional<T>`, a
-  tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
+  call; reading one past that is C++'s own undefined behavior, which Clang's `-Wdangling`
+  refuses for a view or `str()` of a temporary `buf`. A `Vec<T>` is a `std::vector`, of
+  `view`s for bytes passed in, a socket address `socket_addr`, the C struct, and a `u128`
+  `u128`, the C struct. `Option<T>` is `std::optional<T>`, a tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
   error.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
 - **Closures** lent for a call are any callable, taken by a template parameter, which
-  Rust calls only during the call, from any thread. An object it lends is a reference to
-  its class for that call: moving out of it, or keeping a copy past the call, aborts.
+  Rust calls only during the call, from any thread. An object it lends as `&T` is a
+  `const` reference to its class, and as `&mut T` an `api::borrow<T>`, which reaches its
+  methods through `->` but neither moves nor copies. Moving out of either, or keeping a
+  copy past the call, aborts.
 - **Futures** are move-only `future<...>`s, freed when destroyed, which cancels them and
   loses nothing. `poll(waker)` polls once; `std::move(f).get()` blocks the thread;
   `std::move(f).then(exec, callback)` polls on an executor and calls back there, returning
@@ -295,7 +335,7 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   record holding bytes does too; Rust's lent ones are copied across in one call to compare.
   Strings are `String`, `usize` `ULong` and `isize` `Long`, which abort past a 32-bit
   target's range, `Option<T>` `T?`, a tuple `Pair`,
-  `Triple`, or else a generated `Tuple<n>`, though a tuple of one returned whole is its element, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
+  `Triple`, or else a generated `Tuple<n>`, though a tuple of one returned whole is its element, `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
   holding it, whose message is its `Display`.
 - A **path** is a `String`: one Rust returns that is not UTF-8 throws. A `SocketAddr`,
   `SocketAddrV4`, or `SocketAddrV6` is a `java.net.InetSocketAddress`, which must be
@@ -352,7 +392,7 @@ caller imports it with no ignores.
   place, and others, which Python may change while Rust reads, are copied. Bytes Rust
   returns, or a record holds, are a read-only `memoryview` lending Rust's buffer until it
   and its views are released. Those Rust lends a closure or trait method are copied into
-  `bytes`. Strings are `str`, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
+  `bytes`. Strings are `str`, `u128` an `int`, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
   `datetime.timedelta`, truncated to the microsecond, with `timedelta.max` for any longer
   and for `Duration::MAX`, a `Range` a `range`, and an `Err` a raised `<E>Exception`
   holding it in `error`, whose `str` is its `Display`.
@@ -409,7 +449,8 @@ in either language mode.
   another value, they are copied in. Bytes Rust returns lend its buffer until Swift
   releases the `Data`, though `Data` copies a few bytes inline, freeing Rust's at once.
   Strings are `String`, copied, `char` `Unicode.Scalar`, `usize` `UInt`, `Option<T>` `T?`,
-  a tuple a Swift tuple, though a tuple of one is its element, and `Duration`
+  a tuple a Swift tuple, though a tuple of one is its element, `u128` a `U128` of its
+  `high` and `low` halves until the deployment target allows `UInt128`, and `Duration`
   `Swift.Duration`. An `Err` is thrown: an exported type as itself, which conforms to
   `Swift.Error`, and any other in a generated `<T>Error` holding it.
 - A **path** is a `String`: one Rust returns that is not UTF-8 traps. A `SocketAddr`,
@@ -500,9 +541,10 @@ reads a go.mod.
   returns freed memory, such as [mimalloc](https://crates.io/crates/mimalloc), declared in
   the exported crate, holds it near what is lent. `Copy()` copies it out. Text Rust returns is copied once into a `string`, and Rust's
   freed at the call. A path is a `string`
-  of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object its
-  pointer, nil for `None`. A tuple is `rt.Tuple2[A, B]` and so on, but a tuple of one is its
-  element, and one returned whole is the function's results. `Duration` is
+  of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object or
+  `u128` its pointer, nil for `None`. A tuple is `rt.Tuple2[A, B]` and so on, but a tuple of one is its
+  element, and one returned whole is the function's results. A `u128` is a `*big.Int`, which
+  panics passed in out of its range. `Duration` is
   `time.Duration`: a negative one passed in, or one Rust returns past its 292 years,
   panics. A socket address is a `netip.AddrPort`, whose zone names an IPv6 scope by its
   number or its interface's name; one Rust returns with an IPv6 flow label, which
@@ -570,7 +612,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   returns is copied into a `String`. A path is a `String`, and one Rust returns that is
   not UTF-8 aborts, since a throw would leave the rest of a list or record being lifted
   unfreed. `Option<T>` is `T?`, a tuple a Dart record, and a `Vec<T>` or `&[T]` a
-  `List<T>`. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
+  `List<T>`. A `u128` is a `BigInt`, which throws an `ArgumentError` passed in out of
+  its range. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
   in throws an `ArgumentError`, and Rust's longest is Dart's. A socket address is a
   `SocketAddr` of an `InternetAddress`, a port, and IPv6's flow label and scope; one passed
   in of the wrong family throws an `ArgumentError`, and a port, label, or scope out of its
@@ -649,7 +692,8 @@ export into the same library. `tests/api.c` runs the same script as the
 fixture's `examples/transcript.rs`, and the two transcripts must match line for line;
 then it breaks each runtime check, which must abort with its message. `tests/api.cpp`
 runs the script through the C++ header at C++17, 20, and 23, with exceptions and RTTI off
-at 17 and 23, then checks its futures: a wake that lands during a poll, a cancel between a
+at 17 and 23, builds it under Clang's `-Wconsumed -Wdangling -Werror`, each case of
+`tests/api_strict.cpp` failing there, then checks its futures: a wake that lands during a poll, a cancel between a
 wake and its poll that loses nothing, and a coroutine resumed or destroyed. `tests/api.kt`
 runs the script through the Kotlin on the JVM, checks its futures the same way, that a call
 after `close()` throws, that `Bytes` and their slices keep Rust's buffer, past the object or

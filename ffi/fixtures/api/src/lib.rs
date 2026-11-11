@@ -3,8 +3,8 @@
 use std::borrow::Cow;
 use std::fmt;
 use std::ops::{Bound, Range, RangeBounds};
-use std::sync::{Arc, Mutex};
-use std::task::{Poll, Waker};
+use std::sync::{Arc, Mutex, Weak};
+use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 
 use bytes::Bytes;
@@ -117,6 +117,18 @@ impl Counter {
 		self.value
 	}
 
+	/// The value plus ten `handle`s and `h`: parameters named as a binding's receiver and
+	/// its held handle might be.
+	pub fn offset(&self, handle: u64, h: u64) -> u64 {
+		self.value + handle * 10 + h
+	}
+
+	/// The value plus `close`, consuming the counter: a parameter named as the method a
+	/// binding closes it with might be.
+	pub fn into_sum(self, close: u64) -> u64 {
+		self.value + close
+	}
+
 	pub fn name(&self) -> &str {
 		&self.name
 	}
@@ -145,6 +157,22 @@ impl Counter {
 	/// lent for the call keeps.
 	pub fn edited(&self) -> bool {
 		std::ptr::from_ref(self) as usize == EDITING.load(std::sync::atomic::Ordering::Relaxed)
+	}
+
+	/// This count plus `other`'s, if any: an optional handle, lent shared.
+	pub fn plus(&self, other: Option<&Counter>) -> u64 {
+		self.value + other.map_or(0, |other| other.value)
+	}
+
+	/// [`Self::plus`], once [`yielded`] finishes: a future borrowing both handles meanwhile.
+	pub async fn plus_later(&self, other: Option<&Counter>) -> u64 {
+		yielded(0).await;
+		self.plus(other)
+	}
+
+	/// Adds this count to `other`, if any: an optional handle, lent exclusively.
+	pub fn add_to(&self, other: Option<&mut Counter>) -> bool {
+		other.map(|other| other.value += self.value).is_some()
 	}
 
 	/// Consumes the counter.
@@ -331,6 +359,50 @@ pub fn swapped(pair: (String, u32)) -> (u32, String) {
 	(pair.1, pair.0)
 }
 
+/// A meter that is deliberately not `Clone`, as moq's group writers are, so a borrowed
+/// return of one is lent from its owner's handle rather than cloned.
+#[derive(Default)]
+pub struct Meter(std::sync::atomic::AtomicU64);
+
+impl Meter {
+	/// Adds `n`, returning the new count: through `&self`, as a lent handle allows.
+	pub fn add(&self, n: u64) -> u64 {
+		self.0.fetch_add(n, std::sync::atomic::Ordering::Relaxed) + n
+	}
+
+	pub fn count(&self) -> u64 {
+		self.0.load(std::sync::atomic::Ordering::Relaxed)
+	}
+
+	/// Zeroes the count: through `&mut self`, which a lent handle refuses.
+	pub fn reset(&mut self) {
+		*self.0.get_mut() = 0;
+	}
+}
+
+/// Owns a meter it lends.
+#[derive(Default)]
+pub struct Meters {
+	first: Meter,
+}
+
+impl Meters {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// The first meter, lent: a handle to it lives until these meters are borrowed
+	/// exclusively, moved out, or freed.
+	pub fn first(&self) -> &Meter {
+		&self.first
+	}
+
+	/// Replaces the first meter, borrowing these exclusively, which ends what `first` lent.
+	pub fn clear(&mut self) {
+		self.first = Meter::default();
+	}
+}
+
 /// Holds counters and lends them: each borrowed return is a new handle to a clone.
 #[derive(Default)]
 pub struct Registry {
@@ -384,6 +456,17 @@ impl Name<'_> {
 		Name(Cow::Owned(format!("{}/{}", self.0, other.0)))
 	}
 
+	/// A name borrowing text that lives as long as the program, which a binding's string
+	/// does once interned.
+	pub fn borrowed(text: &'static str) -> Name<'static> {
+		Name(Cow::Borrowed(text))
+	}
+
+	/// Whether both names borrow the same text, where it lies, not only equal text.
+	pub fn shares(&self, other: &Name<'_>) -> bool {
+		matches!((&self.0, &other.0), (Cow::Borrowed(a), Cow::Borrowed(b)) if std::ptr::eq(*a, *b))
+	}
+
 	/// Takes a parameter that must outlive the call, so a `String`, not a borrow of C's.
 	pub fn rename(&mut self, text: impl AsRef<str> + Send + 'static) {
 		self.0 = Cow::Owned(text.as_ref().to_string());
@@ -407,6 +490,63 @@ pub fn unnamed<'a>() -> Name<'a> {
 /// The sum of a range.
 pub fn total(range: Range<u64>) -> u64 {
 	range.sum()
+}
+
+/// How far `start` reaches to `end`, past a `()` C does not pass.
+pub fn reach(start: u32, _: (), end: u32) -> u32 {
+	end - start
+}
+
+/// `v` times `by`, unless past `u128::MAX`.
+pub fn scaled(v: u128, by: u64) -> Option<u128> {
+	v.checked_mul(by.into())
+}
+
+/// Up to `N` numbers, as moq's `frame::Buffer` holds up to `N` frames: a const parameter
+/// with a default, which exports at it and at each other value a signature names.
+pub struct Batch<const N: usize = 4>(Vec<u32>);
+
+impl<const N: usize> Batch<N> {
+	/// An empty batch.
+	pub fn new() -> Self {
+		Self(Vec::new())
+	}
+
+	/// Append `v`, unless the batch already holds `N`.
+	pub fn push(&mut self, v: u32) -> bool {
+		let room = self.0.len() < N;
+		if room {
+			self.0.push(v);
+		}
+		room
+	}
+
+	/// How many numbers it holds at most.
+	pub fn capacity(&self) -> usize {
+		N
+	}
+}
+
+/// A batch of two, an instance at a const argument other than the default.
+pub fn pair() -> Batch<2> {
+	Batch::new()
+}
+
+/// The sum of a batch's numbers, draining it: a const parameter at each instance's value.
+pub fn drain<const N: usize>(batch: &mut Batch<N>) -> u64 {
+	batch.0.drain(..).map(u64::from).sum()
+}
+
+/// Both batches' capacities: two const parameters, each at every instance's value.
+pub fn capacities<const N: usize, const M: usize>(a: &Batch<N>, b: &Batch<M>) -> usize {
+	a.capacity() + b.capacity()
+}
+
+/// Fill a batch with `v` until it holds `N`, lending what it holds: a future whose result
+/// borrows a parameter, as moq's `group::Consumer::read_frames` does.
+pub async fn fill<const N: usize>(batch: &mut Batch<N>, v: u32) -> &mut [u32] {
+	while batch.push(v) {}
+	&mut batch.0
 }
 
 /// A range, widened by `by` at each end.
@@ -458,7 +598,17 @@ impl Window {
 /// A one-slot channel: its receive is a future that waits for a send.
 #[derive(Clone, Default)]
 pub struct Channel {
-	state: Arc<Mutex<(Option<Bytes>, Option<Waker>)>>,
+	state: Arc<Mutex<(Option<Bytes>, Option<Waker>, Option<Weak<Waker>>)>>,
+}
+
+/// What a poll registers, made from a task's waker: it wakes the task only while it lives,
+/// as kio's `Waiter` does, so a future polling with one must keep it between polls.
+pub struct Waiter(Arc<Waker>);
+
+impl Waiter {
+	pub fn new(waker: Waker) -> Self {
+		Self(Arc::new(waker))
+	}
 }
 
 impl Channel {
@@ -477,6 +627,9 @@ impl Channel {
 		state.0 = Some(payload);
 		if let Some(waker) = state.1.take() {
 			waker.wake();
+		}
+		if let Some(waiter) = state.2.take().and_then(|waiter| waiter.upgrade()) {
+			waiter.wake_by_ref();
 		}
 	}
 
@@ -527,6 +680,39 @@ impl Channel {
 				Poll::Pending
 			}
 		}
+	}
+
+	/// The next payload, waiting for it through `waiter`: a poll with no async twin, which
+	/// exports as a future.
+	pub fn poll_take(&self, waiter: &Waiter) -> Poll<Bytes> {
+		let mut state = self.state.lock().unwrap();
+		match state.0.take() {
+			Some(payload) => Poll::Ready(payload),
+			None => {
+				state.2 = Some(Arc::downgrade(&waiter.0));
+				Poll::Pending
+			}
+		}
+	}
+
+	/// The next payload's length past `extra`, failing once it is empty: a poll through a
+	/// context, of `&mut self`, which passes `extra` again at each poll.
+	pub fn poll_measure(&mut self, cx: &mut Context<'_>, extra: usize) -> Poll<Result<usize, Error>> {
+		let mut state = self.state.lock().unwrap();
+		match state.0.take() {
+			Some(payload) if payload.is_empty() => Poll::Ready(Err(Error::Underflow { by: 1 })),
+			Some(payload) => Poll::Ready(Ok(payload.len() + extra)),
+			None => {
+				state.1 = Some(cx.waker().clone());
+				Poll::Pending
+			}
+		}
+	}
+
+	/// Wakes the context's task on the next send, as `notify` wakes its waker: C passes the
+	/// waker the context is made of, and nothing for the `()` before it.
+	pub fn listen(&self, _: (), cx: &Context<'_>) {
+		self.state.lock().unwrap().1 = Some(cx.waker().clone());
 	}
 
 	/// The next payload and its length: a future's tuple is written through its poll's
@@ -783,6 +969,24 @@ impl Tally {
 	}
 }
 
+/// Owns a tally it lends, and so is not `Sync` either: its handle lends on one thread at a
+/// time.
+#[derive(Default)]
+pub struct Tallies {
+	first: Tally,
+}
+
+impl Tallies {
+	pub fn new() -> Self {
+		Self::default()
+	}
+
+	/// The first tally, lent, as [`Meters::first`] lends its meter.
+	pub fn first(&self) -> &Tally {
+		&self.first
+	}
+}
+
 static DROPPED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
 /// A level its clones share through an `Arc`, with no `&mut self` method: a clone no call
@@ -974,6 +1178,10 @@ impl Cursor {
 pub fn walk(steps: u64, mut visit: impl FnMut(&Cursor) -> u64) -> u64 {
 	(0..steps).map(|at| visit(&Cursor { at })).sum()
 }
+
+/// An enum without variants: no value is one, so C never holds one, as an object no export
+/// returns, and the bindings leave it out.
+pub enum Void {}
 
 /// An object no export returns but its own method, so C never holds one: left out of the
 /// bindings, with what takes it, and listed in the census.
@@ -1689,6 +1897,84 @@ pub fn words(text: &str) -> Vec<String> {
 /// `words` joined by spaces, or `none` for none.
 pub fn sentence(words: Option<Vec<String>>) -> String {
 	words.map_or_else(|| "none".to_string(), |words| words.join(" "))
+}
+
+/// Appends `value` in decimal and a comma to `buf`, as moq's encoders append to an
+/// `impl BufMut`, which takes a `Vec<u8>`: C passes the bytes in, and Rust writes back
+/// what the call left in them.
+pub fn put_number(value: u32, buf: &mut impl bytes::BufMut) {
+	buf.put_slice(format!("{value},").as_bytes());
+}
+
+/// `w235` a second later: a parameter named as Kotlin's generated writer of it would be,
+/// whose name the writer must take apart from it.
+pub fn second_later(w235: Duration) -> Duration {
+	w235.saturating_add(Duration::from_secs(1))
+}
+
+/// Takes the first byte of `r` as a decimal digit, as moq's decoders take from an
+/// `impl Buf`, which takes `Bytes`. It takes the byte even when it fails, and Rust writes
+/// back what the call left on either path. Named `r`, as moq's `varint::decode_quic`'s
+/// is, the name a binding's reader of what Rust wrote back might take.
+pub fn digit(r: &mut impl bytes::Buf) -> Result<u8, Error> {
+	match r.has_remaining() {
+		false => Err(Error::Underflow { by: 1 }),
+		true => match r.get_u8() {
+			digit @ b'0'..=b'9' => Ok(digit - b'0'),
+			_ => Err(Error::Overflow),
+		},
+	}
+}
+
+/// Appends `byte` to an entry's bytes and counts it, returning the count: a tuple holding
+/// bytes, written back beside the value C returns.
+pub fn push_counted(entry: &mut (Vec<u8>, u32), byte: u8) -> u32 {
+	entry.0.push(byte);
+	entry.1 += 1;
+	entry.1
+}
+
+/// Moves `point` by `by` on each axis: a record, written back.
+pub fn nudge(point: &mut Point, by: i32) {
+	point.x += by;
+	point.y += by;
+}
+
+/// A config of a crate no export is, behind an `Arc`, as moq-tokio's listener returns
+/// rustls's: an opaque handle, which Rust takes back.
+pub fn secure(alpn: &str) -> Arc<tls::Config> {
+	Arc::new(tls::Config::new(alpn))
+}
+
+/// The ALPN of a config [`secure`] made, taken back by value.
+pub fn alpn(config: Arc<tls::Config>) -> String {
+	config.alpn().to_string()
+}
+
+/// [`alpn`], lent.
+pub fn alpn_lent(config: &Arc<tls::Config>) -> String {
+	config.alpn().to_string()
+}
+
+/// `text`'s length, or 0 for none: an optional borrow, lent as the borrow alone is.
+pub fn either(text: Option<&str>) -> usize {
+	text.map_or(0, str::len)
+}
+
+/// [`either`], once [`yielded`] finishes: a future owning what it lends.
+pub async fn either_later(text: Option<&str>) -> usize {
+	yielded(0).await;
+	either(text)
+}
+
+/// `payload` after `prefix`, if any.
+pub fn prefixed(payload: &[u8], prefix: Option<&[u8]>) -> Vec<u8> {
+	[prefix.unwrap_or_default(), payload].concat()
+}
+
+/// `point`'s coordinates summed, or 0 for none: an optional value, lent shared.
+pub fn coordinates(point: Option<&Point>) -> i32 {
+	point.map_or(0, |point| point.x + point.y)
 }
 
 /// `bytes` in chunks of up to `size`, which is not 0.

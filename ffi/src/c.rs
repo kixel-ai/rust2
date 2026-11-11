@@ -76,6 +76,9 @@ impl Header<'_> {
 			"/* Bytes. Passed in, a view Rust reads during the call and never frees. Returned,\n * an owned buffer to free once with {p}_buf_free. A null ptr is None. */\ntypedef struct {p}_buf {{\n\tconst uint8_t *ptr;\n\tsize_t len;\n\tvoid *owner;\n}} {p}_buf;\n\nvoid {p}_buf_free({p}_buf buf);\n"
 		));
 		self.line(format!(
+			"/* A u128: lo holds its low 64 bits and hi its high 64. */\ntypedef struct {p}_u128 {{\n\tuint64_t lo;\n\tuint64_t hi;\n}} {p}_u128;\n"
+		));
+		self.line(format!(
 			"typedef struct {p}_duration {{\n\tuint64_t secs;\n\tuint32_t nanos;\n}} {p}_duration;\n"
 		));
 		self.line(format!(
@@ -389,7 +392,10 @@ impl Header<'_> {
 		let receiver = function.receiver.map(|r| r == Receiver::Owned);
 		let by_value = receiver
 			.into_iter()
-			.chain(function.params.iter().map(|p| !matches!(p.ty, Type::Ref(..))));
+			.chain((function.params.iter()).map(|p| match &p.ty {
+				Type::Option(inner) => !matches!(**inner, Type::Ref(..)),
+				ty => !matches!(ty, Type::Ref(..)),
+			}));
 		let moved: Vec<String> = export
 			.call
 			.params
@@ -404,6 +410,13 @@ impl Header<'_> {
 			docs.push_str(&format!(
 				"\n\nMoves the value out of {}: free the handle after.",
 				moved.join(" and ")
+			));
+		}
+		for param in function.params.iter().filter(|p| p.ty.written()) {
+			let name = abi::escape(&param.name);
+			docs.push_str(&format!(
+				"\n\nRust writes what the call left in `{name}` through `{}`, on every path, errors included: the caller keeps what it passed, and frees what Rust wrote as a returned value.",
+				Abi::written(function, &name)
 			));
 		}
 		for param in &function.params {
@@ -454,6 +467,7 @@ pub fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
 		Ty::F64 => space("double"),
 		Ty::Char => space("uint32_t"),
 		Ty::Buf => space(&abi.rt("buf")),
+		Ty::U128 => space(&abi.rt("u128")),
 		Ty::Duration => space(&abi.rt("duration")),
 		Ty::SocketAddr => space(&abi.rt("socket_addr")),
 		Ty::Struct(n) | Ty::Enum(n) => space(n),

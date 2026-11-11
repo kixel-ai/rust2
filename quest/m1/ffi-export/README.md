@@ -5,7 +5,7 @@
 moq can pin [rust2-ffi](/ffi/README.md) and switch its bindings to it: the exporter exports
 what moq's bindings need from moq's own crates, with no attributes, no config, and no
 hand-written wrapper beyond what the census shows is genuinely new API, in every language
-moq ships. It ends once every child has merged, the flake has an `ffi` package, and the
+moq ships. It ends once every child and blocker has merged, the flake has an `ffi` package, and the
 root `README.md` lists the generators, which is what
 [moq's wait](https://github.com/moq-dev/moq/blob/main/quest/m3/rust2-exporter.md) checks.
 
@@ -88,12 +88,4 @@ names and defaults, and fails the export on a public item it cannot export.
 
 ## Required
 
-- [Every public item exports](/quest/m1/ffi-export/refusals/README.md) - the census lists no refusals and `ffi.toml` is deleted, so the exporter reads no config
-- [Share a binding across targets](/quest/m1/ffi-export/target.md) - one Kotlin, Dart, Go, or Swift binding serves every target moq ships it to, though their `cfg`-gated items differ
-- [Lossless binding types](/quest/m1/ffi-export/lossless.md) - durations, addresses, paths, text, and integers cross exactly, with checked conversions to the idiomatic types
-- [Failed checks raise](/quest/m1/ffi-export/checks-raise.md) - a failed borrow, move, or close check is the language's own error from one accounting, and only a panic aborts
-- [Types that are not Send export](/quest/m1/ffi-export/not-send.md) - a `!Send` object or future is checked by thread, with an owner thread where a language has none
-- [No name clash fails an export](/quest/m1/ffi-export/names.md) - every generator names every item by rule, so no error tells a crate to rename or exclude one
-- [The glue builds what the export checked](/quest/m1/ffi-export/reproducible.md) - the generated crate carries its lockfile, and a discriminant or nightly-only item it cannot build is refused at export
-- [Swift handles are non-copyable](/quest/m1/ffi-export/swift-noncopyable.md) - a call on a moved handle or a lent handle kept past its call is a Swift compile error, not a trap
-- [C++ checks ownership at compile time](/quest/m1/ffi-export/cpp-attributes.md) - typestate and lifetime attributes and `api::borrow<T>` make Clang refuse what the run-time checks catch
+- [Refusals](/quest/m1/ffi-refusals/README.md) - the epic that exports or leaves out every item the census refuses, which this epic ends on

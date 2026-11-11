@@ -138,6 +138,10 @@ fn api() -> &'static Api {
 	})
 }
 
+/// What a use of a handle lent from another's value prints once that value was borrowed
+/// exclusively.
+const OUTLIVED: &str = "api_Meter_count: a handle lent from another outlived it";
+
 #[test]
 fn api_c() {
 	let api = api();
@@ -178,6 +182,11 @@ fn api_c() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("null", "api_Registry_edit: a function is null"),
+		("outlived", OUTLIVED),
+		(
+			"lent shared",
+			"api_Meter_reset: a handle a call lent shared is borrowed exclusively",
+		),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
 		assert!(!output.status.success(), "{case} did not abort");
@@ -228,12 +237,17 @@ fn api_cpp() {
 			),
 			("lent kept", "a lent object was moved out of"),
 			("null view", "a view of null bytes has a length"),
+			("outlived", OUTLIVED),
 		] {
 			let output = Command::new(&exe).arg(case).output().unwrap();
 			assert!(!output.status.success(), "C++{standard} {case} did not abort");
 			let stderr = String::from_utf8_lossy(&output.stderr);
 			assert!(stderr.contains(message), "C++{standard} {case} printed {stderr}");
 		}
+	}
+
+	if !cfg!(target_env = "msvc") {
+		cpp_strict(api);
 	}
 
 	// A C++ program whose header names another contract than its library's aborts at load.
@@ -252,6 +266,50 @@ fn api_cpp() {
 		stderr.contains("api.hpp and the library are from different builds"),
 		"a mismatched contract printed {stderr}"
 	);
+}
+
+/// Clang's ownership checks: the whole script builds clean under them, and each case of
+/// `tests/api_strict.cpp` fails with its diagnostic.
+fn cpp_strict(api: &Api) {
+	let clang = |src: &Path, case: u8| {
+		let mut cmd = Command::new("clang++");
+		cmd.args(["-std=c++17", "-Wconsumed", "-Wdangling", "-Werror", "-c", "-I"])
+			.arg(api.out.join("include"))
+			.arg(format!("-DCASE={case}"))
+			.arg(src)
+			.arg("-o")
+			.arg(scratch().join("api").join("strict.o"));
+		cmd
+	};
+	let tests = manifest_dir().join("tests");
+	run(&mut clang(&tests.join("api.cpp"), 0));
+	run(&mut clang(&tests.join("api_strict.cpp"), 0));
+	for (case, message) in [
+		(
+			1,
+			"invalid invocation of method 'get' on object 'c' while it is in the 'consumed' state",
+		),
+		(
+			2,
+			"invalid invocation of method 'get' on object 'c' while it is in the 'consumed' state",
+		),
+		(
+			3,
+			"invalid invocation of method 'into_level' on a temporary object while it is in the 'consumed' state",
+		),
+		(
+			4,
+			"invalid invocation of method 'into_level' on a temporary object while it is in the 'consumed' state",
+		),
+		(5, "'this' argument to member function 'into_label' is an lvalue"),
+		(6, "no matching member function for call to 'emplace'"),
+		(7, "temporary whose address is used as value of local variable 'name'"),
+	] {
+		let output = clang(&tests.join("api_strict.cpp"), case).output().unwrap();
+		assert!(!output.status.success(), "case {case} built");
+		let stderr = String::from_utf8_lossy(&output.stderr);
+		assert!(stderr.contains(message), "case {case} printed {stderr}");
+	}
 }
 
 /// A build of the C++ `src` against the api library into `exe`, at C++`standard`, with
@@ -388,7 +446,9 @@ fn api_android() {
 	// The app: the script's entry point, kept as an app keeps its own, and everything it
 	// reaches, which R8 shrinks and renames, keeping only what the rules keep: the
 	// generated ones, and those kotlinx-coroutines' jar holds, which an app's build reads
-	// from it. Kotlin's annotations are on an app's classpath, not in its dex.
+	// from it. Kotlin's annotations are on an app's classpath, not in its dex. The
+	// script's functions that hold lent bytes in their own frame are kept too, as R8 would
+	// inline them into their caller, whose frame ART's interpreter keeps reaching the bytes.
 	let jar = dir.join("app.jar");
 	run(kotlinc(&out, &jar).arg("-include-runtime"));
 	run(Command::new("jar")
@@ -400,7 +460,7 @@ fn api_android() {
 	std::fs::write(
 		&app,
 		format!(
-			"-keep class ApiKt {{ public static void main(java.lang.String[]); }}\n-dontwarn org.jetbrains.annotations.**\n-printusage {}\n",
+			"-keep class ApiKt {{ public static void main(java.lang.String[]); static *** lentAround(); static *** lentToBudget*(...); }}\n-dontwarn org.jetbrains.annotations.**\n-printusage {}\n",
 			dir.join("usage.txt").display()
 		),
 	)
@@ -501,6 +561,7 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Kotlin threw"),
+		("outlived", OUTLIVED),
 		("stray", "MalformedInputException"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 	] {
@@ -554,6 +615,7 @@ fn api_python() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Python raised"),
+		("outlived", OUTLIVED),
 		("family", "ValueError: an IPv6 address has no Rust SocketAddrV4"),
 	] {
 		let output = python(&dir, &[case]).output().unwrap();
@@ -674,6 +736,7 @@ fn api_swift() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("family", "api_nexts: an IPv6 socket address where IPv4 is taken"),
+		("outlived", OUTLIVED),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
 	] {
@@ -746,6 +809,7 @@ fn api_dart() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Dart threw"),
+		("outlived", OUTLIVED),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
@@ -920,6 +984,7 @@ fn api_go() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("family", "an address that is not IPv4 has no Rust SocketAddrV4"),
+		("outlived", OUTLIVED),
 		("text", "api_greet: a string is not UTF-8"),
 		("callback panicked", "a log failed"),
 		("duration", "a Rust Duration past time.Duration's longest"),
@@ -1141,6 +1206,7 @@ fn relative_target() {
 	let text = std::fs::read_to_string(census.join("api-fixture.md")).unwrap();
 	for line in [
 		"- `Lease`: object no export returns",
+		"- `Void`: object no export returns",
 		"- `release`: type C never holds `Lease`",
 		"- `Unnamed`: generic type no export instantiates",
 	] {
@@ -1424,8 +1490,10 @@ fn foreign_role_names() {
 
 /// An exclude may name what a `cfg` leaves out of this build, whether the facade's own
 /// module or another crate's that the facade re-exports through a glob, or a chain of them,
-/// but not what no build has, nor what a module only some of whose items the facade
-/// re-exports leaves out.
+/// or a field or variant of the facade's or another crate's type, under a `cfg` or one a
+/// `cfg_attr` adds, an inline module's type and a const-generic one's included, but not
+/// what no build has, nor what a module only some of whose items the facade re-exports
+/// leaves out.
 #[test]
 fn configured_out() {
 	let package = package("configured_out");
@@ -1443,11 +1511,14 @@ fn configured_out() {
 				"src/lib.rs",
 				"pub use ::dep::Size;\n\npub mod dep {\n\tpub use ::dep::*;\n}\n\n#[cfg(any())]\npub mod local {}\n\n\
 				mod inner {\n\tpub fn kept() -> u32 {\n\t\t1\n\t}\n\n\t#[cfg(any())]\n\tpub mod gone {}\n}\n\n\
-				mod middle {\n\tpub use crate::inner::*;\n}\n\npub mod outer {\n\tpub use crate::middle::*;\n}\n",
+				mod middle {\n\tpub use crate::inner::*;\n}\n\npub mod outer {\n\tpub use crate::middle::*;\n}\n\n\
+				pub struct Shape<const N: usize = { 1 }> {\n\tpub n: u32,\n\t#[cfg(any())]\n\tpub gone: u32,\n\t#[cfg_attr(all(), cfg_attr(all(), cfg(any())))]\n\tpub gated: u32,\n}\n\n\
+				pub enum Kind {\n\tKept,\n\t#[cfg(any())]\n\tGone,\n}\n\n\
+				pub mod nested {\n\tpub struct Inner {\n\t\tpub n: u32,\n\t\t#[cfg(any())]\n\t\tpub gone: u32,\n\t}\n}\n",
 			),
 			(
 				"ffi.toml",
-				"exclude = [\"Gone\", \"dep::gone::Gone\", \"gone::Gone\", \"local::Gone\", \"outer::gone::Gone\"]\n",
+				"exclude = [\"Gone\", \"Kind::Gone\", \"Shape::gated\", \"Shape::gone\", \"Shape::missing\", \"Size::depth\", \"nested::Inner::gone\", \"dep::gone::Gone\", \"gone::Gone\", \"local::Gone\", \"outer::gone::Gone\"]\n",
 			),
 		],
 	);
@@ -1465,6 +1536,7 @@ fn configured_out() {
 		errors,
 		[
 			"error: rust2-ffi: exclude `Gone` in the config names nothing exported",
+			"error: rust2-ffi: exclude `Shape::missing` in the config names nothing exported",
 			"error: rust2-ffi: exclude `gone::Gone` in the config names nothing exported",
 		],
 		"{stderr}"

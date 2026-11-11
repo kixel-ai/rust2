@@ -277,8 +277,24 @@ func script() {
 	let long = longer(joined, Name.owned("dd"))
 	print("longer \(long.asStr())")
 	print("unnamed [\(unnamed().asStr())]")
+	let lit = Name.borrowed("lit")
+	print("borrowed \(lit.asStr()) \(lit.shares(Name.borrowed("lit"))) \(lit.shares(Name.borrowed("other")))")
 
 	print("total \(total(RangeU64(start: 2, end: 5)))")
+	print("reach \(reach(2, 5))")
+	let scaledHex = [
+		scaled(U128(high: .max, low: .max), 1), scaled(U128(high: 1, low: 1), 1 << 63), scaled(U128(high: 1 << 63, low: 0), 2),
+	].map { v in
+		v.map { v in [v.high, v.low].map { h in Swift.String(repeating: "0", count: 16 - Swift.String(h, radix: 16).count) + Swift.String(h, radix: 16) }.joined() } ?? "none"
+	}
+	print("scaled \(scaledHex.joined(separator: " "))")
+	check(U128(high: .max, low: .max).description == "340282366920938463463374607431768211455", "a u128's decimal digits")
+	let batch = Batch.new(), batch2 = pair()
+	let accepted = (1...5).filter { batch.push($0) }.count
+	let paired = (1...3).filter { batch2.push($0) }.count
+	let emptied = drain4(batch)
+	print("batch \(batch.capacity()) \(accepted) \(emptied) \(drain4(batch)) \(batch2.capacity()) \(paired) \(drain2(batch2))")
+	print("capacities \(capacities42(batch, batch2)) \(capacities22(batch2, batch2))")
 	let wide = widen(RangeU64(start: 2, end: 5), 1)
 	print("widen \(wide.start) \(wide.end)")
 	let counts = [
@@ -382,6 +398,8 @@ func script() {
 		} catch {
 			print("nonempty err \(error)")
 		}
+		let filled = try await fill4(Batch.new(), 9) + fill2(Api.pair(), 1)
+		print("fill \(filled.map { Swift.String($0) }.joined(separator: " "))")
 		// The send happens at the call, before the future is first polled.
 		try await channel.sendLater(Data("eager".utf8))
 		print("recv \(text(try await channel.recv()))")
@@ -392,6 +410,16 @@ func script() {
 	// The waker moves into Rust, which keeps it until the send wakes it.
 	channel.notify { wakes.value += 1 }
 	channel.send(Data("rung".utf8))
+	print("woken \(wakes.value)")
+	block {
+		// A poll with no async twin is a future.
+		print("take \(text(try await channel.pollTake()))")
+		channel.send(Data("measured".utf8))
+		print("measure \(try await channel.pollMeasure(2))")
+	}
+	// A context is made of the waker, which Rust keeps until the send wakes it.
+	channel.listen { wakes.value += 1 }
+	channel.send(Data("heard".utf8))
 	print("woken \(wakes.value)")
 
 	let list = Node.new(1, nil)
@@ -501,6 +529,45 @@ func script() {
 	print("words \(words.count) \(words)")
 	print("sentence \(sentence(words)) \(sentence(nil))")
 	print("sentence \(sentence([]))|")
+	print("either \(either("abc")) \(either(nil))")
+	print("prefixed \(String(decoding: prefixed(Data("cd".utf8), Data("ab".utf8)), as: UTF8.self)) \(String(decoding: prefixed(Data("cd".utf8), nil), as: UTF8.self))")
+	print("coordinates \(coordinates(Point(x: 2, y: 3))) \(coordinates(nil))")
+	do {
+		let two = Counter.new("two", 2)
+		let three = Counter.new("three", 3)
+		print("plus \(two.plus(three)) \(two.plus(nil))")
+		print("add_to \(two.addTo(three)) \(two.addTo(nil)) \(three.get())")
+	}
+	do {
+		var encoded = Data("0,".utf8)
+		putNumber(1, &encoded)
+		putNumber(23, &encoded)
+		print("put_number \(String(decoding: encoded, as: UTF8.self))")
+		var entry = (Data("ab".utf8), UInt32(1))
+		let stamps = pushCounted(&entry, UInt8(ascii: "c"))
+		print("push_counted \(stamps) \(String(decoding: entry.0, as: UTF8.self)) \(entry.1)")
+		var digits = Data("7x9".utf8)
+		let firstDigit = try! digit(&digits)
+		let skipped = (try? digit(&digits)) == nil
+		let lastDigit = try! digit(&digits)
+		print("digit \(firstDigit) \(skipped) \(lastDigit) \(digits.count)")
+		var nudged = Point(x: 1, y: 2)
+		nudge(&nudged, 3)
+		print("nudge \(nudged.x) \(nudged.y)")
+	}
+	do {
+		let config = secure("h3")
+		print("secure \(alpnLent(config)) \(alpn(config.clone()))")
+		let meters = Meters.new()
+		let first = meters.first()
+		_ = first.add(2)
+		print("lent \(first.add(3)) \(meters.first().count())")
+		meters.clear()
+		print("cleared \(meters.first().count())")
+		let tallies = Tallies.new()
+		_ = tallies.first().bump()
+		print("tallied \(tallies.first().bump())")
+	}
 	print("chunks \(chunks(Data("abcde".utf8), 2).map { Array($0) })")
 	let counters = counters(["x", "y"])
 	print("counters \(counters.map { "\($0.name()) \($0.get())" }.joined(separator: ", "))")
@@ -714,6 +781,11 @@ func broken(_ which: String) {
 		let tail = Node.new(1, nil)
 		_ = Node.new(2, tail)
 		_ = tail.sum()
+	case "outlived":
+		let meters = Meters.new()
+		let first = meters.first()
+		meters.clear()
+		_ = first.count()
 	case "lent moved":
 		_ = Registry.new(Counter.new("c", 0)).edit { counter in
 			_ = counter.intoLabel(nil)

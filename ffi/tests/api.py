@@ -229,8 +229,20 @@ def script():
 	long = api.longer(joined, api.Name.owned("dd"))
 	print(f"longer {long.as_str()}")
 	print(f"unnamed [{api.unnamed().as_str()}]")
+	lit = api.Name.borrowed("lit")
+	shares = [str(lit.shares(api.Name.borrowed(text))).lower() for text in ("lit", "other")]
+	print(f"borrowed {lit.as_str()} {' '.join(shares)}")
 
 	print(f"total {api.total(range(2, 5))}")
+	print(f"reach {api.reach(2, 5)}")
+	scaled = [api.scaled(2**128 - 1, 1), api.scaled(2**64 + 1, 2**63), api.scaled(2**127, 2)]
+	print("scaled " + " ".join("none" if v is None else f"{v:032x}" for v in scaled))
+	batch, batch2 = api.Batch.new(), api.pair()
+	accepted = sum(batch.push(v) for v in range(1, 6))
+	paired = sum(batch2.push(v) for v in range(1, 4))
+	emptied = api.drain_4(batch)
+	print(f"batch {batch.capacity()} {accepted} {emptied} {api.drain_4(batch)} {batch2.capacity()} {paired} {api.drain_2(batch2)}")
+	print(f"capacities {api.capacities_4_2(batch, batch2)} {api.capacities_2_2(batch2, batch2)}")
 	wide = api.widen(range(2, 5), 1)
 	print(f"widen {wide.start} {wide.stop}")
 	inc, exc, unb = api.Bound.INCLUDED, api.Bound.EXCLUDED, api.Bound.UNBOUNDED
@@ -336,6 +348,8 @@ def script():
 				print(f"nonempty {payload.nbytes}")
 		except api.ErrorException as e:
 			print(f"nonempty err {e}")
+		filled = await api.fill_4(api.Batch.new(), 9) + await api.fill_2(api.pair(), 1)
+		print("fill " + " ".join(map(str, filled)))
 		# The send happens at the call: the future is dropped unawaited.
 		channel.send_later(b"eager")
 		print(f"recv {text(await channel.recv())}")
@@ -348,6 +362,19 @@ def script():
 	channel.notify(waker)
 	channel.send(b"rung")
 	until(loop, lambda: wakes == 2)
+	print(f"woken {wakes}")
+
+	async def polls():
+		# A poll with no async twin is a future.
+		print(f"take {text(await channel.poll_take())}")
+		channel.send(b"measured")
+		print(f"measure {await channel.poll_measure(2)}")
+
+	loop.run_until_complete(polls())
+	# A context is made of the waker, which Rust keeps until the send wakes it.
+	channel.listen(waker)
+	channel.send(b"heard")
+	until(loop, lambda: wakes == 3)
 	print(f"woken {wakes}")
 	loop.close()
 
@@ -455,6 +482,41 @@ def script():
 	print(f"words {len(words)} {quoted(words)}")
 	print(f"sentence {api.sentence(words)} {api.sentence(None)}")
 	print(f"sentence {api.sentence([])}|")
+	print(f"either {api.either('abc')} {api.either(None)}")
+	print(f"prefixed {bytes(api.prefixed(b'cd', b'ab')).decode()} {bytes(api.prefixed(b'cd', None)).decode()}")
+	print(f"coordinates {api.coordinates(api.Point(2, 3))} {api.coordinates(None)}")
+	two, three = api.Counter.new("two", 2), api.Counter.new("three", 3)
+	print(f"plus {two.plus(three)} {two.plus(None)}")
+	print(f"add_to {str(two.add_to(three)).lower()} {str(two.add_to(None)).lower()} {three.get()}")
+	encoded = api.Mut(memoryview(b"0,"))
+	api.put_number(1, encoded)
+	api.put_number(23, encoded)
+	print(f"put_number {bytes(encoded.value).decode()}")
+	entry = api.Mut((memoryview(b"ab"), 1))
+	stamps = api.push_counted(entry, ord("c"))
+	print(f"push_counted {stamps} {bytes(entry.value[0]).decode()} {entry.value[1]}")
+	digits = api.Mut(memoryview(b"7x9"))
+	first_digit = api.digit(digits)
+	try:
+		api.digit(digits)
+		skipped = False
+	except api.ErrorException:
+		skipped = True
+	print(f"digit {first_digit} {str(skipped).lower()} {api.digit(digits)} {len(digits.value)}")
+	nudged = api.Mut(api.Point(1, 2))
+	api.nudge(nudged, 3)
+	print(f"nudge {nudged.value.x} {nudged.value.y}")
+	config = api.secure("h3")
+	print(f"secure {api.alpn_lent(config)} {api.alpn(config.clone())}")
+	meters = api.Meters.new()
+	first = meters.first()
+	first.add(2)
+	print(f"lent {first.add(3)} {meters.first().count()}")
+	meters.clear()
+	print(f"cleared {meters.first().count()}")
+	tallies = api.Tallies.new()
+	tallies.first().bump()
+	print(f"tallied {tallies.first().bump()}")
 	print(f"chunks {[list(data(chunk)) for chunk in api.chunks(b'abcde', 2)]}")
 	counters = api.counters(["x", "y"])
 	print("counters " + ", ".join(f"{c.name()} {c.get()}" for c in counters))
@@ -766,6 +828,8 @@ def values():
 	raises(OverflowError, lambda: api.widths(2**64), "an int past u64 raises")
 	raises(OverflowError, lambda: api.widths(-1), "a negative int for a u64 raises")
 	raises(TypeError, lambda: api.title(1), "an int is no bool")
+	raises(OverflowError, lambda: api.scaled(2**128, 1), "an int past u128 raises")
+	raises(OverflowError, lambda: api.scaled(-1, 1), "a negative int for a u128 raises")
 
 	# A borrowed tuple is one C value, not one out per element.
 	check(api.corner(True) == (1, 1), "a borrowed tuple returns whole")
@@ -822,6 +886,11 @@ def calls():
 	channel = api.Channel.new()
 	loop.run_until_complete(channel.send_later(payload=b"kw"))
 	check(bytes(loop.run_until_complete(channel.recv())) == b"kw", "an eager future takes keywords")
+	check(loop.run_until_complete(api.either_later("ab")) == 2, "a future owns an optional borrow")
+	check(loop.run_until_complete(api.either_later(None)) == 0, "a future owns a None borrow")
+	two, three = api.Counter.new("two", 2), api.Counter.new("three", 3)
+	check(loop.run_until_complete(two.plus_later(three)) == 5, "a future holds an optional handle")
+	check(loop.run_until_complete(two.plus_later(None)) == 2, "a future holds a None handle")
 	loop.close()
 
 	# C callers may pass no argument array at all for no arguments.
@@ -859,6 +928,11 @@ def broken(which):
 			tail = api.Node.new(1, None)
 			api.Node.new(2, tail)
 			tail.sum()
+		case "outlived":
+			meters = api.Meters.new()
+			first = meters.first()
+			meters.clear()
+			first.count()
 		case "lent moved":
 			api.Registry.new(api.Counter.new("c", 0)).edit(lambda counter: counter.into_label(None) and False)
 		case "lent kept":

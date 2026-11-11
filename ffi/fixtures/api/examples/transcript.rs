@@ -10,7 +10,7 @@ use std::task::{Context, Poll, Wake, Waker};
 
 use api::{
 	Channel, Counter, Event, LIMIT, Label, Log, Logger, Message, Name, Node, Pair, Point, Registry, Shape, Size, Stack,
-	Stamp, Tally, Window,
+	Stamp, Tally, Waiter, Window,
 };
 use bytes::Bytes;
 
@@ -193,8 +193,43 @@ fn main() {
 	let long = api::longer(joined, &Name::owned("dd".to_string()));
 	println!("longer {}", long.as_str());
 	println!("unnamed [{}]", api::unnamed().as_str());
+	// One static, so Rust lends one string, as interning lends a binding's equal ones.
+	static LIT: &str = "lit";
+	let (lit, again) = (Name::borrowed(LIT), Name::borrowed(LIT));
+	let other = Name::borrowed("other");
+	println!(
+		"borrowed {} {} {}",
+		lit.as_str(),
+		lit.shares(&again),
+		lit.shares(&other)
+	);
 
 	println!("total {}", api::total(2..5));
+	println!("reach {}", api::reach(2, (), 5));
+	let scaled = |v, by| api::scaled(v, by).map_or("none".to_string(), |v| format!("{v:032x}"));
+	println!(
+		"scaled {} {} {}",
+		scaled(u128::MAX, 1),
+		scaled((1 << 64) + 1, 1 << 63),
+		scaled(1 << 127, 2)
+	);
+	let mut batch: api::Batch = api::Batch::new();
+	let accepted = (1..=5).filter(|&v| batch.push(v)).count();
+	let mut batch2 = api::pair();
+	let paired = (1..=3).filter(|&v| batch2.push(v)).count();
+	let emptied = api::drain(&mut batch);
+	println!(
+		"batch {} {accepted} {emptied} {} {} {paired} {}",
+		batch.capacity(),
+		api::drain(&mut batch),
+		batch2.capacity(),
+		api::drain(&mut batch2)
+	);
+	println!(
+		"capacities {} {}",
+		api::capacities(&batch, &batch2),
+		api::capacities(&batch2, &batch2)
+	);
 	let wide = api::widen(2..5, 1);
 	println!("widen {} {}", wide.start, wide.end);
 	println!(
@@ -299,6 +334,16 @@ fn main() {
 		Poll::Ready(Err(e)) => println!("nonempty err {e}"),
 		Poll::Pending => println!("nonempty pending"),
 	}
+	let mut filled: Vec<String> = Vec::new();
+	let mut fill4: api::Batch = api::Batch::new();
+	if let Poll::Ready(v) = pin!(api::fill(&mut fill4, 9)).poll(&mut cx) {
+		filled.extend(v.iter().map(u32::to_string));
+	}
+	let mut fill2 = api::pair();
+	if let Poll::Ready(v) = pin!(api::fill(&mut fill2, 1)).poll(&mut cx) {
+		filled.extend(v.iter().map(u32::to_string));
+	}
+	println!("fill {}", filled.join(" "));
 
 	// The send happens at the call: the future is dropped unpolled.
 	drop(channel.send_later(Bytes::from_static(b"eager")));
@@ -313,6 +358,16 @@ fn main() {
 	}
 	channel.notify(waker.clone());
 	channel.send(Bytes::from_static(b"rung"));
+	println!("woken {}", count.0.load(Ordering::Relaxed));
+	if let Poll::Ready(payload) = channel.poll_take(&Waiter::new(waker.clone())) {
+		println!("take {}", String::from_utf8_lossy(&payload));
+	}
+	channel.send(Bytes::from_static(b"measured"));
+	if let Poll::Ready(Ok(len)) = channel.clone().poll_measure(&mut cx, 2) {
+		println!("measure {len}");
+	}
+	channel.listen((), &cx);
+	channel.send(Bytes::from_static(b"heard"));
 	println!("woken {}", count.0.load(Ordering::Relaxed));
 
 	let list = Node {
@@ -459,6 +514,55 @@ fn main() {
 	println!("words {} {words:?}", words.len());
 	println!("sentence {} {}", api::sentence(Some(words)), api::sentence(None));
 	println!("sentence {}|", api::sentence(Some(Vec::new())));
+	println!("either {} {}", api::either(Some("abc")), api::either(None));
+	let prefixed = |prefix: Option<&[u8]>| String::from_utf8(api::prefixed(b"cd", prefix)).unwrap();
+	println!("prefixed {} {}", prefixed(Some(b"ab")), prefixed(None));
+	println!(
+		"coordinates {} {}",
+		api::coordinates(Some(&Point { x: 2, y: 3 })),
+		api::coordinates(None)
+	);
+	let (two, mut three) = (Counter::new("two", 2), Counter::new("three", 3));
+	println!("plus {} {}", two.plus(Some(&three)), two.plus(None));
+	println!(
+		"add_to {} {} {}",
+		two.add_to(Some(&mut three)),
+		two.add_to(None),
+		three.get()
+	);
+	let mut buf = b"0,".to_vec();
+	api::put_number(1, &mut buf);
+	api::put_number(23, &mut buf);
+	println!("put_number {}", String::from_utf8(buf).unwrap());
+	let mut entry = (b"ab".to_vec(), 1);
+	let count = api::push_counted(&mut entry, b'c');
+	println!(
+		"push_counted {count} {} {}",
+		String::from_utf8(entry.0).unwrap(),
+		entry.1
+	);
+	let mut buf = bytes::Bytes::from_static(b"7x9");
+	let first = api::digit(&mut buf).unwrap();
+	let skipped = api::digit(&mut buf).is_err();
+	println!(
+		"digit {first} {skipped} {} {}",
+		api::digit(&mut buf).unwrap(),
+		buf.len()
+	);
+	let mut point = Point { x: 1, y: 2 };
+	api::nudge(&mut point, 3);
+	println!("nudge {} {}", point.x, point.y);
+	let config = api::secure("h3");
+	println!("secure {} {}", api::alpn_lent(&config), api::alpn(config.clone()));
+	let mut meters = api::Meters::new();
+	let first = meters.first();
+	first.add(2);
+	println!("lent {} {}", first.add(3), meters.first().count());
+	meters.clear();
+	println!("cleared {}", meters.first().count());
+	let tallies = api::Tallies::new();
+	tallies.first().bump();
+	println!("tallied {}", tallies.first().bump());
 	println!("chunks {:?}", api::chunks(b"abcde", 2));
 	let mut counters = api::counters(vec!["x".to_string(), "y".to_string()]);
 	let names: Vec<String> = counters.iter().map(|c| format!("{} {}", c.name(), c.get())).collect();
