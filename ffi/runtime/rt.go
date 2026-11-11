@@ -1,7 +1,7 @@
 // The runtime the generated packages share, after the generated code names the export's
-// buffer as cBuf, its frees as cBufFree and cBufsFree, and its callbacks into Go as goCall
-// and goRelease: the handles objects own, the bytes Rust returns, and what Rust keeps of
-// Go's. Each generated package keeps its own copy of what converts its C types, which
+// buffer as cBuf, its frees as cBufFree and cBufsFree, its waker as cWaker, woken and
+// dropped by cWakerWake and cWakerDrop, and its callbacks into Go as goCall and goRelease:
+// the handles objects own, the bytes and wakers Rust returns, and what Rust keeps of Go's. Each generated package keeps its own copy of what converts its C types, which
 // cgo makes its own, in ffi_cgo.go; it reaches this through Go's types alone.
 
 // The holds a handle counts, one for its owner until closed and one per call, shifted
@@ -320,6 +320,24 @@ func BytesBuf_(b Bytes) (unsafe.Pointer, int, any) {
 		return b.ptr, b.len, nil
 	}
 	return b.ptr, b.len, b.owner
+}
+
+// returned_ holds a waker Rust returned, which it drops once the GC collects this.
+type returned_ struct {
+	raw cWaker
+}
+
+// LiftWaker_ is the waker at p, which Rust returned, as a func waking it through Rust
+// until the GC collects the func. For the generated packages, whose wakers are each
+// package's C type.
+func LiftWaker_(p unsafe.Pointer) func() {
+	r := &returned_{raw: *(*cWaker)(p)}
+	runtime.AddCleanup(r, cWakerDrop, r.raw)
+	return func() {
+		cWakerWake(r.raw)
+		// Not dropped while it wakes.
+		runtime.KeepAlive(r)
+	}
 }
 
 // give_ is v, kept for Rust in C memory until goRelease releases it.
