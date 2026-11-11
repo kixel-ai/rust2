@@ -57,6 +57,12 @@ class Writer {
 		b.put(v)
 	}
 
+	/** Bytes of a length both sides know, such as an array's. */
+	fun raw(v: ByteArray) {
+		room(v.size)
+		b.put(v)
+	}
+
 	/** Bytes a record holds, as [bytes] writes a `ByteArray`. */
 	fun bytes(v: Bytes?) {
 		if (v == null) {
@@ -157,6 +163,9 @@ class Reader(bytes: ByteArray) {
 	fun f32(): Float = b.getFloat()
 
 	fun f64(): Double = b.getDouble()
+
+	/** `n` bytes, of a length both sides know, such as an array's. */
+	fun raw(n: Int): ByteArray = ByteArray(n).also { b.get(it) }
 
 	fun bytes(): ByteArray? {
 		val n = b.getInt()

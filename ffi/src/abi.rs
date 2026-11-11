@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use rustc_span::Span;
 
-use crate::ir::{Access, Api, Dyn, Function, Home, Int, Literal, Receiver, Type};
+use crate::ir::{Access, Api, Dyn, Function, Home, Int, Literal, On, Receiver, Type};
 
 /// A C name one item claims twice, which no rename can tell apart: the name, then what
 /// claimed it first and second.
@@ -129,6 +129,9 @@ fn owned(ty: &Type) -> Type {
 /// The suffix naming each instance of a generic item, by its arguments.
 type Suffixes = HashMap<Vec<Type>, String>;
 
+/// The `cfg` the crate's build script sets to the target it builds for.
+pub const CFG: &str = "rust2_ffi_target";
+
 pub struct Abi<'a> {
 	pub api: &'a Api,
 	pub prefix: String,
@@ -143,6 +146,8 @@ pub struct Abi<'a> {
 	pub lists: BTreeMap<String, Type>,
 	/// Each tuple struct by C name, with its elements.
 	pub tuples: BTreeMap<String, Vec<Type>>,
+	/// Each `[u8; N]` struct by C name, with `N`.
+	pub arrays: BTreeMap<String, usize>,
 	/// Every C name claimed.
 	claims: Vec<Claim>,
 	/// The C name of each item whose own clashed.
@@ -161,6 +166,7 @@ impl<'a> Abi<'a> {
 			ranges: BTreeMap::new(),
 			lists: BTreeMap::new(),
 			tuples: BTreeMap::new(),
+			arrays: BTreeMap::new(),
 			claims: Vec::new(),
 			renames: HashMap::new(),
 			clashes: Vec::new(),
@@ -175,6 +181,33 @@ impl<'a> Abi<'a> {
 		}
 		abi.clashes = abi.residue();
 		abi
+	}
+
+	/// The `cfg` predicate a crate's Rust compiles what is on `on` under, or none if it is
+	/// on every target: its build script sets [`CFG`] to the target it builds for.
+	pub fn cfg(&self, on: On) -> Option<String> {
+		if self.api.everywhere(on) {
+			return None;
+		}
+		let targets: Vec<String> = self.api.named(on).iter().map(|t| format!("{CFG} = {t:?}")).collect();
+		Some(format!("any({})", targets.join(", ")))
+	}
+
+	/// The targets every type `ty` names is on, which a value of it is on.
+	pub fn on(&self, ty: &Type) -> On {
+		let api = self.api;
+		let mut on = On::ALL;
+		crate::ir::each(ty, &mut |ty| {
+			let of = match ty {
+				Type::Record(i) => api.records[*i].on,
+				Type::Enum(i) => api.enums[*i].on,
+				Type::Object(i) => api.objects[*i].on,
+				Type::Callback(i, _) => api.callbacks[*i].on,
+				_ => On::ALL,
+			};
+			on.0 &= of.0;
+		});
+		on
 	}
 
 	/// The C name of `item`, renamed if its own clashed, else `name`.
@@ -403,7 +436,7 @@ impl<'a> Abi<'a> {
 	}
 
 	/// Each exported type's name in Pascal case, by its C name, kept [`apart`] from those
-	/// beside it and [`unique`] among them, the ranges' classes, and the language's `taken`
+	/// beside it and [`unique`] among them, the ranges' and arrays' classes, and the language's `taken`
 	/// names: `scope` gives
 	/// the scope a type's [`Home`] puts it in, and how many leading segments of its path its
 	/// name there leaves out.
@@ -421,6 +454,7 @@ impl<'a> Abi<'a> {
 			.ranges
 			.keys()
 			.map(|c| pascal(&c[self.prefix.len() + 1..]))
+			.chain(self.arrays.values().map(|n| Self::array_class(*n)))
 			.collect();
 		let taken = move |name: &str| taken(name) || ranges.contains(name);
 		let mut scopes: BTreeMap<String, Vec<(String, Vec<String>, usize)>> = BTreeMap::new();
@@ -497,6 +531,17 @@ impl<'a> Abi<'a> {
 		})
 	}
 
+	/// The C name of `[u8; n]`'s struct: `<prefix>_array_u8_32`.
+	pub fn array(&self, n: usize) -> String {
+		format!("{}_array_u8_{n}", self.prefix)
+	}
+
+	/// The class a language with no fixed-size array of its own generates for `[u8; n]`:
+	/// `ArrayU8x32`, which no exported type may take.
+	pub fn array_class(n: usize) -> String {
+		format!("ArrayU8x{n}")
+	}
+
 	/// The C name of a range, bound, or pair of bounds struct: `<prefix>_range_u64`.
 	pub fn range(&self, ty: &Type) -> String {
 		format!("{}_{}", self.prefix, self.key(ty))
@@ -517,6 +562,7 @@ impl<'a> Abi<'a> {
 			Type::Char => "char".to_string(),
 			Type::U128 => "u128".to_string(),
 			Type::Duration => "duration".to_string(),
+			Type::Array(n) => format!("array_u8_{n}"),
 			Type::SocketAddr(_) => "socket_addr".to_string(),
 			Type::Option(inner) => format!("option_{}", self.key(inner)),
 			Type::List(_, inner) => format!("vec_{}", self.key(inner)),
@@ -577,6 +623,7 @@ impl<'a> Abi<'a> {
 			Type::Str | Type::String | Type::Slice | Type::Vec | Type::Bytes | Type::Path | Type::PathBuf => Ty::Buf,
 			Type::U128 => Ty::U128,
 			Type::Duration => Ty::Duration,
+			Type::Array(n) => Ty::Struct(self.array(*n)),
 			Type::SocketAddr(_) => Ty::SocketAddr,
 			Type::Waker => Ty::Waker,
 			Type::Future => Ty::ForeignFuture,
@@ -800,6 +847,7 @@ impl<'a> Abi<'a> {
 		// package, and Swift's in its module and the atomics header its runtime adds.
 		for runtime in [
 			"contract",
+			"target",
 			"buf",
 			"buf_free",
 			"u128",
@@ -997,6 +1045,7 @@ impl<'a> Abi<'a> {
 		let mut ranges = BTreeMap::new();
 		let mut lists = BTreeMap::new();
 		let mut tuples: BTreeMap<String, Vec<Type>> = BTreeMap::new();
+		let mut arrays = BTreeMap::new();
 		let mut mixed = Vec::new();
 		let mut stack = types;
 		while let Some(ty) = stack.pop() {
@@ -1035,6 +1084,9 @@ impl<'a> Abi<'a> {
 				Type::Range(_) | Type::Bound(_) => {
 					ranges.insert(self.range(ty), ty.clone());
 				}
+				Type::Array(n) => {
+					arrays.insert(self.array(*n), *n);
+				}
 				Type::Bounds(int) => {
 					ranges.insert(self.range(ty), ty.clone());
 					ranges.insert(self.range(&Type::Bound(*int)), Type::Bound(*int));
@@ -1048,6 +1100,9 @@ impl<'a> Abi<'a> {
 		}
 		for name in ranges.keys() {
 			self.claim(name.clone(), "a range".to_string(), crate_span, None);
+		}
+		for name in arrays.keys() {
+			self.claim(name.clone(), "an array".to_string(), crate_span, None);
 		}
 		for (name, elements) in tuples
 			.iter()
@@ -1078,6 +1133,7 @@ impl<'a> Abi<'a> {
 		self.ranges = ranges;
 		self.lists = lists;
 		self.tuples = tuples;
+		self.arrays = arrays;
 	}
 
 	/// Claim the functions a type's std traits export.

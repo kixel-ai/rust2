@@ -155,19 +155,24 @@ frame path:
    C ABI's borrow of each handle, a compare-and-swap in and a `fetch_sub` out of its
    state, is the whole call. Every handle argument pays it again.
 7. **The binding's own call.** Over C's getter: Swift adds 8 ns (its hold count's two
-   atomics), Kotlin 14 wall (JNI and its hold count), Dart 19 (an `_Arena` per call and
+   atomics, since dropped from all but its classes, as below), Kotlin 14 wall (JNI and its hold count), Dart 19 (an `_Arena` per call and
    its hold), Go 31 (cgo, `defer`, and its hold), and Python 37 (argument parsing and the
    GIL released and taken back, so Rust may call Python from another thread). BoltFFI's
    Python getter, which holds the GIL, measured 63 ns.
 
 ### Per-handle baseline
 
-For [checks-raise](/quest/m1/ffi-export/checks-raise.md)'s one accounting and
-[swift-noncopyable](/quest/m1/ffi-export/swift-noncopyable.md)'s hold count: the u64
+For [checks-raise](/quest/m1/ffi-export/checks-raise.md)'s one accounting: the u64
 getter is one borrowed handle and nothing else, so its row less Rust's 0.4 ns is what a
 handle costs a call. C, C++: 10 ns, the runtime's two atomics. Swift: 18, its hold count
 adding two more. Kotlin: 24 wall, Go 41, Dart 29, Python 47, each with its call's own
-transition besides. A change to the accounting moves this row and the handle call's by the
+transition besides.
+
+Swift has since made each object a noncopyable struct and dropped its hold count, but for
+a class: a `Copy` object or one thrown as an error. Measured 2026-11-11 at that change, 5
+rounds interleaved with C at a load average of 7 to 12, its getter costs 10 ns, as C's
+does, and `track.is_closed()`, on `TrackProducer`, still a class since moq throws it, 26
+against C's 18, as in the table. A change to the accounting moves this row and the handle call's by the
 same amount; measure both, CPU first, at the load beside them.
 
 ### Against the targets

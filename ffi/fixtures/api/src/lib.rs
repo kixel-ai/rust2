@@ -164,6 +164,13 @@ impl Counter {
 		self.value + other.map_or(0, |other| other.value)
 	}
 
+	/// This count, raised to `low`'s and lowered to `high`'s, each if any: two optional
+	/// handles, lent shared.
+	pub fn clamped(&self, low: Option<&Counter>, high: Option<&Counter>) -> u64 {
+		let low = low.map_or(self.value, |low| self.value.max(low.value));
+		high.map_or(low, |high| low.min(high.value))
+	}
+
 	/// [`Self::plus`], once [`yielded`] finishes: a future borrowing both handles meanwhile.
 	pub async fn plus_later(&self, other: Option<&Counter>) -> u64 {
 		yielded(0).await;
@@ -1188,6 +1195,46 @@ impl Retry {
 	pub fn set_limit(&mut self, limit: u32) {
 		self.limit = Some(limit);
 	}
+}
+
+/// A digest, as moq's FLAC config holds its MD5: an object, whose array field C reads and
+/// assigns by value.
+#[non_exhaustive]
+pub struct Digest {
+	pub sum: [u8; 4],
+}
+
+impl Digest {
+	pub fn new() -> Self {
+		Self { sum: [0; 4] }
+	}
+
+	/// The sum with each byte flipped: an array taken and returned by value.
+	pub fn flipped(&self, mask: [u8; 4]) -> [u8; 4] {
+		std::array::from_fn(|i| self.sum[i] ^ mask[i])
+	}
+}
+
+/// The 4 bytes that 8 hex digits spell, as moq parses a certificate's fingerprint into 32.
+pub fn fingerprint(hex: &str) -> Result<[u8; 4], String> {
+	if hex.len() != 8 {
+		return Err(format!("{} hex digits, not 8", hex.len()));
+	}
+	let mut sum = [0; 4];
+	for (i, byte) in sum.iter_mut().enumerate() {
+		*byte = u8::from_str_radix(&hex[2 * i..2 * i + 2], 16).map_err(|e| e.to_string())?;
+	}
+	Ok(sum)
+}
+
+/// An enum whose variant Dart would name as the class of `[u8; 4]`, which keeps them apart.
+pub enum Array {
+	U8x4(u8),
+}
+
+/// A type named as Swift's, which an array's `Hashable` conformance must not take for it.
+pub struct Hasher {
+	pub seed: u8,
 }
 
 /// How many tokens have dropped.
@@ -2302,11 +2349,122 @@ impl fmt::Display for Refusal {
 	}
 }
 
+/// Each counter's name with its refusal, `last`'s too if any: an object Swift holds as a
+/// struct beside one it holds as a class, moved in inside a list and an option.
+pub fn reasons(pairs: Vec<(Counter, Refusal)>, last: Option<(Counter, Refusal)>) -> String {
+	let pairs = pairs.iter().chain(&last);
+	pairs
+		.map(|(counter, refusal)| format!("{} {refusal}", counter.name))
+		.collect::<Vec<_>>()
+		.join(", ")
+}
+
 /// Always refuses, for `reason`.
 pub fn refuse(reason: &str) -> Result<u32, Box<Refusal>> {
 	Err(Box::new(Refusal {
 		reason: reason.to_string(),
 	}))
+}
+
+/// The kind of target the library was built for. One binding serves the host and wasm32,
+/// so it has every target's variants, and a target refuses one it lacks. As wasm32's comes
+/// first, `Native`'s Rust discriminant differs between the two, which its C tag does not.
+pub enum Platform {
+	/// wasm32, which only that target has.
+	#[cfg(target_arch = "wasm32")]
+	Wasm { bits: u32 },
+	/// A native target, with its pointers' width in bits.
+	Native(u32),
+}
+
+/// The library's target's platform.
+pub fn platform() -> Platform {
+	#[cfg(target_arch = "wasm32")]
+	return Platform::Wasm { bits: usize::BITS };
+	#[cfg(not(target_arch = "wasm32"))]
+	Platform::Native(usize::BITS)
+}
+
+/// The width of `platform`'s pointers, in bits.
+pub fn pointer_bits(platform: Platform) -> u32 {
+	match platform {
+		Platform::Native(bits) => bits,
+		#[cfg(target_arch = "wasm32")]
+		Platform::Wasm { bits } => bits,
+	}
+}
+
+/// The family of the library's target, a plain enum with a variant only wasm32 has.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Family {
+	Native,
+	#[cfg(target_arch = "wasm32")]
+	Wasm,
+}
+
+/// Whether `family` is the library's target's.
+pub fn is_family(family: Family) -> bool {
+	#[cfg(target_arch = "wasm32")]
+	return family == Family::Wasm;
+	#[cfg(not(target_arch = "wasm32"))]
+	{
+		family == Family::Native
+	}
+}
+
+/// Only wasm32 has it: a call on another target fails.
+#[cfg(target_arch = "wasm32")]
+pub fn wasm_only() -> u32 {
+	32
+}
+
+/// Only wasm32 has it: a call on another target fails before it takes `log`.
+#[cfg(target_arch = "wasm32")]
+pub fn wasm_log(log: Box<dyn Log>) {
+	log.log(0, "wasm");
+}
+
+/// A type only wasm32 has.
+#[cfg(target_arch = "wasm32")]
+pub struct Worker {
+	id: u32,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl Worker {
+	/// A worker numbered `id`.
+	pub fn new(id: u32) -> Self {
+		Self { id }
+	}
+
+	/// Its number.
+	pub fn id(&self) -> u32 {
+		self.id
+	}
+}
+
+/// A record only wasm32 has.
+#[cfg(target_arch = "wasm32")]
+pub struct Page {
+	pub size: u32,
+}
+
+/// wasm32's page.
+#[cfg(target_arch = "wasm32")]
+pub fn page() -> Page {
+	Page { size: 65536 }
+}
+
+/// A callback only wasm32 has.
+#[cfg(target_arch = "wasm32")]
+pub trait Beat: Send + Sync {
+	fn beat(&self) -> u32;
+}
+
+/// What `beat` counts.
+#[cfg(target_arch = "wasm32")]
+pub fn beats(beat: Box<dyn Beat>) -> u32 {
+	beat.beat()
 }
 
 /// A cancellation at a step, named as a class Dart's runtime declares: Dart's name takes a

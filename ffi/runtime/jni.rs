@@ -630,6 +630,16 @@ macro_rules! scalar {
 
 scalar!(u8, u16, u32, u64, i8, i16, i32, i64, f32, f64);
 
+impl<const N: usize> Wire for [u8; N] {
+	fn read(r: &mut Reader<'_>) -> Self {
+		r.take(N).try_into().expect("taken")
+	}
+
+	fn write(self, w: &mut Writer) {
+		w.0.extend_from_slice(&self);
+	}
+}
+
 impl Wire for bool {
 	fn read(r: &mut Reader<'_>) -> Self {
 		r.get::<u8>() != 0

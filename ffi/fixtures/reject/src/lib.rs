@@ -903,3 +903,25 @@ pub fn poll_loose(waiter: &Loose) -> std::task::Poll<()> {
 	waiter.0.wake_by_ref();
 	std::task::Poll::Ready(())
 }
+
+/// Three optional borrowed objects: Swift, whose optional holds an object only by consuming
+/// it, would overload each with and without it, past the bound it takes.
+pub fn among(first: Option<&Opaque>, second: Option<&Opaque>, third: Option<&Opaque>) -> u8 {
+	[first, second, third].into_iter().flatten().map(|o| o.0).sum()
+}
+
+/// An error holding an object, which Swift holds as a noncopyable struct while
+/// `Swift.Error` requires a copyable type.
+pub fn wrapped(value: u8) -> Result<u8, Vec<Opaque>> {
+	Err(vec![Opaque(value)])
+}
+
+/// An array of an element other than `u8`, which no export needs yet.
+pub fn sum_pair(pair: [u16; 2]) -> u32 {
+	u32::from(pair[0]) + u32::from(pair[1])
+}
+
+/// An empty array, which no C struct holds.
+pub fn empty(bytes: [u8; 0]) -> usize {
+	bytes.len()
+}

@@ -27,7 +27,7 @@ use std::fmt::Write;
 
 use crate::abi::{self, Abi, Sig, Ty, pascal};
 use crate::glue::rs;
-use crate::ir::{Access, Family, Function, Int, Literal, Receiver, Type};
+use crate::ir::{Access, Family, Function, Int, Literal, On, Receiver, Type};
 use crate::kotlin::strip_refs;
 
 const RUNTIME: &str = include_str!("../runtime/rt.dart");
@@ -49,7 +49,7 @@ pub struct Output {
 /// The Dart for `abi`, whose header's contract is `contract`, or the names two items
 /// claim alike.
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
-	// What the runtime and the ranges' classes, which the ABI names, take.
+	// What the runtime and the ranges' and arrays' classes, which the ABI names, take.
 	let ranges: BTreeSet<String> = (abi.ranges.iter())
 		.flat_map(|(c, ty)| {
 			let name = pascal(&c[abi.prefix.len() + 1..]);
@@ -62,6 +62,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 				.map(move |case| format!("{name}{case}"))
 				.collect::<Vec<_>>()
 		})
+		.chain(abi.arrays.values().map(|n| Abi::array_class(*n)))
 		.collect();
 	let taken = |name: &str| TAKEN.contains(&name) || ranges.contains(name);
 	let mut g = Gen {
@@ -81,6 +82,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		relays: Vec::new(),
 		trampolines: Vec::new(),
 		fresh: 0,
+		on: On::ALL,
 		space: Gen::space(abi),
 	};
 	g.variants = g.variants(&taken);
@@ -111,10 +113,15 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		const _file = '{p}.dart';\n\n\
 		/// Bytes Rust returns past this long are lent to Dart rather than copied.\n\
 		const _lend = {LEND};\n\n\
-		bool _contract() => _{p}_contract() == 0x{contract:016x};\n\n"
+		bool _contract() => _{p}_contract() == 0x{contract:016x};\n\n\
+		/// The index of the library's target among those this file serves.\n\
+		final int _target = _{p}_target();\n\n\
+		/// Throws unless the library's target is among those of [on], as the item [what] is.\n\
+		void _on(int on, String what) {{\n\tif ((on >>> _target) & 1 == 0) {{\n\t\tthrow UnsupportedError(\"$what: it is not on this library's target\");\n\t}}\n}}\n\n"
 	);
 	for (name, params, ret, dart_params, dart_ret) in [
 		("contract", "", "ffi.Uint64", "", "int"),
+		("target", "", "ffi.Uint32", "", "int"),
 		("buf_free", "_Buf", "ffi.Void", "_Buf p0", "void"),
 		(
 			"dart_init",
@@ -203,7 +210,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		("dart_abort", "_Buf", "ffi.Void", "_Buf p0", "void"),
 	] {
 		let local = match name {
-			"contract" => format!("_{p}_contract"),
+			"contract" | "target" => format!("_{p}_{name}"),
 			"buf_free" => "_bufFree".to_string(),
 			other => format!("_{}", camel(other)),
 		};
@@ -365,6 +372,8 @@ struct Gen<'a> {
 	/// Each closure type, whose trampoline is `_t<n>`.
 	trampolines: Vec<Type>,
 	fresh: usize,
+	/// The targets of the item being written, whose calls check theirs.
+	on: On,
 	/// The namespace of the glue's C names, apart from the export's.
 	space: String,
 }
@@ -475,6 +484,7 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "void".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(_) => "int".to_string(),
@@ -582,6 +592,13 @@ impl<'a> Gen<'a> {
 			return class;
 		}
 		self.structs.insert(name.clone(), String::new());
+		if let Some(n) = abi.arrays.get(&name) {
+			let code = format!(
+				"final class {class} extends ffi.Struct {{\n\t@ffi.Array({n})\n\texternal ffi.Array<ffi.Uint8> items;\n}}\n\n"
+			);
+			self.structs.insert(name, code);
+			return class;
+		}
 		let mut fields: Vec<(String, Ty)> = Vec::new();
 		if let Some(ty) = abi.ranges.get(&name) {
 			match ty {
@@ -723,7 +740,30 @@ impl<'a> Gen<'a> {
 			call.name,
 			args.join(", ")
 		);
-		self.native_fn(&name, params, call.ret.clone())
+		let native = self.native_fn(&name, params, call.ret.clone());
+		let api = self.abi.api;
+		if api.everywhere(self.on) {
+			return native;
+		}
+		// On a target its item is not on, the call throws before it calls in.
+		let checked = format!("{native}_on");
+		if !self.natives.contains_key(&checked) {
+			let decl = self.natives[&name].replacen(&format!("{native}("), &format!("{checked}("), 1);
+			let params: Vec<String> = (0..=call.params.len()).map(|n| format!("p{n}")).collect();
+			let declared = &decl[decl.find("external ").expect("a native") + "external ".len()..];
+			let ret = &declared[..declared.find(' ').expect("a native's return")];
+			let typed =
+				&declared[declared.find('(').expect("a native's parameters")..declared.rfind(");").expect("a native")];
+			let wrapper = format!(
+				"{ret} {native}{typed}) {{\n\t_on(0x{:x}, '{}');\n\treturn {checked}({});\n}}\n\n",
+				self.on.0 & api.all().0,
+				call.name,
+				params.join(", ")
+			);
+			self.natives.insert(name.clone(), decl);
+			self.natives.insert(checked, wrapper);
+		}
+		native
 	}
 
 	/// The Dart functions owning a handle of the object `c`, whose C type is `handle`: one
@@ -811,6 +851,7 @@ impl<'a> Gen<'a> {
 			Type::Slice | Type::Vec | Type::Bytes => format!("a_.bytes({dst}, {e});"),
 			Type::U128 => format!("_n.u128({dst}, {e});"),
 			Type::Duration => format!("_n.duration({dst}, {e});"),
+			Type::Array(_) => format!("{e}._write({dst});"),
 			Type::SocketAddr(family) => {
 				let family = match family {
 					Family::Any => "",
@@ -884,6 +925,11 @@ impl<'a> Gen<'a> {
 				for (n, variant) in e.variants.iter().enumerate() {
 					let case = self.variant_class(&class_name, &variant.name);
 					let mut body = vec![format!("c.$tag = {n};")];
+					// A value of a variant the library's target lacks is refused as it crosses.
+					if !abi.api.everywhere(variant.on) {
+						let on = variant.on.0 & abi.api.all().0;
+						body.insert(0, format!("_on(0x{on:x}, '{c}.{}');", variant.name));
+					}
 					let member = abi::escape(&abi::snake(&variant.name));
 					for field in &variant.fields {
 						let e = format!("v.{}", field_name(&field.name));
@@ -1085,6 +1131,7 @@ impl<'a> Gen<'a> {
 			Type::Char => format!("_n.scalar({e})"),
 			Type::U128 => format!("_n.u128Of({e})"),
 			Type::Duration => format!("_n.durationOf({e})"),
+			Type::Array(n) => format!("{}._of({e})", Abi::array_class(*n)),
 			Type::SocketAddr(_) => format!("_n.addrOf({e})"),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(_) => {
@@ -1148,6 +1195,14 @@ impl<'a> Gen<'a> {
 		let api = abi.api;
 		for (c, ty) in &abi.ranges.clone() {
 			self.range(c, ty);
+		}
+		for (c, n) in &abi.arrays {
+			let name = Abi::array_class(*n);
+			let s = self.struct_class(&Ty::Struct(c.clone()));
+			let _ = write!(
+				self.types,
+				"/// A Rust `[u8; {n}]`: exactly {n} bytes, copied in and out, so it never changes.\nfinal class {name} {{\n\tfinal typed.Uint8List _bytes;\n\n\t/// A copy of [bytes], which must hold exactly {n}, each from 0 through 255.\n\t{name}(List<int> bytes) : _bytes = typed.Uint8List.fromList(bytes) {{\n\t\tif (bytes.length != {n} || bytes.any((b) => b < 0 || b > 255)) {{\n\t\t\tthrow ArgumentError.value(bytes, 'bytes', 'is no [u8; {n}]');\n\t\t}}\n\t}}\n\n\t{name}._(this._bytes);\n\n\tint operator [](int index) => _bytes[index];\n\n\ttyped.Uint8List toBytes() => typed.Uint8List.fromList(_bytes);\n\n\tstatic {name} _of({s} c) => {name}._(typed.Uint8List.fromList([for (var i = 0; i < {n}; i++) c.items[i]]));\n\n\tvoid _write({s} c) {{\n\t\tfor (var i = 0; i < {n}; i++) {{\n\t\t\tc.items[i] = _bytes[i];\n\t\t}}\n\t}}\n\n\t@override\n\tbool operator ==(Object other) => other is {name} && _equal(other._bytes);\n\n\tbool _equal(typed.Uint8List other) {{\n\t\tfor (var i = 0; i < {n}; i++) {{\n\t\t\tif (other[i] != _bytes[i]) return false;\n\t\t}}\n\t\treturn true;\n\t}}\n\n\t@override\n\tint get hashCode => Object.hashAll(_bytes);\n\n\t@override\n\tString toString() => _bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();\n}}\n\n"
+			);
 		}
 		for constant in &api.constants {
 			let name = abi::snake(self.bare(&abi.name(&constant.path))).to_uppercase();
@@ -1330,6 +1385,7 @@ impl<'a> Gen<'a> {
 	fn record(&mut self, i: usize) {
 		let abi = self.abi;
 		let record = &abi.api.records[i];
+		self.on = record.on;
 		let c = abi.record(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&record.path, &record.args);
@@ -1372,6 +1428,7 @@ impl<'a> Gen<'a> {
 	fn enumeration(&mut self, i: usize) {
 		let abi = self.abi;
 		let e = &abi.api.enums[i];
+		self.on = e.on;
 		let c = abi.enumeration(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&e.path, &e.args);
@@ -1380,17 +1437,34 @@ impl<'a> Gen<'a> {
 		let mut body = Vec::new();
 		let text = format!("{rust}\n\n{}", e.docs);
 		if e.plain() {
+			// A value of a variant the library's target lacks is refused as it crosses, when
+			// its C value is read.
+			let limited = e.variants.iter().any(|v| !abi.api.everywhere(v.on));
 			let values: Vec<String> = (e.variants.iter())
 				.map(|v| {
 					let value = enum_value(&v.name);
 					members.push(format!("static {value}"));
-					format!("\t{value}({})", v.discriminant)
+					match limited {
+						true => format!(
+							"\t{value}({}, 0x{:x}, '{c}.{}')",
+							v.discriminant,
+							v.on.0 & abi.api.all().0,
+							v.name
+						),
+						false => format!("\t{value}({})", v.discriminant),
+					}
 				})
 				.collect();
-			body.push(format!(
-				"{};\n\n\tconst {name}(this._c);\n\n\t/// Its C value.\n\tfinal int _c;\n",
-				values.join(",\n")
-			));
+			body.push(match limited {
+				true => format!(
+					"{};\n\n\tconst {name}(this._value, this._targets, this._what);\n\n\tfinal int _value;\n\tfinal int _targets;\n\tfinal String _what;\n\n\t/// Its C value.\n\tint get _c {{\n\t\t_on(_targets, _what);\n\t\treturn _value;\n\t}}\n",
+					values.join(",\n")
+				),
+				false => format!(
+					"{};\n\n\tconst {name}(this._c);\n\n\t/// Its C value.\n\tfinal int _c;\n",
+					values.join(",\n")
+				),
+			});
 			self.traits(&ty, &c, e.traits, &mut body, &mut members);
 			let owner = abi.ty(&ty);
 			self.methods(&e.methods, &owner, &ty, &mut body, &mut members);
@@ -1449,6 +1523,7 @@ impl<'a> Gen<'a> {
 	fn object(&mut self, i: usize) {
 		let abi = self.abi;
 		let object = &abi.api.objects[i];
+		self.on = object.on;
 		let c = abi.object(i);
 		let name = self.class(&c);
 		let rust = abi.api.rust(&object.path, &object.args);
@@ -1477,6 +1552,7 @@ impl<'a> Gen<'a> {
 	fn callback(&mut self, i: usize) {
 		let abi = self.abi;
 		let callback = &abi.api.callbacks[i];
+		self.on = callback.on;
 		let c = abi.callback(i);
 		let name = self.class(&c);
 		let rust = callback.path.join("::");
@@ -1716,6 +1792,19 @@ impl<'a> Gen<'a> {
 		owner_ty: Option<&Type>,
 		taken: &[String],
 	) -> Option<(String, String)> {
+		let on = std::mem::replace(&mut self.on, function.on);
+		let code = self.function_on(function, owner, owner_ty, taken);
+		self.on = on;
+		code
+	}
+
+	fn function_on(
+		&mut self,
+		function: &Function,
+		owner: Option<&Ty>,
+		owner_ty: Option<&Type>,
+		taken: &[String],
+	) -> Option<(String, String)> {
 		let abi = self.abi;
 		let _p = abi.prefix.clone();
 		let export = abi.export(function, owner);
@@ -1839,6 +1928,10 @@ impl<'a> Gen<'a> {
 			}
 		}
 		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		// A call this target lacks throws before any argument is lowered or given to Rust.
+		if !abi.api.everywhere(self.on) {
+			pre.insert(0, format!("_on(0x{:x}, '{c_name}');", self.on.0 & abi.api.all().0));
+		}
 
 		// A tuple of one returned whole is its element, written through its one out pointer.
 		let ok = strip_refs(&function.ok);

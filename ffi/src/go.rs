@@ -37,7 +37,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Family, Function, Home, Int, Literal, Param, Receiver, Type};
+use crate::ir::{Access, Family, Function, Home, Int, Literal, On, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.go");
 const CONVERSIONS: &str = include_str!("../runtime/ffi_cgo.go");
@@ -552,13 +552,28 @@ impl<'a> Gen<'a> {
 			func cWakerDrop(w cWaker) {{\n\tC.{go}_waker_drop(w)\n}}\n\n\
 			// Go packages and a library from different builds must not mix: checked when the\n\
 			// runtime loads, before any other call.\n\
-			func init() {{\n\tif C.{p}_contract() != 0x{contract:016x} || C.{upper}_CONTRACT != 0x{contract:016x} {{\n\t\tpanic(\"the Go of {p} and the library are from different builds\")\n\t}}\n}}\n\n\
+			func init() {{\n\tif C.{p}_contract() != 0x{contract:016x} || C.{upper}_CONTRACT != 0x{contract:016x} {{\n\t\tpanic(\"the Go of {p} and the library are from different builds\")\n\t}}\n\ttarget_ = uint64(C.{p}_target())\n}}\n\n\
+			// target_ is the index of the library's target among those the packages serve.\n\
+			var target_ uint64\n\n\
+			// On_ panics unless the library's target is among those of on, as the item what is.\n\
+			func On_(on uint64, what string) {{\n\tif on>>target_&1 == 0 {{\n\t\tpanic(what + \": it is not on this library's target\")\n\t}}\n}}\n\n\
 			//export {go}_call\nfunc {go}_call(data unsafe.Pointer) {{\n\tgiven_(data).(func())()\n}}\n\n\
 			//export {go}_release\nfunc {go}_release(data unsafe.Pointer) {{\n\trelease_(data)\n}}\n\n\
 			//export {go}_poll\nfunc {go}_poll(data unsafe.Pointer, waker cWaker) C.bool {{\n\treturn C.bool(given_(data).(*pollable_).poll(waker))\n}}\n\n"
 		);
 		out.push_str(RUNTIME);
 		out
+	}
+
+	/// The statement that panics unless the library's target is among those of `on`, as the
+	/// item `what` is, or none if it is on every target.
+	fn on(&mut self, on: On, what: &str) -> Option<String> {
+		let api = self.abi.api;
+		if api.everywhere(on) {
+			return None;
+		}
+		let check = self.qualify(Packages::RT, "On_");
+		Some(format!("{check}({}, \"{what}\")", on.0 & api.all().0))
 	}
 
 	/// The Go name of `name`, an item of `krate`'s package, from this package: imported, or
@@ -629,6 +644,7 @@ impl<'a> Gen<'a> {
 	fn go(&mut self, ty: &Type) -> String {
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Array(n) => format!("[{n}]byte"),
 			Type::Unit => unreachable!("no value is unit"),
 			Type::Bool => "bool".to_string(),
 			Type::Int(int) => go_int(*int).to_string(),
@@ -694,6 +710,7 @@ impl<'a> Gen<'a> {
 			Type::Box(inner) | Type::Ref(_, inner) => self.zero(inner),
 			Type::Tuple(elements) if elements.len() == 1 => self.zero(&elements[0]),
 			Type::Record(_)
+			| Type::Array(_)
 			| Type::SocketAddr(_)
 			| Type::Range(_)
 			| Type::Bound(_)
@@ -787,6 +804,10 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
+			Type::Array(n) => {
+				self.array(*n);
+				format!("lower_{}({e})", abi.array(*n))
+			}
 			Type::Str | Type::String | Type::Path | Type::PathBuf => format!("a_.bufString({e})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("a_.bufView({e})"),
 			Type::Unit => unreachable!("no value is unit"),
@@ -929,6 +950,10 @@ impl<'a> Gen<'a> {
 			Type::Char => format!("rune({e})"),
 			Type::U128 => format!("liftU128_({e})"),
 			Type::Duration => format!("liftDuration_({e})"),
+			Type::Array(n) => {
+				self.array(*n);
+				format!("lift_{}({e})", abi.array(*n))
+			}
 			Type::SocketAddr(_) => format!("liftAddr_({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				self.convert(ty);
@@ -1218,6 +1243,17 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The conversions of a range, bound, or pair of bounds, whose C struct is `c`.
+	/// The conversions of `[u8; n]` between Go's array and C's struct of the same bytes.
+	fn array(&mut self, n: usize) {
+		let c = self.abi.array(n);
+		self.helper(&format!("convert_{c}"), |_| {
+			format!(
+				"func lift_{c}(c C.{c}) [{n}]byte {{\n\treturn *(*[{n}]byte)(unsafe.Pointer(&c.items))\n}}\n\n\
+				func lower_{c}(v [{n}]byte) C.{c} {{\n\treturn *(*C.{c})(unsafe.Pointer(&v))\n}}\n\n"
+			)
+		});
+	}
+
 	fn range_conv(&mut self, c: &str, ty: &Type) -> String {
 		let name = self.qualified(ty);
 		match ty {
@@ -1407,6 +1443,14 @@ impl<'a> Gen<'a> {
 				body: format!("return {lift}"),
 			}
 		});
+		let (mut methods, mut default) = (methods, default);
+		// On a target a value's type is not on, only the binding makes one, which calls in
+		// for none of these.
+		if let Some(check) = self.on(self.abi.on(ty), c) {
+			for method in methods.iter_mut().chain(default.as_mut()) {
+				method.body = format!("{check}\n{}", method.body);
+			}
+		}
 		(methods, default)
 	}
 
@@ -1679,20 +1723,32 @@ impl<'a> Gen<'a> {
 		let c = abi.enumeration(i);
 		let ty = Type::Enum(i);
 		let name = self.qualified(&ty);
+		// A value of a variant the library's target lacks is refused as it crosses.
+		let checks: Vec<Option<String>> = (e.variants.iter())
+			.map(|v| self.on(v.on, &format!("{c}.{}", v.name)))
+			.collect();
 		if e.plain() {
+			let cases: String = (e.variants.iter().zip(&checks))
+				.filter_map(|(v, check)| Some(format!("\tcase {}:\n\t\t{}\n", v.discriminant, check.as_ref()?)))
+				.collect();
+			let check = match cases.is_empty() {
+				true => String::new(),
+				false => format!("\tswitch v {{\n{cases}\t}}\n"),
+			};
 			return format!(
-				"func lift_{c}(c C.{c}) {name} {{\n\treturn {name}(c)\n}}\n\nfunc lower_{c}(v {name}) C.{c} {{\n\treturn C.{c}(v)\n}}\n\n"
+				"func lift_{c}(c C.{c}) {name} {{\n\treturn {name}(c)\n}}\n\nfunc lower_{c}(v {name}) C.{c} {{\n{check}\treturn C.{c}(v)\n}}\n\n"
 			);
 		}
 		let mut lifts = Vec::new();
 		let mut lowers = Vec::new();
 		let (krate, _) = self.named(&ty);
-		for (n, variant) in e.variants.iter().enumerate() {
+		for ((n, variant), check) in e.variants.iter().enumerate().zip(checks) {
 			let vname = self.qualify(krate, &self.variants[&(c.clone(), variant.name.clone())]);
 			let payload = abi::payload(&c, &variant.name);
+			let check = check.map(|check| format!("\t\t{check}\n")).unwrap_or_default();
 			if variant.fields.is_empty() {
 				lifts.push(format!("\tcase {n}:\n\t\treturn {vname}{{}}\n"));
-				lowers.push(format!("\tcase {vname}:\n\t\tc.tag = {n}\n"));
+				lowers.push(format!("\tcase {vname}:\n{check}\t\tc.tag = {n}\n"));
 				continue;
 			}
 			let lifted: Vec<String> = (variant.fields.iter())
@@ -1712,7 +1768,7 @@ impl<'a> Gen<'a> {
 				lifted.join(", ")
 			));
 			lowers.push(format!(
-				"\tcase {vname}:\n\t\tc.tag = {n}\n\t\t*(*C.{payload})(unsafe.Pointer(&c.anon0)) = C.{payload}{{{}}}\n",
+				"\tcase {vname}:\n{check}\t\tc.tag = {n}\n\t\t*(*C.{payload})(unsafe.Pointer(&c.anon0)) = C.{payload}{{{}}}\n",
 				lowered.join(", ")
 			));
 		}
@@ -2330,6 +2386,9 @@ impl<'a> Gen<'a> {
 			text.push_str(
 				"\n\nIt blocks until Rust's future is ready, or ctx is done: then it cancels the future in\nRust, losing nothing, and returns ctx's error.",
 			);
+		}
+		if let Some(check) = self.on(function.on, &c_name) {
+			body.insert(0, check);
 		}
 		Method {
 			docs: text,

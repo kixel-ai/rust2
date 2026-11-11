@@ -19,7 +19,8 @@ use rustc_span::{FileName, Span, sym};
 
 use crate::abi::Abi;
 use crate::config::{self, Config};
-use crate::{census, collect, glue};
+use crate::ir::Api;
+use crate::{census, collect, glue, merge};
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
 pub fn run(args: Vec<String>) -> ExitCode {
@@ -36,6 +37,11 @@ struct Export {
 	facade: config::Package,
 	/// The facade's workspace's patches, for the glue's workspace.
 	patch: String,
+	/// The other targets' APIs to merge with this one's, as [`crate::merge::Target::write`]
+	/// wrote them.
+	merge: Vec<PathBuf>,
+	/// The directories a staged API's spans are relative to.
+	roots: Vec<PathBuf>,
 }
 
 /// What the job writes.
@@ -44,6 +50,8 @@ enum Output {
 	Dir(PathBuf),
 	/// A census, into this directory, instead of an export.
 	Census(PathBuf),
+	/// The target's API, into this file, for an export of several targets to merge.
+	Api(PathBuf),
 }
 
 impl Export {
@@ -61,17 +69,28 @@ impl Export {
 		let output = match (
 			std::env::var_os(config::env::OUT),
 			std::env::var_os(config::env::CENSUS),
+			std::env::var_os(config::env::API),
 		) {
-			(Some(out), None) => Output::Dir(out.into()),
-			(None, Some(census)) => Output::Census(census.into()),
+			(Some(out), None, None) => Output::Dir(out.into()),
+			(None, Some(census), None) => Output::Census(census.into()),
+			(None, None, Some(api)) => Output::Api(api.into()),
 			_ => {
 				return Err(format!(
-					"exactly one of {} and {} must be set",
+					"exactly one of {}, {}, and {} must be set",
 					config::env::OUT,
-					config::env::CENSUS
+					config::env::CENSUS,
+					config::env::API
 				));
 			}
 		};
+		let merge = std::env::var_os(config::env::MERGE).unwrap_or_default();
+		let merge = std::env::split_paths(&merge)
+			.filter(|p| !p.as_os_str().is_empty())
+			.collect();
+		let roots = std::env::var_os(config::env::ROOTS).unwrap_or_default();
+		let roots = std::env::split_paths(&roots)
+			.filter(|p| !p.as_os_str().is_empty())
+			.collect();
 		facade.features = args
 			.windows(2)
 			.filter(|w| w[0] == "--cfg")
@@ -85,6 +104,8 @@ impl Export {
 			output,
 			facade,
 			patch,
+			merge,
+			roots,
 		}))
 	}
 }
@@ -100,62 +121,169 @@ impl Callbacks for Export {
 			// A census counts the whole API, whatever the config leaves out.
 			exclude: match self.output {
 				Output::Census(_) => &[],
-				Output::Dir(_) => &self.config.exclude,
+				Output::Dir(_) | Output::Api(_) => &self.config.exclude,
 			},
 		};
 		let collected = collect::collect(tcx, &facade);
 		let report = &collected.report;
-		let abi = Abi::new(&collected.api, &self.facade.lib);
+		if let Output::Census(dir) = &self.output {
+			let abi = Abi::new(&collected.api, &self.facade.lib);
+			let text = census::render(&collected.api, report, &abi.clashes, &|span| at(tcx, span));
+			// A census reports what a crate uses, but a missed instance is the exporter's bug.
+			for refusal in &report.refusals {
+				if refusal.why.iter().any(|why| why.construct == collect::NOT_INFERRED) {
+					refuse(tcx, refusal, "inference missed an instance, a bug in rust2-ffi");
+				}
+			}
+			if let Err(err) = write(&dir.join(format!("{}.md", report.package)), &text) {
+				tcx.dcx().err(format!("rust2-ffi: {err}"));
+			}
+			return stop_on_errors(tcx);
+		}
+		for refusal in &report.refusals {
+			refuse(tcx, refusal, "exclude it in the config to leave it out");
+		}
+		for (path, count) in &report.excluded {
+			if *count == 0 && !configured_out(tcx, path) {
+				tcx.dcx().err(format!(
+					"rust2-ffi: exclude `{path}` in the config names nothing exported"
+				));
+			}
+		}
+		// Refusals still let the export go on to report each clash, but write nothing.
+		let target = merge::Target {
+			package: self.facade.name.clone(),
+			features: self.facade.features.clone(),
+			exclude: self.config.exclude.clone(),
+			api: collected.api,
+		};
 		let written = match &self.output {
-			Output::Census(dir) => {
-				let text = census::render(&collected.api, report, &abi.clashes, &|span| at(tcx, span));
-				// A census reports what a crate uses, but a missed instance is the exporter's bug.
-				for refusal in &report.refusals {
-					if refusal.why.iter().any(|why| why.construct == collect::NOT_INFERRED) {
-						refuse(tcx, refusal, "inference missed an instance, a bug in rust2-ffi");
-					}
-				}
-				write(&dir.join(format!("{}.md", report.package)), &text)
-			}
-			Output::Dir(out) => {
-				for refusal in &report.refusals {
-					refuse(tcx, refusal, "exclude it in the config to leave it out");
-				}
-				for (path, count) in &report.excluded {
-					if *count == 0 && !configured_out(tcx, path) {
-						tcx.dcx().err(format!(
-							"rust2-ffi: exclude `{path}` in the config names nothing exported"
-						));
-					}
-				}
-				for (name, (first, first_span), (second, second_span)) in &abi.clashes {
-					tcx.dcx()
-						.struct_span_err(
-							*second_span,
-							format!("rust2-ffi: {second} and {first} are both `{name}` in C"),
-						)
-						.with_span_note(*first_span, format!("{first} is here"))
-						.emit();
-				}
-				if tcx.dcx().has_errors().is_some() {
-					return Compilation::Stop;
-				}
-				let glue = glue::Crate {
-					abi: &abi,
-					facade: &self.facade,
-					patch: &self.patch,
-					target: tcx.sess.opts.target_triple.tuple(),
-				};
-				glue.write(out)
-			}
+			Output::Census(_) => unreachable!("written above"),
+			Output::Api(_) if tcx.dcx().has_errors().is_some() => Ok(()),
+			Output::Api(path) => target.write(path, tcx.sess.source_map(), &self.roots),
+			Output::Dir(out) => match self.merged(tcx, target) {
+				Some(api) => self.export(tcx, &api, out),
+				None => Ok(()),
+			},
 		};
 		if let Err(err) = written {
 			tcx.dcx().err(format!("rust2-ffi: {err}"));
 		}
-		match tcx.dcx().has_errors() {
-			None => Compilation::Continue,
-			Some(_) => Compilation::Stop,
+		stop_on_errors(tcx)
+	}
+}
+
+impl Export {
+	/// This target's API merged with the other targets', or none once a difference
+	/// between two of them is an error.
+	fn merged(&self, tcx: TyCtxt<'_>, ours: merge::Target) -> Option<Api> {
+		if self.merge.is_empty() {
+			return Some(ours.api);
 		}
+		let mut apis = vec![ours.api];
+		let mut unmergeable = false;
+		for path in &self.merge {
+			let theirs = match merge::Target::read(path, tcx.sess.source_map(), &self.roots) {
+				Ok(theirs) => theirs,
+				Err(err) => {
+					tcx.dcx().err(format!("rust2-ffi: {err}"));
+					unmergeable = true;
+					continue;
+				}
+			};
+			if theirs.api.targets.len() != 1 {
+				unmergeable = true;
+				tcx.dcx().err(format!(
+					"rust2-ffi: the API from {} lists {} targets, not one",
+					path.display(),
+					theirs.api.targets.len()
+				));
+				continue;
+			}
+			let target = &theirs.api.targets[0];
+			let differs = [
+				("package", theirs.package != ours.package),
+				("features", theirs.features != ours.features),
+				("config's exclude", theirs.exclude != ours.exclude),
+			];
+			for (what, _) in differs.iter().filter(|(_, differs)| *differs) {
+				unmergeable = true;
+				tcx.dcx().err(format!(
+					"rust2-ffi: {target}'s API, from {}, has another {what} than this export's",
+					path.display()
+				));
+			}
+			if apis.iter().any(|api| api.targets == theirs.api.targets) {
+				unmergeable = true;
+				tcx.dcx().err(format!("rust2-ffi: {target} is exported twice"));
+			}
+			apis.push(theirs.api);
+		}
+		if apis.len() > 64 {
+			unmergeable = true;
+			tcx.dcx().err("rust2-ffi: one binding serves at most 64 targets");
+		}
+		if unmergeable {
+			return None;
+		}
+		let (api, differs) = merge::merge(apis);
+		for differs in &differs {
+			let (mut first, mut second) = (&differs.first, &differs.second);
+			// Where a staged span's file is not on this host as it was, the error is at the other.
+			if first.1.is_dummy() {
+				std::mem::swap(&mut first, &mut second);
+			}
+			let ((first, first_span), (second, second_span)) = (first, second);
+			let mut err = tcx.dcx().struct_span_err(
+				*first_span,
+				format!(
+					"rust2-ffi: {} differs between {first} and {second}, which one binding cannot serve",
+					differs.what
+				),
+			);
+			err = match second_span.is_dummy() {
+				true => err.with_note(format!("{second}'s API was staged where its file is elsewhere")),
+				false => err.with_span_note(*second_span, format!("on {second}, it is here")),
+			};
+			err.emit();
+		}
+		differs.is_empty().then_some(api)
+	}
+
+	/// Write the export of `api` into `out`, or fail on two items that share a C name.
+	fn export(&self, tcx: TyCtxt<'_>, api: &Api, out: &Path) -> Result<(), String> {
+		let abi = Abi::new(api, &self.facade.lib);
+		for (name, (first, first_span), (second, second_span)) in &abi.clashes {
+			tcx.dcx()
+				.struct_span_err(
+					*second_span,
+					format!("rust2-ffi: {second} and {first} are both `{name}` in C"),
+				)
+				.with_span_note(*first_span, format!("{first} is here"))
+				.emit();
+		}
+		for (span, why) in crate::swift::refusals(&abi) {
+			tcx.dcx().span_err(
+				span,
+				format!("rust2-ffi: {why}; exclude it in the config to leave it out"),
+			);
+		}
+		if tcx.dcx().has_errors().is_some() {
+			return Ok(());
+		}
+		let glue = glue::Crate {
+			abi: &abi,
+			facade: &self.facade,
+			patch: &self.patch,
+		};
+		glue.write(out)
+	}
+}
+
+fn stop_on_errors(tcx: TyCtxt<'_>) -> Compilation {
+	match tcx.dcx().has_errors() {
+		None => Compilation::Continue,
+		Some(_) => Compilation::Stop,
 	}
 }
 

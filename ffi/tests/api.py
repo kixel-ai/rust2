@@ -237,6 +237,15 @@ def script():
 	print(f"reach {api.reach(2, 5)}")
 	scaled = [api.scaled(2**128 - 1, 1), api.scaled(2**64 + 1, 2**63), api.scaled(2**127, 2)]
 	print("scaled " + " ".join("none" if v is None else f"{v:032x}" for v in scaled))
+	digest = api.Digest.new()
+	digest.sum_set(api.fingerprint("deadbeef"))
+	try:
+		api.fingerprint("zz")
+		unparsed = ""
+	except api.StringException as e:
+		unparsed = e.error
+	flipped = digest.flipped(api.ArrayU8x4(bytes([0xFF, 0, 0xFF, 0])))
+	print(f"digest {digest.sum_get.hex()} {flipped.hex()} {unparsed}")
 	batch, batch2 = api.Batch.new(), api.pair()
 	accepted = sum(batch.push(v) for v in range(1, 6))
 	paired = sum(batch2.push(v) for v in range(1, 4))
@@ -940,6 +949,7 @@ def values():
 		except error:
 			pass
 
+	raises(ValueError, lambda: api.ArrayU8x4(b"abc"), "3 bytes are no [u8; 4]")
 	raises(OverflowError, lambda: api.widths(2**64), "an int past u64 raises")
 	raises(OverflowError, lambda: api.widths(-1), "a negative int for a u64 raises")
 	raises(TypeError, lambda: api.title(1), "an int is no bool")
@@ -955,6 +965,20 @@ def values():
 	check(api.doubled_ttl(td(days=600_000_000)) == td.max, "a duration past timedelta's is its max")
 	check(api.doubled_ttl(td.max) == td.max, "timedelta's max is Duration::MAX")
 	raises(ValueError, lambda: api.doubled_ttl(td(seconds=-1)), "a negative duration raises")
+
+	# The module serves wasm32 too: what only wasm32 has raises on the host's library.
+	check(api.pointer_bits(api.platform()) == api.pointer_bits(api.Platform.Native(64)) == 64, "the host is native")
+	check(api.is_family(api.Family.NATIVE), "and of the native family")
+	for f, what in [
+		(api.wasm_only, "api_wasm_only"),
+		(lambda: api.pointer_bits(api.Platform.Wasm(32)), "api_Platform.Wasm"),
+		(lambda: api.is_family(api.Family.WASM), "api_Family.Wasm"),
+	]:
+		try:
+			f()
+			check(False, f"{what} raises")
+		except NotImplementedError as e:
+			check(str(e) == f"{what}: it is not on this library's target", repr(e))
 
 	if os.name == "posix":
 		path = api.stray()
