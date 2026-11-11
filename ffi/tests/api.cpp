@@ -621,6 +621,19 @@ int script() {
 	std::printf("polar %u %s area %llu\n", api::polar_point(2).value().distance, yes(!api::polar_point(0)),
 	            ull(api::area({2, 3})));
 	std::printf("wind %u\n", api::wind(api::PolarTurn{2}, api::polar_Turn{3}));
+	// Names that clash in some language, each kept apart there.
+	print("clash ", api::clash_Tone{440}.debug(), " ");
+	print("", api::clash_TONE{3}.debug(), " ");
+	print("", api::Cancelled{2}.debug(), "");
+	api::clash_Span clash_span{4};
+	std::printf(" span %u ", clash_span.width_());
+	print("", clash_span.to_string_(), " ");
+	print("", clash_span.to_string(), "");
+	api::clash_Store clash_store = api::clash_Store::new_(7);
+	std::printf(" store %u %u", clash_store.free_(), clash_store.close());
+	std::printf(" audio %u %u nested %u\n", api::clash_audio_encoder_finish(), api::clash_audio_encoder_finish_(),
+	            api::clash_nested(std::make_tuple(std::make_tuple(std::uint8_t{1}, std::uint16_t{2}), 3u),
+	                              std::make_tuple(std::make_tuple(std::uint8_t{1}, std::uint16_t{2}, 3u))));
 	// Instances that name each other, and one made only by an impl of it.
 	std::printf("cross %u outer %u\n", api::cross(api::Left_Right_u8{api::Right_u8{1}}, api::Right_Left_u8{api::Left_u8{2}}),
 	            api::Outer_Inner_u8::new_(4).get());

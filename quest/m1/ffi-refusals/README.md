@@ -15,8 +15,7 @@ tests in `ffi/tests/fixtures.rs`; `ffi/README.md` and the recipes stop naming th
 parsing rust2-ffi takes from `driver/src/cargo.rs`, which already has `parse_configless`;
 `go/bench/ffi.toml` and the `--config` in `go/justfile`'s bench recipe, whose `package`
 and `prefix` keys `config.rs` already rejects; and "exclude it in the config" in
-`ffi/src/driver.rs`'s refusal notes and `ffi/fixtures/reject/expected.txt`. The generators'
-own clash errors are [names](/quest/m1/ffi-export/names.md)'s.
+`ffi/src/driver.rs`'s refusal notes and `ffi/fixtures/reject/expected.txt`.
 
 ## Plan
 

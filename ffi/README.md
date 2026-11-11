@@ -202,9 +202,13 @@ else is refused, and the census counts why.
   `moq_tokio_Backoff_initial`. An enum variant's
   payload is `<enum>_<Variant>`, and its tag and a constant are the name in upper case.
   Joining still loses where segments split, and the runtime shares the prefix, so every C
-  name is registered, and two items claiming one, which only names Rust's conventions
-  leave apart can, is a compile error at both spans: `audio_encoder::finish` and
-  `audio::encoder_finish` are both `moq_audio_encoder_finish`.
+  name is registered, and only names that clash change. An item whose name matches another's,
+  or one the runtime or a type's own functions take, such as a method `free` beside the
+  type's `_free`, takes a trailing `_`, as do the names made from it: `audio::encoder_finish`
+  and `audio_encoder::finish` are `moq_audio_encoder_finish` and `moq_audio_encoder_finish_`.
+  The runtime's names keep theirs first, then names made from an item, then items' own, each
+  by its kind and Rust path. A name depends on every item exported, so one an upstream
+  change adds can lengthen another's.
 
   An instance is named by its generic item's name, then each argument but those at their
   defaults after the last that is not, so the instance at its defaults is named as the
@@ -308,10 +312,12 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   camelCase without their type's name (`moq.TrackProducer.appendGroup`). Pascal case
   loses where segments split, so two types whose names would match each keep a `_` at
   every split after the leading segments they share: moq's `tokio::ConnectError` and
-  `tokio::connect::Error` are `TokioConnectError` and `TokioConnect_Error`. Two whose
-  segments differ only by case still match, and fail the export. A keyword is
-  quoted in backticks, and a member named as one Kotlin gives its type takes a trailing
-  `_`. A constructor such as `new` stays a companion function: `Counter.new(1)`.
+  `tokio::connect::Error` are `TokioConnectError` and `TokioConnect_Error`. Two that
+  still match, as segments apart only by case do, take a trailing `_` after the first by C
+  name, as does a type named as the runtime or a generated class. Any other top-level name,
+  such as a function's or an exception's, takes a trailing `_` where a type, the runtime, or
+  an earlier name has it. A keyword is quoted in backticks, and a member named as one Kotlin
+  gives its type takes a trailing `_`. A constructor such as `new` stays a companion function: `Counter.new(1)`.
 - **Objects** are classes owning their handle, `AutoCloseable`, which `close()` frees once
   no call holds it; a call after it throws. One never closed is closed once the GC
   collects it, on a daemon thread a phantom reference queue feeds. A `self` method, or passing the object by
@@ -374,8 +380,9 @@ caller imports it with no ignores.
 
 - **Names** are in the module: types in PascalCase without the prefix, members in
   snake_case without their type's name (`moq.TrackProducer.append_group`), and two types
-  whose names would match kept apart as Kotlin's are (`TokioConnect_Error`). A keyword, a
-  member Python gives every such class, or a method named as a field takes a trailing `_`.
+  whose names would match kept apart as Kotlin's are (`TokioConnect_Error`), as are
+  top-level names that clash. A keyword, a member Python gives every such class, or a
+  method named as a field takes a trailing `_`.
   Constructors such as `new` stay static methods: `Counter.new(1)`.
 - **Objects** are classes owning their handle, freed once their last reference goes,
   which a call holds until it returns, so there is no `close()`. A `self` method, or
@@ -433,7 +440,8 @@ in either language mode.
 - **Names** are as Kotlin's, at the module's top level: types in PascalCase without the
   prefix, members in camelCase without their type's name (`TrackProducer.appendGroup`). A
   keyword is quoted in backticks, and a member named as one Swift gives its type, such as
-  `init`, takes a trailing `_`. Parameters have no labels, so a call reads as Rust's, and a
+  `init`, or as a field or member before it, takes a trailing `_`. Names that clash are
+  kept apart as Kotlin's are. Parameters have no labels, so a call reads as Rust's, and a
   constructor such as `new` stays a static function: `Counter.new(1)`.
 - **Objects** are final classes owning their handle, freed in `deinit`, which a call
   holds off until it returns, so there is no `close()`. A `self` method, or passing the
@@ -506,8 +514,10 @@ reads a go.mod.
   returns that type, or an `Option` of it (moq's `clock::interval` is
   `kio.NewClockInterval`), and otherwise takes a trailing `_` (`mux::codec::opus::config`
   is `mux.CodecOpusConfig_`).
-  A method named `Close` or `Error`, and a parameter named as a Go keyword, a predeclared
-  name, or a package the code uses, take a trailing `_` too.
+  A method named `Close` or `Error`, or as a field or a method before it, and a parameter
+  named as a Go keyword, a predeclared name, or a package the code uses, take a trailing
+  `_` too, as does a variant's or error's name or any other in a package that another
+  there, or the runtime's, takes.
 - **Objects** are pointers to structs owning their handle. `Close()` frees it once no call
   holds it, and a second `Close()` does nothing; one never closed is closed once the GC
   collects it, through `runtime.AddCleanup`. A call that meets a closed object, as its
@@ -584,8 +594,9 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   `new` is its unnamed one (`Counter('c', 1)`), and any other a named one
   (`Position.group`). A type's other functions are static members. Two types whose
   names would match are kept apart as Kotlin's are (`TokioConnect_Error`). A reserved word takes
-  a trailing `_` (`Point.default_()`). An item whose Dart name clashes with another's, or
-  with a name the runtime declares, fails the export: rename one in the source or exclude it.
+  a trailing `_` (`Point.default_()`), and names that clash, such as one the runtime
+  declares or a data enum's variant class, are kept apart as Kotlin's are. The glue's C
+  names are `<prefix>_dart_`, with a `_` more for each C name of the export already there.
 - **Objects** are final classes owning their handle. `close()` frees it once no call
   holds it, and a second does nothing; one never closed is freed once the garbage
   collector finds it unreachable, through a finalizable handle of Dart's C API. Any call that meets a
