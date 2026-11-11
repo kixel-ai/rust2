@@ -7,16 +7,16 @@
 //! function or module of its name, and Rust's verb-first names keep a method apart from a
 //! field's accessors. Joining still loses where segments split (`audio_encoder::finish`
 //! and `audio::encoder_finish` both join as `moq_audio_encoder_finish`), so every name is
-//! registered, and items whose own names clash each keep a doubled `_` at every split after
-//! the leading segments they share: `moq_audio_encoder__finish` and `moq_audio__encoder_finish`.
-//! An item whose name or a name made from it still clashes, as with the runtime's or a
-//! type's `_free`, takes a trailing `_`. Only the names that clash change.
+//! registered, and of the items whose names clash, every one but the first by rank takes a
+//! trailing `_`, as do the names made from it: `moq_audio_encoder_finish` and
+//! `moq_audio_encoder_finish_`. A `_` doubled at the split would read better, but C++
+//! reserves every name containing `__`. Only the names that clash change.
 
 use std::collections::{BTreeMap, HashMap};
 
 use rustc_span::Span;
 
-use crate::ir::{Access, Api, Dyn, Function, Home, Int, Receiver, Type};
+use crate::ir::{Access, Api, Dyn, Function, Home, Int, Literal, Receiver, Type};
 
 /// A C name one item claims twice, which no rename can tell apart: the name, then what
 /// claimed it first and second.
@@ -35,12 +35,12 @@ enum Item {
 	Tuple(Vec<Type>),
 }
 
-/// The item a claimed name belongs to: its own C name, and the segments that name joins
-/// when the claimed name is that one rather than one made from it.
+/// The item a claimed name belongs to: its own C name, and whether the claimed name is
+/// that one, unrenamed, rather than one made from it.
 struct Owner {
 	item: Item,
 	base: String,
-	segments: Option<Vec<String>>,
+	own: bool,
 }
 
 /// A C name claimed, by what, and the item a clash renames, or none for the runtime's.
@@ -63,6 +63,8 @@ pub enum Ty {
 	Char,
 	/// `<prefix>_buf`: a view of bytes passed in, an owned buffer returned.
 	Buf,
+	/// `<prefix>_u128`
+	U128,
 	/// `<prefix>_duration`
 	Duration,
 	/// `<prefix>_socket_addr`
@@ -190,37 +192,17 @@ impl<'a> Abi<'a> {
 
 	/// Rename the items whose names clash, returning whether any was. The runtime's names
 	/// come first, then names made from an item, then items' own, each by what claims it:
-	/// the first keeps the name. Items whose own names alone clash take [`split`] names,
-	/// and where that changes none, every later one takes a trailing `_`.
+	/// the first keeps the name and every later one takes a trailing `_`.
 	fn rename(&mut self) -> bool {
 		let mut renames: HashMap<Item, String> = HashMap::new();
 		for group in self.groups().into_values() {
 			let mut group = group;
 			let rank = |claim: &Claim| match &claim.owner {
 				None => 0,
-				Some(Owner { segments: None, .. }) => 1,
+				Some(Owner { own: false, .. }) => 1,
 				Some(_) => 2,
 			};
 			group.sort_by(|a, b| (rank(a), &a.what).cmp(&(rank(b), &b.what)));
-			let own: Option<Vec<(&Owner, &[String])>> = (group.iter())
-				.map(|claim| {
-					let owner = claim.owner.as_ref()?;
-					Some((owner, owner.segments.as_deref()?))
-				})
-				.collect();
-			if let Some(own) = own {
-				let names = split(own.iter().map(|(_, segments)| *segments));
-				let mut changed = false;
-				for ((owner, _), name) in own.iter().zip(names) {
-					if name != owner.base {
-						renames.entry(owner.item.clone()).or_insert(name);
-						changed = true;
-					}
-				}
-				if changed {
-					continue;
-				}
-			}
 			let first = group[0].owner.as_ref().map(|owner| &owner.item);
 			for claim in &group[1..] {
 				// A name an item claims twice, no rename of it tells apart.
@@ -531,6 +513,7 @@ impl<'a> Abi<'a> {
 			Type::F32 => "f32".to_string(),
 			Type::F64 => "f64".to_string(),
 			Type::Char => "char".to_string(),
+			Type::U128 => "u128".to_string(),
 			Type::Duration => "duration".to_string(),
 			Type::SocketAddr(_) => "socket_addr".to_string(),
 			Type::Option(inner) => format!("option_{}", self.key(inner)),
@@ -543,6 +526,9 @@ impl<'a> Abi<'a> {
 			Type::Bound(int) => format!("bound_{}", int.rust()),
 			Type::Bounds(int) => format!("bounds_{}", int.rust()),
 			Type::Ref(_, inner) | Type::Box(inner) => self.key(inner),
+			// Only an instance's name holds one, where a C identifier has no `-`.
+			Type::Const(Literal::Int(_, v)) if *v < 0 => format!("neg{}", v.unsigned_abs()),
+			Type::Const(value) => value.to_string(),
 			other => unreachable!("no option struct holds {other:?}"),
 		}
 	}
@@ -579,6 +565,7 @@ impl<'a> Abi<'a> {
 	/// The C type of `ty` as a value: a parameter, field, or what a function returns.
 	pub fn ty(&self, ty: &Type) -> Ty {
 		match ty {
+			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => Ty::Void,
 			Type::Bool => Ty::Bool,
 			Type::Int(int) => Ty::Int(*int),
@@ -586,6 +573,7 @@ impl<'a> Abi<'a> {
 			Type::F64 => Ty::F64,
 			Type::Char => Ty::Char,
 			Type::Str | Type::String | Type::Slice | Type::Vec | Type::Bytes | Type::Path | Type::PathBuf => Ty::Buf,
+			Type::U128 => Ty::U128,
 			Type::Duration => Ty::Duration,
 			Type::SocketAddr(_) => Ty::SocketAddr,
 			Type::Waker => Ty::Waker,
@@ -765,7 +753,7 @@ impl<'a> Abi<'a> {
 		Some(Owner {
 			item: item.clone(),
 			base: base.to_string(),
-			segments: None,
+			own: false,
 		})
 	}
 
@@ -780,7 +768,7 @@ impl<'a> Abi<'a> {
 		Some(Owner {
 			item: item.clone(),
 			base: base.to_string(),
-			segments: (segments.join("_") == base).then_some(segments),
+			own: segments.join("_") == base,
 		})
 	}
 
@@ -811,6 +799,7 @@ impl<'a> Abi<'a> {
 			"contract",
 			"buf",
 			"buf_free",
+			"u128",
 			"duration",
 			"socket_addr",
 			"waker",
@@ -1163,27 +1152,6 @@ fn shortest(group: &[Vec<Vec<String>>]) -> Vec<String> {
 	}
 }
 
-/// The C name of each item by its segments, whose names join alike: the segments joined
-/// by `_`, with a doubled `_` at every split after the leading segments they all share,
-/// so one whose rest is a single segment keeps its name.
-fn split<'s>(items: impl IntoIterator<Item = &'s [String]>) -> Vec<String> {
-	let items: Vec<&[String]> = items.into_iter().collect();
-	let first = items[0];
-	let shared = (0..first.len())
-		.take_while(|&k| items.iter().all(|segments| segments.get(k) == Some(&first[k])))
-		.count();
-	(items.iter())
-		.map(|segments| {
-			let rest = segments[shared..].join("__");
-			let shared = segments[..shared].join("_");
-			match (shared.is_empty(), rest.is_empty()) {
-				(false, false) => format!("{shared}_{rest}"),
-				_ => shared + &rest,
-			}
-		})
-		.collect()
-}
-
 /// Each name in Pascal case of items by their paths' segments: the segments joined, but
 /// where two would join alike, each of those keeps a `_` at every split after the leading
 /// segments they all share, so `tokio::ConnectError` and `tokio::connect::Error` are
@@ -1430,7 +1398,7 @@ pub fn dyn_wrap(form: Dyn, expr: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-	use super::{apart, shortest, split, unique};
+	use super::{apart, shortest, unique};
 
 	/// Each item's [`apart`] name, by its path's segments.
 	fn names(items: &[&[&str]]) -> Vec<String> {
@@ -1459,22 +1427,6 @@ mod tests {
 			names(&[&["connect", "X"], &["Connect", "X"]]),
 			["Connect_X", "Connect_X"]
 		);
-	}
-
-	#[test]
-	fn splits_c_names_where_paths_differ() {
-		let items = |items: &[&[&str]]| -> Vec<Vec<String>> {
-			(items.iter())
-				.map(|segments| segments.iter().map(|s| s.to_string()).collect())
-				.collect()
-		};
-		let names = |items: &[Vec<String>]| split(items.iter().map(Vec::as_slice));
-		// Each keeps a doubled `_` at every split past the segments they share.
-		let both = items(&[&["moq", "audio", "encoder_finish"], &["moq", "audio_encoder", "finish"]]);
-		assert_eq!(names(&both), ["moq_audio__encoder_finish", "moq_audio_encoder__finish"]);
-		// One whose rest is a single segment keeps its name.
-		let one = items(&[&["moq", "audio_encoder_finish"], &["moq", "audio", "encoder_finish"]]);
-		assert_eq!(names(&one), ["moq_audio_encoder_finish", "moq_audio__encoder_finish"]);
 	}
 
 	#[test]

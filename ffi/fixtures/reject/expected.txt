@@ -11,10 +11,11 @@ fixtures/reject/src/lib.rs:173:1: rust2-ffi: cannot export instance `Grow<(u32,)
 fixtures/reject/src/lib.rs:176:2: rust2-ffi: cannot export method `Grow<u32>::grow`: refused type `reject::Grow<(u32,)>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:187:1: rust2-ffi: cannot export instance `Shell<(u32,)>`: type argument `(u32,)`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:196:1: rust2-ffi: cannot export fn `shell`: refused type `reject::Shell<(u32,)>`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:207:1: rust2-ffi: cannot export fn `probe`: const generic; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:207:1: rust2-ffi: cannot export fn `probe`: const generic `N`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:212:1: rust2-ffi: cannot export fn `excluded_cell`: excluded type `reject::Cell<u16>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:217:1: rust2-ffi: cannot export fn `listed`: refused type `reject::Cell<std::vec::Vec<String>>`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:225:1: rust2-ffi: cannot export fn `fixed`: const generic `reject::Fixed`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:222:1: rust2-ffi: cannot export instance `Fixed<'a'>`: const argument `'a'`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:225:1: rust2-ffi: cannot export fn `fixed`: refused type `reject::Fixed<'a'>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:230:9: rust2-ffi: cannot export use `HashSet`: re-export of the standard library's item `std`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:233:1: rust2-ffi: cannot export fn `lend`: Waker outside a parameter taken by value; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:23:1: rust2-ffi: cannot export fn `borrowing`: borrowing future from a function that is not async; exclude it in the config to leave it out

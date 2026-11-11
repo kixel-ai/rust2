@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/big"
 	"net/netip"
 	"os"
 	"runtime"
@@ -302,6 +303,38 @@ func script() {
 	fmt.Printf("borrowed %s %t %t\n", must(lit.AsStr()), must(lit.Shares(api.NameBorrowed("lit"))), must(lit.Shares(api.NameBorrowed("other"))))
 
 	fmt.Printf("total %d\n", api.Total(rt.RangeU64{Start: 2, End: 5}))
+	fmt.Printf("reach %d\n", api.Reach(2, 5))
+	bigOne := big.NewInt(1)
+	pow := func(n uint) *big.Int { return new(big.Int).Lsh(bigOne, n) }
+	fmt.Print("scaled")
+	for _, v := range []*big.Int{
+		api.Scaled(new(big.Int).Sub(pow(128), bigOne), 1),
+		api.Scaled(new(big.Int).Add(pow(64), bigOne), 1<<63),
+		api.Scaled(pow(127), 2),
+	} {
+		if v == nil {
+			fmt.Print(" none")
+		} else {
+			fmt.Printf(" %032x", v)
+		}
+	}
+	fmt.Println()
+	batch, batch2 := api.NewBatch(), api.Pair()
+	accepted, paired := 0, 0
+	for v := uint32(1); v <= 5; v++ {
+		if must(batch.Push(v)) {
+			accepted++
+		}
+	}
+	for v := uint32(1); v <= 3; v++ {
+		if must(batch2.Push(v)) {
+			paired++
+		}
+	}
+	emptied := must(api.Drain4(batch))
+	fmt.Printf("batch %d %d %d %d %d %d %d\n", must(batch.Capacity()), accepted, emptied, must(api.Drain4(batch)),
+		must(batch2.Capacity()), paired, must(api.Drain2(batch2)))
+	fmt.Printf("capacities %d %d\n", must(api.Capacities42(batch, batch2)), must(api.Capacities22(batch2, batch2)))
 	wide := api.Widen(rt.RangeU64{Start: 2, End: 5}, 1)
 	fmt.Printf("widen %d %d\n", wide.Start, wide.End)
 	included := func(n uint64) rt.BoundU64 { return rt.BoundU64{Kind: rt.BoundIncluded, Value: n} }
@@ -397,6 +430,11 @@ func script() {
 	if _, err := channel.RecvNonempty(ctx); err != nil {
 		fmt.Printf("nonempty err %s\n", err)
 	}
+	fmt.Print("fill")
+	for _, v := range append(must(api.Fill4(ctx, api.NewBatch(), 9)), must(api.Fill2(ctx, api.Pair(), 1))...) {
+		fmt.Printf(" %d", v)
+	}
+	fmt.Println()
 	// The send happens at the call: the future is cancelled before its first poll.
 	cancelled, cancel := context.WithCancel(ctx)
 	cancel()

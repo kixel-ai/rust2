@@ -64,7 +64,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | Rust | C |
 | --- | --- |
 | a struct whose fields are all `pub`, not `#[non_exhaustive]`, which map, with no `Drop` of its own | a record: a struct, copied across |
-| an enum whose fields map, with no `Drop` of its own | a C enum without fields, or a struct of a tag and a union |
+| an enum with variants whose fields map, with no `Drop` of its own | a C enum without fields, or a struct of a tag and a union |
 | any other type, if `Send` | an object: an opaque handle to an `Arc`, freed with `_free` |
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
@@ -72,6 +72,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | a `pub` trait | a callback interface: a table of C functions and their data; a trait C cannot implement, such as one with a blanket impl, an associated type, or a supertrait but a marker, is left out, since C never passes one, and a signature taking one from C is refused |
 | a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce`, which no lifetime bound or return lets outlive the call | a C function and its `void *` data, which Rust calls only during the call; any other closure is refused |
 | `fn` and inherent `pub` methods | functions named through their type |
+| a `()` parameter of a function, not of a callback's method | nothing: C passes no argument for it |
 | `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
 | a tuple inside another type, or as a field or parameter | `<prefix>_tuple_<A>_<B>`: a struct of fields `_0`, `_1`, and so on; of references only returned |
@@ -79,6 +80,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | a function returning `Poll<T>` that polls through a `&Context`, a `&mut Context`, or a reference to an object exactly one associated function makes from a `Waker` alone, of a type with no generic parameters, such as kio's `Waiter` | a future of `T`, as an `async fn`'s: each poll calls the function again with the poll's context, or with an object made from its waker and kept until the next poll, so what it registers stays registered; each other parameter taken by value must be `Copy` |
 | `poll_x`, when `x` exports as a future | left out: the future is its poll |
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
+| `u128` | `<prefix>_u128`: its low and high 64 bits |
 | `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: a view passed in, an owned buffer returned |
 | `&Path`, `PathBuf` | `<prefix>_buf` of the path's bytes as the OS holds them on Unix, which need not be UTF-8, else UTF-8 |
 | `Duration` | `<prefix>_duration` |
@@ -100,17 +102,19 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `impl IntoIterator<Item = X>`, where `X` is no type parameter | `Vec<X>`, or `&[Y]` where `X` is `&Y` |
 | `impl io::Read` | `&[u8]` |
 | another type parameter | `serde_json::Value` for a serde `Serialize` or `Deserialize` bound, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, through a blanket impl at each type implementing what the impl requires, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
+| a const parameter of a function | an instance of the function at each value an instance of a generic type the signature passes it to has there, where each generic type the signature then names is an instance |
+| a const argument | a `bool` or an integer below 128 bits; any other is refused |
 
 A generic type infers the instances it exports at, with no config: the one at its
-defaults, if each type parameter has one; the one each inherent impl is of, such as
-`impl Pair<u32>`; each choice, for each parameter, among its default and the types the
-exports implement a trait bounding it for, one of the exports', which are `()`, a
-primitive, `String`, or an exported type or an instance of one, such as
-`impl Seed<u64> for Wrap<u32>`; and each instance a signature, `pub` field, or constant
-names at any choice its bounds allow, whether or not the rest of it maps, which may name
-more. Inference finishes before any type is mapped, so mapping never adds an instance.
-An instance that holds an instance of a type inside it, such as `Cell<Cell<u8>>`, is
-refused, as it could name ever deeper ones.
+defaults, if each type and const parameter has one, as `frame::Buffer` at `N = 8`; the
+one each inherent impl is of, such as `impl Pair<u32>`; each choice, for each parameter,
+among its default and the types the exports implement a trait bounding it for, one of
+the exports', which are `()`, a primitive, `String`, or an exported type or an instance
+of one, such as `impl Seed<u64> for Wrap<u32>`; and each instance a signature, `pub`
+field, or constant names at any choice its bounds allow, whether or not the rest of it
+maps, which may name more. Inference finishes before any type is mapped, so mapping
+never adds an instance. An instance that holds an instance of a type inside it, such as
+`Cell<Cell<u8>>`, is refused, as it could name ever deeper ones.
 
 A record or enum holds only values and `Copy` handles: one with a field that does not map,
 or that holds itself, is an object instead, and the census lists it. A borrowed return is
@@ -198,13 +202,12 @@ else is refused, and the census counts why.
   `moq_tokio_Backoff_initial`. An enum variant's
   payload is `<enum>_<Variant>`, and its tag and a constant are the name in upper case.
   Joining still loses where segments split, and the runtime shares the prefix, so every C
-  name is registered, and only names that clash change. Items whose own names would match
-  each keep a doubled `_` at every split after the leading segments they share:
-  `audio_encoder::finish` and `audio::encoder_finish` are `moq_audio_encoder__finish` and
-  `moq_audio__encoder_finish`, and one whose path past those is a single segment keeps its
-  name. An item whose name still matches another's, or one the runtime or a type's own
-  functions take, such as a method `free` beside the type's `_free`, takes a trailing `_`,
-  as do the names made from it. A name depends on every item exported, so one an upstream
+  name is registered, and only names that clash change. An item whose name matches another's,
+  or one the runtime or a type's own functions take, such as a method `free` beside the
+  type's `_free`, takes a trailing `_`, as do the names made from it: `audio::encoder_finish`
+  and `audio_encoder::finish` are `moq_audio_encoder_finish` and `moq_audio_encoder_finish_`.
+  The runtime's names keep theirs first, then names made from an item, then items' own, each
+  by its kind and Rust path. A name depends on every item exported, so one an upstream
   change adds can lengthen another's.
 
   An instance is named by its generic item's name, then each argument but those at their
@@ -217,8 +220,10 @@ else is refused, and the census counts why.
   `Point`, and `api_Counter_seeded_polar_Point` at `polar::Point`. The names depend on
   every instance the item exports at, so one an upstream change adds can lengthen another's
   name. A type instance's methods are named through it, and a function instance appends
-  its arguments' names, a reference's by what it borrows. An `exclude` of a type or method
-  by the generic type's path leaves it out of every instance, and by the instance's path
+  its arguments' names, a reference's by what it borrows and a const's by its value: the
+  api fixture's `drain` is `api_drain_4` at `Batch` and `api_drain_2` at `Batch<2>`. An
+  `exclude` of a type or method by the generic type's path leaves it out of every
+  instance, and by the instance's path
   (`"mux::catalog::Producer<moq::mux::catalog::hang::Extra>::stats"`) out of that one.
 
 ## C++
@@ -273,8 +278,8 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   lives only as long as the bytes it views, and a `view` lent to a callback only for the
   call; reading one past that is C++'s own undefined behavior, which Clang's `-Wdangling`
   refuses for a view or `str()` of a temporary `buf`. A `Vec<T>` is a `std::vector`, of
-  `view`s for bytes passed in, and a socket address `socket_addr`, the C struct. `Option<T>` is `std::optional<T>`, a
-  tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
+  `view`s for bytes passed in, a socket address `socket_addr`, the C struct, and a `u128`
+  `u128`, the C struct. `Option<T>` is `std::optional<T>`, a tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
   error.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
 - **Closures** lent for a call are any callable, taken by a template parameter, which
@@ -336,7 +341,7 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   record holding bytes does too; Rust's lent ones are copied across in one call to compare.
   Strings are `String`, `usize` `ULong` and `isize` `Long`, which abort past a 32-bit
   target's range, `Option<T>` `T?`, a tuple `Pair`,
-  `Triple`, or else a generated `Tuple<n>`, though a tuple of one returned whole is its element, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
+  `Triple`, or else a generated `Tuple<n>`, though a tuple of one returned whole is its element, `u128` `java.math.BigInteger`, which throws `IllegalArgumentException` passed in out of its range, `Duration` `kotlin.time.Duration`, and an `Err` a thrown `<E>Exception`
   holding it, whose message is its `Display`.
 - A **path** is a `String`: one Rust returns that is not UTF-8 throws. A `SocketAddr`,
   `SocketAddrV4`, or `SocketAddrV6` is a `java.net.InetSocketAddress`, which must be
@@ -394,7 +399,7 @@ caller imports it with no ignores.
   place, and others, which Python may change while Rust reads, are copied. Bytes Rust
   returns, or a record holds, are a read-only `memoryview` lending Rust's buffer until it
   and its views are released. Those Rust lends a closure or trait method are copied into
-  `bytes`. Strings are `str`, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
+  `bytes`. Strings are `str`, `u128` an `int`, `Option<T>` `T | None`, a tuple a `tuple`, `Duration`
   `datetime.timedelta`, truncated to the microsecond, with `timedelta.max` for any longer
   and for `Duration::MAX`, a `Range` a `range`, and an `Err` a raised `<E>Exception`
   holding it in `error`, whose `str` is its `Display`.
@@ -452,7 +457,8 @@ in either language mode.
   another value, they are copied in. Bytes Rust returns lend its buffer until Swift
   releases the `Data`, though `Data` copies a few bytes inline, freeing Rust's at once.
   Strings are `String`, copied, `char` `Unicode.Scalar`, `usize` `UInt`, `Option<T>` `T?`,
-  a tuple a Swift tuple, though a tuple of one is its element, and `Duration`
+  a tuple a Swift tuple, though a tuple of one is its element, `u128` a `U128` of its
+  `high` and `low` halves until the deployment target allows `UInt128`, and `Duration`
   `Swift.Duration`. An `Err` is thrown: an exported type as itself, which conforms to
   `Swift.Error`, and any other in a generated `<T>Error` holding it.
 - A **path** is a `String`: one Rust returns that is not UTF-8 traps. A `SocketAddr`,
@@ -545,9 +551,10 @@ reads a go.mod.
   returns freed memory, such as [mimalloc](https://crates.io/crates/mimalloc), declared in
   the exported crate, holds it near what is lent. `Copy()` copies it out. Text Rust returns is copied once into a `string`, and Rust's
   freed at the call. A path is a `string`
-  of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object its
-  pointer, nil for `None`. A tuple is `rt.Tuple2[A, B]` and so on, but a tuple of one is its
-  element, and one returned whole is the function's results. `Duration` is
+  of the OS's bytes, which need not be UTF-8. `Option<T>` is `*T`, or for an object or
+  `u128` its pointer, nil for `None`. A tuple is `rt.Tuple2[A, B]` and so on, but a tuple of one is its
+  element, and one returned whole is the function's results. A `u128` is a `*big.Int`, which
+  panics passed in out of its range. `Duration` is
   `time.Duration`: a negative one passed in, or one Rust returns past its 292 years,
   panics. A socket address is a `netip.AddrPort`, whose zone names an IPv6 scope by its
   number or its interface's name; one Rust returns with an IPv6 flow label, which
@@ -616,7 +623,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   returns is copied into a `String`. A path is a `String`, and one Rust returns that is
   not UTF-8 aborts, since a throw would leave the rest of a list or record being lifted
   unfreed. `Option<T>` is `T?`, a tuple a Dart record, and a `Vec<T>` or `&[T]` a
-  `List<T>`. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
+  `List<T>`. A `u128` is a `BigInt`, which throws an `ArgumentError` passed in out of
+  its range. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
   in throws an `ArgumentError`, and Rust's longest is Dart's. A socket address is a
   `SocketAddr` of an `InternetAddress`, a port, and IPv6's flow label and scope; one passed
   in of the wrong family throws an `ArgumentError`, and a port, label, or scope out of its

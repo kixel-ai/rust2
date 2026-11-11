@@ -15,7 +15,7 @@ Decided with the maintainer on 2026-11-09, in the quest audit: ✅ a thread chec
 shim only where a language has no stable thread. Rejected: a Rust-owned thread for every
 such object, which costs two thread handoffs a call even from a single-threaded caller
 such as Python's event loop; keeping the refusal, as
-[small shapes](/quest/m1/ffi-export/refusals/small-shapes.md) had it. The maintainer:
+[small shapes](/quest/m1/ffi-refusals/small-shapes.md) had it. The maintainer:
 an assert is fine "where a language has no concept of something being thread local".
 
 - The handle records its owner thread, and each call compares it: no atomics, so it costs

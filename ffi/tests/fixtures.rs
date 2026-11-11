@@ -446,7 +446,9 @@ fn api_android() {
 	// The app: the script's entry point, kept as an app keeps its own, and everything it
 	// reaches, which R8 shrinks and renames, keeping only what the rules keep: the
 	// generated ones, and those kotlinx-coroutines' jar holds, which an app's build reads
-	// from it. Kotlin's annotations are on an app's classpath, not in its dex.
+	// from it. Kotlin's annotations are on an app's classpath, not in its dex. The
+	// script's functions that hold lent bytes in their own frame are kept too, as R8 would
+	// inline them into their caller, whose frame ART's interpreter keeps reaching the bytes.
 	let jar = dir.join("app.jar");
 	run(kotlinc(&out, &jar).arg("-include-runtime"));
 	run(Command::new("jar")
@@ -458,7 +460,7 @@ fn api_android() {
 	std::fs::write(
 		&app,
 		format!(
-			"-keep class ApiKt {{ public static void main(java.lang.String[]); }}\n-dontwarn org.jetbrains.annotations.**\n-printusage {}\n",
+			"-keep class ApiKt {{ public static void main(java.lang.String[]); static *** lentAround(); static *** lentToBudget*(...); }}\n-dontwarn org.jetbrains.annotations.**\n-printusage {}\n",
 			dir.join("usage.txt").display()
 		),
 	)
@@ -1204,6 +1206,7 @@ fn relative_target() {
 	let text = std::fs::read_to_string(census.join("api-fixture.md")).unwrap();
 	for line in [
 		"- `Lease`: object no export returns",
+		"- `Void`: object no export returns",
 		"- `release`: type C never holds `Lease`",
 		"- `Unnamed`: generic type no export instantiates",
 	] {
@@ -1487,8 +1490,10 @@ fn foreign_role_names() {
 
 /// An exclude may name what a `cfg` leaves out of this build, whether the facade's own
 /// module or another crate's that the facade re-exports through a glob, or a chain of them,
-/// but not what no build has, nor what a module only some of whose items the facade
-/// re-exports leaves out.
+/// or a field or variant of the facade's or another crate's type, under a `cfg` or one a
+/// `cfg_attr` adds, an inline module's type and a const-generic one's included, but not
+/// what no build has, nor what a module only some of whose items the facade re-exports
+/// leaves out.
 #[test]
 fn configured_out() {
 	let package = package("configured_out");
@@ -1506,11 +1511,14 @@ fn configured_out() {
 				"src/lib.rs",
 				"pub use ::dep::Size;\n\npub mod dep {\n\tpub use ::dep::*;\n}\n\n#[cfg(any())]\npub mod local {}\n\n\
 				mod inner {\n\tpub fn kept() -> u32 {\n\t\t1\n\t}\n\n\t#[cfg(any())]\n\tpub mod gone {}\n}\n\n\
-				mod middle {\n\tpub use crate::inner::*;\n}\n\npub mod outer {\n\tpub use crate::middle::*;\n}\n",
+				mod middle {\n\tpub use crate::inner::*;\n}\n\npub mod outer {\n\tpub use crate::middle::*;\n}\n\n\
+				pub struct Shape<const N: usize = { 1 }> {\n\tpub n: u32,\n\t#[cfg(any())]\n\tpub gone: u32,\n\t#[cfg_attr(all(), cfg_attr(all(), cfg(any())))]\n\tpub gated: u32,\n}\n\n\
+				pub enum Kind {\n\tKept,\n\t#[cfg(any())]\n\tGone,\n}\n\n\
+				pub mod nested {\n\tpub struct Inner {\n\t\tpub n: u32,\n\t\t#[cfg(any())]\n\t\tpub gone: u32,\n\t}\n}\n",
 			),
 			(
 				"ffi.toml",
-				"exclude = [\"Gone\", \"dep::gone::Gone\", \"gone::Gone\", \"local::Gone\", \"outer::gone::Gone\"]\n",
+				"exclude = [\"Gone\", \"Kind::Gone\", \"Shape::gated\", \"Shape::gone\", \"Shape::missing\", \"Size::depth\", \"nested::Inner::gone\", \"dep::gone::Gone\", \"gone::Gone\", \"local::Gone\", \"outer::gone::Gone\"]\n",
 			),
 		],
 	);
@@ -1528,6 +1536,7 @@ fn configured_out() {
 		errors,
 		[
 			"error: rust2-ffi: exclude `Gone` in the config names nothing exported",
+			"error: rust2-ffi: exclude `Shape::missing` in the config names nothing exported",
 			"error: rust2-ffi: exclude `gone::Gone` in the config names nothing exported",
 		],
 		"{stderr}"
