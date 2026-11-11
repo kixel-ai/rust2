@@ -37,6 +37,16 @@ func text(_ data: Data) -> String {
 	String(decoding: data, as: UTF8.self)
 }
 
+/// The refusal `refuse` throws for `reason`: a class, since Swift throws it.
+func refusal(_ reason: String) -> Refusal {
+	do {
+		_ = try refuse(reason)
+	} catch let refusal as Refusal {
+		return refusal
+	} catch {}
+	fatalError("refuse returned")
+}
+
 /// Each of `items` as `each` prints it, joined by commas.
 func listed<T: ~Copyable>(_ items: borrowing UniqueArray<T>, _ each: (borrowing T) -> String) -> String {
 	var out: [String] = []
@@ -558,14 +568,6 @@ func script() {
 		var none: Counter? = nil
 		print("plus \(two.plus(other: three!)) \(two.plus())")
 		// A list and an option holding a struct beside a class, whose handle each moves.
-		func refusal(_ reason: String) -> Refusal {
-			do {
-				_ = try refuse(reason)
-			} catch let refusal as Refusal {
-				return refusal
-			} catch {}
-			fatalError("refuse returned")
-		}
 		var pairs = UniqueArray<TupleCounterRefusal>()
 		pairs.append(TupleCounterRefusal(Counter.new("a", 1), refusal("x")))
 		check(
@@ -879,6 +881,13 @@ func broken(_ which: String) {
 		_ = stray()
 	case "lent stray":
 		visitStray { _ in }
+	// A class moved into Rust, which Swift still holds: the call closes its handle.
+	case "refusal moved":
+		let kept = refusal("z")
+		var pairs = UniqueArray<TupleCounterRefusal>()
+		pairs.append(TupleCounterRefusal(Counter.new("a", 1), kept))
+		_ = reasons(pairs, nil)
+		_ = kept.description
 	default:
 		check(false, "no case \(which)")
 	}

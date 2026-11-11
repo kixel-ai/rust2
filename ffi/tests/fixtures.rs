@@ -760,6 +760,7 @@ fn api_swift() {
 		("outlived", OUTLIVED),
 		("stray", "a path from Rust is not UTF-8"),
 		("lent stray", "a path from Rust is not UTF-8"),
+		("refusal moved", "Refusal is closed"),
 	] {
 		let output = Command::new(&exe).arg(case).output().unwrap();
 		assert!(!output.status.success(), "Swift {case} did not fail");
