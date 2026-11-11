@@ -132,7 +132,7 @@ impl Crate<'_> {
 		);
 		// A foreign type, exported as an object when no export is its crate, resolves to the
 		// version the exports build with, as `bytes` does: one per major version per
-		// resolution.
+		// resolution. Its features are the ones the exports enable, so the glue adds none.
 		let api = self.abi.api;
 		let foreign: String = [
 			("url", "url", "2"),
@@ -146,7 +146,7 @@ impl Crate<'_> {
 		})
 		.map(|(krate, package, version)| {
 			format!(
-				"{} = {{ package = \"{package}\", version = \"{version}\" }}\n",
+				"{} = {{ package = \"{package}\", version = \"{version}\", default-features = false }}\n",
 				foreign(krate)
 			)
 		})
