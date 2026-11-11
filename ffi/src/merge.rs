@@ -485,8 +485,10 @@ fn order_crates(api: &Api) -> Result<Vec<String>, Cycle> {
 		functions(&mut uses, &r.methods);
 	}
 	for e in &api.enums {
-		let fields = e.variants.iter().flat_map(|v| &v.fields).map(|f| &f.ty);
-		uses.extend(fields.chain(&e.args).map(|ty| (&e.home, e.on, e.span, ty)));
+		for v in &e.variants {
+			uses.extend(v.fields.iter().map(|f| (&e.home, v.on, e.span, &f.ty)));
+		}
+		uses.extend(e.args.iter().map(|ty| (&e.home, e.on, e.span, ty)));
 		functions(&mut uses, &e.methods);
 	}
 	for o in &api.objects {
@@ -679,7 +681,8 @@ mod tests {
 
 	use rustc_span::DUMMY_SP;
 
-	use super::{On, cycle};
+	use super::{On, cycle, order_crates};
+	use crate::ir::{Api, Enum, Field, Home, Traits, Type, Variant};
 
 	#[test]
 	fn names_a_cycle_across_targets() {
@@ -694,5 +697,51 @@ mod tests {
 		let cycle = cycle(&crates, &before, &[false, true, false]);
 		assert_eq!(cycle.crates, ["a", "c"]);
 		assert_eq!((cycle.first.0.0, cycle.second.0.0), (1, 2));
+	}
+
+	#[test]
+	fn names_a_variants_own_targets() {
+		// `a`'s enum, on both targets, names `c`'s only in a variant on the second; `c`'s,
+		// on the first, names `a`'s.
+		let enumeration = |krate: &str, on: u64, variant: u64, ty: usize| Enum {
+			path: vec![krate.into()],
+			home: Home {
+				krate: krate.into(),
+				outside: 0,
+			},
+			shown: vec![krate.into()],
+			args: Vec::new(),
+			span: DUMMY_SP,
+			on: On(on),
+			docs: String::new(),
+			variants: vec![Variant {
+				name: "V".into(),
+				discriminant: 0,
+				fields: vec![Field {
+					name: "0".into(),
+					docs: String::new(),
+					ty: Type::Enum(ty),
+				}],
+				tuple: true,
+				on: On(variant),
+			}],
+			exhaustive: true,
+			methods: Vec::new(),
+			traits: Traits::default(),
+		};
+		let api = Api {
+			records: Vec::new(),
+			enums: vec![enumeration("a", 3, 2, 1), enumeration("c", 1, 1, 0)],
+			objects: Vec::new(),
+			callbacks: Vec::new(),
+			functions: Vec::new(),
+			constants: Vec::new(),
+			crates: ["a", "c"].map(String::from).to_vec(),
+			targets: ["x", "y"].map(String::from).to_vec(),
+		};
+		let Err(cycle) = order_crates(&api) else {
+			panic!("a cycle")
+		};
+		assert_eq!((cycle.first.0.0, cycle.second.0.0), (2, 1));
 	}
 }
