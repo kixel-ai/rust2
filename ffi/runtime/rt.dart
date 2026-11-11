@@ -518,7 +518,7 @@ final class _Native {
     final f = _dartFuture(home, token);
     final data = f.data;
     _drops[token] = () => calls[future]?.cancel();
-    future.then(
+    future.then<void>(
       (_) => _dartFutureDone(data, false),
       onError: (Object e, StackTrace s) {
         // Rust's free shows here at once, before its message reaches the isolate.
