@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 use rustc_span::source_map::SourceMap;
 use rustc_span::{DUMMY_SP, Span};
 
-use crate::ir::{Api, Callback, Constant, Enum, Field, Function, Object, On, Record, TaskKind, Type, Variant};
+use crate::ir::{Api, Callback, Constant, Enum, Field, Function, Home, Object, On, Record, TaskKind, Type, Variant};
 
 /// A target's API, as a check writes it for the export of several targets.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -285,7 +285,15 @@ impl Merged {
 				}
 			}
 		}
-		self.api.crates = order_crates(&self.api);
+		match order_crates(&self.api) {
+			Ok(crates) => self.api.crates = crates,
+			Err(cycle) => {
+				let names: Vec<String> = cycle.crates.iter().map(|c| format!("`{c}`")).collect();
+				let what = format!("the order of crates {}", names.join(" and "));
+				let differs = self.differs(what, cycle.first, cycle.second);
+				self.differs.push(differs);
+			}
+		}
 		(self.api, self.differs)
 	}
 
@@ -455,43 +463,44 @@ impl Merged {
 /// `api`'s crates in an order where each follows every crate whose types its items name,
 /// on any target, as each target's order has it; else in the order they were merged in.
 /// Two targets may order crates differently where neither names the other's types.
-fn order_crates(api: &Api) -> Vec<String> {
+///
+/// An instance lives in the last crate of its own and its arguments' on its target, which
+/// on another target, where those crates' order differs, may name types of crates after
+/// it. Then crates name each other's types, which none of their orders serves: that is
+/// the error, with an item of each crate that names the other's.
+fn order_crates(api: &Api) -> Result<Vec<String>, Cycle> {
 	let crates = &api.crates;
 	let index = |krate: &str| crates.iter().position(|c| c == krate);
-	// Each crate's home, then a type its items name.
-	let mut uses: Vec<(&str, &Type)> = Vec::new();
-	fn functions<'a>(uses: &mut Vec<(&'a str, &'a Type)>, functions: &'a [Function]) {
+	// Each type an item names, with the item's crate, targets, and span.
+	let mut uses: Vec<(&Home, On, Span, &Type)> = Vec::new();
+	fn functions<'a>(uses: &mut Vec<(&'a Home, On, Span, &'a Type)>, functions: &'a [Function]) {
 		for f in functions {
 			let types = f.params.iter().map(|p| &p.ty).chain([&f.ok]).chain(&f.err);
-			uses.extend(types.map(|ty| (f.home.krate.as_str(), ty)));
+			uses.extend(types.map(|ty| (&f.home, f.on, f.span, ty)));
 		}
 	}
 	for r in &api.records {
 		let types = r.fields.iter().map(|f| &f.ty).chain(&r.args);
-		uses.extend(types.map(|ty| (r.home.krate.as_str(), ty)));
+		uses.extend(types.map(|ty| (&r.home, r.on, r.span, ty)));
 		functions(&mut uses, &r.methods);
 	}
 	for e in &api.enums {
-		let fields = e.variants.iter().flat_map(|v| &v.fields);
-		uses.extend(
-			fields
-				.map(|f| &f.ty)
-				.chain(&e.args)
-				.map(|ty| (e.home.krate.as_str(), ty)),
-		);
+		let fields = e.variants.iter().flat_map(|v| &v.fields).map(|f| &f.ty);
+		uses.extend(fields.chain(&e.args).map(|ty| (&e.home, e.on, e.span, ty)));
 		functions(&mut uses, &e.methods);
 	}
 	for o in &api.objects {
-		uses.extend(o.args.iter().map(|ty| (o.home.krate.as_str(), ty)));
+		uses.extend(o.args.iter().map(|ty| (&o.home, o.on, o.span, ty)));
 		functions(&mut uses, &o.methods);
 	}
 	for c in &api.callbacks {
 		functions(&mut uses, &c.methods);
 	}
 	functions(&mut uses, &api.functions);
-	let mut before = vec![std::collections::BTreeSet::new(); crates.len()];
-	for (home, ty) in uses {
-		let Some(home) = index(home) else { continue };
+	// Each crate's predecessors, each with the first item naming its types.
+	let mut before = vec![std::collections::BTreeMap::new(); crates.len()];
+	for (home, on, span, ty) in uses {
+		let Some(home) = index(&home.krate) else { continue };
 		crate::ir::each(ty, &mut |named| {
 			let krate = match named {
 				Type::Record(i) => &api.records[*i].home.krate,
@@ -500,22 +509,63 @@ fn order_crates(api: &Api) -> Vec<String> {
 				Type::Callback(i, _) => &api.callbacks[*i].home.krate,
 				_ => return,
 			};
-			match index(krate) {
-				Some(named) if named != home => _ = before[home].insert(named),
-				_ => {}
+			if let Some(named) = index(krate).filter(|&named| named != home) {
+				before[home].entry(named).or_insert((on, span));
 			}
 		});
 	}
 	let mut placed = vec![false; crates.len()];
 	let mut order = Vec::with_capacity(crates.len());
 	while order.len() < crates.len() {
-		let next = (0..crates.len())
-			.find(|&i| !placed[i] && before[i].iter().all(|&j| placed[j]))
-			.expect("crates whose items name each other's types, which Rust's dependencies cannot");
+		let ready = (0..crates.len()).find(|&i| !placed[i] && before[i].keys().all(|&j| placed[j]));
+		let Some(next) = ready else {
+			return Err(cycle(crates, &before, &placed));
+		};
 		placed[next] = true;
 		order.push(crates[next].clone());
 	}
-	order
+	Ok(order)
+}
+
+/// Crates whose items name each other's types, across targets: their names, each naming
+/// the next's types and the last the first's; then the first's item naming the next's,
+/// and another crate's item naming its next's on a target the first item is not on.
+struct Cycle {
+	crates: Vec<String>,
+	first: (On, Span),
+	second: (On, Span),
+}
+
+/// A cycle among the crates not `placed`, each of which has a predecessor not placed.
+fn cycle(crates: &[String], before: &[std::collections::BTreeMap<usize, (On, Span)>], placed: &[bool]) -> Cycle {
+	let unplaced = |i: usize| {
+		(before[i].iter())
+			.find(|&(&j, _)| !placed[j])
+			.map(|(&j, &item)| (j, item))
+	};
+	let mut path = vec![placed.iter().position(|p| !p).expect("a crate not placed")];
+	let start = loop {
+		let (next, _) = unplaced(*path.last().unwrap()).expect("a crate not placed has one before it");
+		if let Some(at) = path.iter().position(|&i| i == next) {
+			break at;
+		}
+		path.push(next);
+	};
+	let path = &path[start..];
+	// Each crate's item naming its predecessor's types, along the cycle.
+	let items: Vec<(On, Span)> = path.iter().map(|&i| unplaced(i).unwrap().1).collect();
+	let first = items[0];
+	// No one target has the whole cycle, so an item on a target the first is not on.
+	let lowest = first.0.0 & first.0.0.wrapping_neg();
+	let second = (items[1..].iter())
+		.find(|(on, _)| on.0 & lowest == 0)
+		.copied()
+		.unwrap_or(items[items.len() - 1]);
+	Cycle {
+		crates: path.iter().map(|&i| crates[i].clone()).collect(),
+		first,
+		second,
+	}
 }
 
 /// Spans as their file and byte offsets, which a later session loads that file for.
@@ -621,4 +671,28 @@ pub mod span {
 /// The path a target's API is staged at in `dir`.
 pub fn staged(dir: &Path, target: &str) -> PathBuf {
 	dir.join(format!("{target}.json"))
+}
+
+#[cfg(test)]
+mod tests {
+	use std::collections::BTreeMap;
+
+	use rustc_span::DUMMY_SP;
+
+	use super::{On, cycle};
+
+	#[test]
+	fn names_a_cycle_across_targets() {
+		// `a` names `c`'s types on the first target and `c` names `a`'s on the second, while
+		// `b`, which `a` also names, is placed.
+		let crates = ["a", "b", "c"].map(String::from);
+		let before = [
+			BTreeMap::from([(1, (On(1), DUMMY_SP)), (2, (On(1), DUMMY_SP))]),
+			BTreeMap::new(),
+			BTreeMap::from([(0, (On(2), DUMMY_SP))]),
+		];
+		let cycle = cycle(&crates, &before, &[false, true, false]);
+		assert_eq!(cycle.crates, ["a", "c"]);
+		assert_eq!((cycle.first.0.0, cycle.second.0.0), (1, 2));
+	}
 }
