@@ -695,7 +695,7 @@ just ffi moq-cpp  # the same export, running only moq/moq.cpp
 just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi census   # census each into target/census
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
-nix develop .#bench --command just ffi bench  # frame writes and reads, through the export from C, C++, Kotlin, Python, Swift, Go, and Dart, and moq's rs/moq-c
+nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 ```
 
 The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
