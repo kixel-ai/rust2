@@ -253,7 +253,18 @@ fn stripped_member(tcx: TyCtxt<'_>, adt: DefId, name: &str) -> bool {
 		}
 	}
 	let Some(item) = item else { return false };
-	let configured = |attrs: &[ast::Attribute]| attrs.iter().any(|attr| attr.has_name(sym::cfg));
+	// A `cfg`, or one a `cfg_attr` adds, at any depth: the attributes past its predicate.
+	fn adds_cfg(items: &[ast::MetaItemInner]) -> bool {
+		items.iter().skip(1).any(|item| {
+			item.has_name(sym::cfg) || (item.has_name(sym::cfg_attr) && item.meta_item_list().is_some_and(adds_cfg))
+		})
+	}
+	let configured = |attrs: &[ast::Attribute]| {
+		attrs.iter().any(|attr| {
+			attr.has_name(sym::cfg)
+				|| (attr.has_name(sym::cfg_attr) && attr.meta_item_list().is_some_and(|items| adds_cfg(&items)))
+		})
+	};
 	match &item.kind {
 		ast::ItemKind::Struct(_, _, data) | ast::ItemKind::Union(_, _, data) => {
 			(data.fields().iter()).any(|f| f.ident.is_some_and(|ident| ident.as_str() == name) && configured(&f.attrs))
