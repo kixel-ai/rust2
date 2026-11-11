@@ -467,7 +467,10 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Const(_) => unreachable!("a const argument is no value"),
-			Type::Array(n) => format!("rt::array_in::<{n}>({o}).map(|items| crate::{} {{ items }})", abi.array(*n)),
+			Type::Array(n) => format!(
+				"rt::array_in::<{n}>({o}).map(|items| crate::{} {{ items }})",
+				abi.array(*n)
+			),
 			Type::Bool => format!("rt::bool_in({o})"),
 			Type::Int(int) => format!("rt::int_in::<{}>({o})", int.rust()),
 			Type::F32 => format!("rt::float_in({o}).map(|f| f as f32)"),

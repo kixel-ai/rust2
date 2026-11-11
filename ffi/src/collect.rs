@@ -4139,7 +4139,9 @@ impl<'tcx> Collector<'tcx> {
 			},
 			// An element type beyond `u8` takes the same shape once an export needs one.
 			ty::Array(elem, len) if *elem == tcx.types.u8 => {
-				let n = len.try_to_target_usize(tcx).ok_or_else(|| why("array of unknown length", ty.to_string()))?;
+				let n = len
+					.try_to_target_usize(tcx)
+					.ok_or_else(|| why("array of unknown length", ty.to_string()))?;
 				Type::Array(usize::try_from(n).map_err(|_| why("array too long", ty.to_string()))?)
 			}
 			ty::Array(..) => return Err(why("array of an element other than u8", ty.to_string())),
