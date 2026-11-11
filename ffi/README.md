@@ -95,6 +95,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `BTreeSet<T>`, `BTreeMap<K, V>`, and `serde_json::Map` | as `Vec<T>`, `Vec<(K, V)>`, and `Vec<(String, serde_json::Value)>`: its items in order, from which Rust builds it, keeping the last of a key |
 | a returned iterator, such as `slice::Iter` or an `impl Iterator`, that no other rule maps, outside a future, made of core's and alloc's iterators over a slice, string, `Option`, `Result`, or collection, or serde_json's `map::Iter`, `IntoIter`, `Keys`, or `Values`, through `rev`, `chain`, `flatten`, `fuse`, `enumerate`, `peekable`, `copied`, `cloned`, or `filter`, with no trait object inside; a closure or function inside, such as `filter`'s predicate or `split`'s pattern, must drop nothing, and a `filter` only items whose drop runs nothing | what `collect::<Vec<_>>()` makes of it: every item, taken at the call, so a closure inside runs on every item, not only those a caller stopping early would reach |
 | `Waker`, taken by value | `<prefix>_waker`, as a future's poll takes it |
+| a returned `Waker` or `&Waker`, or a returned `Context`, which is only a waker lent for a call | `<prefix>_waker` of a clone of the waker, or the context's: the caller's, to wake through Rust and drop once |
 | `&Context` or `&mut Context` of a function returning no `Poll` and no future | `<prefix>_waker`, which the context is made of for the call |
 | `Range<T>`, `Bound<T>` of an integer | `<prefix>_range_<T>`, `<prefix>_bound_<T>`: a `<prefix>_bound` kind and a value |
 | `impl RangeBounds<T>` of an integer | `<prefix>_bounds_<T>`: its start and end bounds |
@@ -179,7 +180,9 @@ else is refused, and the census counts why.
 - **Wakers** move into Rust, which calls `drop` once it lets go of the last clone, so a
   state machine polled with a waker, such as moq's `Driver`s through kio's `Waiter`, runs
   from the caller's event loop. Rust may call `wake` and `drop` from any thread, as a
-  runtime's workers do.
+  runtime's workers do. A waker Rust returns is the caller's, which may wake it from any
+  thread any number of times, then drop it once, or pass it back into Rust, which wraps
+  it as any waker.
 - **Callbacks** are a struct of a table and its data. Rust calls `free` once it drops the
   implementation, and may call the others from any thread. A callback takes scalars and
   buffers lent for the call, and returns a scalar.
@@ -299,7 +302,8 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   thread: never inline, since a wake may come from inside Rust. Each wake that lands while
   the future polls polls it again, and a future has one poller at a time, since awaiting
   it moves it.
-- A **waker** is a shared callable, which Rust may call from any thread.
+- A **waker** is a shared callable, which Rust may call from any thread. One Rust returns
+  wakes through Rust and drops with its last copy.
 - **The contract** is checked when the program loads, before any other call: a header
   and a library from different builds abort.
 
@@ -359,7 +363,8 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   on its executor, and never inside a wake: an `Unconfined` one resumes on `Default`. Cancelling the coroutine frees the future and
   loses nothing. Each call is its own future, so it has one poller. The call polls it once
   before suspending, and makes the waker it parks on only if that poll pends.
-- A **waker** is a `Waker`, which Rust may call from any thread.
+- A **waker** is a `Waker`, which Rust may call from any thread. One Rust returns wakes
+  through Rust, and the garbage collector drops it.
 - **The contract** is checked when the library loads, before any other call: a Kotlin
   file and a library from different builds throw.
 - **Shrinking**: `<prefix>.pro` keeps what the JNI glue finds by name, `Native`, its native
@@ -427,7 +432,8 @@ caller imports it with no ignores.
   loses nothing. The call polls it once before suspending, and a future is awaited once,
   as a coroutine is.
 - A **waker** is a `Waker(callback)`, which Rust may wake from any thread, calling
-  `callback` on its event loop.
+  `callback` on its event loop; `wake()` wakes it from any thread. One Rust returns is a
+  `Waker` too, which wakes through Rust and drops with its last reference.
 - **The contract** is checked when the module imports, before any other call: a Python
   file and a library from different builds raise `ImportError`.
 
@@ -476,7 +482,8 @@ in either language mode.
   `CancellationError`. Each call is its own future, so it has one poller. The call polls it
   once before suspending, and makes the signal it parks on only if that poll pends; the
   signal latches a wake that lands before it parks.
-- A **waker** is a `@Sendable () -> Void`, which Rust may call from any thread.
+- A **waker** is a `@Sendable () -> Void`, which Rust may call from any thread. One Rust
+  returns wakes through Rust and drops once Swift releases it.
 - **The contract** is checked once, at the first call into the library: a Swift file and a
   library from different builds trap.
 ## Go
@@ -578,7 +585,8 @@ reads a go.mod.
   context done before the call, or while it waits, returns its error and frees the future,
   which cancels it in Rust and loses nothing: the next call takes what it would have.
   Each call is its own future, so it has one poller, and its context bounds only it.
-- A **waker** is a `func()`, which Rust may call from any thread.
+- A **waker** is a `func()`, which Rust may call from any thread. One Rust returns wakes
+  through Rust, and the garbage collector drops it.
 - **The contract** is checked when `rt` loads, before any other call: Go packages and a
   library from different builds panic.
 
@@ -649,7 +657,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   future unless it finished, which cancels it in Rust and loses nothing: the next call
   takes what it would have, and it completes with `Cancelled`. A pending future keeps
   the isolate alive, as a timer does.
-- A **waker** is a `void Function()`, which runs on the isolate's event loop.
+- A **waker** is a `void Function()`, which runs on the isolate's event loop. One Rust
+  returns wakes through Rust, and the garbage collector drops it.
 - **Threads**: Dart runs code only on its isolate's thread, so Rust reaches it from any
   other through the isolate's port, and waits for its event loop to run the call. While
   Rust holds an implementation or a lent closure of the isolate, each call into Rust, a

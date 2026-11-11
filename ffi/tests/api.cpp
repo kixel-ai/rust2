@@ -552,6 +552,11 @@ int script() {
 		channel.listen(waker);
 		channel.send("heard");
 		std::printf("woken %d\n", wakes);
+		// A returned waker wakes the waiter's task, through Rust, until its last copy drops.
+		api::Waiter waiter = api::Waiter::new_(waker);
+		waiter.waker().wake();
+		waiter.context().wake();
+		std::printf("woken %d\n", wakes);
 	}
 
 	// A value that holds itself is an object.

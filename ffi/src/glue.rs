@@ -577,7 +577,7 @@ impl Gen<'_> {
 			Type::Object(i) if self.abi.api.objects[*i].opaque => format!("rt::Object::new(rt::Opaque::new({e}))"),
 			Type::Object(_) => format!("rt::Object::new({e})"),
 			Type::Callback(..) | Type::Closure(..) => unreachable!("a callback is never returned"),
-			Type::Waker => unreachable!("a waker is never returned"),
+			Type::Waker => format!("rt::Waker::lower({e})"),
 			Type::Range(_) => format!("rt::Range::lower({e})"),
 			Type::Bound(_) => format!("rt::Bound::lower({e})"),
 			Type::Bounds(_) => format!("rt::Bounds::lower({e})"),

@@ -609,6 +609,16 @@ impl Waiter {
 	pub fn new(waker: Waker) -> Self {
 		Self(Arc::new(waker))
 	}
+
+	/// The waker it was made from: returned as a clone, which wakes the same task.
+	pub fn waker(&self) -> &Waker {
+		&self.0
+	}
+
+	/// A context of its waker: returned as that waker's clone.
+	pub fn context(&self) -> Context<'_> {
+		Context::from_waker(&self.0)
+	}
 }
 
 impl Channel {

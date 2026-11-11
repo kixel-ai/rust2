@@ -17,7 +17,7 @@ fixtures/reject/src/lib.rs:217:1: rust2-ffi: cannot export fn `listed`: refused 
 fixtures/reject/src/lib.rs:222:1: rust2-ffi: cannot export instance `Fixed<'a'>`: const argument `'a'`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:225:1: rust2-ffi: cannot export fn `fixed`: refused type `reject::Fixed<'a'>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:230:9: rust2-ffi: cannot export use `HashSet`: re-export of the standard library's item `std`; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:233:1: rust2-ffi: cannot export fn `lend`: Waker outside a parameter taken by value; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:233:1: rust2-ffi: cannot export fn `lend`: Waker outside a parameter or a return; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:23:1: rust2-ffi: cannot export fn `borrowing`: borrowing future from a function that is not async; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:241:2: rust2-ffi: cannot export field `Tag::label`: 'static borrow `&'static str`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:251:1: rust2-ffi: cannot export fn `spawn`: closure kept past the call `impl FnOnce() + Send + 'static`; exclude it in the config to leave it out

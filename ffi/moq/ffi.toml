@@ -112,7 +112,5 @@ exclude = [
     "transport::poll::Ungrouped",
     "varint::encode_quic",
     "Waiter::batch",
-    "Waiter::context",
     "Waiter::poll_future",
-    "Waiter::waker",
 ]

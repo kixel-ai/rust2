@@ -4054,6 +4054,13 @@ impl<'tcx> Collector<'tcx> {
 						Type::List(Collection::Vec, Box::new(item))
 					}
 					ty::Dynamic(..) => return Err(why("trait object", inner.to_string())),
+					// A returned `&Waker` crosses as its clone, as any borrowed return does.
+					ty::Adt(adt, _)
+						if pos == Pos::Return
+							&& tcx.is_diagnostic_item(rustc_span::Symbol::intern("Waker"), adt.did()) =>
+					{
+						Type::Waker
+					}
 					_ => self.ty(
 						*inner,
 						match pos {
@@ -4187,8 +4194,15 @@ impl<'tcx> Collector<'tcx> {
 					}
 				} else if tcx.is_diagnostic_item(rustc_span::Symbol::intern("Waker"), did) {
 					match pos {
-						Pos::Param => Type::Waker,
-						_ => return Err(why("Waker outside a parameter taken by value", "")),
+						Pos::Param | Pos::Return => Type::Waker,
+						_ => return Err(why("Waker outside a parameter or a return", "")),
+					}
+				} else if tcx.is_lang_item(did, LangItem::Context) {
+					// A context is only a waker lent for a call, so a returned one crosses as
+					// its waker's clone.
+					match pos {
+						Pos::Return => Type::Waker,
+						_ => return Err(why("Context outside a return or a polled parameter", "")),
 					}
 				} else if tcx.lang_items().range_struct() == Some(did) {
 					Type::Range(int(args.type_at(0)).ok_or_else(|| why("Range", args.type_at(0).to_string()))?)

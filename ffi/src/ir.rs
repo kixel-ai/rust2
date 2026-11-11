@@ -349,7 +349,8 @@ pub enum Type {
 	/// any `T` but `u8`, which is [`Type::Vec`], and behind a reference, `[T]` too; a set;
 	/// or a map, whose `T` is the tuple of a key and its value.
 	List(Collection, Box<Type>),
-	/// `std::task::Waker`, only as a parameter taken by value.
+	/// `std::task::Waker`, only as a parameter taken by value or a return: a returned
+	/// `&Waker` is its clone, and a returned `Context` its waker's.
 	Waker,
 	Option(Box<Type>),
 	/// `Box<T>`, of a non-trait type.

@@ -421,6 +421,13 @@ func script() {
 	channel.listen { wakes.value += 1 }
 	channel.send(Data("heard".utf8))
 	print("woken \(wakes.value)")
+	// A returned waker wakes the waiter's task through Rust until released.
+	do {
+		let waiter = Waiter.new { wakes.value += 1 }
+		waiter.waker()()
+		waiter.context()()
+	}
+	print("woken \(wakes.value)")
 
 	let list = Node.new(1, nil)
 	list.push(2)
