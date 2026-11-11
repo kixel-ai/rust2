@@ -998,10 +998,71 @@ impl Waker {
 		self.wake.map(|f| f as usize) == other.wake.map(|f| f as usize) && self.data == other.data
 	}
 
-	/// The Rust waker around it, which calls `drop` once its last clone drops.
+	/// The Rust waker around it, which calls `drop` once its last clone drops. One Rust
+	/// returned is unwrapped, so passing it back adds no layer.
 	pub fn lift(self) -> std::task::Waker {
+		if self.wake.map(|f| f as usize) == Some(rust_wake as usize) {
+			// SAFETY: `lower` made `data`, which C gave back and frees no longer.
+			return *unsafe { Box::from_raw(self.data.cast::<std::task::Waker>()) };
+		}
 		std::task::Waker::from(Arc::new(Foreign(self)))
 	}
+
+	/// Wake it, as C does.
+	///
+	/// # Safety
+	/// It is not yet dropped.
+	pub unsafe fn wake(&self) {
+		if let Some(wake) = self.wake {
+			// SAFETY: the waker's contract.
+			unsafe { wake(self.data) };
+		}
+	}
+
+	/// Drop it, as C does once.
+	///
+	/// # Safety
+	/// It is not yet dropped, and is never used again.
+	pub unsafe fn release(self) {
+		if let Some(drop) = self.drop {
+			// SAFETY: the waker's contract.
+			unsafe { drop(self.data) };
+		}
+	}
+
+	/// Rust's waker, or a context's, as one C owns: `wake` wakes it, and `drop` releases it.
+	pub fn lower(waker: impl Into<Returned>) -> Self {
+		Self {
+			wake: Some(rust_wake),
+			drop: Some(rust_drop),
+			data: Box::into_raw(Box::new(waker.into().0)).cast(),
+		}
+	}
+}
+
+/// A waker a function returns: its own, or a context's.
+pub struct Returned(std::task::Waker);
+
+impl From<std::task::Waker> for Returned {
+	fn from(waker: std::task::Waker) -> Self {
+		Self(waker)
+	}
+}
+
+impl From<Context<'_>> for Returned {
+	fn from(cx: Context<'_>) -> Self {
+		Self(cx.waker().clone())
+	}
+}
+
+unsafe extern "C" fn rust_wake(data: *mut c_void) {
+	// SAFETY: `Waker::lower` made `data`, which C has not dropped.
+	unsafe { &*data.cast::<std::task::Waker>() }.wake_by_ref();
+}
+
+unsafe extern "C" fn rust_drop(data: *mut c_void) {
+	// SAFETY: `Waker::lower` made `data`, which C drops once.
+	drop(unsafe { Box::from_raw(data.cast::<std::task::Waker>()) });
 }
 
 struct Foreign(Waker);

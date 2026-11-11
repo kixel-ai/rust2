@@ -376,6 +376,13 @@ def script():
 	channel.send(b"heard")
 	until(loop, lambda: wakes == 3)
 	print(f"woken {wakes}")
+	# A returned waker wakes the waiter's task through Rust until it is dropped.
+	waiter = api.Waiter.new(waker)
+	waiter.waker()()
+	waiter.context()()
+	del waiter
+	until(loop, lambda: wakes == 5)
+	print(f"woken {wakes}")
 	loop.close()
 
 	nodes = api.Node.new(1, None)

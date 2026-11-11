@@ -368,6 +368,13 @@ Future<void> script() async {
   channel.send(utf8.encode('heard'));
   await until(() => wakes == 3, 'the send wakes the context Rust keeps');
   print('woken $wakes');
+  // A returned waker wakes the waiter's task through Rust until it is dropped.
+  final waiter = api.Waiter(() => wakes++);
+  waiter.waker()();
+  waiter.context()();
+  waiter.close();
+  await until(() => wakes == 5, 'a returned waker wakes the waiter');
+  print('woken $wakes');
 
   final nodes = api.Node(1, null);
   nodes.push(2);

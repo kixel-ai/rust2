@@ -1713,6 +1713,47 @@ pub fn waker_in(obj: *mut PyObject, s: &mut Scope) -> R<rt::Waker> {
 	Ok(waker)
 }
 
+/// `Returned`: a waker Rust returned, which a call wakes through Rust, dropped with it.
+#[repr(C)]
+struct ReturnedObj {
+	ob_base: PyObject,
+	waker: rt::Waker,
+}
+
+/// A waker Rust returned, as a `Returned`.
+pub fn waker_out(waker: rt::Waker) -> R<Obj> {
+	let class = RETURNED.get().expect("made with the module").ptr().cast();
+	// SAFETY: the GIL is held, and `class` is `Returned`.
+	unsafe {
+		let Ok(obj) = Obj::new(PyType_GenericAlloc(class, 0)) else {
+			waker.release();
+			return Err(Raised);
+		};
+		std::ptr::write(&raw mut (*obj.ptr().cast::<ReturnedObj>()).waker, waker);
+		Ok(obj)
+	}
+}
+
+unsafe extern "C" fn returned_call(obj: *mut PyObject, args: *mut PyObject, kwargs: *mut PyObject) -> *mut PyObject {
+	wrap(|| {
+		// SAFETY: the GIL is held, and `args` a tuple.
+		if unsafe { PyTuple_Size(args) } != 0 || !kwargs.is_null() && unsafe { PyDict_Size(kwargs) } != 0 {
+			return type_error("a waker takes no arguments");
+		}
+		// SAFETY: Python calls it on a live `Returned`.
+		unsafe { (*obj.cast::<ReturnedObj>()).waker.wake() };
+		none()
+	})
+}
+
+unsafe extern "C" fn returned_dealloc(obj: *mut PyObject) {
+	// SAFETY: Python deallocates a `Returned` once.
+	unsafe {
+		std::ptr::read(&raw const (*obj.cast::<ReturnedObj>()).waker).release();
+		dealloc(obj);
+	}
+}
+
 /// Poll a future once with a waker, returning its value once it finishes.
 pub type Poll = unsafe fn(*mut c_void, rt::Waker) -> R<Option<Obj>>;
 
@@ -1903,6 +1944,7 @@ static OBJECT: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
 static FUTURE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
 static QUEUE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
 static NODE: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
+static RETURNED: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
 
 /// A method table entry.
 pub const fn method(name: &'static CStr, f: PyCFunctionFast) -> PyMethodDef {
@@ -2097,6 +2139,22 @@ unsafe fn runtime(module: *mut PyObject) -> R<()> {
 			slot(Py_tp_methods, NODE_METHODS.ptr().cast()),
 			slot(0, null_mut()),
 		])?;
+		add_type(
+			module,
+			&RETURNED,
+			c"Returned",
+			size_of::<ReturnedObj>(),
+			Py_TPFLAGS_DISALLOW_INSTANTIATION as u64,
+			&mut [
+				slot(Py_tp_call, returned_call as *mut c_void),
+				slot(Py_tp_dealloc, returned_dealloc as *mut c_void),
+				slot(
+					Py_tp_doc,
+					c"A waker Rust returned: calling it wakes the task, until it is dropped.".as_ptr().cast_mut().cast(),
+				),
+				slot(0, null_mut()),
+			],
+		)?;
 		let bytes_slots = &mut [
 			slot(Py_bf_getbuffer, bytes_getbuffer as *mut c_void),
 			slot(Py_tp_dealloc, bytes_dealloc as *mut c_void),

@@ -456,6 +456,12 @@ func script() {
 	channel.Listen(func() { wakes++ })
 	channel.Send([]byte("heard"))
 	fmt.Printf("woken %d\n", wakes)
+	// A returned waker wakes the waiter's task through Rust until the GC collects it.
+	waiter := api.NewWaiter(func() { wakes++ })
+	must(waiter.Waker())()
+	must(waiter.Context())()
+	waiter.Close()
+	fmt.Printf("woken %d\n", wakes)
 
 	list1 := must(api.NewNode(1, nil))
 	ok(list1.Push(2))

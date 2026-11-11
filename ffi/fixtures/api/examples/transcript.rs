@@ -369,6 +369,10 @@ fn main() {
 	channel.listen((), &cx);
 	channel.send(Bytes::from_static(b"heard"));
 	println!("woken {}", count.0.load(Ordering::Relaxed));
+	let waiter = Waiter::new(waker.clone());
+	waiter.waker().clone().wake();
+	waiter.context().waker().clone().wake();
+	println!("woken {}", count.0.load(Ordering::Relaxed));
 
 	let list = Node {
 		value: 1,

@@ -659,13 +659,29 @@ static int script(void) {
 	api_Channel_listen(channel, waker);
 	api_Channel_send(channel, str("heard"));
 	printf("woken %d\n", wakes);
+	/* A returned waker is the caller's: it wakes the waiter's task until dropped. */
+	api_Waiter *waiter = api_Waiter_new(waker);
+	api_waker returned = api_Waiter_waker(waiter);
+	returned.wake(returned.data);
+	returned.drop(returned.data);
+	returned = api_Waiter_context(waiter);
+	returned.wake(returned.data);
+	printf("woken %d\n", wakes);
+	/* Passed back, it moves into Rust as any waker does. */
+	int woken = wakes;
+	api_Channel_notify(channel, returned);
+	api_Waiter_free(waiter);
+	api_Channel_send(channel, str("again"));
+	if (wakes != woken + 1) {
+		return 1;
+	}
 	api_Channel_clear(channel);
 	/* The waiter a pending poll registers lives until the next poll, so the send wakes it. */
 	take = api_Channel_poll_take(channel);
 	if (api_Channel_poll_take_poll(take, waker, &payload) != API_POLL_PENDING) {
 		return 1;
 	}
-	int woken = wakes;
+	woken = wakes;
 	api_Channel_send(channel, str("later"));
 	if (wakes != woken + 1 || api_Channel_poll_take_poll(take, waker, &payload) != API_POLL_READY) {
 		return 1;
@@ -1201,7 +1217,7 @@ static int script(void) {
 	api_Token_free(twice);
 
 	/* Each future dropped its waker once it finished, and Rust the one it was given. */
-	return drops == 11 ? 0 : 1;
+	return drops == 12 ? 0 : 1;
 }
 
 /* Each breaks a contract, which must abort with a message naming the function. */

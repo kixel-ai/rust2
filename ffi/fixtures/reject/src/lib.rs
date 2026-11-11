@@ -229,7 +229,7 @@ pub fn fixed() -> Fixed<'a'> {
 /// The standard library's item, whose types the export maps by role instead.
 pub use std::collections::HashSet;
 
-/// A borrowed waker: one crosses only into Rust, which keeps it.
+/// A borrowed waker: C passes one only by value, which Rust keeps.
 pub fn lend(waker: &std::task::Waker) {
 	waker.wake_by_ref();
 }

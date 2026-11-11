@@ -406,7 +406,8 @@ impl<'a> Gen<'a> {
 				Family::Any => format!("{V4} | {V6}"),
 			},
 			Type::List(_, inner) => format!("list[{}]", self.py_ty(inner)),
-			Type::Waker => "Waker".to_string(),
+			// Returned, a callable waking it through Rust.
+			Type::Waker => "_typing.Callable[[], None]".to_string(),
 			Type::Option(inner) => format!("{} | None", self.py_ty(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.py_ty(inner),
 			Type::Record(i) => self.class(&abi.record(*i)),
@@ -446,6 +447,7 @@ impl<'a> Gen<'a> {
 		match ty {
 			Type::Slice | Type::Vec | Type::Bytes => BUFFER.to_string(),
 			Type::Path | Type::PathBuf => "str".to_string(),
+			Type::Waker => "Waker".to_string(),
 			// Python's own IPv6 address may leave out its flowinfo and scope_id.
 			Type::SocketAddr(Family::V6) => format!("{V4} | {V6}"),
 			Type::List(_, inner) => format!("{list}[{}]", self.py_in(inner, list)),
@@ -574,7 +576,8 @@ impl<'a> Gen<'a> {
 			}
 			Type::Bound(_) | Type::Bounds(_) => format!("w_{}({v})", abi.range(ty)),
 			Type::Tuple(_) => format!("w_{}({v})", self.c_struct(ty)),
-			Type::Callback(..) | Type::Closure(..) | Type::Waker => {
+			Type::Waker => format!("rt::waker_out({v})"),
+			Type::Callback(..) | Type::Closure(..) => {
 				unreachable!("{ty:?} is no value Rust returns")
 			}
 		}

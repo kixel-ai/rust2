@@ -298,6 +298,12 @@ fun script() {
 	channel.listen(waker)
 	channel.send("heard".encodeToByteArray())
 	println("woken $wakes")
+	// A returned waker wakes the waiter's task through Rust until the GC drops it.
+	Waiter.new(waker).use { waiter ->
+		waiter.waker().wake()
+		waiter.context().wake()
+	}
+	println("woken $wakes")
 
 	val list = Node.new(1u, null)
 	list.push(2u)
