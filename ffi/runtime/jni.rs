@@ -505,10 +505,10 @@ pub fn future(env: *mut JNIEnv, pollable: jobject) -> rt::ForeignFuture {
 	}
 }
 
-/// Poll a Kotlin `Pollable`, from any thread, handing it Rust's waker behind a pointer,
-/// which it wakes with [`wake_rust`] and drops once with [`drop_rust`].
+/// Poll a Kotlin `Pollable`, from any thread, handing it Rust's waker as [`returned`]
+/// boxes it.
 unsafe extern "C" fn poll_future(data: *mut c_void, waker: rt::Waker) -> bool {
-	let waker = Box::into_raw(Box::new(waker)) as usize as jlong;
+	let waker = returned(waker);
 	upcall("poll", |env| {
 		let id = method(env, &POLL, c"__poll", c"(Ljava/lang/Object;J)Z");
 		let args = [jvalue { l: data.cast() }, jvalue { j: waker }];
@@ -517,35 +517,32 @@ unsafe extern "C" fn poll_future(data: *mut c_void, waker: rt::Waker) -> bool {
 	})
 }
 
-/// Wake the waker [`poll_future`] handed Kotlin, from any thread.
-///
-/// # Safety
-/// `waker` came from [`poll_future`], and is not yet dropped.
-pub unsafe fn wake_rust(waker: jlong) {
-	// SAFETY: the caller's contract.
-	let waker = unsafe { &*(waker as usize as *const rt::Waker) };
-	if let Some(wake) = waker.wake {
-		// SAFETY: the waker's contract.
-		unsafe { wake(waker.data) };
-	}
-}
-
-/// Drop the waker [`poll_future`] handed Kotlin, from any thread.
-///
-/// # Safety
-/// `waker` came from [`poll_future`], and is dropped once.
-pub unsafe fn drop_rust(waker: jlong) {
-	// SAFETY: the caller's contract.
-	let waker = unsafe { Box::from_raw(waker as usize as *mut rt::Waker) };
-	if let Some(drop) = waker.drop {
-		// SAFETY: the waker's contract; this is its last use.
-		unsafe { drop(waker.data) };
-	}
-}
-
 /// A Kotlin `Waker` passed by value: Rust holds its only reference.
 pub fn waker(env: *mut JNIEnv, waker: jobject) -> rt::Waker {
 	lend(node(env, waker))
+}
+
+/// A waker a function returned, boxed for Kotlin to hold as a `long`.
+pub fn returned(waker: rt::Waker) -> jlong {
+	Box::into_raw(Box::new(waker)) as usize as jlong
+}
+
+/// Wake a waker [`returned`] boxed.
+///
+/// # Safety
+/// `raw` is one [`returned`] made, not yet dropped.
+pub unsafe fn wake_returned(raw: jlong) {
+	// SAFETY: the caller's contract.
+	unsafe { (*(raw as usize as *const rt::Waker)).wake() };
+}
+
+/// Drop a waker [`returned`] boxed.
+///
+/// # Safety
+/// `raw` is one [`returned`] made, dropped only here.
+pub unsafe fn drop_returned(raw: jlong) {
+	// SAFETY: the caller's contract.
+	unsafe { Box::from_raw(raw as usize as *mut rt::Waker).release() };
 }
 
 /// Encoded values, read in the order they were written, with the arrays read, which the
@@ -689,6 +686,18 @@ impl Wire for *mut c_void {
 
 	fn write(self, w: &mut Writer) {
 		w.put(self as usize as u64);
+	}
+}
+
+/// A returned waker, as [`returned`] boxes it.
+impl Wire for rt::Waker {
+	fn read(r: &mut Reader<'_>) -> Self {
+		// SAFETY: `write` boxed it, and Kotlin read it back once.
+		*unsafe { Box::from_raw(narrow::<usize, _>(r.get::<u64>()) as *mut rt::Waker) }
+	}
+
+	fn write(self, w: &mut Writer) {
+		w.put(returned(self));
 	}
 }
 

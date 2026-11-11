@@ -609,6 +609,16 @@ impl Waiter {
 	pub fn new(waker: Waker) -> Self {
 		Self(Arc::new(waker))
 	}
+
+	/// The waker it was made from: returned as a clone, which wakes the same task.
+	pub fn waker(&self) -> &Waker {
+		&self.0
+	}
+
+	/// A context of its waker: returned as that waker's clone.
+	pub fn context(&self) -> Context<'_> {
+		Context::from_waker(&self.0)
+	}
 }
 
 impl Channel {
@@ -2123,6 +2133,61 @@ pub fn entries(
 	entries
 }
 
+/// The entries of a JSON object, taken in key order, as serde_json's iterator yields them.
+pub fn sections(entries: serde_json::Map<String, serde_json::Value>) -> serde_json::map::IntoIter {
+	entries.into_iter()
+}
+
+/// The time now, on std's clock: only Rust makes an instant.
+pub fn now() -> std::time::Instant {
+	std::time::Instant::now()
+}
+
+/// The instant `by` after `at`.
+pub fn later(at: std::time::Instant, by: Duration) -> std::time::Instant {
+	at + by
+}
+
+/// The time from `earlier` to `later`, or zero if `later` is earlier.
+pub fn since(later: std::time::Instant, earlier: std::time::Instant) -> Duration {
+	later.saturating_duration_since(earlier)
+}
+
+/// How much to log, as moq-tokio's `Log` holds it: a field of a foreign enum, and its filter.
+#[non_exhaustive]
+pub struct Verbosity {
+	pub level: tracing::Level,
+}
+
+impl Verbosity {
+	pub fn new(level: tracing::Level) -> Self {
+		Self { level }
+	}
+
+	/// Its level as a filter, which is never `OFF`.
+	pub fn filter(&self) -> tracing::level_filters::LevelFilter {
+		tracing::level_filters::LevelFilter::from_level(self.level)
+	}
+}
+
+/// The filter one level more verbose than `filter`: `OFF` lets errors through, and
+/// `TRACE` stays.
+pub fn louder(filter: tracing::level_filters::LevelFilter) -> tracing::level_filters::LevelFilter {
+	use tracing::{Level, level_filters::LevelFilter};
+	match filter.into_level() {
+		None => LevelFilter::ERROR,
+		Some(Level::ERROR) => LevelFilter::WARN,
+		Some(Level::WARN) => LevelFilter::INFO,
+		Some(Level::INFO) => LevelFilter::DEBUG,
+		Some(_) => LevelFilter::TRACE,
+	}
+}
+
+/// `filter` as tracing prints it: a level's name in lower case, or `off`.
+pub fn spell(filter: tracing::level_filters::LevelFilter) -> String {
+	filter.to_string()
+}
+
 /// A site: every field is `pub`, but a URL is a handle C cannot copy, so it is an object
 /// whose getter returns a clone.
 pub struct Site {
@@ -2189,6 +2254,12 @@ impl Trail {
 			.then(|| self.route.split('/'))
 			.into_iter()
 			.flatten()
+	}
+
+	/// Its points past `x`, as hang's `enabled` filters its renditions: the predicate runs
+	/// on every point at the call.
+	pub fn beyond(&self, x: i32) -> impl Iterator<Item = &Point> {
+		self.points.iter().filter(move |p| p.x > x)
 	}
 
 	/// The bytes of its route, which cross as a buffer.

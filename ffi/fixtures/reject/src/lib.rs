@@ -229,7 +229,7 @@ pub fn fixed() -> Fixed<'a'> {
 /// The standard library's item, whose types the export maps by role instead.
 pub use std::collections::HashSet;
 
-/// A borrowed waker: one crosses only into Rust, which keeps it.
+/// A borrowed waker: C passes one only by value, which Rust keeps.
 pub fn lend(waker: &std::task::Waker) {
 	waker.wake_by_ref();
 }
@@ -551,9 +551,16 @@ pub fn ones() -> std::iter::Repeat<u8> {
 	std::iter::repeat(1)
 }
 
-/// Words split where a closure says, which a caller who stops early never runs on the rest.
-pub fn words() -> impl Iterator<Item = &'static str> {
-	"a b".split(|c: char| c.is_whitespace())
+/// Long words, through a filter that drops the rest at the call, where a caller who stops
+/// early would have dropped them later or never.
+pub fn long_words(words: Vec<String>) -> impl Iterator<Item = String> {
+	words.into_iter().filter(|word| word.len() > 3)
+}
+
+/// The values `keep` holds, through a closure whose capture drops at the call rather than
+/// with the caller's iterator.
+pub fn kept_in(values: Vec<u32>, keep: Vec<u32>) -> impl Iterator<Item = u32> {
+	values.into_iter().filter(move |value| keep.contains(value))
 }
 
 /// Counts down to one, as its own code reads it.

@@ -101,10 +101,16 @@ class Waker:
 
 	__slots__ = ("_node",)
 
+	_node: _n.Node | _n.Returned
+
 	def __init__(self, wake: _typing.Callable[[], object], loop: _asyncio.AbstractEventLoop | None = None) -> None:
 		w = _wakeup(_get_running_loop() if loop is None else loop)
 		self._node = _n.Node(w.queue)
 		w.wakers[self._node.token()] = wake
+
+	def wake(self) -> None:
+		"""Wake it, from any thread, as Rust does: one Rust returned wakes through Rust."""
+		self._node.wake()
 
 
 class _Pollable:

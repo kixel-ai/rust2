@@ -218,6 +218,21 @@ final class _ForeignFuture extends ffi.Struct {
   external ffi.Pointer<ffi.Void> data;
 }
 
+/// A waker Rust returned, which its own drop releases once the garbage collector finds
+/// this unreachable.
+final class _Returned implements ffi.Finalizable {
+  final void Function(ffi.Pointer<ffi.Void>) _wake;
+  final ffi.Pointer<ffi.Void> _data;
+
+  _Returned(_Waker raw)
+      : _wake = raw.wake.cast<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>().asFunction(),
+        _data = raw.data {
+    _n.finalizer(raw.drop).attach(this, _data);
+  }
+
+  void call() => _wake(_data);
+}
+
 /// A callback's table and data, as each trait's struct is.
 final class _Callback extends ffi.Struct {
   external ffi.Pointer<ffi.Void> vtable;
@@ -476,6 +491,16 @@ final class _Native {
 
   /// The waker of `token`, whose wakes reach the isolate.
   _Waker waker(int token) => _dartWaker(home, token);
+
+  /// The finalizer calling each C drop function, by its address.
+  final Map<int, ffi.NativeFinalizer> _finalizers = {};
+
+  ffi.NativeFinalizer finalizer(ffi.Pointer<ffi.Void> drop) =>
+      _finalizers.putIfAbsent(drop.address, () => ffi.NativeFinalizer(drop.cast()));
+
+  /// A waker Rust returned, as a function waking it through Rust until the garbage
+  /// collector drops it.
+  void Function() returned(_Waker raw) => _Returned(raw).call;
 
   /// `wake` as a waker Rust holds until it drops it, calling it on the isolate's event
   /// loop.

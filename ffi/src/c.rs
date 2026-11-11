@@ -85,7 +85,7 @@ impl Header<'_> {
 			"/* A socket address: IPv4 in the first 4 bytes of ip, with the rest of ip, flowinfo,\n * and scope_id zero, or IPv6 if v6. ip is in network order and port in the host's. */\ntypedef struct {p}_socket_addr {{\n\tuint8_t ip[16];\n\tuint16_t port;\n\tbool v6;\n\tuint32_t flowinfo;\n\tuint32_t scope_id;\n}} {p}_socket_addr;\n"
 		));
 		self.line(format!(
-			"/* Wakes a future's poller: wake may be called from any thread, any number of\n * times, until drop releases data. A poll passing the same wake and data again\n * reuses the waker. Either function may be null. */\ntypedef struct {p}_waker {{\n\tvoid (*wake)(void *data);\n\tvoid (*drop)(void *data);\n\tvoid *data;\n}} {p}_waker;\n"
+			"/* Wakes a future's poller: wake may be called from any thread, any number of\n * times, until drop releases data. A poll passing the same wake and data again\n * reuses the waker. Either function may be null. One Rust returns is the caller's,\n * to drop once or pass back into Rust. */\ntypedef struct {p}_waker {{\n\tvoid (*wake)(void *data);\n\tvoid (*drop)(void *data);\n\tvoid *data;\n}} {p}_waker;\n"
 		));
 		self.line(format!(
 			"/* A future C implements, of nothing: Rust polls it from any thread with a waker of\n * its own each time, which C wakes once the future can make progress and drops once,\n * until poll returns true, and calls free with data once it drops the future, done or\n * not. free may be null. */\ntypedef struct {p}_foreign_future {{\n\tbool (*poll)(void *data, {p}_waker waker);\n\tvoid (*free)(void *data);\n\tvoid *data;\n}} {p}_foreign_future;\n"

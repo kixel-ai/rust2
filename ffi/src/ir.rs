@@ -109,6 +109,10 @@ pub struct Enum {
 	pub exhaustive: bool,
 	pub methods: Vec<Function>,
 	pub traits: Traits,
+	/// Whether it is a foreign type the facade maps rather than exports, such as
+	/// `tracing::Level`: its path is the type's in its own crate, and each variant is the
+	/// type's constant of that name in upper snake case.
+	pub foreign: bool,
 }
 
 pub struct Variant {
@@ -345,7 +349,8 @@ pub enum Type {
 	/// any `T` but `u8`, which is [`Type::Vec`], and behind a reference, `[T]` too; a set;
 	/// or a map, whose `T` is the tuple of a key and its value.
 	List(Collection, Box<Type>),
-	/// `std::task::Waker`, only as a parameter taken by value.
+	/// `std::task::Waker`, only as a parameter taken by value or a return: a returned
+	/// `&Waker` is its clone, and a returned `Context` its waker's.
 	Waker,
 	/// A future the foreign side implements, of `()`, which Rust polls and frees: only as a
 	/// parameter, which Rust takes as `Pin<Box<dyn Future<Output = ()> + Send>>`.

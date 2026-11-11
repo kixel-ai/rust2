@@ -338,6 +338,12 @@ func lent_(p unsafe.Pointer) any {
 	return (*(*cgo.Handle)(p)).Value()
 }
 
+// liftWaker_ is a waker Rust returned, as a func waking it through Rust until the GC
+// collects the func.
+func liftWaker_(w cWaker) func() {
+	return rt.LiftWaker_(unsafe.Pointer(&w))
+}
+
 // waker_ is wake as a waker Rust holds until it drops it, calling it from any thread.
 func waker_(wake func()) cWaker {
 	return cWaker{wake: goCall, drop: goRelease, data: give_(wake)}

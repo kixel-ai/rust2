@@ -82,8 +82,8 @@ const V4: &str = "tuple[str, int]";
 const V6: &str = "tuple[str, int, int, int]";
 
 /// The registry's first entries, the runtime's: the glue's `T_FUTURE`, `T_TIMEDELTA`,
-/// `T_RESUME`, and `T_POLLABLE`.
-const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume", "_Pollable"];
+/// `T_RESUME`, `T_WAKER`, and `T_POLLABLE`.
+const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume", "Waker", "_Pollable"];
 
 /// The Python for `abi`, whose header's contract is `contract`, or the names two items
 /// claim alike. The Python's own contract hashes the header's with everything it and its
@@ -577,7 +577,8 @@ impl<'a> Gen<'a> {
 			}
 			Type::Bound(_) | Type::Bounds(_) => format!("w_{}({v})", abi.range(ty)),
 			Type::Tuple(_) => format!("w_{}({v})", self.c_struct(ty)),
-			Type::Callback(..) | Type::Closure(..) | Type::Waker | Type::Future => {
+			Type::Waker => format!("rt::waker_out({v})"),
+			Type::Callback(..) | Type::Closure(..) | Type::Future => {
 				unreachable!("{ty:?} is no value Rust returns")
 			}
 		}

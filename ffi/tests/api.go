@@ -26,6 +26,8 @@ import (
 	"api/dep"
 	"api/rt"
 	"api/serdejson"
+	"api/std"
+	"api/tracingcore"
 	"api/url"
 )
 
@@ -456,6 +458,12 @@ func script() {
 	channel.Listen(func() { wakes++ })
 	channel.Send([]byte("heard"))
 	fmt.Printf("woken %d\n", wakes)
+	// A returned waker wakes the waiter's task through Rust until the GC collects it.
+	waiter := api.NewWaiter(func() { wakes++ })
+	must(waiter.Waker())()
+	must(waiter.Context())()
+	waiter.Close()
+	fmt.Printf("woken %d\n", wakes)
 
 	list1 := must(api.NewNode(1, nil))
 	ok(list1.Push(2))
@@ -694,12 +702,45 @@ func script() {
 	// Returned iterators, each collected at the call: drained labels are gone after.
 	fmt.Printf("iterated %s %s %s\n", list(must(trail.Iter()), point), list(must(trail.Names()), quoted), list(must(trail.Bytes()).Copy(), number))
 	fmt.Printf("drained %s then %s\n", list(must(trail.Drain()), labeled), list(must(trail.Labels()), labeled))
+	// A filter, collected at the call.
+	fmt.Printf("beyond %s\n", strings.Trim(list(must(trail.Beyond(1)), func(p api.Point) string {
+		return fmt.Sprintf("%d %d", p.X, p.Y)
+	}), "[]"))
 	trail.Close()
 	fmt.Printf("numbered %s\n", strings.Trim(list(api.Numbered([]string{"p", "q"}), func(c *api.Counter) string {
 		return fmt.Sprintf("%s %d", must(c.Name()), must(c.Get()))
 	}), "[]"))
 	next4, next6 := api.Nexts(v4, v6)
 	fmt.Printf("nexts %s %d %d %s\n", next4.Addr(), next4.Port(), next6.Port(), next6.Addr().Zone())
+
+	// serde_json's map iterator, collected as pairs of a key and its document.
+	sections := must(api.Sections([]rt.Tuple2[string, *serdejson.Json]{
+		{V0: "b", V1: must(serdejson.JsonParse(`[1]`))},
+		{V0: "a", V1: must(serdejson.JsonParse(`2`))},
+	}))
+	// Joined by hand: trimming brackets would eat the last document's own.
+	var sectionTexts []string
+	for _, section := range sections {
+		sectionTexts = append(sectionTexts, fmt.Sprintf("%s %s", section.V0, must(section.V1.ToText())))
+		section.V1.Close()
+	}
+	fmt.Printf("sections %s\n", strings.Join(sectionTexts, ", "))
+	// An instant only Rust makes, which each call copies out of its handle, and compares.
+	var began *std.Instant = api.Now()
+	ended := must(api.Later(began, 1500*time.Millisecond))
+	same := must(api.Later(began, 0))
+	fmt.Printf("instants %d %d %t %t\n", must(api.Since(ended, began)).Milliseconds(), must(api.Since(began, ended)).Milliseconds(),
+		must(began.Equal(same)), must(began.Equal(ended)))
+	began.Close()
+	ended.Close()
+	same.Close()
+	// tracing's level, and its filter as an optional level whose nil is `OFF`.
+	verbosity := api.NewVerbosity(tracingcore.LevelWarn)
+	fmt.Printf("verbosity %s %s\n", api.Spell(must(verbosity.Filter())), api.Spell(api.Louder(must(verbosity.Filter()))))
+	ok(verbosity.LevelSet(tracingcore.LevelTrace))
+	fmt.Printf("verbosity %t %s %s %s\n", must(verbosity.LevelGet()) == tracingcore.LevelTrace, api.Spell(must(verbosity.Filter())),
+		api.Spell(api.Louder(must(verbosity.Filter()))), api.Spell(api.Louder(nil)))
+	verbosity.Close()
 }
 
 // futures checks the futures' semantics beyond the transcript, each by an assertion.

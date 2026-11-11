@@ -249,8 +249,8 @@ impl<'a> Gen<'a> {
 			Type::Duration => "Swift.Duration".to_string(),
 			Type::SocketAddr(_) => "SocketAddr".to_string(),
 			Type::List(_, inner) => format!("[{}]", self.sw(inner)),
-			Type::Waker => "@escaping @Sendable () -> Void".to_string(),
-			Type::Future => "@escaping @Sendable () async -> Void".to_string(),
+			Type::Waker => "@Sendable () -> Void".to_string(),
+			Type::Future => "@Sendable () async -> Void".to_string(),
 			Type::Option(inner) => format!("{}?", self.sw(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.sw(inner),
 			Type::Record(i) => self.class(&abi.record(*i)),
@@ -430,6 +430,7 @@ impl<'a> Gen<'a> {
 			Type::Box(inner) | Type::Ref(_, inner) => self.lift(inner, e),
 			Type::Record(_) | Type::Enum(_) => format!("{}._lift({e})", self.sw(ty)),
 			Type::Object(_) => format!("{}(raw: {e})", self.sw(ty)),
+			Type::Waker => format!("Native.returned({e})"),
 			Type::Tuple(elements) => match &elements[..] {
 				[element] => self.lift(element, &format!("{e}._0")),
 				elements => {
@@ -1090,9 +1091,11 @@ impl<'a> Gen<'a> {
 			if let Type::Closure(..) = param.ty {
 				c_params.next().expect("a closure has its data");
 			}
-			let inout = match param.ty.written() {
-				true => "inout ",
-				false => "",
+			let inout = match (param.ty.written(), &param.ty) {
+				(true, _) => "inout ",
+				// Rust keeps the waker past the call.
+				(false, Type::Waker | Type::Future) => "@escaping ",
+				(false, _) => "",
 			};
 			params.push(format!("_ {name}: {inout}{}", self.sw(&param.ty)));
 			let (arg, needs) = self.arg(&param.ty, c, name, k, tr);

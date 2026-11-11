@@ -1,8 +1,8 @@
 // The runtime the generated packages share, after the generated code names the export's
-// buffer as cBuf and its waker as cWaker, its frees as cBufFree and cBufsFree, a waker's
-// calls as wake_ and dropWaker_, and its callbacks into Go as goCall, goRelease, and
-// goPoll: the handles objects own, the bytes Rust returns, and what Rust keeps of
-// Go's. Each generated package keeps its own copy of what converts its C types, which
+// buffer as cBuf, its frees as cBufFree and cBufsFree, its waker as cWaker, woken and
+// dropped by cWakerWake and cWakerDrop, and its callbacks into Go as goCall, goRelease,
+// and goPoll: the handles objects own, the bytes and wakers Rust returns, and what Rust
+// keeps of Go's. Each generated package keeps its own copy of what converts its C types, which
 // cgo makes its own, in ffi_cgo.go; it reaches this through Go's types alone.
 
 // The holds a handle counts, one for its owner until closed and one per call, shifted
@@ -323,6 +323,24 @@ func BytesBuf_(b Bytes) (unsafe.Pointer, int, any) {
 	return b.ptr, b.len, b.owner
 }
 
+// returned_ holds a waker Rust returned, which it drops once the GC collects this.
+type returned_ struct {
+	raw cWaker
+}
+
+// LiftWaker_ is the waker at p, which Rust returned, as a func waking it through Rust
+// until the GC collects the func. For the generated packages, whose wakers are each
+// package's C type.
+func LiftWaker_(p unsafe.Pointer) func() {
+	r := &returned_{raw: *(*cWaker)(p)}
+	runtime.AddCleanup(r, cWakerDrop, r.raw)
+	return func() {
+		cWakerWake(r.raw)
+		// Not dropped while it wakes.
+		runtime.KeepAlive(r)
+	}
+}
+
 // give_ is v, kept for Rust in C memory until goRelease releases it.
 func give_(v any) unsafe.Pointer {
 	p := C.malloc(C.size_t(unsafe.Sizeof(cgo.Handle(0))))
@@ -385,7 +403,7 @@ func (p *pollable_) poll(waker cWaker) bool {
 	p.mu.Lock()
 	if p.done {
 		p.mu.Unlock()
-		dropWaker_(waker)
+		cWakerDrop(waker)
 		return true
 	}
 	old, had := p.waker, p.held
@@ -396,7 +414,7 @@ func (p *pollable_) poll(waker cWaker) bool {
 	}
 	p.mu.Unlock()
 	if had {
-		dropWaker_(old)
+		cWakerDrop(old)
 	}
 	return false
 }
@@ -412,8 +430,8 @@ func (p *pollable_) finish() {
 	p.held = false
 	p.mu.Unlock()
 	if had {
-		wake_(waker)
-		dropWaker_(waker)
+		cWakerWake(waker)
+		cWakerDrop(waker)
 	}
 }
 
@@ -425,7 +443,7 @@ func (p *pollable_) Close() error {
 	p.held = false
 	p.mu.Unlock()
 	if had {
-		dropWaker_(waker)
+		cWakerDrop(waker)
 	}
 	return nil
 }

@@ -88,11 +88,15 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `SocketAddr`, `SocketAddrV4`, `SocketAddrV6` | `<prefix>_socket_addr`: its IP's bytes, port, and whether it is IPv6; one of the other family passed to `V4` or `V6` aborts |
 | `url::Url` | an object `<prefix>_Url`, made by `<prefix>_Url_parse`, which fails with the parse error's message, and printed by `_to_string` |
 | `Arc<T>` of another crate's `Send` and `Sync` type that no other rule maps, such as `Arc<rustls::ServerConfig>` | an opaque object named by `T`'s crate and name, such as `<prefix>_rustls_ServerConfig`, with `_clone` and `_free` and none of `T`'s API: it only passes back to Rust |
+| `std::time::Instant` | an object `<prefix>_Instant`, which only Rust makes, copied into each call that takes it and compared by `_eq`, with none of its methods |
+| `tracing::Level` | `<prefix>_Level`: a C enum of its five levels, `TRACE` to `ERROR` |
+| `tracing::level_filters::LevelFilter` | `Option<tracing::Level>`, whose `None` is `OFF` |
 | `serde_json::Value` | an object `<prefix>_Json`, made by `<prefix>_Json_parse` from JSON text, which fails with serde_json's message, and read back by `_to_text`; its contents are the caller's JSON library's to read |
 | `Vec<T>` and `&[T]` of any other `T` | `<prefix>_vec_<T>`: an array of `T`'s C values, viewed passed in and owned returned, a slice as a clone; of references only returned |
 | `BTreeSet<T>`, `BTreeMap<K, V>`, and `serde_json::Map` | as `Vec<T>`, `Vec<(K, V)>`, and `Vec<(String, serde_json::Value)>`: its items in order, from which Rust builds it, keeping the last of a key |
-| a returned iterator, such as `slice::Iter` or an `impl Iterator`, that no other rule maps, outside a future, made of core's and alloc's iterators over a slice, string, `Option`, `Result`, or collection, through `rev`, `chain`, `flatten`, `fuse`, `enumerate`, `peekable`, `copied`, or `cloned`, with no closure, function, or trait object inside | what `collect::<Vec<_>>()` makes of it: every item, taken at the call |
+| a returned iterator, such as `slice::Iter` or an `impl Iterator`, that no other rule maps, outside a future, made of core's and alloc's iterators over a slice, string, `Option`, `Result`, or collection, or serde_json's `map::Iter`, `IntoIter`, `Keys`, or `Values`, through `rev`, `chain`, `flatten`, `fuse`, `enumerate`, `peekable`, `copied`, `cloned`, or `filter`, with no trait object inside; a closure or function inside, such as `filter`'s predicate or `split`'s pattern, must drop nothing, and a `filter` only items whose drop runs nothing | what `collect::<Vec<_>>()` makes of it: every item, taken at the call, so a closure inside runs on every item, not only those a caller stopping early would reach |
 | `Waker`, taken by value | `<prefix>_waker`, as a future's poll takes it |
+| a returned `Waker` or `&Waker`, or a returned `Context`, which is only a waker lent for a call | `<prefix>_waker` of a clone of the waker, or the context's: the caller's, to wake through Rust and drop once |
 | `&Context` or `&mut Context` of a function returning no `Poll` and no future | `<prefix>_waker`, which the context is made of for the call |
 | `Range<T>`, `Bound<T>` of an integer | `<prefix>_range_<T>`, `<prefix>_bound_<T>`: a `<prefix>_bound` kind and a value |
 | `impl RangeBounds<T>` of an integer | `<prefix>_bounds_<T>`: its start and end bounds |
@@ -177,7 +181,9 @@ else is refused, and the census counts why.
 - **Wakers** move into Rust, which calls `drop` once it lets go of the last clone, so a
   state machine polled with a waker, such as moq's `Driver`s through kio's `Waiter`, runs
   from the caller's event loop. Rust may call `wake` and `drop` from any thread, as a
-  runtime's workers do.
+  runtime's workers do. A waker Rust returns is the caller's, which may wake it from any
+  thread any number of times, then drop it once, or pass it back into Rust, which wraps
+  it as any waker.
 - **Foreign futures** are a `poll`, a `free`, and their `data`. Rust calls `poll` from any
   thread, one call at a time, with a `<prefix>_waker` of its own each time, which C owns
   and drops once, until it returns true; C wakes the latest waker once the future can
@@ -305,7 +311,8 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
 - A **future C++ implements** is any value with `bool poll(const api::waker &)`, such as a
   binding's `future` of `void`, which Rust takes by value, polls from any thread until it
   returns true, and destroys once done with it.
-- A **waker** is a shared callable, which Rust may call from any thread.
+- A **waker** is a shared callable, which Rust may call from any thread. One Rust returns
+  wakes through Rust and drops with its last copy.
 - **The contract** is checked when the program loads, before any other call: a header
   and a library from different builds abort.
 
@@ -369,7 +376,8 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   launches in the calling coroutine's context, without its job, on its dispatcher, or on
   `Default` for one that does not dispatch. Rust dropping it cancels the coroutine, and one
   dropped before it starts never runs. One that throws aborts.
-- A **waker** is a `Waker`, which Rust may call from any thread.
+- A **waker** is a `Waker`, which Rust may call from any thread. One Rust returns wakes
+  through Rust, and the garbage collector drops it.
 - **The contract** is checked when the library loads, before any other call: a Kotlin
   file and a library from different builds throw.
 - **Shrinking**: `<prefix>.pro` keeps what the JNI glue finds by name, `Native`, its native
@@ -441,7 +449,8 @@ caller imports it with no ignores.
   cancels the task, or closes a coroutine it never started. One that raises prints its
   traceback and aborts.
 - A **waker** is a `Waker(callback)`, which Rust may wake from any thread, calling
-  `callback` on its event loop.
+  `callback` on its event loop; `wake()` wakes it from any thread. One Rust returns is a
+  `Waker` too, which wakes through Rust and drops with its last reference.
 - **The contract** is checked when the module imports, before any other call: a Python
   file and a library from different builds raise `ImportError`.
 
@@ -493,7 +502,8 @@ in either language mode.
 - A **future Swift implements** is an `@escaping @Sendable () async -> Void`, which Rust's
   first poll runs as a task of its own. Rust dropping it cancels the task, and one dropped
   before it starts never runs.
-- A **waker** is a `@Sendable () -> Void`, which Rust may call from any thread.
+- A **waker** is a `@Sendable () -> Void`, which Rust may call from any thread. One Rust
+  returns wakes through Rust and drops once Swift releases it.
 - **The contract** is checked once, at the first call into the library: a Swift file and a
   library from different builds trap.
 ## Go
@@ -598,7 +608,8 @@ reads a go.mod.
 - A **future Go implements** is a `func(context.Context)`, which Rust's first poll runs on
   a goroutine of its own. Rust dropping it cancels the context, and one dropped before it
   starts never runs.
-- A **waker** is a `func()`, which Rust may call from any thread.
+- A **waker** is a `func()`, which Rust may call from any thread. One Rust returns wakes
+  through Rust, and the garbage collector drops it.
 - **The contract** is checked when `rt` loads, before any other call: Go packages and a
   library from different builds panic.
 
@@ -672,7 +683,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
 - A **future Dart implements** is any `Future<void>`, already running as Dart's futures
   are, which Rust polls until it completes. Rust dropping it cancels it if it is a
   `Cancelable` still running, and one that fails otherwise aborts.
-- A **waker** is a `void Function()`, which runs on the isolate's event loop.
+- A **waker** is a `void Function()`, which runs on the isolate's event loop. One Rust
+  returns wakes through Rust, and the garbage collector drops it.
 - **Threads**: Dart runs code only on its isolate's thread, so Rust reaches it from any
   other through the isolate's port, and waits for its event loop to run the call. While
   Rust holds an implementation or a lent closure of the isolate, each call into Rust, a

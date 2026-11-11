@@ -73,6 +73,29 @@ inline c_waker give(node *n) noexcept {
 	return lend(n);
 }
 
+// A waker Rust returned, which wakes through Rust until its last owner drops it.
+class returned {
+	c_waker raw_;
+
+public:
+	explicit returned(c_waker raw) noexcept : raw_(raw) {}
+	returned(returned &&other) noexcept : raw_(other.raw_) {
+		other.raw_.drop = nullptr;
+	}
+	returned(const returned &) = delete;
+	returned &operator=(const returned &) = delete;
+	returned &operator=(returned &&) = delete;
+	~returned() {
+		if (raw_.drop != nullptr) {
+			raw_.drop(raw_.data);
+		}
+	}
+
+	void operator()() const noexcept {
+		raw_.wake(raw_.data);
+	}
+};
+
 // An owned reference to a node.
 template <class T>
 class ptr {
@@ -495,29 +518,6 @@ public:
 
 namespace detail {
 
-// A waker Rust made, held by the C++ waker around it: the last copy drops it.
-class rust_waker {
-	c_waker raw_;
-
-public:
-	explicit rust_waker(c_waker raw) noexcept : raw_(raw) {}
-	rust_waker(rust_waker &&other) noexcept : raw_(::std::exchange(other.raw_, c_waker{})) {}
-	rust_waker(const rust_waker &) = delete;
-	rust_waker &operator=(const rust_waker &) = delete;
-	rust_waker &operator=(rust_waker &&) = delete;
-	~rust_waker() {
-		if (raw_.drop != nullptr) {
-			raw_.drop(raw_.data);
-		}
-	}
-
-	void operator()() const noexcept {
-		if (raw_.wake != nullptr) {
-			raw_.wake(raw_.data);
-		}
-	}
-};
-
 // `f`, any future of nothing, such as a binding's `future` of `void`, as the future Rust
 // polls: from any thread, with a waker of its own each time, until its `poll` returns
 // true, and destroyed once Rust drops it, finished or not.
@@ -527,7 +527,7 @@ c_foreign_future foreign_future(F f) {
 	              "a future Rust polls has `bool poll(const waker &)`, as a future of void does");
 	struct calls {
 		static bool poll(void *data, c_waker w) noexcept {
-			return static_cast<F *>(data)->poll(waker(rust_waker(w)));
+			return static_cast<F *>(data)->poll(waker(returned(w)));
 		}
 		static void free(void *data) noexcept {
 			delete static_cast<F *>(data);

@@ -736,13 +736,29 @@ static int script(void) {
 	api_Channel_listen(channel, waker);
 	api_Channel_send(channel, str("heard"));
 	printf("woken %d\n", wakes);
+	/* A returned waker is the caller's: it wakes the waiter's task until dropped. */
+	api_Waiter *waiter = api_Waiter_new(waker);
+	api_waker returned = api_Waiter_waker(waiter);
+	returned.wake(returned.data);
+	returned.drop(returned.data);
+	returned = api_Waiter_context(waiter);
+	returned.wake(returned.data);
+	printf("woken %d\n", wakes);
+	/* Passed back, it moves into Rust as any waker does. */
+	int woken = wakes;
+	api_Channel_notify(channel, returned);
+	api_Waiter_free(waiter);
+	api_Channel_send(channel, str("again"));
+	if (wakes != woken + 1) {
+		return 1;
+	}
 	api_Channel_clear(channel);
 	/* The waiter a pending poll registers lives until the next poll, so the send wakes it. */
 	take = api_Channel_poll_take(channel);
 	if (api_Channel_poll_take_poll(take, waker, &payload) != API_POLL_PENDING) {
 		return 1;
 	}
-	int woken = wakes;
+	woken = wakes;
 	api_Channel_send(channel, str("later"));
 	if (wakes != woken + 1 || api_Channel_poll_take_poll(take, waker, &payload) != API_POLL_READY) {
 		return 1;
@@ -1247,6 +1263,14 @@ static int script(void) {
 	}
 	printf("]\n");
 	api_vec_Label_free(left);
+	/* A filter, collected at the call. */
+	api_vec_Point beyond = api_Trail_beyond(trail, 1);
+	printf("beyond");
+	for (size_t i = 0; i < beyond.len; i++) {
+		printf("%s%d %d", i == 0 ? " " : ", ", beyond.ptr[i].x, beyond.ptr[i].y);
+	}
+	printf("\n");
+	api_vec_Point_free(beyond);
 	api_Trail_free(trail);
 	api_buf numbered_names[] = {str("p"), str("q")};
 	api_vec_Counter numbered = api_numbered((api_vec_string){.ptr = numbered_names, .len = 2});
@@ -1264,6 +1288,47 @@ static int script(void) {
 	printf("nexts %u.%u.%u.%u %u %u %u\n", next4.ip[0], next4.ip[1], next4.ip[2], next4.ip[3], next4.port, next6.port,
 		   next6.scope_id);
 
+	/* serde_json's map iterator, collected as pairs of a key and its document. */
+	api_tuple_string_Json section_pairs[2] = {{._0 = str("b")}, {._0 = str("a")}};
+	if (!api_Json_parse(str("[1]"), &section_pairs[0]._1, &parse_err) ||
+	    !api_Json_parse(str("2"), &section_pairs[1]._1, &parse_err)) {
+		return 1;
+	}
+	api_vec_tuple_string_Json sections = api_sections((api_vec_tuple_string_Json){.ptr = section_pairs, .len = 2});
+	api_Json_free(section_pairs[0]._1);
+	api_Json_free(section_pairs[1]._1);
+	printf("sections");
+	for (size_t i = 0; i < sections.len; i++) {
+		printf("%s%.*s ", i == 0 ? " " : ", ", (int)sections.ptr[i]._0.len, (const char *)sections.ptr[i]._0.ptr);
+		print("", api_Json_to_text(sections.ptr[i]._1), "");
+	}
+	printf("\n");
+	api_vec_tuple_string_Json_free(sections);
+
+	/* An instant only Rust makes, which C copies into each call and compares. */
+	api_Instant *began = api_now();
+	api_Instant *ended = api_later(began, (api_duration){.secs = 1, .nanos = 500000000});
+	api_Instant *same = api_later(began, (api_duration){.secs = 0, .nanos = 0});
+	api_duration forward = api_since(ended, began);
+	api_duration backward = api_since(began, ended);
+	printf("instants %llu %llu %s %s\n", (unsigned long long)(forward.secs * 1000 + forward.nanos / 1000000),
+		   (unsigned long long)(backward.secs * 1000 + backward.nanos / 1000000), api_Instant_eq(began, same) ? "true" : "false",
+		   api_Instant_eq(began, ended) ? "true" : "false");
+	api_Instant_free(same);
+	api_Instant_free(ended);
+	api_Instant_free(began);
+
+	/* tracing's level, and its filter as an optional level whose none is `OFF`. */
+	api_Verbosity *verbosity = api_Verbosity_new(API_LEVEL_WARN);
+	print("verbosity ", api_spell(api_Verbosity_filter(verbosity)), " ");
+	print("", api_spell(api_louder(api_Verbosity_filter(verbosity))), "\n");
+	api_Verbosity_level_set(verbosity, API_LEVEL_TRACE);
+	printf("verbosity %s ", api_Verbosity_level_get(verbosity) == API_LEVEL_TRACE ? "true" : "false");
+	print("", api_spell(api_Verbosity_filter(verbosity)), " ");
+	print("", api_spell(api_louder(api_Verbosity_filter(verbosity))), " ");
+	print("", api_spell(api_louder((api_option_Level){.some = false})), "\n");
+	api_Verbosity_free(verbosity);
+
 	/* A returned `Vec<&Token>` holds clones, which its free drops. */
 	api_Token *twice = api_Token_new(9);
 	uint32_t before = api_dropped();
@@ -1278,7 +1343,7 @@ static int script(void) {
 	api_Token_free(twice);
 
 	/* Each future dropped its waker once it finished, and Rust the one it was given. */
-	if (drops != 11) {
+	if (drops != 12) {
 		return 1;
 	}
 	return foreign_futures() ? 0 : 1;

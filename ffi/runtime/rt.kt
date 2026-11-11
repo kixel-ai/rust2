@@ -330,6 +330,15 @@ class Handle(owner: Any, internal val raw: Long, private val free: Drop?, privat
 	}
 }
 
+/** A waker Rust returned: [wake] wakes it through Rust until [close], or the GC, drops it. */
+class Returned(raw: Long) : Waker, AutoCloseable {
+	private val handle = Handle(this, raw, Drop { __waker_drop(it) }, "Waker")
+
+	override fun wake() = handle.hold { __waker_wake(it) }
+
+	override fun close() = handle.close()
+}
+
 /** Frees a raw handle: a `fun interface`, so the handle crosses unboxed. */
 fun interface Drop {
 	fun drop(raw: Long)
@@ -429,14 +438,14 @@ class Pollable(
 		synchronized(this) {
 			failure?.let { throw it }
 			if (done) {
-				__rust_drop(given)
+				__waker_drop(given)
 				return true
 			}
 			old = waker
 			waker = given
 			if (job == null) job = kotlinx.coroutines.CoroutineScope(dispatched()).launch { run() }
 		}
-		if (old != 0L) __rust_drop(old)
+		if (old != 0L) __waker_drop(old)
 		return false
 	}
 
@@ -465,8 +474,8 @@ class Pollable(
 			waker = 0L
 		}
 		if (w != 0L) {
-			__rust_wake(w)
-			__rust_drop(w)
+			__waker_wake(w)
+			__waker_drop(w)
 		}
 	}
 
@@ -477,7 +486,7 @@ class Pollable(
 			waker = 0L
 		}
 		job?.cancel()
-		if (w != 0L) __rust_drop(w)
+		if (w != 0L) __waker_drop(w)
 	}
 }
 
