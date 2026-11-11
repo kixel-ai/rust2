@@ -117,6 +117,18 @@ impl Counter {
 		self.value
 	}
 
+	/// The value plus ten `handle`s and `h`: parameters named as a binding's receiver and
+	/// its held handle might be.
+	pub fn offset(&self, handle: u64, h: u64) -> u64 {
+		self.value + handle * 10 + h
+	}
+
+	/// The value plus `close`, consuming the counter: a parameter named as the method a
+	/// binding closes it with might be.
+	pub fn into_sum(self, close: u64) -> u64 {
+		self.value + close
+	}
+
 	pub fn name(&self) -> &str {
 		&self.name
 	}
@@ -487,6 +499,63 @@ pub fn total(range: Range<u64>) -> u64 {
 	range.sum()
 }
 
+/// How far `start` reaches to `end`, past a `()` C does not pass.
+pub fn reach(start: u32, _: (), end: u32) -> u32 {
+	end - start
+}
+
+/// `v` times `by`, unless past `u128::MAX`.
+pub fn scaled(v: u128, by: u64) -> Option<u128> {
+	v.checked_mul(by.into())
+}
+
+/// Up to `N` numbers, as moq's `frame::Buffer` holds up to `N` frames: a const parameter
+/// with a default, which exports at it and at each other value a signature names.
+pub struct Batch<const N: usize = 4>(Vec<u32>);
+
+impl<const N: usize> Batch<N> {
+	/// An empty batch.
+	pub fn new() -> Self {
+		Self(Vec::new())
+	}
+
+	/// Append `v`, unless the batch already holds `N`.
+	pub fn push(&mut self, v: u32) -> bool {
+		let room = self.0.len() < N;
+		if room {
+			self.0.push(v);
+		}
+		room
+	}
+
+	/// How many numbers it holds at most.
+	pub fn capacity(&self) -> usize {
+		N
+	}
+}
+
+/// A batch of two, an instance at a const argument other than the default.
+pub fn pair() -> Batch<2> {
+	Batch::new()
+}
+
+/// The sum of a batch's numbers, draining it: a const parameter at each instance's value.
+pub fn drain<const N: usize>(batch: &mut Batch<N>) -> u64 {
+	batch.0.drain(..).map(u64::from).sum()
+}
+
+/// Both batches' capacities: two const parameters, each at every instance's value.
+pub fn capacities<const N: usize, const M: usize>(a: &Batch<N>, b: &Batch<M>) -> usize {
+	a.capacity() + b.capacity()
+}
+
+/// Fill a batch with `v` until it holds `N`, lending what it holds: a future whose result
+/// borrows a parameter, as moq's `group::Consumer::read_frames` does.
+pub async fn fill<const N: usize>(batch: &mut Batch<N>, v: u32) -> &mut [u32] {
+	while batch.push(v) {}
+	&mut batch.0
+}
+
 /// A range, widened by `by` at each end.
 pub fn widen(range: Range<u64>, by: u64) -> Range<u64> {
 	range.start.saturating_sub(by)..range.end + by
@@ -648,8 +717,8 @@ impl Channel {
 	}
 
 	/// Wakes the context's task on the next send, as `notify` wakes its waker: C passes the
-	/// waker the context is made of.
-	pub fn listen(&self, cx: &Context<'_>) {
+	/// waker the context is made of, and nothing for the `()` before it.
+	pub fn listen(&self, _: (), cx: &Context<'_>) {
 		self.state.lock().unwrap().1 = Some(cx.waker().clone());
 	}
 
@@ -1116,6 +1185,10 @@ impl Cursor {
 pub fn walk(steps: u64, mut visit: impl FnMut(&Cursor) -> u64) -> u64 {
 	(0..steps).map(|at| visit(&Cursor { at })).sum()
 }
+
+/// An enum without variants: no value is one, so C never holds one, as an object no export
+/// returns, and the bindings leave it out.
+pub enum Void {}
 
 /// An object no export returns but its own method, so C never holds one: left out of the
 /// bindings, with what takes it, and listed in the census.
@@ -1840,13 +1913,20 @@ pub fn put_number(value: u32, buf: &mut impl bytes::BufMut) {
 	buf.put_slice(format!("{value},").as_bytes());
 }
 
-/// Takes the first byte of `buf` as a decimal digit, as moq's decoders take from an
+/// `w235` a second later: a parameter named as Kotlin's generated writer of it would be,
+/// whose name the writer must take apart from it.
+pub fn second_later(w235: Duration) -> Duration {
+	w235.saturating_add(Duration::from_secs(1))
+}
+
+/// Takes the first byte of `r` as a decimal digit, as moq's decoders take from an
 /// `impl Buf`, which takes `Bytes`. It takes the byte even when it fails, and Rust writes
-/// back what the call left on either path.
-pub fn digit(buf: &mut impl bytes::Buf) -> Result<u8, Error> {
-	match buf.has_remaining() {
+/// back what the call left on either path. Named `r`, as moq's `varint::decode_quic`'s
+/// is, the name a binding's reader of what Rust wrote back might take.
+pub fn digit(r: &mut impl bytes::Buf) -> Result<u8, Error> {
+	match r.has_remaining() {
 		false => Err(Error::Underflow { by: 1 }),
-		true => match buf.get_u8() {
+		true => match r.get_u8() {
 			digit @ b'0'..=b'9' => Ok(digit - b'0'),
 			_ => Err(Error::Overflow),
 		},

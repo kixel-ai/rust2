@@ -286,8 +286,8 @@ int main() {
 		CHECK(catalog);
 		CHECK(!catalog->is_claimed_BinaryConfig("state"));
 		int read_catalog = 0;
-		CHECK(catalog->mutate([&](moq::hang_Catalog_Extra &lent) {
-			auto json = lent.to_json();
+		CHECK(catalog->mutate([&](moq::borrow<moq::hang_Catalog_Extra> lent) {
+			auto json = lent->to_json();
 			CHECK(json);
 			if (json && json.value().str().substr(0, 1) == "{") {
 				read_catalog++;
@@ -318,15 +318,15 @@ int main() {
 		}
 		auto app = moq::Json::parse(R"({"v": [1, true]})");
 		CHECK(app);
-		CHECK(catalog->mutate([&](moq::hang_Catalog_Extra &lent) {
-			moq::mux_catalog_hang_Extra sections = lent.ext_get();
+		CHECK(catalog->mutate([&](moq::borrow<moq::hang_Catalog_Extra> lent) {
+			moq::mux_catalog_hang_Extra sections = lent->ext_get();
 			CHECK(sections.set("app", std::move(*app)));
-			lent.ext_set(std::move(sections));
+			lent->ext_set(std::move(sections));
 		}));
-		CHECK(catalog->mutate([&](moq::hang_Catalog_Extra &lent) {
-			auto json = lent.to_json();
+		CHECK(catalog->mutate([&](moq::borrow<moq::hang_Catalog_Extra> lent) {
+			auto json = lent->to_json();
 			CHECK(json && json.value().str().find("\"status\"") != std::string_view::npos);
-			auto section = lent.ext_get().get("app");
+			auto section = lent->ext_get().get("app");
 			CHECK(section && is(section->to_text(), R"({"v":[1,true]})"));
 		}));
 		// Malformed text fails to parse, and a reserved section is moq-mux's error.

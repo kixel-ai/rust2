@@ -204,6 +204,27 @@ impl Buf {
 	}
 }
 
+/// `u128`, as its two halves.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct U128 {
+	pub lo: u64,
+	pub hi: u64,
+}
+
+impl U128 {
+	pub fn lift(self) -> u128 {
+		u128::from(self.hi) << 64 | u128::from(self.lo)
+	}
+
+	pub fn lower(v: u128) -> Self {
+		Self {
+			lo: v as u64,
+			hi: (v >> 64) as u64,
+		}
+	}
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Duration {

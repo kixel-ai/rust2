@@ -441,6 +441,37 @@ static int script(void) {
 	api_Name_free(other);
 
 	printf("total %llu\n", (unsigned long long)api_total((api_range_u64){.start = 2, .end = 5}));
+	printf("reach %u\n", (unsigned)api_reach(2, 5));
+	api_option_u128 scaled[] = {
+		api_scaled((api_u128){.lo = UINT64_MAX, .hi = UINT64_MAX}, 1),
+		api_scaled((api_u128){.lo = 1, .hi = 1}, 1ULL << 63),
+		api_scaled((api_u128){.hi = 1ULL << 63}, 2),
+	};
+	printf("scaled");
+	for (size_t i = 0; i < 3; i++) {
+		if (scaled[i].some) {
+			printf(" %016llx%016llx", (unsigned long long)scaled[i].value.hi, (unsigned long long)scaled[i].value.lo);
+		} else {
+			printf(" none");
+		}
+	}
+	printf("\n");
+	api_Batch *batch = api_Batch_new();
+	unsigned accepted = 0;
+	for (uint32_t v = 1; v <= 5; v++) {
+		accepted += api_Batch_push(batch, v);
+	}
+	api_Batch_2 *batch2 = api_pair();
+	unsigned paired = 0;
+	for (uint32_t v = 1; v <= 3; v++) {
+		paired += api_Batch_2_push(batch2, v);
+	}
+	unsigned long long emptied = api_drain_4(batch);
+	printf("batch %zu %u %llu %llu %zu %u %llu\n", api_Batch_capacity(batch), accepted, emptied,
+		(unsigned long long)api_drain_4(batch), api_Batch_2_capacity(batch2), paired, (unsigned long long)api_drain_2(batch2));
+	printf("capacities %zu %zu\n", api_capacities_4_2(batch, batch2), api_capacities_2_2(batch2, batch2));
+	api_Batch_2_free(batch2);
+	api_Batch_free(batch);
 	api_range_u64 wide = api_widen((api_range_u64){.start = 2, .end = 5}, 1);
 	printf("widen %llu %llu\n", (unsigned long long)wide.start, (unsigned long long)wide.end);
 	api_bounds_u64 ranges[] = {
@@ -571,6 +602,27 @@ static int script(void) {
 		printf("nonempty pending\n");
 	}
 	api_Channel_recv_nonempty_future_free(nonempty);
+	api_Batch *fill4 = api_Batch_new();
+	api_Batch_2 *fill2 = api_pair();
+	api_fill_4_future *filling4 = api_fill_4(fill4, 9);
+	api_fill_2_future *filling2 = api_fill_2(fill2, 1);
+	api_vec_u32 filled4, filled2;
+	if (api_fill_4_poll(filling4, waker, &filled4) == API_POLL_READY && api_fill_2_poll(filling2, waker, &filled2) == API_POLL_READY) {
+		printf("fill");
+		for (size_t i = 0; i < filled4.len; i++) {
+			printf(" %u", (unsigned)filled4.ptr[i]);
+		}
+		for (size_t i = 0; i < filled2.len; i++) {
+			printf(" %u", (unsigned)filled2.ptr[i]);
+		}
+		printf("\n");
+		api_vec_u32_free(filled4);
+		api_vec_u32_free(filled2);
+	}
+	api_fill_4_future_free(filling4);
+	api_fill_2_future_free(filling2);
+	api_Batch_2_free(fill2);
+	api_Batch_free(fill4);
 
 	/* The send happens at the call: the future is dropped unpolled. */
 	api_Channel_send_later_future_free(api_Channel_send_later(channel, str("eager")));
@@ -1131,7 +1183,7 @@ static int script(void) {
 	api_Token_free(twice);
 
 	/* Each future dropped its waker once it finished, and Rust the one it was given. */
-	return drops == 9 ? 0 : 1;
+	return drops == 11 ? 0 : 1;
 }
 
 /* Each breaks a contract, which must abort with a message naming the function. */

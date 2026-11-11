@@ -205,6 +205,31 @@ fn main() {
 	);
 
 	println!("total {}", api::total(2..5));
+	println!("reach {}", api::reach(2, (), 5));
+	let scaled = |v, by| api::scaled(v, by).map_or("none".to_string(), |v| format!("{v:032x}"));
+	println!(
+		"scaled {} {} {}",
+		scaled(u128::MAX, 1),
+		scaled((1 << 64) + 1, 1 << 63),
+		scaled(1 << 127, 2)
+	);
+	let mut batch: api::Batch = api::Batch::new();
+	let accepted = (1..=5).filter(|&v| batch.push(v)).count();
+	let mut batch2 = api::pair();
+	let paired = (1..=3).filter(|&v| batch2.push(v)).count();
+	let emptied = api::drain(&mut batch);
+	println!(
+		"batch {} {accepted} {emptied} {} {} {paired} {}",
+		batch.capacity(),
+		api::drain(&mut batch),
+		batch2.capacity(),
+		api::drain(&mut batch2)
+	);
+	println!(
+		"capacities {} {}",
+		api::capacities(&batch, &batch2),
+		api::capacities(&batch2, &batch2)
+	);
 	let wide = api::widen(2..5, 1);
 	println!("widen {} {}", wide.start, wide.end);
 	println!(
@@ -309,6 +334,16 @@ fn main() {
 		Poll::Ready(Err(e)) => println!("nonempty err {e}"),
 		Poll::Pending => println!("nonempty pending"),
 	}
+	let mut filled: Vec<String> = Vec::new();
+	let mut fill4: api::Batch = api::Batch::new();
+	if let Poll::Ready(v) = pin!(api::fill(&mut fill4, 9)).poll(&mut cx) {
+		filled.extend(v.iter().map(u32::to_string));
+	}
+	let mut fill2 = api::pair();
+	if let Poll::Ready(v) = pin!(api::fill(&mut fill2, 1)).poll(&mut cx) {
+		filled.extend(v.iter().map(u32::to_string));
+	}
+	println!("fill {}", filled.join(" "));
 
 	// The send happens at the call: the future is dropped unpolled.
 	drop(channel.send_later(Bytes::from_static(b"eager")));
@@ -331,7 +366,7 @@ fn main() {
 	if let Poll::Ready(Ok(len)) = channel.clone().poll_measure(&mut cx, 2) {
 		println!("measure {len}");
 	}
-	channel.listen(&cx);
+	channel.listen((), &cx);
 	channel.send(Bytes::from_static(b"heard"));
 	println!("woken {}", count.0.load(Ordering::Relaxed));
 
