@@ -109,6 +109,10 @@ pub struct Enum {
 	pub exhaustive: bool,
 	pub methods: Vec<Function>,
 	pub traits: Traits,
+	/// Whether it is a foreign type the facade maps rather than exports, such as
+	/// `tracing::Level`: its path is the type's in its own crate, and each variant is the
+	/// type's constant of that name in upper snake case.
+	pub foreign: bool,
 }
 
 pub struct Variant {

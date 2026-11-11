@@ -624,10 +624,26 @@ func script() {
 	// Returned iterators, each collected at the call: drained labels are gone after.
 	print("iterated \(trail.iter()) \(trail.names()) \(Array(trail.bytes()))")
 	print("drained \(trail.drain()) then \(trail.labels())")
+	// A filter, collected at the call.
+	print("beyond \(trail.beyond(1).map { "\($0.x) \($0.y)" }.joined(separator: ", "))")
 	let numbered = numbered(["p", "q"])
 	print("numbered \(numbered.map { "\($0.name()) \($0.get())" }.joined(separator: ", "))")
 	let (next4, next6) = nexts(SocketAddr(ip: [127, 0, 0, 1], port: 8080), v6)
 	print("nexts \(next4.ip.map(String.init).joined(separator: ".")) \(next4.port) \(next6.port) \(next6.scopeId)")
+
+	// serde_json's map iterator, collected as pairs of a key and its document.
+	let jsonSections = sections([("b", try! Json.parse("[1]")), ("a", try! Json.parse("2"))])
+	print("sections \(jsonSections.map { "\($0.0) \($0.1.toText())" }.joined(separator: ", "))")
+	// An instant only Rust makes, which each call copies out of its handle, and compares.
+	let millis = { (d: Swift.Duration) in d.components.seconds * 1000 + d.components.attoseconds / 1_000_000_000_000_000 }
+	let began = now()
+	let ended = later(began, .milliseconds(1500))
+	print("instants \(millis(since(ended, began))) \(millis(since(began, ended))) \(began == later(began, .zero)) \(began == ended)")
+	// tracing's level, and its filter as an optional level whose nil is `OFF`.
+	let verbosity = Verbosity.new(.warn)
+	print("verbosity \(spell(verbosity.filter())) \(spell(louder(verbosity.filter())))")
+	verbosity.levelSet(.trace)
+	print("verbosity \(verbosity.levelGet == .trace) \(spell(verbosity.filter())) \(spell(louder(verbosity.filter()))) \(spell(louder(nil)))")
 }
 
 // The futures' semantics beyond the transcript, each checked by an assertion.
