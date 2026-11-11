@@ -901,3 +901,8 @@ pub fn poll_loose(waiter: &Loose) -> std::task::Poll<()> {
 pub fn sum_pair(pair: [u16; 2]) -> u32 {
 	u32::from(pair[0]) + u32::from(pair[1])
 }
+
+/// An empty array, which no C struct holds.
+pub fn empty(bytes: [u8; 0]) -> usize {
+	bytes.len()
+}
