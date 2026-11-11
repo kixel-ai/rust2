@@ -376,6 +376,21 @@ def script():
 	channel.send(b"heard")
 	until(loop, lambda: wakes == 3)
 	print(f"woken {wakes}")
+	# A returned waker wakes the waiter's task through Rust until it is dropped.
+	# Wakes before the loop gets to them call back once, so it runs between them.
+	waiter = api.Waiter.new(waker)
+	waiter.waker().wake()
+	until(loop, lambda: wakes == 4)
+	returned = waiter.context()
+	returned.wake()
+	until(loop, lambda: wakes == 5)
+	print(f"woken {wakes}")
+	# Passed back, a returned waker is Rust's own again.
+	channel.notify(returned)
+	del waiter, returned
+	channel.send(b"again")
+	until(loop, lambda: wakes == 6)
+	channel.clear()
 	loop.close()
 
 	nodes = api.Node.new(1, None)
@@ -576,10 +591,30 @@ def script():
 	# Returned iterators, each collected at the call: drained labels are gone after.
 	print(f"iterated {debugs(trail.iter())} {quoted(trail.names())} {list(data(trail.bytes()))}")
 	print(f"drained {debugs(trail.drain())} then {debugs(trail.labels())}")
+	# A filter, collected at the call.
+	print("beyond " + ", ".join(f"{p.x} {p.y}" for p in trail.beyond(1)))
 	numbered = api.numbered(["p", "q"])
 	print("numbered " + ", ".join(f"{c.name()} {c.get()}" for c in numbered))
 	next4, next6 = api.nexts(v4, v6)
 	print(f"nexts {next4[0]} {next4[1]} {next6[1]} {next6[3]}")
+
+	# serde_json's map iterator, collected as pairs of a key and its document.
+	sections = api.sections([("b", api.Json.parse("[1]")), ("a", api.Json.parse("2"))])
+	print("sections " + ", ".join(f"{key} {value.to_text()}" for key, value in sections))
+	# An instant only Rust makes, which each call copies out of its handle, and compares.
+	ms = datetime.timedelta(milliseconds=1)
+	began = api.now()
+	ended = api.later(began, datetime.timedelta(milliseconds=1500))
+	same = api.later(began, datetime.timedelta())
+	print(f"instants {api.since(ended, began) // ms} {api.since(began, ended) // ms} {flag(began == same)} {flag(began == ended)}")
+	# tracing's level, and its filter as an optional level whose None is `OFF`.
+	verbosity = api.Verbosity.new(api.Level.WARN)
+	print(f"verbosity {api.spell(verbosity.filter())} {api.spell(api.louder(verbosity.filter()))}")
+	verbosity.level_set(api.Level.TRACE)
+	louder = api.spell(api.louder(verbosity.filter()))
+	print(
+		f"verbosity {flag(verbosity.level_get == api.Level.TRACE)} {api.spell(verbosity.filter())} {louder} {api.spell(api.louder(None))}"
+	)
 
 
 def futures():

@@ -330,6 +330,15 @@ class Handle(owner: Any, internal val raw: Long, private val free: Drop?, privat
 	}
 }
 
+/** A waker Rust returned: [wake] wakes it through Rust until [close], or the GC, drops it. */
+class Returned(raw: Long) : Waker, AutoCloseable {
+	private val handle = Handle(this, raw, Drop { __waker_drop(it) }, "Waker")
+
+	override fun wake() = handle.hold { __waker_wake(it) }
+
+	override fun close() = handle.close()
+}
+
 /** Frees a raw handle: a `fun interface`, so the handle crosses unboxed. */
 fun interface Drop {
 	fun drop(raw: Long)

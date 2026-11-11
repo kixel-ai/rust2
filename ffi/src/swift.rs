@@ -298,7 +298,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(_) => "SocketAddr".to_string(),
 			Type::List(_, inner) if self.unique(inner) => format!("UniqueArray<{}>", self.sw(inner)),
 			Type::List(_, inner) => format!("[{}]", self.sw(inner)),
-			Type::Waker => "@escaping @Sendable () -> Void".to_string(),
+			Type::Waker => "@Sendable () -> Void".to_string(),
 			Type::Option(inner) => format!("{}?", self.sw(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.sw(inner),
 			Type::Record(i) => self.class(&abi.record(*i)),
@@ -506,6 +506,7 @@ impl<'a> Gen<'a> {
 			Type::Box(inner) | Type::Ref(_, inner) => self.lift(inner, e),
 			Type::Record(_) | Type::Enum(_) => format!("{}._lift({e})", self.sw(ty)),
 			Type::Object(_) => format!("{}(raw: {e})", self.sw(ty)),
+			Type::Waker => format!("Native.returned({e})"),
 			Type::Tuple(elements) => match &elements[..] {
 				[element] => self.lift(element, &format!("{e}._0")),
 				elements => {
@@ -1364,9 +1365,11 @@ impl<'a> Gen<'a> {
 				continue;
 			}
 			// A value Rust writes back is `inout`, as is an object it borrows mutably.
-			let ownership = match param.ty.written() {
-				true => "inout ",
-				false => self.ownership(&param.ty),
+			let ownership = match (param.ty.written(), &param.ty) {
+				(true, _) => "inout ",
+				// Rust keeps the waker past the call.
+				(false, Type::Waker) => "@escaping ",
+				(false, _) => self.ownership(&param.ty),
 			};
 			params.push(format!("_ {name}: {ownership}{}", self.sw(&param.ty)));
 			let (arg, needs) = self.arg(&param.ty, c, name, k, tr);

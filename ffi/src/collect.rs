@@ -42,11 +42,16 @@ pub struct Why {
 	pub note: Option<(Span, String)>,
 }
 
-/// Types of crates that are no export, by crate and name, each exported as an object made
-/// by parsing its text, where some crate builds with it, and named at the facade's root by
-/// its role: `url::Url` as `Url`, and `serde_json::Value`, which a `Serialize` or
-/// `Deserialize` parameter takes, as `Json`.
-const FOREIGN: [(&str, &str, &str); 2] = [("url", "Url", "Url"), ("serde_json", "Value", "Json")];
+/// Types of crates that are no export, by crate and name, each exported as an object where
+/// some crate builds with it, and named at the facade's root by its role: `url::Url` as
+/// `Url` and `serde_json::Value`, which a `Serialize` or `Deserialize` parameter takes, as
+/// `Json`, each made by parsing its text; and `std::time::Instant` as `Instant`, which
+/// only Rust makes, and which C copies and compares.
+const FOREIGN: [(&str, &str, &str); 3] = [
+	("url", "Url", "Url"),
+	("serde_json", "Value", "Json"),
+	("std", "Instant", "Instant"),
+];
 
 /// The construct of an instance inference missed: a bug in the exporter, not the crate.
 pub const NOT_INFERRED: &str = "instance not inferred";
@@ -196,12 +201,24 @@ struct Collector<'tcx> {
 	/// Each type in [`FOREIGN`] that some crate builds with and no export is, and the
 	/// object it exports as.
 	foreign: Vec<(DefId, usize)>,
+	/// `tracing::Level`, where some crate builds with it and no export is it.
+	level: Option<Level>,
 	/// `std::ops::Bound`, and `std::ops::RangeBounds`, which names it.
 	bound: Option<DefId>,
 	range_bounds: Option<DefId>,
 	/// Objects no export returns, left out.
 	orphans: rustc_data_structures::fx::FxHashSet<Key<'tcx>>,
 	api: Api,
+}
+
+/// `tracing::Level`, exported as a plain enum of its five levels, and `LevelFilter`, as an
+/// `Option<Level>` whose `None` is `OFF`.
+#[derive(Clone, Copy)]
+struct Level {
+	level: DefId,
+	filter: DefId,
+	/// Its enum, once declared.
+	index: usize,
 }
 
 /// Every crate, each after those it depends on, the facade's last.
@@ -234,9 +251,14 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 	.flatten()
 	.map(|def_id| def_id.krate)
 	.collect();
+	// std's is a diagnostic item, as `std::time` holds it below the crate's root.
 	let foreign: Vec<DefId> = (FOREIGN.iter())
-		.filter_map(|&(krate, name, _)| root(krate, name))
+		.filter_map(|&(krate, name, _)| match krate {
+			"std" => tcx.get_diagnostic_item(rustc_span::Symbol::intern(name)),
+			_ => root(krate, name),
+		})
 		.collect();
+	let level = root("tracing_core", "Level").zip(root("tracing_core", "LevelFilter"));
 	let range_bounds = tcx.get_diagnostic_item(rustc_span::Symbol::intern("RangeBounds"));
 	// `RangeBounds::start_bound` returns a `Bound`, which has no diagnostic item of its own.
 	let bound = range_bounds.and_then(|tr| {
@@ -292,6 +314,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			json_map,
 			sysroot: sysroot.clone(),
 			foreign: Vec::new(),
+			level: None,
 			bound,
 			range_bounds,
 			orphans: orphans.clone(),
@@ -312,6 +335,15 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			.filter(|&&ty| !c.items.iter().any(|(item, _)| *item == ty))
 			.map(|&ty| (ty, 0))
 			.collect();
+		c.level = level
+			.filter(|&(level, filter)| {
+				!c.exported(level.krate) && !c.items.iter().any(|(item, _)| *item == level || *item == filter)
+			})
+			.map(|(level, filter)| Level {
+				level,
+				filter,
+				index: 0,
+			});
 		c.infer();
 		c.declare();
 		c.define();
@@ -1197,6 +1229,7 @@ impl<'tcx> Collector<'tcx> {
 							exhaustive: true,
 							methods: Vec::new(),
 							traits: Traits::default(),
+							foreign: false,
 						});
 					}
 					Decl::Object(i) => {
@@ -1243,6 +1276,44 @@ impl<'tcx> Collector<'tcx> {
 			self.foreign[n].1 = index;
 			let object = self.foreign_object(self.foreign[n].0, index);
 			self.api.objects.push(object);
+		}
+		// After every declared enum, so `prune` can drop it if no export names it.
+		if let Some(level) = &mut self.level {
+			level.index = self.api.enums.len();
+			let def_id = level.level;
+			let variants = ["Trace", "Debug", "Info", "Warn", "Error"];
+			self.api.enums.push(Enum {
+				path: vec![tcx.crate_name(def_id.krate).to_string(), "Level".to_string()],
+				home: Home {
+					krate: self.keys[&def_id.krate].clone(),
+					outside: 1,
+				},
+				shown: vec![self.report.root.clone(), "Level".to_string()],
+				args: Vec::new(),
+				span: tcx.def_span(def_id),
+				docs: "`tracing::Level`: how verbose a span or event is, from the most to the least.".to_string(),
+				variants: (variants.iter().zip(0..))
+					.map(|(name, discriminant)| Variant {
+						name: name.to_string(),
+						discriminant,
+						fields: Vec::new(),
+						tuple: false,
+					})
+					.collect(),
+				// A match sees through its constants to the five levels they are.
+				exhaustive: true,
+				methods: Vec::new(),
+				// Its `Debug` is left out: Dart would name it as it names the `Debug` level,
+				// and it prints only what `Display` and the variant's name already say.
+				traits: Traits {
+					clone: true,
+					eq: true,
+					display: true,
+					debug: false,
+					default: false,
+				},
+				foreign: true,
+			});
 		}
 	}
 
@@ -1320,6 +1391,17 @@ impl<'tcx> Collector<'tcx> {
 			home: Home::default(),
 		};
 		let (docs, methods, traits) = match krate.as_str() {
+			// Made only by Rust, as its clock is the process's own.
+			"std" => (
+				"`std::time::Instant`: a moment on the process's monotonic clock, which only Rust makes.",
+				Vec::new(),
+				Traits {
+					clone: true,
+					eq: true,
+					debug: true,
+					..Traits::default()
+				},
+			),
 			"url" => (
 				"`url::Url`: a URL, made by parsing its text.",
 				vec![parse("Parse an absolute URL, failing with why it is not one.")],
@@ -1359,8 +1441,14 @@ impl<'tcx> Collector<'tcx> {
 				Traits::default(),
 			),
 		};
+		let self_ty = tcx.type_of(def_id).instantiate_identity().skip_norm_wip();
+		// std's is named through its module, which the glue names it by.
+		let path = match krate.as_str() {
+			"std" => tcx.def_path_str(def_id).split("::").map(str::to_string).collect(),
+			_ => path(""),
+		};
 		Object {
-			path: path(""),
+			path,
 			home: Home {
 				krate: self.keys[&def_id.krate].clone(),
 				outside: 1,
@@ -1370,9 +1458,8 @@ impl<'tcx> Collector<'tcx> {
 			span,
 			docs: docs.to_string(),
 			sync: true,
-			copy: false,
-			shared: traits.clone
-				&& self.clone_shares(tcx.type_of(def_id).instantiate_identity().skip_norm_wip(), def_id),
+			copy: implements(tcx, self_ty, def_id, sym::Copy),
+			shared: traits.clone && self.clone_shares(self_ty, def_id),
 			lifetimes: 0,
 			methods,
 			traits,
@@ -1733,18 +1820,44 @@ impl<'tcx> Collector<'tcx> {
 	/// with `url` exports none of it. They are the last objects, so dropping one renumbers
 	/// only those after it.
 	fn prune(&mut self) {
-		for n in (0..self.foreign.len()).rev() {
-			let gone = self.foreign[n].1;
+		// The last enum, so dropping it renumbers nothing.
+		if let Some(level) = self.level {
+			let gone = Type::Enum(level.index);
 			let api = &self.api;
 			let signature = |f: &Function| {
 				(f.params.iter().map(|p| &p.ty))
 					.chain([&f.ok])
 					.chain(&f.err)
 					.chain(f.instance.iter().flat_map(|i| i.args.iter().flatten().chain(&i.named)))
-					.any(|ty| names(ty, gone))
+					.any(|ty| names(ty, &gone))
 			};
-			let fields = |fields: &[Field]| fields.iter().any(|f| names(&f.ty, gone));
-			let args = |args: &[Type]| args.iter().any(|ty| names(ty, gone));
+			let fields = |fields: &[Field]| fields.iter().any(|f| names(&f.ty, &gone));
+			let args = |args: &[Type]| args.iter().any(|ty| names(ty, &gone));
+			let used = api.functions.iter().any(signature)
+				|| (api.records.iter()).any(|r| args(&r.args) || fields(&r.fields) || r.methods.iter().any(signature))
+				|| (api.enums.iter()).any(|e| {
+					args(&e.args) || e.variants.iter().any(|v| fields(&v.fields)) || e.methods.iter().any(signature)
+				})
+				|| (api.objects.iter()).any(|o| args(&o.args) || o.methods.iter().any(signature))
+				|| (api.callbacks.iter()).any(|c| c.methods.iter().any(signature));
+			if !used {
+				self.api.enums.pop();
+				self.level = None;
+			}
+		}
+		for n in (0..self.foreign.len()).rev() {
+			let gone = self.foreign[n].1;
+			let api = &self.api;
+			let object = Type::Object(gone);
+			let signature = |f: &Function| {
+				(f.params.iter().map(|p| &p.ty))
+					.chain([&f.ok])
+					.chain(&f.err)
+					.chain(f.instance.iter().flat_map(|i| i.args.iter().flatten().chain(&i.named)))
+					.any(|ty| names(ty, &object))
+			};
+			let fields = |fields: &[Field]| fields.iter().any(|f| names(&f.ty, &object));
+			let args = |args: &[Type]| args.iter().any(|ty| names(ty, &object));
 			let used = api.functions.iter().any(signature)
 				|| (api.records.iter()).any(|r| args(&r.args) || fields(&r.fields) || r.methods.iter().any(signature))
 				|| (api.enums.iter()).any(|e| {
@@ -3271,9 +3384,13 @@ impl<'tcx> Collector<'tcx> {
 
 	/// What `ty` yields, if it is an iterator whose items a return can take at the call with
 	/// no caller able to tell: one of core's and alloc's iterators over a slice, string, or
-	/// collection, through adapters that neither make, drop, nor compare items, and no closure,
-	/// function, or trait object. Collecting it ends and runs no other crate's code but
-	/// `Clone`, which a borrowed item crosses through anyway.
+	/// collection, or serde_json's over its map, through adapters that neither make nor
+	/// compare items, and no trait object. Collecting it ends and runs no other crate's code
+	/// but `Clone`, which a borrowed item crosses through anyway, and the closures and
+	/// functions inside, such as `Filter`'s predicate or `Split`'s pattern, which run on
+	/// every item at the call rather than only on those a caller stopping early reaches:
+	/// each must drop nothing, and a `Filter` only items whose drop runs nothing, so what
+	/// it discards at the call is no different from what it would discard later.
 	/// A range is a value, which crosses as itself or not at all.
 	fn collected(&self, ty: Ty<'tcx>, env: TypingEnv<'tcx>) -> Option<Ty<'tcx>> {
 		/// Their paths below the crate, which are the same in core and alloc as in std: the
@@ -3308,6 +3425,7 @@ impl<'tcx> Collector<'tcx> {
 			"iter::Cloned",
 			"iter::Copied",
 			"iter::Enumerate",
+			"iter::Filter",
 			"iter::Flatten",
 			"iter::Fuse",
 			"iter::Peekable",
@@ -3353,9 +3471,17 @@ impl<'tcx> Collector<'tcx> {
 				.flatten()
 				.any(|d| d.krate == krate)
 		};
+		// serde_json's map iterators, which hand over every entry as alloc's do.
+		const JSON: &[&str] = &["map::IntoIter", "map::Iter", "map::Keys", "map::Values"];
+		let json = |krate| self.json_map.is_some_and(|map| map.krate == krate);
 		let drained = |did: DefId| {
 			let path = tcx.def_path_str(did);
-			std(did.krate) && path.split_once("::").is_some_and(|(_, path)| DRAINED.contains(&path))
+			let listed = match () {
+				_ if std(did.krate) => DRAINED,
+				_ if json(did.krate) => JSON,
+				_ => return false,
+			};
+			path.split_once("::").is_some_and(|(_, path)| listed.contains(&path))
 		};
 		let assoc = |tr, name: &str| {
 			let item = tcx
@@ -3372,18 +3498,33 @@ impl<'tcx> Collector<'tcx> {
 			tcx.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(projection))
 				.ok()
 		};
-		// Whether core's or alloc's impl of `method` is the one `ty` runs.
+		// Whether core's or alloc's impl of `method` is the one `ty` runs, or for one of
+		// serde_json's iterators, serde_json's.
 		let by_std = |method, ty: Ty<'tcx>| {
+			let ours = |krate| {
+				std(krate) || matches!(ty.kind(), ty::Adt(adt, _) if json(adt.did().krate) && krate == adt.did().krate)
+			};
 			ty::Instance::try_resolve(tcx, env, method, tcx.mk_args(&[ty.into()]))
-				.is_ok_and(|instance| instance.is_some_and(|instance| std(instance.def_id().krate)))
+				.is_ok_and(|instance| instance.is_some_and(|instance| ours(instance.def_id().krate)))
 		};
+		let filter = |ty: Ty<'tcx>| matches!(ty.kind(), ty::Adt(adt, _) if std(adt.did().krate) && tcx.def_path_str(adt.did()).ends_with("::iter::Filter"));
 		// Every type the iterator holds, and every item and iterator its adapters drive,
 		// which `ty`'s own arguments need not name: `Flatten` turns each item into its own.
 		let mut seen = rustc_data_structures::fx::FxHashSet::default();
 		let mut queue = vec![ty];
 		while let Some(next_ty) = queue.pop() {
-			for ty in next_ty.walk().filter_map(|arg| arg.as_type()) {
+			let mut walk = next_ty.walk();
+			while let Some(arg) = walk.next() {
+				let Some(ty) = arg.as_type() else { continue };
 				if !seen.insert(ty) {
+					continue;
+				}
+				// A closure or function is called, not driven: what it captures is no item.
+				if matches!(ty.kind(), ty::Closure(..) | ty::FnDef(..)) {
+					if ty.needs_drop(tcx, env) {
+						return None;
+					}
+					walk.skip_current_subtree();
 					continue;
 				}
 				let plain = matches!(
@@ -3413,7 +3554,11 @@ impl<'tcx> Collector<'tcx> {
 				if !listed || !by_std(method, ty) {
 					return None;
 				}
-				queue.push(project(driven, ty)?);
+				let driven = project(driven, ty)?;
+				if filter(ty) && driven.needs_drop(tcx, env) {
+					return None;
+				}
+				queue.push(driven);
 			}
 		}
 		// Besides items, the listed iterators call into only their allocator and `Split`'s
@@ -3909,6 +4054,13 @@ impl<'tcx> Collector<'tcx> {
 						Type::List(Collection::Vec, Box::new(item))
 					}
 					ty::Dynamic(..) => return Err(why("trait object", inner.to_string())),
+					// A returned `&Waker` crosses as its clone, as any borrowed return does.
+					ty::Adt(adt, _)
+						if pos == Pos::Return
+							&& tcx.is_diagnostic_item(rustc_span::Symbol::intern("Waker"), adt.did()) =>
+					{
+						Type::Waker
+					}
 					_ => self.ty(
 						*inner,
 						match pos {
@@ -4033,10 +4185,24 @@ impl<'tcx> Collector<'tcx> {
 						Pos::Field => return Err(why("object in a value", tcx.def_path_str(did))),
 						_ => Type::Object(i),
 					}
+				} else if let Some(level) = self.level.filter(|l| l.level == did || l.filter == did) {
+					let ty = Type::Enum(level.index);
+					match did == level.level {
+						true => ty,
+						// `OFF` is the filter that lets no level through.
+						false => Type::Option(Box::new(ty)),
+					}
 				} else if tcx.is_diagnostic_item(rustc_span::Symbol::intern("Waker"), did) {
 					match pos {
-						Pos::Param => Type::Waker,
-						_ => return Err(why("Waker outside a parameter taken by value", "")),
+						Pos::Param | Pos::Return => Type::Waker,
+						_ => return Err(why("Waker outside a parameter or a return", "")),
+					}
+				} else if tcx.is_lang_item(did, LangItem::Context) {
+					// A context is only a waker lent for a call, so a returned one crosses as
+					// its waker's clone.
+					match pos {
+						Pos::Return => Type::Waker,
+						_ => return Err(why("Context outside a return or a polled parameter", "")),
 					}
 				} else if tcx.lang_items().range_struct() == Some(did) {
 					Type::Range(int(args.type_at(0)).ok_or_else(|| why("Range", args.type_at(0).to_string()))?)
@@ -4300,15 +4466,15 @@ fn unshare(api: &mut Api) {
 	}
 }
 
-/// Whether `ty` names the object `i`.
-fn names(ty: &Type, i: usize) -> bool {
-	match ty {
-		Type::Object(o) => *o == i,
-		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => names(inner, i),
-		Type::Tuple(elements) => elements.iter().any(|ty| names(ty, i)),
-		Type::Closure(params, ret) => params.iter().chain([&**ret]).any(|ty| names(ty, i)),
-		_ => false,
-	}
+/// Whether `ty` is `named` or holds it.
+fn names(ty: &Type, named: &Type) -> bool {
+	ty == named
+		|| match ty {
+			Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => names(inner, named),
+			Type::Tuple(elements) => elements.iter().any(|ty| names(ty, named)),
+			Type::Closure(params, ret) => params.iter().chain([&**ret]).any(|ty| names(ty, named)),
+			_ => false,
+		}
 }
 
 /// Whether `ty` is or holds a reference.

@@ -73,6 +73,29 @@ inline c_waker give(node *n) noexcept {
 	return lend(n);
 }
 
+// A waker Rust returned, which wakes through Rust until its last owner drops it.
+class returned {
+	c_waker raw_;
+
+public:
+	explicit returned(c_waker raw) noexcept : raw_(raw) {}
+	returned(returned &&other) noexcept : raw_(other.raw_) {
+		other.raw_.drop = nullptr;
+	}
+	returned(const returned &) = delete;
+	returned &operator=(const returned &) = delete;
+	returned &operator=(returned &&) = delete;
+	~returned() {
+		if (raw_.drop != nullptr) {
+			raw_.drop(raw_.data);
+		}
+	}
+
+	void operator()() const noexcept {
+		raw_.wake(raw_.data);
+	}
+};
+
 // An owned reference to a node.
 template <class T>
 class ptr {
