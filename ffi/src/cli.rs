@@ -85,7 +85,9 @@ fn lock(checked: &Checked, out: &Path, picks: &Picks<'_>) -> Result<(), String> 
 	)?;
 	let generated: Metadata =
 		serde_json::from_slice(&output).map_err(|err| format!("reading cargo metadata: {err}"))?;
-	let packages: BTreeSet<&str> = generated.packages.iter().map(|p| p.id.as_str()).collect();
+	let packages: BTreeSet<String> = generated.packages.iter().map(Package::identity).collect();
+	let checked_packages: BTreeMap<&str, &Package> =
+		(checked.metadata.packages.iter()).map(|p| (p.id.as_str(), p)).collect();
 	let nodes: BTreeMap<&str, &Node> = (checked.metadata.resolve.nodes.iter())
 		.map(|n| (n.id.as_str(), n))
 		.collect();
@@ -96,7 +98,10 @@ fn lock(checked: &Checked, out: &Path, picks: &Picks<'_>) -> Result<(), String> 
 		if !seen.insert(id) {
 			continue;
 		}
-		if !packages.contains(id) {
+		if !checked_packages
+			.get(id)
+			.is_some_and(|p| packages.contains(&p.identity()))
+		{
 			moved.push(id);
 		}
 		let deps = nodes.get(id).into_iter().flat_map(|n| &n.deps);
@@ -367,18 +372,15 @@ impl<'a> Picks<'a> {
 		args
 	}
 
-	/// The picks that resolve the generated crate: its own features are not the facade's,
-	/// and its lockfile gains what it adds of its own, which `--locked` would forbid.
+	/// The picks that resolve the generated crate as its build will: with its own features,
+	/// with none of the check's `--config`, whose patches its manifest carries, and with a
+	/// lockfile that gains what it adds of its own, which `--locked` would forbid. Only
+	/// staying offline carries over.
 	fn resolving(&self) -> Self {
-		let flags = self.flags.iter().map(|&f| match f {
-			"--frozen" => "--offline",
-			f => f,
-		});
+		let offline = self.flags.iter().any(|f| matches!(*f, "--offline" | "--frozen"));
 		Self {
 			named: Vec::new(),
-			flags: flags
-				.filter(|f| !matches!(*f, "--locked" | "--all-features" | "--no-default-features"))
-				.collect(),
+			flags: offline.then_some("--offline").into_iter().collect(),
 		}
 	}
 
@@ -443,6 +445,19 @@ struct Package {
 	manifest_path: PathBuf,
 	targets: Vec<Target>,
 	dependencies: Vec<Dependency>,
+}
+
+impl Package {
+	/// What names the same code in another resolution: a git source by its commit, whatever
+	/// reference picked it, since the glue's `[patch]` pins one by `rev`.
+	fn identity(&self) -> String {
+		let Some(source) = &self.source else {
+			return self.id.clone();
+		};
+		let (url, commit) = source.split_once('#').unwrap_or((source, ""));
+		let url = url.split_once('?').map_or(url, |(url, _)| url);
+		format!("{} {} {url}#{commit}", self.name, self.version)
+	}
 }
 
 #[derive(serde::Deserialize)]
