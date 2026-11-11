@@ -10,8 +10,11 @@ rust2-ffi --config ffi.toml (--out dir | --census dir) [--manifest-path Cargo.to
 
 It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for `--target` or
 else the host, whatever cargo's config names, through
-the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). The
-package is the facade: once rustc has checked its library, it walks every `pub` item
+the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). A build
+script's probe of the compiler through that wrapper, as `rustversion` and `autocfg` make,
+runs the `rustc` cargo resolved, the one the glue builds with, rather than the exporter's
+nightly: an item a build script enables on nightly alone is exported only when that `rustc`
+is a nightly. The package is the facade: once rustc has checked its library, it walks every `pub` item
 reachable from the crate root, following `pub use` re-exports of other crates' items and
 modules, and exports it by fixed rules, or refuses it with a compile error at its span.
 So a facade such as moq-ffi exports several crates into one library by re-exporting what

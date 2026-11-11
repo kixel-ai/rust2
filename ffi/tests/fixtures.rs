@@ -1541,6 +1541,103 @@ fn configured_out() {
 	);
 }
 
+/// A plain enum whose discriminant C's `int32_t` cannot hold exports as an object, as a
+/// value whose field does not map does, so its glue builds.
+#[test]
+fn wide() {
+	let package = package("wide");
+	write_all(
+		&package,
+		&[(
+			"src/lib.rs",
+			"#[repr(i64)]\npub enum Wide {\n\tSmall = 1,\n\tLarge = 1 << 40,\n}\n\n\
+			pub fn large() -> Wide {\n\tWide::Large\n}\n",
+		)],
+	);
+	export_and_build(&package, &[]);
+	let header = std::fs::read_to_string(package.join("out/include/wide.h")).unwrap();
+	assert!(
+		header.contains("wide_large(") && !header.contains(&(1i64 << 40).to_string()),
+		"{header}"
+	);
+}
+
+/// A build script that asks the compiler's channel, as `rustversion` does, through cargo's
+/// wrapper, gets the channel of the rustc cargo resolved, which the glue builds with, not
+/// the nightly the export checks on: a stable rustc exports the stable item alone.
+#[test]
+fn channel() {
+	let package = package("channel");
+	write_all(
+		&package,
+		&[
+			(
+				"build.rs",
+				"use std::process::Command;\n\n\
+				fn main() {\n\
+				\tlet rustc = std::env::var_os(\"RUSTC\").unwrap();\n\
+				\tlet mut cmd = match std::env::var_os(\"RUSTC_WRAPPER\").filter(|w| !w.is_empty()) {\n\
+				\t\tSome(wrapper) => {\n\t\t\tlet mut cmd = Command::new(wrapper);\n\t\t\tcmd.arg(rustc);\n\t\t\tcmd\n\t\t}\n\
+				\t\tNone => Command::new(rustc),\n\
+				\t};\n\
+				\tlet version = cmd.arg(\"--version\").output().unwrap();\n\
+				\tassert!(version.status.success());\n\
+				\tprintln!(\"cargo::rustc-check-cfg=cfg(nightly)\");\n\
+				\tif String::from_utf8(version.stdout).unwrap().contains(\"nightly\") {\n\
+				\t\tprintln!(\"cargo::rustc-cfg=nightly\");\n\
+				\t}\n\
+				}\n",
+			),
+			(
+				"src/lib.rs",
+				"#[cfg(nightly)]\npub fn nightly() -> u32 {\n\t1\n}\n\n\
+				#[cfg(not(nightly))]\npub fn stable() -> u32 {\n\t2\n}\n",
+			),
+		],
+	);
+	let out = package.join("out");
+	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--out")
+		.arg(&out)
+		.env("RUSTC", stable_rustc())
+		.env("CARGO_TARGET_DIR", package.join("build")));
+	let header = std::fs::read_to_string(out.join("include/channel.h")).unwrap();
+	assert!(
+		header.contains("channel_stable(") && !header.contains("channel_nightly("),
+		"{header}"
+	);
+}
+
+/// A stable rustc from PATH, as the repository's root resolves it: the dev shell puts the
+/// root's stable toolchain on PATH behind the exporter's nightly, and rustup picks it from
+/// the root's `rust-toolchain.toml` unless the environment names another.
+fn stable_rustc() -> PathBuf {
+	let root = manifest_dir().parent().unwrap().to_path_buf();
+	let path = std::env::var_os("PATH").unwrap_or_default();
+	let rustc = |dir: &Path, arg: &str| {
+		let output = Command::new(dir.join(format!("rustc{}", std::env::consts::EXE_SUFFIX)))
+			.arg(arg)
+			.current_dir(&root)
+			.env_remove("RUSTUP_TOOLCHAIN")
+			.output()
+			.ok()?;
+		output
+			.status
+			.success()
+			.then(|| String::from_utf8(output.stdout).unwrap())
+	};
+	let stable = std::env::split_paths(&path).find(|dir| {
+		rustc(dir, "-vV").is_some_and(|v| v.lines().any(|l| l.starts_with("release: ") && !l.contains('-')))
+	});
+	let stable = stable.expect("no stable rustc on PATH");
+	let sysroot = rustc(&stable, "--print=sysroot").unwrap();
+	Path::new(sysroot.trim())
+		.join("bin")
+		.join(format!("rustc{}", std::env::consts::EXE_SUFFIX))
+}
+
 /// Each target exports the API it compiles, at its widths, and its crate builds for that
 /// target alone: wasm32 has a function the host lacks, lacks one the host has, and a
 /// 32-bit `usize`, which Kotlin's 64-bit `ULong` crosses into checked.

@@ -78,11 +78,17 @@ fn lock(checked: &Checked, out: &Path, picks: &Picks<'_>) -> Result<(), String> 
 	let lockfile = checked.metadata.workspace_root.join("Cargo.lock");
 	std::fs::copy(&lockfile, out.join("Cargo.lock"))
 		.map_err(|err| format!("copying {} into {}: {err}", lockfile.display(), out.display()))?;
-	let output = run_cargo(&out.join("Cargo.toml"), &["metadata", "--format-version", "1"], &picks.resolving())?;
+	let output = run_cargo(
+		&out.join("Cargo.toml"),
+		&["metadata", "--format-version", "1"],
+		&picks.resolving(),
+	)?;
 	let generated: Metadata =
 		serde_json::from_slice(&output).map_err(|err| format!("reading cargo metadata: {err}"))?;
 	let packages: BTreeSet<&str> = generated.packages.iter().map(|p| p.id.as_str()).collect();
-	let nodes: BTreeMap<&str, &Node> = (checked.metadata.resolve.nodes.iter()).map(|n| (n.id.as_str(), n)).collect();
+	let nodes: BTreeMap<&str, &Node> = (checked.metadata.resolve.nodes.iter())
+		.map(|n| (n.id.as_str(), n))
+		.collect();
 	let mut seen = BTreeSet::new();
 	let mut queue = vec![checked.top.as_str()];
 	let mut moved = Vec::new();
@@ -370,7 +376,9 @@ impl<'a> Picks<'a> {
 		});
 		Self {
 			named: Vec::new(),
-			flags: flags.filter(|f| !matches!(*f, "--locked" | "--all-features" | "--no-default-features")).collect(),
+			flags: flags
+				.filter(|f| !matches!(*f, "--locked" | "--all-features" | "--no-default-features"))
+				.collect(),
 		}
 	}
 

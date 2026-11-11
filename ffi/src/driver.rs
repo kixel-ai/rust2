@@ -2,7 +2,7 @@
 //! once rustc has checked it, following its re-exports into the crates it depends on.
 
 use std::path::{Path, PathBuf};
-use std::process::ExitCode;
+use std::process::{Command, ExitCode};
 
 use rustc_ast as ast;
 use rustc_data_structures::fx::FxHashSet;
@@ -23,6 +23,19 @@ use crate::{census, collect, glue};
 
 /// Run as rustc, with `args` as cargo passed them: the wrapped rustc's path first.
 pub fn run(args: Vec<String>) -> ExitCode {
+	// A build script's probe of the compiler, as `rustversion` and `autocfg` make, runs the
+	// rustc cargo resolved, the one the glue builds with, rather than this nightly, so the
+	// check exports no item a nightly probe enables that the glue's build then lacks. Cargo
+	// sets `CARGO_CFG_*` for build scripts alone, and the CLI runs cargo without them.
+	if std::env::var_os("CARGO_CFG_TARGET_ARCH").is_some() {
+		return match Command::new(&args[1]).args(&args[2..]).status() {
+			Ok(status) => ExitCode::from(status.code().and_then(|code| u8::try_from(code).ok()).unwrap_or(1)),
+			Err(err) => {
+				eprintln!("rust2-ffi: running {}: {err}", args[1]);
+				ExitCode::FAILURE
+			}
+		};
+	}
 	rust2_driver::rustc::run("rust2-ffi", args, |args, _| {
 		Ok(Export::for_args(args)?.map(|job| Box::new(job) as rust2_driver::rustc::Job))
 	})

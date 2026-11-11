@@ -1629,15 +1629,8 @@ impl<'tcx> Collector<'tcx> {
 		}
 		// A plain enum crosses as a C `int32_t`, whatever its `repr`.
 		if adt.is_enum() && variants.iter().all(|v| v.fields.is_empty()) {
-			for (variant, v) in adt.variants().iter().zip(&variants) {
-				if i32::try_from(v.discriminant).is_err() {
-					errs.push(Why {
-						construct: "discriminant outside `i32`",
-						detail: format!("{} = {}", v.name, v.discriminant),
-						note: Some((tcx.def_span(variant.def_id), "has this discriminant".to_string())),
-					});
-				}
-			}
+			let wide = variants.iter().filter(|v| i32::try_from(v.discriminant).is_err());
+			errs.extend(wide.map(|v| why("discriminant outside `i32`", format!("{} = {}", v.name, v.discriminant))));
 		}
 		match errs.is_empty() {
 			true => Ok(variants),
