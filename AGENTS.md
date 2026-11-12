@@ -11,17 +11,10 @@ Each project lives in its own top-level directory; the [quest tree](quest/README
 - Everything is configless, with opinionated names and defaults. Translators take stock crates as they are: no annotations, and no config beyond true platform boundaries. Each config key or source change a consumer needs is a gap to close.
 - A vanity rename, if ever supported, is opt-in and lives inline in source next to the item, never in a config file.
 - moq is the first consumer of every project here; a binding target may be planned before any consumer asks for it.
-- Prefer upstream and maintained crates over hand-rolling. Measure before claiming an improvement over them.
 
 # Development
 
 PRs target `main`.
-
-```bash
-just check   # Lint what the branch changed, including the quest tree
-just test    # Test what the branch changed
-just ci      # Both, as the merge queue runs them; run before every push
-just fix     # Auto-fix formatting
-```
+Run `just ci` before every push.
 
 Quests: before any work, run `quest context` and follow it, unless this session already holds its rules.
