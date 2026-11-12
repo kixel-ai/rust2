@@ -569,7 +569,8 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   a tuple a Swift tuple, though a tuple of one is its element, `u128` a `U128` of its
   `high` and `low` halves until the deployment target allows `UInt128`, and `Duration`
   `Swift.Duration`. An `Err` is thrown: an exported type as itself, which conforms to
-  `Swift.Error`, and any other in a generated `<T>Error` holding it. A `[u8; N]` is a
+  `Swift.Error`, and any other in a generated `<T>Error` holding it, whose `init(error:)`
+  makes one for a closure to throw back. A `[u8; N]` is a
   generated `ArrayU8x<N>`, a collection holding its bytes inline in C's struct, made by a
   failable initializer from exactly `N` bytes, until the deployment target allows
   `InlineArray`.
@@ -578,10 +579,18 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   and its port, flow label, and scope, whose family Rust checks. A `Vec<T>` or `&[T]` is
   an array, or a `UniqueArray` of objects.
 - **Traits** are `Sendable` protocols, which Rust releases once it drops an implementation.
-- **Closures** lent for a call are `@Sendable` function types, which Rust calls only during
-  the call, from any thread. An object it lends is `borrowing`, or `inout` for `&mut T`,
-  so it cannot outlive the call; assigning another to the `inout` one traps, since Rust's
-  stays its own.
+- **Closures** are `@Sendable` function types, which Rust calls from any thread, one call
+  at a time. One lent for a call Rust calls only during the call; one Rust keeps is
+  `@escaping`, boxed until Rust drops it. An object it lends is `borrowing`, or `inout`
+  for `&mut T`, so it cannot outlive the call; assigning another to the `inout` one traps,
+  since Rust's stays its own. A `Copy` object it takes is a copy of its own. One returning
+  `Result<T, String>` `throws`: Rust reads its error's `description`, so a thrown
+  `StringError` returns its string as it was.
+- A **reader** is `inout some SeekableReader`, the runtime's protocol of
+  `read(into:)` and `seek(offset:from:)` from a `SeekOrigin`, as swift-system's
+  `FileDescriptor` reads and seeks, lent for the call and written back once it returns,
+  so a struct's position stays. Rust calls it from any thread, one call at a time, and
+  reads a thrown error's `description` as its `io::Error`'s message.
 - **Futures** are `async throws` functions, which resume on the task's executor, never
   inside a wake. Cancelling the task frees the future, losing nothing, and throws
   `CancellationError`. Each call is its own future, so it has one poller. The call polls it
@@ -589,7 +598,8 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   signal latches a wake that lands before it parks.
 - A **future Swift implements** is an `@escaping @Sendable () async -> Void`, which Rust's
   first poll runs as a task of its own. Rust dropping it cancels the task, and one dropped
-  before it starts never runs.
+  before it starts never runs. A poll lent one, such as `Waiter.pollFuture`, is a static
+  `async throws` function whose future owns it.
 - A **waker** is a `@Sendable () -> Void`, which Rust may call from any thread. One Rust
   returns wakes through Rust and drops once Swift releases it.
 - **The contract** is checked once, at the first call into the library: a Swift file and a
