@@ -80,13 +80,8 @@ bench-build checkout="": (moq-export checkout)
     {{ quote(just_executable()) }} dart-program bench-dart moq/bench/export.dart
     rm -rf target/bench-kt
     kotlinc -Werror -cp "$KOTLINX_COROUTINES" "$out/kotlin/moq.kt" moq/bench/export.kt -d target/bench-kt
-    if [ "{{ os() }}-{{ arch() }}" = linux-aarch64 ]; then
-        echo "skipping the Swift: nixpkgs builds no Swift for aarch64-linux (quest/m2/swift-arm.md)" >&2
-        rm -f target/bench-export-swift
-    else
-        {{ quote(just_executable()) }} swift-module -O
-        swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I target/swift-collections/build -I "$out/swift" moq/bench/export.swift target/swift/libMoq.a -L target/swift-collections/build -lBasicContainers -lInternalCollectionsUtilities -lSpanPreview "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export-swift
-    fi
+    {{ quote(just_executable()) }} swift-module -O
+    swiftc -O -warnings-as-errors $({{ quote(just_executable()) }} swift-target 15) -I target/swift -I target/swift-collections/build -I "$out/swift" moq/bench/export.swift target/swift/libMoq.a -L target/swift-collections/build -lBasicContainers -lInternalCollectionsUtilities -lSpanPreview "$out/target/release/libmoq.a" -lpthread -ldl -lm -o target/bench-export-swift
 
 # Run what bench-build built: each program `rounds` times into target/bench/raw.tsv, with the 1-minute load average over each run, and their medians and the export's sizes into target/bench/report.md.
 bench-run rounds="3":
@@ -123,7 +118,7 @@ bench-run rounds="3":
         run moq-c target/bench-moq-c
         run kotlin kotlin -Djava.library.path="$out/target/release" -cp "target/bench-kt:$KOTLINX_COROUTINES" ExportKt
         PYTHONPATH="$out/python" run python python3 -P moq/bench/export.py
-        if [ -x target/bench-export-swift ]; then run swift target/bench-export-swift; fi
+        run swift target/bench-export-swift
         run go target/bench-go/bench
         run dart dart target/bench-dart/main.dill
     done
@@ -147,11 +142,7 @@ moq checkout="": (moq-cpp checkout)
     PYTHONPATH="$out/python" python3 -P -X dev -W error moq/moq.py
     mypy --strict --python-version 3.11 --cache-dir target/mypy "$out/python/moq.py"
     pyright -p tests/pyright.json "$out/python/moq.py"
-    if [ "{{ os() }}-{{ arch() }}" = linux-aarch64 ]; then
-        echo "skipping moq/moq.swift: nixpkgs builds no Swift for aarch64-linux (quest/m2/swift-arm.md)" >&2
-    else
-        {{ quote(just_executable()) }} moq-swift-run
-    fi
+    {{ quote(just_executable()) }} moq-swift-run
     # The Go, through cgo, linking the library and what it needs besides.
     {{ quote(just_executable()) }} go-module moq-go moq/moq.go
     export CGO_LDFLAGS="$PWD/$out/target/release/libmoq.a ${native[*]}" GOFLAGS=-buildvcs=false

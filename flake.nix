@@ -240,7 +240,7 @@
               go
               dart
             ];
-            # ... and its generated Swift, where nixpkgs builds Swift: not on aarch64-linux.
+            # ... and its generated Swift, unless nixpkgs marks the compiler broken on this system.
             # The `swift` wrapper doesn't copy its compiler's `broken`, so ask the compiler.
             nativeBuildInputs = pkgs.lib.optional (!pkgs.swift.swiftc.meta.broken) pkgs.swift;
             RUST2_TS_TOOLCHAIN = tsToolchain;

@@ -713,10 +713,6 @@ fn kotlin_contract(kotlin: &Path) -> u64 {
 /// each broken contract and on a library of another contract. Each contract Swift's
 /// compiler checks, a move or a borrow, fails to compile instead.
 #[test]
-#[cfg_attr(
-	all(target_os = "linux", target_arch = "aarch64"),
-	ignore = "nixpkgs builds no Swift for aarch64-linux: quest/m2/swift-arm.md"
-)]
 fn api_swift() {
 	let api = api();
 	let dir = scratch().join("api").join("swift");
