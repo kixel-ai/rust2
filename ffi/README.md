@@ -515,10 +515,21 @@ caller imports it with no ignores.
   An integer out of its Rust type's range raises `OverflowError`.
 - **Traits** are abstract classes an implementation subclasses; once Rust drops one, its
   `close()` is called if it has one.
-- **Closures** lent for a call are any callable, which Rust calls only during the call,
-  from any thread. An object it lends is closed once the call returns. An exception a
-  closure or trait method raises prints its traceback and aborts, since Rust has nowhere
-  to unwind it to.
+- **Closures** are any callable, which Rust calls from any thread, one call at a time,
+  taking the GIL: one lent for a call only during the call, and one Rust keeps until it
+  drops it, when it lets go of its reference. An object it lends, `Copy` ones included,
+  is closed once that call of it returns. What it returns Rust owns: a `str` is copied,
+  and an object's handle cloned, so the caller's stays its own. One returning a `Result`
+  fails by raising the exception of its error, such as `StringException(message)`, whose
+  `error` Rust takes. Any other exception a closure or trait method raises prints its
+  traceback and aborts, since Rust has nowhere to unwind it to.
+- A **reader** is a `ForeignReader`: anything with `readinto` and `seek`, as a binary
+  file such as `open(path, "rb")` or `io.BytesIO` has, which Rust reads and seeks only
+  during the call, from any thread, one call at a time, taking the GIL. `readinto` fills
+  a `memoryview` of Rust's own buffer in place, so a read copies nothing; a view of it
+  kept past the read, such as a slice, aborts, as it would write the buffer once it is
+  gone. An `OSError` fails Rust's read or seek with its message, and any other exception
+  aborts. A value without both methods raises `TypeError` at the call.
 - **Futures** are `async def`s, which run nothing until awaited, or for a function that is
   not `async`, an awaitable the call returns. They resume on the running event loop and
   never inside a wake: a wake from any thread queues the future's token and writes a byte
@@ -530,7 +541,8 @@ caller imports it with no ignores.
   on a running event loop, where Rust's first poll runs it as a task. Rust dropping it
   cancels the task, or closes a coroutine it never started. One that raises, or that
   anything but Rust cancels, prints its traceback and aborts. A value that is not
-  awaitable, or a future of another loop, raises at the call.
+  awaitable, or a future of another loop, raises at the call. A poll lent one pinned,
+  as `Waiter.poll_future`, is an `async def` taking it, whose future owns it.
 - A **waker** is a `Waker(callback)`, which Rust may wake from any thread, calling
   `callback` on its event loop; `wake()` wakes it from any thread. One Rust returns is a
   `Waker` too, which wakes through Rust and drops with its last reference.

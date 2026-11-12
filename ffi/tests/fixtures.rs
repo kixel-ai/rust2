@@ -648,6 +648,9 @@ fn api_python() {
 		("foreign cancelled", "a future Rust polls raised"),
 		("outlived", OUTLIVED),
 		("family", "ValueError: an IPv6 address has no Rust SocketAddrV4"),
+		("kept threw", "api_Spawned_new: a call into Python raised"),
+		("returned", "api_made: a call into Python raised"),
+		("reader kept", "read: a reader kept a view of its buffer past the read"),
 	] {
 		let output = python(&dir, &[case]).output().unwrap();
 		assert!(!output.status.success(), "Python {case} did not fail");

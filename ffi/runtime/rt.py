@@ -1,7 +1,7 @@
 # The runtime every generated Python module includes: the awaitable a future that pends
 # is, the queue each event loop reads its wakes from, `Waker`, what runs an awaitable Rust
-# polls, and `Mut`. Its names start
-# with `_` but `Waker` and `Mut`, so no exported name clashes with them.
+# polls, `Mut`, and `ForeignReader`. Its names start with `_` but `Waker`, `Mut`, and
+# `ForeignReader`, so no exported name clashes with them.
 
 
 class _Future(_n.Future, _typing.Generic[_T]):
@@ -171,6 +171,19 @@ class Mut(_typing.Generic[_T]):
 
 	def __init__(self, value: _T) -> None:
 		self.value = value
+
+
+class ForeignReader(_typing.Protocol):
+	"""A reader Rust reads and seeks during the call it is lent to, from any thread, one
+	call at a time, as a binary file is, such as `open(path, "rb")` or `io.BytesIO`.
+	`readinto` fills a `memoryview` of Rust's own buffer, released once it returns, and
+	returns how many bytes it wrote, `0` only at the end; `seek` takes `os.SEEK_SET`,
+	`SEEK_CUR`, or `SEEK_END` and returns the position from the start. An `OSError` either
+	raises fails Rust's read or seek with its message; any other exception aborts."""
+
+	def readinto(self, buffer: memoryview, /) -> int | None: ...
+
+	def seek(self, offset: int, whence: int = 0, /) -> int: ...
 
 
 class _Const:
