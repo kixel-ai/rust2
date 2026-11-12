@@ -836,8 +836,7 @@ abort with its message; the Python with another contract must refuse the library
 language mode and type-checked in Swift 5's, checks its futures the same way and that
 releasing frees, and breaks each runtime check, which must trap or abort with its message,
 and each move or borrow the compiler checks, which must fail to compile.
-It runs with nixpkgs' Swift on Linux, which builds none for aarch64-linux
-([quest](/quest/m2/swift-arm.md)), and nightly with Apple's on macOS.
+It runs with nixpkgs' Swift on Linux, and nightly with Apple's on macOS.
 `tests/api.go` runs the script through the Go after `go vet`, checks its futures the same
 way, plus a context done before the call, a deadline, and a handle closed during a call,
 checks that bytes cross both ways, that a `Bytes` keeps Rust's buffer while only a sub-view
