@@ -57,4 +57,5 @@ rust2-lint is no consumer: it is `publish = false`, and as a rustc driver it nee
 matching nightly's `rustc-dev` at run time.
 
 moq switching its release workflows to the pipeline is moq's quest, filed from this
-plan's PR.
+plan's PR; it owns keeping moq's armv7 build, Homebrew asset names, and `.deb`/`.rpm`
+packages, alongside or instead of the pipeline.

@@ -6,7 +6,8 @@ A reusable workflow in this repository that a crate's repo calls with a few line
 inputs. For each crates.io version the repo releases, it builds every binary of that
 crate for x86_64 and aarch64 Linux (gnu), macOS, and Windows on GitHub-hosted runners,
 attests each with `actions/attest`, and attaches the archives to that version's GitHub
-release under binstall's default file names. `cargo binstall` and crabx then run them.
+release under binstall's default file names. crabx then runs them; stock `cargo binstall`
+finds those on `{name}-v{version}` tags once [its tag fix](/quest/m2/crabx/binstall-tags.md) lands.
 
 ## Plan
 
@@ -39,5 +40,6 @@ Recommendations:
   `id-token: write`, and `attestations: write`, on every trigger it serves.
 - Release the reusable workflow itself under tags (`pipeline-v{version}`), so a caller
   pins a release; [`crabx init`](/quest/m2/crabx/init.md) writes that pin.
-- Prove it on a fixture crate in this repo; crabx is its first real caller when
-  [shipped](/quest/m2/crabx/ship.md).
+- Prove it end to end on crabx, its first real caller, when
+  [shipped](/quest/m2/crabx/ship.md); before that, test it on a dry-run path that builds
+  and attests a fixture crate in this repo without the crates.io lookup.

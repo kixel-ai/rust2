@@ -2,7 +2,7 @@
 
 ## Goal
 
-crabx publishes through its own pipeline, so a release puts it on crates.io, attaches
+crabx's release publishes it to crates.io, and its own pipeline then attaches
 attested binaries for the six targets, and publishes it to npm, so `npx crabx <crate>`
 and `bunx crabx <crate>` work with nothing else installed. A one-line shell and
 PowerShell installer fetch the release binary.
