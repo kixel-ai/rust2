@@ -517,6 +517,92 @@ unsafe extern "C" fn poll_future(data: *mut c_void, waker: rt::Waker) -> bool {
 	})
 }
 
+static READ: OnceLock<usize> = OnceLock::new();
+static SEEK: OnceLock<usize> = OnceLock::new();
+static IO_ERROR: OnceLock<usize> = OnceLock::new();
+static ERROR: OnceLock<usize> = OnceLock::new();
+
+/// A Kotlin `SeekableByteChannel`, held by the global reference `channel`, as the reader
+/// Rust reads for the call.
+pub fn reader(channel: *mut c_void) -> rt::ForeignReader {
+	rt::ForeignReader {
+		read: Some(read_channel),
+		seek: Some(seek_channel),
+		data: channel,
+	}
+}
+
+/// Read a Kotlin channel into `buf`, from any thread: as many bytes as one `read` gives,
+/// copied out of the `byte[]` Kotlin fills, so Kotlin never sees Rust's memory.
+unsafe extern "C" fn read_channel(data: *mut c_void, buf: *mut u8, len: usize, n: *mut usize, err: *mut rt::Buf) -> bool {
+	upcall("SeekableByteChannel.read", |env| {
+		let id = method(env, &READ, c"__read", c"(Ljava/lang/Object;I)[B");
+		let asked = len.min(jint::MAX as usize);
+		let args = [jvalue { l: data.cast() }, jvalue { i: asked as jint }];
+		// SAFETY: `__read` takes the channel and how many bytes to read.
+		let array = unsafe { ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr()) };
+		if let Some(error) = caught(env, "SeekableByteChannel.read", &IO_ERROR, c"__io_error") {
+			// SAFETY: C's contract: `err` is writable.
+			unsafe { err.write(rt::Buf::vec(error)) };
+			return false;
+		}
+		// SAFETY: `__read` returned a `byte[]` of at most `asked` bytes, which `buf` holds.
+		unsafe {
+			let read = ((**env).v1_2.GetArrayLength)(env, array).clamp(0, asked as jint);
+			((**env).v1_2.GetByteArrayRegion)(env, array, 0, read, buf.cast());
+			n.write(read as usize);
+		}
+		true
+	})
+}
+
+/// Seek a Kotlin channel, from any thread.
+unsafe extern "C" fn seek_channel(data: *mut c_void, whence: std::ffi::c_int, offset: i64, position: *mut u64, err: *mut rt::Buf) -> bool {
+	upcall("SeekableByteChannel.position", |env| {
+		let id = method(env, &SEEK, c"__seek", c"(Ljava/lang/Object;IJ)J");
+		let args = [jvalue { l: data.cast() }, jvalue { i: whence }, jvalue { j: offset }];
+		// SAFETY: `__seek` takes the channel, where to seek from, and how far.
+		let at = unsafe { ((**env).v1_2.CallStaticLongMethodA)(env, class(), id, args.as_ptr()) };
+		if let Some(error) = caught(env, "SeekableByteChannel.position", &IO_ERROR, c"__io_error") {
+			// SAFETY: C's contract: `err` is writable.
+			unsafe { err.write(rt::Buf::vec(error)) };
+			return false;
+		}
+		// SAFETY: C's contract: `position` is writable; `__seek` lands at none below 0.
+		unsafe { position.write(at as u64) };
+		true
+	})
+}
+
+/// The error of the exception a closure threw, cleared, if it is the binding's own
+/// exception of a `String`, as a closure returning a `Result` fails.
+pub fn thrown(env: *mut JNIEnv, what: &str) -> Option<Vec<u8>> {
+	caught(env, what, &ERROR, c"__error")
+}
+
+/// The error of the exception pending, cleared, if the Kotlin function `name` takes it
+/// as one Rust returns; none if nothing threw. Any other aborts, as [`upcall`] does.
+fn caught(env: *mut JNIEnv, what: &str, cache: &OnceLock<usize>, name: &CStr) -> Option<Vec<u8>> {
+	// SAFETY: `env` is this thread's, and `thrown` a live reference.
+	unsafe {
+		let thrown = ((**env).v1_2.ExceptionOccurred)(env);
+		if thrown.is_null() {
+			return None;
+		}
+		((**env).v1_2.ExceptionClear)(env);
+		let id = method(env, cache, name, c"(Ljava/lang/Throwable;)[B");
+		let args = [jvalue { l: thrown }];
+		let error = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
+		if error.is_null() && !((**env).v1_2.ExceptionCheck)(env) {
+			((**env).v1_2.Throw)(env, thrown);
+		}
+		if ((**env).v1_2.ExceptionCheck)(env) {
+			fail(env, what, "a call into Kotlin threw");
+		}
+		bytes(env, error)
+	}
+}
+
 /// A Kotlin `Waker` passed by value: Rust holds its only reference.
 pub fn waker(env: *mut JNIEnv, waker: jobject) -> rt::Waker {
 	lend(node(env, waker))

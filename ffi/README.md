@@ -420,8 +420,20 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   a `Vec` by value closes each object in it once the call returns.
 - **Traits** are interfaces; once Rust drops an implementation, it is closed if
   `AutoCloseable`.
-- **Closures** lent for a call are function types, which Rust calls only during the call,
-  from any thread. An object it lends is closed once the call returns.
+- **Closures** are function types, which Rust calls from any thread: one lent for a call
+  only during the call, and one Rust keeps, as `Spawned.new` does, until it drops it,
+  when it deletes its global reference and the GC may collect it. An object it lends is
+  closed once the call returns. A `Copy` object it returns crosses as a new handle to a
+  clone, so Kotlin keeps its own. One returning a `Result` returns its value and fails by
+  throwing the `<E>Exception` a function's `Err` throws, as `StringException("…")`; any
+  other exception aborts, as a callback's does.
+- A **reader** is a `java.nio.channels.SeekableByteChannel`, which a `FileChannel` or
+  `Files.newByteChannel` is, and the one standard interface with both reads and absolute
+  seeks. Rust reads and seeks it only during the call, from any thread, one call at a
+  time: each read fills a `ByteArray` Kotlin allocates, which Rust copies out of, so no
+  view of Rust's memory escapes to a channel that keeps its buffer. An `IOException` it
+  throws, or a seek before the start or past `Long.MAX_VALUE`, is Rust's `io::Error` of
+  its message; any other exception aborts.
 - **Futures** are `suspend fun`s, which resume on the coroutine's dispatcher, as C++ resumes
   on its executor, and never inside a wake: an `Unconfined` one resumes on `Default`. Cancelling the coroutine frees the future and
   loses nothing. Each call is its own future, so it has one poller. The call polls it once
@@ -431,7 +443,8 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   that does not dispatch. It runs on a job of its own, so the caller never waits on it,
   which the caller's job cancelling cancels, as does Rust dropping it; one dropped before it
   starts never runs. Once cancelled, it ends unfinished, so a cancelled call reports the
-  cancel even if the lambda returns. One that throws otherwise aborts.
+  cancel even if the lambda returns. One that throws otherwise aborts. A poll borrowing
+  one, as `Waiter.pollFuture` does, is a `suspend fun` taking it, whose future owns it.
 - A **waker** is a `Waker`, which Rust may call from any thread. One Rust returns wakes
   through Rust, and the garbage collector drops it.
 - **The contract** is checked when the library loads, before any other call: a Kotlin
