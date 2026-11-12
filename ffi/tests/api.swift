@@ -720,6 +720,99 @@ func script() {
 	print("verbosity \(spell(verbosity.filter())) \(spell(louder(verbosity.filter())))")
 	verbosity.levelSet(.trace)
 	print("verbosity \(verbosity.levelGet == .trace) \(spell(verbosity.filter())) \(spell(louder(verbosity.filter()))) \(spell(louder(nil)))")
+
+	print("made \(made(3) { "\($0) times" })")
+	// A kept closure, called on another thread after the call that took it returned.
+	print("spawned \(Spawned.new { 7 }.join())")
+	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
+	let start = now()
+	let calls = Cell(0)
+	let stopped = block {
+		try await drive(start) { now, waiter in
+			calls.value += 1
+			switch calls.value {
+			case 1: return later(now, .milliseconds(5))
+			case 2:
+				print("drive \(millis(since(now, start)))")
+				waiter.waker()()
+				return nil
+			default: throw StringError(error: "stopped after \(calls.value)")
+			}
+		}
+	}
+	print("drive \(stopped)")
+	var memory = Memory(Data("hello world".utf8))
+	printTail { try tail(&memory, 5) }
+	check(memory.at == 6, "a reader's seeks stay once the call returns")
+	var broken = Broken()
+	printTail { try tail(&broken, 5) }
+}
+
+func printTail(_ read: () throws -> (Data, UInt64)) {
+	do {
+		let (bytes, at) = try read()
+		print("tail \(String(decoding: bytes, as: UTF8.self)) \(at)")
+	} catch let e as StringError {
+		print("tail error \(e.error)")
+	} catch {
+		check(false, "tail throws its io::Error's message")
+	}
+}
+
+/// Bytes in memory, read and seeked as a file is.
+struct Memory: SeekableReader {
+	let bytes: Data
+	var at = 0
+
+	init(_ bytes: Data) {
+		self.bytes = bytes
+	}
+
+	mutating func read(into buffer: UnsafeMutableRawBufferPointer) throws -> Int {
+		let n = min(buffer.count, bytes.count - at)
+		buffer.copyBytes(from: bytes[at..<at + n])
+		at += n
+		return n
+	}
+
+	mutating func seek(offset: Int64, from origin: SeekOrigin) throws -> UInt64 {
+		let base = switch origin {
+		case .start: Int64(0)
+		case .current: Int64(at)
+		case .end: Int64(bytes.count)
+		}
+		at = Int(base + offset)
+		return UInt64(at)
+	}
+}
+
+/// An error whose description is its message, as Rust reads a Swift error's.
+struct Failure: Swift.Error, CustomStringConvertible {
+	let description: String
+}
+
+/// A reader whose reads fail, as the native transcript's does: each seek lands at 0.
+struct Broken: SeekableReader {
+	func read(into buffer: UnsafeMutableRawBufferPointer) throws -> Int {
+		throw Failure(description: "broken")
+	}
+
+	func seek(offset: Int64, from origin: SeekOrigin) throws -> UInt64 {
+		0
+	}
+}
+
+/// Sets its cell once released, as a closure Rust kept and released holds it.
+final class Released: @unchecked Sendable {
+	let cell: Cell<Bool>
+
+	init(_ cell: Cell<Bool>) {
+		self.cell = cell
+	}
+
+	deinit {
+		cell.value = true
+	}
 }
 
 // The futures' semantics beyond the transcript, each checked by an assertion.
@@ -884,6 +977,64 @@ func futures() {
 		q.drain()
 		until { cancelled.value }
 		check(cancelled.value, "cancelling the call cancels the async closure's task")
+	}
+	// A waiter's poll of an async closure, which its future owns.
+	do {
+		let (stream, gate) = AsyncStream<Void>.makeStream()
+		let done = Cell(false)
+		q.launch {
+			try await Waiter.pollFuture({ for await _ in stream { break } })
+			done.value = true
+		}
+		q.drain()
+		check(!done.value, "a waiter's poll waits on an async closure that waits")
+		gate.yield(())
+		until { q.drain(); return done.value }
+		check(done.value, "an async closure's end wakes a waiter's poll")
+	}
+	do {
+		let started = Cell(false)
+		let cancelled = Cell(false)
+		let task = q.launch {
+			try await Waiter.pollFuture {
+				started.value = true
+				do {
+					try await Task.sleep(nanoseconds: 60_000_000_000)
+				} catch {
+					cancelled.value = true
+				}
+			}
+		}
+		q.drain()
+		until { started.value }
+		task.cancel()
+		q.drain()
+		until { cancelled.value }
+		check(cancelled.value, "cancelling a waiter's poll cancels the async closure it owns")
+	}
+	// Closures Rust keeps, released once Rust drops them, holding the only reference.
+	do {
+		let freed = Cell(false)
+		let spawned = Spawned.new { [held = Released(freed)] in
+			_ = held
+			return 1
+		}
+		check(spawned.join() == 1, "a spawned closure runs")
+		until { freed.value }
+		check(freed.value, "Rust releases a kept closure once it drops it")
+	}
+	do {
+		let freed = Cell(false)
+		// Any Swift error crosses as its description, which Rust returns as its error.
+		let stopped = block {
+			try await drive(now()) { [held = Released(freed)] _, _ in
+				_ = held
+				throw Failure(description: "failed")
+			}
+		}
+		check(stopped == "failed", "a closure's error crosses as its description")
+		until { freed.value }
+		check(freed.value, "a future releases the closure it kept once it finishes")
 	}
 	print("futures ok")
 }
