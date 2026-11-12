@@ -1230,7 +1230,7 @@ fn unreached_types() {
 				"src/lib.rs",
 				"pub use kio::Ready;\n\npub fn pending() -> kio::Pending {\n\tkio::Pending(1)\n}\n\n\
 				pub fn version() -> kio::version::Version {\n\tkio::version::Version { major: 2 }\n}\n\n\
-				pub fn sealed() -> u32 {\n\tkio::sealed().0\n}\n\npub fn seal() -> kio::Sealed {\n\tkio::sealed()\n}\n",
+				pub fn seal() -> kio::Sealed {\n\tkio::sealed()\n}\n",
 			),
 			(
 				"kio/Cargo.toml",
@@ -1245,6 +1245,23 @@ fn unreached_types() {
 			),
 		],
 	);
+	// The export builds, naming `kio`'s types through its own dependency on `kio`.
+	std::fs::write(package.join("ffi.toml"), "exclude = [\"seal\"]\n").unwrap();
+	let out = package.join("out");
+	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--out")
+		.arg(&out)
+		.env("CARGO_TARGET_DIR", package.join("build")));
+	let glue = std::fs::read_to_string(out.join("src/lib.rs")).unwrap();
+	assert!(glue.contains("::kio_reached::Pending"), "{glue}");
+	run(cargo()
+		.arg("build")
+		.arg("--manifest-path")
+		.arg(out.join("Cargo.toml"))
+		.env("CARGO_TARGET_DIR", package.join("build")));
+	std::fs::write(package.join("ffi.toml"), "").unwrap();
 	let census = package.join("census");
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
 		.arg("--config")
@@ -1263,7 +1280,7 @@ fn unreached_types() {
 	// `Pending` and `Version` export; `Sealed` alone is refused, though an alias names it.
 	assert!(report.contains("| Types | 2 | 0 |"), "{report}");
 	assert!(
-		report.contains("fn `seal` at src/lib.rs:15:1: type not reachable from the crate root `kio::sealed::Sealed`"),
+		report.contains("fn `seal` at src/lib.rs:11:1: type not reachable from the crate root `kio::sealed::Sealed`"),
 		"{report}"
 	);
 	assert_eq!(report.matches("not reachable").count(), 3, "{report}");

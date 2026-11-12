@@ -46,6 +46,12 @@ fn dependency(krate: &str) -> String {
 	format!("{krate}_export")
 }
 
+/// The name the crate depends on a crate the facade does not re-export by, apart from the
+/// facade's even when they share a name.
+fn reached(krate: &str) -> String {
+	format!("{krate}_reached")
+}
+
 /// The name the crate depends on a foreign type's crate by, apart from the facade's even
 /// when the facade shares that crate's name.
 fn foreign(krate: &str) -> String {
@@ -158,7 +164,18 @@ impl Crate<'_> {
 			)
 		})
 		.collect();
-		let dependencies = format!("{dependencies}{foreign}");
+		// A crate the facade does not re-export, whose types an export names, as the facade
+		// resolves it, so they are the facade's types.
+		let reached: String = (api.reached.iter())
+			.map(|r| {
+				format!(
+					"{} = {{ {}, default-features = false }}\n",
+					reached(&r.krate),
+					r.dependency
+				)
+			})
+			.collect();
+		let dependencies = format!("{dependencies}{foreign}{reached}");
 		// The facade's oldest toolchain is the crate's, which cargo sets as rustc compiles it,
 		// though no older than the crate's edition needs; cargo checks the value's form.
 		let rust_version = match std::env::var("CARGO_PKG_RUST_VERSION") {
@@ -394,9 +411,15 @@ impl Gen<'_> {
 			.unwrap_or_default()
 	}
 
-	/// A Rust path of the facade's, through the crate's dependency on it.
+	/// A Rust path of the facade's, through the crate's dependency on it, or on the crate
+	/// its second segment names, where the facade does not re-export that crate.
 	fn path(&self, path: &[String]) -> String {
-		format!("::{}", self.dependency) + &path[1..].iter().map(|s| format!("::{s}")).collect::<String>()
+		match self.abi.api.reached.iter().find(|r| path.get(1) == Some(&r.krate)) {
+			Some(r) => {
+				format!("::{}", reached(&r.krate)) + &path[2..].iter().map(|s| format!("::{s}")).collect::<String>()
+			}
+			None => format!("::{}", self.dependency) + &path[1..].iter().map(|s| format!("::{s}")).collect::<String>(),
+		}
 	}
 
 	/// An object's Rust type: its lifetimes `'static`, as the handle holds it.

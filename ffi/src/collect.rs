@@ -95,6 +95,8 @@ pub struct Facade<'a> {
 	pub package: &'a str,
 	/// Paths from its root the config leaves out.
 	pub exclude: &'a [String],
+	/// The dependency the glue names each crate it builds with by, by its crate name.
+	pub crates: &'a std::collections::BTreeMap<String, String>,
 }
 
 /// What collection found in the facade, by paths from its root.
@@ -211,6 +213,8 @@ struct Collector<'tcx> {
 	/// Types a signature names that the root does not reach, each exported by its public
 	/// path in its own crate.
 	reach: Vec<DefId>,
+	/// The glue's dependency on each crate, as [`Facade::crates`].
+	dependencies: std::collections::BTreeMap<String, String>,
 	/// Such types this pass met that `reach` lacks.
 	unreached: std::cell::RefCell<Vec<DefId>>,
 	api: Api,
@@ -324,6 +328,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			range_bounds,
 			orphans: orphans.clone(),
 			reach: reach.to_vec(),
+			dependencies: facade.crates.clone(),
 			unreached: Default::default(),
 			api: Api {
 				records: Vec::new(),
@@ -333,6 +338,7 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 				functions: Vec::new(),
 				constants: Vec::new(),
 				crates: Vec::new(),
+				reached: Vec::new(),
 				targets: vec![tcx.sess.opts.target_triple.tuple().to_string()],
 			},
 		};
@@ -376,8 +382,13 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 				report: c.report,
 			};
 		}
-		orphans.extend(more);
-		reach.extend(unreached);
+		// A newly reached type may return an object marked an orphan, so those start over.
+		if unreached.is_empty() {
+			orphans.extend(more);
+		} else {
+			reach.extend(unreached);
+			orphans.clear();
+		}
 	}
 }
 
@@ -1179,6 +1190,13 @@ impl<'tcx> Collector<'tcx> {
 			}
 			let own = self.crate_path(def_id).expect("a reached type has a path in its crate");
 			let outside = path.len();
+			if !def_id.is_local() && !self.api.reached.iter().any(|r| r.krate == path[1]) {
+				let dependency = self.dependency(def_id.krate).expect("a reached crate has a dependency");
+				self.api.reached.push(crate::ir::Reached {
+					krate: path[1].clone(),
+					dependency,
+				});
+			}
 			path.extend(own);
 			if self.exclude(&path) {
 				self.left_out.insert(def_id, "excluded type");
@@ -1198,6 +1216,29 @@ impl<'tcx> Collector<'tcx> {
 		}
 	}
 
+	/// Whether `def_id` exports by its public path in its own crate. Another crate's must be
+	/// the only crate of its name, named by none of the facade's root items, and one the glue
+	/// can depend on, so its path names it there.
+	fn reachable(&self, def_id: DefId) -> bool {
+		let tcx = self.tcx;
+		if self.crate_path(def_id).is_none() {
+			return false;
+		}
+		if def_id.is_local() {
+			return true;
+		}
+		let name = tcx.crate_name(def_id.krate);
+		let root = tcx.module_children_local(LOCAL_CRATE.as_def_id().expect_local());
+		self.keys[&def_id.krate] == name.as_str()
+			&& !root.iter().any(|child| child.ident.name == name)
+			&& self.dependency(def_id.krate).is_some()
+	}
+
+	/// The TOML keys of the glue's dependency on `krate`, as the facade resolves it.
+	fn dependency(&self, krate: CrateNum) -> Option<String> {
+		self.dependencies.get(self.tcx.crate_name(krate).as_str()).cloned()
+	}
+
 	/// The shortest public path to `def_id` from its own crate's root, through that crate's
 	/// modules and re-exports, as `kio::Pending` names one defined in a private module.
 	fn crate_path(&self, def_id: DefId) -> Option<Vec<String>> {
@@ -1214,7 +1255,10 @@ impl<'tcx> Collector<'tcx> {
 				let Res::Def(kind, id) = child.res else {
 					continue;
 				};
-				if !child.vis.is_public() || child.ident.name == rustc_span::kw::Underscore || id.krate != def_id.krate
+				if !child.vis.is_public()
+					|| child.ident.name == rustc_span::kw::Underscore
+					|| id.krate != def_id.krate
+					|| (kind == DefKind::Mod && tcx.is_doc_hidden(id))
 				{
 					continue;
 				}
@@ -4432,7 +4476,7 @@ impl<'tcx> Collector<'tcx> {
 								return Err(why);
 							}
 							// One public in its own crate exports by that path, in the next pass.
-							if !self.reach.contains(&did) && self.crate_path(did).is_some() {
+							if !self.reach.contains(&did) && self.reachable(did) {
 								let mut unreached = self.unreached.borrow_mut();
 								if !unreached.contains(&did) {
 									unreached.push(did);
