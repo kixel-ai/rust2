@@ -18,8 +18,9 @@
 //! meets it closed returns an error matching `rt.ErrClosed`, so every call that takes one,
 //! at any depth, returns an `error`; a record a struct; a plain enum an integer type and its
 //! constants; an enum with data an interface each variant's struct implements; a trait an
-//! interface; a closure a function; a future a call taking a `context.Context` that blocks
-//! until the future is ready; a `Result` an `error`. The runtime they share,
+//! interface; a closure a function; a reader an `io.ReadSeeker`; a future a call taking a
+//! `context.Context` that blocks until the future is ready; a `Result` an `error`. The
+//! runtime they share,
 //! [`runtime/rt.go`](../runtime/rt.go), holds the handles and the bytes Rust returns, and
 //! each package's copy of [`runtime/ffi_cgo.go`](../runtime/ffi_cgo.go) the arena a call lowers
 //! nested values into, and the wait of a future: cgo gives each package C types of its
@@ -37,7 +38,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Family, Function, Home, Int, Literal, On, Param, Receiver, Type};
+use crate::ir::{Access, Closure, Family, Function, Home, Int, Literal, On, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.go");
 const CONVERSIONS: &str = include_str!("../runtime/ffi_cgo.go");
@@ -47,6 +48,7 @@ const STD: &[(&str, &str)] = &[
 	("big", "math/big"),
 	("context", "context"),
 	("cgo", "runtime/cgo"),
+	("io", "io"),
 	("netip", "net/netip"),
 	("runtime", "runtime"),
 	("time", "time"),
@@ -518,9 +520,11 @@ impl<'a> Gen<'a> {
 			/*\n#cgo CFLAGS: -I${{SRCDIR}}/../../include\n#include <stdlib.h>\n#include \"{p}.h\"\n*/\nimport \"C\"\n\n\
 			import (\n\t\"context\"\n\t\"math\"\n\t\"math/big\"\n\t\"net\"\n\t\"net/netip\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"strconv\"\n\t\"time\"\n\t\"unsafe\"\n\n\t\"{rt}\"\n)\n\n\
 			// The runtime's names for the export's C types and functions.\n\
-			type (\n\tcBuf           = C.{p}_buf\n\tcWaker         = C.{p}_waker\n\tcForeignFuture = C.{p}_foreign_future\n\tcU128          = C.{p}_u128\n\tcDuration      = C.{p}_duration\n\tcAddr          = C.{p}_socket_addr\n)\n\n\
-			var (\n\tgoCall    = (*[0]byte)(rt.GoCall_())\n\tgoRelease = (*[0]byte)(rt.GoRelease_())\n\tgoPoll    = (*[0]byte)(rt.GoPoll_())\n)\n\n\
-			func cBufFree(buf cBuf) {{\n\tC.{p}_buf_free(buf)\n}}\n\n"
+			type (\n\tcBuf           = C.{p}_buf\n\tcWaker         = C.{p}_waker\n\tcForeignFuture = C.{p}_foreign_future\n\tcForeignReader = C.{p}_foreign_reader\n\tcU128          = C.{p}_u128\n\tcDuration      = C.{p}_duration\n\tcAddr          = C.{p}_socket_addr\n)\n\n\
+			var (\n\tgoCall    = (*[0]byte)(rt.GoCall_())\n\tgoRelease = (*[0]byte)(rt.GoRelease_())\n\tgoPoll    = (*[0]byte)(rt.GoPoll_())\n\tgoRead    = (*[0]byte)(rt.GoRead_())\n\tgoSeek    = (*[0]byte)(rt.GoSeek_())\n)\n\n\
+			func cBufFree(buf cBuf) {{\n\tC.{p}_buf_free(buf)\n}}\n\n\
+			// cBufCopy is a copy of s Rust owns, as a closure returns it.\n\
+			func cBufCopy(s string) cBuf {{\n\treturn C.{p}_buf_copy(bufString_(s))\n}}\n\n"
 		);
 		out.push_str(CONVERSIONS);
 		out
@@ -537,15 +541,19 @@ impl<'a> Gen<'a> {
 			// Rust returns, the error a closed object returns, and the types of no crate's.\n\
 			package rt\n\n\
 			/*\n#cgo CFLAGS: -I${{SRCDIR}}/../../include\n#include <stdlib.h>\n#include \"{p}.h\"\n\n\
-			extern void {go}_call(void *data);\nextern void {go}_release(void *data);\nextern bool {go}_poll(void *data, {p}_waker waker);\n\n\
+			extern void {go}_call(void *data);\nextern void {go}_release(void *data);\nextern bool {go}_poll(void *data, {p}_waker waker);\n\
+			extern bool {go}_read(void *data, uint8_t *buf, size_t len, size_t *n, {p}_buf *err);\n\
+			extern bool {go}_seek(void *data, int whence, int64_t offset, uint64_t *position, {p}_buf *err);\n\n\
 			static void {go}_bufs_free({p}_buf *bufs, size_t n) {{\n\tfor (size_t i = 0; i < n; i++) {{\n\t\t{p}_buf_free(bufs[i]);\n\t}}\n}}\n\n\
 			static void {go}_waker_wake({p}_waker w) {{\n\tif (w.wake != NULL) {{\n\t\tw.wake(w.data);\n\t}}\n}}\n\n\
 			static void {go}_waker_drop({p}_waker w) {{\n\tif (w.drop != NULL) {{\n\t\tw.drop(w.data);\n\t}}\n}}\n\
 			*/\nimport \"C\"\n\n\
 			import (\n\t\"context\"\n\t\"errors\"\n\t\"io\"\n\t\"runtime\"\n\t\"runtime/cgo\"\n\t\"sync\"\n\t\"sync/atomic\"\n\t\"unsafe\"\n)\n\n\
 			type (\n\tcBuf   = C.{p}_buf\n\tcWaker = C.{p}_waker\n)\n\n\
-			var (\n\tgoCall    = (*[0]byte)(C.{go}_call)\n\tgoRelease = (*[0]byte)(C.{go}_release)\n\tgoPoll    = (*[0]byte)(C.{go}_poll)\n)\n\n\
+			var (\n\tgoCall    = (*[0]byte)(C.{go}_call)\n\tgoRelease = (*[0]byte)(C.{go}_release)\n\tgoPoll    = (*[0]byte)(C.{go}_poll)\n\tgoRead    = (*[0]byte)(C.{go}_read)\n\tgoSeek    = (*[0]byte)(C.{go}_seek)\n)\n\n\
 			func cBufFree(buf cBuf) {{\n\tC.{p}_buf_free(buf)\n}}\n\n\
+			// cBufCopy is a copy of s Rust owns, as a reader's error returns it.\n\
+			func cBufCopy(s string) cBuf {{\n\tif len(s) == 0 {{\n\t\treturn C.{p}_buf_copy(cBuf{{}})\n\t}}\n\treturn C.{p}_buf_copy(cBuf{{ptr: (*C.uint8_t)(unsafe.Pointer(unsafe.StringData(s))), len: C.size_t(len(s))}})\n}}\n\n\
 			// cBufsFree frees bufs, which are not empty, in one call.\n\
 			func cBufsFree(bufs []cBuf) {{\n\tC.{go}_bufs_free(&bufs[0], C.size_t(len(bufs)))\n}}\n\n\
 			func cWakerWake(w cWaker) {{\n\tC.{go}_waker_wake(w)\n}}\n\n\
@@ -559,7 +567,15 @@ impl<'a> Gen<'a> {
 			func On_(on uint64, what string) {{\n\tif on>>target_&1 == 0 {{\n\t\tpanic(what + \": it is not on this library's target\")\n\t}}\n}}\n\n\
 			//export {go}_call\nfunc {go}_call(data unsafe.Pointer) {{\n\tgiven_(data).(func())()\n}}\n\n\
 			//export {go}_release\nfunc {go}_release(data unsafe.Pointer) {{\n\trelease_(data)\n}}\n\n\
-			//export {go}_poll\nfunc {go}_poll(data unsafe.Pointer, waker cWaker) C.bool {{\n\treturn C.bool(given_(data).(*pollable_).poll(waker))\n}}\n\n"
+			//export {go}_poll\nfunc {go}_poll(data unsafe.Pointer, waker cWaker) C.bool {{\n\treturn C.bool(given_(data).(*pollable_).poll(waker))\n}}\n\n\
+			//export {go}_read\nfunc {go}_read(data unsafe.Pointer, buf *C.uint8_t, n C.size_t, read *C.size_t, err *cBuf) C.bool {{\n\
+			\tgot, e := given_(data).(*reader_).read(unsafe.Slice((*byte)(unsafe.Pointer(buf)), int(n)))\n\
+			\tif e != nil {{\n\t\t*err = cBufCopy(e.Error())\n\t\treturn false\n\t}}\n\
+			\t*read = C.size_t(got)\n\treturn true\n}}\n\n\
+			//export {go}_seek\nfunc {go}_seek(data unsafe.Pointer, whence C.int, offset C.int64_t, position *C.uint64_t, err *cBuf) C.bool {{\n\
+			\tat, e := given_(data).(*reader_).seek(int64(offset), int(whence))\n\
+			\tif e != nil {{\n\t\t*err = cBufCopy(e.Error())\n\t\treturn false\n\t}}\n\
+			\t*position = C.uint64_t(at)\n\treturn true\n}}\n\n"
 		);
 		out.push_str(RUNTIME);
 		out
@@ -658,7 +674,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(_) => "netip.AddrPort".to_string(),
 			Type::List(_, inner) => format!("[]{}", self.go(inner)),
 			Type::Waker => "func()".to_string(),
-			Type::Reader => unimplemented!("a reader in Go"),
+			Type::Reader => "io.ReadSeeker".to_string(),
 			Type::Future => "func(context.Context)".to_string(),
 			Type::Option(inner) => match inner.base() {
 				// Already a pointer, nil for none.
@@ -668,12 +684,15 @@ impl<'a> Gen<'a> {
 			Type::Box(inner) | Type::Ref(_, inner) => self.go(inner),
 			Type::Record(_) | Type::Enum(_) | Type::Callback(..) => self.qualified(ty),
 			Type::Object(_) => format!("*{}", self.qualified(ty)),
-			Type::Closure(closure_) => {
-				let (params, ret) = (&closure_.params, &closure_.ok);
-				let params: Vec<String> = params.iter().map(|p| self.go_param(p)).collect();
-				match *ret {
-					Type::Unit => format!("func({})", params.join(", ")),
-					_ => format!("func({}) {}", params.join(", "), self.go(ret)),
+			// A `Result` returns an `error` beside its value, whose message crosses.
+			Type::Closure(closure) => {
+				let params: Vec<String> = closure.params.iter().map(|p| self.go_param(p)).collect();
+				let params = params.join(", ");
+				match (&closure.ok, closure.err.is_some()) {
+					(Type::Unit, false) => format!("func({params})"),
+					(Type::Unit, true) => format!("func({params}) error"),
+					(ok, false) => format!("func({params}) {}", self.go(ok)),
+					(ok, true) => format!("func({params}) ({}, error)", self.go(ok)),
 				}
 			}
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => self.qualified(ty),
@@ -740,6 +759,8 @@ impl<'a> Gen<'a> {
 			Ty::Handle { name, .. } | Ty::Future(name) => format!("*C.{name}"),
 			Ty::Waker => "cWaker".to_string(),
 			Ty::ForeignFuture => "cForeignFuture".to_string(),
+			// What a closure Go implements writes its value and error through.
+			Ty::Out(inner) => format!("*{}", self.c_go(inner)),
 			other => unreachable!("no local is {other:?}"),
 		}
 	}
@@ -824,8 +845,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(Family::V4) => format!("lowerAddrV4_({e})"),
 			Type::SocketAddr(Family::V6) => format!("lowerAddrV6_({e})"),
 			Type::Waker => format!("waker_({e})"),
-			Type::Reader => unimplemented!("a reader in Go"),
-			Type::Future => unreachable!("a foreign future crosses only as a parameter"),
+			Type::Reader | Type::Future => unreachable!("{ty:?} crosses only as a parameter"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				self.convert(ty);
 				format!("lower_{}({e})", abi.range(ty))
@@ -1948,9 +1968,11 @@ impl<'a> Gen<'a> {
 		);
 	}
 
-	/// The trampoline C calls for a closure of type `ty`, lent for a call, taking `lent` and
-	/// returning `ret`: it lends each object as its type, ended once it returns.
-	fn trampoline(&mut self, ty: &Type, lent: &[Type], ret: &Type) -> String {
+	/// The trampoline C calls for a closure of type `ty`, which Rust lends for a call or
+	/// keeps: it lends each object it takes by reference as its type, ended once it returns,
+	/// owns a clone of each `Copy` object, and hands Rust what the closure returns, writing
+	/// a `Result` through its outs.
+	fn trampoline(&mut self, ty: &Type, closure: &Closure) -> String {
 		let go = self.go(ty);
 		if let Some(name) = self.closures.get(&go) {
 			return name.clone();
@@ -1962,6 +1984,7 @@ impl<'a> Gen<'a> {
 			self.closures.len()
 		);
 		self.closures.insert(go.clone(), name.clone());
+		let lent = &closure.params;
 		let ps: Vec<String> = (0..lent.len()).map(|k| format!("p{k}")).collect();
 		let mut body = format!("\tf_ := lent_(data).({go})\n");
 		let mut args = Vec::new();
@@ -1975,26 +1998,98 @@ impl<'a> Gen<'a> {
 					let _ = writeln!(body, "\tdefer {l}.Handle_.End()");
 					args.push(l);
 				}
+				// A copy is the callee's, which Go keeps as long as it likes: its own clone of
+				// the handle Rust lends for the call.
+				Type::Object(i) => {
+					self.convert(ty);
+					let c = self.abi.object(*i);
+					args.push(format!("own_{c}(C.{c}_clone({p}))"));
+				}
 				ty => args.push(self.lift_lent(ty, p)),
 			}
 		}
 		let call = format!("f_({})", args.join(", "));
-		match ret {
-			Type::Unit => {
-				let _ = writeln!(body, "\t{call}");
-			}
-			ret => {
-				let _ = writeln!(body, "\treturn {}", self.lower_scalar(ret, &call));
-			}
-		}
-		let params: Vec<(String, Ty)> = lent
+		let mut params: Vec<(String, Ty)> = lent
 			.iter()
 			.zip(&ps)
 			.map(|(ty, p)| (p.clone(), self.abi.ty(ty)))
 			.collect();
-		let ret_ty = self.abi.ty(ret);
+		let ret_ty = match &closure.err {
+			None => {
+				match &closure.ok {
+					Type::Unit => {
+						let _ = writeln!(body, "\t{call}");
+					}
+					ok => {
+						let _ = writeln!(body, "\treturn {}", self.returned(ok, &call));
+					}
+				}
+				self.abi.ty(&closure.ok)
+			}
+			Some(err) => {
+				let ok = match &closure.ok {
+					Type::Unit => {
+						let _ = writeln!(body, "\terr_ := {call}");
+						None
+					}
+					ok => {
+						let _ = writeln!(body, "\tr_, err_ := {call}");
+						Some(ok)
+					}
+				};
+				let _ = writeln!(
+					body,
+					"\tif err_ != nil {{\n\t\t*e_ = {}\n\t\treturn false\n\t}}",
+					self.returned(err, "err_.Error()")
+				);
+				if let Some(ok) = ok {
+					let _ = writeln!(body, "\t*o_ = {}", self.returned(ok, "r_"));
+					params.push(("o_".to_string(), Ty::Out(Box::new(self.abi.ty(ok)))));
+				}
+				let _ = writeln!(body, "\treturn true");
+				params.push(("e_".to_string(), Ty::Out(Box::new(self.abi.ty(err)))));
+				Ty::Bool
+			}
+		};
 		self.export(&name, &params, &ret_ty, &body);
 		name
+	}
+
+	/// The C value Rust takes from the Go value `e` of type `ty` a closure returned, which
+	/// Rust then owns: a string's copy, or a clone of a `Copy` object's handle.
+	fn returned(&mut self, ty: &Type, e: &str) -> String {
+		match ty {
+			Type::String => format!("cBufCopy({e})"),
+			Type::Object(i) => {
+				self.returns(*i);
+				format!("returned_{}({e})", self.abi.object(*i))
+			}
+			Type::Option(inner) => {
+				let Type::Object(i) = **inner else {
+					unreachable!("a closure returns an Option only of a Copy object, not {inner:?}")
+				};
+				self.returns(i);
+				format!("returnedOption_{}({e})", self.abi.object(i))
+			}
+			ty => self.lower_scalar(ty, e),
+		}
+	}
+
+	/// The helpers handing Rust a clone of the handle of object `i` a closure returned, or
+	/// nil for none.
+	fn returns(&mut self, i: usize) {
+		let ty = Type::Object(i);
+		self.convert(&ty);
+		let c = self.abi.object(i);
+		let name = self.qualified(&ty);
+		let local = self.named(&ty).1;
+		self.helper(&format!("returned_{c}"), |_| {
+			format!(
+				"// returned_{c} is a clone of v's handle, which Rust frees once it copies v out of it.\n\
+				func returned_{c}(v *{name}) *C.{c} {{\n\tif v == nil {{\n\t\tpanic(\"a nil {local} returned to Rust\")\n\t}}\n\th := v.Handle_.Hold()\n\tif h == nil {{\n\t\tpanic(v.Handle_.Closed())\n\t}}\n\tdefer unhold_(v.Handle_, v)\n\treturn C.{c}_clone((*C.{c})(h))\n}}\n\n\
+				func returnedOption_{c}(v *{name}) *C.{c} {{\n\tif v == nil {{\n\t\treturn nil\n\t}}\n\treturn returned_{c}(v)\n}}\n\n"
+			)
+		});
 	}
 
 	/// The Go statement closing each object the value `e` of type `ty` holds, once a call
@@ -2152,8 +2247,11 @@ impl<'a> Gen<'a> {
 		let names = self.locals(&function.params);
 		for (k, (param, name)) in function.params.iter().zip(&names).enumerate() {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
-			if let Type::Closure(..) = param.ty {
+			if let Type::Closure(closure) = &param.ty {
 				c_params.next().expect("a closure has its data");
+				if closure.kept {
+					c_params.next().expect("a kept closure has its free");
+				}
 			}
 			let name = name.clone();
 			// A value passed for `&mut`: the call reads it and writes back what it left.
@@ -2169,13 +2267,28 @@ impl<'a> Gen<'a> {
 				after.push(self.close(&param.ty, &name, 0));
 			}
 			match (&param.ty, c) {
-				(Type::Closure(closure_), _) => {
-					let (lent, ret) = (&closure_.params, &closure_.ok);
-					let trampoline = self.trampoline(&param.ty, lent, ret);
-					let k_ = format!("k{k}_");
-					prelude.push(format!("{k_} := cgo.NewHandle({name})\ndefer {k_}.Delete()"));
+				(Type::Closure(closure), _) => {
+					let trampoline = self.trampoline(&param.ty, closure);
 					args.push(format!("(*[0]byte)(C.{trampoline})"));
-					args.push(format!("unsafe.Pointer(&{k_})"));
+					match closure.kept {
+						// Kept until Rust drops it, which releases its handle.
+						true => {
+							args.push(format!("give_({name})"));
+							args.push("goRelease".to_string());
+						}
+						false => {
+							let k_ = format!("k{k}_");
+							prelude.push(format!("{k_} := cgo.NewHandle({name})\ndefer {k_}.Delete()"));
+							args.push(format!("unsafe.Pointer(&{k_})"));
+						}
+					}
+				}
+				// Lent for the call through a handle the call deletes once it returns.
+				(_, Ty::ForeignReader) => {
+					let k_ = format!("k{k}_");
+					let reader = self.qualify(Packages::RT, "Reader_");
+					prelude.push(format!("{k_} := cgo.NewHandle({reader}({name}))\ndefer {k_}.Delete()"));
+					args.push(format!("reader_(&{k_})"));
 				}
 				(ty @ Type::Callback(i, _), _) => {
 					self.convert(ty);
@@ -2375,16 +2488,28 @@ impl<'a> Gen<'a> {
 
 		let mut text = function.docs.clone();
 		for (param, name) in function.params.iter().zip(&names) {
-			if let Type::Closure(closure_) = &param.ty {
-				let lent = &closure_.params;
-				text.push_str(&format!(
-					"\n\nRust calls {name} only during the call, from any goroutine's thread."
-				));
-				if lent.iter().any(|p| matches!(p.base(), Type::Object(_))) {
+			if let Type::Closure(closure) = &param.ty {
+				text.push_str(&match closure.kept {
+					true => format!("\n\nRust keeps {name} until it drops it, calling it from any thread."),
+					false => format!("\n\nRust calls {name} only during the call, from any goroutine's thread."),
+				});
+				if closure.err.is_some() {
+					text.push_str(&format!("\nAn error {name} returns crosses as its message."));
+				}
+				if (closure.params.iter())
+					.any(|p| matches!(p, Type::Ref(_, object) if matches!(**object, Type::Object(_))))
+				{
 					text.push_str(&format!(
 						"\nAn object it lends lives only for that call of {name}: keep none past it."
 					));
 				}
+			}
+		}
+		for (param, name) in function.params.iter().zip(&names) {
+			if matches!(&param.ty, Type::Ref(_, reader) if **reader == Type::Reader) {
+				text.push_str(&format!(
+					"\n\nRust reads and seeks {name} only during the call, from any thread, one call at a time:\na read returning bytes and an error returns the error on the next read, and its\nerrors cross as their messages."
+				));
 			}
 		}
 		if function.future {

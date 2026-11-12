@@ -673,8 +673,19 @@ reads a go.mod.
   (`rt.RangeU64`).
 - **Traits** are interfaces. Once Rust drops an implementation, it is closed if it is an
   `io.Closer`.
-- **Closures** lent for a call are funcs, which Rust calls only during the call, from any
-  thread. An object it lends is closed once the call returns.
+- **Closures** are funcs, which Rust calls from any thread: one lent for a call only
+  during the call, and one Rust keeps, as moq's `clock::drive` does, until Rust drops it,
+  which releases it to the GC. An object it lends by reference is closed once the func
+  returns; a `Copy` one is its own clone, which it may keep. A `Result` returns an `error`
+  last, whose `Error()` crosses as Rust's `String`. What it returns crosses as Rust's: a
+  `string` copied, and an object as a clone of its handle, so the func keeps its own; a
+  closed one panics.
+- **Readers**, `Read + Seek` behind `&mut`, are an `io.ReadSeeker`, such as an `*os.File`,
+  which Rust reads and seeks only during the call, one call at a time, and never closes.
+  A read of bytes and an error hands Rust the bytes, then the error on the next read, as
+  Rust's `Read` takes one or the other; `io.EOF` ends it, and a read of nothing and no
+  error reads again, giving up with `io.ErrNoProgress` after 100. Their errors cross as
+  their messages.
 - **Futures** are calls taking a `context.Context` first, which block until the future is
   ready. The call polls it once before it waits, and makes the waker it waits on only if
   that poll pends; a wake from any thread signals the waiting goroutine, which polls
@@ -687,7 +698,9 @@ reads a go.mod.
   a call without one, so it carries the caller's values and deadline, and the caller's
   cancel reaches it; Rust dropping it cancels it too, and one dropped before it starts
   never runs. Once its context is done, it ends unfinished, so a cancelled call reports
-  the cancel even if the function returns.
+  the cancel even if the function returns. A poll taking one pinned through a waiter's own
+  method, as kio's `Waiter::poll_future` does, is a call of the package taking it
+  (`WaiterPollFuture`), whose future owns it.
 - A **waker** is a `func()`, which Rust may call from any thread. One Rust returns wakes
   through Rust, and the garbage collector drops it.
 - **The contract** is checked when `rt` loads, before any other call: Go packages and a

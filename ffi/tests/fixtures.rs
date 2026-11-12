@@ -1053,11 +1053,14 @@ fn api_go() {
 	run(Command::new(&exe).arg("owned"));
 	run(Command::new(&exe).arg("closed"));
 	run(Command::new(&exe).arg("bytes"));
+	run(Command::new(&exe).arg("closures"));
 	for (case, message) in [
 		(
 			"lent moved",
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
+		("nil reader", "a nil io.ReadSeeker"),
+		("returned closed", "Instant is closed"),
 		("family", "an address that is not IPv4 has no Rust SocketAddrV4"),
 		("outlived", OUTLIVED),
 		("text", "api_greet: a string is not UTF-8"),
