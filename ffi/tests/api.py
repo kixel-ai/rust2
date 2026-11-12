@@ -659,6 +659,11 @@ def script():
 			print(f"tail {text(tail)} {at}")
 		except api.StringException as e:
 			print(f"tail error {e}")
+	# A seek from the start reaches the reader whole, past `i64::MAX`, as `Cursor` takes one.
+	try:
+		print(f"sought {api.seek_to(Far(), 2**64 - 1)}")
+	except api.StringException as e:
+		print(f"sought error {e}")
 
 
 class Broken:
@@ -669,6 +674,16 @@ class Broken:
 
 	def seek(self, offset, whence=0):
 		return 0
+
+
+class Far:
+	"""A reader of nothing, which seeks anywhere from its start, as Rust's `Cursor` does."""
+
+	def readinto(self, buffer: memoryview, /) -> int:
+		return 0
+
+	def seek(self, offset: int, whence: int = 0, /) -> int:
+		return offset
 
 
 def futures():

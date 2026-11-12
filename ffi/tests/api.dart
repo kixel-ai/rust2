@@ -688,9 +688,25 @@ Future<void> script() async {
   }
   opened.closeSync();
   dir.deleteSync(recursive: true);
+  // A seek from the start reaches the reader whole, past `i64::MAX`, as `Cursor` takes one.
+  try {
+    print('sought ${BigInt.from(api.seekTo(Far(), -1)).toUnsigned(64)}');
+  } on api.StringException catch (e) {
+    print('sought error $e');
+  }
 }
 
 /// A reader whose reads fail, as the transcript's: each seek lands at 0.
+/// A reader of nothing, which seeks anywhere from its start, as Rust's `Cursor` does: a
+/// `u64` offset is its bits, so -1 is `u64::MAX`.
+final class Far implements api.SeekableReader {
+  @override
+  int readInto(Uint8List buffer) => 0;
+
+  @override
+  int seek(int offset, api.SeekFrom from) => offset;
+}
+
 final class Broken implements api.SeekableReader {
   @override
   int readInto(Uint8List buffer) => throw const Failure('broken');

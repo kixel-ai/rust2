@@ -1287,7 +1287,7 @@ impl<'a> Header<'a> {
 				&& **inner == Type::Reader
 			{
 				text.push_str(&format!(
-					"\n\nRust reads `{name}` only during the call, from any thread, one call at a time, through `read(uint8_t *, size_t)`, returning a `result` of how many bytes it read, at most the size it was given and none only at its end, and `seek(int64_t, std::ios_base::seekdir)`, returning one of the position from the start. A failure's error is anything a `view` takes, which Rust raises as an `io::Error` of that message."
+					"\n\nRust reads `{name}` only during the call, from any thread, one call at a time, through `read(uint8_t *, size_t)`, returning a `result` of how many bytes it read, at most the size it was given and none only at its end, and `seek(int64_t, std::ios_base::seekdir)`, returning one of the position from the start, or, from the start past `INT64_MAX`, `seek_start(uint64_t)`, which a reader without it fails. A failure's error is anything a `view` takes, which Rust raises as an `io::Error` of that message."
 				));
 			}
 			if let Type::Closure(closure_) = &param.ty {

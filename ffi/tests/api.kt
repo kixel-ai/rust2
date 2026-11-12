@@ -587,6 +587,17 @@ fun script() {
 			println("tail error ${e.error}")
 		}
 	}
+	// A seek from the start reaches the reader whole, past `Long.MAX_VALUE`, as `Cursor` takes one.
+	try {
+		println("sought ${seekTo(Far(), ULong.MAX_VALUE)}")
+	} catch (e: StringException) {
+		println("sought error ${e.error}")
+	}
+}
+
+// A channel whose reads fail, which seeks anywhere from its start, as Rust's `Cursor` does.
+class Far : Broken(), StartSeekable {
+	override fun seekStart(offset: ULong): ULong = offset
 }
 
 // A channel over bytes in memory, as Rust's `Cursor` reads them.

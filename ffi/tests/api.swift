@@ -751,6 +751,15 @@ func script() {
 	check(memory.at == 6, "a reader's seeks stay once the call returns")
 	var broken = Broken()
 	printTail { try tail(&broken, 5) }
+	// A seek from the start reaches the reader whole, past `Int64.max`, as `Cursor` takes one.
+	var far = Far()
+	do {
+		print("sought \(try seekTo(&far, UInt64.max))")
+	} catch let e as StringError {
+		print("sought error \(e.error)")
+	} catch {
+		check(false, "seekTo throws its io::Error's message")
+	}
 }
 
 func printTail(_ read: () throws -> (Data, UInt64)) {
@@ -797,6 +806,21 @@ struct Failure: Swift.Error, CustomStringConvertible {
 }
 
 /// A reader whose reads fail, as the native transcript's does: each seek lands at 0.
+/// A reader of nothing, which seeks anywhere from its start, as Rust's `Cursor` does.
+struct Far: SeekableReader {
+	func read(into buffer: UnsafeMutableRawBufferPointer) throws -> Int {
+		0
+	}
+
+	func seek(offset: Int64, from origin: SeekOrigin) throws -> UInt64 {
+		UInt64(offset)
+	}
+
+	func seek(start offset: UInt64) throws -> UInt64 {
+		offset
+	}
+}
+
 struct Broken: SeekableReader {
 	func read(into buffer: UnsafeMutableRawBufferPointer) throws -> Int {
 		throw Failure(description: "broken")

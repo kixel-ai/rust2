@@ -768,6 +768,11 @@ fn main() {
 		Ok((tail, at)) => println!("tail {} {at}", String::from_utf8_lossy(&tail)),
 		Err(err) => println!("tail error {err}"),
 	}
+	// A seek from the start reaches the reader whole, past `i64::MAX`, as `Cursor` takes one.
+	match api::seek_to(&mut std::io::Cursor::new(Vec::<u8>::new()), u64::MAX) {
+		Ok(at) => println!("sought {at}"),
+		Err(err) => println!("sought error {err}"),
+	}
 }
 
 /// A reader whose reads fail, as `tests/api.c`'s broken one does: each seek lands at 0.

@@ -94,6 +94,9 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	);
 	kotlin.push_str(&g.types);
 	kotlin.push_str(&g.top);
+	if g.reads {
+		kotlin.push_str(START_SEEKABLE);
+	}
 	// What the glue calls to read a reader, and to take the error a closure or reader threw.
 	let mut helpers = String::new();
 	let mut looked = vec!["__wake", "__free", "__poll"];
@@ -185,7 +188,24 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 /// What the glue calls on a `SeekableByteChannel` a function reads: at most `len` bytes,
 /// none at its end, and where a seek from the start, the position, or the end lands, which
 /// fails as an `IOException` before the start or past `Long.MAX_VALUE`, as Rust's own
-/// readers do; and the message of an `IOException` either throws, which Rust returns.
+/// readers do, but for a seek from the start a [`START_SEEKABLE`] channel takes; and the
+/// message of an `IOException` either throws, which Rust returns. A position crosses as a
+/// `Long`'s bits, unsigned.
+/// What a `SeekableByteChannel` Rust reads may also implement, to seek from its start past
+/// `Long.MAX_VALUE`.
+const START_SEEKABLE: &str = "/**
+ * A channel Rust reads that also seeks to any offset from its start, as Rust's `SeekFrom::Start`
+ * takes a `u64`, past the `Long` [java.nio.channels.SeekableByteChannel.position] takes. Rust
+ * calls [seekStart] only for an offset past `Long.MAX_VALUE`; a channel without it fails that
+ * seek.
+ */
+interface StartSeekable {
+	/** Move to [offset] from the start, returning the position. */
+	fun seekStart(offset: ULong): ULong
+}
+
+";
+
 const READS: &str = "\t@JvmStatic private fun __read(channel: Any, len: Int): ByteArray {
 \t\tval buffer = java.nio.ByteBuffer.allocate(len)
 \t\tval read = (channel as java.nio.channels.SeekableByteChannel).read(buffer)
@@ -201,6 +221,10 @@ const READS: &str = "\t@JvmStatic private fun __read(channel: Any, len: Int): By
 \t\t}
 \t\tval at = base + offset
 \t\t// From the start, a negative offset's bits are unsigned, past what a Long holds.
+\t\tif (whence == 0 && offset < 0) {
+\t\t\tval start = channel as? StartSeekable ?: throw java.io.IOException(\"a seek past Long.MAX_VALUE of a channel that is no StartSeekable\")
+\t\t\treturn start.seekStart(offset.toULong()).toLong()
+\t\t}
 \t\tif (at < 0 || (offset > 0 && at < base)) throw java.io.IOException(\"invalid seek to a negative or overflowing position\")
 \t\tchannel.position(at)
 \t\treturn at

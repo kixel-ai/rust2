@@ -71,6 +71,25 @@ public protocol SeekableReader {
 
 	/// Move to `offset` bytes from `origin`, returning the new position from the start.
 	mutating func seek(offset: Swift.Int64, from origin: SeekOrigin) throws -> Swift.UInt64
+
+	/// Move to `offset` bytes from the start, as Rust's `SeekFrom::Start` takes a `UInt64`,
+	/// returning the new position. Rust calls it only for an offset past `Int64.max`, which
+	/// by default fails.
+	mutating func seek(start offset: Swift.UInt64) throws -> Swift.UInt64
+}
+
+extension SeekableReader {
+	public mutating func seek(start offset: Swift.UInt64) throws -> Swift.UInt64 {
+		guard let offset = Swift.Int64(exactly: offset) else { throw Native.SeekPast() }
+		return try seek(offset: offset, from: .start)
+	}
+}
+
+extension Native {
+	/// A seek past `Int64.max` of a reader with no `seek(start:)` of its own.
+	struct SeekPast: Swift.Error, CustomStringConvertible {
+		var description: Swift.String { "a seek past Int64.max of a reader with no seek(start:)" }
+	}
 }
 
 extension Native {
@@ -102,8 +121,13 @@ extension Native {
 						let file = data!.assumingMemoryBound(to: (any SeekableReader).self)
 						// From the start, the offset's bits are unsigned, past what an Int64 holds.
 						if whence == 0 && offset < 0 {
-							err!.pointee = Native.owned("a seek past Int64.max, which a SeekableReader cannot take")
-							return false
+							do {
+								position!.pointee = try file.pointee.seek(start: Swift.UInt64(bitPattern: offset))
+								return true
+							} catch {
+								err!.pointee = Native.owned("\(error)")
+								return false
+							}
 						}
 						let origin: SeekOrigin
 						switch whence {

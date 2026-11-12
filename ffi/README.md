@@ -362,8 +362,10 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   size_t)` and `seek(int64_t, std::ios_base::seekdir)`, as `seekg` takes them, each
   returning a `result` of the bytes read or the position, whose error is anything a `view`
   takes, which Rust raises as an `io::Error` of that message. Not an `std::istream`, whose
-  failures keep no message. Rust calls them only during the call, from any thread, one at
-  a time; a read past the size it was given aborts.
+  failures keep no message. A seek from the start past `INT64_MAX`, as Rust's
+  `SeekFrom::Start` takes a `u64`, calls `seek_start(uint64_t)` instead, and fails in a
+  reader without one. Rust calls them only during the call, from any thread, one at a
+  time; a read past the size it was given aborts.
 - **Futures** are move-only `future<...>`s, freed when destroyed, which cancels them and
   loses nothing. `poll(waker)` polls once; `std::move(f).get()` blocks the thread;
   `std::move(f).then(exec, callback)` polls on an executor and calls back there, returning
@@ -445,9 +447,11 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   `Files.newByteChannel` is, and the one standard interface with both reads and absolute
   seeks. Rust reads and seeks it only during the call, from any thread, one call at a
   time: each read fills a `ByteArray` Kotlin allocates, which Rust copies out of, so no
-  view of Rust's memory escapes to a channel that keeps its buffer. An `IOException` it
-  throws, or a seek before the start or past `Long.MAX_VALUE`, is Rust's `io::Error` of
-  its message; any other exception aborts.
+  view of Rust's memory escapes to a channel that keeps its buffer. A seek from the start
+  past `Long.MAX_VALUE`, as Rust's `SeekFrom::Start` takes a `u64`, calls `seekStart` of a
+  channel that is also a `StartSeekable`. An `IOException` it throws, or a seek before the
+  start or past `Long.MAX_VALUE` it cannot take, is Rust's `io::Error` of its message; any
+  other exception aborts.
 - **Futures** are `suspend fun`s, which resume on the coroutine's dispatcher, as C++ resumes
   on its executor, and never inside a wake: an `Unconfined` one resumes on `Default`. Cancelling the coroutine frees the future and
   loses nothing. Each call is its own future, so it has one poller. The call polls it once
@@ -617,8 +621,10 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
 - A **reader** is `inout some SeekableReader`, the runtime's protocol of
   `read(into:)` and `seek(offset:from:)` from a `SeekOrigin`, as swift-system's
   `FileDescriptor` reads and seeks, lent for the call and written back once it returns,
-  so a struct's position stays. Rust calls it from any thread, one call at a time, and
-  reads a thrown error's `description` as its `io::Error`'s message.
+  so a struct's position stays. A seek from the start past `Int64.max`, as Rust's
+  `SeekFrom::Start` takes a `UInt64`, calls `seek(start:)`, which by default throws. Rust
+  calls it from any thread, one call at a time, and reads a thrown error's `description`
+  as its `io::Error`'s message.
 - **Futures** are `async throws` functions, which resume on the task's executor, never
   inside a wake. Cancelling the task frees the future, losing nothing, and throws
   `CancellationError`. Each call is its own future, so it has one poller. The call polls it
@@ -733,8 +739,10 @@ reads a go.mod.
   which Rust reads and seeks only during the call, one call at a time, and never closes.
   A read of bytes and an error hands Rust the bytes, then the error on the next read, as
   Rust's `Read` takes one or the other; `io.EOF` ends it, and a read of nothing and no
-  error reads again, giving up with `io.ErrNoProgress` after 100. Their errors cross as
-  their messages.
+  error reads again, giving up with `io.ErrNoProgress` after 100. A seek from the start
+  past `math.MaxInt64`, as Rust's `SeekFrom::Start` takes a `uint64`, calls `SeekStart` of
+  a reader that is also an `rt.StartSeeker`, as `io.Copy` uses an `io.WriterTo`, and fails
+  in any other. Their errors cross as their messages.
 - **Futures** are calls taking a `context.Context` first, which block until the future is
   ready. The call polls it once before it waits, and makes the waker it waits on only if
   that poll pends; a wake from any thread signals the waiting goroutine, which polls
@@ -821,8 +829,11 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
 - A **reader** Rust reads and seeks, a `Read + Seek` behind `&mut`, is a `SeekableReader`:
   `readInto` and `seek`, which Rust calls only during the call, on the isolate's thread.
   `SeekableReader.file` reads a `RandomAccessFile` through its synchronous methods, as
-  Rust's calls are. An `Exception` either throws fails the call into Rust as an
-  `io::Error` of its text, and anything else it throws aborts.
+  Rust's calls are. A seek from `SeekFrom.start` takes a `u64`'s bits, as every `u64` is,
+  so one past `i64`'s range is negative, which a file refuses. Rust's buffer is never
+  `readInto`'s: it fills a list of Dart's own, which Rust copies. An `Exception` either
+  throws fails the call into Rust as an `io::Error` of its text, and anything else it
+  throws aborts.
 - **Futures** are `Cancelable<T>`, a `Future<T>` completed on the isolate that made it:
   an extension type on Dart's own future, which `await` takes its shortest path through.
   The call polls it once, returning it complete if that poll finished, and makes a waker

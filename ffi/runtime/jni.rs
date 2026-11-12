@@ -568,8 +568,9 @@ unsafe extern "C" fn seek_channel(data: *mut c_void, whence: std::ffi::c_int, of
 			unsafe { err.write(rt::Buf::vec(error)) };
 			return false;
 		}
-		// SAFETY: C's contract: `position` is writable; `__seek` lands at none below 0.
-		unsafe { position.write(at as u64) };
+		// SAFETY: C's contract: `position` is writable. Its bits, unsigned, as `__seek` returns
+		// a position past `Long.MAX_VALUE`.
+		unsafe { position.write(at.cast_unsigned()) };
 		true
 	})
 }

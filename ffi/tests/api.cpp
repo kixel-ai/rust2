@@ -70,6 +70,13 @@ struct broken_reader {
 	}
 };
 
+// A reader whose reads fail, which seeks anywhere from its start, as Rust's `Cursor` does.
+struct far_reader : broken_reader {
+	api::result<std::uint64_t, std::string> seek_start(std::uint64_t offset) {
+		return api::result<std::uint64_t, std::string>::ok(offset);
+	}
+};
+
 // Print what `tail` read of `file`.
 template <class R>
 void tail(R &file) {
@@ -1080,6 +1087,14 @@ int script() {
 		tail(hello);
 		broken_reader broken;
 		tail(broken);
+		// A seek from the start reaches the reader whole, past `INT64_MAX`, as `Cursor` takes one.
+		far_reader far;
+		auto sought = api::seek_to(far, UINT64_MAX);
+		if (sought) {
+			std::printf("sought %llu\n", static_cast<unsigned long long>(*sought));
+		} else {
+			print("sought error ", sought.error(), "\n");
+		}
 	}
 
 	// A returned `Vec<&Token>` holds clones, which the vector drops.

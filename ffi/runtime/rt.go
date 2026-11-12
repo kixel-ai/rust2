@@ -397,6 +397,14 @@ func Reader_(r io.ReadSeeker) any {
 	return &reader_{r: r}
 }
 
+// StartSeeker is an io.ReadSeeker that also seeks to any offset from its start, as Rust's
+// SeekFrom::Start takes a uint64, past the int64 an io.Seeker takes. Rust calls SeekStart
+// only for an offset past math.MaxInt64; a reader without it fails that seek.
+type StartSeeker interface {
+	io.ReadSeeker
+	SeekStart(offset uint64) (uint64, error)
+}
+
 // reader_ is a Go reader Rust reads and seeks one call at a time, as Rust's Read and Seek.
 type reader_ struct {
 	r io.ReadSeeker
@@ -433,10 +441,19 @@ func (r *reader_) read(p []byte) (int, error) {
 	return 0, io.ErrNoProgress
 }
 
-func (r *reader_) seek(offset int64, whence int) (int64, error) {
-	// From the start, the offset's bits are unsigned, past what an io.Seeker takes.
+// seek is a seek as Rust's, whose offset from the start is offset's bits, unsigned.
+func (r *reader_) seek(offset int64, whence int) (uint64, error) {
 	if whence == io.SeekStart && offset < 0 {
-		return 0, errors.New("a seek past math.MaxInt64, which an io.Seeker cannot take")
+		s, ok := r.r.(StartSeeker)
+		if !ok {
+			return 0, errors.New("a seek past math.MaxInt64 of a reader that is no StartSeeker")
+		}
+		at, err := s.SeekStart(uint64(offset))
+		if err != nil {
+			return 0, err
+		}
+		r.err = nil
+		return at, nil
 	}
 	at, err := r.r.Seek(offset, whence)
 	if err != nil {
@@ -447,7 +464,7 @@ func (r *reader_) seek(offset int64, whence int) (int64, error) {
 	}
 	// What a read returned beside bytes was where it read, which a seek leaves.
 	r.err = nil
-	return at, nil
+	return uint64(at), nil
 }
 
 // Pollable_ is run as a future Rust polls, under a context derived from parent, which

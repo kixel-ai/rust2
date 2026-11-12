@@ -782,6 +782,22 @@ func script() {
 	driven.Close()
 	tail(strings.NewReader("hello world"))
 	tail(brokenReader{})
+	// A seek from the start reaches the reader whole, past `math.MaxInt64`, as `Cursor` takes one.
+	if at, err := api.SeekTo(farReader{}, math.MaxUint64); err != nil {
+		fmt.Printf("sought error %s\n", err)
+	} else {
+		fmt.Printf("sought %d\n", at)
+	}
+}
+
+// farReader is a reader whose reads fail, which seeks anywhere from its start, as Rust's
+// Cursor does.
+type farReader struct{ brokenReader }
+
+var _ rt.StartSeeker = farReader{}
+
+func (farReader) SeekStart(offset uint64) (uint64, error) {
+	return offset, nil
 }
 
 // tail prints the last 5 bytes of file, or its error.

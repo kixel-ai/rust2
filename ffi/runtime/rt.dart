@@ -236,11 +236,12 @@ abstract interface class SeekableReader {
   /// `file`, read and seeked through its synchronous methods.
   factory SeekableReader.file(io.RandomAccessFile file) = _FileReader;
 
-  /// Read up to `buffer.length` bytes into `buffer`, which lives only for this call,
-  /// returning how many: 0 only at the end.
+  /// Read up to `buffer.length` bytes into `buffer`, returning how many: 0 only at the end.
   int readInto(typed.Uint8List buffer);
 
-  /// Move to `offset` from `from`, returning the position from the start.
+  /// Move to `offset` from `from`, returning the position from the start. From
+  /// [SeekFrom.start], `offset` and the position are a `u64`'s 64 bits, as every `u64` in
+  /// Dart is, so one past `i64`'s range is negative.
   int seek(int offset, SeekFrom from);
 }
 
@@ -254,6 +255,10 @@ final class _FileReader implements SeekableReader {
 
   @override
   int seek(int offset, SeekFrom from) {
+    // A `u64` past `i64`'s range, as a file takes no position past it.
+    if (from == SeekFrom.start && offset < 0) {
+      throw io.FileSystemException('a seek past the largest position a file takes', _file.path);
+    }
     final base = switch (from) {
       SeekFrom.start => 0,
       SeekFrom.current => _file.positionSync(),
@@ -300,11 +305,6 @@ bool _readerSeek(
   ffi.Pointer<ffi.Uint64> position,
   ffi.Pointer<_Buf> err,
 ) {
-  // From the start, the offset's bits are unsigned, past what an int holds.
-  if (whence == 0 && offset < 0) {
-    _n.setBuf(err, _n.copied('a seek past the largest int, which a SeekableReader cannot take'));
-    return false;
-  }
   try {
     position.value = (_n.lent[data.address] as SeekableReader).seek(offset, SeekFrom.values[whence]);
     return true;
