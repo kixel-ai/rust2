@@ -9,8 +9,9 @@ grouped into milestones ordered by priority.
 
 m0 holds urgent fixes and what every run pays for. m1 is the work with a consumer
 waiting on it now: the exporter moq switches its bindings to. m2 is research with a named
-consumer: rust2-wasm, moq's browser route, and the TypeScript translator, an experiment
-that has to beat it. m3 holds work that waits on evidence or has no consumer yet:
+consumer: rust2-wasm, moq's browser route, the TypeScript translator, an experiment
+that has to beat it, and [crabx](/quest/m2/crabx/README.md), prebuilt Rust CLIs without
+a toolchain. m3 holds work that waits on evidence or has no consumer yet:
 upstream's build-speed levers, which the [build-speed benchmark](/bench/build/README.md)
 measures, the translator's features that wait on that gate, and the binding targets
 planned ahead of a consumer. m4 holds long-term research.
