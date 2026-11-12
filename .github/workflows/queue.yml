@@ -5,11 +5,13 @@ name: Queue
 # queue drops a PR, moq-dev/quest's queue watcher on the host runs the land
 # fixer and re-enqueues it at the back of the queue.
 #
-# `main`'s ruleset requires this job's `Queue` context. GitHub admits a PR to
-# the queue only once its required checks pass on the PR itself, so the job
-# also runs, as skipped, on main pull requests; a skipped job satisfies the
-# requirement. Only the merge group build runs code, and only a maintainer's
-# pick enters the queue.
+# `main`'s ruleset requires the build's own `Queue build / Build` context, so
+# a group's check reports from the self-hosted runner and waits on no
+# GitHub-hosted one. GitHub admits a PR to the queue only once its required
+# checks pass on the PR itself, so the build is also called on main pull
+# requests, where its job skips under the same name; a skipped job satisfies
+# the requirement. Only the merge group build runs code, and only a
+# maintainer's pick enters the queue.
 on:
   pull_request:
     branches: [main]
@@ -25,45 +27,32 @@ on:
   workflow_dispatch:
     inputs:
       sha:
-        description: The PR head commit to report the skipped Queue context on.
+        description: The PR head commit to report the skipped Queue build / Build context on.
         required: true
 
 permissions:
   contents: read
 
-# No concurrency group. A pull request's `Queue` job waits on `build` before it
-# skips, so cancelling the run then, as a second event for the PR would,
-# reports `Queue` cancelled and fails the requirement; even a group without
-# cancel-in-progress cancels a pending run. Each merge group has its own ref, so
-# its run never had another to replace, and a repeated dispatch only reports the
-# same skipped context twice.
+# No concurrency group. Cancelling a pull request's run, as a second event for
+# the PR would, can report the build cancelled and fail the requirement; even a
+# group without cancel-in-progress cancels a pending run. Each merge group has
+# its own ref, so its run never had another to replace, and a repeated dispatch
+# only reports the same skipped context twice.
 
 jobs:
   # The build runs in queue-build.yml so its runner group can admit that
   # workflow alone; see that file. It calls main's copy, not the merge group's,
   # since the group admits that workflow only at refs/heads/main: a PR's edit to
   # queue-build.yml runs only after it lands.
+  #
+  # The call has no `if`: a skipped call reports only `Queue build`, while a
+  # call whose job skips reports `Queue build / Build`, the context the
+  # ruleset requires. main's copy skips that job on every event but
+  # merge_group, so a pull request gets no runner. A failed or cancelled build
+  # reports its own context failed or cancelled, which fails the group.
   build:
     name: Queue build
-    if: github.event_name == 'merge_group'
     uses: moq-dev/rust2/.github/workflows/queue-build.yml@main
-
-  # The required context. A reusable workflow's jobs report as
-  # `Queue build / Build`, so this job reports the build's result under the
-  # name main's ruleset requires. It skips with the build on pull requests, and
-  # runs even when the build fails or is cancelled, since a skipped context
-  # would pass the group.
-  queue:
-    name: Queue
-    needs: build
-    if: always() && github.event_name == 'merge_group'
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Require the build to pass
-        env:
-          RESULT: ${{ needs.build.result }}
-        run: '[[ "$RESULT" == success ]] || { echo "::error::the queue build ended $RESULT" >&2; exit 1; }'
 
   # The merge queue still builds every group with the jobs above; this only
   # satisfies the PR-side requirement, as a pull_request run's skipped job does.
@@ -75,12 +64,12 @@ jobs:
     permissions:
       checks: write
     steps:
-      - name: Report the skipped Queue context
+      - name: Report the skipped Queue build / Build context
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           SHA: ${{ inputs.sha }}
         run: |
           [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::sha must be a full commit SHA" >&2; exit 1; }
-          gh api "repos/$REPO/check-runs" -f name=Queue -f head_sha="$SHA" -f status=completed -f conclusion=skipped \
-            -f 'output[title]=Queue' -f 'output[summary]=Skipped on the pull request; the merge queue builds the group.' --silent
+          gh api "repos/$REPO/check-runs" -f 'name=Queue build / Build' -f head_sha="$SHA" -f status=completed -f conclusion=skipped \
+            -f 'output[title]=Queue build / Build' -f 'output[summary]=Skipped on the pull request; the merge queue builds the group.' --silent
