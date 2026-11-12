@@ -28,5 +28,51 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      # Only main's merge queue writes the runner's persistent mbx store: a
+      # maintainer picked each group's PR, so nothing unreviewed writes it. The
+      # job's own condition already admits only merge_group; this also pins the
+      # caller and main's queue, as moq's rust-cache action does.
+      - name: Require main's merge queue
+        if: ${{ !(github.workflow == 'Queue' && startsWith(github.ref, 'refs/heads/gh-readonly-queue/main/')) }}
+        run: |
+          echo "::error::The persistent mbx store requires Queue on main's merge queue." >&2
+          exit 1
+      # mbx keys every compilation on its compiler, target, and inputs, so the
+      # runner's store serves every group without a cache key of ours. The host's
+      # ci-runners.nix supplies the store's environment and job-boundary GC.
+      # 1.29.2 is the floor: 1.28.0 prints no real paths for files in a build
+      # script's OUT_DIR (jdx/mr-boxington#896).
+      - uses: jdx/mr-boxington-action@88acf2bb50552c7c508cbac13e5f8c576b95b1de # v1.7.3
+        id: mbx
+        with:
+          version: 1.29.2
+          backend: local
+      # The runner keeps managed targets and learned incremental state across
+      # jobs, and Cargo trusts whatever outputs it finds there. State another mbx
+      # version left is not trusted, so it goes before the first build on a new
+      # version; the shared store stays. Each workspace has its own stamp.
+      - name: Drop another mbx version's private state
+        env:
+          VERSION: ${{ steps.mbx.outputs.mbx-version }}
+        run: |
+          : "${VERSION:?the mbx action reported no version}"
+          stamp="$HOME/.cache/rust2-mbx-versions$RUNNER_WORKSPACE"
+          if [ "$(cat "$stamp" 2>/dev/null)" != "$VERSION" ]; then
+            mbx clean --under "$RUNNER_WORKSPACE"
+            mkdir -p "${stamp%/*}"
+            printf '%s\n' "$VERSION" > "$stamp"
+          fi
+      # The shim is how mbx reaches Cargo; the action only puts `mbx` on PATH.
+      # flake.nix finds the shim through `mbx setup --status` and puts it ahead
+      # of the dev shell's pinned toolchain. The shim existing is the assertion:
+      # a setup that quietly did nothing would build cold and still pass.
+      - name: Cargo shim
+        run: |
+          mbx setup --yes
+          shim=$(mbx setup --status 2>/dev/null | sed -n '1s/.*: //p' || true)
+          if [ ! -e "$shim" ]; then
+            echo "::error::mbx setup installed no Cargo shim: $(mbx setup --status 2>&1)"
+            exit 1
+          fi
       - name: Check and test the merge group
         run: nix develop --command quest gate just ci "$BASE"
