@@ -21,3 +21,6 @@ container (path, owner, cleanup between jobs), and whether keys change between i
 runs (paths, env, timestamps in the key). Reproduce by running the same build twice in the
 container and diffing the keys mbx logs. Fix at the root, and confirm with a queue build
 whose repeated crates hit.
+
+Decided 2026-11-12 (maintainer, the pick of [#720](https://github.com/moq-dev/rust2/pull/720)):
+✅ keep this quest (rejected: drop it, since gate CPU already beats the baseline).
