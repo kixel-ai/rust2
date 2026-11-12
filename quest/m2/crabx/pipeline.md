@@ -37,5 +37,7 @@ Recommendations:
   dependencies break a single cross-compiling runner.
 - Keep PR CI read-only: only the publishing job gets `contents: write`,
   `id-token: write`, and `attestations: write`, on every trigger it serves.
+- Release the reusable workflow itself under tags (`pipeline-v{version}`), so a caller
+  pins a release; [`crabx init`](/quest/m2/crabx/init.md) writes that pin.
 - Prove it on a fixture crate in this repo; crabx is its first real caller when
   [shipped](/quest/m2/crabx/ship.md).

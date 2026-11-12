@@ -14,9 +14,10 @@ Recommendations:
 - npm as per-platform packages selected by `os`, `cpu`, and, on Linux, `libc: ["glibc"]`
   (the esbuild pattern), with no postinstall download. On musl no package matches, and
   the launcher fails loudly rather than run a glibc binary.
-- npm trusted publishing is the one job on a GitHub-hosted runner, kept minimal and
-  pinned by a test.
-- This adds rust2's first published crate, so it sets up release tagging too.
+- The npm publish is the one job with npm publish rights, kept minimal and pinned by a
+  test; npm trusted publishing needs a GitHub-hosted runner.
+- This adds rust2's first published crate, so it sets up crate release tagging; the
+  pipeline's own release tags come from [the pipeline](/quest/m2/crabx/pipeline.md).
 
 ## Required
 
