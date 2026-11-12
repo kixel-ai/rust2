@@ -1292,8 +1292,8 @@ fn unreached_types() {
 		.env("CARGO_TARGET_DIR", moved.join("build")));
 	let manifest = std::fs::read_to_string(moved.join("out/Cargo.toml")).unwrap();
 	assert!(
-		manifest.contains(&format!("path = \"{}\"", moved.join("kio").display()))
-			&& !manifest.contains(&package.join("kio").display().to_string()),
+		manifest.contains(&format!("path = {:?}", moved.join("kio").display().to_string()))
+			&& !manifest.contains(&format!("{:?}", package.join("kio").display().to_string())),
 		"{manifest}"
 	);
 	std::fs::write(package.join("ffi.toml"), "").unwrap();
