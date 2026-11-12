@@ -2589,6 +2589,12 @@ pub enum VecClashTone {
 	Error,
 }
 
+/// An offset, named as Kotlin's interface for a reader seeking past `Long.MAX_VALUE`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StartSeekable {
+	pub at: u64,
+}
+
 pub mod clash {
 	/// A pitch in hertz, whose name Pascal case cannot tell from `TONE`'s.
 	#[derive(Clone, Copy, Debug, PartialEq)]

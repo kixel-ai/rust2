@@ -331,6 +331,7 @@ const TAKEN: &[&str] = &[
 	"Int",
 	"Long",
 	"Short",
+	"StartSeekable",
 	"String",
 	"UByte",
 	"UInt",
