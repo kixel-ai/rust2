@@ -658,6 +658,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(_) => "netip.AddrPort".to_string(),
 			Type::List(_, inner) => format!("[]{}", self.go(inner)),
 			Type::Waker => "func()".to_string(),
+			Type::Reader => unimplemented!("a reader in Go"),
 			Type::Future => "func(context.Context)".to_string(),
 			Type::Option(inner) => match inner.base() {
 				// Already a pointer, nil for none.
@@ -667,9 +668,10 @@ impl<'a> Gen<'a> {
 			Type::Box(inner) | Type::Ref(_, inner) => self.go(inner),
 			Type::Record(_) | Type::Enum(_) | Type::Callback(..) => self.qualified(ty),
 			Type::Object(_) => format!("*{}", self.qualified(ty)),
-			Type::Closure(params, ret) => {
+			Type::Closure(closure_) => {
+				let (params, ret) = (&closure_.params, &closure_.ok);
 				let params: Vec<String> = params.iter().map(|p| self.go_param(p)).collect();
-				match **ret {
+				match *ret {
 					Type::Unit => format!("func({})", params.join(", ")),
 					_ => format!("func({}) {}", params.join(", "), self.go(ret)),
 				}
@@ -822,6 +824,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(Family::V4) => format!("lowerAddrV4_({e})"),
 			Type::SocketAddr(Family::V6) => format!("lowerAddrV6_({e})"),
 			Type::Waker => format!("waker_({e})"),
+			Type::Reader => unimplemented!("a reader in Go"),
 			Type::Future => unreachable!("a foreign future crosses only as a parameter"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				self.convert(ty);
@@ -2166,7 +2169,8 @@ impl<'a> Gen<'a> {
 				after.push(self.close(&param.ty, &name, 0));
 			}
 			match (&param.ty, c) {
-				(Type::Closure(lent, ret), _) => {
+				(Type::Closure(closure_), _) => {
+					let (lent, ret) = (&closure_.params, &closure_.ok);
 					let trampoline = self.trampoline(&param.ty, lent, ret);
 					let k_ = format!("k{k}_");
 					prelude.push(format!("{k_} := cgo.NewHandle({name})\ndefer {k_}.Delete()"));
@@ -2371,7 +2375,8 @@ impl<'a> Gen<'a> {
 
 		let mut text = function.docs.clone();
 		for (param, name) in function.params.iter().zip(&names) {
-			if let Type::Closure(lent, _) = &param.ty {
+			if let Type::Closure(closure_) = &param.ty {
+				let lent = &closure_.params;
 				text.push_str(&format!(
 					"\n\nRust calls {name} only during the call, from any goroutine's thread."
 				));

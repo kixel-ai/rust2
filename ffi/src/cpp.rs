@@ -122,6 +122,7 @@ impl<'a> Header<'a> {
 			Type::Enum(i) => self.q(&abi.enumeration(*i)),
 			Type::Object(i) => self.q(&abi.object(*i)),
 			Type::Callback(i, _) => format!("::std::unique_ptr<{}>", self.q(&abi.callback(*i))),
+			Type::Reader => unimplemented!("a reader in C++"),
 			Type::Closure(..) | Type::Future => unreachable!("{ty:?} is a template parameter"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => self.q(&abi.range(ty)),
 			Type::Tuple(elements) => {
@@ -294,6 +295,7 @@ impl<'a> Header<'a> {
 			Type::Object(i) if abi.api.objects[*i].copy => format!("{d}::access::raw({e})"),
 			Type::Object(_) => format!("{d}::access::own({e})"),
 			Type::Callback(..) => format!("{d}::lower(::std::move({e}))"),
+			Type::Reader => unimplemented!("a reader in C++"),
 			Type::Closure(..) | Type::Future => unreachable!("{ty:?} lowers through its template parameter"),
 			Type::Str | Type::String | Type::Slice | Type::Vec | Type::Bytes | Type::Path | Type::PathBuf => {
 				unreachable!("a buffer is above")
@@ -1165,7 +1167,8 @@ impl<'a> Header<'a> {
 				templates.push(format!("class {f}"));
 				continue;
 			}
-			if let (Type::Closure(lent, ret), Ty::Fn(c_lent, c_ret)) = (&param.ty, c_ty) {
+			if let (Type::Closure(closure_), Ty::Fn(c_lent, c_ret)) = (&param.ty, c_ty) {
+				let (lent, ret) = (&closure_.params, &closure_.ok);
 				c_params.next().expect("a closure has its data");
 				let f = format!("F{}", templates.len());
 				params.push(format!("{f} &&{name}"));
@@ -1260,7 +1263,8 @@ impl<'a> Header<'a> {
 					"\n\nRust polls `{name}` from any thread until it is ready, and destroys it once done with it."
 				));
 			}
-			if let Type::Closure(lent, _) = &param.ty {
+			if let Type::Closure(closure_) = &param.ty {
+				let lent = &closure_.params;
 				text.push_str(&format!(
 					"\n\nRust calls `{name}` only during the call, from any thread."
 				));

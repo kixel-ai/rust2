@@ -414,6 +414,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(_) => "java.net.InetSocketAddress".to_string(),
 			Type::List(_, inner) => format!("kotlin.collections.List<{}>", self.kt(inner)),
 			Type::Waker => "Waker".to_string(),
+			Type::Reader => unimplemented!("a reader in Kotlin"),
 			Type::Future => "suspend () -> Unit".to_string(),
 			Type::Option(inner) => format!("{}?", self.kt(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.kt(inner),
@@ -421,7 +422,8 @@ impl<'a> Gen<'a> {
 			Type::Enum(i) => self.class(&abi.enumeration(*i)),
 			Type::Object(i) => self.class(&abi.object(*i)),
 			Type::Callback(i, _) => self.class(&abi.callback(*i)),
-			Type::Closure(params, ret) => {
+			Type::Closure(closure_) => {
+				let (params, ret) = (&closure_.params, &closure_.ok);
 				let params: Vec<String> = params.iter().map(|p| self.kt_param(p)).collect();
 				format!("({}) -> {}", params.join(", "), self.kt(ret))
 			}
@@ -722,6 +724,7 @@ impl<'a> Gen<'a> {
 			}
 			// Run in the caller's context when it suspends, as Rust holds it no longer than the
 			// call's future.
+			Ty::ForeignReader => unimplemented!("a reader in Kotlin"),
 			Ty::ForeignFuture => {
 				let context = match self.suspends {
 					true => "kotlin.coroutines.coroutineContext",
@@ -1656,9 +1659,10 @@ impl<'a> Gen<'a> {
 			}
 		}
 		for (param, c, trampoline) in closures {
-			let (Type::Closure(lent, ret), Ty::Fn(c_lent, c_ret)) = (&param.ty, &c) else {
+			let (Type::Closure(closure_), Ty::Fn(c_lent, c_ret)) = (&param.ty, &c) else {
 				unreachable!()
 			};
+			let (lent, ret) = (&closure_.params, &closure_.ok);
 			let kt = self.kt(&param.ty);
 			let dispatcher = format!("{bare}__{}", abi::snake(&param.name));
 			self.trampoline(
@@ -1867,7 +1871,8 @@ impl<'a> Gen<'a> {
 
 		let mut text = function.docs.clone();
 		for (param, name) in function.params.iter().zip(&names) {
-			if let Type::Closure(lent, _) = &param.ty {
+			if let Type::Closure(closure_) = &param.ty {
+				let lent = &closure_.params;
 				text.push_str(&format!(
 					"\n\nRust calls `{name}` only during the call, from any thread."
 				));
@@ -2116,6 +2121,7 @@ fn jni_type(c: &Ty, ty: &Type) -> (&'static str, &'static str) {
 		Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => ("jbyteArray", "ByteArray"),
 		Ty::Fn(..) => ("jobject", "Any"),
 		Ty::Waker => ("jobject", "Waker"),
+		Ty::ForeignReader => unimplemented!("a reader in Kotlin"),
 		Ty::ForeignFuture => ("jobject", "Any"),
 		Ty::Poll | Ty::Out(_) | Ty::Data => unreachable!("{c:?} never crosses JNI"),
 	}

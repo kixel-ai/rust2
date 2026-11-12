@@ -79,7 +79,7 @@ impl Header<'_> {
 			"/* The index of the library's target among those this header serves:{targets} */\nuint32_t {p}_target(void);\n"
 		));
 		self.line(format!(
-			"/* Bytes. Passed in, a view Rust reads during the call and never frees. Returned,\n * an owned buffer to free once with {p}_buf_free. A null ptr is None. */\ntypedef struct {p}_buf {{\n\tconst uint8_t *ptr;\n\tsize_t len;\n\tvoid *owner;\n}} {p}_buf;\n\nvoid {p}_buf_free({p}_buf buf);\n"
+			"/* Bytes. Passed in, a view Rust reads during the call and never frees. Returned,\n * an owned buffer to free once with {p}_buf_free. A null ptr is None. */\ntypedef struct {p}_buf {{\n\tconst uint8_t *ptr;\n\tsize_t len;\n\tvoid *owner;\n}} {p}_buf;\n\nvoid {p}_buf_free({p}_buf buf);\n\n/* An owned copy of view's bytes: what a closure or reader C implements returns Rust,\n * which then owns it. */\n{p}_buf {p}_buf_copy({p}_buf view);\n"
 		));
 		self.line(format!(
 			"/* A u128: lo holds its low 64 bits and hi its high 64. */\ntypedef struct {p}_u128 {{\n\tuint64_t lo;\n\tuint64_t hi;\n}} {p}_u128;\n"
@@ -95,6 +95,9 @@ impl Header<'_> {
 		));
 		self.line(format!(
 			"/* A future C implements, of nothing: Rust polls it from any thread with a waker of\n * its own each time, which C wakes once the future can make progress and drops once,\n * until poll returns true, and calls free with data once it drops the future, done or\n * not. free may be null. */\ntypedef struct {p}_foreign_future {{\n\tbool (*poll)(void *data, {p}_waker waker);\n\tvoid (*free)(void *data);\n\tvoid *data;\n}} {p}_foreign_future;\n"
+		));
+		self.line(format!(
+			"/* A reader C implements, which Rust reads and seeks only during the call it is passed\n * to, one call at a time from any thread. read reads up to len bytes into buf,\n * writing how many to *n, none only at the end; seek moves offset from whence, SEEK_SET,\n * SEEK_CUR, or SEEK_END, writing the position from the start to *position. Each\n * returns whether it succeeded, else writing its error's message to *err as a buffer\n * {p}_buf_copy made. */\ntypedef struct {p}_foreign_reader {{\n\tbool (*read)(void *data, uint8_t *buf, size_t len, size_t *n, {p}_buf *err);\n\tbool (*seek)(void *data, int whence, int64_t offset, uint64_t *position, {p}_buf *err);\n\tvoid *data;\n}} {p}_foreign_reader;\n"
 		));
 		self.line(format!(
 			"typedef enum {p}_poll {{\n\t{upper}_POLL_PENDING = 0,\n\t{upper}_POLL_READY = 1,\n\t{upper}_POLL_ERROR = 2,\n}} {p}_poll;\n"
@@ -436,7 +439,7 @@ impl Header<'_> {
 			));
 		}
 		for param in &function.params {
-			let Type::Closure(params, _) = &param.ty else {
+			let Type::Closure(closure) = &param.ty else {
 				continue;
 			};
 			let name = abi::escape(&param.name);
@@ -444,12 +447,29 @@ impl Header<'_> {
 				.position(|(n, _)| *n == name)
 				.expect("a C parameter for each");
 			let data = &export.call.params[at + 1].0;
-			docs.push_str(&format!(
-				"\n\nRust calls `{name}` with `{data}` only during the call, from any thread."
-			));
-			if params.iter().any(|p| matches!(p.base(), Type::Object(_))) {
+			match closure.kept {
+				true => {
+					let free = &export.call.params[at + 2].0;
+					docs.push_str(&format!(
+						"\n\nRust keeps `{name}`, calling it with `{data}` from any thread, then calls `{free}`\nwith `{data}` once it drops it; `{free}` may be null."
+					))
+				}
+				false => docs.push_str(&format!(
+					"\n\nRust calls `{name}` with `{data}` only during the call, from any thread."
+				)),
+			}
+			if closure.params.iter().any(|p| matches!(p.base(), Type::Object(_))) {
 				docs.push_str(&format!(
 					"\nA handle it lends lives only for that call of `{name}`: free none, nor move out of one."
+				));
+			}
+			let ok = matches!(closure.ok, Type::String)
+				|| matches!(closure.ok.base(), Type::Object(_))
+				|| matches!(&closure.ok, Type::Option(inner) if matches!(**inner, Type::Object(_)));
+			if ok || closure.err.is_some() {
+				docs.push_str(&format!(
+					"\nWhat it returns is Rust's: a handle, or a buffer {}_buf_copy made.",
+					self.abi.prefix
 				));
 			}
 		}
@@ -501,6 +521,7 @@ pub fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
 		Ty::Future(n) => format!("{n} *{name}"),
 		Ty::Waker => space(&abi.rt("waker")),
 		Ty::ForeignFuture => space(&abi.rt("foreign_future")),
+		Ty::ForeignReader => space(&abi.rt("foreign_reader")),
 		Ty::Poll => space(&abi.rt("poll")),
 		Ty::Out(inner) => decl(abi, inner, &format!("*{name}")),
 		Ty::In(inner) => format!("const {}", decl(abi, inner, &format!("*{name}"))),

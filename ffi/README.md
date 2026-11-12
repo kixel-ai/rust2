@@ -76,15 +76,16 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
 | a `pub` field of an object | a getter returning a copy, and a setter assigning in place, as `x.field = value` does |
 | a `pub` trait | a callback interface: a table of C functions and their data; a trait C cannot implement, such as one with a blanket impl, an associated type, or a supertrait but a marker, is left out, since C never passes one, and a signature taking one from C is refused |
-| a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce`, which no lifetime bound or return lets outlive the call | a C function and its `void *` data, which Rust calls only during the call; any other closure is refused |
-| a type parameter or `impl` taken by value and bounded by `Future` or `IntoFuture`, whose every bound `Pin<Box<dyn Future<Output = ()> + Send>>` meets, as kio's `clock::timeout` takes | `<prefix>_foreign_future`: a future of `()` C implements, which Rust takes as that type; a future of another output is refused |
+| a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce` alone, taking what a callback takes, objects by reference, or `Copy` objects, and returning a scalar, a `String`, a `Copy` object, an `Option` of one, or a `Result` of one and a `String` | a C function and its `void *` data; one a lifetime bound or the return lets outlive the call, as kio's `clock::drive` and a spawned task's are, adds a `free` Rust calls once it drops it; a closure of any other signature is refused |
+| a type parameter or `impl` taken by value and bounded by `Future` or `IntoFuture`, whose every bound `Pin<Box<dyn Future<Output = ()> + Send>>` meets, as kio's `clock::timeout` takes, or taken as `Pin<&mut F>` by a poll, as kio's `Waiter::poll_future` takes | `<prefix>_foreign_future`: a future of `()` C implements, which Rust takes as that type, or which the future the poll makes owns and pins; a future of another output is refused |
+| a type parameter or `impl` bounded by `Read` and `Seek` alone, behind `&mut`, which no lifetime bound or return lets outlive the call, as moq-mux's `container::mp4::repair` takes | `<prefix>_foreign_reader`: a `read` and a `seek` C implements and their data, lent for the call; any other reader is refused |
 | `fn` and inherent `pub` methods | functions named through their type |
 | a `()` parameter of a function, not of a callback's method | nothing: C passes no argument for it |
 | `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
 | a tuple inside another type, or as a field or parameter | `<prefix>_tuple_<A>_<B>`: a struct of fields `_0`, `_1`, and so on; of references only returned |
 | `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it; a function that is not `async` runs at the call, as in Rust |
-| a function returning `Poll<T>` that polls through a `&Context`, a `&mut Context`, or a reference to an object exactly one associated function makes from a `Waker` alone, of a type with no generic parameters, such as kio's `Waiter` | a future of `T`, as an `async fn`'s: each poll calls the function again with the poll's context, or with an object made from its waker and kept until the next poll, so what it registers stays registered; each other parameter taken by value must be `Copy` |
+| a function returning `Poll<T>` that polls through a `&Context`, a `&mut Context`, or a reference to an object exactly one associated function makes from a `Waker` alone, of a type with no generic parameters, such as kio's `Waiter`, which may be the method's own `&self`, as `Waiter::poll_future`'s is | a future of `T`, as an `async fn`'s: each poll calls the function again with the poll's context, or with an object made from its waker and kept until the next poll, so what it registers stays registered; each other parameter taken by value must be `Copy`; a method polling through its own `&self` is a function without one |
 | `poll_x`, when `x` exports as a future | left out: the future is its poll |
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
 | `u128` | `<prefix>_u128`: its low and high 64 bits |
@@ -112,7 +113,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `impl Into<X>`, `impl AsRef<X>`, or a bound implying one, as a supertrait does | `X`, or `&X` and then `String` or `Vec<T>` where `X` is `str` or `[T]` |
 | `impl Into<X>`, where `X` does not map | what a `From` implementation into `X` takes: a source parameter by its bounds as above, so `impl<B: Into<Bytes>> From<B> for Timed<Bytes>` takes `Bytes`, and by each `Into<Y>` whose `Y` does not map, what converts into `Y` in turn, each `Y` once and refusing a chain longer than the crate's recursion limit; any other source as it is, so `impl<'a, V> From<&'a V> for Timed<&'a V>` takes `&V`. Two sources C passes as one buffer, such as `String` and `Vec<u8>`, are refused, unless they are forms of one value, as `&str` and `String` are |
 | `impl IntoIterator<Item = X>`, where `X` is no type parameter | `Vec<X>`, or `&[Y]` where `X` is `&Y` |
-| `impl io::Read` | `&[u8]` |
+| `impl io::Read`, not bounded by `Seek` | `&[u8]` |
 | another type parameter | `serde_json::Value` for a serde `Serialize` or `Deserialize` bound, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, through a blanket impl at each type implementing what the impl requires, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
 | a const parameter of a function | an instance of the function at each value an instance of a generic type the signature passes it to has there, where each generic type the signature then names is an instance |
 | a const argument | a `bool` or an integer below 128 bits; any other is refused |
@@ -235,11 +236,19 @@ dropped for the other target's span where the file differs.
 - **Callbacks** are a struct of a table and its data. Rust calls `free` once it drops the
   implementation, and may call the others from any thread. A callback takes scalars and
   buffers lent for the call, and returns a scalar.
-- **Closures** lent for a call are a function and its data, which Rust calls only during
-  the call, from any thread. One takes what a callback takes, and objects by reference,
+- **Closures** are a function and its data, which Rust calls from any thread, one call
+  at a time. One lent for a call Rust calls only during the call; one Rust keeps comes
+  with a `free`, which Rust calls once it drops the closure, done or not, maybe before
+  any call. One takes what a callback takes, and objects by reference or `Copy` objects,
   each lent as a handle to the value where it is for that call: C borrows it no further
   than Rust lent it, and moving out of it, freeing it, or keeping a borrow past the call
-  aborts.
+  aborts. What it returns is Rust's to own: a handle C made or was given, or a buffer
+  `<prefix>_buf_copy` made; a `Result` returns false and writes its error's buffer.
+- **Readers** are a `read`, a `seek`, and their data, lent for the call, which Rust calls
+  from any thread, one call at a time. `read` writes at most the length it was given,
+  `seek` takes `SEEK_SET`, `SEEK_CUR`, or `SEEK_END`, and either fails by returning false
+  with a buffer `<prefix>_buf_copy` made, which Rust raises as an `io::Error` of that
+  message. A null function, or a read past the length, aborts.
 - **The contract** is a hash of the header's declarations, its docs included: the header
   defines it as `<PREFIX>_CONTRACT`, and `<prefix>_contract()` returns it from the library
   built with the header. A binding checks the two match before any other call, so a header

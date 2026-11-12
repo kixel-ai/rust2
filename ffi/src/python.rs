@@ -419,6 +419,7 @@ impl<'a> Gen<'a> {
 			},
 			Type::List(_, inner) => format!("list[{}]", self.py_ty(inner)),
 			Type::Waker => "Waker".to_string(),
+			Type::Reader => unimplemented!("a reader in Python"),
 			Type::Future => "_typing.Awaitable[None]".to_string(),
 			Type::Option(inner) => format!("{} | None", self.py_ty(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.py_ty(inner),
@@ -426,7 +427,8 @@ impl<'a> Gen<'a> {
 			Type::Enum(i) => self.class(&abi.enumeration(*i)),
 			Type::Object(i) => self.class(&abi.object(*i)),
 			Type::Callback(i, _) => self.class(&abi.callback(*i)),
-			Type::Closure(params, ret) => {
+			Type::Closure(closure_) => {
+				let (params, ret) = (&closure_.params, &closure_.ok);
 				let params: Vec<String> = params.iter().map(|p| self.py_lent(p)).collect();
 				format!("_typing.Callable[[{}], {}]", params.join(", "), self.py_param(ret))
 			}
@@ -543,6 +545,7 @@ impl<'a> Gen<'a> {
 				)
 			}
 			Type::Waker => format!("rt::waker_in({o}, s)"),
+			Type::Reader => unimplemented!("a reader in Python"),
 			Type::Future => format!("rt::future_in({o}, s)"),
 			Type::Range(int) => format!("rt::range_in::<{}>({o})", int.rust()),
 			Type::Bound(_) | Type::Bounds(_) => format!("r_{}({o}, s)", abi.range(ty)),
@@ -602,6 +605,7 @@ impl<'a> Gen<'a> {
 			Type::Bound(_) | Type::Bounds(_) => format!("w_{}({v})", abi.range(ty)),
 			Type::Tuple(_) => format!("w_{}({v})", self.c_struct(ty)),
 			Type::Waker => format!("rt::waker_out({v})"),
+			Type::Reader => unimplemented!("a reader in Python"),
 			Type::Callback(..) | Type::Closure(..) | Type::Future => {
 				unreachable!("{ty:?} is no value Rust returns")
 			}
@@ -1459,12 +1463,13 @@ impl<'a> Gen<'a> {
 					c_args.push(format!("p{n}"));
 					written.push((n, (**inner).clone()));
 				}
-				(Type::Closure(lent, ret), Ty::Fn(c_lent, c_ret)) => {
+				(Type::Closure(closure_), Ty::Fn(c_lent, c_ret)) => {
+					let (lent, ret) = (&closure_.params, &closure_.ok);
 					c_params.next().expect("a closure has its data");
 					let trampoline = format!("py_{c_name}_{}", abi::escape(&param.name));
 					closures.push((
 						lent.clone(),
-						(**ret).clone(),
+						ret.clone(),
 						c_lent.clone(),
 						(**c_ret).clone(),
 						trampoline.clone(),
@@ -1549,7 +1554,8 @@ impl<'a> Gen<'a> {
 		// The Python.
 		let mut text = function.docs.clone();
 		for param in &function.params {
-			if let Type::Closure(lent, _) = &param.ty {
+			if let Type::Closure(closure_) = &param.ty {
+				let lent = &closure_.params;
 				let name = param_name(&param.name);
 				text.push_str(&format!(
 					"\n\nRust calls `{name}` only during the call, from any thread."

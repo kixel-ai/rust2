@@ -198,6 +198,8 @@ fn api_c() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("null", "api_Registry_edit: a function is null"),
+		("returned", "api_made: a returned buffer is not one buf_copy made"),
+		("reader", "api_tail: a reader's function is null"),
 		("outlived", OUTLIVED),
 		(
 			"lent shared",

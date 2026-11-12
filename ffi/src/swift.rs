@@ -318,6 +318,7 @@ impl<'a> Gen<'a> {
 			Type::List(_, inner) if self.unique(inner) => format!("UniqueArray<{}>", self.sw(inner)),
 			Type::List(_, inner) => format!("[{}]", self.sw(inner)),
 			Type::Waker => "@Sendable () -> Void".to_string(),
+			Type::Reader => unimplemented!("a reader in Swift"),
 			Type::Future => "@Sendable () async -> Void".to_string(),
 			Type::Option(inner) => format!("{}?", self.sw(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.sw(inner),
@@ -325,7 +326,8 @@ impl<'a> Gen<'a> {
 			Type::Enum(i) => self.class(&abi.enumeration(*i)),
 			Type::Object(i) => self.class(&abi.object(*i)),
 			Type::Callback(i, _) => format!("any {}", self.class(&abi.callback(*i))),
-			Type::Closure(params, ret) => {
+			Type::Closure(closure_) => {
+				let (params, ret) = (&closure_.params, &closure_.ok);
 				let params: Vec<String> = (params.iter())
 					.map(|p| format!("{}{}", self.ownership(p), self.sw(p)))
 					.collect();
@@ -1168,7 +1170,8 @@ impl<'a> Gen<'a> {
 			arg.after.push(self.close(ty, e));
 		}
 		match (ty, c) {
-			(Type::Closure(lent, ret), Ty::Fn(..)) => {
+			(Type::Closure(closure_), Ty::Fn(..)) => {
+				let (lent, ret) = (&closure_.params, &closure_.ok);
 				let (f, g, d) = (format!("f{k}_"), format!("g{k}_"), format!("d{k}_"));
 				arg.open = Some((
 					format!(
@@ -1553,7 +1556,8 @@ impl<'a> Gen<'a> {
 			text.push_str(&format!("\n\nWithout `{}`, as Rust's `None`.", unquote(&names[*k])));
 		}
 		for (param, name) in function.params.iter().zip(&names) {
-			if let Type::Closure(lent, _) = &param.ty {
+			if let Type::Closure(closure_) = &param.ty {
+				let lent = &closure_.params;
 				text.push_str(&format!(
 					"\n\nRust calls `{}` only during the call, from any thread.",
 					unquote(name)

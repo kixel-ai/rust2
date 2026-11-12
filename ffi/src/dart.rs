@@ -496,6 +496,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(_) => "SocketAddr".to_string(),
 			Type::List(_, inner) => format!("List<{}>", self.dt(inner)),
 			Type::Waker => "void Function()".to_string(),
+			Type::Reader => unimplemented!("a reader in Dart"),
 			Type::Future => "Future<void>".to_string(),
 			Type::Option(inner) => {
 				if matches!(inner.base(), Type::Option(_)) {
@@ -511,7 +512,8 @@ impl<'a> Gen<'a> {
 			Type::Enum(i) => self.class(&abi.enumeration(*i)),
 			Type::Object(i) => self.class(&abi.object(*i)),
 			Type::Callback(i, _) => self.class(&abi.callback(*i)),
-			Type::Closure(params, ret) => {
+			Type::Closure(closure_) => {
+				let (params, ret) = (&closure_.params, &closure_.ok);
 				let params: Vec<String> = params.iter().map(|p| self.dt(p)).collect();
 				format!("{} Function({})", self.dt(ret), params.join(", "))
 			}
@@ -1889,7 +1891,8 @@ impl<'a> Gen<'a> {
 				after.push(self.close(&param.ty, &name));
 			}
 			match (&param.ty, c) {
-				(Type::Closure(lent, ret), Ty::Fn(..)) => {
+				(Type::Closure(closure_), Ty::Fn(..)) => {
+					let (lent, ret) = (&closure_.params, &closure_.ok);
 					c_params.next().expect("a closure has its data");
 					let (relay, trampoline) = self.closure(&param.ty, lent, ret);
 					args.push(relay);
@@ -2041,7 +2044,8 @@ impl<'a> Gen<'a> {
 
 		let mut text = function.docs.clone();
 		for param in &function.params {
-			if let Type::Closure(lent, _) = &param.ty {
+			if let Type::Closure(closure_) = &param.ty {
+				let lent = &closure_.params;
 				let name = param_name(&param.name);
 				text.push_str(&format!(
 					"\n\nRust calls `{name}` only during the call, on the isolate's thread, while the call runs on another."

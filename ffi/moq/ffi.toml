@@ -6,7 +6,6 @@ exclude = [
     "bytes",
     "Client::connect<moq::transport::memory::Session>",
     "clock::Deadlines::enter",
-    "clock::drive",
     "clock::Entered",
     "clock::rng",
     "clock::Rng",
@@ -27,7 +26,6 @@ exclude = [
     "mux::container::fmp4::mp4_atom",
     "mux::container::fmp4::Wire::new",
     "mux::container::fmp4::Wire::trak",
-    "mux::container::mp4::repair",
     "mux::container::Producer<moq::mux::catalog::hang::Container>::modify",
     "mux::container::Producer<moq::mux::catalog::hang::Container, moq::hang::catalog::AudioConfig>::modify",
     "mux::container::Producer<moq::mux::catalog::hang::Container, moq::hang::catalog::BinaryConfig>::modify",
@@ -105,6 +103,4 @@ exclude = [
     "tokio::tls::Serve::resolver",
     "transport::poll::Ungrouped",
     "varint::encode_quic",
-    "Waiter::batch",
-    "Waiter::poll_future",
 ]
