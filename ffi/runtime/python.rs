@@ -1231,6 +1231,164 @@ pub fn closure(obj: *mut PyObject) -> R<*mut c_void> {
 	}
 }
 
+/// A callable Rust keeps past the call, as a kept closure's data: a reference Rust drops
+/// through [`free_closure`], or the scope drops if the call never happens.
+pub fn kept(obj: *mut PyObject, s: &mut Scope) -> R<*mut c_void> {
+	closure(obj)?;
+	// SAFETY: the GIL is held, and `obj` is live.
+	let given = unsafe { Obj::borrowed(obj) };
+	let ptr = given.ptr();
+	s.given.push(given);
+	Ok(ptr.cast())
+}
+
+/// Let go of a callable [`kept`] gave Rust, from any thread.
+///
+/// # Safety
+/// `data` is a reference [`kept`] gave Rust, freed once.
+pub unsafe extern "C" fn free_closure(data: *mut c_void) {
+	upcall("free", || {
+		// SAFETY: the reference Rust held.
+		drop(unsafe { Obj::new(data.cast()) }?);
+		Ok(())
+	})
+}
+
+/// A copy of the `str` `obj`'s UTF-8 that Rust owns, as `<prefix>_buf_copy` makes one, for
+/// a closure to hand Rust.
+pub fn str_given(obj: *mut PyObject) -> R<rt::Buf> {
+	let view = str_in(obj)?;
+	// SAFETY: a view of `obj`'s UTF-8, which the caller keeps.
+	Ok(rt::Buf::vec(unsafe { view.bytes("str") }.to_vec()))
+}
+
+static ERROR: Key = Key::new(c"error");
+
+/// The message of the exception raised, if it is an instance of `class`, which it clears,
+/// read by `message`: a copy Rust owns, as a closure or reader fails with one. An exception
+/// of any other class stays raised.
+fn caught(class: *mut PyObject, message: impl FnOnce(*mut PyObject) -> R<Obj>) -> R<rt::Buf> {
+	// SAFETY: the GIL is held, and an exception is set.
+	unsafe {
+		if PyErr_ExceptionMatches(class) == 0 {
+			return Err(Raised);
+		}
+		let (mut kind, mut value, mut trace) = (null_mut(), null_mut(), null_mut());
+		PyErr_Fetch(&mut kind, &mut value, &mut trace);
+		PyErr_NormalizeException(&mut kind, &mut value, &mut trace);
+		let _ = (Obj::new(kind), Obj::new(trace));
+		let value = Obj::new(value)?;
+		let message = message(value.ptr())?;
+		str_given(message.ptr())
+	}
+}
+
+/// The error a closure failed with, an instance of the exception class registered at
+/// `index`, which a Rust `String` error raises: its `error`.
+pub fn closure_error(index: usize) -> R<rt::Buf> {
+	caught(ty(index), |exc| {
+		// SAFETY: the GIL is held, and `exc` is live.
+		unsafe { Obj::new(PyObject_GetAttr(exc, ERROR.get()?)) }
+	})
+}
+
+static READINTO: Key = Key::new(c"readinto");
+static SEEK: Key = Key::new(c"seek");
+static RELEASE: Key = Key::new(c"release");
+
+/// A Python reader, lent to Rust for the call as its data: anything with `readinto` and
+/// `seek`, as a binary file has, which the caller's reference outlives.
+pub fn reader_in(obj: *mut PyObject) -> R<rt::ForeignReader> {
+	// SAFETY: the GIL is held, and `obj` is live.
+	let readable = unsafe { PyObject_HasAttr(obj, READINTO.get()?) == 1 && PyObject_HasAttr(obj, SEEK.get()?) == 1 };
+	match readable {
+		true => Ok(rt::ForeignReader {
+			read: Some(reader_read),
+			seek: Some(reader_seek),
+			data: obj.cast(),
+		}),
+		false => expected_named(obj, "a reader with readinto and seek"),
+	}
+}
+
+/// The `read` of a reader [`reader_in`] lent: `readinto` of a `memoryview` of Rust's
+/// buffer, which a [`Lent`] exports for the read alone. A view of it kept past the read,
+/// such as a slice, would write Rust's buffer once it is gone, so it aborts. An `OSError`
+/// fails the read with its message.
+unsafe extern "C" fn reader_read(data: *mut c_void, buf: *mut u8, len: usize, n: *mut usize, err: *mut rt::Buf) -> bool {
+	upcall("read", || {
+		let lent = lend(buf, len)?;
+		// SAFETY: the GIL is held, and `lent` is live.
+		let view = unsafe { Obj::new(PyMemoryView_FromObject(lent.ptr())) }?;
+		// SAFETY: as above, for `view`.
+		let read = match call_method(data.cast(), &READINTO, vec![Ok(unsafe { Obj::borrowed(view.ptr()) })]) {
+			Ok(read) => Ok(read),
+			// SAFETY: the GIL is held.
+			Err(Raised) => Err(caught(unsafe { PyExc_OSError }, str_of)?),
+		};
+		let released = call_method(view.ptr(), &RELEASE, Vec::new());
+		drop(view);
+		let lent = lent.ptr().cast::<Lent>();
+		// SAFETY: a live `Lent`, which exports nothing more once its pointer is null.
+		let kept = unsafe {
+			(*lent).buf = null_mut();
+			(*lent).exports != 0
+		};
+		if released.is_err() || kept {
+			if released.is_err() {
+				// SAFETY: the GIL is held, and an exception is set.
+				unsafe { PyErr_Print() };
+			}
+			rt::fail("read", "a reader kept a view of its buffer past the read");
+		}
+		let read = match read {
+			Ok(read) => read,
+			Err(message) => {
+				// SAFETY: Rust's out pointer, which it reads only on failure.
+				unsafe { err.write(message) };
+				return Ok(false);
+			}
+		};
+		if is_none(read.ptr()) {
+			// SAFETY: as above.
+			unsafe { err.write(rt::Buf::string("a reader has no bytes ready".to_string())) };
+			return Ok(false);
+		}
+		// SAFETY: Rust's out pointer.
+		unsafe { n.write(int_in::<usize>(read.ptr())?) };
+		Ok(true)
+	})
+}
+
+/// The `seek` of a reader [`reader_in`] lent: `seek(offset, whence)`, whose `whence` is
+/// Python's `os.SEEK_SET`, `SEEK_CUR`, or `SEEK_END` as it is C's. An `OSError` fails the
+/// seek with its message.
+unsafe extern "C" fn reader_seek(data: *mut c_void, whence: c_int, offset: i64, position: *mut u64, err: *mut rt::Buf) -> bool {
+	upcall("seek", || {
+		let args = vec![int_out(offset), int_out(i64::from(whence))];
+		match call_method(data.cast(), &SEEK, args) {
+			Ok(at) => {
+				// SAFETY: Rust's out pointer.
+				unsafe { position.write(int_in::<u64>(at.ptr())?) };
+				Ok(true)
+			}
+			Err(Raised) => {
+				// SAFETY: the GIL is held.
+				let message = caught(unsafe { PyExc_OSError }, str_of)?;
+				// SAFETY: Rust's out pointer, which it reads only on failure.
+				unsafe { err.write(message) };
+				Ok(false)
+			}
+		}
+	})
+}
+
+/// `str(obj)`.
+fn str_of(obj: *mut PyObject) -> R<Obj> {
+	// SAFETY: the GIL is held, and `obj` is live.
+	unsafe { Obj::new(PyObject_Str(obj)) }
+}
+
 static CLOSE: Key = Key::new(c"close");
 
 /// Let go of a Python implementation of a trait, from any thread: closed first if it has
@@ -1431,6 +1589,58 @@ impl Static {
 	fn ptr(&self) -> *mut PyObject {
 		self.0.ptr()
 	}
+}
+
+/// The exporter of a buffer Rust lends a reader's `readinto`, writable until the read
+/// ends, counting the views of it still open.
+#[repr(C)]
+struct Lent {
+	ob_base: PyObject,
+	buf: *mut u8,
+	len: usize,
+	exports: usize,
+}
+
+static LENT: std::sync::OnceLock<Static> = std::sync::OnceLock::new();
+
+/// A [`Lent`] of Rust's `len` bytes at `buf`.
+fn lend(buf: *mut u8, len: usize) -> R<Obj> {
+	let class = LENT.get().expect("loaded").ptr();
+	// SAFETY: the GIL is held, and `class` is `Lent`'s.
+	unsafe {
+		let obj = Obj::new(PyType_GenericAlloc(class.cast(), 0))?;
+		let lent = obj.ptr().cast::<Lent>();
+		(*lent).buf = buf;
+		(*lent).len = len;
+		(*lent).exports = 0;
+		Ok(obj)
+	}
+}
+
+unsafe extern "C" fn lent_getbuffer(obj: *mut PyObject, view: *mut Py_buffer, flags: c_int) -> c_int {
+	// SAFETY: Python asks a live `Lent` for a view.
+	unsafe {
+		let lent = obj.cast::<Lent>();
+		if (*lent).buf.is_null() {
+			PyErr_SetString(PyExc_ValueError, c"a reader's buffer is used past its read".as_ptr());
+			return -1;
+		}
+		let filled = PyBuffer_FillInfo(view, obj, (*lent).buf.cast(), (*lent).len as Py_ssize_t, 0, flags);
+		if filled == 0 {
+			(*lent).exports += 1;
+		}
+		filled
+	}
+}
+
+unsafe extern "C" fn lent_releasebuffer(obj: *mut PyObject, _: *mut Py_buffer) {
+	// SAFETY: Python releases a view of a live `Lent` it exported.
+	unsafe { (*obj.cast::<Lent>()).exports -= 1 };
+}
+
+unsafe extern "C" fn lent_dealloc(obj: *mut PyObject) {
+	// SAFETY: Python deallocates a `Lent` once no view of it is left.
+	unsafe { dealloc(obj) };
 }
 
 unsafe extern "C" fn bytes_getbuffer(obj: *mut PyObject, view: *mut Py_buffer, flags: c_int) -> c_int {
@@ -2357,6 +2567,13 @@ unsafe fn runtime(module: *mut PyObject) -> R<()> {
 			slot(0, null_mut()),
 		];
 		add_type(module, &BYTES, c"Bytes", size_of::<Bytes>(), Py_TPFLAGS_DISALLOW_INSTANTIATION as u64, bytes_slots)?;
+		let lent_slots = &mut [
+			slot(Py_bf_getbuffer, lent_getbuffer as *mut c_void),
+			slot(Py_bf_releasebuffer, lent_releasebuffer as *mut c_void),
+			slot(Py_tp_dealloc, lent_dealloc as *mut c_void),
+			slot(0, null_mut()),
+		];
+		add_type(module, &LENT, c"Lent", size_of::<Lent>(), Py_TPFLAGS_DISALLOW_INSTANTIATION as u64, lent_slots)?;
 		// A plain `object()`, which nothing else is.
 		let pending = Obj::new(PyObject_CallObject((&raw mut PyBaseObject_Type).cast(), null_mut()))?;
 		if PyModule_AddObjectRef(module, c"PENDING".as_ptr(), pending.ptr()) != 0 {
