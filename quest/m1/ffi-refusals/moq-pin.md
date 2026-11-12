@@ -58,7 +58,12 @@ moq's `main` fails `just ts moq` and `just ffi moq-cpp`, so the bump waits on Wa
 Decided 2026-11-11 (maintainer, /quest-unblock): ✅ (a) rust2 exports a type the crate root does
 not reach by its defining path, such as `kio::Pending` and `lite::version::Version`; a type
 whose defining path is itself private stays refused (rejected: (b) moq makes both reachable).
-This quest makes the exporter change, in `ffi/src/collect.rs`, before the bump.
+[moq-dev/rust2#721](https://github.com/moq-dev/rust2/pull/721) made the exporter change: a
+type a signature names that the root does not reach exports by its shortest public path in
+its own crate, so `kio::Pending` (defined in kio's private `pollable`) and moq-tokio's
+`cli::Deprecated` export. At moq `ba47ea3` the census then lists no such refusal; only
+`lite::version::Version`, which no public path names, stays out, as an object no export
+returns.
 
 Measured on 2026-11-12 at moq's `main` `6936f0a`: `just ffi moq-cpp` fails the export with
 36 errors, which the bump fixes in `ffi/moq/ffi.toml` or the exporter: 15 on the foreign

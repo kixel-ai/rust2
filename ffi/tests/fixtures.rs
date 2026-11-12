@@ -1212,6 +1212,63 @@ fn go_package_names() {
 	vet(&go);
 }
 
+/// A type a signature names that the root does not reach, as moq-net's `kio::Pending`,
+/// exports by its public path in its own crate, through a re-export or a module; one no public
+/// path names stays refused.
+#[test]
+fn unreached_types() {
+	let package = package("unreached_types");
+	write_all(
+		&package,
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"unreached_types\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"pkg\"\n\n\
+				[dependencies]\nkio = { package = \"unreached-kio\", path = \"kio\" }\n\n[workspace]\nexclude = [\"kio\"]\n",
+			),
+			(
+				"src/lib.rs",
+				"pub use kio::Ready;\n\npub fn pending() -> kio::Pending {\n\tkio::Pending(1)\n}\n\n\
+				pub fn version() -> kio::version::Version {\n\tkio::version::Version { major: 2 }\n}\n\n\
+				pub fn sealed() -> u32 {\n\tkio::sealed().0\n}\n\npub fn seal() -> kio::Sealed {\n\tkio::sealed()\n}\n",
+			),
+			(
+				"kio/Cargo.toml",
+				"[package]\nname = \"unreached-kio\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[lib]\nname = \"kio\"\n",
+			),
+			(
+				"kio/src/lib.rs",
+				"pub struct Ready;\n\nmod pollable {\n\tpub struct Pending(pub u32);\n\n\timpl Pending {\n\t\tpub fn id(&self) -> u32 {\n\t\t\tself.0\n\t\t}\n\t}\n}\n\npub use pollable::Pending;\n\n\
+				pub mod version {\n\t#[derive(Clone, Copy)]\n\tpub struct Version {\n\t\tpub major: u32,\n\t}\n}\n\n\
+				mod sealed {\n\tpub struct Sealed(pub u32);\n}\n\npub type Sealed = sealed::Sealed;\n\n\
+				pub fn sealed() -> sealed::Sealed {\n\tsealed::Sealed(3)\n}\n",
+			),
+		],
+	);
+	let census = package.join("census");
+	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--census")
+		.arg(&census)
+		.env("CARGO_TARGET_DIR", package.join("build"))
+		.output()
+		.unwrap();
+	assert!(
+		output.status.success(),
+		"the census failed:\n{}",
+		String::from_utf8_lossy(&output.stderr)
+	);
+	let report = std::fs::read_to_string(census.join("unreached_types.md")).unwrap();
+	// `Pending` and `Version` export; `Sealed` alone is refused, though an alias names it.
+	assert!(report.contains("| Types | 2 | 0 |"), "{report}");
+	assert!(
+		report.contains("fn `seal` at src/lib.rs:15:1: type not reachable from the crate root `kio::sealed::Sealed`"),
+		"{report}"
+	);
+	assert_eq!(report.matches("not reachable").count(), 3, "{report}");
+}
+
 /// `go vet` over an export's `go/`, which the header beside it lets cgo check unlinked.
 fn vet(go: &Path) {
 	run(Command::new("go")
