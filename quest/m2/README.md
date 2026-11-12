@@ -3,7 +3,8 @@
 ## Goal
 
 Research work with a named consumer that is not waiting on it yet: rust2-wasm, moq's
-browser route, and the TypeScript translator that has to beat it.
+browser route, the TypeScript translator that has to beat it, and
+[crabx](/quest/m2/crabx/README.md), which runs moq's CLIs without a Rust toolchain.
 
 ## Plan
 
