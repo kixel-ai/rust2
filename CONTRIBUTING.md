@@ -26,3 +26,7 @@ The host's `quest land watch` daemon runs the Codex fixer when the queue drops a
 A fix that needs a maintainer decision is handed back with a diagnosis on the PR.
 The admin bypass of `main`'s ruleset is for emergencies.
 `just ci` selects what the diff touches; `just gate` runs the full suite nightly.
+
+# Forks
+
+Each imported component keeps its own license and records its upstream source and revision.
