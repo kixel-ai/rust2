@@ -27,7 +27,8 @@ hosts that are WASI runtimes. Planned in m3 before a consumer asks, as
   WIT, and the host's bindings come from its runtime's generator. The audit's survey
   found WASI 0.3 released on 2026-06-11 with native async, a sync call costing about 3.5
   times a plain one for now, and no browser engine running components, which is why the
-  web target does not use them. Check what WIT cannot say that the C ABI does: a borrow
+  web target does not use them. `wasm32-wasip3` is Tier 2 since Rust 1.100, with a
+  prebuilt std, so the component builds for it directly. Check what WIT cannot say that the C ABI does: a borrow
   checked at run time, a lent closure, a future that loses nothing on cancel, and bytes
   lent without a copy.
 - What a WASI host lacks is refused at export, at the span of the call that reaches it,
