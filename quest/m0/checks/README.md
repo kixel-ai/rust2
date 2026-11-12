@@ -1,4 +1,4 @@
-# Checks at moq's cost
+# [S] Checks at moq's cost
 
 ## Goal
 
@@ -15,4 +15,6 @@ stays the rule, and costs less now that it selects by the diff
 ([#421](https://github.com/moq-dev/rust2/pull/421)); CONTRIBUTING.md and the skills
 keep their rules. All of it is m0, since every agent pays the cost now.
 
-Each child reports its CPU saved, cold and warm, against `origin/main`.
+Its children have landed; what remains is the measurement: once a queue build logs
+`mbx[cache]: object cache: ...`, confirming the warm gate, report the gate's and local CPU
+against the baseline above, cold and warm, and record any gap as a new quest.
