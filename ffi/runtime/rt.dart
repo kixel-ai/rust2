@@ -218,6 +218,93 @@ final class _ForeignFuture extends ffi.Struct {
   external ffi.Pointer<ffi.Void> data;
 }
 
+/// A reader Rust reads and seeks during a call, which Dart implements.
+final class _ForeignReader extends ffi.Struct {
+  external ffi.Pointer<ffi.Void> read;
+  external ffi.Pointer<ffi.Void> seek;
+  external ffi.Pointer<ffi.Void> data;
+}
+
+/// Where a [SeekableReader.seek] counts its offset from, as Rust's `SeekFrom` does.
+enum SeekFrom { start, current, end }
+
+/// Bytes Rust reads and seeks, as its `Read + Seek`: lent for the call it is passed to,
+/// which Rust calls only during that call, on the isolate's thread. An [Exception] either
+/// method throws reaches Rust as an `io::Error` of its text; anything else it throws
+/// aborts.
+abstract interface class SeekableReader {
+  /// `file`, read and seeked through its synchronous methods.
+  factory SeekableReader.file(io.RandomAccessFile file) = _FileReader;
+
+  /// Read up to `buffer.length` bytes into `buffer`, which lives only for this call,
+  /// returning how many: 0 only at the end.
+  int readInto(typed.Uint8List buffer);
+
+  /// Move to `offset` from `from`, returning the position from the start.
+  int seek(int offset, SeekFrom from);
+}
+
+final class _FileReader implements SeekableReader {
+  final io.RandomAccessFile _file;
+
+  _FileReader(this._file);
+
+  @override
+  int readInto(typed.Uint8List buffer) => _file.readIntoSync(buffer);
+
+  @override
+  int seek(int offset, SeekFrom from) {
+    final base = switch (from) {
+      SeekFrom.start => 0,
+      SeekFrom.current => _file.positionSync(),
+      SeekFrom.end => _file.lengthSync(),
+    };
+    final at = base + offset;
+    // As Rust's `File` refuses one.
+    if (at < 0) throw io.FileSystemException('a seek before the start', _file.path);
+    _file.setPositionSync(at);
+    return at;
+  }
+}
+
+/// What Rust's read of a [SeekableReader] calls, on the isolate's thread.
+bool _readerRead(
+  ffi.Pointer<ffi.Void> data,
+  ffi.Pointer<ffi.Uint8> buf,
+  int len,
+  ffi.Pointer<ffi.Size> n,
+  ffi.Pointer<_Buf> err,
+) {
+  try {
+    n.value = (_n.lent[data.address] as SeekableReader).readInto(buf.asTypedList(len));
+    return true;
+  } on Exception catch (e) {
+    _n.setBuf(err, _n.copied(e.toString()));
+    return false;
+  } catch (e, s) {
+    _n.abort("a reader's read", e, s);
+  }
+}
+
+/// What Rust's seek of a [SeekableReader] calls, on the isolate's thread.
+bool _readerSeek(
+  ffi.Pointer<ffi.Void> data,
+  int whence,
+  int offset,
+  ffi.Pointer<ffi.Uint64> position,
+  ffi.Pointer<_Buf> err,
+) {
+  try {
+    position.value = (_n.lent[data.address] as SeekableReader).seek(offset, SeekFrom.values[whence]);
+    return true;
+  } on Exception catch (e) {
+    _n.setBuf(err, _n.copied(e.toString()));
+    return false;
+  } catch (e, s) {
+    _n.abort("a reader's seek", e, s);
+  }
+}
+
 /// A waker Rust returned, which its own drop releases once the garbage collector finds
 /// this unreachable.
 final class _Returned implements ffi.Finalizable {
@@ -538,7 +625,7 @@ final class _Native {
   ) {
     final n = relays.length + 1;
     final ptr = _dartAlloc(2 * n * ffi.sizeOf<ffi.Pointer<ffi.Void>>()).cast<ffi.Pointer<ffi.Void>>();
-    ptr[0] = ffi.Native.addressOf<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(_dartRelayDrop).cast();
+    ptr[0] = relayDrop.cast();
     ptr[n] = ffi.nullptr;
     for (var i = 0; i < relays.length; i++) {
       ptr[i + 1] = relays[i];
@@ -567,6 +654,78 @@ final class _Native {
     return ffi.Struct.create<_Callback>()
       ..vtable = tables.$1
       ..data = _dartRelay(home, tables.$2, token);
+  }
+
+  /// What Rust calls once it drops an implementation or a kept closure.
+  ffi.Pointer<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>> get relayDrop =>
+      ffi.Native.addressOf<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(_dartRelayDrop);
+
+  /// `f` given to Rust as the relay data that calls `trampoline` with it, which Rust keeps
+  /// until it frees it with [relayDrop]: Dart holds `f` until then.
+  ffi.Pointer<ffi.Void> keep(Object f, ffi.Pointer<ffi.Void> trampoline) {
+    final token = next();
+    lent[token] = f;
+    _drops[token] = () => lent.remove(token);
+    return _dartRelay(home, trampoline, token);
+  }
+
+  /// The table of a [SeekableReader]'s trampolines, `read`'s then `seek`'s, made once.
+  late final ffi.Pointer<ffi.Void> _readers = () {
+    final table = _dartAlloc(2 * ffi.sizeOf<ffi.Pointer<ffi.Void>>()).cast<ffi.Pointer<ffi.Void>>();
+    table[0] = ffi.Pointer.fromFunction<
+      ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Uint8>, ffi.Size, ffi.Pointer<ffi.Size>, ffi.Pointer<_Buf>)
+    >(_readerRead, false).cast();
+    table[1] = ffi.Pointer.fromFunction<
+      ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Int, ffi.Int64, ffi.Pointer<ffi.Uint64>, ffi.Pointer<_Buf>)
+    >(_readerSeek, false).cast();
+    return table.cast<ffi.Void>();
+  }();
+
+  /// `reader` lent to Rust for the call of the arena `a`.
+  _ForeignReader reader(_Arena a, SeekableReader reader) => ffi.Struct.create<_ForeignReader>()
+    ..read = ffi.Native.addressOf<
+      ffi.NativeFunction<
+        ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Uint8>, ffi.Size, ffi.Pointer<ffi.Size>, ffi.Pointer<_Buf>)
+      >
+    >(_dartReaderRead).cast()
+    ..seek = ffi.Native.addressOf<
+      ffi.NativeFunction<
+        ffi.Bool Function(ffi.Pointer<ffi.Void>, ffi.Int, ffi.Int64, ffi.Pointer<ffi.Uint64>, ffi.Pointer<_Buf>)
+      >
+    >(_dartReaderSeek).cast()
+    ..data = a.lend(reader, _readers);
+
+  /// `text` as a buffer Rust owns, as `buf_copy` makes it: what a closure or a reader
+  /// hands Rust.
+  _Buf copied(String text) {
+    final a = _Arena();
+    try {
+      final view = a<_Buf>();
+      a.string(view.ref, text);
+      return _bufCopy(view.ref);
+    } finally {
+      a.end();
+    }
+  }
+
+  void setBuf(ffi.Pointer<_Buf> dst, _Buf src) {
+    dst.ref.ptr = src.ptr;
+    dst.ref.len = src.len;
+    dst.ref.owner = src.owner;
+  }
+
+  /// A handle Rust takes, of a clone of `object`'s value: what a closure returns of a
+  /// `Copy` object, which Rust copies out of it and frees.
+  ffi.Pointer<ffi.Void> handOver(
+    _Object object,
+    ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Void>) clone,
+  ) {
+    final raw = object._hold();
+    try {
+      return clone(home, raw);
+    } finally {
+      object._release();
+    }
   }
 
   /// Abort with what a call into Dart threw, which Rust has nowhere to unwind to.

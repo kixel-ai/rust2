@@ -869,6 +869,14 @@ fn api_dart() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Dart threw"),
+		(
+			"closure threw",
+			"a closure: a call into Dart threw Bad state: a poll failed",
+		),
+		(
+			"reader threw",
+			"a reader's seek: a call into Dart threw Bad state: a seek failed",
+		),
 		("outlived", OUTLIVED),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 		("stray", "a path from Rust is not UTF-8"),
