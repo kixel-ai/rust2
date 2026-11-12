@@ -11,23 +11,23 @@
 //! handle, freed by `close` or the garbage collector; a record a final class; an enum a Dart
 //! enum, or with data a sealed class of a final class per variant; a tuple a record; a
 //! trait an abstract class, whose `close` Rust calls once it drops an implementation; a
-//! closure a function type; a future a `Cancelable`, a `Future` that cancels; an error a
-//! thrown exception. The runtime they share, [`runtime/rt.dart`](../runtime/rt.dart), holds
+//! closure a function type; a reader a `SeekableReader`; a future a `Cancelable`, a
+//! `Future` that cancels; an error a thrown exception. The runtime they share, [`runtime/rt.dart`](../runtime/rt.dart), holds
 //! the handles, the stack a call lowers its values into, and the port the isolate hears
 //! Rust through.
 //!
 //! Dart runs code only on its isolate's thread, so Rust reaches Dart from any other through
 //! [`runtime/dart.rs`](../runtime/dart.rs): a waker posts to the isolate's port, and a call
-//! into a closure or a trait's implementation waits for the isolate to run it. Each call
-//! into Rust runs on a thread of its own while Rust holds an implementation or a lent
-//! closure, while the isolate's runs those calls.
+//! into a closure, a reader, or a trait's implementation waits for the isolate to run it.
+//! Each call into Rust runs on a thread of its own while Rust holds an implementation, a
+//! closure, or a reader, while the isolate's runs those calls.
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write;
 
 use crate::abi::{self, Abi, Sig, Ty, pascal};
 use crate::glue::rs;
-use crate::ir::{Access, Family, Function, Int, Literal, On, Receiver, Type};
+use crate::ir::{Access, Closure, Family, Function, Int, Literal, On, Receiver, Type};
 use crate::kotlin::strip_refs;
 
 const RUNTIME: &str = include_str!("../runtime/rt.dart");
@@ -123,6 +123,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		("contract", "", "ffi.Uint64", "", "int"),
 		("target", "", "ffi.Uint32", "", "int"),
 		("buf_free", "_Buf", "ffi.Void", "_Buf p0", "void"),
+		("buf_copy", "_Buf", "_Buf", "_Buf p0", "_Buf"),
 		(
 			"dart_init",
 			"ffi.Pointer<ffi.Void>",
@@ -208,10 +209,25 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 			"void",
 		),
 		("dart_abort", "_Buf", "ffi.Void", "_Buf p0", "void"),
+		(
+			"dart_reader_read",
+			"ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Uint8>, ffi.Size, ffi.Pointer<ffi.Size>, ffi.Pointer<_Buf>",
+			"ffi.Bool",
+			"ffi.Pointer<ffi.Void> p0, ffi.Pointer<ffi.Uint8> p1, int p2, ffi.Pointer<ffi.Size> p3, ffi.Pointer<_Buf> p4",
+			"bool",
+		),
+		(
+			"dart_reader_seek",
+			"ffi.Pointer<ffi.Void>, ffi.Int, ffi.Int64, ffi.Pointer<ffi.Uint64>, ffi.Pointer<_Buf>",
+			"ffi.Bool",
+			"ffi.Pointer<ffi.Void> p0, int p1, int p2, ffi.Pointer<ffi.Uint64> p3, ffi.Pointer<_Buf> p4",
+			"bool",
+		),
 	] {
 		let local = match name {
 			"contract" | "target" => format!("_{p}_{name}"),
 			"buf_free" => "_bufFree".to_string(),
+			"buf_copy" => "_bufCopy".to_string(),
 			other => format!("_{}", camel(other)),
 		};
 		let symbol = match name.strip_prefix("dart") {
@@ -261,7 +277,9 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		unsafe extern \"C\" {{\n\tfn malloc(len: usize) -> *mut c_void;\n\tfn free(ptr: *mut c_void);\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_alloc(len: usize) -> *mut c_void {{\n\tlet ptr = unsafe {{ malloc(len) }};\n\tif ptr.is_null() {{\n\t\tstd::alloc::handle_alloc_error(std::alloc::Layout::array::<u8>(len).expect(\"a length\"));\n\t}}\n\tptr\n}}\n\n\
 		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_free(ptr: *mut c_void) {{\n\tunsafe {{ free(ptr) }}\n}}\n\n\
-		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_abort(text: rt::Buf) {{\n\trt::fail(\"dart\", unsafe {{ text.str(\"{space}_abort\") }})\n}}\n\n{}",
+		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_abort(text: rt::Buf) {{\n\trt::fail(\"dart\", unsafe {{ text.str(\"{space}_abort\") }})\n}}\n\n\
+		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_reader_read(data: *mut c_void, buf: *mut u8, len: usize, n: *mut usize, err: *mut rt::Buf) -> bool {{\n\tunsafe {{ runtime::reader_read(data, buf, len, n, err) }}\n}}\n\n\
+		#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {space}_reader_seek(data: *mut c_void, whence: std::ffi::c_int, offset: i64, position: *mut u64, err: *mut rt::Buf) -> bool {{\n\tunsafe {{ runtime::reader_seek(data, whence, offset, position, err) }}\n}}\n\n{}",
 		g.glue
 	);
 	Ok(Output {
@@ -288,6 +306,8 @@ const TAKEN: &[&str] = &[
 	"Never",
 	"Object",
 	"RangeError",
+	"SeekFrom",
+	"SeekableReader",
 	"SocketAddr",
 	"StackTrace",
 	"StateError",
@@ -496,7 +516,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(_) => "SocketAddr".to_string(),
 			Type::List(_, inner) => format!("List<{}>", self.dt(inner)),
 			Type::Waker => "void Function()".to_string(),
-			Type::Reader => unimplemented!("a reader in Dart"),
+			Type::Reader => "SeekableReader".to_string(),
 			Type::Future => "Future<void>".to_string(),
 			Type::Option(inner) => {
 				if matches!(inner.base(), Type::Option(_)) {
@@ -569,7 +589,14 @@ impl<'a> Gen<'a> {
 	fn scalar(ty: &Ty) -> bool {
 		!matches!(
 			ty,
-			Ty::Buf | Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::Waker | Ty::ForeignFuture
+			Ty::Buf
+				| Ty::U128
+				| Ty::Duration
+				| Ty::SocketAddr
+				| Ty::Struct(_)
+				| Ty::Waker
+				| Ty::ForeignFuture
+				| Ty::ForeignReader
 		)
 	}
 
@@ -583,6 +610,7 @@ impl<'a> Gen<'a> {
 			Ty::SocketAddr => return "_Addr".to_string(),
 			Ty::Waker => return "_Waker".to_string(),
 			Ty::ForeignFuture => return "_ForeignFuture".to_string(),
+			Ty::ForeignReader => return "_ForeignReader".to_string(),
 			Ty::Struct(name) => name.clone(),
 			other => unreachable!("{other:?} is no struct"),
 		};
@@ -1585,7 +1613,11 @@ impl<'a> Gen<'a> {
 			let call = format!("(_n.lent[data.address] as {name}).{member}({})", lifted.join(", "));
 			let what = format!("{rust}::{}", method.name());
 			let t = format!("_cb_{}_{}", self.bare(&c), method.name());
-			let tramp = self.trampoline_fn(&t, &c_params, &ret, &method.ok, &call, &what, &[]);
+			let body = match &method.ok {
+				Type::Unit => format!("{call};"),
+				ok => format!("return {};", self.lower(ok, &call)),
+			};
+			let tramp = self.trampoline_fn(&t, &c_params, &ret, &body, &what, &[]);
 			trampolines.push(tramp);
 			// Its relay in the glue.
 			let relay = format!("{}_cb_{}_{}", self.space, self.bare(&c), method.name());
@@ -1636,20 +1668,15 @@ impl<'a> Gen<'a> {
 		);
 	}
 
-	/// A static function `name` C calls with `data` and `c_params`, which calls `call`
-	/// with each lifted, and lowers its result of type `ok`, aborting on what it throws.
-	/// Returns the pointer to it as an expression.
-	#[allow(
-		clippy::too_many_arguments,
-		reason = "each is a part of the trampoline its caller assembled"
-	)]
+	/// A static function `name` C calls with `data` and `c_params`, running `body`, which
+	/// returns the C result, with each object in `lent` closed after, and aborting on what
+	/// it throws. Returns the pointer to it as an expression.
 	fn trampoline_fn(
 		&mut self,
 		name: &str,
 		c_params: &[Ty],
 		ret: &Ty,
-		ok: &Type,
-		call: &str,
+		body: &str,
 		what: &str,
 		lent: &[String],
 	) -> String {
@@ -1657,12 +1684,8 @@ impl<'a> Gen<'a> {
 			.chain((c_params.iter().enumerate()).map(|(k, ty)| format!("{} p{k}", self.ct(ty))))
 			.collect();
 		let ret_dt = self.ct(ret);
-		let body = match ok {
-			Type::Unit => format!("{call};"),
-			ok => format!("return {};", self.lower(ok, call)),
-		};
 		let body = match lent.is_empty() {
-			true => body,
+			true => body.to_string(),
 			false => format!(
 				"{}\n\t\ttry {{\n\t\t\t{body}\n\t\t}} finally {{\n\t\t\t{}\n\t\t}}",
 				lent.iter()
@@ -1676,11 +1699,13 @@ impl<'a> Gen<'a> {
 					.join(" ")
 			),
 		};
+		// What a throw returns, which never happens, as each aborts; a pointer or a struct
+		// takes none.
 		let exceptional = match ret {
-			Ty::Void => String::new(),
 			Ty::Bool => ", false".to_string(),
 			Ty::F32 | Ty::F64 => ", 0.0".to_string(),
-			_ => ", 0".to_string(),
+			Ty::Int(_) | Ty::Char | Ty::Enum(_) => ", 0".to_string(),
+			_ => String::new(),
 		};
 		let mut native_params = vec!["ffi.Pointer<ffi.Void>".to_string()];
 		native_params.extend(c_params.iter().map(|ty| self.nt(ty)));
@@ -1695,14 +1720,16 @@ impl<'a> Gen<'a> {
 		format!("ffi.Pointer.fromFunction<{sig}>({name}{exceptional}).cast<ffi.Void>()")
 	}
 
-	/// The relay and trampoline of a closure of type `ty`, lent for a call, taking `lent`
-	/// and returning `ret`: the relay's address, and the trampoline's pointer, made once.
-	fn closure(&mut self, ty: &Type, lent: &[Type], ret: &Type) -> (String, String) {
+	/// The relay and trampoline of the closure `closure`, whose type is `ty`: the relay's
+	/// address, and the trampoline's pointer, made once.
+	fn closure(&mut self, ty: &Type, closure: &Closure) -> (String, String) {
 		let abi = self.abi;
 		let space = self.space.clone();
-		let c_params: Vec<Ty> = lent.iter().map(|t| abi.ty(t)).collect();
-		let c_ret = abi.ty(ret);
-		let sig = Ty::Fn(c_params.clone(), Box::new(c_ret.clone()));
+		let sig = abi.closure(closure);
+		let Ty::Fn(c_params, c_ret) = &sig else {
+			unreachable!("a closure is a function")
+		};
+		let (c_params, c_ret) = (c_params.clone(), (**c_ret).clone());
 		let k = match self.relays.iter().position(|r| *r == sig) {
 			Some(k) => k,
 			None => {
@@ -1741,24 +1768,81 @@ impl<'a> Gen<'a> {
 				let dt = self.dt(ty);
 				let mut args = Vec::new();
 				let mut lends = Vec::new();
-				for (n, ty) in lent.iter().enumerate() {
+				for (n, ty) in closure.params.iter().enumerate() {
 					match ty {
+						// An object, by reference or a `Copy` one by value, lent for the call.
+						Type::Object(_) => {
+							lends.push(format!("{}._lent(p{n})", self.dt(ty)));
+							args.push(format!("l{}", lends.len() - 1));
+						}
 						Type::Ref(_, object) if matches!(**object, Type::Object(_)) => {
-							let class = self.dt(object);
-							lends.push(format!("{class}._lent(p{n})"));
+							lends.push(format!("{}._lent(p{n})", self.dt(object)));
 							args.push(format!("l{}", lends.len() - 1));
 						}
 						ty => args.push(self.lift_lent(ty, &format!("p{n}"))),
 					}
 				}
 				let call = format!("(_n.lent[data.address] as {dt})({})", args.join(", "));
-				let pointer = self.trampoline_fn(&format!("_t{t}"), &c_params, &c_ret, ret, &call, "a closure", &lends);
+				let body = match &closure.err {
+					None => match &closure.ok {
+						Type::Unit => format!("{call};"),
+						ok => format!("return {};", self.returned(ok, &call)),
+					},
+					// A failure is the exception the binding throws for Rust's error, whose
+					// error goes to the last out pointer, and a value to the one before it.
+					Some(err) => {
+						let Thrown::Wrapped(thrown) = self.thrown(err) else {
+							unreachable!("a closure fails with a String")
+						};
+						let at = closure.params.len();
+						let ok = match &closure.ok {
+							Type::Unit => format!("{call};"),
+							ok => {
+								let value = self.returned(ok, "r_");
+								let write = match Self::scalar(&abi.ty(ok)) {
+									true => format!("p{at}.value = {value};"),
+									false => format!("_n.setBuf(p{at}, {value});"),
+								};
+								format!("final r_ = {call};\n\t{write}")
+							}
+						};
+						let err_at = c_params.len() - 1;
+						format!(
+							"try {{\n\t{ok}\n\treturn true;\n}} on {thrown} catch (e) {{\n\t_n.setBuf(p{err_at}, _n.copied(e.error));\n\treturn false;\n}}"
+						)
+					}
+				};
+				let pointer = self.trampoline_fn(&format!("_t{t}"), &c_params, &c_ret, &body, "a closure", &lends);
 				self.helpers
 					.insert(format!("_t{t}_"), format!("final _t{t}_ = {pointer};\n\n"));
 				t
 			}
 		};
 		(relay, format!("_t{t}_"))
+	}
+
+	/// The C value of the Dart value `e` of type `ty` a closure returns, which Rust then
+	/// owns: text as a buffer `buf_copy` made, and a `Copy` object as a new handle to a
+	/// clone, which Rust copies out and frees.
+	fn returned(&mut self, ty: &Type, e: &str) -> String {
+		let abi = self.abi;
+		match ty {
+			Type::String => format!("_n.copied({e})"),
+			Type::Object(i) => {
+				let c = abi.object(*i);
+				let handle = Ty::Handle {
+					name: c.clone(),
+					constant: true,
+				};
+				let clone = self.served_fn(&format!("{c}_clone"), vec![handle.clone()], handle);
+				format!("_n.handOver({e}, {clone})")
+			}
+			Type::Option(inner) if matches!(**inner, Type::Object(_)) => {
+				let given = self.returned(inner, "v");
+				format!("switch ({e}) {{ final v? => {given}, null => ffi.nullptr }}")
+			}
+			ty => self.lower(ty, e),
+		}
 	}
 
 	/// The Dart statements closing each object the value `e` of type `ty` holds, once a
@@ -1892,12 +1976,20 @@ impl<'a> Gen<'a> {
 			}
 			match (&param.ty, c) {
 				(Type::Closure(closure_), Ty::Fn(..)) => {
-					let (lent, ret) = (&closure_.params, &closure_.ok);
 					c_params.next().expect("a closure has its data");
-					let (relay, trampoline) = self.closure(&param.ty, lent, ret);
+					let (relay, trampoline) = self.closure(&param.ty, closure_);
 					args.push(relay);
-					args.push(format!("a_.lend({name}, {trampoline})"));
+					if closure_.kept {
+						// Given to Rust, which frees it through the relay's drop.
+						c_params.next().expect("a kept closure has its free");
+						args.push(format!("_n.keep({name}, {trampoline})"));
+						args.push("_n.relayDrop".to_string());
+						gave = true;
+					} else {
+						args.push(format!("a_.lend({name}, {trampoline})"));
+					}
 				}
+				(_, Ty::ForeignReader) => args.push(format!("_n.reader(a_, {name})")),
 				(Type::Callback(i, _), _) => {
 					let cb = abi.callback(*i);
 					args.push(format!("_n.give(_tables_{}, {name}, {name}.close)", self.bare(&cb)));
@@ -2044,17 +2136,34 @@ impl<'a> Gen<'a> {
 
 		let mut text = function.docs.clone();
 		for param in &function.params {
-			if let Type::Closure(closure_) = &param.ty {
-				let lent = &closure_.params;
-				let name = param_name(&param.name);
-				text.push_str(&format!(
-					"\n\nRust calls `{name}` only during the call, on the isolate's thread, while the call runs on another."
-				));
-				if lent.iter().any(|p| matches!(p.base(), Type::Object(_))) {
-					text.push_str(&format!(
-						"\nAn object it lends lives only for that call of `{name}`: keep none past it."
-					));
+			let name = param_name(&param.name);
+			match &param.ty {
+				Type::Closure(closure_) => {
+					text.push_str(&match closure_.kept {
+						true => format!(
+							"\n\nRust keeps `{name}` until it drops it, calling it on the isolate's thread: from another, the call waits for the isolate's event loop to run it."
+						),
+						false => format!(
+							"\n\nRust calls `{name}` only during the call, on the isolate's thread, while the call runs on another."
+						),
+					});
+					if closure_.params.iter().any(|p| matches!(p.base(), Type::Object(_))) {
+						text.push_str(&format!(
+							"\nAn object it lends lives only for that call of `{name}`: keep none past it."
+						));
+					}
+					if let Some(err) = &closure_.err
+						&& let Thrown::Wrapped(thrown) = self.thrown(err)
+					{
+						text.push_str(&format!(
+							"\nIt fails by throwing [{thrown}], whose error Rust takes; anything else it throws aborts."
+						));
+					}
 				}
+				Type::Ref(_, inner) if **inner == Type::Reader => text.push_str(&format!(
+					"\n\nRust reads and seeks `{name}` only during the call, on the isolate's thread, while the call runs on another."
+				)),
+				_ => {}
 			}
 		}
 		if function.future {

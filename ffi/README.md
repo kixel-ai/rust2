@@ -750,8 +750,17 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
 - **Traits** are abstract classes. Rust calls an implementation's methods on the isolate's
   thread, and once it drops one, calls its `close()`, which does nothing unless overridden.
   A call that throws before Rust sees it gives Rust none of its implementations.
-- **Closures** lent for a call are Dart functions, which Rust calls only during the call,
-  on the isolate's thread. An object it lends lives only for that call of the closure.
+- **Closures** are Dart functions, which Rust calls on the isolate's thread: one lent for
+  a call only during the call, and one Rust keeps until it drops it, which then lets go of
+  it. An object it lends, by reference or a `Copy` one by value, lives only for that call
+  of the closure. What it returns Rust takes: a `String` copied, and a `Copy` object as a
+  new handle to a clone. One whose Rust returns `Result<T, String>` fails by throwing
+  `StringException`, the binding's own form of that error; anything else it throws aborts.
+- A **reader** Rust reads and seeks, a `Read + Seek` behind `&mut`, is a `SeekableReader`:
+  `readInto` and `seek`, which Rust calls only during the call, on the isolate's thread.
+  `SeekableReader.file` reads a `RandomAccessFile` through its synchronous methods, as
+  Rust's calls are. An `Exception` either throws fails the call into Rust as an
+  `io::Error` of its text, and anything else it throws aborts.
 - **Futures** are `Cancelable<T>`, a `Future<T>` completed on the isolate that made it:
   an extension type on Dart's own future, which `await` takes its shortest path through.
   The call polls it once, returning it complete if that poll finished, and makes a waker
@@ -762,13 +771,14 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   takes what it would have, and it completes with `Cancelled`. A pending future keeps
   the isolate alive, as a timer does.
 - A **future Dart implements** is any `Future<void>`, already running as Dart's futures
-  are, which Rust polls until it completes. Rust dropping it cancels it if it is a
-  `Cancelable` still running, and one that fails while Rust holds it aborts.
+  are, which Rust polls until it completes, or which a poll owns, as
+  `Waiter.pollFuture` does. Rust dropping it cancels it if it is a `Cancelable` still
+  running, and one that fails while Rust holds it aborts.
 - A **waker** is a `void Function()`, which runs on the isolate's event loop. One Rust
   returns wakes through Rust, and the garbage collector drops it.
 - **Threads**: Dart runs code only on its isolate's thread, so Rust reaches it from any
   other through the isolate's port, and waits for its event loop to run the call. While
-  Rust holds an implementation or a lent closure of the isolate, each call into Rust, a
+  Rust holds an implementation, a closure, or a reader of the isolate, each call into Rust, a
   future's poll and `cancel()` included, runs on a thread of its own, acting as the
   caller's for the handles it borrows, while the isolate's thread runs what Rust calls
   into Dart meanwhile. Any other call runs on the isolate's thread, since nothing it waits

@@ -642,6 +642,66 @@ Future<void> script() async {
   verbosity.levelSet(api.Level.trace);
   print('verbosity ${verbosity.levelGet == api.Level.trace} ${api.spell(verbosity.filter())} ${api.spell(api.louder(verbosity.filter()))} ${api.spell(api.louder(null))}');
   verbosity.close();
+
+  // A closure's string, which Rust takes.
+  print('made ${api.made(3, (n) => '$n times')}');
+  // A kept closure, called on another thread after the call that took it returned.
+  final spawned = api.Spawned(() => 7);
+  print('spawned ${spawned.join()}');
+  // A kept closure: called again at the instant it asks for, then once its waiter wakes,
+  // failing with the exception the binding throws for Rust's error.
+  final start = api.now();
+  var calls = 0;
+  final stopped = await within(
+    api.drive(start, (now, waiter) {
+      calls++;
+      switch (calls) {
+        case 1:
+          return api.later(now, const Duration(milliseconds: 5));
+        case 2:
+          print('drive ${api.since(now, start).inMilliseconds}');
+          waiter.waker()();
+          return null;
+        default:
+          throw api.StringException('stopped after $calls');
+      }
+    }),
+    'a kept closure wakes its future',
+  );
+  print('drive $stopped');
+  start.close();
+  // A reader the caller implements: dart:io's file, then one whose reads fail.
+  final dir = Directory.systemTemp.createTempSync('api');
+  final opened = (File('${dir.path}/tail')..writeAsStringSync('hello world')).openSync();
+  for (final reader in [api.SeekableReader.file(opened), Broken()]) {
+    try {
+      final (tail, at) = api.tail(reader, 5);
+      print('tail ${text(tail)} $at');
+    } on api.StringException catch (e) {
+      print('tail error $e');
+    }
+  }
+  opened.closeSync();
+  dir.deleteSync(recursive: true);
+}
+
+/// A reader whose reads fail, as the transcript's: each seek lands at 0.
+final class Broken implements api.SeekableReader {
+  @override
+  int readInto(Uint8List buffer) => throw const Failure('broken');
+
+  @override
+  int seek(int offset, api.SeekFrom from) => 0;
+}
+
+/// An I/O failure of a reader, whose text Rust's error holds.
+final class Failure implements Exception {
+  final String message;
+
+  const Failure(this.message);
+
+  @override
+  String toString() => message;
 }
 
 /// `future`'s value, failing past a deadline rather than waiting for a wake that never lands.
@@ -830,6 +890,24 @@ Future<void> futures() async {
   }
   late.completeError(StateError('failed after Rust dropped it'));
   await step();
+
+  // A poll of a waiter, of a Dart future, which its future owns.
+  final gated = Completer<void>();
+  var polled = false;
+  final polling = api.Waiter.pollFuture(gated.future).then((_) => polled = true);
+  await step();
+  await step();
+  check(!polled, 'a poll of a pending Dart future pends');
+  gated.complete();
+  await within(polling, "a Dart future's completion wakes the poll of it");
+  // Cancelled before it finishes, it drops the future it owns: here a call into Rust,
+  // which is cancelled in turn.
+  final inner = api.Waiter.pollFuture(Completer<void>().future);
+  final outer = api.Waiter.pollFuture(inner);
+  await step();
+  outer.cancel();
+  await cancelled(outer, 'a poll of a Dart future cancels');
+  await cancelled(inner, 'a cancelled poll drops the future it owns');
   print('futures ok');
 }
 
@@ -1073,6 +1151,15 @@ void bounds() {
   print('ok');
 }
 
+/// A reader whose seek throws an Error, which no reader may.
+final class Thrower implements api.SeekableReader {
+  @override
+  int readInto(Uint8List buffer) => 0;
+
+  @override
+  int seek(int offset, api.SeekFrom from) => throw StateError('a seek failed');
+}
+
 /// Each breaks a contract, which must fail with a message naming it.
 void broken(String which) {
   switch (which) {
@@ -1103,6 +1190,12 @@ void broken(String which) {
       kept.get();
     case 'callback threw':
       api.emit(CountLog(() => throw StateError('a log failed')), bytes([1]));
+    // Only the exception of Rust's error fails a closure.
+    case 'closure threw':
+      api.drive(api.now(), (_, _) => throw StateError('a poll failed'));
+    // Only an Exception fails a reader.
+    case 'reader threw':
+      api.tail(Thrower(), 1);
     // An IPv6 address where Rust takes `SocketAddrV4`.
     case 'family':
       final any = api.SocketAddr(InternetAddress('::'), 1);
