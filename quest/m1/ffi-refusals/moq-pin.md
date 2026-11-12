@@ -60,19 +60,25 @@ not reach by its defining path, such as `kio::Pending` and `lite::version::Versi
 whose defining path is itself private stays refused (rejected: (b) moq makes both reachable).
 This quest makes the exporter change, in `ffi/src/collect.rs`, before the bump.
 
-Measured on 2026-11-11 at moq's `main` `d528b675`: the bump also has to fix 37 stale
-`ffi/moq/ffi.toml` entries, such as excludes naming `bytes` and `kio`, which no longer
-exist, and the new refusals the census lists there.
+Measured on 2026-11-12 at moq's `main` `6936f0a`: `just ffi moq-cpp` fails the export with
+36 errors, which the bump fixes in `ffi/moq/ffi.toml` or the exporter: 15 on the foreign
+type `std::num::NonZero` (such as `Client::with_peer_hop`), 11 stale excludes naming nothing
+exported (such as `bytes` and `kio`), and single refusals such as `qmux::Session`,
+`CertificateDer`, a borrowing future from the non-async `Server::accept`, and borrowed
+returns that are not `Clone`.
 
 ## Waiting
 
 - moq-dev/moq: `rind` builds for wasm32. moq-net depends on `rind`, whose md5 inline asm has
   no wasm32 arm, so `just ts moq <checkout>` fails at moq's `main`. Done when it passes there.
-  Still failing on 2026-11-11 at moq `d528b675`: `rind` 0.3.1, and 0.3.2 too, has an
-  unconditional `asm!` in `src/low/generic/md5.rs:22`, so the wasm32 build fails with E0658.
-  The fix belongs in `rind` itself, then a bump in moq.
+  The fix merged in rind's `main` ([moq-dev/rind#543](https://github.com/moq-dev/rind/pull/543))
+  and ships in rind 0.4.0, whose release PR
+  ([moq-dev/rind#511](https://github.com/moq-dev/rind/pull/511)) the maintainer picked to merge
+  on 2026-11-12; then [moq-dev/moq#8432](https://github.com/moq-dev/moq/pull/8432) moves moq to
+  rind 0.4. On 2026-11-12 moq `6936f0a` still locks rind 0.3.1.
 - moq-dev/moq: moq-tokio builds without tripping `recursion_depth_exceeding_limit` (an
   overflow proving `Send` on `Instrumented<...>`), which `just ffi moq-cpp <checkout>` denies.
-  Done when it passes at moq's `main`. Still failing on 2026-11-11 at moq `d528b675`, at
-  `rs/moq-tokio/src/client.rs:722`, on the `Instrumented<...>` from
-  `tokio::spawn(panic::isolate(time::run(driver)).instrument(..))`.
+  Done when it passes at moq's `main`. Still failing on 2026-11-12 at moq `6936f0a`, at
+  `rs/moq-tokio/src/client.rs:735`, on the `Instrumented<...>` from
+  `tokio::spawn(panic::isolate(time::run(driver)).instrument(..))`, and in the moq-ffi facade
+  on `moq_net::Driver: Sync`.

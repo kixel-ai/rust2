@@ -2,7 +2,7 @@
 
 ## Goal
 
-The land gate and agents' local checks cost what moq's do: `just ci` runs only what a
+The merge queue's build and agents' local checks cost what moq's do: `just ci` runs only what a
 change touches, builds warm, and runs the differential fixtures optimized, while a nightly
 `just gate` runs the full suite. Measured against the 2026-11-01 audit's baseline: about
 33 CPU-hours a day in the gate (65 CPU-minutes a run) and 100 to 130 locally.
