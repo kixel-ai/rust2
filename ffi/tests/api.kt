@@ -550,6 +550,11 @@ fun script() {
 	}
 
 	println("made ${made(3u) { n -> "$n times" }}")
+	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	val nine = Ticket.new(9u)
+	val given = reissue(Ticket.new(7u)) { t -> Ticket.new(t.number() + 1u) }.number()
+	val held = reissue(Ticket.new(7u)) { nine }.number()
+	println("reissued $given $held, cloned ${Ticket.clones()}")
 	// A kept closure, called on another thread after the call that took it returned.
 	println("spawned ${Spawned.new { 7u }.join()}")
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.

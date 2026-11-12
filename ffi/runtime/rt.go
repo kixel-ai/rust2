@@ -434,6 +434,10 @@ func (r *reader_) read(p []byte) (int, error) {
 }
 
 func (r *reader_) seek(offset int64, whence int) (int64, error) {
+	// From the start, the offset's bits are unsigned, past what an io.Seeker takes.
+	if whence == io.SeekStart && offset < 0 {
+		return 0, errors.New("a seek past math.MaxInt64, which an io.Seeker cannot take")
+	}
 	at, err := r.r.Seek(offset, whence)
 	if err != nil {
 		return 0, err

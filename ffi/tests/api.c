@@ -134,6 +134,17 @@ static api_buf made_times(void *data, uint32_t n) {
 	return api_buf_copy(str(text));
 }
 
+/* reissue's closures: a new ticket, and a copy of one C keeps, each Rust's to free. */
+static api_Ticket *reissue_next(void *data, const api_Ticket *ticket) {
+	(void)data;
+	return api_Ticket_new(api_Ticket_number(ticket) + 1);
+}
+
+static api_Ticket *reissue_kept(void *data, const api_Ticket *ticket) {
+	(void)ticket;
+	return api_Ticket_copy(data);
+}
+
 static uint32_t spawned_task(void *data) {
 	(void)data;
 	return 7;
@@ -216,7 +227,13 @@ static bool memory_read(void *data, uint8_t *buf, size_t len, size_t *n, api_buf
 
 static bool memory_seek(void *data, int whence, int64_t offset, uint64_t *position, api_buf *err) {
 	memory *m = data;
-	int64_t base = whence == SEEK_SET ? 0 : whence == SEEK_CUR ? (int64_t)m->at : (int64_t)m->len;
+	if (whence == SEEK_SET) {
+		/* Anywhere from the start, as Rust's `Cursor` lands. */
+		m->at = (size_t)(uint64_t)offset;
+		*position = m->at;
+		return true;
+	}
+	int64_t base = whence == SEEK_CUR ? (int64_t)m->at : (int64_t)m->len;
 	if (base + offset < 0) {
 		*err = api_buf_copy(str("before the start"));
 		return false;
@@ -262,6 +279,18 @@ static void tail(api_foreign_reader reader) {
 static bool closures(void) {
 	print("made ", api_made(3, made_times, NULL), "\n");
 
+	/* A closure taking and returning `Copy` objects copies them, never running their `Clone`. */
+	api_Ticket *kept = api_Ticket_new(9);
+	api_Ticket *seven = api_Ticket_new(7);
+	api_Ticket *given = api_reissue(seven, reissue_next, NULL);
+	api_Ticket *held = api_reissue(seven, reissue_kept, kept);
+	printf("reissued %u %u, cloned %u\n", (unsigned)api_Ticket_number(given), (unsigned)api_Ticket_number(held),
+		(unsigned)api_Ticket_clones());
+	api_Ticket_free(held);
+	api_Ticket_free(given);
+	api_Ticket_free(seven);
+	api_Ticket_free(kept);
+
 	/* A kept closure, called on another thread after the call that took it returned. */
 	bool spawned_freed = false;
 	api_Spawned *spawned = api_Spawned_new(spawned_task, &spawned_freed, spawned_free);
@@ -294,6 +323,14 @@ static bool closures(void) {
 	memory hello = {.bytes = "hello world", .len = 11};
 	tail((api_foreign_reader){.read = memory_read, .seek = memory_seek, .data = &hello});
 	tail((api_foreign_reader){.read = broken_read, .seek = broken_seek, .data = NULL});
+
+	/* A seek from the start reaches the reader whole, past INT64_MAX, as `Cursor` takes one. */
+	uint64_t landed = 0;
+	api_buf landed_err;
+	ok = ok
+		&& api_seek_to((api_foreign_reader){.read = memory_read, .seek = memory_seek, .data = &hello}, UINT64_MAX,
+			&landed, &landed_err)
+		&& landed == UINT64_MAX;
 	return ok;
 }
 

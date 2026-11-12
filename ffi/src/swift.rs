@@ -1276,7 +1276,7 @@ impl<'a> Gen<'a> {
 					args.push(l);
 				}
 				// A `Copy` object, which Swift's class holds a copy of.
-				Type::Object(i) => args.push(format!("{}(raw: {}_clone({p}))", self.sw(ty), self.abi.object(*i))),
+				Type::Object(i) => args.push(format!("{}(raw: {}_copy({p}))", self.sw(ty), self.abi.object(*i))),
 				ty => args.push(self.lift_lent(ty, p)),
 			}
 		}
@@ -1323,10 +1323,18 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::Str | Type::String => format!("Native.owned({e})"),
-			Type::Object(i) => format!("{e}.handle.with {{ {}_clone($0) }}", abi.object(*i)),
+			// Kept alive while its handle is copied: once `.handle` is read, ARC may release
+			// the object, whose deinit would free the handle first.
+			Type::Object(i) => format!(
+				"withExtendedLifetime({e}) {{ r_ in r_.handle.with {{ {}_copy($0) }} }}",
+				abi.object(*i)
+			),
 			Type::Option(inner) => match &**inner {
 				Type::Str | Type::String => format!("({e}.map {{ Native.owned($0) }} ?? Native.none)"),
-				Type::Object(i) => format!("({e}?.handle.with {{ {}_clone($0) }} ?? nil)", abi.object(*i)),
+				Type::Object(i) => format!(
+					"withExtendedLifetime({e}) {{ r_ in r_?.handle.with {{ {}_copy($0) }} ?? nil }}",
+					abi.object(*i)
+				),
 				_ => self.lower(ty, e),
 			},
 			ty => self.lower(ty, e),

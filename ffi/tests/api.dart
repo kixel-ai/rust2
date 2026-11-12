@@ -645,6 +645,11 @@ Future<void> script() async {
 
   // A closure's string, which Rust takes.
   print('made ${api.made(3, (n) => '$n times')}');
+  // A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+  final nine = api.Ticket(9);
+  final renewed = api.reissue(api.Ticket(7), (t) => api.Ticket(t.number() + 1)).number();
+  final copied = api.reissue(api.Ticket(7), (_) => nine).number();
+  print('reissued $renewed $copied, cloned ${api.Ticket.clones()}');
   // A kept closure, called on another thread after the call that took it returned.
   final spawned = api.Spawned(() => 7);
   print('spawned ${spawned.join()}');

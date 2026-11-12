@@ -752,6 +752,14 @@ func script() {
 	verbosity.Close()
 
 	fmt.Printf("made %s\n", api.Made(3, func(n uint32) string { return fmt.Sprintf("%d times", n) }))
+	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	nine, seven := api.NewTicket(9), api.NewTicket(7)
+	renewed := must(api.Reissue(seven, func(t *api.Ticket) *api.Ticket { return api.NewTicket(must(t.Number()) + 1) }))
+	copied := must(api.Reissue(seven, func(*api.Ticket) *api.Ticket { return nine }))
+	fmt.Printf("reissued %d %d, cloned %d\n", must(renewed.Number()), must(copied.Number()), api.TicketClones())
+	for _, ticket := range []*api.Ticket{copied, renewed, seven, nine} {
+		ticket.Close()
+	}
 	// A kept closure, called on another thread after the call that took it returned.
 	spawned := api.NewSpawned(func() uint32 { return 7 })
 	fmt.Printf("spawned %d\n", must(spawned.Join()))

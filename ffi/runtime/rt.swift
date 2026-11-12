@@ -100,6 +100,11 @@ extension Native {
 					},
 					seek: { data, whence, offset, position, err in
 						let file = data!.assumingMemoryBound(to: (any SeekableReader).self)
+						// From the start, the offset's bits are unsigned, past what an Int64 holds.
+						if whence == 0 && offset < 0 {
+							err!.pointee = Native.owned("a seek past Int64.max, which a SeekableReader cannot take")
+							return false
+						}
 						let origin: SeekOrigin
 						switch whence {
 						case 0: origin = .start

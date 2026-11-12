@@ -730,6 +730,11 @@ fn main() {
 	);
 
 	println!("made {}", api::made(3, |n| format!("{n} times")));
+	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	let kept = api::Ticket::new(9);
+	let given = api::reissue(api::Ticket::new(7), |t| api::Ticket::new(t.number() + 1)).number();
+	let held = api::reissue(api::Ticket::new(7), |_| kept).number();
+	println!("reissued {given} {held}, cloned {}", api::Ticket::clones());
 	// A kept closure, called on another thread after the call that took it returned.
 	println!("spawned {}", api::Spawned::new(|| 7).join());
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.

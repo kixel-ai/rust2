@@ -628,6 +628,11 @@ def script():
 	)
 
 	print(f"made {api.made(3, lambda n: f'{n} times')}")
+	# A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	kept = api.Ticket.new(9)
+	given = api.reissue(api.Ticket.new(7), lambda t: api.Ticket.new(t.number() + 1)).number()
+	held = api.reissue(api.Ticket.new(7), lambda _: kept).number()
+	print(f"reissued {given} {held}, cloned {api.Ticket.clones()}")
 	# A kept closure, called on another thread after the call that took it returned.
 	print(f"spawned {api.Spawned.new(lambda: 7).join()}")
 	# A kept closure: called again at the instant it asks for, then once its waiter wakes.

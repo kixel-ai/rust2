@@ -871,6 +871,11 @@ impl Gen<'_> {
 			self.traits(&name, &path, object.traits, |e| {
 				format!("unsafe {{ rt::Object::<{path}>::{borrow}({e}, w) }}")
 			});
+			if self.abi.copies.contains(&i) {
+				self.export(format!(
+					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_copy(this: *const ::std::ffi::c_void) -> *const ::std::ffi::c_void {{\n\tlet w = \"{name}_copy\";\n\trt::Object::new(*unsafe {{ rt::Object::<{path}>::{borrow}(this, w) }})\n}}\n"
+				));
+			}
 			let owner = Ty::Handle {
 				name: name.clone(),
 				constant: false,

@@ -1998,12 +1998,12 @@ impl<'a> Gen<'a> {
 					let _ = writeln!(body, "\tdefer {l}.Handle_.End()");
 					args.push(l);
 				}
-				// A copy is the callee's, which Go keeps as long as it likes: its own clone of
-				// the handle Rust lends for the call.
+				// A copy is the callee's, which Go keeps as long as it likes: its own copy of
+				// the value Rust lends for the call, made as Rust copies it.
 				Type::Object(i) => {
 					self.convert(ty);
 					let c = self.abi.object(*i);
-					args.push(format!("own_{c}(C.{c}_clone({p}))"));
+					args.push(format!("own_{c}(C.{c}_copy({p}))"));
 				}
 				ty => args.push(self.lift_lent(ty, p)),
 			}
@@ -2085,8 +2085,8 @@ impl<'a> Gen<'a> {
 		let local = self.named(&ty).1;
 		self.helper(&format!("returned_{c}"), |_| {
 			format!(
-				"// returned_{c} is a clone of v's handle, which Rust frees once it copies v out of it.\n\
-				func returned_{c}(v *{name}) *C.{c} {{\n\tif v == nil {{\n\t\tpanic(\"a nil {local} returned to Rust\")\n\t}}\n\th := v.Handle_.Hold()\n\tif h == nil {{\n\t\tpanic(v.Handle_.Closed())\n\t}}\n\tdefer unhold_(v.Handle_, v)\n\treturn C.{c}_clone((*C.{c})(h))\n}}\n\n\
+				"// returned_{c} is a new handle to a copy of v, which Rust frees once it copies v out of it.\n\
+				func returned_{c}(v *{name}) *C.{c} {{\n\tif v == nil {{\n\t\tpanic(\"a nil {local} returned to Rust\")\n\t}}\n\th := v.Handle_.Hold()\n\tif h == nil {{\n\t\tpanic(v.Handle_.Closed())\n\t}}\n\tdefer unhold_(v.Handle_, v)\n\treturn C.{c}_copy((*C.{c})(h))\n}}\n\n\
 				func returnedOption_{c}(v *{name}) *C.{c} {{\n\tif v == nil {{\n\t\treturn nil\n\t}}\n\treturn returned_{c}(v)\n}}\n\n"
 			)
 		});

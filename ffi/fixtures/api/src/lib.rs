@@ -681,6 +681,44 @@ pub fn made<R>(n: u32, make: impl FnOnce(u32) -> R) -> R {
 	make(n)
 }
 
+/// How many times a [`Ticket`]'s `Clone` ran.
+static TICKET_CLONES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// A `Copy` object whose `Clone` counts its calls, which a closure taking or returning one
+/// never runs, as Rust copies it instead.
+#[derive(Copy, Debug, PartialEq)]
+pub struct Ticket {
+	number: u32,
+}
+
+#[expect(clippy::expl_impl_clone_on_copy, reason = "the count shows a copy never clones")]
+impl Clone for Ticket {
+	fn clone(&self) -> Self {
+		TICKET_CLONES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+		*self
+	}
+}
+
+impl Ticket {
+	pub fn new(number: u32) -> Self {
+		Self { number }
+	}
+
+	pub fn number(&self) -> u32 {
+		self.number
+	}
+
+	/// How many times any ticket's `Clone` ran.
+	pub fn clones() -> u32 {
+		TICKET_CLONES.load(std::sync::atomic::Ordering::Relaxed)
+	}
+}
+
+/// The ticket `swap` returns for `ticket`.
+pub fn reissue(ticket: Ticket, swap: impl Fn(Ticket) -> Ticket) -> Ticket {
+	swap(ticket)
+}
+
 /// The last `len` bytes of `file`, and where they start, which it seeks back to: a reader
 /// the caller implements, lent for the call, as moq-mux's `container::mp4::repair` takes.
 pub fn tail<F: std::io::Read + std::io::Seek>(file: &mut F, len: u64) -> std::io::Result<(Vec<u8>, u64)> {
@@ -691,6 +729,11 @@ pub fn tail<F: std::io::Read + std::io::Seek>(file: &mut F, len: u64) -> std::io
 	file.read_to_end(&mut tail)?;
 	let start = file.seek(SeekFrom::Current(-(tail.len() as i64)))?;
 	Ok((tail, start))
+}
+
+/// Where seeking `file` to `at` from its start lands: any `u64`, as `Cursor` takes.
+pub fn seek_to<F: std::io::Read + std::io::Seek>(file: &mut F, at: u64) -> std::io::Result<u64> {
+	file.seek(std::io::SeekFrom::Start(at))
 }
 
 impl Channel {

@@ -267,7 +267,9 @@ final class _FileReader implements SeekableReader {
   }
 }
 
-/// What Rust's read of a [SeekableReader] calls, on the isolate's thread.
+/// What Rust's read of a [SeekableReader] calls, on the isolate's thread. The reader fills
+/// a list of Dart's own, copied into Rust's buffer after: a view of Rust's buffer would
+/// outlive the read in a reader that kept it, and Rust frees the buffer when it likes.
 bool _readerRead(
   ffi.Pointer<ffi.Void> data,
   ffi.Pointer<ffi.Uint8> buf,
@@ -276,7 +278,11 @@ bool _readerRead(
   ffi.Pointer<_Buf> err,
 ) {
   try {
-    n.value = (_n.lent[data.address] as SeekableReader).readInto(buf.asTypedList(len));
+    final owned = typed.Uint8List(len);
+    final got = (_n.lent[data.address] as SeekableReader).readInto(owned);
+    // Rust refuses a count past `len`, which no copy then reaches.
+    if (got > 0 && got <= len) buf.asTypedList(len).setRange(0, got, owned);
+    n.value = got;
     return true;
   } on Exception catch (e) {
     _n.setBuf(err, _n.copied(e.toString()));
@@ -294,6 +300,11 @@ bool _readerSeek(
   ffi.Pointer<ffi.Uint64> position,
   ffi.Pointer<_Buf> err,
 ) {
+  // From the start, the offset's bits are unsigned, past what an int holds.
+  if (whence == 0 && offset < 0) {
+    _n.setBuf(err, _n.copied('a seek past the largest int, which a SeekableReader cannot take'));
+    return false;
+  }
   try {
     position.value = (_n.lent[data.address] as SeekableReader).seek(offset, SeekFrom.values[whence]);
     return true;

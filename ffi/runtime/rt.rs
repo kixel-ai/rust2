@@ -1292,16 +1292,9 @@ impl std::io::Seek for Reader {
 	fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
 		// C's `whence`, which every platform numbers alike.
 		let (whence, offset) = match pos {
-			std::io::SeekFrom::Start(offset) => match i64::try_from(offset) {
-				Ok(offset) => (0, offset),
-				// As a file's seek fails, which takes no offset past `i64::MAX` either.
-				Err(_) => {
-					return Err(std::io::Error::new(
-						std::io::ErrorKind::InvalidInput,
-						"a seek past i64::MAX",
-					));
-				}
-			},
+			// Its bits, which the reader reads back unsigned, so a start past `i64::MAX`
+			// reaches it as Rust's own readers such as `Cursor` take one.
+			std::io::SeekFrom::Start(offset) => (0, offset.cast_signed()),
 			std::io::SeekFrom::Current(offset) => (1, offset),
 			std::io::SeekFrom::End(offset) => (2, offset),
 		};

@@ -200,6 +200,7 @@ const READS: &str = "\t@JvmStatic private fun __read(channel: Any, len: Int): By
 \t\t\telse -> channel.size()
 \t\t}
 \t\tval at = base + offset
+\t\t// From the start, a negative offset's bits are unsigned, past what a Long holds.
 \t\tif (at < 0 || (offset > 0 && at < base)) throw java.io.IOException(\"invalid seek to a negative or overflowing position\")
 \t\tchannel.position(at)
 \t\treturn at
@@ -667,13 +668,13 @@ impl<'a> Gen<'a> {
 
 	/// The Kotlin expression passing `e` of type `ty` back to Rust as the C type `c`, as a
 	/// callback or closure returns it: a scalar, a string's bytes, or a new handle to a
-	/// clone of a `Copy` object, or 0 for none, which Rust frees.
+	/// copy of a `Copy` object, made without its `Clone`, or 0 for none, which Rust frees.
 	fn lower_ret(&self, c: &Ty, ty: &Type, e: &str) -> String {
 		match c {
 			Ty::Int(int) => to_signed(*int, e),
 			Ty::Buf => format!("{e}.encodeToByteArray()"),
 			Ty::Handle { name, .. } => {
-				let clone = format!("Native.{}_clone", self.bare(name));
+				let clone = format!("Native.{}_copy", self.bare(name));
 				match ty {
 					Type::Option(_) => format!("{e}?.handle?.hold {{ h -> {clone}(h) }} ?: 0L"),
 					_ => format!("{e}.handle.hold {{ h -> {clone}(h) }}"),
@@ -1007,6 +1008,16 @@ impl<'a> Gen<'a> {
 				"debug",
 				"/** Rust's `Debug` form. */\n\tfun debug(): String",
 			));
+		}
+		if let Type::Object(i) = ty
+			&& self.abi.copies.contains(i)
+		{
+			self.native(
+				&format!("{bare}_copy"),
+				&[("jlong", "Long")],
+				("jlong", "Long"),
+				&format!("crate::{c}_copy(p0 as usize as _) as usize as jlong"),
+			);
 		}
 		if object && t.clone {
 			self.native(

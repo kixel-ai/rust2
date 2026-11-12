@@ -1365,7 +1365,12 @@ unsafe extern "C" fn reader_read(data: *mut c_void, buf: *mut u8, len: usize, n:
 /// seek with its message.
 unsafe extern "C" fn reader_seek(data: *mut c_void, whence: c_int, offset: i64, position: *mut u64, err: *mut rt::Buf) -> bool {
 	upcall("seek", || {
-		let args = vec![int_out(offset), int_out(i64::from(whence))];
+		// From the start, the offset's bits are unsigned, as Python's int takes them.
+		let offset = match whence {
+			0 => uint_out(offset.cast_unsigned()),
+			_ => int_out(offset),
+		};
+		let args = vec![offset, int_out(i64::from(whence))];
 		match call_method(data.cast(), &SEEK, args) {
 			Ok(at) => {
 				// SAFETY: Rust's out pointer.

@@ -97,7 +97,7 @@ impl Header<'_> {
 			"/* A future C implements, of nothing: Rust polls it from any thread with a waker of\n * its own each time, which C wakes once the future can make progress and drops once,\n * until poll returns true, and calls free with data once it drops the future, done or\n * not. free may be null. */\ntypedef struct {p}_foreign_future {{\n\tbool (*poll)(void *data, {p}_waker waker);\n\tvoid (*free)(void *data);\n\tvoid *data;\n}} {p}_foreign_future;\n"
 		));
 		self.line(format!(
-			"/* A reader C implements, which Rust reads and seeks only during the call it is passed\n * to, one call at a time from any thread. read reads up to len bytes into buf,\n * writing how many to *n, none only at the end; seek moves offset from whence, SEEK_SET,\n * SEEK_CUR, or SEEK_END, writing the position from the start to *position. Each\n * returns whether it succeeded, else writing its error's message to *err as a buffer\n * {p}_buf_copy made. */\ntypedef struct {p}_foreign_reader {{\n\tbool (*read)(void *data, uint8_t *buf, size_t len, size_t *n, {p}_buf *err);\n\tbool (*seek)(void *data, int whence, int64_t offset, uint64_t *position, {p}_buf *err);\n\tvoid *data;\n}} {p}_foreign_reader;\n"
+			"/* A reader C implements, which Rust reads and seeks only during the call it is passed\n * to, one call at a time from any thread. read reads up to len bytes into buf,\n * writing how many to *n, none only at the end; seek moves offset from whence, SEEK_SET,\n * SEEK_CUR, or SEEK_END, writing the position from the start to *position; from SEEK_SET,\n * offset's bits are a uint64_t, which may pass INT64_MAX. Each\n * returns whether it succeeded, else writing its error's message to *err as a buffer\n * {p}_buf_copy made. */\ntypedef struct {p}_foreign_reader {{\n\tbool (*read)(void *data, uint8_t *buf, size_t len, size_t *n, {p}_buf *err);\n\tbool (*seek)(void *data, int whence, int64_t offset, uint64_t *position, {p}_buf *err);\n\tvoid *data;\n}} {p}_foreign_reader;\n"
 		));
 		self.line(format!(
 			"typedef enum {p}_poll {{\n\t{upper}_POLL_PENDING = 0,\n\t{upper}_POLL_READY = 1,\n\t{upper}_POLL_ERROR = 2,\n}} {p}_poll;\n"
@@ -236,6 +236,16 @@ impl Header<'_> {
 			let t = object.traits;
 			if t.clone {
 				self.line(format!("{name} *{name}_clone(const {name} *self);"));
+			}
+			if abi.copies.contains(&i) {
+				self.line(
+					comment(
+						"A new handle to a copy of the value, made as Rust copies it, never running its `Clone`: a closure hands Rust one it takes or returns.",
+						"",
+					)
+					.trim_end(),
+				);
+				self.line(format!("{name} *{name}_copy(const {name} *self);"));
 			}
 			if t.eq {
 				self.line(format!("bool {name}_eq(const {name} *a, const {name} *b);"));

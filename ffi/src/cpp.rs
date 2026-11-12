@@ -1403,8 +1403,8 @@ impl<'a> Header<'a> {
 	}
 
 	/// The C value a closure returns Rust of the C++ value `e` of type `ty`, which Rust then
-	/// owns: bytes as a buffer `<prefix>_buf_copy` made, and a `Copy` object as a clone of
-	/// its handle. `e` is named, so it may be read more than once.
+	/// owns: bytes as a buffer `<prefix>_buf_copy` made, and a `Copy` object as a new handle to
+	/// a copy, made without its `Clone`. `e` is named, so it may be read more than once.
 	fn returned(&self, ty: &Type, e: &str) -> String {
 		let abi = self.abi;
 		let d = self.d();
@@ -1414,7 +1414,7 @@ impl<'a> Header<'a> {
 			Type::Option(inner) if matches!(**inner, Type::Object(_)) => {
 				format!("({e} ? {} : nullptr)", self.returned(inner, &format!("(*{e})")))
 			}
-			Type::Object(i) => format!("::{}_clone({d}::access::raw({e}))", abi.object(*i)),
+			Type::Object(i) => format!("::{}_copy({d}::access::raw({e}))", abi.object(*i)),
 			ty => self.lower(ty, e),
 		}
 	}

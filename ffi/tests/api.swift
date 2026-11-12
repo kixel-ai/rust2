@@ -722,6 +722,11 @@ func script() {
 	print("verbosity \(verbosity.levelGet == .trace) \(spell(verbosity.filter())) \(spell(louder(verbosity.filter()))) \(spell(louder(nil)))")
 
 	print("made \(made(3) { "\($0) times" })")
+	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	let nine = Ticket.new(9)
+	let given = reissue(Ticket.new(7)) { Ticket.new($0.number() + 1) }.number()
+	let held = reissue(Ticket.new(7)) { _ in nine }.number()
+	print("reissued \(given) \(held), cloned \(Ticket.clones())")
 	// A kept closure, called on another thread after the call that took it returned.
 	print("spawned \(Spawned.new { 7 }.join())")
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.

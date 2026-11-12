@@ -734,6 +734,11 @@ c_foreign_reader foreign_reader(R &r) noexcept {
 			::std::ios_base::seekdir dir = whence == SEEK_SET   ? ::std::ios_base::beg
 			                               : whence == SEEK_CUR ? ::std::ios_base::cur
 			                                                    : ::std::ios_base::end;
+			// From the start, the offset's bits are unsigned, past what an int64_t holds.
+			if (whence == SEEK_SET && offset < 0) {
+				*err = copy_bytes("a seek past INT64_MAX, which a reader's seek cannot take");
+				return false;
+			}
 			auto seek = static_cast<R *>(data)->seek(offset, dir);
 			if (!seek) {
 				*err = copy_bytes(seek.error());

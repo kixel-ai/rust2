@@ -242,11 +242,14 @@ dropped for the other target's span where the file differs.
   any call. One takes what a callback takes, and objects by reference or `Copy` objects,
   each lent as a handle to the value where it is for that call: C borrows it no further
   than Rust lent it, and moving out of it, freeing it, or keeping a borrow past the call
-  aborts. What it returns is Rust's to own: a handle C made or was given, or a buffer
-  `<prefix>_buf_copy` made; a `Result` returns false and writes its error's buffer.
+  aborts. What it returns is Rust's to own: a handle C made or was given, one
+  `<T>_copy` made of a `Copy` object C keeps, which copies it as Rust does without
+  running its `Clone`, or a buffer `<prefix>_buf_copy` made; a `Result` returns false and
+  writes its error's buffer.
 - **Readers** are a `read`, a `seek`, and their data, lent for the call, which Rust calls
   from any thread, one call at a time. `read` writes at most the length it was given,
-  `seek` takes `SEEK_SET`, `SEEK_CUR`, or `SEEK_END`, and either fails by returning false
+  `seek` takes `SEEK_SET`, whose offset's bits are a `uint64_t` that may pass
+  `INT64_MAX`, `SEEK_CUR`, or `SEEK_END`, and either fails by returning false
   with a buffer `<prefix>_buf_copy` made, which Rust raises as an `io::Error` of that
   message. A null function, or a read past the length, aborts.
 - **The contract** is a hash of the header's declarations, its docs included: the header

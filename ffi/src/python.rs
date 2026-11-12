@@ -1306,13 +1306,14 @@ impl<'a> Gen<'a> {
 
 	/// The glue's expression, an `R<C>`, of the Python object `o` a closure returns as the
 	/// C value of `ty` that Rust then owns: a string copied, as `<prefix>_buf_copy` makes
-	/// one, and an object's handle cloned, so the Python object keeps its own.
+	/// one, and a new handle to a copy of an object, made without its `Clone`, so the Python
+	/// object keeps its own.
 	fn given(&mut self, ty: &Type, o: &str) -> String {
 		let abi = self.abi;
 		match ty {
 			Type::String => format!("rt::str_given({o})"),
 			Type::Object(i) => format!(
-				"rt::hold({o}, {}, s, false).map(|h| crate::{}_clone(h))",
+				"rt::hold({o}, {}, s, false).map(|h| crate::{}_copy(h))",
 				self.t(&abi.object(*i)),
 				abi.object(*i)
 			),

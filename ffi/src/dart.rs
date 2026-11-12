@@ -1823,7 +1823,7 @@ impl<'a> Gen<'a> {
 
 	/// The C value of the Dart value `e` of type `ty` a closure returns, which Rust then
 	/// owns: text as a buffer `buf_copy` made, and a `Copy` object as a new handle to a
-	/// clone, which Rust copies out and frees.
+	/// copy, made without its `Clone`, which Rust copies out and frees.
 	fn returned(&mut self, ty: &Type, e: &str) -> String {
 		let abi = self.abi;
 		match ty {
@@ -1834,7 +1834,7 @@ impl<'a> Gen<'a> {
 					name: c.clone(),
 					constant: true,
 				};
-				let clone = self.served_fn(&format!("{c}_clone"), vec![handle.clone()], handle);
+				let clone = self.served_fn(&format!("{c}_copy"), vec![handle.clone()], handle);
 				format!("_n.handOver({e}, {clone})")
 			}
 			Type::Option(inner) if matches!(**inner, Type::Object(_)) => {

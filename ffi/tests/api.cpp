@@ -1037,6 +1037,18 @@ int script() {
 
 	// Closures C++ implements that return what Rust then owns, or that Rust keeps.
 	print("made ", api::made(3, [](std::uint32_t n) { return std::to_string(n) + " times"; }), "\n");
+	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	{
+		api::Ticket kept = api::Ticket::new_(9);
+		std::uint32_t given =
+			api::reissue(api::Ticket::new_(7), [](const api::Ticket &t) { return api::Ticket::new_(t.number() + 1); })
+				.number();
+		std::uint32_t held = api::reissue(api::Ticket::new_(7), [&kept](const api::Ticket &) {
+			return std::move(kept);
+		}).number();
+		std::printf("reissued %u %u, cloned %u\n", static_cast<unsigned>(given), static_cast<unsigned>(held),
+			static_cast<unsigned>(api::Ticket::clones()));
+	}
 	// A kept closure, called on another thread after the call that took it returned.
 	std::printf("spawned %u\n", static_cast<unsigned>(api::Spawned::new_([] { return 7; }).join()));
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.

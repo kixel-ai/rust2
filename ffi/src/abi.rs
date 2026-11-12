@@ -12,7 +12,7 @@
 //! `moq_audio_encoder_finish_`. A `_` doubled at the split would read better, but C++
 //! reserves every name containing `__`. Only the names that clash change.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use rustc_span::Span;
 
@@ -150,6 +150,9 @@ pub struct Abi<'a> {
 	pub tuples: BTreeMap<String, Vec<Type>>,
 	/// Each `[u8; N]` struct by C name, with `N`.
 	pub arrays: BTreeMap<String, usize>,
+	/// Each `Copy` object a closure takes or returns by value, which `<T>_copy` copies into
+	/// a new handle as Rust copies it, never running its `Clone`.
+	pub copies: BTreeSet<usize>,
 	/// Every C name claimed.
 	claims: Vec<Claim>,
 	/// The C name of each item whose own clashed.
@@ -169,6 +172,7 @@ impl<'a> Abi<'a> {
 			lists: BTreeMap::new(),
 			tuples: BTreeMap::new(),
 			arrays: BTreeMap::new(),
+			copies: BTreeSet::new(),
 			claims: Vec::new(),
 			renames: HashMap::new(),
 			clashes: Vec::new(),
@@ -1086,6 +1090,7 @@ impl<'a> Abi<'a> {
 		let mut lists = BTreeMap::new();
 		let mut tuples: BTreeMap<String, Vec<Type>> = BTreeMap::new();
 		let mut arrays = BTreeMap::new();
+		let mut copies = BTreeSet::new();
 		let mut mixed = Vec::new();
 		let mut stack = types;
 		while let Some(ty) = stack.pop() {
@@ -1118,6 +1123,17 @@ impl<'a> Abi<'a> {
 					stack.extend(elements);
 				}
 				Type::Closure(closure) => {
+					for ty in closure.params.iter().chain([&closure.ok]) {
+						let ty = match ty {
+							Type::Option(inner) => inner,
+							ty => ty,
+						};
+						if let Type::Object(i) = ty
+							&& self.api.objects[*i].copy
+						{
+							copies.insert(*i);
+						}
+					}
 					stack.extend(&closure.params);
 					stack.push(&closure.ok);
 					stack.extend(&closure.err);
@@ -1144,6 +1160,13 @@ impl<'a> Abi<'a> {
 		}
 		for name in arrays.keys() {
 			self.claim(name.clone(), "an array".to_string(), crate_span, None);
+		}
+		for &i in &copies {
+			let object = &self.api.objects[i];
+			let item = Item::Object(i);
+			let name = self.object(i);
+			let what = format!("type `{}`", self.api.rust(&object.path, &object.args));
+			self.claim(format!("{name}_copy"), what, object.span, Self::made(&item, &name));
 		}
 		for (name, elements) in tuples
 			.iter()
@@ -1175,6 +1198,7 @@ impl<'a> Abi<'a> {
 		self.lists = lists;
 		self.tuples = tuples;
 		self.arrays = arrays;
+		self.copies = copies;
 	}
 
 	/// Claim the functions a type's std traits export.
