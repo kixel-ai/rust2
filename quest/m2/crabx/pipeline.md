@@ -25,8 +25,12 @@ Recommendations:
   published that way after such a lull waits for the next push or a dispatch.
 - Build the commit cargo recorded in the published crate's `.cargo_vcs_info.json`, with
   `--locked`, so an untagged `cargo publish` builds too. Fail loud when that file is
-  missing or marks the tree dirty. Create the release, tagged `{name}-v{version}`, when
-  the version has none.
+  missing or marks the tree dirty. Attach to the release of the repo's existing tag for
+  that commit (`v{version}` or `{name}-v{version}`); create `{name}-v{version}` only when
+  no tag exists.
+- Serialize publishing per crate and version (a concurrency group keyed on both, since a
+  tag run and a push run don't share a ref), and make release creation and uploads
+  idempotent.
 - Native runners per target (`ubuntu-24.04`, `ubuntu-24.04-arm`, `macos-15` with x86_64
   cross-compiled, `windows-latest`, `windows-11-arm`), since crates with native
   dependencies break a single cross-compiling runner.
