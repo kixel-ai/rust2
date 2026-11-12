@@ -77,10 +77,11 @@ returns that are not `Clone`.
   as rind's `quest/m2/api/release-0.4.md` decides, until the CPU-check removal, the benchmark
   refresh, and moq's move are ready (reconfirmed by the maintainer on 2026-11-12); then
   [moq-dev/moq#8432](https://github.com/moq-dev/moq/pull/8432) moves moq to rind 0.4. Check:
-  `cargo search rind` shows 0.4.0. On 2026-11-12 moq `a560df6` still locks rind 0.3.1.
+  `cargo search rind` shows 0.4.0. On 2026-11-12 moq `c681b7a` still locks rind 0.3.1, and
+  rind 0.3.2, tagged 2026-11-08, predates the fix.
 - moq-dev/moq: moq-tokio builds without tripping `recursion_depth_exceeding_limit` (an
   overflow proving `Send` on `Instrumented<...>`), which `just ffi moq-cpp <checkout>` denies.
-  Done when it passes at moq's `main`. Still failing on 2026-11-12 at moq `6936f0a`, at
-  `rs/moq-tokio/src/client.rs:735` (unchanged at `a560df6`), on the `Instrumented<...>` from
+  Done when it passes at moq's `main`. Still failing on 2026-11-12 at moq `c681b7a`, at
+  `rs/moq-tokio/src/client.rs:748`, on the `Instrumented<...>` from
   `tokio::spawn(panic::isolate(time::run(driver)).instrument(..))`, and in the moq-ffi facade
   on `moq_net::Driver: Sync`.
