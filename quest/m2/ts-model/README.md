@@ -52,21 +52,16 @@ Decided with the maintainer on 2026-10-27, from a census of the model's 22 publi
 - The end-to-end work stays here: the model's roots, its differential harness, and the
   `frames.ts` workload. moq writes the binding files `model.toml` names, in its own tree.
 
-The census at the pin on 2026-11-09: 41 refusals. `Timestamp` alone refuses nothing, and
-the [model fixture](/ts/README.md#tests)'s harness runs it against native moq-net at the
-pin; each case it adds as a type translates. Every other root reaches the rest of the
-model, all of it moq's, for its research quest: kio's `log.rs` reads bytes as its segments
-and retires them through crossbeam-epoch, whose tagged pointers and inline closures (36
-refusals) translation refuses for good, so moq rewrites or drops them, as it does the
-`unsafe` slice of `model/frame.rs`'s `Filled`. smallvec maps into the runtime, its
-`SmallVec` an `rs.Vec` (decided with the maintainer on 2026-11-07, in the quest audit,
+The census at the pin on 2026-11-12: 38 refusals, every one moq's, for its research quest.
+`Timestamp` alone refuses nothing, and the [model fixture](/ts/README.md#tests)'s harness
+runs it against native moq-net at the pin; each case it adds as a type translates. Every
+other root reaches the rest of the model: kio's `log.rs` reads bytes as its segments,
+writes them by `NonNull::write`, which translation doesn't map yet, and retires them
+through crossbeam-epoch, whose tagged pointers and inline closures translation refuses for
+good (34 refusals, 31 of them crossbeam-epoch's), so moq rewrites or drops them; and moq reads four addresses as integers (`model/cache.rs`, `model/frame.rs`),
+which it keys by an explicit id instead, as decided below. smallvec maps into the runtime,
+its `SmallVec` an `rs.Vec` (decided with the maintainer on 2026-11-07, in the quest audit,
 under rule 2 of [m3's unsafe policy](/quest/m3/README.md); rejected: moq dropping smallvec).
-
-Not all of the rest is moq's. moq-net tests identity with
-`std::ptr::eq(owner.as_ptr(), self)` on a `Weak` (`model/group/content.rs` at the pin),
-which is safe Rust, and translation maps `Arc::as_ptr` but refuses `Weak::as_ptr`. Map
-it here, as pointer identity already translates as JS identity; that is on the gate's
-path.
 
 Decided with the maintainer on 2026-11-04, from a census at the bumped pin
 (moq-dev/rust2#390): the refusals no quest owned became child quests, since finished.

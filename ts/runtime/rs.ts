@@ -384,6 +384,9 @@ function addressAt(addr: number): Address {
 	return at;
 }
 
+/** `Weak::as_ptr` of `Weak::new`'s, which has no allocation: std's dangling address, wasm32's `usize::MAX`. */
+export const WEAK_DANGLING: never = /* @__PURE__ */ addressAt(0xffffffff) as never;
+
 /** A read or write through a pointer to no memory. */
 export function nowhere(): never {
 	return violated("a read or write requires a pointer to memory, not null, dangling, or moved off either");

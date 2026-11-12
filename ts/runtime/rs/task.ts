@@ -466,6 +466,15 @@ export function weakUpgrade<T>(weak: Weak<T>): Arc<T> | undefined {
 	return weak.view === undefined ? arc : weak.view(arc);
 }
 
+/**
+ * The `Arc` whose value `Weak::as_ptr` points at, as `upgrade` would view it, whether or not
+ * any strong one is left: `undefined` for `Weak::new`'s, which has none.
+ */
+export function weakArc<T>(weak: Weak<T>): Arc<T> | undefined {
+	if (weak.arc === DANGLING) return undefined;
+	return weak.view === undefined ? (weak.arc as Arc<T>) : weak.view(weak.arc as Arc<never>);
+}
+
 /** `Weak::clone`. */
 export function weakClone<T>(weak: Weak<T>): Weak<T> {
 	return new Weak(weak.arc as Arc<T>, weak.view);

@@ -264,6 +264,12 @@ pub struct Translator<'a, 'tcx> {
 	compared: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
 	/// Those this run compared.
 	comparing: rustc_data_structures::fx::FxHashSet<Ty<'tcx>>,
+	/// The values `Arc::new_cyclic` and `Rc::new_cyclic` make, by `Arc` or `Rc` and their
+	/// storage.
+	cyclic: rustc_data_structures::fx::FxHashSet<(&'static str, Ty<'tcx>)>,
+	/// Each `Weak::as_ptr` of a value JS keeps as an object, by `Arc` or `Rc` and its
+	/// storage, with its refusal, should `new_cyclic` make one.
+	weak_pointers: Vec<(&'static str, Ty<'tcx>, Span, String)>,
 	/// Whether the runs before reached a `panic::set_hook`, so every panic carries the
 	/// `rs.Location` its hook reads.
 	pub hooked: bool,
@@ -458,6 +464,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				&& t.comparing.is_subset(&t.compared)
 				&& (t.hooked || !t.hooking)
 			{
+				t.refuse_cyclic_pointers();
 				return Some((t, out));
 			}
 			read = std::mem::take(&mut t.read);
@@ -467,6 +474,36 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			compared = std::mem::take(&mut t.compared);
 			compared.extend(t.comparing.drain());
 			hooked |= t.hooking;
+		}
+	}
+
+	/// Note an `of::new_cyclic` of a `ty`, an `Arc` or `Rc` as `of` says, whose value isn't
+	/// there until its closure returns.
+	pub fn cyclic(&mut self, of: &'static str, ty: Ty<'tcx>) {
+		self.cyclic.insert((of, copy::storage(self.tcx, ty)));
+	}
+
+	/// Note a `Weak::as_ptr` at `span` of a `ty` JS keeps as an object, of an `Arc` or `Rc`
+	/// as `of` says, which has no object to point at while `new_cyclic` makes it.
+	pub fn weak_pointer(&mut self, ty: Ty<'tcx>, of: &'static str, span: Span) {
+		let msg = format!(
+			"`Weak::as_ptr` of a `{ty}` that `{of}::new_cyclic` makes, whose JS object isn't there to point at until its closure returns"
+		);
+		let (span, msg) = self.sited(span, msg);
+		self.weak_pointers.push((of, copy::storage(self.tcx, ty), span, msg));
+	}
+
+	/// Refuse each `Weak::as_ptr` of a type `new_cyclic` makes, once the run has reached
+	/// every `new_cyclic`. A type parameter may stand for any.
+	fn refuse_cyclic_pointers(&mut self) {
+		for (of, ty, span, msg) in std::mem::take(&mut self.weak_pointers) {
+			if self
+				.cyclic
+				.iter()
+				.any(|&(by, made)| by == of && (made == ty || made.has_param() || ty.has_param()))
+			{
+				self.refuse(span, msg);
+			}
 		}
 	}
 
@@ -542,6 +579,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 			cloning: Default::default(),
 			compared,
 			comparing: Default::default(),
+			cyclic: Default::default(),
+			weak_pointers: Vec::new(),
 			hooked,
 			hooking: false,
 			held: false,

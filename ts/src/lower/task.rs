@@ -138,7 +138,11 @@ pub fn call<'tcx>(
 	let owned_std = self_std.filter(|_| self_ty.is_some_and(|t| !t.is_ref()));
 	let e = match (owner, name) {
 		("Arc" | "Rc", "new") => Expr::New(Box::new(Expr::Rs("Arc".into())), args),
-		("Arc" | "Rc", "new_cyclic") => Expr::rs("arcNewCyclic", args),
+		("Arc" | "Rc", "new_cyclic") => {
+			let of = if owner == "Arc" { "Arc" } else { "Rc" };
+			b.t.cyclic(of, call.args.type_at(0));
+			Expr::rs("arcNewCyclic", args)
+		}
 		// JS erases the pin.
 		("Arc" | "Rc", "pin") => Expr::New(Box::new(Expr::Rs("Arc".into())), args),
 		// The object of one of a trait object, which every pointer to it shares. A `dyn Any`'s
