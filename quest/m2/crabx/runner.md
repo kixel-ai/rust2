@@ -5,7 +5,7 @@
 `crabx <crate>[@version] [args]` resolves the crate through binstalk, downloads the
 binary for the host into its own cache, and `exec`s it, passing through arguments,
 signals, and the exit code. It never compiles unless `--build` is passed, which runs
-`cargo install` into the cache. A pinned version runs from the cache with no network.
+`cargo install` into the cache. Once cached, a pinned version runs with no network.
 
 ## Plan
 

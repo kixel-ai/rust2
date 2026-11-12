@@ -11,8 +11,9 @@ PowerShell installer fetch the release binary.
 
 Recommendations:
 
-- npm as per-platform packages selected by `os` and `cpu` (the esbuild pattern), with no
-  postinstall download.
+- npm as per-platform packages selected by `os`, `cpu`, and, on Linux, `libc: ["glibc"]`
+  (the esbuild pattern), with no postinstall download. On musl no package matches, and
+  the launcher fails loudly rather than run a glibc binary.
 - npm trusted publishing is the one job on a GitHub-hosted runner, kept minimal and
   pinned by a test.
 - This adds rust2's first published crate, so it sets up release tagging too.

@@ -4,7 +4,8 @@
 
 Work that waits on evidence or has no consumer yet: two waits on upstream's build-speed
 levers, the translator's features that wait on [the gate](/quest/m2/wasm/README.md), the
-binding targets planned ahead of a consumer, and what waits on moq.
+binding targets planned ahead of a consumer, what waits on moq, and
+[crabx's GitHub App](/quest/m3/crabx-app.md).
 
 ## Plan
 

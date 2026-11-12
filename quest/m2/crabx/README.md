@@ -4,8 +4,8 @@
 
 Someone with no Rust toolchain runs a Rust CLI as `crabx <crate>[@version] args`, as fast
 as npx on a warm cache, from a prebuilt binary for their platform, and never compiles
-unless they pass `--build`. Any crate binstall can resolve works. A repo opts into prebuilt
-builds of each crates.io version, for Linux, macOS, and Windows on x86_64 and arm64, by
+unless they pass `--build`. Any crate whose releases carry assets binstall finds works,
+with quickinstall's third-party builds behind a flag. A repo opts into prebuilt builds of each crates.io version, for Linux, macOS, and Windows on x86_64 and arm64, by
 adding one configless workflow. moq's CLIs (moq-cli, moq-relay) use it first.
 
 Non-goals: hosting a builder, building repos that haven't opted in, builds of `main` or
@@ -31,8 +31,8 @@ Decided with the maintainer on 2026-11-12, in /quest-plan:
   or [cgx](https://github.com/anelson/cgx) (it compiles by default and needs config).
 - ✅ A runner installed once, and also published to npm so `npx crabx <crate>` needs
   nothing new. Rejected: runner only; each tool published to npm or PyPI on its own.
-- ✅ Anything binstall resolves, so crates that already attach release assets work on
-  day one; the pipeline primarily exists to set those assets up. Rejected: opted-in repos
+- ✅ Anything binstall resolves from the author's releases, so crates that already attach
+  release assets work on day one; the pipeline primarily exists to set those assets up. Rejected: opted-in repos
   only; any crates.io crate built on demand.
 - ✅ Trust: crabx runs our pipeline's builds and an author's own release assets, and
   verifies an attestation wherever the repo publishes one (a bad one is an error).
@@ -42,10 +42,11 @@ Decided with the maintainer on 2026-11-12, in /quest-plan:
   artifacts, and per-commit prereleases.
 - ✅ Linux binaries target gnu through cargo-zigbuild against an old glibc floor, such
   as 2.28 (RHEL 8, Debian 10). Rejected: static musl (a slow allocator for moq-relay, and
-  native deps often fail to build); both.
+  native deps often fail to build); both. On musl Linux, crabx fails loudly and points
+  at `--build`.
 - ✅ An unpinned run is stale-while-revalidate: it runs the cached latest and checks
-  crates.io's sparse index in the background for the next run. A pinned version runs from
-  the cache with no network. Rejected: a check every run; a 24-hour TTL.
+  crates.io's sparse index in the background for the next run. Once cached, a pinned version
+  runs with no network. Rejected: a check every run; a 24-hour TTL.
 - ✅ The name `crabx`, free on npm and crates.io, following npx, bunx, and uvx.
   Rejected: xcrate, rusx, carx.
 - ✅ A pipeline workflow and `crabx init` now, the GitHub App
