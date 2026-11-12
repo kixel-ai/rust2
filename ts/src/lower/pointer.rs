@@ -851,11 +851,16 @@ pub fn call<'tcx>(
 			if kind(b, pointee()) != Some(Pointee::Place) {
 				b.t.weak_pointer(pointee(), of, span);
 			}
+			// A pointer to `()` is the `*const ()` every pointer there casts to.
+			let dangling = match b.t.identity_pointee(pointee()) {
+				true => "WEAK_DANGLING_UNIT",
+				false => "WEAK_DANGLING",
+			};
 			let arc = b.spill(Expr::rs("weakArc", vec![arg()]), "arc", out);
 			let p = arc_ptr(b, arc.clone(), of, false, out);
 			Expr::Cond(
 				Box::new(arc.binary("===", Expr::undefined())),
-				Box::new(Expr::Rs("WEAK_DANGLING".into())),
+				Box::new(Expr::Rs(dangling.into())),
 				Box::new(p),
 			)
 		}

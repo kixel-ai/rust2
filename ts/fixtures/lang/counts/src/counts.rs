@@ -109,6 +109,7 @@ macro_rules! counts {
 			let mut kept = $Ptr::downgrade(&number);
 			let pair = $Ptr::new([2u8, 3]);
 			let pair_weak = $Ptr::downgrade(&pair);
+			let units = ($weak::Weak::<()>::new(), $weak::Weak::<[u8; 2]>::new());
 			for &op in data {
 				let pick = usize::from(op >> 3);
 				match op % 8 {
@@ -118,8 +119,19 @@ macro_rules! counts {
 					3 => *slot.lock().unwrap() = Some(weak[pick % weak.len()].clone()),
 					4 if strong.len() > 1 => {
 						let gone = strong.swap_remove(pick % strong.len());
-						dropped.push(($Ptr::as_ptr(&gone), $Ptr::downgrade(&gone)));
-						drop(gone);
+						let (at, kept) = ($Ptr::as_ptr(&gone), $Ptr::downgrade(&gone));
+						// The last strong one's value, moved out of the allocation its `Weak`
+						// keeps, is at an address of its own as it drops.
+						if op & 0x80 != 0
+							&& let Some(value) = $Ptr::into_inner(gone)
+						{
+							out.extend([
+								u8::from(std::ptr::eq(kept.as_ptr(), &value)),
+								u8::from(std::ptr::eq(at, &value)),
+								u8::from(kept.upgrade().is_none()),
+							]);
+						}
+						dropped.push((at, kept));
 					}
 					4 => *slot.lock().unwrap() = None,
 					5 => {
@@ -154,6 +166,11 @@ macro_rules! counts {
 					_ => {
 						out.extend_from_slice(unsafe { &*pair_weak.as_ptr() });
 						out.push(pair[0]);
+						// `Weak::new`'s, at one address whatever it points at.
+						let none = $weak::Weak::<u8>::new().as_ptr().cast::<()>();
+						out.push(u8::from(std::ptr::eq(units.0.as_ptr(), none)));
+						let past = units.1.as_ptr().cast::<u8>().wrapping_add(usize::from(op >> 7));
+						out.push(u8::from(past.is_null()));
 					}
 				}
 				flush(&log, out);

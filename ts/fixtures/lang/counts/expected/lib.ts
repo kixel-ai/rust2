@@ -2,11 +2,11 @@
 
 import * as rs from "./rs.ts";
 import { addressedArcs, arcs, clonedArcs, cyclicArcs, pointedArcs, uniqueArcs, addressedRcs, clonedRcs, cyclicRcs, pointedRcs, rcs, uniqueRcs, copies } from "./counts.ts";
-import type * as ArcEntry from "./counts.ArcEntry.ts";
+import * as ArcEntry from "./counts.ArcEntry.ts";
 import type * as ArcReleasing from "./counts.ArcReleasing.ts";
 import type * as ArcShared from "./counts.ArcShared.ts";
 import * as Noisy from "./counts.Noisy.ts";
-import type * as RcEntry from "./counts.RcEntry.ts";
+import * as RcEntry from "./counts.RcEntry.ts";
 import type * as RcReleasing from "./counts.RcReleasing.ts";
 import type * as RcShared from "./counts.RcShared.ts";
 
@@ -16,6 +16,14 @@ export function copy$Option_tuple2_u8_u8(v: [rs.u8, rs.u8] | undefined): [rs.u8,
 
 export function copy$array_u8(v: Uint8Array): Uint8Array {
 	return v.slice();
+}
+
+export function copy$counts_ArcEntry(v: ArcEntry.ArcEntry): ArcEntry.ArcEntry {
+	return new ArcEntry.ArcEntry(v.id, v.slot, v.log);
+}
+
+export function copy$counts_RcEntry(v: RcEntry.RcEntry): RcEntry.RcEntry {
+	return new RcEntry.RcEntry(v.id, v.slot, v.log);
 }
 
 export function copy$tuple2_u16_u8(v: [rs.u16, rs.u8]): [rs.u16, rs.u8] {
@@ -57,6 +65,16 @@ export function drop$tuple2_ptr_counts_ArcEntry_sync_Weak_counts_ArcEntry(_1: [A
 }
 
 export function drop$tuple2_ptr_counts_RcEntry_rc_Weak_counts_RcEntry(_1: [RcEntry.RcEntry, rs.Weak<RcEntry.RcEntry>]): void {
+	_1[1][Symbol.dispose]();
+}
+
+export function drop$tuple2_rc_Weak_unit_rc_Weak_array2_u8(_1: [rs.Weak<undefined>, rs.Weak<Uint8Array>]): void {
+	_1[0][Symbol.dispose]();
+	_1[1][Symbol.dispose]();
+}
+
+export function drop$tuple2_sync_Weak_unit_sync_Weak_array2_u8(_1: [rs.Weak<undefined>, rs.Weak<Uint8Array>]): void {
+	_1[0][Symbol.dispose]();
 	_1[1][Symbol.dispose]();
 }
 

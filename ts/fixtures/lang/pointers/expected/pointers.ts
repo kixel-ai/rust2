@@ -2489,8 +2489,8 @@ export function distinct(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const moved: [rs.u16, rs.u8] = copy$tuple2_u16_u8(m);
 			const again: [rs.u16, rs.u8] = copy$tuple2_u16_u8(moved);
 			const swapped: [rs.u16, rs.u8] = copy$tuple2_u16_u8(n);
-			const unwrapped: rs.Arc<[rs.u16, rs.u8]> = new rs.Arc(copy$tuple2_u16_u8(option_unwrapOr$179xo1w(rs.arcIntoInner(x), [0, 1])));
-			const rewrapped: rs.Arc<Spot.Spot> = new rs.Arc(copy$pointers_Spot(option_mapOr$00zno7m(rs.arcIntoInner(q), spot, (s: Spot.Spot): Spot.Spot => {
+			const unwrapped: rs.Arc<[rs.u16, rs.u8]> = new rs.Arc(copy$tuple2_u16_u8(option_unwrapOr$179xo1w(rs.arcIntoInner(x, undefined, copy$tuple2_u16_u8), [0, 1])));
+			const rewrapped: rs.Arc<Spot.Spot> = new rs.Arc(copy$pointers_Spot(option_mapOr$00zno7m(rs.arcIntoInner(q, undefined, copy$pointers_Spot), spot, (s: Spot.Spot): Spot.Spot => {
 				return copy$pointers_Spot(s);
 			})));
 			const _238: rs.u8 = again === m ? 1 : 0;
