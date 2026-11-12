@@ -12,8 +12,9 @@ compiled the same 55 crates and both logged 0 hits, 55 misses, 66.2 MiB stored l
 [run 43265518031](https://github.com/moq-dev/rust2/actions/runs/43265518031) and
 [run 43290025781](https://github.com/moq-dev/rust2/actions/runs/43290025781). A later one,
 [run 43304642908](https://github.com/moq-dev/rust2/actions/runs/43304642908), got 17 hits
-of 204 lookups. Each job still finished in 9 to 19 CPU-minutes against the 65 of the
-2026-11-01 baseline, so the cache is headroom, not the gate's main saving.
+of 204 lookups. Each job still used 9 to 19 CPU-minutes (the `quest-gate` scopes' `Consumed`
+CPU in the container journal, `journalctl -D /var/lib/nixos-containers/rust2-ci/var/log/journal`
+on `nixos`, not Actions wall time) against the 65 of the 2026-11-01 baseline, so the cache is headroom, not the gate's main saving.
 
 Find the cause before fixing it: whether the local store persists across queue jobs in the
 container (path, owner, cleanup between jobs), and whether keys change between identical
