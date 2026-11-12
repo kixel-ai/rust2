@@ -4,6 +4,7 @@
 // With an argument, it instead checks the futures' semantics, or breaks a contract of the
 // ABI, which must abort.
 
+#include <algorithm>
 #include <chrono>
 #include <condition_variable>
 #include <cstdio>
@@ -36,6 +37,56 @@ namespace {
 // Print a returned buffer.
 void print(const char *before, const api::buf &buf, const char *after) {
 	std::printf("%s%.*s%s", before, static_cast<int>(buf.size()), reinterpret_cast<const char *>(buf.data()), after);
+}
+
+// A reader of bytes in memory, which Rust reads and seeks.
+struct memory {
+	std::string bytes;
+	std::size_t at = 0;
+
+	api::result<std::size_t, std::string> read(std::uint8_t *buf, std::size_t len) {
+		std::size_t n = std::min(len, bytes.size() - at);
+		std::memcpy(buf, bytes.data() + at, n);
+		at += n;
+		return api::result<std::size_t, std::string>::ok(n);
+	}
+	api::result<std::uint64_t, std::string> seek(std::int64_t offset, std::ios_base::seekdir dir) {
+		std::int64_t base = dir == std::ios_base::beg ? 0 : static_cast<std::int64_t>(dir == std::ios_base::cur ? at : bytes.size());
+		if (base + offset < 0) {
+			return api::result<std::uint64_t, std::string>::err("before the start");
+		}
+		at = static_cast<std::size_t>(base + offset);
+		return api::result<std::uint64_t, std::string>::ok(at);
+	}
+};
+
+// A reader whose reads fail, as the transcript's: each seek lands at 0.
+struct broken_reader {
+	api::result<std::size_t, std::string> read(std::uint8_t *, std::size_t) {
+		return api::result<std::size_t, std::string>::err("broken");
+	}
+	api::result<std::uint64_t, std::string> seek(std::int64_t, std::ios_base::seekdir) {
+		return api::result<std::uint64_t, std::string>::ok(0);
+	}
+};
+
+// A reader whose reads fail, which seeks anywhere from its start, as Rust's `Cursor` does.
+struct far_reader : broken_reader {
+	api::result<std::uint64_t, std::string> seek_start(std::uint64_t offset) {
+		return api::result<std::uint64_t, std::string>::ok(offset);
+	}
+};
+
+// Print what `tail` read of `file`.
+template <class R>
+void tail(R &file) {
+	auto read = api::tail(file, 5);
+	if (read) {
+		print("tail ", std::get<0>(*read), "");
+		std::printf(" %llu\n", static_cast<unsigned long long>(std::get<1>(*read)));
+	} else {
+		print("tail error ", read.error(), "\n");
+	}
 }
 
 // Bytes as Rust's `escape_ascii` prints those of a path.
@@ -991,6 +1042,61 @@ int script() {
 		print("", api::spell(api::louder(std::nullopt)), "\n");
 	}
 
+	// Closures C++ implements that return what Rust then owns, or that Rust keeps.
+	print("made ", api::made(3, [](std::uint32_t n) { return std::to_string(n) + " times"; }), "\n");
+	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	{
+		api::Ticket kept = api::Ticket::new_(9);
+		std::uint32_t given =
+			api::reissue(api::Ticket::new_(7), [](const api::Ticket &t) { return api::Ticket::new_(t.number() + 1); })
+				.number();
+		std::uint32_t held = api::reissue(api::Ticket::new_(7), [&kept](const api::Ticket &) {
+			return std::move(kept);
+		}).number();
+		std::printf("reissued %u %u, cloned %u\n", static_cast<unsigned>(given), static_cast<unsigned>(held),
+			static_cast<unsigned>(api::Ticket::clones()));
+	}
+	// A kept closure, called on another thread after the call that took it returned.
+	std::printf("spawned %u\n", static_cast<unsigned>(api::Spawned::new_([] { return 7; }).join()));
+	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
+	{
+		auto began = api::now();
+		int calls = 0;
+		auto drive = api::drive(began, [&](const api::Instant &now, const api::Waiter &waiter) {
+			using result = api::result<std::optional<api::Instant>, std::string>;
+			calls++;
+			if (calls == 1) {
+				return result::ok(api::later(now, {0, 5000000}));
+			}
+			if (calls == 2) {
+				api::duration since = api::since(now, began);
+				std::printf("drive %llu\n", static_cast<unsigned long long>(since.secs * 1000 + since.nanos / 1000000));
+				waiter.waker().wake();
+				return result::ok(std::nullopt);
+			}
+			return result::err("stopped after " + std::to_string(calls));
+		});
+		api::waker waker([] {});
+		std::optional<api::buf> stopped;
+		while (!(stopped = drive.poll(waker))) {
+		}
+		print("drive ", *stopped, "\n");
+	}
+	{
+		memory hello{"hello world"};
+		tail(hello);
+		broken_reader broken;
+		tail(broken);
+		// A seek from the start reaches the reader whole, past `INT64_MAX`, as `Cursor` takes one.
+		far_reader far;
+		auto sought = api::seek_to(far, UINT64_MAX);
+		if (sought) {
+			std::printf("sought %llu\n", static_cast<unsigned long long>(*sought));
+		} else {
+			print("sought error ", sought.error(), "\n");
+		}
+	}
+
 	// A returned `Vec<&Token>` holds clones, which the vector drops.
 	api::Token twice = api::Token::new_(9);
 	std::uint32_t before = api::dropped();
@@ -1075,6 +1181,60 @@ int foreign_futures() {
 		api::waker waker([]() {});
 		check(!within.poll(waker), "a future C++ implements pends once");
 		check(within.poll(waker) && s->polls == 2, "a future C++ implements finishes in time");
+	}
+	// A poll of a waiter, made of each poll's waker, of a future C++ implements, which the
+	// future owns and lends it pinned: destroyed once it finishes.
+	{
+		auto s = std::make_shared<countdown::state>(2);
+		api::Waiter_poll_future_future polled = api::Waiter::poll_future(countdown{s});
+		int woken = 0;
+		api::waker waker([&]() { woken++; });
+		check(!polled.poll(waker) && s->waker, "a future a poll lends pends");
+		s->waker->wake();
+		check(woken == 1 && s.use_count() == 2, "its wake reaches Rust's poller, and the future keeps it");
+		check(polled.poll(waker) && s->polls == 2 && s.use_count() == 1, "it finishes once polled again, and is destroyed");
+	}
+	// Dropped before it finishes, it destroys the future it owns.
+	{
+		auto s = std::make_shared<countdown::state>(1000);
+		{
+			api::Waiter_poll_future_future polled = api::Waiter::poll_future(countdown{s});
+			api::waker waker([]() {});
+			check(!polled.poll(waker), "a future a poll lends pends");
+		}
+		check(s.use_count() == 1, "a dropped future destroys the future it owns");
+	}
+	// A kept closure, destroyed once Rust drops it: after its thread ran it.
+	{
+		auto kept = std::make_shared<int>(7);
+		api::Spawned spawned = api::Spawned::new_([kept] { return static_cast<std::uint32_t>(*kept); });
+		check(std::move(spawned).join() == 7 && kept.use_count() == 1, "Rust destroys a closure it kept once done with it");
+	}
+	// A kept closure the future of the call holds, destroyed with it before it finishes.
+	{
+		auto kept = std::make_shared<int>(0);
+		auto start = api::now();
+		{
+			auto drive = api::drive(start, [kept](const api::Instant &, const api::Waiter &) {
+				return api::result<std::optional<api::Instant>, api::buf>::ok(std::nullopt);
+			});
+			check(kept.use_count() == 2, "Rust keeps its own copy of a closure");
+			api::waker waker([]() {});
+			check(!drive.poll(waker) && kept.use_count() == 2, "a future keeps the closure while it pends");
+		}
+		check(kept.use_count() == 1, "a dropped future destroys the closure it kept");
+	}
+	// A closure failing with an error any view takes, and a reader's seek failing.
+	{
+		auto start = api::now();
+		auto drive = api::drive(start, [](const api::Instant &, const api::Waiter &) {
+			return api::result<std::optional<api::Instant>, const char *>::err("failed");
+		});
+		check(std::move(drive).get().str() == "failed", "a closure's error reaches Rust as its message");
+		memory empty{""};
+		empty.at = 0;
+		auto read = api::tail(empty, 5);
+		check(read && std::get<0>(*read).empty() && std::get<1>(*read) == 0, "a reader of nothing reads nothing");
 	}
 	return 0;
 }
@@ -1427,6 +1587,16 @@ int broken(const char *which) {
 			api::Label label = std::move(*counter.operator->()).into_label(std::nullopt);
 			return false;
 		});
+	} else if (std::strcmp(which, "overread") == 0) {
+		struct overread {
+			api::result<std::size_t, std::string> read(std::uint8_t *, std::size_t len) {
+				return api::result<std::size_t, std::string>::ok(len + 1);
+			}
+			api::result<std::uint64_t, std::string> seek(std::int64_t, std::ios_base::seekdir) {
+				return api::result<std::uint64_t, std::string>::ok(0);
+			}
+		} file;
+		api::tail(file, 1);
 	} else if (std::strcmp(which, "lent kept") == 0) {
 		static std::optional<api::Counter> kept;
 		api::Registry registry = api::Registry::new_(api::Counter::new_("c", 0));

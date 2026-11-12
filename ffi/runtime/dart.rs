@@ -6,8 +6,9 @@
 //! on the thread in its isolate, so a call into Dart from any other thread, and the drop of
 //! an implementation there, waits in the isolate's queue for it to run: from its event
 //! loop, which the port tells of each, or, while it waits in a call from Dart, from that
-//! wait. A call waits so only while Rust holds an implementation or a lent closure of the
-//! isolate, any of which another thread may call: then it runs on a worker thread.
+//! wait. A call waits so only while Rust holds an implementation, a closure, or a lent
+//! reader of the isolate, any of which another thread may call: then it runs on a worker
+//! thread.
 
 use std::cell::Cell;
 use std::collections::VecDeque;
@@ -140,8 +141,8 @@ pub struct Home {
 	isolate: usize,
 	/// What tells Dart, on its thread, that Rust dropped the implementation of a token.
 	dropped: unsafe extern "C" fn(i64),
-	/// How many relays Rust holds: the implementations and lent closures of the isolate it
-	/// may call from another thread.
+	/// How many relays Rust holds: the implementations, closures, and lent readers of the
+	/// isolate it may call from another thread.
 	relays: AtomicUsize,
 	tasks: Mutex<VecDeque<Task>>,
 	ready: Condvar,
@@ -419,9 +420,9 @@ pub fn waker(home: &'static Home, token: i64) -> rt::Waker {
 	}
 }
 
-/// The data Rust passes a closure or an implementation's method from Dart: the function,
-/// or the table of functions, Dart made for it, and the token Dart passes it, which Rust
-/// calls through on the isolate's thread.
+/// The data Rust passes a closure, a reader, or an implementation's method from Dart: the
+/// function, or the table of functions, Dart made for it, and the token Dart passes it,
+/// which Rust calls through on the isolate's thread.
 #[repr(C)]
 pub struct Relay {
 	pub f: *const c_void,
@@ -430,7 +431,7 @@ pub struct Relay {
 }
 
 /// A relay for the isolate's `token`, which Dart frees after the call it lends it for, or
-/// Rust once it drops the implementation it is the data of.
+/// Rust once it drops the implementation or kept closure it is the data of.
 pub fn relay(home: &'static Home, f: *const c_void, token: i64) -> *mut Relay {
 	home.relays.fetch_add(1, Ordering::Relaxed);
 	Box::into_raw(Box::new(Relay {
@@ -450,10 +451,11 @@ pub unsafe fn relay_free(relay: *mut Relay) {
 	relay.home.relays.fetch_sub(1, Ordering::Release);
 }
 
-/// An implementation's `free`: tell the isolate Rust dropped it, so its `close` runs before
-/// the call that dropped it returns, on the isolate's thread or one the call serves, or
-/// else from its event loop. The garbage collector's free runs with no current isolate, so
-/// a drop it makes never runs Dart at once.
+/// An implementation's or a kept closure's `free`: tell the isolate Rust dropped it, so
+/// Dart lets go of it, and an implementation's `close` runs, before the call that dropped
+/// it returns, on the isolate's thread or one the call serves, or else from its event
+/// loop. The garbage collector's free runs with no current isolate, so a drop it makes
+/// never runs Dart at once.
 ///
 /// # Safety
 /// `relay` came from [`relay`], freed once.
@@ -469,6 +471,50 @@ pub unsafe extern "C" fn relay_drop(relay: *mut c_void) {
 	}
 	// An isolate that exited has nothing left to close.
 	home.push(Task::Drop(token));
+}
+
+/// The trampolines of a reader Dart implements, which its relay's `f` points to: `read`'s,
+/// then `seek`'s.
+type ReaderTable = [*const c_void; 2];
+
+/// A reader's `read`, through its relay on the isolate's thread.
+///
+/// # Safety
+/// `data` is a relay lent for the call, whose `f` is a [`ReaderTable`].
+pub unsafe fn reader_read(data: *mut c_void, buf: *mut u8, len: usize, n: *mut usize, err: *mut rt::Buf) -> bool {
+	// SAFETY: the caller's contract.
+	let relay = unsafe { &*data.cast::<Relay>() };
+	// SAFETY: as above; Dart made the table's first entry so.
+	let f = unsafe {
+		std::mem::transmute::<*const c_void, unsafe extern "C" fn(*mut c_void, *mut u8, usize, *mut usize, *mut rt::Buf) -> bool>(
+			(*relay.f.cast::<ReaderTable>())[0],
+		)
+	};
+	// SAFETY: `f` only calls into Dart.
+	unsafe { relay.home.call("a reader's read", move || f(relay.token, buf, len, n, err)) }
+}
+
+/// A reader's `seek`, through its relay on the isolate's thread.
+///
+/// # Safety
+/// As [`reader_read`].
+pub unsafe fn reader_seek(
+	data: *mut c_void,
+	whence: std::ffi::c_int,
+	offset: i64,
+	position: *mut u64,
+	err: *mut rt::Buf,
+) -> bool {
+	// SAFETY: the caller's contract.
+	let relay = unsafe { &*data.cast::<Relay>() };
+	// SAFETY: as above; Dart made the table's second entry so.
+	let f = unsafe {
+		std::mem::transmute::<*const c_void, unsafe extern "C" fn(*mut c_void, std::ffi::c_int, i64, *mut u64, *mut rt::Buf) -> bool>(
+			(*relay.f.cast::<ReaderTable>())[1],
+		)
+	};
+	// SAFETY: `f` only calls into Dart.
+	unsafe { relay.home.call("a reader's seek", move || f(relay.token, whence, offset, position, err)) }
 }
 
 /// A future Dart runs that Rust polls: Rust and Dart each hold it, Rust until it frees the

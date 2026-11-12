@@ -418,8 +418,13 @@ pub enum Type {
 	/// `&Waker` is its clone, and a returned `Context` its waker's.
 	Waker,
 	/// A future the foreign side implements, of `()`, which Rust polls and frees: only as a
-	/// parameter, which Rust takes as `Pin<Box<dyn Future<Output = ()> + Send>>`.
+	/// parameter, which Rust takes as `Pin<Box<dyn Future<Output = ()> + Send>>`. A
+	/// function returning a `Poll` takes it as `Pin<&mut _>`, which its future owns and
+	/// lends to each poll.
 	Future,
+	/// A reader the foreign side implements, `io::Read` and `io::Seek`: only behind `&mut`
+	/// as a parameter, lent for the call.
+	Reader,
 	Option(Box<Type>),
 	/// `Box<T>`, of a non-trait type.
 	Box(Box<Type>),
@@ -429,9 +434,8 @@ pub enum Type {
 	Object(usize),
 	/// A foreign implementation of a callback trait, in the form the parameter takes.
 	Callback(usize, Dyn),
-	/// A closure the callee calls only during the call, as a foreign function: what it
-	/// takes, then what it returns.
-	Closure(Vec<Type>, Box<Type>),
+	/// A closure the foreign side implements as a function and its data.
+	Closure(Box<Closure>),
 	/// `std::ops::Range` of an integer.
 	Range(Int),
 	/// `std::ops::Bound` of an integer.
@@ -442,6 +446,22 @@ pub enum Type {
 	Tuple(Vec<Type>),
 	/// A const argument of an instance, such as the `8` of `Buffer<8>`.
 	Const(Literal),
+}
+
+/// A [`Type::Closure`]: what it takes and returns.
+#[derive(Clone, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Closure {
+	/// Each value it takes, which Rust lends for the call: a value, a borrowed object, or
+	/// a `Copy` object, lent as its handle.
+	pub params: Vec<Type>,
+	/// What it returns, or for a `Result`, its value: a value, a `String`, or a `Copy`
+	/// object or an `Option` of one, which the foreign side hands Rust.
+	pub ok: Type,
+	/// The error of a `Result` it returns: a `String`.
+	pub err: Option<Type>,
+	/// Whether Rust keeps it past the call, calling it from any thread until it frees it,
+	/// rather than only during the call.
+	pub kept: bool,
 }
 
 /// The Rust collection a [`Type::List`] is, which Rust builds from its items in order.
@@ -520,11 +540,14 @@ pub fn each(ty: &Type, f: &mut dyn FnMut(&Type)) {
 	f(ty);
 	match ty {
 		Type::List(_, inner) | Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => each(inner, f),
-		Type::Closure(params, ret) => {
-			for param in params {
+		Type::Closure(closure) => {
+			for param in &closure.params {
 				each(param, f);
 			}
-			each(ret, f);
+			each(&closure.ok, f);
+			if let Some(err) = &closure.err {
+				each(err, f);
+			}
 		}
 		Type::Tuple(elements) => {
 			for element in elements {
@@ -537,9 +560,10 @@ pub fn each(ty: &Type, f: &mut dyn FnMut(&Type)) {
 
 impl Type {
 	/// Whether a parameter of this type is a value C passes in that Rust writes back
-	/// through an out pointer: `&mut` of anything but an object, whose handle it borrows.
+	/// through an out pointer: `&mut` of anything but an object, whose handle it borrows,
+	/// or a reader, which C implements.
 	pub fn written(&self) -> bool {
-		matches!(self, Type::Ref(Mutability::Mut, inner) if !matches!(**inner, Type::Object(_)))
+		matches!(self, Type::Ref(Mutability::Mut, inner) if !matches!(**inner, Type::Object(_) | Type::Reader))
 	}
 
 	/// The type behind any reference or `Box`.

@@ -136,9 +136,12 @@ impl Maps {
 			Type::Object(i) => *i = self.objects[*i],
 			Type::Callback(i, _) => *i = self.callbacks[*i],
 			Type::List(_, inner) | Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => self.ty(inner),
-			Type::Closure(params, ret) => {
-				params.iter_mut().for_each(|p| self.ty(p));
-				self.ty(ret);
+			Type::Closure(closure) => {
+				closure.params.iter_mut().for_each(|p| self.ty(p));
+				self.ty(&mut closure.ok);
+				if let Some(err) = &mut closure.err {
+					self.ty(err);
+				}
 			}
 			Type::Tuple(elements) => elements.iter_mut().for_each(|e| self.ty(e)),
 			_ => {}

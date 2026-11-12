@@ -728,4 +728,64 @@ fn main() {
 		api::spell(api::louder(verbosity.filter())),
 		api::spell(api::louder(tracing::level_filters::LevelFilter::OFF))
 	);
+
+	println!("made {}", api::made(3, |n| format!("{n} times")));
+	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	let kept = api::Ticket::new(9);
+	let given = api::reissue(api::Ticket::new(7), |t| api::Ticket::new(t.number() + 1)).number();
+	let held = api::reissue(api::Ticket::new(7), |_| kept).number();
+	println!("reissued {given} {held}, cloned {}", api::Ticket::clones());
+	// A kept closure, called on another thread after the call that took it returned.
+	println!("spawned {}", api::Spawned::new(|| 7).join());
+	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
+	let start = api::now();
+	let mut calls = 0;
+	let mut drive = pin!(api::drive(start, |now, waiter: &Waiter| {
+		calls += 1;
+		match calls {
+			1 => Ok(Some(api::later(now, std::time::Duration::from_millis(5)))),
+			2 => {
+				println!("drive {}", api::since(now, start).as_millis());
+				waiter.waker().wake_by_ref();
+				Ok(None)
+			}
+			_ => Err(format!("stopped after {calls}")),
+		}
+	}));
+	let waker = Waker::from(Arc::new(Count(AtomicUsize::new(0))));
+	let mut cx = Context::from_waker(&waker);
+	let stopped = loop {
+		if let Poll::Ready(stopped) = drive.as_mut().poll(&mut cx) {
+			break stopped;
+		}
+	};
+	println!("drive {stopped}");
+	match api::tail(&mut std::io::Cursor::new(b"hello world"), 5) {
+		Ok((tail, at)) => println!("tail {} {at}", String::from_utf8_lossy(&tail)),
+		Err(err) => println!("tail error {err}"),
+	}
+	match api::tail(&mut Broken, 5) {
+		Ok((tail, at)) => println!("tail {} {at}", String::from_utf8_lossy(&tail)),
+		Err(err) => println!("tail error {err}"),
+	}
+	// A seek from the start reaches the reader whole, past `i64::MAX`, as `Cursor` takes one.
+	match api::seek_to(&mut std::io::Cursor::new(Vec::<u8>::new()), u64::MAX) {
+		Ok(at) => println!("sought {at}"),
+		Err(err) => println!("sought error {err}"),
+	}
+}
+
+/// A reader whose reads fail, as `tests/api.c`'s broken one does: each seek lands at 0.
+struct Broken;
+
+impl std::io::Read for Broken {
+	fn read(&mut self, _: &mut [u8]) -> std::io::Result<usize> {
+		Err(std::io::Error::other("broken"))
+	}
+}
+
+impl std::io::Seek for Broken {
+	fn seek(&mut self, _: std::io::SeekFrom) -> std::io::Result<u64> {
+		Ok(0)
+	}
 }

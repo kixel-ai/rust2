@@ -1,7 +1,7 @@
-// The runtime every C++ binding shares: handles, bytes, results, wakers, and futures over
-// the C ABI. rust2-ffi copies it into each header, inside the export's namespace, after
-// `detail` names the export's C types. It throws nothing and reads no type information,
-// so it builds with exceptions and RTTI off.
+// The runtime every C++ binding shares: handles, bytes, results, wakers, futures, and
+// readers over the C ABI. rust2-ffi copies it into each header, inside the export's
+// namespace, after `detail` names the export's C types. It throws nothing and reads no
+// type information, so it builds with exceptions and RTTI off.
 
 // Clang's checks of ownership, which a caller enables with `-Wconsumed -Wdangling`: an
 // object is used after a move, or a view outlives the bytes it reads. Other compilers see
@@ -704,6 +704,70 @@ struct access {
 
 inline c_buf none() noexcept {
 	return c_buf{nullptr, 0, nullptr};
+}
+
+// A copy of `bytes`, anything a view takes, which Rust then owns: what a closure or a
+// reader C++ implements returns Rust.
+inline c_buf copy_bytes(view bytes) noexcept {
+	return c_buf_copy(access::raw(bytes));
+}
+
+// `r`, any reader, lent for one call, which Rust reads from any thread, one call at a time:
+// `read(uint8_t *, size_t)` returns a `result` of how many bytes it read, at most the size
+// it was given and none only at its end, and `seek(int64_t, std::ios_base::seekdir)` one of
+// the position from the start, as `seekg` takes them; a seek from the start past `INT64_MAX`,
+// as Rust's `SeekFrom::Start` takes a `uint64_t`, calls `seek_start(uint64_t)` instead, and
+// fails in a reader without one. Either fails with an error anything a view takes, such as
+// a `std::string`, which Rust raises as an `io::Error` of it. Its errors cross as messages,
+// as an `istream`'s, which keeps only a failed bit, could not.
+template <class R, class = void>
+struct has_seek_start : ::std::false_type {};
+
+template <class R>
+struct has_seek_start<R, ::std::void_t<decltype(::std::declval<R &>().seek_start(::std::uint64_t{}))>>
+	: ::std::true_type {};
+
+template <class R>
+c_foreign_reader foreign_reader(R &r) noexcept {
+	struct calls {
+		static bool read(void *data, ::std::uint8_t *buf, ::std::size_t len, ::std::size_t *n, c_buf *err) noexcept {
+			auto read = static_cast<R *>(data)->read(buf, len);
+			if (!read) {
+				*err = copy_bytes(read.error());
+				return false;
+			}
+			*n = *read;
+			return true;
+		}
+		static bool seek(void *data, int whence, ::std::int64_t offset, ::std::uint64_t *position, c_buf *err) noexcept {
+			::std::ios_base::seekdir dir = whence == SEEK_SET   ? ::std::ios_base::beg
+			                               : whence == SEEK_CUR ? ::std::ios_base::cur
+			                                                    : ::std::ios_base::end;
+			// From the start, the offset's bits are unsigned, past what an int64_t holds.
+			if (whence == SEEK_SET && offset < 0) {
+				if constexpr (has_seek_start<R>::value) {
+					auto start = static_cast<R *>(data)->seek_start(static_cast<::std::uint64_t>(offset));
+					if (!start) {
+						*err = copy_bytes(start.error());
+						return false;
+					}
+					*position = *start;
+					return true;
+				} else {
+					*err = copy_bytes("a seek past INT64_MAX of a reader with no seek_start");
+					return false;
+				}
+			}
+			auto seek = static_cast<R *>(data)->seek(offset, dir);
+			if (!seek) {
+				*err = copy_bytes(seek.error());
+				return false;
+			}
+			*position = *seek;
+			return true;
+		}
+	};
+	return c_foreign_reader{&calls::read, &calls::seek, ::std::addressof(r)};
 }
 
 // The arrays a call's lowered vectors point into, kept until the call returns.

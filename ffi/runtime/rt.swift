@@ -53,7 +53,103 @@ public struct U128: Hashable, Comparable, Sendable, CustomStringConvertible {
 	}
 }
 
+/// Where a seek counts its offset from, as swift-system's `FileDescriptor.SeekOrigin` and
+/// Rust's `SeekFrom` do.
+public enum SeekOrigin: Sendable {
+	case start
+	case current
+	case end
+}
+
+/// Bytes Rust reads and seeks during the call it is lent to, as Rust's `Read + Seek`.
+/// Rust calls it from any thread, one call at a time, and keeps it no longer than the call.
+/// A method that throws fails Rust's read or seek with the error's description as its
+/// `io::Error`'s message.
+public protocol SeekableReader {
+	/// Read at most `buffer.count` bytes into `buffer`, returning how many; 0 is the end.
+	mutating func read(into buffer: UnsafeMutableRawBufferPointer) throws -> Swift.Int
+
+	/// Move to `offset` bytes from `origin`, returning the new position from the start.
+	mutating func seek(offset: Swift.Int64, from origin: SeekOrigin) throws -> Swift.UInt64
+
+	/// Move to `offset` bytes from the start, as Rust's `SeekFrom::Start` takes a `UInt64`,
+	/// returning the new position. Rust calls it only for an offset past `Int64.max`, which
+	/// by default fails.
+	mutating func seek(start offset: Swift.UInt64) throws -> Swift.UInt64
+}
+
+extension SeekableReader {
+	public mutating func seek(start offset: Swift.UInt64) throws -> Swift.UInt64 {
+		guard let offset = Swift.Int64(exactly: offset) else { throw Native.SeekPast() }
+		return try seek(offset: offset, from: .start)
+	}
+}
+
 extension Native {
+	/// A seek past `Int64.max` of a reader with no `seek(start:)` of its own.
+	struct SeekPast: Swift.Error, CustomStringConvertible {
+		var description: Swift.String { "a seek past Int64.max of a reader with no seek(start:)" }
+	}
+}
+
+extension Native {
+	/// `file` as the reader C lends Rust during `body`: boxed as itself, and written back
+	/// once `body` returns, so a value type's reads and seeks stay.
+	static func reader<R: SeekableReader, T: ~Copyable>(
+		_ file: inout R, _ body: (CForeignReader) throws -> T
+	) rethrows -> T {
+		var boxed: any SeekableReader = file
+		defer { file = boxed as! R }
+		return try withUnsafeMutablePointer(to: &boxed) { try body(reader(UnsafeMutableRawPointer($0))) }
+	}
+
+	/// The reader C lends Rust of the boxed reader at `data`. Apart from `reader`, which is
+	/// generic, since a C function captures no generic context.
+	static func reader(_ data: UnsafeMutableRawPointer) -> CForeignReader {
+				CForeignReader(
+					read: { data, buf, len, n, err in
+						let file = data!.assumingMemoryBound(to: (any SeekableReader).self)
+						do {
+							n!.pointee = try file.pointee.read(into: UnsafeMutableRawBufferPointer(start: buf, count: len))
+							return true
+						} catch {
+							err!.pointee = Native.owned("\(error)")
+							return false
+						}
+					},
+					seek: { data, whence, offset, position, err in
+						let file = data!.assumingMemoryBound(to: (any SeekableReader).self)
+						// From the start, the offset's bits are unsigned, past what an Int64 holds.
+						if whence == 0 && offset < 0 {
+							do {
+								position!.pointee = try file.pointee.seek(start: Swift.UInt64(bitPattern: offset))
+								return true
+							} catch {
+								err!.pointee = Native.owned("\(error)")
+								return false
+							}
+						}
+						let origin: SeekOrigin
+						switch whence {
+						case 0: origin = .start
+						case 1: origin = .current
+						default: origin = .end
+						}
+						do {
+							position!.pointee = try file.pointee.seek(offset: offset, from: origin)
+							return true
+						} catch {
+							err!.pointee = Native.owned("\(error)")
+							return false
+						}
+					},
+					data: data)
+	}
+
+	/// `text` in a buffer Rust owns, as what a closure returns or throws.
+	static func owned(_ text: Swift.String) -> Buf {
+		view(text) { copy($0) }
+	}
 	/// Checked before any other call: a Swift file and a library from different builds
 	/// must not mix.
 	static let checked: Bool = {

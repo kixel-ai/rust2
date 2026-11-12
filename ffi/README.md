@@ -76,15 +76,16 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
 | a `pub` field of an object | a getter returning a copy, and a setter assigning in place, as `x.field = value` does |
 | a `pub` trait | a callback interface: a table of C functions and their data; a trait C cannot implement, such as one with a blanket impl, an associated type, or a supertrait but a marker, is left out, since C never passes one, and a signature taking one from C is refused |
-| a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce`, which no lifetime bound or return lets outlive the call | a C function and its `void *` data, which Rust calls only during the call; any other closure is refused |
-| a type parameter or `impl` taken by value and bounded by `Future` or `IntoFuture`, whose every bound `Pin<Box<dyn Future<Output = ()> + Send>>` meets, as kio's `clock::timeout` takes | `<prefix>_foreign_future`: a future of `()` C implements, which Rust takes as that type; a future of another output is refused |
+| a type parameter or `impl` bounded by `Fn`, `FnMut`, or `FnOnce` alone, taking what a callback takes, objects by reference, or `Copy` objects, and returning a scalar, a `String`, a `Copy` object, an `Option` of one, or a `Result` of one and a `String` | a C function and its `void *` data; one a lifetime bound or the return lets outlive the call, as kio's `clock::drive` and a spawned task's are, adds a `free` Rust calls once it drops it; a closure of any other signature is refused |
+| a type parameter or `impl` taken by value and bounded by `Future` or `IntoFuture`, whose every bound `Pin<Box<dyn Future<Output = ()> + Send>>` meets, as kio's `clock::timeout` takes, or taken as `Pin<&mut F>` by a poll, as kio's `Waiter::poll_future` takes | `<prefix>_foreign_future`: a future of `()` C implements, which Rust takes as that type, or which the future the poll makes owns and pins; a future of another output is refused |
+| a type parameter or `impl` bounded by `Read` and `Seek` alone, behind `&mut`, which no lifetime bound or return lets outlive the call, as moq-mux's `container::mp4::repair` takes | `<prefix>_foreign_reader`: a `read` and a `seek` C implements and their data, lent for the call; any other reader is refused |
 | `fn` and inherent `pub` methods | functions named through their type |
 | a `()` parameter of a function, not of a callback's method | nothing: C passes no argument for it |
 | `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
 | a tuple inside another type, or as a field or parameter | `<prefix>_tuple_<A>_<B>`: a struct of fields `_0`, `_1`, and so on; of references only returned |
 | `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it; a function that is not `async` runs at the call, as in Rust |
-| a function returning `Poll<T>` that polls through a `&Context`, a `&mut Context`, or a reference to an object exactly one associated function makes from a `Waker` alone, of a type with no generic parameters, such as kio's `Waiter` | a future of `T`, as an `async fn`'s: each poll calls the function again with the poll's context, or with an object made from its waker and kept until the next poll, so what it registers stays registered; each other parameter taken by value must be `Copy` |
+| a function returning `Poll<T>` that polls through a `&Context`, a `&mut Context`, or a reference to an object exactly one associated function makes from a `Waker` alone, of a type with no generic parameters, such as kio's `Waiter`, which may be the method's own `&self`, as `Waiter::poll_future`'s is | a future of `T`, as an `async fn`'s: each poll calls the function again with the poll's context, or with an object made from its waker and kept until the next poll, so what it registers stays registered; each other parameter taken by value must be `Copy`; a method polling through its own `&self` is a function without one |
 | `poll_x`, when `x` exports as a future | left out: the future is its poll |
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
 | `u128` | `<prefix>_u128`: its low and high 64 bits |
@@ -112,7 +113,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `impl Into<X>`, `impl AsRef<X>`, or a bound implying one, as a supertrait does | `X`, or `&X` and then `String` or `Vec<T>` where `X` is `str` or `[T]` |
 | `impl Into<X>`, where `X` does not map | what a `From` implementation into `X` takes: a source parameter by its bounds as above, so `impl<B: Into<Bytes>> From<B> for Timed<Bytes>` takes `Bytes`, and by each `Into<Y>` whose `Y` does not map, what converts into `Y` in turn, each `Y` once and refusing a chain longer than the crate's recursion limit; any other source as it is, so `impl<'a, V> From<&'a V> for Timed<&'a V>` takes `&V`. Two sources C passes as one buffer, such as `String` and `Vec<u8>`, are refused, unless they are forms of one value, as `&str` and `String` are |
 | `impl IntoIterator<Item = X>`, where `X` is no type parameter | `Vec<X>`, or `&[Y]` where `X` is `&Y` |
-| `impl io::Read` | `&[u8]` |
+| `impl io::Read`, not bounded by `Seek` | `&[u8]` |
 | another type parameter | `serde_json::Value` for a serde `Serialize` or `Deserialize` bound, else the first of `String`, `Bytes`, and `Vec<u8>` meeting its bounds, or a foreign implementation of its one exported trait; else an instance of the function at each type the exports implement a trait bounding it for, through a blanket impl at each type implementing what the impl requires, as `&X` where that meets its bounds too and no bound, its own or one a supertrait implies, makes it outlive the call, so C keeps its handle, and, as an argument of a generic type, at each argument of an instance that meets its bounds and makes each generic type the signature names an instance |
 | a const parameter of a function | an instance of the function at each value an instance of a generic type the signature passes it to has there, where each generic type the signature then names is an instance |
 | a const argument | a `bool` or an integer below 128 bits; any other is refused |
@@ -235,11 +236,22 @@ dropped for the other target's span where the file differs.
 - **Callbacks** are a struct of a table and its data. Rust calls `free` once it drops the
   implementation, and may call the others from any thread. A callback takes scalars and
   buffers lent for the call, and returns a scalar.
-- **Closures** lent for a call are a function and its data, which Rust calls only during
-  the call, from any thread. One takes what a callback takes, and objects by reference,
+- **Closures** are a function and its data, which Rust calls from any thread, one call
+  at a time. One lent for a call Rust calls only during the call; one Rust keeps comes
+  with a `free`, which Rust calls once it drops the closure, done or not, maybe before
+  any call. One takes what a callback takes, and objects by reference or `Copy` objects,
   each lent as a handle to the value where it is for that call: C borrows it no further
   than Rust lent it, and moving out of it, freeing it, or keeping a borrow past the call
-  aborts.
+  aborts. What it returns is Rust's to own: a handle C made or was given, one
+  `<T>_copy` made of a `Copy` object C keeps, which copies it as Rust does without
+  running its `Clone`, or a buffer `<prefix>_buf_copy` made; a `Result` returns false and
+  writes its error's buffer.
+- **Readers** are a `read`, a `seek`, and their data, lent for the call, which Rust calls
+  from any thread, one call at a time. `read` writes at most the length it was given,
+  `seek` takes `SEEK_SET`, whose offset's bits are a `uint64_t` that may pass
+  `INT64_MAX`, `SEEK_CUR`, or `SEEK_END`, and either fails by returning false
+  with a buffer `<prefix>_buf_copy` made, which Rust raises as an `io::Error` of that
+  message. A null function, or a read past the length, aborts.
 - **The contract** is a hash of the header's declarations, its docs included: the header
   defines it as `<PREFIX>_CONTRACT`, and `<prefix>_contract()` returns it from the library
   built with the header. A binding checks the two match before any other call, so a header
@@ -337,11 +349,23 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   `u128`, the C struct. `Option<T>` is `std::optional<T>`, a tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
   error. A `[u8; N]` is a `std::array<std::uint8_t, N>`.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
-- **Closures** lent for a call are any callable, taken by a template parameter, which
-  Rust calls only during the call, from any thread. An object it lends as `&T` is a
-  `const` reference to its class, and as `&mut T` an `api::borrow<T>`, which reaches its
-  methods through `->` but neither moves nor copies. Moving out of either, or keeping a
-  copy past the call, aborts.
+- **Closures** are any callable, taken by a template parameter, which Rust calls from any
+  thread, one call at a time. One lent for a call Rust calls only during the call; one Rust
+  keeps it moves or copies into a copy of its own, which it destroys once done with it,
+  maybe before any call. An object it lends as `&T`, or a `Copy` one, is a `const`
+  reference to its class, and as `&mut T` an `api::borrow<T>`, which reaches its methods
+  through `->` but neither moves nor copies. Moving out of either, or keeping a copy past
+  the call, aborts. It returns bytes as anything a `view` takes, copied for Rust, and a
+  `Result` as a `result`, or anything with its `operator bool`, `operator*`, and
+  `error()`, such as `std::expected`, whose error is anything a `view` takes.
+- **Readers**, a `Read + Seek` lent for the call, are any value with `read(uint8_t *,
+  size_t)` and `seek(int64_t, std::ios_base::seekdir)`, as `seekg` takes them, each
+  returning a `result` of the bytes read or the position, whose error is anything a `view`
+  takes, which Rust raises as an `io::Error` of that message. Not an `std::istream`, whose
+  failures keep no message. A seek from the start past `INT64_MAX`, as Rust's
+  `SeekFrom::Start` takes a `u64`, calls `seek_start(uint64_t)` instead, and fails in a
+  reader without one. Rust calls them only during the call, from any thread, one at a
+  time; a read past the size it was given aborts.
 - **Futures** are move-only `future<...>`s, freed when destroyed, which cancels them and
   loses nothing. `poll(waker)` polls once; `std::move(f).get()` blocks the thread;
   `std::move(f).then(exec, callback)` polls on an executor and calls back there, returning
@@ -353,7 +377,8 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   it moves it.
 - A **future C++ implements** is any value with `bool poll(const api::waker &)`, such as a
   binding's `future` of `void`, which Rust takes by value, polls from any thread until it
-  returns true, and destroys once done with it.
+  returns true, and destroys once done with it. One a poll borrows pinned, as
+  `Waiter::poll_future` does, the future that poll makes owns.
 - A **waker** is a shared callable, which Rust may call from any thread. One Rust returns
   wakes through Rust and drops with its last copy.
 - **The contract** is checked when the program loads, before any other call: a header
@@ -411,8 +436,22 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   a `Vec` by value closes each object in it once the call returns.
 - **Traits** are interfaces; once Rust drops an implementation, it is closed if
   `AutoCloseable`.
-- **Closures** lent for a call are function types, which Rust calls only during the call,
-  from any thread. An object it lends is closed once the call returns.
+- **Closures** are function types, which Rust calls from any thread: one lent for a call
+  only during the call, and one Rust keeps, as `Spawned.new` does, until it drops it,
+  when it deletes its global reference and the GC may collect it. An object it lends is
+  closed once the call returns. A `Copy` object it returns crosses as a new handle to a
+  clone, so Kotlin keeps its own. One returning a `Result` returns its value and fails by
+  throwing the `<E>Exception` a function's `Err` throws, as `StringException("…")`; any
+  other exception aborts, as a callback's does.
+- A **reader** is a `java.nio.channels.SeekableByteChannel`, which a `FileChannel` or
+  `Files.newByteChannel` is, and the one standard interface with both reads and absolute
+  seeks. Rust reads and seeks it only during the call, from any thread, one call at a
+  time: each read fills a `ByteArray` Kotlin allocates, which Rust copies out of, so no
+  view of Rust's memory escapes to a channel that keeps its buffer. A seek from the start
+  past `Long.MAX_VALUE`, as Rust's `SeekFrom::Start` takes a `u64`, calls `seekStart` of a
+  channel that is also a `StartSeekable`. An `IOException` it throws, or a seek before the
+  start or past `Long.MAX_VALUE` it cannot take, is Rust's `io::Error` of its message; any
+  other exception aborts.
 - **Futures** are `suspend fun`s, which resume on the coroutine's dispatcher, as C++ resumes
   on its executor, and never inside a wake: an `Unconfined` one resumes on `Default`. Cancelling the coroutine frees the future and
   loses nothing. Each call is its own future, so it has one poller. The call polls it once
@@ -422,7 +461,8 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   that does not dispatch. It runs on a job of its own, so the caller never waits on it,
   which the caller's job cancelling cancels, as does Rust dropping it; one dropped before it
   starts never runs. Once cancelled, it ends unfinished, so a cancelled call reports the
-  cancel even if the lambda returns. One that throws otherwise aborts.
+  cancel even if the lambda returns. One that throws otherwise aborts. A poll borrowing
+  one, as `Waiter.pollFuture` does, is a `suspend fun` taking it, whose future owns it.
 - A **waker** is a `Waker`, which Rust may call from any thread. One Rust returns wakes
   through Rust, and the garbage collector drops it.
 - **The contract** is checked when the library loads, before any other call: a Kotlin
@@ -482,10 +522,21 @@ caller imports it with no ignores.
   An integer out of its Rust type's range raises `OverflowError`.
 - **Traits** are abstract classes an implementation subclasses; once Rust drops one, its
   `close()` is called if it has one.
-- **Closures** lent for a call are any callable, which Rust calls only during the call,
-  from any thread. An object it lends is closed once the call returns. An exception a
-  closure or trait method raises prints its traceback and aborts, since Rust has nowhere
-  to unwind it to.
+- **Closures** are any callable, which Rust calls from any thread, one call at a time,
+  taking the GIL: one lent for a call only during the call, and one Rust keeps until it
+  drops it, when it lets go of its reference. An object it lends, `Copy` ones included,
+  is closed once that call of it returns. What it returns Rust owns: a `str` is copied,
+  and an object's handle cloned, so the caller's stays its own. One returning a `Result`
+  fails by raising the exception of its error, such as `StringException(message)`, whose
+  `error` Rust takes. Any other exception a closure or trait method raises prints its
+  traceback and aborts, since Rust has nowhere to unwind it to.
+- A **reader** is a `ForeignReader`: anything with `readinto` and `seek`, as a binary
+  file such as `open(path, "rb")` or `io.BytesIO` has, which Rust reads and seeks only
+  during the call, from any thread, one call at a time, taking the GIL. `readinto` fills
+  a `memoryview` of Rust's own buffer in place, so a read copies nothing; a view of it
+  kept past the read, such as a slice, aborts, as it would write the buffer once it is
+  gone. An `OSError` fails Rust's read or seek with its message, and any other exception
+  aborts. A value without both methods raises `TypeError` at the call.
 - **Futures** are `async def`s, which run nothing until awaited, or for a function that is
   not `async`, an awaitable the call returns. They resume on the running event loop and
   never inside a wake: a wake from any thread queues the future's token and writes a byte
@@ -497,7 +548,8 @@ caller imports it with no ignores.
   on a running event loop, where Rust's first poll runs it as a task. Rust dropping it
   cancels the task, or closes a coroutine it never started. One that raises, or that
   anything but Rust cancels, prints its traceback and aborts. A value that is not
-  awaitable, or a future of another loop, raises at the call.
+  awaitable, or a future of another loop, raises at the call. A poll lent one pinned,
+  as `Waiter.poll_future`, is an `async def` taking it, whose future owns it.
 - A **waker** is a `Waker(callback)`, which Rust may wake from any thread, calling
   `callback` on its event loop; `wake()` wakes it from any thread. One Rust returns is a
   `Waker` too, which wakes through Rust and drops with its last reference.
@@ -549,7 +601,8 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   a tuple a Swift tuple, though a tuple of one is its element, `u128` a `U128` of its
   `high` and `low` halves until the deployment target allows `UInt128`, and `Duration`
   `Swift.Duration`. An `Err` is thrown: an exported type as itself, which conforms to
-  `Swift.Error`, and any other in a generated `<T>Error` holding it. A `[u8; N]` is a
+  `Swift.Error`, and any other in a generated `<T>Error` holding it, whose `init(error:)`
+  makes one for a closure to throw back. A `[u8; N]` is a
   generated `ArrayU8x<N>`, a collection holding its bytes inline in C's struct, made by a
   failable initializer from exactly `N` bytes, until the deployment target allows
   `InlineArray`.
@@ -558,10 +611,20 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   and its port, flow label, and scope, whose family Rust checks. A `Vec<T>` or `&[T]` is
   an array, or a `UniqueArray` of objects.
 - **Traits** are `Sendable` protocols, which Rust releases once it drops an implementation.
-- **Closures** lent for a call are `@Sendable` function types, which Rust calls only during
-  the call, from any thread. An object it lends is `borrowing`, or `inout` for `&mut T`,
-  so it cannot outlive the call; assigning another to the `inout` one traps, since Rust's
-  stays its own.
+- **Closures** are `@Sendable` function types, which Rust calls from any thread, one call
+  at a time. One lent for a call Rust calls only during the call; one Rust keeps is
+  `@escaping`, boxed until Rust drops it. An object it lends is `borrowing`, or `inout`
+  for `&mut T`, so it cannot outlive the call; assigning another to the `inout` one traps,
+  since Rust's stays its own. A `Copy` object it takes is a copy of its own. One returning
+  `Result<T, String>` `throws`: Rust reads its error's `description`, so a thrown
+  `StringError` returns its string as it was.
+- A **reader** is `inout some SeekableReader`, the runtime's protocol of
+  `read(into:)` and `seek(offset:from:)` from a `SeekOrigin`, as swift-system's
+  `FileDescriptor` reads and seeks, lent for the call and written back once it returns,
+  so a struct's position stays. A seek from the start past `Int64.max`, as Rust's
+  `SeekFrom::Start` takes a `UInt64`, calls `seek(start:)`, which by default throws. Rust
+  calls it from any thread, one call at a time, and reads a thrown error's `description`
+  as its `io::Error`'s message.
 - **Futures** are `async throws` functions, which resume on the task's executor, never
   inside a wake. Cancelling the task frees the future, losing nothing, and throws
   `CancellationError`. Each call is its own future, so it has one poller. The call polls it
@@ -569,7 +632,8 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   signal latches a wake that lands before it parks.
 - A **future Swift implements** is an `@escaping @Sendable () async -> Void`, which Rust's
   first poll runs as a task of its own. Rust dropping it cancels the task, and one dropped
-  before it starts never runs.
+  before it starts never runs. A poll lent one, such as `Waiter.pollFuture`, is a static
+  `async throws` function whose future owns it.
 - A **waker** is a `@Sendable () -> Void`, which Rust may call from any thread. One Rust
   returns wakes through Rust and drops once Swift releases it.
 - **The contract** is checked once, at the first call into the library: a Swift file and a
@@ -664,8 +728,21 @@ reads a go.mod.
   (`rt.RangeU64`).
 - **Traits** are interfaces. Once Rust drops an implementation, it is closed if it is an
   `io.Closer`.
-- **Closures** lent for a call are funcs, which Rust calls only during the call, from any
-  thread. An object it lends is closed once the call returns.
+- **Closures** are funcs, which Rust calls from any thread: one lent for a call only
+  during the call, and one Rust keeps, as moq's `clock::drive` does, until Rust drops it,
+  which releases it to the GC. An object it lends by reference is closed once the func
+  returns; a `Copy` one is its own clone, which it may keep. A `Result` returns an `error`
+  last, whose `Error()` crosses as Rust's `String`. What it returns crosses as Rust's: a
+  `string` copied, and an object as a clone of its handle, so the func keeps its own; a
+  closed one panics.
+- **Readers**, `Read + Seek` behind `&mut`, are an `io.ReadSeeker`, such as an `*os.File`,
+  which Rust reads and seeks only during the call, one call at a time, and never closes.
+  A read of bytes and an error hands Rust the bytes, then the error on the next read, as
+  Rust's `Read` takes one or the other; `io.EOF` ends it, and a read of nothing and no
+  error reads again, giving up with `io.ErrNoProgress` after 100. A seek from the start
+  past `math.MaxInt64`, as Rust's `SeekFrom::Start` takes a `uint64`, calls `SeekStart` of
+  a reader that is also an `rt.StartSeeker`, as `io.Copy` uses an `io.WriterTo`, and fails
+  in any other. Their errors cross as their messages.
 - **Futures** are calls taking a `context.Context` first, which block until the future is
   ready. The call polls it once before it waits, and makes the waker it waits on only if
   that poll pends; a wake from any thread signals the waiting goroutine, which polls
@@ -678,7 +755,9 @@ reads a go.mod.
   a call without one, so it carries the caller's values and deadline, and the caller's
   cancel reaches it; Rust dropping it cancels it too, and one dropped before it starts
   never runs. Once its context is done, it ends unfinished, so a cancelled call reports
-  the cancel even if the function returns.
+  the cancel even if the function returns. A poll taking one pinned through a waiter's own
+  method, as kio's `Waiter::poll_future` does, is a call of the package taking it
+  (`WaiterPollFuture`), whose future owns it.
 - A **waker** is a `func()`, which Rust may call from any thread. One Rust returns wakes
   through Rust, and the garbage collector drops it.
 - **The contract** is checked when `rt` loads, before any other call: Go packages and a
@@ -741,8 +820,20 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
 - **Traits** are abstract classes. Rust calls an implementation's methods on the isolate's
   thread, and once it drops one, calls its `close()`, which does nothing unless overridden.
   A call that throws before Rust sees it gives Rust none of its implementations.
-- **Closures** lent for a call are Dart functions, which Rust calls only during the call,
-  on the isolate's thread. An object it lends lives only for that call of the closure.
+- **Closures** are Dart functions, which Rust calls on the isolate's thread: one lent for
+  a call only during the call, and one Rust keeps until it drops it, which then lets go of
+  it. An object it lends, by reference or a `Copy` one by value, lives only for that call
+  of the closure. What it returns Rust takes: a `String` copied, and a `Copy` object as a
+  new handle to a clone. One whose Rust returns `Result<T, String>` fails by throwing
+  `StringException`, the binding's own form of that error; anything else it throws aborts.
+- A **reader** Rust reads and seeks, a `Read + Seek` behind `&mut`, is a `SeekableReader`:
+  `readInto` and `seek`, which Rust calls only during the call, on the isolate's thread.
+  `SeekableReader.file` reads a `RandomAccessFile` through its synchronous methods, as
+  Rust's calls are. A seek from `SeekFrom.start` takes a `u64`'s bits, as every `u64` is,
+  so one past `i64`'s range is negative, which a file refuses. Rust's buffer is never
+  `readInto`'s: it fills a list of Dart's own, which Rust copies. An `Exception` either
+  throws fails the call into Rust as an `io::Error` of its text, and anything else it
+  throws aborts.
 - **Futures** are `Cancelable<T>`, a `Future<T>` completed on the isolate that made it:
   an extension type on Dart's own future, which `await` takes its shortest path through.
   The call polls it once, returning it complete if that poll finished, and makes a waker
@@ -753,13 +844,14 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   takes what it would have, and it completes with `Cancelled`. A pending future keeps
   the isolate alive, as a timer does.
 - A **future Dart implements** is any `Future<void>`, already running as Dart's futures
-  are, which Rust polls until it completes. Rust dropping it cancels it if it is a
-  `Cancelable` still running, and one that fails while Rust holds it aborts.
+  are, which Rust polls until it completes, or which a poll owns, as
+  `Waiter.pollFuture` does. Rust dropping it cancels it if it is a `Cancelable` still
+  running, and one that fails while Rust holds it aborts.
 - A **waker** is a `void Function()`, which runs on the isolate's event loop. One Rust
   returns wakes through Rust, and the garbage collector drops it.
 - **Threads**: Dart runs code only on its isolate's thread, so Rust reaches it from any
   other through the isolate's port, and waits for its event loop to run the call. While
-  Rust holds an implementation or a lent closure of the isolate, each call into Rust, a
+  Rust holds an implementation, a closure, or a reader of the isolate, each call into Rust, a
   future's poll and `cancel()` included, runs on a thread of its own, acting as the
   caller's for the handles it borrows, while the isolate's thread runs what Rust calls
   into Dart meanwhile. Any other call runs on the isolate's thread, since nothing it waits

@@ -12,11 +12,11 @@
 //! `moq_audio_encoder_finish_`. A `_` doubled at the split would read better, but C++
 //! reserves every name containing `__`. Only the names that clash change.
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use rustc_span::Span;
 
-use crate::ir::{Access, Api, Dyn, Function, Home, Int, Literal, On, Receiver, Type};
+use crate::ir::{Access, Api, Closure, Dyn, Function, Home, Int, Literal, On, Receiver, Type};
 
 /// A C name one item claims twice, which no rename can tell apart: the name, then what
 /// claimed it first and second.
@@ -84,6 +84,8 @@ pub enum Ty {
 	Waker,
 	/// `<prefix>_foreign_future`: a future C implements, which Rust polls and frees.
 	ForeignFuture,
+	/// `<prefix>_foreign_reader`: a reader C implements, which Rust reads and seeks.
+	ForeignReader,
 	/// `<prefix>_poll`
 	Poll,
 	/// A pointer the callee writes a result through.
@@ -148,6 +150,9 @@ pub struct Abi<'a> {
 	pub tuples: BTreeMap<String, Vec<Type>>,
 	/// Each `[u8; N]` struct by C name, with `N`.
 	pub arrays: BTreeMap<String, usize>,
+	/// Each `Copy` object a closure takes or returns by value, which `<T>_copy` copies into
+	/// a new handle as Rust copies it, never running its `Clone`.
+	pub copies: BTreeSet<usize>,
 	/// Every C name claimed.
 	claims: Vec<Claim>,
 	/// The C name of each item whose own clashed.
@@ -167,6 +172,7 @@ impl<'a> Abi<'a> {
 			lists: BTreeMap::new(),
 			tuples: BTreeMap::new(),
 			arrays: BTreeMap::new(),
+			copies: BTreeSet::new(),
 			claims: Vec::new(),
 			renames: HashMap::new(),
 			clashes: Vec::new(),
@@ -627,6 +633,7 @@ impl<'a> Abi<'a> {
 			Type::SocketAddr(_) => Ty::SocketAddr,
 			Type::Waker => Ty::Waker,
 			Type::Future => Ty::ForeignFuture,
+			Type::Reader => Ty::ForeignReader,
 			Type::List(_, inner) => Ty::Struct(self.list(inner)),
 			Type::Option(inner) => match Self::nullable(inner) {
 				true => self.ty(inner),
@@ -650,9 +657,36 @@ impl<'a> Abi<'a> {
 				constant: false,
 			},
 			Type::Callback(i, _) => Ty::Struct(self.callback(*i)),
-			Type::Closure(params, ret) => Ty::Fn(params.iter().map(|p| self.ty(p)).collect(), Box::new(self.ty(ret))),
+			Type::Closure(closure) => self.closure(closure),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => Ty::Struct(self.range(ty)),
 			Type::Tuple(elements) => Ty::Struct(self.tuple(elements)),
+		}
+	}
+
+	/// The C function a closure is: after its data, each value it takes, lent for its
+	/// call, a `Copy` object as a handle; then for a `Result`, an out pointer for its value
+	/// and one for its error, returning whether it succeeded, or else its value. A
+	/// value it returns is Rust's: a buffer one `<prefix>_buf_copy` made, or a new handle.
+	pub fn closure(&self, closure: &Closure) -> Ty {
+		let mut params: Vec<Ty> = (closure.params.iter())
+			.map(|ty| match ty {
+				Type::Object(i) => Ty::Handle {
+					name: self.object(*i),
+					constant: true,
+				},
+				ty => self.ty(ty),
+			})
+			.collect();
+		let ok = self.ty(&closure.ok);
+		match &closure.err {
+			None => Ty::Fn(params, Box::new(ok)),
+			Some(err) => {
+				if ok != Ty::Void {
+					params.push(Ty::Out(Box::new(ok)));
+				}
+				params.push(Ty::Out(Box::new(self.ty(err))));
+				Ty::Fn(params, Box::new(Ty::Bool))
+			}
 		}
 	}
 
@@ -701,14 +735,22 @@ impl<'a> Abi<'a> {
 				_ => self.ty(&param.ty),
 			};
 			let name = escape(&param.name);
-			if let Type::Closure(..) = param.ty {
+			if let Type::Closure(closure) = &param.ty {
 				// Named apart from every parameter of the function, which C requires.
-				let mut data = format!("{name}_data");
-				while function.params.iter().any(|p| escape(&p.name) == data) {
-					data.push('_');
-				}
+				let apart = |suffix: &str| {
+					let mut named = format!("{name}_{suffix}");
+					while function.params.iter().any(|p| escape(&p.name) == named) {
+						named.push('_');
+					}
+					named
+				};
+				let (data, free) = (apart("data"), apart("free"));
 				params.push((name, ty));
 				params.push((data, Ty::Data));
+				// A kept closure's free, which Rust calls with its data once it drops it.
+				if closure.kept {
+					params.push((free, Ty::Fn(Vec::new(), Box::new(Ty::Void))));
+				}
 				continue;
 			}
 			if param.ty.written() {
@@ -855,6 +897,8 @@ impl<'a> Abi<'a> {
 			"socket_addr",
 			"waker",
 			"foreign_future",
+			"foreign_reader",
+			"buf_copy",
 			"poll",
 			"view",
 			"borrow",
@@ -1046,6 +1090,7 @@ impl<'a> Abi<'a> {
 		let mut lists = BTreeMap::new();
 		let mut tuples: BTreeMap<String, Vec<Type>> = BTreeMap::new();
 		let mut arrays = BTreeMap::new();
+		let mut copies = BTreeSet::new();
 		let mut mixed = Vec::new();
 		let mut stack = types;
 		while let Some(ty) = stack.pop() {
@@ -1077,9 +1122,21 @@ impl<'a> Abi<'a> {
 					}
 					stack.extend(elements);
 				}
-				Type::Closure(params, ret) => {
-					stack.extend(params);
-					stack.push(ret);
+				Type::Closure(closure) => {
+					for ty in closure.params.iter().chain([&closure.ok]) {
+						let ty = match ty {
+							Type::Option(inner) => inner,
+							ty => ty,
+						};
+						if let Type::Object(i) = ty
+							&& self.api.objects[*i].copy
+						{
+							copies.insert(*i);
+						}
+					}
+					stack.extend(&closure.params);
+					stack.push(&closure.ok);
+					stack.extend(&closure.err);
 				}
 				Type::Range(_) | Type::Bound(_) => {
 					ranges.insert(self.range(ty), ty.clone());
@@ -1103,6 +1160,13 @@ impl<'a> Abi<'a> {
 		}
 		for name in arrays.keys() {
 			self.claim(name.clone(), "an array".to_string(), crate_span, None);
+		}
+		for &i in &copies {
+			let object = &self.api.objects[i];
+			let item = Item::Object(i);
+			let name = self.object(i);
+			let what = format!("type `{}`", self.api.rust(&object.path, &object.args));
+			self.claim(format!("{name}_copy"), what, object.span, Self::made(&item, &name));
 		}
 		for (name, elements) in tuples
 			.iter()
@@ -1134,6 +1198,7 @@ impl<'a> Abi<'a> {
 		self.lists = lists;
 		self.tuples = tuples;
 		self.arrays = arrays;
+		self.copies = copies;
 	}
 
 	/// Claim the functions a type's std traits export.

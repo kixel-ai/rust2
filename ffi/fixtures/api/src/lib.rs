@@ -626,6 +626,124 @@ impl Waiter {
 	pub fn context(&self) -> Context<'_> {
 		Context::from_waker(&self.0)
 	}
+
+	/// Poll `future` with its waker, as kio's `Waiter::poll_future` does: a poll of the
+	/// waiter it is a method of, and of a future the caller lends, which exports as a future
+	/// owning it.
+	pub fn poll_future<F: Future + ?Sized>(&self, future: std::pin::Pin<&mut F>) -> Poll<F::Output> {
+		future.poll(&mut self.context())
+	}
+}
+
+/// Calls `poll` until it fails, returning its error: with `start`, then with each instant
+/// it asks for, as if the clock reached it at once, or once its waiter is woken, with the
+/// last one again. A closure its future keeps, as kio's `clock::drive` keeps one.
+pub async fn drive<E>(
+	start: std::time::Instant,
+	mut poll: impl FnMut(std::time::Instant, &Waiter) -> Result<Option<std::time::Instant>, E> + Unpin,
+) -> E {
+	let mut now = start;
+	std::future::poll_fn(move |cx| {
+		let waiter = Waiter::new(cx.waker().clone());
+		loop {
+			match poll(now, &waiter) {
+				Ok(Some(at)) => now = at,
+				Ok(None) => return Poll::Pending,
+				Err(err) => return Poll::Ready(err),
+			}
+		}
+	})
+	.await
+}
+
+/// A thread running a closure it keeps past the call that made it, which
+/// [`Spawned::join`] waits on.
+pub struct Spawned {
+	thread: std::thread::JoinHandle<u32>,
+}
+
+impl Spawned {
+	pub fn new(task: impl FnOnce() -> u32 + Send + 'static) -> Self {
+		Self {
+			thread: std::thread::spawn(task),
+		}
+	}
+
+	/// What the closure returned.
+	pub fn join(self) -> u32 {
+		self.thread.join().expect("the thread finishes")
+	}
+}
+
+/// What `make` returns for `n`, as kio's `Waiter::batch` returns its closure's: a type
+/// parameter no bound fixes.
+pub fn made<R>(n: u32, make: impl FnOnce(u32) -> R) -> R {
+	make(n)
+}
+
+/// How many times a [`Ticket`]'s `Clone` ran.
+static TICKET_CLONES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// A `Copy` object whose `Clone` counts its calls, which a closure taking or returning one
+/// never runs, as Rust copies it instead.
+#[derive(Copy, Debug, PartialEq)]
+pub struct Ticket {
+	number: u32,
+}
+
+#[expect(clippy::expl_impl_clone_on_copy, reason = "the count shows a copy never clones")]
+impl Clone for Ticket {
+	fn clone(&self) -> Self {
+		TICKET_CLONES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+		*self
+	}
+}
+
+impl Ticket {
+	pub fn new(number: u32) -> Self {
+		Self { number }
+	}
+
+	pub fn number(&self) -> u32 {
+		self.number
+	}
+
+	/// How many times any ticket's `Clone` ran.
+	pub fn clones() -> u32 {
+		TICKET_CLONES.load(std::sync::atomic::Ordering::Relaxed)
+	}
+}
+
+/// The ticket `swap` returns for `ticket`.
+pub fn reissue(ticket: Ticket, swap: impl Fn(Ticket) -> Ticket) -> Ticket {
+	swap(ticket)
+}
+
+/// The ticket `swap` returns for a lent `ticket`, which Go spells as `reissue`'s closure.
+pub fn reissue_lent(ticket: &Ticket, swap: impl Fn(&Ticket) -> Ticket) -> Ticket {
+	swap(ticket)
+}
+
+/// What `check` returns, a closure with no value but its error.
+pub fn attempt(check: impl FnOnce() -> Result<(), String>) -> Result<(), String> {
+	check()
+}
+
+/// The last `len` bytes of `file`, and where they start, which it seeks back to: a reader
+/// the caller implements, lent for the call, as moq-mux's `container::mp4::repair` takes.
+pub fn tail<F: std::io::Read + std::io::Seek>(file: &mut F, len: u64) -> std::io::Result<(Vec<u8>, u64)> {
+	use std::io::SeekFrom;
+	let end = file.seek(SeekFrom::End(0))?;
+	file.seek(SeekFrom::Start(end.saturating_sub(len)))?;
+	let mut tail = Vec::new();
+	file.read_to_end(&mut tail)?;
+	let start = file.seek(SeekFrom::Current(-(tail.len() as i64)))?;
+	Ok((tail, start))
+}
+
+/// Where seeking `file` to `at` from its start lands: any `u64`, as `Cursor` takes.
+pub fn seek_to<F: std::io::Read + std::io::Seek>(file: &mut F, at: u64) -> std::io::Result<u64> {
+	file.seek(std::io::SeekFrom::Start(at))
 }
 
 impl Channel {
@@ -2479,6 +2597,12 @@ pub struct Cancelled {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum VecClashTone {
 	Error,
+}
+
+/// An offset, named as Kotlin's interface for a reader seeking past `Long.MAX_VALUE`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct StartSeekable {
+	pub at: u64,
 }
 
 pub mod clash {

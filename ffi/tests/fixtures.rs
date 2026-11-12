@@ -198,6 +198,8 @@ fn api_c() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("null", "api_Registry_edit: a function is null"),
+		("returned", "api_made: a returned buffer is not one buf_copy made"),
+		("reader", "api_tail: a reader's function is null"),
 		("outlived", OUTLIVED),
 		(
 			"lent shared",
@@ -261,6 +263,7 @@ fn api_cpp() {
 				"api_Counter_into_label: a lent handle's value cannot move out",
 			),
 			("lent kept", "a lent object was moved out of"),
+			("overread", "api_tail: a reader read more than it was asked"),
 			("null view", "a view of null bytes has a length"),
 			("outlived", OUTLIVED),
 		] {
@@ -585,6 +588,9 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Kotlin threw"),
+		("closure threw", "api_made: a call into Kotlin threw"),
+		("closure failed", "api_drive: a call into Kotlin threw"),
+		("reader threw", "SeekableByteChannel.read: a call into Kotlin threw"),
 		("outlived", OUTLIVED),
 		("stray", "MalformedInputException"),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
@@ -642,6 +648,9 @@ fn api_python() {
 		("foreign cancelled", "a future Rust polls raised"),
 		("outlived", OUTLIVED),
 		("family", "ValueError: an IPv6 address has no Rust SocketAddrV4"),
+		("kept threw", "api_Spawned_new: a call into Python raised"),
+		("returned", "api_made: a call into Python raised"),
+		("reader kept", "read: a reader kept a view of its buffer past the read"),
 	] {
 		let output = python(&dir, &[case]).output().unwrap();
 		assert!(!output.status.success(), "Python {case} did not fail");
@@ -856,6 +865,14 @@ fn api_dart() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("callback threw", "api::Log::log: a call into Dart threw"),
+		(
+			"closure threw",
+			"a closure: a call into Dart threw Bad state: a poll failed",
+		),
+		(
+			"reader threw",
+			"a reader's seek: a call into Dart threw Bad state: a seek failed",
+		),
 		("outlived", OUTLIVED),
 		("family", "an IPv6 address has no Rust SocketAddrV4"),
 		("stray", "a path from Rust is not UTF-8"),
@@ -1047,11 +1064,14 @@ fn api_go() {
 	run(Command::new(&exe).arg("owned"));
 	run(Command::new(&exe).arg("closed"));
 	run(Command::new(&exe).arg("bytes"));
+	run(Command::new(&exe).arg("closures"));
 	for (case, message) in [
 		(
 			"lent moved",
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
+		("nil reader", "a nil io.ReadSeeker"),
+		("returned closed", "Instant is closed"),
 		("family", "an address that is not IPv4 has no Rust SocketAddrV4"),
 		("outlived", OUTLIVED),
 		("text", "api_greet: a string is not UTF-8"),

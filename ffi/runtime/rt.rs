@@ -192,6 +192,23 @@ impl Buf {
 		}
 	}
 
+	/// The string in a buffer C returned Rust, as `<prefix>_buf_copy` made it, which Rust
+	/// now owns.
+	///
+	/// # Safety
+	/// `owner` is null or came from [`Self::owned`], and is not yet freed.
+	pub unsafe fn take_string(self, what: &str) -> String {
+		if self.owner.is_null() {
+			fail(what, "a returned buffer is not one buf_copy made");
+		}
+		// SAFETY: the caller's contract.
+		let bytes = *unsafe { Box::from_raw(self.owner.cast::<bytes::Bytes>()) };
+		match String::from_utf8(Vec::from(bytes)) {
+			Ok(string) => string,
+			Err(_) => fail(what, "a string is not UTF-8"),
+		}
+	}
+
 	/// Free a buffer Rust returned; a view or `None` frees nothing.
 	///
 	/// # Safety
@@ -854,6 +871,22 @@ impl<T> Object<T> {
 		unsafe { (*object.value.get()).assume_init_read() }
 	}
 
+	/// The value of a handle a closure C implements returned Rust, which copies it out and
+	/// frees the handle.
+	///
+	/// # Safety
+	/// `handle` is a live handle of this type, which C gives up.
+	pub unsafe fn returned(handle: *const c_void, what: &str) -> T
+	where
+		T: Copy,
+	{
+		// SAFETY: the caller's contract.
+		let value = *unsafe { Self::borrow_local(handle, what) };
+		// SAFETY: as above; the borrow ended.
+		unsafe { Self::free(handle) };
+		value
+	}
+
 	/// Release the caller's handle.
 	///
 	/// # Safety
@@ -1164,6 +1197,114 @@ impl Data {
 	/// The pointer, through a method so a closure captures `Data` whole, not its field.
 	pub fn get(self) -> *mut c_void {
 		self.0
+	}
+}
+
+/// The data of a function C implements that Rust keeps, which it frees once dropped.
+pub struct Kept {
+	data: *mut c_void,
+	free: Option<unsafe extern "C" fn(*mut c_void)>,
+}
+
+// SAFETY: the kept function's contract: it, and its free, may be called from any thread.
+unsafe impl Send for Kept {}
+// SAFETY: as above.
+unsafe impl Sync for Kept {}
+
+impl Kept {
+	pub fn new(data: *mut c_void, free: Option<unsafe extern "C" fn(*mut c_void)>) -> Self {
+		Self { data, free }
+	}
+
+	pub fn get(&self) -> *mut c_void {
+		self.data
+	}
+}
+
+impl Drop for Kept {
+	fn drop(&mut self) {
+		if let Some(free) = self.free {
+			// SAFETY: the kept function's contract; Rust drops it once.
+			unsafe { free(self.data) };
+		}
+	}
+}
+
+/// A reader C implements, which Rust reads and seeks during the call it is lent to.
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ForeignReader {
+	pub read: Option<unsafe extern "C" fn(*mut c_void, *mut u8, usize, *mut usize, *mut Buf) -> bool>,
+	pub seek: Option<unsafe extern "C" fn(*mut c_void, std::ffi::c_int, i64, *mut u64, *mut Buf) -> bool>,
+	pub data: *mut c_void,
+}
+
+impl ForeignReader {
+	/// The Rust reader around it.
+	pub fn lift(self, what: &'static str) -> Reader {
+		let (Some(read), Some(seek)) = (self.read, self.seek) else {
+			fail(what, "a reader's function is null");
+		};
+		Reader {
+			read,
+			seek,
+			data: self.data,
+			what,
+		}
+	}
+}
+
+/// A [`ForeignReader`] whose functions are not null.
+pub struct Reader {
+	read: unsafe extern "C" fn(*mut c_void, *mut u8, usize, *mut usize, *mut Buf) -> bool,
+	seek: unsafe extern "C" fn(*mut c_void, std::ffi::c_int, i64, *mut u64, *mut Buf) -> bool,
+	data: *mut c_void,
+	what: &'static str,
+}
+
+// SAFETY: the reader's contract: it may be called from any thread, one call at a time.
+unsafe impl Send for Reader {}
+// SAFETY: as above; every call takes `&mut self`.
+unsafe impl Sync for Reader {}
+
+impl Reader {
+	/// The error a failed call wrote, as its message.
+	fn error(&self, err: Buf) -> std::io::Error {
+		// SAFETY: the reader's contract: a buffer `<prefix>_buf_copy` made.
+		std::io::Error::other(unsafe { err.take_string(self.what) })
+	}
+}
+
+impl std::io::Read for Reader {
+	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+		let mut n = 0;
+		let mut err = Buf::NONE;
+		// SAFETY: the reader's contract.
+		match unsafe { (self.read)(self.data, buf.as_mut_ptr(), buf.len(), &mut n, &mut err) } {
+			true if n <= buf.len() => Ok(n),
+			true => fail(self.what, "a reader read more than it was asked"),
+			false => Err(self.error(err)),
+		}
+	}
+}
+
+impl std::io::Seek for Reader {
+	fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+		// C's `whence`, which every platform numbers alike.
+		let (whence, offset) = match pos {
+			// Its bits, which the reader reads back unsigned, so a start past `i64::MAX`
+			// reaches it as Rust's own readers such as `Cursor` take one.
+			std::io::SeekFrom::Start(offset) => (0, offset.cast_signed()),
+			std::io::SeekFrom::Current(offset) => (1, offset),
+			std::io::SeekFrom::End(offset) => (2, offset),
+		};
+		let mut position = 0;
+		let mut err = Buf::NONE;
+		// SAFETY: the reader's contract.
+		match unsafe { (self.seek)(self.data, whence, offset, &mut position, &mut err) } {
+			true => Ok(position),
+			false => Err(self.error(err)),
+		}
 	}
 }
 

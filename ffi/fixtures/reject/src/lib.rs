@@ -247,14 +247,34 @@ impl Tag {
 	}
 }
 
-/// A closure kept past the call, as a `'static` bound lets it be.
-pub fn spawn(task: impl FnOnce() + Send + 'static) {
-	std::thread::spawn(task);
+/// A closure returning bytes, which C hands Rust only as a `String`.
+pub fn gather(f: impl Fn() -> Vec<u8>) -> usize {
+	f().len()
 }
 
-/// A closure the future holds past the call.
-pub async fn later(task: impl FnOnce()) {
-	task()
+/// A closure failing with an error other than a `String`.
+pub fn attempt(f: impl Fn() -> Result<u32, u8>) -> bool {
+	f().is_ok()
+}
+
+/// A reader taken by value, which C lends only behind `&mut`.
+pub fn consume(mut file: impl std::io::Read + std::io::Seek) -> bool {
+	file.read(&mut [0]).is_ok()
+}
+
+/// A reader kept past the call, as a `'static` bound lets it be.
+pub fn retain<R: std::io::Read + std::io::Seek + 'static>(file: &mut R) -> bool {
+	file.stream_position().is_ok()
+}
+
+/// A reader bound by more than C's reader can meet.
+pub fn rewrite<F: std::io::Read + std::io::Seek + std::io::Write>(file: &mut F) -> bool {
+	file.flush().is_ok()
+}
+
+/// A reader a future holds past the call.
+pub async fn read_later(file: &mut (impl std::io::Read + std::io::Seek)) -> bool {
+	file.stream_position().is_ok()
 }
 
 /// A closure bound by more than C's function can meet.
