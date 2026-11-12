@@ -346,11 +346,21 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   `u128`, the C struct. `Option<T>` is `std::optional<T>`, a tuple `std::tuple`, and `Result<T, E>` a `result<T, E>`, whose `value()` aborts on an
   error. A `[u8; N]` is a `std::array<std::uint8_t, N>`.
 - **Traits** are abstract classes, passed as a `std::unique_ptr` that Rust deletes.
-- **Closures** lent for a call are any callable, taken by a template parameter, which
-  Rust calls only during the call, from any thread. An object it lends as `&T` is a
-  `const` reference to its class, and as `&mut T` an `api::borrow<T>`, which reaches its
-  methods through `->` but neither moves nor copies. Moving out of either, or keeping a
-  copy past the call, aborts.
+- **Closures** are any callable, taken by a template parameter, which Rust calls from any
+  thread, one call at a time. One lent for a call Rust calls only during the call; one Rust
+  keeps it moves or copies into a copy of its own, which it destroys once done with it,
+  maybe before any call. An object it lends as `&T`, or a `Copy` one, is a `const`
+  reference to its class, and as `&mut T` an `api::borrow<T>`, which reaches its methods
+  through `->` but neither moves nor copies. Moving out of either, or keeping a copy past
+  the call, aborts. It returns bytes as anything a `view` takes, copied for Rust, and a
+  `Result` as a `result`, or anything with its `operator bool`, `operator*`, and
+  `error()`, such as `std::expected`, whose error is anything a `view` takes.
+- **Readers**, a `Read + Seek` lent for the call, are any value with `read(uint8_t *,
+  size_t)` and `seek(int64_t, std::ios_base::seekdir)`, as `seekg` takes them, each
+  returning a `result` of the bytes read or the position, whose error is anything a `view`
+  takes, which Rust raises as an `io::Error` of that message. Not an `std::istream`, whose
+  failures keep no message. Rust calls them only during the call, from any thread, one at
+  a time; a read past the size it was given aborts.
 - **Futures** are move-only `future<...>`s, freed when destroyed, which cancels them and
   loses nothing. `poll(waker)` polls once; `std::move(f).get()` blocks the thread;
   `std::move(f).then(exec, callback)` polls on an executor and calls back there, returning
@@ -362,7 +372,8 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
   it moves it.
 - A **future C++ implements** is any value with `bool poll(const api::waker &)`, such as a
   binding's `future` of `void`, which Rust takes by value, polls from any thread until it
-  returns true, and destroys once done with it.
+  returns true, and destroys once done with it. One a poll borrows pinned, as
+  `Waiter::poll_future` does, the future that poll makes owns.
 - A **waker** is a shared callable, which Rust may call from any thread. One Rust returns
   wakes through Rust and drops with its last copy.
 - **The contract** is checked when the program loads, before any other call: a header

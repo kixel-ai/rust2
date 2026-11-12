@@ -263,6 +263,7 @@ fn api_cpp() {
 				"api_Counter_into_label: a lent handle's value cannot move out",
 			),
 			("lent kept", "a lent object was moved out of"),
+			("overread", "api_tail: a reader read more than it was asked"),
 			("null view", "a view of null bytes has a length"),
 			("outlived", OUTLIVED),
 		] {
