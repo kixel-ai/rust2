@@ -480,12 +480,19 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	/// Note an `of::new_cyclic` of a `ty`, an `Arc` or `Rc` as `of` says, whose value isn't
 	/// there until its closure returns.
 	pub fn cyclic(&mut self, of: &'static str, ty: Ty<'tcx>) {
+		// Only an instance decides what a parameter is.
+		if self.polymorphic() && ty.has_param() {
+			return;
+		}
 		self.cyclic.insert((of, copy::storage(self.tcx, ty)));
 	}
 
 	/// Note a `Weak::as_ptr` at `span` of a `ty` JS keeps as an object, of an `Arc` or `Rc`
 	/// as `of` says, which has no object to point at while `new_cyclic` makes it.
 	pub fn weak_pointer(&mut self, ty: Ty<'tcx>, of: &'static str, span: Span) {
+		if self.polymorphic() && ty.has_param() {
+			return;
+		}
 		let msg = format!(
 			"`Weak::as_ptr` of a `{ty}` that `{of}::new_cyclic` makes, whose JS object isn't there to point at until its closure returns"
 		);
@@ -494,14 +501,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// Refuse each `Weak::as_ptr` of a type `new_cyclic` makes, once the run has reached
-	/// every `new_cyclic`. A type parameter may stand for any.
+	/// every `new_cyclic`.
 	fn refuse_cyclic_pointers(&mut self) {
 		for (of, ty, span, msg) in std::mem::take(&mut self.weak_pointers) {
-			if self
-				.cyclic
-				.iter()
-				.any(|&(by, made)| by == of && (made == ty || made.has_param() || ty.has_param()))
-			{
+			if self.cyclic.iter().any(|&(by, made)| by == of && made == ty) {
 				self.refuse(span, msg);
 			}
 		}
