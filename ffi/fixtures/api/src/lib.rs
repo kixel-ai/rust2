@@ -719,6 +719,16 @@ pub fn reissue(ticket: Ticket, swap: impl Fn(Ticket) -> Ticket) -> Ticket {
 	swap(ticket)
 }
 
+/// The ticket `swap` returns for a lent `ticket`, which Go spells as `reissue`'s closure.
+pub fn reissue_lent(ticket: &Ticket, swap: impl Fn(&Ticket) -> Ticket) -> Ticket {
+	swap(ticket)
+}
+
+/// What `check` returns, a closure with no value but its error.
+pub fn attempt(check: impl FnOnce() -> Result<(), String>) -> Result<(), String> {
+	check()
+}
+
 /// The last `len` bytes of `file`, and where they start, which it seeks back to: a reader
 /// the caller implements, lent for the call, as moq-mux's `container::mp4::repair` takes.
 pub fn tail<F: std::io::Read + std::io::Seek>(file: &mut F, len: u64) -> std::io::Result<(Vec<u8>, u64)> {

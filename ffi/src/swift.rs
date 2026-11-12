@@ -1285,7 +1285,12 @@ impl<'a> Gen<'a> {
 		let call = format!("f_({})", args.join(", "));
 		match (&closure.err, ret, ends.is_empty()) {
 			(Some(_), ret, _) => {
-				let mut done = vec![format!("let r_ = try {call}")];
+				// A `Void` binding is a warning, which the build makes an error.
+				let mut done = vec![if *ret == Type::Unit {
+					format!("try {call}")
+				} else {
+					format!("let r_ = try {call}")
+				}];
 				done.extend(ends.iter().cloned());
 				if *ret != Type::Unit {
 					done.push(format!("ok_!.pointee = {}", self.returned(ret, "r_")));

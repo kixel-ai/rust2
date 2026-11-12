@@ -395,7 +395,7 @@ struct Gen<'a> {
 	/// The C declarations of what Go exports, for the preamble.
 	decls: Vec<String>,
 	/// Each closure type's trampoline, by its Go type.
-	closures: BTreeMap<String, String>,
+	closures: HashMap<Closure, String>,
 	/// The arity of each tuple type the package names.
 	tuples: BTreeSet<usize>,
 	/// Each package-level Go name, with what claimed it.
@@ -442,7 +442,7 @@ impl<'a> Gen<'a> {
 			helpers: BTreeMap::new(),
 			exports: String::new(),
 			decls: Vec::new(),
-			closures: BTreeMap::new(),
+			closures: HashMap::new(),
 			tuples: BTreeSet::new(),
 			names,
 			type_names: &shared.type_names,
@@ -1974,7 +1974,8 @@ impl<'a> Gen<'a> {
 	/// a `Result` through its outs.
 	fn trampoline(&mut self, ty: &Type, closure: &Closure) -> String {
 		let go = self.go(ty);
-		if let Some(name) = self.closures.get(&go) {
+		// Keyed by the Rust closure, since Go spells a borrowed and a copied object alike.
+		if let Some(name) = self.closures.get(closure) {
 			return name.clone();
 		}
 		let name = format!(
@@ -1983,7 +1984,7 @@ impl<'a> Gen<'a> {
 			self.set.name(self.pkg),
 			self.closures.len()
 		);
-		self.closures.insert(go.clone(), name.clone());
+		self.closures.insert(closure.clone(), name.clone());
 		let lent = &closure.params;
 		let ps: Vec<String> = (0..lent.len()).map(|k| format!("p{k}")).collect();
 		let mut body = format!("\tf_ := lent_(data).({go})\n");

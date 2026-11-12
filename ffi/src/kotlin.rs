@@ -208,7 +208,9 @@ interface StartSeekable {
 
 const READS: &str = "\t@JvmStatic private fun __read(channel: Any, len: Int): ByteArray {
 \t\tval buffer = java.nio.ByteBuffer.allocate(len)
-\t\tval read = (channel as java.nio.channels.SeekableByteChannel).read(buffer)
+\t\t// Only -1 is the end: Rust's Read would take a read of no bytes for it.
+\t\tvar read = 0
+\t\twhile (read == 0 && len > 0) read = (channel as java.nio.channels.SeekableByteChannel).read(buffer)
 \t\treturn if (read == len) buffer.array() else buffer.array().copyOf(maxOf(read, 0))
 \t}
 
