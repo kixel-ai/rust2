@@ -7,10 +7,11 @@
 //! in backticks, and a member named as one Kotlin gives every class takes a trailing `_`.
 //! An object is a class owning its handle, closed by `close`; a record a data class; an
 //! enum an enum class, or for one with data a sealed class of a class per variant; a trait
-//! an interface; a closure a function type; a future a `suspend fun`; an error an
-//! exception. The runtime they share, [`runtime/rt.kt`](../runtime/rt.kt), holds the
-//! codec, the handles, and the waker a future parks on; the glue's,
-//! [`runtime/jni.rs`](../runtime/jni.rs), the same on the Rust side.
+//! an interface; a closure a function type; a reader a `SeekableByteChannel`; a future a
+//! `suspend fun`; an error an exception. The runtime they share,
+//! [`runtime/rt.kt`](../runtime/rt.kt), holds the codec, the handles, and the waker a
+//! future parks on; the glue's, [`runtime/jni.rs`](../runtime/jni.rs), the same on the
+//! Rust side.
 //!
 //! A value crosses JNI as a scalar, a handle as a `long`, bytes passed in as a `byte[]`,
 //! bytes returned as their owner, which a `Bytes` reads through a call each, or encoded
@@ -24,7 +25,7 @@ use std::hash::Hasher;
 use rustc_data_structures::stable_hash::StableHasher;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Family, Function, Int, Literal, On, Param, Receiver, Type};
+use crate::ir::{Access, Family, Function, Int, Literal, Mutability, On, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.kt");
 pub const GLUE_RUNTIME: &str = include_str!("../runtime/jni.rs");
@@ -57,6 +58,8 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		tuples: BTreeSet::new(),
 		dispatchers: Vec::new(),
 		suspends: false,
+		reads: false,
+		fails: false,
 		on: On::ALL,
 	};
 	for name in g.classes.values() {
@@ -91,9 +94,24 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	);
 	kotlin.push_str(&g.types);
 	kotlin.push_str(&g.top);
+	// What the glue calls to read a reader, and to take the error a closure or reader threw.
+	let mut helpers = String::new();
+	let mut looked = vec!["__wake", "__free", "__poll"];
+	if g.reads {
+		helpers.push_str(READS);
+		looked.extend(["__read", "__seek", "__io_error"]);
+	}
+	if g.fails {
+		let thrown = g.thrown.get("String").expect("a closure's error is a String");
+		let _ = write!(
+			helpers,
+			"\t@JvmStatic private fun __error(thrown: Throwable): ByteArray? = (thrown as? {thrown})?.error?.encodeToByteArray()\n\n"
+		);
+		looked.push("__error");
+	}
 	let _ = write!(
 		kotlin,
-		"internal object Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __target(): Int\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __waker_wake(raw: Long)\n\n\t@JvmStatic external fun __waker_drop(raw: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as Pollable).poll(waker)\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n{}{}}}\n",
+		"internal object Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __target(): Int\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __waker_wake(raw: Long)\n\n\t@JvmStatic external fun __waker_drop(raw: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as Pollable).poll(waker)\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n{helpers}{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -157,15 +175,40 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		-keepclassmembernames class {p}.Native {{\n\tnative <methods>;\n}}\n\n\
 		-keepclassmembers class {p}.Native {{\n"
 	);
-	for name in ["__wake", "__free", "__poll"]
-		.into_iter()
-		.chain(g.dispatchers.iter().map(String::as_str))
-	{
+	for name in looked.into_iter().chain(g.dispatchers.iter().map(String::as_str)) {
 		let _ = writeln!(rules, "\tstatic *** {name}(...);");
 	}
 	rules.push_str("}\n");
 	Ok(Output { kotlin, glue, rules })
 }
+
+/// What the glue calls on a `SeekableByteChannel` a function reads: at most `len` bytes,
+/// none at its end, and where a seek from the start, the position, or the end lands, which
+/// fails as an `IOException` before the start or past `Long.MAX_VALUE`, as Rust's own
+/// readers do; and the message of an `IOException` either throws, which Rust returns.
+const READS: &str = "\t@JvmStatic private fun __read(channel: Any, len: Int): ByteArray {
+\t\tval buffer = java.nio.ByteBuffer.allocate(len)
+\t\tval read = (channel as java.nio.channels.SeekableByteChannel).read(buffer)
+\t\treturn if (read == len) buffer.array() else buffer.array().copyOf(maxOf(read, 0))
+\t}
+
+\t@JvmStatic private fun __seek(channel: Any, whence: Int, offset: Long): Long {
+\t\tval channel = channel as java.nio.channels.SeekableByteChannel
+\t\tval base = when (whence) {
+\t\t\t0 -> 0L
+\t\t\t1 -> channel.position()
+\t\t\telse -> channel.size()
+\t\t}
+\t\tval at = base + offset
+\t\tif (at < 0 || (offset > 0 && at < base)) throw java.io.IOException(\"invalid seek to a negative or overflowing position\")
+\t\tchannel.position(at)
+\t\treturn at
+\t}
+
+\t@JvmStatic private fun __io_error(thrown: Throwable): ByteArray? =
+\t\t(thrown as? java.io.IOException)?.let { (it.message ?: it.toString()).encodeToByteArray() }
+
+";
 
 const IMPORTS: &[&str] = &[
 	"kotlin.coroutines.resume",
@@ -338,6 +381,10 @@ struct Gen<'a> {
 	/// Whether the function being written suspends, so a future it takes runs in its
 	/// caller's context.
 	suspends: bool,
+	/// Whether a function takes a reader, which the glue reads through `Native`.
+	reads: bool,
+	/// Whether a closure fails by throwing, which the glue catches through `Native`.
+	fails: bool,
 	/// The targets of the item being written, whose native methods check theirs.
 	on: On,
 }
@@ -414,7 +461,7 @@ impl<'a> Gen<'a> {
 			Type::SocketAddr(_) => "java.net.InetSocketAddress".to_string(),
 			Type::List(_, inner) => format!("kotlin.collections.List<{}>", self.kt(inner)),
 			Type::Waker => "Waker".to_string(),
-			Type::Reader => unimplemented!("a reader in Kotlin"),
+			Type::Reader => "java.nio.channels.SeekableByteChannel".to_string(),
 			Type::Future => "suspend () -> Unit".to_string(),
 			Type::Option(inner) => format!("{}?", self.kt(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.kt(inner),
@@ -618,11 +665,20 @@ impl<'a> Gen<'a> {
 		}
 	}
 
-	/// The Kotlin expression passing `e` back to Rust, as a callback or closure returns it:
-	/// a scalar, as collect allows no other.
-	fn lower_ret(c: &Ty, e: &str) -> String {
+	/// The Kotlin expression passing `e` of type `ty` back to Rust as the C type `c`, as a
+	/// callback or closure returns it: a scalar, a string's bytes, or a new handle to a
+	/// clone of a `Copy` object, or 0 for none, which Rust frees.
+	fn lower_ret(&self, c: &Ty, ty: &Type, e: &str) -> String {
 		match c {
 			Ty::Int(int) => to_signed(*int, e),
+			Ty::Buf => format!("{e}.encodeToByteArray()"),
+			Ty::Handle { name, .. } => {
+				let clone = format!("Native.{}_clone", self.bare(name));
+				match ty {
+					Type::Option(_) => format!("{e}?.handle?.hold {{ h -> {clone}(h) }} ?: 0L"),
+					_ => format!("{e}.handle.hold {{ h -> {clone}(h) }}"),
+				}
+			}
 			_ => e.to_string(),
 		}
 	}
@@ -714,17 +770,32 @@ impl<'a> Gen<'a> {
 			Ty::Fn(..) => {
 				let trampoline = trampoline.expect("a closure has its trampoline");
 				arg.exprs.push(e.to_string());
-				arg.rust_pre.push(format!("let g{p} = rt::Global::new(env, {p});"));
 				arg.rust_args.push(format!("Some({trampoline})"));
-				arg.rust_args.push(format!("g{p}.0"));
+				match ty {
+					// Rust keeps it past the call, until it frees it, from any thread.
+					Type::Closure(closure) if closure.kept => {
+						arg.rust_args.push(format!("rt::global(env, {p})"));
+						arg.rust_args.push("Some(rt::free_global)".to_string());
+					}
+					_ => {
+						arg.rust_pre.push(format!("let g{p} = rt::Global::new(env, {p});"));
+						arg.rust_args.push(format!("g{p}.0"));
+					}
+				}
 			}
 			Ty::Waker => {
 				arg.exprs.push(e.to_string());
 				arg.rust_args.push(format!("rt::waker(env, {p})"));
 			}
+			// Lent for the call, so held no longer.
+			Ty::ForeignReader => {
+				self.reads = true;
+				arg.exprs.push(e.to_string());
+				arg.rust_pre.push(format!("let g{p} = rt::Global::new(env, {p});"));
+				arg.rust_args.push(format!("rt::reader(g{p}.0)"));
+			}
 			// Run in the caller's context when it suspends, as Rust holds it no longer than the
 			// call's future.
-			Ty::ForeignReader => unimplemented!("a reader in Kotlin"),
 			Ty::ForeignFuture => {
 				let context = match self.suspends {
 					true => "kotlin.coroutines.coroutineContext",
@@ -1346,7 +1417,7 @@ impl<'a> Gen<'a> {
 				&trampoline,
 				&dispatcher,
 				&format!("{rust}::{}", method.name()),
-				(&lent, &method.ok),
+				(&lent, &method.ok, None),
 				(&c_params, &c_ret),
 				(&name, Some(&member)),
 			);
@@ -1373,13 +1444,15 @@ impl<'a> Gen<'a> {
 	/// The Rust function C calls for a callback's method or a closure, named `trampoline`,
 	/// which calls the Kotlin dispatcher `dispatcher` with the Kotlin value Rust holds:
 	/// for a callback, an implementation of the interface `cast` whose method `method` it
-	/// calls, and for a closure, a value of the function type `cast`.
+	/// calls, and for a closure, a value of the function type `cast`. A closure returning a
+	/// `Result` fails by throwing the exception `thrown`, whose error the glue writes
+	/// through C's last out pointer, after the one its value goes through.
 	fn trampoline(
 		&mut self,
 		trampoline: &str,
 		dispatcher: &str,
 		what: &str,
-		(lent, ret): (&[Type], &Type),
+		(lent, ret, thrown): (&[Type], &Type, Option<&str>),
 		(c_params, c_ret): (&[Ty], &Ty),
 		(cast, method): (&str, Option<&str>),
 	) {
@@ -1424,17 +1497,45 @@ impl<'a> Gen<'a> {
 			}
 		}
 		sig.push(')');
-		let (ret_jni, ret_native) = jni_type(c_ret, ret);
+		// A `Result` returns whether it is ok, writing its value and its error through the
+		// out pointers after the parameters.
+		let outs = &c_params[lent.len()..];
+		for (k, c) in outs.iter().enumerate() {
+			rust_params.push(format!("o{k}: {}", rust_c(self.abi, c)));
+		}
+		let c_ok = match (thrown, outs) {
+			(None, _) => c_ret.clone(),
+			(Some(_), [Ty::Out(ok), _]) => (**ok).clone(),
+			(Some(_), _) => Ty::Void,
+		};
+		let (ret_jni, ret_native) = jni_type(&c_ok, ret);
 		sig.push_str(descriptor(ret_jni));
 		let call_kind = call_method(ret_jni);
 		let rust_ret = rust_c(self.abi, c_ret);
-		let back = match c_ret {
+		let back = match &c_ok {
 			Ty::Void => String::new(),
 			Ty::Bool => "ret".to_string(),
 			Ty::Int(int) => from_jni(*int, "ret"),
 			Ty::F32 | Ty::F64 => "ret".to_string(),
 			Ty::Char => "ret as u32".to_string(),
-			_ => unreachable!("a callback returns only scalars"),
+			// A buffer Rust frees, as `buf_copy` makes one.
+			Ty::Buf => "crate::rt::Buf::vec(rt::bytes(env, ret).unwrap_or_default())".to_string(),
+			// A handle Kotlin cloned for Rust to free.
+			Ty::Handle { .. } => "ret as usize as *const c_void".to_string(),
+			_ => unreachable!("a callback or closure returns no {c_ok:?}"),
+		};
+		let back = match thrown {
+			None => back,
+			Some(_) => {
+				let err = outs.len() - 1;
+				let ok = match c_ok {
+					Ty::Void => String::new(),
+					_ => format!("unsafe {{ o0.write({back}) }};\n\t\t"),
+				};
+				format!(
+					"if let Some(error) = rt::thrown(env, \"{what}\") {{\n\t\t\tunsafe {{ o{err}.write(crate::rt::Buf::vec(error)) }};\n\t\t\treturn false;\n\t\t}}\n\t\t{ok}true"
+				)
+			}
 		};
 		let invoke = format!(
 			"let ret = unsafe {{ ((**env).v1_2.CallStatic{call_kind}MethodA)(env, rt::class(), id, args.as_ptr()) }};"
@@ -1445,13 +1546,16 @@ impl<'a> Gen<'a> {
 			rust_params.join(", "),
 			jvalues.join(", ")
 		);
+		if thrown.is_some() {
+			self.fails = true;
+		}
 		let call = match method {
 			Some(method) => format!("o.{method}"),
 			None => "o".to_string(),
 		};
 		let result = format!("{call}({})", args.join(", "));
-		let lowered = Self::lower_ret(c_ret, &result);
-		let ret_decl = match c_ret {
+		let lowered = self.lower_ret(&c_ok, ret, &result);
+		let ret_decl = match c_ok {
 			Ty::Void => String::new(),
 			_ => format!(": {ret_native}"),
 		};
@@ -1468,7 +1572,7 @@ impl<'a> Gen<'a> {
 				finally.join("\n\t\t\t")
 			),
 		};
-		let body = match c_ret {
+		let body = match c_ok {
 			Ty::Void => body.replacen("return ", "", 1),
 			_ => body,
 		};
@@ -1528,6 +1632,19 @@ impl<'a> Gen<'a> {
 			all.join(", "),
 			ret.0
 		);
+	}
+
+	/// The exception Kotlin throws for an error of type `e`, declared once.
+	fn exception(&mut self, e: &Type) -> String {
+		let kt = self.kt(e);
+		if let Some(name) = self.thrown.get(&kt) {
+			return name.clone();
+		}
+		let name = format!("{}Exception", kt.replace(['?', '<', '>', ',', ' ', '.'], ""));
+		let name = self.claim(&name, format!("the exception of `{kt}`"));
+		self.exceptions.insert(name.clone(), e.clone());
+		self.thrown.insert(kt, name.clone());
+		name
 	}
 
 	/// Check that no two members of the type `rust` share a Kotlin name.
@@ -1642,8 +1759,11 @@ impl<'a> Gen<'a> {
 			let (_, c) = c_params.next().expect("each parameter has its C one");
 			kt_params.push(format!("{name}: {}", self.kt_param(&param.ty)));
 			let trampoline = match (&param.ty, c) {
-				(Type::Closure(..), Ty::Fn(..)) => {
+				(Type::Closure(closure), Ty::Fn(..)) => {
 					c_params.next().expect("a closure has its data");
+					if closure.kept {
+						c_params.next().expect("a kept closure has its free");
+					}
 					let t = format!("kt_{c_name}_{}", abi::escape(&param.name));
 					closures.push((param, c.clone(), t.clone()));
 					Some(t)
@@ -1665,11 +1785,13 @@ impl<'a> Gen<'a> {
 			let (lent, ret) = (&closure_.params, &closure_.ok);
 			let kt = self.kt(&param.ty);
 			let dispatcher = format!("{bare}__{}", abi::snake(&param.name));
+			// Its error is the exception Kotlin throws for a function's `String` one.
+			let thrown = closure_.err.as_ref().map(|err| self.exception(err));
 			self.trampoline(
 				&trampoline,
 				&dispatcher,
 				&c_name,
-				(lent, ret),
+				(lent, ret, thrown.as_deref()),
 				(c_lent, c_ret),
 				(&kt, None),
 			);
@@ -1696,17 +1818,7 @@ impl<'a> Gen<'a> {
 		};
 		let ret_kt = self.kt(&ok);
 		let err = function.err.as_ref().map(strip_refs);
-		let exception = err.as_ref().map(|e| {
-			let kt = self.kt(e);
-			if let Some(name) = self.thrown.get(&kt) {
-				return name.clone();
-			}
-			let name = format!("{}Exception", kt.replace(['?', '<', '>', ',', ' ', '.'], ""));
-			let name = self.claim(&name, format!("the exception of `{kt}`"));
-			self.exceptions.insert(name.clone(), e.clone());
-			self.thrown.insert(kt, name.clone());
-			name
-		});
+		let exception = err.as_ref().map(|e| self.exception(e));
 		// The native call, closing what it moves out once it returns.
 		let call = match after.is_empty() {
 			true => format!("Native.{bare}({})", exprs.join(", ")),
@@ -1873,14 +1985,28 @@ impl<'a> Gen<'a> {
 		for (param, name) in function.params.iter().zip(&names) {
 			if let Type::Closure(closure_) = &param.ty {
 				let lent = &closure_.params;
-				text.push_str(&format!(
-					"\n\nRust calls `{name}` only during the call, from any thread."
-				));
+				text.push_str(&match closure_.kept {
+					true => format!(
+						"\n\nRust keeps `{name}` past the call, calling it from any thread, one call at a time, until it lets go of it."
+					),
+					false => format!("\n\nRust calls `{name}` only during the call, from any thread."),
+				});
 				if lent.iter().any(|p| matches!(p.base(), Type::Object(_))) {
 					text.push_str(&format!(
 						"\nAn object it lends lives only for that call of `{name}`: keep none past it."
 					));
 				}
+				if let Some(err) = &closure_.err {
+					let thrown = self.exception(err);
+					text.push_str(&format!(
+						"\nIt fails by throwing [{thrown}], whose error Rust takes; any other exception aborts."
+					));
+				}
+			}
+			if param.ty == Type::Ref(Mutability::Mut, Box::new(Type::Reader)) {
+				text.push_str(&format!(
+					"\n\nRust reads and seeks `{name}` only during the call, from any thread, one call at a time. An `IOException` it throws is Rust's `io::Error` of its message; any other exception aborts."
+				));
 			}
 		}
 		let suspend = match export.future {
@@ -2121,7 +2247,7 @@ fn jni_type(c: &Ty, ty: &Type) -> (&'static str, &'static str) {
 		Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => ("jbyteArray", "ByteArray"),
 		Ty::Fn(..) => ("jobject", "Any"),
 		Ty::Waker => ("jobject", "Waker"),
-		Ty::ForeignReader => unimplemented!("a reader in Kotlin"),
+		Ty::ForeignReader => ("jobject", "java.nio.channels.SeekableByteChannel"),
 		Ty::ForeignFuture => ("jobject", "Any"),
 		Ty::Poll | Ty::Out(_) | Ty::Data => unreachable!("{c:?} never crosses JNI"),
 	}
@@ -2194,6 +2320,7 @@ pub(crate) fn rust_c(abi: &Abi<'_>, c: &Ty) -> String {
 		Ty::SocketAddr => "crate::rt::SocketAddr".to_string(),
 		Ty::Struct(name) => format!("crate::{name}"),
 		Ty::Handle { .. } => "*const std::ffi::c_void".to_string(),
+		Ty::Out(inner) => format!("*mut {}", rust_c(abi, inner)),
 		other => {
 			let _ = abi;
 			unreachable!("{other:?} is never lent to a trampoline")
