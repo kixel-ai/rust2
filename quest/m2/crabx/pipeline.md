@@ -25,9 +25,10 @@ Recommendations:
   published that way after such a lull waits for the next push or a dispatch.
 - Build the commit cargo recorded in the published crate's `.cargo_vcs_info.json`, with
   `--locked`, so an untagged `cargo publish` builds too. Fail loud when that file is
-  missing or marks the tree dirty. Attach to the release of the repo's existing tag for
-  that commit (`v{version}` or `{name}-v{version}`); create `{name}-v{version}` only when
-  no tag exists.
+  missing or marks the tree dirty. Attach to the release of the version's existing tag
+  (`v{version}` or `{name}-v{version}`), creating the release when the tag has none; fail
+  loud when that tag points at another commit; create the tag `{name}-v{version}` only
+  when none exists.
 - Serialize publishing per crate and version (a concurrency group keyed on both, since a
   tag run and a push run don't share a ref), and make release creation and uploads
   idempotent.
