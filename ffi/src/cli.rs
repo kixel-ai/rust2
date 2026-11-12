@@ -339,10 +339,18 @@ fn dependency(package: &Package) -> Option<String> {
 		Some("registry+https://github.com/rust-lang/crates.io-index" | "sparse+https://index.crates.io/") => {
 			Some(format!("package = {name:?}, version = \"={}\"", package.version))
 		}
+		// By the reference the facade names it by, which is part of its source's identity:
+		// `?branch=`, `?tag=`, or `?rev=`, or none for the default branch. The lockfile
+		// pins the commit as the facade's does.
 		Some(git) if git.starts_with("git+") => {
-			let (url, rev) = git["git+".len()..].split_once('#')?;
-			let url = url.split('?').next().unwrap_or(url);
-			Some(format!("package = {name:?}, git = {url:?}, rev = {rev:?}"))
+			let url = git["git+".len()..].split('#').next().unwrap_or(git);
+			let (url, reference) = url.split_once('?').unwrap_or((url, ""));
+			let reference = match reference.split_once('=') {
+				Some((key @ ("branch" | "tag" | "rev"), value)) => format!(", {key} = {value:?}"),
+				Some(_) => return None,
+				None => String::new(),
+			};
+			Some(format!("package = {name:?}, git = {url:?}{reference}"))
 		}
 		Some(_) => None,
 	}

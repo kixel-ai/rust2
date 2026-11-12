@@ -343,8 +343,13 @@ impl Merged {
 			self.api.crates.insert(at, krate.clone());
 		}
 		for reached in api.reached {
-			if !self.api.reached.iter().any(|r| r.krate == reached.krate) {
-				self.api.reached.push(reached);
+			match self.api.reached.iter_mut().find(|r| r.krate == reached.krate) {
+				Some(ours) => {
+					ours.targets.extend(reached.targets);
+					ours.targets.sort();
+					ours.targets.dedup();
+				}
+				None => self.api.reached.push(reached),
 			}
 		}
 		for (record, at) in api.records.into_iter().zip(maps.records) {

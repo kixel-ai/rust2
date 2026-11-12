@@ -302,6 +302,7 @@ impl Export {
 			abi: &abi,
 			facade: &self.facade,
 			patch: &self.patch,
+			crates: &self.crates,
 		};
 		glue.write(out)
 	}

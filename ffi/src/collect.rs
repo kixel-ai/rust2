@@ -1191,10 +1191,9 @@ impl<'tcx> Collector<'tcx> {
 			let own = self.crate_path(def_id).expect("a reached type has a path in its crate");
 			let outside = path.len();
 			if !def_id.is_local() && !self.api.reached.iter().any(|r| r.krate == path[1]) {
-				let dependency = self.dependency(def_id.krate).expect("a reached crate has a dependency");
 				self.api.reached.push(crate::ir::Reached {
 					krate: path[1].clone(),
-					dependency,
+					targets: self.api.targets.clone(),
 				});
 			}
 			path.extend(own);
@@ -1231,12 +1230,7 @@ impl<'tcx> Collector<'tcx> {
 		let root = tcx.module_children_local(LOCAL_CRATE.as_def_id().expect_local());
 		self.keys[&def_id.krate] == name.as_str()
 			&& !root.iter().any(|child| child.ident.name == name)
-			&& self.dependency(def_id.krate).is_some()
-	}
-
-	/// The TOML keys of the glue's dependency on `krate`, as the facade resolves it.
-	fn dependency(&self, krate: CrateNum) -> Option<String> {
-		self.dependencies.get(self.tcx.crate_name(krate).as_str()).cloned()
+			&& self.dependencies.contains_key(name.as_str())
 	}
 
 	/// The shortest public path to `def_id` from its own crate's root, through that crate's

@@ -118,6 +118,9 @@ pub struct Crate<'a> {
 	/// The `[patch]` table the crate's own workspace resolves the exports with, as the
 	/// check did.
 	pub patch: &'a str,
+	/// The dependency on each crate the facade builds with, by its crate name, as this
+	/// host resolves it, which a staged API's crates are named by too.
+	pub crates: &'a std::collections::BTreeMap<String, String>,
 }
 
 impl Crate<'_> {
@@ -166,16 +169,26 @@ impl Crate<'_> {
 		.collect();
 		// A crate the facade does not re-export, whose types an export names, as the facade
 		// resolves it, so they are the facade's types.
-		let reached: String = (api.reached.iter())
-			.map(|r| {
-				format!(
-					"{} = {{ {}, default-features = false }}\n",
-					reached(&r.krate),
-					r.dependency
-				)
-			})
+		// One only some targets' APIs name builds on those alone, as the facade's does.
+		let mut every = String::new();
+		let mut targeted: std::collections::BTreeMap<&str, String> = Default::default();
+		for r in &api.reached {
+			let Some(keys) = self.crates.get(&r.krate) else {
+				return Err(format!(
+					"the facade builds with no crate `{}` here, which the API names",
+					r.krate
+				));
+			};
+			let line = format!("{} = {{ {keys}, default-features = false }}\n", reached(&r.krate));
+			match r.targets == api.targets {
+				true => every.push_str(&line),
+				false => (r.targets.iter()).for_each(|t| targeted.entry(t).or_default().push_str(&line)),
+			}
+		}
+		let targeted: String = (targeted.into_iter())
+			.map(|(target, lines)| format!("[target.{target:?}.dependencies]\n{lines}\n"))
 			.collect();
-		let dependencies = format!("{dependencies}{foreign}{reached}");
+		let dependencies = format!("{dependencies}{foreign}{every}");
 		// The facade's oldest toolchain is the crate's, which cargo sets as rustc compiles it,
 		// though no older than the crate's edition needs; cargo checks the value's form.
 		let rust_version = match std::env::var("CARGO_PKG_RUST_VERSION") {
@@ -217,6 +230,7 @@ impl Crate<'_> {
 			# What dart/{lib}.dart calls that `dart:ffi` lacks.\n\
 			dart = []\n\
 			\n\
+			{targeted}\
 			[workspace]\n\
 			{patch}",
 			patch = self.patch,

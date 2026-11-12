@@ -29,8 +29,8 @@ pub struct Api {
 pub struct Reached {
 	/// Its crate name, its items' second path segment.
 	pub krate: String,
-	/// Its dependency's TOML keys, which name the facade's package of it.
-	pub dependency: String,
+	/// The targets whose API names its types, sorted.
+	pub targets: Vec<String>,
 }
 
 impl Api {
