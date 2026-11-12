@@ -925,3 +925,24 @@ pub fn sum_pair(pair: [u16; 2]) -> u32 {
 pub fn empty(bytes: [u8; 0]) -> usize {
 	bytes.len()
 }
+
+/// A plain enum whose discriminant C's `int32_t` cannot hold.
+#[repr(i64)]
+pub enum Wide {
+	Small = 1,
+	Large = 1 << 40,
+}
+
+/// One past 64 bits.
+#[repr(i128)]
+pub enum Huge {
+	Small = 1,
+	Large = 1 << 64,
+}
+
+/// One past `i128::MAX`.
+#[repr(u128)]
+pub enum Top {
+	Small = 1,
+	Large = u128::MAX,
+}

@@ -101,13 +101,12 @@ fn api() -> &'static Api {
 			"exporting failed:\n{}",
 			String::from_utf8_lossy(&output.stderr)
 		);
-		// The workspace's lockfile pins what the export depends on.
-		std::fs::copy(manifest_dir().join("Cargo.lock"), out.join("Cargo.lock")).unwrap();
 		let target = scratch().join("api").join("glue");
 		let build = |feature: &str| {
 			run(cargo()
 				.arg("build")
 				.arg("--quiet")
+				.arg("--locked")
 				.arg("--manifest-path")
 				.arg(out.join("Cargo.toml"))
 				.arg("--target-dir")
@@ -458,11 +457,10 @@ fn api_android() {
 		"exporting for {target} failed:\n{}",
 		String::from_utf8_lossy(&output.stderr)
 	);
-	std::fs::copy(manifest_dir().join("Cargo.lock"), out.join("Cargo.lock")).unwrap();
 	run(cargo()
 		.args(["ndk", "--target", &abi, "--platform", "24", "--output-dir"])
 		.arg(dir.join("lib"))
-		.args(["build", "--quiet", "--manifest-path"])
+		.args(["build", "--quiet", "--locked", "--manifest-path"])
 		.arg(out.join("Cargo.toml"))
 		.arg("--target-dir")
 		.arg(scratch().join("api").join("glue"))
@@ -1481,7 +1479,7 @@ fn lookalike() {
 		String::from_utf8_lossy(&output.stderr)
 	);
 	run(cargo()
-		.args(["build", "--quiet", "--manifest-path"])
+		.args(["build", "--quiet", "--locked", "--manifest-path"])
 		.arg(out.join("Cargo.toml"))
 		.arg("--target-dir")
 		.arg(package.join("glue"))
@@ -1621,6 +1619,137 @@ fn configured_out() {
 	);
 }
 
+/// The glue declares the facade's `rust-version`, raised to the 1.85 its edition needs.
+#[test]
+fn rust_version() {
+	let package = package("rust_version");
+	write_all(
+		&package,
+		&[(
+			"Cargo.toml",
+			"[package]\nname = \"rust_version\"\nversion = \"0.0.0\"\nedition = \"2021\"\nrust-version = \"1.70\"\n\n[workspace]\n",
+		)],
+	);
+	let out = package.join("out");
+	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--out")
+		.arg(&out)
+		.env("CARGO_TARGET_DIR", package.join("build")));
+	let manifest = std::fs::read_to_string(out.join("Cargo.toml")).unwrap();
+	assert!(manifest.contains("rust-version = \"1.85\"\n"), "{manifest}");
+}
+
+/// A dependency the facade's dev-dependency enables an optional dependency of, which
+/// cargo's resolution holds but neither the check nor the glue builds, moves nothing.
+#[test]
+fn dev_feature() {
+	let package = package("dev_feature");
+	let dep = |name: &str, rest: &str| {
+		format!("[package]\nname = \"{name}\"\nversion = \"1.0.0\"\nedition = \"2024\"\n{rest}")
+	};
+	write_all(
+		&package,
+		&[
+			(
+				"Cargo.toml",
+				"[package]\nname = \"dev_feature\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+				[dependencies]\ninner = { path = \"inner\" }\n\n\
+				[dev-dependencies]\ninner = { path = \"inner\", features = [\"extra\"] }\n\n\
+				[workspace]\nexclude = [\"inner\", \"extra\"]\n",
+			),
+			(
+				"inner/Cargo.toml",
+				&dep(
+					"inner",
+					"\n[dependencies]\nextra = { path = \"../extra\", optional = true }\n\n[features]\nextra = [\"dep:extra\"]\n",
+				),
+			),
+			("inner/src/lib.rs", ""),
+			("extra/Cargo.toml", &dep("extra", "")),
+			("extra/src/lib.rs", ""),
+		],
+	);
+	export_and_build(&package, &[]);
+}
+
+/// A build script that asks the compiler's channel, as `rustversion` does, through cargo's
+/// wrapper, gets the channel of the rustc cargo resolved, which the glue builds with, not
+/// the nightly the export checks on: a stable rustc exports the stable item alone.
+#[test]
+fn channel() {
+	let package = package("channel");
+	write_all(
+		&package,
+		&[
+			(
+				"build.rs",
+				"use std::process::Command;\n\n\
+				fn main() {\n\
+				\tlet rustc = std::env::var_os(\"RUSTC\").unwrap();\n\
+				\tlet mut cmd = match std::env::var_os(\"RUSTC_WRAPPER\").filter(|w| !w.is_empty()) {\n\
+				\t\tSome(wrapper) => {\n\t\t\tlet mut cmd = Command::new(wrapper);\n\t\t\tcmd.arg(rustc);\n\t\t\tcmd\n\t\t}\n\
+				\t\tNone => Command::new(rustc),\n\
+				\t};\n\
+				\tlet version = cmd.arg(\"--version\").output().unwrap();\n\
+				\tassert!(version.status.success());\n\
+				\tprintln!(\"cargo::rustc-check-cfg=cfg(nightly)\");\n\
+				\tif String::from_utf8(version.stdout).unwrap().contains(\"nightly\") {\n\
+				\t\tprintln!(\"cargo::rustc-cfg=nightly\");\n\
+				\t}\n\
+				}\n",
+			),
+			(
+				"src/lib.rs",
+				"#[cfg(nightly)]\npub fn nightly() -> u32 {\n\t1\n}\n\n\
+				#[cfg(not(nightly))]\npub fn stable() -> u32 {\n\t2\n}\n",
+			),
+		],
+	);
+	let out = package.join("out");
+	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.arg("--out")
+		.arg(&out)
+		.env("RUSTC", stable_rustc())
+		.env("CARGO_TARGET_DIR", package.join("build")));
+	let header = std::fs::read_to_string(out.join("include/channel.h")).unwrap();
+	assert!(
+		header.contains("channel_stable(") && !header.contains("channel_nightly("),
+		"{header}"
+	);
+}
+
+/// A stable rustc from PATH, as the repository's root resolves it: the dev shell puts the
+/// root's stable toolchain on PATH behind the exporter's nightly, and rustup picks it from
+/// the root's `rust-toolchain.toml` unless the environment names another.
+fn stable_rustc() -> PathBuf {
+	let root = manifest_dir().parent().unwrap().to_path_buf();
+	let path = std::env::var_os("PATH").unwrap_or_default();
+	let rustc = |dir: &Path, arg: &str| {
+		let output = Command::new(dir.join(format!("rustc{}", std::env::consts::EXE_SUFFIX)))
+			.arg(arg)
+			.current_dir(&root)
+			.env_remove("RUSTUP_TOOLCHAIN")
+			.output()
+			.ok()?;
+		output
+			.status
+			.success()
+			.then(|| String::from_utf8(output.stdout).unwrap())
+	};
+	let stable = std::env::split_paths(&path).find(|dir| {
+		rustc(dir, "-vV").is_some_and(|v| v.lines().any(|l| l.starts_with("release: ") && !l.contains('-')))
+	});
+	let stable = stable.expect("no stable rustc on PATH");
+	let sysroot = rustc(&stable, "--print=sysroot").unwrap();
+	Path::new(sysroot.trim())
+		.join("bin")
+		.join(format!("rustc{}", std::env::consts::EXE_SUFFIX))
+}
+
 /// Each target exports the API it compiles, at its widths, and its crate builds for that
 /// target alone: wasm32 has a function the host lacks, lacks one the host has, and a
 /// 32-bit `usize`, which Kotlin's 64-bit `ULong` crosses into checked.
@@ -1646,7 +1775,6 @@ fn target() {
 	let export = |name: &str, args: &[&str]| {
 		let out = package.join(name);
 		run(exporter(&["--out", out.to_str().unwrap()]).args(args));
-		std::fs::copy(package.join("Cargo.lock"), out.join("Cargo.lock")).unwrap();
 		let header = std::fs::read_to_string(out.join("include/targeted.h")).unwrap();
 		(out, header)
 	};
@@ -1792,7 +1920,6 @@ fn export_and_build(dir: &Path, args: &[&str]) {
 		"the export failed:\n{}",
 		String::from_utf8_lossy(&output.stderr)
 	);
-	std::fs::copy(dir.join("Cargo.lock"), out.join("Cargo.lock")).unwrap();
 	build_offline(&out, &dir.join("glue"));
 }
 
@@ -1801,10 +1928,10 @@ fn export_and_build(dir: &Path, args: &[&str]) {
 /// build would: offline, the build shows it needs none of the config the check read.
 fn build_offline(out: &Path, target: &Path) {
 	run(cargo()
-		.args(["fetch", "--quiet", "--manifest-path"])
+		.args(["fetch", "--quiet", "--locked", "--manifest-path"])
 		.arg(out.join("Cargo.toml")));
 	run(cargo()
-		.args(["build", "--quiet", "--offline", "--manifest-path"])
+		.args(["build", "--quiet", "--locked", "--offline", "--manifest-path"])
 		.arg(out.join("Cargo.toml"))
 		.arg("--target-dir")
 		.arg(target)

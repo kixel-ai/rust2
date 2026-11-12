@@ -60,7 +60,9 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 			"--census and --api write one target's: give at most one --target and no --with\n\n{USAGE}"
 		));
 	}
-	let (facade, patch) = facade(&args.manifest, &targets[0], &args.cargo)?;
+	let dir = args.manifest.parent().expect("a manifest path has a parent");
+	let picks = Picks::parse(&args.cargo, dir)?;
+	let (facade, patch, checked) = facade(&args.manifest, &targets[0], &picks)?;
 	let line = facade.line();
 	// A staged API's spans are relative to the workspace and cargo's home, which hold the
 	// same files at other paths on another host.
@@ -111,7 +113,76 @@ fn try_run(args: &[String]) -> Result<ExitCode, String> {
 	if stage.exists() {
 		std::fs::remove_dir_all(&stage).map_err(|err| format!("removing {}: {err}", stage.display()))?;
 	}
-	code
+	let code = code?;
+	if output.0 == config::env::OUT && code == ExitCode::SUCCESS {
+		lock(&checked, &output.1, &picks)?;
+	}
+	Ok(code)
+}
+
+/// Write the generated crate's lockfile: the check's, with what the crate adds of its own
+/// resolved beside it, or fail if the glue would build the facade with any dependency the
+/// check did not resolve for the same dependent, which the glue was not generated against.
+fn lock(checked: &Checked, out: &Path, picks: &Picks<'_>) -> Result<(), String> {
+	let lockfile = checked.metadata.workspace_root.join("Cargo.lock");
+	std::fs::copy(&lockfile, out.join("Cargo.lock"))
+		.map_err(|err| format!("copying {} into {}: {err}", lockfile.display(), out.display()))?;
+	let output = run_cargo(
+		&out.join("Cargo.toml"),
+		&["metadata", "--format-version", "1"],
+		&picks.resolving(),
+	)?;
+	let generated: Metadata =
+		serde_json::from_slice(&output).map_err(|err| format!("reading cargo metadata: {err}"))?;
+	// The check's resolution holds more than its build: cargo metadata enables what the
+	// facade's dev-dependencies enable, too. So each dependency the glue builds the facade
+	// with must be one the check resolved for the same dependent, not the other way around.
+	fn built(node: &Node) -> impl Iterator<Item = &str> {
+		let deps = node.deps.iter();
+		deps.filter(|d| d.dep_kinds.iter().any(|k| k.kind.as_deref() != Some("dev")))
+			.map(|d| d.pkg.as_str())
+	}
+	let identities = |metadata: &Metadata| -> BTreeMap<String, String> {
+		metadata.packages.iter().map(|p| (p.id.clone(), p.identity())).collect()
+	};
+	let (resolved, ids) = (identities(&checked.metadata), identities(&generated));
+	let edges: BTreeSet<(&str, &str)> = (checked.metadata.resolve.nodes.iter())
+		.flat_map(|n| built(n).map(move |dep| (n.id.as_str(), dep)))
+		.map(|(from, to)| (resolved[from].as_str(), resolved[to].as_str()))
+		.collect();
+	let nodes: BTreeMap<&str, &Node> = generated.resolve.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+	let top = checked.top.as_str();
+	let mut moved = Vec::new();
+	if ids.get(top) != resolved.get(top) {
+		moved.push(top);
+	}
+	let mut seen = BTreeSet::new();
+	let mut queue = vec![top];
+	while let Some(id) = queue.pop() {
+		if !seen.insert(id) {
+			continue;
+		}
+		for dep in nodes.get(id).into_iter().flat_map(|n| built(n)) {
+			if !edges.contains(&(ids[id].as_str(), ids[dep].as_str())) {
+				moved.push(dep);
+			}
+			queue.push(dep);
+		}
+	}
+	match moved.is_empty() {
+		true => Ok(()),
+		false => Err(format!(
+			"the export's library resolves these packages to other versions than the check did: {}",
+			moved.join(", ")
+		)),
+	}
+}
+
+/// The resolution the check built the exports with.
+struct Checked {
+	metadata: Metadata,
+	/// The facade's package id.
+	top: String,
 }
 
 /// The args rust2-ffi takes beyond the shared parser's.
@@ -177,13 +248,12 @@ fn absolute(path: &str) -> Result<PathBuf, String> {
 
 /// The facade, the package of `manifest`, then the patches it resolved with, as
 /// [`config::env::PATCH`] has them.
-fn facade(manifest: &Path, target: &str, cargo: &[String]) -> Result<(config::Package, String), String> {
-	let picks = Picks::parse(cargo)?;
+fn facade(manifest: &Path, target: &str, picks: &Picks<'_>) -> Result<(config::Package, String, Checked), String> {
 	// On the target, so the resolved dependencies are the ones the check passes rustc.
 	let output = run_cargo(
 		manifest,
 		&["metadata", "--format-version", "1", "--filter-platform", target],
-		&picks,
+		picks,
 	)?;
 	let metadata: Metadata = serde_json::from_slice(&output).map_err(|err| format!("reading cargo metadata: {err}"))?;
 	let canonical =
@@ -206,9 +276,14 @@ fn facade(manifest: &Path, target: &str, cargo: &[String]) -> Result<(config::Pa
 		features: Vec::new(),
 	};
 	// Every platform's dependencies, which cargo resolves wherever the glue builds.
-	let output = run_cargo(manifest, &["metadata", "--format-version", "1"], &picks)?;
+	let output = run_cargo(manifest, &["metadata", "--format-version", "1"], picks)?;
 	let resolved: Metadata = serde_json::from_slice(&output).map_err(|err| format!("reading cargo metadata: {err}"))?;
-	Ok((facade, overrides(&resolved, top)?))
+	let patch = overrides(&resolved, top)?;
+	let checked = Checked {
+		metadata: resolved,
+		top: top.id.clone(),
+	};
+	Ok((facade, patch, checked))
 }
 
 /// The `[patch]` the glue's workspace resolves the exports by as the check did, wherever
@@ -324,11 +399,11 @@ fn patch_key(source: &str) -> Result<String, String> {
 	Err(format!("a patch of {source}, which the export's library cannot patch"))
 }
 
-/// What a cargo subcommand prints for the package, run as the check resolves: from the
-/// package's directory, where cargo reads its config, with the check's picks.
+/// What a cargo subcommand prints for a package, run as the check resolves: from the
+/// facade's directory, where cargo reads its config, with the check's picks.
 fn run_cargo(manifest: &Path, subcommand: &[&str], picks: &Picks<'_>) -> Result<Vec<u8>, String> {
 	let output = Command::new(std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into()))
-		.current_dir(manifest.parent().expect("a manifest path has a parent"))
+		.current_dir(picks.dir)
 		.args(subcommand)
 		.arg("--manifest-path")
 		.arg(manifest)
@@ -343,6 +418,8 @@ fn run_cargo(manifest: &Path, subcommand: &[&str], picks: &Picks<'_>) -> Result<
 
 /// What the cargo args pick for how the check resolves its dependencies.
 struct Picks<'a> {
+	/// Where cargo runs, which its config and a `--config` path are read from: the facade's.
+	dir: &'a Path,
 	/// Each feature `--features` and `-F` name.
 	named: Vec<&'a str>,
 	/// The other args that pick a resolution: feature, lockfile, network, and `--config`.
@@ -350,8 +427,9 @@ struct Picks<'a> {
 }
 
 impl<'a> Picks<'a> {
-	fn parse(cargo: &'a [String]) -> Result<Self, String> {
+	fn parse(cargo: &'a [String], dir: &'a Path) -> Result<Self, String> {
 		let mut picks = Self {
+			dir,
 			named: Vec::new(),
 			flags: Vec::new(),
 		};
@@ -391,6 +469,24 @@ impl<'a> Picks<'a> {
 		args
 	}
 
+	/// The picks that resolve the generated crate: its own features are not the facade's,
+	/// and its lockfile gains what it adds of its own, which `--locked` would forbid. The
+	/// check's `--config`, such as a source replacement, still applies, from the same
+	/// directory.
+	fn resolving(&self) -> Self {
+		let flags = self.flags.iter().map(|&f| match f {
+			"--frozen" => "--offline",
+			f => f,
+		});
+		Self {
+			dir: self.dir,
+			named: Vec::new(),
+			flags: flags
+				.filter(|f| !matches!(*f, "--locked" | "--all-features" | "--no-default-features"))
+				.collect(),
+		}
+	}
+
 	/// Refuse a feature named in a dependency, `<dependency>/<feature>`: the generated
 	/// crate depends on the facade alone, which enables what its dependencies build with.
 	fn of_facade(&self, top: &Package) -> Result<(), String> {
@@ -413,6 +509,7 @@ impl<'a> Picks<'a> {
 #[derive(serde::Deserialize)]
 struct Metadata {
 	packages: Vec<Package>,
+	workspace_root: PathBuf,
 	resolve: Resolve,
 }
 
@@ -453,6 +550,19 @@ struct Package {
 	dependencies: Vec<Dependency>,
 }
 
+impl Package {
+	/// What names the same code in another resolution: a git source by its commit, whatever
+	/// reference picked it, since the glue's `[patch]` pins one by `rev`.
+	fn identity(&self) -> String {
+		let Some(source) = &self.source else {
+			return self.id.clone();
+		};
+		let (url, commit) = source.split_once('#').unwrap_or((source, ""));
+		let url = url.split_once('?').map_or(url, |(url, _)| url);
+		format!("{} {} {url}#{commit}", self.name, self.version)
+	}
+}
+
 #[derive(serde::Deserialize)]
 struct Dependency {
 	/// The package's name.
@@ -486,7 +596,7 @@ mod tests {
 		] {
 			let cargo: Vec<String> = spelling.iter().map(|s| s.to_string()).collect();
 			assert_eq!(
-				Picks::parse(&cargo).unwrap().args(),
+				Picks::parse(&cargo, Path::new(".")).unwrap().args(),
 				["--features", "a,dep/b"],
 				"{spelling:?}"
 			);
@@ -501,13 +611,13 @@ mod tests {
 		];
 		let cargo: Vec<String> = cargo.iter().map(|s| s.to_string()).collect();
 		let flags = ["--all-features", "--locked", "--config", "a=1", "--config=b=2"];
-		assert_eq!(Picks::parse(&cargo).unwrap().args(), flags);
+		assert_eq!(Picks::parse(&cargo, Path::new(".")).unwrap().args(), flags);
 		for target in [
 			&["--target", "wasm32-unknown-unknown"][..],
 			&["--target=wasm32-unknown-unknown"],
 		] {
 			let cargo: Vec<String> = target.iter().map(|s| s.to_string()).collect();
-			assert!(Picks::parse(&cargo).is_err(), "{target:?}");
+			assert!(Picks::parse(&cargo, Path::new(".")).is_err(), "{target:?}");
 		}
 	}
 }

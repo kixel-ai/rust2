@@ -107,3 +107,9 @@ fixtures/reject/src/lib.rs:909:1: rust2-ffi: cannot export fn `among`: 3 optiona
 fixtures/reject/src/lib.rs:915:1: rust2-ffi: cannot export fn `wrapped`: error holding an object Swift cannot copy, as `Swift.Error` requires; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:920:1: rust2-ffi: cannot export fn `sum_pair`: array of an element other than u8 `[u16; 2]`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:925:1: rust2-ffi: cannot export fn `empty`: empty array `[u8; 0]`; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:931:1: rust2-ffi: cannot export enum `Wide`: discriminant outside `i32` `Large = 1099511627776`; exclude it in the config to leave it out
+	fixtures/reject/src/lib.rs:933:2: note: has this discriminant
+fixtures/reject/src/lib.rs:938:1: rust2-ffi: cannot export enum `Huge`: discriminant outside `i32` `Large = 18446744073709551616`; exclude it in the config to leave it out
+	fixtures/reject/src/lib.rs:940:2: note: has this discriminant
+fixtures/reject/src/lib.rs:945:1: rust2-ffi: cannot export enum `Top`: discriminant outside `i32` `Large = 340282366920938463463374607431768211455`; exclude it in the config to leave it out
+	fixtures/reject/src/lib.rs:947:2: note: has this discriminant

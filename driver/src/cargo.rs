@@ -148,6 +148,12 @@ impl Check<'_> {
 			let mut cmd = cargo();
 			// Cargo reads its config from where it runs, so run where the package is.
 			cmd.current_dir(package_dir).envs(self.env.iter().copied());
+			// Cargo sets these for build scripts alone, which a wrapper tells its calls by.
+			for (key, _) in std::env::vars_os() {
+				if key.to_str().is_some_and(|key| key.starts_with("CARGO_CFG_")) {
+					cmd.env_remove(key);
+				}
+			}
 			cmd.arg(subcommand)
 				.arg("--manifest-path")
 				.arg(self.root.unwrap_or(self.manifest))

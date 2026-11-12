@@ -10,8 +10,11 @@ rust2-ffi --config ffi.toml (--out dir | --census dir | --api file) [--manifest-
 
 It runs `cargo check` on the package with itself as `RUSTC_WRAPPER`, for each `--target`
 or else the host, whatever cargo's config names, through
-the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). The
-package is the facade: once rustc has checked its library, it walks every `pub` item
+the front end it shares with [rust2-ts](../ts/README.md) in [`driver/`](../driver). A build
+script's probe of the compiler through that wrapper, as `rustversion` and `autocfg` make,
+runs the `rustc` cargo resolved, the one the glue builds with, rather than the exporter's
+nightly: an item a build script enables on nightly alone is exported only when that `rustc`
+is a nightly. The package is the facade: once rustc has checked its library, it walks every `pub` item
 reachable from the crate root, following `pub use` re-exports of other crates' items and
 modules, and exports it by fixed rules, or refuses it with a compile error at its span.
 So a facade such as moq-ffi exports several crates into one library by re-exporting what
@@ -22,7 +25,10 @@ beside it, and the header in `include/<prefix>.h`; `cargo build` on that crate m
 static and a shared library for those targets alone: its build script refuses another, on
 which an item the target compiles would be missing, or one it leaves out left over. So a
 `cfg`-gated item works on its targets and on no other ([Targets](#targets)), and the
-layouts, `usize` included, are the target's the crate builds for. That crate enables the facade's features as the check did;
+layouts, `usize` included, are the target's the crate builds for. It builds `--locked` against the `Cargo.lock` written beside
+the manifest: the facade's, with what the crate adds of its own resolved in. If that moves
+any package the exports build with from the version the check resolved, the export fails.
+Its manifest declares the facade's `rust-version`. That crate enables the facade's features as the check did;
 a feature named in a dependency, `--features <dependency>/<feature>`, is an error, since
 the facade enables what its dependencies build with. It resolves them as the check did,
 wherever it is built: its manifest carries, as a `[patch]`, each patch or `[replace]` cargo applied
