@@ -1261,6 +1261,41 @@ fn unreached_types() {
 		.arg("--manifest-path")
 		.arg(out.join("Cargo.toml"))
 		.env("CARGO_TARGET_DIR", package.join("build")));
+	// Staged on another host, with the checkout elsewhere, the merged export depends on the
+	// exporting host's `kio`, not the staging host's, though only the staged target reaches it.
+	let staged = package.join("wasm.json");
+	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(package.join("ffi.toml"))
+		.args(["--api", staged.to_str().unwrap(), "--target", WASM])
+		.env("CARGO_TARGET_DIR", package.join("build")));
+	let moved = scratch().join("unreached_types-moved");
+	let _ = std::fs::remove_dir_all(&moved);
+	for dir in ["src", "kio"] {
+		copy_dir(&package.join(dir), &moved.join(dir));
+	}
+	for file in ["Cargo.toml", "ffi.toml"] {
+		std::fs::copy(package.join(file), moved.join(file)).unwrap();
+	}
+	std::fs::write(
+		moved.join("src/lib.rs"),
+		"pub use kio::Ready;\n\npub fn seal() -> kio::Sealed {\n\tkio::sealed()\n}\n",
+	)
+	.unwrap();
+	run(Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
+		.arg("--config")
+		.arg(moved.join("ffi.toml"))
+		.arg("--out")
+		.arg(moved.join("out"))
+		.arg("--with")
+		.arg(&staged)
+		.env("CARGO_TARGET_DIR", moved.join("build")));
+	let manifest = std::fs::read_to_string(moved.join("out/Cargo.toml")).unwrap();
+	assert!(
+		manifest.contains(&format!("path = \"{}\"", moved.join("kio").display()))
+			&& !manifest.contains(&package.join("kio").display().to_string()),
+		"{manifest}"
+	);
 	std::fs::write(package.join("ffi.toml"), "").unwrap();
 	let census = package.join("census");
 	let output = Command::new(env!("CARGO_BIN_EXE_rust2-ffi"))
