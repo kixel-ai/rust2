@@ -61,6 +61,30 @@
           raJitToolchain = pkgs.rust-bin.stable."1.99.0".default.override {
             extensions = [ "rust-src" ];
           };
+          # ra-jit's dist build finds libzstd through pkg-config, which its flake never declares,
+          # so it built only where nixpkgs put pkg-config on the build's PATH. Declare both here.
+          # nixpkgs also points tikv-jemalloc-sys at a jemalloc path that does not exist, which
+          # the build refuses. Unset it, so jemalloc builds from source as it did before.
+          # Then wrap the binaries as ra-jit's `daemon` does, over the toolchain above.
+          raJitDist = ra-jit.packages.${system}.dist.overrideAttrs (old: {
+            nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.pkg-config ];
+            buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.zstd ];
+            preBuild = ''
+              unset JEMALLOC_OVERRIDE
+            ''
+            + (old.preBuild or "");
+          });
+          raJitDaemon =
+            pkgs.runCommand "ra-jit-${raJitDist.version}"
+              {
+                nativeBuildInputs = [ pkgs.makeWrapper ];
+              }
+              ''
+                mkdir -p $out/bin
+                for bin in ${raJitDist}/bin/*; do
+                  makeWrapper $bin $out/bin/$(basename $bin) --prefix PATH : ${raJitToolchain}/bin
+                done
+              '';
           # The TypeScript driver's own nightly, kept off PATH so the other projects keep
           # the repo toolchain. ts/justfile puts it first for its recipes.
           tsToolchain = pkgs.rust-bin.fromRustupToolchainFile ./ts/rust-toolchain.toml;
@@ -175,7 +199,7 @@
             bench-ra-jit = pkgs.symlinkJoin {
               name = "bench-ra-jit";
               paths = [
-                ra-jit.packages.${system}.ra-jit
+                raJitDaemon
                 raJitToolchain
               ];
             };
