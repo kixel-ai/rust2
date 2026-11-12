@@ -21,6 +21,6 @@ Public API: none, unless the translator drops its `tsc` requirement.
 ## Waiting
 
 - oxc-project/tsrs: [tsrs](https://github.com/oxc-project/tsrs) publishes a stable release
-  as a crate. On 2026-11-07 it ships 0.x releases (v0.23.0) on npm only, its Cargo
-  workspace sets `publish = false`, and its stable release targets TypeScript 7.1 with full
-  conformance. Check its releases and crates.io.
+  as a crate. On 2026-11-12 its latest release is v0.25.0, and crates.io has its
+  `tsrs_core` crate only as 0.24.0 and `7.1.0-beta.tsrs1`; its stable release targets
+  TypeScript 7.1 with full conformance. Check its releases and `cargo info tsrs_core`.
