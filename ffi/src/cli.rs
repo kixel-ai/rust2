@@ -348,6 +348,7 @@ fn profile(
 			));
 		};
 		let carried = profiles[name]["package"].as_table_mut().expect("a table parsed as one");
+		let mut facade = Vec::new();
 		for spec in overrides.keys() {
 			let spec_str = spec.get_ref().as_ref();
 			// `*` skips workspace members, but the glue's workspace makes the exported crate
@@ -373,14 +374,20 @@ fn profile(
 			if !matched.iter().any(|p| built.contains(p.id.as_str())) {
 				carried.remove(spec_str);
 			} else if matched.iter().any(|p| p.id == top.id) {
-				let glue = format!("{}-ffi", top.name);
-				let value = carried[spec_str].clone();
-				if carried.insert(glue.clone(), value).is_some() {
-					return Err(format!(
-						"{}: `profile.{name}.package.{spec_str}` is a second override of the exported crate, which its glue package `{glue}` takes",
-						at(spec.span())
-					));
-				}
+				facade.push(spec);
+			}
+		}
+		// After the removals, so an override of a dev-only package named like the glue
+		// is not taken for a second one of the exported crate.
+		let glue = format!("{}-ffi", top.name);
+		for spec in facade {
+			let spec_str = spec.get_ref().as_ref();
+			let value = carried[spec_str].clone();
+			if carried.insert(glue.clone(), value).is_some() {
+				return Err(format!(
+					"{}: `profile.{name}.package.{spec_str}` is a second override of the exported crate, which its glue package `{glue}` takes",
+					at(spec.span())
+				));
 			}
 		}
 		if carried.is_empty() {
@@ -408,9 +415,9 @@ fn matches(spec: &str, package: &Package) -> Result<bool, String> {
 		.split_once('+')
 		.map_or(package.version.as_str(), |(core, _)| core);
 	let numbers = core.split_once('-').map_or(core, |(numbers, _)| numbers);
-	// A prerelease is matched whole, never as a prefix.
+	// As in cargo, a prerelease package matches only a spec naming its prerelease whole.
 	let exact =
-		|v: &str| package.version == v || core == v || (!v.contains('-') && numbers.starts_with(&format!("{v}.")));
+		|v: &str| package.version == v || core == v || (core == numbers && numbers.starts_with(&format!("{v}.")));
 	Ok(package.name == name && version.is_none_or(exact))
 }
 
@@ -702,6 +709,34 @@ struct Target {
 #[cfg(test)]
 mod tests {
 	use super::*;
+
+	#[test]
+	fn matches_partial_versions_as_cargo_does() {
+		let package = |version: &str| Package {
+			id: String::new(),
+			name: "foo".into(),
+			version: version.into(),
+			source: None,
+			manifest_path: PathBuf::new(),
+			targets: Vec::new(),
+			dependencies: Vec::new(),
+		};
+		for (spec, version, want) in [
+			("foo", "1.0.0-alpha", true),
+			("foo@1", "1.2.3", true),
+			("foo@1.2", "1.2.3+build", true),
+			("foo@1.2.3", "1.2.3+build", true),
+			("foo@1", "1.0.0-alpha", false),
+			("foo@1.0", "1.0.0-alpha", false),
+			("foo@1.0.0", "1.0.0-alpha", false),
+			("foo@1.0.0-alpha", "1.0.0-alpha+build", true),
+			("foo@1.0.0-alpha", "1.0.0-alpha.1", false),
+			("foo@1.1", "1.10.0", false),
+			("bar@1", "1.0.0", false),
+		] {
+			assert_eq!(matches(spec, &package(version)), Ok(want), "{spec} against {version}");
+		}
+	}
 
 	#[test]
 	fn reads_what_picks_a_resolution() {
