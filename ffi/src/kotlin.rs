@@ -923,7 +923,7 @@ impl<'a> Gen<'a> {
 			// Only while the call's JVM parameters stay within the 255 slots a method takes.
 			Ty::Struct(_) | Ty::In(_)
 				if let Type::Record(i) = ty.base()
-					&& let Some(left) = self.room.checked_sub(weight(abi, *i).saturating_sub(1)) =>
+					&& let Some(left) = self.room.checked_sub(weight(abi, *i).saturating_sub(c_slots(c))) =>
 			{
 				self.room = left;
 				arg.jni.clear();
@@ -933,15 +933,23 @@ impl<'a> Gen<'a> {
 				let mut writes = Vec::new();
 				let value = self.flat_in(*i, e, (&mut arg, n), (&w, &mut writes), &r);
 				if rest(abi, *i) {
-					let b = format!("p{n}");
-					*n += 1;
-					arg.jni.push("jbyteArray");
-					arg.native.push("ByteArray".to_string());
+					// Then the arrays and text the rest names, which Rust copies from once.
+					let (b, q) = (format!("p{n}"), format!("p{}", *n + 1));
+					*n += 2;
+					arg.jni.extend(["jbyteArray", "jobjectArray"]);
+					arg.native
+						.extend(["ByteArray", "kotlin.Array<Any?>?"].map(str::to_string));
 					arg.open = Some(format!("Native.Writer().use {{ {w} ->"));
 					arg.inside.extend(writes);
 					arg.exprs.push(format!("{w}.finish()"));
+					arg.exprs.push(format!("{w}.refs()"));
 					arg.rust_pre.push(format!(
-						"let b{p} = rt::bytes(env, {b}).unwrap_or_default();\n\t\tlet mut {r} = rt::Reader::new(&b{p});"
+						"let b{p} = rt::bytes(env, {b}).unwrap_or_default();\n\t\tlet mut {r} = rt::Reader::{}(env, &b{p}, {q});",
+						// Read through a pointer, Rust keeps nothing of it.
+						match c {
+							Ty::In(_) => "new",
+							_ => "taking",
+						}
 					));
 				}
 				arg.rust_pre.push(format!("let a{p} = {value};"));
@@ -2592,25 +2600,30 @@ fn rest(abi: &Abi<'_>, i: usize) -> bool {
 }
 
 /// The JVM parameter slots the record `i` takes flattened: two for each `long` or `double`
-/// scalar, one for any other, and one for the `byte[]` of its other fields, if any.
+/// scalar, one for any other, and two for its other fields, if any: their `byte[]` and the
+/// arrays and text they name.
 fn weight(abi: &Abi<'_>, i: usize) -> usize {
 	let fields = abi.api.records[i].fields.iter().map(|f| match &f.ty {
-		Type::Record(j) => weight(abi, *j) - usize::from(rest(abi, *j)),
+		Type::Record(j) => weight(abi, *j) - 2 * usize::from(rest(abi, *j)),
 		Type::F64 => 2,
 		Type::Int(int) | Type::NonZero(int) if jni_int(*int) == "jlong" => 2,
 		ty if scalar(abi, ty) => 1,
 		_ => 0,
 	});
-	fields.sum::<usize>() + usize::from(rest(abi, i))
+	fields.sum::<usize>() + 2 * usize::from(rest(abi, i))
 }
 
-/// The JVM parameter slots the C parameter `c` takes as a native method's: two for a
-/// `long` or `double`, none for what never crosses, and one for anything else.
+/// The JVM parameter slots the C parameter `c` takes as a native method's at most: two for
+/// a `long` or `double`, none for what never crosses, five for bytes (what holds them, a
+/// `long` owner, and two `int`s; text takes one), two for an encoded value's `byte[]` and
+/// the arrays and text it names (a callback takes one), and one for anything else.
 fn c_slots(c: &Ty) -> usize {
 	match c {
 		Ty::Void | Ty::Out(_) | Ty::Data | Ty::Poll => 0,
 		Ty::Int(int) if jni_int(*int) == "jlong" => 2,
 		Ty::F64 | Ty::Handle { .. } | Ty::Future(_) => 2,
+		Ty::Buf => 5,
+		Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => 2,
 		_ => 1,
 	}
 }
