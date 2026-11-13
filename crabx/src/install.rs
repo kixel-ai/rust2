@@ -435,13 +435,14 @@ mod tests {
 					.unwrap();
 				assert_eq!(response.chunk().await.unwrap().unwrap().as_ref(), b"x");
 				tokio::time::pause();
-				let started = tokio::time::Instant::now();
 				let chunk = response.chunk();
 				tokio::pin!(chunk);
 				assert!(std::future::poll_fn(|cx| std::task::Poll::Ready(chunk.as_mut().poll(cx).is_pending())).await);
-				tokio::time::advance(Duration::from_secs(deadline)).await;
-				assert!(chunk.await.unwrap_err().is_timeout());
-				assert_eq!(tokio::time::Instant::now() - started, Duration::from_secs(deadline));
+				// Tokio rounds deadlines to its next millisecond tick. Poll directly
+				// after that tick so auto-advance cannot hide a missing deadline.
+				tokio::time::advance(Duration::from_secs(deadline) + Duration::from_millis(1)).await;
+				let result = std::future::poll_fn(|cx| std::task::Poll::Ready(chunk.as_mut().poll(cx))).await;
+				assert!(matches!(result, std::task::Poll::Ready(Err(error)) if error.is_timeout()));
 				done.send(()).unwrap();
 				server.await.unwrap();
 			});
