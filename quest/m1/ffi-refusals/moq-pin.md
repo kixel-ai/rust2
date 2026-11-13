@@ -77,6 +77,15 @@ mp4_atom's boxes (through moq-mux's `container::fmp4::Wire::new`, `Wire::trak`, 
 `fmp4::Error`), moq-quic, moq-sock, and rustls, so `ffi/moq/ffi.toml` excludes only what
 they still refuse.
 
+Decided 2026-11-13 (maintainer, #721's design checkpoint): ✅ an `impl Trait` return holds
+what its hidden type holds, as a named return does, so `fn wrap(x: &u32) -> impl Clone + '_ {
+Some(Held(x)) }` is refused instead of producing glue that does not build, while an iterator
+collected at the call still exports (rejected: map every `impl Trait` return as its hidden
+type everywhere; land as is with a follow-up quest). Implementing it showed the glue keeps the
+`impl Trait` itself, never its hidden type, so #721 lets one cross only when its hidden type is
+an object, holding every lifetime it captures, and refuses any other. moq's census at the pin
+is unchanged by it.
+
 Measured on 2026-11-12 at moq's `main` `6936f0a`: `just ffi moq-cpp` fails the export with
 36 errors, which the bump fixes in `ffi/moq/ffi.toml` or the exporter: 15 on the foreign
 type `std::num::NonZero` (such as `Client::with_peer_hop`), 11 stale excludes naming nothing
