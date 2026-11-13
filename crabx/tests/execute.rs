@@ -191,6 +191,32 @@ fn exec_preserves_signals_and_incomplete_cache_is_an_error() {
 }
 
 #[test]
+fn cold_unpinned_build_publishes_latest_before_binary_selection() {
+	let temp = tempfile::tempdir().unwrap();
+	setup(temp.path(), "fixture");
+	// An absent --bin reports after installation, before any updater starts.
+	let output = crabx(temp.path())
+		.args(["--build", "--bin", "missing", "fixture"])
+		.env("CARGO", temp.path().join("helper"))
+		.env("CRABX_TEST_TARGET", binstalk::TARGET)
+		.output()
+		.unwrap();
+	assert_eq!(output.status.code(), Some(1));
+	assert!(String::from_utf8_lossy(&output.stderr).contains("no binary \"missing\""));
+	let root = cache(temp.path())
+		.join("crabx/v1")
+		.join(binstalk::TARGET)
+		.join("build/fixture");
+	assert_eq!(fs::read_to_string(root.join("latest")).unwrap(), "1.2.3");
+	let output = crabx(temp.path())
+		.args(["--build", "fixture@1.2.3"])
+		.env("CARGO", "must-not-run")
+		.output()
+		.unwrap();
+	assert_eq!(output.status.code(), Some(37));
+}
+
+#[test]
 fn cached_runs_report_diagnostics_once_and_pins_ignore_corrupt_refresh_state() {
 	let temp = tempfile::tempdir().unwrap();
 	setup(temp.path(), "fixture");
