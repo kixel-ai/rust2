@@ -559,11 +559,11 @@ fn api_kotlin() {
 
 	// The same classes, with another contract than the library's in place of theirs,
 	// refuse to load it.
-	let native_class = classes.join("api").join("Native.class");
+	let native_class = classes.join("api").join("_Native.class");
 	let bytes = std::fs::read(&native_class).unwrap();
 	let contract = kotlin_contract(&api.out.join("kotlin").join("api.kt")).to_be_bytes();
 	let at: Vec<usize> = (0..bytes.len() - 8).filter(|&i| bytes[i..i + 8] == contract).collect();
-	assert_eq!(at.len(), 1, "Native.class holds the contract once");
+	assert_eq!(at.len(), 1, "_Native.class holds the contract once");
 	let mut mismatched = bytes.clone();
 	mismatched[at[0]] ^= 0xff;
 	std::fs::write(&native_class, &mismatched).unwrap();
@@ -726,6 +726,7 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 	);
 	run(&mut vm(&["futures"]));
 	run(&mut vm(&["owned"]));
+	run(&mut vm(&["clash"]));
 	for (case, message) in [
 		("moved", "Counter is closed"),
 		("boxed moved", "Node is closed"),

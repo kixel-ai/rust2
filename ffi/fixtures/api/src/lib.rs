@@ -126,6 +126,61 @@ pub enum Event {
 	Done,
 }
 
+/// An enum whose variants are named as types its Kotlin sealed class names: builtins,
+/// the runtime's, and exported types, each of which a nested variant class would shadow.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Clash {
+	Point(Point),
+	Shape(Shape),
+	Event(Event),
+	Double(f64),
+	String(String),
+	Int(i32),
+	Boolean(bool),
+	Native(u32),
+	Bytes(Vec<u8>),
+	Any,
+	Unit,
+	Waker,
+	Mut,
+	Pair(u8, u8),
+}
+
+impl Clash {
+	/// The clash's point, if it has one.
+	pub fn point(&self) -> Option<Point> {
+		match self {
+			Clash::Point(p) => Some(*p),
+			_ => None,
+		}
+	}
+
+	/// A double variant of `value`.
+	pub fn of(value: f64) -> Clash {
+		Clash::Double(value)
+	}
+
+	/// Its bytes, its text's or its own.
+	pub fn bytes(&self) -> Vec<u8> {
+		match self {
+			Clash::Bytes(b) => b.clone(),
+			Clash::String(s) => s.as_bytes().to_vec(),
+			_ => Vec::new(),
+		}
+	}
+
+	/// A point clash at `api`, a parameter named as the Kotlin package that qualifies its type.
+	pub fn at(api: Point) -> Clash {
+		Clash::Point(api)
+	}
+
+	/// `text` with this clash's form and `n`, and `n` doubled through `out`.
+	pub fn describe(&self, text: &str, n: u32, shape: Shape, out: &mut u32) -> String {
+		*out = n * 2;
+		format!("{text} {self:?} {n} {shape:?}")
+	}
+}
+
 /// An enum whose variant `Init` names an initializer in Swift, and the C union member
 /// holding its data.
 #[derive(Clone, Copy, Debug, PartialEq)]

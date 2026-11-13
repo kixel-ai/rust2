@@ -1,4 +1,4 @@
-// The runtime every generated Kotlin file includes in its `Native` object, so no name it
+// The runtime every generated Kotlin file includes in its `_Native` object, so no name it
 // takes can clash with an exported type's: the codec values cross JNI in, the handles
 // objects own, what frees them once collected, and the waker futures park on.
 

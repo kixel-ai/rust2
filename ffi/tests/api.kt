@@ -1262,11 +1262,45 @@ fun uncollected(n: UInt, what: String) {
 	check(dropped() == n, what)
 }
 
+/** An enum whose variants are named as types its sealed class names, each round-tripped. */
+fun clash() {
+	val p = Point(1, 2)
+	val all = listOf(
+		Clash.Point(p),
+		Clash.Shape(Shape.CIRCLE),
+		Clash.Event(Event.Named("n")),
+		Clash.Double(1.5),
+		Clash.String("s"),
+		Clash.Int(-3),
+		Clash.Boolean(true),
+		Clash.Native(7u),
+		Clash.Bytes(Bytes("ab".encodeToByteArray())),
+		Clash.Any,
+		Clash.Unit,
+		Clash.Waker,
+		Clash.Mut,
+		Clash.Pair(1u, 2u),
+	)
+	for (c in all) {
+		check(c.debug().isNotEmpty(), "clash $c debug")
+	}
+	check(Clash.Double(1.5).debug() == "Double(1.5)", "clash Double debug")
+	check(Clash.String("s").debug() == "String(\"s\")", "clash String debug")
+	check(Clash.Native(7u).debug() == "Native(7)", "clash Native debug")
+	check(all[0].point() == p && all[3].point() == null, "clash point")
+	check(Clash.of(2.5) == Clash.Double(2.5), "clash of")
+	check(Clash.at(p) == Clash.Point(p), "clash at")
+	check(Clash.String("hi").bytes().toByteArray().decodeToString() == "hi", "clash bytes")
+	val out = Mut(0u)
+	check(Clash.Int(4).describe("t", 3u, Shape.SQUARE, out) == "t Int(4) 3 Square" && out.value == 6u, "clash describe")
+}
+
 fun main(args: Array<String>) {
 	when {
 		args.isEmpty() -> script()
 		args[0] == "futures" -> futures()
 		args[0] == "owned" -> owned()
+		args[0] == "clash" -> clash()
 		else -> broken(args[0])
 	}
 }
