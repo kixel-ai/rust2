@@ -886,22 +886,6 @@ fn ipv6(shape: &Shape) -> bool {
 	})
 }
 
-/// A collection whose items are bytes or tuples holding them, which C++ takes as views.
-fn viewed_items(shape: &Shape) -> bool {
-	let buf = |s: &Shape| matches!(s, Shape::String | Shape::PathBuf) || is_bytes(s);
-	let item = |s: &Shape| buf(s) || matches!(s, Shape::Tuple(elements) if elements.iter().any(buf));
-	within(shape, &|s| match s {
-		Shape::Vec(inner) | Shape::Set(inner) => item(inner),
-		Shape::Map(key, value) => buf(key) || buf(value),
-		_ => false,
-	})
-}
-
-/// A tuple of one element, which Kotlin returns as its element but takes whole.
-fn single(shape: &Shape) -> bool {
-	matches!(shape, Shape::Tuple(elements) if elements.len() == 1)
-}
-
 /// A round trip a binding gets wrong today.
 struct Known {
 	language: &'static str,
@@ -948,12 +932,6 @@ const KNOWN: &[Known] = &[
 		quest: "/quest/m1/ffi-export/owned-bufs.md",
 	},
 	Known {
-		language: "kotlin",
-		what: "a returned tuple of one passed back",
-		skips: single,
-		quest: "/quest/m1/ffi-export/round-trips.md",
-	},
-	Known {
 		language: "go",
 		what: "an IPv6 flow label",
 		skips: ipv6,
@@ -964,12 +942,6 @@ const KNOWN: &[Known] = &[
 		what: "returned bytes passed back",
 		skips: bytes,
 		quest: "/quest/m1/ffi-export/owned-bufs.md",
-	},
-	Known {
-		language: "cpp",
-		what: "a returned collection of bytes passed back",
-		skips: viewed_items,
-		quest: "/quest/m1/ffi-export/round-trips.md",
 	},
 ];
 
@@ -1230,7 +1202,11 @@ fn kotlin(built: &Built, calls: &[Call]) -> String {
 		};
 		format!("\tprintln(\"{} ${{{value}}}\")", call.label())
 	});
-	let mut out = format!("import {}.*\nimport kotlinx.coroutines.runBlocking\n\n", built.name());
+	// A numeric slice is an unsigned array, whose use opts in.
+	let mut out = format!(
+		"@file:OptIn(ExperimentalUnsignedTypes::class)\n\nimport {}.*\nimport kotlinx.coroutines.runBlocking\n\n",
+		built.name()
+	);
 	for (n, lines) in &shapes {
 		let _ = writeln!(out, "suspend fun shape{n}() {{\n{lines}}}\n");
 	}

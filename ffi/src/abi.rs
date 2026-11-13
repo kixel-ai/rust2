@@ -927,6 +927,7 @@ impl<'a> Abi<'a> {
 			"buf_copy",
 			"poll",
 			"view",
+			"items",
 			"borrow",
 			"result",
 			"task",

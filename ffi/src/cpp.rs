@@ -245,12 +245,17 @@ impl<'a> Header<'a> {
 		}
 	}
 
-	/// The C++ vector a `Vec` parameter of type `ty` takes: of views, for bytes.
+	/// The C++ type a `Vec` parameter of type `ty` takes: a vector, or, when its items hold
+	/// views, the runtime's `items`, which also takes a returned vector of `buf`s as it is.
 	fn items(&self, ty: &Type) -> String {
 		let Type::List(_, inner) = ty else {
 			unreachable!("{ty:?} is no Vec")
 		};
-		format!("::std::vector<{}>", self.held(inner))
+		let held = self.held(inner);
+		match held == self.owned(inner) || moves(self.abi, inner) {
+			true => format!("::std::vector<{held}>"),
+			false => format!("::{}::items<{held}>", self.ns),
+		}
 	}
 
 	/// The C++ type a parameter's `Vec`, `Option`, or tuple holds a `ty` as: bytes as a view.
@@ -482,6 +487,7 @@ impl<'a> Header<'a> {
 			"cstdio",
 			"cstdlib",
 			"cstring",
+			"initializer_list",
 			"ios",
 			"memory",
 			"mutex",

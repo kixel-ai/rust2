@@ -382,6 +382,45 @@ public:
 	friend struct detail::access;
 };
 
+// Items lent to a call whose items hold bytes, such as `view`s: a `std::vector<T>` in place,
+// or any other range whose items convert to `T`, such as the `std::vector<buf>` a call
+// returned or a `std::vector<std::string>`, converted item by item.
+template <class T>
+class items {
+	::std::vector<T> converted_;
+	const T *data_;
+	::std::size_t size_;
+
+public:
+	items(const ::std::vector<T> &vector RUST2_FFI_LIFETIMEBOUND) noexcept : data_(vector.data()), size_(vector.size()) {}
+	// Copied, since a list's array may not outlive the call's first full-expression.
+	items(::std::initializer_list<T> list) : converted_(list), data_(converted_.data()), size_(converted_.size()) {}
+	template <class R,
+	          class = ::std::enable_if_t<!::std::is_same_v<::std::decay_t<R>, ::std::vector<T>> &&
+	                                     !::std::is_same_v<::std::decay_t<R>, items> &&
+	                                     ::std::is_convertible_v<decltype(*::std::begin(::std::declval<const R &>())), T>>>
+	items(const R &range RUST2_FFI_LIFETIMEBOUND) : converted_(::std::begin(range), ::std::end(range)),
+	                                                 data_(converted_.data()), size_(converted_.size()) {}
+	// A copy would point into the original's converted items.
+	items(const items &) = delete;
+	items &operator=(const items &) = delete;
+	// A moved vector keeps its array, so the pointer stays valid.
+	items(items &&other) noexcept = default;
+
+	const T *begin() const noexcept {
+		return data_;
+	}
+	const T *end() const noexcept {
+		return data_ + size_;
+	}
+	::std::size_t size() const noexcept {
+		return size_;
+	}
+	bool empty() const noexcept {
+		return size_ == 0;
+	}
+};
+
 // What a fallible call returns: its value, or the error that stopped it.
 template <class T, class E>
 class result {

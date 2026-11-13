@@ -2031,13 +2031,18 @@ impl<'a> Gen<'a> {
 		let rust_args: Vec<String> = args.iter().flat_map(|a| a.rust_args.clone()).collect();
 		let after: Vec<String> = args.iter().flat_map(|a| a.after.clone()).collect();
 
-		// A tuple of one returned whole is its element, written through its one out pointer;
-		// one behind a reference or `Box` is returned as a struct, so stays a tuple.
+		// A tuple of one returned whole crosses as its element, written through its one out
+		// pointer, and is wrapped back into the tuple class its parameters take; one behind a
+		// reference or `Box` is returned as a struct, so crosses as a tuple.
+		let single = match &function.ok {
+			Type::Tuple(elements) if elements.len() == 1 => Some(self.tuple_class(elements)),
+			_ => None,
+		};
 		let ok = match &function.ok {
 			Type::Tuple(elements) if elements.len() == 1 => strip_refs(&elements[0]),
 			ok => strip_refs(ok),
 		};
-		let ret_kt = self.kt(&ok);
+		let ret_kt = self.kt(&strip_refs(&function.ok));
 		let err = function.err.as_ref().map(strip_refs);
 		let exception = err.as_ref().map(|e| self.exception(e));
 		// A record returned directly crosses as its scalars, set into slots the call takes,
@@ -2276,6 +2281,10 @@ impl<'a> Gen<'a> {
 			};
 		}
 
+		let value = match &single {
+			Some(class) => format!("{class}({value})"),
+			None => value,
+		};
 		// Wrap the value in each argument's holds, innermost last.
 		let mut code = value;
 		for arg in args.iter().rev() {
@@ -2320,7 +2329,7 @@ impl<'a> Gen<'a> {
 			None => "",
 		};
 		let ret = match ok {
-			Type::Unit => String::new(),
+			Type::Unit if single.is_none() => String::new(),
 			_ => format!(": {ret_kt}"),
 		};
 		let property = matches!(
