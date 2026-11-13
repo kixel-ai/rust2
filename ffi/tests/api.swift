@@ -1102,7 +1102,27 @@ func owned() {
 		check(part == Data(repeating: 3, count: 1024), "a slice outlives the bytes it was cut from")
 	}
 	check(dropped() == before + 3, "releasing the last slice frees Rust's buffer")
+	forward()
+	check(dropped() == before + 4, "a forwarded payload drops once, with its last owner")
 	print("owned ok")
+}
+
+/// Where `bytes` start.
+func address(_ bytes: Data) -> UnsafeRawPointer? {
+	bytes.withUnsafeBytes { $0.baseAddress }
+}
+
+// A payload Rust returned, read and written back, whole and in a record: Rust takes a
+// second owner of its own buffer each time, so the bytes stay where Rust put them.
+func forward() {
+	let channel = Channel.new()
+	let payload = tokenBytes(4, 64)
+	let at = address(payload)
+	channel.send(payload)
+	let got = block { try await channel.recv() }
+	check(address(got) == at && got.count == 64, "a payload sent back is Rust's own")
+	let packet = nextPacket(Packet(seq: 1, payload: got))
+	check(address(packet.payload) == at && packet.payload.count == 64, "a record carries a payload back as Rust's own")
 }
 
 // Each breaks a contract Swift's compiler checks, so it fails to compile, built alone with
