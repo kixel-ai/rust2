@@ -4,6 +4,7 @@ import base64
 import csv
 import hashlib
 import io
+import platform as host_platform
 from pathlib import Path
 import shutil
 import subprocess
@@ -29,6 +30,9 @@ def wheel():
     version = manifest["package"]["version"]
     # Native tags deliberately make no manylinux or older macOS compatibility claim.
     platform = sysconfig.get_platform().replace("-", "_").replace(".", "_")
+    if sys.platform == "darwin":
+        major, minor, *_ = host_platform.mac_ver()[0].split(".")
+        platform = f"macosx_{major}_{minor}_{host_platform.machine()}"
     tag = f"cp311-abi3-{platform}"
     info = f"api_fixture-{version}.dist-info"
     library = {"linux": "libapi.so", "darwin": "libapi.dylib"}[sys.platform]
