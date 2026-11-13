@@ -40,6 +40,16 @@ Swift aborts into raised errors, but what a closure returns, C and C++ checks, a
 panics still abort, so this quest is needed either way; expect to merge with it in the
 test programs and `fixtures.rs`.
 
+Decided with the maintainer on 2026-11-13:
+
+- Mechanism: ✅ each test program marks itself non-dumpable (`prctl(PR_SET_DUMPABLE, 0)`)
+  at its `broken(case)` entry on Linux, and the Kotlin JVM's aborting cases, which cannot
+  call `prctl` on JDK 21 without a preview flag, spawn with `RLIMIT_CORE` at 0 (rejected:
+  `RLIMIT_CORE` at 0 for every case from one spawn helper, since every crash would still
+  start `systemd-coredump` and log a CRIT entry; an `LD_PRELOAD` shim, for the build
+  artifact it adds). Kotlin keeps one CRIT entry per abort and no core.
+- Milestone: ✅ m0 (rejected: m1), since every agent's `just test` pays this.
+
 Verify on the real surface: run `just test` for the ffi fixtures on Linux and compare
 `coredumpctl list` and `journalctl -p crit` over the run before and after; the
 after-run should show no entries from the test programs.
@@ -47,19 +57,6 @@ after-run should show no entries from the test programs.
 ## Hosts
 
 - linux - the core handler and `prctl` are Linux's; macOS's default core limit is already 0
-
-## Waiting
-
-- Maintainer: how the children skip the core handler. Recommended: each test program
-  marks itself non-dumpable at its `broken(case)` entry on Linux, and the Kotlin JVM's
-  aborting cases spawn with `RLIMIT_CORE` at 0, since JDK 21 cannot call `prctl` without
-  a preview flag; that ends the cores, the crash handling and the CRIT entries for every
-  language but Kotlin, which keeps one entry per abort and no core. Alternatives:
-  `RLIMIT_CORE` at 0 from one spawn helper in `fixtures.rs` for every case, the smallest
-  change, ending the cores everywhere but keeping every crash's `systemd-coredump` run
-  and CRIT entry, so `nixos`'s ~35 GB a day of journald syncs stay; or an `LD_PRELOAD`
-  shim that calls `prctl` before `main`, uniform across languages but one more build
-  artifact in the tests, rejected for its weight.
 
 ## Related
 
