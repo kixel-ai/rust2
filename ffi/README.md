@@ -199,7 +199,12 @@ dropped for the other target's span where the file differs.
   the function, as C++ passes; each other binding raises its language's own error, as
   below. A null handle aborts. Only a type some export can misuse is checked: one that is
   not `Sync`, or that an export borrows as `&mut`, moves out, or lends a closure; a call
-  borrowing none of those takes no `status`. A setter borrows as `&mut T` and takes
+  borrowing none of those takes no `status`, and neither does `_free`. A checked type also
+  has `_drop`, which drops the value at once, as a move out would, and leaves the handle to
+  `_free`: a later call fails with `<PREFIX>_STATUS_MOVED`, a second drop does nothing,
+  and one while a call or future borrows the value fails with
+  `<PREFIX>_STATUS_BORROWED`. A record's or data enum's `_eq`, `_to_string`, and `_debug`
+  take a `status` too when it holds a checked handle. A setter borrows as `&mut T` and takes
   its value as `T`, so it writes the value the handle holds, or the one Rust lent it,
   while a getter's copy is C's own: a nested field is got, set, and set back. A type
   whose C++ copies share one value has `_borrowed`, true while a call or future borrows
@@ -411,10 +416,15 @@ in as a `ByteArray`, bytes returned as their owner, and anything else encoded in
   such as a function's or an exception's, takes a trailing `_` where a type, the runtime, or
   an earlier name has it. A keyword is quoted in backticks, and a member named as one Kotlin
   gives its type takes a trailing `_`. A constructor such as `new` stays a companion function: `Counter.new(1)`.
-- **Objects** are classes owning their handle, `AutoCloseable`, which `close()` frees once
-  no call holds it; a call after it throws. One never closed is closed once the GC
-  collects it, on a daemon thread a phantom reference queue feeds. A `self` method, or passing the object by
-  value, closes it once the call returns. `Clone` is `clone()`, and `PartialEq` is `equals`.
+- **Objects** are classes owning their handle, `AutoCloseable`. Of a checked type,
+  `close()` drops the value through Rust's own `_drop`, as Rust's `drop` would: a call
+  after it throws as for a value moved out, and one while a call borrows the value throws
+  instead, as Rust refuses that drop, leaving the value to a later `close()`. Of any other
+  type, `close()` frees the handle, and throws while a call holds it; a call after it
+  throws. Either way the handle itself is freed once the GC collects the object, on a
+  daemon thread a phantom reference queue feeds, so each call passes its object to keep
+  it reachable. A `self` method, or passing the object by value, moves its value out,
+  after which a call throws. `Clone` is `clone()`, and `PartialEq` is `equals`.
   A field is a `val`, `firstGet`, and its setter a function, `firstSet(value)`, named as
   the C ones, since setting an object moves it in and closes its handle, which an
   assignment would hide.
@@ -505,9 +515,9 @@ caller imports it with no ignores.
   method named as a field takes a trailing `_`.
   Constructors such as `new` stay static methods: `Counter.new(1)`.
 - **Objects** are classes owning their handle, freed once their last reference goes,
-  which a call holds until it returns, so there is no `close()`. A `self` method, or
-  passing the object by value, moves its value out and closes it once the call returns,
-  after which a call raises `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable. A field is a
+  which the caller's reference keeps through a call, so there is no `close()`. A `self`
+  method, or passing the object by value, moves its value out, after which a call raises
+  `ValueError`. `Clone` is `clone()`, and `PartialEq` is `==`, unhashable. A field is a
   property, `first_get`, and its setter a method, `first_set(value)`, named as the C ones,
   since setting an object moves it in and closes it, which an assignment would hide.
 - **Checks**: a borrow or move Rust's rules refuse raises, naming the function and the rule,
@@ -599,8 +609,8 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   is an overload with and without it, labelled by its name, as a defaulted argument is:
   `clamped()`, `clamped(low:)`, `clamped(high:)` and `clamped(low:high:)`, up to two per
   function; `Option<&mut T>` is `inout T?`. `Clone` is `clone()`, and `PartialEq` is `==`, which Swift 6.4 makes
-  `Equatable`; `Display` is `description` and `Debug` `debugDescription`, which Swift
-  conforms no noncopyable type to yet. An object that is `Copy`, or thrown as an error,
+  `Equatable` unless it throws, as below; `Display` is `description` and `Debug`
+  `debugDescription`, which Swift conforms no noncopyable type to yet. An object that is `Copy`, or thrown as an error,
   which `Swift.Error` requires be copyable, is a final class instead, whose handle a call
   holds until it returns, and moving its value out closes it, after which a call throws. A
   field is a computed property, `firstGet`, and its setter a function, `firstSet(value)`,
@@ -610,12 +620,16 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   that is not `Sync` on a second thread, throws a `CheckError`, holding the function and
   the rule, before any Rust code runs, so the call changed nothing. So every function whose objects can fail a check `throws`, and a
   field read stays a property whose getter throws, except one of a noncopyable value,
-  whose getter Swift cannot let throw, which is a method, `firstGet()`. `description`,
-  `debugDescription`, `==`, `clone()`, and a copy a closure returns, which cannot throw,
-  trap instead.
+  whose getter Swift cannot let throw, which is a method, `firstGet()`. Of a type whose
+  checks can fail, or a record or enum holding one, `description` and `debugDescription`
+  are getters that throw, and `clone()` and `==` throw, so it conforms to none of
+  `CustomStringConvertible`, `CustomDebugStringConvertible`, and `Equatable`, whose
+  requirements cannot throw. A closed class anywhere in a call's arguments throws too. A
+  copy a closure returns, which has no caller to throw to, traps instead.
 - **Records** are structs and **enums** Swift enums, with a variant's data as associated
   values, all `Sendable`. `PartialEq` is `==`, through Rust's; `Display` is `description`,
-  `Debug` `debugDescription`, and `Default` a static `default()`.
+  `Debug` `debugDescription`, each throwing as an object's does when it holds a checked
+  one, and `Default` a static `default()`.
 - **Bytes** are `Data`. Passed in at a call's top level, Rust reads Swift's own; nested in
   another value, they are copied in. Bytes Rust returns lend its buffer until Swift
   releases the `Data`, though `Data` copies a few bytes inline, freeing Rust's at once.
@@ -702,20 +716,25 @@ reads a go.mod.
   named as a Go keyword, a predeclared name, or a package the code uses, take a trailing
   `_` too, as does a variant's or error's name or any other in a package that another
   there, or the runtime's, takes.
-- **Objects** are pointers to structs owning their handle. `Close()` frees it once no call
-  holds it, and a second `Close()` does nothing; one never closed is closed once the GC
-  collects it, through `runtime.AddCleanup`. A call that meets a closed object, as its
-  receiver or anywhere in its arguments, returns an error matching `rt.ErrClosed`, even when
-  `Close` races it on another goroutine, so every such call returns an `error`; `String()`
-  and `GoString()`, which return none, return its text. A `self` method, or passing the object by value, closes
-  it once the call returns. `Clone` is `Clone()`, and a `pub` field a getter, `FirstGet()`,
+- **Objects** are pointers to structs owning their handle, each an `io.Closer`. Of a
+  checked type, `Close()` drops the value through Rust's own `_drop`, as Rust's `drop`
+  would: a call after it returns an error matching `rt.ErrClosed`, as for a value moved
+  out, and a `Close()` while a call on another goroutine borrows the value returns one
+  matching `rt.ErrBorrowed` instead, as Rust refuses that drop, leaving the value to a
+  later `Close()`. Of any other type, `Close()` frees the handle, and returns an error
+  matching `rt.ErrBorrowed` while a call holds it. A second `Close()` does nothing, and the
+  handle itself is freed once the GC collects the object, through `runtime.AddCleanup`. A
+  call that meets a closed object, as its receiver or anywhere in its arguments, returns an
+  error matching `rt.ErrClosed`, so every such call returns an `error`; `String()` and
+  `GoString()`, which return none, return the error's text. A `self` method, or passing
+  the object by value, moves its value out. `Clone` is `Clone()`, and a `pub` field a getter, `FirstGet()`,
   and a setter, `FirstSet(v)`.
 - **Checks**: a borrow or move Rust's rules refuse returns an error naming the function
   and the rule, before any Rust code runs, so the call changed nothing: one matching `rt.ErrClosed` for a value moved out, or a lent
   object that outlived the one it borrows from, and `rt.ErrBorrowed` for any other. So
-  every function whose objects can fail a check returns an `error`. `String()`,
-  `GoString()`, and what a closure returns have none to return, so they abort with the
-  message.
+  every function whose objects can fail a check returns an `error`. `String()` and
+  `GoString()` return a failed check's text, having no error to return; what a closure
+  returns has no caller to return one to, so it aborts with the message.
 - **Records** are structs, and **plain enums** an `int32` type with a constant per
   variant (`ShapeSquare`). An enum with data is an interface each variant's struct
   implements (`EventMoved{V0: p}`), sealed so only the package's do; its methods are the
@@ -809,13 +828,16 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   a trailing `_` (`Point.default_()`), and names that clash, such as one the runtime
   declares or a data enum's variant class, are kept apart as Kotlin's are. The glue's C
   names are `<prefix>_dart_`, with a `_` more for each C name of the export already there.
-- **Objects** are final classes owning their handle. `close()` frees it once no call
-  holds it, and a second does nothing; one never closed is freed once the garbage
-  collector finds it unreachable, through a finalizable handle of Dart's C API. Any call that meets a
-  closed object, as its receiver or anywhere in its arguments, throws a `StateError`
-  before Rust sees it, and moves none of the call's other arguments. An isolate cannot
-  send an object to another, so no `close()` races a call. A `self` method, or passing the
-  object by value, closes it once the call returns. `Clone` is `clone()`, and a `pub`
+- **Objects** are final classes owning their handle. Of a checked type, `close()` drops
+  the value through Rust's own `_drop`, as Rust's `drop` would: a call after it throws a
+  `StateError` as for a value moved out, and a `close()` while a call borrows the value,
+  from a closure that call runs, throws one instead, as Rust refuses that drop. Of any
+  other type, `close()` frees the handle, and throws while a call holds it. A second
+  `close()` does nothing, and the handle itself is freed once the garbage collector finds
+  the object unreachable, through a finalizable handle of Dart's C API. Any call that meets
+  a closed object, as its receiver or anywhere in its arguments, throws a `StateError`
+  before Rust sees it. A `self` method, or passing the object by value, moves its value
+  out. `Clone` is `clone()`, and a `pub`
   field a getter and a setter.
 - **Checks**: a borrow or move Rust's rules refuse throws a `StateError` naming the
   function and the rule, before any Rust code runs, so the call changed nothing.

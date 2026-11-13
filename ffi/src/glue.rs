@@ -593,6 +593,8 @@ impl Gen<'_> {
 					false => self.object_path(*i),
 				};
 				let value = match (object.copy, self.reserved.get()) {
+					// One no export can misuse is copied out uncounted, as it is borrowed.
+					(true, _) if !self.abi.checked[*i] => format!("*unsafe {{ rt::Object::<{path}>::peek({e}, w) }}"),
 					(true, _) => format!(
 						"*{}",
 						self.checked(&format!(
