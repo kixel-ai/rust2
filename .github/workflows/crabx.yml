@@ -9,7 +9,6 @@ permissions:
 jobs:
   discover:
     if: >-
-      github.event.repository.private == false &&
       (github.event_name == 'push' || github.event_name == 'schedule' ||
        github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request')
     runs-on: ubuntu-24.04
@@ -19,6 +18,14 @@ jobs:
       any: ${{ steps.plan.outputs.any }}
       fixture: ${{ steps.mode.outputs.fixture }}
     steps:
+      - name: Require a public repository
+        env:
+          PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          if [[ "$PRIVATE" != false ]]; then
+            echo '::error::The crabx pipeline supports public repositories only.'
+            exit 1
+          fi
       # Read new job identity fields through JSON until actionlint knows their types.
       - id: identity
         env:
@@ -96,7 +103,7 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
         run: rustup target add "$TARGET"
-        working-directory: source
+        working-directory: source/${{ matrix.path }}
       - name: Linux linker and glibc 2.28 sysroot
         if: runner.os == 'Linux'
         run: python3 -m pip install cargo-zigbuild ziglang
