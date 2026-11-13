@@ -227,6 +227,24 @@ pub unsafe fn params<const N: usize>(
 /// Call into the C ABI with the GIL released, so Rust may call Python back from any
 /// thread while this one waits, then resume what it woke on this thread's loop.
 pub fn call<T>(f: impl FnOnce() -> T) -> T {
+	let released = enter_call();
+	let result = f();
+	leave_call(released);
+	result
+}
+
+/// What [`enter_call`] takes from the thread for [`leave_call`] to give back.
+struct Released {
+	/// The loop running on this thread outside the call, or `0`.
+	outer: usize,
+	/// The thread state the GIL was held in.
+	state: *mut PyThreadState,
+}
+
+/// Release the GIL for a call, first finding the loop the call runs under. Not generic, so
+/// every call shares this code.
+#[inline(never)]
+fn enter_call() -> Released {
 	// A call inside another keeps its loop: none starts on a thread one runs on.
 	let outer = RUNNING.get();
 	if outer == 0 && WAITS.with_borrow(|waits| waits.as_ref().is_some_and(|w| w.load(Ordering::Relaxed) != 0)) {
@@ -239,14 +257,19 @@ pub fn call<T>(f: impl FnOnce() -> T) -> T {
 	}
 	// SAFETY: this thread holds the GIL, and touches no Python object until it retakes it.
 	let state = unsafe { PyEval_SaveThread() };
-	let result = f();
-	// SAFETY: released just above.
-	unsafe { PyEval_RestoreThread(state) };
-	RUNNING.set(outer);
+	Released { outer, state }
+}
+
+/// Retake the GIL a call released, and resume what it woke on this thread's loop. Not
+/// generic, so every call shares this code.
+#[inline(never)]
+fn leave_call(released: Released) {
+	// SAFETY: `released` is what this thread's `enter_call` saved, released just above.
+	unsafe { PyEval_RestoreThread(released.state) };
+	RUNNING.set(released.outer);
 	if !RESUMES.with_borrow(Vec::is_empty) {
 		resume();
 	}
-	result
 }
 
 thread_local! {
