@@ -231,26 +231,35 @@ class Reader(bytes: ByteArray) {
  * has. Freeing first is the fast path, and [untrack] makes it the only one.
  */
 abstract class Cleanup(owner: Any?) : java.lang.ref.PhantomReference<Any>(owner, QUEUE) {
-	// The GC enqueues only a reference still reachable, so each is linked from [head]
-	// until freed.
+	// The GC enqueues only a reference still reachable, so each is linked from its stripe's
+	// head until freed. The stripe is the making thread's, so threads making objects
+	// at once rarely share a lock, and a free from any thread finds it in [stripe].
 	private var prev: Cleanup? = null
 	private var next: Cleanup? = null
+	// Final, so a thread the object reaches unsafely still sees it.
+	private val stripe = STRIPES[java.lang.Thread.currentThread().hashCode() and (STRIPES.size - 1)]
 
-	protected fun track() = synchronized(LOCK) {
-		next = head
-		head?.prev = this
-		head = this
+	protected fun track() {
+		val s = stripe
+		synchronized(s) {
+			next = s.head
+			s.head?.prev = this
+			s.head = this
+		}
 	}
 
 	/** Stop tracking, true if this call did: so whatever frees after it frees once. */
-	protected fun untrack(): Boolean = synchronized(LOCK) {
-		if (head !== this && prev == null) return false
-		prev?.next = next
-		next?.prev = prev
-		if (head === this) head = next
-		prev = null
-		next = null
-		true
+	protected fun untrack(): Boolean {
+		val s = stripe
+		synchronized(s) {
+			if (s.head !== this && prev == null) return false
+			prev?.next = next
+			next?.prev = prev
+			if (s.head === this) s.head = next
+			prev = null
+			next = null
+			return true
+		}
 	}
 
 	/** Run on the cleaner's thread once the owner is collected. */
@@ -258,8 +267,13 @@ abstract class Cleanup(owner: Any?) : java.lang.ref.PhantomReference<Any>(owner,
 
 	private companion object {
 		val QUEUE = java.lang.ref.ReferenceQueue<Any>()
-		val LOCK = Any()
-		var head: Cleanup? = null
+		/** One lock and list of the tracked. */
+		class Stripe {
+			@JvmField var head: Cleanup? = null
+		}
+
+		// A power of two, past the cores a phone or most servers have.
+		val STRIPES = Array(64) { Stripe() }
 
 		init {
 			val thread = java.lang.Thread({

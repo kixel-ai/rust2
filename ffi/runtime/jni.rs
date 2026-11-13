@@ -604,6 +604,23 @@ fn caught(env: *mut JNIEnv, what: &str, cache: &OnceLock<usize>, name: &CStr) ->
 	}
 }
 
+static FAILED: OnceLock<usize> = OnceLock::new();
+
+/// Raise the error a function returned, encoded in `w`, as the `Native.Failed` Kotlin turns
+/// into its exception: a call's success path then returns its value with no `byte[]`.
+pub fn raise(env: *mut JNIEnv, w: Writer) {
+	let id = method(env, &FAILED, c"__failed", c"([B)Ljava/lang/Throwable;");
+	let args = [jvalue { l: w.array(env) }];
+	// SAFETY: `env` is this thread's, and `__failed` takes the error's bytes.
+	unsafe {
+		let failed = ((**env).v1_2.CallStaticObjectMethodA)(env, class(), id, args.as_ptr());
+		if failed.is_null() || ((**env).v1_2.ExceptionCheck)(env) {
+			fail(env, "jni", "a call into Kotlin threw");
+		}
+		((**env).v1_2.Throw)(env, failed);
+	}
+}
+
 /// A Kotlin `Waker` passed by value: Rust holds its only reference.
 pub fn waker(env: *mut JNIEnv, waker: jobject) -> rt::Waker {
 	lend(node(env, waker))

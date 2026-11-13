@@ -99,7 +99,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	}
 	// What the glue calls to read a reader, and to take the error a closure or reader threw.
 	let mut helpers = String::new();
-	let mut looked = vec!["__wake", "__free", "__poll"];
+	let mut looked = vec!["__wake", "__free", "__poll", "__failed"];
 	if g.reads {
 		helpers.push_str(READS);
 		looked.extend(["__read", "__seek", "__io_error"]);
@@ -114,7 +114,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	}
 	let _ = write!(
 		kotlin,
-		"internal object Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __target(): Int\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __waker_wake(raw: Long)\n\n\t@JvmStatic external fun __waker_drop(raw: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as Pollable).poll(waker)\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n{helpers}{}{}}}\n",
+		"internal object Native {{\n\tinit {{\n\t\tSystem.loadLibrary(\"{p}\")\n\t\t// Checked before any other call: a Kotlin file and a library from different\n\t\t// builds must not mix.\n\t\tkotlin.check(__contract().toULong() == {}) {{ \"{p}.kt and the library are from different builds\" }}\n\t}}\n\n\t@JvmStatic external fun __contract(): Long\n\n\t@JvmStatic external fun __target(): Int\n\n\t/** The index of the library's target among those this file serves. */\n\tprivate val target = __target()\n\n\t/** Throws unless the library's target is among those of [on], as the item [what] is. */\n\tfun check(on: ULong, what: String) {{\n\t\tif ((on shr target) and 1uL == 0uL) throw UnsupportedOperationException(\"$what: it is not on this library's target\")\n\t}}\n\n\t@JvmStatic external fun __waker_new(waker: Waker): Long\n\n\t@JvmStatic external fun __waker_free(node: Long)\n\n\t@JvmStatic external fun __waker_wake(raw: Long)\n\n\t@JvmStatic external fun __waker_drop(raw: Long)\n\n\t@JvmStatic external fun __bytes_get(lent: Lent, owner: Long, index: Int): Byte\n\n\t@JvmStatic external fun __bytes_copy(lent: Lent, owner: Long, start: Int, len: Int, destination: ByteArray, at: Int)\n\n\t@JvmStatic external fun __bytes_free(owner: Long)\n\n\t@JvmStatic private fun __wake(waker: Any) = (waker as Waker).wake()\n\n\t@JvmStatic private fun __poll(pollable: Any, waker: Long): Boolean = (pollable as Pollable).poll(waker)\n\n\t@JvmStatic private fun __free(implementation: Any) {{\n\t\tif (implementation is AutoCloseable) implementation.close()\n\t}}\n\n\t/** The encoded error a native call raised, which its function throws as its exception. No stack trace: it is caught at once. */\n\tclass Failed(@JvmField val error: ByteArray) : RuntimeException(null, null, false, false)\n\n\t@JvmStatic private fun __failed(error: ByteArray): Throwable = Failed(error)\n\n{helpers}{}{}}}\n",
 		contract_literal(contract),
 		g.natives,
 		indent_by(RUNTIME, 1),
@@ -1930,6 +1930,53 @@ impl<'a> Gen<'a> {
 				lambda.replace('\n', "\n\t"),
 				s = signal.as_deref().expect("a future takes a signal"),
 			);
+		} else if let Some(c_ok) = direct(&outs, &written, &function.ok, function.err.as_ref()) {
+			// A result of a scalar, a handle, or nothing returns its value directly, raising
+			// its error as a `Native.Failed` Kotlin catches.
+			let err_ty = function.err.as_ref().expect("a direct return is a result's");
+			let (jni, native) = jni_type(&c_ok, &ok);
+			let params: Vec<(&str, &str)> = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect();
+			let mut ptrs = Vec::new();
+			let mut decl = Vec::new();
+			for (name, _) in &outs {
+				decl.push(format!("let mut o_{name} = std::mem::MaybeUninit::zeroed();"));
+				ptrs.push(format!("o_{name}.as_mut_ptr()"));
+			}
+			let ok_name = &outs[0].0;
+			let ret = match c_ok {
+				Ty::Void => String::new(),
+				_ => format!("let ret = o_{ok_name}.assume_init();\n\t\t{}", ret_expr(&c_ok, &ok)),
+			};
+			let err_name = &outs[outs.len() - 1].0;
+			self.native(
+				&bare,
+				&params,
+				(jni, native),
+				&format!(
+					"{}\n\t\t{}\n\t\tif !{} {{\n\t\t\tlet mut w = rt::Writer::default();\n\t\t\t{};\n\t\t\trt::raise(env, w);\n\t\t\treturn std::mem::zeroed();\n\t\t}}\n\t\t{ret}",
+					rust_pre.join("\n\t\t"),
+					decl.join("\n\t\t"),
+					rust_call(&ptrs),
+					put(err_ty, &format!("o_{err_name}.assume_init()")),
+				),
+			);
+			let r = self.fresh("r");
+			let e = self.read_value(err.as_ref().expect("a result's error"), &r);
+			let exception = exception.as_deref().expect("a result's exception");
+			let raw = format!("Native.{bare}({})", exprs.join(", "));
+			let caught = match after.is_empty() {
+				true => format!("try {{\n\t{raw}\n}} catch (f: Native.Failed) {{\n\tNative.Reader(f.error).let {{ {r} -> throw {exception}({e}) }}\n}}"),
+				false => format!(
+					"try {{\n\t{raw}\n}} finally {{\n\t{}\n}}",
+					after.join("\n\t")
+				)
+				.replace("try {\n\t", "try {\n\ttry {\n\t\t")
+				.replacen("\n} finally", &format!("\n\t}} catch (f: Native.Failed) {{\n\t\tNative.Reader(f.error).let {{ {r} -> throw {exception}({e}) }}\n\t}}\n}} finally"), 1),
+			};
+			value = match ok {
+				Type::Unit => caught,
+				_ => self.lift(&ok, &c_ok, &format!("({caught})"), false),
+			};
 		} else if !outs.is_empty() {
 			let types: Vec<&Type> = written.iter().map(|(_, ty)| ty).collect();
 			let (decl, ptrs, write) = self.glue_outs(&outs, &types, &function.ok, function.err.as_ref());
@@ -1976,22 +2023,7 @@ impl<'a> Gen<'a> {
 				_ => jni_type(&c_ret, &ok),
 			};
 			let params: Vec<(&str, &str)> = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect();
-			let ret_expr = match &c_ret {
-				Ty::Void => "ret".to_string(),
-				Ty::Bool => "ret".to_string(),
-				Ty::Int(int) => format!("ret as {}", jni_int(*int)),
-				Ty::F32 | Ty::F64 => "ret".to_string(),
-				Ty::Char => "ret as jint".to_string(),
-				Ty::Enum(_) => "ret".to_string(),
-				Ty::Handle { .. } => "ret as usize as jlong".to_string(),
-				Ty::Waker => "rt::returned(ret)".to_string(),
-				Ty::Buf if string(&ok) => "rt::owned(env, ret)".to_string(),
-				Ty::Buf => "rt::hand(env, ret)".to_string(),
-				_ => format!(
-					"{{ let mut w = rt::Writer::default(); {}; w.array(env) }}",
-					put(&ok, "ret")
-				),
-			};
+			let ret_expr = ret_expr(&c_ret, &ok);
 			self.native(
 				&bare,
 				&params,
@@ -2288,6 +2320,36 @@ fn jni_type(c: &Ty, ty: &Type) -> (&'static str, &'static str) {
 		Ty::ForeignReader => ("jobject", "java.nio.channels.SeekableByteChannel"),
 		Ty::ForeignFuture => ("jobject", "Any"),
 		Ty::Poll | Ty::Out(_) | Ty::Data => unreachable!("{c:?} never crosses JNI"),
+	}
+}
+
+/// The Rust expression returning to Kotlin a value `ret` of type `ok` that C returns as `c`.
+fn ret_expr(c: &Ty, ok: &Type) -> String {
+	match c {
+		Ty::Void | Ty::Bool | Ty::F32 | Ty::F64 | Ty::Enum(_) => "ret".to_string(),
+		Ty::Int(int) => format!("ret as {}", jni_int(*int)),
+		Ty::Char => "ret as jint".to_string(),
+		Ty::Handle { .. } => "ret as usize as jlong".to_string(),
+		Ty::Waker => "rt::returned(ret)".to_string(),
+		Ty::Buf if string(ok) => "rt::owned(env, ret)".to_string(),
+		Ty::Buf => "rt::hand(env, ret)".to_string(),
+		_ => format!("{{ let mut w = rt::Writer::default(); {}; w.array(env) }}", put(ok, "ret")),
+	}
+}
+
+/// The C type of the value a call returns directly, raising its error, if it returns a
+/// result of a scalar, a handle, or nothing and writes back no argument: `Void` for nothing.
+fn direct(outs: &[(String, Ty)], written: &[(String, Type)], ok: &Type, err: Option<&Type>) -> Option<Ty> {
+	if err.is_none() || !written.is_empty() {
+		return None;
+	}
+	match outs {
+		[_] => Some(Ty::Void),
+		[(_, Ty::Out(c)), _] if !matches!(ok, Type::Tuple(e) if e.len() > 1) => match &**c {
+			Ty::Bool | Ty::Int(_) | Ty::F32 | Ty::F64 | Ty::Char | Ty::Enum(_) | Ty::Handle { .. } => Some((**c).clone()),
+			_ => None,
+		},
+		_ => None,
 	}
 }
 
