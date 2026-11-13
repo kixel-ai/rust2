@@ -503,7 +503,10 @@ impl Gen<'_> {
 					self.lift(inner, e, take)
 				),
 				base if Abi::nullable(base) => {
-					format!("if {e}.is_none() {{ None }} else {{ Some({}) }}", self.lift(inner, e, take))
+					format!(
+						"if {e}.is_none() {{ None }} else {{ Some({}) }}",
+						self.lift(inner, e, take)
+					)
 				}
 				_ => format!(
 					"if {e}.some {{ Some({}) }} else {{ None }}",
@@ -1317,15 +1320,18 @@ impl Gen<'_> {
 					(format!("{binding} {local} = {borrow};"), pass)
 				}
 				// Borrowed for the call: held, freeing a buffer it took once the call returns.
-				(Type::Str, Mutability::Not, false) => {
-					(format!("let {local} = unsafe {{ {c}.hold(w) }};"), format!("{local}.str(w)"))
-				}
-				(Type::Slice, Mutability::Not, false) => {
-					(format!("let {local} = unsafe {{ {c}.hold(w) }};"), format!("{local}.bytes()"))
-				}
-				(Type::Path, Mutability::Not, false) => {
-					(format!("let {local} = unsafe {{ {c}.hold(w) }};"), format!("{local}.path(w)"))
-				}
+				(Type::Str, Mutability::Not, false) => (
+					format!("let {local} = unsafe {{ {c}.hold(w) }};"),
+					format!("{local}.str(w)"),
+				),
+				(Type::Slice, Mutability::Not, false) => (
+					format!("let {local} = unsafe {{ {c}.hold(w) }};"),
+					format!("{local}.bytes()"),
+				),
+				(Type::Path, Mutability::Not, false) => (
+					format!("let {local} = unsafe {{ {c}.hold(w) }};"),
+					format!("{local}.path(w)"),
+				),
 				(inner, m, _) => {
 					let (binding, pass) = match m {
 						Mutability::Mut => ("let mut", format!("&mut {local}")),
@@ -1355,9 +1361,7 @@ impl Gen<'_> {
 						_ => "v.path(w)",
 					};
 					(
-						format!(
-							"let {local} = if {c}.is_none() {{ None }} else {{ Some(unsafe {{ {c}.hold(w) }}) }};"
-						),
+						format!("let {local} = if {c}.is_none() {{ None }} else {{ Some(unsafe {{ {c}.hold(w) }}) }};"),
 						format!("{local}.as_ref().map(|v| {view})"),
 					)
 				}
@@ -1371,7 +1375,10 @@ impl Gen<'_> {
 					format!("{local}.as_ref()"),
 				),
 			},
-			_ => (format!("let {local} = {};", self.lift(ty, c, "true")), local.to_string()),
+			_ => (
+				format!("let {local} = {};", self.lift(ty, c, "true")),
+				local.to_string(),
+			),
 		}
 	}
 
@@ -1487,7 +1494,10 @@ impl Gen<'_> {
 				}
 				value => {
 					// Read through a pointer, so the caller keeps it.
-					stmts.push(format!("let a_self = {};", self.lift(value, "unsafe { *this }", "false")));
+					stmts.push(format!(
+						"let a_self = {};",
+						self.lift(value, "unsafe { *this }", "false")
+					));
 					args.push(match receiver {
 						Receiver::Owned => "a_self".to_string(),
 						_ => "&a_self".to_string(),
