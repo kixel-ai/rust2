@@ -40,16 +40,12 @@ export function strings(data: rs.ByteSlice, out: rs.ByteVec): void {
 				const word = option_mapOr$0yzb10z(ArrayString.pop$12(s), 0, (a0: rs.char): rs.u32 => {
 					return a0 as rs.u32;
 				});
-				const byte = (word >>> 0) & 255;
-				const byte2 = (word >>> 8) & 255;
-				const byte3 = (word >>> 16) & 255;
-				const byte4 = (word >>> 24) & 255;
 				rs.byteVecReserve(dst, 4 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = byte;
-				dst.data[pos + 1] = byte2;
-				dst.data[pos + 2] = byte3;
-				dst.data[pos + 3] = byte4;
+				dst.data[pos + 0] = word & 255;
+				dst.data[pos + 1] = (word >>> 8) & 255;
+				dst.data[pos + 2] = (word >>> 16) & 255;
+				dst.data[pos + 3] = (word >>> 24) & 255;
 				dst.length = dst.length + 4;
 				break b2;
 			}
@@ -64,16 +60,12 @@ export function strings(data: rs.ByteSlice, out: rs.ByteVec): void {
 				if (!ArrayString.isEmpty$12(s)) {
 					const dst2 = out;
 					const word2 = ArrayString.remove$12(s, 0) as rs.u32;
-					const byte5 = (word2 >>> 0) & 255;
-					const byte6 = (word2 >>> 8) & 255;
-					const byte7 = (word2 >>> 16) & 255;
-					const byte8 = (word2 >>> 24) & 255;
 					rs.byteVecReserve(dst2, 4 as rs.usize);
 					const pos2 = dst2.length;
-					dst2.data[pos2 + 0] = byte5;
-					dst2.data[pos2 + 1] = byte6;
-					dst2.data[pos2 + 2] = byte7;
-					dst2.data[pos2 + 3] = byte8;
+					dst2.data[pos2 + 0] = word2 & 255;
+					dst2.data[pos2 + 1] = (word2 >>> 8) & 255;
+					dst2.data[pos2 + 2] = (word2 >>> 16) & 255;
+					dst2.data[pos2 + 3] = (word2 >>> 24) & 255;
 					dst2.length = dst2.length + 4;
 					break b2;
 				}

@@ -394,24 +394,18 @@ export function cellU64(dataData: Uint8Array, dataStart: number, dataLen: number
 	const put: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, t10: rs.u64): undefined => {
 		const dst = out2;
 		const word = t10;
-		const byte = rs.intByte(word, 56);
-		const byte2 = rs.intByte(word, 48);
-		const byte3 = rs.intByte(word, 40);
-		const byte4 = rs.intByte(word, 32);
-		const byte5 = rs.intByte(word, 24);
-		const byte6 = rs.intByte(word, 16);
-		const byte7 = rs.intByte(word, 8);
-		const byte8 = rs.intByte(word, 0);
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
 		rs.byteVecReserve(dst, 8 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
-		dst.data[pos + 2] = byte3;
-		dst.data[pos + 3] = byte4;
-		dst.data[pos + 4] = byte5;
-		dst.data[pos + 5] = byte6;
-		dst.data[pos + 6] = byte7;
-		dst.data[pos + 7] = byte8;
+		dst.data[pos + 0] = (word3 >>> 24) & 255;
+		dst.data[pos + 1] = (word3 >>> 16) & 255;
+		dst.data[pos + 2] = (word3 >>> 8) & 255;
+		dst.data[pos + 3] = word3 & 255;
+		dst.data[pos + 4] = (word2 >>> 24) & 255;
+		dst.data[pos + 5] = (word2 >>> 16) & 255;
+		dst.data[pos + 6] = (word2 >>> 8) & 255;
+		dst.data[pos + 7] = word2 & 255;
 		dst.length = dst.length + 8;
 	};
 	let cell: rs.OnceCell<rs.u64> = new rs.OnceCell(undefined);
@@ -579,11 +573,11 @@ export function cellU64(dataData: Uint8Array, dataStart: number, dataLen: number
 				put(out, t8);
 			} else {
 				const dst2 = out;
-				const byte9 = result.error;
+				const byte = result.error;
 				rs.byteVecReserve(dst2, 2 as rs.usize);
 				const pos2 = dst2.length;
 				dst2.data[pos2 + 0] = 0;
-				dst2.data[pos2 + 1] = byte9;
+				dst2.data[pos2 + 1] = byte;
 				dst2.length = dst2.length + 2;
 			}
 		}
@@ -1582,24 +1576,18 @@ export function lockU64(dataData: Uint8Array, dataStart: number, dataLen: number
 	const put: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, t10: rs.u64): undefined => {
 		const dst = out2;
 		const word = t10;
-		const byte = rs.intByte(word, 56);
-		const byte2 = rs.intByte(word, 48);
-		const byte3 = rs.intByte(word, 40);
-		const byte4 = rs.intByte(word, 32);
-		const byte5 = rs.intByte(word, 24);
-		const byte6 = rs.intByte(word, 16);
-		const byte7 = rs.intByte(word, 8);
-		const byte8 = rs.intByte(word, 0);
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
 		rs.byteVecReserve(dst, 8 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
-		dst.data[pos + 2] = byte3;
-		dst.data[pos + 3] = byte4;
-		dst.data[pos + 4] = byte5;
-		dst.data[pos + 5] = byte6;
-		dst.data[pos + 6] = byte7;
-		dst.data[pos + 7] = byte8;
+		dst.data[pos + 0] = (word3 >>> 24) & 255;
+		dst.data[pos + 1] = (word3 >>> 16) & 255;
+		dst.data[pos + 2] = (word3 >>> 8) & 255;
+		dst.data[pos + 3] = word3 & 255;
+		dst.data[pos + 4] = (word2 >>> 24) & 255;
+		dst.data[pos + 5] = (word2 >>> 16) & 255;
+		dst.data[pos + 6] = (word2 >>> 8) & 255;
+		dst.data[pos + 7] = word2 & 255;
 		dst.length = dst.length + 8;
 	};
 	let cell: rs.OnceLock<rs.u64> = new rs.OnceLock(undefined);
@@ -1767,11 +1755,11 @@ export function lockU64(dataData: Uint8Array, dataStart: number, dataLen: number
 				put(out, t8);
 			} else {
 				const dst2 = out;
-				const byte9 = result.error;
+				const byte = result.error;
 				rs.byteVecReserve(dst2, 2 as rs.usize);
 				const pos2 = dst2.length;
 				dst2.data[pos2 + 0] = 0;
-				dst2.data[pos2 + 1] = byte9;
+				dst2.data[pos2 + 1] = byte;
 				dst2.length = dst2.length + 2;
 			}
 		}

@@ -1374,4 +1374,14 @@ pub fn scalar_encodes(data: &[u8], out: &mut Vec<u8>) {
 	let mut changed = lo.to_le_bytes();
 	changed[0] = 42;
 	out.extend_from_slice(&changed);
+	// An element no read names still runs, effects and all.
+	let mut calls = 0u8;
+	let mut bump = |byte: u8| {
+		calls += 1;
+		byte
+	};
+	let unread = [bump(lo as u8), 9, (lo >> 8) as u8];
+	out.push(unread[1]);
+	out.push(unread[2]);
+	out.push(calls);
 }

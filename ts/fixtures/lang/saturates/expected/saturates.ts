@@ -225,9 +225,9 @@ export function hashed$usize(v: rs.usize): rs.u64 {
 export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _20: (a0: rs.ByteVec, a1: rs.u8) => undefined = (out2: rs.ByteVec, v: rs.u8): undefined => {
 		const dst = out2;
-		const byte = (v >>> 0) & 255;
+		const word = v;
 		rs.byteVecReserve(dst, 1 as rs.usize);
-		dst.data[dst.length + 0] = byte;
+		dst.data[dst.length + 0] = word & 255;
 		dst.length = dst.length + 1;
 	};
 	const take: (a0: rs.usize) => rs.u8 = (at: rs.usize): rs.u8 => {
@@ -354,24 +354,18 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_21 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_u8(a);
-		const byte2 = rs.intByte(word2, 56);
-		const byte3 = rs.intByte(word2, 48);
-		const byte4 = rs.intByte(word2, 40);
-		const byte5 = rs.intByte(word2, 32);
-		const byte6 = rs.intByte(word2, 24);
-		const byte7 = rs.intByte(word2, 16);
-		const byte8 = rs.intByte(word2, 8);
-		const byte9 = rs.intByte(word2, 0);
+		const word3 = rs.intWord(word2, 0);
+		const word4 = rs.intWord(word2, 32);
 		rs.byteVecReserve(dst2, 8 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte2;
-		dst2.data[pos2 + 1] = byte3;
-		dst2.data[pos2 + 2] = byte4;
-		dst2.data[pos2 + 3] = byte5;
-		dst2.data[pos2 + 4] = byte6;
-		dst2.data[pos2 + 5] = byte7;
-		dst2.data[pos2 + 6] = byte8;
-		dst2.data[pos2 + 7] = byte9;
+		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word4 & 255;
+		dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_u8(a), hashed$u8(a)) ? 1 : 0);
 		const _266: rs.Iter<rs.u8> = rs.iterSlice([a, b, c, a]);
@@ -426,9 +420,9 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_414[0] !== undefined) {
 			if (_414[1] !== undefined) {
 				const dst3 = out;
-				const byte10 = (rs.u8SaturatingMul(_414[0], _414[1]) >>> 0) & 255;
+				const word5 = rs.u8SaturatingMul(_414[0], _414[1]);
 				rs.byteVecReserve(dst3, 1 as rs.usize);
-				dst3.data[dst3.length + 0] = byte10;
+				dst3.data[dst3.length + 0] = word5 & 255;
 				dst3.length = dst3.length + 1;
 			}
 		}
@@ -443,9 +437,9 @@ export function u8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _457: rs.u8 | undefined = rs.nonZero(a);
 		if (_457 !== undefined) {
 			const dst4 = out;
-			const byte11 = (rs.u8SaturatingAdd(_457, b) >>> 0) & 255;
+			const word6 = rs.u8SaturatingAdd(_457, b);
 			rs.byteVecReserve(dst4, 1 as rs.usize);
-			dst4.data[dst4.length + 0] = byte11;
+			dst4.data[dst4.length + 0] = word6 & 255;
 			dst4.length = dst4.length + 1;
 		}
 	}
@@ -456,12 +450,10 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _20: (a0: rs.ByteVec, a1: rs.u16) => undefined = (out2: rs.ByteVec, v: rs.u16): undefined => {
 		const dst = out2;
 		const word = v;
-		const byte = (word >>> 8) & 255;
-		const byte2 = (word >>> 0) & 255;
 		rs.byteVecReserve(dst, 2 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
+		dst.data[pos + 0] = (word >>> 8) & 255;
+		dst.data[pos + 1] = word & 255;
 		dst.length = dst.length + 2;
 	};
 	const take: (a0: rs.usize) => rs.u16 = (at: rs.usize): rs.u16 => {
@@ -588,24 +580,18 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_21 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_u16(a);
-		const byte3 = rs.intByte(word2, 56);
-		const byte4 = rs.intByte(word2, 48);
-		const byte5 = rs.intByte(word2, 40);
-		const byte6 = rs.intByte(word2, 32);
-		const byte7 = rs.intByte(word2, 24);
-		const byte8 = rs.intByte(word2, 16);
-		const byte9 = rs.intByte(word2, 8);
-		const byte10 = rs.intByte(word2, 0);
+		const word3 = rs.intWord(word2, 0);
+		const word4 = rs.intWord(word2, 32);
 		rs.byteVecReserve(dst2, 8 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte3;
-		dst2.data[pos2 + 1] = byte4;
-		dst2.data[pos2 + 2] = byte5;
-		dst2.data[pos2 + 3] = byte6;
-		dst2.data[pos2 + 4] = byte7;
-		dst2.data[pos2 + 5] = byte8;
-		dst2.data[pos2 + 6] = byte9;
-		dst2.data[pos2 + 7] = byte10;
+		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word4 & 255;
+		dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_u16(a), hashed$u16(a)) ? 1 : 0);
 		const _266: rs.Iter<rs.u16> = rs.iterSlice([a, b, c, a]);
@@ -660,13 +646,11 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_414[0] !== undefined) {
 			if (_414[1] !== undefined) {
 				const dst3 = out;
-				const word3 = rs.u16SaturatingMul(_414[0], _414[1]);
-				const byte11 = (word3 >>> 8) & 255;
-				const byte12 = (word3 >>> 0) & 255;
+				const word5 = rs.u16SaturatingMul(_414[0], _414[1]);
 				rs.byteVecReserve(dst3, 2 as rs.usize);
 				const pos3 = dst3.length;
-				dst3.data[pos3 + 0] = byte11;
-				dst3.data[pos3 + 1] = byte12;
+				dst3.data[pos3 + 0] = (word5 >>> 8) & 255;
+				dst3.data[pos3 + 1] = word5 & 255;
 				dst3.length = dst3.length + 2;
 			}
 		}
@@ -681,13 +665,11 @@ export function u16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _457: rs.u16 | undefined = rs.nonZero(a);
 		if (_457 !== undefined) {
 			const dst4 = out;
-			const word4 = rs.u16SaturatingAdd(_457, b);
-			const byte13 = (word4 >>> 8) & 255;
-			const byte14 = (word4 >>> 0) & 255;
+			const word6 = rs.u16SaturatingAdd(_457, b);
 			rs.byteVecReserve(dst4, 2 as rs.usize);
 			const pos4 = dst4.length;
-			dst4.data[pos4 + 0] = byte13;
-			dst4.data[pos4 + 1] = byte14;
+			dst4.data[pos4 + 0] = (word6 >>> 8) & 255;
+			dst4.data[pos4 + 1] = word6 & 255;
 			dst4.length = dst4.length + 2;
 		}
 	}
@@ -698,16 +680,12 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _20: (a0: rs.ByteVec, a1: rs.u32) => undefined = (out2: rs.ByteVec, v: rs.u32): undefined => {
 		const dst = out2;
 		const word = v;
-		const byte = (word >>> 24) & 255;
-		const byte2 = (word >>> 16) & 255;
-		const byte3 = (word >>> 8) & 255;
-		const byte4 = (word >>> 0) & 255;
 		rs.byteVecReserve(dst, 4 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
-		dst.data[pos + 2] = byte3;
-		dst.data[pos + 3] = byte4;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
 	};
 	const take: (a0: rs.usize) => rs.u32 = (at: rs.usize): rs.u32 => {
@@ -834,24 +812,18 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_21 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_u32(a);
-		const byte5 = rs.intByte(word2, 56);
-		const byte6 = rs.intByte(word2, 48);
-		const byte7 = rs.intByte(word2, 40);
-		const byte8 = rs.intByte(word2, 32);
-		const byte9 = rs.intByte(word2, 24);
-		const byte10 = rs.intByte(word2, 16);
-		const byte11 = rs.intByte(word2, 8);
-		const byte12 = rs.intByte(word2, 0);
+		const word3 = rs.intWord(word2, 0);
+		const word4 = rs.intWord(word2, 32);
 		rs.byteVecReserve(dst2, 8 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte5;
-		dst2.data[pos2 + 1] = byte6;
-		dst2.data[pos2 + 2] = byte7;
-		dst2.data[pos2 + 3] = byte8;
-		dst2.data[pos2 + 4] = byte9;
-		dst2.data[pos2 + 5] = byte10;
-		dst2.data[pos2 + 6] = byte11;
-		dst2.data[pos2 + 7] = byte12;
+		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word4 & 255;
+		dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_u32(a), hashed$u32(a)) ? 1 : 0);
 		const _266: rs.Iter<rs.u32> = rs.iterSlice([a, b, c, a]);
@@ -906,17 +878,13 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_414[0] !== undefined) {
 			if (_414[1] !== undefined) {
 				const dst3 = out;
-				const word3 = rs.u32SaturatingMul(_414[0], _414[1]);
-				const byte13 = (word3 >>> 24) & 255;
-				const byte14 = (word3 >>> 16) & 255;
-				const byte15 = (word3 >>> 8) & 255;
-				const byte16 = (word3 >>> 0) & 255;
+				const word5 = rs.u32SaturatingMul(_414[0], _414[1]);
 				rs.byteVecReserve(dst3, 4 as rs.usize);
 				const pos3 = dst3.length;
-				dst3.data[pos3 + 0] = byte13;
-				dst3.data[pos3 + 1] = byte14;
-				dst3.data[pos3 + 2] = byte15;
-				dst3.data[pos3 + 3] = byte16;
+				dst3.data[pos3 + 0] = (word5 >>> 24) & 255;
+				dst3.data[pos3 + 1] = (word5 >>> 16) & 255;
+				dst3.data[pos3 + 2] = (word5 >>> 8) & 255;
+				dst3.data[pos3 + 3] = word5 & 255;
 				dst3.length = dst3.length + 4;
 			}
 		}
@@ -931,17 +899,13 @@ export function u32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _457: rs.u32 | undefined = rs.nonZero(a);
 		if (_457 !== undefined) {
 			const dst4 = out;
-			const word4 = rs.u32SaturatingAdd(_457, b);
-			const byte17 = (word4 >>> 24) & 255;
-			const byte18 = (word4 >>> 16) & 255;
-			const byte19 = (word4 >>> 8) & 255;
-			const byte20 = (word4 >>> 0) & 255;
+			const word6 = rs.u32SaturatingAdd(_457, b);
 			rs.byteVecReserve(dst4, 4 as rs.usize);
 			const pos4 = dst4.length;
-			dst4.data[pos4 + 0] = byte17;
-			dst4.data[pos4 + 1] = byte18;
-			dst4.data[pos4 + 2] = byte19;
-			dst4.data[pos4 + 3] = byte20;
+			dst4.data[pos4 + 0] = (word6 >>> 24) & 255;
+			dst4.data[pos4 + 1] = (word6 >>> 16) & 255;
+			dst4.data[pos4 + 2] = (word6 >>> 8) & 255;
+			dst4.data[pos4 + 3] = word6 & 255;
 			dst4.length = dst4.length + 4;
 		}
 	}
@@ -952,24 +916,18 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _20: (a0: rs.ByteVec, a1: rs.u64) => undefined = (out2: rs.ByteVec, v: rs.u64): undefined => {
 		const dst = out2;
 		const word = v;
-		const byte = rs.intByte(word, 56);
-		const byte2 = rs.intByte(word, 48);
-		const byte3 = rs.intByte(word, 40);
-		const byte4 = rs.intByte(word, 32);
-		const byte5 = rs.intByte(word, 24);
-		const byte6 = rs.intByte(word, 16);
-		const byte7 = rs.intByte(word, 8);
-		const byte8 = rs.intByte(word, 0);
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
 		rs.byteVecReserve(dst, 8 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
-		dst.data[pos + 2] = byte3;
-		dst.data[pos + 3] = byte4;
-		dst.data[pos + 4] = byte5;
-		dst.data[pos + 5] = byte6;
-		dst.data[pos + 6] = byte7;
-		dst.data[pos + 7] = byte8;
+		dst.data[pos + 0] = (word3 >>> 24) & 255;
+		dst.data[pos + 1] = (word3 >>> 16) & 255;
+		dst.data[pos + 2] = (word3 >>> 8) & 255;
+		dst.data[pos + 3] = word3 & 255;
+		dst.data[pos + 4] = (word2 >>> 24) & 255;
+		dst.data[pos + 5] = (word2 >>> 16) & 255;
+		dst.data[pos + 6] = (word2 >>> 8) & 255;
+		dst.data[pos + 7] = word2 & 255;
 		dst.length = dst.length + 8;
 	};
 	const take: (a0: rs.usize) => rs.u64 = (at: rs.usize): rs.u64 => {
@@ -1095,25 +1053,19 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_20(out, part16);
 	} else if (_21 === 17) {
 		const dst2 = out;
-		const word2 = hashed$num_Saturating_u64(a);
-		const byte9 = rs.intByte(word2, 56);
-		const byte10 = rs.intByte(word2, 48);
-		const byte11 = rs.intByte(word2, 40);
-		const byte12 = rs.intByte(word2, 32);
-		const byte13 = rs.intByte(word2, 24);
-		const byte14 = rs.intByte(word2, 16);
-		const byte15 = rs.intByte(word2, 8);
-		const byte16 = rs.intByte(word2, 0);
+		const word4 = hashed$num_Saturating_u64(a);
+		const word5 = rs.intWord(word4, 0);
+		const word6 = rs.intWord(word4, 32);
 		rs.byteVecReserve(dst2, 8 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte9;
-		dst2.data[pos2 + 1] = byte10;
-		dst2.data[pos2 + 2] = byte11;
-		dst2.data[pos2 + 3] = byte12;
-		dst2.data[pos2 + 4] = byte13;
-		dst2.data[pos2 + 5] = byte14;
-		dst2.data[pos2 + 6] = byte15;
-		dst2.data[pos2 + 7] = byte16;
+		dst2.data[pos2 + 0] = (word6 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word6 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word6 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word6 & 255;
+		dst2.data[pos2 + 4] = (word5 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word5 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word5 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word5 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_u64(a), hashed$u64(a)) ? 1 : 0);
 		const _266: rs.Iter<rs.u64> = rs.iterSlice([a, b, c, a]);
@@ -1168,25 +1120,19 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_414[0] !== undefined) {
 			if (_414[1] !== undefined) {
 				const dst3 = out;
-				const word3 = rs.u64SaturatingMul(_414[0], _414[1]);
-				const byte17 = rs.intByte(word3, 56);
-				const byte18 = rs.intByte(word3, 48);
-				const byte19 = rs.intByte(word3, 40);
-				const byte20 = rs.intByte(word3, 32);
-				const byte21 = rs.intByte(word3, 24);
-				const byte22 = rs.intByte(word3, 16);
-				const byte23 = rs.intByte(word3, 8);
-				const byte24 = rs.intByte(word3, 0);
+				const word7 = rs.u64SaturatingMul(_414[0], _414[1]);
+				const word8 = rs.intWord(word7, 0);
+				const word9 = rs.intWord(word7, 32);
 				rs.byteVecReserve(dst3, 8 as rs.usize);
 				const pos3 = dst3.length;
-				dst3.data[pos3 + 0] = byte17;
-				dst3.data[pos3 + 1] = byte18;
-				dst3.data[pos3 + 2] = byte19;
-				dst3.data[pos3 + 3] = byte20;
-				dst3.data[pos3 + 4] = byte21;
-				dst3.data[pos3 + 5] = byte22;
-				dst3.data[pos3 + 6] = byte23;
-				dst3.data[pos3 + 7] = byte24;
+				dst3.data[pos3 + 0] = (word9 >>> 24) & 255;
+				dst3.data[pos3 + 1] = (word9 >>> 16) & 255;
+				dst3.data[pos3 + 2] = (word9 >>> 8) & 255;
+				dst3.data[pos3 + 3] = word9 & 255;
+				dst3.data[pos3 + 4] = (word8 >>> 24) & 255;
+				dst3.data[pos3 + 5] = (word8 >>> 16) & 255;
+				dst3.data[pos3 + 6] = (word8 >>> 8) & 255;
+				dst3.data[pos3 + 7] = word8 & 255;
 				dst3.length = dst3.length + 8;
 			}
 		}
@@ -1201,25 +1147,19 @@ export function u64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _457: rs.u64 | undefined = rs.nonZero(a);
 		if (_457 !== undefined) {
 			const dst4 = out;
-			const word4 = rs.u64SaturatingAdd(_457, b);
-			const byte25 = rs.intByte(word4, 56);
-			const byte26 = rs.intByte(word4, 48);
-			const byte27 = rs.intByte(word4, 40);
-			const byte28 = rs.intByte(word4, 32);
-			const byte29 = rs.intByte(word4, 24);
-			const byte30 = rs.intByte(word4, 16);
-			const byte31 = rs.intByte(word4, 8);
-			const byte32 = rs.intByte(word4, 0);
+			const word10 = rs.u64SaturatingAdd(_457, b);
+			const word11 = rs.intWord(word10, 0);
+			const word12 = rs.intWord(word10, 32);
 			rs.byteVecReserve(dst4, 8 as rs.usize);
 			const pos4 = dst4.length;
-			dst4.data[pos4 + 0] = byte25;
-			dst4.data[pos4 + 1] = byte26;
-			dst4.data[pos4 + 2] = byte27;
-			dst4.data[pos4 + 3] = byte28;
-			dst4.data[pos4 + 4] = byte29;
-			dst4.data[pos4 + 5] = byte30;
-			dst4.data[pos4 + 6] = byte31;
-			dst4.data[pos4 + 7] = byte32;
+			dst4.data[pos4 + 0] = (word12 >>> 24) & 255;
+			dst4.data[pos4 + 1] = (word12 >>> 16) & 255;
+			dst4.data[pos4 + 2] = (word12 >>> 8) & 255;
+			dst4.data[pos4 + 3] = word12 & 255;
+			dst4.data[pos4 + 4] = (word11 >>> 24) & 255;
+			dst4.data[pos4 + 5] = (word11 >>> 16) & 255;
+			dst4.data[pos4 + 6] = (word11 >>> 8) & 255;
+			dst4.data[pos4 + 7] = word11 & 255;
 			dst4.length = dst4.length + 8;
 		}
 	}
@@ -1230,40 +1170,28 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _20: (a0: rs.ByteVec, a1: rs.u128) => undefined = (out2: rs.ByteVec, v: rs.u128): undefined => {
 		const dst = out2;
 		const word = v;
-		const byte = rs.intByte(word, 120);
-		const byte2 = rs.intByte(word, 112);
-		const byte3 = rs.intByte(word, 104);
-		const byte4 = rs.intByte(word, 96);
-		const byte5 = rs.intByte(word, 88);
-		const byte6 = rs.intByte(word, 80);
-		const byte7 = rs.intByte(word, 72);
-		const byte8 = rs.intByte(word, 64);
-		const byte9 = rs.intByte(word, 56);
-		const byte10 = rs.intByte(word, 48);
-		const byte11 = rs.intByte(word, 40);
-		const byte12 = rs.intByte(word, 32);
-		const byte13 = rs.intByte(word, 24);
-		const byte14 = rs.intByte(word, 16);
-		const byte15 = rs.intByte(word, 8);
-		const byte16 = rs.intByte(word, 0);
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
 		rs.byteVecReserve(dst, 16 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
-		dst.data[pos + 2] = byte3;
-		dst.data[pos + 3] = byte4;
-		dst.data[pos + 4] = byte5;
-		dst.data[pos + 5] = byte6;
-		dst.data[pos + 6] = byte7;
-		dst.data[pos + 7] = byte8;
-		dst.data[pos + 8] = byte9;
-		dst.data[pos + 9] = byte10;
-		dst.data[pos + 10] = byte11;
-		dst.data[pos + 11] = byte12;
-		dst.data[pos + 12] = byte13;
-		dst.data[pos + 13] = byte14;
-		dst.data[pos + 14] = byte15;
-		dst.data[pos + 15] = byte16;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
 		dst.length = dst.length + 16;
 	};
 	const take: (a0: rs.usize) => rs.u128 = (at: rs.usize): rs.u128 => {
@@ -1389,25 +1317,19 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_20(out, part16);
 	} else if (_21 === 17) {
 		const dst2 = out;
-		const word2 = hashed$num_Saturating_u128(a);
-		const byte17 = rs.intByte(word2, 56);
-		const byte18 = rs.intByte(word2, 48);
-		const byte19 = rs.intByte(word2, 40);
-		const byte20 = rs.intByte(word2, 32);
-		const byte21 = rs.intByte(word2, 24);
-		const byte22 = rs.intByte(word2, 16);
-		const byte23 = rs.intByte(word2, 8);
-		const byte24 = rs.intByte(word2, 0);
+		const word6 = hashed$num_Saturating_u128(a);
+		const word7 = rs.intWord(word6, 0);
+		const word8 = rs.intWord(word6, 32);
 		rs.byteVecReserve(dst2, 8 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte17;
-		dst2.data[pos2 + 1] = byte18;
-		dst2.data[pos2 + 2] = byte19;
-		dst2.data[pos2 + 3] = byte20;
-		dst2.data[pos2 + 4] = byte21;
-		dst2.data[pos2 + 5] = byte22;
-		dst2.data[pos2 + 6] = byte23;
-		dst2.data[pos2 + 7] = byte24;
+		dst2.data[pos2 + 0] = (word8 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word8 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word8 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word8 & 255;
+		dst2.data[pos2 + 4] = (word7 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word7 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word7 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word7 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_u128(a), hashed$u128(a)) ? 1 : 0);
 		const _266: rs.Iter<rs.u128> = rs.iterSlice([a, b, c, a]);
@@ -1462,41 +1384,29 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_414[0] !== undefined) {
 			if (_414[1] !== undefined) {
 				const dst3 = out;
-				const word3 = rs.u128SaturatingMul(_414[0], _414[1]);
-				const byte25 = rs.intByte(word3, 120);
-				const byte26 = rs.intByte(word3, 112);
-				const byte27 = rs.intByte(word3, 104);
-				const byte28 = rs.intByte(word3, 96);
-				const byte29 = rs.intByte(word3, 88);
-				const byte30 = rs.intByte(word3, 80);
-				const byte31 = rs.intByte(word3, 72);
-				const byte32 = rs.intByte(word3, 64);
-				const byte33 = rs.intByte(word3, 56);
-				const byte34 = rs.intByte(word3, 48);
-				const byte35 = rs.intByte(word3, 40);
-				const byte36 = rs.intByte(word3, 32);
-				const byte37 = rs.intByte(word3, 24);
-				const byte38 = rs.intByte(word3, 16);
-				const byte39 = rs.intByte(word3, 8);
-				const byte40 = rs.intByte(word3, 0);
+				const word9 = rs.u128SaturatingMul(_414[0], _414[1]);
+				const word10 = rs.intWord(word9, 0);
+				const word11 = rs.intWord(word9, 32);
+				const word12 = rs.intWord(word9, 64);
+				const word13 = rs.intWord(word9, 96);
 				rs.byteVecReserve(dst3, 16 as rs.usize);
 				const pos3 = dst3.length;
-				dst3.data[pos3 + 0] = byte25;
-				dst3.data[pos3 + 1] = byte26;
-				dst3.data[pos3 + 2] = byte27;
-				dst3.data[pos3 + 3] = byte28;
-				dst3.data[pos3 + 4] = byte29;
-				dst3.data[pos3 + 5] = byte30;
-				dst3.data[pos3 + 6] = byte31;
-				dst3.data[pos3 + 7] = byte32;
-				dst3.data[pos3 + 8] = byte33;
-				dst3.data[pos3 + 9] = byte34;
-				dst3.data[pos3 + 10] = byte35;
-				dst3.data[pos3 + 11] = byte36;
-				dst3.data[pos3 + 12] = byte37;
-				dst3.data[pos3 + 13] = byte38;
-				dst3.data[pos3 + 14] = byte39;
-				dst3.data[pos3 + 15] = byte40;
+				dst3.data[pos3 + 0] = (word13 >>> 24) & 255;
+				dst3.data[pos3 + 1] = (word13 >>> 16) & 255;
+				dst3.data[pos3 + 2] = (word13 >>> 8) & 255;
+				dst3.data[pos3 + 3] = word13 & 255;
+				dst3.data[pos3 + 4] = (word12 >>> 24) & 255;
+				dst3.data[pos3 + 5] = (word12 >>> 16) & 255;
+				dst3.data[pos3 + 6] = (word12 >>> 8) & 255;
+				dst3.data[pos3 + 7] = word12 & 255;
+				dst3.data[pos3 + 8] = (word11 >>> 24) & 255;
+				dst3.data[pos3 + 9] = (word11 >>> 16) & 255;
+				dst3.data[pos3 + 10] = (word11 >>> 8) & 255;
+				dst3.data[pos3 + 11] = word11 & 255;
+				dst3.data[pos3 + 12] = (word10 >>> 24) & 255;
+				dst3.data[pos3 + 13] = (word10 >>> 16) & 255;
+				dst3.data[pos3 + 14] = (word10 >>> 8) & 255;
+				dst3.data[pos3 + 15] = word10 & 255;
 				dst3.length = dst3.length + 16;
 			}
 		}
@@ -1511,41 +1421,29 @@ export function u128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _457: rs.u128 | undefined = rs.nonZero(a);
 		if (_457 !== undefined) {
 			const dst4 = out;
-			const word4 = rs.u128SaturatingAdd(_457, b);
-			const byte41 = rs.intByte(word4, 120);
-			const byte42 = rs.intByte(word4, 112);
-			const byte43 = rs.intByte(word4, 104);
-			const byte44 = rs.intByte(word4, 96);
-			const byte45 = rs.intByte(word4, 88);
-			const byte46 = rs.intByte(word4, 80);
-			const byte47 = rs.intByte(word4, 72);
-			const byte48 = rs.intByte(word4, 64);
-			const byte49 = rs.intByte(word4, 56);
-			const byte50 = rs.intByte(word4, 48);
-			const byte51 = rs.intByte(word4, 40);
-			const byte52 = rs.intByte(word4, 32);
-			const byte53 = rs.intByte(word4, 24);
-			const byte54 = rs.intByte(word4, 16);
-			const byte55 = rs.intByte(word4, 8);
-			const byte56 = rs.intByte(word4, 0);
+			const word14 = rs.u128SaturatingAdd(_457, b);
+			const word15 = rs.intWord(word14, 0);
+			const word16 = rs.intWord(word14, 32);
+			const word17 = rs.intWord(word14, 64);
+			const word18 = rs.intWord(word14, 96);
 			rs.byteVecReserve(dst4, 16 as rs.usize);
 			const pos4 = dst4.length;
-			dst4.data[pos4 + 0] = byte41;
-			dst4.data[pos4 + 1] = byte42;
-			dst4.data[pos4 + 2] = byte43;
-			dst4.data[pos4 + 3] = byte44;
-			dst4.data[pos4 + 4] = byte45;
-			dst4.data[pos4 + 5] = byte46;
-			dst4.data[pos4 + 6] = byte47;
-			dst4.data[pos4 + 7] = byte48;
-			dst4.data[pos4 + 8] = byte49;
-			dst4.data[pos4 + 9] = byte50;
-			dst4.data[pos4 + 10] = byte51;
-			dst4.data[pos4 + 11] = byte52;
-			dst4.data[pos4 + 12] = byte53;
-			dst4.data[pos4 + 13] = byte54;
-			dst4.data[pos4 + 14] = byte55;
-			dst4.data[pos4 + 15] = byte56;
+			dst4.data[pos4 + 0] = (word18 >>> 24) & 255;
+			dst4.data[pos4 + 1] = (word18 >>> 16) & 255;
+			dst4.data[pos4 + 2] = (word18 >>> 8) & 255;
+			dst4.data[pos4 + 3] = word18 & 255;
+			dst4.data[pos4 + 4] = (word17 >>> 24) & 255;
+			dst4.data[pos4 + 5] = (word17 >>> 16) & 255;
+			dst4.data[pos4 + 6] = (word17 >>> 8) & 255;
+			dst4.data[pos4 + 7] = word17 & 255;
+			dst4.data[pos4 + 8] = (word16 >>> 24) & 255;
+			dst4.data[pos4 + 9] = (word16 >>> 16) & 255;
+			dst4.data[pos4 + 10] = (word16 >>> 8) & 255;
+			dst4.data[pos4 + 11] = word16 & 255;
+			dst4.data[pos4 + 12] = (word15 >>> 24) & 255;
+			dst4.data[pos4 + 13] = (word15 >>> 16) & 255;
+			dst4.data[pos4 + 14] = (word15 >>> 8) & 255;
+			dst4.data[pos4 + 15] = word15 & 255;
 			dst4.length = dst4.length + 16;
 		}
 	}
@@ -1556,16 +1454,12 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _20: (a0: rs.ByteVec, a1: rs.usize) => undefined = (out2: rs.ByteVec, v: rs.usize): undefined => {
 		const dst = out2;
 		const word = v;
-		const byte = (word >>> 24) & 255;
-		const byte2 = (word >>> 16) & 255;
-		const byte3 = (word >>> 8) & 255;
-		const byte4 = (word >>> 0) & 255;
 		rs.byteVecReserve(dst, 4 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
-		dst.data[pos + 2] = byte3;
-		dst.data[pos + 3] = byte4;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
 	};
 	const take: (a0: rs.usize) => rs.usize = (at: rs.usize): rs.usize => {
@@ -1692,24 +1586,18 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_21 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_usize(a);
-		const byte5 = rs.intByte(word2, 56);
-		const byte6 = rs.intByte(word2, 48);
-		const byte7 = rs.intByte(word2, 40);
-		const byte8 = rs.intByte(word2, 32);
-		const byte9 = rs.intByte(word2, 24);
-		const byte10 = rs.intByte(word2, 16);
-		const byte11 = rs.intByte(word2, 8);
-		const byte12 = rs.intByte(word2, 0);
+		const word3 = rs.intWord(word2, 0);
+		const word4 = rs.intWord(word2, 32);
 		rs.byteVecReserve(dst2, 8 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte5;
-		dst2.data[pos2 + 1] = byte6;
-		dst2.data[pos2 + 2] = byte7;
-		dst2.data[pos2 + 3] = byte8;
-		dst2.data[pos2 + 4] = byte9;
-		dst2.data[pos2 + 5] = byte10;
-		dst2.data[pos2 + 6] = byte11;
-		dst2.data[pos2 + 7] = byte12;
+		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word4 & 255;
+		dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_usize(a), hashed$usize(a)) ? 1 : 0);
 		const _266: rs.Iter<rs.usize> = rs.iterSlice([a, b, c, a]);
@@ -1764,17 +1652,13 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_414[0] !== undefined) {
 			if (_414[1] !== undefined) {
 				const dst3 = out;
-				const word3 = rs.usizeSaturatingMul(_414[0], _414[1]);
-				const byte13 = (word3 >>> 24) & 255;
-				const byte14 = (word3 >>> 16) & 255;
-				const byte15 = (word3 >>> 8) & 255;
-				const byte16 = (word3 >>> 0) & 255;
+				const word5 = rs.usizeSaturatingMul(_414[0], _414[1]);
 				rs.byteVecReserve(dst3, 4 as rs.usize);
 				const pos3 = dst3.length;
-				dst3.data[pos3 + 0] = byte13;
-				dst3.data[pos3 + 1] = byte14;
-				dst3.data[pos3 + 2] = byte15;
-				dst3.data[pos3 + 3] = byte16;
+				dst3.data[pos3 + 0] = (word5 >>> 24) & 255;
+				dst3.data[pos3 + 1] = (word5 >>> 16) & 255;
+				dst3.data[pos3 + 2] = (word5 >>> 8) & 255;
+				dst3.data[pos3 + 3] = word5 & 255;
 				dst3.length = dst3.length + 4;
 			}
 		}
@@ -1789,17 +1673,13 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _457: rs.usize | undefined = rs.nonZero(a);
 		if (_457 !== undefined) {
 			const dst4 = out;
-			const word4 = rs.usizeSaturatingAdd(_457, b);
-			const byte17 = (word4 >>> 24) & 255;
-			const byte18 = (word4 >>> 16) & 255;
-			const byte19 = (word4 >>> 8) & 255;
-			const byte20 = (word4 >>> 0) & 255;
+			const word6 = rs.usizeSaturatingAdd(_457, b);
 			rs.byteVecReserve(dst4, 4 as rs.usize);
 			const pos4 = dst4.length;
-			dst4.data[pos4 + 0] = byte17;
-			dst4.data[pos4 + 1] = byte18;
-			dst4.data[pos4 + 2] = byte19;
-			dst4.data[pos4 + 3] = byte20;
+			dst4.data[pos4 + 0] = (word6 >>> 24) & 255;
+			dst4.data[pos4 + 1] = (word6 >>> 16) & 255;
+			dst4.data[pos4 + 2] = (word6 >>> 8) & 255;
+			dst4.data[pos4 + 3] = word6 & 255;
 			dst4.length = dst4.length + 4;
 		}
 	}
@@ -1809,9 +1689,9 @@ export function usizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _20: (a0: rs.ByteVec, a1: rs.i8) => undefined = (out2: rs.ByteVec, v: rs.i8): undefined => {
 		const dst = out2;
-		const byte = (v >>> 0) & 255;
+		const word = v;
 		rs.byteVecReserve(dst, 1 as rs.usize);
-		dst.data[dst.length + 0] = byte;
+		dst.data[dst.length + 0] = word & 255;
 		dst.length = dst.length + 1;
 	};
 	const take: (a0: rs.usize) => rs.i8 = (at: rs.usize): rs.i8 => {
@@ -1945,24 +1825,18 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_21 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_i8(a);
-		const byte2 = rs.intByte(word2, 56);
-		const byte3 = rs.intByte(word2, 48);
-		const byte4 = rs.intByte(word2, 40);
-		const byte5 = rs.intByte(word2, 32);
-		const byte6 = rs.intByte(word2, 24);
-		const byte7 = rs.intByte(word2, 16);
-		const byte8 = rs.intByte(word2, 8);
-		const byte9 = rs.intByte(word2, 0);
+		const word3 = rs.intWord(word2, 0);
+		const word4 = rs.intWord(word2, 32);
 		rs.byteVecReserve(dst2, 8 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte2;
-		dst2.data[pos2 + 1] = byte3;
-		dst2.data[pos2 + 2] = byte4;
-		dst2.data[pos2 + 3] = byte5;
-		dst2.data[pos2 + 4] = byte6;
-		dst2.data[pos2 + 5] = byte7;
-		dst2.data[pos2 + 6] = byte8;
-		dst2.data[pos2 + 7] = byte9;
+		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word4 & 255;
+		dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_i8(a), hashed$i8(a)) ? 1 : 0);
 		const _281: rs.Iter<rs.i8> = rs.iterSlice([a, b, c, a]);
@@ -2005,9 +1879,9 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_388[0] !== undefined) {
 			if (_388[1] !== undefined) {
 				const dst3 = out;
-				const byte10 = (rs.i8SaturatingMul(_388[0], _388[1]) >>> 0) & 255;
+				const word5 = rs.i8SaturatingMul(_388[0], _388[1]);
 				rs.byteVecReserve(dst3, 1 as rs.usize);
-				dst3.data[dst3.length + 0] = byte10;
+				dst3.data[dst3.length + 0] = word5 & 255;
 				dst3.length = dst3.length + 1;
 			}
 		}
@@ -2023,9 +1897,9 @@ export function i8s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _431: rs.i8 | undefined = rs.nonZero(a);
 		if (_431 !== undefined) {
 			const dst4 = out;
-			const byte11 = (rs.i8SaturatingSub(0, _431) >>> 0) & 255;
+			const word6 = rs.i8SaturatingSub(0, _431);
 			rs.byteVecReserve(dst4, 1 as rs.usize);
-			dst4.data[dst4.length + 0] = byte11;
+			dst4.data[dst4.length + 0] = word6 & 255;
 			dst4.length = dst4.length + 1;
 		}
 	}
@@ -2036,12 +1910,10 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _20: (a0: rs.ByteVec, a1: rs.i16) => undefined = (out2: rs.ByteVec, v: rs.i16): undefined => {
 		const dst = out2;
 		const word = v;
-		const byte = (word >>> 8) & 255;
-		const byte2 = (word >>> 0) & 255;
 		rs.byteVecReserve(dst, 2 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
+		dst.data[pos + 0] = (word >>> 8) & 255;
+		dst.data[pos + 1] = word & 255;
 		dst.length = dst.length + 2;
 	};
 	const take: (a0: rs.usize) => rs.i16 = (at: rs.usize): rs.i16 => {
@@ -2175,24 +2047,18 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_21 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_i16(a);
-		const byte3 = rs.intByte(word2, 56);
-		const byte4 = rs.intByte(word2, 48);
-		const byte5 = rs.intByte(word2, 40);
-		const byte6 = rs.intByte(word2, 32);
-		const byte7 = rs.intByte(word2, 24);
-		const byte8 = rs.intByte(word2, 16);
-		const byte9 = rs.intByte(word2, 8);
-		const byte10 = rs.intByte(word2, 0);
+		const word3 = rs.intWord(word2, 0);
+		const word4 = rs.intWord(word2, 32);
 		rs.byteVecReserve(dst2, 8 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte3;
-		dst2.data[pos2 + 1] = byte4;
-		dst2.data[pos2 + 2] = byte5;
-		dst2.data[pos2 + 3] = byte6;
-		dst2.data[pos2 + 4] = byte7;
-		dst2.data[pos2 + 5] = byte8;
-		dst2.data[pos2 + 6] = byte9;
-		dst2.data[pos2 + 7] = byte10;
+		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word4 & 255;
+		dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_i16(a), hashed$i16(a)) ? 1 : 0);
 		const _281: rs.Iter<rs.i16> = rs.iterSlice([a, b, c, a]);
@@ -2235,13 +2101,11 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_388[0] !== undefined) {
 			if (_388[1] !== undefined) {
 				const dst3 = out;
-				const word3 = rs.i16SaturatingMul(_388[0], _388[1]);
-				const byte11 = (word3 >>> 8) & 255;
-				const byte12 = (word3 >>> 0) & 255;
+				const word5 = rs.i16SaturatingMul(_388[0], _388[1]);
 				rs.byteVecReserve(dst3, 2 as rs.usize);
 				const pos3 = dst3.length;
-				dst3.data[pos3 + 0] = byte11;
-				dst3.data[pos3 + 1] = byte12;
+				dst3.data[pos3 + 0] = (word5 >>> 8) & 255;
+				dst3.data[pos3 + 1] = word5 & 255;
 				dst3.length = dst3.length + 2;
 			}
 		}
@@ -2257,13 +2121,11 @@ export function i16s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _431: rs.i16 | undefined = rs.nonZero(a);
 		if (_431 !== undefined) {
 			const dst4 = out;
-			const word4 = rs.i16SaturatingSub(0, _431);
-			const byte13 = (word4 >>> 8) & 255;
-			const byte14 = (word4 >>> 0) & 255;
+			const word6 = rs.i16SaturatingSub(0, _431);
 			rs.byteVecReserve(dst4, 2 as rs.usize);
 			const pos4 = dst4.length;
-			dst4.data[pos4 + 0] = byte13;
-			dst4.data[pos4 + 1] = byte14;
+			dst4.data[pos4 + 0] = (word6 >>> 8) & 255;
+			dst4.data[pos4 + 1] = word6 & 255;
 			dst4.length = dst4.length + 2;
 		}
 	}
@@ -2274,16 +2136,12 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _20: (a0: rs.ByteVec, a1: rs.i32) => undefined = (out2: rs.ByteVec, v: rs.i32): undefined => {
 		const dst = out2;
 		const word = v;
-		const byte = (word >>> 24) & 255;
-		const byte2 = (word >>> 16) & 255;
-		const byte3 = (word >>> 8) & 255;
-		const byte4 = (word >>> 0) & 255;
 		rs.byteVecReserve(dst, 4 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
-		dst.data[pos + 2] = byte3;
-		dst.data[pos + 3] = byte4;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
 	};
 	const take: (a0: rs.usize) => rs.i32 = (at: rs.usize): rs.i32 => {
@@ -2417,24 +2275,18 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_21 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_i32(a);
-		const byte5 = rs.intByte(word2, 56);
-		const byte6 = rs.intByte(word2, 48);
-		const byte7 = rs.intByte(word2, 40);
-		const byte8 = rs.intByte(word2, 32);
-		const byte9 = rs.intByte(word2, 24);
-		const byte10 = rs.intByte(word2, 16);
-		const byte11 = rs.intByte(word2, 8);
-		const byte12 = rs.intByte(word2, 0);
+		const word3 = rs.intWord(word2, 0);
+		const word4 = rs.intWord(word2, 32);
 		rs.byteVecReserve(dst2, 8 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte5;
-		dst2.data[pos2 + 1] = byte6;
-		dst2.data[pos2 + 2] = byte7;
-		dst2.data[pos2 + 3] = byte8;
-		dst2.data[pos2 + 4] = byte9;
-		dst2.data[pos2 + 5] = byte10;
-		dst2.data[pos2 + 6] = byte11;
-		dst2.data[pos2 + 7] = byte12;
+		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word4 & 255;
+		dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_i32(a), hashed$i32(a)) ? 1 : 0);
 		const _281: rs.Iter<rs.i32> = rs.iterSlice([a, b, c, a]);
@@ -2477,17 +2329,13 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_388[0] !== undefined) {
 			if (_388[1] !== undefined) {
 				const dst3 = out;
-				const word3 = rs.i32SaturatingMul(_388[0], _388[1]);
-				const byte13 = (word3 >>> 24) & 255;
-				const byte14 = (word3 >>> 16) & 255;
-				const byte15 = (word3 >>> 8) & 255;
-				const byte16 = (word3 >>> 0) & 255;
+				const word5 = rs.i32SaturatingMul(_388[0], _388[1]);
 				rs.byteVecReserve(dst3, 4 as rs.usize);
 				const pos3 = dst3.length;
-				dst3.data[pos3 + 0] = byte13;
-				dst3.data[pos3 + 1] = byte14;
-				dst3.data[pos3 + 2] = byte15;
-				dst3.data[pos3 + 3] = byte16;
+				dst3.data[pos3 + 0] = (word5 >>> 24) & 255;
+				dst3.data[pos3 + 1] = (word5 >>> 16) & 255;
+				dst3.data[pos3 + 2] = (word5 >>> 8) & 255;
+				dst3.data[pos3 + 3] = word5 & 255;
 				dst3.length = dst3.length + 4;
 			}
 		}
@@ -2503,17 +2351,13 @@ export function i32s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _431: rs.i32 | undefined = rs.nonZero(a);
 		if (_431 !== undefined) {
 			const dst4 = out;
-			const word4 = rs.i32SaturatingSub(0, _431);
-			const byte17 = (word4 >>> 24) & 255;
-			const byte18 = (word4 >>> 16) & 255;
-			const byte19 = (word4 >>> 8) & 255;
-			const byte20 = (word4 >>> 0) & 255;
+			const word6 = rs.i32SaturatingSub(0, _431);
 			rs.byteVecReserve(dst4, 4 as rs.usize);
 			const pos4 = dst4.length;
-			dst4.data[pos4 + 0] = byte17;
-			dst4.data[pos4 + 1] = byte18;
-			dst4.data[pos4 + 2] = byte19;
-			dst4.data[pos4 + 3] = byte20;
+			dst4.data[pos4 + 0] = (word6 >>> 24) & 255;
+			dst4.data[pos4 + 1] = (word6 >>> 16) & 255;
+			dst4.data[pos4 + 2] = (word6 >>> 8) & 255;
+			dst4.data[pos4 + 3] = word6 & 255;
 			dst4.length = dst4.length + 4;
 		}
 	}
@@ -2524,24 +2368,18 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _20: (a0: rs.ByteVec, a1: rs.i64) => undefined = (out2: rs.ByteVec, v: rs.i64): undefined => {
 		const dst = out2;
 		const word = v;
-		const byte = rs.intByte(word, 56);
-		const byte2 = rs.intByte(word, 48);
-		const byte3 = rs.intByte(word, 40);
-		const byte4 = rs.intByte(word, 32);
-		const byte5 = rs.intByte(word, 24);
-		const byte6 = rs.intByte(word, 16);
-		const byte7 = rs.intByte(word, 8);
-		const byte8 = rs.intByte(word, 0);
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
 		rs.byteVecReserve(dst, 8 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
-		dst.data[pos + 2] = byte3;
-		dst.data[pos + 3] = byte4;
-		dst.data[pos + 4] = byte5;
-		dst.data[pos + 5] = byte6;
-		dst.data[pos + 6] = byte7;
-		dst.data[pos + 7] = byte8;
+		dst.data[pos + 0] = (word3 >>> 24) & 255;
+		dst.data[pos + 1] = (word3 >>> 16) & 255;
+		dst.data[pos + 2] = (word3 >>> 8) & 255;
+		dst.data[pos + 3] = word3 & 255;
+		dst.data[pos + 4] = (word2 >>> 24) & 255;
+		dst.data[pos + 5] = (word2 >>> 16) & 255;
+		dst.data[pos + 6] = (word2 >>> 8) & 255;
+		dst.data[pos + 7] = word2 & 255;
 		dst.length = dst.length + 8;
 	};
 	const take: (a0: rs.usize) => rs.i64 = (at: rs.usize): rs.i64 => {
@@ -2674,25 +2512,19 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_20(out, part10);
 	} else if (_21 === 17) {
 		const dst2 = out;
-		const word2 = hashed$num_Saturating_i64(a);
-		const byte9 = rs.intByte(word2, 56);
-		const byte10 = rs.intByte(word2, 48);
-		const byte11 = rs.intByte(word2, 40);
-		const byte12 = rs.intByte(word2, 32);
-		const byte13 = rs.intByte(word2, 24);
-		const byte14 = rs.intByte(word2, 16);
-		const byte15 = rs.intByte(word2, 8);
-		const byte16 = rs.intByte(word2, 0);
+		const word4 = hashed$num_Saturating_i64(a);
+		const word5 = rs.intWord(word4, 0);
+		const word6 = rs.intWord(word4, 32);
 		rs.byteVecReserve(dst2, 8 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte9;
-		dst2.data[pos2 + 1] = byte10;
-		dst2.data[pos2 + 2] = byte11;
-		dst2.data[pos2 + 3] = byte12;
-		dst2.data[pos2 + 4] = byte13;
-		dst2.data[pos2 + 5] = byte14;
-		dst2.data[pos2 + 6] = byte15;
-		dst2.data[pos2 + 7] = byte16;
+		dst2.data[pos2 + 0] = (word6 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word6 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word6 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word6 & 255;
+		dst2.data[pos2 + 4] = (word5 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word5 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word5 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word5 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_i64(a), hashed$i64(a)) ? 1 : 0);
 		const _281: rs.Iter<rs.i64> = rs.iterSlice([a, b, c, a]);
@@ -2735,25 +2567,19 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_388[0] !== undefined) {
 			if (_388[1] !== undefined) {
 				const dst3 = out;
-				const word3 = rs.i64SaturatingMul(_388[0], _388[1]);
-				const byte17 = rs.intByte(word3, 56);
-				const byte18 = rs.intByte(word3, 48);
-				const byte19 = rs.intByte(word3, 40);
-				const byte20 = rs.intByte(word3, 32);
-				const byte21 = rs.intByte(word3, 24);
-				const byte22 = rs.intByte(word3, 16);
-				const byte23 = rs.intByte(word3, 8);
-				const byte24 = rs.intByte(word3, 0);
+				const word7 = rs.i64SaturatingMul(_388[0], _388[1]);
+				const word8 = rs.intWord(word7, 0);
+				const word9 = rs.intWord(word7, 32);
 				rs.byteVecReserve(dst3, 8 as rs.usize);
 				const pos3 = dst3.length;
-				dst3.data[pos3 + 0] = byte17;
-				dst3.data[pos3 + 1] = byte18;
-				dst3.data[pos3 + 2] = byte19;
-				dst3.data[pos3 + 3] = byte20;
-				dst3.data[pos3 + 4] = byte21;
-				dst3.data[pos3 + 5] = byte22;
-				dst3.data[pos3 + 6] = byte23;
-				dst3.data[pos3 + 7] = byte24;
+				dst3.data[pos3 + 0] = (word9 >>> 24) & 255;
+				dst3.data[pos3 + 1] = (word9 >>> 16) & 255;
+				dst3.data[pos3 + 2] = (word9 >>> 8) & 255;
+				dst3.data[pos3 + 3] = word9 & 255;
+				dst3.data[pos3 + 4] = (word8 >>> 24) & 255;
+				dst3.data[pos3 + 5] = (word8 >>> 16) & 255;
+				dst3.data[pos3 + 6] = (word8 >>> 8) & 255;
+				dst3.data[pos3 + 7] = word8 & 255;
 				dst3.length = dst3.length + 8;
 			}
 		}
@@ -2769,25 +2595,19 @@ export function i64s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _431: rs.i64 | undefined = rs.nonZero(a);
 		if (_431 !== undefined) {
 			const dst4 = out;
-			const word4 = rs.i64SaturatingSub(0, _431);
-			const byte25 = rs.intByte(word4, 56);
-			const byte26 = rs.intByte(word4, 48);
-			const byte27 = rs.intByte(word4, 40);
-			const byte28 = rs.intByte(word4, 32);
-			const byte29 = rs.intByte(word4, 24);
-			const byte30 = rs.intByte(word4, 16);
-			const byte31 = rs.intByte(word4, 8);
-			const byte32 = rs.intByte(word4, 0);
+			const word10 = rs.i64SaturatingSub(0, _431);
+			const word11 = rs.intWord(word10, 0);
+			const word12 = rs.intWord(word10, 32);
 			rs.byteVecReserve(dst4, 8 as rs.usize);
 			const pos4 = dst4.length;
-			dst4.data[pos4 + 0] = byte25;
-			dst4.data[pos4 + 1] = byte26;
-			dst4.data[pos4 + 2] = byte27;
-			dst4.data[pos4 + 3] = byte28;
-			dst4.data[pos4 + 4] = byte29;
-			dst4.data[pos4 + 5] = byte30;
-			dst4.data[pos4 + 6] = byte31;
-			dst4.data[pos4 + 7] = byte32;
+			dst4.data[pos4 + 0] = (word12 >>> 24) & 255;
+			dst4.data[pos4 + 1] = (word12 >>> 16) & 255;
+			dst4.data[pos4 + 2] = (word12 >>> 8) & 255;
+			dst4.data[pos4 + 3] = word12 & 255;
+			dst4.data[pos4 + 4] = (word11 >>> 24) & 255;
+			dst4.data[pos4 + 5] = (word11 >>> 16) & 255;
+			dst4.data[pos4 + 6] = (word11 >>> 8) & 255;
+			dst4.data[pos4 + 7] = word11 & 255;
 			dst4.length = dst4.length + 8;
 		}
 	}
@@ -2798,40 +2618,28 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _20: (a0: rs.ByteVec, a1: rs.i128) => undefined = (out2: rs.ByteVec, v: rs.i128): undefined => {
 		const dst = out2;
 		const word = v;
-		const byte = rs.intByte(word, 120);
-		const byte2 = rs.intByte(word, 112);
-		const byte3 = rs.intByte(word, 104);
-		const byte4 = rs.intByte(word, 96);
-		const byte5 = rs.intByte(word, 88);
-		const byte6 = rs.intByte(word, 80);
-		const byte7 = rs.intByte(word, 72);
-		const byte8 = rs.intByte(word, 64);
-		const byte9 = rs.intByte(word, 56);
-		const byte10 = rs.intByte(word, 48);
-		const byte11 = rs.intByte(word, 40);
-		const byte12 = rs.intByte(word, 32);
-		const byte13 = rs.intByte(word, 24);
-		const byte14 = rs.intByte(word, 16);
-		const byte15 = rs.intByte(word, 8);
-		const byte16 = rs.intByte(word, 0);
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
+		const word4 = rs.intWord(word, 64);
+		const word5 = rs.intWord(word, 96);
 		rs.byteVecReserve(dst, 16 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
-		dst.data[pos + 2] = byte3;
-		dst.data[pos + 3] = byte4;
-		dst.data[pos + 4] = byte5;
-		dst.data[pos + 5] = byte6;
-		dst.data[pos + 6] = byte7;
-		dst.data[pos + 7] = byte8;
-		dst.data[pos + 8] = byte9;
-		dst.data[pos + 9] = byte10;
-		dst.data[pos + 10] = byte11;
-		dst.data[pos + 11] = byte12;
-		dst.data[pos + 12] = byte13;
-		dst.data[pos + 13] = byte14;
-		dst.data[pos + 14] = byte15;
-		dst.data[pos + 15] = byte16;
+		dst.data[pos + 0] = (word5 >>> 24) & 255;
+		dst.data[pos + 1] = (word5 >>> 16) & 255;
+		dst.data[pos + 2] = (word5 >>> 8) & 255;
+		dst.data[pos + 3] = word5 & 255;
+		dst.data[pos + 4] = (word4 >>> 24) & 255;
+		dst.data[pos + 5] = (word4 >>> 16) & 255;
+		dst.data[pos + 6] = (word4 >>> 8) & 255;
+		dst.data[pos + 7] = word4 & 255;
+		dst.data[pos + 8] = (word3 >>> 24) & 255;
+		dst.data[pos + 9] = (word3 >>> 16) & 255;
+		dst.data[pos + 10] = (word3 >>> 8) & 255;
+		dst.data[pos + 11] = word3 & 255;
+		dst.data[pos + 12] = (word2 >>> 24) & 255;
+		dst.data[pos + 13] = (word2 >>> 16) & 255;
+		dst.data[pos + 14] = (word2 >>> 8) & 255;
+		dst.data[pos + 15] = word2 & 255;
 		dst.length = dst.length + 16;
 	};
 	const take: (a0: rs.usize) => rs.i128 = (at: rs.usize): rs.i128 => {
@@ -2964,25 +2772,19 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		_20(out, part10);
 	} else if (_21 === 17) {
 		const dst2 = out;
-		const word2 = hashed$num_Saturating_i128(a);
-		const byte17 = rs.intByte(word2, 56);
-		const byte18 = rs.intByte(word2, 48);
-		const byte19 = rs.intByte(word2, 40);
-		const byte20 = rs.intByte(word2, 32);
-		const byte21 = rs.intByte(word2, 24);
-		const byte22 = rs.intByte(word2, 16);
-		const byte23 = rs.intByte(word2, 8);
-		const byte24 = rs.intByte(word2, 0);
+		const word6 = hashed$num_Saturating_i128(a);
+		const word7 = rs.intWord(word6, 0);
+		const word8 = rs.intWord(word6, 32);
 		rs.byteVecReserve(dst2, 8 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte17;
-		dst2.data[pos2 + 1] = byte18;
-		dst2.data[pos2 + 2] = byte19;
-		dst2.data[pos2 + 3] = byte20;
-		dst2.data[pos2 + 4] = byte21;
-		dst2.data[pos2 + 5] = byte22;
-		dst2.data[pos2 + 6] = byte23;
-		dst2.data[pos2 + 7] = byte24;
+		dst2.data[pos2 + 0] = (word8 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word8 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word8 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word8 & 255;
+		dst2.data[pos2 + 4] = (word7 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word7 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word7 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word7 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_i128(a), hashed$i128(a)) ? 1 : 0);
 		const _281: rs.Iter<rs.i128> = rs.iterSlice([a, b, c, a]);
@@ -3025,41 +2827,29 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_388[0] !== undefined) {
 			if (_388[1] !== undefined) {
 				const dst3 = out;
-				const word3 = rs.i128SaturatingMul(_388[0], _388[1]);
-				const byte25 = rs.intByte(word3, 120);
-				const byte26 = rs.intByte(word3, 112);
-				const byte27 = rs.intByte(word3, 104);
-				const byte28 = rs.intByte(word3, 96);
-				const byte29 = rs.intByte(word3, 88);
-				const byte30 = rs.intByte(word3, 80);
-				const byte31 = rs.intByte(word3, 72);
-				const byte32 = rs.intByte(word3, 64);
-				const byte33 = rs.intByte(word3, 56);
-				const byte34 = rs.intByte(word3, 48);
-				const byte35 = rs.intByte(word3, 40);
-				const byte36 = rs.intByte(word3, 32);
-				const byte37 = rs.intByte(word3, 24);
-				const byte38 = rs.intByte(word3, 16);
-				const byte39 = rs.intByte(word3, 8);
-				const byte40 = rs.intByte(word3, 0);
+				const word9 = rs.i128SaturatingMul(_388[0], _388[1]);
+				const word10 = rs.intWord(word9, 0);
+				const word11 = rs.intWord(word9, 32);
+				const word12 = rs.intWord(word9, 64);
+				const word13 = rs.intWord(word9, 96);
 				rs.byteVecReserve(dst3, 16 as rs.usize);
 				const pos3 = dst3.length;
-				dst3.data[pos3 + 0] = byte25;
-				dst3.data[pos3 + 1] = byte26;
-				dst3.data[pos3 + 2] = byte27;
-				dst3.data[pos3 + 3] = byte28;
-				dst3.data[pos3 + 4] = byte29;
-				dst3.data[pos3 + 5] = byte30;
-				dst3.data[pos3 + 6] = byte31;
-				dst3.data[pos3 + 7] = byte32;
-				dst3.data[pos3 + 8] = byte33;
-				dst3.data[pos3 + 9] = byte34;
-				dst3.data[pos3 + 10] = byte35;
-				dst3.data[pos3 + 11] = byte36;
-				dst3.data[pos3 + 12] = byte37;
-				dst3.data[pos3 + 13] = byte38;
-				dst3.data[pos3 + 14] = byte39;
-				dst3.data[pos3 + 15] = byte40;
+				dst3.data[pos3 + 0] = (word13 >>> 24) & 255;
+				dst3.data[pos3 + 1] = (word13 >>> 16) & 255;
+				dst3.data[pos3 + 2] = (word13 >>> 8) & 255;
+				dst3.data[pos3 + 3] = word13 & 255;
+				dst3.data[pos3 + 4] = (word12 >>> 24) & 255;
+				dst3.data[pos3 + 5] = (word12 >>> 16) & 255;
+				dst3.data[pos3 + 6] = (word12 >>> 8) & 255;
+				dst3.data[pos3 + 7] = word12 & 255;
+				dst3.data[pos3 + 8] = (word11 >>> 24) & 255;
+				dst3.data[pos3 + 9] = (word11 >>> 16) & 255;
+				dst3.data[pos3 + 10] = (word11 >>> 8) & 255;
+				dst3.data[pos3 + 11] = word11 & 255;
+				dst3.data[pos3 + 12] = (word10 >>> 24) & 255;
+				dst3.data[pos3 + 13] = (word10 >>> 16) & 255;
+				dst3.data[pos3 + 14] = (word10 >>> 8) & 255;
+				dst3.data[pos3 + 15] = word10 & 255;
 				dst3.length = dst3.length + 16;
 			}
 		}
@@ -3075,41 +2865,29 @@ export function i128s(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _431: rs.i128 | undefined = rs.nonZero(a);
 		if (_431 !== undefined) {
 			const dst4 = out;
-			const word4 = rs.i128SaturatingSub(0, _431);
-			const byte41 = rs.intByte(word4, 120);
-			const byte42 = rs.intByte(word4, 112);
-			const byte43 = rs.intByte(word4, 104);
-			const byte44 = rs.intByte(word4, 96);
-			const byte45 = rs.intByte(word4, 88);
-			const byte46 = rs.intByte(word4, 80);
-			const byte47 = rs.intByte(word4, 72);
-			const byte48 = rs.intByte(word4, 64);
-			const byte49 = rs.intByte(word4, 56);
-			const byte50 = rs.intByte(word4, 48);
-			const byte51 = rs.intByte(word4, 40);
-			const byte52 = rs.intByte(word4, 32);
-			const byte53 = rs.intByte(word4, 24);
-			const byte54 = rs.intByte(word4, 16);
-			const byte55 = rs.intByte(word4, 8);
-			const byte56 = rs.intByte(word4, 0);
+			const word14 = rs.i128SaturatingSub(0, _431);
+			const word15 = rs.intWord(word14, 0);
+			const word16 = rs.intWord(word14, 32);
+			const word17 = rs.intWord(word14, 64);
+			const word18 = rs.intWord(word14, 96);
 			rs.byteVecReserve(dst4, 16 as rs.usize);
 			const pos4 = dst4.length;
-			dst4.data[pos4 + 0] = byte41;
-			dst4.data[pos4 + 1] = byte42;
-			dst4.data[pos4 + 2] = byte43;
-			dst4.data[pos4 + 3] = byte44;
-			dst4.data[pos4 + 4] = byte45;
-			dst4.data[pos4 + 5] = byte46;
-			dst4.data[pos4 + 6] = byte47;
-			dst4.data[pos4 + 7] = byte48;
-			dst4.data[pos4 + 8] = byte49;
-			dst4.data[pos4 + 9] = byte50;
-			dst4.data[pos4 + 10] = byte51;
-			dst4.data[pos4 + 11] = byte52;
-			dst4.data[pos4 + 12] = byte53;
-			dst4.data[pos4 + 13] = byte54;
-			dst4.data[pos4 + 14] = byte55;
-			dst4.data[pos4 + 15] = byte56;
+			dst4.data[pos4 + 0] = (word18 >>> 24) & 255;
+			dst4.data[pos4 + 1] = (word18 >>> 16) & 255;
+			dst4.data[pos4 + 2] = (word18 >>> 8) & 255;
+			dst4.data[pos4 + 3] = word18 & 255;
+			dst4.data[pos4 + 4] = (word17 >>> 24) & 255;
+			dst4.data[pos4 + 5] = (word17 >>> 16) & 255;
+			dst4.data[pos4 + 6] = (word17 >>> 8) & 255;
+			dst4.data[pos4 + 7] = word17 & 255;
+			dst4.data[pos4 + 8] = (word16 >>> 24) & 255;
+			dst4.data[pos4 + 9] = (word16 >>> 16) & 255;
+			dst4.data[pos4 + 10] = (word16 >>> 8) & 255;
+			dst4.data[pos4 + 11] = word16 & 255;
+			dst4.data[pos4 + 12] = (word15 >>> 24) & 255;
+			dst4.data[pos4 + 13] = (word15 >>> 16) & 255;
+			dst4.data[pos4 + 14] = (word15 >>> 8) & 255;
+			dst4.data[pos4 + 15] = word15 & 255;
 			dst4.length = dst4.length + 16;
 		}
 	}
@@ -3120,16 +2898,12 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	const _20: (a0: rs.ByteVec, a1: rs.isize) => undefined = (out2: rs.ByteVec, v: rs.isize): undefined => {
 		const dst = out2;
 		const word = v;
-		const byte = (word >>> 24) & 255;
-		const byte2 = (word >>> 16) & 255;
-		const byte3 = (word >>> 8) & 255;
-		const byte4 = (word >>> 0) & 255;
 		rs.byteVecReserve(dst, 4 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
-		dst.data[pos + 2] = byte3;
-		dst.data[pos + 3] = byte4;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
 	};
 	const take: (a0: rs.usize) => rs.isize = (at: rs.usize): rs.isize => {
@@ -3263,24 +3037,18 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 	} else if (_21 === 17) {
 		const dst2 = out;
 		const word2 = hashed$num_Saturating_isize(a);
-		const byte5 = rs.intByte(word2, 56);
-		const byte6 = rs.intByte(word2, 48);
-		const byte7 = rs.intByte(word2, 40);
-		const byte8 = rs.intByte(word2, 32);
-		const byte9 = rs.intByte(word2, 24);
-		const byte10 = rs.intByte(word2, 16);
-		const byte11 = rs.intByte(word2, 8);
-		const byte12 = rs.intByte(word2, 0);
+		const word3 = rs.intWord(word2, 0);
+		const word4 = rs.intWord(word2, 32);
 		rs.byteVecReserve(dst2, 8 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte5;
-		dst2.data[pos2 + 1] = byte6;
-		dst2.data[pos2 + 2] = byte7;
-		dst2.data[pos2 + 3] = byte8;
-		dst2.data[pos2 + 4] = byte9;
-		dst2.data[pos2 + 5] = byte10;
-		dst2.data[pos2 + 6] = byte11;
-		dst2.data[pos2 + 7] = byte12;
+		dst2.data[pos2 + 0] = (word4 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word4 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word4 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word4 & 255;
+		dst2.data[pos2 + 4] = (word3 >>> 24) & 255;
+		dst2.data[pos2 + 5] = (word3 >>> 16) & 255;
+		dst2.data[pos2 + 6] = (word3 >>> 8) & 255;
+		dst2.data[pos2 + 7] = word3 & 255;
 		dst2.length = dst2.length + 8;
 		rs.byteVecPush(out, rs.u64Eq(hashed$num_Saturating_isize(a), hashed$isize(a)) ? 1 : 0);
 		const _281: rs.Iter<rs.isize> = rs.iterSlice([a, b, c, a]);
@@ -3323,17 +3091,13 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		if (_388[0] !== undefined) {
 			if (_388[1] !== undefined) {
 				const dst3 = out;
-				const word3 = rs.isizeSaturatingMul(_388[0], _388[1]);
-				const byte13 = (word3 >>> 24) & 255;
-				const byte14 = (word3 >>> 16) & 255;
-				const byte15 = (word3 >>> 8) & 255;
-				const byte16 = (word3 >>> 0) & 255;
+				const word5 = rs.isizeSaturatingMul(_388[0], _388[1]);
 				rs.byteVecReserve(dst3, 4 as rs.usize);
 				const pos3 = dst3.length;
-				dst3.data[pos3 + 0] = byte13;
-				dst3.data[pos3 + 1] = byte14;
-				dst3.data[pos3 + 2] = byte15;
-				dst3.data[pos3 + 3] = byte16;
+				dst3.data[pos3 + 0] = (word5 >>> 24) & 255;
+				dst3.data[pos3 + 1] = (word5 >>> 16) & 255;
+				dst3.data[pos3 + 2] = (word5 >>> 8) & 255;
+				dst3.data[pos3 + 3] = word5 & 255;
 				dst3.length = dst3.length + 4;
 			}
 		}
@@ -3349,17 +3113,13 @@ export function isizes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 		const _431: rs.isize | undefined = rs.nonZero(a);
 		if (_431 !== undefined) {
 			const dst4 = out;
-			const word4 = rs.isizeSaturatingSub(0, _431);
-			const byte17 = (word4 >>> 24) & 255;
-			const byte18 = (word4 >>> 16) & 255;
-			const byte19 = (word4 >>> 8) & 255;
-			const byte20 = (word4 >>> 0) & 255;
+			const word6 = rs.isizeSaturatingSub(0, _431);
 			rs.byteVecReserve(dst4, 4 as rs.usize);
 			const pos4 = dst4.length;
-			dst4.data[pos4 + 0] = byte17;
-			dst4.data[pos4 + 1] = byte18;
-			dst4.data[pos4 + 2] = byte19;
-			dst4.data[pos4 + 3] = byte20;
+			dst4.data[pos4 + 0] = (word6 >>> 24) & 255;
+			dst4.data[pos4 + 1] = (word6 >>> 16) & 255;
+			dst4.data[pos4 + 2] = (word6 >>> 8) & 255;
+			dst4.data[pos4 + 3] = word6 & 255;
 			dst4.length = dst4.length + 4;
 		}
 	}

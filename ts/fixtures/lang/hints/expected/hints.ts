@@ -15,16 +15,12 @@ export function put(out: rs.ByteVec, _2: [rs.usize, rs.usize | undefined]): void
 	const upper: rs.usize | undefined = _2[1];
 	const dst = out;
 	const word = lower as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 	if (upper === undefined) {
 		rs.byteVecPush(out, 0);
@@ -33,16 +29,12 @@ export function put(out: rs.ByteVec, _2: [rs.usize, rs.usize | undefined]): void
 		rs.byteVecPush(out, 1);
 		const dst2 = out;
 		const word2 = upper2 as rs.u32;
-		const byte5 = (word2 >>> 24) & 255;
-		const byte6 = (word2 >>> 16) & 255;
-		const byte7 = (word2 >>> 8) & 255;
-		const byte8 = (word2 >>> 0) & 255;
 		rs.byteVecReserve(dst2, 4 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte5;
-		dst2.data[pos2 + 1] = byte6;
-		dst2.data[pos2 + 2] = byte7;
-		dst2.data[pos2 + 3] = byte8;
+		dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
+		dst2.data[pos2 + 1] = (word2 >>> 16) & 255;
+		dst2.data[pos2 + 2] = (word2 >>> 8) & 255;
+		dst2.data[pos2 + 3] = word2 & 255;
 		dst2.length = dst2.length + 4;
 	}
 }
@@ -2700,16 +2692,12 @@ export function fill$array275_u32_iter_Filter_iter_Map_ops_RangeInclusive_u32_hi
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -2781,16 +2769,12 @@ export function fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_Range
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -2862,16 +2846,12 @@ export function fill$array275_u32_iter_Map_iter_Flatten_array_IntoIter_ops_Range
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -2943,16 +2923,12 @@ export function fill$array275_u32_iter_Map_ops_RangeInclusive_u32_hints_typed_cl
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -3024,16 +3000,12 @@ export function fill$array275_u32_iter_Skip_iter_Map_ops_RangeInclusive_u32_hint
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -3105,16 +3077,12 @@ export function fill$hints_Unit_iter_Filter_iter_Map_ops_RangeInclusive_u32_hint
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -3186,16 +3154,12 @@ export function fill$hints_Unit_iter_Map_iter_Flatten_array_IntoIter_ops_RangeIn
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -3267,16 +3231,12 @@ export function fill$hints_Unit_iter_Map_iter_Flatten_array_IntoIter_ops_RangeIn
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -3348,16 +3308,12 @@ export function fill$hints_Unit_iter_Map_ops_RangeInclusive_u32_hints_typed_clos
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -3429,16 +3385,12 @@ export function fill$hints_Unit_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -3510,16 +3462,12 @@ export function fill$tuple2_u64_u8_iter_Filter_iter_Map_ops_RangeInclusive_u32_h
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -3591,16 +3539,12 @@ export function fill$tuple2_u64_u8_iter_Map_iter_Flatten_array_IntoIter_ops_Rang
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -3672,16 +3616,12 @@ export function fill$tuple2_u64_u8_iter_Map_iter_Flatten_array_IntoIter_ops_Rang
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -3753,16 +3693,12 @@ export function fill$tuple2_u64_u8_iter_Map_ops_RangeInclusive_u32_hints_typed_c
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -3834,16 +3770,12 @@ export function fill$tuple2_u64_u8_iter_Skip_iter_Map_ops_RangeInclusive_u32_hin
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -3915,16 +3847,12 @@ export function fill$tuple3_u8_u8_u8_iter_Filter_iter_Map_ops_RangeInclusive_u32
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -3996,16 +3924,12 @@ export function fill$tuple3_u8_u8_u8_iter_Map_iter_Flatten_array_IntoIter_ops_Ra
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -4077,16 +4001,12 @@ export function fill$tuple3_u8_u8_u8_iter_Map_iter_Flatten_array_IntoIter_ops_Ra
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -4158,16 +4078,12 @@ export function fill$tuple3_u8_u8_u8_iter_Map_ops_RangeInclusive_u32_hints_typed
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -4239,16 +4155,12 @@ export function fill$tuple3_u8_u8_u8_iter_Skip_iter_Map_ops_RangeInclusive_u32_h
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -4320,16 +4232,12 @@ export function fill$u32_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -4401,16 +4309,12 @@ export function fill$u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -4482,16 +4386,12 @@ export function fill$u32_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -4563,16 +4463,12 @@ export function fill$u32_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u3
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -4644,16 +4540,12 @@ export function fill$u32_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_c
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -4725,16 +4617,12 @@ export function fill$u8_iter_Filter_iter_Map_ops_RangeInclusive_u32_hints_typed_
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -4806,16 +4694,12 @@ export function fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -4887,16 +4771,12 @@ export function fill$u8_iter_Map_iter_Flatten_array_IntoIter_ops_RangeInclusive_
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -4968,16 +4848,12 @@ export function fill$u8_iter_Map_ops_RangeInclusive_u32_hints_typed_closure1_u8_
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 
@@ -5049,16 +4925,12 @@ export function fill$u8_iter_Skip_iter_Map_ops_RangeInclusive_u32_hints_typed_cl
 	}
 	const dst = out;
 	const word = len as rs.u32;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = (word >>> 24) & 255;
+	dst.data[pos + 1] = (word >>> 16) & 255;
+	dst.data[pos + 2] = (word >>> 8) & 255;
+	dst.data[pos + 3] = word & 255;
 	dst.length = dst.length + 4;
 }
 

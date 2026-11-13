@@ -72,12 +72,6 @@ fn ident(e: &Expr, name: &str) -> bool {
 	matches!(e.unlocated(), Expr::Ident(n) if n == name)
 }
 
-fn count(e: &Expr, name: &str) -> usize {
-	let mut n = 0;
-	visit_expr(e, &mut |e| n += usize::from(matches!(e, Expr::Ident(s) if s == name)));
-	n
-}
-
 fn index(e: &Expr) -> Option<(&Expr, usize)> {
 	let Expr::Index(base, at) = e.unlocated() else {
 		return None;
@@ -86,29 +80,81 @@ fn index(e: &Expr) -> Option<(&Expr, usize)> {
 	Some((base, at.parse().ok()?))
 }
 
-/// Every read must consume the whole array in an append, or read a fixed byte.
-/// A write or closure capture keeps its storage, even if all its reads qualify.
-fn confined(body: &[Stmt], name: &str, len: usize) -> bool {
-	let (mut total, mut allowed, mut writes) = (0, 0, false);
+#[derive(Default)]
+struct Uses {
+	total: usize,
+	allowed: usize,
+	/// One past the highest fixed byte read.
+	end: usize,
+	writes: bool,
+}
+
+/// Every use of each name, in one walk. Only an append that is a whole expression
+/// statement, which `list` rewrites, consumes an array; one anywhere else escapes it.
+fn uses(body: &[Stmt], out: &mut FxHashMap<String, Uses>) {
+	for stmt in body {
+		if let StmtKind::Expr(e) = &stmt.kind
+			&& let Some((_, _, array)) = append(e)
+			&& let Expr::Ident(n) = array.unlocated()
+		{
+			out.entry(n.clone()).or_default().allowed += 1;
+		}
+		match &stmt.kind {
+			StmtKind::If { then, els, .. } => {
+				uses(then, out);
+				uses(els, out);
+			}
+			StmtKind::While { body, .. } | StmtKind::ForOf { body, .. } | StmtKind::Block { body, .. } => {
+				uses(body, out)
+			}
+			StmtKind::Switch { cases, default, .. } => {
+				for (_, body) in cases {
+					uses(body, out);
+				}
+				uses(default, out);
+			}
+			_ => {}
+		}
+	}
+}
+
+fn tally(body: &[Stmt]) -> FxHashMap<String, Uses> {
+	let mut out = FxHashMap::<String, Uses>::default();
+	uses(body, &mut out);
+	let mark = |e: &Expr, out: &mut FxHashMap<String, Uses>| {
+		visit_expr(e, &mut |e| {
+			if let Expr::Ident(n) = e {
+				out.entry(n.clone()).or_default().writes = true;
+			}
+		})
+	};
 	for stmt in body {
 		visit_stmt(stmt, &mut |root| {
-			total += count(root, name);
-			if append(root).is_some_and(|(_, _, array)| ident(array, name)) {
-				allowed += 1;
-			}
-			visit_expr(root, &mut |e| {
-				if matches!(e, Expr::Index(..)) && index(e).is_some_and(|(base, i)| i < len && ident(base, name)) {
-					allowed += 1;
+			visit_expr(root, &mut |e| match e {
+				Expr::Ident(n) => out.entry(n.clone()).or_default().total += 1,
+				Expr::Index(..) => {
+					if let Some((base, i)) = index(e)
+						&& let Expr::Ident(n) = base.unlocated()
+					{
+						let uses = out.entry(n.clone()).or_default();
+						uses.allowed += 1;
+						uses.end = uses.end.max(i + 1);
+					}
 				}
-				match e {
-					Expr::Assign(lhs, _) | Expr::Postfix(lhs, _) if count(lhs, name) != 0 => writes = true,
-					Expr::Arrow(..) | Expr::Lambda(..) if count(e, name) != 0 => writes = true,
-					_ => {}
-				}
+				// A write or closure capture keeps its storage, even if all its reads qualify.
+				Expr::Assign(lhs, _) | Expr::Postfix(lhs, _) => mark(lhs, &mut out),
+				Expr::Arrow(..) | Expr::Lambda(..) => mark(e, &mut out),
+				_ => {}
 			});
 		});
 	}
-	total == allowed && !writes
+	out
+}
+
+/// Every read must consume the whole array in an append, or read a fixed byte.
+fn confined(uses: &FxHashMap<String, Uses>, name: &str, len: usize) -> bool {
+	uses.get(name)
+		.is_some_and(|u| u.total == u.allowed && u.end <= len && !u.writes)
 }
 
 /// Scalar-replace nonescaping byte arrays and append their bytes directly.
@@ -130,9 +176,10 @@ pub(super) fn lower(body: &mut Vec<Stmt>, b: &mut Body<'_, '_, '_>) -> bool {
 	}
 	fuse(body, &counts);
 	let original = body.clone();
+	let uses = tally(&original);
 	let mut immutable = FxHashSet::default();
 	names(&original, &mut immutable, true);
-	list(body, &original, &mut immutable, &mut FxHashMap::default(), b);
+	list(body, &uses, &mut immutable, &mut FxHashMap::default(), b);
 	let mut spills = FxHashSet::default();
 	collect_spills(body, &original, &mut spills);
 	let mut reads = FxHashMap::<String, usize>::default();
@@ -185,9 +232,7 @@ fn stable(e: &Expr, immutable: &FxHashSet<String>) -> bool {
 }
 
 fn bytes(e: &Expr, immutable: &mut FxHashSet<String>, b: &mut Body<'_, '_, '_>, out: &mut Vec<Stmt>) -> Vec<Expr> {
-	let values = if let Some(values) = literal(e) {
-		values.to_vec()
-	} else {
+	let Some(values) = literal(e) else {
 		let (kind, value, n, le) = integer(e).expect("a byte array");
 		let value = match kind {
 			"f32" => Expr::rs("f32ToBits", vec![value.clone()]),
@@ -195,23 +240,36 @@ fn bytes(e: &Expr, immutable: &mut FxHashSet<String>, b: &mut Body<'_, '_, '_>, 
 			_ => value.clone(),
 		};
 		let value = b.spill(value, "word", out);
-		(0..n)
+		// A wide integer's 32-bit words, each taken once. Every byte is then a pure
+		// function of a fresh const, so it needs no snapshot.
+		let words: Vec<Expr> = match n {
+			..=4 => vec![value],
+			_ => (0..n / 4)
+				.map(|k| {
+					b.spill(
+						Expr::rs("intWord", vec![value.clone(), Expr::lit((32 * k).to_string())]),
+						"word",
+						out,
+					)
+				})
+				.collect(),
+		};
+		return (0..n)
 			.map(|i| {
 				let shift = 8 * if le { i } else { n - 1 - i };
-				if n <= 4 {
-					value
-						.clone()
-						.binary(">>>", Expr::lit(shift.to_string()))
-						.binary("&", Expr::lit("255"))
-				} else {
-					Expr::rs("intByte", vec![value.clone(), Expr::lit(shift.to_string())])
-				}
+				let word = words[shift / 32].clone();
+				let word = match shift % 32 {
+					0 => word,
+					shift => word.binary(">>>", Expr::lit(shift.to_string())),
+				};
+				word.binary("&", Expr::lit("255"))
 			})
-			.collect()
+			.collect();
 	};
-	// Snapshot bytes before any later effect, except literals and immutable locals.
+	// Snapshot elements before any later effect, except literals and immutable locals.
 	values
-		.into_iter()
+		.iter()
+		.cloned()
 		.map(|v| {
 			if stable(&v, immutable) {
 				v
@@ -228,7 +286,7 @@ fn bytes(e: &Expr, immutable: &mut FxHashSet<String>, b: &mut Body<'_, '_, '_>, 
 
 fn list(
 	body: &mut Vec<Stmt>,
-	original: &[Stmt],
+	uses: &FxHashMap<String, Uses>,
 	immutable: &mut FxHashSet<String>,
 	arrays: &mut FxHashMap<String, Vec<Expr>>,
 	b: &mut Body<'_, '_, '_>,
@@ -242,7 +300,7 @@ fn list(
 			..
 		} = &stmt.kind
 			&& let Some(n) = size(init)
-			&& confined(original, name, n)
+			&& confined(uses, name, n)
 		{
 			let mut init = init.clone();
 			replace(&mut init, arrays);
@@ -253,31 +311,27 @@ fn list(
 			StmtKind::Expr(e) | StmtKind::Return(Some(e)) | StmtKind::Decl { init: Some(e), .. } => replace(e, arrays),
 			StmtKind::If { cond, then, els } => {
 				replace(cond, arrays);
-				list(then, original, immutable, arrays, b);
-				list(els, original, immutable, arrays, b);
+				list(then, uses, immutable, arrays, b);
+				list(els, uses, immutable, arrays, b);
 			}
 			StmtKind::While { cond, body, .. } | StmtKind::ForOf { iter: cond, body, .. } => {
 				replace(cond, arrays);
-				list(body, original, immutable, arrays, b);
+				list(body, uses, immutable, arrays, b);
 			}
-			StmtKind::Block { body, .. } => list(body, original, immutable, arrays, b),
+			StmtKind::Block { body, .. } => list(body, uses, immutable, arrays, b),
 			StmtKind::Switch {
 				disc, cases, default, ..
 			} => {
 				replace(disc, arrays);
 				for (value, body) in cases {
 					replace(value, arrays);
-					list(body, original, immutable, arrays, b);
+					list(body, uses, immutable, arrays, b);
 				}
-				list(default, original, immutable, arrays, b);
+				list(default, uses, immutable, arrays, b);
 			}
 			_ => {}
 		}
-		let eager = match &stmt.kind {
-			StmtKind::Expr(e) | StmtKind::Return(Some(e)) | StmtKind::Decl { init: Some(e), .. } => Some(e),
-			_ => None,
-		};
-		if let Some(e) = eager
+		if let StmtKind::Expr(e) = &stmt.kind
 			&& let Some((kind, target, array)) = append(e)
 			&& (size(array).is_some() || matches!(array.unlocated(), Expr::Ident(n) if arrays.contains_key(n)))
 		{
@@ -330,14 +384,6 @@ fn list(
 				)
 				.at(stmt.loc),
 			);
-
-			match &mut stmt.kind {
-				StmtKind::Return(Some(e)) | StmtKind::Decl { init: Some(e), .. } => {
-					*e = Expr::undefined();
-					out.push(stmt);
-				}
-				_ => {}
-			}
 		} else {
 			out.push(stmt);
 		}
@@ -497,7 +543,30 @@ mod tests {
 	fn confinement_excludes_writes_and_captures() {
 		let read = Expr::ident("bytes").index(Expr::lit("0"));
 		let stmt = |e| StmtKind::Expr(e).at(None);
+		let confined = |body: &[Stmt], name, len| confined(&tally(body), name, len);
 		assert!(confined(&[stmt(read.clone())], "bytes", 2));
+		assert!(!confined(
+			&[stmt(Expr::ident("bytes").index(Expr::lit("2")))],
+			"bytes",
+			2
+		));
+		let extend = Expr::rs(
+			"byteVecExtendFromSlice",
+			vec![
+				Expr::ident("out"),
+				Expr::rs("byteSliceFrom", vec![Expr::ident("bytes")]),
+			],
+		);
+		assert!(confined(&[stmt(extend.clone())], "bytes", 2));
+		// An append `list` doesn't rewrite, as in a header or a return, escapes.
+		let header = StmtKind::If {
+			cond: extend.clone(),
+			then: Vec::new(),
+			els: Vec::new(),
+		}
+		.at(None);
+		assert!(!confined(&[header], "bytes", 2));
+		assert!(!confined(&[StmtKind::Return(Some(extend)).at(None)], "bytes", 2));
 		for e in [
 			read.clone().assign(Expr::lit("42")),
 			Expr::Postfix(Box::new(read.clone()), "++"),

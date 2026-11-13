@@ -28,16 +28,12 @@ export function putChar(out: rs.ByteVec, c: rs.char | undefined): void {
 	} else {
 		const dst = out;
 		const word = c as rs.u32;
-		const byte = (word >>> 24) & 255;
-		const byte2 = (word >>> 16) & 255;
-		const byte3 = (word >>> 8) & 255;
-		const byte4 = (word >>> 0) & 255;
 		rs.byteVecReserve(dst, 4 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
-		dst.data[pos + 2] = byte3;
-		dst.data[pos + 3] = byte4;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
 	}
 }
@@ -48,16 +44,12 @@ export function putOffset(out: rs.ByteVec, i: rs.usize | undefined): void {
 	} else {
 		const dst = out;
 		const word = i as rs.u32;
-		const byte = (word >>> 24) & 255;
-		const byte2 = (word >>> 16) & 255;
-		const byte3 = (word >>> 8) & 255;
-		const byte4 = (word >>> 0) & 255;
 		rs.byteVecReserve(dst, 4 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
-		dst.data[pos + 2] = byte3;
-		dst.data[pos + 3] = byte4;
+		dst.data[pos + 0] = (word >>> 24) & 255;
+		dst.data[pos + 1] = (word >>> 16) & 255;
+		dst.data[pos + 2] = (word >>> 8) & 255;
+		dst.data[pos + 3] = word & 255;
 		dst.length = dst.length + 4;
 	}
 }
@@ -1885,12 +1877,10 @@ export function unicode(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 		walk$str_EncodeUtf16(out, it.clone(), (out2: rs.ByteVec, u: rs.u16): undefined => {
 			const dst = out2;
 			const word = u;
-			const byte = (word >>> 8) & 255;
-			const byte2 = (word >>> 0) & 255;
 			rs.byteVecReserve(dst, 2 as rs.usize);
 			const pos = dst.length;
-			dst.data[pos + 0] = byte;
-			dst.data[pos + 1] = byte2;
+			dst.data[pos + 0] = (word >>> 8) & 255;
+			dst.data[pos + 1] = word & 255;
 			dst.length = dst.length + 2;
 		});
 		const units: rs.Vec<rs.u16> = rs.iterToVec(it, "next", 2);

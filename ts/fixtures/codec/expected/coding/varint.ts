@@ -103,12 +103,10 @@ export function writeQuic(value: rs.u64, out: rs.ByteVec): rs.Result<undefined, 
 			if (lo < 16384) {
 				const dst = out;
 				const word = 16384 | (lo & 0xffff);
-				const byte = (word >>> 8) & 255;
-				const byte2 = (word >>> 0) & 255;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = byte;
-				dst.data[pos + 1] = byte2;
+				dst.data[pos + 0] = (word >>> 8) & 255;
+				dst.data[pos + 1] = word & 255;
 				dst.length = dst.length + 2;
 				break b1;
 			}
@@ -117,16 +115,12 @@ export function writeQuic(value: rs.u64, out: rs.ByteVec): rs.Result<undefined, 
 			if (lo < 1073741824) {
 				const dst2 = out;
 				const word2 = (2147483648 | lo) >>> 0;
-				const byte3 = (word2 >>> 24) & 255;
-				const byte4 = (word2 >>> 16) & 255;
-				const byte5 = (word2 >>> 8) & 255;
-				const byte6 = (word2 >>> 0) & 255;
 				rs.byteVecReserve(dst2, 4 as rs.usize);
 				const pos2 = dst2.length;
-				dst2.data[pos2 + 0] = byte3;
-				dst2.data[pos2 + 1] = byte4;
-				dst2.data[pos2 + 2] = byte5;
-				dst2.data[pos2 + 3] = byte6;
+				dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
+				dst2.data[pos2 + 1] = (word2 >>> 16) & 255;
+				dst2.data[pos2 + 2] = (word2 >>> 8) & 255;
+				dst2.data[pos2 + 3] = word2 & 255;
 				dst2.length = dst2.length + 4;
 				break b1;
 			}
@@ -135,30 +129,26 @@ export function writeQuic(value: rs.u64, out: rs.ByteVec): rs.Result<undefined, 
 			return rs.Err({});
 		}
 		const word3 = (3221225472 | hi) >>> 0;
-		const byte7 = (word3 >>> 24) & 255;
-		const byte8 = (word3 >>> 16) & 255;
-		const byte9 = (word3 >>> 8) & 255;
-		const byte10 = (word3 >>> 0) & 255;
-		const a: rs.u8 = byte7;
-		const b: rs.u8 = byte8;
-		const c: rs.u8 = byte9;
-		const d: rs.u8 = byte10;
+		const a: rs.u8 = (word3 >>> 24) & 255;
+		const b: rs.u8 = (word3 >>> 16) & 255;
+		const c: rs.u8 = (word3 >>> 8) & 255;
+		const d: rs.u8 = word3 & 255;
 		const word4 = lo;
-		const byte11 = (word4 >>> 24) & 255;
-		const byte12 = (word4 >>> 16) & 255;
-		const byte13 = (word4 >>> 8) & 255;
-		const byte14 = (word4 >>> 0) & 255;
 		const dst3 = out;
+		const byte = (word4 >>> 24) & 255;
+		const byte2 = (word4 >>> 16) & 255;
+		const byte3 = (word4 >>> 8) & 255;
+		const byte4 = word4 & 255;
 		rs.byteVecReserve(dst3, 8 as rs.usize);
 		const pos3 = dst3.length;
 		dst3.data[pos3 + 0] = a;
 		dst3.data[pos3 + 1] = b;
 		dst3.data[pos3 + 2] = c;
 		dst3.data[pos3 + 3] = d;
-		dst3.data[pos3 + 4] = byte11;
-		dst3.data[pos3 + 5] = byte12;
-		dst3.data[pos3 + 6] = byte13;
-		dst3.data[pos3 + 7] = byte14;
+		dst3.data[pos3 + 4] = byte;
+		dst3.data[pos3 + 5] = byte2;
+		dst3.data[pos3 + 6] = byte3;
+		dst3.data[pos3 + 7] = byte4;
 		dst3.length = dst3.length + 8;
 	}
 	return rs.OK;
@@ -169,15 +159,11 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 	const hi: rs.u32 = _5[0];
 	const lo: rs.u32 = _5[1];
 	const word = lo;
-	const byte = (word >>> 24) & 255;
-	const byte2 = (word >>> 16) & 255;
-	const byte3 = (word >>> 8) & 255;
-	const byte4 = (word >>> 0) & 255;
 	b0: {
-		const a: rs.u8 = byte;
-		const b: rs.u8 = byte2;
-		const c: rs.u8 = byte3;
-		const d: rs.u8 = byte4;
+		const a: rs.u8 = (word >>> 24) & 255;
+		const b: rs.u8 = (word >>> 16) & 255;
+		const c: rs.u8 = (word >>> 8) & 255;
+		const d: rs.u8 = word & 255;
 		if (hi === 0) {
 			if (lo < 128) {
 				rs.byteVecPush(out, d);
@@ -187,10 +173,10 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 		if (hi === 0) {
 			if (lo < 16384) {
 				const dst = out;
-				const byte5 = 128 | c;
+				const byte = 128 | c;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = byte5;
+				dst.data[pos + 0] = byte;
 				dst.data[pos + 1] = d;
 				dst.length = dst.length + 2;
 				break b0;
@@ -199,10 +185,10 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 		if (hi === 0) {
 			if (lo < 2097152) {
 				const dst2 = out;
-				const byte6 = 192 | b;
+				const byte2 = 192 | b;
 				rs.byteVecReserve(dst2, 3 as rs.usize);
 				const pos2 = dst2.length;
-				dst2.data[pos2 + 0] = byte6;
+				dst2.data[pos2 + 0] = byte2;
 				dst2.data[pos2 + 1] = c;
 				dst2.data[pos2 + 2] = d;
 				dst2.length = dst2.length + 3;
@@ -212,10 +198,10 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 		if (hi === 0) {
 			if (lo < 268435456) {
 				const dst3 = out;
-				const byte7 = 224 | a;
+				const byte3 = 224 | a;
 				rs.byteVecReserve(dst3, 4 as rs.usize);
 				const pos3 = dst3.length;
-				dst3.data[pos3 + 0] = byte7;
+				dst3.data[pos3 + 0] = byte3;
 				dst3.data[pos3 + 1] = b;
 				dst3.data[pos3 + 2] = c;
 				dst3.data[pos3 + 3] = d;
@@ -227,18 +213,18 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 			if (!(hi < 1024)) {
 				if (!(hi < 16777216)) {
 					const word2 = hi;
-					const byte8 = (word2 >>> 24) & 255;
-					const byte9 = (word2 >>> 16) & 255;
-					const byte10 = (word2 >>> 8) & 255;
-					const byte11 = (word2 >>> 0) & 255;
 					const dst4 = out;
+					const byte4 = (word2 >>> 24) & 255;
+					const byte5 = (word2 >>> 16) & 255;
+					const byte6 = (word2 >>> 8) & 255;
+					const byte7 = word2 & 255;
 					rs.byteVecReserve(dst4, 9 as rs.usize);
 					const pos4 = dst4.length;
 					dst4.data[pos4 + 0] = 255;
-					dst4.data[pos4 + 1] = byte8;
-					dst4.data[pos4 + 2] = byte9;
-					dst4.data[pos4 + 3] = byte10;
-					dst4.data[pos4 + 4] = byte11;
+					dst4.data[pos4 + 1] = byte4;
+					dst4.data[pos4 + 2] = byte5;
+					dst4.data[pos4 + 3] = byte6;
+					dst4.data[pos4 + 4] = byte7;
 					dst4.data[pos4 + 5] = a;
 					dst4.data[pos4 + 6] = b;
 					dst4.data[pos4 + 7] = c;
@@ -246,16 +232,16 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 					dst4.length = dst4.length + 9;
 				} else {
 					const word3 = hi;
-					const byte13 = (word3 >>> 16) & 255;
-					const byte14 = (word3 >>> 8) & 255;
-					const byte15 = (word3 >>> 0) & 255;
 					const dst5 = out;
+					const byte8 = (word3 >>> 16) & 255;
+					const byte9 = (word3 >>> 8) & 255;
+					const byte10 = word3 & 255;
 					rs.byteVecReserve(dst5, 8 as rs.usize);
 					const pos5 = dst5.length;
 					dst5.data[pos5 + 0] = 254;
-					dst5.data[pos5 + 1] = byte13;
-					dst5.data[pos5 + 2] = byte14;
-					dst5.data[pos5 + 3] = byte15;
+					dst5.data[pos5 + 1] = byte8;
+					dst5.data[pos5 + 2] = byte9;
+					dst5.data[pos5 + 3] = byte10;
 					dst5.data[pos5 + 4] = a;
 					dst5.data[pos5 + 5] = b;
 					dst5.data[pos5 + 6] = c;
@@ -264,12 +250,12 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 				}
 			} else {
 				const dst6 = out;
-				const byte16 = 248 | ((hi >>> 8) & 0xff);
-				const byte17 = hi & 0xff;
+				const byte11 = 248 | ((hi >>> 8) & 0xff);
+				const byte12 = hi & 0xff;
 				rs.byteVecReserve(dst6, 6 as rs.usize);
 				const pos6 = dst6.length;
-				dst6.data[pos6 + 0] = byte16;
-				dst6.data[pos6 + 1] = byte17;
+				dst6.data[pos6 + 0] = byte11;
+				dst6.data[pos6 + 1] = byte12;
 				dst6.data[pos6 + 2] = a;
 				dst6.data[pos6 + 3] = b;
 				dst6.data[pos6 + 4] = c;
@@ -278,10 +264,10 @@ export function writeLeadingOnes(value: rs.u64, out: rs.ByteVec): void {
 			}
 		} else {
 			const dst7 = out;
-			const byte18 = 240 | (hi & 0xff);
+			const byte13 = 240 | (hi & 0xff);
 			rs.byteVecReserve(dst7, 5 as rs.usize);
 			const pos7 = dst7.length;
-			dst7.data[pos7 + 0] = byte18;
+			dst7.data[pos7 + 0] = byte13;
 			dst7.data[pos7 + 1] = a;
 			dst7.data[pos7 + 2] = b;
 			dst7.data[pos7 + 3] = c;

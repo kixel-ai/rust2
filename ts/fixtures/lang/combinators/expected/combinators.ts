@@ -254,12 +254,10 @@ export function push(r: rs.Result<rs.u8, rs.u16>, out: rs.ByteVec): void {
 	} else {
 		const dst2 = out;
 		const word = r.error;
-		const byte2 = (word >>> 8) & 255;
-		const byte3 = (word >>> 0) & 255;
 		rs.byteVecReserve(dst2, 2 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte2;
-		dst2.data[pos2 + 1] = byte3;
+		dst2.data[pos2 + 0] = (word >>> 8) & 255;
+		dst2.data[pos2 + 1] = word & 255;
 		dst2.length = dst2.length + 2;
 	}
 }

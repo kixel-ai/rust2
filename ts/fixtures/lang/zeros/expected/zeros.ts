@@ -239,24 +239,18 @@ export function hash$zeros_Tagged_String(value: Tagged.Tagged<rs.String>): rs.u6
 export function digest$marker_PhantomData_u64(value: undefined, out: rs.ByteVec): void {
 	const dst = out;
 	const word = hash$marker_PhantomData_u64(value);
-	const byte = rs.intByte(word, 0);
-	const byte2 = rs.intByte(word, 8);
-	const byte3 = rs.intByte(word, 16);
-	const byte4 = rs.intByte(word, 24);
-	const byte5 = rs.intByte(word, 32);
-	const byte6 = rs.intByte(word, 40);
-	const byte7 = rs.intByte(word, 48);
-	const byte8 = rs.intByte(word, 56);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
 	rs.byteVecReserve(dst, 8 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
-	dst.data[pos + 4] = byte5;
-	dst.data[pos + 5] = byte6;
-	dst.data[pos + 6] = byte7;
-	dst.data[pos + 7] = byte8;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
 	dst.length = dst.length + 8;
 }
 
@@ -264,24 +258,18 @@ export function digest$marker_PhantomData_u64(value: undefined, out: rs.ByteVec)
 export function digest$marker_PhantomPinned(value: undefined, out: rs.ByteVec): void {
 	const dst = out;
 	const word = hash$marker_PhantomPinned(value);
-	const byte = rs.intByte(word, 0);
-	const byte2 = rs.intByte(word, 8);
-	const byte3 = rs.intByte(word, 16);
-	const byte4 = rs.intByte(word, 24);
-	const byte5 = rs.intByte(word, 32);
-	const byte6 = rs.intByte(word, 40);
-	const byte7 = rs.intByte(word, 48);
-	const byte8 = rs.intByte(word, 56);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
 	rs.byteVecReserve(dst, 8 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
-	dst.data[pos + 4] = byte5;
-	dst.data[pos + 5] = byte6;
-	dst.data[pos + 6] = byte7;
-	dst.data[pos + 7] = byte8;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
 	dst.length = dst.length + 8;
 }
 
@@ -289,24 +277,18 @@ export function digest$marker_PhantomPinned(value: undefined, out: rs.ByteVec): 
 export function digest$ops_RangeFull(value: undefined, out: rs.ByteVec): void {
 	const dst = out;
 	const word = hash$ops_RangeFull(value);
-	const byte = rs.intByte(word, 0);
-	const byte2 = rs.intByte(word, 8);
-	const byte3 = rs.intByte(word, 16);
-	const byte4 = rs.intByte(word, 24);
-	const byte5 = rs.intByte(word, 32);
-	const byte6 = rs.intByte(word, 40);
-	const byte7 = rs.intByte(word, 48);
-	const byte8 = rs.intByte(word, 56);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
 	rs.byteVecReserve(dst, 8 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
-	dst.data[pos + 4] = byte5;
-	dst.data[pos + 5] = byte6;
-	dst.data[pos + 6] = byte7;
-	dst.data[pos + 7] = byte8;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
 	dst.length = dst.length + 8;
 }
 
@@ -314,24 +296,18 @@ export function digest$ops_RangeFull(value: undefined, out: rs.ByteVec): void {
 export function digest$u8(value: rs.u8, out: rs.ByteVec): void {
 	const dst = out;
 	const word = hash$u8(value);
-	const byte = rs.intByte(word, 0);
-	const byte2 = rs.intByte(word, 8);
-	const byte3 = rs.intByte(word, 16);
-	const byte4 = rs.intByte(word, 24);
-	const byte5 = rs.intByte(word, 32);
-	const byte6 = rs.intByte(word, 40);
-	const byte7 = rs.intByte(word, 48);
-	const byte8 = rs.intByte(word, 56);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
 	rs.byteVecReserve(dst, 8 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
-	dst.data[pos + 4] = byte5;
-	dst.data[pos + 5] = byte6;
-	dst.data[pos + 6] = byte7;
-	dst.data[pos + 7] = byte8;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
 	dst.length = dst.length + 8;
 }
 
@@ -339,24 +315,18 @@ export function digest$u8(value: rs.u8, out: rs.ByteVec): void {
 export function digest$unit(value: undefined, out: rs.ByteVec): void {
 	const dst = out;
 	const word = hash$unit(value);
-	const byte = rs.intByte(word, 0);
-	const byte2 = rs.intByte(word, 8);
-	const byte3 = rs.intByte(word, 16);
-	const byte4 = rs.intByte(word, 24);
-	const byte5 = rs.intByte(word, 32);
-	const byte6 = rs.intByte(word, 40);
-	const byte7 = rs.intByte(word, 48);
-	const byte8 = rs.intByte(word, 56);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
 	rs.byteVecReserve(dst, 8 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
-	dst.data[pos + 4] = byte5;
-	dst.data[pos + 5] = byte6;
-	dst.data[pos + 6] = byte7;
-	dst.data[pos + 7] = byte8;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
 	dst.length = dst.length + 8;
 }
 
@@ -364,24 +334,18 @@ export function digest$unit(value: undefined, out: rs.ByteVec): void {
 export function digest$zeros_Names(value: Names.Names, out: rs.ByteVec): void {
 	const dst = out;
 	const word = hash$zeros_Names(value);
-	const byte = rs.intByte(word, 0);
-	const byte2 = rs.intByte(word, 8);
-	const byte3 = rs.intByte(word, 16);
-	const byte4 = rs.intByte(word, 24);
-	const byte5 = rs.intByte(word, 32);
-	const byte6 = rs.intByte(word, 40);
-	const byte7 = rs.intByte(word, 48);
-	const byte8 = rs.intByte(word, 56);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
 	rs.byteVecReserve(dst, 8 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
-	dst.data[pos + 4] = byte5;
-	dst.data[pos + 5] = byte6;
-	dst.data[pos + 6] = byte7;
-	dst.data[pos + 7] = byte8;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
 	dst.length = dst.length + 8;
 }
 
@@ -389,24 +353,18 @@ export function digest$zeros_Names(value: Names.Names, out: rs.ByteVec): void {
 export function digest$zeros_Tagged_String(value: Tagged.Tagged<rs.String>, out: rs.ByteVec): void {
 	const dst = out;
 	const word = hash$zeros_Tagged_String(value);
-	const byte = rs.intByte(word, 0);
-	const byte2 = rs.intByte(word, 8);
-	const byte3 = rs.intByte(word, 16);
-	const byte4 = rs.intByte(word, 24);
-	const byte5 = rs.intByte(word, 32);
-	const byte6 = rs.intByte(word, 40);
-	const byte7 = rs.intByte(word, 48);
-	const byte8 = rs.intByte(word, 56);
+	const word2 = rs.intWord(word, 0);
+	const word3 = rs.intWord(word, 32);
 	rs.byteVecReserve(dst, 8 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
-	dst.data[pos + 4] = byte5;
-	dst.data[pos + 5] = byte6;
-	dst.data[pos + 6] = byte7;
-	dst.data[pos + 7] = byte8;
+	dst.data[pos + 0] = word2 & 255;
+	dst.data[pos + 1] = (word2 >>> 8) & 255;
+	dst.data[pos + 2] = (word2 >>> 16) & 255;
+	dst.data[pos + 3] = (word2 >>> 24) & 255;
+	dst.data[pos + 4] = word3 & 255;
+	dst.data[pos + 5] = (word3 >>> 8) & 255;
+	dst.data[pos + 6] = (word3 >>> 16) & 255;
+	dst.data[pos + 7] = (word3 >>> 24) & 255;
 	dst.length = dst.length + 8;
 }
 

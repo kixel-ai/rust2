@@ -3986,16 +3986,12 @@ export function genericUnions(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const tag: rs.u8 = _22[1];
 			const dst = out;
 			const word = v;
-			const byte2 = (word >>> 0) & 255;
-			const byte3 = (word >>> 8) & 255;
-			const byte4 = (word >>> 16) & 255;
-			const byte5 = (word >>> 24) & 255;
 			rs.byteVecReserve(dst, 4 as rs.usize);
 			const pos = dst.length;
-			dst.data[pos + 0] = byte2;
-			dst.data[pos + 1] = byte3;
-			dst.data[pos + 2] = byte4;
-			dst.data[pos + 3] = byte5;
+			dst.data[pos + 0] = word & 255;
+			dst.data[pos + 1] = (word >>> 8) & 255;
+			dst.data[pos + 2] = (word >>> 16) & 255;
+			dst.data[pos + 3] = (word >>> 24) & 255;
 			dst.length = dst.length + 4;
 			rs.byteVecPush(out, tag);
 		}

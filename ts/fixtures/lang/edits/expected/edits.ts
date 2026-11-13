@@ -30,12 +30,10 @@ export function putU16s(out: rs.ByteVec, v: rs.Slice<rs.u16>): void {
 	for (const _5 of rs.sliceItems(v)) {
 		const dst = out;
 		const word = _5;
-		const byte = (word >>> 8) & 255;
-		const byte2 = (word >>> 0) & 255;
 		rs.byteVecReserve(dst, 2 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
+		dst.data[pos + 0] = (word >>> 8) & 255;
+		dst.data[pos + 1] = word & 255;
 		dst.length = dst.length + 2;
 	}
 	rs.byteVecPush(out, 254);

@@ -662,12 +662,10 @@ export function optionSlices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): 
 				const word = rs.iterFold(rs.iterSlice(rs.sliceItems(rs.optionAsSlice(wide))), 0, (a: rs.u16, w: rs.u16): rs.u16 => {
 					return a ^ w;
 				});
-				const byte = (word >>> 8) & 255;
-				const byte2 = (word >>> 0) & 255;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = byte;
-				dst.data[pos + 1] = byte2;
+				dst.data[pos + 0] = (word >>> 8) & 255;
+				dst.data[pos + 1] = word & 255;
 				dst.length = dst.length + 2;
 				const wides: Array<rs.u16 | undefined> = [wide, option_map$0zvojrv(some(1), (a0: rs.u8): rs.u16 => {
 					return a0 as rs.u16;
@@ -706,12 +704,10 @@ export function optionSlices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): 
 					}
 					const dst2 = out;
 					const word2 = option_unwrapOr$1szdyfq(_90, 61166);
-					const byte3 = (word2 >>> 8) & 255;
-					const byte4 = (word2 >>> 0) & 255;
 					rs.byteVecReserve(dst2, 2 as rs.usize);
 					const pos2 = dst2.length;
-					dst2.data[pos2 + 0] = byte3;
-					dst2.data[pos2 + 1] = byte4;
+					dst2.data[pos2 + 0] = (word2 >>> 8) & 255;
+					dst2.data[pos2 + 1] = word2 & 255;
 					dst2.length = dst2.length + 2;
 				}
 			}

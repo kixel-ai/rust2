@@ -55,16 +55,12 @@ export function slices(kind: rs.u8, dataData: Uint8Array, dataStart: number, dat
 export function put(out: rs.ByteVec, n: rs.usize): void {
 	const dst = out;
 	const word = n as rs.u32;
-	const byte = (word >>> 0) & 255;
-	const byte2 = (word >>> 8) & 255;
-	const byte3 = (word >>> 16) & 255;
-	const byte4 = (word >>> 24) & 255;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = byte;
-	dst.data[pos + 1] = byte2;
-	dst.data[pos + 2] = byte3;
-	dst.data[pos + 3] = byte4;
+	dst.data[pos + 0] = word & 255;
+	dst.data[pos + 1] = (word >>> 8) & 255;
+	dst.data[pos + 2] = (word >>> 16) & 255;
+	dst.data[pos + 3] = (word >>> 24) & 255;
 	dst.length = dst.length + 4;
 }
 

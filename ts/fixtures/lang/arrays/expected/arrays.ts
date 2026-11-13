@@ -356,16 +356,12 @@ export function lent(data: rs.ByteSlice, out: rs.ByteVec): void {
 			}
 			const dst = out;
 			const word = sums[_123];
-			const byte = (word >>> 0) & 255;
-			const byte2 = (word >>> 8) & 255;
-			const byte3 = (word >>> 16) & 255;
-			const byte4 = (word >>> 24) & 255;
 			rs.byteVecReserve(dst, 4 as rs.usize);
 			const pos = dst.length;
-			dst.data[pos + 0] = byte;
-			dst.data[pos + 1] = byte2;
-			dst.data[pos + 2] = byte3;
-			dst.data[pos + 3] = byte4;
+			dst.data[pos + 0] = word & 255;
+			dst.data[pos + 1] = (word >>> 8) & 255;
+			dst.data[pos + 2] = (word >>> 16) & 255;
+			dst.data[pos + 3] = (word >>> 24) & 255;
 			dst.length = dst.length + 4;
 		} else {
 			const read: rs.u8[] = rs.arrayFrom(rs.byteSliceView(rs.byteSliceFrom(bytes)));
@@ -468,16 +464,12 @@ export function asSlices(data: rs.ByteSlice, out: rs.ByteVec): void {
 			const word = rs.iterSum(rs.iterMap(rs.iterSlice(wide), (_2: rs.u16): rs.u32 => {
 				return _2 as rs.u32;
 			}), rs.u32Add, 0);
-			const byte = (word >>> 0) & 255;
-			const byte2 = (word >>> 8) & 255;
-			const byte3 = (word >>> 16) & 255;
-			const byte4 = (word >>> 24) & 255;
 			rs.byteVecReserve(dst, 4 as rs.usize);
 			const pos = dst.length;
-			dst.data[pos + 0] = byte;
-			dst.data[pos + 1] = byte2;
-			dst.data[pos + 2] = byte3;
-			dst.data[pos + 3] = byte4;
+			dst.data[pos + 0] = word & 255;
+			dst.data[pos + 1] = (word >>> 8) & 255;
+			dst.data[pos + 2] = (word >>> 16) & 255;
+			dst.data[pos + 3] = (word >>> 24) & 255;
 			dst.length = dst.length + 4;
 			rs.byteVecExtendFromSlice(out, rs.byteSliceFrom(bytes));
 		}

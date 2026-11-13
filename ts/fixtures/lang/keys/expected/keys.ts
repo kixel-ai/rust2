@@ -643,24 +643,18 @@ export function options(dataData: Uint8Array, dataStart: number, dataLen: number
 		const word = option_mapOr$1afu7tt(_352[0][1].exclude, 0, (h4: Hop.Hop): rs.u64 => {
 			return h4._0;
 		});
-		const byte = rs.intByte(word, 56);
-		const byte2 = rs.intByte(word, 48);
-		const byte3 = rs.intByte(word, 40);
-		const byte4 = rs.intByte(word, 32);
-		const byte5 = rs.intByte(word, 24);
-		const byte6 = rs.intByte(word, 16);
-		const byte7 = rs.intByte(word, 8);
-		const byte8 = rs.intByte(word, 0);
+		const word2 = rs.intWord(word, 0);
+		const word3 = rs.intWord(word, 32);
 		rs.byteVecReserve(dst, 8 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
-		dst.data[pos + 2] = byte3;
-		dst.data[pos + 3] = byte4;
-		dst.data[pos + 4] = byte5;
-		dst.data[pos + 5] = byte6;
-		dst.data[pos + 6] = byte7;
-		dst.data[pos + 7] = byte8;
+		dst.data[pos + 0] = (word3 >>> 24) & 255;
+		dst.data[pos + 1] = (word3 >>> 16) & 255;
+		dst.data[pos + 2] = (word3 >>> 8) & 255;
+		dst.data[pos + 3] = word3 & 255;
+		dst.data[pos + 4] = (word2 >>> 24) & 255;
+		dst.data[pos + 5] = (word2 >>> 16) & 255;
+		dst.data[pos + 6] = (word2 >>> 8) & 255;
+		dst.data[pos + 7] = word2 & 255;
 		dst.length = dst.length + 8;
 		rs.byteVecPush(out, (_352[0][1].exclude !== undefined ? 1 : 0) | (((_352[0][1].local ? 1 : 0) << 1) & 0xff));
 		rs.byteVecPush(out, _352[1]);
@@ -836,21 +830,17 @@ export function places(data: rs.ByteSlice, out: rs.ByteVec): void {
 		}
 		const dst = out;
 		const word = _179[0];
-		const byte = (word >>> 8) & 255;
-		const byte2 = (word >>> 0) & 255;
 		rs.byteVecReserve(dst, 2 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = byte;
-		dst.data[pos + 1] = byte2;
+		dst.data[pos + 0] = (word >>> 8) & 255;
+		dst.data[pos + 1] = word & 255;
 		dst.length = dst.length + 2;
 		const dst2 = out;
 		const word2 = _179[1];
-		const byte3 = (word2 >>> 8) & 255;
-		const byte4 = (word2 >>> 0) & 255;
 		rs.byteVecReserve(dst2, 2 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = byte3;
-		dst2.data[pos2 + 1] = byte4;
+		dst2.data[pos2 + 0] = (word2 >>> 8) & 255;
+		dst2.data[pos2 + 1] = word2 & 255;
 		dst2.length = dst2.length + 2;
 	}
 	const touchy: rs.BTreeMap<Touchy.Touchy, rs.u8> = rs.btreeNew(Touchy.cmp$cmp_Ord) as rs.BTreeMap<Touchy.Touchy, rs.u8>;
@@ -888,16 +878,12 @@ export function places(data: rs.ByteSlice, out: rs.ByteVec): void {
 		rs.byteVecPush(out, _241[0]);
 		const dst3 = out;
 		const word3 = _241[1] as rs.u32;
-		const byte5 = (word3 >>> 24) & 255;
-		const byte6 = (word3 >>> 16) & 255;
-		const byte7 = (word3 >>> 8) & 255;
-		const byte8 = (word3 >>> 0) & 255;
 		rs.byteVecReserve(dst3, 4 as rs.usize);
 		const pos3 = dst3.length;
-		dst3.data[pos3 + 0] = byte5;
-		dst3.data[pos3 + 1] = byte6;
-		dst3.data[pos3 + 2] = byte7;
-		dst3.data[pos3 + 3] = byte8;
+		dst3.data[pos3 + 0] = (word3 >>> 24) & 255;
+		dst3.data[pos3 + 1] = (word3 >>> 16) & 255;
+		dst3.data[pos3 + 2] = (word3 >>> 8) & 255;
+		dst3.data[pos3 + 3] = word3 & 255;
 		dst3.length = dst3.length + 4;
 	}
 	let iterStart2: rs.u8 = 0;
@@ -905,24 +891,18 @@ export function places(data: rs.ByteSlice, out: rs.ByteVec): void {
 	while ((_257 = iterStart2++) < iterEnd2) {
 		const dst4 = out;
 		const word4 = option_unwrapOr$15hbiwd(rs.hashGet(wide, _257), 0);
-		const byte9 = rs.intByte(word4, 56);
-		const byte10 = rs.intByte(word4, 48);
-		const byte11 = rs.intByte(word4, 40);
-		const byte12 = rs.intByte(word4, 32);
-		const byte13 = rs.intByte(word4, 24);
-		const byte14 = rs.intByte(word4, 16);
-		const byte15 = rs.intByte(word4, 8);
-		const byte16 = rs.intByte(word4, 0);
+		const word5 = rs.intWord(word4, 0);
+		const word6 = rs.intWord(word4, 32);
 		rs.byteVecReserve(dst4, 8 as rs.usize);
 		const pos4 = dst4.length;
-		dst4.data[pos4 + 0] = byte9;
-		dst4.data[pos4 + 1] = byte10;
-		dst4.data[pos4 + 2] = byte11;
-		dst4.data[pos4 + 3] = byte12;
-		dst4.data[pos4 + 4] = byte13;
-		dst4.data[pos4 + 5] = byte14;
-		dst4.data[pos4 + 6] = byte15;
-		dst4.data[pos4 + 7] = byte16;
+		dst4.data[pos4 + 0] = (word6 >>> 24) & 255;
+		dst4.data[pos4 + 1] = (word6 >>> 16) & 255;
+		dst4.data[pos4 + 2] = (word6 >>> 8) & 255;
+		dst4.data[pos4 + 3] = word6 & 255;
+		dst4.data[pos4 + 4] = (word5 >>> 24) & 255;
+		dst4.data[pos4 + 5] = (word5 >>> 16) & 255;
+		dst4.data[pos4 + 6] = (word5 >>> 8) & 255;
+		dst4.data[pos4 + 7] = word5 & 255;
 		dst4.length = dst4.length + 8;
 	}
 	const iter6: rs.Range<rs.u64> = new rs.Range(0, 6, rs.u64Step);
@@ -932,13 +912,11 @@ export function places(data: rs.ByteSlice, out: rs.ByteVec): void {
 			break;
 		}
 		const dst5 = out;
-		const word5 = option_unwrapOr$1szdyfq(rs.hashGet(hops, { _0: _273 }), 0);
-		const byte17 = (word5 >>> 8) & 255;
-		const byte18 = (word5 >>> 0) & 255;
+		const word7 = option_unwrapOr$1szdyfq(rs.hashGet(hops, { _0: _273 }), 0);
 		rs.byteVecReserve(dst5, 2 as rs.usize);
 		const pos5 = dst5.length;
-		dst5.data[pos5 + 0] = byte17;
-		dst5.data[pos5 + 1] = byte18;
+		dst5.data[pos5 + 0] = (word7 >>> 8) & 255;
+		dst5.data[pos5 + 1] = word7 & 255;
 		dst5.length = dst5.length + 2;
 	}
 	const iter7: rs.Iter<[Hop.Hop, [rs.u8, rs.u8]]> = rs.btreeIter(pairs);
