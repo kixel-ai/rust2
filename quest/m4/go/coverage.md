@@ -35,7 +35,7 @@ failed speed result deletes `go/`, so planning the constructs earlier would be w
 The last coverage child reruns `just go bench` against speed's bar, every `stream/`
 workload within 2x of cgo, since constructs such as `Vec::capacity` change what the
 stream workload runs. Speed reached the bar on 2026-11-07 in
-[moq-dev/rust2#643](https://github.com/moq-dev/rust2/pull/643), but the epic is parked
+[kixel-ai/rust2#643](https://github.com/kixel-ai/rust2/pull/643), but the epic is parked
 until a consumer needs pure Go, so the split waits for that too.
 
 - ✅ Gate on speed, split later.
