@@ -1542,7 +1542,10 @@ fn unreached_types() {
 	}
 	// `impl Iterator + '_` lends a borrow of the receiver, so `drain` is refused and `Drain`
 	// left out with it, rather than glue that does not build.
-	assert!(report.contains("- `Buffer::drain`: type C never holds `net::Drain`"), "{report}");
+	assert!(
+		report.contains("- `Buffer::drain`: type C never holds `net::Drain`"),
+		"{report}"
+	);
 	assert!(
 		report.contains("fn `seal` at src/lib.rs:11:1: type not reachable from the crate root `kio::sealed::Sealed`"),
 		"{report}"
