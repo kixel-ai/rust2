@@ -27,7 +27,8 @@ the run's summary; nothing fails on a number.
 | stamped write | the same with a new `Timestamp` per frame, as a caller holding a `u64` must | none |
 | ready read | a 100 B frame written, then read through a new future ready at its first poll | `await noop_async()`, plus a write |
 | woken read | a read started before its frame is written, as the language starts work concurrently, so it suspends and the write's wake resumes it | `await yield_once()`, plus a write |
-| reader loop | one reader and one writer live for all groups, with one permit per frame; includes the permit handoff | none |
+| reader loop | one reader lives for all groups; Swift is drained to suspension on its preferred executor, other managed languages include one permit handoff per frame | none |
+| Swift global loop | the same long-lived reader on Swift's global pool, with a permit handoff per frame | none |
 | payload | `frame.payload` of 100 B, handed to the language | none |
 | throughput | groups of 100 frames written and read, each payload's first byte touched, about 64 MiB | throughput |
 
@@ -37,44 +38,77 @@ coroutine in Kotlin; and an eager call in Dart. So it measures a task's start an
 wake, and in Swift, Python, and Go, a read the scheduler had not yet started is ready
 instead of woken.
 
-The `loop` case removes task creation per frame: one reader loops over all groups and a
-single writer waits for a permit before each write. The reader grants the next permit
-only after consuming the previous frame, so there is at most one outstanding frame.
-The permit's channel or stream handoff is included. In Swift and Go the writer can race
-the read's first poll, so this is a streaming measurement, not proof that every read
-suspended. C, C++, and Rust already poll in one loop without creating tasks; their
-`loop` row repeats their `woken` measurement as the manual-poll floor.
+The `loop` case removes task creation per frame. In Go, Kotlin, Python, and Dart one
+writer waits for a permit before each write, and for acknowledgement before advancing
+groups, so a slow reader cannot lose its group. The channel or stream handoff is included;
+Go's writer can race the first poll. Swift uses one task on a preferred executor that
+this thread drains until its queue is empty before each write, then drains again until
+the frame is consumed. Its per-frame count assertions prove that the read suspended and
+that the write woke it. This is the same executor mechanism the Swift correctness tests
+use. C, C++, and Rust already manually poll in one loop; `loop` repeats their `woken` floor.
+
+Swift also keeps `loop-global`: one long-lived reader and writer on the default global
+pool, with one permit handoff per frame. The write can race the first poll there. Neither
+this case nor the old task-per-read case guarantees every read suspended.
 
 ## Long-lived reader measurement
 
-Measured 2026-11-13 on fedora, at `a37b3951` plus the reader-loop harness, moq
-`ffcb7cd9`. Built with `just ffi bench-build`, rebuilt the changed language harnesses, then ran
-`just ffi bench-run 3`, all through `quest gate nix develop .#bench`. Medians below are
-microseconds per 100 B frame (write plus read). The writer waits for the reader to
-acknowledge consuming the entire group before advancing, so a slow reader cannot lose it.
+Measured 2026-11-13 on **nixos**, an AMD Ryzen 9 5900XT (16 cores, 32 threads), after a
+loaded fedora run proved inconclusive. Baseline: rust2 `03782045`, moq `ffcb7cd9`, Swift
+6.4.0, Go 1.27.3, Kotlin 2.4.21 and coroutines 1.10.2, Dart 3.13.0. The binaries and their
+Nix runtime closures were copied from fedora; builds and measurements on nixos ran
+through `quest gate` over SSH. No CPU affinity or scheduler settings were changed.
 
-| language | task per read, wall / CPU | reader loop, wall / CPU | loop load |
-|---|---|---|---|
-| rust | 0.38 / 0.38 | 0.38 / 0.38 | 28 |
-| c | 0.59 / 0.57 | 0.59 / 0.57 | 28 |
-| cpp | 0.64 / 0.58 | 0.64 / 0.58 | 28 |
-| kotlin | 2.14 / 2.18 | 1.94 / 1.98 | 31 |
-| python | 11.99 / 11.25 | 9.68 / 9.21 | 35 |
-| swift | 5.59 / 14.61 | 5.58 / 7.30 | 40 |
-| go | 4.91 / 6.10 | 3.71 / 3.62 | 35 |
-| dart | 1.96 / 1.94 | 2.11 / 2.10 | 31 |
+Five rounds, each program warming up once before printing, in microseconds per 100 B
+frame (write plus read); CPU includes every process thread:
 
-The loop reduces Go's wall cost and roughly halves Swift's CPU cost, but Swift's wall
-cost remains similar. The loop still costs more than Kotlin's and Dart's on this loaded
-host. These results do not establish that task creation alone explains the gap, or that
-changing the runtime would close it: the permit handoff is included and the languages
-ran sequentially under different loads. Profile the remaining wake and handoff costs
-before changing the generated runtimes. The quest stays open.
+| language / executor | task per read, wall / CPU | reader loop, wall / CPU |
+|---|---|---|
+| Kotlin, runBlocking | 1.88 / 1.94 | 1.80 / 1.83 |
+| Dart, isolate | 2.41 / 2.40 | 2.78 / 2.77 |
+| Swift, global pool | 5.14 / 18.88 | 4.30 / 9.50 |
+| Swift, drained preferred executor | no task per frame | 1.22 / 1.21 |
+| Go, before the nil-context wait change | 4.87 / 6.68 | 3.07 / 3.57 |
+
+The preferred-executor Swift loop was measured separately with the new harness. Its
+contemporaneous global-loop median was 4.40 / 9.63 us, consistent with the baseline.
+A separate counted run recorded 1,010,000 initial pending polls and 1,010,000 polls that
+pended with a real waker: all one million reads plus the 10,000 group receives. The
+counted run did not supply timing results. By contrast, the counted global-loop run had
+only about 40% of calls pend with a real waker; instrumentation can affect this ratio.
+The structural suspension check in the drained loop needs no instrumentation.
+
+`perf record -F 499 -g` on the original full Swift program attributed 55.5% of sampled
+cycles to the dispatch-worker subtree, including 43.4% under its semaphore-wait path.
+Kernel addresses were restricted, so kernel function names are unresolved. A separate
+language-only control using the same permit stream, an NSLock-protected continuation
+mailbox, and no Rust measured 3.78 / 8.87 us (median of five after warmup). This is evidence
+that the global executor and the permit handoff dominate that case, not a precise
+subtraction of binding costs: the mailbox uses a lock, while the binding uses atomics.
+Swift's binding already supports the caller's preferred executor and needs no runtime
+change. Forcing a different executor would change caller behavior.
+
+Go's profile showed scheduling, cgo transitions, and `selectgo`. A context whose `Done`
+is nil now waits directly on the wake channel, avoiding a select with a permanently nil
+case. Cancellable contexts keep the select and the cancellation check before repolling.
+Five alternating before/after runs on nixos, with the same Go compiler and Rust library:
+
+| Go case | before, wall / CPU | after, wall / CPU |
+|---|---|---|
+| ready | 0.860 / 0.880 | 0.855 / 0.878 |
+| task per read | 4.910 / 6.741 | 4.739 / 6.508 |
+| reader loop | 3.096 / 3.616 | 2.914 / 3.397 |
+
+The loop's wall and CPU medians drop about 6%. Four paired rounds improved; one had a
+scheduler outlier in both variants and regressed. Go's result is close to Dart's loop,
+while the confirmed-woken Swift loop is below Kotlin's and Dart's. The remaining Swift
+global-pool cost is a scheduler cost, not a reason to move Rust polling into a wake
+callback or resume the caller on another executor. No performance threshold is a gate.
 
 The async-start design in [kixel-ai/rust2#741](https://github.com/kixel-ai/rust2/pull/741)
-was still unmerged during this run. It removes ready-call crossings; a pending call
-still polls again to register its real waker. This harness uses stock public bindings
-and will measure that pending path once the design lands.
+was still unmerged during these runs. It removes ready-call crossings; a pending call
+still polls again to register its real waker. These changes preserve that design and
+use the stock public binding APIs.
 
 ## rust2-ffi
 

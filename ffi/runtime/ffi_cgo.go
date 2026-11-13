@@ -386,9 +386,15 @@ func await_(ctx context.Context, poll func(cWaker) (bool, error)) error {
 		if done, err := poll(waker); done {
 			return err
 		}
-		select {
-		case <-woken:
-		case <-ctx.Done():
+		// A context without cancellation needs only the wake channel, avoiding
+		// select's registration and lock ordering for a permanently nil case.
+		if cancelled := ctx.Done(); cancelled == nil {
+			<-woken
+		} else {
+			select {
+			case <-woken:
+			case <-cancelled:
+			}
 		}
 		// Done between the wake and the poll: the poll would take what the next call sees.
 		if err := ctx.Err(); err != nil {

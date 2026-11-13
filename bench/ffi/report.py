@@ -37,6 +37,7 @@ CALLS = [
 	("ready", "a 100 B frame written and read, ready"),
 	("woken", "the same, read after a wake"),
 	("loop", "the same, one reader and writer for all frames"),
+	("loop-global", "the Swift reader loop on the global executor"),
 	("payload", "`frame.payload`, 100 B"),
 ]
 

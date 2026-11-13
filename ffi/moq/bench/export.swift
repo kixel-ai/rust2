@@ -50,6 +50,30 @@ func block<T: ~Copyable>(_ body: @escaping @Sendable () async throws -> T) -> T 
 	return result.value.take()!
 }
 
+/// A queue of jobs that a test runs when it chooses: the executor its tasks prefer, so a
+/// call resumes on it.
+final class Queue: TaskExecutor, @unchecked Sendable {
+	private let lock = NSLock()
+	private var jobs: [UnownedJob] = []
+
+	func enqueue(_ job: UnownedJob) {
+		lock.lock()
+		defer { lock.unlock() }
+		jobs.append(job)
+	}
+
+	func drain() {
+		while true {
+			lock.lock()
+			let job = jobs.isEmpty ? nil : jobs.removeFirst()
+			lock.unlock()
+			guard let job else { return }
+			job.runSynchronously(on: asUnownedTaskExecutor())
+		}
+	}
+
+}
+
 /// The async cases' spans, the last frame read, and their reads' sum, which a tuple cannot
 /// hold.
 struct Reads: ~Copyable {
@@ -200,7 +224,7 @@ func round() throws -> ([(String, Span)], Int) {
 		}
 		send.finish()
 		try await writer.value
-		out.append(("loop", per(start)))
+		out.append(("loop-global", per(start)))
 
 		var sum = 0
 		for size in sizes {
@@ -213,6 +237,41 @@ func round() throws -> ([(String, Span)], Int) {
 	out += reads.out
 	sum += reads.sum
 	let last = reads.last
+
+	// Drain one reader on its preferred executor until it suspends before every
+	// write. Unlike a yield on the global pool, an empty queue proves it parked.
+	let wakeTrack = try broadcast.createTrack("wake-loop", TrackInfo.default().withTimescale(Timescale.MICRO))
+	let queue = Queue()
+	let consumed = Cell<Int>()
+	consumed.value = 0
+	let done = Cell<Bool>()
+	done.value = false
+	start = now()
+	Task(executorPreference: queue) {
+		var subscriber = try! await wakeTrack.consume().subscribe(nil)
+		for _ in 0..<groups {
+			var reader = try! await subscriber.recvGroup()!
+			for _ in 0..<frames {
+				_ = try! await reader.readFrame()!
+				consumed.value! += 1
+			}
+		}
+		done.value = true
+	}
+	queue.drain()
+	for g in 0..<groups {
+		var group = try wakeTrack.appendGroup()
+		queue.drain()
+		for f in 0..<frames {
+			precondition(consumed.value == g * frames + f)
+			try group.writeFrame(at, frame)
+			queue.drain()
+			precondition(consumed.value == g * frames + f + 1)
+		}
+		try group.finish()
+	}
+	precondition(done.value == true)
+	out.append(("loop", per(start)))
 
 	// The last frame's 100 bytes, copied into a Data, and one of them read.
 	start = now()

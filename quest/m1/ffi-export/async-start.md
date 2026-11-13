@@ -38,7 +38,3 @@ cancel test, and re-measure the bench's ready and woken reads.
 
 Public API: every async export's C functions and the contract hash (breaking), and each
 binding's future wrapper.
-
-## Related
-
-- [A cheaper woken read](/quest/m1/ffi-speed/woken-read.md) - the pending path this leaves alone
