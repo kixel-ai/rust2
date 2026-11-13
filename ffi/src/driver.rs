@@ -213,11 +213,7 @@ impl Callbacks for Export {
 /// Each exclude whose item would export without it, and that item's paths: what an
 /// exclude checked, from [`collect::Report::audited`], that the census's API holds by the
 /// same path, except a function at one of the `refused` spans.
-fn exporting(
-	api: &Api,
-	audited: &[(String, Vec<String>)],
-	refused: &FxHashSet<Span>,
-) -> Vec<(String, Vec<String>)> {
+fn exporting(api: &Api, audited: &[(String, Vec<String>)], refused: &FxHashSet<Span>) -> Vec<(String, Vec<String>)> {
 	// Every path an exported item is checked by, from the facade's root, as the walk checks it.
 	let mut paths = FxHashSet::default();
 	let mut add = |path: &[String]| {
