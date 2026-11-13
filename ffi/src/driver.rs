@@ -173,6 +173,7 @@ impl Callbacks for Export {
 		}
 		// Refusals still let the export go on to report each clash, but write nothing.
 		let target = merge::Target {
+			names: None,
 			package: self.facade.name.clone(),
 			features: self.facade.features.clone(),
 			exclude: self.config.exclude.clone(),
@@ -183,7 +184,7 @@ impl Callbacks for Export {
 			Output::Api(_) if tcx.dcx().has_errors().is_some() => Ok(()),
 			Output::Api(path) => target.write(path, tcx.sess.source_map(), &self.roots),
 			Output::Dir(out) => match self.merged(tcx, target) {
-				Some(api) if self.locked(tcx, &api) => self.export(tcx, api, out),
+				Some(api) => self.export(tcx, api, out),
 				_ => Ok(()),
 			},
 		};
@@ -272,7 +273,7 @@ impl Export {
 	}
 
 	/// Whether `ours` keeps the baseline's API, if there is one, emitting each break of it.
-	fn locked(&self, tcx: TyCtxt<'_>, ours: &merge::Target) -> bool {
+	fn locked(&self, tcx: TyCtxt<'_>, ours: &merge::Target, now_names: &crate::lock::Names) -> bool {
 		let Some(path) = &self.baseline else {
 			return true;
 		};
@@ -292,7 +293,18 @@ impl Export {
 			));
 			return false;
 		}
-		let breaks = crate::lock::breaks(&base.api, &ours.api, &self.facade.lib);
+		let Some(names) = &base.names else {
+			tcx.dcx()
+				.err("rust2-ffi: the baseline lacks binding names; export it again with this rust2-ffi");
+			return false;
+		};
+		if now_names.keys().any(|language| !names.contains_key(language)) {
+			tcx.dcx()
+				.err("rust2-ffi: the baseline lacks a binding's name table; export it again with this rust2-ffi");
+			return false;
+		}
+		let mut breaks = crate::lock::breaks(&base.api, &ours.api, &self.facade.lib);
+		breaks.extend(crate::lock::name_breaks(names, now_names, &ours.api, &self.facade.lib));
 		let help = format!(
 			"to accept the break, export without --baseline and replace {} with the export's {API_FILE}",
 			path.display()
@@ -309,7 +321,7 @@ impl Export {
 	}
 
 	/// Write the export of `api` into `out`, or fail on two items that share a C name.
-	fn export(&self, tcx: TyCtxt<'_>, target: merge::Target, out: &Path) -> Result<(), String> {
+	fn export(&self, tcx: TyCtxt<'_>, mut target: merge::Target, out: &Path) -> Result<(), String> {
 		let api = &target.api;
 		let abi = Abi::new(api, &self.facade.lib);
 		for (name, (first, first_span), (second, second_span)) in &abi.clashes {
@@ -335,7 +347,13 @@ impl Export {
 			facade: &self.facade,
 			patch: &self.patch,
 		};
-		glue.write(out)?;
+		let generated = glue.generate(out)?;
+		if !self.locked(tcx, &target, &generated.names) {
+			return Ok(());
+		}
+		target.names = Some(generated.names.clone());
+		generated.write()?;
+
 		target.write(&out.join(API_FILE), tcx.sess.source_map(), &self.roots)
 	}
 }

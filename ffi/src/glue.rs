@@ -6,7 +6,7 @@
 //! receiver or parameter is, or moved out of when taken by value.
 
 use std::fmt::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::abi::{self, Abi, CFG, Ty};
 use crate::config::Package;
@@ -115,6 +115,31 @@ pub struct Crate<'a> {
 	pub patch: &'a str,
 }
 
+/// Generated files and the names checked before any file is written.
+pub struct Output {
+	pub names: crate::lock::Names,
+	files: Vec<(PathBuf, String)>,
+	go_dir: PathBuf,
+}
+
+impl Output {
+	fn file(&mut self, path: &Path, text: &str) {
+		self.files.push((path.to_path_buf(), text.to_string()));
+	}
+
+	/// Write a validated export, removing stale Go packages from an earlier export.
+	pub fn write(self) -> Result<(), String> {
+		if self.go_dir.exists() {
+			std::fs::remove_dir_all(&self.go_dir)
+				.map_err(|err| format!("removing {}: {err}", self.go_dir.display()))?;
+		}
+		for (path, text) in self.files {
+			crate::driver::write(&path, &text)?;
+		}
+		Ok(())
+	}
+}
+
 impl Crate<'_> {
 	/// The facade's package name.
 	fn packages(&self) -> String {
@@ -126,7 +151,7 @@ impl Crate<'_> {
 	/// `python/<prefix>.py`, whose CPython extension its `python` feature builds,
 	/// `swift/<prefix>.swift` with the clang module it imports the header through, and
 	/// `go/<prefix>.go`, and `dart/<prefix>.dart`, whose glue its `dart` feature builds.
-	pub fn write(&self, out: &Path) -> Result<(), String> {
+	pub fn generate(&self, out: &Path) -> Result<Output, String> {
 		// Cargo unifies in what the facade enables in its dependencies.
 		let facade = self.facade;
 		let mut features: Vec<String> = facade.features.iter().map(|f| format!("{f:?}")).collect();
@@ -209,13 +234,29 @@ impl Crate<'_> {
 			lib = self.abi.prefix,
 		);
 		let (header, contract) = crate::c::header(self.abi, &self.packages());
-		let cpp = crate::cpp::header(self.abi, &self.packages())?;
+		let (cpp, cpp_names) = crate::cpp::header(self.abi, &self.packages())?;
 		let kotlin = crate::kotlin::generate(self.abi, &self.packages(), contract)?;
 		let python = crate::python::generate(self.abi, &self.packages(), contract)?;
 		let swift = crate::swift::generate(self.abi, &self.packages(), contract)?;
 		let (module, go_mod) = go_module(out, &self.abi.prefix)?;
 		let go = crate::go::generate(self.abi, &self.packages(), contract, &module)?;
 		let dart = crate::dart::generate(self.abi, &self.packages(), contract)?;
+		let names = [
+			("C++", cpp_names),
+			("Kotlin", kotlin.names),
+			("Python", python.names),
+			("Swift", swift.names),
+			("Go", go.names),
+			("Dart", dart.names),
+		]
+		.into_iter()
+		.map(|(language, names)| (language.to_string(), names))
+		.collect();
+		let mut output = Output {
+			names,
+			files: Vec::new(),
+			go_dir: out.join("go"),
+		};
 		let mut generator = Gen {
 			abi: self.abi,
 			packages: self.packages(),
@@ -226,50 +267,47 @@ impl Crate<'_> {
 			out: String::new(),
 		};
 		generator.lib();
-		crate::driver::write(&out.join("Cargo.toml"), &manifest)?;
-		crate::driver::write(&out.join("src/lib.rs"), &generator.out)?;
-		crate::driver::write(&out.join("build.rs"), &build(&self.abi.api.targets))?;
-		crate::driver::write(&out.join("src/rt.rs"), RUNTIME)?;
-		crate::driver::write(&out.join("include").join(format!("{}.h", self.abi.prefix)), &header)?;
-		crate::driver::write(&out.join("include").join(format!("{}.hpp", self.abi.prefix)), &cpp)?;
-		crate::driver::write(&out.join("src/jni/mod.rs"), &kotlin.glue)?;
-		crate::driver::write(&out.join("src/jni/rt.rs"), crate::kotlin::GLUE_RUNTIME)?;
-		crate::driver::write(
+		output.file(&out.join("Cargo.toml"), &manifest);
+		output.file(&out.join("src/lib.rs"), &generator.out);
+		output.file(&out.join("build.rs"), &build(&self.abi.api.targets));
+		output.file(&out.join("src/rt.rs"), RUNTIME);
+		output.file(&out.join("include").join(format!("{}.h", self.abi.prefix)), &header);
+		output.file(&out.join("include").join(format!("{}.hpp", self.abi.prefix)), &cpp);
+		output.file(&out.join("src/jni/mod.rs"), &kotlin.glue);
+		output.file(&out.join("src/jni/rt.rs"), crate::kotlin::GLUE_RUNTIME);
+		output.file(
 			&out.join("kotlin").join(format!("{}.kt", self.abi.prefix)),
 			&kotlin.kotlin,
-		)?;
-		crate::driver::write(
+		);
+		output.file(
 			&out.join("kotlin").join(format!("{}.pro", self.abi.prefix)),
 			&kotlin.rules,
-		)?;
-		crate::driver::write(&out.join("src/python/mod.rs"), &python.glue)?;
-		crate::driver::write(&out.join("src/python/rt.rs"), crate::python::GLUE_RUNTIME)?;
-		crate::driver::write(
+		);
+		output.file(&out.join("src/python/mod.rs"), &python.glue);
+		output.file(&out.join("src/python/rt.rs"), crate::python::GLUE_RUNTIME);
+		output.file(
 			&out.join("python").join(format!("{}.py", self.abi.prefix)),
 			&python.python,
-		)?;
-		crate::driver::write(&out.join("src/dart/mod.rs"), &dart.glue)?;
-		crate::driver::write(&out.join("src/dart/runtime.rs"), crate::dart::GLUE_RUNTIME)?;
-		crate::driver::write(&out.join("dart").join(format!("{}.dart", self.abi.prefix)), &dart.dart)?;
+		);
+		output.file(&out.join("src/dart/mod.rs"), &dart.glue);
+		output.file(&out.join("src/dart/runtime.rs"), crate::dart::GLUE_RUNTIME);
+		output.file(&out.join("dart").join(format!("{}.dart", self.abi.prefix)), &dart.dart);
 		let swift_dir = out.join("swift");
-		crate::driver::write(&swift_dir.join(format!("{}.swift", self.abi.prefix)), &swift.swift)?;
-		crate::driver::write(&swift_dir.join("module.modulemap"), &swift.modulemap)?;
-		crate::driver::write(
+		output.file(&swift_dir.join(format!("{}.swift", self.abi.prefix)), &swift.swift);
+		output.file(&swift_dir.join("module.modulemap"), &swift.modulemap);
+		output.file(
 			&swift_dir.join(format!("{}_atomics.h", self.abi.prefix)),
 			&swift.atomics,
-		)?;
+		);
 		// What an earlier export wrote may name packages this one has not.
 		let go_dir = out.join("go");
-		if go_dir.exists() {
-			std::fs::remove_dir_all(&go_dir).map_err(|err| format!("removing {}: {err}", go_dir.display()))?;
-		}
 		if let Some(go_mod) = go_mod {
-			crate::driver::write(&go_dir.join("go.mod"), &go_mod)?;
+			output.file(&go_dir.join("go.mod"), &go_mod);
 		}
-		for (path, text) in go {
-			crate::driver::write(&go_dir.join(path), &text)?;
+		for (path, text) in go.files {
+			output.file(&go_dir.join(path), &text);
 		}
-		Ok(())
+		Ok(output)
 	}
 }
 

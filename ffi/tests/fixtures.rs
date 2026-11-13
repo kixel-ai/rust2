@@ -1438,6 +1438,23 @@ fn lock() {
 		"an addition broke the baseline:\n{}",
 		String::from_utf8_lossy(&added.stderr)
 	);
+	let names = locked("names");
+	assert!(!names.status.success(), "binding renames passed the lock");
+	let stderr = String::from_utf8_lossy(&names.stderr);
+	for language in ["Kotlin", "Swift", "Go", "Dart", "Python"] {
+		assert!(
+			stderr.contains(&format!(
+				"its {language} name `GraphicsEncoderFinish` is now `GraphicsEncoder_Finish`"
+			)),
+			"missing class rename for {language}:\n{stderr}"
+		);
+	}
+	assert!(
+		stderr.contains("its Kotlin name `smoothStep` is now `smoothStep_`"),
+		"missing member rename:\n{stderr}"
+	);
+	assert!(!stderr.contains("its C name"), "a C name changed:\n{stderr}");
+	assert!(!dir.join("names/api.json").exists());
 	let next = locked("next");
 	assert!(!next.status.success(), "breaking the baseline passed");
 	assert!(

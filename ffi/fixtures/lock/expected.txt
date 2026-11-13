@@ -11,5 +11,6 @@ fixtures/lock/src/lib.rs:36:1: rust2-ffi: the API breaks the baseline at fn `loc
 fixtures/lock/src/lib.rs:46:1: rust2-ffi: the API breaks the baseline at fn `lock::scale`: its parameter `x`'s type; its return type
 fixtures/lock/src/lib.rs:66:2: rust2-ffi: the API breaks the baseline at fn `lock::Meter::add`: its parameter `n`'s type
 fixtures/lock/src/lib.rs:7:2: rust2-ffi: the API breaks the baseline at fn `lock::audio_encoder::finish`: its C name `lock_audio_encoder_finish` is now `lock_audio_encoder_finish_`, and `lock_audio_encoder_finish` names fn `lock::audio::encoder_finish`
+fixtures/lock/src/lib.rs:7:2: rust2-ffi: the API breaks the baseline at fn `lock::audio_encoder::finish`: its C++ name `audio_encoder_finish` is now `audio_encoder_finish_`
 fixtures/lock/src/lib.rs:86:1: rust2-ffi: the API breaks the baseline at struct `lock::Size`: field `depth` is added, which every value must now give
 fixtures/lock/src/lib.rs:94:1: rust2-ffi: the API breaks the baseline at struct `lock::Canvas`: field `width`'s type changed

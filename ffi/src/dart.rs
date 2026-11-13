@@ -42,6 +42,7 @@ const LEND: usize = 64 * 1024;
 
 /// What the generator writes: the Dart, and the Rust glue the crate's `dart` feature builds.
 pub struct Output {
+	pub names: BTreeMap<String, String>,
 	pub dart: String,
 	pub glue: String,
 }
@@ -66,6 +67,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		.collect();
 	let taken = |name: &str| TAKEN.contains(&name) || ranges.contains(name);
 	let mut g = Gen {
+		locked: BTreeMap::new(),
 		abi,
 		classes: abi.classes(|_| (String::new(), 0), taken),
 		variants: HashMap::new(),
@@ -85,7 +87,9 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		on: On::ALL,
 		space: Gen::space(abi),
 	};
+	g.locked = crate::lock::types(abi, &g.classes);
 	g.variants = g.variants(&taken);
+	crate::lock::variants(abi, &mut g.locked, &g.variants);
 	let types: Vec<String> = (g.classes.keys())
 		.map(|c| g.class(c))
 		.chain(g.variants.values().cloned())
@@ -283,6 +287,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		g.glue
 	);
 	Ok(Output {
+		names: g.locked,
 		dart: dart + "\n",
 		glue,
 	})
@@ -364,6 +369,7 @@ const BUILT_IN: &[&str] = &[
 const OBJECT: &[&str] = &["hashCode", "noSuchMethod", "runtimeType", "toString"];
 
 struct Gen<'a> {
+	locked: BTreeMap<String, String>,
 	abi: &'a Abi<'a>,
 	/// Each exported type's name, by its C name.
 	classes: HashMap<String, String>,
@@ -1237,6 +1243,8 @@ impl<'a> Gen<'a> {
 		for constant in &api.constants {
 			let name = abi::snake(self.bare(&abi.name(&constant.path))).to_uppercase();
 			let name = self.claim(&name, format!("const `{}`", constant.path.join("::")));
+			self.locked
+				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			let value = match constant.value {
 				Literal::Bool(b) => b.to_string(),
 				Literal::Int(_, v) => int_literal(v),
@@ -1594,6 +1602,7 @@ impl<'a> Gen<'a> {
 		let reserved: Vec<&str> = OBJECT.iter().copied().chain(["close"]).collect();
 		for method in &callback.methods {
 			let member = member(&abi::snake(method.name()), &reserved);
+			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
 			let params: Vec<String> = (method.params.iter())
 				.map(|p| format!("{} {}", self.dt(&p.ty), param_name(&p.name)))
@@ -2211,6 +2220,8 @@ impl<'a> Gen<'a> {
 			}
 			member.push('_');
 		};
+		crate::lock::function(&mut self.locked, function, &member);
+
 		let code = format!("{}{head} {{\n{code_body}\n}}\n", docs(text.trim(), ""));
 		Some((code, member))
 	}
@@ -2282,6 +2293,8 @@ impl<'a> Gen<'a> {
 					None => {
 						let dt = self.dt(err);
 						let name = self.claim(&format!("{}Exception", pascal(&key)), format!("the error type `{dt}`"));
+						self.locked
+							.insert(format!("error {}", self.abi.spell(err)), name.clone());
 						self.thrown.insert(name.clone(), err.clone());
 						name
 					}

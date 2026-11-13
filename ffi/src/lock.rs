@@ -18,6 +18,87 @@ use crate::abi::{Abi, Ty};
 use crate::ir::{Access, Api, Constant, Function, Literal, On, Traits, Type};
 use crate::merge::{self, Maps};
 
+/// Each language's public names, keyed by the item's kind and Rust path.
+pub type Names = BTreeMap<String, BTreeMap<String, String>>;
+
+/// A generator's names for exported types, translated from C keys to stable item keys.
+pub fn types(abi: &Abi<'_>, classes: &std::collections::HashMap<String, String>) -> BTreeMap<String, String> {
+	let api = abi.api;
+	let records = api.records.iter().enumerate().map(|(i, r)| (abi.record(i), &r.shown));
+	let enums = api
+		.enums
+		.iter()
+		.enumerate()
+		.map(|(i, e)| (abi.enumeration(i), &e.shown));
+	let objects = api.objects.iter().enumerate().map(|(i, o)| (abi.object(i), &o.shown));
+	let callbacks = api
+		.callbacks
+		.iter()
+		.enumerate()
+		.map(|(i, c)| (abi.callback(i), &c.path));
+	records
+		.chain(enums)
+		.chain(objects)
+		.chain(callbacks)
+		.filter_map(|(c, path)| classes.get(&c).map(|name| (type_key(path), name.clone())))
+		.collect()
+}
+
+/// Record names made for enum variants by a generator's collision rules.
+pub fn variants(
+	abi: &Abi<'_>,
+	names: &mut BTreeMap<String, String>,
+	variants: &std::collections::HashMap<(String, String), String>,
+) {
+	for (i, e) in abi.api.enums.iter().enumerate() {
+		for v in &e.variants {
+			if let Some(name) = variants.get(&(abi.enumeration(i), v.name.clone())) {
+				names.insert(format!("{} / variant {}", type_key(&e.shown), v.name), name.clone());
+			}
+		}
+	}
+}
+
+/// Record the final public name of a function or field accessor.
+pub fn function(names: &mut BTreeMap<String, String>, function: &Function, name: &str) {
+	names.insert(function_key(function), name.to_string());
+}
+
+/// Compare the names the generators actually emitted, retaining the current item's span.
+pub fn name_breaks(base: &Names, now: &Names, api: &Api, prefix: &str) -> Vec<Break> {
+	let index = Index::new(api, prefix);
+	let abi = Abi::new(api, prefix);
+	let mut breaks = Vec::new();
+	for (language, names) in base {
+		for (key, old) in names {
+			let owner = key.split_once(" / ").map_or(key.as_str(), |(owner, _)| owner);
+			let entry = index.entries.get(owner).or_else(|| {
+				let spelled = key.strip_prefix("error ")?;
+				index.entries.values().find(
+					|entry| matches!(entry.item, Item::Function(f) if f.err.as_ref().is_some_and(|ty| abi.spell(ty) == spelled)),
+				)
+			});
+			let Some(entry) = entry else { continue };
+			let new = now.get(language).and_then(|names| names.get(key));
+			if new != Some(old) {
+				let change = match new {
+					Some(new) => format!("is now `{new}`"),
+					None => "is no longer exported".to_string(),
+				};
+				breaks.push(Break {
+					span: entry.span,
+					what: format!(
+						"{}{}: its {language} name `{old}` {change}",
+						entry.what,
+						key.strip_prefix(owner).unwrap_or("")
+					),
+				});
+			}
+		}
+	}
+	breaks
+}
+
 /// An item the export's API breaks the baseline's at: where, and how.
 pub struct Break {
 	/// The item's span in the export, or the baseline's if the export lacks it, or none.
@@ -220,6 +301,12 @@ impl<'a> Index<'a> {
 				on: callback.on,
 				owner: None,
 			};
+			for method in &callback.methods {
+				entries.insert(
+					function_key(method),
+					Entry::function(method, String::new(), Some(type_key(&callback.path))),
+				);
+			}
 			entries.insert(type_key(&callback.path), entry);
 		}
 		for function in &api.functions {
@@ -333,11 +420,12 @@ impl<'a> Entry<'a> {
 }
 
 /// A type's key: one for every kind, so a type that becomes another kind is changed.
-fn type_key(path: &[String]) -> String {
+pub fn type_key(path: &[String]) -> String {
 	format!("type {}", path.join("::"))
 }
 
-fn function_key(function: &Function) -> String {
+/// A function or accessor identity, independent of its generated name.
+pub fn function_key(function: &Function) -> String {
 	let kind = match function.access {
 		Access::Field { set: false, .. } => "get",
 		Access::Field { set: true, .. } => "set",

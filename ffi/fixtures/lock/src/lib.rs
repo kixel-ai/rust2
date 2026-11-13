@@ -196,3 +196,28 @@ pub fn nested(x: ((u32,), u64, u8)) -> u32 {
 pub fn flat(x: ((u32, u64), u8)) -> u32 {
 	x.0.0
 }
+
+/// Kept class whose Pascal name collides only in the bindings.
+pub mod graphics {
+	pub mod encoder {
+		pub struct Finish {
+			pub value: u32,
+		}
+	}
+
+	#[cfg(feature = "names")]
+	pub struct EncoderFinish {
+		pub value: u32,
+	}
+}
+
+#[cfg(feature = "names")]
+#[allow(non_snake_case)]
+pub fn smoothStep() -> u32 {
+	2
+}
+
+/// Kept function whose camel name is claimed by the added function first.
+pub fn smooth_step() -> u32 {
+	1
+}

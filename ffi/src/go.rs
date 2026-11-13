@@ -98,14 +98,25 @@ impl Packages {
 	}
 }
 
+/// The generated Go files and their public names.
+pub struct Output {
+	pub files: Vec<(String, String)>,
+	pub names: BTreeMap<String, String>,
+}
+
 /// The Go for `abi`, whose header's contract is `contract`, as each file under `go/` by its
 /// path there, for the module path `module` of `go/`; or the names two items claim alike.
-pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> Result<Vec<(String, String)>, String> {
+pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> Result<Output, String> {
 	let set = Packages::new(abi, module);
 	let types = abi.classes(|home| (home.krate.clone(), home.outside - 1), |_| false);
+	let mut locked = crate::lock::types(abi, &types);
 	let classes = classes(abi, &types);
 	let thrown = thrown(abi, &classes);
+	for (name, (_, ty)) in &thrown {
+		locked.insert(format!("error {}", abi.spell(ty)), name.clone());
+	}
 	let variants = variants(abi, &types, &classes, &thrown);
+	crate::lock::variants(abi, &mut locked, &variants);
 	// What each package's types, their variants and tables, and its errors take.
 	let mut taken: BTreeMap<String, BTreeSet<String>> = classes.clone();
 	for ((c, _), name) in &variants {
@@ -147,6 +158,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 	for krate in &abi.api.crates {
 		let mut g = Gen::new(abi, &set, krate, &shared);
 		g.write();
+		locked.append(&mut g.locked);
 		errors.append(&mut g.errors);
 		tuples.extend(g.tuples.iter().copied());
 		let name = set.name(krate);
@@ -174,7 +186,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64, module: &str) -> R
 	}
 	files.push(("rt/rt.go".to_string(), rt.runtime(packages, contract)));
 	files.push(("rt/types.go".to_string(), rt.file("")));
-	Ok(files)
+	Ok(Output { files, names: locked })
 }
 
 /// Each error type that is no exported type, named by its key as its C structs are, so two
@@ -348,6 +360,7 @@ fn uses(code: &str, name: &str) -> bool {
 
 /// A Go function: its doc comment, receiver, name, parameters, results, and body.
 struct Method {
+	key: Option<String>,
 	docs: String,
 	receiver: Option<String>,
 	name: String,
@@ -382,6 +395,7 @@ impl Method {
 }
 
 struct Gen<'a> {
+	locked: BTreeMap<String, String>,
 	abi: &'a Abi<'a>,
 	set: &'a Packages,
 	/// The crate whose package this is, or [`Packages::RT`].
@@ -434,6 +448,7 @@ impl<'a> Gen<'a> {
 			.map(|name| (name.clone(), "a type".to_string()))
 			.collect();
 		Self {
+			locked: BTreeMap::new(),
 			abi,
 			set,
 			pkg,
@@ -1098,6 +1113,8 @@ impl<'a> Gen<'a> {
 			let c = abi.name(&constant.path);
 			let name = rest(&abi.prefix, &c, &constant.path, &constant.home).to_uppercase();
 			let name = self.claim(&name, format!("const `{}`", constant.path.join("::")));
+			self.locked
+				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			let (ty, value) = match constant.value {
 				Literal::Bool(b) => ("bool", b.to_string()),
 				Literal::Int(int, v) => (go_int(int), v.to_string()),
@@ -1119,6 +1136,7 @@ impl<'a> Gen<'a> {
 		for function in api.functions.iter().filter(|f| mine(&f.home)) {
 			let mut method = self.function(function, None, None);
 			method.name = self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
+			crate::lock::function(&mut self.locked, function, &method.name);
 			self.top.push_str(&method.write());
 		}
 		self.moved();
@@ -1171,6 +1189,7 @@ impl<'a> Gen<'a> {
 					method.name = format!("{}{}", self.named(&ty).1, method.name);
 				}
 				method.name = self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
+				crate::lock::function(&mut self.locked, function, &method.name);
 				self.top.push_str(&method.write());
 			}
 		}
@@ -1377,6 +1396,7 @@ impl<'a> Gen<'a> {
 		};
 		let method =
 			|docs: &str, member: &str, params: Vec<(String, String)>, results: Vec<String>, body: String| Method {
+				key: None,
 				docs: docs.to_string(),
 				receiver: Some(format!("self {name}")),
 				name: member.to_string(),
@@ -1458,6 +1478,7 @@ impl<'a> Gen<'a> {
 				false => format!("lift_{c}(C.{c}_default())"),
 			};
 			Method {
+				key: None,
 				docs: format!("{func} is Rust's Default."),
 				receiver: None,
 				name: func,
@@ -1513,7 +1534,7 @@ impl<'a> Gen<'a> {
 	/// The Go names of a record's fields: each [`field_name`], with a trailing `_` while
 	/// a method its traits give it, which an interface requires by name, or an earlier
 	/// field takes it.
-	fn record_fields(&self, i: usize) -> Vec<String> {
+	fn record_fields(&mut self, i: usize) -> Vec<String> {
 		let record = &self.abi.api.records[i];
 		let t = record.traits;
 		let methods = [
@@ -1532,6 +1553,10 @@ impl<'a> Gen<'a> {
 				while !taken.insert(name.clone()) {
 					name.push('_');
 				}
+				self.locked.insert(
+					format!("{} / field {}", crate::lock::type_key(&record.shown), f.name),
+					name.clone(),
+				);
 				name
 			})
 			.collect()
@@ -1589,6 +1614,9 @@ impl<'a> Gen<'a> {
 			while !taken.insert(method.name.clone()) {
 				method.name.push('_');
 			}
+			if let Some(key) = &method.key {
+				self.locked.insert(key.clone(), method.name.clone());
+			}
 			members.push(method.name.clone());
 			self.types.push_str(&method.write());
 		}
@@ -1622,6 +1650,7 @@ impl<'a> Gen<'a> {
 				Some(_) => methods.push(method),
 				None => {
 					method.name = self.claim(&method.name, format!("fn `{}`", function.path.join("::")));
+					crate::lock::function(&mut self.locked, function, &method.name);
 					statics.push(method);
 				}
 			}
@@ -1633,6 +1662,7 @@ impl<'a> Gen<'a> {
 				(false, false) => format!("{rust:?}"),
 			};
 			methods.push(Method {
+				key: None,
 				docs: "Error is its message, as an error Rust returned.".to_string(),
 				receiver: Some(format!("self {}", self.go(ty))),
 				name: "Error".to_string(),
@@ -1687,6 +1717,7 @@ impl<'a> Gen<'a> {
 		for method in &methods {
 			let _ = writeln!(interface, "{}\t{}", docs(method.docs.trim(), "\t"), method.signature());
 			let mut function = Method {
+				key: None,
 				docs: String::new(),
 				receiver: None,
 				name: format!("{c}_{}", abi::snake(&method.name)),
@@ -1721,6 +1752,7 @@ impl<'a> Gen<'a> {
 				args.extend(method.params.iter().map(|(n, _)| n.clone()));
 				let call = format!("{c}_{}({})", abi::snake(&method.name), args.join(", "));
 				let forward = Method {
+					key: None,
 					docs: String::new(),
 					receiver: Some(format!("self {vname}")),
 					name: method.name.clone(),
@@ -1867,6 +1899,7 @@ impl<'a> Gen<'a> {
 		let mut table = vec!["\tv.free = goRelease\n".to_string()];
 		for method in &callback.methods {
 			let member = pascal(method.name());
+			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
 			let names = self.locals(&method.params);
 			let params: Vec<String> = (method.params.iter().zip(&names))
@@ -2174,6 +2207,8 @@ impl<'a> Gen<'a> {
 			}
 			_ => member,
 		};
+
+		crate::lock::function(&mut self.locked, function, &member);
 
 		// A tuple of one returned whole is its element, written through its one out pointer.
 		// Only a tuple returned whole is written element by element.
@@ -2522,6 +2557,7 @@ impl<'a> Gen<'a> {
 			body.insert(0, check);
 		}
 		Method {
+			key: Some(crate::lock::function_key(function)),
 			docs: text,
 			receiver: go_receiver,
 			name: member,

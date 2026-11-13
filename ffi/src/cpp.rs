@@ -14,7 +14,7 @@
 //! parameter. The runtime they share, [`runtime/rt.hpp`](../runtime/rt.hpp), holds the
 //! handles, bytes, results, wakers, futures, and readers.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::abi::{self, Abi, Ty};
 use crate::c::decl;
@@ -23,8 +23,9 @@ use crate::ir::{Closure, Function, Int, Literal, Receiver, Traits, Type};
 const RUNTIME: &str = include_str!("../runtime/rt.hpp");
 
 /// The header for `abi`, as `<prefix>.hpp`, or the members two items name alike.
-pub fn header(abi: &Abi<'_>, packages: &str) -> Result<String, String> {
+pub fn header(abi: &Abi<'_>, packages: &str) -> Result<(String, BTreeMap<String, String>), String> {
 	let mut h = Header {
+		locked: BTreeMap::new(),
 		abi,
 		ns: abi.prefix.clone(),
 		out: String::new(),
@@ -33,9 +34,18 @@ pub fn header(abi: &Abi<'_>, packages: &str) -> Result<String, String> {
 		globals: runtime_names().map(str::to_string).collect(),
 		errors: Vec::new(),
 	};
+	let classes = abi
+		.classes(|_| (String::new(), 0), |_| false)
+		.into_keys()
+		.map(|c| {
+			let name = h.name(&c);
+			(c, name)
+		})
+		.collect();
+	h.locked = crate::lock::types(abi, &classes);
 	h.write(packages);
 	match h.errors.is_empty() {
-		true => Ok(h.out),
+		true => Ok((h.out, h.locked)),
 		false => Err(h.errors.join("\n")),
 	}
 }
@@ -50,6 +60,7 @@ enum Owner {
 }
 
 struct Header<'a> {
+	locked: BTreeMap<String, String>,
 	abi: &'a Abi<'a>,
 	ns: String,
 	/// The declarations, in the order C++ needs them.
@@ -521,6 +532,8 @@ impl<'a> Header<'a> {
 				Literal::Int(int, _) => cpp_int(int),
 			};
 			let name = self.global(&self.name(&abi.name(&constant.path)));
+			self.locked
+				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			self.line(format!(
 				"{}inline constexpr {ty} {name} = {};",
 				docs(&constant.docs, ""),
@@ -754,6 +767,7 @@ impl<'a> Header<'a> {
 			if member == name {
 				member.push('_');
 			}
+			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
 			let constant = match method.receiver {
 				Some(Receiver::Mut) => "",
@@ -1109,6 +1123,7 @@ impl<'a> Header<'a> {
 			(Some((taken, Owner::Member)), Some(owner)) => self.member(&export.call.name, owner, taken),
 			_ => self.name(&export.call.name),
 		};
+		crate::lock::function(&mut self.locked, function, &member);
 		let free = !matches!(class, Some((_, Owner::Member)));
 		let ret = match &export.future {
 			Some((handle, _, _)) => self.q(handle),
