@@ -108,11 +108,11 @@ struct Merged {
 
 /// Where each type of the API being added lands among the merged API's.
 #[derive(Default)]
-struct Maps {
-	records: Vec<usize>,
-	enums: Vec<usize>,
-	objects: Vec<usize>,
-	callbacks: Vec<usize>,
+pub struct Maps {
+	pub records: Vec<usize>,
+	pub enums: Vec<usize>,
+	pub objects: Vec<usize>,
+	pub callbacks: Vec<usize>,
 }
 
 impl Maps {
@@ -129,7 +129,7 @@ impl Maps {
 			.collect()
 	}
 
-	fn ty(&self, ty: &mut Type) {
+	pub fn ty(&self, ty: &mut Type) {
 		match ty {
 			Type::Record(i) => *i = self.records[*i],
 			Type::Enum(i) => *i = self.enums[*i],
@@ -148,15 +148,15 @@ impl Maps {
 		}
 	}
 
-	fn types(&self, types: &mut [Type]) {
+	pub fn types(&self, types: &mut [Type]) {
 		types.iter_mut().for_each(|ty| self.ty(ty));
 	}
 
-	fn fields(&self, fields: &mut [Field]) {
+	pub fn fields(&self, fields: &mut [Field]) {
 		fields.iter_mut().for_each(|f| self.ty(&mut f.ty));
 	}
 
-	fn function(&self, f: &mut Function) {
+	pub fn function(&self, f: &mut Function) {
 		f.params.iter_mut().for_each(|p| self.ty(&mut p.ty));
 		self.ty(&mut f.ok);
 		if let Some(err) = &mut f.err {
@@ -171,7 +171,7 @@ impl Maps {
 		}
 	}
 
-	fn functions(&self, functions: &mut [Function]) {
+	pub fn functions(&self, functions: &mut [Function]) {
 		functions.iter_mut().for_each(|f| self.function(f));
 	}
 }
@@ -184,7 +184,7 @@ fn bare<T: Clone>(item: &T, clear: impl Fn(&mut T)) -> T {
 	item
 }
 
-fn bare_function(f: &Function) -> Function {
+pub fn bare_function(f: &Function) -> Function {
 	bare(f, |f| {
 		f.span = DUMMY_SP;
 		f.docs.clear();
@@ -192,7 +192,7 @@ fn bare_function(f: &Function) -> Function {
 	})
 }
 
-fn bare_record(r: &Record) -> Record {
+pub fn bare_record(r: &Record) -> Record {
 	bare(r, |r| {
 		r.span = DUMMY_SP;
 		r.docs.clear();
@@ -202,7 +202,7 @@ fn bare_record(r: &Record) -> Record {
 	})
 }
 
-fn bare_enum(e: &Enum) -> Enum {
+pub fn bare_enum(e: &Enum) -> Enum {
 	bare(e, |e| {
 		e.span = DUMMY_SP;
 		e.docs.clear();
@@ -212,7 +212,7 @@ fn bare_enum(e: &Enum) -> Enum {
 	})
 }
 
-fn bare_variant(v: &Variant) -> Variant {
+pub fn bare_variant(v: &Variant) -> Variant {
 	bare(v, |v| {
 		v.on = On::ALL;
 		// Compared apart, as only a plain enum's matter.
@@ -221,7 +221,7 @@ fn bare_variant(v: &Variant) -> Variant {
 	})
 }
 
-fn bare_object(o: &Object) -> Object {
+pub fn bare_object(o: &Object) -> Object {
 	bare(o, |o| {
 		o.span = DUMMY_SP;
 		o.docs.clear();
@@ -230,7 +230,7 @@ fn bare_object(o: &Object) -> Object {
 	})
 }
 
-fn bare_callback(c: &Callback) -> Callback {
+pub fn bare_callback(c: &Callback) -> Callback {
 	bare(c, |c| {
 		c.span = DUMMY_SP;
 		c.docs.clear();
@@ -239,7 +239,7 @@ fn bare_callback(c: &Callback) -> Callback {
 	})
 }
 
-fn bare_constant(c: &Constant) -> Constant {
+pub fn bare_constant(c: &Constant) -> Constant {
 	bare(c, |c| {
 		c.span = DUMMY_SP;
 		c.docs.clear();
@@ -636,6 +636,10 @@ pub mod span {
 
 	pub fn serialize<S: Serializer>(span: &Span, s: S) -> Result<S::Ok, S::Error> {
 		let located = context(|map, roots| {
+			// A staged span whose file was not on this host as it was: no file names it.
+			if span.is_dummy() {
+				return None;
+			}
 			let span = span.source_callsite();
 			let file = map.lookup_source_file(span.lo());
 			let FileName::Real(real) = &file.name else {

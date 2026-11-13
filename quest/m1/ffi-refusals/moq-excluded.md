@@ -4,7 +4,7 @@
 
 Each construct `just ffi census <checkout>` still refuses at moq's `main` behind an
 exclude in `ffi/moq/ffi.toml` exports by a rule, or is left out as what C can never hold,
-beyond [`NonZero`](/quest/m1/ffi-refusals/nonzero.md) and the types
+beyond `NonZero`, which exports, and the types
 [not-send](/quest/m1/ffi-export/not-send.md) exports. Measured on 2026-11-12 at moq
 `04f63af`, with the rules for another crate's value, a non-`async` function's borrowing
 future, and a lent object field in place: 11 items.

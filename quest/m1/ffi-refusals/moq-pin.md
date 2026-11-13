@@ -6,14 +6,14 @@ The moq pin moves to moq's current `main`, whose crates re-export no whole crate
 included. `just ffi census` there lists no whole-crate re-export refusal. Its "type not
 reachable from the crate root" refusals were `kio::Pending` and moq-tokio's `cli::Deprecated`,
 which the exporter change below exports, `lite::version::Version`, which no public path names, and moq-quic's stats and varint types under moq-tokio's `quic::driver`,
-which [moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683) drops. At `ffcb7cd9` there were 20 such refusals (18 Guard and Side, and
+which [kixel-ai/rust2#683](https://github.com/kixel-ai/rust2/pull/683) drops. At `ffcb7cd9` there were 20 such refusals (18 Guard and Side, and
 `Version`), and 9 at moq's head on 2026-11-09, measured in
-[#676](https://github.com/moq-dev/rust2/pull/676).
+[#676](https://github.com/kixel-ai/rust2/pull/676).
 
 ## Plan
 
 Decided with the maintainer on 2026-11-07, from
-[moq-dev/rust2#655](https://github.com/moq-dev/rust2/pull/655) and
+[kixel-ai/rust2#655](https://github.com/kixel-ai/rust2/pull/655) and
 [moq-dev/moq#8233](https://github.com/moq-dev/moq/pull/8233): ✅ moq re-exports no whole
 crate, its own included: the ten first listed (moq-net's `bytes` and `kio`; `rustls` in
 moq-quic, moq-rtmp, and moq-tokio; moq-tokio's `notify`, `usage_rs`, and `http`;
@@ -46,7 +46,7 @@ moq-tokio's `quic::driver` items, which the narrowed stand-in drops.
 
 Then bump the pin in `ts/fixtures/model/Cargo.toml`, which `ts/justfile`'s `moq_rev` reads,
 and report the census before and after. The last bump
-([#390](https://github.com/moq-dev/rust2/pull/390)) also changed `ffi/moq/ffi.toml`, every
+([#390](https://github.com/kixel-ai/rust2/pull/390)) also changed `ffi/moq/ffi.toml`, every
 `ffi/moq/moq.*`, and rust2-ts's model fixture, bench, and expected output, which share the
 pin: run `just ts census` too, and update the count in the
 [model epic](/quest/m2/ts-model/README.md).
@@ -96,4 +96,3 @@ returns that are not `Clone`.
 ## Required
 
 - [Own pin](/quest/m1/ffi-refusals/own-pin.md) - the exporter's pin moves without rust2-ts's, which ends the wait on `rind` for wasm32
-- [`NonZero`](/quest/m1/ffi-refusals/nonzero.md) - 15 of the 36 errors at moq's `main`

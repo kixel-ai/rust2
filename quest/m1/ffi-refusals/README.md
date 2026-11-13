@@ -17,7 +17,7 @@ fails the export rather than being excluded. ✅ Split: the naming rule first, t
 Rejected: one quest that waits for the census to reach zero.
 
 Decided with the maintainer on 2026-11-07, from
-[moq-dev/rust2#655](https://github.com/moq-dev/rust2/pull/655):
+[kixel-ai/rust2#655](https://github.com/kixel-ai/rust2/pull/655):
 
 - ✅ A whole-crate re-export (`pub use rustls;`) is refused with one span at its `pub use`,
   and moq drops its re-exports. A whole-crate re-export makes that crate's whole API part
@@ -34,7 +34,7 @@ Decided with the maintainer on 2026-11-07, from
   [session-quic](/quest/m3/session-quic.md). Children leave the moq-tokio items
   outside that session side alone, since narrowing the stand-in drops them.
 - Narrowing the stand-in was to land first; the 2026-11-09 audit dropped that order, and
-  [moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683) narrowed it.
+  [kixel-ai/rust2#683](https://github.com/kixel-ai/rust2/pull/683) narrowed it.
 - ✅ What C can never hold, an object no export returns or lends to a closure, or a generic
   type no export instantiates, is left out of the bindings and kept listed in the census.
   Rejected: refusing them, which would make moq add constructors it has no use for.
@@ -42,7 +42,7 @@ Decided with the maintainer on 2026-11-07, from
   covers.
 
 Decided with the maintainer on 2026-11-09, from
-[moq-dev/rust2#678](https://github.com/moq-dev/rust2/pull/678):
+[kixel-ai/rust2#678](https://github.com/kixel-ai/rust2/pull/678):
 
 - ✅ rust2 asks moq for no source changes: changing moq is a non-goal, so every refusal
   that waited on moq changing a signature gets an answer on rust2's side. moq's merged
@@ -54,14 +54,14 @@ Decided with the maintainer on 2026-11-09, from
 
 The census at moq `ffcb7cd9` (2026-11-07) refused 1111 items, which `ffi/moq/ffi.toml`'s
 347 excludes hide by naming whole modules. About 790 lay in crates moq re-exports whole,
-which [#668](https://github.com/moq-dev/rust2/pull/668) has since made one refusal each,
-and [#671](https://github.com/moq-dev/rust2/pull/671) moved what C can never hold out of
+which [#668](https://github.com/kixel-ai/rust2/pull/668) has since made one refusal each,
+and [#671](https://github.com/kixel-ai/rust2/pull/671) moved what C can never hold out of
 the refusals, so the figures below predate both.
 The other 324 are moq's own, 107 of them in moq-tokio (61 under `quic`); each child gives
 its construct's count, and an item counts under every construct it hits. The counts
 include the moq-tokio items narrowing drops; each child measures again once it lands. 17 more refuse
 only because a type they name is refused, and clear with it. After the stand-in narrows
-([moq-dev/rust2#683](https://github.com/moq-dev/rust2/pull/683)), the census refuses 130
+([kixel-ai/rust2#683](https://github.com/kixel-ai/rust2/pull/683)), the census refuses 130
 items, 41 of them in moq-tokio, and 6 types.
 
 Decided with the maintainer on 2026-11-12, in the quest audit:
@@ -71,13 +71,13 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   building for wasm32, which only the translator needs. Rejected: one pin for both, at the
   cost of two revisions to bump.
 - The last per-construct child landed in
-  [#710](https://github.com/moq-dev/rust2/pull/710), yet the Goal is not reached: the
+  [#710](https://github.com/kixel-ai/rust2/pull/710), yet the Goal is not reached: the
   2026-11-11 nightly census
-  ([run 43038758163](https://github.com/moq-dev/rust2/actions/runs/43038758163)) still
+  ([run 43038758163](https://github.com/kixel-ai/rust2/actions/runs/43038758163)) still
   refuses 94 items and 5 types at the pin, behind `ffi/moq/ffi.toml`'s 100 excludes, and
   moq's `main` adds the 36 errors [the pin bump](/quest/m1/ffi-refusals/moq-pin.md)
   measured. So each construct left has a child again:
-  [`NonZero`](/quest/m1/ffi-refusals/nonzero.md), the rest of the errors at moq's main
+  `NonZero`, which exports, the rest of the errors at moq's main
   (exported since by rules for another crate's value, a borrowing future of a function
   that is not `async`, and an object field that is not `Clone`),
   [the excludes that hide what exports](/quest/m1/ffi-refusals/stale-excludes.md), and
