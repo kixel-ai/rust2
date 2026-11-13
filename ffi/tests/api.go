@@ -1014,7 +1014,8 @@ func futures() {
 		check(errors.Is(err, context.DeadlineExceeded), "a receive past its deadline returns its error")
 	}
 
-	// A handle closed while a call waits on it stays alive until the call ends.
+	// Closing a handle a call waiting on it borrows fails, as Rust refuses a drop under a
+	// borrow, and changes nothing: the call ends as it would, and then Close passes.
 	{
 		other := api.NewChannel()
 		watching := watch(ctx)
@@ -1022,9 +1023,13 @@ func futures() {
 		go func() { got <- string(must(other.Recv(watching)).Copy()) }()
 		<-watching.waiting
 		sender := must(other.Clone())
-		other.Close()
+		err := other.Close()
+		check(errors.Is(err, rt.ErrBorrowed) && err.Error() == "api_Channel_drop: a handle is already borrowed", "Close under a waiting call fails")
 		sender.Send([]byte("held"))
-		check(<-got == "held", "a closed handle stays alive in the call waiting on it")
+		check(<-got == "held", "the waiting call ends as it would")
+		check(other.Close() == nil, "Close passes once no call borrows it")
+		_, err = other.Recv(ctx)
+		check(errors.Is(err, rt.ErrClosed) && err.Error() == "api_Channel_recv: a handle's value was moved out", "a call after Close fails")
 		sender.Close()
 	}
 
@@ -1195,33 +1200,36 @@ func uncollected(n uint32, what string) {
 }
 
 // closed checks that every call taking a closed object returns ErrClosed, however it was
-// closed, and that a second Close does nothing.
+// closed, and that a second Close does nothing: as Rust's check of a moved value for one
+// Rust checks, and as Go's own for one whose calls only borrow it.
 func closed() {
 	ctx := context.Background()
-	isClosed := func(err error, name, what string) {
-		check(errors.Is(err, rt.ErrClosed) && err.Error() == name+" is closed", what)
+	isClosed := func(err error, want, what string) {
+		check(errors.Is(err, rt.ErrClosed) && err.Error() == want, fmt.Sprintf("%s: %v", what, err))
+	}
+	moved := func(function string) string {
+		return function + ": a handle's value was moved out"
 	}
 
 	// A method, a trait's, and a field's accessors.
 	c := api.NewCounter("c", 1)
-	c.Close()
-	c.Close()
+	check(c.Close() == nil && c.Close() == nil, "Close, then again, passes")
 	_, err := c.Get()
-	isClosed(err, "Counter", "a method of a closed object")
+	isClosed(err, moved("api_Counter_get"), "a method of a closed object")
 	_, err = c.Clone()
-	isClosed(err, "Counter", "Clone of a closed object")
-	check(c.GoString() == "Counter is closed", "GoString of a closed object is the error")
+	isClosed(err, moved("api_Counter_clone"), "Clone of a closed object")
+	check(c.GoString() == moved("api_Counter_debug"), "GoString of a closed object is the error")
 	tally := api.NewTally()
 	tally.Close()
 	_, err = api.NewTally().Equal(tally)
-	isClosed(err, "Tally", "Equal with a closed object")
+	isClosed(err, moved("api_Tally_eq"), "Equal with a closed object")
 	registry := must(api.NewRegistry(api.NewCounter("first", 1)))
 	registry.Close()
 	_, err = registry.FirstGet()
-	isClosed(err, "Registry", "a field's getter of a closed object")
+	isClosed(err, moved("api_Registry_first_get"), "a field's getter of a closed object")
 	// A call that fails moves nothing in.
 	second := api.NewCounter("second", 2)
-	isClosed(registry.FirstSet(second), "Registry", "a field's setter of a closed object")
+	isClosed(registry.FirstSet(second), moved("api_Registry_first_set"), "a field's setter of a closed object")
 	check(must(second.Get()) == 2, "a failed call leaves what it would move")
 
 	// A record's method, whose receiver holds an object.
@@ -1230,44 +1238,60 @@ func closed() {
 	check(must(stamped.Total()) == 5, "a record's method reads the object it holds")
 	stamp.Close()
 	_, err = stamped.Total()
-	isClosed(err, "Stamp", "a record's method whose object is closed")
+	isClosed(err, "Stamp is closed", "a record's method whose object is closed")
 
 	// An argument, alone, or nested where the call holds it through its arena.
 	_, err = api.BumpBoth(api.NewTally(), tally)
-	isClosed(err, "Tally", "a closed argument")
+	isClosed(err, moved("api_bump_both"), "a closed argument")
 	open := api.NewCounter("open", 3)
 	_, err = api.Worth(&[]*api.Counter{open, c}, nil)
-	isClosed(err, "Counter", "a closed object in a list")
+	isClosed(err, moved("api_worth"), "a closed object in a list")
 	check(must(open.Get()) == 3, "a failed call leaves the rest of a list")
 
 	// An async call.
 	channel := api.NewChannel()
 	channel.Close()
 	_, err = channel.Recv(ctx)
-	isClosed(err, "Channel", "an async call of a closed object")
+	isClosed(err, moved("api_Channel_recv"), "an async call of a closed object")
 
-	// Closed by a call that moved it, plain or boxed, or once the callback it was lent to
-	// returned.
-	moved := api.NewCounter("m", 0)
-	must(moved.IntoLabel(nil))
-	_, err = moved.Get()
-	isClosed(err, "Counter", "a method of a moved object")
+	// Moved by a call, plain or boxed, or closed once the callback it was lent to returned.
+	taken := api.NewCounter("m", 0)
+	must(taken.IntoLabel(nil))
+	_, err = taken.Get()
+	isClosed(err, moved("api_Counter_get"), "a method of a moved object")
 	tail := must(api.NewNode(1, nil))
 	must(api.NewNode(2, tail))
 	_, err = tail.Sum()
-	isClosed(err, "Node", "a method of a boxed moved object")
+	isClosed(err, moved("api_Node_sum"), "a method of a boxed moved object")
 	var kept *api.Counter
 	must(must(api.NewRegistry(api.NewCounter("c", 0))).Edit(func(counter *api.Counter) bool {
 		kept = counter
 		return false
 	}))
 	_, err = kept.Get()
-	isClosed(err, "Counter", "a method of a lent object kept past its callback")
+	isClosed(err, "Counter is closed", "a method of a lent object kept past its callback")
 
-	// Close racing calls on other goroutines: each call either runs, holding the handle
-	// so Rust's value outlives it, or returns ErrClosed; Rust's is dropped once.
+	// Close racing calls on other goroutines, of a value Go counts and of one Rust checks.
+	latch := api.LatchDefault()
+	must(latch.Set(5))
+	race(latch, func() (bool, error) {
+		v, err := latch.Get()
+		return err == nil && *v == 5, err
+	}, "Latch is closed", "Latch: a handle is already borrowed")
 	before := api.Dropped()
 	token := api.NewToken(5)
+	race(token, func() (bool, error) {
+		id, err := token.IdGet()
+		return id == 5, err
+	}, moved("api_Token_id_get"), "api_Token_drop: a handle is already borrowed")
+	check(api.Dropped() == before+1, "Close racing calls drops Rust's value once")
+	fmt.Println("closed ok")
+}
+
+// race closes c while 8 goroutines call call on it: each call runs on the live value or,
+// once c is closed, fails with closed; a Close a running call beats fails with borrowed, as
+// Rust refuses a drop under a borrow, and changes nothing, so the next tries again.
+func race(c interface{ Close() error }, call func() (bool, error), closed, borrowed string) {
 	var wg sync.WaitGroup
 	var ran, failed atomic.Int64
 	for range 8 {
@@ -1275,13 +1299,13 @@ func closed() {
 		go func() {
 			defer wg.Done()
 			for {
-				id, err := token.IdGet()
+				live, err := call()
 				if err != nil {
-					isClosed(err, "Token", "a call racing Close")
+					check(errors.Is(err, rt.ErrClosed) && err.Error() == closed, fmt.Sprintf("a call racing Close: %v", err))
 					failed.Add(1)
 					return
 				}
-				check(id == 5, "a call racing Close reads the live value")
+				check(live, "a call racing Close reads the live value")
 				ran.Add(1)
 			}
 		}()
@@ -1289,10 +1313,16 @@ func closed() {
 	for ran.Load() < 100 {
 		runtime.Gosched()
 	}
-	token.Close()
+	for {
+		err := c.Close()
+		if err == nil {
+			break
+		}
+		check(errors.Is(err, rt.ErrBorrowed) && err.Error() == borrowed, fmt.Sprintf("Close racing a call: %v", err))
+	}
 	wg.Wait()
-	check(failed.Load() == 8 && api.Dropped() == before+1, "Close racing calls drops Rust's value once")
-	fmt.Println("closed ok")
+	check(failed.Load() == 8, "every call after Close fails")
+	check(c.Close() == nil, "Close again passes")
 }
 
 // bytes checks that Bytes Rust returns read Rust's buffer in place, kept alive by any view

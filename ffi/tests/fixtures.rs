@@ -648,7 +648,10 @@ fn api_python() {
 	}
 	for (case, message) in [
 		("moved", "ValueError: api_Counter_get: a handle's value was moved out"),
-		("boxed moved", "ValueError: api_Node_sum: a handle's value was moved out"),
+		(
+			"boxed moved",
+			"ValueError: api_Node_sum: a handle's value was moved out",
+		),
 		("lent kept", "ValueError: Counter is closed"),
 		("lent held", "Counter: a call still holds it when its lend ends"),
 		(
@@ -1088,7 +1091,7 @@ fn api_go() {
 			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("nil reader", "a nil io.ReadSeeker"),
-		("returned closed", "Instant is closed"),
+		("returned closed", "api_Instant_copy: a handle's value was moved out"),
 		("family", "an address that is not IPv4 has no Rust SocketAddrV4"),
 		("outlived", OUTLIVED),
 		("text", "api_greet: a string is not UTF-8"),
