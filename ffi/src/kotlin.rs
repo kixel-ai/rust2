@@ -1813,7 +1813,7 @@ impl<'a> Gen<'a> {
 		if let Some(receiver) = receiver {
 			let (_, c) = c_params.next().expect("a method has its receiver");
 			let ty = owner_ty.expect("a method has its type").clone();
-			let mut arg = match c {
+			let arg = match c {
 				Ty::Handle { .. } => {
 					let mut arg = Arg::default();
 					let p = format!("p{n}");
