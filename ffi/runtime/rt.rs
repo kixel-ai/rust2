@@ -201,6 +201,8 @@ impl Buf {
 		let start = (self.ptr as usize).wrapping_sub(bytes.as_ptr() as usize);
 		match self.len {
 			0 => bytes::Bytes::new(),
+			// Whole, as is: a slice of bytes made from a `Vec` would allocate to share them.
+			len if start == 0 && len == bytes.len() => bytes,
 			_ if start <= bytes.len() && self.len <= bytes.len() - start => bytes.slice(start..start + self.len),
 			_ => fail(what, "a buffer's bytes are not its owner's"),
 		}
