@@ -89,6 +89,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `poll_x`, when `x` exports as a future | left out: the future is its poll |
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
 | `u128` | `<prefix>_u128`: its low and high 64 bits |
+| `NonZero<T>` of an integer but 128-bit | `T`, in every binding too; a zero passed in aborts, and `Option<NonZero<T>>` is `T`'s option |
 | `[u8; N]` | `<prefix>_array_u8_<N>`: a struct of its `N` bytes, `items`, copied across; an empty one, or one of any other element, is refused |
 | `&str`, `String`, `&[u8]`, `Vec<u8>`, `bytes::Bytes` | `<prefix>_buf`: a view passed in, an owned buffer returned |
 | `&Path`, `PathBuf` | `<prefix>_buf` of the path's bytes as the OS holds them on Unix, which need not be UTF-8, else UTF-8 |
