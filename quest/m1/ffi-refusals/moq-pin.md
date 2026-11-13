@@ -67,6 +67,15 @@ no such refusal; only `lite::version::Version`, which no public path names, stay
 object no export returns. The bump drops the stale `kio` exclude, which would otherwise leave
 `kio::Pending` out of the export.
 
+Decided 2026-11-13 (maintainer): ✅ widen #721 to a type a signature names from a dependency
+the facade exports nothing else from, such as `pub fn pending() -> kio::Pending` with no
+`pub use kio::…` (rejected: land as is with a follow-up quest; land with no follow-up). Such
+a crate keeps the roles of one no export is: an error of it never exports (one in a `Result`
+crosses as its message, one in an exported error's variant leaves that error an object), and
+its type behind an `Arc` stays an opaque handle, refused bare. At the pin, `moq_mux`'s
+`container::fmp4::Error` names `mp4_atom::Codec` in a variant, which reaches every box, so
+`ffi/moq/ffi.toml` leaves out `mp4_atom`.
+
 Measured on 2026-11-12 at moq's `main` `6936f0a`: `just ffi moq-cpp` fails the export with
 36 errors, which the bump fixes in `ffi/moq/ffi.toml` or the exporter: 15 on the foreign
 type `std::num::NonZero` (such as `Client::with_peer_hop`), 11 stale excludes naming nothing
