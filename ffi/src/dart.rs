@@ -514,6 +514,7 @@ impl<'a> Gen<'a> {
 			Type::U128 => "BigInt".to_string(),
 			Type::Duration => "Duration".to_string(),
 			Type::SocketAddr(_) => "SocketAddr".to_string(),
+			Type::List(..) if let Some(elem) = ty.block() => format!("typed.{}", typed_list(elem)),
 			Type::List(_, inner) => format!("List<{}>", self.dt(inner)),
 			Type::Waker => "void Function()".to_string(),
 			Type::Reader => "SeekableReader".to_string(),
@@ -929,7 +930,11 @@ impl<'a> Gen<'a> {
 
 	/// The function writing a Dart value of type `ty` into the C struct `c`.
 	fn writer(&mut self, c: &str, ty: &Type) -> String {
-		let name = format!("_w_{c}");
+		// A block's C array is also a list of items', as a set's of the same numbers is.
+		let name = match ty.block() {
+			Some(_) => format!("_wb_{c}"),
+			None => format!("_w_{c}"),
+		};
 		if self.helpers.contains_key(&name) {
 			return name;
 		}
@@ -976,6 +981,13 @@ impl<'a> Gen<'a> {
 			Type::Option(inner) => {
 				let some = self.write(inner, "v", "c.$value");
 				format!("if (v == null) {{\n\t\tc.$some = false;\n\t}} else {{\n\t\tc.$some = true;\n\t\t{some}\n\t}}")
+			}
+			// A block is copied whole into the arena.
+			Type::List(_, elem) if ty.block().is_some() => {
+				let nt = self.nt(&abi.ty(elem));
+				format!(
+					"if (v == null) {{\n\t\tc.$ptr = ffi.nullptr;\n\t\tc.$len = 0;\n\t\tc.$owner = ffi.nullptr;\n\t\treturn;\n\t}}\n\tfinal p = a_<{nt}>(v.isEmpty ? 1 : v.length);\n\tp.asTypedList(v.length).setAll(0, v);\n\tc.$ptr = p;\n\tc.$len = v.length;\n\tc.$owner = ffi.nullptr;"
+				)
 			}
 			Type::List(_, elem) => {
 				let elem_c = abi.ty(elem);
@@ -1032,7 +1044,10 @@ impl<'a> Gen<'a> {
 	/// The function reading a Dart value of type `ty` out of the C struct `c`, owning what
 	/// it holds.
 	fn reader(&mut self, c: &str, ty: &Type) -> String {
-		let name = format!("_r_{c}");
+		let name = match ty.block() {
+			Some(_) => format!("_rb_{c}"),
+			None => format!("_r_{c}"),
+		};
 		if self.helpers.contains_key(&name) {
 			return name;
 		}
@@ -1095,6 +1110,18 @@ impl<'a> Gen<'a> {
 				let class = self.struct_class(&Ty::Struct(c.to_string()));
 				let value = self.lift(inner, "c.$value");
 				(class, format!("c.$some ? {value} : null"))
+			}
+			// A block is copied whole out of Rust's array.
+			Type::List(..) if let Some(block) = ty.block() => {
+				let class = self.struct_class(&Ty::Struct(c.to_string()));
+				let list = typed_list(block);
+				let free = self.native_fn(&format!("{c}_free"), vec![Ty::Struct(c.to_string())], Ty::Void);
+				return self.finish_reader(
+					name,
+					format!(
+						"{dt} {{NAME}}({class} c) {{\n\tfinal out = typed.{list}.fromList(c.$ptr.asTypedList(c.$len));\n\t{free}(c);\n\treturn out;\n}}\n\n"
+					),
+				);
 			}
 			Type::List(_, elem) => {
 				let class = self.struct_class(&Ty::Struct(c.to_string()));
@@ -2314,6 +2341,25 @@ fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
 		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
 		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
 		_ => false,
+	}
+}
+
+/// The `dart:typed_data` list holding a block's element exactly, bit for bit: a
+/// `Uint64List` reads a `u64` past `i64::MAX` as the negative `int` of its bits, as every
+/// `u64` crosses Dart.
+fn typed_list(elem: &Type) -> &'static str {
+	match elem {
+		Type::Int(Int::U8) => "Uint8List",
+		Type::Int(Int::U16) => "Uint16List",
+		Type::Int(Int::U32) => "Uint32List",
+		Type::Int(Int::U64) => "Uint64List",
+		Type::Int(Int::I8) => "Int8List",
+		Type::Int(Int::I16) => "Int16List",
+		Type::Int(Int::I32) => "Int32List",
+		Type::Int(Int::I64) => "Int64List",
+		Type::F32 => "Float32List",
+		Type::F64 => "Float64List",
+		other => unreachable!("{other:?} is no block's element"),
 	}
 }
 

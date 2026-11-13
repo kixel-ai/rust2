@@ -822,7 +822,11 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   returns is copied into a `String`. A path is a `String`, and one Rust returns that is
   not UTF-8 aborts, since a throw would leave the rest of a list or record being lifted
   unfreed. `Option<T>` is `T?`, a tuple a Dart record, and a `Vec<T>` or `&[T]` a
-  `List<T>`. A `u128` is a `BigInt`, which throws an `ArgumentError` passed in out of
+  `List<T>`, except one of a fixed-width integer or a float, or a `Box<[T]>` of one, which
+  is the `dart:typed_data` list of its width, such as a `Uint32List` or `Float64List`:
+  copied whole into the call's memory passed in, and out of Rust's returned. A
+  `Uint64List` holds a `u64`'s bits, so one past `i64`'s range reads negative, as a `u64`
+  alone does. A `u128` is a `BigInt`, which throws an `ArgumentError` passed in out of
   its range. A `[u8; N]` is a generated `ArrayU8x<N>`, which copies the list it is made
   of and throws an `ArgumentError` unless it holds exactly `N` bytes. `Duration` is `Duration`, truncated to the microsecond: a negative one passed
   in throws an `ArgumentError`, and Rust's longest is Dart's. A socket address is a
