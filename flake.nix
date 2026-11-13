@@ -307,9 +307,11 @@
           devShells.sanitize = self.devShells.${system}.clang.overrideAttrs (old: {
             nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.llvm ];
             RUST2_TS_TOOLCHAIN = tsToolchain.override {
-              extensions = (builtins.fromTOML (builtins.readFile ./ts/rust-toolchain.toml)).toolchain.components ++ [
-                "miri"
-              ];
+              extensions =
+                (builtins.fromTOML (builtins.readFile ./ts/rust-toolchain.toml)).toolchain.components
+                ++ [
+                  "miri"
+                ];
             };
           });
           # `just ffi android` builds the Kotlin's library for an Android device, with the NDK
