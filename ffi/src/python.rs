@@ -37,6 +37,7 @@ pub const GLUE_RUNTIME: &str = include_str!("../runtime/python.rs");
 /// What the generator writes: the Python module, and the Rust module of the extension it
 /// loads.
 pub struct Output {
+	pub names: BTreeMap<String, String>,
 	pub python: String,
 	pub glue: String,
 }
@@ -95,6 +96,7 @@ const RUNTIME_TYPES: &[&str] = &["_Future", "_datetime.timedelta", "_resume", "W
 /// glue add, as their conversions change with no C declaration changing.
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
+		locked: BTreeMap::new(),
 		abi,
 		classes: abi.classes(|_| (String::new(), 0), |name| TAKEN.contains(&name)),
 		py: String::new(),
@@ -120,6 +122,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	for name in g.classes.values() {
 		g.names.insert(name.clone(), "a type".to_string());
 	}
+	g.locked = crate::lock::types(abi, &g.classes);
 	g.write();
 	if !g.errors.is_empty() {
 		return Err(g.errors.join("\n"));
@@ -248,7 +251,11 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		g.members.len(),
 		g.members.iter().map(|m| format!("\t{m},\n")).collect::<String>(),
 	);
-	Ok(Output { python: body, glue })
+	Ok(Output {
+		names: g.locked,
+		python: body,
+		glue,
+	})
 }
 
 /// How a function's Python form is held.
@@ -324,6 +331,7 @@ impl Body {
 }
 
 struct Gen<'a> {
+	locked: BTreeMap<String, String>,
 	abi: &'a Abi<'a>,
 	/// Each exported type's name, by its C name.
 	classes: HashMap<String, String>,
@@ -705,6 +713,8 @@ impl<'a> Gen<'a> {
 		for constant in &api.constants {
 			let name = self.bare(&abi.name(&constant.path)).to_uppercase();
 			let name = self.claim(&name, format!("const `{}`", constant.path.join("::")));
+			self.locked
+				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			let value = match constant.value {
 				Literal::Bool(true) => "True".to_string(),
 				Literal::Bool(false) => "False".to_string(),
@@ -1232,6 +1242,7 @@ impl<'a> Gen<'a> {
 		let mut table = vec!["free: Some(rt::free_callback)".to_string()];
 		for (n, method) in callback.methods.iter().enumerate() {
 			let member = member(&abi::snake(method.name()), &[]);
+			crate::lock::function(&mut self.locked, method, &member);
 			let params: Vec<String> = std::iter::once("self".to_string())
 				.chain(
 					method
@@ -1389,7 +1400,7 @@ impl<'a> Gen<'a> {
 			Type::Str | Type::String => "StringException".to_string(),
 			_ => format!("{}Exception", pascal_type(&py)),
 		};
-		match self.thrown.get(&name) {
+		let thrown = match self.thrown.get(&name) {
 			Some(thrown) => thrown.clone(),
 			None => {
 				let thrown = self.claim(&name, format!("the exception of `{py}`"));
@@ -1398,7 +1409,9 @@ impl<'a> Gen<'a> {
 				self.register(&format!("exc_{thrown}"), thrown.clone());
 				thrown
 			}
-		}
+		};
+		self.locked.insert(crate::lock::error_key(self.abi, e), thrown.clone());
+		thrown
 	}
 
 	/// The glue's expression, an `R<Obj>`, of a buffer `p` Rust lends for a call: text
@@ -1531,6 +1544,8 @@ impl<'a> Gen<'a> {
 			(Place::Top, false) => self.claim(&member, format!("fn `{}`", function.path.join("::"))),
 			_ => member,
 		};
+
+		crate::lock::function(&mut self.locked, function, &member);
 
 		// The glue: each argument read, the call, and its value lowered.
 		let mut stmts = Vec::new();

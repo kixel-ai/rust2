@@ -28,12 +28,19 @@ use crate::ir::{Closure, Function, Int, Literal, Receiver, Traits, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.hpp");
 
-/// The headers for `abi`, by their paths under `include/`: the umbrella `<prefix>.hpp`,
-/// the shared `<prefix>/rt.hpp`, and a `<prefix>/<package>.hpp` per crate; or the members
-/// two items name alike.
-pub fn headers(abi: &Abi<'_>, packages: &str) -> Result<Vec<(String, String)>, String> {
+/// The generated C++ headers and their public names.
+pub struct Output {
+	/// Each header by its path under `include/`.
+	pub files: Vec<(String, String)>,
+	pub names: BTreeMap<String, String>,
+}
+
+/// The headers for `abi`: the umbrella `<prefix>.hpp`, the shared `<prefix>/rt.hpp`, and a
+/// `<prefix>/<package>.hpp` per crate; or the members two items name alike.
+pub fn headers(abi: &Abi<'_>, packages: &str) -> Result<Output, String> {
 	let p = &abi.prefix;
 	let mut h = Header {
+		locked: BTreeMap::new(),
 		abi,
 		ns: p.clone(),
 		krate: String::new(),
@@ -44,6 +51,19 @@ pub fn headers(abi: &Abi<'_>, packages: &str) -> Result<Vec<(String, String)>, S
 		globals: runtime_names().map(str::to_string).collect(),
 		errors: Vec::new(),
 	};
+	// A C++ class is named by its C name alone.
+	let api = abi.api;
+	let classes = (0..api.records.len())
+		.map(|i| abi.record(i))
+		.chain((0..api.enums.len()).map(|i| abi.enumeration(i)))
+		.chain((0..api.objects.len()).map(|i| abi.object(i)))
+		.chain((0..api.callbacks.len()).map(|i| abi.callback(i)))
+		.map(|c| {
+			let name = h.name(&c);
+			(c, name)
+		})
+		.collect();
+	h.locked = crate::lock::types(abi, &classes);
 	let mut headers = vec![(format!("{p}/rt.hpp"), h.shared(packages))];
 	let guard = format!("{}_HPP", p.to_uppercase());
 	let mut umbrella = format!(
@@ -57,7 +77,10 @@ pub fn headers(abi: &Abi<'_>, packages: &str) -> Result<Vec<(String, String)>, S
 	umbrella.push_str(&format!("\n#endif // {guard}\n"));
 	headers.insert(0, (format!("{p}.hpp"), umbrella));
 	match h.errors.is_empty() {
-		true => Ok(headers),
+		true => Ok(Output {
+			files: headers,
+			names: h.locked,
+		}),
 		false => Err(h.errors.join("\n")),
 	}
 }
@@ -72,6 +95,7 @@ enum Owner {
 }
 
 struct Header<'a> {
+	locked: BTreeMap<String, String>,
 	abi: &'a Abi<'a>,
 	ns: String,
 	/// The crate whose header this writes, or none for the shared one.
@@ -588,6 +612,8 @@ impl<'a> Header<'a> {
 				Literal::Int(int, _) => cpp_int(int),
 			};
 			let name = self.name(&abi.name(&constant.path));
+			self.locked
+				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			self.line(format!(
 				"{}inline constexpr {ty} {name} = {};",
 				docs(&constant.docs, ""),
@@ -914,6 +940,7 @@ impl<'a> Header<'a> {
 			if member == name {
 				member.push('_');
 			}
+			crate::lock::function(&mut self.locked, method, &member);
 			members.push(member.clone());
 			let constant = match method.receiver {
 				Some(Receiver::Mut) => "",
@@ -1288,6 +1315,7 @@ impl<'a> Header<'a> {
 			(Some((taken, Owner::Member)), Some(owner)) => self.member(&export.call.name, owner, taken),
 			_ => self.name(&export.call.name),
 		};
+		crate::lock::function(&mut self.locked, function, &member);
 		let free = !matches!(class, Some((_, Owner::Member)));
 		let ret = match &export.future {
 			Some(future) => self.q(&future.handle),
