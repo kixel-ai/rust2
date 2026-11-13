@@ -351,24 +351,23 @@ export function slices(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const lo: rs.usize = _243[0];
 				const hi: rs.usize | undefined = _243[1];
 				const dst = out;
-				const word = lo as rs.u32;
 				rs.byteVecReserve(dst, 4 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = (word >>> 24) & 255;
-				dst.data[pos + 1] = (word >>> 16) & 255;
-				dst.data[pos + 2] = (word >>> 8) & 255;
-				dst.data[pos + 3] = word & 255;
+				dst.data[pos + 0] = ((lo as rs.u32) >>> 24) & 255;
+				dst.data[pos + 1] = ((lo as rs.u32) >>> 16) & 255;
+				dst.data[pos + 2] = ((lo as rs.u32) >>> 8) & 255;
+				dst.data[pos + 3] = (lo as rs.u32) & 255;
 				dst.length = dst.length + 4;
 				const dst2 = out;
-				const word2 = option_mapOr$0p20wlb(hi, 4294967295, (h: rs.usize): rs.u32 => {
+				const word = option_mapOr$0p20wlb(hi, 4294967295, (h: rs.usize): rs.u32 => {
 					return h as rs.u32;
 				});
 				rs.byteVecReserve(dst2, 4 as rs.usize);
 				const pos2 = dst2.length;
-				dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
-				dst2.data[pos2 + 1] = (word2 >>> 16) & 255;
-				dst2.data[pos2 + 2] = (word2 >>> 8) & 255;
-				dst2.data[pos2 + 3] = word2 & 255;
+				dst2.data[pos2 + 0] = (word >>> 24) & 255;
+				dst2.data[pos2 + 1] = (word >>> 16) & 255;
+				dst2.data[pos2 + 2] = (word >>> 8) & 255;
+				dst2.data[pos2 + 3] = word & 255;
 				dst2.length = dst2.length + 4;
 				if (!isSomeAnd$1s2u5lz(rs.byteSliceGet(data, i), (b4: rs.u8): boolean => {
 					return (b4 & 1) === 1;

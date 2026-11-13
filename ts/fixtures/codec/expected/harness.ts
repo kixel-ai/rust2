@@ -246,11 +246,10 @@ export function decodeStep(r: Decoder.Decoder, step: rs.u8, out: rs.ByteVec): rs
 		const err7: DecodeError.DecodeError | undefined = part11 === undefined ? out$u16.err as DecodeError.DecodeError : undefined;
 		if (err7 === undefined) {
 			const dst = out;
-			const word = part11 as rs.u16;
 			rs.byteVecReserve(dst, 2 as rs.usize);
 			const pos = dst.length;
-			dst.data[pos + 0] = (word >>> 8) & 255;
-			dst.data[pos + 1] = word & 255;
+			dst.data[pos + 0] = ((part11 as rs.u16) >>> 8) & 255;
+			dst.data[pos + 1] = (part11 as rs.u16) & 255;
 			dst.length = dst.length + 2;
 		} else {
 			return rs.Err(err7 as DecodeError.DecodeError);

@@ -81,13 +81,12 @@ export function chars(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				const c: rs.char = _14;
 				rs.byteVecPush(out, class_(c));
 				const dst = out;
-				const word = c as rs.u32;
 				rs.byteVecReserve(dst, 4 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = (word >>> 24) & 255;
-				dst.data[pos + 1] = (word >>> 16) & 255;
-				dst.data[pos + 2] = (word >>> 8) & 255;
-				dst.data[pos + 3] = word & 255;
+				dst.data[pos + 0] = ((c as rs.u32) >>> 24) & 255;
+				dst.data[pos + 1] = ((c as rs.u32) >>> 16) & 255;
+				dst.data[pos + 2] = ((c as rs.u32) >>> 8) & 255;
+				dst.data[pos + 3] = (c as rs.u32) & 255;
 				dst.length = dst.length + 4;
 			}
 		}
@@ -96,76 +95,70 @@ export function chars(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 			const c2: rs.char = option_unwrapOr$04rqm9m(rs.charFromU32(n2), (n2 & 0xff) as rs.char);
 			rs.byteVecPush(out, c2 & 0xff);
 			const dst2 = out;
-			const word2 = c2 & 0xffff;
 			rs.byteVecReserve(dst2, 2 as rs.usize);
 			const pos2 = dst2.length;
-			dst2.data[pos2 + 0] = (word2 >>> 8) & 255;
-			dst2.data[pos2 + 1] = word2 & 255;
+			dst2.data[pos2 + 0] = ((c2 & 0xffff) >>> 8) & 255;
+			dst2.data[pos2 + 1] = c2 & 0xffff & 255;
 			dst2.length = dst2.length + 2;
 			rs.byteVecPush(out, ((c2 << 24) >> 24) & 0xff);
 			const dst3 = out;
-			const word3 = (c2 << 16) >> 16;
 			rs.byteVecReserve(dst3, 2 as rs.usize);
 			const pos3 = dst3.length;
-			dst3.data[pos3 + 0] = (word3 >>> 8) & 255;
-			dst3.data[pos3 + 1] = word3 & 255;
+			dst3.data[pos3 + 0] = (((c2 << 16) >> 16) >>> 8) & 255;
+			dst3.data[pos3 + 1] = ((c2 << 16) >> 16) & 255;
 			dst3.length = dst3.length + 2;
 			const dst4 = out;
-			const word4 = c2 as rs.i32;
 			rs.byteVecReserve(dst4, 4 as rs.usize);
 			const pos4 = dst4.length;
-			dst4.data[pos4 + 0] = (word4 >>> 24) & 255;
-			dst4.data[pos4 + 1] = (word4 >>> 16) & 255;
-			dst4.data[pos4 + 2] = (word4 >>> 8) & 255;
-			dst4.data[pos4 + 3] = word4 & 255;
+			dst4.data[pos4 + 0] = ((c2 as rs.i32) >>> 24) & 255;
+			dst4.data[pos4 + 1] = ((c2 as rs.i32) >>> 16) & 255;
+			dst4.data[pos4 + 2] = ((c2 as rs.i32) >>> 8) & 255;
+			dst4.data[pos4 + 3] = (c2 as rs.i32) & 255;
 			dst4.length = dst4.length + 4;
 			const dst5 = out;
-			const word5 = c2 as rs.u64;
-			const word6 = rs.intWord(word5, 0);
-			const word7 = rs.intWord(word5, 32);
+			const word = rs.intWord(c2 as rs.u64, 0);
+			const word2 = rs.intWord(c2 as rs.u64, 32);
 			rs.byteVecReserve(dst5, 8 as rs.usize);
 			const pos5 = dst5.length;
-			dst5.data[pos5 + 0] = (word7 >>> 24) & 255;
-			dst5.data[pos5 + 1] = (word7 >>> 16) & 255;
-			dst5.data[pos5 + 2] = (word7 >>> 8) & 255;
-			dst5.data[pos5 + 3] = word7 & 255;
-			dst5.data[pos5 + 4] = (word6 >>> 24) & 255;
-			dst5.data[pos5 + 5] = (word6 >>> 16) & 255;
-			dst5.data[pos5 + 6] = (word6 >>> 8) & 255;
-			dst5.data[pos5 + 7] = word6 & 255;
+			dst5.data[pos5 + 0] = (word2 >>> 24) & 255;
+			dst5.data[pos5 + 1] = (word2 >>> 16) & 255;
+			dst5.data[pos5 + 2] = (word2 >>> 8) & 255;
+			dst5.data[pos5 + 3] = word2 & 255;
+			dst5.data[pos5 + 4] = (word >>> 24) & 255;
+			dst5.data[pos5 + 5] = (word >>> 16) & 255;
+			dst5.data[pos5 + 6] = (word >>> 8) & 255;
+			dst5.data[pos5 + 7] = word & 255;
 			dst5.length = dst5.length + 8;
 			const dst6 = out;
-			const word8 = c2 as rs.i128;
-			const word9 = rs.intWord(word8, 0);
-			const word10 = rs.intWord(word8, 32);
-			const word11 = rs.intWord(word8, 64);
-			const word12 = rs.intWord(word8, 96);
+			const word3 = rs.intWord(c2 as rs.i128, 0);
+			const word4 = rs.intWord(c2 as rs.i128, 32);
+			const word5 = rs.intWord(c2 as rs.i128, 64);
+			const word6 = rs.intWord(c2 as rs.i128, 96);
 			rs.byteVecReserve(dst6, 16 as rs.usize);
 			const pos6 = dst6.length;
-			dst6.data[pos6 + 0] = (word12 >>> 24) & 255;
-			dst6.data[pos6 + 1] = (word12 >>> 16) & 255;
-			dst6.data[pos6 + 2] = (word12 >>> 8) & 255;
-			dst6.data[pos6 + 3] = word12 & 255;
-			dst6.data[pos6 + 4] = (word11 >>> 24) & 255;
-			dst6.data[pos6 + 5] = (word11 >>> 16) & 255;
-			dst6.data[pos6 + 6] = (word11 >>> 8) & 255;
-			dst6.data[pos6 + 7] = word11 & 255;
-			dst6.data[pos6 + 8] = (word10 >>> 24) & 255;
-			dst6.data[pos6 + 9] = (word10 >>> 16) & 255;
-			dst6.data[pos6 + 10] = (word10 >>> 8) & 255;
-			dst6.data[pos6 + 11] = word10 & 255;
-			dst6.data[pos6 + 12] = (word9 >>> 24) & 255;
-			dst6.data[pos6 + 13] = (word9 >>> 16) & 255;
-			dst6.data[pos6 + 14] = (word9 >>> 8) & 255;
-			dst6.data[pos6 + 15] = word9 & 255;
+			dst6.data[pos6 + 0] = (word6 >>> 24) & 255;
+			dst6.data[pos6 + 1] = (word6 >>> 16) & 255;
+			dst6.data[pos6 + 2] = (word6 >>> 8) & 255;
+			dst6.data[pos6 + 3] = word6 & 255;
+			dst6.data[pos6 + 4] = (word5 >>> 24) & 255;
+			dst6.data[pos6 + 5] = (word5 >>> 16) & 255;
+			dst6.data[pos6 + 6] = (word5 >>> 8) & 255;
+			dst6.data[pos6 + 7] = word5 & 255;
+			dst6.data[pos6 + 8] = (word4 >>> 24) & 255;
+			dst6.data[pos6 + 9] = (word4 >>> 16) & 255;
+			dst6.data[pos6 + 10] = (word4 >>> 8) & 255;
+			dst6.data[pos6 + 11] = word4 & 255;
+			dst6.data[pos6 + 12] = (word3 >>> 24) & 255;
+			dst6.data[pos6 + 13] = (word3 >>> 16) & 255;
+			dst6.data[pos6 + 14] = (word3 >>> 8) & 255;
+			dst6.data[pos6 + 15] = word3 & 255;
 			dst6.length = dst6.length + 16;
 			rs.byteVecPush(out, ((n2 & 0xff) as rs.char) & 0xff);
 			const dst7 = out;
-			const word13 = ((c2 as rs.u32) & 0xff) as rs.u16;
 			rs.byteVecReserve(dst7, 2 as rs.usize);
 			const pos7 = dst7.length;
-			dst7.data[pos7 + 0] = (word13 >>> 8) & 255;
-			dst7.data[pos7 + 1] = word13 & 255;
+			dst7.data[pos7 + 0] = ((((c2 as rs.u32) & 0xff) as rs.u16) >>> 8) & 255;
+			dst7.data[pos7 + 1] = (((c2 as rs.u32) & 0xff) as rs.u16) & 255;
 			dst7.length = dst7.length + 2;
 		}
 	} else if (_4 === 2) {
@@ -194,13 +187,12 @@ export function chars(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 			const dst8 = out;
-			const word14 = _128 as rs.u32;
 			rs.byteVecReserve(dst8, 4 as rs.usize);
 			const pos8 = dst8.length;
-			dst8.data[pos8 + 0] = (word14 >>> 24) & 255;
-			dst8.data[pos8 + 1] = (word14 >>> 16) & 255;
-			dst8.data[pos8 + 2] = (word14 >>> 8) & 255;
-			dst8.data[pos8 + 3] = word14 & 255;
+			dst8.data[pos8 + 0] = ((_128 as rs.u32) >>> 24) & 255;
+			dst8.data[pos8 + 1] = ((_128 as rs.u32) >>> 16) & 255;
+			dst8.data[pos8 + 2] = ((_128 as rs.u32) >>> 8) & 255;
+			dst8.data[pos8 + 3] = (_128 as rs.u32) & 255;
 			dst8.length = dst8.length + 4;
 		}
 	} else {
@@ -472,11 +464,10 @@ export function encodes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 					break;
 				}
 				const dst = out;
-				const word = _62;
 				rs.byteVecReserve(dst, 2 as rs.usize);
 				const pos = dst.length;
-				dst.data[pos + 0] = (word >>> 8) & 255;
-				dst.data[pos + 1] = word & 255;
+				dst.data[pos + 0] = (_62 >>> 8) & 255;
+				dst.data[pos + 1] = _62 & 255;
 				dst.length = dst.length + 2;
 			}
 		} else if (_20 === 1) {
@@ -487,11 +478,11 @@ export function encodes(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void 
 			rs.byteVecPush(out, rs.charEncodeUtf16(c, rs.sliceRange(rs.sliceFrom(units2.items), 1)).length & 0xff);
 			for (const _94 of units2.items) {
 				const dst2 = out;
-				const word2 = _94;
+				const word = _94;
 				rs.byteVecReserve(dst2, 2 as rs.usize);
 				const pos2 = dst2.length;
-				dst2.data[pos2 + 0] = (word2 >>> 8) & 255;
-				dst2.data[pos2 + 1] = word2 & 255;
+				dst2.data[pos2 + 0] = (word >>> 8) & 255;
+				dst2.data[pos2 + 1] = word & 255;
 				dst2.length = dst2.length + 2;
 			}
 		} else {

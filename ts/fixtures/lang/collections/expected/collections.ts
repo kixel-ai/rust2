@@ -164,19 +164,18 @@ export function hashMaps(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 				break;
 			}
 			const dst3 = out;
-			const word4 = _142;
-			const word5 = rs.intWord(word4, 0);
-			const word6 = rs.intWord(word4, 32);
+			const word4 = rs.intWord(_142, 0);
+			const word5 = rs.intWord(_142, 32);
 			rs.byteVecReserve(dst3, 8 as rs.usize);
 			const pos3 = dst3.length;
-			dst3.data[pos3 + 0] = (word6 >>> 24) & 255;
-			dst3.data[pos3 + 1] = (word6 >>> 16) & 255;
-			dst3.data[pos3 + 2] = (word6 >>> 8) & 255;
-			dst3.data[pos3 + 3] = word6 & 255;
-			dst3.data[pos3 + 4] = (word5 >>> 24) & 255;
-			dst3.data[pos3 + 5] = (word5 >>> 16) & 255;
-			dst3.data[pos3 + 6] = (word5 >>> 8) & 255;
-			dst3.data[pos3 + 7] = word5 & 255;
+			dst3.data[pos3 + 0] = (word5 >>> 24) & 255;
+			dst3.data[pos3 + 1] = (word5 >>> 16) & 255;
+			dst3.data[pos3 + 2] = (word5 >>> 8) & 255;
+			dst3.data[pos3 + 3] = word5 & 255;
+			dst3.data[pos3 + 4] = (word4 >>> 24) & 255;
+			dst3.data[pos3 + 5] = (word4 >>> 16) & 255;
+			dst3.data[pos3 + 6] = (word4 >>> 8) & 255;
+			dst3.data[pos3 + 7] = word4 & 255;
 			dst3.length = dst3.length + 8;
 			rs.byteVecPush(out, rs.hashIndex(map2, _142));
 		}
@@ -664,19 +663,18 @@ export function sets(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
 				break;
 			}
 			const dst = out;
-			const word = _313;
-			const word2 = rs.intWord(word, 0);
-			const word3 = rs.intWord(word, 32);
+			const word = rs.intWord(_313, 0);
+			const word2 = rs.intWord(_313, 32);
 			rs.byteVecReserve(dst, 8 as rs.usize);
 			const pos = dst.length;
-			dst.data[pos + 0] = (word3 >>> 24) & 255;
-			dst.data[pos + 1] = (word3 >>> 16) & 255;
-			dst.data[pos + 2] = (word3 >>> 8) & 255;
-			dst.data[pos + 3] = word3 & 255;
-			dst.data[pos + 4] = (word2 >>> 24) & 255;
-			dst.data[pos + 5] = (word2 >>> 16) & 255;
-			dst.data[pos + 6] = (word2 >>> 8) & 255;
-			dst.data[pos + 7] = word2 & 255;
+			dst.data[pos + 0] = (word2 >>> 24) & 255;
+			dst.data[pos + 1] = (word2 >>> 16) & 255;
+			dst.data[pos + 2] = (word2 >>> 8) & 255;
+			dst.data[pos + 3] = word2 & 255;
+			dst.data[pos + 4] = (word >>> 24) & 255;
+			dst.data[pos + 5] = (word >>> 16) & 255;
+			dst.data[pos + 6] = (word >>> 8) & 255;
+			dst.data[pos + 7] = word & 255;
 			dst.length = dst.length + 8;
 		}
 	}

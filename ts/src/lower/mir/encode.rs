@@ -228,7 +228,13 @@ fn collect_spills(body: &[Stmt], original: &[Stmt], out: &mut FxHashSet<String>)
 }
 
 fn stable(e: &Expr, immutable: &FxHashSet<String>) -> bool {
-	matches!(e.unlocated(), Expr::Lit(_)) || matches!(e.unlocated(), Expr::Ident(n) if immutable.contains(n))
+	match e.unlocated() {
+		Expr::Lit(_) => true,
+		Expr::Ident(n) => immutable.contains(n),
+		Expr::Binary(l, _, r) => stable(l, immutable) && stable(r, immutable),
+		Expr::Unary(_, e) | Expr::As(e, _) => stable(e, immutable),
+		_ => false,
+	}
 }
 
 fn bytes(e: &Expr, immutable: &mut FxHashSet<String>, b: &mut Body<'_, '_, '_>, out: &mut Vec<Stmt>) -> Vec<Expr> {
@@ -239,7 +245,11 @@ fn bytes(e: &Expr, immutable: &mut FxHashSet<String>, b: &mut Body<'_, '_, '_>, 
 			"f64" => Expr::rs("f64ToBits", vec![value.clone()]),
 			_ => value.clone(),
 		};
-		let value = b.spill(value, "word", out);
+		let value = if stable(&value, immutable) {
+			value
+		} else {
+			b.spill(value, "word", out)
+		};
 		// A wide integer's 32-bit words, each taken once. Every byte is then a pure
 		// function of a fresh const, so it needs no snapshot.
 		let words: Vec<Expr> = match n {
@@ -254,6 +264,11 @@ fn bytes(e: &Expr, immutable: &mut FxHashSet<String>, b: &mut Body<'_, '_, '_>, 
 				})
 				.collect(),
 		};
+		for word in &words {
+			if let Expr::Ident(name) = word {
+				immutable.insert(name.clone());
+			}
+		}
 		return (0..n)
 			.map(|i| {
 				let shift = 8 * if le { i } else { n - 1 - i };
@@ -266,7 +281,7 @@ fn bytes(e: &Expr, immutable: &mut FxHashSet<String>, b: &mut Body<'_, '_, '_>, 
 			})
 			.collect();
 	};
-	// Snapshot elements before any later effect, except literals and immutable locals.
+	// Snapshot elements before any later effect, except pure expressions of immutable values.
 	values
 		.iter()
 		.cloned()
@@ -539,6 +554,13 @@ mod tests {
 		names(&[decl("constant", false), decl("variable", true)], &mut immutable, true);
 		assert!(stable(&Expr::ident("constant"), &immutable));
 		assert!(stable(&Expr::lit("42"), &immutable));
+		let derived = |name| {
+			Expr::ident(name)
+				.binary(">>>", Expr::lit("24"))
+				.binary("&", Expr::lit("255"))
+		};
+		assert!(stable(&derived("constant"), &immutable));
+		assert!(!stable(&derived("variable"), &immutable));
 		assert!(!stable(&Expr::ident("variable"), &immutable));
 		assert!(!stable(&Expr::ident("parameter"), &immutable));
 		assert!(!stable(&Expr::ident("constant").member("data"), &immutable));

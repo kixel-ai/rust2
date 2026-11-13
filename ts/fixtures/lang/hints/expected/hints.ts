@@ -14,13 +14,12 @@ export function put(out: rs.ByteVec, _2: [rs.usize, rs.usize | undefined]): void
 	const lower: rs.usize = _2[0];
 	const upper: rs.usize | undefined = _2[1];
 	const dst = out;
-	const word = lower as rs.u32;
 	rs.byteVecReserve(dst, 4 as rs.usize);
 	const pos = dst.length;
-	dst.data[pos + 0] = (word >>> 24) & 255;
-	dst.data[pos + 1] = (word >>> 16) & 255;
-	dst.data[pos + 2] = (word >>> 8) & 255;
-	dst.data[pos + 3] = word & 255;
+	dst.data[pos + 0] = ((lower as rs.u32) >>> 24) & 255;
+	dst.data[pos + 1] = ((lower as rs.u32) >>> 16) & 255;
+	dst.data[pos + 2] = ((lower as rs.u32) >>> 8) & 255;
+	dst.data[pos + 3] = (lower as rs.u32) & 255;
 	dst.length = dst.length + 4;
 	if (upper === undefined) {
 		rs.byteVecPush(out, 0);
@@ -28,13 +27,12 @@ export function put(out: rs.ByteVec, _2: [rs.usize, rs.usize | undefined]): void
 		const upper2: rs.usize = upper;
 		rs.byteVecPush(out, 1);
 		const dst2 = out;
-		const word2 = upper2 as rs.u32;
 		rs.byteVecReserve(dst2, 4 as rs.usize);
 		const pos2 = dst2.length;
-		dst2.data[pos2 + 0] = (word2 >>> 24) & 255;
-		dst2.data[pos2 + 1] = (word2 >>> 16) & 255;
-		dst2.data[pos2 + 2] = (word2 >>> 8) & 255;
-		dst2.data[pos2 + 3] = word2 & 255;
+		dst2.data[pos2 + 0] = ((upper2 as rs.u32) >>> 24) & 255;
+		dst2.data[pos2 + 1] = ((upper2 as rs.u32) >>> 16) & 255;
+		dst2.data[pos2 + 2] = ((upper2 as rs.u32) >>> 8) & 255;
+		dst2.data[pos2 + 3] = (upper2 as rs.u32) & 255;
 		dst2.length = dst2.length + 4;
 	}
 }

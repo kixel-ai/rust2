@@ -124,13 +124,12 @@ export function copies(data: rs.ByteSlice, out: rs.ByteVec): void {
 			break;
 		}
 		const dst = out;
-		const word2 = _42;
 		rs.byteVecReserve(dst, 4 as rs.usize);
 		const pos = dst.length;
-		dst.data[pos + 0] = (word2 >>> 24) & 255;
-		dst.data[pos + 1] = (word2 >>> 16) & 255;
-		dst.data[pos + 2] = (word2 >>> 8) & 255;
-		dst.data[pos + 3] = word2 & 255;
+		dst.data[pos + 0] = (_42 >>> 24) & 255;
+		dst.data[pos + 1] = (_42 >>> 16) & 255;
+		dst.data[pos + 2] = (_42 >>> 8) & 255;
+		dst.data[pos + 3] = _42 & 255;
 		dst.length = dst.length + 4;
 	}
 	rs.byteVecPush(out, saved[1]);
@@ -163,23 +162,23 @@ export function copies(data: rs.ByteSlice, out: rs.ByteVec): void {
 	dst3.data[dst3.length + 0] = byte4;
 	dst3.length = dst3.length + 1;
 	const dst4 = out;
-	const word3 = boxed._1;
+	const word2 = boxed._1;
 	rs.byteVecReserve(dst4, 2 as rs.usize);
 	const pos4 = dst4.length;
-	dst4.data[pos4 + 0] = (word3 >>> 8) & 255;
-	dst4.data[pos4 + 1] = word3 & 255;
+	dst4.data[pos4 + 0] = (word2 >>> 8) & 255;
+	dst4.data[pos4 + 1] = word2 & 255;
 	dst4.length = dst4.length + 2;
 	let n: rs.u32 = data.length as rs.u32;
 	const both: [rs.u32, rs.u32] = [n, n];
 	n = 9;
 	const dst5 = out;
-	const word4 = rs.u32Add(rs.u32Add(both[0], both[1]), n);
+	const word3 = rs.u32Add(rs.u32Add(both[0], both[1]), n);
 	rs.byteVecReserve(dst5, 4 as rs.usize);
 	const pos5 = dst5.length;
-	dst5.data[pos5 + 0] = (word4 >>> 24) & 255;
-	dst5.data[pos5 + 1] = (word4 >>> 16) & 255;
-	dst5.data[pos5 + 2] = (word4 >>> 8) & 255;
-	dst5.data[pos5 + 3] = word4 & 255;
+	dst5.data[pos5 + 0] = (word3 >>> 24) & 255;
+	dst5.data[pos5 + 1] = (word3 >>> 16) & 255;
+	dst5.data[pos5 + 2] = (word3 >>> 8) & 255;
+	dst5.data[pos5 + 3] = word3 & 255;
 	dst5.length = dst5.length + 4;
 	let s: string = "ab";
 	let t: string = "cde";
@@ -213,13 +212,13 @@ export function copies(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const converted: rs.u32 = rs.u32FromBeBytes(word);
 	word[0] = 9;
 	const dst6 = out;
-	const word5 = rs.u32Add(converted, word[0] as rs.u32);
+	const word4 = rs.u32Add(converted, word[0] as rs.u32);
 	rs.byteVecReserve(dst6, 4 as rs.usize);
 	const pos6 = dst6.length;
-	dst6.data[pos6 + 0] = (word5 >>> 24) & 255;
-	dst6.data[pos6 + 1] = (word5 >>> 16) & 255;
-	dst6.data[pos6 + 2] = (word5 >>> 8) & 255;
-	dst6.data[pos6 + 3] = word5 & 255;
+	dst6.data[pos6 + 0] = (word4 >>> 24) & 255;
+	dst6.data[pos6 + 1] = (word4 >>> 16) & 255;
+	dst6.data[pos6 + 2] = (word4 >>> 8) & 255;
+	dst6.data[pos6 + 3] = word4 & 255;
 	dst6.length = dst6.length + 4;
 	const cell: Uint8Array = Uint8Array.of(data.length & 0xff);
 	rs.byteVecPush(out, writeThenRead(copy$array_u8(cell), rs.byteSliceFrom(cell)));
@@ -244,21 +243,21 @@ export function copies(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const taken: Meters.Meters | undefined = taken2;
 	rs.byteVecPush(out, opt === undefined ? 1 : 0);
 	const dst8 = out;
-	const word6 = option_mapOr$04kaubd(taken, 0, (m: Meters.Meters): rs.u64 => {
+	const word5 = option_mapOr$04kaubd(taken, 0, (m: Meters.Meters): rs.u64 => {
 		return m._0;
 	});
-	const word7 = rs.intWord(word6, 0);
-	const word8 = rs.intWord(word6, 32);
+	const word6 = rs.intWord(word5, 0);
+	const word7 = rs.intWord(word5, 32);
 	rs.byteVecReserve(dst8, 8 as rs.usize);
 	const pos8 = dst8.length;
-	dst8.data[pos8 + 0] = (word8 >>> 24) & 255;
-	dst8.data[pos8 + 1] = (word8 >>> 16) & 255;
-	dst8.data[pos8 + 2] = (word8 >>> 8) & 255;
-	dst8.data[pos8 + 3] = word8 & 255;
-	dst8.data[pos8 + 4] = (word7 >>> 24) & 255;
-	dst8.data[pos8 + 5] = (word7 >>> 16) & 255;
-	dst8.data[pos8 + 6] = (word7 >>> 8) & 255;
-	dst8.data[pos8 + 7] = word7 & 255;
+	dst8.data[pos8 + 0] = (word7 >>> 24) & 255;
+	dst8.data[pos8 + 1] = (word7 >>> 16) & 255;
+	dst8.data[pos8 + 2] = (word7 >>> 8) & 255;
+	dst8.data[pos8 + 3] = word7 & 255;
+	dst8.data[pos8 + 4] = (word6 >>> 24) & 255;
+	dst8.data[pos8 + 5] = (word6 >>> 16) & 255;
+	dst8.data[pos8 + 6] = (word6 >>> 8) & 255;
+	dst8.data[pos8 + 7] = word6 & 255;
 	dst8.length = dst8.length + 8;
 	const res: rs.Result<Point.Point, rs.u8> = rs.Ok(p);
 	const first: Point.Point = copy$shapes_Point(rs.resultUnwrap(res, rs.u8Debug));
@@ -513,17 +512,14 @@ export function shares(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const part: rs.i32 = partMovedThenRead(copy$shapes_Held(source), source.at);
 	const dst3 = out;
 	const byte3 = kept.at.x & 0xff;
-	const byte4 = read & 0xff;
-	const byte5 = by & 0xff;
-	const byte6 = part & 0xff;
-	const byte7 = source.at.x & 0xff;
+	const byte4 = source.at.x & 0xff;
 	rs.byteVecReserve(dst3, 5 as rs.usize);
 	const pos3 = dst3.length;
 	dst3.data[pos3 + 0] = byte3;
-	dst3.data[pos3 + 1] = byte4;
-	dst3.data[pos3 + 2] = byte5;
-	dst3.data[pos3 + 3] = byte6;
-	dst3.data[pos3 + 4] = byte7;
+	dst3.data[pos3 + 1] = read & 0xff;
+	dst3.data[pos3 + 2] = by & 0xff;
+	dst3.data[pos3 + 3] = part & 0xff;
+	dst3.data[pos3 + 4] = byte4;
 	dst3.length = dst3.length + 5;
 	const bytes: Uint8Array = Uint8Array.of(a, 1);
 	rs.byteVecPush(out, unsizedCopy(rs.byteSliceFrom(bytes)));
@@ -536,14 +532,14 @@ export function shares(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const points: rs.Vec<Point.Point> = rs.vecFromElem(copy$shapes_Point(Point.new(a as rs.i32, 0)), 2, copy$shapes_Point);
 	movedAt(rs.sliceFrom(points.items), at);
 	const dst4 = out;
-	const byte8 = points.items[rs.idx(points.items, 0)].x & 0xff;
-	const byte9 = points.items[rs.idx(points.items, 1)].x & 0xff;
-	const byte10 = points.items[rs.idx(points.items, 1)].y & 0xff;
+	const byte5 = points.items[rs.idx(points.items, 0)].x & 0xff;
+	const byte6 = points.items[rs.idx(points.items, 1)].x & 0xff;
+	const byte7 = points.items[rs.idx(points.items, 1)].y & 0xff;
 	rs.byteVecReserve(dst4, 3 as rs.usize);
 	const pos4 = dst4.length;
-	dst4.data[pos4 + 0] = byte8;
-	dst4.data[pos4 + 1] = byte9;
-	dst4.data[pos4 + 2] = byte10;
+	dst4.data[pos4 + 0] = byte5;
+	dst4.data[pos4 + 1] = byte6;
+	dst4.data[pos4 + 2] = byte7;
 	dst4.length = dst4.length + 3;
 	arc[Symbol.dispose]();
 }
@@ -1066,24 +1062,22 @@ export function loops(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const second: rs.i32 | undefined = r.start < r.end ? r.start++ : undefined;
 	if (first !== undefined) {
 		const dst3 = out;
-		const word2 = first;
 		rs.byteVecReserve(dst3, 4 as rs.usize);
 		const pos3 = dst3.length;
-		dst3.data[pos3 + 0] = (word2 >>> 24) & 255;
-		dst3.data[pos3 + 1] = (word2 >>> 16) & 255;
-		dst3.data[pos3 + 2] = (word2 >>> 8) & 255;
-		dst3.data[pos3 + 3] = word2 & 255;
+		dst3.data[pos3 + 0] = (first >>> 24) & 255;
+		dst3.data[pos3 + 1] = (first >>> 16) & 255;
+		dst3.data[pos3 + 2] = (first >>> 8) & 255;
+		dst3.data[pos3 + 3] = first & 255;
 		dst3.length = dst3.length + 4;
 	}
 	if (second !== undefined) {
 		const dst4 = out;
-		const word3 = second;
 		rs.byteVecReserve(dst4, 4 as rs.usize);
 		const pos4 = dst4.length;
-		dst4.data[pos4 + 0] = (word3 >>> 24) & 255;
-		dst4.data[pos4 + 1] = (word3 >>> 16) & 255;
-		dst4.data[pos4 + 2] = (word3 >>> 8) & 255;
-		dst4.data[pos4 + 3] = word3 & 255;
+		dst4.data[pos4 + 0] = (second >>> 24) & 255;
+		dst4.data[pos4 + 1] = (second >>> 16) & 255;
+		dst4.data[pos4 + 2] = (second >>> 8) & 255;
+		dst4.data[pos4 + 3] = second & 255;
 		dst4.length = dst4.length + 4;
 	}
 	let iterStart3: rs.i32 = lo;
@@ -1098,21 +1092,21 @@ export function loops(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	rs.byteVecPush(out, firstRepeat(data.data, data.start, data.length));
 	const dst5 = out;
-	const word4 = tailBreak(data);
+	const word2 = tailBreak(data);
 	rs.byteVecReserve(dst5, 2 as rs.usize);
 	const pos5 = dst5.length;
-	dst5.data[pos5 + 0] = (word4 >>> 8) & 255;
-	dst5.data[pos5 + 1] = word4 & 255;
+	dst5.data[pos5 + 0] = (word2 >>> 8) & 255;
+	dst5.data[pos5 + 1] = word2 & 255;
 	dst5.length = dst5.length + 2;
 	rs.byteVecPush(out, armLoop(data));
 	const dst6 = out;
-	const word5 = position$u8(data.data, data.start, data.length, 0) as rs.u32;
+	const word3 = position$u8(data.data, data.start, data.length, 0) as rs.u32;
 	rs.byteVecReserve(dst6, 4 as rs.usize);
 	const pos6 = dst6.length;
-	dst6.data[pos6 + 0] = (word5 >>> 24) & 255;
-	dst6.data[pos6 + 1] = (word5 >>> 16) & 255;
-	dst6.data[pos6 + 2] = (word5 >>> 8) & 255;
-	dst6.data[pos6 + 3] = word5 & 255;
+	dst6.data[pos6 + 0] = (word3 >>> 24) & 255;
+	dst6.data[pos6 + 1] = (word3 >>> 16) & 255;
+	dst6.data[pos6 + 2] = (word3 >>> 8) & 255;
+	dst6.data[pos6 + 3] = word3 & 255;
 	dst6.length = dst6.length + 4;
 	rs.byteVecPush(out, ((x3: rs.u8): rs.u8 => {
 		while (true) {
