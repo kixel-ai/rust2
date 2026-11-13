@@ -598,6 +598,11 @@ fun script() {
 	} catch (e: StringException) {
 		println("sought error ${e.error}")
 	}
+	println("non zeros ${describeNonZeros(nonZeros())}")
+	for (hop in listOf(null, 1UL, ULong.MAX_VALUE)) {
+		println("hop ${nextHop(hop)?.let { "Some($it)" } ?: "None"}")
+	}
+	println("farther hop ${fartherHop(PairNonZeroU16(3u, UShort.MAX_VALUE))}")
 }
 
 // A channel whose reads fail, which seeks anywhere from its start, as Rust's `Cursor` does.

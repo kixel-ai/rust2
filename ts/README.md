@@ -1050,7 +1050,7 @@ they need.
 - A `String` is an `rs.String`, its text as a JS string beside its UTF-8 length and
   capacity, rather than a bare JS string, which holds no capacity, or UTF-8 bytes, which
   every `Display` and JS boundary would decode. Measured on
-  [#574](https://github.com/moq-dev/rust2/pull/574), it matched or beat a JS string at
+  [#574](https://github.com/kixel-ai/rust2/pull/574), it matched or beat a JS string at
   encoding, decoding, and joining, and cost 7-22% writing lines and up to 2.3x in a map
   keyed by one, where UTF-8 bytes cost 5.6-9.8x. A `&str` and a `Box<str>` stay JS
   strings, which hold all they do.
@@ -1182,7 +1182,7 @@ they need.
   so `append` is O(1) and `split_off` walks from the nearer end; each node is the place
   `iter_mut` and `front_mut` lend of an item JS copies. Dropping a whole hash map or set drops its entries in the
   runtime's order, not hashbrown's: std leaves that order undocumented
-  ([#272](https://github.com/moq-dev/rust2/pull/272)). Maintainer's decision on 2026-10-30.
+  ([#272](https://github.com/kixel-ai/rust2/pull/272)). Maintainer's decision on 2026-10-30.
   A whole B-tree drops as std's `drop_tree` does, node by node in postorder, and its
   `IntoIter` in key order, as std's does.
 - A slice's `sort` and `sort_unstable` are std's driftsort and ipnsort, ported to the

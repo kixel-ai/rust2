@@ -22,7 +22,7 @@ more today in Kotlin, Python, Go, and Dart.
 - Prove it with the api fixture's differential tests and re-measure the bench.
 
 Decided with the maintainer on 2026-11-12, in the quest audit, for a size that differs by
-target: since [#700](https://github.com/moq-dev/rust2/pull/700) one binding serves every
+target: since [#700](https://github.com/kixel-ai/rust2/pull/700) one binding serves every
 target, moq ships 32-bit `armv7-linux-androideabi` beside 64-bit ones, and Kotlin, Python,
 and Dart share one source across them.
 
@@ -37,7 +37,7 @@ and Dart share one source across them.
   staged API (`--api`) gains each such type's size and alignment per target, and the merge
   reads them.
 
-What this replaces, from [#710](https://github.com/moq-dev/rust2/pull/710): the C ABI's
+What this replaces, from [#710](https://github.com/kixel-ai/rust2/pull/710): the C ABI's
 `<T>_copy`, the IR's `Object.copy`, and Swift's class for a `Copy` object.
 
 Public API: how every generated API holds a `Copy` type (breaking), and the staged API's
