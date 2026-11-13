@@ -1,0 +1,76 @@
+name: Registry packaging spike
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04-arm
+            private: '["self-hosted", "Linux", "ARM64"]'
+          - runner: macos-26
+            private: '["self-hosted", "macOS", "ARM64"]'
+    runs-on: ${{ fromJSON(github.event.repository.private && matrix.private || format('["{0}"]', matrix.runner)) }}
+    steps:
+      # Fixed spike input: consumers need only a workflow call, no source or settings.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: kixel-ai/rust2
+          ref: 990407d8452329b287b63000e27d5d7b9616c360
+          persist-credentials: false
+      - uses: ./.github/actions/nix
+      - name: Build fixture packages
+        run: nix develop --command bench/registry/build.sh
+      - name: Include standalone verifiers
+        run: |
+          cp bench/registry/consume.py ffi/target/registry/verify.py
+          cp bench/registry/consume-swift.sh ffi/target/registry/verify-swift.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: registry-${{ matrix.runner }}
+          if-no-files-found: error
+          path: |
+            ffi/target/registry/*.whl
+            ffi/target/registry/*.zip
+            ffi/target/registry/*.py
+            ffi/target/registry/*.swift
+            ffi/target/registry/*.sh
+            ffi/target/registry/native.txt
+
+  consumer:
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04-arm
+            private: '["self-hosted", "Linux", "ARM64"]'
+          - runner: macos-26
+            private: '["self-hosted", "macOS", "ARM64"]'
+    runs-on: ${{ fromJSON(github.event.repository.private && matrix.private || format('["{0}"]', matrix.runner)) }}
+    steps:
+      # No checkout, Rust toolchain, exporter, source paths or PYTHONPATH.
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          name: registry-${{ matrix.runner }}
+          path: artifacts
+      - name: Install and run wheel
+        run: |
+          python3 -m venv env
+          env/bin/python -m pip install --no-index --no-deps artifacts/*.whl
+          mkdir clean
+          cd clean
+          ../env/bin/python -I ../artifacts/verify.py ../artifacts
+      - name: Install and run Swift package
+        if: runner.os == 'macOS'
+        run: |
+          cd artifacts
+          unzip Api.zip
+          bash verify-swift.sh .

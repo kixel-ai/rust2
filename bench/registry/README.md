@@ -83,3 +83,18 @@ templates are the recommended no-go outcome even if both artifact consumers pass
 
 Registry requirements checked on 2026-11-13. The table is a design assessment,
 not a claim that any of those unimplemented publishers was exercised.
+
+## Reusable workflow
+
+`.github/workflows/registry.yml` is callable with no inputs or secrets. It builds
+this fixed fixture on Linux arm64 and macOS arm64 and passes only artifacts to
+fresh consumer jobs. A caller needs just a job with
+`uses: kixel-ai/rust2/.github/workflows/registry.yml@<reviewed-commit>`.
+The workflow pins the fixture, exporter and packaging scripts together to an
+immutable rust2 revision, independently of the caller's checkout. It is a spike
+runner, not a publisher of the caller's crate. Private callers select self-hosted
+runners with OS/architecture labels. Public callers use hosted runners.
+
+These two targets overlap crabx's planned matrix. The pipeline quest has not
+landed a shared matrix to reuse. Extending this to stock crates requires facade
+discovery and packaging of moq's existing identity; neither is claimed here.
