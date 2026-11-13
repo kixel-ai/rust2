@@ -90,7 +90,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				}
 				Some(_) => return false,
 				None if self.own(adt.did()) && adt.all_fields().next().is_some() => {
-					(true, adt.all_fields().map(|f| self.field_ty(f.did, args)).collect())
+					(true, adt.all_fields().map(|f| self.field_ty(f.did, *args)).collect())
 				}
 				None => return false,
 			},
@@ -231,7 +231,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 					Some(inline) => inline.fields.into_iter().find_map(|(_, t)| self.opaque(t)),
 					None => Some(ty),
 				},
-				None => adt.all_fields().find_map(|f| self.opaque(self.field_ty(f.did, args))),
+				None => adt.all_fields().find_map(|f| self.opaque(self.field_ty(f.did, *args))),
 			},
 			_ => None,
 		}
@@ -520,7 +520,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 				Some(Std::RawWaker) => ret(super::task::raw_waker(v().member("data"), v().member("vtable"))),
 				Some(Std::ControlFlow) => {
 					let (residual, value) = (args.type_at(0), args.type_at(1));
-					ret(match (Flow::of(tcx, args), residual.kind()) {
+					ret(match (Flow::of(tcx, *args), residual.kind()) {
 						(Flow::Result, ty::Adt(_, residual)) => self.copy_result(value, residual.type_at(1), span),
 						(Flow::Option, _) => self.copy_unless(self.none(value), value, span),
 						_ => self.copy_result(value, residual, span),
@@ -560,10 +560,10 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 							let variant = adt.non_enum_variant();
 							let values = (variant.fields.iter().zip(&fields))
 								.map(|(field, &id)| {
-									let field_ty = self.field_ty(field.did, args);
-									let read = self.held_field(Translator::read_field(v(), id), field.did, args, span);
+									let field_ty = self.field_ty(field.did, *args);
+									let read = self.held_field(Translator::read_field(v(), id), field.did, *args, span);
 									let copy = self.snapshot(read, part(field_ty), span);
-									self.field_value(copy, adt.did(), field.did, args, span)
+									self.field_value(copy, adt.did(), field.did, *args, span)
 								})
 								.collect();
 							ret(self.construct(info.sym, &ctor, &fields, values))
@@ -576,8 +576,8 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 								let mut props = vec![(Key::Name("tag".into()), Expr::Str(tag.clone()))];
 								for (i, field) in variant.fields.iter().enumerate() {
 									let name = field_name(field.name.as_str(), i);
-									let field_ty = self.field_ty(field.did, args);
-									let read = self.held_field(v().member(name.clone()), field.did, args, span);
+									let field_ty = self.field_ty(field.did, *args);
+									let read = self.held_field(v().member(name.clone()), field.did, *args, span);
 									props.push((Key::Name(name), self.snapshot(read, field_ty, span)));
 								}
 								body.push(
@@ -595,7 +595,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 						}
 						// A slot no field was written into yet holds nothing.
 						AdtRepr::Slots(layout) => {
-							let (_, slots) = self.laid_out(*adt, args, span);
+							let (_, slots) = self.laid_out(*adt, *args, span);
 							let ts_ty = self.ty(ty, span);
 							let slots = slots
 								.into_iter()
@@ -641,7 +641,7 @@ impl<'a, 'tcx> Translator<'a, 'tcx> {
 	}
 
 	/// The type of field `did` of an ADT with `args`, normalized in the translator's environment.
-	pub fn field_ty(&self, did: DefId, args: ty::GenericArgsRef<'tcx>) -> Ty<'tcx> {
+	pub fn field_ty(&self, did: DefId, args: ty::GenericArgs<'tcx>) -> Ty<'tcx> {
 		field_ty(self.tcx, self.typing_env(), did, args)
 	}
 }
@@ -652,7 +652,7 @@ pub fn field_ty<'tcx>(
 	tcx: TyCtxt<'tcx>,
 	env: ty::TypingEnv<'tcx>,
 	did: DefId,
-	args: ty::GenericArgsRef<'tcx>,
+	args: ty::GenericArgs<'tcx>,
 ) -> Ty<'tcx> {
 	instantiate(tcx, env, tcx.type_of(did).instantiate_identity().skip_norm_wip(), args)
 }
@@ -662,7 +662,7 @@ pub fn instantiate<'tcx>(
 	tcx: TyCtxt<'tcx>,
 	env: ty::TypingEnv<'tcx>,
 	ty: Ty<'tcx>,
-	args: ty::GenericArgsRef<'tcx>,
+	args: ty::GenericArgs<'tcx>,
 ) -> Ty<'tcx> {
 	let ty = EarlyBinder::bind(tcx, ty);
 	tcx.try_instantiate_and_normalize_erasing_regions(args, env, ty)
@@ -703,7 +703,7 @@ pub struct Writes<'tcx> {
 	read: FxHashSet<DefId>,
 	/// The arguments of each body's instances that translation reached, without type
 	/// parameters.
-	reached: FxHashMap<DefId, Vec<ty::GenericArgsRef<'tcx>>>,
+	reached: FxHashMap<DefId, Vec<ty::GenericArgs<'tcx>>>,
 }
 
 /// Types, each without type parameters or over those of the body naming it.
@@ -836,7 +836,7 @@ impl<'tcx> Types<'tcx> {
 
 /// `ty` as [`Types`] keys it: without regions, a `MaybeUninit` or `ManuallyDrop` as what
 /// it holds, and an array as a slice of its element.
-fn storage<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
+pub(super) fn storage<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
 	let mut ty = tcx.erase_and_anonymize_regions(ty);
 	while let ty::Adt(adt, args) = ty.kind()
 		&& matches!(Std::of(tcx, adt.did()), Some(Std::MaybeUninit | Std::ManuallyDrop))
@@ -905,7 +905,7 @@ fn replaces<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, this: Ty<'tcx>) -> Option<Ty
 /// cell holds: as a write through the pointer `as_ptr` or `get` gives, into the object or
 /// array it is. A `Cell`'s arrays of arrays are put in its place instead, and its `swap`
 /// of an array is refused.
-fn cell_writes<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> Option<Ty<'tcx>> {
+fn cell_writes<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, args: ty::GenericArgs<'tcx>) -> Option<Ty<'tcx>> {
 	let (owner, name) = super::library::key(tcx, def_id)?;
 	let writes = match owner.as_str() {
 		// Refused of an array.
@@ -920,7 +920,7 @@ fn cell_writes<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, args: ty::GenericArgsRef<
 
 /// The type std's `def_id` writes whole through a raw pointer to one, by the runtime's
 /// write of a pointer's value: `ptr::write`, `replace`, or `swap`.
-fn pointer_writes<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> Option<Ty<'tcx>> {
+fn pointer_writes<'tcx>(tcx: TyCtxt<'tcx>, def_id: DefId, args: ty::GenericArgs<'tcx>) -> Option<Ty<'tcx>> {
 	let (owner, name) = super::library::key(tcx, def_id)?;
 	let writes = owner == "ptr"
 		&& matches!(
@@ -1414,7 +1414,7 @@ impl<'tcx> BodyWrites<'_, '_, '_, 'tcx> {
 
 	/// Whether the function item `def_id` with `args` translates, whose body is
 	/// read, rather than std's or a trait method only an instance resolves.
-	fn crate_fn(&self, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> bool {
+	fn crate_fn(&self, def_id: DefId, args: ty::GenericArgs<'tcx>) -> bool {
 		let env = ty::TypingEnv::post_analysis(self.tcx, self.def_id);
 		matches!(
 			ty::Instance::try_resolve(self.tcx, env, def_id, args),

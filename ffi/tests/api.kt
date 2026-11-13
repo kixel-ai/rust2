@@ -973,7 +973,23 @@ fun broken(which: String) {
 // What frees what: an object's close, or the GC once it is collected if never closed, and
 // Rust's bytes only the GC, once no Bytes reaching them is reachable. Rust's bytes up to
 // 1 KiB cross copied, freed at the call, and longer ones lent.
+/** A record's scalars cross apart from its other fields, each exactly, both ways. */
+fun readings() {
+	check(reading(0u) == null && readingDebug(0u) == "", "no reading crosses as none")
+	for (n in listOf(1u, 2u, 3u, 127u)) {
+		val r = reading(n)!!
+		check(r.debug() == readingDebug(n), "reading $n crosses as Rust holds it: ${r.debug()}")
+		check(r.count == ULong.MAX_VALUE - n && r.len == ULong.MAX_VALUE - n && r.tag == (UShort.MAX_VALUE - n.toUShort()).toUShort(), "reading $n's unsigned scalars")
+		check(r.at.x == Int.MIN_VALUE + n.toInt() && r.offset == (Byte.MIN_VALUE + n.toInt()).toByte(), "reading $n's signed scalars")
+		check(r.level == -n.toFloat() / 2 && r.ratio == Double.MAX_VALUE / n.toDouble() && r.mark == 0x10FFFF - n.toInt(), "reading $n's floats and char")
+		check(r.ok == (n % 2u == 1u) && r.shape == (if (n % 2u == 1u) Shape.CIRCLE else Shape.SQUARE) && r.note == "reading $n", "reading $n's bool, enum, and text")
+		check(readingEcho(r) == r, "reading $n crosses back")
+		check(r.next() == reading(n + 1u), "reading $n's receiver crosses")
+	}
+}
+
 fun owned() {
+	readings()
 	budgeted()
 	for (n in 1023..1025) {
 		val payload = ByteArray(n) { it.toByte() }

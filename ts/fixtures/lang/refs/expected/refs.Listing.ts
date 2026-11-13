@@ -7,14 +7,7 @@ export function default$Default(): Listing {
 }
 
 export function fmt$fmt_Debug(self: Listing, f: rs.Formatter): rs.Result<undefined, rs.FmtError> {
-	const _3: string = "Listing";
-	const _4: string = "source";
-	const _5: rs.Fmt = (f: rs.Formatter) => rs.fmtOption(self.source, f, rs.u8Debug);
-	const _7: string = "listed";
-	const _8: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(self.listed), f, rs.u8Debug);
-	const _10: string = "stale";
-	const _11: rs.Fmt = (f: rs.Formatter) => rs.fmtList(rs.byteVecView(self.stale), f, rs.u8Debug);
-	return rs.debugStructFinish(rs.debugStructField(rs.debugStructField(rs.debugStructField(rs.fmtDebugStruct(f, _3), _4, _5), _7, _8), _10, _11));
+	return rs.fmtDebugFields(f, "Listing source listed stale", [(f: rs.Formatter) => rs.fmtOption(self.source, f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(self.listed), f, rs.u8Debug), (f: rs.Formatter) => rs.fmtList(rs.byteVecView(self.stale), f, rs.u8Debug)]);
 }
 
 /** moq-net's listing: a crate type's default, made in place only while there is none. */

@@ -800,19 +800,14 @@ export function options(log: Log.Log, id: rs.u32): void {
  * value once, where Rust drops it.
  */
 export function elements(log: Log.Log, id: rs.u32): void {
-	const _7: (a0: Guard.Guard | undefined) => rs.u32 | undefined = (o3: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$02u0dmi(o3, Guard.id);
-	};
-	const _348: (a0: Key.Key | undefined) => rs.u32 | undefined = (o4: Key.Key | undefined): rs.u32 | undefined => {
-		return option_map$0bmexgo(o4, (k: Key.Key): rs.u32 => {
-			return k.id;
-		});
-	};
 	const guard: (a0: rs.u32) => Guard.Guard = (n: rs.u32): Guard.Guard => {
 		return Guard.new(rs.u32Add(id, n), Log.clone$Clone(log));
 	};
 	const key: (a0: rs.u32) => Key.Key = (n2: rs.u32): Key.Key => {
 		return Key.new(rs.u32Add(id, n2), Log.clone$Clone(log));
+	};
+	const _7: (a0: Guard.Guard | undefined) => rs.u32 | undefined = (o3: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o3, Guard.id);
 	};
 	const v2: rs.Vec<Guard.Guard | undefined> = new rs.Vec();
 	const _12: Guard.Guard | undefined = guard(1);
@@ -822,19 +817,19 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	v2.items.push(_21);
 	v2.items.push(undefined as Guard.Guard | undefined);
 	const v: rs.Vec<Guard.Guard | undefined> = v2;
-	const _34: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.sliceFirst(rs.sliceFrom(v.items), rs.None), (o5: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$02u0dmi(o5, Guard.id);
+	const _34: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.sliceFirst(rs.sliceFrom(v.items), rs.None), (o4: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o4, Guard.id);
 	});
-	const _39: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.sliceLast(rs.sliceFrom(v.items), rs.None), (o6: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$02u0dmi(o6, Guard.id);
+	const _39: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.sliceLast(rs.sliceFrom(v.items), rs.None), (o5: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o5, Guard.id);
 	});
 	const args51 = [(f: rs.Formatter) => rs.fmtOption(_34, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None), (f: rs.Formatter) => rs.fmtOption(_39, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)];
 	Log.note(log, rs.fmtFormat(["vec ", args51[0], " ", args51[1]]));
-	const _54: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.sliceGet(rs.sliceFrom(v.items), 1, rs.None), (o7: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$02u0dmi(o7, Guard.id);
+	const _54: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.sliceGet(rs.sliceFrom(v.items), 1, rs.None), (o6: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o6, Guard.id);
 	});
-	const _59: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.sliceGet(rs.sliceFrom(v.items), 4, rs.None), (o8: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$02u0dmi(o8, Guard.id);
+	const _59: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.sliceGet(rs.sliceFrom(v.items), 4, rs.None), (o7: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o7, Guard.id);
 	});
 	const args52 = [(f: rs.Formatter) => rs.fmtOption(_54, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None), (f: rs.Formatter) => rs.fmtOption(_59, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)];
 	Log.note(log, rs.fmtFormat(["get ", args52[0], " ", args52[1]]));
@@ -849,20 +844,20 @@ export function elements(log: Log.Log, id: rs.u32): void {
 		rs.drop(_77.v);
 		_77.v = undefined;
 	}
-	const kept: Guard.Guard | undefined | rs.None = rs.vecPopIfMut(v, (o9: rs.Place<Guard.Guard | undefined>): boolean => {
-		rs.drop(o9.v);
-		o9.v = undefined;
+	const kept: Guard.Guard | undefined | rs.None = rs.vecPopIfMut(v, (o8: rs.Place<Guard.Guard | undefined>): boolean => {
+		rs.drop(o8.v);
+		o8.v = undefined;
 		return false;
 	}, undefined, rs.None);
-	const taken: Guard.Guard | undefined | rs.None = rs.vecPopIfMut(v, (o10: rs.Place<Guard.Guard | undefined>): boolean => {
-		const _318: Guard.Guard | undefined = guard(12);
-		rs.drop(o10.v);
-		o10.v = _318;
+	const taken: Guard.Guard | undefined | rs.None = rs.vecPopIfMut(v, (o9: rs.Place<Guard.Guard | undefined>): boolean => {
+		const _314: Guard.Guard | undefined = guard(12);
+		rs.drop(o9.v);
+		o9.v = _314;
 		return true;
 	}, undefined, rs.None);
 	const _95: boolean = kept !== rs.None;
-	const _98: rs.u32 | undefined | rs.None = option_map$1x5kkz1(taken, (o11: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$02u0dmi(o11, Guard.id);
+	const _98: rs.u32 | undefined | rs.None = option_map$1x5kkz1(taken, (o10: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o10, Guard.id);
 	});
 	const args53 = [(f: rs.Formatter) => rs.fmtBool(_95, f), (f: rs.Formatter) => rs.fmtOption(_98, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)];
 	Log.note(log, rs.fmtFormat(["pop_if ", args53[0], " ", args53[1]]));
@@ -878,17 +873,17 @@ export function elements(log: Log.Log, id: rs.u32): void {
 			break;
 		}
 	}
-	const part4 = option_map$1x5kkz1(rs.vecPop(v, rs.None), (o12: Guard.Guard | undefined): rs.u32 | undefined => {
-		const _011: rs.u32 | undefined = _7(o12);
-		rs.drop(o12);
-		return _011;
+	const part4 = option_map$1x5kkz1(rs.vecPop(v, rs.None), (o11: Guard.Guard | undefined): rs.u32 | undefined => {
+		const _09: rs.u32 | undefined = _7(o11);
+		rs.drop(o11);
+		return _09;
 	});
 	Log.note(log, rs.fmtFormat(["popped ", (f: rs.Formatter) => rs.fmtOption(part4, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)]));
 	const captured = guard(14);
 	const _151: Guard.Guard | undefined | rs.None = rs.vecPopIfMut(v, rs.closure((_2: rs.Place<Guard.Guard | undefined>): boolean => {
-		const _012: boolean = Guard.id(captured) > 0;
+		const _010: boolean = Guard.id(captured) > 0;
 		captured[Symbol.dispose]();
-		return _012;
+		return _010;
 	}, (): void => {
 		captured[Symbol.dispose]();
 	}), rs.drop, rs.None);
@@ -898,18 +893,18 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	Log.note(log, _145);
 	v.items.push(undefined as Guard.Guard | undefined);
 	const captured2 = guard(15);
-	const part8 = option_map$1x5kkz1(rs.vecPopIfMut(v, rs.closure((o13: rs.Place<Guard.Guard | undefined>): boolean => {
+	const part8 = option_map$1x5kkz1(rs.vecPopIfMut(v, rs.closure((o12: rs.Place<Guard.Guard | undefined>): boolean => {
 		const part6 = Guard.id(captured2);
 		Log.note(log, rs.fmtFormat(["test ", (f: rs.Formatter) => rs.u32Display(part6, f)]));
-		const _013: boolean = o13.v === undefined;
+		const _011: boolean = o12.v === undefined;
 		captured2[Symbol.dispose]();
-		return _013;
+		return _011;
 	}, (): void => {
 		captured2[Symbol.dispose]();
-	}), rs.drop, rs.None), (o14: Guard.Guard | undefined): rs.u32 | undefined => {
-		const _014: rs.u32 | undefined = _7(o14);
-		rs.drop(o14);
-		return _014;
+	}), rs.drop, rs.None), (o13: Guard.Guard | undefined): rs.u32 | undefined => {
+		const _012: rs.u32 | undefined = _7(o13);
+		rs.drop(o13);
+		return _012;
 	});
 	Log.note(log, rs.fmtFormat(["called ", (f: rs.Formatter) => rs.fmtOption(part8, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)]));
 	const q: rs.VecDeque<Guard.Guard | undefined> = rs.dequeNew(8) as rs.VecDeque<Guard.Guard | undefined>;
@@ -919,14 +914,14 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	const _192: Guard.Guard | undefined = guard(5);
 	rs.dequePushFront(q, _192);
 	rs.dequePushBack(q, undefined as Guard.Guard | undefined);
-	const _205: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeEnd(q, false, rs.None), (o15: Guard.Guard | undefined): rs.u32 | undefined => {
+	const _205: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeEnd(q, false, rs.None), (o14: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o14, Guard.id);
+	});
+	const _209: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeEnd(q, true, rs.None), (o15: Guard.Guard | undefined): rs.u32 | undefined => {
 		return option_map$02u0dmi(o15, Guard.id);
 	});
-	const _209: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeEnd(q, true, rs.None), (o16: Guard.Guard | undefined): rs.u32 | undefined => {
+	const _213: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeGet(q, 4, rs.None), (o16: Guard.Guard | undefined): rs.u32 | undefined => {
 		return option_map$02u0dmi(o16, Guard.id);
-	});
-	const _213: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeGet(q, 4, rs.None), (o17: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$02u0dmi(o17, Guard.id);
 	});
 	const args61 = [(f: rs.Formatter) => rs.fmtOption(_205, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None), (f: rs.Formatter) => rs.fmtOption(_209, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None), (f: rs.Formatter) => rs.fmtOption(_213, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)];
 	Log.note(log, rs.fmtFormat(["deque ", args61[0], " ", args61[1], " ", args61[2]]));
@@ -936,13 +931,13 @@ export function elements(log: Log.Log, id: rs.u32): void {
 		_222.v = undefined;
 	}
 	const removed: Guard.Guard | undefined | rs.None = rs.dequeRemove(q, 2, rs.None);
-	const _235: rs.u32 | undefined | rs.None = option_map$1x5kkz1(removed, (o18: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$02u0dmi(o18, Guard.id);
+	const _235: rs.u32 | undefined | rs.None = option_map$1x5kkz1(removed, (o17: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o17, Guard.id);
 	});
-	const _239: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeRemove(q, 3, rs.None), (o19: Guard.Guard | undefined): rs.u32 | undefined => {
-		const _019: rs.u32 | undefined = _7(o19);
-		rs.drop(o19);
-		return _019;
+	const _239: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeRemove(q, 3, rs.None), (o18: Guard.Guard | undefined): rs.u32 | undefined => {
+		const _017: rs.u32 | undefined = _7(o18);
+		rs.drop(o18);
+		return _017;
 	});
 	const args62 = [(f: rs.Formatter) => rs.fmtOption(_235, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None), (f: rs.Formatter) => rs.fmtOption(_239, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)];
 	Log.note(log, rs.fmtFormat(["remove ", args62[0], " ", args62[1]]));
@@ -953,25 +948,25 @@ export function elements(log: Log.Log, id: rs.u32): void {
 	rs.dequePushBack(q, _258);
 	rs.dequePushFront(q, undefined as Guard.Guard | undefined);
 	const back: Guard.Guard | undefined | rs.None = rs.dequeSwapRemove(q, 0, true, rs.None);
-	const _273: rs.u32 | undefined | rs.None = option_map$1x5kkz1(back, (o20: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$02u0dmi(o20, Guard.id);
+	const _273: rs.u32 | undefined | rs.None = option_map$1x5kkz1(back, (o19: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o19, Guard.id);
 	});
-	const _277: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeSwapRemove(q, 9, false, rs.None), (o21: Guard.Guard | undefined): rs.u32 | undefined => {
-		const _021: rs.u32 | undefined = _7(o21);
+	const _277: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeSwapRemove(q, 9, false, rs.None), (o20: Guard.Guard | undefined): rs.u32 | undefined => {
+		const _019: rs.u32 | undefined = _7(o20);
+		rs.drop(o20);
+		return _019;
+	});
+	const _283: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeSwapRemove(q, 1, false, rs.None), (o21: Guard.Guard | undefined): rs.u32 | undefined => {
+		const _020: rs.u32 | undefined = _7(o21);
 		rs.drop(o21);
-		return _021;
-	});
-	const _283: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequeSwapRemove(q, 1, false, rs.None), (o22: Guard.Guard | undefined): rs.u32 | undefined => {
-		const _022: rs.u32 | undefined = _7(o22);
-		rs.drop(o22);
-		return _022;
+		return _020;
 	});
 	const args63 = [(f: rs.Formatter) => rs.fmtOption(_273, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None), (f: rs.Formatter) => rs.fmtOption(_277, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None), (f: rs.Formatter) => rs.fmtOption(_283, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)];
 	Log.note(log, rs.fmtFormat(["swap_remove ", args63[0], " ", args63[1], " ", args63[2]]));
 	rs.drop(back);
 	const front: Guard.Guard | undefined | rs.None = rs.dequePopFront(q, rs.None);
-	const part12 = option_map$1x5kkz1(front, (o23: Guard.Guard | undefined): rs.u32 | undefined => {
-		return option_map$02u0dmi(o23, Guard.id);
+	const part12 = option_map$1x5kkz1(front, (o22: Guard.Guard | undefined): rs.u32 | undefined => {
+		return option_map$02u0dmi(o22, Guard.id);
 	});
 	Log.note(log, rs.fmtFormat(["front ", (f: rs.Formatter) => rs.fmtOption(part12, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)]));
 	while (true) {
@@ -985,18 +980,23 @@ export function elements(log: Log.Log, id: rs.u32): void {
 			break;
 		}
 	}
-	const _334: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequePopFront(q, rs.None), (o24: Guard.Guard | undefined): rs.u32 | undefined => {
-		const _024: rs.u32 | undefined = _7(o24);
-		rs.drop(o24);
-		return _024;
+	const _334: rs.u32 | undefined | rs.None = option_map$1x5kkz1(rs.dequePopFront(q, rs.None), (o23: Guard.Guard | undefined): rs.u32 | undefined => {
+		const _022: rs.u32 | undefined = _7(o23);
+		rs.drop(o23);
+		return _022;
 	});
-	const _340: rs.u32 | undefined | rs.None = option_map$1x5kkz1(front, (o25: Guard.Guard | undefined): rs.u32 | undefined => {
-		const _025: rs.u32 | undefined = _7(o25);
-		rs.drop(o25);
-		return _025;
+	const _340: rs.u32 | undefined | rs.None = option_map$1x5kkz1(front, (o24: Guard.Guard | undefined): rs.u32 | undefined => {
+		const _023: rs.u32 | undefined = _7(o24);
+		rs.drop(o24);
+		return _023;
 	});
 	const args66 = [(f: rs.Formatter) => rs.fmtOption(_334, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None), (f: rs.Formatter) => rs.fmtOption(_340, f, (value: rs.u32 | undefined, f: rs.Formatter) => rs.fmtOption(value, f, rs.u32Debug), rs.None)];
 	Log.note(log, rs.fmtFormat(["emptied ", args66[0], " ", args66[1]]));
+	const _348: (a0: Key.Key | undefined) => rs.u32 | undefined = (o25: Key.Key | undefined): rs.u32 | undefined => {
+		return option_map$0bmexgo(o25, (k: Key.Key): rs.u32 => {
+			return k.id;
+		});
+	};
 	const heap: rs.BinaryHeap<Key.Key | undefined> = rs.heapNew() as rs.BinaryHeap<Key.Key | undefined>;
 	const _352: Key.Key | undefined = key(7);
 	rs.heapPush(heap, _352, rs.cmpLe(rs.cmpOption(Key.partialCmp$cmp_PartialOrd)));

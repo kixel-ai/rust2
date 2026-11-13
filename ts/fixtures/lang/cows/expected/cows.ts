@@ -196,8 +196,7 @@ export function variants(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		const _35: rs.StrCow = new rs.Borrowed(s.v);
 		const _37: rs.StrCow = new rs.Borrowed(first);
 		const _38: rs.StrCow = rs.stringNew();
-		const _40: rs.Iter<rs.char> = rs.iterRev(rs.strChars(first));
-		const _39: rs.StrCow = rs.stringExtendChars(rs.stringNew(), _40);
+		const _39: rs.StrCow = rs.stringFromChars(rs.iterRev(rs.strChars(first)));
 		const iterS: rs.StrCow[] = [_27, _29, _31, _32, _35, _37, _38, new rs.Borrowed("fallback"), _39];
 		for (const _45 of iterS) {
 			rs.byteVecPush(out, borrows(_45));
@@ -247,8 +246,7 @@ export function variants(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 			(c2 as rs.Borrowed<string>).slice = first;
 		}
 		if (!(c2 instanceof rs.Borrowed)) {
-			const _138: rs.Iter<rs.char> = rs.iterRev(rs.strChars(first));
-			const _137: rs.String = rs.stringExtendChars(rs.stringNew(), _138);
+			const _137: rs.String = rs.stringFromChars(rs.iterRev(rs.strChars(first)));
 			(c2 as rs.String) = _137;
 		}
 		put(out, rs.strCowStr(c2));
@@ -280,8 +278,7 @@ export function variants(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void
 		b18: {
 			if (d instanceof rs.Borrowed) {
 				if (!((d as rs.Borrowed<string>).slice.length === 0)) {
-					const _190: rs.Iter<rs.char> = rs.iterSkip(rs.strChars((d as rs.Borrowed<string>).slice), 1);
-					_184 = rs.stringExtendChars(rs.stringNew(), _190);
+					_184 = rs.stringFromChars(rs.iterSkip(rs.strChars((d as rs.Borrowed<string>).slice), 1));
 					break b18;
 				}
 			}
@@ -826,11 +823,6 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 	let c3!: rs.ByteCow;
 	let c4!: rs.Cow<rs.ByteVec>;
 	let _157!: rs.Cow<rs.ByteVec>;
-	const _32: (a0: rs.Slice<Tally.Tally>) => rs.ByteVec = (items: rs.Slice<Tally.Tally>): rs.ByteVec => {
-		return rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.sliceItems(items)), (t: Tally.Tally): rs.u8 => {
-			return t._0;
-		}), undefined, true);
-	};
 	const _6: [boolean, boolean] = [(kind & 1) !== 0, (kind & 2) !== 0];
 	const intoOwned: boolean = _6[0];
 	const fromOwned: boolean = _6[1];
@@ -849,6 +841,11 @@ export function cloneFroms(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 		const second: rs.Vec<Tally.Tally> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(right)), (_27: rs.u8): Tally.Tally => {
 			return new Tally.Tally(_27, log);
 		}), undefined, 8, true);
+		const _32: (a0: rs.Slice<Tally.Tally>) => rs.ByteVec = (items: rs.Slice<Tally.Tally>): rs.ByteVec => {
+			return rs.iterToByteVec(rs.iterMap(rs.iterSlice(rs.sliceItems(items)), (t: Tally.Tally): rs.u8 => {
+				return t._0;
+			}), undefined, true);
+		};
 		if (!intoOwned) {
 			c = new rs.Borrowed(rs.sliceFrom(first.items));
 		} else {

@@ -104,11 +104,10 @@ export function putResult$moq_net_Timescale_harness_conversions_closure0(out: rs
 		rs.byteVecPush(out, 1);
 		ok(out, value);
 	} else {
+		const _10: TimeOverflow.TimeOverflow = {};
 		rs.byteVecPush(out, 0);
-		const arg = {};
-		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
-		const arg2 = {};
-		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
+		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(_10, f)));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(_10, f)]));
 	}
 }
 
@@ -119,11 +118,10 @@ export function putResult$moq_net_Timescale_harness_timescales_closure0(out: rs.
 		rs.byteVecPush(out, 1);
 		ok(out, value);
 	} else {
+		const _10: TimeOverflow.TimeOverflow = {};
 		rs.byteVecPush(out, 0);
-		const arg = {};
-		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
-		const arg2 = {};
-		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
+		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(_10, f)));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(_10, f)]));
 	}
 }
 
@@ -134,11 +132,10 @@ export function putResult$moq_net_Timescale_harness_timescales_closure1(out: rs.
 		rs.byteVecPush(out, 1);
 		ok(out, value);
 	} else {
+		const _10: TimeOverflow.TimeOverflow = {};
 		rs.byteVecPush(out, 0);
-		const arg = {};
-		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
-		const arg2 = {};
-		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
+		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(_10, f)));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(_10, f)]));
 	}
 }
 
@@ -149,11 +146,10 @@ export function putResult$moq_net_Timescale_harness_timescales_closure2(out: rs.
 		rs.byteVecPush(out, 1);
 		ok(out, value);
 	} else {
+		const _10: TimeOverflow.TimeOverflow = {};
 		rs.byteVecPush(out, 0);
-		const arg = {};
-		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
-		const arg2 = {};
-		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
+		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(_10, f)));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(_10, f)]));
 	}
 }
 
@@ -164,11 +160,10 @@ export function putResult$moq_net_Timestamp_harness_durations_closure0(out: rs.B
 		rs.byteVecPush(out, 1);
 		ok(out, value);
 	} else {
+		const _10: TimeOverflow.TimeOverflow = {};
 		rs.byteVecPush(out, 0);
-		const arg = {};
-		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
-		const arg2 = {};
-		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
+		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(_10, f)));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(_10, f)]));
 	}
 }
 
@@ -179,11 +174,10 @@ export function putResult$moq_net_Timestamp_harness_put_timestamp(out: rs.ByteVe
 		rs.byteVecPush(out, 1);
 		putTimestamp(out, value);
 	} else {
+		const _10: TimeOverflow.TimeOverflow = {};
 		rs.byteVecPush(out, 0);
-		const arg = {};
-		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(arg, f)));
-		const arg2 = {};
-		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(arg2, f)]));
+		putText(out, rs.fmtToString((f: rs.Formatter) => TimeOverflow.fmt$fmt_Display(_10, f)));
+		putText(out, rs.fmtFormat([(f: rs.Formatter) => TimeOverflow.fmt$fmt_Debug(_10, f)]));
 	}
 }
 

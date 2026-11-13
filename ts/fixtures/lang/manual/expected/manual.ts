@@ -104,10 +104,9 @@ export function needs$unit(): boolean {
  * generic body that branches on it does, as std's collections do; and types' names.
  */
 export function needsDrops(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _4: rs.Iter<rs.char> = rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.char => {
+	const captured = rs.stringFromChars(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.char => {
 		return _2 as rs.char;
-	});
-	const captured = rs.stringExtendChars(rs.stringNew(), _4);
+	}));
 	const named: () => rs.usize = (): rs.usize => {
 		return captured.len;
 	};

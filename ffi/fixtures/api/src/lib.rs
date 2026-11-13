@@ -52,6 +52,65 @@ pub fn has_text(note: Note) -> bool {
 	note.text.is_some()
 }
 
+/// A reading: a field of each scalar kind at the edge of its range, a nested record, and
+/// text, so a binding that passes a record's scalars apart from its other fields passes each
+/// exactly.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Reading {
+	pub ok: bool,
+	pub level: f32,
+	pub ratio: f64,
+	pub mark: char,
+	pub shape: Shape,
+	pub at: Point,
+	pub note: String,
+	pub count: u64,
+	pub offset: i8,
+	pub len: usize,
+	pub tag: u16,
+}
+
+impl Reading {
+	/// The reading after this one, by its `tag`.
+	pub fn next(&self) -> Option<Reading> {
+		reading(u32::from(u16::MAX - self.tag) + 1)
+	}
+}
+
+/// The reading `n`, or none for 0.
+pub fn reading(n: u32) -> Option<Reading> {
+	(n != 0).then(|| Reading {
+		ok: n % 2 == 1,
+		level: -(n as f32) / 2.0,
+		ratio: f64::MAX / f64::from(n),
+		mark: char::from_u32(0x10FFFF - n).unwrap_or(char::REPLACEMENT_CHARACTER),
+		shape: match n % 2 {
+			1 => Shape::Circle,
+			_ => Shape::Square,
+		},
+		at: Point {
+			x: i32::MIN + n as i32,
+			y: -(n as i32),
+		},
+		note: format!("reading {n}"),
+		count: u64::MAX - u64::from(n),
+		offset: i8::MIN.wrapping_add(n as i8),
+		len: usize::MAX - n as usize,
+		tag: u16::MAX - n as u16,
+	})
+}
+
+/// The `Debug` form of `reading(n)`, or empty for none, which a binding compares its own
+/// copy's with.
+pub fn reading_debug(n: u32) -> String {
+	reading(n).map_or_else(String::new, |r| format!("{r:?}"))
+}
+
+/// `reading`, passed through Rust and back.
+pub fn reading_echo(reading: Reading) -> Reading {
+	reading
+}
+
 /// A plain enumeration.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Shape {
@@ -1026,6 +1085,18 @@ fn on_thread(log: &(impl Log + ?Sized), lines: &[u8]) -> u32 {
 	})
 }
 
+/// A record named as Swift's own error a cancelled task throws, which the binding renames.
+pub struct CancellationError {
+	pub code: u32,
+}
+
+/// Each of `0..n` to `count` before it returns its future, then `n` doubled once polled,
+/// or `Overflow`: an eager, fallible future that lends a closure.
+pub fn counted(n: u32, mut count: impl FnMut(u32)) -> std::future::Ready<Result<u32, Error>> {
+	(0..n).for_each(&mut count);
+	std::future::ready(n.checked_mul(2).ok_or(Error::Overflow))
+}
+
 /// Each line to `keep` on another thread, returning how many it kept: a lent closure may
 /// run on any thread until the call returns.
 pub fn filter(lines: Vec<u8>, mut keep: impl FnMut(u8, &str) -> bool + Send) -> u32 {
@@ -1865,6 +1936,13 @@ impl Seed<u64> for Counter {
 impl Seed<u64> for Point {
 	fn seed(&self) -> u64 {
 		u64::from(self.x.unsigned_abs()) + u64::from(self.y.unsigned_abs())
+	}
+}
+
+/// A point scales an area of dep-fixture's by its distance from the origin along each axis.
+impl dep::Factor<u32> for Point {
+	fn factor(&self) -> u32 {
+		self.x.unsigned_abs() + self.y.unsigned_abs()
 	}
 }
 

@@ -107,7 +107,7 @@ fn refused_in<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, ty: Ty<'tcx>, seen:
 				return Some(format!("which runs `{}`'s `Drop` impl,", path(tcx, adt.did())));
 			}
 			for field in adt.all_fields() {
-				let fty = field.ty(tcx, args).skip_norm_wip();
+				let fty = field.ty(tcx, *args).skip_norm_wip();
 				let fty = tcx.normalize_erasing_regions(env, ty::Unnormalized::new_wip(fty));
 				if let Some(why) = refused_in(tcx, env, fty, seen) {
 					return Some(why);
@@ -393,22 +393,18 @@ pub fn call_with<'tcx>(
 		| "<core::fmt::builders::DebugTuple>::finish"
 		| "<core::fmt::builders::DebugList>::finish" => expr(format!("{}.finish()", a[0])),
 		"<core::fmt::builders::DebugStruct>::finish_non_exhaustive" => expr(format!("{}.finishNonExhaustive()", a[0])),
-		k if k.starts_with("<core::fmt::Formatter>::debug_tuple_field") && k.ends_with("_finish") => {
-			expr(format!("{}.debugTupleFields({}, {})", a[0], a[1], a[2..].join(", ")))
-		}
+		// Derived `Debug`, whose names are the type's then its fields', space-separated.
 		"<core::fmt::Formatter>::debug_struct_fields_finish" => {
-			expr(format!("{}.debugStructFields({}, {}, {})", a[0], a[1], a[2], a[3]))
+			expr(format!("{}.debugFields({}, {})", a[0], a[1], a[2]))
 		}
-		k if k.starts_with("<core::fmt::Formatter>::debug_struct_field") && k.ends_with("_finish") => {
-			let names: Vec<&str> = a[2..].iter().step_by(2).map(String::as_str).collect();
-			let values: Vec<&str> = a[3..].iter().step_by(2).map(String::as_str).collect();
-			expr(format!(
-				"{}.debugStructFields({}, [][]uint8{{{}}}, []fmtDyn{{{}}})",
-				a[0],
-				a[1],
-				names.join(", "),
-				values.join(", ")
-			))
+		k if k.starts_with("<core::fmt::Formatter>::debug_struct_field") && k.ends_with("_finish") => expr(format!(
+			"{}.debugFields({}, []fmtDyn{{{}}})",
+			a[0],
+			a[1],
+			a[2..].join(", ")
+		)),
+		"<core::fmt::Formatter>::debug_c_like_enum_write_str" => {
+			expr(format!("{}.debugEnum({}, {})", a[0], a[1], a[2]))
 		}
 		"<str as core::fmt::Display>::fmt" => expr(format!("{}.pad({})", a[1], a[0])),
 		"<bool as core::fmt::Display>::fmt" | "<bool as core::fmt::Debug>::fmt" => expr(format!(
@@ -608,7 +604,7 @@ fn intrinsic<'tcx>(
 			let layout = tcx.layout_of(fx.t_env().as_query_input(ty)).ok()?;
 			let n = match name.as_str() {
 				"size_of" => layout.size.bytes(),
-				_ => layout.align.abi.bytes(),
+				_ => layout.align.bytes(),
 			};
 			expr(format!("uint({n})"))
 		}

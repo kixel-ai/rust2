@@ -2,14 +2,30 @@
 
 import * as rs from "../rs.ts";
 import { copy$tuple2_u8_u8 } from "../lib.ts";
+import type * as ArcEntry from "../counts.ArcEntry.ts";
 import type * as ArcNode from "../counts.ArcNode.ts";
 import type * as ArcShared from "../counts.ArcShared.ts";
 import type * as Counted from "../counts.Counted.ts";
 import type * as Id from "../counts.Id.ts";
 import type * as Noisy from "../counts.Noisy.ts";
+import type * as RcEntry from "../counts.RcEntry.ts";
 import type * as RcNode from "../counts.RcNode.ts";
 import type * as RcShared from "../counts.RcShared.ts";
 import type * as Twin from "../counts.Twin.ts";
+
+export function isSomeAnd$013yg3p(self: rs.Weak<RcEntry.RcEntry> | undefined, f: (a0: rs.Weak<RcEntry.RcEntry>) => boolean): boolean {
+	if (self === undefined) {
+		return false;
+	}
+	return f(self);
+}
+
+export function isSomeAnd$05lo443(self: rs.Weak<ArcEntry.ArcEntry> | undefined, f: (a0: rs.Weak<ArcEntry.ArcEntry>) => boolean): boolean {
+	if (self === undefined) {
+		return false;
+	}
+	return f(self);
+}
 
 export function unwrapOr$0ujf6zi(self: Twin.Twin | undefined, default_: Twin.Twin): Twin.Twin {
 	if (self === undefined) {
@@ -54,6 +70,13 @@ export function mapOr$1rg5gkk(self: rs.u8 | undefined | rs.None, default_: rs.u8
 }
 
 export function mapOr$025sl8y(self: rs.Arc<Noisy.Noisy> | undefined, default_: rs.u8, f: (a0: rs.Arc<Noisy.Noisy>) => rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$1odeys9(self: rs.Arc<RcEntry.RcEntry> | undefined, default_: rs.u8, f: (a0: rs.Arc<RcEntry.RcEntry>) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}
@@ -117,6 +140,13 @@ export function mapOr$1jfh4wo(self: RcShared.RcShared | undefined, default_: rs.
 }
 
 export function mapOr$0vxw5sq(self: rs.u8 | undefined, default_: rs.u8, f: (a0: rs.u8) => rs.u8): rs.u8 {
+	if (self === undefined) {
+		return default_;
+	}
+	return f(self);
+}
+
+export function mapOr$08fshy6(self: rs.Arc<ArcEntry.ArcEntry> | undefined, default_: rs.u8, f: (a0: rs.Arc<ArcEntry.ArcEntry>) => rs.u8): rs.u8 {
 	if (self === undefined) {
 		return default_;
 	}

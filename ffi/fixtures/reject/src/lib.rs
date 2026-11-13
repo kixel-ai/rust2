@@ -1,5 +1,5 @@
 //! Items rust2-ffi cannot export: each is a compile error at its span.
-#![feature(allocator_api, pattern)]
+#![feature(pattern)]
 use std::collections::HashMap;
 
 /// A tuple of references taken: C lends nothing inside a value.
@@ -811,7 +811,7 @@ pub fn lent() -> impl Iterator<Item = u8> {
 /// A pattern of the crate's own, whose searcher a split runs as it is read.
 struct Slash;
 
-impl std::str::pattern::Pattern for Slash {
+unsafe impl std::str::pattern::Pattern for Slash {
 	type Searcher<'a> = std::str::pattern::CharSearcher<'a>;
 
 	fn into_searcher(self, haystack: &str) -> std::str::pattern::CharSearcher<'_> {

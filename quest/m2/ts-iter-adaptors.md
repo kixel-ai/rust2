@@ -1,29 +1,34 @@
-# [S] Spike: iterator adaptors lowered per chain
+# [L] Lower iterator adaptors per chain
 
 ## Goal
 
-A report says whether lowering an iterator chain's adaptors (`map`, `filter`, `zip`,
-`enumerate`) to code of its own, with leaf iterators left in the runtime, closes the
-iterator workloads' gap. On the 2026-11-12 nightly
-([run 43246857664](https://github.com/kixel-ai/rust2/actions/runs/43246857664), Chromium)
-the iterator family ran 12.9 times wasm's time: `zip-map-filter-count` 56.4 ns against
-2.84 hand-written, and `enumerate-for` 12.2 against 1.89. If the spike earns it, this
-quest is rewritten to the landing work and sized again.
+Generated iterator chains specialize `map`, `filter`, `zip` and `enumerate`
+adaptors while leaving leaf iterators in the runtime, preserving Rust semantics
+and approaching hand-written performance without runtime dispatch per adaptor.
 
 ## Plan
 
-Decided with the maintainer on 2026-11-12, in the quest audit: ✅ before the gate, in m2.
+The spike in `bench/iter-adaptors/README.md` earned a go on 2026-11-13:
+`zip-map-filter-count` reached 3.41 ns/byte in Chromium versus 3.45 hand-written,
+and 5.84 in Firefox versus 3.32 hand-written. One specialized chain added 25 raw
+and 43 gzip bytes to the full codec bundle. The profile does not establish
+megamorphic map dispatch as the cause; fusion also removes tuple allocation.
 
-- The suspected cause: every `map` in a program calls through one site,
-  `ts/runtime/rs/iter.ts`'s `MapIter.next`, so its `inner.next()` and `f` calls see every
-  type and V8 stops inlining them. Confirm it with a profile before changing anything.
-- `ts/README.md`'s design rejected lowering adaptors from core's MIR because slice
-  iterators are raw pointers. This keeps leaf iterators in the runtime and specializes
-  only the adaptors, as [#129](https://github.com/kixel-ai/rust2/pull/129) did for
-  `Option`'s and `Result`'s combinators.
-- Hand-edit one `iter/` workload's output and compare it through `--route name=dir`, in
-  Chrome and Firefox, with the bundle's size, which grows per chain.
-- Go: the hand-edited workload reaches a small multiple of hand-written. No-go: it does
-  not, and the report says what the profile showed instead.
+- Specialize adaptor code at each chain while retaining runtime leaf iterators.
+  Do not lower core's pointer-based slice iterator MIR. Follow the existing
+  Option/Result combinator lowering where useful.
+- Cover all supported ways a chain is consumed, including escaped iterators,
+  reverse traversal, `nth`, folds, short circuiting, exact lengths and size hints.
+  Preserve closure call order, integer overflow and item/closure drops. Reuse the
+  current runtime for chains whose specialization cannot preserve these rules.
+- Add differential fixtures against native Rust for primitive and owned items,
+  non-fused and unequal-length sources, side-effecting closures, early exits,
+  forward/backward interleaving, and unwind/drop paths supported by translation.
+- Re-run the iterator family through `--route` in Chromium and Firefox and
+  measure bundle growth across multiple specialized chains. Include enumerate,
+  which the spike did not specialize. Keep the existing benchmark checks and
+  watchdog enabled. Benchmark-owned headless browser launches are authorized;
+  agent-browser-only instructions apply to manual/web browser tasks.
 
-Public API: none.
+Public API: none. Sized L for general consumption and ownership semantics;
+the finished spike was S.

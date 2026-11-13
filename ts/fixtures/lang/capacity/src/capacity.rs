@@ -127,7 +127,13 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 				let rest = it.collect::<Vec<T>>();
 				sized(out, rest.len(), rest.capacity());
 			}
-			24 => v = vec![make(arg); usize::from(arg % 6)],
+			// `vec!`, or the deprecated function it once called, which std keeps and still fills
+			// the same.
+			24 => match arg & 0x40 {
+				0 => v = vec![make(arg); usize::from(arg % 6)],
+				#[allow(deprecated)]
+				_ => v = std::vec::from_elem(make(arg), usize::from(arg % 6)),
+			},
 			25 => drop(v.pop_if(|_| arg % 2 == 1)),
 			// Joined, with room for exactly what it joins.
 			26 => v = [v.clone(), v].concat(),
@@ -678,7 +684,7 @@ pub fn strings(first: u8, steps: &[u8], out: &mut Vec<u8>) {
 	for step in steps.chunks(2) {
 		let (op, arg) = (step[0], step.get(1).copied().unwrap_or(0));
 		let c = CHARS[usize::from(arg) % CHARS.len()];
-		match op % 49 {
+		match op % 54 {
 			0 => s.push(c),
 			1 => s.push_str(text(arg)),
 			2 => s.reserve(amount(arg, s.len(), 1)),
@@ -809,6 +815,40 @@ pub fn strings(first: u8, steps: &[u8], out: &mut Vec<u8>) {
 				lent.borrow_mut().make_ascii_uppercase();
 				let shared: &dyn Borrow<str> = &s;
 				put(out, shared.borrow().len());
+			}
+			// `str::escape_default` by std's own `ToString`, `FromIterator`, and `Extend`, which
+			// reserve by its parts, and each `\u{..}` by ten bytes.
+			49 => s = s.escape_default().to_string(),
+			50 => s = s.escape_default().collect(),
+			51 => {
+				let mut grown = String::with_capacity(usize::from(arg % 8));
+				grown.extend(s.escape_default());
+				s = grown;
+			}
+			// With an escape begun, which its front part holds.
+			52 => {
+				let mut escape = s.escape_default();
+				escape.next();
+				escape.next();
+				s = match arg & 1 {
+					0 => escape.to_string(),
+					_ => escape.collect(),
+				};
+			}
+			// Through a wrapper whose `into_iter` is one, which std's `Extend` reads as any
+			// other iterator of chars: it specializes on the type it is given.
+			53 => {
+				struct Escaped<'a>(&'a str);
+				impl<'a> IntoIterator for Escaped<'a> {
+					type Item = char;
+					type IntoIter = std::str::EscapeDefault<'a>;
+					fn into_iter(self) -> Self::IntoIter {
+						self.0.escape_default()
+					}
+				}
+				let mut grown = String::new();
+				grown.extend(Escaped(&s));
+				s = grown;
 			}
 			_ => {}
 		}

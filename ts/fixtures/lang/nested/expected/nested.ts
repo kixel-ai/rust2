@@ -482,13 +482,8 @@ export function closures(data: rs.ByteSlice, out: rs.ByteVec): void {
  * `Some(None)`. The first byte is also the index.
  */
 export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
-	const _8: (a0: rs.Place<rs.u8 | undefined>) => undefined = (o8: rs.Place<rs.u8 | undefined>): undefined => {
-		o8.v = option_mapOr$19a4gco(o8.v, 66, (_2: rs.u8): rs.u8 | undefined => {
-			return undefined;
-		});
-	};
-	const items: rs.Vec<rs.u8 | undefined> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_22: rs.u8): rs.u8 | undefined => {
-		const b: rs.u8 = _22;
+	const items: rs.Vec<rs.u8 | undefined> = rs.iterToVec(rs.iterMap(rs.iterSlice(rs.byteSliceView(data)), (_2: rs.u8): rs.u8 | undefined => {
+		const b: rs.u8 = _2;
 		return thenSome$0quywni(rs.u8Rem(b, 2) === 0, b);
 	}), undefined, 2, true);
 	const at: rs.usize = option_mapOr$1d4bp7c(rs.byteSliceFirst(data), 0, (b2: rs.u8): rs.usize => {
@@ -496,6 +491,11 @@ export function elements(data: rs.ByteSlice, out: rs.ByteVec): void {
 	});
 	const v: rs.Vec<rs.u8 | undefined> = rs.vecFrom(items.items.slice());
 	rs.iterExtendBytes(out, rs.iterSlice(Uint8Array.of(code(rs.sliceFirst(rs.sliceFrom(v.items), rs.None)), code(rs.sliceLast(rs.sliceFrom(v.items), rs.None)), code(rs.sliceGet(rs.sliceFrom(v.items), at, rs.None)))), undefined, true);
+	const _8: (a0: rs.Place<rs.u8 | undefined>) => undefined = (o8: rs.Place<rs.u8 | undefined>): undefined => {
+		o8.v = option_mapOr$19a4gco(o8.v, 66, (_22: rs.u8): rs.u8 | undefined => {
+			return undefined;
+		});
+	};
 	rs.byteVecPush(out, code(option_andThen$0q72czq(rs.sliceGetRange(rs.sliceFrom(v.items), at), (s: rs.Slice<rs.u8 | undefined>): rs.u8 | undefined | rs.None => {
 		return rs.sliceFirst(s, rs.None);
 	})));

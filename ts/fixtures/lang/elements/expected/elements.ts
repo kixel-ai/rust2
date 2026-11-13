@@ -436,9 +436,6 @@ export function rawSlices(data: rs.ByteSlice, out: rs.ByteVec): void {
 export function emptyParts(data: rs.ByteSlice, out: rs.ByteVec): void {
 	const lone = new Uint8Array(1);
 	const held = new Uint8Array(1);
-	const _130: (a0: rs.Place<rs.u8>) => rs.u8 = (p2: rs.Place<rs.u8>): rs.u8 => {
-		return rs.ptrWrappingAdd(p2, -1, 1, 1) === rs.NULL ? 1 : 0;
-	};
 	const k: rs.usize = rs.usizeAdd(rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), 4) as rs.usize, 1);
 	const wide: rs.Place<rs.u16> = rs.DANGLING;
 	const off: rs.Place<rs.u16> = rs.ptrWrappingAdd(rs.NULL, k, 2, 2);
@@ -449,8 +446,8 @@ export function emptyParts(data: rs.ByteSlice, out: rs.ByteVec): void {
 			break;
 		}
 		const back: rs.usize = _23[1];
-		const null_: (a0: rs.Place<rs.u16>) => rs.u8 = (p3: rs.Place<rs.u16>): rs.u8 => {
-			return rs.ptrWrappingAdd(p3, -back, 2, 2) === rs.NULL ? 1 : 0;
+		const null_: (a0: rs.Place<rs.u16>) => rs.u8 = (p2: rs.Place<rs.u16>): rs.u8 => {
+			return rs.ptrWrappingAdd(p2, -back, 2, 2) === rs.NULL ? 1 : 0;
 		};
 		const _32: [rs.Slice<rs.u16>, rs.Slice<rs.u16>] = rs.sliceSplitAt(_23[0], 0);
 		const part = rs.sliceAsPtr(_32[0]);
@@ -494,6 +491,9 @@ export function emptyParts(data: rs.ByteSlice, out: rs.ByteVec): void {
 	}
 	const byte: rs.Place<rs.u8> = rs.DANGLING;
 	const s: rs.ByteSlice = rs.ptrByteSlice(byte, 0, false);
+	const _130: (a0: rs.Place<rs.u8>) => rs.u8 = (p3: rs.Place<rs.u8>): rs.u8 => {
+		return rs.ptrWrappingAdd(p3, -1, 1, 1) === rs.NULL ? 1 : 0;
+	};
 	const part17 = rs.byteSliceAsPtr(s);
 	rs.byteVecPush(out, _130(part17));
 	const _139: [rs.ByteSlice, rs.ByteSlice] = rs.byteSliceSplitAt(s, 0);
