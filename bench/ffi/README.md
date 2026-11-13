@@ -189,6 +189,13 @@ Measured on fedora on 2026-11-12, through `quest gate`, with the same pinned
 moq stand-in and three rounds. The exported workspace now carries moq's release
 profile: fat LTO, one codegen unit, and `strip = "symbols"`. Its package override
 keeps debuginfo-only stripping for the moq-ffi dependency. Panic behavior is unchanged.
+A paired build of the generated crate with Kotlin and Dart enabled took 404 s with
+this profile and 107 s after removing the profile tables (297 s longer, 3.8 times).
+Both used fresh target directories and the warm mbx compiler cache, so these are
+elapsed build times on a shared host, not cold compiler timings. The corresponding
+static libraries were 95.2 versus 186.7 MiB, and shared libraries 38.7 versus 59.7 MiB.
+The Python extension in the table was built separately by the benchmark harness.
+
 The older tables above remain the default-profile baseline; host load and intervening
 generator changes prevent attributing every difference to LTO alone.
 
