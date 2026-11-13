@@ -4,7 +4,7 @@ description = "The rustc driver front end that rust2's drivers share"
 version = "0.0.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/moq-dev/rust2"
+repository = "https://github.com/kixel-ai/rust2"
 # A path dependency of the drivers: it only builds on
 # their pinned nightly.
 publish = false

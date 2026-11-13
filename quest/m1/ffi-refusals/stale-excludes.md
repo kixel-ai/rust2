@@ -10,12 +10,12 @@ and `just ffi moq` builds everything that maps.
 
 Found by the 2026-11-12 audit, comparing the file against the 2026-11-11 nightly census's
 "config that exports what maps"
-([run 43038758163](https://github.com/moq-dev/rust2/actions/runs/43038758163)): 28 of the
+([run 43038758163](https://github.com/kixel-ai/rust2/actions/runs/43038758163)): 28 of the
 100 excludes name items that export, such as `Path::from_static`, the
 `Timestamp::as_*` conversions, `mux::Source`'s methods, and `varint::encode_quic`, so
 `just ffi moq` never builds what
-[#675](https://github.com/moq-dev/rust2/pull/675) and
-[#678](https://github.com/moq-dev/rust2/pull/678) made exportable. At moq's `main`, 11
+[#675](https://github.com/kixel-ai/rust2/pull/675) and
+[#678](https://github.com/kixel-ai/rust2/pull/678) made exportable. At moq's `main`, 11
 more name nothing exported ([the pin bump](/quest/m1/ffi-refusals/moq-pin.md)). Measure
 both again first.
 
