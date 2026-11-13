@@ -453,7 +453,7 @@ fn changed(base: &Index<'_>, now: &Index<'_>, maps: &Maps, ours: &Item<'_>, thei
 		}
 		(Item::Constant(c), Item::Constant(d)) => {
 			// Its value may change: what a constant is called and its type are its API.
-			let ty = |c: &Constant| {
+			let bare = |c: &Constant| {
 				let mut c = merge::bare_constant(c);
 				c.value = match c.value {
 					Literal::Bool(_) => Literal::Bool(false),
@@ -461,8 +461,14 @@ fn changed(base: &Index<'_>, now: &Index<'_>, maps: &Maps, ours: &Item<'_>, thei
 				};
 				c
 			};
+			let ty = |c: &Constant| match c.value {
+				Literal::Bool(_) => "bool",
+				Literal::Int(int, _) => int.rust(),
+			};
 			if ty(c) != ty(d) {
-				changes.push(format!("its type: it was `{}`, and is now `{}`", c.value, d.value));
+				changes.push(format!("its type: it was `{}`, and is now `{}`", ty(c), ty(d)));
+			} else if bare(c) != bare(d) {
+				changes.push("how it exports".to_string());
 			}
 		}
 		_ => changes.push("it is another kind of item".to_string()),

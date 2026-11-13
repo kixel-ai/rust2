@@ -29,3 +29,4 @@ then see change. A sibling planned later adds itself to `Required` here.
 - [Fused async start](/quest/m1/ffi-export/async-start.md) - every future's C signature
 - [Owned buffers](/quest/m1/ffi-export/owned-bufs.md) - what a buffer's owner means on the way in
 - [Numeric slices](/quest/m1/ffi-export/numeric-slices.md) - the types of numeric slices and vectors
+- [Lock every language's names](/quest/m1/ffi-export/lock-names.md) - `--baseline` catches a binding's own rename, so moq can drop its api-diff

@@ -168,3 +168,21 @@ pub fn pick(mode: Mode, shape: Shape, stroke: Stroke, size: Size, level: Level) 
 pub fn extra() -> u32 {
 	3
 }
+
+/// A constant `next` widens, on the host alone.
+#[cfg(all(not(feature = "next"), not(target_arch = "wasm32")))]
+pub const DEPTH: u32 = 8;
+#[cfg(all(feature = "next", not(target_arch = "wasm32")))]
+pub const DEPTH: u64 = 8;
+
+/// A constant `next` makes signed, on wasm32 alone.
+#[cfg(all(not(feature = "next"), target_arch = "wasm32"))]
+pub const PAGES: u16 = 4;
+#[cfg(all(feature = "next", target_arch = "wasm32"))]
+pub const PAGES: i16 = 4;
+
+/// A constant whose value `added` changes, which is no break.
+#[cfg(not(feature = "added"))]
+pub const LIMIT: u32 = 10;
+#[cfg(feature = "added")]
+pub const LIMIT: u32 = 20;

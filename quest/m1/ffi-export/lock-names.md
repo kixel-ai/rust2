@@ -9,6 +9,11 @@ item, and the old and new name, at the item's span.
 
 ## Plan
 
+Decided with the maintainer on 2026-11-12, in the pick round of
+[#739](https://github.com/kixel-ai/rust2/pull/739): ✅ kept. ✅ [ship](/quest/m1/ffi-export/ship.md)
+requires it (rejected: independent), so moq drops its own api-diff only once every
+binding's names are locked.
+
 The lock ([ffi/README.md](/ffi/README.md#the-api-lock)) compares the IR and C's names, so a
 C caller never calls a renamed item. The languages rename on their own: `abi::apart` names
 `audio::encoder::Finish` `AudioEncoderFinish` alone, but `AudioEncoder_Finish` once
