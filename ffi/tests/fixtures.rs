@@ -1644,7 +1644,7 @@ fn lock() {
 		"its Dart name `ShapeCircle` is now `ShapeCircle_`",
 		"its Go name `ModeFast` is now `ModeFast_`",
 		"its Go name `GoString` is now `GoString_`",
-		"/ omitted 0: its Swift name `debugDescription` is now `debugDescription_`",
+		"/ overload omitting Rust parameter indices 0 (zero-based): its Swift name `debugDescription` is now `debugDescription_`",
 	] {
 		assert!(stderr.contains(text), "missing {text}:\n{stderr}");
 	}

@@ -178,13 +178,15 @@ pub fn name_breaks(base: &Names, now: &Names, base_api: &Api, abi: &Abi<'_>) -> 
 					Some(new) => format!("is now `{new}`"),
 					None => "is no longer exported".to_string(),
 				};
+				let suffix = key.strip_prefix(owner).unwrap_or("");
+				let suffix = match suffix.strip_prefix(" / omitted ") {
+					Some("") => " / overload with all Rust parameters".to_string(),
+					Some(indices) => format!(" / overload omitting Rust parameter indices {indices} (zero-based)"),
+					None => suffix.to_string(),
+				};
 				breaks.push(Break {
 					span: *span,
-					what: format!(
-						"{}{}: its {language} name `{old}` {change}",
-						what,
-						key.strip_prefix(owner).unwrap_or("")
-					),
+					what: format!("{}{}: its {language} name `{old}` {change}", what, suffix),
 				});
 			}
 		}
