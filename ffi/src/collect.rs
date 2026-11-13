@@ -537,6 +537,12 @@ impl<'tcx> Collector<'tcx> {
 	/// Whether the config excludes `path`, counting the exclusion. A member of an instance
 	/// is left out by its instance's path or its type's, which leaves it out of each.
 	fn exclude(&mut self, path: &[String]) -> bool {
+		self.exclude_audited(path, true)
+	}
+
+	/// [`Self::exclude`], recording the item for a census's audit only if `audit`: a
+	/// module exports only through its items, each audited on its own.
+	fn exclude_audited(&mut self, path: &[String], audit: bool) -> bool {
 		let report = &mut self.report;
 		for (_, key) in config::keys(&path[1..]) {
 			if let Some((_, count)) = report.excluded.iter_mut().find(|(excluded, _)| *excluded == key) {
@@ -544,7 +550,7 @@ impl<'tcx> Collector<'tcx> {
 				return true;
 			}
 		}
-		for (_, key) in config::keys(&path[1..]) {
+		for (_, key) in config::keys(&path[1..]).filter(|_| audit) {
 			if let Some((_, named)) = report.audited.iter_mut().find(|(audited, _)| *audited == key) {
 				named.push(path[1..].join("::"));
 				break;
@@ -1111,7 +1117,7 @@ impl<'tcx> Collector<'tcx> {
 				}
 				let mut modules = modules.clone();
 				modules.push(def_id);
-				if self.exclude(&path) {
+				if self.exclude_audited(&path, kind != DefKind::Mod) {
 					self.left_out.insert(def_id, "excluded type");
 					continue;
 				}

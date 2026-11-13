@@ -184,13 +184,21 @@ pub fn render(api: &Api, collected: &Report, clashes: &[Clash], at: &dyn Fn(Span
 			let _ = writeln!(out, "- `{path}`: {count} items");
 		}
 	}
-	// An exclude that names what exports leaves out more than the export needs. A member
-	// of a refused type does not export either.
-	let refused: Vec<&str> = (collected.refusals.iter().map(|r| r.path.as_str()))
+	// An exclude that names what exports leaves out more than the export needs. What the
+	// export leaves out otherwise does not export, nor does a member of it, and a field not
+	// shared with a method is refused without its `field@`.
+	let left_out: Vec<&str> = (collected.refusals.iter().map(|r| r.path.as_str()))
 		.chain(collected.unheld.iter().map(|(path, _)| path.as_str()))
+		.chain(collected.traits.iter().map(|(path, _)| path.as_str()))
+		.chain(collected.twins.iter().map(String::as_str))
+		.chain(collected.hidden.iter().map(String::as_str))
+		.chain(collected.aliases.iter().map(String::as_str))
 		.collect();
 	let under = |path: &str| {
-		(refused.iter()).any(|r| path == *r || path.strip_prefix(r).is_some_and(|rest| rest.starts_with("::")))
+		let bare = path.strip_prefix("field@").unwrap_or(path);
+		(left_out.iter()).any(|r| {
+			[path, bare].iter().any(|path| *path == *r || path.strip_prefix(r).is_some_and(|rest| rest.starts_with("::")))
+		})
 	};
 	let mut exporting = String::new();
 	for (exclude, named) in &collected.audited {
