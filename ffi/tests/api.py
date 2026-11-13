@@ -5,11 +5,13 @@
 # closed, the values only Python's types bound, or how Python calls into the extension,
 # or breaks a contract, which must fail.
 
+import array
 import asyncio
 import datetime
 import gc
 import io
 import os
+import struct
 import sys
 import threading
 import weakref
@@ -84,6 +86,28 @@ def escaped(path):
 			case b:
 				out += f"\\x{b:02x}"
 	return out
+
+
+def bits(floats, code):
+	"""An array of floats' bits, as Rust's `to_bits` gives them."""
+	return array.array(code, floats.tobytes()).tolist()
+
+
+def numbers(what, n):
+	"""Print each of `n`'s lists, its floats as their bits, as transcript.rs does."""
+	for name, items in [
+		("u16", n.u16s),
+		("u32", n.u32s),
+		("u64", n.u64s),
+		("i8", n.i8s),
+		("i16", n.i16s),
+		("i32", n.i32s),
+		("i64", n.i64s),
+	]:
+		print(f"{what} {name} {items.tolist()}")
+	print(f"{what} f32 {bits(n.f32s, 'I')}")
+	print(f"{what} f64 {bits(n.f64s, 'Q')}")
+	print(f"{what} some {'None' if n.some is None else f'Some({n.some.tolist()})'}")
 
 
 def check(ok, what):
@@ -508,7 +532,7 @@ def script():
 		print(f"parse err {e.error}")
 	v4 = ("127.0.0.1", 8080)
 	v6 = ("::1", 443, 0, 3)
-	print(f"ports {api.ports([v4, v6])}")
+	print(f"ports {api.ports([v4, v6]).tolist()}")
 	peer = api.Peer(v6, ["a", "b"]).next("c")
 	print(f"peer {peer!r} {quoted(peer.aliases())}")
 	file = api.file("dir", "f\\'\"\t")
@@ -568,7 +592,14 @@ def script():
 	print("held " + " ".join("None" if n is None else f"Some({n})" for n in held))
 	print(f'boxed Some("{api.boxed_name(api.boxed_counter("b"))}") {api.boxed_name(None)} {str(api.boxed_counter(None) is None).lower()}')
 	print(f"less {api.less(5, 2)}")
-	print(f"sums {api.sums([[1, 2], [], [3]])}")
+	rows = [array.array("I", [1, 2]), array.array("I"), memoryview(struct.pack("=I", 3)).cast("I")]
+	print(f"sums {api.sums(rows).tolist()}")
+	numbers("edges", api.Numbers.edges())
+	numbers("reversed", api.Numbers.edges().reversed())
+	print(f"sum u32 {api.sum_u32(array.array('I'))} {api.sum_u32(array.array('I', [2**32 - 1, 2**32 - 1, 2]))}")
+	print(f"doubled i64 {api.doubled_i64(array.array('q', [-(2**63), -1, 0, 2**63 - 1])).tolist()}")
+	floats = api.boxed_floats(array.array("d", struct.pack("=dQ", -0.0, 0x7FF8000000000001)))
+	print(f"boxed floats {bits(floats, 'Q')}")
 	summed = api.summed([api.Point(1, 2), api.Point(-4, 6)])
 	none_summed = api.summed([])
 	print(f"summed {summed.x} {summed.y} {none_summed.x} {none_summed.y}")
@@ -1164,6 +1195,30 @@ def values():
 	raises(TypeError, lambda: api.title(1), "an int is no bool")
 	raises(OverflowError, lambda: api.scaled(2**128, 1), "an int past u128 raises")
 	raises(OverflowError, lambda: api.scaled(-1, 1), "a negative int for a u128 raises")
+
+	# A list of numbers is any buffer of exactly its numbers, one dimension and contiguous,
+	# and returns as an array of them.
+	edges = api.Numbers.edges()
+	check(type(edges.u32s) is array.array and edges.u32s.typecode == "I", "a u32 list is an array of 'I'")
+	check(bits(edges.reversed().reversed().f64s, "Q") == bits(edges.f64s, "Q"), "floats cross back exactly")
+	check(edges.reversed().reversed().i64s == edges.i64s, "integers cross back exactly")
+	check(bits(api.boxed_floats(edges.f64s), "Q") == bits(edges.f64s, "Q"), "a NaN keeps its payload")
+	raises(TypeError, lambda: api.sum_u32(array.array("i", [1])), "an i32 buffer is no u32 list")
+	raises(TypeError, lambda: api.sum_u32(array.array("H", [1])), "a u16 buffer is no u32 list")
+	raises(TypeError, lambda: api.sum_u32(b"\0\0\0\0"), "bytes are no u32 list")
+	raises(TypeError, lambda: api.sum_u32([1]), "a list is no buffer")
+	square = memoryview(struct.pack("=4I", 1, 2, 3, 4)).cast("B").cast("I", [2, 2])
+	raises(TypeError, lambda: api.sum_u32(square), "a 2D buffer is no list")
+	raises(BufferError, lambda: api.sum_u32(memoryview(array.array("I", [1, 2, 3, 4]))[::2]), "a strided buffer")
+	check(api.sum_u32(memoryview(struct.pack("=2I", 5, 6)).cast("I")) == 11, "a memoryview cast to u32s is one")
+	# The same numbers under another code of their width and kind, as numpy's may be.
+	code = "L" if struct.calcsize("L") == 4 else "I"
+	check(api.sum_u32(memoryview(struct.pack(f"={2}I", 5, 6)).cast(code)) == 11, "a buffer of another u32 code")
+	n = api.Numbers.edges()
+	n.some = None
+	check(n.reversed().some is None, "a missing list is None")
+	n.some = array.array("i")
+	check(n.reversed().some == array.array("i"), "an empty list is not None")
 
 	# A borrowed tuple is one C value, not one out per element.
 	check(api.corner(True) == (1, 1), "a borrowed tuple returns whole")

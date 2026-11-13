@@ -58,6 +58,7 @@ const TAKEN: &[&str] = &[
 	"_PENDING",
 	"_consts",
 	"_abc",
+	"_array",
 	"_asyncio",
 	"_dataclass",
 	"_datetime",
@@ -157,6 +158,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\"\"\"The pub API of {packages}, over the CPython extension built into the library beside this file.\"\"\"\n\n\
 		from __future__ import annotations\n\n\
 		import abc as _abc\n\
+		import array as _array\n\
 		import asyncio as _asyncio\n\
 		import datetime as _datetime\n\
 		import enum as _enum\n\
@@ -419,6 +421,7 @@ impl<'a> Gen<'a> {
 				Family::V6 => V6.to_string(),
 				Family::Any => format!("{V4} | {V6}"),
 			},
+			Type::List(_, inner) if ty.block().is_some() => format!("_array.array[{}]", self.py_ty(inner)),
 			Type::List(_, inner) => format!("list[{}]", self.py_ty(inner)),
 			Type::Waker => "Waker".to_string(),
 			Type::Reader => "ForeignReader".to_string(),
@@ -465,6 +468,8 @@ impl<'a> Gen<'a> {
 			Type::Path | Type::PathBuf => "str".to_string(),
 			// Python's own IPv6 address may leave out its flowinfo and scope_id.
 			Type::SocketAddr(Family::V6) => format!("{V4} | {V6}"),
+			// Any buffer of its numbers, as numpy's arrays are too.
+			Type::List(..) if ty.block().is_some() => format!("{} | memoryview", self.py_ty(ty)),
 			Type::List(_, inner) => format!("{list}[{}]", self.py_in(inner, list)),
 			Type::Option(inner) => format!("{} | None", self.py_in(inner, list)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.py_in(inner, list),
@@ -498,6 +503,7 @@ impl<'a> Gen<'a> {
 			Type::U128 => format!("rt::u128_in({o})"),
 			Type::Duration => format!("rt::duration_in({o})"),
 			Type::SocketAddr(family) => format!("rt::addr_in({o}, {})", family_of(*family)),
+			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_in::<{}>({o}, s)", number(inner)),
 			Type::List(..) => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => {
@@ -575,6 +581,7 @@ impl<'a> Gen<'a> {
 			Type::U128 => format!("rt::u128_out({v})"),
 			Type::Duration => format!("rt::duration_out({v})"),
 			Type::SocketAddr(_) => format!("rt::addr_out({v})"),
+			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_out::<{}>({v})", number(inner)),
 			Type::List(..) => format!("w_{}({v})", self.c_struct(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => format!(
@@ -1904,4 +1911,14 @@ fn docstring(docs: &str, indent: &str) -> String {
 	}
 	out.push_str("\"\"\"\n");
 	out
+}
+
+/// The Rust type of a block's number.
+fn number(ty: &Type) -> &'static str {
+	match ty {
+		Type::Int(int) => int.rust(),
+		Type::F32 => "f32",
+		Type::F64 => "f64",
+		other => unreachable!("{other:?} is no block's number"),
+	}
 }

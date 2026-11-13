@@ -526,6 +526,13 @@ caller imports it with no ignores.
   A `Vec<T>` or `&[T]` Rust returns is a `list`, and passed in is any iterable other than a `str`,
   annotated `Iterable`, or `Sequence` in a record, which keeps it. Passing a `Vec` by value closes
   each object in it.
+  A `Vec<T>`, `&[T]`, or `Box<[T]>` of a fixed-width integer or float, `usize` and `isize`
+  aside, Rust returns as an `array.array` of its typecode, filled in one copy; the extension
+  fails to load where a typecode is not exactly as wide as its Rust type. Passed in, it is
+  any buffer of exactly those numbers, one dimension and C-contiguous, such as an
+  `array.array`, a `memoryview` cast to their format, or a numpy array, copied once, since
+  another thread may write it while Rust reads; a buffer of another kind or width raises
+  `TypeError`.
   An integer out of its Rust type's range raises `OverflowError`.
 - **Traits** are abstract classes an implementation subclasses; once Rust drops one, its
   `close()` is called if it has one.
