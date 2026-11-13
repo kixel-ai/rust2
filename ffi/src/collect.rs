@@ -29,7 +29,7 @@ use rustc_trait_selection::traits::query::evaluate_obligation::InferCtxtExt as _
 
 use crate::config;
 use crate::ir::{
-	Access, Api, Callback, Closure, Collection, Constant, Dyn, Enum, Family, Field, Function, Home, Int, Literal,
+	Access, Api, Callback, Closure, Collection, Constant, Dyn, Enum, Family, Field, Function, Held, Home, Int, Literal,
 	Mutability, Object, On, Param, Path, Receiver, Record, Task, TaskKind, Traits, Type, Variant,
 };
 
@@ -52,6 +52,10 @@ const FOREIGN: [(&str, &str, &str); 3] = [
 	("serde_json", "Value", "Json"),
 	("std", "Instant", "Instant"),
 ];
+
+/// The construct of another crate's type named both by value and in an `Arc`, whose handle
+/// holds the `Arc`.
+const BOTH: &str = "another crate's type both by value and in an Arc";
 
 /// The construct of an instance inference missed: a bug in the exporter, not the crate.
 pub const NOT_INFERRED: &str = "instance not inferred";
@@ -200,9 +204,15 @@ struct Collector<'tcx> {
 	/// The standard library's crates, `core`, `alloc`, and `std`, known by what each
 	/// defines, since the facade or another crate may share their names.
 	sysroot: Vec<CrateNum>,
-	/// Each type in [`FOREIGN`] that some crate builds with and no export is, and the
-	/// object it exports as.
+	/// Each type in [`FOREIGN`] that some crate builds with and no export is, and each other
+	/// crate's type a signature names behind an `Arc` or by value, and the object it exports as.
 	foreign: Vec<(DefId, usize)>,
+	/// The types of [`Self::foreign`] signatures name by value, which their handles hold
+	/// rather than an `Arc` of them.
+	owned: Vec<DefId>,
+	/// Types signatures name both by value and behind an `Arc`: their handles hold the `Arc`,
+	/// so the value is refused.
+	both: Vec<DefId>,
 	/// `tracing::Level`, where some crate builds with it and no export is it.
 	level: Option<Level>,
 	/// `std::ops::Bound`, and `std::ops::RangeBounds`, which names it.
@@ -323,6 +333,8 @@ pub fn collect<'tcx>(tcx: TyCtxt<'tcx>, facade: &Facade<'_>) -> Collected {
 			json_map,
 			sysroot: sysroot.clone(),
 			foreign: Vec::new(),
+			owned: Vec::new(),
+			both: Vec::new(),
 			level: None,
 			bound,
 			range_bounds,
@@ -757,12 +769,10 @@ impl<'tcx> Collector<'tcx> {
 				.filter_map(|arg| arg.as_type())
 				.filter(|&ty| seen.insert(ty))
 				.collect();
+			for ty in candidates.iter().chain(&named) {
+				self.held_forms(*ty);
+			}
 			for ty in types {
-				if let Some(inner) = self.opaque_arc(ty)
-					&& !self.foreign.iter().any(|&(other, _)| other == inner)
-				{
-					self.foreign.push((inner, 0));
-				}
 				match self.admit(ty) {
 					Some((key, Ok(site))) if !self.instances.iter().any(|other| other.key == key) => {
 						self.instances.push(site)
@@ -799,6 +809,58 @@ impl<'tcx> Collector<'tcx> {
 		let held = !self.exported(did.krate) && !self.sysroot.contains(&did.krate) && !mapped;
 		(held && inner_args.is_empty() && self.is_send(inner, TypingEnv::fully_monomorphized()) && self.is_sync(inner))
 			.then_some(did)
+	}
+
+	/// The type a handle holds by value, if it exports as an opaque handle: as
+	/// [`Self::opaque_arc`]'s, a type of a crate no export is, taking no type parameters, and
+	/// `Send` and `Sync`, but not an iterator. Its lifetimes are `'static`, as an object's are.
+	fn opaque_value(&self, ty: Ty<'tcx>) -> Option<DefId> {
+		let ty::Adt(adt, args) = ty.kind() else { return None };
+		let did = adt.did();
+		let mapped = Some(did) == self.bytes || Some(did) == self.json_map || !self.opaque(did);
+		let held = !self.exported(did.krate) && !self.sysroot.contains(&did.krate) && !mapped;
+		// Each lifetime is `'static` in the export, as an object's is.
+		let erasable = args.iter().all(|arg| matches!(arg.kind(), GenericArgKind::Lifetime(_)));
+		// Asked of a signature's type, whose lifetimes may be bound by it.
+		let ty = ty::fold_regions(self.tcx, ty, |_, _| self.tcx.lifetimes.re_erased);
+		// An iterator crosses as the array of its items instead.
+		let iterator = implements(self.tcx, ty, did, sym::Iterator);
+		(held && erasable && !iterator && self.is_send(ty, TypingEnv::fully_monomorphized()) && self.is_sync(ty))
+			.then_some(did)
+	}
+
+	/// Whether `ty` is another crate's type that an opaque handle holds, by value or behind
+	/// an `Arc`.
+	fn is_opaque(&self, ty: Ty<'tcx>) -> bool {
+		self.opaque_arc(ty).is_some() || self.opaque_value(ty).is_some()
+	}
+
+	/// Record each other crate's type `ty` names behind an `Arc` or by value, which an
+	/// opaque handle holds: an `Arc`'s type is not also by value.
+	fn held_forms(&mut self, ty: Ty<'tcx>) {
+		let mut walker = ty.walk();
+		while let Some(arg) = walker.next() {
+			let Some(ty) = arg.as_type() else { continue };
+			let (did, owned) = match (self.opaque_arc(ty), self.opaque_value(ty)) {
+				(Some(did), _) => (did, false),
+				(None, Some(did)) => (did, true),
+				(None, None) => continue,
+			};
+			walker.skip_current_subtree();
+			match self.foreign.iter().any(|&(other, _)| other == did) {
+				false => {
+					self.foreign.push((did, 0));
+					if owned {
+						self.owned.push(did);
+					}
+				}
+				true if self.owned.contains(&did) != owned && !self.both.contains(&did) => {
+					self.owned.retain(|&other| other != did);
+					self.both.push(did);
+				}
+				true => {}
+			}
+		}
 	}
 
 	/// Whether a foreign type exports as an opaque handle rather than by its role in
@@ -928,8 +990,8 @@ impl<'tcx> Collector<'tcx> {
 		Some(shown)
 	}
 
-	/// Each type a function's signature names at `args`, normalized, with what a returned
-	/// future resolves to. A type holding a foreign future names no instance: the future
+	/// Each type a function's signature names at `args`, normalized, a returned future's
+	/// being what it resolves to. A type holding a foreign future names no instance: the future
 	/// that holds it, as `Timeout<F::IntoFuture>` does, is polled, never a handle.
 	fn spelled(&self, def_id: DefId, args: ty::GenericArgsRef<'tcx>) -> Vec<Ty<'tcx>> {
 		let tcx = self.tcx;
@@ -940,8 +1002,10 @@ impl<'tcx> Collector<'tcx> {
 		};
 		let sig = tcx.fn_sig(def_id).instantiate(tcx, args).skip_norm_wip();
 		let sig = tcx.instantiate_bound_regions_with_erased(sig);
-		let output = self.future_output(normalize(sig.output()), env);
-		(sig.inputs_and_output.iter().chain(output))
+		// A returned future exports as what it resolves to, never as a handle, so the type
+		// of the future itself, such as a closure's, names nothing.
+		let output = self.future_output(normalize(sig.output()), env).unwrap_or(sig.output());
+		(sig.inputs().iter().copied().chain([output]))
 			.map(normalize)
 			.flat_map(|ty| ty.walk())
 			.filter_map(|arg| arg.as_type())
@@ -1378,7 +1442,7 @@ impl<'tcx> Collector<'tcx> {
 							methods: Vec::new(),
 							traits: Traits::default(),
 							foreign: false,
-							opaque: false,
+							opaque: None,
 						});
 					}
 					Decl::Callback(i) => {
@@ -1455,6 +1519,17 @@ impl<'tcx> Collector<'tcx> {
 		let krate = tcx.crate_name(def_id.krate);
 		let name = tcx.item_name(def_id);
 		if self.opaque(def_id) {
+			let owned = self.owned.contains(&def_id);
+			let docs = match owned {
+				true => format!(
+					"`{}`: a handle to another crate's value, which Rust takes back or borrows, with none of its API.",
+					tcx.def_path_str(def_id)
+				),
+				false => format!(
+					"`Arc<{}>`: a handle to another crate's value, which Rust takes back, with none of its API.",
+					tcx.def_path_str(def_id)
+				),
+			};
 			return Object {
 				path: vec![krate.to_string(), name.to_string()],
 				home: Home {
@@ -1465,21 +1540,23 @@ impl<'tcx> Collector<'tcx> {
 				args: Vec::new(),
 				span,
 				on: On::ALL,
-				docs: format!(
-					"`Arc<{}>`: a handle to another crate's value, which Rust takes back, with none of its API.",
-					tcx.def_path_str(def_id)
-				),
+				docs,
 				sync: true,
 				copy: false,
-				shared: true,
+				// A held value is moved out of its handle, as an object of the crate's is, and
+				// its clone is no part of the API.
+				shared: !owned,
 				lifetimes: 0,
 				methods: Vec::new(),
 				traits: Traits {
-					clone: true,
+					clone: !owned,
 					..Traits::default()
 				},
 				foreign: true,
-				opaque: true,
+				opaque: Some(match owned {
+					true => Held::Value,
+					false => Held::Arc,
+				}),
 			};
 		}
 		let role = (FOREIGN.iter())
@@ -1514,6 +1591,7 @@ impl<'tcx> Collector<'tcx> {
 			err: Some(Type::String),
 			future: false,
 			eager: false,
+			holds: false,
 			task: None,
 			collect: false,
 			lends: false,
@@ -1562,6 +1640,7 @@ impl<'tcx> Collector<'tcx> {
 						err: None,
 						future: false,
 						eager: false,
+						holds: false,
 						task: None,
 						collect: false,
 						lends: false,
@@ -1597,7 +1676,7 @@ impl<'tcx> Collector<'tcx> {
 			methods,
 			traits,
 			foreign: true,
-			opaque: false,
+			opaque: None,
 		}
 	}
 
@@ -1736,12 +1815,16 @@ impl<'tcx> Collector<'tcx> {
 				held[i] = true;
 			}
 		}
-		self.decls
-			.iter()
+		// Another crate's type an opaque handle holds, as each object of the crate's.
+		let opaque = (self.foreign.iter())
+			.filter(|&&(_, i)| api.objects[i].opaque.is_some() && !held[i])
+			.map(|&(def_id, _)| Key { def_id, args: None });
+		(self.decls.iter())
 			.filter_map(|(&key, decl)| match decl {
 				Decl::Object(i) if !held[*i] => Some(key),
 				_ => None,
 			})
+			.chain(opaque)
 			.collect()
 	}
 
@@ -2084,8 +2167,14 @@ impl<'tcx> Collector<'tcx> {
 			// Read through `&self`, so returned as a copy, as a borrowed return is, and
 			// written with a value C gives up, as an owned parameter is.
 			let read = Ty::new_imm_ref(tcx, tcx.lifetimes.re_erased, ty);
+			// A field that is an object but not `Clone` is lent from the receiver's handle,
+			// as a method's borrowed return of one is.
+			let lends = !self.is_clone(ty)
+				&& matches!(ty.kind(), ty::Adt(adt, args) if matches!(self.decl(adt.did(), args), Some(Decl::Object(_))));
 			let mapped = {
+				self.lending.set(lends);
 				let get = self.ty(read, Pos::Return);
+				self.lending.set(false);
 				// A handle outlives every call, so a reference it holds is `'static`, which
 				// C's borrow for the call is not.
 				let set = match self.ty(ty, Pos::Param) {
@@ -2124,6 +2213,7 @@ impl<'tcx> Collector<'tcx> {
 						err: None,
 						future: false,
 						eager: false,
+						holds: false,
 						task: None,
 						collect: false,
 						lends: false,
@@ -2131,7 +2221,11 @@ impl<'tcx> Collector<'tcx> {
 						instance: None,
 						home: Home::default(),
 					};
-					accessors.push(accessor(Receiver::Ref, Vec::new(), get, false));
+					let lent = lends
+						&& matches!(&get, Type::Ref(Mutability::Not, inner) if matches!(**inner, Type::Object(_)));
+					let mut getter = accessor(Receiver::Ref, Vec::new(), get, false);
+					getter.lends = lent;
+					accessors.push(getter);
 					let value = Param {
 						name: "value".to_string(),
 						ty: set,
@@ -2381,11 +2475,13 @@ impl<'tcx> Collector<'tcx> {
 			Err(why) => return vec![(Err(why), shown.clone(), false)],
 		};
 		let mut functions = Vec::new();
+		if shown.iter().any(|s| s.contains("connect_with")) { eprintln!("DEBUG {shown:?} instances {}", instances.len()); }
 		for instance in &instances {
 			let Some(shown) = self.shown(shown, instance) else {
 				continue;
 			};
 			let function = self.function(def_id, path.clone(), shown.clone(), self_ty, instance);
+			if shown.iter().any(|s| s.contains("connect_with")) { eprintln!("DEBUG fn {:?} {:?}", function.as_ref().err().map(|w| w.len()), function.as_ref().ok().map(|f| (f.params.iter().map(|p| format!("{:?}", p.ty)).collect::<Vec<_>>(), f.on.clone()))); }
 			functions.push((function, shown, !instance.named.is_empty()));
 		}
 		functions
@@ -2679,10 +2775,6 @@ impl<'tcx> Collector<'tcx> {
 			if !self.is_send(output, kept) {
 				errs.push(why("future not Send", ""));
 			}
-			// Called at once, the future must outlive the arguments the call borrowed.
-			if eager && borrows {
-				errs.push(why("borrowing future from a function that is not async", ""));
-			}
 			output = normalize(inner);
 			future = true;
 		}
@@ -2722,11 +2814,12 @@ impl<'tcx> Collector<'tcx> {
 				let error = args.type_at(1);
 				// Another crate's error, such as `anyhow::Error` or `io::Error`, crosses as
 				// its message, as an exported error's `Display` already reads.
+				let foreign = |mapped: &Result<Type, Why>| match mapped {
+					Err(why) => why.construct == "foreign type" || why.construct == BOTH,
+					Ok(_) => self.opaque_value(error).is_some(),
+				};
 				let err = match self.ty(error, Pos::Return) {
-					Err(why)
-						if why.construct == "foreign type"
-							&& implements(tcx, error, def_id, rustc_span::sym::Display) =>
-					{
+					err if foreign(&err) && implements(tcx, error, def_id, rustc_span::sym::Display) => {
 						Ok(Type::String)
 					}
 					err => err,
@@ -2764,6 +2857,7 @@ impl<'tcx> Collector<'tcx> {
 				err,
 				future,
 				eager: future && eager,
+				holds: future && eager && borrows,
 				task,
 				collect,
 				lends,
@@ -3490,12 +3584,12 @@ impl<'tcx> Collector<'tcx> {
 			}
 			match self.ty(input, Pos::Param) {
 				// An object is lent as a handle for the call, but an opaque one, whose
-				// handle holds no `Arc` to lend; so is a `Copy` one taken by value, which C
+				// handle holds its value erased, has none to lend; so is a `Copy` one taken by value, which C
 				// copies to keep.
 				Ok(ty)
 					if foreign_arg(&ty)
 						|| matches!(&ty, Type::Ref(_, inner) if matches!(**inner, Type::Object(_)))
-							&& !matches!(input.kind(), ty::Ref(_, inner, _) if self.opaque_arc(*inner).is_some())
+							&& !matches!(input.kind(), ty::Ref(_, inner, _) if self.is_opaque(*inner))
 						|| copied(input, &ty) =>
 				{
 					params.push(ty)
@@ -3985,7 +4079,10 @@ impl<'tcx> Collector<'tcx> {
 		for ty in ty.walk().filter_map(|arg| arg.as_type()) {
 			match ty.kind() {
 				ty::Ref(region, ..) => lent.push(*region),
-				ty::Adt(adt, args) if matches!(self.decl(adt.did(), args), Some(Decl::Object(_))) => {
+				ty::Adt(adt, args)
+					if matches!(self.decl(adt.did(), args), Some(Decl::Object(_)))
+						|| self.opaque_value(ty).is_some() =>
+				{
 					held.extend(args.regions())
 				}
 				// An `impl Future` holds what its bounds name, as an `async fn` its output.
@@ -4265,6 +4362,7 @@ impl<'tcx> Collector<'tcx> {
 				err: None,
 				future: false,
 				eager: false,
+				holds: false,
 				task: None,
 				collect: false,
 				lends: false,
@@ -4542,12 +4640,38 @@ impl<'tcx> Collector<'tcx> {
 						_ => match (self.opaque_arc(ty))
 							.and_then(|inner| self.foreign.iter().find(|&&(other, _)| other == inner))
 						{
+							Some(&(did, _))
+								if self.orphans.contains(&Key {
+									def_id: did,
+									args: None,
+								}) =>
+							{
+								return Err(why("type C never holds", inner.to_string()));
+							}
 							Some(_) if pos == Pos::Field => {
 								return Err(why("object in a value", inner.to_string()));
 							}
 							Some(&(_, i)) => Type::Object(i),
 							None => return Err(why("Arc", strip_args(tcx, did))),
 						},
+					}
+				} else if let Some(did) = self.opaque_value(ty)
+					&& let Some(&(_, i)) = self.foreign.iter().find(|&&(other, _)| other == did)
+				{
+					// Held by value, as a handle with none of its API, which Rust takes back
+					// or borrows.
+					if self.both.contains(&did) {
+						return Err(why(BOTH, strip_args(tcx, did)));
+					}
+					if self.orphans.contains(&Key {
+						def_id: did,
+						args: None,
+					}) {
+						return Err(why("type C never holds", strip_args(tcx, did)));
+					}
+					match pos {
+						Pos::Field => return Err(why("object in a value", strip_args(tcx, did))),
+						_ => Type::Object(i),
 					}
 				} else if !self.exported(did.krate) {
 					return Err(why("foreign type", strip_args(tcx, did)));

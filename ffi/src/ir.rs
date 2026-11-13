@@ -214,9 +214,18 @@ pub struct Object {
 	/// Whether it is a foreign type, such as `url::Url`, that the facade maps rather than
 	/// exports: its path is the type's in its own crate, not in the facade.
 	pub foreign: bool,
-	/// Whether it is a foreign type behind an `Arc`, held erased, which the glue never
-	/// names: a handle with none of its API, which Rust takes back as the `Arc`.
-	pub opaque: bool,
+	/// What its handle holds of another crate's type, held erased, which the glue never
+	/// names: a handle with none of its API.
+	pub opaque: Option<Held>,
+}
+
+/// What an opaque handle holds of another crate's type.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub enum Held {
+	/// An `Arc` of it, which Rust takes back as the `Arc`, and clones share.
+	Arc,
+	/// The value itself, which Rust takes back by value or borrows.
+	Value,
 }
 
 /// A `pub` trait: implemented by the foreign side, through a table of functions.
@@ -270,6 +279,9 @@ pub struct Function {
 	/// For a future, whether the call itself runs code, as a function that is not
 	/// `async` returning one does: the export calls it at once, and polls what it returns.
 	pub eager: bool,
+	/// For an eager future, whether what it returns borrows its arguments: the export owns
+	/// them, as it does an `async fn`'s, and keeps them until the future is dropped.
+	pub holds: bool,
 	/// The parameter it polls its task through, if any: C passes a waker for it or, for a
 	/// future made of a returned `Poll`, the future's poll supplies it.
 	pub task: Option<Task>,

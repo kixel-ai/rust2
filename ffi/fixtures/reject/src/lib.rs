@@ -17,13 +17,6 @@ pub fn generic<T: Copy>(value: T) -> T {
 	value
 }
 
-/// A future that borrows its argument, from a function that runs when called: the export
-/// would have to keep the argument alive past the call.
-#[allow(clippy::manual_async_fn, reason = "the construct under test")]
-pub fn borrowing(name: &str) -> impl Future<Output = usize> + '_ {
-	async move { name.len() }
-}
-
 /// An option inside an option, through a `Box`: C has one `None` per option.
 pub fn nested(value: Option<Box<Option<u32>>>) -> bool {
 	value.is_some()
@@ -124,9 +117,9 @@ pub struct Size {
 	pub bytes: u64,
 }
 
-/// Another crate's types, which the facade does not re-export.
-pub fn measure(size: dep::Size) -> dep::Area {
-	dep::Area::new(size)
+/// Another crate's type that is not `Send`, which no handle may hold.
+pub fn measure(local: dep::Local) -> u32 {
+	local.get()
 }
 
 /// A generic type, which exports at the instances its exports name.

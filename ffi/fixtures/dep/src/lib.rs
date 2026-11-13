@@ -37,6 +37,15 @@ impl Area {
 	}
 }
 
+/// A count of this crate that is not `Send`, which the reject fixture takes by value.
+pub struct Local(std::rc::Rc<u32>);
+
+impl Local {
+	pub fn get(&self) -> u32 {
+		*self.0
+	}
+}
+
 /// What no build compiles, which a config still names, as it does what one platform builds.
 #[cfg(any())]
 pub mod gone {}

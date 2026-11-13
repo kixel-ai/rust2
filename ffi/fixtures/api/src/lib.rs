@@ -387,10 +387,11 @@ impl Meter {
 	}
 }
 
-/// Owns a meter it lends.
+/// Owns a meter it lends, and one in a field, lent as the method's is.
 #[derive(Default)]
 pub struct Meters {
 	first: Meter,
+	pub last: Meter,
 }
 
 impl Meters {
@@ -803,6 +804,16 @@ impl Channel {
 	pub fn send_later(&self, payload: Bytes) -> impl Future<Output = ()> + use<> {
 		self.send(payload);
 		std::future::ready(())
+	}
+
+	/// Sends `tag` at once, as a function that is not `async` runs when called, and returns a
+	/// future that borrows this channel and `tag`: what it next receives, after `tag`.
+	pub fn tagged<'a>(&'a self, tag: &'a str) -> impl Future<Output = String> + 'a {
+		self.send(Bytes::copy_from_slice(tag.as_bytes()));
+		async move {
+			let payload = self.recv().await;
+			format!("{tag} {}", String::from_utf8_lossy(&payload))
+		}
 	}
 
 	/// `recv`'s poll, which does not map: left out, since `recv` exports as a future.
@@ -2167,6 +2178,33 @@ pub fn alpn(config: Arc<tls::Config>) -> String {
 /// [`alpn`], lent.
 pub fn alpn_lent(config: &Arc<tls::Config>) -> String {
 	config.alpn().to_string()
+}
+
+/// A certificate of a crate no export is, by value, as moq-tokio takes rustls's: an opaque
+/// handle, which Rust takes back or borrows.
+pub fn certify(der: &[u8]) -> tls::Cert {
+	tls::Cert::new(der)
+}
+
+/// The length of a certificate [`certify`] made, lent.
+pub fn cert_len(cert: &tls::Cert) -> usize {
+	cert.der().len()
+}
+
+/// The bytes of a certificate [`certify`] made, taken back by value.
+pub fn cert_der(cert: tls::Cert) -> Vec<u8> {
+	cert.der().to_vec()
+}
+
+/// The total length of a chain of certificates, each taken back by value.
+pub fn chain_len(chain: Vec<tls::Cert>) -> usize {
+	chain.iter().map(|cert| cert.der().len()).sum()
+}
+
+/// A session of a crate no export is, which no export returns: left out, since C can never
+/// hold one.
+pub fn handover(session: tls::Session) -> u32 {
+	session.id
 }
 
 /// `text`'s length, or 0 for none: an optional borrow, lent as the borrow alone is.
