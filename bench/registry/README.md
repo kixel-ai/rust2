@@ -100,7 +100,8 @@ templates are the recommended no-go outcome even if both artifact consumers pass
 - [Go module publishing](https://go.dev/doc/modules/developing).
 
 The nightly workflow calls the same reusable workflow, outside the merge gate.
-Consumer workspaces are unique per run attempt, including on self-hosted runners.
+Consumer workspaces are unique per run attempt and removed in an always-run
+cleanup step, including on self-hosted runners.
 Builders replace their own generated output; Swift consumers create a fresh package
 beside the artifact regardless of the invoking directory. Rust's reported native
 link libraries become SwiftPM linker settings; unrecognized flags fail packaging.
@@ -115,8 +116,9 @@ not a claim that any of those unimplemented publishers was exercised.
 this fixed fixture on Linux arm64 and macOS arm64 and passes only artifacts to
 fresh consumer jobs. A caller needs just a job with
 `uses: kixel-ai/rust2/.github/workflows/registry.yml@<reviewed-commit>`.
-The workflow pins the fixture, exporter and packaging scripts together to an
-immutable rust2 revision, independently of the caller's checkout. It is a spike
+External calls pin the fixture, exporter and packaging scripts together to an
+immutable rust2 revision, independently of the caller's checkout. Calls within
+rust2 test the triggering commit so nightly catches changes on main. It is a spike
 runner, not a publisher of the caller's crate. Private callers select self-hosted
 runners with OS/architecture labels. Public callers use hosted runners.
 

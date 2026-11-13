@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: kixel-ai/rust2
-          ref: 78592ce4f145a8fe64f584aa9e4fbb3950aecafb
+          ref: ${{ github.repository == 'kixel-ai/rust2' && github.sha || '78592ce4f145a8fe64f584aa9e4fbb3950aecafb' }}
           persist-credentials: false
       - uses: ./.github/actions/nix
       - name: Build fixture packages
@@ -79,3 +79,7 @@ jobs:
           cd artifacts
           unzip Api.zip
           bash verify-swift.sh .
+      - name: Remove consumer workspace
+        if: always()
+        working-directory: ${{ github.workspace }}
+        run: rm -rf "$SPIKE_ROOT"
