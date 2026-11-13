@@ -1994,7 +1994,7 @@ impl<'a> Gen<'a> {
 		// A record returned directly crosses as its scalars, set into slots the call takes,
 		// and its other fields encoded into the `byte[]` it returns.
 		let flat = match (&export.future, outs.is_empty()) {
-			(None, true) if self.room > 0 => returned_record(&ok),
+			(None, true) if self.room > 0 => returned_record(&ok).filter(|(i, _)| abi.api.records[*i].opaque.is_none()),
 			_ => None,
 		};
 		let flat = flat.map(|(i, option)| {
@@ -2411,7 +2411,9 @@ impl<'a> Gen<'a> {
 		for (k, field) in abi.api.records[i].fields.iter().enumerate() {
 			let e = format!("{e}.{}", field_name(&field.name));
 			let value = match &field.ty {
-				Type::Record(j) => self.flat_in(*j, &e, (&mut *arg, &mut *n), (w, &mut *writes), r),
+				Type::Record(j) if abi.api.records[*j].opaque.is_none() => {
+					self.flat_in(*j, &e, (&mut *arg, &mut *n), (w, &mut *writes), r)
+				}
 				ty if scalar(abi, ty) => {
 					let p = format!("p{n}");
 					*n += 1;
@@ -2456,7 +2458,9 @@ impl<'a> Gen<'a> {
 		for (k, field) in abi.api.records[i].fields.iter().enumerate() {
 			let v = format!("{v}.f{k}");
 			fields.push(match &field.ty {
-				Type::Record(j) => self.flat_out(*j, &v, (a, &mut *slots), (r, &mut *puts)),
+				Type::Record(j) if abi.api.records[*j].opaque.is_none() => {
+					self.flat_out(*j, &v, (a, &mut *slots), (r, &mut *puts))
+				}
 				ty if scalar(abi, ty) => {
 					let slot = format!("{a}[{}]", slots.len());
 					let (rust, kt) = match ty {
@@ -2507,7 +2511,7 @@ fn scalar(abi: &Abi<'_>, ty: &Type) -> bool {
 /// Whether the record `i`, or one it nests, holds a field that crosses encoded.
 fn rest(abi: &Abi<'_>, i: usize) -> bool {
 	abi.api.records[i].fields.iter().any(|f| match &f.ty {
-		Type::Record(j) => rest(abi, *j),
+		Type::Record(j) if abi.api.records[*j].opaque.is_none() => rest(abi, *j),
 		ty => !scalar(abi, ty),
 	})
 }
@@ -2516,7 +2520,7 @@ fn rest(abi: &Abi<'_>, i: usize) -> bool {
 /// scalar, one for any other, and one for the `byte[]` of its other fields, if any.
 fn weight(abi: &Abi<'_>, i: usize) -> usize {
 	let fields = abi.api.records[i].fields.iter().map(|f| match &f.ty {
-		Type::Record(j) => weight(abi, *j) - usize::from(rest(abi, *j)),
+		Type::Record(j) if abi.api.records[*j].opaque.is_none() => weight(abi, *j) - usize::from(rest(abi, *j)),
 		Type::F64 => 2,
 		Type::Int(int) | Type::NonZero(int) if jni_int(*int) == "jlong" => 2,
 		ty if scalar(abi, ty) => 1,
