@@ -1364,17 +1364,18 @@ impl Gen<'_> {
 					format!("let {local} = {};", self.lift(ty, c)),
 					format!("{local}.as_deref()"),
 				),
-				// A lifted `Vec` lends the slice it derefs to.
-				(Type::List(Collection::Vec, _), _) => match m {
-					Mutability::Mut => (
-						format!("let mut {local} = {};", self.lift(ty, c)),
-						format!("{local}.as_deref_mut()"),
-					),
-					Mutability::Not => (
-						format!("let {local} = {};", self.lift(ty, c)),
-						format!("{local}.as_deref()"),
-					),
-				},
+				// A lifted `Vec` lends itself or, by coercion to the parameter's type, its slice,
+				// since a borrowed `Vec` and a slice share their type.
+				(Type::List(Collection::Vec, _), _) => {
+					let (binding, borrow) = match m {
+						Mutability::Mut => ("let mut", "&mut"),
+						Mutability::Not => ("let", "&"),
+					};
+					(
+						format!("{binding} {local} = {};", self.lift(ty, c)),
+						format!("match {borrow} {local} {{ Some(v) => Some(v), None => None }}"),
+					)
+				}
 				_ => (
 					format!("let {local} = {};", self.lift(ty, c)),
 					format!("{local}.as_ref()"),

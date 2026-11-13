@@ -646,12 +646,16 @@ impl<'a> Gen<'a> {
 		if let Some(name) = self.converters.get(&key) {
 			return name.clone();
 		}
-		// A numbered name must miss every converter's: each struct's own, and the others numbered.
+		// A numbered name must miss every converter's: each type's own, and the others numbered.
 		let taken = |name: &str| {
 			abi.options.contains_key(name)
 				|| abi.lists.contains_key(name)
 				|| abi.tuples.contains_key(name)
 				|| abi.ranges.contains_key(name)
+				|| abi.arrays.contains_key(name)
+				|| (0..abi.api.records.len()).any(|i| abi.record(i) == name)
+				|| (0..abi.api.enums.len()).any(|i| abi.enumeration(i) == name)
+				|| (0..abi.api.objects.len()).any(|i| abi.object(i) == name)
 				|| self.converters.values().any(|n| n == name)
 		};
 		let name = (self.converters.len() + 2..)
