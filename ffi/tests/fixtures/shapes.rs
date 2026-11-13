@@ -801,13 +801,13 @@ impl Built {
 		dir
 	}
 
-	/// The shapes `language` gets wrong today, by [`KNOWN`], each entry of which must match
-	/// one.
+	/// The exported shapes `language` gets wrong today, by [`KNOWN`], each entry of which must
+	/// match one.
 	fn known(&self, language: &str) -> Vec<usize> {
 		let mut known = Vec::new();
 		for Known { what, skips, quest, .. } in KNOWN.iter().filter(|k| k.language == language) {
 			let matched: Vec<usize> = (0..self.krate.shapes.len())
-				.filter(|&n| skips(&self.krate.shapes[n]))
+				.filter(|&n| skips(&self.krate.shapes[n]) && self.krate.calls.iter().any(|call| call.shape() == n))
 				.collect();
 			// The gate's subset may hold none of an entry's shapes; the nightly's holds each.
 			assert!(
@@ -902,9 +902,6 @@ fn single(shape: &Shape) -> bool {
 	matches!(shape, Shape::Tuple(elements) if elements.len() == 1)
 }
 
-/// The round trips a binding gets wrong today, each the quest's to fix: the language, what
-/// it gets wrong, the shapes it skips for it, and the quest. An entry matching no shape
-/// fails, so the fix deletes it.
 /// A round trip a binding gets wrong today.
 struct Known {
 	language: &'static str,
@@ -915,6 +912,10 @@ struct Known {
 	quest: &'static str,
 }
 
+/// The round trips a binding gets wrong today, each the quest's to fix: the language, what
+/// it gets wrong, the shapes it skips for it, and the quest. The nightly fails on an entry
+/// matching no exported shape, but its shapes stay skipped after a fix, so the quest that
+/// fixes one deletes its entry.
 const KNOWN: &[Known] = &[
 	Known {
 		language: "python",

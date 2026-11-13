@@ -932,7 +932,7 @@ just ffi moq      # export moq's crates at the pinned revision, build them, and 
 just ffi moq-cpp  # the same export, running only moq/moq.cpp
 just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi census   # census each into target/census
-just ffi shapes   # round-trip every sampled type shape in every language, as the nightly does
+just ffi shapes   # round-trip every sampled type shape in every language but KNOWN's, as the nightly does
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
 ```
@@ -984,8 +984,9 @@ refused by design is left out rather than failed. Each language's driver is a ge
 flat list of `digest(echo(make(seed)))` calls whose printed digests must match the crate's
 own, run natively. The gate runs a subset; `just ffi shapes` runs every sampled shape, as
 the nightly does. `KNOWN` lists what a binding still gets wrong, each with the quest that
-fixes it, and fails once an entry matches no sampled shape, so the fix deletes it; a new
-IR `Type` variant fails `ir_covered` until the sampler covers it.
+fixes it; the driver skips those shapes, so the fix deletes its entry, and the nightly fails
+on an entry that matches no exported shape. A new IR `Type` variant fails `ir_covered`
+until the sampler covers it.
 The `reject` fixture's expected errors, each with its notes, are `fixtures/reject/expected.txt`.
 The `lock` test exports the `lock` fixture for wasm32, staged, and the host, then again
 against that export's `api.json`: its `added` feature only adds and must pass, and its `next`

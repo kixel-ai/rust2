@@ -1028,11 +1028,15 @@ fn url(dir: &Path) -> String {
 
 /// The static libraries of swift-collections' modules the generated Swift imports, which
 /// `just ffi swift-collections` builds beside their modules, where [`swiftc`] finds them.
+/// Built once, since two tests running the recipe at once race on its checkout and build.
 fn swift_collections() -> Vec<PathBuf> {
-	run(Command::new("just")
-		.arg("--justfile")
-		.arg(manifest_dir().join("justfile"))
-		.arg("swift-collections"));
+	static BUILT: OnceLock<()> = OnceLock::new();
+	BUILT.get_or_init(|| {
+		run(Command::new("just")
+			.arg("--justfile")
+			.arg(manifest_dir().join("justfile"))
+			.arg("swift-collections"));
+	});
 	let build = collections_dir();
 	["BasicContainers", "InternalCollectionsUtilities", "SpanPreview"]
 		.iter()
