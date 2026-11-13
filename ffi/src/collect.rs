@@ -73,6 +73,56 @@ fn why(construct: &'static str, detail: impl Into<String>) -> Why {
 	}
 }
 
+/// Why a function cannot be called from safe foreign code, if it cannot: a C-variadic
+/// one, or one whose ABI Rust cannot call (custom, interrupt, or GPU kernel), under its
+/// own construct, else any `unsafe fn`, whose preconditions no binding can check.
+fn unsafety(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Why> {
+	let sig = tcx.fn_sig(def_id).skip_binder().skip_binder();
+	if sig.c_variadic() {
+		Some(why("C-variadic function", ""))
+	} else if uncallable(sig.abi()) {
+		Some(why("uncallable ABI", sig.abi().to_string()))
+	} else if sig.safety().is_unsafe() {
+		Some(why("unsafe fn", ""))
+	} else {
+		None
+	}
+}
+
+/// Whether Rust refuses to call a function of this ABI directly, as rustc's own call check
+/// does for `CanonAbi::{Custom, Interrupt(_), GpuKernel}`.
+fn uncallable(abi: rustc_abi::ExternAbi) -> bool {
+	use rustc_abi::ExternAbi::*;
+	matches!(
+		abi,
+		Custom
+			| X86Interrupt
+			| RiscvInterruptM
+			| RiscvInterruptS
+			| Msp430Interrupt
+			| AvrInterrupt
+			| AvrNonBlockingInterrupt
+			| GpuKernel
+			| PtxKernel
+	)
+}
+
+/// Why foreign code cannot implement a trait soundly, if it cannot: an `unsafe trait`, or
+/// a required method foreign code would implement without the caller's preconditions.
+fn trait_unsafety(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Why> {
+	if tcx.trait_def(def_id).safety.is_unsafe() {
+		return Some(why("unsafe trait", ""));
+	}
+	(tcx.associated_items(def_id).in_definition_order())
+		.filter(|item| item.is_fn() && !item.defaultness(tcx).has_value())
+		.find_map(|item| {
+			unsafety(tcx, item.def_id).map(|why| Why {
+				detail: item.name().to_string(),
+				..why
+			})
+		})
+}
+
 /// An item the export refuses, with every reason found.
 pub struct Refusal {
 	/// Its path from its crate's root.
@@ -847,8 +897,9 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// Why the first argument an instance is named by cannot map as [`Self::arg`] requires:
-	/// a type that is not `()`, a primitive, `String`, `Bytes`, `Duration`, a foreign
-	/// object, or an export's type, or a const that is not a `bool` or integer.
+	/// a type that is not `()`, a primitive, `String`, `Bytes`, `Duration`, a `NonZero` of
+	/// an exported integer, a foreign object, or an export's type, or a const that is not
+	/// a `bool` or integer.
 	fn unarguable(&self, site: &Site<'tcx>) -> Option<Why> {
 		let tcx = self.tcx;
 		let mut args = Self::shown_args(site.args, site.explicit).into_iter();
@@ -862,6 +913,9 @@ impl<'tcx> Collector<'tcx> {
 				ty::Tuple(list) => !list.is_empty(),
 				ty::Bool | ty::Char | ty::Float(_) => false,
 				ty::Int(_) | ty::Uint(_) => int(ty).is_none(),
+				ty::Adt(adt, args) if tcx.is_diagnostic_item(rustc_span::Symbol::intern("NonZero"), adt.did()) => {
+					int(args.type_at(0)).is_none()
+				}
 				ty::Adt(adt, _) => {
 					tcx.lang_items().string() != Some(adt.did())
 						&& self.bytes != Some(adt.did())
@@ -1597,6 +1651,7 @@ impl<'tcx> Collector<'tcx> {
 			Type::Unit
 			| Type::Bool
 			| Type::Int(_)
+			| Type::NonZero(_)
 			| Type::F32
 			| Type::F64
 			| Type::Char
@@ -1851,6 +1906,13 @@ impl<'tcx> Collector<'tcx> {
 				let decl = self.decls.get(&site.key).cloned();
 				// A trait exports only as what C implements: one it cannot implement is no
 				// part of C's API, while a signature that takes one from C is refused.
+				// An unsafe contract is not something C lacks but something it cannot keep.
+				if kind == DefKind::Trait
+					&& let Some(why) = trait_unsafety(tcx, def_id)
+				{
+					self.refuse(&site.shown, "trait", span, vec![why]);
+					continue;
+				}
 				if let (Some(Decl::Refused(why)), DefKind::Trait) = (&decl, kind) {
 					let (report, rest) = self.report(&site.shown);
 					report.traits.push((rest, why.clone()));
@@ -2283,6 +2345,10 @@ impl<'tcx> Collector<'tcx> {
 	fn callback(&mut self, def_id: DefId, path: &[String]) -> Result<Vec<Function>, Vec<Why>> {
 		let tcx = self.tcx;
 		let mut errs = Vec::new();
+		// Foreign code would implement it without upholding the contract it documents.
+		if tcx.trait_def(def_id).safety.is_unsafe() {
+			errs.push(why("unsafe trait", ""));
+		}
 		// It may already cover the foreign implementation, which could not then implement it.
 		if !tcx.trait_impls_of(def_id).blanket_impls().is_empty() {
 			errs.push(why("trait with a blanket impl", ""));
@@ -2328,7 +2394,14 @@ impl<'tcx> Collector<'tcx> {
 							errs.push(why("trait method without &self", name.to_string()))
 						}
 						Ok(function) => methods.push(function),
-						Err(why) => errs.extend(why),
+						// A per-method reason names its method, as `trait_unsafety` does.
+						Err(why) => errs.extend(why.into_iter().map(|why| match why.construct {
+							"unsafe fn" | "C-variadic function" | "uncallable ABI" => Why {
+								detail: name.to_string(),
+								..why
+							},
+							_ => why,
+						})),
 					}
 				}
 				// An `impl Trait` return's own type: the method refuses it.
@@ -2381,6 +2454,9 @@ impl<'tcx> Collector<'tcx> {
 		instance: &Instantiation<'tcx>,
 	) -> Result<Function, Vec<Why>> {
 		let tcx = self.tcx;
+		if let Some(why) = unsafety(tcx, def_id) {
+			return Err(vec![why]);
+		}
 		let mut errs = Vec::new();
 		let args = instance.args;
 		// Each kept parameter takes a closure, if an `Fn` trait bounds it, a reader, if
@@ -4446,6 +4522,8 @@ impl<'tcx> Collector<'tcx> {
 					Type::Bytes
 				} else if tcx.is_diagnostic_item(rustc_span::Symbol::intern("Duration"), did) {
 					Type::Duration
+				} else if tcx.is_diagnostic_item(rustc_span::Symbol::intern("NonZero"), did) {
+					Type::NonZero(int(args.type_at(0)).ok_or_else(|| why("NonZero", args.type_at(0).to_string()))?)
 				} else if tcx.is_diagnostic_item(rustc_span::Symbol::intern("PathBuf"), did) {
 					Type::PathBuf
 				} else if let Some(family) = (tcx.lang_items().sized_trait().map(|d| d.krate) == Some(did.krate))
@@ -4663,7 +4741,14 @@ enum Pos {
 /// copied by it if kept.
 fn foreign_arg(ty: &Type) -> bool {
 	match ty {
-		Type::Bool | Type::Int(_) | Type::F32 | Type::F64 | Type::Char | Type::Duration | Type::SocketAddr(_) => true,
+		Type::Bool
+		| Type::Int(_)
+		| Type::NonZero(_)
+		| Type::F32
+		| Type::F64
+		| Type::Char
+		| Type::Duration
+		| Type::SocketAddr(_) => true,
 		Type::String | Type::Vec | Type::Bytes | Type::PathBuf => true,
 		Type::Ref(Mutability::Not, inner) => matches!(**inner, Type::Str | Type::Slice | Type::Path),
 		Type::Option(inner) => foreign_arg(inner),
@@ -4813,7 +4898,7 @@ fn lends_inside(ty: &Type) -> bool {
 fn foreign_return(ty: &Type) -> bool {
 	matches!(
 		ty,
-		Type::Unit | Type::Bool | Type::Int(_) | Type::F32 | Type::F64 | Type::Char
+		Type::Unit | Type::Bool | Type::Int(_) | Type::NonZero(_) | Type::F32 | Type::F64 | Type::Char
 	)
 }
 

@@ -1103,6 +1103,15 @@ int script() {
 			print("sought error ", sought.error(), "\n");
 		}
 	}
+	print("non zeros ", api::describe_non_zeros(api::non_zeros()), "\n");
+	for (auto hop : {std::optional<std::uint64_t>{}, std::optional<std::uint64_t>{1}, std::optional<std::uint64_t>{UINT64_MAX}}) {
+		if (auto next = api::next_hop(hop)) {
+			std::printf("hop Some(%llu)\n", static_cast<unsigned long long>(*next));
+		} else {
+			std::printf("hop None\n");
+		}
+	}
+	std::printf("farther hop %u\n", static_cast<unsigned>(api::farther_hop(api::Pair_non_zero_u16{3, UINT16_MAX})));
 
 	// A returned `Vec<&Token>` holds clones, which the vector drops.
 	api::Token twice = api::Token::new_(9);
