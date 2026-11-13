@@ -73,19 +73,37 @@ fn why(construct: &'static str, detail: impl Into<String>) -> Why {
 }
 
 /// Why a function cannot be called from safe foreign code, if it cannot: a C-variadic
-/// or custom-ABI one under its own construct, else any `unsafe fn`, whose preconditions
-/// no binding can check.
+/// one, or one whose ABI Rust cannot call (custom, interrupt, or GPU kernel), under its
+/// own construct, else any `unsafe fn`, whose preconditions no binding can check.
 fn unsafety(tcx: TyCtxt<'_>, def_id: DefId) -> Option<Why> {
 	let sig = tcx.fn_sig(def_id).skip_binder().skip_binder();
 	if sig.c_variadic() {
 		Some(why("C-variadic function", ""))
-	} else if sig.abi() == rustc_abi::ExternAbi::Custom {
-		Some(why("custom ABI", ""))
+	} else if uncallable(sig.abi()) {
+		Some(why("uncallable ABI", sig.abi().to_string()))
 	} else if sig.safety().is_unsafe() {
 		Some(why("unsafe fn", ""))
 	} else {
 		None
 	}
+}
+
+/// Whether Rust refuses to call a function of this ABI directly, as rustc's own call check
+/// does for `CanonAbi::{Custom, Interrupt(_), GpuKernel}`.
+fn uncallable(abi: rustc_abi::ExternAbi) -> bool {
+	use rustc_abi::ExternAbi::*;
+	matches!(
+		abi,
+		Custom
+			| X86Interrupt
+			| RiscvInterruptM
+			| RiscvInterruptS
+			| Msp430Interrupt
+			| AvrInterrupt
+			| AvrNonBlockingInterrupt
+			| GpuKernel
+			| PtxKernel
+	)
 }
 
 /// Why foreign code cannot implement a trait soundly, if it cannot: an `unsafe trait`, or
@@ -2280,7 +2298,14 @@ impl<'tcx> Collector<'tcx> {
 							errs.push(why("trait method without &self", name.to_string()))
 						}
 						Ok(function) => methods.push(function),
-						Err(why) => errs.extend(why),
+						// A per-method reason names its method, as `trait_unsafety` does.
+						Err(why) => errs.extend(why.into_iter().map(|why| match why.construct {
+							"unsafe fn" | "C-variadic function" | "uncallable ABI" => Why {
+								detail: name.to_string(),
+								..why
+							},
+							_ => why,
+						})),
 					}
 				}
 				// An `impl Trait` return's own type: the method refuses it.
