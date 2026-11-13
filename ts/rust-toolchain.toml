@@ -2,7 +2,7 @@
 # The driver links rustc's internal crates, which only a nightly's rustc-dev ships, and
 # their API changes every release: pin one. Scoped to ts/, whose own workspace this is;
 # flake.nix reads this file for the dev shell's RUST2_TS_TOOLCHAIN.
-channel = "nightly-2026-10-15"
+channel = "nightly-2026-11-12"
 components = ["rustc-dev", "llvm-tools", "rust-src", "rustfmt", "clippy"]
 # Translation type-checks for wasm32, whose 32-bit usize is the one a JS number holds.
 targets = ["wasm32-unknown-unknown"]

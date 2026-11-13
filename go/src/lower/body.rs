@@ -1017,7 +1017,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 				if active.is_some() {
 					return self.err(span, "a union");
 				}
-				self.adt_lit(adt, *variant, args, &values, &go, span)
+				self.adt_lit(adt, *variant, *args, &values, &go, span)
 			}
 			_ => self.err(span, format!("the aggregate `{kind:?}`")),
 		}
@@ -1029,7 +1029,7 @@ impl<'a, 'tcx> Fx<'a, 'tcx> {
 		&mut self,
 		adt: ty::AdtDef<'tcx>,
 		variant: rustc_abi::VariantIdx,
-		args: ty::GenericArgsRef<'tcx>,
+		args: ty::GenericArgs<'tcx>,
 		values: &[String],
 		go: &str,
 		span: Span,

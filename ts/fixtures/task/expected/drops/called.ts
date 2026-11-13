@@ -13,9 +13,6 @@ import * as Guard from "../model.Guard.ts";
 export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 	let broke!: rs.u32 | undefined;
 	let f!: Guard.Guard;
-	const _536: () => rs.Iter<Guard.Guard> = (): rs.Iter<Guard.Guard> => {
-		return rs.vecIntoIter(new rs.Vec(), rs.drop);
-	};
 	let _679: boolean = false;
 	let _678: boolean = false;
 	const guard: (a0: rs.u32) => Guard.Guard = (n3: rs.u32): Guard.Guard => {
@@ -454,6 +451,9 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 		const part5 = rs.refCellReplaceWith(cell2, rs.once(doubled), true);
 		Log.note(log, rs.fmtFormat(["by Fn ", (f: rs.Formatter) => rs.u32Display(part5, f)]));
 	} else if (_17 === 10) {
+		const _536: () => rs.Iter<Guard.Guard> = (): rs.Iter<Guard.Guard> => {
+			return rs.vecIntoIter(new rs.Vec(), rs.drop);
+		};
 		const _539: rs.Iter<Guard.Guard> = _536();
 		_679 = false;
 		const captured3 = c;
@@ -525,9 +525,9 @@ export function called(log: Log.Log, id: rs.u32, arg: rs.u8): void {
 				const args61 = [(f: rs.Formatter) => rs.u32Display(_143, f), (f: rs.Formatter) => rs.u32Display(_174, f), (f: rs.Formatter) => rs.fmtPad(f, _205.v)];
 				rs.panicFmt(["try_fold of g", args61[0], " with g", args61[1], " after\n", args61[2]]);
 			} else {
-				const _04: rs.u32 | undefined = rs.u32Add(n4, Guard.id(g2));
+				const _03: rs.u32 | undefined = rs.u32Add(n4, Guard.id(g2));
 				g2[Symbol.dispose]();
-				return _04;
+				return _03;
 			}
 		}, (): void => {
 			captured2[Symbol.dispose]();

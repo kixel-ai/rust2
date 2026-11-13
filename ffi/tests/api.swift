@@ -21,6 +21,22 @@ final class PrintLog: Log {
 	}
 }
 
+/// A Log that cancels a task at each line, and counts them.
+final class CancelLog: Log, @unchecked Sendable {
+	let task: Cell<Task<Void, Swift.Error>?>
+	let lines = Cell(0)
+
+	init(_ task: Cell<Task<Void, Swift.Error>?>) {
+		self.task = task
+	}
+
+	func log(_: UInt8, _: String) -> Bool {
+		task.value?.cancel()
+		lines.value += 1
+		return true
+	}
+}
+
 func bound(_ b: BoundU64) -> String {
 	switch b {
 	case .included(let n): return "Included(\(n))"
@@ -932,6 +948,24 @@ func futures() {
 		check(text(payload) == "ready", "a cancelled task's receive takes nothing")
 	}
 
+	// An eager call whose callback cancels its task while it makes its future is never
+	// polled: only the eager half logs.
+	do {
+		let task = Cell<Task<Void, Swift.Error>?>(nil)
+		let log = CancelLog(task)
+		let threw = Cell(false)
+		task.value = q.launch {
+			do {
+				_ = try await emitLater(log, Data([1, 2]))
+			} catch is CancellationError {
+				threw.value = true
+			}
+		}
+		q.drain()
+		check(threw.value, "an eager call cancelled as it makes its future throws")
+		check(log.lines.value == 2, "an eager call cancelled as it makes its future is never polled")
+	}
+
 	// Cancelling a task that waits for no wake resumes it.
 	do {
 		let threw = Cell(false)
@@ -980,16 +1014,19 @@ func futures() {
 		until { q.drain(); return got.value != 0 }
 		check(got.value == 10, "an async closure's end wakes Rust")
 	}
+	// The closure waits, so it pends whether or not its task has run yet, and the check
+	// waits for the throw, wherever the task resumes.
 	do {
+		let (stream, _) = AsyncStream<Void>.makeStream()
 		let threw = Cell(false)
 		q.launch {
 			do {
-				try await within(0) {}
+				try await within(0) { for await _ in stream { break } }
 			} catch is Api.Error {
 				threw.value = true
 			}
 		}
-		q.drain()
+		until { q.drain(); return threw.value }
 		check(threw.value, "Rust gives up on an async closure")
 	}
 	do {

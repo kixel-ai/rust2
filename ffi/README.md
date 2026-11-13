@@ -4,6 +4,10 @@ A rustc driver that exports a crate's `pub` API as a C ABI and a C header, with 
 attributes in the Rust source.
 Every language's generator but Python's builds on the C ABI.
 
+It targets facades written for the exporter's mapping rules. A stock crate's
+whole public API is not generally exportable: generic and borrow signatures can
+be refused, and the census also lists API items left out by those rules.
+
 ```bash
 rust2-ffi --config ffi.toml (--out dir | --census dir | --api file) [--manifest-path Cargo.toml] [--target triple]... [--with file]... [--baseline api.json] [-- cargo args]
 ```
@@ -36,7 +40,7 @@ to what the library builds with on any platform, read off cargo's resolution, wh
 it was declared (the manifest, cargo's config, `--config`, or the environment), keyed by
 its source's URL.
 A `[replace]` from the source it replaces, which no `[patch]` can carry, is an error.
-Beside the C header, `include/<prefix>.hpp` holds the same API in C++,
+Beside the C header, `include/<prefix>.hpp` holds the same API in C++, over a header per crate,
 `kotlin/<prefix>.kt` holds it in Kotlin, over JNI functions the crate builds with
 `--features kotlin`, and `kotlin/<prefix>.pro` the R8 and ProGuard rules keeping what
 those functions look up by name. `python/<prefix>.py` holds it in Python, over a CPython
@@ -84,7 +88,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | `Result<T, E>` | `bool f(..., T *out, E *err)`; an `E` of another crate that implements `Display`, such as `anyhow::Error` or `io::Error`, is `String`, its message |
 | a returned tuple `(A, B)` | one out pointer each: `void f(..., A *out0, B *out1)` |
 | a tuple inside another type, or as a field or parameter | `<prefix>_tuple_<A>_<B>`: a struct of fields `_0`, `_1`, and so on; of references only returned |
-| `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it; a function that is not `async` runs at the call, as in Rust |
+| `async fn`, or a return that implements `Future` | a future: `f` makes it, `f_poll` polls it, `f_future_free` drops it, and `f_start` makes it and polls it once, returning a handle only if it pends; a function that is not `async` runs at the call, as in Rust |
 | a function returning `Poll<T>` that polls through a `&Context`, a `&mut Context`, or a reference to an object exactly one associated function makes from a `Waker` alone, of a type with no generic parameters, such as kio's `Waiter`, which may be the method's own `&self`, as `Waiter::poll_future`'s is | a future of `T`, as an `async fn`'s: each poll calls the function again with the poll's context, or with an object made from its waker and kept until the next poll, so what it registers stays registered; each other parameter taken by value must be `Copy`; a method polling through its own `&self` is a function without one |
 | `poll_x`, when `x` exports as a future | left out: the future is its poll |
 | `bool`, integers but 128-bit, floats, `char` | `bool`, `<stdint.h>` types, `float`, `double`, a `uint32_t` code point |
@@ -257,7 +261,10 @@ where it was while its file is unchanged.
   A poll that finishes writes the result through the poll's own out pointers, so a
   cancelled read never loses a value. The future reuses the last waker when given the same
   one again, and owns what it borrowed: the handle it was called on stays borrowed until
-  it finishes or is freed.
+  it finishes or is freed. `_start` is the call and a first poll with no waker in one:
+  a future ready at once costs one call and no handle, and one that pends writes its
+  handle through the last parameter, which must not be null. A null waker wakes nothing
+  and costs no allocation, and a future is one allocation.
 - **Wakers** move into Rust, which calls `drop` once it lets go of the last clone, so a
   state machine polled with a waker, such as moq's `Driver`s through kio's `Waiter`, runs
   from the caller's event loop. Rust may call `wake` and `drop` from any thread, as a
@@ -332,7 +339,16 @@ where it was while its file is unchanged.
 ## C++
 
 `<prefix>.hpp` is header-only C++ over the C header, for C++17, 20, and 23, with
-exceptions and RTTI on or off: it throws nothing and reads no type information.
+exceptions and RTTI on or off: it throws nothing and reads no type information. It
+includes a header per crate whose items the facade exports, `<prefix>/<crate>.hpp`, which
+a translation unit may include alone to pay only for that crate and those it names: moq's
+`#include "moq/net.hpp"` parses in under half the memory of `moq.hpp`. A crate's header is
+named as [its Go package](#go) is, so none is the shared `rt`. Each includes the shared
+`<prefix>/rt.hpp`, which holds the runtime and declares every type, so a class declares a
+method that belongs to a later crate, as an instance naming that crate's type does, and
+that crate's header defines it; and the headers of the crates its items name, each before
+it in Cargo's order, so none includes another in a cycle. An item's crate is the one Go's
+packages place it in.
 
 - **Names** are the C names without the prefix, in a namespace of it: `moq_track_Producer`
   is `moq::track_Producer`, and its method `moq_track_Producer_append_group` is
@@ -426,7 +442,9 @@ exceptions and RTTI on or off: it throws nothing and reads no type information.
 `--features kotlin` builds into the same library, loaded by `System.loadLibrary`. It needs
 kotlinx-coroutines. Each value crosses JNI as a scalar, a handle as a `Long`, bytes passed
 in as a `ByteArray`, bytes returned as their owner, and anything else encoded into a
-`ByteArray` as its C struct holds it.
+`ByteArray` as its C struct holds it. A record a call takes or returns directly, or in an
+`Option` returned, crosses as its scalars, a nested record's included, as JNI parameters
+in and through a `LongArray` each thread keeps out, with only its other fields encoded.
 
 - **Names** are in a package of the prefix: types in PascalCase without it, members in
   camelCase without their type's name (`moq.TrackProducer.appendGroup`). Pascal case
@@ -663,9 +681,9 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   as its `io::Error`'s message.
 - **Futures** are `async throws` functions, which resume on the task's executor, never
   inside a wake. Cancelling the task frees the future, losing nothing, and throws
-  `CancellationError`. Each call is its own future, so it has one poller. The call polls it
-  once before suspending, and makes the signal it parks on only if that poll pends; the
-  signal latches a wake that lands before it parks.
+  `CancellationError`. Each call is its own future, so it has one poller. The call makes
+  and polls it in one crossing, `_start`, before suspending, and makes the signal it parks
+  on only if that poll pends; the signal latches a wake that lands before it parks.
 - A **future Swift implements** is an `@escaping @Sendable () async -> Void`, which Rust's
   first poll runs as a task of its own. Rust dropping it cancels the task, and one dropped
   before it starts never runs. A poll lent one, such as `Waiter.pollFuture`, is a static
@@ -780,8 +798,8 @@ reads a go.mod.
   a reader that is also an `rt.StartSeeker`, as `io.Copy` uses an `io.WriterTo`, and fails
   in any other. Their errors cross as their messages.
 - **Futures** are calls taking a `context.Context` first, which block until the future is
-  ready. The call polls it once before it waits, and makes the waker it waits on only if
-  that poll pends; a wake from any thread signals the waiting goroutine, which polls
+  ready. The call makes and polls it in one crossing, `_start`, before it waits, and
+  makes the waker it waits on only if that poll pends; a wake from any thread signals the waiting goroutine, which polls
   again, so a wake never polls inside Rust, and one that lands before the wait is kept. A
   context done before the call, or while it waits, returns its error and frees the future,
   which cancels it in Rust and loses nothing: the next call takes what it would have.
@@ -872,8 +890,8 @@ the library's own URI, mapped to the library by a build hook or by `--native-ass
   throws aborts.
 - **Futures** are `Cancelable<T>`, a `Future<T>` completed on the isolate that made it:
   an extension type on Dart's own future, which `await` takes its shortest path through.
-  The call polls it once, returning it complete if that poll finished, and makes a waker
-  only if it pends. A wake, from any
+  The call makes and polls it in one crossing, `_start`, returning it complete if that
+  poll finished, and makes a waker only if it pends. A wake, from any
   thread, posts to the isolate's port, and its event loop polls again, so a wake never
   polls inside Rust, and one that lands during a poll is kept. `cancel()` frees the
   future unless it finished, which cancels it in Rust and loses nothing: the next call
@@ -934,6 +952,7 @@ just ffi moq-swift  # the same export, running only moq/moq.swift
 just ffi census   # census each into target/census
 nix develop .#android --command just ffi android  # the Kotlin test, shrunk by R8, on the Android device adb reaches
 nix develop .#bench --command just ffi bench  # the binding benchmark: bench/ffi/README.md's cases from Rust, and through the export from C, C++, Kotlin, Python, Swift, Go, and Dart
+nix develop .#sanitize --command just ffi sanitize  # api's C and C++ scripts under ASan and TSan, and its C ABI under Miri
 ```
 
 The `api` fixture covers each rule once, and re-exports the `dep` fixture's types, which
@@ -980,6 +999,10 @@ The `lock` test exports the `lock` fixture for wasm32, staged, and the host, the
 against that export's `api.json`: its `added` feature only adds and must pass, and its `next`
 feature breaks the API twice for each kind of break, once in an item only wasm32 has, each
 error matching `fixtures/lock/expected.txt`.
+`just ffi sanitize`, run nightly, rebuilds the `api` export with std under AddressSanitizer
+and then ThreadSanitizer, runs `tests/api.c` and `tests/api.cpp` against it, and matches
+their output to the native transcript; it then drives the C ABI from `tests/miri/api.rs`
+under Miri with strict provenance.
 moq's crates export through `target/moq-ffi`, an empty library on each that `just ffi moq`
 writes in place of moq-ffi's remainder. `moq/moq.c` publishes and subscribes to a moq-net
 track in one process, polling each read, scopes an origin to moq-pattern's patterns and

@@ -168,7 +168,8 @@ export function layouts(data: rs.ByteSlice, out: rs.ByteVec): void {
 		const made: rs.Result<rs.Layout, rs.LayoutError> = rs.layoutFromSizeAlign(size, align);
 		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(made, f, rs.fmtLayoutDebug, rs.fmtLayoutErrorDebug)]).v), undefined, true);
 		if (!made.ok) {
-			rs.iterExtendBytes(out, rs.strBytes(rs.fmtToString((f: rs.Formatter) => rs.fmtLayoutErrorDisplay(rs.LAYOUT_ERROR, f)).v), undefined, true);
+			const _48: rs.LayoutError = rs.LAYOUT_ERROR;
+			rs.iterExtendBytes(out, rs.strBytes(rs.fmtToString((f: rs.Formatter) => rs.fmtLayoutErrorDisplay(_48, f)).v), undefined, true);
 		}
 		const part3 = rs.layoutArray(rs.usizeShr(size, rs.u8Rem(b, 8)), 8, 8);
 		rs.iterExtendBytes(out, rs.strBytes(rs.fmtFormat([(f: rs.Formatter) => rs.fmtResult(part3, f, rs.fmtLayoutDebug, rs.fmtLayoutErrorDebug)]).v), undefined, true);
