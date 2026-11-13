@@ -392,24 +392,31 @@ func script() {
 		fmt.Println(api.Describe(event))
 	}
 
-	// A `Copy` handle passed by value is copied, so it stays usable.
+	// A `Copy` value passed by value is copied, so it stays usable.
 	stamp := api.StampFromMillis(2500)
-	fmt.Printf("secs %d\n", must(stamp.Secs()))
-	fmt.Printf("later %t\n", must(api.StampFromMillis(3000).Later(stamp)))
-	fmt.Printf("secs %d\n", must(stamp.Secs()))
-	message := must(api.NewMessage(stamp, []byte("body")))
+	fmt.Printf("secs %d\n", stamp.Secs())
+	fmt.Printf("later %t\n", api.StampFromMillis(3000).Later(stamp))
+	fmt.Printf("secs %d\n", stamp.Secs())
+	message := api.NewMessage(&stamp, []byte("body"))
 	fmt.Printf("payload %s\n", must(message.PayloadGet()).Copy())
 	fmt.Printf("stamp %s\n", must(message.StampGet()).GoString())
 	fmt.Printf("sent %t\n", must(message.Sent()))
-	// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
+	// Setters assign in place: the bytes are copied in, and a `Copy` value copied.
 	reset := api.StampFromMillis(4000)
-	ok(message.StampSet(reset))
+	ok(message.StampSet(&reset))
 	ok(message.PayloadSet([]byte("edited")))
 	fmt.Printf("payload %s\n", must(message.PayloadGet()).Copy())
 	fmt.Printf("stamp %s\n", must(message.StampGet()).GoString())
-	fmt.Printf("secs %d\n", must(reset.Secs()))
+	fmt.Printf("secs %d\n", reset.Secs())
 	ok(message.StampSet(nil))
 	fmt.Printf("stamp %t\n", must(message.StampGet()) != nil)
+
+	// A value past a word, copied across: a closure takes and returns one by value.
+	moment := *api.NewMoment(1500, 1000)
+	fmt.Printf("moment %d %t\n", moment.Millis(), api.NewMoment(1, 0) == nil)
+	shifted := api.Shifted(moment, func(m api.Moment) api.Moment { return m.After(500) })
+	fmt.Printf("shifted %d %t\n", shifted.Millis(), shifted.Equal(moment.After(500)))
+	fmt.Printf("wrapped %d %t\n", moment.After(math.MaxUint64).Millis(), moment.Equal(shifted))
 
 	// Rust frees the implementation once it drops it, releasing Go's.
 	fmt.Printf("kept %d\n", api.Emit(printLog{}, []byte{1, 2, 3, 4}))
@@ -734,15 +741,12 @@ func script() {
 		section.V1.Close()
 	}
 	fmt.Printf("sections %s\n", strings.Join(sectionTexts, ", "))
-	// An instant only Rust makes, which each call copies out of its handle, and compares.
-	var began *std.Instant = api.Now()
-	ended := must(api.Later(began, 1500*time.Millisecond))
-	same := must(api.Later(began, 0))
-	fmt.Printf("instants %d %d %t %t\n", must(api.Since(ended, began)).Milliseconds(), must(api.Since(began, ended)).Milliseconds(),
-		must(began.Equal(same)), must(began.Equal(ended)))
-	began.Close()
-	ended.Close()
-	same.Close()
+	// An instant only Rust makes, which each call copies, and compares.
+	var began std.Instant = api.Now()
+	ended := api.Later(began, 1500*time.Millisecond)
+	same := api.Later(began, 0)
+	fmt.Printf("instants %d %d %t %t\n", api.Since(ended, began).Milliseconds(), api.Since(began, ended).Milliseconds(),
+		began.Equal(same), began.Equal(ended))
 	// tracing's level, and its filter as an optional level whose nil is `OFF`.
 	verbosity := api.NewVerbosity(tracingcore.LevelWarn)
 	fmt.Printf("verbosity %s %s\n", api.Spell(must(verbosity.Filter())), api.Spell(api.Louder(must(verbosity.Filter()))))
@@ -752,34 +756,31 @@ func script() {
 	verbosity.Close()
 
 	fmt.Printf("made %s\n", api.Made(3, func(n uint32) string { return fmt.Sprintf("%d times", n) }))
-	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	// A closure taking and returning `Copy` values copies them, never running their `Clone`.
 	nine, seven := api.NewTicket(9), api.NewTicket(7)
-	renewed := must(api.Reissue(seven, func(t *api.Ticket) *api.Ticket { return api.NewTicket(must(t.Number()) + 1) }))
-	copied := must(api.Reissue(seven, func(*api.Ticket) *api.Ticket { return nine }))
-	fmt.Printf("reissued %d %d, cloned %d\n", must(renewed.Number()), must(copied.Number()), api.TicketClones())
-	for _, ticket := range []*api.Ticket{copied, renewed, seven, nine} {
-		ticket.Close()
-	}
+	renewed := api.Reissue(seven, func(t api.Ticket) api.Ticket { return api.NewTicket(t.Number() + 1) })
+	copied := api.Reissue(seven, func(api.Ticket) api.Ticket { return nine })
+	fmt.Printf("reissued %d %d, cloned %d\n", renewed.Number(), copied.Number(), api.TicketClones())
 	// A kept closure, called on another thread after the call that took it returned.
 	spawned := api.NewSpawned(func() uint32 { return 7 })
 	fmt.Printf("spawned %d\n", must(spawned.Join()))
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
 	driven := api.Now()
 	calls := 0
-	stopped := must(api.Drive(context.Background(), driven, func(now *std.Instant, waiter *api.Waiter) (*std.Instant, error) {
+	stopped := must(api.Drive(context.Background(), driven, func(now std.Instant, waiter *api.Waiter) (*std.Instant, error) {
 		calls++
 		switch calls {
 		case 1:
-			return must(api.Later(now, 5*time.Millisecond)), nil
+			later := api.Later(now, 5*time.Millisecond)
+			return &later, nil
 		case 2:
-			fmt.Printf("drive %d\n", must(api.Since(now, driven)).Milliseconds())
+			fmt.Printf("drive %d\n", api.Since(now, driven).Milliseconds())
 			must(waiter.Waker())()
 			return nil, nil
 		}
 		return nil, fmt.Errorf("stopped after %d", calls)
 	}))
 	fmt.Printf("drive %s\n", stopped)
-	driven.Close()
 	tail(strings.NewReader("hello world"))
 	tail(brokenReader{})
 	// A seek from the start reaches the reader whole, past `math.MaxInt64`, as `Cursor` takes one.
@@ -893,7 +894,7 @@ func closures() {
 		cancelled, cancel := context.WithCancel(ctx)
 		done := make(chan error)
 		go func() {
-			_, err := api.Drive(cancelled, start, func(*std.Instant, *api.Waiter) (*std.Instant, error) {
+			_, err := api.Drive(cancelled, start, func(std.Instant, *api.Waiter) (*std.Instant, error) {
 				_ = marker[0]
 				select {
 				case called <- struct{}{}:
@@ -912,26 +913,21 @@ func closures() {
 		cancel()
 		check(errors.Is(<-done, context.Canceled), "a cancelled drive returns its context's error")
 		released(freed, "a dropped future releases its closure")
-		start.Close()
 	}
 
 	// What a closure returns crosses: the instant it asks for, then its error.
 	{
 		start := api.Now()
-		later := must(api.Later(start, time.Second))
+		later := api.Later(start, time.Second)
 		var seen []int64
-		stopped := must(api.Drive(ctx, start, func(now *std.Instant, _ *api.Waiter) (*std.Instant, error) {
-			seen = append(seen, must(api.Since(now, start)).Milliseconds())
+		stopped := must(api.Drive(ctx, start, func(now std.Instant, _ *api.Waiter) (*std.Instant, error) {
+			seen = append(seen, api.Since(now, start).Milliseconds())
 			if len(seen) == 1 {
-				return later, nil
+				return &later, nil
 			}
 			return nil, errors.New("")
 		}))
 		check(stopped == "" && len(seen) == 2 && seen[1] == 1000, "a returned instant and an empty error cross")
-		// Rust took a clone: Go's is still its own.
-		check(must(later.Equal(later)), "a returned object stays Go's")
-		later.Close()
-		start.Close()
 	}
 
 	// A read's bytes and error both reach Rust, the error on the next read.
@@ -1198,6 +1194,11 @@ func uncollected(n uint32, what string) {
 // closed, and that a second Close does nothing.
 func closed() {
 	ctx := context.Background()
+	panics := func(f func()) (panicked any) {
+		defer func() { panicked = recover() }()
+		f()
+		return nil
+	}
 	isClosed := func(err error, name, what string) {
 		check(errors.Is(err, rt.ErrClosed) && err.Error() == name+" is closed", what)
 	}
@@ -1224,13 +1225,11 @@ func closed() {
 	isClosed(registry.FirstSet(second), "Registry", "a field's setter of a closed object")
 	check(must(second.Get()) == 2, "a failed call leaves what it would move")
 
-	// A record's method, whose receiver holds an object.
-	stamp := api.StampFromMillis(2500)
-	stamped := api.Stamped{At: stamp, Count: 3}
-	check(must(stamped.Total()) == 5, "a record's method reads the object it holds")
-	stamp.Close()
-	_, err = stamped.Total()
-	isClosed(err, "Stamp", "a record's method whose object is closed")
+	// A record's method, whose receiver holds a value only Rust makes: Go's zero value of
+	// one panics before Rust reads it.
+	stamped := api.Stamped{At: api.StampFromMillis(2500), Count: 3}
+	check(stamped.Total() == 5, "a record's method reads the value it holds")
+	check(panics(func() { api.Stamped{Count: 3}.Total() }) == "a zero Stamp, which only Rust makes", "a zero value panics")
 
 	// An argument, alone, or nested where the call holds it through its arena.
 	_, err = api.BumpBoth(api.NewTally(), tally)

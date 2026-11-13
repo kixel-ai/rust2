@@ -628,14 +628,11 @@ Future<void> script() async {
   for (final section in sections) {
     section.$2.close();
   }
-  // An instant only Rust makes, which each call copies out of its handle, and compares.
+  // An instant only Rust makes, which each call copies, and compares.
   final began = api.now();
   final ended = api.later(began, const Duration(milliseconds: 1500));
   final same = api.later(began, Duration.zero);
   print('instants ${api.since(ended, began).inMilliseconds} ${api.since(began, ended).inMilliseconds} ${began == same} ${began == ended}');
-  began.close();
-  ended.close();
-  same.close();
   // tracing's level, and its filter as an optional level whose null is `OFF`.
   final verbosity = api.Verbosity(api.Level.warn);
   print('verbosity ${api.spell(verbosity.filter())} ${api.spell(api.louder(verbosity.filter()))}');
@@ -645,7 +642,7 @@ Future<void> script() async {
 
   // A closure's string, which Rust takes.
   print('made ${api.made(3, (n) => '$n times')}');
-  // A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+  // A closure taking and returning `Copy` values copies them, never running their `Clone`.
   final nine = api.Ticket(9);
   final renewed = api.reissue(api.Ticket(7), (t) => api.Ticket(t.number() + 1)).number();
   final copied = api.reissue(api.Ticket(7), (_) => nine).number();
@@ -674,7 +671,6 @@ Future<void> script() async {
     'a kept closure wakes its future',
   );
   print('drive $stopped');
-  start.close();
   // A reader the caller implements: dart:io's file, then one whose reads fail.
   final dir = Directory.systemTemp.createTempSync('api');
   final opened = (File('${dir.path}/tail')..writeAsStringSync('hello world')).openSync();

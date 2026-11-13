@@ -818,6 +818,38 @@ pub fn array_out(items: &[u8], index: usize) -> R<Obj> {
 	call_py(ty(index), vec![bytes])
 }
 
+/// An opaque value's C struct, from the `bytes` of exactly its size its class holds.
+pub fn opaque_in<T: Copy>(obj: *mut PyObject) -> R<T> {
+	// SAFETY: the GIL is held, and `obj` is live; `T` is a struct of `MaybeUninit` units,
+	// any bytes of which are one.
+	unsafe {
+		if PyBytes_Check(obj) == 0 {
+			return expected_named(obj, "bytes");
+		}
+		let mut ptr: *mut c_char = null_mut();
+		let mut len = 0;
+		if PyBytes_AsStringAndSize(obj, &mut ptr, &mut len) != 0 {
+			return Err(Raised);
+		}
+		if len as usize != size_of::<T>() {
+			return value_error(&format!("{len} bytes, not {}", size_of::<T>()));
+		}
+		Ok(ptr.cast::<T>().read_unaligned())
+	}
+}
+
+/// The `bytes` an opaque value's class holds of its C struct. Its padding crosses as the
+/// bytes it holds, which Python never reads but to hand back.
+pub fn opaque_out<T: Copy>(value: T) -> R<Obj> {
+	// SAFETY: the GIL is held, and `value` is `size_of::<T>()` bytes.
+	unsafe {
+		Obj::new(PyBytes_FromStringAndSize(
+			(&raw const value).cast(),
+			size_of::<T>() as Py_ssize_t,
+		))
+	}
+}
+
 /// Bytes Rust lends a callback for its call, copied into `bytes`.
 pub fn lent_bytes(buf: rt::Buf) -> R<Obj> {
 	// SAFETY: the GIL is held, and a buffer Rust lent for the call.

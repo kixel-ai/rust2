@@ -8,9 +8,10 @@
 //! handle, freed in `deinit`, so Swift's compiler checks each move and borrow Rust makes:
 //! `self` is `consuming`, `&mut self` `mutating`, a parameter `consuming`, `borrowing`, or
 //! `inout`, a tuple holding one a struct of its own, and an array of them swift-collections'
-//! `UniqueArray`. An object that is `Copy` or thrown as an error is a final class instead,
-//! since `Swift.Error` requires a copyable type, whose handle a call holds at run time. A
-//! record is a struct; an enum a Swift enum, with
+//! `UniqueArray`. An object thrown as an error is a final class instead, since `Swift.Error`
+//! requires a copyable type, whose handle a call holds at run time. A record is a struct,
+//! and a `Copy` type with private fields a struct over the bytes of its C struct, which
+//! only Rust makes or reads; an enum a Swift enum, with
 //! its data as associated values; a trait a protocol; a closure a function type; a future
 //! an `async` function; an error a thrown `Swift.Error`. The runtime they share,
 //! [`runtime/rt.swift`](../runtime/rt.swift), holds the classes' handles, the arena a call
@@ -206,7 +207,7 @@ struct Gen<'a> {
 	thrown: BTreeMap<String, Type>,
 	/// The exported types thrown as errors, which conform to `Swift.Error`.
 	conforms: BTreeSet<String>,
-	/// The objects that are noncopyable structs: each but those `Copy` or thrown.
+	/// The objects that are noncopyable structs: each but those thrown.
 	structs: BTreeSet<usize>,
 	fresh: usize,
 	/// The targets of the item being written, whose calls check theirs.
@@ -292,11 +293,11 @@ impl<'a> Gen<'a> {
 	}
 
 	/// Whether passing `ty` moves the value of a class's handle out, so the call closes it:
-	/// by value, boxed, or in an `Option`, a list, or a tuple, unless `Copy`, and never
-	/// through a reference. A struct needs no close: Swift's compiler ends it.
+	/// by value, boxed, or in an `Option`, a list, or a tuple, and never through a
+	/// reference. A struct needs no close: Swift's compiler ends it.
 	fn moved(&self, ty: &Type) -> bool {
 		match ty {
-			Type::Object(i) => !self.abi.api.objects[*i].copy && !self.structs.contains(i),
+			Type::Object(i) => !self.structs.contains(i),
 			Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => self.moved(inner),
 			Type::Tuple(elements) => elements.iter().any(|ty| self.moved(ty)),
 			_ => false,
@@ -850,6 +851,9 @@ impl<'a> Gen<'a> {
 		let name = self.class(&c);
 		let rust = abi.api.rust(&record.path, &record.args);
 		let ty = Type::Record(i);
+		if record.opaque.is_some() {
+			return self.opaque(i);
+		}
 		let fields: Vec<(String, String)> = (record.fields.iter())
 			.map(|f| (field_name(&f.name), self.sw(&f.ty)))
 			.collect();
@@ -899,6 +903,35 @@ impl<'a> Gen<'a> {
 			"\tfunc _lower({arena}) -> {c} {{\n\t\t{c}({})\n\t}}\n",
 			lowered.join(", ")
 		));
+		let text = format!("{rust}\n\n{}", record.docs);
+		let _ = write!(
+			self.types,
+			"{}public struct {name}: {} {{\n{}}}\n\n",
+			docs(text.trim(), ""),
+			protocols.join(", "),
+			body.join("\n")
+		);
+	}
+
+	/// A `Copy` type with private fields: a struct over the bytes of its C struct, which
+	/// only Rust makes or reads. Swift copies it as it copies the bytes.
+	fn opaque(&mut self, i: usize) {
+		let abi = self.abi;
+		let record = &abi.api.records[i];
+		let c = abi.record(i);
+		let name = self.class(&c);
+		let rust = abi.api.rust(&record.path, &record.args);
+		let ty = Type::Record(i);
+		let mut members = Vec::new();
+		let mut body = vec![format!(
+			"\t/// Its bytes, which only Rust reads.\n\tlet c_: {c}\n\n\tprivate init(c_: {c}) {{\n\t\tself.c_ = c_\n\t}}\n"
+		)];
+		let mut protocols = vec!["Sendable"];
+		self.traits(&ty, &c, record.traits, &mut body, &mut members, &mut protocols);
+		self.methods(&record.methods, &Ty::Struct(c.clone()), &ty, &mut body, &mut members);
+		self.distinct(&rust, &members);
+		body.push(format!("\tstatic func _lift(_ c: {c}) -> {name} {{\n\t\t{name}(c_: c)\n\t}}\n"));
+		body.push(format!("\tfunc _lower() -> {c} {{\n\t\tc_\n\t}}\n"));
 		let text = format!("{rust}\n\n{}", record.docs);
 		let _ = write!(
 			self.types,
@@ -1275,8 +1308,6 @@ impl<'a> Gen<'a> {
 					body.push(format!("defer {{ {l}.handle.end() }}"));
 					args.push(l);
 				}
-				// A `Copy` object, which Swift's class holds a copy of.
-				Type::Object(i) => args.push(format!("{}(raw: {}_copy({p}))", self.sw(ty), self.abi.object(*i))),
 				ty => args.push(self.lift_lent(ty, p)),
 			}
 		}
@@ -1322,26 +1353,14 @@ impl<'a> Gen<'a> {
 		format!("{{ {} in\n\t{}\n}}", params.join(", "), body.join("\n\t"))
 	}
 
-	/// The C value of `e`, of type `ty`, which a closure returns for Rust to own: a scalar
-	/// as it is, text in a buffer `buf_copy` made, and a copy of an object's handle.
+	/// The C value of `e`, of type `ty`, which a closure returns for Rust to own: a value
+	/// as it lowers, and text in a buffer `buf_copy` made.
 	fn returned(&mut self, ty: &Type, e: &str) -> String {
-		let abi = self.abi;
 		match ty {
 			Type::Str | Type::String => format!("Native.owned({e})"),
-			// Kept alive while its handle is copied: once `.handle` is read, ARC may release
-			// the object, whose deinit would free the handle first.
-			Type::Object(i) => format!(
-				"withExtendedLifetime({e}) {{ r_ in r_.handle.with {{ {}_copy($0) }} }}",
-				abi.object(*i)
-			),
-			Type::Option(inner) => match &**inner {
-				Type::Str | Type::String => format!("({e}.map {{ Native.owned($0) }} ?? Native.none)"),
-				Type::Object(i) => format!(
-					"withExtendedLifetime({e}) {{ r_ in r_?.handle.with {{ {}_copy($0) }} ?? nil }}",
-					abi.object(*i)
-				),
-				_ => self.lower(ty, e),
-			},
+			Type::Option(inner) if matches!(**inner, Type::Str | Type::String) => {
+				format!("({e}.map {{ Native.owned($0) }} ?? Native.none)")
+			}
 			ty => self.lower(ty, e),
 		}
 	}
@@ -1447,8 +1466,7 @@ impl<'a> Gen<'a> {
 				Ty::Handle { .. } => {
 					arg.open = Some((format!("{tr}self.handle.with {{ h_ in"), "}".to_string()));
 					arg.exprs.push("h_".to_string());
-					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
-					if receiver == Receiver::Owned && !copy {
+					if receiver == Receiver::Owned {
 						arg.after.push("self.handle.close()".to_string());
 					}
 				}
@@ -1831,7 +1849,7 @@ fn lent_option(structs: &BTreeSet<usize>, ty: &Type) -> bool {
 	matches!(ty, Type::Option(inner) if matches!(&**inner, Type::Ref(Mutability::Not, object) if unique(structs, object)))
 }
 
-/// The objects Swift holds as noncopyable structs: each but those `Copy`, and those thrown
+/// The objects Swift holds as noncopyable structs: each but those thrown
 /// as errors, which `Swift.Error` requires be copyable.
 fn structs(abi: &Abi<'_>) -> BTreeSet<usize> {
 	let api = abi.api;
@@ -1845,7 +1863,7 @@ fn structs(abi: &Abi<'_>) -> BTreeSet<usize> {
 		})
 		.collect();
 	(0..api.objects.len())
-		.filter(|i| !api.objects[*i].copy && !thrown.contains(i))
+		.filter(|i| !thrown.contains(i))
 		.collect()
 }
 

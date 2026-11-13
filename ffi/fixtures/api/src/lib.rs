@@ -948,6 +948,39 @@ impl Stamp {
 	}
 }
 
+/// A time on a clock of its own rate, as moq's `Timestamp`: `Copy` with private fields, past
+/// a word on every target, and never all zero bytes, so only a value Rust made may cross.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Moment {
+	ticks: u64,
+	rate: std::num::NonZero<u64>,
+}
+
+impl Moment {
+	/// `ticks` of `rate` a second, or none at a rate of zero.
+	pub fn new(ticks: u64, rate: u64) -> Option<Self> {
+		std::num::NonZero::new(rate).map(|rate| Self { ticks, rate })
+	}
+
+	/// Whole milliseconds since zero.
+	pub fn millis(&self) -> u64 {
+		(u128::from(self.ticks) * 1000 / u128::from(self.rate.get())) as u64
+	}
+
+	/// The moment `ticks` later, at the same rate, wrapping as `u64` does.
+	pub fn after(self, ticks: u64) -> Self {
+		Self {
+			ticks: self.ticks.wrapping_add(ticks),
+			..self
+		}
+	}
+}
+
+/// The moment `shift` returns for `moment`, which C copies in and out.
+pub fn shifted(moment: Moment, shift: impl Fn(Moment) -> Moment) -> Moment {
+	shift(moment)
+}
+
 /// A stamp and a count: a record holding an object, whose method reads it.
 pub struct Stamped {
 	pub at: Stamp,

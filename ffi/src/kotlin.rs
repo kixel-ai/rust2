@@ -25,7 +25,7 @@ use std::hash::Hasher;
 use rustc_data_structures::stable_hash::StableHasher;
 
 use crate::abi::{self, Abi, Ty, pascal};
-use crate::ir::{Access, Family, Function, Int, Literal, Mutability, On, Param, Receiver, Type};
+use crate::ir::{Access, Family, Function, Int, Literal, Mutability, On, Opaque, Param, Receiver, Type};
 
 const RUNTIME: &str = include_str!("../runtime/rt.kt");
 pub const GLUE_RUNTIME: &str = include_str!("../runtime/jni.rs");
@@ -677,6 +677,7 @@ impl<'a> Gen<'a> {
 					_ => wrap(e),
 				}
 			}
+			Ty::Struct(name) if opaque_of(self.abi, c).is_some() => format!("{}({e})", self.class(name)),
 			Ty::Buf => match (decode(ty), matches!(ty.base(), Type::Option(_)), lent) {
 				(Some(decode), true, _) => format!("{e}?.{decode}"),
 				(Some(decode), false, _) => format!("{e}!!.{decode}"),
@@ -694,18 +695,17 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The Kotlin expression passing `e` of type `ty` back to Rust as the C type `c`, as a
-	/// callback or closure returns it: a scalar, a string's bytes, or a new handle to a
-	/// copy of a `Copy` object, made without its `Clone`, or 0 for none, which Rust frees.
-	fn lower_ret(&self, c: &Ty, ty: &Type, e: &str) -> String {
+	/// callback or closure returns it: a scalar, a string's bytes, an opaque value's word
+	/// or words, or any other value encoded.
+	fn lower_ret(&mut self, c: &Ty, ty: &Type, e: &str) -> String {
 		match c {
 			Ty::Int(int) => to_signed(*int, e),
 			Ty::Buf => format!("{e}.encodeToByteArray()"),
-			Ty::Handle { name, .. } => {
-				let clone = format!("Native.{}_copy", self.bare(name));
-				match ty {
-					Type::Option(_) => format!("{e}?.handle?.hold {{ h -> {clone}(h) }} ?: 0L"),
-					_ => format!("{e}.handle.hold {{ h -> {clone}(h) }}"),
-				}
+			Ty::Struct(_) if let Some(opaque) = opaque_of(self.abi, c) => format!("{e}.{}", holder(&opaque)),
+			Ty::Struct(_) => {
+				let w = self.fresh("w");
+				let write = self.write_value(ty, &w, e);
+				format!("Native.Writer().use {{ {w} -> {write}; {w}.finish() }}")
 			}
 			_ => e.to_string(),
 		}
@@ -719,7 +719,7 @@ impl<'a> Gen<'a> {
 		let mut arg = Arg::default();
 		let p = format!("p{n}");
 		*n += 1;
-		let (jni, native) = jni_type(c, ty);
+		let (jni, native) = jni_type(self.abi, c, ty);
 		arg.jni.push(jni);
 		arg.native.push(native.to_string());
 		match c {
@@ -775,6 +775,15 @@ impl<'a> Gen<'a> {
 				arg.rust_args.push(format!(
 					"crate::{name} {{ vtable: &VTABLE_{name}, data: rt::global(env, {p}) }}"
 				));
+			}
+			// An opaque value crosses as the word or words Kotlin holds it in.
+			Ty::Struct(_) | Ty::In(_) if let Some(opaque) = opaque_of(abi, c) => {
+				arg.exprs.push(format!("{e}.{}", holder(&opaque)));
+				arg.rust_pre.push(format!("let a{p} = {};", from_kotlin(&opaque, &p)));
+				arg.rust_args.push(match c {
+					Ty::In(_) => format!("&a{p}"),
+					_ => format!("a{p}"),
+				});
 			}
 			Ty::U128 | Ty::Duration | Ty::SocketAddr | Ty::Struct(_) | Ty::In(_) => {
 				let w = self.fresh("w");
@@ -995,16 +1004,25 @@ impl<'a> Gen<'a> {
 		let class = self.class(c);
 		let bare = self.bare(c).to_string();
 		let object = matches!(ty, Type::Object(_));
-		// The receiver as the glue takes it: a handle, held for the call, or encoded.
-		let (jni_self, native_self, open, arg, rust_self) = match object {
-			true => (
+		let opaque = match ty {
+			Type::Record(i) => self.abi.api.records[*i].opaque,
+			_ => None,
+		};
+		// The receiver as the glue takes it: a handle, held for the call, an opaque value's
+		// word or words, or encoded.
+		let (jni_self, native_self, open, arg, rust_self) = match (object, opaque) {
+			(true, _) => (
 				"jlong",
 				"Long",
 				"handle.hold { h ->".to_string(),
 				"h".to_string(),
 				"p0 as usize as _".to_string(),
 			),
-			false => {
+			(false, Some(opaque)) => {
+				let (jni, native) = jni_type(self.abi, &Ty::Struct(c.to_string()), ty);
+				(jni, native, "run {".to_string(), holder(&opaque).to_string(), format!("&{}", from_kotlin(&opaque, "p0")))
+			}
+			(false, None) => {
 				let write = self.write_value(ty, "w", "this");
 				(
 					"jbyteArray",
@@ -1036,16 +1054,6 @@ impl<'a> Gen<'a> {
 				"/** Rust's `Debug` form. */\n\tfun debug(): String",
 			));
 		}
-		if let Type::Object(i) = ty
-			&& self.abi.copies.contains(i)
-		{
-			self.native(
-				&format!("{bare}_copy"),
-				&[("jlong", "Long")],
-				("jlong", "Long"),
-				&format!("crate::{c}_copy(p0 as usize as _) as usize as jlong"),
-			);
-		}
 		if object && t.clone {
 			self.native(
 				&format!("{bare}_clone"),
@@ -1055,6 +1063,22 @@ impl<'a> Gen<'a> {
 			);
 			body.push(format!(
 				"\t/** A new handle to a clone. */\n\tfun clone(): {class} = handle.hold {{ h -> {class}(Native.{bare}_clone(h)) }}\n"
+			));
+		}
+		// An opaque value Kotlin holds in a word compares by it, as a value class does.
+		if let Some(opaque) = opaque.filter(|opaque| t.eq && !word(opaque)) {
+			self.native(
+				&format!("{bare}_eq"),
+				&[("jlongArray", "LongArray"), ("jlongArray", "LongArray")],
+				("jboolean", "Boolean"),
+				&format!(
+					"crate::{c}_eq(&{}, &{})",
+					from_kotlin(&opaque, "p0"),
+					from_kotlin(&opaque, "p1")
+				),
+			);
+			body.push(format!(
+				"\toverride fun equals(other: Any?): Boolean = other is {class} && Native.{bare}_eq(words, other.words)\n\n\t/** One for every value: Rust's `PartialEq` comes with no `Hash`. */\n\toverride fun hashCode(): Int = 0\n"
 			));
 		}
 		if object && t.eq {
@@ -1113,6 +1137,9 @@ impl<'a> Gen<'a> {
 		let mut statics = Vec::new();
 		self.traits(&ty, &c, record.traits, &mut body, &mut statics);
 		let mut members: Vec<String> = fields.iter().map(|(f, _)| format!("val {f}")).collect();
+		if let Some(opaque) = record.opaque {
+			members.push(format!("val {}", holder(&opaque)));
+		}
 		let owner = Ty::Struct(c.clone());
 		for method in &record.methods {
 			let place = match method.receiver {
@@ -1143,6 +1170,10 @@ impl<'a> Gen<'a> {
 			true => String::new(),
 			false => format!(" {{\n{}}}", body.join("\n")),
 		};
+		if let Some(opaque) = record.opaque {
+			self.opaque(&c, &name, &opaque, &docs, &body);
+			return;
+		}
 		match fields.is_empty() {
 			true => {
 				let _ = write!(
@@ -1202,6 +1233,34 @@ impl<'a> Gen<'a> {
 			self.glue,
 			"impl Wire for crate::{c} {{\n\tfn read(r: &mut Reader<'_>) -> Self {{\n\t\tlet _ = &r;\n\t\tSelf {{ {} }}\n\t}}\n\n\tfn write(self, w: &mut Writer) {{\n\t\tlet _ = &w;\n{puts}\t}}\n}}\n\n",
 			fields.join(", ")
+		);
+	}
+
+	/// An opaque value's class, `name` in Kotlin and `c` in C, and its codec: a value class
+	/// over the `Long` it fits in with no padding, or else a class over its words, which
+	/// compares through Rust's `PartialEq`. Only Rust makes one.
+	fn opaque(&mut self, c: &str, name: &str, opaque: &Opaque, docs: &str, body: &str) {
+		let words = opaque.words();
+		let (head, write, read) = match word(opaque) {
+			true => (
+				format!("@JvmInline\nvalue class {name} internal constructor(internal val bits: Long)"),
+				"\tw.i64(v.bits)\n".to_string(),
+				format!("{name}(r.i64())"),
+			),
+			false => (
+				format!("class {name} internal constructor(internal val words: LongArray)"),
+				"\tfor (word in v.words) w.i64(word)\n".to_string(),
+				format!("{name}(LongArray({words}) {{ r.i64() }})"),
+			),
+		};
+		let _ = write!(self.types, "{docs}{head}{body}\n\n");
+		let _ = write!(
+			self.top,
+			"internal fun w_{c}(w: Native.Writer, v: {name}) {{\n{write}}}\n\ninternal fun r_{c}(r: Native.Reader): {name} = {read}\n\n"
+		);
+		let _ = write!(
+			self.glue,
+			"impl Wire for crate::{c} {{\n\tfn read(r: &mut Reader<'_>) -> Self {{\n\t\trt::read_words::<_, {words}>(r)\n\t}}\n\n\tfn write(self, w: &mut Writer) {{\n\t\trt::write_words::<_, {words}>(w, self);\n\t}}\n}}\n\n"
 		);
 	}
 
@@ -1505,7 +1564,7 @@ impl<'a> Gen<'a> {
 		for (k, (ty, c)) in lent.iter().zip(c_params).enumerate() {
 			let rust_ty = rust_c(self.abi, c);
 			rust_params.push(format!("p{k}: {rust_ty}"));
-			let (jni, native) = jni_type(c, ty);
+			let (jni, native) = jni_type(self.abi, c, ty);
 			sig.push_str(descriptor(jni));
 			kt_params.push(format!("p{k}: {native}"));
 			let (field, value) = match c {
@@ -1517,6 +1576,10 @@ impl<'a> Gen<'a> {
 				Ty::Enum(_) => ("i", format!("p{k}")),
 				Ty::Handle { .. } => ("j", format!("p{k} as usize as jlong")),
 				Ty::Buf => ("l", format!("unsafe {{ rt::lent(env, p{k}) }}")),
+				Ty::Struct(_) if let Some(opaque) = opaque_of(self.abi, c) => match word(&opaque) {
+					true => ("j", to_kotlin(&opaque, &format!("p{k}"))),
+					false => ("l", to_kotlin(&opaque, &format!("p{k}"))),
+				},
 				_ => (
 					"l",
 					format!("{{ let mut w = rt::Writer::default(); w.put(p{k}); w.array(env) }}"),
@@ -1546,7 +1609,7 @@ impl<'a> Gen<'a> {
 			(Some(_), [Ty::Out(ok), _]) => (**ok).clone(),
 			(Some(_), _) => Ty::Void,
 		};
-		let (ret_jni, ret_native) = jni_type(&c_ok, ret);
+		let (ret_jni, ret_native) = jni_type(self.abi, &c_ok, ret);
 		sig.push_str(descriptor(ret_jni));
 		let call_kind = call_method(ret_jni);
 		let rust_ret = rust_c(self.abi, c_ret);
@@ -1558,8 +1621,9 @@ impl<'a> Gen<'a> {
 			Ty::Char => "ret as u32".to_string(),
 			// A buffer Rust frees, as `buf_copy` makes one.
 			Ty::Buf => "crate::rt::Buf::vec(rt::bytes(env, ret).unwrap_or_default())".to_string(),
-			// A handle Kotlin cloned for Rust to free.
-			Ty::Handle { .. } => "ret as usize as *const c_void".to_string(),
+			Ty::Struct(_) if let Some(opaque) = opaque_of(self.abi, &c_ok) => from_kotlin(&opaque, "ret"),
+			// Encoded, as an option of an opaque value.
+			Ty::Struct(_) => "rt::Reader::new(&rt::bytes(env, ret).unwrap_or_default()).get()".to_string(),
 			_ => unreachable!("a callback or closure returns no {c_ok:?}"),
 		};
 		let back = match thrown {
@@ -1777,8 +1841,7 @@ impl<'a> Gen<'a> {
 					arg.open = Some(format!("this.handle.hold {{ {h} ->"));
 					arg.exprs.push(h);
 					arg.rust_args.push(format!("{p} as usize as _"));
-					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
-					if receiver == Receiver::Owned && !copy {
+					if receiver == Receiver::Owned {
 						arg.after.push("this.close()".to_string());
 					}
 					arg
@@ -1973,7 +2036,7 @@ impl<'a> Gen<'a> {
 				// Bytes cross copied or as their owner.
 				Ty::Buf if !string(&ok) => ("jobject", "Any?"),
 				Ty::Waker => ("jlong", "Long"),
-				_ => jni_type(&c_ret, &ok),
+				_ => jni_type(abi, &c_ret, &ok),
 			};
 			let params: Vec<(&str, &str)> = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect();
 			let ret_expr = match &c_ret {
@@ -1987,6 +2050,7 @@ impl<'a> Gen<'a> {
 				Ty::Waker => "rt::returned(ret)".to_string(),
 				Ty::Buf if string(&ok) => "rt::owned(env, ret)".to_string(),
 				Ty::Buf => "rt::hand(env, ret)".to_string(),
+				Ty::Struct(_) if let Some(opaque) = opaque_of(abi, &c_ret) => to_kotlin(&opaque, "ret"),
 				_ => format!(
 					"{{ let mut w = rt::Writer::default(); {}; w.array(env) }}",
 					put(&ok, "ret")
@@ -2234,10 +2298,10 @@ fn bytes(ty: &Type) -> bool {
 }
 
 /// Whether passing `ty` moves an object's value out: by value, boxed, or in an `Option`,
-/// unless `Copy`, and never through a reference.
+/// and never through a reference.
 fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
 	match ty {
-		Type::Object(i) => !abi.api.objects[*i].copy,
+		Type::Object(_) => true,
 		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
 		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
 		_ => false,
@@ -2266,8 +2330,12 @@ fn abi_bound(abi: &Abi<'_>, int: Int) -> String {
 }
 
 /// The JNI type and the Kotlin native type of the C type `c`, of IR type `ty`.
-fn jni_type(c: &Ty, ty: &Type) -> (&'static str, &'static str) {
+fn jni_type(abi: &Abi<'_>, c: &Ty, ty: &Type) -> (&'static str, &'static str) {
 	match c {
+		Ty::Struct(_) | Ty::In(_) if let Some(opaque) = opaque_of(abi, c) => match word(&opaque) {
+			true => ("jlong", "Long"),
+			false => ("jlongArray", "LongArray"),
+		},
 		Ty::Void => ("()", "Unit"),
 		Ty::Bool => ("jboolean", "Boolean"),
 		Ty::Int(int) => match jni_int(*int) {
@@ -2291,6 +2359,51 @@ fn jni_type(c: &Ty, ty: &Type) -> (&'static str, &'static str) {
 	}
 }
 
+/// The opaque value the C type `c` is, by value or as a receiver.
+fn opaque_of(abi: &Abi<'_>, c: &Ty) -> Option<Opaque> {
+	let name = match c {
+		Ty::Struct(name) => name,
+		Ty::In(inner) => match &**inner {
+			Ty::Struct(name) => name,
+			_ => return None,
+		},
+		_ => return None,
+	};
+	(0..abi.api.records.len())
+		.find(|&i| &abi.record(i) == name)
+		.and_then(|i| abi.api.records[i].opaque)
+}
+
+/// The property of an opaque value's class holding it.
+fn holder(opaque: &Opaque) -> &'static str {
+	match word(opaque) {
+		true => "bits",
+		false => "words",
+	}
+}
+
+/// Whether Kotlin holds `opaque` in a `Long`, with no allocation: it fits one and is
+/// dense, so values Rust calls equal have equal bits, as the value class compares them.
+fn word(opaque: &Opaque) -> bool {
+	opaque.word() && opaque.dense
+}
+
+/// The Rust expression taking the opaque value Kotlin passed as `p`, as its C struct.
+fn from_kotlin(opaque: &Opaque, p: &str) -> String {
+	match word(opaque) {
+		true => format!("rt::from_word({p})"),
+		false => format!("unsafe {{ rt::from_words::<_, {}>(env, {p}) }}", opaque.words()),
+	}
+}
+
+/// The JNI value Kotlin takes the opaque value's C struct `e` as.
+fn to_kotlin(opaque: &Opaque, e: &str) -> String {
+	match word(opaque) {
+		true => format!("rt::to_word({e})"),
+		false => format!("rt::to_words::<_, {}>(env, {e})", opaque.words()),
+	}
+}
+
 /// The JVM descriptor of a JNI type.
 fn descriptor(jni: &str) -> &'static str {
 	match jni {
@@ -2303,6 +2416,7 @@ fn descriptor(jni: &str) -> &'static str {
 		"jfloat" => "F",
 		"jdouble" => "D",
 		"jbyteArray" => "[B",
+		"jlongArray" => "[J",
 		_ => "Ljava/lang/Object;",
 	}
 }

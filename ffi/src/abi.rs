@@ -12,7 +12,7 @@
 //! `moq_audio_encoder_finish_`. A `_` doubled at the split would read better, but C++
 //! reserves every name containing `__`. Only the names that clash change.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, HashMap};
 
 use rustc_span::Span;
 
@@ -150,9 +150,6 @@ pub struct Abi<'a> {
 	pub tuples: BTreeMap<String, Vec<Type>>,
 	/// Each `[u8; N]` struct by C name, with `N`.
 	pub arrays: BTreeMap<String, usize>,
-	/// Each `Copy` object a closure takes or returns by value, which `<T>_copy` copies into
-	/// a new handle as Rust copies it, never running its `Clone`.
-	pub copies: BTreeSet<usize>,
 	/// Every C name claimed.
 	claims: Vec<Claim>,
 	/// The C name of each item whose own clashed.
@@ -172,7 +169,6 @@ impl<'a> Abi<'a> {
 			lists: BTreeMap::new(),
 			tuples: BTreeMap::new(),
 			arrays: BTreeMap::new(),
-			copies: BTreeSet::new(),
 			claims: Vec::new(),
 			renames: HashMap::new(),
 			clashes: Vec::new(),
@@ -664,19 +660,11 @@ impl<'a> Abi<'a> {
 	}
 
 	/// The C function a closure is: after its data, each value it takes, lent for its
-	/// call, a `Copy` object as a handle; then for a `Result`, an out pointer for its value
-	/// and one for its error, returning whether it succeeded, or else its value. A
-	/// value it returns is Rust's: a buffer one `<prefix>_buf_copy` made, or a new handle.
+	/// call; then for a `Result`, an out pointer for its value and one for its error,
+	/// returning whether it succeeded, or else its value. A buffer it returns is Rust's,
+	/// one `<prefix>_buf_copy` made.
 	pub fn closure(&self, closure: &Closure) -> Ty {
-		let mut params: Vec<Ty> = (closure.params.iter())
-			.map(|ty| match ty {
-				Type::Object(i) => Ty::Handle {
-					name: self.object(*i),
-					constant: true,
-				},
-				ty => self.ty(ty),
-			})
-			.collect();
+		let mut params: Vec<Ty> = closure.params.iter().map(|ty| self.ty(ty)).collect();
 		let ok = self.ty(&closure.ok);
 		match &closure.err {
 			None => Ty::Fn(params, Box::new(ok)),
@@ -705,10 +693,7 @@ impl<'a> Abi<'a> {
 			let ty = match owner {
 				Ty::Handle { name, .. } => Ty::Handle {
 					name: name.clone(),
-					constant: receiver == Receiver::Ref
-						|| (receiver == Receiver::Owned
-							&& (0..self.api.objects.len())
-								.any(|i| self.api.objects[i].copy && &self.object(i) == name)),
+					constant: receiver == Receiver::Ref,
 				},
 				// A value's receiver is read through a pointer, and never changed.
 				value => Ty::In(Box::new(value.clone())),
@@ -718,22 +703,7 @@ impl<'a> Abi<'a> {
 		// What Rust writes back for each value C passes for `&mut`, after every parameter.
 		let mut written = Vec::new();
 		for param in &function.params {
-			let copied = match &param.ty {
-				Type::Object(i) => Some(*i),
-				Type::Option(inner) => match **inner {
-					Type::Object(i) => Some(i),
-					_ => None,
-				},
-				_ => None,
-			};
-			let ty = match copied {
-				// Taken by value, a `Copy` value is copied out, leaving its handle as it was.
-				Some(i) if self.api.objects[i].copy => Ty::Handle {
-					name: self.object(i),
-					constant: true,
-				},
-				_ => self.ty(&param.ty),
-			};
+			let ty = self.ty(&param.ty);
 			let name = escape(&param.name);
 			if let Type::Closure(closure) = &param.ty {
 				// Named apart from every parameter of the function, which C requires.
@@ -1090,7 +1060,6 @@ impl<'a> Abi<'a> {
 		let mut lists = BTreeMap::new();
 		let mut tuples: BTreeMap<String, Vec<Type>> = BTreeMap::new();
 		let mut arrays = BTreeMap::new();
-		let mut copies = BTreeSet::new();
 		let mut mixed = Vec::new();
 		let mut stack = types;
 		while let Some(ty) = stack.pop() {
@@ -1123,17 +1092,6 @@ impl<'a> Abi<'a> {
 					stack.extend(elements);
 				}
 				Type::Closure(closure) => {
-					for ty in closure.params.iter().chain([&closure.ok]) {
-						let ty = match ty {
-							Type::Option(inner) => inner,
-							ty => ty,
-						};
-						if let Type::Object(i) = ty
-							&& self.api.objects[*i].copy
-						{
-							copies.insert(*i);
-						}
-					}
 					stack.extend(&closure.params);
 					stack.push(&closure.ok);
 					stack.extend(&closure.err);
@@ -1160,13 +1118,6 @@ impl<'a> Abi<'a> {
 		}
 		for name in arrays.keys() {
 			self.claim(name.clone(), "an array".to_string(), crate_span, None);
-		}
-		for &i in &copies {
-			let object = &self.api.objects[i];
-			let item = Item::Object(i);
-			let name = self.object(i);
-			let what = format!("type `{}`", self.api.rust(&object.path, &object.args));
-			self.claim(format!("{name}_copy"), what, object.span, Self::made(&item, &name));
 		}
 		for (name, elements) in tuples
 			.iter()
@@ -1198,7 +1149,6 @@ impl<'a> Abi<'a> {
 		self.lists = lists;
 		self.tuples = tuples;
 		self.arrays = arrays;
-		self.copies = copies;
 	}
 
 	/// Claim the functions a type's std traits export.

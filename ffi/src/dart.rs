@@ -660,6 +660,15 @@ impl<'a> Gen<'a> {
 				fields.push((format!("_{n}"), abi.ty(element)));
 			}
 		} else if let Some(i) = (0..abi.api.records.len()).find(|&i| abi.record(i) == name) {
+			if let Some(opaque) = &abi.api.records[i].opaque {
+				let code = format!(
+					"final class {class} extends ffi.Struct {{\n\t@ffi.Array({})\n\texternal ffi.Array<ffi.Uint{}> $opaque;\n}}\n\n",
+					opaque.units(),
+					opaque.unit() * 8
+				);
+				self.structs.insert(name, code);
+				return class;
+			}
 			for field in &abi.api.records[i].fields {
 				fields.push((abi::escape(&field.name), abi.ty(&field.ty)));
 			}
@@ -938,6 +947,11 @@ impl<'a> Gen<'a> {
 		let dt = self.dt(ty);
 		let abi = self.abi;
 		let body = match ty {
+			Type::Record(i) if abi.api.records[*i].opaque.is_some() => {
+				let units = abi.api.records[*i].opaque.as_ref().map_or(0, |o| o.units());
+				let lines: Vec<String> = (0..units).map(|k| format!("c.$opaque[{k}] = v._{k};")).collect();
+				lines.join("\n\t")
+			}
 			Type::Record(i) => {
 				let record = &abi.api.records[*i];
 				let mut lines = Vec::new();
@@ -1040,6 +1054,12 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		let dt = self.dt(ty);
 		let (param, body) = match ty {
+			Type::Record(i) if abi.api.records[*i].opaque.is_some() => {
+				let class = self.struct_class(&Ty::Struct(c.to_string()));
+				let units = abi.api.records[*i].opaque.as_ref().map_or(0, |o| o.units());
+				let words: Vec<String> = (0..units).map(|k| format!("c.$opaque[{k}]")).collect();
+				(class, format!("{dt}._({})", words.join(", ")))
+			}
 			Type::Record(i) => {
 				let class = self.struct_class(&Ty::Struct(c.to_string()));
 				let record = &abi.api.records[*i];
@@ -1420,6 +1440,30 @@ impl<'a> Gen<'a> {
 		let name = self.class(&c);
 		let rust = abi.api.rust(&record.path, &record.args);
 		let ty = Type::Record(i);
+		if let Some(opaque) = &record.opaque {
+			// Its bytes, in the units of its C struct, each an `int` of the same bits.
+			let units: Vec<String> = (0..opaque.units()).map(|k| format!("_{k}")).collect();
+			let mut members = Vec::new();
+			let mut body = vec![format!(
+				"\tconst {name}._({});\n\n{}",
+				units.iter().map(|u| format!("this.{u}")).collect::<Vec<_>>().join(", "),
+				units.iter().map(|u| format!("\tfinal int {u};\n")).collect::<String>()
+			)];
+			self.traits(&ty, &c, record.traits, &mut body, &mut members);
+			self.methods(&record.methods, &Ty::Struct(c.clone()), &ty, &mut body, &mut members);
+			self.check_members(&rust, &mut members);
+			let text = format!(
+				"{rust}\n\nIts bytes, which only Rust makes or reads: copy it, but never make one.\n\n{}",
+				record.docs
+			);
+			let _ = write!(
+				self.types,
+				"{}final class {name} {{\n{}}}\n\n",
+				docs(text.trim(), ""),
+				body.join("\n")
+			);
+			return;
+		}
 		let fields: Vec<(String, String)> = (record.fields.iter())
 			.map(|f| (field_name(&f.name), self.dt(&f.ty)))
 			.collect();
@@ -1770,11 +1814,7 @@ impl<'a> Gen<'a> {
 				let mut lends = Vec::new();
 				for (n, ty) in closure.params.iter().enumerate() {
 					match ty {
-						// An object, by reference or a `Copy` one by value, lent for the call.
-						Type::Object(_) => {
-							lends.push(format!("{}._lent(p{n})", self.dt(ty)));
-							args.push(format!("l{}", lends.len() - 1));
-						}
+						// An object, by reference, lent for the call.
 						Type::Ref(_, object) if matches!(**object, Type::Object(_)) => {
 							lends.push(format!("{}._lent(p{n})", self.dt(object)));
 							args.push(format!("l{}", lends.len() - 1));
@@ -1799,9 +1839,10 @@ impl<'a> Gen<'a> {
 							Type::Unit => format!("{call};"),
 							ok => {
 								let value = self.returned(ok, "r_");
-								let write = match Self::scalar(&abi.ty(ok)) {
-									true => format!("p{at}.value = {value};"),
-									false => format!("_n.setBuf(p{at}, {value});"),
+								let write = match abi.ty(ok) {
+									c if Self::scalar(&c) => format!("p{at}.value = {value};"),
+									Ty::Buf => format!("_n.setBuf(p{at}, {value});"),
+									_ => format!("p{at}.ref = {value};"),
 								};
 								format!("final r_ = {call};\n\t{write}")
 							}
@@ -1822,24 +1863,25 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The C value of the Dart value `e` of type `ty` a closure returns, which Rust then
-	/// owns: text as a buffer `buf_copy` made, and a `Copy` object as a new handle to a
-	/// copy, made without its `Clone`, which Rust copies out and frees.
+	/// owns: text as a buffer `buf_copy` made, and a value as a struct it writes.
 	fn returned(&mut self, ty: &Type, e: &str) -> String {
-		let abi = self.abi;
 		match ty {
 			Type::String => format!("_n.copied({e})"),
-			Type::Object(i) => {
-				let c = abi.object(*i);
-				let handle = Ty::Handle {
-					name: c.clone(),
-					constant: true,
-				};
-				let clone = self.served_fn(&format!("{c}_copy"), vec![handle.clone()], handle);
-				format!("_n.handOver({e}, {clone})")
-			}
-			Type::Option(inner) if matches!(**inner, Type::Object(_)) => {
-				let given = self.returned(inner, "v");
-				format!("switch ({e}) {{ final v? => {given}, null => ffi.nullptr }}")
+			Type::Record(_) | Type::Option(_) => {
+				let c = self.c_name(ty);
+				let name = format!("_ret_{c}");
+				if !self.helpers.contains_key(&name) {
+					let class = self.struct_class(&Ty::Struct(c.clone()));
+					let w = self.writer(&c, ty);
+					let dt = self.dt(ty);
+					self.helpers.insert(
+						name.clone(),
+						format!(
+							"{class} {name}({dt} v) {{\n\tfinal a_ = _Arena();\n\ttry {{\n\t\tfinal c = ffi.Struct.create<{class}>();\n\t\t{w}(v, c, a_);\n\t\treturn c;\n\t}} finally {{\n\t\ta_.end();\n\t}}\n}}\n\n"
+						),
+					);
+				}
+				format!("{name}({e})")
 			}
 			ty => self.lower(ty, e),
 		}
@@ -1927,8 +1969,7 @@ impl<'a> Gen<'a> {
 			match c {
 				Ty::Handle { .. } => {
 					args.push("a_.hold(this)".to_string());
-					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
-					if receiver == Receiver::Owned && !copy {
+					if receiver == Receiver::Owned {
 						// Qualified, apart from a parameter named `close`.
 						after.push("this.close();".to_string());
 					}
@@ -2307,10 +2348,10 @@ fn thrown_value(thrown: &Thrown, lifted: &str) -> String {
 }
 
 /// Whether passing `ty` moves an object's value out: by value, boxed, or in an `Option`,
-/// a list, or a tuple, unless `Copy`, and never through a reference.
+/// a list, or a tuple, and never through a reference.
 fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
 	match ty {
-		Type::Object(i) => !abi.api.objects[*i].copy,
+		Type::Object(_) => true,
 		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
 		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
 		_ => false,

@@ -399,6 +399,13 @@ func script() {
 	message.stampSet(nil)
 	print("stamp \(message.stampGet != nil)")
 
+	// A value past a word, copied across: a closure takes and returns one by value.
+	let moment = Moment.new(1500, 1000)!
+	print("moment \(moment.millis()) \(Moment.new(1, 0) == nil)")
+	let shifted = shifted(moment) { $0.after(500) }
+	print("shifted \(shifted.millis()) \(shifted == moment.after(500))")
+	print("wrapped \(moment.after(UInt64.max).millis()) \(moment == shifted)")
+
 	// Bound first, so Swift's reference is gone before the print.
 	let kept = emit(PrintLog(), Data([1, 2, 3, 4]))
 	print("kept \(kept)")

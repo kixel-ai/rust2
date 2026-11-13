@@ -253,6 +253,13 @@ fun script() {
 	message.stampSet(null)
 	println("stamp ${message.stampGet != null}")
 
+	// A value past a word, copied across: a closure takes and returns one by value.
+	val moment = Moment.new(1500u, 1000u)!!
+	println("moment ${moment.millis()} ${Moment.new(1u, 0u) == null}")
+	val shifted = shifted(moment) { m -> m.after(500u) }
+	println("shifted ${shifted.millis()} ${shifted == moment.after(500u)}")
+	println("wrapped ${moment.after(ULong.MAX_VALUE).millis()} ${moment == shifted}")
+
 	println("kept ${emit(PrintLog(), byteArrayOf(1, 2, 3, 4))}")
 	Logger.new(PrintLog()).use { logger -> println("write ${logger.write("hi")}") }
 	println("dropped")
@@ -534,14 +541,11 @@ fun script() {
 	val jsonSections = sections(listOf(Pair("b", Json.parse("[1]")), Pair("a", Json.parse("2"))))
 	println("sections ${jsonSections.joinToString(", ") { (key, value) -> "$key ${value.toText()}" }}")
 	jsonSections.forEach { it.second.close() }
-	// An instant only Rust makes, which each call copies out of its handle, and compares.
-	now().use { began ->
-		later(began, 1500.milliseconds).use { ended ->
-			later(began, kotlin.time.Duration.ZERO).use { same ->
-				println("instants ${since(ended, began).inWholeMilliseconds} ${since(began, ended).inWholeMilliseconds} ${began == same} ${began == ended}")
-			}
-		}
-	}
+	// An instant only Rust makes, which each call copies, and compares.
+	val began = now()
+	val ended = later(began, 1500.milliseconds)
+	val same = later(began, kotlin.time.Duration.ZERO)
+	println("instants ${since(ended, began).inWholeMilliseconds} ${since(began, ended).inWholeMilliseconds} ${began == same} ${began == ended}")
 	// tracing's level, and its filter as an optional level whose null is `OFF`.
 	Verbosity.new(Level.WARN).use { verbosity ->
 		println("verbosity ${spell(verbosity.filter())} ${spell(louder(verbosity.filter()))}")
@@ -550,7 +554,7 @@ fun script() {
 	}
 
 	println("made ${made(3u) { n -> "$n times" }}")
-	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	// A closure taking and returning `Copy` values copies them, never running their `Clone`.
 	val nine = Ticket.new(9u)
 	val given = reissue(Ticket.new(7u)) { t -> Ticket.new(t.number() + 1u) }.number()
 	val held = reissue(Ticket.new(7u)) { nine }.number()
@@ -558,7 +562,7 @@ fun script() {
 	// A kept closure, called on another thread after the call that took it returned.
 	println("spawned ${Spawned.new { 7u }.join()}")
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
-	now().use { start ->
+	now().let { start ->
 		var calls = 0
 		val stopped = runBlocking {
 			drive(start) { now, waiter ->
@@ -938,7 +942,7 @@ fun broken(which: String) {
 		"stray" -> stray()
 		// Any exception but a closure's own error, and a reader's IOException, aborts.
 		"closure threw" -> made(1u) { throw IllegalStateException("a make failed") }
-		"closure failed" -> now().use { start ->
+		"closure failed" -> now().let { start ->
 			runBlocking { drive(start) { _, _ -> throw IllegalStateException("a poll failed") } }
 		}
 		"reader threw" -> tail(

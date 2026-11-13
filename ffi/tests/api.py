@@ -312,6 +312,13 @@ def script():
 	message.stamp_set(None)
 	print(f"stamp {flag(message.stamp_get is not None)}")
 
+	# A value past a word, copied across: a closure takes and returns one by value.
+	moment = api.Moment.new(1500, 1000)
+	print(f"moment {moment.millis()} {flag(api.Moment.new(1, 0) is None)}")
+	shifted = api.shifted(moment, lambda m: m.after(500))
+	print(f"shifted {shifted.millis()} {flag(shifted == moment.after(500))}")
+	print(f"wrapped {moment.after(2**64 - 1).millis()} {flag(moment == shifted)}")
+
 	print(f"kept {api.emit(PrintLog(), bytes([1, 2, 3, 4]))}")
 	logger = api.Logger.new(PrintLog())
 	print(f"write {flag(logger.write('hi'))}")

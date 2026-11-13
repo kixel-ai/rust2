@@ -686,6 +686,16 @@ struct access {
 	static auto own(T &object) {
 		return object.raw_.own();
 	}
+	// A `Copy` value's C struct, which only Rust reads.
+	template <class T>
+	static auto bits(const T &value) noexcept {
+		return value.c_;
+	}
+	// The `Copy` value of the C struct `c` Rust made.
+	template <class T, class C>
+	static T make(const C &c) noexcept {
+		return T(c);
+	}
 	// `raw` owned by a `T`.
 	template <class T, class R>
 	static T wrap(R *raw) {

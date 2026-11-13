@@ -694,6 +694,93 @@ impl Writer {
 	}
 }
 
+/// An opaque value's C struct from the `long` Kotlin holds it in: its bytes, at the word's
+/// lowest addresses, as [`to_word`] put them.
+pub fn from_word<T: Copy>(word: jlong) -> T {
+	const { assert!(size_of::<T>() <= size_of::<jlong>()) };
+	let mut value = std::mem::MaybeUninit::<T>::zeroed();
+	// SAFETY: `T` is a struct of `MaybeUninit` units, any bytes of which are one.
+	unsafe {
+		std::ptr::copy_nonoverlapping((&raw const word).cast::<u8>(), value.as_mut_ptr().cast::<u8>(), size_of::<T>());
+		value.assume_init()
+	}
+}
+
+/// The `long` Kotlin holds an opaque value's C struct in, which has no padding: Kotlin
+/// compares two by it.
+pub fn to_word<T: Copy>(value: T) -> jlong {
+	const { assert!(size_of::<T>() <= size_of::<jlong>()) };
+	let mut word: jlong = 0;
+	// SAFETY: every byte of a value with no padding is initialized, and the rest are zero.
+	unsafe { std::ptr::copy_nonoverlapping((&raw const value).cast::<u8>(), (&raw mut word).cast::<u8>(), size_of::<T>()) };
+	word
+}
+
+/// An opaque value's C struct from the `W` words of the `long[]` Kotlin holds it in.
+///
+/// # Safety
+/// `array` is a live `long[]`.
+pub unsafe fn from_words<T: Copy, const W: usize>(env: *mut JNIEnv, array: jlongArray) -> T {
+	const { assert!(size_of::<T>() <= W * size_of::<jlong>()) };
+	let mut words = [std::mem::MaybeUninit::<jlong>::zeroed(); W];
+	// SAFETY: `array` is live, and `T` is a struct of `MaybeUninit` units.
+	unsafe {
+		if array.is_null() || ((**env).v1_2.GetArrayLength)(env, array) != W as jsize {
+			fail(env, "jni", "an opaque value's words are not its own");
+		}
+		((**env).v1_2.GetLongArrayRegion)(env, array, 0, W as jsize, words.as_mut_ptr().cast());
+		let mut value = std::mem::MaybeUninit::<T>::zeroed();
+		std::ptr::copy_nonoverlapping(words.as_ptr().cast::<u8>(), value.as_mut_ptr().cast::<u8>(), size_of::<T>());
+		value.assume_init()
+	}
+}
+
+/// A new `long[]` of the `W` words an opaque value's C struct is held in: its bytes, then
+/// zeros. Its padding crosses as the bytes it holds, which Kotlin never reads.
+pub fn to_words<T: Copy, const W: usize>(env: *mut JNIEnv, value: T) -> jlongArray {
+	const { assert!(size_of::<T>() <= W * size_of::<jlong>()) };
+	let mut words = [std::mem::MaybeUninit::<jlong>::zeroed(); W];
+	// SAFETY: `env` is this thread's; JNI copies the words as bytes.
+	unsafe {
+		std::ptr::copy_nonoverlapping((&raw const value).cast::<u8>(), words.as_mut_ptr().cast::<u8>(), size_of::<T>());
+		let array = ((**env).v1_2.NewLongArray)(env, W as jsize);
+		if array.is_null() {
+			fail(env, "jni", "a long[] is out of memory");
+		}
+		((**env).v1_2.SetLongArrayRegion)(env, array, 0, W as jsize, words.as_ptr().cast());
+		array
+	}
+}
+
+/// An opaque value's C struct as it crosses encoded: the `W` words Kotlin holds it in,
+/// whose little-endian bytes are its own on a little-endian target.
+pub fn read_words<T: Copy, const W: usize>(r: &mut Reader<'_>) -> T {
+	const { assert!(size_of::<T>() <= W * size_of::<jlong>() && cfg!(target_endian = "little")) };
+	let bytes = r.take(W * size_of::<jlong>());
+	let mut value = std::mem::MaybeUninit::<T>::zeroed();
+	// SAFETY: `T` is a struct of `MaybeUninit` units, any bytes of which are one.
+	unsafe {
+		std::ptr::copy_nonoverlapping(bytes.as_ptr(), value.as_mut_ptr().cast::<u8>(), size_of::<T>());
+		value.assume_init()
+	}
+}
+
+/// Encode an opaque value's C struct as the `W` words Kotlin holds it in: its bytes, then
+/// zeros. Its padding crosses as the bytes it holds, which Kotlin never reads.
+pub fn write_words<T: Copy, const W: usize>(w: &mut Writer, value: T) {
+	const { assert!(size_of::<T>() <= W * size_of::<jlong>() && cfg!(target_endian = "little")) };
+	let n = W * size_of::<jlong>();
+	w.0.reserve(n);
+	let start = w.0.len();
+	// SAFETY: the vector has room for `n` more bytes, each written before its length grows.
+	unsafe {
+		let at = w.0.as_mut_ptr().add(start);
+		std::ptr::write_bytes(at, 0, n);
+		std::ptr::copy_nonoverlapping((&raw const value).cast::<u8>(), at, size_of::<T>());
+		w.0.set_len(start + n);
+	}
+}
+
 /// A C value as it crosses encoded: Kotlin writes one Rust reads, and Rust writes one it
 /// owns, freeing what it holds once copied.
 pub trait Wire: Sized {

@@ -11,7 +11,8 @@ use std::path::Path;
 use crate::abi::{self, Abi, CFG, Ty};
 use crate::config::Package;
 use crate::ir::{
-	Access, Closure, Collection, Family, Function, Literal, Mutability, On, Receiver, Task, TaskKind, Traits, Type,
+	Access, Closure, Collection, Family, Function, Literal, Mutability, On, Opaque, Receiver, Task, TaskKind, Traits,
+	Type,
 };
 
 const RUNTIME: &str = include_str!("../runtime/rt.rs");
@@ -448,7 +449,11 @@ impl Gen<'_> {
 			Type::Option(inner) => format!("Option<{}>", self.rust(inner)),
 			Type::Ref(Mutability::Not, inner) => format!("&{}", self.rust(inner)),
 			Type::Ref(Mutability::Mut, inner) => format!("&mut {}", self.rust(inner)),
-			Type::Record(i) => generic(&api.records[*i].path, 0, &api.records[*i].args),
+			Type::Record(i) => match &api.records[*i].opaque {
+				Some(opaque) if opaque.foreign => foreign_path(&api.records[*i].path),
+				Some(opaque) => generic(&api.records[*i].path, opaque.lifetimes, &api.records[*i].args),
+				None => generic(&api.records[*i].path, 0, &api.records[*i].args),
+			},
 			Type::Enum(i) if api.enums[*i].foreign => foreign_path(&api.enums[*i].path),
 			Type::Enum(i) => generic(&api.enums[*i].path, 0, &api.enums[*i].args),
 			Type::Object(i) if api.objects[*i].opaque => "rt::Opaque".to_string(),
@@ -513,14 +518,7 @@ impl Gen<'_> {
 			Type::Object(i) if self.abi.api.objects[*i].opaque => {
 				format!("unsafe {{ rt::Object::<rt::Opaque>::take({e}, w) }}.arc(w)")
 			}
-			Type::Object(i) => match self.abi.api.objects[*i].copy {
-				true => format!(
-					"*unsafe {{ rt::Object::<{}>::{}({e}, w) }}",
-					self.object_path(*i),
-					self.shared(*i)
-				),
-				false => format!("unsafe {{ rt::Object::<{}>::take({e}, w) }}", self.object_path(*i)),
-			},
+			Type::Object(i) => format!("unsafe {{ rt::Object::<{}>::take({e}, w) }}", self.object_path(*i)),
 			Type::Callback(i, form) => abi::dyn_wrap(*form, &format!("Foreign_{}({e})", self.abi.callback(*i))),
 			Type::Closure(closure) => self.closure(closure, e),
 			Type::Range(_) => format!("{e}.lift()"),
@@ -542,16 +540,14 @@ impl Gen<'_> {
 		let typed: Vec<String> = (closure.params.iter().enumerate())
 			.map(|(n, ty)| format!("c{n}: {}", self.rust(ty)))
 			.collect();
-		// Each object the closure takes, and how it is lent: a `Copy` one by value too.
+		// Each object the closure borrows, and how it is lent.
 		let lent = |ty: &Type| match ty {
 			Type::Ref(m, inner) => match (&**inner, m) {
-				(&Type::Object(i), Mutability::Mut) => Some((i, "lend_mut", "")),
-				(&Type::Object(i), Mutability::Not) if self.abi.api.objects[i].sync => Some((i, "lend", "")),
-				(&Type::Object(i), Mutability::Not) => Some((i, "lend_local", "")),
+				(&Type::Object(i), Mutability::Mut) => Some((i, "lend_mut")),
+				(&Type::Object(i), Mutability::Not) if self.abi.api.objects[i].sync => Some((i, "lend")),
+				(&Type::Object(i), Mutability::Not) => Some((i, "lend_local")),
 				_ => None,
 			},
-			&Type::Object(i) if self.abi.api.objects[i].sync => Some((i, "lend", "&")),
-			&Type::Object(i) => Some((i, "lend_local", "&")),
 			_ => None,
 		};
 		let mut args: Vec<String> = std::iter::once("data.get()".to_string())
@@ -578,9 +574,9 @@ impl Gen<'_> {
 		}
 		let mut call = format!("unsafe {{ f({}) }}", args.join(", "));
 		for (n, ty) in closure.params.iter().enumerate().rev() {
-			if let Some((i, lend, by)) = lent(ty) {
+			if let Some((i, lend)) = lent(ty) {
 				call = format!(
-					"rt::Object::<{}>::{lend}({by}c{n}, w, |h{n}| {call})",
+					"rt::Object::<{}>::{lend}(c{n}, w, |h{n}| {call})",
 					self.object_path(i)
 				);
 			}
@@ -613,16 +609,10 @@ impl Gen<'_> {
 	}
 
 	/// The Rust value a closure C implements returned as the C value `e`, which Rust then
-	/// owns: a buffer `<prefix>_buf_copy` made, or a handle, out of which it copies a
-	/// `Copy` object before freeing it.
+	/// owns, as a buffer `<prefix>_buf_copy` made.
 	fn returned(&self, ty: &Type, e: &str) -> String {
 		match ty {
 			Type::String => format!("unsafe {{ {e}.take_string(w) }}"),
-			Type::Object(i) => format!("unsafe {{ rt::Object::<{}>::returned({e}, w) }}", self.object_path(*i)),
-			Type::Option(inner) => format!(
-				"{{ let r = {e}; if r.is_null() {{ None }} else {{ Some({}) }} }}",
-				self.returned(inner, "r")
-			),
 			ty => self.lift(ty, e),
 		}
 	}
@@ -871,11 +861,6 @@ impl Gen<'_> {
 			self.traits(&name, &path, object.traits, |e| {
 				format!("unsafe {{ rt::Object::<{path}>::{borrow}({e}, w) }}")
 			});
-			if self.abi.copies.contains(&i) {
-				self.export(format!(
-					"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_copy(this: *const ::std::ffi::c_void) -> *const ::std::ffi::c_void {{\n\tlet w = \"{name}_copy\";\n\trt::Object::new(*unsafe {{ rt::Object::<{path}>::{borrow}(this, w) }})\n}}\n"
-				));
-			}
 			let owner = Ty::Handle {
 				name: name.clone(),
 				constant: false,
@@ -952,7 +937,9 @@ impl Gen<'_> {
 				self.lower(ty, &format!("<{path} as ::std::default::Default>::default()"))
 			));
 		}
-		if !matches!(self.abi.ty(ty), Ty::Enum(_)) {
+		// An opaque value is `Copy`, with nothing to free.
+		let opaque = matches!(ty, Type::Record(i) if self.abi.api.records[*i].opaque.is_some());
+		if !matches!(self.abi.ty(ty), Ty::Enum(_)) && !opaque {
 			let free = self.free(ty, "unsafe { this.read() }").unwrap_or_default();
 			self.export(format!(
 				"#[unsafe(no_mangle)]\npub unsafe extern \"C\" fn {name}_free(this: *mut {c}) {{\n\tif this.is_null() {{\n\t\treturn;\n\t}}\n\t{free}\n}}\n"
@@ -966,6 +953,10 @@ impl Gen<'_> {
 		let name = self.abi.record(i);
 		let path = self.rust(&Type::Record(i));
 		let ty = Type::Record(i);
+		if let Some(opaque) = record.opaque {
+			self.opaque(i, &opaque);
+			return;
+		}
 		let mut fields = String::new();
 		for (n, field) in record.fields.iter().enumerate() {
 			let _ = writeln!(fields, "\tpub f{n}: {},", rs(&self.abi.ty(&field.ty)));
@@ -1026,6 +1017,34 @@ impl Gen<'_> {
 				.collect();
 			self.item(format!("fn free_{name}(c: {name}) {{\n\t{}\n}}\n", frees.join("\n\t")));
 		}
+		self.value_traits(&name, &path, &ty, record.traits);
+		let owner = Ty::Struct(name.clone());
+		for method in &record.methods {
+			self.function(method, Some((&owner, ty.clone())));
+		}
+	}
+
+	/// An opaque value: its bytes in a struct of `MaybeUninit` units, as its padding may
+	/// be, read and written unaligned, as a unit's alignment may be less than its own.
+	fn opaque(&mut self, i: usize, opaque: &Opaque) {
+		let record = &self.abi.api.records[i];
+		let name = self.abi.record(i);
+		let path = self.rust(&Type::Record(i));
+		let ty = Type::Record(i);
+		let (unit, units) = (format!("u{}", opaque.unit() * 8), opaque.units());
+		self.line(format!(
+			"#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {name} {{\n\tpub opaque: [::std::mem::MaybeUninit<{unit}>; {units}],\n}}\n"
+		));
+		self.item(format!(
+			"const _: () = assert!(::std::mem::size_of::<{path}>() <= ::std::mem::size_of::<{name}>(), \"{name} is smaller than its Rust type\");\n"
+		));
+		self.item(format!(
+			"fn lift_{name}(c: &{name}, w: &str) -> {path} {{\n\tlet _ = w;\n\tunsafe {{ c.opaque.as_ptr().cast::<{path}>().read_unaligned() }}\n}}\n"
+		));
+		// Zeroed past its own bytes, so a value with no padding has no uninitialized byte.
+		self.item(format!(
+			"fn lower_{name}(v: {path}) -> {name} {{\n\tlet mut c = {name} {{ opaque: [::std::mem::MaybeUninit::zeroed(); {units}] }};\n\tunsafe {{ c.opaque.as_mut_ptr().cast::<{path}>().write_unaligned(v) }};\n\tc\n}}\n"
+		));
 		self.value_traits(&name, &path, &ty, record.traits);
 		let owner = Ty::Struct(name.clone());
 		for method in &record.methods {
@@ -1268,6 +1287,8 @@ impl Gen<'_> {
 	fn view(&self, ty: &Type, e: &str) -> String {
 		match ty {
 			Type::Ref(_, inner) => match &**inner {
+				// An opaque value is `Copy`, lent as a copy.
+				Type::Record(_) => self.lower(inner, &format!("*{e}")),
 				Type::Str => format!("rt::Buf::view({e}.as_bytes())"),
 				Type::Path => format!("rt::Buf::view({e}.as_os_str().as_encoded_bytes())"),
 				_ => format!("rt::Buf::view({e})"),

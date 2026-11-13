@@ -101,7 +101,8 @@ pub struct Home {
 	pub outside: usize,
 }
 
-/// A struct whose fields are all `pub`: a value, copied across.
+/// A struct whose fields are all `pub`, or a `Copy` type C cannot see inside: a value,
+/// copied across.
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Record {
 	pub path: Path,
@@ -121,6 +122,49 @@ pub struct Record {
 	pub tuple: bool,
 	pub methods: Vec<Function>,
 	pub traits: Traits,
+	/// For a `Copy` type with private fields, which has no `fields`: its bytes, which only
+	/// Rust reads.
+	pub opaque: Option<Opaque>,
+}
+
+/// A `Copy` type held as its bytes, which every language copies and none reads.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Opaque {
+	/// Its size and alignment: on several targets, the largest of each, so one binding
+	/// holds it on all of them.
+	pub size: u64,
+	pub align: u64,
+	/// Whether its bytes are its fields' with no padding between them, each an integer, a
+	/// `bool`, or a `char`, and each struct's `PartialEq` in it, if any, derived or std's,
+	/// so two values Rust calls equal have equal bytes: on several targets, on all of them.
+	pub dense: bool,
+	/// How many lifetime parameters it has, each `'static` in the export, as an object's.
+	pub lifetimes: usize,
+	/// Whether it is a foreign type the facade maps, such as `std::time::Instant`: its path
+	/// is the type's in its own crate.
+	pub foreign: bool,
+}
+
+impl Opaque {
+	/// Whether it fits a 64-bit word, which a language may hold it in with no allocation.
+	pub fn word(&self) -> bool {
+		self.size <= 8
+	}
+
+	/// The bytes of each unit its C struct holds it in, by its alignment, at most 8.
+	pub fn unit(&self) -> u64 {
+		self.align.clamp(1, 8)
+	}
+
+	/// How many units its C struct holds: at least one, as C has no empty struct.
+	pub fn units(&self) -> u64 {
+		self.size.div_ceil(self.unit()).max(1)
+	}
+
+	/// How many 64-bit words hold its C struct.
+	pub fn words(&self) -> u64 {
+		(self.units() * self.unit()).div_ceil(8)
+	}
 }
 
 #[derive(Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -188,9 +232,6 @@ pub struct Object {
 	pub docs: String,
 	/// Whether it is `Sync`: if not, `&self` borrows it on one thread at a time.
 	pub sync: bool,
-	/// Whether it is `Copy`: taken by value, it is copied out of its handle, as Rust
-	/// copies it, rather than moved out.
-	pub copy: bool,
 	/// Whether copies of its handle may share one value, since no call tells that apart
 	/// from `Clone` but by an `Arc`'s or `Rc`'s count: it is `Clone` and `Sync`, its clone owns no state that changes
 	/// behind `&` or counts clones, and no export borrows it mutably.
@@ -451,11 +492,10 @@ pub enum Type {
 /// A [`Type::Closure`]: what it takes and returns.
 #[derive(Clone, PartialEq, Eq, Hash, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Closure {
-	/// Each value it takes, which Rust lends for the call: a value, a borrowed object, or
-	/// a `Copy` object, lent as its handle.
+	/// Each value it takes, which Rust lends for the call: a value or a borrowed object.
 	pub params: Vec<Type>,
-	/// What it returns, or for a `Result`, its value: a value, a `String`, or a `Copy`
-	/// object or an `Option` of one, which the foreign side hands Rust.
+	/// What it returns, or for a `Result`, its value: a value or a `String`, which the
+	/// foreign side hands Rust.
 	pub ok: Type,
 	/// The error of a `Result` it returns: a `String`.
 	pub err: Option<Type>,

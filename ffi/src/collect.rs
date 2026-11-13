@@ -45,8 +45,8 @@ pub struct Why {
 /// Types of crates that are no export, by crate and name, each exported as an object where
 /// some crate builds with it, and named at the facade's root by its role: `url::Url` as
 /// `Url` and `serde_json::Value`, which a `Serialize` or `Deserialize` parameter takes, as
-/// `Json`, each made by parsing its text; and `std::time::Instant` as `Instant`, which
-/// only Rust makes, and which C copies and compares.
+/// `Json`, each made by parsing its text; and `std::time::Instant` as `Instant`, a value
+/// only Rust makes, which C holds as its bytes and compares.
 const FOREIGN: [(&str, &str, &str); 3] = [
 	("url", "Url", "Url"),
 	("serde_json", "Value", "Json"),
@@ -58,8 +58,9 @@ pub const NOT_INFERRED: &str = "instance not inferred";
 
 /// What C can never hold: left out and listed in the census rather than refused, since
 /// exporting it would need constructors or returns the crate has no use for.
-const UNHELD: [&str; 3] = [
+const UNHELD: [&str; 4] = [
 	"object no export returns",
+	"value no export returns",
 	"generic type no export instantiates",
 	"type C never holds",
 ];
@@ -123,6 +124,8 @@ pub struct Report {
 #[derive(Clone)]
 enum Decl {
 	Record(usize),
+	/// A `Copy` type C cannot see inside: a record of its bytes, numbered among records.
+	Value(usize),
 	Enum(usize),
 	Object(usize),
 	Callback(usize),
@@ -788,6 +791,12 @@ impl<'tcx> Collector<'tcx> {
 			.any(|&(k, n, _)| k == krate.as_str() && n == name.as_str())
 	}
 
+	/// Whether the foreign type `did` is a value C holds as its bytes, as a `Copy` one is.
+	fn foreign_value(&self, did: DefId) -> bool {
+		let tcx = self.tcx;
+		!self.opaque(did) && implements(tcx, tcx.type_of(did).instantiate_identity().skip_norm_wip(), did, sym::Copy)
+	}
+
 	/// Each type a signature the export maps names, bounds included, at every choice
 	/// [`Self::instantiate`] takes while inferring: each function's, constant's, and trait
 	/// method's, and each type's `pub` fields and the inherent methods and constants that
@@ -1221,6 +1230,7 @@ impl<'tcx> Collector<'tcx> {
 							tuple: false,
 							methods: Vec::new(),
 							traits: Traits::default(),
+							opaque: None,
 						});
 					}
 					Decl::Enum(i) => {
@@ -1240,11 +1250,30 @@ impl<'tcx> Collector<'tcx> {
 							foreign: false,
 						});
 					}
+					Decl::Value(i) => {
+						*i = api.records.len();
+						let ty = tcx.type_of(def_id).instantiate(tcx, site.args).skip_norm_wip();
+						let lifetimes = tcx.generics_of(def_id).own_counts().lifetimes;
+						let opaque = opaque(tcx, ty, lifetimes, false);
+						api.records.push(Record {
+							path,
+							home: home.clone(),
+							shown,
+							args: Vec::new(),
+							span,
+							on: On::ALL,
+							docs,
+							fields: Vec::new(),
+							tuple: false,
+							methods: Vec::new(),
+							traits: Traits::default(),
+							opaque: Some(opaque),
+						});
+					}
 					Decl::Object(i) => {
 						*i = api.objects.len();
 						let ty = tcx.type_of(def_id).instantiate(tcx, site.args).skip_norm_wip();
 						let sync = implements(tcx, ty, def_id, sym::Sync);
-						let copy = implements(tcx, ty, def_id, sym::Copy);
 						let lifetimes = tcx.generics_of(def_id).own_counts().lifetimes;
 						api.objects.push(Object {
 							path,
@@ -1255,7 +1284,6 @@ impl<'tcx> Collector<'tcx> {
 							on: On::ALL,
 							docs,
 							sync,
-							copy,
 							shared: false,
 							lifetimes,
 							methods: Vec::new(),
@@ -1281,11 +1309,35 @@ impl<'tcx> Collector<'tcx> {
 		}
 		// After every declared object, so `prune` can drop each that no export names. Until
 		// here, each maps only to decide what does, never to an index kept.
+		// A foreign value goes after every declared record, for the same reason.
 		for n in 0..self.foreign.len() {
-			let index = self.api.objects.len();
-			self.foreign[n].1 = index;
-			let object = self.foreign_object(self.foreign[n].0, index);
-			self.api.objects.push(object);
+			let def_id = self.foreign[n].0;
+			let object = self.foreign_object(def_id, self.api.objects.len());
+			match self.foreign_value(def_id) {
+				true => {
+					self.foreign[n].1 = self.api.records.len();
+					let ty = tcx.type_of(def_id).instantiate_identity().skip_norm_wip();
+					let opaque = opaque(tcx, ty, 0, true);
+					self.api.records.push(Record {
+						path: object.path,
+						home: object.home,
+						shown: object.shown,
+						args: object.args,
+						span: object.span,
+						on: object.on,
+						docs: object.docs,
+						fields: Vec::new(),
+						tuple: false,
+						methods: object.methods,
+						traits: object.traits,
+						opaque: Some(opaque),
+					});
+				}
+				false => {
+					self.foreign[n].1 = self.api.objects.len();
+					self.api.objects.push(object);
+				}
+			}
 		}
 		// After every declared enum, so `prune` can drop it if no export names it.
 		if let Some(level) = &mut self.level {
@@ -1353,7 +1405,6 @@ impl<'tcx> Collector<'tcx> {
 					tcx.def_path_str(def_id)
 				),
 				sync: true,
-				copy: false,
 				shared: true,
 				lifetimes: 0,
 				methods: Vec::new(),
@@ -1474,7 +1525,6 @@ impl<'tcx> Collector<'tcx> {
 			on: On::ALL,
 			docs: docs.to_string(),
 			sync: true,
-			copy: implements(tcx, self_ty, def_id, sym::Copy),
 			shared: traits.clone && self.clone_shares(self_ty, def_id),
 			lifetimes: 0,
 			methods,
@@ -1560,15 +1610,22 @@ impl<'tcx> Collector<'tcx> {
 		}
 	}
 
-	/// An object, if the type can move across threads. Shared borrows of one that is not
-	/// `Sync` are exclusive.
+	/// An object, if the type can move across threads, or if it is also `Copy`, a value C
+	/// holds as its bytes. Shared borrows of an object that is not `Sync` are exclusive.
 	fn object(&self, site: &Site<'tcx>) -> Decl {
+		let (tcx, ty, def_id) = (self.tcx, self.site_ty(site), site.key.def_id);
+		let copy = implements(tcx, ty, def_id, sym::Copy);
 		if self.orphans.contains(&site.key) {
-			return Decl::Refused(why("object no export returns", ""));
+			let construct = match copy {
+				true => "value no export returns",
+				false => "object no export returns",
+			};
+			return Decl::Refused(why(construct, ""));
 		}
-		match implements(self.tcx, self.site_ty(site), site.key.def_id, sym::Send) {
-			true => Decl::Object(0),
-			false => Decl::Refused(why("object not Send", "")),
+		match (implements(tcx, ty, def_id, sym::Send), copy) {
+			(true, true) => Decl::Value(0),
+			(true, false) => Decl::Object(0),
+			(false, _) => Decl::Refused(why("object not Send", "")),
 		}
 	}
 
@@ -1587,7 +1644,8 @@ impl<'tcx> Collector<'tcx> {
 				defaults.push(ty);
 			}
 		}
-		let mut held = vec![false; api.objects.len()];
+		// Each object and opaque value C can hold, which only Rust makes.
+		let mut held: std::collections::HashSet<Type> = std::collections::HashSet::new();
 		loop {
 			let mut reached = Vec::new();
 			for ty in &defaults {
@@ -1611,18 +1669,17 @@ impl<'tcx> Collector<'tcx> {
 					}
 				}
 			}
-			reached.retain(|&i| !held[i]);
+			reached.retain(|ty| !held.contains(ty));
 			if reached.is_empty() {
 				break;
 			}
-			for i in reached {
-				held[i] = true;
-			}
+			held.extend(reached);
 		}
 		self.decls
 			.iter()
 			.filter_map(|(&key, decl)| match decl {
-				Decl::Object(i) if !held[*i] => Some(key),
+				Decl::Object(i) if !held.contains(&Type::Object(*i)) => Some(key),
+				Decl::Value(i) if !held.contains(&Type::Record(*i)) => Some(key),
 				_ => None,
 			})
 			.collect()
@@ -1819,10 +1876,21 @@ impl<'tcx> Collector<'tcx> {
 						e.methods = methods;
 						e.traits = traits;
 					}
+					Some(Decl::Value(index)) => {
+						let (mut methods, traits) = self.methods(&site);
+						if kind == DefKind::Struct {
+							methods.splice(0..0, self.accessors(&site, false));
+						}
+						let methods = self.unmutated(methods);
+						let record = &mut self.api.records[index];
+						record.args = args;
+						record.methods = methods;
+						record.traits = traits;
+					}
 					Some(Decl::Object(index)) => {
 						let (mut methods, traits) = self.methods(&site);
 						if kind == DefKind::Struct {
-							methods.splice(0..0, self.accessors(&site));
+							methods.splice(0..0, self.accessors(&site, true));
 						}
 						let shared = traits.clone && self.clone_shares(self.site_ty(&site), def_id);
 						let object = &mut self.api.objects[index];
@@ -1868,8 +1936,12 @@ impl<'tcx> Collector<'tcx> {
 		}
 		for n in (0..self.foreign.len()).rev() {
 			let gone = self.foreign[n].1;
+			let value = self.foreign_value(self.foreign[n].0);
 			let api = &self.api;
-			let object = Type::Object(gone);
+			let object = match value {
+				true => Type::Record(gone),
+				false => Type::Object(gone),
+			};
 			let signature = |f: &Function| {
 				(f.params.iter().map(|p| &p.ty))
 					.chain([&f.ok])
@@ -1880,20 +1952,27 @@ impl<'tcx> Collector<'tcx> {
 			let fields = |fields: &[Field]| fields.iter().any(|f| names(&f.ty, &object));
 			let args = |args: &[Type]| args.iter().any(|ty| names(ty, &object));
 			let used = api.functions.iter().any(signature)
-				|| (api.records.iter()).any(|r| args(&r.args) || fields(&r.fields) || r.methods.iter().any(signature))
-				|| (api.enums.iter()).any(|e| {
-					args(&e.args) || e.variants.iter().any(|v| fields(&v.fields)) || e.methods.iter().any(signature)
-				})
-				|| (api.objects.iter().enumerate())
-					.any(|(i, o)| i != gone && (args(&o.args) || o.methods.iter().any(signature)))
+				|| (api.records.iter().enumerate()).any(|(i, r)| {
+					(!value || i != gone) && (args(&r.args) || fields(&r.fields) || r.methods.iter().any(signature))
+				}) || (api.enums.iter()).any(|e| {
+				args(&e.args) || e.variants.iter().any(|v| fields(&v.fields)) || e.methods.iter().any(signature)
+			}) || (api.objects.iter().enumerate())
+				.any(|(i, o)| (value || i != gone) && (args(&o.args) || o.methods.iter().any(signature)))
 				|| (api.callbacks.iter()).any(|c| c.methods.iter().any(signature));
 			if used {
 				continue;
 			}
-			self.api.objects.remove(gone);
+			// A foreign value is among the last records, as an object among the last objects.
+			match value {
+				true => drop(self.api.records.remove(gone)),
+				false => drop(self.api.objects.remove(gone)),
+			}
 			self.foreign.remove(n);
-			for later in &mut self.foreign[n..] {
-				later.1 -= 1;
+			let values: Vec<bool> = (self.foreign[n..].iter()).map(|&(did, _)| self.foreign_value(did)).collect();
+			for (later, later_value) in self.foreign[n..].iter_mut().zip(values) {
+				if later_value == value {
+					later.1 -= 1;
+				}
 			}
 			let api = &mut self.api;
 			let functions = (api.functions.iter_mut())
@@ -1907,12 +1986,12 @@ impl<'tcx> Collector<'tcx> {
 					.chain([&mut f.ok])
 					.chain(&mut f.err)
 					.chain(instance)
-					.for_each(|ty| renumber(ty, gone));
+					.for_each(|ty| renumber(ty, gone, value));
 			}
 			for r in &mut api.records {
 				(r.args.iter_mut())
 					.chain(r.fields.iter_mut().map(|f| &mut f.ty))
-					.for_each(|ty| renumber(ty, gone));
+					.for_each(|ty| renumber(ty, gone, value));
 			}
 			for e in &mut api.enums {
 				(e.args.iter_mut())
@@ -1921,17 +2000,18 @@ impl<'tcx> Collector<'tcx> {
 							.iter_mut()
 							.flat_map(|v| v.fields.iter_mut().map(|f| &mut f.ty)),
 					)
-					.for_each(|ty| renumber(ty, gone));
+					.for_each(|ty| renumber(ty, gone, value));
 			}
 			for o in &mut api.objects {
-				o.args.iter_mut().for_each(|ty| renumber(ty, gone));
+				o.args.iter_mut().for_each(|ty| renumber(ty, gone, value));
 			}
 		}
 	}
 
-	/// A getter and a setter for each `pub` field of a struct exported as an object: the
-	/// getter returns a copy, and the setter assigns in place, as `x.field = value` does.
-	fn accessors(&mut self, site: &Site<'tcx>) -> Vec<Function> {
+	/// A getter for each `pub` field of a struct exported as an object or opaque value, and
+	/// for an object, with `setters`, a setter: the getter returns a copy, and the setter
+	/// assigns in place, as `x.field = value` does, which C's copy of a value cannot.
+	fn accessors(&mut self, site: &Site<'tcx>, setters: bool) -> Vec<Function> {
 		let tcx = self.tcx;
 		let mut accessors = Vec::new();
 		let self_ty = self.site_ty(site);
@@ -1972,6 +2052,7 @@ impl<'tcx> Collector<'tcx> {
 				// A handle outlives every call, so a reference it holds is `'static`, which
 				// C's borrow for the call is not.
 				let set = match self.ty(ty, Pos::Param) {
+					_ if !setters => Ok(Type::Unit),
 					Ok(set) if matches!(set, Type::Ref(..)) || lends_inside(&set) => {
 						Err(why("'static borrow", ty.to_string()))
 					}
@@ -2015,6 +2096,9 @@ impl<'tcx> Collector<'tcx> {
 						home: Home::default(),
 					};
 					accessors.push(accessor(Receiver::Ref, Vec::new(), get, false));
+					if !setters {
+						continue;
+					}
 					let value = Param {
 						name: "value".to_string(),
 						ty: set,
@@ -3217,7 +3301,7 @@ impl<'tcx> Collector<'tcx> {
 							true => self.instances.iter().any(|site| site.key == key),
 							false => matches!(
 								self.decls.get(&key),
-								Some(Decl::Record(_) | Decl::Enum(_) | Decl::Object(_))
+								Some(Decl::Record(_) | Decl::Value(_) | Decl::Enum(_) | Decl::Object(_))
 							),
 						}
 					});
@@ -3267,7 +3351,7 @@ impl<'tcx> Collector<'tcx> {
 							true => self.instances.iter().any(|site| site.key == key),
 							false => matches!(
 								self.decls.get(&key),
-								Some(Decl::Record(_) | Decl::Enum(_) | Decl::Object(_))
+								Some(Decl::Record(_) | Decl::Value(_) | Decl::Enum(_) | Decl::Object(_))
 							),
 						}
 					});
@@ -3342,10 +3426,16 @@ impl<'tcx> Collector<'tcx> {
 		let sig = tcx.fn_sig(def_id).instantiate(tcx, tcx.mk_args(base)).skip_norm_wip();
 		// An `async fn`'s future, or a returned `impl Trait`, captures it.
 		kept |= sig.skip_binder().output().walk().any(|arg| arg == param.into());
-		// A `Copy` object, which C lends as its handle and hands back as a new one.
-		let env = TypingEnv::post_analysis(tcx, def_id);
-		let copied =
-			|ty: Ty<'tcx>, mapped: &Type| matches!(mapped, Type::Object(_)) && tcx.type_is_copy_modulo_regions(env, ty);
+		// An opaque value, or a reference to one, which C copies.
+		let copied = |ty: Ty<'tcx>, mapped: &Type| {
+			let base = match mapped {
+				Type::Ref(Mutability::Not, inner) => &**inner,
+				mapped => mapped,
+			};
+			matches!(base, Type::Record(_))
+				&& matches!(ty.peel_refs().kind(), ty::Adt(adt, args)
+					if matches!(self.decl(adt.did(), args), Some(Decl::Value(_))) || self.foreign_value(adt.did()))
+		};
 		// Each parameter makes its own closure, which one type parameter cannot name twice.
 		if sig
 			.skip_binder()
@@ -3373,8 +3463,7 @@ impl<'tcx> Collector<'tcx> {
 			}
 			match self.ty(input, Pos::Param) {
 				// An object is lent as a handle for the call, but an opaque one, whose
-				// handle holds no `Arc` to lend; so is a `Copy` one taken by value, which C
-				// copies to keep.
+				// handle holds no `Arc` to lend; an opaque value is copied, which C keeps.
 				Ok(ty)
 					if foreign_arg(&ty)
 						|| matches!(&ty, Type::Ref(_, inner) if matches!(**inner, Type::Object(_)))
@@ -3397,7 +3486,7 @@ impl<'tcx> Collector<'tcx> {
 			}
 			_ => (ret, None),
 		};
-		// What C hands Rust: a value, a `String`, or a `Copy` object or an `Option` of one.
+		// What C hands Rust: a scalar, a `String`, or an opaque value or an `Option` of one.
 		let ok = match self.ty(ok, Pos::Return) {
 			Ok(mapped)
 				if foreign_return(&mapped)
@@ -4358,8 +4447,9 @@ impl<'tcx> Collector<'tcx> {
 				{
 					Type::SocketAddr(family)
 				} else if let Some(&(_, i)) = (self.foreign.iter()).find(|&&(ty, _)| ty == did && !self.opaque(did)) {
-					// A value holds only values, and handles it can copy.
+					// A value holds only values.
 					match pos {
+						_ if self.foreign_value(did) => Type::Record(i),
 						Pos::Field => return Err(why("object in a value", tcx.def_path_str(did))),
 						_ => Type::Object(i),
 					}
@@ -4442,10 +4532,10 @@ impl<'tcx> Collector<'tcx> {
 						None => tcx.def_path_str(did),
 					};
 					match self.decls.get(&key) {
-						Some(Decl::Record(i)) => Type::Record(*i),
+						Some(Decl::Record(i) | Decl::Value(i)) => Type::Record(*i),
 						Some(Decl::Enum(i)) => Type::Enum(*i),
-						// A value holds only values, and handles it can copy.
-						Some(Decl::Object(_)) if pos == Pos::Field && !implements(tcx, ty, did, sym::Copy) => {
+						// A value holds only values.
+						Some(Decl::Object(_)) if pos == Pos::Field => {
 							return Err(why("object in a value", name));
 						}
 						Some(Decl::Object(i)) => Type::Object(*i),
@@ -4570,9 +4660,10 @@ fn foreign_arg(ty: &Type) -> bool {
 }
 
 /// Whether C can make a `ty` to pass, holding handles only to the objects in `held`.
-fn buildable(api: &Api, ty: &Type, held: &[bool]) -> bool {
+fn buildable(api: &Api, ty: &Type, held: &std::collections::HashSet<Type>) -> bool {
 	match ty {
-		Type::Object(i) => held[*i],
+		Type::Object(_) => held.contains(ty),
+		Type::Record(i) if api.records[*i].opaque.is_some() => held.contains(ty),
 		Type::Ref(_, inner) | Type::Box(inner) => buildable(api, inner, held),
 		Type::Record(i) => api.records[*i].fields.iter().all(|f| buildable(api, &f.ty, held)),
 		Type::Tuple(elements) => elements.iter().all(|ty| buildable(api, ty, held)),
@@ -4584,10 +4675,11 @@ fn buildable(api: &Api, ty: &Type, held: &[bool]) -> bool {
 	}
 }
 
-/// The objects a returned `ty` may hand C a handle to.
-fn returns(api: &Api, ty: &Type, objects: &mut Vec<usize>) {
+/// The objects a returned `ty` may hand C a handle to, and the opaque values it may hand C.
+fn returns(api: &Api, ty: &Type, objects: &mut Vec<Type>) {
 	match ty {
-		Type::Object(i) => objects.push(*i),
+		Type::Object(_) => objects.push(ty.clone()),
+		Type::Record(i) if api.records[*i].opaque.is_some() => objects.push(ty.clone()),
 		Type::Ref(_, inner) | Type::Box(inner) | Type::Option(inner) | Type::List(_, inner) => {
 			returns(api, inner, objects)
 		}
@@ -4612,18 +4704,21 @@ fn serde(tcx: TyCtxt<'_>, tr: DefId) -> bool {
 		)
 }
 
-/// Renumber each object after `gone`, which is dropped, in `ty`.
-fn renumber(ty: &mut Type, gone: usize) {
+/// Renumber each object after `gone`, which is dropped, in `ty`, or with `value`, each record.
+fn renumber(ty: &mut Type, gone: usize, value: bool) {
 	match ty {
-		Type::Object(o) if *o > gone => *o -= 1,
-		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => renumber(inner, gone),
-		Type::Tuple(elements) => elements.iter_mut().for_each(|ty| renumber(ty, gone)),
+		Type::Object(o) if !value && *o > gone => *o -= 1,
+		Type::Record(r) if value && *r > gone => *r -= 1,
+		Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) | Type::List(_, inner) => {
+			renumber(inner, gone, value)
+		}
+		Type::Tuple(elements) => elements.iter_mut().for_each(|ty| renumber(ty, gone, value)),
 		Type::Closure(closure) => (closure
 			.params
 			.iter_mut()
 			.chain([&mut closure.ok])
 			.chain(&mut closure.err))
-		.for_each(|ty| renumber(ty, gone)),
+		.for_each(|ty| renumber(ty, gone, value)),
 		_ => {}
 	}
 }
@@ -4830,6 +4925,67 @@ fn marker(tcx: TyCtxt<'_>, tr: DefId) -> bool {
 			tcx.lang_items().unpin_trait(),
 		]
 		.contains(&Some(tr))
+}
+
+/// How C holds the `Copy` type `ty`, with `lifetimes` lifetime parameters, as its bytes.
+fn opaque<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, lifetimes: usize, foreign: bool) -> crate::ir::Opaque {
+	let env = TypingEnv::fully_monomorphized();
+	let ty = tcx.erase_and_anonymize_regions(ty);
+	// A type that has a layout on its target, as every exported `Copy` type does.
+	let layout = |ty: Ty<'tcx>| tcx.layout_of(env.as_query_input(ty)).ok().map(|l| l.layout);
+	let own = layout(ty).expect("an exported type has a layout");
+	let eq = (tcx.get_diagnostic_item(sym::PartialEq))
+		.and_then(|tr| (tcx.associated_item_def_ids(tr).iter().copied()).find(|&f| tcx.item_name(f) == sym::eq));
+	// Whether every byte of `ty` belongs to an integer, `bool`, or `char` in it, and its
+	// `PartialEq`, if any, is derived or std's, so equal values have equal bytes.
+	fn dense<'tcx>(tcx: TyCtxt<'tcx>, env: TypingEnv<'tcx>, eq: Option<DefId>, ty: Ty<'tcx>) -> bool {
+		match ty.kind() {
+			ty::Int(_) | ty::Uint(_) | ty::Bool | ty::Char => true,
+			ty::Pat(base, _) => dense(tcx, env, eq, *base),
+			ty::Array(element, _) => dense(tcx, env, eq, *element),
+			ty::Adt(adt, args) if adt.is_struct() => {
+				let std = matches!(tcx.crate_name(adt.did().krate).as_str(), "core" | "alloc" | "std");
+				let derived = || {
+					let Some(eq) = eq else { return true };
+					match ty::Instance::try_resolve(tcx, env, eq, tcx.mk_args(&[ty.into(), ty.into()])) {
+						Ok(Some(instance)) => {
+							(tcx.impl_of_assoc(instance.def_id())).is_none_or(|imp| tcx.is_automatically_derived(imp))
+						}
+						_ => true,
+					}
+				};
+				if !std && !derived() {
+					return false;
+				}
+				let Ok(own) = tcx.layout_of(env.as_query_input(ty)) else {
+					return false;
+				};
+				let mut covered = 0;
+				for field in adt.all_fields() {
+					let Ok(field) = tcx.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(field.ty(tcx, args).skip_norm_wip()))
+					else {
+						return false;
+					};
+					let Ok(layout) = tcx.layout_of(env.as_query_input(field)) else {
+						return false;
+					};
+					if !dense(tcx, env, eq, field) {
+						return false;
+					}
+					covered += layout.size.bytes();
+				}
+				covered == own.size.bytes()
+			}
+			_ => false,
+		}
+	}
+	crate::ir::Opaque {
+		size: own.size().bytes(),
+		align: own.align().abi.bytes(),
+		dense: dense(tcx, env, eq, ty),
+		lifetimes,
+		foreign,
+	}
 }
 
 /// Whether `ty`, the type `def_id` at some arguments, implements the std trait `item`.

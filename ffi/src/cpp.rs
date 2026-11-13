@@ -8,7 +8,8 @@
 //! member or as anything in the namespace, which it would hide. An object is a class owning
 //! its handle through a `std::unique_ptr`, so it moves, or where `Clone` makes a value no
 //! call tells apart but by an `Arc`'s or `Rc`'s count, a `std::shared_ptr` its copies
-//! share; a record a struct; an enum an
+//! share; a record a struct, and a `Copy` type with private fields a class over its C
+//! struct's bytes, which only Rust makes or reads; an enum an
 //! `enum class`, or for one with data a `std::variant` of a struct per variant, with its
 //! methods free functions; a closure, a future, or a reader C++ implements a template
 //! parameter. The runtime they share, [`runtime/rt.hpp`](../runtime/rt.hpp), holds the
@@ -164,7 +165,6 @@ impl<'a> Header<'a> {
 					};
 					format!("{constant}{} *", self.owned(object))
 				}
-				Type::Object(i) if abi.api.objects[*i].copy => format!("const {} *", self.owned(inner)),
 				// Moved out of, as a handle taken by value is.
 				_ if moves(abi, inner) => format!("::std::optional<{}>", self.held(inner)),
 				_ => format!("const ::std::optional<{}> &", self.held(inner)),
@@ -175,7 +175,6 @@ impl<'a> Header<'a> {
 				crate::ir::Mutability::Mut => format!("{} &", self.owned(inner)),
 			},
 			Type::Ref(_, inner) | Type::Box(inner) => self.param(inner),
-			Type::Object(i) if abi.api.objects[*i].copy => format!("const {} &", self.owned(ty)),
 			Type::Record(_) | Type::Array(_) | Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => {
 				format!("const {} &", self.owned(ty))
 			}
@@ -290,8 +289,7 @@ impl<'a> Header<'a> {
 				true => format!("static_cast<::{}>({e})", abi.enumeration(*i)),
 				false => format!("{d}::lower({e})"),
 			},
-			// A `Copy` value is copied out, and any other moved out.
-			Type::Object(i) if abi.api.objects[*i].copy => format!("{d}::access::raw({e})"),
+			// Moved out.
 			Type::Object(_) => format!("{d}::access::own({e})"),
 			Type::Callback(..) => format!("{d}::lower(::std::move({e}))"),
 			Type::Closure(..) | Type::Future | Type::Reader => {
@@ -876,11 +874,27 @@ impl<'a> Header<'a> {
 				while body.last().is_some_and(String::is_empty) {
 					body.pop();
 				}
-				self.line(format!(
-					"{}struct {name} {{\n{}\n}};\n",
-					docs(&record.docs, ""),
-					body.join("\n")
-				));
+				match record.opaque {
+					// Its bytes, which only Rust makes or reads: C++ copies them, but makes
+					// none, as it has no public constructor.
+					Some(_) => {
+						let text = format!(
+							"{}\n\nIts bytes, which only Rust makes or reads: copy it, but never make one.",
+							record.docs
+						);
+						self.line(format!(
+							"{}class {name} {{\npublic:\n{}\n\nprivate:\n\tfriend struct {d}::access;\n\n\texplicit {name}(const ::{c} &c) noexcept : c_(c) {{}}\n\n\t::{c} c_;\n}};\n",
+							docs(text.trim(), ""),
+							body.join("\n"),
+							d = self.d()
+						));
+					}
+					None => self.line(format!(
+						"{}struct {name} {{\n{}\n}};\n",
+						docs(&record.docs, ""),
+						body.join("\n")
+					)),
+				}
 			}
 			Type::Enum(i) => {
 				let e = &abi.api.enums[*i];
@@ -974,6 +988,16 @@ impl<'a> Header<'a> {
 		for (i, record) in api.records.iter().enumerate() {
 			let c = abi.record(i);
 			let name = self.name(&c);
+			if record.opaque.is_some() {
+				let d = self.d();
+				self.line(format!(
+					"inline ::{c} lower(const ::{ns}::{name} &v) {{\n\treturn {d}::access::bits(v);\n}}\n"
+				));
+				self.line(format!(
+					"inline ::{ns}::{name} lift(const ::{c} &c) {{\n\treturn {d}::access::make<::{ns}::{name}>(c);\n}}\n"
+				));
+				continue;
+			}
 			let lowered: Vec<String> = record
 				.fields
 				.iter()
@@ -1125,7 +1149,7 @@ impl<'a> Header<'a> {
 			let (_, ty) = c_params.next().expect("a method has its receiver");
 			match (ty, free) {
 				// Moved out of, as a handle taken by value is.
-				(Ty::Handle { name, .. }, _) if receiver == Some(Receiver::Owned) && !copy(abi, name) => {
+				(Ty::Handle { .. }, _) if receiver == Some(Receiver::Owned) => {
 					args.push("raw_.own()".to_string())
 				}
 				(Ty::Handle { .. }, _) => args.push("raw_.get()".to_string()),
@@ -1257,7 +1281,7 @@ impl<'a> Header<'a> {
 			(Some(Receiver::Ref), _) => " const".to_string(),
 			(Some(Receiver::Mut), _) => String::new(),
 			(Some(Receiver::Owned), _) => match owner {
-				Some(Ty::Handle { name, .. }) if !copy(abi, name) => " &&".to_string(),
+				Some(Ty::Handle { .. }) => " &&".to_string(),
 				_ => " const".to_string(),
 			},
 		};
@@ -1368,7 +1392,6 @@ impl<'a> Header<'a> {
 						Type::Ref(crate::ir::Mutability::Mut, _) => {
 							format!("::{}::borrow<{}>(l{k}_.get())", self.ns, self.owned(object))
 						}
-						// A `Copy` object Rust copied for the call, which its class reads in place.
 						_ => format!("::std::as_const(l{k}_.get())"),
 					});
 				}
@@ -1403,18 +1426,13 @@ impl<'a> Header<'a> {
 	}
 
 	/// The C value a closure returns Rust of the C++ value `e` of type `ty`, which Rust then
-	/// owns: bytes as a buffer `<prefix>_buf_copy` made, and a `Copy` object as a new handle to
-	/// a copy, made without its `Clone`. `e` is named, so it may be read more than once.
+	/// owns: bytes as a buffer `<prefix>_buf_copy` made. `e` is named, so it may be read more
+	/// than once.
 	fn returned(&self, ty: &Type, e: &str) -> String {
-		let abi = self.abi;
 		let d = self.d();
 		match ty {
 			ty if Abi::is_buf(ty) => format!("{d}::copy_bytes({e})"),
 			Type::Option(inner) if Abi::is_buf(inner) => format!("({e} ? {d}::copy_bytes(*{e}) : {d}::none())"),
-			Type::Option(inner) if matches!(**inner, Type::Object(_)) => {
-				format!("({e} ? {} : nullptr)", self.returned(inner, &format!("(*{e})")))
-			}
-			Type::Object(i) => format!("::{}_copy({d}::access::raw({e}))", abi.object(*i)),
 			ty => self.lower(ty, e),
 		}
 	}
@@ -1536,16 +1554,11 @@ fn record(abi: &Abi<'_>, c: &str) -> Type {
 /// taken by value is.
 fn moves(abi: &Abi<'_>, ty: &Type) -> bool {
 	match ty {
-		Type::Object(i) => !abi.api.objects[*i].copy,
+		Type::Object(_) => true,
 		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moves(abi, inner),
 		Type::Tuple(elements) => elements.iter().any(|e| moves(abi, e)),
 		_ => false,
 	}
-}
-
-/// Whether the object named `c` in C is `Copy`.
-fn copy(abi: &Abi<'_>, c: &str) -> bool {
-	(0..abi.api.objects.len()).any(|i| abi.api.objects[i].copy && abi.object(i) == c)
 }
 
 /// `ty` returned: a borrow is returned as a clone, so owned.

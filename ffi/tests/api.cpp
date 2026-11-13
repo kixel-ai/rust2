@@ -502,25 +502,34 @@ int script() {
 		print("", api::describe(event), "\n");
 	}
 
-	// A `Copy` handle passed by value is copied, so it stays usable.
+	// A `Copy` value passed by value is copied, so it stays usable.
 	{
 		api::Stamp stamp = api::Stamp::from_millis(2500);
 		std::printf("secs %llu\n", ull(stamp.secs()));
 		std::printf("later %s\n", yes(api::Stamp::from_millis(3000).later(stamp)));
 		std::printf("secs %llu\n", ull(stamp.secs()));
-		api::Message message = api::Message::new_(&stamp, "body");
+		api::Message message = api::Message::new_(stamp, "body");
 		print("payload ", message.payload_get(), "\n");
 		print("stamp ", message.stamp_get()->debug(), "\n");
 		std::printf("sent %s\n", yes(message.sent()));
-		// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
+		// Setters assign in place: the bytes are copied in, and a `Copy` value copied.
 		api::Stamp reset = api::Stamp::from_millis(4000);
-		message.stamp_set(&reset);
+		message.stamp_set(reset);
 		message.payload_set("edited");
 		print("payload ", message.payload_get(), "\n");
 		print("stamp ", message.stamp_get()->debug(), "\n");
 		std::printf("secs %llu\n", ull(reset.secs()));
-		message.stamp_set(nullptr);
+		message.stamp_set(std::nullopt);
 		std::printf("stamp %s\n", yes(message.stamp_get().has_value()));
+	}
+
+	// A value past a word, copied across: a closure takes and returns one by value.
+	{
+		api::Moment moment = *api::Moment::new_(1500, 1000);
+		std::printf("moment %llu %s\n", ull(moment.millis()), yes(!api::Moment::new_(1, 0).has_value()));
+		api::Moment shifted = api::shifted(moment, [](const api::Moment &m) { return m.after(500); });
+		std::printf("shifted %llu %s\n", ull(shifted.millis()), yes(shifted == moment.after(500)));
+		std::printf("wrapped %llu %s\n", ull(moment.after(UINT64_MAX).millis()), yes(moment == shifted));
 	}
 
 	std::uint8_t levels[] = {1, 2, 3, 4};
@@ -1044,15 +1053,13 @@ int script() {
 
 	// Closures C++ implements that return what Rust then owns, or that Rust keeps.
 	print("made ", api::made(3, [](std::uint32_t n) { return std::to_string(n) + " times"; }), "\n");
-	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
+	// A closure taking and returning `Copy` values copies them, never running their `Clone`.
 	{
 		api::Ticket kept = api::Ticket::new_(9);
 		std::uint32_t given =
 			api::reissue(api::Ticket::new_(7), [](const api::Ticket &t) { return api::Ticket::new_(t.number() + 1); })
 				.number();
-		std::uint32_t held = api::reissue(api::Ticket::new_(7), [&kept](const api::Ticket &) {
-			return std::move(kept);
-		}).number();
+		std::uint32_t held = api::reissue(api::Ticket::new_(7), [&kept](const api::Ticket &) { return kept; }).number();
 		std::printf("reissued %u %u, cloned %u\n", static_cast<unsigned>(given), static_cast<unsigned>(held),
 			static_cast<unsigned>(api::Ticket::clones()));
 	}
