@@ -117,7 +117,9 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		/// The index of the library's target among those this file serves.\n\
 		final int _target = _{p}_target();\n\n\
 		/// Throws unless the library's target is among those of [on], as the item [what] is.\n\
-		void _on(int on, String what) {{\n\tif ((on >>> _target) & 1 == 0) {{\n\t\tthrow UnsupportedError(\"$what: it is not on this library's target\");\n\t}}\n}}\n\n"
+		void _on(int on, String what) {{\n\tif ((on >>> _target) & 1 == 0) {{\n\t\tthrow UnsupportedError(\"$what: it is not on this library's target\");\n\t}}\n}}\n\n\
+		/// Throws unless [status], which the call [what] wrote, is zero: a run-time check failed.\n\
+		void _status(int status, String what) {{\n\tif (status == 0) return;\n\tfinal m = _statusMessage(status);\n\tvar n = 0;\n\twhile (m[n] != 0) n++;\n\tthrow StateError('$what: ${{const convert.Utf8Decoder().convert(m.asTypedList(n))}}');\n}}\n\n"
 	);
 	for (name, params, ret, dart_params, dart_ret) in [
 		("contract", "", "ffi.Uint64", "", "int"),
@@ -210,6 +212,13 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		),
 		("dart_abort", "_Buf", "ffi.Void", "_Buf p0", "void"),
 		(
+			"status_message",
+			"ffi.Int32",
+			"ffi.Pointer<ffi.Uint8>",
+			"int p0",
+			"ffi.Pointer<ffi.Uint8>",
+		),
+		(
 			"dart_reader_read",
 			"ffi.Pointer<ffi.Void>, ffi.Pointer<ffi.Uint8>, ffi.Size, ffi.Pointer<ffi.Size>, ffi.Pointer<_Buf>",
 			"ffi.Bool",
@@ -228,6 +237,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 			"contract" | "target" => format!("_{p}_{name}"),
 			"buf_free" => "_bufFree".to_string(),
 			"buf_copy" => "_bufCopy".to_string(),
+			"status_message" => "_statusMessage".to_string(),
 			other => format!("_{}", camel(other)),
 		};
 		let symbol = match name.strip_prefix("dart") {
@@ -558,6 +568,7 @@ impl<'a> Gen<'a> {
 			Ty::F64 => "ffi.Double".to_string(),
 			Ty::Char => "ffi.Uint32".to_string(),
 			Ty::Enum(_) | Ty::Poll => "ffi.Int".to_string(),
+			Ty::Status => "ffi.Int32".to_string(),
 			Ty::Handle { .. } | Ty::Future(_) | Ty::Data => "ffi.Pointer<ffi.Void>".to_string(),
 			Ty::Out(inner) | Ty::In(inner) => format!("ffi.Pointer<{}>", self.nt(inner)),
 			Ty::Fn(params, ret) => {
@@ -579,7 +590,7 @@ impl<'a> Gen<'a> {
 		match ty {
 			Ty::Void => "void".to_string(),
 			Ty::Bool => "bool".to_string(),
-			Ty::Int(_) | Ty::Char | Ty::Enum(_) | Ty::Poll => "int".to_string(),
+			Ty::Int(_) | Ty::Char | Ty::Enum(_) | Ty::Poll | Ty::Status => "int".to_string(),
 			Ty::F32 | Ty::F64 => "double".to_string(),
 			ty => self.nt(ty),
 		}
@@ -1330,38 +1341,65 @@ impl<'a> Gen<'a> {
 			},
 			false => Ty::In(Box::new(c_ty.clone())),
 		};
+		// An object whose run-time checks may fail passes each its status, which throws.
+		let status = matches!(ty, Type::Object(i) if self.abi.traits_status(*i));
+		let params = |args: Vec<Ty>| -> Vec<Ty> {
+			let mut args = args;
+			if status {
+				args.push(Ty::Out(Box::new(Ty::Status)));
+			}
+			args
+		};
+		// The statements calling `f` with `args`, returning what `lift` makes of its result.
+		let call = |f: &str, args: &str, what: &str, lift: &dyn Fn(&str) -> String| -> String {
+			match status {
+				true => format!(
+					"final s_ = a_<ffi.Int32>()..value = 0;\n\t\t\tfinal r_ = {f}(_n.home, {args}, s_);\n\t\t\t_status(s_.value, '{what}');\n\t\t\treturn {};",
+					lift("r_")
+				),
+				false => format!("return {};", lift(&format!("{f}(_n.home, {args})"))),
+			}
+		};
 		if t.display {
 			members.push("toString".to_string());
-			let f = self.served_fn(&format!("{c}_to_string"), vec![recv.clone()], Ty::Buf);
+			let what = format!("{c}_to_string");
+			let f = self.served_fn(&what, params(vec![recv.clone()]), Ty::Buf);
 			let (pre, arg) = this(self, "this");
+			let call = call(&f, &arg, &what, &|r| format!("_n.string({r})"));
 			body.push(format!(
-				"\t@override\n\tString toString() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pre}return _n.string({f}(_n.home, {arg}));\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
+				"\t@override\n\tString toString() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pre}{call}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
 			));
 		}
 		if t.debug {
 			members.push("debug".to_string());
-			let f = self.served_fn(&format!("{c}_debug"), vec![recv.clone()], Ty::Buf);
+			let what = format!("{c}_debug");
+			let f = self.served_fn(&what, params(vec![recv.clone()]), Ty::Buf);
 			let (pre, arg) = this(self, "this");
+			let call = call(&f, &arg, &what, &|r| format!("_n.string({r})"));
 			body.push(format!(
-				"\t/// Rust's `Debug` form.\n\tString debug() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pre}return _n.string({f}(_n.home, {arg}));\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
+				"\t/// Rust's `Debug` form.\n\tString debug() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pre}{call}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
 			));
 		}
 		if object && t.clone {
 			members.push("clone".to_string());
-			let f = self.served_fn(&format!("{c}_clone"), vec![recv.clone()], recv.clone());
+			let what = format!("{c}_clone");
+			let f = self.served_fn(&what, params(vec![recv.clone()]), recv.clone());
+			let call = call(&f, "a_.hold(this)", &what, &|r| format!("{name}._({r})"));
 			body.push(format!(
-				"\t/// A new handle to a clone.\n\t{name} clone() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\treturn {name}._({f}(_n.home, a_.hold(this)));\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
+				"\t/// A new handle to a clone.\n\t{name} clone() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{call}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
 			));
 		}
 		// A Dart enum compares by identity, as a plain Rust enum does, and may not override `==`.
 		let plain = matches!(ty, Type::Enum(i) if self.abi.api.enums[*i].plain());
 		if t.eq && !plain {
 			members.push("hashCode".to_string());
-			let f = self.served_fn(&format!("{c}_eq"), vec![recv.clone(), recv.clone()], Ty::Bool);
+			let what = format!("{c}_eq");
+			let f = self.served_fn(&what, params(vec![recv.clone(), recv.clone()]), Ty::Bool);
 			let (pa, a) = this(self, "this");
 			let (pb, b) = this(self, "other");
+			let call = call(&f, &format!("{a}, {b}"), &what, &|r| r.to_string());
 			body.push(format!(
-				"\t/// Rust's `PartialEq`.\n\t@override\n\tbool operator ==(Object other) {{\n\t\tif (other is! {name}) return false;\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pa}{pb}return {f}(_n.home, {a}, {b});\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n\n\t/// Rust has no `Hash` for it, so it keys no `Set` or `Map`.\n\t@override\n\tint get hashCode => throw UnsupportedError('{name} has no Rust Hash');\n"
+				"\t/// Rust's `PartialEq`.\n\t@override\n\tbool operator ==(Object other) {{\n\t\tif (other is! {name}) return false;\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\t{pa}{pb}{call}\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n\n\t/// Rust has no `Hash` for it, so it keys no `Set` or `Map`.\n\t@override\n\tint get hashCode => throw UnsupportedError('{name} has no Rust Hash');\n"
 			));
 		}
 		if t.default {
@@ -1834,8 +1872,17 @@ impl<'a> Gen<'a> {
 					name: c.clone(),
 					constant: true,
 				};
-				let clone = self.served_fn(&format!("{c}_copy"), vec![handle.clone()], handle);
-				format!("_n.handOver({e}, {clone})")
+				// A closure's return has no caller to throw to, so a failed check aborts.
+				let mut params = vec![handle.clone()];
+				let checked = abi.traits_status(*i);
+				if checked {
+					params.push(Ty::Out(Box::new(Ty::Status)));
+				}
+				let clone = self.served_fn(&format!("{c}_copy"), params, handle);
+				match checked {
+					true => format!("_n.handOver({e}, (h, p) => {clone}(h, p, ffi.nullptr))"),
+					false => format!("_n.handOver({e}, {clone})"),
+				}
 			}
 			Type::Option(inner) if matches!(**inner, Type::Object(_)) => {
 				let given = self.returned(inner, "v");
@@ -2022,7 +2069,13 @@ impl<'a> Gen<'a> {
 				}
 			}
 		}
-		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
+		// A call that fails a run-time check writes its status, which throws once it returns.
+		let status = export.call.status().is_some();
+		let check = format!("_status(s_.value, '{c_name}');");
+		if status {
+			pre.push("final s_ = a_<ffi.Int32>()..value = 0;".to_string());
+		}
 		// A call this target lacks throws before any argument is lowered or given to Rust.
 		if !abi.api.everywhere(self.on) {
 			pre.insert(0, format!("_on(0x{:x}, '{c_name}');", self.on.0 & abi.api.all().0));
@@ -2076,7 +2129,14 @@ impl<'a> Gen<'a> {
 			);
 			body.push("final ffi.Pointer<ffi.Void> f_;".to_string());
 			let mut inner = pre.clone();
-			inner.push(format!("f_ = {call_fn}({});", args.join(", ")));
+			let mut call_args = args.clone();
+			if status {
+				call_args.push("s_".to_string());
+			}
+			inner.push(format!("f_ = {call_fn}({});", call_args.join(", ")));
+			if status {
+				inner.push(check.clone());
+			}
 			inner.extend(after.clone());
 			body.push(format!(
 				"final a_ = _Arena();\ntry {{\n{}\n}} finally {{\n\ta_.end();\n}}",
@@ -2091,10 +2151,19 @@ impl<'a> Gen<'a> {
 			}
 			let mut call_args = args.clone();
 			call_args.extend(outs.iter().map(|(n, _)| format!("o_{n}")));
+			if status {
+				call_args.push("s_".to_string());
+			}
 			let call = format!("{call_fn}({})", call_args.join(", "));
+			let checked = |inner: &mut Vec<String>| {
+				if status {
+					inner.push(check.clone());
+				}
+			};
 			match (&err, &ok) {
 				(Some(err), ok) => {
 					inner.push(format!("final ok_ = {call};"));
+					checked(&mut inner);
 					inner.extend(writes);
 					inner.extend(after.clone());
 					let ready = match ok {
@@ -2111,18 +2180,21 @@ impl<'a> Gen<'a> {
 				}
 				(None, Type::Unit) => {
 					inner.push(format!("{call};"));
+					checked(&mut inner);
 					inner.extend(writes);
 					inner.extend(after.clone());
 				}
 				// A value C returns beside what Rust wrote back is its return, as with none.
 				(None, ok) if outs.len() > writes.len() => {
 					inner.push(format!("{call};"));
+					checked(&mut inner);
 					inner.extend(writes);
 					inner.extend(after.clone());
 					inner.push(format!("return {};", self.lift_outs(&function.ok, ok)));
 				}
 				(None, ok) => {
 					inner.push(format!("final r_ = {call};"));
+					checked(&mut inner);
 					inner.extend(writes);
 					inner.extend(after.clone());
 					inner.push(format!("return {};", self.lift(ok, "r_")));

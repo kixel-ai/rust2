@@ -88,8 +88,12 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		\tstatic func contract() -> Swift.Bool {{\n\t\t{p}_contract() == 0x{contract:016x} && {upper}_CONTRACT == 0x{contract:016x}\n\t}}\n\n\
 		\t/// The index of the library's target among those this file serves.\n\
 		\tstatic let target = Swift.UInt64({p}_target())\n\n\
-		\t/// Traps unless the library's target is among those of `on`, as the item `what` is.\n\
-		\tstatic func on(_ on: Swift.UInt64, _ what: Swift.String) {{\n\t\tif (on >> target) & 1 == 0 {{\n\t\t\tfatalError(\"\\(what): it is not on this library's target\")\n\t\t}}\n\t}}\n\n\
+		\t/// Throws unless the library's target is among those of `on`, as the item `what` is.\n\
+		\tstatic func on(_ on: Swift.UInt64, _ what: Swift.String) throws {{\n\t\tif (on >> target) & 1 == 0 {{\n\t\t\tthrow CheckError(function: what, message: \"it is not on this library's target\")\n\t\t}}\n\t}}\n\n\
+		\t/// Traps unless the library's target is among those of `on`, where nothing can throw.\n\
+		\tstatic func onOrTrap(_ on: Swift.UInt64, _ what: Swift.String) {{\n\t\tif (on >> target) & 1 == 0 {{\n\t\t\tfatalError(\"\\(what): it is not on this library's target\")\n\t\t}}\n\t}}\n\n\
+		\t/// Throws what `status`, written by a call of `what`, says it failed, if anything.\n\
+		\t@inline(__always)\n\tstatic func status(_ status: Swift.Int32, _ what: Swift.StaticString) throws {{\n\t\tif status != 0 {{\n\t\t\tthrow CheckError(function: \"\\(what)\", message: Swift.String(cString: {p}_status_message(status)))\n\t\t}}\n\t}}\n\n\
 		\tstatic func free(_ buf: Buf) {{\n\t\t{p}_buf_free(buf)\n\t}}\n\n\
 		\t/// A buffer Rust owns, holding a copy of what `view` lends.\n\
 		\tstatic func copy(_ view: Buf) -> Buf {{\n\t\t{p}_buf_copy(view)\n\t}}\n\n\
@@ -138,6 +142,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 const TAKEN: &[&str] = &[
 	"Array",
 	"Bool",
+	"CheckError",
 	"Comparable",
 	"CustomDebugStringConvertible",
 	"CustomStringConvertible",
@@ -216,11 +221,22 @@ struct Gen<'a> {
 impl<'a> Gen<'a> {
 	/// The statement that traps unless the library's target is among those of `on`, as the
 	/// item `what` is, then `then`; or `then` alone if it is on every target.
+	/// The check that the library's target is among those of `on`, as the item `what` is,
+	/// which traps, followed by `then`.
 	fn on(&self, on: On, what: &str, then: &str) -> String {
 		let api = self.abi.api;
 		match api.everywhere(on) {
 			true => then.to_string(),
-			false => format!("Native.on({}, \"{what}\"){then}", on.0 & api.all().0),
+			false => format!("Native.onOrTrap({}, \"{what}\"){then}", on.0 & api.all().0),
+		}
+	}
+
+	/// The status a trait function of object `i` takes, if any: none, so a failed check
+	/// aborts, where nothing can throw.
+	fn nil(&self, i: usize) -> &'static str {
+		match self.abi.traits_status(i) {
+			true => ", nil",
+			false => "",
 		}
 	}
 
@@ -737,6 +753,11 @@ impl<'a> Gen<'a> {
 		let name = self.sw(ty);
 		let object = matches!(ty, Type::Object(_));
 		let unique = self.unique(ty);
+		// A failed check aborts with its message, as none of these can throw.
+		let nil = match ty {
+			Type::Object(i) if self.abi.traits_status(*i) => ", nil",
+			_ => "",
+		};
 		// The receiver: a struct's handle, a class's held, or the value lowered.
 		let (open, this, close) = match object {
 			true if unique => (String::new(), "self.handle", ""),
@@ -766,7 +787,7 @@ impl<'a> Gen<'a> {
 			members.push("description".to_string());
 			body.push(format!(
 				"\tpublic var description: Swift.String {{\n\t\t{}\n\t}}\n",
-				text(&open, &format!("{c}_to_string({this})"))
+				text(&open, &format!("{c}_to_string({this}{nil})"))
 			));
 		}
 		if t.debug {
@@ -774,14 +795,14 @@ impl<'a> Gen<'a> {
 			members.push("debugDescription".to_string());
 			body.push(format!(
 				"\t/// Rust's `Debug` form.\n\tpublic var debugDescription: Swift.String {{\n\t\t{}\n\t}}\n",
-				text(&open, &format!("{c}_debug({this})"))
+				text(&open, &format!("{c}_debug({this}{nil})"))
 			));
 		}
 		if object && t.clone {
 			members.push("clone".to_string());
 			let raw = match unique {
-				true => format!("{c}_clone(self.handle)"),
-				false => format!("self.handle.with {{ {c}_clone($0) }}"),
+				true => format!("{c}_clone(self.handle{nil})"),
+				false => format!("self.handle.with {{ {c}_clone($0{nil}) }}"),
 			};
 			body.push(format!(
 				"\t/// A new handle to a clone.\n\tpublic func clone() -> {name} {{\n\t\t{name}(raw: {raw})\n\t}}\n"
@@ -790,8 +811,8 @@ impl<'a> Gen<'a> {
 		if t.eq {
 			protocols.push("Equatable");
 			let compare = match object {
-				true if unique => format!("{c}_eq(a.handle, b.handle)"),
-				true => format!("a.handle.with {{ a_ in b.handle.with {{ b_ in {c}_eq(a_, b_) }} }}"),
+				true if unique => format!("{c}_eq(a.handle, b.handle{nil})"),
+				true => format!("a.handle.with {{ a_ in b.handle.with {{ b_ in {c}_eq(a_, b_{nil}) }} }}"),
 				false => {
 					let arena = match self.arena(ty) {
 						true => "let a_ = Native.Arena()\n\t\tdefer { a_.finish() }\n\t\t",
@@ -1171,7 +1192,7 @@ impl<'a> Gen<'a> {
 
 	/// How the call passes `param`, the C parameter `c`, whose Swift value is `e`, the
 	/// `k`th, which `function` takes.
-	fn arg(&mut self, ty: &Type, c: &Ty, e: &str, k: usize, tr: &str) -> (Arg, bool) {
+	fn arg(&mut self, ty: &Type, c: &Ty, e: &str, k: usize, tr: &str, what: &str) -> (Arg, bool) {
 		let abi = self.abi;
 		let mut arg = Arg::default();
 		let mut arena = false;
@@ -1219,10 +1240,10 @@ impl<'a> Gen<'a> {
 			(ty, Ty::Handle { .. }) => {
 				let h = format!("h{k}_");
 				let open = match ty.base() {
-					Type::Option(_) => format!("{tr}Native.with({e}?.handle) {{ {h} in"),
-					_ => format!("{tr}{e}.handle.with {{ {h} in"),
+					Type::Option(_) => format!("{tr}Native.with({what}{e}?.handle, {{ {h} in"),
+					_ => format!("{tr}{e}.handle.with({what}{{ {h} in"),
 				};
-				arg.open = Some((open, "}".to_string()));
+				arg.open = Some((open, "})".to_string()));
 				arg.exprs.push(h);
 			}
 			(ty, _) => {
@@ -1276,7 +1297,12 @@ impl<'a> Gen<'a> {
 					args.push(l);
 				}
 				// A `Copy` object, which Swift's class holds a copy of.
-				Type::Object(i) => args.push(format!("{}(raw: {}_copy({p}))", self.sw(ty), self.abi.object(*i))),
+				Type::Object(i) => args.push(format!(
+					"{}(raw: {}_copy({p}{}))",
+					self.sw(ty),
+					self.abi.object(*i),
+					self.nil(*i)
+				)),
 				ty => args.push(self.lift_lent(ty, p)),
 			}
 		}
@@ -1331,14 +1357,16 @@ impl<'a> Gen<'a> {
 			// Kept alive while its handle is copied: once `.handle` is read, ARC may release
 			// the object, whose deinit would free the handle first.
 			Type::Object(i) => format!(
-				"withExtendedLifetime({e}) {{ r_ in r_.handle.with {{ {}_copy($0) }} }}",
-				abi.object(*i)
+				"withExtendedLifetime({e}) {{ r_ in r_.handle.with {{ {}_copy($0{}) }} }}",
+				abi.object(*i),
+				self.nil(*i)
 			),
 			Type::Option(inner) => match &**inner {
 				Type::Str | Type::String => format!("({e}.map {{ Native.owned($0) }} ?? Native.none)"),
 				Type::Object(i) => format!(
-					"withExtendedLifetime({e}) {{ r_ in r_?.handle.with {{ {}_copy($0) }} ?? nil }}",
-					abi.object(*i)
+					"withExtendedLifetime({e}) {{ r_ in r_?.handle.with {{ {}_copy($0{}) }} ?? nil }}",
+					abi.object(*i),
+					self.nil(*i)
 				),
 				_ => self.lower(ty, e),
 			},
@@ -1422,18 +1450,26 @@ impl<'a> Gen<'a> {
 			Some(Receiver::Mut) if unique => "mutating ",
 			_ => "",
 		};
-		// Only a future or a `Result` throws, and a future only once it is awaited.
-		let throws = function.future || function.err.is_some();
-		let tr = match function.err.is_some() && !function.future {
+		// A call that can fail a check throws, as do a future and a `Result`, a future's
+		// error only once it is awaited.
+		let status = export.call.status().is_some();
+		let everywhere = abi.api.everywhere(function.on);
+		let throws = function.future || function.err.is_some() || status || !everywhere;
+		let tr = match (function.err.is_some() && !function.future) || status {
 			true => "try ",
 			false => "",
+		};
+		// A class's handle closed throws where the call can.
+		let what = match status {
+			true => format!("\"{c_name}\", "),
+			false => String::new(),
 		};
 		let mut prelude = Vec::new();
 		if !object {
 			prelude.push("Native.check()".to_string());
 		}
-		if !abi.api.everywhere(function.on) {
-			prelude.push(self.on(function.on, &c_name, ""));
+		if !everywhere {
+			prelude.push(format!("try Native.on({}, \"{c_name}\")", function.on.0 & abi.api.all().0));
 		}
 		let mut arena = false;
 		let mut args: Vec<Arg> = Vec::new();
@@ -1445,7 +1481,7 @@ impl<'a> Gen<'a> {
 			match c {
 				Ty::Handle { .. } if unique => arg.exprs.push("self.handle".to_string()),
 				Ty::Handle { .. } => {
-					arg.open = Some((format!("{tr}self.handle.with {{ h_ in"), "}".to_string()));
+					arg.open = Some((format!("{tr}self.handle.with({what}{{ h_ in"), "})".to_string()));
 					arg.exprs.push("h_".to_string());
 					let copy = matches!(ty, Type::Object(i) if abi.api.objects[i].copy);
 					if receiver == Receiver::Owned && !copy {
@@ -1500,11 +1536,11 @@ impl<'a> Gen<'a> {
 				(false, _) => self.ownership(&param.ty),
 			};
 			params.push(format!("_ {name}: {ownership}{}", self.sw(&param.ty)));
-			let (arg, needs) = self.arg(&param.ty, c, name, k, tr);
+			let (arg, needs) = self.arg(&param.ty, c, name, k, tr, &what);
 			arena |= needs;
 			args.push(arg);
 		}
-		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
 		// Each value passed for `&mut` takes what Rust wrote back, once the call's own
 		// access to it ends, on every path, a throw included.
 		let mut written = Vec::new();
@@ -1540,9 +1576,28 @@ impl<'a> Gen<'a> {
 		let thrown = err.as_ref().map(|e| self.thrown(e));
 
 		let mut inner = Vec::new();
+		// A failed check writes its status, which throws once the call returns.
+		let (status_arg, check) = match status {
+			true => {
+				inner.push("var c_status_: Swift.Int32 = 0".to_string());
+				(
+					vec!["&c_status_".to_string()],
+					Some(format!("try Native.status(c_status_, \"{c_name}\")")),
+				)
+			}
+			false => (Vec::new(), None),
+		};
 		let tail;
 		if let Some((_, poll, free)) = &export.future {
-			inner.push(format!("{c_name}({})", exprs.join(", ")));
+			let call = format!("{c_name}({})", exprs.iter().chain(&status_arg).cloned().collect::<Vec<_>>().join(", "));
+			match &check {
+				Some(check) => {
+					inner.push(format!("let f_ = {call}"));
+					inner.push(check.clone());
+					inner.push("return f_".to_string());
+				}
+				None => inner.push(call),
+			}
 			let poll_outs: Vec<(String, Ty)> = poll.params[2..].to_vec();
 			let mut body: Vec<String> = poll_outs.iter().map(|(n, ty)| self.out_decl(n, ty)).collect();
 			let mut call_args = vec!["f_".to_string(), "w_".to_string()];
@@ -1580,6 +1635,7 @@ impl<'a> Gen<'a> {
 			}
 			let mut call_args = exprs.clone();
 			call_args.extend(outs.iter().map(|(n, _)| format!("&c_{n}_")));
+			call_args.extend(status_arg);
 			let call = format!("{c_name}({})", call_args.join(", "));
 			match (&err, &ok) {
 				(Some(err), ok) => {
@@ -1587,21 +1643,33 @@ impl<'a> Gen<'a> {
 						Type::Unit => "return".to_string(),
 						_ => format!("return {}", self.lift_outs(&function.ok, ok)),
 					};
-					inner.push(format!("if {call} {{\n\t{ready}\n}}"));
+					match &check {
+						Some(check) => {
+							inner.push(format!("let c_ok_ = {call}"));
+							inner.push(check.clone());
+							inner.push(format!("if c_ok_ {{\n\t{ready}\n}}"));
+						}
+						None => inner.push(format!("if {call} {{\n\t{ready}\n}}")),
+					}
 					let lifted = self.lift(err, "c_err_");
 					inner.push(format!(
 						"throw {}",
 						thrown_value(thrown.as_ref().expect("an error throws"), &lifted)
 					));
 				}
-				(None, Type::Unit) => inner.push(call),
+				(None, Type::Unit) => {
+					inner.push(call);
+					inner.extend(check);
+				}
 				// A value C returns beside what Rust wrote back is its return, as with none.
 				(None, ok) if outs.iter().any(|(n, _)| !written.contains(n)) => {
 					inner.push(call);
+					inner.extend(check);
 					inner.push(format!("return {}", self.lift_outs(&function.ok, ok)));
 				}
 				(None, ok) => {
 					inner.push(format!("let c_ret_ = {call}"));
+					inner.extend(check);
 					inner.push(format!("return {}", self.lift(ok, "c_ret_")));
 				}
 			}
@@ -1621,6 +1689,11 @@ impl<'a> Gen<'a> {
 		}
 		let mut body = prelude;
 		match tail {
+			// Made by a call of several lines, unwrapped, which binds `f_` itself.
+			Some(tail) if code.starts_with("var c_status_") => {
+				body.push(code.trim_end_matches("\nreturn f_").to_string());
+				body.push(tail);
+			}
 			Some(tail) => {
 				let create = match code.starts_with("return ") {
 					true => code["return ".len()..].to_string(),
@@ -1676,8 +1749,14 @@ impl<'a> Gen<'a> {
 		};
 		let body = body.join("\n");
 		let var = function.params.is_empty() && !throws;
+		// A field read stays a property though a check of its handle may fail, which throws
+		// from its getter, unless Swift cannot copy its value, whose getter cannot throw.
+		let getter =
+			throws && !function.future && function.err.is_none() && everywhere && !self.unique(&function.ok);
 		let var = match (function.access, receiver) {
-			(Access::Field { set: false, .. }, Some(_)) => var && mutation.is_empty(),
+			(Access::Field { set: false, .. }, Some(_)) => {
+				function.params.is_empty() && (!throws || getter) && mutation.is_empty()
+			}
 			(Access::Const, None) => {
 				if var {
 					member = member.trim_matches('`').to_uppercase();
@@ -1707,6 +1786,10 @@ impl<'a> Gen<'a> {
 				"public {stat}{mutation}func {member}({}){effects}{ret}",
 				params.join(", ")
 			),
+		};
+		let body = match var && throws {
+			true => format!("get throws {{\n{}\n}}", indent(&body)),
+			false => body,
 		};
 		let code = format!("{}{head} {{\n{}\n}}\n", docs(text.trim(), ""), indent(&body));
 		(code, full(is_static, &member, labels))

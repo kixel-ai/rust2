@@ -78,6 +78,12 @@ impl Header<'_> {
 		self.line(format!(
 			"/* The index of the library's target among those this header serves:{targets} */\nuint32_t {p}_target(void);\n"
 		));
+		let statuses: String = (crate::abi::STATUSES.iter().enumerate())
+			.map(|(n, (status, _))| format!("\t{upper}_STATUS_{} = {},\n", status.to_uppercase(), n + 1))
+			.collect();
+		self.line(format!(
+			"/* Why a call failed a check of a handle, before it ran any Rust: a borrow or move\n * Rust's borrow checker would refuse. A function that can fail one takes a status\n * last, through which it writes the failure, returning a zeroed value to ignore;\n * passed null, it aborts with the message instead. */\ntypedef int32_t {p}_status;\nenum {{\n{statuses}}};\n\n/* What a status says broke. */\nconst char *{p}_status_message({p}_status status);\n"
+		));
 		self.line(format!(
 			"/* Bytes. Passed in, a view Rust reads during the call and never frees. Returned,\n * an owned buffer to free once with {p}_buf_free. A null ptr is None. */\ntypedef struct {p}_buf {{\n\tconst uint8_t *ptr;\n\tsize_t len;\n\tvoid *owner;\n}} {p}_buf;\n\nvoid {p}_buf_free({p}_buf buf);\n\n/* An owned copy of view's bytes: what a closure or reader C implements returns Rust,\n * which then owns it. */\n{p}_buf {p}_buf_copy({p}_buf view);\n"
 		));
@@ -234,8 +240,12 @@ impl Header<'_> {
 				self.line(format!("bool {name}_borrowed(const {name} *self);"));
 			}
 			let t = object.traits;
+			let status = match abi.traits_status(i) {
+				true => format!(", {p}_status *status"),
+				false => String::new(),
+			};
 			if t.clone {
-				self.line(format!("{name} *{name}_clone(const {name} *self);"));
+				self.line(format!("{name} *{name}_clone(const {name} *self{status});"));
 			}
 			if abi.copies.contains(&i) {
 				self.line(
@@ -245,16 +255,16 @@ impl Header<'_> {
 					)
 					.trim_end(),
 				);
-				self.line(format!("{name} *{name}_copy(const {name} *self);"));
+				self.line(format!("{name} *{name}_copy(const {name} *self{status});"));
 			}
 			if t.eq {
-				self.line(format!("bool {name}_eq(const {name} *a, const {name} *b);"));
+				self.line(format!("bool {name}_eq(const {name} *a, const {name} *b{status});"));
 			}
 			if t.display {
-				self.line(format!("{p}_buf {name}_to_string(const {name} *self);"));
+				self.line(format!("{p}_buf {name}_to_string(const {name} *self{status});"));
 			}
 			if t.debug {
-				self.line(format!("{p}_buf {name}_debug(const {name} *self);"));
+				self.line(format!("{p}_buf {name}_debug(const {name} *self{status});"));
 			}
 			if t.default {
 				self.line(format!("{name} *{name}_default(void);"));
@@ -533,6 +543,7 @@ pub fn decl(abi: &Abi<'_>, ty: &Ty, name: &str) -> String {
 		Ty::ForeignFuture => space(&abi.rt("foreign_future")),
 		Ty::ForeignReader => space(&abi.rt("foreign_reader")),
 		Ty::Poll => space(&abi.rt("poll")),
+		Ty::Status => space(&abi.rt("status")),
 		Ty::Out(inner) => decl(abi, inner, &format!("*{name}")),
 		Ty::In(inner) => format!("const {}", decl(abi, inner, &format!("*{name}"))),
 		Ty::Fn(params, ret) => {

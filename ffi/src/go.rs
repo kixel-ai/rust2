@@ -317,6 +317,7 @@ const TAKEN: &[&str] = &[
 	"BoundExcluded",
 	"Bytes",
 	"NewBytes",
+	"ErrBorrowed",
 	"ErrClosed",
 	"Handle_",
 	"NewHandle_",
@@ -565,6 +566,12 @@ impl<'a> Gen<'a> {
 			var target_ uint64\n\n\
 			// On_ panics unless the library's target is among those of on, as the item what is.\n\
 			func On_(on uint64, what string) {{\n\tif on>>target_&1 == 0 {{\n\t\tpanic(what + \": it is not on this library's target\")\n\t}}\n}}\n\n\
+			// Supported_ is the error a call of what returns, matching errors.ErrUnsupported,\n\
+			// unless the library's target is among those of on, as the item what is.\n\
+			func Supported_(on uint64, what string) error {{\n\tif on>>target_&1 == 0 {{\n\t\treturn checkError_{{what, \"it is not on this library's target\", 0}}\n\t}}\n\treturn nil\n}}\n\n\
+			// Status_ is the error a call of what returns, given the status it wrote: nil for\n\
+			// none.\n\
+			func Status_(status int32, what string) error {{\n\tif status == 0 {{\n\t\treturn nil\n\t}}\n\treturn checkError_{{what, C.GoString(C.{p}_status_message(C.{p}_status(status))), status}}\n}}\n\n\
 			//export {go}_call\nfunc {go}_call(data unsafe.Pointer) {{\n\tgiven_(data).(func())()\n}}\n\n\
 			//export {go}_release\nfunc {go}_release(data unsafe.Pointer) {{\n\trelease_(data)\n}}\n\n\
 			//export {go}_poll\nfunc {go}_poll(data unsafe.Pointer, waker cWaker) C.bool {{\n\treturn C.bool(given_(data).(*pollable_).poll(waker))\n}}\n\n\
@@ -1384,6 +1391,28 @@ impl<'a> Gen<'a> {
 				results,
 				body,
 			};
+		// A check each trait's borrow can fail: `String` and `GoString` return no error, so
+		// theirs aborts, as do C's.
+		let status = matches!(ty, Type::Object(i) if self.abi.traits_status(*i));
+		let nil = match status {
+			true => ", nil",
+			false => "",
+		};
+		let status_error = match status {
+			true => self.qualify(Packages::RT, "Status_"),
+			false => String::new(),
+		};
+		// The call `call`, binding its result to `r_` then returning `failed` of its status's
+		// error, if it can fail a check.
+		let checked = |call: &str, name: &str, failed: &dyn Fn(&str) -> String| match status {
+			true => format!(
+				"var c_status_ C.{}\nr_ := {}, &c_status_)\nif c_status_ != 0 {{\n\treturn {}\n}}\n",
+				self.abi.rt("status"),
+				call.strip_suffix(')').expect("a call"),
+				failed(&format!("{status_error}(int32(c_status_), \"{name}\")"))
+			),
+			false => format!("r_ := {call}\n"),
+		};
 		// fmt's String and GoString return no error, so a closed one reads as the error.
 		let text = |e: &str| format!("{e}.Error()");
 		let mut methods = Vec::new();
@@ -1394,7 +1423,7 @@ impl<'a> Gen<'a> {
 				"String",
 				Vec::new(),
 				vec!["string".to_string()],
-				format!("{open}return liftString_(C.{c}_to_string({this}))"),
+				format!("{open}return liftString_(C.{c}_to_string({this}{nil}))"),
 			));
 		}
 		if t.debug {
@@ -1404,7 +1433,7 @@ impl<'a> Gen<'a> {
 				"GoString",
 				Vec::new(),
 				vec!["string".to_string()],
-				format!("{open}return liftString_(C.{c}_debug({this}))"),
+				format!("{open}return liftString_(C.{c}_debug({this}{nil}))"),
 			));
 		}
 		if object && t.clone {
@@ -1414,7 +1443,10 @@ impl<'a> Gen<'a> {
 				"Clone",
 				Vec::new(),
 				vec![name.clone(), "error".to_string()],
-				format!("{open}return own_{c}(C.{c}_clone({this})), nil"),
+				format!(
+					"{open}{}return own_{c}(r_), nil",
+					checked(&format!("C.{c}_clone({this})"), &format!("{c}_clone"), &|e| format!("nil, {e}"))
+				),
 			));
 		}
 		if t.eq {
@@ -1429,8 +1461,9 @@ impl<'a> Gen<'a> {
 			};
 			let body = match (object, arena) {
 				(true, _) => format!(
-					"{open}o_ := other.Handle_.Hold()\nif o_ == nil {{\n\treturn {}\n}}\ndefer unhold_(other.Handle_, other)\nreturn bool(C.{c}_eq({this}, (*C.{c})(o_))){ok}",
-					failed("other.Handle_.Closed()")
+					"{open}o_ := other.Handle_.Hold()\nif o_ == nil {{\n\treturn {}\n}}\ndefer unhold_(other.Handle_, other)\n{}return bool(r_){ok}",
+					failed("other.Handle_.Closed()"),
+					checked(&format!("C.{c}_eq({this}, (*C.{c})(o_))"), &format!("{c}_eq"), &failed)
 				),
 				(false, true) if closable => format!(
 					"{open}c_other_ := lower_{c}(a_, other)\nif a_.err != nil {{\n\treturn {}\n}}\nreturn bool(C.{c}_eq({this}, &c_other_)){ok}",
@@ -2004,7 +2037,12 @@ impl<'a> Gen<'a> {
 				Type::Object(i) => {
 					self.convert(ty);
 					let c = self.abi.object(*i);
-					args.push(format!("own_{c}(C.{c}_copy({p}))"));
+					// A failed check aborts, as Rust's call into Go has nowhere to return it.
+					let nil = match self.abi.traits_status(*i) {
+						true => ", nil",
+						false => "",
+					};
+					args.push(format!("own_{c}(C.{c}_copy({p}{nil}))"));
 				}
 				ty => args.push(self.lift_lent(ty, p)),
 			}
@@ -2084,10 +2122,15 @@ impl<'a> Gen<'a> {
 		let c = self.abi.object(i);
 		let name = self.qualified(&ty);
 		let local = self.named(&ty).1;
+		// A failed check aborts, as Rust's closure has nowhere to return it.
+		let nil = match self.abi.traits_status(i) {
+			true => ", nil",
+			false => "",
+		};
 		self.helper(&format!("returned_{c}"), |_| {
 			format!(
 				"// returned_{c} is a new handle to a copy of v, which Rust frees once it copies v out of it.\n\
-				func returned_{c}(v *{name}) *C.{c} {{\n\tif v == nil {{\n\t\tpanic(\"a nil {local} returned to Rust\")\n\t}}\n\th := v.Handle_.Hold()\n\tif h == nil {{\n\t\tpanic(v.Handle_.Closed())\n\t}}\n\tdefer unhold_(v.Handle_, v)\n\treturn C.{c}_copy((*C.{c})(h))\n}}\n\n\
+				func returned_{c}(v *{name}) *C.{c} {{\n\tif v == nil {{\n\t\tpanic(\"a nil {local} returned to Rust\")\n\t}}\n\th := v.Handle_.Hold()\n\tif h == nil {{\n\t\tpanic(v.Handle_.Closed())\n\t}}\n\tdefer unhold_(v.Handle_, v)\n\treturn C.{c}_copy((*C.{c})(h){nil})\n}}\n\n\
 				func returnedOption_{c}(v *{name}) *C.{c} {{\n\tif v == nil {{\n\t\treturn nil\n\t}}\n\treturn returned_{c}(v)\n}}\n\n"
 			)
 		});
@@ -2186,8 +2229,12 @@ impl<'a> Gen<'a> {
 		let mut results: Vec<String> = oks.iter().map(|ty| self.go(ty)).collect();
 		// A call that takes an object, as its receiver or held in any value it takes,
 		// returns an error once that object is closed.
+		let status = export.call.status().is_some();
+		let everywhere = abi.api.everywhere(function.on);
 		let closable = receiver.is_some() && owner_ty.is_some_and(|ty| self.holds(ty))
-			|| function.params.iter().any(|p| self.holds(&p.ty));
+			|| function.params.iter().any(|p| self.holds(&p.ty))
+			|| status
+			|| !everywhere;
 		if function.err.is_some() || function.future || closable {
 			results.push("error".to_string());
 		}
@@ -2343,8 +2390,17 @@ impl<'a> Gen<'a> {
 				}
 			}
 		}
-		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
+		// A failed check writes its status, whose error the call returns.
+		let failed = status.then(|| {
+			args.push("&c_status_".to_string());
+			let error = format!("{}(int32(c_status_), \"{c_name}\")", self.qualify(Packages::RT, "Status_"));
+			format!("if c_status_ != 0 {{\n\t{}\n}}", fail(&error))
+		});
 		let mut body = Vec::new();
+		if status {
+			body.push(format!("var c_status_ C.{}", abi.rt("status")));
+		}
 		if arena {
 			body.push("a_ := &arena_{}\ndefer a_.finish()".to_string());
 		}
@@ -2361,6 +2417,7 @@ impl<'a> Gen<'a> {
 
 		if let Some((_, poll, free)) = &export.future {
 			body.push(format!("f_ := C.{c_name}({})", args.join(", ")));
+			body.extend(failed);
 			body.push(format!("defer C.{}(f_)", free.name));
 			let mut decls = Vec::new();
 			for (k, ty) in oks.iter().enumerate() {
@@ -2401,8 +2458,31 @@ impl<'a> Gen<'a> {
 				body.push(self.out_decl(n, ty));
 			}
 			let mut call_args = args.clone();
+			// The status follows every out.
+			let status_arg = status.then(|| call_args.pop().expect("the status"));
 			call_args.extend(outs.iter().map(|(n, _)| format!("&c_{n}_")));
+			call_args.extend(status_arg);
 			let mut call = format!("C.{c_name}({})", call_args.join(", "));
+			// Made first, so a failed check returns before any result is read.
+			let made = failed.map(|failed| {
+				let made = match (&err, &export.call.ret) {
+					(Some(_), _) => {
+						body.push(format!("ok_ := {call}"));
+						"ok_".to_string()
+					}
+					(None, Ty::Void) => {
+						body.push(call.clone());
+						String::new()
+					}
+					// Lifted from the out the result names, as a value written beside one is.
+					(None, _) => {
+						body.push(format!("c_out_ := {call}"));
+						String::new()
+					}
+				};
+				body.push(failed);
+				made
+			});
 			// Each value passed for `&mut` takes what Rust wrote back, on every path.
 			let writes: Vec<String> = (function.params.iter().zip(&names))
 				.filter(|(param, _)| param.ty.written())
@@ -2411,7 +2491,10 @@ impl<'a> Gen<'a> {
 					format!("*{name} = {}", self.lift(param.ty.base(), &format!("c_{out}_")))
 				})
 				.collect();
-			if !writes.is_empty() {
+			if let Some(made) = made {
+				body.extend(writes);
+				call = made;
+			} else if !writes.is_empty() {
 				let made = match &err {
 					Some(_) => {
 						body.push(format!("ok_ := {call}"));
@@ -2518,8 +2601,10 @@ impl<'a> Gen<'a> {
 				"\n\nIt blocks until Rust's future is ready, or ctx is done: then it cancels the future in\nRust, losing nothing, and returns ctx's error.",
 			);
 		}
-		if let Some(check) = self.on(function.on, &c_name) {
-			body.insert(0, check);
+		if !everywhere {
+			let supported = self.qualify(Packages::RT, "Supported_");
+			let error = format!("{supported}({}, \"{c_name}\")", function.on.0 & abi.api.all().0);
+			body.insert(0, format!("if err_ := {error}; err_ != nil {{\n\t{}\n}}", fail("err_")));
 		}
 		Method {
 			docs: text,

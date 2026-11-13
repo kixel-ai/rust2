@@ -92,6 +92,27 @@ pub fn fail(env: *mut JNIEnv, what: &str, msg: &str) -> ! {
 	rt::fail(what, msg)
 }
 
+/// Throw the `IllegalStateException` a call of `what` raises once its check failed with
+/// `status`, returning a zeroed value Kotlin never reads, as JNI's pending exception
+/// throws once the native method returns.
+#[cold]
+pub fn raise<R>(env: *mut JNIEnv, status: i32, what: &str) -> R {
+	let message = match rt::Status::of(status) {
+		Some(status) => format!("{what}: {}", status.message()),
+		None => format!("{what}: an unknown status {status}"),
+	};
+	let message = std::ffi::CString::new(message).expect("no NUL in a message");
+	// SAFETY: `env` is this thread's, and the class a local reference while it throws.
+	unsafe {
+		let class = ((**env).v1_2.FindClass)(env, c"java/lang/IllegalStateException".as_ptr());
+		if class.is_null() {
+			fail(env, what, "IllegalStateException is missing");
+		}
+		((**env).v1_2.ThrowNew)(env, class, message.as_ptr());
+		std::mem::zeroed()
+	}
+}
+
 /// Run `f` calling into Kotlin on this thread, freeing the local references it makes, and
 /// abort if what it calls throws: Rust has nowhere to unwind it to.
 pub fn upcall<R>(what: &str, f: impl FnOnce(*mut JNIEnv) -> R) -> R {

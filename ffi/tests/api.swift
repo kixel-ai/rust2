@@ -170,8 +170,8 @@ func script() {
 	print("default \(d.x) \(d.y)")
 
 	var c = Counter.new("c", 5)
-	print("get \(c.get())")
-	print("name \(c.name())")
+	print("get \(try! c.get())")
+	print("name \(try! c.name())")
 	print("add ok \(try! c.add(10))")
 	do {
 		_ = try c.add(2000)
@@ -187,22 +187,22 @@ func script() {
 	} catch {
 		check(false, "sub throws an Error")
 	}
-	c.rename("d")
-	print("name \(c.name())")
-	print("is d \(c.`is`("d"))")
+	try! c.rename("d")
+	print("name \(try! c.name())")
+	print("is d \(try! c.`is`("d"))")
 	var copy = c.clone()
 	_ = try! copy.add(1)
-	print("clone \(copy.get()) original \(c.get())")
+	print("clone \(try! copy.get()) original \(try! c.get())")
 	print("debug \(c.debugDescription)")
-	let label = c.intoLabel(p)
+	let label = try! c.intoLabel(p)
 	print("label \(debug(label))")
 	print("note \(hasText(Note(text: ""))) \(hasText(Note(text: nil)))")
 
 	// A tuple holding a handle is a struct of its elements.
-	let split = Counter.new("s", 7).split(5)
-	print("split \(split._0.name()) \(split._0.get()) \(split._1.name()) \(split._1.get())")
-	let one = only(Counter.new("o", 3))
-	print("only \(one.name()) \(one.get())")
+	let split = try! Counter.new("s", 7).split(5)
+	print("split \(try! split._0.name()) \(try! split._0.get()) \(try! split._1.name()) \(try! split._1.get())")
+	let one = try! only(Counter.new("o", 3))
+	print("only \(try! one.name()) \(try! one.get())")
 	let (w8, w16, w32, w64) = widths(98305)
 	print("widths \(w8) \(w16) \(w32) \(w64)")
 	for b: UInt64 in [2, 0] {
@@ -234,9 +234,9 @@ func script() {
 	var ranks = UniqueArray<TupleStringCounter>()
 	ranks.append(TupleStringCounter("low", Counter.new("l", 1)))
 	ranks.append(TupleStringCounter("high", Counter.new("h", 9)))
-	let board = Board.new(ranks)
+	let board = try! Board.new(ranks)
 	let ranked = board.ranked()
-	print("ranked \(listed(ranked) { "\($0._0) \($0._1.name()) \($0._1.get())" })")
+	print("ranked \(listed(ranked) { "\($0._0) \(try! $0._1.name()) \(try! $0._1.get())" })")
 	// A map crosses as its pairs and a set as its items, which Rust collects in order, each
 	// key once, the last kept.
 	let atlas = Atlas(points: [("b", Point(x: 1, y: 1)), ("ab", Point(x: 2, y: 3)), ("b", Point(x: 4, y: 4))], ids: [3, 1, 3])
@@ -270,40 +270,40 @@ func script() {
 	print("title Some((\"\(title(true)!)\",)) \(title(false) == nil ? "None" : "Some") named Some((\"\(named("x")!)\",))")
 
 	// Each lent counter is a new handle to a clone.
-	var registry = Registry.new(Counter.new("first", 1))
-	print("last \(registry.last() != nil)")
-	registry.push(Counter.new("last", 2))
-	var first = registry.firstGet
+	var registry = try! Registry.new(Counter.new("first", 1))
+	print("last \(try! registry.last() != nil)")
+	try! registry.push(Counter.new("last", 2))
+	var first = try! registry.firstGet()
 	_ = try! first.add(10)
-	print("first \(registry.firstGet.get()) lent \(first.get())")
-	var last = registry.last()!
+	print("first \(try! registry.firstGet().get()) lent \(try! first.get())")
+	var last = try! registry.last()!
 	_ = try! last.add(10)
-	print("last \(registry.last()!.get()) lent \(last.get())")
+	print("last \(try! registry.last()!.get()) lent \(try! last.get())")
 	// A closure lent for the call edits the first counter through a handle.
 	let by: UInt64 = 5
-	let edited = registry.edit { counter in
+	let edited = try! registry.edit { counter in
 		_ = try! counter.add(by)
-		return counter.edited() && counter.get() == 6
+		return try! counter.edited() && try! counter.get() == 6
 	}
-	print("edit \(edited) \(registry.firstGet.get())")
+	print("edit \(edited) \(try! registry.firstGet().get())")
 	// A setter moves an object in, as assignment does, closing its handle.
-	registry.firstSet(Counter.new("second", 3))
-	print("set first \(registry.firstGet.get()) \(registry.firstGet.name())")
-	print("walk \(walk(3) { cursor in cursor.at() * 2 })")
+	try! registry.firstSet(Counter.new("second", 3))
+	print("set first \(try! registry.firstGet().get()) \(try! registry.firstGet().name())")
+	print("walk \(walk(3) { cursor in try! cursor.at() * 2 })")
 	print("each \(each(2) { at in print("visit \(at)") })")
 	print("offset \(offset({ 7 }, 3))")
 	print("shift \(shift({ 7 }, 4))")
 
 	let name = Name.owned("a")
-	var joined = name.join(Name.owned("b"))
-	print("joined \(joined.asStr()) \(joined.debugDescription) \(joined == name)")
-	joined.rename("c")
-	print("renamed \(joined.asStr())")
-	let long = longer(joined, Name.owned("dd"))
-	print("longer \(long.asStr())")
-	print("unnamed [\(unnamed().asStr())]")
+	var joined = try! name.join(Name.owned("b"))
+	print("joined \(try! joined.asStr()) \(joined.debugDescription) \(joined == name)")
+	try! joined.rename("c")
+	print("renamed \(try! joined.asStr())")
+	let long = try! longer(joined, Name.owned("dd"))
+	print("longer \(try! long.asStr())")
+	print("unnamed [\(try! unnamed().asStr())]")
 	let lit = Name.borrowed("lit")
-	print("borrowed \(lit.asStr()) \(lit.shares(Name.borrowed("lit"))) \(lit.shares(Name.borrowed("other")))")
+	print("borrowed \(try! lit.asStr()) \(try! lit.shares(Name.borrowed("lit"))) \(try! lit.shares(Name.borrowed("other")))")
 
 	print("total \(total(RangeU64(start: 2, end: 5)))")
 	print("reach \(reach(2, 5))")
@@ -316,7 +316,7 @@ func script() {
 	check(U128(high: .max, low: .max).description == "340282366920938463463374607431768211455", "a u128's decimal digits")
 	let sumHex = { (sum: ArrayU8x4) in sum.map { Swift.String(format: "%02x", $0) }.joined() }
 	var digest = Digest.new()
-	digest.sumSet(try! fingerprint("deadbeef"))
+	try! digest.sumSet(try! fingerprint("deadbeef"))
 	var unparsed = ""
 	do {
 		_ = try fingerprint("zz")
@@ -325,14 +325,14 @@ func script() {
 	} catch {
 		check(false, "fingerprint throws its message")
 	}
-	print("digest \(sumHex(digest.sumGet)) \(sumHex(digest.flipped(ArrayU8x4([0xff, 0, 0xff, 0])!))) \(unparsed)")
+	print("digest \(sumHex(try! digest.sumGet)) \(sumHex(try! digest.flipped(ArrayU8x4([0xff, 0, 0xff, 0])!))) \(unparsed)")
 	check(ArrayU8x4([1, 2, 3]) == nil, "3 bytes are no [u8; 4]")
 	var batch = Batch.new(), batch2 = pair()
-	let accepted = (1...5).filter { batch.push($0) }.count
-	let paired = (1...3).filter { batch2.push($0) }.count
-	let emptied = drain4(&batch)
-	print("batch \(batch.capacity()) \(accepted) \(emptied) \(drain4(&batch)) \(batch2.capacity()) \(paired) \(drain2(&batch2))")
-	print("capacities \(capacities42(batch, batch2)) \(capacities22(batch2, batch2))")
+	let accepted = (1...5).filter { try! batch.push($0) }.count
+	let paired = (1...3).filter { try! batch2.push($0) }.count
+	let emptied = try! drain4(&batch)
+	print("batch \(try! batch.capacity()) \(accepted) \(emptied) \(try! drain4(&batch)) \(try! batch2.capacity()) \(paired) \(try! drain2(&batch2))")
+	print("capacities \(try! capacities42(batch, batch2)) \(try! capacities22(batch2, batch2))")
 	let wide = widen(RangeU64(start: 2, end: 5), 1)
 	print("widen \(wide.start) \(wide.end)")
 	let counts = [
@@ -386,18 +386,18 @@ func script() {
 	print("later \(Stamp.fromMillis(3000).later(stamp))")
 	print("secs \(stamp.secs())")
 	var message = Message.new(stamp, Data("body".utf8))
-	print("payload \(text(message.payloadGet))")
-	print("stamp \(debug(message.stampGet!))")
-	print("sent \(message.sent())")
+	print("payload \(text(try! message.payloadGet))")
+	print("stamp \(debug(try! message.stampGet!))")
+	print("sent \(try! message.sent())")
 	// Setters assign in place: the bytes are copied in, and a `Copy` handle copied.
 	let reset = Stamp.fromMillis(4000)
-	message.stampSet(reset)
-	message.payloadSet(Data("edited".utf8))
-	print("payload \(text(message.payloadGet))")
-	print("stamp \(debug(message.stampGet!))")
+	try! message.stampSet(reset)
+	try! message.payloadSet(Data("edited".utf8))
+	print("payload \(text(try! message.payloadGet))")
+	print("stamp \(debug(try! message.stampGet!))")
 	print("secs \(reset.secs())")
-	message.stampSet(nil)
-	print("stamp \(message.stampGet != nil)")
+	try! message.stampSet(nil)
+	print("stamp \(try! message.stampGet != nil)")
 
 	// Bound first, so Swift's reference is gone before the print.
 	let kept = emit(PrintLog(), Data([1, 2, 3, 4]))
@@ -424,13 +424,13 @@ func script() {
 	q.launch { got.value = try await channel.recv() }
 	q.drain()
 	print("recv pending \(got.value == nil)")
-	channel.send(Data("hi".utf8))
+	try! channel.send(Data("hi".utf8))
 	wakes.value += q.size
 	print("woken \(wakes.value)")
 	q.drain()
 	print("recv \(text(got.value!))")
 	block {
-		channel.send(Data())
+		try! channel.send(Data())
 		do {
 			print("nonempty \(try await channel.recvNonempty().count)")
 		} catch {
@@ -442,43 +442,43 @@ func script() {
 		// The send happens at the call, before the future is first polled.
 		try await channel.sendLater(Data("eager".utf8))
 		print("recv \(text(try await channel.recv()))")
-		channel.send(Data("sized".utf8))
+		try! channel.send(Data("sized".utf8))
 		let (payload, size) = try await channel.recvSized()
 		print("sized \(text(payload)) \(size)")
 	}
 	// The waker moves into Rust, which keeps it until the send wakes it.
-	channel.notify { wakes.value += 1 }
-	channel.send(Data("rung".utf8))
+	try! channel.notify { wakes.value += 1 }
+	try! channel.send(Data("rung".utf8))
 	print("woken \(wakes.value)")
 	block {
 		// A poll with no async twin is a future.
 		print("take \(text(try await channel.pollTake()))")
 		// A `&mut self` poll needs a binding of its own, which a closure cannot capture.
 		var measured = Channel.new()
-		measured.send(Data("measured".utf8))
+		try! measured.send(Data("measured".utf8))
 		print("measure \(try await measured.pollMeasure(2))")
 	}
 	// A context is made of the waker, which Rust keeps until the send wakes it.
-	channel.listen { wakes.value += 1 }
-	channel.send(Data("heard".utf8))
+	try! channel.listen { wakes.value += 1 }
+	try! channel.send(Data("heard".utf8))
 	print("woken \(wakes.value)")
 	// A returned waker wakes the waiter's task through Rust until released.
 	do {
 		let waiter = Waiter.new { wakes.value += 1 }
-		waiter.waker()()
-		waiter.context()()
+		try! waiter.waker()()
+		try! waiter.context()()
 	}
 	print("woken \(wakes.value)")
 
-	var list = Node.new(1, nil)
-	list.push(2)
-	print("node \(list.sum())")
+	var list = try! Node.new(1, nil)
+	try! list.push(2)
+	print("node \(try! list.sum())")
 
 	let tally = Tally.new()
-	_ = tally.bump()
-	print("tally \(tally.bump()) \(tally == tally)")
-	print("both \(bumpBoth(tally, tally))")
-	print("peek \(peek(tally) { lent in lent.bump() })")
+	_ = try! tally.bump()
+	print("tally \(try! tally.bump()) \(tally == tally)")
+	print("both \(try! bumpBoth(tally, tally))")
+	print("peek \(try! peek(tally) { lent in try! lent.bump() })")
 
 	let grown = grow(Area.new(Size(width: 2, height: 3)), 1)
 	let size = grown.size()
@@ -498,19 +498,19 @@ func script() {
 	// At its default, named as the type itself.
 	var stack = Stack.new()
 	for (i, n) in ["a", "b"].enumerated() {
-		stack.push(Counter.new(n, UInt64(i) + 1))
+		try! stack.push(Counter.new(n, UInt64(i) + 1))
 	}
-	let top = stack.pop()!.get()
-	print("stack \(stack.depth()) Some(\(top)) \(stack.pop() != nil) \(stack.pop() == nil)")
+	let top = try! stack.pop()!.get()
+	print("stack \(try! stack.depth()) Some(\(top)) \(try! stack.pop() != nil) \(try! stack.pop() == nil)")
 	// Generic functions and methods, at each implementation of the trait bounding them, by
 	// reference, which leaves Swift its handle.
 	let fromPoint = Counter.seededPoint("p", Point(x: -3, y: 4))
 	let fromSize = Counter.seededSize("s", Size(width: 5, height: 6))
-	let fromCounter = Counter.seededCounter("c", fromPoint)
+	let fromCounter = try! Counter.seededCounter("c", fromPoint)
 	let fromPolar = Counter.seededPolarPoint("q", PolarPoint(turns: 1, distance: 2))
 	print(
-		"seeded \(fromPoint.get()) \(fromSize.get()) \(fromCounter.get()) \(fromPolar.get()) "
-			+ "past \(stack.depthPastPoint(Point(x: 1, y: 2))) seeds \(seedsPointSize(Size(width: 2, height: 3)))")
+		"seeded \(try! fromPoint.get()) \(try! fromSize.get()) \(try! fromCounter.get()) \(try! fromPolar.get()) "
+			+ "past \(try! stack.depthPastPoint(Point(x: 1, y: 2))) seeds \(seedsPointSize(Size(width: 2, height: 3)))")
 
 	// A trait implemented for `Point` and `&Point` apart: one instance.
 	print("weigh \(weighPoint(Point(x: -1, y: 2)))")
@@ -549,22 +549,22 @@ func script() {
 	// Its Drop runs when Swift releases the last reference, not before.
 	do {
 		let token = Token.new(7)
-		withExtendedLifetime(token) { print("token \(token.idGet) dropped \(dropped())") }
+		withExtendedLifetime(token) { print("token \(try! token.idGet) dropped \(dropped())") }
 	}
 	print("dropped \(dropped())")
 
 	// A field and the method of its name, each its own member.
 	var retry = Retry.new(5)
-	let limit = retry.limitGet
-	print("retry \(limit != nil ? 1 : 0) \(limit ?? 0) \(retry.limit()) \(retry.delay())")
+	let limit = try! retry.limitGet
+	print("retry \(limit != nil ? 1 : 0) \(limit ?? 0) \(try! retry.limit()) \(try! retry.delay())")
 	// The renamed field's setter, named as its getter.
-	retry.limitSet(nil)
-	print("retry \(retry.limit())")
+	try! retry.limitSet(nil)
+	print("retry \(try! retry.limit())")
 	print("slot \(SlotU8.new(200).value())")
 
 	// Foreign types: a URL parsed from text, socket addresses, OS paths, and `Vec`s.
 	let base = try! Url.parse("https://example.com/a/b")
-	print("url \(base.description) host \(host(base).map { "Some(\"\($0)\")" } ?? "None")")
+	print("url \(base.description) host \(try! host(base).map { "Some(\"\($0)\")" } ?? "None")")
 	let url = try! resolve(base.clone(), "c?d")
 	print("resolve \(url.description) \(url == base)")
 	do {
@@ -596,23 +596,23 @@ func script() {
 		let two = Counter.new("two", 2)
 		var three: Counter? = Counter.new("three", 3)
 		var none: Counter? = nil
-		print("plus \(two.plus(other: three!)) \(two.plus())")
+		print("plus \(try! two.plus(other: three!)) \(try! two.plus())")
 		// A list and an option holding a struct beside a class, whose handle each moves.
 		var pairs = UniqueArray<TupleCounterRefusal>()
 		pairs.append(TupleCounterRefusal(Counter.new("a", 1), refusal("x")))
 		check(
-			reasons(pairs, TupleCounterRefusal(Counter.new("b", 2), refusal("y")))
+			try! reasons(pairs, TupleCounterRefusal(Counter.new("b", 2), refusal("y")))
 				== "a refused: x, b refused: y",
 			"reasons moves a struct and a class out of a list and an option"
 		)
 		// Each optional borrowed parameter is an overload with and without its label.
 		let one = Counter.new("one", 1)
 		check(
-			two.clamped() == 2 && two.clamped(low: three!) == 3 && two.clamped(high: one) == 1
-				&& two.clamped(low: one, high: three!) == 2,
+			try! two.clamped() == 2 && try! two.clamped(low: three!) == 3 && try! two.clamped(high: one) == 1
+				&& try! two.clamped(low: one, high: three!) == 2,
 			"clamped overloads each optional borrow"
 		)
-		print("add_to \(two.addTo(&three)) \(two.addTo(&none)) \(three!.get())")
+		print("add_to \(try! two.addTo(&three)) \(try! two.addTo(&none)) \(try! three!.get())")
 	}
 	do {
 		var encoded = Data("0,".utf8)
@@ -633,28 +633,28 @@ func script() {
 	}
 	do {
 		let config = secure("h3")
-		print("secure \(alpnLent(config)) \(alpn(config.clone()))")
+		print("secure \(try! alpnLent(config)) \(try! alpn(config.clone()))")
 		var meters = Meters.new()
-		let first = meters.first()
-		_ = first.add(2)
-		print("lent \(first.add(3)) \(meters.first().count())")
-		meters.clear()
-		print("cleared \(meters.first().count())")
+		let first = try! meters.first()
+		_ = try! first.add(2)
+		print("lent \(try! first.add(3)) \(try! meters.first().count())")
+		try! meters.clear()
+		print("cleared \(try! meters.first().count())")
 		let tallies = Tallies.new()
-		_ = tallies.first().bump()
-		print("tallied \(tallies.first().bump())")
+		_ = try! tallies.first().bump()
+		print("tallied \(try! tallies.first().bump())")
 	}
 	print("chunks \(chunks(Data("abcde".utf8), 2).map { Array($0) })")
 	var counters = counters(["x", "y"])
-	print("counters \(listed(counters) { "\($0.name()) \($0.get())" })")
+	print("counters \(listed(counters) { "\(try! $0.name()) \(try! $0.get())" })")
 	// Each counter moves in.
 	var some = UniqueArray<Counter>()
 	some.append(counters.remove(at: 0))
 	var boxed = UniqueArray<Counter>()
 	boxed.append(counters.remove(at: 0))
-	print("worth \(worth(some, boxed)) \(worth(nil, UniqueArray()))")
-	print("held \([heldCount(Counter.new("h", 4)), heldCount(nil)].map { $0.map { "Some(\($0))" } ?? "None" }.joined(separator: " "))")
-	print("boxed \(boxedName(boxedCounter("b")).map { "Some(\"\($0)\")" } ?? "None") \(boxedName(nil) ?? "None") \(boxedCounter(nil) == nil)")
+	print("worth \(try! worth(some, boxed)) \(try! worth(nil, UniqueArray()))")
+	print("held \([try! heldCount(Counter.new("h", 4)), try! heldCount(nil)].map { $0.map { "Some(\($0))" } ?? "None" }.joined(separator: " "))")
+	print("boxed \(try! boxedName(boxedCounter("b")).map { "Some(\"\($0)\")" } ?? "None") \(try! boxedName(nil) ?? "None") \(boxedCounter(nil) == nil)")
 	print("less \(less(5, 2))")
 	print("sums \(sums([[1, 2], [], [3]]))")
 	let sum = summed([Point(x: 1, y: 2), Point(x: -4, y: 6)])
@@ -670,16 +670,16 @@ func script() {
 	let parts = String(decoding: Api.joined([Data("ab".utf8), Data(), Data("c".utf8)]), as: UTF8.self)
 	print("joined \(parts) \(Api.joined([]).count) read \(readLen(Data("hello".utf8)))")
 	let doc = try! Json.parse(#"{"b": [1, 2.5, null], "a": "é"}"#)
-	print("json \(encode(doc))")
-	print("timed text \(timedText(doc))")
-	let tagged = tagged(doc, "t")
-	print("tagged \(tagged.toText())")
+	print("json \(try! encode(doc))")
+	print("timed text \(try! timedText(doc))")
+	let tagged = try! tagged(doc, "t")
+	print("tagged \(try! tagged.toText())")
 	// A JSON object's entries cross as pairs of a key and its document, each moved in.
 	var pairs = UniqueArray<TupleStringJson>()
 	pairs.append(TupleStringJson("b", try! Json.parse("[1]")))
 	pairs.append(TupleStringJson("a", try! Json.parse("2")))
-	let jsonEntries = entries(pairs, "t")
-	print("entries \(listed(jsonEntries) { "\($0._0) \($0._1.toText())" })")
+	let jsonEntries = try! entries(pairs, "t")
+	print("entries \(listed(jsonEntries) { "\($0._0) \(try! $0._1.toText())" })")
 	do {
 		_ = try Json.parse("{\"a\":")
 	} catch let e as StringError {
@@ -687,20 +687,20 @@ func script() {
 	} catch {
 		check(false, "parse throws its message")
 	}
-	let site = Site.new(base)
+	let site = try! Site.new(base)
 	print("site \(site.homeGet.description) \(site.homeGet.description)")
 
 	// Slices, passed in and returned as clones, and the socket address of each family.
 	print("shapes \(Shape.ALL) greetings \(GREETINGS)")
 	var trail = Trail.new([Point(x: 1, y: 2), Point(x: 3, y: 4)], ["a", "b"])
-	print("trail \(trail.points()) \(trail.labels())")
+	print("trail \(try! trail.points()) \(try! trail.labels())")
 	// Returned iterators, each collected at the call: drained labels are gone after.
-	print("iterated \(trail.iter()) \(trail.names()) \(Array(trail.bytes()))")
-	print("drained \(trail.drain()) then \(trail.labels())")
+	print("iterated \(try! trail.iter()) \(try! trail.names()) \(Array(try! trail.bytes()))")
+	print("drained \(try! trail.drain()) then \(try! trail.labels())")
 	// A filter, collected at the call.
-	print("beyond \(trail.beyond(1).map { "\($0.x) \($0.y)" }.joined(separator: ", "))")
+	print("beyond \(try! trail.beyond(1).map { "\($0.x) \($0.y)" }.joined(separator: ", "))")
 	let numbered = numbered(["p", "q"])
-	print("numbered \(listed(numbered) { "\($0.name()) \($0.get())" })")
+	print("numbered \(listed(numbered) { "\(try! $0.name()) \(try! $0.get())" })")
 	let (next4, next6) = nexts(SocketAddr(ip: [127, 0, 0, 1], port: 8080), v6)
 	print("nexts \(next4.ip.map(String.init).joined(separator: ".")) \(next4.port) \(next6.port) \(next6.scopeId)")
 
@@ -708,27 +708,27 @@ func script() {
 	var sectionPairs = UniqueArray<TupleStringJson>()
 	sectionPairs.append(TupleStringJson("b", try! Json.parse("[1]")))
 	sectionPairs.append(TupleStringJson("a", try! Json.parse("2")))
-	let jsonSections = sections(sectionPairs)
-	print("sections \(listed(jsonSections) { "\($0._0) \($0._1.toText())" })")
+	let jsonSections = try! sections(sectionPairs)
+	print("sections \(listed(jsonSections) { "\($0._0) \(try! $0._1.toText())" })")
 	// An instant only Rust makes, which each call copies out of its handle, and compares.
 	let millis = { (d: Swift.Duration) in d.components.seconds * 1000 + d.components.attoseconds / 1_000_000_000_000_000 }
 	let began = now()
-	let ended = later(began, .milliseconds(1500))
-	print("instants \(millis(since(ended, began))) \(millis(since(began, ended))) \(began == later(began, .zero)) \(began == ended)")
+	let ended = try! later(began, .milliseconds(1500))
+	print("instants \(millis(try! since(ended, began))) \(millis(try! since(began, ended))) \(began == try! later(began, .zero)) \(began == ended)")
 	// tracing's level, and its filter as an optional level whose nil is `OFF`.
 	var verbosity = Verbosity.new(.warn)
-	print("verbosity \(spell(verbosity.filter())) \(spell(louder(verbosity.filter())))")
-	verbosity.levelSet(.trace)
-	print("verbosity \(verbosity.levelGet == .trace) \(spell(verbosity.filter())) \(spell(louder(verbosity.filter()))) \(spell(louder(nil)))")
+	print("verbosity \(spell(try! verbosity.filter())) \(spell(louder(try! verbosity.filter())))")
+	try! verbosity.levelSet(.trace)
+	print("verbosity \(try! verbosity.levelGet == .trace) \(spell(try! verbosity.filter())) \(spell(louder(try! verbosity.filter()))) \(spell(louder(nil)))")
 
 	print("made \(made(3) { "\($0) times" })")
 	// A closure taking and returning `Copy` objects copies them, never running their `Clone`.
 	let nine = Ticket.new(9)
-	let given = reissue(Ticket.new(7)) { Ticket.new($0.number() + 1) }.number()
-	let held = reissue(Ticket.new(7)) { _ in nine }.number()
+	let given = try! reissue(Ticket.new(7)) { Ticket.new(try! $0.number() + 1) }.number()
+	let held = try! reissue(Ticket.new(7)) { _ in nine }.number()
 	print("reissued \(given) \(held), cloned \(Ticket.clones())")
 	// A kept closure, called on another thread after the call that took it returned.
-	print("spawned \(Spawned.new { 7 }.join())")
+	print("spawned \(try! Spawned.new { 7 }.join())")
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.
 	let start = now()
 	let calls = Cell(0)
@@ -736,10 +736,10 @@ func script() {
 		try await drive(start) { now, waiter in
 			calls.value += 1
 			switch calls.value {
-			case 1: return later(now, .milliseconds(5))
+			case 1: return try! later(now, .milliseconds(5))
 			case 2:
-				print("drive \(millis(since(now, start)))")
-				waiter.waker()()
+				print("drive \(millis(try! since(now, start)))")
+				try! waiter.waker()()
 				return nil
 			default: throw StringError(error: "stopped after \(calls.value)")
 			}
@@ -850,7 +850,7 @@ func futures() {
 
 	// The send lands from another thread while the receive waits.
 	let payload = block {
-		Thread.detachNewThread { channel.send(Data("blocked".utf8)) }
+		Thread.detachNewThread { try! channel.send(Data("blocked".utf8)) }
 		return try await channel.recv()
 	}
 	check(text(payload) == "blocked", "recv returns the payload another thread sent")
@@ -863,7 +863,7 @@ func futures() {
 		q.launch { got.value = text(try await channel.recv()) }
 		q.drain()
 		check(got.value == nil, "recv waits for a send")
-		channel.send(Data("then".utf8))
+		try! channel.send(Data("then".utf8))
 		check(got.value == nil, "recv never resumes inside the wake")
 		q.drain()
 		check(got.value == "then", "recv resumes with the payload")
@@ -901,7 +901,7 @@ func futures() {
 			}
 		}
 		q.drain()
-		channel.send(Data("kept".utf8))
+		try! channel.send(Data("kept".utf8))
 		task.cancel()
 		q.drain()
 		check(!called.value && threw.value, "a cancelled receive throws CancellationError")
@@ -912,7 +912,7 @@ func futures() {
 	// A task cancelled before its call takes nothing, even a payload ready at the first poll.
 	do {
 		let threw = Cell(false)
-		channel.send(Data("ready".utf8))
+		try! channel.send(Data("ready".utf8))
 		let task = q.launch {
 			do {
 				_ = try await channel.recv()
@@ -955,7 +955,7 @@ func futures() {
 			q.launch { got.value = text(try await other.recv()) }
 			q.drain()
 		}
-		sender.send(Data("held".utf8))
+		try! sender.send(Data("held".utf8))
 		q.drain()
 		check(got.value == "held", "the call awaiting on an object holds it")
 	}
@@ -1048,7 +1048,7 @@ func futures() {
 			_ = held
 			return 1
 		}
-		check(spawned.join() == 1, "a spawned closure runs")
+		check(try! spawned.join() == 1, "a spawned closure runs")
 		until { freed.value }
 		check(freed.value, "Rust releases a kept closure once it drops it")
 	}
@@ -1093,7 +1093,7 @@ func owned() {
 	check(dropped() == before + 1, "releasing returned bytes frees Rust's")
 	do {
 		let token = Token.new(2)
-		check(token.idGet == 2, "a token reads back")
+		check(try! token.idGet == 2, "a token reads back")
 	}
 	check(dropped() == before + 2, "releasing an object frees its handle")
 	do {
@@ -1154,28 +1154,28 @@ func broken(_ which: String) {
 	// A lent return outliving its owner's change, which Rust checks.
 	case "outlived":
 		var meters = Meters.new()
-		let first = meters.first()
-		meters.clear()
-		_ = first.count()
+		let first = try! meters.first()
+		try! meters.clear()
+		_ = try! first.count()
 	// An IPv6 address where Rust takes `SocketAddrV4`.
 	case "family":
 		let any = SocketAddr(ip: Array(repeating: 0, count: 16), port: 1)
 		_ = nexts(any, any)
 	// No String holds a path that is not UTF-8.
 	case "stray":
-		_ = stray()
+		_ = try! stray()
 	case "lent stray":
-		visitStray { _ in }
+		try! visitStray { _ in }
 	// A class moved into Rust, which Swift still holds: the call closes its handle.
 	case "refusal moved":
 		let kept = refusal("z")
 		var pairs = UniqueArray<TupleCounterRefusal>()
 		pairs.append(TupleCounterRefusal(Counter.new("a", 1), kept))
-		_ = reasons(pairs, nil)
+		_ = try! reasons(pairs, nil)
 		_ = kept.description
 	// The file serves wasm32 too, whose items the host's library lacks.
 	case "target":
-		_ = wasmOnly()
+		_ = try! wasmOnly()
 	case "variant":
 		_ = pointerBits(.wasm(bits: 32))
 	case "plain variant":

@@ -818,6 +818,16 @@ impl<'a> Gen<'a> {
 			true => "this",
 			false => "&this",
 		};
+		// An object whose run-time checks may fail passes each its status, which raises.
+		let checked = matches!(ty, Type::Object(i) if self.abi.traits_status(*i));
+		let (status, arg) = match checked {
+			true => ("let mut status = 0;\n\t\t", ", &mut status"),
+			false => ("", ""),
+		};
+		let check = |suffix: &str| match checked {
+			true => format!("\n\t\ts.status(status, \"{c}_{suffix}\")?;"),
+			false => String::new(),
+		};
 		let unary = |g: &mut Self, suffix: &str, member: &str, docs: &str, lower: String| {
 			let d = Direct {
 				member,
@@ -831,7 +841,8 @@ impl<'a> Gen<'a> {
 				&format!("{bare}_{suffix}"),
 				d,
 				&format!(
-					"let this = {this}?;\n\t\tlet ret = rt::call(|| crate::{c}_{suffix}({pass}));\n\t\ts.done();\n\t\t{lower}"
+					"let this = {this}?;\n\t\t{status}let ret = rt::call(|| crate::{c}_{suffix}({pass}{arg}));{}\n\t\ts.done();\n\t\t{lower}",
+					check(suffix)
 				),
 			);
 		};
@@ -861,7 +872,8 @@ impl<'a> Gen<'a> {
 				&format!("{bare}_eq"),
 				2,
 				&format!(
-					"let this = {this}?;\n\t\tlet other = {other}?;\n\t\tlet ret = rt::call(|| crate::{c}_eq(this, other));\n\t\ts.done();\n\t\trt::bool_out(ret)"
+					"let this = {this}?;\n\t\tlet other = {other}?;\n\t\t{status}let ret = rt::call(|| crate::{c}_eq(this, other{arg}));{}\n\t\ts.done();\n\t\trt::bool_out(ret)",
+					check("eq")
 				),
 			);
 			// Python makes a class that defines `__eq__` alone unhashable, as `Eq` without `Hash` is.
@@ -1312,10 +1324,15 @@ impl<'a> Gen<'a> {
 		let abi = self.abi;
 		match ty {
 			Type::String => format!("rt::str_given({o})"),
+			// A closure's return has no caller to raise to, so a failed check aborts.
 			Type::Object(i) => format!(
-				"rt::hold({o}, {}, s, false).map(|h| crate::{}_copy(h))",
+				"rt::hold({o}, {}, s, false).map(|h| crate::{}_copy(h{}))",
 				self.t(&abi.object(*i)),
-				abi.object(*i)
+				abi.object(*i),
+				match abi.traits_status(*i) {
+					true => ", std::ptr::null_mut()",
+					false => "",
+				}
 			),
 			Type::Option(inner) if matches!(**inner, Type::Object(_)) => {
 				let some = self.given(inner, o);
@@ -1579,7 +1596,16 @@ impl<'a> Gen<'a> {
 				exception.as_deref(),
 			);
 		}
-		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
+		// A call that fails a run-time check writes its status, which raises once it returns.
+		let (status, check) = match export.call.status() {
+			Some(_) => (
+				"let mut status = 0;\n\t\t".to_string(),
+				format!("\n\t\ts.status(status, \"{c_name}\")?;"),
+			),
+			None => (String::new(), String::new()),
+		};
+		let status_arg = export.call.status().map(|_| "&mut status".to_string());
 
 		// The outs follow the unstripped return: a borrowed tuple is one struct, not its elements.
 		let ok = strip_refs(&function.ok);
@@ -1603,8 +1629,8 @@ impl<'a> Gen<'a> {
 				free.name,
 			);
 			stmts.push(format!(
-				"let f = rt::call(|| crate::{c_name}({}));\n\t\ts.done();\n\t\trt::start(f.cast(), poll_{c_name}, free_{c_name}, s, {})",
-				c_args.join(", "),
+				"{status}let f = rt::call(|| crate::{c_name}({}));{check}\n\t\ts.done();\n\t\trt::start(f.cast(), poll_{c_name}, free_{c_name}, s, {})",
+				c_args.iter().chain(&status_arg).cloned().collect::<Vec<_>>().join(", "),
 				function.eager
 			));
 		} else {
@@ -1615,9 +1641,9 @@ impl<'a> Gen<'a> {
 				}
 				false => self.outs(&outs, &written, &function.ok, err.as_ref(), exception.as_deref(), "ret"),
 			};
-			let args: Vec<String> = c_args.iter().cloned().chain(ptrs).collect();
+			let args: Vec<String> = c_args.iter().cloned().chain(ptrs).chain(status_arg).collect();
 			stmts.push(format!(
-				"{decl}\n\t\tlet ret = rt::call(|| crate::{c_name}({}));\n\t\ts.done();\n\t\t{value}",
+				"{decl}\n\t\t{status}let ret = rt::call(|| crate::{c_name}({}));{check}\n\t\ts.done();\n\t\t{value}",
 				args.join(", ")
 			));
 		}

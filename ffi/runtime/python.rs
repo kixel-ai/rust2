@@ -397,6 +397,28 @@ impl Scope {
 				unsafe { close(held.ptr().cast()) };
 			}
 		}
+		self.given();
+	}
+
+	/// Raise for the call of `what` unless its `status` is zero: a run-time check failed,
+	/// so Rust moved nothing out, though it took and dropped what it was given.
+	pub fn status(&mut self, status: i32, what: &str) -> R<()> {
+		if status == 0 {
+			return Ok(());
+		}
+		self.given();
+		let message = format!("{what}: {}", rt::Status::text(status).to_string_lossy());
+		// A value moved out or outlived is as a closed one, and any other check is a misuse.
+		// SAFETY: static exception types.
+		let exc = match rt::Status::of(status) {
+			Some(rt::Status::Moved | rt::Status::Outlived) => unsafe { PyExc_ValueError },
+			_ => unsafe { PyExc_RuntimeError },
+		};
+		raise(exc, &message)
+	}
+
+	/// Note that what the call was given is Rust's.
+	fn given(&mut self) {
 		while let Some(given) = self.given.pop() {
 			given.into_ptr();
 		}

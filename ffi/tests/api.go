@@ -594,9 +594,9 @@ func script() {
 		return escaped(*p)
 	}), ",", ""), "[]"))
 	// A path that is no UTF-8 is a Go string all the same.
-	check(api.Stray() == "\xff", "a path that is not UTF-8 crosses as its bytes")
+	check(must(api.Stray()) == "\xff", "a path that is not UTF-8 crosses as its bytes")
 	var lent string
-	api.VisitStray(func(path string) { lent = path })
+	ok(api.VisitStray(func(path string) { lent = path }))
 	check(lent == "\xff", "a path Rust lends that is not UTF-8 crosses as its bytes")
 	// An error Rust returns only boxed is its type.
 	_, err = api.Refuse("why")
@@ -1420,15 +1420,19 @@ func batched() []rt.Bytes {
 // broken breaks a contract, which must fail with a message naming it.
 func broken(which string) {
 	switch which {
+	// A failed check returns an error, which the case raises once it checked its kind.
 	case "outlived":
 		meters := api.NewMeters()
 		first := must(meters.First())
 		ok(meters.Clear())
-		_ = must(first.Count())
+		_, err := first.Count()
+		check(errors.Is(err, rt.ErrClosed), "a handle that outlived its lender is closed")
+		panic(err)
 	case "lent moved":
 		must(api.NewRegistry(api.NewCounter("c", 0))).Edit(func(counter *api.Counter) bool {
-			counter.IntoLabel(nil)
-			return false
+			_, err := counter.IntoLabel(nil)
+			check(errors.Is(err, rt.ErrBorrowed), "a lent handle moved out is borrowed")
+			panic(err)
 		})
 	// An IPv6 address where Rust takes `SocketAddrV4`.
 	case "family":
@@ -1444,7 +1448,9 @@ func broken(which string) {
 		api.Extended(math.MaxInt64, 1)
 	// The packages serve wasm32 too, whose items the host's library lacks.
 	case "target":
-		api.WasmOnly()
+		_, err := api.WasmOnly()
+		check(errors.Is(err, errors.ErrUnsupported), "an item off the target is unsupported")
+		panic(err)
 	case "variant":
 		api.PointerBits(api.PlatformWasm{Bits: 32})
 	case "plain variant":

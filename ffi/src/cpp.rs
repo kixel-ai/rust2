@@ -623,11 +623,22 @@ impl<'a> Header<'a> {
 		let t = object.traits;
 		let text = format!("{}\n\n{}", abi.api.rust(&object.path, &object.args), object.docs);
 		let d = self.d();
+		// A failed check of a trait's borrow aborts with its message, as C++ throws nothing.
+		let status = match abi.traits_status(i) {
+			true => ", nullptr",
+			false => "",
+		};
 		// Copies share a handle only where no call tells that apart from a clone, but by an
 		// `Arc`'s or `Rc`'s count, which counts one for every copy.
-		let handle = match object.shared {
-			true => format!("{d}::shared<::{c}, &::{c}_free, &::{c}_clone, &::{c}_borrowed>"),
-			false => format!("{d}::unique<::{c}, &::{c}_free>"),
+		let handle = match (object.shared, status.is_empty()) {
+			(true, true) => format!("{d}::shared<::{c}, &::{c}_free, &::{c}_clone, &::{c}_borrowed>"),
+			(true, false) => {
+				self.line(format!(
+					"namespace detail {{\n\ninline ::{c} *{c}_clone(const ::{c} *raw) noexcept {{\n\treturn ::{c}_clone(raw, nullptr);\n}}\n\n}} // namespace detail\n"
+				));
+				format!("{d}::shared<::{c}, &::{c}_free, &{d}::{c}_clone, &::{c}_borrowed>")
+			}
+			(false, _) => format!("{d}::unique<::{c}, &::{c}_free>"),
 		};
 		let mut body = vec![
 			format!("\t{handle} raw_;\n"),
@@ -649,16 +660,16 @@ impl<'a> Header<'a> {
 				"\t/// Rust's `Clone`, a value of its own: copies sharing one value could be told apart\n\t/// from clones, so it does not copy.\n\tRUST2_FFI_CALLABLE {name} {clone}() const;"
 			));
 			self.def(format!(
-				"inline {name} {name}::{clone}() const {{\n\treturn {d}::access::wrap<{name}>(::{c}_clone(raw_.get()));\n}}\n"
+				"inline {name} {name}::{clone}() const {{\n\treturn {d}::access::wrap<{name}>(::{c}_clone(raw_.get(){status}));\n}}\n"
 			));
 			members.push(clone);
 		}
 		if t.eq {
 			body.push(format!(
-				"\tfriend bool operator==(const {name} &a, const {name} &b) {{\n\t\treturn ::{c}_eq(a.raw_.get(), b.raw_.get());\n\t}}\n\tfriend bool operator!=(const {name} &a, const {name} &b) {{\n\t\treturn !(a == b);\n\t}}"
+				"\tfriend bool operator==(const {name} &a, const {name} &b) {{\n\t\treturn ::{c}_eq(a.raw_.get(), b.raw_.get(){status});\n\t}}\n\tfriend bool operator!=(const {name} &a, const {name} &b) {{\n\t\treturn !(a == b);\n\t}}"
 			));
 		}
-		self.traits(&name, &c, t, None, &mut body, &mut members);
+		self.traits(&name, &c, t, None, status, &mut body, &mut members);
 		let owner = Ty::Handle {
 			name: c.clone(),
 			constant: false,
@@ -685,6 +696,7 @@ impl<'a> Header<'a> {
 		c: &str,
 		t: Traits,
 		value: Option<&Type>,
+		status: &str,
 		body: &mut Vec<String>,
 		members: &mut Vec<String>,
 	) {
@@ -706,7 +718,7 @@ impl<'a> Header<'a> {
 			let member = apart("to_string", name);
 			body.push(format!("\t{callable}::{ns}::buf {member}() const;"));
 			self.def(format!(
-				"inline ::{ns}::buf {name}::{member}() const {{\n{lower}\treturn {d}::access::adopt(::{c}_to_string({this}));\n}}\n"
+				"inline ::{ns}::buf {name}::{member}() const {{\n{lower}\treturn {d}::access::adopt(::{c}_to_string({this}{status}));\n}}\n"
 			));
 			members.push(member);
 		}
@@ -714,7 +726,7 @@ impl<'a> Header<'a> {
 			let member = apart("debug", name);
 			body.push(format!("\t{callable}::{ns}::buf {member}() const;"));
 			self.def(format!(
-				"inline ::{ns}::buf {name}::{member}() const {{\n{lower}\treturn {d}::access::adopt(::{c}_debug({this}));\n}}\n"
+				"inline ::{ns}::buf {name}::{member}() const {{\n{lower}\treturn {d}::access::adopt(::{c}_debug({this}{status}));\n}}\n"
 			));
 			members.push(member);
 		}
@@ -863,7 +875,7 @@ impl<'a> Header<'a> {
 						self.lower(ty, "other"),
 					));
 				}
-				self.traits(&name, &c, t, Some(ty), &mut body, &mut members);
+				self.traits(&name, &c, t, Some(ty), "", &mut body, &mut members);
 				let owner = Ty::Struct(c.clone());
 				let mut taken = fields.clone();
 				taken.push(name.clone());
@@ -1205,7 +1217,7 @@ impl<'a> Header<'a> {
 			params.push(declare(&self.param(&param.ty), &name));
 			args.push(self.lower(&param.ty, &name));
 		}
-		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
 		// Each value passed for `&mut` takes what Rust wrote back, on every path.
 		let writes: Vec<String> = (function.params.iter().zip(&names))
 			.filter(|(param, _)| param.ty.written())
@@ -1216,6 +1228,10 @@ impl<'a> Header<'a> {
 			.collect();
 		for (name, _) in &outs {
 			args.push(format!("&c_{name}_"));
+		}
+		// A failed check aborts with its message, as C++ throws nothing.
+		if export.call.status().is_some() {
+			args.push("nullptr".to_string());
 		}
 		let call = format!("::{}({})", export.call.name, args.join(", "));
 		let mut body = prelude;
@@ -1414,7 +1430,14 @@ impl<'a> Header<'a> {
 			Type::Option(inner) if matches!(**inner, Type::Object(_)) => {
 				format!("({e} ? {} : nullptr)", self.returned(inner, &format!("(*{e})")))
 			}
-			Type::Object(i) => format!("::{}_copy({d}::access::raw({e}))", abi.object(*i)),
+			Type::Object(i) => format!(
+				"::{}_copy({d}::access::raw({e}){})",
+				abi.object(*i),
+				match abi.traits_status(*i) {
+					true => ", nullptr",
+					false => "",
+				}
+			),
 			ty => self.lower(ty, e),
 		}
 	}

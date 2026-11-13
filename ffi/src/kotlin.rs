@@ -832,7 +832,7 @@ impl<'a> Gen<'a> {
 				arg.exprs.push(format!("Native.Pollable({e}, {context})"));
 				arg.rust_args.push(format!("rt::future(env, {p})"));
 			}
-			Ty::Void | Ty::Future(_) | Ty::Poll | Ty::Out(_) | Ty::Data => {
+			Ty::Void | Ty::Future(_) | Ty::Poll | Ty::Status | Ty::Out(_) | Ty::Data => {
 				unreachable!("{c:?} is no parameter Kotlin passes")
 			}
 		}
@@ -1015,12 +1015,21 @@ impl<'a> Gen<'a> {
 				)
 			}
 		};
+		// Each borrows its handles shared, throwing a failed check.
+		let status = matches!(ty, Type::Object(i) if self.abi.traits_status(*i));
+		let checked = |call: &str, name: &str, then: &str| match status {
+			true => format!(
+				"let mut status = 0;\n\t\tlet ret = {}, &mut status);\n\t\tif status != 0 {{\n\t\t\treturn rt::raise(env, status, \"{name}\");\n\t\t}}\n\t\t{then}",
+				call.strip_suffix(')').expect("a call")
+			),
+			false => format!("let ret = {call};\n\t\t{then}"),
+		};
 		let unary = |g: &mut Self, suffix: &str, sig: &str| {
 			g.native(
 				&format!("{bare}_{suffix}"),
 				&[(jni_self, native_self)],
 				("jbyteArray", "ByteArray?"),
-				&format!("rt::owned(env, crate::{c}_{suffix}({rust_self}))"),
+				&checked(&format!("crate::{c}_{suffix}({rust_self})"), &format!("{c}_{suffix}"), "rt::owned(env, ret)"),
 			);
 			format!("\t{sig} = {open}\n\t\tNative.{bare}_{suffix}({arg})!!.decodeToString()\n\t}}\n")
 		};
@@ -1043,7 +1052,7 @@ impl<'a> Gen<'a> {
 				&format!("{bare}_copy"),
 				&[("jlong", "Long")],
 				("jlong", "Long"),
-				&format!("crate::{c}_copy(p0 as usize as _) as usize as jlong"),
+				&checked(&format!("crate::{c}_copy(p0 as usize as _)"), &format!("{c}_copy"), "ret as usize as jlong"),
 			);
 		}
 		if object && t.clone {
@@ -1051,7 +1060,7 @@ impl<'a> Gen<'a> {
 				&format!("{bare}_clone"),
 				&[("jlong", "Long")],
 				("jlong", "Long"),
-				&format!("crate::{c}_clone(p0 as usize as _) as usize as jlong"),
+				&checked(&format!("crate::{c}_clone(p0 as usize as _)"), &format!("{c}_clone"), "ret as usize as jlong"),
 			);
 			body.push(format!(
 				"\t/** A new handle to a clone. */\n\tfun clone(): {class} = handle.hold {{ h -> {class}(Native.{bare}_clone(h)) }}\n"
@@ -1062,7 +1071,7 @@ impl<'a> Gen<'a> {
 				&format!("{bare}_eq"),
 				&[("jlong", "Long"), ("jlong", "Long")],
 				("jboolean", "Boolean"),
-				&format!("crate::{c}_eq(p0 as usize as _, p1 as usize as _)"),
+				&checked(&format!("crate::{c}_eq(p0 as usize as _, p1 as usize as _)"), &format!("{c}_eq"), "ret"),
 			);
 			body.push(format!(
 				"\toverride fun equals(other: Any?): Boolean =\n\t\tother is {class} && handle.hold {{ a -> other.handle.hold {{ b -> Native.{bare}_eq(a, b) }} }}\n\n\t/** One for every value: Rust's `PartialEq` comes with no `Hash`. */\n\toverride fun hashCode(): Int = 0\n"
@@ -1834,7 +1843,13 @@ impl<'a> Gen<'a> {
 				(&kt, None),
 			);
 		}
-		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
+		let outs: Vec<(String, Ty)> = c_params.filter(|(_, ty)| !abi::is_status(ty)).cloned().collect();
+		// A failed check writes its status, which the glue throws once the call returns.
+		let status = export.call.status().is_some();
+		let check = match status {
+			true => format!("\n\t\tif status != 0 {{\n\t\t\treturn rt::raise(env, status, \"{c_name}\");\n\t\t}}"),
+			false => String::new(),
+		};
 
 		let native_params: Vec<(&str, String)> = args
 			.iter()
@@ -1844,7 +1859,10 @@ impl<'a> Gen<'a> {
 		// A future's call also takes the signal its waker parks, if its first poll pends.
 		let signal = export.future.is_some().then(|| self.fresh("s"));
 		exprs.extend(signal.clone());
-		let rust_pre: Vec<String> = args.iter().flat_map(|a| a.rust_pre.clone()).collect();
+		let mut rust_pre: Vec<String> = args.iter().flat_map(|a| a.rust_pre.clone()).collect();
+		if status {
+			rust_pre.push("let mut status = 0;".to_string());
+		}
 		let rust_args: Vec<String> = args.iter().flat_map(|a| a.rust_args.clone()).collect();
 		let after: Vec<String> = args.iter().flat_map(|a| a.after.clone()).collect();
 
@@ -1865,8 +1883,9 @@ impl<'a> Gen<'a> {
 		// The value the function returns, or, returning nothing, its statement.
 		let value;
 		// The C call, with the out pointers after its arguments.
+		let status_arg = status.then(|| "&mut status".to_string());
 		let rust_call = |outs: &[String]| {
-			let args: Vec<&String> = rust_args.iter().chain(outs).collect();
+			let args: Vec<&String> = rust_args.iter().chain(outs).chain(&status_arg).collect();
 			let args: Vec<&str> = args.iter().map(|a| a.as_str()).collect();
 			format!("crate::{c_name}({})", args.join(", "))
 		};
@@ -1898,7 +1917,7 @@ impl<'a> Gen<'a> {
 				&params,
 				("jbyteArray", "ByteArray"),
 				&format!(
-					"{}\n\t\tlet f = {};\n\t\trt::start(env, f.cast(), {p_signal}, jni_{}, jni_{})",
+					"{}\n\t\tlet f = {};{check}\n\t\trt::start(env, f.cast(), {p_signal}, jni_{}, jni_{})",
 					rust_pre.join("\n\t\t"),
 					rust_call(&[]),
 					poll.name,
@@ -1947,7 +1966,7 @@ impl<'a> Gen<'a> {
 				&params,
 				("jbyteArray", "ByteArray"),
 				&format!(
-					"{}\n\t\t{decl}\n\t\t{ret_set}{};\n\t\tlet mut w = rt::Writer::default();\n\t\t{write}\n\t\tw.array(env)",
+					"{}\n\t\t{decl}\n\t\t{ret_set}{};{check}\n\t\tlet mut w = rt::Writer::default();\n\t\t{write}\n\t\tw.array(env)",
 					rust_pre.join("\n\t\t"),
 					rust_call(&ptrs)
 				),
@@ -1997,7 +2016,7 @@ impl<'a> Gen<'a> {
 				&params,
 				(jni, native),
 				&format!(
-					"{}\n\t\tlet ret = {};\n\t\t{ret_expr}",
+					"{}\n\t\tlet ret = {};{check}\n\t\t{ret_expr}",
 					rust_pre.join("\n\t\t"),
 					rust_call(&[])
 				),
@@ -2287,7 +2306,7 @@ fn jni_type(c: &Ty, ty: &Type) -> (&'static str, &'static str) {
 		Ty::Waker => ("jobject", "Waker"),
 		Ty::ForeignReader => ("jobject", "java.nio.channels.SeekableByteChannel"),
 		Ty::ForeignFuture => ("jobject", "Any"),
-		Ty::Poll | Ty::Out(_) | Ty::Data => unreachable!("{c:?} never crosses JNI"),
+		Ty::Poll | Ty::Status | Ty::Out(_) | Ty::Data => unreachable!("{c:?} never crosses JNI"),
 	}
 }
 

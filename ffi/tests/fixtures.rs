@@ -195,7 +195,7 @@ fn api_c() {
 		("lent", "api_Registry_edit: a lent handle was freed"),
 		(
 			"lent moved",
-			"api_Counter_into_label: a lent handle's value cannot move out",
+			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("null", "api_Registry_edit: a function is null"),
 		("returned", "api_made: a returned buffer is not one buf_copy made"),
@@ -203,7 +203,7 @@ fn api_c() {
 		("outlived", OUTLIVED),
 		(
 			"lent shared",
-			"api_Meter_reset: a handle a call lent shared is borrowed exclusively",
+			"api_Meter_reset: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("target", "api_wasm_only: it is not on this library's target"),
 		(
@@ -260,7 +260,7 @@ fn api_cpp() {
 			),
 			(
 				"lent moved",
-				"api_Counter_into_label: a lent handle's value cannot move out",
+				"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 			),
 			("lent kept", "a lent object was moved out of"),
 			("overread", "api_tail: a reader read more than it was asked"),
@@ -585,7 +585,7 @@ fn kotlin(native: &str, vm: &dyn Fn(&[&str]) -> Command) {
 		("lent kept", "Counter is closed"),
 		(
 			"lent moved",
-			"api_Counter_into_label: a lent handle's value cannot move out",
+			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("callback threw", "api::Log::log: a call into Kotlin threw"),
 		("closure threw", "api_made: a call into Kotlin threw"),
@@ -642,7 +642,7 @@ fn api_python() {
 		("lent held", "Counter: a call still holds it when its lend ends"),
 		(
 			"lent moved",
-			"api_Counter_into_label: a lent handle's value cannot move out",
+			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("callback threw", "api::Log::log: a call into Python raised"),
 		("foreign cancelled", "a future Rust polls raised"),
@@ -862,7 +862,7 @@ fn api_dart() {
 		("lent kept", "Bad state: Counter is closed"),
 		(
 			"lent moved",
-			"api_Counter_into_label: a lent handle's value cannot move out",
+			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("callback threw", "api::Log::log: a call into Dart threw"),
 		(
@@ -1068,7 +1068,7 @@ fn api_go() {
 	for (case, message) in [
 		(
 			"lent moved",
-			"api_Counter_into_label: a lent handle's value cannot move out",
+			"api_Counter_into_label: a handle a call lent is borrowed exclusively or moved out",
 		),
 		("nil reader", "a nil io.ReadSeeker"),
 		("returned closed", "Instant is closed"),

@@ -55,6 +55,18 @@ public struct U128: Hashable, Comparable, Sendable, CustomStringConvertible {
 
 /// Where a seek counts its offset from, as swift-system's `FileDescriptor.SeekOrigin` and
 /// Rust's `SeekFrom` do.
+/// A call Rust's rules refuse, thrown before any Rust runs: a handle borrowed in a way
+/// the borrow checker forbids beside another call's, used once its value moved out or its
+/// lend ended, or an item called on a library whose target lacks it.
+public struct CheckError: Swift.Error, CustomStringConvertible, Sendable {
+	/// The function called, by its C name.
+	public let function: Swift.String
+	/// What broke.
+	public let message: Swift.String
+
+	public var description: Swift.String { "\(function): \(message)" }
+}
+
 public enum SeekOrigin: Sendable {
 	case start
 	case current
@@ -399,14 +411,22 @@ extension Native {
 		}
 
 		func hold() -> OpaquePointer? {
+			guard held() else {
+				fatalError("\(type) is closed")
+			}
+			return raw
+		}
+
+		/// Hold it for a call, unless it is closed.
+		func held() -> Bool {
 			var n = load(state)
 			while true {
 				if n & Handle.closed != 0 {
-					fatalError("\(type) is closed")
+					return false
 				}
 				let seen = swap(state, n, n + Handle.held)
 				if seen == n {
-					return raw
+					return true
 				}
 				n = seen
 			}
@@ -422,6 +442,17 @@ extension Native {
 		@inline(__always)
 		func with<R: ~Copyable>(_ body: (OpaquePointer?) throws -> R) rethrows -> R {
 			let raw = hold()
+			defer { release() }
+			return try body(raw)
+		}
+
+		/// Run `body` with the raw handle, held until it returns, or throw for a call of
+		/// `what` if it is closed.
+		@inline(__always)
+		func with<R: ~Copyable>(_ what: StaticString, _ body: (OpaquePointer?) throws -> R) throws -> R {
+			guard held() else {
+				throw CheckError(function: "\(what)", message: "\(type) is closed")
+			}
 			defer { release() }
 			return try body(raw)
 		}
@@ -462,6 +493,15 @@ extension Native {
 	static func with<R: ~Copyable>(_ handle: Handle?, _ body: (OpaquePointer?) throws -> R) rethrows -> R {
 		guard let handle else { return try body(nil) }
 		return try handle.with(body)
+	}
+
+	/// As `with`, throwing for a call of `what` if `handle` is closed.
+	@inline(__always)
+	static func with<R: ~Copyable>(
+		_ what: StaticString, _ handle: Handle?, _ body: (OpaquePointer?) throws -> R
+	) throws -> R {
+		guard let handle else { return try body(nil) }
+		return try handle.with(what, body)
 	}
 
 	/// What a call lowers nested values into, kept until it returns: copied bytes, arrays,

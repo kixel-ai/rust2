@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use rustc_span::Span;
 
-use crate::ir::{Access, Api, Closure, Dyn, Function, Home, Int, Literal, On, Receiver, Type};
+use crate::ir::{Access, Api, Closure, Dyn, Function, Home, Int, Literal, Mutability, On, Receiver, Type};
 
 /// A C name one item claims twice, which no rename can tell apart: the name, then what
 /// claimed it first and second.
@@ -88,6 +88,9 @@ pub enum Ty {
 	ForeignReader,
 	/// `<prefix>_poll`
 	Poll,
+	/// `<prefix>_status`, an `int32_t`: why a call failed a check of a handle, which a
+	/// function that can fail one writes through its last parameter.
+	Status,
 	/// A pointer the callee writes a result through.
 	Out(Box<Ty>),
 	/// A pointer the callee only reads through: a value's receiver.
@@ -105,6 +108,18 @@ pub struct Sig {
 	pub ret: Ty,
 }
 
+impl Sig {
+	/// The `status` parameter it takes last, if a call can fail a check of a handle.
+	pub fn status(&self) -> Option<&str> {
+		self.params.last().filter(|(_, ty)| is_status(ty)).map(|(name, _)| name.as_str())
+	}
+}
+
+/// Whether `ty` is a `status` parameter's.
+pub fn is_status(ty: &Ty) -> bool {
+	matches!(ty, Ty::Out(inner) if **inner == Ty::Status)
+}
+
 /// The C side of an exported function.
 pub struct Export {
 	/// The function itself: for a future, the call that makes it.
@@ -114,6 +129,71 @@ pub struct Export {
 	pub named: String,
 	/// For a future: its handle type, its poll, and its free.
 	pub future: Option<(String, Sig, Sig)>,
+}
+
+/// Each `<prefix>_status` a call can fail with, numbered from 1, and what it means, as
+/// the runtime's `Status` names them.
+pub const STATUSES: [(&str, &str); 6] = [
+	("moved", "the handle's value was moved out"),
+	("exclusive", "another call or future borrows the value exclusively"),
+	("borrowed", "another call or future borrows the value"),
+	("thread", "a value that is not Sync is borrowed on another thread"),
+	("lent", "a handle a call lent is borrowed exclusively or moved out"),
+	("outlived", "a handle lent from another outlived it"),
+];
+
+/// Whether a call can fail a check of each object's handle, by Rust's rules alone: its
+/// value is not `Sync`, so a borrow on another thread fails; an export borrows it
+/// exclusively or moves it out, so a borrow beside another call's fails; or a handle to
+/// it is lent, by a call returning a borrow or to a closure or trait for a call, so a use
+/// past the lend fails. Every other object's handles are only ever borrowed shared, which
+/// never fails.
+fn checked(api: &Api) -> Vec<bool> {
+	/// Mark each object a parameter of type `ty` borrows exclusively, moves, or lends,
+	/// `owned` when `ty` is passed by value rather than behind a shared reference.
+	fn param(api: &Api, ty: &Type, owned: bool, checked: &mut [bool]) {
+		match ty {
+			Type::Object(i) if owned && !api.objects[*i].copy => checked[*i] = true,
+			Type::Ref(Mutability::Mut, inner) => {
+				if let Type::Object(i) = inner.base() {
+					checked[*i] = true;
+				}
+				param(api, inner, true, checked);
+			}
+			Type::Ref(Mutability::Not, inner) => param(api, inner, false, checked),
+			Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => param(api, inner, owned, checked),
+			Type::Tuple(elements) => elements.iter().for_each(|ty| param(api, ty, owned, checked)),
+			Type::Closure(closure) => closure.params.iter().for_each(|ty| lent(api, ty, checked)),
+			_ => {}
+		}
+	}
+	/// Mark each object a value of `ty` Rust lends the foreign side holds.
+	fn lent(api: &Api, ty: &Type, checked: &mut [bool]) {
+		let mut handles = Vec::new();
+		api.handles(ty, &mut handles, &mut Vec::new());
+		handles.into_iter().for_each(|i| checked[i] = true);
+	}
+	let mut checked: Vec<bool> = api.objects.iter().map(|o| !o.sync).collect();
+	let functions = (api.records.iter().flat_map(|r| &r.methods))
+		.chain(api.enums.iter().flat_map(|e| &e.methods))
+		.chain(&api.functions)
+		.map(|f| (None, f))
+		.chain((api.objects.iter().enumerate()).flat_map(|(i, o)| o.methods.iter().map(move |f| (Some(i), f))));
+	for (owner, f) in functions {
+		match (owner, f.receiver) {
+			(Some(i), Some(Receiver::Mut)) => checked[i] = true,
+			(Some(i), Some(Receiver::Owned)) if !api.objects[i].copy => checked[i] = true,
+			_ => {}
+		}
+		f.params.iter().for_each(|p| param(api, &p.ty, true, &mut checked));
+		if f.lends {
+			lent(api, &f.ok, &mut checked);
+		}
+	}
+	for method in api.callbacks.iter().flat_map(|c| &c.methods) {
+		method.params.iter().for_each(|p| lent(api, &p.ty, &mut checked));
+	}
+	checked
 }
 
 /// `ty` as a clone of each borrow it holds.
@@ -153,6 +233,8 @@ pub struct Abi<'a> {
 	/// Each `Copy` object a closure takes or returns by value, which `<T>_copy` copies into
 	/// a new handle as Rust copies it, never running its `Clone`.
 	pub copies: BTreeSet<usize>,
+	/// Whether a call can fail a check of each object's handle: see [`checked`].
+	pub checked: Vec<bool>,
 	/// Every C name claimed.
 	claims: Vec<Claim>,
 	/// The C name of each item whose own clashed.
@@ -173,6 +255,7 @@ impl<'a> Abi<'a> {
 			tuples: BTreeMap::new(),
 			arrays: BTreeMap::new(),
 			copies: BTreeSet::new(),
+			checked: checked(api),
 			claims: Vec::new(),
 			renames: HashMap::new(),
 			clashes: Vec::new(),
@@ -773,7 +856,15 @@ impl<'a> Abi<'a> {
 		if let Some(err) = &function.err {
 			outs.push(("err".to_string(), Ty::Out(Box::new(self.returned(err)))));
 		}
+		let status = self.status(function, owner).then(|| {
+			let mut status = "status".to_string();
+			while function.params.iter().any(|p| escape(&p.name) == status) {
+				status.push('_');
+			}
+			(status, Ty::Out(Box::new(Ty::Status)))
+		});
 		if function.future {
+			params.extend(status);
 			let handle = format!("{name}_future");
 			let mut poll_params = vec![
 				("future".to_string(), Ty::Future(handle.clone())),
@@ -814,11 +905,33 @@ impl<'a> Abi<'a> {
 				self.returned(ok)
 			}
 		};
+		params.extend(status);
 		Export {
 			call: Sig { name, params, ret },
 			future: None,
 			named,
 		}
+	}
+
+	/// Whether a call of `function`, a method of `owner` if it has one, can fail a check of
+	/// a handle it borrows or moves, so it takes a `status` to write why.
+	pub fn status(&self, function: &Function, owner: Option<&Ty>) -> bool {
+		let receiver = match (function.receiver, owner) {
+			(Some(_), Some(Ty::Handle { name, .. })) => (0..self.api.objects.len()).find(|&i| &self.object(i) == name),
+			_ => None,
+		};
+		let mut handles: Vec<usize> = receiver.into_iter().collect();
+		let mut seen = Vec::new();
+		for param in &function.params {
+			self.api.handles(&param.ty, &mut handles, &mut seen);
+		}
+		handles.iter().any(|&i| self.checked[i])
+	}
+
+	/// Whether `<T>_clone`, `_eq`, `_to_string`, `_debug`, and `_copy` of object `i` take a
+	/// `status`, as each borrows its handles shared.
+	pub fn traits_status(&self, i: usize) -> bool {
+		self.checked[i]
 	}
 
 	/// The out pointer Rust writes back the value C passed for `&mut` as parameter `name`
@@ -890,6 +1003,8 @@ impl<'a> Abi<'a> {
 		for runtime in [
 			"contract",
 			"target",
+			"status",
+			"status_message",
 			"buf",
 			"buf_free",
 			"u128",

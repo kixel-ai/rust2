@@ -1,9 +1,11 @@
 //! The runtime every export shares: buffers, handles, lent functions, wakers, and futures
 //! across the C ABI. rust2-ffi copies it beside the generated code.
 //!
-//! A broken contract across the ABI (a null or consumed handle, a handle borrowed in a
-//! way Rust's rules forbid, invalid UTF-8, a future polled after it finished) aborts with
-//! a message naming the C function: there is no Rust caller to return an error to.
+//! A handle borrowed or moved in a way Rust's rules forbid fails the call with a
+//! [`Status`], before any Rust code runs, which a binding raises as its language's own
+//! error. Any other broken contract across the ABI (a null handle, invalid UTF-8, a future
+//! polled after it finished) aborts with a message naming the C function: no binding
+//! makes one, and there is no Rust caller to return an error to.
 
 use std::cell::UnsafeCell;
 use std::ffi::c_void;
@@ -19,6 +21,95 @@ use std::task::{Context, Wake};
 pub fn fail(what: &str, msg: &str) -> ! {
 	eprintln!("{what}: {msg}");
 	std::process::abort()
+}
+
+/// Why a call's check of a handle failed: a borrow or move Rust's borrow checker would
+/// refuse. The call returns before any Rust code runs, so nothing changed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(i32)]
+pub enum Status {
+	/// The handle's value was moved out, or the handle closed.
+	Moved = 1,
+	/// Another call or future borrows the value exclusively.
+	Exclusive = 2,
+	/// Another call or future borrows the value, so it cannot be borrowed exclusively or
+	/// moved out.
+	Borrowed = 3,
+	/// A value that is not `Sync` is borrowed on another thread.
+	Thread = 4,
+	/// A handle a call lent is borrowed exclusively or moved out.
+	Lent = 5,
+	/// A handle lent from another outlived it.
+	Outlived = 6,
+}
+
+impl Status {
+	/// Every status, by its number less one.
+	pub const ALL: [Self; 6] = [
+		Self::Moved,
+		Self::Exclusive,
+		Self::Borrowed,
+		Self::Thread,
+		Self::Lent,
+		Self::Outlived,
+	];
+
+	/// What broke, as a binding's error says it after the function's name.
+	pub fn message(self) -> &'static str {
+		self.c_message().to_str().expect("ASCII")
+	}
+
+	fn c_message(self) -> &'static std::ffi::CStr {
+		match self {
+			Self::Moved => c"a handle's value was moved out",
+			Self::Exclusive => c"a handle is borrowed exclusively",
+			Self::Borrowed => c"a handle is already borrowed",
+			Self::Thread => c"a handle is borrowed on another thread",
+			Self::Lent => c"a handle a call lent is borrowed exclusively or moved out",
+			Self::Outlived => {
+				c"a handle lent from another outlived it: the other was borrowed exclusively, moved out, or freed"
+			}
+		}
+	}
+
+	/// The message of the status numbered `n`, for `<prefix>_status_message`.
+	pub fn text(n: i32) -> &'static std::ffi::CStr {
+		Self::of(n).map_or(c"an unknown status", Self::c_message)
+	}
+
+	/// The status numbered `n`, as a function wrote it.
+	pub fn of(n: i32) -> Option<Self> {
+		Self::ALL.get(usize::try_from(n).ok()?.checked_sub(1)?).copied()
+	}
+
+	/// Abort, naming the function `what`, where no caller can take the status.
+	#[cold]
+	pub fn fail(self, what: &str) -> ! {
+		fail(what, self.message())
+	}
+}
+
+/// The value of a check, or an abort naming `what` where no caller can take its status.
+pub fn check<T>(checked: Result<T, Status>, what: &str) -> T {
+	checked.unwrap_or_else(|status| status.fail(what))
+}
+
+/// Fail a C function with `status`: write it through the function's `out`, returning a
+/// zeroed value the caller ignores, or abort naming `what` if `out` is null, as a C caller
+/// that takes no status passes.
+///
+/// # Safety
+/// `out` is null or points where an `int32_t` goes, and a zeroed `R` is a valid value.
+#[cold]
+pub unsafe fn failed<R>(out: *mut i32, status: Status, what: &str) -> R {
+	if out.is_null() {
+		status.fail(what);
+	}
+	// SAFETY: the caller's contract.
+	unsafe {
+		out.write(status as i32);
+		std::mem::zeroed()
+	}
 }
 
 /// `s` for as long as the program runs, for a parameter that must be `'static`: each
@@ -486,8 +577,8 @@ pub struct Object<T> {
 	/// The value a lent handle points at, where Rust lent it, or null if it owns `value`.
 	lent: *mut T,
 	value: UnsafeCell<MaybeUninit<T>>,
-	/// Bumped each time the value is borrowed exclusively or moved out, or the handle is
-	/// freed, so no handle lent from the value outlives any of them.
+	/// Bumped each time the value is changed through an exclusive borrow or moved out, or
+	/// the handle is freed, so no handle lent from the value outlives any of them.
 	epoch: AtomicUsize,
 	/// For a handle a call returned lent from another's value, that handle.
 	lender: Option<Lender>,
@@ -505,24 +596,22 @@ pub struct Lender {
 /// A handle another is lent from.
 trait Lends: Send + Sync {
 	/// Borrow the value shared for a use of a handle lent from it, if still at `epoch`.
-	fn hold(&self, epoch: usize, local: bool, what: &str);
+	fn hold(&self, epoch: usize, local: bool) -> Result<(), Status>;
 	/// End what [`Self::hold`] took.
 	fn unhold(&self, local: bool);
 }
 
 impl<T: Send> Lends for Object<T> {
-	fn hold(&self, epoch: usize, local: bool, what: &str) {
+	fn hold(&self, epoch: usize, local: bool) -> Result<(), Status> {
 		match local {
-			true => self.acquire_local(what),
-			false => self.acquire(what),
+			true => self.acquire_local()?,
+			false => self.acquire()?,
 		}
 		if self.epoch.load(Ordering::Acquire) != epoch {
 			self.unhold(local);
-			fail(
-				what,
-				"a handle lent from another outlived it: the other was borrowed exclusively, moved out, or freed",
-			);
+			return Err(Status::Outlived);
 		}
+		Ok(())
 	}
 
 	fn unhold(&self, local: bool) {
@@ -570,7 +659,7 @@ impl<T> Object<T> {
 
 	/// A handle to `value`, which a call returned lent from `lender`'s value: shared, as a
 	/// returned `&T` is, and borrowed as its own type is, until that value is borrowed
-	/// exclusively, moved out, or freed, after which a use aborts. It is never borrowed
+	/// exclusively, moved out, or freed, after which a use fails. It is never borrowed
 	/// exclusively nor moved out itself.
 	pub fn lent(value: &T, lender: Lender) -> *const c_void {
 		Arc::into_raw(Arc::new(Self {
@@ -638,12 +727,12 @@ impl<T> Object<T> {
 		unsafe { &*handle.cast::<Self>() }
 	}
 
-	fn acquire(&self, what: &str) {
+	fn acquire(&self) -> Result<(), Status> {
 		let mut state = self.state.load(Ordering::Relaxed);
 		loop {
 			match state {
-				TAKEN => fail(what, "a handle's value was moved out"),
-				EXCLUSIVE => fail(what, "a handle is borrowed exclusively"),
+				TAKEN => return Err(Status::Moved),
+				EXCLUSIVE => return Err(Status::Exclusive),
 				_ => {}
 			}
 			match self
@@ -654,7 +743,9 @@ impl<T> Object<T> {
 				Err(now) => state = now,
 			}
 		}
-		self.hold_lender(what);
+		self.hold_lender().inspect_err(|_| {
+			self.state.fetch_sub(1, Ordering::Release);
+		})
 	}
 
 	/// End a shared borrow [`Self::acquire`] took.
@@ -665,23 +756,28 @@ impl<T> Object<T> {
 
 	/// Borrow a value that is not `Sync` shared: any number of times on one thread, as
 	/// Rust allows, and on no other thread meanwhile.
-	fn acquire_local(&self, what: &str) {
+	fn acquire_local(&self) -> Result<(), Status> {
 		let me = thread();
 		match self.state.compare_exchange(0, me, Ordering::Acquire, Ordering::Relaxed) {
 			Ok(_) => {}
 			Err(owner) if owner == me => {}
-			Err(TAKEN) => fail(what, "a handle's value was moved out"),
-			Err(EXCLUSIVE) => fail(what, "a handle is borrowed exclusively"),
-			Err(_) => fail(what, "a handle is borrowed on another thread"),
+			Err(TAKEN) => return Err(Status::Moved),
+			Err(EXCLUSIVE) => return Err(Status::Exclusive),
+			Err(_) => return Err(Status::Thread),
 		}
 		// SAFETY: only the thread in `state` touches `depth`.
 		unsafe { *self.depth.get() += 1 };
-		self.hold_lender(what);
+		self.hold_lender().inspect_err(|_| self.unlocal())
 	}
 
 	/// End a shared borrow [`Self::acquire_local`] took, on its thread.
 	fn release_local(&self) {
 		self.release_lender();
+		self.unlocal();
+	}
+
+	/// Count down this thread's borrows, letting go of the value at the last.
+	fn unlocal(&self) {
 		// SAFETY: this thread is the one in `state`, so `depth` is its own.
 		let depth = unsafe { &mut *self.depth.get() };
 		*depth -= 1;
@@ -691,9 +787,10 @@ impl<T> Object<T> {
 	}
 
 	/// For a handle lent from another, hold that one for a use of this one.
-	fn hold_lender(&self, what: &str) {
-		if let Some(lender) = &self.lender {
-			lender.handle.hold(lender.epoch, lender.local, what);
+	fn hold_lender(&self) -> Result<(), Status> {
+		match &self.lender {
+			Some(lender) => lender.handle.hold(lender.epoch, lender.local),
+			None => Ok(()),
 		}
 	}
 
@@ -703,34 +800,30 @@ impl<T> Object<T> {
 		}
 	}
 
-	fn acquire_mut(&self, what: &str) {
-		if self.lender.is_some() {
-			fail(what, "a handle a call lent shared is borrowed exclusively");
+	/// Take `state` from 0 to `to`, as an exclusive borrow or a move does.
+	fn acquire_from_zero(&self, to: usize) -> Result<(), Status> {
+		if self.lender.is_some() || (to == TAKEN && !self.lent.is_null()) {
+			return Err(Status::Lent);
 		}
-		if let Err(state) = self
-			.state
-			.compare_exchange(0, EXCLUSIVE, Ordering::Acquire, Ordering::Relaxed)
-		{
-			match state {
-				TAKEN => fail(what, "a handle's value was moved out"),
-				_ => fail(what, "a handle is already borrowed"),
-			}
+		match self.state.compare_exchange(0, to, Ordering::Acquire, Ordering::Relaxed) {
+			Ok(_) => Ok(()),
+			Err(TAKEN) => Err(Status::Moved),
+			Err(_) => Err(Status::Borrowed),
 		}
-		self.epoch.fetch_add(1, Ordering::Release);
 	}
 
 	/// Borrow the value shared for a call.
 	///
 	/// # Safety
 	/// `handle` is a live handle of this type, kept alive through the borrow.
-	pub unsafe fn borrow<'a>(handle: *const c_void, what: &str) -> Shared<'a, T>
+	pub unsafe fn borrow<'a>(handle: *const c_void, what: &str) -> Result<Shared<'a, T>, Status>
 	where
 		T: Sync,
 	{
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
-		object.acquire(what);
-		Shared { object }
+		object.acquire()?;
+		Ok(Shared { object })
 	}
 
 	/// Borrow a value that is not `Sync` shared for a call: any number of times on one
@@ -738,47 +831,54 @@ impl<T> Object<T> {
 	///
 	/// # Safety
 	/// As [`Self::borrow`].
-	pub unsafe fn borrow_local<'a>(handle: *const c_void, what: &str) -> Local<'a, T> {
+	pub unsafe fn borrow_local<'a>(handle: *const c_void, what: &str) -> Result<Local<'a, T>, Status> {
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
-		object.acquire_local(what);
-		Local { object }
+		object.acquire_local()?;
+		Ok(Local { object })
 	}
 
 	/// Borrow the value exclusively for a call.
 	///
 	/// # Safety
 	/// As [`Self::borrow`].
-	pub unsafe fn borrow_mut<'a>(handle: *const c_void, what: &str) -> Exclusive<'a, T> {
+	pub unsafe fn borrow_mut<'a>(handle: *const c_void, what: &str) -> Result<Exclusive<'a, T>, Status> {
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
-		object.acquire_mut(what);
-		Exclusive { object }
+		object.acquire_from_zero(EXCLUSIVE)?;
+		Ok(Exclusive { object, changed: false })
 	}
 
 	/// Borrow the value shared for as long as a future runs, keeping the handle alive.
 	///
 	/// # Safety
 	/// `handle` is a live handle of this type.
-	pub unsafe fn borrow_arc(handle: *const c_void, what: &str) -> SharedArc<T>
+	pub unsafe fn borrow_arc(handle: *const c_void, what: &str) -> Result<SharedArc<T>, Status>
 	where
 		T: Sync,
 	{
 		// SAFETY: the caller's contract.
-		let object = unsafe { Self::arc(handle, what) };
-		object.acquire(what);
-		SharedArc { object }
+		let object = unsafe { Self::get(handle, what) };
+		object.acquire()?;
+		// SAFETY: as above.
+		Ok(SharedArc {
+			object: unsafe { Self::arc(handle, what) },
+		})
 	}
 
 	/// Borrow the value exclusively for as long as a future runs.
 	///
 	/// # Safety
 	/// As [`Self::borrow_arc`].
-	pub unsafe fn borrow_mut_arc(handle: *const c_void, what: &str) -> ExclusiveArc<T> {
+	pub unsafe fn borrow_mut_arc(handle: *const c_void, what: &str) -> Result<ExclusiveArc<T>, Status> {
 		// SAFETY: the caller's contract.
-		let object = unsafe { Self::arc(handle, what) };
-		object.acquire_mut(what);
-		ExclusiveArc { object }
+		let object = unsafe { Self::get(handle, what) };
+		object.acquire_from_zero(EXCLUSIVE)?;
+		// SAFETY: as above.
+		Ok(ExclusiveArc {
+			object: unsafe { Self::arc(handle, what) },
+			changed: false,
+		})
 	}
 
 	/// # Safety
@@ -836,8 +936,8 @@ impl<T> Object<T> {
 		result
 	}
 
-	/// Whether a call or a future borrows the value, so moving it out would abort. A value
-	/// moved out is not, so the move refuses it, naming itself.
+	/// Whether a call or a future borrows the value, so moving it out would fail. A value
+	/// moved out is not, so the move fails as moved.
 	///
 	/// # Safety
 	/// As [`Self::borrow`].
@@ -851,21 +951,36 @@ impl<T> Object<T> {
 	///
 	/// # Safety
 	/// As [`Self::borrow`].
-	pub unsafe fn take(handle: *const c_void, what: &str) -> T {
+	pub unsafe fn take(handle: *const c_void, what: &str) -> Result<T, Status> {
+		// SAFETY: the caller's contract.
+		unsafe { Self::get(handle, what) }.acquire_from_zero(TAKEN)?;
+		// SAFETY: as above, and the value is reserved.
+		Ok(unsafe { Self::taken(handle) })
+	}
+
+	/// Reserve the value to move out once every other check of the call passed, which
+	/// [`Self::taken`] then does: `takes` gives it back if the call fails first.
+	///
+	/// # Safety
+	/// As [`Self::borrow`], kept alive until `takes` commits or drops.
+	pub unsafe fn reserve<'a>(handle: *const c_void, takes: &mut Takes<'a>, what: &str) -> Result<(), Status> {
 		// SAFETY: the caller's contract.
 		let object = unsafe { Self::get(handle, what) };
-		if !object.lent.is_null() {
-			fail(what, "a lent handle's value cannot move out");
-		}
-		if let Err(state) = object
-			.state
-			.compare_exchange(0, TAKEN, Ordering::Acquire, Ordering::Relaxed)
-		{
-			match state {
-				TAKEN => fail(what, "a handle's value was moved out"),
-				_ => fail(what, "a handle is borrowed"),
-			}
-		}
+		object.acquire_from_zero(TAKEN)?;
+		// SAFETY: the state outlives `takes`, by the caller's contract; a pointer to it,
+		// so the value's type need not.
+		takes.push(unsafe { &*::std::ptr::addr_of!(object.state) });
+		Ok(())
+	}
+
+	/// Move out the value [`Self::take`] reserved, leaving the handle to be freed.
+	///
+	/// # Safety
+	/// [`Self::take`] reserved `handle`'s value for a call that passed its checks, and no
+	/// other read moves it out.
+	pub unsafe fn taken(handle: *const c_void) -> T {
+		// SAFETY: the caller's contract.
+		let object = unsafe { &*handle.cast::<Self>() };
 		object.epoch.fetch_add(1, Ordering::Release);
 		// SAFETY: TAKEN excludes every other access, and the value is never read again.
 		unsafe { (*object.value.get()).assume_init_read() }
@@ -881,7 +996,7 @@ impl<T> Object<T> {
 		T: Copy,
 	{
 		// SAFETY: the caller's contract.
-		let value = *unsafe { Self::borrow_local(handle, what) };
+		let value = *check(unsafe { Self::borrow_local(handle, what) }, what);
 		// SAFETY: as above; the borrow ended.
 		unsafe { Self::free(handle) };
 		value
@@ -907,6 +1022,37 @@ impl<T> Drop for Object<T> {
 		if self.lent.is_null() && *self.state.get_mut() != TAKEN {
 			// SAFETY: the last reference is gone, and the value is its own and never taken.
 			unsafe { self.value.get_mut().assume_init_drop() };
+		}
+	}
+}
+
+/// The values a call reserved to move out, given back unless it commits: so a call whose
+/// later check fails moved nothing. A call's first few allocate nothing.
+#[derive(Default)]
+pub struct Takes<'a> {
+	first: [Option<&'a AtomicUsize>; 2],
+	rest: Vec<&'a AtomicUsize>,
+}
+
+impl<'a> Takes<'a> {
+	fn push(&mut self, state: &'a AtomicUsize) {
+		match self.first.iter_mut().find(|slot| slot.is_none()) {
+			Some(slot) => *slot = Some(state),
+			None => self.rest.push(state),
+		}
+	}
+
+	/// Keep every value reserved, for the call to move out.
+	pub fn commit(mut self) {
+		self.first = [None; 2];
+		self.rest.clear();
+	}
+}
+
+impl Drop for Takes<'_> {
+	fn drop(&mut self) {
+		for state in self.first.iter().flatten().chain(&self.rest) {
+			state.store(0, Ordering::Release);
 		}
 	}
 }
@@ -947,8 +1093,10 @@ impl<T> Drop for Local<'_, T> {
 	}
 }
 
+/// An exclusive borrow, which once used to change the value ends every handle lent from it.
 pub struct Exclusive<'a, T> {
 	object: &'a Object<T>,
+	changed: bool,
 }
 
 impl<T> Deref for Exclusive<'_, T> {
@@ -961,6 +1109,7 @@ impl<T> Deref for Exclusive<'_, T> {
 
 impl<T> DerefMut for Exclusive<'_, T> {
 	fn deref_mut(&mut self) -> &mut T {
+		self.changed = true;
 		// SAFETY: the exclusive borrow is held.
 		unsafe { &mut *self.object.value() }
 	}
@@ -968,6 +1117,9 @@ impl<T> DerefMut for Exclusive<'_, T> {
 
 impl<T> Drop for Exclusive<'_, T> {
 	fn drop(&mut self) {
+		if self.changed {
+			self.object.epoch.fetch_add(1, Ordering::Release);
+		}
 		self.object.state.store(0, Ordering::Release);
 	}
 }
@@ -990,8 +1142,10 @@ impl<T> Drop for SharedArc<T> {
 	}
 }
 
+/// [`Exclusive`], for as long as a future runs.
 pub struct ExclusiveArc<T> {
 	object: Arc<Object<T>>,
+	changed: bool,
 }
 
 impl<T> Deref for ExclusiveArc<T> {
@@ -1004,6 +1158,7 @@ impl<T> Deref for ExclusiveArc<T> {
 
 impl<T> DerefMut for ExclusiveArc<T> {
 	fn deref_mut(&mut self) -> &mut T {
+		self.changed = true;
 		// SAFETY: the exclusive borrow is held.
 		unsafe { &mut *self.object.value() }
 	}
@@ -1011,6 +1166,9 @@ impl<T> DerefMut for ExclusiveArc<T> {
 
 impl<T> Drop for ExclusiveArc<T> {
 	fn drop(&mut self) {
+		if self.changed {
+			self.object.epoch.fetch_add(1, Ordering::Release);
+		}
 		self.object.state.store(0, Ordering::Release);
 	}
 }
