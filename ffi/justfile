@@ -49,7 +49,6 @@ run *args:
 # Census the stand-in facade moq/ffi.toml exports into target/census/moq-ffi.md, from the pinned moq revision or a checkout, failing when moq/ffi.toml excludes an item that exports.
 census checkout="": (standin checkout)
     cargo run --locked --quiet -- --config moq/ffi.toml --manifest-path target/moq-ffi/Cargo.toml --census target/census
-    @awk '/^## /{f = /though it exports$/} f {print; bad = 1} END {exit bad}' target/census/moq-ffi.md >&2
 
 # Measure the binding benchmark (bench/ffi/README.md) from the pinned moq revision or a checkout, in the bench shell: nix develop .#bench. Its tables go to target/bench/report.md.
 bench checkout="": (bench-build checkout) bench-run

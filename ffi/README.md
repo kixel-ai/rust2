@@ -885,8 +885,10 @@ runtime package and each crate's include [`runtime/rt.go`](runtime/rt.go) and
 `--census dir` exports nothing. It writes `<package>.md` for the facade, which counts what exports and ranks every refusal by construct and by the type it names,
 lists each refused item at its span, then the `exclude` list that exports the rest, and
 what else it left out, such as what C can never hold and the traits C cannot implement, and why.
-It ignores the config's `exclude`. It still fails on an `instance not inferred`
-refusal, which is a bug in the exporter's inference rather than in the crate.
+It ignores the config's `exclude`, but lists each exclude that leaves out an item that
+would export, and fails on it, so the list holds only what the export refuses. It also
+fails on an `instance not inferred` refusal, which is a bug in the exporter's inference
+rather than in the crate.
 
 ## Tests
 

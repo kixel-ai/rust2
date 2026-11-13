@@ -1290,10 +1290,23 @@ fn relative_target() {
 		.env("CARGO_TARGET_DIR", "build")
 		.output()
 		.expect("running rust2-ffi");
+	// The fixture's config leaves out items that export, which the census fails on, after
+	// writing itself: only on those, and on a field whose method of its name is refused,
+	// not on that method.
+	let stderr = String::from_utf8_lossy(&output.stderr);
+	assert!(!output.status.success(), "the census passed:\n{stderr}");
+	let errors: Vec<&str> = stderr.lines().filter(|line| line.starts_with("error: rust2-ffi:")).collect();
 	assert!(
-		output.status.success(),
-		"the census failed:\n{}",
-		String::from_utf8_lossy(&output.stderr)
+		errors.iter().all(|error| error.ends_with(", which exports")),
+		"the census failed otherwise:\n{stderr}"
+	);
+	assert!(
+		errors.contains(&"error: rust2-ffi: exclude `field@Retry::jitter` in the config leaves out `field@Retry::jitter`, which exports"),
+		"the census does not fail on `field@Retry::jitter`:\n{stderr}"
+	);
+	assert!(
+		!errors.iter().any(|error| error.contains("exclude `Retry::jitter`")),
+		"the census fails on `Retry::jitter`:\n{stderr}"
 	);
 	let text = std::fs::read_to_string(census.join("api-fixture.md")).unwrap();
 	for line in [

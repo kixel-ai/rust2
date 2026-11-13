@@ -157,6 +157,13 @@ impl Callbacks for Export {
 			if let Err(err) = write(&dir.join(format!("{}.md", report.package)), &text) {
 				tcx.dcx().err(format!("rust2-ffi: {err}"));
 			}
+			// An exclude that leaves out what would export hides that much of the API.
+			for (exclude, exported) in &exporting {
+				tcx.dcx().err(format!(
+					"rust2-ffi: exclude `{exclude}` in the config leaves out `{}`, which exports",
+					exported.join("`, `")
+				));
+			}
 			return stop_on_errors(tcx);
 		}
 		for refusal in &report.refusals {
