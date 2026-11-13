@@ -780,8 +780,12 @@ impl<'a> Gen<'a> {
 			// Bytes cross as what holds them, Rust's owner or 0, where they start, and how
 			// many, or -1 for none: Rust takes a copy of Kotlin's, or shares its own.
 			Ty::Buf => {
-				arg.jni.splice(arg.jni.len() - 1.., ["jobject", "jlong", "jint", "jint"]);
-				arg.native.splice(arg.native.len() - 1.., ["Any?", "Long", "Int", "Int"].map(str::to_string));
+				arg.jni
+					.splice(arg.jni.len() - 1.., ["jobject", "jlong", "jint", "jint"]);
+				arg.native.splice(
+					arg.native.len() - 1..,
+					["Any?", "Long", "Int", "Int"].map(str::to_string),
+				);
 				let (q, r, s) = (format!("p{n}"), format!("p{}", *n + 1), format!("p{}", *n + 2));
 				*n += 3;
 				arg.exprs.extend(match matches!(ty.base(), Type::Option(_)) {
@@ -798,7 +802,8 @@ impl<'a> Gen<'a> {
 						format!("{e}.size"),
 					],
 				});
-				arg.rust_pre.push(format!("let b{p} = unsafe {{ rt::passed(env, {p}, {q}, {r}, {s}) }};"));
+				arg.rust_pre
+					.push(format!("let b{p} = unsafe {{ rt::passed(env, {p}, {q}, {r}, {s}) }};"));
 				arg.rust_args.push(format!("b{p}"));
 			}
 			Ty::Struct(name) if matches!(ty.base(), Type::Callback(..)) => {
