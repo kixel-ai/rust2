@@ -3732,6 +3732,9 @@ class SkipIter<T> extends Adaptor<T, T> {
 
 	/** std's: what it skips and `n` more in one step, and the rest of `n` if that saturated a `usize`. */
 	override advanceBy(n: number, drop?: Drop<T>): number {
+		// std's: no step at all while it still skips, so an iterator that is not fused is not
+		// seen ending where no count could say so.
+		if (this.n > 0 && n === 0) return 0;
 		const skip = this.n;
 		const both = Math.min(skip + n, USIZE_MAX);
 		const left = this.inner.advanceBy(both, drop);

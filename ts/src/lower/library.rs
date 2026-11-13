@@ -1091,7 +1091,7 @@ fn discards(owner: &str, name: &str) -> Option<&'static [usize]> {
 		// over, and `fill` its value if there is no slot for it.
 		("slice", "fill" | "fill_with" | "clone_from_slice") => &[0],
 		// `vec![x; 0]` drops `x`.
-		("vec", "from_elem_global") => &[0],
+		("vec", "from_elem" | "from_elem_global") => &[0],
 		// `get_or_init::<T, F>` drops its function uncalled if the cell is set.
 		("OnceCell" | "OnceLock", "get_or_init" | "get_or_try_init") => &[1],
 		// A guard's map calls its function, filtered or not.
@@ -2555,7 +2555,7 @@ fn mapping<'tcx>(
 		("Box", "assume_init") => args.pop()?,
 		// `vec![x; n]`: `n - 1` clones of `x`, then `x` itself, which the caller gives as its
 		// own, as it does whatever std keeps, or `x` dropped where `n` is 0.
-		("vec", "from_elem_global") => {
+		("vec", "from_elem" | "from_elem_global") => {
 			let elem = targ(gargs, 0);
 			let mut values = args;
 			match byte(elem) {

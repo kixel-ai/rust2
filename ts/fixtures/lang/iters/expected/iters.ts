@@ -11,6 +11,7 @@ import * as Bumped from "./iters.Bumped.ts";
 import * as Countdown from "./iters.Countdown.ts";
 import * as Doubled from "./iters.Doubled.ts";
 import * as Evens from "./iters.Evens.ts";
+import * as Flicker from "./iters.Flicker.ts";
 import * as Gaps from "./iters.Gaps.ts";
 import * as Halving from "./iters.Halving.ts";
 import * as Held from "./iters.Held.ts";
@@ -11635,6 +11636,32 @@ export function heldFields(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): vo
 				return a0 as rs.u32;
 			}), rs.u32Add, 0));
 		}, out);
+	}
+}
+
+/**
+ * Adaptors over an iterator that is not fused, advanced through a `Chain`'s `nth`: a
+ * `skip`, which takes no step while advanced by none, and a `fuse` advanced from the back,
+ * which drops its iterator once it falls short. Then what each still yields.
+ */
+export function unfused(kind: rs.u8, data: rs.ByteSlice, out: rs.ByteVec): void {
+	const flicker: () => Flicker.Flicker = (): Flicker.Flicker => {
+		return { dataData: data.data, dataStart: data.start, dataLen: data.length, calls: 0 };
+	};
+	const n: rs.usize = rs.u8Rem(option_unwrapOr$1fr498u(rs.byteSliceFirst(data), 0), 3) as rs.usize;
+	const _11: rs.u8 = rs.u8Rem(kind, 3);
+	if (_11 === 0) {
+		const s: rs.Iter<rs.u8> = rs.iterSkip(rs.iterFrom(flicker(), Flicker.next$iter_Iterator, undefined, { back: (it: Flicker.Flicker) => rs.iterFromOption(Flicker.nextBack$iter_DoubleEndedIterator(it)) }), 1);
+		rs.iterExtendBytes(out, rs.iterOption(rs.iterNth(rs.iterChain(rs.iterBorrow(s), rs.iterSlice(Uint8Array.of(153))), n)), undefined, true);
+		rs.iterExtendBytes(out, s, "next");
+	} else if (_11 === 1) {
+		const r: rs.Iter<rs.u8> = rs.iterRev(rs.iterFuse(rs.iterFrom(flicker(), Flicker.next$iter_Iterator, undefined, { back: (it: Flicker.Flicker) => rs.iterFromOption(Flicker.nextBack$iter_DoubleEndedIterator(it)) })));
+		rs.iterExtendBytes(out, rs.iterOption(rs.iterNth(rs.iterChain(rs.iterBorrow(r), rs.iterSlice(Uint8Array.of(153))), n)), undefined, true);
+		rs.iterExtendBytes(out, r, "next");
+	} else {
+		const f: rs.Iter<rs.u8> = rs.iterFuse(rs.iterFrom(flicker(), Flicker.next$iter_Iterator, undefined, { back: (it: Flicker.Flicker) => rs.iterFromOption(Flicker.nextBack$iter_DoubleEndedIterator(it)) }));
+		rs.iterExtendBytes(out, rs.iterOption(rs.iterNthBack(f, n)), undefined, true);
+		rs.iterExtendBytes(out, f, "next");
 	}
 }
 

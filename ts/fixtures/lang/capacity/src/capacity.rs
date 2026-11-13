@@ -127,7 +127,13 @@ fn vec_steps<T: Clone + Ord>(data: &[u8], make: fn(u8) -> T, out: &mut Vec<u8>) 
 				let rest = it.collect::<Vec<T>>();
 				sized(out, rest.len(), rest.capacity());
 			}
-			24 => v = vec![make(arg); usize::from(arg % 6)],
+			// `vec!`, or the deprecated function it once called, which std keeps and still fills
+			// the same.
+			24 => match arg & 0x40 {
+				0 => v = vec![make(arg); usize::from(arg % 6)],
+				#[allow(deprecated)]
+				_ => v = std::vec::from_elem(make(arg), usize::from(arg % 6)),
+			},
 			25 => drop(v.pop_if(|_| arg % 2 == 1)),
 			// Joined, with room for exactly what it joins.
 			26 => v = [v.clone(), v].concat(),
