@@ -18,5 +18,6 @@ Local changes:
 - Remove upstream's live-network test modules. Keep the release-tag regression test;
   crabx tests execution and trust offline.
 - Apply the current Clippy syntax for the GitHub lookup condition.
+- Wait for resolver channel capacity so a queued error cannot discard a successful candidate.
 
 Upstream: https://github.com/cargo-bins/cargo-binstall

@@ -18,6 +18,7 @@ It never installs into `~/.cargo/bin`. Missing prebuilt assets are an error. Pas
 `--build` explicitly to run `cargo install --locked` into crabx's cache instead.
 `--allow-quickinstall` permits cargo-quickinstall's third-party builds after the
 author's releases; those have a separate cache from the default trust policy.
+Quickinstall downloads require its minisign signature; a missing signature is an error.
 
 For GitHub repositories, crabx checks GitHub's attestations API for the downloaded
 archive's SHA-256 before installing anything. Public Sigstore bundles verify their
@@ -49,7 +50,12 @@ An unpinned invocation runs its cached version immediately and starts a detached
 sparse-index refresh and installation for the next invocation. The refresh retains the newest stable,
 non-yanked version, never a prerelease. A yank can select an older version. Only one
 refresh per crate and policy runs at a time. Network errors leave the cached version
-available and are reported on the next invocation. A newly discovered version becomes current only after installation succeeds.
+available. Each repeated error for a discovered version is reported once, on the next
+unpinned invocation. Failed refreshes retry after 30 seconds, doubling to at most 30 minutes;
+a successful refresh resets that delay. Conditional index requests retain their validator
+even when installation fails, and an unchanged index still retries the pending installation.
+A newly discovered version becomes current only after installation succeeds. Release requests
+have a five-minute total timeout and a 30-second read timeout.
 
 Unix uses `exec`, preserving the PID, arguments, standard streams, signals, and exit
 status. Windows starts the program with inherited console and standard streams and

@@ -29,13 +29,12 @@ fn run(args: cli::Args) -> Result<()> {
 	let spec = cli::Spec::parse(krate)?;
 	let cache = cache::Cache::new(&spec, args.mode())?;
 	if args.refresh {
-		if let Err(error) = network::runtime()?.block_on(network::refresh(&cache, &spec, &args)) {
-			network::refresh_error(&cache, &error)?;
-			return Err(error);
-		}
+		network::runtime()?.block_on(network::refresh(&cache, &spec, &args))?;
 		return Ok(());
 	}
-	network::report_refresh_error(&cache)?;
+	if spec.version.is_none() {
+		network::report_refresh_error(&cache)?;
+	}
 	let version = match &spec.version {
 		Some(version) => Some(version.clone()),
 		None => cache.latest()?,

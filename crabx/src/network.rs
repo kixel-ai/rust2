@@ -5,12 +5,12 @@ use crate::{
 use anyhow::{Context, Result, ensure};
 use reqwest::{Client, Response};
 use semver::Version;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
-	fs::{self, File},
+	fs::File,
 	io::{BufReader, Read, Write},
 	process::{Command, Stdio},
-	time::Duration,
+	time::{Duration, SystemTime},
 };
 
 pub fn runtime() -> Result<tokio::runtime::Runtime> {
@@ -68,17 +68,89 @@ pub async fn refresh(cache: &Cache, spec: &Spec, args: &Args) -> Result<()> {
 	let Some(_lock) = cache.try_refresh_lock()? else {
 		return Ok(());
 	};
-	let etag_path = cache.root.join("index-etag");
-	let mut request = client()?.get(format!("https://index.crates.io/{}", index_path(&spec.name)));
-	match fs::read_to_string(&etag_path) {
-		Ok(etag) => {
+	let mut state = Refresh::load(cache)?;
+	if !state.due(SystemTime::now()) {
+		return Ok(());
+	}
+	let result = async {
+		let mut request = client()?.get(format!("https://index.crates.io/{}", index_path(&spec.name)));
+		if let Some(etag) = &state.etag {
 			request = request.header(reqwest::header::IF_NONE_MATCH, etag);
 		}
-		Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
-		Err(e) => return Err(e.into()),
+		let response = request.send().await?.error_for_status()?;
+		Update { cache, spec, args }.apply(&mut state, response).await
 	}
-	let response = request.send().await?.error_for_status()?;
-	Update { cache, spec, args }.apply(response).await
+	.await;
+	state.finish(result.as_ref().err(), SystemTime::now());
+	state.save(cache)?;
+	result
+}
+
+#[derive(Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct Refresh {
+	etag: Option<String>,
+	version: Option<Version>,
+	failure: Option<Failure>,
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct Failure {
+	message: String,
+	version: Option<Version>,
+	reported: bool,
+	delay: Duration,
+	retry_at: SystemTime,
+}
+
+impl Refresh {
+	fn load(cache: &Cache) -> Result<Self> {
+		let path = cache.root.join("refresh.json");
+		let file = match File::open(&path) {
+			Ok(file) => file,
+			Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Self::default()),
+			Err(error) => return Err(error).with_context(|| format!("read {}", path.display())),
+		};
+		let state: Self =
+			serde_json::from_reader(file).with_context(|| format!("corrupt refresh state {}", path.display()))?;
+		ensure!(
+			state.etag.is_none() || state.version.is_some(),
+			"refresh ETag has no version in {}",
+			path.display()
+		);
+		Ok(state)
+	}
+
+	fn save(&self, cache: &Cache) -> Result<()> {
+		cache::atomic(&cache.root.join("refresh.json"), &serde_json::to_vec(self)?)
+	}
+
+	fn due(&self, now: SystemTime) -> bool {
+		self.failure.as_ref().is_none_or(|failure| now >= failure.retry_at)
+	}
+
+	fn finish(&mut self, error: Option<&anyhow::Error>, now: SystemTime) {
+		let Some(error) = error else {
+			self.failure = None;
+			return;
+		};
+		let message = format!("{error:#}");
+		let previous = self
+			.failure
+			.as_ref()
+			.filter(|failure| failure.message == message && failure.version == self.version);
+		let delay = previous.map_or(Duration::from_secs(30), |failure| {
+			failure.delay.saturating_mul(2).min(Duration::from_secs(30 * 60))
+		});
+		self.failure = Some(Failure {
+			message,
+			version: self.version.clone(),
+			reported: previous.is_some_and(|failure| failure.reported),
+			delay,
+			retry_at: now + delay,
+		});
+	}
 }
 
 struct Update<'a> {
@@ -88,13 +160,21 @@ struct Update<'a> {
 }
 
 impl Update<'_> {
-	async fn apply(&self, response: Response) -> Result<()> {
-		if response.status() == reqwest::StatusCode::NOT_MODIFIED {
-			return Ok(());
+	async fn apply(&self, state: &mut Refresh, response: Response) -> Result<()> {
+		if response.status() != reqwest::StatusCode::NOT_MODIFIED {
+			let etag = response
+				.headers()
+				.get(reqwest::header::ETAG)
+				.map(|value| value.to_str().map(str::to_owned))
+				.transpose()?;
+			let file = spool(response, &self.cache.root).await?;
+			state.version = Some(latest(BufReader::new(File::open(file.path())?))?);
+			state.etag = etag;
 		}
-		let etag = response.headers().get(reqwest::header::ETAG).cloned();
-		let file = spool(response, &self.cache.root).await?;
-		let version = latest(BufReader::new(File::open(file.path())?))?;
+		let version = state
+			.version
+			.as_ref()
+			.context("index returned 304 without a cached version")?;
 		// Publish only an installed version, retaining the working entry on failure.
 		crate::install::resolve(
 			self.cache,
@@ -106,13 +186,7 @@ impl Update<'_> {
 		)
 		.await?;
 		let _lock = self.cache.lock()?;
-		self.cache.set_latest(&version)?;
-		// Remember a validator only after installation, so failures remain retryable.
-		if let Some(etag) = etag {
-			cache::atomic(&self.cache.root.join("index-etag"), etag.as_bytes())?;
-		} else if self.cache.root.join("index-etag").try_exists()? {
-			fs::remove_file(self.cache.root.join("index-etag"))?;
-		}
+		self.cache.set_latest(version)?;
 		Ok(())
 	}
 }
@@ -162,29 +236,37 @@ pub fn spawn_refresh(spec: &Spec, args: &Args) -> Result<()> {
 	Ok(())
 }
 
-pub fn refresh_error(cache: &Cache, error: &anyhow::Error) -> Result<()> {
-	cache::atomic(&cache.root.join("refresh-error"), format!("{error:#}\n").as_bytes())
-}
-
 pub fn report_refresh_error(cache: &Cache) -> Result<()> {
-	let path = cache.root.join("refresh-error");
-	match fs::read_to_string(&path) {
-		Ok(error) => {
-			eprintln!("crabx: the last background update failed: {}", error.trim());
-			fs::remove_file(path)?;
-		}
-		Err(e) if e.kind() == std::io::ErrorKind::NotFound => (),
-		Err(e) => return Err(e.into()),
+	if let Some(error) = take_refresh_error(cache)? {
+		eprintln!("crabx: the last background update failed: {error}");
 	}
 	Ok(())
+}
+
+fn take_refresh_error(cache: &Cache) -> Result<Option<String>> {
+	if !cache.root.try_exists()? {
+		return Ok(None);
+	}
+	let Some(_lock) = cache.try_refresh_lock()? else {
+		return Ok(None);
+	};
+	let mut state = Refresh::load(cache)?;
+	let Some(failure) = state.failure.as_mut().filter(|failure| !failure.reported) else {
+		return Ok(None);
+	};
+	failure.reported = true;
+	let error = failure.message.clone();
+	state.save(cache)?;
+	Ok(Some(error))
 }
 
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use std::fs;
 
 	#[test]
-	fn update_publishes_only_installed_versions_and_commits_etag_last() {
+	fn failed_install_keeps_latest_and_retries_after_not_modified() {
 		use clap::Parser;
 		fn response(status: &str, body: &str) -> Response {
 			let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -225,20 +307,25 @@ mod tests {
 			args: &args,
 		};
 		cache.set_latest(&Version::new(1, 0, 0)).unwrap();
-		let etag = cache.root.join("index-etag");
-		fs::write(&etag, "old-validator").unwrap();
+		let mut state = Refresh {
+			etag: Some("old-validator".into()),
+			version: Some(Version::new(1, 0, 0)),
+			..Refresh::default()
+		};
 		let version = Version::new(2, 0, 0);
 		// An incomplete entry fails before network discovery.
 		fs::create_dir(cache.version(&version)).unwrap();
 		let index = r#"{"vers":"2.0.0","yanked":false}"#;
-		assert!(
-			runtime()
-				.unwrap()
-				.block_on(update.apply(response("200 OK", index)))
-				.is_err()
-		);
+		let error = runtime()
+			.unwrap()
+			.block_on(update.apply(&mut state, response("200 OK", index)))
+			.unwrap_err();
+		state.finish(Some(&error), SystemTime::UNIX_EPOCH);
+		state.save(&cache).unwrap();
+		let mut state = Refresh::load(&cache).unwrap();
 		assert_eq!(cache.latest().unwrap(), Some(Version::new(1, 0, 0)));
-		assert_eq!(fs::read_to_string(&etag).unwrap(), "old-validator");
+		assert_eq!(state.etag.as_deref(), Some("new-validator"));
+		assert_eq!(state.version.as_ref(), Some(&version));
 		fs::create_dir(cache.version(&version).join("bin")).unwrap();
 		fs::write(cache.version(&version).join("bin/tool"), "fixture").unwrap();
 		fs::write(
@@ -248,15 +335,57 @@ mod tests {
 		.unwrap();
 		runtime()
 			.unwrap()
-			.block_on(update.apply(response("200 OK", index)))
+			.block_on(update.apply(&mut state, response("304 Not Modified", "")))
 			.unwrap();
+		state.finish(None, SystemTime::UNIX_EPOCH);
 		assert_eq!(cache.latest().unwrap(), Some(version));
-		assert_eq!(fs::read_to_string(&etag).unwrap(), "new-validator");
+		assert!(state.failure.is_none());
 		runtime()
 			.unwrap()
-			.block_on(update.apply(response("304 Not Modified", "")))
+			.block_on(update.apply(&mut state, response("304 Not Modified", "")))
 			.unwrap();
-		assert_eq!(fs::read_to_string(&etag).unwrap(), "new-validator");
+		assert_eq!(state.etag.as_deref(), Some("new-validator"));
+	}
+
+	#[test]
+	fn failures_back_off_and_each_diagnostic_has_one_claim() {
+		let temp = tempfile::tempdir().unwrap();
+		let cache = Cache {
+			root: temp.path().to_owned(),
+		};
+		let now = SystemTime::UNIX_EPOCH + Duration::from_secs(1000);
+		let error = anyhow::anyhow!("no release for host");
+		let mut state = Refresh::default();
+		state.finish(Some(&error), now);
+		assert!(!state.due(now + Duration::from_secs(29)));
+		assert!(state.due(now + Duration::from_secs(30)));
+		state.save(&cache).unwrap();
+		let lock = cache.try_refresh_lock().unwrap().unwrap();
+		assert!(take_refresh_error(&cache).unwrap().is_none());
+		drop(lock);
+		assert_eq!(
+			take_refresh_error(&cache).unwrap().as_deref(),
+			Some("no release for host")
+		);
+		assert!(take_refresh_error(&cache).unwrap().is_none());
+		let mut state = Refresh::load(&cache).unwrap();
+		state.finish(Some(&error), now + Duration::from_secs(30));
+		assert!(!state.due(now + Duration::from_secs(89)));
+		assert!(state.due(now + Duration::from_secs(90)));
+		state.save(&cache).unwrap();
+		assert!(take_refresh_error(&cache).unwrap().is_none());
+		for _ in 0..20 {
+			state.finish(Some(&error), now);
+		}
+		assert_eq!(state.failure.as_ref().unwrap().delay, Duration::from_secs(1800));
+		state.version = Some(Version::new(2, 0, 0));
+		state.finish(Some(&error), now);
+		assert_eq!(state.failure.as_ref().unwrap().delay, Duration::from_secs(30));
+		state.save(&cache).unwrap();
+		assert!(take_refresh_error(&cache).unwrap().is_some());
+		state.finish(None, now);
+		assert!(state.due(now));
+		assert!(state.failure.is_none());
 	}
 
 	#[test]

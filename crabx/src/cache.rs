@@ -75,20 +75,28 @@ impl Cache {
 
 	pub fn load(&self, version: &Version) -> Result<Option<Record>> {
 		let path = self.version(version);
-		let file = match File::open(path.join("record.json")) {
-			Ok(file) => file,
-			Err(e) if e.kind() == std::io::ErrorKind::NotFound && !path.try_exists()? => return Ok(None),
-			Err(e) => return Err(e).context("incomplete cache entry"),
-		};
-		let record: Record = serde_json::from_reader(file).context("corrupt cache record")?;
+		// Check the atomically published directory first. A missing record cannot
+		// then be confused with a complete directory published after that read.
+		if !path
+			.try_exists()
+			.with_context(|| format!("inspect cache entry {}", path.display()))?
+		{
+			return Ok(None);
+		}
+		let file = File::open(path.join("record.json"))
+			.with_context(|| format!("incomplete cache entry {}", path.display()))?;
+		let record: Record =
+			serde_json::from_reader(file).with_context(|| format!("corrupt cache record in {}", path.display()))?;
 		ensure!(
 			&record.version == version && !record.bins.is_empty(),
-			"invalid cache record"
+			"invalid cache record in {}",
+			path.display()
 		);
 		for bin in &record.bins {
 			ensure!(
 				valid_binary(bin) && path.join("bin").join(bin).is_file(),
-				"missing or invalid cached binary {bin:?}"
+				"missing or invalid cached binary {bin:?} in {}",
+				path.display()
 			);
 		}
 		Ok(Some(record))
@@ -172,7 +180,16 @@ mod tests {
 		cache.set_latest(&version).unwrap();
 		assert_eq!(cache.latest().unwrap(), Some(version.clone()));
 		fs::create_dir(cache.version(&version)).unwrap();
-		assert!(cache.load(&version).is_err());
+		let path = cache.version(&version);
+		assert!(format!("{:#}", cache.load(&version).unwrap_err()).contains(&path.display().to_string()));
+		fs::write(path.join("record.json"), "malformed").unwrap();
+		assert!(format!("{:#}", cache.load(&version).unwrap_err()).contains(&path.display().to_string()));
+		fs::write(
+			path.join("record.json"),
+			r#"{"version":"2.3.4","bins":["tool"],"source":"fixture"}"#,
+		)
+		.unwrap();
+		assert!(format!("{:#}", cache.load(&version).unwrap_err()).contains(&path.display().to_string()));
 		for name in ["../evil", "C:evil", "a/b", "a\\b", ".", "..", ""] {
 			assert!(!valid_binary(name));
 		}

@@ -62,16 +62,20 @@ struct Package {
 	bins: Vec<(String, bool)>,
 }
 
-async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> Result<Record> {
-	let client = remote::Client::new(
+fn download_builder() -> reqwest::ClientBuilder {
+	remote::Client::default_builder(
 		concat!("crabx/", env!("CARGO_PKG_VERSION")),
 		None,
 		false,
 		Default::default(),
-		1000.try_into()?,
-		100.try_into()?,
-		[],
-	)?;
+		&mut std::iter::empty(),
+	)
+	.timeout(Duration::from_secs(300))
+	.read_timeout(Duration::from_secs(30))
+}
+
+async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> Result<Record> {
+	let client = remote::Client::from_builder(download_builder(), 1000.try_into()?, 100.try_into()?)?;
 	let req = spec
 		.version
 		.as_ref()
@@ -119,15 +123,18 @@ async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> 
 	));
 	// The author can name a single binary differently from its package.
 	let alternate = match package.bins.as_slice() {
-		[(name, _)] if name != &package.name => Some(Arc::new(Data::new(
-			name.as_str().into(),
-			package.version.to_string().into(),
-			package.repository.clone(),
-		))),
+		[(name, _)] if name != &package.name => Some((
+			name.clone(),
+			Arc::new(Data::new(
+				name.as_str().into(),
+				package.version.to_string().into(),
+				package.repository.clone(),
+			)),
+		)),
 		_ => None,
 	};
 	let mut candidates = Vec::new();
-	for data in std::iter::once(data.clone()).chain(alternate) {
+	for (name, data) in std::iter::once((package.name.clone(), data.clone())).chain(alternate) {
 		for target in host_targets() {
 			let target_related_info = TargetTriple::from_str(&target)?;
 			let meta = package.meta.merge_overrides(
@@ -142,12 +149,15 @@ async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> 
 				target_related_info,
 			});
 			if !disabled(&target, Strategy::CrateMetaData) {
-				candidates.push(GhCrateMeta::new(
-					client.clone(),
-					gh.clone(),
-					data.clone(),
-					target,
-					SignaturePolicy::IfPresent,
+				candidates.push((
+					name.clone(),
+					GhCrateMeta::new(
+						client.clone(),
+						gh.clone(),
+						data.clone(),
+						target,
+						SignaturePolicy::IfPresent,
+					),
 				));
 			}
 		}
@@ -167,17 +177,20 @@ async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> 
 				target_related_info,
 			});
 			if !disabled(&target, Strategy::QuickInstall) {
-				candidates.push(QuickInstall::new(
-					client.clone(),
-					gh.clone(),
-					data.clone(),
-					target,
-					SignaturePolicy::IfPresent,
+				candidates.push((
+					package.name.clone(),
+					QuickInstall::new(
+						client.clone(),
+						gh.clone(),
+						data.clone(),
+						target,
+						SignaturePolicy::Require,
+					),
 				));
 			}
 		}
 	}
-	for fetcher in candidates {
+	for (name, fetcher) in candidates {
 		let found = tokio::time::timeout(
 			Duration::from_secs(30),
 			AutoAbortJoinHandle::new(fetcher.clone().find()),
@@ -187,7 +200,7 @@ async fn fetch(stage: &Path, cache: &Cache, spec: &Spec, quickinstall: bool) -> 
 		if !found {
 			continue;
 		}
-		return package.install(stage, fetcher.as_ref()).await;
+		return package.install(stage, &name, fetcher.as_ref()).await;
 	}
 	bail!(
 		"no usable prebuilt release for {}@{} on {}; use --build to compile explicitly",
@@ -206,7 +219,7 @@ fn disabled(target: &TargetDataErased, strategy: Strategy) -> bool {
 }
 
 impl Package {
-	async fn install(&self, stage: &Path, fetcher: &dyn Fetcher) -> Result<Record> {
+	async fn install(&self, stage: &Path, discovery_name: &str, fetcher: &dyn Fetcher) -> Result<Record> {
 		let download = stage.join("download");
 		let extracted = fetcher.fetch_and_extract(&download).await?;
 		let source = if fetcher.is_third_party() {
@@ -231,7 +244,7 @@ impl Package {
 			install_path: &install,
 			target_related_info: &fetcher.target_data().target_related_info,
 		};
-		let bin_dir = layout(&data, &self.bins)?;
+		let bin_dir = layout(&data, &self.bins, discovery_name)?;
 		let template = leon::Template::parse(&bin_dir)?;
 		let mut files = Vec::new();
 		let mut sources = BTreeSet::new();
@@ -270,14 +283,28 @@ impl Package {
 	}
 }
 
-fn layout(data: &bins::Data<'_>, binaries: &[(String, bool)]) -> Result<String> {
+fn layout(data: &bins::Data<'_>, binaries: &[(String, bool)], discovery_name: &str) -> Result<String> {
 	if let Some(template) = &data.meta.bin_dir {
 		return Ok(template.clone());
 	}
-	let direct = bins::infer_bin_dir_template(data, &mut |p| data.bin_path.join(p).is_dir());
-	let parent = Path::new(direct.as_ref()).parent().unwrap_or_else(|| Path::new(""));
-	let nested = format!("{}/{{ bin }}{{ binary-ext }}", parent.join("bin").display());
-	for candidate in [direct.as_ref(), &nested] {
+	let mut candidates = Vec::new();
+	for name in [data.name, discovery_name] {
+		let named = bins::Data {
+			name,
+			target: data.target,
+			version: data.version,
+			repo: data.repo,
+			meta: data.meta.clone(),
+			bin_path: data.bin_path,
+			install_path: data.install_path,
+			target_related_info: data.target_related_info,
+		};
+		let direct = bins::infer_bin_dir_template(&named, &mut |p| data.bin_path.join(p).is_dir()).into_owned();
+		let parent = Path::new(&direct).parent().unwrap_or_else(|| Path::new(""));
+		let nested = format!("{}/{{ bin }}{{ binary-ext }}", parent.join("bin").display());
+		candidates.extend([direct, nested]);
+	}
+	for candidate in &candidates {
 		let template = leon::Template::parse(candidate)?;
 		let mut found = false;
 		let mut complete = true;
@@ -292,7 +319,7 @@ fn layout(data: &bins::Data<'_>, binaries: &[(String, bool)]) -> Result<String> 
 		}
 	}
 	// Let installation report precisely which required binary is absent.
-	Ok(direct.into_owned())
+	Ok(candidates.remove(0))
 }
 
 fn build(stage: &std::path::Path, spec: &Spec, version: Option<&Version>) -> Result<Record> {
@@ -375,6 +402,53 @@ mod tests {
 	use super::*;
 
 	#[test]
+	fn stalled_downloads_have_read_and_total_deadlines() {
+		use tokio::io::{AsyncReadExt, AsyncWriteExt};
+		for (total, deadline) in [(false, 30), (true, 300)] {
+			crate::network::runtime().unwrap().block_on(async {
+				let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+				let address = listener.local_addr().unwrap();
+				let (done, wait) = tokio::sync::oneshot::channel::<()>();
+				let server = tokio::spawn(async move {
+					let (mut stream, _) = listener.accept().await.unwrap();
+					let mut request = Vec::new();
+					while !request.ends_with(b"\r\n\r\n") {
+						request.push(stream.read_u8().await.unwrap());
+					}
+					stream
+						.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nx")
+						.await
+						.unwrap();
+					let _ = wait.await;
+				});
+				let mut builder = download_builder().https_only(false).no_proxy();
+				if total {
+					// Isolate the total deadline from the shorter read deadline.
+					builder = builder.read_timeout(Duration::from_secs(600));
+				}
+				let mut response = builder
+					.build()
+					.unwrap()
+					.get(format!("http://{address}"))
+					.send()
+					.await
+					.unwrap();
+				assert_eq!(response.chunk().await.unwrap().unwrap().as_ref(), b"x");
+				tokio::time::pause();
+				let started = tokio::time::Instant::now();
+				let chunk = response.chunk();
+				tokio::pin!(chunk);
+				assert!(std::future::poll_fn(|cx| std::task::Poll::Ready(chunk.as_mut().poll(cx).is_pending())).await);
+				tokio::time::advance(Duration::from_secs(deadline)).await;
+				assert!(chunk.await.unwrap_err().is_timeout());
+				assert_eq!(tokio::time::Instant::now() - started, Duration::from_secs(deadline));
+				done.send(()).unwrap();
+				server.await.unwrap();
+			});
+		}
+	}
+
+	#[test]
 	fn author_layouts_include_nested_bin_and_respect_metadata() {
 		let temp = tempfile::tempdir().unwrap();
 		let target = TargetTriple::from_str(binstalk::TARGET).unwrap();
@@ -395,7 +469,7 @@ mod tests {
 		};
 		let binaries = [("moq".to_owned(), true)];
 		let source = |data: &bins::Data<'_>| {
-			let chosen = layout(data, &binaries).unwrap();
+			let chosen = layout(data, &binaries, "moq").unwrap();
 			let template = leon::Template::parse(&chosen).unwrap();
 			BinFile::new(data, "moq", &template, true).unwrap().source
 		};
@@ -404,6 +478,14 @@ mod tests {
 		let direct = temp.path().join(&directory).join(&name);
 		fs::write(&direct, b"direct native fixture").unwrap();
 		assert_eq!(source(&data), direct);
+		// A differently named binary can also name the release's enclosing directory.
+		fs::remove_dir_all(temp.path().join(&directory)).unwrap();
+		let alternate = temp.path().join(format!("moq-v0.14.16-{}", binstalk::TARGET));
+		fs::create_dir_all(alternate.join("bin")).unwrap();
+		fs::write(alternate.join("bin").join(&name), b"alternate nested fixture").unwrap();
+		assert_eq!(source(&data), alternate.join("bin").join(&name));
+		fs::write(alternate.join(&name), b"alternate direct fixture").unwrap();
+		assert_eq!(source(&data), alternate.join(&name));
 		data.meta.bin_dir = Some("explicit/{ bin }{ binary-ext }".into());
 		assert_eq!(source(&data), temp.path().join("explicit").join(&name));
 	}

@@ -214,7 +214,24 @@ fn unpinned_build_reuses_pinned_entry_and_reports_refresh_errors() {
 		);
 	}
 	assert_eq!(fs::read_to_string(root.join("latest")).unwrap(), "1.2.3");
-	fs::write(root.join("refresh-error"), "fixture update failure").unwrap();
+	let retry_at = std::time::SystemTime::now() + std::time::Duration::from_secs(1800);
+	fs::write(
+		root.join("refresh.json"),
+		serde_json::to_vec(&serde_json::json!({
+			"etag": null,
+			"version": null,
+			"failure": {
+				"message": "fixture update failure",
+				"version": null,
+				"reported": false,
+				"delay": std::time::Duration::from_secs(1800),
+				"retry_at": retry_at,
+			}
+		}))
+		.unwrap(),
+	)
+	.unwrap();
+	drop(lock);
 	let output = crabx(temp.path())
 		.args(["--build", "fixture"])
 		.env("CARGO", "must-not-run")
@@ -222,5 +239,9 @@ fn unpinned_build_reuses_pinned_entry_and_reports_refresh_errors() {
 		.unwrap();
 	assert_eq!(output.status.code(), Some(37));
 	assert!(String::from_utf8_lossy(&output.stderr).contains("fixture update failure"));
-	assert!(!root.join("refresh-error").exists());
+	let state: serde_json::Value = serde_json::from_slice(&fs::read(root.join("refresh.json")).unwrap()).unwrap();
+	assert_eq!(state["failure"]["reported"], true);
+	let output = crabx(temp.path()).args(["--build", "fixture"]).output().unwrap();
+	assert_eq!(output.status.code(), Some(37));
+	assert!(!String::from_utf8_lossy(&output.stderr).contains("fixture update failure"));
 }
