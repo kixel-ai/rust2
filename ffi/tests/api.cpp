@@ -955,6 +955,18 @@ int script() {
 			std::abort();
 		}
 	}
+	{
+		// Types named as an `operator==`'s arguments might be.
+		api::a one{1};
+		api::a two{2};
+		api::b unit = api::b_One{};
+		api::b two_b = api::b_Two{2};
+		auto handle = api::c::new_(1);
+		if (!(one == one) || one == two || !(unit != two_b) || !(handle == api::c::new_(1)) || handle == api::c::new_(2)) {
+			std::fprintf(stderr, "types named a, b, and c compare wrong\n");
+			std::abort();
+		}
+	}
 	std::printf("least");
 	for (const auto &set : api::least({{3, 1}, {}, {2}})) {
 		std::printf(" [");

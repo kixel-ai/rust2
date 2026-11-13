@@ -115,6 +115,14 @@ impl<'a> Header<'a> {
 		format!("::{}::detail", self.ns)
 	}
 
+	/// The names of `==`'s two arguments, apart from every name in the namespace, which
+	/// they would hide.
+	fn operands(&self) -> (String, String) {
+		let a = parameter("a", |n| self.globals.contains(n));
+		let b = parameter("b", |n| self.globals.contains(n) || n == a);
+		(a, b)
+	}
+
 	/// `name`, declared in the namespace.
 	fn global(&mut self, name: &str) -> String {
 		self.globals.insert(name.to_string());
@@ -822,8 +830,9 @@ impl<'a> Header<'a> {
 			members.push(clone);
 		}
 		if t.eq {
+			let (a, b) = self.operands();
 			body.push(format!(
-				"\tfriend bool operator==(const {name} &a, const {name} &b) {{\n\t\treturn ::{c}_eq(a.raw_.get(), b.raw_.get());\n\t}}\n\tfriend bool operator!=(const {name} &a, const {name} &b) {{\n\t\treturn !(a == b);\n\t}}"
+				"\tfriend bool operator==(const {name} &{a}, const {name} &{b}) {{\n\t\treturn ::{c}_eq({a}.raw_.get(), {b}.raw_.get());\n\t}}\n\tfriend bool operator!=(const {name} &{a}, const {name} &{b}) {{\n\t\treturn !({a} == {b});\n\t}}"
 			));
 		}
 		self.traits(&name, &c, t, None, &mut body, &mut members);
@@ -1028,14 +1037,15 @@ impl<'a> Header<'a> {
 				let t = record.traits;
 				if t.eq {
 					// Friends, whose arguments, unlike a member's, shadow no field of any name.
+					let (a, b) = self.operands();
 					body.push(format!(
-						"\tfriend bool operator==(const {name} &a, const {name} &b);\n\tfriend bool operator!=(const {name} &a, const {name} &b) {{\n\t\treturn !(a == b);\n\t}}"
+						"\tfriend bool operator==(const {name} &{a}, const {name} &{b});\n\tfriend bool operator!=(const {name} &{a}, const {name} &{b}) {{\n\t\treturn !({a} == {b});\n\t}}"
 					));
 					self.def(format!(
-						"inline bool operator==(const {name} &a, const {name} &b) {{\n{}\tauto c_a_ = {};\n\tauto c_b_ = {};\n\treturn ::{c}_eq(&c_a_, &c_b_);\n}}\n",
+						"inline bool operator==(const {name} &{a}, const {name} &{b}) {{\n{}\tauto c_a_ = {};\n\tauto c_b_ = {};\n\treturn ::{c}_eq(&c_a_, &c_b_);\n}}\n",
 						self.scope([ty]),
-						self.lower(ty, "a"),
-						self.lower(ty, "b"),
+						self.lower(ty, &a),
+						self.lower(ty, &b),
 					));
 				}
 				self.traits(&name, &c, t, Some(ty), &mut body, &mut members);
@@ -1090,14 +1100,15 @@ impl<'a> Header<'a> {
 		let ty = Type::Enum(i);
 		let param = self.param(&ty);
 		let lifted = self.lift(&ty, "c_ret_");
+		let (a, b) = self.operands();
 		let lower = |e: &str| self.lower(&ty, e);
-		let (a, b, this) = (lower("a"), lower("b"), lower("self"));
+		let (lower_a, lower_b, this) = (lower(&a), lower(&b), lower("self"));
 		let scope = self.scope([&ty]);
 		let t = e.traits;
 		if t.eq {
-			let (a_, b_) = (declare(&param, "a"), declare(&param, "b"));
+			let (a_, b_) = (declare(&param, &a), declare(&param, &b));
 			self.def(format!(
-				"inline bool operator==({a_}, {b_}) {{\n{scope}\tauto c_a_ = {a};\n\tauto c_b_ = {b};\n\treturn ::{c}_eq(&c_a_, &c_b_);\n}}\n\ninline bool operator!=({a_}, {b_}) {{\n\treturn !(a == b);\n}}\n"
+				"inline bool operator==({a_}, {b_}) {{\n{scope}\tauto c_a_ = {lower_a};\n\tauto c_b_ = {lower_b};\n\treturn ::{c}_eq(&c_a_, &c_b_);\n}}\n\ninline bool operator!=({a_}, {b_}) {{\n\treturn !({a} == {b});\n}}\n"
 			));
 		}
 		for (on, trait_name) in [(t.display, "to_string"), (t.debug, "debug")] {

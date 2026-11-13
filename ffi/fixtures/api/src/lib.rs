@@ -2965,3 +2965,32 @@ pub fn next_hop(hop: Option<NonZero<u64>>) -> Option<NonZero<u64>> {
 pub fn farther_hop(hops: Pair<NonZero<u16>>) -> Box<NonZero<u16>> {
 	Box::new(hops.left.max(hops.right))
 }
+
+/// A record named as C++'s `==` names its first argument, which must not hide it.
+#[allow(non_camel_case_types)]
+#[derive(Clone, Debug, PartialEq)]
+pub struct a {
+	pub b: u8,
+}
+
+/// An enum named as C++'s `==` names its first argument.
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum b {
+	One,
+	Two(u8),
+}
+
+/// A handle named as C++'s `==` names its first argument.
+#[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq)]
+pub struct c {
+	value: u8,
+}
+
+impl c {
+	/// A handle holding `value`.
+	pub fn new(value: u8) -> Self {
+		c { value }
+	}
+}
