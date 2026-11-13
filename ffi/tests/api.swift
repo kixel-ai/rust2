@@ -1009,7 +1009,8 @@ func futures() {
 		until { q.drain(); return got.value != 0 }
 		check(got.value == 10, "an async closure's end wakes Rust")
 	}
-	// The closure waits, so it pends whether or not its task has run yet.
+	// The closure waits, so it pends whether or not its task has run yet, and the check
+	// waits for the throw, wherever the task resumes.
 	do {
 		let (stream, _) = AsyncStream<Void>.makeStream()
 		let threw = Cell(false)
@@ -1020,7 +1021,7 @@ func futures() {
 				threw.value = true
 			}
 		}
-		q.drain()
+		until { q.drain(); return threw.value }
 		check(threw.value, "Rust gives up on an async closure")
 	}
 	do {
