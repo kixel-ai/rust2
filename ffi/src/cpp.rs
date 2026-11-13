@@ -140,11 +140,12 @@ impl<'a> Header<'a> {
 		{
 			return format!("{} &", self.owned(inner));
 		}
+		// Passed by value, so a `buf` Rust made moves back without a copy.
 		if Abi::is_buf(ty) {
-			return format!("::{}::view", self.ns);
+			return format!("::{}::input", self.ns);
 		}
 		match ty {
-			Type::Option(inner) if Abi::is_buf(inner) => format!("::std::optional<::{}::view>", self.ns),
+			Type::Option(inner) if Abi::is_buf(inner) => format!("::std::optional<::{}::input>", self.ns),
 			// Moved out of, each handle as a handle taken by value is.
 			Type::Option(inner) if matches!(inner.base(), Type::List(_, elem) if moves(abi, elem)) => {
 				format!("::std::optional<{}>", self.items(inner.base()))
@@ -238,6 +239,20 @@ impl<'a> Header<'a> {
 				self.d()
 			),
 			false => String::new(),
+		}
+	}
+
+	/// The C value of parameter `e` of type `ty`: a buffer's `input`, or a value passed for
+	/// `&mut`, hands Rust's bytes over.
+	fn arg(&self, ty: &Type, e: &str) -> String {
+		let d = self.d();
+		match ty {
+			_ if Abi::is_buf(ty) => format!("{d}::access::take({e})"),
+			Type::Option(inner) if Abi::is_buf(inner) => format!("({e} ? {d}::access::take(*{e}) : {d}::none())"),
+			Type::Ref(_, inner) | Type::Box(inner) if matches!(inner.base(), Type::Option(o) if Abi::is_buf(o)) => {
+				self.arg(inner.base(), e)
+			}
+			_ => self.lower(ty, e),
 		}
 	}
 
@@ -433,7 +448,7 @@ impl<'a> Header<'a> {
 		);
 		self.line(format!("namespace {ns} {{\n"));
 		self.line(format!(
-			"namespace detail {{\n\nusing c_buf = ::{p}_buf;\nusing c_waker = ::{p}_waker;\nusing c_foreign_future = ::{p}_foreign_future;\nusing c_foreign_reader = ::{p}_foreign_reader;\n\ninline void c_buf_free(c_buf buf) noexcept {{\n\t::{p}_buf_free(buf);\n}}\n\ninline c_buf c_buf_copy(c_buf view) noexcept {{\n\treturn ::{p}_buf_copy(view);\n}}\n\n}} // namespace detail\n"
+			"namespace detail {{\n\nusing c_buf = ::{p}_buf;\nusing c_waker = ::{p}_waker;\nusing c_foreign_future = ::{p}_foreign_future;\nusing c_foreign_reader = ::{p}_foreign_reader;\n\ninline void c_buf_free(c_buf buf) noexcept {{\n\t::{p}_buf_free(buf);\n}}\n\ninline c_buf c_buf_copy(c_buf view) noexcept {{\n\treturn ::{p}_buf_copy(view);\n}}\n\ninline c_buf c_buf_clone(c_buf buf) noexcept {{\n\treturn ::{p}_buf_clone(buf);\n}}\n\n}} // namespace detail\n"
 		));
 		self.out.push_str(RUNTIME);
 		self.line(format!(
@@ -1203,7 +1218,7 @@ impl<'a> Header<'a> {
 				continue;
 			}
 			params.push(declare(&self.param(&param.ty), &name));
-			args.push(self.lower(&param.ty, &name));
+			args.push(self.arg(&param.ty, &name));
 		}
 		let outs: Vec<(String, Ty)> = c_params.cloned().collect();
 		// Each value passed for `&mut` takes what Rust wrote back, on every path.
