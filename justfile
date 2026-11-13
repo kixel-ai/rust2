@@ -9,7 +9,7 @@ mod ffi
 # The Go translator, its own workspace on the TypeScript driver's nightly: `just go <recipe>`.
 mod go
 
-# The drivers' shared front end and rust2-lint, its own workspace on the TypeScript driver's nightly: `just driver <recipe>`.
+# The drivers' shared front end, its own workspace on the TypeScript driver's nightly: `just driver <recipe>`.
 mod driver
 
 # List the available development commands.
