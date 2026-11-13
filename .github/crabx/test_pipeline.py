@@ -55,7 +55,7 @@ class Pipeline(unittest.TestCase):
     def test_partial_release_recovery(self):
         first = p.asset(ITEM, p.TARGETS[0][0])
         existing = [[{"name": first}, {"name": "unrelated.txt"}]]
-        with patch.object(p, "tag", return_value=ITEM["tag"]), patch.object(p, "api", return_value={"id": 7}), patch.object(p, "run", return_value=json.dumps(existing)) as run, patch.object(Path, "is_file", return_value=True):
+        with patch.dict(os.environ, {"GITHUB_REPOSITORY": "example/demo"}), patch.object(p, "tag", return_value=ITEM["tag"]), patch.object(p, "api", return_value={"id": 7}), patch.object(p, "run", return_value=json.dumps(existing)) as run, patch.object(Path, "is_file", return_value=True):
             p.publish(ITEM)
         uploads = [call.args for call in run.call_args_list if call.args[:3] == ("gh", "release", "upload")]
         self.assertEqual(len(uploads), 5)
