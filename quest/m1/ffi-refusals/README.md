@@ -77,7 +77,7 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   refuses 94 items and 5 types at the pin, behind `ffi/moq/ffi.toml`'s 100 excludes, and
   moq's `main` adds the 36 errors [the pin bump](/quest/m1/ffi-refusals/moq-pin.md)
   measured. So each construct left has a child again:
-  [`NonZero`](/quest/m1/ffi-refusals/nonzero.md),
+  `NonZero`, which exports,
   [the rest at moq's main](/quest/m1/ffi-refusals/moq-main.md), and
   [the excludes that hide what exports](/quest/m1/ffi-refusals/stale-excludes.md); the
   bump is then only the bump. The types refused for not being `Send` (`clock::Entered`,

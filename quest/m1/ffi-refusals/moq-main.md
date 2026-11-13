@@ -4,7 +4,7 @@
 
 `just ffi moq-cpp <checkout>` at moq's `main` exports with no error and no new exclude:
 each construct the export refuses there, beyond
-[`NonZero`](/quest/m1/ffi-refusals/nonzero.md), exports by a rule or is left out as what C
+`NonZero`, which exports, either exports by a rule or is left out as what C
 can never hold. Measured on 2026-11-12 at moq `6936f0a`
 ([the pin bump](/quest/m1/ffi-refusals/moq-pin.md)): single refusals such as
 `qmux::Session` and `CertificateDer`, third-party types taken by value; a borrowing

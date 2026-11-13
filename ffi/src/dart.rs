@@ -517,7 +517,7 @@ impl<'a> Gen<'a> {
 			Type::Array(n) => Abi::array_class(*n),
 			Type::Unit => "void".to_string(),
 			Type::Bool => "bool".to_string(),
-			Type::Int(_) => "int".to_string(),
+			Type::Int(_) | Type::NonZero(_) => "int".to_string(),
 			Type::F32 | Type::F64 => "double".to_string(),
 			Type::Char | Type::Str | Type::String | Type::Path | Type::PathBuf => "String".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => "typed.Uint8List".to_string(),
@@ -861,7 +861,7 @@ impl<'a> Gen<'a> {
 	fn lower(&mut self, ty: &Type, e: &str) -> String {
 		match ty {
 			Type::Bool | Type::F32 | Type::F64 => e.to_string(),
-			Type::Int(int) => match int {
+			Type::Int(int) | Type::NonZero(int) => match int {
 				Int::U8 => format!("_n.u8({e})"),
 				Int::U16 => format!("_n.u16({e})"),
 				Int::U32 => format!("_n.u32({e})"),
@@ -1168,7 +1168,7 @@ impl<'a> Gen<'a> {
 			Type::Str | Type::String => format!("_n.string({e})"),
 			Type::Path | Type::PathBuf => format!("_n.path({e})"),
 			Type::Slice | Type::Vec | Type::Bytes => format!("_n.bytes({e})"),
-			Type::Bool | Type::F32 | Type::F64 | Type::Int(_) => e.to_string(),
+			Type::Bool | Type::F32 | Type::F64 | Type::Int(_) | Type::NonZero(_) => e.to_string(),
 			Type::Char => format!("_n.scalar({e})"),
 			Type::U128 => format!("_n.u128Of({e})"),
 			Type::Duration => format!("_n.durationOf({e})"),

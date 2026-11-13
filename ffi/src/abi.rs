@@ -471,6 +471,8 @@ impl<'a> Abi<'a> {
 			Type::Enum(i) => (&self.api.enums[*i].shown, &self.api.enums[*i].args),
 			Type::Object(i) => (&self.api.objects[*i].shown, &self.api.objects[*i].args),
 			Type::Ref(_, inner) | Type::Box(inner) => return self.arg_forms(inner),
+			// Apart from its integer's, which an instance of the same item may also take.
+			Type::NonZero(int) => return vec![format!("non_zero_{}", int.rust())],
 			ty => return vec![self.key(ty)],
 		};
 		let segments = self.segments(shown);
@@ -653,7 +655,7 @@ impl<'a> Abi<'a> {
 			Type::Str | Type::String => "string".to_string(),
 			Type::Slice | Type::Vec | Type::Bytes => "bytes".to_string(),
 			Type::Path | Type::PathBuf => "path".to_string(),
-			Type::Int(int) => int.rust().to_string(),
+			Type::Int(int) | Type::NonZero(int) => int.rust().to_string(),
 			Type::F32 => "f32".to_string(),
 			Type::F64 => "f64".to_string(),
 			Type::Char => "char".to_string(),
@@ -680,7 +682,7 @@ impl<'a> Abi<'a> {
 
 	/// A type by its key, with each tuple spelled as Rust spells it, which tells apart
 	/// tuples that share a C name.
-	fn spell(&self, ty: &Type) -> String {
+	pub fn spell(&self, ty: &Type) -> String {
 		match ty {
 			Type::Tuple(elements) => {
 				let elements: Vec<String> = elements.iter().map(|e| self.spell(e)).collect();
@@ -713,7 +715,7 @@ impl<'a> Abi<'a> {
 			Type::Const(_) => unreachable!("a const argument is no value"),
 			Type::Unit => Ty::Void,
 			Type::Bool => Ty::Bool,
-			Type::Int(int) => Ty::Int(*int),
+			Type::Int(int) | Type::NonZero(int) => Ty::Int(*int),
 			Type::F32 => Ty::F32,
 			Type::F64 => Ty::F64,
 			Type::Char => Ty::Char,

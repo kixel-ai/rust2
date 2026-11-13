@@ -81,6 +81,7 @@ impl Api {
 			Type::Unit => "()".to_string(),
 			Type::Bool => "bool".to_string(),
 			Type::Int(int) => int.rust().to_string(),
+			Type::NonZero(int) => format!("std::num::NonZero<{}>", int.rust()),
 			Type::F32 => "f32".to_string(),
 			Type::F64 => "f64".to_string(),
 			Type::Char => "char".to_string(),
@@ -408,6 +409,9 @@ pub enum Type {
 	Unit,
 	Bool,
 	Int(Int),
+	/// `std::num::NonZero<T>` of an integer, which crosses as `T`: a zero passed in fails
+	/// the binding's check.
+	NonZero(Int),
 	/// `u128`, which C passes as its two `u64` halves.
 	U128,
 	F32,

@@ -707,6 +707,13 @@ Future<void> script() async {
   } on api.StringException catch (e) {
     print('sought error $e');
   }
+  print('non zeros ${api.describeNonZeros(api.nonZeros())}');
+  // A `u64` is its bits, so -1 is `u64::MAX`.
+  for (final hop in [null, 1, -1]) {
+    final next = api.nextHop(hop);
+    print(next == null ? 'hop None' : 'hop Some(${BigInt.from(next).toUnsigned(64)})');
+  }
+  print('farther hop ${api.fartherHop(const api.PairNonZeroU16(left: 3, right: 0xFFFF))}');
 }
 
 /// A reader whose reads fail, as the transcript's: each seek lands at 0.
