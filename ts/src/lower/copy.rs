@@ -836,7 +836,7 @@ impl<'tcx> Types<'tcx> {
 
 /// `ty` as [`Types`] keys it: without regions, a `MaybeUninit` or `ManuallyDrop` as what
 /// it holds, and an array as a slice of its element.
-fn storage<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
+pub(super) fn storage<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>) -> Ty<'tcx> {
 	let mut ty = tcx.erase_and_anonymize_regions(ty);
 	while let ty::Adt(adt, args) = ty.kind()
 		&& matches!(Std::of(tcx, adt.did()), Some(Std::MaybeUninit | Std::ManuallyDrop))
