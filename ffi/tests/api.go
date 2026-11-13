@@ -757,6 +757,9 @@ func script() {
 	renewed := must(api.Reissue(seven, func(t *api.Ticket) *api.Ticket { return api.NewTicket(must(t.Number()) + 1) }))
 	copied := must(api.Reissue(seven, func(*api.Ticket) *api.Ticket { return nine }))
 	fmt.Printf("reissued %d %d, cloned %d\n", must(renewed.Number()), must(copied.Number()), api.TicketClones())
+	// A record's traits borrow the checked handle it holds.
+	front, back := must(api.NewSeat(nine, 1)), must(api.NewSeat(nine, 2))
+	fmt.Printf("seat %s %t %t\n", front.GoString(), must(front.Equal(front)), must(front.Equal(back)))
 	for _, ticket := range []*api.Ticket{copied, renewed, seven, nine} {
 		ticket.Close()
 	}

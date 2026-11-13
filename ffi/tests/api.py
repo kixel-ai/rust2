@@ -633,6 +633,9 @@ def script():
 	given = api.reissue(api.Ticket.new(7), lambda t: api.Ticket.new(t.number() + 1)).number()
 	held = api.reissue(api.Ticket.new(7), lambda _: kept).number()
 	print(f"reissued {given} {held}, cloned {api.Ticket.clones()}")
+	# A record's traits borrow the checked handle it holds.
+	front, back = api.seat(kept, 1), api.seat(kept, 2)
+	print(f"seat {front!r} {str(front == api.seat(kept, 1)).lower()} {str(front == back).lower()}")
 	# A kept closure, called on another thread after the call that took it returned.
 	print(f"spawned {api.Spawned.new(lambda: 7).join()}")
 	# A kept closure: called again at the instant it asks for, then once its waiter wakes.

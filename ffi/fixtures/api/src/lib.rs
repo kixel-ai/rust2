@@ -725,6 +725,19 @@ pub fn reissue_lent(ticket: &Ticket, swap: impl Fn(&Ticket) -> Ticket) -> Ticket
 	swap(ticket)
 }
 
+/// A record holding a `Copy` object a closure is lent, so its `PartialEq` and `Debug`
+/// check that object's handle.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Seat {
+	pub ticket: Ticket,
+	pub row: u32,
+}
+
+/// The seat in `row` for `ticket`.
+pub fn seat(ticket: Ticket, row: u32) -> Seat {
+	Seat { ticket, row }
+}
+
 /// What `check` returns, a closure with no value but its error.
 pub fn attempt(check: impl FnOnce() -> Result<(), String>) -> Result<(), String> {
 	check()

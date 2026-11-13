@@ -286,6 +286,14 @@ static bool closures(void) {
 	api_Ticket *held = api_reissue(seven, reissue_kept, kept, NULL);
 	printf("reissued %u %u, cloned %u\n", (unsigned)api_Ticket_number(given, NULL), (unsigned)api_Ticket_number(held, NULL),
 		(unsigned)api_Ticket_clones());
+	/* A record's traits borrow the checked handle it holds. */
+	api_Seat front = api_seat(kept, 1, NULL);
+	api_Seat back = api_seat(kept, 2, NULL);
+	print("seat ", api_Seat_debug(&front, NULL), "");
+	printf(" %s %s\n", api_Seat_eq(&front, &front, NULL) ? "true" : "false",
+		api_Seat_eq(&front, &back, NULL) ? "true" : "false");
+	api_Seat_free(&back);
+	api_Seat_free(&front);
 	api_Ticket_free(held);
 	api_Ticket_free(given);
 	api_Ticket_free(seven);

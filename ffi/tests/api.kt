@@ -555,6 +555,10 @@ fun script() {
 	val given = reissue(Ticket.new(7u)) { t -> Ticket.new(t.number() + 1u) }.number()
 	val held = reissue(Ticket.new(7u)) { nine }.number()
 	println("reissued $given $held, cloned ${Ticket.clones()}")
+	// A record's traits borrow the checked handle it holds.
+	val front = seat(nine, 1u)
+	val back = seat(nine, 2u)
+	println("seat ${front.debug()} ${front == front.copy()} ${front == back}")
 	// A kept closure, called on another thread after the call that took it returned.
 	println("spawned ${Spawned.new { 7u }.join()}")
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.

@@ -663,6 +663,10 @@ Future<void> script() async {
   final renewed = api.reissue(api.Ticket(7), (t) => api.Ticket(t.number() + 1)).number();
   final copied = api.reissue(api.Ticket(7), (_) => nine).number();
   print('reissued $renewed $copied, cloned ${api.Ticket.clones()}');
+  // A record's traits borrow the checked handle it holds.
+  final front = api.seat(nine, 1);
+  final back = api.seat(nine, 2);
+  print('seat ${front.debug()} ${front == api.seat(nine, 1)} ${front == back}');
   // A kept closure, called on another thread after the call that took it returned.
   final spawned = api.Spawned(() => 7);
   print('spawned ${spawned.join()}');

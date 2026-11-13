@@ -755,6 +755,10 @@ func script() {
 	let given = try! reissue(Ticket.new(7)) { Ticket.new(try! $0.number() + 1) }.number()
 	let held = try! reissue(Ticket.new(7)) { _ in nine }.number()
 	print("reissued \(given) \(held), cloned \(Ticket.clones())")
+	// A record's traits borrow the checked handle it holds.
+	let front = try! seat(nine, 1)
+	let back = try! seat(nine, 2)
+	print("seat \(try! front.debugDescription) \(try! front == front) \(try! front == back)")
 	// A kept closure, called on another thread after the call that took it returned.
 	print("spawned \(try! Spawned.new { 7 }.join())")
 	// A kept closure: called again at the instant it asks for, then once its waiter wakes.

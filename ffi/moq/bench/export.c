@@ -55,7 +55,7 @@ static const moq_waker waker = {0};
 static volatile unsigned sink;
 
 static moq_group_Consumer *recv_group(moq_track_Subscriber *subscriber) {
-	moq_track_Subscriber_recv_group_future *receiving = moq_track_Subscriber_recv_group(subscriber);
+	moq_track_Subscriber_recv_group_future *receiving = moq_track_Subscriber_recv_group(subscriber, NULL);
 	moq_group_Consumer *reader = NULL;
 	moq_Error *err = NULL;
 	if (moq_track_Subscriber_recv_group_poll(receiving, waker, &reader, &err) != MOQ_POLL_READY || reader == NULL) {
@@ -66,7 +66,7 @@ static moq_group_Consumer *recv_group(moq_track_Subscriber *subscriber) {
 }
 
 static moq_frame_Frame *read_frame(moq_group_Consumer *reader) {
-	moq_group_Consumer_read_frame_future *reading = moq_group_Consumer_read_frame(reader);
+	moq_group_Consumer_read_frame_future *reading = moq_group_Consumer_read_frame(reader, NULL);
 	moq_frame_Frame *read = NULL;
 	moq_Error *err = NULL;
 	if (moq_group_Consumer_read_frame_poll(reading, waker, &read, &err) != MOQ_POLL_READY || read == NULL) {
@@ -79,7 +79,7 @@ static moq_frame_Frame *read_frame(moq_group_Consumer *reader) {
 static moq_group_Producer *append_group(moq_track_Producer *track) {
 	moq_group_Producer *group = NULL;
 	moq_Error *err = NULL;
-	if (!moq_track_Producer_append_group(track, &group, &err)) {
+	if (!moq_track_Producer_append_group(track, &group, &err, NULL)) {
 		fail("append_group");
 	}
 	return group;
@@ -87,14 +87,14 @@ static moq_group_Producer *append_group(moq_track_Producer *track) {
 
 static void write_frame(moq_group_Producer *group, const moq_Timestamp *at, moq_buf frame) {
 	moq_Error *err = NULL;
-	if (!moq_group_Producer_write_frame(group, at, frame, &err)) {
+	if (!moq_group_Producer_write_frame(group, at, frame, &err, NULL)) {
 		fail("write_frame");
 	}
 }
 
 static void finish(moq_group_Producer *group) {
 	moq_Error *err = NULL;
-	if (!moq_group_Producer_finish(group, &err)) {
+	if (!moq_group_Producer_finish(group, &err, NULL)) {
 		fail("finish");
 	}
 	moq_group_Producer_free(group);
@@ -114,7 +114,7 @@ static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscrib
 		for (int f = 0; f < FRAMES; f++) {
 			write_frame(group, at, frame);
 			moq_frame_Frame *read = read_frame(reader);
-			moq_buf bytes = moq_frame_Frame_payload_get(read);
+			moq_buf bytes = moq_frame_Frame_payload_get(read, NULL);
 			*sum += bytes.ptr[0];
 			moq_buf_free(bytes);
 			moq_frame_Frame_free(read);
@@ -129,16 +129,16 @@ static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscrib
 
 static void round_(int print) {
 	moq_broadcast_Info *binfo = moq_broadcast_Info_new();
-	moq_broadcast_Producer *broadcast = moq_broadcast_Info_produce(binfo);
+	moq_broadcast_Producer *broadcast = moq_broadcast_Info_produce(binfo, NULL);
 	moq_broadcast_Info_free(binfo);
 	moq_Timescale *micro = moq_Timescale_MICRO();
 	/* Builders take the handle's value, leaving the handle to free. */
 	moq_track_Info *defaults = moq_track_Info_default();
-	moq_track_Info *info = moq_track_Info_with_timescale(defaults, micro);
+	moq_track_Info *info = moq_track_Info_with_timescale(defaults, micro, NULL);
 	moq_track_Info_free(defaults);
 	moq_track_Producer *track = NULL;
 	moq_Error *err = NULL;
-	if (!moq_broadcast_Producer_create_track(broadcast, str("bench"), info, &track, &err)) {
+	if (!moq_broadcast_Producer_create_track(broadcast, str("bench"), info, &track, &err, NULL)) {
 		fail("create_track");
 	}
 	moq_track_Info_free(info);
@@ -150,15 +150,15 @@ static void round_(int print) {
 
 	start = now();
 	for (int i = 0; i < N; i++) {
-		sum += moq_track_Producer_is_closed(track);
+		sum += moq_track_Producer_is_closed(track, NULL);
 	}
 	span call = per(start, N);
 
 	moq_group_Producer *demanded = append_group(track);
-	moq_group_Demand *demand = moq_group_Producer_demand(demanded);
+	moq_group_Demand *demand = moq_group_Producer_demand(demanded, NULL);
 	start = now();
 	for (int i = 0; i < N; i++) {
-		sum += (unsigned)moq_group_Demand_sequence(demand);
+		sum += (unsigned)moq_group_Demand_sequence(demand, NULL);
 	}
 	span getter = per(start, N);
 	moq_group_Demand_free(demand);
@@ -166,13 +166,13 @@ static void round_(int print) {
 
 	start = now();
 	for (int i = 0; i < N; i++) {
-		sum += moq_track_Producer_largest(track).some;
+		sum += moq_track_Producer_largest(track, NULL).some;
 	}
 	span record = per(start, N);
 
 	start = now();
 	for (int i = 0; i < N; i++) {
-		moq_track_Info_free(moq_track_Producer_info(track));
+		moq_track_Info_free(moq_track_Producer_info(track, NULL));
 	}
 	span object = per(start, N);
 
@@ -209,8 +209,8 @@ static void round_(int print) {
 	}
 	span write = per(start, N);
 
-	moq_track_Consumer *consumer = moq_track_Producer_consume(track);
-	moq_track_Consumer_subscribe_future *subscribing = moq_track_Consumer_subscribe(consumer, NULL);
+	moq_track_Consumer *consumer = moq_track_Producer_consume(track, NULL);
+	moq_track_Consumer_subscribe_future *subscribing = moq_track_Consumer_subscribe(consumer, NULL, NULL);
 	moq_track_Subscriber *subscriber = NULL;
 	if (moq_track_Consumer_subscribe_poll(subscribing, waker, &subscriber, &err) != MOQ_POLL_READY) {
 		fail("subscribe");
@@ -242,7 +242,7 @@ static void round_(int print) {
 		moq_group_Producer *group = append_group(track);
 		moq_group_Consumer *reader = recv_group(subscriber);
 		for (int f = 0; f < FRAMES; f++) {
-			moq_group_Consumer_read_frame_future *reading = moq_group_Consumer_read_frame(reader);
+			moq_group_Consumer_read_frame_future *reading = moq_group_Consumer_read_frame(reader, NULL);
 			moq_frame_Frame *read = NULL;
 			if (moq_group_Consumer_read_frame_poll(reading, waker, &read, &err) != MOQ_POLL_PENDING) {
 				fail("woken read_frame ready");
@@ -262,7 +262,7 @@ static void round_(int print) {
 	/* The last frame's 100 bytes, owned without a copy, then freed. */
 	start = now();
 	for (int i = 0; i < N; i++) {
-		moq_buf bytes = moq_frame_Frame_payload_get(last);
+		moq_buf bytes = moq_frame_Frame_payload_get(last, NULL);
 		sum += bytes.ptr[0];
 		moq_buf_free(bytes);
 	}

@@ -230,6 +230,15 @@ impl<'a> Header<'a> {
 	}
 
 	/// The arena a body lowering each of `tys` declares, if one needs it.
+	/// The status a record's or enum's trait function takes, if a handle in it is checked:
+	/// null, so a failed check aborts, as each other call of C++'s does.
+	fn value_status(&self, ty: &Type) -> &'static str {
+		match self.abi.value_status(ty) {
+			true => ", nullptr",
+			false => "",
+		}
+	}
+
 	fn scope<'t>(&self, tys: impl IntoIterator<Item = &'t Type>) -> String {
 		match tys.into_iter().any(|ty| self.arena(ty)) {
 			true => format!(
@@ -704,7 +713,7 @@ impl<'a> Header<'a> {
 		let d = self.d();
 		let (value, status) = match of {
 			Ok(status) => (None, status),
-			Err(ty) => (Some(ty), ""),
+			Err(ty) => (Some(ty), self.value_status(ty)),
 		};
 		let object = value.is_none();
 		let callable = match object {
@@ -873,10 +882,11 @@ impl<'a> Header<'a> {
 						"\tbool operator==(const {name} &other) const;\n\tbool operator!=(const {name} &other) const {{\n\t\treturn !(*this == other);\n\t}}"
 					));
 					self.def(format!(
-						"inline bool {name}::operator==(const {name} &other) const {{\n{}\tauto c_a_ = {};\n\tauto c_b_ = {};\n\treturn ::{c}_eq(&c_a_, &c_b_);\n}}\n",
+						"inline bool {name}::operator==(const {name} &other) const {{\n{}\tauto c_a_ = {};\n\tauto c_b_ = {};\n\treturn ::{c}_eq(&c_a_, &c_b_{});\n}}\n",
 						self.scope([ty]),
 						self.lower(ty, "*this"),
 						self.lower(ty, "other"),
+						self.value_status(ty),
 					));
 				}
 				self.traits(&name, &c, t, Err(ty), &mut body, &mut members);
@@ -935,16 +945,17 @@ impl<'a> Header<'a> {
 		let (a, b, this) = (lower("a"), lower("b"), lower("self"));
 		let scope = self.scope([&ty]);
 		let t = e.traits;
+		let status = self.value_status(&ty);
 		if t.eq {
 			let (a_, b_) = (declare(&param, "a"), declare(&param, "b"));
 			self.def(format!(
-				"inline bool operator==({a_}, {b_}) {{\n{scope}\tauto c_a_ = {a};\n\tauto c_b_ = {b};\n\treturn ::{c}_eq(&c_a_, &c_b_);\n}}\n\ninline bool operator!=({a_}, {b_}) {{\n\treturn !(a == b);\n}}\n"
+				"inline bool operator==({a_}, {b_}) {{\n{scope}\tauto c_a_ = {a};\n\tauto c_b_ = {b};\n\treturn ::{c}_eq(&c_a_, &c_b_{status});\n}}\n\ninline bool operator!=({a_}, {b_}) {{\n\treturn !(a == b);\n}}\n"
 			));
 		}
 		for (on, trait_name) in [(t.display, "to_string"), (t.debug, "debug")] {
 			if on {
 				self.def(format!(
-					"inline ::{ns}::buf {name}_{trait_name}({}) {{\n{scope}\tauto c_self_ = {this};\n\treturn {d}::access::adopt(::{c}_{trait_name}(&c_self_));\n}}\n",
+					"inline ::{ns}::buf {name}_{trait_name}({}) {{\n{scope}\tauto c_self_ = {this};\n\treturn {d}::access::adopt(::{c}_{trait_name}(&c_self_{status}));\n}}\n",
 					declare(&param, "self"),
 					d = self.d()
 				));
