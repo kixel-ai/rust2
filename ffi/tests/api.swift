@@ -982,9 +982,12 @@ func futures() {
 	}
 	do {
 		let threw = Cell(false)
+		let gate = AsyncStream<Void>.makeStream()
 		q.launch {
 			do {
-				try await within(0) {}
+				// An empty closure can finish before Rust polls it, legitimately succeeding.
+				// Keep this one pending so a zero-poll limit must exercise the error path.
+				try await within(0) { for await _ in gate.stream {} }
 			} catch is Api.Error {
 				threw.value = true
 			}
