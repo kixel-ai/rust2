@@ -197,7 +197,7 @@ fn is_ord(shape: &Shape) -> bool {
 
 /// The shapes a run covers: each leaf alone, each leaf in each wrapper, then `extra`
 /// sampled to depth 3 from a fixed seed.
-pub fn shapes(extra: usize) -> Vec<Shape> {
+fn shapes(extra: usize) -> Vec<Shape> {
 	let leaves = leaves();
 	let mut shapes = leaves.clone();
 	let mut rng = Rng(0x5eed);
@@ -223,7 +223,7 @@ pub fn shapes(extra: usize) -> Vec<Shape> {
 
 /// The gate's subset: each leaf alone, and each wrapper around a buffer, a
 /// record field, and an object.
-pub fn gate() -> Vec<Shape> {
+fn gate() -> Vec<Shape> {
 	let mut shapes = leaves();
 	for inner in [Shape::String, Shape::Int("i16"), Shape::Object(Box::new(Shape::U128))] {
 		let boxed = || Box::new(inner.clone());
@@ -471,7 +471,7 @@ fn digest(value: &dyn std::fmt::Debug) -> u64 {
 
 /// The functions each shape `N` exports, which the census may refuse one by one.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Item {
+enum Item {
 	Make,
 	Echo,
 	Digest,
@@ -486,7 +486,7 @@ pub enum Item {
 }
 
 impl Item {
-	pub fn name(self, n: usize) -> String {
+	fn name(self, n: usize) -> String {
 		let item = match self {
 			Item::Make => "make",
 			Item::Echo => "echo",
@@ -502,7 +502,7 @@ impl Item {
 
 /// A line of the script each driver runs, printing `label value`.
 #[derive(Clone, Copy, Debug)]
-pub enum Call {
+enum Call {
 	/// `digest_N(echo_N(make_N(seed)))`
 	Echo(usize, u64),
 	/// `lent_N(seed, digest_N)`
@@ -517,12 +517,12 @@ pub enum Call {
 
 impl Call {
 	/// The `N` of its shape.
-	pub fn shape(self) -> usize {
+	fn shape(self) -> usize {
 		let (Call::Echo(n, _) | Call::Lent(n, _) | Call::Peek(n, _) | Call::Made(n, _) | Call::Later(n, _)) = self;
 		n
 	}
 
-	pub fn label(self) -> String {
+	fn label(self) -> String {
 		match self {
 			Call::Echo(n, seed) => format!("echo {n} {seed}"),
 			Call::Lent(n, seed) => format!("lent {n} {seed}"),
@@ -537,19 +537,19 @@ impl Call {
 const SEEDS: [u64; 3] = [0, 1, 0xdead_beef];
 
 /// The shapes' crate, as the census left it: which shapes export, and the script.
-pub struct Crate {
-	pub dir: PathBuf,
-	pub shapes: Vec<Shape>,
+struct Crate {
+	dir: PathBuf,
+	shapes: Vec<Shape>,
 	/// Each shape's Rust type, by `N`.
-	pub types: Vec<String>,
-	pub calls: Vec<Call>,
+	types: Vec<String>,
+	calls: Vec<Call>,
 	/// The digests the script prints natively.
-	pub transcript: String,
+	transcript: String,
 }
 
 /// Write the crate of `shapes` named `name` in the scratch directory, ask the exporter what
 /// exports, and run its script natively.
-pub fn emit(name: &str, shapes: &[Shape]) -> Crate {
+fn emit(name: &str, shapes: &[Shape]) -> Crate {
 	let dir = scratch().join(name);
 	let _ = std::fs::remove_dir_all(dir.join("src"));
 	let mut emit = Emit {
@@ -703,14 +703,14 @@ fn ir_covered() {
 
 
 /// The shapes' crate, exported and built once for each language's test.
-pub struct Built {
-	pub krate: Crate,
+struct Built {
+	krate: Crate,
 	/// The export.
-	pub out: PathBuf,
+	out: PathBuf,
 	/// Where cargo built the static library and the shared one Kotlin and Dart load.
-	pub lib: PathBuf,
+	lib: PathBuf,
 	/// What a program linking the static library links besides, as rustc prints it.
-	pub native: Vec<String>,
+	native: Vec<String>,
 }
 
 /// The shared library of the crate `name`, which Python, Kotlin, and Dart load.
@@ -723,7 +723,7 @@ fn shared(name: &str) -> String {
 }
 
 /// Emit, census, export, and build the crate of `shapes` named `name`.
-pub fn build(name: &str, shapes: &[Shape]) -> Built {
+fn build(name: &str, shapes: &[Shape]) -> Built {
 	let krate = emit(name, shapes);
 	let out = krate.dir.join("out");
 	let _ = std::fs::remove_dir_all(&out);
@@ -790,8 +790,9 @@ impl Built {
 		let mut known = Vec::new();
 		for (_, what, skips, quest) in KNOWN.iter().filter(|(l, ..)| *l == language) {
 			let matched: Vec<usize> = (0..self.krate.shapes.len()).filter(|&n| skips(&self.krate.shapes[n])).collect();
+			// The gate's subset may hold none of an entry's shapes; the nightly's holds each.
 			assert!(
-				!matched.is_empty(),
+				!matched.is_empty() || self.name() != "sampled",
 				"KNOWN's {language} entry for {what} ({quest}) matches no shape: remove it"
 			);
 			known.extend(matched);
@@ -847,8 +848,17 @@ fn duration(shape: &Shape) -> bool {
 	within(shape, &|s| matches!(s, Shape::Duration))
 }
 
+/// A `Vec<u8>` or `Bytes`: a `Vec` of `u8` ints is one, as Rust types it alike.
+fn is_bytes(shape: &Shape) -> bool {
+	match shape {
+		Shape::Bytes | Shape::Buf => true,
+		Shape::Vec(inner) => matches!(**inner, Shape::Int("u8")),
+		_ => false,
+	}
+}
+
 fn bytes(shape: &Shape) -> bool {
-	within(shape, &|s| matches!(s, Shape::Bytes | Shape::Buf))
+	within(shape, &is_bytes)
 }
 
 fn ipv6(shape: &Shape) -> bool {
@@ -857,13 +867,18 @@ fn ipv6(shape: &Shape) -> bool {
 
 /// A collection whose items are bytes or tuples holding them, which C++ takes as views.
 fn viewed_items(shape: &Shape) -> bool {
-	let buf = |s: &Shape| matches!(s, Shape::String | Shape::Bytes | Shape::Buf | Shape::PathBuf);
+	let buf = |s: &Shape| matches!(s, Shape::String | Shape::PathBuf) || is_bytes(s);
 	let item = |s: &Shape| buf(s) || matches!(s, Shape::Tuple(elements) if elements.iter().any(buf));
 	within(shape, &|s| match s {
 		Shape::Vec(inner) | Shape::Set(inner) => item(inner),
 		Shape::Map(key, value) => buf(key) || buf(value),
 		_ => false,
 	})
+}
+
+/// A tuple of one element, which Kotlin returns as its element but takes whole.
+fn single(shape: &Shape) -> bool {
+	matches!(shape, Shape::Tuple(elements) if elements.len() == 1)
 }
 
 /// The round trips a binding gets wrong today, each the quest's to fix: the language, what
@@ -877,12 +892,12 @@ const KNOWN: &[(&str, &str, fn(&Shape) -> bool, &str)] = &[
 	("kotlin", "returned bytes passed back", bytes, "/quest/m1/ffi-export/owned-bufs.md"),
 	("go", "an IPv6 flow label", ipv6, "/quest/m1/ffi-export/lossless.md"),
 	("go", "returned bytes passed back", bytes, "/quest/m1/ffi-export/owned-bufs.md"),
-	("cpp", "a returned collection of bytes passed back", viewed_items, "/quest/m1/ffi-export/cpp-views.md"),
+	("kotlin", "a returned tuple of one passed back", single, "/quest/m1/ffi-export/round-trips.md"),
+	("cpp", "a returned collection of bytes passed back", viewed_items, "/quest/m1/ffi-export/round-trips.md"),
 ];
 
-/// A function the C header declares: its return type and each parameter's type and name.
+/// A function the C header declares: each parameter's type and name.
 struct Proto {
-	ret: String,
 	params: Vec<(String, String)>,
 }
 
@@ -894,8 +909,6 @@ fn prototype(header: &str, function: &str) -> Proto {
 		.map(|(at, _)| at)
 		.find(|&at| header[..at].ends_with([' ', '*']))
 		.unwrap_or_else(|| panic!("the header declares {function}"));
-	let start = header[..at].rfind('\n').map_or(0, |i| i + 1);
-	let ret = header[start..at].trim().to_string();
 	let rest = &header[at + declared.len()..];
 	let list = &rest[..rest.find(");").unwrap()];
 	// Split at the commas outside a function pointer's parentheses.
@@ -926,7 +939,7 @@ fn prototype(header: &str, function: &str) -> Proto {
 			}
 		})
 		.collect();
-	Proto { ret, params }
+	Proto { params }
 }
 
 impl Proto {
@@ -957,9 +970,10 @@ impl Proto {
 			Some(ready) => writeln!(out, "\t\tif ({call} != {ready}) abort();"),
 			None => writeln!(out, "\t\t{call};"),
 		};
-		let _ = match values.len() {
-			1 => writeln!(out, "\t\t{ty} {var} = {var}_0;"),
-			_ => writeln!(out, "\t\t{ty} {var} = ({ty}){{{}}};", values.join(", ")),
+		// `out` is the value; `out0` on are a returned tuple's elements, of one or more.
+		let _ = match outs[0].1 == "out" {
+			true => writeln!(out, "\t\t{ty} {var} = {var}_0;"),
+			false => writeln!(out, "\t\t{ty} {var} = ({ty}){{{}}};", values.join(", ")),
 		};
 		out
 	}
@@ -1143,20 +1157,28 @@ fn python(built: &Built, calls: &[Call]) -> String {
 	format!("import asyncio\n\nimport {name} as s\n\n\nasync def main() -> None:\n{body}\n\nasyncio.run(main())\n")
 }
 
-/// The Swift driver, top-level code in the generated module's `main.swift`.
-fn swift(built: &Built, calls: &[Call]) -> String {
-	let mut body = String::new();
-	for call in calls {
-		let value = match *call {
+/// The Swift driver, in the generated module's `main.swift`: each shape's calls in a
+/// function of its own, since type-checking them as one body of top-level code takes
+/// tens of gigabytes.
+fn swift(calls: &[Call]) -> String {
+	let shapes = by_shape(calls, |call| {
+		let value = match call {
 			Call::Echo(n, seed) => format!("digest{n}(echo{n}(make{n}({seed})))"),
 			Call::Lent(n, seed) => format!("lent{n}({seed}) {{ digest{n}($0) }}"),
 			Call::Peek(n, seed) => format!("peek{n}({seed}) {{ digest{n}($0) }}"),
 			Call::Made(n, seed) => format!("made{n}({seed}) {{ make{n}($0) }}"),
 			Call::Later(n, seed) => format!("digest{n}(try await later{n}(make{n}({seed})))"),
 		};
-		let _ = writeln!(body, "print(\"{} \\({value})\")", call.label());
+		format!("\tprint(\"{} \\({value})\")", call.label())
+	});
+	let mut out = String::new();
+	for (n, lines) in &shapes {
+		let _ = writeln!(out, "func shape{n}() async throws {{\n{lines}}}\n");
 	}
-	body
+	for (n, _) in &shapes {
+		let _ = writeln!(out, "try await shape{n}()");
+	}
+	out
 }
 
 /// The Go driver: `one` takes the value of a call returning it alone or with an error,
@@ -1356,7 +1378,7 @@ fn round_trip(built: &Built, language: &str) {
 		"swift" => {
 			let module = built.out.join("swift");
 			std::fs::copy(module.join(format!("{name}.swift")), dir.join(format!("{name}.swift"))).unwrap();
-			std::fs::write(dir.join("main.swift"), swift(built, calls)).unwrap();
+			std::fs::write(dir.join("main.swift"), swift(calls)).unwrap();
 			run(super::swiftc(&module, 15)
 				.args(["-swift-version", "6", "-module-name", "Shapes"])
 				.arg(dir.join(format!("{name}.swift")))
@@ -1418,7 +1440,7 @@ fn gated() -> &'static Built {
 /// Every sampled shape, built once: the nightly's.
 fn sampled() -> &'static Built {
 	static BUILT: std::sync::OnceLock<Built> = std::sync::OnceLock::new();
-	BUILT.get_or_init(|| build("shapes_all", &shapes(SAMPLES)))
+	BUILT.get_or_init(|| build("sampled", &shapes(SAMPLES)))
 }
 
 /// How many shapes the nightly samples beyond each leaf in each wrapper.

@@ -72,6 +72,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		structs: BTreeMap::new(),
 		natives: BTreeMap::new(),
 		helpers: BTreeMap::new(),
+		writers: HashMap::new(),
 		types: String::new(),
 		top: String::new(),
 		glue: String::new(),
@@ -375,6 +376,9 @@ struct Gen<'a> {
 	natives: BTreeMap<String, String>,
 	/// The conversions, polls, and trampolines, by name.
 	helpers: BTreeMap<String, String>,
+	/// Each writer's name, by the type it writes: types of one C struct, such as a `Vec` of
+	/// `SocketAddrV4` and one of `SocketAddr`, check what they write apart.
+	writers: HashMap<Type, String>,
 	/// The types, then the top-level functions and constants.
 	types: String,
 	top: String,
@@ -929,10 +933,17 @@ impl<'a> Gen<'a> {
 
 	/// The function writing a Dart value of type `ty` into the C struct `c`.
 	fn writer(&mut self, c: &str, ty: &Type) -> String {
-		let name = format!("_w_{c}");
-		if self.helpers.contains_key(&name) {
-			return name;
+		if let Some(name) = self.writers.get(ty) {
+			return name.clone();
 		}
+		let mut name = format!("_w_{c}");
+		for k in 2.. {
+			if !self.helpers.contains_key(&name) {
+				break;
+			}
+			name = format!("_w_{c}_{k}");
+		}
+		self.writers.insert(ty.clone(), name.clone());
 		self.helpers.insert(name.clone(), String::new());
 		let class = self.struct_class(&Ty::Struct(c.to_string()));
 		let dt = self.dt(ty);

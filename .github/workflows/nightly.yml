@@ -100,6 +100,10 @@ jobs:
       - name: Export
         run: nix develop --command just ffi moq
 
+      # Every sampled type shape round-tripped in every language; the gate runs a subset.
+      - name: Shapes
+        run: nix develop --command just ffi shapes
+
       # What exports, and every refusal, ranked.
       - name: Census
         run: nix develop --command just ffi census
