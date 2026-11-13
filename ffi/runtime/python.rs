@@ -769,12 +769,17 @@ pub fn bytes_in(obj: *mut PyObject, s: &mut Scope, take: bool) -> R<rt::Buf> {
 		let ptr = view.buf.cast_const().cast::<u8>();
 		let len = view.len as usize;
 		let buf = match (std::ptr::eq(view.format, RUST_FORMAT.as_ptr()), take) {
-			// Rust's, which never change, and which `obj` keeps for the call.
-			(true, false) => rt::Buf {
-				ptr,
-				len,
-				owner: null_mut(),
-			},
+			// Rust's, which never change, read in place: a second owner of them kept for
+			// the call, since releasing `obj`, a view, mid-call could free them.
+			(true, false) => {
+				let owner = (*view.internal.cast::<Bytes>()).buf.owner.cast::<bytes::Bytes>();
+				s.arrays.push(Box::new((*owner).clone()));
+				rt::Buf {
+					ptr,
+					len,
+					owner: null_mut(),
+				}
+			}
 			(true, true) => {
 				let shared = (*view.internal.cast::<Bytes>()).buf.share("python");
 				s.bufs.push(shared);

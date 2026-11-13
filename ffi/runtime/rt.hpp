@@ -346,10 +346,12 @@ public:
 			raw_ = detail::c_buf{copy, bytes.size(), nullptr};
 		}
 	}
-	buf(const buf &other) : buf(view(other)) {
+	// A second owner of Rust's bytes, shared, or a copy of C++'s.
+	buf(const buf &other) : buf() {
 		if (other.raw_.owner != nullptr) {
-			reset();
 			raw_ = detail::c_buf_clone(other.raw_);
+		} else {
+			*this = buf(view(other));
 		}
 	}
 	buf(buf &&other) noexcept : raw_(::std::exchange(other.raw_, detail::c_buf{nullptr, 0, nullptr})) {}

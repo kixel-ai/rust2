@@ -1148,6 +1148,26 @@ def owned():
 	gc.collect()
 	check(api.dropped() == before + 5, "the cycle collector frees what a cycle held")
 	forwarding()
+	released_mid_call()
+
+
+def released_mid_call():
+	"""Rust's bytes a call reads in place stay Rust's until it returns, though the view
+	passed is released while the arguments are still being read."""
+	kept = []
+
+	def parts():
+		before = api.dropped()
+		with api.token_bytes(9, 2048) as view:
+			yield view
+		kept.append(api.dropped() == before)
+		yield b"x"
+
+	before = api.dropped()
+	joined = bytes(api.joined(parts()))
+	check(kept == [True], "a call keeps Rust's bytes it was passed a released view of")
+	check(joined == bytes([9]) * 2048 + b"x", "a released view's bytes read back")
+	check(api.dropped() == before + 1, "Rust's bytes drop once the call returns")
 	print("owned ok")
 
 
