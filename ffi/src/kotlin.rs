@@ -1910,7 +1910,7 @@ impl<'a> Gen<'a> {
 				};
 				let _ = write!(
 					self.natives,
-					"\t@Suppress(\"UNUSED_PARAMETER\")\n\t@JvmStatic private fun {factory}(buffer: java.nio.ByteBuffer, back: Array<Any>?): Any? {{\n\t\tval r = Reader(buffer)\n\t\t{pending}\n{}\t\treturn Ready({last})\n\t}}\n\n",
+					"\t@Suppress(\"UNUSED_PARAMETER\")\n\t@JvmStatic private fun {factory}(buffer: java.nio.ByteBuffer, back: kotlin.Array<Any>?): Any? {{\n\t\tval r = Reader(buffer)\n\t\t{pending}\n{}\t\treturn Ready({last})\n\t}}\n\n",
 					lines.iter().map(|l| format!("\t\t{l}\n")).collect::<String>()
 				);
 			}
@@ -1941,6 +1941,93 @@ impl<'a> Gen<'a> {
 			} else {
 				format!("({awaited}) as {ret_kt}")
 			};
+		} else if written.is_empty()
+			&& matches!(&function.ok, Type::Tuple(elements) if elements.len() > 1 && elements.iter().map(|ty| match abi.ty(ty) { Ty::Int(Int::I64 | Int::U64 | Int::Isize | Int::Usize) | Ty::F64 | Ty::Handle { .. } => 2, _ => 1 }).sum::<usize>() + usize::from(err.is_some()) <= 255 && elements.iter().all(|ty| matches!(abi.ty(ty), Ty::Bool | Ty::Int(_) | Ty::F32 | Ty::F64 | Ty::Char | Ty::Enum(_) | Ty::Handle { .. })))
+		{
+			let Type::Tuple(elements) = &function.ok else {
+				unreachable!()
+			};
+			let factory = format!("{bare}__return");
+			self.dispatchers.push(factory.clone());
+			let mut fields = Vec::new();
+			let mut values = Vec::new();
+			let mut lifted = Vec::new();
+			let mut sig = "(".to_string();
+			for (k, ty) in elements.iter().enumerate() {
+				let c = abi.ty(ty);
+				let (jni, native) = jni_type(&c, ty);
+				fields.push(format!("p{k}: {native}"));
+				sig.push_str(descriptor(jni));
+				lifted.push(self.lift(&strip_refs(ty), &c, &format!("p{k}"), false));
+				let field = match c {
+					Ty::Bool => "z",
+					Ty::F32 => "f",
+					Ty::F64 => "d",
+					Ty::Char | Ty::Enum(_) => "i",
+					_ => jvalue_field(jni),
+				};
+				values.push(format!(
+					"jvalue {{ {field}: if success {{ let ret = o_{}.assume_init(); {} }} else {{ std::mem::zeroed() }} }}",
+					outs[k].0,
+					ret_expr(&c, ty)
+				));
+			}
+			let mut failure = String::new();
+			let error = if let Some(err_ty) = function.err.as_ref() {
+				fields.push("error: ByteArray?".to_string());
+				sig.push_str("[B");
+				values.push("jvalue { l: error }".to_string());
+				let read = self.read_value(err.as_ref().expect("a result's error"), "r");
+				failure = format!(
+					"if (error != null) {{ val r = Reader(error); throw {}({read}) }}",
+					exception.as_deref().expect("a result's exception")
+				);
+				format!(
+					"let error = if success {{ std::ptr::null_mut() }} else {{ let mut w = rt::Writer::default(); {}; w.array(env) }};",
+					put(
+						err_ty,
+						&format!("o_{}.assume_init()", outs.last().expect("an error out").0)
+					)
+				)
+			} else {
+				String::new()
+			};
+			sig.push_str(")Ljava/lang/Object;");
+			let make = match elements.len() {
+				2 => "kotlin.Pair".to_string(),
+				3 => "kotlin.Triple".to_string(),
+				n => self.tuple(n),
+			};
+			let _ = write!(
+				self.natives,
+				"\t@JvmStatic private fun {factory}({}): Any {{\n\t\t{failure}\n\t\treturn {make}({})\n\t}}\n\n",
+				fields.join(", "),
+				lifted.join(", ")
+			);
+			let decl = outs
+				.iter()
+				.map(|(name, _)| format!("let mut o_{name} = std::mem::MaybeUninit::zeroed();"))
+				.collect::<Vec<_>>()
+				.join("\n\t\t");
+			let ptrs = outs
+				.iter()
+				.map(|(name, _)| format!("o_{name}.as_mut_ptr()"))
+				.collect::<Vec<_>>();
+			let invoke = rust_call(&ptrs);
+			let success = if err.is_some() {
+				invoke
+			} else {
+				format!("{{ {invoke}; true }}")
+			};
+			let params = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect::<Vec<_>>();
+			self.native(&bare, &params, ("jobject", "Any"), &format!("{}\n\t\t{decl}\n\t\tlet success = {success};\n\t\t{error}\n\t\tlet args = [{}];\n\t\tstatic FACTORY: std::sync::OnceLock<usize> = std::sync::OnceLock::new();\n\t\tlet id = rt::method(env, &FACTORY, c\"{factory}\", c\"{sig}\");\n\t\t((**env).v1_2.CallStaticObjectMethodA)(env, rt::class(), id, args.as_ptr())", rust_pre.join("\n\t\t"), values.join(", ")));
+			let raw = format!("Native.{bare}({})", exprs.join(", "));
+			let raw = if after.is_empty() {
+				raw
+			} else {
+				format!("try {{ {raw} }} finally {{ {} }}", after.join("; "))
+			};
+			value = format!("({raw}) as {ret_kt}");
 		} else if let Some(c_ok) = direct(&outs, &written, &function.ok, function.err.as_ref()) {
 			// A result of a scalar, a handle, or nothing returns its value directly, raising
 			// its error as a `Native.Failed` Kotlin catches.
@@ -2016,7 +2103,7 @@ impl<'a> Gen<'a> {
 			}
 			let _ = write!(
 				self.natives,
-				"\t@Suppress(\"UNCHECKED_CAST\", \"UNUSED_PARAMETER\")\n\t@JvmStatic private fun {factory}(buffer: java.nio.ByteBuffer, back: Array<Any>?): Any? {{\n\t\tval r = Reader(buffer)\n{}\t}}\n\n",
+				"\t@Suppress(\"UNCHECKED_CAST\", \"UNUSED_PARAMETER\")\n\t@JvmStatic private fun {factory}(buffer: java.nio.ByteBuffer, back: kotlin.Array<Any>?): Any? {{\n\t\tval r = Reader(buffer)\n{}\t}}\n\n",
 				lines.iter().map(|l| format!("\t\t{l}\n")).collect::<String>()
 			);
 			let mut params = params;
@@ -2024,7 +2111,7 @@ impl<'a> Gen<'a> {
 				"std::ptr::null_mut()".to_string()
 			} else {
 				let arg = format!("p{}", params.len());
-				params.push(("jobjectArray", "Array<Any>"));
+				params.push(("jobjectArray", "kotlin.Array<Any>"));
 				arg
 			};
 			self.native(
@@ -2036,7 +2123,7 @@ impl<'a> Gen<'a> {
 			let mut call_args = exprs.clone();
 			if !written.is_empty() {
 				call_args.push(format!(
-					"arrayOf<Any>({})",
+					"kotlin.arrayOf<Any>({})",
 					written
 						.iter()
 						.map(|(name, _)| name.as_str())
@@ -2060,7 +2147,7 @@ impl<'a> Gen<'a> {
 			let read = self.read_value(&ok, "r");
 			let _ = write!(
 				self.natives,
-				"\t@Suppress(\"UNUSED_PARAMETER\")\n\t@JvmStatic private fun {factory}(buffer: java.nio.ByteBuffer, back: Array<Any>?): Any? {{\n\t\tval r = Reader(buffer)\n\t\treturn {read}\n\t}}\n\n"
+				"\t@Suppress(\"UNUSED_PARAMETER\")\n\t@JvmStatic private fun {factory}(buffer: java.nio.ByteBuffer, back: kotlin.Array<Any>?): Any? {{\n\t\tval r = Reader(buffer)\n\t\treturn {read}\n\t}}\n\n"
 			);
 			let params: Vec<(&str, &str)> = native_params.iter().map(|(j, k)| (*j, k.as_str())).collect();
 			self.native(&bare, &params, ("jobject", "Any?"), &format!(
