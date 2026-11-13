@@ -951,7 +951,7 @@ fun held(weak: java.lang.ref.WeakReference<*>): Boolean = weak.get() != null
 // Collect until [weak] is gone, as once Rust lets go of the closure it held.
 fun released(weak: java.lang.ref.WeakReference<*>, what: String) {
 	val deadline = System.nanoTime() + 10.seconds.inWholeNanoseconds
-	while (weak.get() != null) {
+	while (held(weak)) {
 		check(System.nanoTime() < deadline, what)
 		Runtime.getRuntime().gc()
 		Thread.sleep(1)
