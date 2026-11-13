@@ -1627,6 +1627,37 @@ static int statuses(void) {
 	}
 	api_Channel_free(channel);
 
+	/* A drop under a running call is refused; once it ends the drop takes the value, which
+	 * a later call then finds moved, and free frees only the handle. */
+	channel = api_Channel_new();
+	api_Channel_send(channel, str("y"), NULL);
+	recv = api_Channel_recv(channel, NULL);
+	status = 0;
+	api_Channel_drop(channel, &status);
+	if (status != API_STATUS_BORROWED) {
+		fprintf(stderr, "a drop during a recv wrote %d\n", status);
+		failed = 1;
+	}
+	if (api_Channel_recv_poll(recv, waker, &payload) != API_POLL_READY || payload.len != 1) {
+		fprintf(stderr, "a refused drop changed the channel\n");
+		failed = 1;
+	}
+	api_buf_free(payload);
+	api_Channel_recv_future_free(recv);
+	status = 0;
+	api_Channel_drop(channel, &status);
+	api_Channel_drop(channel, &status);
+	if (status != 0) {
+		fprintf(stderr, "a drop after the recv wrote %d\n", status);
+		failed = 1;
+	}
+	api_Channel_clear(channel, &status);
+	if (status != API_STATUS_MOVED) {
+		fprintf(stderr, "a clear after a drop wrote %d\n", status);
+		failed = 1;
+	}
+	api_Channel_free(channel);
+
 	status = 0;
 	api_Meters *meters = api_Meters_new();
 	api_Meter *first = api_Meters_first(meters, NULL);
