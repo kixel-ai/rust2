@@ -119,7 +119,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		/// Throws unless the library's target is among those of [on], as the item [what] is.\n\
 		void _on(int on, String what) {{\n\tif ((on >>> _target) & 1 == 0) {{\n\t\tthrow UnsupportedError(\"$what: it is not on this library's target\");\n\t}}\n}}\n\n\
 		/// Throws unless [status], which the call [what] wrote, is zero: a run-time check failed.\n\
-		void _status(int status, String what) {{\n\tif (status == 0) return;\n\tfinal m = _statusMessage(status);\n\tvar n = 0;\n\twhile (m[n] != 0) n++;\n\tthrow StateError('$what: ${{const convert.Utf8Decoder().convert(m.asTypedList(n))}}');\n}}\n\n"
+		void _status(int status, String what) {{\n\tif (status == 0) return;\n\t_n.status.value = 0;\n\tfinal m = _statusMessage(status);\n\tvar n = 0;\n\twhile (m[n] != 0) n++;\n\tthrow StateError('$what: ${{const convert.Utf8Decoder().convert(m.asTypedList(n))}}');\n}}\n\n"
 	);
 	for (name, params, ret, dart_params, dart_ret) in [
 		("contract", "", "ffi.Uint64", "", "int"),
@@ -1354,7 +1354,7 @@ impl<'a> Gen<'a> {
 		let call = |f: &str, args: &str, what: &str, lift: &dyn Fn(&str) -> String| -> String {
 			match status {
 				true => format!(
-					"final s_ = a_<ffi.Int32>()..value = 0;\n\t\t\tfinal r_ = {f}(_n.home, {args}, s_);\n\t\t\t_status(s_.value, '{what}');\n\t\t\treturn {};",
+					"final s_ = _n.status;\n\t\t\tfinal r_ = {f}(_n.home, {args}, s_);\n\t\t\t_status(s_.value, '{what}');\n\t\t\treturn {};",
 					lift("r_")
 				),
 				false => format!("return {};", lift(&format!("{f}(_n.home, {args})"))),
@@ -1610,7 +1610,7 @@ impl<'a> Gen<'a> {
 			let what = format!("{c}_drop");
 			let f = self.served_fn(&what, vec![owner.clone(), Ty::Out(Box::new(Ty::Status))], Ty::Void);
 			body.push(format!(
-				"\t@override\n\tvoid _drop() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\tfinal s_ = a_<ffi.Int32>()..value = 0;\n\t\t\t{f}(_n.home, _raw, s_);\n\t\t\t_status(s_.value, '{what}');\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
+				"\t@override\n\tvoid _drop() {{\n\t\tfinal a_ = _Arena();\n\t\ttry {{\n\t\t\tfinal s_ = _n.status;\n\t\t\t{f}(_n.home, _raw, s_);\n\t\t\t_status(s_.value, '{what}');\n\t\t}} finally {{\n\t\t\ta_.end();\n\t\t}}\n\t}}\n"
 			));
 		}
 		self.traits(&ty, &c, object.traits, &mut body, &mut members);
@@ -2049,7 +2049,7 @@ impl<'a> Gen<'a> {
 		let status = export.call.status().is_some();
 		let check = format!("_status(s_.value, '{c_name}');");
 		if status {
-			pre.push("final s_ = a_<ffi.Int32>()..value = 0;".to_string());
+			pre.push("final s_ = _n.status;".to_string());
 		}
 		// A call this target lacks throws before any argument is lowered or given to Rust.
 		if !abi.api.everywhere(self.on) {
