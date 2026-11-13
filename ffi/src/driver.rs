@@ -272,16 +272,16 @@ impl Export {
 		differs.is_empty().then_some(merge::Target { api, ..ours })
 	}
 
-	/// Whether `ours` keeps the baseline's API, if there is one, emitting each break of it.
-	fn locked(&self, tcx: TyCtxt<'_>, ours: &merge::Target, now_names: Option<&crate::lock::Names>) -> bool {
+	/// Read and validate the baseline once before comparing either compatibility layer.
+	fn baseline(&self, tcx: TyCtxt<'_>, ours: &merge::Target) -> Result<Option<merge::Target>, ()> {
 		let Some(path) = &self.baseline else {
-			return true;
+			return Ok(None);
 		};
 		let base = match merge::Target::read(path, tcx.sess.source_map(), &self.roots) {
 			Ok(base) => base,
 			Err(err) => {
 				tcx.dcx().err(format!("rust2-ffi: the baseline: {err}"));
-				return false;
+				return Err(());
 			}
 		};
 		if base.package != ours.package {
@@ -291,12 +291,12 @@ impl Export {
 				base.package,
 				ours.package
 			));
-			return false;
+			return Err(());
 		}
 		let Some(names) = &base.names else {
 			tcx.dcx()
 				.err("rust2-ffi: the baseline lacks binding names; export it again with this rust2-ffi");
-			return false;
+			return Err(());
 		};
 		if ["C++", "Kotlin", "Swift", "Go", "Dart", "Python"]
 			.iter()
@@ -304,8 +304,21 @@ impl Export {
 		{
 			tcx.dcx()
 				.err("rust2-ffi: the baseline lacks a binding's name table; export it again with this rust2-ffi");
-			return false;
+			return Err(());
 		}
+		Ok(Some(base))
+	}
+
+	/// Compare one compatibility layer against the already validated baseline.
+	fn locked(
+		&self,
+		tcx: TyCtxt<'_>,
+		base: &merge::Target,
+		ours: &merge::Target,
+		now_names: Option<&crate::lock::Names>,
+	) -> bool {
+		let names = base.names.as_ref().expect("validated baseline");
+		let path = self.baseline.as_ref().expect("baseline supplied");
 		let breaks = match now_names {
 			None => crate::lock::breaks(&base.api, &ours.api, &self.facade.lib),
 			Some(now) => crate::lock::name_breaks(names, now, &ours.api, &self.facade.lib),
@@ -345,7 +358,13 @@ impl Export {
 			);
 		}
 		let can_generate = tcx.dcx().has_errors().is_none();
-		let structure_kept = self.locked(tcx, &target, None);
+		let baseline = match self.baseline(tcx, &target) {
+			Ok(base) => base,
+			Err(()) => return Ok(()),
+		};
+		let structure_kept = baseline
+			.as_ref()
+			.is_none_or(|base| self.locked(tcx, base, &target, None));
 		if !can_generate {
 			return Ok(());
 		}
@@ -355,7 +374,9 @@ impl Export {
 			patch: &self.patch,
 		};
 		let generated = glue.generate(out)?;
-		let names_kept = self.locked(tcx, &target, Some(&generated.names));
+		let names_kept = baseline
+			.as_ref()
+			.is_none_or(|base| self.locked(tcx, base, &target, Some(&generated.names)));
 		if !structure_kept || !names_kept {
 			return Ok(());
 		}

@@ -1401,7 +1401,12 @@ fn lock() {
 			.output()
 			.unwrap();
 		assert!(!output.status.success());
-		assert!(String::from_utf8_lossy(&output.stderr).contains("baseline lacks"));
+		assert_eq!(
+			String::from_utf8_lossy(&output.stderr)
+				.matches("baseline lacks")
+				.count(),
+			1
+		);
 	}
 	let args = ["--baseline".as_ref(), baseline.as_os_str()];
 	let itself = exporter("lock", &dir.join("base"), &targets, &args, &[])
