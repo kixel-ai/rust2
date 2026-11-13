@@ -56,8 +56,8 @@ Every generator, the [targets m3 plans](/quest/m3/README.md) included:
   other call, and fails loud on a mismatch (done in all six);
 - keeps the C ABI's bulk and zero-copy payloads, with no per-byte loop on either side (done);
 - wraps the C ABI's futures in the language's native future (done). Those futures already
-  take the result in the poll that finishes them, so a cancel never loses a frame, cost three
-  crossings when ready at once, and reuse a repeated waker. The native future must latch a
+  take the result in the poll that finishes them, so a cancel never loses a frame, cost one
+  crossing when ready at once, and reuse a repeated waker. The native future must latch a
   wake that lands between `PENDING` and parking, prove no loss on cancel in a test that
   forces that window, and pick a semantic for concurrent pollers. Decided with the
   maintainer on 2026-10-27: async lands with each generator, not as its own quest.
@@ -82,7 +82,7 @@ Decided with the maintainer on 2026-11-12, in the quest audit:
   epic's `Required` holds back every child, so none could start until moq's pin bump,
   which waits on a rind release the maintainer holds.
 - ✅ Every change that breaks the C ABI or a generated API is a child here, so it lands
-  before moq pins: [the fused async start](/quest/m1/ffi-export/async-start.md),
+  before moq pins: the fused async start,
   [owned buffers](/quest/m1/ffi-export/owned-bufs.md),
   [numeric slices](/quest/m1/ffi-export/numeric-slices.md), and
   [the API lock](/quest/m1/ffi-export/api-lock.md). Work that changes no generated API is

@@ -1345,7 +1345,8 @@ impl Future {
 	pub fn new<F, L>(future: F, lower: L) -> *mut Self
 	where
 		F: std::future::Future + Send + 'static,
-		L: Fn(F::Output, &[*mut c_void], *mut c_void) -> i32 + 'static,
+		// Send, as any poll may finish the future on another thread.
+		L: Fn(F::Output, &[*mut c_void], *mut c_void) -> i32 + Send + 'static,
 	{
 		let typed = Box::new(Typed {
 			head: Self {
