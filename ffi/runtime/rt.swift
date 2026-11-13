@@ -24,7 +24,7 @@ public struct SocketAddr: Hashable, Sendable {
 /// Bytes as Rust holds them: Rust's stay in the buffer it returned, shared without a copy
 /// by every `Bytes` and slice reading them and passed back to Rust uncopied, and Swift's are
 /// a `Data`. Rust's are never lent as a `Data`, so nothing writes into the buffer Rust shares.
-public struct Bytes: Swift.Hashable, Swift.Sendable, Swift.RandomAccessCollection {
+public struct Bytes: Hashable, Sendable, RandomAccessCollection {
 	// The bytes: Swift's, or a view of Rust's buffer that keeps `owner` alive.
 	let storage: Data
 	// Rust's buffer holding the bytes, or nil for Swift's.
@@ -309,7 +309,7 @@ extension Native {
 		let owner = Owner(buf)
 		let storage = Data(
 			bytesNoCopy: UnsafeMutableRawPointer(mutating: ptr), count: buf.len,
-			deallocator: .custom { _, _ in withExtendedLifetime(owner) {} })
+			deallocator: .custom { _, _ in Swift.withExtendedLifetime(owner) {} })
 		// `Data` copies a few bytes inline, freeing Rust's buffer at once: those are Swift's.
 		let lent = storage.withUnsafeBytes { $0.baseAddress == UnsafeRawPointer(ptr) }
 		return Bytes(storage: storage, owner: lent ? owner : nil)

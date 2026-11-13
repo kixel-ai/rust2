@@ -153,6 +153,7 @@ const TAKEN: &[&str] = &[
 	"Never",
 	"OpaquePointer",
 	"Optional",
+	"RandomAccessCollection",
 	"Sendable",
 	"SeekOrigin",
 	"SeekableReader",

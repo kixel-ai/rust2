@@ -156,7 +156,10 @@ func block<T: Sendable>(_ body: @escaping @Sendable () async throws -> T) -> T {
 		done.signal()
 	}
 	done.wait()
-	return try! result.value!.get()
+	// Moved out, since the task may release its hold on `result` only after this returns.
+	let value = result.value!
+	result.value = nil
+	return try! value.get()
 }
 
 func script() {
@@ -976,16 +979,20 @@ func futures() {
 		check(got.value == 10, "an async closure's end wakes Rust")
 	}
 	do {
+		// A closure that cannot finish before Rust's one poll, which an empty one, run on a
+		// thread of its own, might.
+		let (stream, gate) = AsyncStream<Void>.makeStream()
 		let threw = Cell(false)
 		q.launch {
 			do {
-				try await within(0) {}
+				try await within(0) { for await _ in stream { break } }
 			} catch is Api.Error {
 				threw.value = true
 			}
 		}
 		q.drain()
 		check(threw.value, "Rust gives up on an async closure")
+		gate.finish()
 	}
 	do {
 		let started = Cell(false)
