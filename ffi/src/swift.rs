@@ -429,6 +429,10 @@ impl<'a> Gen<'a> {
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{e}._lower()"),
 			Type::Waker => format!("Native.waker({e})"),
 			Type::Future => format!("Native.future({e})"),
+			// A block is copied whole into the arena.
+			Type::List(_, inner) if ty.block().is_some() => {
+				format!("Native.vec(a_.block({e}), {}.init(ptr:len:owner:))", abi.list(inner))
+			}
 			Type::List(_, inner) => {
 				let x = self.fresh("x");
 				let item = self.lower(inner, &x);
@@ -508,6 +512,15 @@ impl<'a> Gen<'a> {
 			Type::Duration => format!("Native.duration({e})"),
 			Type::SocketAddr(_) => format!("Native.socketAddr({e})"),
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("{}._lift({e})", self.sw(ty)),
+			// A block is copied out whole, then freed.
+			Type::List(_, inner) if ty.block().is_some() => {
+				let v = self.fresh("v");
+				format!(
+					"{{ () -> {} in let {v} = {e}; defer {{ {}_free({v}) }}; return Native.block({v}.ptr, {v}.len) }}()",
+					self.sw(ty),
+					abi.list(inner)
+				)
+			}
 			Type::List(_, inner) => {
 				let (v, c) = (self.fresh("v"), self.fresh("c"));
 				let item = self.lift(inner, &c);

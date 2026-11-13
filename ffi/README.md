@@ -608,8 +608,9 @@ and, for `Swift.Duration`, macOS 13 or iOS 16, and builds in either language mod
   `InlineArray`.
 - A **path** is a `String`: one Rust returns that is not UTF-8 traps. A `SocketAddr`,
   `SocketAddrV4`, or `SocketAddrV6` is the runtime's `SocketAddr`, its IP's 4 or 16 bytes
-  and its port, flow label, and scope, whose family Rust checks. A `Vec<T>` or `&[T]` is
-  an array, or a `UniqueArray` of objects.
+  and its port, flow label, and scope, whose family Rust checks. A `Vec<T>`, `&[T]`, or
+  `Box<[T]>` is an array, or a `UniqueArray` of objects; one of a fixed-width integer or
+  a float is copied across whole, with no call per item.
 - **Traits** are `Sendable` protocols, which Rust releases once it drops an implementation.
 - **Closures** are `@Sendable` function types, which Rust calls from any thread, one call
   at a time. One lent for a call Rust calls only during the call; one Rust keeps is
