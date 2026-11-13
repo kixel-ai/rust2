@@ -322,6 +322,13 @@ Future<void> script() async {
   message.stampSet(null);
   print('stamp ${message.stampGet != null}');
 
+  // A value past a word, copied across: a closure takes and returns one by value.
+  final moment = api.Moment.new_(1500, 1000)!;
+  print('moment ${moment.millis()} ${api.Moment.new_(1, 0) == null}');
+  final shifted = api.shifted(moment, (m) => m.after(500));
+  print('shifted ${shifted.millis()} ${shifted == moment.after(500)}');
+  print('wrapped ${moment.after(-1).millis()} ${moment == shifted}');
+
   print('kept ${api.emit(PrintLog(), bytes([1, 2, 3, 4]))}');
   final logger = api.Logger(PrintLog());
   print('write ${logger.write('hi')}');

@@ -684,7 +684,7 @@ pub fn made<R>(n: u32, make: impl FnOnce(u32) -> R) -> R {
 /// How many times a [`Ticket`]'s `Clone` ran.
 static TICKET_CLONES: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
-/// A `Copy` object whose `Clone` counts its calls, which a closure taking or returning one
+/// A `Copy` value whose `Clone` counts its calls, which a closure taking or returning one
 /// never runs, as Rust copies it instead.
 #[derive(Copy, Debug, PartialEq)]
 pub struct Ticket {
@@ -927,8 +927,7 @@ impl<F: Future> Future for Within<F> {
 	}
 }
 
-/// A time: an object, since its field is private, but `Copy`, so passing it by value
-/// copies it rather than moving it out of its handle.
+/// A time: `Copy` with a private field, so a value only Rust makes, copied across.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Stamp {
 	millis: u64,
@@ -981,7 +980,7 @@ pub fn shifted(moment: Moment, shift: impl Fn(Moment) -> Moment) -> Moment {
 	shift(moment)
 }
 
-/// A stamp and a count: a record holding an object, whose method reads it.
+/// A stamp and a count: a record holding a value only Rust makes, whose method reads it.
 pub struct Stamped {
 	pub at: Stamp,
 	pub count: u32,
@@ -994,7 +993,8 @@ impl Stamped {
 	}
 }
 
-/// A message: an object, since one field is private, whose `pub` fields read as getters.
+/// A message: an object, since one field is private and it is not `Copy`, whose `pub`
+/// fields read as getters.
 #[derive(Clone, Debug)]
 pub struct Message {
 	pub stamp: Option<Stamp>,

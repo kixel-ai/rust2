@@ -73,9 +73,7 @@ Future<Span> throughput(moq.TrackProducer track, moq.TrackSubscriber subscriber,
 Future<Map<String, Span>> round() async {
   final out = <String, Span>{};
   final broadcast = moq.BroadcastInfo().produce();
-  final micro = moq.Timescale.MICRO;
-  final track = broadcast.createTrack('bench', moq.TrackInfo.default_().withTimescale(micro));
-  micro.close();
+  final track = broadcast.createTrack('bench', moq.TrackInfo.default_().withTimescale(moq.Timescale.MICRO));
   final frame = Uint8List(100);
 
   var start = now();
@@ -107,15 +105,13 @@ Future<Map<String, Span>> round() async {
   }
   out['object'] = per(start);
 
-  // Each frame stamped through a fresh timestamp object, as a caller holding an int must.
+  // Each frame stamped through a fresh timestamp, as a caller holding an int must.
   var micros = 0;
   start = now();
   for (var g = 0; g < groups; g++) {
     final group = track.appendGroup();
     for (var f = 0; f < frames; f++) {
-      final at = moq.Timestamp.fromMicros(micros++);
-      group.writeFrame(at, frame);
-      at.close();
+      group.writeFrame(moq.Timestamp.fromMicros(micros++), frame);
     }
     group.finish();
     group.close();

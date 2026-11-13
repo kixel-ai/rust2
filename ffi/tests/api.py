@@ -318,6 +318,11 @@ def script():
 	shifted = api.shifted(moment, lambda m: m.after(500))
 	print(f"shifted {shifted.millis()} {flag(shifted == moment.after(500))}")
 	print(f"wrapped {moment.after(2**64 - 1).millis()} {flag(moment == shifted)}")
+	try:
+		api.Moment()
+		check(False, "Python makes no opaque value")
+	except TypeError:
+		pass
 
 	print(f"kept {api.emit(PrintLog(), bytes([1, 2, 3, 4]))}")
 	logger = api.Logger.new(PrintLog())

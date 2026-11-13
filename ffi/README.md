@@ -71,7 +71,7 @@ re-exports its items instead, which export. A type no path reaches is refused.
 | --- | --- |
 | a struct whose fields are all `pub`, not `#[non_exhaustive]`, which map, with no `Drop` of its own | a record: a struct, copied across |
 | an enum with variants whose fields map, with no `Drop` of its own | a C enum without fields, or a struct of a tag and a union |
-| any other type that is `Copy` and `Send`, such as moq's `Timestamp` or std's `Instant` | an opaque value: a struct of its bytes, copied across, which only Rust makes or reads; its `pub` fields are getters, and a `&mut self` method or a setter is refused, as for a record; one no export returns is left out, since C could never make one |
+| any other type that is `Copy` and `Send`, with no `pub` field and no `pub` method taking `&mut self`, such as moq's `Timestamp` or std's `Instant` | an opaque value: a struct of its bytes, copied across, which only Rust makes or reads; one no export returns is left out, since C could never make one |
 | any other type, if `Send` | an object: an opaque handle to an `Arc`, freed with `_free` |
 | a type whose only generic parameters are lifetimes, such as `Path<'a>` | an object holding its `'static` form |
 | a generic type, at each instance it infers | that instance as any other type, with each method whose impl and own bounds it meets; any other instance is refused |
@@ -511,8 +511,8 @@ caller imports it with no ignores.
   `Event.Moved(p)`. `Display` is `str()`, `Debug` `repr()`, and `Default` a static
   `default()`. Constants are module or class attributes, made anew on each read unless a
   literal. An **opaque value** is a slotted class holding its bytes as `bytes`, which only
-  Rust makes or reads: a value of another length raises `TypeError` where Rust would read
-  it.
+  Rust makes or reads: making one raises `TypeError`, and bytes of another length raise
+  `ValueError` where Rust would read them.
 - **Bytes** passed in are any buffer, `bytes | bytearray | memoryview`: `bytes` is read in
   place, and others, which Python may change while Rust reads, are copied. Bytes Rust
   returns, or a record holds, are a read-only `memoryview` lending Rust's buffer until it

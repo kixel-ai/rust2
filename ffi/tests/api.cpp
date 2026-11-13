@@ -1519,7 +1519,7 @@ int lifetimes() {
 	{
 		api::buf payload;
 		{
-			api::Message message = api::Message::new_(nullptr, "kept");
+			api::Message message = api::Message::new_(std::nullopt, "kept");
 			payload = message.payload_get();
 		}
 		check(payload.str() == "kept", "bytes outlive the object they came from");

@@ -55,9 +55,7 @@ suspend fun throughput(track: TrackProducer, subscriber: TrackSubscriber, at: Ti
 fun round(): Map<String, Span> {
 	val out = linkedMapOf<String, Span>()
 	val broadcast = BroadcastInfo.new().produce()
-	val track = Timescale.MICRO.use { micro ->
-		broadcast.createTrack("bench", TrackInfo.default().withTimescale(micro))
-	}
+	val track = broadcast.createTrack("bench", TrackInfo.default().withTimescale(Timescale.MICRO))
 	val frame = ByteArray(100)
 	var sum = 0
 
@@ -82,13 +80,13 @@ fun round(): Map<String, Span> {
 	repeat(N) { track.info().close() }
 	out["object"] = per(start)
 
-	// Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must.
+	// Each frame stamped through a fresh timestamp, as a caller holding a u64 must.
 	var micros = 0uL
 	start = now()
 	repeat(GROUPS) {
 		track.appendGroup().use { group ->
 			repeat(FRAMES) {
-				Timestamp.fromMicros(micros++).use { at -> group.writeFrame(at, frame) }
+				group.writeFrame(Timestamp.fromMicros(micros++), frame)
 			}
 			group.finish()
 		}

@@ -89,7 +89,7 @@ fun main() {
 	// When it arrived: kio's clock's `Instant`, from kio's own export.
 	expect(clockNow().checkedDurationSince(hello.arrived()) != null, "a frame arrived before now")
 
-	// A timestamp is a `Copy` value behind a handle: passing it copies it out. The track is
+	// A timestamp is a `Copy` value copied across, which allocates nothing. The track is
 	// untimed, so a timestamped frame is refused.
 	val at = Timestamp.fromMillis(1500u)
 	expect(at.asSecs() == 1uL, "1500 ms is 1 s")

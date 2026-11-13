@@ -1611,10 +1611,11 @@ impl<'tcx> Collector<'tcx> {
 	}
 
 	/// An object, if the type can move across threads, or if it is also `Copy`, a value C
-	/// holds as its bytes. Shared borrows of an object that is not `Sync` are exclusive.
+	/// holds as its bytes, unless C changes it in place, which a copy could not write back.
+	/// Shared borrows of an object that is not `Sync` are exclusive.
 	fn object(&self, site: &Site<'tcx>) -> Decl {
 		let (tcx, ty, def_id) = (self.tcx, self.site_ty(site), site.key.def_id);
-		let copy = implements(tcx, ty, def_id, sym::Copy);
+		let copy = implements(tcx, ty, def_id, sym::Copy) && !self.changed(def_id);
 		if self.orphans.contains(&site.key) {
 			let construct = match copy {
 				true => "value no export returns",
@@ -1627,6 +1628,25 @@ impl<'tcx> Collector<'tcx> {
 			(true, false) => Decl::Object(0),
 			(false, _) => Decl::Refused(why("object not Send", "")),
 		}
+	}
+
+	/// Whether C may change the type `def_id` in place: through a `pub` field's setter, or
+	/// an inherent `pub` method taking `&mut self`.
+	fn changed(&self, def_id: DefId) -> bool {
+		let tcx = self.tcx;
+		let fields = matches!(tcx.def_kind(def_id), DefKind::Struct)
+			&& tcx.adt_def(def_id).all_fields().any(|field| field.vis.is_public());
+		fields
+			|| (tcx.inherent_impls(def_id).iter()).any(|&imp| {
+				(tcx.associated_items(imp).in_definition_order()).any(|item| {
+					item.is_method()
+						&& tcx.visibility(item.def_id).is_public()
+						&& matches!(
+							tcx.fn_sig(item.def_id).skip_binder().inputs().skip_binder().first().map(|input| input.kind()),
+							Some(ty::Ref(_, _, mutability)) if mutability.is_mut()
+						)
+				})
+			})
 	}
 
 	/// The objects C can never hold a handle to: no export it can call returns one.
@@ -1876,12 +1896,9 @@ impl<'tcx> Collector<'tcx> {
 						e.methods = methods;
 						e.traits = traits;
 					}
+					// One with no `pub` field, nor a `&mut self` method, as `object` decides.
 					Some(Decl::Value(index)) => {
-						let (mut methods, traits) = self.methods(&site);
-						if kind == DefKind::Struct {
-							methods.splice(0..0, self.accessors(&site, false));
-						}
-						let methods = self.unmutated(methods);
+						let (methods, traits) = self.methods(&site);
 						let record = &mut self.api.records[index];
 						record.args = args;
 						record.methods = methods;
@@ -1890,7 +1907,7 @@ impl<'tcx> Collector<'tcx> {
 					Some(Decl::Object(index)) => {
 						let (mut methods, traits) = self.methods(&site);
 						if kind == DefKind::Struct {
-							methods.splice(0..0, self.accessors(&site, true));
+							methods.splice(0..0, self.accessors(&site));
 						}
 						let shared = traits.clone && self.clone_shares(self.site_ty(&site), def_id);
 						let object = &mut self.api.objects[index];
@@ -2008,10 +2025,9 @@ impl<'tcx> Collector<'tcx> {
 		}
 	}
 
-	/// A getter for each `pub` field of a struct exported as an object or opaque value, and
-	/// for an object, with `setters`, a setter: the getter returns a copy, and the setter
-	/// assigns in place, as `x.field = value` does, which C's copy of a value cannot.
-	fn accessors(&mut self, site: &Site<'tcx>, setters: bool) -> Vec<Function> {
+	/// A getter and a setter for each `pub` field of a struct exported as an object: the
+	/// getter returns a copy, and the setter assigns in place, as `x.field = value` does.
+	fn accessors(&mut self, site: &Site<'tcx>) -> Vec<Function> {
 		let tcx = self.tcx;
 		let mut accessors = Vec::new();
 		let self_ty = self.site_ty(site);
@@ -2052,7 +2068,6 @@ impl<'tcx> Collector<'tcx> {
 				// A handle outlives every call, so a reference it holds is `'static`, which
 				// C's borrow for the call is not.
 				let set = match self.ty(ty, Pos::Param) {
-					_ if !setters => Ok(Type::Unit),
 					Ok(set) if matches!(set, Type::Ref(..)) || lends_inside(&set) => {
 						Err(why("'static borrow", ty.to_string()))
 					}
@@ -2096,9 +2111,6 @@ impl<'tcx> Collector<'tcx> {
 						home: Home::default(),
 					};
 					accessors.push(accessor(Receiver::Ref, Vec::new(), get, false));
-					if !setters {
-						continue;
-					}
 					let value = Param {
 						name: "value".to_string(),
 						ty: set,

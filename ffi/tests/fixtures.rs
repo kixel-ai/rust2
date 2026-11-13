@@ -1071,7 +1071,7 @@ fn api_go() {
 			"api_Counter_into_label: a lent handle's value cannot move out",
 		),
 		("nil reader", "a nil io.ReadSeeker"),
-		("returned closed", "Instant is closed"),
+		("returned zero", "a zero Instant, which only Rust makes"),
 		("family", "an address that is not IPv4 has no Rust SocketAddrV4"),
 		("outlived", OUTLIVED),
 		("text", "api_greet: a string is not UTF-8"),

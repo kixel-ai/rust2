@@ -956,6 +956,10 @@ impl<'a> Gen<'a> {
 		let mut body = Body::default();
 		if record.opaque.is_some() {
 			body.python.push("\t__slots__ = (\"_bytes\",)\n".to_string());
+			// Rust makes one without calling it.
+			body.python.push(format!(
+				"\tdef __init__(self) -> None:\n\t\traise TypeError(\"only Rust makes a {name}\")\n"
+			));
 		}
 		self.traits(&ty, &c, record.traits, &mut body);
 		let owner = Ty::Struct(c.clone());

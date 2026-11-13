@@ -1353,7 +1353,8 @@ func bytes() {
 
 	// Bytes an object returns outlive its Close: no Bytes depends on an object.
 	body := strings.Repeat("b", 2048)
-	message := must(api.NewMessage(api.StampFromMillis(1), []byte(body)))
+	stamp := api.StampFromMillis(1)
+	message := api.NewMessage(&stamp, []byte(body))
 	payload := must(message.PayloadGet())
 	message.Close()
 	runtime.GC()
@@ -1451,11 +1452,9 @@ func broken(which string) {
 	case "nil reader":
 		api.Tail(nil, 1)
 	// An instant Go closed, which Rust cannot copy out.
-	case "returned closed":
-		start := api.Now()
-		api.Drive(context.Background(), start, func(now *std.Instant, _ *api.Waiter) (*std.Instant, error) {
-			now.Close()
-			return now, nil
+	case "returned zero":
+		api.Drive(context.Background(), api.Now(), func(std.Instant, *api.Waiter) (*std.Instant, error) {
+			return &std.Instant{}, nil
 		})
 	default:
 		check(false, "no case "+which)

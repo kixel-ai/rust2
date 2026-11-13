@@ -85,9 +85,9 @@ static moq_group_Producer *append_group(moq_track_Producer *track) {
 	return group;
 }
 
-static void write_frame(moq_group_Producer *group, const moq_Timestamp *at, moq_buf frame) {
+static void write_frame(moq_group_Producer *group, moq_Timestamp at, moq_buf frame) {
 	moq_Error *err = NULL;
-	if (!moq_group_Producer_write_frame(group, at, frame, &err)) {
+	if (!moq_group_Producer_write_frame(group, (moq_option_Timestamp){.some = true, .value = at}, frame, &err)) {
 		fail("write_frame");
 	}
 }
@@ -102,7 +102,7 @@ static void finish(moq_group_Producer *group) {
 
 /* Groups of 100 frames of `size` bytes written and each read back, its payload's first byte
  * touched, in about 64 MiB and at least 300 frames: megabytes a wall and a CPU second. */
-static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscriber, const moq_Timestamp *at, size_t size, unsigned *sum) {
+static span throughput(moq_track_Producer *track, moq_track_Subscriber *subscriber, moq_Timestamp at, size_t size, unsigned *sum) {
 	size_t groups = (64u << 20) / (size * FRAMES);
 	groups = groups < 3 ? 3 : groups > 2000 ? 2000 : groups;
 	uint8_t *payload = calloc(size, 1);
@@ -131,7 +131,7 @@ static void round_(int print) {
 	moq_broadcast_Info *binfo = moq_broadcast_Info_new();
 	moq_broadcast_Producer *broadcast = moq_broadcast_Info_produce(binfo);
 	moq_broadcast_Info_free(binfo);
-	moq_Timescale *micro = moq_Timescale_MICRO();
+	moq_option_Timescale micro = {.some = true, .value = moq_Timescale_MICRO()};
 	/* Builders take the handle's value, leaving the handle to free. */
 	moq_track_Info *defaults = moq_track_Info_default();
 	moq_track_Info *info = moq_track_Info_with_timescale(defaults, micro);
@@ -176,26 +176,25 @@ static void round_(int print) {
 	}
 	span object = per(start, N);
 
-	/* Each frame stamped through a fresh timestamp handle, as a caller holding a u64 must. */
+	/* Each frame stamped through a fresh timestamp, as a caller holding a u64 must. */
 	uint64_t micros = 0;
 	start = now();
 	for (int g = 0; g < GROUPS; g++) {
 		moq_group_Producer *group = append_group(track);
 		for (int f = 0; f < FRAMES; f++) {
-			moq_Timestamp *at = NULL;
-			moq_TimeOverflow *overflow = NULL;
+			moq_Timestamp at;
+			moq_TimeOverflow overflow;
 			if (!moq_Timestamp_from_micros(micros++, &at, &overflow)) {
 				fail("from_micros");
 			}
 			write_frame(group, at, frame);
-			moq_Timestamp_free(at);
 		}
 		finish(group);
 	}
 	span stamped = per(start, N);
 
-	moq_Timestamp *at = NULL;
-	moq_TimeOverflow *overflow = NULL;
+	moq_Timestamp at;
+	moq_TimeOverflow overflow;
 	if (!moq_Timestamp_from_micros(micros, &at, &overflow)) {
 		fail("from_micros");
 	}
@@ -275,10 +274,8 @@ static void round_(int print) {
 	}
 
 	sink = sum;
-	moq_Timestamp_free(at);
 	moq_track_Subscriber_free(subscriber);
 	moq_track_Producer_free(track);
-	moq_Timescale_free(micro);
 	moq_broadcast_Producer_free(broadcast);
 
 	if (print) {

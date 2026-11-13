@@ -148,7 +148,7 @@ static api_Ticket reissue_kept(void *data, api_Ticket ticket) {
 /* shifted's closure: the moment 500 ticks later. */
 static api_Moment moment_after(void *data, api_Moment moment) {
 	(void)data;
-	return api_Moment_after(moment, 500);
+	return api_Moment_after(&moment, 500);
 }
 
 static uint32_t spawned_task(void *data) {
@@ -858,9 +858,10 @@ static int script(void) {
 
 	/* A `Copy` value passed by value is copied, so it stays usable, and frees nothing. */
 	api_Stamp stamp = api_Stamp_from_millis(2500);
-	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(stamp));
-	printf("later %s\n", api_Stamp_later(api_Stamp_from_millis(3000), stamp) ? "true" : "false");
-	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(stamp));
+	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(&stamp));
+	api_Stamp later = api_Stamp_from_millis(3000);
+	printf("later %s\n", api_Stamp_later(&later, stamp) ? "true" : "false");
+	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(&stamp));
 	api_Message *message = api_Message_new((api_option_Stamp){.some = true, .value = stamp}, str("body"));
 	print("payload ", api_Message_payload_get(message), "\n");
 	api_option_Stamp read = api_Message_stamp_get(message);
@@ -873,7 +874,7 @@ static int script(void) {
 	print("payload ", api_Message_payload_get(message), "\n");
 	read = api_Message_stamp_get(message);
 	print("stamp ", api_Stamp_debug(&read.value), "\n");
-	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(reset));
+	printf("secs %llu\n", (unsigned long long)api_Stamp_secs(&reset));
 	api_Message_stamp_set(message, (api_option_Stamp){0});
 	printf("stamp %s\n", api_Message_stamp_get(message).some ? "true" : "false");
 	api_Message_free(message);
@@ -884,10 +885,10 @@ static int script(void) {
 	printf("moment %llu %s\n", (unsigned long long)api_Moment_millis(&moment),
 		   api_Moment_new(1, 0).some ? "false" : "true");
 	api_Moment shifted = api_shifted(moment, moment_after, NULL);
-	api_Moment expected = api_Moment_after(moment, 500);
+	api_Moment later_moment = api_Moment_after(&moment, 500);
 	printf("shifted %llu %s\n", (unsigned long long)api_Moment_millis(&shifted),
-		   api_Moment_eq(&shifted, &expected) ? "true" : "false");
-	api_Moment wrapped = api_Moment_after(moment, UINT64_MAX);
+		   api_Moment_eq(&shifted, &later_moment) ? "true" : "false");
+	api_Moment wrapped = api_Moment_after(&moment, UINT64_MAX);
 	printf("wrapped %llu %s\n", (unsigned long long)api_Moment_millis(&wrapped),
 		   api_Moment_eq(&moment, &shifted) ? "true" : "false");
 

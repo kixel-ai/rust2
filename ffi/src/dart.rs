@@ -2230,10 +2230,15 @@ impl<'a> Gen<'a> {
 				}
 				// A function of a type returning it is a constructor, which, unlike a static
 				// member, may share its name with an instance member, as a Rust function may
-				// with a field. An object's `new` is its unnamed one, which a record's fields
-				// take.
+				// with a field. An object's or opaque value's `new` is its unnamed one, which a
+				// record's fields take.
 				_ if is_static && !function.future && Some(&ok) == owner_ty => {
-					if snake == "new" && matches!(owner_ty, Some(Type::Object(_))) {
+					let unnamed = match owner_ty {
+						Some(Type::Object(_)) => true,
+						Some(Type::Record(i)) => self.abi.api.records[*i].opaque.is_some(),
+						_ => false,
+					};
+					if snake == "new" && unnamed {
 						(format!("factory {ret_type}({})", params.join(", ")), "new ".to_string())
 					} else {
 						(
