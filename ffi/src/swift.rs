@@ -930,7 +930,9 @@ impl<'a> Gen<'a> {
 		self.traits(&ty, &c, record.traits, &mut body, &mut members, &mut protocols);
 		self.methods(&record.methods, &Ty::Struct(c.clone()), &ty, &mut body, &mut members);
 		self.distinct(&rust, &members);
-		body.push(format!("\tstatic func _lift(_ c: {c}) -> {name} {{\n\t\t{name}(c_: c)\n\t}}\n"));
+		body.push(format!(
+			"\tstatic func _lift(_ c: {c}) -> {name} {{\n\t\t{name}(c_: c)\n\t}}\n"
+		));
 		body.push(format!("\tfunc _lower() -> {c} {{\n\t\tc_\n\t}}\n"));
 		let text = format!("{rust}\n\n{}", record.docs);
 		let _ = write!(
@@ -1862,9 +1864,7 @@ fn structs(abi: &Abi<'_>) -> BTreeSet<usize> {
 			_ => None,
 		})
 		.collect();
-	(0..api.objects.len())
-		.filter(|i| !thrown.contains(i))
-		.collect()
+	(0..api.objects.len()).filter(|i| !thrown.contains(i)).collect()
 }
 
 /// `ty` returned: a borrow is returned as a clone, so owned.

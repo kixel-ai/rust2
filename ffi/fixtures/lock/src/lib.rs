@@ -196,3 +196,30 @@ pub fn nested(x: ((u32,), u64, u8)) -> u32 {
 pub fn flat(x: ((u32, u64), u8)) -> u32 {
 	x.0.0
 }
+
+/// A `Copy` value C holds as its bytes, which `next` lengthens.
+#[derive(Clone, Copy)]
+pub struct Tick {
+	at: u32,
+	#[cfg(feature = "next")]
+	late: u32,
+}
+
+impl Tick {
+	pub fn new(at: u32) -> Self {
+		Self {
+			at,
+			#[cfg(feature = "next")]
+			late: 0,
+		}
+	}
+
+	pub fn at(&self) -> u32 {
+		self.at
+	}
+
+	#[cfg(feature = "next")]
+	pub fn late(&self) -> u32 {
+		self.late
+	}
+}

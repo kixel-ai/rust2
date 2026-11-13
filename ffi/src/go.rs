@@ -1573,7 +1573,10 @@ impl<'a> Gen<'a> {
 		let ty = Type::Record(i);
 		let name = self.qualified(&ty);
 		if let Some(opaque) = &record.opaque {
-			let (local, bytes) = (self.named(&ty).1, format!("[{}]uint{}", opaque.units(), opaque.unit() * 8));
+			let (local, bytes) = (
+				self.named(&ty).1,
+				format!("[{}]uint{}", opaque.units(), opaque.unit() * 8),
+			);
 			return format!(
 				"func lift_{c}(c C.{c}) {name} {{\n\treturn {name}{{Bytes_: *(*{bytes})(unsafe.Pointer(&c)), Made_: true}}\n}}\n\n\
 				func lower_{c}(v {name}) C.{c} {{\n\tif !v.Made_ {{\n\t\tpanic(\"a zero {local}, which only Rust makes\")\n\t}}\n\treturn *(*C.{c})(unsafe.Pointer(&v.Bytes_))\n}}\n\n"
@@ -2108,7 +2111,7 @@ impl<'a> Gen<'a> {
 			Type::Tuple(elements) if elements.len() == 1 => self.close(&elements[0], e, depth),
 			Type::Tuple(elements) => {
 				let closes: Vec<String> = (elements.iter().enumerate())
-					.filter(|(_, ty)| moved(self.abi, ty))
+					.filter(|(_, ty)| moved(ty))
 					.map(|(k, ty)| self.close(ty, &format!("{e}.V{k}"), depth))
 					.collect();
 				closes.join("; ")
@@ -2263,7 +2266,7 @@ impl<'a> Gen<'a> {
 				continue;
 			}
 			params.push((name.clone(), self.go_param(&param.ty)));
-			if moved(abi, &param.ty) {
+			if moved(&param.ty) {
 				after.push(self.close(&param.ty, &name, 0));
 			}
 			match (&param.ty, c) {
@@ -2574,11 +2577,11 @@ fn poll_error(abi: &Abi<'_>) -> String {
 
 /// Whether passing `ty` moves an object's value out: by value, boxed, or in an `Option`,
 /// a list, or a tuple, and never through a reference.
-fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
+fn moved(ty: &Type) -> bool {
 	match ty {
 		Type::Object(_) => true,
-		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
-		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(inner),
+		Type::Tuple(elements) => elements.iter().any(moved),
 		_ => false,
 	}
 }

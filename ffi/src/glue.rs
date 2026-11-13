@@ -579,10 +579,7 @@ impl Gen<'_> {
 		let mut call = format!("unsafe {{ f({}) }}", args.join(", "));
 		for (n, ty) in closure.params.iter().enumerate().rev() {
 			if let Some((i, lend)) = lent(ty) {
-				call = format!(
-					"rt::Object::<{}>::{lend}(c{n}, w, |h{n}| {call})",
-					self.object_path(i)
-				);
+				call = format!("rt::Object::<{}>::{lend}(c{n}, w, |h{n}| {call})", self.object_path(i));
 			}
 		}
 		let ret = self.rust(&closure.ok);

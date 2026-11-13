@@ -844,7 +844,13 @@ impl<'tcx> Collector<'tcx> {
 	/// Whether the foreign type `did` is a value C holds as its bytes, as a `Copy` one is.
 	fn foreign_value(&self, did: DefId) -> bool {
 		let tcx = self.tcx;
-		!self.opaque(did) && implements(tcx, tcx.type_of(did).instantiate_identity().skip_norm_wip(), did, sym::Copy)
+		!self.opaque(did)
+			&& implements(
+				tcx,
+				tcx.type_of(did).instantiate_identity().skip_norm_wip(),
+				did,
+				sym::Copy,
+			)
 	}
 
 	/// Each type a signature the export maps names, bounds included, at every choice
@@ -2033,10 +2039,12 @@ impl<'tcx> Collector<'tcx> {
 			let used = api.functions.iter().any(signature)
 				|| (api.records.iter().enumerate()).any(|(i, r)| {
 					(!value || i != gone) && (args(&r.args) || fields(&r.fields) || r.methods.iter().any(signature))
-				}) || (api.enums.iter()).any(|e| {
-				args(&e.args) || e.variants.iter().any(|v| fields(&v.fields)) || e.methods.iter().any(signature)
-			}) || (api.objects.iter().enumerate())
-				.any(|(i, o)| (value || i != gone) && (args(&o.args) || o.methods.iter().any(signature)))
+				})
+				|| (api.enums.iter()).any(|e| {
+					args(&e.args) || e.variants.iter().any(|v| fields(&v.fields)) || e.methods.iter().any(signature)
+				})
+				|| (api.objects.iter().enumerate())
+					.any(|(i, o)| (value || i != gone) && (args(&o.args) || o.methods.iter().any(signature)))
 				|| (api.callbacks.iter()).any(|c| c.methods.iter().any(signature));
 			if used {
 				continue;
@@ -2047,7 +2055,9 @@ impl<'tcx> Collector<'tcx> {
 				false => drop(self.api.objects.remove(gone)),
 			}
 			self.foreign.remove(n);
-			let values: Vec<bool> = (self.foreign[n..].iter()).map(|&(did, _)| self.foreign_value(did)).collect();
+			let values: Vec<bool> = (self.foreign[n..].iter())
+				.map(|&(did, _)| self.foreign_value(did))
+				.collect();
 			for (later, later_value) in self.foreign[n..].iter_mut().zip(values) {
 				if later_value == value {
 					later.1 -= 1;
@@ -5059,8 +5069,10 @@ fn opaque<'tcx>(tcx: TyCtxt<'tcx>, ty: Ty<'tcx>, lifetimes: usize, foreign: bool
 				};
 				let mut covered = 0;
 				for field in adt.all_fields() {
-					let Ok(field) = tcx.try_normalize_erasing_regions(env, ty::Unnormalized::new_wip(field.ty(tcx, args).skip_norm_wip()))
-					else {
+					let Ok(field) = tcx.try_normalize_erasing_regions(
+						env,
+						ty::Unnormalized::new_wip(field.ty(tcx, args).skip_norm_wip()),
+					) else {
 						return false;
 					};
 					let Ok(layout) = tcx.layout_of(env.as_query_input(field)) else {

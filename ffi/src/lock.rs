@@ -369,6 +369,15 @@ fn changed(base: &Index<'_>, now: &Index<'_>, maps: &Maps, ours: &Item<'_>, thei
 	match (*ours, *theirs) {
 		(Item::Record(i), Item::Record(j)) => {
 			traits(b.records[i].traits, n.records[j].traits);
+			// An opaque value's bytes are its C struct, which every binding sizes.
+			if let (Some(o), Some(p)) = (b.records[i].opaque, n.records[j].opaque)
+				&& (o.size, o.align) != (p.size, p.align)
+			{
+				changes.push(format!(
+					"its bytes: {} aligned to {}, and now {} aligned to {}",
+					o.size, o.align, p.size, p.align
+				));
+			}
 			let mut ours = merge::bare_record(&b.records[i]);
 			maps.fields(&mut ours.fields);
 			maps.types(&mut ours.args);

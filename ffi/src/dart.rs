@@ -1898,7 +1898,7 @@ impl<'a> Gen<'a> {
 			Type::Box(inner) => self.close(inner, e),
 			Type::Tuple(elements) => {
 				let closes: Vec<String> = (elements.iter().enumerate())
-					.filter(|(_, ty)| moved(self.abi, ty))
+					.filter(|(_, ty)| moved(ty))
 					.map(|(k, ty)| self.close(ty, &format!("{e}.${}", k + 1)))
 					.collect();
 				closes.join(" ")
@@ -2012,7 +2012,7 @@ impl<'a> Gen<'a> {
 				continue;
 			}
 			params.push(format!("{} {name}", self.dt(&param.ty)));
-			if moved(abi, &param.ty) {
+			if moved(&param.ty) {
 				after.push(self.close(&param.ty, &name));
 			}
 			match (&param.ty, c) {
@@ -2354,11 +2354,11 @@ fn thrown_value(thrown: &Thrown, lifted: &str) -> String {
 
 /// Whether passing `ty` moves an object's value out: by value, boxed, or in an `Option`,
 /// a list, or a tuple, and never through a reference.
-fn moved(abi: &Abi<'_>, ty: &Type) -> bool {
+fn moved(ty: &Type) -> bool {
 	match ty {
 		Type::Object(_) => true,
-		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(abi, inner),
-		Type::Tuple(elements) => elements.iter().any(|ty| moved(abi, ty)),
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moved(inner),
+		Type::Tuple(elements) => elements.iter().any(moved),
 		_ => false,
 	}
 }

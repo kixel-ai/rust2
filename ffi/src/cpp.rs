@@ -147,14 +147,14 @@ impl<'a> Header<'a> {
 		match ty {
 			Type::Option(inner) if Abi::is_buf(inner) => format!("::std::optional<::{}::view>", self.ns),
 			// Moved out of, each handle as a handle taken by value is.
-			Type::Option(inner) if matches!(inner.base(), Type::List(_, elem) if moves(abi, elem)) => {
+			Type::Option(inner) if matches!(inner.base(), Type::List(_, elem) if moves(elem)) => {
 				format!("::std::optional<{}>", self.items(inner.base()))
 			}
 			Type::Option(inner) if matches!(inner.base(), Type::List(..)) => {
 				format!("const ::std::optional<{}> &", self.items(inner.base()))
 			}
 			// Moved out of, each handle as a handle taken by value is.
-			Type::List(_, inner) if moves(abi, inner) => self.items(ty),
+			Type::List(_, inner) if moves(inner) => self.items(ty),
 			Type::List(..) => format!("const {} &", self.items(ty)),
 			Type::Option(inner) => match &**inner {
 				// Lent, or copied out: a pointer, null for none.
@@ -166,7 +166,7 @@ impl<'a> Header<'a> {
 					format!("{constant}{} *", self.owned(object))
 				}
 				// Moved out of, as a handle taken by value is.
-				_ if moves(abi, inner) => format!("::std::optional<{}>", self.held(inner)),
+				_ if moves(inner) => format!("::std::optional<{}>", self.held(inner)),
 				_ => format!("const ::std::optional<{}> &", self.held(inner)),
 			},
 			Type::Waker => format!("const ::{}::waker &", self.ns),
@@ -180,7 +180,7 @@ impl<'a> Header<'a> {
 			}
 			Type::Enum(i) if !abi.api.enums[*i].plain() => format!("const {} &", self.owned(ty)),
 			// Moved out of, each handle as a handle taken by value is.
-			Type::Tuple(_) if moves(abi, ty) => self.held(ty),
+			Type::Tuple(_) if moves(ty) => self.held(ty),
 			Type::Tuple(_) => format!("const {} &", self.held(ty)),
 			ty => self.owned(ty),
 		}
@@ -1149,9 +1149,7 @@ impl<'a> Header<'a> {
 			let (_, ty) = c_params.next().expect("a method has its receiver");
 			match (ty, free) {
 				// Moved out of, as a handle taken by value is.
-				(Ty::Handle { .. }, _) if receiver == Some(Receiver::Owned) => {
-					args.push("raw_.own()".to_string())
-				}
+				(Ty::Handle { .. }, _) if receiver == Some(Receiver::Owned) => args.push("raw_.own()".to_string()),
 				(Ty::Handle { .. }, _) => args.push("raw_.get()".to_string()),
 				(_, false) => {
 					let ty = record(abi, owner_c.as_deref().expect("a member method has its record"));
@@ -1552,11 +1550,11 @@ fn record(abi: &Abi<'_>, c: &str) -> Type {
 
 /// Whether passing `ty` moves a handle out of a `Vec`, `Option`, or tuple, as a handle
 /// taken by value is.
-fn moves(abi: &Abi<'_>, ty: &Type) -> bool {
+fn moves(ty: &Type) -> bool {
 	match ty {
 		Type::Object(_) => true,
-		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moves(abi, inner),
-		Type::Tuple(elements) => elements.iter().any(|e| moves(abi, e)),
+		Type::Option(inner) | Type::Box(inner) | Type::List(_, inner) => moves(inner),
+		Type::Tuple(elements) => elements.iter().any(moves),
 		_ => false,
 	}
 }
