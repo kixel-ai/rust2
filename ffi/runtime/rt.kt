@@ -147,8 +147,10 @@ class Writer {
 }
 
 /** Decodes what the library's JNI glue encodes. */
-class Reader(bytes: ByteArray) {
-	private val b: java.nio.ByteBuffer = java.nio.ByteBuffer.wrap(bytes).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+class Reader(private val b: java.nio.ByteBuffer) {
+	constructor(bytes: ByteArray) : this(java.nio.ByteBuffer.wrap(bytes))
+
+	init { b.order(java.nio.ByteOrder.LITTLE_ENDIAN) }
 
 	fun bool(): Boolean = b.get() != 0.toByte()
 
@@ -185,8 +187,10 @@ class Reader(bytes: ByteArray) {
 	fun string(): String? {
 		val n = b.getInt()
 		if (n < 0) return null
-		val v = String(b.array(), b.arrayOffset() + b.position(), n, kotlin.text.Charsets.UTF_8)
-		b.position(b.position() + n)
+		val end = b.position() + n
+		val text = b.duplicate().also { it.limit(end) }
+		val v = kotlin.text.Charsets.UTF_8.decode(text).toString()
+		b.position(end)
 		return v
 	}
 
@@ -538,28 +542,33 @@ class Pollable(
 	}
 }
 
+/** A completed native future, including one whose value is null. */
+class Ready(val value: Any?)
+
+/** A native future still waiting on its waker node. */
+class Pending(val raw: Long, val node: Long)
+
 /**
  * Await the future the call that returned [first] made and polled once with [signal]:
  * poll it until it finishes, then lift its result. A cancel frees it, which cancels it in
  * Rust and loses nothing.
  */
-suspend fun <T> await(
-	first: ByteArray,
+suspend fun await(
+	first: Any?,
 	signal: Signal,
-	poll: (Long, Long) -> ByteArray?,
+	poll: (Long, Long) -> Any?,
 	free: (Long) -> Unit,
-	lift: (Reader) -> T,
-): T {
-	val r = Reader(first)
-	if (r.bool()) return lift(r)
-	val raw = r.i64()
-	val node = r.i64()
+): Any? {
+	if (first is Ready) return first.value
+	val pending = first as Pending
+	val raw = pending.raw
+	val node = pending.node
 	try {
 		while (true) {
 			signal.park()
 			signal.reset()
 			val done = poll(raw, node)
-			if (done != null) return lift(Reader(done))
+			if (done != null) return (done as Ready).value
 		}
 	} finally {
 		free(raw)

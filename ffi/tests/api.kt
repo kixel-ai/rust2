@@ -1198,9 +1198,47 @@ fun uncollected(n: UInt, what: String) {
 	check(dropped() == n, what)
 }
 
+fun returns() {
+	val saved = returnValues(Mut(Point(0, 0)), false)
+	val completed = java.util.concurrent.atomic.AtomicInteger()
+	List(4) { thread {
+		repeat(64) { returnValues(Mut(Point(it, -it)), false); Counter.new("thread", it.toULong()).close(); completed.incrementAndGet() }
+	} }.forEach { it.join() }
+	check(completed.get() == 256, "all concurrent return calls completed")
+	check(saved.first == "hé🙂\u0000" && saved.third[1][9999].toUByte() == 15u.toUByte(), "a return owns its data after concurrent scratch reuse")
+	val point = Mut(Point(3, -5))
+	for (fail in listOf(false, true, false)) {
+		try {
+			val (text, widths, rows) = returnValues(point, fail)
+			val (a, b, c, d) = widths!!
+			println("values $text $a $b $c $d")
+			println("rows ${rows[0].size} ${rows[0][0].toUByte()} ${rows[0][1].toUByte()} ${rows[0][2].toUByte()} ${rows[1].size} ${rows[1][9999].toUByte()}")
+		} catch (e: ErrorException) { println("values error") }
+		println("point ${point.value.x} ${point.value.y}")
+	}
+	for (fail in listOf(false, true)) {
+		val counter = Counter.new("moved", ULong.MAX_VALUE)
+		try {
+			returnMoved(counter, fail).use { println("moved ${it.name()} ${it.get()}") }
+		} catch (e: ErrorException) { println("moved error") }
+		try { counter.get(); error("a moved counter was usable") } catch (_: IllegalStateException) {}
+	}
+	for (hex in listOf("ff0080fe", "bad")) {
+		try {
+			val value = fingerprint(hex)
+			println("array ${value[0].toUByte()} ${value[1].toUByte()} ${value[2].toUByte()} ${value[3].toUByte()}")
+		} catch (e: StringException) { println("array error") }
+	}
+	for (unit in listOf(true, false)) {
+		try { val (a, b) = corner(unit); println("corner $a $b") }
+		catch (e: ErrorException) { println("corner error") }
+	}
+}
+
 fun main(args: Array<String>) {
 	when {
 		args.isEmpty() -> script()
+		args[0] == "returns" -> returns()
 		args[0] == "futures" -> futures()
 		args[0] == "owned" -> owned()
 		else -> broken(args[0])

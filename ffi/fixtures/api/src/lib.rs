@@ -2692,3 +2692,25 @@ pub mod clash {
 		a + b
 	}
 }
+
+/// Changes both coordinates before returning mixed values or an error.
+pub fn return_values(
+	point: &mut Point,
+	fail: bool,
+) -> Result<(String, Option<(u8, i16, u32, u64)>, Vec<Vec<u8>>), Error> {
+	point.x += 1;
+	point.y -= 1;
+	if fail {
+		return Err(Error::Overflow);
+	}
+	Ok((
+		"hé🙂\0".to_string(),
+		Some(widths(u64::MAX)),
+		vec![vec![0, 128, 255], (0..=255).cycle().take(10000).collect()],
+	))
+}
+
+/// Moves the counter into the success value, or drops it on failure.
+pub fn return_moved(counter: Counter, fail: bool) -> Result<Counter, Error> {
+	if fail { Err(Error::Overflow) } else { Ok(counter) }
+}
