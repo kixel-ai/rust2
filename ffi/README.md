@@ -192,7 +192,7 @@ dropped for the other target's span where the file differs.
 ## The API lock
 
 Each export writes its API, merged across every target it serves, to `api.json` in `--out`,
-in the format `--api` writes. `--baseline file` fails the export, writing nothing, where its
+with the staged API and each binding's name table. `--baseline file` fails the export, writing nothing, where its
 API breaks the one in `file`, with an error at each item that names how:
 
 - an item removed, or no longer on one of the baseline's targets, and a target the baseline
@@ -214,8 +214,13 @@ API breaks the one in `file`, with an error at each item that names how:
 An item is known by its kind and Rust path, as `exclude` names it. An addition passes: a new
 item, method, trait impl, or a variant of a `#[non_exhaustive]` enum. A constant's value and
 an item's docs may change. The check runs once, on the API every language is generated from;
-it covers C's names, while a language's own names for a clash its generator renames are not
-compared.
+it compares C's names and the C++, Kotlin, Python, Swift, Go, and Dart generators' own
+public names. A clash that renames a kept class, function, or member reports its language
+and old and new names at the item's span. Staged `--api` files have no binding names; a
+baseline must be a complete export. An older baseline without name tables still has its
+structure checked, reporting each break before the error that it lacks names, so its
+re-export with this version accepts no break that check would have caught. A binding
+rename that follows from a C rename is reported once, as the C rename.
 
 The baseline is a lockfile, not config: the consumer commits it beside `Cargo.lock`, the
 export reads it only to compare, and the export is the same with or without it. It refuses a

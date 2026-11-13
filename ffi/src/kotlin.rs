@@ -35,6 +35,7 @@ pub const GLUE_RUNTIME: &str = include_str!("../runtime/jni.rs");
 /// What the generator writes: the Kotlin file, the Rust module of JNI functions, and the
 /// R8 and ProGuard rules keeping what that module looks up by name.
 pub struct Output {
+	pub names: BTreeMap<String, String>,
 	pub kotlin: String,
 	pub glue: String,
 	pub rules: String,
@@ -45,6 +46,7 @@ pub struct Output {
 /// glue add, as JNI's signatures and encodings change with no C declaration changing.
 pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, String> {
 	let mut g = Gen {
+		locked: BTreeMap::new(),
 		abi,
 		classes: abi.classes(|_| (String::new(), 0), taken),
 		types: String::new(),
@@ -69,6 +71,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 	for name in g.classes.values() {
 		g.names.insert(name.clone(), "a type".to_string());
 	}
+	g.locked = crate::lock::types(abi, &g.classes);
 	g.write();
 	if !g.errors.is_empty() {
 		return Err(g.errors.join("\n"));
@@ -194,7 +197,12 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		let _ = writeln!(rules, "\tstatic *** {name}(...);");
 	}
 	rules.push_str("}\n");
-	Ok(Output { kotlin, glue, rules })
+	Ok(Output {
+		names: g.locked,
+		kotlin,
+		glue,
+		rules,
+	})
 }
 
 /// What the glue calls on a `SeekableByteChannel` a function reads: at most `len` bytes,
@@ -415,6 +423,7 @@ struct Arg {
 }
 
 struct Gen<'a> {
+	locked: BTreeMap<String, String>,
 	abi: &'a Abi<'a>,
 	/// Each exported type's name, by its C name.
 	classes: HashMap<String, String>,
@@ -1020,6 +1029,8 @@ impl<'a> Gen<'a> {
 		}
 		for constant in &api.constants {
 			let name = self.bare(&abi.name(&constant.path)).to_uppercase();
+			self.locked
+				.insert(format!("const {}", constant.path.join("::")), name.clone());
 			let (ty, value) = match constant.value {
 				Literal::Bool(b) => ("Boolean".to_string(), b.to_string()),
 				Literal::Int(int, v) => (kt_int(int).to_string(), int_literal(int, v)),
@@ -1597,6 +1608,7 @@ impl<'a> Gen<'a> {
 		let mut members = Vec::new();
 		for (n, method) in callback.methods.iter().enumerate() {
 			let member = member(&abi::snake(method.name()), &[]);
+			crate::lock::function(&mut self.locked, method, &member);
 			members.push(format!("fun {member}"));
 			let params: Vec<String> = (method.params.iter().zip(locals(&method.params)))
 				.map(|(p, name)| format!("{name}: {}", self.kt_param(&p.ty)))
@@ -1841,10 +1853,12 @@ impl<'a> Gen<'a> {
 	fn exception(&mut self, e: &Type) -> String {
 		let kt = self.kt(e);
 		if let Some(name) = self.thrown.get(&kt) {
+			self.locked.insert(crate::lock::error_key(self.abi, e), name.clone());
 			return name.clone();
 		}
 		let name = format!("{}Exception", kt.replace(['?', '<', '>', ',', ' ', '.'], ""));
 		let name = self.claim(&name, format!("the exception of `{kt}`"));
+		self.locked.insert(crate::lock::error_key(self.abi, e), name.clone());
 		self.exceptions.insert(name.clone(), e.clone());
 		self.thrown.insert(kt, name.clone());
 		name
@@ -2330,6 +2344,8 @@ impl<'a> Gen<'a> {
 		while taken.contains(&format!("{kind} {member}")) {
 			member = format!("{}_", member.trim_matches('`'));
 		}
+		crate::lock::function(&mut self.locked, function, &member);
+
 		let (head, getter) = match property {
 			true => (format!("val {member}{ret}\n\tget()"), true),
 			false => (format!("{suspend}fun {member}({}){ret}", kt_params.join(", ")), false),
