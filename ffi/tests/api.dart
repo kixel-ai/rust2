@@ -596,6 +596,7 @@ Future<void> script() async {
       Uint32List.fromList([3]),
     ])}',
   );
+  print('least ${api.least([[3, 1], [], [2]]).join(' ')}');
   numbers('edges', api.Numbers.edges());
   numbers('reversed', api.Numbers.edges().reversed());
   final edges = api.Numbers.edges();

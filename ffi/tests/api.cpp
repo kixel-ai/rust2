@@ -946,6 +946,15 @@ int script() {
 
 	auto sums = api::sums({{1, 2}, {}, {3}});
 	std::printf("sums [%u, %u, %u]\n", sums[0], sums[1], sums[2]);
+	std::printf("least");
+	for (const auto &set : api::least({{3, 1}, {}, {2}})) {
+		std::printf(" [");
+		for (std::size_t j = 0; j < set.size(); j++) {
+			std::printf(j ? ", %u" : "%u", set[j]);
+		}
+		std::printf("]");
+	}
+	std::printf("\n");
 	numbers("edges", api::Numbers::edges());
 	numbers("reversed", api::Numbers::edges().reversed());
 	{

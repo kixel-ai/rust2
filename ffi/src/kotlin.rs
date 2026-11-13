@@ -472,13 +472,49 @@ impl<'a> Gen<'a> {
 		name
 	}
 
-	/// The Kotlin type of a tuple of `elements`.
-	fn tuple_of(&mut self, elements: Vec<String>) -> String {
+	/// The Kotlin class of a tuple of `elements`: `Pair` or `Triple`, unless an element
+	/// must compare by [`Gen::by_contents`], which theirs cannot, else a `TupleN`.
+	fn tuple_name(&self, elements: &[Type]) -> String {
 		match elements.len() {
-			2 => format!("kotlin.Pair<{}>", elements.join(", ")),
-			3 => format!("kotlin.Triple<{}>", elements.join(", ")),
-			n => format!("{}<{}>", self.tuple(n), elements.join(", ")),
+			2 | 3 if elements.iter().any(|e| self.by_contents(e)) => format!("Tuple{}", elements.len()),
+			2 => "kotlin.Pair".to_string(),
+			3 => "kotlin.Triple".to_string(),
+			n => format!("Tuple{n}"),
 		}
+	}
+
+	/// The Kotlin parameter value of the value `e` of type `ty` read back: bytes, which a
+	/// parameter takes as a `ByteArray`, copied out of each `Bytes` read, wherever they are.
+	fn to_param(&self, ty: &Type, e: &str) -> String {
+		match ty {
+			_ if !holds_bytes(ty) => e.to_string(),
+			Type::Slice | Type::Vec | Type::Bytes => format!("{e}.toByteArray()"),
+			Type::Box(inner) | Type::Ref(_, inner) => self.to_param(inner, e),
+			Type::Option(inner) => format!("{e}?.let {{ v -> {} }}", self.to_param(inner, "v")),
+			Type::List(_, inner) => format!("{e}.map {{ v -> {} }}", self.to_param(inner, "v")),
+			Type::Tuple(elements) => {
+				let converted: Vec<String> = (elements.iter().enumerate())
+					.map(|(k, ty)| self.to_param(ty, &format!("t.{}", ordinal(k))))
+					.collect();
+				let make = self.tuple_name(elements);
+				format!("{e}.let {{ t -> {make}({}) }}", converted.join(", "))
+			}
+			_ => e.to_string(),
+		}
+	}
+
+	/// [`Gen::tuple_name`], declaring the `TupleN` it names.
+	fn tuple_class(&mut self, elements: &[Type]) -> String {
+		let name = self.tuple_name(elements);
+		if !name.starts_with("kotlin.") {
+			self.tuple(elements.len());
+		}
+		name
+	}
+
+	/// The Kotlin type of a tuple of `elements`, whose Kotlin types are `kts`.
+	fn tuple_of(&mut self, elements: &[Type], kts: Vec<String>) -> String {
+		format!("{}<{}>", self.tuple_class(elements), kts.join(", "))
 	}
 
 	/// The Kotlin type of `ty` as a value, owning what it holds.
@@ -517,8 +553,8 @@ impl<'a> Gen<'a> {
 			}
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => self.class(&abi.range(ty)),
 			Type::Tuple(elements) => {
-				let elements: Vec<String> = elements.iter().map(|e| self.kt(e)).collect();
-				self.tuple_of(elements)
+				let kts: Vec<String> = elements.iter().map(|e| self.kt(e)).collect();
+				self.tuple_of(elements, kts)
 			}
 		}
 	}
@@ -534,8 +570,8 @@ impl<'a> Gen<'a> {
 			Type::Ref(_, inner) if ty.written() => format!("Mut<{}>", self.kt_param(inner)),
 			Type::Box(inner) | Type::Ref(_, inner) => self.kt_param(inner),
 			Type::Tuple(elements) => {
-				let elements: Vec<String> = elements.iter().map(|e| self.kt_param(e)).collect();
-				self.tuple_of(elements)
+				let kts: Vec<String> = elements.iter().map(|e| self.kt_param(e)).collect();
+				self.tuple_of(elements, kts)
 			}
 			_ => self.kt(ty),
 		}
@@ -669,11 +705,7 @@ impl<'a> Gen<'a> {
 			Type::Range(_) | Type::Bound(_) | Type::Bounds(_) => format!("r_{}({r})", abi.range(ty)),
 			Type::Tuple(elements) => {
 				let read: Vec<String> = elements.iter().map(|e| self.read(e, r, owned)).collect();
-				match read.len() {
-					2 => format!("kotlin.Pair({})", read.join(", ")),
-					3 => format!("kotlin.Triple({})", read.join(", ")),
-					n => format!("{}({})", self.tuple(n), read.join(", ")),
-				}
+				format!("{}({})", self.tuple_class(elements), read.join(", "))
 			}
 			other => unreachable!("{other:?} is never decoded"),
 		}
@@ -2008,7 +2040,7 @@ impl<'a> Gen<'a> {
 			// What Rust wrote back comes first, read whether or not the call failed.
 			for (name, ty) in &written {
 				let read = self.read_value(ty, &r);
-				lines.push(format!("{name}.value = {}", to_param(ty, &read)));
+				lines.push(format!("{name}.value = {}", self.to_param(ty, &read)));
 			}
 			lines.extend(self.lift_result(&ok, err.as_ref(), exception.as_deref(), &r));
 			value = match lines.is_empty() {
@@ -2237,30 +2269,6 @@ impl<'a> Gen<'a> {
 	}
 }
 
-/// The Kotlin parameter value of the value `e` of type `ty` read back: bytes, which a
-/// parameter takes as a `ByteArray`, copied out of each `Bytes` read, wherever they are.
-fn to_param(ty: &Type, e: &str) -> String {
-	match ty {
-		_ if !holds_bytes(ty) => e.to_string(),
-		Type::Slice | Type::Vec | Type::Bytes => format!("{e}.toByteArray()"),
-		Type::Box(inner) | Type::Ref(_, inner) => to_param(inner, e),
-		Type::Option(inner) => format!("{e}?.let {{ v -> {} }}", to_param(inner, "v")),
-		Type::List(_, inner) => format!("{e}.map {{ v -> {} }}", to_param(inner, "v")),
-		Type::Tuple(elements) => {
-			let converted: Vec<String> = (elements.iter().enumerate())
-				.map(|(k, ty)| to_param(ty, &format!("t.{}", ordinal(k))))
-				.collect();
-			let make = match elements.len() {
-				2 => "kotlin.Pair".to_string(),
-				3 => "kotlin.Triple".to_string(),
-				n => format!("Tuple{n}"),
-			};
-			format!("{e}.let {{ t -> {make}({}) }}", converted.join(", "))
-		}
-		_ => e.to_string(),
-	}
-}
-
 /// How a block of numbers crosses: as Kotlin's primitive array of its element.
 struct Block {
 	/// The JNI array type.
@@ -2323,11 +2331,18 @@ fn block(elem: &Type) -> Block {
 
 /// The `equals` and `hashCode` of the class `name` of `fields`, by their contents.
 fn contents(name: &str, fields: &[String]) -> String {
-	let same: Vec<String> = fields.iter().map(|f| format!("Native.same({f}, other.{f})")).collect();
+	let same: Vec<String> = fields
+		.iter()
+		.map(|f| format!("Native.same(this.{f}, other.{f})"))
+		.collect();
 	format!(
 		"\toverride fun equals(other: Any?): Boolean = other is {name} && {}\n\n\toverride fun hashCode(): Int = Native.hash(kotlin.collections.listOf<Any?>({}))\n",
 		same.join(" && "),
-		fields.join(", ")
+		fields
+			.iter()
+			.map(|f| format!("this.{f}"))
+			.collect::<Vec<_>>()
+			.join(", ")
 	)
 }
 

@@ -2234,6 +2234,23 @@ pub fn sums(rows: Vec<Vec<u32>>) -> Vec<u32> {
 	rows.iter().map(|row| row.iter().sum()).collect()
 }
 
+/// Each set's least item, from sets, which no block holds, nested as `sums`' rows are.
+pub fn least(sets: Vec<std::collections::BTreeSet<u32>>) -> Vec<std::collections::BTreeSet<u32>> {
+	sets.into_iter().map(|set| set.into_iter().take(1).collect()).collect()
+}
+
+/// `items` without its last, beside that last, or 0 when empty: a tuple holding a block.
+pub fn split_last(mut items: Vec<i32>) -> (Vec<i32>, u32) {
+	let last = items.pop().unwrap_or(0);
+	(items, last.unsigned_abs())
+}
+
+/// A record whose field takes the name a language's `equals` gives its argument.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Shadowed {
+	pub other: Vec<i32>,
+}
+
 /// A list of each fixed-width integer and float type, each crossing as one block.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Numbers {

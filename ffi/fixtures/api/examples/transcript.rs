@@ -616,6 +616,15 @@ fn main() {
 	);
 	println!("less {}", api::less(5, 2));
 	println!("sums {:?}", api::sums(vec![vec![1, 2], Vec::new(), vec![3]]));
+	let least = api::least(vec![[3, 1].into(), Default::default(), [2].into()]);
+	println!(
+		"least {}",
+		least
+			.iter()
+			.map(|set| format!("{:?}", set.iter().collect::<Vec<_>>()))
+			.collect::<Vec<_>>()
+			.join(" ")
+	);
 	numbers("edges", &api::Numbers::edges());
 	numbers("reversed", &api::Numbers::edges().reversed());
 	let edges = api::Numbers::edges();

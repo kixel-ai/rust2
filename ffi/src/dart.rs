@@ -930,11 +930,9 @@ impl<'a> Gen<'a> {
 
 	/// The function writing a Dart value of type `ty` into the C struct `c`.
 	fn writer(&mut self, c: &str, ty: &Type) -> String {
-		// A block's C array is also a list of items', as a set's of the same numbers is.
-		let name = match ty.block() {
-			Some(_) => format!("_wb_{c}"),
-			None => format!("_w_{c}"),
-		};
+		// One C struct serves types told apart by which lists are blocks, which Dart holds
+		// differently, such as `Vec<Vec<u32>>` and `Vec<BTreeSet<u32>>`.
+		let name = format!("_w{}_{c}", ty.shape());
 		if self.helpers.contains_key(&name) {
 			return name;
 		}
@@ -1044,10 +1042,7 @@ impl<'a> Gen<'a> {
 	/// The function reading a Dart value of type `ty` out of the C struct `c`, owning what
 	/// it holds.
 	fn reader(&mut self, c: &str, ty: &Type) -> String {
-		let name = match ty.block() {
-			Some(_) => format!("_rb_{c}"),
-			None => format!("_r_{c}"),
-		};
+		let name = format!("_r{}_{c}", ty.shape());
 		if self.helpers.contains_key(&name) {
 			return name;
 		}

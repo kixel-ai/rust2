@@ -1440,6 +1440,20 @@ static int script(void) {
 	api_vec_u32 sums = api_sums((api_vec_vec_u32){.ptr = rows, .len = 3});
 	printf("sums [%u, %u, %u]\n", sums.ptr[0], sums.ptr[1], sums.ptr[2]);
 	api_vec_u32_free(sums);
+	uint32_t set0[] = {3, 1};
+	uint32_t set2[] = {2};
+	api_vec_u32 sets[] = {{.ptr = set0, .len = 2}, {.ptr = set0, .len = 0}, {.ptr = set2, .len = 1}};
+	api_vec_vec_u32 least = api_least((api_vec_vec_u32){.ptr = sets, .len = 3});
+	printf("least");
+	for (size_t i = 0; i < least.len; i++) {
+		printf(" [");
+		for (size_t j = 0; j < least.ptr[i].len; j++) {
+			printf(j ? ", %u" : "%u", least.ptr[i].ptr[j]);
+		}
+		printf("]");
+	}
+	printf("\n");
+	api_vec_vec_u32_free(least);
 	api_Numbers edges = api_Numbers_edges();
 	numbers("edges", &edges);
 	api_Numbers reversed = api_Numbers_reversed(&edges);

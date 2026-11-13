@@ -687,6 +687,11 @@ func script() {
 	fmt.Printf("boxed Some(%q) %s %t\n", *must(api.BoxedName(api.BoxedCounter(&b))), unnamed, api.BoxedCounter(nil) == nil)
 	fmt.Printf("less %d\n", api.Less(5, 2))
 	fmt.Printf("sums %s\n", list(api.Sums([][]uint32{{1, 2}, {}, {3}}), number))
+	var leastSets []string
+	for _, set := range api.Least([][]uint32{{3, 1}, {}, {2}}) {
+		leastSets = append(leastSets, list(set, number))
+	}
+	fmt.Printf("least %s\n", strings.Join(leastSets, " "))
 	numbers("edges", api.NumbersEdges())
 	numbers("reversed", api.NumbersEdges().Reversed())
 	floatEdges := api.NumbersEdges()

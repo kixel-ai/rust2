@@ -595,6 +595,7 @@ def script():
 	print(f"less {api.less(5, 2)}")
 	rows = [array.array("I", [1, 2]), array.array("I"), memoryview(struct.pack("=I", 3)).cast("I")]
 	print(f"sums {api.sums(rows).tolist()}")
+	print("least " + " ".join(str(s) for s in api.least([{3, 1}, set(), [2]])))
 	numbers("edges", api.Numbers.edges())
 	numbers("reversed", api.Numbers.edges().reversed())
 	edges = api.Numbers.edges()

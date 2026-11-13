@@ -657,6 +657,7 @@ func script() {
 	print("boxed \(boxedName(boxedCounter("b")).map { "Some(\"\($0)\")" } ?? "None") \(boxedName(nil) ?? "None") \(boxedCounter(nil) == nil)")
 	print("less \(less(5, 2))")
 	print("sums \(sums([[1, 2], [], [3]]))")
+	print("least \(least([[3, 1], [], [2]]).map { "\($0)" }.joined(separator: " "))")
 	numbers("edges", Numbers.edges())
 	numbers("reversed", Numbers.edges().reversed())
 	let edges = Numbers.edges()

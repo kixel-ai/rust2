@@ -625,6 +625,36 @@ impl Type {
 		}
 	}
 
+	/// Which lists this type holds are blocks, outermost first: `b` for a block, `l` for
+	/// another list, and `t` and `e` around a tuple's elements; empty when none is a block.
+	/// One C struct serves types that differ only there, such as `Vec<Vec<u32>>` and
+	/// `Vec<BTreeSet<u32>>`, which a language may hold differently, so a helper per C struct
+	/// adds it to its name.
+	pub fn shape(&self) -> String {
+		fn walk(ty: &Type, s: &mut String) {
+			match ty {
+				Type::List(..) if ty.block().is_some() => s.push('b'),
+				Type::List(_, inner) => {
+					s.push('l');
+					walk(inner, s);
+				}
+				Type::Option(inner) | Type::Box(inner) | Type::Ref(_, inner) => walk(inner, s),
+				Type::Tuple(elements) => {
+					s.push('t');
+					elements.iter().for_each(|e| walk(e, s));
+					s.push('e');
+				}
+				_ => {}
+			}
+		}
+		let mut s = String::new();
+		walk(self, &mut s);
+		match s.contains('b') {
+			true => s,
+			false => String::new(),
+		}
+	}
+
 	/// What the buffer C passes for this type holds, in whatever form Rust takes it: a
 	/// string, bytes, or a path, or an `Option` of one, which C passes as a null buffer.
 	pub fn buffer(&self) -> Option<Type> {

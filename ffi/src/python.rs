@@ -115,6 +115,7 @@ pub fn generate(abi: &Abi<'_>, packages: &str, contract: u64) -> Result<Output, 
 		types: RUNTIME_TYPES.iter().map(|t| t.to_string()).collect(),
 		index: BTreeMap::new(),
 		keys: BTreeSet::new(),
+		helpers: BTreeSet::new(),
 		exceptions: BTreeMap::new(),
 		thrown: HashMap::new(),
 		names: BTreeMap::new(),
@@ -373,6 +374,8 @@ struct Gen<'a> {
 	index: BTreeMap<String, usize>,
 	/// The attribute names the glue reads and sets.
 	keys: BTreeSet<String>,
+	/// The list, option, and tuple helpers written, by the name [`Gen::helper`] gives them.
+	helpers: BTreeSet<String>,
 	/// The exception class of each error type, by name.
 	exceptions: BTreeMap<String, Type>,
 	/// Each exception class's name, by the name it would take but for a clash.
@@ -531,7 +534,7 @@ impl<'a> Gen<'a> {
 			Type::Duration => format!("rt::duration_in({o})"),
 			Type::SocketAddr(family) => format!("rt::addr_in({o}, {})", family_of(*family)),
 			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_in::<{}>({o}, s)", number(inner)),
-			Type::List(..) => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
+			Type::List(..) => format!("r_{}({o}, s, {m})", self.helper(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => {
 					let m = match abi.api.objects[*i].copy || matches!(**inner, Type::Ref(..)) {
@@ -548,7 +551,7 @@ impl<'a> Gen<'a> {
 					let some = self.lift(inner, o, m);
 					format!("(if rt::is_none({o}) {{ Ok(crate::rt::List::NONE) }} else {{ {some} }})")
 				}
-				_ => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
+				_ => format!("r_{}({o}, s, {m})", self.helper(ty)),
 			},
 			Type::Box(inner) => self.lift(inner, o, m),
 			Type::Ref(_, inner) => self.lift(inner, o, "false"),
@@ -584,7 +587,7 @@ impl<'a> Gen<'a> {
 			Type::Future => format!("rt::future_in({o}, s)"),
 			Type::Range(int) => format!("rt::range_in::<{}>({o})", int.rust()),
 			Type::Bound(_) | Type::Bounds(_) => format!("r_{}({o}, s)", abi.range(ty)),
-			Type::Tuple(_) => format!("r_{}({o}, s, {m})", self.c_struct(ty)),
+			Type::Tuple(_) => format!("r_{}({o}, s, {m})", self.helper(ty)),
 			Type::Unit | Type::Closure(..) => unreachable!("{ty:?} is no value Python passes"),
 		}
 	}
@@ -609,7 +612,7 @@ impl<'a> Gen<'a> {
 			Type::Duration => format!("rt::duration_out({v})"),
 			Type::SocketAddr(_) => format!("rt::addr_out({v})"),
 			Type::List(_, inner) if ty.block().is_some() => format!("rt::block_out::<{}>({v})", number(inner)),
-			Type::List(..) => format!("w_{}({v})", self.c_struct(ty)),
+			Type::List(..) => format!("w_{}({v})", self.helper(ty)),
 			Type::Option(inner) => match inner.base() {
 				Type::Object(i) => format!(
 					"rt::object_opt({v}, {}, crate::{}_free)",
@@ -620,7 +623,7 @@ impl<'a> Gen<'a> {
 					let some = self.lower(inner, "v");
 					format!("{{ let v = {v}; if v.is_none() {{ rt::none() }} else {{ {some} }} }}")
 				}
-				_ => format!("w_{}({v})", self.c_struct(ty)),
+				_ => format!("w_{}({v})", self.helper(ty)),
 			},
 			Type::Box(inner) | Type::Ref(_, inner) => self.lower(inner, v),
 			Type::Record(_) => format!("w_{}({v})", self.c_struct(ty)),
@@ -639,7 +642,7 @@ impl<'a> Gen<'a> {
 				format!("{{ let r = {v}; rt::range_out({start}, {end}) }}")
 			}
 			Type::Bound(_) | Type::Bounds(_) => format!("w_{}({v})", abi.range(ty)),
-			Type::Tuple(_) => format!("w_{}({v})", self.c_struct(ty)),
+			Type::Tuple(_) => format!("w_{}({v})", self.helper(ty)),
 			Type::Waker => format!("rt::waker_out({v})"),
 			Type::Callback(..) | Type::Closure(..) | Type::Future | Type::Reader => {
 				unreachable!("{ty:?} is no value Rust returns")
@@ -669,12 +672,6 @@ impl<'a> Gen<'a> {
 		for (c, ty) in &abi.ranges.clone() {
 			self.range(c, ty);
 		}
-		for (c, inner) in &abi.options.clone() {
-			self.option(c, inner);
-		}
-		for (c, elements) in &abi.tuples.clone() {
-			self.tuple(c, elements);
-		}
 		for (c, n) in &abi.arrays {
 			let name = Abi::array_class(*n);
 			self.register(c, name.clone());
@@ -682,9 +679,6 @@ impl<'a> Gen<'a> {
 				self.py,
 				"class {name}(_bytes):\n\t\"\"\"A Rust `[u8; {n}]`: exactly {n} bytes.\"\"\"\n\n\t__slots__ = ()\n\n\tdef __new__(cls, value: {BUFFER}) -> _typing.Self:\n\t\tself = _bytes.__new__(cls, value)\n\t\tif _len(self) != {n}:\n\t\t\traise _ValueError(f\"{{_len(self)}} bytes, not {n}\")\n\t\treturn self\n\n\n"
 			);
-		}
-		for (c, elem) in &abi.lists.clone() {
-			self.list(c, elem);
 		}
 		for constant in &api.constants {
 			let name = self.bare(&abi.name(&constant.path)).to_uppercase();
@@ -790,19 +784,40 @@ impl<'a> Gen<'a> {
 		);
 	}
 
+	/// The name of the `r_` and `w_` glue of `ty`, a list, option, or tuple struct, written
+	/// the first time: its C struct's, with which lists it holds are blocks, since one C
+	/// struct serves types a block tells apart, as `Vec<Vec<u32>>` and `Vec<BTreeSet<u32>>`.
+	fn helper(&mut self, ty: &Type) -> String {
+		let ty = strip_refs(ty);
+		let c = self.c_struct(&ty);
+		let name = match ty.shape() {
+			shape if shape.is_empty() => c.clone(),
+			shape => format!("{c}_{shape}"),
+		};
+		if self.helpers.insert(name.clone()) {
+			match &ty {
+				Type::List(_, elem) => self.list(&c, &name, elem),
+				Type::Option(inner) => self.option(&c, &name, inner),
+				Type::Tuple(elements) => self.tuple(&c, &name, elements),
+				other => unreachable!("{other:?} has no helper"),
+			}
+		}
+		name
+	}
+
 	/// The glue of an option struct.
-	fn option(&mut self, c: &str, inner: &Type) {
+	fn option(&mut self, c: &str, name: &str, inner: &Type) {
 		let read = self.lift(inner, "o", "m");
 		let write = self.lower(inner, "v.value");
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\tmatch rt::is_none(o) {{\n\t\ttrue => Ok(crate::{c} {{ some: false, value: unsafe {{ std::mem::zeroed() }} }}),\n\t\tfalse => Ok(crate::{c} {{ some: true, value: {}? }}),\n\t}}\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\tmatch v.some {{\n\t\ttrue => {write},\n\t\tfalse => rt::none(),\n\t}}\n}}\n\n",
+			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\tmatch rt::is_none(o) {{\n\t\ttrue => Ok(crate::{c} {{ some: false, value: unsafe {{ std::mem::zeroed() }} }}),\n\t\tfalse => Ok(crate::{c} {{ some: true, value: {}? }}),\n\t}}\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\tmatch v.some {{\n\t\ttrue => {write},\n\t\tfalse => rt::none(),\n\t}}\n}}\n\n",
 			read
 		);
 	}
 
 	/// The glue of a tuple struct, element by element.
-	fn tuple(&mut self, c: &str, elements: &[Type]) {
+	fn tuple(&mut self, c: &str, name: &str, elements: &[Type]) {
 		let n = elements.len();
 		let mut reads = Vec::new();
 		let mut fields = Vec::new();
@@ -815,7 +830,7 @@ impl<'a> Gen<'a> {
 		}
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\t{}\n\tOk(crate::{c} {{ {} }})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::tuple(vec![{}])\n}}\n\n",
+			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\t{}\n\tOk(crate::{c} {{ {} }})\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\trt::tuple(vec![{}])\n}}\n\n",
 			reads.join("\n\t"),
 			fields.join(", "),
 			writes.join(", ")
@@ -823,12 +838,12 @@ impl<'a> Gen<'a> {
 	}
 
 	/// The glue of a `Vec`'s array.
-	fn list(&mut self, c: &str, elem: &Type) {
+	fn list(&mut self, c: &str, name: &str, elem: &Type) {
 		let read = self.lift(elem, "o", "m");
 		let write = self.lower(elem, "e");
 		let _ = write!(
 			self.glue,
-			"fn r_{c}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\trt::list_in(o, s, |o, s| {read})\n}}\n\nfn w_{c}(v: crate::{c}) -> R<Obj> {{\n\trt::list_out(v, |e| {write})\n}}\n\n"
+			"fn r_{name}(o: *mut PyObject, s: &mut rt::Scope, m: bool) -> R<crate::{c}> {{\n\trt::list_in(o, s, |o, s| {read})\n}}\n\nfn w_{name}(v: crate::{c}) -> R<Obj> {{\n\trt::list_out(v, |e| {write})\n}}\n\n"
 		);
 	}
 

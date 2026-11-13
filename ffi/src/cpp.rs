@@ -861,14 +861,15 @@ impl<'a> Header<'a> {
 				let mut members = fields.clone();
 				let t = record.traits;
 				if t.eq {
+					// Its argument ends in `_`, as generated names do, since a field may be `other`.
 					body.push(format!(
-						"\tbool operator==(const {name} &other) const;\n\tbool operator!=(const {name} &other) const {{\n\t\treturn !(*this == other);\n\t}}"
+						"\tbool operator==(const {name} &other_) const;\n\tbool operator!=(const {name} &other_) const {{\n\t\treturn !(*this == other_);\n\t}}"
 					));
 					self.def(format!(
-						"inline bool {name}::operator==(const {name} &other) const {{\n{}\tauto c_a_ = {};\n\tauto c_b_ = {};\n\treturn ::{c}_eq(&c_a_, &c_b_);\n}}\n",
+						"inline bool {name}::operator==(const {name} &other_) const {{\n{}\tauto c_a_ = {};\n\tauto c_b_ = {};\n\treturn ::{c}_eq(&c_a_, &c_b_);\n}}\n",
 						self.scope([ty]),
 						self.lower(ty, "*this"),
-						self.lower(ty, "other"),
+						self.lower(ty, "other_"),
 					));
 				}
 				self.traits(&name, &c, t, Some(ty), &mut body, &mut members);
