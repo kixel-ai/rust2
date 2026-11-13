@@ -3,7 +3,10 @@
 //! and, shrunk by R8, on Android, from Python by `tests/api.py`, from Swift by
 //! `tests/api.swift`, from Go by `tests/api.go`, and from Dart by `tests/api.dart`, whose
 //! transcripts must match the fixture's own script run natively.
-//! The reject fixture's export must fail at each item it cannot export.
+//! The reject fixture's export must fail at each item it cannot export, and generated
+//! type shapes round-trip in every language ([`shapes`]).
+
+mod shapes;
 
 use std::env::consts::EXE_SUFFIX;
 use std::ffi::OsString;
