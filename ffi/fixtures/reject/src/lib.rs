@@ -973,8 +973,8 @@ pub unsafe fn raw(x: u32) -> u32 {
 }
 
 /// A C-variadic definition, whose variadic arguments C would silently drop.
-pub unsafe extern "C" fn sum(n: u32, mut args: ...) -> u32 {
-	(0..n).map(|_| unsafe { args.arg::<u32>() }).sum()
+pub unsafe extern "C" fn sum(n: u32, _args: ...) -> u32 {
+	n
 }
 
 /// A custom-ABI function, which nothing can call from Rust.
@@ -987,6 +987,11 @@ pub unsafe extern "custom" fn custom() {
 pub struct Raw;
 
 impl Raw {
+	/// A value to call it on.
+	pub fn new() -> Self {
+		Self
+	}
+
 	/// An `unsafe` inherent method.
 	pub unsafe fn peek(&self) -> u32 {
 		0
@@ -994,18 +999,21 @@ impl Raw {
 }
 
 /// An `unsafe trait`, which foreign code would implement without upholding its contract.
-pub unsafe trait Trusted {
-	/// A method of it.
+pub unsafe trait Trusted: Send + Sync {
 	fn get(&self) -> u32;
 }
 
 /// A trait with an `unsafe` method.
-pub trait Risky {
-	/// An `unsafe` trait method.
+pub trait Hazard: Send + Sync {
 	unsafe fn risk(&self) -> u32;
 }
 
-/// Takes each trait, so its foreign implementation is exported.
-pub fn trust(trusted: &dyn Trusted, risky: &dyn Risky) -> u32 {
-	trusted.get() + unsafe { risky.risk() }
+/// Takes the `unsafe trait`, so its foreign implementation would be exported.
+pub fn trust(trusted: Box<dyn Trusted>) -> u32 {
+	trusted.get()
+}
+
+/// Takes the trait with an `unsafe` method.
+pub fn hazard(hazard: Box<dyn Hazard>) -> u32 {
+	unsafe { hazard.risk() }
 }

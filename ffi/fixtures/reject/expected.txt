@@ -1,3 +1,7 @@
+fixtures/reject/src/lib.rs:1012:1: rust2-ffi: cannot export fn `trust`: trait object `dyn Trusted`; exclude it in the config to leave it out
+	fixtures/reject/src/lib.rs:1002:1: note: C cannot implement `Trusted`: unsafe trait
+fixtures/reject/src/lib.rs:1017:1: rust2-ffi: cannot export fn `hazard`: trait object `dyn Hazard`; exclude it in the config to leave it out
+	fixtures/reject/src/lib.rs:1007:1: note: C cannot implement `Hazard`: unsafe fn
 fixtures/reject/src/lib.rs:106:2: rust2-ffi: cannot export method `Text::later`: returned object that borrows `impl std::future::Future<Output = Text<'_>>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:112:1: rust2-ffi: cannot export fn `forever`: 'static borrow `&'static [u8]`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:118:1: rust2-ffi: cannot export fn `boxed`: reference inside a parameter `std::boxed::Box<&str>`; exclude it in the config to leave it out
@@ -105,7 +109,6 @@ fixtures/reject/src/lib.rs:861:2: rust2-ffi: cannot export method `Keeper::check
 fixtures/reject/src/lib.rs:872:9: rust2-ffi: cannot export use `dep`: re-export of a whole crate `dep`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:875:9: rust2-ffi: cannot export use `renamed`: re-export of a whole crate `dep`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:886:2: rust2-ffi: cannot export method `Tally::poll_bump`: `&mut self` of a value; exclude it in the config to leave it out
-fixtures/reject/src/lib.rs:906:1: rust2-ffi: cannot export fn `poll_risky`: Poll with no Context or waiter parameter `std::task::Poll<()>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:922:1: rust2-ffi: cannot export fn `poll_loose`: Poll with no Context or waiter parameter `std::task::Poll<()>`; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:929:1: rust2-ffi: cannot export fn `among`: 3 optional borrowed objects, past the 2 Swift takes, which overloads each with and without it since its optional holds an object only by consuming it; exclude it in the config to leave it out
 fixtures/reject/src/lib.rs:935:1: rust2-ffi: cannot export fn `wrapped`: error holding an object Swift cannot copy, as `Swift.Error` requires; exclude it in the config to leave it out
@@ -117,3 +120,7 @@ fixtures/reject/src/lib.rs:958:1: rust2-ffi: cannot export enum `Huge`: discrimi
 	fixtures/reject/src/lib.rs:960:2: note: has this discriminant
 fixtures/reject/src/lib.rs:965:1: rust2-ffi: cannot export enum `Top`: discriminant outside `i32` `Large = 340282366920938463463374607431768211455`; exclude it in the config to leave it out
 	fixtures/reject/src/lib.rs:967:2: note: has this discriminant
+fixtures/reject/src/lib.rs:971:1: rust2-ffi: cannot export fn `raw`: unsafe fn; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:976:1: rust2-ffi: cannot export fn `sum`: C-variadic function; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:982:1: rust2-ffi: cannot export fn `custom`: custom ABI; exclude it in the config to leave it out
+fixtures/reject/src/lib.rs:996:2: rust2-ffi: cannot export method `Raw::peek`: unsafe fn; exclude it in the config to leave it out
